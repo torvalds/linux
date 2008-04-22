@@ -5266,6 +5266,9 @@ int saa7134_tuner_callback(void *priv, int command, int arg)
 		case TUNER_XC2028:
 			return saa7134_xc2028_callback(dev, command, arg);
 		}
+	} else {
+		printk(KERN_ERR "saa7134: Error - device struct undefined.\n");
+		return -EINVAL;
 	}
 	return -EINVAL;
 }

@@ -2090,11 +2090,9 @@ static void gdi_eeprom(struct cx88_core *core, u8 *eeprom_data)
 
 /* ------------------------------------------------------------------- */
 /* some Divco specific stuff                                           */
-static int cx88_dvico_xc2028_callback(void *priv, int command, int arg)
+static int cx88_dvico_xc2028_callback(struct cx88_core *core,
+				      int command, int arg)
 {
-	struct i2c_algo_bit_data *i2c_algo = priv;
-	struct cx88_core *core = i2c_algo->data;
-
 	switch (command) {
 	case XC2028_TUNER_RESET:
 		cx_write(MO_GP0_IO, 0x101000);
@@ -2112,11 +2110,9 @@ static int cx88_dvico_xc2028_callback(void *priv, int command, int arg)
 /* ----------------------------------------------------------------------- */
 /* some Geniatech specific stuff                                           */
 
-static int cx88_xc3028_geniatech_tuner_callback(void *priv, int command, int mode)
+static int cx88_xc3028_geniatech_tuner_callback(struct cx88_core *core,
+						int command, int mode)
 {
-	struct i2c_algo_bit_data *i2c_algo = priv;
-	struct cx88_core *core = i2c_algo->data;
-
 	switch (command) {
 	case XC2028_TUNER_RESET:
 		switch (INPUT(core->input).type) {
@@ -2143,11 +2139,9 @@ static int cx88_xc3028_geniatech_tuner_callback(void *priv, int command, int mod
 
 /* ------------------------------------------------------------------- */
 /* some Divco specific stuff                                           */
-static int cx88_pv_8000gt_callback(void *priv, int command, int arg)
+static int cx88_pv_8000gt_callback(struct cx88_core *core,
+				   int command, int arg)
 {
-	struct i2c_algo_bit_data *i2c_algo = priv;
-	struct cx88_core *core = i2c_algo->data;
-
 	switch (command) {
 	case XC2028_TUNER_RESET:
 		cx_write(MO_GP2_IO, 0xcf7);
@@ -2198,21 +2192,20 @@ static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
 	}
 }
 
-static int cx88_xc2028_tuner_callback(void *priv, int command, int arg)
+static int cx88_xc2028_tuner_callback(struct cx88_core *core,
+				      int command, int arg)
 {
-	struct i2c_algo_bit_data *i2c_algo = priv;
-	struct cx88_core *core = i2c_algo->data;
-
 	/* Board-specific callbacks */
 	switch (core->boardnr) {
 	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
 	case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
 	case CX88_BOARD_GENIATECH_X8000_MT:
-		return cx88_xc3028_geniatech_tuner_callback(priv, command, arg);
+		return cx88_xc3028_geniatech_tuner_callback(core,
+							command, arg);
 	case CX88_BOARD_PROLINK_PV_8000GT:
-		return cx88_pv_8000gt_callback(priv, command, arg);
+		return cx88_pv_8000gt_callback(core, command, arg);
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
-		return cx88_dvico_xc2028_callback(priv, command, arg);
+		return cx88_dvico_xc2028_callback(core, command, arg);
 	}
 
 	switch (command) {
@@ -2246,11 +2239,9 @@ static int cx88_xc2028_tuner_callback(void *priv, int command, int arg)
  * PCTV HD 800i with an xc5000 sillicon tuner. This is used for both	   *
  * analog tuner attach (tuner-core.c) and dvb tuner attach (cx88-dvb.c)    */
 
-static int cx88_xc5000_tuner_callback(void *priv, int command, int arg)
+static int cx88_xc5000_tuner_callback(struct cx88_core *core,
+				      int command, int arg)
 {
-	struct i2c_algo_bit_data *i2c_algo = priv;
-	struct cx88_core *core = i2c_algo->data;
-
 	switch (core->boardnr) {
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 		if (command == 0) { /* This is the reset command from xc5000 */
@@ -2284,15 +2275,27 @@ static int cx88_xc5000_tuner_callback(void *priv, int command, int arg)
 int cx88_tuner_callback(void *priv, int command, int arg)
 {
 	struct i2c_algo_bit_data *i2c_algo = priv;
-	struct cx88_core *core = i2c_algo->data;
+	struct cx88_core *core;
+
+	if (!i2c_algo) {
+		printk(KERN_ERR "cx88: Error - i2c private data undefined.\n");
+		return -EINVAL;
+	}
+
+	core = i2c_algo->data;
+
+	if (!core) {
+		printk(KERN_ERR "cx88: Error - device struct undefined.\n");
+		return -EINVAL;
+	}
 
 	switch (core->board.tuner_type) {
 		case TUNER_XC2028:
 			info_printk(core, "Calling XC2028/3028 callback\n");
-			return cx88_xc2028_tuner_callback(priv, command, arg);
+			return cx88_xc2028_tuner_callback(core, command, arg);
 		case TUNER_XC5000:
 			info_printk(core, "Calling XC5000 callback\n");
-			return cx88_xc5000_tuner_callback(priv, command, arg);
+			return cx88_xc5000_tuner_callback(core, command, arg);
 	}
 	err_printk(core, "Error: Calling callback for tuner %d\n",
 		   core->board.tuner_type);
