@@ -17,9 +17,21 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
+#define TUNER_SIMPLE_MAX 64
+static unsigned int simple_devcount;
+
 static int offset;
 module_param(offset, int, 0664);
 MODULE_PARM_DESC(offset, "Allows to specify an offset for tuner");
+
+static unsigned int atv_input[TUNER_SIMPLE_MAX] = \
+			{ [0 ... (TUNER_SIMPLE_MAX-1)] = 0 };
+static unsigned int dtv_input[TUNER_SIMPLE_MAX] = \
+			{ [0 ... (TUNER_SIMPLE_MAX-1)] = 0 };
+module_param_array(atv_input, int, NULL, 0644);
+module_param_array(dtv_input, int, NULL, 0644);
+MODULE_PARM_DESC(atv_input, "specify atv rf input, 0 for autoselect");
+MODULE_PARM_DESC(dtv_input, "specify dtv rf input, 0 for autoselect");
 
 /* ---------------------------------------------------------------------- */
 
@@ -92,6 +104,7 @@ static DEFINE_MUTEX(tuner_simple_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
 
 struct tuner_simple_priv {
+	unsigned int nr;
 	u16 last_div;
 
 	struct tuner_i2c_props i2c_props;
@@ -364,7 +377,6 @@ static int simple_std_setup(struct dvb_frontend *fe,
 		*cb &= ~0x03;
 		if (!(params->std & V4L2_STD_ATSC))
 			*cb |= 2;
-		/* FIXME: input */
 		break;
 
 	case TUNER_MICROTUNE_4042FI5:
@@ -396,10 +408,11 @@ static int simple_std_setup(struct dvb_frontend *fe,
 			tuner_warn("i2c i/o error: rc == %d "
 				   "(should be 2)\n", rc);
 		priv->i2c_props.addr = tuneraddr;
-		/* FIXME: input */
 		break;
 	}
 	}
+	if (atv_input[priv->nr])
+		simple_set_rf_input(fe, config, cb, atv_input[priv->nr]);
 
 	return 0;
 }
@@ -770,16 +783,19 @@ static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
 	{
 		unsigned int new_rf;
 
-		switch (params->u.vsb.modulation) {
-		case QAM_64:
-		case QAM_256:
-			new_rf = 1;
-			break;
-		case VSB_8:
-		default:
-			new_rf = 0;
-			break;
-		}
+		if (dtv_input[priv->nr])
+			new_rf = dtv_input[priv->nr];
+		else
+			switch (params->u.vsb.modulation) {
+			case QAM_64:
+			case QAM_256:
+				new_rf = 1;
+				break;
+			case VSB_8:
+			default:
+				new_rf = 0;
+				break;
+			}
 		simple_set_rf_input(fe, &buf[2], &buf[3], new_rf);
 		break;
 	}
@@ -1025,6 +1041,7 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 
 		priv->type = type;
 		priv->tun  = &tuners[type];
+		priv->nr   = simple_devcount++;
 		break;
 	default:
 		fe->tuner_priv = priv;
@@ -1037,6 +1054,24 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 	       sizeof(struct dvb_tuner_ops));
 
 	tuner_info("type set to %d (%s)\n", type, priv->tun->name);
+
+	if ((debug) || ((atv_input[priv->nr] > 0) ||
+			(dtv_input[priv->nr] > 0))) {
+		if (0 == atv_input[priv->nr])
+			tuner_info("tuner %d atv rf input will be "
+				   "autoselected\n", priv->nr);
+		else
+			tuner_info("tuner %d atv rf input will be "
+				   "set to input %d (insmod option)\n",
+				   priv->nr, atv_input[priv->nr]);
+		if (0 == dtv_input[priv->nr])
+			tuner_info("tuner %d dtv rf input will be "
+				   "autoselected\n", priv->nr);
+		else
+			tuner_info("tuner %d dtv rf input will be "
+				   "set to input %d (insmod option)\n",
+				   priv->nr, dtv_input[priv->nr]);
+	}
 
 	strlcpy(fe->ops.tuner_ops.info.name, priv->tun->name,
 		sizeof(fe->ops.tuner_ops.info.name));
