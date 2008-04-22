@@ -12,12 +12,12 @@
  *
  * Updated: Frank Mayer <mayerf@tresys.com> and Karl MacMillan <kmacmillan@tresys.com>
  *
- * 	Added conditional policy language extensions
+ *	Added conditional policy language extensions
  *
  * Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
  * Copyright (C) 2003 - 2004 Tresys Technology, LLC
  *	This program is free software; you can redistribute it and/or modify
- *  	it under the terms of the GNU General Public License as published by
+ *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation, version 2.
  */
 
@@ -221,7 +221,7 @@ struct policydb {
 	/* type enforcement conditional access vectors and transitions */
 	struct avtab te_cond_avtab;
 	/* linked list indexing te_cond_avtab by conditional */
-	struct cond_node* cond_list;
+	struct cond_node *cond_list;
 
 	/* role allows */
 	struct role_allow *role_allow;
@@ -230,10 +230,10 @@ struct policydb {
 	   TCP or UDP port numbers, network interfaces and nodes */
 	struct ocontext *ocontexts[OCON_NUM];
 
-        /* security contexts for files in filesystems that cannot support
+	/* security contexts for files in filesystems that cannot support
 	   a persistent label mapping or use another
 	   fixed labeling behavior. */
-  	struct genfs *genfs;
+	struct genfs *genfs;
 
 	/* range transitions */
 	struct range_trans *range_tr;
