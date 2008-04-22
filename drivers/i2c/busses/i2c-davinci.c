@@ -328,7 +328,7 @@ i2c_davinci_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	int i;
 	int ret;
 
-	dev_dbg(dev->dev, "%s: msgs: %d\n", __FUNCTION__, num);
+	dev_dbg(dev->dev, "%s: msgs: %d\n", __func__, num);
 
 	ret = i2c_davinci_wait_bus_not_busy(dev, 1);
 	if (ret < 0) {
@@ -342,7 +342,7 @@ i2c_davinci_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 			return ret;
 	}
 
-	dev_dbg(dev->dev, "%s:%d ret: %d\n", __FUNCTION__, __LINE__, ret);
+	dev_dbg(dev->dev, "%s:%d ret: %d\n", __func__, __LINE__, ret);
 
 	return num;
 }
@@ -364,7 +364,7 @@ static irqreturn_t i2c_davinci_isr(int this_irq, void *dev_id)
 	u16 w;
 
 	while ((stat = davinci_i2c_read_reg(dev, DAVINCI_I2C_IVR_REG))) {
-		dev_dbg(dev->dev, "%s: stat=0x%x\n", __FUNCTION__, stat);
+		dev_dbg(dev->dev, "%s: stat=0x%x\n", __func__, stat);
 		if (count++ == 100) {
 			dev_warn(dev->dev, "Too much work in one IRQ\n");
 			break;
@@ -552,6 +552,9 @@ static int davinci_i2c_remove(struct platform_device *pdev)
 	release_mem_region(mem->start, (mem->end - mem->start) + 1);
 	return 0;
 }
+
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:i2c_davinci");
 
 static struct platform_driver davinci_i2c_driver = {
 	.probe		= davinci_i2c_probe,

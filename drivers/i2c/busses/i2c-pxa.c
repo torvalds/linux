@@ -155,7 +155,7 @@ static void i2c_pxa_show_state(struct pxa_i2c *i2c, int lno, const char *fname)
 		readl(_ISR(i2c)), readl(_ICR(i2c)), readl(_IBMR(i2c)));
 }
 
-#define show_state(i2c) i2c_pxa_show_state(i2c, __LINE__, __FUNCTION__)
+#define show_state(i2c) i2c_pxa_show_state(i2c, __LINE__, __func__)
 #else
 #define i2c_debug	0
 
@@ -1132,6 +1132,7 @@ static void __exit i2c_adap_pxa_exit(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pxa2xx-i2c");
 
 module_init(i2c_adap_pxa_init);
 module_exit(i2c_adap_pxa_exit);

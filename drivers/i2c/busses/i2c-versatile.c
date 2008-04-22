@@ -151,3 +151,4 @@ module_exit(i2c_versatile_exit);
 
 MODULE_DESCRIPTION("ARM Versatile I2C bus driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:versatile-i2c");

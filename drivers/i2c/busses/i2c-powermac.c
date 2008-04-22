@@ -263,6 +263,9 @@ static int __devexit i2c_powermac_probe(struct platform_device *dev)
 }
 
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:i2c-powermac");
+
 static struct platform_driver i2c_powermac_driver = {
 	.probe = i2c_powermac_probe,
 	.remove = __devexit_p(i2c_powermac_remove),
