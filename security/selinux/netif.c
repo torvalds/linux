@@ -239,11 +239,13 @@ static void sel_netif_kill(int ifindex)
 {
 	struct sel_netif *netif;
 
+	rcu_read_lock();
 	spin_lock_bh(&sel_netif_lock);
 	netif = sel_netif_find(ifindex);
 	if (netif)
 		sel_netif_destroy(netif);
 	spin_unlock_bh(&sel_netif_lock);
+	rcu_read_unlock();
 }
 
 /**
