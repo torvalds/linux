@@ -576,6 +576,8 @@ struct tvcard bttv_tvcards[] = {
 		.needs_tvaudio	= 1,
 		.pll		= PLL_28,
 		.tuner_type	= UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
 	},
 	[BTTV_BOARD_WINVIEW_601] = {
 		.name		= "Leadtek WinView 601",
