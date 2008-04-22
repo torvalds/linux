@@ -915,12 +915,23 @@ static struct tuner_range tuner_tua6034_ntsc_ranges[] = {
 	{ 16 * 999.99        , 0x8e, 0x04 },
 };
 
+static struct tuner_range tuner_tua6034_atsc_ranges[] = {
+	{ 16 * 165.00 /*MHz*/, 0xce, 0x01 },
+	{ 16 * 450.00 /*MHz*/, 0xce, 0x02 },
+	{ 16 * 999.99        , 0xce, 0x04 },
+};
 
 static struct tuner_params tuner_lg_tdvs_h06xf_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_tua6034_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_tua6034_ntsc_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_tua6034_atsc_ranges,
+		.count  = ARRAY_SIZE(tuner_tua6034_atsc_ranges),
+		.iffreq = 16 * 44.00,
 	},
 };
 
@@ -1419,6 +1430,9 @@ struct tunertype tuners[] = {
 		.name   = "LG TDVS-H06xF", /* H061F, H062F & H064F */
 		.params = tuner_lg_tdvs_h06xf_params,
 		.count  = ARRAY_SIZE(tuner_lg_tdvs_h06xf_params),
+		.min    = 16 *  54.00,
+		.max    = 16 * 863.00,
+		.stepsize = 62500,
 	},
 	[TUNER_YMEC_TVF66T5_B_DFF] = { /* Philips PAL */
 		.name   = "Ymec TVF66T5-B/DFF",
