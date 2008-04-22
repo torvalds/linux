@@ -742,14 +742,13 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 {
 	enum v4l2_field field;
 	unsigned long flags = 0;
-	unsigned size, nbufs;
+	unsigned size = 0, nbufs = 1;
 	int retval;
 
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
 	mutex_lock(&q->vb_lock);
 
-	nbufs = 1; size = 0;
 	q->ops->buf_setup(q, &nbufs, &size);
 
 	if (NULL == q->read_buf  &&

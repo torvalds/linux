@@ -51,7 +51,7 @@ void ivtv_queue_init(struct ivtv_queue *q)
 
 void ivtv_enqueue(struct ivtv_stream *s, struct ivtv_buffer *buf, struct ivtv_queue *q)
 {
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	/* clear the buffer if it is going to be enqueued to the free queue */
 	if (q == &s->q_free) {
@@ -71,7 +71,7 @@ void ivtv_enqueue(struct ivtv_stream *s, struct ivtv_buffer *buf, struct ivtv_qu
 struct ivtv_buffer *ivtv_dequeue(struct ivtv_stream *s, struct ivtv_queue *q)
 {
 	struct ivtv_buffer *buf = NULL;
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	spin_lock_irqsave(&s->qlock, flags);
 	if (!list_empty(&q->list)) {
