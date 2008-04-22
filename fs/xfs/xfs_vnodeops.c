@@ -2241,7 +2241,7 @@ xfs_remove(
 	 */
 	XFS_BMAP_INIT(&free_list, &first_block);
 	error = xfs_dir_removename(tp, dp, name, ip->i_ino,
-					&first_block, &free_list, 0);
+					&first_block, &free_list, resblks);
 	if (error) {
 		ASSERT(error != ENOENT);
 		REMOVE_DEBUG_TRACE(__LINE__);
