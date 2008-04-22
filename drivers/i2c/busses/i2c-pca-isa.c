@@ -78,7 +78,7 @@ pca_isa_readbyte(struct i2c_algo_pca_data *adap, int reg)
 	int res = inb(base+reg);
 #ifdef DEBUG_IO
 	{
-		static char *names[] = { "STA", "DAT", "ADR", "CON" };	
+		static char *names[] = { "STA", "DAT", "ADR", "CON" };
 		printk("*** read  %s => %#04x\n", names[reg], res);
 	}
 #endif
@@ -93,7 +93,7 @@ static int pca_isa_waitforinterrupt(struct i2c_algo_pca_data *adap)
 		ret = wait_event_interruptible(pca_wait,
 					       pca_isa_readbyte(adap, I2C_PCA_CON) & I2C_PCA_CON_SI);
 	} else {
-		while ((pca_isa_readbyte(adap, I2C_PCA_CON) & I2C_PCA_CON_SI) == 0) 
+		while ((pca_isa_readbyte(adap, I2C_PCA_CON) & I2C_PCA_CON_SI) == 0)
 			udelay(100);
 	}
 	return ret;
