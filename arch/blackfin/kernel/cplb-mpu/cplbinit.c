@@ -49,7 +49,7 @@ void __init generate_cpl_tables(void)
 
 #ifdef CONFIG_BFIN_DCACHE
 	d_cache = CPLB_L1_CHBL;
-#ifdef CONFIG_BLKFIN_WT
+#ifdef CONFIG_BFIN_WT
 	d_cache |= CPLB_L1_AOW | CPLB_WT;
 #endif
 #endif

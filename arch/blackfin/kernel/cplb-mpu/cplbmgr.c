@@ -149,7 +149,7 @@ static noinline int dcplb_miss(void)
 	d_data = CPLB_SUPV_WR | CPLB_VALID | CPLB_DIRTY | PAGE_SIZE_4KB;
 #ifdef CONFIG_BFIN_DCACHE
 	d_data |= CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
-#ifdef CONFIG_BLKFIN_WT
+#ifdef CONFIG_BFIN_WT
 	d_data |= CPLB_L1_AOW | CPLB_WT;
 #endif
 #endif
@@ -319,7 +319,7 @@ void set_mask_dcplbs(unsigned long *masks)
 	d_data = CPLB_SUPV_WR | CPLB_VALID | CPLB_DIRTY | PAGE_SIZE_4KB;
 #ifdef CONFIG_BFIN_DCACHE
 	d_data |= CPLB_L1_CHBL;
-#ifdef CONFIG_BLKFIN_WT
+#ifdef CONFIG_BFIN_WT
 	d_data |= CPLB_L1_AOW | CPLB_WT;
 #endif
 #endif
