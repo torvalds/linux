@@ -269,7 +269,7 @@ static int soc_camera_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int soc_camera_read(struct file *file, char __user *buf,
+static ssize_t soc_camera_read(struct file *file, char __user *buf,
 			   size_t count, loff_t *ppos)
 {
 	struct soc_camera_file *icf = file->private_data;
