@@ -297,7 +297,6 @@ static int dvb_register(struct cx23885_tsport *port)
 			struct xc2028_config cfg = {
 				.i2c_adap  = &i2c_bus->i2c_adap,
 				.i2c_addr  = 0x61,
-				.video_dev = port,
 				.callback  = cx23885_hvr1500_xc3028_callback,
 			};
 			static struct xc2028_ctrl ctl = {

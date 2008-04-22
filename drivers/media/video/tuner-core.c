@@ -419,7 +419,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		struct xc2028_config cfg = {
 			.i2c_adap  = t->i2c->adapter,
 			.i2c_addr  = t->i2c->addr,
-			.video_dev = c->adapter->algo_data,
 			.callback  = t->tuner_callback,
 		};
 		if (!xc2028_attach(&t->fe, &cfg)) {

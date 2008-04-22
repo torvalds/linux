@@ -509,7 +509,6 @@ static int cxusb_dvico_xc3028_tuner_attach(struct dvb_usb_adapter *adap)
 	struct xc2028_config	  cfg = {
 		.i2c_adap  = &adap->dev->i2c_adap,
 		.i2c_addr  = 0x61,
-		.video_dev = adap->dev,
 		.callback  = dvico_bluebird_xc2028_callback,
 	};
 	static struct xc2028_ctrl ctl = {

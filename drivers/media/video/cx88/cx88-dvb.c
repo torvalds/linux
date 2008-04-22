@@ -458,7 +458,6 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 	struct xc2028_config cfg = {
 		.i2c_adap  = &dev->core->i2c_adap,
 		.i2c_addr  = addr,
-		.video_dev = dev->core->i2c_adap.algo_data,
 	};
 
 	if (!dev->dvb.frontend) {
@@ -780,7 +779,6 @@ static int dvb_register(struct cx8802_dev *dev)
 			struct xc2028_config cfg = {
 				.i2c_adap  = &dev->core->i2c_adap,
 				.i2c_addr  = 0x61,
-				.video_dev = dev->core,
 				.callback  = cx88_pci_nano_callback,
 			};
 			static struct xc2028_ctrl ctl = {

@@ -1155,7 +1155,7 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 	if (debug)
 		printk(KERN_DEBUG "xc2028: Xcv2028/3028 init called!\n");
 
-	if (NULL == cfg || NULL == cfg->video_dev)
+	if (NULL == cfg)
 		return NULL;
 
 	if (!fe) {
@@ -1163,13 +1163,19 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 		return NULL;
 	}
 
-	video_dev = cfg->video_dev;
+	video_dev = cfg->i2c_adap->algo_data;
+
+	if (debug)
+		printk(KERN_DEBUG "xc2028: video_dev =%p\n", video_dev);
 
 	mutex_lock(&xc2028_list_mutex);
 
 	list_for_each_entry(priv, &xc2028_list, xc2028_list) {
-		if (priv->video_dev == cfg->video_dev) {
+		if (&priv->i2c_props.adap->dev == &cfg->i2c_adap->dev) {
 			video_dev = NULL;
+			if (debug)
+				printk(KERN_DEBUG "xc2028: reusing device\n");
+
 			break;
 		}
 	}
@@ -1196,6 +1202,9 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 
 	fe->tuner_priv = priv;
 	priv->count++;
+
+	if (debug)
+		printk(KERN_DEBUG "xc2028: usage count is %i\n", priv->count);
 
 	memcpy(&fe->ops.tuner_ops, &xc2028_dvb_tuner_ops,
 	       sizeof(xc2028_dvb_tuner_ops));
