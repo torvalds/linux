@@ -2180,7 +2180,7 @@ xfs_remove(
 	xfs_itrace_ref(ip);
 
 	error = XFS_QM_DQATTACH(mp, dp, 0);
-	if (!error && dp != ip)
+	if (!error)
 		error = XFS_QM_DQATTACH(mp, ip, 0);
 	if (error) {
 		REMOVE_DEBUG_TRACE(__LINE__);
@@ -2228,15 +2228,9 @@ xfs_remove(
 	 * inodes locked.
 	 */
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
-	if (dp != ip) {
-		/*
-		 * Increment vnode ref count only in this case since
-		 * there's an extra vnode reference in the case where
-		 * dp == ip.
-		 */
-		IHOLD(dp);
-		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	}
+
+	IHOLD(dp);
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
 	/*
 	 * Entry must exist since we did a lookup in xfs_lock_dir_and_entry.
@@ -2747,7 +2741,7 @@ xfs_rmdir(
 	 * Get the dquots for the inodes.
 	 */
 	error = XFS_QM_DQATTACH(mp, dp, 0);
-	if (!error && dp != cdp)
+	if (!error)
 		error = XFS_QM_DQATTACH(mp, cdp, 0);
 	if (error) {
 		IRELE(cdp);
@@ -2796,14 +2790,7 @@ xfs_rmdir(
 	}
 
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
-	if (dp != cdp) {
-		/*
-		 * Only increment the parent directory vnode count if
-		 * we didn't bump it in looking up cdp.  The only time
-		 * we don't bump it is when we're looking up ".".
-		 */
-		VN_HOLD(dir_vp);
-	}
+	VN_HOLD(dir_vp);
 
 	xfs_itrace_ref(cdp);
 	xfs_trans_ijoin(tp, cdp, XFS_ILOCK_EXCL);
