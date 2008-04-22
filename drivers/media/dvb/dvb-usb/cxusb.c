@@ -23,6 +23,8 @@
  *
  * see Documentation/dvb/README.dvb-usb for more information
  */
+#include <media/tuner.h>
+
 #include "cxusb.h"
 
 #include "cx22702.h"
@@ -32,6 +34,7 @@
 #include "zl10353.h"
 #include "tuner-xc2028.h"
 #include "tuner-xc2028-types.h"
+#include "tuner-simple.h"
 
 /* debug */
 static int dvb_usb_cxusb_debug;
@@ -477,8 +480,8 @@ static int cxusb_dtt7579_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int cxusb_lgh064f_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
-		   DVB_PLL_LG_TDVS_H06XF);
+	dvb_attach(simple_tuner_attach, adap->fe,
+		   &adap->dev->i2c_adap, 0x61, TUNER_LG_TDVS_H06XF);
 	return 0;
 }
 

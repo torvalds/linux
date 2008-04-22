@@ -39,6 +39,7 @@
 #include "dvb-pll.h"
 #include "tuner-xc2028.h"
 #include "tuner-xc2028-types.h"
+#include "tuner-simple.h"
 
 static unsigned int debug;
 
@@ -271,8 +272,9 @@ static int dvb_register(struct cx23885_tsport *port)
 						&fusionhdtv_5_express,
 						&i2c_bus->i2c_adap);
 		if (port->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, port->dvb.frontend, 0x61,
-				   &i2c_bus->i2c_adap, DVB_PLL_LG_TDVS_H06XF);
+			dvb_attach(simple_tuner_attach, port->dvb.frontend,
+				   &i2c_bus->i2c_adap, 0x61,
+				   TUNER_LG_TDVS_H06XF);
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
