@@ -123,6 +123,26 @@ static const struct pvr2_device_desc pvr2_device_gotview_2 = {
 
 
 
+/*------------------------------------------------------------------------*/
+/* GOTVIEW USB2.0 DVD Deluxe */
+
+/* (same module list as gotview_2) */
+
+static const struct pvr2_device_desc pvr2_device_gotview_2d = {
+		.description = "Gotview USB 2.0 DVD Deluxe",
+		.shortname = "gv2d",
+		.client_modules.lst = pvr2_client_gotview_2,
+		.client_modules.cnt = ARRAY_SIZE(pvr2_client_gotview_2),
+		.flag_has_cx25840 = !0,
+		.default_tuner_type = TUNER_PHILIPS_FM1216ME_MK3,
+		.flag_has_analogtuner = !0,
+		.flag_has_composite = !0,
+		.flag_has_svideo = !0,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_GOTVIEW,
+};
+
+
+
 #ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
 /*------------------------------------------------------------------------*/
 /* OnAir Creator */
@@ -251,6 +271,8 @@ struct usb_device_id pvr2_device_table[] = {
 	  .driver_info = (kernel_ulong_t)&pvr2_device_24xxx},
 	{ USB_DEVICE(0x1164, 0x0622),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_gotview_2},
+	{ USB_DEVICE(0x1164, 0x0602),
+	  .driver_info = (kernel_ulong_t)&pvr2_device_gotview_2d},
 #ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
 	{ USB_DEVICE(0x11ba, 0x1003),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_onair_creator},
