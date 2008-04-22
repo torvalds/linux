@@ -1571,6 +1571,26 @@ static const struct cx88_board cx88_boards[] = {
 	       } },
 	       .mpeg           = CX88_MPEG_DVB,
        },
+	[CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD] = {
+		.name           = "DVICO FusionHDTV7 Gold",
+		.tuner_type     = TUNER_XC5000,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x37df,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x37df,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x37df,
+		}},
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -1908,6 +1928,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x14f1,
 		.subdevice = 0x8852,
 		.card      = CX88_BOARD_GENIATECH_X8000_MT,
+	},{
+		.subvendor = 0x18ac,
+		.subdevice = 0xd610,
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD,
 	}
 };
 
@@ -2189,6 +2213,18 @@ static int cx88_xc5000_tuner_callback(void *priv, int command, int arg)
 			return -EINVAL;
 		}
 		break;
+	case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
+		if (command == 0) { /* This is the reset command from xc5000 */
+			cx_clear(MO_GP0_IO, 0x00000010);
+			msleep(10);
+			cx_set(MO_GP0_IO, 0x00000010);
+			return 0;
+		} else {
+			printk(KERN_ERR
+				"xc5000: unknown tuner callback command.\n");
+			return -EINVAL;
+		}
+		break;
 	}
 	return 0; /* Should never be here */
 }
@@ -2254,6 +2290,10 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 		udelay(50);
 		cx_set(MO_GP0_IO, 0x00000080); /* 702 out of reset */
 		udelay(1000);
+		break;
+	 case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
+		/* Enable the xc5000 tuner */
+		cx_set(MO_GP0_IO, 0x00001010);
 		break;
 	}
 }
