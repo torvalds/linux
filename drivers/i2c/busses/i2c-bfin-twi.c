@@ -308,6 +308,7 @@ static int bfin_twi_master_xfer(struct i2c_adapter *adap,
 	iface->writeNum = iface->readNum = pmsg->len;
 	iface->result = 0;
 	iface->timeout_count = 10;
+	init_completion(&(iface->complete));
 	/* Set Transmit device address */
 	write_MASTER_ADDR(iface, pmsg->addr);
 
@@ -447,6 +448,7 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 	iface->read_write = read_write;
 	iface->command = command;
 	iface->timeout_count = 10;
+	init_completion(&(iface->complete));
 
 	/* FIFO Initiation. Data in FIFO should be discarded before
 	 * start a new operation.
@@ -608,7 +610,6 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&(iface->lock));
-	init_completion(&(iface->complete));
 
 	/* Find and map our resources */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
