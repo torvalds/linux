@@ -241,8 +241,10 @@ static int simple_config_lookup(struct dvb_frontend *fe,
 	*config = t_params->ranges[i].config;
 	*cb     = t_params->ranges[i].cb;
 
-	tuner_dbg("freq = %d, range = %d, config = 0x%02x, cb = 0x%02x\n",
-		  *frequency, i, *config, *cb);
+	tuner_dbg("freq = %d.%02d (%d), range = %d, "
+		  "config = 0x%02x, cb = 0x%02x\n",
+		  *frequency / 16, *frequency % 16 * 100 / 16, *frequency,
+		  i, *config, *cb);
 
 	return i;
 }
