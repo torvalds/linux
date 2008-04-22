@@ -88,14 +88,20 @@ MODULE_PARM_DESC(offset, "Allows to specify an offset for tuner");
 #define TUNER_PLL_LOCKED   0x40
 #define TUNER_STEREO_MK3   0x04
 
+static DEFINE_MUTEX(tuner_simple_list_mutex);
+static LIST_HEAD(hybrid_tuner_instance_list);
+
 struct tuner_simple_priv {
 	u16 last_div;
+
 	struct tuner_i2c_props i2c_props;
+	struct list_head hybrid_tuner_instance_list;
 
 	unsigned int type;
 	struct tunertype *tun;
 
 	u32 frequency;
+	u32 bandwidth;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -187,6 +193,9 @@ static inline char *tuner_param_name(enum param_type type)
 		break;
 	case TUNER_PARAM_TYPE_NTSC:
 		name = "ntsc";
+		break;
+	case TUNER_PARAM_TYPE_DIGITAL:
+		name = "digital";
 		break;
 	default:
 		name = "unknown";
@@ -687,14 +696,118 @@ static int simple_set_params(struct dvb_frontend *fe,
 		priv->frequency = params->frequency * 62500;
 		break;
 	}
+	priv->bandwidth = 0;
 
 	return ret;
 }
 
+static int simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
+				const struct dvb_frontend_parameters *params)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	struct tunertype *tun = priv->tun;
+	static struct tuner_params *t_params;
+	u8 config, cb;
+	u32 div;
+	int ret, frequency = params->frequency / 62500;
+
+	t_params = simple_tuner_params(fe, TUNER_PARAM_TYPE_DIGITAL);
+	ret = simple_config_lookup(fe, t_params, &frequency, &config, &cb);
+	if (ret < 0)
+		return ret;
+
+	div = ((frequency + t_params->iffreq) * 62500 + offset +
+	       tun->stepsize/2) / tun->stepsize;
+
+	buf[0] = div >> 8;
+	buf[1] = div & 0xff;
+	buf[2] = config;
+	buf[3] = cb;
+
+	tuner_dbg("%s: div=%d | buf=0x%02x,0x%02x,0x%02x,0x%02x\n",
+		  tun->name, div, buf[0], buf[1], buf[2], buf[3]);
+
+	/* calculate the frequency we set it to */
+	return (div * tun->stepsize) - t_params->iffreq;
+}
+
+static int simple_dvb_calc_regs(struct dvb_frontend *fe,
+				struct dvb_frontend_parameters *params,
+				u8 *buf, int buf_len)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	int ret;
+	u32 frequency;
+
+	if (buf_len < 5)
+		return -EINVAL;
+
+	ret = simple_dvb_configure(fe, buf+1, params);
+	if (ret < 0)
+		return ret;
+	else
+		frequency = ret;
+
+	buf[0] = priv->i2c_props.addr;
+
+	priv->frequency = frequency;
+	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ?
+		params->u.ofdm.bandwidth : 0;
+
+	return 5;
+}
+
+static int simple_dvb_set_params(struct dvb_frontend *fe,
+				 struct dvb_frontend_parameters *params)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	u32 prev_freq, prev_bw;
+	int ret;
+	u8 buf[5];
+
+	if (priv->i2c_props.adap == NULL)
+		return -EINVAL;
+
+	prev_freq = priv->frequency;
+	prev_bw   = priv->bandwidth;
+
+	ret = simple_dvb_calc_regs(fe, params, buf, 5);
+	if (ret != 5)
+		goto fail;
+
+	/* put analog demod in standby when tuning digital */
+	if (fe->ops.analog_ops.standby)
+		fe->ops.analog_ops.standby(fe);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	/* buf[0] contains the i2c address, but *
+	 * we already have it in i2c_props.addr */
+	ret = tuner_i2c_xfer_send(&priv->i2c_props, buf+1, 4);
+	if (ret != 4)
+		goto fail;
+
+	return 0;
+fail:
+	/* calc_regs sets frequency and bandwidth. if we failed, unset them */
+	priv->frequency = prev_freq;
+	priv->bandwidth = prev_bw;
+
+	return ret;
+}
 
 static int simple_release(struct dvb_frontend *fe)
 {
-	kfree(fe->tuner_priv);
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+
+	mutex_lock(&tuner_simple_list_mutex);
+
+	if (priv)
+		hybrid_tuner_release_state(priv);
+
+	mutex_unlock(&tuner_simple_list_mutex);
+
 	fe->tuner_priv = NULL;
 
 	return 0;
@@ -707,10 +820,20 @@ static int simple_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
+static int simple_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	*bandwidth = priv->bandwidth;
+	return 0;
+}
+
 static struct dvb_tuner_ops simple_tuner_ops = {
 	.set_analog_params = simple_set_params,
+	.set_params        = simple_dvb_set_params,
+	.calc_regs         = simple_dvb_calc_regs,
 	.release           = simple_release,
 	.get_frequency     = simple_get_frequency,
+	.get_bandwidth     = simple_get_bandwidth,
 	.get_status        = simple_get_status,
 	.get_rf_strength   = simple_get_rf_strength,
 };
@@ -721,6 +844,7 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 					 unsigned int type)
 {
 	struct tuner_simple_priv *priv = NULL;
+	int instance;
 
 	if (type >= tuner_count) {
 		printk(KERN_WARNING "%s: invalid tuner type: %d (max: %d)\n",
@@ -728,22 +852,34 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 		return NULL;
 	}
 
-	priv = kzalloc(sizeof(struct tuner_simple_priv), GFP_KERNEL);
-	if (priv == NULL)
+	mutex_lock(&tuner_simple_list_mutex);
+
+	instance = hybrid_tuner_request_state(struct tuner_simple_priv, priv,
+					      hybrid_tuner_instance_list,
+					      i2c_adap, i2c_addr,
+					      "tuner-simple");
+	switch (instance) {
+	case 0:
+		mutex_unlock(&tuner_simple_list_mutex);
 		return NULL;
-	fe->tuner_priv = priv;
+		break;
+	case 1:
+		fe->tuner_priv = priv;
 
-	priv->i2c_props.addr = i2c_addr;
-	priv->i2c_props.adap = i2c_adap;
-	priv->i2c_props.name = "tuner-simple";
+		priv->type = type;
+		priv->tun  = &tuners[type];
+		break;
+	default:
+		fe->tuner_priv = priv;
+		break;
+	}
 
-	priv->type = type;
-	priv->tun  = &tuners[type];
+	mutex_unlock(&tuner_simple_list_mutex);
 
 	memcpy(&fe->ops.tuner_ops, &simple_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
 
-	tuner_info("type set to %d (%s)\n", priv->type, priv->tun->name);
+	tuner_info("type set to %d (%s)\n", type, priv->tun->name);
 
 	strlcpy(fe->ops.tuner_ops.info.name, priv->tun->name,
 		sizeof(fe->ops.tuner_ops.info.name));
