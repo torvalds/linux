@@ -734,11 +734,23 @@ static struct tuner_range tuner_microtune_4042fi5_ntsc_ranges[] = {
 	{ 16 * 999.99        , 0x8e, 0x31, },
 };
 
+static struct tuner_range tuner_microtune_4042fi5_atsc_ranges[] = {
+	{ 16 * 162.00 /*MHz*/, 0x8e, 0xa1, },
+	{ 16 * 457.00 /*MHz*/, 0x8e, 0x91, },
+	{ 16 * 999.99        , 0x8e, 0x31, },
+};
+
 static struct tuner_params tuner_microtune_4042fi5_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_microtune_4042fi5_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_microtune_4042fi5_ntsc_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_microtune_4042fi5_atsc_ranges,
+		.count  = ARRAY_SIZE(tuner_microtune_4042fi5_atsc_ranges),
+		.iffreq = 16 * 44.00 /*MHz*/,
 	},
 };
 
@@ -1433,6 +1445,9 @@ struct tunertype tuners[] = {
 		.name   = "Microtune 4042 FI5 ATSC/NTSC dual in",
 		.params = tuner_microtune_4042fi5_params,
 		.count  = ARRAY_SIZE(tuner_microtune_4042fi5_params),
+		.min    = 16 *  57.00,
+		.max    = 16 * 858.00,
+		.stepsize = 62500,
 	},
 
 	/* 50-59 */
