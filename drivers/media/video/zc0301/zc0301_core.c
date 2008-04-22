@@ -1925,7 +1925,9 @@ static const struct file_operations zc0301_fops = {
 	.open =    zc0301_open,
 	.release = zc0301_release,
 	.ioctl =   zc0301_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.read =    zc0301_read,
 	.poll =    zc0301_poll,
 	.mmap =    zc0301_mmap,

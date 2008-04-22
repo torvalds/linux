@@ -1906,7 +1906,9 @@ static const struct file_operations saa_fops = {
 	.open = saa_open,
 	.release = saa_release,
 	.ioctl = saa_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.read = saa_read,
 	.llseek = no_llseek,
 	.write = saa_write,

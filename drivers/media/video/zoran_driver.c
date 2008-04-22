@@ -4644,7 +4644,9 @@ static const struct file_operations zoran_fops = {
 	.open = zoran_open,
 	.release = zoran_close,
 	.ioctl = zoran_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.llseek = no_llseek,
 	.read = zoran_read,
 	.write = zoran_write,

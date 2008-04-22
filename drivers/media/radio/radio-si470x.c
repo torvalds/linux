@@ -1051,7 +1051,9 @@ static const struct file_operations si470x_fops = {
 	.read		= si470x_fops_read,
 	.poll		= si470x_fops_poll,
 	.ioctl		= video_ioctl2,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.open		= si470x_fops_open,
 	.release	= si470x_fops_release,
 };

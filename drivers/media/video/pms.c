@@ -885,7 +885,9 @@ static const struct file_operations pms_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl          = pms_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.read           = pms_read,
 	.llseek         = no_llseek,
 };

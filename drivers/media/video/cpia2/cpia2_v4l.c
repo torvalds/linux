@@ -1927,7 +1927,9 @@ static const struct file_operations fops_template = {
 	.poll		= cpia2_v4l_poll,
 	.ioctl		= cpia2_ioctl,
 	.llseek		= no_llseek,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.mmap		= cpia2_mmap,
 };
 

@@ -1224,7 +1224,9 @@ static const struct file_operations se401_fops = {
 	.read =         se401_read,
 	.mmap =         se401_mmap,
 	.ioctl =        se401_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.llseek =       no_llseek,
 };
 static struct video_device se401_template = {

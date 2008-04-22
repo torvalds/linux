@@ -2523,7 +2523,9 @@ static const struct file_operations et61x251_fops = {
 	.open =    et61x251_open,
 	.release = et61x251_release,
 	.ioctl =   et61x251_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.read =    et61x251_read,
 	.poll =    et61x251_poll,
 	.mmap =    et61x251_mmap,

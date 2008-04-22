@@ -563,7 +563,9 @@ static const struct file_operations cadet_fops = {
 	.read		= cadet_read,
 	.ioctl		= video_ioctl2,
 	.poll		= cadet_poll,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.llseek         = no_llseek,
 };
 

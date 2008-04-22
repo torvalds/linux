@@ -3461,7 +3461,9 @@ static const struct file_operations w9968cf_fops = {
 	.release = w9968cf_release,
 	.read =    w9968cf_read,
 	.ioctl =   w9968cf_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.mmap =    w9968cf_mmap,
 	.llseek =  no_llseek,
 };
