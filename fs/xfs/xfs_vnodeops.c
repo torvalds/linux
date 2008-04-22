@@ -2162,20 +2162,6 @@ xfs_remove(
 			return error;
 	}
 
-	/*
-	 * We need to get a reference to ip before we get our log
-	 * reservation. The reason for this is that we cannot call
-	 * xfs_iget for an inode for which we do not have a reference
-	 * once we've acquired a log reservation. This is because the
-	 * inode we are trying to get might be in xfs_inactive going
-	 * for a log reservation. Since we'll have to wait for the
-	 * inactive code to complete before returning from xfs_iget,
-	 * we need to make sure that we don't have log space reserved
-	 * when we call xfs_iget.  Instead we get an unlocked reference
-	 * to the inode before getting our log reservation.
-	 */
-	IHOLD(ip);
-
 	xfs_itrace_entry(ip);
 	xfs_itrace_ref(ip);
 
@@ -2184,7 +2170,6 @@ xfs_remove(
 		error = XFS_QM_DQATTACH(mp, ip, 0);
 	if (error) {
 		REMOVE_DEBUG_TRACE(__LINE__);
-		IRELE(ip);
 		goto std_return;
 	}
 
@@ -2211,7 +2196,6 @@ xfs_remove(
 		ASSERT(error != ENOSPC);
 		REMOVE_DEBUG_TRACE(__LINE__);
 		xfs_trans_cancel(tp, 0);
-		IRELE(ip);
 		return error;
 	}
 
@@ -2219,7 +2203,6 @@ xfs_remove(
 	if (error) {
 		REMOVE_DEBUG_TRACE(__LINE__);
 		xfs_trans_cancel(tp, cancel_flags);
-		IRELE(ip);
 		goto std_return;
 	}
 
@@ -2227,6 +2210,7 @@ xfs_remove(
 	 * At this point, we've gotten both the directory and the entry
 	 * inodes locked.
 	 */
+	IHOLD(ip);
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
 
 	IHOLD(dp);
@@ -2260,12 +2244,6 @@ xfs_remove(
 	link_zero = (ip)->i_d.di_nlink==0;
 
 	/*
-	 * Take an extra ref on the inode so that it doesn't
-	 * go to xfs_inactive() from within the commit.
-	 */
-	IHOLD(ip);
-
-	/*
 	 * If this is a synchronous mount, make sure that the
 	 * remove transaction goes to disk before returning to
 	 * the user.
@@ -2281,10 +2259,8 @@ xfs_remove(
 	}
 
 	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-	if (error) {
-		IRELE(ip);
+	if (error)
 		goto std_return;
-	}
 
 	/*
 	 * If we are using filestreams, kill the stream association.
@@ -2296,7 +2272,6 @@ xfs_remove(
 		xfs_filestream_deassociate(ip);
 
 	xfs_itrace_exit(ip);
-	IRELE(ip);
 
 /*	Fall through to std_return with error = 0 */
  std_return:
@@ -2324,8 +2299,6 @@ xfs_remove(
 	xfs_bmap_cancel(&free_list);
 	cancel_flags |= XFS_TRANS_ABORT;
 	xfs_trans_cancel(tp, cancel_flags);
-
-	IRELE(ip);
 
 	goto std_return;
 }
@@ -2698,7 +2671,6 @@ xfs_rmdir(
 	struct xfs_name		*name,
 	xfs_inode_t		*cdp)
 {
-	bhv_vnode_t		*dir_vp = XFS_ITOV(dp);
 	xfs_mount_t		*mp = dp->i_mount;
 	xfs_trans_t             *tp;
 	int                     error;
@@ -2724,27 +2696,12 @@ xfs_rmdir(
 	}
 
 	/*
-	 * We need to get a reference to cdp before we get our log
-	 * reservation.  The reason for this is that we cannot call
-	 * xfs_iget for an inode for which we do not have a reference
-	 * once we've acquired a log reservation.  This is because the
-	 * inode we are trying to get might be in xfs_inactive going
-	 * for a log reservation.  Since we'll have to wait for the
-	 * inactive code to complete before returning from xfs_iget,
-	 * we need to make sure that we don't have log space reserved
-	 * when we call xfs_iget.  Instead we get an unlocked reference
-	 * to the inode before getting our log reservation.
-	 */
-	IHOLD(cdp);
-
-	/*
 	 * Get the dquots for the inodes.
 	 */
 	error = XFS_QM_DQATTACH(mp, dp, 0);
 	if (!error)
 		error = XFS_QM_DQATTACH(mp, cdp, 0);
 	if (error) {
-		IRELE(cdp);
 		REMOVE_DEBUG_TRACE(__LINE__);
 		goto std_return;
 	}
@@ -2771,7 +2728,6 @@ xfs_rmdir(
 	if (error) {
 		ASSERT(error != ENOSPC);
 		cancel_flags = 0;
-		IRELE(cdp);
 		goto error_return;
 	}
 	XFS_BMAP_INIT(&free_list, &first_block);
@@ -2785,14 +2741,13 @@ xfs_rmdir(
 	error = xfs_lock_dir_and_entry(dp, cdp);
 	if (error) {
 		xfs_trans_cancel(tp, cancel_flags);
-		IRELE(cdp);
 		goto std_return;
 	}
 
+	IHOLD(dp);
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
-	VN_HOLD(dir_vp);
 
-	xfs_itrace_ref(cdp);
+	IHOLD(cdp);
 	xfs_trans_ijoin(tp, cdp, XFS_ILOCK_EXCL);
 
 	ASSERT(cdp->i_d.di_nlink >= 2);
@@ -2846,12 +2801,6 @@ xfs_rmdir(
 	last_cdp_link = (cdp)->i_d.di_nlink==0;
 
 	/*
-	 * Take an extra ref on the child vnode so that it
-	 * does not go to xfs_inactive() from within the commit.
-	 */
-	IHOLD(cdp);
-
-	/*
 	 * If this is a synchronous mount, make sure that the
 	 * rmdir transaction goes to disk before returning to
 	 * the user.
@@ -2865,18 +2814,14 @@ xfs_rmdir(
 		xfs_bmap_cancel(&free_list);
 		xfs_trans_cancel(tp, (XFS_TRANS_RELEASE_LOG_RES |
 				 XFS_TRANS_ABORT));
-		IRELE(cdp);
 		goto std_return;
 	}
 
 	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	if (error) {
-		IRELE(cdp);
 		goto std_return;
 	}
 
-
-	IRELE(cdp);
 
 	/* Fall through to std_return with error = 0 or the errno
 	 * from xfs_trans_commit. */
