@@ -312,6 +312,7 @@ static inline int avc_reclaim_node(void)
 		if (!spin_trylock_irqsave(&avc_cache.slots_lock[hvalue], flags))
 			continue;
 
+		rcu_read_lock();
 		list_for_each_entry(node, &avc_cache.slots[hvalue], list) {
 			if (atomic_dec_and_test(&node->ae.used)) {
 				/* Recently Unused */
@@ -319,11 +320,13 @@ static inline int avc_reclaim_node(void)
 				avc_cache_stats_incr(reclaims);
 				ecx++;
 				if (ecx >= AVC_CACHE_RECLAIM) {
+					rcu_read_unlock();
 					spin_unlock_irqrestore(&avc_cache.slots_lock[hvalue], flags);
 					goto out;
 				}
 			}
 		}
+		rcu_read_unlock();
 		spin_unlock_irqrestore(&avc_cache.slots_lock[hvalue], flags);
 	}
 out:
@@ -821,8 +824,14 @@ int avc_ss_reset(u32 seqno)
 
 	for (i = 0; i < AVC_CACHE_SLOTS; i++) {
 		spin_lock_irqsave(&avc_cache.slots_lock[i], flag);
+		/*
+		 * With preemptable RCU, the outer spinlock does not
+		 * prevent RCU grace periods from ending.
+		 */
+		rcu_read_lock();
 		list_for_each_entry(node, &avc_cache.slots[i], list)
 			avc_node_delete(node);
+		rcu_read_unlock();
 		spin_unlock_irqrestore(&avc_cache.slots_lock[i], flag);
 	}
 
