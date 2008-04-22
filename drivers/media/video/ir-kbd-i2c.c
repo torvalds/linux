@@ -508,7 +508,7 @@ static int ir_probe(struct i2c_adapter *adap)
 	static const int probe_em28XX[] = { 0x30, 0x47, -1 };
 	static const int probe_cx88[] = { 0x18, 0x6b, 0x71, -1 };
 	static const int probe_cx23885[] = { 0x6b, -1 };
-	const int *probe = NULL;
+	const int *probe;
 	struct i2c_client *c;
 	unsigned char buf;
 	int i, rc;
@@ -532,9 +532,9 @@ static int ir_probe(struct i2c_adapter *adap)
 	case I2C_HW_B_CX23885:
 		probe = probe_cx23885;
 		break;
-	}
-	if (NULL == probe)
+	default:
 		return 0;
+	}
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
