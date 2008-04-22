@@ -109,7 +109,7 @@ MODULE_PARM_DESC(max_srq_wrs, "Maximum number of SRQ WRs support");
 
 static unsigned int ib_ipath_disable_sma;
 module_param_named(disable_sma, ib_ipath_disable_sma, uint, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(ib_ipath_disable_sma, "Disable the SMA");
+MODULE_PARM_DESC(disable_sma, "Disable the SMA");
 
 const int ib_ipath_state_ops[IB_QPS_ERR + 1] = {
 	[IB_QPS_RESET] = 0,
@@ -2067,7 +2067,6 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	dev->phys_port_cnt = 1;
 	dev->num_comp_vectors = 1;
 	dev->dma_device = &dd->pcidev->dev;
-	dev->dev.parent = dev->dma_device;
 	dev->query_device = ipath_query_device;
 	dev->modify_device = ipath_modify_device;
 	dev->query_port = ipath_query_port;

@@ -92,15 +92,6 @@ static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK
 		| NETIF_MSG_IFUP | NETIF_MSG_IFDOWN;
 static int debug = -1;
 
-
-static int nes_netdev_open(struct net_device *);
-static int nes_netdev_stop(struct net_device *);
-static int nes_netdev_start_xmit(struct sk_buff *, struct net_device *);
-static struct net_device_stats *nes_netdev_get_stats(struct net_device *);
-static void nes_netdev_tx_timeout(struct net_device *);
-static int nes_netdev_set_mac_address(struct net_device *, void *);
-static int nes_netdev_change_mtu(struct net_device *, int);
-
 /**
  * nes_netdev_poll
  */

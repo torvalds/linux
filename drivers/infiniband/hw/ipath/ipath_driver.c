@@ -538,7 +538,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	case PCI_DEVICE_ID_INFINIPATH_7220:
 #ifndef CONFIG_PCI_MSI
 		ipath_dbg("CONFIG_PCI_MSI is not enabled, "
-			  "using IntX for unit %u\n", dd->ipath_unit);
+			  "using INTx for unit %u\n", dd->ipath_unit);
 #endif
 		ipath_init_iba7220_funcs(dd);
 		break;
