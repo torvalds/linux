@@ -588,6 +588,14 @@ static int dvb_register(struct cx8802_dev *dev)
 			dev->dvb.frontend = dvb_attach(mt352_attach,
 						&dvico_fusionhdtv_mt352_xc3028,
 						&dev->core->i2c_adap);
+		/*
+		 * On this board, the demod provides the I2C bus pullup.
+		 * We must not permit gate_ctrl to be performed, or
+		 * the xc3028 cannot communicate on the bus.
+		 */
+		if (dev->dvb.frontend)
+			dev->dvb.frontend->ops.i2c_gate_ctrl = NULL;
+
 		attach_xc3028 = 1;
 		break;
 	case CX88_BOARD_PCHDTV_HD3000:

@@ -2038,11 +2038,9 @@ static int cx88_dvico_xc2028_callback(void *ptr, int command, int arg)
 
 	switch (command) {
 	case XC2028_TUNER_RESET:
-		cx_set(MO_GP0_IO, 0x0200);
-		cx_clear(MO_GP0_IO, 0x02);
-		mdelay(100);
-		cx_set(MO_GP0_IO, 0x02);
-		mdelay(100);
+		cx_write(MO_GP0_IO, 0x101000);
+		mdelay(5);
+		cx_set(MO_GP0_IO, 0x101010);
 		break;
 	default:
 		return -EINVAL;
@@ -2302,6 +2300,13 @@ static void cx88_card_setup(struct cx88_core *core)
 		cx_write(MO_GP0_IO, 0x000007f8);
 		cx_write(MO_GP1_IO, 0x00000001);
 		break;
+	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
+		/* GPIO0:0 is hooked to demod reset */
+		/* GPIO0:4 is hooked to xc3028 reset */
+		cx_write(MO_GP0_IO, 0x00111100);
+		msleep(1);
+		cx_write(MO_GP0_IO, 0x00111111);
+		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
 		/* GPIO0:6 is hooked to FX2 reset pin */
 		cx_set(MO_GP0_IO, 0x00004040);
@@ -2312,7 +2317,6 @@ static void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:
-	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
 		/* GPIO0:0 is hooked to mt352 reset pin */
 		cx_set(MO_GP0_IO, 0x00000101);
 		cx_clear(MO_GP0_IO, 0x00000001);
