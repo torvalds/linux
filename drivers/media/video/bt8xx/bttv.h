@@ -173,6 +173,7 @@
 #define BTTV_BOARD_VOODOOTV_200		   0x93
 #define BTTV_BOARD_DVICO_FUSIONHDTV_2	   0x94
 #define BTTV_BOARD_TYPHOON_TVTUNERPCI	   0x95
+#define BTTV_BOARD_GEOVISION_GV600	   0x96
 
 
 /* more card-specific defines */

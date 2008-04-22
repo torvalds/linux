@@ -71,6 +71,8 @@ static void kodicom4400r_init(struct bttv *btv);
 static void sigmaSLC_muxsel(struct bttv *btv, unsigned int input);
 static void sigmaSQ_muxsel(struct bttv *btv, unsigned int input);
 
+static void geovision_muxsel(struct bttv *btv, unsigned int input);
+
 static int terratec_active_radio_upgrade(struct bttv *btv);
 static int tea5757_read(struct bttv *btv);
 static int tea5757_write(struct bttv *btv, int value);
@@ -301,6 +303,7 @@ static struct CARD {
 	{ 0xd50018ac, BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE,    "DViCO FusionHDTV 5 Lite" },
 	{ 0x00261822, BTTV_BOARD_TWINHAN_DST,	"DNTV Live! Mini "},
 	{ 0xd200dbc0, BTTV_BOARD_DVICO_FUSIONHDTV_2,	"DViCO FusionHDTV 2" },
+	{ 0x763c008a, BTTV_BOARD_GEOVISION_GV600,	"GeoVision GV-600" },
 
 	{ 0, -1, NULL }
 };
@@ -2994,6 +2997,24 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
+	[BTTV_BOARD_GEOVISION_GV600] = {
+		/* emhn@usb.ve */
+		.name             = "Geovision GV-600",
+		.video_inputs     = 16,
+		.audio_inputs     = 0,
+		.tuner            = UNSET,
+		.svhs             = UNSET,
+		.gpiomask         = 0x0,
+		.muxsel           = { 2, 2, 2, 2, 2, 2, 2, 2,
+				      2, 2, 2, 2, 2, 2, 2, 2 },
+		.muxsel_hook      = geovision_muxsel,
+		.gpiomux          = { 0 },
+		.no_msp34xx       = 1,
+		.pll              = PLL_28,
+		.tuner_type       = UNSET,
+		.tuner_addr	  = ADDR_UNSET,
+		.radio_addr       = ADDR_UNSET,
+	},
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
@@ -3331,6 +3352,13 @@ static void sigmaSLC_muxsel(struct bttv *btv, unsigned int input)
 	unsigned int inmux = input % 4;
 	gpio_inout( 3<<9, 3<<9 );
 	gpio_bits( 3<<9, inmux<<9 );
+}
+
+static void geovision_muxsel(struct bttv *btv, unsigned int input)
+{
+	unsigned int inmux = input % 16;
+	gpio_inout(0xf, 0xf);
+	gpio_bits(0xf, inmux);
 }
 
 /* ----------------------------------------------------------------------- */
