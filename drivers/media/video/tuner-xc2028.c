@@ -904,9 +904,11 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 	if (rc < 0)
 		goto ret;
 
-	rc = priv->tuner_callback(priv->video_dev, XC2028_RESET_CLK, 1);
-	if (rc < 0)
-		goto ret;
+	/* Return code shouldn't be checked.
+	   The reset CLK is needed only with tm6000.
+	   Driver should work fine even if this fails.
+	 */
+	priv->tuner_callback(priv->video_dev, XC2028_RESET_CLK, 1);
 
 	msleep(10);
 
