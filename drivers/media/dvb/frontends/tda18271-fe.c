@@ -305,8 +305,8 @@ static int tda18271_calibrate_rf(struct dvb_frontend *fe, u32 freq)
 	/* set the internal calibration signal */
 	N = freq;
 
-	tda18271_calc_main_pll(fe, N);
-	tda18271_write_regs(fe, R_MPD, 4);
+	tda18271_calc_cal_pll(fe, N);
+	tda18271_write_regs(fe, R_CPD, 4);
 
 	/* downconvert internal calibration */
 	N += 1000000;
@@ -331,7 +331,7 @@ static int tda18271_calibrate_rf(struct dvb_frontend *fe, u32 freq)
 	regs[R_EB7] &= ~0x20;
 	tda18271_write_regs(fe, R_EB7, 1);
 
-	msleep(5); /* plls locking */
+	msleep(10); /* plls locking */
 
 	/* launch the rf tracking filters calibration */
 	regs[R_EB20]  |= 0x20;
