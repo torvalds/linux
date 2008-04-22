@@ -530,7 +530,8 @@ void bus_remove_device(struct device *dev)
 		sysfs_remove_link(&dev->bus->p->devices_kset->kobj,
 				  dev->bus_id);
 		device_remove_attrs(dev->bus, dev);
-		klist_del(&dev->knode_bus);
+		if (klist_node_attached(&dev->knode_bus))
+			klist_del(&dev->knode_bus);
 
 		pr_debug("bus: '%s': remove device %s\n",
 			 dev->bus->name, dev->bus_id);
