@@ -930,8 +930,9 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = dvb_attach(mt352_attach, &avermedia_777,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, DVB_PLL_PHILIPS_TD1316);
+			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &dev->i2c_adap, 0x61,
+				   TUNER_PHILIPS_TD1316);
 		}
 		break;
 	case SAA7134_BOARD_MD7134:
