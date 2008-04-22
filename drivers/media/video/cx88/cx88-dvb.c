@@ -372,7 +372,7 @@ static int geniatech_dvbs_set_voltage(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int cx88_xc3028_callback(void *ptr, int command, int arg)
+static int cx88_pci_nano_callback(void *ptr, int command, int arg)
 {
 	struct cx88_core *core = ptr;
 
@@ -774,7 +774,7 @@ static int dvb_register(struct cx8802_dev *dev)
 				.i2c_adap  = &dev->core->i2c_adap,
 				.i2c_addr  = 0x61,
 				.video_dev = dev->core,
-				.callback  = cx88_xc3028_callback,
+				.callback  = cx88_pci_nano_callback,
 			};
 			static struct xc2028_ctrl ctl = {
 				.fname       = "xc3028-v27.fw",
