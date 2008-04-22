@@ -788,9 +788,10 @@ static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
 	}
 }
 
-static int simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
+static u32 simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 				const struct dvb_frontend_parameters *params)
 {
+	/* This function returns the tuned frequency on success, 0 on error */
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 	struct tunertype *tun = priv->tun;
 	static struct tuner_params *t_params;
@@ -801,7 +802,7 @@ static int simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 	t_params = simple_tuner_params(fe, TUNER_PARAM_TYPE_DIGITAL);
 	ret = simple_config_lookup(fe, t_params, &frequency, &config, &cb);
 	if (ret < 0)
-		return ret;
+		return 0; /* failure */
 
 	div = ((frequency + t_params->iffreq) * 62500 + offset +
 	       tun->stepsize/2) / tun->stepsize;
@@ -825,17 +826,14 @@ static int simple_dvb_calc_regs(struct dvb_frontend *fe,
 				u8 *buf, int buf_len)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
-	int ret;
 	u32 frequency;
 
 	if (buf_len < 5)
 		return -EINVAL;
 
-	ret = simple_dvb_configure(fe, buf+1, params);
-	if (ret < 0)
-		return ret;
-	else
-		frequency = ret;
+	frequency = simple_dvb_configure(fe, buf+1, params);
+	if (frequency == 0)
+		return -EINVAL;
 
 	buf[0] = priv->i2c_props.addr;
 
