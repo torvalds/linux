@@ -278,6 +278,12 @@ int bttv_input_init(struct bttv *btv)
 		ir->mask_keyup   = 0x004000;
 		ir->polling      = 50; /* ms */
 		break;
+	case BTTV_BOARD_KOZUMI_KTV_01C:
+		ir_codes         = ir_codes_pctv_sedna;
+		ir->mask_keycode = 0x001f00;
+		ir->mask_keyup   = 0x006000;
+		ir->polling      = 50; /* ms */
+		break;
 	}
 	if (NULL == ir_codes) {
 		dprintk(KERN_INFO "Ooops: IR config error [card=%d]\n", btv->c.type);

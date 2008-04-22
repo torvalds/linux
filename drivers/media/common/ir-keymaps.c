@@ -1157,7 +1157,8 @@ EXPORT_SYMBOL_GPL(ir_codes_purpletv);
 
 /* Mapping for the 28 key remote control as seen at
    http://www.sednacomputer.com/photo/cardbus-tv.jpg
-   Pavel Mihaylov <bin@bash.info> */
+   Pavel Mihaylov <bin@bash.info>
+   Also for the remote bundled with Kozumi KTV-01C card */
 IR_KEYTAB_TYPE ir_codes_pctv_sedna[IR_KEYTAB_SIZE] = {
 	[ 0x00 ] = KEY_0,
 	[ 0x01 ] = KEY_1,
@@ -1188,6 +1189,11 @@ IR_KEYTAB_TYPE ir_codes_pctv_sedna[IR_KEYTAB_SIZE] = {
 	[ 0x1c ] = KEY_RADIO,          /* FM Radio */
 	[ 0x1d ] = KEY_RECORD,
 	[ 0x1e ] = KEY_PAUSE,
+	/* additional codes for Kozumi's remote */
+	[0x14] = KEY_INFO,        /* OSD */
+	[0x16] = KEY_OK,          /* OK */
+	[0x17] = KEY_DIGITS,      /* Plus */
+	[0x1f] = KEY_PLAY,        /* Play */
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_pctv_sedna);

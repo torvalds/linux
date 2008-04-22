@@ -3015,6 +3015,29 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	  = ADDR_UNSET,
 		.radio_addr       = ADDR_UNSET,
 	},
+	[BTTV_BOARD_KOZUMI_KTV_01C] = {
+		/* Mauro Lacy <mauro@lacy.com.ar>
+		 * Based on MagicTV and Conceptronic CONTVFMi */
+
+		.name           = "Kozumi KTV-01C",
+		.video_inputs   = 3,
+		.audio_inputs   = 1,
+		.tuner          = 0,
+		.svhs           = 2,
+		.gpiomask       = 0x008007,
+		.muxsel         = { 2, 3, 1, 1 },
+		.gpiomux        = { 0, 1, 2, 2 }, /* CONTVFMi */
+		/*gpiomux        = { 0, 1, 2, 3 }, /* MagicTV */
+		.gpiomute 	= 3, /* CONTVFMi */
+		/*gpiomute 	= 4, /* MagicTV */
+		.needs_tvaudio  = 0,
+		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3, /* TCL MK3 */
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.pll            = PLL_28,
+		.has_radio      = 1,
+		.has_remote     = 1,
+	},
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
