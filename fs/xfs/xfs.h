@@ -22,7 +22,7 @@
 #define STATIC
 #define DEBUG 1
 #define XFS_BUF_LOCK_TRACKING 1
-#define QUOTADEBUG 1
+/* #define QUOTADEBUG 1 */
 #endif
 
 #ifdef CONFIG_XFS_TRACE
