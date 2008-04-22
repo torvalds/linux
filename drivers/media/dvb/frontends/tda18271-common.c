@@ -355,14 +355,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	regs[R_MD2] = 0x08;
 	regs[R_MD3] = 0x00;
 
-	switch (priv->id) {
-	case TDA18271HDC1:
-		tda18271_write_regs(fe, R_EP3, 11);
-		break;
-	case TDA18271HDC2:
-		tda18271_write_regs(fe, R_EP3, 12);
-		break;
-	};
+	tda18271_write_regs(fe, R_EP3, 11);
 
 	if ((priv->id) == TDA18271HDC2) {
 		/* main pll cp source on */
@@ -404,6 +397,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	tda18271_write_regs(fe, R_EP3, 11);
 	msleep(5); /* pll locking */
 
+	/* launch detector */
 	tda18271_write_regs(fe, R_EP1, 1);
 	msleep(5); /* wanted mid measurement */
 
