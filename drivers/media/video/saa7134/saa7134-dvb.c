@@ -1052,10 +1052,12 @@ static int dvb_init(struct saa7134_dev *dev)
 							&dev->i2c_adap, 0x08, 0, 0) == NULL)
 						wprintk("%s: Medion Quadro, no ISL6405 "
 							"found !\n", __func__);
-					/* fire up the 2nd section of the LNB supply since we can't do
-					this from the other section */
-					msg.buf = &data;
-					i2c_transfer(&dev->i2c_adap, &msg, 1);
+					if (dev_id == 0x07) {
+						/* fire up the 2nd section of the LNB supply since
+						   we can't do this from the other section */
+						msg.buf = &data;
+						i2c_transfer(&dev->i2c_adap, &msg, 1);
+					}
 					fe->ops.i2c_gate_ctrl(fe, 0);
 					dev->original_set_voltage = fe->ops.set_voltage;
 					fe->ops.set_voltage = md8800_set_voltage;
@@ -1248,7 +1250,7 @@ static int dvb_fini(struct saa7134_dev *dev)
 		/* otherwise we don't detect the tuner on next insmod */
 		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &tda9887_cfg);
 	} else if (dev->board == SAA7134_BOARD_MEDION_MD8800_QUADRO) {
-		if ((dev->eedata[2] != 0x08) && use_frontend) {
+		if ((dev->eedata[2] == 0x07) && use_frontend) {
 			/* turn off the 2nd lnb supply */
 			u8 data = 0x80;
 			struct i2c_msg msg = {.addr = 0x08, .buf = &data, .flags = 0, .len = 1};
