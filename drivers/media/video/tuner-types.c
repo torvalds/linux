@@ -923,6 +923,15 @@ static struct tuner_range tuner_philips_fmd1216me_mk3_pal_ranges[] = {
 	{ 16 * 999.99        , 0x86, 0x54, },
 };
 
+static struct tuner_range tuner_philips_fmd1216me_mk3_dvb_ranges[] = {
+	{ 16 * 143.87 /*MHz*/, 0xbc, 0x41 },
+	{ 16 * 158.87 /*MHz*/, 0xf4, 0x41 },
+	{ 16 * 329.87 /*MHz*/, 0xbc, 0x42 },
+	{ 16 * 441.87 /*MHz*/, 0xf4, 0x42 },
+	{ 16 * 625.87 /*MHz*/, 0xbc, 0x44 },
+	{ 16 * 803.87 /*MHz*/, 0xf4, 0x44 },
+	{ 16 * 999.99        , 0xfc, 0x44 },
+};
 
 static struct tuner_params tuner_philips_fmd1216me_mk3_params[] = {
 	{
@@ -935,6 +944,12 @@ static struct tuner_params tuner_philips_fmd1216me_mk3_params[] = {
 		.port2_fm_high_sensitivity = 1,
 		.port2_invert_for_secam_lc = 1,
 		.port1_set_for_fm_mono = 1,
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_philips_fmd1216me_mk3_dvb_ranges,
+		.count  = ARRAY_SIZE(tuner_philips_fmd1216me_mk3_dvb_ranges),
+		.iffreq = 16 * 36.125, /*MHz*/
 	},
 };
 
@@ -1461,6 +1476,9 @@ struct tunertype tuners[] = {
 		.name   = "Philips FMD1216ME MK3 Hybrid Tuner",
 		.params = tuner_philips_fmd1216me_mk3_params,
 		.count  = ARRAY_SIZE(tuner_philips_fmd1216me_mk3_params),
+		.min = 16 *  50.87,
+		.max = 16 * 858.00,
+		.stepsize = 166667,
 		.initdata = tua603x_agc112,
 		.sleepdata = (u8[]){ 4, 0x9c, 0x60, 0x85, 0x54 },
 	},

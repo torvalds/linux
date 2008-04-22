@@ -714,6 +714,22 @@ static int simple_set_params(struct dvb_frontend *fe,
 	return ret;
 }
 
+static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
+			   const struct dvb_frontend_parameters *params)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+
+	switch (priv->type) {
+	case TUNER_PHILIPS_FMD1216ME_MK3:
+		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ &&
+		    params->frequency >= 158870000)
+			buf[3] |= 0x08;
+		break;
+	default:
+		break;
+	}
+}
+
 static int simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 				const struct dvb_frontend_parameters *params)
 {
@@ -736,6 +752,8 @@ static int simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 	buf[1] = div & 0xff;
 	buf[2] = config;
 	buf[3] = cb;
+
+	simple_set_dvb(fe, buf, params);
 
 	tuner_dbg("%s: div=%d | buf=0x%02x,0x%02x,0x%02x,0x%02x\n",
 		  tun->name, div, buf[0], buf[1], buf[2], buf[3]);
