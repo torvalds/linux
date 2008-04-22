@@ -51,20 +51,20 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 		mdata = (char *)&dev;
 		D1(printk(KERN_DEBUG "jffs2_setattr(): Writing %d bytes of kdev_t\n", mdatalen));
 	} else if (S_ISLNK(inode->i_mode)) {
-		down(&f->sem);
+		mutex_lock(&f->sem);
 		mdatalen = f->metadata->size;
 		mdata = kmalloc(f->metadata->size, GFP_USER);
 		if (!mdata) {
-			up(&f->sem);
+			mutex_unlock(&f->sem);
 			return -ENOMEM;
 		}
 		ret = jffs2_read_dnode(c, f, f->metadata, mdata, 0, mdatalen);
 		if (ret) {
-			up(&f->sem);
+			mutex_unlock(&f->sem);
 			kfree(mdata);
 			return ret;
 		}
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		D1(printk(KERN_DEBUG "jffs2_setattr(): Writing %d bytes of symlink target\n", mdatalen));
 	}
 
@@ -83,7 +83,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 			 kfree(mdata);
 		return ret;
 	}
-	down(&f->sem);
+	mutex_lock(&f->sem);
 	ivalid = iattr->ia_valid;
 
 	ri->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
@@ -134,7 +134,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	if (IS_ERR(new_metadata)) {
 		jffs2_complete_reservation(c);
 		jffs2_free_raw_inode(ri);
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		return PTR_ERR(new_metadata);
 	}
 	/* It worked. Update the inode */
@@ -165,7 +165,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	}
 	jffs2_free_raw_inode(ri);
 
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 	jffs2_complete_reservation(c);
 
 	/* We have to do the vmtruncate() without f->sem held, since
@@ -256,12 +256,12 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	c = JFFS2_SB_INFO(inode->i_sb);
 
 	jffs2_init_inode_info(f);
-	down(&f->sem);
+	mutex_lock(&f->sem);
 
 	ret = jffs2_do_read_inode(c, f, inode->i_ino, &latest_node);
 
 	if (ret) {
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		iget_failed(inode);
 		return ERR_PTR(ret);
 	}
@@ -338,7 +338,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 		printk(KERN_WARNING "jffs2_read_inode(): Bogus imode %o for ino %lu\n", inode->i_mode, (unsigned long)inode->i_ino);
 	}
 
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 
 	D1(printk(KERN_DEBUG "jffs2_read_inode() returning\n"));
 	unlock_new_inode(inode);
@@ -347,7 +347,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 error_io:
 	ret = -EIO;
 error:
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 	jffs2_do_clear_inode(c, f);
 	iget_failed(inode);
 	return ERR_PTR(ret);
@@ -388,9 +388,9 @@ int jffs2_remount_fs (struct super_block *sb, int *flags, char *data)
 	   Flush the writebuffer, if neccecary, else we loose it */
 	if (!(sb->s_flags & MS_RDONLY)) {
 		jffs2_stop_garbage_collect_thread(c);
-		down(&c->alloc_sem);
+		mutex_lock(&c->alloc_sem);
 		jffs2_flush_wbuf_pad(c);
-		up(&c->alloc_sem);
+		mutex_unlock(&c->alloc_sem);
 	}
 
 	if (!(*flags & MS_RDONLY))
@@ -437,7 +437,7 @@ struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_i
 
 	f = JFFS2_INODE_INFO(inode);
 	jffs2_init_inode_info(f);
-	down(&f->sem);
+	mutex_lock(&f->sem);
 
 	memset(ri, 0, sizeof(*ri));
 	/* Set OS-specific defaults for new inodes */

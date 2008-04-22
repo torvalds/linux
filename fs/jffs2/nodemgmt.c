@@ -48,7 +48,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 	minsize = PAD(minsize);
 
 	D1(printk(KERN_DEBUG "jffs2_reserve_space(): Requested 0x%x bytes\n", minsize));
-	down(&c->alloc_sem);
+	mutex_lock(&c->alloc_sem);
 
 	D1(printk(KERN_DEBUG "jffs2_reserve_space(): alloc sem got\n"));
 
@@ -81,7 +81,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 					  dirty, c->unchecked_size, c->sector_size));
 
 				spin_unlock(&c->erase_completion_lock);
-				up(&c->alloc_sem);
+				mutex_unlock(&c->alloc_sem);
 				return -ENOSPC;
 			}
 
@@ -104,11 +104,11 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 				D1(printk(KERN_DEBUG "max. available size 0x%08x  < blocksneeded * sector_size 0x%08x, returning -ENOSPC\n",
 					  avail, blocksneeded * c->sector_size));
 				spin_unlock(&c->erase_completion_lock);
-				up(&c->alloc_sem);
+				mutex_unlock(&c->alloc_sem);
 				return -ENOSPC;
 			}
 
-			up(&c->alloc_sem);
+			mutex_unlock(&c->alloc_sem);
 
 			D1(printk(KERN_DEBUG "Triggering GC pass. nr_free_blocks %d, nr_erasing_blocks %d, free_size 0x%08x, dirty_size 0x%08x, wasted_size 0x%08x, used_size 0x%08x, erasing_size 0x%08x, bad_size 0x%08x (total 0x%08x of 0x%08x)\n",
 				  c->nr_free_blocks, c->nr_erasing_blocks, c->free_size, c->dirty_size, c->wasted_size, c->used_size, c->erasing_size, c->bad_size,
@@ -124,7 +124,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			if (signal_pending(current))
 				return -EINTR;
 
-			down(&c->alloc_sem);
+			mutex_lock(&c->alloc_sem);
 			spin_lock(&c->erase_completion_lock);
 		}
 
@@ -137,7 +137,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 	if (!ret)
 		ret = jffs2_prealloc_raw_node_refs(c, c->nextblock, 1);
 	if (ret)
-		up(&c->alloc_sem);
+		mutex_unlock(&c->alloc_sem);
 	return ret;
 }
 
@@ -462,7 +462,7 @@ void jffs2_complete_reservation(struct jffs2_sb_info *c)
 {
 	D1(printk(KERN_DEBUG "jffs2_complete_reservation()\n"));
 	jffs2_garbage_collect_trigger(c);
-	up(&c->alloc_sem);
+	mutex_unlock(&c->alloc_sem);
 }
 
 static inline int on_list(struct list_head *obj, struct list_head *head)
@@ -511,7 +511,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		   any jffs2_raw_node_refs. So we don't need to stop erases from
 		   happening, or protect against people holding an obsolete
 		   jffs2_raw_node_ref without the erase_completion_lock. */
-		down(&c->erase_free_sem);
+		mutex_lock(&c->erase_free_sem);
 	}
 
 	spin_lock(&c->erase_completion_lock);
@@ -714,7 +714,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	}
 
  out_erase_sem:
-	up(&c->erase_free_sem);
+	mutex_unlock(&c->erase_free_sem);
 }
 
 int jffs2_thread_should_wake(struct jffs2_sb_info *c)

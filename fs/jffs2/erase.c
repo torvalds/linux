@@ -50,14 +50,14 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	instr = kmalloc(sizeof(struct erase_info) + sizeof(struct erase_priv_struct), GFP_KERNEL);
 	if (!instr) {
 		printk(KERN_WARNING "kmalloc for struct erase_info in jffs2_erase_block failed. Refiling block for later\n");
-		down(&c->erase_free_sem);
+		mutex_lock(&c->erase_free_sem);
 		spin_lock(&c->erase_completion_lock);
 		list_move(&jeb->list, &c->erase_pending_list);
 		c->erasing_size -= c->sector_size;
 		c->dirty_size += c->sector_size;
 		jeb->dirty_size = c->sector_size;
 		spin_unlock(&c->erase_completion_lock);
-		up(&c->erase_free_sem);
+		mutex_unlock(&c->erase_free_sem);
 		return;
 	}
 
@@ -84,14 +84,14 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	if (ret == -ENOMEM || ret == -EAGAIN) {
 		/* Erase failed immediately. Refile it on the list */
 		D1(printk(KERN_DEBUG "Erase at 0x%08x failed: %d. Refiling on erase_pending_list\n", jeb->offset, ret));
-		down(&c->erase_free_sem);
+		mutex_lock(&c->erase_free_sem);
 		spin_lock(&c->erase_completion_lock);
 		list_move(&jeb->list, &c->erase_pending_list);
 		c->erasing_size -= c->sector_size;
 		c->dirty_size += c->sector_size;
 		jeb->dirty_size = c->sector_size;
 		spin_unlock(&c->erase_completion_lock);
-		up(&c->erase_free_sem);
+		mutex_unlock(&c->erase_free_sem);
 		return;
 	}
 
@@ -107,7 +107,7 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 {
 	struct jffs2_eraseblock *jeb;
 
-	down(&c->erase_free_sem);
+	mutex_lock(&c->erase_free_sem);
 
 	spin_lock(&c->erase_completion_lock);
 
@@ -118,7 +118,7 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 			jeb = list_entry(c->erase_complete_list.next, struct jffs2_eraseblock, list);
 			list_del(&jeb->list);
 			spin_unlock(&c->erase_completion_lock);
-			up(&c->erase_free_sem);
+			mutex_unlock(&c->erase_free_sem);
 			jffs2_mark_erased_block(c, jeb);
 
 			if (!--count) {
@@ -139,7 +139,7 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 			jffs2_free_jeb_node_refs(c, jeb);
 			list_add(&jeb->list, &c->erasing_list);
 			spin_unlock(&c->erase_completion_lock);
-			up(&c->erase_free_sem);
+			mutex_unlock(&c->erase_free_sem);
 
 			jffs2_erase_block(c, jeb);
 
@@ -149,12 +149,12 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 
 		/* Be nice */
 		yield();
-		down(&c->erase_free_sem);
+		mutex_lock(&c->erase_free_sem);
 		spin_lock(&c->erase_completion_lock);
 	}
 
 	spin_unlock(&c->erase_completion_lock);
-	up(&c->erase_free_sem);
+	mutex_unlock(&c->erase_free_sem);
  done:
 	D1(printk(KERN_DEBUG "jffs2_erase_pending_blocks completed\n"));
 }
@@ -162,11 +162,11 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 static void jffs2_erase_succeeded(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
 	D1(printk(KERN_DEBUG "Erase completed successfully at 0x%08x\n", jeb->offset));
-	down(&c->erase_free_sem);
+	mutex_lock(&c->erase_free_sem);
 	spin_lock(&c->erase_completion_lock);
 	list_move_tail(&jeb->list, &c->erase_complete_list);
 	spin_unlock(&c->erase_completion_lock);
-	up(&c->erase_free_sem);
+	mutex_unlock(&c->erase_free_sem);
 	/* Ensure that kupdated calls us again to mark them clean */
 	jffs2_erase_pending_trigger(c);
 }
@@ -180,26 +180,26 @@ static void jffs2_erase_failed(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		   failed too many times. */
 		if (!jffs2_write_nand_badblock(c, jeb, bad_offset)) {
 			/* We'd like to give this block another try. */
-			down(&c->erase_free_sem);
+			mutex_lock(&c->erase_free_sem);
 			spin_lock(&c->erase_completion_lock);
 			list_move(&jeb->list, &c->erase_pending_list);
 			c->erasing_size -= c->sector_size;
 			c->dirty_size += c->sector_size;
 			jeb->dirty_size = c->sector_size;
 			spin_unlock(&c->erase_completion_lock);
-			up(&c->erase_free_sem);
+			mutex_unlock(&c->erase_free_sem);
 			return;
 		}
 	}
 
-	down(&c->erase_free_sem);
+	mutex_lock(&c->erase_free_sem);
 	spin_lock(&c->erase_completion_lock);
 	c->erasing_size -= c->sector_size;
 	c->bad_size += c->sector_size;
 	list_move(&jeb->list, &c->bad_list);
 	c->nr_erasing_blocks--;
 	spin_unlock(&c->erase_completion_lock);
-	up(&c->erase_free_sem);
+	mutex_unlock(&c->erase_free_sem);
 	wake_up(&c->erase_wait);
 }
 
@@ -456,7 +456,7 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 		jffs2_link_node_ref(c, jeb, jeb->offset | REF_NORMAL, c->cleanmarker_size, NULL);
 	}
 
-	down(&c->erase_free_sem);
+	mutex_lock(&c->erase_free_sem);
 	spin_lock(&c->erase_completion_lock);
 	c->erasing_size -= c->sector_size;
 	c->free_size += jeb->free_size;
@@ -469,28 +469,28 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	c->nr_erasing_blocks--;
 	c->nr_free_blocks++;
 	spin_unlock(&c->erase_completion_lock);
-	up(&c->erase_free_sem);
+	mutex_unlock(&c->erase_free_sem);
 	wake_up(&c->erase_wait);
 	return;
 
 filebad:
-	down(&c->erase_free_sem);
+	mutex_lock(&c->erase_free_sem);
 	spin_lock(&c->erase_completion_lock);
 	/* Stick it on a list (any list) so erase_failed can take it
 	   right off again.  Silly, but shouldn't happen often. */
 	list_add(&jeb->list, &c->erasing_list);
 	spin_unlock(&c->erase_completion_lock);
-	up(&c->erase_free_sem);
+	mutex_unlock(&c->erase_free_sem);
 	jffs2_erase_failed(c, jeb, bad_offset);
 	return;
 
 refile:
 	/* Stick it back on the list from whence it came and come back later */
 	jffs2_erase_pending_trigger(c);
-	down(&c->erase_free_sem);
+	mutex_lock(&c->erase_free_sem);
 	spin_lock(&c->erase_completion_lock);
 	list_add(&jeb->list, &c->erase_complete_list);
 	spin_unlock(&c->erase_completion_lock);
-	up(&c->erase_free_sem);
+	mutex_unlock(&c->erase_free_sem);
 	return;
 }

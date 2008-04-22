@@ -14,7 +14,7 @@ be fairly close.
 	alloc_sem
 	---------
 
-The alloc_sem is a per-filesystem semaphore, used primarily to ensure
+The alloc_sem is a per-filesystem mutex, used primarily to ensure
 contiguous allocation of space on the medium. It is automatically
 obtained during space allocations (jffs2_reserve_space()) and freed
 upon write completion (jffs2_complete_reservation()). Note that
@@ -41,10 +41,10 @@ if the wbuf is currently holding any data is permitted, though.
 Ordering constraints: See f->sem.
 
 
-	File Semaphore f->sem
+	File Mutex f->sem
 	---------------------
 
-This is the JFFS2-internal equivalent of the inode semaphore i->i_sem.
+This is the JFFS2-internal equivalent of the inode mutex i->i_sem.
 It protects the contents of the jffs2_inode_info private inode data,
 including the linked list of node fragments (but see the notes below on
 erase_completion_lock), etc.
@@ -60,14 +60,14 @@ lead to deadlock, unless we played games with unlocking the i_sem
 before calling the space allocation functions.
 
 Instead of playing such games, we just have an extra internal
-semaphore, which is obtained by the garbage collection code and also
+mutex, which is obtained by the garbage collection code and also
 by the normal file system code _after_ allocation of space.
 
 Ordering constraints: 
 
 	1. Never attempt to allocate space or lock alloc_sem with 
 	   any f->sem held.
-	2. Never attempt to lock two file semaphores in one thread.
+	2. Never attempt to lock two file mutexes in one thread.
 	   No ordering rules have been made for doing so.
 
 
@@ -86,8 +86,8 @@ a simple spin_lock() rather than spin_lock_bh().
 
 Note that the per-inode list of physical nodes (f->nodes) is a special
 case. Any changes to _valid_ nodes (i.e. ->flash_offset & 1 == 0) in
-the list are protected by the file semaphore f->sem. But the erase
-code may remove _obsolete_ nodes from the list while holding only the
+the list are protected by the file mutex f->sem. But the erase code
+may remove _obsolete_ nodes from the list while holding only the
 erase_completion_lock. So you can walk the list only while holding the
 erase_completion_lock, and can drop the lock temporarily mid-walk as
 long as the pointer you're holding is to a _valid_ node, not an
@@ -124,10 +124,10 @@ Ordering constraints:
 	erase_free_sem
 	--------------
 
-This semaphore is only used by the erase code which frees obsolete
-node references and the jffs2_garbage_collect_deletion_dirent()
-function. The latter function on NAND flash must read _obsolete_ nodes
-to determine whether the 'deletion dirent' under consideration can be
+This mutex is only used by the erase code which frees obsolete node
+references and the jffs2_garbage_collect_deletion_dirent() function.
+The latter function on NAND flash must read _obsolete_ nodes to
+determine whether the 'deletion dirent' under consideration can be
 discarded or whether it is still required to show that an inode has
 been unlinked. Because reading from the flash may sleep, the
 erase_completion_lock cannot be held, so an alternative, more

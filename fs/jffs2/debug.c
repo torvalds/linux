@@ -62,9 +62,9 @@ __jffs2_dbg_acct_sanity_check(struct jffs2_sb_info *c,
 void
 __jffs2_dbg_fragtree_paranoia_check(struct jffs2_inode_info *f)
 {
-	down(&f->sem);
+	mutex_lock(&f->sem);
 	__jffs2_dbg_fragtree_paranoia_check_nolock(f);
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 }
 
 void
@@ -532,9 +532,9 @@ __jffs2_dbg_dump_block_lists_nolock(struct jffs2_sb_info *c)
 void
 __jffs2_dbg_dump_fragtree(struct jffs2_inode_info *f)
 {
-	down(&f->sem);
+	mutex_lock(&f->sem);
 	jffs2_dbg_dump_fragtree_nolock(f);
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 }
 
 void

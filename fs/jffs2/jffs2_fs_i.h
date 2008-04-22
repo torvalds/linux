@@ -24,7 +24,7 @@ struct jffs2_inode_info {
 	   before letting GC proceed. Or we'd have to put ugliness
 	   into the GC code so it didn't attempt to obtain the i_mutex
 	   for the inode(s) which are already locked */
-	struct semaphore sem;
+	struct mutex sem;
 
 	/* The highest (datanode) version number used for this ino */
 	uint32_t highest_version;
