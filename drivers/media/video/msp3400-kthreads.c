@@ -833,11 +833,6 @@ static int msp34xxg_modus(struct i2c_client *client)
 		v4l_dbg(1, msp_debug, client, "selected radio modus\n");
 		return 0x0001;
 	}
-
-	if (state->v4l2_std & V4L2_STD_PAL) {
-		v4l_dbg(1, msp_debug, client, "selected PAL modus\n");
-		return 0x7001;
-	}
 	if (state->v4l2_std == V4L2_STD_NTSC_M_JP) {
 		v4l_dbg(1, msp_debug, client, "selected M (EIA-J) modus\n");
 		return 0x4001;
@@ -846,15 +841,15 @@ static int msp34xxg_modus(struct i2c_client *client)
 		v4l_dbg(1, msp_debug, client, "selected M (A2) modus\n");
 		return 0x0001;
 	}
+	if (state->v4l2_std == V4L2_STD_SECAM_L) {
+		v4l_dbg(1, msp_debug, client, "selected SECAM-L modus\n");
+		return 0x6001;
+	}
 	if (state->v4l2_std & V4L2_STD_MN) {
 		v4l_dbg(1, msp_debug, client, "selected M (BTSC) modus\n");
 		return 0x2001;
 	}
-	if (state->v4l2_std & V4L2_STD_SECAM) {
-		v4l_dbg(1, msp_debug, client, "selected SECAM modus\n");
-		return 0x6001;
-	}
-	return 0x0001;
+	return 0x7001;
 }
 
 static void msp34xxg_set_source(struct i2c_client *client, u16 reg, int in)
