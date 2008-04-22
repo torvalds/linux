@@ -273,8 +273,6 @@ int videobuf_dma_sync(struct videobuf_queue *q, struct videobuf_dmabuf *dma)
 
 int videobuf_dma_unmap(struct videobuf_queue* q,struct videobuf_dmabuf *dma)
 {
-	void                   *dev=q->dev;
-
 	MAGIC_CHECK(dma->magic, MAGIC_DMABUF);
 	if (!dma->sglen)
 		return 0;
