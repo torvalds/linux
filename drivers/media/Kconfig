@@ -71,9 +71,13 @@ source "drivers/media/dvb/Kconfig"
 
 source "drivers/media/common/Kconfig"
 
+config VIDEO_TUNER_TYPES
+	tristate
+
 config VIDEO_TUNER
 	tristate
 	depends on I2C
+	select VIDEO_TUNER_TYPES
 	select TUNER_XC2028 if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_MT20XX if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_TDA8290 if !VIDEO_TUNER_CUSTOMIZE
@@ -136,6 +140,7 @@ config TUNER_TEA5767
 config TUNER_SIMPLE
 	tristate "Simple tuner support"
 	depends on I2C
+	select VIDEO_TUNER_TYPES
 	select TUNER_TDA9887
 	default m if VIDEO_TUNER_CUSTOMIZE
 	help

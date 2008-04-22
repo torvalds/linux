@@ -4,7 +4,7 @@
 
 zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
-tuner-objs	:=	tuner-core.o tuner-types.o
+tuner-objs	:=	tuner-core.o
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
@@ -84,6 +84,7 @@ obj-$(CONFIG_VIDEO_DPC) += dpc7146.o
 obj-$(CONFIG_TUNER_3036) += tuner-3036.o
 
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o
+obj-$(CONFIG_VIDEO_TUNER_TYPES) += tuner-types.o
 
 obj-$(CONFIG_TUNER_XC2028) += tuner-xc2028.o
 obj-$(CONFIG_TUNER_SIMPLE) += tuner-simple.o
