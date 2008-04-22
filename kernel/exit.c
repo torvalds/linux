@@ -507,8 +507,9 @@ void put_files_struct(struct files_struct *files)
 	}
 }
 
-void reset_files_struct(struct task_struct *tsk, struct files_struct *files)
+void reset_files_struct(struct files_struct *files)
 {
+	struct task_struct *tsk = current;
 	struct files_struct *old;
 
 	old = tsk->files;

@@ -840,36 +840,6 @@ static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
 	return 0;
 }
 
-/*
- *	Helper to unshare the files of the current task.
- *	We don't want to expose copy_files internals to
- *	the exec layer of the kernel.
- */
-
-int unshare_files(void)
-{
-	struct files_struct *files  = current->files;
-	struct files_struct *newf;
-	int error = 0;
-
-	BUG_ON(!files);
-
-	/* This can race but the race causes us to copy when we don't
-	   need to and drop the copy */
-	if(atomic_read(&files->count) == 1)
-	{
-		atomic_inc(&files->count);
-		return 0;
-	}
-	newf = dup_fd(files, &error);
-	if (newf) {
-		task_lock(current);
-		current->files = newf;
-		task_unlock(current);
-	}
-	return error;
-}
-
 static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
 {
 	struct sighand_struct *sig;
@@ -1806,4 +1776,28 @@ bad_unshare_cleanup_fs:
 bad_unshare_cleanup_thread:
 bad_unshare_out:
 	return err;
+}
+
+/*
+ *	Helper to unshare the files of the current task.
+ *	We don't want to expose copy_files internals to
+ *	the exec layer of the kernel.
+ */
+
+int unshare_files(struct files_struct **displaced)
+{
+	struct task_struct *task = current;
+	struct files_struct *copy;
+	int error;
+
+	error = unshare_fd(CLONE_FILES, &copy);
+	if (error || !copy) {
+		*displaced = NULL;
+		return error;
+	}
+	*displaced = task->files;
+	task_lock(task);
+	task->files = copy;
+	task_unlock(task);
+	return 0;
 }

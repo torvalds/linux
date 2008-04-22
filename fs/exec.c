@@ -1269,18 +1269,12 @@ int do_execve(char * filename,
 	struct linux_binprm *bprm;
 	struct file *file;
 	unsigned long env_p;
-	struct files_struct *files;
+	struct files_struct *displaced;
 	int retval;
 
-	files = current->files;
-	retval = unshare_files();
+	retval = unshare_files(&displaced);
 	if (retval)
 		goto out_ret;
-
-	if (files == current->files) {
-		put_files_struct(files);
-		files = NULL;
-	}
 
 	retval = -ENOMEM;
 	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
@@ -1340,8 +1334,8 @@ int do_execve(char * filename,
 		security_bprm_free(bprm);
 		acct_update_integrals(current);
 		kfree(bprm);
-		if (files)
-			put_files_struct(files);
+		if (displaced)
+			put_files_struct(displaced);
 		return retval;
 	}
 
@@ -1363,8 +1357,8 @@ out_kfree:
 	kfree(bprm);
 
 out_files:
-	if (files)
-		reset_files_struct(current, files);
+	if (displaced)
+		reset_files_struct(displaced);
 out_ret:
 	return retval;
 }
