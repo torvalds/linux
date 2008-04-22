@@ -112,18 +112,6 @@ static struct dvb_pll_desc dvb_pll_thomson_dtt7579 = {
 	},
 };
 
-static struct dvb_pll_desc dvb_pll_thomson_dtt7610 = {
-	.name  = "Thomson dtt7610",
-	.min   =  44000000,
-	.max   = 958000000,
-	.iffreq= 44000000,
-	.count = 3,
-	.entries = {
-		{ 157250000, 62500, 0x8e, 0x39 },
-		{ 454000000, 62500, 0x8e, 0x3a },
-		{ 999999999, 62500, 0x8e, 0x3c },
-	},
-};
 
 static void thomson_dtt759x_bw(struct dvb_frontend *fe, u8 *buf,
 			       const struct dvb_frontend_parameters *params)
@@ -584,7 +572,6 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_UNDEFINED]              = NULL,
 	[DVB_PLL_THOMSON_DTT7579]        = &dvb_pll_thomson_dtt7579,
 	[DVB_PLL_THOMSON_DTT759X]        = &dvb_pll_thomson_dtt759x,
-	[DVB_PLL_THOMSON_DTT7610]        = &dvb_pll_thomson_dtt7610,
 	[DVB_PLL_LG_Z201]                = &dvb_pll_lg_z201,
 	[DVB_PLL_MICROTUNE_4042]         = &dvb_pll_microtune_4042,
 	[DVB_PLL_THOMSON_DTT761X]        = &dvb_pll_thomson_dtt761x,

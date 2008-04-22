@@ -11,7 +11,6 @@
 #define DVB_PLL_UNDEFINED               0
 #define DVB_PLL_THOMSON_DTT7579         1
 #define DVB_PLL_THOMSON_DTT759X         2
-#define DVB_PLL_THOMSON_DTT7610         3
 #define DVB_PLL_LG_Z201                 4
 #define DVB_PLL_MICROTUNE_4042          5
 #define DVB_PLL_THOMSON_DTT761X         6
