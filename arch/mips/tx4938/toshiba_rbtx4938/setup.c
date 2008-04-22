@@ -1026,7 +1026,6 @@ static void __init txx9_spi_init(unsigned long base, int irq)
 			.start	= base,
 			.end	= base + 0x20 - 1,
 			.flags	= IORESOURCE_MEM,
-			.parent	= &tx4938_reg_resource,
 		}, {
 			.start	= irq,
 			.flags	= IORESOURCE_IRQ,
@@ -1078,7 +1077,6 @@ static int __init txx9_wdt_init(unsigned long base)
 		.start	= base,
 		.end	= base + 0x100 - 1,
 		.flags	= IORESOURCE_MEM,
-		.parent	= &tx4938_reg_resource,
 	};
 	struct platform_device *dev =
 		platform_device_register_simple("txx9wdt", -1, &res, 1);
