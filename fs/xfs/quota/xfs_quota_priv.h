@@ -27,11 +27,6 @@
 /* Number of dquots that fit in to a dquot block */
 #define XFS_QM_DQPERBLK(mp)	((mp)->m_quotainfo->qi_dqperchunk)
 
-#define XFS_ISLOCKED_INODE(ip)		(ismrlocked(&(ip)->i_lock, \
-					    MR_UPDATE | MR_ACCESS) != 0)
-#define XFS_ISLOCKED_INODE_EXCL(ip)	(ismrlocked(&(ip)->i_lock, \
-					    MR_UPDATE) != 0)
-
 #define XFS_DQ_IS_ADDEDTO_TRX(t, d)	((d)->q_transp == (t))
 
 #define XFS_QI_MPLRECLAIMS(mp)	((mp)->m_quotainfo->qi_dqreclaims)

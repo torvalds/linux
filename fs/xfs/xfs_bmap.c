@@ -4074,7 +4074,6 @@ xfs_bmap_add_attrfork(
 error2:
 	xfs_bmap_cancel(&flist);
 error1:
-	ASSERT(ismrlocked(&ip->i_lock,MR_UPDATE));
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 error0:
 	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);

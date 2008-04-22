@@ -386,20 +386,9 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
 #define	XFS_ILOCK_EXCL		(1<<2)
 #define	XFS_ILOCK_SHARED	(1<<3)
 #define	XFS_IUNLOCK_NONOTIFY	(1<<4)
-/*	#define XFS_IOLOCK_NESTED	(1<<5)	*/
-#define XFS_EXTENT_TOKEN_RD	(1<<6)
-#define XFS_SIZE_TOKEN_RD	(1<<7)
-#define XFS_EXTSIZE_RD		(XFS_EXTENT_TOKEN_RD|XFS_SIZE_TOKEN_RD)
-#define XFS_WILLLEND		(1<<8)	/* Always acquire tokens for lending */
-#define XFS_EXTENT_TOKEN_WR	(XFS_EXTENT_TOKEN_RD | XFS_WILLLEND)
-#define XFS_SIZE_TOKEN_WR       (XFS_SIZE_TOKEN_RD | XFS_WILLLEND)
-#define XFS_EXTSIZE_WR		(XFS_EXTSIZE_RD | XFS_WILLLEND)
-/* TODO:XFS_SIZE_TOKEN_WANT	(1<<9) */
 
 #define XFS_LOCK_MASK		(XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED \
-				| XFS_ILOCK_EXCL | XFS_ILOCK_SHARED \
-				| XFS_EXTENT_TOKEN_RD | XFS_SIZE_TOKEN_RD \
-				| XFS_WILLLEND)
+				| XFS_ILOCK_EXCL | XFS_ILOCK_SHARED)
 
 /*
  * Flags for lockdep annotations.
@@ -483,6 +472,7 @@ void		xfs_ilock(xfs_inode_t *, uint);
 int		xfs_ilock_nowait(xfs_inode_t *, uint);
 void		xfs_iunlock(xfs_inode_t *, uint);
 void		xfs_ilock_demote(xfs_inode_t *, uint);
+int		xfs_isilocked(xfs_inode_t *, uint);
 void		xfs_iflock(xfs_inode_t *);
 int		xfs_iflock_nowait(xfs_inode_t *);
 uint		xfs_ilock_map_shared(xfs_inode_t *);

@@ -196,14 +196,14 @@ xfs_iomap(
 		break;
 	case BMAPI_WRITE:
 		xfs_iomap_enter_trace(XFS_IOMAP_WRITE_ENTER, ip, offset, count);
-		lockmode = XFS_ILOCK_EXCL|XFS_EXTSIZE_WR;
+		lockmode = XFS_ILOCK_EXCL;
 		if (flags & BMAPI_IGNSTATE)
 			bmapi_flags |= XFS_BMAPI_IGSTATE|XFS_BMAPI_ENTIRE;
 		xfs_ilock(ip, lockmode);
 		break;
 	case BMAPI_ALLOCATE:
 		xfs_iomap_enter_trace(XFS_IOMAP_ALLOC_ENTER, ip, offset, count);
-		lockmode = XFS_ILOCK_SHARED|XFS_EXTSIZE_RD;
+		lockmode = XFS_ILOCK_SHARED;
 		bmapi_flags = XFS_BMAPI_ENTIRE;
 
 		/* Attempt non-blocking lock */
@@ -624,7 +624,7 @@ xfs_iomap_write_delay(
 	int		prealloc, fsynced = 0;
 	int		error;
 
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE) != 0);
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	/*
 	 * Make sure that the dquots are there. This doesn't hold
