@@ -47,6 +47,7 @@
 #include "isl6421.h"
 #include "tuner-xc2028.h"
 #include "tuner-xc2028-types.h"
+#include "tuner-simple.h"
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -630,9 +631,9 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = dvb_attach(or51132_attach, &pchdtv_hd3000,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap,
-				   DVB_PLL_THOMSON_DTT761X);
+			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &dev->core->i2c_adap, 0x61,
+				   TUNER_THOMSON_DTT761X);
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q:
@@ -672,9 +673,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &fusionhdtv_3_gold,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap,
-				   DVB_PLL_THOMSON_DTT761X);
+			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &dev->core->i2c_adap, 0x61,
+				   TUNER_THOMSON_DTT761X);
 		}
 		}
 		break;
