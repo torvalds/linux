@@ -111,6 +111,7 @@ static int device_list_add(const char *path,
 		if (!fs_devices)
 			return -ENOMEM;
 		INIT_LIST_HEAD(&fs_devices->devices);
+		INIT_LIST_HEAD(&fs_devices->alloc_list);
 		list_add(&fs_devices->list, &fs_uuids);
 		memcpy(fs_devices->fsid, disk_super->fsid, BTRFS_FSID_SIZE);
 		fs_devices->latest_devid = devid;
@@ -139,6 +140,7 @@ static int device_list_add(const char *path,
 			return -ENOMEM;
 		}
 		list_add(&device->dev_list, &fs_devices->devices);
+		list_add(&device->dev_alloc_list, &fs_devices->alloc_list);
 		fs_devices->num_devices++;
 	}
 
@@ -660,7 +662,7 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	struct btrfs_device *device = NULL;
 	struct btrfs_chunk *chunk;
 	struct list_head private_devs;
-	struct list_head *dev_list = &extent_root->fs_info->fs_devices->devices;
+	struct list_head *dev_list;
 	struct list_head *cur;
 	struct extent_map_tree *em_tree;
 	struct map_lookup *map;
@@ -682,6 +684,7 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	int stripe_len = 64 * 1024;
 	struct btrfs_key key;
 
+	dev_list = &extent_root->fs_info->fs_devices->alloc_list;
 	if (list_empty(dev_list))
 		return -ENOSPC;
 
@@ -752,12 +755,12 @@ again:
 
 	/* build a private list of devices we will allocate from */
 	while(index < num_stripes) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+		device = list_entry(cur, struct btrfs_device, dev_alloc_list);
 
 		avail = device->total_bytes - device->bytes_used;
 		cur = cur->next;
 		if (avail >= min_free) {
-			list_move_tail(&device->dev_list, &private_devs);
+			list_move_tail(&device->dev_alloc_list, &private_devs);
 			index++;
 			if (type & BTRFS_BLOCK_GROUP_DUP)
 				index++;
@@ -812,12 +815,12 @@ printk("new chunk type %Lu start %Lu size %Lu\n", type, key.offset, *num_bytes);
 		struct btrfs_stripe *stripe;
 		BUG_ON(list_empty(&private_devs));
 		cur = private_devs.next;
-		device = list_entry(cur, struct btrfs_device, dev_list);
+		device = list_entry(cur, struct btrfs_device, dev_alloc_list);
 
 		/* loop over this device again if we're doing a dup group */
 		if (!(type & BTRFS_BLOCK_GROUP_DUP) ||
 		    (index == num_stripes - 1))
-			list_move_tail(&device->dev_list, dev_list);
+			list_move_tail(&device->dev_alloc_list, dev_list);
 
 		ret = btrfs_alloc_dev_extent(trans, device,
 			     info->chunk_root->root_key.objectid,
@@ -1329,6 +1332,8 @@ static int read_one_dev(struct btrfs_root *root,
 			return -ENOMEM;
 		list_add(&device->dev_list,
 			 &root->fs_info->fs_devices->devices);
+		list_add(&device->dev_alloc_list,
+			 &root->fs_info->fs_devices->alloc_list);
 		device->barriers = 1;
 		spin_lock_init(&device->io_lock);
 	}

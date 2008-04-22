@@ -24,9 +24,12 @@
 struct buffer_head;
 struct btrfs_device {
 	struct list_head dev_list;
+	struct list_head dev_alloc_list;
 	struct btrfs_root *dev_root;
 	struct buffer_head *pending_io;
+
 	int barriers;
+
 	spinlock_t io_lock;
 
 	struct block_device *bdev;
@@ -70,7 +73,11 @@ struct btrfs_fs_devices {
 	u64 num_devices;
 	struct block_device *latest_bdev;
 	struct block_device *lowest_bdev;
+	/* all of the devices in the FS */
 	struct list_head devices;
+
+	/* devices not currently being allocated */
+	struct list_head alloc_list;
 	struct list_head list;
 };
 
