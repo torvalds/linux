@@ -7035,6 +7035,7 @@ static int find_next_best_node(int node, nodemask_t *used_nodes)
 /**
  * sched_domain_node_span - get a cpumask for a node's sched_domain
  * @node: node whose cpumask we're constructing
+ * @span: resulting cpumask
  *
  * Given a node, construct a good cpumask for its sched_domain to span. It
  * should be one that prevents unnecessary balancing, but also spreads tasks
