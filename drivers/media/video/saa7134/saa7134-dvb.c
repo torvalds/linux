@@ -44,6 +44,7 @@
 #include "tda827x.h"
 #include "isl6421.h"
 #include "isl6405.h"
+#include "lnbp21.h"
 
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
@@ -1079,6 +1080,18 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_TWINHAN_DTV_DVB_3056:
 		configure_tda827x_fe(dev, &twinhan_dtv_dvb_3056_config);
+		break;
+	case SAA7134_BOARD_PHILIPS_SNAKE:
+		dev->dvb.frontend = dvb_attach(tda10086_attach, &flydvbs,
+						&dev->i2c_adap);
+		if (dev->dvb.frontend) {
+			if (dvb_attach(tda826x_attach, dev->dvb.frontend, 0x60,
+					&dev->i2c_adap, 0) == NULL)
+				wprintk("%s: No tda826x found!\n", __FUNCTION__);
+			if (dvb_attach(lnbp21_attach, dev->dvb.frontend,
+					&dev->i2c_adap, 0, 0) == NULL)
+				wprintk("%s: No lnbp21 found!\n", __FUNCTION__);
+		}
 		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");

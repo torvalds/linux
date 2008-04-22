@@ -3992,6 +3992,24 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x6000,
 		},
 	},
+	[SAA7134_BOARD_PHILIPS_SNAKE] = {
+		.name           = "NXP Snake DVB-S reference design",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE1,
+		}, {
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE1,
+		} },
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -5283,6 +5301,14 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_EUROPA:
+		if (dev->autodetected && (dev->eedata[0x41] == 0x1c)) {
+			/* Reconfigure board as Snake reference design */
+			dev->board = SAA7134_BOARD_PHILIPS_SNAKE;
+			dev->tuner_type = saa7134_boards[dev->board].tuner_type;
+			printk(KERN_INFO "%s: Reconfigured board as %s\n",
+				dev->name, saa7134_boards[dev->board].name);
+			break;
+		}
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 	case SAA7134_BOARD_ASUS_EUROPA2_HYBRID:
 		/* The Philips EUROPA based hybrid boards have the tuner connected through
