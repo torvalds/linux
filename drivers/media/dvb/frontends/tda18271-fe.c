@@ -36,6 +36,15 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 
 /*---------------------------------------------------------------------*/
 
+static inline int charge_pump_source(struct dvb_frontend *fe, int force)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	return tda18271_charge_pump_source(fe,
+					   (priv->role == TDA18271_SLAVE) ?
+					   TDA18271_CAL_PLL :
+					   TDA18271_MAIN_PLL, force);
+}
+
 static int tda18271_channel_configuration(struct dvb_frontend *fe,
 					  struct tda18271_std_map_item *map,
 					  u32 freq, u32 bw)
@@ -97,8 +106,14 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 
 	/* dual tuner and agc1 extra configuration */
 
-	/* main vco when Master, cal vco when slave */
-	regs[R_EB1]  |= 0x04; /* FIXME: assumes master */
+	switch (priv->role) {
+	case TDA18271_MASTER:
+		regs[R_EB1]  |= 0x04; /* main vco */
+		break;
+	case TDA18271_SLAVE:
+		regs[R_EB1]  &= ~0x04; /* cal vco */
+		break;
+	}
 
 	/* agc1 always active */
 	regs[R_EB1]  &= ~0x02;
@@ -112,19 +127,29 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 
 	N = map->if_freq * 1000 + freq;
 
-	/* FIXME: assumes master */
-	tda18271_calc_main_pll(fe, N);
-	tda18271_write_regs(fe, R_MPD, 4);
+	switch (priv->role) {
+	case TDA18271_MASTER:
+		tda18271_calc_main_pll(fe, N);
+		tda18271_write_regs(fe, R_MPD, 4);
+		break;
+	case TDA18271_SLAVE:
+		tda18271_calc_cal_pll(fe, N);
+		tda18271_write_regs(fe, R_CPD, 4);
+
+		regs[R_MPD] = regs[R_CPD] & 0x7f;
+		tda18271_write_regs(fe, R_MPD, 1);
+		break;
+	}
 
 	tda18271_write_regs(fe, R_TM, 7);
 
-	/* main pll charge pump source */
-	tda18271_charge_pump_source(fe, TDA18271_MAIN_PLL, 1);
+	/* force charge pump source */
+	charge_pump_source(fe, 1);
 
 	msleep(1);
 
-	/* normal operation for the main pll */
-	tda18271_charge_pump_source(fe, TDA18271_MAIN_PLL, 0);
+	/* return pll to normal operation */
+	charge_pump_source(fe, 0);
 
 	msleep(20);
 
@@ -1058,6 +1083,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	case 1:
 		/* new tuner instance */
 		priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
+		priv->role = (cfg) ? cfg->role : TDA18271_MASTER;
 		priv->cal_initialized = false;
 		mutex_init(&priv->lock);
 

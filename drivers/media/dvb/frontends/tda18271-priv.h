@@ -110,6 +110,7 @@ struct tda18271_priv {
 	struct tuner_i2c_props	i2c_props;
 
 	enum tda18271_mode mode;
+	enum tda18271_role role;
 	enum tda18271_i2c_gate gate;
 	enum tda18271_ver id;
 

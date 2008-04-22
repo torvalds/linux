@@ -56,6 +56,11 @@ struct tda18271_std_map {
 	struct tda18271_std_map_item qam_8;
 };
 
+enum tda18271_role {
+	TDA18271_MASTER = 0,
+	TDA18271_SLAVE,
+};
+
 enum tda18271_i2c_gate {
 	TDA18271_GATE_AUTO = 0,
 	TDA18271_GATE_ANALOG,
@@ -65,6 +70,9 @@ enum tda18271_i2c_gate {
 struct tda18271_config {
 	/* override default if freq / std settings (optional) */
 	struct tda18271_std_map *std_map;
+
+	/* master / slave tuner: master uses main pll, slave uses cal pll */
+	enum tda18271_role role;
 
 	/* use i2c gate provided by analog or digital demod */
 	enum tda18271_i2c_gate gate;
