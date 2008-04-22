@@ -494,6 +494,7 @@ int btrfs_readpage_io_failed_hook(struct bio *failed_bio,
 	bio->bi_end_io = failed_bio->bi_end_io;
 	bio->bi_sector = failrec->logical >> 9;
 	bio->bi_bdev = failed_bio->bi_bdev;
+	bio->bi_size = 0;
 	bio_add_page(bio, page, failrec->len, start - page_offset(page));
 	btrfs_submit_bio_hook(inode, READ, bio, failrec->last_mirror);
 	return 0;
@@ -2187,12 +2188,9 @@ again:
 	spin_unlock(&em_tree->lock);
 
 	if (em) {
-		if (em->start > start) {
-			printk("get_extent lookup [%Lu %Lu] em [%Lu %Lu]\n",
-			       start, len, em->start, em->len);
-			WARN_ON(1);
-		}
-		if (em->block_start == EXTENT_MAP_INLINE && page)
+		if (em->start > start || em->start + em->len <= start)
+			free_extent_map(em);
+		else if (em->block_start == EXTENT_MAP_INLINE && page)
 			free_extent_map(em);
 		else
 			goto out;
@@ -2340,7 +2338,6 @@ insert:
 	err = 0;
 	spin_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
-
 	/* it is possible that someone inserted the extent into the tree
 	 * while we had the lock dropped.  It is also possible that
 	 * an overlapping map exists in the tree
@@ -2348,6 +2345,11 @@ insert:
 	if (ret == -EEXIST) {
 		struct extent_map *existing;
 		existing = lookup_extent_mapping(em_tree, start, len);
+		if (existing && (existing->start > start ||
+		    existing->start + existing->len <= start)) {
+			free_extent_map(existing);
+			existing = NULL;
+		}
 		if (!existing) {
 			existing = lookup_extent_mapping(em_tree, em->start,
 							 em->len);
@@ -2388,6 +2390,7 @@ out:
 	return em;
 }
 
+#if 0 /* waiting for O_DIRECT reads */
 static int btrfs_get_block(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
 {
@@ -2405,21 +2408,23 @@ static int btrfs_get_block(struct inode *inode, sector_t iblock,
 	if (!em || IS_ERR(em))
 		goto out;
 
-	if (em->start > start || em->start + em->len <= start)
+	if (em->start > start || em->start + em->len <= start) {
 	    goto out;
+	}
 
 	if (em->block_start == EXTENT_MAP_INLINE) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (em->block_start == EXTENT_MAP_HOLE ||
-	    em->block_start == EXTENT_MAP_DELALLOC) {
-		goto out;
-	}
-
 	len = em->start + em->len - start;
 	len = min_t(u64, len, INT_LIMIT(typeof(bh_result->b_size)));
+
+	if (em->block_start == EXTENT_MAP_HOLE ||
+	    em->block_start == EXTENT_MAP_DELALLOC) {
+		bh_result->b_size = len;
+		goto out;
+	}
 
 	logical = start - em->start;
 	logical = em->block_start + logical;
@@ -2430,6 +2435,7 @@ static int btrfs_get_block(struct inode *inode, sector_t iblock,
 	BUG_ON(ret);
 	bh_result->b_blocknr = multi->stripes[0].physical >> inode->i_blkbits;
 	bh_result->b_size = min(map_length, len);
+
 	bh_result->b_bdev = multi->stripes[0].dev->bdev;
 	set_buffer_mapped(bh_result);
 	kfree(multi);
@@ -2437,11 +2443,14 @@ out:
 	free_extent_map(em);
 	return ret;
 }
+#endif
 
 static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 			const struct iovec *iov, loff_t offset,
 			unsigned long nr_segs)
 {
+	return -EINVAL;
+#if 0
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 
@@ -2450,6 +2459,7 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 
 	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
 				  offset, nr_segs, btrfs_get_block, NULL);
+#endif
 }
 
 static sector_t btrfs_bmap(struct address_space *mapping, sector_t iblock)

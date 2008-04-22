@@ -1161,7 +1161,6 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	int total_devs = 1;
 
 	length = bio->bi_size;
-
 	map_tree = &root->fs_info->mapping_tree;
 	map_length = length;
 
@@ -1192,6 +1191,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		}
 		bio->bi_sector = multi->stripes[dev_nr].physical >> 9;
 		dev = multi->stripes[dev_nr].dev;
+
 		bio->bi_bdev = dev->bdev;
 		spin_lock(&dev->io_lock);
 		dev->total_ios++;
