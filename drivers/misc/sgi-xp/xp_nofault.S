@@ -6,7 +6,6 @@
  * Copyright (c) 2004-2008 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
-
 /*
  * The xp_nofault_PIOR function takes a pointer to a remote PIO register
  * and attempts to load and consume a value from it.  This function
