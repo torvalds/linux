@@ -40,7 +40,7 @@
 
 #define DBG_I2C		1<<0
 
-static int i2c_debug = 0;
+static int i2c_debug;
 
 module_param (i2c_debug, int, 0644);			// debug_i2c_usb mode of the device driver
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");

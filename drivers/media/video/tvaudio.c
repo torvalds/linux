@@ -38,7 +38,7 @@
 /* ---------------------------------------------------------------------- */
 /* insmod args                                                            */
 
-static int debug = 0;	/* insmod parameter */
+static int debug;	/* insmod parameter */
 module_param(debug, int, 0644);
 
 MODULE_DESCRIPTION("device driver for various i2c TV sound decoder / audiomux chips");
@@ -1235,11 +1235,11 @@ static int tda9850  = 1;
 static int tda9855  = 1;
 static int tda9873  = 1;
 static int tda9874a = 1;
-static int tea6300  = 0;  /* address clash with msp34xx */
-static int tea6320  = 0;  /* address clash with msp34xx */
+static int tea6300;	/* default 0 - address clash with msp34xx */
+static int tea6320;	/* default 0 - address clash with msp34xx */
 static int tea6420  = 1;
 static int pic16c54 = 1;
-static int ta8874z  = 0;  /* address clash with tda9840 */
+static int ta8874z;	/* default 0 - address clash with tda9840 */
 
 module_param(tda8425, int, 0444);
 module_param(tda9840, int, 0444);

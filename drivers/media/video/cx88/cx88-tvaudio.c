@@ -53,15 +53,15 @@
 
 #include "cx88.h"
 
-static unsigned int audio_debug = 0;
+static unsigned int audio_debug;
 module_param(audio_debug, int, 0644);
 MODULE_PARM_DESC(audio_debug, "enable debug messages [audio]");
 
-static unsigned int always_analog = 0;
+static unsigned int always_analog;
 module_param(always_analog,int,0644);
 MODULE_PARM_DESC(always_analog,"force analog audio out");
 
-static unsigned int radio_deemphasis = 0;
+static unsigned int radio_deemphasis;
 module_param(radio_deemphasis,int,0644);
 MODULE_PARM_DESC(radio_deemphasis, "Radio deemphasis time constant, "
 		 "0=None, 1=50us (elsewhere), 2=75us (USA)");

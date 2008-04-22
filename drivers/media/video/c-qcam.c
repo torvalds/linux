@@ -69,7 +69,7 @@ struct qcam_device {
 
 static int parport[MAX_CAMS] = { [1 ... MAX_CAMS-1] = -1 };
 static int probe = 2;
-static int force_rgb = 0;
+static int force_rgb;
 static int video_nr = -1;
 
 static inline void qcam_set_ack(struct qcam_device *qcam, unsigned int i)
@@ -741,7 +741,7 @@ static struct qcam_device *qcam_init(struct parport *port)
 }
 
 static struct qcam_device *qcams[MAX_CAMS];
-static unsigned int num_cams = 0;
+static unsigned int num_cams;
 
 static int init_cqcam(struct parport *port)
 {

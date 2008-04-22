@@ -789,7 +789,7 @@ static irqreturn_t meye_irq(int irq, void *dev_id)
 {
 	u32 v;
 	int reqnr;
-	static int sequence = 0;
+	static int sequence;
 
 	v = mchip_read(MCHIP_MM_INTA);
 

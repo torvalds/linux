@@ -34,7 +34,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
-//#define _CPIA2_DEBUG_
+/* #define _CPIA2_DEBUG_ */
 
 #include "cpia2patch.h"
 
@@ -48,7 +48,7 @@ static const char *block_name[] = {
 };
 #endif
 
-static unsigned int debugs_on = 0;//DEBUG_REG;
+static unsigned int debugs_on;	/* default 0 - DEBUG_REG */
 
 
 /******************************************************************************

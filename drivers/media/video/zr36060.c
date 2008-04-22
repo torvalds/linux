@@ -52,14 +52,14 @@
 #define MAX_CODECS 20
 
 /* amount of chips attached via this driver */
-static int zr36060_codecs = 0;
+static int zr36060_codecs;
 
-static int low_bitrate = 0;
+static int low_bitrate;
 module_param(low_bitrate, bool, 0);
 MODULE_PARM_DESC(low_bitrate, "Buz compatibility option, halves bitrate");
 
 /* debugging is available via module parameter */
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-4)");
 

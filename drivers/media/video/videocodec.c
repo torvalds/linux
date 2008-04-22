@@ -44,7 +44,7 @@
 
 #include "videocodec.h"
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-4)");
 
@@ -325,7 +325,7 @@ videocodec_unregister (const struct videocodec *codec)
 /* ============ */
 
 static char *videocodec_buf = NULL;
-static int videocodec_bufsize = 0;
+static int videocodec_bufsize;
 
 static int
 videocodec_build_table (void)

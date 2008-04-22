@@ -354,7 +354,7 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 #ifdef ULE_DEBUG
 	/* The code inside ULE_DEBUG keeps a history of the last 100 TS cells processed. */
 	static unsigned char ule_hist[100*TS_SZ];
-	static unsigned char *ule_where = ule_hist, ule_dump = 0;
+	static unsigned char *ule_where = ule_hist, ule_dump;
 #endif
 
 	/* For all TS cells in current buffer.

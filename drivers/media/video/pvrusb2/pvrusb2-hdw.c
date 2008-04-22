@@ -43,13 +43,13 @@
 static struct pvr2_hdw *unit_pointers[PVR_NUM] = {[ 0 ... PVR_NUM-1 ] = NULL};
 static DEFINE_MUTEX(pvr2_unit_mtx);
 
-static int ctlchg = 0;
+static int ctlchg;
 static int initusbreset = 1;
-static int procreload = 0;
+static int procreload;
 static int tuner[PVR_NUM] = { [0 ... PVR_NUM-1] = -1 };
 static int tolerance[PVR_NUM] = { [0 ... PVR_NUM-1] = 0 };
 static int video_std[PVR_NUM] = { [0 ... PVR_NUM-1] = 0 };
-static int init_pause_msec = 0;
+static int init_pause_msec;
 
 module_param(ctlchg, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ctlchg, "0=optimize ctl change 1=always accept new ctl value");

@@ -522,7 +522,7 @@ void usbvideo_TestPattern(struct uvd *uvd, int fullframe, int pmode)
 	struct usbvideo_frame *frame;
 	int num_cell = 0;
 	int scan_length = 0;
-	static int num_pass = 0;
+	static int num_pass;
 
 	if (uvd == NULL) {
 		err("%s: uvd == NULL", __FUNCTION__);

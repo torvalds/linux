@@ -121,7 +121,7 @@ static int init_model2_yb = -1;
 
 /* 01.01.08 - Added for RCA video in support -LO */
 /* Settings for camera model 3 */
-static int init_model3_input = 0;
+static int init_model3_input;
 
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level: 0-9 (default=0)");

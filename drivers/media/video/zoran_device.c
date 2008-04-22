@@ -60,7 +60,8 @@
 
 extern const struct zoran_format zoran_formats[];
 
-static int lml33dpath = 0;	/* 1 will use digital path in capture
+static int lml33dpath;		/* default = 0
+				 * 1 will use digital path in capture
 				 * mode instead of analog. It can be
 				 * used for picture adjustments using
 				 * tool like xawtv while watching image
@@ -987,7 +988,7 @@ void
 zr36057_enable_jpg (struct zoran          *zr,
 		    enum zoran_codec_mode  mode)
 {
-	static int zero = 0;
+	static int zero;
 	static int one = 1;
 	struct vfe_settings cap;
 	int field_size =

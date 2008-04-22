@@ -35,7 +35,7 @@ static const char version[] = "0.24";
 #include <linux/usb.h>
 #include "se401.h"
 
-static int flickerless=0;
+static int flickerless;
 static int video_nr = -1;
 
 static struct usb_device_id device_table [] = {

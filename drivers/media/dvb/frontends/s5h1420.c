@@ -53,7 +53,7 @@ static int s5h1420_get_tune_settings(struct dvb_frontend* fe,
 				     struct dvb_frontend_tune_settings* fesettings);
 
 
-static int debug = 0;
+static int debug;
 #define dprintk if (debug) printk
 
 static int s5h1420_writereg (struct s5h1420_state* state, u8 reg, u8 data)

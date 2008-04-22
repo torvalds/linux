@@ -46,7 +46,7 @@ static int debug;
 		if (debug) printk(KERN_DEBUG "zl10353: " args); \
 	} while (0)
 
-static int debug_regs = 0;
+static int debug_regs;
 
 static int zl10353_single_write(struct dvb_frontend *fe, u8 reg, u8 val)
 {

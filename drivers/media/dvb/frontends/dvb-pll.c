@@ -44,7 +44,7 @@ struct dvb_pll_priv {
 
 static unsigned int dvb_pll_devcount;
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 

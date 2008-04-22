@@ -54,11 +54,11 @@
 
 #define DPC_BOARD_CAN_DO_VBI(dev)   (dev->revision != 0)
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "debug verbosity");
 
-static int dpc_num = 0;
+static int dpc_num;
 
 #define DPC_INPUTS	2
 static struct v4l2_input dpc_inputs[DPC_INPUTS] = {

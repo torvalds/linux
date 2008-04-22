@@ -115,7 +115,7 @@ USBVISION_DRIVER_VERSION_PATCHLEVEL)
 
 
 /* sequential number of usbvision device */
-static int usbvision_nr = 0;
+static int usbvision_nr;
 
 static struct usbvision_v4l2_format_st usbvision_v4l2_format[] = {
 	{ 1, 1,  8, V4L2_PIX_FMT_GREY    , "GREY" },
@@ -135,7 +135,7 @@ static void usbvision_release(struct usb_usbvision *usbvision);
 /* Set the default format for ISOC endpoint */
 static int isocMode = ISOC_MODE_COMPRESS;
 /* Set the default Debug Mode of the device driver */
-static int video_debug = 0;
+static int video_debug;
 /* Set the default device to power on at startup */
 static int PowerOnAtOpen = 1;
 /* Sequential Number of Video Device */

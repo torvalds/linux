@@ -50,7 +50,7 @@
 static int debug;
 module_param(debug, int, 0644);    /* debug level (0,1,2) */
 
-static int hauppauge = 0;
+static int hauppauge;
 module_param(hauppauge, int, 0644);    /* Choose Hauppauge remote */
 MODULE_PARM_DESC(hauppauge, "Specify Hauppauge remote: 0=black, 1=grey (defaults to 0)");
 

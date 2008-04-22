@@ -68,9 +68,9 @@ static unsigned short normal_i2c[] = {
 I2C_CLIENT_INSMOD;
 
 /* insmod options used at init time => read/only */
-static unsigned int addr = 0;
-static unsigned int no_autodetect = 0;
-static unsigned int show_i2c = 0;
+static unsigned int addr;
+static unsigned int no_autodetect;
+static unsigned int show_i2c;
 
 /* insmod options used at runtime => read/write */
 static int tuner_debug;

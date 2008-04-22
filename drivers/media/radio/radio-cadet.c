@@ -69,13 +69,13 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 
 static int io=-1;		/* default to isapnp activation */
 static int radio_nr = -1;
-static int users=0;
-static int curtuner=0;
-static int tunestat=0;
-static int sigstrength=0;
+static int users;
+static int curtuner;
+static int tunestat;
+static int sigstrength;
 static wait_queue_head_t read_queue;
 static struct timer_list readtimer;
-static __u8 rdsin=0,rdsout=0,rdsstat=0;
+static __u8 rdsin, rdsout, rdsstat;
 static unsigned char rdsbuf[RDS_BUFFER];
 static spinlock_t cadet_io_lock;
 

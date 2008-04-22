@@ -40,7 +40,7 @@
 
 unsigned int video_debug;
 static unsigned int gbuffers      = 8;
-static unsigned int noninterlaced = 0;
+static unsigned int noninterlaced; /* 0 */
 static unsigned int gbufsize      = 720*576*4;
 static unsigned int gbufsize_max  = 720*576*4;
 static char secam[] = "--";

@@ -449,15 +449,15 @@ static int sp8870_read_uncorrected_blocks (struct dvb_frontend* fe, u32* ublocks
 	return 0;
 }
 
-// number of trials to recover from lockup
+/* number of trials to recover from lockup */
 #define MAXTRIALS 5
-// maximum checks for data valid signal
+/* maximum checks for data valid signal */
 #define MAXCHECKS 100
 
-// only for debugging: counter for detected lockups
-static int lockups = 0;
-// only for debugging: counter for channel switches
-static int switches = 0;
+/* only for debugging: counter for detected lockups */
+static int lockups;
+/* only for debugging: counter for channel switches */
+static int switches;
 
 static int sp8870_set_frontend (struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {

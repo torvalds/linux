@@ -72,10 +72,13 @@
 #include "stv680.h"
 
 static int video_nr = -1;
-static int swapRGB = 0;   /* default for auto sleect */
-static int swapRGB_on = 0; /* default to allow auto select; -1=swap never, +1= swap always */
 
-static unsigned int debug = 0;
+static int swapRGB;	/* 0 = default for auto select */
+
+/* 0 = default to allow auto select; -1 = swap never, +1 = swap always */
+static int swapRGB_on;
+
+static unsigned int debug;
 
 #define PDEBUG(level, fmt, args...) \
 	do { \

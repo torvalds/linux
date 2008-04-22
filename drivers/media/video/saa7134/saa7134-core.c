@@ -42,23 +42,23 @@ MODULE_LICENSE("GPL");
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int irq_debug = 0;
+static unsigned int irq_debug;
 module_param(irq_debug, int, 0644);
 MODULE_PARM_DESC(irq_debug,"enable debug messages [IRQ handler]");
 
-static unsigned int core_debug = 0;
+static unsigned int core_debug;
 module_param(core_debug, int, 0644);
 MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 
-static unsigned int gpio_tracking = 0;
+static unsigned int gpio_tracking;
 module_param(gpio_tracking, int, 0644);
 MODULE_PARM_DESC(gpio_tracking,"enable debug messages [gpio]");
 
-static unsigned int alsa = 0;
+static unsigned int alsa;
 module_param(alsa, int, 0644);
 MODULE_PARM_DESC(alsa,"enable ALSA DMA sound [dmasound]");
 
-static unsigned int oss = 0;
+static unsigned int oss;
 module_param(oss, int, 0644);
 MODULE_PARM_DESC(oss,"enable OSS DMA sound [dmasound]");
 

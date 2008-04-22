@@ -61,7 +61,7 @@
 #include <media/v4l2-common.h>
 #include <linux/parport.h>
 
-//#define DEBUG				// Undef me for production
+/*#define DEBUG*/				/* Undef me for production */
 
 #ifdef DEBUG
 #define DPRINTF(x, a...) printk(KERN_DEBUG "W9966: %s(): "x, __FUNCTION__ , ##a)
@@ -134,7 +134,7 @@ MODULE_PARM_DESC(pardev, "pardev: where to search for\n\
 \tEg: >pardev=parport3,aggressive,parport2,parport1< would assign\n\
 \tcam 1 to parport3 and search every parport for cam 2 etc...");
 
-static int parmode = 0;
+static int parmode;
 module_param(parmode, int, 0);
 MODULE_PARM_DESC(parmode, "parmode: transfer mode (0=auto, 1=ecp, 2=epp");
 

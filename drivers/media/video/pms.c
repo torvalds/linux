@@ -57,11 +57,11 @@ struct i2c_info
 	u8 hits;
 };
 
-static int i2c_count 		= 0;
+static int i2c_count;
 static struct i2c_info i2cinfo[64];
 
 static int decoder 		= PHILIPS2;
-static int standard 		= 0;	/* 0 - auto 1 - ntsc 2 - pal 3 - secam */
+static int standard;	/* 0 - auto 1 - ntsc 2 - pal 3 - secam */
 
 /*
  *	I/O ports and Shared Memory

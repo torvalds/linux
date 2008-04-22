@@ -61,7 +61,7 @@ static int debug;
 	}
 #else
 #define DEBUG(n, arg...)
-static const int debug = 0;
+static const int debug;
 #endif
 
 

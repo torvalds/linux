@@ -126,11 +126,11 @@ static int dec_mpg_buffers = IVTV_DEFAULT_DEC_MPG_BUFFERS;
 static int dec_yuv_buffers = IVTV_DEFAULT_DEC_YUV_BUFFERS;
 static int dec_vbi_buffers = IVTV_DEFAULT_DEC_VBI_BUFFERS;
 
-static int ivtv_yuv_mode = 0;
-static int ivtv_yuv_threshold=-1;
+static int ivtv_yuv_mode;
+static int ivtv_yuv_threshold = -1;
 static int ivtv_pci_latency = 1;
 
-int ivtv_debug = 0;
+int ivtv_debug;
 
 static int newi2c = -1;
 

@@ -39,7 +39,7 @@
 #include <linux/kmod.h>
 #endif
 
-static unsigned int debug  = 0;
+static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"enable debug messages");
 MODULE_AUTHOR("Bill Dirks");

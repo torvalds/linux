@@ -43,7 +43,7 @@ struct tda10086_state {
 	bool has_lock;
 };
 
-static int debug = 0;
+static int debug;
 #define dprintk(args...) \
 	do { \
 		if (debug) printk(KERN_DEBUG "tda10086: " args); \

@@ -57,7 +57,7 @@ struct cx88_IR {
 	u32 mask_keyup;
 };
 
-static int ir_debug = 0;
+static int ir_debug;
 module_param(ir_debug, int, 0644);	/* debug level [IR] */
 MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 

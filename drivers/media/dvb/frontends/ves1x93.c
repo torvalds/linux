@@ -48,7 +48,7 @@ struct ves1x93_state {
 	u8 demod_type;
 };
 
-static int debug = 0;
+static int debug;
 #define dprintk	if (debug) printk
 
 #define DEMOD_VES1893		0

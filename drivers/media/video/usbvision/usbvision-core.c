@@ -53,19 +53,21 @@
 
 #include "usbvision.h"
 
-static unsigned int core_debug = 0;
+static unsigned int core_debug;
 module_param(core_debug,int,0644);
 MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 
-static unsigned int force_testpattern = 0;
+static unsigned int force_testpattern;
 module_param(force_testpattern,int,0644);
 MODULE_PARM_DESC(force_testpattern,"enable test pattern display [core]");
 
-static int adjustCompression = 1;			// Set the compression to be adaptive
+static int adjustCompression = 1;	/* Set the compression to be adaptive */
 module_param(adjustCompression, int, 0444);
 MODULE_PARM_DESC(adjustCompression, " Set the ADPCM compression for the device.  Default: 1 (On)");
 
-static int SwitchSVideoInput = 0;			// To help people with Black and White output with using s-video input.  Some cables and input device are wired differently.
+/* To help people with Black and White output with using s-video input.
+ * Some cables and input device are wired differently. */
+static int SwitchSVideoInput;
 module_param(SwitchSVideoInput, int, 0444);
 MODULE_PARM_DESC(SwitchSVideoInput, " Set the S-Video input.  Some cables and input device are wired differently. Default: 0 (Off)");
 
@@ -418,7 +420,7 @@ static void usbvision_testpattern(struct usb_usbvision *usbvision,
 	unsigned char *f;
 	int num_cell = 0;
 	int scan_length = 0;
-	static int num_pass = 0;
+	static int num_pass;
 
 	if (usbvision == NULL) {
 		printk(KERN_ERR "%s: usbvision == NULL\n", proc);
@@ -1430,7 +1432,7 @@ static int usbvision_compress_isochronous(struct usb_usbvision *usbvision,
 	}
 #if ENABLE_HEXDUMP
 	if (totlen > 0) {
-		static int foo = 0;
+		static int foo;
 		if (foo < 1) {
 			printk(KERN_DEBUG "+%d.\n", usbvision->scratchlen);
 			usbvision_hexdump(data0, (totlen > 64) ? 64 : totlen);

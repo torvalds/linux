@@ -32,7 +32,7 @@
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int ts_debug  = 0;
+static unsigned int ts_debug;
 module_param(ts_debug, int, 0644);
 MODULE_PARM_DESC(ts_debug,"enable debug messages [ts]");
 

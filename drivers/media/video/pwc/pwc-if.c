@@ -130,8 +130,8 @@ static int default_fbufs = 3;   /* Default number of frame buffers */
 #ifdef CONFIG_USB_PWC_DEBUG
 	int pwc_trace = PWC_DEBUG_LEVEL;
 #endif
-static int power_save = 0;
-static int led_on = 100, led_off = 0; /* defaults to LED that is on while in use */
+static int power_save;
+static int led_on = 100, led_off; /* defaults to LED that is on while in use */
 static int pwc_preferred_compression = 1; /* 0..3 = uncompressed..high */
 static struct {
 	int type;
@@ -786,8 +786,8 @@ static void pwc_isoc_handler(struct urb *urb)
 		} /* ..status == 0 */
 		else {
 			/* This is normally not interesting to the user, unless
-			 * you are really debugging something */
-			static int iso_error = 0;
+			 * you are really debugging something, default = 0 */
+			static int iso_error;
 			iso_error++;
 			if (iso_error < 20)
 				PWC_DEBUG_FLOW("Iso frame %d of USB has error %d\n", i, fst);

@@ -542,7 +542,7 @@ static void ttusb_handle_sec_data(struct ttusb_channel *channel,
 				  const u8 * data, int len);
 #endif
 
-static int numpkt = 0, numts, numstuff, numsec, numinvalid;
+static int numpkt, numts, numstuff, numsec, numinvalid;
 static unsigned long lastj;
 
 static void ttusb_process_muxpack(struct ttusb *ttusb, const u8 * muxpack,

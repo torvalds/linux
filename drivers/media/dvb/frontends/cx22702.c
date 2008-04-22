@@ -48,7 +48,7 @@ struct cx22702_state {
 	u8 prevUCBlocks;
 };
 
-static int debug = 0;
+static int debug;
 #define dprintk	if (debug) printk
 
 /* Register values to initialise the demod */

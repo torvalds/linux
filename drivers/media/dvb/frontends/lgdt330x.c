@@ -49,7 +49,7 @@
 /* Use Equalizer Mean Squared Error instead of Phaser Tracker MSE */
 /* #define USE_EQMSE */
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"Turn on/off lgdt330x frontend debugging (default:off).");
 #define dprintk(args...) \

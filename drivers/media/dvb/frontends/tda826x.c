@@ -26,7 +26,7 @@
 
 #include "tda826x.h"
 
-static int debug = 0;
+static int debug;
 #define dprintk(args...) \
 	do { \
 		if (debug) printk(KERN_DEBUG "tda826x: " args); \

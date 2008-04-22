@@ -48,7 +48,7 @@ struct s5h1409_state {
 	u32 qam_state;
 };
 
-static int debug = 0;
+static int debug;
 #define dprintk	if (debug) printk
 
 /* Register values to initialise the demod, this will set VSB by default */

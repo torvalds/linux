@@ -33,7 +33,7 @@
 
 #include "tea6420.h"
 
-static int debug = 0;		/* insmod parameter */
+static int debug;		/* insmod parameter */
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 #define dprintk(args...) \
