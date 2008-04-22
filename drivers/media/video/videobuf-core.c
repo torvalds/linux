@@ -605,7 +605,9 @@ int videobuf_dqbuf(struct videobuf_queue *q,
 		goto done;
 	}
 	buf = list_entry(q->stream.next, struct videobuf_buffer, stream);
+	mutex_unlock(&q->vb_lock);
 	retval = videobuf_waiton(buf, nonblocking, 1);
+	mutex_lock(&q->vb_lock);
 	if (retval < 0) {
 		dprintk(1, "dqbuf: waiton returned %d\n", retval);
 		goto done;
