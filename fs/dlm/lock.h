@@ -13,7 +13,6 @@
 #ifndef __LOCK_DOT_H__
 #define __LOCK_DOT_H__
 
-void dlm_print_rsb(struct dlm_rsb *r);
 void dlm_dump_rsb(struct dlm_rsb *r);
 void dlm_print_lkb(struct dlm_lkb *lkb);
 void dlm_receive_message_saved(struct dlm_ls *ls, struct dlm_message *ms);

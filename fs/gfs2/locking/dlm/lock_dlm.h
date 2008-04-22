@@ -25,6 +25,7 @@
 #include <net/sock.h>
 
 #include <linux/dlm.h>
+#include <linux/dlm_plock.h>
 #include <linux/lm_interface.h>
 
 /*
@@ -172,17 +173,6 @@ unsigned int gdlm_unlock(void *, unsigned int);
 void gdlm_cancel(void *);
 int gdlm_hold_lvb(void *, char **);
 void gdlm_unhold_lvb(void *, char *);
-
-/* plock.c */
-
-int gdlm_plock_init(void);
-void gdlm_plock_exit(void);
-int gdlm_plock(void *, struct lm_lockname *, struct file *, int,
-		struct file_lock *);
-int gdlm_plock_get(void *, struct lm_lockname *, struct file *,
-		struct file_lock *);
-int gdlm_punlock(void *, struct lm_lockname *, struct file *,
-		struct file_lock *);
 
 /* mount.c */
 

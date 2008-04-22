@@ -42,8 +42,6 @@
 #include <linux/dlm.h>
 #include "config.h"
 
-#define DLM_LOCKSPACE_LEN	64
-
 /* Size of the temp buffer midcomms allocates on the stack.
    We try to make this large enough so most messages fit.
    FIXME: should sctp make this unnecessary? */
@@ -132,8 +130,10 @@ struct dlm_member {
 
 struct dlm_recover {
 	struct list_head	list;
-	int			*nodeids;
+	int			*nodeids;   /* nodeids of all members */
 	int			node_count;
+	int			*new;       /* nodeids of new members */
+	int			new_count;
 	uint64_t		seq;
 };
 
@@ -579,6 +579,8 @@ static inline int dlm_no_directory(struct dlm_ls *ls)
 int dlm_netlink_init(void);
 void dlm_netlink_exit(void);
 void dlm_timeout_warn(struct dlm_lkb *lkb);
+int dlm_plock_init(void);
+void dlm_plock_exit(void);
 
 #ifdef CONFIG_DLM_DEBUG
 int dlm_register_debugfs(void);
