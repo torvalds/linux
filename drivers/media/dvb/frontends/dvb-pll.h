@@ -18,7 +18,6 @@
 #define DVB_PLL_TUA6034                10
 #define DVB_PLL_TDA665X                12
 #define DVB_PLL_TDED4                  14
-#define DVB_PLL_TUV1236D               15
 #define DVB_PLL_TDHU2                  16
 #define DVB_PLL_SAMSUNG_TBMV           17
 #define DVB_PLL_PHILIPS_SD1878_TDA8261 18

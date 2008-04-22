@@ -289,54 +289,6 @@ static struct dvb_pll_desc dvb_pll_tdhu2 = {
 	}
 };
 
-/* Philips TUV1236D
- * used in ATI HDTV Wonder
- */
-static void tuv1236d_rf(struct dvb_frontend *fe, u8 *buf,
-			const struct dvb_frontend_parameters *params)
-{
-	struct dvb_pll_priv *priv = fe->tuner_priv;
-	unsigned int new_rf = input[priv->nr];
-
-	if ((new_rf == 0) || (new_rf > 2)) {
-		switch (params->u.vsb.modulation) {
-			case QAM_64:
-			case QAM_256:
-				new_rf = 1;
-				break;
-			case VSB_8:
-			default:
-				new_rf = 2;
-		}
-	}
-
-	switch (new_rf) {
-		case 1:
-			buf[3] |= 0x08;
-			break;
-		case 2:
-			buf[3] &= ~0x08;
-			break;
-		default:
-			printk(KERN_WARNING
-			       "%s: unhandled rf input selection: %d",
-			       __FUNCTION__, new_rf);
-	}
-}
-
-static struct dvb_pll_desc dvb_pll_tuv1236d = {
-	.name  = "Philips TUV1236D",
-	.min   =  54000000,
-	.max   = 864000000,
-	.iffreq= 44000000,
-	.set   = tuv1236d_rf,
-	.count = 3,
-	.entries = {
-		{ 157250000, 62500, 0xc6, 0x41 },
-		{ 454000000, 62500, 0xc6, 0x42 },
-		{ 999999999, 62500, 0xc6, 0x44 },
-	},
-};
 
 /* Samsung TBMV30111IN / TBMV30712IN1
  * used in Air2PC ATSC - 2nd generation (nxt2002)
@@ -416,7 +368,6 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_TUA6034]                = &dvb_pll_tua6034,
 	[DVB_PLL_TDA665X]                = &dvb_pll_tda665x,
 	[DVB_PLL_TDED4]                  = &dvb_pll_tded4,
-	[DVB_PLL_TUV1236D]               = &dvb_pll_tuv1236d,
 	[DVB_PLL_TDHU2]                  = &dvb_pll_tdhu2,
 	[DVB_PLL_SAMSUNG_TBMV]           = &dvb_pll_samsung_tbmv,
 	[DVB_PLL_PHILIPS_SD1878_TDA8261] = &dvb_pll_philips_sd1878_tda8261,
