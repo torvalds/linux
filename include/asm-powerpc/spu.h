@@ -98,9 +98,8 @@
 #define MFC_PRIV_ATTN_EVENT                 0x00000800
 #define MFC_MULTI_SRC_EVENT                 0x00001000
 
-/* Flags indicating progress during context switch. */
+/* Flag indicating progress during context switch. */
 #define SPU_CONTEXT_SWITCH_PENDING	0UL
-#define SPU_CONTEXT_SWITCH_ACTIVE	1UL
 
 struct spu_context;
 struct spu_runqueue;

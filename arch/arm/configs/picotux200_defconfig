@@ -727,14 +727,14 @@ CONFIG_I2C_CHARDEV=m
 #
 # I2C Algorithms
 #
-# CONFIG_I2C_ALGOBIT is not set
+CONFIG_I2C_ALGOBIT=m
 # CONFIG_I2C_ALGOPCF is not set
 # CONFIG_I2C_ALGOPCA is not set
 
 #
 # I2C Hardware Bus support
 #
-CONFIG_I2C_AT91=m
+CONFIG_I2C_GPIO=m
 # CONFIG_I2C_OCORES is not set
 # CONFIG_I2C_PARPORT_LIGHT is not set
 # CONFIG_I2C_STUB is not set

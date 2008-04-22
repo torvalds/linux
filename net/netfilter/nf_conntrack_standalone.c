@@ -127,21 +127,14 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (NF_CT_DIRECTION(hash))
 		return 0;
 
-	l3proto = __nf_ct_l3proto_find(ct->tuplehash[IP_CT_DIR_ORIGINAL]
-				       .tuple.src.l3num);
-
+	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
 	NF_CT_ASSERT(l3proto);
-	l4proto = __nf_ct_l4proto_find(ct->tuplehash[IP_CT_DIR_ORIGINAL]
-				   .tuple.src.l3num,
-				   ct->tuplehash[IP_CT_DIR_ORIGINAL]
-				   .tuple.dst.protonum);
+	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	NF_CT_ASSERT(l4proto);
 
 	if (seq_printf(s, "%-8s %u %-8s %u %ld ",
-		       l3proto->name,
-		       ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num,
-		       l4proto->name,
-		       ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum,
+		       l3proto->name, nf_ct_l3num(ct),
+		       l4proto->name, nf_ct_protonum(ct),
 		       timer_pending(&ct->timeout)
 		       ? (long)(ct->timeout.expires - jiffies)/HZ : 0) != 0)
 		return -ENOSPC;
@@ -293,8 +286,43 @@ static const struct file_operations ct_cpu_seq_fops = {
 	.open	 = ct_cpu_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = seq_release_private,
+	.release = seq_release,
 };
+
+static int nf_conntrack_standalone_init_proc(void)
+{
+	struct proc_dir_entry *pde;
+
+	pde = proc_net_fops_create(&init_net, "nf_conntrack", 0440, &ct_file_ops);
+	if (!pde)
+		goto out_nf_conntrack;
+	pde = create_proc_entry("nf_conntrack", S_IRUGO, init_net.proc_net_stat);
+	if (!pde)
+		goto out_stat_nf_conntrack;
+	pde->proc_fops = &ct_cpu_seq_fops;
+	pde->owner = THIS_MODULE;
+	return 0;
+
+out_stat_nf_conntrack:
+	proc_net_remove(&init_net, "nf_conntrack");
+out_nf_conntrack:
+	return -ENOMEM;
+}
+
+static void nf_conntrack_standalone_fini_proc(void)
+{
+	remove_proc_entry("nf_conntrack", init_net.proc_net_stat);
+	proc_net_remove(&init_net, "nf_conntrack");
+}
+#else
+static int nf_conntrack_standalone_init_proc(void)
+{
+	return 0;
+}
+
+static void nf_conntrack_standalone_fini_proc(void)
+{
+}
 #endif /* CONFIG_PROC_FS */
 
 /* Sysctl support */
@@ -390,63 +418,61 @@ static struct ctl_path nf_ct_path[] = {
 };
 
 EXPORT_SYMBOL_GPL(nf_ct_log_invalid);
+
+static int nf_conntrack_standalone_init_sysctl(void)
+{
+	nf_ct_sysctl_header =
+		register_sysctl_paths(nf_ct_path, nf_ct_netfilter_table);
+	if (nf_ct_sysctl_header == NULL) {
+		printk("nf_conntrack: can't register to sysctl.\n");
+		return -ENOMEM;
+	}
+	return 0;
+
+}
+
+static void nf_conntrack_standalone_fini_sysctl(void)
+{
+	unregister_sysctl_table(nf_ct_sysctl_header);
+}
+#else
+static int nf_conntrack_standalone_init_sysctl(void)
+{
+	return 0;
+}
+
+static void nf_conntrack_standalone_fini_sysctl(void)
+{
+}
 #endif /* CONFIG_SYSCTL */
 
 static int __init nf_conntrack_standalone_init(void)
 {
-#ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *proc, *proc_stat;
-#endif
-	int ret = 0;
+	int ret;
 
 	ret = nf_conntrack_init();
 	if (ret < 0)
-		return ret;
+		goto out;
+	ret = nf_conntrack_standalone_init_proc();
+	if (ret < 0)
+		goto out_proc;
+	ret = nf_conntrack_standalone_init_sysctl();
+	if (ret < 0)
+		goto out_sysctl;
+	return 0;
 
-#ifdef CONFIG_PROC_FS
-	proc = proc_net_fops_create(&init_net, "nf_conntrack", 0440, &ct_file_ops);
-	if (!proc) goto cleanup_init;
-
-	proc_stat = create_proc_entry("nf_conntrack", S_IRUGO, init_net.proc_net_stat);
-	if (!proc_stat)
-		goto cleanup_proc;
-
-	proc_stat->proc_fops = &ct_cpu_seq_fops;
-	proc_stat->owner = THIS_MODULE;
-#endif
-#ifdef CONFIG_SYSCTL
-	nf_ct_sysctl_header = register_sysctl_paths(nf_ct_path,
-			nf_ct_netfilter_table);
-	if (nf_ct_sysctl_header == NULL) {
-		printk("nf_conntrack: can't register to sysctl.\n");
-		ret = -ENOMEM;
-		goto cleanup_proc_stat;
-	}
-#endif
-	return ret;
-
-#ifdef CONFIG_SYSCTL
- cleanup_proc_stat:
-#endif
-#ifdef CONFIG_PROC_FS
-	remove_proc_entry("nf_conntrack", init_net. proc_net_stat);
- cleanup_proc:
-	proc_net_remove(&init_net, "nf_conntrack");
- cleanup_init:
-#endif /* CNFIG_PROC_FS */
+out_sysctl:
+	nf_conntrack_standalone_fini_proc();
+out_proc:
 	nf_conntrack_cleanup();
+out:
 	return ret;
 }
 
 static void __exit nf_conntrack_standalone_fini(void)
 {
-#ifdef CONFIG_SYSCTL
-	unregister_sysctl_table(nf_ct_sysctl_header);
-#endif
-#ifdef CONFIG_PROC_FS
-	remove_proc_entry("nf_conntrack", init_net.proc_net_stat);
-	proc_net_remove(&init_net, "nf_conntrack");
-#endif /* CNFIG_PROC_FS */
+	nf_conntrack_standalone_fini_sysctl();
+	nf_conntrack_standalone_fini_proc();
 	nf_conntrack_cleanup();
 }
 

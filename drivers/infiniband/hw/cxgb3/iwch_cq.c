@@ -67,7 +67,7 @@ static int iwch_poll_cq_one(struct iwch_dev *rhp, struct iwch_cq *chp,
 	ret = cxio_poll_cq(wq, &(chp->cq), &cqe, &cqe_flushed, &cookie,
 				   &credit);
 	if (t3a_device(chp->rhp) && credit) {
-		PDBG("%s updating %d cq credits on id %d\n", __FUNCTION__,
+		PDBG("%s updating %d cq credits on id %d\n", __func__,
 		     credit, chp->cq.cqid);
 		cxio_hal_cq_op(&rhp->rdev, &chp->cq, CQ_CREDIT_UPDATE, credit);
 	}
@@ -83,7 +83,7 @@ static int iwch_poll_cq_one(struct iwch_dev *rhp, struct iwch_cq *chp,
 	wc->vendor_err = CQE_STATUS(cqe);
 
 	PDBG("%s qpid 0x%x type %d opcode %d status 0x%x wrid hi 0x%x "
-	     "lo 0x%x cookie 0x%llx\n", __FUNCTION__,
+	     "lo 0x%x cookie 0x%llx\n", __func__,
 	     CQE_QPID(cqe), CQE_TYPE(cqe),
 	     CQE_OPCODE(cqe), CQE_STATUS(cqe), CQE_WRID_HI(cqe),
 	     CQE_WRID_LOW(cqe), (unsigned long long) cookie);

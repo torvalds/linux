@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2005 QLogic Corporation
+ * Copyright (c)  2003-2008 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -543,16 +543,149 @@ qla24xx_get_flash_manufacturer(scsi_qla_host_t *ha, uint8_t *man_id,
 	}
 }
 
+void
+qla2xxx_get_flash_info(scsi_qla_host_t *ha)
+{
+#define FLASH_BLK_SIZE_32K	0x8000
+#define FLASH_BLK_SIZE_64K	0x10000
+	uint16_t cnt, chksum;
+	uint16_t *wptr;
+	struct qla_fdt_layout *fdt;
+	uint8_t	man_id, flash_id;
+
+	if (!IS_QLA24XX_TYPE(ha) && !IS_QLA25XX(ha))
+		return;
+
+	wptr = (uint16_t *)ha->request_ring;
+	fdt = (struct qla_fdt_layout *)ha->request_ring;
+	ha->isp_ops->read_optrom(ha, (uint8_t *)ha->request_ring,
+	    FA_FLASH_DESCR_ADDR << 2, OPTROM_BURST_SIZE);
+	if (*wptr == __constant_cpu_to_le16(0xffff))
+		goto no_flash_data;
+	if (fdt->sig[0] != 'Q' || fdt->sig[1] != 'L' || fdt->sig[2] != 'I' ||
+	    fdt->sig[3] != 'D')
+		goto no_flash_data;
+
+	for (cnt = 0, chksum = 0; cnt < sizeof(struct qla_fdt_layout) >> 1;
+	    cnt++)
+		chksum += le16_to_cpu(*wptr++);
+	if (chksum) {
+		DEBUG2(qla_printk(KERN_INFO, ha, "Inconsistent FDT detected: "
+		    "checksum=0x%x id=%c version=0x%x.\n", chksum, fdt->sig[0],
+		    le16_to_cpu(fdt->version)));
+		DEBUG9(qla2x00_dump_buffer((uint8_t *)fdt, sizeof(*fdt)));
+		goto no_flash_data;
+	}
+
+	ha->fdt_odd_index = le16_to_cpu(fdt->man_id) == 0x1f;
+	ha->fdt_wrt_disable = fdt->wrt_disable_bits;
+	ha->fdt_erase_cmd = flash_conf_to_access_addr(0x0300 | fdt->erase_cmd);
+	ha->fdt_block_size = le32_to_cpu(fdt->block_size);
+	if (fdt->unprotect_sec_cmd) {
+		ha->fdt_unprotect_sec_cmd = flash_conf_to_access_addr(0x0300 |
+		    fdt->unprotect_sec_cmd);
+		ha->fdt_protect_sec_cmd = fdt->protect_sec_cmd ?
+		    flash_conf_to_access_addr(0x0300 | fdt->protect_sec_cmd):
+		    flash_conf_to_access_addr(0x0336);
+	}
+
+	DEBUG2(qla_printk(KERN_DEBUG, ha, "Flash[FDT]: (0x%x/0x%x) erase=0x%x "
+	    "pro=%x upro=%x idx=%d wrtd=0x%x blk=0x%x.\n",
+	    le16_to_cpu(fdt->man_id), le16_to_cpu(fdt->id), ha->fdt_erase_cmd,
+	    ha->fdt_protect_sec_cmd, ha->fdt_unprotect_sec_cmd,
+	    ha->fdt_odd_index, ha->fdt_wrt_disable, ha->fdt_block_size));
+	return;
+
+no_flash_data:
+	qla24xx_get_flash_manufacturer(ha, &man_id, &flash_id);
+	ha->fdt_wrt_disable = 0x9c;
+	ha->fdt_erase_cmd = flash_conf_to_access_addr(0x03d8);
+	switch (man_id) {
+	case 0xbf: /* STT flash. */
+		if (flash_id == 0x8e)
+			ha->fdt_block_size = FLASH_BLK_SIZE_64K;
+		else
+			ha->fdt_block_size = FLASH_BLK_SIZE_32K;
+
+		if (flash_id == 0x80)
+			ha->fdt_erase_cmd = flash_conf_to_access_addr(0x0352);
+		break;
+	case 0x13: /* ST M25P80. */
+		ha->fdt_block_size = FLASH_BLK_SIZE_64K;
+		break;
+	case 0x1f: /* Atmel 26DF081A. */
+		ha->fdt_odd_index = 1;
+		ha->fdt_block_size = FLASH_BLK_SIZE_64K;
+		ha->fdt_erase_cmd = flash_conf_to_access_addr(0x0320);
+		ha->fdt_unprotect_sec_cmd = flash_conf_to_access_addr(0x0339);
+		ha->fdt_protect_sec_cmd = flash_conf_to_access_addr(0x0336);
+		break;
+	default:
+		/* Default to 64 kb sector size. */
+		ha->fdt_block_size = FLASH_BLK_SIZE_64K;
+		break;
+	}
+
+	DEBUG2(qla_printk(KERN_DEBUG, ha, "Flash[MID]: (0x%x/0x%x) erase=0x%x "
+	    "pro=%x upro=%x idx=%d wrtd=0x%x blk=0x%x.\n", man_id, flash_id,
+	    ha->fdt_erase_cmd, ha->fdt_protect_sec_cmd,
+	    ha->fdt_unprotect_sec_cmd, ha->fdt_odd_index, ha->fdt_wrt_disable,
+	    ha->fdt_block_size));
+}
+
+static void
+qla24xx_unprotect_flash(scsi_qla_host_t *ha)
+{
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	/* Enable flash write. */
+	WRT_REG_DWORD(&reg->ctrl_status,
+	    RD_REG_DWORD(&reg->ctrl_status) | CSRX_FLASH_ENABLE);
+	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
+
+	if (!ha->fdt_wrt_disable)
+		return;
+
+	/* Disable flash write-protection. */
+	qla24xx_write_flash_dword(ha, flash_conf_to_access_addr(0x101), 0);
+	/* Some flash parts need an additional zero-write to clear bits.*/
+	qla24xx_write_flash_dword(ha, flash_conf_to_access_addr(0x101), 0);
+}
+
+static void
+qla24xx_protect_flash(scsi_qla_host_t *ha)
+{
+	uint32_t cnt;
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	if (!ha->fdt_wrt_disable)
+		goto skip_wrt_protect;
+
+	/* Enable flash write-protection and wait for completion. */
+	qla24xx_write_flash_dword(ha, flash_conf_to_access_addr(0x101),
+	    ha->fdt_wrt_disable);
+	for (cnt = 300; cnt &&
+	    qla24xx_read_flash_dword(ha,
+		    flash_conf_to_access_addr(0x005)) & BIT_0;
+	    cnt--) {
+		udelay(10);
+	}
+
+skip_wrt_protect:
+	/* Disable flash write. */
+	WRT_REG_DWORD(&reg->ctrl_status,
+	    RD_REG_DWORD(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
+	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
+}
+
 static int
 qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
     uint32_t dwords)
 {
 	int ret;
 	uint32_t liter, miter;
-	uint32_t sec_mask, rest_addr, conf_addr;
-	uint32_t fdata, findex, cnt;
-	uint8_t	man_id, flash_id;
-	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+	uint32_t sec_mask, rest_addr;
+	uint32_t fdata, findex;
 	dma_addr_t optrom_dma;
 	void *optrom = NULL;
 	uint32_t *s, *d;
@@ -571,51 +704,13 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 		}
 	}
 
-	qla24xx_get_flash_manufacturer(ha, &man_id, &flash_id);
-	DEBUG9(printk("%s(%ld): Flash man_id=%d flash_id=%d\n", __func__,
-	    ha->host_no, man_id, flash_id));
+	rest_addr = (ha->fdt_block_size >> 2) - 1;
+	sec_mask = 0x80000 - (ha->fdt_block_size >> 2);
 
-	conf_addr = flash_conf_to_access_addr(0x03d8);
-	switch (man_id) {
-	case 0xbf: /* STT flash. */
-		if (flash_id == 0x8e) {
-			rest_addr = 0x3fff;
-			sec_mask = 0x7c000;
-		} else {
-			rest_addr = 0x1fff;
-			sec_mask = 0x7e000;
-		}
-		if (flash_id == 0x80)
-			conf_addr = flash_conf_to_access_addr(0x0352);
-		break;
-	case 0x13: /* ST M25P80. */
-		rest_addr = 0x3fff;
-		sec_mask = 0x7c000;
-		break;
-	case 0x1f: // Atmel 26DF081A
-		rest_addr = 0x3fff;
-		sec_mask = 0x7c000;
-		conf_addr = flash_conf_to_access_addr(0x0320);
-		break;
-	default:
-		/* Default to 64 kb sector size. */
-		rest_addr = 0x3fff;
-		sec_mask = 0x7c000;
-		break;
-	}
-
-	/* Enable flash write. */
-	WRT_REG_DWORD(&reg->ctrl_status,
-	    RD_REG_DWORD(&reg->ctrl_status) | CSRX_FLASH_ENABLE);
-	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
-
-	/* Disable flash write-protection. */
-	qla24xx_write_flash_dword(ha, flash_conf_to_access_addr(0x101), 0);
-	/* Some flash parts need an additional zero-write to clear bits.*/
-	qla24xx_write_flash_dword(ha, flash_conf_to_access_addr(0x101), 0);
+	qla24xx_unprotect_flash(ha);
 
 	for (liter = 0; liter < dwords; liter++, faddr++, dwptr++) {
-		if (man_id == 0x1f) {
+		if (ha->fdt_odd_index) {
 			findex = faddr << 2;
 			fdata = findex & sec_mask;
 		} else {
@@ -625,13 +720,13 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 
 		/* Are we at the beginning of a sector? */
 		if ((findex & rest_addr) == 0) {
-			/* Do sector unprotect at 4K boundry for Atmel part. */
-			if (man_id == 0x1f)
+			/* Do sector unprotect. */
+			if (ha->fdt_unprotect_sec_cmd)
 				qla24xx_write_flash_dword(ha,
-				    flash_conf_to_access_addr(0x0339),
+				    ha->fdt_unprotect_sec_cmd,
 				    (fdata & 0xff00) | ((fdata << 16) &
 				    0xff0000) | ((fdata >> 16) & 0xff));
-			ret = qla24xx_write_flash_dword(ha, conf_addr,
+			ret = qla24xx_write_flash_dword(ha, ha->fdt_erase_cmd,
 			    (fdata & 0xff00) |((fdata << 16) &
 			    0xff0000) | ((fdata >> 16) & 0xff));
 			if (ret != QLA_SUCCESS) {
@@ -681,28 +776,16 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 			break;
 		}
 
-		/* Do sector protect at 4K boundry for Atmel part. */
-		if (man_id == 0x1f &&
+		/* Do sector protect. */
+		if (ha->fdt_unprotect_sec_cmd &&
 		    ((faddr & rest_addr) == rest_addr))
 			qla24xx_write_flash_dword(ha,
-			    flash_conf_to_access_addr(0x0336),
+			    ha->fdt_protect_sec_cmd,
 			    (fdata & 0xff00) | ((fdata << 16) &
 			    0xff0000) | ((fdata >> 16) & 0xff));
 	}
 
-	/* Enable flash write-protection and wait for completion. */
-	qla24xx_write_flash_dword(ha, flash_conf_to_access_addr(0x101), 0x9c);
-	for (cnt = 300; cnt &&
-	    qla24xx_read_flash_dword(ha,
-		    flash_conf_to_access_addr(0x005)) & BIT_0;
-	    cnt--) {
-		udelay(10);
-	}
-
-	/* Disable flash write. */
-	WRT_REG_DWORD(&reg->ctrl_status,
-	    RD_REG_DWORD(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
-	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
+	qla24xx_protect_flash(ha);
 
 	if (optrom)
 		dma_free_coherent(&ha->pdev->dev,
@@ -2220,4 +2303,108 @@ qla24xx_get_flash_version(scsi_qla_host_t *ha, void *mbuf)
 	}
 
 	return ret;
+}
+
+static int
+qla2xxx_hw_event_store(scsi_qla_host_t *ha, uint32_t *fdata)
+{
+	uint32_t d[2], faddr;
+
+	/* Locate first empty entry. */
+	for (;;) {
+		if (ha->hw_event_ptr >=
+		    ha->hw_event_start + FA_HW_EVENT_SIZE) {
+			DEBUG2(qla_printk(KERN_WARNING, ha,
+			    "HW event -- Log Full!\n"));
+			return QLA_MEMORY_ALLOC_FAILED;
+		}
+
+		qla24xx_read_flash_data(ha, d, ha->hw_event_ptr, 2);
+		faddr = flash_data_to_access_addr(ha->hw_event_ptr);
+		ha->hw_event_ptr += FA_HW_EVENT_ENTRY_SIZE;
+		if (d[0] == __constant_cpu_to_le32(0xffffffff) &&
+		    d[1] == __constant_cpu_to_le32(0xffffffff)) {
+			qla24xx_unprotect_flash(ha);
+
+			qla24xx_write_flash_dword(ha, faddr++,
+			    cpu_to_le32(jiffies));
+			qla24xx_write_flash_dword(ha, faddr++, 0);
+			qla24xx_write_flash_dword(ha, faddr++, *fdata++);
+			qla24xx_write_flash_dword(ha, faddr++, *fdata);
+
+			qla24xx_protect_flash(ha);
+			break;
+		}
+	}
+	return QLA_SUCCESS;
+}
+
+int
+qla2xxx_hw_event_log(scsi_qla_host_t *ha, uint16_t code, uint16_t d1,
+    uint16_t d2, uint16_t d3)
+{
+#define QMARK(a, b, c, d) \
+    cpu_to_le32(LSB(a) << 24 | LSB(b) << 16 | LSB(c) << 8 | LSB(d))
+
+	int rval;
+	uint32_t marker[2], fdata[4];
+
+	if (ha->hw_event_start == 0)
+		return QLA_FUNCTION_FAILED;
+
+	DEBUG2(qla_printk(KERN_WARNING, ha,
+	    "HW event -- code=%x, d1=%x, d2=%x, d3=%x.\n", code, d1, d2, d3));
+
+	/* If marker not already found, locate or write.  */
+	if (!ha->flags.hw_event_marker_found) {
+		/* Create marker. */
+		marker[0] = QMARK('L', ha->fw_major_version,
+		    ha->fw_minor_version, ha->fw_subminor_version);
+		marker[1] = QMARK(QLA_DRIVER_MAJOR_VER, QLA_DRIVER_MINOR_VER,
+		    QLA_DRIVER_PATCH_VER, QLA_DRIVER_BETA_VER);
+
+		/* Locate marker. */
+		ha->hw_event_ptr = ha->hw_event_start;
+		for (;;) {
+			qla24xx_read_flash_data(ha, fdata, ha->hw_event_ptr,
+			    4);
+			if (fdata[0] == __constant_cpu_to_le32(0xffffffff) &&
+			    fdata[1] == __constant_cpu_to_le32(0xffffffff))
+				break;
+			ha->hw_event_ptr += FA_HW_EVENT_ENTRY_SIZE;
+			if (ha->hw_event_ptr >=
+			    ha->hw_event_start + FA_HW_EVENT_SIZE) {
+				DEBUG2(qla_printk(KERN_WARNING, ha,
+				    "HW event -- Log Full!\n"));
+				return QLA_MEMORY_ALLOC_FAILED;
+			}
+			if (fdata[2] == marker[0] && fdata[3] == marker[1]) {
+				ha->flags.hw_event_marker_found = 1;
+				break;
+			}
+		}
+		/* No marker, write it. */
+		if (!ha->flags.hw_event_marker_found) {
+			rval = qla2xxx_hw_event_store(ha, marker);
+			if (rval != QLA_SUCCESS) {
+				DEBUG2(qla_printk(KERN_WARNING, ha,
+				    "HW event -- Failed marker write=%x.!\n",
+				    rval));
+				return rval;
+			}
+			ha->flags.hw_event_marker_found = 1;
+		}
+	}
+
+	/* Store error.  */
+	fdata[0] = cpu_to_le32(code << 16 | d1);
+	fdata[1] = cpu_to_le32(d2 << 16 | d3);
+	rval = qla2xxx_hw_event_store(ha, fdata);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(qla_printk(KERN_WARNING, ha,
+		    "HW event -- Failed error write=%x.!\n",
+		    rval));
+	}
+
+	return rval;
 }

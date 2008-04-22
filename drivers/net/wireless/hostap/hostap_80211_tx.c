@@ -314,7 +314,6 @@ static struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 	struct ieee80211_hdr_4addr *hdr;
 	u16 fc;
 	int prefix_len, postfix_len, hdr_len, res;
-	DECLARE_MAC_BUF(mac);
 
 	iface = netdev_priv(skb->dev);
 	local = iface->local;
@@ -329,8 +328,10 @@ static struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 		hdr = (struct ieee80211_hdr_4addr *) skb->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to %s\n",
-			       local->dev->name, print_mac(mac, hdr->addr1));
+			       "TX packet to " MAC_FMT "\n",
+			       local->dev->name,
+			       hdr->addr1[0], hdr->addr1[1], hdr->addr1[2],
+			       hdr->addr1[3], hdr->addr1[4], hdr->addr1[5]);
 		}
 		kfree_skb(skb);
 		return NULL;

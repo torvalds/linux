@@ -9,6 +9,7 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/leds.h>
+#include <linux/mtd/physmap.h>
 #include <linux/ssb/ssb.h>
 #include <asm/mach-bcm47xx/bcm47xx.h>
 
@@ -43,6 +44,61 @@ static struct platform_device wgt634u_gpio_leds = {
 	}
 };
 
+
+/* 8MiB flash. The struct mtd_partition matches original Netgear WGT634U
+   firmware. */
+static struct mtd_partition wgt634u_partitions[] = {
+	{
+		.name       = "cfe",
+		.offset     = 0,
+		.size       = 0x60000,		/* 384k */
+		.mask_flags = MTD_WRITEABLE 	/* force read-only */
+	},
+	{
+		.name   = "config",
+		.offset = 0x60000,
+		.size   = 0x20000		/* 128k */
+	},
+	{
+		.name   = "linux",
+		.offset = 0x80000,
+		.size   = 0x140000 		/* 1280k */
+	},
+	{
+		.name   = "jffs",
+		.offset = 0x1c0000,
+		.size   = 0x620000 		/* 6272k */
+	},
+	{
+		.name   = "nvram",
+		.offset = 0x7e0000,
+		.size   = 0x20000		/* 128k */
+	},
+};
+
+static struct physmap_flash_data wgt634u_flash_data = {
+	.parts    = wgt634u_partitions,
+	.nr_parts = ARRAY_SIZE(wgt634u_partitions)
+};
+
+static struct resource wgt634u_flash_resource = {
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device wgt634u_flash = {
+	.name          = "physmap-flash",
+	.id            = 0,
+	.dev           = { .platform_data = &wgt634u_flash_data, },
+	.resource      = &wgt634u_flash_resource,
+	.num_resources = 1,
+};
+
+/* Platform devices */
+static struct platform_device *wgt634u_devices[] __initdata = {
+	&wgt634u_flash,
+	&wgt634u_gpio_leds,
+};
+
 static int __init wgt634u_init(void)
 {
 	/* There is no easy way to detect that we are running on a WGT634U
@@ -50,13 +106,20 @@ static int __init wgt634u_init(void)
 	 * been allocated ranges 00:09:5b:xx:xx:xx and 00:0f:b5:xx:xx:xx.
 	 */
 
-	u8 *et0mac = ssb_bcm47xx.sprom.r1.et0mac;
+	u8 *et0mac = ssb_bcm47xx.sprom.et0mac;
 
 	if (et0mac[0] == 0x00 &&
 	    ((et0mac[1] == 0x09 && et0mac[2] == 0x5b) ||
-	     (et0mac[1] == 0x0f && et0mac[2] == 0xb5)))
-		return platform_device_register(&wgt634u_gpio_leds);
-	else
+	     (et0mac[1] == 0x0f && et0mac[2] == 0xb5))) {
+		struct ssb_mipscore *mcore = &ssb_bcm47xx.mipscore;
+		wgt634u_flash_data.width = mcore->flash_buswidth;
+		wgt634u_flash_resource.start = mcore->flash_window;
+		wgt634u_flash_resource.end = mcore->flash_window
+					   + mcore->flash_window_size
+					   - 1;
+		return platform_add_devices(wgt634u_devices,
+					    ARRAY_SIZE(wgt634u_devices));
+	} else
 		return -ENODEV;
 }
 

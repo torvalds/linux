@@ -45,13 +45,14 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 
 /* The LM92 and MAX6635 have 2 two-state pins for address selection,
    resulting in 4 possible addresses. */
-static unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
-				       I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
+						I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_1(lm92);
@@ -209,6 +210,14 @@ static ssize_t show_alarms(struct device *dev, struct device_attribute *attr, ch
 	return sprintf(buf, "%d\n", ALARMS_FROM_REG(data->temp1_input));
 }
 
+static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	int bitnr = to_sensor_dev_attr(attr)->index;
+	struct lm92_data *data = lm92_update_device(dev);
+	return sprintf(buf, "%d\n", (data->temp1_input >> bitnr) & 1);
+}
+
 static DEVICE_ATTR(temp1_input, S_IRUGO, show_temp1_input, NULL);
 static DEVICE_ATTR(temp1_crit, S_IWUSR | S_IRUGO, show_temp1_crit,
 	set_temp1_crit);
@@ -221,6 +230,9 @@ static DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp1_max,
 	set_temp1_max);
 static DEVICE_ATTR(temp1_max_hyst, S_IRUGO, show_temp1_max_hyst, NULL);
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
+static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 2);
+static SENSOR_DEVICE_ATTR(temp1_min_alarm, S_IRUGO, show_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 1);
 
 
 /*
@@ -297,7 +309,9 @@ static struct attribute *lm92_attributes[] = {
 	&dev_attr_temp1_max.attr,
 	&dev_attr_temp1_max_hyst.attr,
 	&dev_attr_alarms.attr,
-
+	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
 	NULL
 };
 

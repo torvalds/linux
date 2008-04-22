@@ -1,8 +1,6 @@
 /*P:400 This contains run_guest() which actually calls into the Host<->Guest
  * Switcher and analyzes the return, such as determining if the Guest wants the
- * Host to do something.  This file also contains useful helper routines, and a
- * couple of non-obvious setup and teardown pieces which were implemented after
- * days of debugging pain. :*/
+ * Host to do something.  This file also contains useful helper routines. :*/
 #include <linux/module.h>
 #include <linux/stringify.h>
 #include <linux/stddef.h>
@@ -49,8 +47,8 @@ static __init int map_switcher(void)
 	 * easy.
 	 */
 
-	/* We allocate an array of "struct page"s.  map_vm_area() wants the
-	 * pages in this form, rather than just an array of pointers. */
+	/* We allocate an array of struct page pointers.  map_vm_area() wants
+	 * this, rather than just an array of pages. */
 	switcher_page = kmalloc(sizeof(switcher_page[0])*TOTAL_SWITCHER_PAGES,
 				GFP_KERNEL);
 	if (!switcher_page) {
@@ -69,11 +67,22 @@ static __init int map_switcher(void)
 		switcher_page[i] = virt_to_page(addr);
 	}
 
+	/* First we check that the Switcher won't overlap the fixmap area at
+	 * the top of memory.  It's currently nowhere near, but it could have
+	 * very strange effects if it ever happened. */
+	if (SWITCHER_ADDR + (TOTAL_SWITCHER_PAGES+1)*PAGE_SIZE > FIXADDR_START){
+		err = -ENOMEM;
+		printk("lguest: mapping switcher would thwack fixmap\n");
+		goto free_pages;
+	}
+
 	/* Now we reserve the "virtual memory area" we want: 0xFFC00000
 	 * (SWITCHER_ADDR).  We might not get it in theory, but in practice
-	 * it's worked so far. */
+	 * it's worked so far.  The end address needs +1 because __get_vm_area
+	 * allocates an extra guard page, so we need space for that. */
 	switcher_vma = __get_vm_area(TOTAL_SWITCHER_PAGES * PAGE_SIZE,
-				       VM_ALLOC, SWITCHER_ADDR, VMALLOC_END);
+				     VM_ALLOC, SWITCHER_ADDR, SWITCHER_ADDR
+				     + (TOTAL_SWITCHER_PAGES+1) * PAGE_SIZE);
 	if (!switcher_vma) {
 		err = -ENOMEM;
 		printk("lguest: could not map switcher pages high\n");
@@ -161,7 +170,7 @@ void __lgread(struct lg_cpu *cpu, void *b, unsigned long addr, unsigned bytes)
 	}
 }
 
-/* This is the write (copy into guest) version. */
+/* This is the write (copy into Guest) version. */
 void __lgwrite(struct lg_cpu *cpu, unsigned long addr, const void *b,
 	       unsigned bytes)
 {
@@ -198,9 +207,9 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		if (cpu->break_out)
 			return -EAGAIN;
 
-		/* Check if there are any interrupts which can be delivered
-		 * now: if so, this sets up the hander to be executed when we
-		 * next run the Guest. */
+		/* Check if there are any interrupts which can be delivered now:
+		 * if so, this sets up the hander to be executed when we next
+		 * run the Guest. */
 		maybe_do_interrupt(cpu);
 
 		/* All long-lived kernel loops need to check with this horrible
@@ -235,8 +244,10 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		lguest_arch_handle_trap(cpu);
 	}
 
+	/* Special case: Guest is 'dead' but wants a reboot. */
 	if (cpu->lg->dead == ERR_PTR(-ERESTART))
 		return -ERESTART;
+
 	/* The Guest is dead => "No such file or directory" */
 	return -ENOENT;
 }

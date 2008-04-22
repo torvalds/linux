@@ -59,32 +59,34 @@ void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 		SELECT_MASK(drive, 0);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_DATA)
-		hwif->OUTW((tf->hob_data << 8) | tf->data, IDE_DATA_REG);
+		hwif->OUTW((tf->hob_data << 8) | tf->data,
+			   hwif->io_ports[IDE_DATA_OFFSET]);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
-		hwif->OUTB(tf->hob_feature, IDE_FEATURE_REG);
+		hwif->OUTB(tf->hob_feature, hwif->io_ports[IDE_FEATURE_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_OUT_HOB_NSECT)
-		hwif->OUTB(tf->hob_nsect, IDE_NSECTOR_REG);
+		hwif->OUTB(tf->hob_nsect, hwif->io_ports[IDE_NSECTOR_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAL)
-		hwif->OUTB(tf->hob_lbal, IDE_SECTOR_REG);
+		hwif->OUTB(tf->hob_lbal, hwif->io_ports[IDE_SECTOR_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAM)
-		hwif->OUTB(tf->hob_lbam, IDE_LCYL_REG);
+		hwif->OUTB(tf->hob_lbam, hwif->io_ports[IDE_LCYL_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAH)
-		hwif->OUTB(tf->hob_lbah, IDE_HCYL_REG);
+		hwif->OUTB(tf->hob_lbah, hwif->io_ports[IDE_HCYL_OFFSET]);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_FEATURE)
-		hwif->OUTB(tf->feature, IDE_FEATURE_REG);
+		hwif->OUTB(tf->feature, hwif->io_ports[IDE_FEATURE_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_OUT_NSECT)
-		hwif->OUTB(tf->nsect, IDE_NSECTOR_REG);
+		hwif->OUTB(tf->nsect, hwif->io_ports[IDE_NSECTOR_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_OUT_LBAL)
-		hwif->OUTB(tf->lbal, IDE_SECTOR_REG);
+		hwif->OUTB(tf->lbal, hwif->io_ports[IDE_SECTOR_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_OUT_LBAM)
-		hwif->OUTB(tf->lbam, IDE_LCYL_REG);
+		hwif->OUTB(tf->lbam, hwif->io_ports[IDE_LCYL_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_OUT_LBAH)
-		hwif->OUTB(tf->lbah, IDE_HCYL_REG);
+		hwif->OUTB(tf->lbah, hwif->io_ports[IDE_HCYL_OFFSET]);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_DEVICE)
-		hwif->OUTB((tf->device & HIHI) | drive->select.all, IDE_SELECT_REG);
+		hwif->OUTB((tf->device & HIHI) | drive->select.all,
+			   hwif->io_ports[IDE_SELECT_OFFSET]);
 }
 
 int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
@@ -152,7 +154,8 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	switch (task->data_phase) {
 	case TASKFILE_MULTI_OUT:
 	case TASKFILE_OUT:
-		hwif->OUTBSYNC(drive, tf->command, IDE_COMMAND_REG);
+		hwif->OUTBSYNC(drive, tf->command,
+			       hwif->io_ports[IDE_COMMAND_OFFSET]);
 		ndelay(400);	/* FIXME */
 		return pre_task_out_intr(drive, task->rq);
 	case TASKFILE_MULTI_IN:
@@ -423,6 +426,25 @@ void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 }
 
 /*
+ * We got an interrupt on a task_in case, but no errors and no DRQ.
+ *
+ * It might be a spurious irq (shared irq), but it might be a
+ * command that had no output.
+ */
+static ide_startstop_t task_in_unexpected(ide_drive_t *drive, struct request *rq, u8 stat)
+{
+	/* Command all done? */
+	if (OK_STAT(stat, READY_STAT, BUSY_STAT)) {
+		task_end_request(drive, rq, stat);
+		return ide_stopped;
+	}
+
+	/* Assume it was a spurious irq */
+	ide_set_handler(drive, &task_in_intr, WAIT_WORSTCASE, NULL);
+	return ide_started;
+}
+
+/*
  * Handler for command with PIO data-in phase (Read/Read Multiple).
  */
 static ide_startstop_t task_in_intr(ide_drive_t *drive)
@@ -431,18 +453,17 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 	struct request *rq = HWGROUP(drive)->rq;
 	u8 stat = ide_read_status(drive);
 
-	/* new way for dealing with premature shared PCI interrupts */
-	if (!OK_STAT(stat, DRQ_STAT, BAD_R_STAT)) {
-		if (stat & (ERR_STAT | DRQ_STAT))
-			return task_error(drive, rq, __FUNCTION__, stat);
-		/* No data yet, so wait for another IRQ. */
-		ide_set_handler(drive, &task_in_intr, WAIT_WORSTCASE, NULL);
-		return ide_started;
-	}
+	/* Error? */
+	if (stat & ERR_STAT)
+		return task_error(drive, rq, __FUNCTION__, stat);
+
+	/* Didn't want any data? Odd. */
+	if (!(stat & DRQ_STAT))
+		return task_in_unexpected(drive, rq, stat);
 
 	ide_pio_datablock(drive, rq, 0);
 
-	/* If it was the last datablock check status and finish transfer. */
+	/* Are we done? Check status and finish transfer. */
 	if (!hwif->nleft) {
 		stat = wait_drive_not_busy(drive);
 		if (!OK_STAT(stat, 0, BAD_STAT))

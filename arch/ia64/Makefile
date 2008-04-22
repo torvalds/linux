@@ -11,6 +11,8 @@
 # Copyright (C) 1998-2004 by David Mosberger-Tang <davidm@hpl.hp.com>
 #
 
+KBUILD_DEFCONFIG := generic_defconfig
+
 NM := $(CROSS_COMPILE)nm -B
 READELF := $(CROSS_COMPILE)readelf
 

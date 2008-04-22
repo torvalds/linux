@@ -21,8 +21,8 @@ static int ebt_target_redirect(struct sk_buff *skb, unsigned int hooknr,
 {
 	const struct ebt_redirect_info *info = data;
 
-	if (skb_make_writable(skb, 0))
-		return NF_DROP;
+	if (!skb_make_writable(skb, 0))
+		return EBT_DROP;
 
 	if (hooknr != NF_BR_BROUTING)
 		memcpy(eth_hdr(skb)->h_dest,

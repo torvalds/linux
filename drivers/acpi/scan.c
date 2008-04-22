@@ -39,20 +39,26 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 			   int size)
 {
 	int len;
+	int count;
 
-	if (!acpi_dev->flags.hardware_id)
+	if (!acpi_dev->flags.hardware_id && !acpi_dev->flags.compatible_ids)
 		return -ENODEV;
 
-	len = snprintf(modalias, size, "acpi:%s:",
-		       acpi_dev->pnp.hardware_id);
-	if (len < 0 || len >= size)
-		return -EINVAL;
+	len = snprintf(modalias, size, "acpi:");
 	size -= len;
+
+	if (acpi_dev->flags.hardware_id) {
+		count = snprintf(&modalias[len], size, "%s:",
+				 acpi_dev->pnp.hardware_id);
+		if (count < 0 || count >= size)
+			return -EINVAL;
+		len += count;
+		size -= count;
+	}
 
 	if (acpi_dev->flags.compatible_ids) {
 		struct acpi_compatible_id_list *cid_list;
 		int i;
-		int count;
 
 		cid_list = acpi_dev->pnp.cid_list;
 		for (i = 0; i < cid_list->count; i++) {
@@ -609,7 +615,8 @@ acpi_bus_get_ejd(acpi_handle handle, acpi_handle *ejd)
 	status = acpi_evaluate_object(handle, "_EJD", NULL, &buffer);
 	if (ACPI_SUCCESS(status)) {
 		obj = buffer.pointer;
-		status = acpi_get_handle(NULL, obj->string.pointer, ejd);
+		status = acpi_get_handle(ACPI_ROOT_OBJECT, obj->string.pointer,
+					 ejd);
 		kfree(buffer.pointer);
 	}
 	return status;
@@ -966,7 +973,7 @@ static void acpi_device_set_id(struct acpi_device *device,
 	case ACPI_BUS_TYPE_DEVICE:
 		status = acpi_get_object_info(handle, &buffer);
 		if (ACPI_FAILURE(status)) {
-			printk(KERN_ERR PREFIX "%s: Error reading device info\n", __FUNCTION__);
+			printk(KERN_ERR PREFIX "%s: Error reading device info\n", __func__);
 			return;
 		}
 

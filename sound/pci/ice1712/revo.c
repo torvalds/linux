@@ -36,7 +36,7 @@
 struct revo51_spec {
 	struct snd_i2c_device *dev;
 	struct snd_pt2258 *pt2258;
-} revo51;
+};
 
 static void revo_i2s_mclk_changed(struct snd_ice1712 *ice)
 {

@@ -110,7 +110,6 @@ static void __cpuinit bcm1480_smp_finish(void)
 
 	sb1480_clockevent_init();
 	local_irq_enable();
-	bcm1480_smp_finish();
 }
 
 /*

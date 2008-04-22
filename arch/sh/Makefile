@@ -107,6 +107,7 @@ machdir-$(CONFIG_SH_7722_SOLUTION_ENGINE)	+= se/7722
 machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	+= se/7751
 machdir-$(CONFIG_SH_7780_SOLUTION_ENGINE)	+= se/7780
 machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	+= se/7343
+machdir-$(CONFIG_SH_7721_SOLUTION_ENGINE)	+= se/7721
 machdir-$(CONFIG_SH_HP6XX)			+= hp6xx
 machdir-$(CONFIG_SH_DREAMCAST)			+= dreamcast
 machdir-$(CONFIG_SH_MPC1211)			+= mpc1211
@@ -118,7 +119,6 @@ machdir-$(CONFIG_SH_EDOSK7705)			+= renesas/edosk7705
 machdir-$(CONFIG_SH_HIGHLANDER)			+= renesas/r7780rp
 machdir-$(CONFIG_SH_MIGOR)			+= renesas/migor
 machdir-$(CONFIG_SH_SDK7780)			+= renesas/sdk7780
-machdir-$(CONFIG_SH_7710VOIPGW)			+= renesas/sh7710voipgw
 machdir-$(CONFIG_SH_X3PROTO)			+= renesas/x3proto
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= superh/microdev
 machdir-$(CONFIG_SH_LANDISK)			+= landisk
@@ -155,7 +155,11 @@ drivers-$(CONFIG_OPROFILE)	+= arch/sh/oprofile/
 
 boot := arch/sh/boot
 
+ifneq ($(KBUILD_SRC),)
 incdir-prefix	:= $(srctree)/include/asm-sh/
+else
+incdir-prefix	:=
+endif
 
 #	Update machine arch and proc symlinks if something which affects
 #	them changed.  We use .arch and .mach to indicate when they were
@@ -183,7 +187,7 @@ include/asm-sh/.mach: $(wildcard include/config/sh/*.h) \
 	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
 	$(Q)rm -f include/asm-sh/mach
 	$(Q)for i in $(incdir-y); do \
-	if [ -d $(incdir-prefix)$$i ]; then \
+	if [ -d $(srctree)/include/asm-sh/$$i ]; then \
 		echo -n '  SYMLINK include/asm-sh/mach -> '; \
 		echo -e "include/asm-sh/$$i"; \
 		ln -fsn $(incdir-prefix)$$i \
@@ -192,7 +196,7 @@ include/asm-sh/.mach: $(wildcard include/config/sh/*.h) \
 		if [ ! -d include/asm-sh/mach ]; then \
 			echo -n '  SYMLINK include/asm-sh/mach -> '; \
 			echo -e 'include/asm-sh'; \
-			ln -fsn $(incdir-prefix) include/asm-sh/mach; \
+			ln -fsn $(incdir-prefix)../asm-sh include/asm-sh/mach; \
 		fi; \
 	fi; \
 	done

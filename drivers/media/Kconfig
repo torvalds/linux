@@ -25,11 +25,16 @@ config VIDEO_DEV
 	  To compile this driver as a module, choose M here: the
 	  module will be called videodev.
 
+config VIDEO_V4L2_COMMON
+	tristate
+	depends on (I2C || I2C=n) && VIDEO_DEV
+	default (I2C || I2C=n) && VIDEO_DEV
+
 config VIDEO_V4L1
 	bool "Enable Video For Linux API 1 (DEPRECATED)"
-	depends on VIDEO_DEV
+	depends on VIDEO_DEV && VIDEO_V4L2_COMMON
+	default VIDEO_DEV && VIDEO_V4L2_COMMON
 	select VIDEO_V4L1_COMPAT
-	default y
 	---help---
 	  Enables a compatibility API used by most V4L2 devices to allow
 	  its usage with legacy applications that supports only V4L1 api.
@@ -39,7 +44,7 @@ config VIDEO_V4L1
 config VIDEO_V4L1_COMPAT
 	bool "Enable Video For Linux API 1 compatible Layer"
 	depends on VIDEO_DEV
-	default y
+	default VIDEO_DEV
 	---help---
 	  This api were developed to be used at Kernel 2.2 and 2.4, but
 	  lacks support for several video standards. There are several
@@ -55,8 +60,8 @@ config VIDEO_V4L1_COMPAT
 
 config VIDEO_V4L2
 	bool
-	depends on VIDEO_DEV
-	default y
+	depends on VIDEO_DEV && VIDEO_V4L2_COMMON
+	default VIDEO_DEV && VIDEO_V4L2_COMMON
 
 source "drivers/media/video/Kconfig"
 
@@ -93,7 +98,7 @@ if VIDEO_TUNER_CUSTOMIZE
 
 config TUNER_XC2028
 	tristate "XCeive xc2028/xc3028 tuners"
-	depends on I2C
+	depends on I2C && FW_LOADER
 	default m if VIDEO_TUNER_CUSTOMIZE
 	help
 	  Say Y here to include support for the xc2028/xc3028 tuners.
@@ -180,7 +185,6 @@ config VIDEO_TVEEPROM
 
 config DAB
 	boolean "DAB adapters"
-	default y
 	---help---
 	  Allow selecting support for for Digital Audio Broadcasting (DAB)
 	  Receiver adapters.

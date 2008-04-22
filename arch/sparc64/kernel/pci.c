@@ -225,20 +225,6 @@ static int __init pci_controller_init(const char *model_name, int namelen, struc
 	return 0;
 }
 
-static int __init pci_is_controller(const char *model_name, int namelen, struct device_node *dp)
-{
-	int i;
-
-	for (i = 0; i < PCI_NUM_CONTROLLER_TYPES; i++) {
-		if (!strncmp(model_name,
-			     pci_controller_table[i].model_name,
-			     namelen)) {
-			return 1;
-		}
-	}
-	return 0;
-}
-
 static int __init pci_controller_scan(int (*handler)(const char *, int, struct device_node *))
 {
 	struct device_node *dp;
@@ -271,13 +257,6 @@ static int __init pci_controller_scan(int (*handler)(const char *, int, struct d
 	}
 
 	return count;
-}
-
-
-/* Is there some PCI controller in the system?  */
-int __init pcic_present(void)
-{
-	return pci_controller_scan(pci_is_controller);
 }
 
 /* Find each controller in the system, attach and initialize

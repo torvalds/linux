@@ -59,9 +59,6 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		     xfrm_address_t *saddr, u8 proto)
 {
 	struct xfrm_state *x = NULL;
-	int wildcard = 0;
-	xfrm_address_t *xany;
-	int nh = 0;
 	int i = 0;
 
 	/* Allocate new secpath or COW existing one. */
@@ -83,10 +80,9 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		goto drop;
 	}
 
-	xany = (xfrm_address_t *)&in6addr_any;
-
 	for (i = 0; i < 3; i++) {
 		xfrm_address_t *dst, *src;
+
 		switch (i) {
 		case 0:
 			dst = daddr;
@@ -94,16 +90,13 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			break;
 		case 1:
 			/* lookup state with wild-card source address */
-			wildcard = 1;
 			dst = daddr;
-			src = xany;
+			src = (xfrm_address_t *)&in6addr_any;
 			break;
-		case 2:
 		default:
 			/* lookup state with wild-card addresses */
-			wildcard = 1; /* XXX */
-			dst = xany;
-			src = xany;
+			dst = (xfrm_address_t *)&in6addr_any;
+			src = (xfrm_address_t *)&in6addr_any;
 			break;
 		}
 
@@ -113,39 +106,19 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 
 		spin_lock(&x->lock);
 
-		if (wildcard) {
-			if ((x->props.flags & XFRM_STATE_WILDRECV) == 0) {
-				spin_unlock(&x->lock);
-				xfrm_state_put(x);
-				x = NULL;
-				continue;
+		if ((!i || (x->props.flags & XFRM_STATE_WILDRECV)) &&
+		    likely(x->km.state == XFRM_STATE_VALID) &&
+		    !xfrm_state_check_expire(x)) {
+			spin_unlock(&x->lock);
+			if (x->type->input(x, skb) > 0) {
+				/* found a valid state */
+				break;
 			}
-		}
-
-		if (unlikely(x->km.state != XFRM_STATE_VALID)) {
+		} else
 			spin_unlock(&x->lock);
-			xfrm_state_put(x);
-			x = NULL;
-			continue;
-		}
-		if (xfrm_state_check_expire(x)) {
-			spin_unlock(&x->lock);
-			xfrm_state_put(x);
-			x = NULL;
-			continue;
-		}
 
-		spin_unlock(&x->lock);
-
-		nh = x->type->input(x, skb);
-		if (nh <= 0) {
-			xfrm_state_put(x);
-			x = NULL;
-			continue;
-		}
-
-		/* Found a state */
-		break;
+		xfrm_state_put(x);
+		x = NULL;
 	}
 
 	if (!x) {

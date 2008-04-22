@@ -33,6 +33,7 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/debugfs.h>
 
 #include "cluster/heartbeat.h"
 #include "cluster/nodemanager.h"
@@ -40,8 +41,8 @@
 
 #include "dlmapi.h"
 #include "dlmcommon.h"
-
 #include "dlmdomain.h"
+#include "dlmdebug.h"
 
 #include "dlmver.h"
 
@@ -298,6 +299,8 @@ static int dlm_wait_on_domain_helper(const char *domain)
 
 static void dlm_free_ctxt_mem(struct dlm_ctxt *dlm)
 {
+	dlm_destroy_debugfs_subroot(dlm);
+
 	if (dlm->lockres_hash)
 		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
 
@@ -395,6 +398,7 @@ static void dlm_destroy_dlm_worker(struct dlm_ctxt *dlm)
 static void dlm_complete_dlm_shutdown(struct dlm_ctxt *dlm)
 {
 	dlm_unregister_domain_handlers(dlm);
+	dlm_debug_shutdown(dlm);
 	dlm_complete_thread(dlm);
 	dlm_complete_recovery_thread(dlm);
 	dlm_destroy_dlm_worker(dlm);
@@ -644,6 +648,7 @@ int dlm_shutting_down(struct dlm_ctxt *dlm)
 void dlm_unregister_domain(struct dlm_ctxt *dlm)
 {
 	int leave = 0;
+	struct dlm_lock_resource *res;
 
 	spin_lock(&dlm_domain_lock);
 	BUG_ON(dlm->dlm_state != DLM_CTXT_JOINED);
@@ -673,6 +678,15 @@ void dlm_unregister_domain(struct dlm_ctxt *dlm)
 			msleep(500);
 			mlog(0, "%s: more migration to do\n", dlm->name);
 		}
+
+		/* This list should be empty. If not, print remaining lockres */
+		if (!list_empty(&dlm->tracking_list)) {
+			mlog(ML_ERROR, "Following lockres' are still on the "
+			     "tracking list:\n");
+			list_for_each_entry(res, &dlm->tracking_list, tracking)
+				dlm_print_one_lock_resource(res);
+		}
+
 		dlm_mark_domain_leaving(dlm);
 		dlm_leave_domain(dlm);
 		dlm_complete_dlm_shutdown(dlm);
@@ -713,14 +727,46 @@ static int dlm_query_join_proto_check(char *proto_type, int node,
 	return rc;
 }
 
+/*
+ * struct dlm_query_join_packet is made up of four one-byte fields.  They
+ * are effectively in big-endian order already.  However, little-endian
+ * machines swap them before putting the packet on the wire (because
+ * query_join's response is a status, and that status is treated as a u32
+ * on the wire).  Thus, a big-endian and little-endian machines will treat
+ * this structure differently.
+ *
+ * The solution is to have little-endian machines swap the structure when
+ * converting from the structure to the u32 representation.  This will
+ * result in the structure having the correct format on the wire no matter
+ * the host endian format.
+ */
+static void dlm_query_join_packet_to_wire(struct dlm_query_join_packet *packet,
+					  u32 *wire)
+{
+	union dlm_query_join_response response;
+
+	response.packet = *packet;
+	*wire = cpu_to_be32(response.intval);
+}
+
+static void dlm_query_join_wire_to_packet(u32 wire,
+					  struct dlm_query_join_packet *packet)
+{
+	union dlm_query_join_response response;
+
+	response.intval = cpu_to_be32(wire);
+	*packet = response.packet;
+}
+
 static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 				  void **ret_data)
 {
 	struct dlm_query_join_request *query;
-	union dlm_query_join_response response = {
-		.packet.code = JOIN_DISALLOW,
+	struct dlm_query_join_packet packet = {
+		.code = JOIN_DISALLOW,
 	};
 	struct dlm_ctxt *dlm = NULL;
+	u32 response;
 	u8 nodenum;
 
 	query = (struct dlm_query_join_request *) msg->buf;
@@ -737,11 +783,11 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 		mlog(0, "node %u is not in our live map yet\n",
 		     query->node_idx);
 
-		response.packet.code = JOIN_DISALLOW;
+		packet.code = JOIN_DISALLOW;
 		goto respond;
 	}
 
-	response.packet.code = JOIN_OK_NO_MAP;
+	packet.code = JOIN_OK_NO_MAP;
 
 	spin_lock(&dlm_domain_lock);
 	dlm = __dlm_lookup_domain_full(query->domain, query->name_len);
@@ -760,7 +806,7 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 				mlog(0, "disallow join as node %u does not "
 				     "have node %u in its nodemap\n",
 				     query->node_idx, nodenum);
-				response.packet.code = JOIN_DISALLOW;
+				packet.code = JOIN_DISALLOW;
 				goto unlock_respond;
 			}
 		}
@@ -780,23 +826,23 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 			/*If this is a brand new context and we
 			 * haven't started our join process yet, then
 			 * the other node won the race. */
-			response.packet.code = JOIN_OK_NO_MAP;
+			packet.code = JOIN_OK_NO_MAP;
 		} else if (dlm->joining_node != DLM_LOCK_RES_OWNER_UNKNOWN) {
 			/* Disallow parallel joins. */
-			response.packet.code = JOIN_DISALLOW;
+			packet.code = JOIN_DISALLOW;
 		} else if (dlm->reco.state & DLM_RECO_STATE_ACTIVE) {
 			mlog(0, "node %u trying to join, but recovery "
 			     "is ongoing.\n", bit);
-			response.packet.code = JOIN_DISALLOW;
+			packet.code = JOIN_DISALLOW;
 		} else if (test_bit(bit, dlm->recovery_map)) {
 			mlog(0, "node %u trying to join, but it "
 			     "still needs recovery.\n", bit);
-			response.packet.code = JOIN_DISALLOW;
+			packet.code = JOIN_DISALLOW;
 		} else if (test_bit(bit, dlm->domain_map)) {
 			mlog(0, "node %u trying to join, but it "
 			     "is still in the domain! needs recovery?\n",
 			     bit);
-			response.packet.code = JOIN_DISALLOW;
+			packet.code = JOIN_DISALLOW;
 		} else {
 			/* Alright we're fully a part of this domain
 			 * so we keep some state as to who's joining
@@ -807,19 +853,15 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 			if (dlm_query_join_proto_check("DLM", bit,
 						       &dlm->dlm_locking_proto,
 						       &query->dlm_proto)) {
-				response.packet.code =
-					JOIN_PROTOCOL_MISMATCH;
+				packet.code = JOIN_PROTOCOL_MISMATCH;
 			} else if (dlm_query_join_proto_check("fs", bit,
 							      &dlm->fs_locking_proto,
 							      &query->fs_proto)) {
-				response.packet.code =
-					JOIN_PROTOCOL_MISMATCH;
+				packet.code = JOIN_PROTOCOL_MISMATCH;
 			} else {
-				response.packet.dlm_minor =
-					query->dlm_proto.pv_minor;
-				response.packet.fs_minor =
-					query->fs_proto.pv_minor;
-				response.packet.code = JOIN_OK;
+				packet.dlm_minor = query->dlm_proto.pv_minor;
+				packet.fs_minor = query->fs_proto.pv_minor;
+				packet.code = JOIN_OK;
 				__dlm_set_joining_node(dlm, query->node_idx);
 			}
 		}
@@ -830,9 +872,10 @@ unlock_respond:
 	spin_unlock(&dlm_domain_lock);
 
 respond:
-	mlog(0, "We respond with %u\n", response.packet.code);
+	mlog(0, "We respond with %u\n", packet.code);
 
-	return response.intval;
+	dlm_query_join_packet_to_wire(&packet, &response);
+	return response;
 }
 
 static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data,
@@ -937,7 +980,7 @@ static int dlm_send_join_cancels(struct dlm_ctxt *dlm,
 			 sizeof(unsigned long))) {
 		mlog(ML_ERROR,
 		     "map_size %u != BITS_TO_LONGS(O2NM_MAX_NODES) %u\n",
-		     map_size, BITS_TO_LONGS(O2NM_MAX_NODES));
+		     map_size, (unsigned)BITS_TO_LONGS(O2NM_MAX_NODES));
 		return -EINVAL;
 	}
 
@@ -968,7 +1011,8 @@ static int dlm_request_join(struct dlm_ctxt *dlm,
 {
 	int status;
 	struct dlm_query_join_request join_msg;
-	union dlm_query_join_response join_resp;
+	struct dlm_query_join_packet packet;
+	u32 join_resp;
 
 	mlog(0, "querying node %d\n", node);
 
@@ -984,11 +1028,12 @@ static int dlm_request_join(struct dlm_ctxt *dlm,
 
 	status = o2net_send_message(DLM_QUERY_JOIN_MSG, DLM_MOD_KEY, &join_msg,
 				    sizeof(join_msg), node,
-				    &join_resp.intval);
+				    &join_resp);
 	if (status < 0 && status != -ENOPROTOOPT) {
 		mlog_errno(status);
 		goto bail;
 	}
+	dlm_query_join_wire_to_packet(join_resp, &packet);
 
 	/* -ENOPROTOOPT from the net code means the other side isn't
 	    listening for our message type -- that's fine, it means
@@ -997,10 +1042,10 @@ static int dlm_request_join(struct dlm_ctxt *dlm,
 	if (status == -ENOPROTOOPT) {
 		status = 0;
 		*response = JOIN_OK_NO_MAP;
-	} else if (join_resp.packet.code == JOIN_DISALLOW ||
-		   join_resp.packet.code == JOIN_OK_NO_MAP) {
-		*response = join_resp.packet.code;
-	} else if (join_resp.packet.code == JOIN_PROTOCOL_MISMATCH) {
+	} else if (packet.code == JOIN_DISALLOW ||
+		   packet.code == JOIN_OK_NO_MAP) {
+		*response = packet.code;
+	} else if (packet.code == JOIN_PROTOCOL_MISMATCH) {
 		mlog(ML_NOTICE,
 		     "This node requested DLM locking protocol %u.%u and "
 		     "filesystem locking protocol %u.%u.  At least one of "
@@ -1012,14 +1057,12 @@ static int dlm_request_join(struct dlm_ctxt *dlm,
 		     dlm->fs_locking_proto.pv_minor,
 		     node);
 		status = -EPROTO;
-		*response = join_resp.packet.code;
-	} else if (join_resp.packet.code == JOIN_OK) {
-		*response = join_resp.packet.code;
+		*response = packet.code;
+	} else if (packet.code == JOIN_OK) {
+		*response = packet.code;
 		/* Use the same locking protocol as the remote node */
-		dlm->dlm_locking_proto.pv_minor =
-			join_resp.packet.dlm_minor;
-		dlm->fs_locking_proto.pv_minor =
-			join_resp.packet.fs_minor;
+		dlm->dlm_locking_proto.pv_minor = packet.dlm_minor;
+		dlm->fs_locking_proto.pv_minor = packet.fs_minor;
 		mlog(0,
 		     "Node %d responds JOIN_OK with DLM locking protocol "
 		     "%u.%u and fs locking protocol %u.%u\n",
@@ -1031,11 +1074,11 @@ static int dlm_request_join(struct dlm_ctxt *dlm,
 	} else {
 		status = -EINVAL;
 		mlog(ML_ERROR, "invalid response %d from node %u\n",
-		     join_resp.packet.code, node);
+		     packet.code, node);
 	}
 
 	mlog(0, "status %d, node %d response is %d\n", status, node,
-		  *response);
+	     *response);
 
 bail:
 	return status;
@@ -1376,6 +1419,12 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 		goto bail;
 	}
 
+	status = dlm_debug_init(dlm);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
 	status = dlm_launch_thread(dlm);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1443,6 +1492,7 @@ bail:
 
 	if (status) {
 		dlm_unregister_domain_handlers(dlm);
+		dlm_debug_shutdown(dlm);
 		dlm_complete_thread(dlm);
 		dlm_complete_recovery_thread(dlm);
 		dlm_destroy_dlm_worker(dlm);
@@ -1455,6 +1505,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 				u32 key)
 {
 	int i;
+	int ret;
 	struct dlm_ctxt *dlm = NULL;
 
 	dlm = kzalloc(sizeof(*dlm), GFP_KERNEL);
@@ -1487,6 +1538,15 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	dlm->key = key;
 	dlm->node_num = o2nm_this_node();
 
+	ret = dlm_create_debugfs_subroot(dlm);
+	if (ret < 0) {
+		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
+		kfree(dlm->name);
+		kfree(dlm);
+		dlm = NULL;
+		goto leave;
+	}
+
 	spin_lock_init(&dlm->spinlock);
 	spin_lock_init(&dlm->master_lock);
 	spin_lock_init(&dlm->ast_lock);
@@ -1497,6 +1557,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	INIT_LIST_HEAD(&dlm->reco.node_data);
 	INIT_LIST_HEAD(&dlm->purge_list);
 	INIT_LIST_HEAD(&dlm->dlm_domain_handlers);
+	INIT_LIST_HEAD(&dlm->tracking_list);
 	dlm->reco.state = 0;
 
 	INIT_LIST_HEAD(&dlm->pending_asts);
@@ -1787,21 +1848,49 @@ static int __init dlm_init(void)
 	dlm_print_version();
 
 	status = dlm_init_mle_cache();
-	if (status)
-		return -1;
+	if (status) {
+		mlog(ML_ERROR, "Could not create o2dlm_mle slabcache\n");
+		goto error;
+	}
+
+	status = dlm_init_master_caches();
+	if (status) {
+		mlog(ML_ERROR, "Could not create o2dlm_lockres and "
+		     "o2dlm_lockname slabcaches\n");
+		goto error;
+	}
+
+	status = dlm_init_lock_cache();
+	if (status) {
+		mlog(ML_ERROR, "Count not create o2dlm_lock slabcache\n");
+		goto error;
+	}
 
 	status = dlm_register_net_handlers();
 	if (status) {
-		dlm_destroy_mle_cache();
-		return -1;
+		mlog(ML_ERROR, "Unable to register network handlers\n");
+		goto error;
 	}
 
+	status = dlm_create_debugfs_root();
+	if (status)
+		goto error;
+
 	return 0;
+error:
+	dlm_unregister_net_handlers();
+	dlm_destroy_lock_cache();
+	dlm_destroy_master_caches();
+	dlm_destroy_mle_cache();
+	return -1;
 }
 
 static void __exit dlm_exit (void)
 {
+	dlm_destroy_debugfs_root();
 	dlm_unregister_net_handlers();
+	dlm_destroy_lock_cache();
+	dlm_destroy_master_caches();
 	dlm_destroy_mle_cache();
 }
 

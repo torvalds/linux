@@ -42,11 +42,6 @@ EXPORT_SYMBOL(ip_fast_csum);
 
 EXPORT_SYMBOL(kernel_thread);
 
-EXPORT_SYMBOL(__up);
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_trylock);
-EXPORT_SYMBOL(__down_interruptible);
-
 EXPORT_SYMBOL(is_in_rom);
 EXPORT_SYMBOL(bfin_return_from_exception);
 

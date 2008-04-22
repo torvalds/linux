@@ -14,19 +14,19 @@
 
 /* signal.h */
 struct sigaction32 {
-       unsigned int  sa_handler;	/* Really a pointer, but need to deal 
-					     with 32 bits */
-       unsigned int sa_flags;
-       unsigned int sa_restorer;	/* Another 32 bit pointer */
-       compat_sigset_t sa_mask;		/* A 32 bit mask */
+	unsigned int  sa_handler;	/* Really a pointer, but need to deal
+					   with 32 bits */
+	unsigned int sa_flags;
+	unsigned int sa_restorer;	/* Another 32 bit pointer */
+	compat_sigset_t sa_mask;	/* A 32 bit mask */
 };
 
 struct old_sigaction32 {
-       unsigned int  sa_handler;	/* Really a pointer, but need to deal 
-					     with 32 bits */
-       compat_old_sigset_t sa_mask;		/* A 32 bit mask */
-       unsigned int sa_flags;
-       unsigned int sa_restorer;	/* Another 32 bit pointer */
+	unsigned int  sa_handler;	/* Really a pointer, but need to deal
+					   with 32 bits */
+	compat_old_sigset_t sa_mask;	/* A 32 bit mask */
+	unsigned int sa_flags;
+	unsigned int sa_restorer;	/* Another 32 bit pointer */
 };
 
 typedef struct sigaltstack_ia32 {
@@ -65,7 +65,7 @@ struct stat64 {
 	long long		st_size;
 	unsigned int		st_blksize;
 
-	long long		st_blocks;/* Number 512-byte blocks allocated. */
+	long long		st_blocks;/* Number 512-byte blocks allocated */
 
 	unsigned 		st_atime;
 	unsigned 		st_atime_nsec;
@@ -77,13 +77,13 @@ struct stat64 {
 	unsigned long long	st_ino;
 } __attribute__((packed));
 
-typedef struct compat_siginfo{
+typedef struct compat_siginfo {
 	int si_signo;
 	int si_errno;
 	int si_code;
 
 	union {
-		int _pad[((128/sizeof(int)) - 3)];
+		int _pad[((128 / sizeof(int)) - 3)];
 
 		/* kill() */
 		struct {
@@ -129,28 +129,26 @@ typedef struct compat_siginfo{
 	} _sifields;
 } compat_siginfo_t;
 
-struct sigframe32
-{
-        u32 pretcode;
-        int sig;
-        struct sigcontext_ia32 sc;
-        struct _fpstate_ia32 fpstate;
-        unsigned int extramask[_COMPAT_NSIG_WORDS-1];
+struct sigframe32 {
+	u32 pretcode;
+	int sig;
+	struct sigcontext_ia32 sc;
+	struct _fpstate_ia32 fpstate;
+	unsigned int extramask[_COMPAT_NSIG_WORDS-1];
 };
 
-struct rt_sigframe32
-{
-        u32 pretcode;
-        int sig;
-        u32 pinfo;
-        u32 puc;
-        compat_siginfo_t info;
-        struct ucontext_ia32 uc;
-        struct _fpstate_ia32 fpstate;
+struct rt_sigframe32 {
+	u32 pretcode;
+	int sig;
+	u32 pinfo;
+	u32 puc;
+	compat_siginfo_t info;
+	struct ucontext_ia32 uc;
+	struct _fpstate_ia32 fpstate;
 };
 
 struct ustat32 {
-	__u32	f_tfree;
+	__u32			f_tfree;
 	compat_ino_t		f_tinode;
 	char			f_fname[6];
 	char			f_fpack[6];
@@ -168,5 +166,5 @@ extern void ia32_pick_mmap_layout(struct mm_struct *mm);
 #endif
 
 #endif /* !CONFIG_IA32_SUPPORT */
- 
-#endif 
+
+#endif

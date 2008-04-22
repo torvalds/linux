@@ -265,7 +265,7 @@ static inline bool ipv4_is_local_multicast(__be32 addr)
 static inline bool ipv4_is_lbcast(__be32 addr)
 {
 	/* limited broadcast */
-	return addr == INADDR_BROADCAST;
+	return addr == htonl(INADDR_BROADCAST);
 }
 
 static inline bool ipv4_is_zeronet(__be32 addr)

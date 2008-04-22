@@ -26,17 +26,10 @@ struct vesa_general_info {
 	far_ptr video_mode_ptr;	/* 14 */
 	u16 total_memory;	/* 18 */
 
-	u16 oem_software_rev;	/* 20 */
-	far_ptr oem_vendor_name_ptr;	/* 22 */
-	far_ptr oem_product_name_ptr;	/* 26 */
-	far_ptr oem_product_rev_ptr;	/* 30 */
-
-	u8 reserved[222];	/* 34 */
-	u8 oem_data[256];	/* 256 */
+	u8 reserved[236];	/* 20 */
 } __attribute__ ((packed));
 
 #define VESA_MAGIC ('V' + ('E' << 8) + ('S' << 16) + ('A' << 24))
-#define VBE2_MAGIC ('V' + ('B' << 8) + ('E' << 16) + ('2' << 24))
 
 struct vesa_mode_info {
 	u16 mode_attr;		/* 0 */

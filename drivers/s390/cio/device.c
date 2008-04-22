@@ -32,7 +32,7 @@
 #include "io_sch.h"
 
 static struct timer_list recovery_timer;
-static spinlock_t recovery_lock;
+static DEFINE_SPINLOCK(recovery_lock);
 static int recovery_phase;
 static const unsigned long recovery_delay[] = { 3, 30, 300 };
 
@@ -577,7 +577,6 @@ static DEVICE_ATTR(devtype, 0444, devtype_show, NULL);
 static DEVICE_ATTR(cutype, 0444, cutype_show, NULL);
 static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
 static DEVICE_ATTR(online, 0644, online_show, online_store);
-extern struct device_attribute dev_attr_cmb_enable;
 static DEVICE_ATTR(availability, 0444, available_show, NULL);
 
 static struct attribute * subch_attrs[] = {
@@ -1535,7 +1534,7 @@ static int recovery_check(struct device *dev, void *data)
 	return 0;
 }
 
-static void recovery_func(unsigned long data)
+static void recovery_work_func(struct work_struct *unused)
 {
 	int redo = 0;
 
@@ -1551,6 +1550,17 @@ static void recovery_func(unsigned long data)
 		spin_unlock_irq(&recovery_lock);
 	} else
 		CIO_MSG_EVENT(2, "recovery: end\n");
+}
+
+static DECLARE_WORK(recovery_work, recovery_work_func);
+
+static void recovery_func(unsigned long data)
+{
+	/*
+	 * We can't do our recovery in softirq context and it's not
+	 * performance critical, so we schedule it.
+	 */
+	schedule_work(&recovery_work);
 }
 
 void ccw_device_schedule_recovery(void)

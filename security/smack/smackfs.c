@@ -24,6 +24,7 @@
 #include <net/cipso_ipv4.h>
 #include <linux/seq_file.h>
 #include <linux/ctype.h>
+#include <linux/audit.h>
 #include "smack.h"
 
 /*
@@ -45,6 +46,7 @@ enum smk_inos {
  */
 static DEFINE_MUTEX(smack_list_lock);
 static DEFINE_MUTEX(smack_cipso_lock);
+static DEFINE_MUTEX(smack_ambient_lock);
 
 /*
  * This is the "ambient" label for network traffic.
@@ -72,17 +74,25 @@ struct smk_list_entry *smack_list;
 #define	SEQ_READ_FINISHED	1
 
 /*
- * Disable concurrent writing open() operations
- */
-static struct semaphore smack_write_sem;
-
-/*
  * Values for parsing cipso rules
  * SMK_DIGITLEN: Length of a digit field in a rule.
- * SMK_CIPSOMEN: Minimum possible cipso rule length.
+ * SMK_CIPSOMIN: Minimum possible cipso rule length.
+ * SMK_CIPSOMAX: Maximum possible cipso rule length.
  */
 #define SMK_DIGITLEN 4
-#define SMK_CIPSOMIN (SMK_MAXLEN + 2 * SMK_DIGITLEN)
+#define SMK_CIPSOMIN (SMK_LABELLEN + 2 * SMK_DIGITLEN)
+#define SMK_CIPSOMAX (SMK_CIPSOMIN + SMACK_CIPSO_MAXCATNUM * SMK_DIGITLEN)
+
+/*
+ * Values for parsing MAC rules
+ * SMK_ACCESS: Maximum possible combination of access permissions
+ * SMK_ACCESSLEN: Maximum length for a rule access field
+ * SMK_LOADLEN: Smack rule length
+ */
+#define SMK_ACCESS    "rwxa"
+#define SMK_ACCESSLEN (sizeof(SMK_ACCESS) - 1)
+#define SMK_LOADLEN   (SMK_LABELLEN + SMK_LABELLEN + SMK_ACCESSLEN)
+
 
 /*
  * Seq_file read operations for /smack/load
@@ -153,32 +163,7 @@ static struct seq_operations load_seq_ops = {
  */
 static int smk_open_load(struct inode *inode, struct file *file)
 {
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
-		return seq_open(file, &load_seq_ops);
-
-	if (down_interruptible(&smack_write_sem))
-		return -ERESTARTSYS;
-
-	return 0;
-}
-
-/**
- * smk_release_load - release() for /smack/load
- * @inode: inode structure representing file
- * @file: "load" file pointer
- *
- * For a reading session, use the seq_file release
- * implementation.
- * Otherwise, we are at the end of a writing session so
- * clean everything up.
- */
-static int smk_release_load(struct inode *inode, struct file *file)
-{
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
-		return seq_release(inode, file);
-
-	up(&smack_write_sem);
-	return 0;
+	return seq_open(file, &load_seq_ops);
 }
 
 /**
@@ -227,14 +212,10 @@ static void smk_set_access(struct smack_rule *srp)
  * The format is exactly:
  *     char subject[SMK_LABELLEN]
  *     char object[SMK_LABELLEN]
- *     char access[SMK_ACCESSKINDS]
+ *     char access[SMK_ACCESSLEN]
  *
- *     Anything following is commentary and ignored.
- *
- * writes must be SMK_LABELLEN+SMK_LABELLEN+4 bytes.
+ * writes must be SMK_LABELLEN+SMK_LABELLEN+SMK_ACCESSLEN bytes.
  */
-#define MINIMUM_LOAD (SMK_LABELLEN + SMK_LABELLEN + SMK_ACCESSKINDS)
-
 static ssize_t smk_write_load(struct file *file, const char __user *buf,
 			      size_t count, loff_t *ppos)
 {
@@ -251,7 +232,7 @@ static ssize_t smk_write_load(struct file *file, const char __user *buf,
 		return -EPERM;
 	if (*ppos != 0)
 		return -EINVAL;
-	if (count < MINIMUM_LOAD)
+	if (count != SMK_LOADLEN)
 		return -EINVAL;
 
 	data = kzalloc(count, GFP_KERNEL);
@@ -330,7 +311,7 @@ static const struct file_operations smk_load_ops = {
 	.read		= seq_read,
 	.llseek         = seq_lseek,
 	.write		= smk_write_load,
-	.release        = smk_release_load,
+	.release        = seq_release,
 };
 
 /**
@@ -341,6 +322,9 @@ void smk_cipso_doi(void)
 	int rc;
 	struct cipso_v4_doi *doip;
 	struct netlbl_audit audit_info;
+
+	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.secid = smack_to_secid(current->security);
 
 	rc = netlbl_cfg_map_del(NULL, &audit_info);
 	if (rc != 0)
@@ -358,6 +342,30 @@ void smk_cipso_doi(void)
 		doip->tags[rc] = CIPSO_V4_TAG_INVALID;
 
 	rc = netlbl_cfg_cipsov4_add_map(doip, NULL, &audit_info);
+	if (rc != 0)
+		printk(KERN_WARNING "%s:%d add rc = %d\n",
+		       __func__, __LINE__, rc);
+}
+
+/**
+ * smk_unlbl_ambient - initialize the unlabeled domain
+ */
+void smk_unlbl_ambient(char *oldambient)
+{
+	int rc;
+	struct netlbl_audit audit_info;
+
+	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.secid = smack_to_secid(current->security);
+
+	if (oldambient != NULL) {
+		rc = netlbl_cfg_map_del(oldambient, &audit_info);
+		if (rc != 0)
+			printk(KERN_WARNING "%s:%d remove rc = %d\n",
+			       __func__, __LINE__, rc);
+	}
+
+	rc = netlbl_cfg_unlbl_add_map(smack_net_ambient, &audit_info);
 	if (rc != 0)
 		printk(KERN_WARNING "%s:%d add rc = %d\n",
 		       __func__, __LINE__, rc);
@@ -484,7 +492,7 @@ static ssize_t smk_write_cipso(struct file *file, const char __user *buf,
 		return -EPERM;
 	if (*ppos != 0)
 		return -EINVAL;
-	if (count <= SMK_CIPSOMIN)
+	if (count < SMK_CIPSOMIN || count > SMK_CIPSOMAX)
 		return -EINVAL;
 
 	data = kzalloc(count + 1, GFP_KERNEL);
@@ -518,7 +526,7 @@ static ssize_t smk_write_cipso(struct file *file, const char __user *buf,
 	if (ret != 1 || catlen > SMACK_CIPSO_MAXCATNUM)
 		goto out;
 
-	if (count <= (SMK_CIPSOMIN + catlen * SMK_DIGITLEN))
+	if (count != (SMK_CIPSOMIN + catlen * SMK_DIGITLEN))
 		goto out;
 
 	memset(mapcatset, 0, sizeof(mapcatset));
@@ -709,7 +717,6 @@ static ssize_t smk_read_ambient(struct file *filp, char __user *buf,
 				size_t cn, loff_t *ppos)
 {
 	ssize_t rc;
-	char out[SMK_LABELLEN];
 	int asize;
 
 	if (*ppos != 0)
@@ -717,23 +724,18 @@ static ssize_t smk_read_ambient(struct file *filp, char __user *buf,
 	/*
 	 * Being careful to avoid a problem in the case where
 	 * smack_net_ambient gets changed in midstream.
-	 * Since smack_net_ambient is always set with a value
-	 * from the label list, including initially, and those
-	 * never get freed, the worst case is that the pointer
-	 * gets changed just after this strncpy, in which case
-	 * the value passed up is incorrect. Locking around
-	 * smack_net_ambient wouldn't be any better than this
-	 * copy scheme as by the time the caller got to look
-	 * at the ambient value it would have cleared the lock
-	 * and been changed.
 	 */
-	strncpy(out, smack_net_ambient, SMK_LABELLEN);
-	asize = strlen(out) + 1;
+	mutex_lock(&smack_ambient_lock);
 
-	if (cn < asize)
-		return -EINVAL;
+	asize = strlen(smack_net_ambient) + 1;
 
-	rc = simple_read_from_buffer(buf, cn, ppos, out, asize);
+	if (cn >= asize)
+		rc = simple_read_from_buffer(buf, cn, ppos,
+					     smack_net_ambient, asize);
+	else
+		rc = -EINVAL;
+
+	mutex_unlock(&smack_ambient_lock);
 
 	return rc;
 }
@@ -751,6 +753,7 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	char in[SMK_LABELLEN];
+	char *oldambient;
 	char *smack;
 
 	if (!capable(CAP_MAC_ADMIN))
@@ -766,7 +769,13 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 	if (smack == NULL)
 		return -EINVAL;
 
+	mutex_lock(&smack_ambient_lock);
+
+	oldambient = smack_net_ambient;
 	smack_net_ambient = smack;
+	smk_unlbl_ambient(oldambient);
+
+	mutex_unlock(&smack_ambient_lock);
 
 	return count;
 }
@@ -956,11 +965,20 @@ static struct vfsmount *smackfs_mount;
  *
  * register the smackfs
  *
- * Returns 0 unless the registration fails.
+ * Do not register smackfs if Smack wasn't enabled
+ * on boot. We can not put this method normally under the
+ * smack_init() code path since the security subsystem get
+ * initialized before the vfs caches.
+ *
+ * Returns true if we were not chosen on boot or if
+ * we were chosen and filesystem registration succeeded.
  */
 static int __init init_smk_fs(void)
 {
 	int err;
+
+	if (!security_module_enable(&smack_ops))
+		return 0;
 
 	err = register_filesystem(&smk_fs_type);
 	if (!err) {
@@ -972,8 +990,8 @@ static int __init init_smk_fs(void)
 		}
 	}
 
-	sema_init(&smack_write_sem, 1);
 	smk_cipso_doi();
+	smk_unlbl_ambient(NULL);
 
 	return err;
 }

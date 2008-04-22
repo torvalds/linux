@@ -103,7 +103,6 @@ struct scsi_cmnd *scsi_host_get_command(struct Scsi_Host *shost,
 	if (!cmd)
 		goto release_rq;
 
-	memset(cmd, 0, sizeof(*cmd));
 	cmd->sc_data_direction = data_dir;
 	cmd->jiffies_at_alloc = jiffies;
 	cmd->request = rq;
@@ -382,6 +381,11 @@ static int scsi_map_user_pages(struct scsi_tgt_cmd *tcmd, struct scsi_cmnd *cmd,
 		scsi_release_buffers(cmd);
 		goto unmap_rq;
 	}
+	/*
+	 * we use REQ_TYPE_BLOCK_PC so scsi_init_io doesn't set the
+	 * length for us.
+	 */
+	cmd->sdb.length = rq->data_len;
 
 	return 0;
 
@@ -617,9 +621,7 @@ static int __init scsi_tgt_init(void)
 {
 	int err;
 
-	scsi_tgt_cmd_cache = kmem_cache_create("scsi_tgt_cmd",
-					       sizeof(struct scsi_tgt_cmd),
-					       0, 0, NULL);
+	scsi_tgt_cmd_cache =  KMEM_CACHE(scsi_tgt_cmd, 0);
 	if (!scsi_tgt_cmd_cache)
 		return -ENOMEM;
 

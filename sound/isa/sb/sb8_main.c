@@ -277,7 +277,7 @@ static int snd_sb8_capture_prepare(struct snd_pcm_substream *substream)
 	} else {
 		snd_sbdsp_command(chip, 256 - runtime->rate_den);
 	}
-	if (chip->capture_format != SB_DSP_OUTPUT) {
+	if (chip->capture_format != SB_DSP_INPUT) {
 		count--;
 		snd_sbdsp_command(chip, SB_DSP_BLOCK_SIZE);
 		snd_sbdsp_command(chip, count & 0xff);

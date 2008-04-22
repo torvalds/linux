@@ -758,7 +758,7 @@ static void __devinit get_mondo_data(struct mdesc_handle *hp, u64 mp,
 	get_one_mondo_bits(val, &tb->nonresum_qmask, 2);
 }
 
-void __devinit mdesc_fill_in_cpu_data(cpumask_t mask)
+void __cpuinit mdesc_fill_in_cpu_data(cpumask_t mask)
 {
 	struct mdesc_handle *hp = mdesc_grab();
 	u64 mp;

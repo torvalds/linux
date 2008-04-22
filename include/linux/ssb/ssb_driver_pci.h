@@ -1,6 +1,11 @@
 #ifndef LINUX_SSB_PCICORE_H_
 #define LINUX_SSB_PCICORE_H_
 
+#include <linux/types.h>
+
+struct pci_dev;
+
+
 #ifdef CONFIG_SSB_DRIVER_PCICORE
 
 /* PCI core registers. */
@@ -51,6 +56,11 @@
 #define  SSB_PCICORE_SBTOPCI1_MASK	0xFC000000
 #define SSB_PCICORE_SBTOPCI2		0x0108	/* Backplane to PCI translation 2 (sbtopci2) */
 #define  SSB_PCICORE_SBTOPCI2_MASK	0xC0000000
+#define SSB_PCICORE_PCICFG0		0x0400	/* PCI config space 0 (rev >= 8) */
+#define SSB_PCICORE_PCICFG1		0x0500	/* PCI config space 1 (rev >= 8) */
+#define SSB_PCICORE_PCICFG2		0x0600	/* PCI config space 2 (rev >= 8) */
+#define SSB_PCICORE_PCICFG3		0x0700	/* PCI config space 3 (rev >= 8) */
+#define SSB_PCICORE_SPROM(wordoffset)	(0x0800 + ((wordoffset) * 2)) /* SPROM shadow area (72 bytes) */
 
 /* SBtoPCIx */
 #define SSB_PCICORE_SBTOPCI_MEM		0x00000000
@@ -83,6 +93,9 @@ extern void ssb_pcicore_init(struct ssb_pcicore *pc);
 extern int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 					  struct ssb_device *dev);
 
+int ssb_pcicore_plat_dev_init(struct pci_dev *d);
+int ssb_pcicore_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
+
 
 #else /* CONFIG_SSB_DRIVER_PCICORE */
 
@@ -100,6 +113,17 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 				   struct ssb_device *dev)
 {
 	return 0;
+}
+
+static inline
+int ssb_pcicore_plat_dev_init(struct pci_dev *d)
+{
+	return -ENODEV;
+}
+static inline
+int ssb_pcicore_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+{
+	return -ENODEV;
 }
 
 #endif /* CONFIG_SSB_DRIVER_PCICORE */

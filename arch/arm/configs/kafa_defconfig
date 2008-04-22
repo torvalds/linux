@@ -587,14 +587,14 @@ CONFIG_I2C_CHARDEV=y
 #
 # I2C Algorithms
 #
-# CONFIG_I2C_ALGOBIT is not set
+CONFIG_I2C_ALGOBIT=y
 # CONFIG_I2C_ALGOPCF is not set
 # CONFIG_I2C_ALGOPCA is not set
 
 #
 # I2C Hardware Bus support
 #
-CONFIG_I2C_AT91=y
+CONFIG_I2C_GPIO=y
 # CONFIG_I2C_PARPORT_LIGHT is not set
 # CONFIG_I2C_STUB is not set
 # CONFIG_I2C_PCA_ISA is not set

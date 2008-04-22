@@ -15,6 +15,7 @@
 
 #include <linux/capability.h>
 #include <linux/spinlock.h>
+#include <linux/security.h>
 #include <net/netlabel.h>
 
 /*
@@ -25,14 +26,6 @@
  */
 #define SMK_MAXLEN	23
 #define SMK_LABELLEN	(SMK_MAXLEN+1)
-
-/*
- * How many kinds of access are there?
- * Here's your answer.
- */
-#define SMK_ACCESSDASH	'-'
-#define SMK_ACCESSLOW	"rwxa"
-#define SMK_ACCESSKINDS	(sizeof(SMK_ACCESSLOW) - 1)
 
 struct superblock_smack {
 	char		*smk_root;
@@ -195,6 +188,7 @@ extern struct smack_known smack_known_star;
 extern struct smack_known smack_known_unset;
 
 extern struct smk_list_entry *smack_list;
+extern struct security_operations smack_ops;
 
 /*
  * Stricly for CIPSO level manipulation.

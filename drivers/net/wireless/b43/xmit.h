@@ -207,25 +207,24 @@ enum {
 	B43_TXST_SUPP_ABNACK,	/* Afterburner NACK */
 };
 
-/* Transmit Status as received through DMA/PIO on old chips */
-struct b43_hwtxstatus {
-	PAD_BYTES(4);
-	__le16 cookie;
-	u8 flags;
-	u8 count;
-	 PAD_BYTES(2);
-	__le16 seq;
-	u8 phy_stat;
-	 PAD_BYTES(1);
-} __attribute__ ((__packed__));
-
 /* Receive header for v4 firmware. */
 struct b43_rxhdr_fw4 {
 	__le16 frame_len;	/* Frame length */
 	 PAD_BYTES(2);
 	__le16 phy_status0;	/* PHY RX Status 0 */
-	__u8 jssi;		/* PHY RX Status 1: JSSI */
-	__u8 sig_qual;		/* PHY RX Status 1: Signal Quality */
+	union {
+		/* RSSI for A/B/G-PHYs */
+		struct {
+			__u8 jssi;	/* PHY RX Status 1: JSSI */
+			__u8 sig_qual;	/* PHY RX Status 1: Signal Quality */
+		} __attribute__ ((__packed__));
+
+		/* RSSI for N-PHYs */
+		struct {
+			__s8 power0;	/* PHY RX Status 1: Power 0 */
+			__s8 power1;	/* PHY RX Status 1: Power 1 */
+		} __attribute__ ((__packed__));
+	} __attribute__ ((__packed__));
 	__le16 phy_status2;	/* PHY RX Status 2 */
 	__le16 phy_status3;	/* PHY RX Status 3 */
 	__le32 mac_status;	/* MAC RX status */
@@ -295,25 +294,12 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr);
 
 void b43_handle_txstatus(struct b43_wldev *dev,
 			 const struct b43_txstatus *status);
-
-void b43_handle_hwtxstatus(struct b43_wldev *dev,
-			   const struct b43_hwtxstatus *hw);
+bool b43_fill_txstatus_report(struct ieee80211_tx_status *report,
+			      const struct b43_txstatus *status);
 
 void b43_tx_suspend(struct b43_wldev *dev);
 void b43_tx_resume(struct b43_wldev *dev);
 
-#define B43_NR_QOSPARMS		22
-enum {
-	B43_QOSPARM_TXOP = 0,
-	B43_QOSPARM_CWMIN,
-	B43_QOSPARM_CWMAX,
-	B43_QOSPARM_CWCUR,
-	B43_QOSPARM_AIFS,
-	B43_QOSPARM_BSLOTS,
-	B43_QOSPARM_REGGAP,
-	B43_QOSPARM_STATUS,
-};
-void b43_qos_init(struct b43_wldev *dev);
 
 /* Helper functions for converting the key-table index from "firmware-format"
  * to "raw-format" and back. The firmware API changed for this at some revision.

@@ -43,14 +43,16 @@ MODULE_DEVICE_TABLE(pcmcia, b43_pcmcia_tbl);
 #ifdef CONFIG_PM
 static int b43_pcmcia_suspend(struct pcmcia_device *dev)
 {
-	//TODO
-	return 0;
+	struct ssb_bus *ssb = dev->priv;
+
+	return ssb_bus_suspend(ssb);
 }
 
 static int b43_pcmcia_resume(struct pcmcia_device *dev)
 {
-	//TODO
-	return 0;
+	struct ssb_bus *ssb = dev->priv;
+
+	return ssb_bus_resume(ssb);
 }
 #else /* CONFIG_PM */
 # define b43_pcmcia_suspend		NULL
@@ -91,6 +93,8 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 
 	dev->conf.ConfigBase = parse.config.base;
 	dev->conf.Present = parse.config.rmask[0];
+	dev->conf.Attributes = CONF_ENABLE_IRQ;
+	dev->conf.IntType = INT_MEMORY_AND_IO;
 
 	dev->io.BasePort2 = 0;
 	dev->io.NumPorts2 = 0;
@@ -112,8 +116,8 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	if (res != CS_SUCCESS)
 		goto err_disable;
 
-	dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_FIRST_SHARED;
-	dev->irq.IRQInfo1 = IRQ_LEVEL_ID | IRQ_SHARE_ID;
+	dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
+	dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	dev->irq.Handler = NULL; /* The handler is registered later. */
 	dev->irq.Instance = NULL;
 	res = pcmcia_request_irq(dev, &dev->irq);

@@ -614,7 +614,11 @@ xprt_rdma_free(void *buffer)
 		return;
 
 	req = container_of(buffer, struct rpcrdma_req, rl_xdr_buf[0]);
-	r_xprt = container_of(req->rl_buffer, struct rpcrdma_xprt, rx_buf);
+	if (req->rl_iov.length == 0) {	/* see allocate above */
+		r_xprt = container_of(((struct rpcrdma_req *) req->rl_buffer)->rl_buffer,
+				      struct rpcrdma_xprt, rx_buf);
+	} else
+		r_xprt = container_of(req->rl_buffer, struct rpcrdma_xprt, rx_buf);
 	rep = req->rl_reply;
 
 	dprintk("RPC:       %s: called on 0x%p%s\n",

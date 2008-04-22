@@ -1151,7 +1151,6 @@ static int __devinit i8042_setup_kbd(void)
 static int __devinit i8042_probe(struct platform_device *dev)
 {
 	int error;
-	char param;
 
 	error = i8042_controller_selftest();
 	if (error)
@@ -1174,7 +1173,7 @@ static int __devinit i8042_probe(struct platform_device *dev)
 	}
 #ifdef CONFIG_X86
 	if (i8042_dritek) {
-		param = 0x90;
+		char param = 0x90;
 		error = i8042_command(&param, 0x1059);
 		if (error)
 			goto out_fail;

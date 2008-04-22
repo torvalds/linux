@@ -79,6 +79,7 @@ enum stk_status {
 #define unset_present(dev)	((dev)->status &= \
 					~(S_PRESENT|S_INITIALISED|S_STREAMING))
 #define set_initialised(dev)	((dev)->status |= S_INITIALISED)
+#define unset_initialised(dev)	((dev)->status &= ~S_INITIALISED)
 #define set_memallocd(dev)	((dev)->status |= S_MEMALLOCD)
 #define unset_memallocd(dev)	((dev)->status &= ~S_MEMALLOCD)
 #define set_streaming(dev)	((dev)->status |= S_STREAMING)
@@ -127,8 +128,6 @@ void stk_camera_delete(struct kref *);
 int stk_camera_write_reg(struct stk_camera *, u16, u8);
 int stk_camera_read_reg(struct stk_camera *, u16, int *);
 
-int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val);
-int stk_sensor_inb(struct stk_camera *dev, u8 reg, u8 *val);
 int stk_sensor_init(struct stk_camera *);
 int stk_sensor_configure(struct stk_camera *);
 int stk_sensor_sleep(struct stk_camera *dev);

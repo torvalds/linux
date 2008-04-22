@@ -141,7 +141,7 @@ void __iounmap(void __iomem *addr)
 
 	p = remove_vm_area((void *)(vaddr & PAGE_MASK));
 	if (!p) {
-		printk(KERN_ERR "%s: bad address %p\n", __FUNCTION__, addr);
+		printk(KERN_ERR "%s: bad address %p\n", __func__, addr);
 		return;
 	}
 

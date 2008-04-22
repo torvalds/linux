@@ -147,8 +147,15 @@ extern void pmu_wait_complete(struct adb_request *req);
 /* For use before switching interrupts off for a long time;
  * warning: not stackable
  */
+#if defined(CONFIG_ADB_PMU)
 extern void pmu_suspend(void);
 extern void pmu_resume(void);
+#else
+static inline void pmu_suspend(void)
+{}
+static inline void pmu_resume(void)
+{}
+#endif
 
 extern void pmu_enable_irled(int on);
 
@@ -192,7 +199,7 @@ extern unsigned int pmu_power_flags;
 extern void pmu_backlight_init(void);
 
 /* some code needs to know if the PMU was suspended for hibernation */
-#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
+#if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC32)
 extern int pmu_sys_suspended;
 #else
 /* if power management is not configured it can't be suspended */

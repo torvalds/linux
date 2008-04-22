@@ -221,6 +221,7 @@ static struct {
 	u32 hotkey:1;
 	u32 hotkey_mask:1;
 	u32 hotkey_wlsw:1;
+	u32 hotkey_tablet:1;
 	u32 light:1;
 	u32 light_status:1;
 	u32 bright_16levels:1;
@@ -300,6 +301,13 @@ TPACPI_HANDLE(hkey, ec, "\\_SB.HKEY",	/* 600e/x, 770e, 770x */
 	   "^HKEY",		/* R30, R31 */
 	   "HKEY",		/* all others */
 	   );			/* 570 */
+
+TPACPI_HANDLE(vid, root, "\\_SB.PCI.AGP.VGA",	/* 570 */
+	   "\\_SB.PCI0.AGP0.VID0",	/* 600e/x, 770x */
+	   "\\_SB.PCI0.VID0",	/* 770e */
+	   "\\_SB.PCI0.VID",	/* A21e, G4x, R50e, X30, X40 */
+	   "\\_SB.PCI0.AGP.VID",	/* all others */
+	   );				/* R30, R31 */
 
 
 /*************************************************************************
@@ -1053,10 +1061,24 @@ static struct attribute_set *hotkey_dev_attributes;
 #define HOTKEY_CONFIG_CRITICAL_END
 #endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
+/* HKEY.MHKG() return bits */
+#define TP_HOTKEY_TABLET_MASK (1 << 3)
+
 static int hotkey_get_wlsw(int *status)
 {
 	if (!acpi_evalf(hkey_handle, status, "WLSW", "d"))
 		return -EIO;
+	return 0;
+}
+
+static int hotkey_get_tablet_mode(int *status)
+{
+	int s;
+
+	if (!acpi_evalf(hkey_handle, &s, "MHKG", "d"))
+		return -EIO;
+
+	*status = ((s & TP_HOTKEY_TABLET_MASK) != 0);
 	return 0;
 }
 
@@ -1154,15 +1176,31 @@ static void tpacpi_input_send_radiosw(void)
 {
 	int wlsw;
 
-	mutex_lock(&tpacpi_inputdev_send_mutex);
-
 	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&wlsw)) {
+		mutex_lock(&tpacpi_inputdev_send_mutex);
+
 		input_report_switch(tpacpi_inputdev,
 				    SW_RADIO, !!wlsw);
 		input_sync(tpacpi_inputdev);
-	}
 
-	mutex_unlock(&tpacpi_inputdev_send_mutex);
+		mutex_unlock(&tpacpi_inputdev_send_mutex);
+	}
+}
+
+static void tpacpi_input_send_tabletsw(void)
+{
+	int state;
+
+	if (tp_features.hotkey_tablet &&
+	    !hotkey_get_tablet_mode(&state)) {
+		mutex_lock(&tpacpi_inputdev_send_mutex);
+
+		input_report_switch(tpacpi_inputdev,
+				    SW_TABLET_MODE, !!state);
+		input_sync(tpacpi_inputdev);
+
+		mutex_unlock(&tpacpi_inputdev_send_mutex);
+	}
 }
 
 static void tpacpi_input_send_key(unsigned int scancode)
@@ -1417,6 +1455,14 @@ static void hotkey_poll_setup_safe(int may_warn)
 	mutex_unlock(&hotkey_mutex);
 }
 
+#else /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
+
+static void hotkey_poll_setup_safe(int __unused)
+{
+}
+
+#endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
+
 static int hotkey_inputdev_open(struct input_dev *dev)
 {
 	switch (tpacpi_lifecycle) {
@@ -1444,7 +1490,6 @@ static void hotkey_inputdev_close(struct input_dev *dev)
 	if (tpacpi_lifecycle == TPACPI_LIFE_RUNNING)
 		hotkey_poll_setup_safe(0);
 }
-#endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
 /* sysfs hotkey enable ------------------------------------------------- */
 static ssize_t hotkey_enable_show(struct device *dev,
@@ -1666,6 +1711,29 @@ static void hotkey_radio_sw_notify_change(void)
 			     "hotkey_radio_sw");
 }
 
+/* sysfs hotkey tablet mode (pollable) --------------------------------- */
+static ssize_t hotkey_tablet_mode_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int res, s;
+	res = hotkey_get_tablet_mode(&s);
+	if (res < 0)
+		return res;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", !!s);
+}
+
+static struct device_attribute dev_attr_hotkey_tablet_mode =
+	__ATTR(hotkey_tablet_mode, S_IRUGO, hotkey_tablet_mode_show, NULL);
+
+static void hotkey_tablet_mode_notify_change(void)
+{
+	if (tp_features.hotkey_tablet)
+		sysfs_notify(&tpacpi_pdev->dev.kobj, NULL,
+			     "hotkey_tablet_mode");
+}
+
 /* sysfs hotkey report_mode -------------------------------------------- */
 static ssize_t hotkey_report_mode_show(struct device *dev,
 			   struct device_attribute *attr,
@@ -1878,7 +1946,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.hotkey));
 
 	if (tp_features.hotkey) {
-		hotkey_dev_attributes = create_attr_set(12, NULL);
+		hotkey_dev_attributes = create_attr_set(13, NULL);
 		if (!hotkey_dev_attributes)
 			return -ENOMEM;
 		res = add_many_to_attr_set(hotkey_dev_attributes,
@@ -1957,6 +2025,18 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 					&dev_attr_hotkey_radio_sw.attr);
 		}
 
+		/* For X41t, X60t, X61t Tablets... */
+		if (!res && acpi_evalf(hkey_handle, &status, "MHKG", "qd")) {
+			tp_features.hotkey_tablet = 1;
+			printk(TPACPI_INFO
+				"possible tablet mode switch found; "
+				"ThinkPad in %s mode\n",
+				(status & TP_HOTKEY_TABLET_MASK)?
+					"tablet" : "laptop");
+			res = add_to_attr_set(hotkey_dev_attributes,
+					&dev_attr_hotkey_tablet_mode.attr);
+		}
+
 		if (!res)
 			res = register_attr_set_with_sysfs(
 					hotkey_dev_attributes,
@@ -2006,6 +2086,10 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			set_bit(EV_SW, tpacpi_inputdev->evbit);
 			set_bit(SW_RADIO, tpacpi_inputdev->swbit);
 		}
+		if (tp_features.hotkey_tablet) {
+			set_bit(EV_SW, tpacpi_inputdev->evbit);
+			set_bit(SW_TABLET_MODE, tpacpi_inputdev->swbit);
+		}
 
 		dbg_printk(TPACPI_DBG_INIT,
 				"enabling hot key handling\n");
@@ -2023,12 +2107,12 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 				(hotkey_report_mode < 2) ?
 					"enabled" : "disabled");
 
-#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 		tpacpi_inputdev->open = &hotkey_inputdev_open;
 		tpacpi_inputdev->close = &hotkey_inputdev_close;
 
 		hotkey_poll_setup_safe(1);
-#endif
+		tpacpi_input_send_radiosw();
+		tpacpi_input_send_tabletsw();
 	}
 
 	return (tp_features.hotkey)? 0 : 1;
@@ -2156,10 +2240,14 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			/* 0x5000-0x5FFF: human interface helpers */
 			switch (hkey) {
 			case 0x5010: /* Lenovo new BIOS: brightness changed */
-			case 0x5009: /* X61t: swivel up (tablet mode) */
-			case 0x500a: /* X61t: swivel down (normal mode) */
 			case 0x500b: /* X61t: tablet pen inserted into bay */
 			case 0x500c: /* X61t: tablet pen removed from bay */
+				break;
+			case 0x5009: /* X41t-X61t: swivel up (tablet mode) */
+			case 0x500a: /* X41t-X61t: swivel down (normal mode) */
+				tpacpi_input_send_tabletsw();
+				hotkey_tablet_mode_notify_change();
+				send_acpi_ev = 0;
 				break;
 			case 0x5001:
 			case 0x5002:
@@ -2219,11 +2307,10 @@ static void hotkey_resume(void)
 		       "from firmware\n");
 	tpacpi_input_send_radiosw();
 	hotkey_radio_sw_notify_change();
+	hotkey_tablet_mode_notify_change();
 	hotkey_wakeup_reason_notify_change();
 	hotkey_wakeup_hotunplug_complete_notify_change();
-#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 	hotkey_poll_setup_safe(0);
-#endif
 }
 
 /* procfs -------------------------------------------------------------- */
@@ -2676,6 +2763,8 @@ static struct ibm_struct wan_driver_data = {
  * Video subdriver
  */
 
+#ifdef CONFIG_THINKPAD_ACPI_VIDEO
+
 enum video_access_mode {
 	TPACPI_VIDEO_NONE = 0,
 	TPACPI_VIDEO_570,	/* 570 */
@@ -2702,13 +2791,6 @@ static int video_orig_autosw;
 
 static int video_autosw_get(void);
 static int video_autosw_set(int enable);
-
-TPACPI_HANDLE(vid, root, "\\_SB.PCI.AGP.VGA",	/* 570 */
-	   "\\_SB.PCI0.AGP0.VID0",	/* 600e/x, 770x */
-	   "\\_SB.PCI0.VID0",	/* 770e */
-	   "\\_SB.PCI0.VID",	/* A21e, G4x, R50e, X30, X40 */
-	   "\\_SB.PCI0.AGP.VID",	/* all others */
-	   );				/* R30, R31 */
 
 TPACPI_HANDLE(vid2, root, "\\_SB.PCI0.AGPB.VID");	/* G41 */
 
@@ -3018,6 +3100,8 @@ static struct ibm_struct video_driver_data = {
 	.write = video_write,
 	.exit = video_exit,
 };
+
+#endif /* CONFIG_THINKPAD_ACPI_VIDEO */
 
 /*************************************************************************
  * Light (thinklight) subdriver
@@ -5803,10 +5887,12 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 		.init = wan_init,
 		.data = &wan_driver_data,
 	},
+#ifdef CONFIG_THINKPAD_ACPI_VIDEO
 	{
 		.init = video_init,
 		.data = &video_driver_data,
 	},
+#endif
 	{
 		.init = light_init,
 		.data = &light_driver_data,
@@ -5918,7 +6004,7 @@ MODULE_PARM_DESC(hotkey_report_mode,
 
 #define TPACPI_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0); \
-	MODULE_PARM_DESC(feature, "Simulates thinkpad-aci procfs command " \
+	MODULE_PARM_DESC(feature, "Simulates thinkpad-acpi procfs command " \
 			 "at module load, see documentation")
 
 TPACPI_PARAM(hotkey);

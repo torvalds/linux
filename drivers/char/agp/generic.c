@@ -932,9 +932,14 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 	agp_gatt_table = (void *)table;
 
 	bridge->driver->cache_flush();
+#ifdef CONFIG_X86
+	set_memory_uc((unsigned long)table, 1 << page_order);
+	bridge->gatt_table = (void *)table;
+#else
 	bridge->gatt_table = ioremap_nocache(virt_to_gart(table),
 					(PAGE_SIZE * (1 << page_order)));
 	bridge->driver->cache_flush();
+#endif
 
 	if (bridge->gatt_table == NULL) {
 		for (page = virt_to_page(table); page <= virt_to_page(table_end); page++)
@@ -991,7 +996,11 @@ int agp_generic_free_gatt_table(struct agp_bridge_data *bridge)
 	 * called, then all agp memory is deallocated and removed
 	 * from the table. */
 
+#ifdef CONFIG_X86
+	set_memory_wb((unsigned long)bridge->gatt_table, 1 << page_order);
+#else
 	iounmap(bridge->gatt_table);
+#endif
 	table = (char *) bridge->gatt_table_real;
 	table_end = table + ((PAGE_SIZE * (1 << page_order)) - 1);
 

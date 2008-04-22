@@ -229,22 +229,22 @@ static unsigned int speedstep_detect_chipset (void)
 	return 0;
 }
 
-static unsigned int _speedstep_get(cpumask_t cpus)
+static unsigned int _speedstep_get(const cpumask_t *cpus)
 {
 	unsigned int speed;
 	cpumask_t cpus_allowed;
 
 	cpus_allowed = current->cpus_allowed;
-	set_cpus_allowed(current, cpus);
+	set_cpus_allowed_ptr(current, cpus);
 	speed = speedstep_get_processor_frequency(speedstep_processor);
-	set_cpus_allowed(current, cpus_allowed);
+	set_cpus_allowed_ptr(current, &cpus_allowed);
 	dprintk("detected %u kHz as current frequency\n", speed);
 	return speed;
 }
 
 static unsigned int speedstep_get(unsigned int cpu)
 {
-	return _speedstep_get(cpumask_of_cpu(cpu));
+	return _speedstep_get(&cpumask_of_cpu(cpu));
 }
 
 /**
@@ -267,7 +267,7 @@ static int speedstep_target (struct cpufreq_policy *policy,
 	if (cpufreq_frequency_table_target(policy, &speedstep_freqs[0], target_freq, relation, &newstate))
 		return -EINVAL;
 
-	freqs.old = _speedstep_get(policy->cpus);
+	freqs.old = _speedstep_get(&policy->cpus);
 	freqs.new = speedstep_freqs[newstate].frequency;
 	freqs.cpu = policy->cpu;
 
@@ -285,12 +285,12 @@ static int speedstep_target (struct cpufreq_policy *policy,
 	}
 
 	/* switch to physical CPU where state is to be changed */
-	set_cpus_allowed(current, policy->cpus);
+	set_cpus_allowed_ptr(current, &policy->cpus);
 
 	speedstep_set_state(newstate);
 
 	/* allow to be run on all CPUs */
-	set_cpus_allowed(current, cpus_allowed);
+	set_cpus_allowed_ptr(current, &cpus_allowed);
 
 	for_each_cpu_mask(i, policy->cpus) {
 		freqs.cpu = i;
@@ -326,7 +326,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 #endif
 
 	cpus_allowed = current->cpus_allowed;
-	set_cpus_allowed(current, policy->cpus);
+	set_cpus_allowed_ptr(current, &policy->cpus);
 
 	/* detect low and high frequency and transition latency */
 	result = speedstep_get_freqs(speedstep_processor,
@@ -334,12 +334,12 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 				     &speedstep_freqs[SPEEDSTEP_HIGH].frequency,
 				     &policy->cpuinfo.transition_latency,
 				     &speedstep_set_state);
-	set_cpus_allowed(current, cpus_allowed);
+	set_cpus_allowed_ptr(current, &cpus_allowed);
 	if (result)
 		return result;
 
 	/* get current speed setting */
-	speed = _speedstep_get(policy->cpus);
+	speed = _speedstep_get(&policy->cpus);
 	if (!speed)
 		return -EIO;
 

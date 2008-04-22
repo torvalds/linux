@@ -651,7 +651,7 @@ static int qlogicpti_verify_tmon(struct qlogicpti *qpti)
 
 static irqreturn_t qpti_intr(int irq, void *dev_id);
 
-static void __init qpti_chain_add(struct qlogicpti *qpti)
+static void __devinit qpti_chain_add(struct qlogicpti *qpti)
 {
 	spin_lock_irq(&qptichain_lock);
 	if (qptichain != NULL) {
@@ -667,7 +667,7 @@ static void __init qpti_chain_add(struct qlogicpti *qpti)
 	spin_unlock_irq(&qptichain_lock);
 }
 
-static void __init qpti_chain_del(struct qlogicpti *qpti)
+static void __devexit qpti_chain_del(struct qlogicpti *qpti)
 {
 	spin_lock_irq(&qptichain_lock);
 	if (qptichain == qpti) {
@@ -682,7 +682,7 @@ static void __init qpti_chain_del(struct qlogicpti *qpti)
 	spin_unlock_irq(&qptichain_lock);
 }
 
-static int __init qpti_map_regs(struct qlogicpti *qpti)
+static int __devinit qpti_map_regs(struct qlogicpti *qpti)
 {
 	struct sbus_dev *sdev = qpti->sdev;
 
@@ -705,7 +705,7 @@ static int __init qpti_map_regs(struct qlogicpti *qpti)
 	return 0;
 }
 
-static int __init qpti_register_irq(struct qlogicpti *qpti)
+static int __devinit qpti_register_irq(struct qlogicpti *qpti)
 {
 	struct sbus_dev *sdev = qpti->sdev;
 
@@ -730,7 +730,7 @@ fail:
 	return -1;
 }
 
-static void __init qpti_get_scsi_id(struct qlogicpti *qpti)
+static void __devinit qpti_get_scsi_id(struct qlogicpti *qpti)
 {
 	qpti->scsi_id = prom_getintdefault(qpti->prom_node,
 					   "initiator-id",
@@ -783,7 +783,7 @@ static void qpti_get_clock(struct qlogicpti *qpti)
 /* The request and response queues must each be aligned
  * on a page boundary.
  */
-static int __init qpti_map_queues(struct qlogicpti *qpti)
+static int __devinit qpti_map_queues(struct qlogicpti *qpti)
 {
 	struct sbus_dev *sdev = qpti->sdev;
 

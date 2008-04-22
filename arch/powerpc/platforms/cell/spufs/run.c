@@ -98,7 +98,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 			!= MFC_CNTL_PURGE_DMA_COMPLETE) {
 		if (time_after(jiffies, timeout)) {
 			printk(KERN_ERR "%s: timeout flushing MFC DMA queue\n",
-					__FUNCTION__);
+					__func__);
 			ret = -EIO;
 			goto out;
 		}
@@ -124,7 +124,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 				status_loading) {
 		if (time_after(jiffies, timeout)) {
 			printk(KERN_ERR "%s: timeout waiting for loader\n",
-					__FUNCTION__);
+					__func__);
 			ret = -EIO;
 			goto out_drop_priv;
 		}
@@ -134,7 +134,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 	if (!(status & SPU_STATUS_RUNNING)) {
 		/* If isolated LOAD has failed: run SPU, we will get a stop-and
 		 * signal later. */
-		pr_debug("%s: isolated LOAD failed\n", __FUNCTION__);
+		pr_debug("%s: isolated LOAD failed\n", __func__);
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 		ret = -EACCES;
 		goto out_drop_priv;
@@ -142,7 +142,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 
 	if (!(status & SPU_STATUS_ISOLATED_STATE)) {
 		/* This isn't allowed by the CBEA, but check anyway */
-		pr_debug("%s: SPU fell out of isolated mode?\n", __FUNCTION__);
+		pr_debug("%s: SPU fell out of isolated mode?\n", __func__);
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_STOP);
 		ret = -EINVAL;
 		goto out_drop_priv;
@@ -220,6 +220,7 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 		}
 	}
 
+	set_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags);
 	return 0;
 }
 
@@ -234,6 +235,7 @@ static int spu_run_fini(struct spu_context *ctx, u32 *npc,
 	*npc = ctx->ops->npc_read(ctx);
 
 	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
+	clear_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags);
 	spu_release(ctx);
 
 	if (signal_pending(current))
@@ -280,7 +282,7 @@ static int spu_handle_restartsys(struct spu_context *ctx, long *spu_ret,
 		break;
 	default:
 		printk(KERN_WARNING "%s: unexpected return code %ld\n",
-			__FUNCTION__, *spu_ret);
+			__func__, *spu_ret);
 		ret = 0;
 	}
 	return ret;
@@ -320,6 +322,10 @@ static int spu_process_callback(struct spu_context *ctx)
 		if (ret2)
 			return -EINTR;
 	}
+
+	/* need to re-get the ls, as it may have changed when we released the
+	 * spu */
+	ls = (void __iomem *)ctx->ops->get_ls(ctx);
 
 	/* write result, jump over indirect pointer */
 	memcpy_toio(ls + ls_pointer, &spu_ret, sizeof(spu_ret));

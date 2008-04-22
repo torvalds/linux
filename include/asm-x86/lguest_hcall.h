@@ -27,7 +27,7 @@
 #ifndef __ASSEMBLY__
 #include <asm/hw_irq.h>
 
-/*G:031 First, how does our Guest contact the Host to ask for privileged
+/*G:031 But first, how does our Guest contact the Host to ask for privileged
  * operations?  There are two ways: the direct way is to make a "hypercall",
  * to make requests of the Host Itself.
  *
@@ -46,7 +46,7 @@ hcall(unsigned long call,
 {
 	/* "int" is the Intel instruction to trigger a trap. */
 	asm volatile("int $" __stringify(LGUEST_TRAP_ENTRY)
-		       /* The call in %eax (aka "a") might be overwritten */
+		     /* The call in %eax (aka "a") might be overwritten */
 		     : "=a"(call)
 		       /* The arguments are in %eax, %edx, %ebx & %ecx */
 		     : "a"(call), "d"(arg1), "b"(arg2), "c"(arg3)
@@ -62,8 +62,7 @@ hcall(unsigned long call,
 #define LGUEST_IRQS (NR_IRQS < 32 ? NR_IRQS: 32)
 
 #define LHCALL_RING_SIZE 64
-struct hcall_args
-{
+struct hcall_args {
 	/* These map directly onto eax, ebx, ecx, edx in struct lguest_regs */
 	unsigned long arg0, arg2, arg3, arg1;
 };

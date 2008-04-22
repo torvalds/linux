@@ -109,12 +109,13 @@ static void set_irq(struct ssb_device *dev, unsigned int irq)
 		clear_irq(bus, oldirq);
 
 	/* assign the new one */
-	if (irq == 0)
-		ssb_write32(mdev, SSB_INTVEC, ((1 << irqflag) & ssb_read32(mdev, SSB_INTVEC)));
-
-	irqflag <<= ipsflag_irq_shift[irq];
-	irqflag |= (ssb_read32(mdev, SSB_IPSFLAG) & ~ipsflag_irq_mask[irq]);
-	ssb_write32(mdev, SSB_IPSFLAG, irqflag);
+	if (irq == 0) {
+		ssb_write32(mdev, SSB_INTVEC, ((1 << irqflag) | ssb_read32(mdev, SSB_INTVEC)));
+	} else {
+		irqflag <<= ipsflag_irq_shift[irq];
+		irqflag |= (ssb_read32(mdev, SSB_IPSFLAG) & ~ipsflag_irq_mask[irq]);
+		ssb_write32(mdev, SSB_IPSFLAG, irqflag);
+	}
 }
 
 static void ssb_mips_serial_init(struct ssb_mipscore *mcore)
@@ -209,6 +210,7 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 			/* fallthrough */
 		case SSB_DEV_PCI:
 		case SSB_DEV_ETHERNET:
+		case SSB_DEV_ETHERNET_GBIT:
 		case SSB_DEV_80211:
 		case SSB_DEV_USB20_HOST:
 			/* These devices get their own IRQ line if available, the rest goes on IRQ0 */

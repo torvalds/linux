@@ -542,7 +542,8 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 
 		/* packet command */
 		spin_lock_irqsave(&ide_lock, flags);
-		hwif->OUTBSYNC(drive, WIN_PACKETCMD, IDE_COMMAND_REG);
+		hwif->OUTBSYNC(drive, WIN_PACKETCMD,
+			       hwif->io_ports[IDE_COMMAND_OFFSET]);
 		ndelay(400);
 		spin_unlock_irqrestore(&ide_lock, flags);
 
@@ -670,8 +671,8 @@ static void cdrom_buffer_sectors (ide_drive_t *drive, unsigned long sector,
  * and attempt to recover if there are problems.  Returns  0 if everything's
  * ok; nonzero if the request has been terminated.
  */
-static
-int ide_cd_check_ireason(ide_drive_t *drive, int len, int ireason, int rw)
+static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
+				int len, int ireason, int rw)
 {
 	/*
 	 * ireason == 0: the drive wants to receive data from us
@@ -700,6 +701,9 @@ int ide_cd_check_ireason(ide_drive_t *drive, int len, int ireason, int rw)
 		printk(KERN_ERR "%s: %s: bad interrupt reason 0x%02x\n",
 				drive->name, __FUNCTION__, ireason);
 	}
+
+	if (rq->cmd_type == REQ_TYPE_ATA_PC)
+		rq->cmd_flags |= REQ_FAILED;
 
 	cdrom_end_request(drive, 0);
 	return -1;
@@ -989,6 +993,7 @@ static int cdrom_newpc_intr_dummy_cb(struct request *rq)
 
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	struct cdrom_info *info = drive->driver_data;
 	struct request *rq = HWGROUP(drive)->rq;
 	xfer_func_t *xferfunc;
@@ -1029,9 +1034,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	/*
 	 * ok we fall to pio :/
 	 */
-	ireason = HWIF(drive)->INB(IDE_IREASON_REG) & 0x3;
-	lowcyl  = HWIF(drive)->INB(IDE_BCOUNTL_REG);
-	highcyl = HWIF(drive)->INB(IDE_BCOUNTH_REG);
+	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]) & 0x3;
+	lowcyl  = hwif->INB(hwif->io_ports[IDE_BCOUNTL_OFFSET]);
+	highcyl = hwif->INB(hwif->io_ports[IDE_BCOUNTH_OFFSET]);
 
 	len = lowcyl + (256 * highcyl);
 
@@ -1071,11 +1076,11 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	/*
 	 * check which way to transfer data
 	 */
-	if (blk_fs_request(rq) || blk_pc_request(rq)) {
-		if (ide_cd_check_ireason(drive, len, ireason, write))
-			return ide_stopped;
+	if (ide_cd_check_ireason(drive, rq, len, ireason, write))
+		return ide_stopped;
 
-		if (blk_fs_request(rq) && write == 0) {
+	if (blk_fs_request(rq)) {
+		if (write == 0) {
 			int nskip;
 
 			if (ide_cd_check_transfer_size(drive, len)) {
@@ -1101,16 +1106,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	if (ireason == 0) {
 		write = 1;
 		xferfunc = HWIF(drive)->atapi_output_bytes;
-	} else if (ireason == 2 || (ireason == 1 &&
-		   (blk_fs_request(rq) || blk_pc_request(rq)))) {
+	} else {
 		write = 0;
 		xferfunc = HWIF(drive)->atapi_input_bytes;
-	} else {
-		printk(KERN_ERR "%s: %s: The drive "
-				"appears confused (ireason = 0x%02x). "
-				"Trying to recover by ending request.\n",
-				drive->name, __FUNCTION__, ireason);
-		goto end_request;
 	}
 
 	/*
@@ -1182,10 +1180,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			else
 				rq->data += blen;
 		}
+		if (!write && blk_sense_request(rq))
+			rq->sense_len += blen;
 	}
-
-	if (write && blk_sense_request(rq))
-		rq->sense_len += thislen;
 
 	/*
 	 * pad, if necessary
@@ -1207,9 +1204,13 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 end_request:
 	if (blk_pc_request(rq)) {
 		unsigned long flags;
+		unsigned int dlen = rq->data_len;
+
+		if (dma)
+			rq->data_len = 0;
 
 		spin_lock_irqsave(&ide_lock, flags);
-		if (__blk_end_request(rq, 0, rq->data_len))
+		if (__blk_end_request(rq, 0, dlen))
 			BUG();
 		HWGROUP(drive)->rq = NULL;
 		spin_unlock_irqrestore(&ide_lock, flags);
@@ -1927,6 +1928,7 @@ static const struct cd_list_entry ide_cd_quirks_list[] = {
 	{ "MATSHITADVD-ROM SR-8186", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK	    },
 	{ "MATSHITADVD-ROM SR-8176", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK	    },
 	{ "MATSHITADVD-ROM SR-8174", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK	    },
+	{ "Optiarc DVD RW AD-5200A", NULL,   IDE_CD_FLAG_PLAY_AUDIO_OK      },
 	{ NULL, NULL, 0 }
 };
 
@@ -2030,9 +2032,8 @@ static void ide_cd_release(struct kref *kref)
 
 	kfree(info->buffer);
 	kfree(info->toc);
-	if (devinfo->handle == drive && unregister_cdrom(devinfo))
-		printk(KERN_ERR "%s: %s failed to unregister device from the cdrom "
-				"driver.\n", __FUNCTION__, drive->name);
+	if (devinfo->handle == drive)
+		unregister_cdrom(devinfo);
 	drive->dsc_overlap = 0;
 	drive->driver_data = NULL;
 	blk_queue_prep_rq(drive->queue, NULL);

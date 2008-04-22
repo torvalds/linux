@@ -37,6 +37,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
+#include <linux/hdreg.h>
 #include <linux/module.h>
 
 #include <xen/xenbus.h>
@@ -133,6 +134,22 @@ static void blkif_restart_queue_callback(void *arg)
 {
 	struct blkfront_info *info = (struct blkfront_info *)arg;
 	schedule_work(&info->work);
+}
+
+int blkif_getgeo(struct block_device *bd, struct hd_geometry *hg)
+{
+	/* We don't have real geometry info, but let's at least return
+	   values consistent with the size of the device */
+	sector_t nsect = get_capacity(bd->bd_disk);
+	sector_t cylinders = nsect;
+
+	hg->heads = 0xff;
+	hg->sectors = 0x3f;
+	sector_div(cylinders, hg->heads * hg->sectors);
+	hg->cylinders = cylinders;
+	if ((sector_t)(hg->cylinders + 1) * hg->heads * hg->sectors < nsect)
+		hg->cylinders = 0xffff;
+	return 0;
 }
 
 /*
@@ -937,6 +954,7 @@ static struct block_device_operations xlvbd_block_fops =
 	.owner = THIS_MODULE,
 	.open = blkif_open,
 	.release = blkif_release,
+	.getgeo = blkif_getgeo,
 };
 
 

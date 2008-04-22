@@ -47,7 +47,7 @@ static LIST_HEAD(notify_list);
 
 static struct cn_dev cdev;
 
-int cn_already_initialized = 0;
+static int cn_already_initialized;
 
 /*
  * msg->seq and msg->ack are used to determine message genealogy.

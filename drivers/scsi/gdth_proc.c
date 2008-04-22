@@ -694,15 +694,13 @@ static void gdth_ioctl_free(gdth_ha_str *ha, int size, char *buf, ulong64 paddr)
 {
     ulong flags;
 
-    spin_lock_irqsave(&ha->smp_lock, flags);
-
     if (buf == ha->pscratch) {
+	spin_lock_irqsave(&ha->smp_lock, flags);
         ha->scratch_busy = FALSE;
+	spin_unlock_irqrestore(&ha->smp_lock, flags);
     } else {
         pci_free_consistent(ha->pdev, size, buf, paddr);
     }
-
-    spin_unlock_irqrestore(&ha->smp_lock, flags);
 }
 
 #ifdef GDTH_IOCTL_PROC

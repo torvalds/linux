@@ -28,7 +28,8 @@ EXPORT_SYMBOL_GPL(tsc_khz);
 static int __init tsc_setup(char *str)
 {
 	printk(KERN_WARNING "notsc: Kernel compiled with CONFIG_X86_TSC, "
-				"cannot disable TSC.\n");
+				"cannot disable TSC completely.\n");
+	mark_tsc_unstable("user disabled TSC");
 	return 1;
 }
 #else
@@ -83,8 +84,8 @@ DEFINE_PER_CPU(unsigned long, cyc2ns);
 
 static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 {
-	unsigned long flags, prev_scale, *scale;
 	unsigned long long tsc_now, ns_now;
+	unsigned long flags, *scale;
 
 	local_irq_save(flags);
 	sched_clock_idle_sleep_event();
@@ -94,7 +95,6 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	rdtscll(tsc_now);
 	ns_now = __cycles_2_ns(tsc_now);
 
-	prev_scale = *scale;
 	if (cpu_khz)
 		*scale = (NSEC_PER_MSEC << CYC2NS_SCALE_FACTOR)/cpu_khz;
 
@@ -221,9 +221,9 @@ EXPORT_SYMBOL(recalibrate_cpu_khz);
  * if the CPU frequency is scaled, TSC-based delays will need a different
  * loops_per_jiffy value to function properly.
  */
-static unsigned int ref_freq = 0;
-static unsigned long loops_per_jiffy_ref = 0;
-static unsigned long cpu_khz_ref = 0;
+static unsigned int ref_freq;
+static unsigned long loops_per_jiffy_ref;
+static unsigned long cpu_khz_ref;
 
 static int
 time_cpufreq_notifier(struct notifier_block *nb, unsigned long val, void *data)
@@ -255,9 +255,7 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val, void *data)
 						ref_freq, freq->new);
 			if (!(freq->flags & CPUFREQ_CONST_LOOPS)) {
 				tsc_khz = cpu_khz;
-				preempt_disable();
-				set_cyc2ns_scale(cpu_khz, smp_processor_id());
-				preempt_enable();
+				set_cyc2ns_scale(cpu_khz, freq->cpu);
 				/*
 				 * TSC based sched_clock turns
 				 * to junk w/ cpufreq
@@ -285,15 +283,28 @@ core_initcall(cpufreq_tsc);
 
 /* clock source code */
 
-static unsigned long current_tsc_khz = 0;
+static unsigned long current_tsc_khz;
+static struct clocksource clocksource_tsc;
 
+/*
+ * We compare the TSC to the cycle_last value in the clocksource
+ * structure to avoid a nasty time-warp issue. This can be observed in
+ * a very small window right after one CPU updated cycle_last under
+ * xtime lock and the other CPU reads a TSC value which is smaller
+ * than the cycle_last reference value due to a TSC which is slighty
+ * behind. This delta is nowhere else observable, but in that case it
+ * results in a forward time jump in the range of hours due to the
+ * unsigned delta calculation of the time keeping core code, which is
+ * necessary to support wrapping clocksources like pm timer.
+ */
 static cycle_t read_tsc(void)
 {
 	cycle_t ret;
 
 	rdtscll(ret);
 
-	return ret;
+	return ret >= clocksource_tsc.cycle_last ?
+		ret : clocksource_tsc.cycle_last;
 }
 
 static struct clocksource clocksource_tsc = {
@@ -393,13 +404,15 @@ void __init tsc_init(void)
 	int cpu;
 
 	if (!cpu_has_tsc)
-		goto out_no_tsc;
+		return;
 
 	cpu_khz = calculate_cpu_khz();
 	tsc_khz = cpu_khz;
 
-	if (!cpu_khz)
-		goto out_no_tsc;
+	if (!cpu_khz) {
+		mark_tsc_unstable("could not calculate TSC khz");
+		return;
+	}
 
 	printk("Detected %lu.%03lu MHz processor.\n",
 				(unsigned long)cpu_khz / 1000,
@@ -432,9 +445,4 @@ void __init tsc_init(void)
 		tsc_enabled = 1;
 
 	clocksource_register(&clocksource_tsc);
-
-	return;
-
-out_no_tsc:
-	setup_clear_cpu_cap(X86_FEATURE_TSC);
 }

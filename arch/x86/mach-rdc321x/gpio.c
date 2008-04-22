@@ -1,91 +1,194 @@
 /*
- *  Copyright (C) 2007, OpenWrt.org, Florian Fainelli <florian@openwrt.org>
- *  	RDC321x architecture specific GPIO support
+ *  GPIO support for RDC SoC R3210/R8610
  *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
+ *  Copyright (C) 2007, Florian Fainelli <florian@openwrt.org>
+ *  Copyright (C) 2008, Volker Weiss <dev@tintuc.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
  */
 
-#include <linux/autoconf.h>
-#include <linux/init.h>
+
+#include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/delay.h>
 
+#include <asm/gpio.h>
 #include <asm/mach-rdc321x/rdc321x_defs.h>
 
-static inline int rdc_gpio_is_valid(unsigned gpio)
+
+/* spin lock to protect our private copy of GPIO data register plus
+   the access to PCI conf registers. */
+static DEFINE_SPINLOCK(gpio_lock);
+
+/* copy of GPIO data registers */
+static u32 gpio_data_reg1;
+static u32 gpio_data_reg2;
+
+static u32 gpio_request_data[2];
+
+
+static inline void rdc321x_conf_write(unsigned addr, u32 value)
 {
-	return (gpio <= RDC_MAX_GPIO);
+	outl((1 << 31) | (7 << 11) | addr, RDC3210_CFGREG_ADDR);
+	outl(value, RDC3210_CFGREG_DATA);
 }
 
-static unsigned int rdc_gpio_read(unsigned gpio)
+static inline void rdc321x_conf_or(unsigned addr, u32 value)
 {
-	unsigned int val;
-
-	val = 0x80000000 | (7 << 11) | ((gpio&0x20?0x84:0x48));
-	outl(val, RDC3210_CFGREG_ADDR);
-	udelay(10);
-	val = inl(RDC3210_CFGREG_DATA);
-	val |= (0x1 << (gpio & 0x1F));
-	outl(val, RDC3210_CFGREG_DATA);
-	udelay(10);
-	val = 0x80000000 | (7 << 11) | ((gpio&0x20?0x88:0x4C));
-	outl(val, RDC3210_CFGREG_ADDR);
-	udelay(10);
-	val = inl(RDC3210_CFGREG_DATA);
-
-	return val;
+	outl((1 << 31) | (7 << 11) | addr, RDC3210_CFGREG_ADDR);
+	value |= inl(RDC3210_CFGREG_DATA);
+	outl(value, RDC3210_CFGREG_DATA);
 }
 
-static void rdc_gpio_write(unsigned int val)
+static inline u32 rdc321x_conf_read(unsigned addr)
 {
-	if (val) {
-		outl(val, RDC3210_CFGREG_DATA);
-		udelay(10);
-	}
+	outl((1 << 31) | (7 << 11) | addr, RDC3210_CFGREG_ADDR);
+
+	return inl(RDC3210_CFGREG_DATA);
 }
 
+/* configure pin as GPIO */
+static void rdc321x_configure_gpio(unsigned gpio)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+	rdc321x_conf_or(gpio < 32
+		? RDC321X_GPIO_CTRL_REG1 : RDC321X_GPIO_CTRL_REG2,
+		1 << (gpio & 0x1f));
+	spin_unlock_irqrestore(&gpio_lock, flags);
+}
+
+/* initially setup the 2 copies of the gpio data registers.
+   This function must be called by the platform setup code. */
+void __init rdc321x_gpio_setup()
+{
+	/* this might not be, what others (BIOS, bootloader, etc.)
+	   wrote to these registers before, but it's a good guess. Still
+	   better than just using 0xffffffff. */
+
+	gpio_data_reg1 = rdc321x_conf_read(RDC321X_GPIO_DATA_REG1);
+	gpio_data_reg2 = rdc321x_conf_read(RDC321X_GPIO_DATA_REG2);
+}
+
+/* determine, if gpio number is valid */
+static inline int rdc321x_is_gpio(unsigned gpio)
+{
+	return gpio <= RDC321X_MAX_GPIO;
+}
+
+/* request GPIO */
+int rdc_gpio_request(unsigned gpio, const char *label)
+{
+	unsigned long flags;
+
+	if (!rdc321x_is_gpio(gpio))
+		return -EINVAL;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+	if (gpio_request_data[(gpio & 0x20) ? 1 : 0] & (1 << (gpio & 0x1f)))
+		goto inuse;
+	gpio_request_data[(gpio & 0x20) ? 1 : 0] |= (1 << (gpio & 0x1f));
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	return 0;
+inuse:
+	spin_unlock_irqrestore(&gpio_lock, flags);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(rdc_gpio_request);
+
+/* release previously-claimed GPIO */
+void rdc_gpio_free(unsigned gpio)
+{
+	unsigned long flags;
+
+	if (!rdc321x_is_gpio(gpio))
+		return;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+	gpio_request_data[(gpio & 0x20) ? 1 : 0] &= ~(1 << (gpio & 0x1f));
+	spin_unlock_irqrestore(&gpio_lock, flags);
+}
+EXPORT_SYMBOL(rdc_gpio_free);
+
+/* read GPIO pin */
 int rdc_gpio_get_value(unsigned gpio)
 {
-	if (rdc_gpio_is_valid(gpio))
-		return (int)rdc_gpio_read(gpio);
-	else
-		return -EINVAL;
+	u32 reg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+	reg = rdc321x_conf_read(gpio < 32
+		? RDC321X_GPIO_DATA_REG1 : RDC321X_GPIO_DATA_REG2);
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	return (1 << (gpio & 0x1f)) & reg ? 1 : 0;
 }
 EXPORT_SYMBOL(rdc_gpio_get_value);
 
+/* set GPIO pin to value */
 void rdc_gpio_set_value(unsigned gpio, int value)
 {
-	unsigned int val;
+	unsigned long flags;
+	u32 reg;
 
-	if (!rdc_gpio_is_valid(gpio))
-		return;
-
-	val = rdc_gpio_read(gpio);
-
-	if (value)
-		val &= ~(0x1 << (gpio & 0x1F));
-	else
-		val |= (0x1 << (gpio & 0x1F));
-
-	rdc_gpio_write(val);
+	reg = 1 << (gpio & 0x1f);
+	if (gpio < 32) {
+		spin_lock_irqsave(&gpio_lock, flags);
+		if (value)
+			gpio_data_reg1 |= reg;
+		else
+			gpio_data_reg1 &= ~reg;
+		rdc321x_conf_write(RDC321X_GPIO_DATA_REG1, gpio_data_reg1);
+		spin_unlock_irqrestore(&gpio_lock, flags);
+	} else {
+		spin_lock_irqsave(&gpio_lock, flags);
+		if (value)
+			gpio_data_reg2 |= reg;
+		else
+			gpio_data_reg2 &= ~reg;
+		rdc321x_conf_write(RDC321X_GPIO_DATA_REG2, gpio_data_reg2);
+		spin_unlock_irqrestore(&gpio_lock, flags);
+	}
 }
 EXPORT_SYMBOL(rdc_gpio_set_value);
 
+/* configure GPIO pin as input */
 int rdc_gpio_direction_input(unsigned gpio)
 {
+	if (!rdc321x_is_gpio(gpio))
+		return -EINVAL;
+
+	rdc321x_configure_gpio(gpio);
+
 	return 0;
 }
 EXPORT_SYMBOL(rdc_gpio_direction_input);
 
+/* configure GPIO pin as output and set value */
 int rdc_gpio_direction_output(unsigned gpio, int value)
 {
+	if (!rdc321x_is_gpio(gpio))
+		return -EINVAL;
+
+	gpio_set_value(gpio, value);
+	rdc321x_configure_gpio(gpio);
+
 	return 0;
 }
 EXPORT_SYMBOL(rdc_gpio_direction_output);
-
-

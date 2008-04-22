@@ -1,6 +1,6 @@
 /* bnx2x_reg.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007 Broadcom Corporation
+ * Copyright (c) 2007-2008 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #define BRB1_REG_BRB1_INT_STS					 0x6011c
 /* [RW 4] Parity mask register #0 read/write */
 #define BRB1_REG_BRB1_PRTY_MASK 				 0x60138
+/* [R 4] Parity register #0 read */
+#define BRB1_REG_BRB1_PRTY_STS					 0x6012c
 /* [RW 10] At address BRB1_IND_FREE_LIST_PRS_CRDT initialize free head. At
    address BRB1_IND_FREE_LIST_PRS_CRDT+1 initialize free tail. At address
    BRB1_IND_FREE_LIST_PRS_CRDT+2 initialize parser initial credit. */
@@ -281,6 +283,8 @@
 #define CDU_REG_CDU_INT_STS					 0x101030
 /* [RW 5] Parity mask register #0 read/write */
 #define CDU_REG_CDU_PRTY_MASK					 0x10104c
+/* [R 5] Parity register #0 read */
+#define CDU_REG_CDU_PRTY_STS					 0x101040
 /* [RC 32] logging of error data in case of a CDU load error:
    {expected_cid[15:0]; xpected_type[2:0]; xpected_region[2:0]; ctive_error;
    ype_error; ctual_active; ctual_compressed_context}; */
@@ -308,6 +312,8 @@
 #define CFC_REG_CFC_INT_STS_CLR 				 0x104100
 /* [RW 4] Parity mask register #0 read/write */
 #define CFC_REG_CFC_PRTY_MASK					 0x104118
+/* [R 4] Parity register #0 read */
+#define CFC_REG_CFC_PRTY_STS					 0x10410c
 /* [RW 21] CID cam access (21:1 - Data; alid - 0) */
 #define CFC_REG_CID_CAM 					 0x104800
 #define CFC_REG_CONTROL0					 0x104028
@@ -354,6 +360,8 @@
 #define CSDM_REG_CSDM_INT_MASK_1				 0xc22ac
 /* [RW 11] Parity mask register #0 read/write */
 #define CSDM_REG_CSDM_PRTY_MASK 				 0xc22bc
+/* [R 11] Parity register #0 read */
+#define CSDM_REG_CSDM_PRTY_STS					 0xc22b0
 #define CSDM_REG_ENABLE_IN1					 0xc2238
 #define CSDM_REG_ENABLE_IN2					 0xc223c
 #define CSDM_REG_ENABLE_OUT1					 0xc2240
@@ -438,6 +446,9 @@
 /* [RW 32] Parity mask register #0 read/write */
 #define CSEM_REG_CSEM_PRTY_MASK_0				 0x200130
 #define CSEM_REG_CSEM_PRTY_MASK_1				 0x200140
+/* [R 32] Parity register #0 read */
+#define CSEM_REG_CSEM_PRTY_STS_0				 0x200124
+#define CSEM_REG_CSEM_PRTY_STS_1				 0x200134
 #define CSEM_REG_ENABLE_IN					 0x2000a4
 #define CSEM_REG_ENABLE_OUT					 0x2000a8
 /* [RW 32] This address space contains all registers and memories that are
@@ -526,6 +537,8 @@
 #define CSEM_REG_TS_9_AS					 0x20005c
 /* [RW 1] Parity mask register #0 read/write */
 #define DBG_REG_DBG_PRTY_MASK					 0xc0a8
+/* [R 1] Parity register #0 read */
+#define DBG_REG_DBG_PRTY_STS					 0xc09c
 /* [RW 2] debug only: These bits indicate the credit for PCI request type 4
    interface; MUST be configured AFTER pci_ext_buffer_strt_addr_lsb/msb are
    configured */
@@ -543,6 +556,8 @@
 #define DMAE_REG_DMAE_INT_MASK					 0x102054
 /* [RW 4] Parity mask register #0 read/write */
 #define DMAE_REG_DMAE_PRTY_MASK 				 0x102064
+/* [R 4] Parity register #0 read */
+#define DMAE_REG_DMAE_PRTY_STS					 0x102058
 /* [RW 1] Command 0 go. */
 #define DMAE_REG_GO_C0						 0x102080
 /* [RW 1] Command 1 go. */
@@ -623,6 +638,8 @@
 #define DORQ_REG_DORQ_INT_STS_CLR				 0x170178
 /* [RW 2] Parity mask register #0 read/write */
 #define DORQ_REG_DORQ_PRTY_MASK 				 0x170190
+/* [R 2] Parity register #0 read */
+#define DORQ_REG_DORQ_PRTY_STS					 0x170184
 /* [RW 8] The address to write the DPM CID to STORM. */
 #define DORQ_REG_DPM_CID_ADDR					 0x170044
 /* [RW 5] The DPM mode CID extraction offset. */
@@ -692,6 +709,8 @@
 #define HC_REG_CONFIG_1 					 0x108004
 /* [RW 3] Parity mask register #0 read/write */
 #define HC_REG_HC_PRTY_MASK					 0x1080a0
+/* [R 3] Parity register #0 read */
+#define HC_REG_HC_PRTY_STS					 0x108094
 /* [RW 17] status block interrupt mask; one in each bit means unmask; zerow
    in each bit means mask; bit 0 - default SB; bit 1 - SB_0; bit 2 - SB_1...
    bit 16- SB_15; addr 0 - port 0; addr 1 - port 1 */
@@ -1127,6 +1146,7 @@
 #define MISC_REG_AEU_GENERAL_ATTN_17				 0xa044
 #define MISC_REG_AEU_GENERAL_ATTN_18				 0xa048
 #define MISC_REG_AEU_GENERAL_ATTN_19				 0xa04c
+#define MISC_REG_AEU_GENERAL_ATTN_10				 0xa028
 #define MISC_REG_AEU_GENERAL_ATTN_11				 0xa02c
 #define MISC_REG_AEU_GENERAL_ATTN_2				 0xa008
 #define MISC_REG_AEU_GENERAL_ATTN_20				 0xa050
@@ -1135,6 +1155,9 @@
 #define MISC_REG_AEU_GENERAL_ATTN_4				 0xa010
 #define MISC_REG_AEU_GENERAL_ATTN_5				 0xa014
 #define MISC_REG_AEU_GENERAL_ATTN_6				 0xa018
+#define MISC_REG_AEU_GENERAL_ATTN_7				 0xa01c
+#define MISC_REG_AEU_GENERAL_ATTN_8				 0xa020
+#define MISC_REG_AEU_GENERAL_ATTN_9				 0xa024
 /* [RW 32] first 32b for inverting the input for function 0; for each bit:
    0= do not invert; 1= invert; mapped as follows: [0] NIG attention for
    function0; [1] NIG attention for function1; [2] GPIO1 mcp; [3] GPIO2 mcp;
@@ -1183,6 +1206,40 @@
    starts at 0x0 for the A0 tape-out and increments by one for each
    all-layer tape-out. */
 #define MISC_REG_CHIP_REV					 0xa40c
+/* [RW 32] The following driver registers(1..6) represent 6 drivers and 32
+   clients. Each client can be controlled by one driver only. One in each
+   bit represent that this driver control the appropriate client (Ex: bit 5
+   is set means this driver control client number 5). addr1 = set; addr0 =
+   clear; read from both addresses will give the same result = status. write
+   to address 1 will set a request to control all the clients that their
+   appropriate bit (in the write command) is set. if the client is free (the
+   appropriate bit in all the other drivers is clear) one will be written to
+   that driver register; if the client isn't free the bit will remain zero.
+   if the appropriate bit is set (the driver request to gain control on a
+   client it already controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW
+   interrupt will be asserted). write to address 0 will set a request to
+   free all the clients that their appropriate bit (in the write command) is
+   set. if the appropriate bit is clear (the driver request to free a client
+   it doesn't controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW interrupt will
+   be asserted). */
+#define MISC_REG_DRIVER_CONTROL_1				 0xa510
+/* [RW 32] GPIO. [31-28] FLOAT port 0; [27-24] FLOAT port 0; When any of
+   these bits is written as a '1'; the corresponding SPIO bit will turn off
+   it's drivers and become an input. This is the reset state of all GPIO
+   pins. The read value of these bits will be a '1' if that last command
+   (#SET; #CLR; or #FLOAT) for this bit was a #FLOAT. (reset value 0xff).
+   [23-20] CLR port 1; 19-16] CLR port 0; When any of these bits is written
+   as a '1'; the corresponding GPIO bit will drive low. The read value of
+   these bits will be a '1' if that last command (#SET; #CLR; or #FLOAT) for
+   this bit was a #CLR. (reset value 0). [15-12] SET port 1; 11-8] port 0;
+   SET When any of these bits is written as a '1'; the corresponding GPIO
+   bit will drive high (if it has that capability). The read value of these
+   bits will be a '1' if that last command (#SET; #CLR; or #FLOAT) for this
+   bit was a #SET. (reset value 0). [7-4] VALUE port 1; [3-0] VALUE port 0;
+   RO; These bits indicate the read value of each of the eight GPIO pins.
+   This is the result value of the pin; not the drive value. Writing these
+   bits will have not effect. */
+#define MISC_REG_GPIO						 0xa490
 /* [RW 1] Setting this bit enables a timer in the GRC block to timeout any
    access that does not finish within
    ~misc_registers_grc_timout_val.grc_timeout_val cycles. When this bit is
@@ -1223,6 +1280,8 @@
 #define MISC_REG_MISC_INT_MASK					 0xa388
 /* [RW 1] Parity mask register #0 read/write */
 #define MISC_REG_MISC_PRTY_MASK 				 0xa398
+/* [R 1] Parity register #0 read */
+#define MISC_REG_MISC_PRTY_STS					 0xa38c
 /* [RW 32] 32 LSB of storm PLL first register; reset val = 0x 071d2911.
    inside order of the bits is: [0] P1 divider[0] (reset value 1); [1] P1
    divider[1] (reset value 0); [2] P1 divider[2] (reset value 0); [3] P1
@@ -1264,6 +1323,55 @@
 /* [RW 20] 20 bit GRC address where the scratch-pad of the MCP that is
    shared with the driver resides */
 #define MISC_REG_SHARED_MEM_ADDR				 0xa2b4
+/* [RW 32] SPIO. [31-24] FLOAT When any of these bits is written as a '1';
+   the corresponding SPIO bit will turn off it's drivers and become an
+   input. This is the reset state of all SPIO pins. The read value of these
+   bits will be a '1' if that last command (#SET; #CL; or #FLOAT) for this
+   bit was a #FLOAT. (reset value 0xff). [23-16] CLR When any of these bits
+   is written as a '1'; the corresponding SPIO bit will drive low. The read
+   value of these bits will be a '1' if that last command (#SET; #CLR; or
+#FLOAT) for this bit was a #CLR. (reset value 0). [15-8] SET When any of
+   these bits is written as a '1'; the corresponding SPIO bit will drive
+   high (if it has that capability). The read value of these bits will be a
+   '1' if that last command (#SET; #CLR; or #FLOAT) for this bit was a #SET.
+   (reset value 0). [7-0] VALUE RO; These bits indicate the read value of
+   each of the eight SPIO pins. This is the result value of the pin; not the
+   drive value. Writing these bits will have not effect. Each 8 bits field
+   is divided as follows: [0] VAUX Enable; when pulsed low; enables supply
+   from VAUX. (This is an output pin only; the FLOAT field is not applicable
+   for this pin); [1] VAUX Disable; when pulsed low; disables supply form
+   VAUX. (This is an output pin only; FLOAT field is not applicable for this
+   pin); [2] SEL_VAUX_B - Control to power switching logic. Drive low to
+   select VAUX supply. (This is an output pin only; it is not controlled by
+   the SET and CLR fields; it is controlled by the Main Power SM; the FLOAT
+   field is not applicable for this pin; only the VALUE fields is relevant -
+   it reflects the output value); [3] reserved; [4] spio_4; [5] spio_5; [6]
+   Bit 0 of UMP device ID select; read by UMP firmware; [7] Bit 1 of UMP
+   device ID select; read by UMP firmware. */
+#define MISC_REG_SPIO						 0xa4fc
+/* [RW 8] These bits enable the SPIO_INTs to signals event to the IGU/MC.
+   according to the following map: [3:0] reserved; [4] spio_4 [5] spio_5;
+   [7:0] reserved */
+#define MISC_REG_SPIO_EVENT_EN					 0xa2b8
+/* [RW 32] SPIO INT. [31-24] OLD_CLR Writing a '1' to these bit clears the
+   corresponding bit in the #OLD_VALUE register. This will acknowledge an
+   interrupt on the falling edge of corresponding SPIO input (reset value
+   0). [23-16] OLD_SET Writing a '1' to these bit sets the corresponding bit
+   in the #OLD_VALUE register. This will acknowledge an interrupt on the
+   rising edge of corresponding SPIO input (reset value 0). [15-8] OLD_VALUE
+   RO; These bits indicate the old value of the SPIO input value. When the
+   ~INT_STATE bit is set; this bit indicates the OLD value of the pin such
+   that if ~INT_STATE is set and this bit is '0'; then the interrupt is due
+   to a low to high edge. If ~INT_STATE is set and this bit is '1'; then the
+   interrupt is due to a high to low edge (reset value 0). [7-0] INT_STATE
+   RO; These bits indicate the current SPIO interrupt state for each SPIO
+   pin. This bit is cleared when the appropriate #OLD_SET or #OLD_CLR
+   command bit is written. This bit is set when the SPIO input does not
+   match the current value in #OLD_VALUE (reset value 0). */
+#define MISC_REG_SPIO_INT					 0xa500
+/* [RW 1] Set by the MCP to remember if one or more of the drivers is/are
+   loaded; 0-prepare; -unprepare */
+#define MISC_REG_UNPREPARED					 0xa424
 #define NIG_MASK_INTERRUPT_PORT0_REG_MASK_EMAC0_MISC_MI_INT	 (0x1<<0)
 #define NIG_MASK_INTERRUPT_PORT0_REG_MASK_SERDES0_LINK_STATUS	 (0x1<<9)
 #define NIG_MASK_INTERRUPT_PORT0_REG_MASK_XGXS0_LINK10G 	 (0x1<<15)
@@ -1392,6 +1500,9 @@
 #define NIG_REG_NIG_INGRESS_EMAC0_NO_CRC			 0x10044
 /* [RW 1] Input enable for RX PBF LP IF */
 #define NIG_REG_PBF_LB_IN_EN					 0x100b4
+/* [RW 1] Value of this register will be transmitted to port swap when
+   ~nig_registers_strap_override.strap_override =1 */
+#define NIG_REG_PORT_SWAP					 0x10394
 /* [RW 1] output enable for RX parser descriptor IF */
 #define NIG_REG_PRS_EOP_OUT_EN					 0x10104
 /* [RW 1] Input enable for RX parser request IF */
@@ -1410,6 +1521,10 @@
 #define NIG_REG_STAT2_BRB_OCTET 				 0x107e0
 #define NIG_REG_STATUS_INTERRUPT_PORT0				 0x10328
 #define NIG_REG_STATUS_INTERRUPT_PORT1				 0x1032c
+/* [RW 1] port swap mux selection. If this register equal to 0 then port
+   swap is equal to SPIO pin that inputs from ifmux_serdes_swap. If 1 then
+   ort swap is equal to ~nig_registers_port_swap.port_swap */
+#define NIG_REG_STRAP_OVERRIDE					 0x10398
 /* [RW 1] output enable for RX_XCM0 IF */
 #define NIG_REG_XCM0_OUT_EN					 0x100f0
 /* [RW 1] output enable for RX_XCM1 IF */
@@ -1499,6 +1614,8 @@
 #define PB_REG_PB_INT_STS					 0x1c
 /* [RW 4] Parity mask register #0 read/write */
 #define PB_REG_PB_PRTY_MASK					 0x38
+/* [R 4] Parity register #0 read */
+#define PB_REG_PB_PRTY_STS					 0x2c
 #define PRS_REG_A_PRSU_20					 0x40134
 /* [R 8] debug only: CFC load request current credit. Transaction based. */
 #define PRS_REG_CFC_LD_CURRENT_CREDIT				 0x40164
@@ -1590,6 +1707,8 @@
 #define PRS_REG_PRS_INT_STS					 0x40188
 /* [RW 8] Parity mask register #0 read/write */
 #define PRS_REG_PRS_PRTY_MASK					 0x401a4
+/* [R 8] Parity register #0 read */
+#define PRS_REG_PRS_PRTY_STS					 0x40198
 /* [RW 8] Context region for pure acknowledge packets. Used in CFC load
    request message */
 #define PRS_REG_PURE_REGIONS					 0x40024
@@ -1718,6 +1837,9 @@
 /* [RW 32] Parity mask register #0 read/write */
 #define PXP2_REG_PXP2_PRTY_MASK_0				 0x120588
 #define PXP2_REG_PXP2_PRTY_MASK_1				 0x120598
+/* [R 32] Parity register #0 read */
+#define PXP2_REG_PXP2_PRTY_STS_0				 0x12057c
+#define PXP2_REG_PXP2_PRTY_STS_1				 0x12058c
 /* [R 1] Debug only: The 'almost full' indication from each fifo (gives
    indication about backpressure) */
 #define PXP2_REG_RD_ALMOST_FULL_0				 0x120424
@@ -1911,6 +2033,8 @@
 #define PXP2_REG_RQ_HC_ENDIAN_M 				 0x1201a8
 /* [WB 53] Onchip address table */
 #define PXP2_REG_RQ_ONCHIP_AT					 0x122000
+/* [RW 13] Pending read limiter threshold; in Dwords */
+#define PXP2_REG_RQ_PDR_LIMIT					 0x12033c
 /* [RW 2] Endian mode for qm */
 #define PXP2_REG_RQ_QM_ENDIAN_M 				 0x120194
 /* [RW 3] page size in L2P table for QM module; -4k; -8k; -16k; -32k; -64k;
@@ -1921,6 +2045,9 @@
 /* [RW 3] Max burst size filed for read requests port 0; 000 - 128B;
    001:256B; 010: 512B; 11:1K:100:2K; 01:4K */
 #define PXP2_REG_RQ_RD_MBS0					 0x120160
+/* [RW 3] Max burst size filed for read requests port 1; 000 - 128B;
+   001:256B; 010: 512B; 11:1K:100:2K; 01:4K */
+#define PXP2_REG_RQ_RD_MBS1					 0x120168
 /* [RW 2] Endian mode for src */
 #define PXP2_REG_RQ_SRC_ENDIAN_M				 0x12019c
 /* [RW 3] page size in L2P table for SRC module; -4k; -8k; -16k; -32k; -64k;
@@ -2000,10 +2127,17 @@
 /* [RW 3] Max burst size filed for write requests port 0; 000 - 128B;
    001:256B; 010: 512B; */
 #define PXP2_REG_RQ_WR_MBS0					 0x12015c
+/* [RW 3] Max burst size filed for write requests port 1; 000 - 128B;
+   001:256B; 010: 512B; */
+#define PXP2_REG_RQ_WR_MBS1					 0x120164
 /* [RW 10] if Number of entries in dmae fifo will be higer than this
    threshold then has_payload indication will be asserted; the default value
    should be equal to &gt;  write MBS size! */
 #define PXP2_REG_WR_DMAE_TH					 0x120368
+/* [RW 10] if Number of entries in usdmdp fifo will be higer than this
+   threshold then has_payload indication will be asserted; the default value
+   should be equal to &gt;  write MBS size! */
+#define PXP2_REG_WR_USDMDP_TH					 0x120348
 /* [R 1] debug only: Indication if PSWHST arbiter is idle */
 #define PXP_REG_HST_ARB_IS_IDLE 				 0x103004
 /* [R 8] debug only: A bit mask for all PSWHST arbiter clients. '1' means
@@ -2021,6 +2155,8 @@
 #define PXP_REG_PXP_INT_STS_CLR_0				 0x10306c
 /* [RW 26] Parity mask register #0 read/write */
 #define PXP_REG_PXP_PRTY_MASK					 0x103094
+/* [R 26] Parity register #0 read */
+#define PXP_REG_PXP_PRTY_STS					 0x103088
 /* [RW 4] The activity counter initial increment value sent in the load
    request */
 #define QM_REG_ACTCTRINITVAL_0					 0x168040
@@ -2127,6 +2263,8 @@
 #define QM_REG_QM_INT_STS					 0x168438
 /* [RW 9] Parity mask register #0 read/write */
 #define QM_REG_QM_PRTY_MASK					 0x168454
+/* [R 9] Parity register #0 read */
+#define QM_REG_QM_PRTY_STS					 0x168448
 /* [R 32] Current queues in pipeline: Queues from 32 to 63 */
 #define QM_REG_QSTATUS_HIGH					 0x16802c
 /* [R 32] Current queues in pipeline: Queues from 0 to 31 */
@@ -2410,6 +2548,8 @@
 #define SRC_REG_SRC_INT_STS					 0x404ac
 /* [RW 3] Parity mask register #0 read/write */
 #define SRC_REG_SRC_PRTY_MASK					 0x404c8
+/* [R 3] Parity register #0 read */
+#define SRC_REG_SRC_PRTY_STS					 0x404bc
 /* [R 4] Used to read the value of the XX protection CAM occupancy counter. */
 #define TCM_REG_CAM_OCCUP					 0x5017c
 /* [RW 1] CDU AG read Interface enable. If 0 - the request input is
@@ -2730,6 +2870,8 @@
 #define TSDM_REG_TSDM_INT_MASK_1				 0x422ac
 /* [RW 11] Parity mask register #0 read/write */
 #define TSDM_REG_TSDM_PRTY_MASK 				 0x422bc
+/* [R 11] Parity register #0 read */
+#define TSDM_REG_TSDM_PRTY_STS					 0x422b0
 /* [RW 5] The number of time_slots in the arbitration cycle */
 #define TSEM_REG_ARB_CYCLE_SIZE 				 0x180034
 /* [RW 3] The source that is associated with arbitration element 0. Source
@@ -2854,6 +2996,9 @@
 /* [RW 32] Parity mask register #0 read/write */
 #define TSEM_REG_TSEM_PRTY_MASK_0				 0x180120
 #define TSEM_REG_TSEM_PRTY_MASK_1				 0x180130
+/* [R 32] Parity register #0 read */
+#define TSEM_REG_TSEM_PRTY_STS_0				 0x180114
+#define TSEM_REG_TSEM_PRTY_STS_1				 0x180124
 /* [R 5] Used to read the XX protection CAM occupancy counter. */
 #define UCM_REG_CAM_OCCUP					 0xe0170
 /* [RW 1] CDU AG read Interface enable. If 0 - the request input is
@@ -3155,6 +3300,8 @@
 #define USDM_REG_USDM_INT_MASK_1				 0xc42b0
 /* [RW 11] Parity mask register #0 read/write */
 #define USDM_REG_USDM_PRTY_MASK 				 0xc42c0
+/* [R 11] Parity register #0 read */
+#define USDM_REG_USDM_PRTY_STS					 0xc42b4
 /* [RW 5] The number of time_slots in the arbitration cycle */
 #define USEM_REG_ARB_CYCLE_SIZE 				 0x300034
 /* [RW 3] The source that is associated with arbitration element 0. Source
@@ -3279,6 +3426,9 @@
 /* [RW 32] Parity mask register #0 read/write */
 #define USEM_REG_USEM_PRTY_MASK_0				 0x300130
 #define USEM_REG_USEM_PRTY_MASK_1				 0x300140
+/* [R 32] Parity register #0 read */
+#define USEM_REG_USEM_PRTY_STS_0				 0x300124
+#define USEM_REG_USEM_PRTY_STS_1				 0x300134
 /* [RW 2] The queue index for registration on Aux1 counter flag. */
 #define XCM_REG_AUX1_Q						 0x20134
 /* [RW 2] Per each decision rule the queue index to register to. */
@@ -3684,6 +3834,8 @@
 #define XSDM_REG_XSDM_INT_MASK_1				 0x1662ac
 /* [RW 11] Parity mask register #0 read/write */
 #define XSDM_REG_XSDM_PRTY_MASK 				 0x1662bc
+/* [R 11] Parity register #0 read */
+#define XSDM_REG_XSDM_PRTY_STS					 0x1662b0
 /* [RW 5] The number of time_slots in the arbitration cycle */
 #define XSEM_REG_ARB_CYCLE_SIZE 				 0x280034
 /* [RW 3] The source that is associated with arbitration element 0. Source
@@ -3808,6 +3960,9 @@
 /* [RW 32] Parity mask register #0 read/write */
 #define XSEM_REG_XSEM_PRTY_MASK_0				 0x280130
 #define XSEM_REG_XSEM_PRTY_MASK_1				 0x280140
+/* [R 32] Parity register #0 read */
+#define XSEM_REG_XSEM_PRTY_STS_0				 0x280124
+#define XSEM_REG_XSEM_PRTY_STS_1				 0x280134
 #define MCPR_NVM_ACCESS_ENABLE_EN				 (1L<<0)
 #define MCPR_NVM_ACCESS_ENABLE_WR_EN				 (1L<<1)
 #define MCPR_NVM_ADDR_NVM_ADDR_VALUE				 (0xffffffL<<0)
@@ -3847,6 +4002,8 @@
 #define EMAC_MDIO_COMM_START_BUSY				 (1L<<29)
 #define EMAC_MDIO_MODE_AUTO_POLL				 (1L<<4)
 #define EMAC_MDIO_MODE_CLAUSE_45				 (1L<<31)
+#define EMAC_MDIO_MODE_CLOCK_CNT				 (0x3fL<<16)
+#define EMAC_MDIO_MODE_CLOCK_CNT_BITSHIFT			 16
 #define EMAC_MODE_25G_MODE					 (1L<<5)
 #define EMAC_MODE_ACPI_RCVD					 (1L<<20)
 #define EMAC_MODE_HALF_DUPLEX					 (1L<<1)
@@ -3874,6 +4031,17 @@
 #define EMAC_RX_MTU_SIZE_JUMBO_ENA				 (1L<<31)
 #define EMAC_TX_MODE_EXT_PAUSE_EN				 (1L<<3)
 #define EMAC_TX_MODE_RESET					 (1L<<0)
+#define MISC_REGISTERS_GPIO_1					 1
+#define MISC_REGISTERS_GPIO_2					 2
+#define MISC_REGISTERS_GPIO_3					 3
+#define MISC_REGISTERS_GPIO_CLR_POS				 16
+#define MISC_REGISTERS_GPIO_FLOAT				 (0xffL<<24)
+#define MISC_REGISTERS_GPIO_FLOAT_POS				 24
+#define MISC_REGISTERS_GPIO_INPUT_HI_Z				 2
+#define MISC_REGISTERS_GPIO_OUTPUT_HIGH 			 1
+#define MISC_REGISTERS_GPIO_OUTPUT_LOW				 0
+#define MISC_REGISTERS_GPIO_PORT_SHIFT				 4
+#define MISC_REGISTERS_GPIO_SET_POS				 8
 #define MISC_REGISTERS_RESET_REG_1_CLEAR			 0x588
 #define MISC_REGISTERS_RESET_REG_1_SET				 0x584
 #define MISC_REGISTERS_RESET_REG_2_CLEAR			 0x598
@@ -3891,6 +4059,25 @@
 #define MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_XGXS0_RSTB_HW	 (0x1<<4)
 #define MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_XGXS0_TXD_FIFO_RSTB (0x1<<8)
 #define MISC_REGISTERS_RESET_REG_3_SET				 0x5a4
+#define MISC_REGISTERS_SPIO_4					 4
+#define MISC_REGISTERS_SPIO_5					 5
+#define MISC_REGISTERS_SPIO_7					 7
+#define MISC_REGISTERS_SPIO_CLR_POS				 16
+#define MISC_REGISTERS_SPIO_FLOAT				 (0xffL<<24)
+#define GRC_MISC_REGISTERS_SPIO_FLOAT7				 0x80000000
+#define GRC_MISC_REGISTERS_SPIO_FLOAT6				 0x40000000
+#define GRC_MISC_REGISTERS_SPIO_FLOAT5				 0x20000000
+#define GRC_MISC_REGISTERS_SPIO_FLOAT4				 0x10000000
+#define MISC_REGISTERS_SPIO_FLOAT_POS				 24
+#define MISC_REGISTERS_SPIO_INPUT_HI_Z				 2
+#define MISC_REGISTERS_SPIO_INT_OLD_SET_POS			 16
+#define MISC_REGISTERS_SPIO_OUTPUT_HIGH 			 1
+#define MISC_REGISTERS_SPIO_OUTPUT_LOW				 0
+#define MISC_REGISTERS_SPIO_SET_POS				 8
+#define HW_LOCK_MAX_RESOURCE_VALUE				 31
+#define HW_LOCK_RESOURCE_8072_MDIO				 0
+#define HW_LOCK_RESOURCE_GPIO					 1
+#define HW_LOCK_RESOURCE_SPIO					 2
 #define AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR		      (1<<18)
 #define AEU_INPUTS_ATTN_BITS_CCM_HW_INTERRUPT		      (1<<31)
 #define AEU_INPUTS_ATTN_BITS_CDU_HW_INTERRUPT		      (1<<9)
@@ -3918,6 +4105,7 @@
 #define AEU_INPUTS_ATTN_BITS_QM_HW_INTERRUPT		      (1<<3)
 #define AEU_INPUTS_ATTN_BITS_QM_PARITY_ERROR		      (1<<2)
 #define AEU_INPUTS_ATTN_BITS_SEARCHER_PARITY_ERROR	      (1<<22)
+#define AEU_INPUTS_ATTN_BITS_SPIO5			      (1<<15)
 #define AEU_INPUTS_ATTN_BITS_TCM_HW_INTERRUPT		      (1<<27)
 #define AEU_INPUTS_ATTN_BITS_TIMERS_HW_INTERRUPT	      (1<<5)
 #define AEU_INPUTS_ATTN_BITS_TSDM_HW_INTERRUPT		      (1<<25)
@@ -4206,6 +4394,9 @@
 #define MDIO_XGXS_BLOCK2_RX_LN_SWAP_FORCE_ENABLE	0x4000
 #define MDIO_XGXS_BLOCK2_TX_LN_SWAP			0x11
 #define MDIO_XGXS_BLOCK2_TX_LN_SWAP_ENABLE		0x8000
+#define MDIO_XGXS_BLOCK2_UNICORE_MODE_10G		0x14
+#define MDIO_XGXS_BLOCK2_UNICORE_MODE_10G_CX4_XGXS	0x0001
+#define MDIO_XGXS_BLOCK2_UNICORE_MODE_10G_HIGIG_XGXS	0x0010
 #define MDIO_XGXS_BLOCK2_TEST_MODE_LANE 		0x15
 
 #define MDIO_REG_BANK_GP_STATUS 			0x8120
@@ -4362,11 +4553,13 @@
 #define MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1_SGMII_MODE   0x0001
 
 
+#define EXT_PHY_AUTO_NEG_DEVAD				0x7
 #define EXT_PHY_OPT_PMA_PMD_DEVAD			0x1
 #define EXT_PHY_OPT_WIS_DEVAD				0x2
 #define EXT_PHY_OPT_PCS_DEVAD				0x3
 #define EXT_PHY_OPT_PHY_XS_DEVAD			0x4
 #define EXT_PHY_OPT_CNTL				0x0
+#define EXT_PHY_OPT_CNTL2				0x7
 #define EXT_PHY_OPT_PMD_RX_SD				0xa
 #define EXT_PHY_OPT_PMD_MISC_CNTL			0xca0a
 #define EXT_PHY_OPT_PHY_IDENTIFIER			0xc800
@@ -4378,11 +4571,24 @@
 #define EXT_PHY_OPT_LASI_STATUS 			0x9005
 #define EXT_PHY_OPT_PCS_STATUS				0x0020
 #define EXT_PHY_OPT_XGXS_LANE_STATUS			0x0018
+#define EXT_PHY_OPT_AN_LINK_STATUS			0x8304
+#define EXT_PHY_OPT_AN_CL37_CL73			0x8370
+#define EXT_PHY_OPT_AN_CL37_FD				0xffe4
+#define EXT_PHY_OPT_AN_CL37_AN				0xffe0
+#define EXT_PHY_OPT_AN_ADV				0x11
 
 #define EXT_PHY_KR_PMA_PMD_DEVAD			0x1
 #define EXT_PHY_KR_PCS_DEVAD				0x3
 #define EXT_PHY_KR_AUTO_NEG_DEVAD			0x7
 #define EXT_PHY_KR_CTRL 				0x0000
+#define EXT_PHY_KR_STATUS				0x0001
+#define EXT_PHY_KR_AUTO_NEG_COMPLETE		    	0x0020
+#define EXT_PHY_KR_AUTO_NEG_ADVERT			0x0010
+#define EXT_PHY_KR_AUTO_NEG_ADVERT_PAUSE	    	0x0400
+#define EXT_PHY_KR_AUTO_NEG_ADVERT_PAUSE_ASYMMETRIC 	0x0800
+#define EXT_PHY_KR_AUTO_NEG_ADVERT_PAUSE_BOTH	    	0x0C00
+#define EXT_PHY_KR_AUTO_NEG_ADVERT_PAUSE_MASK	    	0x0C00
+#define EXT_PHY_KR_LP_AUTO_NEG				0x0013
 #define EXT_PHY_KR_CTRL2				0x0007
 #define EXT_PHY_KR_PCS_STATUS				0x0020
 #define EXT_PHY_KR_PMD_CTRL				0x0096
@@ -4391,4 +4597,8 @@
 #define EXT_PHY_KR_MISC_CTRL1				0xca85
 #define EXT_PHY_KR_GEN_CTRL				0xca10
 #define EXT_PHY_KR_ROM_CODE				0xca19
+#define EXT_PHY_KR_ROM_RESET_INTERNAL_MP		0x0188
+#define EXT_PHY_KR_ROM_MICRO_RESET			0x018a
+
+#define EXT_PHY_SFX7101_XGXS_TEST1	    0xc00a
 

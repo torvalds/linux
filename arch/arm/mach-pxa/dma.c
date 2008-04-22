@@ -81,7 +81,7 @@ void pxa_free_dma (int dma_ch)
 	if (!dma_channels[dma_ch].name) {
 		printk (KERN_CRIT
 			"%s: trying to free channel %d which is already freed\n",
-			__FUNCTION__, dma_ch);
+			__func__, dma_ch);
 		return;
 	}
 

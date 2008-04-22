@@ -2196,6 +2196,11 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	cx88_reset(core);
 	cx88_card_setup_pre_i2c(core);
 	cx88_i2c_init(core, pci);
+
+	/* load tuner module, if needed */
+	if (TUNER_ABSENT != core->board.tuner_type)
+		request_module("tuner");
+
 	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
 	cx88_card_setup(core);
 	cx88_ir_init(core, pci);

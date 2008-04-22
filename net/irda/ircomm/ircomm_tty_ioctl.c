@@ -57,7 +57,7 @@ static void ircomm_tty_change_speed(struct ircomm_tty_cb *self)
 	unsigned cflag, cval;
 	int baud;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	if (!self->tty || !self->tty->termios || !self->ircomm)
 		return;
@@ -94,7 +94,7 @@ static void ircomm_tty_change_speed(struct ircomm_tty_cb *self)
 		self->settings.flow_control |= IRCOMM_RTS_CTS_IN;
 		/* This got me. Bummer. Jean II */
 		if (self->service_type == IRCOMM_3_WIRE_RAW)
-			IRDA_WARNING("%s(), enabling RTS/CTS on link that doesn't support it (3-wire-raw)\n", __FUNCTION__);
+			IRDA_WARNING("%s(), enabling RTS/CTS on link that doesn't support it (3-wire-raw)\n", __func__);
 	} else {
 		self->flags &= ~ASYNC_CTS_FLOW;
 		self->settings.flow_control &= ~IRCOMM_RTS_CTS_IN;
@@ -150,7 +150,7 @@ void ircomm_tty_set_termios(struct tty_struct *tty,
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) tty->driver_data;
 	unsigned int cflag = tty->termios->c_cflag;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	if ((cflag == old_termios->c_cflag) &&
 	    (RELEVANT_IFLAG(tty->termios->c_iflag) ==
@@ -199,7 +199,7 @@ int ircomm_tty_tiocmget(struct tty_struct *tty, struct file *file)
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) tty->driver_data;
 	unsigned int result;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	if (tty->flags & (1 << TTY_IO_ERROR))
 		return -EIO;
@@ -224,7 +224,7 @@ int ircomm_tty_tiocmset(struct tty_struct *tty, struct file *file,
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) tty->driver_data;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	if (tty->flags & (1 << TTY_IO_ERROR))
 		return -EIO;
@@ -266,7 +266,7 @@ static int ircomm_tty_get_serial_info(struct ircomm_tty_cb *self,
 	if (!retinfo)
 		return -EFAULT;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	memset(&info, 0, sizeof(info));
 	info.line = self->line;
@@ -302,7 +302,7 @@ static int ircomm_tty_set_serial_info(struct ircomm_tty_cb *self,
 	struct serial_struct new_serial;
 	struct ircomm_tty_cb old_state, *state;
 
-	IRDA_DEBUG(0, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(0, "%s()\n", __func__ );
 
 	if (copy_from_user(&new_serial,new_info,sizeof(new_serial)))
 		return -EFAULT;
@@ -376,7 +376,7 @@ int ircomm_tty_ioctl(struct tty_struct *tty, struct file *file,
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) tty->driver_data;
 	int ret = 0;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
 	    (cmd != TIOCSERCONFIG) && (cmd != TIOCSERGSTRUCT) &&
@@ -397,7 +397,7 @@ int ircomm_tty_ioctl(struct tty_struct *tty, struct file *file,
 		break;
 
 	case TIOCGICOUNT:
-		IRDA_DEBUG(0, "%s(), TIOCGICOUNT not impl!\n", __FUNCTION__ );
+		IRDA_DEBUG(0, "%s(), TIOCGICOUNT not impl!\n", __func__ );
 #if 0
 		save_flags(flags); cli();
 		cnow = driver->icount;

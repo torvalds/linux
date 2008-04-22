@@ -203,8 +203,11 @@ again:
 	if (received < budget) {
 		netif_rx_complete(vi->dev, napi);
 		if (unlikely(!vi->rvq->vq_ops->enable_cb(vi->rvq))
-		    && netif_rx_reschedule(vi->dev, napi))
+		    && napi_schedule_prep(napi)) {
+			vi->rvq->vq_ops->disable_cb(vi->rvq);
+			__netif_rx_schedule(vi->dev, napi);
 			goto again;
+		}
 	}
 
 	return received;
@@ -231,11 +234,12 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct scatterlist sg[1+MAX_SKB_FRAGS];
 	struct virtio_net_hdr *hdr;
 	const unsigned char *dest = ((struct ethhdr *)skb->data)->h_dest;
-	DECLARE_MAC_BUF(mac);
 
 	sg_init_table(sg, 1+MAX_SKB_FRAGS);
 
-	pr_debug("%s: xmit %p %s\n", dev->name, skb, print_mac(mac, dest));
+	pr_debug("%s: xmit %p " MAC_FMT "\n", dev->name, skb,
+		 dest[0], dest[1], dest[2],
+		 dest[3], dest[4], dest[5]);
 
 	/* Encode metadata header at front. */
 	hdr = skb_vnet_hdr(skb);
@@ -278,10 +282,10 @@ again:
 		pr_debug("%s: virtio not prepared to send\n", dev->name);
 		netif_stop_queue(dev);
 
-		/* Activate callback for using skbs: if this fails it
+		/* Activate callback for using skbs: if this returns false it
 		 * means some were used in the meantime. */
 		if (unlikely(!vi->svq->vq_ops->enable_cb(vi->svq))) {
-			printk("Unlikely: restart svq failed\n");
+			vi->svq->vq_ops->disable_cb(vi->svq);
 			netif_start_queue(dev);
 			goto again;
 		}
@@ -293,6 +297,15 @@ again:
 
 	return 0;
 }
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void virtnet_netpoll(struct net_device *dev)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+
+	napi_schedule(&vi->napi);
+}
+#endif
 
 static int virtnet_open(struct net_device *dev)
 {
@@ -336,6 +349,9 @@ static int virtnet_probe(struct virtio_device *vdev)
 	dev->stop = virtnet_close;
 	dev->hard_start_xmit = start_xmit;
 	dev->features = NETIF_F_HIGHDMA;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = virtnet_netpoll;
+#endif
 	SET_NETDEV_DEV(dev, &vdev->dev);
 
 	/* Do we support "hardware" checksums? */
@@ -361,6 +377,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	netif_napi_add(dev, &vi->napi, virtnet_poll, napi_weight);
 	vi->dev = dev;
 	vi->vdev = vdev;
+	vdev->priv = vi;
 
 	/* We expect two virtqueues, receive then send. */
 	vi->rvq = vdev->config->find_vq(vdev, 0, skb_recv_done);
@@ -395,7 +412,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 	}
 
 	pr_debug("virtnet: registered device %s\n", dev->name);
-	vdev->priv = vi;
 	return 0;
 
 unregister:

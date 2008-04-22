@@ -58,11 +58,6 @@ static int create_dir(struct kobject *kobj)
 	return error;
 }
 
-static inline struct kobject *to_kobj(struct list_head *entry)
-{
-	return container_of(entry, struct kobject, entry);
-}
-
 static int get_kobj_path_length(struct kobject *kobj)
 {
 	int length = 1;
@@ -153,6 +148,10 @@ static void kobject_init_internal(struct kobject *kobj)
 		return;
 	kref_init(&kobj->kref);
 	INIT_LIST_HEAD(&kobj->entry);
+	kobj->state_in_sysfs = 0;
+	kobj->state_add_uevent_sent = 0;
+	kobj->state_remove_uevent_sent = 0;
+	kobj->state_initialized = 1;
 }
 
 
@@ -289,13 +288,8 @@ void kobject_init(struct kobject *kobj, struct kobj_type *ktype)
 		dump_stack();
 	}
 
-	kref_init(&kobj->kref);
-	INIT_LIST_HEAD(&kobj->entry);
+	kobject_init_internal(kobj);
 	kobj->ktype = ktype;
-	kobj->state_in_sysfs = 0;
-	kobj->state_add_uevent_sent = 0;
-	kobj->state_remove_uevent_sent = 0;
-	kobj->state_initialized = 1;
 	return;
 
 error:
@@ -593,8 +587,15 @@ static void kobject_release(struct kref *kref)
  */
 void kobject_put(struct kobject *kobj)
 {
-	if (kobj)
+	if (kobj) {
+		if (!kobj->state_initialized) {
+			printk(KERN_WARNING "kobject: '%s' (%p): is not "
+			       "initialized, yet kobject_put() is being "
+			       "called.\n", kobject_name(kobj), kobj);
+			WARN_ON(1);
+		}
 		kref_put(&kobj->kref, kobject_release);
+	}
 }
 
 static void dynamic_kobj_release(struct kobject *kobj)
@@ -746,12 +747,11 @@ void kset_unregister(struct kset *k)
  */
 struct kobject *kset_find_obj(struct kset *kset, const char *name)
 {
-	struct list_head *entry;
+	struct kobject *k;
 	struct kobject *ret = NULL;
 
 	spin_lock(&kset->list_lock);
-	list_for_each(entry, &kset->list) {
-		struct kobject *k = to_kobj(entry);
+	list_for_each_entry(k, &kset->list, entry) {
 		if (kobject_name(k) && !strcmp(kobject_name(k), name)) {
 			ret = kobject_get(k);
 			break;

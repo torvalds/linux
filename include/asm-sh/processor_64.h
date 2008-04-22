@@ -112,6 +112,7 @@ extern struct sh_cpuinfo cpu_data[];
 #endif
 
 #define SR_IMASK 0x000000f0
+#define SR_FD    0x00008000
 #define SR_SSTEP 0x08000000
 
 #ifndef __ASSEMBLY__

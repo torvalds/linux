@@ -32,6 +32,8 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
  */
 #ifndef __my_cpu_offset
 #define __my_cpu_offset per_cpu_offset(raw_smp_processor_id())
+#endif
+#ifdef CONFIG_DEBUG_PREEMPT
 #define my_cpu_offset per_cpu_offset(smp_processor_id())
 #else
 #define my_cpu_offset __my_cpu_offset

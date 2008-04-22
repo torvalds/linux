@@ -131,8 +131,8 @@ IIIa. Ring buffers
 
 IVb. References
 
-http://www.smsc.com/main/datasheets/83c171.pdf
-http://www.smsc.com/main/datasheets/83c175.pdf
+http://www.smsc.com/main/tools/discontinued/83c171.pdf
+http://www.smsc.com/main/tools/discontinued/83c175.pdf
 http://scyld.com/expert/NWay.html
 http://www.national.com/pf/DP/DP83840A.html
 
@@ -227,7 +227,12 @@ static const u16 media2miictl[16] = {
 	0, 0x0C00, 0x0C00, 0x2000,  0x0100, 0x2100, 0, 0,
 	0, 0, 0, 0,  0, 0, 0, 0 };
 
-/* The EPIC100 Rx and Tx buffer descriptors. */
+/*
+ * The EPIC100 Rx and Tx buffer descriptors.  Note that these
+ * really ARE host-endian; it's not a misannotation.  We tell
+ * the card to byteswap them internally on big-endian hosts -
+ * look for #ifdef CONFIG_BIG_ENDIAN in epic_open().
+ */
 
 struct epic_tx_desc {
 	u32 txstatus;
@@ -418,7 +423,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 
 	/* Note: the '175 does not have a serial EEPROM. */
 	for (i = 0; i < 3; i++)
-		((u16 *)dev->dev_addr)[i] = le16_to_cpu(inw(ioaddr + LAN0 + i*4));
+		((__le16 *)dev->dev_addr)[i] = cpu_to_le16(inw(ioaddr + LAN0 + i*4));
 
 	if (debug > 2) {
 		dev_printk(KERN_DEBUG, &pdev->dev, "EEPROM contents:\n");
@@ -682,7 +687,8 @@ static int epic_open(struct net_device *dev)
 	if (ep->chip_flags & MII_PWRDWN)
 		outl((inl(ioaddr + NVCTL) & ~0x003C) | 0x4800, ioaddr + NVCTL);
 
-#if defined(__powerpc__) || defined(__sparc__)		/* Big endian */
+	/* Tell the chip to byteswap descriptors on big-endian hosts */
+#ifdef CONFIG_BIG_ENDIAN
 	outl(0x4432 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);
 	inl(ioaddr + GENCTL);
 	outl(0x0432 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);
@@ -695,7 +701,7 @@ static int epic_open(struct net_device *dev)
 	udelay(20); /* Looks like EPII needs that if you want reliable RX init. FIXME: pci posting bug? */
 
 	for (i = 0; i < 3; i++)
-		outl(cpu_to_le16(((u16*)dev->dev_addr)[i]), ioaddr + LAN0 + i*4);
+		outl(le16_to_cpu(((__le16*)dev->dev_addr)[i]), ioaddr + LAN0 + i*4);
 
 	ep->tx_threshold = TX_FIFO_THRESH;
 	outl(ep->tx_threshold, ioaddr + TxThresh);
@@ -798,7 +804,7 @@ static void epic_restart(struct net_device *dev)
 	for (i = 16; i > 0; i--)
 		outl(0x0008, ioaddr + TEST1);
 
-#if defined(__powerpc__) || defined(__sparc__)		/* Big endian */
+#ifdef CONFIG_BIG_ENDIAN
 	outl(0x0432 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);
 #else
 	outl(0x0412 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);
@@ -808,7 +814,7 @@ static void epic_restart(struct net_device *dev)
 		outl((inl(ioaddr + NVCTL) & ~0x003C) | 0x4800, ioaddr + NVCTL);
 
 	for (i = 0; i < 3; i++)
-		outl(cpu_to_le16(((u16*)dev->dev_addr)[i]), ioaddr + LAN0 + i*4);
+		outl(le16_to_cpu(((__le16*)dev->dev_addr)[i]), ioaddr + LAN0 + i*4);
 
 	ep->tx_threshold = TX_FIFO_THRESH;
 	outl(ep->tx_threshold, ioaddr + TxThresh);
@@ -919,7 +925,7 @@ static void epic_init_ring(struct net_device *dev)
 	/* Initialize all Rx descriptors. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		ep->rx_ring[i].rxstatus = 0;
-		ep->rx_ring[i].buflength = cpu_to_le32(ep->rx_buf_sz);
+		ep->rx_ring[i].buflength = ep->rx_buf_sz;
 		ep->rx_ring[i].next = ep->rx_ring_dma +
 				      (i+1)*sizeof(struct epic_rx_desc);
 		ep->rx_skbuff[i] = NULL;
@@ -936,7 +942,7 @@ static void epic_init_ring(struct net_device *dev)
 		skb_reserve(skb, 2);	/* 16 byte align the IP header. */
 		ep->rx_ring[i].bufaddr = pci_map_single(ep->pci_dev,
 			skb->data, ep->rx_buf_sz, PCI_DMA_FROMDEVICE);
-		ep->rx_ring[i].rxstatus = cpu_to_le32(DescOwn);
+		ep->rx_ring[i].rxstatus = DescOwn;
 	}
 	ep->dirty_rx = (unsigned int)(i - RX_RING_SIZE);
 
@@ -974,20 +980,20 @@ static int epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	ep->tx_ring[entry].bufaddr = pci_map_single(ep->pci_dev, skb->data,
 		 			            skb->len, PCI_DMA_TODEVICE);
 	if (free_count < TX_QUEUE_LEN/2) {/* Typical path */
-		ctrl_word = cpu_to_le32(0x100000); /* No interrupt */
+		ctrl_word = 0x100000; /* No interrupt */
 	} else if (free_count == TX_QUEUE_LEN/2) {
-		ctrl_word = cpu_to_le32(0x140000); /* Tx-done intr. */
+		ctrl_word = 0x140000; /* Tx-done intr. */
 	} else if (free_count < TX_QUEUE_LEN - 1) {
-		ctrl_word = cpu_to_le32(0x100000); /* No Tx-done intr. */
+		ctrl_word = 0x100000; /* No Tx-done intr. */
 	} else {
 		/* Leave room for an additional entry. */
-		ctrl_word = cpu_to_le32(0x140000); /* Tx-done intr. */
+		ctrl_word = 0x140000; /* Tx-done intr. */
 		ep->tx_full = 1;
 	}
-	ep->tx_ring[entry].buflength = ctrl_word | cpu_to_le32(skb->len);
+	ep->tx_ring[entry].buflength = ctrl_word | skb->len;
 	ep->tx_ring[entry].txstatus =
 		((skb->len >= ETH_ZLEN ? skb->len : ETH_ZLEN) << 16)
-		| cpu_to_le32(DescOwn);
+			    | DescOwn;
 
 	ep->cur_tx++;
 	if (ep->tx_full)
@@ -1041,7 +1047,7 @@ static void epic_tx(struct net_device *dev, struct epic_private *ep)
 	for (dirty_tx = ep->dirty_tx; cur_tx - dirty_tx > 0; dirty_tx++) {
 		struct sk_buff *skb;
 		int entry = dirty_tx % TX_RING_SIZE;
-		int txstatus = le32_to_cpu(ep->tx_ring[entry].txstatus);
+		int txstatus = ep->tx_ring[entry].txstatus;
 
 		if (txstatus & DescOwn)
 			break;	/* It still hasn't been Txed */
@@ -1163,8 +1169,8 @@ static int epic_rx(struct net_device *dev, int budget)
 		rx_work_limit = budget;
 
 	/* If we own the next entry, it's a new packet. Send it up. */
-	while ((ep->rx_ring[entry].rxstatus & cpu_to_le32(DescOwn)) == 0) {
-		int status = le32_to_cpu(ep->rx_ring[entry].rxstatus);
+	while ((ep->rx_ring[entry].rxstatus & DescOwn) == 0) {
+		int status = ep->rx_ring[entry].rxstatus;
 
 		if (debug > 4)
 			printk(KERN_DEBUG "  epic_rx() status was %8.8x.\n", status);
@@ -1238,7 +1244,8 @@ static int epic_rx(struct net_device *dev, int budget)
 				skb->data, ep->rx_buf_sz, PCI_DMA_FROMDEVICE);
 			work_done++;
 		}
-		ep->rx_ring[entry].rxstatus = cpu_to_le32(DescOwn);
+		/* AV: shouldn't we add a barrier here? */
+		ep->rx_ring[entry].rxstatus = DescOwn;
 	}
 	return work_done;
 }

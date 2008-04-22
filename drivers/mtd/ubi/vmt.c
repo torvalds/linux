@@ -376,7 +376,9 @@ out_sysfs:
 	get_device(&vol->dev);
 	volume_sysfs_close(vol);
 out_gluebi:
-	ubi_destroy_gluebi(vol);
+	if (ubi_destroy_gluebi(vol))
+		dbg_err("cannot destroy gluebi for volume %d:%d",
+			ubi->ubi_num, vol_id);
 out_cdev:
 	cdev_del(&vol->cdev);
 out_mapping:

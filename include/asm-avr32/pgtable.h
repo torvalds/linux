@@ -157,6 +157,7 @@ extern struct page *empty_zero_page;
 #define _PAGE_S(x)	_PAGE_NORMAL(x)
 
 #define PAGE_COPY	_PAGE_P(PAGE_WRITE | PAGE_READ)
+#define PAGE_SHARED	_PAGE_S(PAGE_WRITE | PAGE_READ)
 
 #ifndef __ASSEMBLY__
 /*

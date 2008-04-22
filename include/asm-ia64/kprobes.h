@@ -30,8 +30,12 @@
 #include <asm/break.h>
 
 #define __ARCH_WANT_KPROBES_INSN_SLOT
-#define MAX_INSN_SIZE   1
+#define MAX_INSN_SIZE   2	/* last half is for kprobe-booster */
 #define BREAK_INST	(long)(__IA64_BREAK_KPROBE << 6)
+#define NOP_M_INST	(long)(1<<27)
+#define BRL_INST(i1, i2) ((long)((0xcL << 37) |	/* brl */ \
+				(0x1L << 12) |	/* many */ \
+				(((i1) & 1) << 36) | ((i2) << 13))) /* imm */
 
 typedef union cmp_inst {
 	struct {
@@ -82,7 +86,6 @@ struct kprobe_ctlblk {
 	struct prev_kprobe prev_kprobe[ARCH_PREV_KPROBE_SZ];
 };
 
-#define ARCH_SUPPORTS_KRETPROBES
 #define kretprobe_blacklist_size 0
 
 #define SLOT0_OPCODE_SHIFT	(37)
@@ -113,19 +116,16 @@ struct arch_specific_insn {
  #define INST_FLAG_FIX_RELATIVE_IP_ADDR		1
  #define INST_FLAG_FIX_BRANCH_REG		2
  #define INST_FLAG_BREAK_INST			4
+ #define INST_FLAG_BOOSTABLE			8
  	unsigned long inst_flag;
  	unsigned short target_br_reg;
 	unsigned short slot;
 };
 
-extern int kprobes_fault_handler(struct pt_regs *regs, int trapnr);
+extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
 
-/* ia64 does not need this */
-static inline void jprobe_return(void)
-{
-}
 extern void invalidate_stacked_regs(void);
 extern void flush_register_stack(void);
 extern void arch_remove_kprobe(struct kprobe *p);

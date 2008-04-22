@@ -128,8 +128,6 @@ void *get_current(void)
 	return current;
 }
 
-extern void schedule_tail(struct task_struct *prev);
-
 /*
  * This is called magically, by its address being stuffed in a jmp_buf
  * and being longjmp-d to.

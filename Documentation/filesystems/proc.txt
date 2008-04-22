@@ -1506,13 +1506,13 @@ laptop_mode
 -----------
 
 laptop_mode is a knob that controls "laptop mode". All the things that are
-controlled by this knob are discussed in Documentation/laptop-mode.txt.
+controlled by this knob are discussed in Documentation/laptops/laptop-mode.txt.
 
 block_dump
 ----------
 
 block_dump enables block I/O debugging when set to a nonzero value. More
-information on block I/O debugging is in Documentation/laptop-mode.txt.
+information on block I/O debugging is in Documentation/laptops/laptop-mode.txt.
 
 swap_token_timeout
 ------------------

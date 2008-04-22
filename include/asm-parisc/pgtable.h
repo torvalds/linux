@@ -116,14 +116,6 @@
 
 #define FIRST_USER_ADDRESS	0
 
-#ifndef __ASSEMBLY__
-extern  void *vmalloc_start;
-#define PCXL_DMA_MAP_SIZE   (8*1024*1024)
-#define VMALLOC_START   ((unsigned long)vmalloc_start)
-/* this is a fixmap remnant, see fixmap.h */
-#define VMALLOC_END	(KERNEL_MAP_END)
-#endif
-
 /* NB: The tlb miss handlers make certain assumptions about the order */
 /*     of the following bits, so be careful (One example, bits 25-31  */
 /*     are moved together in one instruction).                        */

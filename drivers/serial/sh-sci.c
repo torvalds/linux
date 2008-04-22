@@ -41,6 +41,7 @@
 #include <linux/delay.h>
 #include <linux/console.h>
 #include <linux/platform_device.h>
+#include <linux/serial_sci.h>
 
 #ifdef CONFIG_CPU_FREQ
 #include <linux/notifier.h>
@@ -54,7 +55,6 @@
 #include <asm/kgdb.h>
 #endif
 
-#include <asm/sci.h>
 #include "sh-sci.h"
 
 struct sci_port {
@@ -333,7 +333,6 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 	}
 	sci_out(port, SCFCR, fcr_val);
 }
-
 #elif defined(CONFIG_CPU_SH3)
 /* For SH7705, SH7706, SH7707, SH7709, SH7709A, SH7729 */
 static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
@@ -384,6 +383,12 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 
 	sci_out(port, SCFCR, fcr_val);
 }
+#elif defined(CONFIG_CPU_SUBTYPE_SH7723)
+static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
+{
+	/* Nothing to do here.. */
+	sci_out(port, SCFCR, 0);
+}
 #else
 /* For SH7750 */
 static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
@@ -414,12 +419,12 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
     defined(CONFIG_CPU_SUBTYPE_SH7785)
 static inline int scif_txroom(struct uart_port *port)
 {
-	return SCIF_TXROOM_MAX - (sci_in(port, SCTFDR) & 0x7f);
+	return SCIF_TXROOM_MAX - (sci_in(port, SCTFDR) & 0xff);
 }
 
 static inline int scif_rxroom(struct uart_port *port)
 {
-	return sci_in(port, SCRFDR) & 0x7f;
+	return sci_in(port, SCRFDR) & 0xff;
 }
 #else
 static inline int scif_txroom(struct uart_port *port)
@@ -1552,3 +1557,4 @@ module_init(sci_init);
 module_exit(sci_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:sh-sci");

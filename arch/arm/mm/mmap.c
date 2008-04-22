@@ -120,6 +120,8 @@ full_search:
  */
 int valid_phys_addr_range(unsigned long addr, size_t size)
 {
+	if (addr < PHYS_OFFSET)
+		return 0;
 	if (addr + size > __pa(high_memory))
 		return 0;
 

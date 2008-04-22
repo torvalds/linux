@@ -148,7 +148,7 @@ static inline void b44_sync_dma_desc_for_device(struct ssb_device *sdev,
 						unsigned long offset,
 						enum dma_data_direction dir)
 {
-	dma_sync_single_range_for_device(sdev->dev, dma_base,
+	dma_sync_single_range_for_device(sdev->dma_dev, dma_base,
 					 offset & dma_desc_align_mask,
 					 dma_desc_sync_size, dir);
 }
@@ -158,7 +158,7 @@ static inline void b44_sync_dma_desc_for_cpu(struct ssb_device *sdev,
 					     unsigned long offset,
 					     enum dma_data_direction dir)
 {
-	dma_sync_single_range_for_cpu(sdev->dev, dma_base,
+	dma_sync_single_range_for_cpu(sdev->dma_dev, dma_base,
 				      offset & dma_desc_align_mask,
 				      dma_desc_sync_size, dir);
 }
@@ -613,7 +613,7 @@ static void b44_tx(struct b44 *bp)
 
 		BUG_ON(skb == NULL);
 
-		dma_unmap_single(bp->sdev->dev,
+		dma_unmap_single(bp->sdev->dma_dev,
 				 rp->mapping,
 				 skb->len,
 				 DMA_TO_DEVICE);
@@ -653,7 +653,7 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 	if (skb == NULL)
 		return -ENOMEM;
 
-	mapping = dma_map_single(bp->sdev->dev, skb->data,
+	mapping = dma_map_single(bp->sdev->dma_dev, skb->data,
 				 RX_PKT_BUF_SZ,
 				 DMA_FROM_DEVICE);
 
@@ -663,19 +663,19 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 		mapping + RX_PKT_BUF_SZ > DMA_30BIT_MASK) {
 		/* Sigh... */
 		if (!dma_mapping_error(mapping))
-			dma_unmap_single(bp->sdev->dev, mapping,
+			dma_unmap_single(bp->sdev->dma_dev, mapping,
 					RX_PKT_BUF_SZ, DMA_FROM_DEVICE);
 		dev_kfree_skb_any(skb);
 		skb = __netdev_alloc_skb(bp->dev, RX_PKT_BUF_SZ, GFP_ATOMIC|GFP_DMA);
 		if (skb == NULL)
 			return -ENOMEM;
-		mapping = dma_map_single(bp->sdev->dev, skb->data,
+		mapping = dma_map_single(bp->sdev->dma_dev, skb->data,
 					 RX_PKT_BUF_SZ,
 					 DMA_FROM_DEVICE);
 		if (dma_mapping_error(mapping) ||
 			mapping + RX_PKT_BUF_SZ > DMA_30BIT_MASK) {
 			if (!dma_mapping_error(mapping))
-				dma_unmap_single(bp->sdev->dev, mapping, RX_PKT_BUF_SZ,DMA_FROM_DEVICE);
+				dma_unmap_single(bp->sdev->dma_dev, mapping, RX_PKT_BUF_SZ,DMA_FROM_DEVICE);
 			dev_kfree_skb_any(skb);
 			return -ENOMEM;
 		}
@@ -750,7 +750,7 @@ static void b44_recycle_rx(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 					     dest_idx * sizeof(dest_desc),
 					     DMA_BIDIRECTIONAL);
 
-	dma_sync_single_for_device(bp->sdev->dev, le32_to_cpu(src_desc->addr),
+	dma_sync_single_for_device(bp->sdev->dma_dev, le32_to_cpu(src_desc->addr),
 				   RX_PKT_BUF_SZ,
 				   DMA_FROM_DEVICE);
 }
@@ -772,7 +772,7 @@ static int b44_rx(struct b44 *bp, int budget)
 		struct rx_header *rh;
 		u16 len;
 
-		dma_sync_single_for_cpu(bp->sdev->dev, map,
+		dma_sync_single_for_cpu(bp->sdev->dma_dev, map,
 					    RX_PKT_BUF_SZ,
 					    DMA_FROM_DEVICE);
 		rh = (struct rx_header *) skb->data;
@@ -806,7 +806,7 @@ static int b44_rx(struct b44 *bp, int budget)
 			skb_size = b44_alloc_rx_skb(bp, cons, bp->rx_prod);
 			if (skb_size < 0)
 				goto drop_it;
-			dma_unmap_single(bp->sdev->dev, map,
+			dma_unmap_single(bp->sdev->dma_dev, map,
 					 skb_size, DMA_FROM_DEVICE);
 			/* Leave out rx_header */
                 	skb_put(skb, len + RX_PKT_OFFSET);
@@ -966,24 +966,24 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_out;
 	}
 
-	mapping = dma_map_single(bp->sdev->dev, skb->data, len, DMA_TO_DEVICE);
+	mapping = dma_map_single(bp->sdev->dma_dev, skb->data, len, DMA_TO_DEVICE);
 	if (dma_mapping_error(mapping) || mapping + len > DMA_30BIT_MASK) {
 		struct sk_buff *bounce_skb;
 
 		/* Chip can't handle DMA to/from >1GB, use bounce buffer */
 		if (!dma_mapping_error(mapping))
-			dma_unmap_single(bp->sdev->dev, mapping, len,
+			dma_unmap_single(bp->sdev->dma_dev, mapping, len,
 					DMA_TO_DEVICE);
 
 		bounce_skb = __dev_alloc_skb(len, GFP_ATOMIC | GFP_DMA);
 		if (!bounce_skb)
 			goto err_out;
 
-		mapping = dma_map_single(bp->sdev->dev, bounce_skb->data,
+		mapping = dma_map_single(bp->sdev->dma_dev, bounce_skb->data,
 					 len, DMA_TO_DEVICE);
 		if (dma_mapping_error(mapping) || mapping + len > DMA_30BIT_MASK) {
 			if (!dma_mapping_error(mapping))
-				dma_unmap_single(bp->sdev->dev, mapping,
+				dma_unmap_single(bp->sdev->dma_dev, mapping,
 					 len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(bounce_skb);
 			goto err_out;
@@ -1082,7 +1082,7 @@ static void b44_free_rings(struct b44 *bp)
 
 		if (rp->skb == NULL)
 			continue;
-		dma_unmap_single(bp->sdev->dev, rp->mapping, RX_PKT_BUF_SZ,
+		dma_unmap_single(bp->sdev->dma_dev, rp->mapping, RX_PKT_BUF_SZ,
 					DMA_FROM_DEVICE);
 		dev_kfree_skb_any(rp->skb);
 		rp->skb = NULL;
@@ -1094,7 +1094,7 @@ static void b44_free_rings(struct b44 *bp)
 
 		if (rp->skb == NULL)
 			continue;
-		dma_unmap_single(bp->sdev->dev, rp->mapping, rp->skb->len,
+		dma_unmap_single(bp->sdev->dma_dev, rp->mapping, rp->skb->len,
 					DMA_TO_DEVICE);
 		dev_kfree_skb_any(rp->skb);
 		rp->skb = NULL;
@@ -1117,12 +1117,12 @@ static void b44_init_rings(struct b44 *bp)
 	memset(bp->tx_ring, 0, B44_TX_RING_BYTES);
 
 	if (bp->flags & B44_FLAG_RX_RING_HACK)
-		dma_sync_single_for_device(bp->sdev->dev, bp->rx_ring_dma,
+		dma_sync_single_for_device(bp->sdev->dma_dev, bp->rx_ring_dma,
 			                  DMA_TABLE_BYTES,
 			                  DMA_BIDIRECTIONAL);
 
 	if (bp->flags & B44_FLAG_TX_RING_HACK)
-		dma_sync_single_for_device(bp->sdev->dev, bp->tx_ring_dma,
+		dma_sync_single_for_device(bp->sdev->dma_dev, bp->tx_ring_dma,
 			                  DMA_TABLE_BYTES,
 			                  DMA_TO_DEVICE);
 
@@ -1144,24 +1144,24 @@ static void b44_free_consistent(struct b44 *bp)
 	bp->tx_buffers = NULL;
 	if (bp->rx_ring) {
 		if (bp->flags & B44_FLAG_RX_RING_HACK) {
-			dma_unmap_single(bp->sdev->dev, bp->rx_ring_dma,
+			dma_unmap_single(bp->sdev->dma_dev, bp->rx_ring_dma,
 					DMA_TABLE_BYTES,
 					DMA_BIDIRECTIONAL);
 			kfree(bp->rx_ring);
 		} else
-			dma_free_coherent(bp->sdev->dev, DMA_TABLE_BYTES,
+			dma_free_coherent(bp->sdev->dma_dev, DMA_TABLE_BYTES,
 					    bp->rx_ring, bp->rx_ring_dma);
 		bp->rx_ring = NULL;
 		bp->flags &= ~B44_FLAG_RX_RING_HACK;
 	}
 	if (bp->tx_ring) {
 		if (bp->flags & B44_FLAG_TX_RING_HACK) {
-			dma_unmap_single(bp->sdev->dev, bp->tx_ring_dma,
+			dma_unmap_single(bp->sdev->dma_dev, bp->tx_ring_dma,
 					DMA_TABLE_BYTES,
 					DMA_TO_DEVICE);
 			kfree(bp->tx_ring);
 		} else
-			dma_free_coherent(bp->sdev->dev, DMA_TABLE_BYTES,
+			dma_free_coherent(bp->sdev->dma_dev, DMA_TABLE_BYTES,
 					    bp->tx_ring, bp->tx_ring_dma);
 		bp->tx_ring = NULL;
 		bp->flags &= ~B44_FLAG_TX_RING_HACK;
@@ -1187,7 +1187,7 @@ static int b44_alloc_consistent(struct b44 *bp, gfp_t gfp)
 		goto out_err;
 
 	size = DMA_TABLE_BYTES;
-	bp->rx_ring = dma_alloc_coherent(bp->sdev->dev, size, &bp->rx_ring_dma, gfp);
+	bp->rx_ring = dma_alloc_coherent(bp->sdev->dma_dev, size, &bp->rx_ring_dma, gfp);
 	if (!bp->rx_ring) {
 		/* Allocation may have failed due to pci_alloc_consistent
 		   insisting on use of GFP_DMA, which is more restrictive
@@ -1199,7 +1199,7 @@ static int b44_alloc_consistent(struct b44 *bp, gfp_t gfp)
 		if (!rx_ring)
 			goto out_err;
 
-		rx_ring_dma = dma_map_single(bp->sdev->dev, rx_ring,
+		rx_ring_dma = dma_map_single(bp->sdev->dma_dev, rx_ring,
 			                    DMA_TABLE_BYTES,
 			                    DMA_BIDIRECTIONAL);
 
@@ -1214,7 +1214,7 @@ static int b44_alloc_consistent(struct b44 *bp, gfp_t gfp)
 		bp->flags |= B44_FLAG_RX_RING_HACK;
 	}
 
-	bp->tx_ring = dma_alloc_coherent(bp->sdev->dev, size, &bp->tx_ring_dma, gfp);
+	bp->tx_ring = dma_alloc_coherent(bp->sdev->dma_dev, size, &bp->tx_ring_dma, gfp);
 	if (!bp->tx_ring) {
 		/* Allocation may have failed due to dma_alloc_coherent
 		   insisting on use of GFP_DMA, which is more restrictive
@@ -1226,7 +1226,7 @@ static int b44_alloc_consistent(struct b44 *bp, gfp_t gfp)
 		if (!tx_ring)
 			goto out_err;
 
-		tx_ring_dma = dma_map_single(bp->sdev->dev, tx_ring,
+		tx_ring_dma = dma_map_single(bp->sdev->dma_dev, tx_ring,
 			                    DMA_TABLE_BYTES,
 			                    DMA_TO_DEVICE);
 
@@ -2082,6 +2082,11 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 		addr = sdev->bus->sprom.et0mac;
 		bp->phy_addr = sdev->bus->sprom.et0phyaddr;
 	}
+	/* Some ROMs have buggy PHY addresses with the high
+	 * bits set (sign extension?). Truncate them to a
+	 * valid PHY address. */
+	bp->phy_addr &= 0x1F;
+
 	memcpy(bp->dev->dev_addr, addr, 6);
 
 	if (!is_valid_ether_addr(&bp->dev->dev_addr[0])){

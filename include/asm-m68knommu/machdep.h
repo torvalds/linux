@@ -21,4 +21,6 @@ extern void (*mach_power_off)( void );
 
 extern void config_BSP(char *command, int len);
 
+extern void do_IRQ(int irq, struct pt_regs *fp);
+
 #endif /* _M68KNOMMU_MACHDEP_H */

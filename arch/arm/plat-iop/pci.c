@@ -24,6 +24,7 @@
 #include <asm/hardware.h>
 #include <asm/mach/pci.h>
 #include <asm/hardware/iop3xx.h>
+#include <asm/mach-types.h>
 
 // #define DEBUG
 
@@ -209,8 +210,11 @@ int iop3xx_pci_setup(int nr, struct pci_sys_data *sys)
 	res[1].flags = IORESOURCE_MEM;
 	request_resource(&iomem_resource, &res[1]);
 
-	sys->mem_offset = IOP3XX_PCI_LOWER_MEM_PA - IOP3XX_PCI_LOWER_MEM_BA;
-	sys->io_offset  = IOP3XX_PCI_LOWER_IO_PA - IOP3XX_PCI_LOWER_IO_BA;
+	/*
+	 * Use whatever translation is already setup.
+	 */
+	sys->mem_offset = IOP3XX_PCI_LOWER_MEM_PA - *IOP3XX_OMWTVR0;
+	sys->io_offset  = IOP3XX_PCI_LOWER_IO_PA - *IOP3XX_OIOWTVR;
 
 	sys->resource[0] = &res[0];
 	sys->resource[1] = &res[1];
@@ -250,11 +254,11 @@ void __init iop3xx_atu_setup(void)
 	*IOP3XX_IATVR2 = PHYS_OFFSET;
 
 	/* Outbound window 0 */
-	*IOP3XX_OMWTVR0 = IOP3XX_PCI_LOWER_MEM_PA;
+	*IOP3XX_OMWTVR0 = IOP3XX_PCI_LOWER_MEM_BA;
 	*IOP3XX_OUMWTVR0 = 0;
 
 	/* Outbound window 1 */
-	*IOP3XX_OMWTVR1 = IOP3XX_PCI_LOWER_MEM_PA + IOP3XX_PCI_MEM_WINDOW_SIZE;
+	*IOP3XX_OMWTVR1 = IOP3XX_PCI_LOWER_MEM_BA + IOP3XX_PCI_MEM_WINDOW_SIZE;
 	*IOP3XX_OUMWTVR1 = 0;
 
 	/* BAR 3 ( Disabled ) */
@@ -265,7 +269,7 @@ void __init iop3xx_atu_setup(void)
 
 	/* Setup the I/O Bar
 	 */
-	*IOP3XX_OIOWTVR = IOP3XX_PCI_LOWER_IO_PA;;
+	*IOP3XX_OIOWTVR = IOP3XX_PCI_LOWER_IO_BA;
 
 	/* Enable inbound and outbound cycles
 	 */
@@ -322,32 +326,57 @@ void __init iop3xx_atu_disable(void)
 /* Flag to determine whether the ATU is initialized and the PCI bus scanned */
 int init_atu;
 
-void __init iop3xx_pci_preinit(void)
+int iop3xx_get_init_atu(void) {
+	/* check if default has been overridden */
+	if (init_atu != IOP3XX_INIT_ATU_DEFAULT)
+		return init_atu;
+	else
+		return IOP3XX_INIT_ATU_DISABLE;
+}
+
+static void __init iop3xx_atu_debug(void)
+{
+	DBG("PCI: Intel IOP3xx PCI init.\n");
+	DBG("PCI: Outbound memory window 0: PCI 0x%08x%08x\n",
+		*IOP3XX_OUMWTVR0, *IOP3XX_OMWTVR0);
+	DBG("PCI: Outbound memory window 1: PCI 0x%08x%08x\n",
+		*IOP3XX_OUMWTVR1, *IOP3XX_OMWTVR1);
+	DBG("PCI: Outbound IO window: PCI 0x%08x\n",
+		*IOP3XX_OIOWTVR);
+
+	DBG("PCI: Inbound memory window 0: PCI 0x%08x%08x 0x%08x -> 0x%08x\n",
+		*IOP3XX_IAUBAR0, *IOP3XX_IABAR0, *IOP3XX_IALR0, *IOP3XX_IATVR0);
+	DBG("PCI: Inbound memory window 1: PCI 0x%08x%08x 0x%08x\n",
+		*IOP3XX_IAUBAR1, *IOP3XX_IABAR1, *IOP3XX_IALR1);
+	DBG("PCI: Inbound memory window 2: PCI 0x%08x%08x 0x%08x -> 0x%08x\n",
+		*IOP3XX_IAUBAR2, *IOP3XX_IABAR2, *IOP3XX_IALR2, *IOP3XX_IATVR2);
+	DBG("PCI: Inbound memory window 3: PCI 0x%08x%08x 0x%08x -> 0x%08x\n",
+		*IOP3XX_IAUBAR3, *IOP3XX_IABAR3, *IOP3XX_IALR3, *IOP3XX_IATVR3);
+
+	DBG("PCI: Expansion ROM window: PCI 0x%08x%08x 0x%08x -> 0x%08x\n",
+		0, *IOP3XX_ERBAR, *IOP3XX_ERLR, *IOP3XX_ERTVR);
+
+	DBG("ATU: IOP3XX_ATUCMD=0x%04x\n", *IOP3XX_ATUCMD);
+	DBG("ATU: IOP3XX_ATUCR=0x%08x\n", *IOP3XX_ATUCR);
+
+	hook_fault_code(16+6, iop3xx_pci_abort, SIGBUS, "imprecise external abort");
+}
+
+/* for platforms that might be host-bus-adapters */
+void __init iop3xx_pci_preinit_cond(void)
 {
 	if (iop3xx_get_init_atu() == IOP3XX_INIT_ATU_ENABLE) {
 		iop3xx_atu_disable();
 		iop3xx_atu_setup();
+		iop3xx_atu_debug();
 	}
+}
 
-	DBG("PCI:  Intel 803xx PCI init code.\n");
-	DBG("ATU: IOP3XX_ATUCMD=0x%04x\n", *IOP3XX_ATUCMD);
-	DBG("ATU: IOP3XX_OMWTVR0=0x%04x, IOP3XX_OIOWTVR=0x%04x\n",
-			*IOP3XX_OMWTVR0,
-			*IOP3XX_OIOWTVR);
-	DBG("ATU: IOP3XX_ATUCR=0x%08x\n", *IOP3XX_ATUCR);
-	DBG("ATU: IOP3XX_IABAR0=0x%08x IOP3XX_IALR0=0x%08x IOP3XX_IATVR0=%08x\n",
-			*IOP3XX_IABAR0, *IOP3XX_IALR0, *IOP3XX_IATVR0);
-	DBG("ATU: IOP3XX_OMWTVR0=0x%08x\n", *IOP3XX_OMWTVR0);
-	DBG("ATU: IOP3XX_IABAR1=0x%08x IOP3XX_IALR1=0x%08x\n",
-			*IOP3XX_IABAR1, *IOP3XX_IALR1);
-	DBG("ATU: IOP3XX_ERBAR=0x%08x IOP3XX_ERLR=0x%08x IOP3XX_ERTVR=%08x\n",
-			*IOP3XX_ERBAR, *IOP3XX_ERLR, *IOP3XX_ERTVR);
-	DBG("ATU: IOP3XX_IABAR2=0x%08x IOP3XX_IALR2=0x%08x IOP3XX_IATVR2=%08x\n",
-			*IOP3XX_IABAR2, *IOP3XX_IALR2, *IOP3XX_IATVR2);
-	DBG("ATU: IOP3XX_IABAR3=0x%08x IOP3XX_IALR3=0x%08x IOP3XX_IATVR3=%08x\n",
-			*IOP3XX_IABAR3, *IOP3XX_IALR3, *IOP3XX_IATVR3);
-
-	hook_fault_code(16+6, iop3xx_pci_abort, SIGBUS, "imprecise external abort");
+void __init iop3xx_pci_preinit(void)
+{
+	iop3xx_atu_disable();
+	iop3xx_atu_setup();
+	iop3xx_atu_debug();
 }
 
 /* allow init_atu to be user overridden */
@@ -371,7 +400,7 @@ static int __init iop3xx_init_atu_setup(char *str)
 			default:
 				printk(KERN_DEBUG "\"%s\" malformed at "
 					    "character: \'%c\'",
-					    __FUNCTION__,
+					    __func__,
 					    *str);
 				*(str + 1) = '\0';
 			}

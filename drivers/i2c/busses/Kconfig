@@ -100,7 +100,7 @@ config I2C_AU1550
 
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
-	depends on BF534 || BF536 || BF537 || BF54x
+	depends on BF534 || BF536 || BF537
 	help
 	  This is the TWI I2C device driver for Blackfin 534/536/537/54x.
 	  This driver can also be built as a module.  If so, the module
@@ -177,6 +177,8 @@ config I2C_I801
 	    ESB2
 	    ICH8
 	    ICH9
+	    Tolapai
+	    ICH10
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -643,7 +645,7 @@ config I2C_PCA_ISA
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
-	depends on (MV64X60 || ARCH_ORION) && EXPERIMENTAL
+	depends on (MV64X60 || PLAT_ORION) && EXPERIMENTAL
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Marvell 64xxx line of host bridges.

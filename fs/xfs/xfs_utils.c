@@ -40,34 +40,12 @@
 #include "xfs_itable.h"
 #include "xfs_utils.h"
 
-/*
- * xfs_get_dir_entry is used to get a reference to an inode given
- * its parent directory inode and the name of the file.	 It does
- * not lock the child inode, and it unlocks the directory before
- * returning.  The directory's generation number is returned for
- * use by a later call to xfs_lock_dir_and_entry.
- */
-int
-xfs_get_dir_entry(
-	bhv_vname_t	*dentry,
-	xfs_inode_t	**ipp)
-{
-	bhv_vnode_t	*vp;
-
-	vp = VNAME_TO_VNODE(dentry);
-
-	*ipp = xfs_vtoi(vp);
-	if (!*ipp)
-		return XFS_ERROR(ENOENT);
-	VN_HOLD(vp);
-	return 0;
-}
 
 int
 xfs_dir_lookup_int(
 	xfs_inode_t	*dp,
 	uint		lock_mode,
-	bhv_vname_t	*dentry,
+	struct xfs_name	*name,
 	xfs_ino_t	*inum,
 	xfs_inode_t	**ipp)
 {
@@ -75,7 +53,7 @@ xfs_dir_lookup_int(
 
 	xfs_itrace_entry(dp);
 
-	error = xfs_dir_lookup(NULL, dp, VNAME(dentry), VNAMELEN(dentry), inum);
+	error = xfs_dir_lookup(NULL, dp, name, inum);
 	if (!error) {
 		/*
 		 * Unlock the directory. We do this because we can't
@@ -339,10 +317,10 @@ xfs_bump_ino_vers2(
 	ip->i_d.di_onlink = 0;
 	memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 	mp = tp->t_mountp;
-	if (!XFS_SB_VERSION_HASNLINK(&mp->m_sb)) {
+	if (!xfs_sb_version_hasnlink(&mp->m_sb)) {
 		spin_lock(&mp->m_sb_lock);
-		if (!XFS_SB_VERSION_HASNLINK(&mp->m_sb)) {
-			XFS_SB_VERSION_ADDNLINK(&mp->m_sb);
+		if (!xfs_sb_version_hasnlink(&mp->m_sb)) {
+			xfs_sb_version_addnlink(&mp->m_sb);
 			spin_unlock(&mp->m_sb_lock);
 			xfs_mod_sb(tp, XFS_SB_VERSIONNUM);
 		} else {

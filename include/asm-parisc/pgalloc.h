@@ -138,10 +138,10 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 	free_page((unsigned long)pte);
 }
 
-static inline void pte_free_kernel(struct mm_struct *mm, struct page *pte)
+static inline void pte_free(struct mm_struct *mm, struct page *pte)
 {
 	pgtable_page_dtor(pte);
-	pte_free_kernel(page_address((pte));
+	pte_free_kernel(mm, page_address(pte));
 }
 
 #define check_pgt_cache()	do { } while (0)

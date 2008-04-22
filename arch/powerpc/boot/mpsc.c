@@ -141,7 +141,7 @@ int mpsc_console_init(void *devp, struct serial_console_data *scdp)
 	if (mpscintr_base == NULL)
 		goto err_out;
 
-	n = getprop(devp, "block-index", &v, sizeof(v));
+	n = getprop(devp, "cell-index", &v, sizeof(v));
 	if (n != sizeof(v))
 		goto err_out;
 	reg_set = (int)v;

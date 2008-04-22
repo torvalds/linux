@@ -28,14 +28,14 @@
 static inline void asic3_write_register(struct asic3 *asic,
 				 unsigned int reg, u32 value)
 {
-	iowrite16(value, (unsigned long)asic->mapping +
+	iowrite16(value, asic->mapping +
 		  (reg >> asic->bus_shift));
 }
 
 static inline u32 asic3_read_register(struct asic3 *asic,
 			       unsigned int reg)
 {
-	return ioread16((unsigned long)asic->mapping +
+	return ioread16(asic->mapping +
 			(reg >> asic->bus_shift));
 }
 

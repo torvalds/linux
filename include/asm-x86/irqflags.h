@@ -12,25 +12,21 @@ static inline unsigned long native_save_fl(void)
 {
 	unsigned long flags;
 
-	__asm__ __volatile__(
-		"# __raw_save_flags\n\t"
-		"pushf ; pop %0"
-		: "=g" (flags)
-		: /* no input */
-		: "memory"
-	);
+	asm volatile("# __raw_save_flags\n\t"
+		     "pushf ; pop %0"
+		     : "=g" (flags)
+		     : /* no input */
+		     : "memory");
 
 	return flags;
 }
 
 static inline void native_restore_fl(unsigned long flags)
 {
-	__asm__ __volatile__(
-		"push %0 ; popf"
-		: /* no output */
-		:"g" (flags)
-		:"memory", "cc"
-	);
+	asm volatile("push %0 ; popf"
+		     : /* no output */
+		     :"g" (flags)
+		     :"memory", "cc");
 }
 
 static inline void native_irq_disable(void)
@@ -131,11 +127,11 @@ static inline unsigned long __raw_local_irq_save(void)
 #endif /* CONFIG_PARAVIRT */
 
 #ifndef __ASSEMBLY__
-#define raw_local_save_flags(flags) \
-		do { (flags) = __raw_local_save_flags(); } while (0)
+#define raw_local_save_flags(flags)				\
+	do { (flags) = __raw_local_save_flags(); } while (0)
 
-#define raw_local_irq_save(flags) \
-		do { (flags) = __raw_local_irq_save(); } while (0)
+#define raw_local_irq_save(flags)				\
+	do { (flags) = __raw_local_irq_save(); } while (0)
 
 static inline int raw_irqs_disabled_flags(unsigned long flags)
 {

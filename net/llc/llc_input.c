@@ -117,8 +117,12 @@ static inline int llc_fixup_skb(struct sk_buff *skb)
 	skb_pull(skb, llc_len);
 	if (skb->protocol == htons(ETH_P_802_2)) {
 		__be16 pdulen = eth_hdr(skb)->h_proto;
-		u16 data_size = ntohs(pdulen) - llc_len;
+		s32 data_size = ntohs(pdulen) - llc_len;
 
+		if (data_size < 0 ||
+		    ((skb_tail_pointer(skb) -
+		      (u8 *)pdu) - llc_len) < data_size)
+			return 0;
 		if (unlikely(pskb_trim_rcsum(skb, data_size)))
 			return 0;
 	}
@@ -146,7 +150,7 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 	int (*rcv)(struct sk_buff *, struct net_device *,
 		   struct packet_type *, struct net_device *);
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		goto drop;
 
 	/*
@@ -154,7 +158,7 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * receives, do not try to analyse it.
 	 */
 	if (unlikely(skb->pkt_type == PACKET_OTHERHOST)) {
-		dprintk("%s: PACKET_OTHERHOST\n", __FUNCTION__);
+		dprintk("%s: PACKET_OTHERHOST\n", __func__);
 		goto drop;
 	}
 	skb = skb_share_check(skb, GFP_ATOMIC);
@@ -167,7 +171,7 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 	       goto handle_station;
 	sap = llc_sap_find(pdu->dsap);
 	if (unlikely(!sap)) {/* unknown SAP */
-		dprintk("%s: llc_sap_find(%02X) failed!\n", __FUNCTION__,
+		dprintk("%s: llc_sap_find(%02X) failed!\n", __func__,
 			pdu->dsap);
 		goto drop;
 	}

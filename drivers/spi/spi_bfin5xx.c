@@ -713,8 +713,8 @@ static void pump_transfers(unsigned long data)
 	} else {
 		drv_data->len = transfer->len;
 	}
-	dev_dbg(&drv_data->pdev->dev, "transfer: ",
-		"drv_data->write is %p, chip->write is %p, null_wr is %p\n",
+	dev_dbg(&drv_data->pdev->dev,
+		"transfer: drv_data->write is %p, chip->write is %p, null_wr is %p\n",
 		drv_data->write, chip->write, null_writer);
 
 	/* speed and width has been set on per message */
@@ -1294,18 +1294,18 @@ static int __init bfin5xx_spi_probe(struct platform_device *pdev)
 		goto out_error_queue_alloc;
 	}
 
+	status = peripheral_request_list(drv_data->pin_req, DRV_NAME);
+	if (status != 0) {
+		dev_err(&pdev->dev, ": Requesting Peripherals failed\n");
+		goto out_error_queue_alloc;
+	}
+
 	/* Register with the SPI framework */
 	platform_set_drvdata(pdev, drv_data);
 	status = spi_register_master(master);
 	if (status != 0) {
 		dev_err(dev, "problem registering spi master\n");
 		goto out_error_queue_alloc;
-	}
-
-	status = peripheral_request_list(drv_data->pin_req, DRV_NAME);
-	if (status != 0) {
-		dev_err(&pdev->dev, ": Requesting Peripherals failed\n");
-		goto out_error;
 	}
 
 	dev_info(dev, "%s, Version %s, regs_base@%p, dma channel@%d\n",
@@ -1319,7 +1319,6 @@ out_error_no_dma_ch:
 	iounmap((void *) drv_data->regs_base);
 out_error_ioremap:
 out_error_get_res:
-out_error:
 	spi_master_put(master);
 
 	return status;
@@ -1397,7 +1396,7 @@ static int bfin5xx_spi_resume(struct platform_device *pdev)
 #define bfin5xx_spi_resume NULL
 #endif				/* CONFIG_PM */
 
-MODULE_ALIAS("bfin-spi-master");	/* for platform bus hotplug */
+MODULE_ALIAS("platform:bfin-spi");
 static struct platform_driver bfin5xx_spi_driver = {
 	.driver	= {
 		.name	= DRV_NAME,

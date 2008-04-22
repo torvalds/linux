@@ -711,9 +711,11 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
  */
 static psched_time_t htb_do_events(struct htb_sched *q, int level)
 {
-	int i;
-
-	for (i = 0; i < 500; i++) {
+	/* don't run for longer than 2 jiffies; 2 is used instead of
+	   1 to simplify things when jiffy is going to be incremented
+	   too soon */
+	unsigned long stop_at = jiffies + 2;
+	while (time_before(jiffies, stop_at)) {
 		struct htb_class *cl;
 		long diff;
 		struct rb_node *p = rb_first(&q->wait_pq[level]);
@@ -731,9 +733,8 @@ static psched_time_t htb_do_events(struct htb_sched *q, int level)
 		if (cl->cmode != HTB_CAN_SEND)
 			htb_add_to_wait_tree(q, cl, diff);
 	}
-	if (net_ratelimit())
-		printk(KERN_WARNING "htb: too many events !\n");
-	return q->now + PSCHED_TICKS_PER_SEC / 10;
+	/* too much load - let's continue on next jiffie */
+	return q->now + PSCHED_TICKS_PER_SEC / HZ;
 }
 
 /* Returns class->node+prio from id-tree where classe's id is >= id. NULL

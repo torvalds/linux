@@ -182,15 +182,18 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 	struct mempolicy *oldpol;
 	cpumask_t oldmask = current->cpus_allowed;
 	int node = pcibus_to_node(dev->bus);
-	if (node >= 0 && node_online(node))
-	    set_cpus_allowed(current, node_to_cpumask(node));
+
+	if (node >= 0) {
+		node_to_cpumask_ptr(nodecpumask, node);
+		set_cpus_allowed_ptr(current, nodecpumask);
+	}
 	/* And set default memory allocation policy */
 	oldpol = current->mempolicy;
 	current->mempolicy = NULL;	/* fall back to system default policy */
 #endif
 	error = drv->probe(dev, id);
 #ifdef CONFIG_NUMA
-	set_cpus_allowed(current, oldmask);
+	set_cpus_allowed_ptr(current, &oldmask);
 	current->mempolicy = oldpol;
 #endif
 	return error;

@@ -980,12 +980,12 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 			break;
 		case -ETIMEDOUT:
 			printk(KERN_WARNING"%s(%s): request timed out\n",
-			       __FUNCTION__, cdev->dev.bus_id);
+			       __func__, cdev->dev.bus_id);
 			//FIXME - dasd uses own timeout interface...
 			break;
 		default:
 			printk(KERN_WARNING"%s(%s): unknown error %ld\n",
-			       __FUNCTION__, cdev->dev.bus_id, PTR_ERR(irb));
+			       __func__, cdev->dev.bus_id, PTR_ERR(irb));
 		}
 		return;
 	}
@@ -1149,12 +1149,14 @@ static void __dasd_device_process_final_queue(struct dasd_device *device,
 {
 	struct list_head *l, *n;
 	struct dasd_ccw_req *cqr;
+	struct dasd_block *block;
 
 	list_for_each_safe(l, n, final_queue) {
 		cqr = list_entry(l, struct dasd_ccw_req, devlist);
 		list_del_init(&cqr->devlist);
-		if (cqr->block)
-			spin_lock_bh(&cqr->block->queue_lock);
+		block = cqr->block;
+		if (block)
+			spin_lock_bh(&block->queue_lock);
 		switch (cqr->status) {
 		case DASD_CQR_SUCCESS:
 			cqr->status = DASD_CQR_DONE;
@@ -1172,14 +1174,12 @@ static void __dasd_device_process_final_queue(struct dasd_device *device,
 				    cqr, cqr->status);
 			BUG();
 		}
-		if (cqr->block)
-			spin_unlock_bh(&cqr->block->queue_lock);
 		if (cqr->callback != NULL)
 			(cqr->callback)(cqr, cqr->callback_data);
+		if (block)
+			spin_unlock_bh(&block->queue_lock);
 	}
 }
-
-
 
 /*
  * Take a look at the first request on the ccw queue and check
@@ -1956,6 +1956,7 @@ static int dasd_alloc_queue(struct dasd_block *block)
 	block->request_queue->queuedata = block;
 
 	elevator_exit(block->request_queue->elevator);
+	block->request_queue->elevator = NULL;
 	rc = elevator_init(block->request_queue, "deadline");
 	if (rc) {
 		blk_cleanup_queue(block->request_queue);
@@ -2298,9 +2299,8 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 	 * in the other openers.
 	 */
 	if (device->block) {
-		struct dasd_block *block = device->block;
-		max_count = block->bdev ? 0 : -1;
-		open_count = (int) atomic_read(&block->open_count);
+		max_count = device->block->bdev ? 0 : -1;
+		open_count = atomic_read(&device->block->open_count);
 		if (open_count > max_count) {
 			if (open_count > 0)
 				printk(KERN_WARNING "Can't offline dasd "

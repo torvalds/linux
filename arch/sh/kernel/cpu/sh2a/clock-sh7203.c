@@ -21,8 +21,8 @@
 #include <asm/freq.h>
 #include <asm/io.h>
 
-const static int pll1rate[]={8,12,16,0};
-const static int pfc_divisors[]={1,2,3,4,6,8,12};
+static const int pll1rate[]={8,12,16,0};
+static const int pfc_divisors[]={1,2,3,4,6,8,12};
 #define ifc_divisors pfc_divisors
 
 #if (CONFIG_SH_CLK_MD == 0)

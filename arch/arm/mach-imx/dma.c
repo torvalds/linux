@@ -54,7 +54,7 @@ static inline int imx_dma_sg_next(imx_dmach_t dma_ch, unsigned int lastcount)
 
 	if (!imxdma->name) {
 		printk(KERN_CRIT "%s: called for  not allocated channel %d\n",
-		       __FUNCTION__, dma_ch);
+		       __func__, dma_ch);
 		return 0;
 	}
 
@@ -288,7 +288,7 @@ imx_dma_setup_handlers(imx_dmach_t dma_ch,
 
 	if (!imxdma->name) {
 		printk(KERN_CRIT "%s: called for  not allocated channel %d\n",
-		       __FUNCTION__, dma_ch);
+		       __func__, dma_ch);
 		return -ENODEV;
 	}
 
@@ -321,7 +321,7 @@ void imx_dma_enable(imx_dmach_t dma_ch)
 
 	if (!imxdma->name) {
 		printk(KERN_CRIT "%s: called for  not allocated channel %d\n",
-		       __FUNCTION__, dma_ch);
+		       __func__, dma_ch);
 		return;
 	}
 
@@ -365,7 +365,7 @@ int imx_dma_request(imx_dmach_t dma_ch, const char *name)
 
 	if (dma_ch >= IMX_DMA_CHANNELS) {
 		printk(KERN_CRIT "%s: called for  non-existed channel %d\n",
-		       __FUNCTION__, dma_ch);
+		       __func__, dma_ch);
 		return -EINVAL;
 	}
 
@@ -396,7 +396,7 @@ void imx_dma_free(imx_dmach_t dma_ch)
 	if (!imxdma->name) {
 		printk(KERN_CRIT
 		       "%s: trying to free channel %d which is already freed\n",
-		       __FUNCTION__, dma_ch);
+		       __func__, dma_ch);
 		return;
 	}
 
@@ -456,7 +456,7 @@ imx_dma_request_by_prio(imx_dmach_t * pdma_ch, const char *name,
 		}
 	}
 
-	printk(KERN_ERR "%s: no free DMA channel found\n", __FUNCTION__);
+	printk(KERN_ERR "%s: no free DMA channel found\n", __func__);
 
 	return -ENODEV;
 }

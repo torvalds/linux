@@ -143,10 +143,10 @@ type				Strings which represent the thermal zone type.
 				This is given by thermal zone driver as part of registration.
 				Eg: "ACPI thermal zone" indicates it's a ACPI thermal device
 				RO
-				Optional
+				Required
 
 temp				Current temperature as reported by thermal zone (sensor)
-				Unit: degree Celsius
+				Unit: millidegree Celsius
 				RO
 				Required
 
@@ -163,7 +163,7 @@ mode				One of the predefined values in [kernel, user]
 					  charge of the thermal management.
 
 trip_point_[0-*]_temp		The temperature above which trip point will be fired
-				Unit: degree Celsius
+				Unit: millidegree Celsius
 				RO
 				Optional
 
@@ -193,7 +193,7 @@ type				String which represents the type of device
 				eg. For memory controller device on intel_menlow platform:
 				this should be "Memory controller"
 				RO
-				Optional
+				Required
 
 max_state			The maximum permissible cooling state of this cooling device.
 				RO
@@ -219,16 +219,16 @@ the sys I/F structure will be built like this:
 
 |thermal_zone1:
 	|-----type:			ACPI thermal zone
-	|-----temp:			37
+	|-----temp:			37000
 	|-----mode:			kernel
-	|-----trip_point_0_temp:	100
+	|-----trip_point_0_temp:	100000
 	|-----trip_point_0_type:	critical
-	|-----trip_point_1_temp:	80
+	|-----trip_point_1_temp:	80000
 	|-----trip_point_1_type:	passive
-	|-----trip_point_2_temp:	70
-	|-----trip_point_2_type:	active[0]
-	|-----trip_point_3_temp:	60
-	|-----trip_point_3_type:	active[1]
+	|-----trip_point_2_temp:	70000
+	|-----trip_point_2_type:	active0
+	|-----trip_point_3_temp:	60000
+	|-----trip_point_3_type:	active1
 	|-----cdev0:			--->/sys/class/thermal/cooling_device0
 	|-----cdev0_trip_point:		1	/* cdev0 can be used for passive */
 	|-----cdev1:			--->/sys/class/thermal/cooling_device3

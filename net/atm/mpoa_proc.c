@@ -276,12 +276,11 @@ int mpc_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-	p = create_proc_entry(STAT_FILE_NAME, 0, atm_proc_root);
+	p = proc_create(STAT_FILE_NAME, 0, atm_proc_root, &mpc_file_operations);
 	if (!p) {
 		printk(KERN_ERR "Unable to initialize /proc/atm/%s\n", STAT_FILE_NAME);
 		return -ENOMEM;
 	}
-	p->proc_fops = &mpc_file_operations;
 	p->owner = THIS_MODULE;
 	return 0;
 }

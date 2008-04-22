@@ -29,6 +29,9 @@ int __init detect_cpu_and_cache_system(void)
 	boot_cpu_data.type			= CPU_SH7206;
 	/* While SH7206 has a DSP.. */
 	boot_cpu_data.flags			|= CPU_HAS_DSP;
+#elif defined(CONFIG_CPU_SUBTYPE_MXG)
+	boot_cpu_data.type			= CPU_MXG;
+	boot_cpu_data.flags			|= CPU_HAS_DSP;
 #endif
 
 	boot_cpu_data.dcache.ways		= 4;

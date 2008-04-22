@@ -99,6 +99,7 @@ static struct platform_driver corgiled_driver = {
 #endif
 	.driver		= {
 		.name		= "corgi-led",
+		.owner		= THIS_MODULE,
 	},
 };
 
@@ -118,3 +119,4 @@ module_exit(corgiled_exit);
 MODULE_AUTHOR("Richard Purdie <rpurdie@openedhand.com>");
 MODULE_DESCRIPTION("Corgi LED driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:corgi-led");

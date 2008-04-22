@@ -36,7 +36,7 @@
 #elif HZ >= 6144 && HZ < 12288
 # define SHIFT_HZ	13
 #else
-# error You lose.
+# error Invalid value of HZ.
 #endif
 
 /* LATCH is used in the interval timer and ftape setup. */
@@ -133,6 +133,22 @@ static inline u64 get_jiffies_64(void)
 	 typecheck(__u64, b) && \
 	 ((__s64)(a) - (__s64)(b) >= 0))
 #define time_before_eq64(a,b)	time_after_eq64(b,a)
+
+/*
+ * These four macros compare jiffies and 'a' for convenience.
+ */
+
+/* time_is_before_jiffies(a) return true if a is before jiffies */
+#define time_is_before_jiffies(a) time_after(jiffies, a)
+
+/* time_is_after_jiffies(a) return true if a is after jiffies */
+#define time_is_after_jiffies(a) time_before(jiffies, a)
+
+/* time_is_before_eq_jiffies(a) return true if a is before or equal to jiffies*/
+#define time_is_before_eq_jiffies(a) time_after_eq(jiffies, a)
+
+/* time_is_after_eq_jiffies(a) return true if a is after or equal to jiffies*/
+#define time_is_after_eq_jiffies(a) time_before_eq(jiffies, a)
 
 /*
  * Have the 32 bit jiffies value wrap 5 minutes after boot

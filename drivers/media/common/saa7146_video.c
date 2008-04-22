@@ -1417,8 +1417,6 @@ static int video_open(struct saa7146_dev *dev, struct file *file)
 			    sizeof(struct saa7146_buf),
 			    file);
 
-	mutex_init(&fh->video_q.lock);
-
 	return 0;
 }
 

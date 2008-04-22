@@ -361,7 +361,7 @@
 #define __NR_epoll_pwait	346
 #define __NR_utimensat		347
 #define __NR_signalfd		348
-#define __NR_timerfd		349
+#define __NR_timerfd_create	349
 #define __NR_eventfd		350
 #define __NR_pread64		351
 #define __NR_pwrite64		352
@@ -370,8 +370,10 @@
 #define __NR_get_robust_list	355
 #define __NR_fallocate		356
 #define __NR_semtimedop		357
+#define __NR_timerfd_settime	358
+#define __NR_timerfd_gettime	359
 
-#define __NR_syscall		358
+#define __NR_syscall		360
 #define NR_syscalls		__NR_syscall
 
 /* Old optional stuff no one actually uses */

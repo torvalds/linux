@@ -185,61 +185,61 @@ typedef struct sigaltstack {
 
 #define __HAVE_ARCH_SIG_BITOPS
 
-#define sigaddset(set,sig)		   \
-	(__builtin_constantp(sig) ?	   \
-	 __const_sigaddset((set),(sig)) :  \
-	 __gen_sigaddset((set),(sig)))
+#define sigaddset(set,sig)		    \
+	(__builtin_constantp(sig)	    \
+	 ? __const_sigaddset((set), (sig))  \
+	 : __gen_sigaddset((set), (sig)))
 
-static __inline__ void __gen_sigaddset(sigset_t *set, int _sig)
+static inline void __gen_sigaddset(sigset_t *set, int _sig)
 {
-	__asm__("btsl %1,%0" : "+m"(*set) : "Ir"(_sig - 1) : "cc");
+	asm("btsl %1,%0" : "+m"(*set) : "Ir"(_sig - 1) : "cc");
 }
 
-static __inline__ void __const_sigaddset(sigset_t *set, int _sig)
+static inline void __const_sigaddset(sigset_t *set, int _sig)
 {
 	unsigned long sig = _sig - 1;
 	set->sig[sig / _NSIG_BPW] |= 1 << (sig % _NSIG_BPW);
 }
 
-#define sigdelset(set,sig)		   \
-	(__builtin_constant_p(sig) ?       \
-	 __const_sigdelset((set),(sig)) :  \
-	 __gen_sigdelset((set),(sig)))
+#define sigdelset(set, sig)		    \
+	(__builtin_constant_p(sig)	    \
+	 ? __const_sigdelset((set), (sig))  \
+	 : __gen_sigdelset((set), (sig)))
 
 
-static __inline__ void __gen_sigdelset(sigset_t *set, int _sig)
+static inline void __gen_sigdelset(sigset_t *set, int _sig)
 {
-	__asm__("btrl %1,%0" : "+m"(*set) : "Ir"(_sig - 1) : "cc");
+	asm("btrl %1,%0" : "+m"(*set) : "Ir"(_sig - 1) : "cc");
 }
 
-static __inline__ void __const_sigdelset(sigset_t *set, int _sig)
+static inline void __const_sigdelset(sigset_t *set, int _sig)
 {
 	unsigned long sig = _sig - 1;
 	set->sig[sig / _NSIG_BPW] &= ~(1 << (sig % _NSIG_BPW));
 }
 
-static __inline__ int __const_sigismember(sigset_t *set, int _sig)
+static inline int __const_sigismember(sigset_t *set, int _sig)
 {
 	unsigned long sig = _sig - 1;
 	return 1 & (set->sig[sig / _NSIG_BPW] >> (sig % _NSIG_BPW));
 }
 
-static __inline__ int __gen_sigismember(sigset_t *set, int _sig)
+static inline int __gen_sigismember(sigset_t *set, int _sig)
 {
 	int ret;
-	__asm__("btl %2,%1\n\tsbbl %0,%0"
-		: "=r"(ret) : "m"(*set), "Ir"(_sig-1) : "cc");
+	asm("btl %2,%1\n\tsbbl %0,%0"
+	    : "=r"(ret) : "m"(*set), "Ir"(_sig-1) : "cc");
 	return ret;
 }
 
-#define sigismember(set,sig)			\
-	(__builtin_constant_p(sig) ?		\
-	 __const_sigismember((set),(sig)) :	\
-	 __gen_sigismember((set),(sig)))
+#define sigismember(set, sig)			\
+	(__builtin_constant_p(sig)		\
+	 ? __const_sigismember((set), (sig))	\
+	 : __gen_sigismember((set), (sig)))
 
-static __inline__ int sigfindinword(unsigned long word)
+static inline int sigfindinword(unsigned long word)
 {
-	__asm__("bsfl %1,%0" : "=r"(word) : "rm"(word) : "cc");
+	asm("bsfl %1,%0" : "=r"(word) : "rm"(word) : "cc");
 	return word;
 }
 

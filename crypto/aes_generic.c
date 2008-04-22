@@ -229,18 +229,29 @@ static void __init gen_tabs(void)
 	ctx->key_enc[8 * i + 15] = t;			\
 } while (0)
 
-int crypto_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+/**
+ * crypto_aes_expand_key - Expands the AES key as described in FIPS-197
+ * @ctx:	The location where the computed key will be stored.
+ * @in_key:	The supplied key.
+ * @key_len:	The length of the supplied key.
+ *
+ * Returns 0 on success. The function fails only if an invalid key size (or
+ * pointer) is supplied.
+ * The expanded key size is 240 bytes (max of 14 rounds with a unique 16 bytes
+ * key schedule plus a 16 bytes key which is used before the first round).
+ * The decryption key is prepared for the "Equivalent Inverse Cipher" as
+ * described in FIPS-197. The first slot (16 bytes) of each key (enc or dec) is
+ * for the initial combination, the second slot for the first round and so on.
+ */
+int crypto_aes_expand_key(struct crypto_aes_ctx *ctx, const u8 *in_key,
 		unsigned int key_len)
 {
-	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *key = (const __le32 *)in_key;
-	u32 *flags = &tfm->crt_flags;
 	u32 i, t, u, v, w, j;
 
-	if (key_len % 8) {
-		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	if (key_len != AES_KEYSIZE_128 && key_len != AES_KEYSIZE_192 &&
+			key_len != AES_KEYSIZE_256)
 		return -EINVAL;
-	}
 
 	ctx->key_length = key_len;
 
@@ -250,20 +261,20 @@ int crypto_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	ctx->key_dec[key_len + 27] = ctx->key_enc[3] = le32_to_cpu(key[3]);
 
 	switch (key_len) {
-	case 16:
+	case AES_KEYSIZE_128:
 		t = ctx->key_enc[3];
 		for (i = 0; i < 10; ++i)
 			loop4(i);
 		break;
 
-	case 24:
+	case AES_KEYSIZE_192:
 		ctx->key_enc[4] = le32_to_cpu(key[4]);
 		t = ctx->key_enc[5] = le32_to_cpu(key[5]);
 		for (i = 0; i < 8; ++i)
 			loop6(i);
 		break;
 
-	case 32:
+	case AES_KEYSIZE_256:
 		ctx->key_enc[4] = le32_to_cpu(key[4]);
 		ctx->key_enc[5] = le32_to_cpu(key[5]);
 		ctx->key_enc[6] = le32_to_cpu(key[6]);
@@ -283,6 +294,33 @@ int crypto_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		imix_col(ctx->key_dec[j], ctx->key_enc[i]);
 	}
 	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_aes_expand_key);
+
+/**
+ * crypto_aes_set_key - Set the AES key.
+ * @tfm:	The %crypto_tfm that is used in the context.
+ * @in_key:	The input key.
+ * @key_len:	The size of the key.
+ *
+ * Returns 0 on success, on failure the %CRYPTO_TFM_RES_BAD_KEY_LEN flag in tfm
+ * is set. The function uses crypto_aes_expand_key() to expand the key.
+ * &crypto_aes_ctx _must_ be the private data embedded in @tfm which is
+ * retrieved with crypto_tfm_ctx().
+ */
+int crypto_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+		unsigned int key_len)
+{
+	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
+	u32 *flags = &tfm->crt_flags;
+	int ret;
+
+	ret = crypto_aes_expand_key(ctx, in_key, key_len);
+	if (!ret)
+		return 0;
+
+	*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(crypto_aes_set_key);
 

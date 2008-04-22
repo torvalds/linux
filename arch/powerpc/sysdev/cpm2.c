@@ -46,10 +46,6 @@
 
 #include <sysdev/fsl_soc.h>
 
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-static void cpm2_dpinit(void);
-#endif
-
 cpm_cpm2_t __iomem *cpmp; /* Pointer to comm processor space */
 
 /* We allocate this here because it is used almost exclusively for
@@ -71,15 +67,17 @@ void __init cpm2_reset(void)
 
 	/* Reclaim the DP memory for our use.
 	 */
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 	cpm_muram_init();
-#else
-	cpm2_dpinit();
-#endif
 
 	/* Tell everyone where the comm processor resides.
 	 */
 	cpmp = &cpm2_immr->im_cpm;
+
+#ifndef CONFIG_PPC_EARLY_DEBUG_CPM
+	/* Reset the CPM.
+	 */
+	cpm_command(CPM_CR_RST, 0);
+#endif
 }
 
 static DEFINE_SPINLOCK(cmd_lock);
@@ -99,7 +97,7 @@ int cpm_command(u32 command, u8 opcode)
 		if ((in_be32(&cpmp->cp_cpcr) & CPM_CR_FLG) == 0)
 			goto out;
 
-	printk(KERN_ERR "%s(): Not able to issue CPM command\n", __FUNCTION__);
+	printk(KERN_ERR "%s(): Not able to issue CPM command\n", __func__);
 	ret = -EIO;
 out:
 	spin_unlock_irqrestore(&cmd_lock, flags);
@@ -240,6 +238,7 @@ int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 	case CPM_CLK_SCC1:
 		reg = &im_cpmux->cmx_scr;
 		shift = 24;
+		break;
 	case CPM_CLK_SCC2:
 		reg = &im_cpmux->cmx_scr;
 		shift = 16;
@@ -345,95 +344,6 @@ int cpm2_smc_clk_setup(enum cpm_clk_target target, int clock)
 	cpm2_unmap(im_cpmux);
 	return ret;
 }
-
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-/*
- * dpalloc / dpfree bits.
- */
-static spinlock_t cpm_dpmem_lock;
-/* 16 blocks should be enough to satisfy all requests
- * until the memory subsystem goes up... */
-static rh_block_t cpm_boot_dpmem_rh_block[16];
-static rh_info_t cpm_dpmem_info;
-static u8 __iomem *im_dprambase;
-
-static void cpm2_dpinit(void)
-{
-	spin_lock_init(&cpm_dpmem_lock);
-
-	/* initialize the info header */
-	rh_init(&cpm_dpmem_info, 1,
-			sizeof(cpm_boot_dpmem_rh_block) /
-			sizeof(cpm_boot_dpmem_rh_block[0]),
-			cpm_boot_dpmem_rh_block);
-
-	im_dprambase = cpm2_immr;
-
-	/* Attach the usable dpmem area */
-	/* XXX: This is actually crap. CPM_DATAONLY_BASE and
-	 * CPM_DATAONLY_SIZE is only a subset of the available dpram. It
-	 * varies with the processor and the microcode patches activated.
-	 * But the following should be at least safe.
-	 */
-	rh_attach_region(&cpm_dpmem_info, CPM_DATAONLY_BASE, CPM_DATAONLY_SIZE);
-}
-
-/* This function returns an index into the DPRAM area.
- */
-unsigned long cpm_dpalloc(uint size, uint align)
-{
-	unsigned long start;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cpm_dpmem_lock, flags);
-	cpm_dpmem_info.alignment = align;
-	start = rh_alloc(&cpm_dpmem_info, size, "commproc");
-	spin_unlock_irqrestore(&cpm_dpmem_lock, flags);
-
-	return (uint)start;
-}
-EXPORT_SYMBOL(cpm_dpalloc);
-
-int cpm_dpfree(unsigned long offset)
-{
-	int ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cpm_dpmem_lock, flags);
-	ret = rh_free(&cpm_dpmem_info, offset);
-	spin_unlock_irqrestore(&cpm_dpmem_lock, flags);
-
-	return ret;
-}
-EXPORT_SYMBOL(cpm_dpfree);
-
-/* not sure if this is ever needed */
-unsigned long cpm_dpalloc_fixed(unsigned long offset, uint size, uint align)
-{
-	unsigned long start;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cpm_dpmem_lock, flags);
-	cpm_dpmem_info.alignment = align;
-	start = rh_alloc_fixed(&cpm_dpmem_info, offset, size, "commproc");
-	spin_unlock_irqrestore(&cpm_dpmem_lock, flags);
-
-	return start;
-}
-EXPORT_SYMBOL(cpm_dpalloc_fixed);
-
-void cpm_dpdump(void)
-{
-	rh_dump(&cpm_dpmem_info);
-}
-EXPORT_SYMBOL(cpm_dpdump);
-
-void *cpm_dpram_addr(unsigned long offset)
-{
-	return (void *)(im_dprambase + offset);
-}
-EXPORT_SYMBOL(cpm_dpram_addr);
-#endif /* !CONFIG_PPC_CPM_NEW_BINDING */
 
 struct cpm2_ioports {
 	u32 dir, par, sor, odr, dat;

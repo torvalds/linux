@@ -1,7 +1,3 @@
-/*
- *  linux/arch/i386/mm/pgtable.c
- */
-
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -36,7 +32,6 @@ void show_mem(void)
 
 	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
-	printk(KERN_INFO "Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_online_pgdat(pgdat) {
 		pgdat_resize_lock(pgdat, &flags);
 		for (i = 0; i < pgdat->node_spanned_pages; ++i) {
@@ -342,12 +337,16 @@ static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
 
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	pgd_t *pgd = quicklist_alloc(0, GFP_KERNEL, pgd_ctor);
+	pgd_t *pgd = (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 
-	mm->pgd = pgd;		/* so that alloc_pd can use it */
+	/* so that alloc_pd can use it */
+	mm->pgd = pgd;
+	if (pgd)
+		pgd_ctor(pgd);
 
 	if (pgd && !pgd_prepopulate_pmd(mm, pgd)) {
-		quicklist_free(0, pgd_dtor, pgd);
+		pgd_dtor(pgd);
+		free_page((unsigned long)pgd);
 		pgd = NULL;
 	}
 
@@ -357,12 +356,8 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	pgd_mop_up_pmds(mm, pgd);
-	quicklist_free(0, pgd_dtor, pgd);
-}
-
-void check_pgt_cache(void)
-{
-	quicklist_trim(0, pgd_dtor, 25, 16);
+	pgd_dtor(pgd);
+	free_page((unsigned long)pgd);
 }
 
 void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
@@ -381,3 +376,10 @@ void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 }
 
 #endif
+
+int pmd_bad(pmd_t pmd)
+{
+	WARN_ON_ONCE(pmd_bad_v1(pmd) != pmd_bad_v2(pmd));
+
+	return pmd_bad_v1(pmd);
+}

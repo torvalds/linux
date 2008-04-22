@@ -24,16 +24,18 @@ extern void update_e820(void);
 extern int e820_all_mapped(unsigned long start, unsigned long end,
 			   unsigned type);
 extern int e820_any_mapped(u64 start, u64 end, unsigned type);
-extern void find_max_pfn(void);
+extern void propagate_e820_map(void);
 extern void register_bootmem_low_pages(unsigned long max_low_pfn);
 extern void add_memory_region(unsigned long long start,
 			      unsigned long long size, int type);
+extern void update_memory_range(u64 start, u64 size, unsigned old_type,
+				unsigned new_type);
 extern void e820_register_memory(void);
 extern void limit_regions(unsigned long long size);
 extern void print_memory_map(char *who);
 extern void init_iomem_resources(struct resource *code_resource,
-			    struct resource *data_resource,
-			    struct resource *bss_resource);
+				 struct resource *data_resource,
+				 struct resource *bss_resource);
 
 #if defined(CONFIG_PM) && defined(CONFIG_HIBERNATION)
 extern void e820_mark_nosave_regions(void);

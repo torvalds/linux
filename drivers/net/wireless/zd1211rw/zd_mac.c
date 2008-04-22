@@ -34,76 +34,61 @@
 
 /* This table contains the hardware specific values for the modulation rates. */
 static const struct ieee80211_rate zd_rates[] = {
-	{ .rate = 10,
-	  .val = ZD_CCK_RATE_1M,
-	  .flags = IEEE80211_RATE_CCK },
-	{ .rate = 20,
-	  .val = ZD_CCK_RATE_2M,
-	  .val2 = ZD_CCK_RATE_2M | ZD_CCK_PREA_SHORT,
-	  .flags = IEEE80211_RATE_CCK_2 },
-	{ .rate = 55,
-	  .val = ZD_CCK_RATE_5_5M,
-	  .val2 = ZD_CCK_RATE_5_5M | ZD_CCK_PREA_SHORT,
-	  .flags = IEEE80211_RATE_CCK_2 },
-	{ .rate = 110,
-	  .val = ZD_CCK_RATE_11M,
-	  .val2 = ZD_CCK_RATE_11M | ZD_CCK_PREA_SHORT,
-	  .flags = IEEE80211_RATE_CCK_2 },
-	{ .rate = 60,
-	  .val = ZD_OFDM_RATE_6M,
-	  .flags = IEEE80211_RATE_OFDM },
-	{ .rate = 90,
-	  .val = ZD_OFDM_RATE_9M,
-	  .flags = IEEE80211_RATE_OFDM },
-	{ .rate = 120,
-	  .val = ZD_OFDM_RATE_12M,
-	  .flags = IEEE80211_RATE_OFDM },
-	{ .rate = 180,
-	  .val = ZD_OFDM_RATE_18M,
-	  .flags = IEEE80211_RATE_OFDM },
-	{ .rate = 240,
-	  .val = ZD_OFDM_RATE_24M,
-	  .flags = IEEE80211_RATE_OFDM },
-	{ .rate = 360,
-	  .val = ZD_OFDM_RATE_36M,
-	  .flags = IEEE80211_RATE_OFDM },
-	{ .rate = 480,
-	  .val = ZD_OFDM_RATE_48M,
-	  .flags = IEEE80211_RATE_OFDM },
-	{ .rate = 540,
-	  .val = ZD_OFDM_RATE_54M,
-	  .flags = IEEE80211_RATE_OFDM },
+	{ .bitrate = 10,
+	  .hw_value = ZD_CCK_RATE_1M, },
+	{ .bitrate = 20,
+	  .hw_value = ZD_CCK_RATE_2M,
+	  .hw_value_short = ZD_CCK_RATE_2M | ZD_CCK_PREA_SHORT,
+	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 55,
+	  .hw_value = ZD_CCK_RATE_5_5M,
+	  .hw_value_short = ZD_CCK_RATE_5_5M | ZD_CCK_PREA_SHORT,
+	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 110,
+	  .hw_value = ZD_CCK_RATE_11M,
+	  .hw_value_short = ZD_CCK_RATE_11M | ZD_CCK_PREA_SHORT,
+	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 60,
+	  .hw_value = ZD_OFDM_RATE_6M,
+	  .flags = 0 },
+	{ .bitrate = 90,
+	  .hw_value = ZD_OFDM_RATE_9M,
+	  .flags = 0 },
+	{ .bitrate = 120,
+	  .hw_value = ZD_OFDM_RATE_12M,
+	  .flags = 0 },
+	{ .bitrate = 180,
+	  .hw_value = ZD_OFDM_RATE_18M,
+	  .flags = 0 },
+	{ .bitrate = 240,
+	  .hw_value = ZD_OFDM_RATE_24M,
+	  .flags = 0 },
+	{ .bitrate = 360,
+	  .hw_value = ZD_OFDM_RATE_36M,
+	  .flags = 0 },
+	{ .bitrate = 480,
+	  .hw_value = ZD_OFDM_RATE_48M,
+	  .flags = 0 },
+	{ .bitrate = 540,
+	  .hw_value = ZD_OFDM_RATE_54M,
+	  .flags = 0 },
 };
 
 static const struct ieee80211_channel zd_channels[] = {
-	{ .chan = 1,
-	  .freq = 2412},
-	{ .chan = 2,
-	  .freq = 2417},
-	{ .chan = 3,
-	  .freq = 2422},
-	{ .chan = 4,
-	  .freq = 2427},
-	{ .chan = 5,
-	  .freq = 2432},
-	{ .chan = 6,
-	  .freq = 2437},
-	{ .chan = 7,
-	  .freq = 2442},
-	{ .chan = 8,
-	  .freq = 2447},
-	{ .chan = 9,
-	  .freq = 2452},
-	{ .chan = 10,
-	  .freq = 2457},
-	{ .chan = 11,
-	  .freq = 2462},
-	{ .chan = 12,
-	  .freq = 2467},
-	{ .chan = 13,
-	  .freq = 2472},
-	{ .chan = 14,
-	  .freq = 2484}
+	{ .center_freq = 2412, .hw_value = 1 },
+	{ .center_freq = 2417, .hw_value = 2 },
+	{ .center_freq = 2422, .hw_value = 3 },
+	{ .center_freq = 2427, .hw_value = 4 },
+	{ .center_freq = 2432, .hw_value = 5 },
+	{ .center_freq = 2437, .hw_value = 6 },
+	{ .center_freq = 2442, .hw_value = 7 },
+	{ .center_freq = 2447, .hw_value = 8 },
+	{ .center_freq = 2452, .hw_value = 9 },
+	{ .center_freq = 2457, .hw_value = 10 },
+	{ .center_freq = 2462, .hw_value = 11 },
+	{ .center_freq = 2467, .hw_value = 12 },
+	{ .center_freq = 2472, .hw_value = 13 },
+	{ .center_freq = 2484, .hw_value = 14 },
 };
 
 static void housekeeping_init(struct zd_mac *mac);
@@ -360,11 +345,14 @@ void zd_mac_tx_failed(struct ieee80211_hw *hw)
 {
 	struct sk_buff_head *q = &zd_hw_mac(hw)->ack_wait_queue;
 	struct sk_buff *skb;
-	struct ieee80211_tx_status status = {{0}};
+	struct ieee80211_tx_status status;
 
 	skb = skb_dequeue(q);
 	if (skb == NULL)
 		return;
+
+	memset(&status, 0, sizeof(status));
+
 	tx_status(hw, skb, &status, 0);
 }
 
@@ -389,7 +377,8 @@ void zd_mac_tx_to_dev(struct sk_buff *skb, int error)
 		if (unlikely(error ||
 		    (cb->control->flags & IEEE80211_TXCTL_NO_ACK)))
 		{
-			struct ieee80211_tx_status status = {{0}};
+			struct ieee80211_tx_status status;
+			memset(&status, 0, sizeof(status));
 			tx_status(hw, skb, &status, !error);
 		} else {
 			struct sk_buff_head *q =
@@ -486,6 +475,46 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	/* FIXME: Management frame? */
 }
 
+void zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon)
+{
+	struct zd_mac *mac = zd_hw_mac(hw);
+	u32 tmp, j = 0;
+	/* 4 more bytes for tail CRC */
+	u32 full_len = beacon->len + 4;
+	zd_iowrite32(&mac->chip, CR_BCN_FIFO_SEMAPHORE, 0);
+	zd_ioread32(&mac->chip, CR_BCN_FIFO_SEMAPHORE, &tmp);
+	while (tmp & 0x2) {
+		zd_ioread32(&mac->chip, CR_BCN_FIFO_SEMAPHORE, &tmp);
+		if ((++j % 100) == 0) {
+			printk(KERN_ERR "CR_BCN_FIFO_SEMAPHORE not ready\n");
+			if (j >= 500)  {
+				printk(KERN_ERR "Giving up beacon config.\n");
+				return;
+			}
+		}
+		msleep(1);
+	}
+
+	zd_iowrite32(&mac->chip, CR_BCN_FIFO, full_len - 1);
+	if (zd_chip_is_zd1211b(&mac->chip))
+		zd_iowrite32(&mac->chip, CR_BCN_LENGTH, full_len - 1);
+
+	for (j = 0 ; j < beacon->len; j++)
+		zd_iowrite32(&mac->chip, CR_BCN_FIFO,
+				*((u8 *)(beacon->data + j)));
+
+	for (j = 0; j < 4; j++)
+		zd_iowrite32(&mac->chip, CR_BCN_FIFO, 0x0);
+
+	zd_iowrite32(&mac->chip, CR_BCN_FIFO_SEMAPHORE, 1);
+	/* 802.11b/g 2.4G CCK 1Mb
+	 * 802.11a, not yet implemented, uses different values (see GPL vendor
+	 * driver)
+	 */
+	zd_iowrite32(&mac->chip, CR_BCN_PLCP_CFG, 0x00000400 |
+			(full_len << 19));
+}
+
 static int fill_ctrlset(struct zd_mac *mac,
 			struct sk_buff *skb,
 			struct ieee80211_tx_control *control)
@@ -499,7 +528,9 @@ static int fill_ctrlset(struct zd_mac *mac,
 
 	ZD_ASSERT(frag_len <= 0xffff);
 
-	cs->modulation = control->tx_rate;
+	cs->modulation = control->tx_rate->hw_value;
+	if (control->flags & IEEE80211_TXCTL_SHORT_PREAMBLE)
+		cs->modulation = control->tx_rate->hw_value_short;
 
 	cs->tx_length = cpu_to_le16(frag_len);
 
@@ -603,7 +634,9 @@ static int filter_ack(struct ieee80211_hw *hw, struct ieee80211_hdr *rx_hdr,
 		tx_hdr = (struct ieee80211_hdr *)skb->data;
 		if (likely(!compare_ether_addr(tx_hdr->addr2, rx_hdr->addr1)))
 		{
-			struct ieee80211_tx_status status = {{0}};
+			struct ieee80211_tx_status status;
+
+			memset(&status, 0, sizeof(status));
 			status.flags = IEEE80211_TX_STATUS_ACK;
 			status.ack_signal = stats->ssi;
 			__skb_unlink(skb, q);
@@ -625,6 +658,8 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	int bad_frame = 0;
 	u16 fc;
 	bool is_qos, is_4addr, need_padding;
+	int i;
+	u8 rate;
 
 	if (length < ZD_PLCP_HEADER_SIZE + 10 /* IEEE80211_1ADDR_LEN */ +
 	             FCS_LEN + sizeof(struct rx_status))
@@ -654,14 +689,19 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 		}
 	}
 
-	stats.channel = _zd_chip_get_channel(&mac->chip);
-	stats.freq = zd_channels[stats.channel - 1].freq;
-	stats.phymode = MODE_IEEE80211G;
+	stats.freq = zd_channels[_zd_chip_get_channel(&mac->chip) - 1].center_freq;
+	stats.band = IEEE80211_BAND_2GHZ;
 	stats.ssi = status->signal_strength;
 	stats.signal = zd_rx_qual_percent(buffer,
 		                          length - sizeof(struct rx_status),
 		                          status);
-	stats.rate = zd_rx_rate(buffer, status);
+
+	rate = zd_rx_rate(buffer, status);
+
+	/* todo: return index in the big switches in zd_rx_rate instead */
+	for (i = 0; i < mac->band.n_bitrates; i++)
+		if (rate == mac->band.bitrates[i].hw_value)
+			stats.rate_idx = i;
 
 	length -= ZD_PLCP_HEADER_SIZE + sizeof(struct rx_status);
 	buffer += ZD_PLCP_HEADER_SIZE;
@@ -709,6 +749,7 @@ static int zd_op_add_interface(struct ieee80211_hw *hw,
 
 	switch (conf->type) {
 	case IEEE80211_IF_TYPE_MNTR:
+	case IEEE80211_IF_TYPE_MESH_POINT:
 	case IEEE80211_IF_TYPE_STA:
 		mac->type = conf->type;
 		break;
@@ -730,7 +771,7 @@ static void zd_op_remove_interface(struct ieee80211_hw *hw,
 static int zd_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
-	return zd_chip_set_channel(&mac->chip, conf->channel);
+	return zd_chip_set_channel(&mac->chip, conf->channel->hw_value);
 }
 
 static int zd_op_config_interface(struct ieee80211_hw *hw,
@@ -738,14 +779,42 @@ static int zd_op_config_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_if_conf *conf)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
+	int associated;
+
+	if (mac->type == IEEE80211_IF_TYPE_MESH_POINT) {
+		associated = true;
+		if (conf->beacon) {
+			zd_mac_config_beacon(hw, conf->beacon);
+			kfree_skb(conf->beacon);
+			zd_set_beacon_interval(&mac->chip, BCN_MODE_IBSS |
+					hw->conf.beacon_int);
+		}
+	} else
+		associated = is_valid_ether_addr(conf->bssid);
 
 	spin_lock_irq(&mac->lock);
-	mac->associated = is_valid_ether_addr(conf->bssid);
+	mac->associated = associated;
 	spin_unlock_irq(&mac->lock);
 
 	/* TODO: do hardware bssid filtering */
 	return 0;
 }
+
+void zd_process_intr(struct work_struct *work)
+{
+	u16 int_status;
+	struct zd_mac *mac = container_of(work, struct zd_mac, process_intr);
+
+	int_status = le16_to_cpu(*(u16 *)(mac->intr_buffer+4));
+	if (int_status & INT_CFG_NEXT_BCN) {
+		if (net_ratelimit())
+			dev_dbg_f(zd_mac_dev(mac), "INT_CFG_NEXT_BCN\n");
+	} else
+		dev_dbg_f(zd_mac_dev(mac), "Unsupported interrupt\n");
+
+	zd_chip_enable_hwint(&mac->chip);
+}
+
 
 static void set_multicast_hash_handler(struct work_struct *work)
 {
@@ -774,7 +843,7 @@ static void set_rx_filter_handler(struct work_struct *work)
 
 #define SUPPORTED_FIF_FLAGS \
 	(FIF_PROMISC_IN_BSS | FIF_ALLMULTI | FIF_FCSFAIL | FIF_CONTROL | \
-	FIF_OTHER_BSS)
+	FIF_OTHER_BSS | FIF_BCN_PRBRESP_PROMISC)
 static void zd_op_configure_filter(struct ieee80211_hw *hw,
 			unsigned int changed_flags,
 			unsigned int *new_flags,
@@ -888,7 +957,6 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 {
 	struct zd_mac *mac;
 	struct ieee80211_hw *hw;
-	int i;
 
 	hw = ieee80211_alloc_hw(sizeof(struct zd_mac), &zd_ops);
 	if (!hw) {
@@ -906,19 +974,15 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 
 	memcpy(mac->channels, zd_channels, sizeof(zd_channels));
 	memcpy(mac->rates, zd_rates, sizeof(zd_rates));
-	mac->modes[0].mode = MODE_IEEE80211G;
-	mac->modes[0].num_rates = ARRAY_SIZE(zd_rates);
-	mac->modes[0].rates = mac->rates;
-	mac->modes[0].num_channels = ARRAY_SIZE(zd_channels);
-	mac->modes[0].channels = mac->channels;
-	mac->modes[1].mode = MODE_IEEE80211B;
-	mac->modes[1].num_rates = 4;
-	mac->modes[1].rates = mac->rates;
-	mac->modes[1].num_channels = ARRAY_SIZE(zd_channels);
-	mac->modes[1].channels = mac->channels;
+	mac->band.n_bitrates = ARRAY_SIZE(zd_rates);
+	mac->band.bitrates = mac->rates;
+	mac->band.n_channels = ARRAY_SIZE(zd_channels);
+	mac->band.channels = mac->channels;
+
+	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &mac->band;
 
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		     IEEE80211_HW_DEFAULT_REG_DOMAIN_CONFIGURED;
+		    IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE;
 	hw->max_rssi = 100;
 	hw->max_signal = 100;
 
@@ -927,19 +991,12 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 
 	skb_queue_head_init(&mac->ack_wait_queue);
 
-	for (i = 0; i < 2; i++) {
-		if (ieee80211_register_hwmode(hw, &mac->modes[i])) {
-			dev_dbg_f(&intf->dev, "cannot register hwmode\n");
-			ieee80211_free_hw(hw);
-			return NULL;
-		}
-	}
-
 	zd_chip_init(&mac->chip, hw, intf);
 	housekeeping_init(mac);
 	INIT_WORK(&mac->set_multicast_hash_work, set_multicast_hash_handler);
 	INIT_WORK(&mac->set_rts_cts_work, set_rts_cts_work);
 	INIT_WORK(&mac->set_rx_filter_work, set_rx_filter_handler);
+	INIT_WORK(&mac->process_intr, zd_process_intr);
 
 	SET_IEEE80211_DEV(hw, &intf->dev);
 	return hw;

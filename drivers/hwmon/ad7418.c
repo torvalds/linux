@@ -26,7 +26,7 @@
 #define DRV_VERSION "0.3"
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x28, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x28, I2C_CLIENT_END };
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_3(ad7416, ad7417, ad7418);
 

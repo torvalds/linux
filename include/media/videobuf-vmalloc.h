@@ -17,7 +17,7 @@
 
 /* --------------------------------------------------------------------- */
 
-struct videbuf_vmalloc_memory
+struct videobuf_vmalloc_memory
 {
 	u32                 magic;
 

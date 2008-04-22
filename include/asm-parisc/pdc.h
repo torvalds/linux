@@ -645,8 +645,7 @@ int pdc_soft_power_button(int sw_control);
 void pdc_io_reset(void);
 void pdc_io_reset_devices(void);
 int pdc_iodc_getc(void);
-int pdc_iodc_print(unsigned char *str, unsigned count);
-void pdc_printf(const char *fmt, ...);
+int pdc_iodc_print(const unsigned char *str, unsigned count);
 
 void pdc_emergency_unlock(void);
 int pdc_sti_call(unsigned long func, unsigned long flags,

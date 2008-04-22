@@ -32,7 +32,7 @@
 MODULE_LICENSE("GPL");
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_2(thmc50, adm1022);
@@ -52,9 +52,9 @@ I2C_CLIENT_MODULE_PARM(adm1022_temp3, "List of adapter,address pairs "
  */
 #define THMC50_REG_INTR				0x41
 
-const static u8 THMC50_REG_TEMP[] = { 0x27, 0x26, 0x20 };
-const static u8 THMC50_REG_TEMP_MIN[] = { 0x3A, 0x38, 0x2C };
-const static u8 THMC50_REG_TEMP_MAX[] = { 0x39, 0x37, 0x2B };
+static const u8 THMC50_REG_TEMP[] = { 0x27, 0x26, 0x20 };
+static const u8 THMC50_REG_TEMP_MIN[] = { 0x3A, 0x38, 0x2C };
+static const u8 THMC50_REG_TEMP_MAX[] = { 0x39, 0x37, 0x2B };
 
 #define THMC50_REG_CONF_nFANOFF			0x20
 

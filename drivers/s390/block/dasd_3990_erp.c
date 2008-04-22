@@ -1996,6 +1996,36 @@ dasd_3990_erp_compound(struct dasd_ccw_req * erp, char *sense)
 }				/* end dasd_3990_erp_compound */
 
 /*
+ *DASD_3990_ERP_HANDLE_SIM
+ *
+ *DESCRIPTION
+ *  inspects the SIM SENSE data and starts an appropriate action
+ *
+ * PARAMETER
+ *   sense	   sense data of the actual error
+ *
+ * RETURN VALUES
+ *   none
+ */
+void
+dasd_3990_erp_handle_sim(struct dasd_device *device, char *sense)
+{
+	/* print message according to log or message to operator mode */
+	if ((sense[24] & DASD_SIM_MSG_TO_OP) || (sense[1] & 0x10)) {
+
+		/* print SIM SRC from RefCode */
+		DEV_MESSAGE(KERN_ERR, device, "SIM - SRC: "
+			    "%02x%02x%02x%02x", sense[22],
+			    sense[23], sense[11], sense[12]);
+	} else if (sense[24] & DASD_SIM_LOG) {
+		/* print SIM SRC Refcode */
+		DEV_MESSAGE(KERN_WARNING, device, "SIM - SRC: "
+			    "%02x%02x%02x%02x", sense[22],
+			    sense[23], sense[11], sense[12]);
+	}
+}
+
+/*
  * DASD_3990_ERP_INSPECT_32
  *
  * DESCRIPTION
@@ -2017,6 +2047,10 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 	struct dasd_device *device = erp->startdev;
 
 	erp->function = dasd_3990_erp_inspect_32;
+
+	/* check for SIM sense data */
+	if ((sense[6] & DASD_SIM_SENSE) == DASD_SIM_SENSE)
+		dasd_3990_erp_handle_sim(device, sense);
 
 	if (sense[25] & DASD_SENSE_BIT_0) {
 
@@ -2310,10 +2344,8 @@ static int
 dasd_3990_erp_error_match(struct dasd_ccw_req *cqr1, struct dasd_ccw_req *cqr2)
 {
 
-	/* check failed CCW */
-	if (cqr1->irb.scsw.cpa != cqr2->irb.scsw.cpa) {
-		//	return 0;	/* CCW doesn't match */
-	}
+	if (cqr1->startdev != cqr2->startdev)
+		return 0;
 
 	if (cqr1->irb.esw.esw0.erw.cons != cqr2->irb.esw.esw0.erw.cons)
 		return 0;

@@ -59,7 +59,7 @@ config 32BIT
 
 config PMB
 	bool "Support 32-bit physical addressing through PMB"
-	depends on MMU && (CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
+	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
 	select 32BIT
 	default y
 	help

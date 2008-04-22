@@ -134,6 +134,21 @@ static struct elevator_type *elevator_get(const char *name)
 	spin_lock(&elv_list_lock);
 
 	e = elevator_find(name);
+	if (!e) {
+		char elv[ELV_NAME_MAX + strlen("-iosched")];
+
+		spin_unlock(&elv_list_lock);
+
+		if (!strcmp(name, "anticipatory"))
+			sprintf(elv, "as-iosched");
+		else
+			sprintf(elv, "%s-iosched", name);
+
+		request_module(elv);
+		spin_lock(&elv_list_lock);
+		e = elevator_find(name);
+	}
+
 	if (e && !try_module_get(e->elevator_owner))
 		e = NULL;
 

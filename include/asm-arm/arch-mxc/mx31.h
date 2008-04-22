@@ -317,6 +317,8 @@
 #define MXC_MAX_INT_LINES	64
 
 #define MXC_GPIO_INT_BASE	MXC_MAX_INT_LINES
+#define MXC_MAX_GPIO_LINES      (GPIO_NUM_PIN * GPIO_PORT_NUM)
+#define MXC_MAX_VIRTUAL_INTS	16
 
 /*!
  * Number of GPIO port as defined in the IC Spec
@@ -329,7 +331,33 @@
 
 #define PROD_SIGNATURE		0x1	/* For MX31 */
 
+/* silicon revisions specific to i.MX31 */
+#define CHIP_REV_1_0		0x10
+#define CHIP_REV_1_1		0x11
+#define CHIP_REV_1_2		0x12
+#define CHIP_REV_1_3		0x13
+#define CHIP_REV_2_0		0x20
+#define CHIP_REV_2_1		0x21
+#define CHIP_REV_2_2		0x22
+#define CHIP_REV_2_3		0x23
+#define CHIP_REV_3_0		0x30
+#define CHIP_REV_3_1		0x31
+#define CHIP_REV_3_2		0x32
+
 #define SYSTEM_REV_MIN		CHIP_REV_1_0
 #define SYSTEM_REV_NUM		3
 
-#endif			/*  __ASM_ARCH_MXC_MX31_H__ */
+#if !defined(__ASSEMBLY__) && !defined(__MXC_BOOT_UNCOMPRESS)
+
+/* this is a i.MX31 CPU */
+#define cpu_is_mx31()		(1)
+
+extern unsigned int system_rev;
+
+static inline int mx31_revision(void)
+{
+	return system_rev;
+}
+#endif
+
+#endif /*  __ASM_ARCH_MXC_MX31_H__ */

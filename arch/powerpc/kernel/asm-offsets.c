@@ -26,8 +26,6 @@
 #ifdef CONFIG_PPC64
 #include <linux/time.h>
 #include <linux/hardirq.h>
-#else
-#include <linux/ptrace.h>
 #endif
 
 #include <asm/io.h>
@@ -46,6 +44,9 @@
 #include <asm/mmu.h>
 #include <asm/hvcall.h>
 #endif
+#ifdef CONFIG_PPC_ISERIES
+#include <asm/iseries/alpaca.h>
+#endif
 
 #define DEFINE(sym, val) \
 	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
@@ -60,7 +61,6 @@ int main(void)
 	DEFINE(AUDITCONTEXT, offsetof(struct task_struct, audit_context));
 #else
 	DEFINE(THREAD_INFO, offsetof(struct task_struct, stack));
-	DEFINE(PTRACE, offsetof(struct task_struct, ptrace));
 #endif /* CONFIG_PPC64 */
 
 	DEFINE(KSP, offsetof(struct thread_struct, ksp));
@@ -80,7 +80,6 @@ int main(void)
 	DEFINE(PGDIR, offsetof(struct thread_struct, pgdir));
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 	DEFINE(THREAD_DBCR0, offsetof(struct thread_struct, dbcr0));
-	DEFINE(PT_PTRACED, PT_PTRACED);
 #endif
 #ifdef CONFIG_SPE
 	DEFINE(THREAD_EVR0, offsetof(struct thread_struct, evr[0]));
@@ -325,6 +324,9 @@ int main(void)
 	DEFINE(PAGE_OFFSET_VSID, KERNEL_VSID(PAGE_OFFSET));
 	DEFINE(VMALLOC_START_ESID, GET_ESID(VMALLOC_START));
 	DEFINE(VMALLOC_START_VSID, KERNEL_VSID(VMALLOC_START));
+
+	/* alpaca */
+	DEFINE(ALPACA_SIZE, sizeof(struct alpaca));
 #endif
 
 	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);

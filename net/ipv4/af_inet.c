@@ -243,6 +243,23 @@ void build_ehash_secret(void)
 }
 EXPORT_SYMBOL(build_ehash_secret);
 
+static inline int inet_netns_ok(struct net *net, int protocol)
+{
+	int hash;
+	struct net_protocol *ipprot;
+
+	if (net == &init_net)
+		return 1;
+
+	hash = protocol & (MAX_INET_PROTOS - 1);
+	ipprot = rcu_dereference(inet_protos[hash]);
+
+	if (ipprot == NULL)
+		/* raw IP is OK */
+		return 1;
+	return ipprot->netns_ok;
+}
+
 /*
  *	Create an inet socket.
  */
@@ -258,9 +275,6 @@ static int inet_create(struct net *net, struct socket *sock, int protocol)
 	char answer_no_check;
 	int try_loading_module = 0;
 	int err;
-
-	if (net != &init_net)
-		return -EAFNOSUPPORT;
 
 	if (sock->type != SOCK_RAW &&
 	    sock->type != SOCK_DGRAM &&
@@ -318,6 +332,10 @@ lookup_protocol:
 
 	err = -EPERM;
 	if (answer->capability > 0 && !capable(answer->capability))
+		goto out_rcu_unlock;
+
+	err = -EAFNOSUPPORT;
+	if (!inet_netns_ok(net, protocol))
 		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
@@ -446,7 +464,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (addr_len < sizeof(struct sockaddr_in))
 		goto out;
 
-	chk_addr_ret = inet_addr_type(&init_net, addr->sin_addr.s_addr);
+	chk_addr_ret = inet_addr_type(sock_net(sk), addr->sin_addr.s_addr);
 
 	/* Not specified by any standard per-se, however it breaks too
 	 * many applications when removed.  It is unfortunate since
@@ -458,7 +476,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	err = -EADDRNOTAVAIL;
 	if (!sysctl_ip_nonlocal_bind &&
 	    !inet->freebind &&
-	    addr->sin_addr.s_addr != INADDR_ANY &&
+	    addr->sin_addr.s_addr != htonl(INADDR_ANY) &&
 	    chk_addr_ret != RTN_LOCAL &&
 	    chk_addr_ret != RTN_MULTICAST &&
 	    chk_addr_ret != RTN_BROADCAST)
@@ -784,6 +802,7 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
 	int err = 0;
+	struct net *net = sock_net(sk);
 
 	switch (cmd) {
 		case SIOCGSTAMP:
@@ -795,12 +814,12 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		case SIOCADDRT:
 		case SIOCDELRT:
 		case SIOCRTMSG:
-			err = ip_rt_ioctl(sk->sk_net, cmd, (void __user *)arg);
+			err = ip_rt_ioctl(net, cmd, (void __user *)arg);
 			break;
 		case SIOCDARP:
 		case SIOCGARP:
 		case SIOCSARP:
-			err = arp_ioctl(sk->sk_net, cmd, (void __user *)arg);
+			err = arp_ioctl(net, cmd, (void __user *)arg);
 			break;
 		case SIOCGIFADDR:
 		case SIOCSIFADDR:
@@ -813,7 +832,7 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		case SIOCSIFPFLAGS:
 		case SIOCGIFPFLAGS:
 		case SIOCSIFFLAGS:
-			err = devinet_ioctl(cmd, (void __user *)arg);
+			err = devinet_ioctl(net, cmd, (void __user *)arg);
 			break;
 		default:
 			if (sk->sk_prot->ioctl)
@@ -1058,8 +1077,8 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 
 	if (sysctl_ip_dynaddr > 1) {
 		printk(KERN_INFO "%s(): shifting inet->"
-				 "saddr from %d.%d.%d.%d to %d.%d.%d.%d\n",
-		       __FUNCTION__,
+				 "saddr from " NIPQUAD_FMT " to " NIPQUAD_FMT "\n",
+		       __func__,
 		       NIPQUAD(old_saddr),
 		       NIPQUAD(new_saddr));
 	}
@@ -1113,7 +1132,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 	};
 
 	security_sk_classify_flow(sk, &fl);
-	err = ip_route_output_flow(&init_net, &rt, &fl, sk, 0);
+	err = ip_route_output_flow(sock_net(sk), &rt, &fl, sk, 0);
 }
 	if (!err)
 		sk_setup_caps(sk, &rt->u.dst);
@@ -1231,6 +1250,29 @@ out:
 	return segs;
 }
 
+int inet_ctl_sock_create(struct sock **sk, unsigned short family,
+			 unsigned short type, unsigned char protocol,
+			 struct net *net)
+{
+	struct socket *sock;
+	int rc = sock_create_kern(family, type, protocol, &sock);
+
+	if (rc == 0) {
+		*sk = sock->sk;
+		(*sk)->sk_allocation = GFP_ATOMIC;
+		/*
+		 * Unhash it so that IP input processing does not even see it,
+		 * we do not wish this socket to see incoming packets.
+		 */
+		(*sk)->sk_prot->unhash(*sk);
+
+		sk_change_net(*sk, net);
+	}
+	return rc;
+}
+
+EXPORT_SYMBOL_GPL(inet_ctl_sock_create);
+
 unsigned long snmp_fold_field(void *mib[], int offt)
 {
 	unsigned long res = 0;
@@ -1283,17 +1325,20 @@ static struct net_protocol tcp_protocol = {
 	.gso_send_check = tcp_v4_gso_send_check,
 	.gso_segment =	tcp_tso_segment,
 	.no_policy =	1,
+	.netns_ok =	1,
 };
 
 static struct net_protocol udp_protocol = {
 	.handler =	udp_rcv,
 	.err_handler =	udp_err,
 	.no_policy =	1,
+	.netns_ok =	1,
 };
 
 static struct net_protocol icmp_protocol = {
 	.handler =	icmp_rcv,
 	.no_policy =	1,
+	.netns_ok =	1,
 };
 
 static int __init init_ipv4_mibs(void)
@@ -1414,7 +1459,7 @@ static int __init inet_init(void)
 
 	ip_init();
 
-	tcp_v4_init(&inet_family_ops);
+	tcp_v4_init();
 
 	/* Setup TCP slab cache for open requests. */
 	tcp_init();
@@ -1429,7 +1474,8 @@ static int __init inet_init(void)
 	 *	Set the ICMP layer up
 	 */
 
-	icmp_init(&inet_family_ops);
+	if (icmp_init() < 0)
+		panic("Failed to create the ICMP control socket.\n");
 
 	/*
 	 *	Initialise the multicast router

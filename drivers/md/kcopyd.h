@@ -32,8 +32,8 @@ void kcopyd_client_destroy(struct kcopyd_client *kc);
  * read_err is a boolean,
  * write_err is a bitset, with 1 bit for each destination region
  */
-typedef void (*kcopyd_notify_fn)(int read_err,
-				 unsigned int write_err, void *context);
+typedef void (*kcopyd_notify_fn)(int read_err, unsigned long write_err,
+				 void *context);
 
 int kcopyd_copy(struct kcopyd_client *kc, struct io_region *from,
 		unsigned int num_dests, struct io_region *dests,

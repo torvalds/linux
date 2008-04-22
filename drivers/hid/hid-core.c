@@ -968,7 +968,7 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 		size--;
 	}
 
-	/* dump the report descriptor */
+	/* dump the report */
 	dbg_hid("report %d (size %u) = ", n, size);
 	for (i = 0; i < size; i++)
 		dbg_hid_line(" %02x", data[i]);

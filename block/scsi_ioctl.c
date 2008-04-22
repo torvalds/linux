@@ -529,6 +529,7 @@ static int __blk_send_generic(struct request_queue *q, struct gendisk *bd_disk,
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->data = NULL;
 	rq->data_len = 0;
+	rq->extra_len = 0;
 	rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
 	memset(rq->cmd, 0, sizeof(rq->cmd));
 	rq->cmd[0] = cmd;

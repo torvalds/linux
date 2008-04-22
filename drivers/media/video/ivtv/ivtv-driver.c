@@ -54,7 +54,6 @@
 #include "ivtv-vbi.h"
 #include "ivtv-routing.h"
 #include "ivtv-gpio.h"
-#include "ivtv-yuv.h"
 
 #include <media/tveeprom.h>
 #include <media/saa7115.h>
@@ -700,6 +699,9 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->vbi.in.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
 	itv->vbi.sliced_in = &itv->vbi.in.fmt.sliced;
 
+	/* Init the sg table for osd/yuv output */
+	sg_init_table(itv->udma.SGlist, IVTV_DMA_SG_OSD_ENT);
+
 	/* OSD */
 	itv->osd_global_alpha_state = 1;
 	itv->osd_global_alpha = 255;
@@ -1052,9 +1054,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		retval = -ENOMEM;
 		goto free_io;
 	}
-
-	/* Check yuv output filter table */
-	if (itv->has_cx23415) ivtv_yuv_filter_check(itv);
 
 	ivtv_gpio_init(itv);
 

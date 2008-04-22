@@ -12,6 +12,7 @@
 #ifndef __LINUX_VIDEODEV_H
 #define __LINUX_VIDEODEV_H
 
+#include <linux/ioctl.h>
 #include <linux/videodev2.h>
 
 #if defined(CONFIG_VIDEO_V4L1_COMPAT) || !defined (__KERNEL__)

@@ -30,6 +30,8 @@ enum sparc_cpu {
 #define ARCH_SUN4C_SUN4 0
 #define ARCH_SUN4 0
 
+extern char reboot_command[];
+
 /* These are here in an effort to more fully work around Spitfire Errata
  * #51.  Essentially, if a memory barrier occurs soon after a mispredicted
  * branch, the chip can stop executing instructions until a trap occurs.
@@ -117,6 +119,7 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 extern void sun_do_break(void);
 extern int stop_a_enabled;
 
+extern void fault_in_user_windows(void);
 extern void synchronize_user_stack(void);
 
 extern void __flushw_user(void);

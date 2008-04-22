@@ -25,6 +25,7 @@
 
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/arch/audio.h>
 
 #include "pxa2xx-pcm.h"

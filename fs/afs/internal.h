@@ -573,7 +573,6 @@ extern const struct file_operations afs_mntpt_file_operations;
 
 extern int afs_mntpt_check_symlink(struct afs_vnode *, struct key *);
 extern void afs_mntpt_kill_timer(void);
-extern void afs_umount_begin(struct vfsmount *, int);
 
 /*
  * proc.c
@@ -750,7 +749,7 @@ extern int afs_fsync(struct file *, struct dentry *, int);
 extern unsigned afs_debug;
 
 #define dbgprintk(FMT,...) \
-	printk("[%x%-6.6s] "FMT"\n", smp_processor_id(), current->comm ,##__VA_ARGS__)
+	printk("[%-6.6s] "FMT"\n", current->comm ,##__VA_ARGS__)
 
 /* make sure we maintain the format strings, even when debugging is disabled */
 static inline __attribute__((format(printf,1,2)))

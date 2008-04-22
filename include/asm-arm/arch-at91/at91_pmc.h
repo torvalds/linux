@@ -76,10 +76,17 @@
 #define			AT91_PMC_PRES_32		(5 << 2)
 #define			AT91_PMC_PRES_64		(6 << 2)
 #define		AT91_PMC_MDIV		(3 <<  8)		/* Master Clock Division */
-#define			AT91_PMC_MDIV_1			(0 << 8)
-#define			AT91_PMC_MDIV_2			(1 << 8)
-#define			AT91_PMC_MDIV_3			(2 << 8)
-#define			AT91_PMC_MDIV_4			(3 << 8)
+#define			AT91RM9200_PMC_MDIV_1		(0 << 8)	/* [AT91RM9200 only] */
+#define			AT91RM9200_PMC_MDIV_2		(1 << 8)
+#define			AT91RM9200_PMC_MDIV_3		(2 << 8)
+#define			AT91RM9200_PMC_MDIV_4		(3 << 8)
+#define			AT91SAM9_PMC_MDIV_1		(0 << 8)	/* [SAM9,CAP9 only] */
+#define			AT91SAM9_PMC_MDIV_2		(1 << 8)
+#define			AT91SAM9_PMC_MDIV_4		(2 << 8)
+#define			AT91SAM9_PMC_MDIV_6		(3 << 8)
+#define		AT91_PMC_PDIV		(1 << 12)		/* Processor Clock Division [some SAM9 only] */
+#define			AT91_PMC_PDIV_1			(0 << 12)
+#define			AT91_PMC_PDIV_2			(1 << 12)
 
 #define	AT91_PMC_PCKR(n)	(AT91_PMC + 0x40 + ((n) * 4))	/* Programmable Clock 0-3 Registers */
 

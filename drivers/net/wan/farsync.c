@@ -2024,6 +2024,7 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct fstioc_write wrthdr;
 	struct fstioc_info info;
 	unsigned long flags;
+	void *buf;
 
 	dbg(DBG_IOCTL, "ioctl: %x, %p\n", cmd, ifr->ifr_data);
 
@@ -2065,15 +2066,21 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -ENXIO;
 		}
 
-		/* Now copy the data to the card.
-		 * This will probably break on some architectures.
-		 * I'll fix it when I have something to test on.
-		 */
-		if (copy_from_user(card->mem + wrthdr.offset,
+		/* Now copy the data to the card. */
+
+		buf = kmalloc(wrthdr.size, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		if (copy_from_user(buf,
 				   ifr->ifr_data + sizeof (struct fstioc_write),
 				   wrthdr.size)) {
+			kfree(buf);
 			return -EFAULT;
 		}
+
+		memcpy_toio(card->mem + wrthdr.offset, buf, wrthdr.size);
+		kfree(buf);
 
 		/* Writes to the memory of a card in the reset state constitute
 		 * a download

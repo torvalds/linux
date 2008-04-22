@@ -3,7 +3,7 @@
 
 #include <asm/ptrace.h>
 
-#if defined(__H8300H__)
+#if defined(CONFIG_CPU_H8300H)
 #define NR_IRQS 64
 #define EXT_IRQ0 12
 #define EXT_IRQ1 13
@@ -14,14 +14,6 @@
 #define EXT_IRQ6 18
 #define EXT_IRQ7 19
 #define EXT_IRQS 5
-
-#include <asm/regs306x.h>
-#define h8300_clear_isr(irq)                                                \
-do {                                                                        \
-	if (irq >= EXT_IRQ0 && irq <= EXT_IRQ5)                             \
-		*(volatile unsigned char *)ISR &= ~(1 << (irq - EXT_IRQ0)); \
-} while(0)
-
 #define IER_REGS *(volatile unsigned char *)IER
 #endif
 #if defined(CONFIG_CPU_H8S)
@@ -44,13 +36,6 @@ do {                                                                        \
 #define EXT_IRQ15 31
 #define EXT_IRQS 15
 
-#include <asm/regs267x.h>
-#define h8300_clear_isr(irq)                                                 \
-do {                                                                         \
-	if (irq >= EXT_IRQ0 && irq <= EXT_IRQ15)                             \
-		*(volatile unsigned short *)ISR &= ~(1 << (irq - EXT_IRQ0)); \
-} while(0)
-
 #define IER_REGS *(volatile unsigned short *)IER
 #endif
 
@@ -58,5 +43,7 @@ static __inline__ int irq_canonicalize(int irq)
 {
 	return irq;
 }
+
+typedef void (*h8300_vector)(void);
 
 #endif /* _H8300_IRQ_H_ */

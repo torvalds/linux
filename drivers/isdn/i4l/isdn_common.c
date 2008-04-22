@@ -981,13 +981,13 @@ isdn_readbchan_tty(int di, int channel, struct tty_struct *tty, int cisco_hack)
 }
 
 
-static __inline int
+static inline int
 isdn_minor2drv(int minor)
 {
 	return (dev->drvmap[minor]);
 }
 
-static __inline int
+static inline int
 isdn_minor2chan(int minor)
 {
 	return (dev->chanmap[minor]);

@@ -13,24 +13,17 @@
 
 #include <asm/hardware.h>
 
-/*!
- * @file memory.h
- * @brief This file contains macros needed by the Linux kernel and drivers.
- *
- * @ingroup Memory
- */
-
-/*!
+/*
  * Virtual view <-> DMA view memory address translations
  * This macro is used to translate the virtual address to an address
  * suitable to be passed to set_dma_addr()
  */
 #define __virt_to_bus(a)	__virt_to_phys(a)
 
-/*!
+/*
  * Used to convert an address for DMA operations to an address that the
  * kernel can use.
  */
 #define __bus_to_virt(a)	__phys_to_virt(a)
 
-#endif				/* __ASM_ARCH_MXC_MEMORY_H__ */
+#endif /* __ASM_ARCH_MXC_MEMORY_H__ */

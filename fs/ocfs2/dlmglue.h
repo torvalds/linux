@@ -58,7 +58,7 @@ struct ocfs2_meta_lvb {
 #define OCFS2_LOCK_NONBLOCK		(0x04)
 
 int ocfs2_dlm_init(struct ocfs2_super *osb);
-void ocfs2_dlm_shutdown(struct ocfs2_super *osb);
+void ocfs2_dlm_shutdown(struct ocfs2_super *osb, int hangup_pending);
 void ocfs2_lock_res_init_once(struct ocfs2_lock_res *res);
 void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			       enum ocfs2_lock_type type,
@@ -109,12 +109,11 @@ void ocfs2_simple_drop_lockres(struct ocfs2_super *osb,
 			       struct ocfs2_lock_res *lockres);
 
 /* for the downconvert thread */
-void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
-				struct ocfs2_lock_res *lockres);
 void ocfs2_wake_downconvert_thread(struct ocfs2_super *osb);
 
 struct ocfs2_dlm_debug *ocfs2_new_dlm_debug(void);
 void ocfs2_put_dlm_debug(struct ocfs2_dlm_debug *dlm_debug);
 
-extern const struct dlm_protocol_version ocfs2_locking_protocol;
+/* To set the locking protocol on module initialization */
+void ocfs2_set_locking_protocol(void);
 #endif	/* DLMGLUE_H */

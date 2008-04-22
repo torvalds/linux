@@ -43,8 +43,9 @@
 #include "xfs_rw.h"
 #include "xfs_quota.h"
 #include "xfs_fsops.h"
+#include "xfs_utils.h"
 
-STATIC void	xfs_mount_log_sbunit(xfs_mount_t *, __int64_t);
+STATIC int	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
 STATIC int	xfs_uuid_mount(xfs_mount_t *);
 STATIC void	xfs_uuid_unmount(xfs_mount_t *mp);
 STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
@@ -57,7 +58,7 @@ STATIC void	xfs_icsb_balance_counter(xfs_mount_t *, xfs_sb_field_t,
 STATIC void	xfs_icsb_sync_counters(xfs_mount_t *);
 STATIC int	xfs_icsb_modify_counters(xfs_mount_t *, xfs_sb_field_t,
 						int64_t, int);
-STATIC int	xfs_icsb_disable_counter(xfs_mount_t *, xfs_sb_field_t);
+STATIC void	xfs_icsb_disable_counter(xfs_mount_t *, xfs_sb_field_t);
 
 #else
 
@@ -119,6 +120,7 @@ static const struct {
     { offsetof(xfs_sb_t, sb_logsectsize),0 },
     { offsetof(xfs_sb_t, sb_logsunit),	 0 },
     { offsetof(xfs_sb_t, sb_features2),	 0 },
+    { offsetof(xfs_sb_t, sb_bad_features2), 0 },
     { sizeof(xfs_sb_t),			 0 }
 };
 
@@ -225,7 +227,7 @@ xfs_mount_validate_sb(
 		return XFS_ERROR(EWRONGFS);
 	}
 
-	if (!XFS_SB_GOOD_VERSION(sbp)) {
+	if (!xfs_sb_good_version(sbp)) {
 		xfs_fs_mount_cmn_err(flags, "bad version");
 		return XFS_ERROR(EWRONGFS);
 	}
@@ -300,7 +302,7 @@ xfs_mount_validate_sb(
 	/*
 	 * Version 1 directory format has never worked on Linux.
 	 */
-	if (unlikely(!XFS_SB_VERSION_HASDIRV2(sbp))) {
+	if (unlikely(!xfs_sb_version_hasdirv2(sbp))) {
 		xfs_fs_mount_cmn_err(flags,
 			"file system using version 1 directory format");
 		return XFS_ERROR(ENOSYS);
@@ -449,6 +451,7 @@ xfs_sb_from_disk(
 	to->sb_logsectsize = be16_to_cpu(from->sb_logsectsize);
 	to->sb_logsunit = be32_to_cpu(from->sb_logsunit);
 	to->sb_features2 = be32_to_cpu(from->sb_features2);
+	to->sb_bad_features2 = be32_to_cpu(from->sb_bad_features2);
 }
 
 /*
@@ -781,7 +784,7 @@ xfs_update_alignment(xfs_mount_t *mp, int mfsi_flags, __uint64_t *update_flags)
 		 * Update superblock with new values
 		 * and log changes
 		 */
-		if (XFS_SB_VERSION_HASDALIGN(sbp)) {
+		if (xfs_sb_version_hasdalign(sbp)) {
 			if (sbp->sb_unit != mp->m_dalign) {
 				sbp->sb_unit = mp->m_dalign;
 				*update_flags |= XFS_SB_UNIT;
@@ -792,7 +795,7 @@ xfs_update_alignment(xfs_mount_t *mp, int mfsi_flags, __uint64_t *update_flags)
 			}
 		}
 	} else if ((mp->m_flags & XFS_MOUNT_NOALIGN) != XFS_MOUNT_NOALIGN &&
-		    XFS_SB_VERSION_HASDALIGN(&mp->m_sb)) {
+		    xfs_sb_version_hasdalign(&mp->m_sb)) {
 			mp->m_dalign = sbp->sb_unit;
 			mp->m_swidth = sbp->sb_width;
 	}
@@ -869,7 +872,7 @@ xfs_set_rw_sizes(xfs_mount_t *mp)
 STATIC void
 xfs_set_inoalignment(xfs_mount_t *mp)
 {
-	if (XFS_SB_VERSION_HASALIGN(&mp->m_sb) &&
+	if (xfs_sb_version_hasalign(&mp->m_sb) &&
 	    mp->m_sb.sb_inoalignmt >=
 	    XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size))
 		mp->m_inoalign_mask = mp->m_sb.sb_inoalignmt - 1;
@@ -954,7 +957,6 @@ xfs_mountfs(
 {
 	xfs_sb_t	*sbp = &(mp->m_sb);
 	xfs_inode_t	*rip;
-	bhv_vnode_t	*rvp = NULL;
 	__uint64_t	resblks;
 	__int64_t	update_flags = 0LL;
 	uint		quotamount, quotaflags;
@@ -962,12 +964,39 @@ xfs_mountfs(
 	int		uuid_mounted = 0;
 	int		error = 0;
 
-	if (mp->m_sb_bp == NULL) {
-		error = xfs_readsb(mp, mfsi_flags);
-		if (error)
-			return error;
-	}
 	xfs_mount_common(mp, sbp);
+
+	/*
+	 * Check for a mismatched features2 values.  Older kernels
+	 * read & wrote into the wrong sb offset for sb_features2
+	 * on some platforms due to xfs_sb_t not being 64bit size aligned
+	 * when sb_features2 was added, which made older superblock
+	 * reading/writing routines swap it as a 64-bit value.
+	 *
+	 * For backwards compatibility, we make both slots equal.
+	 *
+	 * If we detect a mismatched field, we OR the set bits into the
+	 * existing features2 field in case it has already been modified; we
+	 * don't want to lose any features.  We then update the bad location
+	 * with the ORed value so that older kernels will see any features2
+	 * flags, and mark the two fields as needing updates once the
+	 * transaction subsystem is online.
+	 */
+	if (xfs_sb_has_mismatched_features2(sbp)) {
+		cmn_err(CE_WARN,
+			"XFS: correcting sb_features alignment problem");
+		sbp->sb_features2 |= sbp->sb_bad_features2;
+		sbp->sb_bad_features2 = sbp->sb_features2;
+		update_flags |= XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2;
+
+		/*
+		 * Re-check for ATTR2 in case it was found in bad_features2
+		 * slot.
+		 */
+		if (xfs_sb_version_hasattr2(&mp->m_sb))
+			mp->m_flags |= XFS_MOUNT_ATTR2;
+
+	}
 
 	/*
 	 * Check if sb_agblocks is aligned at stripe boundary
@@ -1129,7 +1158,6 @@ xfs_mountfs(
 	}
 
 	ASSERT(rip != NULL);
-	rvp = XFS_ITOV(rip);
 
 	if (unlikely((rip->i_d.di_mode & S_IFMT) != S_IFDIR)) {
 		cmn_err(CE_WARN, "XFS: corrupted root inode");
@@ -1159,11 +1187,15 @@ xfs_mountfs(
 	}
 
 	/*
-	 * If fs is not mounted readonly, then update the superblock
-	 * unit and width changes.
+	 * If fs is not mounted readonly, then update the superblock changes.
 	 */
-	if (update_flags && !(mp->m_flags & XFS_MOUNT_RDONLY))
-		xfs_mount_log_sbunit(mp, update_flags);
+	if (update_flags && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		error = xfs_mount_log_sb(mp, update_flags);
+		if (error) {
+			cmn_err(CE_WARN, "XFS: failed to write sb changes");
+			goto error4;
+		}
+	}
 
 	/*
 	 * Initialise the XFS quota management subsystem for this mount
@@ -1200,12 +1232,15 @@ xfs_mountfs(
 	 *
 	 * We default to 5% or 1024 fsbs of space reserved, whichever is smaller.
 	 * This may drive us straight to ENOSPC on mount, but that implies
-	 * we were already there on the last unmount.
+	 * we were already there on the last unmount. Warn if this occurs.
 	 */
 	resblks = mp->m_sb.sb_dblocks;
 	do_div(resblks, 20);
 	resblks = min_t(__uint64_t, resblks, 1024);
-	xfs_reserve_blocks(mp, &resblks, NULL);
+	error = xfs_reserve_blocks(mp, &resblks, NULL);
+	if (error)
+		cmn_err(CE_WARN, "XFS: Unable to allocate reserve blocks. "
+				"Continuing without a reserve pool.");
 
 	return 0;
 
@@ -1213,7 +1248,7 @@ xfs_mountfs(
 	/*
 	 * Free up the root inode.
 	 */
-	VN_RELE(rvp);
+	IRELE(rip);
  error3:
 	xfs_log_unmount_dealloc(mp);
  error2:
@@ -1241,6 +1276,7 @@ int
 xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 {
 	__uint64_t	resblks;
+	int		error = 0;
 
 	/*
 	 * We can potentially deadlock here if we have an inode cluster
@@ -1284,9 +1320,15 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 	 * value does not matter....
 	 */
 	resblks = 0;
-	xfs_reserve_blocks(mp, &resblks, NULL);
+	error = xfs_reserve_blocks(mp, &resblks, NULL);
+	if (error)
+		cmn_err(CE_WARN, "XFS: Unable to free reserved block pool. "
+				"Freespace may not be correct on next mount.");
 
-	xfs_log_sbcount(mp, 1);
+	error = xfs_log_sbcount(mp, 1);
+	if (error)
+		cmn_err(CE_WARN, "XFS: Unable to update superblock counters. "
+				"Freespace may not be correct on next mount.");
 	xfs_unmountfs_writesb(mp);
 	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
 	xfs_log_unmount(mp);			/* Done! No more fs ops. */
@@ -1378,9 +1420,8 @@ xfs_log_sbcount(
 	xfs_mod_sb(tp, XFS_SB_IFREE | XFS_SB_ICOUNT | XFS_SB_FDBLOCKS);
 	if (sync)
 		xfs_trans_set_sync(tp);
-	xfs_trans_commit(tp, 0);
-
-	return 0;
+	error = xfs_trans_commit(tp, 0);
+	return error;
 }
 
 STATIC void
@@ -1429,7 +1470,6 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 		XFS_BUF_UNASYNC(sbp);
 		ASSERT(XFS_BUF_TARGET(sbp) == mp->m_ddev_targp);
 		xfsbdstrat(mp, sbp);
-		/* Nevermind errors we might get here. */
 		error = xfs_iowait(sbp);
 		if (error)
 			xfs_ioerror_alert("xfs_unmountfs_writesb",
@@ -1875,25 +1915,30 @@ xfs_uuid_unmount(
 
 /*
  * Used to log changes to the superblock unit and width fields which could
- * be altered by the mount options. Only the first superblock is updated.
+ * be altered by the mount options, as well as any potential sb_features2
+ * fixup. Only the first superblock is updated.
  */
-STATIC void
-xfs_mount_log_sbunit(
+STATIC int
+xfs_mount_log_sb(
 	xfs_mount_t	*mp,
 	__int64_t	fields)
 {
 	xfs_trans_t	*tp;
+	int		error;
 
-	ASSERT(fields & (XFS_SB_UNIT|XFS_SB_WIDTH|XFS_SB_UUID));
+	ASSERT(fields & (XFS_SB_UNIT | XFS_SB_WIDTH | XFS_SB_UUID |
+			 XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2));
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SB_UNIT);
-	if (xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
-				XFS_DEFAULT_LOG_COUNT)) {
+	error = xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
+				XFS_DEFAULT_LOG_COUNT);
+	if (error) {
 		xfs_trans_cancel(tp, 0);
-		return;
+		return error;
 	}
 	xfs_mod_sb(tp, fields);
-	xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp, 0);
+	return error;
 }
 
 
@@ -2154,7 +2199,7 @@ xfs_icsb_counter_disabled(
 	return test_bit(field, &mp->m_icsb_counters);
 }
 
-STATIC int
+STATIC void
 xfs_icsb_disable_counter(
 	xfs_mount_t	*mp,
 	xfs_sb_field_t	field)
@@ -2172,7 +2217,7 @@ xfs_icsb_disable_counter(
 	 * the m_icsb_mutex.
 	 */
 	if (xfs_icsb_counter_disabled(mp, field))
-		return 0;
+		return;
 
 	xfs_icsb_lock_all_counters(mp);
 	if (!test_and_set_bit(field, &mp->m_icsb_counters)) {
@@ -2195,8 +2240,6 @@ xfs_icsb_disable_counter(
 	}
 
 	xfs_icsb_unlock_all_counters(mp);
-
-	return 0;
 }
 
 STATIC void

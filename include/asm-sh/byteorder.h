@@ -11,13 +11,13 @@
 static inline __attribute_const__ __u32 ___arch__swab32(__u32 x)
 {
 	__asm__(
-#ifdef CONFIG_SUPERH32
+#ifdef __SH5__
+		"byterev	%0, %0\n\t"
+		"shari		%0, 32, %0"
+#else
 		"swap.b		%0, %0\n\t"
 		"swap.w		%0, %0\n\t"
 		"swap.b		%0, %0"
-#else
-		"byterev	%0, %0\n\t"
-		"shari		%0, 32, %0"
 #endif
 		: "=r" (x)
 		: "0" (x));
@@ -28,12 +28,11 @@ static inline __attribute_const__ __u32 ___arch__swab32(__u32 x)
 static inline __attribute_const__ __u16 ___arch__swab16(__u16 x)
 {
 	__asm__(
-#ifdef CONFIG_SUPERH32
-		"swap.b		%0, %0"
-#else
+#ifdef __SH5__
 		"byterev	%0, %0\n\t"
 		"shari		%0, 32, %0"
-
+#else
+		"swap.b		%0, %0"
 #endif
 		: "=r" (x)
 		:  "0" (x));

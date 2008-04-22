@@ -85,7 +85,7 @@ union hacs_u
 #define		HASR_MMC_INTR		0x0002	/* Interrupt request from MMC */
 #define		HASR_MMC_BUSY		0x0004	/* MMC busy indication */
 #define		HASR_PSA_BUSY		0x0008	/* LAN parameter storage area busy */
-};
+} __attribute__ ((packed));
 
 typedef struct ha_t	ha_t;
 struct ha_t
@@ -292,7 +292,7 @@ struct mmw_t
 #define	MMW_EXT_ANT_INTERNAL	0x00	/* Internal antenna */
 #define	MMW_EXT_ANT_EXTERNAL	0x03	/* External antenna */
 #define	MMW_EXT_ANT_IQ_TEST	0x1C	/* IQ test pattern (set to 0) */
-};
+} __attribute__ ((packed));
 
 #define	MMW_SIZE	37
 
@@ -347,7 +347,7 @@ struct mmr_t
   unsigned char	mmr_unused4[1];		/* unused */
   unsigned char	mmr_fee_data_l;		/* Read data from EEPROM (low) */
   unsigned char	mmr_fee_data_h;		/* Read data from EEPROM (high) */
-};
+} __attribute__ ((packed));
 
 #define	MMR_SIZE	36
 

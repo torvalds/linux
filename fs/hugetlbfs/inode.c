@@ -954,7 +954,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size)
 			FMODE_WRITE | FMODE_READ,
 			&hugetlbfs_file_operations);
 	if (!file)
-		goto out_inode;
+		goto out_dentry; /* inode is already attached */
 
 	return file;
 

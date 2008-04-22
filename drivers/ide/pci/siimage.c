@@ -370,48 +370,6 @@ static int siimage_mmio_ide_dma_test_irq (ide_drive_t *drive)
 }
 
 /**
- *	sil_sata_busproc	-	bus isolation IOCTL
- *	@drive: drive to isolate/restore
- *	@state: bus state to set
- *
- *	Used by the SII3112 to handle bus isolation. As this is a 
- *	SATA controller the work required is quite limited, we 
- *	just have to clean up the statistics
- */
-
-static int sil_sata_busproc(ide_drive_t * drive, int state)
-{
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= to_pci_dev(hwif->dev);
-	u32 stat_config		= 0;
-	unsigned long addr	= siimage_selreg(hwif, 0);
-
-	if (hwif->mmio)
-		stat_config = readl((void __iomem *)addr);
-	else
-		pci_read_config_dword(dev, addr, &stat_config);
-
-	switch (state) {
-		case BUSSTATE_ON:
-			hwif->drives[0].failures = 0;
-			hwif->drives[1].failures = 0;
-			break;
-		case BUSSTATE_OFF:
-			hwif->drives[0].failures = hwif->drives[0].max_failures + 1;
-			hwif->drives[1].failures = hwif->drives[1].max_failures + 1;
-			break;
-		case BUSSTATE_TRISTATE:
-			hwif->drives[0].failures = hwif->drives[0].max_failures + 1;
-			hwif->drives[1].failures = hwif->drives[1].max_failures + 1;
-			break;
-		default:
-			return -EINVAL;
-	}
-	hwif->bus_state = state;
-	return 0;
-}
-
-/**
  *	sil_sata_reset_poll	-	wait for SATA reset
  *	@drive: drive we are resetting
  *
@@ -492,7 +450,7 @@ static void proc_reports_siimage (struct pci_dev *dev, u8 clocking, const char *
  
 static unsigned int setup_mmio_siimage (struct pci_dev *dev, const char *name)
 {
-	unsigned long bar5	= pci_resource_start(dev, 5);
+	resource_size_t bar5	= pci_resource_start(dev, 5);
 	unsigned long barsize	= pci_resource_len(dev, 5);
 	u8 tmpbyte	= 0;
 	void __iomem *ioaddr;
@@ -818,7 +776,6 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	if (sata) {
 		static int first = 1;
 
-		hwif->busproc = &sil_sata_busproc;
 		hwif->reset_poll = &sil_sata_reset_poll;
 		hwif->pre_reset = &sil_sata_pre_reset;
 		hwif->udma_filter = &sil_sata_udma_filter;

@@ -70,9 +70,9 @@ enum {
 
 #define TIFM_FIFO_ENABLE          0x00000001
 #define TIFM_FIFO_READY           0x00000001
+#define TIFM_FIFO_MORE            0x00000008
 #define TIFM_FIFO_INT_SETALL      0x0000ffff
 #define TIFM_FIFO_INTMASK         0x00000005
-#define TIFM_FIFO_SIZE            0x00000200
 
 #define TIFM_DMA_RESET            0x00000002
 #define TIFM_DMA_TX               0x00008000

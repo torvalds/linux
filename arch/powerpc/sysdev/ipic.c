@@ -906,7 +906,7 @@ static int __init init_ipic_sysfs(void)
 {
 	int rc;
 
-	if (!primary_ipic->regs)
+	if (!primary_ipic || !primary_ipic->regs)
 		return -ENODEV;
 	printk(KERN_DEBUG "Registering ipic with sysfs...\n");
 

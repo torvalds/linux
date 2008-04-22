@@ -285,8 +285,8 @@ static int
 ipq_mangle_ipv6(ipq_verdict_msg_t *v, struct nf_queue_entry *e)
 {
 	int diff;
-	int err;
 	struct ipv6hdr *user_iph = (struct ipv6hdr *)v->payload;
+	struct sk_buff *nskb;
 
 	if (v->data_len < sizeof(*user_iph))
 		return 0;
@@ -298,14 +298,16 @@ ipq_mangle_ipv6(ipq_verdict_msg_t *v, struct nf_queue_entry *e)
 		if (v->data_len > 0xFFFF)
 			return -EINVAL;
 		if (diff > skb_tailroom(e->skb)) {
-			err = pskb_expand_head(e->skb, 0,
+			nskb = skb_copy_expand(e->skb, 0,
 					       diff - skb_tailroom(e->skb),
 					       GFP_ATOMIC);
-			if (err) {
+			if (!nskb) {
 				printk(KERN_WARNING "ip6_queue: OOM "
 				      "in mangle, dropping packet\n");
-				return err;
+				return -ENOMEM;
 			}
+			kfree_skb(e->skb);
+			e->skb = nskb;
 		}
 		skb_put(e->skb, diff);
 	}
@@ -482,7 +484,7 @@ ipq_rcv_dev_event(struct notifier_block *this,
 {
 	struct net_device *dev = ptr;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	/* Drop any packets associated with the downed device */
@@ -589,11 +591,9 @@ static int __init ip6_queue_init(void)
 	}
 
 #ifdef CONFIG_PROC_FS
-	proc = create_proc_entry(IPQ_PROC_FS_NAME, 0, init_net.proc_net);
-	if (proc) {
-		proc->owner = THIS_MODULE;
-		proc->proc_fops = &ip6_queue_proc_fops;
-	} else {
+	proc = proc_create(IPQ_PROC_FS_NAME, 0, init_net.proc_net,
+			   &ip6_queue_proc_fops);
+	if (!proc) {
 		printk(KERN_ERR "ip6_queue: failed to create proc entry\n");
 		goto cleanup_ipqnl;
 	}

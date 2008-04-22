@@ -58,6 +58,7 @@ static struct ip6addrlbl_table
  * ::ffff:0:0/96	V4MAPPED	4
  * fc00::/7		N/A		5		ULA (RFC 4193)
  * 2001::/32		N/A		6		Teredo (RFC 4380)
+ * 2001:10::/28		N/A		7		ORCHID (RFC 4843)
  *
  * Note: 0xffffffff is used if we do not have any policies.
  */
@@ -85,6 +86,10 @@ static const __initdata struct ip6addrlbl_init_table
 		.prefix = &(struct in6_addr){{{ 0x20, 0x01 }}},
 		.prefixlen = 32,
 		.label = 6,
+	},{	/* 2001:10::/28 */
+		.prefix = &(struct in6_addr){{{ 0x20, 0x01, 0x00, 0x10 }}},
+		.prefixlen = 28,
+		.label = 7,
 	},{	/* ::ffff:0:0 */
 		.prefix = &(struct in6_addr){{{ [10] = 0xff, [11] = 0xff }}},
 		.prefixlen = 96,
@@ -161,7 +166,7 @@ u32 ipv6_addr_label(const struct in6_addr *addr, int type, int ifindex)
 	rcu_read_unlock();
 
 	ADDRLABEL(KERN_DEBUG "%s(addr=" NIP6_FMT ", type=%d, ifindex=%d) => %08x\n",
-			__FUNCTION__,
+			__func__,
 			NIP6(*addr), type, ifindex,
 			label);
 
@@ -177,7 +182,7 @@ static struct ip6addrlbl_entry *ip6addrlbl_alloc(const struct in6_addr *prefix,
 	int addrtype;
 
 	ADDRLABEL(KERN_DEBUG "%s(prefix=" NIP6_FMT ", prefixlen=%d, ifindex=%d, label=%u)\n",
-			__FUNCTION__,
+			__func__,
 			NIP6(*prefix), prefixlen,
 			ifindex,
 			(unsigned int)label);
@@ -221,7 +226,7 @@ static int __ip6addrlbl_add(struct ip6addrlbl_entry *newp, int replace)
 	int ret = 0;
 
 	ADDRLABEL(KERN_DEBUG "%s(newp=%p, replace=%d)\n",
-			__FUNCTION__,
+			__func__,
 			newp, replace);
 
 	if (hlist_empty(&ip6addrlbl_table.head)) {
@@ -263,7 +268,7 @@ static int ip6addrlbl_add(const struct in6_addr *prefix, int prefixlen,
 	int ret = 0;
 
 	ADDRLABEL(KERN_DEBUG "%s(prefix=" NIP6_FMT ", prefixlen=%d, ifindex=%d, label=%u, replace=%d)\n",
-			__FUNCTION__,
+			__func__,
 			NIP6(*prefix), prefixlen,
 			ifindex,
 			(unsigned int)label,
@@ -289,7 +294,7 @@ static int __ip6addrlbl_del(const struct in6_addr *prefix, int prefixlen,
 	int ret = -ESRCH;
 
 	ADDRLABEL(KERN_DEBUG "%s(prefix=" NIP6_FMT ", prefixlen=%d, ifindex=%d)\n",
-			__FUNCTION__,
+			__func__,
 			NIP6(*prefix), prefixlen,
 			ifindex);
 
@@ -313,7 +318,7 @@ static int ip6addrlbl_del(const struct in6_addr *prefix, int prefixlen,
 	int ret;
 
 	ADDRLABEL(KERN_DEBUG "%s(prefix=" NIP6_FMT ", prefixlen=%d, ifindex=%d)\n",
-			__FUNCTION__,
+			__func__,
 			NIP6(*prefix), prefixlen,
 			ifindex);
 
@@ -330,7 +335,7 @@ static __init int ip6addrlbl_init(void)
 	int err = 0;
 	int i;
 
-	ADDRLABEL(KERN_DEBUG "%s()\n", __FUNCTION__);
+	ADDRLABEL(KERN_DEBUG "%s()\n", __func__);
 
 	for (i = 0; i < ARRAY_SIZE(ip6addrlbl_init_table); i++) {
 		int ret = ip6addrlbl_add(ip6addrlbl_init_table[i].prefix,
@@ -359,7 +364,7 @@ static const struct nla_policy ifal_policy[IFAL_MAX+1] = {
 static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 			     void *arg)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	struct ifaddrlblmsg *ifal;
 	struct nlattr *tb[IFAL_MAX+1];
 	struct in6_addr *pfx;
@@ -447,7 +452,7 @@ static int ip6addrlbl_fill(struct sk_buff *skb,
 
 static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	struct ip6addrlbl_entry *p;
 	struct hlist_node *pos;
 	int idx = 0, s_idx = cb->args[0];
@@ -485,7 +490,7 @@ static inline int ip6addrlbl_msgsize(void)
 static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 			  void *arg)
 {
-	struct net *net = in_skb->sk->sk_net;
+	struct net *net = sock_net(in_skb->sk);
 	struct ifaddrlblmsg *ifal;
 	struct nlattr *tb[IFAL_MAX+1];
 	struct in6_addr *addr;

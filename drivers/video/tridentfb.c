@@ -564,7 +564,7 @@ static inline void write3CE(int reg, unsigned char val)
 	t_outb(val, 0x3CF);
 }
 
-static inline void enable_mmio(void)
+static void enable_mmio(void)
 {
 	/* Goto New Mode */
 	outb(0x0B, 0x3C4);
@@ -577,6 +577,21 @@ static inline void enable_mmio(void)
 	/* Enable MMIO */
 	outb(PCIReg, 0x3D4);
 	outb(inb(0x3D5) | 0x01, 0x3D5);
+}
+
+static void disable_mmio(void)
+{
+	/* Goto New Mode */
+	t_outb(0x0B, 0x3C4);
+	t_inb(0x3C5);
+
+	/* Unprotect registers */
+	t_outb(NewMode1, 0x3C4);
+	t_outb(0x80, 0x3C5);
+
+	/* Disable MMIO */
+	t_outb(PCIReg, 0x3D4);
+	t_outb(t_inb(0x3D5) & ~0x01, 0x3D5);
 }
 
 #define crtc_unlock()	write3X4(CRTVSyncEnd, read3X4(CRTVSyncEnd) & 0x7F)
@@ -730,7 +745,7 @@ static unsigned int __devinit get_memsize(void)
 			switch (tmp) {
 
 			case 0x01:
-				k = 512;
+				k = 512 * Kb;
 				break;
 			case 0x02:
 				k = 6 * Mb;	/* XP */
@@ -1239,9 +1254,9 @@ static int __devinit trident_pci_probe(struct pci_dev * dev,
 	default_par.io_virt = ioremap_nocache(tridentfb_fix.mmio_start, tridentfb_fix.mmio_len);
 
 	if (!default_par.io_virt) {
-		release_region(tridentfb_fix.mmio_start, tridentfb_fix.mmio_len);
 		debug("ioremap failed\n");
-		return -1;
+		err = -1;
+		goto out_unmap1;
 	}
 
 	enable_mmio();
@@ -1252,25 +1267,21 @@ static int __devinit trident_pci_probe(struct pci_dev * dev,
 
 	if (!request_mem_region(tridentfb_fix.smem_start, tridentfb_fix.smem_len, "tridentfb")) {
 		debug("request_mem_region failed!\n");
+		disable_mmio();
 		err = -1;
-		goto out_unmap;
+		goto out_unmap1;
 	}
 
 	fb_info.screen_base = ioremap_nocache(tridentfb_fix.smem_start,
 					      tridentfb_fix.smem_len);
 
 	if (!fb_info.screen_base) {
-		release_mem_region(tridentfb_fix.smem_start, tridentfb_fix.smem_len);
 		debug("ioremap failed\n");
 		err = -1;
-		goto out_unmap;
+		goto out_unmap2;
 	}
 
 	output("%s board found\n", pci_name(dev));
-#if 0
-	output("Trident board found : mem = %X, io = %X, mem_v = %X, io_v = %X\n",
-		tridentfb_fix.smem_start, tridentfb_fix.mmio_start, fb_info.screen_base, default_par.io_virt);
-#endif
 	displaytype = get_displaytype();
 
 	if (flatpanel)
@@ -1288,9 +1299,12 @@ static int __devinit trident_pci_probe(struct pci_dev * dev,
 
 	if (!fb_find_mode(&default_var, &fb_info, mode, NULL, 0, NULL, bpp)) {
 		err = -EINVAL;
-		goto out_unmap;
+		goto out_unmap2;
 	}
-	fb_alloc_cmap(&fb_info.cmap, 256, 0);
+	err = fb_alloc_cmap(&fb_info.cmap, 256, 0);
+	if (err < 0)
+		goto out_unmap2;
+
 	if (defaultaccel && acc)
 		default_var.accel_flags |= FB_ACCELF_TEXT;
 	else
@@ -1300,19 +1314,24 @@ static int __devinit trident_pci_probe(struct pci_dev * dev,
 	fb_info.device = &dev->dev;
 	if (register_framebuffer(&fb_info) < 0) {
 		printk(KERN_ERR "tridentfb: could not register Trident framebuffer\n");
+		fb_dealloc_cmap(&fb_info.cmap);
 		err = -EINVAL;
-		goto out_unmap;
+		goto out_unmap2;
 	}
 	output("fb%d: %s frame buffer device %dx%d-%dbpp\n",
 	   fb_info.node, fb_info.fix.id, default_var.xres,
 	   default_var.yres, default_var.bits_per_pixel);
 	return 0;
 
-out_unmap:
-	if (default_par.io_virt)
-		iounmap(default_par.io_virt);
+out_unmap2:
 	if (fb_info.screen_base)
 		iounmap(fb_info.screen_base);
+	release_mem_region(tridentfb_fix.smem_start, tridentfb_fix.smem_len);
+	disable_mmio();
+out_unmap1:
+	if (default_par.io_virt)
+		iounmap(default_par.io_virt);
+	release_mem_region(tridentfb_fix.mmio_start, tridentfb_fix.mmio_len);
 	return err;
 }
 
@@ -1323,7 +1342,7 @@ static void __devexit trident_pci_remove(struct pci_dev *dev)
 	iounmap(par->io_virt);
 	iounmap(fb_info.screen_base);
 	release_mem_region(tridentfb_fix.smem_start, tridentfb_fix.smem_len);
-	release_region(tridentfb_fix.mmio_start, tridentfb_fix.mmio_len);
+	release_mem_region(tridentfb_fix.mmio_start, tridentfb_fix.mmio_len);
 }
 
 /* List of boards that we are trying to support */

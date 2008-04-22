@@ -29,6 +29,7 @@
 
 #define stamp(fmt, args...) pr_debug("%s:%i: " fmt "\n", __func__, __LINE__, ## args)
 #define stampit() stamp("here i am")
+#define pr_init(fmt, args...) ({ static const __initdata char __fmt[] = fmt; printk(__fmt, ## args); })
 
 #define WATCHDOG_NAME "bfin-wdt"
 #define PFX WATCHDOG_NAME ": "
@@ -445,19 +446,19 @@ static int __init bfin_wdt_init(void)
 
 	ret = register_reboot_notifier(&bfin_wdt_notifier);
 	if (ret) {
-		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n", ret);
+		pr_init(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n", ret);
 		return ret;
 	}
 
 	ret = misc_register(&bfin_wdt_miscdev);
 	if (ret) {
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+		pr_init(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
 		       WATCHDOG_MINOR, ret);
 		unregister_reboot_notifier(&bfin_wdt_notifier);
 		return ret;
 	}
 
-	printk(KERN_INFO PFX "initialized: timeout=%d sec (nowayout=%d)\n",
+	pr_init(KERN_INFO PFX "initialized: timeout=%d sec (nowayout=%d)\n",
 	       timeout, nowayout);
 
 	return 0;

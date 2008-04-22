@@ -252,6 +252,8 @@ recent_mt_check(const char *tablename, const void *ip,
 	if ((info->check_set & (IPT_RECENT_SET | IPT_RECENT_REMOVE)) &&
 	    (info->seconds || info->hit_count))
 		return false;
+	if (info->hit_count > ip_pkt_list_tot)
+		return false;
 	if (info->name[0] == '\0' ||
 	    strnlen(info->name, IPT_RECENT_NAME_LEN) == IPT_RECENT_NAME_LEN)
 		return false;
@@ -274,12 +276,11 @@ recent_mt_check(const char *tablename, const void *ip,
 	for (i = 0; i < ip_list_hash_size; i++)
 		INIT_LIST_HEAD(&t->iphash[i]);
 #ifdef CONFIG_PROC_FS
-	t->proc = create_proc_entry(t->name, ip_list_perms, proc_dir);
+	t->proc = proc_create(t->name, ip_list_perms, proc_dir, &recent_fops);
 	if (t->proc == NULL) {
 		kfree(t);
 		goto out;
 	}
-	t->proc->proc_fops = &recent_fops;
 	t->proc->uid       = ip_list_uid;
 	t->proc->gid       = ip_list_gid;
 	t->proc->data      = t;
@@ -339,7 +340,7 @@ static void *recent_seq_start(struct seq_file *seq, loff_t *pos)
 static void *recent_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct recent_iter_state *st = seq->private;
-	struct recent_table *t = st->table;
+	const struct recent_table *t = st->table;
 	struct recent_entry *e = v;
 	struct list_head *head = e->list.next;
 
@@ -360,7 +361,7 @@ static void recent_seq_stop(struct seq_file *s, void *v)
 
 static int recent_seq_show(struct seq_file *seq, void *v)
 {
-	struct recent_entry *e = v;
+	const struct recent_entry *e = v;
 	unsigned int i;
 
 	i = (e->index - 1) % ip_pkt_list_tot;
@@ -395,7 +396,7 @@ static int recent_seq_open(struct inode *inode, struct file *file)
 static ssize_t recent_proc_write(struct file *file, const char __user *input,
 				 size_t size, loff_t *loff)
 {
-	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	struct recent_table *t = pde->data;
 	struct recent_entry *e;
 	char buf[sizeof("+255.255.255.255")], *c = buf;

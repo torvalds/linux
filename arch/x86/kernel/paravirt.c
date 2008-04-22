@@ -206,13 +206,6 @@ static struct resource reserve_ioports = {
 	.flags = IORESOURCE_IO | IORESOURCE_BUSY,
 };
 
-static struct resource reserve_iomem = {
-	.start = 0,
-	.end = -1,
-	.name = "paravirt-iomem",
-	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,
-};
-
 /*
  * Reserve the whole legacy IO space to prevent any legacy drivers
  * from wasting time probing for their hardware.  This is a fairly
@@ -222,16 +215,7 @@ static struct resource reserve_iomem = {
  */
 int paravirt_disable_iospace(void)
 {
-	int ret;
-
-	ret = request_resource(&ioport_resource, &reserve_ioports);
-	if (ret == 0) {
-		ret = request_resource(&iomem_resource, &reserve_iomem);
-		if (ret)
-			release_resource(&reserve_ioports);
-	}
-
-	return ret;
+	return request_resource(&ioport_resource, &reserve_ioports);
 }
 
 static DEFINE_PER_CPU(enum paravirt_lazy_mode, paravirt_lazy_mode) = PARAVIRT_LAZY_NONE;

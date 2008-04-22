@@ -467,7 +467,7 @@ static void unlink_watchdog_func(unsigned long _ohci)
 out:
 	kfree(seen);
 	if (ohci->eds_scheduled)
-		mod_timer(&ohci->unlink_watchdog, round_jiffies_relative(HZ));
+		mod_timer(&ohci->unlink_watchdog, round_jiffies(jiffies + HZ));
 done:
 	spin_unlock_irqrestore(&ohci->lock, flags);
 }

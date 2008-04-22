@@ -9,7 +9,6 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 #include <asm/sections.h>
-#include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
@@ -47,12 +46,6 @@ EXPORT_SYMBOL(__copy_user);
 #ifdef CONFIG_MMU
 EXPORT_SYMBOL(get_vm_area);
 #endif
-
-/* semaphore exports */
-EXPORT_SYMBOL(__up);
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_interruptible);
-EXPORT_SYMBOL(__down_trylock);
 
 EXPORT_SYMBOL(__udelay);
 EXPORT_SYMBOL(__ndelay);
@@ -111,9 +104,9 @@ DECLARE_EXPORT(__movmem_i4_even);
 DECLARE_EXPORT(__movmem_i4_odd);
 DECLARE_EXPORT(__movmemSI12_i4);
 
-#if (__GNUC_MINOR__ == 2 || defined(__GNUC_STM_RELEASE__))
+#if (__GNUC_MINOR__ >= 2 || defined(__GNUC_STM_RELEASE__))
 /*
- * GCC 4.2 emits these for division, as do GCC 4.1.x versions of the ST
+ * GCC >= 4.2 emits these for division, as do GCC 4.1.x versions of the ST
  * compiler which include backported patches.
  */
 DECLARE_EXPORT(__sdivsi3_i4i);
@@ -146,5 +139,7 @@ EXPORT_SYMBOL(csum_partial_copy_generic);
 EXPORT_SYMBOL(csum_ipv6_magic);
 #endif
 EXPORT_SYMBOL(clear_page);
+EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(__clear_user);
 EXPORT_SYMBOL(_ebss);
+EXPORT_SYMBOL(empty_zero_page);

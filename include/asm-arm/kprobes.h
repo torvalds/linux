@@ -20,7 +20,6 @@
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
 
-#define ARCH_SUPPORTS_KRETPROBES
 #define __ARCH_WANT_KPROBES_INSN_SLOT
 #define MAX_INSN_SIZE			2
 #define MAX_STACK_SIZE			64	/* 32 would probably be OK */

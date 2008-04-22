@@ -69,7 +69,7 @@ lpfc_terminate_rport_io(struct fc_rport *rport)
 	rdata = rport->dd_data;
 	ndlp = rdata->pnode;
 
-	if (!ndlp) {
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
 		if (rport->roles & FC_RPORT_ROLE_FCP_TARGET)
 			printk(KERN_ERR "Cannot find remote node"
 			" to terminate I/O Data x%x\n",
@@ -114,7 +114,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 	rdata = rport->dd_data;
 	ndlp = rdata->pnode;
-	if (!ndlp)
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
 		return;
 
 	vport = ndlp->vport;
@@ -243,8 +243,8 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	if (warn_on) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 				 "0203 Devloss timeout on "
-				 "WWPN %x:%x:%x:%x:%x:%x:%x:%x "
-				 "NPort x%x Data: x%x x%x x%x\n",
+				 "WWPN %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x "
+				 "NPort x%06x Data: x%x x%x x%x\n",
 				 *name, *(name+1), *(name+2), *(name+3),
 				 *(name+4), *(name+5), *(name+6), *(name+7),
 				 ndlp->nlp_DID, ndlp->nlp_flag,
@@ -252,8 +252,8 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	} else {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0204 Devloss timeout on "
-				 "WWPN %x:%x:%x:%x:%x:%x:%x:%x "
-				 "NPort x%x Data: x%x x%x x%x\n",
+				 "WWPN %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x "
+				 "NPort x%06x Data: x%x x%x x%x\n",
 				 *name, *(name+1), *(name+2), *(name+3),
 				 *(name+4), *(name+5), *(name+6), *(name+7),
 				 ndlp->nlp_DID, ndlp->nlp_flag,
@@ -399,7 +399,10 @@ lpfc_work_done(struct lpfc_hba *phba)
 				vport = vports[i];
 			if (vport == NULL)
 				break;
+			spin_lock_irq(&vport->work_port_lock);
 			work_port_events = vport->work_port_events;
+			vport->work_port_events &= ~work_port_events;
+			spin_unlock_irq(&vport->work_port_lock);
 			if (work_port_events & WORKER_DISC_TMO)
 				lpfc_disc_timeout_handler(vport);
 			if (work_port_events & WORKER_ELS_TMO)
@@ -416,9 +419,6 @@ lpfc_work_done(struct lpfc_hba *phba)
 				lpfc_ramp_down_queue_handler(phba);
 			if (work_port_events & WORKER_RAMP_UP_QUEUE)
 				lpfc_ramp_up_queue_handler(phba);
-			spin_lock_irq(&vport->work_port_lock);
-			vport->work_port_events &= ~work_port_events;
-			spin_unlock_irq(&vport->work_port_lock);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
@@ -430,10 +430,10 @@ lpfc_work_done(struct lpfc_hba *phba)
 		if (pring->flag & LPFC_STOP_IOCB_EVENT) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
 		} else {
+			pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
 			lpfc_sli_handle_slow_ring_event(phba, pring,
 							(status &
 							 HA_RXMASK));
-			pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
 		}
 		/*
 		 * Turn on Ring interrupts
@@ -519,7 +519,9 @@ lpfc_do_work(void *p)
 			schedule();
 		}
 	}
+	spin_lock_irq(&phba->hbalock);
 	phba->work_wait = NULL;
+	spin_unlock_irq(&phba->hbalock);
 	return 0;
 }
 
@@ -809,10 +811,8 @@ out:
 	mempool_free(pmb, phba->mbox_mem_pool);
 
 	spin_lock_irq(shost->host_lock);
-	vport->fc_flag &= ~(FC_ABORT_DISCOVERY | FC_ESTABLISH_LINK);
+	vport->fc_flag &= ~FC_ABORT_DISCOVERY;
 	spin_unlock_irq(shost->host_lock);
-
-	del_timer_sync(&phba->fc_estabtmo);
 
 	lpfc_can_disctmo(vport);
 
@@ -1340,10 +1340,14 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			    i++) {
 				if (vports[i]->port_type == LPFC_PHYSICAL_PORT)
 					continue;
+				if (phba->fc_topology == TOPOLOGY_LOOP) {
+					lpfc_vport_set_state(vports[i],
+							FC_VPORT_LINKDOWN);
+					continue;
+				}
 				if (phba->link_flag & LS_NPIV_FAB_SUPPORTED)
 					lpfc_initial_fdisc(vports[i]);
-				else if (phba->sli3_options &
-						LPFC_SLI3_NPIV_ENABLED) {
+				else {
 					lpfc_vport_set_state(vports[i],
 						FC_VPORT_NO_FABRIC_SUPP);
 					lpfc_printf_vlog(vport, KERN_ERR,
@@ -1694,7 +1698,7 @@ lpfc_dequeue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				NLP_STE_UNUSED_NODE);
 }
 
-void
+static void
 lpfc_disable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
 	if ((ndlp->nlp_flag & NLP_DELAY_TMO) != 0)
@@ -2190,10 +2194,6 @@ lpfc_matchdid(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (did == Bcast_DID)
 		return 0;
 
-	if (ndlp->nlp_DID == 0) {
-		return 0;
-	}
-
 	/* First check for Direct match */
 	if (ndlp->nlp_DID == did)
 		return 1;
@@ -2301,7 +2301,8 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 		return ndlp;
 	}
 
-	if (vport->fc_flag & FC_RSCN_MODE) {
+	if ((vport->fc_flag & FC_RSCN_MODE) &&
+	    !(vport->fc_flag & FC_NDISC_ACTIVE)) {
 		if (lpfc_rscn_payload_check(vport, did)) {
 			/* If we've already recieved a PLOGI from this NPort
 			 * we don't need to try to discover it again.
@@ -2947,24 +2948,6 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 	return NULL;
 }
 
-#if 0
-/*
- * Search node lists for a remote port matching filter criteria
- * Caller needs to hold host_lock before calling this routine.
- */
-struct lpfc_nodelist *
-lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
-{
-	struct Scsi_Host     *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp;
-
-	spin_lock_irq(shost->host_lock);
-	ndlp = __lpfc_find_node(vport, filter, param);
-	spin_unlock_irq(shost->host_lock);
-	return ndlp;
-}
-#endif  /*  0  */
-
 /*
  * This routine looks up the ndlp lists for the given RPI. If rpi found it
  * returns the node list element pointer else return NULL.
@@ -2974,20 +2957,6 @@ __lpfc_findnode_rpi(struct lpfc_vport *vport, uint16_t rpi)
 {
 	return __lpfc_find_node(vport, lpfc_filter_by_rpi, &rpi);
 }
-
-#if 0
-struct lpfc_nodelist *
-lpfc_findnode_rpi(struct lpfc_vport *vport, uint16_t rpi)
-{
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp;
-
-	spin_lock_irq(shost->host_lock);
-	ndlp = __lpfc_findnode_rpi(vport, rpi);
-	spin_unlock_irq(shost->host_lock);
-	return ndlp;
-}
-#endif  /*  0  */
 
 /*
  * This routine looks up the ndlp lists for the given WWPN. If WWPN found it

@@ -314,4 +314,13 @@ config KEYBOARD_BFIN
 	  To compile this driver as a module, choose M here: the
 	  module will be called bf54x-keys.
 
+config KEYBOARD_SH_KEYSC
+	tristate "SuperH KEYSC keypad support"
+	depends on SUPERH
+	help
+	  Say Y here if you want to use a keypad attached to the KEYSC block
+	  on SuperH processors such as sh7722 and sh7343.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sh_keysc.
 endif

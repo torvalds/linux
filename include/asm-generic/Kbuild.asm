@@ -1,3 +1,5 @@
+header-y  += kvm.h
+
 ifeq ($(wildcard include/asm-$(SRCARCH)/a.out.h),include/asm-$(SRCARCH)/a.out.h)
 unifdef-y += a.out.h
 endif

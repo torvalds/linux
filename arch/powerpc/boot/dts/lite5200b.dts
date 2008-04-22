@@ -270,7 +270,7 @@
 		mdio@3000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "fsl,mpc5200b-mdio";
+			compatible = "fsl,mpc5200b-mdio", "fsl,mpc5200-mdio";
 			reg = <3000 400>;	// fec range, since we need to setup fec interrupts
 			interrupts = <2 5 0>;	// these are for "mii command finished", not link changes & co.
 			interrupt-parent = <&mpc5200_pic>;

@@ -753,7 +753,7 @@ out:
  * are in the no-sync state.  We have to recover these by
  * recopying from the default mirror to all the others.
  *---------------------------------------------------------------*/
-static void recovery_complete(int read_err, unsigned int write_err,
+static void recovery_complete(int read_err, unsigned long write_err,
 			      void *context)
 {
 	struct region *reg = (struct region *)context;
@@ -767,7 +767,7 @@ static void recovery_complete(int read_err, unsigned int write_err,
 	}
 
 	if (write_err) {
-		DMERR_LIMIT("Write error during recovery (error = 0x%x)",
+		DMERR_LIMIT("Write error during recovery (error = 0x%lx)",
 			    write_err);
 		/*
 		 * Bits correspond to devices (excluding default mirror).
@@ -1695,14 +1695,15 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 			 * information for a retry or there was no other
 			 * mirror in-sync.
 			 */
-			DMERR_LIMIT("Mirror read failed from %s.",
-				    m->dev->name);
+			DMERR_LIMIT("Mirror read failed.");
 			return -EIO;
 		}
+
+		m = read_record->m;
+
 		DMERR("Mirror read failed from %s. Trying alternative device.",
 		      m->dev->name);
 
-		m = read_record->m;
 		fail_mirror(m, DM_RAID1_READ_ERROR);
 
 		/*

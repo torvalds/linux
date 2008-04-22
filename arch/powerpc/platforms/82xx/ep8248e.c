@@ -138,7 +138,7 @@ static int __devinit ep8248e_mdio_probe(struct of_device *ofdev,
 
 	bus->name = "ep8248e-mdio-bitbang";
 	bus->dev = &ofdev->dev;
-	bus->id = res.start;
+	snprintf(bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
 	return mdiobus_register(bus);
 }

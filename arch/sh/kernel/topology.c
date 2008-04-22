@@ -29,7 +29,7 @@ static int __init topology_init(void)
 		ret = register_cpu(&per_cpu(cpu_devices, i), i);
 		if (unlikely(ret))
 			printk(KERN_WARNING "%s: register_cpu %d failed (%d)\n",
-			       __FUNCTION__, i, ret);
+			       __func__, i, ret);
 	}
 
 #if defined(CONFIG_NUMA) && !defined(CONFIG_SMP)

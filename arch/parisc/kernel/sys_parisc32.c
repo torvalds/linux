@@ -49,7 +49,6 @@
 
 #include <asm/types.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 #include <asm/mmu_context.h>
 
 #include "sys32.h"

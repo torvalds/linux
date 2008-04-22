@@ -382,7 +382,7 @@ no_block:
  *	@inode: owner
  *	@ind: descriptor of indirect block.
  *
- *	This function returns the prefered place for block allocation.
+ *	This function returns the preferred place for block allocation.
  *	It is used when heuristic for sequential allocation fails.
  *	Rules are:
  *	  + if there is a block to the left of our position - allocate near it.
@@ -403,6 +403,7 @@ static ext4_fsblk_t ext4_find_near(struct inode *inode, Indirect *ind)
 	__le32 *start = ind->bh ? (__le32*) ind->bh->b_data : ei->i_data;
 	__le32 *p;
 	ext4_fsblk_t bg_start;
+	ext4_fsblk_t last_block;
 	ext4_grpblk_t colour;
 
 	/* Try to find previous block */
@@ -420,18 +421,23 @@ static ext4_fsblk_t ext4_find_near(struct inode *inode, Indirect *ind)
 	 * into the same cylinder group then.
 	 */
 	bg_start = ext4_group_first_block_no(inode->i_sb, ei->i_block_group);
-	colour = (current->pid % 16) *
+	last_block = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es) - 1;
+
+	if (bg_start + EXT4_BLOCKS_PER_GROUP(inode->i_sb) <= last_block)
+		colour = (current->pid % 16) *
 			(EXT4_BLOCKS_PER_GROUP(inode->i_sb) / 16);
+	else
+		colour = (current->pid % 16) * ((last_block - bg_start) / 16);
 	return bg_start + colour;
 }
 
 /**
- *	ext4_find_goal - find a prefered place for allocation.
+ *	ext4_find_goal - find a preferred place for allocation.
  *	@inode: owner
  *	@block:  block we want
  *	@partial: pointer to the last triple within a chain
  *
- *	Normally this function find the prefered place for block allocation,
+ *	Normally this function find the preferred place for block allocation,
  *	returns it.
  */
 static ext4_fsblk_t ext4_find_goal(struct inode *inode, ext4_lblk_t block,
@@ -768,7 +774,6 @@ err_out:
  *
  * `handle' can be NULL if create == 0.
  *
- * The BKL may not be held on entry here.  Be sure to take it early.
  * return > 0, # of blocks mapped or allocated.
  * return = 0, if plain lookup failed.
  * return < 0, error case.
@@ -903,11 +908,38 @@ out:
  */
 #define DIO_CREDITS 25
 
+
+/*
+ *
+ *
+ * ext4_ext4 get_block() wrapper function
+ * It will do a look up first, and returns if the blocks already mapped.
+ * Otherwise it takes the write lock of the i_data_sem and allocate blocks
+ * and store the allocated blocks in the result buffer head and mark it
+ * mapped.
+ *
+ * If file type is extents based, it will call ext4_ext_get_blocks(),
+ * Otherwise, call with ext4_get_blocks_handle() to handle indirect mapping
+ * based files
+ *
+ * On success, it returns the number of blocks being mapped or allocate.
+ * if create==0 and the blocks are pre-allocated and uninitialized block,
+ * the result buffer head is unmapped. If the create ==1, it will make sure
+ * the buffer head is mapped.
+ *
+ * It returns 0 if plain look up failed (blocks have not been allocated), in
+ * that casem, buffer head is unmapped
+ *
+ * It returns the error in case of allocation failure.
+ */
 int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 			unsigned long max_blocks, struct buffer_head *bh,
 			int create, int extend_disksize)
 {
 	int retval;
+
+	clear_buffer_mapped(bh);
+
 	/*
 	 * Try to see if we can get  the block without requesting
 	 * for new file system block.
@@ -921,12 +953,26 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 				inode, block, max_blocks, bh, 0, 0);
 	}
 	up_read((&EXT4_I(inode)->i_data_sem));
-	if (!create || (retval > 0))
+
+	/* If it is only a block(s) look up */
+	if (!create)
 		return retval;
 
 	/*
-	 * We need to allocate new blocks which will result
-	 * in i_data update
+	 * Returns if the blocks have already allocated
+	 *
+	 * Note that if blocks have been preallocated
+	 * ext4_ext_get_block() returns th create = 0
+	 * with buffer head unmapped.
+	 */
+	if (retval > 0 && buffer_mapped(bh))
+		return retval;
+
+	/*
+	 * New blocks allocate and/or writing to uninitialized extent
+	 * will possibly result in updating i_data, so we take
+	 * the write lock of i_data_sem, and call get_blocks()
+	 * with create == 1 flag.
 	 */
 	down_write((&EXT4_I(inode)->i_data_sem));
 	/*

@@ -213,3 +213,4 @@ static struct platform_driver ohci_hcd_ppc_soc_driver = {
 	},
 };
 
+MODULE_ALIAS("platform:ppc-soc-ohci");

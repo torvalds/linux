@@ -465,8 +465,6 @@ void __kprobes jprobe_return(void)
 
 extern void jprobe_return_trap_instruction(void);
 
-extern void __show_regs(struct pt_regs * regs);
-
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	u32 *addr = (u32 *) regs->tpc;

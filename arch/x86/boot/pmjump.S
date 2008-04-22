@@ -9,8 +9,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * arch/i386/boot/pmjump.S
- *
  * The actual transition into protected mode
  */
 

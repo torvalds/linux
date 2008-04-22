@@ -101,9 +101,9 @@ ENDPROC (_atomic_ior32)
 
 .align 16
 	/*
-	 * Atomic ior, 32 bit.
+	 * Atomic and, 32 bit.
 	 * Inputs:	P0: memory address to use
-	 *		R0: value to ior
+	 *		R0: value to and
 	 * Outputs:	R0: new contents of the memory address.
 	 *		R1: previous contents of the memory address.
 	 */
@@ -112,13 +112,13 @@ ENTRY(_atomic_and32)
 	R0 = R1 & R0;
 	[P0] = R0;
 	rts;
-ENDPROC (_atomic_ior32)
+ENDPROC (_atomic_and32)
 
 .align 16
 	/*
-	 * Atomic ior, 32 bit.
+	 * Atomic xor, 32 bit.
 	 * Inputs:	P0: memory address to use
-	 *		R0: value to ior
+	 *		R0: value to xor
 	 * Outputs:	R0: new contents of the memory address.
 	 *		R1: previous contents of the memory address.
 	 */
@@ -127,7 +127,7 @@ ENTRY(_atomic_xor32)
 	R0 = R1 ^ R0;
 	[P0] = R0;
 	rts;
-ENDPROC (_atomic_ior32)
+ENDPROC (_atomic_xor32)
 
 .align 16
 	/*

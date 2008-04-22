@@ -63,6 +63,10 @@ config GENERIC_HARDIRQS
 config HOTPLUG_CPU
 	def_bool n
 
+config HZ
+	int
+	default 1000
+
 mainmenu "Matsushita MN10300/AM33 Kernel Configuration"
 
 source "init/Kconfig"

@@ -165,7 +165,7 @@ typedef struct xfs_dquot_acct {
 #define XFS_QM_RELE(xqm)	((xqm)->qm_nrefs--)
 
 extern void		xfs_qm_destroy_quotainfo(xfs_mount_t *);
-extern int		xfs_qm_mount_quotas(xfs_mount_t *, int);
+extern void		xfs_qm_mount_quotas(xfs_mount_t *, int);
 extern int		xfs_qm_quotacheck(xfs_mount_t *);
 extern void		xfs_qm_unmount_quotadestroy(xfs_mount_t *);
 extern int		xfs_qm_unmount_quotas(xfs_mount_t *);

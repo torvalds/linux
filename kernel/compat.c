@@ -47,15 +47,14 @@ static long compat_nanosleep_restart(struct restart_block *restart)
 	mm_segment_t oldfs;
 	long ret;
 
-	rmtp = (struct compat_timespec __user *)(restart->arg1);
-	restart->arg1 = (unsigned long)&rmt;
+	restart->nanosleep.rmtp = (struct timespec __user *) &rmt;
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
 	ret = hrtimer_nanosleep_restart(restart);
 	set_fs(oldfs);
 
 	if (ret) {
-		restart->arg1 = (unsigned long)rmtp;
+		rmtp = restart->nanosleep.compat_rmtp;
 
 		if (rmtp && put_compat_timespec(&rmt, rmtp))
 			return -EFAULT;
@@ -89,7 +88,7 @@ asmlinkage long compat_sys_nanosleep(struct compat_timespec __user *rqtp,
 			= &current_thread_info()->restart_block;
 
 		restart->fn = compat_nanosleep_restart;
-		restart->arg1 = (unsigned long)rmtp;
+		restart->nanosleep.compat_rmtp = rmtp;
 
 		if (rmtp && put_compat_timespec(&rmt, rmtp))
 			return -EFAULT;
@@ -446,7 +445,7 @@ asmlinkage long compat_sys_sched_setaffinity(compat_pid_t pid,
 	if (retval)
 		return retval;
 
-	return sched_setaffinity(pid, new_mask);
+	return sched_setaffinity(pid, &new_mask);
 }
 
 asmlinkage long compat_sys_sched_getaffinity(compat_pid_t pid, unsigned int len,
@@ -607,9 +606,9 @@ static long compat_clock_nanosleep_restart(struct restart_block *restart)
 	long err;
 	mm_segment_t oldfs;
 	struct timespec tu;
-	struct compat_timespec *rmtp = (struct compat_timespec *)(restart->arg1);
+	struct compat_timespec *rmtp = restart->nanosleep.compat_rmtp;
 
-	restart->arg1 = (unsigned long) &tu;
+	restart->nanosleep.rmtp = (struct timespec __user *) &tu;
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
 	err = clock_nanosleep_restart(restart);
@@ -621,7 +620,7 @@ static long compat_clock_nanosleep_restart(struct restart_block *restart)
 
 	if (err == -ERESTART_RESTARTBLOCK) {
 		restart->fn = compat_clock_nanosleep_restart;
-		restart->arg1 = (unsigned long) rmtp;
+		restart->nanosleep.compat_rmtp = rmtp;
 	}
 	return err;
 }
@@ -652,7 +651,7 @@ long compat_sys_clock_nanosleep(clockid_t which_clock, int flags,
 	if (err == -ERESTART_RESTARTBLOCK) {
 		restart = &current_thread_info()->restart_block;
 		restart->fn = compat_clock_nanosleep_restart;
-		restart->arg1 = (unsigned long) rmtp;
+		restart->nanosleep.compat_rmtp = rmtp;
 	}
 	return err;
 }

@@ -717,7 +717,7 @@ static int __init omap_pm_init(void)
 #endif
 
 #ifdef CONFIG_OMAP_32K_TIMER
-	error = sysfs_create_file(power_kobj, &sleep_while_idle_attr);
+	error = sysfs_create_file(power_kobj, &sleep_while_idle_attr.attr);
 	if (error)
 		printk(KERN_ERR "sysfs_create_file failed: %d\n", error);
 #endif

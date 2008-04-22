@@ -49,12 +49,12 @@ int mdiobus_register(struct mii_bus *bus)
 	int i;
 	int err = 0;
 
-	mutex_init(&bus->mdio_lock);
-
 	if (NULL == bus || NULL == bus->name ||
 			NULL == bus->read ||
 			NULL == bus->write)
 		return -EINVAL;
+
+	mutex_init(&bus->mdio_lock);
 
 	if (bus->reset)
 		bus->reset(bus);

@@ -370,12 +370,13 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3, int device, int seq_device,
 int snd_opl3_open(struct snd_hwdep * hw, struct file *file);
 int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 		   unsigned int cmd, unsigned long arg);
-long snd_opl3_write(struct snd_hwdep *hw, const char __user *buf, long count,
-		    loff_t *offset);
 int snd_opl3_release(struct snd_hwdep * hw, struct file *file);
 
 void snd_opl3_reset(struct snd_opl3 * opl3);
 
+#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
+long snd_opl3_write(struct snd_hwdep *hw, const char __user *buf, long count,
+		    loff_t *offset);
 int snd_opl3_load_patch(struct snd_opl3 *opl3,
 			int prog, int bank, int type,
 			const char *name,
@@ -384,5 +385,9 @@ int snd_opl3_load_patch(struct snd_opl3 *opl3,
 struct fm_patch *snd_opl3_find_patch(struct snd_opl3 *opl3, int prog, int bank,
 				     int create_patch);
 void snd_opl3_clear_patches(struct snd_opl3 *opl3);
+#else
+#define snd_opl3_write	NULL
+static inline void snd_opl3_clear_patches(struct snd_opl3 *opl3) {}
+#endif
 
 #endif /* __SOUND_OPL3_H */

@@ -8,15 +8,14 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-#include <linux/platform_device.h>
-#include <linux/serial_8250.h>
 #include <linux/irq.h>
 
 #include <asm/mach/map.h>
 #include <asm/gpio.h>
 
 #include <asm/arch-ns9xxx/board.h>
-#include <asm/arch-ns9xxx/regs-sys.h>
+#include <asm/arch-ns9xxx/processor-ns9360.h>
+#include <asm/arch-ns9xxx/regs-sys-ns9360.h>
 #include <asm/arch-ns9xxx/regs-mem.h>
 #include <asm/arch-ns9xxx/regs-bbu.h>
 #include <asm/arch-ns9xxx/regs-board-a9m9750dev.h>
@@ -105,9 +104,9 @@ void __init board_a9m9750dev_init_irq(void)
 	int i;
 
 	if (gpio_request(11, "board a9m9750dev extirq2") == 0)
-		ns9xxx_gpio_configure(11, 0, 1);
+		ns9360_gpio_configure(11, 0, 1);
 	else
-		printk(KERN_ERR "%s: cannot get gpio 11 for IRQ_EXT2\n",
+		printk(KERN_ERR "%s: cannot get gpio 11 for IRQ_NS9XXX_EXT2\n",
 				__func__);
 
 	for (i = FPGA_IRQ(0); i <= FPGA_IRQ(7); ++i) {
@@ -116,68 +115,15 @@ void __init board_a9m9750dev_init_irq(void)
 		set_irq_flags(i, IRQF_VALID);
 	}
 
-	/* IRQ_EXT2: level sensitive + active low */
+	/* IRQ_NS9XXX_EXT2: level sensitive + active low */
 	eic = __raw_readl(SYS_EIC(2));
 	REGSET(eic, SYS_EIC, PLTY, AL);
 	REGSET(eic, SYS_EIC, LVEDG, LEVEL);
 	__raw_writel(eic, SYS_EIC(2));
 
-	set_irq_chained_handler(IRQ_EXT2,
+	set_irq_chained_handler(IRQ_NS9XXX_EXT2,
 			a9m9750dev_fpga_demux_handler);
 }
-
-static struct plat_serial8250_port board_a9m9750dev_serial8250_port[] = {
-	{
-		.iobase         = FPGA_UARTA_BASE,
-		.membase        = (unsigned char*)FPGA_UARTA_BASE,
-		.mapbase        = FPGA_UARTA_BASE,
-		.irq            = IRQ_FPGA_UARTA,
-		.iotype         = UPIO_MEM,
-		.uartclk        = 18432000,
-		.regshift       = 0,
-		.flags          = UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ,
-	}, {
-		.iobase         = FPGA_UARTB_BASE,
-		.membase        = (unsigned char*)FPGA_UARTB_BASE,
-		.mapbase        = FPGA_UARTB_BASE,
-		.irq            = IRQ_FPGA_UARTB,
-		.iotype         = UPIO_MEM,
-		.uartclk        = 18432000,
-		.regshift       = 0,
-		.flags          = UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ,
-	}, {
-		.iobase         = FPGA_UARTC_BASE,
-		.membase        = (unsigned char*)FPGA_UARTC_BASE,
-		.mapbase        = FPGA_UARTC_BASE,
-		.irq            = IRQ_FPGA_UARTC,
-		.iotype         = UPIO_MEM,
-		.uartclk        = 18432000,
-		.regshift       = 0,
-		.flags          = UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ,
-	}, {
-		.iobase         = FPGA_UARTD_BASE,
-		.membase        = (unsigned char*)FPGA_UARTD_BASE,
-		.mapbase        = FPGA_UARTD_BASE,
-		.irq            = IRQ_FPGA_UARTD,
-		.iotype         = UPIO_MEM,
-		.uartclk        = 18432000,
-		.regshift       = 0,
-		.flags          = UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ,
-	}, {
-		/* end marker */
-	},
-};
-
-static struct platform_device board_a9m9750dev_serial_device = {
-	.name = "serial8250",
-	.dev = {
-		.platform_data = board_a9m9750dev_serial8250_port,
-	},
-};
-
-static struct platform_device *board_a9m9750dev_devices[] __initdata = {
-	&board_a9m9750dev_serial_device,
-};
 
 void __init board_a9m9750dev_init_machine(void)
 {
@@ -210,7 +156,4 @@ void __init board_a9m9750dev_init_machine(void)
 	__raw_writel(0x2, MEM_SMOED(0));
 	__raw_writel(0x6, MEM_SMRD(0));
 	__raw_writel(0x6, MEM_SMWD(0));
-
-	platform_add_devices(board_a9m9750dev_devices,
-			ARRAY_SIZE(board_a9m9750dev_devices));
 }

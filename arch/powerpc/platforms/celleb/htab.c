@@ -35,9 +35,9 @@
 #include "beat_wrapper.h"
 
 #ifdef DEBUG_LOW
-#define DBG_LOW(fmt...) do { udbg_printf(fmt); } while(0)
+#define DBG_LOW(fmt...) do { udbg_printf(fmt); } while (0)
 #else
-#define DBG_LOW(fmt...) do { } while(0)
+#define DBG_LOW(fmt...) do { } while (0)
 #endif
 
 static DEFINE_SPINLOCK(beat_htab_lock);
@@ -116,7 +116,8 @@ static long beat_lpar_hpte_insert(unsigned long hpte_group,
 		hpte_r &= ~_PAGE_COHERENT;
 
 	spin_lock(&beat_htab_lock);
-	if ((lpar_rc = beat_read_mask(hpte_group)) == 0) {
+	lpar_rc = beat_read_mask(hpte_group);
+	if (lpar_rc == 0) {
 		if (!(vflags & HPTE_V_BOLTED))
 			DBG_LOW(" full\n");
 		spin_unlock(&beat_htab_lock);

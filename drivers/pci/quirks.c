@@ -867,13 +867,13 @@ static void quirk_disable_pxb(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82454NX,	quirk_disable_pxb);
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82454NX,	quirk_disable_pxb);
 
-
-static void __devinit quirk_sb600_sata(struct pci_dev *pdev)
+static void __devinit quirk_amd_ide_mode(struct pci_dev *pdev)
 {
-	/* set sb600 sata to ahci mode */
-	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
-		u8 tmp;
+	/* set sb600/sb700/sb800 sata to ahci mode */
+	u8 tmp;
 
+	pci_read_config_byte(pdev, PCI_CLASS_DEVICE, &tmp);
+	if (tmp == 0x01) {
 		pci_read_config_byte(pdev, 0x40, &tmp);
 		pci_write_config_byte(pdev, 0x40, tmp|1);
 		pci_write_config_byte(pdev, 0x9, 1);
@@ -881,10 +881,13 @@ static void __devinit quirk_sb600_sata(struct pci_dev *pdev)
 		pci_write_config_byte(pdev, 0x40, tmp);
 
 		pdev->class = PCI_CLASS_STORAGE_SATA_AHCI;
+		dev_info(&pdev->dev, "set SATA to AHCI mode\n");
 	}
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP600_SATA, quirk_sb600_sata);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP700_SATA, quirk_sb600_sata);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP600_SATA, quirk_amd_ide_mode);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP600_SATA, quirk_amd_ide_mode);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP700_SATA, quirk_amd_ide_mode);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP700_SATA, quirk_amd_ide_mode);
 
 /*
  *	Serverworks CSB5 IDE does not fully support native mode
@@ -948,6 +951,12 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82375,	quirk_e
  * accesses to the SMBus registers, with potentially bad effects. Thus you
  * should be very careful when adding new entries: if SMM is accessing the
  * Intel SMBus, this is a very good reason to leave it hidden.
+ *
+ * Likewise, many recent laptops use ACPI for thermal management. If the
+ * ACPI DSDT code accesses the SMBus, then Linux should not access it
+ * natively, and keeping the SMBus hidden is the right thing to do. If you
+ * are about to add an entry in the table below, please first disassemble
+ * the DSDT and double-check that there is no code accessing the SMBus.
  */
 static int asus_hides_smbus;
 
@@ -1023,11 +1032,6 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 		else if (dev->device == PCI_DEVICE_ID_INTEL_82875_HB)
 			switch (dev->subsystem_device) {
 			case 0x12bf: /* HP xw4100 */
-				asus_hides_smbus = 1;
-			}
-		else if (dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB)
-			switch (dev->subsystem_device) {
-			case 0x099c: /* HP Compaq nx6110 */
 				asus_hides_smbus = 1;
 			}
        } else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG)) {
@@ -1498,8 +1502,8 @@ static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f, struct pci_f
 		if ((f->vendor == dev->vendor || f->vendor == (u16) PCI_ANY_ID) &&
  		    (f->device == dev->device || f->device == (u16) PCI_ANY_ID)) {
 #ifdef DEBUG
-			dev_dbg(&dev->dev, "calling quirk 0x%p", f->hook);
-			print_fn_descriptor_symbol(": %s()\n",
+			dev_dbg(&dev->dev, "calling ");
+			print_fn_descriptor_symbol("%s()\n",
 				(unsigned long) f->hook);
 #endif
 			f->hook(dev);
@@ -1644,14 +1648,24 @@ static void __devinit quirk_via_cx700_pci_parking_caching(struct pci_dev *dev)
 			/* Turn off PCI Bus Parking */
 			pci_write_config_byte(dev, 0x76, b ^ 0x40);
 
+			dev_info(&dev->dev,
+				"Disabling VIA CX700 PCI parking\n");
+		}
+	}
+
+	if (pci_read_config_byte(dev, 0x72, &b) == 0) {
+		if (b != 0) {
 			/* Turn off PCI Master read caching */
 			pci_write_config_byte(dev, 0x72, 0x0);
+
+			/* Set PCI Master Bus time-out to "1x16 PCLK" */
 			pci_write_config_byte(dev, 0x75, 0x1);
+
+			/* Disable "Read FIFO Timer" */
 			pci_write_config_byte(dev, 0x77, 0x0);
 
-			printk(KERN_INFO
-				"PCI: VIA CX700 PCI parking/caching fixup on %s\n",
-				pci_name(dev));
+			dev_info(&dev->dev,
+				"Disabling VIA CX700 PCI caching\n");
 		}
 	}
 }
@@ -1723,32 +1737,6 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_HT2
 			quirk_msi_ht_cap);
 
 
-/*
- *  Force enable MSI mapping capability on HT bridges
- */
-static void __devinit quirk_msi_ht_cap_enable(struct pci_dev *dev)
-{
-	int pos, ttl = 48;
-
-	pos = pci_find_ht_capability(dev, HT_CAPTYPE_MSI_MAPPING);
-	while (pos && ttl--) {
-		u8 flags;
-
-		if (pci_read_config_byte(dev, pos + HT_MSI_FLAGS, &flags) == 0) {
-			printk(KERN_INFO "PCI: Enabling HT MSI Mapping on %s\n",
-			       pci_name(dev));
-
-			pci_write_config_byte(dev, pos + HT_MSI_FLAGS,
-					      flags | HT_MSI_FLAGS_ENABLE);
-		}
-		pos = pci_find_next_ht_capability(dev, pos,
-						  HT_CAPTYPE_MSI_MAPPING);
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS,
-			 PCI_DEVICE_ID_SERVERWORKS_HT1000_PXB,
-			 quirk_msi_ht_cap_enable);
-
 /* The nVidia CK804 chipset may have 2 HT MSI mappings.
  * MSI are supported if the MSI capability set in any of these mappings.
  */
@@ -1774,6 +1762,70 @@ static void __devinit quirk_nvidia_ck804_msi_ht_cap(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_CK804_PCIE,
 			quirk_nvidia_ck804_msi_ht_cap);
+
+/* Force enable MSI mapping capability on HT bridges */
+static void __devinit ht_enable_msi_mapping(struct pci_dev *dev)
+{
+	int pos, ttl = 48;
+
+	pos = pci_find_ht_capability(dev, HT_CAPTYPE_MSI_MAPPING);
+	while (pos && ttl--) {
+		u8 flags;
+
+		if (pci_read_config_byte(dev, pos + HT_MSI_FLAGS,
+					 &flags) == 0) {
+			dev_info(&dev->dev, "Enabling HT MSI Mapping\n");
+
+			pci_write_config_byte(dev, pos + HT_MSI_FLAGS,
+					      flags | HT_MSI_FLAGS_ENABLE);
+		}
+		pos = pci_find_next_ht_capability(dev, pos,
+						  HT_CAPTYPE_MSI_MAPPING);
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS,
+			 PCI_DEVICE_ID_SERVERWORKS_HT1000_PXB,
+			 ht_enable_msi_mapping);
+
+static void __devinit nv_msi_ht_cap_quirk(struct pci_dev *dev)
+{
+	struct pci_dev *host_bridge;
+	int pos, ttl = 48;
+
+	/*
+	 * HT MSI mapping should be disabled on devices that are below
+	 * a non-Hypertransport host bridge. Locate the host bridge...
+	 */
+	host_bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
+	if (host_bridge == NULL) {
+		dev_warn(&dev->dev,
+			 "nv_msi_ht_cap_quirk didn't locate host bridge\n");
+		return;
+	}
+
+	pos = pci_find_ht_capability(host_bridge, HT_CAPTYPE_SLAVE);
+	if (pos != 0) {
+		/* Host bridge is to HT */
+		ht_enable_msi_mapping(dev);
+		return;
+	}
+
+	/* Host bridge is not to HT, disable HT MSI mapping on this device */
+	pos = pci_find_ht_capability(dev, HT_CAPTYPE_MSI_MAPPING);
+	while (pos && ttl--) {
+		u8 flags;
+
+		if (pci_read_config_byte(dev, pos + HT_MSI_FLAGS,
+					 &flags) == 0) {
+			dev_info(&dev->dev, "Disabling HT MSI mapping");
+			pci_write_config_byte(dev, pos + HT_MSI_FLAGS,
+					      flags & ~HT_MSI_FLAGS_ENABLE);
+		}
+		pos = pci_find_next_ht_capability(dev, pos,
+						  HT_CAPTYPE_MSI_MAPPING);
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, nv_msi_ht_cap_quirk);
 
 static void __devinit quirk_msi_intx_disable_bug(struct pci_dev *dev)
 {

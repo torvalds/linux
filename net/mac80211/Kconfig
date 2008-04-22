@@ -32,15 +32,6 @@ config MAC80211_RC_DEFAULT_PID
 	  default rate control algorithm. You should choose
 	  this unless you know what you are doing.
 
-config MAC80211_RC_DEFAULT_SIMPLE
-	bool "Simple rate control algorithm"
-	select MAC80211_RC_SIMPLE
-	---help---
-	  Select the simple rate control as the default rate
-	  control algorithm. Note that this is a non-responsive,
-	  dumb algorithm. You should choose the PID rate control
-	  instead.
-
 config MAC80211_RC_DEFAULT_NONE
 	bool "No default algorithm"
 	depends on EMBEDDED
@@ -57,7 +48,6 @@ comment "build the algorithm into mac80211."
 config MAC80211_RC_DEFAULT
 	string
 	default "pid" if MAC80211_RC_DEFAULT_PID
-	default "simple" if MAC80211_RC_DEFAULT_SIMPLE
 	default ""
 
 config MAC80211_RC_PID
@@ -70,16 +60,16 @@ config MAC80211_RC_PID
 	  Say Y or M unless you're sure you want to use a
 	  different rate control algorithm.
 
-config MAC80211_RC_SIMPLE
-	tristate "Simple rate control algorithm (DEPRECATED)"
-	---help---
-	  This option enables a very simple, non-responsive TX
-	  rate control algorithm. This algorithm is deprecated
-	  and will be removed from the kernel in the near future.
-	  It has been replaced by the PID algorithm.
-
-	  Say N unless you know what you are doing.
 endmenu
+
+config MAC80211_MESH
+	bool "Enable mac80211 mesh networking (pre-802.11s) support"
+	depends on MAC80211 && EXPERIMENTAL
+	---help---
+	 This options enables support of Draft 802.11s mesh networking.
+	 The implementation is based on Draft 1.08 of the Mesh Networking
+	 amendment. For more information visit http://o11s.org/.
+
 
 config MAC80211_LEDS
 	bool "Enable LED triggers"
@@ -166,3 +156,10 @@ config MAC80211_VERBOSE_PS_DEBUG
 	---help---
 	  Say Y here to print out verbose powersave
 	  mode debug messages.
+
+config MAC80211_VERBOSE_MPL_DEBUG
+	bool "Verbose mesh peer link debugging"
+	depends on MAC80211_DEBUG && MAC80211_MESH
+	---help---
+	  Say Y here to print out verbose mesh peer link
+	  debug messages.

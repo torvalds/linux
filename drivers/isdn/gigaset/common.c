@@ -637,7 +637,6 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 		err("maximum number of devices exceeded");
 		return NULL;
 	}
-	mutex_init(&cs->mutex);
 
 	gig_dbg(DEBUG_INIT, "allocating bcs[0..%d]", channels - 1);
 	cs->bcs = kmalloc(channels * sizeof(struct bc_state), GFP_KERNEL);
@@ -898,8 +897,10 @@ int gigaset_shutdown(struct cardstate *cs)
 {
 	mutex_lock(&cs->mutex);
 
-	if (!(cs->flags & VALID_MINOR))
+	if (!(cs->flags & VALID_MINOR)) {
+		mutex_unlock(&cs->mutex);
 		return -1;
+	}
 
 	cs->waiting = 1;
 
@@ -1086,6 +1087,7 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 		drv->cs[i].driver = drv;
 		drv->cs[i].ops = drv->ops;
 		drv->cs[i].minor_index = i;
+		mutex_init(&drv->cs[i].mutex);
 	}
 
 	gigaset_if_initdriver(drv, procname, devname);

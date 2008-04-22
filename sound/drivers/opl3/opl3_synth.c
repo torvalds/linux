@@ -22,6 +22,10 @@
 #include <sound/opl3.h>
 #include <sound/asound_fm.h>
 
+#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
+#define OPL3_SUPPORT_SYNTH
+#endif
+
 /*
  *    There is 18 possible 2 OP voices
  *      (9 in the left and 9 in the right).
@@ -155,9 +159,11 @@ int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 #endif
 		return snd_opl3_set_connection(opl3, (int) arg);
 
+#ifdef OPL3_SUPPORT_SYNTH
 	case SNDRV_DM_FM_IOCTL_CLEAR_PATCHES:
 		snd_opl3_clear_patches(opl3);
 		return 0;
+#endif
 
 #ifdef CONFIG_SND_DEBUG
 	default:
@@ -178,6 +184,7 @@ int snd_opl3_release(struct snd_hwdep * hw, struct file *file)
 	return 0;
 }
 
+#ifdef OPL3_SUPPORT_SYNTH
 /*
  * write the device - load patches
  */
@@ -341,6 +348,7 @@ void snd_opl3_clear_patches(struct snd_opl3 *opl3)
 	}
 	memset(opl3->patch_table, 0, sizeof(opl3->patch_table));
 }
+#endif /* OPL3_SUPPORT_SYNTH */
 
 /* ------------------------------ */
 

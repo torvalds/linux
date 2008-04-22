@@ -178,6 +178,7 @@ static void change_clocksource(void)
 	if (clock == new)
 		return;
 
+	new->cycle_last = 0;
 	now = clocksource_read(new);
 	nsec =  __get_nsec_offset();
 	timespec_add_ns(&xtime, nsec);
@@ -187,13 +188,16 @@ static void change_clocksource(void)
 
 	clock->error = 0;
 	clock->xtime_nsec = 0;
-	clocksource_calculate_interval(clock,
-		(unsigned long)(current_tick_length()>>TICK_LENGTH_SHIFT));
+	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
 
 	tick_clock_notify();
 
+	/*
+	 * We're holding xtime lock and waking up klogd would deadlock
+	 * us on enqueue.  So no printing!
 	printk(KERN_INFO "Time: %s clocksource has been installed.\n",
 	       clock->name);
+	 */
 }
 #else
 static inline void change_clocksource(void) { }
@@ -245,8 +249,7 @@ void __init timekeeping_init(void)
 	ntp_clear();
 
 	clock = clocksource_get_next();
-	clocksource_calculate_interval(clock,
-		(unsigned long)(current_tick_length()>>TICK_LENGTH_SHIFT));
+	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
 	clock->cycle_last = clocksource_read(clock);
 
 	xtime.tv_sec = sec;
@@ -293,6 +296,7 @@ static int timekeeping_resume(struct sys_device *dev)
 	timespec_add_ns(&xtime, timekeeping_suspend_nsecs);
 	update_xtime_cache(0);
 	/* re-base the last cycle value */
+	clock->cycle_last = 0;
 	clock->cycle_last = clocksource_read(clock);
 	clock->error = 0;
 	timekeeping_suspended = 0;

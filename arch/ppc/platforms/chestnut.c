@@ -22,7 +22,6 @@
 #include <linux/initrd.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <linux/ide.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>

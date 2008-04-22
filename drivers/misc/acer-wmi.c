@@ -219,10 +219,28 @@ static struct dmi_system_id acer_quirks[] = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "Acer Aspire 3610",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 3610"),
+		},
+		.driver_data = &quirk_acer_travelmate_2490,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Acer Aspire 5100",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5100"),
+		},
+		.driver_data = &quirk_acer_travelmate_2490,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Acer Aspire 5610",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5610"),
 		},
 		.driver_data = &quirk_acer_travelmate_2490,
 	},
@@ -268,6 +286,15 @@ static struct dmi_system_id acer_quirks[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 2490"),
+		},
+		.driver_data = &quirk_acer_travelmate_2490,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Acer TravelMate 4200",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 4200"),
 		},
 		.driver_data = &quirk_acer_travelmate_2490,
 	},
@@ -752,11 +779,11 @@ enum led_brightness value)
 }
 
 static struct led_classdev mail_led = {
-	.name = "acer-mail:green",
+	.name = "acer-wmi::mail",
 	.brightness_set = mail_led_set,
 };
 
-static int __init acer_led_init(struct device *dev)
+static int __devinit acer_led_init(struct device *dev)
 {
 	return led_classdev_register(dev, &mail_led);
 }
@@ -789,7 +816,7 @@ static struct backlight_ops acer_bl_ops = {
 	.update_status = update_bl_status,
 };
 
-static int __init acer_backlight_init(struct device *dev)
+static int __devinit acer_backlight_init(struct device *dev)
 {
 	struct backlight_device *bd;
 
@@ -808,7 +835,7 @@ static int __init acer_backlight_init(struct device *dev)
 	return 0;
 }
 
-static void __exit acer_backlight_exit(void)
+static void acer_backlight_exit(void)
 {
 	backlight_device_unregister(acer_backlight_device);
 }
@@ -1043,11 +1070,12 @@ static int __init acer_wmi_init(void)
 
 	if (wmi_has_guid(WMID_GUID2) && interface) {
 		if (ACPI_FAILURE(WMID_set_capabilities())) {
-			printk(ACER_ERR "Unable to detect available devices\n");
+			printk(ACER_ERR "Unable to detect available WMID "
+					"devices\n");
 			return -ENODEV;
 		}
 	} else if (!wmi_has_guid(WMID_GUID2) && interface) {
-		printk(ACER_ERR "Unable to detect available devices\n");
+		printk(ACER_ERR "No WMID device detection method found\n");
 		return -ENODEV;
 	}
 
@@ -1055,21 +1083,20 @@ static int __init acer_wmi_init(void)
 		interface = &AMW0_interface;
 
 		if (ACPI_FAILURE(AMW0_set_capabilities())) {
-			printk(ACER_ERR "Unable to detect available devices\n");
+			printk(ACER_ERR "Unable to detect available AMW0 "
+					"devices\n");
 			return -ENODEV;
 		}
 	}
 
-	if (wmi_has_guid(AMW0_GUID1)) {
-		if (ACPI_FAILURE(AMW0_find_mailled()))
-			printk(ACER_ERR "Unable to detect mail LED\n");
-	}
+	if (wmi_has_guid(AMW0_GUID1))
+		AMW0_find_mailled();
 
 	find_quirks();
 
 	if (!interface) {
-		printk(ACER_ERR "No or unsupported WMI interface, unable to ");
-		printk(KERN_CONT "load.\n");
+		printk(ACER_ERR "No or unsupported WMI interface, unable to "
+				"load\n");
 		return -ENODEV;
 	}
 

@@ -92,7 +92,6 @@ struct printer_dev {
 	u8			*current_rx_buf;
 	u8			printer_status;
 	u8			reset_printer;
-	struct class_device	*printer_class_dev;
 	struct cdev		printer_cdev;
 	struct device		*pdev;
 	u8			printer_cdev_open;
@@ -1299,7 +1298,7 @@ printer_unbind(struct usb_gadget *gadget)
 		printer_req_free(dev->in_ep, req);
 	}
 
-	if (dev->current_rx_req != NULL);
+	if (dev->current_rx_req != NULL)
 		printer_req_free(dev->out_ep, dev->current_rx_req);
 
 	while (!list_empty(&dev->rx_reqs)) {

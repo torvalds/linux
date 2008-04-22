@@ -66,11 +66,9 @@
  */
 
 #define VMALLOC_START		0xC0000000
-#define VMALLOC_END		0xC6FEFFFF
-#define TLBTEMP_BASE_1		0xC6FF0000
-#define TLBTEMP_BASE_2		0xC6FF8000
-#define MODULE_START		0xC7000000
-#define MODULE_END		0xC7FFFFFF
+#define VMALLOC_END		0xC7FEFFFF
+#define TLBTEMP_BASE_1		0xC7FF0000
+#define TLBTEMP_BASE_2		0xC7FF8000
 
 /*
  * Xtensa Linux config PTE layout (when present):

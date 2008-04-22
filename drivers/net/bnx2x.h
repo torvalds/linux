@@ -1,6 +1,6 @@
 /* bnx2x.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007 Broadcom Corporation
+ * Copyright (c) 2007-2008 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #define BNX2X_MSG_STATS 		0x20000 /* was: NETIF_MSG_TIMER */
 #define NETIF_MSG_NVM   		0x40000 /* was: NETIF_MSG_HW */
 #define NETIF_MSG_DMAE  		0x80000 /* was: NETIF_MSG_HW */
+#define BNX2X_MSG_SP			0x100000 /* was: NETIF_MSG_INTR */
+#define BNX2X_MSG_FP			0x200000 /* was: NETIF_MSG_INTR */
 
 #define DP_LEVEL			KERN_NOTICE     /* was: KERN_DEBUG */
 
@@ -37,6 +39,12 @@
 /* for errors (never masked) */
 #define BNX2X_ERR(__fmt, __args...) do { \
 	printk(KERN_ERR "[%s:%d(%s)]" __fmt, __FUNCTION__, \
+		__LINE__, bp->dev?(bp->dev->name):"?", ##__args); \
+	} while (0)
+
+/* for logging (never masked) */
+#define BNX2X_LOG(__fmt, __args...) do { \
+	printk(KERN_NOTICE "[%s:%d(%s)]" __fmt, __FUNCTION__, \
 		__LINE__, bp->dev?(bp->dev->name):"?", ##__args); \
 	} while (0)
 
@@ -423,8 +431,6 @@ struct bnx2x_fastpath {
 #define BNX2X_FP_STATE_OPEN     	0xa0000
 #define BNX2X_FP_STATE_HALTING  	0xb0000
 #define BNX2X_FP_STATE_HALTED   	0xc0000
-#define BNX2X_FP_STATE_DELETED  	0xd0000
-#define BNX2X_FP_STATE_CLOSE_IRQ	0xe0000
 
 	int     		index;
 
@@ -505,7 +511,6 @@ struct bnx2x {
 	struct eth_spe  	*spq;
 	dma_addr_t      	spq_mapping;
 	u16     		spq_prod_idx;
-	u16     		dsb_sp_prod_idx;
 	struct eth_spe  	*spq_prod_bd;
 	struct eth_spe  	*spq_last_bd;
 	u16     		*dsb_sp_prod;
@@ -517,7 +522,7 @@ struct bnx2x {
 	 */
 	u8      		stat_pending;
 
-	/* End of fileds used in the performance code paths */
+	/* End of fields used in the performance code paths */
 
 	int     		panic;
 	int     		msglevel;
@@ -540,8 +545,6 @@ struct bnx2x {
 	spinlock_t      	phy_lock;
 
 	struct work_struct      reset_task;
-	u16     		in_reset_task;
-
 	struct work_struct      sp_task;
 
 	struct timer_list       timer;
@@ -555,7 +558,6 @@ struct bnx2x {
 #define CHIP_ID(bp)     		(((bp)->chip_id) & 0xfffffff0)
 
 #define CHIP_NUM(bp)    		(((bp)->chip_id) & 0xffff0000)
-#define CHIP_NUM_5710   		0x57100000
 
 #define CHIP_REV(bp)    		(((bp)->chip_id) & 0x0000f000)
 #define CHIP_REV_Ax     		0x00000000
@@ -574,7 +576,8 @@ struct bnx2x {
 	u32     		fw_mb;
 
 	u32     		hw_config;
-	u32     		serdes_config;
+	u32			board;
+	u32			serdes_config;
 	u32     		lane_config;
 	u32     		ext_phy_config;
 #define XGXS_EXT_PHY_TYPE(bp)   	(bp->ext_phy_config & \
@@ -595,11 +598,11 @@ struct bnx2x {
 	u8      		tx_lane_swap;
 
 	u8      		link_up;
+	u8			phy_link_up;
 
 	u32     		supported;
 /* link settings - missing defines */
 #define SUPPORTED_2500baseT_Full	(1 << 15)
-#define SUPPORTED_CX4   		(1 << 16)
 
 	u32     		phy_flags;
 /*#define PHY_SERDES_FLAG       		0x1*/
@@ -644,16 +647,9 @@ struct bnx2x {
 #define FLOW_CTRL_BOTH  		PORT_FEATURE_FLOW_CONTROL_BOTH
 #define FLOW_CTRL_NONE  		PORT_FEATURE_FLOW_CONTROL_NONE
 
-	u32     		pause_mode;
-#define PAUSE_NONE      		0
-#define PAUSE_SYMMETRIC 		1
-#define PAUSE_ASYMMETRIC		2
-#define PAUSE_BOTH      		3
-
 	u32     		advertising;
 /* link settings - missing defines */
 #define ADVERTISED_2500baseT_Full       (1 << 15)
-#define ADVERTISED_CX4  		(1 << 16)
 
 	u32     		link_status;
 	u32     		line_speed;
@@ -666,6 +662,8 @@ struct bnx2x {
 #define NVRAM_1MB_SIZE  		0x20000 /* 1M bit in bytes */
 #define NVRAM_TIMEOUT_COUNT     	30000
 #define NVRAM_PAGE_SIZE 		256
+
+	u8			wol;
 
 	int     		rx_ring_size;
 
@@ -718,9 +716,6 @@ struct bnx2x {
 #endif
 
 	char    		*name;
-	u16     		bus_speed_mhz;
-	u8      		wol;
-	u8      		pad;
 
 	/* used to synchronize stats collecting */
 	int     		stats_state;
@@ -856,8 +851,8 @@ struct bnx2x {
 #define MAX_SPQ_PENDING 		8
 
 
-#define BNX2X_NUM_STATS 		31
-#define BNX2X_NUM_TESTS 		2
+#define BNX2X_NUM_STATS			34
+#define BNX2X_NUM_TESTS			1
 
 
 #define DPM_TRIGER_TYPE 		0x40
@@ -867,6 +862,15 @@ struct bnx2x {
 		       DPM_TRIGER_TYPE); \
 	} while (0)
 
+/* PCIE link and speed */
+#define PCICFG_LINK_WIDTH		0x1f00000
+#define PCICFG_LINK_WIDTH_SHIFT		20
+#define PCICFG_LINK_SPEED		0xf0000
+#define PCICFG_LINK_SPEED_SHIFT		16
+
+#define BMAC_CONTROL_RX_ENABLE		2
+
+#define pbd_tcp_flags(skb)  	(ntohl(tcp_flag_word(tcp_hdr(skb)))>>16 & 0xff)
 
 /* stuff added to make the code fit 80Col */
 
@@ -939,13 +943,13 @@ struct bnx2x {
 #define LINK_16GTFD     		LINK_STATUS_SPEED_AND_DUPLEX_16GTFD
 #define LINK_16GXFD     		LINK_STATUS_SPEED_AND_DUPLEX_16GXFD
 
-#define NIG_STATUS_INTERRUPT_XGXS0_LINK10G \
+#define NIG_STATUS_XGXS0_LINK10G \
 		NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK10G
-#define NIG_XGXS0_LINK_STATUS \
+#define NIG_STATUS_XGXS0_LINK_STATUS \
 		NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK_STATUS
-#define NIG_XGXS0_LINK_STATUS_SIZE \
+#define NIG_STATUS_XGXS0_LINK_STATUS_SIZE \
 		NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK_STATUS_SIZE
-#define NIG_SERDES0_LINK_STATUS \
+#define NIG_STATUS_SERDES0_LINK_STATUS \
 		NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_SERDES0_LINK_STATUS
 #define NIG_MASK_MI_INT \
 		NIG_MASK_INTERRUPT_PORT0_REG_MASK_EMAC0_MISC_MI_INT

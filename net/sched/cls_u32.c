@@ -89,7 +89,7 @@ static const struct tcf_ext_map u32_ext_map = {
 
 static struct tc_u_common *u32_list;
 
-static __inline__ unsigned u32_hash_fold(u32 key, struct tc_u32_sel *sel, u8 fshift)
+static __inline__ unsigned u32_hash_fold(__be32 key, struct tc_u32_sel *sel, u8 fshift)
 {
 	unsigned h = ntohl(key & sel->hmask)>>fshift;
 
@@ -137,7 +137,7 @@ next_knode:
 
 		for (i = n->sel.nkeys; i>0; i--, key++) {
 
-			if ((*(u32*)(ptr+key->off+(off2&key->offmask))^key->val)&key->mask) {
+			if ((*(__be32*)(ptr+key->off+(off2&key->offmask))^key->val)&key->mask) {
 				n = n->next;
 				goto next_knode;
 			}
@@ -182,7 +182,7 @@ check_terminal:
 		ht = n->ht_down;
 		sel = 0;
 		if (ht->divisor)
-			sel = ht->divisor&u32_hash_fold(*(u32*)(ptr+n->sel.hoff), &n->sel,n->fshift);
+			sel = ht->divisor&u32_hash_fold(*(__be32*)(ptr+n->sel.hoff), &n->sel,n->fshift);
 
 		if (!(n->sel.flags&(TC_U32_VAROFFSET|TC_U32_OFFSET|TC_U32_EAT)))
 			goto next_ht;
@@ -190,7 +190,7 @@ check_terminal:
 		if (n->sel.flags&(TC_U32_OFFSET|TC_U32_VAROFFSET)) {
 			off2 = n->sel.off + 3;
 			if (n->sel.flags&TC_U32_VAROFFSET)
-				off2 += ntohs(n->sel.offmask & *(u16*)(ptr+n->sel.offoff)) >>n->sel.offshift;
+				off2 += ntohs(n->sel.offmask & *(__be16*)(ptr+n->sel.offoff)) >>n->sel.offshift;
 			off2 &= ~3;
 		}
 		if (n->sel.flags&TC_U32_EAT) {
@@ -411,8 +411,10 @@ static void u32_destroy(struct tcf_proto *tp)
 			}
 		}
 
-		for (ht=tp_c->hlist; ht; ht = ht->next)
+		for (ht = tp_c->hlist; ht; ht = ht->next) {
+			ht->refcnt--;
 			u32_clear_hnode(tp, ht);
+		}
 
 		while ((ht = tp_c->hlist) != NULL) {
 			tp_c->hlist = ht->next;
@@ -441,8 +443,12 @@ static int u32_delete(struct tcf_proto *tp, unsigned long arg)
 	if (tp->root == ht)
 		return -EINVAL;
 
-	if (--ht->refcnt == 0)
+	if (ht->refcnt == 1) {
+		ht->refcnt--;
 		u32_destroy_hnode(tp, ht);
+	} else {
+		return -EBUSY;
+	}
 
 	return 0;
 }
@@ -568,7 +574,7 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 		if (ht == NULL)
 			return -ENOBUFS;
 		ht->tp_c = tp_c;
-		ht->refcnt = 0;
+		ht->refcnt = 1;
 		ht->divisor = divisor;
 		ht->handle = handle;
 		ht->prio = tp->prio;

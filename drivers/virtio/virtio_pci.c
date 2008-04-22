@@ -37,7 +37,7 @@ struct virtio_pci_device
 	struct pci_dev *pci_dev;
 
 	/* the IO mapping for the PCI config space */
-	void *ioaddr;
+	void __iomem *ioaddr;
 
 	/* a list of queues so we can dispatch IRQs */
 	spinlock_t lock;
@@ -111,7 +111,7 @@ static void vp_get(struct virtio_device *vdev, unsigned offset,
 		   void *buf, unsigned len)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
-	void *ioaddr = vp_dev->ioaddr + VIRTIO_PCI_CONFIG + offset;
+	void __iomem *ioaddr = vp_dev->ioaddr + VIRTIO_PCI_CONFIG + offset;
 	u8 *ptr = buf;
 	int i;
 
@@ -125,7 +125,7 @@ static void vp_set(struct virtio_device *vdev, unsigned offset,
 		   const void *buf, unsigned len)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
-	void *ioaddr = vp_dev->ioaddr + VIRTIO_PCI_CONFIG + offset;
+	void __iomem *ioaddr = vp_dev->ioaddr + VIRTIO_PCI_CONFIG + offset;
 	const u8 *ptr = buf;
 	int i;
 
@@ -177,6 +177,7 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
 	struct virtio_pci_device *vp_dev = opaque;
 	struct virtio_pci_vq_info *info;
 	irqreturn_t ret = IRQ_NONE;
+	unsigned long flags;
 	u8 isr;
 
 	/* reading the ISR has the effect of also clearing it so it's very
@@ -197,12 +198,12 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
 			drv->config_changed(&vp_dev->vdev);
 	}
 
-	spin_lock(&vp_dev->lock);
+	spin_lock_irqsave(&vp_dev->lock, flags);
 	list_for_each_entry(info, &vp_dev->virtqueues, node) {
 		if (vring_interrupt(irq, info->vq) == IRQ_HANDLED)
 			ret = IRQ_HANDLED;
 	}
-	spin_unlock(&vp_dev->lock);
+	spin_unlock_irqrestore(&vp_dev->lock, flags);
 
 	return ret;
 }
@@ -214,6 +215,7 @@ static struct virtqueue *vp_find_vq(struct virtio_device *vdev, unsigned index,
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtio_pci_vq_info *info;
 	struct virtqueue *vq;
+	unsigned long flags;
 	u16 num;
 	int err;
 
@@ -255,9 +257,9 @@ static struct virtqueue *vp_find_vq(struct virtio_device *vdev, unsigned index,
 	vq->priv = info;
 	info->vq = vq;
 
-	spin_lock(&vp_dev->lock);
+	spin_lock_irqsave(&vp_dev->lock, flags);
 	list_add(&info->node, &vp_dev->virtqueues);
-	spin_unlock(&vp_dev->lock);
+	spin_unlock_irqrestore(&vp_dev->lock, flags);
 
 	return vq;
 
@@ -274,10 +276,11 @@ static void vp_del_vq(struct virtqueue *vq)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
 	struct virtio_pci_vq_info *info = vq->priv;
+	unsigned long flags;
 
-	spin_lock(&vp_dev->lock);
+	spin_lock_irqsave(&vp_dev->lock, flags);
 	list_del(&info->node);
-	spin_unlock(&vp_dev->lock);
+	spin_unlock_irqrestore(&vp_dev->lock, flags);
 
 	vring_del_virtqueue(vq);
 
@@ -385,6 +388,7 @@ static void __devexit virtio_pci_remove(struct pci_dev *pci_dev)
 {
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
 
+	unregister_virtio_device(&vp_dev->vdev);
 	free_irq(pci_dev->irq, vp_dev);
 	pci_set_drvdata(pci_dev, NULL);
 	pci_iounmap(pci_dev, vp_dev->ioaddr);

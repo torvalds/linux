@@ -208,7 +208,7 @@ static int c2_rnic_query(struct c2_dev *c2dev, struct ib_device_attr *props)
 /*
  * Add an IP address to the RNIC interface
  */
-int c2_add_addr(struct c2_dev *c2dev, u32 inaddr, u32 inmask)
+int c2_add_addr(struct c2_dev *c2dev, __be32 inaddr, __be32 inmask)
 {
 	struct c2_vq_req *vq_req;
 	struct c2wr_rnic_setconfig_req *wr;
@@ -270,7 +270,7 @@ int c2_add_addr(struct c2_dev *c2dev, u32 inaddr, u32 inmask)
 /*
  * Delete an IP address from the RNIC interface
  */
-int c2_del_addr(struct c2_dev *c2dev, u32 inaddr, u32 inmask)
+int c2_del_addr(struct c2_dev *c2dev, __be32 inaddr, __be32 inmask)
 {
 	struct c2_vq_req *vq_req;
 	struct c2wr_rnic_setconfig_req *wr;
@@ -455,7 +455,8 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 	     IB_DEVICE_CURR_QP_STATE_MOD |
 	     IB_DEVICE_SYS_IMAGE_GUID |
 	     IB_DEVICE_ZERO_STAG |
-	     IB_DEVICE_SEND_W_INV | IB_DEVICE_MEM_WINDOW);
+	     IB_DEVICE_MEM_WINDOW |
+	     IB_DEVICE_SEND_W_INV);
 
 	/* Allocate the qptr_array */
 	c2dev->qptr_array = vmalloc(C2_MAX_CQS * sizeof(void *));
@@ -506,17 +507,17 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 	mmio_regs = c2dev->kva;
 	/* Initialize the Verbs Request Queue */
 	c2_mq_req_init(&c2dev->req_vq, 0,
-		       be32_to_cpu(readl(mmio_regs + C2_REGS_Q0_QSIZE)),
-		       be32_to_cpu(readl(mmio_regs + C2_REGS_Q0_MSGSIZE)),
+		       be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q0_QSIZE)),
+		       be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q0_MSGSIZE)),
 		       mmio_regs +
-		       be32_to_cpu(readl(mmio_regs + C2_REGS_Q0_POOLSTART)),
+		       be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q0_POOLSTART)),
 		       mmio_regs +
-		       be32_to_cpu(readl(mmio_regs + C2_REGS_Q0_SHARED)),
+		       be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q0_SHARED)),
 		       C2_MQ_ADAPTER_TARGET);
 
 	/* Initialize the Verbs Reply Queue */
-	qsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q1_QSIZE));
-	msgsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q1_MSGSIZE));
+	qsize = be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q1_QSIZE));
+	msgsize = be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q1_MSGSIZE));
 	q1_pages = dma_alloc_coherent(&c2dev->pcidev->dev, qsize * msgsize,
 				      &c2dev->rep_vq.host_dma, GFP_KERNEL);
 	if (!q1_pages) {
@@ -524,7 +525,7 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 		goto bail1;
 	}
 	pci_unmap_addr_set(&c2dev->rep_vq, mapping, c2dev->rep_vq.host_dma);
-	pr_debug("%s rep_vq va %p dma %llx\n", __FUNCTION__, q1_pages,
+	pr_debug("%s rep_vq va %p dma %llx\n", __func__, q1_pages,
 		 (unsigned long long) c2dev->rep_vq.host_dma);
 	c2_mq_rep_init(&c2dev->rep_vq,
 		   1,
@@ -532,12 +533,12 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 		   msgsize,
 		   q1_pages,
 		   mmio_regs +
-		   be32_to_cpu(readl(mmio_regs + C2_REGS_Q1_SHARED)),
+		   be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q1_SHARED)),
 		   C2_MQ_HOST_TARGET);
 
 	/* Initialize the Asynchronus Event Queue */
-	qsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q2_QSIZE));
-	msgsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q2_MSGSIZE));
+	qsize = be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q2_QSIZE));
+	msgsize = be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q2_MSGSIZE));
 	q2_pages = dma_alloc_coherent(&c2dev->pcidev->dev, qsize * msgsize,
 				      &c2dev->aeq.host_dma, GFP_KERNEL);
 	if (!q2_pages) {
@@ -545,7 +546,7 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 		goto bail2;
 	}
 	pci_unmap_addr_set(&c2dev->aeq, mapping, c2dev->aeq.host_dma);
-	pr_debug("%s aeq va %p dma %llx\n", __FUNCTION__, q2_pages,
+	pr_debug("%s aeq va %p dma %llx\n", __func__, q2_pages,
 		 (unsigned long long) c2dev->aeq.host_dma);
 	c2_mq_rep_init(&c2dev->aeq,
 		       2,
@@ -553,7 +554,7 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 		       msgsize,
 		       q2_pages,
 		       mmio_regs +
-		       be32_to_cpu(readl(mmio_regs + C2_REGS_Q2_SHARED)),
+		       be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q2_SHARED)),
 		       C2_MQ_HOST_TARGET);
 
 	/* Initialize the verbs request allocator */

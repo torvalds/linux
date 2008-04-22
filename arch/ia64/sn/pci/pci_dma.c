@@ -116,7 +116,7 @@ void *sn_dma_alloc_coherent(struct device *dev, size_t size,
 	*dma_handle = provider->dma_map_consistent(pdev, phys_addr, size,
 						   SN_DMA_ADDR_PHYS);
 	if (!*dma_handle) {
-		printk(KERN_ERR "%s: out of ATEs\n", __FUNCTION__);
+		printk(KERN_ERR "%s: out of ATEs\n", __func__);
 		free_pages((unsigned long)cpuaddr, get_order(size));
 		return NULL;
 	}
@@ -179,7 +179,7 @@ dma_addr_t sn_dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 	phys_addr = __pa(cpu_addr);
 	dma_addr = provider->dma_map(pdev, phys_addr, size, SN_DMA_ADDR_PHYS);
 	if (!dma_addr) {
-		printk(KERN_ERR "%s: out of ATEs\n", __FUNCTION__);
+		printk(KERN_ERR "%s: out of ATEs\n", __func__);
 		return 0;
 	}
 	return dma_addr;
@@ -266,7 +266,7 @@ int sn_dma_map_sg(struct device *dev, struct scatterlist *sgl, int nhwentries,
 						    SN_DMA_ADDR_PHYS);
 
 		if (!sg->dma_address) {
-			printk(KERN_ERR "%s: out of ATEs\n", __FUNCTION__);
+			printk(KERN_ERR "%s: out of ATEs\n", __func__);
 
 			/*
 			 * Free any successfully allocated entries.

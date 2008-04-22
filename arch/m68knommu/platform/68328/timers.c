@@ -67,16 +67,6 @@ static irqreturn_t hw_tick(int irq, void *dummy)
 
 /***************************************************************************/
 
-static irqreturn_t hw_tick(int irq, void *dummy)
-{
-	/* Reset Timer1 */
-	TSTAT &= 0;
-
-	return arch_timer_interrupt(irq, dummy);
-}
-
-/***************************************************************************/
-
 static struct irqaction m68328_timer_irq = {
 	.name	 = "timer",
 	.flags	 = IRQF_DISABLED | IRQF_TIMER,

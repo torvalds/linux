@@ -695,15 +695,16 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 			scb_index = ahc_inb(ahc, SCB_TAG);
 			scb = ahc_lookup_scb(ahc, scb_index);
 			if (devinfo.role == ROLE_INITIATOR) {
-				if (scb == NULL)
-					panic("HOST_MSG_LOOP with "
-					      "invalid SCB %x\n", scb_index);
+				if (bus_phase == P_MESGOUT) {
+					if (scb == NULL)
+						panic("HOST_MSG_LOOP with "
+						      "invalid SCB %x\n",
+						      scb_index);
 
-				if (bus_phase == P_MESGOUT)
 					ahc_setup_initiator_msgout(ahc,
 								   &devinfo,
 								   scb);
-				else {
+				} else {
 					ahc->msg_type =
 					    MSG_TYPE_INITIATOR_MSGIN;
 					ahc->msgin_index = 0;

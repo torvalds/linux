@@ -49,6 +49,7 @@ atomic_t mod_qp_timouts;
 atomic_t qps_created;
 atomic_t sw_qps_destroyed;
 
+static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev);
 
 /**
  * nes_alloc_mw
@@ -929,7 +930,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 				NES_MAX_USER_DB_REGIONS, nesucontext->first_free_db);
 		nes_debug(NES_DBG_PD, "find_first_zero_biton doorbells returned %u, mapping pd_id %u.\n",
 				nespd->mmap_db_index, nespd->pd_id);
-		if (nespd->mmap_db_index > NES_MAX_USER_DB_REGIONS) {
+		if (nespd->mmap_db_index >= NES_MAX_USER_DB_REGIONS) {
 			nes_debug(NES_DBG_PD, "mmap_db_index > MAX\n");
 			nes_free_resource(nesadapter, nesadapter->allocated_pds, pd_num);
 			kfree(nespd);
@@ -1043,10 +1044,10 @@ static int nes_setup_virt_qp(struct nes_qp *nesqp, struct nes_pbl *nespbl,
 	u8 sq_pbl_entries;
 
 	pbl_entries = nespbl->pbl_size >> 3;
-	nes_debug(NES_DBG_QP, "Userspace PBL, pbl_size=%u, pbl_entries = %d pbl_vbase=%p, pbl_pbase=%p\n",
+	nes_debug(NES_DBG_QP, "Userspace PBL, pbl_size=%u, pbl_entries = %d pbl_vbase=%p, pbl_pbase=%lx\n",
 			nespbl->pbl_size, pbl_entries,
 			(void *)nespbl->pbl_vbase,
-			(void *)nespbl->pbl_pbase);
+			(unsigned long) nespbl->pbl_pbase);
 	pbl = (__le64 *) nespbl->pbl_vbase; /* points to first pbl entry */
 	/* now lets set the sq_vbase as well as rq_vbase addrs we will assign */
 	/* the first pbl to be fro the rq_vbase... */
@@ -1074,9 +1075,9 @@ static int nes_setup_virt_qp(struct nes_qp *nesqp, struct nes_pbl *nespbl,
 	/* nesqp->hwqp.rq_vbase = bus_to_virt(*pbl); */
 	/*nesqp->hwqp.rq_vbase = phys_to_virt(*pbl); */
 
-	nes_debug(NES_DBG_QP, "QP sq_vbase= %p sq_pbase=%p rq_vbase=%p rq_pbase=%p\n",
-			nesqp->hwqp.sq_vbase, (void *)nesqp->hwqp.sq_pbase,
-			nesqp->hwqp.rq_vbase, (void *)nesqp->hwqp.rq_pbase);
+	nes_debug(NES_DBG_QP, "QP sq_vbase= %p sq_pbase=%lx rq_vbase=%p rq_pbase=%lx\n",
+		  nesqp->hwqp.sq_vbase, (unsigned long) nesqp->hwqp.sq_pbase,
+		  nesqp->hwqp.rq_vbase, (unsigned long) nesqp->hwqp.rq_pbase);
 	spin_lock_irqsave(&nesadapter->pbl_lock, flags);
 	if (!nesadapter->free_256pbl) {
 		pci_free_consistent(nesdev->pcidev, nespbl->pbl_size, nespbl->pbl_vbase,
@@ -1251,6 +1252,9 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 	u8 rq_encoded_size;
 	/* int counter; */
 
+	if (init_attr->create_flags)
+		return ERR_PTR(-EINVAL);
+
 	atomic_inc(&qps_created);
 	switch (init_attr->qp_type) {
 		case IB_QPT_RC:
@@ -1327,7 +1331,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 								  (long long unsigned int)req.user_wqe_buffers);
 							nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
 							kfree(nesqp->allocated_buffer);
-							return ERR_PTR(-ENOMEM);
+							return ERR_PTR(-EFAULT);
 						}
 					}
 
@@ -1337,7 +1341,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 								   NES_MAX_USER_WQ_REGIONS, nes_ucontext->first_free_wq);
 					/* nes_debug(NES_DBG_QP, "find_first_zero_biton wqs returned %u\n",
 							nespd->mmap_db_index); */
-					if (nesqp->mmap_sq_db_index > NES_MAX_USER_WQ_REGIONS) {
+					if (nesqp->mmap_sq_db_index >= NES_MAX_USER_WQ_REGIONS) {
 						nes_debug(NES_DBG_QP,
 							  "db index > max user regions, failing create QP\n");
 						nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
@@ -1674,6 +1678,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		}
 		nes_debug(NES_DBG_CQ, "CQ Virtual Address = %08lX, size = %u.\n",
 				(unsigned long)req.user_cq_buffer, entries);
+		err = 1;
 		list_for_each_entry(nespbl, &nes_ucontext->cq_reg_mem_list, list) {
 			if (nespbl->user_base == (unsigned long )req.user_cq_buffer) {
 				list_del(&nespbl->list);
@@ -1686,7 +1691,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		if (err) {
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 			kfree(nescq);
-			return ERR_PTR(err);
+			return ERR_PTR(-EFAULT);
 		}
 
 		pbl_entries = nespbl->pbl_size >> 3;
@@ -1831,9 +1836,6 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 				spin_unlock_irqrestore(&nesdev->cqp.lock, flags);
 			}
 		}
-		nes_debug(NES_DBG_CQ, "iWARP CQ%u create timeout expired, major code = 0x%04X,"
-				" minor code = 0x%04X\n",
-				nescq->hw_cq.cq_number, cqp_request->major_code, cqp_request->minor_code);
 		if (!context)
 			pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size, mem,
 					nescq->hw_cq.cq_pbase);
@@ -1910,13 +1912,13 @@ static int nes_destroy_cq(struct ib_cq *ib_cq)
 		nesadapter->free_256pbl++;
 		if (nesadapter->free_256pbl > nesadapter->max_256pbl) {
 			printk(KERN_ERR PFX "%s: free 256B PBLs(%u) has exceeded the max(%u)\n",
-					__FUNCTION__, nesadapter->free_256pbl, nesadapter->max_256pbl);
+					__func__, nesadapter->free_256pbl, nesadapter->max_256pbl);
 		}
 	} else if (nescq->virtual_cq == 2) {
 		nesadapter->free_4kpbl++;
 		if (nesadapter->free_4kpbl > nesadapter->max_4kpbl) {
 			printk(KERN_ERR PFX "%s: free 4K PBLs(%u) has exceeded the max(%u)\n",
-					__FUNCTION__, nesadapter->free_4kpbl, nesadapter->max_4kpbl);
+					__func__, nesadapter->free_4kpbl, nesadapter->max_4kpbl);
 		}
 		opcode |= NES_CQP_CQ_4KB_CHUNK;
 	}
@@ -2655,10 +2657,10 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 			nespbl->pbl_vbase = (u64 *)pbl;
 			nespbl->user_base = start;
-			nes_debug(NES_DBG_MR, "Allocated PBL memory, %u bytes, pbl_pbase=%p,"
+			nes_debug(NES_DBG_MR, "Allocated PBL memory, %u bytes, pbl_pbase=%lx,"
 					" pbl_vbase=%p user_base=0x%lx\n",
-					nespbl->pbl_size, (void *)nespbl->pbl_pbase,
-					(void*)nespbl->pbl_vbase, nespbl->user_base);
+				  nespbl->pbl_size, (unsigned long) nespbl->pbl_pbase,
+				  (void *) nespbl->pbl_vbase, nespbl->user_base);
 
 			list_for_each_entry(chunk, &region->chunk_list, list) {
 				for (nmap_index = 0; nmap_index < chunk->nmap; ++nmap_index) {
@@ -2798,10 +2800,11 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 /**
  * show_rev
  */
-static ssize_t show_rev(struct class_device *cdev, char *buf)
+static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	struct nes_ib_device *nesibdev =
-			container_of(cdev, struct nes_ib_device, ibdev.class_dev);
+			container_of(dev, struct nes_ib_device, ibdev.dev);
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 
 	nes_debug(NES_DBG_INIT, "\n");
@@ -2812,10 +2815,11 @@ static ssize_t show_rev(struct class_device *cdev, char *buf)
 /**
  * show_fw_ver
  */
-static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
+static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct nes_ib_device *nesibdev =
-			container_of(cdev, struct nes_ib_device, ibdev.class_dev);
+			container_of(dev, struct nes_ib_device, ibdev.dev);
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 
 	nes_debug(NES_DBG_INIT, "\n");
@@ -2829,7 +2833,8 @@ static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
 /**
  * show_hca
  */
-static ssize_t show_hca(struct class_device *cdev, char *buf)
+static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
+		        char *buf)
 {
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "NES020\n");
@@ -2839,23 +2844,24 @@ static ssize_t show_hca(struct class_device *cdev, char *buf)
 /**
  * show_board
  */
-static ssize_t show_board(struct class_device *cdev, char *buf)
+static ssize_t show_board(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "%.*s\n", 32, "NES020 Board ID");
 }
 
 
-static CLASS_DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static CLASS_DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
-static CLASS_DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
-static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
+static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
+static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
+static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
+static DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
 
-static struct class_device_attribute *nes_class_attributes[] = {
-	&class_device_attr_hw_rev,
-	&class_device_attr_fw_ver,
-	&class_device_attr_hca_type,
-	&class_device_attr_board_id
+static struct device_attribute *nes_dev_attributes[] = {
+	&dev_attr_hw_rev,
+	&dev_attr_fw_ver,
+	&dev_attr_hca_type,
+	&dev_attr_board_id
 };
 
 
@@ -3780,7 +3786,7 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.phys_port_cnt = 1;
 	nesibdev->ibdev.num_comp_vectors = 1;
 	nesibdev->ibdev.dma_device = &nesdev->pcidev->dev;
-	nesibdev->ibdev.class_dev.dev = &nesdev->pcidev->dev;
+	nesibdev->ibdev.dev.parent = &nesdev->pcidev->dev;
 	nesibdev->ibdev.query_device = nes_query_device;
 	nesibdev->ibdev.query_port = nes_query_port;
 	nesibdev->ibdev.modify_port = nes_modify_port;
@@ -3875,13 +3881,13 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 	nesibdev->max_qp = (nesadapter->max_qp-NES_FIRST_QPN) / nesadapter->port_count;
 	nesibdev->max_pd = nesadapter->max_pd / nesadapter->port_count;
 
-	for (i = 0; i < ARRAY_SIZE(nes_class_attributes); ++i) {
-		ret = class_device_create_file(&nesibdev->ibdev.class_dev, nes_class_attributes[i]);
+	for (i = 0; i < ARRAY_SIZE(nes_dev_attributes); ++i) {
+		ret = device_create_file(&nesibdev->ibdev.dev, nes_dev_attributes[i]);
 		if (ret) {
 			while (i > 0) {
 				i--;
-				class_device_remove_file(&nesibdev->ibdev.class_dev,
-						nes_class_attributes[i]);
+				device_remove_file(&nesibdev->ibdev.dev,
+						   nes_dev_attributes[i]);
 			}
 			ib_unregister_device(&nesibdev->ibdev);
 			return ret;
@@ -3897,16 +3903,13 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 /**
  * nes_unregister_ofa_device
  */
-void nes_unregister_ofa_device(struct nes_ib_device *nesibdev)
+static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev)
 {
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 	int i;
 
-	if (nesibdev == NULL)
-		return;
-
-	for (i = 0; i < ARRAY_SIZE(nes_class_attributes); ++i) {
-		class_device_remove_file(&nesibdev->ibdev.class_dev, nes_class_attributes[i]);
+	for (i = 0; i < ARRAY_SIZE(nes_dev_attributes); ++i) {
+		device_remove_file(&nesibdev->ibdev.dev, nes_dev_attributes[i]);
 	}
 
 	if (nesvnic->of_device_registered) {

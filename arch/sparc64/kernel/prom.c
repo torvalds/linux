@@ -1716,7 +1716,6 @@ static void __init of_console_init(void)
 
 	of_console_device = dp;
 
-	prom_printf(msg, of_console_path);
 	printk(msg, of_console_path);
 }
 

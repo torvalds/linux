@@ -18,6 +18,7 @@ config IA64
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
+	select HAVE_KRETPROBES
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -155,6 +156,8 @@ config IA64_HP_ZX1_SWIOTLB
 
 config IA64_SGI_SN2
 	bool "SGI-SN2"
+	select NUMA
+	select ACPI_NUMA
 	help
 	  Selecting this option will optimize the kernel for use on sn2 based
 	  systems, but the resulting kernel binary will not run on other
@@ -279,6 +282,17 @@ config FORCE_MAX_ZONEORDER
 	range 11 17  if !HUGETLB_PAGE
 	default "17" if HUGETLB_PAGE
 	default "11"
+
+config VIRT_CPU_ACCOUNTING
+	bool "Deterministic task and CPU time accounting"
+	default n
+	help
+	  Select this option to enable more accurate task and CPU time
+	  accounting.  This is done by reading a CPU counter on each
+	  kernel entry and exit and on transitions within the kernel
+	  between system, softirq and hardirq state, so there is a
+	  small performance impact.
+	  If in doubt, say N here.
 
 config SMP
 	bool "Symmetric multi-processing support"
@@ -607,6 +621,9 @@ config GENERIC_PENDING_IRQ
 config IRQ_PER_CPU
 	bool
 	default y
+
+config IOMMU_HELPER
+	def_bool (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC)
 
 source "arch/ia64/hp/sim/Kconfig"
 

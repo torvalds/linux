@@ -300,6 +300,7 @@ ENTRY(arm6_processor_functions)
 		.word	cpu_arm6_dcache_clean_area
 		.word	cpu_arm6_switch_mm
 		.word	cpu_arm6_set_pte_ext
+		.word	pabort_noifar
 		.size	arm6_processor_functions, . - arm6_processor_functions
 
 /*
@@ -316,6 +317,7 @@ ENTRY(arm7_processor_functions)
 		.word	cpu_arm7_dcache_clean_area
 		.word	cpu_arm7_switch_mm
 		.word	cpu_arm7_set_pte_ext
+		.word	pabort_noifar
 		.size	arm7_processor_functions, . - arm7_processor_functions
 
 		.section ".rodata"

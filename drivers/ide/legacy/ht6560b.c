@@ -21,18 +21,21 @@
  *                      "Prefetch" mode bit OFF for ide disks and
  *                      ON for anything else.
  *
+ *  Version 0.08        Need to force prefetch for CDs and other non-disk
+ *                      devices. (not sure which devices exactly need
+ *                      prefetch)
  *
  *  HT-6560B EIDE-controller support
  *  To activate controller support use kernel parameter "ide0=ht6560b".
  *  Use hdparm utility to enable PIO mode support.
  *
  *  Author:    Mikko Ala-Fossi            <maf@iki.fi>
- *             Jan Evert van Grootheest   <janevert@iae.nl>
+ *             Jan Evert van Grootheest   <janevert@caiway.nl>
  *
  *  Try:  http://www.maf.iki.fi/~maf/ht6560b/
  */
 
-#define HT6560B_VERSION "v0.07"
+#define HT6560B_VERSION "v0.08"
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -79,7 +82,7 @@
  * out how they setup those cycle time interfacing values, as they at Holtek
  * call them. IDESETUP.COM that is supplied with the drivers figures out
  * optimal values and fetches those values to drivers. I found out that
- * they use IDE_SELECT_REG to fetch timings to the ide board right after
+ * they use Select register to fetch timings to the ide board right after
  * interface switching. After that it was quite easy to add code to
  * ht6560b.c.
  *
@@ -124,21 +127,27 @@
  */
 static void ht6560b_selectproc (ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;
 	static u8 current_select = 0;
 	static u8 current_timing = 0;
 	u8 select, timing;
 	
 	local_irq_save(flags);
-	
+
 	select = HT_CONFIG(drive);
 	timing = HT_TIMING(drive);
-	
+
+	/*
+	 * Need to enforce prefetch sometimes because otherwise
+	 * it'll hang (hard).
+	 */
+	if (drive->media != ide_disk || !drive->present)
+		select |= HT_PREFETCH_MODE;
+
 	if (select != current_select || timing != current_timing) {
 		current_select = select;
 		current_timing = timing;
-		if (drive->media != ide_disk || !drive->present)
-			select |= HT_PREFETCH_MODE;
 		(void)inb(HT_CONFIG_PORT);
 		(void)inb(HT_CONFIG_PORT);
 		(void)inb(HT_CONFIG_PORT);
@@ -147,8 +156,8 @@ static void ht6560b_selectproc (ide_drive_t *drive)
 		/*
 		 * Set timing for this drive:
 		 */
-		outb(timing, IDE_SELECT_REG);
-		(void)inb(IDE_STATUS_REG);
+		outb(timing, hwif->io_ports[IDE_SELECT_OFFSET]);
+		(void)inb(hwif->io_ports[IDE_STATUS_OFFSET]);
 #ifdef DEBUG
 		printk("ht6560b: %s: select=%#x timing=%#x\n",
 			drive->name, select, timing);
@@ -185,14 +194,15 @@ static int __init try_to_init_ht6560b(void)
 	 * Ht6560b autodetected
 	 */
 	outb(HT_CONFIG_DEFAULT, HT_CONFIG_PORT);
-	outb(HT_TIMING_DEFAULT, 0x1f6);  /* IDE_SELECT_REG */
-	(void) inb(0x1f7);               /* IDE_STATUS_REG */
-	
-	printk("\nht6560b " HT6560B_VERSION
+	outb(HT_TIMING_DEFAULT, 0x1f6);	/* Select register */
+	(void)inb(0x1f7);		/* Status register */
+
+	printk("ht6560b " HT6560B_VERSION
 	       ": chipset detected and initialized"
 #ifdef DEBUG
 	       " with debug enabled"
 #endif
+	       "\n"
 		);
 	return 1;
 }
@@ -323,13 +333,14 @@ static const struct ide_port_info ht6560b_port_info __initdata = {
 				  IDE_HFLAG_NO_DMA |
 				  IDE_HFLAG_NO_AUTOTUNE |
 				  IDE_HFLAG_ABUSE_PREFETCH,
-	.pio_mask		= ATA_PIO5,
+	.pio_mask		= ATA_PIO4,
 };
 
 static int __init ht6560b_init(void)
 {
 	ide_hwif_t *hwif, *mate;
 	static u8 idx[4] = { 0, 1, 0xff, 0xff };
+	hw_regs_t hw[2];
 
 	if (probe_ht6560b == 0)
 		return -ENODEV;
@@ -347,6 +358,17 @@ static int __init ht6560b_init(void)
 		printk(KERN_NOTICE "%s: HBA not found\n", __FUNCTION__);
 		goto release_region;
 	}
+
+	memset(&hw, 0, sizeof(hw));
+
+	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
+	hw[0].irq = 14;
+
+	ide_std_init_ports(&hw[1], 0x170, 0x376);
+	hw[1].irq = 15;
+
+	ide_init_port_hw(hwif, &hw[0]);
+	ide_init_port_hw(mate, &hw[1]);
 
 	hwif->selectproc = &ht6560b_selectproc;
 	hwif->set_pio_mode = &ht6560b_set_pio_mode;

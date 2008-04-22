@@ -52,15 +52,10 @@ struct dst_entry
 	unsigned short		header_len;	/* more space at head required */
 	unsigned short		trailer_len;	/* space to reserve at tail */
 
-	u32			metrics[RTAX_MAX];
-	struct dst_entry	*path;
-
-	unsigned long		rate_last;	/* rate limiting for ICMP */
 	unsigned int		rate_tokens;
+	unsigned long		rate_last;	/* rate limiting for ICMP */
 
-#ifdef CONFIG_NET_CLS_ROUTE
-	__u32			tclassid;
-#endif
+	struct dst_entry	*path;
 
 	struct neighbour	*neighbour;
 	struct hh_cache		*hh;
@@ -70,10 +65,20 @@ struct dst_entry
 	int			(*output)(struct sk_buff*);
 
 	struct  dst_ops	        *ops;
-		
-	unsigned long		lastuse;
+
+	u32			metrics[RTAX_MAX];
+
+#ifdef CONFIG_NET_CLS_ROUTE
+	__u32			tclassid;
+#endif
+
+	/*
+	 * __refcnt wants to be on a different cache line from
+	 * input/output/ops or performance tanks badly
+	 */
 	atomic_t		__refcnt;	/* client references	*/
 	int			__use;
+	unsigned long		lastuse;
 	union {
 		struct dst_entry *next;
 		struct rtable    *rt_next;
@@ -158,15 +163,7 @@ struct dst_entry * dst_clone(struct dst_entry * dst)
 	return dst;
 }
 
-static inline
-void dst_release(struct dst_entry * dst)
-{
-	if (dst) {
-		WARN_ON(atomic_read(&dst->__refcnt) < 1);
-		smp_mb__before_atomic_dec();
-		atomic_dec(&dst->__refcnt);
-	}
-}
+extern void dst_release(struct dst_entry *dst);
 
 /* Children define the path of the packet through the
  * Linux networking.  Thus, destinations are stackable.

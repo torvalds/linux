@@ -23,7 +23,6 @@
 #include <linux/mutex.h>
 #include <linux/freezer.h>
 
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 

@@ -93,6 +93,9 @@ extern __u8 isa_irq_to_vector_map[16];
 struct irq_cfg {
 	ia64_vector vector;
 	cpumask_t domain;
+	cpumask_t old_domain;
+	unsigned move_cleanup_count;
+	u8 move_in_progress : 1;
 };
 extern spinlock_t vector_lock;
 extern struct irq_cfg irq_cfg[NR_IRQS];
@@ -106,11 +109,18 @@ extern int assign_irq_vector (int irq);	/* allocate a free vector */
 extern void free_irq_vector (int vector);
 extern int reserve_irq_vector (int vector);
 extern void __setup_vector_irq(int cpu);
-extern int reassign_irq_vector(int irq, int cpu);
 extern void ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect);
 extern void register_percpu_irq (ia64_vector vec, struct irqaction *action);
 extern int check_irq_used (int irq);
 extern void destroy_and_reserve_irq (unsigned int irq);
+
+#if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG))
+extern int irq_prepare_move(int irq, int cpu);
+extern void irq_complete_move(unsigned int irq);
+#else
+static inline int irq_prepare_move(int irq, int cpu) { return 0; }
+static inline void irq_complete_move(unsigned int irq) {}
+#endif
 
 static inline void ia64_resend_irq(unsigned int vector)
 {

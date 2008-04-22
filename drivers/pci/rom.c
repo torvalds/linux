@@ -242,8 +242,7 @@ void pci_remove_rom(struct pci_dev *pdev)
 #endif  /*  0  */
 
 /**
- * pci_cleanup_rom - internal routine for freeing the ROM copy created
- * by pci_map_rom_copy called from remove.c
+ * pci_cleanup_rom - free the ROM copy created by pci_map_rom_copy
  * @pdev: pointer to pci device struct
  *
  * Free the copied ROM if we allocated one.

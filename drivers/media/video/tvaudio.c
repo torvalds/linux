@@ -1571,14 +1571,14 @@ static int tvaudio_get_ctrl(struct CHIPSTATE *chip,
 		ctrl->value=chip->muted;
 		return 0;
 	case V4L2_CID_AUDIO_VOLUME:
-		if (!desc->flags & CHIP_HAS_VOLUME)
+		if (!(desc->flags & CHIP_HAS_VOLUME))
 			break;
 		ctrl->value = max(chip->left,chip->right);
 		return 0;
 	case V4L2_CID_AUDIO_BALANCE:
 	{
 		int volume;
-		if (!desc->flags & CHIP_HAS_VOLUME)
+		if (!(desc->flags & CHIP_HAS_VOLUME))
 			break;
 		volume = max(chip->left,chip->right);
 		if (volume)
@@ -1621,7 +1621,7 @@ static int tvaudio_set_ctrl(struct CHIPSTATE *chip,
 	{
 		int volume,balance;
 
-		if (!desc->flags & CHIP_HAS_VOLUME)
+		if (!(desc->flags & CHIP_HAS_VOLUME))
 			break;
 
 		volume = max(chip->left,chip->right);
@@ -1642,7 +1642,7 @@ static int tvaudio_set_ctrl(struct CHIPSTATE *chip,
 	case V4L2_CID_AUDIO_BALANCE:
 	{
 		int volume, balance;
-		if (!desc->flags & CHIP_HAS_VOLUME)
+		if (!(desc->flags & CHIP_HAS_VOLUME))
 			break;
 
 		volume = max(chip->left,chip->right);
@@ -1702,7 +1702,7 @@ static int chip_command(struct i2c_client *client,
 				break;
 			case V4L2_CID_AUDIO_VOLUME:
 			case V4L2_CID_AUDIO_BALANCE:
-				if (!desc->flags & CHIP_HAS_VOLUME)
+				if (!(desc->flags & CHIP_HAS_VOLUME))
 					return -EINVAL;
 				break;
 			case V4L2_CID_AUDIO_BASS:

@@ -25,8 +25,11 @@
 
 void cifs_dump_mem(char *label, void *data, int length);
 #ifdef CONFIG_CIFS_DEBUG2
+#define DBG2 2
 void cifs_dump_detail(struct smb_hdr *);
 void cifs_dump_mids(struct TCP_Server_Info *);
+#else
+#define DBG2 0
 #endif
 extern int traceSMB;		/* flag which enables the function below */
 void dump_smb(struct smb_hdr *, int);
@@ -64,10 +67,10 @@ extern int cifsERROR;
  *	---------
  */
 #else		/* _CIFS_DEBUG */
-#define cERROR(button,prspec)
-#define cEVENT(format,arg...)
+#define cERROR(button, prspec)
+#define cEVENT(format, arg...)
 #define cFYI(button, prspec)
-#define cifserror(format,arg...)
+#define cifserror(format, arg...)
 #endif		/* _CIFS_DEBUG */
 
 #endif				/* _H_CIFS_DEBUG */

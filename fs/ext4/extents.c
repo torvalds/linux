@@ -148,6 +148,7 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	ext4_fsblk_t bg_start;
+	ext4_fsblk_t last_block;
 	ext4_grpblk_t colour;
 	int depth;
 
@@ -169,8 +170,13 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 	/* OK. use inode's group */
 	bg_start = (ei->i_block_group * EXT4_BLOCKS_PER_GROUP(inode->i_sb)) +
 		le32_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_first_data_block);
-	colour = (current->pid % 16) *
+	last_block = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es) - 1;
+
+	if (bg_start + EXT4_BLOCKS_PER_GROUP(inode->i_sb) <= last_block)
+		colour = (current->pid % 16) *
 			(EXT4_BLOCKS_PER_GROUP(inode->i_sb) / 16);
+	else
+		colour = (current->pid % 16) * ((last_block - bg_start) / 16);
 	return bg_start + colour + block;
 }
 
@@ -349,7 +355,7 @@ static void ext4_ext_show_leaf(struct inode *inode, struct ext4_ext_path *path)
 #define ext4_ext_show_leaf(inode,path)
 #endif
 
-static void ext4_ext_drop_refs(struct ext4_ext_path *path)
+void ext4_ext_drop_refs(struct ext4_ext_path *path)
 {
 	int depth = path->p_depth;
 	int i;
@@ -2168,6 +2174,10 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	newblock = iblock - ee_block + ext_pblock(ex);
 	ex2 = ex;
 
+	err = ext4_ext_get_access(handle, inode, path + depth);
+	if (err)
+		goto out;
+
 	/* ex1: ee_block to iblock - 1 : uninitialized */
 	if (iblock > ee_block) {
 		ex1 = ex;
@@ -2200,16 +2210,20 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		newdepth = ext_depth(inode);
 		if (newdepth != depth) {
 			depth = newdepth;
-			path = ext4_ext_find_extent(inode, iblock, NULL);
+			ext4_ext_drop_refs(path);
+			path = ext4_ext_find_extent(inode, iblock, path);
 			if (IS_ERR(path)) {
 				err = PTR_ERR(path);
-				path = NULL;
 				goto out;
 			}
 			eh = path[depth].p_hdr;
 			ex = path[depth].p_ext;
 			if (ex2 != &newex)
 				ex2 = ex;
+
+			err = ext4_ext_get_access(handle, inode, path + depth);
+			if (err)
+				goto out;
 		}
 		allocated = max_blocks;
 	}
@@ -2230,9 +2244,6 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	ex2->ee_len = cpu_to_le16(allocated);
 	if (ex2 != ex)
 		goto insert;
-	err = ext4_ext_get_access(handle, inode, path + depth);
-	if (err)
-		goto out;
 	/*
 	 * New (initialized) extent starts from the first block
 	 * in the current extent. i.e., ex2 == ex
@@ -2276,9 +2287,22 @@ out:
 }
 
 /*
+ * Block allocation/map/preallocation routine for extents based files
+ *
+ *
  * Need to be called with
  * down_read(&EXT4_I(inode)->i_data_sem) if not allocating file system block
  * (ie, create is zero). Otherwise down_write(&EXT4_I(inode)->i_data_sem)
+ *
+ * return > 0, number of of blocks already mapped/allocated
+ *          if create == 0 and these are pre-allocated blocks
+ *          	buffer head is unmapped
+ *          otherwise blocks are mapped
+ *
+ * return = 0, if plain look up failed (blocks have not been allocated)
+ *          buffer head is unmapped
+ *
+ * return < 0, error case.
  */
 int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			ext4_lblk_t iblock,
@@ -2623,7 +2647,7 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	 * modify 1 super block, 1 block bitmap and 1 group descriptor.
 	 */
 	credits = EXT4_DATA_TRANS_BLOCKS(inode->i_sb) + 3;
-	down_write((&EXT4_I(inode)->i_data_sem));
+	mutex_lock(&inode->i_mutex);
 retry:
 	while (ret >= 0 && ret < max_blocks) {
 		block = block + ret;
@@ -2634,16 +2658,17 @@ retry:
 			break;
 		}
 
-		ret = ext4_ext_get_blocks(handle, inode, block,
+		ret = ext4_get_blocks_wrap(handle, inode, block,
 					  max_blocks, &map_bh,
 					  EXT4_CREATE_UNINITIALIZED_EXT, 0);
-		WARN_ON(ret <= 0);
 		if (ret <= 0) {
-			ext4_error(inode->i_sb, "ext4_fallocate",
-				    "ext4_ext_get_blocks returned error: "
-				    "inode#%lu, block=%u, max_blocks=%lu",
+#ifdef EXT4FS_DEBUG
+			WARN_ON(ret <= 0);
+			printk(KERN_ERR "%s: ext4_ext_get_blocks "
+				    "returned error inode#%lu, block=%u, "
+				    "max_blocks=%lu", __func__,
 				    inode->i_ino, block, max_blocks);
-			ret = -EIO;
+#endif
 			ext4_mark_inode_dirty(handle, inode);
 			ret2 = ext4_journal_stop(handle);
 			break;
@@ -2680,7 +2705,6 @@ retry:
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
-	up_write((&EXT4_I(inode)->i_data_sem));
 	/*
 	 * Time to update the file size.
 	 * Update only when preallocation was requested beyond the file size.
@@ -2692,21 +2716,18 @@ retry:
 			 * if no error, we assume preallocation succeeded
 			 * completely
 			 */
-			mutex_lock(&inode->i_mutex);
 			i_size_write(inode, offset + len);
 			EXT4_I(inode)->i_disksize = i_size_read(inode);
-			mutex_unlock(&inode->i_mutex);
 		} else if (ret < 0 && nblocks) {
 			/* Handle partial allocation scenario */
 			loff_t newsize;
 
-			mutex_lock(&inode->i_mutex);
 			newsize  = (nblocks << blkbits) + i_size_read(inode);
 			i_size_write(inode, EXT4_BLOCK_ALIGN(newsize, blkbits));
 			EXT4_I(inode)->i_disksize = i_size_read(inode);
-			mutex_unlock(&inode->i_mutex);
 		}
 	}
 
+	mutex_unlock(&inode->i_mutex);
 	return ret > 0 ? ret2 : ret;
 }

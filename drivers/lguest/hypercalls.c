@@ -29,7 +29,7 @@
 #include "lg.h"
 
 /*H:120 This is the core hypercall routine: where the Guest gets what it wants.
- * Or gets killed.  Or, in the case of LHCALL_CRASH, both. */
+ * Or gets killed.  Or, in the case of LHCALL_SHUTDOWN, both. */
 static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 {
 	switch (args->arg0) {
@@ -190,6 +190,13 @@ static void initialize(struct lg_cpu *cpu)
 	 * pagetable. */
 	guest_pagetable_clear_all(cpu);
 }
+/*:*/
+
+/*M:013 If a Guest reads from a page (so creates a mapping) that it has never
+ * written to, and then the Launcher writes to it (ie. the output of a virtual
+ * device), the Guest will still see the old page.  In practice, this never
+ * happens: why would the Guest read a page which it has never written to?  But
+ * a similar scenario might one day bite us, so it's worth mentioning. :*/
 
 /*H:100
  * Hypercalls
@@ -227,7 +234,7 @@ void do_hypercalls(struct lg_cpu *cpu)
 		 * However, if we are signalled or the Guest sends I/O to the
 		 * Launcher, the run_guest() loop will exit without running the
 		 * Guest.  When it comes back it would try to re-run the
-		 * hypercall. */
+		 * hypercall.  Finding that bug sucked. */
 		cpu->hcall = NULL;
 	}
 }

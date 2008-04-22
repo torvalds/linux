@@ -11,6 +11,7 @@
 #include <linux/ssb/ssb.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/ssb/ssb_embedded.h>
 
 #include "ssb_private.h"
 
@@ -25,6 +26,18 @@ static inline
 void pcicore_write32(struct ssb_pcicore *pc, u16 offset, u32 value)
 {
 	ssb_write32(pc->dev, offset, value);
+}
+
+static inline
+u16 pcicore_read16(struct ssb_pcicore *pc, u16 offset)
+{
+	return ssb_read16(pc->dev, offset);
+}
+
+static inline
+void pcicore_write16(struct ssb_pcicore *pc, u16 offset, u16 value)
+{
+	ssb_write16(pc->dev, offset, value);
 }
 
 /**************************************************
@@ -47,68 +60,6 @@ static DEFINE_SPINLOCK(cfgspace_lock);
 /* Core to access the external PCI config space. Can only have one. */
 static struct ssb_pcicore *extpci_core;
 
-static u32 ssb_pcicore_pcibus_iobase = 0x100;
-static u32 ssb_pcicore_pcibus_membase = SSB_PCI_DMA;
-
-int pcibios_plat_dev_init(struct pci_dev *d)
-{
-	struct resource *res;
-	int pos, size;
-	u32 *base;
-
-	ssb_printk(KERN_INFO "PCI: Fixing up device %s\n",
-		   pci_name(d));
-
-	/* Fix up resource bases */
-	for (pos = 0; pos < 6; pos++) {
-		res = &d->resource[pos];
-		if (res->flags & IORESOURCE_IO)
-			base = &ssb_pcicore_pcibus_iobase;
-		else
-			base = &ssb_pcicore_pcibus_membase;
-		if (res->end) {
-			size = res->end - res->start + 1;
-			if (*base & (size - 1))
-				*base = (*base + size) & ~(size - 1);
-			res->start = *base;
-			res->end = res->start + size - 1;
-			*base += size;
-			pci_write_config_dword(d, PCI_BASE_ADDRESS_0 + (pos << 2), res->start);
-		}
-		/* Fix up PCI bridge BAR0 only */
-		if (d->bus->number == 0 && PCI_SLOT(d->devfn) == 0)
-			break;
-	}
-	/* Fix up interrupt lines */
-	d->irq = ssb_mips_irq(extpci_core->dev) + 2;
-	pci_write_config_byte(d, PCI_INTERRUPT_LINE, d->irq);
-
-	return 0;
-}
-
-static void __init ssb_fixup_pcibridge(struct pci_dev *dev)
-{
-	if (dev->bus->number != 0 || PCI_SLOT(dev->devfn) != 0)
-		return;
-
-	ssb_printk(KERN_INFO "PCI: fixing up bridge\n");
-
-	/* Enable PCI bridge bus mastering and memory space */
-	pci_set_master(dev);
-	pcibios_enable_device(dev, ~0);
-
-	/* Enable PCI bridge BAR1 prefetch and burst */
-	pci_write_config_dword(dev, SSB_BAR1_CONTROL, 3);
-
-	/* Make sure our latency is high enough to handle the devices behind us */
-	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0xa8);
-}
-DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, ssb_fixup_pcibridge);
-
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
-{
-	return ssb_mips_irq(extpci_core->dev) + 2;
-}
 
 static u32 get_cfgspace_addr(struct ssb_pcicore *pc,
 			     unsigned int bus, unsigned int dev,
@@ -117,8 +68,10 @@ static u32 get_cfgspace_addr(struct ssb_pcicore *pc,
 	u32 addr = 0;
 	u32 tmp;
 
-	if (unlikely(pc->cardbusmode && dev > 1))
+	/* We do only have one cardbus device behind the bridge. */
+	if (pc->cardbusmode && (dev >= 1))
 		goto out;
+
 	if (bus == 0) {
 		/* Type 0 transaction */
 		if (unlikely(dev >= SSB_PCI_SLOT_MAX))
@@ -279,14 +232,14 @@ static struct resource ssb_pcicore_mem_resource = {
 	.name	= "SSB PCIcore external memory",
 	.start	= SSB_PCI_DMA,
 	.end	= SSB_PCI_DMA + SSB_PCI_DMA_SZ - 1,
-	.flags	= IORESOURCE_MEM,
+	.flags	= IORESOURCE_MEM | IORESOURCE_PCI_FIXED,
 };
 
 static struct resource ssb_pcicore_io_resource = {
 	.name	= "SSB PCIcore external I/O",
 	.start	= 0x100,
 	.end	= 0x7FF,
-	.flags	= IORESOURCE_IO,
+	.flags	= IORESOURCE_IO | IORESOURCE_PCI_FIXED,
 };
 
 static struct pci_controller ssb_pcicore_controller = {
@@ -295,6 +248,95 @@ static struct pci_controller ssb_pcicore_controller = {
 	.mem_resource	= &ssb_pcicore_mem_resource,
 	.mem_offset	= 0x24000000,
 };
+
+static u32 ssb_pcicore_pcibus_iobase = 0x100;
+static u32 ssb_pcicore_pcibus_membase = SSB_PCI_DMA;
+
+/* This function is called when doing a pci_enable_device().
+ * We must first check if the device is a device on the PCI-core bridge. */
+int ssb_pcicore_plat_dev_init(struct pci_dev *d)
+{
+	struct resource *res;
+	int pos, size;
+	u32 *base;
+
+	if (d->bus->ops != &ssb_pcicore_pciops) {
+		/* This is not a device on the PCI-core bridge. */
+		return -ENODEV;
+	}
+
+	ssb_printk(KERN_INFO "PCI: Fixing up device %s\n",
+		   pci_name(d));
+
+	/* Fix up resource bases */
+	for (pos = 0; pos < 6; pos++) {
+		res = &d->resource[pos];
+		if (res->flags & IORESOURCE_IO)
+			base = &ssb_pcicore_pcibus_iobase;
+		else
+			base = &ssb_pcicore_pcibus_membase;
+		res->flags |= IORESOURCE_PCI_FIXED;
+		if (res->end) {
+			size = res->end - res->start + 1;
+			if (*base & (size - 1))
+				*base = (*base + size) & ~(size - 1);
+			res->start = *base;
+			res->end = res->start + size - 1;
+			*base += size;
+			pci_write_config_dword(d, PCI_BASE_ADDRESS_0 + (pos << 2), res->start);
+		}
+		/* Fix up PCI bridge BAR0 only */
+		if (d->bus->number == 0 && PCI_SLOT(d->devfn) == 0)
+			break;
+	}
+	/* Fix up interrupt lines */
+	d->irq = ssb_mips_irq(extpci_core->dev) + 2;
+	pci_write_config_byte(d, PCI_INTERRUPT_LINE, d->irq);
+
+	return 0;
+}
+
+/* Early PCI fixup for a device on the PCI-core bridge. */
+static void ssb_pcicore_fixup_pcibridge(struct pci_dev *dev)
+{
+	u8 lat;
+
+	if (dev->bus->ops != &ssb_pcicore_pciops) {
+		/* This is not a device on the PCI-core bridge. */
+		return;
+	}
+	if (dev->bus->number != 0 || PCI_SLOT(dev->devfn) != 0)
+		return;
+
+	ssb_printk(KERN_INFO "PCI: Fixing up bridge %s\n", pci_name(dev));
+
+	/* Enable PCI bridge bus mastering and memory space */
+	pci_set_master(dev);
+	if (pcibios_enable_device(dev, ~0) < 0) {
+		ssb_printk(KERN_ERR "PCI: SSB bridge enable failed\n");
+		return;
+	}
+
+	/* Enable PCI bridge BAR1 prefetch and burst */
+	pci_write_config_dword(dev, SSB_BAR1_CONTROL, 3);
+
+	/* Make sure our latency is high enough to handle the devices behind us */
+	lat = 168;
+	ssb_printk(KERN_INFO "PCI: Fixing latency timer of device %s to %u\n",
+		   pci_name(dev), lat);
+	pci_write_config_byte(dev, PCI_LATENCY_TIMER, lat);
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, ssb_pcicore_fixup_pcibridge);
+
+/* PCI device IRQ mapping. */
+int ssb_pcicore_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+{
+	if (dev->bus->ops != &ssb_pcicore_pciops) {
+		/* This is not a device on the PCI-core bridge. */
+		return -ENODEV;
+	}
+	return ssb_mips_irq(extpci_core->dev) + 2;
+}
 
 static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 {
@@ -318,7 +360,16 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 	pcicore_write32(pc, SSB_PCICORE_ARBCTL, val);
 	udelay(1); /* Assertion time demanded by the PCI standard */
 
-	/*TODO cardbus mode */
+	if (pc->dev->bus->has_cardbus_slot) {
+		ssb_dprintk(KERN_INFO PFX "CardBus slot detected\n");
+		pc->cardbusmode = 1;
+		/* GPIO 1 resets the bridge */
+		ssb_gpio_out(pc->dev->bus, 1, 1);
+		ssb_gpio_outen(pc->dev->bus, 1, 1);
+		pcicore_write16(pc, SSB_PCICORE_SPROM(0),
+				pcicore_read16(pc, SSB_PCICORE_SPROM(0))
+				| 0x0400);
+	}
 
 	/* 64MB I/O window */
 	pcicore_write32(pc, SSB_PCICORE_SBTOPCI0,
@@ -344,7 +395,8 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 	/* Ok, ready to run, register it to the system.
 	 * The following needs change, if we want to port hostmode
 	 * to non-MIPS platform. */
-	set_io_port_base((unsigned long)ioremap_nocache(SSB_PCI_MEM, 0x04000000));
+	ssb_pcicore_controller.io_map_base = (unsigned long)ioremap_nocache(SSB_PCI_MEM, 0x04000000);
+	set_io_port_base(ssb_pcicore_controller.io_map_base);
 	/* Give some time to the PCI controller to configure itself with the new
 	 * values. Not waiting at this point causes crashes of the machine. */
 	mdelay(10);
@@ -362,7 +414,7 @@ static int pcicore_is_in_hostmode(struct ssb_pcicore *pc)
 	    chipid_top != 0x5300)
 		return 0;
 
-	if (bus->sprom.r1.boardflags_lo & SSB_PCICORE_BFL_NOPCI)
+	if (bus->sprom.boardflags_lo & SSB_PCICORE_BFL_NOPCI)
 		return 0;
 
 	/* The 200-pin BCM4712 package does not bond out PCI. Even when
@@ -510,15 +562,9 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 		u32 intvec;
 
 		intvec = ssb_read32(pdev, SSB_INTVEC);
-		if ((bus->chip_id & 0xFF00) == 0x4400) {
-			/* Workaround: On the BCM44XX the BPFLAG routing
-			 * bit is wrong. Use a hardcoded constant. */
-			intvec |= 0x00000002;
-		} else {
-			tmp = ssb_read32(dev, SSB_TPSFLAG);
-			tmp &= SSB_TPSFLAG_BPFLAG;
-			intvec |= tmp;
-		}
+		tmp = ssb_read32(dev, SSB_TPSFLAG);
+		tmp &= SSB_TPSFLAG_BPFLAG;
+		intvec |= (1 << tmp);
 		ssb_write32(pdev, SSB_INTVEC, intvec);
 	}
 

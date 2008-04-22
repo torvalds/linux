@@ -38,8 +38,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <asm/current.h>
-
 #include "ehca_tools.h"
 #include "ehca_iverbs.h"
 
@@ -58,7 +56,6 @@ struct ib_pd *ehca_alloc_pd(struct ib_device *device,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	pd->ownpid = current->tgid;
 	for (i = 0; i < 2; i++) {
 		INIT_LIST_HEAD(&pd->free[i]);
 		INIT_LIST_HEAD(&pd->full[i]);
@@ -85,17 +82,9 @@ struct ib_pd *ehca_alloc_pd(struct ib_device *device,
 
 int ehca_dealloc_pd(struct ib_pd *pd)
 {
-	u32 cur_pid = current->tgid;
 	struct ehca_pd *my_pd = container_of(pd, struct ehca_pd, ib_pd);
 	int i, leftovers = 0;
 	struct ipz_small_queue_page *page, *tmp;
-
-	if (my_pd->ib_pd.uobject && my_pd->ib_pd.uobject->context &&
-	    my_pd->ownpid != cur_pid) {
-		ehca_err(pd->device, "Invalid caller pid=%x ownpid=%x",
-			 cur_pid, my_pd->ownpid);
-		return -EINVAL;
-	}
 
 	for (i = 0; i < 2; i++) {
 		list_splice(&my_pd->full[i], &my_pd->free[i]);

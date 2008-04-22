@@ -28,6 +28,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#include <asm/efi.h>
 
 /*
  * To make EFI call EFI runtime service in physical addressing mode we need

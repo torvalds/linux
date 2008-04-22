@@ -26,6 +26,8 @@
 #include <asm/proto.h>
 #include <asm/mce.h>
 
+#include <mach_traps.h>
+
 int unknown_nmi_panic;
 int nmi_watchdog_enabled;
 int panic_on_unrecovered_nmi;
@@ -45,9 +47,6 @@ unsigned int nmi_watchdog = NMI_DEFAULT;
 static unsigned int nmi_hz = HZ;
 
 static DEFINE_PER_CPU(short, wd_enabled);
-
-/* local prototypes */
-static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu);
 
 /* Run after command line and cpu_init init, but before all other checks */
 void nmi_watchdog_default(void)
@@ -314,7 +313,8 @@ void touch_nmi_watchdog(void)
 }
 EXPORT_SYMBOL(touch_nmi_watchdog);
 
-int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
+notrace __kprobes int
+nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 {
 	int sum;
 	int touched = 0;
@@ -385,22 +385,14 @@ int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 
 static unsigned ignore_nmis;
 
-asmlinkage __kprobes void do_nmi(struct pt_regs * regs, long error_code)
+asmlinkage notrace __kprobes void
+do_nmi(struct pt_regs *regs, long error_code)
 {
 	nmi_enter();
 	add_pda(__nmi_count,1);
 	if (!ignore_nmis)
 		default_do_nmi(regs);
 	nmi_exit();
-}
-
-int do_nmi_callback(struct pt_regs * regs, int cpu)
-{
-#ifdef CONFIG_SYSCTL
-	if (unknown_nmi_panic)
-		return unknown_nmi_panic_callback(regs, cpu);
-#endif
-	return 0;
 }
 
 void stop_nmi(void)
@@ -463,6 +455,15 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 }
 
 #endif
+
+int do_nmi_callback(struct pt_regs *regs, int cpu)
+{
+#ifdef CONFIG_SYSCTL
+	if (unknown_nmi_panic)
+		return unknown_nmi_panic_callback(regs, cpu);
+#endif
+	return 0;
+}
 
 void __trigger_all_cpu_backtrace(void)
 {

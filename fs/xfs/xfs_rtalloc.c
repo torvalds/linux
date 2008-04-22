@@ -44,6 +44,7 @@
 #include "xfs_rw.h"
 #include "xfs_inode_item.h"
 #include "xfs_trans_space.h"
+#include "xfs_utils.h"
 
 
 /*
@@ -71,6 +72,18 @@ STATIC int xfs_rtmodify_summary(xfs_mount_t *, xfs_trans_t *, int,
 /*
  * Internal functions.
  */
+
+/*
+ * xfs_lowbit32: get low bit set out of 32-bit argument, -1 if none set.
+ */
+STATIC int
+xfs_lowbit32(
+	__uint32_t	v)
+{
+	if (v)
+		return ffs(v) - 1;
+	return -1;
+}
 
 /*
  * Allocate space to the bitmap or summary file, and zero it, for growfs.
@@ -111,14 +124,14 @@ xfs_growfs_rt_alloc(
 				XFS_GROWRTALLOC_LOG_RES(mp), 0,
 				XFS_TRANS_PERM_LOG_RES,
 				XFS_DEFAULT_PERM_LOG_COUNT)))
-			goto error_exit;
+			goto error_cancel;
 		cancelflags = XFS_TRANS_RELEASE_LOG_RES;
 		/*
 		 * Lock the inode.
 		 */
 		if ((error = xfs_trans_iget(mp, tp, ino, 0,
 						XFS_ILOCK_EXCL, &ip)))
-			goto error_exit;
+			goto error_cancel;
 		XFS_BMAP_INIT(&flist, &firstblock);
 		/*
 		 * Allocate blocks to the bitmap file.
@@ -131,14 +144,16 @@ xfs_growfs_rt_alloc(
 		if (!error && nmap < 1)
 			error = XFS_ERROR(ENOSPC);
 		if (error)
-			goto error_exit;
+			goto error_cancel;
 		/*
 		 * Free any blocks freed up in the transaction, then commit.
 		 */
 		error = xfs_bmap_finish(&tp, &flist, &committed);
 		if (error)
-			goto error_exit;
-		xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+			goto error_cancel;
+		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+		if (error)
+			goto error;
 		/*
 		 * Now we need to clear the allocated blocks.
 		 * Do this one block per transaction, to keep it simple.
@@ -153,13 +168,13 @@ xfs_growfs_rt_alloc(
 			 */
 			if ((error = xfs_trans_reserve(tp, 0,
 					XFS_GROWRTZERO_LOG_RES(mp), 0, 0, 0)))
-				goto error_exit;
+				goto error_cancel;
 			/*
 			 * Lock the bitmap inode.
 			 */
 			if ((error = xfs_trans_iget(mp, tp, ino, 0,
 							XFS_ILOCK_EXCL, &ip)))
-				goto error_exit;
+				goto error_cancel;
 			/*
 			 * Get a buffer for the block.
 			 */
@@ -168,14 +183,16 @@ xfs_growfs_rt_alloc(
 				mp->m_bsize, 0);
 			if (bp == NULL) {
 				error = XFS_ERROR(EIO);
-				goto error_exit;
+				goto error_cancel;
 			}
 			memset(XFS_BUF_PTR(bp), 0, mp->m_sb.sb_blocksize);
 			xfs_trans_log_buf(tp, bp, 0, mp->m_sb.sb_blocksize - 1);
 			/*
 			 * Commit the transaction.
 			 */
-			xfs_trans_commit(tp, 0);
+			error = xfs_trans_commit(tp, 0);
+			if (error)
+				goto error;
 		}
 		/*
 		 * Go on to the next extent, if any.
@@ -183,8 +200,9 @@ xfs_growfs_rt_alloc(
 		oblocks = map.br_startoff + map.br_blockcount;
 	}
 	return 0;
-error_exit:
+error_cancel:
 	xfs_trans_cancel(tp, cancelflags);
+error:
 	return error;
 }
 
@@ -432,7 +450,6 @@ xfs_rtallocate_extent_near(
 	}
 	bbno = XFS_BITTOBLOCK(mp, bno);
 	i = 0;
-	ASSERT(minlen != 0);
 	log2len = xfs_highbit32(minlen);
 	/*
 	 * Loop over all bitmap blocks (bbno + i is current block).
@@ -601,8 +618,6 @@ xfs_rtallocate_extent_size(
 	xfs_suminfo_t	sum;		/* summary information for extents */
 
 	ASSERT(minlen % prod == 0 && maxlen % prod == 0);
-	ASSERT(maxlen != 0);
-
 	/*
 	 * Loop over all the levels starting with maxlen.
 	 * At each level, look at all the bitmap blocks, to see if there
@@ -660,9 +675,6 @@ xfs_rtallocate_extent_size(
 		*rtblock = NULLRTBLOCK;
 		return 0;
 	}
-	ASSERT(minlen != 0);
-	ASSERT(maxlen != 0);
-
 	/*
 	 * Loop over sizes, from maxlen down to minlen.
 	 * This time, when we do the allocations, allow smaller ones
@@ -1869,6 +1881,7 @@ xfs_growfs_rt(
 	xfs_trans_t	*tp;		/* transaction pointer */
 
 	sbp = &mp->m_sb;
+	cancelflags = 0;
 	/*
 	 * Initial error checking.
 	 */
@@ -1948,7 +1961,6 @@ xfs_growfs_rt(
 				  nsbp->sb_blocksize * nsbp->sb_rextsize);
 		nsbp->sb_rextents = nsbp->sb_rblocks;
 		do_div(nsbp->sb_rextents, nsbp->sb_rextsize);
-		ASSERT(nsbp->sb_rextents != 0);
 		nsbp->sb_rextslog = xfs_highbit32(nsbp->sb_rextents);
 		nrsumlevels = nmp->m_rsumlevels = nsbp->sb_rextslog + 1;
 		nrsumsize =
@@ -2036,13 +2048,15 @@ xfs_growfs_rt(
 		 */
 		mp->m_rsumlevels = nrsumlevels;
 		mp->m_rsumsize = nrsumsize;
-		/*
-		 * Commit the transaction.
-		 */
-		xfs_trans_commit(tp, 0);
+
+		error = xfs_trans_commit(tp, 0);
+		if (error) {
+			tp = NULL;
+			break;
+		}
 	}
 
-	if (error)
+	if (error && tp)
 		xfs_trans_cancel(tp, cancelflags);
 
 	/*
@@ -2273,7 +2287,7 @@ xfs_rtmount_inodes(
 	ASSERT(sbp->sb_rsumino != NULLFSINO);
 	error = xfs_iget(mp, NULL, sbp->sb_rsumino, 0, 0, &mp->m_rsumip, 0);
 	if (error) {
-		VN_RELE(XFS_ITOV(mp->m_rbmip));
+		IRELE(mp->m_rbmip);
 		return error;
 	}
 	ASSERT(mp->m_rsumip != NULL);

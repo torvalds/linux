@@ -69,10 +69,9 @@ config USB_EHCI_BIG_ENDIAN_DESC
 	default y
 
 config USB_EHCI_FSL
-	bool
-	depends on USB_EHCI_HCD
+	bool "Support for Freescale on-chip EHCI USB controller"
+	depends on USB_EHCI_HCD && FSL_SOC
 	select USB_EHCI_ROOT_HUB_TT
-	default y if MPC834x || PPC_MPC831x
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.
 

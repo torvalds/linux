@@ -34,6 +34,7 @@
 
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/hardirq.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -117,6 +118,8 @@ static inline void disable_interrupts(struct spu_state *csa, struct spu *spu)
 	 *     Write INT_MASK_class1 with value of 0.
 	 *     Save INT_Mask_class2 in CSA.
 	 *     Write INT_MASK_class2 with value of 0.
+	 *     Synchronize all three interrupts to be sure
+	 *     we no longer execute a handler on another CPU.
 	 */
 	spin_lock_irq(&spu->register_lock);
 	if (csa) {
@@ -129,6 +132,9 @@ static inline void disable_interrupts(struct spu_state *csa, struct spu *spu)
 	spu_int_mask_set(spu, 2, 0ul);
 	eieio();
 	spin_unlock_irq(&spu->register_lock);
+	synchronize_irq(spu->irqs[0]);
+	synchronize_irq(spu->irqs[1]);
+	synchronize_irq(spu->irqs[2]);
 }
 
 static inline void set_watchdog_timer(struct spu_state *csa, struct spu *spu)
@@ -720,8 +726,9 @@ static inline void set_switch_active(struct spu_state *csa, struct spu *spu)
 	 * Restore, Step 23.
 	 *     Change the software context switch pending flag
 	 *     to context switch active.
+	 *
+	 *     This implementation does not uses a switch active flag.
 	 */
-	set_bit(SPU_CONTEXT_SWITCH_ACTIVE, &spu->flags);
 	clear_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags);
 	mb();
 }
@@ -1739,9 +1746,8 @@ static inline void reset_switch_active(struct spu_state *csa, struct spu *spu)
 {
 	/* Restore, Step 74:
 	 *     Reset the "context switch active" flag.
+	 *     Not performed by this implementation.
 	 */
-	clear_bit(SPU_CONTEXT_SWITCH_ACTIVE, &spu->flags);
-	mb();
 }
 
 static inline void reenable_interrupts(struct spu_state *csa, struct spu *spu)
@@ -1809,6 +1815,7 @@ static void save_csa(struct spu_state *prev, struct spu *spu)
 	save_mfc_csr_ato(prev, spu);	/* Step 24. */
 	save_mfc_tclass_id(prev, spu);	/* Step 25. */
 	set_mfc_tclass_id(prev, spu);	/* Step 26. */
+	save_mfc_cmd(prev, spu);	/* Step 26a - moved from 44. */
 	purge_mfc_queue(prev, spu);	/* Step 27. */
 	wait_purge_complete(prev, spu);	/* Step 28. */
 	setup_mfc_sr1(prev, spu);	/* Step 30. */
@@ -1825,7 +1832,6 @@ static void save_csa(struct spu_state *prev, struct spu *spu)
 	save_ppuint_mb(prev, spu);	/* Step 41. */
 	save_ch_part1(prev, spu);	/* Step 42. */
 	save_spu_mb(prev, spu);	        /* Step 43. */
-	save_mfc_cmd(prev, spu);	/* Step 44. */
 	reset_ch(prev, spu);	        /* Step 45. */
 }
 

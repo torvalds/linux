@@ -27,19 +27,11 @@
 #include <asm/arch/io.h>
 #include <asm/hardware.h>
 
-#include "prcm-regs.h"
+#include "sdrc.h"
+#include "prm.h"
+#include "cm.h"
 
-#define TIMER_32KSYNCT_CR_V	IO_ADDRESS(OMAP24XX_32KSYNCT_BASE + 0x010)
-
-#define CM_CLKSEL2_PLL_V	IO_ADDRESS(OMAP24XX_PRCM_BASE + 0x544)
-#define PRCM_VOLTCTRL_V		IO_ADDRESS(OMAP24XX_PRCM_BASE + 0x050)
-#define PRCM_CLKCFG_CTRL_V	IO_ADDRESS(OMAP24XX_PRCM_BASE + 0x080)
-#define CM_CLKEN_PLL_V		IO_ADDRESS(OMAP24XX_PRCM_BASE + 0x500)
-#define CM_IDLEST_CKGEN_V	IO_ADDRESS(OMAP24XX_PRCM_BASE + 0x520)
-#define CM_CLKSEL1_PLL_V	IO_ADDRESS(OMAP24XX_PRCM_BASE + 0x540)
-
-#define SDRC_DLLA_CTRL_V	IO_ADDRESS(OMAP24XX_SDRC_BASE + 0x060)
-#define SDRC_RFR_CTRL_V		IO_ADDRESS(OMAP24XX_SDRC_BASE + 0x0a4)
+#define TIMER_32KSYNCT_CR_V	IO_ADDRESS(OMAP2420_32KSYNCT_BASE + 0x010)
 
 	.text
 
@@ -131,11 +123,11 @@ volt_delay:
 
 /* relative load constants */
 cm_clksel2_pll:
-	.word CM_CLKSEL2_PLL_V
+	.word OMAP2420_CM_REGADDR(PLL_MOD, CM_CLKSEL2)
 sdrc_dlla_ctrl:
-	.word SDRC_DLLA_CTRL_V
+	.word OMAP242X_SDRC_REGADDR(SDRC_DLLA_CTRL)
 prcm_voltctrl:
-	.word PRCM_VOLTCTRL_V
+	.word OMAP2420_PRM_REGADDR(OCP_MOD, 0x50)
 prcm_mask_val:
 	.word 0xFFFF3FFC
 timer_32ksynct_cr:
@@ -225,13 +217,13 @@ volt_delay_c:
 	mov	pc, lr			@ back to caller
 
 ddr_cm_clksel2_pll:
-	.word CM_CLKSEL2_PLL_V
+	.word OMAP2420_CM_REGADDR(PLL_MOD, CM_CLKSEL2)
 ddr_sdrc_dlla_ctrl:
-	.word SDRC_DLLA_CTRL_V
+	.word OMAP242X_SDRC_REGADDR(SDRC_DLLA_CTRL)
 ddr_sdrc_rfr_ctrl:
-	.word SDRC_RFR_CTRL_V
+	.word OMAP242X_SDRC_REGADDR(SDRC_RFR_CTRL_0)
 ddr_prcm_voltctrl:
-	.word PRCM_VOLTCTRL_V
+	.word OMAP2420_PRM_REGADDR(OCP_MOD, 0x50)
 ddr_prcm_mask_val:
 	.word 0xFFFF3FFC
 ddr_timer_32ksynct:
@@ -316,17 +308,17 @@ wait_dll_lock:
 	ldmfd	sp!, {r0-r12, pc}	@ restore regs and return
 
 set_config:
-	.word PRCM_CLKCFG_CTRL_V
+	.word OMAP2420_PRM_REGADDR(OCP_MOD, 0x80)
 pll_ctl:
-	.word CM_CLKEN_PLL_V
+	.word OMAP2420_CM_REGADDR(PLL_MOD, CM_FCLKEN1)
 pll_stat:
-	.word CM_IDLEST_CKGEN_V
+	.word OMAP2420_CM_REGADDR(PLL_MOD, CM_IDLEST1)
 pll_div:
-	.word CM_CLKSEL1_PLL_V
+	.word OMAP2420_CM_REGADDR(PLL_MOD, CM_CLKSEL)
 sdrc_rfr:
-	.word SDRC_RFR_CTRL_V
+	.word OMAP242X_SDRC_REGADDR(SDRC_RFR_CTRL_0)
 dlla_ctrl:
-	.word SDRC_DLLA_CTRL_V
+	.word OMAP242X_SDRC_REGADDR(SDRC_DLLA_CTRL)
 
 ENTRY(sram_set_prcm_sz)
 	.word	. - sram_set_prcm

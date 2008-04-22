@@ -56,8 +56,6 @@ MODULE_PARM_DESC(collector, "\n"
 	"\tThe aic94xx SAS LLDD supports both modes.\n"
 	"\tDefault: 0 (Direct Mode).\n");
 
-char sas_addr_str[2*SAS_ADDR_SIZE + 1] = "";
-
 static struct scsi_transport_template *aic94xx_transport_template;
 static int asd_scan_finished(struct Scsi_Host *, unsigned long);
 static void asd_scan_start(struct Scsi_Host *);
@@ -547,7 +545,7 @@ static struct asd_pcidev_struct {
 	},
 };
 
-static inline int asd_create_ha_caches(struct asd_ha_struct *asd_ha)
+static int asd_create_ha_caches(struct asd_ha_struct *asd_ha)
 {
 	asd_ha->scb_pool = dma_pool_create(ASD_DRIVER_NAME "_scb_pool",
 					   &asd_ha->pcidev->dev,
@@ -565,7 +563,7 @@ static inline int asd_create_ha_caches(struct asd_ha_struct *asd_ha)
  * asd_free_edbs -- free empty data buffers
  * asd_ha: pointer to host adapter structure
  */
-static inline void asd_free_edbs(struct asd_ha_struct *asd_ha)
+static void asd_free_edbs(struct asd_ha_struct *asd_ha)
 {
 	struct asd_seq_data *seq = &asd_ha->seq;
 	int i;
@@ -576,7 +574,7 @@ static inline void asd_free_edbs(struct asd_ha_struct *asd_ha)
 	seq->edb_arr = NULL;
 }
 
-static inline void asd_free_escbs(struct asd_ha_struct *asd_ha)
+static void asd_free_escbs(struct asd_ha_struct *asd_ha)
 {
 	struct asd_seq_data *seq = &asd_ha->seq;
 	int i;
@@ -591,7 +589,7 @@ static inline void asd_free_escbs(struct asd_ha_struct *asd_ha)
 	seq->escb_arr = NULL;
 }
 
-static inline void asd_destroy_ha_caches(struct asd_ha_struct *asd_ha)
+static void asd_destroy_ha_caches(struct asd_ha_struct *asd_ha)
 {
 	int i;
 
@@ -1003,7 +1001,7 @@ static struct sas_domain_function_template aic94xx_transport_functions = {
 	.lldd_abort_task_set	= asd_abort_task_set,
 	.lldd_clear_aca		= asd_clear_aca,
 	.lldd_clear_task_set	= asd_clear_task_set,
-	.lldd_I_T_nexus_reset	= NULL,
+	.lldd_I_T_nexus_reset	= asd_I_T_nexus_reset,
 	.lldd_lu_reset		= asd_lu_reset,
 	.lldd_query_task	= asd_query_task,
 

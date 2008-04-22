@@ -196,6 +196,10 @@ static struct device_attribute trip_point_attrs[] = {
 	__ATTR(trip_point_8_temp, 0444, trip_point_temp_show, NULL),
 	__ATTR(trip_point_9_type, 0444, trip_point_type_show, NULL),
 	__ATTR(trip_point_9_temp, 0444, trip_point_temp_show, NULL),
+	__ATTR(trip_point_10_type, 0444, trip_point_type_show, NULL),
+	__ATTR(trip_point_10_temp, 0444, trip_point_temp_show, NULL),
+	__ATTR(trip_point_11_type, 0444, trip_point_type_show, NULL),
+	__ATTR(trip_point_11_temp, 0444, trip_point_temp_show, NULL),
 };
 
 #define TRIP_POINT_ATTR_ADD(_dev, _index, result)     \
@@ -306,12 +310,23 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 {
 	struct thermal_cooling_device_instance *dev;
 	struct thermal_cooling_device_instance *pos;
+	struct thermal_zone_device *pos1;
+	struct thermal_cooling_device *pos2;
 	int result;
 
 	if (trip >= tz->trips || (trip < 0 && trip != THERMAL_TRIPS_NONE))
 		return -EINVAL;
 
-	if (!tz || !cdev)
+	list_for_each_entry(pos1, &thermal_tz_list, node) {
+		if (pos1 == tz)
+			break;
+	}
+	list_for_each_entry(pos2, &thermal_cdev_list, node) {
+		if (pos2 == cdev)
+			break;
+	}
+
+	if (tz != pos1 || cdev != pos2)
 		return -EINVAL;
 
 	dev =
@@ -437,20 +452,20 @@ struct thermal_cooling_device *thermal_cooling_device_register(char *type,
 	int result;
 
 	if (strlen(type) >= THERMAL_NAME_LENGTH)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	if (!ops || !ops->get_max_state || !ops->get_cur_state ||
 	    !ops->set_cur_state)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	cdev = kzalloc(sizeof(struct thermal_cooling_device), GFP_KERNEL);
 	if (!cdev)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	result = get_idr(&thermal_cdev_idr, &thermal_idr_lock, &cdev->id);
 	if (result) {
 		kfree(cdev);
-		return NULL;
+		return ERR_PTR(result);
 	}
 
 	strcpy(cdev->type, type);
@@ -462,7 +477,7 @@ struct thermal_cooling_device *thermal_cooling_device_register(char *type,
 	if (result) {
 		release_idr(&thermal_cdev_idr, &thermal_idr_lock, cdev->id);
 		kfree(cdev);
-		return NULL;
+		return ERR_PTR(result);
 	}
 
 	/* sys I/F */
@@ -498,7 +513,7 @@ struct thermal_cooling_device *thermal_cooling_device_register(char *type,
       unregister:
 	release_idr(&thermal_cdev_idr, &thermal_idr_lock, cdev->id);
 	device_unregister(&cdev->device);
-	return NULL;
+	return ERR_PTR(result);
 }
 
 EXPORT_SYMBOL(thermal_cooling_device_register);
@@ -570,17 +585,17 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 	int count;
 
 	if (strlen(type) >= THERMAL_NAME_LENGTH)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	if (trips > THERMAL_MAX_TRIPS || trips < 0)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	if (!ops || !ops->get_temp)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	tz = kzalloc(sizeof(struct thermal_zone_device), GFP_KERNEL);
 	if (!tz)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&tz->cooling_devices);
 	idr_init(&tz->idr);
@@ -588,7 +603,7 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 	result = get_idr(&thermal_tz_idr, &thermal_idr_lock, &tz->id);
 	if (result) {
 		kfree(tz);
-		return NULL;
+		return ERR_PTR(result);
 	}
 
 	strcpy(tz->type, type);
@@ -601,7 +616,7 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 	if (result) {
 		release_idr(&thermal_tz_idr, &thermal_idr_lock, tz->id);
 		kfree(tz);
-		return NULL;
+		return ERR_PTR(result);
 	}
 
 	/* sys I/F */
@@ -643,7 +658,7 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
       unregister:
 	release_idr(&thermal_tz_idr, &thermal_idr_lock, tz->id);
 	device_unregister(&tz->device);
-	return NULL;
+	return ERR_PTR(result);
 }
 
 EXPORT_SYMBOL(thermal_zone_device_register);

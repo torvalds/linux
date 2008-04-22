@@ -130,8 +130,8 @@ dmadbg_showregs(const char *fname, int line, struct s3c2410_dma_chan *chan)
 	dmadbg_dumpregs(fname, line, chan, &state);
 }
 
-#define dbg_showregs(chan) dmadbg_showregs(__FUNCTION__, __LINE__, (chan))
-#define dbg_showchan(chan) dmadbg_showchan(__FUNCTION__, __LINE__, (chan))
+#define dbg_showregs(chan) dmadbg_showregs(__func__, __LINE__, (chan))
+#define dbg_showchan(chan) dmadbg_showchan(__func__, __LINE__, (chan))
 #else
 #define dbg_showregs(chan) do { } while(0)
 #define dbg_showchan(chan) do { } while(0)
@@ -403,7 +403,7 @@ static int s3c2410_dma_start(struct s3c2410_dma_chan *chan)
 
 			if (s3c2410_dma_waitforload(chan, __LINE__) == 0) {
 				pr_debug("%s: buff not yet loaded, no more todo\n",
-					 __FUNCTION__);
+					 __func__);
 			} else {
 				chan->load_state = S3C2410_DMALOAD_1RUNNING;
 				s3c2410_dma_loadbuffer(chan, chan->next);
@@ -463,16 +463,16 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 		return -EINVAL;
 
 	pr_debug("%s: id=%p, data=%08x, size=%d\n",
-		 __FUNCTION__, id, (unsigned int)data, size);
+		 __func__, id, (unsigned int)data, size);
 
 	buf = kmem_cache_alloc(dma_kmem, GFP_ATOMIC);
 	if (buf == NULL) {
 		pr_debug("%s: out of memory (%ld alloc)\n",
-			 __FUNCTION__, (long)sizeof(*buf));
+			 __func__, (long)sizeof(*buf));
 		return -ENOMEM;
 	}
 
-	//pr_debug("%s: new buffer %p\n", __FUNCTION__, buf);
+	//pr_debug("%s: new buffer %p\n", __func__, buf);
 	//dbg_showchan(chan);
 
 	buf->next  = NULL;
@@ -486,18 +486,18 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 	if (chan->curr == NULL) {
 		/* we've got nothing loaded... */
 		pr_debug("%s: buffer %p queued onto empty channel\n",
-			 __FUNCTION__, buf);
+			 __func__, buf);
 
 		chan->curr = buf;
 		chan->end  = buf;
 		chan->next = NULL;
 	} else {
 		pr_debug("dma%d: %s: buffer %p queued onto non-empty channel\n",
-			 chan->number, __FUNCTION__, buf);
+			 chan->number, __func__, buf);
 
 		if (chan->end == NULL)
 			pr_debug("dma%d: %s: %p not empty, and chan->end==NULL?\n",
-				 chan->number, __FUNCTION__, chan);
+				 chan->number, __func__, chan);
 
 		chan->end->next = buf;
 		chan->end = buf;
@@ -572,7 +572,7 @@ s3c2410_dma_lastxfer(struct s3c2410_dma_chan *chan)
 		if (s3c2410_dma_waitforload(chan, __LINE__) == 0) {
 				/* flag error? */
 			printk(KERN_ERR "dma%d: timeout waiting for load (%s)\n",
-			       chan->number, __FUNCTION__);
+			       chan->number, __func__);
 			return;
 		}
 		break;
@@ -658,7 +658,7 @@ s3c2410_dma_irq(int irq, void *devpw)
 
 		if (buf->magic != BUF_MAGIC) {
 			printk(KERN_ERR "dma%d: %s: buf %p incorrect magic\n",
-			       chan->number, __FUNCTION__, buf);
+			       chan->number, __func__, buf);
 			return IRQ_HANDLED;
 		}
 
@@ -692,7 +692,7 @@ s3c2410_dma_irq(int irq, void *devpw)
 			if (s3c2410_dma_waitforload(chan, __LINE__) == 0) {
 				/* flag error? */
 				printk(KERN_ERR "dma%d: timeout waiting for load (%s)\n",
-				       chan->number, __FUNCTION__);
+				       chan->number, __func__);
 				return IRQ_HANDLED;
 			}
 
@@ -759,7 +759,7 @@ int s3c2410_dma_request(unsigned int channel,
 
 	if (!chan->irq_claimed) {
 		pr_debug("dma%d: %s : requesting irq %d\n",
-			 channel, __FUNCTION__, chan->irq);
+			 channel, __func__, chan->irq);
 
 		chan->irq_claimed = 1;
 		local_irq_restore(flags);
@@ -786,7 +786,7 @@ int s3c2410_dma_request(unsigned int channel,
 
 	/* need to setup */
 
-	pr_debug("%s: channel initialised, %p\n", __FUNCTION__, chan);
+	pr_debug("%s: channel initialised, %p\n", __func__, chan);
 
 	return chan->number | DMACH_LOW_LEVEL;
 }
@@ -823,7 +823,7 @@ int s3c2410_dma_free(dmach_t channel, struct s3c2410_dma_client *client)
 
 	if (chan->state != S3C2410_DMA_IDLE) {
 		pr_debug("%s: need to stop dma channel %p\n",
-		       __FUNCTION__, chan);
+		       __func__, chan);
 
 		/* possibly flush the channel */
 		s3c2410_dma_ctrl(channel, S3C2410_DMAOP_STOP);
@@ -852,7 +852,7 @@ static int s3c2410_dma_dostop(struct s3c2410_dma_chan *chan)
 	unsigned long flags;
 	unsigned long tmp;
 
-	pr_debug("%s:\n", __FUNCTION__);
+	pr_debug("%s:\n", __func__);
 
 	dbg_showchan(chan);
 
@@ -907,14 +907,14 @@ static int s3c2410_dma_flush(struct s3c2410_dma_chan *chan)
 	struct s3c2410_dma_buf *buf, *next;
 	unsigned long flags;
 
-	pr_debug("%s: chan %p (%d)\n", __FUNCTION__, chan, chan->number);
+	pr_debug("%s: chan %p (%d)\n", __func__, chan, chan->number);
 
 	dbg_showchan(chan);
 
 	local_irq_save(flags);
 
 	if (chan->state != S3C2410_DMA_IDLE) {
-		pr_debug("%s: stopping channel...\n", __FUNCTION__ );
+		pr_debug("%s: stopping channel...\n", __func__ );
 		s3c2410_dma_ctrl(chan->number, S3C2410_DMAOP_STOP);
 	}
 
@@ -929,7 +929,7 @@ static int s3c2410_dma_flush(struct s3c2410_dma_chan *chan)
 			next = buf->next;
 
 			pr_debug("%s: free buffer %p, next %p\n",
-			       __FUNCTION__, buf, buf->next);
+			       __func__, buf, buf->next);
 
 			s3c2410_dma_buffdone(chan, buf, S3C2410_RES_ABORT);
 			s3c2410_dma_freebuf(buf);
@@ -976,7 +976,7 @@ static int s3c2410_dma_started(struct s3c2410_dma_chan *chan)
 
 			if (s3c2410_dma_waitforload(chan, __LINE__) == 0) {
 				pr_debug("%s: buff not yet loaded, no more todo\n",
-					 __FUNCTION__);
+					 __func__);
 			} else {
 				chan->load_state = S3C2410_DMALOAD_1RUNNING;
 				s3c2410_dma_loadbuffer(chan, chan->next);
@@ -1050,16 +1050,16 @@ int s3c2410_dma_config(dmach_t channel,
 	struct s3c2410_dma_chan *chan = lookup_dma_channel(channel);
 
 	pr_debug("%s: chan=%d, xfer_unit=%d, dcon=%08x\n",
-		 __FUNCTION__, channel, xferunit, dcon);
+		 __func__, channel, xferunit, dcon);
 
 	if (chan == NULL)
 		return -EINVAL;
 
-	pr_debug("%s: Initial dcon is %08x\n", __FUNCTION__, dcon);
+	pr_debug("%s: Initial dcon is %08x\n", __func__, dcon);
 
 	dcon |= chan->dcon & dma_sel.dcon_mask;
 
-	pr_debug("%s: New dcon is %08x\n", __FUNCTION__, dcon);
+	pr_debug("%s: New dcon is %08x\n", __func__, dcon);
 
 	switch (xferunit) {
 	case 1:
@@ -1075,14 +1075,14 @@ int s3c2410_dma_config(dmach_t channel,
 		break;
 
 	default:
-		pr_debug("%s: bad transfer size %d\n", __FUNCTION__, xferunit);
+		pr_debug("%s: bad transfer size %d\n", __func__, xferunit);
 		return -EINVAL;
 	}
 
 	dcon |= S3C2410_DCON_HWTRIG;
 	dcon |= S3C2410_DCON_INTREQ;
 
-	pr_debug("%s: dcon now %08x\n", __FUNCTION__, dcon);
+	pr_debug("%s: dcon now %08x\n", __func__, dcon);
 
 	chan->dcon = dcon;
 	chan->xfer_unit = xferunit;
@@ -1099,7 +1099,7 @@ int s3c2410_dma_setflags(dmach_t channel, unsigned int flags)
 	if (chan == NULL)
 		return -EINVAL;
 
-	pr_debug("%s: chan=%p, flags=%08x\n", __FUNCTION__, chan, flags);
+	pr_debug("%s: chan=%p, flags=%08x\n", __func__, chan, flags);
 
 	chan->flags = flags;
 
@@ -1120,7 +1120,7 @@ int s3c2410_dma_set_opfn(dmach_t channel, s3c2410_dma_opfn_t rtn)
 	if (chan == NULL)
 		return -EINVAL;
 
-	pr_debug("%s: chan=%p, op rtn=%p\n", __FUNCTION__, chan, rtn);
+	pr_debug("%s: chan=%p, op rtn=%p\n", __func__, chan, rtn);
 
 	chan->op_fn = rtn;
 
@@ -1136,7 +1136,7 @@ int s3c2410_dma_set_buffdone_fn(dmach_t channel, s3c2410_dma_cbfn_t rtn)
 	if (chan == NULL)
 		return -EINVAL;
 
-	pr_debug("%s: chan=%p, callback rtn=%p\n", __FUNCTION__, chan, rtn);
+	pr_debug("%s: chan=%p, callback rtn=%p\n", __func__, chan, rtn);
 
 	chan->callback_fn = rtn;
 
@@ -1170,7 +1170,7 @@ int s3c2410_dma_devconfig(int channel,
 		return -EINVAL;
 
 	pr_debug("%s: source=%d, hwcfg=%08x, devaddr=%08lx\n",
-		 __FUNCTION__, (int)source, hwcfg, devaddr);
+		 __func__, (int)source, hwcfg, devaddr);
 
 	chan->source = source;
 	chan->dev_addr = devaddr;
@@ -1180,7 +1180,7 @@ int s3c2410_dma_devconfig(int channel,
 	case S3C2410_DMASRC_HW:
 		/* source is hardware */
 		pr_debug("%s: hw source, devaddr=%08lx, hwcfg=%d\n",
-			 __FUNCTION__, devaddr, hwcfg);
+			 __func__, devaddr, hwcfg);
 		dma_wrreg(chan, S3C2410_DMA_DISRCC, hwcfg & 3);
 		dma_wrreg(chan, S3C2410_DMA_DISRC,  devaddr);
 		dma_wrreg(chan, S3C2410_DMA_DIDSTC, (0<<1) | (0<<0));
@@ -1190,8 +1190,8 @@ int s3c2410_dma_devconfig(int channel,
 
 	case S3C2410_DMASRC_MEM:
 		/* source is memory */
-		pr_debug( "%s: mem source, devaddr=%08lx, hwcfg=%d\n",
-			  __FUNCTION__, devaddr, hwcfg);
+		pr_debug("%s: mem source, devaddr=%08lx, hwcfg=%d\n",
+			 __func__, devaddr, hwcfg);
 		dma_wrreg(chan, S3C2410_DMA_DISRCC, (0<<1) | (0<<0));
 		dma_wrreg(chan, S3C2410_DMA_DIDST,  devaddr);
 		dma_wrreg(chan, S3C2410_DMA_DIDSTC, hwcfg & 3);

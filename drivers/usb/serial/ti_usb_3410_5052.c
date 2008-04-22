@@ -82,7 +82,6 @@
 #include <linux/circ_buf.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
@@ -265,8 +264,8 @@ static struct usb_serial_driver ti_1port_device = {
 	.description		= "TI USB 3410 1 port adapter",
 	.usb_driver		= &ti_usb_driver,
 	.id_table		= ti_id_table_3410,
-	.num_interrupt_in	= 1,
-	.num_bulk_in		= 1,
+	.num_interrupt_in	= NUM_DONT_CARE,
+	.num_bulk_in		= NUM_DONT_CARE,
 	.num_bulk_out		= 1,
 	.num_ports		= 1,
 	.attach			= ti_startup,

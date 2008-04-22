@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 
 #define DRIVER_NAME "memstick"
-#define DRIVER_VERSION "0.2"
 
 static unsigned int cmd_retries = 3;
 module_param(cmd_retries, uint, 0644);
@@ -178,16 +177,16 @@ static struct bus_type memstick_bus_type = {
 	.resume         = memstick_device_resume
 };
 
-static void memstick_free(struct class_device *cdev)
+static void memstick_free(struct device *dev)
 {
-	struct memstick_host *host = container_of(cdev, struct memstick_host,
-						  cdev);
+	struct memstick_host *host = container_of(dev, struct memstick_host,
+						  dev);
 	kfree(host);
 }
 
 static struct class memstick_host_class = {
 	.name       = "memstick_host",
-	.release    = memstick_free
+	.dev_release = memstick_free
 };
 
 static void memstick_free_card(struct device *dev)
@@ -236,7 +235,7 @@ int memstick_next_req(struct memstick_host *host, struct memstick_request **mrq)
 		rc = host->card->next_request(host->card, mrq);
 
 	if (!rc)
-		host->retries = cmd_retries;
+		host->retries = cmd_retries > 1 ? cmd_retries - 1 : 1;
 	else
 		*mrq = NULL;
 
@@ -271,14 +270,12 @@ void memstick_init_req_sg(struct memstick_request *mrq, unsigned char tpc,
 		mrq->data_dir = READ;
 
 	mrq->sg = *sg;
-	mrq->io_type = MEMSTICK_IO_SG;
+	mrq->long_data = 1;
 
 	if (tpc == MS_TPC_SET_CMD || tpc == MS_TPC_EX_SET_CMD)
 		mrq->need_card_int = 1;
 	else
 		mrq->need_card_int = 0;
-
-	mrq->get_int_reg = 0;
 }
 EXPORT_SYMBOL(memstick_init_req_sg);
 
@@ -306,14 +303,12 @@ void memstick_init_req(struct memstick_request *mrq, unsigned char tpc,
 	if (mrq->data_dir == WRITE)
 		memcpy(mrq->data, buf, mrq->data_len);
 
-	mrq->io_type = MEMSTICK_IO_VAL;
+	mrq->long_data = 0;
 
 	if (tpc == MS_TPC_SET_CMD || tpc == MS_TPC_EX_SET_CMD)
 		mrq->need_card_int = 1;
 	else
 		mrq->need_card_int = 0;
-
-	mrq->get_int_reg = 0;
 }
 EXPORT_SYMBOL(memstick_init_req);
 
@@ -343,6 +338,7 @@ static int h_memstick_read_dev_id(struct memstick_dev *card,
 			card->id.class = id_reg.class;
 		}
 		complete(&card->mrq_complete);
+		dev_dbg(&card->dev, "if_mode = %02x\n", id_reg.if_mode);
 		return -EAGAIN;
 	}
 }
@@ -387,8 +383,8 @@ static struct memstick_dev *memstick_alloc_card(struct memstick_host *host)
 	if (card) {
 		card->host = host;
 		snprintf(card->dev.bus_id, sizeof(card->dev.bus_id),
-			 "%s", host->cdev.class_id);
-		card->dev.parent = host->cdev.dev;
+			 "%s", host->dev.bus_id);
+		card->dev.parent = &host->dev;
 		card->dev.bus = &memstick_bus_type;
 		card->dev.release = memstick_free_card;
 		card->check = memstick_dummy_check;
@@ -423,7 +419,6 @@ static void memstick_power_on(struct memstick_host *host)
 {
 	host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_ON);
 	host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_SERIAL);
-	msleep(1);
 }
 
 static void memstick_check(struct work_struct *work)
@@ -432,7 +427,7 @@ static void memstick_check(struct work_struct *work)
 						  media_checker);
 	struct memstick_dev *card;
 
-	dev_dbg(host->cdev.dev, "memstick_check started\n");
+	dev_dbg(&host->dev, "memstick_check started\n");
 	mutex_lock(&host->lock);
 	if (!host->card)
 		memstick_power_on(host);
@@ -445,7 +440,7 @@ static void memstick_check(struct work_struct *work)
 			host->card = NULL;
 		}
 	} else {
-		dev_dbg(host->cdev.dev, "new card %02x, %02x, %02x\n",
+		dev_dbg(&host->dev, "new card %02x, %02x, %02x\n",
 			card->id.type, card->id.category, card->id.class);
 		if (host->card) {
 			if (memstick_set_rw_addr(host->card)
@@ -470,7 +465,7 @@ static void memstick_check(struct work_struct *work)
 		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
 
 	mutex_unlock(&host->lock);
-	dev_dbg(host->cdev.dev, "memstick_check finished\n");
+	dev_dbg(&host->dev, "memstick_check finished\n");
 }
 
 /**
@@ -487,9 +482,9 @@ struct memstick_host *memstick_alloc_host(unsigned int extra,
 	if (host) {
 		mutex_init(&host->lock);
 		INIT_WORK(&host->media_checker, memstick_check);
-		host->cdev.class = &memstick_host_class;
-		host->cdev.dev = dev;
-		class_device_initialize(&host->cdev);
+		host->dev.class = &memstick_host_class;
+		host->dev.parent = dev;
+		device_initialize(&host->dev);
 	}
 	return host;
 }
@@ -512,10 +507,9 @@ int memstick_add_host(struct memstick_host *host)
 	if (rc)
 		return rc;
 
-	snprintf(host->cdev.class_id, BUS_ID_SIZE,
-		 "memstick%u", host->id);
+	snprintf(host->dev.bus_id, BUS_ID_SIZE, "memstick%u", host->id);
 
-	rc = class_device_add(&host->cdev);
+	rc = device_add(&host->dev);
 	if (rc) {
 		spin_lock(&memstick_host_lock);
 		idr_remove(&memstick_host_idr, host->id);
@@ -546,7 +540,7 @@ void memstick_remove_host(struct memstick_host *host)
 	spin_lock(&memstick_host_lock);
 	idr_remove(&memstick_host_idr, host->id);
 	spin_unlock(&memstick_host_lock);
-	class_device_del(&host->cdev);
+	device_del(&host->dev);
 }
 EXPORT_SYMBOL(memstick_remove_host);
 
@@ -557,9 +551,35 @@ EXPORT_SYMBOL(memstick_remove_host);
 void memstick_free_host(struct memstick_host *host)
 {
 	mutex_destroy(&host->lock);
-	class_device_put(&host->cdev);
+	put_device(&host->dev);
 }
 EXPORT_SYMBOL(memstick_free_host);
+
+/**
+ * memstick_suspend_host - notify bus driver of host suspension
+ * @host - host to use
+ */
+void memstick_suspend_host(struct memstick_host *host)
+{
+	mutex_lock(&host->lock);
+	host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
+	mutex_unlock(&host->lock);
+}
+EXPORT_SYMBOL(memstick_suspend_host);
+
+/**
+ * memstick_resume_host - notify bus driver of host resumption
+ * @host - host to use
+ */
+void memstick_resume_host(struct memstick_host *host)
+{
+	mutex_lock(&host->lock);
+	if (host->card)
+		memstick_power_on(host);
+	mutex_unlock(&host->lock);
+	memstick_detect_change(host);
+}
+EXPORT_SYMBOL(memstick_resume_host);
 
 int memstick_register_driver(struct memstick_driver *drv)
 {
@@ -611,4 +631,3 @@ module_exit(memstick_exit);
 MODULE_AUTHOR("Alex Dubov");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Sony MemoryStick core driver");
-MODULE_VERSION(DRIVER_VERSION);

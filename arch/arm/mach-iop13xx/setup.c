@@ -519,7 +519,7 @@ void __init iop13xx_platform_init(void)
 	if (iq8134x_flash_resource.end > iq8134x_flash_resource.start)
 		iop13xx_devices[plat_idx++] = &iq8134x_flash;
 	else
-		printk(KERN_ERR "%s: Failed to probe flash size\n", __FUNCTION__);
+		printk(KERN_ERR "%s: Failed to probe flash size\n", __func__);
 #endif
 
 	platform_add_devices(iop13xx_devices, plat_idx);

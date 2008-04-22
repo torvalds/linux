@@ -55,7 +55,7 @@ struct qe_snum {
 /* We allocate this here because it is used almost exclusively for
  * the communication processor devices.
  */
-struct qe_immap *qe_immr = NULL;
+struct qe_immap __iomem *qe_immr;
 EXPORT_SYMBOL(qe_immr);
 
 static struct qe_snum snums[QE_NUM_OF_SNUM];	/* Dynamically allocated SNUMs */
@@ -156,7 +156,7 @@ EXPORT_SYMBOL(qe_issue_cmd);
  */
 static unsigned int brg_clk = 0;
 
-unsigned int get_brg_clk(void)
+unsigned int qe_get_brg_clk(void)
 {
 	struct device_node *qe;
 	unsigned int size;
@@ -180,6 +180,7 @@ unsigned int get_brg_clk(void)
 
 	return brg_clk;
 }
+EXPORT_SYMBOL(qe_get_brg_clk);
 
 /* Program the BRG to the given sampling rate and multiplier
  *
@@ -197,7 +198,7 @@ int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier)
 	if ((brg < QE_BRG1) || (brg > QE_BRG16))
 		return -EINVAL;
 
-	divisor = get_brg_clk() / (rate * multiplier);
+	divisor = qe_get_brg_clk() / (rate * multiplier);
 
 	if (divisor > QE_BRGC_DIVISOR_MAX + 1) {
 		div16 = QE_BRGC_DIV16;
@@ -415,12 +416,6 @@ void qe_muram_dump(void)
 }
 EXPORT_SYMBOL(qe_muram_dump);
 
-void *qe_muram_addr(unsigned long offset)
-{
-	return (void *)&qe_immr->muram[offset];
-}
-EXPORT_SYMBOL(qe_muram_addr);
-
 /* The maximum number of RISCs we support */
 #define MAX_QE_RISC     2
 
@@ -509,7 +504,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 	}
 
 	/* Validate some of the fields */
-	if ((firmware->count < 1) || (firmware->count >= MAX_QE_RISC)) {
+	if ((firmware->count < 1) || (firmware->count > MAX_QE_RISC)) {
 		printk(KERN_ERR "qe-firmware: invalid data\n");
 		return -EINVAL;
 	}
@@ -609,7 +604,10 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 	 * If we haven't checked yet, and a driver hasn't uploaded a firmware
 	 * yet, then check the device tree for information.
 	 */
-	if (initialized || qe_firmware_uploaded)
+	if (qe_firmware_uploaded)
+		return &qe_firmware_info;
+
+	if (initialized)
 		return NULL;
 
 	initialized = 1;

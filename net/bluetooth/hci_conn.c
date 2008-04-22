@@ -260,7 +260,6 @@ int hci_conn_del(struct hci_conn *conn)
 	tasklet_enable(&hdev->tx_task);
 	skb_queue_purge(&conn->data_q);
 	hci_conn_del_sysfs(conn);
-	hci_dev_put(hdev);
 
 	return 0;
 }

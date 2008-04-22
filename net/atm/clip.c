@@ -612,7 +612,7 @@ static int clip_device_event(struct notifier_block *this, unsigned long event,
 {
 	struct net_device *dev = arg;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	if (event == NETDEV_UNREGISTER) {
@@ -648,10 +648,6 @@ static int clip_inet_event(struct notifier_block *this, unsigned long event,
 	struct in_device *in_dev;
 
 	in_dev = ((struct in_ifaddr *)ifa)->ifa_dev;
-	if (!in_dev || !in_dev->dev) {
-		printk(KERN_WARNING "clip_inet_event: no device\n");
-		return NOTIFY_DONE;
-	}
 	/*
 	 * Transitions are of the down-change-up type, so it's sufficient to
 	 * handle the change on up.
@@ -947,6 +943,8 @@ static const struct file_operations arp_seq_fops = {
 };
 #endif
 
+static void atm_clip_exit_noproc(void);
+
 static int __init atm_clip_init(void)
 {
 	neigh_table_init_no_netlink(&clip_tbl);
@@ -962,20 +960,22 @@ static int __init atm_clip_init(void)
 	{
 		struct proc_dir_entry *p;
 
-		p = create_proc_entry("arp", S_IRUGO, atm_proc_root);
-		if (p)
-			p->proc_fops = &arp_seq_fops;
+		p = proc_create("arp", S_IRUGO, atm_proc_root, &arp_seq_fops);
+		if (!p) {
+			printk(KERN_ERR "Unable to initialize "
+			       "/proc/net/atm/arp\n");
+			atm_clip_exit_noproc();
+			return -ENOMEM;
+		}
 	}
 #endif
 
 	return 0;
 }
 
-static void __exit atm_clip_exit(void)
+static void atm_clip_exit_noproc(void)
 {
 	struct net_device *dev, *next;
-
-	remove_proc_entry("arp", atm_proc_root);
 
 	unregister_inetaddr_notifier(&clip_inet_notifier);
 	unregister_netdevice_notifier(&clip_dev_notifier);
@@ -1005,6 +1005,13 @@ static void __exit atm_clip_exit(void)
 	neigh_table_clear(&clip_tbl);
 
 	clip_tbl_hook = NULL;
+}
+
+static void __exit atm_clip_exit(void)
+{
+	remove_proc_entry("arp", atm_proc_root);
+
+	atm_clip_exit_noproc();
 }
 
 module_init(atm_clip_init);

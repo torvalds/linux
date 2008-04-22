@@ -1414,21 +1414,17 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 		if (!list_empty(&fh->cap.stream))
 			buf = list_entry(fh->cap.stream.next, struct videobuf_buffer, stream);
 	} else {
-		mutex_lock(&fh->cap.lock);
+		mutex_lock(&fh->cap.vb_lock);
 		if (UNSET == fh->cap.read_off) {
 			/* need to capture a new frame */
-			if (res_locked(fh->dev,RESOURCE_VIDEO)) {
-				mutex_unlock(&fh->cap.lock);
-				return POLLERR;
-			}
-			if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,fh->cap.field)) {
-				mutex_unlock(&fh->cap.lock);
-				return POLLERR;
-			}
+			if (res_locked(fh->dev,RESOURCE_VIDEO))
+				goto err;
+			if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,fh->cap.field))
+				goto err;
 			fh->cap.ops->buf_queue(&fh->cap,fh->cap.read_buf);
 			fh->cap.read_off = 0;
 		}
-		mutex_unlock(&fh->cap.lock);
+		mutex_unlock(&fh->cap.vb_lock);
 		buf = fh->cap.read_buf;
 	}
 
@@ -1440,6 +1436,10 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 	    buf->state == VIDEOBUF_ERROR)
 		return POLLIN|POLLRDNORM;
 	return 0;
+
+err:
+	mutex_unlock(&fh->cap.vb_lock);
+	return POLLERR;
 }
 
 static int video_release(struct inode *inode, struct file *file)

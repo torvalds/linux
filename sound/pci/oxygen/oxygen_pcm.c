@@ -634,7 +634,7 @@ static void oxygen_pcm_free(struct snd_pcm *pcm)
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
-int __devinit oxygen_pcm_init(struct oxygen *chip)
+int oxygen_pcm_init(struct oxygen *chip)
 {
 	struct snd_pcm *pcm;
 	int outs, ins;

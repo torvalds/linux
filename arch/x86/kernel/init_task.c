@@ -15,6 +15,7 @@ static struct files_struct init_files = INIT_FILES;
 static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
 static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
 struct mm_struct init_mm = INIT_MM(init_mm);
+EXPORT_UNUSED_SYMBOL(init_mm); /* will be removed in 2.6.26 */
 
 /*
  * Initial thread structure.

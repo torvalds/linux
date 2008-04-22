@@ -38,7 +38,7 @@
 #include <asm/system.h>
 
 #include <linux/time.h>
-#include <asm/semaphore.h>
+#include <linux/semaphore.h>
 
 #include <linux/vmalloc.h>
 #include <linux/reiserfs_fs.h>

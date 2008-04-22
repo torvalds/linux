@@ -139,7 +139,7 @@ static int vio_bus_remove(struct device *dev)
  */
 int vio_register_driver(struct vio_driver *viodrv)
 {
-	printk(KERN_DEBUG "%s: driver %s registering\n", __FUNCTION__,
+	printk(KERN_DEBUG "%s: driver %s registering\n", __func__,
 		viodrv->driver.name);
 
 	/* fill in 'struct driver' fields */
@@ -184,7 +184,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	/* we need the 'device_type' property, in order to match with drivers */
 	if (of_node->type == NULL) {
 		printk(KERN_WARNING "%s: node %s missing 'device_type'\n",
-				__FUNCTION__,
+				__func__,
 				of_node->name ? of_node->name : "<unknown>");
 		return NULL;
 	}
@@ -192,7 +192,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	unit_address = of_get_property(of_node, "reg", NULL);
 	if (unit_address == NULL) {
 		printk(KERN_WARNING "%s: node %s missing 'reg'\n",
-				__FUNCTION__,
+				__func__,
 				of_node->name ? of_node->name : "<unknown>");
 		return NULL;
 	}
@@ -227,7 +227,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	/* register with generic device framework */
 	if (device_register(&viodev->dev)) {
 		printk(KERN_ERR "%s: failed to register device %s\n",
-				__FUNCTION__, viodev->dev.bus_id);
+				__func__, viodev->dev.bus_id);
 		/* XXX free TCE table */
 		kfree(viodev);
 		return NULL;
@@ -258,7 +258,7 @@ static int __init vio_bus_init(void)
 	err = device_register(&vio_bus_device.dev);
 	if (err) {
 		printk(KERN_WARNING "%s: device_register returned %i\n",
-				__FUNCTION__, err);
+				__func__, err);
 		return err;
 	}
 

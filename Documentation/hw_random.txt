@@ -1,19 +1,53 @@
-	Hardware driver for Intel/AMD/VIA Random Number Generators (RNG)
-	Copyright 2000,2001 Jeff Garzik <jgarzik@pobox.com>
-	Copyright 2000,2001 Philipp Rumpf <prumpf@mandrakesoft.com>
-
 Introduction:
 
-	The hw_random device driver is software that makes use of a
+	The hw_random framework is software that makes use of a
 	special hardware feature on your CPU or motherboard,
-	a Random Number Generator (RNG).
+	a Random Number Generator (RNG).  The software has two parts:
+	a core providing the /dev/hw_random character device and its
+	sysfs support, plus a hardware-specific driver that plugs
+	into that core.
 
-	In order to make effective use of this device driver, you
+	To make the most effective use of these mechanisms, you
 	should download the support software as well.  Download the
 	latest version of the "rng-tools" package from the
 	hw_random driver's official Web site:
 
 		http://sourceforge.net/projects/gkernel/
+
+	Those tools use /dev/hw_random to fill the kernel entropy pool,
+	which is used internally and exported by the /dev/urandom and
+	/dev/random special files.
+
+Theory of operation:
+
+	CHARACTER DEVICE.  Using the standard open()
+	and read() system calls, you can read random data from
+	the hardware RNG device.  This data is NOT CHECKED by any
+	fitness tests, and could potentially be bogus (if the
+	hardware is faulty or has been tampered with).  Data is only
+	output if the hardware "has-data" flag is set, but nevertheless
+	a security-conscious person would run fitness tests on the
+	data before assuming it is truly random.
+
+	The rng-tools package uses such tests in "rngd", and lets you
+	run them by hand with a "rngtest" utility.
+
+	/dev/hw_random is char device major 10, minor 183.
+
+	CLASS DEVICE.  There is a /sys/class/misc/hw_random node with
+	two unique attributes, "rng_available" and "rng_current".  The
+	"rng_available" attribute lists the hardware-specific drivers
+	available, while "rng_current" lists the one which is currently
+	connected to /dev/hw_random.  If your system has more than one
+	RNG available, you may change the one used by writing a name from
+	the list in "rng_available" into "rng_current".
+
+==========================================================================
+
+	Hardware driver for Intel/AMD/VIA Random Number Generators (RNG)
+	Copyright 2000,2001 Jeff Garzik <jgarzik@pobox.com>
+	Copyright 2000,2001 Philipp Rumpf <prumpf@mandrakesoft.com>
+
 
 About the Intel RNG hardware, from the firmware hub datasheet:
 
@@ -25,20 +59,7 @@ About the Intel RNG hardware, from the firmware hub datasheet:
 	access to our RNG for use as a security feature. At this time,
 	the RNG is only to be used with a system in an OS-present state.
 
-Theory of operation:
-
-	Character driver.  Using the standard open()
-	and read() system calls, you can read random data from
-	the hardware RNG device.  This data is NOT CHECKED by any
-	fitness tests, and could potentially be bogus (if the
-	hardware is faulty or has been tampered with).  Data is only
-	output if the hardware "has-data" flag is set, but nevertheless
-	a security-conscious person would run fitness tests on the
-	data before assuming it is truly random.
-
-	/dev/hwrandom is char device major 10, minor 183.
-
-Driver notes:
+Intel RNG Driver notes:
 
 	* FIXME: support poll(2)
 

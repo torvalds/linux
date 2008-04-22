@@ -171,7 +171,7 @@ xfs_parseargs(
 	char			*this_char, *value, *eov;
 	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
 	int			iosize;
-	int			ikeep = 0;
+	int			dmapi_implies_ikeep = 1;
 
 	args->flags |= XFSMNT_BARRIER;
 	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
@@ -302,10 +302,10 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_NOBARRIER)) {
 			args->flags &= ~XFSMNT_BARRIER;
 		} else if (!strcmp(this_char, MNTOPT_IKEEP)) {
-			ikeep = 1;
-			args->flags &= ~XFSMNT_IDELETE;
+			args->flags |= XFSMNT_IKEEP;
 		} else if (!strcmp(this_char, MNTOPT_NOIKEEP)) {
-			args->flags |= XFSMNT_IDELETE;
+			dmapi_implies_ikeep = 0;
+			args->flags &= ~XFSMNT_IKEEP;
 		} else if (!strcmp(this_char, MNTOPT_LARGEIO)) {
 			args->flags2 &= ~XFSMNT2_COMPAT_IOSIZE;
 		} else if (!strcmp(this_char, MNTOPT_NOLARGEIO)) {
@@ -410,8 +410,8 @@ xfs_parseargs(
 	 * Note that if "ikeep" or "noikeep" mount options are
 	 * supplied, then they are honored.
 	 */
-	if (!(args->flags & XFSMNT_DMAPI) && !ikeep)
-		args->flags |= XFSMNT_IDELETE;
+	if ((args->flags & XFSMNT_DMAPI) && dmapi_implies_ikeep)
+		args->flags |= XFSMNT_IKEEP;
 
 	if ((args->flags & XFSMNT_NOALIGN) != XFSMNT_NOALIGN) {
 		if (dsunit) {
@@ -446,6 +446,7 @@ xfs_showargs(
 {
 	static struct proc_xfs_info xfs_info_set[] = {
 		/* the few simple ones we can get from the mount struct */
+		{ XFS_MOUNT_IKEEP,		"," MNTOPT_IKEEP },
 		{ XFS_MOUNT_WSYNC,		"," MNTOPT_WSYNC },
 		{ XFS_MOUNT_INO64,		"," MNTOPT_INO64 },
 		{ XFS_MOUNT_NOALIGN,		"," MNTOPT_NOALIGN },
@@ -461,7 +462,6 @@ xfs_showargs(
 	};
 	static struct proc_xfs_info xfs_info_unset[] = {
 		/* the few simple ones we can get from the mount struct */
-		{ XFS_MOUNT_IDELETE,		"," MNTOPT_IKEEP },
 		{ XFS_MOUNT_COMPAT_IOSIZE,	"," MNTOPT_LARGEIO },
 		{ XFS_MOUNT_BARRIER,		"," MNTOPT_NOBARRIER },
 		{ XFS_MOUNT_SMALL_INUMS,	"," MNTOPT_64BITINODE },
@@ -896,7 +896,8 @@ xfs_fs_write_inode(
 	struct inode		*inode,
 	int			sync)
 {
-	int			error = 0, flags = FLUSH_INODE;
+	int			error = 0;
+	int			flags = 0;
 
 	xfs_itrace_entry(XFS_I(inode));
 	if (sync) {
@@ -934,7 +935,7 @@ xfs_fs_clear_inode(
 		xfs_inactive(ip);
 		xfs_iflags_clear(ip, XFS_IMODIFIED);
 		if (xfs_reclaim(ip))
-			panic("%s: cannot reclaim 0x%p\n", __FUNCTION__, inode);
+			panic("%s: cannot reclaim 0x%p\n", __func__, inode);
 	}
 
 	ASSERT(XFS_I(inode) == NULL);
@@ -1027,8 +1028,7 @@ xfs_sync_worker(
 	int		error;
 
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY))
-		error = xfs_sync(mp, SYNC_FSDATA | SYNC_BDFLUSH | SYNC_ATTR |
-				     SYNC_REFCACHE | SYNC_SUPER);
+		error = xfs_sync(mp, SYNC_FSDATA | SYNC_BDFLUSH | SYNC_ATTR);
 	mp->m_sync_seq++;
 	wake_up(&mp->m_wait_single_sync_task);
 }
@@ -1306,7 +1306,7 @@ xfs_fs_fill_super(
 	void			*data,
 	int			silent)
 {
-	struct inode		*rootvp;
+	struct inode		*root;
 	struct xfs_mount	*mp = NULL;
 	struct xfs_mount_args	*args = xfs_args_allocate(sb, silent);
 	int			error;
@@ -1344,19 +1344,18 @@ xfs_fs_fill_super(
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
 
-	rootvp = igrab(mp->m_rootip->i_vnode);
-	if (!rootvp) {
+	root = igrab(mp->m_rootip->i_vnode);
+	if (!root) {
 		error = ENOENT;
 		goto fail_unmount;
 	}
-
-	sb->s_root = d_alloc_root(vn_to_inode(rootvp));
-	if (!sb->s_root) {
-		error = ENOMEM;
+	if (is_bad_inode(root)) {
+		error = EINVAL;
 		goto fail_vnrele;
 	}
-	if (is_bad_inode(sb->s_root->d_inode)) {
-		error = EINVAL;
+	sb->s_root = d_alloc_root(root);
+	if (!sb->s_root) {
+		error = ENOMEM;
 		goto fail_vnrele;
 	}
 
@@ -1378,7 +1377,7 @@ fail_vnrele:
 		dput(sb->s_root);
 		sb->s_root = NULL;
 	} else {
-		VN_RELE(rootvp);
+		iput(root);
 	}
 
 fail_unmount:

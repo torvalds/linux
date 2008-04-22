@@ -298,7 +298,7 @@ static int sh_wdt_mmap(struct file *file, struct vm_area_struct *vma)
 	if (io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
 			       PAGE_SIZE, vma->vm_page_prot)) {
 		printk(KERN_ERR PFX "%s: io_remap_pfn_range failed\n",
-		       __FUNCTION__);
+		       __func__);
 		return -EAGAIN;
 	}
 

@@ -52,28 +52,30 @@
 #include <linux/tty.h>
 #include <asm/pdc.h>		/* for iodc_call() proto and friends */
 
+static spinlock_t pdc_console_lock = SPIN_LOCK_UNLOCKED;
 
 static void pdc_console_write(struct console *co, const char *s, unsigned count)
 {
-	pdc_iodc_print(s, count);
-}
+	int i = 0;
+	unsigned long flags;
 
-void pdc_printf(const char *fmt, ...)
-{
-	va_list args;
-	char buf[1024];
-	int i, len;
-
-	va_start(args, fmt);
-	len = vscnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
-
-	pdc_iodc_print(buf, len);
+	spin_lock_irqsave(&pdc_console_lock, flags);
+	do {
+		i += pdc_iodc_print(s + i, count - i);
+	} while (i < count);
+	spin_unlock_irqrestore(&pdc_console_lock, flags);
 }
 
 int pdc_console_poll_key(struct console *co)
 {
-	return pdc_iodc_getc();
+	int c;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_console_lock, flags);
+	c = pdc_iodc_getc();
+	spin_unlock_irqrestore(&pdc_console_lock, flags);
+
+	return c;
 }
 
 static int pdc_console_setup(struct console *co, char *options)

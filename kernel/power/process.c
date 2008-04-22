@@ -75,20 +75,13 @@ void refrigerator(void)
 	__set_current_state(save);
 }
 
-static void fake_signal_wake_up(struct task_struct *p, int resume)
+static void fake_signal_wake_up(struct task_struct *p)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&p->sighand->siglock, flags);
-	signal_wake_up(p, resume);
+	signal_wake_up(p, 0);
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
-}
-
-static void send_fake_signal(struct task_struct *p)
-{
-	if (task_is_stopped(p))
-		force_sig_specific(SIGSTOP, p);
-	fake_signal_wake_up(p, task_is_stopped(p));
 }
 
 static int has_mm(struct task_struct *p)
@@ -121,7 +114,7 @@ static int freeze_task(struct task_struct *p, int with_mm_only)
 	if (freezing(p)) {
 		if (has_mm(p)) {
 			if (!signal_pending(p))
-				fake_signal_wake_up(p, 0);
+				fake_signal_wake_up(p);
 		} else {
 			if (with_mm_only)
 				ret = 0;
@@ -135,7 +128,7 @@ static int freeze_task(struct task_struct *p, int with_mm_only)
 		} else {
 			if (has_mm(p)) {
 				set_freeze_flag(p);
-				send_fake_signal(p);
+				fake_signal_wake_up(p);
 			} else {
 				if (with_mm_only) {
 					ret = 0;
@@ -182,15 +175,17 @@ static int try_to_freeze_tasks(int freeze_user_space)
 			if (frozen(p) || !freezeable(p))
 				continue;
 
-			if (task_is_traced(p) && frozen(p->parent)) {
-				cancel_freezing(p);
-				continue;
-			}
-
 			if (!freeze_task(p, freeze_user_space))
 				continue;
 
-			if (!freezer_should_skip(p))
+			/*
+			 * Now that we've done set_freeze_flag, don't
+			 * perturb a task in TASK_STOPPED or TASK_TRACED.
+			 * It is "frozen enough".  If the task does wake
+			 * up, it will immediately call try_to_freeze.
+			 */
+			if (!task_is_stopped_or_traced(p) &&
+			    !freezer_should_skip(p))
 				todo++;
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);

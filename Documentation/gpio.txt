@@ -2,6 +2,9 @@ GPIO Interfaces
 
 This provides an overview of GPIO access conventions on Linux.
 
+These calls use the gpio_* naming prefix.  No other calls should use that
+prefix, or the related __gpio_* prefix.
+
 
 What is a GPIO?
 ===============
@@ -69,11 +72,13 @@ in this document, but drivers acting as clients to the GPIO interface must
 not care how it's implemented.)
 
 That said, if the convention is supported on their platform, drivers should
-use it when possible.  Platforms should declare GENERIC_GPIO support in
-Kconfig (boolean true), which multi-platform drivers can depend on when
-using the include file:
+use it when possible.  Platforms must declare GENERIC_GPIO support in their
+Kconfig (boolean true), and provide an <asm/gpio.h> file.  Drivers that can't
+work without standard GPIO calls should have Kconfig entries which depend
+on GENERIC_GPIO.  The GPIO calls are available, either as "real code" or as
+optimized-away stubs, when drivers use the include file:
 
-	#include <asm/gpio.h>
+	#include <linux/gpio.h>
 
 If you stick to this convention then it'll be easier for other developers to
 see what your code is doing, and help maintain it.
@@ -316,6 +321,9 @@ pulldowns integrated on some platforms.  Not all platforms support them,
 or support them in the same way; and any given board might use external
 pullups (or pulldowns) so that the on-chip ones should not be used.
 (When a circuit needs 5 kOhm, on-chip 100 kOhm resistors won't do.)
+Likewise drive strength (2 mA vs 20 mA) and voltage (1.8V vs 3.3V) is a
+platform-specific issue, as are models like (not) having a one-to-one
+correspondence between configurable pins and GPIOs.
 
 There are other system-specific mechanisms that are not specified here,
 like the aforementioned options for input de-glitching and wire-OR output.

@@ -900,7 +900,7 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 		if (RSV_GETBIT(rxstat, RSV_LENCHECKERR))
 			ndev->stats.rx_frame_errors++;
 	} else {
-		skb = dev_alloc_skb(len);
+		skb = dev_alloc_skb(len + NET_IP_ALIGN);
 		if (!skb) {
 			if (netif_msg_rx_err(priv))
 				dev_err(&ndev->dev,
@@ -908,6 +908,7 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 			ndev->stats.rx_dropped++;
 		} else {
 			skb->dev = ndev;
+			skb_reserve(skb, NET_IP_ALIGN);
 			/* copy the packet from the receive buffer */
 			enc28j60_mem_read(priv, priv->next_pk_ptr + sizeof(rsv),
 					len, skb_put(skb, len));

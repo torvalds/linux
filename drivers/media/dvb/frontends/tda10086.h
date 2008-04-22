@@ -33,6 +33,9 @@ struct tda10086_config
 
 	/* does the "inversion" need inverted? */
 	u8 invert;
+
+	/* do we need the diseqc signal with carrier? */
+	u8 diseqc_tone;
 };
 
 #if defined(CONFIG_DVB_TDA10086) || (defined(CONFIG_DVB_TDA10086_MODULE) && defined(MODULE))

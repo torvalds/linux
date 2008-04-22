@@ -21,11 +21,8 @@
 #ifndef _CELLEB_BEAT_H
 #define _CELLEB_BEAT_H
 
-#define DABRX_KERNEL		(1UL<<1)
-#define DABRX_USER		(1UL<<0)
-
-int64_t beat_get_term_char(uint64_t,uint64_t*,uint64_t*,uint64_t*);
-int64_t beat_put_term_char(uint64_t,uint64_t,uint64_t,uint64_t);
+int64_t beat_get_term_char(uint64_t, uint64_t *, uint64_t *, uint64_t *);
+int64_t beat_put_term_char(uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t beat_repository_encode(int, const char *, uint64_t[4]);
 void beat_restart(char *);
 void beat_power_off(void);

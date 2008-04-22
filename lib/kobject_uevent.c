@@ -15,11 +15,13 @@
  */
 
 #include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/kobject.h>
+#include <linux/module.h>
+
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
-#include <linux/string.h>
-#include <linux/kobject.h>
 #include <net/sock.h>
 
 
@@ -55,7 +57,7 @@ int kobject_action_type(const char *buf, size_t count,
 	enum kobject_action action;
 	int ret = -EINVAL;
 
-	if (count && buf[count-1] == '\n')
+	if (count && (buf[count-1] == '\n' || buf[count-1] == '\0'))
 		count--;
 
 	if (!count)

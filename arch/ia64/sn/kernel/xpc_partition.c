@@ -877,7 +877,7 @@ xpc_partition_disengaged(struct xpc_partition *part)
 	disengaged = (xpc_partition_engaged(1UL << partid) == 0);
 	if (part->disengage_request_timeout) {
 		if (!disengaged) {
-			if (jiffies < part->disengage_request_timeout) {
+			if (time_before(jiffies, part->disengage_request_timeout)) {
 				/* timelimit hasn't been reached yet */
 				return 0;
 			}

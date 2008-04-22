@@ -6439,7 +6439,7 @@ static int AdvLoadMicrocode(AdvPortAddr iop_base, unsigned char *buf, int size,
 			i += 2;
 			len += 2;
 		} else {
-			unsigned char off = buf[i] * 2;
+			unsigned int off = buf[i] * 2;
 			unsigned short word = (buf[off + 1] << 8) | buf[off];
 			AdvWriteWordAutoIncLram(iop_base, word);
 			len += 2;

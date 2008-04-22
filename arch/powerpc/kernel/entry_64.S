@@ -29,6 +29,8 @@
 #include <asm/cputable.h>
 #include <asm/firmware.h>
 #include <asm/bug.h>
+#include <asm/ptrace.h>
+#include <asm/irqflags.h>
 
 /*
  * System calls.
@@ -39,7 +41,7 @@
 
 /* This value is used to mark exception frames on the stack. */
 exception_marker:
-	.tc	ID_72656773_68657265[TC],0x7265677368657265
+	.tc	ID_EXC_MARKER[TC],STACK_FRAME_REGS_MARKER
 
 	.section	".text"
 	.align 7
@@ -88,6 +90,14 @@ system_call_common:
 	addi	r9,r1,STACK_FRAME_OVERHEAD
 	ld	r11,exception_marker@toc(r2)
 	std	r11,-16(r9)		/* "regshere" marker */
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	.trace_hardirqs_on
+	REST_GPR(0,r1)
+	REST_4GPRS(3,r1)
+	REST_2GPRS(7,r1)
+	addi	r9,r1,STACK_FRAME_OVERHEAD
+	ld	r12,_MSR(r1)
+#endif /* CONFIG_TRACE_IRQFLAGS */
 	li	r10,1
 	stb	r10,PACASOFTIRQEN(r13)
 	stb	r10,PACAHARDIRQEN(r13)
@@ -102,7 +112,7 @@ BEGIN_FW_FTR_SECTION
 	b	hardware_interrupt_entry
 2:
 END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif
+#endif /* CONFIG_PPC_ISERIES */
 	mfmsr	r11
 	ori	r11,r11,MSR_EE
 	mtmsrd	r11,1
@@ -504,6 +514,10 @@ BEGIN_FW_FTR_SECTION
 
 	li	r3,0
 	stb	r3,PACASOFTIRQEN(r13)	/* ensure we are soft-disabled */
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	.trace_hardirqs_off
+	mfmsr	r10
+#endif
 	ori	r10,r10,MSR_EE
 	mtmsrd	r10			/* hard-enable again */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -512,7 +526,7 @@ BEGIN_FW_FTR_SECTION
 4:
 END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif
-	stb	r5,PACASOFTIRQEN(r13)
+	TRACE_AND_RESTORE_IRQ(r5);
 
 	/* extract EE bit and use it to restore paca->hard_enabled */
 	ld	r3,_MSR(r1)
@@ -580,6 +594,16 @@ do_work:
 	bne	restore
 	/* here we are preempting the current task */
 1:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	.trace_hardirqs_on
+	/* Note: we just clobbered r10 which used to contain the previous
+	 * MSR before the hard-disabling done by the caller of do_work.
+	 * We don't have that value anymore, but it doesn't matter as
+	 * we will hard-enable unconditionally, we can just reload the
+	 * current MSR into r10
+	 */
+	mfmsr	r10
+#endif /* CONFIG_TRACE_IRQFLAGS */
 	li	r0,1
 	stb	r0,PACASOFTIRQEN(r13)
 	stb	r0,PACAHARDIRQEN(r13)

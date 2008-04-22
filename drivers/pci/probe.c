@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/cpumask.h>
+#include <linux/pci-aspm.h>
 #include "pci.h"
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
@@ -20,18 +21,27 @@
 LIST_HEAD(pci_root_buses);
 EXPORT_SYMBOL(pci_root_buses);
 
-LIST_HEAD(pci_devices);
+
+static int find_anything(struct device *dev, void *data)
+{
+	return 1;
+}
 
 /*
  * Some device drivers need know if pci is initiated.
  * Basically, we think pci is not initiated when there
- * is no device in list of pci_devices.
+ * is no device to be found on the pci_bus_type.
  */
 int no_pci_devices(void)
 {
-	return list_empty(&pci_devices);
-}
+	struct device *dev;
+	int no_devices;
 
+	dev = bus_find_device(&pci_bus_type, NULL, NULL, find_anything);
+	no_devices = (dev == NULL);
+	put_device(dev);
+	return no_devices;
+}
 EXPORT_SYMBOL(no_pci_devices);
 
 #ifdef HAVE_PCI_LEGACY
@@ -82,6 +92,7 @@ void pci_remove_legacy_files(struct pci_bus *bus) { return; }
  * PCI Bus Class Devices
  */
 static ssize_t pci_bus_show_cpuaffinity(struct device *dev,
+					int type,
 					struct device_attribute *attr,
 					char *buf)
 {
@@ -89,12 +100,30 @@ static ssize_t pci_bus_show_cpuaffinity(struct device *dev,
 	cpumask_t cpumask;
 
 	cpumask = pcibus_to_cpumask(to_pci_bus(dev));
-	ret = cpumask_scnprintf(buf, PAGE_SIZE, cpumask);
-	if (ret < PAGE_SIZE)
-		buf[ret++] = '\n';
+	ret = type?
+		cpulist_scnprintf(buf, PAGE_SIZE-2, cpumask):
+		cpumask_scnprintf(buf, PAGE_SIZE-2, cpumask);
+	buf[ret++] = '\n';
+	buf[ret] = '\0';
 	return ret;
 }
-DEVICE_ATTR(cpuaffinity, S_IRUGO, pci_bus_show_cpuaffinity, NULL);
+
+static ssize_t inline pci_bus_show_cpumaskaffinity(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	return pci_bus_show_cpuaffinity(dev, 0, attr, buf);
+}
+
+static ssize_t inline pci_bus_show_cpulistaffinity(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	return pci_bus_show_cpuaffinity(dev, 1, attr, buf);
+}
+
+DEVICE_ATTR(cpuaffinity,     S_IRUGO, pci_bus_show_cpumaskaffinity, NULL);
+DEVICE_ATTR(cpulistaffinity, S_IRUGO, pci_bus_show_cpulistaffinity, NULL);
 
 /*
  * PCI Bus Class
@@ -225,7 +254,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 			res->flags |= l & ~PCI_BASE_ADDRESS_IO_MASK;
 		}
 		res->end = res->start + (unsigned long) sz;
-		res->flags |= pci_calc_resource_flags(l);
+		res->flags |= pci_calc_resource_flags(l) | IORESOURCE_SIZEALIGN;
 		if (is_64bit_memory(l)) {
 			u32 szhi, lhi;
 
@@ -278,7 +307,8 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 			if (sz) {
 				res->flags = (l & IORESOURCE_ROM_ENABLE) |
 				  IORESOURCE_MEM | IORESOURCE_PREFETCH |
-				  IORESOURCE_READONLY | IORESOURCE_CACHEABLE;
+				  IORESOURCE_READONLY | IORESOURCE_CACHEABLE |
+				  IORESOURCE_SIZEALIGN;
 				res->start = l & PCI_ROM_ADDRESS_MASK;
 				res->end = res->start + (unsigned long) sz;
 			}
@@ -286,7 +316,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 	}
 }
 
-void pci_read_bridge_bases(struct pci_bus *child)
+void __devinit pci_read_bridge_bases(struct pci_bus *child)
 {
 	struct pci_dev *dev = child->self;
 	u8 io_base_lo, io_limit_lo;
@@ -388,8 +418,8 @@ static struct pci_bus * pci_alloc_bus(void)
 	return b;
 }
 
-static struct pci_bus * __devinit
-pci_alloc_child_bus(struct pci_bus *parent, struct pci_dev *bridge, int busnr)
+static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
+					   struct pci_dev *bridge, int busnr)
 {
 	struct pci_bus *child;
 	int i;
@@ -472,7 +502,7 @@ static void pci_fixup_parent_subordinate_busnr(struct pci_bus *child, int max)
  * them, we proceed to assigning numbers to the remaining buses in
  * order to avoid overlaps between old and new bus numbers.
  */
-int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass)
+int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 {
 	struct pci_bus *child;
 	int is_cardbus = (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS);
@@ -622,7 +652,9 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 		pci_write_config_byte(dev, PCI_SUBORDINATE_BUS, max);
 	}
 
-	sprintf(child->name, (is_cardbus ? "PCI CardBus #%02x" : "PCI Bus #%02x"), child->number);
+	sprintf(child->name,
+		(is_cardbus ? "PCI CardBus %04x:%02x" : "PCI Bus %04x:%02x"),
+		pci_domain_nr(bus), child->number);
 
 	/* Has only triggered on CardBus, fixup is in yenta_socket */
 	while (bus->parent) {
@@ -782,6 +814,7 @@ static void pci_release_dev(struct device *dev)
 	struct pci_dev *pci_dev;
 
 	pci_dev = to_pci_dev(dev);
+	pci_vpd_release(pci_dev);
 	kfree(pci_dev);
 }
 
@@ -849,7 +882,6 @@ struct pci_dev *alloc_pci_dev(void)
 	if (!dev)
 		return NULL;
 
-	INIT_LIST_HEAD(&dev->global_list);
 	INIT_LIST_HEAD(&dev->bus_list);
 
 	pci_msi_init_pci_dev(dev);
@@ -862,8 +894,7 @@ EXPORT_SYMBOL(alloc_pci_dev);
  * Read the config data for a PCI device, sanity-check it
  * and fill in the dev structure...
  */
-static struct pci_dev * __devinit
-pci_scan_device(struct pci_bus *bus, int devfn)
+static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 {
 	struct pci_dev *dev;
 	u32 l;
@@ -922,6 +953,8 @@ pci_scan_device(struct pci_bus *bus, int devfn)
 		return NULL;
 	}
 
+	pci_vpd_pci22_init(dev);
+
 	return dev;
 }
 
@@ -946,7 +979,6 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	 * Add the device to our list of discovered devices
 	 * and the bus list for fixup functions, etc.
 	 */
-	INIT_LIST_HEAD(&dev->global_list);
 	down_write(&pci_bus_sem);
 	list_add_tail(&dev->bus_list, &bus->devices);
 	up_write(&pci_bus_sem);
@@ -973,7 +1005,7 @@ EXPORT_SYMBOL(pci_scan_single_device);
  *
  * Scan a PCI slot on the specified PCI bus for devices, adding
  * discovered devices to the @bus->devices list.  New devices
- * will have an empty dev->global_list head.
+ * will not have is_added set.
  */
 int pci_scan_slot(struct pci_bus *bus, int devfn)
 {
@@ -1005,10 +1037,14 @@ int pci_scan_slot(struct pci_bus *bus, int devfn)
 				break;
 		}
 	}
+
+	if (bus->self)
+		pcie_aspm_init_link_state(bus->self);
+
 	return nr;
 }
 
-unsigned int pci_scan_child_bus(struct pci_bus *bus)
+unsigned int __devinit pci_scan_child_bus(struct pci_bus *bus)
 {
 	unsigned int devfn, pass, max = bus->secondary;
 	struct pci_dev *dev;
@@ -1116,7 +1152,7 @@ err_out:
 	return NULL;
 }
 
-struct pci_bus *pci_scan_bus_parented(struct device *parent,
+struct pci_bus * __devinit pci_scan_bus_parented(struct device *parent,
 		int bus, struct pci_ops *ops, void *sysdata)
 {
 	struct pci_bus *b;
@@ -1175,7 +1211,7 @@ static void __init pci_insertion_sort_klist(struct pci_dev *a, struct list_head 
 	list_move_tail(&a->dev.knode_bus.n_node, list);
 }
 
-static void __init pci_sort_breadthfirst_klist(void)
+void __init pci_sort_breadthfirst(void)
 {
 	LIST_HEAD(sorted_devices);
 	struct list_head *pos, *tmp;
@@ -1196,36 +1232,3 @@ static void __init pci_sort_breadthfirst_klist(void)
 	list_splice(&sorted_devices, &device_klist->k_list);
 	spin_unlock(&device_klist->k_lock);
 }
-
-static void __init pci_insertion_sort_devices(struct pci_dev *a, struct list_head *list)
-{
-	struct pci_dev *b;
-
-	list_for_each_entry(b, list, global_list) {
-		if (pci_sort_bf_cmp(a, b) <= 0) {
-			list_move_tail(&a->global_list, &b->global_list);
-			return;
-		}
-	}
-	list_move_tail(&a->global_list, list);
-}
-
-static void __init pci_sort_breadthfirst_devices(void)
-{
-	LIST_HEAD(sorted_devices);
-	struct pci_dev *dev, *tmp;
-
-	down_write(&pci_bus_sem);
-	list_for_each_entry_safe(dev, tmp, &pci_devices, global_list) {
-		pci_insertion_sort_devices(dev, &sorted_devices);
-	}
-	list_splice(&sorted_devices, &pci_devices);
-	up_write(&pci_bus_sem);
-}
-
-void __init pci_sort_breadthfirst(void)
-{
-	pci_sort_breadthfirst_devices();
-	pci_sort_breadthfirst_klist();
-}
-

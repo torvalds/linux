@@ -757,7 +757,8 @@ finished:
  *	@vma:		vma to cover (map full range of vma)
  *	@addr:		vmalloc memory
  *	@pgoff:		number of pages into addr before first page to map
- *	@returns:	0 for success, -Exxx on failure
+ *
+ *	Returns:	0 for success, -Exxx on failure
  *
  *	This function checks that addr is a valid vmalloc'ed area, and
  *	that it is big enough to cover the vma. Will return failure if
@@ -829,7 +830,8 @@ static int f(pte_t *pte, pgtable_t table, unsigned long addr, void *data)
 /**
  *	alloc_vm_area - allocate a range of kernel address space
  *	@size:		size of the area
- *	@returns:	NULL on failure, vm_struct on success
+ *
+ *	Returns:	NULL on failure, vm_struct on success
  *
  *	This function reserves a range of kernel address space, and
  *	allocates pagetables to map that range.  No actual mappings

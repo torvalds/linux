@@ -36,9 +36,9 @@ ifeq ($(CONFIG_BLK_DEV_CMD640), y)
 endif
 
 obj-$(CONFIG_BLK_DEV_IDE)		+= cris/ ppc/
-obj-$(CONFIG_BLK_DEV_IDEPNP)		+= ide-pnp.o
 obj-$(CONFIG_IDE_H8300)			+= h8300/
 obj-$(CONFIG_IDE_GENERIC)		+= ide-generic.o
+obj-$(CONFIG_BLK_DEV_IDEPNP)		+= ide-pnp.o
 
 ide-cd_mod-y += ide-cd.o ide-cd_ioctl.o ide-cd_verbose.o
 

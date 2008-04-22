@@ -1200,7 +1200,7 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		"annotate %s with a matching annotation.\n",
 		from, sec2annotation(fromsec), fromsym, from_p,
 		to, sec2annotation(tosec), tosym, to_p,
-		fromsym, tosym, fromsym);
+		tosym, fromsym, tosym);
 		break;
 	case INIT_TO_EXIT:
 		fprintf(stderr,
@@ -2026,7 +2026,7 @@ int main(int argc, char **argv)
 	int opt;
 	int err;
 
-	while ((opt = getopt(argc, argv, "i:I:msSo:awM:K:")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:cmsSo:awM:K:")) != -1) {
 		switch (opt) {
 		case 'i':
 			kernel_read = optarg;
@@ -2034,6 +2034,9 @@ int main(int argc, char **argv)
 		case 'I':
 			module_read = optarg;
 			external_module = 1;
+			break;
+		case 'c':
+			cross_build = 1;
 			break;
 		case 'm':
 			modversions = 1;

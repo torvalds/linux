@@ -57,7 +57,7 @@ static void ia64_set_msi_irq_affinity(unsigned int irq, cpumask_t cpu_mask)
 	if (!cpu_online(cpu))
 		return;
 
-	if (reassign_irq_vector(irq, cpu))
+	if (irq_prepare_move(irq, cpu))
 		return;
 
 	read_msi_msg(irq, &msg);
@@ -119,6 +119,7 @@ void ia64_teardown_msi_irq(unsigned int irq)
 
 static void ia64_ack_msi_irq(unsigned int irq)
 {
+	irq_complete_move(irq);
 	move_native_irq(irq);
 	ia64_eoi();
 }

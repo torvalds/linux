@@ -46,8 +46,9 @@ static __init void cobalt_init(void)
 	 */
 	set_fixmap(FIX_APIC_BASE, APIC_DEFAULT_PHYS_BASE);
 	setup_local_APIC();
-	printk(KERN_INFO "Local APIC Version %#lx, ID %#lx\n",
-		apic_read(APIC_LVR), apic_read(APIC_ID));
+	printk(KERN_INFO "Local APIC Version %#x, ID %#x\n",
+		(unsigned int)apic_read(APIC_LVR),
+		(unsigned int)apic_read(APIC_ID));
 
 	set_fixmap(FIX_CO_CPU, CO_CPU_PHYS);
 	set_fixmap(FIX_CO_APIC, CO_APIC_PHYS);

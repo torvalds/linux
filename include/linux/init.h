@@ -42,6 +42,7 @@
    discard it in modules) */
 #define __init		__section(.init.text) __cold
 #define __initdata	__section(.init.data)
+#define __initconst	__section(.init.rodata)
 #define __exitdata	__section(.exit.data)
 #define __exit_call	__used __section(.exitcall.exit)
 
@@ -106,6 +107,7 @@
 #define __memexitconst   __section(.memexit.rodata)
 
 /* For assembly routines */
+#define __HEAD		.section	".head.text","ax"
 #define __INIT		.section	".init.text","ax"
 #define __FINIT		.previous
 

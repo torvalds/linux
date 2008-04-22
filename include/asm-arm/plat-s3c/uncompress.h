@@ -27,8 +27,8 @@ static void arch_detect_cpu(void);
 
 /* defines for UART registers */
 
-#include "asm/plat-s3c/regs-serial.h"
-#include "asm/plat-s3c/regs-watchdog.h"
+#include <asm/plat-s3c/regs-serial.h>
+#include <asm/plat-s3c/regs-watchdog.h>
 
 /* working in physical space... */
 #undef S3C2410_WDOGREG

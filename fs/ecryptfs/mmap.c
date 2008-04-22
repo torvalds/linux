@@ -263,52 +263,102 @@ out:
 	return 0;
 }
 
-/* This function must zero any hole we create */
+/**
+ * ecryptfs_prepare_write
+ * @file: The eCryptfs file
+ * @page: The eCryptfs page
+ * @from: The start byte from which we will write
+ * @to: The end byte to which we will write
+ *
+ * This function must zero any hole we create
+ *
+ * Returns zero on success; non-zero otherwise
+ */
 static int ecryptfs_prepare_write(struct file *file, struct page *page,
 				  unsigned from, unsigned to)
 {
-	int rc = 0;
 	loff_t prev_page_end_size;
+	int rc = 0;
 
 	if (!PageUptodate(page)) {
-		rc = ecryptfs_read_lower_page_segment(page, page->index, 0,
-						      PAGE_CACHE_SIZE,
-						      page->mapping->host);
-		if (rc) {
-			printk(KERN_ERR "%s: Error attemping to read lower "
-			       "page segment; rc = [%d]\n", __FUNCTION__, rc);
-			ClearPageUptodate(page);
-			goto out;
-		} else
+		struct ecryptfs_crypt_stat *crypt_stat =
+			&ecryptfs_inode_to_private(
+				file->f_path.dentry->d_inode)->crypt_stat;
+
+		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)
+		    || (crypt_stat->flags & ECRYPTFS_NEW_FILE)) {
+			rc = ecryptfs_read_lower_page_segment(
+				page, page->index, 0, PAGE_CACHE_SIZE,
+				page->mapping->host);
+			if (rc) {
+				printk(KERN_ERR "%s: Error attemping to read "
+				       "lower page segment; rc = [%d]\n",
+				       __FUNCTION__, rc);
+				ClearPageUptodate(page);
+				goto out;
+			} else
+				SetPageUptodate(page);
+		} else if (crypt_stat->flags & ECRYPTFS_VIEW_AS_ENCRYPTED) {
+			if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR) {
+				rc = ecryptfs_copy_up_encrypted_with_header(
+					page, crypt_stat);
+				if (rc) {
+					printk(KERN_ERR "%s: Error attempting "
+					       "to copy the encrypted content "
+					       "from the lower file whilst "
+					       "inserting the metadata from "
+					       "the xattr into the header; rc "
+					       "= [%d]\n", __FUNCTION__, rc);
+					ClearPageUptodate(page);
+					goto out;
+				}
+				SetPageUptodate(page);
+			} else {
+				rc = ecryptfs_read_lower_page_segment(
+					page, page->index, 0, PAGE_CACHE_SIZE,
+					page->mapping->host);
+				if (rc) {
+					printk(KERN_ERR "%s: Error reading "
+					       "page; rc = [%d]\n",
+					       __FUNCTION__, rc);
+					ClearPageUptodate(page);
+					goto out;
+				}
+				SetPageUptodate(page);
+			}
+		} else {
+			rc = ecryptfs_decrypt_page(page);
+			if (rc) {
+				printk(KERN_ERR "%s: Error decrypting page "
+				       "at index [%ld]; rc = [%d]\n",
+				       __FUNCTION__, page->index, rc);
+				ClearPageUptodate(page);
+				goto out;
+			}
 			SetPageUptodate(page);
+		}
 	}
-
 	prev_page_end_size = ((loff_t)page->index << PAGE_CACHE_SHIFT);
-
-	/*
-	 * If creating a page or more of holes, zero them out via truncate.
-	 * Note, this will increase i_size.
-	 */
+	/* If creating a page or more of holes, zero them out via truncate.
+	 * Note, this will increase i_size. */
 	if (page->index != 0) {
 		if (prev_page_end_size > i_size_read(page->mapping->host)) {
 			rc = ecryptfs_truncate(file->f_path.dentry,
 					       prev_page_end_size);
 			if (rc) {
-				printk(KERN_ERR "Error on attempt to "
+				printk(KERN_ERR "%s: Error on attempt to "
 				       "truncate to (higher) offset [%lld];"
-				       " rc = [%d]\n", prev_page_end_size, rc);
+				       " rc = [%d]\n", __FUNCTION__,
+				       prev_page_end_size, rc);
 				goto out;
 			}
 		}
 	}
-	/*
-	 * Writing to a new page, and creating a small hole from start of page?
-	 * Zero it out.
-	 */
-	if ((i_size_read(page->mapping->host) == prev_page_end_size) &&
-	    (from != 0)) {
+	/* Writing to a new page, and creating a small hole from start
+	 * of page?  Zero it out. */
+	if ((i_size_read(page->mapping->host) == prev_page_end_size)
+	    && (from != 0))
 		zero_user(page, 0, PAGE_CACHE_SIZE);
-	}
 out:
 	return rc;
 }

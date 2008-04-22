@@ -150,6 +150,7 @@ static const struct oxygen_model model_hifier = {
 	.shortname = "C-Media CMI8787",
 	.longname = "C-Media Oxygen HD Audio",
 	.chip = "CMI8788",
+	.owner = THIS_MODULE,
 	.init = hifier_init,
 	.control_filter = hifier_control_filter,
 	.mixer_init = hifier_mixer_init,

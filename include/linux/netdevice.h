@@ -383,9 +383,11 @@ static inline void __napi_complete(struct napi_struct *n)
 
 static inline void napi_complete(struct napi_struct *n)
 {
-	local_irq_disable();
+	unsigned long flags;
+
+	local_irq_save(flags);
 	__napi_complete(n);
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 /**
@@ -708,8 +710,10 @@ struct net_device
 	void                    (*poll_controller)(struct net_device *dev);
 #endif
 
+#ifdef CONFIG_NET_NS
 	/* Network namespace this network device is inside */
 	struct net		*nd_net;
+#endif
 
 	/* bridge stuff */
 	struct net_bridge_port	*br_port;
@@ -724,6 +728,10 @@ struct net_device
 	/* rtnetlink link ops */
 	const struct rtnl_link_ops *rtnl_link_ops;
 
+	/* for setting kernel sock attribute on TCP connection setup */
+#define GSO_MAX_SIZE		65536
+	unsigned int		gso_max_size;
+
 	/* The TX queue control structures */
 	unsigned int			egress_subqueue_count;
 	struct net_device_subqueue	egress_subqueue[1];
@@ -732,6 +740,28 @@ struct net_device
 
 #define	NETDEV_ALIGN		32
 #define	NETDEV_ALIGN_CONST	(NETDEV_ALIGN - 1)
+
+/*
+ * Net namespace inlines
+ */
+static inline
+struct net *dev_net(const struct net_device *dev)
+{
+#ifdef CONFIG_NET_NS
+	return dev->nd_net;
+#else
+	return &init_net;
+#endif
+}
+
+static inline
+void dev_net_set(struct net_device *dev, struct net *net)
+{
+#ifdef CONFIG_NET_NS
+	release_net(dev->nd_net);
+	dev->nd_net = hold_net(net);
+#endif
+}
 
 /**
  *	netdev_priv - access network device private data
@@ -809,7 +839,7 @@ static inline struct net_device *next_net_device(struct net_device *dev)
 	struct list_head *lh;
 	struct net *net;
 
-	net = dev->nd_net;
+	net = dev_net(dev);
 	lh = dev->dev_list.next;
 	return lh == &net->dev_base_head ? NULL : net_device_entry(lh);
 }
@@ -1072,12 +1102,14 @@ static inline int netif_is_multiqueue(const struct net_device *dev)
 }
 
 /* Use this variant when it is known for sure that it
- * is executing from interrupt context.
+ * is executing from hardware interrupt context or with hardware interrupts
+ * disabled.
  */
 extern void dev_kfree_skb_irq(struct sk_buff *skb);
 
 /* Use this variant in places where it could be invoked
- * either from interrupt or non-interrupt context.
+ * from either hardware interrupt or other context, with hardware interrupts
+ * either disabled or enabled.
  */
 extern void dev_kfree_skb_any(struct sk_buff *skb);
 
@@ -1473,6 +1505,12 @@ static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 	return skb_is_gso(skb) &&
 	       (!skb_gso_ok(skb, dev->features) ||
 		unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
+}
+
+static inline void netif_set_gso_max_size(struct net_device *dev,
+					  unsigned int size)
+{
+	dev->gso_max_size = size;
 }
 
 /* On bonding slaves other than the currently active slave, suppress

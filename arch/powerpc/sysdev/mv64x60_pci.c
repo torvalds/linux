@@ -86,14 +86,14 @@ static int __init mv64x60_sysfs_init(void)
 	struct platform_device *pdev;
 	const unsigned int *prop;
 
-	np = of_find_compatible_node(NULL, NULL, "marvell,mv64x60");
+	np = of_find_compatible_node(NULL, NULL, "marvell,mv64360");
 	if (!np)
 		return 0;
 
 	prop = of_get_property(np, "hs_reg_valid", NULL);
 	of_node_put(np);
 
-	pdev = platform_device_register_simple("marvell,mv64x60", 0, NULL, 0);
+	pdev = platform_device_register_simple("marvell,mv64360", 0, NULL, 0);
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
 
@@ -166,6 +166,6 @@ void __init mv64x60_pci_init(void)
 {
 	struct device_node *np;
 
-	for_each_compatible_node(np, "pci", "marvell,mv64x60-pci")
+	for_each_compatible_node(np, "pci", "marvell,mv64360-pci")
 		mv64x60_add_bridge(np);
 }

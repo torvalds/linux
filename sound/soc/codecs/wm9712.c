@@ -176,7 +176,8 @@ static int wm9712_add_controls(struct snd_soc_codec *codec)
  * the codec only has a single control that is shared by both channels.
  * This makes it impossible to determine the audio path.
  */
-static int mixer_event (struct snd_soc_dapm_widget *w, int event)
+static int mixer_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *k, int event)
 {
 	u16 l, r, beep, line, phone, mic, pcm, aux;
 

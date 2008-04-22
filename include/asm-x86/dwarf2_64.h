@@ -1,16 +1,15 @@
 #ifndef _DWARF2_H
 #define _DWARF2_H 1
 
-
 #ifndef __ASSEMBLY__
 #warning "asm/dwarf2.h should be only included in pure assembly files"
 #endif
 
-/* 
+/*
    Macros for dwarf2 CFI unwind table entries.
-   See "as.info" for details on these pseudo ops. Unfortunately 
-   they are only supported in very new binutils, so define them 
-   away for older version. 
+   See "as.info" for details on these pseudo ops. Unfortunately
+   they are only supported in very new binutils, so define them
+   away for older version.
  */
 
 #ifdef CONFIG_AS_CFI

@@ -26,6 +26,7 @@
  * Device IDs
  */
 #define	PCI_DEVICE_ID_LSI_SAS1078R		0x0060
+#define	PCI_DEVICE_ID_LSI_SAS1078DE		0x007C
 #define	PCI_DEVICE_ID_LSI_VERDE_ZCR		0x0413
 
 /*
@@ -541,6 +542,10 @@ struct megasas_ctrl_info {
 #define MEGASAS_DBG_LVL				1
 
 #define MEGASAS_FW_BUSY				1
+
+/* Frame Type */
+#define IO_FRAME				0
+#define PTHRU_FRAME				1
 
 /*
  * When SCSI mid-layer calls driver's reset routine, driver waits for

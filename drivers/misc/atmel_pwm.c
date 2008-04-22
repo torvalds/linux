@@ -407,3 +407,4 @@ module_exit(pwm_exit);
 
 MODULE_DESCRIPTION("Driver for AT32/AT91 PWM module");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:atmel_pwm");

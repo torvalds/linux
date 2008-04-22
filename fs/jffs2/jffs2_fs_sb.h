@@ -16,7 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
-#include <asm/semaphore.h>
+#include <linux/semaphore.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/list.h>

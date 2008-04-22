@@ -338,6 +338,7 @@ acpi_ex_pci_config_space_handler(u32 function,
 	acpi_status status = AE_OK;
 	struct acpi_pci_id *pci_id;
 	u16 pci_register;
+	u32 value32;
 
 	ACPI_FUNCTION_TRACE(ex_pci_config_space_handler);
 
@@ -364,9 +365,9 @@ acpi_ex_pci_config_space_handler(u32 function,
 	switch (function) {
 	case ACPI_READ:
 
-		*value = 0;
 		status = acpi_os_read_pci_configuration(pci_id, pci_register,
-							value, bit_width);
+							&value32, bit_width);
+		*value = value32;
 		break;
 
 	case ACPI_WRITE:

@@ -71,7 +71,7 @@ hwsw_init (void)
 #ifdef CONFIG_IA64_GENERIC
 		/* Better to have normal DMA than panic */
 		printk(KERN_WARNING "%s: Failed to initialize software I/O TLB,"
-		       " reverting to hpzx1 platform vector\n", __FUNCTION__);
+		       " reverting to hpzx1 platform vector\n", __func__);
 		machvec_init("hpzx1");
 #else
 		panic("Unable to initialize software I/O TLB services");

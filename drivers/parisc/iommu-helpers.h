@@ -96,8 +96,8 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 
 static inline unsigned int
 iommu_coalesce_chunks(struct ioc *ioc, struct device *dev,
-		      struct scatterlist *startsg, int nents,
-		      int (*iommu_alloc_range)(struct ioc *, size_t))
+		struct scatterlist *startsg, int nents,
+		int (*iommu_alloc_range)(struct ioc *, struct device *, size_t))
 {
 	struct scatterlist *contig_sg;	   /* contig chunk head */
 	unsigned long dma_offset, dma_len; /* start/len of DMA stream */
@@ -166,7 +166,7 @@ iommu_coalesce_chunks(struct ioc *ioc, struct device *dev,
 		dma_len = ALIGN(dma_len + dma_offset, IOVP_SIZE);
 		sg_dma_address(contig_sg) =
 			PIDE_FLAG 
-			| (iommu_alloc_range(ioc, dma_len) << IOVP_SHIFT)
+			| (iommu_alloc_range(ioc, dev, dma_len) << IOVP_SHIFT)
 			| dma_offset;
 		n_mappings++;
 	}

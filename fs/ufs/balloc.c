@@ -315,8 +315,8 @@ static void ufs_change_blocknr(struct inode *inode, sector_t beg,
 			}
 
 			UFSD(" change from %llu to %llu, pos %u\n",
-			     (unsigned long long)pos + oldb,
-			     (unsigned long long)pos + newb, pos);
+			     (unsigned long long)(pos + oldb),
+			     (unsigned long long)(pos + newb), pos);
 
 			bh->b_blocknr = newb + pos;
 			unmap_underlying_metadata(bh->b_bdev,

@@ -1398,12 +1398,18 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
 
+	nseg = scsi_dma_map(cmd);
+	if (nseg < 0)
+		return SCSI_MLQUEUE_HOST_BUSY;
+
 	/*
 	 * Get an scb to use.
 	 */
 	scb = ahc_get_scb(ahc);
-	if (!scb)
+	if (!scb) {
+		scsi_dma_unmap(cmd);
 		return SCSI_MLQUEUE_HOST_BUSY;
+	}
 
 	scb->io_ctx = cmd;
 	scb->platform_data->dev = dev;
@@ -1464,8 +1470,6 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 	ahc_set_sense_residual(scb, 0);
 	scb->sg_count = 0;
 
-	nseg = scsi_dma_map(cmd);
-	BUG_ON(nseg < 0);
 	if (nseg > 0) {
 		struct	ahc_dma_seg *sg;
 		struct	scatterlist *cur_seg;

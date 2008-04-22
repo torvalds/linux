@@ -12,6 +12,7 @@
 #include <linux/ptrace.h>
 #include <asm/ptrace.h>
 #undef __FRAME_OFFSETS
+#include "user_constants.h"
 
 #define PT_INDEX(off) ((off) / sizeof(unsigned long))
 
@@ -68,6 +69,8 @@
 
 #define REGS_IP_INDEX PT_INDEX(RIP)
 #define REGS_SP_INDEX PT_INDEX(RSP)
+
+#define FP_SIZE (HOST_FP_SIZE)
 
 #endif
 

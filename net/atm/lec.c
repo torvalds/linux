@@ -266,7 +266,6 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	char buf[300];
 	int i = 0;
 #endif /* DUMP_PACKETS >0 */
-	DECLARE_MAC_BUF(mac);
 
 	pr_debug("lec_start_xmit called\n");
 	if (!priv->lecd) {
@@ -374,15 +373,19 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (entry && (entry->tx_wait.qlen < LEC_UNRES_QUE_LEN)) {
 			pr_debug("%s:lec_start_xmit: queuing packet, ",
 				dev->name);
-			pr_debug("MAC address %s\n",
-				 print_mac(mac, lec_h->h_dest));
+			pr_debug("MAC address " MAC_FMT "\n",
+				 lec_h->h_dest[0], lec_h->h_dest[1],
+				 lec_h->h_dest[2], lec_h->h_dest[3],
+				 lec_h->h_dest[4], lec_h->h_dest[5]);
 			skb_queue_tail(&entry->tx_wait, skb);
 		} else {
 			pr_debug
 			    ("%s:lec_start_xmit: tx queue full or no arp entry, dropping, ",
 			     dev->name);
-			pr_debug("MAC address %s\n",
-				 print_mac(mac, lec_h->h_dest));
+			pr_debug("MAC address " MAC_FMT "\n",
+				 lec_h->h_dest[0], lec_h->h_dest[1],
+				 lec_h->h_dest[2], lec_h->h_dest[3],
+				 lec_h->h_dest[4], lec_h->h_dest[5]);
 			priv->stats.tx_dropped++;
 			dev_kfree_skb(skb);
 		}
@@ -394,8 +397,10 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	while (entry && (skb2 = skb_dequeue(&entry->tx_wait))) {
 		pr_debug("lec.c: emptying tx queue, ");
-		pr_debug("MAC address %s\n",
-			 print_mac(mac, lec_h->h_dest));
+		pr_debug("MAC address " MAC_FMT "\n",
+			 lec_h->h_dest[0], lec_h->h_dest[1],
+			 lec_h->h_dest[2], lec_h->h_dest[3],
+			 lec_h->h_dest[4], lec_h->h_dest[5]);
 		lec_send(vcc, skb2, priv);
 	}
 
@@ -449,7 +454,6 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct lec_arp_table *entry;
 	int i;
 	char *tmp;		/* FIXME */
-	DECLARE_MAC_BUF(mac);
 
 	atomic_sub(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
 	mesg = (struct atmlec_msg *)skb->data;
@@ -536,9 +540,14 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 			struct net_bridge_fdb_entry *f;
 
 			pr_debug
-			    ("%s: bridge zeppelin asks about %s\n",
+			    ("%s: bridge zeppelin asks about " MAC_FMT "\n",
 			     dev->name,
-			     print_mac(mac, mesg->content.proxy.mac_addr));
+			     mesg->content.proxy.mac_addr[0],
+			     mesg->content.proxy.mac_addr[1],
+			     mesg->content.proxy.mac_addr[2],
+			     mesg->content.proxy.mac_addr[3],
+			     mesg->content.proxy.mac_addr[4],
+			     mesg->content.proxy.mac_addr[5]);
 
 			if (br_fdb_get_hook == NULL || dev->br_port == NULL)
 				break;
@@ -1014,7 +1023,7 @@ static void *lec_tbl_walk(struct lec_state *state, struct hlist_head *tbl,
 
 	if (!e)
 		e = tbl->first;
-	if (e == (void *)1) {
+	if (e == SEQ_START_TOKEN) {
 		e = tbl->first;
 		--*l;
 	}
@@ -1116,9 +1125,9 @@ static void *lec_seq_start(struct seq_file *seq, loff_t *pos)
 	state->locked = NULL;
 	state->arp_table = 0;
 	state->misc_table = 0;
-	state->node = (void *)1;
+	state->node = SEQ_START_TOKEN;
 
-	return *pos ? lec_get_idx(state, *pos) : (void *)1;
+	return *pos ? lec_get_idx(state, *pos) : SEQ_START_TOKEN;
 }
 
 static void lec_seq_stop(struct seq_file *seq, void *v)
@@ -1147,7 +1156,7 @@ static int lec_seq_show(struct seq_file *seq, void *v)
 	    "                          Status            Flags "
 	    "VPI/VCI Recv VPI/VCI\n";
 
-	if (v == (void *)1)
+	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, lec_banner);
 	else {
 		struct lec_state *state = seq->private;
@@ -1169,32 +1178,7 @@ static const struct seq_operations lec_seq_ops = {
 
 static int lec_seq_open(struct inode *inode, struct file *file)
 {
-	struct lec_state *state;
-	struct seq_file *seq;
-	int rc = -EAGAIN;
-
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
-	if (!state) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	rc = seq_open(file, &lec_seq_ops);
-	if (rc)
-		goto out_kfree;
-	seq = file->private_data;
-	seq->private = state;
-out:
-	return rc;
-
-out_kfree:
-	kfree(state);
-	goto out;
-}
-
-static int lec_seq_release(struct inode *inode, struct file *file)
-{
-	return seq_release_private(inode, file);
+	return seq_open_private(file, &lec_seq_ops, sizeof(struct lec_state));
 }
 
 static const struct file_operations lec_seq_fops = {
@@ -1202,7 +1186,7 @@ static const struct file_operations lec_seq_fops = {
 	.open = lec_seq_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = lec_seq_release,
+	.release = seq_release_private,
 };
 #endif
 
@@ -1249,9 +1233,11 @@ static int __init lane_module_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *p;
 
-	p = create_proc_entry("lec", S_IRUGO, atm_proc_root);
-	if (p)
-		p->proc_fops = &lec_seq_fops;
+	p = proc_create("lec", S_IRUGO, atm_proc_root, &lec_seq_fops);
+	if (!p) {
+		printk(KERN_ERR "Unable to initialize /proc/net/atm/lec\n");
+		return -ENOMEM;
+	}
 #endif
 
 	register_atm_ioctl(&lane_ioctl_ops);

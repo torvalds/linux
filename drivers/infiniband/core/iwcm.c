@@ -839,6 +839,7 @@ static void cm_work_handler(struct work_struct *_work)
 	unsigned long flags;
 	int empty;
 	int ret = 0;
+	int destroy_id;
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	empty = list_empty(&cm_id_priv->work_list);
@@ -857,9 +858,9 @@ static void cm_work_handler(struct work_struct *_work)
 			destroy_cm_id(&cm_id_priv->id);
 		}
 		BUG_ON(atomic_read(&cm_id_priv->refcount)==0);
+		destroy_id = test_bit(IWCM_F_CALLBACK_DESTROY, &cm_id_priv->flags);
 		if (iwcm_deref_id(cm_id_priv)) {
-			if (test_bit(IWCM_F_CALLBACK_DESTROY,
-				     &cm_id_priv->flags)) {
+			if (destroy_id) {
 				BUG_ON(!list_empty(&cm_id_priv->work_list));
 				free_cm_id(cm_id_priv);
 			}

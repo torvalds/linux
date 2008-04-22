@@ -21,6 +21,8 @@
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 
+#include "internal.h"
+
 static int init(struct hash_desc *desc)
 {
 	struct crypto_tfm *tfm = crypto_hash_tfm(desc->tfm);

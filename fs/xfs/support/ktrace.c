@@ -24,7 +24,7 @@ static int          ktrace_zentries;
 void __init
 ktrace_init(int zentries)
 {
-	ktrace_zentries = zentries;
+	ktrace_zentries = roundup_pow_of_two(zentries);
 
 	ktrace_hdr_zone = kmem_zone_init(sizeof(ktrace_t),
 					"ktrace_hdr");
@@ -47,13 +47,16 @@ ktrace_uninit(void)
  * ktrace_alloc()
  *
  * Allocate a ktrace header and enough buffering for the given
- * number of entries.
+ * number of entries. Round the number of entries up to a
+ * power of 2 so we can do fast masking to get the index from
+ * the atomic index counter.
  */
 ktrace_t *
 ktrace_alloc(int nentries, unsigned int __nocast sleep)
 {
 	ktrace_t        *ktp;
 	ktrace_entry_t  *ktep;
+	int		entries;
 
 	ktp = (ktrace_t*)kmem_zone_alloc(ktrace_hdr_zone, sleep);
 
@@ -70,11 +73,12 @@ ktrace_alloc(int nentries, unsigned int __nocast sleep)
 	/*
 	 * Special treatment for buffers with the ktrace_zentries entries
 	 */
-	if (nentries == ktrace_zentries) {
+	entries = roundup_pow_of_two(nentries);
+	if (entries == ktrace_zentries) {
 		ktep = (ktrace_entry_t*)kmem_zone_zalloc(ktrace_ent_zone,
 							    sleep);
 	} else {
-		ktep = (ktrace_entry_t*)kmem_zalloc((nentries * sizeof(*ktep)),
+		ktep = (ktrace_entry_t*)kmem_zalloc((entries * sizeof(*ktep)),
 							    sleep | KM_LARGE);
 	}
 
@@ -91,8 +95,10 @@ ktrace_alloc(int nentries, unsigned int __nocast sleep)
 	}
 
 	ktp->kt_entries  = ktep;
-	ktp->kt_nentries = nentries;
-	ktp->kt_index    = 0;
+	ktp->kt_nentries = entries;
+	ASSERT(is_power_of_2(entries));
+	ktp->kt_index_mask = entries - 1;
+	atomic_set(&ktp->kt_index, 0);
 	ktp->kt_rollover = 0;
 	return ktp;
 }
@@ -151,8 +157,6 @@ ktrace_enter(
 	void            *val14,
 	void            *val15)
 {
-	static DEFINE_SPINLOCK(wrap_lock);
-	unsigned long	flags;
 	int             index;
 	ktrace_entry_t  *ktep;
 
@@ -161,12 +165,8 @@ ktrace_enter(
 	/*
 	 * Grab an entry by pushing the index up to the next one.
 	 */
-	spin_lock_irqsave(&wrap_lock, flags);
-	index = ktp->kt_index;
-	if (++ktp->kt_index == ktp->kt_nentries)
-		ktp->kt_index = 0;
-	spin_unlock_irqrestore(&wrap_lock, flags);
-
+	index = atomic_add_return(1, &ktp->kt_index);
+	index = (index - 1) & ktp->kt_index_mask;
 	if (!ktp->kt_rollover && index == ktp->kt_nentries - 1)
 		ktp->kt_rollover = 1;
 
@@ -199,11 +199,12 @@ int
 ktrace_nentries(
 	ktrace_t        *ktp)
 {
-	if (ktp == NULL) {
+	int	index;
+	if (ktp == NULL)
 		return 0;
-	}
 
-	return (ktp->kt_rollover ? ktp->kt_nentries : ktp->kt_index);
+	index = atomic_read(&ktp->kt_index) & ktp->kt_index_mask;
+	return (ktp->kt_rollover ? ktp->kt_nentries : index);
 }
 
 /*
@@ -228,7 +229,7 @@ ktrace_first(ktrace_t   *ktp, ktrace_snap_t     *ktsp)
 	int             nentries;
 
 	if (ktp->kt_rollover)
-		index = ktp->kt_index;
+		index = atomic_read(&ktp->kt_index) & ktp->kt_index_mask;
 	else
 		index = 0;
 

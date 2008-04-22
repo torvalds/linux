@@ -1,5 +1,4 @@
 /*
- *  linux/arch/i386/kernel/head.S -- the 32-bit startup code.
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -450,7 +449,7 @@ is386:	movl $2,%ecx		# set MP
 	jmp initialize_secondary # all other CPUs call initialize_secondary
 1:
 #endif /* CONFIG_SMP */
-	jmp start_kernel
+	jmp i386_start_kernel
 
 /*
  * We depend on ET to be correct. This checks for 287/387.
@@ -606,13 +605,13 @@ ENTRY(_stext)
 .section ".bss.page_aligned","wa"
 	.align PAGE_SIZE_asm
 #ifdef CONFIG_X86_PAE
-ENTRY(swapper_pg_pmd)
+swapper_pg_pmd:
 	.fill 1024*KPMDS,4,0
 #else
 ENTRY(swapper_pg_dir)
 	.fill 1024,4,0
 #endif
-ENTRY(swapper_pg_fixmap)
+swapper_pg_fixmap:
 	.fill 1024,4,0
 ENTRY(empty_zero_page)
 	.fill 4096,1,0
@@ -657,7 +656,7 @@ int_msg:
 	.asciz "Unknown interrupt or fault at EIP %p %p %p\n"
 
 fault_msg:
-	.ascii								\
+	.asciz								\
 /* fault info: */	"BUG: Int %d: CR2 %p\n"				\
 /* pusha regs: */	"     EDI %p  ESI %p  EBP %p  ESP %p\n"		\
 			"     EBX %p  EDX %p  ECX %p  EAX %p\n"		\

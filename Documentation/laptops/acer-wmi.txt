@@ -48,7 +48,7 @@ DSDT.
 
 To send me the DSDT, as root/sudo:
 
-cat /sys/firmware/acpi/DSDT > dsdt
+cat /sys/firmware/acpi/tables/DSDT > dsdt
 
 And send me the resulting 'dsdt' file.
 
@@ -80,7 +80,7 @@ once you enable the radio, will depend on your hardware and driver combination.
 e.g. With the BCM4318 on the Acer Aspire 5020 series:
 
 ndiswrapper: Light blinks on when transmitting
-bcm43xx/b43: Solid light, blinks off when transmitting
+b43: Solid light, blinks off when transmitting
 
 Wireless radio control is unconditionally enabled - all Acer laptops that support
 acer-wmi come with built-in wireless. However, should you feel so inclined to
@@ -169,7 +169,7 @@ can be added to acer-wmi.
 
 The LED is exposed through the LED subsystem, and can be found in:
 
-/sys/devices/platform/acer-wmi/leds/acer-mail:green/
+/sys/devices/platform/acer-wmi/leds/acer-wmi::mail/
 
 The mail LED is autodetected, so if you don't have one, the LED device won't
 be registered.

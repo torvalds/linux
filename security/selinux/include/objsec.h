@@ -28,14 +28,12 @@
 #include "avc.h"
 
 struct task_security_struct {
-	struct task_struct *task;      /* back pointer to task object */
 	u32 osid;            /* SID prior to last execve */
 	u32 sid;             /* current SID */
 	u32 exec_sid;        /* exec SID */
 	u32 create_sid;      /* fscreate SID */
 	u32 keycreate_sid;   /* keycreate SID */
 	u32 sockcreate_sid;  /* fscreate SID */
-	u32 ptrace_sid;      /* SID of ptrace parent */
 };
 
 struct inode_security_struct {
@@ -50,7 +48,6 @@ struct inode_security_struct {
 };
 
 struct file_security_struct {
-	struct file *file;              /* back pointer to file object */
 	u32 sid;              /* SID of open file description */
 	u32 fown_sid;         /* SID of file owner (for SIGIO) */
 	u32 isid;             /* SID of inode at the time of file open */
@@ -73,18 +70,15 @@ struct superblock_security_struct {
 };
 
 struct msg_security_struct {
-	struct msg_msg *msg;		/* back pointer */
 	u32 sid;              /* SID of message */
 };
 
 struct ipc_security_struct {
-	struct kern_ipc_perm *ipc_perm; /* back pointer */
 	u16 sclass;	/* security class of this object */
 	u32 sid;              /* SID of IPC resource */
 };
 
 struct bprm_security_struct {
-	struct linux_binprm *bprm;     /* back pointer to bprm object */
 	u32 sid;                       /* SID for transformed process */
 	unsigned char set;
 
@@ -109,8 +103,13 @@ struct netnode_security_struct {
 	u16 family;			/* address family */
 };
 
+struct netport_security_struct {
+	u32 sid;			/* SID for this node */
+	u16 port;			/* port number */
+	u8 protocol;			/* transport protocol */
+};
+
 struct sk_security_struct {
-	struct sock *sk;		/* back pointer to sk object */
 	u32 sid;			/* SID of this object */
 	u32 peer_sid;			/* SID of peer */
 	u16 sclass;			/* sock security class */
@@ -120,12 +119,10 @@ struct sk_security_struct {
 		NLBL_REQUIRE,
 		NLBL_LABELED,
 	} nlbl_state;
-	spinlock_t nlbl_lock;		/* protects nlbl_state */
 #endif
 };
 
 struct key_security_struct {
-	struct key *obj; /* back pointer */
 	u32 sid;         /* SID of key */
 };
 

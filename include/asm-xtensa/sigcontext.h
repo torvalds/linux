@@ -13,9 +13,6 @@
 
 
 struct sigcontext {
-	unsigned long	oldmask;
-
-	/* CPU registers */
 	unsigned long sc_pc;
 	unsigned long sc_ps;
 	unsigned long sc_lbeg;
@@ -25,6 +22,7 @@ struct sigcontext {
 	unsigned long sc_acclo;
 	unsigned long sc_acchi;
 	unsigned long sc_a[16];
+	void *sc_xtregs;
 };
 
 #endif /* _XTENSA_SIGCONTEXT_H */

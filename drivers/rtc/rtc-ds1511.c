@@ -626,6 +626,9 @@ ds1511_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:ds1511");
+
 static struct platform_driver ds1511_rtc_driver = {
 	.probe		= ds1511_rtc_probe,
 	.remove		= __devexit_p(ds1511_rtc_remove),

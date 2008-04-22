@@ -95,7 +95,6 @@ static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	unsigned int virq;
 	struct msi_desc *entry;
 	struct msi_msg msg;
-	u64 addr;
 
 	pr_debug("pasemi_msi_setup_msi_irqs, pdev %p nvec %d type %d\n",
 		 pdev, nvec, type);
@@ -132,8 +131,8 @@ static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		set_irq_chip(virq, &mpic_pasemi_msi_chip);
 		set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
 
-		pr_debug("pasemi_msi: allocated virq 0x%x (hw 0x%lx) addr 0x%lx\n",
-			  virq, hwirq, addr);
+		pr_debug("pasemi_msi: allocated virq 0x%x (hw 0x%lx) addr 0x%x\n",
+			  virq, hwirq, msg.address_lo);
 
 		/* Likewise, the device writes [0...511] into the target
 		 * register to generate MSI [512...1023]

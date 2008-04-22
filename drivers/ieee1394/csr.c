@@ -133,8 +133,7 @@ static void host_reset(struct hpsb_host *host)
                 host->csr.state &= ~0x100;
         }
 
-        host->csr.topology_map[1] =
-                cpu_to_be32(be32_to_cpu(host->csr.topology_map[1]) + 1);
+	be32_add_cpu(&host->csr.topology_map[1], 1);
         host->csr.topology_map[2] = cpu_to_be32(host->node_count << 16
                                                 | host->selfid_count);
         host->csr.topology_map[0] =
@@ -142,8 +141,7 @@ static void host_reset(struct hpsb_host *host)
                             | csr_crc16(host->csr.topology_map + 1,
                                         host->selfid_count + 2));
 
-        host->csr.speed_map[1] =
-                cpu_to_be32(be32_to_cpu(host->csr.speed_map[1]) + 1);
+	be32_add_cpu(&host->csr.speed_map[1], 1);
         host->csr.speed_map[0] = cpu_to_be32(0x3f1 << 16
                                              | csr_crc16(host->csr.speed_map+1,
                                                          0x3f1));

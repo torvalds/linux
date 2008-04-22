@@ -16,7 +16,6 @@
 #include <linux/ctype.h>
 #include <linux/dcache.h>
 
-#include <asm/semaphore.h>
 #include <asm/ccwdev.h>
 #include <asm/ccwgroup.h>
 

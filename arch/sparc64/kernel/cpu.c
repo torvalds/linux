@@ -15,6 +15,8 @@
 #include <asm/spitfire.h>
 #include <asm/oplib.h>
 
+#include "entry.h"
+
 DEFINE_PER_CPU(cpuinfo_sparc, __cpu_data) = { 0 };
 
 struct cpu_iu_info {
@@ -30,7 +32,7 @@ struct cpu_fp_info {
   char* fp_name;
 };
 
-struct cpu_fp_info linux_sparc_fpu[] = {
+static struct cpu_fp_info linux_sparc_fpu[] = {
   { 0x17, 0x10, 0, "UltraSparc I integrated FPU"},
   { 0x22, 0x10, 0, "UltraSparc I integrated FPU"},
   { 0x17, 0x11, 0, "UltraSparc II integrated FPU"},
@@ -46,7 +48,7 @@ struct cpu_fp_info linux_sparc_fpu[] = {
 
 #define NSPARCFPU  ARRAY_SIZE(linux_sparc_fpu)
 
-struct cpu_iu_info linux_sparc_chips[] = {
+static struct cpu_iu_info linux_sparc_chips[] = {
   { 0x17, 0x10, "TI UltraSparc I   (SpitFire)"},
   { 0x22, 0x10, "TI UltraSparc I   (SpitFire)"},
   { 0x17, 0x11, "TI UltraSparc II  (BlackBird)"},
@@ -64,8 +66,6 @@ struct cpu_iu_info linux_sparc_chips[] = {
 
 char *sparc_cpu_type;
 char *sparc_fpu_type;
-
-unsigned int fsr_storage;
 
 static void __init sun4v_cpu_probe(void)
 {
@@ -94,8 +94,10 @@ void __init cpu_probe(void)
 	unsigned long ver, fpu_vers, manuf, impl, fprs;
 	int i;
 	
-	if (tlb_type == hypervisor)
-		return sun4v_cpu_probe();
+	if (tlb_type == hypervisor) {
+		sun4v_cpu_probe();
+		return;
+	}
 
 	fprs = fprs_read();
 	fprs_write(FPRS_FEF);

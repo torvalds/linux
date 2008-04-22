@@ -122,7 +122,6 @@ static struct ide_pio_info {
 	const char	*name;
 	int		pio;
 } ide_pio_blacklist [] = {
-/*	{ "Conner Peripherals 1275MB - CFS1275A", 4 }, */
 	{ "Conner Peripherals 540MB - CFS540A", 3 },
 
 	{ "WDC AC2700",  3 },
@@ -138,10 +137,8 @@ static struct ide_pio_info {
 	{ "WDC AC1170",  1 },
 	{ "WDC AC1210",  1 },
 	{ "WDC AC280",   0 },
-/*	{ "WDC AC21000", 4 }, */
 	{ "WDC AC31000", 3 },
 	{ "WDC AC31200", 3 },
-/*	{ "WDC AC31600", 4 }, */
 
 	{ "Maxtor 7131 AT", 1 },
 	{ "Maxtor 7171 AT", 1 },
@@ -155,13 +152,6 @@ static struct ide_pio_info {
 	{ "SAMSUNG SHD-3122A", 1 },
 	{ "SAMSUNG SHD-3172A", 1 },
 
-/*	{ "ST51080A", 4 },
- *	{ "ST51270A", 4 },
- *	{ "ST31220A", 4 },
- *	{ "ST31640A", 4 },
- *	{ "ST32140A", 4 },
- *	{ "ST3780A",  4 },
- */
 	{ "ST5660A",  3 },
 	{ "ST3660A",  3 },
 	{ "ST3630A",  3 },

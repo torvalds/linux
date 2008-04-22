@@ -155,6 +155,10 @@ static int __devexit tah_remove(struct of_device *ofdev)
 static struct of_device_id tah_match[] =
 {
 	{
+		.compatible	= "ibm,tah",
+	},
+	/* For backward compat with old DT */
+	{
 		.type		= "tah",
 	},
 	{},

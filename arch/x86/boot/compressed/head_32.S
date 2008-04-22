@@ -130,7 +130,7 @@ relocated:
 /*
  * Setup the stack for the decompressor
  */
-	leal stack_end(%ebx), %esp
+	leal boot_stack_end(%ebx), %esp
 
 /*
  * Do the decompression, and jump to the new kernel..
@@ -142,8 +142,8 @@ relocated:
 	pushl %eax	# input_len
 	leal input_data(%ebx), %eax
 	pushl %eax	# input_data
-	leal _end(%ebx), %eax
-	pushl %eax	# end of the image as third argument
+	leal boot_heap(%ebx), %eax
+	pushl %eax	# heap area as third argument
 	pushl %esi	# real mode pointer as second arg
 	call decompress_kernel
 	addl $20, %esp
@@ -181,7 +181,10 @@ relocated:
 	jmp *%ebp
 
 .bss
+/* Stack and heap for uncompression */
 .balign 4
-stack:
-	.fill 4096, 1, 0
-stack_end:
+boot_heap:
+	.fill BOOT_HEAP_SIZE, 1, 0
+boot_stack:
+	.fill BOOT_STACK_SIZE, 1, 0
+boot_stack_end:

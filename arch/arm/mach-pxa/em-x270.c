@@ -23,6 +23,7 @@
 #include <asm/mach/arch.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/mmc.h>
@@ -264,7 +265,7 @@ static int em_x270_mci_init(struct device *dev,
 			  "MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "%s: can't request MMC card detect IRQ: %d\n",
-		       __FUNCTION__, err);
+		       __func__, err);
 		return err;
 	}
 

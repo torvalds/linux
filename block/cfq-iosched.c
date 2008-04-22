@@ -1143,43 +1143,37 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 }
 
 /*
- * Call func for each cic attached to this ioc. Returns number of cic's seen.
+ * Call func for each cic attached to this ioc.
  */
-#define CIC_GANG_NR	16
-static unsigned int
+static void
 call_for_each_cic(struct io_context *ioc,
 		  void (*func)(struct io_context *, struct cfq_io_context *))
 {
-	struct cfq_io_context *cics[CIC_GANG_NR];
-	unsigned long index = 0;
-	unsigned int called = 0;
-	int nr;
+	struct cfq_io_context *cic;
+	struct hlist_node *n;
 
 	rcu_read_lock();
-
-	do {
-		int i;
-
-		/*
-		 * Perhaps there's a better way - this just gang lookups from
-		 * 0 to the end, restarting after each CIC_GANG_NR from the
-		 * last key + 1.
-		 */
-		nr = radix_tree_gang_lookup(&ioc->radix_root, (void **) cics,
-						index, CIC_GANG_NR);
-		if (!nr)
-			break;
-
-		called += nr;
-		index = 1 + (unsigned long) cics[nr - 1]->key;
-
-		for (i = 0; i < nr; i++)
-			func(ioc, cics[i]);
-	} while (nr == CIC_GANG_NR);
-
+	hlist_for_each_entry_rcu(cic, n, &ioc->cic_list, cic_list)
+		func(ioc, cic);
 	rcu_read_unlock();
+}
 
-	return called;
+static void cfq_cic_free_rcu(struct rcu_head *head)
+{
+	struct cfq_io_context *cic;
+
+	cic = container_of(head, struct cfq_io_context, rcu_head);
+
+	kmem_cache_free(cfq_ioc_pool, cic);
+	elv_ioc_count_dec(ioc_count);
+
+	if (ioc_gone && !elv_ioc_count_read(ioc_count))
+		complete(ioc_gone);
+}
+
+static void cfq_cic_free(struct cfq_io_context *cic)
+{
+	call_rcu(&cic->rcu_head, cfq_cic_free_rcu);
 }
 
 static void cic_free_func(struct io_context *ioc, struct cfq_io_context *cic)
@@ -1190,26 +1184,21 @@ static void cic_free_func(struct io_context *ioc, struct cfq_io_context *cic)
 
 	spin_lock_irqsave(&ioc->lock, flags);
 	radix_tree_delete(&ioc->radix_root, cic->dead_key);
+	hlist_del_rcu(&cic->cic_list);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 
-	kmem_cache_free(cfq_ioc_pool, cic);
+	cfq_cic_free(cic);
 }
 
 static void cfq_free_io_context(struct io_context *ioc)
 {
-	int freed;
-
 	/*
-	 * ioc->refcount is zero here, so no more cic's are allowed to be
-	 * linked into this ioc. So it should be ok to iterate over the known
-	 * list, we will see all cic's since no new ones are added.
+	 * ioc->refcount is zero here, or we are called from elv_unregister(),
+	 * so no more cic's are allowed to be linked into this ioc.  So it
+	 * should be ok to iterate over the known list, we will see all cic's
+	 * since no new ones are added.
 	 */
-	freed = call_for_each_cic(ioc, cic_free_func);
-
-	elv_ioc_count_mod(ioc_count, -freed);
-
-	if (ioc_gone && !elv_ioc_count_read(ioc_count))
-		complete(ioc_gone);
+	call_for_each_cic(ioc, cic_free_func);
 }
 
 static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
@@ -1225,6 +1214,8 @@ static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
 					 struct cfq_io_context *cic)
 {
+	struct io_context *ioc = cic->ioc;
+
 	list_del_init(&cic->queue_list);
 
 	/*
@@ -1233,6 +1224,9 @@ static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
 	smp_wmb();
 	cic->dead_key = (unsigned long) cic->key;
 	cic->key = NULL;
+
+	if (ioc->ioc_data == cic)
+		rcu_assign_pointer(ioc->ioc_data, NULL);
 
 	if (cic->cfqq[ASYNC]) {
 		cfq_exit_cfqq(cfqd, cic->cfqq[ASYNC]);
@@ -1266,7 +1260,6 @@ static void cfq_exit_single_io_context(struct io_context *ioc,
  */
 static void cfq_exit_io_context(struct io_context *ioc)
 {
-	rcu_assign_pointer(ioc->ioc_data, NULL);
 	call_for_each_cic(ioc, cfq_exit_single_io_context);
 }
 
@@ -1280,6 +1273,7 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 	if (cic) {
 		cic->last_end_request = jiffies;
 		INIT_LIST_HEAD(&cic->queue_list);
+		INIT_HLIST_NODE(&cic->cic_list);
 		cic->dtor = cfq_free_io_context;
 		cic->exit = cfq_exit_io_context;
 		elv_ioc_count_inc(ioc_count);
@@ -1475,15 +1469,6 @@ cfq_get_queue(struct cfq_data *cfqd, int is_sync, struct io_context *ioc,
 	return cfqq;
 }
 
-static void cfq_cic_free(struct cfq_io_context *cic)
-{
-	kmem_cache_free(cfq_ioc_pool, cic);
-	elv_ioc_count_dec(ioc_count);
-
-	if (ioc_gone && !elv_ioc_count_read(ioc_count))
-		complete(ioc_gone);
-}
-
 /*
  * We drop cfq io contexts lazily, so we may find a dead one.
  */
@@ -1497,10 +1482,10 @@ cfq_drop_dead_cic(struct cfq_data *cfqd, struct io_context *ioc,
 
 	spin_lock_irqsave(&ioc->lock, flags);
 
-	if (ioc->ioc_data == cic)
-		rcu_assign_pointer(ioc->ioc_data, NULL);
+	BUG_ON(ioc->ioc_data == cic);
 
 	radix_tree_delete(&ioc->radix_root, (unsigned long) cfqd);
+	hlist_del_rcu(&cic->cic_list);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 
 	cfq_cic_free(cic);
@@ -1561,6 +1546,8 @@ static int cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
 		spin_lock_irqsave(&ioc->lock, flags);
 		ret = radix_tree_insert(&ioc->radix_root,
 						(unsigned long) cfqd, cic);
+		if (!ret)
+			hlist_add_head_rcu(&cic->cic_list, &ioc->cic_list);
 		spin_unlock_irqrestore(&ioc->lock, flags);
 
 		radix_tree_preload_end();
@@ -2152,7 +2139,7 @@ static int __init cfq_slab_setup(void)
 	if (!cfq_pool)
 		goto fail;
 
-	cfq_ioc_pool = KMEM_CACHE(cfq_io_context, SLAB_DESTROY_BY_RCU);
+	cfq_ioc_pool = KMEM_CACHE(cfq_io_context, 0);
 	if (!cfq_ioc_pool)
 		goto fail;
 
@@ -2300,7 +2287,6 @@ static void __exit cfq_exit(void)
 	smp_wmb();
 	if (elv_ioc_count_read(ioc_count))
 		wait_for_completion(ioc_gone);
-	synchronize_rcu();
 	cfq_slab_kill();
 }
 

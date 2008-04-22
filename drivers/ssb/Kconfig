@@ -20,6 +20,15 @@ config SSB
 
 	  If unsure, say N.
 
+# Common SPROM support routines
+config SSB_SPROM
+	bool
+
+# Support for Block-I/O. SELECT this from the driver that needs it.
+config SSB_BLOCKIO
+	bool
+	depends on SSB
+
 config SSB_PCIHOST_POSSIBLE
 	bool
 	depends on SSB && (PCI = y || PCI = SSB)
@@ -28,12 +37,18 @@ config SSB_PCIHOST_POSSIBLE
 config SSB_PCIHOST
 	bool "Support for SSB on PCI-bus host"
 	depends on SSB_PCIHOST_POSSIBLE
+	select SSB_SPROM
 	default y
 	help
 	  Support for a Sonics Silicon Backplane on top
 	  of a PCI device.
 
 	  If unsure, say Y
+
+config SSB_B43_PCI_BRIDGE
+	bool
+	depends on SSB_PCIHOST
+	default n
 
 config SSB_PCMCIAHOST_POSSIBLE
 	bool
@@ -43,6 +58,7 @@ config SSB_PCMCIAHOST_POSSIBLE
 config SSB_PCMCIAHOST
 	bool "Support for SSB on PCMCIA-bus host (EXPERIMENTAL)"
 	depends on SSB_PCMCIAHOST_POSSIBLE
+	select SSB_SPROM
 	help
 	  Support for a Sonics Silicon Backplane on top
 	  of a PCMCIA device.
@@ -105,12 +121,27 @@ config SSB_DRIVER_MIPS
 
 	  If unsure, say N
 
+# Assumption: We are on embedded, if we compile the MIPS core.
+config SSB_EMBEDDED
+	bool
+	depends on SSB_DRIVER_MIPS
+	default y
+
 config SSB_DRIVER_EXTIF
 	bool "SSB Broadcom EXTIF core driver (EXPERIMENTAL)"
 	depends on SSB_DRIVER_MIPS && EXPERIMENTAL
 	help
 	  Driver for the Sonics Silicon Backplane attached
 	  Broadcom EXTIF core.
+
+	  If unsure, say N
+
+config SSB_DRIVER_GIGE
+	bool "SSB Broadcom Gigabit Ethernet driver"
+	depends on SSB_PCIHOST_POSSIBLE && SSB_EMBEDDED && MIPS
+	help
+	  Driver for the Sonics Silicon Backplane attached
+	  Broadcom Gigabit Ethernet.
 
 	  If unsure, say N
 

@@ -4,19 +4,57 @@
   */
 
 #include <net/iw_handler.h>
+#include <linux/kfifo.h>
 #include "host.h"
 #include "hostcmd.h"
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"
-#include "join.h"
+#include "assoc.h"
 #include "wext.h"
 #include "cmd.h"
 
 static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
-static void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
-		    struct cmd_ctrl_node *ptempnode,
-		    void *pdata_buf);
+
+
+/**
+ *  @brief Simple callback that copies response back into command
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param extra  	A pointer to the original command structure for which
+ *                      'resp' is a response
+ *  @param resp         A pointer to the command response
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
+		     struct cmd_header *resp)
+{
+	struct cmd_header *buf = (void *)extra;
+	uint16_t copy_len;
+
+	copy_len = min(le16_to_cpu(buf->size), le16_to_cpu(resp->size));
+	memcpy(buf, resp, copy_len);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(lbs_cmd_copyback);
+
+/**
+ *  @brief Simple callback that ignores the result. Use this if
+ *  you just want to send a command to the hardware, but don't
+ *  care for the result.
+ *
+ *  @param priv         ignored
+ *  @param extra        ignored
+ *  @param resp         ignored
+ *
+ *  @return 	   	0 for success
+ */
+static int lbs_cmd_async_callback(struct lbs_private *priv, unsigned long extra,
+		     struct cmd_header *resp)
+{
+	return 0;
+}
 
 
 /**
@@ -143,8 +181,7 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria)
 }
 EXPORT_SYMBOL_GPL(lbs_host_sleep_cfg);
 
-static int lbs_cmd_802_11_ps_mode(struct lbs_private *priv,
-				   struct cmd_ds_command *cmd,
+static int lbs_cmd_802_11_ps_mode(struct cmd_ds_command *cmd,
 				   u16 cmd_action)
 {
 	struct cmd_ds_802_11_ps_mode *psm = &cmd->params.psmode;
@@ -259,6 +296,7 @@ int lbs_cmd_802_11_set_wep(struct lbs_private *priv, uint16_t cmd_action,
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.command = cpu_to_le16(CMD_802_11_SET_WEP);
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 
@@ -322,7 +360,9 @@ int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv, uint16_t cmd_action,
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(cmd_action);
 
-	if (cmd_action == CMD_ACT_SET) {
+	if (cmd_action == CMD_ACT_GET)
+		cmd.enable = 0;
+	else {
 		if (*enable)
 			cmd.enable = cpu_to_le16(CMD_ENABLE_RSN);
 		else
@@ -338,81 +378,108 @@ int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv, uint16_t cmd_action,
 	return ret;
 }
 
-static void set_one_wpa_key(struct MrvlIEtype_keyParamSet * pkeyparamset,
-                            struct enc_key * pkey)
+static void set_one_wpa_key(struct MrvlIEtype_keyParamSet *keyparam,
+                            struct enc_key *key)
 {
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	if (pkey->flags & KEY_INFO_WPA_ENABLED) {
-		pkeyparamset->keyinfo |= cpu_to_le16(KEY_INFO_WPA_ENABLED);
-	}
-	if (pkey->flags & KEY_INFO_WPA_UNICAST) {
-		pkeyparamset->keyinfo |= cpu_to_le16(KEY_INFO_WPA_UNICAST);
-	}
-	if (pkey->flags & KEY_INFO_WPA_MCAST) {
-		pkeyparamset->keyinfo |= cpu_to_le16(KEY_INFO_WPA_MCAST);
-	}
+	if (key->flags & KEY_INFO_WPA_ENABLED)
+		keyparam->keyinfo |= cpu_to_le16(KEY_INFO_WPA_ENABLED);
+	if (key->flags & KEY_INFO_WPA_UNICAST)
+		keyparam->keyinfo |= cpu_to_le16(KEY_INFO_WPA_UNICAST);
+	if (key->flags & KEY_INFO_WPA_MCAST)
+		keyparam->keyinfo |= cpu_to_le16(KEY_INFO_WPA_MCAST);
 
-	pkeyparamset->type = cpu_to_le16(TLV_TYPE_KEY_MATERIAL);
-	pkeyparamset->keytypeid = cpu_to_le16(pkey->type);
-	pkeyparamset->keylen = cpu_to_le16(pkey->len);
-	memcpy(pkeyparamset->key, pkey->key, pkey->len);
-	pkeyparamset->length = cpu_to_le16(  sizeof(pkeyparamset->keytypeid)
-	                                        + sizeof(pkeyparamset->keyinfo)
-	                                        + sizeof(pkeyparamset->keylen)
-	                                        + sizeof(pkeyparamset->key));
+	keyparam->type = cpu_to_le16(TLV_TYPE_KEY_MATERIAL);
+	keyparam->keytypeid = cpu_to_le16(key->type);
+	keyparam->keylen = cpu_to_le16(key->len);
+	memcpy(keyparam->key, key->key, key->len);
+
+	/* Length field doesn't include the {type,length} header */
+	keyparam->length = cpu_to_le16(sizeof(*keyparam) - 4);
 	lbs_deb_leave(LBS_DEB_CMD);
 }
 
-static int lbs_cmd_802_11_key_material(struct lbs_private *priv,
-					struct cmd_ds_command *cmd,
-					u16 cmd_action,
-					u32 cmd_oid, void *pdata_buf)
+int lbs_cmd_802_11_key_material(struct lbs_private *priv, uint16_t cmd_action,
+				struct assoc_request *assoc)
 {
-	struct cmd_ds_802_11_key_material *pkeymaterial =
-	    &cmd->params.keymaterial;
-	struct assoc_request * assoc_req = pdata_buf;
+	struct cmd_ds_802_11_key_material cmd;
 	int ret = 0;
 	int index = 0;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->command = cpu_to_le16(CMD_802_11_KEY_MATERIAL);
-	pkeymaterial->action = cpu_to_le16(cmd_action);
+	cmd.action = cpu_to_le16(cmd_action);
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 
 	if (cmd_action == CMD_ACT_GET) {
-		cmd->size = cpu_to_le16(S_DS_GEN + sizeof (pkeymaterial->action));
-		ret = 0;
-		goto done;
+		cmd.hdr.size = cpu_to_le16(S_DS_GEN + 2);
+	} else {
+		memset(cmd.keyParamSet, 0, sizeof(cmd.keyParamSet));
+
+		if (test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc->flags)) {
+			set_one_wpa_key(&cmd.keyParamSet[index],
+					&assoc->wpa_unicast_key);
+			index++;
+		}
+
+		if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc->flags)) {
+			set_one_wpa_key(&cmd.keyParamSet[index],
+					&assoc->wpa_mcast_key);
+			index++;
+		}
+
+		/* The common header and as many keys as we included */
+		cmd.hdr.size = cpu_to_le16(offsetof(typeof(cmd),
+						    keyParamSet[index]));
+	}
+	ret = lbs_cmd_with_response(priv, CMD_802_11_KEY_MATERIAL, &cmd);
+	/* Copy the returned key to driver private data */
+	if (!ret && cmd_action == CMD_ACT_GET) {
+		void *buf_ptr = cmd.keyParamSet;
+		void *resp_end = &(&cmd)[1];
+
+		while (buf_ptr < resp_end) {
+			struct MrvlIEtype_keyParamSet *keyparam = buf_ptr;
+			struct enc_key *key;
+			uint16_t param_set_len = le16_to_cpu(keyparam->length);
+			uint16_t key_len = le16_to_cpu(keyparam->keylen);
+			uint16_t key_flags = le16_to_cpu(keyparam->keyinfo);
+			uint16_t key_type = le16_to_cpu(keyparam->keytypeid);
+			void *end;
+
+			end = (void *)keyparam + sizeof(keyparam->type)
+				+ sizeof(keyparam->length) + param_set_len;
+
+			/* Make sure we don't access past the end of the IEs */
+			if (end > resp_end)
+				break;
+
+			if (key_flags & KEY_INFO_WPA_UNICAST)
+				key = &priv->wpa_unicast_key;
+			else if (key_flags & KEY_INFO_WPA_MCAST)
+				key = &priv->wpa_mcast_key;
+			else
+				break;
+
+			/* Copy returned key into driver */
+			memset(key, 0, sizeof(struct enc_key));
+			if (key_len > sizeof(key->key))
+				break;
+			key->type = key_type;
+			key->flags = key_flags;
+			key->len = key_len;
+			memcpy(key->key, keyparam->key, key->len);
+
+			buf_ptr = end + 1;
+		}
 	}
 
-	memset(&pkeymaterial->keyParamSet, 0, sizeof(pkeymaterial->keyParamSet));
-
-	if (test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
-		set_one_wpa_key(&pkeymaterial->keyParamSet[index],
-		                &assoc_req->wpa_unicast_key);
-		index++;
-	}
-
-	if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags)) {
-		set_one_wpa_key(&pkeymaterial->keyParamSet[index],
-		                &assoc_req->wpa_mcast_key);
-		index++;
-	}
-
-	cmd->size = cpu_to_le16(  S_DS_GEN
-	                        + sizeof (pkeymaterial->action)
-	                        + (index * sizeof(struct MrvlIEtype_keyParamSet)));
-
-	ret = 0;
-
-done:
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }
 
-static int lbs_cmd_802_11_reset(struct lbs_private *priv,
-				 struct cmd_ds_command *cmd, int cmd_action)
+static int lbs_cmd_802_11_reset(struct cmd_ds_command *cmd, int cmd_action)
 {
 	struct cmd_ds_802_11_reset *reset = &cmd->params.reset;
 
@@ -421,30 +488,6 @@ static int lbs_cmd_802_11_reset(struct lbs_private *priv,
 	cmd->command = cpu_to_le16(CMD_802_11_RESET);
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_reset) + S_DS_GEN);
 	reset->action = cpu_to_le16(cmd_action);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
-static int lbs_cmd_802_11_get_log(struct lbs_private *priv,
-				   struct cmd_ds_command *cmd)
-{
-	lbs_deb_enter(LBS_DEB_CMD);
-	cmd->command = cpu_to_le16(CMD_802_11_GET_LOG);
-	cmd->size =
-		cpu_to_le16(sizeof(struct cmd_ds_802_11_get_log) + S_DS_GEN);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
-static int lbs_cmd_802_11_get_stat(struct lbs_private *priv,
-				    struct cmd_ds_command *cmd)
-{
-	lbs_deb_enter(LBS_DEB_CMD);
-	cmd->command = cpu_to_le16(CMD_802_11_GET_STAT);
-	cmd->size =
-	    cpu_to_le16(sizeof(struct cmd_ds_802_11_get_stat) + S_DS_GEN);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
@@ -570,8 +613,7 @@ static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_rf_tx_power(struct lbs_private *priv,
-				       struct cmd_ds_command *cmd,
+static int lbs_cmd_802_11_rf_tx_power(struct cmd_ds_command *cmd,
 				       u16 cmd_action, void *pdata_buf)
 {
 
@@ -614,8 +656,7 @@ static int lbs_cmd_802_11_rf_tx_power(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_monitor_mode(struct lbs_private *priv,
-				      struct cmd_ds_command *cmd,
+static int lbs_cmd_802_11_monitor_mode(struct cmd_ds_command *cmd,
 				      u16 cmd_action, void *pdata_buf)
 {
 	struct cmd_ds_802_11_monitor_mode *monitor = &cmd->params.monitor;
@@ -773,6 +814,7 @@ int lbs_get_channel(struct lbs_private *priv)
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_OPT_802_11_RF_CHANNEL_GET);
 
@@ -785,6 +827,22 @@ int lbs_get_channel(struct lbs_private *priv)
 
 out:
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
+}
+
+int lbs_update_channel(struct lbs_private *priv)
+{
+	int ret;
+
+	/* the channel in f/w could be out of sync; get the current channel */
+	lbs_deb_enter(LBS_DEB_ASSOC);
+
+	ret = lbs_get_channel(priv);
+	if (ret > 0) {
+		priv->curbssparams.channel = ret;
+		ret = 0;
+	}
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
@@ -804,6 +862,7 @@ int lbs_set_channel(struct lbs_private *priv, u8 channel)
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_OPT_802_11_RF_CHANNEL_SET);
 	cmd.channel = cpu_to_le16(channel);
@@ -842,8 +901,7 @@ static int lbs_cmd_802_11_rssi(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_reg_access(struct lbs_private *priv,
-			       struct cmd_ds_command *cmdptr,
+static int lbs_cmd_reg_access(struct cmd_ds_command *cmdptr,
 			       u8 cmd_action, void *pdata_buf)
 {
 	struct lbs_offset_value *offval;
@@ -917,53 +975,7 @@ static int lbs_cmd_reg_access(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_mac_address(struct lbs_private *priv,
-				       struct cmd_ds_command *cmd,
-				       u16 cmd_action)
-{
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	cmd->command = cpu_to_le16(CMD_802_11_MAC_ADDRESS);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_mac_address) +
-			     S_DS_GEN);
-	cmd->result = 0;
-
-	cmd->params.macadd.action = cpu_to_le16(cmd_action);
-
-	if (cmd_action == CMD_ACT_SET) {
-		memcpy(cmd->params.macadd.macadd,
-		       priv->current_addr, ETH_ALEN);
-		lbs_deb_hex(LBS_DEB_CMD, "SET_CMD: MAC addr", priv->current_addr, 6);
-	}
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
-static int lbs_cmd_802_11_eeprom_access(struct lbs_private *priv,
-					 struct cmd_ds_command *cmd,
-					 int cmd_action, void *pdata_buf)
-{
-	struct lbs_ioctl_regrdwr *ea = pdata_buf;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	cmd->command = cpu_to_le16(CMD_802_11_EEPROM_ACCESS);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_eeprom_access) +
-				S_DS_GEN);
-	cmd->result = 0;
-
-	cmd->params.rdeeprom.action = cpu_to_le16(ea->action);
-	cmd->params.rdeeprom.offset = cpu_to_le16(ea->offset);
-	cmd->params.rdeeprom.bytecount = cpu_to_le16(ea->NOB);
-	cmd->params.rdeeprom.value = 0;
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
-static int lbs_cmd_bt_access(struct lbs_private *priv,
-			       struct cmd_ds_command *cmd,
+static int lbs_cmd_bt_access(struct cmd_ds_command *cmd,
 			       u16 cmd_action, void *pdata_buf)
 {
 	struct cmd_ds_bt_access *bt_access = &cmd->params.bt;
@@ -1000,8 +1012,7 @@ static int lbs_cmd_bt_access(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_fwt_access(struct lbs_private *priv,
-			       struct cmd_ds_command *cmd,
+static int lbs_cmd_fwt_access(struct cmd_ds_command *cmd,
 			       u16 cmd_action, void *pdata_buf)
 {
 	struct cmd_ds_fwt_access *fwt_access = &cmd->params.fwt;
@@ -1040,7 +1051,6 @@ int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 	lbs_deb_leave(LBS_DEB_CMD);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(lbs_mesh_access);
 
 int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan)
 {
@@ -1154,9 +1164,9 @@ static void lbs_submit_command(struct lbs_private *priv,
 	    command == CMD_802_11_AUTHENTICATE)
 		timeo = 10 * HZ;
 
-	lbs_deb_host("DNLD_CMD: command 0x%04x, seq %d, size %d, jiffies %lu\n",
-		     command, le16_to_cpu(cmd->seqnum), cmdsize, jiffies);
-	lbs_deb_hex(LBS_DEB_HOST, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
+	lbs_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d\n",
+		     command, le16_to_cpu(cmd->seqnum), cmdsize);
+	lbs_deb_hex(LBS_DEB_CMD, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
 
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmd, cmdsize);
 
@@ -1165,32 +1175,12 @@ static void lbs_submit_command(struct lbs_private *priv,
 		/* Let the timer kick in and retry, and potentially reset
 		   the whole thing if the condition persists */
 		timeo = HZ;
-	} else
-		lbs_deb_cmd("DNLD_CMD: sent command 0x%04x, jiffies %lu\n",
-			    command, jiffies);
+	}
 
 	/* Setup the timer after transmit command */
 	mod_timer(&priv->command_timer, jiffies + timeo);
 
 	lbs_deb_leave(LBS_DEB_HOST);
-}
-
-static int lbs_cmd_mac_control(struct lbs_private *priv,
-				struct cmd_ds_command *cmd)
-{
-	struct cmd_ds_mac_control *mac = &cmd->params.macctrl;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	cmd->command = cpu_to_le16(CMD_MAC_CONTROL);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_mac_control) + S_DS_GEN);
-	mac->action = cpu_to_le16(priv->currentpacketfilter);
-
-	lbs_deb_cmd("MAC_CONTROL: action 0x%x, size %d\n",
-		    le16_to_cpu(mac->action), le16_to_cpu(cmd->size));
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
 }
 
 /**
@@ -1235,7 +1225,7 @@ void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 	cmd->cmdwaitqwoken = 1;
 	wake_up_interruptible(&cmd->cmdwait_q);
 
-	if (!cmd->callback)
+	if (!cmd->callback || cmd->callback == lbs_cmd_async_callback)
 		__lbs_cleanup_and_insert_cmd(priv, cmd);
 	priv->cur_cmd = NULL;
 }
@@ -1279,18 +1269,20 @@ int lbs_set_radio_control(struct lbs_private *priv)
 	return ret;
 }
 
-int lbs_set_mac_packet_filter(struct lbs_private *priv)
+void lbs_set_mac_control(struct lbs_private *priv)
 {
-	int ret = 0;
+	struct cmd_ds_mac_control cmd;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	/* Send MAC control command to station */
-	ret = lbs_prepare_and_send_command(priv,
-				    CMD_MAC_CONTROL, 0, 0, 0, NULL);
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(priv->mac_control);
+	cmd.reserved = 0;
 
-	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
-	return ret;
+	lbs_cmd_async(priv, CMD_MAC_CONTROL,
+		&cmd.hdr, sizeof(cmd));
+
+	lbs_deb_leave(LBS_DEB_CMD);
 }
 
 /**
@@ -1339,7 +1331,8 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		goto done;
 	}
 
-	lbs_set_cmd_ctrl_node(priv, cmdnode, pdata_buf);
+	cmdnode->callback = NULL;
+	cmdnode->callback_arg = (unsigned long)pdata_buf;
 
 	cmdptr = (struct cmd_ds_command *)cmdnode->cmdbuf;
 
@@ -1354,15 +1347,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	switch (cmd_no) {
 	case CMD_802_11_PS_MODE:
-		ret = lbs_cmd_802_11_ps_mode(priv, cmdptr, cmd_action);
-		break;
-
-	case CMD_802_11_SCAN:
-		ret = lbs_cmd_80211_scan(priv, cmdptr, pdata_buf);
-		break;
-
-	case CMD_MAC_CONTROL:
-		ret = lbs_cmd_mac_control(priv, cmdptr);
+		ret = lbs_cmd_802_11_ps_mode(cmdptr, cmd_action);
 		break;
 
 	case CMD_802_11_ASSOCIATE:
@@ -1377,23 +1362,13 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_802_11_AD_HOC_START:
 		ret = lbs_cmd_80211_ad_hoc_start(priv, cmdptr, pdata_buf);
 		break;
-	case CMD_CODE_DNLD:
-		break;
 
 	case CMD_802_11_RESET:
-		ret = lbs_cmd_802_11_reset(priv, cmdptr, cmd_action);
-		break;
-
-	case CMD_802_11_GET_LOG:
-		ret = lbs_cmd_802_11_get_log(priv, cmdptr);
+		ret = lbs_cmd_802_11_reset(cmdptr, cmd_action);
 		break;
 
 	case CMD_802_11_AUTHENTICATE:
 		ret = lbs_cmd_80211_authenticate(priv, cmdptr, pdata_buf);
-		break;
-
-	case CMD_802_11_GET_STAT:
-		ret = lbs_cmd_802_11_get_stat(priv, cmdptr);
 		break;
 
 	case CMD_802_11_SNMP_MIB:
@@ -1404,12 +1379,12 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_MAC_REG_ACCESS:
 	case CMD_BBP_REG_ACCESS:
 	case CMD_RF_REG_ACCESS:
-		ret = lbs_cmd_reg_access(priv, cmdptr, cmd_action, pdata_buf);
+		ret = lbs_cmd_reg_access(cmdptr, cmd_action, pdata_buf);
 		break;
 
 	case CMD_802_11_RF_TX_POWER:
-		ret = lbs_cmd_802_11_rf_tx_power(priv, cmdptr,
-						  cmd_action, pdata_buf);
+		ret = lbs_cmd_802_11_rf_tx_power(cmdptr,
+						 cmd_action, pdata_buf);
 		break;
 
 	case CMD_802_11_RATE_ADAPT_RATESET:
@@ -1422,7 +1397,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		break;
 
 	case CMD_802_11_MONITOR_MODE:
-		ret = lbs_cmd_802_11_monitor_mode(priv, cmdptr,
+		ret = lbs_cmd_802_11_monitor_mode(cmdptr,
 				          cmd_action, pdata_buf);
 		break;
 
@@ -1435,26 +1410,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		break;
 
 	case CMD_802_11_AD_HOC_STOP:
-		ret = lbs_cmd_80211_ad_hoc_stop(priv, cmdptr);
-		break;
-
-	case CMD_802_11_KEY_MATERIAL:
-		ret = lbs_cmd_802_11_key_material(priv, cmdptr, cmd_action,
-				cmd_oid, pdata_buf);
-		break;
-
-	case CMD_802_11_PAIRWISE_TSC:
-		break;
-	case CMD_802_11_GROUP_TSC:
-		break;
-
-	case CMD_802_11_MAC_ADDRESS:
-		ret = lbs_cmd_802_11_mac_address(priv, cmdptr, cmd_action);
-		break;
-
-	case CMD_802_11_EEPROM_ACCESS:
-		ret = lbs_cmd_802_11_eeprom_access(priv, cmdptr,
-						    cmd_action, pdata_buf);
+		ret = lbs_cmd_80211_ad_hoc_stop(cmdptr);
 		break;
 
 	case CMD_802_11_SET_AFC:
@@ -1510,22 +1466,12 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 			break;
 		}
 
-	case CMD_802_11_PWR_CFG:
-		cmdptr->command = cpu_to_le16(CMD_802_11_PWR_CFG);
-		cmdptr->size =
-		    cpu_to_le16(sizeof(struct cmd_ds_802_11_pwr_cfg) +
-				     S_DS_GEN);
-		memmove(&cmdptr->params.pwrcfg, pdata_buf,
-			sizeof(struct cmd_ds_802_11_pwr_cfg));
-
-		ret = 0;
-		break;
 	case CMD_BT_ACCESS:
-		ret = lbs_cmd_bt_access(priv, cmdptr, cmd_action, pdata_buf);
+		ret = lbs_cmd_bt_access(cmdptr, cmd_action, pdata_buf);
 		break;
 
 	case CMD_FWT_ACCESS:
-		ret = lbs_cmd_fwt_access(priv, cmdptr, cmd_action, pdata_buf);
+		ret = lbs_cmd_fwt_access(cmdptr, cmd_action, pdata_buf);
 		break;
 
 	case CMD_GET_TSF:
@@ -1576,7 +1522,6 @@ done:
 	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(lbs_prepare_and_send_command);
 
 /**
  *  @brief This function allocates the command buffer and link
@@ -1699,36 +1644,6 @@ static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
 }
 
 /**
- *  @brief This function cleans command node.
- *
- *  @param ptempnode	A pointer to cmdCtrlNode structure
- *  @return 		n/a
- */
-
-/**
- *  @brief This function initializes the command node.
- *
- *  @param priv		A pointer to struct lbs_private structure
- *  @param ptempnode	A pointer to cmd_ctrl_node structure
- *  @param pdata_buf	A pointer to informaion buffer
- *  @return 		0 or -1
- */
-static void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
-				  struct cmd_ctrl_node *ptempnode,
-				  void *pdata_buf)
-{
-	lbs_deb_enter(LBS_DEB_HOST);
-
-	if (!ptempnode)
-		return;
-
-	ptempnode->callback = NULL;
-	ptempnode->callback_arg = (unsigned long)pdata_buf;
-
-	lbs_deb_leave(LBS_DEB_HOST);
-}
-
-/**
  *  @brief This function executes next command in command
  *  pending queue. It will put fimware back to PS mode
  *  if applicable.
@@ -1743,9 +1658,9 @@ int lbs_execute_next_command(struct lbs_private *priv)
 	unsigned long flags;
 	int ret = 0;
 
-	// Debug group is LBS_DEB_THREAD and not LBS_DEB_HOST, because the
-	// only caller to us is lbs_thread() and we get even when a
-	// data packet is received
+	/* Debug group is LBS_DEB_THREAD and not LBS_DEB_HOST, because the
+	 * only caller to us is lbs_thread() and we get even when a
+	 * data packet is received */
 	lbs_deb_enter(LBS_DEB_THREAD);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
@@ -1909,44 +1824,32 @@ void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str)
 	lbs_deb_leave(LBS_DEB_WEXT);
 }
 
-static int sendconfirmsleep(struct lbs_private *priv, u8 *cmdptr, u16 size)
+static void lbs_send_confirmsleep(struct lbs_private *priv)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_HOST);
+	lbs_deb_hex(LBS_DEB_HOST, "sleep confirm", (u8 *) &confirm_sleep,
+		sizeof(confirm_sleep));
 
-	lbs_deb_host("SEND_SLEEPC_CMD: before download, cmd size %d\n",
-	       size);
-
-	lbs_deb_hex(LBS_DEB_HOST, "sleep confirm command", cmdptr, size);
-
-	ret = priv->hw_host_to_card(priv, MVMS_CMD, cmdptr, size);
-
-	spin_lock_irqsave(&priv->driver_lock, flags);
-	if (priv->intcounter || priv->currenttxskb)
-		lbs_deb_host("SEND_SLEEPC_CMD: intcounter %d, currenttxskb %p\n",
-		       priv->intcounter, priv->currenttxskb);
-	spin_unlock_irqrestore(&priv->driver_lock, flags);
-
+	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) &confirm_sleep,
+		sizeof(confirm_sleep));
 	if (ret) {
-		lbs_pr_alert(
-		       "SEND_SLEEPC_CMD: Host to Card failed for Confirm Sleep\n");
-	} else {
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		if (!priv->intcounter) {
-			priv->psstate = PS_STATE_SLEEP;
-		} else {
-			lbs_deb_host("SEND_SLEEPC_CMD: after sent, intcounter %d\n",
-			       priv->intcounter);
-		}
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-
-		lbs_deb_host("SEND_SLEEPC_CMD: sent confirm sleep\n");
+		lbs_pr_alert("confirm_sleep failed\n");
+		goto out;
 	}
 
-	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);
-	return ret;
+	spin_lock_irqsave(&priv->driver_lock, flags);
+
+	/* If nothing to do, go back to sleep (?) */
+	if (!__kfifo_len(priv->event_fifo) && !priv->resp_len[priv->resp_idx])
+		priv->psstate = PS_STATE_SLEEP;
+
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
+
+out:
+	lbs_deb_leave(LBS_DEB_HOST);
 }
 
 void lbs_ps_sleep(struct lbs_private *priv, int wait_option)
@@ -1994,10 +1897,10 @@ void lbs_ps_wakeup(struct lbs_private *priv, int wait_option)
  *  @param psmode  	Power Saving mode
  *  @return 	   	n/a
  */
-void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
+void lbs_ps_confirm_sleep(struct lbs_private *priv)
 {
 	unsigned long flags =0;
-	u8 allowed = 1;
+	int allowed = 1;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
@@ -2007,20 +1910,22 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
 	}
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
+	/* In-progress command? */
 	if (priv->cur_cmd) {
 		allowed = 0;
 		lbs_deb_host("cur_cmd was set\n");
 	}
-	if (priv->intcounter > 0) {
+
+	/* Pending events or command responses? */
+	if (__kfifo_len(priv->event_fifo) || priv->resp_len[priv->resp_idx]) {
 		allowed = 0;
-		lbs_deb_host("intcounter %d\n", priv->intcounter);
+		lbs_deb_host("pending events or command responses\n");
 	}
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	if (allowed) {
 		lbs_deb_host("sending lbs_ps_confirm_sleep\n");
-		sendconfirmsleep(priv, (u8 *) & priv->lbs_ps_confirm_sleep,
-				 sizeof(struct PS_CMD_ConfirmSleep));
+		lbs_send_confirmsleep(priv);
 	} else {
 		lbs_deb_host("sleep confirm has been delayed\n");
 	}
@@ -2029,39 +1934,10 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
 }
 
 
-/**
- *  @brief Simple callback that copies response back into command
- *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param extra  	A pointer to the original command structure for which
- *                      'resp' is a response
- *  @param resp         A pointer to the command response
- *
- *  @return 	   	0 on success, error on failure
- */
-int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
-		     struct cmd_header *resp)
-{
-	struct cmd_header *buf = (void *)extra;
-	uint16_t copy_len;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	copy_len = min(le16_to_cpu(buf->size), le16_to_cpu(resp->size));
-	lbs_deb_cmd("Copying back %u bytes; command response was %u bytes, "
-		    "copy back buffer was %u bytes\n", copy_len,
-		    le16_to_cpu(resp->size), le16_to_cpu(buf->size));
-	memcpy(buf, resp, copy_len);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(lbs_cmd_copyback);
-
-struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv, uint16_t command,
-				      struct cmd_header *in_cmd, int in_cmd_size,
-				      int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
-				      unsigned long callback_arg)
+static struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
+	uint16_t command, struct cmd_header *in_cmd, int in_cmd_size,
+	int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
+	unsigned long callback_arg)
 {
 	struct cmd_ctrl_node *cmdnode;
 
@@ -2098,9 +1974,6 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv, uint16_t command
 
 	lbs_deb_host("PREP_CMD: command 0x%04x\n", command);
 
-	/* here was the big old switch() statement, which is now obsolete,
-	 * because the caller of lbs_cmd() sets up all of *cmd for us. */
-
 	cmdnode->cmdwaitqwoken = 0;
 	lbs_queue_cmd(priv, cmdnode);
 	wake_up_interruptible(&priv->waitq);
@@ -2108,6 +1981,15 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv, uint16_t command
  done:
 	lbs_deb_leave_args(LBS_DEB_HOST, "ret %p", cmdnode);
 	return cmdnode;
+}
+
+void lbs_cmd_async(struct lbs_private *priv, uint16_t command,
+	struct cmd_header *in_cmd, int in_cmd_size)
+{
+	lbs_deb_enter(LBS_DEB_CMD);
+	__lbs_cmd_async(priv, command, in_cmd, in_cmd_size,
+		lbs_cmd_async_callback, 0);
+	lbs_deb_leave(LBS_DEB_CMD);
 }
 
 int __lbs_cmd(struct lbs_private *priv, uint16_t command,

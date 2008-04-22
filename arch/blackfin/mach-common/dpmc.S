@@ -31,140 +31,6 @@
 #include <asm/blackfin.h>
 #include <asm/mach/irq.h>
 
-.text
-
-ENTRY(_unmask_wdog_wakeup_evt)
-	[--SP] = ( R7:0, P5:0 );
-#if defined(CONFIG_BF561)
-	P0.H = hi(SICA_IWR1);
-	P0.L = lo(SICA_IWR1);
-#elif defined(CONFIG_BF54x) || defined(CONFIG_BF52x)
-	P0.h = HI(SIC_IWR0);
-	P0.l = LO(SIC_IWR0);
-#else
-	P0.h = HI(SIC_IWR);
-	P0.l = LO(SIC_IWR);
-#endif
-	R7 = [P0];
-#if defined(CONFIG_BF561)
-	BITSET(R7, 27);
-#else
-	BITSET(R7,(IRQ_WATCH - IVG7));
-#endif
-	[P0] = R7;
-	SSYNC;
-
-	( R7:0, P5:0 ) = [SP++];
-	RTS;
-
-.LWRITE_TO_STAT:
-	/* When watch dog timer is enabled, a write to STAT will load the
-	 * contents of CNT to STAT
-	 */
-	R7 = 0x0000(z);
-#if defined(CONFIG_BF561)
-	P0.h = HI(WDOGA_STAT);
-	P0.l = LO(WDOGA_STAT);
-#else
-	P0.h = HI(WDOG_STAT);
-	P0.l = LO(WDOG_STAT);
-#endif
-	[P0] = R7;
-	SSYNC;
-	JUMP .LSKIP_WRITE_TO_STAT;
-
-ENTRY(_program_wdog_timer)
-	[--SP] = ( R7:0, P5:0 );
-#if defined(CONFIG_BF561)
-	P0.h = HI(WDOGA_CNT);
-	P0.l = LO(WDOGA_CNT);
-#else
-	P0.h = HI(WDOG_CNT);
-	P0.l = LO(WDOG_CNT);
-#endif
-	[P0] = R0;
-	SSYNC;
-
-#if defined(CONFIG_BF561)
-	P0.h = HI(WDOGA_CTL);
-	P0.l = LO(WDOGA_CTL);
-#else
-	P0.h = HI(WDOG_CTL);
-	P0.l = LO(WDOG_CTL);
-#endif
-	R7 = W[P0](Z);
-	CC = BITTST(R7,1);
-	if !CC JUMP .LWRITE_TO_STAT;
-	CC = BITTST(R7,2);
-	if !CC JUMP .LWRITE_TO_STAT;
-
-.LSKIP_WRITE_TO_STAT:
-#if defined(CONFIG_BF561)
-	P0.h = HI(WDOGA_CTL);
-	P0.l = LO(WDOGA_CTL);
-#else
-	P0.h = HI(WDOG_CTL);
-	P0.l = LO(WDOG_CTL);
-#endif
-	R7 = W[P0](Z);
-	BITCLR(R7,1);   /* Enable GP event */
-	BITSET(R7,2);
-	W[P0] = R7.L;
-	SSYNC;
-	NOP;
-
-	R7 = W[P0](Z);
-	BITCLR(R7,4);   /* Enable the wdog counter */
-	W[P0] = R7.L;
-	SSYNC;
-
-	( R7:0, P5:0 ) = [SP++];
-	RTS;
-
-ENTRY(_clear_wdog_wakeup_evt)
-	[--SP] = ( R7:0, P5:0 );
-
-#if defined(CONFIG_BF561)
-	P0.h = HI(WDOGA_CTL);
-	P0.l = LO(WDOGA_CTL);
-#else
-	P0.h = HI(WDOG_CTL);
-	P0.l = LO(WDOG_CTL);
-#endif
-	R7 = 0x0AD6(Z);
-	W[P0] = R7.L;
-	SSYNC;
-
-	R7 = W[P0](Z);
-	BITSET(R7,15);
-	W[P0] = R7.L;
-	SSYNC;
-
-	R7 = W[P0](Z);
-	BITSET(R7,1);
-	BITSET(R7,2);
-	W[P0] = R7.L;
-	SSYNC;
-
-	( R7:0, P5:0 ) = [SP++];
-	RTS;
-
-ENTRY(_disable_wdog_timer)
-	[--SP] = ( R7:0, P5:0 );
-#if defined(CONFIG_BF561)
-	P0.h = HI(WDOGA_CTL);
-	P0.l = LO(WDOGA_CTL);
-#else
-	P0.h = HI(WDOG_CTL);
-	P0.l = LO(WDOG_CTL);
-#endif
-	R7 = 0xAD6(Z);
-	W[P0] = R7.L;
-	SSYNC;
-	( R7:0, P5:0 ) = [SP++];
-	RTS;
-
-#if !defined(CONFIG_BF561)
 
 .section .l1.text
 
@@ -459,10 +325,12 @@ ENTRY(_set_sic_iwr)
 	RTS;
 
 ENTRY(_set_rtc_istat)
+#ifndef CONFIG_BF561
 	P0.H = hi(RTC_ISTAT);
 	P0.L = lo(RTC_ISTAT);
 	w[P0] = R0.L;
 	SSYNC;
+#endif
 	RTS;
 
 ENTRY(_test_pll_locked)
@@ -473,4 +341,3 @@ ENTRY(_test_pll_locked)
 	CC = BITTST(R0,5);
 	IF !CC JUMP 1b;
 	RTS;
-#endif

@@ -17,14 +17,6 @@
 #define MAX_HWIFS	4
 #endif
 
-#if !defined(CONFIG_ARCH_L7200)
-# ifdef CONFIG_ARCH_CLPS7500
-#  define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
-# else
-#  define ide_default_io_ctl(base)	(0)
-# endif
-#endif /* !ARCH_L7200 */
-
 #define __ide_mm_insw(port,addr,len)	readsw(port,addr,len)
 #define __ide_mm_insl(port,addr,len)	readsl(port,addr,len)
 #define __ide_mm_outsw(port,addr,len)	writesw(port,addr,len)

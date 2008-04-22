@@ -43,6 +43,7 @@
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
+#include <asm/kvm_para.h>
 #include "mtrr.h"
 
 u32 num_var_ranges = 0;
@@ -626,7 +627,7 @@ early_param("disable_mtrr_trim", disable_mtrr_trim_setup);
 #define Tom2Enabled (1U << 21)
 #define Tom2ForceMemTypeWB (1U << 22)
 
-static __init int amd_special_default_mtrr(void)
+int __init amd_special_default_mtrr(void)
 {
 	u32 l, h;
 
@@ -649,6 +650,7 @@ static __init int amd_special_default_mtrr(void)
 
 /**
  * mtrr_trim_uncached_memory - trim RAM not covered by MTRRs
+ * @end_pfn: ending page frame number
  *
  * Some buggy BIOSes don't setup the MTRRs properly for systems with certain
  * memory configurations.  This routine checks that the highest MTRR matches
@@ -688,8 +690,11 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 
 	/* kvm/qemu doesn't have mtrr set right, don't trim them all */
 	if (!highest_pfn) {
-		printk(KERN_WARNING "WARNING: strange, CPU MTRRs all blank?\n");
-		WARN_ON(1);
+		if (!kvm_para_available()) {
+			printk(KERN_WARNING
+				"WARNING: strange, CPU MTRRs all blank?\n");
+			WARN_ON(1);
+		}
 		return 0;
 	}
 
@@ -706,7 +711,8 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 		trim_size = end_pfn;
 		trim_size <<= PAGE_SHIFT;
 		trim_size -= trim_start;
-		add_memory_region(trim_start, trim_size, E820_RESERVED);
+		update_memory_range(trim_start, trim_size, E820_RAM,
+					E820_RESERVED);
 		update_e820();
 		return 1;
 	}

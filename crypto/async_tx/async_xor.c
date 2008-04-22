@@ -47,7 +47,7 @@ do_async_xor(struct dma_device *device,
 	int i;
 	unsigned long dma_prep_flags = cb_fn ? DMA_PREP_INTERRUPT : 0;
 
-	pr_debug("%s: len: %zu\n", __FUNCTION__, len);
+	pr_debug("%s: len: %zu\n", __func__, len);
 
 	dma_dest = dma_map_page(device->dev, dest, offset, len,
 				DMA_FROM_DEVICE);
@@ -86,7 +86,7 @@ do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	void *_dest;
 	int i;
 
-	pr_debug("%s: len: %zu\n", __FUNCTION__, len);
+	pr_debug("%s: len: %zu\n", __func__, len);
 
 	/* reuse the 'src_list' array to convert to buffer pointers */
 	for (i = 0; i < src_cnt; i++)
@@ -191,12 +191,12 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 				/* if ack is already set then we cannot be sure
 				 * we are referring to the correct operation
 				 */
-				BUG_ON(depend_tx->ack);
+				BUG_ON(async_tx_test_ack(depend_tx));
 				if (dma_wait_for_async_tx(depend_tx) ==
 					DMA_ERROR)
 					panic("%s: DMA_ERROR waiting for "
 						"depend_tx\n",
-						__FUNCTION__);
+						__func__);
 			}
 
 			do_sync_xor(dest, &src_list[src_off], offset,
@@ -271,12 +271,12 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 
 	BUG_ON(src_cnt <= 1);
 
-	if (device) {
+	if (device && src_cnt <= device->max_xor) {
 		dma_addr_t *dma_src = (dma_addr_t *) src_list;
 		unsigned long dma_prep_flags = cb_fn ? DMA_PREP_INTERRUPT : 0;
 		int i;
 
-		pr_debug("%s: (async) len: %zu\n", __FUNCTION__, len);
+		pr_debug("%s: (async) len: %zu\n", __func__, len);
 
 		for (i = 0; i < src_cnt; i++)
 			dma_src[i] = dma_map_page(device->dev, src_list[i],
@@ -299,7 +299,7 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 	} else {
 		unsigned long xor_flags = flags;
 
-		pr_debug("%s: (sync) len: %zu\n", __FUNCTION__, len);
+		pr_debug("%s: (sync) len: %zu\n", __func__, len);
 
 		xor_flags |= ASYNC_TX_XOR_DROP_DST;
 		xor_flags &= ~ASYNC_TX_ACK;
@@ -310,7 +310,7 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 		if (tx) {
 			if (dma_wait_for_async_tx(tx) == DMA_ERROR)
 				panic("%s: DMA_ERROR waiting for tx\n",
-					__FUNCTION__);
+					__func__);
 			async_tx_ack(tx);
 		}
 

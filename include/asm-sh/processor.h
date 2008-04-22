@@ -2,7 +2,6 @@
 #define __ASM_SH_PROCESSOR_H
 
 #include <asm/cpu-features.h>
-#include <asm/fpu.h>
 
 #ifndef __ASSEMBLY__
 /*
@@ -17,7 +16,7 @@ enum cpu_type {
 	CPU_SH7619,
 
 	/* SH-2A types */
-	CPU_SH7203, CPU_SH7206, CPU_SH7263,
+	CPU_SH7203, CPU_SH7206, CPU_SH7263, CPU_MXG,
 
 	/* SH-3 types */
 	CPU_SH7705, CPU_SH7706, CPU_SH7707,
@@ -30,7 +29,8 @@ enum cpu_type {
 	CPU_SH7760, CPU_SH4_202, CPU_SH4_501,
 
 	/* SH-4A types */
-	CPU_SH7763, CPU_SH7770, CPU_SH7780, CPU_SH7781, CPU_SH7785, CPU_SHX3,
+	CPU_SH7763, CPU_SH7770, CPU_SH7780, CPU_SH7781, CPU_SH7785,
+	CPU_SH7723, CPU_SHX3,
 
 	/* SH4AL-DSP types */
 	CPU_SH7343, CPU_SH7722, CPU_SH7366,

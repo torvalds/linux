@@ -28,8 +28,9 @@ config ATA_NONSTANDARD
        default n
 
 config ATA_ACPI
-	bool
+	bool "ATA ACPI Support"
 	depends on ACPI && PCI
+	select ACPI_DOCK
 	default y
 	help
 	  This option adds support for ATA-related ACPI objects.
@@ -40,6 +41,13 @@ config ATA_ACPI
 	  You can disable this at kernel boot time by using the
 	  option libata.noacpi=1
 
+config SATA_PMP
+	bool "SATA Port Multiplier support"
+	default y
+	help
+	  This option adds support for SATA Port Multipliers
+	  (the SATA version of an ethernet hub, or SAS expander).
+
 config SATA_AHCI
 	tristate "AHCI SATA support"
 	depends on PCI
@@ -47,6 +55,43 @@ config SATA_AHCI
 	  This option enables support for AHCI Serial ATA.
 
 	  If unsure, say N.
+
+config SATA_SIL24
+	tristate "Silicon Image 3124/3132 SATA support"
+	depends on PCI
+	help
+	  This option enables support for Silicon Image 3124/3132 Serial ATA.
+
+	  If unsure, say N.
+
+config SATA_FSL
+	tristate "Freescale 3.0Gbps SATA support"
+	depends on FSL_SOC
+	help
+	  This option enables support for Freescale 3.0Gbps SATA controller.
+	  It can be found on MPC837x and MPC8315.
+
+	  If unsure, say N.
+
+config ATA_SFF
+	bool "ATA SFF support"
+	default y
+	help
+	  This option adds support for ATA controllers with SFF
+	  compliant or similar programming interface.
+
+	  SFF is the legacy IDE interface that has been around since
+	  the dawn of time.  Almost all PATA controllers have an
+	  SFF interface.  Many SATA controllers have an SFF interface
+	  when configured into a legacy compatibility mode.
+
+	  For users with exclusively modern controllers like AHCI,
+	  Silicon Image 3124, or Marvell 6440, you may choose to
+	  disable this uneeded SFF support.
+
+	  If unsure, say Y.
+
+if ATA_SFF
 
 config SATA_SVW
 	tristate "ServerWorks Frodo / Apple K2 SATA support"
@@ -124,14 +169,6 @@ config SATA_SIL
 
 	  If unsure, say N.
 
-config SATA_SIL24
-	tristate "Silicon Image 3124/3132 SATA support"
-	depends on PCI
-	help
-	  This option enables support for Silicon Image 3124/3132 Serial ATA.
-
-	  If unsure, say N.
-
 config SATA_SIS
 	tristate "SiS 964/965/966/180 SATA support"
 	depends on PCI
@@ -181,15 +218,6 @@ config PATA_ACPI
 	  motherboard PATA controller interfaces through the ACPI
 	  firmware in the BIOS. This driver can sometimes handle
 	  otherwise unsupported hardware.
-
-config SATA_FSL
-	tristate "Freescale 3.0Gbps SATA support"
-	depends on FSL_SOC
-	help
-	  This option enables support for Freescale 3.0Gbps SATA controller.
-	  It can be found on MPC837x and MPC8315.
-
-	  If unsure, say N.
 
 config PATA_ALI
 	tristate "ALi PATA support (Experimental)"
@@ -538,6 +566,15 @@ config PATA_RADISYS
 
 	  If unsure, say N.
 
+config PATA_RB500
+	tristate "RouterBoard 500 PATA CompactFlash support"
+	depends on MIKROTIK_RB500
+	help
+	  This option enables support for the RouterBoard 500
+	  PATA CompactFlash controller.
+
+	  If unsure, say N.
+
 config PATA_RZ1000
 	tristate "PC Tech RZ1000 PATA support"
 	depends on PCI
@@ -669,4 +706,5 @@ config PATA_BF54X
 
 	  If unsure, say N.
 
+endif # ATA_SFF
 endif # ATA

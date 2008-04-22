@@ -185,7 +185,6 @@
 	   		};
 
 			IIC0: i2c@ef600700 {
-				device_type = "i2c";
 				compatible = "ibm,iic-440ep", "ibm,iic-440gp", "ibm,iic";
 				reg = <ef600700 14>;
 				interrupt-parent = <&UIC0>;
@@ -193,7 +192,6 @@
 			};
 
 			IIC1: i2c@ef600800 {
-				device_type = "i2c";
 				compatible = "ibm,iic-440ep", "ibm,iic-440gp", "ibm,iic";
 				reg = <ef600800 14>;
 				interrupt-parent = <&UIC0>;
@@ -201,13 +199,11 @@
 			};
 
 			ZMII0: emac-zmii@ef600d00 {
-				device_type = "zmii-interface";
 				compatible = "ibm,zmii-440ep", "ibm,zmii-440gp", "ibm,zmii";
 				reg = <ef600d00 c>;
 			};
 
 			EMAC0: ethernet@ef600e00 {
-				linux,network-index = <0>;
 				device_type = "network";
 				compatible = "ibm,emac-440ep", "ibm,emac-440gp", "ibm,emac";
 				interrupt-parent = <&UIC1>;
@@ -228,7 +224,6 @@
 			};
 
 			EMAC1: ethernet@ef600f00 {
-				linux,network-index = <1>;
 				device_type = "network";
 				compatible = "ibm,emac-440ep", "ibm,emac-440gp", "ibm,emac";
 				interrupt-parent = <&UIC1>;

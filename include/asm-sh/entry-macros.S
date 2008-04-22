@@ -12,7 +12,7 @@
 	not	r11, r11
 	stc	sr, r10
 	and	r11, r10
-#ifdef CONFIG_HAS_SR_RB
+#ifdef CONFIG_CPU_HAS_SR_RB
 	stc	k_g_imask, r11
 	or	r11, r10
 #endif
@@ -20,7 +20,7 @@
 	.endm
 
 	.macro	get_current_thread_info, ti, tmp
-#ifdef CONFIG_HAS_SR_RB
+#ifdef CONFIG_CPU_HAS_SR_RB
 	stc	r7_bank, \ti
 #else
 	mov	#((THREAD_SIZE - 1) >> 10) ^ 0xff, \tmp

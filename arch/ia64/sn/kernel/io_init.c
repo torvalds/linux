@@ -209,11 +209,11 @@ sn_io_slot_fixup(struct pci_dev *dev)
 
 	pcidev_info = kzalloc(sizeof(struct pcidev_info), GFP_KERNEL);
 	if (!pcidev_info)
-		panic("%s: Unable to alloc memory for pcidev_info", __FUNCTION__);
+		panic("%s: Unable to alloc memory for pcidev_info", __func__);
 
 	sn_irq_info = kzalloc(sizeof(struct sn_irq_info), GFP_KERNEL);
 	if (!sn_irq_info)
-		panic("%s: Unable to alloc memory for sn_irq_info", __FUNCTION__);
+		panic("%s: Unable to alloc memory for sn_irq_info", __func__);
 
 	/* Call to retrieve pci device information needed by kernel. */
 	status = sal_get_pcidev_info((u64) pci_domain_nr(dev),

@@ -23,10 +23,13 @@
 #if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 1)
 /* Technically wrong, but this avoids compilation errors on some gcc
    versions. */
-#define ADDR "=m" (*(volatile long *) addr)
+#define ADDR "=m" (*(volatile long *)addr)
+#define BIT_ADDR "=m" (((volatile int *)addr)[nr >> 5])
 #else
 #define ADDR "+m" (*(volatile long *) addr)
+#define BIT_ADDR "+m" (((volatile int *)addr)[nr >> 5])
 #endif
+#define BASE_ADDR "m" (*(volatile int *)addr)
 
 /**
  * set_bit - Atomically set a bit in memory
@@ -45,9 +48,7 @@
  */
 static inline void set_bit(int nr, volatile void *addr)
 {
-	asm volatile(LOCK_PREFIX "bts %1,%0"
-		     : ADDR
-		     : "Ir" (nr) : "memory");
+	asm volatile(LOCK_PREFIX "bts %1,%0" : ADDR : "Ir" (nr) : "memory");
 }
 
 /**
@@ -79,9 +80,7 @@ static inline void __set_bit(int nr, volatile void *addr)
  */
 static inline void clear_bit(int nr, volatile void *addr)
 {
-	asm volatile(LOCK_PREFIX "btr %1,%0"
-		     : ADDR
-		     : "Ir" (nr));
+	asm volatile(LOCK_PREFIX "btr %1,%2" : BIT_ADDR : "Ir" (nr), BASE_ADDR);
 }
 
 /*
@@ -100,7 +99,7 @@ static inline void clear_bit_unlock(unsigned nr, volatile void *addr)
 
 static inline void __clear_bit(int nr, volatile void *addr)
 {
-	asm volatile("btr %1,%0" : ADDR : "Ir" (nr));
+	asm volatile("btr %1,%2" : BIT_ADDR : "Ir" (nr), BASE_ADDR);
 }
 
 /*
@@ -135,7 +134,7 @@ static inline void __clear_bit_unlock(unsigned nr, volatile void *addr)
  */
 static inline void __change_bit(int nr, volatile void *addr)
 {
-	asm volatile("btc %1,%0" : ADDR : "Ir" (nr));
+	asm volatile("btc %1,%2" : BIT_ADDR : "Ir" (nr), BASE_ADDR);
 }
 
 /**
@@ -149,8 +148,7 @@ static inline void __change_bit(int nr, volatile void *addr)
  */
 static inline void change_bit(int nr, volatile void *addr)
 {
-	asm volatile(LOCK_PREFIX "btc %1,%0"
-		     : ADDR : "Ir" (nr));
+	asm volatile(LOCK_PREFIX "btc %1,%2" : BIT_ADDR : "Ir" (nr), BASE_ADDR);
 }
 
 /**
@@ -166,9 +164,7 @@ static inline int test_and_set_bit(int nr, volatile void *addr)
 	int oldbit;
 
 	asm volatile(LOCK_PREFIX "bts %2,%1\n\t"
-		     "sbb %0,%0"
-		     : "=r" (oldbit), ADDR
-		     : "Ir" (nr) : "memory");
+		     "sbb %0,%0" : "=r" (oldbit), ADDR : "Ir" (nr) : "memory");
 
 	return oldbit;
 }
@@ -198,10 +194,9 @@ static inline int __test_and_set_bit(int nr, volatile void *addr)
 {
 	int oldbit;
 
-	asm("bts %2,%1\n\t"
-	    "sbb %0,%0"
-	    : "=r" (oldbit), ADDR
-	    : "Ir" (nr));
+	asm volatile("bts %2,%3\n\t"
+		     "sbb %0,%0"
+		     : "=r" (oldbit), BIT_ADDR : "Ir" (nr), BASE_ADDR);
 	return oldbit;
 }
 
@@ -219,8 +214,7 @@ static inline int test_and_clear_bit(int nr, volatile void *addr)
 
 	asm volatile(LOCK_PREFIX "btr %2,%1\n\t"
 		     "sbb %0,%0"
-		     : "=r" (oldbit), ADDR
-		     : "Ir" (nr) : "memory");
+		     : "=r" (oldbit), ADDR : "Ir" (nr) : "memory");
 
 	return oldbit;
 }
@@ -238,10 +232,9 @@ static inline int __test_and_clear_bit(int nr, volatile void *addr)
 {
 	int oldbit;
 
-	asm volatile("btr %2,%1\n\t"
+	asm volatile("btr %2,%3\n\t"
 		     "sbb %0,%0"
-		     : "=r" (oldbit), ADDR
-		     : "Ir" (nr));
+		     : "=r" (oldbit), BIT_ADDR : "Ir" (nr), BASE_ADDR);
 	return oldbit;
 }
 
@@ -250,10 +243,9 @@ static inline int __test_and_change_bit(int nr, volatile void *addr)
 {
 	int oldbit;
 
-	asm volatile("btc %2,%1\n\t"
+	asm volatile("btc %2,%3\n\t"
 		     "sbb %0,%0"
-		     : "=r" (oldbit), ADDR
-		     : "Ir" (nr) : "memory");
+		     : "=r" (oldbit), BIT_ADDR : "Ir" (nr), BASE_ADDR);
 
 	return oldbit;
 }
@@ -272,8 +264,7 @@ static inline int test_and_change_bit(int nr, volatile void *addr)
 
 	asm volatile(LOCK_PREFIX "btc %2,%1\n\t"
 		     "sbb %0,%0"
-		     : "=r" (oldbit), ADDR
-		     : "Ir" (nr) : "memory");
+		     : "=r" (oldbit), ADDR : "Ir" (nr) : "memory");
 
 	return oldbit;
 }
@@ -288,10 +279,11 @@ static inline int variable_test_bit(int nr, volatile const void *addr)
 {
 	int oldbit;
 
-	asm volatile("bt %2,%1\n\t"
+	asm volatile("bt %2,%3\n\t"
 		     "sbb %0,%0"
 		     : "=r" (oldbit)
-		     : "m" (*(unsigned long *)addr), "Ir" (nr));
+		     : "m" (((volatile const int *)addr)[nr >> 5]),
+		       "Ir" (nr), BASE_ADDR);
 
 	return oldbit;
 }
@@ -310,6 +302,8 @@ static int test_bit(int nr, const volatile unsigned long *addr);
 	 constant_test_bit((nr),(addr)) :	\
 	 variable_test_bit((nr),(addr)))
 
+#undef BASE_ADDR
+#undef BIT_ADDR
 #undef ADDR
 
 #ifdef CONFIG_X86_32

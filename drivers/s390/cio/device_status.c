@@ -62,7 +62,7 @@ ccw_device_path_notoper(struct ccw_device *cdev)
 	stsch (sch->schid, &sch->schib);
 
 	CIO_MSG_EVENT(0, "%s(0.%x.%04x) - path(s) %02x are "
-		      "not operational \n", __FUNCTION__,
+		      "not operational \n", __func__,
 		      sch->schid.ssid, sch->schid.sch_no,
 		      sch->schib.pmcw.pnom);
 
@@ -312,6 +312,7 @@ ccw_device_do_sense(struct ccw_device *cdev, struct irb *irb)
 {
 	struct subchannel *sch;
 	struct ccw1 *sense_ccw;
+	int rc;
 
 	sch = to_subchannel(cdev->dev.parent);
 
@@ -337,7 +338,10 @@ ccw_device_do_sense(struct ccw_device *cdev, struct irb *irb)
 	/* Reset internal retry indication. */
 	cdev->private->flags.intretry = 0;
 
-	return cio_start(sch, sense_ccw, 0xff);
+	rc = cio_start(sch, sense_ccw, 0xff);
+	if (rc == -ENODEV || rc == -EACCES)
+		dev_fsm_event(cdev, DEV_EVENT_VERIFY);
+	return rc;
 }
 
 /*

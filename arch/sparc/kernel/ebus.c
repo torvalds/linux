@@ -101,7 +101,7 @@ void __init fill_ebus_child(struct device_node *dp,
 			prom_printf("UGH: property for %s was %d, need < %d\n",
 				    dev->prom_node->name, len,
 				    dev->parent->num_addrs);
-			panic(__FUNCTION__);
+			panic(__func__);
 		}
 
 		/* XXX resource */
@@ -162,7 +162,7 @@ void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *d
 		prom_printf("UGH: proplen for %s was %d, need multiple of %d\n",
 			    dev->prom_node->name, len,
 			    (int)sizeof(struct linux_prom_registers));
-		panic(__FUNCTION__);
+		panic(__func__);
 	}
 	dev->num_addrs = len / sizeof(struct linux_prom_registers);
 
@@ -324,7 +324,7 @@ void __init ebus_init(void)
 		regs = of_get_property(dp, "reg", &len);
 		if (!regs) {
 			prom_printf("%s: can't find reg property\n",
-				    __FUNCTION__);
+				    __func__);
 			prom_halt();
 		}
 		nreg = len / sizeof(struct linux_prom_pci_registers);

@@ -6,11 +6,13 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/net.h>
+#include <linux/netdevice.h>
 #include <linux/if.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/wait.h>
 #include <linux/list.h>
+#include <net/net_namespace.h>
 #endif
 #include <linux/compiler.h>
 
@@ -31,7 +33,7 @@
 #define NF_VERDICT_QMASK 0xffff0000
 #define NF_VERDICT_QBITS 16
 
-#define NF_QUEUE_NR(x) (((x << NF_VERDICT_QBITS) & NF_VERDICT_QMASK) | NF_QUEUE)
+#define NF_QUEUE_NR(x) ((((x) << NF_VERDICT_BITS) & NF_VERDICT_QMASK) | NF_QUEUE)
 
 /* only for userspace compatibility */
 #ifndef __KERNEL__
@@ -51,7 +53,7 @@ enum nf_inet_hooks {
 };
 
 union nf_inet_addr {
-	u_int32_t	all[4];
+	__u32		all[4];
 	__be32		ip;
 	__be32		ip6[4];
 	struct in_addr	in;
@@ -61,13 +63,21 @@ union nf_inet_addr {
 #ifdef __KERNEL__
 #ifdef CONFIG_NETFILTER
 
+static inline int nf_inet_addr_cmp(const union nf_inet_addr *a1,
+				   const union nf_inet_addr *a2)
+{
+	return a1->all[0] == a2->all[0] &&
+	       a1->all[1] == a2->all[1] &&
+	       a1->all[2] == a2->all[2] &&
+	       a1->all[3] == a2->all[3];
+}
+
 extern void netfilter_init(void);
 
 /* Largest hook number + 1 */
 #define NF_MAX_HOOKS 8
 
 struct sk_buff;
-struct net_device;
 
 typedef unsigned int nf_hookfn(unsigned int hooknum,
 			       struct sk_buff *skb,
@@ -224,6 +234,11 @@ struct nf_afinfo {
 	unsigned short	family;
 	__sum16		(*checksum)(struct sk_buff *skb, unsigned int hook,
 				    unsigned int dataoff, u_int8_t protocol);
+	__sum16		(*checksum_partial)(struct sk_buff *skb,
+					    unsigned int hook,
+					    unsigned int dataoff,
+					    unsigned int len,
+					    u_int8_t protocol);
 	int		(*route)(struct dst_entry **dst, struct flowi *fl);
 	void		(*saveroute)(const struct sk_buff *skb,
 				     struct nf_queue_entry *entry);
@@ -249,6 +264,23 @@ nf_checksum(struct sk_buff *skb, unsigned int hook, unsigned int dataoff,
 	afinfo = nf_get_afinfo(family);
 	if (afinfo)
 		csum = afinfo->checksum(skb, hook, dataoff, protocol);
+	rcu_read_unlock();
+	return csum;
+}
+
+static inline __sum16
+nf_checksum_partial(struct sk_buff *skb, unsigned int hook,
+		    unsigned int dataoff, unsigned int len,
+		    u_int8_t protocol, unsigned short family)
+{
+	const struct nf_afinfo *afinfo;
+	__sum16 csum = 0;
+
+	rcu_read_lock();
+	afinfo = nf_get_afinfo(family);
+	if (afinfo)
+		csum = afinfo->checksum_partial(skb, hook, dataoff, len,
+						protocol);
 	rcu_read_unlock();
 	return csum;
 }
@@ -310,6 +342,57 @@ extern void (*nf_ct_destroy)(struct nf_conntrack *);
 #else
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
 #endif
+
+static inline struct net *nf_pre_routing_net(const struct net_device *in,
+					     const struct net_device *out)
+{
+#ifdef CONFIG_NET_NS
+	return in->nd_net;
+#else
+	return &init_net;
+#endif
+}
+
+static inline struct net *nf_local_in_net(const struct net_device *in,
+					  const struct net_device *out)
+{
+#ifdef CONFIG_NET_NS
+	return in->nd_net;
+#else
+	return &init_net;
+#endif
+}
+
+static inline struct net *nf_forward_net(const struct net_device *in,
+					 const struct net_device *out)
+{
+#ifdef CONFIG_NET_NS
+	BUG_ON(in->nd_net != out->nd_net);
+	return in->nd_net;
+#else
+	return &init_net;
+#endif
+}
+
+static inline struct net *nf_local_out_net(const struct net_device *in,
+					   const struct net_device *out)
+{
+#ifdef CONFIG_NET_NS
+	return out->nd_net;
+#else
+	return &init_net;
+#endif
+}
+
+static inline struct net *nf_post_routing_net(const struct net_device *in,
+					      const struct net_device *out)
+{
+#ifdef CONFIG_NET_NS
+	return out->nd_net;
+#else
+	return &init_net;
+#endif
+}
 
 #endif /*__KERNEL__*/
 #endif /*__LINUX_NETFILTER_H*/

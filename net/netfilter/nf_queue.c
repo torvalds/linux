@@ -51,7 +51,7 @@ int nf_unregister_queue_handler(int pf, const struct nf_queue_handler *qh)
 		return -EINVAL;
 
 	mutex_lock(&queue_handler_mutex);
-	if (queue_handler[pf] != qh) {
+	if (queue_handler[pf] && queue_handler[pf] != qh) {
 		mutex_unlock(&queue_handler_mutex);
 		return -EINVAL;
 	}
@@ -348,12 +348,9 @@ static const struct file_operations nfqueue_file_ops = {
 int __init netfilter_queue_init(void)
 {
 #ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *pde;
-
-	pde = create_proc_entry("nf_queue", S_IRUGO, proc_net_netfilter);
-	if (!pde)
+	if (!proc_create("nf_queue", S_IRUGO,
+			 proc_net_netfilter, &nfqueue_file_ops))
 		return -1;
-	pde->proc_fops = &nfqueue_file_ops;
 #endif
 	return 0;
 }

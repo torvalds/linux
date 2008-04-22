@@ -1,3 +1,15 @@
 config OF_DEVICE
 	def_bool y
 	depends on OF && (SPARC || PPC_OF)
+
+config OF_GPIO
+	def_bool y
+	depends on OF && PPC_OF && HAVE_GPIO_LIB
+	help
+	  OpenFirmware GPIO accessors
+
+config OF_I2C
+	def_tristate I2C
+	depends on PPC_OF && I2C
+	help
+	  OpenFirmware I2C accessors

@@ -16,15 +16,15 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/physmap.h>
+#include <linux/i2c-gpio.h>
 
 #include <video/atmel_lcdc.h>
 
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/at91cap9.h>
-#include <asm/arch/at91sam926x_mc.h>
 #include <asm/arch/at91cap9_matrix.h>
+#include <asm/arch/at91sam9_smc.h>
 
 #include "generic.h"
 
@@ -283,9 +283,14 @@ static struct at91_nand_data nand_data;
 #define NAND_BASE	AT91_CHIPSELECT_3
 
 static struct resource nand_resources[] = {
-	{
+	[0] = {
 		.start	= NAND_BASE,
 		.end	= NAND_BASE + SZ_256M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91_BASE_SYS + AT91_ECC,
+		.end	= AT91_BASE_SYS + AT91_ECC + SZ_512 - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
@@ -343,6 +348,7 @@ void __init at91_add_device_nand(struct at91_nand_data *data)
 #else
 void __init at91_add_device_nand(struct at91_nand_data *data) {}
 #endif
+
 
 /* --------------------------------------------------------------------
  *  TWI (i2c)
@@ -532,13 +538,59 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices) 
 
 
 /* --------------------------------------------------------------------
+ *  Timer/Counter block
+ * -------------------------------------------------------------------- */
+
+#ifdef CONFIG_ATMEL_TCLIB
+
+static struct resource tcb_resources[] = {
+	[0] = {
+		.start	= AT91CAP9_BASE_TCB0,
+		.end	= AT91CAP9_BASE_TCB0 + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91CAP9_ID_TCB,
+		.end	= AT91CAP9_ID_TCB,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91cap9_tcb_device = {
+	.name		= "atmel_tcb",
+	.id		= 0,
+	.resource	= tcb_resources,
+	.num_resources	= ARRAY_SIZE(tcb_resources),
+};
+
+static void __init at91_add_device_tc(void)
+{
+	/* this chip has one clock and irq for all three TC channels */
+	at91_clock_associate("tcb_clk", &at91cap9_tcb_device.dev, "t0_clk");
+	platform_device_register(&at91cap9_tcb_device);
+}
+#else
+static void __init at91_add_device_tc(void) { }
+#endif
+
+
+/* --------------------------------------------------------------------
  *  RTT
  * -------------------------------------------------------------------- */
 
+static struct resource rtt_resources[] = {
+	{
+		.start	= AT91_BASE_SYS + AT91_RTT,
+		.end	= AT91_BASE_SYS + AT91_RTT + SZ_16 - 1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
 static struct platform_device at91cap9_rtt_device = {
 	.name		= "at91_rtt",
-	.id		= -1,
-	.num_resources	= 0,
+	.id		= 0,
+	.resource	= rtt_resources,
+	.num_resources	= ARRAY_SIZE(rtt_resources),
 };
 
 static void __init at91_add_device_rtt(void)
@@ -990,7 +1042,7 @@ static inline void configure_usart2_pins(unsigned pins)
 		at91_set_B_periph(AT91_PIN_PD6, 0);	/* CTS2 */
 }
 
-static struct platform_device *at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
+static struct platform_device *__initdata at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
 struct platform_device *atmel_default_console_device;	/* the serial console device */
 
 void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins)
@@ -1031,8 +1083,6 @@ void __init at91_set_serial_console(unsigned portnr)
 {
 	if (portnr < ATMEL_MAX_UART)
 		atmel_default_console_device = at91_uarts[portnr];
-	if (!atmel_default_console_device)
-		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 
 void __init at91_add_device_serial(void)
@@ -1043,6 +1093,9 @@ void __init at91_add_device_serial(void)
 		if (at91_uarts[i])
 			platform_device_register(at91_uarts[i]);
 	}
+
+	if (!atmel_default_console_device)
+		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 #else
 void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins) {}
@@ -1060,6 +1113,7 @@ static int __init at91_add_standard_devices(void)
 {
 	at91_add_device_rtt();
 	at91_add_device_watchdog();
+	at91_add_device_tc();
 	return 0;
 }
 

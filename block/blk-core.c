@@ -38,7 +38,7 @@ static int __make_request(struct request_queue *q, struct bio *bio);
 /*
  * For the allocated request tables
  */
-struct kmem_cache *request_cachep;
+static struct kmem_cache *request_cachep;
 
 /*
  * For queue allocation
@@ -134,6 +134,7 @@ void rq_init(struct request_queue *q, struct request *rq)
 	rq->cmd_len = 0;
 	memset(rq->cmd, 0, sizeof(rq->cmd));
 	rq->data_len = 0;
+	rq->extra_len = 0;
 	rq->sense_len = 0;
 	rq->data = NULL;
 	rq->sense = NULL;
@@ -423,7 +424,6 @@ void blk_put_queue(struct request_queue *q)
 {
 	kobject_put(&q->kobj);
 }
-EXPORT_SYMBOL(blk_put_queue);
 
 void blk_cleanup_queue(struct request_queue *q)
 {
@@ -591,7 +591,6 @@ int blk_get_queue(struct request_queue *q)
 
 	return 1;
 }
-EXPORT_SYMBOL(blk_get_queue);
 
 static inline void blk_free_request(struct request_queue *q, struct request *rq)
 {
@@ -1767,6 +1766,7 @@ static inline void __end_request(struct request *rq, int uptodate,
 
 /**
  * blk_rq_bytes - Returns bytes left to complete in the entire request
+ * @rq: the request being processed
  **/
 unsigned int blk_rq_bytes(struct request *rq)
 {
@@ -1779,6 +1779,7 @@ EXPORT_SYMBOL_GPL(blk_rq_bytes);
 
 /**
  * blk_rq_cur_bytes - Returns bytes left to complete in the current segment
+ * @rq: the request being processed
  **/
 unsigned int blk_rq_cur_bytes(struct request *rq)
 {

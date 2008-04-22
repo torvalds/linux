@@ -896,7 +896,7 @@ static int __init BusLogic_InitializeFlashPointProbeInfo(struct BusLogic_HostAda
 		IRQ_Channel = PCI_Device->irq;
 		IO_Address = BaseAddress0 = pci_resource_start(PCI_Device, 0);
 		PCI_Address = BaseAddress1 = pci_resource_start(PCI_Device, 1);
-#ifndef CONFIG_SCSI_OMIT_FLASHPOINT
+#ifdef CONFIG_SCSI_FLASHPOINT
 		if (pci_resource_flags(PCI_Device, 0) & IORESOURCE_MEM) {
 			BusLogic_Error("BusLogic: Base Address0 0x%X not I/O for " "FlashPoint Host Adapter\n", NULL, BaseAddress0);
 			BusLogic_Error("at PCI Bus %d Device %d I/O Address 0x%X\n", NULL, Bus, Device, IO_Address);
@@ -1006,6 +1006,9 @@ static void __init BusLogic_InitializeProbeInfoList(struct BusLogic_HostAdapter
 }
 
 
+#else
+#define BusLogic_InitializeProbeInfoList(adapter) \
+		BusLogic_InitializeProbeInfoListISA(adapter)
 #endif				/* CONFIG_PCI */
 
 

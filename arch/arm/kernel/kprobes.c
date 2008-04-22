@@ -431,6 +431,11 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	return 0;
 }
 
+int __kprobes arch_trampoline_kprobe(struct kprobe *p)
+{
+	return 0;
+}
+
 static struct undef_hook kprobes_break_hook = {
 	.instr_mask	= 0xffffffff,
 	.instr_val	= KPROBE_BREAKPOINT_INSTRUCTION,

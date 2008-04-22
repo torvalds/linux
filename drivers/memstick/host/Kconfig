@@ -20,3 +20,13 @@ config MEMSTICK_TIFM_MS
           To compile this driver as a module, choose M here: the
 	  module will be called tifm_ms.
 
+config MEMSTICK_JMICRON_38X
+	tristate "JMicron JMB38X MemoryStick interface support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && PCI
+
+	help
+	  Say Y here if you want to be able to access MemoryStick cards with
+	  the JMicron(R) JMB38X MemoryStick card reader.
+
+          To compile this driver as a module, choose M here: the
+	  module will be called jmb38x_ms.

@@ -3,8 +3,7 @@
 
 struct pt_regs;
 
-struct machine_ops
-{
+struct machine_ops {
 	void (*restart)(char *cmd);
 	void (*halt)(void);
 	void (*power_off)(void);

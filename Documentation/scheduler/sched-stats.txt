@@ -142,7 +142,7 @@ of idleness (idle, busy, and newly idle):
 
 /proc/<pid>/schedstat
 ----------------
-schedstats also adds a new /proc/<pid/schedstat file to include some of
+schedstats also adds a new /proc/<pid>/schedstat file to include some of
 the same information on a per-process level.  There are three fields in
 this file correlating for that process to:
      1) time spent on the cpu

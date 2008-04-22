@@ -266,7 +266,7 @@ static inline void SetPageUptodate(struct page *page)
 
 #define PG_head_tail_mask ((1L << PG_compound) | (1L << PG_reclaim))
 
-#define PageTail(page)	((page->flags & PG_head_tail_mask) \
+#define PageTail(page)	(((page)->flags & PG_head_tail_mask)	\
 				== PG_head_tail_mask)
 
 static inline void __SetPageTail(struct page *page)
@@ -279,7 +279,7 @@ static inline void __ClearPageTail(struct page *page)
 	page->flags &= ~PG_head_tail_mask;
 }
 
-#define PageHead(page)	((page->flags & PG_head_tail_mask) \
+#define PageHead(page)	(((page)->flags & PG_head_tail_mask)	\
 				== (1L << PG_compound))
 #define __SetPageHead(page)	__SetPageCompound(page)
 #define __ClearPageHead(page)	__ClearPageCompound(page)

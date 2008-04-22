@@ -152,6 +152,7 @@ void free_fib_info(struct fib_info *fi)
 		nh->nh_dev = NULL;
 	} endfor_nexthops(fi);
 	fib_info_cnt--;
+	release_net(fi->fib_net);
 	kfree(fi);
 }
 
@@ -730,7 +731,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		goto failure;
 	fib_info_cnt++;
 
-	fi->fib_net = net;
+	fi->fib_net = hold_net(net);
 	fi->fib_protocol = cfg->fc_protocol;
 	fi->fib_flags = cfg->fc_flags;
 	fi->fib_priority = cfg->fc_priority;

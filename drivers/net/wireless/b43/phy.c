@@ -860,7 +860,7 @@ static void b43_phy_ww(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_PHY_OFDM(0xBB),
 		(b43_phy_read(dev, B43_PHY_OFDM(0xBB)) & 0xF000) | 0x0053);
 	b43_phy_write(dev, B43_PHY_OFDM61,
-		(b43_phy_read(dev, B43_PHY_OFDM61 & 0xFE1F)) | 0x0120);
+		(b43_phy_read(dev, B43_PHY_OFDM61) & 0xFE1F) | 0x0120);
 	b43_phy_write(dev, B43_PHY_OFDM(0x13),
 		(b43_phy_read(dev, B43_PHY_OFDM(0x13)) & 0x0FFF) | 0x3000);
 	b43_phy_write(dev, B43_PHY_OFDM(0x14),

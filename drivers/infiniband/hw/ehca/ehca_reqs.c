@@ -188,7 +188,7 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 	if (send_wr->opcode == IB_WR_SEND_WITH_IMM ||
 	    send_wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM) {
 		/* this might not work as long as HW does not support it */
-		wqe_p->immediate_data = be32_to_cpu(send_wr->imm_data);
+		wqe_p->immediate_data = be32_to_cpu(send_wr->ex.imm_data);
 		wqe_p->wr_flag |= WQE_WRFLAG_IMM_DATA_PRESENT;
 	}
 

@@ -8,13 +8,14 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/efs_fs.h>
-#include <linux/efs_vh.h>
-#include <linux/efs_fs_sb.h>
 #include <linux/exportfs.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
+
+#include "efs.h"
+#include <linux/efs_vh.h>
+#include <linux/efs_fs_sb.h>
 
 static int efs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int efs_fill_super(struct super_block *s, void *d, int silent);

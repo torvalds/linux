@@ -597,7 +597,7 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 		memset(cr, 0, sizeof(struct ocfs2_chain_rec));
 	}
 
-	cr->c_blkno = le64_to_cpu(input->group);
+	cr->c_blkno = cpu_to_le64(input->group);
 	le32_add_cpu(&cr->c_total, input->clusters * cl_bpc);
 	le32_add_cpu(&cr->c_free, input->frees * cl_bpc);
 

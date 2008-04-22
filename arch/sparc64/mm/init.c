@@ -46,6 +46,7 @@
 #include <asm/prom.h>
 #include <asm/sstate.h>
 #include <asm/mdesc.h>
+#include <asm/cpudata.h>
 
 #define MAX_PHYS_ADDRESS	(1UL << 42UL)
 #define KPTE_BITMAP_CHUNK_SZ	(256UL * 1024UL * 1024UL)
@@ -166,7 +167,7 @@ unsigned long sparc64_kern_pri_context __read_mostly;
 unsigned long sparc64_kern_pri_nuc_bits __read_mostly;
 unsigned long sparc64_kern_sec_context __read_mostly;
 
-int bigkernel = 0;
+int num_kernel_image_mappings;
 
 #ifdef CONFIG_DEBUG_DCFLUSH
 atomic_t dcpage_flushes = ATOMIC_INIT(0);
@@ -572,7 +573,7 @@ static unsigned long kern_large_tte(unsigned long paddr);
 static void __init remap_kernel(void)
 {
 	unsigned long phys_page, tte_vaddr, tte_data;
-	int tlb_ent = sparc64_highest_locked_tlbent();
+	int i, tlb_ent = sparc64_highest_locked_tlbent();
 
 	tte_vaddr = (unsigned long) KERNBASE;
 	phys_page = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
@@ -582,27 +583,20 @@ static void __init remap_kernel(void)
 
 	/* Now lock us into the TLBs via Hypervisor or OBP. */
 	if (tlb_type == hypervisor) {
-		hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_DMMU);
-		hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_IMMU);
-		if (bigkernel) {
-			tte_vaddr += 0x400000;
-			tte_data += 0x400000;
+		for (i = 0; i < num_kernel_image_mappings; i++) {
 			hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_DMMU);
 			hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_IMMU);
+			tte_vaddr += 0x400000;
+			tte_data += 0x400000;
 		}
 	} else {
-		prom_dtlb_load(tlb_ent, tte_data, tte_vaddr);
-		prom_itlb_load(tlb_ent, tte_data, tte_vaddr);
-		if (bigkernel) {
-			tlb_ent -= 1;
-			prom_dtlb_load(tlb_ent,
-				       tte_data + 0x400000, 
-				       tte_vaddr + 0x400000);
-			prom_itlb_load(tlb_ent,
-				       tte_data + 0x400000, 
-				       tte_vaddr + 0x400000);
+		for (i = 0; i < num_kernel_image_mappings; i++) {
+			prom_dtlb_load(tlb_ent - i, tte_data, tte_vaddr);
+			prom_itlb_load(tlb_ent - i, tte_data, tte_vaddr);
+			tte_vaddr += 0x400000;
+			tte_data += 0x400000;
 		}
-		sparc64_highest_unlocked_tlb_ent = tlb_ent - 1;
+		sparc64_highest_unlocked_tlb_ent = tlb_ent - i;
 	}
 	if (tlb_type == cheetah_plus) {
 		sparc64_kern_pri_context = (CTX_CHEETAH_PLUS_CTX0 |
@@ -618,9 +612,9 @@ static void __init inherit_prom_mappings(void)
 	read_obp_translations();
 
 	/* Now fixup OBP's idea about where we really are mapped. */
-	prom_printf("Remapping the kernel... ");
+	printk("Remapping the kernel... ");
 	remap_kernel();
-	prom_printf("done.\n");
+	printk("done.\n");
 }
 
 void prom_world(int enter)
@@ -739,11 +733,6 @@ static unsigned long __init choose_bootmap_pfn(unsigned long start_pfn,
 	avoid_end = PAGE_ALIGN(initrd_end);
 #endif
 
-#ifdef CONFIG_DEBUG_BOOTMEM
-	prom_printf("choose_bootmap_pfn: kern[%lx:%lx] avoid[%lx:%lx]\n",
-		    kern_base, PAGE_ALIGN(kern_base + kern_size),
-		    avoid_start, avoid_end);
-#endif
 	for (i = 0; i < pavail_ents; i++) {
 		unsigned long start, end;
 
@@ -777,10 +766,6 @@ static unsigned long __init choose_bootmap_pfn(unsigned long start_pfn,
 			}
 
 			/* OK, it doesn't overlap anything, use it.  */
-#ifdef CONFIG_DEBUG_BOOTMEM
-			prom_printf("choose_bootmap_pfn: Using %lx [%lx]\n",
-				    start >> PAGE_SHIFT, start);
-#endif
 			return start >> PAGE_SHIFT;
 		}
 	}
@@ -920,10 +905,6 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 	unsigned long bootmap_pfn, bytes_avail, size;
 	int i;
 
-#ifdef CONFIG_DEBUG_BOOTMEM
-	prom_printf("bootmem_init: Scan pavail, ");
-#endif
-
 	bytes_avail = 0UL;
 	for (i = 0; i < pavail_ents; i++) {
 		end_of_phys_memory = pavail[i].phys_addr +
@@ -970,33 +951,20 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 
 	bootmap_pfn = choose_bootmap_pfn(min_low_pfn, end_pfn);
 
-#ifdef CONFIG_DEBUG_BOOTMEM
-	prom_printf("init_bootmem(min[%lx], bootmap[%lx], max[%lx])\n",
-		    min_low_pfn, bootmap_pfn, max_low_pfn);
-#endif
 	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap_pfn,
 					 min_low_pfn, end_pfn);
 
 	/* Now register the available physical memory with the
 	 * allocator.
 	 */
-	for (i = 0; i < pavail_ents; i++) {
-#ifdef CONFIG_DEBUG_BOOTMEM
-		prom_printf("free_bootmem(pavail:%d): base[%lx] size[%lx]\n",
-			    i, pavail[i].phys_addr, pavail[i].reg_size);
-#endif
+	for (i = 0; i < pavail_ents; i++)
 		free_bootmem(pavail[i].phys_addr, pavail[i].reg_size);
-	}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start) {
 		size = initrd_end - initrd_start;
 
 		/* Reserve the initrd image area. */
-#ifdef CONFIG_DEBUG_BOOTMEM
-		prom_printf("reserve_bootmem(initrd): base[%llx] size[%lx]\n",
-			initrd_start, initrd_end);
-#endif
 		reserve_bootmem(initrd_start, size, BOOTMEM_DEFAULT);
 
 		initrd_start += PAGE_OFFSET;
@@ -1004,9 +972,6 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 	}
 #endif
 	/* Reserve the kernel text/data/bss. */
-#ifdef CONFIG_DEBUG_BOOTMEM
-	prom_printf("reserve_bootmem(kernel): base[%lx] size[%lx]\n", kern_base, kern_size);
-#endif
 	reserve_bootmem(kern_base, kern_size, BOOTMEM_DEFAULT);
 	*pages_avail -= PAGE_ALIGN(kern_size) >> PAGE_SHIFT;
 
@@ -1020,10 +985,6 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 	 * in free_all_bootmem.
 	 */
 	size = bootmap_size;
-#ifdef CONFIG_DEBUG_BOOTMEM
-	prom_printf("reserve_bootmem(bootmap): base[%lx] size[%lx]\n",
-		    (bootmap_pfn << PAGE_SHIFT), size);
-#endif
 	reserve_bootmem((bootmap_pfn << PAGE_SHIFT), size, BOOTMEM_DEFAULT);
 
 	for (i = 0; i < pavail_ents; i++) {
@@ -1031,10 +992,6 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 
 		start_pfn = pavail[i].phys_addr >> PAGE_SHIFT;
 		end_pfn = (start_pfn + (pavail[i].reg_size >> PAGE_SHIFT));
-#ifdef CONFIG_DEBUG_BOOTMEM
-		prom_printf("memory_present(0, %lx, %lx)\n",
-			    start_pfn, end_pfn);
-#endif
 		memory_present(0, start_pfn, end_pfn);
 	}
 
@@ -1047,7 +1004,8 @@ static struct linux_prom64_registers pall[MAX_BANKS] __initdata;
 static int pall_ents __initdata;
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-static unsigned long kernel_map_range(unsigned long pstart, unsigned long pend, pgprot_t prot)
+static unsigned long __ref kernel_map_range(unsigned long pstart,
+					    unsigned long pend, pgprot_t prot)
 {
 	unsigned long vstart = PAGE_OFFSET + pstart;
 	unsigned long vend = PAGE_OFFSET + pend;
@@ -1316,10 +1274,6 @@ void __cpuinit sun4v_ktsb_register(void)
 
 /* paging_init() sets up the page tables */
 
-extern void cheetah_ecache_flush_init(void);
-extern void sun4v_patch_tlb_handlers(void);
-
-extern void cpu_probe(void);
 extern void central_probe(void);
 
 static unsigned long last_valid_pfn;
@@ -1388,12 +1342,9 @@ void __init paging_init(void)
 	shift = kern_base + PAGE_OFFSET - ((unsigned long)KERNBASE);
 
 	real_end = (unsigned long)_end;
-	if ((real_end > ((unsigned long)KERNBASE + 0x400000)))
-		bigkernel = 1;
-	if ((real_end > ((unsigned long)KERNBASE + 0x800000))) {
-		prom_printf("paging_init: Kernel > 8MB, too large.\n");
-		prom_halt();
-	}
+	num_kernel_image_mappings = DIV_ROUND_UP(real_end - KERNBASE, 1 << 22);
+	printk("Kernel: Using %d locked TLB entries for main kernel image.\n",
+	       num_kernel_image_mappings);
 
 	/* Set kernel pgd to upper alias so physical page computations
 	 * work.
@@ -1451,7 +1402,7 @@ void __init paging_init(void)
 				    zholes_size);
 	}
 
-	prom_printf("Booting Linux...\n");
+	printk("Booting Linux...\n");
 
 	central_probe();
 	cpu_probe();
@@ -1548,10 +1499,6 @@ void __init mem_init(void)
 	taint_real_pages();
 
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
-
-#ifdef CONFIG_DEBUG_BOOTMEM
-	prom_printf("mem_init: Calling free_all_bootmem().\n");
-#endif
 
 	/* We subtract one to account for the mem_map_zero page
 	 * allocated below.

@@ -72,6 +72,17 @@ static int zisofs_readpage(struct file *file, struct page *page)
 	offset = index & ~zisofs_block_page_mask;
 	blockindex = offset >> zisofs_block_page_shift;
 	maxpage = (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+
+	/*
+	 * If this page is wholly outside i_size we just return zero;
+	 * do_generic_file_read() will handle this for us
+	 */
+	if (page->index >= maxpage) {
+		SetPageUptodate(page);
+		unlock_page(page);
+		return 0;
+	}
+
 	maxpage = min(zisofs_block_pages, maxpage-offset);
 
 	for ( i = 0 ; i < maxpage ; i++, offset++ ) {

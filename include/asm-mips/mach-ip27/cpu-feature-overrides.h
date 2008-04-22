@@ -34,7 +34,11 @@
 #define cpu_has_64bits		1
 
 #define cpu_has_4kex		1
+#define cpu_has_3k_cache	0
+#define cpu_has_6k_cache	0
 #define cpu_has_4k_cache	1
+#define cpu_has_8k_cache	0
+#define cpu_has_tx39_cache	0
 
 #define cpu_has_inclusive_pcaches	1
 

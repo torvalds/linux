@@ -343,6 +343,12 @@ int __devinit tulip_read_eeprom(struct net_device *dev, int location, int addr_l
 	void __iomem *ee_addr = tp->base_addr + CSR9;
 	int read_cmd = location | (EE_READ_CMD << addr_len);
 
+	/* If location is past the end of what we can address, don't
+	 * read some other location (ie truncate). Just return zero.
+	 */
+	if (location > (1 << addr_len) - 1)
+		return 0;
+
 	iowrite32(EE_ENB & ~EE_CS, ee_addr);
 	iowrite32(EE_ENB, ee_addr);
 

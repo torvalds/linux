@@ -23,7 +23,6 @@
 #define UART_GET_DLH(uart)	bfin_read16(((uart)->port.membase + OFFSET_DLH))
 #define UART_GET_IIR(uart)      bfin_read16(((uart)->port.membase + OFFSET_IIR))
 #define UART_GET_LCR(uart)      bfin_read16(((uart)->port.membase + OFFSET_LCR))
-#define UART_GET_LSR(uart)      bfin_read16(((uart)->port.membase + OFFSET_LSR))
 #define UART_GET_GCTL(uart)     bfin_read16(((uart)->port.membase + OFFSET_GCTL))
 
 #define UART_PUT_CHAR(uart,v)   bfin_write16(((uart)->port.membase + OFFSET_THR),v)
@@ -46,6 +45,7 @@
 struct bfin_serial_port {
         struct uart_port        port;
         unsigned int            old_status;
+	unsigned int lsr;
 #ifdef CONFIG_SERIAL_BFIN_DMA
 	int			tx_done;
 	int			tx_count;
@@ -56,13 +56,33 @@ struct bfin_serial_port {
 	unsigned int		rx_dma_channel;
 	struct work_struct	tx_dma_workqueue;
 #else
-	struct work_struct 	cts_workqueue;
+# if ANOMALY_05000230
+	unsigned int anomaly_threshold;
+# endif
 #endif
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
+	struct work_struct 	cts_workqueue;
 	int			cts_pin;
 	int			rts_pin;
 #endif
 };
+
+/* The hardware clears the LSR bits upon read, so we need to cache
+ * some of the more fun bits in software so they don't get lost
+ * when checking the LSR in other code paths (TX).
+ */
+static inline unsigned int UART_GET_LSR(struct bfin_serial_port *uart)
+{
+	unsigned int lsr = bfin_read16(uart->port.membase + OFFSET_LSR);
+	uart->lsr |= (lsr & (BI|FE|PE|OE));
+	return lsr | uart->lsr;
+}
+
+static inline void UART_CLEAR_LSR(struct bfin_serial_port *uart)
+{
+	uart->lsr = 0;
+	bfin_write16(uart->port.membase + OFFSET_LSR, -1);
+}
 
 struct bfin_serial_port bfin_serial_ports[NR_PORTS];
 struct bfin_serial_res {

@@ -11,38 +11,38 @@
 #include <linux/types.h>
 
 #define Ip_u1u2u3(op)							\
-void __init								\
+void __cpuinit								\
 uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u2u1u3(op)							\
-void __init								\
+void __cpuinit								\
 uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u3u1u2(op)							\
-void __init								\
+void __cpuinit								\
 uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u1u2s3(op)							\
-void __init								\
+void __cpuinit								\
 uasm_i##op(u32 **buf, unsigned int a, unsigned int b, signed int c)
 
 #define Ip_u2s3u1(op)							\
-void __init								\
+void __cpuinit								\
 uasm_i##op(u32 **buf, unsigned int a, signed int b, unsigned int c)
 
 #define Ip_u2u1s3(op)							\
-void __init								\
+void __cpuinit								\
 uasm_i##op(u32 **buf, unsigned int a, unsigned int b, signed int c)
 
 #define Ip_u1u2(op)							\
-void __init uasm_i##op(u32 **buf, unsigned int a, unsigned int b)
+void __cpuinit uasm_i##op(u32 **buf, unsigned int a, unsigned int b)
 
 #define Ip_u1s2(op)							\
-void __init uasm_i##op(u32 **buf, unsigned int a, signed int b)
+void __cpuinit uasm_i##op(u32 **buf, unsigned int a, signed int b)
 
-#define Ip_u1(op) void __init uasm_i##op(u32 **buf, unsigned int a)
+#define Ip_u1(op) void __cpuinit uasm_i##op(u32 **buf, unsigned int a)
 
-#define Ip_0(op) void __init uasm_i##op(u32 **buf)
+#define Ip_0(op) void __cpuinit uasm_i##op(u32 **buf)
 
 Ip_u2u1s3(_addiu);
 Ip_u3u1u2(_addu);
@@ -98,19 +98,19 @@ struct uasm_label {
 	int lab;
 };
 
-void __init uasm_build_label(struct uasm_label **lab, u32 *addr, int lid);
+void __cpuinit uasm_build_label(struct uasm_label **lab, u32 *addr, int lid);
 #ifdef CONFIG_64BIT
-int __init uasm_in_compat_space_p(long addr);
-int __init uasm_rel_highest(long val);
-int __init uasm_rel_higher(long val);
+int uasm_in_compat_space_p(long addr);
+int uasm_rel_highest(long val);
+int uasm_rel_higher(long val);
 #endif
-int __init uasm_rel_hi(long val);
-int __init uasm_rel_lo(long val);
-void __init UASM_i_LA_mostly(u32 **buf, unsigned int rs, long addr);
-void __init UASM_i_LA(u32 **buf, unsigned int rs, long addr);
+int uasm_rel_hi(long val);
+int uasm_rel_lo(long val);
+void UASM_i_LA_mostly(u32 **buf, unsigned int rs, long addr);
+void UASM_i_LA(u32 **buf, unsigned int rs, long addr);
 
 #define UASM_L_LA(lb)							\
-static inline void __init uasm_l##lb(struct uasm_label **lab, u32 *addr) \
+static inline void __cpuinit uasm_l##lb(struct uasm_label **lab, u32 *addr) \
 {									\
 	uasm_build_label(lab, addr, label##lb);				\
 }
@@ -164,29 +164,19 @@ struct uasm_reloc {
 /* This is zero so we can use zeroed label arrays. */
 #define UASM_LABEL_INVALID 0
 
-void __init uasm_r_mips_pc16(struct uasm_reloc **rel, u32 *addr, int lid);
-void __init
-uasm_resolve_relocs(struct uasm_reloc *rel, struct uasm_label *lab);
-void __init
-uasm_move_relocs(struct uasm_reloc *rel, u32 *first, u32 *end, long off);
-void __init
-uasm_move_labels(struct uasm_label *lab, u32 *first, u32 *end, long off);
-void __init
-uasm_copy_handler(struct uasm_reloc *rel, struct uasm_label *lab, u32 *first,
-		  u32 *end, u32 *target);
-int __init uasm_insn_has_bdelay(struct uasm_reloc *rel, u32 *addr);
+void uasm_r_mips_pc16(struct uasm_reloc **rel, u32 *addr, int lid);
+void uasm_resolve_relocs(struct uasm_reloc *rel, struct uasm_label *lab);
+void uasm_move_relocs(struct uasm_reloc *rel, u32 *first, u32 *end, long off);
+void uasm_move_labels(struct uasm_label *lab, u32 *first, u32 *end, long off);
+void uasm_copy_handler(struct uasm_reloc *rel, struct uasm_label *lab,
+	u32 *first, u32 *end, u32 *target);
+int uasm_insn_has_bdelay(struct uasm_reloc *rel, u32 *addr);
 
 /* Convenience functions for labeled branches. */
-void __init
-uasm_il_bltz(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
-void __init uasm_il_b(u32 **p, struct uasm_reloc **r, int lid);
-void __init
-uasm_il_beqz(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
-void __init
-uasm_il_beqzl(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
-void __init
-uasm_il_bnez(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
-void __init
-uasm_il_bgezl(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
-void __init
-uasm_il_bgez(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
+void uasm_il_bltz(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
+void uasm_il_b(u32 **p, struct uasm_reloc **r, int lid);
+void uasm_il_beqz(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
+void uasm_il_beqzl(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
+void uasm_il_bnez(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
+void uasm_il_bgezl(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
+void uasm_il_bgez(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);

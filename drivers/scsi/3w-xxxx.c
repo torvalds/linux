@@ -484,9 +484,10 @@ static void tw_state_request_start(TW_Device_Extension *tw_dev, int *request_id)
 } /* End tw_state_request_start() */
 
 /* Show some statistics about the card */
-static ssize_t tw_show_stats(struct class_device *class_dev, char *buf)
+static ssize_t tw_show_stats(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(class_dev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 	unsigned long flags = 0;
 	ssize_t len;
@@ -528,7 +529,7 @@ static int tw_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 } /* End tw_change_queue_depth() */
 
 /* Create sysfs 'stats' entry */
-static struct class_device_attribute tw_host_stats_attr = {
+static struct device_attribute tw_host_stats_attr = {
 	.attr = {
 		.name = 	"stats",
 		.mode =		S_IRUGO,
@@ -537,7 +538,7 @@ static struct class_device_attribute tw_host_stats_attr = {
 };
 
 /* Host attributes initializer */
-static struct class_device_attribute *tw_host_attrs[] = {
+static struct device_attribute *tw_host_attrs[] = {
 	&tw_host_stats_attr,
 	NULL,
 };
@@ -1463,18 +1464,10 @@ static void tw_transfer_internal(TW_Device_Extension *tw_dev, int request_id,
 				 void *data, unsigned int len)
 {
 	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
-	void *buf;
-	unsigned int transfer_len;
-	unsigned long flags = 0;
-	struct scatterlist *sg = scsi_sglist(cmd);
+	unsigned long flags;
 
 	local_irq_save(flags);
-	buf = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
-	transfer_len = min(sg->length, len);
-
-	memcpy(buf, data, transfer_len);
-
-	kunmap_atomic(buf - sg->offset, KM_IRQ0);
+	scsi_sg_copy_from_buffer(cmd, data, len);
 	local_irq_restore(flags);
 }
 
@@ -2293,8 +2286,6 @@ static int __devinit tw_probe(struct pci_dev *pdev, const struct pci_device_id *
 		goto out_disable_device;
 	}
 	tw_dev = (TW_Device_Extension *)host->hostdata;
-
-	memset(tw_dev, 0, sizeof(TW_Device_Extension));
 
 	/* Save values to device extension */
 	tw_dev->host = host;

@@ -402,6 +402,18 @@ config IT8712F_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called it8712f_wdt.
 
+config HP_WATCHDOG
+	tristate "HP Proliant iLO 2 Hardware Watchdog Timer"
+	depends on X86
+	help
+	  A software monitoring watchdog and NMI sourcing driver. This driver
+	  will detect lockups and provide stack trace. Also, when an NMI
+	  occurs this driver will make the necessary BIOS calls to log
+	  the cause of the NMI. This is a driver that will only load on a
+	  HP ProLiant system with a minimum of iLO2 support.
+	  To compile this driver as a module, choose M here: the
+	  module will be called hpwdt.
+
 config SC1200_WDT
 	tristate "National Semiconductor PC87307/PC97307 (ala SC1200) Watchdog"
 	depends on X86
@@ -632,6 +644,19 @@ config WDT_RM9K_GPI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rm9k_wdt.
+
+config SIBYTE_WDOG
+	tristate "Sibyte SoC hardware watchdog"
+	depends on CPU_SB1
+	help
+	  Watchdog driver for the built in watchdog hardware in Sibyte
+	  SoC processors.  There are apparently two watchdog timers
+	  on such processors; this driver supports only the first one,
+	  because currently Linux only supports exporting one watchdog
+	  to userspace.
+
+	  To compile this driver as a loadable module, choose M here.
+	  The module will be called sb_wdog.
 
 config AR7_WDT
 	tristate "TI AR7 Watchdog Timer"

@@ -38,17 +38,18 @@
 #endif
 
 #ifndef nr_cpus_node
-#define nr_cpus_node(node)							\
-	({									\
-		cpumask_t __tmp__;						\
-		__tmp__ = node_to_cpumask(node);				\
-		cpus_weight(__tmp__);						\
+#define nr_cpus_node(node)				\
+	({						\
+		node_to_cpumask_ptr(__tmp__, node);	\
+		cpus_weight(*__tmp__);			\
 	})
 #endif
 
-#define for_each_node_with_cpus(node)						\
-	for_each_online_node(node)						\
+#define for_each_node_with_cpus(node)			\
+	for_each_online_node(node)			\
 		if (nr_cpus_node(node))
+
+void arch_update_cpu_topology(void);
 
 /* Conform to ACPI 2.0 SLIT distance definitions */
 #define LOCAL_DISTANCE		10
@@ -78,7 +79,9 @@
  * by defining their own arch-specific initializer in include/asm/topology.h.
  * A definition there will automagically override these default initializers
  * and allow arch-specific performance tuning of sched_domains.
+ * (Only non-zero and non-null fields need be specified.)
  */
+
 #ifdef CONFIG_SCHED_SMT
 /* MCD - Do we really need this?  It is always on if CONFIG_SCHED_SMT is,
  * so can't we drop this in favor of CONFIG_SCHED_SMT?
@@ -87,20 +90,10 @@
 /* Common values for SMT siblings */
 #ifndef SD_SIBLING_INIT
 #define SD_SIBLING_INIT (struct sched_domain) {		\
-	.span			= CPU_MASK_NONE,	\
-	.parent			= NULL,			\
-	.child			= NULL,			\
-	.groups			= NULL,			\
 	.min_interval		= 1,			\
 	.max_interval		= 2,			\
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 110,			\
-	.cache_nice_tries	= 0,			\
-	.busy_idx		= 0,			\
-	.idle_idx		= 0,			\
-	.newidle_idx		= 0,			\
-	.wake_idx		= 0,			\
-	.forkexec_idx		= 0,			\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_BALANCE_NEWIDLE	\
 				| SD_BALANCE_FORK	\
@@ -110,7 +103,6 @@
 				| SD_SHARE_CPUPOWER,	\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
-	.nr_balance_failed	= 0,			\
 }
 #endif
 #endif /* CONFIG_SCHED_SMT */
@@ -119,18 +111,12 @@
 /* Common values for MC siblings. for now mostly derived from SD_CPU_INIT */
 #ifndef SD_MC_INIT
 #define SD_MC_INIT (struct sched_domain) {		\
-	.span			= CPU_MASK_NONE,	\
-	.parent			= NULL,			\
-	.child			= NULL,			\
-	.groups			= NULL,			\
 	.min_interval		= 1,			\
 	.max_interval		= 4,			\
 	.busy_factor		= 64,			\
 	.imbalance_pct		= 125,			\
 	.cache_nice_tries	= 1,			\
 	.busy_idx		= 2,			\
-	.idle_idx		= 0,			\
-	.newidle_idx		= 0,			\
 	.wake_idx		= 1,			\
 	.forkexec_idx		= 1,			\
 	.flags			= SD_LOAD_BALANCE	\
@@ -138,12 +124,10 @@
 				| SD_BALANCE_FORK	\
 				| SD_BALANCE_EXEC	\
 				| SD_WAKE_AFFINE	\
-				| SD_WAKE_IDLE		\
 				| SD_SHARE_PKG_RESOURCES\
 				| BALANCE_FOR_MC_POWER,	\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
-	.nr_balance_failed	= 0,			\
 }
 #endif
 #endif /* CONFIG_SCHED_MC */
@@ -151,10 +135,6 @@
 /* Common values for CPUs */
 #ifndef SD_CPU_INIT
 #define SD_CPU_INIT (struct sched_domain) {		\
-	.span			= CPU_MASK_NONE,	\
-	.parent			= NULL,			\
-	.child			= NULL,			\
-	.groups			= NULL,			\
 	.min_interval		= 1,			\
 	.max_interval		= 4,			\
 	.busy_factor		= 64,			\
@@ -173,16 +153,11 @@
 				| BALANCE_FOR_PKG_POWER,\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
-	.nr_balance_failed	= 0,			\
 }
 #endif
 
 /* sched_domains SD_ALLNODES_INIT for NUMA machines */
 #define SD_ALLNODES_INIT (struct sched_domain) {	\
-	.span			= CPU_MASK_NONE,	\
-	.parent			= NULL,			\
-	.child			= NULL,			\
-	.groups			= NULL,			\
 	.min_interval		= 64,			\
 	.max_interval		= 64*num_online_cpus(),	\
 	.busy_factor		= 128,			\
@@ -190,14 +165,10 @@
 	.cache_nice_tries	= 1,			\
 	.busy_idx		= 3,			\
 	.idle_idx		= 3,			\
-	.newidle_idx		= 0, /* unused */	\
-	.wake_idx		= 0, /* unused */	\
-	.forkexec_idx		= 0, /* unused */	\
 	.flags			= SD_LOAD_BALANCE	\
 				| SD_SERIALIZE,	\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 64,			\
-	.nr_balance_failed	= 0,			\
 }
 
 #ifdef CONFIG_NUMA

@@ -45,10 +45,13 @@
 #include <linux/completion.h>
 #include <linux/jiffies.h>
 #include <linux/watchdog.h>
+#include <linux/platform_device.h>
+
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
 #include <asm/mach-au1x00/au1000.h>
+#include <asm/gpio.h>
 
 #define MTX1_WDT_INTERVAL	(5 * HZ)
 
@@ -56,11 +59,12 @@ static int ticks = 100 * HZ;
 
 static struct {
 	struct completion stop;
-	volatile int running;
+	int running;
 	struct timer_list timer;
-	volatile int queue;
+	int queue;
 	int default_ticks;
 	unsigned long inuse;
+	unsigned gpio;
 } mtx1_wdt_device;
 
 static void mtx1_wdt_trigger(unsigned long unused)
@@ -73,7 +77,8 @@ static void mtx1_wdt_trigger(unsigned long unused)
 	 * toggle GPIO2_15
 	 */
 	tmp = au_readl(GPIO2_DIR);
-	tmp = (tmp & ~(1<<15)) | ((~tmp) & (1<<15));
+	tmp = (tmp & ~(1 << mtx1_wdt_device.gpio)) |
+	      ((~tmp) & (1 << mtx1_wdt_device.gpio));
 	au_writel (tmp, GPIO2_DIR);
 
 	if (mtx1_wdt_device.queue && ticks)
@@ -93,7 +98,7 @@ static void mtx1_wdt_start(void)
 {
 	if (!mtx1_wdt_device.queue) {
 		mtx1_wdt_device.queue = 1;
-		au_writel (au_readl(GPIO2_DIR) | (u32)(1<<15), GPIO2_DIR);
+		gpio_set_value(mtx1_wdt_device.gpio, 1);
 		mod_timer(&mtx1_wdt_device.timer, jiffies + MTX1_WDT_INTERVAL);
 	}
 	mtx1_wdt_device.running++;
@@ -103,7 +108,7 @@ static int mtx1_wdt_stop(void)
 {
 	if (mtx1_wdt_device.queue) {
 		mtx1_wdt_device.queue = 0;
-		au_writel (au_readl(GPIO2_DIR) & ~((u32)(1<<15)), GPIO2_DIR);
+		gpio_set_value(mtx1_wdt_device.gpio, 0);
 	}
 
 	ticks = mtx1_wdt_device.default_ticks;
@@ -197,9 +202,11 @@ static struct miscdevice mtx1_wdt_misc = {
 };
 
 
-static int __init mtx1_wdt_init(void)
+static int mtx1_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
+
+	mtx1_wdt_device.gpio = pdev->resource[0].start;
 
 	if ((ret = misc_register(&mtx1_wdt_misc)) < 0) {
 		printk(KERN_ERR " mtx-1_wdt : failed to register\n");
@@ -222,13 +229,31 @@ static int __init mtx1_wdt_init(void)
 	return 0;
 }
 
-static void __exit mtx1_wdt_exit(void)
+static int mtx1_wdt_remove(struct platform_device *pdev)
 {
 	if (mtx1_wdt_device.queue) {
 		mtx1_wdt_device.queue = 0;
 		wait_for_completion(&mtx1_wdt_device.stop);
 	}
 	misc_deregister(&mtx1_wdt_misc);
+	return 0;
+}
+
+static struct platform_driver mtx1_wdt = {
+	.probe = mtx1_wdt_probe,
+	.remove = mtx1_wdt_remove,
+	.driver.name = "mtx1-wdt",
+	.driver.owner = THIS_MODULE,
+};
+
+static int __init mtx1_wdt_init(void)
+{
+	return platform_driver_register(&mtx1_wdt);
+}
+
+static void __exit mtx1_wdt_exit(void)
+{
+	platform_driver_unregister(&mtx1_wdt);
 }
 
 module_init(mtx1_wdt_init);
@@ -237,3 +262,5 @@ module_exit(mtx1_wdt_exit);
 MODULE_AUTHOR("Michael Stickel, Florian Fainelli");
 MODULE_DESCRIPTION("Driver for the MTX-1 watchdog");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
+MODULE_ALIAS("platform:mtx1-wdt");

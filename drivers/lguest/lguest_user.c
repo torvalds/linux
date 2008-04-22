@@ -73,7 +73,7 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 	if (current != cpu->tsk)
 		return -EPERM;
 
-	/* If the guest is already dead, we indicate why */
+	/* If the Guest is already dead, we indicate why */
 	if (lg->dead) {
 		size_t len;
 
@@ -88,7 +88,7 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 		return len;
 	}
 
-	/* If we returned from read() last time because the Guest notified,
+	/* If we returned from read() last time because the Guest sent I/O,
 	 * clear the flag. */
 	if (cpu->pending_notify)
 		cpu->pending_notify = 0;
@@ -97,14 +97,20 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 	return run_guest(cpu, (unsigned long __user *)user);
 }
 
+/*L:025 This actually initializes a CPU.  For the moment, a Guest is only
+ * uniprocessor, so "id" is always 0. */
 static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 {
+	/* We have a limited number the number of CPUs in the lguest struct. */
 	if (id >= NR_CPUS)
 		return -EINVAL;
 
+	/* Set up this CPU's id, and pointer back to the lguest struct. */
 	cpu->id = id;
 	cpu->lg = container_of((cpu - id), struct lguest, cpus[0]);
 	cpu->lg->nr_cpus++;
+
+	/* Each CPU has a timer it can set. */
 	init_clockdev(cpu);
 
 	/* We need a complete page for the Guest registers: they are accessible
@@ -120,11 +126,11 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 	 * address. */
 	lguest_arch_setup_regs(cpu, start_ip);
 
-	/* Initialize the queue for the waker to wait on */
+	/* Initialize the queue for the Waker to wait on */
 	init_waitqueue_head(&cpu->break_wq);
 
 	/* We keep a pointer to the Launcher task (ie. current task) for when
-	 * other Guests want to wake this one (inter-Guest I/O). */
+	 * other Guests want to wake this one (eg. console input). */
 	cpu->tsk = current;
 
 	/* We need to keep a pointer to the Launcher's memory map, because if
@@ -136,6 +142,7 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 	 * when the same Guest runs on the same CPU twice. */
 	cpu->last_pages = NULL;
 
+	/* No error == success. */
 	return 0;
 }
 
@@ -182,17 +189,16 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	}
 
 	/* Populate the easy fields of our "struct lguest" */
-	lg->mem_base = (void __user *)(long)args[0];
+	lg->mem_base = (void __user *)args[0];
 	lg->pfn_limit = args[1];
 
-	/* This is the first cpu */
+	/* This is the first cpu (cpu 0) and it will start booting at args[3] */
 	err = lg_cpu_start(&lg->cpus[0], 0, args[3]);
 	if (err)
 		goto release_guest;
 
 	/* Initialize the Guest's shadow page tables, using the toplevel
-	 * address the Launcher gave us.  This allocates memory, so can
-	 * fail. */
+	 * address the Launcher gave us.  This allocates memory, so can fail. */
 	err = init_guest_pagetable(lg, args[2]);
 	if (err)
 		goto free_regs;
@@ -218,11 +224,16 @@ unlock:
 /*L:010 The first operation the Launcher does must be a write.  All writes
  * start with an unsigned long number: for the first write this must be
  * LHREQ_INITIALIZE to set up the Guest.  After that the Launcher can use
- * writes of other values to send interrupts. */
+ * writes of other values to send interrupts.
+ *
+ * Note that we overload the "offset" in the /dev/lguest file to indicate what
+ * CPU number we're dealing with.  Currently this is always 0, since we only
+ * support uniprocessor Guests, but you can see the beginnings of SMP support
+ * here. */
 static ssize_t write(struct file *file, const char __user *in,
 		     size_t size, loff_t *off)
 {
-	/* Once the guest is initialized, we hold the "struct lguest" in the
+	/* Once the Guest is initialized, we hold the "struct lguest" in the
 	 * file private data. */
 	struct lguest *lg = file->private_data;
 	const unsigned long __user *input = (const unsigned long __user *)in;
@@ -230,6 +241,7 @@ static ssize_t write(struct file *file, const char __user *in,
 	struct lg_cpu *uninitialized_var(cpu);
 	unsigned int cpu_id = *off;
 
+	/* The first value tells us what this request is. */
 	if (get_user(req, input) != 0)
 		return -EFAULT;
 	input++;
@@ -241,15 +253,16 @@ static ssize_t write(struct file *file, const char __user *in,
 		cpu = &lg->cpus[cpu_id];
 		if (!cpu)
 			return -EINVAL;
+
+		/* Once the Guest is dead, you can only read() why it died. */
+		if (lg->dead)
+			return -ENOENT;
+
+		/* If you're not the task which owns the Guest, all you can do
+		 * is break the Launcher out of running the Guest. */
+		if (current != cpu->tsk && req != LHREQ_BREAK)
+			return -EPERM;
 	}
-
-	/* Once the Guest is dead, all you can do is read() why it died. */
-	if (lg && lg->dead)
-		return -ENOENT;
-
-	/* If you're not the task which owns the Guest, you can only break */
-	if (lg && current != cpu->tsk && req != LHREQ_BREAK)
-		return -EPERM;
 
 	switch (req) {
 	case LHREQ_INITIALIZE:

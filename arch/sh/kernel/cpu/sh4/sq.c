@@ -216,7 +216,7 @@ void sq_unmap(unsigned long vaddr)
 
 	if (unlikely(!map)) {
 		printk("%s: bad store queue address 0x%08lx\n",
-		       __FUNCTION__, vaddr);
+		       __func__, vaddr);
 		return;
 	}
 
@@ -233,7 +233,7 @@ void sq_unmap(unsigned long vaddr)
 		vma = remove_vm_area((void *)(map->sq_addr & PAGE_MASK));
 		if (!vma) {
 			printk(KERN_ERR "%s: bad address 0x%08lx\n",
-			       __FUNCTION__, map->sq_addr);
+			       __func__, map->sq_addr);
 			return;
 		}
 	}

@@ -46,6 +46,9 @@
 #define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
+static int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
+				    struct kvm_cpuid_entry2 __user *entries);
+
 struct kvm_x86_ops *kvm_x86_ops;
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
@@ -181,7 +184,7 @@ int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3)
 	int ret;
 	u64 pdpte[ARRAY_SIZE(vcpu->arch.pdptrs)];
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&vcpu->kvm->slots_lock);
 	ret = kvm_read_guest_page(vcpu->kvm, pdpt_gfn, pdpte,
 				  offset * sizeof(u64), sizeof(pdpte));
 	if (ret < 0) {
@@ -198,7 +201,7 @@ int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3)
 
 	memcpy(vcpu->arch.pdptrs, pdpte, sizeof(vcpu->arch.pdptrs));
 out:
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 
 	return ret;
 }
@@ -212,13 +215,13 @@ static bool pdptrs_changed(struct kvm_vcpu *vcpu)
 	if (is_long_mode(vcpu) || !is_pae(vcpu))
 		return false;
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&vcpu->kvm->slots_lock);
 	r = kvm_read_guest(vcpu->kvm, vcpu->arch.cr3 & ~31u, pdpte, sizeof(pdpte));
 	if (r < 0)
 		goto out;
 	changed = memcmp(pdpte, vcpu->arch.pdptrs, sizeof(pdpte)) != 0;
 out:
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 
 	return changed;
 }
@@ -356,7 +359,7 @@ void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 		 */
 	}
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&vcpu->kvm->slots_lock);
 	/*
 	 * Does the new cr3 value map to physical memory? (Note, we
 	 * catch an invalid cr3 even in real-mode, because it would
@@ -372,7 +375,7 @@ void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 		vcpu->arch.cr3 = cr3;
 		vcpu->arch.mmu.new_cr3(vcpu);
 	}
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 }
 EXPORT_SYMBOL_GPL(set_cr3);
 
@@ -484,6 +487,10 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		pr_unimpl(vcpu, "%s: MSR_IA32_MCG_STATUS 0x%llx, nop\n",
 			__FUNCTION__, data);
 		break;
+	case MSR_IA32_MCG_CTL:
+		pr_unimpl(vcpu, "%s: MSR_IA32_MCG_CTL 0x%llx, nop\n",
+			__FUNCTION__, data);
+		break;
 	case MSR_IA32_UCODE_REV:
 	case MSR_IA32_UCODE_WRITE:
 	case 0x200 ... 0x2ff: /* MTRRs */
@@ -526,6 +533,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_IA32_MC0_CTL:
 	case MSR_IA32_MCG_STATUS:
 	case MSR_IA32_MCG_CAP:
+	case MSR_IA32_MCG_CTL:
 	case MSR_IA32_MC0_MISC:
 	case MSR_IA32_MC0_MISC+4:
 	case MSR_IA32_MC0_MISC+8:
@@ -723,6 +731,24 @@ long kvm_arch_dev_ioctl(struct file *filp,
 				 + num_msrs_to_save * sizeof(u32),
 				 &emulated_msrs,
 				 ARRAY_SIZE(emulated_msrs) * sizeof(u32)))
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_GET_SUPPORTED_CPUID: {
+		struct kvm_cpuid2 __user *cpuid_arg = argp;
+		struct kvm_cpuid2 cpuid;
+
+		r = -EFAULT;
+		if (copy_from_user(&cpuid, cpuid_arg, sizeof cpuid))
+			goto out;
+		r = kvm_dev_ioctl_get_supported_cpuid(&cpuid,
+			cpuid_arg->entries);
+		if (r)
+			goto out;
+
+		r = -EFAULT;
+		if (copy_to_user(cpuid_arg, &cpuid, sizeof cpuid))
 			goto out;
 		r = 0;
 		break;
@@ -974,8 +1000,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	put_cpu();
 }
 
-static int kvm_vm_ioctl_get_supported_cpuid(struct kvm *kvm,
-				    struct kvm_cpuid2 *cpuid,
+static int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 				    struct kvm_cpuid_entry2 __user *entries)
 {
 	struct kvm_cpuid_entry2 *cpuid_entries;
@@ -1207,12 +1232,12 @@ static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
 	if (kvm_nr_mmu_pages < KVM_MIN_ALLOC_MMU_PAGES)
 		return -EINVAL;
 
-	down_write(&current->mm->mmap_sem);
+	down_write(&kvm->slots_lock);
 
 	kvm_mmu_change_mmu_pages(kvm, kvm_nr_mmu_pages);
 	kvm->arch.n_requested_mmu_pages = kvm_nr_mmu_pages;
 
-	up_write(&current->mm->mmap_sem);
+	up_write(&kvm->slots_lock);
 	return 0;
 }
 
@@ -1261,7 +1286,7 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 	    < alias->target_phys_addr)
 		goto out;
 
-	down_write(&current->mm->mmap_sem);
+	down_write(&kvm->slots_lock);
 
 	p = &kvm->arch.aliases[alias->slot];
 	p->base_gfn = alias->guest_phys_addr >> PAGE_SHIFT;
@@ -1275,7 +1300,7 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 
 	kvm_mmu_zap_all(kvm);
 
-	up_write(&current->mm->mmap_sem);
+	up_write(&kvm->slots_lock);
 
 	return 0;
 
@@ -1351,7 +1376,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	struct kvm_memory_slot *memslot;
 	int is_dirty = 0;
 
-	down_write(&current->mm->mmap_sem);
+	down_write(&kvm->slots_lock);
 
 	r = kvm_get_dirty_log(kvm, log, &is_dirty);
 	if (r)
@@ -1367,7 +1392,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	}
 	r = 0;
 out:
-	up_write(&current->mm->mmap_sem);
+	up_write(&kvm->slots_lock);
 	return r;
 }
 
@@ -1487,24 +1512,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = 0;
 		break;
 	}
-	case KVM_GET_SUPPORTED_CPUID: {
-		struct kvm_cpuid2 __user *cpuid_arg = argp;
-		struct kvm_cpuid2 cpuid;
-
-		r = -EFAULT;
-		if (copy_from_user(&cpuid, cpuid_arg, sizeof cpuid))
-			goto out;
-		r = kvm_vm_ioctl_get_supported_cpuid(kvm, &cpuid,
-			cpuid_arg->entries);
-		if (r)
-			goto out;
-
-		r = -EFAULT;
-		if (copy_to_user(cpuid_arg, &cpuid, sizeof cpuid))
-			goto out;
-		r = 0;
-		break;
-	}
 	default:
 		;
 	}
@@ -1563,7 +1570,7 @@ int emulator_read_std(unsigned long addr,
 	void *data = val;
 	int r = X86EMUL_CONTINUE;
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&vcpu->kvm->slots_lock);
 	while (bytes) {
 		gpa_t gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, addr);
 		unsigned offset = addr & (PAGE_SIZE-1);
@@ -1585,7 +1592,7 @@ int emulator_read_std(unsigned long addr,
 		addr += tocopy;
 	}
 out:
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 	return r;
 }
 EXPORT_SYMBOL_GPL(emulator_read_std);
@@ -1604,9 +1611,9 @@ static int emulator_read_emulated(unsigned long addr,
 		return X86EMUL_CONTINUE;
 	}
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&vcpu->kvm->slots_lock);
 	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, addr);
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 
 	/* For APIC access vmexit */
 	if ((gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
@@ -1644,14 +1651,14 @@ static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 {
 	int ret;
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&vcpu->kvm->slots_lock);
 	ret = kvm_write_guest(vcpu->kvm, gpa, val, bytes);
 	if (ret < 0) {
-		up_read(&current->mm->mmap_sem);
+		up_read(&vcpu->kvm->slots_lock);
 		return 0;
 	}
 	kvm_mmu_pte_write(vcpu, gpa, val, bytes);
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 	return 1;
 }
 
@@ -1663,9 +1670,9 @@ static int emulator_write_emulated_onepage(unsigned long addr,
 	struct kvm_io_device *mmio_dev;
 	gpa_t                 gpa;
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&vcpu->kvm->slots_lock);
 	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, addr);
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 
 	if (gpa == UNMAPPED_GVA) {
 		kvm_inject_page_fault(vcpu, addr, 2);
@@ -1742,7 +1749,7 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 		char *kaddr;
 		u64 val;
 
-		down_read(&current->mm->mmap_sem);
+		down_read(&vcpu->kvm->slots_lock);
 		gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, addr);
 
 		if (gpa == UNMAPPED_GVA ||
@@ -1753,13 +1760,17 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 			goto emul_write;
 
 		val = *(u64 *)new;
+
+		down_read(&current->mm->mmap_sem);
 		page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+		up_read(&current->mm->mmap_sem);
+
 		kaddr = kmap_atomic(page, KM_USER0);
 		set_64bit((u64 *)(kaddr + offset_in_page(gpa)), val);
 		kunmap_atomic(kaddr, KM_USER0);
 		kvm_release_page_dirty(page);
 	emul_write:
-		up_read(&current->mm->mmap_sem);
+		up_read(&vcpu->kvm->slots_lock);
 	}
 #endif
 
@@ -2152,10 +2163,10 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		kvm_x86_ops->skip_emulated_instruction(vcpu);
 
 	for (i = 0; i < nr_pages; ++i) {
-		down_read(&current->mm->mmap_sem);
+		down_read(&vcpu->kvm->slots_lock);
 		page = gva_to_page(vcpu, address + i * PAGE_SIZE);
 		vcpu->arch.pio.guest_pages[i] = page;
-		up_read(&current->mm->mmap_sem);
+		up_read(&vcpu->kvm->slots_lock);
 		if (!page) {
 			kvm_inject_gp(vcpu, 0);
 			free_pio_guest_pages(vcpu);
@@ -2478,8 +2489,9 @@ static void vapic_enter(struct kvm_vcpu *vcpu)
 
 	down_read(&current->mm->mmap_sem);
 	page = gfn_to_page(vcpu->kvm, apic->vapic_addr >> PAGE_SHIFT);
-	vcpu->arch.apic->vapic_page = page;
 	up_read(&current->mm->mmap_sem);
+
+	vcpu->arch.apic->vapic_page = page;
 }
 
 static void vapic_exit(struct kvm_vcpu *vcpu)
@@ -2861,8 +2873,8 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	kvm_x86_ops->decache_cr4_guest_bits(vcpu);
 
 	mmu_reset_needed |= vcpu->arch.cr0 != sregs->cr0;
-	vcpu->arch.cr0 = sregs->cr0;
 	kvm_x86_ops->set_cr0(vcpu, sregs->cr0);
+	vcpu->arch.cr0 = sregs->cr0;
 
 	mmu_reset_needed |= vcpu->arch.cr4 != sregs->cr4;
 	kvm_x86_ops->set_cr4(vcpu, sregs->cr4);
@@ -2952,9 +2964,9 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 	gpa_t gpa;
 
 	vcpu_load(vcpu);
-	down_read(&current->mm->mmap_sem);
+	down_read(&vcpu->kvm->slots_lock);
 	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, vaddr);
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 	tr->physical_address = gpa;
 	tr->valid = gpa != UNMAPPED_GVA;
 	tr->writeable = 1;
@@ -3227,11 +3239,13 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	 */
 	if (!user_alloc) {
 		if (npages && !old.rmap) {
+			down_write(&current->mm->mmap_sem);
 			memslot->userspace_addr = do_mmap(NULL, 0,
 						     npages * PAGE_SIZE,
 						     PROT_READ | PROT_WRITE,
 						     MAP_SHARED | MAP_ANONYMOUS,
 						     0);
+			up_write(&current->mm->mmap_sem);
 
 			if (IS_ERR((void *)memslot->userspace_addr))
 				return PTR_ERR((void *)memslot->userspace_addr);
@@ -3239,8 +3253,10 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 			if (!old.user_alloc && old.rmap) {
 				int ret;
 
+				down_write(&current->mm->mmap_sem);
 				ret = do_munmap(current->mm, old.userspace_addr,
 						old.npages * PAGE_SIZE);
+				up_write(&current->mm->mmap_sem);
 				if (ret < 0)
 					printk(KERN_WARNING
 				       "kvm_vm_ioctl_set_memory_region: "

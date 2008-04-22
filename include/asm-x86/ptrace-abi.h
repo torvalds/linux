@@ -89,13 +89,13 @@
 */
 struct ptrace_bts_config {
 	/* requested or actual size of BTS buffer in bytes */
-	u32 size;
+	__u32 size;
 	/* bitmask of below flags */
-	u32 flags;
+	__u32 flags;
 	/* buffer overflow signal */
-	u32 signal;
+	__u32 signal;
 	/* actual size of bts_struct in bytes */
-	u32 bts_size;
+	__u32 bts_size;
 };
 #endif
 

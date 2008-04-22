@@ -44,16 +44,6 @@ config MAC_FLOPPY
 	  If you have a SWIM-3 (Super Woz Integrated Machine 3; from Apple)
 	  floppy controller, say Y here. Most commonly found in PowerMacs.
 
-config BLK_DEV_PS2
-	tristate "PS/2 ESDI hard disk support"
-	depends on MCA && MCA_LEGACY && BROKEN
-	help
-	  Say Y here if you have a PS/2 machine with a MCA bus and an ESDI
-	  hard disk.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ps2esdi.
-
 config AMIGA_Z2RAM
 	tristate "Amiga Zorro II ramdisk support"
 	depends on ZORRO

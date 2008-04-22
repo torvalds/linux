@@ -51,24 +51,54 @@
  */
 static int sockstat_seq_show(struct seq_file *seq, void *v)
 {
+	struct net *net = seq->private;
+
 	socket_seq_show(seq);
 	seq_printf(seq, "TCP: inuse %d orphan %d tw %d alloc %d mem %d\n",
-		   sock_prot_inuse_get(&tcp_prot),
+		   sock_prot_inuse_get(net, &tcp_prot),
 		   atomic_read(&tcp_orphan_count),
 		   tcp_death_row.tw_count, atomic_read(&tcp_sockets_allocated),
 		   atomic_read(&tcp_memory_allocated));
-	seq_printf(seq, "UDP: inuse %d mem %d\n", sock_prot_inuse_get(&udp_prot),
+	seq_printf(seq, "UDP: inuse %d mem %d\n",
+		   sock_prot_inuse_get(net, &udp_prot),
 		   atomic_read(&udp_memory_allocated));
-	seq_printf(seq, "UDPLITE: inuse %d\n", sock_prot_inuse_get(&udplite_prot));
-	seq_printf(seq, "RAW: inuse %d\n", sock_prot_inuse_get(&raw_prot));
+	seq_printf(seq, "UDPLITE: inuse %d\n",
+		   sock_prot_inuse_get(net, &udplite_prot));
+	seq_printf(seq, "RAW: inuse %d\n",
+		   sock_prot_inuse_get(net, &raw_prot));
 	seq_printf(seq,  "FRAG: inuse %d memory %d\n",
-			ip_frag_nqueues(&init_net), ip_frag_mem(&init_net));
+			ip_frag_nqueues(net), ip_frag_mem(net));
 	return 0;
 }
 
 static int sockstat_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, sockstat_seq_show, NULL);
+	int err;
+	struct net *net;
+
+	err = -ENXIO;
+	net = get_proc_net(inode);
+	if (net == NULL)
+		goto err_net;
+
+	err = single_open(file, sockstat_seq_show, net);
+	if (err < 0)
+		goto err_open;
+
+	return 0;
+
+err_open:
+	put_net(net);
+err_net:
+	return err;
+}
+
+static int sockstat_seq_release(struct inode *inode, struct file *file)
+{
+	struct net *net = ((struct seq_file *)file->private_data)->private;
+
+	put_net(net);
+	return single_release(inode, file);
 }
 
 static const struct file_operations sockstat_seq_fops = {
@@ -76,7 +106,7 @@ static const struct file_operations sockstat_seq_fops = {
 	.open	 = sockstat_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = single_release,
+	.release = sockstat_seq_release,
 };
 
 /* snmp items */
@@ -423,25 +453,42 @@ static const struct file_operations netstat_seq_fops = {
 	.release = single_release,
 };
 
+static __net_init int ip_proc_init_net(struct net *net)
+{
+	if (!proc_net_fops_create(net, "sockstat", S_IRUGO, &sockstat_seq_fops))
+		return -ENOMEM;
+	return 0;
+}
+
+static __net_exit void ip_proc_exit_net(struct net *net)
+{
+	proc_net_remove(net, "sockstat");
+}
+
+static __net_initdata struct pernet_operations ip_proc_ops = {
+	.init = ip_proc_init_net,
+	.exit = ip_proc_exit_net,
+};
+
 int __init ip_misc_proc_init(void)
 {
 	int rc = 0;
+
+	if (register_pernet_subsys(&ip_proc_ops))
+		goto out_pernet;
 
 	if (!proc_net_fops_create(&init_net, "netstat", S_IRUGO, &netstat_seq_fops))
 		goto out_netstat;
 
 	if (!proc_net_fops_create(&init_net, "snmp", S_IRUGO, &snmp_seq_fops))
 		goto out_snmp;
-
-	if (!proc_net_fops_create(&init_net, "sockstat", S_IRUGO, &sockstat_seq_fops))
-		goto out_sockstat;
 out:
 	return rc;
-out_sockstat:
-	proc_net_remove(&init_net, "snmp");
 out_snmp:
 	proc_net_remove(&init_net, "netstat");
 out_netstat:
+	unregister_pernet_subsys(&ip_proc_ops);
+out_pernet:
 	rc = -ENOMEM;
 	goto out;
 }

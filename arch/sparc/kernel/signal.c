@@ -22,7 +22,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
-#include <asm/svr4.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>	/* flush_sig_insns */
@@ -454,7 +453,6 @@ setup_frame(struct sigaction *sa, struct pt_regs *regs, int signr, sigset_t *old
 			break;
 		case SIGSYS:
 			if (info->si_code == (__SI_FAULT|0x100)) {
-				/* See sys_sunos.c */
 				sig_code = info->si_trapno;
 				break;
 			}
@@ -676,291 +674,17 @@ sigsegv:
 	force_sigsegv(signo, current);
 }
 
-/* Setup a Solaris stack frame */
-static inline void
-setup_svr4_frame(struct sigaction *sa, unsigned long pc, unsigned long npc,
-		 struct pt_regs *regs, int signr, sigset_t *oldset)
-{
-	svr4_signal_frame_t __user *sfp;
-	svr4_gregset_t  __user *gr;
-	svr4_siginfo_t  __user *si;
-	svr4_mcontext_t __user *mc;
-	svr4_gwindows_t __user *gw;
-	svr4_ucontext_t __user *uc;
-	svr4_sigset_t	setv;
-	struct thread_info *tp = current_thread_info();
-	int window = 0, err;
-
-	synchronize_user_stack();
-	sfp = (svr4_signal_frame_t __user *)
-		get_sigframe(sa, regs, SVR4_SF_ALIGNED + sizeof(struct reg_window));
-
-	if (invalid_frame_pointer(sfp, sizeof(*sfp)))
-		goto sigill_and_return;
-
-	/* Start with a clean frame pointer and fill it */
-	err = __clear_user(sfp, sizeof(*sfp));
-
-	/* Setup convenience variables */
-	si = &sfp->si;
-	uc = &sfp->uc;
-	gw = &sfp->gw;
-	mc = &uc->mcontext;
-	gr = &mc->greg;
-	
-	/* FIXME: where am I supposed to put this?
-	 * sc->sigc_onstack = old_status;
-	 * anyways, it does not look like it is used for anything at all.
-	 */
-	setv.sigbits[0] = oldset->sig[0];
-	setv.sigbits[1] = oldset->sig[1];
-	if (_NSIG_WORDS >= 4) {
-		setv.sigbits[2] = oldset->sig[2];
-		setv.sigbits[3] = oldset->sig[3];
-		err |= __copy_to_user(&uc->sigmask, &setv, sizeof(svr4_sigset_t));
-	} else
-		err |= __copy_to_user(&uc->sigmask, &setv,
-				      2 * sizeof(unsigned int));
-
-	/* Store registers */
-	err |= __put_user(regs->pc, &((*gr)[SVR4_PC]));
-	err |= __put_user(regs->npc, &((*gr)[SVR4_NPC]));
-	err |= __put_user(regs->psr, &((*gr)[SVR4_PSR]));
-	err |= __put_user(regs->y, &((*gr)[SVR4_Y]));
-	
-	/* Copy g[1..7] and o[0..7] registers */
-	err |= __copy_to_user(&(*gr)[SVR4_G1], &regs->u_regs[UREG_G1],
-			      sizeof(long) * 7);
-	err |= __copy_to_user(&(*gr)[SVR4_O0], &regs->u_regs[UREG_I0],
-			      sizeof(long) * 8);
-
-	/* Setup sigaltstack */
-	err |= __put_user(current->sas_ss_sp, &uc->stack.sp);
-	err |= __put_user(sas_ss_flags(regs->u_regs[UREG_FP]), &uc->stack.flags);
-	err |= __put_user(current->sas_ss_size, &uc->stack.size);
-
-	/* Save the currently window file: */
-
-	/* 1. Link sfp->uc->gwins to our windows */
-	err |= __put_user(gw, &mc->gwin);
-	    
-	/* 2. Number of windows to restore at setcontext(): */
-	err |= __put_user(tp->w_saved, &gw->count);
-
-	/* 3. Save each valid window
-	 *    Currently, it makes a copy of the windows from the kernel copy.
-	 *    David's code for SunOS, makes the copy but keeps the pointer to
-	 *    the kernel.  My version makes the pointer point to a userland 
-	 *    copy of those.  Mhm, I wonder if I shouldn't just ignore those
-	 *    on setcontext and use those that are on the kernel, the signal
-	 *    handler should not be modyfing those, mhm.
-	 *
-	 *    These windows are just used in case synchronize_user_stack failed
-	 *    to flush the user windows.
-	 */
-	for (window = 0; window < tp->w_saved; window++) {
-		err |= __put_user((int __user *) &(gw->win[window]), &gw->winptr[window]);
-		err |= __copy_to_user(&gw->win[window],
-				      &tp->reg_window[window],
-				      sizeof(svr4_rwindow_t));
-		err |= __put_user(0, gw->winptr[window]);
-	}
-
-	/* 4. We just pay attention to the gw->count field on setcontext */
-	tp->w_saved = 0; /* So process is allowed to execute. */
-
-	/* Setup the signal information.  Solaris expects a bunch of
-	 * information to be passed to the signal handler, we don't provide
-	 * that much currently, should use siginfo.
-	 */
-	err |= __put_user(signr, &si->siginfo.signo);
-	err |= __put_user(SVR4_SINOINFO, &si->siginfo.code);
-	if (err)
-		goto sigsegv;
-
-	regs->u_regs[UREG_FP] = (unsigned long) sfp;
-	regs->pc = (unsigned long) sa->sa_handler;
-	regs->npc = (regs->pc + 4);
-
-	/* Arguments passed to signal handler */
-	if (regs->u_regs[14]){
-		struct reg_window __user *rw = (struct reg_window __user *)
-			regs->u_regs[14];
-
-		err |= __put_user(signr, &rw->ins[0]);
-		err |= __put_user(si, &rw->ins[1]);
-		err |= __put_user(uc, &rw->ins[2]);
-		err |= __put_user(sfp, &rw->ins[6]);	/* frame pointer */
-		if (err)
-			goto sigsegv;
-
-		regs->u_regs[UREG_I0] = signr;
-		regs->u_regs[UREG_I1] = (unsigned long) si;
-		regs->u_regs[UREG_I2] = (unsigned long) uc;
-	}
-	return;
-
-sigill_and_return:
-	do_exit(SIGILL);
-sigsegv:
-	force_sigsegv(signr, current);
-}
-
-asmlinkage int svr4_getcontext(svr4_ucontext_t __user *uc, struct pt_regs *regs)
-{
-	svr4_gregset_t  __user *gr;
-	svr4_mcontext_t __user *mc;
-	svr4_sigset_t	setv;
-	int err = 0;
-
-	synchronize_user_stack();
-
-	if (current_thread_info()->w_saved)
-		return -EFAULT;
-
-	err = clear_user(uc, sizeof(*uc));
-	if (err)
-		return -EFAULT;
-
-	/* Setup convenience variables */
-	mc = &uc->mcontext;
-	gr = &mc->greg;
-
-	setv.sigbits[0] = current->blocked.sig[0];
-	setv.sigbits[1] = current->blocked.sig[1];
-	if (_NSIG_WORDS >= 4) {
-		setv.sigbits[2] = current->blocked.sig[2];
-		setv.sigbits[3] = current->blocked.sig[3];
-		err |= __copy_to_user(&uc->sigmask, &setv, sizeof(svr4_sigset_t));
-	} else
-		err |= __copy_to_user(&uc->sigmask, &setv,
-				      2 * sizeof(unsigned int));
-
-	/* Store registers */
-	err |= __put_user(regs->pc, &uc->mcontext.greg[SVR4_PC]);
-	err |= __put_user(regs->npc, &uc->mcontext.greg[SVR4_NPC]);
-	err |= __put_user(regs->psr, &uc->mcontext.greg[SVR4_PSR]);
-	err |= __put_user(regs->y, &uc->mcontext.greg[SVR4_Y]);
-	
-	/* Copy g[1..7] and o[0..7] registers */
-	err |= __copy_to_user(&(*gr)[SVR4_G1], &regs->u_regs[UREG_G1],
-			      sizeof(uint) * 7);
-	err |= __copy_to_user(&(*gr)[SVR4_O0], &regs->u_regs[UREG_I0],
-			      sizeof(uint) * 8);
-
-	/* Setup sigaltstack */
-	err |= __put_user(current->sas_ss_sp, &uc->stack.sp);
-	err |= __put_user(sas_ss_flags(regs->u_regs[UREG_FP]), &uc->stack.flags);
-	err |= __put_user(current->sas_ss_size, &uc->stack.size);
-
-	/* The register file is not saved
-	 * we have already stuffed all of it with sync_user_stack
-	 */
-	return (err ? -EFAULT : 0);
-}
-
-/* Set the context for a svr4 application, this is Solaris way to sigreturn */
-asmlinkage int svr4_setcontext(svr4_ucontext_t __user *c, struct pt_regs *regs)
-{
-	svr4_gregset_t  __user *gr;
-	unsigned long pc, npc, psr;
-	mm_segment_t old_fs;
-	sigset_t set;
-	svr4_sigset_t setv;
-	int err;
-	stack_t st;
-	
-	/* Fixme: restore windows, or is this already taken care of in
-	 * svr4_setup_frame when sync_user_windows is done?
-	 */
-	flush_user_windows();
-
-	if (current_thread_info()->w_saved)
-		goto sigsegv_and_return;
-
-	if (((unsigned long) c) & 3)
-		goto sigsegv_and_return;
-
-	if (!__access_ok((unsigned long)c, sizeof(*c)))
-		goto sigsegv_and_return;
-
-	/* Check for valid PC and nPC */
-	gr = &c->mcontext.greg;
-	err = __get_user(pc, &((*gr)[SVR4_PC]));
-	err |= __get_user(npc, &((*gr)[SVR4_NPC]));
-
-	if ((pc | npc) & 3)
-		goto sigsegv_and_return;
-
-	/* Retrieve information from passed ucontext */
-	/* note that nPC is ored a 1, this is used to inform entry.S */
-	/* that we don't want it to mess with our PC and nPC */
-
-	/* This is pretty much atomic, no amount locking would prevent
-	 * the races which exist anyways.
-	 */
-	err |= __copy_from_user(&setv, &c->sigmask, sizeof(svr4_sigset_t));
-	
-	err |= __get_user(st.ss_sp, &c->stack.sp);
-	err |= __get_user(st.ss_flags, &c->stack.flags);
-	err |= __get_user(st.ss_size, &c->stack.size);
-	
-	if (err)
-		goto sigsegv_and_return;
-		
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	do_sigaltstack((const stack_t __user *) &st, NULL,
-		       regs->u_regs[UREG_I6]);
-	set_fs(old_fs);
-	
-	set.sig[0] = setv.sigbits[0];
-	set.sig[1] = setv.sigbits[1];
-	if (_NSIG_WORDS >= 4) {
-		set.sig[2] = setv.sigbits[2];
-		set.sig[3] = setv.sigbits[3];
-	}
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	regs->pc = pc;
-	regs->npc = npc | 1;
-	err |= __get_user(regs->y, &((*gr)[SVR4_Y]));
-	err |= __get_user(psr, &((*gr)[SVR4_PSR]));
-	regs->psr &= ~(PSR_ICC);
-	regs->psr |= (psr & PSR_ICC);
-
-	/* Restore g[1..7] and o[0..7] registers */
-	err |= __copy_from_user(&regs->u_regs[UREG_G1], &(*gr)[SVR4_G1],
-			      sizeof(long) * 7);
-	err |= __copy_from_user(&regs->u_regs[UREG_I0], &(*gr)[SVR4_O0],
-			      sizeof(long) * 8);
-	return (err ? -EFAULT : 0);
-
-sigsegv_and_return:
-	force_sig(SIGSEGV, current);
-	return -EFAULT;
-}
-
 static inline void
 handle_signal(unsigned long signr, struct k_sigaction *ka,
-	      siginfo_t *info, sigset_t *oldset, struct pt_regs *regs,
-	      int svr4_signal)
+	      siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
 {
-	if (svr4_signal)
-		setup_svr4_frame(&ka->sa, regs->pc, regs->npc, regs, signr, oldset);
-	else {
-		if (ka->sa.sa_flags & SA_SIGINFO)
-			new_setup_rt_frame(ka, regs, signr, oldset, info);
-		else if (current->thread.new_signal)
-			new_setup_frame(ka, regs, signr, oldset);
-		else
-			setup_frame(&ka->sa, regs, signr, oldset, info);
-	}
+	if (ka->sa.sa_flags & SA_SIGINFO)
+		new_setup_rt_frame(ka, regs, signr, oldset, info);
+	else if (current->thread.new_signal)
+		new_setup_frame(ka, regs, signr, oldset);
+	else
+		setup_frame(&ka->sa, regs, signr, oldset, info);
+
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
 	if (!(ka->sa.sa_flags & SA_NOMASK))
@@ -1002,17 +726,6 @@ asmlinkage void do_signal(struct pt_regs * regs, unsigned long orig_i0, int rest
 	int signr;
 	sigset_t *oldset;
 
-	/*
-	 * XXX Disable svr4 signal handling until solaris emulation works.
-	 * It is buggy - Anton
-	 */
-#define SVR4_SIGNAL_BROKEN 1
-#ifdef SVR4_SIGNAL_BROKEN
-	int svr4_signal = 0;
-#else
-	int svr4_signal = current->personality == PER_SVR4;
-#endif
-
 	cookie.restart_syscall = restart_syscall;
 	cookie.orig_i0 = orig_i0;
 
@@ -1025,8 +738,8 @@ asmlinkage void do_signal(struct pt_regs * regs, unsigned long orig_i0, int rest
 	if (signr > 0) {
 		if (cookie.restart_syscall)
 			syscall_restart(cookie.orig_i0, regs, &ka.sa);
-		handle_signal(signr, &ka, &info, oldset,
-			      regs, svr4_signal);
+		handle_signal(signr, &ka, &info, oldset, regs);
+
 		/* a signal was successfully delivered; the saved
 		 * sigmask will have been stored in the signal frame,
 		 * and will be restored by sigreturn, so we can simply

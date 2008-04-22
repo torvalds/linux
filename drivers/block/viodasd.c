@@ -69,7 +69,7 @@ MODULE_LICENSE("GPL");
 enum {
 	PARTITION_SHIFT = 3,
 	MAX_DISKNO = HVMAXARCHITECTEDVIRTUALDISKS,
-	MAX_DISK_NAME = sizeof(((struct gendisk *)0)->disk_name)
+	MAX_DISK_NAME = FIELD_SIZEOF(struct gendisk, disk_name)
 };
 
 static DEFINE_SPINLOCK(viodasd_spinlock);
@@ -528,8 +528,7 @@ static int block_event_to_scatterlist(const struct vioblocklpevent *bevent,
 		numsg = VIOMAXBLOCKDMA;
 
 	*total_len = 0;
-	memset(sg, 0, sizeof(sg[0]) * VIOMAXBLOCKDMA);
-
+	sg_init_table(sg, VIOMAXBLOCKDMA);
 	for (i = 0; (i < numsg) && (rw_data->dma_info[i].len > 0); ++i) {
 		sg_dma_address(&sg[i]) = rw_data->dma_info[i].token;
 		sg_dma_len(&sg[i]) = rw_data->dma_info[i].len;

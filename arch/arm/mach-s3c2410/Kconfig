@@ -97,6 +97,13 @@ config BAST_PC104_IRQ
 	  Say Y	here to enable the PC104 IRQ routing on the
 	  Simtec BAST (EB2410ITX)
 
+config MACH_TCT_HAMMER
+	bool "TCT Hammer Board"
+	select CPU_S3C2410
+	help
+	   Say Y here if you are using the TinCanTools Hammer Board
+           <http://www.tincantools.com>
+
 config MACH_VR1000
 	bool "Thorcom VR1000"
 	select PM_SIMTEC if PM

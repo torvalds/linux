@@ -555,7 +555,7 @@ idt77252_tx_dump(struct idt77252_dev *card)
 	struct vc_map *vc;
 	int i;
 
-	printk("%s\n", __FUNCTION__);
+	printk("%s\n", __func__);
 	for (i = 0; i < card->tct_size; i++) {
 		vc = card->vcs[i];
 		if (!vc)
@@ -1035,7 +1035,7 @@ dequeue_rx(struct idt77252_dev *card, struct rsq_entry *rsqe)
 	skb = sb_pool_skb(card, le32_to_cpu(rsqe->word_2));
 	if (skb == NULL) {
 		printk("%s: NULL skb in %s, rsqe: %08x %08x %08x %08x\n",
-		       card->name, __FUNCTION__,
+		       card->name, __func__,
 		       le32_to_cpu(rsqe->word_1), le32_to_cpu(rsqe->word_2),
 		       le32_to_cpu(rsqe->word_3), le32_to_cpu(rsqe->word_4));
 		return;
@@ -1873,7 +1873,7 @@ add_rx_skb(struct idt77252_dev *card, int queue,
 			return;
 
 		if (sb_pool_add(card, skb, queue)) {
-			printk("%s: SB POOL full\n", __FUNCTION__);
+			printk("%s: SB POOL full\n", __func__);
 			goto outfree;
 		}
 
@@ -1883,7 +1883,7 @@ add_rx_skb(struct idt77252_dev *card, int queue,
 		IDT77252_PRV_PADDR(skb) = paddr;
 
 		if (push_rx_skb(card, skb, queue)) {
-			printk("%s: FB QUEUE full\n", __FUNCTION__);
+			printk("%s: FB QUEUE full\n", __func__);
 			goto outunmap;
 		}
 	}
@@ -2016,8 +2016,7 @@ idt77252_send_skb(struct atm_vcc *vcc, struct sk_buff *skb, int oam)
 	return 0;
 }
 
-int
-idt77252_send(struct atm_vcc *vcc, struct sk_buff *skb)
+static int idt77252_send(struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	return idt77252_send_skb(vcc, skb, 0);
 }
@@ -3072,8 +3071,7 @@ idt77252_dev_open(struct idt77252_dev *card)
 	return 0;
 }
 
-void
-idt77252_dev_close(struct atm_dev *dev)
+static void idt77252_dev_close(struct atm_dev *dev)
 {
 	struct idt77252_dev *card = dev->dev_data;
 	u32 conf;
@@ -3821,12 +3819,12 @@ static int __init idt77252_init(void)
 {
 	struct sk_buff *skb;
 
-	printk("%s: at %p\n", __FUNCTION__, idt77252_init);
+	printk("%s: at %p\n", __func__, idt77252_init);
 
 	if (sizeof(skb->cb) < sizeof(struct atm_skb_data) +
 			      sizeof(struct idt77252_skb_prv)) {
 		printk(KERN_ERR "%s: skb->cb is too small (%lu < %lu)\n",
-		       __FUNCTION__, (unsigned long) sizeof(skb->cb),
+		       __func__, (unsigned long) sizeof(skb->cb),
 		       (unsigned long) sizeof(struct atm_skb_data) +
 				       sizeof(struct idt77252_skb_prv));
 		return -EIO;

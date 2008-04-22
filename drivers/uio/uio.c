@@ -57,29 +57,29 @@ struct uio_map {
 };
 #define to_map(map) container_of(map, struct uio_map, kobj)
 
-
-static ssize_t map_attr_show(struct kobject *kobj, struct kobj_attribute *attr,
-			     char *buf)
+static ssize_t map_addr_show(struct uio_mem *mem, char *buf)
 {
-	struct uio_map *map = to_map(kobj);
-	struct uio_mem *mem = map->mem;
-
-	if (strncmp(attr->attr.name, "addr", 4) == 0)
-		return sprintf(buf, "0x%lx\n", mem->addr);
-
-	if (strncmp(attr->attr.name, "size", 4) == 0)
-		return sprintf(buf, "0x%lx\n", mem->size);
-
-	return -ENODEV;
+	return sprintf(buf, "0x%lx\n", mem->addr);
 }
 
-static struct kobj_attribute attr_attribute =
-	__ATTR(addr, S_IRUGO, map_attr_show, NULL);
-static struct kobj_attribute size_attribute =
-	__ATTR(size, S_IRUGO, map_attr_show, NULL);
+static ssize_t map_size_show(struct uio_mem *mem, char *buf)
+{
+	return sprintf(buf, "0x%lx\n", mem->size);
+}
+
+struct uio_sysfs_entry {
+	struct attribute attr;
+	ssize_t (*show)(struct uio_mem *, char *);
+	ssize_t (*store)(struct uio_mem *, const char *, size_t);
+};
+
+static struct uio_sysfs_entry addr_attribute =
+	__ATTR(addr, S_IRUGO, map_addr_show, NULL);
+static struct uio_sysfs_entry size_attribute =
+	__ATTR(size, S_IRUGO, map_size_show, NULL);
 
 static struct attribute *attrs[] = {
-	&attr_attribute.attr,
+	&addr_attribute.attr,
 	&size_attribute.attr,
 	NULL,	/* need to NULL terminate the list of attributes */
 };
@@ -90,8 +90,28 @@ static void map_release(struct kobject *kobj)
 	kfree(map);
 }
 
+static ssize_t map_type_show(struct kobject *kobj, struct attribute *attr,
+			     char *buf)
+{
+	struct uio_map *map = to_map(kobj);
+	struct uio_mem *mem = map->mem;
+	struct uio_sysfs_entry *entry;
+
+	entry = container_of(attr, struct uio_sysfs_entry, attr);
+
+	if (!entry->show)
+		return -EIO;
+
+	return entry->show(mem, buf);
+}
+
+static struct sysfs_ops uio_sysfs_ops = {
+	.show = map_type_show,
+};
+
 static struct kobj_type map_attr_type = {
 	.release	= map_release,
+	.sysfs_ops	= &uio_sysfs_ops,
 	.default_attrs	= attrs,
 };
 
@@ -281,23 +301,33 @@ static int uio_open(struct inode *inode, struct file *filep)
 	if (!idev)
 		return -ENODEV;
 
+	if (!try_module_get(idev->owner))
+		return -ENODEV;
+
 	listener = kmalloc(sizeof(*listener), GFP_KERNEL);
-	if (!listener)
-		return -ENOMEM;
+	if (!listener) {
+		ret = -ENOMEM;
+		goto err_alloc_listener;
+	}
 
 	listener->dev = idev;
 	listener->event_count = atomic_read(&idev->event);
 	filep->private_data = listener;
 
 	if (idev->info->open) {
-		if (!try_module_get(idev->owner))
-			return -ENODEV;
 		ret = idev->info->open(idev->info, inode);
-		module_put(idev->owner);
+		if (ret)
+			goto err_infoopen;
 	}
 
-	if (ret)
-		kfree(listener);
+	return 0;
+
+err_infoopen:
+
+	kfree(listener);
+err_alloc_listener:
+
+	module_put(idev->owner);
 
 	return ret;
 }
@@ -316,12 +346,11 @@ static int uio_release(struct inode *inode, struct file *filep)
 	struct uio_listener *listener = filep->private_data;
 	struct uio_device *idev = listener->dev;
 
-	if (idev->info->release) {
-		if (!try_module_get(idev->owner))
-			return -ENODEV;
+	if (idev->info->release)
 		ret = idev->info->release(idev->info, inode);
-		module_put(idev->owner);
-	}
+
+	module_put(idev->owner);
+
 	if (filep->f_flags & FASYNC)
 		ret = uio_fasync(-1, filep, 0);
 	kfree(listener);
@@ -450,6 +479,8 @@ static int uio_mmap_physical(struct vm_area_struct *vma)
 
 	vma->vm_flags |= VM_IO | VM_RESERVED;
 
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
 	return remap_pfn_range(vma,
 			       vma->vm_start,
 			       idev->info->mem[mi].addr >> PAGE_SHIFT,
@@ -488,10 +519,7 @@ static int uio_mmap(struct file *filep, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	if (idev->info->mmap) {
-		if (!try_module_get(idev->owner))
-			return -ENODEV;
 		ret = idev->info->mmap(idev->info, vma);
-		module_put(idev->owner);
 		return ret;
 	}
 

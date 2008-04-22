@@ -582,3 +582,4 @@ static struct scsi_host_template driver_template = {
 
 #include "scsi_module.c"
 
+MODULE_LICENSE("GPL");

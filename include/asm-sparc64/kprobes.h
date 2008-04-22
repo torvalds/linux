@@ -14,8 +14,6 @@ typedef u32 kprobe_opcode_t;
 
 #define arch_remove_kprobe(p)	do {} while (0)
 
-#define ARCH_SUPPORTS_KRETPROBES
-
 #define flush_insn_slot(p)		\
 do { 	flushi(&(p)->ainsn.insn[0]);	\
 	flushi(&(p)->ainsn.insn[1]);	\

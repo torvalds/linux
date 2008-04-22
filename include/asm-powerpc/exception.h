@@ -228,18 +228,18 @@ label##_pSeries:							\
 BEGIN_FW_FTR_SECTION;				\
 	stb	r11,PACAHARDIRQEN(r13);		\
 END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES);	\
+	TRACE_DISABLE_INTS;			\
 BEGIN_FW_FTR_SECTION;				\
 	mfmsr	r10;				\
 	ori	r10,r10,MSR_EE;			\
 	mtmsrd	r10,1;				\
 END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-
 #else
 #define DISABLE_INTS				\
 	li	r11,0;				\
 	stb	r11,PACASOFTIRQEN(r13);		\
-	stb	r11,PACAHARDIRQEN(r13)
-
+	stb	r11,PACAHARDIRQEN(r13);		\
+	TRACE_DISABLE_INTS
 #endif /* CONFIG_PPC_ISERIES */
 
 #define ENABLE_INTS				\

@@ -141,3 +141,4 @@ static struct platform_driver ohci_hcd_sh_driver = {
 	},
 };
 
+MODULE_ALIAS("platform:sh_ohci");

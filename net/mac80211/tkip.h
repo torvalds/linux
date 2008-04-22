@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/crypto.h>
-#include "ieee80211_key.h"
+#include "key.h"
 
 u8 * ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key,
 			   u8 iv0, u8 iv1, u8 iv2);
@@ -31,7 +31,7 @@ enum {
 int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 				struct ieee80211_key *key,
 				u8 *payload, size_t payload_len, u8 *ta,
-				int only_iv, int queue,
+				u8 *ra, int only_iv, int queue,
 				u32 *out_iv32, u16 *out_iv16);
 
 #endif /* TKIP_H */

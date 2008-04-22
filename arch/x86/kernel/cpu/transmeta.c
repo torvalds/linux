@@ -18,8 +18,8 @@ static void __cpuinit init_transmeta(struct cpuinfo_x86 *c)
 	/* Print CMS and CPU revision */
 	max = cpuid_eax(0x80860000);
 	cpu_rev = 0;
-	if ( max >= 0x80860001 ) {
-		cpuid(0x80860001, &dummy, &cpu_rev, &cpu_freq, &cpu_flags); 
+	if (max >= 0x80860001) {
+		cpuid(0x80860001, &dummy, &cpu_rev, &cpu_freq, &cpu_flags);
 		if (cpu_rev != 0x02000000) {
 			printk(KERN_INFO "CPU: Processor revision %u.%u.%u.%u, %u MHz\n",
 				(cpu_rev >> 24) & 0xff,
@@ -29,7 +29,7 @@ static void __cpuinit init_transmeta(struct cpuinfo_x86 *c)
 				cpu_freq);
 		}
 	}
-	if ( max >= 0x80860002 ) {
+	if (max >= 0x80860002) {
 		cpuid(0x80860002, &new_cpu_rev, &cms_rev1, &cms_rev2, &dummy);
 		if (cpu_rev == 0x02000000) {
 			printk(KERN_INFO "CPU: Processor revision %08X, %u MHz\n",
@@ -42,7 +42,7 @@ static void __cpuinit init_transmeta(struct cpuinfo_x86 *c)
 		       cms_rev1 & 0xff,
 		       cms_rev2);
 	}
-	if ( max >= 0x80860006 ) {
+	if (max >= 0x80860006) {
 		cpuid(0x80860003,
 		      (void *)&cpu_info[0],
 		      (void *)&cpu_info[4],
@@ -74,30 +74,25 @@ static void __cpuinit init_transmeta(struct cpuinfo_x86 *c)
 	wrmsr(0x80860004, cap_mask, uk);
 
 	/* All Transmeta CPUs have a constant TSC */
-	set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
-	
-	/* If we can run i686 user-space code, call us an i686 */
-#define USER686 ((1 << X86_FEATURE_TSC)|\
-		 (1 << X86_FEATURE_CX8)|\
-		 (1 << X86_FEATURE_CMOV))
-        if (c->x86 == 5 && (c->x86_capability[0] & USER686) == USER686)
-		c->x86 = 6;
+	set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 
 #ifdef CONFIG_SYSCTL
-	/* randomize_va_space slows us down enormously;
-	   it probably triggers retranslation of x86->native bytecode */
+	/*
+	 * randomize_va_space slows us down enormously;
+	 * it probably triggers retranslation of x86->native bytecode
+	 */
 	randomize_va_space = 0;
 #endif
 }
 
-static void __cpuinit transmeta_identify(struct cpuinfo_x86 * c)
+static void __cpuinit transmeta_identify(struct cpuinfo_x86 *c)
 {
 	u32 xlvl;
 
 	/* Transmeta-defined flags: level 0x80860001 */
 	xlvl = cpuid_eax(0x80860000);
-	if ( (xlvl & 0xffff0000) == 0x80860000 ) {
-		if (  xlvl >= 0x80860001 )
+	if ((xlvl & 0xffff0000) == 0x80860000) {
+		if (xlvl >= 0x80860001)
 			c->x86_capability[2] = cpuid_edx(0x80860001);
 	}
 }
@@ -109,8 +104,4 @@ static struct cpu_dev transmeta_cpu_dev __cpuinitdata = {
 	.c_identify	= transmeta_identify,
 };
 
-int __init transmeta_init_cpu(void)
-{
-	cpu_devs[X86_VENDOR_TRANSMETA] = &transmeta_cpu_dev;
-	return 0;
-}
+cpu_vendor_dev_register(X86_VENDOR_TRANSMETA, &transmeta_cpu_dev);

@@ -87,7 +87,7 @@ static inline int wpa2_capable(void)
 
 static inline int precise_ie(void)
 {
-	return 0; /* FIXME */
+	return (0 <= ps3_compare_firmware_version(2, 2, 0));
 }
 /*
  * post_eurus_cmd helpers
@@ -512,13 +512,18 @@ static void gelic_wl_parse_ie(u8 *data, size_t len,
 		 data, len);
 	memset(ie_info, 0, sizeof(struct ie_info));
 
-	while (0 < data_left) {
+	while (2 <= data_left) {
 		item_id = *pos++;
 		item_len = *pos++;
+		data_left -= 2;
+
+		if (data_left < item_len)
+			break;
 
 		switch (item_id) {
 		case MFIE_TYPE_GENERIC:
-			if (!memcmp(pos, wpa_oui, OUI_LEN) &&
+			if ((OUI_LEN + 1 <= item_len) &&
+			    !memcmp(pos, wpa_oui, OUI_LEN) &&
 			    pos[OUI_LEN] == 0x01) {
 				ie_info->wpa.data = pos - 2;
 				ie_info->wpa.len = item_len + 2;
@@ -535,7 +540,7 @@ static void gelic_wl_parse_ie(u8 *data, size_t len,
 			break;
 		}
 		pos += item_len;
-		data_left -= item_len + 2;
+		data_left -= item_len;
 	}
 	pr_debug("%s: wpa=%p,%d wpa2=%p,%d\n", __func__,
 		 ie_info->wpa.data, ie_info->wpa.len,
@@ -1644,13 +1649,24 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 	}
 
 	/* put them in the newtork_list */
-	scan_info = wl->buf;
-	scan_info_size = 0;
-	i = 0;
-	while (scan_info_size < data_len) {
+	for (i = 0, scan_info_size = 0, scan_info = wl->buf;
+	     scan_info_size < data_len;
+	     i++, scan_info_size += be16_to_cpu(scan_info->size),
+	     scan_info = (void *)scan_info + be16_to_cpu(scan_info->size)) {
 		pr_debug("%s:size=%d bssid=%s scan_info=%p\n", __func__,
 			 be16_to_cpu(scan_info->size),
 			 print_mac(mac, &scan_info->bssid[2]), scan_info);
+
+		/*
+		 * The wireless firmware may return invalid channel 0 and/or
+		 * invalid rate if the AP emits zero length SSID ie. As this
+		 * scan information is useless, ignore it
+		 */
+		if (!be16_to_cpu(scan_info->channel) || !scan_info->rate[0]) {
+			pr_debug("%s: invalid scan info\n", __func__);
+			continue;
+		}
+
 		found = 0;
 		oldest = NULL;
 		list_for_each_entry(target, &wl->network_list, list) {
@@ -1687,10 +1703,6 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 					 GFP_KERNEL);
 		if (!target->hwinfo) {
 			pr_info("%s: kzalloc failed\n", __func__);
-			i++;
-			scan_info_size += be16_to_cpu(scan_info->size);
-			scan_info = (void *)scan_info +
-				be16_to_cpu(scan_info->size);
 			continue;
 		}
 		/* copy hw scan info */
@@ -1709,10 +1721,6 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 			if (scan_info->ext_rate[r])
 				target->rate_ext_len++;
 		list_move_tail(&target->list, &wl->network_list);
-		/* bump pointer */
-		i++;
-		scan_info_size += be16_to_cpu(scan_info->size);
-		scan_info = (void *)scan_info + be16_to_cpu(scan_info->size);
 	}
 	memset(&data, 0, sizeof(data));
 	wireless_send_event(port_to_netdev(wl_port(wl)), SIOCGIWSCAN, &data,
@@ -2389,6 +2397,8 @@ static struct net_device *gelic_wl_alloc(struct gelic_card *card)
 	if (!netdev)
 		return NULL;
 
+	strcpy(netdev->name, "wlan%d");
+
 	port = netdev_priv(netdev);
 	port->netdev = netdev;
 	port->card = card;
@@ -2690,6 +2700,7 @@ int gelic_wl_driver_probe(struct gelic_card *card)
 		return -ENOMEM;
 
 	/* setup net_device structure */
+	SET_NETDEV_DEV(netdev, &card->dev->core);
 	gelic_wl_setup_netdev_ops(netdev);
 
 	/* setup some of net_device and register it */

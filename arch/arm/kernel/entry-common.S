@@ -352,6 +352,11 @@ sys_mmap2:
 		b	do_mmap2
 #endif
 
+ENTRY(pabort_ifar)
+		mrc	p15, 0, r0, cr6, cr0, 2
+ENTRY(pabort_noifar)
+		mov	pc, lr
+
 #ifdef CONFIG_OABI_COMPAT
 
 /*

@@ -138,7 +138,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			strict -- Be less tolerant of platforms that are not
 				strictly ACPI specification compliant.
 
-			See also Documentation/pm.txt, pci=noacpi
+			See also Documentation/power/pm.txt, pci=noacpi
 
 	acpi_apic_instance=	[ACPI, IOAPIC]
 			Format: <int>
@@ -170,15 +170,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	acpi_irq_isa=	[HW,ACPI] If irq_balance, mark listed IRQs used by ISA
 			Format: <irq>,<irq>...
 
-	acpi_new_pts_ordering [HW,ACPI]
-			Enforce the ACPI 2.0 ordering of the _PTS control
-			method wrt putting devices into low power states
-			default: pre ACPI 2.0 ordering of _PTS
-
 	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
-
-	acpi_no_initrd_override	[KNL,ACPI]
-			Disable loading custom ACPI tables from the initramfs
 
 	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
 			Format: To spoof as Windows 98: ="Microsoft Windows"
@@ -374,6 +366,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			possible to determine what the correct size should be.
 			This option provides an override for these situations.
 
+	security=	[SECURITY] Choose a security module to enable at boot.
+			If this boot parameter is not specified, only the first
+			security module asking for security registration will be
+			loaded. An invalid security module name will be treated
+			as if no module has been chosen.
+
 	capability.disable=
 			[SECURITY] Disable capabilities.  This would normally
 			be used only if an alternative security model is to be
@@ -382,6 +380,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	ccw_timeout_log [S390]
 			See Documentation/s390/CommonIO for details.
+
+	cgroup_disable= [KNL] Disable a particular controller
+			Format: {name of the controller(s) to disable}
+				{Currently supported controllers - "memory"}
 
 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
 			Format: { "0" | "1" }
@@ -712,7 +714,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <cyl>,<head>,<sect>
 
 	hd?=		[HW] (E)IDE subsystem
-	hd?lun=		See Documentation/ide.txt.
+	hd?lun=		See Documentation/ide/ide.txt.
 
 	highmem=nn[KMG]	[KNL,BOOT] forces the highmem zone to have an exact
 			size of <nn>. This works even on boxes that have no
@@ -735,6 +737,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			     (Don't attempt to blink the leds)
 	i8042.noaux	[HW] Don't check for auxiliary (== mouse) port
 	i8042.nokbd	[HW] Don't check/create keyboard port
+	i8042.noloop	[HW] Disable the AUX Loopback command while probing
+			     for the AUX port
 	i8042.nomux	[HW] Don't check presence of an active multiplexing
 			     controller
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
@@ -765,15 +769,15 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <io>[,<membase>[,<icn_id>[,<icn_id2>]]]
 
 	ide=		[HW] (E)IDE subsystem
-			Format: ide=nodma or ide=doubler or ide=reverse
-			See Documentation/ide.txt.
+			Format: ide=nodma or ide=doubler
+			See Documentation/ide/ide.txt.
 
 	ide?=		[HW] (E)IDE subsystem
-			Format: ide?=noprobe or chipset specific parameters.
-			See Documentation/ide.txt.
+			Format: ide?=ata66 or chipset specific parameters.
+			See Documentation/ide/ide.txt.
 
 	idebus=		[HW] (E)IDE subsystem - VLB/PCI bus speed
-			See Documentation/ide.txt.
+			See Documentation/ide/ide.txt.
 
 	idle=		[X86]
 			Format: idle=poll or idle=mwait
@@ -814,6 +818,19 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	inttest=	[IA64]
 
+	iommu=		[x86]
+		off
+		force
+		noforce
+		biomerge
+		panic
+		nopanic
+		merge
+		nomerge
+		forcesac
+		soft
+
+
 	intel_iommu=	[DMAR] Intel IOMMU driver (DMAR) option
 		off
 			Disable intel iommu driver.
@@ -830,6 +847,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			than 32 bit addressing. The default is to look
 			for translation below 32 bit and if not available
 			then look in the higher range.
+		strict [Default Off]
+			With this option on every unmap_single operation will
+			result in a hardware IOTLB flush operation as opposed
+			to batching them for performance.
 
 	io_delay=	[X86-32,X86-64] I/O delay method
 		0x80
@@ -846,7 +867,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			arch/alpha/kernel/core_marvel.c.
 
 	ip=		[IP_PNP]
-			See Documentation/nfsroot.txt.
+			See Documentation/filesystems/nfsroot.txt.
 
 	ip2=		[HW] Set IO/IRQ pairs for up to 4 IntelliPort boards
 			See comment before ip2_setup() in
@@ -930,7 +951,14 @@ and is between 256 and 4096 characters. It is defined in the file
 	kstack=N	[X86-32,X86-64] Print N words from the kernel stack
 			in oops dumps.
 
+	kgdboc=		[HW] kgdb over consoles.
+			Requires a tty driver that supports console polling.
+			(only serial suported for now)
+			Format: <serial_device>[,baud]
+
 	l2cr=		[PPC]
+
+	l3cr=		[PPC]
 
 	lapic		[X86-32,APIC] Enable the local APIC even if BIOS
 			disabled it.
@@ -949,6 +977,41 @@ and is between 256 and 4096 characters. It is defined in the file
 	libata.noacpi	[LIBATA] Disables use of ACPI in libata suspend/resume
 			when set.
 			Format: <int>
+
+	libata.force=	[LIBATA] Force configurations.  The format is comma
+			separated list of "[ID:]VAL" where ID is
+			PORT[:DEVICE].  PORT and DEVICE are decimal numbers
+			matching port, link or device.  Basically, it matches
+			the ATA ID string printed on console by libata.  If
+			the whole ID part is omitted, the last PORT and DEVICE
+			values are used.  If ID hasn't been specified yet, the
+			configuration applies to all ports, links and devices.
+
+			If only DEVICE is omitted, the parameter applies to
+			the port and all links and devices behind it.  DEVICE
+			number of 0 either selects the first device or the
+			first fan-out link behind PMP device.  It does not
+			select the host link.  DEVICE number of 15 selects the
+			host link and device attached to it.
+
+			The VAL specifies the configuration to force.  As long
+			as there's no ambiguity shortcut notation is allowed.
+			For example, both 1.5 and 1.5G would work for 1.5Gbps.
+			The following configurations can be forced.
+
+			* Cable type: 40c, 80c, short40c, unk, ign or sata.
+			  Any ID with matching PORT is used.
+
+			* SATA link speed limit: 1.5Gbps or 3.0Gbps.
+
+			* Transfer mode: pio[0-7], mwdma[0-4] and udma[0-7].
+			  udma[/][16,25,33,44,66,100,133] notation is also
+			  allowed.
+
+			* [no]ncq: Turn on or off NCQ.
+
+			If there are multiple matching configurations changing
+			the same attribute, the last one is used.
 
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
 			See Documentation/ramdisk.txt.
@@ -1056,8 +1119,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			[SCSI] Maximum number of LUNs received.
 			Should be between 1 and 16384.
 
-	mca-pentium	[BUGS=X86-32]
-
 	mcatest=	[IA-64]
 
 	mce		[X86-32] Machine Check Exception
@@ -1098,6 +1159,15 @@ and is between 256 and 4096 characters. It is defined in the file
 	memmap=nn[KMG]$ss[KMG]
 			[KNL,ACPI] Mark specific memory as reserved.
 			Region of memory to be used, from ss to ss+nn.
+			Example: Exclude memory from 0x18690000-0x1869ffff
+			         memmap=64K$0x18690000
+			         or
+			         memmap=0x10000$0x18690000
+
+	memtest=	[KNL,X86_64] Enable memtest
+			Format: <integer>
+			range: 0,4 : pattern number
+			default : 0 <disable>
 
 	meye.*=		[HW] Set MotionEye Camera parameters
 			See Documentation/video4linux/meye.txt.
@@ -1163,10 +1233,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			file if at all.
 
 	nfsaddrs=	[NFS]
-			See Documentation/nfsroot.txt.
+			See Documentation/filesystems/nfsroot.txt.
 
 	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
-			See Documentation/nfsroot.txt.
+			See Documentation/filesystems/nfsroot.txt.
 
 	nfs.callback_tcpport=
 			[NFS] set the TCP port on which the NFSv4 callback
@@ -1216,8 +1286,16 @@ and is between 256 and 4096 characters. It is defined in the file
 	noexec		[IA-64]
 
 	noexec		[X86-32,X86-64]
+			On X86-32 available only on PAE configured kernels.
 			noexec=on: enable non-executable mappings (default)
-			noexec=off: disable nn-executable mappings
+			noexec=off: disable non-executable mappings
+
+	noexec32	[X86-64]
+			This affects only 32-bit executables.
+			noexec32=on: enable non-executable mappings (default)
+				read doesn't imply executable mappings
+			noexec32=off: disable non-executable mappings
+				read implies executable mappings
 
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
@@ -1303,6 +1381,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	nousb		[USB] Disable the USB subsystem
 
 	nowb		[ARM]
+
+	nptcg=		[IA64] Override max number of concurrent global TLB
+			purges which is reported from either PAL_VM_SUMMARY or
+			SAL PALO.
 
 	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
 			one of ['zone', 'node', 'default'] can be specified
@@ -1393,10 +1475,6 @@ and is between 256 and 4096 characters. It is defined in the file
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of MSI interrupts system-wide.
-		nosort		[X86-32] Don't sort PCI devices according to
-				order given by the PCI BIOS. This sorting is
-				done to get a device order compatible with
-				older kernels.
 		biosirq		[X86-32] Use PCI BIOS calls to get the interrupt
 				routing table. These calls are known to be buggy
 				on several machines and they hang the machine

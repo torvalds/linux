@@ -62,7 +62,7 @@ int iwch_register_mem(struct iwch_dev *rhp, struct iwch_pd *php,
 	mmid = stag >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
 	insert_handle(rhp, &rhp->mmidr, mhp, mmid);
-	PDBG("%s mmid 0x%x mhp %p\n", __FUNCTION__, mmid, mhp);
+	PDBG("%s mmid 0x%x mhp %p\n", __func__, mmid, mhp);
 	return 0;
 }
 
@@ -96,7 +96,7 @@ int iwch_reregister_mem(struct iwch_dev *rhp, struct iwch_pd *php,
 	mmid = stag >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
 	insert_handle(rhp, &rhp->mmidr, mhp, mmid);
-	PDBG("%s mmid 0x%x mhp %p\n", __FUNCTION__, mmid, mhp);
+	PDBG("%s mmid 0x%x mhp %p\n", __func__, mmid, mhp);
 	return 0;
 }
 
@@ -136,14 +136,8 @@ int build_phys_page_list(struct ib_phys_buf *buffer_list,
 
 	/* Find largest page shift we can use to cover buffers */
 	for (*shift = PAGE_SHIFT; *shift < 27; ++(*shift))
-		if (num_phys_buf > 1) {
-			if ((1ULL << *shift) & mask)
-				break;
-		} else
-			if (1ULL << *shift >=
-			    buffer_list[0].size +
-			    (buffer_list[0].addr & ((1ULL << *shift) - 1)))
-				break;
+		if ((1ULL << *shift) & mask)
+			break;
 
 	buffer_list[0].size += buffer_list[0].addr & ((1ULL << *shift) - 1);
 	buffer_list[0].addr &= ~0ull << *shift;
@@ -169,7 +163,7 @@ int build_phys_page_list(struct ib_phys_buf *buffer_list,
 			    ((u64) j << *shift));
 
 	PDBG("%s va 0x%llx mask 0x%llx shift %d len %lld pbl_size %d\n",
-	     __FUNCTION__, (unsigned long long) *iova_start,
+	     __func__, (unsigned long long) *iova_start,
 	     (unsigned long long) mask, *shift, (unsigned long long) *total_size,
 	     *npages);
 

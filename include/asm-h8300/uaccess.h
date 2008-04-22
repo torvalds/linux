@@ -91,19 +91,16 @@ extern int __put_user_bad(void);
 #define get_user(x, ptr)					\
 ({								\
     int __gu_err = 0;						\
-    typeof(*(ptr)) __gu_val = 0;				\
+    typeof(*(ptr)) __gu_val = *ptr;				\
     switch (sizeof(*(ptr))) {					\
     case 1:							\
     case 2:							\
     case 4:							\
-	__gu_val = *(ptr);	                		\
-	break;							\
-    case 8:							\
-	memcpy(&__gu_val, ptr, sizeof (*(ptr))); 		\
+    case 8: 							\
 	break;							\
     default:							\
-	__gu_val = 0;						\
 	__gu_err = __get_user_bad();				\
+	__gu_val = 0;						\
 	break;							\
     }								\
     (x) = __gu_val;						\

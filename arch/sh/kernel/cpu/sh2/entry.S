@@ -267,7 +267,6 @@ ENTRY(sh_bios_handler)
 
 ENTRY(address_error_trap_handler)
 	mov	r15,r4				! regs
-	add	#4,r4
 	mov	#OFF_PC,r0
 	mov.l	@(r0,r15),r6			! pc
 	mov.l	1f,r0

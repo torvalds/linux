@@ -104,9 +104,15 @@ static inline void marker_update_probe_range(struct marker *begin,
 #define MARK_NOARGS " "
 
 /* To be used for string format validity checking with gcc */
-static inline void __printf(1, 2) __mark_check_format(const char *fmt, ...)
+static inline void __printf(1, 2) ___mark_check_format(const char *fmt, ...)
 {
 }
+
+#define __mark_check_format(format, args...)				\
+	do {								\
+		if (0)							\
+			___mark_check_format(format, ## args);		\
+	} while (0)
 
 extern marker_probe_func __mark_empty_function;
 

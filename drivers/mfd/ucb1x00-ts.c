@@ -32,7 +32,6 @@
 #include <linux/kthread.h>
 
 #include <asm/dma.h>
-#include <asm/semaphore.h>
 #include <asm/arch/collie.h>
 #include <asm/mach-types.h>
 

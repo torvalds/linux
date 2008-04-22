@@ -4,6 +4,8 @@
  * Copyright (C) 1997 David S. Miller (davem@caip.rutgers.edu)
  */
 
+#include <linux/init.h>
+
 #include <asm/head.h>
 #include <asm/asi.h>
 #include <asm/lsu.h>
@@ -36,7 +38,7 @@ dtlb_load:
 tramp_stack:
 	.skip	TRAMP_STACK_SIZE
 
-	.text
+	__CPUINIT
 	.align		8
 	.globl		sparc64_cpu_startup, sparc64_cpu_startup_end
 sparc64_cpu_startup:
@@ -103,7 +105,7 @@ startup_continue:
 	wr		%g2, 0, %tick_cmpr
 
 	/* Call OBP by hand to lock KERNBASE into i/d tlbs.
-	 * We lock 2 consequetive entries if we are 'bigkernel'.
+	 * We lock 'num_kernel_image_mappings' consequetive entries.
 	 */
 	sethi		%hi(prom_entry_lock), %g2
 1:	ldstub		[%g2 + %lo(prom_entry_lock)], %g1
@@ -117,6 +119,29 @@ startup_continue:
 	add		%l2, -(192 + 128), %sp
 	flushw
 
+	/* Setup the loop variables:
+	 * %l3: VADDR base
+	 * %l4: TTE base
+	 * %l5: Loop iterator, iterates from 0 to 'num_kernel_image_mappings'
+	 * %l6: Number of TTE entries to map
+	 * %l7: Highest TTE entry number, we count down
+	 */
+	sethi		%hi(KERNBASE), %l3
+	sethi		%hi(kern_locked_tte_data), %l4
+	ldx		[%l4 + %lo(kern_locked_tte_data)], %l4
+	clr		%l5
+	sethi		%hi(num_kernel_image_mappings), %l6
+	lduw		[%l6 + %lo(num_kernel_image_mappings)], %l6
+	add		%l6, 1, %l6
+
+	mov		15, %l7
+	BRANCH_IF_ANY_CHEETAH(g1,g5,2f)
+
+	mov		63, %l7
+2:
+
+3:
+	/* Lock into I-MMU */
 	sethi		%hi(call_method), %g2
 	or		%g2, %lo(call_method), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x00]
@@ -130,63 +155,26 @@ startup_continue:
 	sethi		%hi(prom_mmu_ihandle_cache), %g2
 	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x20]
-	sethi		%hi(KERNBASE), %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x28]
-	sethi		%hi(kern_locked_tte_data), %g2
-	ldx		[%g2 + %lo(kern_locked_tte_data)], %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x30]
 
-	mov		15, %g2
-	BRANCH_IF_ANY_CHEETAH(g1,g5,1f)
+	/* Each TTE maps 4MB, convert index to offset.  */
+	sllx		%l5, 22, %g1
 
-	mov		63, %g2
-1:
+	add		%l3, %g1, %g2
+	stx		%g2, [%sp + 2047 + 128 + 0x28]	! VADDR
+	add		%l4, %g1, %g2
+	stx		%g2, [%sp + 2047 + 128 + 0x30]	! TTE
+
+	/* TTE index is highest minus loop index.  */
+	sub		%l7, %l5, %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x38]
+
 	sethi		%hi(p1275buf), %g2
 	or		%g2, %lo(p1275buf), %g2
 	ldx		[%g2 + 0x08], %o1
 	call		%o1
 	 add		%sp, (2047 + 128), %o0
 
-	sethi		%hi(bigkernel), %g2
-	lduw		[%g2 + %lo(bigkernel)], %g2
-	brz,pt		%g2, do_dtlb
-	 nop
-
-	sethi		%hi(call_method), %g2
-	or		%g2, %lo(call_method), %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x00]
-	mov		5, %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x08]
-	mov		1, %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x10]
-	sethi		%hi(itlb_load), %g2
-	or		%g2, %lo(itlb_load), %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x18]
-	sethi		%hi(prom_mmu_ihandle_cache), %g2
-	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x20]
-	sethi		%hi(KERNBASE + 0x400000), %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x28]
-	sethi		%hi(kern_locked_tte_data), %g2
-	ldx		[%g2 + %lo(kern_locked_tte_data)], %g2
-	sethi		%hi(0x400000), %g1
-	add		%g2, %g1, %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x30]
-
-	mov		14, %g2
-	BRANCH_IF_ANY_CHEETAH(g1,g5,1f)
-
-	mov		62, %g2
-1:
-	stx		%g2, [%sp + 2047 + 128 + 0x38]
-	sethi		%hi(p1275buf), %g2
-	or		%g2, %lo(p1275buf), %g2
-	ldx		[%g2 + 0x08], %o1
-	call		%o1
-	 add		%sp, (2047 + 128), %o0
-
-do_dtlb:
+	/* Lock into D-MMU */
 	sethi		%hi(call_method), %g2
 	or		%g2, %lo(call_method), %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x00]
@@ -200,65 +188,30 @@ do_dtlb:
 	sethi		%hi(prom_mmu_ihandle_cache), %g2
 	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x20]
-	sethi		%hi(KERNBASE), %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x28]
-	sethi		%hi(kern_locked_tte_data), %g2
-	ldx		[%g2 + %lo(kern_locked_tte_data)], %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x30]
 
-	mov		15, %g2
-	BRANCH_IF_ANY_CHEETAH(g1,g5,1f)
+	/* Each TTE maps 4MB, convert index to offset.  */
+	sllx		%l5, 22, %g1
 
-	mov		63, %g2
-1:
+	add		%l3, %g1, %g2
+	stx		%g2, [%sp + 2047 + 128 + 0x28]	! VADDR
+	add		%l4, %g1, %g2
+	stx		%g2, [%sp + 2047 + 128 + 0x30]	! TTE
 
+	/* TTE index is highest minus loop index.  */
+	sub		%l7, %l5, %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x38]
+
 	sethi		%hi(p1275buf), %g2
 	or		%g2, %lo(p1275buf), %g2
 	ldx		[%g2 + 0x08], %o1
 	call		%o1
 	 add		%sp, (2047 + 128), %o0
 
-	sethi		%hi(bigkernel), %g2
-	lduw		[%g2 + %lo(bigkernel)], %g2
-	brz,pt		%g2, do_unlock
+	add		%l5, 1, %l5
+	cmp		%l5, %l6
+	bne,pt		%xcc, 3b
 	 nop
 
-	sethi		%hi(call_method), %g2
-	or		%g2, %lo(call_method), %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x00]
-	mov		5, %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x08]
-	mov		1, %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x10]
-	sethi		%hi(dtlb_load), %g2
-	or		%g2, %lo(dtlb_load), %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x18]
-	sethi		%hi(prom_mmu_ihandle_cache), %g2
-	lduw		[%g2 + %lo(prom_mmu_ihandle_cache)], %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x20]
-	sethi		%hi(KERNBASE + 0x400000), %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x28]
-	sethi		%hi(kern_locked_tte_data), %g2
-	ldx		[%g2 + %lo(kern_locked_tte_data)], %g2
-	sethi		%hi(0x400000), %g1
-	add		%g2, %g1, %g2
-	stx		%g2, [%sp + 2047 + 128 + 0x30]
-
-	mov		14, %g2
-	BRANCH_IF_ANY_CHEETAH(g1,g5,1f)
-
-	mov		62, %g2
-1:
-
-	stx		%g2, [%sp + 2047 + 128 + 0x38]
-	sethi		%hi(p1275buf), %g2
-	or		%g2, %lo(p1275buf), %g2
-	ldx		[%g2 + 0x08], %o1
-	call		%o1
-	 add		%sp, (2047 + 128), %o0
-
-do_unlock:
 	sethi		%hi(prom_entry_lock), %g2
 	stb		%g0, [%g2 + %lo(prom_entry_lock)]
 	membar		#StoreStore | #StoreLoad
@@ -267,46 +220,35 @@ do_unlock:
 	 nop
 
 niagara_lock_tlb:
+	sethi		%hi(KERNBASE), %l3
+	sethi		%hi(kern_locked_tte_data), %l4
+	ldx		[%l4 + %lo(kern_locked_tte_data)], %l4
+	clr		%l5
+	sethi		%hi(num_kernel_image_mappings), %l6
+	lduw		[%l6 + %lo(num_kernel_image_mappings)], %l6
+	add		%l6, 1, %l6
+
+1:
 	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
-	sethi		%hi(KERNBASE), %o0
+	sllx		%l5, 22, %g2
+	add		%l3, %g2, %o0
 	clr		%o1
-	sethi		%hi(kern_locked_tte_data), %o2
-	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
+	add		%l4, %g2, %o2
 	mov		HV_MMU_IMMU, %o3
 	ta		HV_FAST_TRAP
 
 	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
-	sethi		%hi(KERNBASE), %o0
+	sllx		%l5, 22, %g2
+	add		%l3, %g2, %o0
 	clr		%o1
-	sethi		%hi(kern_locked_tte_data), %o2
-	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
+	add		%l4, %g2, %o2
 	mov		HV_MMU_DMMU, %o3
 	ta		HV_FAST_TRAP
 
-	sethi		%hi(bigkernel), %g2
-	lduw		[%g2 + %lo(bigkernel)], %g2
-	brz,pt		%g2, after_lock_tlb
+	add		%l5, 1, %l5
+	cmp		%l5, %l6
+	bne,pt		%xcc, 1b
 	 nop
-
-	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
-	sethi		%hi(KERNBASE + 0x400000), %o0
-	clr		%o1
-	sethi		%hi(kern_locked_tte_data), %o2
-	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
-	sethi		%hi(0x400000), %o3
-	add		%o2, %o3, %o2
-	mov		HV_MMU_IMMU, %o3
-	ta		HV_FAST_TRAP
-
-	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
-	sethi		%hi(KERNBASE + 0x400000), %o0
-	clr		%o1
-	sethi		%hi(kern_locked_tte_data), %o2
-	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
-	sethi		%hi(0x400000), %o3
-	add		%o2, %o3, %o2
-	mov		HV_MMU_DMMU, %o3
-	ta		HV_FAST_TRAP
 
 after_lock_tlb:
 	wrpr		%g0, (PSTATE_PRIV | PSTATE_PEF), %pstate

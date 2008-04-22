@@ -23,8 +23,18 @@
 /* Found in switcher.S */
 extern unsigned long default_idt_entries[];
 
-struct lguest_regs
-{
+/* Declarations for definitions in lguest_guest.S */
+extern char lguest_noirq_start[], lguest_noirq_end[];
+extern const char lgstart_cli[], lgend_cli[];
+extern const char lgstart_sti[], lgend_sti[];
+extern const char lgstart_popf[], lgend_popf[];
+extern const char lgstart_pushf[], lgend_pushf[];
+extern const char lgstart_iret[], lgend_iret[];
+
+extern void lguest_iret(void);
+extern void lguest_init(void);
+
+struct lguest_regs {
 	/* Manually saved part. */
 	unsigned long eax, ebx, ecx, edx;
 	unsigned long esi, edi, ebp;
@@ -40,8 +50,7 @@ struct lguest_regs
 };
 
 /* This is a guest-specific page (mapped ro) into the guest. */
-struct lguest_ro_state
-{
+struct lguest_ro_state {
 	/* Host information we need to restore when we switch back. */
 	u32 host_cr3;
 	struct desc_ptr host_idt_desc;
@@ -56,8 +65,7 @@ struct lguest_ro_state
 	struct desc_struct guest_gdt[GDT_ENTRIES];
 };
 
-struct lg_cpu_arch
-{
+struct lg_cpu_arch {
 	/* The GDT entries copied into lguest_ro_state when running. */
 	struct desc_struct gdt[GDT_ENTRIES];
 
@@ -74,7 +82,7 @@ static inline void lguest_set_ts(void)
 
 	cr0 = read_cr0();
 	if (!(cr0 & 8))
-		write_cr0(cr0|8);
+		write_cr0(cr0 | 8);
 }
 
 /* Full 4G segment descriptors, suitable for CS and DS. */

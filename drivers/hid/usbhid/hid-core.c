@@ -278,7 +278,7 @@ static int hid_submit_ctrl(struct hid_device *hid)
 		usbhid->urbctrl->pipe = usb_rcvctrlpipe(hid_to_usb_dev(hid), 0);
 		maxpacket = usb_maxpacket(hid_to_usb_dev(hid), usbhid->urbctrl->pipe, 0);
 		if (maxpacket > 0) {
-			padlen = (len + maxpacket - 1) / maxpacket;
+			padlen = DIV_ROUND_UP(len, maxpacket);
 			padlen *= maxpacket;
 			if (padlen > usbhid->bufsize)
 				padlen = usbhid->bufsize;

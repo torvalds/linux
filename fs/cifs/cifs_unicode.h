@@ -254,7 +254,8 @@ UniStrstr(const wchar_t *ucs1, const wchar_t *ucs2)
 	const wchar_t *anchor2 = ucs2;
 
 	while (*ucs1) {
-		if (*ucs1 == *ucs2) {	/* Partial match found */
+		if (*ucs1 == *ucs2) {
+			/* Partial match found */
 			ucs1++;
 			ucs2++;
 		} else {
@@ -279,7 +280,8 @@ UniToupper(register wchar_t uc)
 {
 	register const struct UniCaseRange *rp;
 
-	if (uc < sizeof (CifsUniUpperTable)) {	/* Latin characters */
+	if (uc < sizeof(CifsUniUpperTable)) {
+		/* Latin characters */
 		return uc + CifsUniUpperTable[uc];	/* Use base tables */
 	} else {
 		rp = CifsUniUpperRange;	/* Use range tables */
@@ -320,7 +322,8 @@ UniTolower(wchar_t uc)
 {
 	register struct UniCaseRange *rp;
 
-	if (uc < sizeof (UniLowerTable)) {	/* Latin characters */
+	if (uc < sizeof(UniLowerTable)) {
+		/* Latin characters */
 		return uc + UniLowerTable[uc];	/* Use base tables */
 	} else {
 		rp = UniLowerRange;	/* Use range tables */

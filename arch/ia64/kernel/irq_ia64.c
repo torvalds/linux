@@ -260,6 +260,8 @@ void __setup_vector_irq(int cpu)
 }
 
 #if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG))
+#define IA64_IRQ_MOVE_VECTOR	IA64_DEF_FIRST_DEVICE_VECTOR
+
 static enum vector_domain_type {
 	VECTOR_DOMAIN_NONE,
 	VECTOR_DOMAIN_PERCPU
@@ -271,6 +273,101 @@ static cpumask_t vector_allocation_domain(int cpu)
 		return cpumask_of_cpu(cpu);
 	return CPU_MASK_ALL;
 }
+
+static int __irq_prepare_move(int irq, int cpu)
+{
+	struct irq_cfg *cfg = &irq_cfg[irq];
+	int vector;
+	cpumask_t domain;
+
+	if (cfg->move_in_progress || cfg->move_cleanup_count)
+		return -EBUSY;
+	if (cfg->vector == IRQ_VECTOR_UNASSIGNED || !cpu_online(cpu))
+		return -EINVAL;
+	if (cpu_isset(cpu, cfg->domain))
+		return 0;
+	domain = vector_allocation_domain(cpu);
+	vector = find_unassigned_vector(domain);
+	if (vector < 0)
+		return -ENOSPC;
+	cfg->move_in_progress = 1;
+	cfg->old_domain = cfg->domain;
+	cfg->vector = IRQ_VECTOR_UNASSIGNED;
+	cfg->domain = CPU_MASK_NONE;
+	BUG_ON(__bind_irq_vector(irq, vector, domain));
+	return 0;
+}
+
+int irq_prepare_move(int irq, int cpu)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&vector_lock, flags);
+	ret = __irq_prepare_move(irq, cpu);
+	spin_unlock_irqrestore(&vector_lock, flags);
+	return ret;
+}
+
+void irq_complete_move(unsigned irq)
+{
+	struct irq_cfg *cfg = &irq_cfg[irq];
+	cpumask_t cleanup_mask;
+	int i;
+
+	if (likely(!cfg->move_in_progress))
+		return;
+
+	if (unlikely(cpu_isset(smp_processor_id(), cfg->old_domain)))
+		return;
+
+	cpus_and(cleanup_mask, cfg->old_domain, cpu_online_map);
+	cfg->move_cleanup_count = cpus_weight(cleanup_mask);
+	for_each_cpu_mask(i, cleanup_mask)
+		platform_send_ipi(i, IA64_IRQ_MOVE_VECTOR, IA64_IPI_DM_INT, 0);
+	cfg->move_in_progress = 0;
+}
+
+static irqreturn_t smp_irq_move_cleanup_interrupt(int irq, void *dev_id)
+{
+	int me = smp_processor_id();
+	ia64_vector vector;
+	unsigned long flags;
+
+	for (vector = IA64_FIRST_DEVICE_VECTOR;
+	     vector < IA64_LAST_DEVICE_VECTOR; vector++) {
+		int irq;
+		struct irq_desc *desc;
+		struct irq_cfg *cfg;
+		irq = __get_cpu_var(vector_irq)[vector];
+		if (irq < 0)
+			continue;
+
+		desc = irq_desc + irq;
+		cfg = irq_cfg + irq;
+		spin_lock(&desc->lock);
+		if (!cfg->move_cleanup_count)
+			goto unlock;
+
+		if (!cpu_isset(me, cfg->old_domain))
+			goto unlock;
+
+		spin_lock_irqsave(&vector_lock, flags);
+		__get_cpu_var(vector_irq)[vector] = -1;
+		cpu_clear(me, vector_table[vector]);
+		spin_unlock_irqrestore(&vector_lock, flags);
+		cfg->move_cleanup_count--;
+	unlock:
+		spin_unlock(&desc->lock);
+	}
+	return IRQ_HANDLED;
+}
+
+static struct irqaction irq_move_irqaction = {
+	.handler =	smp_irq_move_cleanup_interrupt,
+	.flags =	IRQF_DISABLED,
+	.name =		"irq_move"
+};
 
 static int __init parse_vector_domain(char *arg)
 {
@@ -301,36 +398,6 @@ void destroy_and_reserve_irq(unsigned int irq)
 	__clear_irq_vector(irq);
 	irq_status[irq] = IRQ_RSVD;
 	spin_unlock_irqrestore(&vector_lock, flags);
-}
-
-static int __reassign_irq_vector(int irq, int cpu)
-{
-	struct irq_cfg *cfg = &irq_cfg[irq];
-	int vector;
-	cpumask_t domain;
-
-	if (cfg->vector == IRQ_VECTOR_UNASSIGNED || !cpu_online(cpu))
-		return -EINVAL;
-	if (cpu_isset(cpu, cfg->domain))
-		return 0;
-	domain = vector_allocation_domain(cpu);
-	vector = find_unassigned_vector(domain);
-	if (vector < 0)
-		return -ENOSPC;
-	__clear_irq_vector(irq);
-	BUG_ON(__bind_irq_vector(irq, vector, domain));
-	return 0;
-}
-
-int reassign_irq_vector(int irq, int cpu)
-{
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&vector_lock, flags);
-	ret = __reassign_irq_vector(irq, cpu);
-	spin_unlock_irqrestore(&vector_lock, flags);
-	return ret;
 }
 
 /*
@@ -405,7 +472,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 			static unsigned char count;
 			static long last_time;
 
-			if (jiffies - last_time > 5*HZ)
+			if (time_after(jiffies, last_time + 5 * HZ))
 				count = 0;
 			if (++count < 5) {
 				last_time = jiffies;
@@ -440,7 +507,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 			if (unlikely(irq < 0)) {
 				printk(KERN_ERR "%s: Unexpected interrupt "
 				       "vector %d on CPU %d is not mapped "
-				       "to any IRQ!\n", __FUNCTION__, vector,
+				       "to any IRQ!\n", __func__, vector,
 				       smp_processor_id());
 			} else
 				generic_handle_irq(irq);
@@ -505,7 +572,7 @@ void ia64_process_pending_intr(void)
 			if (unlikely(irq < 0)) {
 				printk(KERN_ERR "%s: Unexpected interrupt "
 				       "vector %d on CPU %d not being mapped "
-				       "to any IRQ!!\n", __FUNCTION__, vector,
+				       "to any IRQ!!\n", __func__, vector,
 				       smp_processor_id());
 			} else {
 				vectors_in_migration[irq]=0;
@@ -578,6 +645,13 @@ init_IRQ (void)
 	register_percpu_irq(IA64_IPI_VECTOR, &ipi_irqaction);
 	register_percpu_irq(IA64_IPI_RESCHEDULE, &resched_irqaction);
 	register_percpu_irq(IA64_IPI_LOCAL_TLB_FLUSH, &tlb_irqaction);
+#if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG)
+	if (vector_domain_type != VECTOR_DOMAIN_NONE) {
+		BUG_ON(IA64_FIRST_DEVICE_VECTOR != IA64_IRQ_MOVE_VECTOR);
+		IA64_FIRST_DEVICE_VECTOR++;
+		register_percpu_irq(IA64_IRQ_MOVE_VECTOR, &irq_move_irqaction);
+	}
+#endif
 #endif
 #ifdef CONFIG_PERFMON
 	pfm_init_percpu();
@@ -592,11 +666,7 @@ ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect)
 	unsigned long ipi_data;
 	unsigned long phys_cpu_id;
 
-#ifdef CONFIG_SMP
 	phys_cpu_id = cpu_physical_id(cpu);
-#else
-	phys_cpu_id = (ia64_getreg(_IA64_REG_CR_LID) >> 16) & 0xffff;
-#endif
 
 	/*
 	 * cpu number is in 8bit ID and 8bit EID

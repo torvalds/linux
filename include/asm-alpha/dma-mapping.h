@@ -11,7 +11,7 @@
 #define dma_unmap_single(dev, addr, size, dir)		\
 		pci_unmap_single(alpha_gendev_to_pci(dev), addr, size, dir)
 #define dma_alloc_coherent(dev, size, addr, gfp)	\
-		pci_alloc_consistent(alpha_gendev_to_pci(dev), size, addr)
+	      __pci_alloc_consistent(alpha_gendev_to_pci(dev), size, addr, gfp)
 #define dma_free_coherent(dev, size, va, addr)		\
 		pci_free_consistent(alpha_gendev_to_pci(dev), size, va, addr)
 #define dma_map_page(dev, page, off, size, dir)		\

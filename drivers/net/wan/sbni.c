@@ -751,7 +751,7 @@ upload_data( struct net_device  *dev,  unsigned  framelen,  unsigned  frameno,
 }
 
 
-static __inline void
+static inline void
 send_complete( struct net_local  *nl )
 {
 #ifdef CONFIG_SBNI_MULTILINE

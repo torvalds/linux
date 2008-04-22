@@ -23,6 +23,10 @@
 #include "phy.h"
 
 
+/* The unique identifier of the firmware that's officially supported by this
+ * driver version. */
+#define B43legacy_SUPPORTED_FIRMWARE_ID	"FW10"
+
 #define B43legacy_IRQWAIT_MAX_RETRIES	20
 
 #define B43legacy_RX_MAX_SSI		60 /* best guess at max ssi */
@@ -93,6 +97,7 @@
 #define B43legacy_MMIO_RADIO_HWENABLED_LO	0x49A
 #define B43legacy_MMIO_GPIO_CONTROL	0x49C
 #define B43legacy_MMIO_GPIO_MASK		0x49E
+#define B43legacy_MMIO_TSF_CFP_PRETBTT	0x612
 #define B43legacy_MMIO_TSF_0		0x632 /* core rev < 3 only */
 #define B43legacy_MMIO_TSF_1		0x634 /* core rev < 3 only */
 #define B43legacy_MMIO_TSF_2		0x636 /* core rev < 3 only */
@@ -126,19 +131,27 @@
 #define B43legacy_SHM_SH_HOSTFHI	0x0060 /* Hostflags ucode opts (high) */
 /* SHM_SHARED crypto engine */
 #define B43legacy_SHM_SH_KEYIDXBLOCK	0x05D4 /* Key index/algorithm block */
-/* SHM_SHARED beacon variables */
+/* SHM_SHARED beacon/AP variables */
+#define B43legacy_SHM_SH_DTIMP		0x0012 /* DTIM period */
+#define B43legacy_SHM_SH_BTL0		0x0018 /* Beacon template length 0 */
+#define B43legacy_SHM_SH_BTL1		0x001A /* Beacon template length 1 */
+#define B43legacy_SHM_SH_BTSFOFF	0x001C /* Beacon TSF offset */
+#define B43legacy_SHM_SH_TIMPOS		0x001E /* TIM position in beacon */
 #define B43legacy_SHM_SH_BEACPHYCTL	0x0054 /* Beacon PHY TX control word */
 /* SHM_SHARED ACK/CTS control */
 #define B43legacy_SHM_SH_ACKCTSPHYCTL	0x0022 /* ACK/CTS PHY control word */
 /* SHM_SHARED probe response variables */
-#define B43legacy_SHM_SH_PRPHYCTL	0x0188 /* Probe Resp PHY TX control */
+#define B43legacy_SHM_SH_PRTLEN		0x004A /* Probe Response template length */
 #define B43legacy_SHM_SH_PRMAXTIME	0x0074 /* Probe Response max time */
+#define B43legacy_SHM_SH_PRPHYCTL	0x0188 /* Probe Resp PHY TX control */
 /* SHM_SHARED rate tables */
 /* SHM_SHARED microcode soft registers */
 #define B43legacy_SHM_SH_UCODEREV	0x0000 /* Microcode revision */
 #define B43legacy_SHM_SH_UCODEPATCH	0x0002 /* Microcode patchlevel */
 #define B43legacy_SHM_SH_UCODEDATE	0x0004 /* Microcode date */
 #define B43legacy_SHM_SH_UCODETIME	0x0006 /* Microcode time */
+#define B43legacy_SHM_SH_SPUWKUP	0x0094 /* pre-wakeup for synth PU in us */
+#define B43legacy_SHM_SH_PRETBTT	0x0096 /* pre-TBTT in us */
 
 #define B43legacy_UCODEFLAGS_OFFSET     0x005E
 
@@ -194,6 +207,13 @@
 #define B43legacy_MACCTL_AWAKE		0x04000000 /* Device is awake */
 #define B43legacy_MACCTL_TBTTHOLD	0x10000000 /* TBTT Hold */
 #define B43legacy_MACCTL_GMODE		0x80000000 /* G Mode */
+
+/* MAC Command bitfield */
+#define B43legacy_MACCMD_BEACON0_VALID	0x00000001 /* Beacon 0 in template RAM is busy/valid */
+#define B43legacy_MACCMD_BEACON1_VALID	0x00000002 /* Beacon 1 in template RAM is busy/valid */
+#define B43legacy_MACCMD_DFQ_VALID	0x00000004 /* Directed frame queue valid (IBSS PS mode, ATIM) */
+#define B43legacy_MACCMD_CCA		0x00000008 /* Clear channel assessment */
+#define B43legacy_MACCMD_BGNOISE	0x00000010 /* Background noise */
 
 /* 802.11 core specific TM State Low flags */
 #define B43legacy_TMSLOW_GMODE		0x20000000 /* G Mode Enable */
@@ -313,15 +333,7 @@ enum {
 # undef assert
 #endif
 #ifdef CONFIG_B43LEGACY_DEBUG
-# define B43legacy_WARN_ON(expr)					\
-	do {								\
-		if (unlikely((expr))) {					\
-			printk(KERN_INFO PFX "Test (%s) failed at:"	\
-					      " %s:%d:%s()\n",		\
-					      #expr, __FILE__,		\
-					      __LINE__, __FUNCTION__);	\
-		}							\
-	} while (0)
+# define B43legacy_WARN_ON(x)	WARN_ON(x)
 # define B43legacy_BUG_ON(expr)						\
 	do {								\
 		if (unlikely((expr))) {					\
@@ -332,7 +344,9 @@ enum {
 	} while (0)
 # define B43legacy_DEBUG	1
 #else
-# define B43legacy_WARN_ON(x)	do { /* nothing */ } while (0)
+/* This will evaluate the argument even if debugging is disabled. */
+static inline bool __b43legacy_warn_on_dummy(bool x) { return x; }
+# define B43legacy_WARN_ON(x)	__b43legacy_warn_on_dummy(unlikely(!!(x)))
 # define B43legacy_BUG_ON(x)	do { /* nothing */ } while (0)
 # define B43legacy_DEBUG	0
 #endif
@@ -388,10 +402,6 @@ struct b43legacy_phy {
 	u8 possible_phymodes;
 	/* GMODE bit enabled in MACCTL? */
 	bool gmode;
-	/* Possible ieee80211 subsystem hwmodes for this PHY.
-	 * Which mode is selected, depends on thr GMODE enabled bit */
-#define B43legacy_MAX_PHYHWMODES	2
-	struct ieee80211_hw_mode hwmodes[B43legacy_MAX_PHYHWMODES];
 
 	/* Analog Type */
 	u8 analog;
@@ -594,6 +604,12 @@ struct b43legacy_wl {
 	u8 nr_devs;
 
 	bool radiotap_enabled;
+
+	/* The beacon we are currently using (AP or IBSS mode).
+	 * This beacon stuff is protected by the irq_lock. */
+	struct sk_buff *current_beacon;
+	bool beacon0_uploaded;
+	bool beacon1_uploaded;
 };
 
 /* Pointers to the firmware data and meta information about it. */
@@ -645,7 +661,7 @@ struct b43legacy_wldev {
 
 	bool __using_pio;	/* Using pio rather than dma. */
 	bool bad_frames_preempt;/* Use "Bad Frames Preemption". */
-	bool reg124_set_0x4;	/* Variable to keep track of IRQ. */
+	bool dfq_valid;		/* Directed frame queue valid (IBSS PS mode, ATIM). */
 	bool short_preamble;	/* TRUE if using short preamble. */
 	bool short_slot;	/* TRUE if using short slot timing. */
 	bool radio_hw_enable;	/* State of radio hardware enable bit. */
@@ -691,9 +707,6 @@ struct b43legacy_wldev {
 	u16 ktp; /* Key table pointer */
 	u8 max_nr_keys;
 	struct b43legacy_key key[58];
-
-	/* Cached beacon template while uploading the template. */
-	struct sk_buff *cached_beacon;
 
 	/* Firmware data */
 	struct b43legacy_firmware fw;

@@ -681,8 +681,8 @@ static const struct aic3x_rate_divs aic3x_divs[] = {
 	{22579200, 48000, 48000, 0x0, 8, 7075},
 	{33868800, 48000, 48000, 0x0, 5, 8049},
 	/* 64k */
-	{22579200, 96000, 96000, 0x1, 8, 7075},
-	{33868800, 96000, 96000, 0x1, 5, 8049},
+	{22579200, 64000, 96000, 0x1, 8, 7075},
+	{33868800, 64000, 96000, 0x1, 5, 8049},
 	/* 88.2k */
 	{22579200, 88200, 88200, 0x0, 8, 0},
 	{33868800, 88200, 88200, 0x0, 5, 3333},
@@ -1187,10 +1187,8 @@ static struct i2c_driver aic3x_i2c_driver = {
 		.name = "aic3x I2C Codec",
 		.owner = THIS_MODULE,
 	},
-	.id = I2C_DRIVERID_I2CDEV,
 	.attach_adapter = aic3x_i2c_attach,
 	.detach_client = aic3x_i2c_detach,
-	.command = NULL,
 };
 
 static struct i2c_client client_template = {

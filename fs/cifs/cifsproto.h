@@ -39,8 +39,8 @@ extern int smb_send(struct socket *, struct smb_hdr *,
 			unsigned int /* length */ , struct sockaddr *);
 extern unsigned int _GetXid(void);
 extern void _FreeXid(unsigned int);
-#define GetXid() (int)_GetXid(); cFYI(1,("CIFS VFS: in %s as Xid: %d with uid: %d",__FUNCTION__, xid,current->fsuid));
-#define FreeXid(curr_xid) {_FreeXid(curr_xid); cFYI(1,("CIFS VFS: leaving %s (xid = %d) rc = %d",__FUNCTION__,curr_xid,(int)rc));}
+#define GetXid() (int)_GetXid(); cFYI(1,("CIFS VFS: in %s as Xid: %d with uid: %d",__func__, xid,current->fsuid));
+#define FreeXid(curr_xid) {_FreeXid(curr_xid); cFYI(1,("CIFS VFS: leaving %s (xid = %d) rc = %d",__func__,curr_xid,(int)rc));}
 extern char *build_path_from_dentry(struct dentry *);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
 /* extern void renew_parental_timestamps(struct dentry *direntry);*/
@@ -53,11 +53,11 @@ extern int SendReceiveNoRsp(const unsigned int xid, struct cifsSesInfo *ses,
 extern int SendReceive2(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct kvec *, int /* nvec to send */,
 			int * /* type of buf returned */ , const int flags);
-extern int SendReceiveBlockingLock(const unsigned int /* xid */ ,
-					struct cifsTconInfo *,
-				struct smb_hdr * /* input */ ,
-				struct smb_hdr * /* out */ ,
-				int * /* bytes returned */);
+extern int SendReceiveBlockingLock(const unsigned int xid,
+			struct cifsTconInfo *ptcon,
+			struct smb_hdr *in_buf ,
+			struct smb_hdr *out_buf,
+			int *bytes_returned);
 extern int checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length);
 extern int is_valid_oplock_break(struct smb_hdr *smb, struct TCP_Server_Info *);
 extern int is_size_safe_to_change(struct cifsInodeInfo *, __u64 eof);
@@ -84,7 +84,7 @@ extern __u16 GetNextMid(struct TCP_Server_Info *server);
 extern struct oplock_q_entry *AllocOplockQEntry(struct inode *, u16,
 						 struct cifsTconInfo *);
 extern void DeleteOplockQEntry(struct oplock_q_entry *);
-extern struct timespec cifs_NTtimeToUnix(u64 /* utc nanoseconds since 1601 */ );
+extern struct timespec cifs_NTtimeToUnix(u64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern __le64 cnvrtDosCifsTm(__u16 date, __u16 time);
 extern struct timespec cnvrtDosUnixTm(__u16 date, __u16 time);
@@ -92,11 +92,12 @@ extern struct timespec cnvrtDosUnixTm(__u16 date, __u16 time);
 extern int cifs_get_inode_info(struct inode **pinode,
 			const unsigned char *search_path,
 			FILE_ALL_INFO * pfile_info,
-			struct super_block *sb, int xid);
+			struct super_block *sb, int xid, const __u16 *pfid);
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, int xid);
-extern void acl_to_uid_mode(struct inode *inode, const char *search_path);
+extern void acl_to_uid_mode(struct inode *inode, const char *path,
+			    const __u16 *pfid);
 extern int mode_to_acl(struct inode *inode, const char *path, __u64);
 
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
@@ -104,7 +105,11 @@ extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
 extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
 #ifdef CONFIG_CIFS_DFS_UPCALL
 extern void dfs_shrink_umount_helper(struct vfsmount *vfsmnt);
-#endif
+#else
+static inline void dfs_shrink_umount_helper(struct vfsmount *vfsmnt)
+{
+}
+#endif /* DFS_UPCALL */
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
 
@@ -175,11 +180,11 @@ extern int CIFSSMBQFSPosixInfo(const int xid, struct cifsTconInfo *tcon,
 			struct kstatfs *FSData);
 
 extern int CIFSSMBSetTimes(const int xid, struct cifsTconInfo *tcon,
-			const char *fileName, const FILE_BASIC_INFO * data,
+			const char *fileName, const FILE_BASIC_INFO *data,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 extern int CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon,
-			const FILE_BASIC_INFO * data, __u16 fid);
+			const FILE_BASIC_INFO *data, __u16 fid);
 #if 0
 extern int CIFSSMBSetAttrLegacy(int xid, struct cifsTconInfo *tcon,
 			char *fileName, __u16 dos_attributes,

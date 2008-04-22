@@ -131,22 +131,25 @@ extern int zfcp_scsi_command_sync(struct zfcp_unit *, struct scsi_cmnd *, int);
 extern struct fc_function_template zfcp_transport_functions;
 
 /******************************** ERP ****************************************/
-extern void zfcp_erp_modify_adapter_status(struct zfcp_adapter *, u32, int);
-extern int  zfcp_erp_adapter_reopen(struct zfcp_adapter *, int);
-extern int  zfcp_erp_adapter_shutdown(struct zfcp_adapter *, int);
-extern void zfcp_erp_adapter_failed(struct zfcp_adapter *);
+extern void zfcp_erp_modify_adapter_status(struct zfcp_adapter *, u8, void *,
+					   u32, int);
+extern int  zfcp_erp_adapter_reopen(struct zfcp_adapter *, int, u8, void *);
+extern int  zfcp_erp_adapter_shutdown(struct zfcp_adapter *, int, u8, void *);
+extern void zfcp_erp_adapter_failed(struct zfcp_adapter *, u8, void *);
 
-extern void zfcp_erp_modify_port_status(struct zfcp_port *, u32, int);
-extern int  zfcp_erp_port_reopen(struct zfcp_port *, int);
-extern int  zfcp_erp_port_shutdown(struct zfcp_port *, int);
-extern int  zfcp_erp_port_forced_reopen(struct zfcp_port *, int);
-extern void zfcp_erp_port_failed(struct zfcp_port *);
-extern int  zfcp_erp_port_reopen_all(struct zfcp_adapter *, int);
+extern void zfcp_erp_modify_port_status(struct zfcp_port *, u8, void *, u32,
+					int);
+extern int  zfcp_erp_port_reopen(struct zfcp_port *, int, u8, void *);
+extern int  zfcp_erp_port_shutdown(struct zfcp_port *, int, u8, void *);
+extern int  zfcp_erp_port_forced_reopen(struct zfcp_port *, int, u8, void *);
+extern void zfcp_erp_port_failed(struct zfcp_port *, u8, void *);
+extern int  zfcp_erp_port_reopen_all(struct zfcp_adapter *, int, u8, void *);
 
-extern void zfcp_erp_modify_unit_status(struct zfcp_unit *, u32, int);
-extern int  zfcp_erp_unit_reopen(struct zfcp_unit *, int);
-extern int  zfcp_erp_unit_shutdown(struct zfcp_unit *, int);
-extern void zfcp_erp_unit_failed(struct zfcp_unit *);
+extern void zfcp_erp_modify_unit_status(struct zfcp_unit *, u8, void *, u32,
+					int);
+extern int  zfcp_erp_unit_reopen(struct zfcp_unit *, int, u8, void *);
+extern int  zfcp_erp_unit_shutdown(struct zfcp_unit *, int, u8, void *);
+extern void zfcp_erp_unit_failed(struct zfcp_unit *, u8, void *);
 
 extern int  zfcp_erp_thread_setup(struct zfcp_adapter *);
 extern int  zfcp_erp_thread_kill(struct zfcp_adapter *);
@@ -155,15 +158,25 @@ extern void zfcp_erp_async_handler(struct zfcp_erp_action *, unsigned long);
 
 extern int  zfcp_test_link(struct zfcp_port *);
 
-extern void zfcp_erp_port_boxed(struct zfcp_port *);
-extern void zfcp_erp_unit_boxed(struct zfcp_unit *);
-extern void zfcp_erp_port_access_denied(struct zfcp_port *);
-extern void zfcp_erp_unit_access_denied(struct zfcp_unit *);
-extern void zfcp_erp_adapter_access_changed(struct zfcp_adapter *);
-extern void zfcp_erp_port_access_changed(struct zfcp_port *);
-extern void zfcp_erp_unit_access_changed(struct zfcp_unit *);
+extern void zfcp_erp_port_boxed(struct zfcp_port *, u8 id, void *ref);
+extern void zfcp_erp_unit_boxed(struct zfcp_unit *, u8 id, void *ref);
+extern void zfcp_erp_port_access_denied(struct zfcp_port *, u8 id, void *ref);
+extern void zfcp_erp_unit_access_denied(struct zfcp_unit *, u8 id, void *ref);
+extern void zfcp_erp_adapter_access_changed(struct zfcp_adapter *, u8, void *);
+extern void zfcp_erp_port_access_changed(struct zfcp_port *, u8, void *);
+extern void zfcp_erp_unit_access_changed(struct zfcp_unit *, u8, void *);
 
 /******************************** AUX ****************************************/
+extern void zfcp_rec_dbf_event_thread(u8 id, struct zfcp_adapter *adapter,
+				      int lock);
+extern void zfcp_rec_dbf_event_adapter(u8 id, void *ref, struct zfcp_adapter *);
+extern void zfcp_rec_dbf_event_port(u8 id, void *ref, struct zfcp_port *port);
+extern void zfcp_rec_dbf_event_unit(u8 id, void *ref, struct zfcp_unit *unit);
+extern void zfcp_rec_dbf_event_trigger(u8 id, void *ref, u8 want, u8 need,
+				       void *action, struct zfcp_adapter *,
+				       struct zfcp_port *, struct zfcp_unit *);
+extern void zfcp_rec_dbf_event_action(u8 id, struct zfcp_erp_action *);
+
 extern void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *);
 extern void zfcp_hba_dbf_event_fsf_unsol(const char *, struct zfcp_adapter *,
 					 struct fsf_status_read_buffer *);

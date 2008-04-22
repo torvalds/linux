@@ -19,6 +19,10 @@
 #define VENDOR_ID_CYPRESS		 0x04b4
 #define PRODUCT_ID_CYPHIDCOM		 0x5500
 
+/* Powercom UPS, chip CY7C63723 */
+#define VENDOR_ID_POWERCOM		 0x0d9f
+#define PRODUCT_ID_UPS			 0x0002
+
 /* Nokia CA-42 USB to serial cable */
 #define VENDOR_ID_DAZZLE		0x07d0
 #define PRODUCT_ID_CA42			0x4101

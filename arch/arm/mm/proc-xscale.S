@@ -114,6 +114,10 @@ clean_addr:	.word	CLEAN_ADDR
  * Nothing too exciting at the moment
  */
 ENTRY(cpu_xscale_proc_init)
+	@ enable write buffer coalescing. Some bootloader disable it
+	mrc	p15, 0, r1, c1, c0, 1
+	bic	r1, r1, #1
+	mcr	p15, 0, r1, c1, c0, 1
 	mov	pc, lr
 
 /*
@@ -530,6 +534,7 @@ ENTRY(xscale_processor_functions)
 	.word	cpu_xscale_dcache_clean_area
 	.word	cpu_xscale_switch_mm
 	.word	cpu_xscale_set_pte_ext
+	.word	pabort_noifar
 	.size	xscale_processor_functions, . - xscale_processor_functions
 
 	.section ".rodata"

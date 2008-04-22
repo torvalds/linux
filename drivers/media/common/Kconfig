@@ -4,6 +4,6 @@ config VIDEO_SAA7146
 
 config VIDEO_SAA7146_VV
 	tristate
-	depends on VIDEO_DEV
+	depends on VIDEO_V4L2
 	select VIDEOBUF_DMA_SG
 	select VIDEO_SAA7146

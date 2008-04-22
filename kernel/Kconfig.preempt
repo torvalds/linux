@@ -52,8 +52,23 @@ config PREEMPT
 
 endchoice
 
+config PREEMPT_RCU
+	bool "Preemptible RCU"
+	depends on PREEMPT
+	default n
+	help
+	  This option reduces the latency of the kernel by making certain
+	  RCU sections preemptible. Normally RCU code is non-preemptible, if
+	  this option is selected then read-only RCU sections become
+	  preemptible. This helps latency, but may expose bugs due to
+	  now-naive assumptions about each RCU read-side critical section
+	  remaining on a given CPU through its execution.
+
+	  Say N if you are unsure.
+
 config RCU_TRACE
 	bool "Enable tracing for RCU - currently stats in debugfs"
+	depends on PREEMPT_RCU
 	select DEBUG_FS
 	default y
 	help

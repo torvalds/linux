@@ -45,7 +45,6 @@
 #include <linux/rslib.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
-#include <asm/semaphore.h>
 
 /* This list holds all currently allocated rs control structures */
 static LIST_HEAD (rslist);

@@ -30,7 +30,7 @@
 
 #define CIFS_IOC_CHECKUMOUNT _IO(0xCF, 2)
 
-int cifs_ioctl (struct inode *inode, struct file *filep,
+int cifs_ioctl(struct inode *inode, struct file *filep,
 		unsigned int command, unsigned long arg)
 {
 	int rc = -ENOTTY; /* strange error - but the precedent */

@@ -616,6 +616,53 @@ asmlinkage int printk(const char *fmt, ...)
 /* cpu currently holding logbuf_lock */
 static volatile unsigned int printk_cpu = UINT_MAX;
 
+/*
+ * Can we actually use the console at this time on this cpu?
+ *
+ * Console drivers may assume that per-cpu resources have
+ * been allocated. So unless they're explicitly marked as
+ * being able to cope (CON_ANYTIME) don't call them until
+ * this CPU is officially up.
+ */
+static inline int can_use_console(unsigned int cpu)
+{
+	return cpu_online(cpu) || have_callable_console();
+}
+
+/*
+ * Try to get console ownership to actually show the kernel
+ * messages from a 'printk'. Return true (and with the
+ * console_semaphore held, and 'console_locked' set) if it
+ * is successful, false otherwise.
+ *
+ * This gets called with the 'logbuf_lock' spinlock held and
+ * interrupts disabled. It should return with 'lockbuf_lock'
+ * released but interrupts still disabled.
+ */
+static int acquire_console_semaphore_for_printk(unsigned int cpu)
+{
+	int retval = 0;
+
+	if (!try_acquire_console_sem()) {
+		retval = 1;
+
+		/*
+		 * If we can't use the console, we need to release
+		 * the console semaphore by hand to avoid flushing
+		 * the buffer. We need to hold the console semaphore
+		 * in order to do this test safely.
+		 */
+		if (!can_use_console(cpu)) {
+			console_locked = 0;
+			up(&console_sem);
+			retval = 0;
+		}
+	}
+	printk_cpu = UINT_MAX;
+	spin_unlock(&logbuf_lock);
+	return retval;
+}
+
 const char printk_recursion_bug_msg [] =
 			KERN_CRIT "BUG: recent printk recursion!\n";
 static int printk_recursion_bug;
@@ -666,7 +713,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	}
 	/* Emit the output into the temporary buffer */
 	printed_len += vscnprintf(printk_buf + printed_len,
-				  sizeof(printk_buf), fmt, args);
+				  sizeof(printk_buf) - printed_len, fmt, args);
 
 	/*
 	 * Copy the output into log_buf.  If the caller didn't provide
@@ -725,43 +772,22 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 			log_level_unknown = 1;
 	}
 
-	if (!down_trylock(&console_sem)) {
-		/*
-		 * We own the drivers.  We can drop the spinlock and
-		 * let release_console_sem() print the text, maybe ...
-		 */
-		console_locked = 1;
-		printk_cpu = UINT_MAX;
-		spin_unlock(&logbuf_lock);
+	/*
+	 * Try to acquire and then immediately release the
+	 * console semaphore. The release will do all the
+	 * actual magic (print out buffers, wake up klogd,
+	 * etc). 
+	 *
+	 * The acquire_console_semaphore_for_printk() function
+	 * will release 'logbuf_lock' regardless of whether it
+	 * actually gets the semaphore or not.
+	 */
+	if (acquire_console_semaphore_for_printk(this_cpu))
+		release_console_sem();
 
-		/*
-		 * Console drivers may assume that per-cpu resources have
-		 * been allocated. So unless they're explicitly marked as
-		 * being able to cope (CON_ANYTIME) don't call them until
-		 * this CPU is officially up.
-		 */
-		if (cpu_online(smp_processor_id()) || have_callable_console()) {
-			console_may_schedule = 0;
-			release_console_sem();
-		} else {
-			/* Release by hand to avoid flushing the buffer. */
-			console_locked = 0;
-			up(&console_sem);
-		}
-		lockdep_on();
-		raw_local_irq_restore(flags);
-	} else {
-		/*
-		 * Someone else owns the drivers.  We drop the spinlock, which
-		 * allows the semaphore holder to proceed and to call the
-		 * console drivers with the output which we just produced.
-		 */
-		printk_cpu = UINT_MAX;
-		spin_unlock(&logbuf_lock);
-		lockdep_on();
+	lockdep_on();
 out_restore_irqs:
-		raw_local_irq_restore(flags);
-	}
+	raw_local_irq_restore(flags);
 
 	preempt_enable();
 	return printed_len;

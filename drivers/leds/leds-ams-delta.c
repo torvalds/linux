@@ -140,6 +140,7 @@ static struct platform_driver ams_delta_led_driver = {
 	.resume		= ams_delta_led_resume,
 	.driver		= {
 		.name = "ams-delta-led",
+		.owner = THIS_MODULE,
 	},
 };
 
@@ -159,3 +160,4 @@ module_exit(ams_delta_led_exit);
 MODULE_AUTHOR("Jonathan McDowell <noodles@earth.li>");
 MODULE_DESCRIPTION("Amstrad Delta LED driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:ams-delta-led");

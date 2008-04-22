@@ -496,13 +496,10 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	   otherwise it is scheduled, and with high data rates data can get lost. */
 	tty->low_latency = 1;
 
-	if (usb_autopm_get_interface(acm->control)) {
-		mutex_unlock(&open_mutex);
-		return -EIO;
-	}
+	if (usb_autopm_get_interface(acm->control) < 0)
+		goto early_bail;
 
 	mutex_lock(&acm->mutex);
-	mutex_unlock(&open_mutex);
 	if (acm->used++) {
 		usb_autopm_put_interface(acm->control);
 		goto done;
@@ -536,6 +533,7 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 done:
 err_out:
 	mutex_unlock(&acm->mutex);
+	mutex_unlock(&open_mutex);
 	return rv;
 
 full_bailout:
@@ -544,6 +542,8 @@ bail_out:
 	usb_autopm_put_interface(acm->control);
 	acm->used--;
 	mutex_unlock(&acm->mutex);
+early_bail:
+	mutex_unlock(&open_mutex);
 	return -EIO;
 }
 

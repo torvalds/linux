@@ -214,9 +214,9 @@
 #ifndef __ASSEMBLY__
 
 #ifndef MULTI_CPU
-#include "asm/cpu-single.h"
+#include <asm/cpu-single.h>
 #else
-#include "asm/cpu-multi32.h"
+#include <asm/cpu-multi32.h>
 #endif
 
 #include <asm/memory.h>

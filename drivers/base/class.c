@@ -175,13 +175,13 @@ void class_unregister(struct class *cls)
 
 static void class_create_release(struct class *cls)
 {
-	pr_debug("%s called for %s\n", __FUNCTION__, cls->name);
+	pr_debug("%s called for %s\n", __func__, cls->name);
 	kfree(cls);
 }
 
 static void class_device_create_release(struct class_device *class_dev)
 {
-	pr_debug("%s called for %s\n", __FUNCTION__, class_dev->class_id);
+	pr_debug("%s called for %s\n", __func__, class_dev->class_id);
 	kfree(class_dev);
 }
 
@@ -189,7 +189,7 @@ static void class_device_create_release(struct class_device *class_dev)
 static int class_device_create_uevent(struct class_device *class_dev,
 				      struct kobj_uevent_env *env)
 {
-	pr_debug("%s called for %s\n", __FUNCTION__, class_dev->class_id);
+	pr_debug("%s called for %s\n", __func__, class_dev->class_id);
 	return 0;
 }
 
@@ -415,7 +415,7 @@ static int class_uevent(struct kset *kset, struct kobject *kobj,
 	struct device *dev = class_dev->dev;
 	int retval = 0;
 
-	pr_debug("%s - name = %s\n", __FUNCTION__, class_dev->class_id);
+	pr_debug("%s - name = %s\n", __func__, class_dev->class_id);
 
 	if (MAJOR(class_dev->devt)) {
 		add_uevent_var(env, "MAJOR=%u", MAJOR(class_dev->devt));

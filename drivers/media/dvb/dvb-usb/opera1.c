@@ -478,9 +478,9 @@ static int opera1_xilinx_load_firmware(struct usb_device *dev,
 				err("could not restart the USB controller CPU.");
 				ret = -EINVAL;
 			}
-			kfree(p);
 		}
 	}
+	kfree(p);
 	if (fw) {
 		release_firmware(fw);
 	}

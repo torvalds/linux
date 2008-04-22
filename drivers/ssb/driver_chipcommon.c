@@ -39,12 +39,14 @@ static inline void chipco_write32(struct ssb_chipcommon *cc,
 	ssb_write32(cc->dev, offset, value);
 }
 
-static inline void chipco_write32_masked(struct ssb_chipcommon *cc, u16 offset,
-					 u32 mask, u32 value)
+static inline u32 chipco_write32_masked(struct ssb_chipcommon *cc, u16 offset,
+					u32 mask, u32 value)
 {
 	value &= mask;
 	value |= chipco_read32(cc, offset) & ~mask;
 	chipco_write32(cc, offset, value);
+
+	return value;
 }
 
 void ssb_chipco_set_clockmode(struct ssb_chipcommon *cc,
@@ -249,7 +251,7 @@ void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 	calc_fast_powerup_delay(cc);
 }
 
-void ssb_chipco_suspend(struct ssb_chipcommon *cc, pm_message_t state)
+void ssb_chipco_suspend(struct ssb_chipcommon *cc)
 {
 	if (!cc->dev)
 		return;
@@ -351,19 +353,44 @@ void ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc, u32 ticks)
 	chipco_write32(cc, SSB_CHIPCO_WATCHDOG, ticks);
 }
 
+void ssb_chipco_irq_mask(struct ssb_chipcommon *cc, u32 mask, u32 value)
+{
+	chipco_write32_masked(cc, SSB_CHIPCO_IRQMASK, mask, value);
+}
+
+u32 ssb_chipco_irq_status(struct ssb_chipcommon *cc, u32 mask)
+{
+	return chipco_read32(cc, SSB_CHIPCO_IRQSTAT) & mask;
+}
+
 u32 ssb_chipco_gpio_in(struct ssb_chipcommon *cc, u32 mask)
 {
 	return chipco_read32(cc, SSB_CHIPCO_GPIOIN) & mask;
 }
 
-void ssb_chipco_gpio_out(struct ssb_chipcommon *cc, u32 mask, u32 value)
+u32 ssb_chipco_gpio_out(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
-	chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUT, mask, value);
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUT, mask, value);
 }
 
-void ssb_chipco_gpio_outen(struct ssb_chipcommon *cc, u32 mask, u32 value)
+u32 ssb_chipco_gpio_outen(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
-	chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUTEN, mask, value);
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUTEN, mask, value);
+}
+
+u32 ssb_chipco_gpio_control(struct ssb_chipcommon *cc, u32 mask, u32 value)
+{
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOCTL, mask, value);
+}
+
+u32 ssb_chipco_gpio_intmask(struct ssb_chipcommon *cc, u32 mask, u32 value)
+{
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOIRQ, mask, value);
+}
+
+u32 ssb_chipco_gpio_polarity(struct ssb_chipcommon *cc, u32 mask, u32 value)
+{
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOPOL, mask, value);
 }
 
 #ifdef CONFIG_SSB_SERIAL
@@ -376,6 +403,7 @@ int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 	unsigned int irq;
 	u32 baud_base, div;
 	u32 i, n;
+	unsigned int ccrev = cc->dev->id.revision;
 
 	plltype = (cc->capabilities & SSB_CHIPCO_CAP_PLLT);
 	irq = ssb_mips_irq(cc->dev);
@@ -387,14 +415,39 @@ int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 						chipco_read32(cc, SSB_CHIPCO_CLOCK_M2));
 		div = 1;
 	} else {
-		if (cc->dev->id.revision >= 11) {
-			/* Fixed ALP clock */
-			baud_base = 20000000;
-			div = 1;
+		if (ccrev == 20) {
+			/* BCM5354 uses constant 25MHz clock */
+			baud_base = 25000000;
+			div = 48;
 			/* Set the override bit so we don't divide it */
 			chipco_write32(cc, SSB_CHIPCO_CORECTL,
-				       SSB_CHIPCO_CORECTL_UARTCLK0);
-		} else if (cc->dev->id.revision >= 3) {
+				       chipco_read32(cc, SSB_CHIPCO_CORECTL)
+				       | SSB_CHIPCO_CORECTL_UARTCLK0);
+		} else if ((ccrev >= 11) && (ccrev != 15)) {
+			/* Fixed ALP clock */
+			baud_base = 20000000;
+			if (cc->capabilities & SSB_CHIPCO_CAP_PMU) {
+				/* FIXME: baud_base is different for devices with a PMU */
+				SSB_WARN_ON(1);
+			}
+			div = 1;
+			if (ccrev >= 21) {
+				/* Turn off UART clock before switching clocksource. */
+				chipco_write32(cc, SSB_CHIPCO_CORECTL,
+					       chipco_read32(cc, SSB_CHIPCO_CORECTL)
+					       & ~SSB_CHIPCO_CORECTL_UARTCLKEN);
+			}
+			/* Set the override bit so we don't divide it */
+			chipco_write32(cc, SSB_CHIPCO_CORECTL,
+				       chipco_read32(cc, SSB_CHIPCO_CORECTL)
+				       | SSB_CHIPCO_CORECTL_UARTCLK0);
+			if (ccrev >= 21) {
+				/* Re-enable the UART clock. */
+				chipco_write32(cc, SSB_CHIPCO_CORECTL,
+					       chipco_read32(cc, SSB_CHIPCO_CORECTL)
+					       | SSB_CHIPCO_CORECTL_UARTCLKEN);
+			}
+		} else if (ccrev >= 3) {
 			/* Internal backplane clock */
 			baud_base = ssb_clockspeed(bus);
 			div = chipco_read32(cc, SSB_CHIPCO_CLKDIV)
@@ -406,7 +459,7 @@ int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 		}
 
 		/* Clock source depends on strapping if UartClkOverride is unset */
-		if ((cc->dev->id.revision > 0) &&
+		if ((ccrev > 0) &&
 		    !(chipco_read32(cc, SSB_CHIPCO_CORECTL) & SSB_CHIPCO_CORECTL_UARTCLK0)) {
 			if ((cc->capabilities & SSB_CHIPCO_CAP_UARTCLK) ==
 			    SSB_CHIPCO_CAP_UARTCLK_INT) {
@@ -428,7 +481,7 @@ int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 		cc_mmio = cc->dev->bus->mmio + (cc->dev->core_index * SSB_CORE_SIZE);
 		uart_regs = cc_mmio + SSB_CHIPCO_UART0_DATA;
 		/* Offset changed at after rev 0 */
-		if (cc->dev->id.revision == 0)
+		if (ccrev == 0)
 			uart_regs += (i * 8);
 		else
 			uart_regs += (i * 256);

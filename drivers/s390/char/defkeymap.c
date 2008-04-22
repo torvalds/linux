@@ -151,8 +151,8 @@ char *func_table[MAX_NR_FUNC] = {
 };
 
 struct kbdiacruc accent_table[MAX_DIACR] = {
-	{'^', 'c', '\003'},	{'^', 'd', '\004'},
-	{'^', 'z', '\032'},	{'^', '\012', '\000'},
+	{'^', 'c', 0003},	{'^', 'd', 0004},
+	{'^', 'z', 0032},	{'^', 0012, 0000},
 };
 
 unsigned int accent_table_size = 4;

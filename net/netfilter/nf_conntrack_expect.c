@@ -54,7 +54,7 @@ void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 	nf_ct_expect_count--;
 
 	hlist_del(&exp->lnode);
-	master_help->expecting--;
+	master_help->expecting[exp->class]--;
 	nf_ct_expect_put(exp);
 
 	NF_CT_STAT_INC(expect_delete);
@@ -126,9 +126,21 @@ EXPORT_SYMBOL_GPL(nf_ct_expect_find_get);
 struct nf_conntrack_expect *
 nf_ct_find_expectation(const struct nf_conntrack_tuple *tuple)
 {
-	struct nf_conntrack_expect *exp;
+	struct nf_conntrack_expect *i, *exp = NULL;
+	struct hlist_node *n;
+	unsigned int h;
 
-	exp = __nf_ct_expect_find(tuple);
+	if (!nf_ct_expect_count)
+		return NULL;
+
+	h = nf_ct_expect_dst_hash(tuple);
+	hlist_for_each_entry(i, n, &nf_ct_expect_hash[h], hnode) {
+		if (!(i->flags & NF_CT_EXPECT_INACTIVE) &&
+		    nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)) {
+			exp = i;
+			break;
+		}
+	}
 	if (!exp)
 		return NULL;
 
@@ -159,7 +171,7 @@ void nf_ct_remove_expectations(struct nf_conn *ct)
 	struct hlist_node *n, *next;
 
 	/* Optimization: most connection never expect any others. */
-	if (!help || help->expecting == 0)
+	if (!help)
 		return;
 
 	hlist_for_each_entry_safe(exp, n, next, &help->expectations, lnode) {
@@ -193,7 +205,7 @@ static inline int expect_clash(const struct nf_conntrack_expect *a,
 static inline int expect_matches(const struct nf_conntrack_expect *a,
 				 const struct nf_conntrack_expect *b)
 {
-	return a->master == b->master
+	return a->master == b->master && a->class == b->class
 		&& nf_ct_tuple_equal(&a->tuple, &b->tuple)
 		&& nf_ct_tuple_mask_equal(&a->mask, &b->mask);
 }
@@ -228,10 +240,11 @@ struct nf_conntrack_expect *nf_ct_expect_alloc(struct nf_conn *me)
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_alloc);
 
-void nf_ct_expect_init(struct nf_conntrack_expect *exp, int family,
-		       union nf_inet_addr *saddr,
-		       union nf_inet_addr *daddr,
-		       u_int8_t proto, __be16 *src, __be16 *dst)
+void nf_ct_expect_init(struct nf_conntrack_expect *exp, unsigned int class,
+		       int family,
+		       const union nf_inet_addr *saddr,
+		       const union nf_inet_addr *daddr,
+		       u_int8_t proto, const __be16 *src, const __be16 *dst)
 {
 	int len;
 
@@ -241,6 +254,7 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, int family,
 		len = 16;
 
 	exp->flags = 0;
+	exp->class = class;
 	exp->expectfn = NULL;
 	exp->helper = NULL;
 	exp->tuple.src.l3num = family;
@@ -297,19 +311,21 @@ EXPORT_SYMBOL_GPL(nf_ct_expect_put);
 static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 {
 	struct nf_conn_help *master_help = nfct_help(exp->master);
+	const struct nf_conntrack_expect_policy *p;
 	unsigned int h = nf_ct_expect_dst_hash(&exp->tuple);
 
 	atomic_inc(&exp->use);
 
 	hlist_add_head(&exp->lnode, &master_help->expectations);
-	master_help->expecting++;
+	master_help->expecting[exp->class]++;
 
 	hlist_add_head_rcu(&exp->hnode, &nf_ct_expect_hash[h]);
 	nf_ct_expect_count++;
 
 	setup_timer(&exp->timeout, nf_ct_expectation_timed_out,
 		    (unsigned long)exp);
-	exp->timeout.expires = jiffies + master_help->helper->timeout * HZ;
+	p = &master_help->helper->expect_policy[exp->class];
+	exp->timeout.expires = jiffies + p->timeout * HZ;
 	add_timer(&exp->timeout);
 
 	atomic_inc(&exp->use);
@@ -317,35 +333,41 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 }
 
 /* Race with expectations being used means we could have none to find; OK. */
-static void evict_oldest_expect(struct nf_conn *master)
+static void evict_oldest_expect(struct nf_conn *master,
+				struct nf_conntrack_expect *new)
 {
 	struct nf_conn_help *master_help = nfct_help(master);
-	struct nf_conntrack_expect *exp = NULL;
+	struct nf_conntrack_expect *exp, *last = NULL;
 	struct hlist_node *n;
 
-	hlist_for_each_entry(exp, n, &master_help->expectations, lnode)
-		; /* nothing */
+	hlist_for_each_entry(exp, n, &master_help->expectations, lnode) {
+		if (exp->class == new->class)
+			last = exp;
+	}
 
-	if (exp && del_timer(&exp->timeout)) {
-		nf_ct_unlink_expect(exp);
-		nf_ct_expect_put(exp);
+	if (last && del_timer(&last->timeout)) {
+		nf_ct_unlink_expect(last);
+		nf_ct_expect_put(last);
 	}
 }
 
 static inline int refresh_timer(struct nf_conntrack_expect *i)
 {
 	struct nf_conn_help *master_help = nfct_help(i->master);
+	const struct nf_conntrack_expect_policy *p;
 
 	if (!del_timer(&i->timeout))
 		return 0;
 
-	i->timeout.expires = jiffies + master_help->helper->timeout*HZ;
+	p = &master_help->helper->expect_policy[i->class];
+	i->timeout.expires = jiffies + p->timeout * HZ;
 	add_timer(&i->timeout);
 	return 1;
 }
 
 int nf_ct_expect_related(struct nf_conntrack_expect *expect)
 {
+	const struct nf_conntrack_expect_policy *p;
 	struct nf_conntrack_expect *i;
 	struct nf_conn *master = expect->master;
 	struct nf_conn_help *master_help = nfct_help(master);
@@ -374,14 +396,20 @@ int nf_ct_expect_related(struct nf_conntrack_expect *expect)
 		}
 	}
 	/* Will be over limit? */
-	if (master_help->helper->max_expected &&
-	    master_help->expecting >= master_help->helper->max_expected)
-		evict_oldest_expect(master);
+	p = &master_help->helper->expect_policy[expect->class];
+	if (p->max_expected &&
+	    master_help->expecting[expect->class] >= p->max_expected) {
+		evict_oldest_expect(master, expect);
+		if (master_help->expecting[expect->class] >= p->max_expected) {
+			ret = -EMFILE;
+			goto out;
+		}
+	}
 
 	if (nf_ct_expect_count >= nf_ct_expect_max) {
 		if (net_ratelimit())
 			printk(KERN_WARNING
-			       "nf_conntrack: expectation table full");
+			       "nf_conntrack: expectation table full\n");
 		ret = -EMFILE;
 		goto out;
 	}
@@ -460,6 +488,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 {
 	struct nf_conntrack_expect *expect;
 	struct hlist_node *n = v;
+	char *delim = "";
 
 	expect = hlist_entry(n, struct nf_conntrack_expect, hnode);
 
@@ -475,6 +504,14 @@ static int exp_seq_show(struct seq_file *s, void *v)
 		    __nf_ct_l3proto_find(expect->tuple.src.l3num),
 		    __nf_ct_l4proto_find(expect->tuple.src.l3num,
 				       expect->tuple.dst.protonum));
+
+	if (expect->flags & NF_CT_EXPECT_PERMANENT) {
+		seq_printf(s, "PERMANENT");
+		delim = ",";
+	}
+	if (expect->flags & NF_CT_EXPECT_INACTIVE)
+		seq_printf(s, "%sINACTIVE", delim);
+
 	return seq_putc(s, '\n');
 }
 

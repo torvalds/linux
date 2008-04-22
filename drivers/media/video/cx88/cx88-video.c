@@ -1826,8 +1826,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask);
 
 	/* load and configure helper modules */
-	if (TUNER_ABSENT != core->board.tuner_type)
-		request_module("tuner");
 
 	if (core->board.audio_chip == AUDIO_CHIP_WM8775)
 		request_module("wm8775");

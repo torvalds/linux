@@ -25,6 +25,109 @@
  * XFS bit manipulation routines, used in non-realtime code.
  */
 
+#ifndef HAVE_ARCH_HIGHBIT
+/*
+ * Index of high bit number in byte, -1 for none set, 0..7 otherwise.
+ */
+static const char xfs_highbit[256] = {
+       -1, 0, 1, 1, 2, 2, 2, 2,			/* 00 .. 07 */
+	3, 3, 3, 3, 3, 3, 3, 3,			/* 08 .. 0f */
+	4, 4, 4, 4, 4, 4, 4, 4,			/* 10 .. 17 */
+	4, 4, 4, 4, 4, 4, 4, 4,			/* 18 .. 1f */
+	5, 5, 5, 5, 5, 5, 5, 5,			/* 20 .. 27 */
+	5, 5, 5, 5, 5, 5, 5, 5,			/* 28 .. 2f */
+	5, 5, 5, 5, 5, 5, 5, 5,			/* 30 .. 37 */
+	5, 5, 5, 5, 5, 5, 5, 5,			/* 38 .. 3f */
+	6, 6, 6, 6, 6, 6, 6, 6,			/* 40 .. 47 */
+	6, 6, 6, 6, 6, 6, 6, 6,			/* 48 .. 4f */
+	6, 6, 6, 6, 6, 6, 6, 6,			/* 50 .. 57 */
+	6, 6, 6, 6, 6, 6, 6, 6,			/* 58 .. 5f */
+	6, 6, 6, 6, 6, 6, 6, 6,			/* 60 .. 67 */
+	6, 6, 6, 6, 6, 6, 6, 6,			/* 68 .. 6f */
+	6, 6, 6, 6, 6, 6, 6, 6,			/* 70 .. 77 */
+	6, 6, 6, 6, 6, 6, 6, 6,			/* 78 .. 7f */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* 80 .. 87 */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* 88 .. 8f */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* 90 .. 97 */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* 98 .. 9f */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* a0 .. a7 */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* a8 .. af */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* b0 .. b7 */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* b8 .. bf */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* c0 .. c7 */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* c8 .. cf */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* d0 .. d7 */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* d8 .. df */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* e0 .. e7 */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* e8 .. ef */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* f0 .. f7 */
+	7, 7, 7, 7, 7, 7, 7, 7,			/* f8 .. ff */
+};
+#endif
+
+/*
+ * xfs_highbit32: get high bit set out of 32-bit argument, -1 if none set.
+ */
+inline int
+xfs_highbit32(
+	__uint32_t	v)
+{
+#ifdef HAVE_ARCH_HIGHBIT
+	return highbit32(v);
+#else
+	int		i;
+
+	if (v & 0xffff0000)
+		if (v & 0xff000000)
+			i = 24;
+		else
+			i = 16;
+	else if (v & 0x0000ffff)
+		if (v & 0x0000ff00)
+			i = 8;
+		else
+			i = 0;
+	else
+		return -1;
+	return i + xfs_highbit[(v >> i) & 0xff];
+#endif
+}
+
+/*
+ * xfs_lowbit64: get low bit set out of 64-bit argument, -1 if none set.
+ */
+int
+xfs_lowbit64(
+	__uint64_t	v)
+{
+	__uint32_t	w = (__uint32_t)v;
+	int		n = 0;
+
+	if (w) {	/* lower bits */
+		n = ffs(w);
+	} else {	/* upper bits */
+		w = (__uint32_t)(v >> 32);
+		if (w && (n = ffs(w)))
+			n += 32;
+	}
+	return n - 1;
+}
+
+/*
+ * xfs_highbit64: get high bit set out of 64-bit argument, -1 if none set.
+ */
+int
+xfs_highbit64(
+	__uint64_t	v)
+{
+	__uint32_t	h = (__uint32_t)(v >> 32);
+
+	if (h)
+		return xfs_highbit32(h) + 32;
+	return xfs_highbit32((__uint32_t)v);
+}
+
+
 /*
  * Return whether bitmap is empty.
  * Size is number of words in the bitmap, which is padded to word boundary

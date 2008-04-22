@@ -61,11 +61,30 @@ config WARP
 	select 440EP
 	help
 	  This option enables support for the PIKA Warp(tm) Appliance. The Warp
-          is a small computer replacement with up to 9 ports of FXO/FXS plus VOIP
+	  is a small computer replacement with up to 9 ports of FXO/FXS plus VOIP
 	  stations and trunks.
 
 	  See http://www.pikatechnologies.com/ and follow the "PIKA for Computer
 	  Telephony Developers" link for more information.
+
+config CANYONLANDS
+	bool "Canyonlands"
+	depends on 44x
+	default n
+	select 460EX
+	select PCI
+	select PPC4xx_PCI_EXPRESS
+	help
+	  This option enables support for the AMCC PPC460EX evaluation board.
+
+config YOSEMITE
+	bool "Yosemite"
+	depends on 44x
+	default n
+	select 440EP
+	select PCI
+	help
+	  This option enables support for the AMCC PPC440EP evaluation board.
 
 #config LUAN
 #	bool "Luan"
@@ -110,17 +129,25 @@ config 440GP
 
 config 440GX
 	bool
-        select IBM_NEW_EMAC_EMAC4
+	select IBM_NEW_EMAC_EMAC4
 	select IBM_NEW_EMAC_RGMII
-        select IBM_NEW_EMAC_ZMII #test only
-        select IBM_NEW_EMAC_TAH  #test only
+	select IBM_NEW_EMAC_ZMII #test only
+	select IBM_NEW_EMAC_TAH  #test only
 
 config 440SP
 	bool
 
 config 440SPe
-        select IBM_NEW_EMAC_EMAC4
 	bool
+	select IBM_NEW_EMAC_EMAC4
+
+config 460EX
+	bool
+	select PPC_FPU
+	select IBM_NEW_EMAC_EMAC4
+	select IBM_NEW_EMAC_RGMII
+	select IBM_NEW_EMAC_ZMII
+	select IBM_NEW_EMAC_TAH
 
 # 44x errata/workaround config symbols, selected by the CPU models above
 config IBM440EP_ERR42

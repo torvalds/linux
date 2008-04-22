@@ -161,7 +161,7 @@ __copy_user (void __user *pdst, const void *psrc, unsigned long pn)
    inaccessible.  */
 
 unsigned long
-__copy_user_zeroing (void __user *pdst, const void *psrc, unsigned long pn)
+__copy_user_zeroing(void *pdst, const void __user *psrc, unsigned long pn)
 {
   /* We want the parameters put in special registers.
      Make sure the compiler is able to make something useful of this.

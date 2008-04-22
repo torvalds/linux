@@ -334,43 +334,6 @@ static void __init qd6580_port_init_devs(ide_hwif_t *hwif)
 	hwif->drives[1].drive_data = t2;
 }
 
-/*
- * qd_unsetup:
- *
- * called to unsetup an ata channel : back to default values, unlinks tuning
- */
-/*
-static void __exit qd_unsetup(ide_hwif_t *hwif)
-{
-	u8 config = hwif->config_data;
-	int base = hwif->select_data;
-	void *set_pio_mode = (void *)hwif->set_pio_mode;
-
-	if (hwif->chipset != ide_qd65xx)
-		return;
-
-	printk(KERN_NOTICE "%s: back to defaults\n", hwif->name);
-
-	hwif->selectproc = NULL;
-	hwif->set_pio_mode = NULL;
-
-	if (set_pio_mode == (void *)qd6500_set_pio_mode) {
-		// will do it for both
-		outb(QD6500_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
-	} else if (set_pio_mode == (void *)qd6580_set_pio_mode) {
-		if (QD_CONTROL(hwif) & QD_CONTR_SEC_DISABLED) {
-			outb(QD6580_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
-			outb(QD6580_DEF_DATA2, QD_TIMREG(&hwif->drives[1]));
-		} else {
-			outb(hwif->channel ? QD6580_DEF_DATA2 : QD6580_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
-		}
-	} else {
-		printk(KERN_WARNING "Unknown qd65xx tuning fonction !\n");
-		printk(KERN_WARNING "keeping settings !\n");
-	}
-}
-*/
-
 static const struct ide_port_info qd65xx_port_info __initdata = {
 	.chipset		= ide_qd65xx,
 	.host_flags		= IDE_HFLAG_IO_32BIT |
@@ -389,9 +352,9 @@ static const struct ide_port_info qd65xx_port_info __initdata = {
 static int __init qd_probe(int base)
 {
 	ide_hwif_t *hwif;
+	u8 config, unit;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	u8 config;
-	u8 unit;
+	hw_regs_t hw[2];
 
 	config = inb(QD_CONFIG_PORT);
 
@@ -399,6 +362,14 @@ static int __init qd_probe(int base)
 		return 1;
 
 	unit = ! (config & QD_CONFIG_IDE_BASEPORT);
+
+	memset(&hw, 0, sizeof(hw));
+
+	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
+	hw[0].irq = 14;
+
+	ide_std_init_ports(&hw[1], 0x170, 0x376);
+	hw[1].irq = 15;
 
 	if ((config & 0xf0) == QD_CONFIG_QD6500) {
 
@@ -415,6 +386,8 @@ static int __init qd_probe(int base)
 			printk(KERN_WARNING "qd6500 is disabled !\n");
 			return 1;
 		}
+
+		ide_init_port_hw(hwif, &hw[unit]);
 
 		qd_setup(hwif, base, config);
 
@@ -444,12 +417,16 @@ static int __init qd_probe(int base)
 		printk(KERN_DEBUG "qd6580: config=%#x, control=%#x, ID3=%u\n",
 			config, control, QD_ID3);
 
+		outb(QD_DEF_CONTR, QD_CONTROL_PORT);
+
 		if (control & QD_CONTR_SEC_DISABLED) {
 			/* secondary disabled */
 
 			hwif = &ide_hwifs[unit];
 			printk(KERN_INFO "%s: qd6580: single IDE board\n",
 					 hwif->name);
+
+			ide_init_port_hw(hwif, &hw[unit]);
 
 			qd_setup(hwif, base, config | (control << 8));
 
@@ -460,8 +437,6 @@ static int __init qd_probe(int base)
 
 			ide_device_add(idx, &qd65xx_port_info);
 
-			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
-
 			return 1;
 		} else {
 			ide_hwif_t *mate;
@@ -471,6 +446,9 @@ static int __init qd_probe(int base)
 			/* secondary enabled */
 			printk(KERN_INFO "%s&%s: qd6580: dual IDE board\n",
 					hwif->name, mate->name);
+
+			ide_init_port_hw(hwif, &hw[0]);
+			ide_init_port_hw(mate, &hw[1]);
 
 			qd_setup(hwif, base, config | (control << 8));
 
@@ -486,8 +464,6 @@ static int __init qd_probe(int base)
 			idx[1] = 1;
 
 			ide_device_add(idx, &qd65xx_port_info);
-
-			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
 			return 0; /* no other qd65xx possible */
 		}

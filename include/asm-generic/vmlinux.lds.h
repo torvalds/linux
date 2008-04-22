@@ -238,6 +238,9 @@
 		*(.kprobes.text)					\
 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
 
+/* Section used for early init (in .S files) */
+#define HEAD_TEXT  *(.head.text)
+
 /* init and exit section handling */
 #define INIT_DATA							\
 	*(.init.data)							\

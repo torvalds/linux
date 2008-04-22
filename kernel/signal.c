@@ -220,7 +220,7 @@ void flush_signals(struct task_struct *t)
 	unsigned long flags;
 
 	spin_lock_irqsave(&t->sighand->siglock, flags);
-	clear_tsk_thread_flag(t,TIF_SIGPENDING);
+	clear_tsk_thread_flag(t, TIF_SIGPENDING);
 	flush_sigqueue(&t->pending);
 	flush_sigqueue(&t->signal->shared_pending);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
@@ -424,7 +424,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 	}
 	if (signr &&
 	     ((info->si_code & __SI_MASK) == __SI_TIMER) &&
-	     info->si_sys_private){
+	     info->si_sys_private) {
 		/*
 		 * Release the siglock to ensure proper locking order
 		 * of timer locks outside of siglocks.  Note, we leave
@@ -1623,7 +1623,6 @@ static void ptrace_stop(int exit_code, int clear_code, siginfo_t *info)
 	/* Let the debugger run.  */
 	__set_current_state(TASK_TRACED);
 	spin_unlock_irq(&current->sighand->siglock);
-	try_to_freeze();
 	read_lock(&tasklist_lock);
 	if (!unlikely(killed) && may_ptrace_stop()) {
 		do_notify_parent_cldstop(current, CLD_TRAPPED);
@@ -1639,6 +1638,13 @@ static void ptrace_stop(int exit_code, int clear_code, siginfo_t *info)
 			current->exit_code = 0;
 		read_unlock(&tasklist_lock);
 	}
+
+	/*
+	 * While in TASK_TRACED, we were considered "frozen enough".
+	 * Now that we woke up, it's crucial if we're supposed to be
+	 * frozen that we freeze now before running anything substantial.
+	 */
+	try_to_freeze();
 
 	/*
 	 * We are back.  Now reacquire the siglock before touching
@@ -1751,15 +1757,60 @@ static int do_signal_stop(int signr)
 	return 1;
 }
 
+static int ptrace_signal(int signr, siginfo_t *info,
+			 struct pt_regs *regs, void *cookie)
+{
+	if (!(current->ptrace & PT_PTRACED))
+		return signr;
+
+	ptrace_signal_deliver(regs, cookie);
+
+	/* Let the debugger run.  */
+	ptrace_stop(signr, 0, info);
+
+	/* We're back.  Did the debugger cancel the sig?  */
+	signr = current->exit_code;
+	if (signr == 0)
+		return signr;
+
+	current->exit_code = 0;
+
+	/* Update the siginfo structure if the signal has
+	   changed.  If the debugger wanted something
+	   specific in the siginfo structure then it should
+	   have updated *info via PTRACE_SETSIGINFO.  */
+	if (signr != info->si_signo) {
+		info->si_signo = signr;
+		info->si_errno = 0;
+		info->si_code = SI_USER;
+		info->si_pid = task_pid_vnr(current->parent);
+		info->si_uid = current->parent->uid;
+	}
+
+	/* If the (new) signal is now blocked, requeue it.  */
+	if (sigismember(&current->blocked, signr)) {
+		specific_send_sig_info(signr, info, current);
+		signr = 0;
+	}
+
+	return signr;
+}
+
 int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
 			  struct pt_regs *regs, void *cookie)
 {
 	sigset_t *mask = &current->blocked;
 	int signr = 0;
 
+relock:
+	/*
+	 * We'll jump back here after any time we were stopped in TASK_STOPPED.
+	 * While in TASK_STOPPED, we were considered "frozen enough".
+	 * Now that we woke up, it's crucial if we're supposed to be
+	 * frozen that we freeze now before running anything substantial.
+	 */
 	try_to_freeze();
 
-relock:
 	spin_lock_irq(&current->sighand->siglock);
 	for (;;) {
 		struct k_sigaction *ka;
@@ -1773,36 +1824,10 @@ relock:
 		if (!signr)
 			break; /* will return 0 */
 
-		if ((current->ptrace & PT_PTRACED) && signr != SIGKILL) {
-			ptrace_signal_deliver(regs, cookie);
-
-			/* Let the debugger run.  */
-			ptrace_stop(signr, 0, info);
-
-			/* We're back.  Did the debugger cancel the sig?  */
-			signr = current->exit_code;
-			if (signr == 0)
+		if (signr != SIGKILL) {
+			signr = ptrace_signal(signr, info, regs, cookie);
+			if (!signr)
 				continue;
-
-			current->exit_code = 0;
-
-			/* Update the siginfo structure if the signal has
-			   changed.  If the debugger wanted something
-			   specific in the siginfo structure then it should
-			   have updated *info via PTRACE_SETSIGINFO.  */
-			if (signr != info->si_signo) {
-				info->si_signo = signr;
-				info->si_errno = 0;
-				info->si_code = SI_USER;
-				info->si_pid = task_pid_vnr(current->parent);
-				info->si_uid = current->parent->uid;
-			}
-
-			/* If the (new) signal is now blocked, requeue it.  */
-			if (sigismember(&current->blocked, signr)) {
-				specific_send_sig_info(signr, info, current);
-				continue;
-			}
 		}
 
 		ka = &current->sighand->action[signr-1];

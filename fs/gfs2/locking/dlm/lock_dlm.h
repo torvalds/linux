@@ -183,5 +183,10 @@ int gdlm_plock_get(void *, struct lm_lockname *, struct file *,
 		struct file_lock *);
 int gdlm_punlock(void *, struct lm_lockname *, struct file *,
 		struct file_lock *);
+
+/* mount.c */
+
+extern const struct lm_lockops gdlm_ops;
+
 #endif
 

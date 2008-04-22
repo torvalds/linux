@@ -239,7 +239,8 @@ static void r6040_free_txbufs(struct net_device *dev)
 
 	for (i = 0; i < TX_DCNT; i++) {
 		if (lp->tx_insert_ptr->skb_ptr) {
-			pci_unmap_single(lp->pdev, lp->tx_insert_ptr->buf,
+			pci_unmap_single(lp->pdev,
+				le32_to_cpu(lp->tx_insert_ptr->buf),
 				MAX_BUF_SIZE, PCI_DMA_TODEVICE);
 			dev_kfree_skb(lp->tx_insert_ptr->skb_ptr);
 			lp->rx_insert_ptr->skb_ptr = NULL;
@@ -255,7 +256,8 @@ static void r6040_free_rxbufs(struct net_device *dev)
 
 	for (i = 0; i < RX_DCNT; i++) {
 		if (lp->rx_insert_ptr->skb_ptr) {
-			pci_unmap_single(lp->pdev, lp->rx_insert_ptr->buf,
+			pci_unmap_single(lp->pdev,
+				le32_to_cpu(lp->rx_insert_ptr->buf),
 				MAX_BUF_SIZE, PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(lp->rx_insert_ptr->skb_ptr);
 			lp->rx_insert_ptr->skb_ptr = NULL;
@@ -542,7 +544,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 			skb_ptr->dev = priv->dev;
 			/* Do not count the CRC */
 			skb_put(skb_ptr, descptr->len - 4);
-			pci_unmap_single(priv->pdev, descptr->buf,
+			pci_unmap_single(priv->pdev, le32_to_cpu(descptr->buf),
 				MAX_BUF_SIZE, PCI_DMA_FROMDEVICE);
 			skb_ptr->protocol = eth_type_trans(skb_ptr, priv->dev);
 			/* Send to upper layer */
@@ -585,7 +587,7 @@ static void r6040_tx(struct net_device *dev)
 		if (descptr->status & 0x8000)
 			break; /* Not complete */
 		skb_ptr = descptr->skb_ptr;
-		pci_unmap_single(priv->pdev, descptr->buf,
+		pci_unmap_single(priv->pdev, le32_to_cpu(descptr->buf),
 			skb_ptr->len, PCI_DMA_TODEVICE);
 		/* Free buffer */
 		dev_kfree_skb_irq(skb_ptr);

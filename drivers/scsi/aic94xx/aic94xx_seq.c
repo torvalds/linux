@@ -60,7 +60,7 @@ static u16 last_scb_site_no;
  *
  * Return 0 on success, negative on failure.
  */
-int asd_pause_cseq(struct asd_ha_struct *asd_ha)
+static int asd_pause_cseq(struct asd_ha_struct *asd_ha)
 {
 	int	count = PAUSE_TRIES;
 	u32	arp2ctl;
@@ -87,7 +87,7 @@ int asd_pause_cseq(struct asd_ha_struct *asd_ha)
  *
  * Return 0 on success, negative on error.
  */
-int asd_unpause_cseq(struct asd_ha_struct *asd_ha)
+static int asd_unpause_cseq(struct asd_ha_struct *asd_ha)
 {
 	u32	arp2ctl;
 	int	count = PAUSE_TRIES;
@@ -115,7 +115,7 @@ int asd_unpause_cseq(struct asd_ha_struct *asd_ha)
  *
  * Return 0 on success, negative on error.
  */
-static inline int asd_seq_pause_lseq(struct asd_ha_struct *asd_ha, int lseq)
+static int asd_seq_pause_lseq(struct asd_ha_struct *asd_ha, int lseq)
 {
 	u32    arp2ctl;
 	int    count = PAUSE_TRIES;
@@ -143,7 +143,7 @@ static inline int asd_seq_pause_lseq(struct asd_ha_struct *asd_ha, int lseq)
  *
  * Return 0 on success, negative on failure.
  */
-int asd_pause_lseq(struct asd_ha_struct *asd_ha, u8 lseq_mask)
+static int asd_pause_lseq(struct asd_ha_struct *asd_ha, u8 lseq_mask)
 {
 	int lseq;
 	int err = 0;
@@ -164,7 +164,7 @@ int asd_pause_lseq(struct asd_ha_struct *asd_ha, u8 lseq_mask)
  *
  * Return 0 on success, negative on error.
  */
-static inline int asd_seq_unpause_lseq(struct asd_ha_struct *asd_ha, int lseq)
+static int asd_seq_unpause_lseq(struct asd_ha_struct *asd_ha, int lseq)
 {
 	u32 arp2ctl;
 	int count = PAUSE_TRIES;
@@ -185,27 +185,6 @@ static inline int asd_seq_unpause_lseq(struct asd_ha_struct *asd_ha, int lseq)
 	return 0;
 }
 
-
-/**
- * asd_unpause_lseq - unpause the link sequencer(s)
- * @asd_ha: pointer to host adapter structure
- * @lseq_mask: mask of link sequencers of interest
- *
- * Return 0 on success, negative on failure.
- */
-int asd_unpause_lseq(struct asd_ha_struct *asd_ha, u8 lseq_mask)
-{
-	int lseq;
-	int err = 0;
-
-	for_each_sequencer(lseq_mask, lseq_mask, lseq) {
-		err = asd_seq_unpause_lseq(asd_ha, lseq);
-		if (err)
-			return err;
-	}
-
-	return err;
-}
 
 /* ---------- Downloading CSEQ/LSEQ microcode ---------- */
 

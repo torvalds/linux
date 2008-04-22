@@ -323,6 +323,16 @@ static int putreg(struct task_struct *child,
 		return set_flags(child, value);
 
 #ifdef CONFIG_X86_64
+	/*
+	 * Orig_ax is really just a flag with small positive and
+	 * negative values, so make sure to always sign-extend it
+	 * from 32 bits so that it works correctly regardless of
+	 * whether we come from a 32-bit environment or not.
+	 */
+	case offsetof(struct user_regs_struct, orig_ax):
+		value = (long) (s32) value;
+		break;
+
 	case offsetof(struct user_regs_struct,fs_base):
 		if (value >= TASK_SIZE_OF(child))
 			return -EIO;
@@ -544,6 +554,8 @@ static int ptrace_set_debugreg(struct task_struct *child,
 	return 0;
 }
 
+#ifdef X86_BTS
+
 static int ptrace_bts_get_size(struct task_struct *child)
 {
 	if (!child->thread.ds_area_msr)
@@ -588,21 +600,6 @@ static int ptrace_bts_read_record(struct task_struct *child,
 	return sizeof(ret);
 }
 
-static int ptrace_bts_write_record(struct task_struct *child,
-				   const struct bts_struct *in)
-{
-	int retval;
-
-	if (!child->thread.ds_area_msr)
-		return -ENXIO;
-
-	retval = ds_write_bts((void *)child->thread.ds_area_msr, in);
-	if (retval)
-		return retval;
-
-	return sizeof(*in);
-}
-
 static int ptrace_bts_clear(struct task_struct *child)
 {
 	if (!child->thread.ds_area_msr)
@@ -643,75 +640,6 @@ static int ptrace_bts_drain(struct task_struct *child,
 	ds_clear(ds);
 
 	return end;
-}
-
-static int ptrace_bts_realloc(struct task_struct *child,
-			      int size, int reduce_size)
-{
-	unsigned long rlim, vm;
-	int ret, old_size;
-
-	if (size < 0)
-		return -EINVAL;
-
-	old_size = ds_get_bts_size((void *)child->thread.ds_area_msr);
-	if (old_size < 0)
-		return old_size;
-
-	ret = ds_free((void **)&child->thread.ds_area_msr);
-	if (ret < 0)
-		goto out;
-
-	size >>= PAGE_SHIFT;
-	old_size >>= PAGE_SHIFT;
-
-	current->mm->total_vm  -= old_size;
-	current->mm->locked_vm -= old_size;
-
-	if (size == 0)
-		goto out;
-
-	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
-	vm = current->mm->total_vm  + size;
-	if (rlim < vm) {
-		ret = -ENOMEM;
-
-		if (!reduce_size)
-			goto out;
-
-		size = rlim - current->mm->total_vm;
-		if (size <= 0)
-			goto out;
-	}
-
-	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
-	vm = current->mm->locked_vm  + size;
-	if (rlim < vm) {
-		ret = -ENOMEM;
-
-		if (!reduce_size)
-			goto out;
-
-		size = rlim - current->mm->locked_vm;
-		if (size <= 0)
-			goto out;
-	}
-
-	ret = ds_allocate((void **)&child->thread.ds_area_msr,
-			  size << PAGE_SHIFT);
-	if (ret < 0)
-		goto out;
-
-	current->mm->total_vm  += size;
-	current->mm->locked_vm += size;
-
-out:
-	if (child->thread.ds_area_msr)
-		set_tsk_thread_flag(child, TIF_DS_AREA_MSR);
-	else
-		clear_tsk_thread_flag(child, TIF_DS_AREA_MSR);
-
-	return ret;
 }
 
 static int ptrace_bts_config(struct task_struct *child,
@@ -816,6 +744,91 @@ static int ptrace_bts_status(struct task_struct *child,
 	return sizeof(cfg);
 }
 
+
+static int ptrace_bts_write_record(struct task_struct *child,
+				   const struct bts_struct *in)
+{
+	int retval;
+
+	if (!child->thread.ds_area_msr)
+		return -ENXIO;
+
+	retval = ds_write_bts((void *)child->thread.ds_area_msr, in);
+	if (retval)
+		return retval;
+
+	return sizeof(*in);
+}
+
+static int ptrace_bts_realloc(struct task_struct *child,
+			      int size, int reduce_size)
+{
+	unsigned long rlim, vm;
+	int ret, old_size;
+
+	if (size < 0)
+		return -EINVAL;
+
+	old_size = ds_get_bts_size((void *)child->thread.ds_area_msr);
+	if (old_size < 0)
+		return old_size;
+
+	ret = ds_free((void **)&child->thread.ds_area_msr);
+	if (ret < 0)
+		goto out;
+
+	size >>= PAGE_SHIFT;
+	old_size >>= PAGE_SHIFT;
+
+	current->mm->total_vm  -= old_size;
+	current->mm->locked_vm -= old_size;
+
+	if (size == 0)
+		goto out;
+
+	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
+	vm = current->mm->total_vm  + size;
+	if (rlim < vm) {
+		ret = -ENOMEM;
+
+		if (!reduce_size)
+			goto out;
+
+		size = rlim - current->mm->total_vm;
+		if (size <= 0)
+			goto out;
+	}
+
+	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
+	vm = current->mm->locked_vm  + size;
+	if (rlim < vm) {
+		ret = -ENOMEM;
+
+		if (!reduce_size)
+			goto out;
+
+		size = rlim - current->mm->locked_vm;
+		if (size <= 0)
+			goto out;
+	}
+
+	ret = ds_allocate((void **)&child->thread.ds_area_msr,
+			  size << PAGE_SHIFT);
+	if (ret < 0)
+		goto out;
+
+	current->mm->total_vm  += size;
+	current->mm->locked_vm += size;
+
+out:
+	if (child->thread.ds_area_msr)
+		set_tsk_thread_flag(child, TIF_DS_AREA_MSR);
+	else
+		clear_tsk_thread_flag(child, TIF_DS_AREA_MSR);
+
+	return ret;
+}
+
 void ptrace_bts_take_timestamp(struct task_struct *tsk,
 			       enum bts_qualifier qualifier)
 {
@@ -826,6 +839,7 @@ void ptrace_bts_take_timestamp(struct task_struct *tsk,
 
 	ptrace_bts_write_record(tsk, &rec);
 }
+#endif /* X86_BTS */
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -839,7 +853,9 @@ void ptrace_disable(struct task_struct *child)
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 #endif
 	if (child->thread.ds_area_msr) {
+#ifdef X86_BTS
 		ptrace_bts_realloc(child, 0, 0);
+#endif
 		child->thread.debugctlmsr &= ~ds_debugctl_mask();
 		if (!child->thread.debugctlmsr)
 			clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
@@ -961,6 +977,10 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 #endif
 
+	/*
+	 * These bits need more cooking - not enabled yet:
+	 */
+#ifdef X86_BTS
 	case PTRACE_BTS_CONFIG:
 		ret = ptrace_bts_config
 			(child, data, (struct ptrace_bts_config __user *)addr);
@@ -988,6 +1008,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = ptrace_bts_drain
 			(child, data, (struct bts_struct __user *) addr);
 		break;
+#endif
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
@@ -1035,9 +1056,16 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 	R32(esi, si);
 	R32(ebp, bp);
 	R32(eax, ax);
-	R32(orig_eax, orig_ax);
 	R32(eip, ip);
 	R32(esp, sp);
+
+	case offsetof(struct user32, regs.orig_eax):
+		/*
+		 * Sign-extend the value so that orig_eax = -1
+		 * causes (long)orig_ax < 0 tests to fire correctly.
+		 */
+		regs->orig_ax = (long) (s32) value;
+		break;
 
 	case offsetof(struct user32, regs.eflags):
 		return set_flags(child, value);
@@ -1160,7 +1188,7 @@ static int genregs32_set(struct task_struct *target,
 	if (kbuf) {
 		const compat_ulong_t *k = kbuf;
 		while (count > 0 && !ret) {
-			ret = putreg(target, pos, *k++);
+			ret = putreg32(target, pos, *k++);
 			count -= sizeof(*k);
 			pos += sizeof(*k);
 		}
@@ -1171,7 +1199,7 @@ static int genregs32_set(struct task_struct *target,
 			ret = __get_user(word, u++);
 			if (ret)
 				break;
-			ret = putreg(target, pos, word);
+			ret = putreg32(target, pos, word);
 			count -= sizeof(*u);
 			pos += sizeof(*u);
 		}
@@ -1226,12 +1254,14 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_SETOPTIONS:
 	case PTRACE_SET_THREAD_AREA:
 	case PTRACE_GET_THREAD_AREA:
+#ifdef X86_BTS
 	case PTRACE_BTS_CONFIG:
 	case PTRACE_BTS_STATUS:
 	case PTRACE_BTS_SIZE:
 	case PTRACE_BTS_GET:
 	case PTRACE_BTS_CLEAR:
 	case PTRACE_BTS_DRAIN:
+#endif
 		return sys_ptrace(request, pid, addr, data);
 
 	default:
@@ -1426,7 +1456,6 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 /* notification of system call entry/exit
  * - triggered by current->work.syscall_trace
  */
-__attribute__((regparm(3)))
 int do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	int is_sysemu = test_thread_flag(TIF_SYSCALL_EMU);

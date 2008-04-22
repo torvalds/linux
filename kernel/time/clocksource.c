@@ -141,9 +141,12 @@ static void clocksource_watchdog(unsigned long data)
 	}
 
 	if (!list_empty(&watchdog_list)) {
-		/* Cycle through CPUs to check if the CPUs stay synchronized to
-		 * each other. */
+		/*
+		 * Cycle through CPUs to check if the CPUs stay
+		 * synchronized to each other.
+		 */
 		int next_cpu = next_cpu(raw_smp_processor_id(), cpu_online_map);
+
 		if (next_cpu >= NR_CPUS)
 			next_cpu = first_cpu(cpu_online_map);
 		watchdog_timer.expires += WATCHDOG_INTERVAL;
@@ -169,7 +172,8 @@ static void clocksource_check_watchdog(struct clocksource *cs)
 		if (!started && watchdog) {
 			watchdog_last = watchdog->read();
 			watchdog_timer.expires = jiffies + WATCHDOG_INTERVAL;
-			add_timer_on(&watchdog_timer, first_cpu(cpu_online_map));
+			add_timer_on(&watchdog_timer,
+				     first_cpu(cpu_online_map));
 		}
 	} else {
 		if (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS)
@@ -179,7 +183,7 @@ static void clocksource_check_watchdog(struct clocksource *cs)
 			if (watchdog)
 				del_timer(&watchdog_timer);
 			watchdog = cs;
-			init_timer_deferrable(&watchdog_timer);
+			init_timer(&watchdog_timer);
 			watchdog_timer.function = clocksource_watchdog;
 
 			/* Reset watchdog cycles */
@@ -191,7 +195,7 @@ static void clocksource_check_watchdog(struct clocksource *cs)
 				watchdog_timer.expires =
 					jiffies + WATCHDOG_INTERVAL;
 				add_timer_on(&watchdog_timer,
-						first_cpu(cpu_online_map));
+					     first_cpu(cpu_online_map));
 			}
 		}
 	}
@@ -225,6 +229,18 @@ void clocksource_resume(void)
 	clocksource_resume_watchdog();
 
 	spin_unlock_irqrestore(&clocksource_lock, flags);
+}
+
+/**
+ * clocksource_touch_watchdog - Update watchdog
+ *
+ * Update the watchdog after exception contexts such as kgdb so as not
+ * to incorrectly trip the watchdog.
+ *
+ */
+void clocksource_touch_watchdog(void)
+{
+	clocksource_resume_watchdog();
 }
 
 /**

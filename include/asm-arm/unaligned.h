@@ -40,16 +40,16 @@ extern int __bug_unaligned_x(const void *ptr);
  */
 
 #define __get_unaligned_2_le(__p)					\
-	(__p[0] | __p[1] << 8)
+	(unsigned int)(__p[0] | __p[1] << 8)
 
 #define __get_unaligned_2_be(__p)					\
-	(__p[0] << 8 | __p[1])
+	(unsigned int)(__p[0] << 8 | __p[1])
 
 #define __get_unaligned_4_le(__p)					\
-	(__p[0] | __p[1] << 8 | __p[2] << 16 | __p[3] << 24)
+	(unsigned int)(__p[0] | __p[1] << 8 | __p[2] << 16 | __p[3] << 24)
 
 #define __get_unaligned_4_be(__p)					\
-	(__p[0] << 24 | __p[1] << 16 | __p[2] << 8 | __p[3])
+	(unsigned int)(__p[0] << 24 | __p[1] << 16 | __p[2] << 8 | __p[3])
 
 #define __get_unaligned_8_le(__p)					\
 	((unsigned long long)__get_unaligned_4_le((__p+4)) << 32 |	\

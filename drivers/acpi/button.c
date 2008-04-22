@@ -449,6 +449,7 @@ static int acpi_button_add(struct acpi_device *device)
 	input->phys = button->phys;
 	input->id.bustype = BUS_HOST;
 	input->id.product = button->type;
+	input->dev.parent = &device->dev;
 
 	switch (button->type) {
 	case ACPI_BUTTON_TYPE_POWER:

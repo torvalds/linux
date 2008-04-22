@@ -35,7 +35,7 @@
 1004:
 		mrc	p6, 0, \irqstat, c6, c0, 0	@ ICIP2
 		mrc	p6, 0, \irqnr, c7, c0, 0	@ ICMR2
-		ands	\irqstat, \irqstat, \irqnr
+		ands	\irqnr, \irqstat, \irqnr
 		beq	1003f
 		rsb	\irqstat, \irqnr, #0
 		and	\irqstat, \irqstat, \irqnr

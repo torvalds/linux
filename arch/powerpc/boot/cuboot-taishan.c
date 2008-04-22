@@ -21,7 +21,9 @@
 #include "dcr.h"
 #include "4xx.h"
 
+#define TARGET_4xx
 #define TARGET_44x
+#define TARGET_440GX
 #include "ppcboot.h"
 
 static bd_t bd;
@@ -38,7 +40,8 @@ static void taishan_fixups(void)
 
 	ibm4xx_sdram_fixup_memsize();
 
-	dt_fixup_mac_addresses(bd.bi_enetaddr, bd.bi_enet1addr);
+	dt_fixup_mac_address_by_alias("ethernet0", bd.bi_enetaddr);
+	dt_fixup_mac_address_by_alias("ethernet1", bd.bi_enet1addr);
 
 	ibm4xx_fixup_ebc_ranges("/plb/opb/ebc");
 }

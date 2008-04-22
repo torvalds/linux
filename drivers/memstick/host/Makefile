@@ -3,8 +3,8 @@
 #
 
 ifeq ($(CONFIG_MEMSTICK_DEBUG),y)
-	EXTRA_CFLAGS		+= -DDEBUG
+	EXTRA_CFLAGS			+= -DDEBUG
 endif
 
-obj-$(CONFIG_MEMSTICK_TIFM_MS)	+= tifm_ms.o
-
+obj-$(CONFIG_MEMSTICK_TIFM_MS)		+= tifm_ms.o
+obj-$(CONFIG_MEMSTICK_JMICRON_38X)	+= jmb38x_ms.o

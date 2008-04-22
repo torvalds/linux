@@ -1,11 +1,10 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2005 QLogic Corporation
+ * Copyright (c)  2003-2008 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
 
-static __inline__ uint16_t qla2x00_debounce_register(volatile uint16_t __iomem *);
 /*
  * qla2x00_debounce_register
  *      Debounce register.
@@ -32,94 +31,12 @@ qla2x00_debounce_register(volatile uint16_t __iomem *addr)
 	return (first);
 }
 
-static __inline__ int qla2x00_normalize_dma_addr(
-    dma_addr_t *e_addr,  uint32_t *e_len,
-    dma_addr_t *ne_addr, uint32_t *ne_len);
-
-/**
- * qla2x00_normalize_dma_addr() - Normalize an DMA address.
- * @e_addr: Raw DMA address
- * @e_len: Raw DMA length
- * @ne_addr: Normalized second DMA address
- * @ne_len: Normalized second DMA length
- *
- * If the address does not span a 4GB page boundary, the contents of @ne_addr
- * and @ne_len are undefined.  @e_len is updated to reflect a normalization.
- *
- * Example:
- *
- * 	ffffabc0ffffeeee	(e_addr) start of DMA address
- * 	0000000020000000	(e_len)  length of DMA transfer
- *	ffffabc11fffeeed	end of DMA transfer
- *
- * Is the 4GB boundary crossed?
- *
- * 	ffffabc0ffffeeee	(e_addr)
- *	ffffabc11fffeeed	(e_addr + e_len - 1)
- *	00000001e0000003	((e_addr ^ (e_addr + e_len - 1))
- *	0000000100000000	((e_addr ^ (e_addr + e_len - 1)) & ~(0xffffffff)
- *
- * Compute start of second DMA segment:
- *
- * 	ffffabc0ffffeeee	(e_addr)
- *	ffffabc1ffffeeee	(0x100000000 + e_addr)
- *	ffffabc100000000	(0x100000000 + e_addr) & ~(0xffffffff)
- *	ffffabc100000000	(ne_addr)
- *
- * Compute length of second DMA segment:
- *
- *	00000000ffffeeee	(e_addr & 0xffffffff)
- *	0000000000001112	(0x100000000 - (e_addr & 0xffffffff))
- *	000000001fffeeee	(e_len - (0x100000000 - (e_addr & 0xffffffff))
- *	000000001fffeeee	(ne_len)
- *
- * Adjust length of first DMA segment
- *
- * 	0000000020000000	(e_len)
- *	0000000000001112	(e_len - ne_len)
- *	0000000000001112	(e_len)
- *
- * Returns non-zero if the specified address was normalized, else zero.
- */
-static __inline__ int
-qla2x00_normalize_dma_addr(
-    dma_addr_t *e_addr,  uint32_t *e_len,
-    dma_addr_t *ne_addr, uint32_t *ne_len)
-{
-	int normalized;
-
-	normalized = 0;
-	if ((*e_addr ^ (*e_addr + *e_len - 1)) & ~(0xFFFFFFFFULL)) {
-		/* Compute normalized crossed address and len */
-		*ne_addr = (0x100000000ULL + *e_addr) & ~(0xFFFFFFFFULL);
-		*ne_len = *e_len - (0x100000000ULL - (*e_addr & 0xFFFFFFFFULL));
-		*e_len -= *ne_len;
-
-		normalized++;
-	}
-	return (normalized);
-}
-
-static __inline__ void qla2x00_poll(scsi_qla_host_t *);
 static inline void
 qla2x00_poll(scsi_qla_host_t *ha)
 {
 	ha->isp_ops->intr_handler(0, ha);
 }
 
-static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *);
-/*
- * This routine will wait for fabric devices for
- * the reset delay.
- */
-static __inline__ void qla2x00_check_fabric_devices(scsi_qla_host_t *ha)
-{
-	uint16_t	fw_state;
-
-	qla2x00_get_firmware_state(ha, &fw_state);
-}
-
-static __inline__ scsi_qla_host_t * to_qla_parent(scsi_qla_host_t *);
 static __inline__ scsi_qla_host_t *
 to_qla_parent(scsi_qla_host_t *ha)
 {
@@ -152,7 +69,6 @@ qla2x00_issue_marker(scsi_qla_host_t *ha, int ha_locked)
 	return (QLA_SUCCESS);
 }
 
-static inline uint8_t *host_to_fcp_swap(uint8_t *, uint32_t);
 static inline uint8_t *
 host_to_fcp_swap(uint8_t *fcp, uint32_t bsize)
 {
@@ -166,7 +82,6 @@ host_to_fcp_swap(uint8_t *fcp, uint32_t bsize)
        return fcp;
 }
 
-static inline int qla2x00_is_reserved_id(scsi_qla_host_t *, uint16_t);
 static inline int
 qla2x00_is_reserved_id(scsi_qla_host_t *ha, uint16_t loop_id)
 {

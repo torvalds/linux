@@ -535,9 +535,9 @@ static void ne2k_pci_block_input(struct net_device *dev, int count,
 		if (count & 3) {
 			buf += count & ~3;
 			if (count & 2) {
-				u16 *b = (u16 *)buf;
+				__le16 *b = (__le16 *)buf;
 
-				*b++ = le16_to_cpu(inw(NE_BASE + NE_DATAPORT));
+				*b++ = cpu_to_le16(inw(NE_BASE + NE_DATAPORT));
 				buf = (char *)b;
 			}
 			if (count & 1)
@@ -600,9 +600,9 @@ static void ne2k_pci_block_output(struct net_device *dev, int count,
 		if (count & 3) {
 			buf += count & ~3;
 			if (count & 2) {
-				u16 *b = (u16 *)buf;
+				__le16 *b = (__le16 *)buf;
 
-				outw(cpu_to_le16(*b++), NE_BASE + NE_DATAPORT);
+				outw(le16_to_cpu(*b++), NE_BASE + NE_DATAPORT);
 				buf = (char *)b;
 			}
 		}

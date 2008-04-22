@@ -49,11 +49,11 @@ struct fid {
 
 /**
  * struct export_operations - for nfsd to communicate with file systems
- * @decode_fh:      decode a file handle fragment and return a &struct dentry
  * @encode_fh:      encode a file handle fragment from a dentry
+ * @fh_to_dentry:   find the implied object and get a dentry for it
+ * @fh_to_parent:   find the implied object's parent and get a dentry for it
  * @get_name:       find the name for a given inode in a given directory
  * @get_parent:     find the parent of a given directory
- * @get_dentry:     find a dentry for the inode given a file handle sub-fragment
  *
  * See Documentation/filesystems/Exporting for details on how to use
  * this interface correctly.

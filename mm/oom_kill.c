@@ -37,6 +37,7 @@ static DEFINE_SPINLOCK(zone_scan_mutex);
  * badness - calculate a numeric value for how bad this task has been
  * @p: task struct of which task we should calculate
  * @uptime: current uptime in seconds
+ * @mem: target memory controller
  *
  * The formula used is relatively simple and documented inline in the
  * function. The main rationale is that we want to select a good task
@@ -264,6 +265,9 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
 }
 
 /**
+ * dump_tasks - dump current memory state of all system tasks
+ * @mem: target memory controller
+ *
  * Dumps the current memory state of all system tasks, excluding kernel threads.
  * State information includes task's pid, uid, tgid, vm size, rss, cpu, oom_adj
  * score, and name.
@@ -298,7 +302,7 @@ static void dump_tasks(const struct mem_cgroup *mem)
 	} while_each_thread(g, p);
 }
 
-/**
+/*
  * Send SIGKILL to the selected  process irrespective of  CAP_SYS_RAW_IO
  * flag though it's unlikely that  we select a process with CAP_SYS_RAW_IO
  * set.
@@ -412,14 +416,14 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	return oom_kill_task(p);
 }
 
-#ifdef CONFIG_CGROUP_MEM_CONT
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
 void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
 {
 	unsigned long points = 0;
 	struct task_struct *p;
 
 	cgroup_lock();
-	rcu_read_lock();
+	read_lock(&tasklist_lock);
 retry:
 	p = select_bad_process(&points, mem);
 	if (PTR_ERR(p) == -1UL)
@@ -432,7 +436,7 @@ retry:
 				"Memory cgroup out of memory"))
 		goto retry;
 out:
-	rcu_read_unlock();
+	read_unlock(&tasklist_lock);
 	cgroup_unlock();
 }
 #endif
@@ -504,6 +508,9 @@ void clear_zonelist_oom(struct zonelist *zonelist)
 
 /**
  * out_of_memory - kill the "best" process when we run out of memory
+ * @zonelist: zonelist pointer
+ * @gfp_mask: memory allocation flags
+ * @order: amount of memory being requested as a power of 2
  *
  * If we run out of memory, we have the choice between either
  * killing a random task (bad), letting the system crash (worse)

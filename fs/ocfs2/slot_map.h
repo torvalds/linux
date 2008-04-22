@@ -27,38 +27,18 @@
 #ifndef SLOTMAP_H
 #define SLOTMAP_H
 
-struct ocfs2_slot_info {
-	spinlock_t si_lock;
-
-       	struct inode *si_inode;
-	struct buffer_head *si_bh;
-	unsigned int si_num_slots;
-	unsigned int si_size;
-	s16 si_global_node_nums[OCFS2_MAX_SLOTS];
-};
-
 int ocfs2_init_slot_info(struct ocfs2_super *osb);
-void ocfs2_free_slot_info(struct ocfs2_slot_info *si);
+void ocfs2_free_slot_info(struct ocfs2_super *osb);
 
 int ocfs2_find_slot(struct ocfs2_super *osb);
 void ocfs2_put_slot(struct ocfs2_super *osb);
 
-void ocfs2_update_slot_info(struct ocfs2_slot_info *si);
-int ocfs2_update_disk_slots(struct ocfs2_super *osb,
-			    struct ocfs2_slot_info *si);
+int ocfs2_refresh_slot_info(struct ocfs2_super *osb);
 
-s16 ocfs2_node_num_to_slot(struct ocfs2_slot_info *si,
-			   s16 global);
-void ocfs2_clear_slot(struct ocfs2_slot_info *si,
-		      s16 slot_num);
+int ocfs2_node_num_to_slot(struct ocfs2_super *osb, unsigned int node_num);
+int ocfs2_slot_to_node_num_locked(struct ocfs2_super *osb, int slot_num,
+				  unsigned int *node_num);
 
-static inline int ocfs2_is_empty_slot(struct ocfs2_slot_info *si,
-				      int slot_num)
-{
-	BUG_ON(slot_num == OCFS2_INVALID_SLOT);
-	assert_spin_locked(&si->si_lock);
-
-	return si->si_global_node_nums[slot_num] == OCFS2_INVALID_SLOT;
-}
+int ocfs2_clear_slot(struct ocfs2_super *osb, int slot_num);
 
 #endif

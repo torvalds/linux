@@ -33,7 +33,7 @@ static void asd_unbuild_ata_ascb(struct asd_ascb *a);
 static void asd_unbuild_smp_ascb(struct asd_ascb *a);
 static void asd_unbuild_ssp_ascb(struct asd_ascb *a);
 
-static inline void asd_can_dequeue(struct asd_ha_struct *asd_ha, int num)
+static void asd_can_dequeue(struct asd_ha_struct *asd_ha, int num)
 {
 	unsigned long flags;
 
@@ -51,9 +51,9 @@ static const u8 data_dir_flags[] = {
 	[PCI_DMA_NONE]          = DATA_DIR_NONE, /* NO TRANSFER */
 };
 
-static inline int asd_map_scatterlist(struct sas_task *task,
-				      struct sg_el *sg_arr,
-				      gfp_t gfp_flags)
+static int asd_map_scatterlist(struct sas_task *task,
+			       struct sg_el *sg_arr,
+			       gfp_t gfp_flags)
 {
 	struct asd_ascb *ascb = task->lldd_task;
 	struct asd_ha_struct *asd_ha = ascb->ha;
@@ -131,7 +131,7 @@ err_unmap:
 	return res;
 }
 
-static inline void asd_unmap_scatterlist(struct asd_ascb *ascb)
+static void asd_unmap_scatterlist(struct asd_ascb *ascb)
 {
 	struct asd_ha_struct *asd_ha = ascb->ha;
 	struct sas_task *task = ascb->uldd_task;
@@ -343,11 +343,13 @@ Again:
 	task->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	if (unlikely((task->task_state_flags & SAS_TASK_STATE_ABORTED))) {
+		struct completion *completion = ascb->completion;
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 		ASD_DPRINTK("task 0x%p done with opcode 0x%x resp 0x%x "
 			    "stat 0x%x but aborted by upper layer!\n",
 			    task, opcode, ts->resp, ts->stat);
-		complete(&ascb->completion);
+		if (completion)
+			complete(completion);
 	} else {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 		task->lldd_task = NULL;
@@ -525,7 +527,7 @@ static void asd_unbuild_ssp_ascb(struct asd_ascb *a)
 
 /* ---------- Execute Task ---------- */
 
-static inline int asd_can_queue(struct asd_ha_struct *asd_ha, int num)
+static int asd_can_queue(struct asd_ha_struct *asd_ha, int num)
 {
 	int res = 0;
 	unsigned long flags;

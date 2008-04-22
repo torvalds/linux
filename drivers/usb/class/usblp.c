@@ -428,6 +428,7 @@ static int usblp_open(struct inode *inode, struct file *file)
 	usblp->rcomplete = 0;
 
 	if (handle_bidir(usblp) < 0) {
+		usb_autopm_put_interface(intf);
 		usblp->used = 0;
 		file->private_data = NULL;
 		retval = -EIO;

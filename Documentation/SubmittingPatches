@@ -183,7 +183,7 @@ Even if the maintainer did not respond in step #4, make sure to ALWAYS
 copy the maintainer when you change their code.
 
 For small patches you may want to CC the Trivial Patch Monkey
-trivial@kernel.org managed by Adrian Bunk; which collects "trivial"
+trivial@kernel.org managed by Jesper Juhl; which collects "trivial"
 patches. Trivial patches must qualify for one of the following rules:
  Spelling fixes in documentation
  Spelling fixes which could break grep(1)
@@ -196,7 +196,7 @@ patches. Trivial patches must qualify for one of the following rules:
  since people copy, as long as it's trivial)
  Any fix by the author/maintainer of the file (ie. patch monkey
  in re-transmission mode)
-URL: <http://www.kernel.org/pub/linux/kernel/people/bunk/trivial/>
+URL: <http://www.kernel.org/pub/linux/kernel/people/juhl/trivial/>
 
 
 
@@ -328,7 +328,7 @@ now, but you can do this to mark internal company procedures or just
 point out some special detail about the sign-off. 
 
 
-13) When to use Acked-by:
+13) When to use Acked-by: and Cc:
 
 The Signed-off-by: tag indicates that the signer was involved in the
 development of the patch, or that he/she was in the patch's delivery path.
@@ -349,11 +349,59 @@ Acked-by: does not necessarily indicate acknowledgement of the entire patch.
 For example, if a patch affects multiple subsystems and has an Acked-by: from
 one subsystem maintainer then this usually indicates acknowledgement of just
 the part which affects that maintainer's code.  Judgement should be used here.
- When in doubt people should refer to the original discussion in the mailing
+When in doubt people should refer to the original discussion in the mailing
 list archives.
 
+If a person has had the opportunity to comment on a patch, but has not
+provided such comments, you may optionally add a "Cc:" tag to the patch.
+This is the only tag which might be added without an explicit action by the
+person it names.  This tag documents that potentially interested parties
+have been included in the discussion
 
-14) The canonical patch format
+
+14) Using Test-by: and Reviewed-by:
+
+A Tested-by: tag indicates that the patch has been successfully tested (in
+some environment) by the person named.  This tag informs maintainers that
+some testing has been performed, provides a means to locate testers for
+future patches, and ensures credit for the testers.
+
+Reviewed-by:, instead, indicates that the patch has been reviewed and found
+acceptable according to the Reviewer's Statement:
+
+	Reviewer's statement of oversight
+
+	By offering my Reviewed-by: tag, I state that:
+
+ 	 (a) I have carried out a technical review of this patch to
+	     evaluate its appropriateness and readiness for inclusion into
+	     the mainline kernel.
+
+	 (b) Any problems, concerns, or questions relating to the patch
+	     have been communicated back to the submitter.  I am satisfied
+	     with the submitter's response to my comments.
+
+	 (c) While there may be things that could be improved with this
+	     submission, I believe that it is, at this time, (1) a
+	     worthwhile modification to the kernel, and (2) free of known
+	     issues which would argue against its inclusion.
+
+	 (d) While I have reviewed the patch and believe it to be sound, I
+	     do not (unless explicitly stated elsewhere) make any
+	     warranties or guarantees that it will achieve its stated
+	     purpose or function properly in any given situation.
+
+A Reviewed-by tag is a statement of opinion that the patch is an
+appropriate modification of the kernel without any remaining serious
+technical issues.  Any interested reviewer (who has done the work) can
+offer a Reviewed-by tag for a patch.  This tag serves to give credit to
+reviewers and to inform maintainers of the degree of review which has been
+done on the patch.  Reviewed-by: tags, when supplied by reviewers known to
+understand the subject area and to perform thorough reviews, will normally
+increase the liklihood of your patch getting into the kernel.
+
+
+15) The canonical patch format
 
 The canonical patch subject line is:
 
@@ -512,7 +560,7 @@ They provide type safety, have no length limitations, no formatting
 limitations, and under gcc they are as cheap as macros.
 
 Macros should only be used for cases where a static inline is clearly
-suboptimal [there a few, isolated cases of this in fast paths],
+suboptimal [there are a few, isolated cases of this in fast paths],
 or where it is impossible to use a static inline function [such as
 string-izing].
 

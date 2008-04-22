@@ -1154,18 +1154,13 @@ static void __devinit tulip_mwi_config (struct pci_dev *pdev,
 
 	tp->csr0 = csr0 = 0;
 
-	/* if we have any cache line size at all, we can do MRM */
-	csr0 |= MRM;
+	/* if we have any cache line size at all, we can do MRM and MWI */
+	csr0 |= MRM | MWI;
 
-	/* ...and barring hardware bugs, MWI */
-	if (!(tp->chip_id == DC21143 && tp->revision == 65))
-		csr0 |= MWI;
-
-	/* set or disable MWI in the standard PCI command bit.
-	 * Check for the case where  mwi is desired but not available
+	/* Enable MWI in the standard PCI command bit.
+	 * Check for the case where MWI is desired but not available
 	 */
-	if (csr0 & MWI)	pci_try_set_mwi(pdev);
-	else		pci_clear_mwi(pdev);
+	pci_try_set_mwi(pdev);
 
 	/* read result from hardware (in case bit refused to enable) */
 	pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
@@ -1401,10 +1396,6 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 #ifdef CONFIG_TULIP_MWI
 	if (!force_csr0 && (tp->flags & HAS_PCI_MWI))
 		tulip_mwi_config (pdev, dev);
-#else
-	/* MWI is broken for DC21143 rev 65... */
-	if (chip_idx == DC21143 && pdev->revision == 65)
-		tp->csr0 &= ~MWI;
 #endif
 
 	/* Stop the chip's Tx and Rx processes. */
@@ -1437,6 +1428,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	   EEPROM.
 	   */
 	ee_data = tp->eeprom;
+	memset(ee_data, 0, sizeof(tp->eeprom));
 	sum = 0;
 	if (chip_idx == LC82C168) {
 		for (i = 0; i < 3; i++) {
@@ -1458,8 +1450,12 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		/* A serial EEPROM interface, we read now and sort it out later. */
 		int sa_offset = 0;
 		int ee_addr_size = tulip_read_eeprom(dev, 0xff, 8) & 0x40000 ? 8 : 6;
+		int ee_max_addr = ((1 << ee_addr_size) - 1) * sizeof(u16);
 
-		for (i = 0; i < sizeof(tp->eeprom); i+=2) {
+		if (ee_max_addr > sizeof(tp->eeprom))
+			ee_max_addr = sizeof(tp->eeprom);
+
+		for (i = 0; i < ee_max_addr ; i += sizeof(u16)) {
 			u16 data = tulip_read_eeprom(dev, i/2, ee_addr_size);
 			ee_data[i] = data & 0xff;
 			ee_data[i + 1] = data >> 8;

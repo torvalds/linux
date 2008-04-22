@@ -18,6 +18,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/completion.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -28,7 +29,6 @@
 #include <linux/list.h>
 #include <linux/kthread.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 
 #include "fw-transaction.h"
 #include "fw-topology.h"
@@ -294,42 +294,40 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 }
 EXPORT_SYMBOL(fw_send_request);
 
+struct fw_phy_packet {
+	struct fw_packet packet;
+	struct completion done;
+};
+
 static void
 transmit_phy_packet_callback(struct fw_packet *packet,
 			     struct fw_card *card, int status)
 {
-	kfree(packet);
-}
+	struct fw_phy_packet *p =
+			container_of(packet, struct fw_phy_packet, packet);
 
-static void send_phy_packet(struct fw_card *card, u32 data, int generation)
-{
-	struct fw_packet *packet;
-
-	packet = kzalloc(sizeof(*packet), GFP_ATOMIC);
-	if (packet == NULL)
-		return;
-
-	packet->header[0] = data;
-	packet->header[1] = ~data;
-	packet->header_length = 8;
-	packet->payload_length = 0;
-	packet->speed = SCODE_100;
-	packet->generation = generation;
-	packet->callback = transmit_phy_packet_callback;
-
-	card->driver->send_request(card, packet);
+	complete(&p->done);
 }
 
 void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count)
 {
-	u32 q;
+	struct fw_phy_packet p;
+	u32 data = PHY_IDENTIFIER(PHY_PACKET_CONFIG) |
+		   PHY_CONFIG_ROOT_ID(node_id) |
+		   PHY_CONFIG_GAP_COUNT(gap_count);
 
-	q = PHY_IDENTIFIER(PHY_PACKET_CONFIG) |
-		PHY_CONFIG_ROOT_ID(node_id) |
-		PHY_CONFIG_GAP_COUNT(gap_count);
+	p.packet.header[0] = data;
+	p.packet.header[1] = ~data;
+	p.packet.header_length = 8;
+	p.packet.payload_length = 0;
+	p.packet.speed = SCODE_100;
+	p.packet.generation = generation;
+	p.packet.callback = transmit_phy_packet_callback;
+	init_completion(&p.done);
 
-	send_phy_packet(card, q, generation);
+	card->driver->send_request(card, &p.packet);
+	wait_for_completion(&p.done);
 }
 
 void fw_flush_transactions(struct fw_card *card)
@@ -389,21 +387,21 @@ lookup_enclosing_address_handler(struct list_head *list,
 static DEFINE_SPINLOCK(address_handler_lock);
 static LIST_HEAD(address_handler_list);
 
-const struct fw_address_region fw_low_memory_region =
-	{ .start = 0x000000000000ULL, .end = 0x000100000000ULL,  };
 const struct fw_address_region fw_high_memory_region =
 	{ .start = 0x000100000000ULL, .end = 0xffffe0000000ULL,  };
+EXPORT_SYMBOL(fw_high_memory_region);
+
+#if 0
+const struct fw_address_region fw_low_memory_region =
+	{ .start = 0x000000000000ULL, .end = 0x000100000000ULL,  };
 const struct fw_address_region fw_private_region =
 	{ .start = 0xffffe0000000ULL, .end = 0xfffff0000000ULL,  };
 const struct fw_address_region fw_csr_region =
-	{ .start = 0xfffff0000000ULL, .end = 0xfffff0000800ULL,  };
+	{ .start = CSR_REGISTER_BASE,
+	  .end   = CSR_REGISTER_BASE | CSR_CONFIG_ROM_END,  };
 const struct fw_address_region fw_unit_space_region =
 	{ .start = 0xfffff0000900ULL, .end = 0x1000000000000ULL, };
-EXPORT_SYMBOL(fw_low_memory_region);
-EXPORT_SYMBOL(fw_high_memory_region);
-EXPORT_SYMBOL(fw_private_region);
-EXPORT_SYMBOL(fw_csr_region);
-EXPORT_SYMBOL(fw_unit_space_region);
+#endif  /*  0  */
 
 /**
  * Allocate a range of addresses in the node space of the OHCI
@@ -736,12 +734,19 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 		break;
 	}
 
+	/*
+	 * The response handler may be executed while the request handler
+	 * is still pending.  Cancel the request handler.
+	 */
+	card->driver->cancel_packet(card, &t->packet);
+
 	t->callback(card, rcode, data, data_length, t->callback_data);
 }
 EXPORT_SYMBOL(fw_core_handle_response);
 
 static const struct fw_address_region topology_map_region =
-	{ .start = 0xfffff0001000ull, .end = 0xfffff0001400ull, };
+	{ .start = CSR_REGISTER_BASE | CSR_TOPOLOGY_MAP,
+	  .end   = CSR_REGISTER_BASE | CSR_TOPOLOGY_MAP_END, };
 
 static void
 handle_topology_map(struct fw_card *card, struct fw_request *request,
@@ -751,7 +756,7 @@ handle_topology_map(struct fw_card *card, struct fw_request *request,
 		    void *payload, size_t length, void *callback_data)
 {
 	int i, start, end;
-	u32 *map;
+	__be32 *map;
 
 	if (!TCODE_IS_READ_REQUEST(tcode)) {
 		fw_send_response(card, request, RCODE_TYPE_ERROR);
@@ -779,7 +784,8 @@ static struct fw_address_handler topology_map = {
 };
 
 static const struct fw_address_region registers_region =
-	{ .start = 0xfffff0000000ull, .end = 0xfffff0000400ull, };
+	{ .start = CSR_REGISTER_BASE,
+	  .end   = CSR_REGISTER_BASE | CSR_CONFIG_ROM, };
 
 static void
 handle_registers(struct fw_card *card, struct fw_request *request,
@@ -788,7 +794,7 @@ handle_registers(struct fw_card *card, struct fw_request *request,
 		 unsigned long long offset,
 		 void *payload, size_t length, void *callback_data)
 {
-	int reg = offset - CSR_REGISTER_BASE;
+	int reg = offset & ~CSR_REGISTER_BASE;
 	unsigned long long bus_time;
 	__be32 *data = payload;
 

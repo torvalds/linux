@@ -53,6 +53,30 @@
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
 static struct net_proto_family *bt_proto[BT_MAX_PROTO];
+
+static struct lock_class_key bt_slock_key[BT_MAX_PROTO];
+static struct lock_class_key bt_lock_key[BT_MAX_PROTO];
+static const char *bt_key_strings[BT_MAX_PROTO] = {
+	"sk_lock-AF_BLUETOOTH-BTPROTO_L2CAP",
+	"sk_lock-AF_BLUETOOTH-BTPROTO_HCI",
+	"sk_lock-AF_BLUETOOTH-BTPROTO_SCO",
+	"sk_lock-AF_BLUETOOTH-BTPROTO_RFCOMM",
+	"sk_lock-AF_BLUETOOTH-BTPROTO_BNEP",
+	"sk_lock-AF_BLUETOOTH-BTPROTO_CMTP",
+	"sk_lock-AF_BLUETOOTH-BTPROTO_HIDP",
+	"sk_lock-AF_BLUETOOTH-BTPROTO_AVDTP",
+};
+
+static const char *bt_slock_key_strings[BT_MAX_PROTO] = {
+	"slock-AF_BLUETOOTH-BTPROTO_L2CAP",
+	"slock-AF_BLUETOOTH-BTPROTO_HCI",
+	"slock-AF_BLUETOOTH-BTPROTO_SCO",
+	"slock-AF_BLUETOOTH-BTPROTO_RFCOMM",
+	"slock-AF_BLUETOOTH-BTPROTO_BNEP",
+	"slock-AF_BLUETOOTH-BTPROTO_CMTP",
+	"slock-AF_BLUETOOTH-BTPROTO_HIDP",
+	"slock-AF_BLUETOOTH-BTPROTO_AVDTP",
+};
 static DEFINE_RWLOCK(bt_proto_lock);
 
 int bt_sock_register(int proto, struct net_proto_family *ops)
@@ -95,6 +119,21 @@ int bt_sock_unregister(int proto)
 }
 EXPORT_SYMBOL(bt_sock_unregister);
 
+static void bt_reclassify_sock_lock(struct socket *sock, int proto)
+{
+	struct sock *sk = sock->sk;
+
+	if (!sk)
+		return;
+	BUG_ON(sock_owned_by_user(sk));
+
+	sock_lock_init_class_and_name(sk,
+			bt_slock_key_strings[proto],
+			&bt_slock_key[proto],
+			bt_key_strings[proto],
+			&bt_lock_key[proto]);
+}
+
 static int bt_sock_create(struct net *net, struct socket *sock, int proto)
 {
 	int err;
@@ -117,6 +156,7 @@ static int bt_sock_create(struct net *net, struct socket *sock, int proto)
 
 	if (bt_proto[proto] && try_module_get(bt_proto[proto]->owner)) {
 		err = bt_proto[proto]->create(net, sock, proto);
+		bt_reclassify_sock_lock(sock, proto);
 		module_put(bt_proto[proto]->owner);
 	}
 

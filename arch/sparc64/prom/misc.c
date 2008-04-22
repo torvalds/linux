@@ -55,9 +55,6 @@ void prom_feval(const char *fstring)
 		  P1275_INOUT(1, 1), fstring);
 }
 
-/* We want to do this more nicely some day. */
-extern void (*prom_palette)(int);
-
 #ifdef CONFIG_SMP
 extern void smp_capture(void);
 extern void smp_release(void);
@@ -72,9 +69,6 @@ void prom_cmdline(void)
 
 	local_irq_save(flags);
 
-	if (prom_palette)
-		prom_palette(1);
-
 #ifdef CONFIG_SMP
 	smp_capture();
 #endif
@@ -84,9 +78,6 @@ void prom_cmdline(void)
 #ifdef CONFIG_SMP
 	smp_release();
 #endif
-
-	if (prom_palette)
-		prom_palette(0);
 
 	local_irq_restore(flags);
 }

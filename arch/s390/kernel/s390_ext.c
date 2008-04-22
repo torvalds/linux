@@ -13,11 +13,12 @@
 #include <linux/errno.h>
 #include <linux/kernel_stat.h>
 #include <linux/interrupt.h>
-
+#include <asm/cpu.h>
 #include <asm/lowcore.h>
 #include <asm/s390_ext.h>
 #include <asm/irq_regs.h>
 #include <asm/irq.h>
+#include "entry.h"
 
 /*
  * ext_int_hash[index] is the start of the list for all external interrupts
@@ -119,13 +120,10 @@ void do_extint(struct pt_regs *regs, unsigned short code)
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
-	asm volatile ("mc 0,0");
-	if (S390_lowcore.int_clock >= S390_lowcore.jiffy_timer)
-		/**
-		 * Make sure that the i/o interrupt did not "overtake"
-		 * the last HZ timer interrupt.
-		 */
-		account_ticks(S390_lowcore.int_clock);
+	s390_idle_check();
+	if (S390_lowcore.int_clock >= S390_lowcore.clock_comparator)
+		/* Serve timer interrupts first. */
+		clock_comparator_work();
 	kstat_cpu(smp_processor_id()).irqs[EXTERNAL_INTERRUPT]++;
         index = ext_hash(code);
 	for (p = ext_int_hash[index]; p; p = p->next) {

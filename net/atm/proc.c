@@ -78,7 +78,7 @@ static int __vcc_walk(struct sock **sock, int family, int *bucket, loff_t l)
 {
 	struct sock *sk = *sock;
 
-	if (sk == (void *)1) {
+	if (sk == SEQ_START_TOKEN) {
 		for (*bucket = 0; *bucket < VCC_HTABLE_SIZE; ++*bucket) {
 			struct hlist_head *head = &vcc_hash[*bucket];
 
@@ -98,7 +98,7 @@ try_again:
 		sk = sk_head(&vcc_hash[*bucket]);
 		goto try_again;
 	}
-	sk = (void *)1;
+	sk = SEQ_START_TOKEN;
 out:
 	*sock = sk;
 	return (l < 0);
@@ -114,31 +114,13 @@ static int __vcc_seq_open(struct inode *inode, struct file *file,
 	int family, const struct seq_operations *ops)
 {
 	struct vcc_state *state;
-	struct seq_file *seq;
-	int rc = -ENOMEM;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
-	if (!state)
-		goto out;
-
-	rc = seq_open(file, ops);
-	if (rc)
-		goto out_kfree;
+	state = __seq_open_private(file, ops, sizeof(*state));
+	if (state == NULL)
+		return -ENOMEM;
 
 	state->family = family;
-
-	seq = file->private_data;
-	seq->private = state;
-out:
-	return rc;
-out_kfree:
-	kfree(state);
-	goto out;
-}
-
-static int vcc_seq_release(struct inode *inode, struct file *file)
-{
-	return seq_release_private(inode, file);
+	return 0;
 }
 
 static void *vcc_seq_start(struct seq_file *seq, loff_t *pos)
@@ -148,8 +130,8 @@ static void *vcc_seq_start(struct seq_file *seq, loff_t *pos)
 	loff_t left = *pos;
 
 	read_lock(&vcc_sklist_lock);
-	state->sk = (void *)1;
-	return left ? vcc_walk(state, left) : (void *)1;
+	state->sk = SEQ_START_TOKEN;
+	return left ? vcc_walk(state, left) : SEQ_START_TOKEN;
 }
 
 static void vcc_seq_stop(struct seq_file *seq, void *v)
@@ -253,7 +235,7 @@ static int atm_dev_seq_show(struct seq_file *seq, void *v)
 		"Itf Type    ESI/\"MAC\"addr "
 		"AAL(TX,err,RX,err,drop) ...               [refcnt]\n";
 
-	if (v == (void *)1)
+	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, atm_dev_banner);
 	else {
 		struct atm_dev *dev = list_entry(v, struct atm_dev, dev_list);
@@ -287,7 +269,7 @@ static int pvc_seq_show(struct seq_file *seq, void *v)
 	static char atm_pvc_banner[] =
 		"Itf VPI VCI   AAL RX(PCR,Class) TX(PCR,Class)\n";
 
-	if (v == (void *)1)
+	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, atm_pvc_banner);
 	else {
 		struct vcc_state *state = seq->private;
@@ -314,12 +296,12 @@ static const struct file_operations pvc_seq_fops = {
 	.open		= pvc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= vcc_seq_release,
+	.release	= seq_release_private,
 };
 
 static int vcc_seq_show(struct seq_file *seq, void *v)
 {
-	if (v == (void *)1) {
+	if (v == SEQ_START_TOKEN) {
 		seq_printf(seq, sizeof(void *) == 4 ? "%-8s%s" : "%-16s%s",
 			"Address ", "Itf VPI VCI   Fam Flags Reply "
 			"Send buffer     Recv buffer      [refcnt]\n");
@@ -348,7 +330,7 @@ static const struct file_operations vcc_seq_fops = {
 	.open		= vcc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= vcc_seq_release,
+	.release	= seq_release_private,
 };
 
 static int svc_seq_show(struct seq_file *seq, void *v)
@@ -356,7 +338,7 @@ static int svc_seq_show(struct seq_file *seq, void *v)
 	static char atm_svc_banner[] =
 		"Itf VPI VCI           State      Remote\n";
 
-	if (v == (void *)1)
+	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, atm_svc_banner);
 	else {
 		struct vcc_state *state = seq->private;
@@ -383,7 +365,7 @@ static const struct file_operations svc_seq_fops = {
 	.open		= svc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= vcc_seq_release,
+	.release	= seq_release_private,
 };
 
 static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
@@ -435,11 +417,11 @@ int atm_proc_dev_register(struct atm_dev *dev)
 		goto err_out;
 	sprintf(dev->proc_name,"%s:%d",dev->type, dev->number);
 
-	dev->proc_entry = create_proc_entry(dev->proc_name, 0, atm_proc_root);
+	dev->proc_entry = proc_create(dev->proc_name, 0, atm_proc_root,
+				      &proc_atm_dev_ops);
 	if (!dev->proc_entry)
 		goto err_free_name;
 	dev->proc_entry->data = dev;
-	dev->proc_entry->proc_fops = &proc_atm_dev_ops;
 	dev->proc_entry->owner = THIS_MODULE;
 	return 0;
 err_free_name:
@@ -492,10 +474,10 @@ int __init atm_proc_init(void)
 	for (e = atm_proc_ents; e->name; e++) {
 		struct proc_dir_entry *dirent;
 
-		dirent = create_proc_entry(e->name, S_IRUGO, atm_proc_root);
+		dirent = proc_create(e->name, S_IRUGO,
+				     atm_proc_root, e->proc_fops);
 		if (!dirent)
 			goto err_out_remove;
-		dirent->proc_fops = e->proc_fops;
 		dirent->owner = THIS_MODULE;
 		e->dirent = dirent;
 	}

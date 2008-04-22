@@ -82,8 +82,8 @@ clusterip_config_put(struct clusterip_config *c)
 static inline void
 clusterip_config_entry_put(struct clusterip_config *c)
 {
+	write_lock_bh(&clusterip_lock);
 	if (atomic_dec_and_test(&c->entries)) {
-		write_lock_bh(&clusterip_lock);
 		list_del(&c->list);
 		write_unlock_bh(&clusterip_lock);
 
@@ -96,7 +96,9 @@ clusterip_config_entry_put(struct clusterip_config *c)
 #ifdef CONFIG_PROC_FS
 		remove_proc_entry(c->pde->name, c->pde->parent);
 #endif
+		return;
 	}
+	write_unlock_bh(&clusterip_lock);
 }
 
 static struct clusterip_config *
@@ -142,7 +144,7 @@ clusterip_config_init_nodelist(struct clusterip_config *c,
 }
 
 static struct clusterip_config *
-clusterip_config_init(struct ipt_clusterip_tgt_info *i, __be32 ip,
+clusterip_config_init(const struct ipt_clusterip_tgt_info *i, __be32 ip,
 			struct net_device *dev)
 {
 	struct clusterip_config *c;
@@ -167,14 +169,13 @@ clusterip_config_init(struct ipt_clusterip_tgt_info *i, __be32 ip,
 
 		/* create proc dir entry */
 		sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(ip));
-		c->pde = create_proc_entry(buffer, S_IWUSR|S_IRUSR,
-					   clusterip_procdir);
+		c->pde = proc_create(buffer, S_IWUSR|S_IRUSR,
+				     clusterip_procdir, &clusterip_proc_fops);
 		if (!c->pde) {
 			kfree(c);
 			return NULL;
 		}
 	}
-	c->pde->proc_fops = &clusterip_proc_fops;
 	c->pde->data = c;
 #endif
 
@@ -332,7 +333,7 @@ clusterip_tg(struct sk_buff *skb, const struct net_device *in,
 	}
 
 #ifdef DEBUG
-	DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+	nf_ct_dump_tuple_ip(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 #endif
 	pr_debug("hash=%u ct_hash=%u ", hash, ct->mark);
 	if (!clusterip_responsible(cipinfo->config, hash)) {
@@ -417,7 +418,7 @@ clusterip_tg_check(const char *tablename, const void *e_void,
 /* drop reference count of cluster config when rule is deleted */
 static void clusterip_tg_destroy(const struct xt_target *target, void *targinfo)
 {
-	struct ipt_clusterip_tgt_info *cipinfo = targinfo;
+	const struct ipt_clusterip_tgt_info *cipinfo = targinfo;
 
 	/* if no more entries are referencing the config, remove it
 	 * from the list and destroy the proc entry */
@@ -566,7 +567,7 @@ struct clusterip_seq_position {
 
 static void *clusterip_seq_start(struct seq_file *s, loff_t *pos)
 {
-	struct proc_dir_entry *pde = s->private;
+	const struct proc_dir_entry *pde = s->private;
 	struct clusterip_config *c = pde->data;
 	unsigned int weight;
 	u_int32_t local_nodes;
@@ -593,7 +594,7 @@ static void *clusterip_seq_start(struct seq_file *s, loff_t *pos)
 
 static void *clusterip_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
-	struct clusterip_seq_position *idx = (struct clusterip_seq_position *)v;
+	struct clusterip_seq_position *idx = v;
 
 	*pos = ++idx->pos;
 	if (*pos >= idx->weight) {
@@ -612,7 +613,7 @@ static void clusterip_seq_stop(struct seq_file *s, void *v)
 
 static int clusterip_seq_show(struct seq_file *s, void *v)
 {
-	struct clusterip_seq_position *idx = (struct clusterip_seq_position *)v;
+	struct clusterip_seq_position *idx = v;
 
 	if (idx->pos != 0)
 		seq_putc(s, ',');
@@ -668,7 +669,7 @@ static ssize_t clusterip_proc_write(struct file *file, const char __user *input,
 {
 #define PROC_WRITELEN	10
 	char buffer[PROC_WRITELEN+1];
-	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	struct clusterip_config *c = pde->data;
 	unsigned long nodenum;
 

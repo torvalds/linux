@@ -49,7 +49,6 @@ typedef struct bhv_vfs_sync_work {
 #define SYNC_REFCACHE		0x0040  /* prune some of the nfs ref cache */
 #define SYNC_REMOUNT		0x0080  /* remount readonly, no dummy LRs */
 #define SYNC_IOWAIT		0x0100  /* wait for all I/O to complete */
-#define SYNC_SUPER		0x0200  /* flush superblock to disk */
 
 /*
  * When remounting a filesystem read-only or freezing the filesystem,

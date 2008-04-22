@@ -207,7 +207,7 @@ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 	result = (result & 0xffffffff) + (result >> 32);
 
 	pr_debug("%s saddr %x daddr %x len %x proto %x sum %x result %08Lx\n",
-		__FUNCTION__, saddr, daddr, len, proto, sum, result);
+		__func__, saddr, daddr, len, proto, sum, result);
 
 	return (__wsum)result;
 }

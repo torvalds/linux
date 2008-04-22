@@ -51,7 +51,7 @@
  * the local mdio pins, which may not be the same as system mdio bus, used for
  * controlling the external PHYs, for example.
  */
-int gfar_local_mdio_write(struct gfar_mii *regs, int mii_id,
+int gfar_local_mdio_write(struct gfar_mii __iomem *regs, int mii_id,
 			  int regnum, u16 value)
 {
 	/* Set the PHY address and the register address we want to write */
@@ -77,7 +77,7 @@ int gfar_local_mdio_write(struct gfar_mii *regs, int mii_id,
  * and are always tied to the local mdio pins, which may not be the
  * same as system mdio bus, used for controlling the external PHYs, for eg.
  */
-int gfar_local_mdio_read(struct gfar_mii *regs, int mii_id, int regnum)
+int gfar_local_mdio_read(struct gfar_mii __iomem *regs, int mii_id, int regnum)
 
 {
 	u16 value;
@@ -173,7 +173,7 @@ int gfar_mdio_probe(struct device *dev)
 	new_bus->read = &gfar_mdio_read,
 	new_bus->write = &gfar_mdio_write,
 	new_bus->reset = &gfar_mdio_reset,
-	new_bus->id = pdev->id;
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", pdev->id);
 
 	pdata = (struct gianfar_mdio_data *)pdev->dev.platform_data;
 

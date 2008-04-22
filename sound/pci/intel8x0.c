@@ -1708,6 +1708,12 @@ static struct ac97_pcm ac97_pcm_defs[] __devinitdata = {
 };
 
 static struct ac97_quirk ac97_quirks[] __devinitdata = {
+        {
+		.subvendor = 0x0e11,
+		.subdevice = 0x000e,
+		.name = "Compaq Deskpro EN",	/* AD1885 */
+		.type = AC97_TUNE_HP_ONLY
+        },
 	{
 		.subvendor = 0x0e11,
 		.subdevice = 0x008a,
@@ -1736,6 +1742,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.subvendor = 0x1014,
 		.subdevice = 0x0267,
 		.name = "IBM NetVista A30p",	/* AD1981B */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x1025,
+		.subdevice = 0x0082,
+		.name = "Acer Travelmate 2310",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{

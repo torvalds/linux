@@ -193,8 +193,15 @@ int ccw_device_start_key(struct ccw_device *cdev, struct ccw1 *cpa,
 			return -EACCES;
 	}
 	ret = cio_start_key (sch, cpa, lpm, key);
-	if (ret == 0)
+	switch (ret) {
+	case 0:
 		cdev->private->intparm = intparm;
+		break;
+	case -EACCES:
+	case -ENODEV:
+		dev_fsm_event(cdev, DEV_EVENT_VERIFY);
+		break;
+	}
 	return ret;
 }
 

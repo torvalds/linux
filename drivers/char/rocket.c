@@ -83,6 +83,7 @@
 #include <linux/pci.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
+#include <asm/unaligned.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
@@ -1312,7 +1313,7 @@ static int rp_tiocmset(struct tty_struct *tty, struct file *file,
 	if (clear & TIOCM_DTR)
 		info->channel.TxControl[3] &= ~SET_DTR;
 
-	sOutDW(info->channel.IndexAddr, *(DWord_t *) & (info->channel.TxControl[0]));
+	out32(info->channel.IndexAddr, info->channel.TxControl);
 	return 0;
 }
 
@@ -1748,7 +1749,7 @@ static int rp_write(struct tty_struct *tty,
 
 	/*  Write remaining data into the port's xmit_buf */
 	while (1) {
-		if (info->tty == 0)	/*   Seemingly obligatory check... */
+		if (!info->tty)	/*   Seemingly obligatory check... */
 			goto end;
 
 		c = min(count, min(XMIT_BUF_SIZE - info->xmit_cnt - 1, XMIT_BUF_SIZE - info->xmit_head));
@@ -2798,7 +2799,7 @@ static int sReadAiopNumChan(WordIO_t io)
 	static Byte_t R[4] = { 0x00, 0x00, 0x34, 0x12 };
 
 	/* write to chan 0 SRAM */
-	sOutDW((DWordIO_t) io + _INDX_ADDR, *((DWord_t *) & R[0]));
+	out32((DWordIO_t) io + _INDX_ADDR, R);
 	sOutW(io + _INDX_ADDR, 0);	/* read from SRAM, chan 0 */
 	x = sInW(io + _INDX_DATA);
 	sOutW(io + _INDX_ADDR, 0x4000);	/* read from SRAM, chan 4 */
@@ -2864,7 +2865,7 @@ static int sInitChan(CONTROLLER_T * CtlP, CHANNEL_T * ChP, int AiopNum,
 		R[1] = RData[i + 1] + 0x10 * ChanNum;
 		R[2] = RData[i + 2];
 		R[3] = RData[i + 3];
-		sOutDW(ChP->IndexAddr, *((DWord_t *) & R[0]));
+		out32(ChP->IndexAddr, R);
 	}
 
 	ChR = ChP->R;
@@ -2887,43 +2888,43 @@ static int sInitChan(CONTROLLER_T * CtlP, CHANNEL_T * ChP, int AiopNum,
 	ChP->BaudDiv[1] = (Byte_t) ((ChOff + _BAUD) >> 8);
 	ChP->BaudDiv[2] = (Byte_t) brd9600;
 	ChP->BaudDiv[3] = (Byte_t) (brd9600 >> 8);
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & ChP->BaudDiv[0]);
+	out32(ChP->IndexAddr, ChP->BaudDiv);
 
 	ChP->TxControl[0] = (Byte_t) (ChOff + _TX_CTRL);
 	ChP->TxControl[1] = (Byte_t) ((ChOff + _TX_CTRL) >> 8);
 	ChP->TxControl[2] = 0;
 	ChP->TxControl[3] = 0;
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & ChP->TxControl[0]);
+	out32(ChP->IndexAddr, ChP->TxControl);
 
 	ChP->RxControl[0] = (Byte_t) (ChOff + _RX_CTRL);
 	ChP->RxControl[1] = (Byte_t) ((ChOff + _RX_CTRL) >> 8);
 	ChP->RxControl[2] = 0;
 	ChP->RxControl[3] = 0;
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & ChP->RxControl[0]);
+	out32(ChP->IndexAddr, ChP->RxControl);
 
 	ChP->TxEnables[0] = (Byte_t) (ChOff + _TX_ENBLS);
 	ChP->TxEnables[1] = (Byte_t) ((ChOff + _TX_ENBLS) >> 8);
 	ChP->TxEnables[2] = 0;
 	ChP->TxEnables[3] = 0;
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & ChP->TxEnables[0]);
+	out32(ChP->IndexAddr, ChP->TxEnables);
 
 	ChP->TxCompare[0] = (Byte_t) (ChOff + _TXCMP1);
 	ChP->TxCompare[1] = (Byte_t) ((ChOff + _TXCMP1) >> 8);
 	ChP->TxCompare[2] = 0;
 	ChP->TxCompare[3] = 0;
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & ChP->TxCompare[0]);
+	out32(ChP->IndexAddr, ChP->TxCompare);
 
 	ChP->TxReplace1[0] = (Byte_t) (ChOff + _TXREP1B1);
 	ChP->TxReplace1[1] = (Byte_t) ((ChOff + _TXREP1B1) >> 8);
 	ChP->TxReplace1[2] = 0;
 	ChP->TxReplace1[3] = 0;
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & ChP->TxReplace1[0]);
+	out32(ChP->IndexAddr, ChP->TxReplace1);
 
 	ChP->TxReplace2[0] = (Byte_t) (ChOff + _TXREP2);
 	ChP->TxReplace2[1] = (Byte_t) ((ChOff + _TXREP2) >> 8);
 	ChP->TxReplace2[2] = 0;
 	ChP->TxReplace2[3] = 0;
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & ChP->TxReplace2[0]);
+	out32(ChP->IndexAddr, ChP->TxReplace2);
 
 	ChP->TxFIFOPtrs = ChOff + _TXF_OUTP;
 	ChP->TxFIFO = ChOff + _TX_FIFO;
@@ -2979,7 +2980,7 @@ static void sStopRxProcessor(CHANNEL_T * ChP)
 	R[1] = ChP->R[1];
 	R[2] = 0x0a;
 	R[3] = ChP->R[3];
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & R[0]);
+	out32(ChP->IndexAddr, R);
 }
 
 /***************************************************************************
@@ -3094,13 +3095,13 @@ static int sWriteTxPrioByte(CHANNEL_T * ChP, Byte_t Data)
 		*WordPtr = ChP->TxPrioBuf;	/* data byte address */
 
 		DWBuf[2] = Data;	/* data byte value */
-		sOutDW(IndexAddr, *((DWord_t *) (&DWBuf[0])));	/* write it out */
+		out32(IndexAddr, DWBuf);	/* write it out */
 
 		*WordPtr = ChP->TxPrioCnt;	/* Tx priority count address */
 
 		DWBuf[2] = PRI_PEND + 1;	/* indicate 1 byte pending */
 		DWBuf[3] = 0;	/* priority buffer pointer */
-		sOutDW(IndexAddr, *((DWord_t *) (&DWBuf[0])));	/* write it out */
+		out32(IndexAddr, DWBuf);	/* write it out */
 	} else {		/* write it to Tx FIFO */
 
 		sWriteTxByte(sGetTxRxDataIO(ChP), Data);
@@ -3147,11 +3148,11 @@ static void sEnInterrupts(CHANNEL_T * ChP, Word_t Flags)
 	ChP->RxControl[2] |=
 	    ((Byte_t) Flags & (RXINT_EN | SRCINT_EN | MCINT_EN));
 
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & ChP->RxControl[0]);
+	out32(ChP->IndexAddr, ChP->RxControl);
 
 	ChP->TxControl[2] |= ((Byte_t) Flags & TXINT_EN);
 
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & ChP->TxControl[0]);
+	out32(ChP->IndexAddr, ChP->TxControl);
 
 	if (Flags & CHANINT_EN) {
 		Mask = sInB(ChP->IntMask) | sBitMapSetTbl[ChP->ChanNum];
@@ -3190,9 +3191,9 @@ static void sDisInterrupts(CHANNEL_T * ChP, Word_t Flags)
 
 	ChP->RxControl[2] &=
 	    ~((Byte_t) Flags & (RXINT_EN | SRCINT_EN | MCINT_EN));
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & ChP->RxControl[0]);
+	out32(ChP->IndexAddr, ChP->RxControl);
 	ChP->TxControl[2] &= ~((Byte_t) Flags & TXINT_EN);
-	sOutDW(ChP->IndexAddr, *(DWord_t *) & ChP->TxControl[0]);
+	out32(ChP->IndexAddr, ChP->TxControl);
 
 	if (Flags & CHANINT_EN) {
 		Mask = sInB(ChP->IntMask) & sBitMapClrTbl[ChP->ChanNum];

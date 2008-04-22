@@ -1,0 +1,11 @@
+What:		/sys/o2cb symlink
+Date:		Dec 2005
+KernelVersion:	2.6.16
+Contact:	ocfs2-devel@oss.oracle.com
+Description:	This is a symlink: /sys/o2cb to /sys/fs/o2cb. The symlink will
+		be removed when new versions of ocfs2-tools which know to look
+		in /sys/fs/o2cb are sufficiently prevalent. Don't code new
+		software to look here, it should try /sys/fs/o2cb instead.
+		See Documentation/ABI/stable/o2cb for more information on usage.
+Users:		ocfs2-tools. It's sufficient to mail proposed changes to
+		ocfs2-devel@oss.oracle.com.

@@ -113,7 +113,7 @@ static int populate_range(struct mm_struct *mm, struct vm_area_struct *vma,
  * mmap()/mremap() it does not create any new vmas. The new mappings are
  * also safe across swapout.
  *
- * NOTE: the 'prot' parameter right now is ignored (but must be zero),
+ * NOTE: the @prot parameter right now is ignored (but must be zero),
  * and the vma's default protection is used. Arbitrary protections
  * might be implemented in the future.
  */

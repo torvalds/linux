@@ -198,7 +198,7 @@ static int mpc52xx_fec_init_phy(struct net_device *dev)
 	struct phy_device *phydev;
 	char phy_id[BUS_ID_SIZE];
 
-	snprintf(phy_id, BUS_ID_SIZE, PHY_ID_FMT,
+	snprintf(phy_id, BUS_ID_SIZE, "%x:%02x",
 			(unsigned int)dev->base_addr, priv->phy_addr);
 
 	priv->link = PHY_DOWN;
@@ -1057,6 +1057,7 @@ static int mpc52xx_fec_of_resume(struct of_device *op)
 #endif
 
 static struct of_device_id mpc52xx_fec_match[] = {
+	{ .type = "network", .compatible = "fsl,mpc5200b-fec", },
 	{ .type = "network", .compatible = "fsl,mpc5200-fec", },
 	{ .type = "network", .compatible = "mpc5200-fec", },
 	{ }

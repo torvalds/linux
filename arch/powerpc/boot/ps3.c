@@ -27,10 +27,10 @@
 #include "page.h"
 #include "ops.h"
 
-extern s64 lv1_panic(u64 in_1);
-extern s64 lv1_get_logical_partition_id(u64 *out_1);
-extern s64 lv1_get_logical_ppe_id(u64 *out_1);
-extern s64 lv1_get_repository_node_value(u64 in_1, u64 in_2, u64 in_3,
+extern int lv1_panic(u64 in_1);
+extern int lv1_get_logical_partition_id(u64 *out_1);
+extern int lv1_get_logical_ppe_id(u64 *out_1);
+extern int lv1_get_repository_node_value(u64 in_1, u64 in_2, u64 in_3,
 	u64 in_4, u64 in_5, u64 *out_1, u64 *out_2);
 
 #ifdef DEBUG
@@ -46,6 +46,7 @@ BSS_STACK(4096);
  * edit the command line passed to vmlinux (by setting /chosen/bootargs).
  * The buffer is put in it's own section so that tools may locate it easier.
  */
+
 static char cmdline[COMMAND_LINE_SIZE]
 	__attribute__((__section__("__builtin_cmdline")));
 
@@ -75,7 +76,7 @@ static void ps3_exit(void)
 
 static int ps3_repository_read_rm_size(u64 *rm_size)
 {
-	s64 result;
+	int result;
 	u64 lpar_id;
 	u64 ppe_id;
 	u64 v2;
@@ -114,16 +115,17 @@ void ps3_copy_vectors(void)
 {
 	extern char __system_reset_kernel[];
 
-	memcpy((void *)0x100, __system_reset_kernel, 0x100);
-	flush_cache((void *)0x100, 0x100);
+	memcpy((void *)0x100, __system_reset_kernel, 512);
+	flush_cache((void *)0x100, 512);
 }
 
-void platform_init(void)
+void platform_init(unsigned long null_check)
 {
 	const u32 heapsize = 0x1000000 - (u32)_end; /* 16MiB */
 	void *chosen;
 	unsigned long ft_addr;
 	u64 rm_size;
+	unsigned long val;
 
 	console_ops.write = ps3_console_write;
 	platform_ops.exit = ps3_exit;
@@ -150,6 +152,11 @@ void platform_init(void)
 	ps3_copy_vectors();
 
 	printf(" flat tree at 0x%lx\n\r", ft_addr);
+
+	val = *(unsigned long *)0;
+
+	if (val != null_check)
+		printf("null check failed: %lx != %lx\n\r", val, null_check);
 
 	((kernel_entry_t)0)(ft_addr, 0, NULL);
 

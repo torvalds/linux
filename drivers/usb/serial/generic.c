@@ -323,7 +323,7 @@ static void flush_and_resubmit_read_urb (struct usb_serial_port *port)
 		room = tty_buffer_request_room(tty, urb->actual_length);
 		if (room) {
 			tty_insert_flip_string(tty, urb->transfer_buffer, room);
-			tty_flip_buffer_push(tty); /* is this allowed from an URB callback ? */
+			tty_flip_buffer_push(tty);
 		}
 	}
 
@@ -349,10 +349,12 @@ void usb_serial_generic_read_bulk_callback (struct urb *urb)
 
 	/* Throttle the device if requested by tty */
 	spin_lock_irqsave(&port->lock, flags);
-	if (!(port->throttled = port->throttle_req))
-		/* Handle data and continue reading from device */
+	if (!(port->throttled = port->throttle_req)) {
+		spin_unlock_irqrestore(&port->lock, flags);
 		flush_and_resubmit_read_urb(port);
-	spin_unlock_irqrestore(&port->lock, flags);
+	} else {
+		spin_unlock_irqrestore(&port->lock, flags);
+	}
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_read_bulk_callback);
 

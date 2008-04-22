@@ -457,6 +457,10 @@ int ide_cdrom_packet(struct cdrom_device_info *cdi,
 	   layer. the packet must be complete, as we do not
 	   touch it at all. */
 	ide_cd_init_rq(drive, &req);
+
+	if (cgc->data_direction == CGC_DATA_WRITE)
+		req.cmd_flags |= REQ_RW;
+
 	memcpy(req.cmd, cgc->cmd, CDROM_PACKET_SIZE);
 	if (cgc->sense)
 		memset(cgc->sense, 0, sizeof(struct request_sense));

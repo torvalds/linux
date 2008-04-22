@@ -220,7 +220,19 @@ new_segment:
 		bvprv = bvec;
 	} /* segments in rq */
 
-	if (q->dma_drain_size) {
+
+	if (unlikely(rq->cmd_flags & REQ_COPY_USER) &&
+	    (rq->data_len & q->dma_pad_mask)) {
+		unsigned int pad_len = (q->dma_pad_mask & ~rq->data_len) + 1;
+
+		sg->length += pad_len;
+		rq->extra_len += pad_len;
+	}
+
+	if (q->dma_drain_size && q->dma_drain_needed(rq)) {
+		if (rq->cmd_flags & REQ_RW)
+			memset(q->dma_drain_buffer, 0, q->dma_drain_size);
+
 		sg->page_link &= ~0x02;
 		sg = sg_next(sg);
 		sg_set_page(sg, virt_to_page(q->dma_drain_buffer),
@@ -228,6 +240,7 @@ new_segment:
 			    ((unsigned long)q->dma_drain_buffer) &
 			    (PAGE_SIZE - 1));
 		nsegs++;
+		rq->extra_len += q->dma_drain_size;
 	}
 
 	if (sg)

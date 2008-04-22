@@ -152,28 +152,6 @@ static int __devinit check_pcibios(void)
 	return 0;
 }
 
-static int __devinit pci_bios_find_device (unsigned short vendor, unsigned short device_id,
-					unsigned short index, unsigned char *bus, unsigned char *device_fn)
-{
-	unsigned short bx;
-	unsigned short ret;
-
-	__asm__("lcall *(%%edi); cld\n\t"
-		"jc 1f\n\t"
-		"xor %%ah, %%ah\n"
-		"1:"
-		: "=b" (bx),
-		  "=a" (ret)
-		: "1" (PCIBIOS_FIND_PCI_DEVICE),
-		  "c" (device_id),
-		  "d" (vendor),
-		  "S" ((int) index),
-		  "D" (&pci_indirect));
-	*bus = (bx >> 8) & 0xff;
-	*device_fn = bx & 0xff;
-	return (int) (ret & 0xff00) >> 8;
-}
-
 static int pci_bios_read(unsigned int seg, unsigned int bus,
 			 unsigned int devfn, int reg, int len, u32 *value)
 {
@@ -198,6 +176,11 @@ static int pci_bios_read(unsigned int seg, unsigned int bus,
 			  "b" (bx),
 			  "D" ((long)reg),
 			  "S" (&pci_indirect));
+		/*
+		 * Zero-extend the result beyond 8 bits, do not trust the
+		 * BIOS having done it:
+		 */
+		*value &= 0xff;
 		break;
 	case 2:
 		__asm__("lcall *(%%esi); cld\n\t"
@@ -210,6 +193,11 @@ static int pci_bios_read(unsigned int seg, unsigned int bus,
 			  "b" (bx),
 			  "D" ((long)reg),
 			  "S" (&pci_indirect));
+		/*
+		 * Zero-extend the result beyond 16 bits, do not trust the
+		 * BIOS having done it:
+		 */
+		*value &= 0xffff;
 		break;
 	case 4:
 		__asm__("lcall *(%%esi); cld\n\t"
@@ -354,55 +342,6 @@ static struct pci_raw_ops * __devinit pci_find_bios(void)
 }
 
 /*
- * Sort the device list according to PCI BIOS. Nasty hack, but since some
- * fool forgot to define the `correct' device order in the PCI BIOS specs
- * and we want to be (possibly bug-to-bug ;-]) compatible with older kernels
- * which used BIOS ordering, we are bound to do this...
- */
-
-void __devinit pcibios_sort(void)
-{
-	LIST_HEAD(sorted_devices);
-	struct list_head *ln;
-	struct pci_dev *dev, *d;
-	int idx, found;
-	unsigned char bus, devfn;
-
-	DBG("PCI: Sorting device list...\n");
-	while (!list_empty(&pci_devices)) {
-		ln = pci_devices.next;
-		dev = pci_dev_g(ln);
-		idx = found = 0;
-		while (pci_bios_find_device(dev->vendor, dev->device, idx, &bus, &devfn) == PCIBIOS_SUCCESSFUL) {
-			idx++;
-			list_for_each(ln, &pci_devices) {
-				d = pci_dev_g(ln);
-				if (d->bus->number == bus && d->devfn == devfn) {
-					list_move_tail(&d->global_list, &sorted_devices);
-					if (d == dev)
-						found = 1;
-					break;
-				}
-			}
-			if (ln == &pci_devices) {
-				printk(KERN_WARNING "PCI: BIOS reporting unknown device %02x:%02x\n", bus, devfn);
-				/*
-				 * We must not continue scanning as several buggy BIOSes
-				 * return garbage after the last device. Grr.
-				 */
-				break;
-			}
-		}
-		if (!found) {
-			printk(KERN_WARNING "PCI: Device %s not found by BIOS\n",
-				pci_name(dev));
-			list_move_tail(&dev->global_list, &sorted_devices);
-		}
-	}
-	list_splice(&sorted_devices, &pci_devices);
-}
-
-/*
  *  BIOS Functions for IRQ Routing
  */
 
@@ -485,7 +424,6 @@ void __init pci_pcbios_init(void)
 {
 	if ((pci_probe & PCI_PROBE_BIOS) 
 		&& ((raw_pci_ops = pci_find_bios()))) {
-		pci_probe |= PCI_BIOS_SORT;
 		pci_bios_present = 1;
 	}
 }

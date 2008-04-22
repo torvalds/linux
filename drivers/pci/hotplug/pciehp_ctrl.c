@@ -181,7 +181,7 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 	if (POWER_CTRL(ctrl->ctrlcap)) {
 		if (pslot->hpc_ops->power_off_slot(pslot)) {
 			err("%s: Issue of Slot Power Off command failed\n",
-			    __FUNCTION__);
+			    __func__);
 			return;
 		}
 	}
@@ -192,7 +192,7 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 	if (ATTN_LED(ctrl->ctrlcap)) {
 		if (pslot->hpc_ops->set_attention_status(pslot, 1)) {
 			err("%s: Issue of Set Attention Led command failed\n",
-			    __FUNCTION__);
+			    __func__);
 			return;
 		}
 	}
@@ -211,7 +211,7 @@ static int board_added(struct slot *p_slot)
 	struct controller *ctrl = p_slot->ctrl;
 
 	dbg("%s: slot device, slot offset, hp slot = %d, %d ,%d\n",
-			__FUNCTION__, p_slot->device,
+			__func__, p_slot->device,
 			ctrl->slot_device_offset, p_slot->hp_slot);
 
 	if (POWER_CTRL(ctrl->ctrlcap)) {
@@ -230,14 +230,14 @@ static int board_added(struct slot *p_slot)
 	/* Check link training status */
 	retval = p_slot->hpc_ops->check_lnk_status(ctrl);
 	if (retval) {
-		err("%s: Failed to check link status\n", __FUNCTION__);
+		err("%s: Failed to check link status\n", __func__);
 		set_slot_off(ctrl, p_slot);
 		return retval;
 	}
 
 	/* Check for a power fault */
 	if (p_slot->hpc_ops->query_power_fault(p_slot)) {
-		dbg("%s: power fault detected\n", __FUNCTION__);
+		dbg("%s: power fault detected\n", __func__);
 		retval = POWER_FAILURE;
 		goto err_exit;
 	}
@@ -277,14 +277,14 @@ static int remove_board(struct slot *p_slot)
 	if (retval)
 		return retval;
 
-	dbg("In %s, hp_slot = %d\n", __FUNCTION__, p_slot->hp_slot);
+	dbg("In %s, hp_slot = %d\n", __func__, p_slot->hp_slot);
 
 	if (POWER_CTRL(ctrl->ctrlcap)) {
 		/* power off slot */
 		retval = p_slot->hpc_ops->power_off_slot(p_slot);
 		if (retval) {
 			err("%s: Issue of Slot Disable command failed\n",
-			    __FUNCTION__);
+			    __func__);
 			return retval;
 		}
 	}
@@ -319,7 +319,7 @@ static void pciehp_power_thread(struct work_struct *work)
 	case POWEROFF_STATE:
 		mutex_unlock(&p_slot->lock);
 		dbg("%s: disabling bus:device(%x:%x)\n",
-		    __FUNCTION__, p_slot->bus, p_slot->device);
+		    __func__, p_slot->bus, p_slot->device);
 		pciehp_disable_slot(p_slot);
 		mutex_lock(&p_slot->lock);
 		p_slot->state = STATIC_STATE;
@@ -347,7 +347,7 @@ void pciehp_queue_pushbutton_work(struct work_struct *work)
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		err("%s: Cannot allocate memory\n", __FUNCTION__);
+		err("%s: Cannot allocate memory\n", __func__);
 		return;
 	}
 	info->p_slot = p_slot;
@@ -424,7 +424,7 @@ static void handle_button_press_event(struct slot *p_slot)
 		 * expires to cancel hot-add or hot-remove
 		 */
 		info("Button cancel on Slot(%s)\n", p_slot->name);
-		dbg("%s: button cancel\n", __FUNCTION__);
+		dbg("%s: button cancel\n", __func__);
 		cancel_delayed_work(&p_slot->work);
 		if (p_slot->state == BLINKINGOFF_STATE) {
 			if (PWR_LED(ctrl->ctrlcap))
@@ -465,7 +465,7 @@ static void handle_surprise_event(struct slot *p_slot)
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		err("%s: Cannot allocate memory\n", __FUNCTION__);
+		err("%s: Cannot allocate memory\n", __func__);
 		return;
 	}
 	info->p_slot = p_slot;
@@ -526,7 +526,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 
 	rc = p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
 	if (rc || !getstatus) {
-		info("%s: no adapter on slot(%s)\n", __FUNCTION__,
+		info("%s: no adapter on slot(%s)\n", __func__,
 		     p_slot->name);
 		mutex_unlock(&p_slot->ctrl->crit_sect);
 		return -ENODEV;
@@ -534,7 +534,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 	if (MRL_SENS(p_slot->ctrl->ctrlcap)) {
 		rc = p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 		if (rc || getstatus) {
-			info("%s: latch open on slot(%s)\n", __FUNCTION__,
+			info("%s: latch open on slot(%s)\n", __func__,
 			     p_slot->name);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -ENODEV;
@@ -544,7 +544,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 	if (POWER_CTRL(p_slot->ctrl->ctrlcap)) {
 		rc = p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 		if (rc || getstatus) {
-			info("%s: already enabled on slot(%s)\n", __FUNCTION__,
+			info("%s: already enabled on slot(%s)\n", __func__,
 			     p_slot->name);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -EINVAL;
@@ -579,7 +579,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 	if (!HP_SUPR_RM(p_slot->ctrl->ctrlcap)) {
 		ret = p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
 		if (ret || !getstatus) {
-			info("%s: no adapter on slot(%s)\n", __FUNCTION__,
+			info("%s: no adapter on slot(%s)\n", __func__,
 			     p_slot->name);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -ENODEV;
@@ -589,7 +589,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 	if (MRL_SENS(p_slot->ctrl->ctrlcap)) {
 		ret = p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 		if (ret || getstatus) {
-			info("%s: latch open on slot(%s)\n", __FUNCTION__,
+			info("%s: latch open on slot(%s)\n", __func__,
 			     p_slot->name);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -ENODEV;
@@ -599,7 +599,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 	if (POWER_CTRL(p_slot->ctrl->ctrlcap)) {
 		ret = p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 		if (ret || !getstatus) {
-			info("%s: already disabled slot(%s)\n", __FUNCTION__,
+			info("%s: already disabled slot(%s)\n", __func__,
 			     p_slot->name);
 			mutex_unlock(&p_slot->ctrl->crit_sect);
 			return -EINVAL;

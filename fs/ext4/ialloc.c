@@ -305,7 +305,7 @@ static int find_group_dir(struct super_block *sb, struct inode *parent,
  * it has too few free inodes left (min_inodes) or
  * it has too few free blocks left (min_blocks) or
  * it's already running too large debt (max_debt).
- * Parent's group is prefered, if it doesn't satisfy these
+ * Parent's group is preferred, if it doesn't satisfy these
  * conditions we search cyclically through the rest. If none
  * of the groups look good we just look for a group with more
  * free inodes than average (starting at parent's group).
@@ -702,7 +702,12 @@ got:
 	ei->i_dir_start_lookup = 0;
 	ei->i_disksize = 0;
 
-	ei->i_flags = EXT4_I(dir)->i_flags & ~EXT4_INDEX_FL;
+	/*
+	 * Don't inherit extent flag from directory. We set extent flag on
+	 * newly created directory and file only if -o extent mount option is
+	 * specified
+	 */
+	ei->i_flags = EXT4_I(dir)->i_flags & ~(EXT4_INDEX_FL|EXT4_EXTENTS_FL);
 	if (S_ISLNK(mode))
 		ei->i_flags &= ~(EXT4_IMMUTABLE_FL|EXT4_APPEND_FL);
 	/* dirsync only applies to directories */
@@ -745,12 +750,15 @@ got:
 		goto fail_free_drop;
 	}
 	if (test_opt(sb, EXTENTS)) {
-		EXT4_I(inode)->i_flags |= EXT4_EXTENTS_FL;
-		ext4_ext_tree_init(handle, inode);
-		err = ext4_update_incompat_feature(handle, sb,
-						EXT4_FEATURE_INCOMPAT_EXTENTS);
-		if (err)
-			goto fail;
+		/* set extent flag only for directory and file */
+		if (S_ISDIR(mode) || S_ISREG(mode)) {
+			EXT4_I(inode)->i_flags |= EXT4_EXTENTS_FL;
+			ext4_ext_tree_init(handle, inode);
+			err = ext4_update_incompat_feature(handle, sb,
+					EXT4_FEATURE_INCOMPAT_EXTENTS);
+			if (err)
+				goto fail;
+		}
 	}
 
 	ext4_debug("allocating inode %lu\n", inode->i_ino);

@@ -36,19 +36,24 @@ available (notebooks) or too slow for extensive debug information (like ACPI).
 Drivers
 -------
 
-The OHCI-1394 drivers in drivers/firewire and drivers/ieee1394 initialize
-the OHCI-1394 controllers to a working state and can be used to enable
-physical DMA. By default you only have to load the driver, and physical
-DMA access will be granted to all remote nodes, but it can be turned off
-when using the ohci1394 driver.
+The ohci1394 driver in drivers/ieee1394 initializes the OHCI-1394 controllers
+to a working state and enables physical DMA by default for all remote nodes.
+This can be turned off by ohci1394's module parameter phys_dma=0.
 
-Because these drivers depend on the PCI enumeration to be completed, an
-initialization routine which can runs pretty early (long before console_init(),
-which makes the printk buffer appear on the console can be called) was written.
+The alternative firewire-ohci driver in drivers/firewire uses filtered physical
+DMA by default, which is more secure but not suitable for remote debugging.
+Compile the driver with CONFIG_FIREWIRE_OHCI_REMOTE_DMA (Kernel hacking menu:
+Remote debugging over FireWire with firewire-ohci) to get unfiltered physical
+DMA.
+
+Because ohci1394 and firewire-ohci depend on the PCI enumeration to be
+completed, an initialization routine which runs pretty early has been
+implemented for x86.  This routine runs long before console_init() can be
+called, i.e. before the printk buffer appears on the console.
 
 To activate it, enable CONFIG_PROVIDE_OHCI1394_DMA_INIT (Kernel hacking menu:
-Provide code for enabling DMA over FireWire early on boot) and pass the
-parameter "ohci1394_dma=early" to the recompiled kernel on boot.
+Remote debugging over FireWire early on boot) and pass the parameter
+"ohci1394_dma=early" to the recompiled kernel on boot.
 
 Tools
 -----

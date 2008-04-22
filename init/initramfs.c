@@ -538,7 +538,7 @@ skip:
 	initrd_end = 0;
 }
 
-int __init populate_rootfs(void)
+static int __init populate_rootfs(void)
 {
 	char *err = unpack_to_rootfs(__initramfs_start,
 			 __initramfs_end - __initramfs_start, 0);
@@ -577,10 +577,4 @@ int __init populate_rootfs(void)
 	}
 	return 0;
 }
-#ifndef CONFIG_ACPI_CUSTOM_DSDT_INITRD
-/*
- * if this option is enabled, populate_rootfs() is called _earlier_ in the
- * boot sequence. This insures that the ACPI initialisation can find the file.
- */
 rootfs_initcall(populate_rootfs);
-#endif

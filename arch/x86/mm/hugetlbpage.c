@@ -178,7 +178,7 @@ follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
 
 	page = &pte_page(*pte)[vpfn % (HPAGE_SIZE/PAGE_SIZE)];
 
-	WARN_ON(!PageCompound(page));
+	WARN_ON(!PageHead(page));
 
 	return page;
 }

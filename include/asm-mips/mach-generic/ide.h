@@ -27,8 +27,6 @@
 # endif
 #endif
 
-#define IDE_ARCH_OBSOLETE_DEFAULTS
-
 static __inline__ int ide_probe_legacy(void)
 {
 #ifdef CONFIG_PCI
@@ -97,14 +95,6 @@ static __inline__ unsigned long ide_default_io_base(int index)
 		return 0;
 	}
 }
-
-#define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
-
-#ifdef CONFIG_BLK_DEV_IDEPCI
-#define ide_init_default_irq(base)	(0)
-#else
-#define ide_init_default_irq(base)	ide_default_irq(base)
-#endif
 
 /* MIPS port and memory-mapped I/O string operations.  */
 static inline void __ide_flush_prologue(void)

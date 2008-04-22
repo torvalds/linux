@@ -111,7 +111,7 @@ asmlinkage int irix_prctl(unsigned option, ...)
 		printk("irix_prctl[%s:%d]: Wants PR_ISBLOCKED\n",
 		       current->comm, current->pid);
 		read_lock(&tasklist_lock);
-		task = find_task_by_pid(va_arg(args, pid_t));
+		task = find_task_by_vpid(va_arg(args, pid_t));
 		error = -ESRCH;
 		if (error)
 			error = (task->run_list.next != NULL);

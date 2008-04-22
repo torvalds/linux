@@ -5,8 +5,8 @@
  */
 
 #include <linux/buffer_head.h>
-#include <linux/efs_fs.h>
 #include <linux/smp_lock.h>
+#include "efs.h"
 
 static int efs_readdir(struct file *, void *, filldir_t);
 

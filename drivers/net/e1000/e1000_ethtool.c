@@ -36,7 +36,7 @@ extern int e1000_up(struct e1000_adapter *adapter);
 extern void e1000_down(struct e1000_adapter *adapter);
 extern void e1000_reinit_locked(struct e1000_adapter *adapter);
 extern void e1000_reset(struct e1000_adapter *adapter);
-extern int e1000_set_spd_dplx(struct e1000_adapter *adapter, uint16_t spddplx);
+extern int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx);
 extern int e1000_setup_all_rx_resources(struct e1000_adapter *adapter);
 extern int e1000_setup_all_tx_resources(struct e1000_adapter *adapter);
 extern void e1000_free_all_rx_resources(struct e1000_adapter *adapter);
@@ -50,7 +50,7 @@ struct e1000_stats {
 	int stat_offset;
 };
 
-#define E1000_STAT(m) sizeof(((struct e1000_adapter *)0)->m), \
+#define E1000_STAT(m) FIELD_SIZEOF(struct e1000_adapter, m), \
 		      offsetof(struct e1000_adapter, m)
 static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "rx_packets", E1000_STAT(stats.gprc) },
@@ -289,7 +289,7 @@ e1000_set_pauseparam(struct net_device *netdev,
 	return retval;
 }
 
-static uint32_t
+static u32
 e1000_get_rx_csum(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -297,7 +297,7 @@ e1000_get_rx_csum(struct net_device *netdev)
 }
 
 static int
-e1000_set_rx_csum(struct net_device *netdev, uint32_t data)
+e1000_set_rx_csum(struct net_device *netdev, u32 data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	adapter->rx_csum = data;
@@ -309,14 +309,14 @@ e1000_set_rx_csum(struct net_device *netdev, uint32_t data)
 	return 0;
 }
 
-static uint32_t
+static u32
 e1000_get_tx_csum(struct net_device *netdev)
 {
 	return (netdev->features & NETIF_F_HW_CSUM) != 0;
 }
 
 static int
-e1000_set_tx_csum(struct net_device *netdev, uint32_t data)
+e1000_set_tx_csum(struct net_device *netdev, u32 data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
@@ -335,7 +335,7 @@ e1000_set_tx_csum(struct net_device *netdev, uint32_t data)
 }
 
 static int
-e1000_set_tso(struct net_device *netdev, uint32_t data)
+e1000_set_tso(struct net_device *netdev, u32 data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	if ((adapter->hw.mac_type < e1000_82544) ||
@@ -353,11 +353,11 @@ e1000_set_tso(struct net_device *netdev, uint32_t data)
 		netdev->features &= ~NETIF_F_TSO6;
 
 	DPRINTK(PROBE, INFO, "TSO is %s\n", data ? "Enabled" : "Disabled");
-	adapter->tso_force = TRUE;
+	adapter->tso_force = true;
 	return 0;
 }
 
-static uint32_t
+static u32
 e1000_get_msglevel(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -365,7 +365,7 @@ e1000_get_msglevel(struct net_device *netdev)
 }
 
 static void
-e1000_set_msglevel(struct net_device *netdev, uint32_t data)
+e1000_set_msglevel(struct net_device *netdev, u32 data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	adapter->msg_enable = data;
@@ -375,7 +375,7 @@ static int
 e1000_get_regs_len(struct net_device *netdev)
 {
 #define E1000_REGS_LEN 32
-	return E1000_REGS_LEN * sizeof(uint32_t);
+	return E1000_REGS_LEN * sizeof(u32);
 }
 
 static void
@@ -384,10 +384,10 @@ e1000_get_regs(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	uint32_t *regs_buff = p;
-	uint16_t phy_data;
+	u32 *regs_buff = p;
+	u16 phy_data;
 
-	memset(p, 0, E1000_REGS_LEN * sizeof(uint32_t));
+	memset(p, 0, E1000_REGS_LEN * sizeof(u32));
 
 	regs->version = (1 << 24) | (hw->revision_id << 16) | hw->device_id;
 
@@ -412,44 +412,44 @@ e1000_get_regs(struct net_device *netdev,
 				    IGP01E1000_PHY_AGC_A);
 		e1000_read_phy_reg(hw, IGP01E1000_PHY_AGC_A &
 				   IGP01E1000_PHY_PAGE_SELECT, &phy_data);
-		regs_buff[13] = (uint32_t)phy_data; /* cable length */
+		regs_buff[13] = (u32)phy_data; /* cable length */
 		e1000_write_phy_reg(hw, IGP01E1000_PHY_PAGE_SELECT,
 				    IGP01E1000_PHY_AGC_B);
 		e1000_read_phy_reg(hw, IGP01E1000_PHY_AGC_B &
 				   IGP01E1000_PHY_PAGE_SELECT, &phy_data);
-		regs_buff[14] = (uint32_t)phy_data; /* cable length */
+		regs_buff[14] = (u32)phy_data; /* cable length */
 		e1000_write_phy_reg(hw, IGP01E1000_PHY_PAGE_SELECT,
 				    IGP01E1000_PHY_AGC_C);
 		e1000_read_phy_reg(hw, IGP01E1000_PHY_AGC_C &
 				   IGP01E1000_PHY_PAGE_SELECT, &phy_data);
-		regs_buff[15] = (uint32_t)phy_data; /* cable length */
+		regs_buff[15] = (u32)phy_data; /* cable length */
 		e1000_write_phy_reg(hw, IGP01E1000_PHY_PAGE_SELECT,
 				    IGP01E1000_PHY_AGC_D);
 		e1000_read_phy_reg(hw, IGP01E1000_PHY_AGC_D &
 				   IGP01E1000_PHY_PAGE_SELECT, &phy_data);
-		regs_buff[16] = (uint32_t)phy_data; /* cable length */
+		regs_buff[16] = (u32)phy_data; /* cable length */
 		regs_buff[17] = 0; /* extended 10bt distance (not needed) */
 		e1000_write_phy_reg(hw, IGP01E1000_PHY_PAGE_SELECT, 0x0);
 		e1000_read_phy_reg(hw, IGP01E1000_PHY_PORT_STATUS &
 				   IGP01E1000_PHY_PAGE_SELECT, &phy_data);
-		regs_buff[18] = (uint32_t)phy_data; /* cable polarity */
+		regs_buff[18] = (u32)phy_data; /* cable polarity */
 		e1000_write_phy_reg(hw, IGP01E1000_PHY_PAGE_SELECT,
 				    IGP01E1000_PHY_PCS_INIT_REG);
 		e1000_read_phy_reg(hw, IGP01E1000_PHY_PCS_INIT_REG &
 				   IGP01E1000_PHY_PAGE_SELECT, &phy_data);
-		regs_buff[19] = (uint32_t)phy_data; /* cable polarity */
+		regs_buff[19] = (u32)phy_data; /* cable polarity */
 		regs_buff[20] = 0; /* polarity correction enabled (always) */
 		regs_buff[22] = 0; /* phy receive errors (unavailable) */
 		regs_buff[23] = regs_buff[18]; /* mdix mode */
 		e1000_write_phy_reg(hw, IGP01E1000_PHY_PAGE_SELECT, 0x0);
 	} else {
 		e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_STATUS, &phy_data);
-		regs_buff[13] = (uint32_t)phy_data; /* cable length */
+		regs_buff[13] = (u32)phy_data; /* cable length */
 		regs_buff[14] = 0;  /* Dummy (to align w/ IGP phy reg dump) */
 		regs_buff[15] = 0;  /* Dummy (to align w/ IGP phy reg dump) */
 		regs_buff[16] = 0;  /* Dummy (to align w/ IGP phy reg dump) */
 		e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
-		regs_buff[17] = (uint32_t)phy_data; /* extended 10bt distance */
+		regs_buff[17] = (u32)phy_data; /* extended 10bt distance */
 		regs_buff[18] = regs_buff[13]; /* cable polarity */
 		regs_buff[19] = 0;  /* Dummy (to align w/ IGP phy reg dump) */
 		regs_buff[20] = regs_buff[17]; /* polarity correction */
@@ -459,7 +459,7 @@ e1000_get_regs(struct net_device *netdev,
 	}
 	regs_buff[21] = adapter->phy_stats.idle_errors;  /* phy idle errors */
 	e1000_read_phy_reg(hw, PHY_1000T_STATUS, &phy_data);
-	regs_buff[24] = (uint32_t)phy_data;  /* phy local receiver status */
+	regs_buff[24] = (u32)phy_data;  /* phy local receiver status */
 	regs_buff[25] = regs_buff[24];  /* phy remote receiver status */
 	if (hw->mac_type >= e1000_82540 &&
 	    hw->mac_type < e1000_82571 &&
@@ -477,14 +477,14 @@ e1000_get_eeprom_len(struct net_device *netdev)
 
 static int
 e1000_get_eeprom(struct net_device *netdev,
-                      struct ethtool_eeprom *eeprom, uint8_t *bytes)
+                      struct ethtool_eeprom *eeprom, u8 *bytes)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	uint16_t *eeprom_buff;
+	u16 *eeprom_buff;
 	int first_word, last_word;
 	int ret_val = 0;
-	uint16_t i;
+	u16 i;
 
 	if (eeprom->len == 0)
 		return -EINVAL;
@@ -494,7 +494,7 @@ e1000_get_eeprom(struct net_device *netdev,
 	first_word = eeprom->offset >> 1;
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 
-	eeprom_buff = kmalloc(sizeof(uint16_t) *
+	eeprom_buff = kmalloc(sizeof(u16) *
 			(last_word - first_word + 1), GFP_KERNEL);
 	if (!eeprom_buff)
 		return -ENOMEM;
@@ -514,7 +514,7 @@ e1000_get_eeprom(struct net_device *netdev,
 	for (i = 0; i < last_word - first_word + 1; i++)
 		le16_to_cpus(&eeprom_buff[i]);
 
-	memcpy(bytes, (uint8_t *)eeprom_buff + (eeprom->offset & 1),
+	memcpy(bytes, (u8 *)eeprom_buff + (eeprom->offset & 1),
 			eeprom->len);
 	kfree(eeprom_buff);
 
@@ -523,14 +523,14 @@ e1000_get_eeprom(struct net_device *netdev,
 
 static int
 e1000_set_eeprom(struct net_device *netdev,
-                      struct ethtool_eeprom *eeprom, uint8_t *bytes)
+                      struct ethtool_eeprom *eeprom, u8 *bytes)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	uint16_t *eeprom_buff;
+	u16 *eeprom_buff;
 	void *ptr;
 	int max_len, first_word, last_word, ret_val = 0;
-	uint16_t i;
+	u16 i;
 
 	if (eeprom->len == 0)
 		return -EOPNOTSUPP;
@@ -590,7 +590,7 @@ e1000_get_drvinfo(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	char firmware_version[32];
-	uint16_t eeprom_data;
+	u16 eeprom_data;
 
 	strncpy(drvinfo->driver,  e1000_driver_name, 32);
 	strncpy(drvinfo->version, e1000_driver_version, 32);
@@ -674,13 +674,13 @@ e1000_set_ringparam(struct net_device *netdev,
 	adapter->tx_ring = txdr;
 	adapter->rx_ring = rxdr;
 
-	rxdr->count = max(ring->rx_pending,(uint32_t)E1000_MIN_RXD);
-	rxdr->count = min(rxdr->count,(uint32_t)(mac_type < e1000_82544 ?
+	rxdr->count = max(ring->rx_pending,(u32)E1000_MIN_RXD);
+	rxdr->count = min(rxdr->count,(u32)(mac_type < e1000_82544 ?
 		E1000_MAX_RXD : E1000_MAX_82544_RXD));
 	rxdr->count = ALIGN(rxdr->count, REQ_RX_DESCRIPTOR_MULTIPLE);
 
-	txdr->count = max(ring->tx_pending,(uint32_t)E1000_MIN_TXD);
-	txdr->count = min(txdr->count,(uint32_t)(mac_type < e1000_82544 ?
+	txdr->count = max(ring->tx_pending,(u32)E1000_MIN_TXD);
+	txdr->count = min(txdr->count,(u32)(mac_type < e1000_82544 ?
 		E1000_MAX_TXD : E1000_MAX_82544_TXD));
 	txdr->count = ALIGN(txdr->count, REQ_TX_DESCRIPTOR_MULTIPLE);
 
@@ -728,13 +728,13 @@ err_setup:
 	return err;
 }
 
-static bool reg_pattern_test(struct e1000_adapter *adapter, uint64_t *data,
-			     int reg, uint32_t mask, uint32_t write)
+static bool reg_pattern_test(struct e1000_adapter *adapter, u64 *data,
+			     int reg, u32 mask, u32 write)
 {
-	static const uint32_t test[] =
+	static const u32 test[] =
 		{0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
-	uint8_t __iomem *address = adapter->hw.hw_addr + reg;
-	uint32_t read;
+	u8 __iomem *address = adapter->hw.hw_addr + reg;
+	u32 read;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(test); i++) {
@@ -751,11 +751,11 @@ static bool reg_pattern_test(struct e1000_adapter *adapter, uint64_t *data,
 	return false;
 }
 
-static bool reg_set_and_check(struct e1000_adapter *adapter, uint64_t *data,
-			      int reg, uint32_t mask, uint32_t write)
+static bool reg_set_and_check(struct e1000_adapter *adapter, u64 *data,
+			      int reg, u32 mask, u32 write)
 {
-	uint8_t __iomem *address = adapter->hw.hw_addr + reg;
-	uint32_t read;
+	u8 __iomem *address = adapter->hw.hw_addr + reg;
+	u32 read;
 
 	writel(write & mask, address);
 	read = readl(address);
@@ -788,10 +788,10 @@ static bool reg_set_and_check(struct e1000_adapter *adapter, uint64_t *data,
 	} while (0)
 
 static int
-e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
+e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 {
-	uint32_t value, before, after;
-	uint32_t i, toggle;
+	u32 value, before, after;
+	u32 i, toggle;
 
 	/* The status register is Read Only, so a write should fail.
 	 * Some bits that get toggled are ignored.
@@ -884,11 +884,11 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 }
 
 static int
-e1000_eeprom_test(struct e1000_adapter *adapter, uint64_t *data)
+e1000_eeprom_test(struct e1000_adapter *adapter, u64 *data)
 {
-	uint16_t temp;
-	uint16_t checksum = 0;
-	uint16_t i;
+	u16 temp;
+	u16 checksum = 0;
+	u16 i;
 
 	*data = 0;
 	/* Read and add up the contents of the EEPROM */
@@ -901,7 +901,7 @@ e1000_eeprom_test(struct e1000_adapter *adapter, uint64_t *data)
 	}
 
 	/* If Checksum is not Correct return error else test passed */
-	if ((checksum != (uint16_t) EEPROM_SUM) && !(*data))
+	if ((checksum != (u16) EEPROM_SUM) && !(*data))
 		*data = 2;
 
 	return *data;
@@ -919,11 +919,12 @@ e1000_test_intr(int irq, void *data)
 }
 
 static int
-e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
+e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 {
 	struct net_device *netdev = adapter->netdev;
-	uint32_t mask, i=0, shared_int = TRUE;
-	uint32_t irq = adapter->pdev->irq;
+	u32 mask, i = 0;
+	bool shared_int = true;
+	u32 irq = adapter->pdev->irq;
 
 	*data = 0;
 
@@ -931,7 +932,7 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 	/* Hook up test interrupt handler just for this test */
 	if (!request_irq(irq, &e1000_test_intr, IRQF_PROBE_SHARED, netdev->name,
 	                 netdev))
-		shared_int = FALSE;
+		shared_int = false;
 	else if (request_irq(irq, &e1000_test_intr, IRQF_SHARED,
 	         netdev->name, netdev)) {
 		*data = 1;
@@ -1069,7 +1070,7 @@ e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	struct e1000_tx_ring *txdr = &adapter->test_tx_ring;
 	struct e1000_rx_ring *rxdr = &adapter->test_rx_ring;
 	struct pci_dev *pdev = adapter->pdev;
-	uint32_t rctl;
+	u32 rctl;
 	int i, ret_val;
 
 	/* Setup Tx descriptor ring and Tx buffers */
@@ -1095,8 +1096,8 @@ e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	txdr->next_to_use = txdr->next_to_clean = 0;
 
 	E1000_WRITE_REG(&adapter->hw, TDBAL,
-			((uint64_t) txdr->dma & 0x00000000FFFFFFFF));
-	E1000_WRITE_REG(&adapter->hw, TDBAH, ((uint64_t) txdr->dma >> 32));
+			((u64) txdr->dma & 0x00000000FFFFFFFF));
+	E1000_WRITE_REG(&adapter->hw, TDBAH, ((u64) txdr->dma >> 32));
 	E1000_WRITE_REG(&adapter->hw, TDLEN,
 			txdr->count * sizeof(struct e1000_tx_desc));
 	E1000_WRITE_REG(&adapter->hw, TDH, 0);
@@ -1152,8 +1153,8 @@ e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	rctl = E1000_READ_REG(&adapter->hw, RCTL);
 	E1000_WRITE_REG(&adapter->hw, RCTL, rctl & ~E1000_RCTL_EN);
 	E1000_WRITE_REG(&adapter->hw, RDBAL,
-			((uint64_t) rxdr->dma & 0xFFFFFFFF));
-	E1000_WRITE_REG(&adapter->hw, RDBAH, ((uint64_t) rxdr->dma >> 32));
+			((u64) rxdr->dma & 0xFFFFFFFF));
+	E1000_WRITE_REG(&adapter->hw, RDBAH, ((u64) rxdr->dma >> 32));
 	E1000_WRITE_REG(&adapter->hw, RDLEN, rxdr->size);
 	E1000_WRITE_REG(&adapter->hw, RDH, 0);
 	E1000_WRITE_REG(&adapter->hw, RDT, 0);
@@ -1201,7 +1202,7 @@ e1000_phy_disable_receiver(struct e1000_adapter *adapter)
 static void
 e1000_phy_reset_clk_and_crs(struct e1000_adapter *adapter)
 {
-	uint16_t phy_reg;
+	u16 phy_reg;
 
 	/* Because we reset the PHY above, we need to re-force TX_CLK in the
 	 * Extended PHY Specific Control Register to 25MHz clock.  This
@@ -1225,8 +1226,8 @@ e1000_phy_reset_clk_and_crs(struct e1000_adapter *adapter)
 static int
 e1000_nonintegrated_phy_loopback(struct e1000_adapter *adapter)
 {
-	uint32_t ctrl_reg;
-	uint16_t phy_reg;
+	u32 ctrl_reg;
+	u16 phy_reg;
 
 	/* Setup the Device Control Register for PHY loopback test. */
 
@@ -1292,10 +1293,10 @@ e1000_nonintegrated_phy_loopback(struct e1000_adapter *adapter)
 static int
 e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 {
-	uint32_t ctrl_reg = 0;
-	uint32_t stat_reg = 0;
+	u32 ctrl_reg = 0;
+	u32 stat_reg = 0;
 
-	adapter->hw.autoneg = FALSE;
+	adapter->hw.autoneg = false;
 
 	if (adapter->hw.phy_type == e1000_phy_m88) {
 		/* Auto-MDI/MDIX Off */
@@ -1362,8 +1363,8 @@ e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 static int
 e1000_set_phy_loopback(struct e1000_adapter *adapter)
 {
-	uint16_t phy_reg = 0;
-	uint16_t count = 0;
+	u16 phy_reg = 0;
+	u16 count = 0;
 
 	switch (adapter->hw.mac_type) {
 	case e1000_82543:
@@ -1415,7 +1416,7 @@ static int
 e1000_setup_loopback_test(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	uint32_t rctl;
+	u32 rctl;
 
 	if (hw->media_type == e1000_media_type_fiber ||
 	    hw->media_type == e1000_media_type_internal_serdes) {
@@ -1450,8 +1451,8 @@ static void
 e1000_loopback_cleanup(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	uint32_t rctl;
-	uint16_t phy_reg;
+	u32 rctl;
+	u16 phy_reg;
 
 	rctl = E1000_READ_REG(hw, RCTL);
 	rctl &= ~(E1000_RCTL_LBM_TCVR | E1000_RCTL_LBM_MAC);
@@ -1473,7 +1474,7 @@ e1000_loopback_cleanup(struct e1000_adapter *adapter)
 	case e1000_82545_rev_3:
 	case e1000_82546_rev_3:
 	default:
-		hw->autoneg = TRUE;
+		hw->autoneg = true;
 		if (hw->phy_type == e1000_phy_gg82563)
 			e1000_write_phy_reg(hw,
 					    GG82563_PHY_KMRN_MODE_CTRL,
@@ -1577,7 +1578,7 @@ e1000_run_loopback_test(struct e1000_adapter *adapter)
 }
 
 static int
-e1000_loopback_test(struct e1000_adapter *adapter, uint64_t *data)
+e1000_loopback_test(struct e1000_adapter *adapter, u64 *data)
 {
 	/* PHY loopback cannot be performed if SoL/IDER
 	 * sessions are active */
@@ -1602,18 +1603,18 @@ out:
 }
 
 static int
-e1000_link_test(struct e1000_adapter *adapter, uint64_t *data)
+e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 {
 	*data = 0;
 	if (adapter->hw.media_type == e1000_media_type_internal_serdes) {
 		int i = 0;
-		adapter->hw.serdes_link_down = TRUE;
+		adapter->hw.serdes_link_down = true;
 
 		/* On some blade server designs, link establishment
 		 * could take as long as 2-3 minutes */
 		do {
 			e1000_check_for_link(&adapter->hw);
-			if (adapter->hw.serdes_link_down == FALSE)
+			if (!adapter->hw.serdes_link_down)
 				return *data;
 			msleep(20);
 		} while (i++ < 3750);
@@ -1646,19 +1647,19 @@ e1000_get_sset_count(struct net_device *netdev, int sset)
 
 static void
 e1000_diag_test(struct net_device *netdev,
-		   struct ethtool_test *eth_test, uint64_t *data)
+		   struct ethtool_test *eth_test, u64 *data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	boolean_t if_running = netif_running(netdev);
+	bool if_running = netif_running(netdev);
 
 	set_bit(__E1000_TESTING, &adapter->flags);
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */
 
 		/* save speed, duplex, autoneg settings */
-		uint16_t autoneg_advertised = adapter->hw.autoneg_advertised;
-		uint8_t forced_speed_duplex = adapter->hw.forced_speed_duplex;
-		uint8_t autoneg = adapter->hw.autoneg;
+		u16 autoneg_advertised = adapter->hw.autoneg_advertised;
+		u8 forced_speed_duplex = adapter->hw.forced_speed_duplex;
+		u8 autoneg = adapter->hw.autoneg;
 
 		DPRINTK(HW, INFO, "offline testing starting\n");
 
@@ -1876,7 +1877,7 @@ e1000_led_blink_callback(unsigned long data)
 }
 
 static int
-e1000_phys_id(struct net_device *netdev, uint32_t data)
+e1000_phys_id(struct net_device *netdev, u32 data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
@@ -1926,7 +1927,7 @@ e1000_nway_reset(struct net_device *netdev)
 
 static void
 e1000_get_ethtool_stats(struct net_device *netdev,
-		struct ethtool_stats *stats, uint64_t *data)
+		struct ethtool_stats *stats, u64 *data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	int i;
@@ -1935,15 +1936,15 @@ e1000_get_ethtool_stats(struct net_device *netdev,
 	for (i = 0; i < E1000_GLOBAL_STATS_LEN; i++) {
 		char *p = (char *)adapter+e1000_gstrings_stats[i].stat_offset;
 		data[i] = (e1000_gstrings_stats[i].sizeof_stat ==
-			sizeof(uint64_t)) ? *(uint64_t *)p : *(uint32_t *)p;
+			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 /*	BUG_ON(i != E1000_STATS_LEN); */
 }
 
 static void
-e1000_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
+e1000_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
-	uint8_t *p = data;
+	u8 *p = data;
 	int i;
 
 	switch (stringset) {

@@ -72,11 +72,9 @@ void __init irda_proc_register(void)
 		return;
 	proc_irda->owner = THIS_MODULE;
 
-	for (i=0; i<ARRAY_SIZE(irda_dirs); i++) {
-		d = create_proc_entry(irda_dirs[i].name, 0, proc_irda);
-		if (d)
-			d->proc_fops = irda_dirs[i].fops;
-	}
+	for (i = 0; i < ARRAY_SIZE(irda_dirs); i++)
+		d = proc_create(irda_dirs[i].name, 0, proc_irda,
+				irda_dirs[i].fops);
 }
 
 /*

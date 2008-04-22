@@ -125,7 +125,7 @@ static int rtc_probe(struct amba_device *dev, void *id)
 	xtime.tv_sec = __raw_readl(rtc_base + RTC_DR);
 
 	ret = request_irq(dev->irq[0], arm_rtc_interrupt, IRQF_DISABLED,
-			  "rtc-pl030", dev);
+			  "rtc-pl030", NULL);
 	if (ret)
 		goto map_out;
 

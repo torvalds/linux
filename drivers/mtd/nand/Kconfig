@@ -314,7 +314,7 @@ config MTD_ALAUDA
 
 config MTD_NAND_ORION
 	tristate "NAND Flash support for Marvell Orion SoC"
-	depends on ARCH_ORION && MTD_NAND
+	depends on PLAT_ORION && MTD_NAND
 	help
 	  This enables the NAND flash controller on Orion machines.
 

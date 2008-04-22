@@ -456,16 +456,18 @@ static inline unsigned long __ffz_word_loop(const unsigned long *addr,
 
 	asm volatile(
 #ifndef __s390x__
-		"	ahi	%1,31\n"
-		"	srl	%1,5\n"
+		"	ahi	%1,-1\n"
+		"	sra	%1,5\n"
+		"	jz	1f\n"
 		"0:	c	%2,0(%0,%3)\n"
 		"	jne	1f\n"
 		"	la	%0,4(%0)\n"
 		"	brct	%1,0b\n"
 		"1:\n"
 #else
-		"	aghi	%1,63\n"
-		"	srlg	%1,%1,6\n"
+		"	aghi	%1,-1\n"
+		"	srag	%1,%1,6\n"
+		"	jz	1f\n"
 		"0:	cg	%2,0(%0,%3)\n"
 		"	jne	1f\n"
 		"	la	%0,8(%0)\n"
@@ -491,16 +493,18 @@ static inline unsigned long __ffs_word_loop(const unsigned long *addr,
 
 	asm volatile(
 #ifndef __s390x__
-		"	ahi	%1,31\n"
-		"	srl	%1,5\n"
+		"	ahi	%1,-1\n"
+		"	sra	%1,5\n"
+		"	jz	1f\n"
 		"0:	c	%2,0(%0,%3)\n"
 		"	jne	1f\n"
 		"	la	%0,4(%0)\n"
 		"	brct	%1,0b\n"
 		"1:\n"
 #else
-		"	aghi	%1,63\n"
-		"	srlg	%1,%1,6\n"
+		"	aghi	%1,-1\n"
+		"	srag	%1,%1,6\n"
+		"	jz	1f\n"
 		"0:	cg	%2,0(%0,%3)\n"
 		"	jne	1f\n"
 		"	la	%0,8(%0)\n"

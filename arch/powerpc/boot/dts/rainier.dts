@@ -229,7 +229,6 @@
 	   		};
 
 			IIC0: i2c@ef600700 {
-				device_type = "i2c";
 				compatible = "ibm,iic-440grx", "ibm,iic";
 				reg = <ef600700 14>;
 				interrupt-parent = <&UIC0>;
@@ -237,7 +236,6 @@
 			};
 
 			IIC1: i2c@ef600800 {
-				device_type = "i2c";
 				compatible = "ibm,iic-440grx", "ibm,iic";
 				reg = <ef600800 14>;
 				interrupt-parent = <&UIC0>;
@@ -245,20 +243,17 @@
 			};
 
 			ZMII0: emac-zmii@ef600d00 {
-				device_type = "zmii-interface";
 				compatible = "ibm,zmii-440grx", "ibm,zmii";
 				reg = <ef600d00 c>;
 			};
 
 			RGMII0: emac-rgmii@ef601000 {
-				device_type = "rgmii-interface";
 				compatible = "ibm,rgmii-440grx", "ibm,rgmii";
 				reg = <ef601000 8>;
 				has-mdio;
 			};
 
 			EMAC0: ethernet@ef600e00 {
-				linux,network-index = <0>;
 				device_type = "network";
 				compatible = "ibm,emac-440grx", "ibm,emac-440epx", "ibm,emac4";
 				interrupt-parent = <&EMAC0>;
@@ -274,7 +269,7 @@
 				mal-tx-channel = <0>;
 				mal-rx-channel = <0>;
 				cell-index = <0>;
-				max-frame-size = <5dc>;
+				max-frame-size = <2328>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";
@@ -288,7 +283,6 @@
 			};
 
 			EMAC1: ethernet@ef600f00 {
-				linux,network-index = <1>;
 				device_type = "network";
 				compatible = "ibm,emac-440grx", "ibm,emac-440epx", "ibm,emac4";
 				interrupt-parent = <&EMAC1>;
@@ -304,7 +298,7 @@
 				mal-tx-channel = <1>;
 				mal-rx-channel = <1>;
 				cell-index = <1>;
-				max-frame-size = <5dc>;
+				max-frame-size = <2328>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";

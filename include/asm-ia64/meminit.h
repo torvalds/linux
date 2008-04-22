@@ -35,6 +35,7 @@ extern void find_memory (void);
 extern void reserve_memory (void);
 extern void find_initrd (void);
 extern int filter_rsvd_memory (unsigned long start, unsigned long end, void *arg);
+extern int filter_memory (unsigned long start, unsigned long end, void *arg);
 extern unsigned long efi_memmap_init(unsigned long *s, unsigned long *e);
 extern int find_max_min_low_pfn (unsigned long , unsigned long, void *);
 
@@ -56,7 +57,7 @@ extern int reserve_elfcorehdr(unsigned long *start, unsigned long *end);
 
 #define IGNORE_PFN0	1	/* XXX fix me: ignore pfn 0 until TLB miss handler is updated... */
 
-extern int register_active_ranges(u64 start, u64 end, void *arg);
+extern int register_active_ranges(u64 start, u64 len, int nid);
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 # define LARGE_GAP	0x40000000 /* Use virtual mem map if hole is > than this */

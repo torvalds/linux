@@ -169,7 +169,7 @@ struct kcopyd_job {
 	 * Error state of the job.
 	 */
 	int read_err;
-	unsigned int write_err;
+	unsigned long write_err;
 
 	/*
 	 * Either READ or WRITE
@@ -293,7 +293,7 @@ static int run_complete_job(struct kcopyd_job *job)
 {
 	void *context = job->context;
 	int read_err = job->read_err;
-	unsigned int write_err = job->write_err;
+	unsigned long write_err = job->write_err;
 	kcopyd_notify_fn fn = job->fn;
 	struct kcopyd_client *kc = job->kc;
 
@@ -396,7 +396,7 @@ static int process_jobs(struct list_head *jobs, int (*fn) (struct kcopyd_job *))
 		if (r < 0) {
 			/* error this rogue job */
 			if (job->rw == WRITE)
-				job->write_err = (unsigned int) -1;
+				job->write_err = (unsigned long) -1L;
 			else
 				job->read_err = 1;
 			push(&_complete_jobs, job);
@@ -448,8 +448,8 @@ static void dispatch_job(struct kcopyd_job *job)
 }
 
 #define SUB_JOB_SIZE 128
-static void segment_complete(int read_err,
-			     unsigned int write_err, void *context)
+static void segment_complete(int read_err, unsigned long write_err,
+			     void *context)
 {
 	/* FIXME: tidy this function */
 	sector_t progress = 0;

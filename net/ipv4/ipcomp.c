@@ -14,7 +14,6 @@
  *   - Adaptive compression.
  */
 #include <linux/module.h>
-#include <asm/semaphore.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
 #include <linux/pfkeyv2.h>
@@ -108,8 +107,11 @@ static int ipcomp_compress(struct xfrm_state *x, struct sk_buff *skb)
 	const int cpu = get_cpu();
 	u8 *scratch = *per_cpu_ptr(ipcomp_scratches, cpu);
 	struct crypto_comp *tfm = *per_cpu_ptr(ipcd->tfms, cpu);
-	int err = crypto_comp_compress(tfm, start, plen, scratch, &dlen);
+	int err;
 
+	local_bh_disable();
+	err = crypto_comp_compress(tfm, start, plen, scratch, &dlen);
+	local_bh_enable();
 	if (err)
 		goto out;
 
@@ -176,7 +178,7 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 			      spi, IPPROTO_COMP, AF_INET);
 	if (!x)
 		return;
-	NETDEBUG(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/%u.%u.%u.%u\n",
+	NETDEBUG(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/" NIPQUAD_FMT "\n",
 		 spi, NIPQUAD(iph->daddr));
 	xfrm_state_put(x);
 }

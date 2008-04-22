@@ -25,6 +25,7 @@
 #include <asm/pgalloc.h>
 #include <asm/system.h>
 #include <asm/ubc.h>
+#include <asm/fpu.h>
 
 static int hlt_counter;
 int ubc_usercnt = 0;

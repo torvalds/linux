@@ -171,11 +171,15 @@ extern void ssb_extif_get_clockcontrol(struct ssb_extif *extif,
 extern void ssb_extif_timing_init(struct ssb_extif *extif,
 				  unsigned long ns);
 
+extern void ssb_extif_watchdog_timer_set(struct ssb_extif *extif,
+					 u32 ticks);
+
+/* Extif GPIO pin access */
 u32 ssb_extif_gpio_in(struct ssb_extif *extif, u32 mask);
-
-void ssb_extif_gpio_out(struct ssb_extif *extif, u32 mask, u32 value);
-
-void ssb_extif_gpio_outen(struct ssb_extif *extif, u32 mask, u32 value);
+u32 ssb_extif_gpio_out(struct ssb_extif *extif, u32 mask, u32 value);
+u32 ssb_extif_gpio_outen(struct ssb_extif *extif, u32 mask, u32 value);
+u32 ssb_extif_gpio_polarity(struct ssb_extif *extif, u32 mask, u32 value);
+u32 ssb_extif_gpio_intmask(struct ssb_extif *extif, u32 mask, u32 value);
 
 #ifdef CONFIG_SSB_SERIAL
 extern int ssb_extif_serial_init(struct ssb_extif *extif,
@@ -197,6 +201,12 @@ static inline bool ssb_extif_available(struct ssb_extif *extif)
 static inline
 void ssb_extif_get_clockcontrol(struct ssb_extif *extif,
 			        u32 *plltype, u32 *n, u32 *m)
+{
+}
+
+static inline
+void ssb_extif_watchdog_timer_set(struct ssb_extif *extif,
+				  u32 ticks)
 {
 }
 

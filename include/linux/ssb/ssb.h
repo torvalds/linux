@@ -72,10 +72,18 @@ struct ssb_device;
 /* Lowlevel read/write operations on the device MMIO.
  * Internal, don't use that outside of ssb. */
 struct ssb_bus_ops {
+	u8 (*read8)(struct ssb_device *dev, u16 offset);
 	u16 (*read16)(struct ssb_device *dev, u16 offset);
 	u32 (*read32)(struct ssb_device *dev, u16 offset);
+	void (*write8)(struct ssb_device *dev, u16 offset, u8 value);
 	void (*write16)(struct ssb_device *dev, u16 offset, u16 value);
 	void (*write32)(struct ssb_device *dev, u16 offset, u32 value);
+#ifdef CONFIG_SSB_BLOCKIO
+	void (*block_read)(struct ssb_device *dev, void *buffer,
+			   size_t count, u16 offset, u8 reg_width);
+	void (*block_write)(struct ssb_device *dev, const void *buffer,
+			    size_t count, u16 offset, u8 reg_width);
+#endif
 };
 
 
@@ -129,6 +137,10 @@ struct ssb_device {
 	const struct ssb_bus_ops *ops;
 
 	struct device *dev;
+	/* Pointer to the device that has to be used for
+	 * any DMA related operation. */
+	struct device *dma_dev;
+
 	struct ssb_bus *bus;
 	struct ssb_device_id id;
 
@@ -243,9 +255,9 @@ struct ssb_bus {
 	/* Pointer to the PCMCIA device (only if bustype == SSB_BUSTYPE_PCMCIA). */
 	struct pcmcia_device *host_pcmcia;
 
-#ifdef CONFIG_SSB_PCIHOST
+#ifdef CONFIG_SSB_SPROM
 	/* Mutex to protect the SPROM writing. */
-	struct mutex pci_sprom_mutex;
+	struct mutex sprom_mutex;
 #endif
 
 	/* ID information about the Chip. */
@@ -257,9 +269,6 @@ struct ssb_bus {
 	/* List of devices (cores) on the backplane. */
 	struct ssb_device devices[SSB_MAX_NR_CORES];
 	u8 nr_devices;
-
-	/* Reference count. Number of suspended devices. */
-	u8 suspend_cnt;
 
 	/* Software ID number for this bus. */
 	unsigned int busnumber;
@@ -282,6 +291,13 @@ struct ssb_bus {
 	struct ssb_boardinfo boardinfo;
 	/* Contents of the SPROM. */
 	struct ssb_sprom sprom;
+	/* If the board has a cardbus slot, this is set to true. */
+	bool has_cardbus_slot;
+
+#ifdef CONFIG_SSB_EMBEDDED
+	/* Lock for GPIO register access. */
+	spinlock_t gpio_lock;
+#endif /* EMBEDDED */
 
 	/* Internal-only stuff follows. Do not touch. */
 	struct list_head list;
@@ -294,8 +310,13 @@ struct ssb_bus {
 
 /* The initialization-invariants. */
 struct ssb_init_invariants {
+	/* Versioning information about the PCB. */
 	struct ssb_boardinfo boardinfo;
+	/* The SPROM information. That's either stored in an
+	 * EEPROM or NVRAM on the board. */
 	struct ssb_sprom sprom;
+	/* If the board has a cardbus slot, this is set to true. */
+	bool has_cardbus_slot;
 };
 /* Type of function to fetch the invariants. */
 typedef int (*ssb_invariants_func_t)(struct ssb_bus *bus,
@@ -320,6 +341,13 @@ extern int ssb_bus_pcmciabus_register(struct ssb_bus *bus,
 
 extern void ssb_bus_unregister(struct ssb_bus *bus);
 
+/* Suspend a SSB bus.
+ * Call this from the parent bus suspend routine. */
+extern int ssb_bus_suspend(struct ssb_bus *bus);
+/* Resume a SSB bus.
+ * Call this from the parent bus resume routine. */
+extern int ssb_bus_resume(struct ssb_bus *bus);
+
 extern u32 ssb_clockspeed(struct ssb_bus *bus);
 
 /* Is the device enabled in hardware? */
@@ -332,6 +360,10 @@ void ssb_device_disable(struct ssb_device *dev, u32 core_specific_flags);
 
 
 /* Device MMIO register read/write functions. */
+static inline u8 ssb_read8(struct ssb_device *dev, u16 offset)
+{
+	return dev->ops->read8(dev, offset);
+}
 static inline u16 ssb_read16(struct ssb_device *dev, u16 offset)
 {
 	return dev->ops->read16(dev, offset);
@@ -339,6 +371,10 @@ static inline u16 ssb_read16(struct ssb_device *dev, u16 offset)
 static inline u32 ssb_read32(struct ssb_device *dev, u16 offset)
 {
 	return dev->ops->read32(dev, offset);
+}
+static inline void ssb_write8(struct ssb_device *dev, u16 offset, u8 value)
+{
+	dev->ops->write8(dev, offset, value);
 }
 static inline void ssb_write16(struct ssb_device *dev, u16 offset, u16 value)
 {
@@ -348,6 +384,19 @@ static inline void ssb_write32(struct ssb_device *dev, u16 offset, u32 value)
 {
 	dev->ops->write32(dev, offset, value);
 }
+#ifdef CONFIG_SSB_BLOCKIO
+static inline void ssb_block_read(struct ssb_device *dev, void *buffer,
+				  size_t count, u16 offset, u8 reg_width)
+{
+	dev->ops->block_read(dev, buffer, count, offset, reg_width);
+}
+
+static inline void ssb_block_write(struct ssb_device *dev, const void *buffer,
+				   size_t count, u16 offset, u8 reg_width)
+{
+	dev->ops->block_write(dev, buffer, count, offset, reg_width);
+}
+#endif /* CONFIG_SSB_BLOCKIO */
 
 
 /* Translation (routing) bits that need to be ORed to DMA
@@ -400,5 +449,12 @@ extern int ssb_bus_powerup(struct ssb_bus *bus, bool dynamic_pctl);
 extern u32 ssb_admatch_base(u32 adm);
 extern u32 ssb_admatch_size(u32 adm);
 
+/* PCI device mapping and fixup routines.
+ * Called from the architecture pcibios init code.
+ * These are only available on SSB_EMBEDDED configurations. */
+#ifdef CONFIG_SSB_EMBEDDED
+int ssb_pcibios_plat_dev_init(struct pci_dev *dev);
+int ssb_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
+#endif /* CONFIG_SSB_EMBEDDED */
 
 #endif /* LINUX_SSB_H_ */

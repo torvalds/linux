@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -44,7 +44,6 @@ struct gfs2_log_header_host {
 
 struct gfs2_log_operations {
 	void (*lo_add) (struct gfs2_sbd *sdp, struct gfs2_log_element *le);
-	void (*lo_incore_commit) (struct gfs2_sbd *sdp, struct gfs2_trans *tr);
 	void (*lo_before_commit) (struct gfs2_sbd *sdp);
 	void (*lo_after_commit) (struct gfs2_sbd *sdp, struct gfs2_ail *ai);
 	void (*lo_before_scan) (struct gfs2_jdesc *jd,
@@ -70,7 +69,6 @@ struct gfs2_bitmap {
 };
 
 struct gfs2_rgrp_host {
-	u32 rg_flags;
 	u32 rg_free;
 	u32 rg_dinodes;
 	u64 rg_igeneration;
@@ -87,17 +85,17 @@ struct gfs2_rgrpd {
 	u32 rd_data;			/* num of data blocks in rgrp */
 	u32 rd_bitbytes;		/* number of bytes in data bitmaps */
 	struct gfs2_rgrp_host rd_rg;
-	u64 rd_rg_vn;
 	struct gfs2_bitmap *rd_bits;
 	unsigned int rd_bh_count;
 	struct mutex rd_mutex;
 	u32 rd_free_clone;
 	struct gfs2_log_element rd_le;
-	u32 rd_last_alloc_data;
-	u32 rd_last_alloc_meta;
+	u32 rd_last_alloc;
 	struct gfs2_sbd *rd_sbd;
-	unsigned long rd_flags;
-#define GFS2_RDF_CHECK        0x0001          /* Need to check for unlinked inodes */
+	unsigned char rd_flags;
+#define GFS2_RDF_CHECK        0x01      /* Need to check for unlinked inodes */
+#define GFS2_RDF_NOALLOC      0x02      /* rg prohibits allocation */
+#define GFS2_RDF_UPTODATE     0x04      /* rg is up to date */
 };
 
 enum gfs2_state_bits {
@@ -168,6 +166,8 @@ enum {
 	GLF_DIRTY		= 5,
 	GLF_DEMOTE_IN_PROGRESS	= 6,
 	GLF_LFLUSH		= 7,
+	GLF_WAITERS2		= 8,
+	GLF_CONV_DEADLK		= 9,
 };
 
 struct gfs2_glock {
@@ -187,18 +187,15 @@ struct gfs2_glock {
 	struct list_head gl_holders;
 	struct list_head gl_waiters1;	/* HIF_MUTEX */
 	struct list_head gl_waiters3;	/* HIF_PROMOTE */
-	int gl_waiters2;		/* GIF_DEMOTE */
 
 	const struct gfs2_glock_operations *gl_ops;
 
 	struct gfs2_holder *gl_req_gh;
-	gfs2_glop_bh_t gl_req_bh;
 
 	void *gl_lock;
 	char *gl_lvb;
 	atomic_t gl_lvb_count;
 
-	u64 gl_vn;
 	unsigned long gl_stamp;
 	unsigned long gl_tchange;
 	void *gl_object;
@@ -212,6 +209,8 @@ struct gfs2_glock {
 	atomic_t gl_ail_count;
 	struct delayed_work gl_work;
 };
+
+#define GFS2_MIN_LVB_SIZE 32	/* Min size of LVB that gfs2 supports */
 
 struct gfs2_alloc {
 	/* Quota stuff */
@@ -241,14 +240,9 @@ enum {
 
 struct gfs2_dinode_host {
 	u64 di_size;		/* number of bytes in file */
-	u64 di_blocks;		/* number of blocks in file */
-	u64 di_goal_meta;	/* rgrp to alloc from next */
-	u64 di_goal_data;	/* data block goal */
 	u64 di_generation;	/* generation number for NFS */
 	u32 di_flags;		/* GFS2_DIF_... */
-	u16 di_height;		/* height of metadata */
 	/* These only apply to directories  */
-	u16 di_depth;		/* Number of bits in the table */
 	u32 di_entries;		/* The number of entries in the directory */
 	u64 di_eattr;		/* extended attribute block number */
 };
@@ -265,9 +259,10 @@ struct gfs2_inode {
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
 	struct gfs2_alloc *i_alloc;
-	u64 i_last_rg_alloc;
-
+	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
+	u8 i_height;
+	u8 i_depth;
 };
 
 /*
@@ -490,9 +485,9 @@ struct gfs2_sbd {
 	u32 sd_qc_per_block;
 	u32 sd_max_dirres;	/* Max blocks needed to add a directory entry */
 	u32 sd_max_height;	/* Max height of a file's metadata tree */
-	u64 sd_heightsize[GFS2_MAX_META_HEIGHT];
+	u64 sd_heightsize[GFS2_MAX_META_HEIGHT + 1];
 	u32 sd_max_jheight; /* Max height of journaled file's meta tree */
-	u64 sd_jheightsize[GFS2_MAX_META_HEIGHT];
+	u64 sd_jheightsize[GFS2_MAX_META_HEIGHT + 1];
 
 	struct gfs2_args sd_args;	/* Mount arguments */
 	struct gfs2_tune sd_tune;	/* Filesystem tuning structure */
@@ -533,7 +528,7 @@ struct gfs2_sbd {
 
 	/* Resource group stuff */
 
-	u64 sd_rindex_vn;
+	int sd_rindex_uptodate;
 	spinlock_t sd_rindex_spin;
 	struct mutex sd_rindex_mutex;
 	struct list_head sd_rindex_list;
@@ -637,9 +632,6 @@ struct gfs2_sbd {
 
 	/* Counters */
 
-	atomic_t sd_glock_count;
-	atomic_t sd_glock_held_count;
-	atomic_t sd_inode_count;
 	atomic_t sd_reclaimed;
 
 	char sd_fsname[GFS2_FSNAME_LEN];

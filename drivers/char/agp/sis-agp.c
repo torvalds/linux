@@ -14,6 +14,9 @@
 #define SIS_TLBCNTRL	0x97
 #define SIS_TLBFLUSH	0x98
 
+#define PCI_DEVICE_ID_SI_662	0x0662
+#define PCI_DEVICE_ID_SI_671	0x0671
+
 static int __devinitdata agp_sis_force_delay = 0;
 static int __devinitdata agp_sis_agp_spec = -1;
 
@@ -27,8 +30,8 @@ static int sis_fetch_size(void)
 	values = A_SIZE_8(agp_bridge->driver->aperture_sizes);
 	for (i = 0; i < agp_bridge->driver->num_aperture_sizes; i++) {
 		if ((temp_size == values[i].size_value) ||
-		    ((temp_size & ~(0x03)) ==
-		     (values[i].size_value & ~(0x03)))) {
+		    ((temp_size & ~(0x07)) ==
+		     (values[i].size_value & ~(0x07)))) {
 			agp_bridge->previous_size =
 			    agp_bridge->current_size = (void *) (values + i);
 
@@ -214,6 +217,26 @@ static void __devexit agp_sis_remove(struct pci_dev *pdev)
 	agp_put_bridge(bridge);
 }
 
+#ifdef CONFIG_PM
+
+static int agp_sis_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	return 0;
+}
+
+static int agp_sis_resume(struct pci_dev *pdev)
+{
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	return sis_driver.configure();
+}
+
+#endif /* CONFIG_PM */
+
 static struct pci_device_id agp_sis_pci_table[] = {
 	{
 		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
@@ -331,6 +354,22 @@ static struct pci_device_id agp_sis_pci_table[] = {
 		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
 		.class_mask	= ~0,
 		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_662,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
+		.device		= PCI_DEVICE_ID_SI_671,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+	},
+	{
+		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
+		.class_mask	= ~0,
+		.vendor		= PCI_VENDOR_ID_SI,
 		.device		= PCI_DEVICE_ID_SI_730,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
@@ -393,6 +432,10 @@ static struct pci_driver agp_sis_pci_driver = {
 	.id_table	= agp_sis_pci_table,
 	.probe		= agp_sis_probe,
 	.remove		= agp_sis_remove,
+#ifdef CONFIG_PM
+	.suspend	= agp_sis_suspend,
+	.resume		= agp_sis_resume,
+#endif
 };
 
 static int __init agp_sis_init(void)

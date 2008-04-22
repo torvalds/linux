@@ -88,48 +88,14 @@ static unsigned int ixp4xx_mmio_data_xfer(struct ata_device *dev,
 }
 
 static struct scsi_host_template ixp4xx_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
+	ATA_PIO_SHT(DRV_NAME),
 };
 
 static struct ata_port_operations ixp4xx_port_ops = {
-	.set_mode		= ixp4xx_set_mode,
-	.mode_filter		= ata_pci_default_filter,
-
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.exec_command		= ata_exec_command,
-	.check_status 		= ata_check_status,
-	.dev_select 		= ata_std_dev_select,
-
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= ata_bmdma_error_handler,
-	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-
-	.qc_prep 		= ata_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ixp4xx_mmio_data_xfer,
+	.inherits		= &ata_sff_port_ops,
+	.sff_data_xfer		= ixp4xx_mmio_data_xfer,
 	.cable_detect		= ata_cable_40wire,
-
-	.irq_handler		= ata_interrupt,
-	.irq_clear		= ata_bmdma_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.port_start		= ata_port_start,
+	.set_mode		= ixp4xx_set_mode,
 };
 
 static void ixp4xx_setup_port(struct ata_port *ap,
@@ -144,7 +110,7 @@ static void ixp4xx_setup_port(struct ata_port *ap,
 	ioaddr->altstatus_addr	= data->cs1 + 0x06;
 	ioaddr->ctl_addr	= data->cs1 + 0x06;
 
-	ata_std_ports(ioaddr);
+	ata_sff_std_ports(ioaddr);
 
 #ifndef __ARMEB__
 
@@ -220,7 +186,7 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 	dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 
 	/* activate host */
-	return ata_host_activate(host, irq, ata_interrupt, 0, &ixp4xx_sht);
+	return ata_host_activate(host, irq, ata_sff_interrupt, 0, &ixp4xx_sht);
 }
 
 static __devexit int ixp4xx_pata_remove(struct platform_device *dev)

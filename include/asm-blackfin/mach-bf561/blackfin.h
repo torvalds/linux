@@ -49,7 +49,8 @@
 #define bfin_read_FIO_INEN() bfin_read_FIO0_INEN()
 #define bfin_write_FIO_INEN(val) bfin_write_FIO0_INEN(val)
 
-
+#define SIC_IWR0 SICA_IWR0
+#define SIC_IWR1 SICA_IWR1
 #define SIC_IAR0 SICA_IAR0
 #define bfin_write_SIC_IMASK0 bfin_write_SICA_IMASK0
 #define bfin_write_SIC_IMASK1 bfin_write_SICA_IMASK1

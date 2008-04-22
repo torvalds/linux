@@ -30,7 +30,6 @@
 #include <net/mac80211.h>
 
 #include "hw.h"
-#include "regdom.h"
 
 /* PCI IDs */
 #define PCI_DEVICE_ID_ATHEROS_AR5210 		0x0007 /* AR5210 */
@@ -141,7 +140,9 @@ enum ath5k_radio {
 	AR5K_RF5110	= 0,
 	AR5K_RF5111	= 1,
 	AR5K_RF5112	= 2,
-	AR5K_RF5413	= 3,
+	AR5K_RF2413	= 3,
+	AR5K_RF5413	= 4,
+	AR5K_RF2425	= 5,
 };
 
 /*
@@ -169,12 +170,15 @@ struct ath5k_srev_name {
 #define AR5K_SREV_VER_AR5212	0x50
 #define AR5K_SREV_VER_AR5213	0x55
 #define AR5K_SREV_VER_AR5213A	0x59
-#define AR5K_SREV_VER_AR2424	0xa0
-#define AR5K_SREV_VER_AR5424	0xa3
+#define AR5K_SREV_VER_AR2413	0x78
+#define AR5K_SREV_VER_AR2414	0x79
+#define AR5K_SREV_VER_AR2424	0xa0 /* PCI-E */
+#define AR5K_SREV_VER_AR5424	0xa3 /* PCI-E */
 #define AR5K_SREV_VER_AR5413	0xa4
 #define AR5K_SREV_VER_AR5414	0xa5
-#define AR5K_SREV_VER_AR5416	0xc0	/* ? */
-#define AR5K_SREV_VER_AR5418	0xca
+#define AR5K_SREV_VER_AR5416	0xc0 /* PCI-E */
+#define AR5K_SREV_VER_AR5418	0xca /* PCI-E */
+#define AR5K_SREV_VER_AR2425	0xe2 /* PCI-E */
 
 #define AR5K_SREV_RAD_5110	0x00
 #define AR5K_SREV_RAD_5111	0x10
@@ -184,8 +188,9 @@ struct ath5k_srev_name {
 #define AR5K_SREV_RAD_5112A	0x35
 #define AR5K_SREV_RAD_2112	0x40
 #define AR5K_SREV_RAD_2112A	0x45
+#define AR5K_SREV_RAD_SC0	0x56	/* Found on 2413/2414 */
 #define AR5K_SREV_RAD_SC1	0x63	/* Found on 5413/5414 */
-#define AR5K_SREV_RAD_SC2	0xa2	/* Found on 2424/5424 */
+#define AR5K_SREV_RAD_SC2	0xa2	/* Found on 2424-5/5424 */
 #define AR5K_SREV_RAD_5133	0xc0	/* MIMO found on 5418 */
 
 /* IEEE defs */
@@ -251,26 +256,31 @@ struct ath5k_srev_name {
  */
 #define MODULATION_TURBO	0x00000080
 
-enum ath5k_vendor_mode {
-	MODE_ATHEROS_TURBO = NUM_IEEE80211_MODES+1,
-	MODE_ATHEROS_TURBOG
+enum ath5k_driver_mode {
+	AR5K_MODE_11A		=	0,
+	AR5K_MODE_11A_TURBO	=	1,
+	AR5K_MODE_11B		=	2,
+	AR5K_MODE_11G		=	3,
+	AR5K_MODE_11G_TURBO	=	4,
+	AR5K_MODE_XR		=	0,
+	AR5K_MODE_MAX		=	5
 };
-
-/* Number of supported mac80211 enum ieee80211_phymode modes by this driver */
-#define NUM_DRIVER_MODES	3
 
 /* adding this flag to rate_code enables short preamble, see ar5212_reg.h */
 #define AR5K_SET_SHORT_PREAMBLE 0x04
 
-#define HAS_SHPREAMBLE(_ix) (rt->rates[_ix].modulation == IEEE80211_RATE_CCK_2)
-#define SHPREAMBLE_FLAG(_ix) (HAS_SHPREAMBLE(_ix) ? AR5K_SET_SHORT_PREAMBLE : 0)
+#define HAS_SHPREAMBLE(_ix) \
+	(rt->rates[_ix].modulation == IEEE80211_RATE_SHORT_PREAMBLE)
+#define SHPREAMBLE_FLAG(_ix) \
+	(HAS_SHPREAMBLE(_ix) ? AR5K_SET_SHORT_PREAMBLE : 0)
+
 
 /****************\
   TX DEFINITIONS
 \****************/
 
 /*
- * Tx Descriptor
+ * TX Status
  */
 struct ath5k_tx_status {
 	u16	ts_seqnum;
@@ -418,7 +428,7 @@ enum ath5k_dmasize {
 \****************/
 
 /*
- * Rx Descriptor
+ * RX Status
  */
 struct ath5k_rx_status {
 	u16	rs_datalen;
@@ -439,16 +449,6 @@ struct ath5k_rx_status {
 #define AR5K_RXERR_MIC		0x10
 #define AR5K_RXKEYIX_INVALID	((u8) - 1)
 #define AR5K_TXKEYIX_INVALID	((u32) - 1)
-
-struct ath5k_mib_stats {
-	u32	ackrcv_bad;
-	u32	rts_bad;
-	u32	rts_good;
-	u32	fcs_bad;
-	u32	beacons;
-};
-
-
 
 
 /**************************\
@@ -492,29 +492,23 @@ struct ath5k_beacon_state {
 #define TSF_TO_TU(_tsf) (u32)((_tsf) >> 10)
 
 
-
 /********************\
   COMMON DEFINITIONS
 \********************/
 
 /*
- * Atheros descriptor
+ * Atheros hardware descriptor
+ * This is read and written to by the hardware
  */
 struct ath5k_desc {
-	u32	ds_link;
-	u32	ds_data;
-	u32	ds_ctl0;
-	u32	ds_ctl1;
-	u32	ds_hw[4];
+	u32	ds_link;	/* physical address of the next descriptor */
+	u32	ds_data;	/* physical address of data buffer (skb) */
 
 	union {
-		struct ath5k_rx_status rx;
-		struct ath5k_tx_status tx;
-	} ds_us;
-
-#define ds_rxstat ds_us.rx
-#define ds_txstat ds_us.tx
-
+		struct ath5k_hw_5210_tx_desc	ds_tx5210;
+		struct ath5k_hw_5212_tx_desc	ds_tx5212;
+		struct ath5k_hw_all_rx_desc	ds_rx;
+	} ud;
 } __packed;
 
 #define AR5K_RXDESC_INTREQ	0x0020
@@ -560,8 +554,8 @@ struct ath5k_desc {
  * Used internaly in OpenHAL (ar5211.c/ar5212.c
  * for reset_tx_queue). Also see struct struct ieee80211_channel.
  */
-#define IS_CHAN_XR(_c)	((_c.val & CHANNEL_XR) != 0)
-#define IS_CHAN_B(_c)	((_c.val & CHANNEL_B) != 0)
+#define IS_CHAN_XR(_c)	((_c.hw_value & CHANNEL_XR) != 0)
+#define IS_CHAN_B(_c)	((_c.hw_value & CHANNEL_B) != 0)
 
 /*
  * The following structure will be used to map 2GHz channels to
@@ -584,7 +578,7 @@ struct ath5k_athchan_2ghz {
 
 /**
  * struct ath5k_rate - rate structure
- * @valid: is this a valid rate for the current mode
+ * @valid: is this a valid rate for rate control (remove)
  * @modulation: respective mac80211 modulation
  * @rate_kbps: rate in kbit/s
  * @rate_code: hardware rate value, used in &struct ath5k_desc, on RX on
@@ -643,47 +637,48 @@ struct ath5k_rate_table {
 
 /*
  * Rate tables...
+ * TODO: CLEAN THIS !!!
  */
 #define AR5K_RATES_11A { 8, {					\
 	255, 255, 255, 255, 255, 255, 255, 255, 6, 4, 2, 0,	\
 	7, 5, 3, 1, 255, 255, 255, 255, 255, 255, 255, 255,	\
 	255, 255, 255, 255, 255, 255, 255, 255 }, {		\
-	{ 1, IEEE80211_RATE_OFDM, 6000, 11, 140, 0 },		\
-	{ 1, IEEE80211_RATE_OFDM, 9000, 15, 18, 0 },		\
-	{ 1, IEEE80211_RATE_OFDM, 12000, 10, 152, 2 },		\
-	{ 1, IEEE80211_RATE_OFDM, 18000, 14, 36, 2 },		\
-	{ 1, IEEE80211_RATE_OFDM, 24000, 9, 176, 4 },		\
-	{ 1, IEEE80211_RATE_OFDM, 36000, 13, 72, 4 },		\
-	{ 1, IEEE80211_RATE_OFDM, 48000, 8, 96, 4 },		\
-	{ 1, IEEE80211_RATE_OFDM, 54000, 12, 108, 4 } }		\
+	{ 1, 0, 6000, 11, 140, 0 },		\
+	{ 1, 0, 9000, 15, 18, 0 },		\
+	{ 1, 0, 12000, 10, 152, 2 },		\
+	{ 1, 0, 18000, 14, 36, 2 },		\
+	{ 1, 0, 24000, 9, 176, 4 },		\
+	{ 1, 0, 36000, 13, 72, 4 },		\
+	{ 1, 0, 48000, 8, 96, 4 },		\
+	{ 1, 0, 54000, 12, 108, 4 } }		\
 }
 
 #define AR5K_RATES_11B { 4, {						\
 	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,	\
 	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,	\
 	3, 2, 1, 0, 255, 255, 255, 255 }, {				\
-	{ 1, IEEE80211_RATE_CCK, 1000, 27, 130, 0 },	\
-	{ 1, IEEE80211_RATE_CCK_2, 2000, 26, 132, 1 },	\
-	{ 1, IEEE80211_RATE_CCK_2, 5500, 25, 139, 1 },	\
-	{ 1, IEEE80211_RATE_CCK_2, 11000, 24, 150, 1 } }	\
+	{ 1, 0, 1000, 27, 130, 0 },	\
+	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 2000, 26, 132, 1 },	\
+	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 5500, 25, 139, 1 },	\
+	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 11000, 24, 150, 1 } }	\
 }
 
 #define AR5K_RATES_11G { 12, {					\
 	255, 255, 255, 255, 255, 255, 255, 255, 10, 8, 6, 4,	\
 	11, 9, 7, 5, 255, 255, 255, 255, 255, 255, 255, 255,	\
 	3, 2, 1, 0, 255, 255, 255, 255 }, {			\
-	{ 1, IEEE80211_RATE_CCK, 1000, 27, 2, 0 },		\
-	{ 1, IEEE80211_RATE_CCK_2, 2000, 26, 4, 1 },		\
-	{ 1, IEEE80211_RATE_CCK_2, 5500, 25, 11, 1 },		\
-	{ 1, IEEE80211_RATE_CCK_2, 11000, 24, 22, 1 },	\
-	{ 0, IEEE80211_RATE_OFDM, 6000, 11, 12, 4 },	\
-	{ 0, IEEE80211_RATE_OFDM, 9000, 15, 18, 4 },	\
-	{ 1, IEEE80211_RATE_OFDM, 12000, 10, 24, 6 },	\
-	{ 1, IEEE80211_RATE_OFDM, 18000, 14, 36, 6 },	\
-	{ 1, IEEE80211_RATE_OFDM, 24000, 9, 48, 8 },	\
-	{ 1, IEEE80211_RATE_OFDM, 36000, 13, 72, 8 },	\
-	{ 1, IEEE80211_RATE_OFDM, 48000, 8, 96, 8 },	\
-	{ 1, IEEE80211_RATE_OFDM, 54000, 12, 108, 8 } }	\
+	{ 1, 0, 1000, 27, 2, 0 },		\
+	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 2000, 26, 4, 1 },		\
+	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 5500, 25, 11, 1 },		\
+	{ 1, IEEE80211_RATE_SHORT_PREAMBLE, 11000, 24, 22, 1 },	\
+	{ 0, 0, 6000, 11, 12, 4 },	\
+	{ 0, 0, 9000, 15, 18, 4 },	\
+	{ 1, 0, 12000, 10, 24, 6 },	\
+	{ 1, 0, 18000, 14, 36, 6 },	\
+	{ 1, 0, 24000, 9, 48, 8 },	\
+	{ 1, 0, 36000, 13, 72, 8 },	\
+	{ 1, 0, 48000, 8, 96, 8 },	\
+	{ 1, 0, 54000, 12, 108, 8 } }	\
 }
 
 #define AR5K_RATES_TURBO { 8, {					\
@@ -708,14 +703,14 @@ struct ath5k_rate_table {
 	{ 1, MODULATION_XR, 1000, 2, 139, 1 },		\
 	{ 1, MODULATION_XR, 2000, 6, 150, 2 },		\
 	{ 1, MODULATION_XR, 3000, 1, 150, 3 },		\
-	{ 1, IEEE80211_RATE_OFDM, 6000, 11, 140, 4 },	\
-	{ 1, IEEE80211_RATE_OFDM, 9000, 15, 18, 4 },	\
-	{ 1, IEEE80211_RATE_OFDM, 12000, 10, 152, 6 },	\
-	{ 1, IEEE80211_RATE_OFDM, 18000, 14, 36, 6 },	\
-	{ 1, IEEE80211_RATE_OFDM, 24000, 9, 176, 8 },	\
-	{ 1, IEEE80211_RATE_OFDM, 36000, 13, 72, 8 },	\
-	{ 1, IEEE80211_RATE_OFDM, 48000, 8, 96, 8 },	\
-	{ 1, IEEE80211_RATE_OFDM, 54000, 12, 108, 8 } }	\
+	{ 1, 0, 6000, 11, 140, 4 },	\
+	{ 1, 0, 9000, 15, 18, 4 },	\
+	{ 1, 0, 12000, 10, 152, 6 },	\
+	{ 1, 0, 18000, 14, 36, 6 },	\
+	{ 1, 0, 24000, 9, 176, 8 },	\
+	{ 1, 0, 36000, 13, 72, 8 },	\
+	{ 1, 0, 48000, 8, 96, 8 },	\
+	{ 1, 0, 54000, 12, 108, 8 } }	\
 }
 
 /*
@@ -890,12 +885,14 @@ enum ath5k_capability_type {
 	AR5K_CAP_RFSILENT		= 20,	/* Supports RFsilent */
 };
 
+
+/* XXX: we *may* move cap_range stuff to struct wiphy */
 struct ath5k_capabilities {
 	/*
 	 * Supported PHY modes
 	 * (ie. CHANNEL_A, CHANNEL_B, ...)
 	 */
-	DECLARE_BITMAP(cap_mode, NUM_DRIVER_MODES);
+	DECLARE_BITMAP(cap_mode, AR5K_MODE_MAX);
 
 	/*
 	 * Frequency range (without regulation restrictions)
@@ -906,14 +903,6 @@ struct ath5k_capabilities {
 		u16	range_5ghz_min;
 		u16	range_5ghz_max;
 	} cap_range;
-
-	/*
-	 * Active regulation domain settings
-	 */
-	struct {
-		enum ath5k_regdom reg_current;
-		enum ath5k_regdom reg_hw;
-	} cap_regdomain;
 
 	/*
 	 * Values stored in the EEPROM (some of them...)
@@ -963,6 +952,7 @@ struct ath5k_hw {
 	u16			ah_phy_revision;
 	u16			ah_radio_5ghz_revision;
 	u16			ah_radio_2ghz_revision;
+	u32			ah_phy_spending;
 
 	enum ath5k_version	ah_version;
 	enum ath5k_radio	ah_radio;
@@ -1035,11 +1025,13 @@ struct ath5k_hw {
 		unsigned int, unsigned int, enum ath5k_pkt_type, unsigned int,
 		unsigned int, unsigned int, unsigned int, unsigned int,
 		unsigned int, unsigned int, unsigned int);
-	bool (*ah_setup_xtx_desc)(struct ath5k_hw *, struct ath5k_desc *,
+	int (*ah_setup_xtx_desc)(struct ath5k_hw *, struct ath5k_desc *,
 		unsigned int, unsigned int, unsigned int, unsigned int,
 		unsigned int, unsigned int);
-	int (*ah_proc_tx_desc)(struct ath5k_hw *, struct ath5k_desc *);
-	int (*ah_proc_rx_desc)(struct ath5k_hw *, struct ath5k_desc *);
+	int (*ah_proc_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
+		struct ath5k_tx_status *);
+	int (*ah_proc_rx_desc)(struct ath5k_hw *, struct ath5k_desc *,
+		struct ath5k_rx_status *);
 };
 
 /*
@@ -1070,6 +1062,7 @@ extern int ath5k_hw_update_tx_triglevel(struct ath5k_hw *ah, bool increase);
 extern bool ath5k_hw_is_intr_pending(struct ath5k_hw *ah);
 extern int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask);
 extern enum ath5k_int ath5k_hw_set_intr(struct ath5k_hw *ah, enum ath5k_int new_mask);
+extern void ath5k_hw_update_mib_counters(struct ath5k_hw *ah, struct ieee80211_low_level_stats *stats);
 /* EEPROM access functions */
 extern int ath5k_hw_set_regdomain(struct ath5k_hw *ah, u16 regdomain);
 /* Protocol Control Unit Functions */
@@ -1098,7 +1091,6 @@ extern int ath5k_hw_set_beacon_timers(struct ath5k_hw *ah, const struct ath5k_be
 extern void ath5k_hw_reset_beacon(struct ath5k_hw *ah);
 extern int ath5k_hw_beaconq_finish(struct ath5k_hw *ah, unsigned long phys_addr);
 #endif
-extern void ath5k_hw_update_mib_counters(struct ath5k_hw *ah, struct ath5k_mib_stats *statistics);
 /* ACK bit rate */
 void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high);
 /* ACK/CTS Timeouts */
@@ -1129,8 +1121,6 @@ extern int ath5k_hw_set_gpio_input(struct ath5k_hw *ah, u32 gpio);
 extern u32 ath5k_hw_get_gpio(struct ath5k_hw *ah, u32 gpio);
 extern int ath5k_hw_set_gpio(struct ath5k_hw *ah, u32 gpio, u32 val);
 extern void ath5k_hw_set_gpio_intr(struct ath5k_hw *ah, unsigned int gpio, u32 interrupt_level);
-/* Regulatory Domain/Channels Setup */
-extern u16 ath5k_get_regdomain(struct ath5k_hw *ah);
 /* Misc functions */
 extern int ath5k_hw_get_capability(struct ath5k_hw *ah, enum ath5k_capability_type cap_type, u32 capability, u32 *result);
 

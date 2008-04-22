@@ -34,7 +34,7 @@
 static DEFINE_PER_CPU(struct x86_cpu, cpu_devices);
 
 #ifdef CONFIG_HOTPLUG_CPU
-int arch_register_cpu(int num)
+int __ref arch_register_cpu(int num)
 {
 	/*
 	 * CPU0 cannot be offlined due to several

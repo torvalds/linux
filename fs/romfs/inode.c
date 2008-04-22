@@ -340,8 +340,9 @@ static struct dentry *
 romfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
 	unsigned long offset, maxoff;
-	int fslen, res;
-	struct inode *inode;
+	long res;
+	int fslen;
+	struct inode *inode = NULL;
 	char fsname[ROMFS_MAXFN];	/* XXX dynamic? */
 	struct romfs_inode ri;
 	const char *name;		/* got from dentry */
@@ -351,7 +352,7 @@ romfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	offset = dir->i_ino & ROMFH_MASK;
 	lock_kernel();
 	if (romfs_copyfrom(dir, &ri, offset, ROMFH_SIZE) <= 0)
-		goto out;
+		goto error;
 
 	maxoff = romfs_maxsize(dir->i_sb);
 	offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
@@ -364,9 +365,9 @@ romfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 
 	for(;;) {
 		if (!offset || offset >= maxoff)
-			goto out0;
+			goto success; /* negative success */
 		if (romfs_copyfrom(dir, &ri, offset, ROMFH_SIZE) <= 0)
-			goto out;
+			goto error;
 
 		/* try to match the first 16 bytes of name */
 		fslen = romfs_strnlen(dir, offset+ROMFH_SIZE, ROMFH_SIZE);
@@ -397,23 +398,14 @@ romfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	inode = romfs_iget(dir->i_sb, offset);
 	if (IS_ERR(inode)) {
 		res = PTR_ERR(inode);
-		goto out;
+		goto error;
 	}
 
-	/*
-	 * it's a bit funky, _lookup needs to return an error code
-	 * (negative) or a NULL, both as a dentry.  ENOENT should not
-	 * be returned, instead we need to create a negative dentry by
-	 * d_add(dentry, NULL); and return 0 as no error.
-	 * (Although as I see, it only matters on writable file
-	 * systems).
-	 */
-
-out0:	inode = NULL;
+success:
+	d_add(dentry, inode);
 	res = 0;
-	d_add (dentry, inode);
-
-out:	unlock_kernel();
+error:
+	unlock_kernel();
 	return ERR_PTR(res);
 }
 

@@ -850,3 +850,4 @@ MODULE_AUTHOR("Embedded Alley Solutions, Inc.");
 MODULE_DESCRIPTION("PNX8XXX SoCs serial port driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(SERIAL_PNX8XXX_MAJOR);
+MODULE_ALIAS("platform:pnx8xxx-uart");

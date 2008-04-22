@@ -632,9 +632,10 @@ SYM53C500_biosparm(struct scsi_device *disk,
 }
 
 static ssize_t
-SYM53C500_show_pio(struct class_device *cdev, char *buf)
+SYM53C500_show_pio(struct device *dev, struct device_attribute *attr,
+		   char *buf)
 {
-	struct Scsi_Host *SHp = class_to_shost(cdev);
+	struct Scsi_Host *SHp = class_to_shost(dev);
 	struct sym53c500_data *data =
 	    (struct sym53c500_data *)SHp->hostdata;
 
@@ -642,10 +643,11 @@ SYM53C500_show_pio(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-SYM53C500_store_pio(struct class_device *cdev, const char *buf, size_t count)
+SYM53C500_store_pio(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
 {
 	int pio;
-	struct Scsi_Host *SHp = class_to_shost(cdev);
+	struct Scsi_Host *SHp = class_to_shost(dev);
 	struct sym53c500_data *data =
 	    (struct sym53c500_data *)SHp->hostdata;
 
@@ -662,7 +664,7 @@ SYM53C500_store_pio(struct class_device *cdev, const char *buf, size_t count)
 *  SCSI HBA device attributes we want to
 *  make available via sysfs.
 */
-static struct class_device_attribute SYM53C500_pio_attr = {
+static struct device_attribute SYM53C500_pio_attr = {
 	.attr = {
 		.name = "fast_pio",
 		.mode = (S_IRUGO | S_IWUSR),
@@ -671,7 +673,7 @@ static struct class_device_attribute SYM53C500_pio_attr = {
 	.store = SYM53C500_store_pio,
 };
 
-static struct class_device_attribute *SYM53C500_shost_attrs[] = {
+static struct device_attribute *SYM53C500_shost_attrs[] = {
 	&SYM53C500_pio_attr,
 	NULL,
 };

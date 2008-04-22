@@ -1,5 +1,7 @@
 # core
 ssb-y					+= main.o scan.o
+ssb-$(CONFIG_SSB_EMBEDDED)		+= embedded.o
+ssb-$(CONFIG_SSB_SPROM)			+= sprom.o
 
 # host support
 ssb-$(CONFIG_SSB_PCIHOST)		+= pci.o pcihost_wrapper.o
@@ -10,9 +12,10 @@ ssb-y					+= driver_chipcommon.o
 ssb-$(CONFIG_SSB_DRIVER_MIPS)		+= driver_mipscore.o
 ssb-$(CONFIG_SSB_DRIVER_EXTIF)		+= driver_extif.o
 ssb-$(CONFIG_SSB_DRIVER_PCICORE)	+= driver_pcicore.o
+ssb-$(CONFIG_SSB_DRIVER_GIGE)		+= driver_gige.o
 
 # b43 pci-ssb-bridge driver
 # Not strictly a part of SSB, but kept here for convenience
-ssb-$(CONFIG_SSB_PCIHOST)		+= b43_pci_bridge.o
+ssb-$(CONFIG_SSB_B43_PCI_BRIDGE)	+= b43_pci_bridge.o
 
 obj-$(CONFIG_SSB)			+= ssb.o

@@ -31,6 +31,7 @@
 #include <linux/cache.h>
 #include <linux/init.h>
 #include <linux/signal.h>
+#include <linux/lmb.h>
 
 #include <asm/processor.h>
 #include <asm/pgtable.h>
@@ -41,7 +42,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/machdep.h>
-#include <asm/lmb.h>
+#include <asm/prom.h>
 #include <asm/abs_addr.h>
 #include <asm/tlbflush.h>
 #include <asm/io.h>
@@ -190,6 +191,29 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 	}
 	return ret < 0 ? ret : 0;
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+static int htab_remove_mapping(unsigned long vstart, unsigned long vend,
+		      int psize, int ssize)
+{
+	unsigned long vaddr;
+	unsigned int step, shift;
+
+	shift = mmu_psize_defs[psize].shift;
+	step = 1 << shift;
+
+	if (!ppc_md.hpte_removebolted) {
+		printk(KERN_WARNING "Platform doesn't implement "
+				"hpte_removebolted\n");
+		return -EINVAL;
+	}
+
+	for (vaddr = vstart; vaddr < vend; vaddr += step)
+		ppc_md.hpte_removebolted(vaddr, psize, ssize);
+
+	return 0;
+}
+#endif /* CONFIG_MEMORY_HOTPLUG */
 
 static int __init htab_dt_scan_seg_sizes(unsigned long node,
 					 const char *uname, int depth,
@@ -351,9 +375,14 @@ static void __init htab_init_page_sizes(void)
 		mmu_vmalloc_psize = MMU_PAGE_64K;
 		if (mmu_linear_psize == MMU_PAGE_4K)
 			mmu_linear_psize = MMU_PAGE_64K;
-		if (cpu_has_feature(CPU_FTR_CI_LARGE_PAGE))
-			mmu_io_psize = MMU_PAGE_64K;
-		else
+		if (cpu_has_feature(CPU_FTR_CI_LARGE_PAGE)) {
+			/*
+			 * Don't use 64k pages for ioremap on pSeries, since
+			 * that would stop us accessing the HEA ethernet.
+			 */
+			if (!machine_is(pseries))
+				mmu_io_psize = MMU_PAGE_64K;
+		} else
 			mmu_ci_restrictions = 1;
 	}
 #endif /* CONFIG_PPC_64K_PAGES */
@@ -428,6 +457,12 @@ void create_section_mapping(unsigned long start, unsigned long end)
 		BUG_ON(htab_bolt_mapping(start, end, __pa(start),
 			_PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX,
 			mmu_linear_psize, mmu_kernel_ssize));
+}
+
+int remove_section_mapping(unsigned long start, unsigned long end)
+{
+	return htab_remove_mapping(start, end, mmu_linear_psize,
+			mmu_kernel_ssize);
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
@@ -506,10 +541,10 @@ void __init htab_initialize(void)
 	} else {
 		/* Find storage for the HPT.  Must be contiguous in
 		 * the absolute address space. On cell we want it to be
-		 * in the first 1 Gig.
+		 * in the first 2 Gig so we can use it for IOMMU hacks.
 		 */
 		if (machine_is(cell))
-			limit = 0x40000000;
+			limit = 0x80000000;
 		else
 			limit = 0;
 

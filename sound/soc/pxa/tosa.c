@@ -135,7 +135,8 @@ static int tosa_set_spk(struct snd_kcontrol *kcontrol,
 }
 
 /* tosa dapm event handlers */
-static int tosa_hp_event(struct snd_soc_dapm_widget *w, int event)
+static int tosa_hp_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *k, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
 		set_tc6393_gpio(&tc6393_device.dev,TOSA_TC6393_L_MUTE);

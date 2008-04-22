@@ -71,6 +71,16 @@ int sis_apic_bug = -1;
  */
 int nr_ioapic_registers[MAX_IO_APICS];
 
+/* I/O APIC entries */
+struct mpc_config_ioapic mp_ioapics[MAX_IO_APICS];
+int nr_ioapics;
+
+/* MP IRQ source entries */
+struct mpc_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
+
+/* # of MP IRQ source entries */
+int mp_irq_entries;
+
 static int disable_timer_pin_1 __initdata;
 
 /*
@@ -810,10 +820,7 @@ static int __init find_isa_irq_pin(int irq, int type)
 	for (i = 0; i < mp_irq_entries; i++) {
 		int lbus = mp_irqs[i].mpc_srcbus;
 
-		if ((mp_bus_id_to_type[lbus] == MP_BUS_ISA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_EISA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_MCA
-		    ) &&
+		if (test_bit(lbus, mp_bus_not_pci) &&
 		    (mp_irqs[i].mpc_irqtype == type) &&
 		    (mp_irqs[i].mpc_srcbusirq == irq))
 
@@ -829,10 +836,7 @@ static int __init find_isa_irq_apic(int irq, int type)
 	for (i = 0; i < mp_irq_entries; i++) {
 		int lbus = mp_irqs[i].mpc_srcbus;
 
-		if ((mp_bus_id_to_type[lbus] == MP_BUS_ISA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_EISA ||
-		     mp_bus_id_to_type[lbus] == MP_BUS_MCA
-		    ) &&
+		if (test_bit(lbus, mp_bus_not_pci) &&
 		    (mp_irqs[i].mpc_irqtype == type) &&
 		    (mp_irqs[i].mpc_srcbusirq == irq))
 			break;
@@ -872,7 +876,7 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin)
 			    mp_irqs[i].mpc_dstapic == MP_APIC_ALL)
 				break;
 
-		if ((mp_bus_id_to_type[lbus] == MP_BUS_PCI) &&
+		if (!test_bit(lbus, mp_bus_not_pci) &&
 		    !mp_irqs[i].mpc_irqtype &&
 		    (bus == lbus) &&
 		    (slot == ((mp_irqs[i].mpc_srcbusirq >> 2) & 0x1f))) {
@@ -921,6 +925,7 @@ void __init setup_ioapic_dest(void)
 }
 #endif
 
+#if defined(CONFIG_EISA) || defined(CONFIG_MCA)
 /*
  * EISA Edge/Level control register, ELCR
  */
@@ -934,6 +939,13 @@ static int EISA_ELCR(unsigned int irq)
 			"Broken MPtable reports ISA irq %d\n", irq);
 	return 0;
 }
+#endif
+
+/* ISA interrupts are always polarity zero edge triggered,
+ * when listed as conforming in the MP table. */
+
+#define default_ISA_trigger(idx)	(0)
+#define default_ISA_polarity(idx)	(0)
 
 /* EISA interrupts are always polarity zero and can be edge or level
  * trigger depending on the ELCR value.  If an interrupt is listed as
@@ -941,13 +953,7 @@ static int EISA_ELCR(unsigned int irq)
  * be read in from the ELCR */
 
 #define default_EISA_trigger(idx)	(EISA_ELCR(mp_irqs[idx].mpc_srcbusirq))
-#define default_EISA_polarity(idx)	(0)
-
-/* ISA interrupts are always polarity zero edge triggered,
- * when listed as conforming in the MP table. */
-
-#define default_ISA_trigger(idx)	(0)
-#define default_ISA_polarity(idx)	(0)
+#define default_EISA_polarity(idx)	default_ISA_polarity(idx)
 
 /* PCI interrupts are always polarity one level triggered,
  * when listed as conforming in the MP table. */
@@ -959,7 +965,7 @@ static int EISA_ELCR(unsigned int irq)
  * when listed as conforming in the MP table. */
 
 #define default_MCA_trigger(idx)	(1)
-#define default_MCA_polarity(idx)	(0)
+#define default_MCA_polarity(idx)	default_ISA_polarity(idx)
 
 static int MPBIOS_polarity(int idx)
 {
@@ -973,35 +979,9 @@ static int MPBIOS_polarity(int idx)
 	{
 		case 0: /* conforms, ie. bus-type dependent polarity */
 		{
-			switch (mp_bus_id_to_type[bus])
-			{
-				case MP_BUS_ISA: /* ISA pin */
-				{
-					polarity = default_ISA_polarity(idx);
-					break;
-				}
-				case MP_BUS_EISA: /* EISA pin */
-				{
-					polarity = default_EISA_polarity(idx);
-					break;
-				}
-				case MP_BUS_PCI: /* PCI pin */
-				{
-					polarity = default_PCI_polarity(idx);
-					break;
-				}
-				case MP_BUS_MCA: /* MCA pin */
-				{
-					polarity = default_MCA_polarity(idx);
-					break;
-				}
-				default:
-				{
-					printk(KERN_WARNING "broken BIOS!!\n");
-					polarity = 1;
-					break;
-				}
-			}
+			polarity = test_bit(bus, mp_bus_not_pci)?
+				default_ISA_polarity(idx):
+				default_PCI_polarity(idx);
 			break;
 		}
 		case 1: /* high active */
@@ -1042,11 +1022,15 @@ static int MPBIOS_trigger(int idx)
 	{
 		case 0: /* conforms, ie. bus-type dependent */
 		{
+			trigger = test_bit(bus, mp_bus_not_pci)?
+					default_ISA_trigger(idx):
+					default_PCI_trigger(idx);
+#if defined(CONFIG_EISA) || defined(CONFIG_MCA)
 			switch (mp_bus_id_to_type[bus])
 			{
 				case MP_BUS_ISA: /* ISA pin */
 				{
-					trigger = default_ISA_trigger(idx);
+					/* set before the switch */
 					break;
 				}
 				case MP_BUS_EISA: /* EISA pin */
@@ -1056,7 +1040,7 @@ static int MPBIOS_trigger(int idx)
 				}
 				case MP_BUS_PCI: /* PCI pin */
 				{
-					trigger = default_PCI_trigger(idx);
+					/* set before the switch */
 					break;
 				}
 				case MP_BUS_MCA: /* MCA pin */
@@ -1071,6 +1055,7 @@ static int MPBIOS_trigger(int idx)
 					break;
 				}
 			}
+#endif
 			break;
 		}
 		case 1: /* edge */
@@ -1120,39 +1105,22 @@ static int pin_2_irq(int idx, int apic, int pin)
 	if (mp_irqs[idx].mpc_dstirq != pin)
 		printk(KERN_ERR "broken BIOS or MPTABLE parser, ayiee!!\n");
 
-	switch (mp_bus_id_to_type[bus])
-	{
-		case MP_BUS_ISA: /* ISA pin */
-		case MP_BUS_EISA:
-		case MP_BUS_MCA:
-		{
-			irq = mp_irqs[idx].mpc_srcbusirq;
-			break;
-		}
-		case MP_BUS_PCI: /* PCI pin */
-		{
-			/*
-			 * PCI IRQs are mapped in order
-			 */
-			i = irq = 0;
-			while (i < apic)
-				irq += nr_ioapic_registers[i++];
-			irq += pin;
+	if (test_bit(bus, mp_bus_not_pci))
+		irq = mp_irqs[idx].mpc_srcbusirq;
+	else {
+		/*
+		 * PCI IRQs are mapped in order
+		 */
+		i = irq = 0;
+		while (i < apic)
+			irq += nr_ioapic_registers[i++];
+		irq += pin;
 
-			/*
-			 * For MPS mode, so far only needed by ES7000 platform
-			 */
-			if (ioapic_renumber_irq)
-				irq = ioapic_renumber_irq(apic, irq);
-
-			break;
-		}
-		default:
-		{
-			printk(KERN_ERR "unknown bus type %d.\n",bus); 
-			irq = 0;
-			break;
-		}
+		/*
+		 * For MPS mode, so far only needed by ES7000 platform
+		 */
+		if (ioapic_renumber_irq)
+			irq = ioapic_renumber_irq(apic, irq);
 	}
 
 	/*
@@ -1260,7 +1228,6 @@ static void __init setup_IO_APIC_irqs(void)
 {
 	struct IO_APIC_route_entry entry;
 	int apic, pin, idx, irq, first_notcon = 1, vector;
-	unsigned long flags;
 
 	apic_printk(APIC_VERBOSE, KERN_DEBUG "init IO_APIC IRQs\n");
 
@@ -1326,9 +1293,7 @@ static void __init setup_IO_APIC_irqs(void)
 			if (!apic && (irq < 16))
 				disable_8259A_irq(irq);
 		}
-		spin_lock_irqsave(&ioapic_lock, flags);
-		__ioapic_write_entry(apic, pin, entry);
-		spin_unlock_irqrestore(&ioapic_lock, flags);
+		ioapic_write_entry(apic, pin, entry);
 	}
 	}
 
@@ -1524,8 +1489,8 @@ void /*__init*/ print_local_APIC(void * dummy)
 
 	printk("\n" KERN_DEBUG "printing local APIC contents on CPU#%d/%d:\n",
 		smp_processor_id(), hard_smp_processor_id());
-	v = apic_read(APIC_ID);
-	printk(KERN_INFO "... APIC ID:      %08x (%01x)\n", v, GET_APIC_ID(v));
+	printk(KERN_INFO "... APIC ID:      %08x (%01x)\n", v,
+			GET_APIC_ID(read_apic_id()));
 	v = apic_read(APIC_LVR);
 	printk(KERN_INFO "... APIC VERSION: %08x\n", v);
 	ver = GET_APIC_VERSION(v);
@@ -1734,7 +1699,7 @@ void disable_IO_APIC(void)
 		entry.delivery_mode   = dest_ExtINT; /* ExtInt */
 		entry.vector          = 0;
 		entry.dest.physical.physical_dest =
-					GET_APIC_ID(apic_read(APIC_ID));
+					GET_APIC_ID(read_apic_id());
 
 		/*
 		 * Add it to the IO-APIC irq-routing table:
@@ -2031,8 +1996,7 @@ static inline void init_IO_APIC_traps(void)
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
 	for (irq = 0; irq < NR_IRQS ; irq++) {
-		int tmp = irq;
-		if (IO_APIC_IRQ(tmp) && !irq_vector[tmp]) {
+		if (IO_APIC_IRQ(irq) && !irq_vector[irq]) {
 			/*
 			 * Hmm.. We don't have an entry for this,
 			 * so default to an old-fashioned 8259
@@ -2156,8 +2120,6 @@ static inline void unlock_ExtINT_logic(void)
 	ioapic_write_entry(apic, pin, entry0);
 }
 
-int timer_uses_ioapic_pin_0;
-
 /*
  * This code may look a bit paranoid, but it's supposed to cooperate with
  * a wide range of boards and BIOS bugs.  Fortunately only the timer IRQ
@@ -2168,9 +2130,13 @@ static inline void __init check_timer(void)
 {
 	int apic1, pin1, apic2, pin2;
 	int vector;
+	unsigned int ver;
 	unsigned long flags;
 
 	local_irq_save(flags);
+
+	ver = apic_read(APIC_LVR);
+	ver = GET_APIC_VERSION(ver);
 
 	/*
 	 * get/set the timer IRQ vector:
@@ -2184,11 +2150,15 @@ static inline void __init check_timer(void)
 	 * mode for the 8259A whenever interrupts are routed
 	 * through I/O APICs.  Also IRQ0 has to be enabled in
 	 * the 8259A which implies the virtual wire has to be
-	 * disabled in the local APIC.
+	 * disabled in the local APIC.  Finally timer interrupts
+	 * need to be acknowledged manually in the 8259A for
+	 * timer_interrupt() and for the i82489DX when using
+	 * the NMI watchdog.
 	 */
 	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 	init_8259A(1);
-	timer_ack = 1;
+	timer_ack = !cpu_has_tsc;
+	timer_ack |= (nmi_watchdog == NMI_IO_APIC && !APIC_INTEGRATED(ver));
 	if (timer_over_8254 > 0)
 		enable_8259A_irq(0);
 
@@ -2196,9 +2166,6 @@ static inline void __init check_timer(void)
 	apic1 = find_isa_irq_apic(0, mp_INT);
 	pin2  = ioapic_i8259.pin;
 	apic2 = ioapic_i8259.apic;
-
-	if (pin1 == 0)
-		timer_uses_ioapic_pin_0 = 1;
 
 	printk(KERN_INFO "..TIMER: vector=0x%02X apic1=%d pin1=%d apic2=%d pin2=%d\n",
 		vector, apic1, pin1, apic2, pin2);
@@ -2789,7 +2756,6 @@ int __init io_apic_get_redir_entries (int ioapic)
 int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int active_high_low)
 {
 	struct IO_APIC_route_entry entry;
-	unsigned long flags;
 
 	if (!IO_APIC_IRQ(irq)) {
 		printk(KERN_ERR "IOAPIC[%d]: Invalid reference to IRQ 0\n",
@@ -2830,9 +2796,7 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	if (!ioapic && (irq < 16))
 		disable_8259A_irq(irq);
 
-	spin_lock_irqsave(&ioapic_lock, flags);
-	__ioapic_write_entry(ioapic, pin, entry);
-	spin_unlock_irqrestore(&ioapic_lock, flags);
+	ioapic_write_entry(ioapic, pin, entry);
 
 	return 0;
 }

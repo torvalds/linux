@@ -38,6 +38,7 @@
 #include <net/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
 
 #include "ipoib.h"
 
@@ -637,6 +638,7 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 	priv->tx_sge[0].addr          = addr;
 	priv->tx_sge[0].length        = len;
 
+	priv->tx_wr.num_sge	= 1;
 	priv->tx_wr.wr_id	= wr_id | IPOIB_OP_CM;
 
 	return ib_post_send(tx->qp, &priv->tx_wr, &bad_wr);
@@ -824,7 +826,6 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_cm_rx *p;
 	unsigned long begin;
-	LIST_HEAD(list);
 	int ret;
 
 	if (!IPOIB_CM_SUPPORTED(dev->dev_addr) || !priv->cm.id)
@@ -857,9 +858,12 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 			/*
 			 * assume the HW is wedged and just free up everything.
 			 */
-			list_splice_init(&priv->cm.rx_flush_list, &list);
-			list_splice_init(&priv->cm.rx_error_list, &list);
-			list_splice_init(&priv->cm.rx_drain_list, &list);
+			list_splice_init(&priv->cm.rx_flush_list,
+					 &priv->cm.rx_reap_list);
+			list_splice_init(&priv->cm.rx_error_list,
+					 &priv->cm.rx_reap_list);
+			list_splice_init(&priv->cm.rx_drain_list,
+					 &priv->cm.rx_reap_list);
 			break;
 		}
 		spin_unlock_irq(&priv->lock);
@@ -1003,9 +1007,9 @@ static int ipoib_cm_modify_tx_init(struct net_device *dev,
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_attr qp_attr;
 	int qp_attr_mask, ret;
-	ret = ib_find_cached_pkey(priv->ca, priv->port, priv->pkey, &qp_attr.pkey_index);
+	ret = ib_find_pkey(priv->ca, priv->port, priv->pkey, &qp_attr.pkey_index);
 	if (ret) {
-		ipoib_warn(priv, "pkey 0x%x not in cache: %d\n", priv->pkey, ret);
+		ipoib_warn(priv, "pkey 0x%x not found: %d\n", priv->pkey, ret);
 		return ret;
 	}
 
@@ -1028,13 +1032,13 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 	struct ipoib_dev_priv *priv = netdev_priv(p->dev);
 	int ret;
 
-	p->tx_ring = kzalloc(ipoib_sendq_size * sizeof *p->tx_ring,
-				GFP_KERNEL);
+	p->tx_ring = vmalloc(ipoib_sendq_size * sizeof *p->tx_ring);
 	if (!p->tx_ring) {
 		ipoib_warn(priv, "failed to allocate tx ring\n");
 		ret = -ENOMEM;
 		goto err_tx;
 	}
+	memset(p->tx_ring, 0, ipoib_sendq_size * sizeof *p->tx_ring);
 
 	p->qp = ipoib_cm_create_tx_qp(p->dev, p);
 	if (IS_ERR(p->qp)) {
@@ -1075,6 +1079,7 @@ err_id:
 	ib_destroy_qp(p->qp);
 err_qp:
 	p->qp = NULL;
+	vfree(p->tx_ring);
 err_tx:
 	return ret;
 }
@@ -1125,7 +1130,7 @@ timeout:
 	if (p->qp)
 		ib_destroy_qp(p->qp);
 
-	kfree(p->tx_ring);
+	vfree(p->tx_ring);
 	kfree(p);
 }
 
@@ -1378,6 +1383,10 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 		set_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 		ipoib_warn(priv, "enabling connected mode "
 			   "will cause multicast packet drops\n");
+
+		dev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO);
+		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
+
 		ipoib_flush_paths(dev);
 		return count;
 	}
@@ -1386,6 +1395,13 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 		clear_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 		dev->mtu = min(priv->mcast_mtu, dev->mtu);
 		ipoib_flush_paths(dev);
+
+		if (test_bit(IPOIB_FLAG_CSUM, &priv->flags)) {
+			dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+			if (priv->hca_caps & IB_DEVICE_UD_TSO)
+				dev->features |= NETIF_F_TSO;
+		}
+
 		return count;
 	}
 

@@ -2,6 +2,7 @@
 #define IOCONTEXT_H
 
 #include <linux/radix-tree.h>
+#include <linux/rcupdate.h>
 
 /*
  * This is the per-process anticipatory I/O scheduler state.
@@ -50,9 +51,12 @@ struct cfq_io_context {
 	sector_t seek_mean;
 
 	struct list_head queue_list;
+	struct hlist_node cic_list;
 
 	void (*dtor)(struct io_context *); /* destructor */
 	void (*exit)(struct io_context *); /* called on task exit */
+
+	struct rcu_head rcu_head;
 };
 
 /*
@@ -77,6 +81,7 @@ struct io_context {
 
 	struct as_io_context *aic;
 	struct radix_tree_root radix_root;
+	struct hlist_head cic_list;
 	void *ioc_data;
 };
 
@@ -86,8 +91,10 @@ static inline struct io_context *ioc_task_link(struct io_context *ioc)
 	 * if ref count is zero, don't allow sharing (ioc is going away, it's
 	 * a race).
 	 */
-	if (ioc && atomic_inc_not_zero(&ioc->refcount))
+	if (ioc && atomic_inc_not_zero(&ioc->refcount)) {
+		atomic_inc(&ioc->nr_tasks);
 		return ioc;
+	}
 
 	return NULL;
 }

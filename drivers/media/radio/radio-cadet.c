@@ -587,6 +587,8 @@ static struct video_device cadet_radio=
 	.vidioc_s_input     = vidioc_s_input,
 };
 
+#ifdef CONFIG_PNP
+
 static struct pnp_device_id cadet_pnp_devices[] = {
 	/* ADS Cadet AM/FM Radio Card */
 	{.id = "MSM0c24", .driver_data = 0},
@@ -620,6 +622,10 @@ static struct pnp_driver cadet_pnp_driver = {
 	.probe		= cadet_pnp_probe,
 	.remove		= NULL,
 };
+
+#else
+static struct pnp_driver cadet_pnp_driver;
+#endif
 
 static int cadet_probe(void)
 {

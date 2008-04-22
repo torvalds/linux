@@ -29,9 +29,9 @@ struct thread_info {
 	__u32			flags;		/* low level flags */
 	__u32			status;		/* thread synchronous flags */
 	__u32			cpu;		/* current CPU */
-	int 			preempt_count;	/* 0 => preemptable, <0 => BUG */
-
-	mm_segment_t		addr_limit;	
+	int 			preempt_count;	/* 0 => preemptable,
+						   <0 => BUG */
+	mm_segment_t		addr_limit;
 	struct restart_block    restart_block;
 #ifdef CONFIG_IA32_EMULATION
 	void __user		*sysenter_return;
@@ -61,17 +61,17 @@ struct thread_info {
 #define init_stack		(init_thread_union.stack)
 
 static inline struct thread_info *current_thread_info(void)
-{ 
+{
 	struct thread_info *ti;
 	ti = (void *)(read_pda(kernelstack) + PDA_STACKOFFSET - THREAD_SIZE);
-	return ti; 
+	return ti;
 }
 
 /* do not use in interrupt context */
 static inline struct thread_info *stack_thread_info(void)
 {
 	struct thread_info *ti;
-	__asm__("andq %%rsp,%0; ":"=r" (ti) : "0" (~(THREAD_SIZE - 1)));
+	asm("andq %%rsp,%0; " : "=r" (ti) : "0" (~(THREAD_SIZE - 1)));
 	return ti;
 }
 
@@ -82,10 +82,8 @@ static inline struct thread_info *stack_thread_info(void)
 #define THREAD_FLAGS GFP_KERNEL
 #endif
 
-#define alloc_thread_info(tsk) \
-	((struct thread_info *) __get_free_pages(THREAD_FLAGS, THREAD_ORDER))
-
-#define free_thread_info(ti) free_pages((unsigned long) (ti), THREAD_ORDER)
+#define alloc_thread_info(tsk)						\
+	((struct thread_info *)__get_free_pages(THREAD_FLAGS, THREAD_ORDER))
 
 #else /* !__ASSEMBLY__ */
 
@@ -98,7 +96,8 @@ static inline struct thread_info *stack_thread_info(void)
 
 /*
  * thread information flags
- * - these are process state flags that various assembly files may need to access
+ * - these are process state flags that various assembly files
+ *   may need to access
  * - pending work-to-be-done flags are in LSW
  * - other flags in MSW
  * Warning: layout of LSW is hardcoded in entry.S
@@ -114,7 +113,7 @@ static inline struct thread_info *stack_thread_info(void)
 #define TIF_MCE_NOTIFY		10	/* notify userspace of an MCE */
 #define TIF_HRTICK_RESCHED	11	/* reprogram hrtick timer */
 /* 16 free */
-#define TIF_IA32		17	/* 32bit process */ 
+#define TIF_IA32		17	/* 32bit process */
 #define TIF_FORK		18	/* ret_from_fork */
 #define TIF_ABI_PENDING		19
 #define TIF_MEMDIE		20
@@ -125,40 +124,43 @@ static inline struct thread_info *stack_thread_info(void)
 #define TIF_DEBUGCTLMSR		25	/* uses thread_struct.debugctlmsr */
 #define TIF_DS_AREA_MSR		26      /* uses thread_struct.ds_area_msr */
 #define TIF_BTS_TRACE_TS	27      /* record scheduling event timestamps */
+#define TIF_NOTSC		28	/* TSC is not accessible in userland */
 
-#define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
-#define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
-#define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
-#define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
-#define _TIF_IRET		(1<<TIF_IRET)
-#define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
-#define _TIF_SECCOMP		(1<<TIF_SECCOMP)
-#define _TIF_RESTORE_SIGMASK	(1<<TIF_RESTORE_SIGMASK)
-#define _TIF_MCE_NOTIFY		(1<<TIF_MCE_NOTIFY)
-#define _TIF_HRTICK_RESCHED	(1<<TIF_HRTICK_RESCHED)
-#define _TIF_IA32		(1<<TIF_IA32)
-#define _TIF_FORK		(1<<TIF_FORK)
-#define _TIF_ABI_PENDING	(1<<TIF_ABI_PENDING)
-#define _TIF_DEBUG		(1<<TIF_DEBUG)
-#define _TIF_IO_BITMAP		(1<<TIF_IO_BITMAP)
-#define _TIF_FREEZE		(1<<TIF_FREEZE)
-#define _TIF_FORCED_TF		(1<<TIF_FORCED_TF)
-#define _TIF_DEBUGCTLMSR	(1<<TIF_DEBUGCTLMSR)
-#define _TIF_DS_AREA_MSR	(1<<TIF_DS_AREA_MSR)
-#define _TIF_BTS_TRACE_TS	(1<<TIF_BTS_TRACE_TS)
+#define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
+#define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
+#define _TIF_SINGLESTEP		(1 << TIF_SINGLESTEP)
+#define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
+#define _TIF_IRET		(1 << TIF_IRET)
+#define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
+#define _TIF_SECCOMP		(1 << TIF_SECCOMP)
+#define _TIF_RESTORE_SIGMASK	(1 << TIF_RESTORE_SIGMASK)
+#define _TIF_MCE_NOTIFY		(1 << TIF_MCE_NOTIFY)
+#define _TIF_HRTICK_RESCHED	(1 << TIF_HRTICK_RESCHED)
+#define _TIF_IA32		(1 << TIF_IA32)
+#define _TIF_FORK		(1 << TIF_FORK)
+#define _TIF_ABI_PENDING	(1 << TIF_ABI_PENDING)
+#define _TIF_DEBUG		(1 << TIF_DEBUG)
+#define _TIF_IO_BITMAP		(1 << TIF_IO_BITMAP)
+#define _TIF_FREEZE		(1 << TIF_FREEZE)
+#define _TIF_FORCED_TF		(1 << TIF_FORCED_TF)
+#define _TIF_DEBUGCTLMSR	(1 << TIF_DEBUGCTLMSR)
+#define _TIF_DS_AREA_MSR	(1 << TIF_DS_AREA_MSR)
+#define _TIF_BTS_TRACE_TS	(1 << TIF_BTS_TRACE_TS)
+#define _TIF_NOTSC		(1 << TIF_NOTSC)
 
 /* work to do on interrupt/exception return */
-#define _TIF_WORK_MASK \
-  (0x0000FFFF & ~(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP|_TIF_SECCOMP))
+#define _TIF_WORK_MASK							\
+	(0x0000FFFF &							\
+	 ~(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP|_TIF_SECCOMP))
 /* work to do on any return to user space */
 #define _TIF_ALLWORK_MASK (0x0000FFFF & ~_TIF_SECCOMP)
 
-#define _TIF_DO_NOTIFY_MASK \
+#define _TIF_DO_NOTIFY_MASK						\
 	(_TIF_SIGPENDING|_TIF_SINGLESTEP|_TIF_MCE_NOTIFY|_TIF_HRTICK_RESCHED)
 
 /* flags to check in __switch_to() */
-#define _TIF_WORK_CTXSW \
-    (_TIF_IO_BITMAP|_TIF_DEBUGCTLMSR|_TIF_DS_AREA_MSR|_TIF_BTS_TRACE_TS)
+#define _TIF_WORK_CTXSW							\
+	(_TIF_IO_BITMAP|_TIF_DEBUGCTLMSR|_TIF_DS_AREA_MSR|_TIF_BTS_TRACE_TS|_TIF_NOTSC)
 #define _TIF_WORK_CTXSW_PREV _TIF_WORK_CTXSW
 #define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW|_TIF_DEBUG)
 
@@ -171,9 +173,11 @@ static inline struct thread_info *stack_thread_info(void)
  * ever touches our thread-synchronous status, so we don't
  * have to worry about atomic accesses.
  */
-#define TS_USEDFPU		0x0001	/* FPU was used by this task this quantum (SMP) */
+#define TS_USEDFPU		0x0001	/* FPU was used by this task
+					   this quantum (SMP) */
 #define TS_COMPAT		0x0002	/* 32bit syscall active */
-#define TS_POLLING		0x0004	/* true if in idle loop and not sleeping */
+#define TS_POLLING		0x0004	/* true if in idle loop
+					   and not sleeping */
 
 #define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
 

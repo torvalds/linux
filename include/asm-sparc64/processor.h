@@ -37,6 +37,9 @@
 #endif
 
 #define TASK_SIZE	((unsigned long)-VPTE_SIZE)
+#define TASK_SIZE_OF(tsk) \
+	(test_tsk_thread_flag(tsk,TIF_32BIT) ? \
+	 (1UL << 32UL) : TASK_SIZE)
 #ifdef __KERNEL__
 
 #define STACK_TOP32	((1UL << 32UL) - PAGE_SIZE)

@@ -16,10 +16,10 @@
 #include <linux/idr.h>
 #include <linux/hdreg.h>
 #include <linux/kthread.h>
+#include <linux/delay.h>
 #include <linux/memstick.h>
 
 #define DRIVER_NAME "mspro_block"
-#define DRIVER_VERSION "0.2"
 
 static int major;
 module_param(major, int, 0644);
@@ -110,6 +110,17 @@ struct mspro_mbr {
 	unsigned int  sectors_per_partition;
 } __attribute__((packed));
 
+struct mspro_specfile {
+	char           name[8];
+	char           ext[3];
+	unsigned char  attr;
+	unsigned char  reserved[10];
+	unsigned short time;
+	unsigned short date;
+	unsigned short cluster;
+	unsigned int   size;
+} __attribute__((packed));
+
 struct mspro_devinfo {
 	unsigned short cylinders;
 	unsigned short heads;
@@ -122,6 +133,7 @@ struct mspro_devinfo {
 struct mspro_block_data {
 	struct memstick_dev   *card;
 	unsigned int          usage_count;
+	unsigned int          caps;
 	struct gendisk        *disk;
 	struct request_queue  *queue;
 	spinlock_t            q_lock;
@@ -293,6 +305,20 @@ static ssize_t mspro_block_attr_show_sysinfo(struct device *dev,
 						     dev_attr);
 	struct mspro_sys_info *x_sys = x_attr->data;
 	ssize_t rc = 0;
+	int date_tz = 0, date_tz_f = 0;
+
+	if (x_sys->assembly_date[0] > 0x80U) {
+		date_tz = (~x_sys->assembly_date[0]) + 1;
+		date_tz_f = date_tz & 3;
+		date_tz >>= 2;
+		date_tz = -date_tz;
+		date_tz_f *= 15;
+	} else if (x_sys->assembly_date[0] < 0x80U) {
+		date_tz = x_sys->assembly_date[0];
+		date_tz_f = date_tz & 3;
+		date_tz >>= 2;
+		date_tz_f *= 15;
+	}
 
 	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "class: %x\n",
 			x_sys->class);
@@ -305,8 +331,8 @@ static ssize_t mspro_block_attr_show_sysinfo(struct device *dev,
 	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "page size: %x\n",
 			be16_to_cpu(x_sys->page_size));
 	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "assembly date: "
-			"%d %04u-%02u-%02u %02u:%02u:%02u\n",
-			x_sys->assembly_date[0],
+			"GMT%+d:%d %04u-%02u-%02u %02u:%02u:%02u\n",
+			date_tz, date_tz_f,
 			be16_to_cpu(*(unsigned short *)
 				    &x_sys->assembly_date[1]),
 			x_sys->assembly_date[3], x_sys->assembly_date[4],
@@ -398,6 +424,41 @@ static ssize_t mspro_block_attr_show_mbr(struct device *dev,
 	return rc;
 }
 
+static ssize_t mspro_block_attr_show_specfile(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buffer)
+{
+	struct mspro_sys_attr *x_attr = container_of(attr,
+						     struct mspro_sys_attr,
+						     dev_attr);
+	struct mspro_specfile *x_spfile = x_attr->data;
+	char name[9], ext[4];
+	ssize_t rc = 0;
+
+	memcpy(name, x_spfile->name, 8);
+	name[8] = 0;
+	memcpy(ext, x_spfile->ext, 3);
+	ext[3] = 0;
+
+	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "name: %s\n", name);
+	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "ext: %s\n", ext);
+	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "attribute: %x\n",
+			x_spfile->attr);
+	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "time: %d:%d:%d\n",
+			x_spfile->time >> 11,
+			(x_spfile->time >> 5) & 0x3f,
+			(x_spfile->time & 0x1f) * 2);
+	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "date: %d-%d-%d\n",
+			(x_spfile->date >> 9) + 1980,
+			(x_spfile->date >> 5) & 0xf,
+			x_spfile->date & 0x1f);
+	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "start cluster: %x\n",
+			x_spfile->cluster);
+	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "size: %x\n",
+			x_spfile->size);
+	return rc;
+}
+
 static ssize_t mspro_block_attr_show_devinfo(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buffer)
@@ -430,6 +491,9 @@ static sysfs_show_t mspro_block_attr_show(unsigned char tag)
 		return mspro_block_attr_show_modelname;
 	case MSPRO_BLOCK_ID_MBR:
 		return mspro_block_attr_show_mbr;
+	case MSPRO_BLOCK_ID_SPECFILEVALUES1:
+	case MSPRO_BLOCK_ID_SPECFILEVALUES2:
+		return mspro_block_attr_show_specfile;
 	case MSPRO_BLOCK_ID_DEVINFO:
 		return mspro_block_attr_show_devinfo;
 	default:
@@ -514,7 +578,6 @@ static int h_mspro_block_wait_for_ced(struct memstick_dev *card,
 static int h_mspro_block_transfer_data(struct memstick_dev *card,
 				       struct memstick_request **mrq)
 {
-	struct memstick_host *host = card->host;
 	struct mspro_block_data *msb = memstick_get_drvdata(card);
 	unsigned char t_val = 0;
 	struct scatterlist t_sg = { 0 };
@@ -528,12 +591,12 @@ static int h_mspro_block_transfer_data(struct memstick_dev *card,
 	switch ((*mrq)->tpc) {
 	case MS_TPC_WRITE_REG:
 		memstick_init_req(*mrq, MS_TPC_SET_CMD, &msb->transfer_cmd, 1);
-		(*mrq)->get_int_reg = 1;
+		(*mrq)->need_card_int = 1;
 		return 0;
 	case MS_TPC_SET_CMD:
 		t_val = (*mrq)->int_reg;
 		memstick_init_req(*mrq, MS_TPC_GET_INT, NULL, 1);
-		if (host->caps & MEMSTICK_CAP_AUTO_GET_INT)
+		if (msb->caps & MEMSTICK_CAP_AUTO_GET_INT)
 			goto has_int_reg;
 		return 0;
 	case MS_TPC_GET_INT:
@@ -583,12 +646,12 @@ has_int_reg:
 					   ? MS_TPC_READ_LONG_DATA
 					   : MS_TPC_WRITE_LONG_DATA,
 				     &t_sg);
-		(*mrq)->get_int_reg = 1;
+		(*mrq)->need_card_int = 1;
 		return 0;
 	case MS_TPC_READ_LONG_DATA:
 	case MS_TPC_WRITE_LONG_DATA:
 		msb->current_page++;
-		if (host->caps & MEMSTICK_CAP_AUTO_GET_INT) {
+		if (msb->caps & MEMSTICK_CAP_AUTO_GET_INT) {
 			t_val = (*mrq)->int_reg;
 			goto has_int_reg;
 		} else {
@@ -629,7 +692,7 @@ static void mspro_block_process_request(struct memstick_dev *card,
 			param.system = msb->system;
 			param.data_count = cpu_to_be16(page_count);
 			param.data_address = cpu_to_be32((uint32_t)t_sec);
-			param.cmd_param = 0;
+			param.tpc_param = 0;
 
 			msb->data_dir = rq_data_dir(req);
 			msb->transfer_cmd = msb->data_dir == READ
@@ -753,15 +816,16 @@ static int mspro_block_wait_for_ced(struct memstick_dev *card)
 	return card->current_mrq.error;
 }
 
-static int mspro_block_switch_to_parallel(struct memstick_dev *card)
+static int mspro_block_set_interface(struct memstick_dev *card,
+				     unsigned char sys_reg)
 {
 	struct memstick_host *host = card->host;
 	struct mspro_block_data *msb = memstick_get_drvdata(card);
 	struct mspro_param_register param = {
-		.system = 0,
+		.system = sys_reg,
 		.data_count = 0,
 		.data_address = 0,
-		.cmd_param = 0
+		.tpc_param = 0
 	};
 
 	card->next_request = h_mspro_block_req_init;
@@ -770,25 +834,70 @@ static int mspro_block_switch_to_parallel(struct memstick_dev *card)
 			  sizeof(param));
 	memstick_new_req(host);
 	wait_for_completion(&card->mrq_complete);
-	if (card->current_mrq.error)
-		return card->current_mrq.error;
+	return card->current_mrq.error;
+}
 
-	msb->system = 0;
-	host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_PARALLEL);
+static int mspro_block_switch_interface(struct memstick_dev *card)
+{
+	struct memstick_host *host = card->host;
+	struct mspro_block_data *msb = memstick_get_drvdata(card);
+	int rc = 0;
+
+	if (msb->caps & MEMSTICK_CAP_PAR4)
+		rc = mspro_block_set_interface(card, MEMSTICK_SYS_PAR4);
+	else
+		return 0;
+
+	if (rc) {
+		printk(KERN_WARNING
+		       "%s: could not switch to 4-bit mode, error %d\n",
+		       card->dev.bus_id, rc);
+		return 0;
+	}
+
+	msb->system = MEMSTICK_SYS_PAR4;
+	host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_PAR4);
+	printk(KERN_INFO "%s: switching to 4-bit parallel mode\n",
+	       card->dev.bus_id);
+
+	if (msb->caps & MEMSTICK_CAP_PAR8) {
+		rc = mspro_block_set_interface(card, MEMSTICK_SYS_PAR8);
+
+		if (!rc) {
+			msb->system = MEMSTICK_SYS_PAR8;
+			host->set_param(host, MEMSTICK_INTERFACE,
+					MEMSTICK_PAR8);
+			printk(KERN_INFO
+			       "%s: switching to 8-bit parallel mode\n",
+			       card->dev.bus_id);
+		} else
+			printk(KERN_WARNING
+			       "%s: could not switch to 8-bit mode, error %d\n",
+			       card->dev.bus_id, rc);
+	}
 
 	card->next_request = h_mspro_block_req_init;
 	msb->mrq_handler = h_mspro_block_default;
 	memstick_init_req(&card->current_mrq, MS_TPC_GET_INT, NULL, 1);
 	memstick_new_req(card->host);
 	wait_for_completion(&card->mrq_complete);
+	rc = card->current_mrq.error;
 
-	if (card->current_mrq.error) {
-		msb->system = 0x80;
+	if (rc) {
+		printk(KERN_WARNING
+		       "%s: interface error, trying to fall back to serial\n",
+		       card->dev.bus_id);
+		msb->system = MEMSTICK_SYS_SERIAL;
+		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
+		msleep(10);
+		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_ON);
 		host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_SERIAL);
-		return -EFAULT;
-	}
 
-	return 0;
+		rc = memstick_set_rw_addr(card);
+		if (!rc)
+			rc = mspro_block_set_interface(card, msb->system);
+	}
+	return rc;
 }
 
 /* Memory allocated for attributes by this function should be freed by
@@ -802,7 +911,7 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 		.system = msb->system,
 		.data_count = cpu_to_be16(1),
 		.data_address = 0,
-		.cmd_param = 0
+		.tpc_param = 0
 	};
 	struct mspro_attribute *attr = NULL;
 	struct mspro_sys_attr *s_attr = NULL;
@@ -922,7 +1031,7 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 		param.system = msb->system;
 		param.data_count = cpu_to_be16((rc / msb->page_size) + 1);
 		param.data_address = cpu_to_be32(addr / msb->page_size);
-		param.cmd_param = 0;
+		param.tpc_param = 0;
 
 		sg_init_one(&msb->req_sg[0], buffer,
 			    be16_to_cpu(param.data_count) * msb->page_size);
@@ -964,7 +1073,7 @@ static int mspro_block_init_card(struct memstick_dev *card)
 	struct memstick_host *host = card->host;
 	int rc = 0;
 
-	msb->system = 0x80;
+	msb->system = MEMSTICK_SYS_SERIAL;
 	card->reg_addr.r_offset = offsetof(struct mspro_register, status);
 	card->reg_addr.r_length = sizeof(struct ms_status_register);
 	card->reg_addr.w_offset = offsetof(struct mspro_register, param);
@@ -973,16 +1082,18 @@ static int mspro_block_init_card(struct memstick_dev *card)
 	if (memstick_set_rw_addr(card))
 		return -EIO;
 
-	if (host->caps & MEMSTICK_CAP_PARALLEL) {
-		if (mspro_block_switch_to_parallel(card))
-			printk(KERN_WARNING "%s: could not switch to "
-			       "parallel interface\n", card->dev.bus_id);
-	}
+	msb->caps = host->caps;
+	rc = mspro_block_switch_interface(card);
+	if (rc)
+		return rc;
 
+	msleep(200);
 	rc = mspro_block_wait_for_ced(card);
 	if (rc)
 		return rc;
 	dev_dbg(&card->dev, "card activated\n");
+	if (msb->system != MEMSTICK_SYS_SERIAL)
+		msb->caps |= MEMSTICK_CAP_AUTO_GET_INT;
 
 	card->next_request = h_mspro_block_req_init;
 	msb->mrq_handler = h_mspro_block_get_ro;
@@ -1016,8 +1127,8 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	u64 limit = BLK_BOUNCE_HIGH;
 	unsigned long capacity;
 
-	if (host->cdev.dev->dma_mask && *(host->cdev.dev->dma_mask))
-		limit = *(host->cdev.dev->dma_mask);
+	if (host->dev.dma_mask && *(host->dev.dma_mask))
+		limit = *(host->dev.dma_mask);
 
 	for (rc = 0; msb->attr_group.attrs[rc]; ++rc) {
 		s_attr = mspro_from_sysfs_attr(msb->attr_group.attrs[rc]);
@@ -1348,4 +1459,3 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex Dubov");
 MODULE_DESCRIPTION("Sony MemoryStickPro block device driver");
 MODULE_DEVICE_TABLE(memstick, mspro_block_id_tbl);
-MODULE_VERSION(DRIVER_VERSION);

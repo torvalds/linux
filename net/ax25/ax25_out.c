@@ -117,6 +117,12 @@ void ax25_output(ax25_cb *ax25, int paclen, struct sk_buff *skb)
 	unsigned char *p;
 	int frontlen, len, fragno, ka9qfrag, first = 1;
 
+	if (paclen < 16) {
+		WARN_ON_ONCE(1);
+		kfree_skb(skb);
+		return;
+	}
+
 	if ((skb->len - 1) > paclen) {
 		if (*skb->data == AX25_P_TEXT) {
 			skb_pull(skb, 1); /* skip PID */
@@ -251,8 +257,6 @@ void ax25_kick(ax25_cb *ax25)
 	if (start == end)
 		return;
 
-	ax25->vs = start;
-
 	/*
 	 * Transmit data until either we're out of data to send or
 	 * the window is full. Send a poll on the final I frame if
@@ -261,8 +265,13 @@ void ax25_kick(ax25_cb *ax25)
 
 	/*
 	 * Dequeue the frame and copy it.
+	 * Check for race with ax25_clear_queues().
 	 */
 	skb  = skb_dequeue(&ax25->write_queue);
+	if (!skb)
+		return;
+
+	ax25->vs = start;
 
 	do {
 		if ((skbn = skb_clone(skb, GFP_ATOMIC)) == NULL) {

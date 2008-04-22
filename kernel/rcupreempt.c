@@ -23,6 +23,10 @@
  *		to Suparna Bhattacharya for pushing me completely away
  *		from atomic instructions on the read side.
  *
+ *  - Added handling of Dynamic Ticks
+ *      Copyright 2007 - Paul E. Mckenney <paulmck@us.ibm.com>
+ *                     - Steven Rostedt <srostedt@redhat.com>
+ *
  * Papers:  http://www.rdrop.com/users/paulmck/RCU
  *
  * Design Document: http://lwn.net/Articles/253651/
@@ -409,6 +413,212 @@ static void __rcu_advance_callbacks(struct rcu_data *rdp)
 	}
 }
 
+#ifdef CONFIG_NO_HZ
+
+DEFINE_PER_CPU(long, dynticks_progress_counter) = 1;
+static DEFINE_PER_CPU(long, rcu_dyntick_snapshot);
+static DEFINE_PER_CPU(int, rcu_update_flag);
+
+/**
+ * rcu_irq_enter - Called from Hard irq handlers and NMI/SMI.
+ *
+ * If the CPU was idle with dynamic ticks active, this updates the
+ * dynticks_progress_counter to let the RCU handling know that the
+ * CPU is active.
+ */
+void rcu_irq_enter(void)
+{
+	int cpu = smp_processor_id();
+
+	if (per_cpu(rcu_update_flag, cpu))
+		per_cpu(rcu_update_flag, cpu)++;
+
+	/*
+	 * Only update if we are coming from a stopped ticks mode
+	 * (dynticks_progress_counter is even).
+	 */
+	if (!in_interrupt() &&
+	    (per_cpu(dynticks_progress_counter, cpu) & 0x1) == 0) {
+		/*
+		 * The following might seem like we could have a race
+		 * with NMI/SMIs. But this really isn't a problem.
+		 * Here we do a read/modify/write, and the race happens
+		 * when an NMI/SMI comes in after the read and before
+		 * the write. But NMI/SMIs will increment this counter
+		 * twice before returning, so the zero bit will not
+		 * be corrupted by the NMI/SMI which is the most important
+		 * part.
+		 *
+		 * The only thing is that we would bring back the counter
+		 * to a postion that it was in during the NMI/SMI.
+		 * But the zero bit would be set, so the rest of the
+		 * counter would again be ignored.
+		 *
+		 * On return from the IRQ, the counter may have the zero
+		 * bit be 0 and the counter the same as the return from
+		 * the NMI/SMI. If the state machine was so unlucky to
+		 * see that, it still doesn't matter, since all
+		 * RCU read-side critical sections on this CPU would
+		 * have already completed.
+		 */
+		per_cpu(dynticks_progress_counter, cpu)++;
+		/*
+		 * The following memory barrier ensures that any
+		 * rcu_read_lock() primitives in the irq handler
+		 * are seen by other CPUs to follow the above
+		 * increment to dynticks_progress_counter. This is
+		 * required in order for other CPUs to correctly
+		 * determine when it is safe to advance the RCU
+		 * grace-period state machine.
+		 */
+		smp_mb(); /* see above block comment. */
+		/*
+		 * Since we can't determine the dynamic tick mode from
+		 * the dynticks_progress_counter after this routine,
+		 * we use a second flag to acknowledge that we came
+		 * from an idle state with ticks stopped.
+		 */
+		per_cpu(rcu_update_flag, cpu)++;
+		/*
+		 * If we take an NMI/SMI now, they will also increment
+		 * the rcu_update_flag, and will not update the
+		 * dynticks_progress_counter on exit. That is for
+		 * this IRQ to do.
+		 */
+	}
+}
+
+/**
+ * rcu_irq_exit - Called from exiting Hard irq context.
+ *
+ * If the CPU was idle with dynamic ticks active, update the
+ * dynticks_progress_counter to put let the RCU handling be
+ * aware that the CPU is going back to idle with no ticks.
+ */
+void rcu_irq_exit(void)
+{
+	int cpu = smp_processor_id();
+
+	/*
+	 * rcu_update_flag is set if we interrupted the CPU
+	 * when it was idle with ticks stopped.
+	 * Once this occurs, we keep track of interrupt nesting
+	 * because a NMI/SMI could also come in, and we still
+	 * only want the IRQ that started the increment of the
+	 * dynticks_progress_counter to be the one that modifies
+	 * it on exit.
+	 */
+	if (per_cpu(rcu_update_flag, cpu)) {
+		if (--per_cpu(rcu_update_flag, cpu))
+			return;
+
+		/* This must match the interrupt nesting */
+		WARN_ON(in_interrupt());
+
+		/*
+		 * If an NMI/SMI happens now we are still
+		 * protected by the dynticks_progress_counter being odd.
+		 */
+
+		/*
+		 * The following memory barrier ensures that any
+		 * rcu_read_unlock() primitives in the irq handler
+		 * are seen by other CPUs to preceed the following
+		 * increment to dynticks_progress_counter. This
+		 * is required in order for other CPUs to determine
+		 * when it is safe to advance the RCU grace-period
+		 * state machine.
+		 */
+		smp_mb(); /* see above block comment. */
+		per_cpu(dynticks_progress_counter, cpu)++;
+		WARN_ON(per_cpu(dynticks_progress_counter, cpu) & 0x1);
+	}
+}
+
+static void dyntick_save_progress_counter(int cpu)
+{
+	per_cpu(rcu_dyntick_snapshot, cpu) =
+		per_cpu(dynticks_progress_counter, cpu);
+}
+
+static inline int
+rcu_try_flip_waitack_needed(int cpu)
+{
+	long curr;
+	long snap;
+
+	curr = per_cpu(dynticks_progress_counter, cpu);
+	snap = per_cpu(rcu_dyntick_snapshot, cpu);
+	smp_mb(); /* force ordering with cpu entering/leaving dynticks. */
+
+	/*
+	 * If the CPU remained in dynticks mode for the entire time
+	 * and didn't take any interrupts, NMIs, SMIs, or whatever,
+	 * then it cannot be in the middle of an rcu_read_lock(), so
+	 * the next rcu_read_lock() it executes must use the new value
+	 * of the counter.  So we can safely pretend that this CPU
+	 * already acknowledged the counter.
+	 */
+
+	if ((curr == snap) && ((curr & 0x1) == 0))
+		return 0;
+
+	/*
+	 * If the CPU passed through or entered a dynticks idle phase with
+	 * no active irq handlers, then, as above, we can safely pretend
+	 * that this CPU already acknowledged the counter.
+	 */
+
+	if ((curr - snap) > 2 || (snap & 0x1) == 0)
+		return 0;
+
+	/* We need this CPU to explicitly acknowledge the counter flip. */
+
+	return 1;
+}
+
+static inline int
+rcu_try_flip_waitmb_needed(int cpu)
+{
+	long curr;
+	long snap;
+
+	curr = per_cpu(dynticks_progress_counter, cpu);
+	snap = per_cpu(rcu_dyntick_snapshot, cpu);
+	smp_mb(); /* force ordering with cpu entering/leaving dynticks. */
+
+	/*
+	 * If the CPU remained in dynticks mode for the entire time
+	 * and didn't take any interrupts, NMIs, SMIs, or whatever,
+	 * then it cannot have executed an RCU read-side critical section
+	 * during that time, so there is no need for it to execute a
+	 * memory barrier.
+	 */
+
+	if ((curr == snap) && ((curr & 0x1) == 0))
+		return 0;
+
+	/*
+	 * If the CPU either entered or exited an outermost interrupt,
+	 * SMI, NMI, or whatever handler, then we know that it executed
+	 * a memory barrier when doing so.  So we don't need another one.
+	 */
+	if (curr != snap)
+		return 0;
+
+	/* We need the CPU to execute a memory barrier. */
+
+	return 1;
+}
+
+#else /* !CONFIG_NO_HZ */
+
+# define dyntick_save_progress_counter(cpu)	do { } while (0)
+# define rcu_try_flip_waitack_needed(cpu)	(1)
+# define rcu_try_flip_waitmb_needed(cpu)	(1)
+
+#endif /* CONFIG_NO_HZ */
+
 /*
  * Get here when RCU is idle.  Decide whether we need to
  * move out of idle state, and return non-zero if so.
@@ -447,8 +657,10 @@ rcu_try_flip_idle(void)
 
 	/* Now ask each CPU for acknowledgement of the flip. */
 
-	for_each_cpu_mask(cpu, rcu_cpu_online_map)
+	for_each_cpu_mask(cpu, rcu_cpu_online_map) {
 		per_cpu(rcu_flip_flag, cpu) = rcu_flipped;
+		dyntick_save_progress_counter(cpu);
+	}
 
 	return 1;
 }
@@ -464,7 +676,8 @@ rcu_try_flip_waitack(void)
 
 	RCU_TRACE_ME(rcupreempt_trace_try_flip_a1);
 	for_each_cpu_mask(cpu, rcu_cpu_online_map)
-		if (per_cpu(rcu_flip_flag, cpu) != rcu_flip_seen) {
+		if (rcu_try_flip_waitack_needed(cpu) &&
+		    per_cpu(rcu_flip_flag, cpu) != rcu_flip_seen) {
 			RCU_TRACE_ME(rcupreempt_trace_try_flip_ae1);
 			return 0;
 		}
@@ -509,8 +722,10 @@ rcu_try_flip_waitzero(void)
 	smp_mb();  /*  ^^^^^^^^^^^^ */
 
 	/* Call for a memory barrier from each CPU. */
-	for_each_cpu_mask(cpu, rcu_cpu_online_map)
+	for_each_cpu_mask(cpu, rcu_cpu_online_map) {
 		per_cpu(rcu_mb_flag, cpu) = rcu_mb_needed;
+		dyntick_save_progress_counter(cpu);
+	}
 
 	RCU_TRACE_ME(rcupreempt_trace_try_flip_z2);
 	return 1;
@@ -528,7 +743,8 @@ rcu_try_flip_waitmb(void)
 
 	RCU_TRACE_ME(rcupreempt_trace_try_flip_m1);
 	for_each_cpu_mask(cpu, rcu_cpu_online_map)
-		if (per_cpu(rcu_mb_flag, cpu) != rcu_mb_done) {
+		if (rcu_try_flip_waitmb_needed(cpu) &&
+		    per_cpu(rcu_mb_flag, cpu) != rcu_mb_done) {
 			RCU_TRACE_ME(rcupreempt_trace_try_flip_me1);
 			return 0;
 		}
@@ -702,8 +918,9 @@ void rcu_offline_cpu(int cpu)
 	 * fix.
 	 */
 
+	local_irq_save(flags);
 	rdp = RCU_DATA_ME();
-	spin_lock_irqsave(&rdp->lock, flags);
+	spin_lock(&rdp->lock);
 	*rdp->nexttail = list;
 	if (list)
 		rdp->nexttail = tail;
@@ -735,9 +952,11 @@ static void rcu_process_callbacks(struct softirq_action *unused)
 {
 	unsigned long flags;
 	struct rcu_head *next, *list;
-	struct rcu_data *rdp = RCU_DATA_ME();
+	struct rcu_data *rdp;
 
-	spin_lock_irqsave(&rdp->lock, flags);
+	local_irq_save(flags);
+	rdp = RCU_DATA_ME();
+	spin_lock(&rdp->lock);
 	list = rdp->donelist;
 	if (list == NULL) {
 		spin_unlock_irqrestore(&rdp->lock, flags);
@@ -788,10 +1007,10 @@ void __synchronize_sched(void)
 	if (sched_getaffinity(0, &oldmask) < 0)
 		oldmask = cpu_possible_map;
 	for_each_online_cpu(cpu) {
-		sched_setaffinity(0, cpumask_of_cpu(cpu));
+		sched_setaffinity(0, &cpumask_of_cpu(cpu));
 		schedule();
 	}
-	sched_setaffinity(0, oldmask);
+	sched_setaffinity(0, &oldmask);
 }
 EXPORT_SYMBOL_GPL(__synchronize_sched);
 

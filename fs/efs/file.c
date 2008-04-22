@@ -7,7 +7,7 @@
  */
 
 #include <linux/buffer_head.h>
-#include <linux/efs_fs.h>
+#include "efs.h"
 
 int efs_get_block(struct inode *inode, sector_t iblock,
 		  struct buffer_head *bh_result, int create)

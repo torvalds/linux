@@ -8,7 +8,7 @@
   7 -> Leadtek Winfast USB II                   (em2800)
   8 -> Kworld USB2800                           (em2800)
   9 -> Pinnacle Dazzle DVC 90/DVC 100           (em2820/em2840) [2304:0207,2304:021a]
- 10 -> Hauppauge WinTV HVR 900                  (em2880)        [2040:6500]
+ 10 -> Hauppauge WinTV HVR 900                  (em2880)        [2040:6500,2040:6502]
  11 -> Terratec Hybrid XS                       (em2880)        [0ccd:0042]
  12 -> Kworld PVR TV 2800 RF                    (em2820/em2840)
  13 -> Terratec Prodigy XS                      (em2880)        [0ccd:0047]

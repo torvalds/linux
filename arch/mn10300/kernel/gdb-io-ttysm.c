@@ -196,6 +196,7 @@ int gdbstub_io_rx_char(unsigned char *_ch, int nonblock)
 try_again:
 	/* pull chars out of the buffer */
 	ix = gdbstub_rx_outp;
+	barrier();
 	if (ix == gdbstub_rx_inp) {
 		if (nonblock)
 			return -EAGAIN;
@@ -207,6 +208,7 @@ try_again:
 
 	ch = gdbstub_rx_buffer[ix++];
 	st = gdbstub_rx_buffer[ix++];
+	barrier();
 	gdbstub_rx_outp = ix & (PAGE_SIZE - 1);
 
 	st &= SC01STR_RXF | SC01STR_RBF | SC01STR_FEF | SC01STR_PEF |

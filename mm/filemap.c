@@ -28,7 +28,6 @@
 #include <linux/backing-dev.h>
 #include <linux/pagevec.h>
 #include <linux/blkdev.h>
-#include <linux/backing-dev.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/cpuset.h>
@@ -344,7 +343,7 @@ int sync_page_range(struct inode *inode, struct address_space *mapping,
 EXPORT_SYMBOL(sync_page_range);
 
 /**
- * sync_page_range_nolock
+ * sync_page_range_nolock - write & wait on all pages in the passed range without locking
  * @inode:	target inode
  * @mapping:	target address_space
  * @pos:	beginning offset in pages to write
@@ -612,7 +611,10 @@ int __lock_page_killable(struct page *page)
 					sync_page_killable, TASK_KILLABLE);
 }
 
-/*
+/**
+ * __lock_page_nosync - get a lock on the page, without calling sync_page()
+ * @page: the page to lock
+ *
  * Variant of lock_page that does not require the caller to hold a reference
  * on the page's mapping.
  */
@@ -1539,9 +1541,20 @@ repeat:
 	return page;
 }
 
-/*
+/**
+ * read_cache_page_async - read into page cache, fill it if needed
+ * @mapping:	the page's address_space
+ * @index:	the page index
+ * @filler:	function to perform the read
+ * @data:	destination for read data
+ *
  * Same as read_cache_page, but don't wait for page to become unlocked
  * after submitting it to the filler.
+ *
+ * Read into the page cache. If a page already exists, and PageUptodate() is
+ * not set, try to fill the page but don't wait for it to become unlocked.
+ *
+ * If the page does not get brought uptodate, return -EIO.
  */
 struct page *read_cache_page_async(struct address_space *mapping,
 				pgoff_t index,
@@ -1743,21 +1756,27 @@ size_t iov_iter_copy_from_user(struct page *page,
 }
 EXPORT_SYMBOL(iov_iter_copy_from_user);
 
-static void __iov_iter_advance_iov(struct iov_iter *i, size_t bytes)
+void iov_iter_advance(struct iov_iter *i, size_t bytes)
 {
+	BUG_ON(i->count < bytes);
+
 	if (likely(i->nr_segs == 1)) {
 		i->iov_offset += bytes;
+		i->count -= bytes;
 	} else {
 		const struct iovec *iov = i->iov;
 		size_t base = i->iov_offset;
 
 		/*
 		 * The !iov->iov_len check ensures we skip over unlikely
-		 * zero-length segments.
+		 * zero-length segments (without overruning the iovec).
 		 */
-		while (bytes || !iov->iov_len) {
-			int copy = min(bytes, iov->iov_len - base);
+		while (bytes || unlikely(!iov->iov_len && i->count)) {
+			int copy;
 
+			copy = min(bytes, iov->iov_len - base);
+			BUG_ON(!i->count || i->count < copy);
+			i->count -= copy;
 			bytes -= copy;
 			base += copy;
 			if (iov->iov_len == base) {
@@ -1768,14 +1787,6 @@ static void __iov_iter_advance_iov(struct iov_iter *i, size_t bytes)
 		i->iov = iov;
 		i->iov_offset = base;
 	}
-}
-
-void iov_iter_advance(struct iov_iter *i, size_t bytes)
-{
-	BUG_ON(i->count < bytes);
-
-	__iov_iter_advance_iov(i, bytes);
-	i->count -= bytes;
 }
 EXPORT_SYMBOL(iov_iter_advance);
 

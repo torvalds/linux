@@ -575,7 +575,6 @@ adjust_head:
 static int bf537mac_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *dev)
 {
-	struct bf537mac_local *lp = netdev_priv(dev);
 	unsigned int data;
 
 	current_tx_ptr->skb = skb;
@@ -634,7 +633,6 @@ out:
 static void bf537mac_rx(struct net_device *dev)
 {
 	struct sk_buff *skb, *new_skb;
-	struct bf537mac_local *lp = netdev_priv(dev);
 	unsigned short len;
 
 	/* allocate a new skb for next time receive */
@@ -971,7 +969,7 @@ static int __init bf537mac_probe(struct net_device *dev)
 	lp->mii_bus.write = mdiobus_write;
 	lp->mii_bus.reset = mdiobus_reset;
 	lp->mii_bus.name = "bfin_mac_mdio";
-	lp->mii_bus.id = 0;
+	snprintf(lp->mii_bus.id, MII_BUS_ID_SIZE, "0");
 	lp->mii_bus.irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	for (i = 0; i < PHY_MAX_ADDR; ++i)
 		lp->mii_bus.irq[i] = PHY_POLL;

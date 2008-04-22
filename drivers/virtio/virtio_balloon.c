@@ -152,7 +152,7 @@ static void virtballoon_changed(struct virtio_device *vdev)
 	wake_up(&vb->config_change);
 }
 
-static inline int towards_target(struct virtio_balloon *vb)
+static inline s64 towards_target(struct virtio_balloon *vb)
 {
 	u32 v;
 	__virtio_config_val(vb->vdev,
@@ -176,7 +176,7 @@ static int balloon(void *_vballoon)
 
 	set_freezable();
 	while (!kthread_should_stop()) {
-		int diff;
+		s64 diff;
 
 		try_to_freeze();
 		wait_event_interruptible(vb->config_change,

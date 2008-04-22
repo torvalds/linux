@@ -25,6 +25,7 @@
 #define __ASM_PB1200_H
 
 #include <linux/types.h>
+#include <asm/mach-au1x00/au1xxx_psc.h>
 
 // This is defined in au1000.h with bogus value
 #undef AU1X00_EXTERNAL_INT
@@ -185,8 +186,8 @@ static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 #define AU1XXX_SMC91111_IRQ			PB1200_ETH_INT
 
 #define AU1XXX_ATA_PHYS_ADDR		(0x0C800000)
-#define AU1XXX_ATA_PHYS_LEN			(0x100)
-#define AU1XXX_ATA_REG_OFFSET	(5)
+#define AU1XXX_ATA_REG_OFFSET		(5)
+#define AU1XXX_ATA_PHYS_LEN		(16 << AU1XXX_ATA_REG_OFFSET)
 #define AU1XXX_ATA_INT			PB1200_IDE_INT
 #define AU1XXX_ATA_DDMA_REQ		DSCR_CMD0_DMA_REQ1;
 #define AU1XXX_ATA_RQSIZE		128
@@ -244,7 +245,7 @@ enum external_pb1200_ints {
 	PB1200_SD1_INSERT_INT,
 	PB1200_SD1_EJECT_INT,
 
-	PB1200_INT_END			(PB1200_INT_BEGIN + 15)
+	PB1200_INT_END		= PB1200_INT_BEGIN + 15
 };
 
 /* For drivers/pcmcia/au1000_db1x00.c */

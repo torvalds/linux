@@ -17,7 +17,7 @@
 #ifndef _LINUX_HDSMART_H
 #define _LINUX_HDSMART_H
 
-#ifndef __KERNEL
+#ifndef __KERNEL__
 #define OFFLINE_FULL_SCAN		0
 #define SHORT_SELF_TEST			1
 #define EXTEND_SELF_TEST		2
@@ -121,6 +121,6 @@ typedef struct ata_smart_selftestlog_s {
 	unsigned char			resevered[2];
 	unsigned char			chksum;
 } __attribute__ ((packed)) ata_smart_selftestlog_t;
-#endif /* __KERNEL__ *
+#endif /* __KERNEL__ */
 
 #endif	/* _LINUX_HDSMART_H */

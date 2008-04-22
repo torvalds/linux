@@ -26,6 +26,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/input.h>
+#include <linux/spi/spi.h>
 #include <linux/i2c/tps65010.h>
 
 #include <asm/setup.h>
@@ -50,6 +51,8 @@
 #include <asm/arch/common.h>
 #include <asm/arch/mcbsp.h>
 #include <asm/arch/omap-alsa.h>
+
+#define H3_TS_GPIO	48
 
 static int h3_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
@@ -373,6 +376,17 @@ static struct platform_device h3_lcd_device = {
 	.id		= -1,
 };
 
+static struct spi_board_info h3_spi_board_info[] __initdata = {
+	[0] = {
+		.modalias	= "tsc2101",
+		.bus_num	= 2,
+		.chip_select	= 0,
+		.irq		= OMAP_GPIO_IRQ(H3_TS_GPIO),
+		.max_speed_hz	= 16000000,
+		/* .platform_data	= &tsc_platform_data, */
+	},
+};
+
 static struct omap_mcbsp_reg_cfg mcbsp_regs = {
 	.spcr2 = FREE | FRST | GRST | XRST | XINTM(3),
 	.spcr1 = RINTM(3) | RRST,
@@ -455,6 +469,14 @@ static struct omap_board_config_kernel h3_config[] __initdata = {
 	{ OMAP_TAG_MMC,		&h3_mmc_config },
 	{ OMAP_TAG_UART,	&h3_uart_config },
 	{ OMAP_TAG_LCD,		&h3_lcd_config },
+};
+
+static struct i2c_board_info __initdata h3_i2c_board_info[] = {
+       {
+               I2C_BOARD_INFO("tps65010", 0x48),
+               .type           = "tps65013",
+               /* .irq         = OMAP_GPIO_IRQ(??), */
+       },
 };
 
 static struct omap_gpio_switch h3_gpio_switches[] __initdata = {

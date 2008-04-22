@@ -693,6 +693,7 @@ static struct platform_driver pxamci_driver = {
 	.resume		= pxamci_resume,
 	.driver		= {
 		.name	= DRIVER_NAME,
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -711,3 +712,4 @@ module_exit(pxamci_exit);
 
 MODULE_DESCRIPTION("PXA Multimedia Card Interface Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pxa2xx-mci");

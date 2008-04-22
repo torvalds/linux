@@ -120,6 +120,9 @@ EXPORT_SYMBOL_GPL(driver_remove_file);
 
 /**
  * driver_add_kobj - add a kobject below the specified driver
+ * @drv: requesting device driver
+ * @kobj: kobject to add below this driver
+ * @fmt: format string that names the kobject
  *
  * You really don't want to do this, this is only here due to one looney
  * iseries driver, go poke those developers if you are annoyed about
@@ -130,6 +133,7 @@ int driver_add_kobj(struct device_driver *drv, struct kobject *kobj,
 {
 	va_list args;
 	char *name;
+	int ret;
 
 	va_start(args, fmt);
 	name = kvasprintf(GFP_KERNEL, fmt, args);
@@ -138,7 +142,9 @@ int driver_add_kobj(struct device_driver *drv, struct kobject *kobj,
 	if (!name)
 		return -ENOMEM;
 
-	return kobject_add(kobj, &drv->p->kobj, "%s", name);
+	ret = kobject_add(kobj, &drv->p->kobj, "%s", name);
+	kfree(name);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(driver_add_kobj);
 

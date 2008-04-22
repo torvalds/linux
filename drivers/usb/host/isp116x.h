@@ -270,7 +270,6 @@ struct isp116x {
 	u32 rhdesca;
 	u32 rhdescb;
 	u32 rhstatus;
-	u32 rhport[2];
 
 	/* async schedule: control, bulk */
 	struct list_head async;

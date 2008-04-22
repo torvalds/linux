@@ -14,10 +14,10 @@
 #include <asm/ptrace.h>
 #include <asm/abs_addr.h>
 #include <asm/lppaca.h>
-#include <asm/iseries/it_lp_reg_save.h>
 #include <asm/paca.h>
 #include <asm/iseries/lpar_map.h>
 #include <asm/iseries/it_lp_queue.h>
+#include <asm/iseries/alpaca.h>
 
 #include "naca.h"
 #include "vpd_areas.h"
@@ -31,7 +31,7 @@
 /* The HvReleaseData is the root of the information shared between
  * the hypervisor and Linux.
  */
-struct HvReleaseData hvReleaseData = {
+const struct HvReleaseData hvReleaseData = {
 	.xDesc = 0xc8a5d9c4,	/* "HvRD" ebcdic */
 	.xSize = sizeof(struct HvReleaseData),
 	.xVpdAreasPtrOffset = offsetof(struct naca_struct, xItVpdAreas),
@@ -59,6 +59,63 @@ struct naca_struct naca = {
 	.xItVpdAreas = &itVpdAreas,
 	.xRamDisk = 0,
 	.xRamDiskSize = 0,
+};
+
+struct ItLpRegSave {
+	u32	xDesc;		// Eye catcher  "LpRS" ebcdic	000-003
+	u16	xSize;		// Size of this class		004-005
+	u8	xInUse;         // Area is live                 006-007
+	u8	xRsvd1[9];	// Reserved			007-00F
+
+	u8      xFixedRegSave[352]; // Fixed Register Save Area 010-16F
+	u32	xCTRL;		// Control Register		170-173
+	u32	xDEC;		// Decrementer			174-177
+	u32	xFPSCR;		// FP Status and Control Reg	178-17B
+	u32	xPVR;		// Processor Version Number	17C-17F
+
+	u64	xMMCR0;		// Monitor Mode Control Reg 0	180-187
+	u32	xPMC1;		// Perf Monitor Counter 1	188-18B
+	u32	xPMC2;		// Perf Monitor Counter 2	18C-18F
+	u32	xPMC3;		// Perf Monitor Counter 3	190-193
+	u32	xPMC4;		// Perf Monitor Counter 4	194-197
+	u32	xPIR;		// Processor ID Reg		198-19B
+
+	u32	xMMCR1;		// Monitor Mode Control Reg 1	19C-19F
+	u32	xMMCRA;		// Monitor Mode Control Reg A	1A0-1A3
+	u32	xPMC5;		// Perf Monitor Counter 5	1A4-1A7
+	u32	xPMC6;		// Perf Monitor Counter 6	1A8-1AB
+	u32	xPMC7;		// Perf Monitor Counter 7	1AC-1AF
+	u32	xPMC8;		// Perf Monitor Counter 8	1B0-1B3
+	u32	xTSC;		// Thread Switch Control	1B4-1B7
+	u32	xTST;		// Thread Switch Timeout	1B8-1BB
+	u32	xRsvd;          // Reserved                     1BC-1BF
+
+	u64	xACCR;		// Address Compare Control Reg	1C0-1C7
+	u64	xIMR;		// Instruction Match Register	1C8-1CF
+	u64	xSDR1;		// Storage Description Reg 1	1D0-1D7
+	u64	xSPRG0;		// Special Purpose Reg General0	1D8-1DF
+	u64	xSPRG1;		// Special Purpose Reg General1	1E0-1E7
+	u64	xSPRG2;		// Special Purpose Reg General2	1E8-1EF
+	u64	xSPRG3;		// Special Purpose Reg General3	1F0-1F7
+	u64	xTB;		// Time Base Register		1F8-1FF
+
+	u64	xFPR[32];	// Floating Point Registers	200-2FF
+
+	u64	xMSR;		// Machine State Register	300-307
+	u64	xNIA;		// Next Instruction Address	308-30F
+
+	u64	xDABR;		// Data Address Breakpoint Reg	310-317
+	u64	xIABR;		// Inst Address Breakpoint Reg	318-31F
+
+	u64	xHID0;		// HW Implementation Dependent0	320-327
+
+	u64	xHID4;		// HW Implementation Dependent4	328-32F
+	u64	xSCOMd;		// SCON Data Reg (SPRG4)	330-337
+	u64	xSCOMc;		// SCON Command Reg (SPRG5)	338-33F
+	u64	xSDAR;		// Sample Data Address Register	340-347
+	u64	xSIAR;		// Sample Inst Address Register	348-34F
+
+	u8	xRsvd3[176];	// Reserved			350-3FF
 };
 
 extern void system_reset_iSeries(void);
@@ -129,7 +186,7 @@ struct ItLpNaca itLpNaca = {
 };
 
 /* May be filled in by the hypervisor so cannot end up in the BSS */
-struct ItIplParmsReal xItIplParmsReal __attribute__((__section__(".data")));
+static struct ItIplParmsReal xItIplParmsReal __attribute__((__section__(".data")));
 
 /* May be filled in by the hypervisor so cannot end up in the BSS */
 struct ItExtVpdPanel xItExtVpdPanel __attribute__((__section__(".data")));
@@ -152,11 +209,52 @@ u64    xMsVpd[3400] __attribute__((__section__(".data")));
 
 /* Space for Recovery Log Buffer */
 /* May be filled in by the hypervisor so cannot end up in the BSS */
-u64    xRecoveryLogBuffer[32] __attribute__((__section__(".data")));
+static u64    xRecoveryLogBuffer[32] __attribute__((__section__(".data")));
 
-struct SpCommArea xSpCommArea = {
+static const struct SpCommArea xSpCommArea = {
 	.xDesc = 0xE2D7C3C2,
 	.xFormat = 1,
+};
+
+static const struct ItLpRegSave iseries_reg_save[] = {
+	[0 ... (NR_CPUS-1)] = {
+		.xDesc = 0xd397d9e2,	/* "LpRS" */
+		.xSize = sizeof(struct ItLpRegSave),
+	},
+};
+
+#define ALPACA_INIT(number)						\
+{									\
+	.lppaca_ptr = &lppaca[number],					\
+	.reg_save_ptr = &iseries_reg_save[number],			\
+}
+
+const struct alpaca alpaca[] = {
+	ALPACA_INIT( 0),
+#if NR_CPUS > 1
+	ALPACA_INIT( 1), ALPACA_INIT( 2), ALPACA_INIT( 3),
+#if NR_CPUS > 4
+	ALPACA_INIT( 4), ALPACA_INIT( 5), ALPACA_INIT( 6), ALPACA_INIT( 7),
+#if NR_CPUS > 8
+	ALPACA_INIT( 8), ALPACA_INIT( 9), ALPACA_INIT(10), ALPACA_INIT(11),
+	ALPACA_INIT(12), ALPACA_INIT(13), ALPACA_INIT(14), ALPACA_INIT(15),
+	ALPACA_INIT(16), ALPACA_INIT(17), ALPACA_INIT(18), ALPACA_INIT(19),
+	ALPACA_INIT(20), ALPACA_INIT(21), ALPACA_INIT(22), ALPACA_INIT(23),
+	ALPACA_INIT(24), ALPACA_INIT(25), ALPACA_INIT(26), ALPACA_INIT(27),
+	ALPACA_INIT(28), ALPACA_INIT(29), ALPACA_INIT(30), ALPACA_INIT(31),
+#if NR_CPUS > 32
+	ALPACA_INIT(32), ALPACA_INIT(33), ALPACA_INIT(34), ALPACA_INIT(35),
+	ALPACA_INIT(36), ALPACA_INIT(37), ALPACA_INIT(38), ALPACA_INIT(39),
+	ALPACA_INIT(40), ALPACA_INIT(41), ALPACA_INIT(42), ALPACA_INIT(43),
+	ALPACA_INIT(44), ALPACA_INIT(45), ALPACA_INIT(46), ALPACA_INIT(47),
+	ALPACA_INIT(48), ALPACA_INIT(49), ALPACA_INIT(50), ALPACA_INIT(51),
+	ALPACA_INIT(52), ALPACA_INIT(53), ALPACA_INIT(54), ALPACA_INIT(55),
+	ALPACA_INIT(56), ALPACA_INIT(57), ALPACA_INIT(58), ALPACA_INIT(59),
+	ALPACA_INIT(60), ALPACA_INIT(61), ALPACA_INIT(62), ALPACA_INIT(63),
+#endif
+#endif
+#endif
+#endif
 };
 
 /* The LparMap data is now located at offset 0x6000 in head.S
@@ -167,7 +265,7 @@ struct SpCommArea xSpCommArea = {
  * the Naca via the HvReleaseData area.  The HvReleaseData has the
  * offset into the Naca of the pointer to the ItVpdAreas.
  */
-struct ItVpdAreas itVpdAreas = {
+const struct ItVpdAreas itVpdAreas = {
 	.xSlicDesc = 0xc9a3e5c1,		/* "ItVA" */
 	.xSlicSize = sizeof(struct ItVpdAreas),
 	.xSlicVpdEntries = ItVpdMaxEntries,	/* # VPD array entries */
@@ -185,7 +283,7 @@ struct ItVpdAreas itVpdAreas = {
 	.xSlicVpdLens = {			/* VPD lengths */
 	        0,0,0,		        /*  0 - 2 */
 		sizeof(xItExtVpdPanel), /*       3 Extended VPD   */
-		sizeof(struct paca_struct),	/*       4 length of Paca  */
+		sizeof(struct alpaca),	/*       4 length of (fake) Paca  */
 		0,			/*       5 */
 		sizeof(struct ItIplParmsReal),/* 6 length of IPL parms */
 		26992,			/*	 7 length of MS VPD */
@@ -203,7 +301,7 @@ struct ItVpdAreas itVpdAreas = {
 	.xSlicVpdAdrs = {			/* VPD addresses */
 		0,0,0,			/*	 0 -  2 */
 		&xItExtVpdPanel,        /*       3 Extended VPD */
-		&paca[0],		/*       4 first Paca */
+		&alpaca[0],		/*       4 first (fake) Paca */
 		0,			/*       5 */
 		&xItIplParmsReal,	/*	 6 IPL parms */
 		&xMsVpd,		/*	 7 MS Vpd */
@@ -218,11 +316,4 @@ struct ItVpdAreas itVpdAreas = {
 		&hvlpevent_queue,	/*      23 Lp Queue */
 		0,0
 	}
-};
-
-struct ItLpRegSave iseries_reg_save[] = {
-	[0 ... (NR_CPUS-1)] = {
-		.xDesc = 0xd397d9e2,	/* "LpRS" */
-		.xSize = sizeof(struct ItLpRegSave),
-	},
 };

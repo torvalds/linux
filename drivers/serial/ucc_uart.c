@@ -1270,10 +1270,18 @@ static int ucc_uart_probe(struct of_device *ofdev,
 
 	/* Get the UCC number (device ID) */
 	/* UCCs are numbered 1-7 */
-	iprop = of_get_property(np, "device-id", NULL);
-	if (!iprop || (*iprop < 1) || (*iprop > UCC_MAX_NUM)) {
-		dev_err(&ofdev->dev,
-			"missing or invalid UCC specified in device tree\n");
+	iprop = of_get_property(np, "cell-index", NULL);
+	if (!iprop) {
+		iprop = of_get_property(np, "device-id", NULL);
+		if (!iprop) {
+			dev_err(&ofdev->dev, "UCC is unspecified in "
+				"device tree\n");
+			return -EINVAL;
+		}
+	}
+
+	if ((*iprop < 1) || (*iprop > UCC_MAX_NUM)) {
+		dev_err(&ofdev->dev, "no support for UCC%u\n", *iprop);
 		kfree(qe_port);
 		return -ENODEV;
 	}

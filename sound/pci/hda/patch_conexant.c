@@ -488,7 +488,7 @@ static int conexant_ch_mode_put(struct snd_kcontrol *kcontrol,
 static hda_nid_t cxt5045_dac_nids[1] = { 0x19 };
 static hda_nid_t cxt5045_adc_nids[1] = { 0x1a };
 static hda_nid_t cxt5045_capsrc_nids[1] = { 0x1a };
-#define CXT5045_SPDIF_OUT	0x13
+#define CXT5045_SPDIF_OUT	0x18
 
 static struct hda_channel_mode cxt5045_modes[1] = {
 	{ 2, NULL },
@@ -658,6 +658,7 @@ static struct hda_verb cxt5045_init_verbs[] = {
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE,
 	 AC_AMP_SET_INPUT|AC_AMP_SET_RIGHT|AC_AMP_SET_LEFT|0x17},
 	/* SPDIF route: PCM */
+	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{ 0x13, AC_VERB_SET_CONNECT_SEL, 0x0 },
 	/* EAPD */
 	{0x10, AC_VERB_SET_EAPD_BTLENABLE, 0x2 }, /* default on */ 
@@ -683,6 +684,7 @@ static struct hda_verb cxt5045_benq_init_verbs[] = {
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE,
 	 AC_AMP_SET_INPUT|AC_AMP_SET_RIGHT|AC_AMP_SET_LEFT|0x17},
 	/* SPDIF route: PCM */
+	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{0x13, AC_VERB_SET_CONNECT_SEL, 0x0},
 	/* EAPD */
 	{0x10, AC_VERB_SET_EAPD_BTLENABLE, 0x2}, /* default on */
@@ -781,7 +783,8 @@ static struct hda_verb cxt5045_test_init_verbs[] = {
 	 * PCM format, copyright asserted, no pre-emphasis and no validity
 	 * control.
 	 */
-	{0x13, AC_VERB_SET_DIGI_CONVERT_1, 0},
+	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x18, AC_VERB_SET_DIGI_CONVERT_1, 0},
 
 	/* Start with output sum widgets muted and their output gains at min */
 	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
@@ -1227,6 +1230,11 @@ static struct hda_verb cxt5047_toshiba_init_verbs[] = {
 static struct hda_verb cxt5047_hp_init_verbs[] = {
 	/* pin sensing on HP jack */
 	{0x13, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_HP_EVENT},
+	/* 0x13 is actually shared by both HP and speaker;
+	 * setting the connection to 0 (=0x19) makes the master volume control
+	 * working mysteriouslly...
+	 */
+	{0x13, AC_VERB_SET_CONNECT_SEL, 0x0},
 	/* Record selector: Ext Mic */
 	{0x12, AC_VERB_SET_CONNECT_SEL,0x03},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE,

@@ -1170,6 +1170,10 @@ mptscsih_shutdown(struct pci_dev *pdev)
 int
 mptscsih_suspend(struct pci_dev *pdev, pm_message_t state)
 {
+	MPT_ADAPTER 		*ioc = pci_get_drvdata(pdev);
+
+	scsi_block_requests(ioc->sh);
+	flush_scheduled_work();
 	mptscsih_shutdown(pdev);
 	return mpt_suspend(pdev,state);
 }
@@ -1183,7 +1187,12 @@ mptscsih_suspend(struct pci_dev *pdev, pm_message_t state)
 int
 mptscsih_resume(struct pci_dev *pdev)
 {
-	return mpt_resume(pdev);
+	MPT_ADAPTER 		*ioc = pci_get_drvdata(pdev);
+	int rc;
+
+	rc = mpt_resume(pdev);
+	scsi_unblock_requests(ioc->sh);
+	return rc;
 }
 
 #endif
@@ -1533,7 +1542,7 @@ mptscsih_freeChainBuffers(MPT_ADAPTER *ioc, int req_idx)
  *
  *	Remark: Currently invoked from a non-interrupt thread (_bh).
  *
- *	Remark: With old EH code, at most 1 SCSI TaskMgmt function per IOC
+ *	Note: With old EH code, at most 1 SCSI TaskMgmt function per IOC
  *	will be active.
  *
  *	Returns 0 for SUCCESS, or %FAILED.
@@ -2295,14 +2304,14 @@ mptscsih_is_phys_disk(MPT_ADAPTER *ioc, u8 channel, u8 id)
 	if (list_empty(&ioc->raid_data.inactive_list))
 		goto out;
 
-	down(&ioc->raid_data.inactive_list_mutex);
+	mutex_lock(&ioc->raid_data.inactive_list_mutex);
 	list_for_each_entry(component_info, &ioc->raid_data.inactive_list,
 	    list) {
 		if ((component_info->d.PhysDiskID == id) &&
 		    (component_info->d.PhysDiskBus == channel))
 			rc = 1;
 	}
-	up(&ioc->raid_data.inactive_list_mutex);
+	mutex_unlock(&ioc->raid_data.inactive_list_mutex);
 
  out:
 	return rc;
@@ -2332,14 +2341,14 @@ mptscsih_raid_id_to_num(MPT_ADAPTER *ioc, u8 channel, u8 id)
 	if (list_empty(&ioc->raid_data.inactive_list))
 		goto out;
 
-	down(&ioc->raid_data.inactive_list_mutex);
+	mutex_lock(&ioc->raid_data.inactive_list_mutex);
 	list_for_each_entry(component_info, &ioc->raid_data.inactive_list,
 	    list) {
 		if ((component_info->d.PhysDiskID == id) &&
 		    (component_info->d.PhysDiskBus == channel))
 			rc = component_info->d.PhysDiskNum;
 	}
-	up(&ioc->raid_data.inactive_list_mutex);
+	mutex_unlock(&ioc->raid_data.inactive_list_mutex);
 
  out:
 	return rc;
@@ -2537,14 +2546,12 @@ mptscsih_copy_sense_data(struct scsi_cmnd *sc, MPT_SCSI_HOST *hd, MPT_FRAME_HDR 
 
 /**
  * mptscsih_get_scsi_lookup
- *
- * retrieves scmd entry from ScsiLookup[] array list
- *
  * @ioc: Pointer to MPT_ADAPTER structure
  * @i: index into the array
  *
- * Returns the scsi_cmd pointer
+ * retrieves scmd entry from ScsiLookup[] array list
  *
+ * Returns the scsi_cmd pointer
  **/
 static struct scsi_cmnd *
 mptscsih_get_scsi_lookup(MPT_ADAPTER *ioc, int i)
@@ -2561,14 +2568,12 @@ mptscsih_get_scsi_lookup(MPT_ADAPTER *ioc, int i)
 
 /**
  * mptscsih_getclear_scsi_lookup
- *
- * retrieves and clears scmd entry from ScsiLookup[] array list
- *
  * @ioc: Pointer to MPT_ADAPTER structure
  * @i: index into the array
  *
- * Returns the scsi_cmd pointer
+ * retrieves and clears scmd entry from ScsiLookup[] array list
  *
+ * Returns the scsi_cmd pointer
  **/
 static struct scsi_cmnd *
 mptscsih_getclear_scsi_lookup(MPT_ADAPTER *ioc, int i)
@@ -3295,9 +3300,10 @@ mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 }
 
 static ssize_t
-mptscsih_version_fw_show(struct class_device *cdev, char *buf)
+mptscsih_version_fw_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
@@ -3307,12 +3313,13 @@ mptscsih_version_fw_show(struct class_device *cdev, char *buf)
 	    (ioc->facts.FWVersion.Word & 0x0000FF00) >> 8,
 	    ioc->facts.FWVersion.Word & 0x000000FF);
 }
-static CLASS_DEVICE_ATTR(version_fw, S_IRUGO, mptscsih_version_fw_show, NULL);
+static DEVICE_ATTR(version_fw, S_IRUGO, mptscsih_version_fw_show, NULL);
 
 static ssize_t
-mptscsih_version_bios_show(struct class_device *cdev, char *buf)
+mptscsih_version_bios_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
@@ -3322,129 +3329,141 @@ mptscsih_version_bios_show(struct class_device *cdev, char *buf)
 	    (ioc->biosVersion & 0x0000FF00) >> 8,
 	    ioc->biosVersion & 0x000000FF);
 }
-static CLASS_DEVICE_ATTR(version_bios, S_IRUGO, mptscsih_version_bios_show, NULL);
+static DEVICE_ATTR(version_bios, S_IRUGO, mptscsih_version_bios_show, NULL);
 
 static ssize_t
-mptscsih_version_mpi_show(struct class_device *cdev, char *buf)
+mptscsih_version_mpi_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	return snprintf(buf, PAGE_SIZE, "%03x\n", ioc->facts.MsgVersion);
 }
-static CLASS_DEVICE_ATTR(version_mpi, S_IRUGO, mptscsih_version_mpi_show, NULL);
+static DEVICE_ATTR(version_mpi, S_IRUGO, mptscsih_version_mpi_show, NULL);
 
 static ssize_t
-mptscsih_version_product_show(struct class_device *cdev, char *buf)
+mptscsih_version_product_show(struct device *dev,
+			      struct device_attribute *attr,
+char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", ioc->prod_name);
 }
-static CLASS_DEVICE_ATTR(version_product, S_IRUGO,
+static DEVICE_ATTR(version_product, S_IRUGO,
     mptscsih_version_product_show, NULL);
 
 static ssize_t
-mptscsih_version_nvdata_persistent_show(struct class_device *cdev, char *buf)
+mptscsih_version_nvdata_persistent_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	return snprintf(buf, PAGE_SIZE, "%02xh\n",
 	    ioc->nvdata_version_persistent);
 }
-static CLASS_DEVICE_ATTR(version_nvdata_persistent, S_IRUGO,
+static DEVICE_ATTR(version_nvdata_persistent, S_IRUGO,
     mptscsih_version_nvdata_persistent_show, NULL);
 
 static ssize_t
-mptscsih_version_nvdata_default_show(struct class_device *cdev, char *buf)
+mptscsih_version_nvdata_default_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	return snprintf(buf, PAGE_SIZE, "%02xh\n",ioc->nvdata_version_default);
 }
-static CLASS_DEVICE_ATTR(version_nvdata_default, S_IRUGO,
+static DEVICE_ATTR(version_nvdata_default, S_IRUGO,
     mptscsih_version_nvdata_default_show, NULL);
 
 static ssize_t
-mptscsih_board_name_show(struct class_device *cdev, char *buf)
+mptscsih_board_name_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", ioc->board_name);
 }
-static CLASS_DEVICE_ATTR(board_name, S_IRUGO, mptscsih_board_name_show, NULL);
+static DEVICE_ATTR(board_name, S_IRUGO, mptscsih_board_name_show, NULL);
 
 static ssize_t
-mptscsih_board_assembly_show(struct class_device *cdev, char *buf)
+mptscsih_board_assembly_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", ioc->board_assembly);
 }
-static CLASS_DEVICE_ATTR(board_assembly, S_IRUGO,
+static DEVICE_ATTR(board_assembly, S_IRUGO,
     mptscsih_board_assembly_show, NULL);
 
 static ssize_t
-mptscsih_board_tracer_show(struct class_device *cdev, char *buf)
+mptscsih_board_tracer_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", ioc->board_tracer);
 }
-static CLASS_DEVICE_ATTR(board_tracer, S_IRUGO,
+static DEVICE_ATTR(board_tracer, S_IRUGO,
     mptscsih_board_tracer_show, NULL);
 
 static ssize_t
-mptscsih_io_delay_show(struct class_device *cdev, char *buf)
+mptscsih_io_delay_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	return snprintf(buf, PAGE_SIZE, "%02d\n", ioc->io_missing_delay);
 }
-static CLASS_DEVICE_ATTR(io_delay, S_IRUGO,
+static DEVICE_ATTR(io_delay, S_IRUGO,
     mptscsih_io_delay_show, NULL);
 
 static ssize_t
-mptscsih_device_delay_show(struct class_device *cdev, char *buf)
+mptscsih_device_delay_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	return snprintf(buf, PAGE_SIZE, "%02d\n", ioc->device_missing_delay);
 }
-static CLASS_DEVICE_ATTR(device_delay, S_IRUGO,
+static DEVICE_ATTR(device_delay, S_IRUGO,
     mptscsih_device_delay_show, NULL);
 
 static ssize_t
-mptscsih_debug_level_show(struct class_device *cdev, char *buf)
+mptscsih_debug_level_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	return snprintf(buf, PAGE_SIZE, "%08xh\n", ioc->debug_level);
 }
 static ssize_t
-mptscsih_debug_level_store(struct class_device *cdev, const char *buf,
-								size_t count)
+mptscsih_debug_level_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	MPT_SCSI_HOST	*hd = shost_priv(host);
 	MPT_ADAPTER *ioc = hd->ioc;
 	int val = 0;
@@ -3457,22 +3476,22 @@ mptscsih_debug_level_store(struct class_device *cdev, const char *buf,
 				ioc->name, ioc->debug_level);
 	return strlen(buf);
 }
-static CLASS_DEVICE_ATTR(debug_level, S_IRUGO | S_IWUSR,
-    mptscsih_debug_level_show, mptscsih_debug_level_store);
+static DEVICE_ATTR(debug_level, S_IRUGO | S_IWUSR,
+	mptscsih_debug_level_show, mptscsih_debug_level_store);
 
-struct class_device_attribute *mptscsih_host_attrs[] = {
-	&class_device_attr_version_fw,
-	&class_device_attr_version_bios,
-	&class_device_attr_version_mpi,
-	&class_device_attr_version_product,
-	&class_device_attr_version_nvdata_persistent,
-	&class_device_attr_version_nvdata_default,
-	&class_device_attr_board_name,
-	&class_device_attr_board_assembly,
-	&class_device_attr_board_tracer,
-	&class_device_attr_io_delay,
-	&class_device_attr_device_delay,
-	&class_device_attr_debug_level,
+struct device_attribute *mptscsih_host_attrs[] = {
+	&dev_attr_version_fw,
+	&dev_attr_version_bios,
+	&dev_attr_version_mpi,
+	&dev_attr_version_product,
+	&dev_attr_version_nvdata_persistent,
+	&dev_attr_version_nvdata_default,
+	&dev_attr_board_name,
+	&dev_attr_board_assembly,
+	&dev_attr_board_tracer,
+	&dev_attr_io_delay,
+	&dev_attr_device_delay,
+	&dev_attr_debug_level,
 	NULL,
 };
 EXPORT_SYMBOL(mptscsih_host_attrs);

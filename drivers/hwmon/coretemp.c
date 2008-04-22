@@ -38,7 +38,8 @@
 
 #define DRVNAME	"coretemp"
 
-typedef enum { SHOW_TEMP, SHOW_TJMAX, SHOW_LABEL, SHOW_NAME } SHOW;
+typedef enum { SHOW_TEMP, SHOW_TJMAX, SHOW_TTARGET, SHOW_LABEL,
+		SHOW_NAME } SHOW;
 
 /*
  * Functions declaration
@@ -55,6 +56,7 @@ struct coretemp_data {
 	unsigned long last_updated;	/* in jiffies */
 	int temp;
 	int tjmax;
+	int ttarget;
 	u8 alarm;
 };
 
@@ -93,9 +95,10 @@ static ssize_t show_temp(struct device *dev,
 
 	if (attr->index == SHOW_TEMP)
 		err = data->valid ? sprintf(buf, "%d\n", data->temp) : -EAGAIN;
-	else
+	else if (attr->index == SHOW_TJMAX)
 		err = sprintf(buf, "%d\n", data->tjmax);
-
+	else
+		err = sprintf(buf, "%d\n", data->ttarget);
 	return err;
 }
 
@@ -103,6 +106,8 @@ static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL,
 			  SHOW_TEMP);
 static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, show_temp, NULL,
 			  SHOW_TJMAX);
+static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL,
+			  SHOW_TTARGET);
 static DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL);
 static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_name, NULL, SHOW_LABEL);
 static SENSOR_DEVICE_ATTR(name, S_IRUGO, show_name, NULL, SHOW_NAME);
@@ -147,6 +152,56 @@ static struct coretemp_data *coretemp_update_device(struct device *dev)
 	return data;
 }
 
+static int __devinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
+{
+	/* The 100C is default for both mobile and non mobile CPUs */
+
+	int tjmax = 100000;
+	int ismobile = 1;
+	int err;
+	u32 eax, edx;
+
+	/* Early chips have no MSR for TjMax */
+
+	if ((c->x86_model == 0xf) && (c->x86_mask < 4)) {
+		ismobile = 0;
+	}
+
+	if ((c->x86_model > 0xe) && (ismobile)) {
+
+		/* Now we can detect the mobile CPU using Intel provided table
+		   http://softwarecommunity.intel.com/Wiki/Mobility/720.htm
+		   For Core2 cores, check MSR 0x17, bit 28 1 = Mobile CPU
+		*/
+
+		err = rdmsr_safe_on_cpu(id, 0x17, &eax, &edx);
+		if (err) {
+			dev_warn(dev,
+				 "Unable to access MSR 0x17, assuming desktop"
+				 " CPU\n");
+			ismobile = 0;
+		} else if (!(eax & 0x10000000)) {
+			ismobile = 0;
+		}
+	}
+
+	if (ismobile) {
+
+		err = rdmsr_safe_on_cpu(id, 0xee, &eax, &edx);
+		if (err) {
+			dev_warn(dev,
+				 "Unable to access MSR 0xEE, for Tjmax, left"
+				 " at default");
+		} else if (eax & 0x40000000) {
+			tjmax = 85000;
+		}
+	} else {
+		dev_warn(dev, "Using relative temperature scale!\n");
+	}
+
+	return tjmax;
+}
+
 static int __devinit coretemp_probe(struct platform_device *pdev)
 {
 	struct coretemp_data *data;
@@ -163,8 +218,6 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 	data->id = pdev->id;
 	data->name = "coretemp";
 	mutex_init(&data->update_lock);
-	/* Tjmax default is 100 degrees C */
-	data->tjmax = 100000;
 
 	/* test if we can access the THERM_STATUS MSR */
 	err = rdmsr_safe_on_cpu(data->id, MSR_IA32_THERM_STATUS, &eax, &edx);
@@ -191,40 +244,29 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Some processors have Tjmax 85 following magic should detect it
-	   Intel won't disclose the information without signed NDA, but
-	   individuals cannot sign it. Catch(ed) 22.
-	*/
+	data->tjmax = adjust_tjmax(c, data->id, &pdev->dev);
+	platform_set_drvdata(pdev, data);
 
-	if (((c->x86_model == 0xf) && (c->x86_mask > 3)) ||
-		(c->x86_model == 0xe))  {
-		err = rdmsr_safe_on_cpu(data->id, 0xee, &eax, &edx);
+	/* read the still undocumented IA32_TEMPERATURE_TARGET it exists
+	   on older CPUs but not in this register */
+
+	if (c->x86_model > 0xe) {
+		err = rdmsr_safe_on_cpu(data->id, 0x1a2, &eax, &edx);
 		if (err) {
-			dev_warn(&pdev->dev,
-				 "Unable to access MSR 0xEE, Tjmax left at %d "
-				 "degrees C\n", data->tjmax/1000);
-		} else if (eax & 0x40000000) {
-			data->tjmax = 85000;
+			dev_warn(&pdev->dev, "Unable to read"
+					" IA32_TEMPERATURE_TARGET MSR\n");
+		} else {
+			data->ttarget = data->tjmax -
+					(((eax >> 8) & 0xff) * 1000);
+			err = device_create_file(&pdev->dev,
+					&sensor_dev_attr_temp1_max.dev_attr);
+			if (err)
+				goto exit_free;
 		}
 	}
 
-	/* Intel says that above should not work for desktop Core2 processors,
-	   but it seems to work. There is no other way how get the absolute
-	   readings. Warn the user about this. First check if are desktop,
-	   bit 50 of MSR_IA32_PLATFORM_ID should be 0.
-	*/
-
-	rdmsr_safe_on_cpu(data->id, MSR_IA32_PLATFORM_ID, &eax, &edx);
-
-	if ((c->x86_model == 0xf) && (!(edx & 0x00040000))) {
-		dev_warn(&pdev->dev, "Using undocumented features, absolute "
-			 "temperature might be wrong!\n");
-	}
-
-	platform_set_drvdata(pdev, data);
-
 	if ((err = sysfs_create_group(&pdev->dev.kobj, &coretemp_group)))
-		goto exit_free;
+		goto exit_dev;
 
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -238,6 +280,8 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 
 exit_class:
 	sysfs_remove_group(&pdev->dev.kobj, &coretemp_group);
+exit_dev:
+	device_remove_file(&pdev->dev, &sensor_dev_attr_temp1_max.dev_attr);
 exit_free:
 	kfree(data);
 exit:
@@ -250,6 +294,7 @@ static int __devexit coretemp_remove(struct platform_device *pdev)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &coretemp_group);
+	device_remove_file(&pdev->dev, &sensor_dev_attr_temp1_max.dev_attr);
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 	return 0;
@@ -330,7 +375,7 @@ static void coretemp_device_remove(unsigned int cpu)
 	mutex_unlock(&pdev_list_mutex);
 }
 
-static int coretemp_cpu_callback(struct notifier_block *nfb,
+static int __cpuinit coretemp_cpu_callback(struct notifier_block *nfb,
 				 unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long) hcpu;
@@ -347,7 +392,7 @@ static int coretemp_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block coretemp_cpu_notifier = {
+static struct notifier_block coretemp_cpu_notifier __refdata = {
 	.notifier_call = coretemp_cpu_callback,
 };
 #endif				/* !CONFIG_HOTPLUG_CPU */
@@ -368,10 +413,10 @@ static int __init coretemp_init(void)
 	for_each_online_cpu(i) {
 		struct cpuinfo_x86 *c = &cpu_data(i);
 
-		/* check if family 6, models e, f, 16 */
+		/* check if family 6, models 0xe, 0xf, 0x16, 0x17 */
 		if ((c->cpuid_level < 0) || (c->x86 != 0x6) ||
 		    !((c->x86_model == 0xe) || (c->x86_model == 0xf) ||
-			(c->x86_model == 0x16))) {
+			(c->x86_model == 0x16) || (c->x86_model == 0x17))) {
 
 			/* supported CPU not found, but report the unknown
 			   family 6 CPU */

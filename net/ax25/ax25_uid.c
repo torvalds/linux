@@ -218,9 +218,11 @@ void __exit ax25_uid_free(void)
 	struct hlist_node *node;
 
 	write_lock(&ax25_uid_lock);
+again:
 	ax25_uid_for_each(ax25_uid, node, &ax25_uid_list) {
 		hlist_del_init(&ax25_uid->uid_node);
 		ax25_uid_put(ax25_uid);
+		goto again;
 	}
 	write_unlock(&ax25_uid_lock);
 }

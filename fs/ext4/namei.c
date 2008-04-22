@@ -1804,12 +1804,8 @@ retry:
 	inode->i_fop = &ext4_dir_operations;
 	inode->i_size = EXT4_I(inode)->i_disksize = inode->i_sb->s_blocksize;
 	dir_block = ext4_bread (handle, inode, 0, 1, &err);
-	if (!dir_block) {
-		ext4_dec_count(handle, inode); /* is this nlink == 0? */
-		ext4_mark_inode_dirty(handle, inode);
-		iput (inode);
-		goto out_stop;
-	}
+	if (!dir_block)
+		goto out_clear_inode;
 	BUFFER_TRACE(dir_block, "get_write_access");
 	ext4_journal_get_write_access(handle, dir_block);
 	de = (struct ext4_dir_entry_2 *) dir_block->b_data;
@@ -1832,7 +1828,8 @@ retry:
 	ext4_mark_inode_dirty(handle, inode);
 	err = ext4_add_entry (handle, dentry, inode);
 	if (err) {
-		inode->i_nlink = 0;
+out_clear_inode:
+		clear_nlink(inode);
 		ext4_mark_inode_dirty(handle, inode);
 		iput (inode);
 		goto out_stop;
@@ -2164,7 +2161,7 @@ static int ext4_unlink(struct inode * dir, struct dentry *dentry)
 	dir->i_ctime = dir->i_mtime = ext4_current_time(dir);
 	ext4_update_dx_flag(dir);
 	ext4_mark_inode_dirty(handle, dir);
-	ext4_dec_count(handle, inode);
+	drop_nlink(inode);
 	if (!inode->i_nlink)
 		ext4_orphan_add(handle, inode);
 	inode->i_ctime = ext4_current_time(inode);
@@ -2214,7 +2211,7 @@ retry:
 		err = __page_symlink(inode, symname, l,
 				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
 		if (err) {
-			ext4_dec_count(handle, inode);
+			clear_nlink(inode);
 			ext4_mark_inode_dirty(handle, inode);
 			iput (inode);
 			goto out_stop;
@@ -2223,7 +2220,6 @@ retry:
 		inode->i_op = &ext4_fast_symlink_inode_operations;
 		memcpy((char*)&EXT4_I(inode)->i_data,symname,l);
 		inode->i_size = l-1;
-		EXT4_I(inode)->i_flags &= ~EXT4_EXTENTS_FL;
 	}
 	EXT4_I(inode)->i_disksize = inode->i_size;
 	err = ext4_add_nondir(handle, dentry, inode);
@@ -2407,7 +2403,7 @@ static int ext4_rename (struct inode * old_dir, struct dentry *old_dentry,
 		ext4_dec_count(handle, old_dir);
 		if (new_inode) {
 			/* checked empty_dir above, can't have another parent,
-			 * ext3_dec_count() won't work for many-linked dirs */
+			 * ext4_dec_count() won't work for many-linked dirs */
 			new_inode->i_nlink = 0;
 		} else {
 			ext4_inc_count(handle, new_dir);

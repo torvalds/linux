@@ -78,7 +78,6 @@ xfs_iget_core(
 	xfs_inode_t	*ip;
 	xfs_inode_t	*iq;
 	int		error;
-	xfs_icluster_t	*icl, *new_icl = NULL;
 	unsigned long	first_index, mask;
 	xfs_perag_t	*pag;
 	xfs_agino_t	agino;
@@ -229,29 +228,17 @@ finish_inode:
 	}
 
 	/*
-	 * This is a bit messy - we preallocate everything we _might_
-	 * need before we pick up the ici lock. That way we don't have to
-	 * juggle locks and go all the way back to the start.
+	 * Preload the radix tree so we can insert safely under the
+	 * write spinlock.
 	 */
-	new_icl = kmem_zone_alloc(xfs_icluster_zone, KM_SLEEP);
 	if (radix_tree_preload(GFP_KERNEL)) {
+		xfs_idestroy(ip);
 		delay(1);
 		goto again;
 	}
 	mask = ~(((XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog)) - 1);
 	first_index = agino & mask;
 	write_lock(&pag->pag_ici_lock);
-
-	/*
-	 * Find the cluster if it exists
-	 */
-	icl = NULL;
-	if (radix_tree_gang_lookup(&pag->pag_ici_root, (void**)&iq,
-							first_index, 1)) {
-		if ((XFS_INO_TO_AGINO(mp, iq->i_ino) & mask) == first_index)
-			icl = iq->i_cluster;
-	}
-
 	/*
 	 * insert the new inode
 	 */
@@ -266,30 +253,13 @@ finish_inode:
 	}
 
 	/*
-	 * These values _must_ be set before releasing ihlock!
+	 * These values _must_ be set before releasing the radix tree lock!
 	 */
 	ip->i_udquot = ip->i_gdquot = NULL;
 	xfs_iflags_set(ip, XFS_INEW);
 
-	ASSERT(ip->i_cluster == NULL);
-
-	if (!icl) {
-		spin_lock_init(&new_icl->icl_lock);
-		INIT_HLIST_HEAD(&new_icl->icl_inodes);
-		icl = new_icl;
-		new_icl = NULL;
-	} else {
-		ASSERT(!hlist_empty(&icl->icl_inodes));
-	}
-	spin_lock(&icl->icl_lock);
-	hlist_add_head(&ip->i_cnode, &icl->icl_inodes);
-	ip->i_cluster = icl;
-	spin_unlock(&icl->icl_lock);
-
 	write_unlock(&pag->pag_ici_lock);
 	radix_tree_preload_end();
-	if (new_icl)
-		kmem_zone_free(xfs_icluster_zone, new_icl);
 
 	/*
 	 * Link ip to its mount and thread it on the mount's inode list.
@@ -526,18 +496,6 @@ xfs_iextract(
 	radix_tree_delete(&pag->pag_ici_root, XFS_INO_TO_AGINO(mp, ip->i_ino));
 	write_unlock(&pag->pag_ici_lock);
 	xfs_put_perag(mp, pag);
-
-	/*
-	 * Remove from cluster list
-	 */
-	mp = ip->i_mount;
-	spin_lock(&ip->i_cluster->icl_lock);
-	hlist_del(&ip->i_cnode);
-	spin_unlock(&ip->i_cluster->icl_lock);
-
-	/* was last inode in cluster? */
-	if (hlist_empty(&ip->i_cluster->icl_inodes))
-		kmem_zone_free(xfs_icluster_zone, ip->i_cluster);
 
 	/*
 	 * Remove from mount's inode list.

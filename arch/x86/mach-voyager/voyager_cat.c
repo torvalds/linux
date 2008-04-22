@@ -4,8 +4,6 @@
  *
  * Author: J.E.J.Bottomley@HansenPartnership.com
  *
- * linux/arch/i386/kernel/voyager_cat.c
- *
  * This file contains all the logic for manipulating the CAT bus
  * in a level 5 machine.
  *

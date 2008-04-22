@@ -391,7 +391,7 @@ static asmlinkage void unsupported_syscall(struct pt_regs *regs,
 	if (code == EXCEP_SYSCALL15 && !user_mode(regs)) {
 		if (report_bug(regs->pc, regs) == BUG_TRAP_TYPE_BUG) {
 #ifdef CONFIG_GDBSTUB
-			__gdbstub_bug_trap();
+			gdbstub_intercept(regs, code);
 #endif
 		}
 	}

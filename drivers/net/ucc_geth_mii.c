@@ -157,7 +157,7 @@ static int uec_mdio_probe(struct of_device *ofdev, const struct of_device_id *ma
 	if (err)
 		goto reg_map_fail;
 
-	new_bus->id = res.start;
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
 	new_bus->irq = kmalloc(32 * sizeof(int), GFP_KERNEL);
 
@@ -203,9 +203,14 @@ static int uec_mdio_probe(struct of_device *ofdev, const struct of_device_id *ma
 		if ((res.start >= tempres.start) &&
 		    (res.end <= tempres.end)) {
 			/* set this UCC to be the MII master */
-			const u32 *id = of_get_property(tempnp, "device-id", NULL);
-			if (id == NULL)
-				goto bus_register_fail;
+			const u32 *id;
+
+			id = of_get_property(tempnp, "cell-index", NULL);
+			if (!id) {
+				id = of_get_property(tempnp, "device-id", NULL);
+				if (!id)
+					goto bus_register_fail;
+			}
 
 			ucc_set_qe_mux_mii_mng(*id - 1);
 

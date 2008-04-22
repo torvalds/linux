@@ -37,9 +37,9 @@
 #include <linux/device.h>
 #include <linux/kthread.h>
 #include <linux/platform_device.h>
+#include <linux/semaphore.h>
 
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 #ifdef CONFIG_PPC
 #include <asm/prom.h>
 #include <asm/machdep.h>

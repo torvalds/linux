@@ -1,9 +1,9 @@
 /* Authors: Karl MacMillan <kmacmillan@tresys.com>
- *          Frank Mayer <mayerf@tresys.com>
+ *	    Frank Mayer <mayerf@tresys.com>
  *
  * Copyright (C) 2003 - 2004 Tresys Technology, LLC
  *	This program is free software; you can redistribute it and/or modify
- *  	it under the terms of the GNU General Public License as published by
+ *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation, version 2.
  */
 
@@ -11,7 +11,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
-#include <asm/semaphore.h>
 #include <linux/slab.h>
 
 #include "security.h"
@@ -90,29 +89,27 @@ static int cond_evaluate_expr(struct policydb *p, struct cond_expr *expr)
 int evaluate_cond_node(struct policydb *p, struct cond_node *node)
 {
 	int new_state;
-	struct cond_av_list* cur;
+	struct cond_av_list *cur;
 
 	new_state = cond_evaluate_expr(p, node->expr);
 	if (new_state != node->cur_state) {
 		node->cur_state = new_state;
 		if (new_state == -1)
-			printk(KERN_ERR "security: expression result was undefined - disabling all rules.\n");
+			printk(KERN_ERR "SELinux: expression result was undefined - disabling all rules.\n");
 		/* turn the rules on or off */
 		for (cur = node->true_list; cur != NULL; cur = cur->next) {
-			if (new_state <= 0) {
+			if (new_state <= 0)
 				cur->node->key.specified &= ~AVTAB_ENABLED;
-			} else {
+			else
 				cur->node->key.specified |= AVTAB_ENABLED;
-			}
 		}
 
 		for (cur = node->false_list; cur != NULL; cur = cur->next) {
 			/* -1 or 1 */
-			if (new_state) {
+			if (new_state)
 				cur->node->key.specified &= ~AVTAB_ENABLED;
-			} else {
+			else
 				cur->node->key.specified |= AVTAB_ENABLED;
-			}
 		}
 	}
 	return 0;
@@ -174,8 +171,8 @@ void cond_policydb_destroy(struct policydb *p)
 int cond_init_bool_indexes(struct policydb *p)
 {
 	kfree(p->bool_val_to_struct);
-	p->bool_val_to_struct = (struct cond_bool_datum**)
-		kmalloc(p->p_bools.nprim * sizeof(struct cond_bool_datum*), GFP_KERNEL);
+	p->bool_val_to_struct = (struct cond_bool_datum **)
+		kmalloc(p->p_bools.nprim * sizeof(struct cond_bool_datum *), GFP_KERNEL);
 	if (!p->bool_val_to_struct)
 		return -1;
 	return 0;
@@ -200,7 +197,7 @@ int cond_index_bool(void *key, void *datum, void *datap)
 		return -EINVAL;
 
 	p->p_bool_val_to_name[booldatum->value - 1] = key;
-	p->bool_val_to_struct[booldatum->value -1] = booldatum;
+	p->bool_val_to_struct[booldatum->value - 1] = booldatum;
 
 	return 0;
 }
@@ -252,8 +249,7 @@ err:
 	return -1;
 }
 
-struct cond_insertf_data
-{
+struct cond_insertf_data {
 	struct policydb *p;
 	struct cond_av_list *other;
 	struct cond_av_list *head;
@@ -276,7 +272,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 	 */
 	if (k->specified & AVTAB_TYPE) {
 		if (avtab_search(&p->te_avtab, k)) {
-			printk("security: type rule already exists outside of a conditional.");
+			printk(KERN_ERR "SELinux: type rule already exists outside of a conditional.\n");
 			goto err;
 		}
 		/*
@@ -291,7 +287,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 			node_ptr = avtab_search_node(&p->te_cond_avtab, k);
 			if (node_ptr) {
 				if (avtab_search_node_next(node_ptr, k->specified)) {
-					printk("security: too many conflicting type rules.");
+					printk(KERN_ERR "SELinux: too many conflicting type rules.\n");
 					goto err;
 				}
 				found = 0;
@@ -302,13 +298,13 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 					}
 				}
 				if (!found) {
-					printk("security: conflicting type rules.\n");
+					printk(KERN_ERR "SELinux: conflicting type rules.\n");
 					goto err;
 				}
 			}
 		} else {
 			if (avtab_search(&p->te_cond_avtab, k)) {
-				printk("security: conflicting type rules when adding type rule for true.\n");
+				printk(KERN_ERR "SELinux: conflicting type rules when adding type rule for true.\n");
 				goto err;
 			}
 		}
@@ -316,7 +312,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 
 	node_ptr = avtab_insert_nonunique(&p->te_cond_avtab, k, d);
 	if (!node_ptr) {
-		printk("security: could not insert rule.");
+		printk(KERN_ERR "SELinux: could not insert rule.\n");
 		goto err;
 	}
 
@@ -353,9 +349,8 @@ static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list *
 		return -1;
 
 	len = le32_to_cpu(buf[0]);
-	if (len == 0) {
+	if (len == 0)
 		return 0;
-	}
 
 	data.p = p;
 	data.other = other;
@@ -376,12 +371,12 @@ static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list *
 static int expr_isvalid(struct policydb *p, struct cond_expr *expr)
 {
 	if (expr->expr_type <= 0 || expr->expr_type > COND_LAST) {
-		printk("security: conditional expressions uses unknown operator.\n");
+		printk(KERN_ERR "SELinux: conditional expressions uses unknown operator.\n");
 		return 0;
 	}
 
 	if (expr->bool > p->p_bools.nprim) {
-		printk("security: conditional expressions uses unknown bool.\n");
+		printk(KERN_ERR "SELinux: conditional expressions uses unknown bool.\n");
 		return 0;
 	}
 	return 1;
@@ -408,15 +403,14 @@ static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 	/* expr */
 	len = le32_to_cpu(buf[0]);
 
-	for (i = 0; i < len; i++ ) {
+	for (i = 0; i < len; i++) {
 		rc = next_entry(buf, fp, sizeof(u32) * 2);
 		if (rc < 0)
 			goto err;
 
 		expr = kzalloc(sizeof(struct cond_expr), GFP_KERNEL);
-		if (!expr) {
+		if (!expr)
 			goto err;
-		}
 
 		expr->expr_type = le32_to_cpu(buf[0]);
 		expr->bool = le32_to_cpu(buf[1]);
@@ -426,11 +420,10 @@ static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 			goto err;
 		}
 
-		if (i == 0) {
+		if (i == 0)
 			node->expr = expr;
-		} else {
+		else
 			last->next = expr;
-		}
 		last = expr;
 	}
 
@@ -469,11 +462,10 @@ int cond_read_list(struct policydb *p, void *fp)
 		if (cond_read_node(p, node, fp) != 0)
 			goto err;
 
-		if (i == 0) {
+		if (i == 0)
 			p->cond_list = node;
-		} else {
+		else
 			last->next = node;
-		}
 		last = node;
 	}
 	return 0;
@@ -490,24 +482,24 @@ void cond_compute_av(struct avtab *ctab, struct avtab_key *key, struct av_decisi
 {
 	struct avtab_node *node;
 
-	if(!ctab || !key || !avd)
+	if (!ctab || !key || !avd)
 		return;
 
-	for(node = avtab_search_node(ctab, key); node != NULL;
+	for (node = avtab_search_node(ctab, key); node != NULL;
 				node = avtab_search_node_next(node, key->specified)) {
-		if ( (u16) (AVTAB_ALLOWED|AVTAB_ENABLED) ==
-		     (node->key.specified & (AVTAB_ALLOWED|AVTAB_ENABLED)))
+		if ((u16)(AVTAB_ALLOWED|AVTAB_ENABLED) ==
+		    (node->key.specified & (AVTAB_ALLOWED|AVTAB_ENABLED)))
 			avd->allowed |= node->datum.data;
-		if ( (u16) (AVTAB_AUDITDENY|AVTAB_ENABLED) ==
-		     (node->key.specified & (AVTAB_AUDITDENY|AVTAB_ENABLED)))
+		if ((u16)(AVTAB_AUDITDENY|AVTAB_ENABLED) ==
+		    (node->key.specified & (AVTAB_AUDITDENY|AVTAB_ENABLED)))
 			/* Since a '0' in an auditdeny mask represents a
 			 * permission we do NOT want to audit (dontaudit), we use
 			 * the '&' operand to ensure that all '0's in the mask
 			 * are retained (much unlike the allow and auditallow cases).
 			 */
 			avd->auditdeny &= node->datum.data;
-		if ( (u16) (AVTAB_AUDITALLOW|AVTAB_ENABLED) ==
-		     (node->key.specified & (AVTAB_AUDITALLOW|AVTAB_ENABLED)))
+		if ((u16)(AVTAB_AUDITALLOW|AVTAB_ENABLED) ==
+		    (node->key.specified & (AVTAB_AUDITALLOW|AVTAB_ENABLED)))
 			avd->auditallow |= node->datum.data;
 	}
 	return;

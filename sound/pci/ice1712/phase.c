@@ -51,7 +51,7 @@
 struct phase28_spec {
 	unsigned short master[2];
 	unsigned short vol[8];
-} phase28;
+};
 
 /* WM8770 registers */
 #define WM_DAC_ATTEN		0x00	/* DAC1-8 analog attenuation */

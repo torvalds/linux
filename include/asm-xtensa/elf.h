@@ -72,115 +72,32 @@
 
 /* ELF register definitions. This is needed for core dump support.  */
 
-/*
- * elf_gregset_t contains the application-level state in the following order:
- * Processor info: 	config_version, cpuxy
- * Processor state:	pc, ps, exccause, excvaddr, wb, ws,
- *			lbeg, lend, lcount, sar
- * GP regs:		ar0 - arXX
- */
-
 typedef unsigned long elf_greg_t;
 
 typedef struct {
-	elf_greg_t xchal_config_id0;
-	elf_greg_t xchal_config_id1;
-	elf_greg_t cpux;
-	elf_greg_t cpuy;
 	elf_greg_t pc;
 	elf_greg_t ps;
-	elf_greg_t exccause;
-	elf_greg_t excvaddr;
-	elf_greg_t windowbase;
-	elf_greg_t windowstart;
 	elf_greg_t lbeg;
 	elf_greg_t lend;
 	elf_greg_t lcount;
 	elf_greg_t sar;
-	elf_greg_t syscall;
-	elf_greg_t ar[64];
+	elf_greg_t windowstart;
+	elf_greg_t windowbase;
+	elf_greg_t reserved[8+48];
+	elf_greg_t a[64];
 } xtensa_gregset_t;
 
 #define ELF_NGREG	(sizeof(xtensa_gregset_t) / sizeof(elf_greg_t))
 
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
-/*
- *  Compute the size of the coprocessor and extra state layout (register info)
- *  table (in bytes).
- *  This is actually the maximum size of the table, as opposed to the size,
- *  which is available from the _xtensa_reginfo_table_size global variable.
- *
- *  (See also arch/xtensa/kernel/coprocessor.S)
- *
- */
-
-#ifndef XCHAL_EXTRA_SA_CONTENTS_LIBDB_NUM
-# define XTENSA_CPE_LTABLE_SIZE		0
-#else
-# define XTENSA_CPE_SEGMENT(num)	(num ? (1+num) : 0)
-# define XTENSA_CPE_LTABLE_ENTRIES	\
-		( XTENSA_CPE_SEGMENT(XCHAL_EXTRA_SA_CONTENTS_LIBDB_NUM)	\
-		+ XTENSA_CPE_SEGMENT(XCHAL_CP0_SA_CONTENTS_LIBDB_NUM)	\
-		+ XTENSA_CPE_SEGMENT(XCHAL_CP1_SA_CONTENTS_LIBDB_NUM)	\
-		+ XTENSA_CPE_SEGMENT(XCHAL_CP2_SA_CONTENTS_LIBDB_NUM)	\
-		+ XTENSA_CPE_SEGMENT(XCHAL_CP3_SA_CONTENTS_LIBDB_NUM)	\
-		+ XTENSA_CPE_SEGMENT(XCHAL_CP4_SA_CONTENTS_LIBDB_NUM)	\
-		+ XTENSA_CPE_SEGMENT(XCHAL_CP5_SA_CONTENTS_LIBDB_NUM)	\
-		+ XTENSA_CPE_SEGMENT(XCHAL_CP6_SA_CONTENTS_LIBDB_NUM)	\
-		+ XTENSA_CPE_SEGMENT(XCHAL_CP7_SA_CONTENTS_LIBDB_NUM)	\
-		+ 1		/* final entry */			\
-		)
-# define XTENSA_CPE_LTABLE_SIZE		(XTENSA_CPE_LTABLE_ENTRIES * 8)
-#endif
-
-
-/*
- * Instantiations of the elf_fpregset_t type contain, in most
- * architectures, the floating point (FPU) register set.
- * For Xtensa, this type is extended to contain all custom state,
- * ie. coprocessor and "extra" (non-coprocessor) state (including,
- * for example, TIE-defined states and register files; as well
- * as other optional processor state).
- * This includes FPU state if a floating-point coprocessor happens
- * to have been configured within the Xtensa processor.
- *
- * TOTAL_FPREGS_SIZE is the required size (without rounding)
- * of elf_fpregset_t.  It provides space for the following:
- *
- *  a)	32-bit mask of active coprocessors for this task (similar
- *	to CPENABLE in single-threaded Xtensa processor systems)
- *
- *  b)	table describing the layout of custom states (ie. of
- *      individual registers, etc) within the save areas
- *
- *  c)  save areas for each coprocessor and for non-coprocessor
- *      ("extra") state
- *
- * Note that save areas may require up to 16-byte alignment when
- * accessed by save/restore sequences.  We do not need to ensure
- * such alignment in an elf_fpregset_t structure because custom
- * state is not directly loaded/stored into it; rather, save area
- * contents are copied to elf_fpregset_t from the active save areas
- * (see 'struct task_struct' definition in processor.h for that)
- * using memcpy().  But we do allow space for such alignment,
- * to allow optimizations of layout and copying.
- */
-#if 0
-#define TOTAL_FPREGS_SIZE						\
-  	(4 + XTENSA_CPE_LTABLE_SIZE + XTENSA_CP_EXTRA_SIZE)
-#define ELF_NFPREG							\
-	((TOTAL_FPREGS_SIZE + sizeof(elf_fpreg_t) - 1) / sizeof(elf_fpreg_t))
-#else
-#define TOTAL_FPREGS_SIZE	0
-#define ELF_NFPREG		0
-#endif
+#define ELF_NFPREG	18
 
 typedef unsigned int elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #define ELF_CORE_COPY_REGS(_eregs, _pregs) 				\
-	xtensa_elf_core_copy_regs (&_eregs, _pregs);
+	xtensa_elf_core_copy_regs ((xtensa_gregset_t*)&(_eregs), _pregs);
 
 extern void xtensa_elf_core_copy_regs (xtensa_gregset_t *, struct pt_regs *);
 
@@ -256,6 +173,21 @@ extern void xtensa_elf_core_copy_regs (xtensa_gregset_t *, struct pt_regs *);
        _r->areg[8]=0;  _r->areg[9]=0;    _r->areg[10]=0; _r->areg[11]=0; \
        _r->areg[12]=0; _r->areg[13]=0;   _r->areg[14]=0; _r->areg[15]=0; \
   } while (0)
+
+typedef struct {
+	xtregs_opt_t	opt;
+	xtregs_user_t	user;
+#if XTENSA_HAVE_COPROCESSORS
+	xtregs_cp0_t	cp0;
+	xtregs_cp1_t	cp1;
+	xtregs_cp2_t	cp2;
+	xtregs_cp3_t	cp3;
+	xtregs_cp4_t	cp4;
+	xtregs_cp5_t	cp5;
+	xtregs_cp6_t	cp6;
+	xtregs_cp7_t	cp7;
+#endif
+} elf_xtregs_t;
 
 #define SET_PERSONALITY(ex, ibcs2) set_personality(PER_LINUX_32BIT)
 

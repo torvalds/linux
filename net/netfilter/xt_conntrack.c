@@ -65,7 +65,7 @@ conntrack_mt_v0(const struct sk_buff *skb, const struct net_device *in,
 	}
 
 	if (sinfo->flags & XT_CONNTRACK_PROTO &&
-	    FWINV(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum !=
+	    FWINV(nf_ct_protonum(ct) !=
 		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum,
 		  XT_CONNTRACK_PROTO))
 		return false;
@@ -122,7 +122,7 @@ conntrack_addrcmp(const union nf_inet_addr *kaddr,
                   const union nf_inet_addr *umask, unsigned int l3proto)
 {
 	if (l3proto == AF_INET)
-		return (kaddr->ip & umask->ip) == uaddr->ip;
+		return ((kaddr->ip ^ uaddr->ip) & umask->ip) == 0;
 	else if (l3proto == AF_INET6)
 		return ipv6_masked_addr_cmp(&kaddr->in6, &umask->in6,
 		       &uaddr->in6) == 0;
@@ -174,7 +174,7 @@ ct_proto_port_check(const struct xt_conntrack_mtinfo1 *info,
 
 	tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
 	if ((info->match_flags & XT_CONNTRACK_PROTO) &&
-	    (tuple->dst.protonum == info->l4proto) ^
+	    (nf_ct_protonum(ct) == info->l4proto) ^
 	    !(info->invert_flags & XT_CONNTRACK_PROTO))
 		return false;
 
@@ -231,7 +231,7 @@ conntrack_mt(const struct sk_buff *skb, const struct net_device *in,
 			if (test_bit(IPS_DST_NAT_BIT, &ct->status))
 				statebit |= XT_CONNTRACK_STATE_DNAT;
 		}
-		if ((info->state_mask & statebit) ^
+		if (!!(info->state_mask & statebit) ^
 		    !(info->invert_flags & XT_CONNTRACK_STATE))
 			return false;
 	}

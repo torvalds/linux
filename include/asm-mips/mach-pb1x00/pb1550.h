@@ -28,6 +28,7 @@
 #define __ASM_PB1550_H
 
 #include <linux/types.h>
+#include <asm/mach-au1x00/au1xxx_psc.h>
 
 #define DBDMA_AC97_TX_CHAN DSCR_CMD0_PSC1_TX
 #define DBDMA_AC97_RX_CHAN DSCR_CMD0_PSC1_RX

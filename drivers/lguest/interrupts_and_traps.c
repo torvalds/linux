@@ -144,7 +144,6 @@ void maybe_do_interrupt(struct lg_cpu *cpu)
 	if (copy_from_user(&blk, cpu->lg->lguest_data->blocked_interrupts,
 			   sizeof(blk)))
 		return;
-
 	bitmap_andnot(blk, cpu->irqs_pending, blk, LGUEST_IRQS);
 
 	/* Find the first interrupt. */
@@ -237,9 +236,9 @@ void free_interrupts(void)
 		clear_bit(syscall_vector, used_vectors);
 }
 
-/*H:220 Now we've got the routines to deliver interrupts, delivering traps
- * like page fault is easy.  The only trick is that Intel decided that some
- * traps should have error codes: */
+/*H:220 Now we've got the routines to deliver interrupts, delivering traps like
+ * page fault is easy.  The only trick is that Intel decided that some traps
+ * should have error codes: */
 static int has_err(unsigned int trap)
 {
 	return (trap == 8 || (trap >= 10 && trap <= 14) || trap == 17);

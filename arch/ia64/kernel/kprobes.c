@@ -78,6 +78,20 @@ static enum instruction_type bundle_encoding[32][3] = {
   { u, u, u },  			/* 1F */
 };
 
+/* Insert a long branch code */
+static void __kprobes set_brl_inst(void *from, void *to)
+{
+	s64 rel = ((s64) to - (s64) from) >> 4;
+	bundle_t *brl;
+	brl = (bundle_t *) ((u64) from & ~0xf);
+	brl->quad0.template = 0x05;	/* [MLX](stop) */
+	brl->quad0.slot0 = NOP_M_INST;	/* nop.m 0x0 */
+	brl->quad0.slot1_p0 = ((rel >> 20) & 0x7fffffffff) << 2;
+	brl->quad1.slot1_p1 = (((rel >> 20) & 0x7fffffffff) << 2) >> (64 - 46);
+	/* brl.cond.sptk.many.clr rel<<4 (qp=0) */
+	brl->quad1.slot2 = BRL_INST(rel >> 59, rel & 0xfffff);
+}
+
 /*
  * In this function we check to see if the instruction
  * is IP relative instruction and update the kprobe
@@ -496,6 +510,77 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	regs->b0 = ((struct fnptr *)kretprobe_trampoline)->ip;
 }
 
+/* Check the instruction in the slot is break */
+static int __kprobes __is_ia64_break_inst(bundle_t *bundle, uint slot)
+{
+	unsigned int major_opcode;
+	unsigned int template = bundle->quad0.template;
+	unsigned long kprobe_inst;
+
+	/* Move to slot 2, if bundle is MLX type and kprobe slot is 1 */
+	if (slot == 1 && bundle_encoding[template][1] == L)
+		slot++;
+
+	/* Get Kprobe probe instruction at given slot*/
+	get_kprobe_inst(bundle, slot, &kprobe_inst, &major_opcode);
+
+	/* For break instruction,
+	 * Bits 37:40 Major opcode to be zero
+	 * Bits 27:32 X6 to be zero
+	 * Bits 32:35 X3 to be zero
+	 */
+	if (major_opcode || ((kprobe_inst >> 27) & 0x1FF)) {
+		/* Not a break instruction */
+		return 0;
+	}
+
+	/* Is a break instruction */
+	return 1;
+}
+
+/*
+ * In this function, we check whether the target bundle modifies IP or
+ * it triggers an exception. If so, it cannot be boostable.
+ */
+static int __kprobes can_boost(bundle_t *bundle, uint slot,
+			       unsigned long bundle_addr)
+{
+	unsigned int template = bundle->quad0.template;
+
+	do {
+		if (search_exception_tables(bundle_addr + slot) ||
+		    __is_ia64_break_inst(bundle, slot))
+			return 0;	/* exception may occur in this bundle*/
+	} while ((++slot) < 3);
+	template &= 0x1e;
+	if (template >= 0x10 /* including B unit */ ||
+	    template == 0x04 /* including X unit */ ||
+	    template == 0x06) /* undefined */
+		return 0;
+
+	return 1;
+}
+
+/* Prepare long jump bundle and disables other boosters if need */
+static void __kprobes prepare_booster(struct kprobe *p)
+{
+	unsigned long addr = (unsigned long)p->addr & ~0xFULL;
+	unsigned int slot = (unsigned long)p->addr & 0xf;
+	struct kprobe *other_kp;
+
+	if (can_boost(&p->ainsn.insn[0].bundle, slot, addr)) {
+		set_brl_inst(&p->ainsn.insn[1].bundle, (bundle_t *)addr + 1);
+		p->ainsn.inst_flag |= INST_FLAG_BOOSTABLE;
+	}
+
+	/* disables boosters in previous slots */
+	for (; addr < (unsigned long)p->addr; addr++) {
+		other_kp = get_kprobe((void *)addr);
+		if (other_kp)
+			other_kp->ainsn.inst_flag &= ~INST_FLAG_BOOSTABLE;
+	}
+}
+
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	unsigned long addr = (unsigned long) p->addr;
@@ -530,6 +615,8 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 	prepare_break_inst(template, slot, major_opcode, kprobe_inst, p, qp);
 
+	prepare_booster(p);
+
 	return 0;
 }
 
@@ -543,7 +630,9 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 	src = &p->opcode.bundle;
 
 	flush_icache_range((unsigned long)p->ainsn.insn,
-			(unsigned long)p->ainsn.insn + sizeof(kprobe_opcode_t));
+			   (unsigned long)p->ainsn.insn +
+			   sizeof(kprobe_opcode_t) * MAX_INSN_SIZE);
+
 	switch (p->ainsn.slot) {
 		case 0:
 			dest->quad0.slot0 = src->quad0.slot0;
@@ -584,13 +673,13 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
 	mutex_lock(&kprobe_mutex);
-	free_insn_slot(p->ainsn.insn, 0);
+	free_insn_slot(p->ainsn.insn, p->ainsn.inst_flag & INST_FLAG_BOOSTABLE);
 	mutex_unlock(&kprobe_mutex);
 }
 /*
  * We are resuming execution after a single step fault, so the pt_regs
  * structure reflects the register state after we executed the instruction
- * located in the kprobe (p->ainsn.insn.bundle).  We still need to adjust
+ * located in the kprobe (p->ainsn.insn->bundle).  We still need to adjust
  * the ip to point back to the original stack address. To set the IP address
  * to original stack address, handle the case where we need to fixup the
  * relative IP address and/or fixup branch register.
@@ -607,7 +696,7 @@ static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 	if (slot == 1 && bundle_encoding[template][1] == L)
 		slot = 2;
 
-	if (p->ainsn.inst_flag) {
+	if (p->ainsn.inst_flag & ~INST_FLAG_BOOSTABLE) {
 
 		if (p->ainsn.inst_flag & INST_FLAG_FIX_RELATIVE_IP_ADDR) {
 			/* Fix relative IP address */
@@ -686,33 +775,12 @@ static void __kprobes prepare_ss(struct kprobe *p, struct pt_regs *regs)
 static int __kprobes is_ia64_break_inst(struct pt_regs *regs)
 {
 	unsigned int slot = ia64_psr(regs)->ri;
-	unsigned int template, major_opcode;
-	unsigned long kprobe_inst;
 	unsigned long *kprobe_addr = (unsigned long *)regs->cr_iip;
 	bundle_t bundle;
 
 	memcpy(&bundle, kprobe_addr, sizeof(bundle_t));
-	template = bundle.quad0.template;
 
-	/* Move to slot 2, if bundle is MLX type and kprobe slot is 1 */
-	if (slot == 1 && bundle_encoding[template][1] == L)
-		slot++;
-
-	/* Get Kprobe probe instruction at given slot*/
-	get_kprobe_inst(&bundle, slot, &kprobe_inst, &major_opcode);
-
-	/* For break instruction,
-	 * Bits 37:40 Major opcode to be zero
-	 * Bits 27:32 X6 to be zero
-	 * Bits 32:35 X3 to be zero
-	 */
-	if (major_opcode || ((kprobe_inst >> 27) & 0x1FF) ) {
-		/* Not a break instruction */
-		return 0;
-	}
-
-	/* Is a break instruction */
-	return 1;
+	return __is_ia64_break_inst(&bundle, slot);
 }
 
 static int __kprobes pre_kprobes_handler(struct die_args *args)
@@ -802,6 +870,19 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 		return 1;
 
 ss_probe:
+#if !defined(CONFIG_PREEMPT) || defined(CONFIG_PM)
+	if (p->ainsn.inst_flag == INST_FLAG_BOOSTABLE && !p->post_handler) {
+		/* Boost up -- we can execute copied instructions directly */
+		ia64_psr(regs)->ri = p->ainsn.slot;
+		regs->cr_iip = (unsigned long)&p->ainsn.insn->bundle & ~0xFULL;
+		/* turn single stepping off */
+		ia64_psr(regs)->ss = 0;
+
+		reset_current_kprobe();
+		preempt_enable_no_resched();
+		return 1;
+	}
+#endif
 	prepare_ss(p, regs);
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
@@ -838,7 +919,7 @@ out:
 	return 1;
 }
 
-int __kprobes kprobes_fault_handler(struct pt_regs *regs, int trapnr)
+int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
@@ -999,6 +1080,11 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	regs->b0 = ((struct fnptr *)(jprobe_inst_return))->ip;
 
 	return 1;
+}
+
+/* ia64 does not need this */
+void __kprobes jprobe_return(void)
+{
 }
 
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)

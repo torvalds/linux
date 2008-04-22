@@ -45,6 +45,38 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(usb, rtl8187_table);
 
+static const struct ieee80211_rate rtl818x_rates[] = {
+	{ .bitrate = 10, .hw_value = 0, },
+	{ .bitrate = 20, .hw_value = 1, },
+	{ .bitrate = 55, .hw_value = 2, },
+	{ .bitrate = 110, .hw_value = 3, },
+	{ .bitrate = 60, .hw_value = 4, },
+	{ .bitrate = 90, .hw_value = 5, },
+	{ .bitrate = 120, .hw_value = 6, },
+	{ .bitrate = 180, .hw_value = 7, },
+	{ .bitrate = 240, .hw_value = 8, },
+	{ .bitrate = 360, .hw_value = 9, },
+	{ .bitrate = 480, .hw_value = 10, },
+	{ .bitrate = 540, .hw_value = 11, },
+};
+
+static const struct ieee80211_channel rtl818x_channels[] = {
+	{ .center_freq = 2412 },
+	{ .center_freq = 2417 },
+	{ .center_freq = 2422 },
+	{ .center_freq = 2427 },
+	{ .center_freq = 2432 },
+	{ .center_freq = 2437 },
+	{ .center_freq = 2442 },
+	{ .center_freq = 2447 },
+	{ .center_freq = 2452 },
+	{ .center_freq = 2457 },
+	{ .center_freq = 2462 },
+	{ .center_freq = 2467 },
+	{ .center_freq = 2472 },
+	{ .center_freq = 2484 },
+};
+
 static void rtl8187_iowrite_async_cb(struct urb *urb)
 {
 	kfree(urb->context);
@@ -113,9 +145,11 @@ void rtl8187_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 
 static void rtl8187_tx_cb(struct urb *urb)
 {
-	struct ieee80211_tx_status status = { {0} };
+	struct ieee80211_tx_status status;
 	struct sk_buff *skb = (struct sk_buff *)urb->context;
 	struct rtl8187_tx_info *info = (struct rtl8187_tx_info *)skb->cb;
+
+	memset(&status, 0, sizeof(status));
 
 	usb_free_urb(info->urb);
 	if (info->control)
@@ -144,17 +178,23 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	flags = skb->len;
 	flags |= RTL8187_TX_FLAG_NO_ENCRYPT;
-	flags |= control->rts_cts_rate << 19;
-	flags |= control->tx_rate << 24;
+
+	BUG_ON(!control->tx_rate);
+
+	flags |= control->tx_rate->hw_value << 24;
 	if (ieee80211_get_morefrag((struct ieee80211_hdr *)skb->data))
 		flags |= RTL8187_TX_FLAG_MORE_FRAG;
 	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
+		BUG_ON(!control->rts_cts_rate);
 		flags |= RTL8187_TX_FLAG_RTS;
+		flags |= control->rts_cts_rate->hw_value << 19;
 		rts_dur = ieee80211_rts_duration(dev, priv->vif,
 						 skb->len, control);
-	}
-	if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
+	} else if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT) {
+		BUG_ON(!control->rts_cts_rate);
 		flags |= RTL8187_TX_FLAG_CTS;
+		flags |= control->rts_cts_rate->hw_value << 19;
+	}
 
 	hdr = (struct rtl8187_tx_hdr *)skb_push(skb, sizeof(*hdr));
 	hdr->flags = cpu_to_le32(flags);
@@ -223,10 +263,9 @@ static void rtl8187_rx_cb(struct urb *urb)
 	rx_status.antenna = (hdr->signal >> 7) & 1;
 	rx_status.signal = 64 - min(hdr->noise, (u8)64);
 	rx_status.ssi = signal;
-	rx_status.rate = rate;
-	rx_status.freq = dev->conf.freq;
-	rx_status.channel = dev->conf.channel;
-	rx_status.phymode = dev->conf.phymode;
+	rx_status.rate_idx = rate;
+	rx_status.freq = dev->conf.channel->center_freq;
+	rx_status.band = dev->conf.channel->band;
 	rx_status.mactime = le64_to_cpu(hdr->mac_time);
 	rx_status.flag |= RX_FLAG_TSFT;
 	if (flags & (1 << 13))
@@ -507,6 +546,8 @@ static int rtl8187_add_interface(struct ieee80211_hw *dev,
 		return -EOPNOTSUPP;
 	}
 
+	priv->vif = conf->vif;
+
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	for (i = 0; i < ETH_ALEN; i++)
 		rtl818x_iowrite8(priv, &priv->map->MAC[i],
@@ -521,6 +562,7 @@ static void rtl8187_remove_interface(struct ieee80211_hw *dev,
 {
 	struct rtl8187_priv *priv = dev->priv;
 	priv->mode = IEEE80211_IF_TYPE_MNTR;
+	priv->vif = NULL;
 }
 
 static int rtl8187_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
@@ -680,19 +722,22 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	usb_get_dev(udev);
 
 	skb_queue_head_init(&priv->rx_queue);
+
+	BUILD_BUG_ON(sizeof(priv->channels) != sizeof(rtl818x_channels));
+	BUILD_BUG_ON(sizeof(priv->rates) != sizeof(rtl818x_rates));
+
 	memcpy(priv->channels, rtl818x_channels, sizeof(rtl818x_channels));
 	memcpy(priv->rates, rtl818x_rates, sizeof(rtl818x_rates));
 	priv->map = (struct rtl818x_csr *)0xFF00;
-	priv->modes[0].mode = MODE_IEEE80211G;
-	priv->modes[0].num_rates = ARRAY_SIZE(rtl818x_rates);
-	priv->modes[0].rates = priv->rates;
-	priv->modes[0].num_channels = ARRAY_SIZE(rtl818x_channels);
-	priv->modes[0].channels = priv->channels;
-	priv->modes[1].mode = MODE_IEEE80211B;
-	priv->modes[1].num_rates = 4;
-	priv->modes[1].rates = priv->rates;
-	priv->modes[1].num_channels = ARRAY_SIZE(rtl818x_channels);
-	priv->modes[1].channels = priv->channels;
+
+	priv->band.band = IEEE80211_BAND_2GHZ;
+	priv->band.channels = priv->channels;
+	priv->band.n_channels = ARRAY_SIZE(rtl818x_channels);
+	priv->band.bitrates = priv->rates;
+	priv->band.n_bitrates = ARRAY_SIZE(rtl818x_rates);
+	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
+
+
 	priv->mode = IEEE80211_IF_TYPE_MNTR;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		     IEEE80211_HW_RX_INCLUDES_FCS;
@@ -700,10 +745,6 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	dev->queues = 1;
 	dev->max_rssi = 65;
 	dev->max_signal = 64;
-
-	for (i = 0; i < 2; i++)
-		if ((err = ieee80211_register_hwmode(dev, &priv->modes[i])))
-			goto err_free_dev;
 
 	eeprom.data = dev;
 	eeprom.register_read = rtl8187_eeprom_register_read;
@@ -728,20 +769,20 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	for (i = 0; i < 3; i++) {
 		eeprom_93cx6_read(&eeprom, RTL8187_EEPROM_TXPWR_CHAN_1 + i,
 				  &txpwr);
-		(*channel++).val = txpwr & 0xFF;
-		(*channel++).val = txpwr >> 8;
+		(*channel++).hw_value = txpwr & 0xFF;
+		(*channel++).hw_value = txpwr >> 8;
 	}
 	for (i = 0; i < 2; i++) {
 		eeprom_93cx6_read(&eeprom, RTL8187_EEPROM_TXPWR_CHAN_4 + i,
 				  &txpwr);
-		(*channel++).val = txpwr & 0xFF;
-		(*channel++).val = txpwr >> 8;
+		(*channel++).hw_value = txpwr & 0xFF;
+		(*channel++).hw_value = txpwr >> 8;
 	}
 	for (i = 0; i < 2; i++) {
 		eeprom_93cx6_read(&eeprom, RTL8187_EEPROM_TXPWR_CHAN_6 + i,
 				  &txpwr);
-		(*channel++).val = txpwr & 0xFF;
-		(*channel++).val = txpwr >> 8;
+		(*channel++).hw_value = txpwr & 0xFF;
+		(*channel++).hw_value = txpwr >> 8;
 	}
 
 	eeprom_93cx6_read(&eeprom, RTL8187_EEPROM_TXPWR_BASE,

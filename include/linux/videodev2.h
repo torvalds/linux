@@ -62,6 +62,7 @@
 #define __user
 #include <sys/time.h>
 #endif
+#include <linux/ioctl.h>
 #include <linux/types.h>
 
 /*

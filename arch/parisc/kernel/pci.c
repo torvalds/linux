@@ -287,23 +287,15 @@ void pcibios_align_resource(void *data, struct resource *res,
  */
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
-	u16 cmd;
-	int idx;
+	int err;
+	u16 cmd, old_cmd;
+
+	err = pci_enable_resources(dev, mask);
+	if (err < 0)
+		return err;
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-
-	for (idx = 0; idx < DEVICE_COUNT_RESOURCE; idx++) {
-		struct resource *r = &dev->resource[idx];
-
-		/* only setup requested resources */
-		if (!(mask & (1<<idx)))
-			continue;
-
-		if (r->flags & IORESOURCE_IO)
-			cmd |= PCI_COMMAND_IO;
-		if (r->flags & IORESOURCE_MEM)
-			cmd |= PCI_COMMAND_MEMORY;
-	}
+	old_cmd = cmd;
 
 	cmd |= (PCI_COMMAND_SERR | PCI_COMMAND_PARITY);
 
@@ -312,8 +304,12 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	if (dev->bus->bridge_ctl & PCI_BRIDGE_CTL_FAST_BACK)
 		cmd |= PCI_COMMAND_FAST_BACK;
 #endif
-	DBGC("PCIBIOS: Enabling device %s cmd 0x%04x\n", pci_name(dev), cmd);
-	pci_write_config_word(dev, PCI_COMMAND, cmd);
+
+	if (cmd != old_cmd) {
+		dev_info(&dev->dev, "enabling SERR and PARITY (%04x -> %04x)\n",
+			old_cmd, cmd);
+		pci_write_config_word(dev, PCI_COMMAND, cmd);
+	}
 	return 0;
 }
 

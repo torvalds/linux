@@ -48,6 +48,7 @@ void beat_power_off(void)
 }
 
 u64 beat_halt_code = 0x1000000000000000UL;
+EXPORT_SYMBOL(beat_halt_code);
 
 void beat_halt(void)
 {
@@ -94,9 +95,8 @@ ssize_t beat_nvram_read(char *buf, size_t count, loff_t *index)
 		len = count;
 		if (len > BEAT_NVRW_CNT)
 			len = BEAT_NVRW_CNT;
-		if (beat_eeprom_read(i, len, p)) {
+		if (beat_eeprom_read(i, len, p))
 			return -EIO;
-		}
 
 		p += len;
 		i += len;
@@ -121,9 +121,8 @@ ssize_t beat_nvram_write(char *buf, size_t count, loff_t *index)
 		len = count;
 		if (len > BEAT_NVRW_CNT)
 			len = BEAT_NVRW_CNT;
-		if (beat_eeprom_write(i, len, p)) {
+		if (beat_eeprom_write(i, len, p))
 			return -EIO;
-		}
 
 		p += len;
 		i += len;
@@ -149,13 +148,14 @@ int64_t beat_get_term_char(u64 vterm, u64 *len, u64 *t1, u64 *t2)
 	u64 db[2];
 	s64 ret;
 
-	ret = beat_get_characters_from_console(vterm, len, (u8*)db);
+	ret = beat_get_characters_from_console(vterm, len, (u8 *)db);
 	if (ret == 0) {
 		*t1 = db[0];
 		*t2 = db[1];
 	}
 	return ret;
 }
+EXPORT_SYMBOL(beat_get_term_char);
 
 int64_t beat_put_term_char(u64 vterm, u64 len, u64 t1, u64 t2)
 {
@@ -163,8 +163,9 @@ int64_t beat_put_term_char(u64 vterm, u64 len, u64 t1, u64 t2)
 
 	db[0] = t1;
 	db[1] = t2;
-	return beat_put_characters_to_console(vterm, len, (u8*)db);
+	return beat_put_characters_to_console(vterm, len, (u8 *)db);
 }
+EXPORT_SYMBOL(beat_put_term_char);
 
 void beat_power_save(void)
 {
@@ -261,7 +262,3 @@ static int __init beat_event_init(void)
 }
 
 device_initcall(beat_event_init);
-
-EXPORT_SYMBOL(beat_get_term_char);
-EXPORT_SYMBOL(beat_put_term_char);
-EXPORT_SYMBOL(beat_halt_code);

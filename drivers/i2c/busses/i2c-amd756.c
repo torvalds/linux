@@ -335,7 +335,7 @@ static int __devinit amd756_probe(struct pci_dev *pdev,
 	u8 temp;
 	
 	/* driver_data might come from user-space, so check it */
-	if (id->driver_data > ARRAY_SIZE(chipname))
+	if (id->driver_data >= ARRAY_SIZE(chipname))
 		return -EINVAL;
 
 	if (amd756_ioport) {

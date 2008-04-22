@@ -1,7 +1,7 @@
 /*
  * include/asm-arm/arch-ns9xxx/entry-macro.S
  *
- * Copyright (C) 2006 by Digi International Inc.
+ * Copyright (C) 2006,2007 by Digi International Inc.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -9,16 +9,16 @@
  * the Free Software Foundation.
  */
 #include <asm/hardware.h>
-#include <asm/arch-ns9xxx/regs-sys.h>
+#include <asm/arch-ns9xxx/regs-sys-common.h>
 
 		.macro	get_irqnr_preamble, base, tmp
+		ldr	\base, =SYS_ISRADDR
 		.endm
 
 		.macro	arch_ret_to_user, tmp1, tmp2
 		.endm
 
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		ldr	\base, =SYS_ISRADDR
 		ldr	\irqstat, [\base, #(SYS_ISA - SYS_ISRADDR)]
 		cmp	\irqstat, #0
 		ldrne	\irqnr, [\base]

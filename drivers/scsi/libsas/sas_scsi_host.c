@@ -24,6 +24,8 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/firmware.h>
+#include <linux/ctype.h>
 
 #include "sas_internal.h"
 
@@ -51,9 +53,13 @@ static void sas_scsi_task_done(struct sas_task *task)
 {
 	struct task_status_struct *ts = &task->task_status;
 	struct scsi_cmnd *sc = task->uldd_task;
-	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(sc->device->host);
-	unsigned ts_flags = task->task_state_flags;
 	int hs = 0, stat = 0;
+
+	if (unlikely(task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+		/* Aborted tasks will be completed by the error handler */
+		SAS_DPRINTK("task done but aborted\n");
+		return;
+	}
 
 	if (unlikely(!sc)) {
 		SAS_DPRINTK("task_done called with non existing SCSI cmnd!\n");
@@ -120,11 +126,7 @@ static void sas_scsi_task_done(struct sas_task *task)
 	sc->result = (hs << 16) | stat;
 	list_del_init(&task->list);
 	sas_free_task(task);
-	/* This is very ugly but this is how SCSI Core works. */
-	if (ts_flags & SAS_TASK_STATE_ABORTED)
-		scsi_eh_finish_cmd(sc, &sas_ha->eh_done_q);
-	else
-		sc->scsi_done(sc);
+	sc->scsi_done(sc);
 }
 
 static enum task_attribute sas_scsi_get_task_attr(struct scsi_cmnd *cmd)
@@ -255,13 +257,34 @@ out:
 	return res;
 }
 
+static void sas_eh_finish_cmd(struct scsi_cmnd *cmd)
+{
+	struct sas_task *task = TO_SAS_TASK(cmd);
+	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(cmd->device->host);
+
+	/* remove the aborted task flag to allow the task to be
+	 * completed now. At this point, we only get called following
+	 * an actual abort of the task, so we should be guaranteed not
+	 * to be racing with any completions from the LLD (hence we
+	 * don't need the task state lock to clear the flag) */
+	task->task_state_flags &= ~SAS_TASK_STATE_ABORTED;
+	/* Now call task_done.  However, task will be free'd after
+	 * this */
+	task->task_done(task);
+	/* now finish the command and move it on to the error
+	 * handler done list, this also takes it off the
+	 * error handler pending list */
+	scsi_eh_finish_cmd(cmd, &sas_ha->eh_done_q);
+}
+
 static void sas_scsi_clear_queue_lu(struct list_head *error_q, struct scsi_cmnd *my_cmd)
 {
 	struct scsi_cmnd *cmd, *n;
 
 	list_for_each_entry_safe(cmd, n, error_q, eh_entry) {
-		if (cmd == my_cmd)
-			list_del_init(&cmd->eh_entry);
+		if (cmd->device->sdev_target == my_cmd->device->sdev_target &&
+		    cmd->device->lun == my_cmd->device->lun)
+			sas_eh_finish_cmd(cmd);
 	}
 }
 
@@ -274,7 +297,7 @@ static void sas_scsi_clear_queue_I_T(struct list_head *error_q,
 		struct domain_device *x = cmd_to_domain_dev(cmd);
 
 		if (x == dev)
-			list_del_init(&cmd->eh_entry);
+			sas_eh_finish_cmd(cmd);
 	}
 }
 
@@ -288,7 +311,7 @@ static void sas_scsi_clear_queue_port(struct list_head *error_q,
 		struct asd_sas_port *x = dev->port;
 
 		if (x == port)
-			list_del_init(&cmd->eh_entry);
+			sas_eh_finish_cmd(cmd);
 	}
 }
 
@@ -413,7 +436,7 @@ static int sas_recover_I_T(struct domain_device *dev)
 }
 
 /* Find the sas_phy that's attached to this device */
-static struct sas_phy *find_local_sas_phy(struct domain_device *dev)
+struct sas_phy *sas_find_local_phy(struct domain_device *dev)
 {
 	struct domain_device *pdev = dev->parent;
 	struct ex_phy *exphy = NULL;
@@ -435,6 +458,7 @@ static struct sas_phy *find_local_sas_phy(struct domain_device *dev)
 	BUG_ON(!exphy);
 	return exphy->phy;
 }
+EXPORT_SYMBOL_GPL(sas_find_local_phy);
 
 /* Attempt to send a LUN reset message to a device */
 int sas_eh_device_reset_handler(struct scsi_cmnd *cmd)
@@ -461,7 +485,7 @@ int sas_eh_device_reset_handler(struct scsi_cmnd *cmd)
 int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 {
 	struct domain_device *dev = cmd_to_domain_dev(cmd);
-	struct sas_phy *phy = find_local_sas_phy(dev);
+	struct sas_phy *phy = sas_find_local_phy(dev);
 	int res;
 
 	res = sas_phy_reset(phy, 1);
@@ -476,10 +500,10 @@ int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 }
 
 /* Try to reset a device */
-static int try_to_reset_cmd_device(struct Scsi_Host *shost,
-				   struct scsi_cmnd *cmd)
+static int try_to_reset_cmd_device(struct scsi_cmnd *cmd)
 {
 	int res;
+	struct Scsi_Host *shost = cmd->device->host;
 
 	if (!shost->hostt->eh_device_reset_handler)
 		goto try_bus_reset;
@@ -519,6 +543,12 @@ Again:
 		need_reset = task->task_state_flags & SAS_TASK_NEED_DEV_RESET;
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
+		if (need_reset) {
+			SAS_DPRINTK("%s: task 0x%p requests reset\n",
+				    __FUNCTION__, task);
+			goto reset;
+		}
+
 		SAS_DPRINTK("trying to find task 0x%p\n", task);
 		res = sas_scsi_find_task(task);
 
@@ -528,28 +558,23 @@ Again:
 		case TASK_IS_DONE:
 			SAS_DPRINTK("%s: task 0x%p is done\n", __FUNCTION__,
 				    task);
-			task->task_done(task);
-			if (need_reset)
-				try_to_reset_cmd_device(shost, cmd);
+			sas_eh_finish_cmd(cmd);
 			continue;
 		case TASK_IS_ABORTED:
 			SAS_DPRINTK("%s: task 0x%p is aborted\n",
 				    __FUNCTION__, task);
-			task->task_done(task);
-			if (need_reset)
-				try_to_reset_cmd_device(shost, cmd);
+			sas_eh_finish_cmd(cmd);
 			continue;
 		case TASK_IS_AT_LU:
 			SAS_DPRINTK("task 0x%p is at LU: lu recover\n", task);
+ reset:
 			tmf_resp = sas_recover_lu(task->dev, cmd);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE) {
 				SAS_DPRINTK("dev %016llx LU %x is "
 					    "recovered\n",
 					    SAS_ADDR(task->dev),
 					    cmd->device->lun);
-				task->task_done(task);
-				if (need_reset)
-					try_to_reset_cmd_device(shost, cmd);
+				sas_eh_finish_cmd(cmd);
 				sas_scsi_clear_queue_lu(work_q, cmd);
 				goto Again;
 			}
@@ -560,15 +585,15 @@ Again:
 				    task);
 			tmf_resp = sas_recover_I_T(task->dev);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE) {
+				struct domain_device *dev = task->dev;
 				SAS_DPRINTK("I_T %016llx recovered\n",
 					    SAS_ADDR(task->dev->sas_addr));
-				task->task_done(task);
-				if (need_reset)
-					try_to_reset_cmd_device(shost, cmd);
-				sas_scsi_clear_queue_I_T(work_q, task->dev);
+				sas_eh_finish_cmd(cmd);
+				sas_scsi_clear_queue_I_T(work_q, dev);
 				goto Again;
 			}
 			/* Hammer time :-) */
+			try_to_reset_cmd_device(cmd);
 			if (i->dft->lldd_clear_nexus_port) {
 				struct asd_sas_port *port = task->dev->port;
 				SAS_DPRINTK("clearing nexus for port:%d\n",
@@ -577,9 +602,7 @@ Again:
 				if (res == TMF_RESP_FUNC_COMPLETE) {
 					SAS_DPRINTK("clear nexus port:%d "
 						    "succeeded\n", port->id);
-					task->task_done(task);
-					if (need_reset)
-						try_to_reset_cmd_device(shost, cmd);
+					sas_eh_finish_cmd(cmd);
 					sas_scsi_clear_queue_port(work_q,
 								  port);
 					goto Again;
@@ -591,10 +614,8 @@ Again:
 				if (res == TMF_RESP_FUNC_COMPLETE) {
 					SAS_DPRINTK("clear nexus ha "
 						    "succeeded\n");
-					task->task_done(task);
-					if (need_reset)
-						try_to_reset_cmd_device(shost, cmd);
-					goto out;
+					sas_eh_finish_cmd(cmd);
+					goto clear_q;
 				}
 			}
 			/* If we are here -- this means that no amount
@@ -606,21 +627,16 @@ Again:
 				    SAS_ADDR(task->dev->sas_addr),
 				    cmd->device->lun);
 
-			task->task_done(task);
-			if (need_reset)
-				try_to_reset_cmd_device(shost, cmd);
+			sas_eh_finish_cmd(cmd);
 			goto clear_q;
 		}
 	}
-out:
 	return list_empty(work_q);
 clear_q:
 	SAS_DPRINTK("--- Exit %s -- clear_q\n", __FUNCTION__);
-	list_for_each_entry_safe(cmd, n, work_q, eh_entry) {
-		struct sas_task *task = TO_SAS_TASK(cmd);
-		list_del_init(&cmd->eh_entry);
-		task->task_done(task);
-	}
+	list_for_each_entry_safe(cmd, n, work_q, eh_entry)
+		sas_eh_finish_cmd(cmd);
+
 	return list_empty(work_q);
 }
 
@@ -1049,6 +1065,45 @@ void sas_target_destroy(struct scsi_target *starget)
 
 	return;
 }
+
+static void sas_parse_addr(u8 *sas_addr, const char *p)
+{
+	int i;
+	for (i = 0; i < SAS_ADDR_SIZE; i++) {
+		u8 h, l;
+		if (!*p)
+			break;
+		h = isdigit(*p) ? *p-'0' : toupper(*p)-'A'+10;
+		p++;
+		l = isdigit(*p) ? *p-'0' : toupper(*p)-'A'+10;
+		p++;
+		sas_addr[i] = (h<<4) | l;
+	}
+}
+
+#define SAS_STRING_ADDR_SIZE	16
+
+int sas_request_addr(struct Scsi_Host *shost, u8 *addr)
+{
+	int res;
+	const struct firmware *fw;
+
+	res = request_firmware(&fw, "sas_addr", &shost->shost_gendev);
+	if (res)
+		return res;
+
+	if (fw->size < SAS_STRING_ADDR_SIZE) {
+		res = -ENODEV;
+		goto out;
+	}
+
+	sas_parse_addr(addr, fw->data);
+
+out:
+	release_firmware(fw);
+	return res;
+}
+EXPORT_SYMBOL_GPL(sas_request_addr);
 
 EXPORT_SYMBOL_GPL(sas_queuecommand);
 EXPORT_SYMBOL_GPL(sas_target_alloc);

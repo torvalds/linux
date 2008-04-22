@@ -42,7 +42,7 @@ int rpaphp_get_sensor_state(struct slot *slot, int *state)
 	if (rc < 0) {
 		if (rc == -EFAULT || rc == -EEXIST) {
 			dbg("%s: slot must be power up to get sensor-state\n",
-			    __FUNCTION__);
+			    __func__);
 
 			/* some slots have to be powered up 
 			 * before get-sensor will succeed.
@@ -51,15 +51,15 @@ int rpaphp_get_sensor_state(struct slot *slot, int *state)
 						  &setlevel);
 			if (rc < 0) {
 				dbg("%s: power on slot[%s] failed rc=%d.\n",
-				    __FUNCTION__, slot->name, rc);
+				    __func__, slot->name, rc);
 			} else {
 				rc = rtas_get_sensor(DR_ENTITY_SENSE,
 						     slot->index, state);
 			}
 		} else if (rc == -ENODEV)
-			info("%s: slot is unusable\n", __FUNCTION__);
+			info("%s: slot is unusable\n", __func__);
 		else
-			err("%s failed to get sensor state\n", __FUNCTION__);
+			err("%s failed to get sensor state\n", __func__);
 	}
 	return rc;
 }
@@ -95,7 +95,7 @@ int rpaphp_enable_slot(struct slot *slot)
 
 	bus = pcibios_find_pci_bus(slot->dn);
 	if (!bus) {
-		err("%s: no pci_bus for dn %s\n", __FUNCTION__, slot->dn->full_name);
+		err("%s: no pci_bus for dn %s\n", __func__, slot->dn->full_name);
 		return -EINVAL;
 	}
 
@@ -111,7 +111,7 @@ int rpaphp_enable_slot(struct slot *slot)
 		/* non-empty slot has to have child */
 		if (!slot->dn->child) {
 			err("%s: slot[%s]'s device_node doesn't have child for adapter\n",
-			    __FUNCTION__, slot->name);
+			    __func__, slot->name);
 			return -EINVAL;
 		}
 
@@ -125,7 +125,7 @@ int rpaphp_enable_slot(struct slot *slot)
 
 		if (debug) {
 			struct pci_dev *dev;
-			dbg("%s: pci_devs of slot[%s]\n", __FUNCTION__, slot->dn->full_name);
+			dbg("%s: pci_devs of slot[%s]\n", __func__, slot->dn->full_name);
 			list_for_each_entry (dev, &bus->devices, bus_list)
 				dbg("\t%s\n", pci_name(dev));
 		}

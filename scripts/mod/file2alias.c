@@ -51,11 +51,13 @@ do {                                                            \
                 sprintf(str + strlen(str), "*");                \
 } while(0)
 
+unsigned int cross_build = 0;
 /**
  * Check that sizeof(device_id type) are consistent with size of section
  * in .o file. If in-consistent then userspace and kernel does not agree
  * on actual size which is a bug.
  * Also verify that the final entry in the table is all zeros.
+ * Ignore both checks if build host differ from target host and size differs.
  **/
 static void device_id_check(const char *modname, const char *device_id,
 			    unsigned long size, unsigned long id_size,
@@ -64,6 +66,8 @@ static void device_id_check(const char *modname, const char *device_id,
 	int i;
 
 	if (size % id_size || size < id_size) {
+		if (cross_build != 0)
+			return;
 		fatal("%s: sizeof(struct %s_device_id)=%lu is not a modulo "
 		      "of the size of section __mod_%s_device_table=%lu.\n"
 		      "Fix definition of struct %s_device_id "
@@ -324,19 +328,52 @@ static int do_pnp_entry(const char *filename,
 	return 1;
 }
 
-/* looks like: "pnp:cCdD..." */
-static int do_pnp_card_entry(const char *filename,
-			struct pnp_card_device_id *id, char *alias)
+/* looks like: "pnp:dD" for every device of the card */
+static void do_pnp_card_entries(void *symval, unsigned long size,
+				struct module *mod)
 {
-	int i;
+	const unsigned long id_size = sizeof(struct pnp_card_device_id);
+	const unsigned int count = (size / id_size)-1;
+	const struct pnp_card_device_id *cards = symval;
+	unsigned int i;
 
-	sprintf(alias, "pnp:c%s", id->id);
-	for (i = 0; i < PNP_MAX_DEVICES; i++) {
-		if (! *id->devs[i].id)
-			break;
-		sprintf(alias + strlen(alias), "d%s", id->devs[i].id);
+	device_id_check(mod->name, "pnp", size, id_size, symval);
+
+	for (i = 0; i < count; i++) {
+		unsigned int j;
+		const struct pnp_card_device_id *card = &cards[i];
+
+		for (j = 0; j < PNP_MAX_DEVICES; j++) {
+			const char *id = (char *)card->devs[j].id;
+			int i2, j2;
+			int dup = 0;
+
+			if (!id[0])
+				break;
+
+			/* find duplicate, already added value */
+			for (i2 = 0; i2 < i && !dup; i2++) {
+				const struct pnp_card_device_id *card2 = &cards[i2];
+
+				for (j2 = 0; j2 < PNP_MAX_DEVICES; j2++) {
+					const char *id2 = (char *)card2->devs[j2].id;
+
+					if (!id2[0])
+						break;
+
+					if (!strcmp(id, id2)) {
+						dup = 1;
+						break;
+					}
+				}
+			}
+
+			/* add an individual alias for every device entry */
+			if (!dup)
+				buf_printf(&mod->dev_table_buf,
+					   "MODULE_ALIAS(\"pnp:d%s*\");\n", id);
+		}
 	}
-	return 1;
 }
 
 /* Looks like: pcmcia:mNcNfNfnNpfnNvaNvbNvcNvdN. */
@@ -630,9 +667,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 			 sizeof(struct pnp_device_id), "pnp",
 			 do_pnp_entry, mod);
 	else if (sym_is(symname, "__mod_pnp_card_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct pnp_card_device_id), "pnp_card",
-			 do_pnp_card_entry, mod);
+		do_pnp_card_entries(symval, sym->st_size, mod);
 	else if (sym_is(symname, "__mod_pcmcia_device_table"))
 		do_table(symval, sym->st_size,
 			 sizeof(struct pcmcia_device_id), "pcmcia",

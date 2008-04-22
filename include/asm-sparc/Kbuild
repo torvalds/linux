@@ -5,7 +5,6 @@ header-y += asi.h
 header-y += bpp.h
 header-y += jsflash.h
 header-y += openpromio.h
-header-y += pconf.h
 header-y += reg.h
 header-y += traps.h
 header-y += vfc_ioctls.h

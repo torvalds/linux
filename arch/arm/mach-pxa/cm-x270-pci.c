@@ -23,6 +23,7 @@
 #include <asm/mach/pci.h>
 #include <asm/arch/cm-x270.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/mach-types.h>
 
 #include <asm/hardware/it8152.h>
@@ -104,7 +105,7 @@ static int __init cmx270_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 
-	dev_dbg(&dev->dev, "%s: slot=%x, pin=%x\n", __FUNCTION__, slot, pin);
+	dev_dbg(&dev->dev, "%s: slot=%x, pin=%x\n", __func__, slot, pin);
 
 	irq = it8152_pci_map_irq(dev, slot, pin);
 	if (irq)

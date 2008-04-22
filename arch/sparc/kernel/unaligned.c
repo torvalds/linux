@@ -175,156 +175,30 @@ static void unaligned_panic(char *str)
 	panic(str);
 }
 
-#define do_integer_load(dest_reg, size, saddr, is_signed, errh) ({		\
-__asm__ __volatile__ (								\
-	"cmp	%1, 8\n\t"							\
-	"be	9f\n\t"								\
-	" cmp	%1, 4\n\t"							\
-	"be	6f\n"								\
-"4:\t"	" ldub	[%2], %%l1\n"							\
-"5:\t"	"ldub	[%2 + 1], %%l2\n\t"						\
-	"sll	%%l1, 8, %%l1\n\t"						\
-	"tst	%3\n\t"								\
-	"be	3f\n\t"								\
-	" add	%%l1, %%l2, %%l1\n\t"						\
-	"sll	%%l1, 16, %%l1\n\t"						\
-	"sra	%%l1, 16, %%l1\n"						\
-"3:\t"	"b	0f\n\t"								\
-	" st	%%l1, [%0]\n"							\
-"6:\t"	"ldub	[%2 + 1], %%l2\n\t"						\
-	"sll	%%l1, 24, %%l1\n"						\
-"7:\t"	"ldub	[%2 + 2], %%g7\n\t"						\
-	"sll	%%l2, 16, %%l2\n"						\
-"8:\t"	"ldub	[%2 + 3], %%g1\n\t"						\
-	"sll	%%g7, 8, %%g7\n\t"						\
-	"or	%%l1, %%l2, %%l1\n\t"						\
-	"or	%%g7, %%g1, %%g7\n\t"						\
-	"or	%%l1, %%g7, %%l1\n\t"						\
-	"b	0f\n\t"								\
-	" st	%%l1, [%0]\n"							\
-"9:\t"	"ldub	[%2], %%l1\n"							\
-"10:\t"	"ldub	[%2 + 1], %%l2\n\t"						\
-	"sll	%%l1, 24, %%l1\n"						\
-"11:\t"	"ldub	[%2 + 2], %%g7\n\t"						\
-	"sll	%%l2, 16, %%l2\n"						\
-"12:\t"	"ldub	[%2 + 3], %%g1\n\t"						\
-	"sll	%%g7, 8, %%g7\n\t"						\
-	"or	%%l1, %%l2, %%l1\n\t"						\
-	"or	%%g7, %%g1, %%g7\n\t"						\
-	"or	%%l1, %%g7, %%g7\n"						\
-"13:\t"	"ldub	[%2 + 4], %%l1\n\t"						\
-	"st	%%g7, [%0]\n"							\
-"14:\t"	"ldub	[%2 + 5], %%l2\n\t"						\
-	"sll	%%l1, 24, %%l1\n"						\
-"15:\t"	"ldub	[%2 + 6], %%g7\n\t"						\
-	"sll	%%l2, 16, %%l2\n"						\
-"16:\t"	"ldub	[%2 + 7], %%g1\n\t"						\
-	"sll	%%g7, 8, %%g7\n\t"						\
-	"or	%%l1, %%l2, %%l1\n\t"						\
-	"or	%%g7, %%g1, %%g7\n\t"						\
-	"or	%%l1, %%g7, %%g7\n\t"						\
-	"st	%%g7, [%0 + 4]\n"						\
-"0:\n\n\t"									\
-	".section __ex_table,#alloc\n\t"					\
-	".word	4b, " #errh "\n\t"						\
-	".word	5b, " #errh "\n\t"						\
-	".word	6b, " #errh "\n\t"						\
-	".word	7b, " #errh "\n\t"						\
-	".word	8b, " #errh "\n\t"						\
-	".word	9b, " #errh "\n\t"						\
-	".word	10b, " #errh "\n\t"						\
-	".word	11b, " #errh "\n\t"						\
-	".word	12b, " #errh "\n\t"						\
-	".word	13b, " #errh "\n\t"						\
-	".word	14b, " #errh "\n\t"						\
-	".word	15b, " #errh "\n\t"						\
-	".word	16b, " #errh "\n\n\t"						\
-	".previous\n\t"								\
-	: : "r" (dest_reg), "r" (size), "r" (saddr), "r" (is_signed)		\
-	: "l1", "l2", "g7", "g1", "cc");					\
-})
-	
-#define store_common(dst_addr, size, src_val, errh) ({				\
-__asm__ __volatile__ (								\
-	"ld	[%2], %%l1\n"							\
-	"cmp	%1, 2\n\t"							\
-	"be	2f\n\t"								\
-	" cmp	%1, 4\n\t"							\
-	"be	1f\n\t"								\
-	" srl	%%l1, 24, %%l2\n\t"						\
-	"srl	%%l1, 16, %%g7\n"						\
-"4:\t"	"stb	%%l2, [%0]\n\t"							\
-	"srl	%%l1, 8, %%l2\n"						\
-"5:\t"	"stb	%%g7, [%0 + 1]\n\t"						\
-	"ld	[%2 + 4], %%g7\n"						\
-"6:\t"	"stb	%%l2, [%0 + 2]\n\t"						\
-	"srl	%%g7, 24, %%l2\n"						\
-"7:\t"	"stb	%%l1, [%0 + 3]\n\t"						\
-	"srl	%%g7, 16, %%l1\n"						\
-"8:\t"	"stb	%%l2, [%0 + 4]\n\t"						\
-	"srl	%%g7, 8, %%l2\n"						\
-"9:\t"	"stb	%%l1, [%0 + 5]\n"						\
-"10:\t"	"stb	%%l2, [%0 + 6]\n\t"						\
-	"b	0f\n"								\
-"11:\t"	" stb	%%g7, [%0 + 7]\n"						\
-"1:\t"	"srl	%%l1, 16, %%g7\n"						\
-"12:\t"	"stb	%%l2, [%0]\n\t"							\
-	"srl	%%l1, 8, %%l2\n"						\
-"13:\t"	"stb	%%g7, [%0 + 1]\n"						\
-"14:\t"	"stb	%%l2, [%0 + 2]\n\t"						\
-	"b	0f\n"								\
-"15:\t"	" stb	%%l1, [%0 + 3]\n"						\
-"2:\t"	"srl	%%l1, 8, %%l2\n"						\
-"16:\t"	"stb	%%l2, [%0]\n"							\
-"17:\t"	"stb	%%l1, [%0 + 1]\n"						\
-"0:\n\n\t"									\
-	".section __ex_table,#alloc\n\t"					\
-	".word	4b, " #errh "\n\t"						\
-	".word	5b, " #errh "\n\t"						\
-	".word	6b, " #errh "\n\t"						\
-	".word	7b, " #errh "\n\t"						\
-	".word	8b, " #errh "\n\t"						\
-	".word	9b, " #errh "\n\t"						\
-	".word	10b, " #errh "\n\t"						\
-	".word	11b, " #errh "\n\t"						\
-	".word	12b, " #errh "\n\t"						\
-	".word	13b, " #errh "\n\t"						\
-	".word	14b, " #errh "\n\t"						\
-	".word	15b, " #errh "\n\t"						\
-	".word	16b, " #errh "\n\t"						\
-	".word	17b, " #errh "\n\n\t"						\
-	".previous\n\t"								\
-	: : "r" (dst_addr), "r" (size), "r" (src_val)				\
-	: "l1", "l2", "g7", "g1", "cc");					\
-})
+/* una_asm.S */
+extern int do_int_load(unsigned long *dest_reg, int size,
+		       unsigned long *saddr, int is_signed);
+extern int __do_int_store(unsigned long *dst_addr, int size,
+			  unsigned long *src_val);
 
-#define do_integer_store(reg_num, size, dst_addr, regs, errh) ({		\
-	unsigned long *src_val;							\
-	static unsigned long zero[2] = { 0, };					\
-										\
-	if (reg_num) src_val = fetch_reg_addr(reg_num, regs);			\
-	else {									\
-		src_val = &zero[0];						\
-		if (size == 8)							\
-			zero[1] = fetch_reg(1, regs);				\
-	}									\
-	store_common(dst_addr, size, src_val, errh);				\
-})
+static int do_int_store(int reg_num, int size, unsigned long *dst_addr,
+			struct pt_regs *regs)
+{
+	unsigned long zero[2] = { 0, 0 };
+	unsigned long *src_val;
+
+	if (reg_num)
+		src_val = fetch_reg_addr(reg_num, regs);
+	else {
+		src_val = &zero[0];
+		if (size == 8)
+			zero[1] = fetch_reg(1, regs);
+	}
+	return __do_int_store(dst_addr, size, src_val);
+}
 
 extern void smp_capture(void);
 extern void smp_release(void);
-
-#define do_atomic(srcdest_reg, mem, errh) ({					\
-	unsigned long flags, tmp;						\
-										\
-	smp_capture();								\
-	local_irq_save(flags);							\
-	tmp = *srcdest_reg;							\
-	do_integer_load(srcdest_reg, 4, mem, 0, errh);				\
-	store_common(mem, 4, &tmp, errh);					\
-	local_irq_restore(flags);						\
-	smp_release();								\
-})
 
 static inline void advance(struct pt_regs *regs)
 {
@@ -342,9 +216,7 @@ static inline int ok_for_kernel(unsigned int insn)
 	return !floating_point_load_or_store_p(insn);
 }
 
-void kernel_mna_trap_fault(struct pt_regs *regs, unsigned int insn) __asm__ ("kernel_mna_trap_fault");
-
-void kernel_mna_trap_fault(struct pt_regs *regs, unsigned int insn)
+static void kernel_mna_trap_fault(struct pt_regs *regs, unsigned int insn)
 {
 	unsigned long g2 = regs->u_regs [UREG_G2];
 	unsigned long fixup = search_extables_range(regs->pc, &g2);
@@ -379,48 +251,34 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 		printk("Unsupported unaligned load/store trap for kernel at <%08lx>.\n",
 		       regs->pc);
 		unaligned_panic("Wheee. Kernel does fpu/atomic unaligned load/store.");
-
-		__asm__ __volatile__ ("\n"
-"kernel_unaligned_trap_fault:\n\t"
-		"mov	%0, %%o0\n\t"
-		"call	kernel_mna_trap_fault\n\t"
-		" mov	%1, %%o1\n\t"
-		:
-		: "r" (regs), "r" (insn)
-		: "o0", "o1", "o2", "o3", "o4", "o5", "o7",
-		  "g1", "g2", "g3", "g4", "g5", "g7", "cc");
 	} else {
 		unsigned long addr = compute_effective_address(regs, insn);
+		int err;
 
 #ifdef DEBUG_MNA
 		printk("KMNA: pc=%08lx [dir=%s addr=%08lx size=%d] retpc[%08lx]\n",
 		       regs->pc, dirstrings[dir], addr, size, regs->u_regs[UREG_RETPC]);
 #endif
-		switch(dir) {
+		switch (dir) {
 		case load:
-			do_integer_load(fetch_reg_addr(((insn>>25)&0x1f), regs),
-					size, (unsigned long *) addr,
-					decode_signedness(insn),
-					kernel_unaligned_trap_fault);
+			err = do_int_load(fetch_reg_addr(((insn>>25)&0x1f),
+							 regs),
+					  size, (unsigned long *) addr,
+					  decode_signedness(insn));
 			break;
 
 		case store:
-			do_integer_store(((insn>>25)&0x1f), size,
-					 (unsigned long *) addr, regs,
-					 kernel_unaligned_trap_fault);
+			err = do_int_store(((insn>>25)&0x1f), size,
+					   (unsigned long *) addr, regs);
 			break;
-#if 0 /* unsupported */
-		case both:
-			do_atomic(fetch_reg_addr(((insn>>25)&0x1f), regs),
-				  (unsigned long *) addr,
-				  kernel_unaligned_trap_fault);
-			break;
-#endif
 		default:
 			panic("Impossible kernel unaligned trap.");
 			/* Not reached... */
 		}
-		advance(regs);
+		if (err)
+			kernel_mna_trap_fault(regs, insn);
+		else
+			advance(regs);
 	}
 }
 
@@ -459,9 +317,7 @@ static inline int ok_for_user(struct pt_regs *regs, unsigned int insn,
 	return 0;
 }
 
-void user_mna_trap_fault(struct pt_regs *regs, unsigned int insn) __asm__ ("user_mna_trap_fault");
-
-void user_mna_trap_fault(struct pt_regs *regs, unsigned int insn)
+static void user_mna_trap_fault(struct pt_regs *regs, unsigned int insn)
 {
 	siginfo_t info;
 
@@ -485,7 +341,7 @@ asmlinkage void user_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 	if(!ok_for_user(regs, insn, dir)) {
 		goto kill_user;
 	} else {
-		int size = decode_access_size(insn);
+		int err, size = decode_access_size(insn);
 		unsigned long addr;
 
 		if(floating_point_load_or_store_p(insn)) {
@@ -496,48 +352,34 @@ asmlinkage void user_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 		addr = compute_effective_address(regs, insn);
 		switch(dir) {
 		case load:
-			do_integer_load(fetch_reg_addr(((insn>>25)&0x1f), regs),
-					size, (unsigned long *) addr,
-					decode_signedness(insn),
-					user_unaligned_trap_fault);
+			err = do_int_load(fetch_reg_addr(((insn>>25)&0x1f),
+							 regs),
+					  size, (unsigned long *) addr,
+					  decode_signedness(insn));
 			break;
 
 		case store:
-			do_integer_store(((insn>>25)&0x1f), size,
-					 (unsigned long *) addr, regs,
-					 user_unaligned_trap_fault);
+			err = do_int_store(((insn>>25)&0x1f), size,
+					   (unsigned long *) addr, regs);
 			break;
 
 		case both:
-#if 0 /* unsupported */
-			do_atomic(fetch_reg_addr(((insn>>25)&0x1f), regs),
-				  (unsigned long *) addr,
-				  user_unaligned_trap_fault);
-#else
 			/*
 			 * This was supported in 2.4. However, we question
 			 * the value of SWAP instruction across word boundaries.
 			 */
 			printk("Unaligned SWAP unsupported.\n");
-			goto kill_user;
-#endif
+			err = -EFAULT;
 			break;
 
 		default:
 			unaligned_panic("Impossible user unaligned trap.");
-
-			__asm__ __volatile__ ("\n"
-"user_unaligned_trap_fault:\n\t"
-			"mov	%0, %%o0\n\t"
-			"call	user_mna_trap_fault\n\t"
-			" mov	%1, %%o1\n\t"
-			:
-			: "r" (regs), "r" (insn)
-			: "o0", "o1", "o2", "o3", "o4", "o5", "o7",
-			  "g1", "g2", "g3", "g4", "g5", "g7", "cc");
 			goto out;
 		}
-		advance(regs);
+		if (err)
+			goto kill_user;
+		else
+			advance(regs);
 		goto out;
 	}
 

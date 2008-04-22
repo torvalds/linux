@@ -4,6 +4,10 @@
 #define COMMAND_LINE_SIZE 2048
 
 #ifndef __ASSEMBLY__
+
+/* Interrupt control for vSMPowered x86_64 systems */
+void vsmp_init(void);
+
 char *machine_specific_memory_setup(void);
 #ifndef CONFIG_PARAVIRT
 #define paravirt_post_allocator_init()	do {} while (0)
@@ -51,8 +55,8 @@ struct e820entry;
 char * __init machine_specific_memory_setup(void);
 char *memory_setup(void);
 
-int __init copy_e820_map(struct e820entry * biosmap, int nr_map);
-int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map);
+int __init copy_e820_map(struct e820entry *biosmap, int nr_map);
+int __init sanitize_e820_map(struct e820entry *biosmap, char *pnr_map);
 void __init add_memory_region(unsigned long long start,
 			      unsigned long long size, int type);
 

@@ -121,6 +121,7 @@ extern struct mutex xfrm_cfg_mutex;
 struct xfrm_state
 {
 	/* Note: bydst is re-used during gc */
+	struct list_head	all;
 	struct hlist_node	bydst;
 	struct hlist_node	bysrc;
 	struct hlist_node	byspi;
@@ -204,6 +205,7 @@ struct xfrm_state
 	 * transformer. */
 	const struct xfrm_type	*type;
 	struct xfrm_mode	*inner_mode;
+	struct xfrm_mode	*inner_mode_iaf;
 	struct xfrm_mode	*outer_mode;
 
 	/* Security context */
@@ -277,7 +279,7 @@ extern int __xfrm_state_delete(struct xfrm_state *x);
 struct xfrm_state_afinfo {
 	unsigned int		family;
 	unsigned int		proto;
-	unsigned int		eth_proto;
+	__be16			eth_proto;
 	struct module		*owner;
 	const struct xfrm_type	*type_map[IPPROTO_MAX];
 	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
@@ -387,6 +389,27 @@ enum {
 extern int xfrm_register_mode(struct xfrm_mode *mode, int family);
 extern int xfrm_unregister_mode(struct xfrm_mode *mode, int family);
 
+static inline int xfrm_af2proto(unsigned int family)
+{
+	switch(family) {
+	case AF_INET:
+		return IPPROTO_IPIP;
+	case AF_INET6:
+		return IPPROTO_IPV6;
+	default:
+		return 0;
+	}
+}
+
+static inline struct xfrm_mode *xfrm_ip2inner_mode(struct xfrm_state *x, int ipproto)
+{
+	if ((ipproto == IPPROTO_IPIP && x->props.family == AF_INET) ||
+	    (ipproto == IPPROTO_IPV6 && x->props.family == AF_INET6))
+		return x->inner_mode;
+	else
+		return x->inner_mode_iaf;
+}
+
 struct xfrm_tmpl
 {
 /* id in template is interpreted as:
@@ -424,6 +447,7 @@ struct xfrm_tmpl
 struct xfrm_policy
 {
 	struct xfrm_policy	*next;
+	struct list_head	bytype;
 	struct hlist_node	bydst;
 	struct hlist_node	byidx;
 
@@ -530,6 +554,9 @@ struct xfrm_mode_skb_cb {
 	__be16 id;
 	__be16 frag_off;
 
+	/* IP header length (excluding options or extension headers). */
+	u8 ihl;
+
 	/* TOS for IPv4, class for IPv6. */
 	u8 tos;
 
@@ -538,6 +565,9 @@ struct xfrm_mode_skb_cb {
 
 	/* Protocol for IPv4, NH for IPv6. */
 	u8 protocol;
+
+	/* Option length for IPv4, zero for IPv6. */
+	u8 optlen;
 
 	/* Used by IPv6 only, zero for IPv4. */
 	u8 flow_lbl[3];
@@ -1043,6 +1073,23 @@ xfrm_address_t *xfrm_flowi_saddr(struct flowi *fl, unsigned short family)
 	return NULL;
 }
 
+static __inline__
+void xfrm_flowi_addr_get(struct flowi *fl,
+			 xfrm_address_t *saddr, xfrm_address_t *daddr,
+			 unsigned short family)
+{
+	switch(family) {
+	case AF_INET:
+		memcpy(&saddr->a4, &fl->fl4_src, sizeof(saddr->a4));
+		memcpy(&daddr->a4, &fl->fl4_dst, sizeof(daddr->a4));
+		break;
+	case AF_INET6:
+		ipv6_addr_copy((struct in6_addr *)&saddr->a6, &fl->fl6_src);
+		ipv6_addr_copy((struct in6_addr *)&daddr->a6, &fl->fl6_dst);
+		break;
+	}
+}
+
 static __inline__ int
 __xfrm4_state_addr_check(struct xfrm_state *x,
 			 xfrm_address_t *daddr, xfrm_address_t *saddr)
@@ -1160,6 +1207,18 @@ struct xfrm6_tunnel {
 	int priority;
 };
 
+struct xfrm_state_walk {
+	struct xfrm_state *state;
+	int count;
+	u8 proto;
+};
+
+struct xfrm_policy_walk {
+	struct xfrm_policy *policy;
+	int count;
+	u8 type, cur_type;
+};
+
 extern void xfrm_init(void);
 extern void xfrm4_init(void);
 extern void xfrm_state_init(void);
@@ -1184,7 +1243,23 @@ static inline void xfrm6_fini(void)
 extern int xfrm_proc_init(void);
 #endif
 
-extern int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*), void *);
+static inline void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto)
+{
+	walk->proto = proto;
+	walk->state = NULL;
+	walk->count = 0;
+}
+
+static inline void xfrm_state_walk_done(struct xfrm_state_walk *walk)
+{
+	if (walk->state != NULL) {
+		xfrm_state_put(walk->state);
+		walk->state = NULL;
+	}
+}
+
+extern int xfrm_state_walk(struct xfrm_state_walk *walk,
+			   int (*func)(struct xfrm_state *, int, void*), void *);
 extern struct xfrm_state *xfrm_state_alloc(void);
 extern struct xfrm_state *xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr, 
 					  struct flowi *fl, struct xfrm_tmpl *tmpl,
@@ -1253,6 +1328,7 @@ extern int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi,
 extern int xfrm_input_resume(struct sk_buff *skb, int nexthdr);
 extern int xfrm_output_resume(struct sk_buff *skb, int err);
 extern int xfrm_output(struct sk_buff *skb);
+extern int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm4_extract_header(struct sk_buff *skb);
 extern int xfrm4_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
@@ -1306,7 +1382,25 @@ static inline int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 #endif
 
 struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp);
-extern int xfrm_policy_walk(u8 type, int (*func)(struct xfrm_policy *, int, int, void*), void *);
+
+static inline void xfrm_policy_walk_init(struct xfrm_policy_walk *walk, u8 type)
+{
+	walk->cur_type = XFRM_POLICY_TYPE_MAIN;
+	walk->type = type;
+	walk->policy = NULL;
+	walk->count = 0;
+}
+
+static inline void xfrm_policy_walk_done(struct xfrm_policy_walk *walk)
+{
+	if (walk->policy != NULL) {
+		xfrm_pol_put(walk->policy);
+		walk->policy = NULL;
+	}
+}
+
+extern int xfrm_policy_walk(struct xfrm_policy_walk *walk,
+	int (*func)(struct xfrm_policy *, int, int, void*), void *);
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl);
 struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 					  struct xfrm_selector *sel,

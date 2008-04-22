@@ -1000,7 +1000,7 @@ simrs_init (void)
 		if (!state->irq) {
 			if ((rc = assign_irq_vector(AUTO_ASSIGN)) < 0)
 				panic("%s: out of interrupt vectors!\n",
-				      __FUNCTION__);
+				      __func__);
 			state->irq = rc;
 			ia64_ssc_connect_irq(KEYBOARD_INTR, state->irq);
 		}

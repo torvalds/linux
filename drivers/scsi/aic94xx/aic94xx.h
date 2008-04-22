@@ -58,7 +58,6 @@
 
 extern struct kmem_cache *asd_dma_token_cache;
 extern struct kmem_cache *asd_ascb_cache;
-extern char sas_addr_str[2*SAS_ADDR_SIZE + 1];
 
 static inline void asd_stringify_sas_addr(char *p, const u8 *sas_addr)
 {
@@ -66,21 +65,6 @@ static inline void asd_stringify_sas_addr(char *p, const u8 *sas_addr)
 	for (i = 0; i < SAS_ADDR_SIZE; i++, p += 2)
 		snprintf(p, 3, "%02X", sas_addr[i]);
 	*p = '\0';
-}
-
-static inline void asd_destringify_sas_addr(u8 *sas_addr, const char *p)
-{
-	int i;
-	for (i = 0; i < SAS_ADDR_SIZE; i++) {
-		u8 h, l;
-		if (!*p)
-			break;
-		h = isdigit(*p) ? *p-'0' : *p-'A'+10;
-		p++;
-		l = isdigit(*p) ? *p-'0' : *p-'A'+10;
-		p++;
-		sas_addr[i] = (h<<4) | l;
-	}
 }
 
 struct asd_ha_struct;
@@ -102,6 +86,7 @@ int  asd_abort_task_set(struct domain_device *, u8 *lun);
 int  asd_clear_aca(struct domain_device *, u8 *lun);
 int  asd_clear_task_set(struct domain_device *, u8 *lun);
 int  asd_lu_reset(struct domain_device *, u8 *lun);
+int  asd_I_T_nexus_reset(struct domain_device *dev);
 int  asd_query_task(struct sas_task *);
 
 /* ---------- Adapter and Port management ---------- */

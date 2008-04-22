@@ -55,11 +55,11 @@
 #define PA_SCSPTR1      (PA_BCR+0x0524) /* SCIF1 Serial Port control */
 #define PA_SCLSR1       (PA_BCR+0x0528) /* SCIF1 Line Status control */
 #define PA_SCRER1       (PA_BCR+0x052c) /* SCIF1 Serial Error control */
-#define PA_ICCR         (PA_BCR+0x0600) /* Serial control */
-#define PA_SAR          (PA_BCR+0x0602) /* Serial Slave control */
-#define PA_MDR          (PA_BCR+0x0604) /* Serial Mode control */
-#define PA_ADR1         (PA_BCR+0x0606) /* Serial Address1 control */
-#define PA_DAR1         (PA_BCR+0x0646) /* Serial Data1 control */
+#define PA_SMCR         (PA_BCR+0x0600) /* 2-wire Serial control */
+#define PA_SMSMADR      (PA_BCR+0x0602) /* 2-wire Serial Slave control */
+#define PA_SMMR         (PA_BCR+0x0604) /* 2-wire Serial Mode control */
+#define PA_SMSADR1      (PA_BCR+0x0606) /* 2-wire Serial Address1 control */
+#define PA_SMTRDR1      (PA_BCR+0x0646) /* 2-wire Serial Data1 control */
 #define PA_VERREG       (PA_BCR+0x0700) /* FPGA Version Register */
 #define PA_POFF         (PA_BCR+0x0800) /* System Power Off control */
 #define PA_PMR          (PA_BCR+0x0900) /*  */
@@ -107,11 +107,11 @@
 #define PA_SCFCR	(PA_BCR+0x040c)	/* SCIF FIFO control */
 #define PA_SCFDR	(PA_BCR+0x040e)	/* SCIF FIFO data control */
 #define PA_SCLSR	(PA_BCR+0x0412)	/* SCIF Line Status control */
-#define PA_ICCR		(PA_BCR+0x0500)	/* Serial control */
-#define PA_SAR		(PA_BCR+0x0502)	/* Serial Slave control */
-#define PA_MDR		(PA_BCR+0x0504)	/* Serial Mode control */
-#define PA_ADR1		(PA_BCR+0x0506)	/* Serial Address1 control */
-#define PA_DAR1		(PA_BCR+0x0546)	/* Serial Data1 control */
+#define PA_SMCR		(PA_BCR+0x0500)	/* 2-wire Serial control */
+#define PA_SMSMADR	(PA_BCR+0x0502)	/* 2-wire Serial Slave control */
+#define PA_SMMR		(PA_BCR+0x0504)	/* 2-wire Serial Mode control */
+#define PA_SMSADR1	(PA_BCR+0x0506)	/* 2-wire Serial Address1 control */
+#define PA_SMTRDR1	(PA_BCR+0x0546)	/* 2-wire Serial Data1 control */
 #define PA_VERREG	(PA_BCR+0x0600)	/* FPGA Version Register */
 
 #define PA_AX88796L	0xa5800400	/* AX88796L Area */
@@ -190,6 +190,8 @@
 #define IRQ_TP			(HL_FPGA_IRQ_BASE + 12)
 #define IRQ_RTC			(HL_FPGA_IRQ_BASE + 13)
 #define IRQ_TH_ALERT		(HL_FPGA_IRQ_BASE + 14)
+#define IRQ_SCIF0		(HL_FPGA_IRQ_BASE + 15)
+#define IRQ_SCIF1		(HL_FPGA_IRQ_BASE + 16)
 
 unsigned char *highlander_init_irq_r7780mp(void);
 unsigned char *highlander_init_irq_r7780rp(void);

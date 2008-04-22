@@ -1561,6 +1561,7 @@ done_set_intf:
 				memcpy(req->buf, buf, n);
 				req->complete = rndis_response_complete;
 				rndis_free_response(dev->rndis_config, buf);
+				value = n;
 			}
 			/* else stalls ... spec says to avoid that */
 		}

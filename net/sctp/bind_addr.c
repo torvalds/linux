@@ -67,15 +67,13 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 			int flags)
 {
 	struct sctp_sockaddr_entry *addr;
-	struct list_head *pos;
 	int error = 0;
 
 	/* All addresses share the same port.  */
 	dest->port = src->port;
 
 	/* Extract the addresses which are relevant for this scope.  */
-	list_for_each(pos, &src->address_list) {
-		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+	list_for_each_entry(addr, &src->address_list, list) {
 		error = sctp_copy_one_addr(dest, &addr->a, scope,
 					   gfp, flags);
 		if (error < 0)
@@ -87,9 +85,7 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 	 * the assumption that we must be sitting behind a NAT.
 	 */
 	if (list_empty(&dest->address_list) && (SCTP_SCOPE_GLOBAL == scope)) {
-		list_for_each(pos, &src->address_list) {
-			addr = list_entry(pos, struct sctp_sockaddr_entry,
-					  list);
+		list_for_each_entry(addr, &src->address_list, list) {
 			error = sctp_copy_one_addr(dest, &addr->a,
 						   SCTP_SCOPE_LINK, gfp,
 						   flags);
@@ -115,14 +111,12 @@ int sctp_bind_addr_dup(struct sctp_bind_addr *dest,
 			gfp_t gfp)
 {
 	struct sctp_sockaddr_entry *addr;
-	struct list_head *pos;
 	int error = 0;
 
 	/* All addresses share the same port.  */
 	dest->port = src->port;
 
-	list_for_each(pos, &src->address_list) {
-		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+	list_for_each_entry(addr, &src->address_list, list) {
 		error = sctp_add_bind_addr(dest, &addr->a, 1, gfp);
 		if (error < 0)
 			break;
@@ -209,6 +203,7 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr)
 {
 	struct sctp_sockaddr_entry *addr, *temp;
+	int found = 0;
 
 	/* We hold the socket lock when calling this function,
 	 * and that acts as a writer synchronizing lock.
@@ -216,13 +211,14 @@ int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr)
 	list_for_each_entry_safe(addr, temp, &bp->address_list, list) {
 		if (sctp_cmp_addr_exact(&addr->a, del_addr)) {
 			/* Found the exact match. */
+			found = 1;
 			addr->valid = 0;
 			list_del_rcu(&addr->list);
 			break;
 		}
 	}
 
-	if (addr && !addr->valid) {
+	if (found) {
 		call_rcu(&addr->rcu, sctp_local_addr_free);
 		SCTP_DBG_OBJCNT_DEC(addr);
 		return 0;
@@ -271,8 +267,7 @@ union sctp_params sctp_bind_addrs_to_raw(const struct sctp_bind_addr *bp,
 
 	addrparms = retval;
 
-	list_for_each(pos, &bp->address_list) {
-		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+	list_for_each_entry(addr, &bp->address_list, list) {
 		af = sctp_get_af_specific(addr->a.v4.sin_family);
 		len = af->to_addr_param(&addr->a, &rawaddr);
 		memcpy(addrparms.v, &rawaddr, len);

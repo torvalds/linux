@@ -3,13 +3,15 @@
 #
 
 # Common support
-obj-y := irq.o id.o io.o sram-fn.o memory.o prcm.o clock.o mux.o devices.o \
-	 serial.o gpmc.o
-
-obj-$(CONFIG_OMAP_MPU_TIMER)		+= timer-gp.o
+obj-y := irq.o id.o io.o sram-fn.o memory.o control.o prcm.o clock.o mux.o \
+		devices.o serial.o gpmc.o timer-gp.o
 
 # Power Management
-obj-$(CONFIG_PM) += pm.o pm-domain.o sleep.o
+obj-$(CONFIG_PM) += pm.o sleep.o
+
+# Clock framework
+obj-$(CONFIG_ARCH_OMAP2)		+= clock24xx.o
+obj-$(CONFIG_ARCH_OMAP3)		+= clock34xx.o
 
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o

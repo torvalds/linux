@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2006, 2007, 2008 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -30,6 +30,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+#include <linux/io.h>
 
 #include "ipath_verbs.h"
 #include "ipath_kernel.h"
@@ -306,7 +308,7 @@ int ipath_make_rc_req(struct ipath_qp *qp)
 			else {
 				qp->s_state = OP(SEND_ONLY_WITH_IMMEDIATE);
 				/* Immediate data comes after the BTH */
-				ohdr->u.imm_data = wqe->wr.imm_data;
+				ohdr->u.imm_data = wqe->wr.ex.imm_data;
 				hwords += 1;
 			}
 			if (wqe->wr.send_flags & IB_SEND_SOLICITED)
@@ -344,7 +346,7 @@ int ipath_make_rc_req(struct ipath_qp *qp)
 				qp->s_state =
 					OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE);
 				/* Immediate data comes after RETH */
-				ohdr->u.rc.imm_data = wqe->wr.imm_data;
+				ohdr->u.rc.imm_data = wqe->wr.ex.imm_data;
 				hwords += 1;
 				if (wqe->wr.send_flags & IB_SEND_SOLICITED)
 					bth0 |= 1 << 23;
@@ -488,7 +490,7 @@ int ipath_make_rc_req(struct ipath_qp *qp)
 		else {
 			qp->s_state = OP(SEND_LAST_WITH_IMMEDIATE);
 			/* Immediate data comes after the BTH */
-			ohdr->u.imm_data = wqe->wr.imm_data;
+			ohdr->u.imm_data = wqe->wr.ex.imm_data;
 			hwords += 1;
 		}
 		if (wqe->wr.send_flags & IB_SEND_SOLICITED)
@@ -524,7 +526,7 @@ int ipath_make_rc_req(struct ipath_qp *qp)
 		else {
 			qp->s_state = OP(RDMA_WRITE_LAST_WITH_IMMEDIATE);
 			/* Immediate data comes after the BTH */
-			ohdr->u.imm_data = wqe->wr.imm_data;
+			ohdr->u.imm_data = wqe->wr.ex.imm_data;
 			hwords += 1;
 			if (wqe->wr.send_flags & IB_SEND_SOLICITED)
 				bth0 |= 1 << 23;
@@ -585,18 +587,38 @@ bail:
 static void send_rc_ack(struct ipath_qp *qp)
 {
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
+	struct ipath_devdata *dd;
 	u16 lrh0;
 	u32 bth0;
 	u32 hwords;
+	u32 __iomem *piobuf;
 	struct ipath_ib_header hdr;
 	struct ipath_other_headers *ohdr;
 	unsigned long flags;
+
+	spin_lock_irqsave(&qp->s_lock, flags);
 
 	/* Don't send ACK or NAK if a RDMA read or atomic is pending. */
 	if (qp->r_head_ack_queue != qp->s_tail_ack_queue ||
 	    (qp->s_flags & IPATH_S_ACK_PENDING) ||
 	    qp->s_ack_state != OP(ACKNOWLEDGE))
 		goto queue_ack;
+
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+
+	dd = dev->dd;
+	piobuf = ipath_getpiobuf(dd, 0, NULL);
+	if (!piobuf) {
+		/*
+		 * We are out of PIO buffers at the moment.
+		 * Pass responsibility for sending the ACK to the
+		 * send tasklet so that when a PIO buffer becomes
+		 * available, the ACK is sent ahead of other outgoing
+		 * packets.
+		 */
+		spin_lock_irqsave(&qp->s_lock, flags);
+		goto queue_ack;
+	}
 
 	/* Construct the header. */
 	ohdr = &hdr.u.oth;
@@ -611,7 +633,7 @@ static void send_rc_ack(struct ipath_qp *qp)
 		lrh0 = IPATH_LRH_GRH;
 	}
 	/* read pkey_index w/o lock (its atomic) */
-	bth0 = ipath_get_pkey(dev->dd, qp->s_pkey_index) |
+	bth0 = ipath_get_pkey(dd, qp->s_pkey_index) |
 		(OP(ACKNOWLEDGE) << 24) | (1 << 22);
 	if (qp->r_nak_state)
 		ohdr->u.aeth = cpu_to_be32((qp->r_msn & IPATH_MSN_MASK) |
@@ -623,30 +645,29 @@ static void send_rc_ack(struct ipath_qp *qp)
 	hdr.lrh[0] = cpu_to_be16(lrh0);
 	hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
 	hdr.lrh[2] = cpu_to_be16(hwords + SIZE_OF_CRC);
-	hdr.lrh[3] = cpu_to_be16(dev->dd->ipath_lid);
+	hdr.lrh[3] = cpu_to_be16(dd->ipath_lid);
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
 	ohdr->bth[2] = cpu_to_be32(qp->r_ack_psn & IPATH_PSN_MASK);
 
-	/*
-	 * If we can send the ACK, clear the ACK state.
-	 */
-	if (ipath_verbs_send(qp, &hdr, hwords, NULL, 0) == 0) {
-		dev->n_unicast_xmit++;
-		goto done;
-	}
+	writeq(hwords + 1, piobuf);
 
-	/*
-	 * We are out of PIO buffers at the moment.
-	 * Pass responsibility for sending the ACK to the
-	 * send tasklet so that when a PIO buffer becomes
-	 * available, the ACK is sent ahead of other outgoing
-	 * packets.
-	 */
-	dev->n_rc_qacks++;
+	if (dd->ipath_flags & IPATH_PIO_FLUSH_WC) {
+		u32 *hdrp = (u32 *) &hdr;
+
+		ipath_flush_wc();
+		__iowrite32_copy(piobuf + 2, hdrp, hwords - 1);
+		ipath_flush_wc();
+		__raw_writel(hdrp[hwords - 1], piobuf + hwords + 1);
+	} else
+		__iowrite32_copy(piobuf + 2, (u32 *) &hdr, hwords);
+
+	ipath_flush_wc();
+
+	dev->n_unicast_xmit++;
+	goto done;
 
 queue_ack:
-	spin_lock_irqsave(&qp->s_lock, flags);
 	dev->n_rc_qacks++;
 	qp->s_flags |= IPATH_S_ACK_PENDING;
 	qp->s_nak_state = qp->r_nak_state;
@@ -1196,6 +1217,10 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 			list_move_tail(&qp->timerwait,
 				       &dev->pending[dev->pending_index]);
 		spin_unlock(&dev->pending_lock);
+
+		if (opcode == OP(RDMA_READ_RESPONSE_MIDDLE))
+			qp->s_retry = qp->s_retry_cnt;
+
 		/*
 		 * Update the RDMA receive state but do the copy w/o
 		 * holding the locks and blocking interrupts.

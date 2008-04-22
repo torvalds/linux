@@ -86,6 +86,39 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 EXPORT_SYMBOL(phy_device_create);
 
 /**
+ * get_phy_id - reads the specified addr for its ID.
+ * @bus: the target MII bus
+ * @addr: PHY address on the MII bus
+ * @phy_id: where to store the ID retrieved.
+ *
+ * Description: Reads the ID registers of the PHY at @addr on the
+ *   @bus, stores it in @phy_id and returns zero on success.
+ */
+int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id)
+{
+	int phy_reg;
+
+	/* Grab the bits from PHYIR1, and put them
+	 * in the upper half */
+	phy_reg = bus->read(bus, addr, MII_PHYSID1);
+
+	if (phy_reg < 0)
+		return -EIO;
+
+	*phy_id = (phy_reg & 0xffff) << 16;
+
+	/* Grab the bits from PHYIR2, and put them in the lower half */
+	phy_reg = bus->read(bus, addr, MII_PHYSID2);
+
+	if (phy_reg < 0)
+		return -EIO;
+
+	*phy_id |= (phy_reg & 0xffff);
+
+	return 0;
+}
+
+/**
  * get_phy_device - reads the specified PHY device and returns its @phy_device struct
  * @bus: the target MII bus
  * @addr: PHY address on the MII bus
@@ -95,26 +128,13 @@ EXPORT_SYMBOL(phy_device_create);
  */
 struct phy_device * get_phy_device(struct mii_bus *bus, int addr)
 {
-	int phy_reg;
-	u32 phy_id;
 	struct phy_device *dev = NULL;
+	u32 phy_id;
+	int r;
 
-	/* Grab the bits from PHYIR1, and put them
-	 * in the upper half */
-	phy_reg = bus->read(bus, addr, MII_PHYSID1);
-
-	if (phy_reg < 0)
-		return ERR_PTR(phy_reg);
-
-	phy_id = (phy_reg & 0xffff) << 16;
-
-	/* Grab the bits from PHYIR2, and put them in the lower half */
-	phy_reg = bus->read(bus, addr, MII_PHYSID2);
-
-	if (phy_reg < 0)
-		return ERR_PTR(phy_reg);
-
-	phy_id |= (phy_reg & 0xffff);
+	r = get_phy_id(bus, addr, &phy_id);
+	if (r)
+		return ERR_PTR(r);
 
 	/* If the phy_id is all Fs, there is no device there */
 	if (0xffffffff == phy_id)

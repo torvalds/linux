@@ -1022,12 +1022,13 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	saa7134_i2c_register(dev);
 
 	/* initialize hardware #2 */
+	if (TUNER_ABSENT != dev->tuner_type)
+		request_module("tuner");
 	saa7134_board_init2(dev);
+
 	saa7134_hwinit2(dev);
 
 	/* load i2c helpers */
-	if (TUNER_ABSENT != dev->tuner_type)
-		request_module("tuner");
 	if (card_is_empress(dev)) {
 		request_module("saa6752hs");
 	}

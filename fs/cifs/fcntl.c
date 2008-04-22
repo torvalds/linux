@@ -35,9 +35,8 @@ static __u32 convert_to_cifs_notify_flags(unsigned long fcntl_notify_flags)
 
 	/* No way on Linux VFS to ask to monitor xattr
 	changes (and no stream support either */
-	if (fcntl_notify_flags & DN_ACCESS) {
+	if (fcntl_notify_flags & DN_ACCESS)
 		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_LAST_ACCESS;
-	}
 	if (fcntl_notify_flags & DN_MODIFY) {
 		/* What does this mean on directories? */
 		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_LAST_WRITE |
@@ -47,9 +46,8 @@ static __u32 convert_to_cifs_notify_flags(unsigned long fcntl_notify_flags)
 		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_CREATION |
 			FILE_NOTIFY_CHANGE_LAST_WRITE;
 	}
-	if (fcntl_notify_flags & DN_DELETE) {
+	if (fcntl_notify_flags & DN_DELETE)
 		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_LAST_WRITE;
-	}
 	if (fcntl_notify_flags & DN_RENAME) {
 		/* BB review this - checking various server behaviors */
 		cifs_ntfy_flags |= FILE_NOTIFY_CHANGE_DIR_NAME |

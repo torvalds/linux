@@ -742,9 +742,9 @@ static int __init br2684_init(void)
 {
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *p;
-	if ((p = create_proc_entry("br2684", 0, atm_proc_root)) == NULL)
+	p = proc_create("br2684", 0, atm_proc_root, &br2684_proc_ops);
+	if (p == NULL)
 		return -ENOMEM;
-	p->proc_fops = &br2684_proc_ops;
 #endif
 	register_atm_ioctl(&br2684_ioctl_ops);
 	return 0;

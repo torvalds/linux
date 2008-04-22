@@ -129,7 +129,7 @@ int sa1100_request_dma (dma_device_t device, const char *device_id,
 	if (err) {
 		printk(KERN_ERR
 		       "%s: unable to request IRQ %d for %s\n",
-		       __FUNCTION__, IRQ_DMA0 + i, device_id);
+		       __func__, IRQ_DMA0 + i, device_id);
 		dma->device = 0;
 		return err;
 	}
@@ -165,12 +165,12 @@ void sa1100_free_dma(dma_regs_t *regs)
 		if (regs == (dma_regs_t *)&DDAR(i))
 			break;
 	if (i >= SA1100_DMA_CHANNELS) {
-		printk(KERN_ERR "%s: bad DMA identifier\n", __FUNCTION__);
+		printk(KERN_ERR "%s: bad DMA identifier\n", __func__);
 		return;
 	}
 
 	if (!dma_chan[i].device) {
-		printk(KERN_ERR "%s: Trying to free free DMA\n", __FUNCTION__);
+		printk(KERN_ERR "%s: Trying to free free DMA\n", __func__);
 		return;
 	}
 
@@ -329,7 +329,7 @@ void sa1100_reset_dma(dma_regs_t *regs)
 		if (regs == (dma_regs_t *)&DDAR(i))
 			break;
 	if (i >= SA1100_DMA_CHANNELS) {
-		printk(KERN_ERR "%s: bad DMA identifier\n", __FUNCTION__);
+		printk(KERN_ERR "%s: bad DMA identifier\n", __func__);
 		return;
 	}
 

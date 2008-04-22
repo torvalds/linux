@@ -154,6 +154,7 @@ static const char *yukon2_name[] = {
 	"EC",		/* 0xb6 */
 	"FE",		/* 0xb7 */
 	"FE+",		/* 0xb8 */
+	"Supreme",	/* 0xb9 */
 };
 
 static void sky2_set_multicast(struct net_device *dev);
@@ -572,8 +573,9 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 	default:
 		/* set Tx LED (LED_TX) to blink mode on Rx OR Tx activity */
 		ledctrl |= PHY_M_LED_BLINK_RT(BLINK_84MS) | PHY_M_LEDC_TX_CTRL;
+
 		/* turn off the Rx LED (LED_RX) */
-		ledover &= ~PHY_M_LED_MO_RX;
+		ledover |= PHY_M_LED_MO_RX(MO_LED_OFF);
 	}
 
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U &&
@@ -602,7 +604,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 
 		if (sky2->autoneg == AUTONEG_DISABLE || sky2->speed == SPEED_100) {
 			/* turn on 100 Mbps LED (LED_LINK100) */
-			ledover |= PHY_M_LED_MO_100;
+			ledover |= PHY_M_LED_MO_100(MO_LED_ON);
 		}
 
 		if (ledover)
@@ -3322,82 +3324,80 @@ static void sky2_set_multicast(struct net_device *dev)
 /* Can have one global because blinking is controlled by
  * ethtool and that is always under RTNL mutex
  */
-static void sky2_led(struct sky2_hw *hw, unsigned port, int on)
+static void sky2_led(struct sky2_port *sky2, enum led_mode mode)
 {
-	u16 pg;
+	struct sky2_hw *hw = sky2->hw;
+	unsigned port = sky2->port;
 
-	switch (hw->chip_id) {
-	case CHIP_ID_YUKON_XL:
+	spin_lock_bh(&sky2->phy_lock);
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U ||
+	    hw->chip_id == CHIP_ID_YUKON_EX ||
+	    hw->chip_id == CHIP_ID_YUKON_SUPR) {
+		u16 pg;
 		pg = gm_phy_read(hw, port, PHY_MARV_EXT_ADR);
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 3);
-		gm_phy_write(hw, port, PHY_MARV_PHY_CTRL,
-			     on ? (PHY_M_LEDC_LOS_CTRL(1) |
-				   PHY_M_LEDC_INIT_CTRL(7) |
-				   PHY_M_LEDC_STA1_CTRL(7) |
-				   PHY_M_LEDC_STA0_CTRL(7))
-			     : 0);
+
+		switch (mode) {
+		case MO_LED_OFF:
+			gm_phy_write(hw, port, PHY_MARV_PHY_CTRL,
+				     PHY_M_LEDC_LOS_CTRL(8) |
+				     PHY_M_LEDC_INIT_CTRL(8) |
+				     PHY_M_LEDC_STA1_CTRL(8) |
+				     PHY_M_LEDC_STA0_CTRL(8));
+			break;
+		case MO_LED_ON:
+			gm_phy_write(hw, port, PHY_MARV_PHY_CTRL,
+				     PHY_M_LEDC_LOS_CTRL(9) |
+				     PHY_M_LEDC_INIT_CTRL(9) |
+				     PHY_M_LEDC_STA1_CTRL(9) |
+				     PHY_M_LEDC_STA0_CTRL(9));
+			break;
+		case MO_LED_BLINK:
+			gm_phy_write(hw, port, PHY_MARV_PHY_CTRL,
+				     PHY_M_LEDC_LOS_CTRL(0xa) |
+				     PHY_M_LEDC_INIT_CTRL(0xa) |
+				     PHY_M_LEDC_STA1_CTRL(0xa) |
+				     PHY_M_LEDC_STA0_CTRL(0xa));
+			break;
+		case MO_LED_NORM:
+			gm_phy_write(hw, port, PHY_MARV_PHY_CTRL,
+				     PHY_M_LEDC_LOS_CTRL(1) |
+				     PHY_M_LEDC_INIT_CTRL(8) |
+				     PHY_M_LEDC_STA1_CTRL(7) |
+				     PHY_M_LEDC_STA0_CTRL(7));
+		}
 
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, pg);
-		break;
-
-	default:
-		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, 0);
+	} else
 		gm_phy_write(hw, port, PHY_MARV_LED_OVER, 
-			     on ? PHY_M_LED_ALL : 0);
-	}
+				     PHY_M_LED_MO_DUP(mode) |
+				     PHY_M_LED_MO_10(mode) |
+				     PHY_M_LED_MO_100(mode) |
+				     PHY_M_LED_MO_1000(mode) |
+				     PHY_M_LED_MO_RX(mode) |
+				     PHY_M_LED_MO_TX(mode));
+
+	spin_unlock_bh(&sky2->phy_lock);
 }
 
 /* blink LED's for finding board */
 static int sky2_phys_id(struct net_device *dev, u32 data)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
-	struct sky2_hw *hw = sky2->hw;
-	unsigned port = sky2->port;
-	u16 ledctrl, ledover = 0;
-	long ms;
-	int interrupted;
-	int onoff = 1;
+	unsigned int i;
 
-	if (!data || data > (u32) (MAX_SCHEDULE_TIMEOUT / HZ))
-		ms = jiffies_to_msecs(MAX_SCHEDULE_TIMEOUT);
-	else
-		ms = data * 1000;
+	if (data == 0)
+		data = UINT_MAX;
 
-	/* save initial values */
-	spin_lock_bh(&sky2->phy_lock);
-	if (hw->chip_id == CHIP_ID_YUKON_XL) {
-		u16 pg = gm_phy_read(hw, port, PHY_MARV_EXT_ADR);
-		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 3);
-		ledctrl = gm_phy_read(hw, port, PHY_MARV_PHY_CTRL);
-		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, pg);
-	} else {
-		ledctrl = gm_phy_read(hw, port, PHY_MARV_LED_CTRL);
-		ledover = gm_phy_read(hw, port, PHY_MARV_LED_OVER);
+	for (i = 0; i < data; i++) {
+		sky2_led(sky2, MO_LED_ON);
+		if (msleep_interruptible(500))
+			break;
+		sky2_led(sky2, MO_LED_OFF);
+		if (msleep_interruptible(500))
+			break;
 	}
-
-	interrupted = 0;
-	while (!interrupted && ms > 0) {
-		sky2_led(hw, port, onoff);
-		onoff = !onoff;
-
-		spin_unlock_bh(&sky2->phy_lock);
-		interrupted = msleep_interruptible(250);
-		spin_lock_bh(&sky2->phy_lock);
-
-		ms -= 250;
-	}
-
-	/* resume regularly scheduled programming */
-	if (hw->chip_id == CHIP_ID_YUKON_XL) {
-		u16 pg = gm_phy_read(hw, port, PHY_MARV_EXT_ADR);
-		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 3);
-		gm_phy_write(hw, port, PHY_MARV_PHY_CTRL, ledctrl);
-		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, pg);
-	} else {
-		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
-		gm_phy_write(hw, port, PHY_MARV_LED_OVER, ledover);
-	}
-	spin_unlock_bh(&sky2->phy_lock);
+	sky2_led(sky2, MO_LED_NORM);
 
 	return 0;
 }
@@ -4330,10 +4330,14 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!hw)
 		return 0;
 
+	del_timer_sync(&hw->watchdog_timer);
+	cancel_work_sync(&hw->restart_work);
+
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 		struct sky2_port *sky2 = netdev_priv(dev);
 
+		netif_device_detach(dev);
 		if (netif_running(dev))
 			sky2_down(dev);
 
@@ -4384,6 +4388,8 @@ static int sky2_resume(struct pci_dev *pdev)
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
+
+		netif_device_attach(dev);
 		if (netif_running(dev)) {
 			err = sky2_up(dev);
 			if (err) {

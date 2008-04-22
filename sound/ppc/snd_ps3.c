@@ -137,7 +137,7 @@ static inline void update_mask_reg(unsigned int reg, u32 mask, u32 or_val)
 /*
  * ALSA defs
  */
-const static struct snd_pcm_hardware snd_ps3_pcm_hw = {
+static const struct snd_pcm_hardware snd_ps3_pcm_hw = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_NONINTERLEAVED |
 		 SNDRV_PCM_INFO_MMAP_VALID),

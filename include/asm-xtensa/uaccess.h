@@ -26,6 +26,7 @@
 #include <asm/current.h>
 #include <asm/asm-offsets.h>
 #include <asm/processor.h>
+#include <asm/types.h>
 
 /*
  * These assembly macros mirror the C macros that follow below.  They
@@ -118,7 +119,7 @@
  * 	<at>	destroyed (actually, (TASK_SIZE + 1 - size))
  */
 	.macro	user_ok	aa, as, at, error
-	movi	\at, (TASK_SIZE+1)
+	movi	\at, __XTENSA_UL_CONST(TASK_SIZE)
 	bgeu	\as, \at, \error
 	sub	\at, \at, \as
 	bgeu	\aa, \at, \error
@@ -226,20 +227,21 @@ extern long __put_user_bad(void);
 	__pu_err;						\
 })
 
-#define __put_user_size(x,ptr,size,retval)			\
-do {								\
-	retval = 0;						\
-	switch (size) {						\
-        case 1: __put_user_asm(x,ptr,retval,1,"s8i");  break;	\
-        case 2: __put_user_asm(x,ptr,retval,2,"s16i"); break;   \
-        case 4: __put_user_asm(x,ptr,retval,4,"s32i"); break;   \
-        case 8: {						\
-		     __typeof__(*ptr) __v64 = x;		\
-		     retval = __copy_to_user(ptr,&__v64,8);	\
-		     break;					\
-	        }						\
-	default: __put_user_bad();				\
-	}							\
+#define __put_user_size(x,ptr,size,retval)				\
+do {									\
+	int __cb;							\
+	retval = 0;							\
+	switch (size) {							\
+        case 1: __put_user_asm(x,ptr,retval,1,"s8i",__cb);  break;	\
+        case 2: __put_user_asm(x,ptr,retval,2,"s16i",__cb); break;	\
+        case 4: __put_user_asm(x,ptr,retval,4,"s32i",__cb); break;	\
+        case 8: {							\
+		     __typeof__(*ptr) __v64 = x;			\
+		     retval = __copy_to_user(ptr,&__v64,8);		\
+		     break;						\
+	        }							\
+	default: __put_user_bad();					\
+	}								\
 } while (0)
 
 
@@ -267,14 +269,14 @@ do {								\
 #define __check_align_1  ""
 
 #define __check_align_2				\
-	"   _bbci.l %2,  0, 1f		\n"	\
-	"   movi    %0, %3		\n"	\
+	"   _bbci.l %3,  0, 1f		\n"	\
+	"   movi    %0, %4		\n"	\
 	"   _j      2f			\n"
 
 #define __check_align_4				\
-	"   _bbsi.l %2,  0, 0f		\n"	\
-	"   _bbci.l %2,  1, 1f		\n"	\
-	"0: movi    %0, %3		\n"	\
+	"   _bbsi.l %3,  0, 0f		\n"	\
+	"   _bbci.l %3,  1, 1f		\n"	\
+	"0: movi    %0, %4		\n"	\
 	"   _j      2f			\n"
 
 
@@ -286,24 +288,24 @@ do {								\
  * WARNING: If you modify this macro at all, verify that the
  * __check_align_* macros still work.
  */
-#define __put_user_asm(x, addr, err, align, insn) \
-   __asm__ __volatile__(			\
-	__check_align_##align			\
-	"1: "insn"  %1, %2, 0		\n"	\
-	"2:				\n"	\
-	"   .section  .fixup,\"ax\"	\n"	\
-	"   .align 4			\n"	\
-	"4:				\n"	\
-	"   .long  2b			\n"	\
-	"5:				\n"	\
-	"   l32r   %2, 4b		\n"	\
-        "   movi   %0, %3		\n"	\
-        "   jx     %2			\n"	\
-	"   .previous			\n"	\
-	"   .section  __ex_table,\"a\"	\n"	\
-	"   .long	1b, 5b		\n"	\
-	"   .previous"				\
-	:"=r" (err)				\
+#define __put_user_asm(x, addr, err, align, insn, cb)	\
+   __asm__ __volatile__(				\
+	__check_align_##align				\
+	"1: "insn"  %2, %3, 0		\n"		\
+	"2:				\n"		\
+	"   .section  .fixup,\"ax\"	\n"		\
+	"   .align 4			\n"		\
+	"4:				\n"		\
+	"   .long  2b			\n"		\
+	"5:				\n"		\
+	"   l32r   %1, 4b		\n"		\
+        "   movi   %0, %4		\n"		\
+        "   jx     %1			\n"		\
+	"   .previous			\n"		\
+	"   .section  __ex_table,\"a\"	\n"		\
+	"   .long	1b, 5b		\n"		\
+	"   .previous"					\
+	:"=r" (err), "=r" (cb)				\
 	:"r" ((int)(x)), "r" (addr), "i" (-EFAULT), "0" (err))
 
 #define __get_user_nocheck(x,ptr,size)				\
@@ -328,11 +330,12 @@ extern long __get_user_bad(void);
 
 #define __get_user_size(x,ptr,size,retval)				\
 do {									\
+	int __cb;							\
 	retval = 0;							\
         switch (size) {							\
-          case 1: __get_user_asm(x,ptr,retval,1,"l8ui");  break;	\
-          case 2: __get_user_asm(x,ptr,retval,2,"l16ui"); break;	\
-          case 4: __get_user_asm(x,ptr,retval,4,"l32i");  break;	\
+          case 1: __get_user_asm(x,ptr,retval,1,"l8ui",__cb);  break;	\
+          case 2: __get_user_asm(x,ptr,retval,2,"l16ui",__cb); break;	\
+          case 4: __get_user_asm(x,ptr,retval,4,"l32i",__cb);  break;	\
           case 8: retval = __copy_from_user(&x,ptr,8);    break;	\
           default: (x) = __get_user_bad();				\
         }								\
@@ -343,25 +346,25 @@ do {									\
  * WARNING: If you modify this macro at all, verify that the
  * __check_align_* macros still work.
  */
-#define __get_user_asm(x, addr, err, align, insn) \
+#define __get_user_asm(x, addr, err, align, insn, cb) \
    __asm__ __volatile__(			\
 	__check_align_##align			\
-	"1: "insn"  %1, %2, 0		\n"	\
+	"1: "insn"  %2, %3, 0		\n"	\
 	"2:				\n"	\
 	"   .section  .fixup,\"ax\"	\n"	\
 	"   .align 4			\n"	\
 	"4:				\n"	\
 	"   .long  2b			\n"	\
 	"5:				\n"	\
-	"   l32r   %2, 4b		\n"	\
-	"   movi   %1, 0		\n"	\
-        "   movi   %0, %3		\n"	\
-        "   jx     %2			\n"	\
+	"   l32r   %1, 4b		\n"	\
+	"   movi   %2, 0		\n"	\
+        "   movi   %0, %4		\n"	\
+        "   jx     %1			\n"	\
 	"   .previous			\n"	\
 	"   .section  __ex_table,\"a\"	\n"	\
 	"   .long	1b, 5b		\n"	\
 	"   .previous"				\
-	:"=r" (err), "=r" (x)			\
+	:"=r" (err), "=r" (cb), "=r" (x)	\
 	:"r" (addr), "i" (-EFAULT), "0" (err))
 
 

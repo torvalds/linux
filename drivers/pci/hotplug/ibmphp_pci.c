@@ -364,7 +364,7 @@ static int configure_device (struct pci_func *func)
 	struct resource_node *pfmem[6];
 	unsigned int devfn;
 
-	debug ("%s - inside\n", __FUNCTION__);
+	debug ("%s - inside\n", __func__);
 
 	devfn = PCI_DEVFN(func->device, func->function);
 	ibmphp_pci_bus->number = func->busno;
@@ -595,7 +595,7 @@ static int configure_bridge (struct pci_func **func_passed, u8 slotno)
 	u8 irq;
 	int retval;
 
-	debug ("%s - enter\n", __FUNCTION__);
+	debug ("%s - enter\n", __func__);
 
 	devfn = PCI_DEVFN(func->function, func->device);
 	ibmphp_pci_bus->number = func->busno;
@@ -1234,7 +1234,7 @@ static int unconfigure_boot_device (u8 busno, u8 device, u8 function)
 	u32 tmp_address;
 	unsigned int devfn;
 
-	debug ("%s - enter\n", __FUNCTION__);
+	debug ("%s - enter\n", __func__);
 
 	bus = ibmphp_find_res_bus (busno);
 	if (!bus) {
@@ -1351,7 +1351,7 @@ static int unconfigure_boot_bridge (u8 busno, u8 device, u8 function)
 	bus_no = (int) busno;
 	debug ("busno is %x\n", busno);
 	pci_bus_read_config_byte (ibmphp_pci_bus, devfn, PCI_PRIMARY_BUS, &pri_number);
-	debug ("%s - busno = %x, primary_number = %x\n", __FUNCTION__, busno, pri_number);
+	debug ("%s - busno = %x, primary_number = %x\n", __func__, busno, pri_number);
 
 	pci_bus_read_config_byte (ibmphp_pci_bus, devfn, PCI_SECONDARY_BUS, &sec_number);
 	debug ("sec_number is %x\n", sec_number);
@@ -1437,7 +1437,7 @@ static int unconfigure_boot_bridge (u8 busno, u8 device, u8 function)
 			}
 		}	/* end of mem */
 	}	/* end of for */
-	debug ("%s - exiting, returning success\n", __FUNCTION__);
+	debug ("%s - exiting, returning success\n", __func__);
 	return 0;
 }
 
@@ -1453,7 +1453,7 @@ static int unconfigure_boot_card (struct slot *slot_cur)
 	unsigned int devfn;
 	u8 valid_device = 0x00; /* To see if we are ever able to find valid device and read it */
 
-	debug ("%s - enter\n", __FUNCTION__);
+	debug ("%s - enter\n", __func__);
 
 	device = slot_cur->device;
 	busno = slot_cur->bus;
@@ -1470,7 +1470,7 @@ static int unconfigure_boot_card (struct slot *slot_cur)
 			/* found correct device!!! */
 			++valid_device;
 
-			debug ("%s - found correct device\n", __FUNCTION__);
+			debug ("%s - found correct device\n", __func__);
 
 			/* header: x x x x x x x x
 			 *         | |___________|=> 1=PPB bridge, 0=normal device, 2=CardBus Bridge
@@ -1573,7 +1573,7 @@ int ibmphp_unconfigure_card (struct slot **slot_cur, int the_end)
 	struct pci_func *cur_func = NULL;
 	struct pci_func *temp_func;
 
-	debug ("%s - enter\n", __FUNCTION__);
+	debug ("%s - enter\n", __func__);
 
 	if (!the_end) {
 		/* Need to unconfigure the card */
@@ -1624,7 +1624,7 @@ int ibmphp_unconfigure_card (struct slot **slot_cur, int the_end)
 
 	sl->func = NULL;
 	*slot_cur = sl;
-	debug ("%s - exit\n", __FUNCTION__);
+	debug ("%s - exit\n", __func__);
 	return 0;
 }
 

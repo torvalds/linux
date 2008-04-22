@@ -40,10 +40,12 @@ static inline void set_bit_area(unsigned long *map, unsigned long i,
 	}
 }
 
-static inline int is_span_boundary(unsigned int index, unsigned int nr,
-				   unsigned long shift,
-				   unsigned long boundary_size)
+int iommu_is_span_boundary(unsigned int index, unsigned int nr,
+			   unsigned long shift,
+			   unsigned long boundary_size)
 {
+	BUG_ON(!is_power_of_2(boundary_size));
+
 	shift = (shift + index) & (boundary_size - 1);
 	return shift + nr > boundary_size;
 }
@@ -57,7 +59,7 @@ unsigned long iommu_area_alloc(unsigned long *map, unsigned long size,
 again:
 	index = find_next_zero_area(map, size, start, nr, align_mask);
 	if (index != -1) {
-		if (is_span_boundary(index, nr, shift, boundary_size)) {
+		if (iommu_is_span_boundary(index, nr, shift, boundary_size)) {
 			/* we could do more effectively */
 			start = index + 1;
 			goto again;

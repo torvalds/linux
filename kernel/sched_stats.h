@@ -9,6 +9,11 @@
 static int show_schedstat(struct seq_file *seq, void *v)
 {
 	int cpu;
+	int mask_len = NR_CPUS/32 * 9;
+	char *mask_str = kmalloc(mask_len, GFP_KERNEL);
+
+	if (mask_str == NULL)
+		return -ENOMEM;
 
 	seq_printf(seq, "version %d\n", SCHEDSTAT_VERSION);
 	seq_printf(seq, "timestamp %lu\n", jiffies);
@@ -36,9 +41,8 @@ static int show_schedstat(struct seq_file *seq, void *v)
 		preempt_disable();
 		for_each_domain(cpu, sd) {
 			enum cpu_idle_type itype;
-			char mask_str[NR_CPUS];
 
-			cpumask_scnprintf(mask_str, NR_CPUS, sd->span);
+			cpumask_scnprintf(mask_str, mask_len, sd->span);
 			seq_printf(seq, "domain%d %s", dcount++, mask_str);
 			for (itype = CPU_IDLE; itype < CPU_MAX_IDLE_TYPES;
 					itype++) {

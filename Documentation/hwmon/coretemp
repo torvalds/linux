@@ -4,9 +4,10 @@ Kernel driver coretemp
 Supported chips:
   * All Intel Core family
     Prefix: 'coretemp'
-    CPUID: family 0x6, models 0xe, 0xf, 0x16
+    CPUID: family 0x6, models 0xe, 0xf, 0x16, 0x17
     Datasheet: Intel 64 and IA-32 Architectures Software Developer's Manual
                Volume 3A: System Programming Guide
+               http://softwarecommunity.intel.com/Wiki/Mobility/720.htm
 
 Author: Rudolf Marek
 
@@ -25,7 +26,8 @@ may be raised, if the temperature grows enough (more than TjMax) to trigger
 the Out-Of-Spec bit. Following table summarizes the exported sysfs files:
 
 temp1_input	 - Core temperature (in millidegrees Celsius).
-temp1_crit	 - Maximum junction temperature  (in millidegrees Celsius).
+temp1_max	 - All cooling devices should be turned on (on Core2).
+temp1_crit	 - Maximum junction temperature (in millidegrees Celsius).
 temp1_crit_alarm - Set when Out-of-spec bit is set, never clears.
 		   Correct CPU operation is no longer guaranteed.
 temp1_label	 - Contains string "Core X", where X is processor

@@ -22,6 +22,7 @@
 #include <linux/ioport.h>
 
 #include <asm/io.h>
+#include <asm/qe.h>
 #include <asm/prom.h>
 #include <sysdev/fsl_soc.h>
 
@@ -41,7 +42,7 @@ struct port_regs {
 #endif
 };
 
-static struct port_regs *par_io = NULL;
+static struct port_regs __iomem *par_io;
 static int num_par_io_ports = 0;
 
 int par_io_init(struct device_node *np)
@@ -165,7 +166,7 @@ int par_io_of_config(struct device_node *np)
 	}
 
 	ph = of_get_property(np, "pio-handle", NULL);
-	if (ph == 0) {
+	if (ph == NULL) {
 		printk(KERN_ERR "pio-handle not available \n");
 		return -1;
 	}
@@ -200,7 +201,7 @@ static void dump_par_io(void)
 {
 	unsigned int i;
 
-	printk(KERN_INFO "%s: par_io=%p\n", __FUNCTION__, par_io);
+	printk(KERN_INFO "%s: par_io=%p\n", __func__, par_io);
 	for (i = 0; i < num_par_io_ports; i++) {
 		printk(KERN_INFO "	cpodr[%u]=%08x\n", i,
 			in_be32(&par_io[i].cpodr));

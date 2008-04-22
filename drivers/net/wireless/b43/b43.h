@@ -14,6 +14,12 @@
 #include "lo.h"
 #include "phy.h"
 
+
+/* The unique identifier of the firmware that's officially supported by
+ * this driver version. */
+#define B43_SUPPORTED_FIRMWARE_ID	"FW13"
+
+
 #ifdef CONFIG_B43_DEBUG
 # define B43_DEBUG	1
 #else
@@ -69,6 +75,23 @@
 #define B43_MMIO_DMA64_BASE4		0x300
 #define B43_MMIO_DMA64_BASE5		0x340
 
+/* PIO on core rev < 11 */
+#define B43_MMIO_PIO_BASE0		0x300
+#define B43_MMIO_PIO_BASE1		0x310
+#define B43_MMIO_PIO_BASE2		0x320
+#define B43_MMIO_PIO_BASE3		0x330
+#define B43_MMIO_PIO_BASE4		0x340
+#define B43_MMIO_PIO_BASE5		0x350
+#define B43_MMIO_PIO_BASE6		0x360
+#define B43_MMIO_PIO_BASE7		0x370
+/* PIO on core rev >= 11 */
+#define B43_MMIO_PIO11_BASE0		0x200
+#define B43_MMIO_PIO11_BASE1		0x240
+#define B43_MMIO_PIO11_BASE2		0x280
+#define B43_MMIO_PIO11_BASE3		0x2C0
+#define B43_MMIO_PIO11_BASE4		0x300
+#define B43_MMIO_PIO11_BASE5		0x340
+
 #define B43_MMIO_PHY_VER		0x3E0
 #define B43_MMIO_PHY_RADIO		0x3E2
 #define B43_MMIO_PHY0			0x3E6
@@ -88,11 +111,14 @@
 #define B43_MMIO_GPIO_MASK		0x49E
 #define B43_MMIO_TSF_CFP_START_LOW	0x604
 #define B43_MMIO_TSF_CFP_START_HIGH	0x606
+#define B43_MMIO_TSF_CFP_PRETBTT	0x612
 #define B43_MMIO_TSF_0			0x632	/* core rev < 3 only */
 #define B43_MMIO_TSF_1			0x634	/* core rev < 3 only */
 #define B43_MMIO_TSF_2			0x636	/* core rev < 3 only */
 #define B43_MMIO_TSF_3			0x638	/* core rev < 3 only */
 #define B43_MMIO_RNG			0x65A
+#define B43_MMIO_IFSCTL			0x688 /* Interframe space control */
+#define  B43_MMIO_IFSCTL_USE_EDCF	0x0004
 #define B43_MMIO_POWERUP_DELAY		0x6A8
 
 /* SPROM boardflags_lo values */
@@ -138,7 +164,8 @@ enum {
 #define B43_SHM_SH_PHYTYPE		0x0052	/* PHY type */
 #define B43_SHM_SH_ANTSWAP		0x005C	/* Antenna swap threshold */
 #define B43_SHM_SH_HOSTFLO		0x005E	/* Hostflags for ucode options (low) */
-#define B43_SHM_SH_HOSTFHI		0x0060	/* Hostflags for ucode options (high) */
+#define B43_SHM_SH_HOSTFMI		0x0060	/* Hostflags for ucode options (middle) */
+#define B43_SHM_SH_HOSTFHI		0x0062	/* Hostflags for ucode options (high) */
 #define B43_SHM_SH_RFATT		0x0064	/* Current radio attenuation value */
 #define B43_SHM_SH_RADAR		0x0066	/* Radar register */
 #define B43_SHM_SH_PHYTXNOI		0x006E	/* PHY noise directly after TX (lower 8bit only) */
@@ -226,31 +253,41 @@ enum {
 #define B43_MMIO_RADIO_HWENABLED_LO_MASK (1 << 4)
 
 /* HostFlags. See b43_hf_read/write() */
-#define B43_HF_ANTDIVHELP		0x00000001	/* ucode antenna div helper */
-#define B43_HF_SYMW			0x00000002	/* G-PHY SYM workaround */
-#define B43_HF_RXPULLW			0x00000004	/* RX pullup workaround */
-#define B43_HF_CCKBOOST			0x00000008	/* 4dB CCK power boost (exclusive with OFDM boost) */
-#define B43_HF_BTCOEX			0x00000010	/* Bluetooth coexistance */
-#define B43_HF_GDCW			0x00000020	/* G-PHY DV canceller filter bw workaround */
-#define B43_HF_OFDMPABOOST		0x00000040	/* Enable PA gain boost for OFDM */
-#define B43_HF_ACPR			0x00000080	/* Disable for Japan, channel 14 */
-#define B43_HF_EDCF			0x00000100	/* on if WME and MAC suspended */
-#define B43_HF_TSSIRPSMW		0x00000200	/* TSSI reset PSM ucode workaround */
-#define B43_HF_DSCRQ			0x00000400	/* Disable slow clock request in ucode */
-#define B43_HF_ACIW			0x00000800	/* ACI workaround: shift bits by 2 on PHY CRS */
-#define B43_HF_2060W			0x00001000	/* 2060 radio workaround */
-#define B43_HF_RADARW			0x00002000	/* Radar workaround */
-#define B43_HF_USEDEFKEYS		0x00004000	/* Enable use of default keys */
-#define B43_HF_BT4PRIOCOEX		0x00010000	/* Bluetooth 2-priority coexistance */
-#define B43_HF_FWKUP			0x00020000	/* Fast wake-up ucode */
-#define B43_HF_VCORECALC		0x00040000	/* Force VCO recalculation when powering up synthpu */
-#define B43_HF_PCISCW			0x00080000	/* PCI slow clock workaround */
-#define B43_HF_4318TSSI			0x00200000	/* 4318 TSSI */
-#define B43_HF_FBCMCFIFO		0x00400000	/* Flush bcast/mcast FIFO immediately */
-#define B43_HF_HWPCTL			0x00800000	/* Enable hardwarre power control */
-#define B43_HF_BTCOEXALT		0x01000000	/* Bluetooth coexistance in alternate pins */
-#define B43_HF_TXBTCHECK		0x02000000	/* Bluetooth check during transmission */
-#define B43_HF_SKCFPUP			0x04000000	/* Skip CFP update */
+#define B43_HF_ANTDIVHELP	0x000000000001ULL /* ucode antenna div helper */
+#define B43_HF_SYMW		0x000000000002ULL /* G-PHY SYM workaround */
+#define B43_HF_RXPULLW		0x000000000004ULL /* RX pullup workaround */
+#define B43_HF_CCKBOOST		0x000000000008ULL /* 4dB CCK power boost (exclusive with OFDM boost) */
+#define B43_HF_BTCOEX		0x000000000010ULL /* Bluetooth coexistance */
+#define B43_HF_GDCW		0x000000000020ULL /* G-PHY DC canceller filter bw workaround */
+#define B43_HF_OFDMPABOOST	0x000000000040ULL /* Enable PA gain boost for OFDM */
+#define B43_HF_ACPR		0x000000000080ULL /* Disable for Japan, channel 14 */
+#define B43_HF_EDCF		0x000000000100ULL /* on if WME and MAC suspended */
+#define B43_HF_TSSIRPSMW	0x000000000200ULL /* TSSI reset PSM ucode workaround */
+#define B43_HF_20IN40IQW	0x000000000200ULL /* 20 in 40 MHz I/Q workaround (rev >= 13 only) */
+#define B43_HF_DSCRQ		0x000000000400ULL /* Disable slow clock request in ucode */
+#define B43_HF_ACIW		0x000000000800ULL /* ACI workaround: shift bits by 2 on PHY CRS */
+#define B43_HF_2060W		0x000000001000ULL /* 2060 radio workaround */
+#define B43_HF_RADARW		0x000000002000ULL /* Radar workaround */
+#define B43_HF_USEDEFKEYS	0x000000004000ULL /* Enable use of default keys */
+#define B43_HF_AFTERBURNER	0x000000008000ULL /* Afterburner enabled */
+#define B43_HF_BT4PRIOCOEX	0x000000010000ULL /* Bluetooth 4-priority coexistance */
+#define B43_HF_FWKUP		0x000000020000ULL /* Fast wake-up ucode */
+#define B43_HF_VCORECALC	0x000000040000ULL /* Force VCO recalculation when powering up synthpu */
+#define B43_HF_PCISCW		0x000000080000ULL /* PCI slow clock workaround */
+#define B43_HF_4318TSSI		0x000000200000ULL /* 4318 TSSI */
+#define B43_HF_FBCMCFIFO	0x000000400000ULL /* Flush bcast/mcast FIFO immediately */
+#define B43_HF_HWPCTL		0x000000800000ULL /* Enable hardwarre power control */
+#define B43_HF_BTCOEXALT	0x000001000000ULL /* Bluetooth coexistance in alternate pins */
+#define B43_HF_TXBTCHECK	0x000002000000ULL /* Bluetooth check during transmission */
+#define B43_HF_SKCFPUP		0x000004000000ULL /* Skip CFP update */
+#define B43_HF_N40W		0x000008000000ULL /* N PHY 40 MHz workaround (rev >= 13 only) */
+#define B43_HF_ANTSEL		0x000020000000ULL /* Antenna selection (for testing antenna div.) */
+#define B43_HF_BT3COEXT		0x000020000000ULL /* Bluetooth 3-wire coexistence (rev >= 13 only) */
+#define B43_HF_BTCANT		0x000040000000ULL /* Bluetooth coexistence (antenna mode) (rev >= 13 only) */
+#define B43_HF_ANTSELEN		0x000100000000ULL /* Antenna selection enabled (rev >= 13 only) */
+#define B43_HF_ANTSELMODE	0x000200000000ULL /* Antenna selection mode (rev >= 13 only) */
+#define B43_HF_MLADVW		0x001000000000ULL /* N PHY ML ADV workaround (rev >= 13 only) */
+#define B43_HF_PR45960W		0x080000000000ULL /* PR 45960 workaround (rev >= 13 only) */
 
 /* MacFilter offsets. */
 #define B43_MACFILTER_SELF		0x0000
@@ -374,7 +411,6 @@ enum {
 
 #define B43_IRQ_ALL			0xFFFFFFFF
 #define B43_IRQ_MASKTEMPLATE		(B43_IRQ_MAC_SUSPENDED | \
-					 B43_IRQ_BEACON | \
 					 B43_IRQ_TBTT_INDI | \
 					 B43_IRQ_ATIM_END | \
 					 B43_IRQ_PMQ | \
@@ -423,7 +459,6 @@ enum {
 };
 
 struct b43_dmaring;
-struct b43_pioqueue;
 
 /* The firmware file header */
 #define B43_FW_TYPE_UCODE	'u'
@@ -452,20 +487,13 @@ struct b43_iv {
 } __attribute__((__packed__));
 
 
-#define B43_PHYMODE(phytype)		(1 << (phytype))
-#define B43_PHYMODE_A			B43_PHYMODE(B43_PHYTYPE_A)
-#define B43_PHYMODE_B			B43_PHYMODE(B43_PHYTYPE_B)
-#define B43_PHYMODE_G			B43_PHYMODE(B43_PHYTYPE_G)
-
 struct b43_phy {
-	/* Possible PHYMODEs on this PHY */
-	u8 possible_phymodes;
+	/* Band support flags. */
+	bool supports_2ghz;
+	bool supports_5ghz;
+
 	/* GMODE bit enabled? */
 	bool gmode;
-	/* Possible ieee80211 subsystem hwmodes for this PHY.
-	 * Which mode is selected, depends on thr GMODE enabled bit */
-#define B43_MAX_PHYHWMODES	2
-	struct ieee80211_hw_mode hwmodes[B43_MAX_PHYHWMODES];
 
 	/* Analog Type */
 	u8 analog;
@@ -577,15 +605,27 @@ struct b43_phy {
 
 /* Data structures for DMA transmission, per 80211 core. */
 struct b43_dma {
-	struct b43_dmaring *tx_ring0;
-	struct b43_dmaring *tx_ring1;
-	struct b43_dmaring *tx_ring2;
-	struct b43_dmaring *tx_ring3;
-	struct b43_dmaring *tx_ring4;
-	struct b43_dmaring *tx_ring5;
+	struct b43_dmaring *tx_ring_AC_BK; /* Background */
+	struct b43_dmaring *tx_ring_AC_BE; /* Best Effort */
+	struct b43_dmaring *tx_ring_AC_VI; /* Video */
+	struct b43_dmaring *tx_ring_AC_VO; /* Voice */
+	struct b43_dmaring *tx_ring_mcast; /* Multicast */
 
-	struct b43_dmaring *rx_ring0;
-	struct b43_dmaring *rx_ring3;	/* only available on core.rev < 5 */
+	struct b43_dmaring *rx_ring;
+};
+
+struct b43_pio_txqueue;
+struct b43_pio_rxqueue;
+
+/* Data structures for PIO transmission, per 80211 core. */
+struct b43_pio {
+	struct b43_pio_txqueue *tx_queue_AC_BK; /* Background */
+	struct b43_pio_txqueue *tx_queue_AC_BE; /* Best Effort */
+	struct b43_pio_txqueue *tx_queue_AC_VI; /* Video */
+	struct b43_pio_txqueue *tx_queue_AC_VO; /* Voice */
+	struct b43_pio_txqueue *tx_queue_mcast; /* Multicast */
+
+	struct b43_pio_rxqueue *rx_queue;
 };
 
 /* Context information for a noise calculation (Link Quality). */
@@ -609,6 +649,35 @@ struct b43_key {
 	 * path, because b43 doesn't own it. */
 	struct ieee80211_key_conf *keyconf;
 	u8 algorithm;
+};
+
+/* SHM offsets to the QOS data structures for the 4 different queues. */
+#define B43_QOS_PARAMS(queue)	(B43_SHM_SH_EDCFQ + \
+				 (B43_NR_QOSPARAMS * sizeof(u16) * (queue)))
+#define B43_QOS_BACKGROUND	B43_QOS_PARAMS(0)
+#define B43_QOS_BESTEFFORT	B43_QOS_PARAMS(1)
+#define B43_QOS_VIDEO		B43_QOS_PARAMS(2)
+#define B43_QOS_VOICE		B43_QOS_PARAMS(3)
+
+/* QOS parameter hardware data structure offsets. */
+#define B43_NR_QOSPARAMS	22
+enum {
+	B43_QOSPARAM_TXOP = 0,
+	B43_QOSPARAM_CWMIN,
+	B43_QOSPARAM_CWMAX,
+	B43_QOSPARAM_CWCUR,
+	B43_QOSPARAM_AIFS,
+	B43_QOSPARAM_BSLOTS,
+	B43_QOSPARAM_REGGAP,
+	B43_QOSPARAM_STATUS,
+};
+
+/* QOS parameters for a queue. */
+struct b43_qos_params {
+	/* The QOS parameters */
+	struct ieee80211_tx_queue_params p;
+	/* Does this need to get uploaded to hardware? */
+	bool need_hw_update;
 };
 
 struct b43_wldev;
@@ -661,8 +730,16 @@ struct b43_wl {
 	/* The beacon we are currently using (AP or IBSS mode).
 	 * This beacon stuff is protected by the irq_lock. */
 	struct sk_buff *current_beacon;
+	struct ieee80211_tx_control beacon_txctl;
 	bool beacon0_uploaded;
 	bool beacon1_uploaded;
+	struct work_struct beacon_update_trigger;
+
+	/* The current QOS parameters for the 4 queues.
+	 * This is protected by the irq_lock. */
+	struct b43_qos_params qos_params[4];
+	/* Workqueue for updating QOS parameters in hardware. */
+	struct work_struct qos_update_work;
 };
 
 /* In-memory representation of a cached microcode file. */
@@ -721,7 +798,6 @@ struct b43_wldev {
 
 	bool bad_frames_preempt;	/* Use "Bad Frames Preemption" (default off) */
 	bool dfq_valid;		/* Directed frame queue valid (IBSS PS mode, ATIM) */
-	bool short_preamble;	/* TRUE, if short preamble is enabled. */
 	bool short_slot;	/* TRUE, if short slot timing is enabled. */
 	bool radio_hw_enable;	/* saved state of radio hardware enabled state */
 	bool suspend_in_progress;	/* TRUE, if we are in a suspend/resume cycle */
@@ -729,8 +805,15 @@ struct b43_wldev {
 	/* PHY/Radio device. */
 	struct b43_phy phy;
 
-	/* DMA engines. */
-	struct b43_dma dma;
+	union {
+		/* DMA engines. */
+		struct b43_dma dma;
+		/* PIO engines. */
+		struct b43_pio pio;
+	};
+	/* Use b43_using_pio_transfers() to check whether we are using
+	 * DMA or PIO data transfers. */
+	bool __using_pio_transfers;
 
 	/* Various statistics about the physical device. */
 	struct b43_stats stats;
@@ -813,6 +896,22 @@ static inline void b43_write32(struct b43_wldev *dev, u16 offset, u32 value)
 {
 	ssb_write32(dev->dev, offset, value);
 }
+
+static inline bool b43_using_pio_transfers(struct b43_wldev *dev)
+{
+#ifdef CONFIG_B43_PIO
+	return dev->__using_pio_transfers;
+#else
+	return 0;
+#endif
+}
+
+#ifdef CONFIG_B43_FORCE_PIO
+# define B43_FORCE_PIO	1
+#else
+# define B43_FORCE_PIO	0
+#endif
+
 
 /* Message printing */
 void b43info(struct b43_wl *wl, const char *fmt, ...)

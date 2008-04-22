@@ -280,7 +280,7 @@ static inline void sun_fd_enable_dma(void)
 
 /* Our low-level entry point in arch/sparc/kernel/entry.S */
 extern int sparc_floppy_request_irq(int irq, unsigned long flags,
-				    irqreturn_t (*irq_handler)(int irq, void *));
+				    irq_handler_t irq_handler);
 
 static int sun_fd_request_irq(void)
 {

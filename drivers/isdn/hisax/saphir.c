@@ -18,7 +18,6 @@
 #include "hscx.h"
 #include "isdnl1.h"
 
-extern const char *CardType[];
 static char *saphir_rev = "$Revision: 1.10.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
@@ -260,15 +259,14 @@ setup_saphir(struct IsdnCard *card)
 	cs->irq = card->para[0];
 	if (!request_region(cs->hw.saphir.cfg_reg, 6, "saphir")) {
 		printk(KERN_WARNING
-			"HiSax: %s config port %x-%x already in use\n",
-			CardType[card->typ],
+			"HiSax: HST Saphir config port %x-%x already in use\n",
 			cs->hw.saphir.cfg_reg,
 			cs->hw.saphir.cfg_reg + 5);
 		return (0);
 	}
 
-	printk(KERN_INFO "HiSax: %s config irq:%d io:0x%X\n",
-		CardType[cs->typ], cs->irq, cs->hw.saphir.cfg_reg);
+	printk(KERN_INFO "HiSax: HST Saphir config irq:%d io:0x%X\n",
+	       cs->irq, cs->hw.saphir.cfg_reg);
 
 	setup_isac(cs);
 	cs->hw.saphir.timer.function = (void *) SaphirWatchDog;

@@ -75,6 +75,7 @@ static struct irq_chip rm9k_irq_controller = {
 	.mask = mask_rm9k_irq,
 	.mask_ack = mask_rm9k_irq,
 	.unmask = unmask_rm9k_irq,
+	.eoi	= unmask_rm9k_irq
 };
 
 static struct irq_chip rm9k_perfcounter_irq = {

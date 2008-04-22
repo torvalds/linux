@@ -316,31 +316,29 @@ static int create_cache_proc_entries(struct cache_detail *cd)
 	cd->proc_ent->owner = cd->owner;
 	cd->channel_ent = cd->content_ent = NULL;
 
-	p = create_proc_entry("flush", S_IFREG|S_IRUSR|S_IWUSR, cd->proc_ent);
+	p = proc_create("flush", S_IFREG|S_IRUSR|S_IWUSR,
+			cd->proc_ent, &cache_flush_operations);
 	cd->flush_ent = p;
 	if (p == NULL)
 		goto out_nomem;
-	p->proc_fops = &cache_flush_operations;
 	p->owner = cd->owner;
 	p->data = cd;
 
 	if (cd->cache_request || cd->cache_parse) {
-		p = create_proc_entry("channel", S_IFREG|S_IRUSR|S_IWUSR,
-				      cd->proc_ent);
+		p = proc_create("channel", S_IFREG|S_IRUSR|S_IWUSR,
+				cd->proc_ent, &cache_file_operations);
 		cd->channel_ent = p;
 		if (p == NULL)
 			goto out_nomem;
-		p->proc_fops = &cache_file_operations;
 		p->owner = cd->owner;
 		p->data = cd;
 	}
 	if (cd->cache_show) {
-		p = create_proc_entry("content", S_IFREG|S_IRUSR|S_IWUSR,
-				      cd->proc_ent);
+		p = proc_create("content", S_IFREG|S_IRUSR|S_IWUSR,
+				cd->proc_ent, &content_file_operations);
 		cd->content_ent = p;
 		if (p == NULL)
 			goto out_nomem;
-		p->proc_fops = &content_file_operations;
 		p->owner = cd->owner;
 		p->data = cd;
 	}

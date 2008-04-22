@@ -200,6 +200,7 @@ static const struct ide_port_info ali14xx_port_info = {
 static int __init ali14xx_probe(void)
 {
 	static u8 idx[4] = { 0, 1, 0xff, 0xff };
+	hw_regs_t hw[2];
 
 	printk(KERN_DEBUG "ali14xx: base=0x%03x, regOn=0x%02x.\n",
 			  basePort, regOn);
@@ -209,6 +210,17 @@ static int __init ali14xx_probe(void)
 		printk(KERN_ERR "ali14xx: Chip initialization failed.\n");
 		return 1;
 	}
+
+	memset(&hw, 0, sizeof(hw));
+
+	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
+	hw[0].irq = 14;
+
+	ide_std_init_ports(&hw[1], 0x170, 0x376);
+	hw[1].irq = 15;
+
+	ide_init_port_hw(&ide_hwifs[0], &hw[0]);
+	ide_init_port_hw(&ide_hwifs[1], &hw[1]);
 
 	ide_hwifs[0].set_pio_mode = &ali14xx_set_pio_mode;
 	ide_hwifs[1].set_pio_mode = &ali14xx_set_pio_mode;

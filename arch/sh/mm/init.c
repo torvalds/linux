@@ -328,7 +328,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	/* We only have ZONE_NORMAL, so this is easy.. */
 	ret = __add_pages(pgdat->node_zones + ZONE_NORMAL, start_pfn, nr_pages);
 	if (unlikely(ret))
-		printk("%s: Failed, __add_pages() == %d\n", __FUNCTION__, ret);
+		printk("%s: Failed, __add_pages() == %d\n", __func__, ret);
 
 	return ret;
 }

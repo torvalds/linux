@@ -34,6 +34,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
 #include "vlanproc.h"
 #include "vlan.h"
 
@@ -79,7 +80,8 @@ static const struct seq_operations vlan_seq_ops = {
 
 static int vlan_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &vlan_seq_ops);
+	return seq_open_net(inode, file, &vlan_seq_ops,
+			sizeof(struct seq_net_private));
 }
 
 static const struct file_operations vlan_fops = {
@@ -87,7 +89,7 @@ static const struct file_operations vlan_fops = {
 	.open    = vlan_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_net,
 };
 
 /*
@@ -111,18 +113,6 @@ static const struct file_operations vlandev_fops = {
  * Proc filesystem derectory entries.
  */
 
-/*
- *	/proc/net/vlan
- */
-
-static struct proc_dir_entry *proc_vlan_dir;
-
-/*
- *	/proc/net/vlan/config
- */
-
-static struct proc_dir_entry *proc_vlan_conf;
-
 /* Strings */
 static const char *vlan_name_type_str[VLAN_NAME_TYPE_HIGHEST] = {
     [VLAN_NAME_TYPE_RAW_PLUS_VID]        = "VLAN_NAME_TYPE_RAW_PLUS_VID",
@@ -138,13 +128,15 @@ static const char *vlan_name_type_str[VLAN_NAME_TYPE_HIGHEST] = {
  *	Clean up /proc/net/vlan entries
  */
 
-void vlan_proc_cleanup(void)
+void vlan_proc_cleanup(struct net *net)
 {
-	if (proc_vlan_conf)
-		remove_proc_entry(name_conf, proc_vlan_dir);
+	struct vlan_net *vn = net_generic(net, vlan_net_id);
 
-	if (proc_vlan_dir)
-		proc_net_remove(&init_net, name_root);
+	if (vn->proc_vlan_conf)
+		remove_proc_entry(name_conf, vn->proc_vlan_dir);
+
+	if (vn->proc_vlan_dir)
+		proc_net_remove(net, name_root);
 
 	/* Dynamically added entries should be cleaned up as their vlan_device
 	 * is removed, so we should not have to take care of it here...
@@ -155,22 +147,23 @@ void vlan_proc_cleanup(void)
  *	Create /proc/net/vlan entries
  */
 
-int __init vlan_proc_init(void)
+int vlan_proc_init(struct net *net)
 {
-	proc_vlan_dir = proc_mkdir(name_root, init_net.proc_net);
-	if (!proc_vlan_dir)
+	struct vlan_net *vn = net_generic(net, vlan_net_id);
+
+	vn->proc_vlan_dir = proc_net_mkdir(net, name_root, net->proc_net);
+	if (!vn->proc_vlan_dir)
 		goto err;
 
-	proc_vlan_conf = create_proc_entry(name_conf, S_IFREG|S_IRUSR|S_IWUSR,
-					   proc_vlan_dir);
-	if (!proc_vlan_conf)
+	vn->proc_vlan_conf = proc_create(name_conf, S_IFREG|S_IRUSR|S_IWUSR,
+				     vn->proc_vlan_dir, &vlan_fops);
+	if (!vn->proc_vlan_conf)
 		goto err;
-	proc_vlan_conf->proc_fops = &vlan_fops;
 	return 0;
 
 err:
-	pr_err("%s: can't create entry in proc filesystem!\n", __FUNCTION__);
-	vlan_proc_cleanup();
+	pr_err("%s: can't create entry in proc filesystem!\n", __func__);
+	vlan_proc_cleanup(net);
 	return -ENOBUFS;
 }
 
@@ -181,14 +174,13 @@ err:
 int vlan_proc_add_dev(struct net_device *vlandev)
 {
 	struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
+	struct vlan_net *vn = net_generic(dev_net(vlandev), vlan_net_id);
 
-	dev_info->dent = create_proc_entry(vlandev->name,
-					   S_IFREG|S_IRUSR|S_IWUSR,
-					   proc_vlan_dir);
+	dev_info->dent = proc_create(vlandev->name, S_IFREG|S_IRUSR|S_IWUSR,
+				     vn->proc_vlan_dir, &vlandev_fops);
 	if (!dev_info->dent)
 		return -ENOBUFS;
 
-	dev_info->dent->proc_fops = &vlandev_fops;
 	dev_info->dent->data = vlandev;
 	return 0;
 }
@@ -198,10 +190,12 @@ int vlan_proc_add_dev(struct net_device *vlandev)
  */
 int vlan_proc_rem_dev(struct net_device *vlandev)
 {
+	struct vlan_net *vn = net_generic(dev_net(vlandev), vlan_net_id);
+
 	/** NOTE:  This will consume the memory pointed to by dent, it seems. */
 	if (vlan_dev_info(vlandev)->dent) {
 		remove_proc_entry(vlan_dev_info(vlandev)->dent->name,
-				  proc_vlan_dir);
+				  vn->proc_vlan_dir);
 		vlan_dev_info(vlandev)->dent = NULL;
 	}
 	return 0;
@@ -213,16 +207,12 @@ int vlan_proc_rem_dev(struct net_device *vlandev)
  * The following few functions build the content of /proc/net/vlan/config
  */
 
-static inline int is_vlan_dev(struct net_device *dev)
-{
-	return dev->priv_flags & IFF_802_1Q_VLAN;
-}
-
 /* start read of /proc/net/vlan/config */
 static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(dev_base_lock)
 {
 	struct net_device *dev;
+	struct net *net = seq_file_net(seq);
 	loff_t i = 1;
 
 	read_lock(&dev_base_lock);
@@ -230,7 +220,7 @@ static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for_each_netdev(&init_net, dev) {
+	for_each_netdev(net, dev) {
 		if (!is_vlan_dev(dev))
 			continue;
 
@@ -244,14 +234,15 @@ static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
 static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct net_device *dev;
+	struct net *net = seq_file_net(seq);
 
 	++*pos;
 
 	dev = (struct net_device *)v;
 	if (v == SEQ_START_TOKEN)
-		dev = net_device_entry(&init_net.dev_base_head);
+		dev = net_device_entry(&net->dev_base_head);
 
-	for_each_netdev_continue(&init_net, dev) {
+	for_each_netdev_continue(net, dev) {
 		if (!is_vlan_dev(dev))
 			continue;
 
@@ -269,13 +260,16 @@ static void vlan_seq_stop(struct seq_file *seq, void *v)
 
 static int vlan_seq_show(struct seq_file *seq, void *v)
 {
+	struct net *net = seq_file_net(seq);
+	struct vlan_net *vn = net_generic(net, vlan_net_id);
+
 	if (v == SEQ_START_TOKEN) {
 		const char *nmtype = NULL;
 
 		seq_puts(seq, "VLAN Dev name	 | VLAN ID\n");
 
-		if (vlan_name_type < ARRAY_SIZE(vlan_name_type_str))
-		    nmtype =  vlan_name_type_str[vlan_name_type];
+		if (vn->name_type < ARRAY_SIZE(vlan_name_type_str))
+		    nmtype =  vlan_name_type_str[vn->name_type];
 
 		seq_printf(seq, "Name-Type: %s\n",
 			   nmtype ? nmtype :  "UNKNOWN");

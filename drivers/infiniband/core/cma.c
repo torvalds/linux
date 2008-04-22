@@ -168,15 +168,15 @@ struct cma_work {
 union cma_ip_addr {
 	struct in6_addr ip6;
 	struct {
-		__u32 pad[3];
-		__u32 addr;
+		__be32 pad[3];
+		__be32 addr;
 	} ip4;
 };
 
 struct cma_hdr {
 	u8 cma_version;
 	u8 ip_version;	/* IP version: 7:4 */
-	__u16 port;
+	__be16 port;
 	union cma_ip_addr src_addr;
 	union cma_ip_addr dst_addr;
 };
@@ -186,8 +186,8 @@ struct sdp_hh {
 	u8 sdp_version; /* Major version: 7:4 */
 	u8 ip_version;	/* IP version: 7:4 */
 	u8 sdp_specific1[10];
-	__u16 port;
-	__u16 sdp_specific2;
+	__be16 port;
+	__be16 sdp_specific2;
 	union cma_ip_addr src_addr;
 	union cma_ip_addr dst_addr;
 };
@@ -663,7 +663,7 @@ static inline int cma_any_port(struct sockaddr *addr)
 }
 
 static int cma_get_net_info(void *hdr, enum rdma_port_space ps,
-			    u8 *ip_ver, __u16 *port,
+			    u8 *ip_ver, __be16 *port,
 			    union cma_ip_addr **src, union cma_ip_addr **dst)
 {
 	switch (ps) {
@@ -695,7 +695,7 @@ static int cma_get_net_info(void *hdr, enum rdma_port_space ps,
 
 static void cma_save_net_info(struct rdma_addr *addr,
 			      struct rdma_addr *listen_addr,
-			      u8 ip_ver, __u16 port,
+			      u8 ip_ver, __be16 port,
 			      union cma_ip_addr *src, union cma_ip_addr *dst)
 {
 	struct sockaddr_in *listen4, *ip4;
@@ -996,7 +996,7 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
 	struct rdma_cm_id *id;
 	struct rdma_route *rt;
 	union cma_ip_addr *src, *dst;
-	__u16 port;
+	__be16 port;
 	u8 ip_ver;
 
 	if (cma_get_net_info(ib_event->private_data, listen_id->ps,
@@ -1043,7 +1043,7 @@ static struct rdma_id_private *cma_new_udp_id(struct rdma_cm_id *listen_id,
 	struct rdma_id_private *id_priv;
 	struct rdma_cm_id *id;
 	union cma_ip_addr *src, *dst;
-	__u16 port;
+	__be16 port;
 	u8 ip_ver;
 	int ret;
 
@@ -1165,7 +1165,7 @@ static void cma_set_compare_data(enum rdma_port_space ps, struct sockaddr *addr,
 {
 	struct cma_hdr *cma_data, *cma_mask;
 	struct sdp_hh *sdp_data, *sdp_mask;
-	__u32 ip4_addr;
+	__be32 ip4_addr;
 	struct in6_addr ip6_addr;
 
 	memset(compare, 0, sizeof *compare);
@@ -1181,12 +1181,12 @@ static void cma_set_compare_data(enum rdma_port_space ps, struct sockaddr *addr,
 			sdp_set_ip_ver(sdp_data, 4);
 			sdp_set_ip_ver(sdp_mask, 0xF);
 			sdp_data->dst_addr.ip4.addr = ip4_addr;
-			sdp_mask->dst_addr.ip4.addr = ~0;
+			sdp_mask->dst_addr.ip4.addr = htonl(~0);
 		} else {
 			cma_set_ip_ver(cma_data, 4);
 			cma_set_ip_ver(cma_mask, 0xF);
 			cma_data->dst_addr.ip4.addr = ip4_addr;
-			cma_mask->dst_addr.ip4.addr = ~0;
+			cma_mask->dst_addr.ip4.addr = htonl(~0);
 		}
 		break;
 	case AF_INET6:
@@ -1289,7 +1289,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	new_cm_id = rdma_create_id(listen_id->id.event_handler,
 				   listen_id->id.context,
 				   RDMA_PS_TCP);
-	if (!new_cm_id) {
+	if (IS_ERR(new_cm_id)) {
 		ret = -ENOMEM;
 		goto out;
 	}

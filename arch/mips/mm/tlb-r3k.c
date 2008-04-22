@@ -281,7 +281,7 @@ void __init add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	}
 }
 
-void __init tlb_init(void)
+void __cpuinit tlb_init(void)
 {
 	local_flush_tlb_all();
 

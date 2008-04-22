@@ -26,7 +26,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <asm/semaphore.h>
 
 
 static void pvr2_context_destroy(struct pvr2_context *mp)

@@ -7,7 +7,6 @@
 
 .text
 
-#include <linux/linkage.h>
 #include <asm/page.h>
 
 	.global	startup

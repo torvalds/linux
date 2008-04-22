@@ -41,13 +41,17 @@ struct virtqueue
  *	Returns NULL or the "data" token handed to add_buf.
  * @disable_cb: disable callbacks
  *	vq: the struct virtqueue we're talking about.
+ *	Note that this is not necessarily synchronous, hence unreliable and only
+ *	useful as an optimization.
  * @enable_cb: restart callbacks after disable_cb.
  *	vq: the struct virtqueue we're talking about.
- *	This returns "false" (and doesn't re-enable) if there are pending
- *	buffers in the queue, to avoid a race.
+ *	This re-enables callbacks; it returns "false" if there are pending
+ *	buffers in the queue, to detect a possible race between the driver
+ *	checking for more work, and enabling callbacks.
  *
  * Locking rules are straightforward: the driver is responsible for
- * locking.  No two operations may be invoked simultaneously.
+ * locking.  No two operations may be invoked simultaneously, with the exception
+ * of @disable_cb.
  *
  * All operations can be called in any context.
  */

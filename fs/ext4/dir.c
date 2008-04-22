@@ -46,7 +46,7 @@ const struct file_operations ext4_dir_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ext4_compat_ioctl,
 #endif
-	.fsync		= ext4_sync_file,	/* BKL held */
+	.fsync		= ext4_sync_file,
 	.release	= ext4_release_dir,
 };
 

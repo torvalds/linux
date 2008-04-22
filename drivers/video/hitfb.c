@@ -403,7 +403,7 @@ static int __init hitfb_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit hitfb_remove(struct platform_device *dev)
+static int __exit hitfb_remove(struct platform_device *dev)
 {
 	return unregister_framebuffer(&fb_info);
 }
@@ -439,7 +439,7 @@ static int hitfb_resume(struct platform_device *dev)
 
 static struct platform_driver hitfb_driver = {
 	.probe		= hitfb_probe,
-	.remove		= __devexit_p(hitfb_remove),
+	.remove		= __exit_p(hitfb_remove),
 #ifdef CONFIG_PM
 	.suspend	= hitfb_suspend,
 	.resume		= hitfb_resume,

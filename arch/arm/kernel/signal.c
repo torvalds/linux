@@ -26,8 +26,8 @@
 /*
  * For ARM syscalls, we encode the syscall number into the instruction.
  */
-#define SWI_SYS_SIGRETURN	(0xef000000|(__NR_sigreturn))
-#define SWI_SYS_RT_SIGRETURN	(0xef000000|(__NR_rt_sigreturn))
+#define SWI_SYS_SIGRETURN	(0xef000000|(__NR_sigreturn)|(__NR_OABI_SYSCALL_BASE))
+#define SWI_SYS_RT_SIGRETURN	(0xef000000|(__NR_rt_sigreturn)|(__NR_OABI_SYSCALL_BASE))
 
 /*
  * With EABI, the syscall number has to be loaded into r7.

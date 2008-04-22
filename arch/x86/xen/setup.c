@@ -38,7 +38,8 @@ char * __init xen_memory_setup(void)
 	unsigned long max_pfn = xen_start_info->nr_pages;
 
 	e820.nr_map = 0;
-	add_memory_region(0, PFN_PHYS(max_pfn), E820_RAM);
+	add_memory_region(0, LOWMEMSIZE(), E820_RAM);
+	add_memory_region(HIGH_MEMORY, PFN_PHYS(max_pfn)-HIGH_MEMORY, E820_RAM);
 
 	return "Xen";
 }

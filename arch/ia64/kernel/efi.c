@@ -37,6 +37,7 @@
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/mca.h>
+#include <asm/tlbflush.h>
 
 #define EFI_DEBUG	0
 
@@ -379,8 +380,8 @@ efi_get_pal_addr (void)
 		 * a dedicated ITR for the PAL code.
 		 */
 		if ((vaddr & mask) == (KERNEL_START & mask)) {
-			printk(KERN_INFO "%s: no need to install ITR for "
-			       "PAL code\n", __FUNCTION__);
+			printk(KERN_INFO "%s: no need to install ITR for PAL code\n",
+			       __func__);
 			continue;
 		}
 
@@ -399,8 +400,43 @@ efi_get_pal_addr (void)
 		return __va(md->phys_addr);
 	}
 	printk(KERN_WARNING "%s: no PAL-code memory-descriptor found\n",
-	       __FUNCTION__);
+	       __func__);
 	return NULL;
+}
+
+
+static u8 __init palo_checksum(u8 *buffer, u32 length)
+{
+	u8 sum = 0;
+	u8 *end = buffer + length;
+
+	while (buffer < end)
+		sum = (u8) (sum + *(buffer++));
+
+	return sum;
+}
+
+/*
+ * Parse and handle PALO table which is published at:
+ * http://www.dig64.org/home/DIG64_PALO_R1_0.pdf
+ */
+static void __init handle_palo(unsigned long palo_phys)
+{
+	struct palo_table *palo = __va(palo_phys);
+	u8  checksum;
+
+	if (strncmp(palo->signature, PALO_SIG, sizeof(PALO_SIG) - 1)) {
+		printk(KERN_INFO "PALO signature incorrect.\n");
+		return;
+	}
+
+	checksum = palo_checksum((u8 *)palo, palo->length);
+	if (checksum) {
+		printk(KERN_INFO "PALO checksum incorrect.\n");
+		return;
+	}
+
+	setup_ptcg_sem(palo->max_tlb_purges, NPTCG_FROM_PALO);
 }
 
 void
@@ -432,6 +468,7 @@ efi_init (void)
 	u64 efi_desc_size;
 	char *cp, vendor[100] = "unknown";
 	int i;
+	unsigned long palo_phys;
 
 	/*
 	 * It's too early to be able to use the standard kernel command line
@@ -496,6 +533,8 @@ efi_init (void)
 	efi.hcdp       = EFI_INVALID_TABLE_ADDR;
 	efi.uga        = EFI_INVALID_TABLE_ADDR;
 
+	palo_phys      = EFI_INVALID_TABLE_ADDR;
+
 	for (i = 0; i < (int) efi.systab->nr_tables; i++) {
 		if (efi_guidcmp(config_tables[i].guid, MPS_TABLE_GUID) == 0) {
 			efi.mps = config_tables[i].table;
@@ -515,9 +554,16 @@ efi_init (void)
 		} else if (efi_guidcmp(config_tables[i].guid, HCDP_TABLE_GUID) == 0) {
 			efi.hcdp = config_tables[i].table;
 			printk(" HCDP=0x%lx", config_tables[i].table);
+		} else if (efi_guidcmp(config_tables[i].guid,
+			 PROCESSOR_ABSTRACTION_LAYER_OVERWRITE_GUID) == 0) {
+			palo_phys = config_tables[i].table;
+			printk(" PALO=0x%lx", config_tables[i].table);
 		}
 	}
 	printk("\n");
+
+	if (palo_phys != EFI_INVALID_TABLE_ADDR)
+		handle_palo(palo_phys);
 
 	runtime = __va(efi.systab->runtime);
 	efi.get_time = phys_get_time;
@@ -543,12 +589,30 @@ efi_init (void)
 		for (i = 0, p = efi_map_start; p < efi_map_end;
 		     ++i, p += efi_desc_size)
 		{
+			const char *unit;
+			unsigned long size;
+
 			md = p;
-			printk("mem%02u: type=%u, attr=0x%lx, "
-			       "range=[0x%016lx-0x%016lx) (%luMB)\n",
+			size = md->num_pages << EFI_PAGE_SHIFT;
+
+			if ((size >> 40) > 0) {
+				size >>= 40;
+				unit = "TB";
+			} else if ((size >> 30) > 0) {
+				size >>= 30;
+				unit = "GB";
+			} else if ((size >> 20) > 0) {
+				size >>= 20;
+				unit = "MB";
+			} else {
+				size >>= 10;
+				unit = "KB";
+			}
+
+			printk("mem%02d: type=%2u, attr=0x%016lx, "
+			       "range=[0x%016lx-0x%016lx) (%4lu%s)\n",
 			       i, md->type, md->attribute, md->phys_addr,
-			       md->phys_addr + efi_md_size(md),
-			       md->num_pages >> (20 - EFI_PAGE_SHIFT));
+			       md->phys_addr + efi_md_size(md), size, unit);
 		}
 	}
 #endif

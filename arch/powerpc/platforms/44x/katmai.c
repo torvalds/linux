@@ -22,8 +22,7 @@
 #include <asm/time.h>
 #include <asm/uic.h>
 #include <asm/pci-bridge.h>
-
-#include "44x.h"
+#include <asm/ppc4xx.h>
 
 static __initdata struct of_device_id katmai_of_bus[] = {
 	{ .compatible = "ibm,plb4", },
@@ -58,6 +57,6 @@ define_machine(katmai) {
 	.progress 			= udbg_progress,
 	.init_IRQ 			= uic_init_tree,
 	.get_irq 			= uic_get_irq,
-	.restart			= ppc44x_reset_system,
+	.restart			= ppc4xx_reset_system,
 	.calibrate_decr			= generic_calibrate_decr,
 };

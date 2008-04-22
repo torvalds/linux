@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/hardware.h>
 
 #include "devices.h"
@@ -23,18 +24,27 @@ static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clocks_lock);
 
+static struct clk *clk_lookup(struct device *dev, const char *id)
+{
+	struct clk *p;
+
+	list_for_each_entry(p, &clocks, node)
+		if (strcmp(id, p->name) == 0 && p->dev == dev)
+			return p;
+
+	return NULL;
+}
+
 struct clk *clk_get(struct device *dev, const char *id)
 {
 	struct clk *p, *clk = ERR_PTR(-ENOENT);
 
 	mutex_lock(&clocks_mutex);
-	list_for_each_entry(p, &clocks, node) {
-		if (strcmp(id, p->name) == 0 &&
-		    (p->dev == NULL || p->dev == dev)) {
-			clk = p;
-			break;
-		}
-	}
+	p = clk_lookup(dev, id);
+	if (!p)
+		p = clk_lookup(NULL, id);
+	if (p)
+		clk = p;
 	mutex_unlock(&clocks_mutex);
 
 	return clk;

@@ -11,6 +11,7 @@
 #include "types.h"
 #include "io.h"
 #include "ops.h"
+#include "page.h"
 
 struct cpm_scc {
 	u32 gsmrl;
@@ -42,6 +43,22 @@ struct cpm_param {
 	u16 tbase;
 	u8 rfcr;
 	u8 tfcr;
+	u16 mrblr;
+	u32 rstate;
+	u8 res1[4];
+	u16 rbptr;
+	u8 res2[6];
+	u32 tstate;
+	u8 res3[4];
+	u16 tbptr;
+	u8 res4[6];
+	u16 maxidl;
+	u16 idlc;
+	u16 brkln;
+	u16 brkec;
+	u16 brkcr;
+	u16 rmask;
+	u8 res5[4];
 };
 
 struct cpm_bd {
@@ -54,10 +71,10 @@ static void *cpcr;
 static struct cpm_param *param;
 static struct cpm_smc *smc;
 static struct cpm_scc *scc;
-struct cpm_bd *tbdf, *rbdf;
+static struct cpm_bd *tbdf, *rbdf;
 static u32 cpm_cmd;
-static u8 *muram_start;
-static u32 muram_offset;
+static void *cbd_addr;
+static u32 cbd_offset;
 
 static void (*do_cmd)(int op);
 static void (*enable_port)(void);
@@ -119,20 +136,25 @@ static int cpm_serial_open(void)
 
 	out_8(&param->rfcr, 0x10);
 	out_8(&param->tfcr, 0x10);
+	out_be16(&param->mrblr, 1);
+	out_be16(&param->maxidl, 0);
+	out_be16(&param->brkec, 0);
+	out_be16(&param->brkln, 0);
+	out_be16(&param->brkcr, 0);
 
-	rbdf = (struct cpm_bd *)muram_start;
-	rbdf->addr = (u8 *)(rbdf + 2);
+	rbdf = cbd_addr;
+	rbdf->addr = (u8 *)rbdf - 1;
 	rbdf->sc = 0xa000;
 	rbdf->len = 1;
 
 	tbdf = rbdf + 1;
-	tbdf->addr = (u8 *)(rbdf + 2) + 1;
+	tbdf->addr = (u8 *)rbdf - 2;
 	tbdf->sc = 0x2000;
 	tbdf->len = 1;
 
 	sync();
-	out_be16(&param->rbase, muram_offset);
-	out_be16(&param->tbase, muram_offset + sizeof(struct cpm_bd));
+	out_be16(&param->rbase, cbd_offset);
+	out_be16(&param->tbase, cbd_offset + sizeof(struct cpm_bd));
 
 	do_cmd(CPM_CMD_INIT_RX_TX);
 
@@ -175,10 +197,12 @@ static unsigned char cpm_serial_getc(void)
 
 int cpm_console_init(void *devp, struct serial_console_data *scdp)
 {
-	void *reg_virt[2];
-	int is_smc = 0, is_cpm2 = 0, n;
-	unsigned long reg_phys;
+	void *vreg[2];
+	u32 reg[2];
+	int is_smc = 0, is_cpm2 = 0;
 	void *parent, *muram;
+	void *muram_addr;
+	unsigned long muram_offset, muram_size;
 
 	if (dt_is_compatible(devp, "fsl,cpm1-smc-uart")) {
 		is_smc = 1;
@@ -202,63 +226,64 @@ int cpm_console_init(void *devp, struct serial_console_data *scdp)
 	else
 		do_cmd = cpm1_cmd;
 
-	n = getprop(devp, "fsl,cpm-command", &cpm_cmd, 4);
-	if (n < 4)
+	if (getprop(devp, "fsl,cpm-command", &cpm_cmd, 4) < 4)
 		return -1;
 
-	n = getprop(devp, "virtual-reg", reg_virt, sizeof(reg_virt));
-	if (n < (int)sizeof(reg_virt)) {
-		for (n = 0; n < 2; n++) {
-			if (!dt_xlate_reg(devp, n, &reg_phys, NULL))
-				return -1;
-
-			reg_virt[n] = (void *)reg_phys;
-		}
-	}
+	if (dt_get_virtual_reg(devp, vreg, 2) < 2)
+		return -1;
 
 	if (is_smc)
-		smc = reg_virt[0];
+		smc = vreg[0];
 	else
-		scc = reg_virt[0];
+		scc = vreg[0];
 
-	param = reg_virt[1];
+	param = vreg[1];
 
 	parent = get_parent(devp);
 	if (!parent)
 		return -1;
 
-	n = getprop(parent, "virtual-reg", reg_virt, sizeof(reg_virt));
-	if (n < (int)sizeof(reg_virt)) {
-		if (!dt_xlate_reg(parent, 0, &reg_phys, NULL))
-			return -1;
-
-		reg_virt[0] = (void *)reg_phys;
-	}
-
-	cpcr = reg_virt[0];
+	if (dt_get_virtual_reg(parent, &cpcr, 1) < 1)
+		return -1;
 
 	muram = finddevice("/soc/cpm/muram/data");
 	if (!muram)
 		return -1;
 
 	/* For bootwrapper-compatible device trees, we assume that the first
-	 * entry has at least 18 bytes, and that #address-cells/#data-cells
+	 * entry has at least 128 bytes, and that #address-cells/#data-cells
 	 * is one for both parent and child.
 	 */
 
-	n = getprop(muram, "virtual-reg", reg_virt, sizeof(reg_virt));
-	if (n < (int)sizeof(reg_virt)) {
-		if (!dt_xlate_reg(muram, 0, &reg_phys, NULL))
-			return -1;
+	if (dt_get_virtual_reg(muram, &muram_addr, 1) < 1)
+		return -1;
 
-		reg_virt[0] = (void *)reg_phys;
+	if (getprop(muram, "reg", reg, 8) < 8)
+		return -1;
+
+	muram_offset = reg[0];
+	muram_size = reg[1];
+
+	/* Store the buffer descriptors at the end of the first muram chunk.
+	 * For SMC ports on CPM2-based platforms, relocate the parameter RAM
+	 * just before the buffer descriptors.
+	 */
+
+	cbd_offset = muram_offset + muram_size - 2 * sizeof(struct cpm_bd);
+
+	if (is_cpm2 && is_smc) {
+		u16 *smc_base = (u16 *)param;
+		u16 pram_offset;
+
+		pram_offset = cbd_offset - 64;
+		pram_offset = _ALIGN_DOWN(pram_offset, 64);
+
+		disable_port();
+		out_be16(smc_base, pram_offset);
+		param = muram_addr - muram_offset + pram_offset;
 	}
 
-	muram_start = reg_virt[0];
-
-	n = getprop(muram, "reg", &muram_offset, 4);
-	if (n < 4)
-		return -1;
+	cbd_addr = muram_addr - muram_offset + cbd_offset;
 
 	scdp->open = cpm_serial_open;
 	scdp->putc = cpm_serial_putc;

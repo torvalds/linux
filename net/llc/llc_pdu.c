@@ -241,7 +241,7 @@ void llc_pdu_init_as_frmr_rsp(struct sk_buff *skb, struct llc_pdu_sn *prev_pdu,
 	FRMR_INFO_SET_PDU_INFO_2LONG_IND(frmr_info, vzyxw);
 	FRMR_INFO_SET_PDU_INVALID_Nr_IND(frmr_info, vzyxw);
 	FRMR_INFO_SET_PDU_INVALID_Ns_IND(frmr_info, vzyxw);
-	skb_put(skb, 5);
+	skb_put(skb, sizeof(struct llc_frmr_info));
 }
 
 /**

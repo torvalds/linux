@@ -38,7 +38,7 @@ mtfsf(unsigned int FM, u32 *frB)
 	__FPU_FPSCR |= (frB[1] & mask);
 
 #ifdef DEBUG
-	printk("%s: %02x %p: %08lx\n", __FUNCTION__, FM, frB, __FPU_FPSCR);
+	printk("%s: %02x %p: %08lx\n", __func__, FM, frB, __FPU_FPSCR);
 #endif
 
 	return 0;

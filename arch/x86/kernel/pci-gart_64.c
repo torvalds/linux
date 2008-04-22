@@ -264,9 +264,9 @@ static dma_addr_t dma_map_area(struct device *dev, dma_addr_t phys_mem,
 }
 
 static dma_addr_t
-gart_map_simple(struct device *dev, char *buf, size_t size, int dir)
+gart_map_simple(struct device *dev, phys_addr_t paddr, size_t size, int dir)
 {
-	dma_addr_t map = dma_map_area(dev, virt_to_bus(buf), size, dir);
+	dma_addr_t map = dma_map_area(dev, paddr, size, dir);
 
 	flush_gart();
 
@@ -275,18 +275,17 @@ gart_map_simple(struct device *dev, char *buf, size_t size, int dir)
 
 /* Map a single area into the IOMMU */
 static dma_addr_t
-gart_map_single(struct device *dev, void *addr, size_t size, int dir)
+gart_map_single(struct device *dev, phys_addr_t paddr, size_t size, int dir)
 {
-	unsigned long phys_mem, bus;
+	unsigned long bus;
 
 	if (!dev)
 		dev = &fallback_dev;
 
-	phys_mem = virt_to_phys(addr);
-	if (!need_iommu(dev, phys_mem, size))
-		return phys_mem;
+	if (!need_iommu(dev, paddr, size))
+		return paddr;
 
-	bus = gart_map_simple(dev, addr, size, dir);
+	bus = gart_map_simple(dev, paddr, size, dir);
 
 	return bus;
 }
@@ -615,8 +614,8 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 
  nommu:
 	/* Should not happen anymore */
-	printk(KERN_ERR "PCI-DMA: More than 4GB of RAM and no IOMMU\n"
-	       KERN_ERR "PCI-DMA: 32bit PCI IO may malfunction.\n");
+	printk(KERN_WARNING "PCI-DMA: More than 4GB of RAM and no IOMMU\n"
+	       KERN_WARNING "falling back to iommu=soft.\n");
 	return -1;
 }
 
@@ -692,9 +691,9 @@ void __init gart_iommu_init(void)
 	    !gart_iommu_aperture ||
 	    (no_agp && init_k8_gatt(&info) < 0)) {
 		if (end_pfn > MAX_DMA32_PFN) {
-			printk(KERN_ERR "WARNING more than 4GB of memory "
-					"but GART IOMMU not available.\n"
-			       KERN_ERR "WARNING 32bit PCI may malfunction.\n");
+			printk(KERN_WARNING "More than 4GB of memory "
+			       	          "but GART IOMMU not available.\n"
+			       KERN_WARNING "falling back to iommu=soft.\n");
 		}
 		return;
 	}

@@ -18,10 +18,12 @@
 #define dev_to_disk(device) container_of(device, struct gendisk, dev)
 #define dev_to_part(device) container_of(device, struct hd_struct, dev)
 
-extern struct device_type disk_type;
 extern struct device_type part_type;
 extern struct kobject *block_depr;
 extern struct class block_class;
+
+extern const struct seq_operations partitions_op;
+extern const struct seq_operations diskstats_op;
 
 enum {
 /* These three have identical behaviour; use the second one if DOS FDISK gets
@@ -53,24 +55,6 @@ enum {
 	UNIXWARE_PARTITION = 0x63,	/* Same as GNU_HURD and SCO Unix */
 };
 
-#ifndef __KERNEL__
-
-struct partition {
-	unsigned char boot_ind;		/* 0x80 - active */
-	unsigned char head;		/* starting head */
-	unsigned char sector;		/* starting sector */
-	unsigned char cyl;		/* starting cylinder */
-	unsigned char sys_ind;		/* What partition type */
-	unsigned char end_head;		/* end head */
-	unsigned char end_sector;	/* end sector */
-	unsigned char end_cyl;		/* end cylinder */
-	unsigned int start_sect;	/* starting sector counting from 0 */
-	unsigned int nr_sects;		/* nr of sectors in partition */
-} __attribute__((packed));
-
-#endif
-
-#ifdef __KERNEL__
 #include <linux/major.h>
 #include <linux/device.h>
 #include <linux/smp.h>
@@ -226,7 +210,7 @@ static inline void part_stat_set_all(struct hd_struct *part, int value)	{
 		       sizeof(struct disk_stats));
 }
 				
-#else
+#else /* !CONFIG_SMP */
 #define __disk_stat_add(gendiskp, field, addnd) \
 				(gendiskp->dkstats.field += addnd)
 #define disk_stat_read(gendiskp, field)	(gendiskp->dkstats.field)
@@ -254,7 +238,7 @@ static inline void part_stat_set_all(struct hd_struct *part, int value)
 	memset(&part->dkstats, value, sizeof(struct disk_stats));
 }
 
-#endif
+#endif /* CONFIG_SMP */
 
 #define disk_stat_add(gendiskp, field, addnd)			\
 	do {							\
@@ -392,8 +376,6 @@ static inline void set_capacity(struct gendisk *disk, sector_t size)
 {
 	disk->capacity = size;
 }
-
-#endif  /*  __KERNEL__  */
 
 #ifdef CONFIG_SOLARIS_X86_PARTITION
 
@@ -538,8 +520,6 @@ struct unixware_disklabel {
 #   define MINIX_NR_SUBPARTITIONS  4
 #endif /* CONFIG_MINIX_SUBPARTITION */
 
-#ifdef __KERNEL__
-
 #define ADDPART_FLAG_NONE	0
 #define ADDPART_FLAG_RAID	1
 #define ADDPART_FLAG_WHOLEDISK	2
@@ -556,7 +536,6 @@ extern struct gendisk *alloc_disk_node(int minors, int node_id);
 extern struct gendisk *alloc_disk(int minors);
 extern struct kobject *get_disk(struct gendisk *disk);
 extern void put_disk(struct gendisk *disk);
-extern void genhd_media_change_notify(struct gendisk *disk);
 extern void blk_register_region(dev_t devt, unsigned long range,
 			struct module *module,
 			struct kobject *(*probe)(dev_t, int *, void *),
@@ -568,8 +547,6 @@ static inline struct block_device *bdget_disk(struct gendisk *disk, int index)
 {
 	return bdget(MKDEV(disk->major, disk->first_minor) + index);
 }
-
-#endif
 
 #else /* CONFIG_BLOCK */
 
@@ -583,4 +560,4 @@ static inline dev_t blk_lookup_devt(const char *name)
 
 #endif /* CONFIG_BLOCK */
 
-#endif
+#endif /* _LINUX_GENHD_H */

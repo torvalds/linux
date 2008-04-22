@@ -290,7 +290,7 @@ static int ibmvstgt_cmd_done(struct scsi_cmnd *sc,
 	int err = 0;
 
 	dprintk("%p %p %x %u\n", iue, target, vio_iu(iue)->srp.cmd.cdb[0],
-		cmd->usg_sg);
+		scsi_sg_count(sc));
 
 	if (scsi_sg_count(sc))
 		err = srp_transfer_data(sc, &vio_iu(iue)->srp.cmd, ibmvstgt_rdma, 1, 1);
@@ -780,32 +780,35 @@ static int ibmvstgt_it_nexus_response(struct Scsi_Host *shost, u64 itn_id,
 	return 0;
 }
 
-static ssize_t system_id_show(struct class_device *cdev, char *buf)
+static ssize_t system_id_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%s\n", system_id);
 }
 
-static ssize_t partition_number_show(struct class_device *cdev, char *buf)
+static ssize_t partition_number_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%x\n", partition_number);
 }
 
-static ssize_t unit_address_show(struct class_device *cdev, char *buf)
+static ssize_t unit_address_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
-	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct Scsi_Host *shost = class_to_shost(dev);
 	struct srp_target *target = host_to_srp_target(shost);
 	struct vio_port *vport = target_to_port(target);
 	return snprintf(buf, PAGE_SIZE, "%x\n", vport->dma_dev->unit_address);
 }
 
-static CLASS_DEVICE_ATTR(system_id, S_IRUGO, system_id_show, NULL);
-static CLASS_DEVICE_ATTR(partition_number, S_IRUGO, partition_number_show, NULL);
-static CLASS_DEVICE_ATTR(unit_address, S_IRUGO, unit_address_show, NULL);
+static DEVICE_ATTR(system_id, S_IRUGO, system_id_show, NULL);
+static DEVICE_ATTR(partition_number, S_IRUGO, partition_number_show, NULL);
+static DEVICE_ATTR(unit_address, S_IRUGO, unit_address_show, NULL);
 
-static struct class_device_attribute *ibmvstgt_attrs[] = {
-	&class_device_attr_system_id,
-	&class_device_attr_partition_number,
-	&class_device_attr_unit_address,
+static struct device_attribute *ibmvstgt_attrs[] = {
+	&dev_attr_system_id,
+	&dev_attr_partition_number,
+	&dev_attr_unit_address,
 	NULL,
 };
 
@@ -838,9 +841,6 @@ static int ibmvstgt_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	if (!shost)
 		goto free_vport;
 	shost->transportt = ibmvstgt_transport_template;
-	err = scsi_tgt_alloc_queue(shost);
-	if (err)
-		goto put_host;
 
 	target = host_to_srp_target(shost);
 	target->shost = shost;
@@ -869,6 +869,10 @@ static int ibmvstgt_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		goto free_srp_target;
 
 	err = scsi_add_host(shost, target->dev);
+	if (err)
+		goto destroy_queue;
+
+	err = scsi_tgt_alloc_queue(shost);
 	if (err)
 		goto destroy_queue;
 

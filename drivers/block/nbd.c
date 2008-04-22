@@ -153,6 +153,12 @@ static int sock_xmit(struct nbd_device *lo, int send, void *buf, int size,
 	struct kvec iov;
 	sigset_t blocked, oldset;
 
+	if (unlikely(!sock)) {
+		printk(KERN_ERR "%s: Attempted %s on closed socket in sock_xmit\n",
+		       lo->disk->disk_name, (send ? "send" : "recv"));
+		return -EINVAL;
+	}
+
 	/* Allow interception of SIGKILL only
 	 * Don't allow other signals to interrupt the transmission */
 	siginitsetinv(&blocked, sigmask(SIGKILL));
@@ -655,6 +661,7 @@ static int __init nbd_init(void)
 
 	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = alloc_disk(1);
+		elevator_t *old_e;
 		if (!disk)
 			goto out;
 		nbd_dev[i].disk = disk;
@@ -667,6 +674,11 @@ static int __init nbd_init(void)
 		if (!disk->queue) {
 			put_disk(disk);
 			goto out;
+		}
+		old_e = disk->queue->elevator;
+		if (elevator_init(disk->queue, "deadline") == 0 ||
+			elevator_init(disk->queue, "noop") == 0) {
+				elevator_exit(old_e);
 		}
 	}
 

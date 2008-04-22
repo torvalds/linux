@@ -30,6 +30,9 @@ void (*flush_cache_page)(struct vm_area_struct *vma, unsigned long page,
 	unsigned long pfn);
 void (*flush_icache_range)(unsigned long start, unsigned long end);
 
+void (*__flush_cache_vmap)(void);
+void (*__flush_cache_vunmap)(void);
+
 /* MIPS specific cache operations */
 void (*flush_cache_sigtramp)(unsigned long addr);
 void (*local_flush_data_cache_page)(void * addr);
@@ -92,12 +95,17 @@ EXPORT_SYMBOL(__flush_dcache_page);
 
 void __flush_anon_page(struct page *page, unsigned long vmaddr)
 {
-	if (pages_do_alias((unsigned long)page_address(page), vmaddr)) {
-		void *kaddr;
+	unsigned long addr = (unsigned long) page_address(page);
 
-		kaddr = kmap_coherent(page, vmaddr);
-		flush_data_cache_page((unsigned long)kaddr);
-		kunmap_coherent();
+	if (pages_do_alias(addr, vmaddr)) {
+		if (page_mapped(page) && !Page_dcache_dirty(page)) {
+			void *kaddr;
+
+			kaddr = kmap_coherent(page, vmaddr);
+			flush_data_cache_page((unsigned long)kaddr);
+			kunmap_coherent();
+		} else
+			flush_data_cache_page(addr);
 	}
 }
 
@@ -122,9 +130,10 @@ void __update_cache(struct vm_area_struct *vma, unsigned long address,
 	}
 }
 
-static char cache_panic[] __initdata = "Yeee, unsupported cache architecture.";
+static char cache_panic[] __cpuinitdata =
+	"Yeee, unsupported cache architecture.";
 
-void __init cpu_cache_init(void)
+void __devinit cpu_cache_init(void)
 {
 	if (cpu_has_3k_cache) {
 		extern void __weak r3k_cache_init(void);

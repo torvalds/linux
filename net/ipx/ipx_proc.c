@@ -358,21 +358,18 @@ int __init ipx_proc_init(void)
 
 	if (!ipx_proc_dir)
 		goto out;
-	p = create_proc_entry("interface", S_IRUGO, ipx_proc_dir);
+	p = proc_create("interface", S_IRUGO,
+			ipx_proc_dir, &ipx_seq_interface_fops);
 	if (!p)
 		goto out_interface;
 
-	p->proc_fops = &ipx_seq_interface_fops;
-	p = create_proc_entry("route", S_IRUGO, ipx_proc_dir);
+	p = proc_create("route", S_IRUGO, ipx_proc_dir, &ipx_seq_route_fops);
 	if (!p)
 		goto out_route;
 
-	p->proc_fops = &ipx_seq_route_fops;
-	p = create_proc_entry("socket", S_IRUGO, ipx_proc_dir);
+	p = proc_create("socket", S_IRUGO, ipx_proc_dir, &ipx_seq_socket_fops);
 	if (!p)
 		goto out_socket;
-
-	p->proc_fops = &ipx_seq_socket_fops;
 
 	rc = 0;
 out:

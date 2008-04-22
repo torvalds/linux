@@ -603,7 +603,7 @@ via_build_sg_info(struct drm_device *dev, drm_via_sg_info_t *vsg, drm_via_dmabli
 	 * (Not a big limitation anyway.)
 	 */
 
-	if ((xfer->mem_stride - xfer->line_length) >= PAGE_SIZE) {
+	if ((xfer->mem_stride - xfer->line_length) > 2*PAGE_SIZE) {
 		DRM_ERROR("Too large system memory stride. Stride: %d, "
 			  "Length: %d\n", xfer->mem_stride, xfer->line_length);
 		return -EINVAL;

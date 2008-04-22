@@ -71,24 +71,11 @@ static int ipv6_sysctl_net_init(struct net *net)
 	ipv6_route_table = ipv6_route_sysctl_init(net);
 	if (!ipv6_route_table)
 		goto out_ipv6_table;
+	ipv6_table[0].child = ipv6_route_table;
 
 	ipv6_icmp_table = ipv6_icmp_sysctl_init(net);
 	if (!ipv6_icmp_table)
 		goto out_ipv6_route_table;
-
-	ipv6_route_table[0].data = &net->ipv6.sysctl.flush_delay;
-	/* ipv6_route_table[1].data will be handled when we have
-	   routes per namespace */
-	ipv6_route_table[2].data = &net->ipv6.sysctl.ip6_rt_max_size;
-	ipv6_route_table[3].data = &net->ipv6.sysctl.ip6_rt_gc_min_interval;
-	ipv6_route_table[4].data = &net->ipv6.sysctl.ip6_rt_gc_timeout;
-	ipv6_route_table[5].data = &net->ipv6.sysctl.ip6_rt_gc_interval;
-	ipv6_route_table[6].data = &net->ipv6.sysctl.ip6_rt_gc_elasticity;
-	ipv6_route_table[7].data = &net->ipv6.sysctl.ip6_rt_mtu_expires;
-	ipv6_route_table[8].data = &net->ipv6.sysctl.ip6_rt_min_advmss;
-	ipv6_table[0].child = ipv6_route_table;
-
-	ipv6_icmp_table[0].data = &net->ipv6.sysctl.icmpv6_time;
 	ipv6_table[1].child = ipv6_icmp_table;
 
 	ipv6_table[2].data = &net->ipv6.sysctl.bindv6only;
@@ -101,9 +88,6 @@ static int ipv6_sysctl_net_init(struct net *net)
 
 	net->ipv6.sysctl.table = register_net_sysctl_table(net, net_ipv6_ctl_path,
 							   ipv6_table);
-	if (!net->ipv6.sysctl.table)
-		return -ENOMEM;
-
 	if (!net->ipv6.sysctl.table)
 		goto out_ipv6_icmp_table;
 

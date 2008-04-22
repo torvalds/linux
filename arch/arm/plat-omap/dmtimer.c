@@ -268,7 +268,7 @@ struct omap_dm_timer *omap_dm_timer_request_specific(int id)
 	if (id <= 0 || id > dm_timer_count || dm_timers[id-1].reserved) {
 		spin_unlock_irqrestore(&dm_timer_lock, flags);
 		printk("BUG: warning at %s:%d/%s(): unable to get timer %d\n",
-		       __FILE__, __LINE__, __FUNCTION__, id);
+		       __FILE__, __LINE__, __func__, id);
 		dump_stack();
 		return NULL;
 	}

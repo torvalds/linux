@@ -377,13 +377,16 @@ void ipwireless_network_packet_received(struct ipw_network *network,
 	for (i = 0; i < MAX_ASSOCIATED_TTYS; i++) {
 		struct ipw_tty *tty = network->associated_ttys[channel_idx][i];
 
+		if (!tty)
+			continue;
+
 		/*
 		 * If it's associated with a tty (other than the RAS channel
 		 * when we're online), then send the data to that tty.  The RAS
 		 * channel's data is handled above - it always goes through
 		 * ppp_generic.
 		 */
-		if (tty && channel_idx == IPW_CHANNEL_RAS
+		if (channel_idx == IPW_CHANNEL_RAS
 				&& (network->ras_control_lines &
 					IPW_CONTROL_LINE_DCD) != 0
 				&& ipwireless_tty_is_modem(tty)) {

@@ -185,7 +185,7 @@ int svc_create_xprt(struct svc_serv *serv, char *xprt_name, unsigned short port,
 	struct svc_xprt_class *xcl;
 	struct sockaddr_in sin = {
 		.sin_family		= AF_INET,
-		.sin_addr.s_addr	= INADDR_ANY,
+		.sin_addr.s_addr	= htonl(INADDR_ANY),
 		.sin_port		= htons(port),
 	};
 	dprintk("svc: creating transport %s[%d]\n", xprt_name, port);

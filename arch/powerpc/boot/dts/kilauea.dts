@@ -182,7 +182,6 @@
 			};
 
 			IIC0: i2c@ef600400 {
-				device_type = "i2c";
 				compatible = "ibm,iic-405ex", "ibm,iic";
 				reg = <ef600400 14>;
 				interrupt-parent = <&UIC0>;
@@ -190,7 +189,6 @@
 			};
 
 			IIC1: i2c@ef600500 {
-				device_type = "i2c";
 				compatible = "ibm,iic-405ex", "ibm,iic";
 				reg = <ef600500 14>;
 				interrupt-parent = <&UIC0>;
@@ -199,7 +197,6 @@
 
 
 			RGMII0: emac-rgmii@ef600b00 {
-				device_type = "rgmii-interface";
 				compatible = "ibm,rgmii-405ex", "ibm,rgmii";
 				reg = <ef600b00 104>;
 				has-mdio;
@@ -222,7 +219,7 @@
 				mal-tx-channel = <0>;
 				mal-rx-channel = <0>;
 				cell-index = <0>;
-				max-frame-size = <5dc>;
+				max-frame-size = <2328>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";
@@ -250,7 +247,7 @@
 				mal-tx-channel = <1>;
 				mal-rx-channel = <1>;
 				cell-index = <1>;
-				max-frame-size = <5dc>;
+				max-frame-size = <2328>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";

@@ -35,7 +35,7 @@
     defined(CONFIG_CPU_SUBTYPE_SH7710) || \
     defined(CONFIG_CPU_SUBTYPE_SH7720) || \
     defined(CONFIG_CPU_SUBTYPE_SH7721)
-#define CCR3	0xa40000b4
+#define CCR3_REG	0xa40000b4
 #define CCR_CACHE_16KB  0x00010000
 #define CCR_CACHE_32KB	0x00020000
 #endif

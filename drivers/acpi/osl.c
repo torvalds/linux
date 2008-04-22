@@ -4,6 +4,8 @@
  *  Copyright (C) 2000       Andrew Henroid
  *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
+ *  Copyright (c) 2008 Intel Corporation
+ *   Author: Matthew Wilcox <willy@linux.intel.com>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -37,15 +39,18 @@
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
 #include <linux/acpi.h>
-#include <acpi/acpi.h>
-#include <asm/io.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/processor.h>
-#include <asm/uaccess.h>
-
 #include <linux/efi.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
+#include <linux/jiffies.h>
+#include <linux/semaphore.h>
+
+#include <asm/io.h>
+#include <asm/uaccess.h>
+
+#include <acpi/acpi.h>
+#include <acpi/acpi_bus.h>
+#include <acpi/processor.h>
 
 #define _COMPONENT		ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osl");
@@ -90,10 +95,6 @@ static DEFINE_SPINLOCK(acpi_res_lock);
 
 #define	OSI_STRING_LENGTH_MAX 64	/* arbitrary */
 static char osi_additional_string[OSI_STRING_LENGTH_MAX];
-
-#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
-static int acpi_no_initrd_override;
-#endif
 
 /*
  * "Ode to _OSI(Linux)"
@@ -324,67 +325,6 @@ acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
 	return AE_OK;
 }
 
-#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
-static struct acpi_table_header *acpi_find_dsdt_initrd(void)
-{
-	struct file *firmware_file;
-	mm_segment_t oldfs;
-	unsigned long len, len2;
-	struct acpi_table_header *dsdt_buffer, *ret = NULL;
-	struct kstat stat;
-	char *ramfs_dsdt_name = "/DSDT.aml";
-
-	printk(KERN_INFO PREFIX "Checking initramfs for custom DSDT\n");
-
-	/*
-	 * Never do this at home, only the user-space is allowed to open a file.
-	 * The clean way would be to use the firmware loader.
-	 * But this code must be run before there is any userspace available.
-	 * A static/init firmware infrastructure doesn't exist yet...
-	 */
-	if (vfs_stat(ramfs_dsdt_name, &stat) < 0)
-		return ret;
-
-	len = stat.size;
-	/* check especially against empty files */
-	if (len <= 4) {
-		printk(KERN_ERR PREFIX "Failed: DSDT only %lu bytes.\n", len);
-		return ret;
-	}
-
-	firmware_file = filp_open(ramfs_dsdt_name, O_RDONLY, 0);
-	if (IS_ERR(firmware_file)) {
-		printk(KERN_ERR PREFIX "Failed to open %s.\n", ramfs_dsdt_name);
-		return ret;
-	}
-
-	dsdt_buffer = kmalloc(len, GFP_ATOMIC);
-	if (!dsdt_buffer) {
-		printk(KERN_ERR PREFIX "Failed to allocate %lu bytes.\n", len);
-		goto err;
-	}
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	len2 = vfs_read(firmware_file, (char __user *)dsdt_buffer, len,
-		&firmware_file->f_pos);
-	set_fs(oldfs);
-	if (len2 < len) {
-		printk(KERN_ERR PREFIX "Failed to read %lu bytes from %s.\n",
-			len, ramfs_dsdt_name);
-		ACPI_FREE(dsdt_buffer);
-		goto err;
-	}
-
-	printk(KERN_INFO PREFIX "Found %lu byte DSDT in %s.\n",
-			len, ramfs_dsdt_name);
-	ret = dsdt_buffer;
-err:
-	filp_close(firmware_file, NULL);
-	return ret;
-}
-#endif
-
 acpi_status
 acpi_os_table_override(struct acpi_table_header * existing_table,
 		       struct acpi_table_header ** new_table)
@@ -398,16 +338,6 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 	if (strncmp(existing_table->signature, "DSDT", 4) == 0)
 		*new_table = (struct acpi_table_header *)AmlCode;
 #endif
-#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
-	if ((strncmp(existing_table->signature, "DSDT", 4) == 0) &&
-	    !acpi_no_initrd_override) {
-		struct acpi_table_header *initrd_table;
-
-		initrd_table = acpi_find_dsdt_initrd();
-		if (initrd_table)
-			*new_table = initrd_table;
-	}
-#endif
 	if (*new_table != NULL) {
 		printk(KERN_WARNING PREFIX "Override [%4.4s-%8.8s], "
 			   "this is unsafe: tainting kernel\n",
@@ -417,15 +347,6 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 	}
 	return AE_OK;
 }
-
-#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
-static int __init acpi_no_initrd_override_setup(char *s)
-{
-	acpi_no_initrd_override = 1;
-	return 1;
-}
-__setup("acpi_no_initrd_override", acpi_no_initrd_override_setup);
-#endif
 
 static irqreturn_t acpi_irq(int irq, void *dev_id)
 {
@@ -848,7 +769,6 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 {
 	struct semaphore *sem = NULL;
 
-
 	sem = acpi_os_allocate(sizeof(struct semaphore));
 	if (!sem)
 		return AE_NO_MEMORY;
@@ -875,12 +795,12 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 {
 	struct semaphore *sem = (struct semaphore *)handle;
 
-
 	if (!sem)
 		return AE_BAD_PARAMETER;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Deleting semaphore[%p].\n", handle));
 
+	BUG_ON(!list_empty(&sem->wait_list));
 	kfree(sem);
 	sem = NULL;
 
@@ -888,20 +808,14 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 }
 
 /*
- * TODO: The kernel doesn't have a 'down_timeout' function -- had to
- * improvise.  The process is to sleep for one scheduler quantum
- * until the semaphore becomes available.  Downside is that this
- * may result in starvation for timeout-based waits when there's
- * lots of semaphore activity.
- *
  * TODO: Support for units > 1?
  */
 acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 {
 	acpi_status status = AE_OK;
 	struct semaphore *sem = (struct semaphore *)handle;
+	long jiffies;
 	int ret = 0;
-
 
 	if (!sem || (units < 1))
 		return AE_BAD_PARAMETER;
@@ -912,58 +826,14 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Waiting for semaphore[%p|%d|%d]\n",
 			  handle, units, timeout));
 
-	/*
-	 * This can be called during resume with interrupts off.
-	 * Like boot-time, we should be single threaded and will
-	 * always get the lock if we try -- timeout or not.
-	 * If this doesn't succeed, then we will oops courtesy of
-	 * might_sleep() in down().
-	 */
-	if (!down_trylock(sem))
-		return AE_OK;
-
-	switch (timeout) {
-		/*
-		 * No Wait:
-		 * --------
-		 * A zero timeout value indicates that we shouldn't wait - just
-		 * acquire the semaphore if available otherwise return AE_TIME
-		 * (a.k.a. 'would block').
-		 */
-	case 0:
-		if (down_trylock(sem))
-			status = AE_TIME;
-		break;
-
-		/*
-		 * Wait Indefinitely:
-		 * ------------------
-		 */
-	case ACPI_WAIT_FOREVER:
-		down(sem);
-		break;
-
-		/*
-		 * Wait w/ Timeout:
-		 * ----------------
-		 */
-	default:
-		// TODO: A better timeout algorithm?
-		{
-			int i = 0;
-			static const int quantum_ms = 1000 / HZ;
-
-			ret = down_trylock(sem);
-			for (i = timeout; (i > 0 && ret != 0); i -= quantum_ms) {
-				schedule_timeout_interruptible(1);
-				ret = down_trylock(sem);
-			}
-
-			if (ret != 0)
-				status = AE_TIME;
-		}
-		break;
-	}
+	if (timeout == ACPI_WAIT_FOREVER)
+		jiffies = MAX_SCHEDULE_TIMEOUT;
+	else
+		jiffies = msecs_to_jiffies(timeout);
+	
+	ret = down_timeout(sem, jiffies);
+	if (ret)
+		status = AE_TIME;
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
@@ -985,7 +855,6 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
 {
 	struct semaphore *sem = (struct semaphore *)handle;
-
 
 	if (!sem || (units < 1))
 		return AE_BAD_PARAMETER;
@@ -1237,7 +1106,7 @@ int acpi_check_resource_conflict(struct resource *res)
 
 	if (clash) {
 		if (acpi_enforce_resources != ENFORCE_RESOURCES_NO) {
-			printk(KERN_INFO "%sACPI: %s resource %s [0x%llx-0x%llx]"
+			printk("%sACPI: %s resource %s [0x%llx-0x%llx]"
 			       " conflicts with ACPI region %s"
 			       " [0x%llx-0x%llx]\n",
 			       acpi_enforce_resources == ENFORCE_RESOURCES_LAX

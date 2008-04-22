@@ -55,7 +55,6 @@ static int eps_set_state(struct eps_cpu_data *centaur,
 {
 	struct cpufreq_freqs freqs;
 	u32 lo, hi;
-	u8 current_multiplier, current_voltage;
 	int err = 0;
 	int i;
 
@@ -95,6 +94,10 @@ postchange:
 	rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 	freqs.new = centaur->fsb * ((lo >> 8) & 0xff);
 
+#ifdef DEBUG
+	{
+	u8 current_multiplier, current_voltage;
+
 	/* Print voltage and multiplier */
 	rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 	current_voltage = lo & 0xff;
@@ -103,7 +106,8 @@ postchange:
 	current_multiplier = (lo >> 8) & 0xff;
 	printk(KERN_INFO "eps: Current multiplier = %d\n",
 		current_multiplier);
-
+	}
+#endif
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	return err;
 }

@@ -85,7 +85,7 @@ static void mv64x60_udbg_init(void)
 	if (!stdout)
 		return;
 
-	for_each_compatible_node(np, "serial", "marvell,mpsc") {
+	for_each_compatible_node(np, "serial", "marvell,mv64360-mpsc") {
 		if (np == stdout)
 			break;
 	}

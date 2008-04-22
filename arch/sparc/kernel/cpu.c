@@ -32,7 +32,7 @@ struct cpu_fp_info {
 /* In order to get the fpu type correct, you need to take the IDPROM's
  * machine type value into consideration too.  I will fix this.
  */
-struct cpu_fp_info linux_sparc_fpu[] = {
+static struct cpu_fp_info linux_sparc_fpu[] = {
   { 0, 0, "Fujitsu MB86910 or Weitek WTL1164/5"},
   { 0, 1, "Fujitsu MB86911 or Weitek WTL1164/5 or LSI L64831"},
   { 0, 2, "LSI Logic L64802 or Texas Instruments ACT8847"},
@@ -76,7 +76,7 @@ struct cpu_fp_info linux_sparc_fpu[] = {
 
 #define NSPARCFPU  ARRAY_SIZE(linux_sparc_fpu)
 
-struct cpu_iu_info linux_sparc_chips[] = {
+static struct cpu_iu_info linux_sparc_chips[] = {
   /* Sun4/100, 4/200, SLC */
   { 0, 0, "Fujitsu  MB86900/1A or LSI L64831 SparcKIT-40"},
   /* borned STP1012PGA */

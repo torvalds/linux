@@ -212,6 +212,7 @@ ENTRY(v7_processor_functions)
 	.word	cpu_v7_dcache_clean_area
 	.word	cpu_v7_switch_mm
 	.word	cpu_v7_set_pte_ext
+	.word	pabort_ifar
 	.size	v7_processor_functions, . - v7_processor_functions
 
 	.type	cpu_arch_name, #object

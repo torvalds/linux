@@ -87,6 +87,7 @@ enum {
 	IPOIB_MCAST_STARTED	  = 8,
 	IPOIB_FLAG_ADMIN_CM	  = 9,
 	IPOIB_FLAG_UMCAST	  = 10,
+	IPOIB_FLAG_CSUM		  = 11,
 
 	IPOIB_MAX_BACKOFF_SECONDS = 16,
 
@@ -241,6 +242,11 @@ struct ipoib_cm_dev_priv {
 	int			num_frags;
 };
 
+struct ipoib_ethtool_st {
+	u16     coalesce_usecs;
+	u16     max_coalesced_frames;
+};
+
 /*
  * Device private locking: tx_lock protects members used in TX fast
  * path (and we use LLTX so upper layers don't do extra locking).
@@ -318,6 +324,8 @@ struct ipoib_dev_priv {
 	struct dentry *mcg_dentry;
 	struct dentry *path_dentry;
 #endif
+	int	hca_caps;
+	struct ipoib_ethtool_st ethtool;
 };
 
 struct ipoib_ah {
@@ -457,6 +465,8 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey);
 void ipoib_pkey_poll(struct work_struct *work);
 int ipoib_pkey_dev_delay_open(struct net_device *dev);
 void ipoib_drain_cq(struct net_device *dev);
+
+void ipoib_set_ethtool_ops(struct net_device *dev);
 
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 

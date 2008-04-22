@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2006, 2007, 2008 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -329,8 +329,9 @@ struct ipath_qp *ipath_lookup_qpn(struct ipath_qp_table *qpt, u32 qpn)
 /**
  * ipath_reset_qp - initialize the QP state to the reset state
  * @qp: the QP to reset
+ * @type: the QP type
  */
-static void ipath_reset_qp(struct ipath_qp *qp)
+static void ipath_reset_qp(struct ipath_qp *qp, enum ib_qp_type type)
 {
 	qp->remote_qpn = 0;
 	qp->qkey = 0;
@@ -339,10 +340,11 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->s_flags &= IPATH_S_SIGNAL_REQ_WR;
 	qp->s_hdrwords = 0;
 	qp->s_wqe = NULL;
+	qp->s_pkt_delay = 0;
 	qp->s_psn = 0;
 	qp->r_psn = 0;
 	qp->r_msn = 0;
-	if (qp->ibqp.qp_type == IB_QPT_RC) {
+	if (type == IB_QPT_RC) {
 		qp->s_state = IB_OPCODE_RC_SEND_LAST;
 		qp->r_state = IB_OPCODE_RC_SEND_LAST;
 	} else {
@@ -391,7 +393,6 @@ int ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
 		  qp->ibqp.qp_num, qp->remote_qpn, err);
 
 	spin_lock(&dev->pending_lock);
-	/* XXX What if its already removed by the timeout code? */
 	if (!list_empty(&qp->timerwait))
 		list_del_init(&qp->timerwait);
 	if (!list_empty(&qp->piowait))
@@ -414,7 +415,7 @@ int ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
 		wc.wr_id = qp->r_wr_id;
 		wc.opcode = IB_WC_RECV;
 		wc.status = err;
-		ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 1);
+		ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
 	}
 	wc.status = IB_WC_WR_FLUSH_ERR;
 
@@ -515,13 +516,13 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			goto inval;
 
 	/*
-	 * Note: the chips support a maximum MTU of 4096, but the driver
-	 * hasn't implemented this feature yet, so don't allow Path MTU
-	 * values greater than 2048.
+	 * don't allow invalid Path MTU values or greater than 2048
+	 * unless we are configured for a 4KB MTU
 	 */
-	if (attr_mask & IB_QP_PATH_MTU)
-		if (attr->path_mtu > IB_MTU_2048)
-			goto inval;
+	if ((attr_mask & IB_QP_PATH_MTU) &&
+		(ib_mtu_enum_to_int(attr->path_mtu) == -1 ||
+		(attr->path_mtu > IB_MTU_2048 && !ipath_mtu4096)))
+		goto inval;
 
 	if (attr_mask & IB_QP_PATH_MIG_STATE)
 		if (attr->path_mig_state != IB_MIG_MIGRATED &&
@@ -534,7 +535,7 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	switch (new_state) {
 	case IB_QPS_RESET:
-		ipath_reset_qp(qp);
+		ipath_reset_qp(qp, ibqp->qp_type);
 		break;
 
 	case IB_QPS_ERR:
@@ -563,8 +564,10 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_ACCESS_FLAGS)
 		qp->qp_access_flags = attr->qp_access_flags;
 
-	if (attr_mask & IB_QP_AV)
+	if (attr_mask & IB_QP_AV) {
 		qp->remote_ah_attr = attr->ah_attr;
+		qp->s_dmult = ipath_ib_rate_to_mult(attr->ah_attr.static_rate);
+	}
 
 	if (attr_mask & IB_QP_PATH_MTU)
 		qp->path_mtu = attr->path_mtu;
@@ -647,7 +650,7 @@ int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->port_num = 1;
 	attr->timeout = qp->timeout;
 	attr->retry_cnt = qp->s_retry_cnt;
-	attr->rnr_retry = qp->s_rnr_retry;
+	attr->rnr_retry = qp->s_rnr_retry_cnt;
 	attr->alt_port_num = 0;
 	attr->alt_timeout = 0;
 
@@ -747,20 +750,31 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	size_t sz;
 	struct ib_qp *ret;
 
-	if (init_attr->cap.max_send_sge > ib_ipath_max_sges ||
-	    init_attr->cap.max_recv_sge > ib_ipath_max_sges ||
-	    init_attr->cap.max_send_wr > ib_ipath_max_qp_wrs ||
-	    init_attr->cap.max_recv_wr > ib_ipath_max_qp_wrs) {
-		ret = ERR_PTR(-ENOMEM);
+	if (init_attr->create_flags) {
+		ret = ERR_PTR(-EINVAL);
 		goto bail;
 	}
 
-	if (init_attr->cap.max_send_sge +
-	    init_attr->cap.max_recv_sge +
-	    init_attr->cap.max_send_wr +
-	    init_attr->cap.max_recv_wr == 0) {
+	if (init_attr->cap.max_send_sge > ib_ipath_max_sges ||
+	    init_attr->cap.max_send_wr > ib_ipath_max_qp_wrs) {
 		ret = ERR_PTR(-EINVAL);
 		goto bail;
+	}
+
+	/* Check receive queue parameters if no SRQ is specified. */
+	if (!init_attr->srq) {
+		if (init_attr->cap.max_recv_sge > ib_ipath_max_sges ||
+		    init_attr->cap.max_recv_wr > ib_ipath_max_qp_wrs) {
+			ret = ERR_PTR(-EINVAL);
+			goto bail;
+		}
+		if (init_attr->cap.max_send_sge +
+		    init_attr->cap.max_send_wr +
+		    init_attr->cap.max_recv_sge +
+		    init_attr->cap.max_recv_wr == 0) {
+			ret = ERR_PTR(-EINVAL);
+			goto bail;
+		}
 	}
 
 	switch (init_attr->qp_type) {
@@ -839,7 +853,8 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 			goto bail_qp;
 		}
 		qp->ip = NULL;
-		ipath_reset_qp(qp);
+		qp->s_tx = NULL;
+		ipath_reset_qp(qp, init_attr->qp_type);
 		break;
 
 	default:
@@ -944,12 +959,20 @@ int ipath_destroy_qp(struct ib_qp *ibqp)
 	/* Stop the sending tasklet. */
 	tasklet_kill(&qp->s_task);
 
+	if (qp->s_tx) {
+		atomic_dec(&qp->refcount);
+		if (qp->s_tx->txreq.flags & IPATH_SDMA_TXREQ_F_FREEBUF)
+			kfree(qp->s_tx->txreq.map_addr);
+	}
+
 	/* Make sure the QP isn't on the timeout list. */
 	spin_lock_irqsave(&dev->pending_lock, flags);
 	if (!list_empty(&qp->timerwait))
 		list_del_init(&qp->timerwait);
 	if (!list_empty(&qp->piowait))
 		list_del_init(&qp->piowait);
+	if (qp->s_tx)
+		list_add(&qp->s_tx->txreq.list, &dev->txreq_free);
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 
 	/*
@@ -1020,7 +1043,6 @@ void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc)
 		  qp->ibqp.qp_num, qp->remote_qpn, wc->status);
 
 	spin_lock(&dev->pending_lock);
-	/* XXX What if its already removed by the timeout code? */
 	if (!list_empty(&qp->timerwait))
 		list_del_init(&qp->timerwait);
 	if (!list_empty(&qp->piowait))

@@ -104,6 +104,16 @@
 		// FIXME: anything else?
 	};
 
+	L2C0: l2c {
+		compatible = "ibm,l2-cache-440gx", "ibm,l2-cache";
+		dcr-reg = <20 8			/* Internal SRAM DCR's */
+			   30 8>;		/* L2 cache DCR's */
+		cache-line-size = <20>;		/* 32 bytes */
+		cache-size = <40000>;		/* L2, 256K */
+		interrupt-parent = <&UIC2>;
+		interrupts = <17 1>;
+	};
+
 	plb {
 		compatible = "ibm,plb-440gx", "ibm,plb4";
 		#address-cells = <2>;
@@ -203,7 +213,6 @@
 
 			IIC0: i2c@40000400 {
 				/* FIXME */
-				device_type = "i2c";
 				compatible = "ibm,iic-440gp", "ibm,iic";
 				reg = <40000400 14>;
 				interrupt-parent = <&UIC0>;
@@ -211,7 +220,6 @@
 			};
 			IIC1: i2c@40000500 {
 				/* FIXME */
-				device_type = "i2c";
 				compatible = "ibm,iic-440gp", "ibm,iic";
 				reg = <40000500 14>;
 				interrupt-parent = <&UIC0>;
@@ -225,21 +233,27 @@
 			};
 
 			ZMII0: emac-zmii@40000780 {
-				device_type = "zgmii-interface";
 				compatible = "ibm,zmii-440gx", "ibm,zmii";
 				reg = <40000780 c>;
 			};
 
 			RGMII0: emac-rgmii@40000790 {
-				device_type = "rgmii-interface";
 				compatible = "ibm,rgmii";
 				reg = <40000790 8>;
 			};
 
+			TAH0: emac-tah@40000b50 {
+				compatible = "ibm,tah-440gx", "ibm,tah";
+				reg = <40000b50 30>;
+			};
+
+			TAH1: emac-tah@40000d50 {
+				compatible = "ibm,tah-440gx", "ibm,tah";
+				reg = <40000d50 30>;
+			};
 
 			EMAC0: ethernet@40000800 {
 				unused = <1>;
-				linux,network-index = <2>;
 				device_type = "network";
 				compatible = "ibm,emac-440gx", "ibm,emac4";
 				interrupt-parent = <&UIC1>;
@@ -260,7 +274,6 @@
 			};
 		 	EMAC1: ethernet@40000900 {
 				unused = <1>;
-				linux,network-index = <3>;
 				device_type = "network";
 				compatible = "ibm,emac-440gx", "ibm,emac4";
 				interrupt-parent = <&UIC1>;
@@ -281,7 +294,6 @@
 			};
 
 		 	EMAC2: ethernet@40000c00 {
-				linux,network-index = <0>;
 				device_type = "network";
 				compatible = "ibm,emac-440gx", "ibm,emac4";
 				interrupt-parent = <&UIC2>;
@@ -292,7 +304,7 @@
 				mal-tx-channel = <2>;
 				mal-rx-channel = <2>;
 				cell-index = <2>;
-				max-frame-size = <5dc>;
+				max-frame-size = <2328>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";
@@ -301,10 +313,11 @@
 				rgmii-channel = <0>;
  				zmii-device = <&ZMII0>;
 				zmii-channel = <2>;
+				tah-device = <&TAH0>;
+				tah-channel = <0>;
 			};
 
 		 	EMAC3: ethernet@40000e00 {
-				linux,network-index = <1>;
 				device_type = "network";
 				compatible = "ibm,emac-440gx", "ibm,emac4";
 				interrupt-parent = <&UIC2>;
@@ -315,7 +328,7 @@
 				mal-tx-channel = <3>;
 				mal-rx-channel = <3>;
 				cell-index = <3>;
-				max-frame-size = <5dc>;
+				max-frame-size = <2328>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";
@@ -324,6 +337,8 @@
 				rgmii-channel = <1>;
  				zmii-device = <&ZMII0>;
 				zmii-channel = <3>;
+				tah-device = <&TAH1>;
+				tah-channel = <0>;
 			};
 
 

@@ -912,7 +912,7 @@ static int gem_poll(struct napi_struct *napi, int budget)
 		 * rx ring - must call napi_disable(), which
 		 * schedule_timeout()'s if polling is already disabled.
 		 */
-		work_done += gem_rx(gp, budget);
+		work_done += gem_rx(gp, budget - work_done);
 
 		if (work_done >= budget)
 			return work_done;

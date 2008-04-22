@@ -178,7 +178,7 @@ static unsigned long shmedia_alloc_io(unsigned long phys, unsigned long size,
         } else {
                 if (!printed_full) {
                         printk("%s: done with statics, switching to kmalloc\n",
-			       __FUNCTION__);
+			       __func__);
                         printed_full = 1;
                 }
                 tlen = strlen(name);
@@ -352,7 +352,7 @@ void onchip_unmap(unsigned long vaddr)
 	res = shmedia_find_resource(&shmedia_iomap, vaddr);
 	if (!res) {
 		printk(KERN_ERR "%s: Failed to free 0x%08lx\n",
-		       __FUNCTION__, vaddr);
+		       __func__, vaddr);
 		return;
 	}
 

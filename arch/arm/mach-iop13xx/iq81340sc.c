@@ -83,7 +83,7 @@ static void __init iq81340sc_init(void)
 static void __init iq81340sc_timer_init(void)
 {
 	unsigned long bus_freq = iop13xx_core_freq() / iop13xx_xsi_bus_ratio();
-	printk(KERN_DEBUG "%s: bus frequency: %lu\n", __FUNCTION__, bus_freq);
+	printk(KERN_DEBUG "%s: bus frequency: %lu\n", __func__, bus_freq);
 	iop_init_time(bus_freq);
 }
 

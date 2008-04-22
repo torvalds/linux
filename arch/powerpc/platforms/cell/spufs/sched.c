@@ -246,7 +246,7 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	spu_switch_notify(spu, ctx);
 	ctx->state = SPU_STATE_RUNNABLE;
 
-	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
+	spuctx_switch_state(ctx, SPU_UTIL_USER);
 }
 
 /*
@@ -856,21 +856,18 @@ static noinline void spusched_tick(struct spu_context *ctx)
 {
 	struct spu_context *new = NULL;
 	struct spu *spu = NULL;
-	u32 status;
 
 	if (spu_acquire(ctx))
 		BUG();	/* a kernel thread never has signals pending */
 
 	if (ctx->state != SPU_STATE_RUNNABLE)
 		goto out;
-	if (spu_stopped(ctx, &status))
-		goto out;
 	if (ctx->flags & SPU_CREATE_NOSCHED)
 		goto out;
 	if (ctx->policy == SCHED_FIFO)
 		goto out;
 
-	if (--ctx->time_slice)
+	if (--ctx->time_slice && test_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags))
 		goto out;
 
 	spu = ctx->spu;
@@ -880,7 +877,8 @@ static noinline void spusched_tick(struct spu_context *ctx)
 	new = grab_runnable_context(ctx->prio + 1, spu->node);
 	if (new) {
 		spu_unschedule(spu, ctx);
-		spu_add_to_rq(ctx);
+		if (test_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags))
+			spu_add_to_rq(ctx);
 	} else {
 		spu_context_nospu_trace(spusched_tick__newslice, ctx);
 		ctx->time_slice++;

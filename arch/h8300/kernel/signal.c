@@ -352,7 +352,7 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 		ret = (unsigned char *)(ka->sa.sa_restorer);
 	else {
 		/* sub.l er0,er0; mov.b #__NR_sigreturn,r0l; trapa #0 */
-		err != __put_user(0x1a80f800 + (__NR_sigreturn & 0xff),
+		err |= __put_user(0x1a80f800 + (__NR_sigreturn & 0xff),
 				  (unsigned long *)(frame->retcode + 0));
 		err |= __put_user(0x5700, (unsigned short *)(frame->retcode + 4));
 	}
@@ -428,7 +428,7 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 		ret = (unsigned char *)(ka->sa.sa_restorer);
 	else {
 		/* sub.l er0,er0; mov.b #__NR_sigreturn,r0l; trapa #0 */
-		err != __put_user(0x1a80f800 + (__NR_sigreturn & 0xff),
+		err |= __put_user(0x1a80f800 + (__NR_sigreturn & 0xff),
 				  (unsigned long *)(frame->retcode + 0));
 		err |= __put_user(0x5700, (unsigned short *)(frame->retcode + 4));
 	}

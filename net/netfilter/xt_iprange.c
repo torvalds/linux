@@ -102,7 +102,7 @@ iprange_ipv6_sub(const struct in6_addr *a, const struct in6_addr *b)
 	int r;
 
 	for (i = 0; i < 4; ++i) {
-		r = (__force u32)a->s6_addr32[i] - (__force u32)b->s6_addr32[i];
+		r = ntohl(a->s6_addr32[i]) - ntohl(b->s6_addr32[i]);
 		if (r != 0)
 			return r;
 	}

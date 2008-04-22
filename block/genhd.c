@@ -17,10 +17,14 @@
 #include <linux/buffer_head.h>
 #include <linux/mutex.h>
 
+#include "blk.h"
+
 static DEFINE_MUTEX(block_class_lock);
 #ifndef CONFIG_SYSFS_DEPRECATED
 struct kobject *block_depr;
 #endif
+
+static struct device_type disk_type;
 
 /*
  * Can be deleted altogether. Later.
@@ -346,8 +350,6 @@ const struct seq_operations partitions_op = {
 #endif
 
 
-extern int blk_dev_init(void);
-
 static struct kobject *base_probe(dev_t devt, int *part, void *data)
 {
 	if (request_module("block-major-%d-%d", MAJOR(devt), MINOR(devt)) > 0)
@@ -358,7 +360,9 @@ static struct kobject *base_probe(dev_t devt, int *part, void *data)
 
 static int __init genhd_device_init(void)
 {
-	class_register(&block_class);
+	int error = class_register(&block_class);
+	if (unlikely(error))
+		return error;
 	bdev_map = kobj_map_init(base_probe, &block_class_lock);
 	blk_dev_init();
 
@@ -502,7 +506,7 @@ struct class block_class = {
 	.name		= "block",
 };
 
-struct device_type disk_type = {
+static struct device_type disk_type = {
 	.name		= "disk",
 	.groups		= disk_attr_groups,
 	.release	= disk_release,
@@ -632,12 +636,14 @@ static void media_change_notify_thread(struct work_struct *work)
 	put_device(gd->driverfs_dev);
 }
 
+#if 0
 void genhd_media_change_notify(struct gendisk *disk)
 {
 	get_device(disk->driverfs_dev);
 	schedule_work(&disk->async_notify);
 }
 EXPORT_SYMBOL_GPL(genhd_media_change_notify);
+#endif  /*  0  */
 
 dev_t blk_lookup_devt(const char *name)
 {

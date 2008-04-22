@@ -14,6 +14,7 @@ extern struct platform_device pxa_device_rtc;
 
 extern struct platform_device pxa27x_device_i2c_power;
 extern struct platform_device pxa27x_device_ohci;
+extern struct platform_device pxa27x_device_keypad;
 
 extern struct platform_device pxa25x_device_ssp;
 extern struct platform_device pxa25x_device_nssp;

@@ -14,8 +14,6 @@
 /* capable of receiving packets */
 #define IP6_TNL_F_CAP_RCV 0x20000
 
-#define IP6_TNL_MAX 128
-
 /* IPv6 tunnel */
 
 struct ip6_tnl {

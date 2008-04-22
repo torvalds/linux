@@ -33,9 +33,9 @@
 #include <linux/mempool.h>
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
+#include <linux/semaphore.h>	/* Needed for MUTEX init macros */
 
 #include <asm/io.h>
-#include <asm/semaphore.h>	/* Needed for MUTEX init macros */
 
 /* message queue empty */
 #define I2O_QUEUE_EMPTY		0xffffffff

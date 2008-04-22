@@ -106,9 +106,12 @@ static int tda10086_write_mask(struct tda10086_state *state, int reg, int mask, 
 static int tda10086_init(struct dvb_frontend* fe)
 {
 	struct tda10086_state* state = fe->demodulator_priv;
+	u8 t22k_off = 0x80;
 
 	dprintk ("%s\n", __FUNCTION__);
 
+	if (state->config->diseqc_tone)
+		t22k_off = 0;
 	// reset
 	tda10086_write_byte(state, 0x00, 0x00);
 	msleep(10);
@@ -158,7 +161,7 @@ static int tda10086_init(struct dvb_frontend* fe)
 	tda10086_write_byte(state, 0x3d, 0x80);
 
 	// setup SEC
-	tda10086_write_byte(state, 0x36, 0x80); // all SEC off, no 22k tone
+	tda10086_write_byte(state, 0x36, t22k_off); // all SEC off, 22k tone
 	tda10086_write_byte(state, 0x34, (((1<<19) * (22000/1000)) / (SACLK/1000)));      // } tone frequency
 	tda10086_write_byte(state, 0x35, (((1<<19) * (22000/1000)) / (SACLK/1000)) >> 8); // }
 
@@ -180,16 +183,20 @@ static void tda10086_diseqc_wait(struct tda10086_state *state)
 static int tda10086_set_tone (struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 {
 	struct tda10086_state* state = fe->demodulator_priv;
+	u8 t22k_off = 0x80;
 
 	dprintk ("%s\n", __FUNCTION__);
 
+	if (state->config->diseqc_tone)
+		t22k_off = 0;
+
 	switch (tone) {
 	case SEC_TONE_OFF:
-		tda10086_write_byte(state, 0x36, 0x80);
+		tda10086_write_byte(state, 0x36, t22k_off);
 		break;
 
 	case SEC_TONE_ON:
-		tda10086_write_byte(state, 0x36, 0x81);
+		tda10086_write_byte(state, 0x36, 0x01 + t22k_off);
 		break;
 	}
 
@@ -202,8 +209,12 @@ static int tda10086_send_master_cmd (struct dvb_frontend* fe,
 	struct tda10086_state* state = fe->demodulator_priv;
 	int i;
 	u8 oldval;
+	u8 t22k_off = 0x80;
 
 	dprintk ("%s\n", __FUNCTION__);
+
+	if (state->config->diseqc_tone)
+		t22k_off = 0;
 
 	if (cmd->msg_len > 6)
 		return -EINVAL;
@@ -212,7 +223,8 @@ static int tda10086_send_master_cmd (struct dvb_frontend* fe,
 	for(i=0; i< cmd->msg_len; i++) {
 		tda10086_write_byte(state, 0x48+i, cmd->msg[i]);
 	}
-	tda10086_write_byte(state, 0x36, 0x88 | ((cmd->msg_len - 1) << 4));
+	tda10086_write_byte(state, 0x36, (0x08 + t22k_off)
+					| ((cmd->msg_len - 1) << 4));
 
 	tda10086_diseqc_wait(state);
 
@@ -225,16 +237,20 @@ static int tda10086_send_burst (struct dvb_frontend* fe, fe_sec_mini_cmd_t minic
 {
 	struct tda10086_state* state = fe->demodulator_priv;
 	u8 oldval = tda10086_read_byte(state, 0x36);
+	u8 t22k_off = 0x80;
 
 	dprintk ("%s\n", __FUNCTION__);
 
+	if (state->config->diseqc_tone)
+		t22k_off = 0;
+
 	switch(minicmd) {
 	case SEC_MINI_A:
-		tda10086_write_byte(state, 0x36, 0x84);
+		tda10086_write_byte(state, 0x36, 0x04 + t22k_off);
 		break;
 
 	case SEC_MINI_B:
-		tda10086_write_byte(state, 0x36, 0x86);
+		tda10086_write_byte(state, 0x36, 0x06 + t22k_off);
 		break;
 	}
 

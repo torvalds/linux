@@ -184,7 +184,7 @@ static void acpi_pci_bridge_scan(struct acpi_device *device)
 		}
 }
 
-static int acpi_pci_root_add(struct acpi_device *device)
+static int __devinit acpi_pci_root_add(struct acpi_device *device)
 {
 	int result = 0;
 	struct acpi_pci_root *root = NULL;

@@ -443,8 +443,7 @@ void missed_irq (unsigned long data)
 	spin_unlock_irqrestore(&bp->lock, flags);
 	if (irq) {
 		printk (KERN_INFO "Missed interrupt... Calling int from timer. \n");
-		sx_interrupt (((struct specialix_board *)data)->irq,
-				(void*)data);
+		sx_interrupt (-1, bp);
 	}
 	mod_timer(&missed_irq_timer, jiffies + sx_poll);
 }
@@ -862,23 +861,22 @@ static inline void sx_check_modem(struct specialix_board * bp)
 
 
 /* The main interrupt processing routine */
-static irqreturn_t sx_interrupt(int irq, void *dev_id)
+static irqreturn_t sx_interrupt(int dummy, void *dev_id)
 {
 	unsigned char status;
 	unsigned char ack;
-	struct specialix_board *bp;
+	struct specialix_board *bp = dev_id;
 	unsigned long loop = 0;
 	int saved_reg;
 	unsigned long flags;
 
 	func_enter();
 
-	bp = dev_id;
 	spin_lock_irqsave(&bp->lock, flags);
 
 	dprintk (SX_DEBUG_FLOW, "enter %s port %d room: %ld\n", __FUNCTION__, port_No(sx_get_port(bp, "INT")), SERIAL_XMIT_SIZE - sx_get_port(bp, "ITN")->xmit_cnt - 1);
 	if (!(bp->flags & SX_BOARD_ACTIVE)) {
-		dprintk (SX_DEBUG_IRQ, "sx: False interrupt. irq %d.\n", irq);
+		dprintk (SX_DEBUG_IRQ, "sx: False interrupt. irq %d.\n", bp->irq);
 		spin_unlock_irqrestore(&bp->lock, flags);
 		func_exit();
 		return IRQ_NONE;
@@ -2109,7 +2107,6 @@ static void sx_throttle(struct tty_struct * tty)
 	sx_out(bp, CD186x_CAR, port_No(port));
 	spin_unlock_irqrestore(&bp->lock, flags);
 	if (I_IXOFF(tty)) {
-		spin_unlock_irqrestore(&bp->lock, flags);
 		sx_wait_CCR(bp);
 		spin_lock_irqsave(&bp->lock, flags);
 		sx_out(bp, CD186x_CCR, CCR_SSCH2);

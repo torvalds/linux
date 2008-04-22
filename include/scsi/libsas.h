@@ -32,7 +32,6 @@
 #include <scsi/sas.h>
 #include <linux/libata.h>
 #include <linux/list.h>
-#include <asm/semaphore.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_transport_sas.h>
@@ -675,5 +674,8 @@ extern int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 
 extern void sas_ssp_task_response(struct device *dev, struct sas_task *task,
 				  struct ssp_response_iu *iu);
+struct sas_phy *sas_find_local_phy(struct domain_device *dev);
+
+int sas_request_addr(struct Scsi_Host *shost, u8 *addr);
 
 #endif /* _SASLIB_H_ */

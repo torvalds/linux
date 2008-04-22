@@ -149,7 +149,7 @@ static int lookup_prev_stack_frame(unsigned long fp, unsigned long pc,
 			if (dest >= 63) {
 				printk(KERN_NOTICE "%s: Invalid dest reg %d "
 				       "specified in movi handler. Failed "
-				       "opcode was 0x%lx: ", __FUNCTION__,
+				       "opcode was 0x%lx: ", __func__,
 				       dest, op);
 
 				continue;

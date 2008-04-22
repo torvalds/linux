@@ -47,30 +47,13 @@ static inline __uint64_t xfs_mask64lo(int n)
 }
 
 /* Get high bit set out of 32-bit argument, -1 if none set */
-static inline int xfs_highbit32(__uint32_t v)
-{
-	return fls(v) - 1;
-}
-
-/* Get high bit set out of 64-bit argument, -1 if none set */
-static inline int xfs_highbit64(__uint64_t v)
-{
-	return fls64(v) - 1;
-}
-
-/* Get low bit set out of 32-bit argument, -1 if none set */
-static inline int xfs_lowbit32(__uint32_t v)
-{
-	__uint32_t t = v;
-	return (t) ? find_first_bit((unsigned long *)&t, 32) : -1;
-}
+extern int xfs_highbit32(__uint32_t v);
 
 /* Get low bit set out of 64-bit argument, -1 if none set */
-static inline int xfs_lowbit64(__uint64_t v)
-{
-	__uint64_t t = v;
-	return (t) ? find_first_bit((unsigned long *)&t, 64) : -1;
-}
+extern int xfs_lowbit64(__uint64_t v);
+
+/* Get high bit set out of 64-bit argument, -1 if none set */
+extern int xfs_highbit64(__uint64_t);
 
 /* Return whether bitmap is empty (1 == empty) */
 extern int xfs_bitmap_empty(uint *map, uint size);

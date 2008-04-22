@@ -241,8 +241,12 @@ void discard_lazy_cpu_state(void)
 }
 #endif /* CONFIG_SMP */
 
+static DEFINE_PER_CPU(unsigned long, current_dabr);
+
 int set_dabr(unsigned long dabr)
 {
+	__get_cpu_var(current_dabr) = dabr;
+
 #ifdef CONFIG_PPC_MERGE		/* XXX for now */
 	if (ppc_md.set_dabr)
 		return ppc_md.set_dabr(dabr);
@@ -258,8 +262,6 @@ int set_dabr(unsigned long dabr)
 #ifdef CONFIG_PPC64
 DEFINE_PER_CPU(struct cpu_usage, cpu_usage_array);
 #endif
-
-static DEFINE_PER_CPU(unsigned long, current_dabr);
 
 struct task_struct *__switch_to(struct task_struct *prev,
 	struct task_struct *new)
@@ -325,10 +327,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 #endif /* CONFIG_SMP */
 
-	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr)) {
+	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
 		set_dabr(new->thread.dabr);
-		__get_cpu_var(current_dabr) = new->thread.dabr;
-	}
 
 	new_thread = &new->thread;
 	old_thread = &current->thread;
@@ -353,6 +353,12 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	account_process_vtime(current);
 	calculate_steal_time();
 
+	/*
+	 * We can't take a PMU exception inside _switch() since there is a
+	 * window where the kernel stack SLB and the kernel stack are out
+	 * of sync. Hard disable here.
+	 */
+	hard_irq_disable();
 	last = _switch(old_thread, new_thread);
 
 	local_irq_restore(flags);
@@ -862,11 +868,6 @@ int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 	flush_spe_to_thread(current);
 	error = do_execve(filename, (char __user * __user *) a1,
 			  (char __user * __user *) a2, regs);
-	if (error == 0) {
-		task_lock(current);
-		current->ptrace &= ~PT_DTRACE;
-		task_unlock(current);
-	}
 	putname(filename);
 out:
 	return error;
@@ -913,20 +914,6 @@ int validate_sp(unsigned long sp, struct task_struct *p,
 	return valid_irq_stack(sp, p, nbytes);
 }
 
-#ifdef CONFIG_PPC64
-#define MIN_STACK_FRAME	112	/* same as STACK_FRAME_OVERHEAD, in fact */
-#define FRAME_LR_SAVE	2
-#define INT_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD + 288)
-#define REGS_MARKER	0x7265677368657265ul
-#define FRAME_MARKER	12
-#else
-#define MIN_STACK_FRAME	16
-#define FRAME_LR_SAVE	1
-#define INT_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD)
-#define REGS_MARKER	0x72656773ul
-#define FRAME_MARKER	2
-#endif
-
 EXPORT_SYMBOL(validate_sp);
 
 unsigned long get_wchan(struct task_struct *p)
@@ -938,15 +925,15 @@ unsigned long get_wchan(struct task_struct *p)
 		return 0;
 
 	sp = p->thread.ksp;
-	if (!validate_sp(sp, p, MIN_STACK_FRAME))
+	if (!validate_sp(sp, p, STACK_FRAME_OVERHEAD))
 		return 0;
 
 	do {
 		sp = *(unsigned long *)sp;
-		if (!validate_sp(sp, p, MIN_STACK_FRAME))
+		if (!validate_sp(sp, p, STACK_FRAME_OVERHEAD))
 			return 0;
 		if (count > 0) {
-			ip = ((unsigned long *)sp)[FRAME_LR_SAVE];
+			ip = ((unsigned long *)sp)[STACK_FRAME_LR_SAVE];
 			if (!in_sched_functions(ip))
 				return ip;
 		}
@@ -975,12 +962,12 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	lr = 0;
 	printk("Call Trace:\n");
 	do {
-		if (!validate_sp(sp, tsk, MIN_STACK_FRAME))
+		if (!validate_sp(sp, tsk, STACK_FRAME_OVERHEAD))
 			return;
 
 		stack = (unsigned long *) sp;
 		newsp = stack[0];
-		ip = stack[FRAME_LR_SAVE];
+		ip = stack[STACK_FRAME_LR_SAVE];
 		if (!firstframe || ip != lr) {
 			printk("["REG"] ["REG"] ", sp, ip);
 			print_symbol("%s", ip);
@@ -994,8 +981,8 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		 * See if this is an exception frame.
 		 * We look for the "regshere" marker in the current frame.
 		 */
-		if (validate_sp(sp, tsk, INT_FRAME_SIZE)
-		    && stack[FRAME_MARKER] == REGS_MARKER) {
+		if (validate_sp(sp, tsk, STACK_INT_FRAME_SIZE)
+		    && stack[STACK_FRAME_MARKER] == STACK_FRAME_REGS_MARKER) {
 			struct pt_regs *regs = (struct pt_regs *)
 				(sp + STACK_FRAME_OVERHEAD);
 			printk("--- Exception: %lx", regs->trap);

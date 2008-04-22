@@ -94,9 +94,9 @@ int __uses_jump_to_uncached detect_cpu_and_cache_system(void)
 		boot_cpu_data.dcache.way_incr	= (1 << 13);
 		boot_cpu_data.dcache.entry_mask	= 0x1ff0;
 		boot_cpu_data.dcache.sets	= 512;
-		ctrl_outl(CCR_CACHE_32KB, CCR3);
+		ctrl_outl(CCR_CACHE_32KB, CCR3_REG);
 #else
-		ctrl_outl(CCR_CACHE_16KB, CCR3);
+		ctrl_outl(CCR_CACHE_16KB, CCR3_REG);
 #endif
 #endif
 	}

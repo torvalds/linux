@@ -239,17 +239,13 @@ int __init llc_proc_init(void)
 		goto out;
 	llc_proc_dir->owner = THIS_MODULE;
 
-	p = create_proc_entry("socket", S_IRUGO, llc_proc_dir);
+	p = proc_create("socket", S_IRUGO, llc_proc_dir, &llc_seq_socket_fops);
 	if (!p)
 		goto out_socket;
 
-	p->proc_fops = &llc_seq_socket_fops;
-
-	p = create_proc_entry("core", S_IRUGO, llc_proc_dir);
+	p = proc_create("core", S_IRUGO, llc_proc_dir, &llc_seq_core_fops);
 	if (!p)
 		goto out_core;
-
-	p->proc_fops = &llc_seq_core_fops;
 
 	rc = 0;
 out:

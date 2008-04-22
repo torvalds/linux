@@ -92,7 +92,7 @@ void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 	rfkill_states[type] = state;
 
 	list_for_each_entry(rfkill, &rfkill_list, node) {
-		if (!rfkill->user_claim)
+		if ((!rfkill->user_claim) && (rfkill->type == type))
 			rfkill_toggle_radio(rfkill, state);
 	}
 
@@ -232,7 +232,7 @@ static int rfkill_suspend(struct device *dev, pm_message_t state)
 	struct rfkill *rfkill = to_rfkill(dev);
 
 	if (dev->power.power_state.event != state.event) {
-		if (state.event == PM_EVENT_SUSPEND) {
+		if (state.event & PM_EVENT_SLEEP) {
 			mutex_lock(&rfkill->mutex);
 
 			if (rfkill->state == RFKILL_STATE_ON)

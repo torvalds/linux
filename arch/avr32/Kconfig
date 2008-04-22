@@ -10,7 +10,6 @@ config AVR32
 	# With EMBEDDED=n, we get lots of stuff automatically selected
 	# that we usually don't need on AVR32.
 	select EMBEDDED
-	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	help
@@ -48,6 +47,9 @@ config RWSEM_GENERIC_SPINLOCK
 config GENERIC_TIME
 	def_bool y
 
+config GENERIC_CLOCKEVENTS
+	def_bool y
+
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool n
 
@@ -70,6 +72,8 @@ config GENERIC_BUG
 source "init/Kconfig"
 
 menu "System Type and features"
+
+source "kernel/time/Kconfig"
 
 config SUBARCH_AVR32B
 	bool

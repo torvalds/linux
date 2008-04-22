@@ -19,37 +19,9 @@
 
 void foo(void)
 {
-	OFFSET(HOST_SC_RBX, sigcontext, rbx);
-	OFFSET(HOST_SC_RCX, sigcontext, rcx);
-	OFFSET(HOST_SC_RDX, sigcontext, rdx);
-	OFFSET(HOST_SC_RSI, sigcontext, rsi);
-	OFFSET(HOST_SC_RDI, sigcontext, rdi);
-	OFFSET(HOST_SC_RBP, sigcontext, rbp);
-	OFFSET(HOST_SC_RAX, sigcontext, rax);
-	OFFSET(HOST_SC_R8, sigcontext, r8);
-	OFFSET(HOST_SC_R9, sigcontext, r9);
-	OFFSET(HOST_SC_R10, sigcontext, r10);
-	OFFSET(HOST_SC_R11, sigcontext, r11);
-	OFFSET(HOST_SC_R12, sigcontext, r12);
-	OFFSET(HOST_SC_R13, sigcontext, r13);
-	OFFSET(HOST_SC_R14, sigcontext, r14);
-	OFFSET(HOST_SC_R15, sigcontext, r15);
-	OFFSET(HOST_SC_IP, sigcontext, rip);
-	OFFSET(HOST_SC_SP, sigcontext, rsp);
 	OFFSET(HOST_SC_CR2, sigcontext, cr2);
 	OFFSET(HOST_SC_ERR, sigcontext, err);
 	OFFSET(HOST_SC_TRAPNO, sigcontext, trapno);
-	OFFSET(HOST_SC_CS, sigcontext, cs);
-	OFFSET(HOST_SC_FS, sigcontext, fs);
-	OFFSET(HOST_SC_GS, sigcontext, gs);
-	OFFSET(HOST_SC_EFLAGS, sigcontext, eflags);
-	OFFSET(HOST_SC_SIGMASK, sigcontext, oldmask);
-#if 0
-	OFFSET(HOST_SC_ORIG_RAX, sigcontext, orig_rax);
-	OFFSET(HOST_SC_DS, sigcontext, ds);
-	OFFSET(HOST_SC_ES, sigcontext, es);
-	OFFSET(HOST_SC_SS, sigcontext, ss);
-#endif
 
 	DEFINE(HOST_FP_SIZE, sizeof(struct _fpstate) / sizeof(unsigned long));
 	DEFINE(HOST_XFP_SIZE, 0);

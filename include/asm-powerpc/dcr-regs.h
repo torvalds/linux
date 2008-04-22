@@ -68,4 +68,82 @@
 #define SDR0_UART3		0x0123
 #define SDR0_CUST0		0x4000
 
+/*
+ * All those DCR register addresses are offsets from the base address
+ * for the SRAM0 controller (e.g. 0x20 on 440GX). The base address is
+ * excluded here and configured in the device tree.
+ */
+#define DCRN_SRAM0_SB0CR	0x00
+#define DCRN_SRAM0_SB1CR	0x01
+#define DCRN_SRAM0_SB2CR	0x02
+#define DCRN_SRAM0_SB3CR	0x03
+#define  SRAM_SBCR_BU_MASK	0x00000180
+#define  SRAM_SBCR_BS_64KB	0x00000800
+#define  SRAM_SBCR_BU_RO	0x00000080
+#define  SRAM_SBCR_BU_RW	0x00000180
+#define DCRN_SRAM0_BEAR		0x04
+#define DCRN_SRAM0_BESR0	0x05
+#define DCRN_SRAM0_BESR1	0x06
+#define DCRN_SRAM0_PMEG		0x07
+#define DCRN_SRAM0_CID		0x08
+#define DCRN_SRAM0_REVID	0x09
+#define DCRN_SRAM0_DPC		0x0a
+#define  SRAM_DPC_ENABLE	0x80000000
+
+/*
+ * All those DCR register addresses are offsets from the base address
+ * for the SRAM0 controller (e.g. 0x30 on 440GX). The base address is
+ * excluded here and configured in the device tree.
+ */
+#define DCRN_L2C0_CFG		0x00
+#define  L2C_CFG_L2M		0x80000000
+#define  L2C_CFG_ICU		0x40000000
+#define  L2C_CFG_DCU		0x20000000
+#define  L2C_CFG_DCW_MASK	0x1e000000
+#define  L2C_CFG_TPC		0x01000000
+#define  L2C_CFG_CPC		0x00800000
+#define  L2C_CFG_FRAN		0x00200000
+#define  L2C_CFG_SS_MASK	0x00180000
+#define  L2C_CFG_SS_256		0x00000000
+#define  L2C_CFG_CPIM		0x00040000
+#define  L2C_CFG_TPIM		0x00020000
+#define  L2C_CFG_LIM		0x00010000
+#define  L2C_CFG_PMUX_MASK	0x00007000
+#define  L2C_CFG_PMUX_SNP	0x00000000
+#define  L2C_CFG_PMUX_IF	0x00001000
+#define  L2C_CFG_PMUX_DF	0x00002000
+#define  L2C_CFG_PMUX_DS	0x00003000
+#define  L2C_CFG_PMIM		0x00000800
+#define  L2C_CFG_TPEI		0x00000400
+#define  L2C_CFG_CPEI		0x00000200
+#define  L2C_CFG_NAM		0x00000100
+#define  L2C_CFG_SMCM		0x00000080
+#define  L2C_CFG_NBRM		0x00000040
+#define  L2C_CFG_RDBW		0x00000008	/* only 460EX/GT */
+#define DCRN_L2C0_CMD		0x01
+#define  L2C_CMD_CLR		0x80000000
+#define  L2C_CMD_DIAG		0x40000000
+#define  L2C_CMD_INV		0x20000000
+#define  L2C_CMD_CCP		0x10000000
+#define  L2C_CMD_CTE		0x08000000
+#define  L2C_CMD_STRC		0x04000000
+#define  L2C_CMD_STPC		0x02000000
+#define  L2C_CMD_RPMC		0x01000000
+#define  L2C_CMD_HCC		0x00800000
+#define DCRN_L2C0_ADDR		0x02
+#define DCRN_L2C0_DATA		0x03
+#define DCRN_L2C0_SR		0x04
+#define  L2C_SR_CC		0x80000000
+#define  L2C_SR_CPE		0x40000000
+#define  L2C_SR_TPE		0x20000000
+#define  L2C_SR_LRU		0x10000000
+#define  L2C_SR_PCS		0x08000000
+#define DCRN_L2C0_REVID		0x05
+#define DCRN_L2C0_SNP0		0x06
+#define DCRN_L2C0_SNP1		0x07
+#define  L2C_SNP_BA_MASK	0xffff0000
+#define  L2C_SNP_SSR_MASK	0x0000f000
+#define  L2C_SNP_SSR_32G	0x0000f000
+#define  L2C_SNP_ESR		0x00000800
+
 #endif /* __DCR_REGS_H__ */

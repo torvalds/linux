@@ -231,7 +231,7 @@ static int acpi_fujitsu_remove(struct acpi_device *device, int type)
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
-	fujitsu->acpi_handle = 0;
+	fujitsu->acpi_handle = NULL;
 
 	return 0;
 }

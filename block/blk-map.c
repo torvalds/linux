@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <scsi/sg.h>		/* for struct sg_iovec */
 
 #include "blk.h"
 
@@ -43,6 +44,7 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 			     void __user *ubuf, unsigned int len)
 {
 	unsigned long uaddr;
+	unsigned int alignment;
 	struct bio *bio, *orig_bio;
 	int reading, ret;
 
@@ -53,8 +55,8 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 	 * direct dma. else, set up kernel bounce buffers
 	 */
 	uaddr = (unsigned long) ubuf;
-	if (!(uaddr & queue_dma_alignment(q)) &&
-	    !(len & queue_dma_alignment(q)))
+	alignment = queue_dma_alignment(q) | q->dma_pad_mask;
+	if (!(uaddr & alignment) && !(len & alignment))
 		bio = bio_map_user(q, NULL, uaddr, len, reading);
 	else
 		bio = bio_copy_user(q, uaddr, len, reading);
@@ -139,10 +141,14 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 		ubuf += ret;
 	}
 
+	if (!bio_flagged(bio, BIO_USER_MAPPED))
+		rq->cmd_flags |= REQ_COPY_USER;
+
 	rq->buffer = rq->data = NULL;
 	return 0;
 unmap_rq:
 	blk_rq_unmap_user(bio);
+	rq->bio = NULL;
 	return ret;
 }
 EXPORT_SYMBOL(blk_rq_map_user);
@@ -172,15 +178,26 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 			struct sg_iovec *iov, int iov_count, unsigned int len)
 {
 	struct bio *bio;
+	int i, read = rq_data_dir(rq) == READ;
+	int unaligned = 0;
 
 	if (!iov || iov_count <= 0)
 		return -EINVAL;
 
-	/* we don't allow misaligned data like bio_map_user() does.  If the
-	 * user is using sg, they're expected to know the alignment constraints
-	 * and respect them accordingly */
-	bio = bio_map_user_iov(q, NULL, iov, iov_count,
-				rq_data_dir(rq) == READ);
+	for (i = 0; i < iov_count; i++) {
+		unsigned long uaddr = (unsigned long)iov[i].iov_base;
+
+		if (uaddr & queue_dma_alignment(q)) {
+			unaligned = 1;
+			break;
+		}
+	}
+
+	if (unaligned || (q->dma_pad_mask & len))
+		bio = bio_copy_user_iov(q, iov, iov_count, read);
+	else
+		bio = bio_map_user_iov(q, NULL, iov, iov_count, read);
+
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
@@ -190,12 +207,14 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		return -EINVAL;
 	}
 
+	if (!bio_flagged(bio, BIO_USER_MAPPED))
+		rq->cmd_flags |= REQ_COPY_USER;
+
 	bio_get(bio);
 	blk_rq_bio_prep(q, rq, bio);
 	rq->buffer = rq->data = NULL;
 	return 0;
 }
-EXPORT_SYMBOL(blk_rq_map_user_iov);
 
 /**
  * blk_rq_unmap_user - unmap a request with user data

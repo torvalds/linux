@@ -59,7 +59,7 @@ LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 head-y		:= arch/xtensa/kernel/head.o
 core-y		+= arch/xtensa/kernel/ arch/xtensa/mm/
 ifneq ($(PLATFORM),)
-core-y		+= arch/xtensa/platform-$(PLATFORM)/
+core-y		+= arch/xtensa/platforms/$(PLATFORM)/
 endif
 libs-y		+= arch/xtensa/lib/ $(LIBGCC)
 

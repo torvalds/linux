@@ -478,4 +478,7 @@ sys_call_table:
 	PTR	sys_ni_syscall
 	PTR	sys_eventfd
 	PTR	sys_fallocate
+	PTR	sys_timerfd_create		/* 5280 */
+	PTR	sys_timerfd_gettime
+	PTR	sys_timerfd_settime
 	.size	sys_call_table,.-sys_call_table

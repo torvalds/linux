@@ -25,7 +25,7 @@ void *memmove(void *dest, const void *src, size_t n)
 	int d0, d1, d2;
 
 	if (dest < src) {
-		memcpy(dest,src,n);
+		memcpy(dest, src, n);
 	} else {
 		__asm__ __volatile__(
 			"std\n\t"

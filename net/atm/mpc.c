@@ -964,7 +964,7 @@ static int mpoa_event_listener(struct notifier_block *mpoa_notifier, unsigned lo
 
 	dev = (struct net_device *)dev_ptr;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	if (dev->name == NULL || strncmp(dev->name, "lec", 3))

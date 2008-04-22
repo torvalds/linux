@@ -655,7 +655,7 @@ static struct kobj_attribute reipl_type_attr =
 
 static struct kset *reipl_kset;
 
-void reipl_run(struct shutdown_trigger *trigger)
+static void reipl_run(struct shutdown_trigger *trigger)
 {
 	struct ccw_dev_id devid;
 	static char buf[100];
@@ -704,6 +704,7 @@ void reipl_run(struct shutdown_trigger *trigger)
 	default:
 		break;
 	}
+	disabled_wait((unsigned long) __builtin_return_address(0));
 }
 
 static void __init reipl_probe(void)

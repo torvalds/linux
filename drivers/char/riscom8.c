@@ -1620,14 +1620,8 @@ static int __init rc_init_drivers(void)
 
 static void rc_release_drivers(void)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&riscom_lock, flags);
-
 	tty_unregister_driver(riscom_driver);
 	put_tty_driver(riscom_driver);
-
-	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 #ifndef MODULE
@@ -1715,7 +1709,7 @@ static int __init riscom8_init_module (void)
 
 	if (iobase || iobase1 || iobase2 || iobase3) {
 		for(i = 0; i < RC_NBOARD; i++)
-			rc_board[0].base = 0;
+			rc_board[i].base = 0;
 	}
 
 	if (iobase)

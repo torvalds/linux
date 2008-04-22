@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2007 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -29,7 +29,7 @@
 /*
  * TX result flags.
  */
-enum TX_STATUS {
+enum tx_status {
 	TX_SUCCESS = 0,
 	TX_SUCCESS_RETRY = 1,
 	TX_FAIL_RETRY = 2,
@@ -85,6 +85,8 @@ enum dev_state {
 	STATE_RADIO_OFF,
 	STATE_RADIO_RX_ON,
 	STATE_RADIO_RX_OFF,
+	STATE_RADIO_RX_ON_LINK,
+	STATE_RADIO_RX_OFF_LINK,
 	STATE_RADIO_IRQ_ON,
 	STATE_RADIO_IRQ_OFF,
 };
@@ -217,76 +219,5 @@ static inline u8 rt2x00_get_field8(const u8 reg,
 {
 	return (reg & field.bit_mask) >> field.bit_offset;
 }
-
-/*
- * Device specific rate value.
- * We will have to create the device specific rate value
- * passed to the ieee80211 kernel. We need to make it a consist of
- * multiple fields because we want to store more then 1 device specific
- * values inside the value.
- *	1 - rate, stored as 100 kbit/s.
- *	2 - preamble, short_preamble enabled flag.
- *	3 - MASK_RATE, which rates are enabled in this mode, this mask
- *	corresponds with the TX register format for the current device.
- *	4 - plcp, 802.11b rates are device specific,
- *	802.11g rates are set according to the ieee802.11a-1999 p.14.
- * The bit to enable preamble is set in a seperate define.
- */
-#define DEV_RATE	FIELD32(0x000007ff)
-#define DEV_PREAMBLE	FIELD32(0x00000800)
-#define DEV_RATEMASK	FIELD32(0x00fff000)
-#define DEV_PLCP	FIELD32(0xff000000)
-
-/*
- * Bitfields
- */
-#define DEV_RATEBIT_1MB		( 1 << 0 )
-#define DEV_RATEBIT_2MB		( 1 << 1 )
-#define DEV_RATEBIT_5_5MB	( 1 << 2 )
-#define DEV_RATEBIT_11MB	( 1 << 3 )
-#define DEV_RATEBIT_6MB		( 1 << 4 )
-#define DEV_RATEBIT_9MB		( 1 << 5 )
-#define DEV_RATEBIT_12MB	( 1 << 6 )
-#define DEV_RATEBIT_18MB	( 1 << 7 )
-#define DEV_RATEBIT_24MB	( 1 << 8 )
-#define DEV_RATEBIT_36MB	( 1 << 9 )
-#define DEV_RATEBIT_48MB	( 1 << 10 )
-#define DEV_RATEBIT_54MB	( 1 << 11 )
-
-/*
- * Bitmasks for DEV_RATEMASK
- */
-#define DEV_RATEMASK_1MB	( (DEV_RATEBIT_1MB << 1) -1 )
-#define DEV_RATEMASK_2MB	( (DEV_RATEBIT_2MB << 1) -1 )
-#define DEV_RATEMASK_5_5MB	( (DEV_RATEBIT_5_5MB << 1) -1 )
-#define DEV_RATEMASK_11MB	( (DEV_RATEBIT_11MB << 1) -1 )
-#define DEV_RATEMASK_6MB	( (DEV_RATEBIT_6MB << 1) -1 )
-#define DEV_RATEMASK_9MB	( (DEV_RATEBIT_9MB << 1) -1 )
-#define DEV_RATEMASK_12MB	( (DEV_RATEBIT_12MB << 1) -1 )
-#define DEV_RATEMASK_18MB	( (DEV_RATEBIT_18MB << 1) -1 )
-#define DEV_RATEMASK_24MB	( (DEV_RATEBIT_24MB << 1) -1 )
-#define DEV_RATEMASK_36MB	( (DEV_RATEBIT_36MB << 1) -1 )
-#define DEV_RATEMASK_48MB	( (DEV_RATEBIT_48MB << 1) -1 )
-#define DEV_RATEMASK_54MB	( (DEV_RATEBIT_54MB << 1) -1 )
-
-/*
- * Bitmask groups of bitrates
- */
-#define DEV_BASIC_RATEMASK \
-	( DEV_RATEMASK_11MB | \
-	  DEV_RATEBIT_6MB | DEV_RATEBIT_12MB | DEV_RATEBIT_24MB )
-
-#define DEV_CCK_RATEMASK	( DEV_RATEMASK_11MB )
-#define DEV_OFDM_RATEMASK	( DEV_RATEMASK_54MB & ~DEV_CCK_RATEMASK )
-
-/*
- * Macro's to set and get specific fields from the device specific val and val2
- * fields inside the ieee80211_rate entry.
- */
-#define DEVICE_SET_RATE_FIELD(__value, __mask) \
-	(int)( ((__value) << DEV_##__mask.bit_offset) & DEV_##__mask.bit_mask )
-
-#define DEVICE_GET_RATE_FIELD(__value, __mask) \
-	(int)( ((__value) & DEV_##__mask.bit_mask) >> DEV_##__mask.bit_offset )
 
 #endif /* RT2X00REG_H */

@@ -377,15 +377,14 @@ static struct dentry_operations proc_dentry_operations =
  * Don't create negative dentries here, return -ENOENT by hand
  * instead.
  */
-struct dentry *proc_lookup(struct inode * dir, struct dentry *dentry, struct nameidata *nd)
+struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
+		struct dentry *dentry)
 {
 	struct inode *inode = NULL;
-	struct proc_dir_entry * de;
 	int error = -ENOENT;
 
 	lock_kernel();
 	spin_lock(&proc_subdir_lock);
-	de = PDE(dir);
 	if (de) {
 		for (de = de->subdir; de ; de = de->next) {
 			if (de->namelen != dentry->d_name.len)
@@ -393,8 +392,6 @@ struct dentry *proc_lookup(struct inode * dir, struct dentry *dentry, struct nam
 			if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
 				unsigned int ino;
 
-				if (de->shadow_proc)
-					de = de->shadow_proc(current, de);
 				ino = de->low_ino;
 				de_get(de);
 				spin_unlock(&proc_subdir_lock);
@@ -417,6 +414,12 @@ out_unlock:
 	return ERR_PTR(error);
 }
 
+struct dentry *proc_lookup(struct inode *dir, struct dentry *dentry,
+		struct nameidata *nd)
+{
+	return proc_lookup_de(PDE(dir), dir, dentry);
+}
+
 /*
  * This returns non-zero if at EOF, so that the /proc
  * root directory can use this and check if it should
@@ -426,10 +429,9 @@ out_unlock:
  * value of the readdir() call, as long as it's non-negative
  * for success..
  */
-int proc_readdir(struct file * filp,
-	void * dirent, filldir_t filldir)
+int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
+		filldir_t filldir)
 {
-	struct proc_dir_entry * de;
 	unsigned int ino;
 	int i;
 	struct inode *inode = filp->f_path.dentry->d_inode;
@@ -438,7 +440,6 @@ int proc_readdir(struct file * filp,
 	lock_kernel();
 
 	ino = inode->i_ino;
-	de = PDE(inode);
 	if (!de) {
 		ret = -EINVAL;
 		goto out;
@@ -497,6 +498,13 @@ int proc_readdir(struct file * filp,
 	ret = 1;
 out:	unlock_kernel();
 	return ret;	
+}
+
+int proc_readdir(struct file *filp, void *dirent, filldir_t filldir)
+{
+	struct inode *inode = filp->f_path.dentry->d_inode;
+
+	return proc_readdir_de(PDE(inode), filp, dirent, filldir);
 }
 
 /*

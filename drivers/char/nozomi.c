@@ -190,6 +190,14 @@ enum card_type {
 	F32_8 = 8192,	/* 3072 bytes downl. + 1024 bytes uplink * 2 -> 8192 */
 };
 
+/* Initialization states a card can be in */
+enum card_state {
+	NOZOMI_STATE_UKNOWN	= 0,
+	NOZOMI_STATE_ENABLED	= 1,	/* pci device enabled */
+	NOZOMI_STATE_ALLOCATED	= 2,	/* config setup done */
+	NOZOMI_STATE_READY	= 3,	/* flowcontrols received */
+};
+
 /* Two different toggle channels exist */
 enum channel_type {
 	CH_A = 0,
@@ -385,6 +393,7 @@ struct nozomi {
 	spinlock_t spin_mutex;	/* secures access to registers and tty */
 
 	unsigned int index_start;
+	enum card_state state;
 	u32 open_ttys;
 };
 
@@ -429,7 +438,7 @@ static void read_mem32(u32 *buf, const void __iomem *mem_addr_start,
 			u32 size_bytes)
 {
 	u32 i = 0;
-	const u32 *ptr = (__force u32 *) mem_addr_start;
+	const u32 __iomem *ptr = mem_addr_start;
 	u16 *buf16;
 
 	if (unlikely(!ptr || !buf))
@@ -439,11 +448,11 @@ static void read_mem32(u32 *buf, const void __iomem *mem_addr_start,
 	switch (size_bytes) {
 	case 2:	/* 2 bytes */
 		buf16 = (u16 *) buf;
-		*buf16 = __le16_to_cpu(readw((void __iomem *)ptr));
+		*buf16 = __le16_to_cpu(readw(ptr));
 		goto out;
 		break;
 	case 4:	/* 4 bytes */
-		*(buf) = __le32_to_cpu(readl((void __iomem *)ptr));
+		*(buf) = __le32_to_cpu(readl(ptr));
 		goto out;
 		break;
 	}
@@ -452,11 +461,11 @@ static void read_mem32(u32 *buf, const void __iomem *mem_addr_start,
 		if (size_bytes - i == 2) {
 			/* Handle 2 bytes in the end */
 			buf16 = (u16 *) buf;
-			*(buf16) = __le16_to_cpu(readw((void __iomem *)ptr));
+			*(buf16) = __le16_to_cpu(readw(ptr));
 			i += 2;
 		} else {
 			/* Read 4 bytes */
-			*(buf) = __le32_to_cpu(readl((void __iomem *)ptr));
+			*(buf) = __le32_to_cpu(readl(ptr));
 			i += 4;
 		}
 		buf++;
@@ -475,7 +484,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 			u32 size_bytes)
 {
 	u32 i = 0;
-	u32 *ptr = (__force u32 *) mem_addr_start;
+	u32 __iomem *ptr = mem_addr_start;
 	const u16 *buf16;
 
 	if (unlikely(!ptr || !buf))
@@ -485,7 +494,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 	switch (size_bytes) {
 	case 2:	/* 2 bytes */
 		buf16 = (const u16 *)buf;
-		writew(__cpu_to_le16(*buf16), (void __iomem *)ptr);
+		writew(__cpu_to_le16(*buf16), ptr);
 		return 2;
 		break;
 	case 1: /*
@@ -493,7 +502,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 		 * so falling through..
 		 */
 	case 4: /* 4 bytes */
-		writel(__cpu_to_le32(*buf), (void __iomem *)ptr);
+		writel(__cpu_to_le32(*buf), ptr);
 		return 4;
 		break;
 	}
@@ -502,11 +511,11 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 		if (size_bytes - i == 2) {
 			/* 2 bytes */
 			buf16 = (const u16 *)buf;
-			writew(__cpu_to_le16(*buf16), (void __iomem *)ptr);
+			writew(__cpu_to_le16(*buf16), ptr);
 			i += 2;
 		} else {
 			/* 4 bytes */
-			writel(__cpu_to_le32(*buf), (void __iomem *)ptr);
+			writel(__cpu_to_le32(*buf), ptr);
 			i += 4;
 		}
 		buf++;
@@ -686,6 +695,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 		dc->last_ier = dc->last_ier | CTRL_DL;
 		writew(dc->last_ier, dc->reg_ier);
 
+		dc->state = NOZOMI_STATE_ALLOCATED;
 		dev_info(&dc->pdev->dev, "Initialization OK!\n");
 		return 1;
 	}
@@ -944,6 +954,14 @@ static int receive_flow_control(struct nozomi *dc)
 	case CTRL_APP2:
 		port = PORT_APP2;
 		enable_ier = APP2_DL;
+		if (dc->state == NOZOMI_STATE_ALLOCATED) {
+			/*
+			 * After card initialization the flow control
+			 * received for APP2 is always the last
+			 */
+			dc->state = NOZOMI_STATE_READY;
+			dev_info(&dc->pdev->dev, "Device READY!\n");
+		}
 		break;
 	default:
 		dev_err(&dc->pdev->dev,
@@ -1366,20 +1384,10 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 
 	dc->pdev = pdev;
 
-	/* Find out what card type it is */
-	nozomi_get_card_type(dc);
-
 	ret = pci_enable_device(dc->pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to enable PCI Device\n");
 		goto err_free;
-	}
-
-	start = pci_resource_start(dc->pdev, 0);
-	if (start == 0) {
-		dev_err(&pdev->dev, "No I/O address for card detected\n");
-		ret = -ENODEV;
-		goto err_disable_device;
 	}
 
 	ret = pci_request_regions(dc->pdev, NOZOMI_NAME);
@@ -1388,6 +1396,16 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 			(int) /* nozomi_private.io_addr */ 0);
 		goto err_disable_device;
 	}
+
+	start = pci_resource_start(dc->pdev, 0);
+	if (start == 0) {
+		dev_err(&pdev->dev, "No I/O address for card detected\n");
+		ret = -ENODEV;
+		goto err_rel_regs;
+	}
+
+	/* Find out what card type it is */
+	nozomi_get_card_type(dc);
 
 	dc->base_addr = ioremap(start, dc->card_type);
 	if (!dc->base_addr) {
@@ -1425,6 +1443,14 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 	dc->index_start = ndev_idx * MAX_PORT;
 	ndevs[ndev_idx] = dc;
 
+	pci_set_drvdata(pdev, dc);
+
+	/* Enable RESET interrupt */
+	dc->last_ier = RESET;
+	iowrite16(dc->last_ier, dc->reg_ier);
+
+	dc->state = NOZOMI_STATE_ENABLED;
+
 	for (i = 0; i < MAX_PORT; i++) {
 		mutex_init(&dc->port[i].tty_sem);
 		dc->port[i].tty_open_count = 0;
@@ -1432,12 +1458,6 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 		tty_register_device(ntty_driver, dc->index_start + i,
 							&pdev->dev);
 	}
-
-	/* Enable  RESET interrupt. */
-	dc->last_ier = RESET;
-	writew(dc->last_ier, dc->reg_ier);
-
-	pci_set_drvdata(pdev, dc);
 
 	return 0;
 
@@ -1553,7 +1573,7 @@ static int ntty_open(struct tty_struct *tty, struct file *file)
 	struct nozomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;
 
-	if (!port || !dc)
+	if (!port || !dc || dc->state != NOZOMI_STATE_READY)
 		return -ENODEV;
 
 	if (mutex_lock_interruptible(&port->tty_sem))
@@ -1716,6 +1736,10 @@ static int ntty_tiocmget(struct tty_struct *tty, struct file *file)
 static int ntty_tiocmset(struct tty_struct *tty, struct file *file,
 	unsigned int set, unsigned int clear)
 {
+	struct nozomi *dc = get_dc_by_tty(tty);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dc->spin_mutex, flags);
 	if (set & TIOCM_RTS)
 		set_rts(tty, 1);
 	else if (clear & TIOCM_RTS)
@@ -1725,6 +1749,7 @@ static int ntty_tiocmset(struct tty_struct *tty, struct file *file,
 		set_dtr(tty, 1);
 	else if (clear & TIOCM_DTR)
 		set_dtr(tty, 0);
+	spin_unlock_irqrestore(&dc->spin_mutex, flags);
 
 	return 0;
 }
@@ -1762,7 +1787,7 @@ static int ntty_ioctl_tiocgicount(struct port *port, void __user *argp)
 	icount.brk = cnow.brk;
 	icount.buf_overrun = cnow.buf_overrun;
 
-	return copy_to_user(argp, &icount, sizeof(icount));
+	return copy_to_user(argp, &icount, sizeof(icount)) ? -EFAULT : 0;
 }
 
 static int ntty_ioctl(struct tty_struct *tty, struct file *file,

@@ -40,6 +40,7 @@
 #include "xfs_btree.h"
 #include "xfs_ialloc.h"
 #include "xfs_rw.h"
+#include "xfs_error.h"
 
 
 kmem_zone_t	*xfs_ili_zone;		/* inode log item zone */
@@ -296,9 +297,9 @@ xfs_inode_item_format(
 	 */
 	mp = ip->i_mount;
 	ASSERT(ip->i_d.di_version == XFS_DINODE_VERSION_1 ||
-	       XFS_SB_VERSION_HASNLINK(&mp->m_sb));
+	       xfs_sb_version_hasnlink(&mp->m_sb));
 	if (ip->i_d.di_version == XFS_DINODE_VERSION_1) {
-		if (!XFS_SB_VERSION_HASNLINK(&mp->m_sb)) {
+		if (!xfs_sb_version_hasnlink(&mp->m_sb)) {
 			/*
 			 * Convert it back.
 			 */
@@ -813,7 +814,12 @@ xfs_inode_item_pushbuf(
 					      XFS_LOG_FORCE);
 			}
 			if (dopush) {
-				xfs_bawrite(mp, bp);
+				int	error;
+				error = xfs_bawrite(mp, bp);
+				if (error)
+					xfs_fs_cmn_err(CE_WARN, mp,
+		"xfs_inode_item_pushbuf: pushbuf error %d on iip %p, bp %p",
+							error, iip, bp);
 			} else {
 				xfs_buf_relse(bp);
 			}

@@ -237,14 +237,14 @@ static int htable_create_v0(struct xt_hashlimit_info *minfo, int family)
 	hinfo->family = family;
 	hinfo->rnd_initialized = 0;
 	spin_lock_init(&hinfo->lock);
-	hinfo->pde = create_proc_entry(minfo->name, 0,
-				       family == AF_INET ? hashlimit_procdir4 :
-							   hashlimit_procdir6);
+	hinfo->pde = proc_create(minfo->name, 0,
+				 family == AF_INET ? hashlimit_procdir4 :
+						     hashlimit_procdir6,
+				 &dl_file_ops);
 	if (!hinfo->pde) {
 		vfree(hinfo);
 		return -1;
 	}
-	hinfo->pde->proc_fops = &dl_file_ops;
 	hinfo->pde->data = hinfo;
 
 	setup_timer(&hinfo->timer, htable_gc, (unsigned long )hinfo);
@@ -301,14 +301,14 @@ static int htable_create(struct xt_hashlimit_mtinfo1 *minfo,
 	hinfo->rnd_initialized = 0;
 	spin_lock_init(&hinfo->lock);
 
-	hinfo->pde = create_proc_entry(minfo->name, 0,
-				       family == AF_INET ? hashlimit_procdir4 :
-							   hashlimit_procdir6);
+	hinfo->pde = proc_create(minfo->name, 0,
+				 family == AF_INET ? hashlimit_procdir4 :
+						     hashlimit_procdir6,
+				 &dl_file_ops);
 	if (hinfo->pde == NULL) {
 		vfree(hinfo);
 		return -1;
 	}
-	hinfo->pde->proc_fops = &dl_file_ops;
 	hinfo->pde->data = hinfo;
 
 	setup_timer(&hinfo->timer, htable_gc, (unsigned long)hinfo);
@@ -466,38 +466,25 @@ static inline void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now)
 
 static inline __be32 maskl(__be32 a, unsigned int l)
 {
-	return htonl(ntohl(a) & ~(~(u_int32_t)0 >> l));
+	return l ? htonl(ntohl(a) & ~0 << (32 - l)) : 0;
 }
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static void hashlimit_ipv6_mask(__be32 *i, unsigned int p)
 {
 	switch (p) {
-	case 0:
-		i[0] = i[1] = 0;
-		i[2] = i[3] = 0;
-		break;
-	case 1 ... 31:
+	case 0 ... 31:
 		i[0] = maskl(i[0], p);
 		i[1] = i[2] = i[3] = 0;
 		break;
-	case 32:
-		i[1] = i[2] = i[3] = 0;
-		break;
-	case 33 ... 63:
+	case 32 ... 63:
 		i[1] = maskl(i[1], p - 32);
 		i[2] = i[3] = 0;
 		break;
-	case 64:
-		i[2] = i[3] = 0;
-		break;
-	case 65 ... 95:
+	case 64 ... 95:
 		i[2] = maskl(i[2], p - 64);
 		i[3] = 0;
-	case 96:
-		i[3] = 0;
-		break;
-	case 97 ... 127:
+	case 96 ... 127:
 		i[3] = maskl(i[3], p - 96);
 		break;
 	case 128:
@@ -774,9 +761,6 @@ hashlimit_mt_check(const char *tablename, const void *inf,
 		return false;
 	}
 	mutex_unlock(&hlimit_mutex);
-
-	/* Ugly hack: For SMP, we only want to use one set */
-	info->master = info;
 	return true;
 }
 

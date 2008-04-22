@@ -84,14 +84,21 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 
 int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 {
+	struct xfrm_mode *inner_mode = x->inner_mode;
 	int err;
 
 	err = x->outer_mode->afinfo->extract_input(x, skb);
 	if (err)
 		return err;
 
-	skb->protocol = x->inner_mode->afinfo->eth_proto;
-	return x->inner_mode->input2(x, skb);
+	if (x->sel.family == AF_UNSPEC) {
+		inner_mode = xfrm_ip2inner_mode(x, XFRM_MODE_SKB_CB(skb)->protocol);
+		if (inner_mode == NULL)
+			return -EAFNOSUPPORT;
+	}
+
+	skb->protocol = inner_mode->afinfo->eth_proto;
+	return inner_mode->input2(x, skb);
 }
 EXPORT_SYMBOL(xfrm_prepare_input);
 
@@ -101,6 +108,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	__be32 seq;
 	struct xfrm_state *x;
 	xfrm_address_t *daddr;
+	struct xfrm_mode *inner_mode;
 	unsigned int family;
 	int decaps = 0;
 	int async = 0;
@@ -207,7 +215,15 @@ resume:
 
 		XFRM_MODE_SKB_CB(skb)->protocol = nexthdr;
 
-		if (x->inner_mode->input(x, skb)) {
+		inner_mode = x->inner_mode;
+
+		if (x->sel.family == AF_UNSPEC) {
+			inner_mode = xfrm_ip2inner_mode(x, XFRM_MODE_SKB_CB(skb)->protocol);
+			if (inner_mode == NULL)
+				goto drop;
+		}
+
+		if (inner_mode->input(x, skb)) {
 			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATEMODEERROR);
 			goto drop;
 		}

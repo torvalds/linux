@@ -389,6 +389,7 @@ static const struct oxygen_model model_xonar = {
 	.shortname = "Asus AV200",
 	.longname = "Asus Virtuoso 200",
 	.chip = "AV200",
+	.owner = THIS_MODULE,
 	.init = xonar_init,
 	.control_filter = xonar_control_filter,
 	.mixer_init = xonar_mixer_init,

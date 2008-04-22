@@ -171,7 +171,7 @@ int tda18271_read_extended(struct dvb_frontend *fe)
 	if (ret != 2)
 		tda_err("ERROR: i2c_transfer returned: %d\n", ret);
 
-	for (i = 0; i <= TDA18271_NUM_REGS; i++) {
+	for (i = 0; i < TDA18271_NUM_REGS; i++) {
 		/* don't update write-only registers */
 		if ((i != R_EB9)  &&
 		    (i != R_EB16) &&

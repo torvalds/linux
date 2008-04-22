@@ -1206,7 +1206,10 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 		return -EINVAL;
 	}
 
-	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+	if (dev->quirks & USB_QUIRK_NO_SET_INTF)
+		ret = -EPIPE;
+	else
+		ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 				   USB_REQ_SET_INTERFACE, USB_RECIP_INTERFACE,
 				   alternate, interface, NULL, 0, 5000);
 

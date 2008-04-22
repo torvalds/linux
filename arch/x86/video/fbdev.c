@@ -1,5 +1,4 @@
 /*
- * arch/i386/video/fbdev.c - i386 Framebuffer
  *
  * Copyright (C) 2007 Antonino Daplas <adaplas@gmail.com>
  *

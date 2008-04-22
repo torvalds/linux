@@ -204,7 +204,7 @@ static void oxygen_proc_read(struct snd_info_entry *entry,
 	mutex_unlock(&chip->mutex);
 }
 
-static void __devinit oxygen_proc_init(struct oxygen *chip)
+static void oxygen_proc_init(struct oxygen *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -215,7 +215,7 @@ static void __devinit oxygen_proc_init(struct oxygen *chip)
 #define oxygen_proc_init(chip)
 #endif
 
-static void __devinit oxygen_init(struct oxygen *chip)
+static void oxygen_init(struct oxygen *chip)
 {
 	unsigned int i;
 
@@ -399,8 +399,8 @@ static void oxygen_card_free(struct snd_card *card)
 	pci_disable_device(chip->pci);
 }
 
-int __devinit oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
-			       int midi, const struct oxygen_model *model)
+int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
+		     int midi, const struct oxygen_model *model)
 {
 	struct snd_card *card;
 	struct oxygen *chip;
@@ -507,7 +507,7 @@ err_card:
 }
 EXPORT_SYMBOL(oxygen_pci_probe);
 
-void __devexit oxygen_pci_remove(struct pci_dev *pci)
+void oxygen_pci_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);

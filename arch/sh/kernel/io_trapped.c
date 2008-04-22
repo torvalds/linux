@@ -32,7 +32,7 @@ EXPORT_SYMBOL_GPL(trapped_mem);
 #endif
 static DEFINE_SPINLOCK(trapped_lock);
 
-int __init register_trapped_io(struct trapped_io *tiop)
+int register_trapped_io(struct trapped_io *tiop)
 {
 	struct resource *res;
 	unsigned long len = 0, flags = 0;

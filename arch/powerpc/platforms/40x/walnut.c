@@ -26,6 +26,7 @@
 #include <asm/time.h>
 #include <asm/uic.h>
 #include <asm/pci-bridge.h>
+#include <asm/ppc4xx.h>
 
 static __initdata struct of_device_id walnut_of_bus[] = {
 	{ .compatible = "ibm,plb3", },
@@ -61,5 +62,6 @@ define_machine(walnut) {
 	.progress		= udbg_progress,
 	.init_IRQ		= uic_init_tree,
 	.get_irq		= uic_get_irq,
-	.calibrate_decr	= generic_calibrate_decr,
+	.restart		= ppc4xx_reset_system,
+	.calibrate_decr		= generic_calibrate_decr,
 };

@@ -48,31 +48,13 @@ struct sm501_devdata {
 	unsigned int			 pdev_id;
 	unsigned int			 irq;
 	void __iomem			*regs;
+	unsigned int			 rev;
 };
 
 #define MHZ (1000 * 1000)
 
 #ifdef DEBUG
-static const unsigned int misc_div[] = {
-	[0]		= 1,
-	[1]		= 2,
-	[2]		= 4,
-	[3]		= 8,
-	[4]		= 16,
-	[5]		= 32,
-	[6]		= 64,
-	[7]		= 128,
-	[8]		= 3,
-	[9]		= 6,
-	[10]		= 12,
-	[11]		= 24,
-	[12]		= 48,
-	[13]		= 96,
-	[14]		= 192,
-	[15]		= 384,
-};
-
-static const unsigned int px_div[] = {
+static const unsigned int div_tab[] = {
 	[0]		= 1,
 	[1]		= 2,
 	[2]		= 4,
@@ -101,12 +83,12 @@ static const unsigned int px_div[] = {
 
 static unsigned long decode_div(unsigned long pll2, unsigned long val,
 				unsigned int lshft, unsigned int selbit,
-				unsigned long mask, const unsigned int *dtab)
+				unsigned long mask)
 {
 	if (val & selbit)
 		pll2 = 288 * MHZ;
 
-	return pll2 / dtab[(val >> lshft) & mask];
+	return pll2 / div_tab[(val >> lshft) & mask];
 }
 
 #define fmt_freq(x) ((x) / MHZ), ((x) % MHZ), (x)
@@ -141,10 +123,10 @@ static void sm501_dump_clk(struct sm501_devdata *sm)
 	}
 
 	sdclk0 = (misct & (1<<12)) ? pll2 : 288 * MHZ;
-	sdclk0 /= misc_div[((misct >> 8) & 0xf)];
+	sdclk0 /= div_tab[((misct >> 8) & 0xf)];
 
 	sdclk1 = (misct & (1<<20)) ? pll2 : 288 * MHZ;
-	sdclk1 /= misc_div[((misct >> 16) & 0xf)];
+	sdclk1 /= div_tab[((misct >> 16) & 0xf)];
 
 	dev_dbg(sm->dev, "MISCT=%08lx, PM0=%08lx, PM1=%08lx\n",
 		misct, pm0, pm1);
@@ -158,19 +140,19 @@ static void sm501_dump_clk(struct sm501_devdata *sm)
 		 "P2 %ld.%ld MHz (%ld), V2 %ld.%ld (%ld), "
 		 "M %ld.%ld (%ld), MX1 %ld.%ld (%ld)\n",
 		 (pmc & 3 ) == 0 ? '*' : '-',
-		 fmt_freq(decode_div(pll2, pm0, 24, 1<<29, 31, px_div)),
-		 fmt_freq(decode_div(pll2, pm0, 16, 1<<20, 15, misc_div)),
-		 fmt_freq(decode_div(pll2, pm0, 8,  1<<12, 15, misc_div)),
-		 fmt_freq(decode_div(pll2, pm0, 0,  1<<4,  15, misc_div)));
+		 fmt_freq(decode_div(pll2, pm0, 24, 1<<29, 31)),
+		 fmt_freq(decode_div(pll2, pm0, 16, 1<<20, 15)),
+		 fmt_freq(decode_div(pll2, pm0, 8,  1<<12, 15)),
+		 fmt_freq(decode_div(pll2, pm0, 0,  1<<4,  15)));
 
 	dev_dbg(sm->dev, "PM1[%c]: "
 		"P2 %ld.%ld MHz (%ld), V2 %ld.%ld (%ld), "
 		"M %ld.%ld (%ld), MX1 %ld.%ld (%ld)\n",
 		(pmc & 3 ) == 1 ? '*' : '-',
-		fmt_freq(decode_div(pll2, pm1, 24, 1<<29, 31, px_div)),
-		fmt_freq(decode_div(pll2, pm1, 16, 1<<20, 15, misc_div)),
-		fmt_freq(decode_div(pll2, pm1, 8,  1<<12, 15, misc_div)),
-		fmt_freq(decode_div(pll2, pm1, 0,  1<<4,  15, misc_div)));
+		fmt_freq(decode_div(pll2, pm1, 24, 1<<29, 31)),
+		fmt_freq(decode_div(pll2, pm1, 16, 1<<20, 15)),
+		fmt_freq(decode_div(pll2, pm1, 8,  1<<12, 15)),
+		fmt_freq(decode_div(pll2, pm1, 0,  1<<4,  15)));
 }
 
 static void sm501_dump_regs(struct sm501_devdata *sm)
@@ -436,46 +418,108 @@ struct sm501_clock {
 	unsigned long mclk;
 	int divider;
 	int shift;
+	unsigned int m, n, k;
 };
+
+/* sm501_calc_clock
+ *
+ * Calculates the nearest discrete clock frequency that
+ * can be achieved with the specified input clock.
+ *   the maximum divisor is 3 or 5
+ */
+
+static int sm501_calc_clock(unsigned long freq,
+			    struct sm501_clock *clock,
+			    int max_div,
+			    unsigned long mclk,
+			    long *best_diff)
+{
+	int ret = 0;
+	int divider;
+	int shift;
+	long diff;
+
+	/* try dividers 1 and 3 for CRT and for panel,
+	   try divider 5 for panel only.*/
+
+	for (divider = 1; divider <= max_div; divider += 2) {
+		/* try all 8 shift values.*/
+		for (shift = 0; shift < 8; shift++) {
+			/* Calculate difference to requested clock */
+			diff = sm501fb_round_div(mclk, divider << shift) - freq;
+			if (diff < 0)
+				diff = -diff;
+
+			/* If it is less than the current, use it */
+			if (diff < *best_diff) {
+				*best_diff = diff;
+
+				clock->mclk = mclk;
+				clock->divider = divider;
+				clock->shift = shift;
+				ret = 1;
+			}
+		}
+	}
+
+	return ret;
+}
+
+/* sm501_calc_pll
+ *
+ * Calculates the nearest discrete clock frequency that can be
+ * achieved using the programmable PLL.
+ *   the maximum divisor is 3 or 5
+ */
+
+static unsigned long sm501_calc_pll(unsigned long freq,
+					struct sm501_clock *clock,
+					int max_div)
+{
+	unsigned long mclk;
+	unsigned int m, n, k;
+	long best_diff = 999999999;
+
+	/*
+	 * The SM502 datasheet doesn't specify the min/max values for M and N.
+	 * N = 1 at least doesn't work in practice.
+	 */
+	for (m = 2; m <= 255; m++) {
+		for (n = 2; n <= 127; n++) {
+			for (k = 0; k <= 1; k++) {
+				mclk = (24000000UL * m / n) >> k;
+
+				if (sm501_calc_clock(freq, clock, max_div,
+						     mclk, &best_diff)) {
+					clock->m = m;
+					clock->n = n;
+					clock->k = k;
+				}
+			}
+		}
+	}
+
+	/* Return best clock. */
+	return clock->mclk / (clock->divider << clock->shift);
+}
 
 /* sm501_select_clock
  *
- * selects nearest discrete clock frequency the SM501 can achive
+ * Calculates the nearest discrete clock frequency that can be
+ * achieved using the 288MHz and 336MHz PLLs.
  *   the maximum divisor is 3 or 5
  */
+
 static unsigned long sm501_select_clock(unsigned long freq,
 					struct sm501_clock *clock,
 					int max_div)
 {
 	unsigned long mclk;
-	int divider;
-	int shift;
-	long diff;
 	long best_diff = 999999999;
 
 	/* Try 288MHz and 336MHz clocks. */
 	for (mclk = 288000000; mclk <= 336000000; mclk += 48000000) {
-		/* try dividers 1 and 3 for CRT and for panel,
-		   try divider 5 for panel only.*/
-
-		for (divider = 1; divider <= max_div; divider += 2) {
-			/* try all 8 shift values.*/
-			for (shift = 0; shift < 8; shift++) {
-				/* Calculate difference to requested clock */
-				diff = sm501fb_round_div(mclk, divider << shift) - freq;
-				if (diff < 0)
-					diff = -diff;
-
-				/* If it is less than the current, use it */
-				if (diff < best_diff) {
-					best_diff = diff;
-
-					clock->mclk = mclk;
-					clock->divider = divider;
-					clock->shift = shift;
-				}
-			}
-		}
+		sm501_calc_clock(freq, clock, max_div, mclk, &best_diff);
 	}
 
 	/* Return best clock. */
@@ -497,6 +541,7 @@ unsigned long sm501_set_clock(struct device *dev,
 	unsigned long gate = readl(sm->regs + SM501_CURRENT_GATE);
 	unsigned long clock = readl(sm->regs + SM501_CURRENT_CLOCK);
 	unsigned char reg;
+	unsigned int pll_reg = 0;
 	unsigned long sm501_freq; /* the actual frequency acheived */
 
 	struct sm501_clock to;
@@ -511,14 +556,28 @@ unsigned long sm501_set_clock(struct device *dev,
 		 * requested frequency the value must be multiplied by
 		 * 2. This clock also has an additional pre divisor */
 
-		sm501_freq = (sm501_select_clock(2 * req_freq, &to, 5) / 2);
-		reg=to.shift & 0x07;/* bottom 3 bits are shift */
-		if (to.divider == 3)
-			reg |= 0x08; /* /3 divider required */
-		else if (to.divider == 5)
-			reg |= 0x10; /* /5 divider required */
-		if (to.mclk != 288000000)
-			reg |= 0x20; /* which mclk pll is source */
+		if (sm->rev >= 0xC0) {
+			/* SM502 -> use the programmable PLL */
+			sm501_freq = (sm501_calc_pll(2 * req_freq,
+						     &to, 5) / 2);
+			reg = to.shift & 0x07;/* bottom 3 bits are shift */
+			if (to.divider == 3)
+				reg |= 0x08; /* /3 divider required */
+			else if (to.divider == 5)
+				reg |= 0x10; /* /5 divider required */
+			reg |= 0x40; /* select the programmable PLL */
+			pll_reg = 0x20000 | (to.k << 15) | (to.n << 8) | to.m;
+		} else {
+			sm501_freq = (sm501_select_clock(2 * req_freq,
+							 &to, 5) / 2);
+			reg = to.shift & 0x07;/* bottom 3 bits are shift */
+			if (to.divider == 3)
+				reg |= 0x08; /* /3 divider required */
+			else if (to.divider == 5)
+				reg |= 0x10; /* /5 divider required */
+			if (to.mclk != 288000000)
+				reg |= 0x20; /* which mclk pll is source */
+		}
 		break;
 
 	case SM501_CLOCK_V2XCLK:
@@ -579,6 +638,10 @@ unsigned long sm501_set_clock(struct device *dev,
 	}
 
 	writel(mode, sm->regs + SM501_POWER_MODE_CONTROL);
+
+	if (pll_reg)
+		writel(pll_reg, sm->regs + SM501_PROGRAMMABLE_PLL_CONTROL);
+
 	sm501_sync_regs(sm);
 
 	dev_info(sm->dev, "gate %08lx, clock %08lx, mode %08lx\n",
@@ -599,15 +662,24 @@ EXPORT_SYMBOL_GPL(sm501_set_clock);
  * finds the closest available frequency for a given clock
 */
 
-unsigned long sm501_find_clock(int clksrc,
+unsigned long sm501_find_clock(struct device *dev,
+			       int clksrc,
 			       unsigned long req_freq)
 {
+	struct sm501_devdata *sm = dev_get_drvdata(dev);
 	unsigned long sm501_freq; /* the frequency achiveable by the 501 */
 	struct sm501_clock to;
 
 	switch (clksrc) {
 	case SM501_CLOCK_P2XCLK:
-		sm501_freq = (sm501_select_clock(2 * req_freq, &to, 5) / 2);
+		if (sm->rev >= 0xC0) {
+			/* SM502 -> use the programmable PLL */
+			sm501_freq = (sm501_calc_pll(2 * req_freq,
+						     &to, 5) / 2);
+		} else {
+			sm501_freq = (sm501_select_clock(2 * req_freq,
+							 &to, 5) / 2);
+		}
 		break;
 
 	case SM501_CLOCK_V2XCLK:
@@ -913,6 +985,8 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 
 	dev_info(sm->dev, "SM501 At %p: Version %08lx, %ld Mb, IRQ %d\n",
 		 sm->regs, devid, (unsigned long)mem_avail >> 20, sm->irq);
+
+	sm->rev = devid & SM501_DEVICEID_REVMASK;
 
 	sm501_dump_gate(sm);
 

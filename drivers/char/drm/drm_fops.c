@@ -326,6 +326,7 @@ int drm_release(struct inode *inode, struct file *filp)
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->head->dev;
 	int retcode = 0;
+	unsigned long irqflags;
 
 	lock_kernel();
 
@@ -357,9 +358,11 @@ int drm_release(struct inode *inode, struct file *filp)
 			 */
 
 			do{
-				spin_lock(&dev->lock.spinlock);
+				spin_lock_irqsave(&dev->lock.spinlock,
+						  irqflags);
 				locked = dev->lock.idle_has_lock;
-				spin_unlock(&dev->lock.spinlock);
+				spin_unlock_irqrestore(&dev->lock.spinlock,
+						       irqflags);
 				if (locked)
 					break;
 				schedule();

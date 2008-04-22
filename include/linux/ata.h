@@ -659,6 +659,11 @@ static inline int atapi_command_packet_set(const u16 *dev_id)
 	return (dev_id[0] >> 8) & 0x1f;
 }
 
+static inline int atapi_id_dmadir(const u16 *dev_id)
+{
+	return ata_id_major_version(dev_id) >= 7 && (dev_id[62] & 0x8000);
+}
+
 static inline int is_multi_taskfile(struct ata_taskfile *tf)
 {
 	return (tf->command == ATA_CMD_READ_MULTI) ||

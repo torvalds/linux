@@ -63,6 +63,8 @@ extern void cheetah_enable_pcache(void);
 	 SPITFIRE_HIGHEST_LOCKED_TLBENT : \
 	 CHEETAH_HIGHEST_LOCKED_TLBENT)
 
+extern int num_kernel_image_mappings;
+
 /* The data cache is write through, so this just invalidates the
  * specified line.
  */

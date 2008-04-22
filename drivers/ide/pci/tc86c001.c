@@ -126,40 +126,6 @@ static void tc86c001_dma_start(ide_drive_t *drive)
 	ide_dma_start(drive);
 }
 
-static int tc86c001_busproc(ide_drive_t *drive, int state)
-{
-	ide_hwif_t *hwif	= HWIF(drive);
-	unsigned long sc_base	= hwif->config_data;
-	u16 scr1;
-
-	/* System Control 1 Register bit 11 (ATA Hard Reset) read */
-	scr1 = inw(sc_base + 0x00);
-
-	switch (state) {
-		case BUSSTATE_ON:
-			if (!(scr1 & 0x0800))
-				return 0;
-			scr1 &= ~0x0800;
-
-			hwif->drives[0].failures = hwif->drives[1].failures = 0;
-			break;
-		case BUSSTATE_OFF:
-			if (scr1 & 0x0800)
-				return 0;
-			scr1 |= 0x0800;
-
-			hwif->drives[0].failures = hwif->drives[0].max_failures + 1;
-			hwif->drives[1].failures = hwif->drives[1].max_failures + 1;
-			break;
-		default:
-			return -EINVAL;
-	}
-
-	/* System Control 1 Register bit 11 (ATA Hard Reset) write */
-	outw(scr1, sc_base + 0x00);
-	return 0;
-}
-
 static u8 __devinit tc86c001_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
@@ -193,8 +159,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 
 	hwif->set_pio_mode = &tc86c001_set_pio_mode;
 	hwif->set_dma_mode = &tc86c001_set_mode;
-
-	hwif->busproc	= &tc86c001_busproc;
 
 	hwif->cable_detect = tc86c001_cable_detect;
 

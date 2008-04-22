@@ -1,5 +1,4 @@
 /*
- *  linux/arch/i386/mm/init.c
  *
  *  Copyright (C) 1995  Linus Torvalds
  *
@@ -50,6 +49,8 @@
 #include <asm/cacheflush.h>
 
 unsigned int __VMALLOC_RESERVE = 128 << 20;
+
+unsigned long max_pfn_mapped;
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 unsigned long highstart_pfn, highend_pfn;
@@ -179,8 +180,13 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 			/*
 			 * Map with big pages if possible, otherwise
 			 * create normal page tables:
+			 *
+			 * Don't use a large page for the first 2/4MB of memory
+			 * because there are often fixed size MTRRs in there
+			 * and overlapping MTRRs into large pages can cause
+			 * slowdowns.
 			 */
-			if (cpu_has_pse) {
+			if (cpu_has_pse && !(pgd_idx == 0 && pmd_idx == 0)) {
 				unsigned int addr2;
 				pgprot_t prot = PAGE_KERNEL_LARGE;
 
@@ -194,6 +200,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 				set_pmd(pmd, pfn_pmd(pfn, prot));
 
 				pfn += PTRS_PER_PTE;
+				max_pfn_mapped = pfn;
 				continue;
 			}
 			pte = one_page_table_init(pmd);
@@ -208,6 +215,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 
 				set_pte(pte, pfn_pte(pfn, prot));
 			}
+			max_pfn_mapped = pfn;
 		}
 	}
 }
@@ -723,25 +731,17 @@ void mark_rodata_ro(void)
 	unsigned long start = PFN_ALIGN(_text);
 	unsigned long size = PFN_ALIGN(_etext) - start;
 
-#ifndef CONFIG_KPROBES
-#ifdef CONFIG_HOTPLUG_CPU
-	/* It must still be possible to apply SMP alternatives. */
-	if (num_possible_cpus() <= 1)
-#endif
-	{
-		set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
-		printk(KERN_INFO "Write protecting the kernel text: %luk\n",
-			size >> 10);
+	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
+	printk(KERN_INFO "Write protecting the kernel text: %luk\n",
+		size >> 10);
 
 #ifdef CONFIG_CPA_DEBUG
-		printk(KERN_INFO "Testing CPA: Reverting %lx-%lx\n",
-			start, start+size);
-		set_pages_rw(virt_to_page(start), size>>PAGE_SHIFT);
+	printk(KERN_INFO "Testing CPA: Reverting %lx-%lx\n",
+		start, start+size);
+	set_pages_rw(virt_to_page(start), size>>PAGE_SHIFT);
 
-		printk(KERN_INFO "Testing CPA: write protecting again\n");
-		set_pages_ro(virt_to_page(start), size>>PAGE_SHIFT);
-#endif
-	}
+	printk(KERN_INFO "Testing CPA: write protecting again\n");
+	set_pages_ro(virt_to_page(start), size>>PAGE_SHIFT);
 #endif
 	start += size;
 	size = (unsigned long)__end_rodata - start;

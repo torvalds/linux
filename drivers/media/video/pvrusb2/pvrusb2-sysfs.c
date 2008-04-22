@@ -21,7 +21,6 @@
 
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <asm/semaphore.h>
 #include "pvrusb2-sysfs.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-debug.h"

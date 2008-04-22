@@ -409,7 +409,7 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 			   struct sctp_association *asoc,
 			   struct sctp_transport *t)
 {
-	SCTP_DEBUG_PRINTK("%s\n",  __FUNCTION__);
+	SCTP_DEBUG_PRINTK("%s\n",  __func__);
 
 	sctp_do_sm(SCTP_EVENT_T_OTHER,
 		   SCTP_ST_OTHER(SCTP_EVENT_ICMP_PROTO_UNREACH),
@@ -725,7 +725,6 @@ static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(const union sctp_addr *l
 	}
 
 	ep = sctp_sk((sctp_get_ctl_sock()))->ep;
-	epb = &ep->base;
 
 hit:
 	sctp_endpoint_hold(ep);
@@ -944,7 +943,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct sk_buff *skb,
 static struct sctp_association *__sctp_rcv_asconf_lookup(
 					sctp_chunkhdr_t *ch,
 					const union sctp_addr *laddr,
-					__be32 peer_port,
+					__be16 peer_port,
 					struct sctp_transport **transportp)
 {
 	sctp_addip_chunk_t *asconf = (struct sctp_addip_chunk *)ch;

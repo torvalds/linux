@@ -13,7 +13,6 @@
 #include <asm/io.h>
 
 int io_delay_type __read_mostly = CONFIG_DEFAULT_IO_DELAY_TYPE;
-EXPORT_SYMBOL_GPL(io_delay_type);
 
 static int __initdata io_delay_override;
 
@@ -75,6 +74,14 @@ static struct dmi_system_id __initdata io_delay_0xed_port_dmi_table[] = {
 		.matches	= {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Quanta"),
 			DMI_MATCH(DMI_BOARD_NAME, "30B9")
+		}
+	},
+	{
+		.callback	= dmi_io_delay_0xed_port,
+		.ident		= "HP Pavilion dv6000",
+		.matches	= {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Quanta"),
+			DMI_MATCH(DMI_BOARD_NAME, "30B8")
 		}
 	},
 	{

@@ -120,6 +120,7 @@ void it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 			  time, when they all three were 0. */
 		       bits_pd = __raw_readl(IT8152_INTC_PDCNIRR);
 		       bits_lp = __raw_readl(IT8152_INTC_LPCNIRR);
+		       bits_ld = __raw_readl(IT8152_INTC_LDCNIRR);
 		       if (!(bits_ld | bits_lp | bits_pd))
 			       return;
 	       }
@@ -133,14 +134,14 @@ void it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 
 	       bits_lp &= ((1 << IT8152_LP_IRQ_COUNT) - 1);
 	       while (bits_lp) {
-		       i = __ffs(bits_pd);
+		       i = __ffs(bits_lp);
 		       it8152_irq(IT8152_LP_IRQ(i));
 		       bits_lp &= ~(1 << i);
 	       }
 
 	       bits_ld &= ((1 << IT8152_LD_IRQ_COUNT) - 1);
 	       while (bits_ld) {
-		       i = __ffs(bits_pd);
+		       i = __ffs(bits_ld);
 		       it8152_irq(IT8152_LD_IRQ(i));
 		       bits_ld &= ~(1 << i);
 	       }
@@ -274,7 +275,7 @@ static int it8152_pci_platform_notify_remove(struct device *dev)
 int dma_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
 {
 	dev_dbg(dev, "%s: dma_addr %08x, size %08x\n",
-		__FUNCTION__, dma_addr, size);
+		__func__, dma_addr, size);
 	return (dev->bus == &pci_bus_type) &&
 		((dma_addr + size - PHYS_OFFSET) >= SZ_64M);
 }
@@ -289,7 +290,7 @@ int dma_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
  */
 int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 {
-	dev_dbg(&dev->dev, "%s: %llx\n", __FUNCTION__, mask);
+	dev_dbg(&dev->dev, "%s: %llx\n", __func__, mask);
 	if (mask >= PHYS_OFFSET + SZ_64M - 1)
 		return 0;
 
@@ -299,7 +300,7 @@ int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 int
 pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 {
-	dev_dbg(&dev->dev, "%s: %llx\n", __FUNCTION__, mask);
+	dev_dbg(&dev->dev, "%s: %llx\n", __func__, mask);
 	if (mask >= PHYS_OFFSET + SZ_64M - 1)
 		return 0;
 

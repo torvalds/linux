@@ -1038,7 +1038,7 @@ static int tuner_resume(struct i2c_client *c)
 
 /* ---------------------------------------------------------------------- */
 
-LIST_HEAD(tuner_list);
+static LIST_HEAD(tuner_list);
 
 /* Search for existing radio and/or TV tuners on the given I2C adapter.
    Note that when this function is called from tuner_probe you can be

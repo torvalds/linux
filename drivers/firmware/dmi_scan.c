@@ -10,10 +10,9 @@
 
 static char dmi_empty_string[] = "        ";
 
-static char * __init dmi_string(const struct dmi_header *dm, u8 s)
+static const char * __init dmi_string_nosave(const struct dmi_header *dm, u8 s)
 {
 	const u8 *bp = ((u8 *) dm) + dm->length;
-	char *str = "";
 
 	if (s) {
 		s--;
@@ -28,13 +27,28 @@ static char * __init dmi_string(const struct dmi_header *dm, u8 s)
 
 			if (!memcmp(bp, dmi_empty_string, cmp_len))
 				return dmi_empty_string;
-			str = dmi_alloc(len);
-			if (str != NULL)
-				strcpy(str, bp);
-			else
-				printk(KERN_ERR "dmi_string: cannot allocate %Zu bytes.\n", len);
+			return bp;
 		}
 	}
+
+	return "";
+}
+
+static char * __init dmi_string(const struct dmi_header *dm, u8 s)
+{
+	const char *bp = dmi_string_nosave(dm, s);
+	char *str;
+	size_t len;
+
+	if (bp == dmi_empty_string)
+		return dmi_empty_string;
+
+	len = strlen(bp) + 1;
+	str = dmi_alloc(len);
+	if (str != NULL)
+		strcpy(str, bp);
+	else
+		printk(KERN_ERR "dmi_string: cannot allocate %Zu bytes.\n", len);
 
 	return str;
 }
@@ -167,10 +181,30 @@ static void __init dmi_save_type(const struct dmi_header *dm, int slot, int inde
 	dmi_ident[slot] = s;
 }
 
+static void __init dmi_save_one_device(int type, const char *name)
+{
+	struct dmi_device *dev;
+
+	/* No duplicate device */
+	if (dmi_find_device(type, name, NULL))
+		return;
+
+	dev = dmi_alloc(sizeof(*dev) + strlen(name) + 1);
+	if (!dev) {
+		printk(KERN_ERR "dmi_save_one_device: out of memory.\n");
+		return;
+	}
+
+	dev->type = type;
+	strcpy((char *)(dev + 1), name);
+	dev->name = (char *)(dev + 1);
+	dev->device_data = NULL;
+	list_add(&dev->list, &dmi_devices);
+}
+
 static void __init dmi_save_devices(const struct dmi_header *dm)
 {
 	int i, count = (dm->length - sizeof(struct dmi_header)) / 2;
-	struct dmi_device *dev;
 
 	for (i = 0; i < count; i++) {
 		const char *d = (char *)(dm + 1) + (i * 2);
@@ -179,22 +213,9 @@ static void __init dmi_save_devices(const struct dmi_header *dm)
 		if ((*d & 0x80) == 0)
 			continue;
 
-		dev = dmi_alloc(sizeof(*dev));
-		if (!dev) {
-			printk(KERN_ERR "dmi_save_devices: out of memory.\n");
-			break;
-		}
-
-		dev->type = *d++ & 0x7f;
-		dev->name = dmi_string(dm, *d);
-		dev->device_data = NULL;
-		list_add(&dev->list, &dmi_devices);
+		dmi_save_one_device(*d & 0x7f, dmi_string_nosave(dm, *(d + 1)));
 	}
 }
-
-static struct dmi_device empty_oem_string_dev = {
-	.name = dmi_empty_string,
-};
 
 static void __init dmi_save_oem_strings_devices(const struct dmi_header *dm)
 {
@@ -204,10 +225,8 @@ static void __init dmi_save_oem_strings_devices(const struct dmi_header *dm)
 	for (i = 1; i <= count; i++) {
 		char *devname = dmi_string(dm, i);
 
-		if (!strcmp(devname, dmi_empty_string)) {
-			list_add(&empty_oem_string_dev.list, &dmi_devices);
+		if (devname == dmi_empty_string)
 			continue;
-		}
 
 		dev = dmi_alloc(sizeof(*dev));
 		if (!dev) {
@@ -247,29 +266,18 @@ static void __init dmi_save_ipmi_device(const struct dmi_header *dm)
 	dev->name = "IPMI controller";
 	dev->device_data = data;
 
-	list_add(&dev->list, &dmi_devices);
+	list_add_tail(&dev->list, &dmi_devices);
 }
 
 static void __init dmi_save_extended_devices(const struct dmi_header *dm)
 {
 	const u8 *d = (u8*) dm + 5;
-	struct dmi_device *dev;
 
 	/* Skip disabled device */
 	if ((*d & 0x80) == 0)
 		return;
 
-	dev = dmi_alloc(sizeof(*dev));
-	if (!dev) {
-		printk(KERN_ERR "dmi_save_extended_devices: out of memory.\n");
-		return;
-	}
-
-	dev->type = *d-- & 0x7f;
-	dev->name = dmi_string(dm, *d);
-	dev->device_data = NULL;
-
-	list_add(&dev->list, &dmi_devices);
+	dmi_save_one_device(*d & 0x7f, dmi_string_nosave(dm, *(d - 1)));
 }
 
 /*

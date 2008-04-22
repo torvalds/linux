@@ -39,6 +39,8 @@
 #include <linux/dma-mapping.h>
 
 #include <rdma/ib_cache.h>
+#include <linux/ip.h>
+#include <linux/tcp.h>
 
 #include "ipoib.h"
 
@@ -231,6 +233,10 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	skb->dev = dev;
 	/* XXX get correct PACKET_ type here */
 	skb->pkt_type = PACKET_HOST;
+
+	if (test_bit(IPOIB_FLAG_CSUM, &priv->flags) && likely(wc->csum_ok))
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+
 	netif_receive_skb(skb);
 
 repost:
@@ -245,29 +251,37 @@ static int ipoib_dma_map_tx(struct ib_device *ca,
 	struct sk_buff *skb = tx_req->skb;
 	u64 *mapping = tx_req->mapping;
 	int i;
+	int off;
 
-	mapping[0] = ib_dma_map_single(ca, skb->data, skb_headlen(skb),
-				       DMA_TO_DEVICE);
-	if (unlikely(ib_dma_mapping_error(ca, mapping[0])))
-		return -EIO;
+	if (skb_headlen(skb)) {
+		mapping[0] = ib_dma_map_single(ca, skb->data, skb_headlen(skb),
+					       DMA_TO_DEVICE);
+		if (unlikely(ib_dma_mapping_error(ca, mapping[0])))
+			return -EIO;
+
+		off = 1;
+	} else
+		off = 0;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; ++i) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		mapping[i + 1] = ib_dma_map_page(ca, frag->page,
+		mapping[i + off] = ib_dma_map_page(ca, frag->page,
 						 frag->page_offset, frag->size,
 						 DMA_TO_DEVICE);
-		if (unlikely(ib_dma_mapping_error(ca, mapping[i + 1])))
+		if (unlikely(ib_dma_mapping_error(ca, mapping[i + off])))
 			goto partial_error;
 	}
 	return 0;
 
 partial_error:
-	ib_dma_unmap_single(ca, mapping[0], skb_headlen(skb), DMA_TO_DEVICE);
-
 	for (; i > 0; --i) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
-		ib_dma_unmap_page(ca, mapping[i], frag->size, DMA_TO_DEVICE);
+		ib_dma_unmap_page(ca, mapping[i - !off], frag->size, DMA_TO_DEVICE);
 	}
+
+	if (off)
+		ib_dma_unmap_single(ca, mapping[0], skb_headlen(skb), DMA_TO_DEVICE);
+
 	return -EIO;
 }
 
@@ -277,12 +291,17 @@ static void ipoib_dma_unmap_tx(struct ib_device *ca,
 	struct sk_buff *skb = tx_req->skb;
 	u64 *mapping = tx_req->mapping;
 	int i;
+	int off;
 
-	ib_dma_unmap_single(ca, mapping[0], skb_headlen(skb), DMA_TO_DEVICE);
+	if (skb_headlen(skb)) {
+		ib_dma_unmap_single(ca, mapping[0], skb_headlen(skb), DMA_TO_DEVICE);
+		off = 1;
+	} else
+		off = 0;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; ++i) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		ib_dma_unmap_page(ca, mapping[i + 1], frag->size,
+		ib_dma_unmap_page(ca, mapping[i + off], frag->size,
 				  DMA_TO_DEVICE);
 	}
 }
@@ -388,23 +407,39 @@ void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 static inline int post_send(struct ipoib_dev_priv *priv,
 			    unsigned int wr_id,
 			    struct ib_ah *address, u32 qpn,
-			    u64 *mapping, int headlen,
-			    skb_frag_t *frags,
-			    int nr_frags)
+			    struct ipoib_tx_buf *tx_req,
+			    void *head, int hlen)
 {
 	struct ib_send_wr *bad_wr;
-	int i;
+	int i, off;
+	struct sk_buff *skb = tx_req->skb;
+	skb_frag_t *frags = skb_shinfo(skb)->frags;
+	int nr_frags = skb_shinfo(skb)->nr_frags;
+	u64 *mapping = tx_req->mapping;
 
-	priv->tx_sge[0].addr	     = mapping[0];
-	priv->tx_sge[0].length       = headlen;
+	if (skb_headlen(skb)) {
+		priv->tx_sge[0].addr         = mapping[0];
+		priv->tx_sge[0].length       = skb_headlen(skb);
+		off = 1;
+	} else
+		off = 0;
+
 	for (i = 0; i < nr_frags; ++i) {
-		priv->tx_sge[i + 1].addr = mapping[i + 1];
-		priv->tx_sge[i + 1].length = frags[i].size;
+		priv->tx_sge[i + off].addr = mapping[i + off];
+		priv->tx_sge[i + off].length = frags[i].size;
 	}
-	priv->tx_wr.num_sge	     = nr_frags + 1;
+	priv->tx_wr.num_sge	     = nr_frags + off;
 	priv->tx_wr.wr_id 	     = wr_id;
 	priv->tx_wr.wr.ud.remote_qpn = qpn;
 	priv->tx_wr.wr.ud.ah 	     = address;
+
+	if (head) {
+		priv->tx_wr.wr.ud.mss	 = skb_shinfo(skb)->gso_size;
+		priv->tx_wr.wr.ud.header = head;
+		priv->tx_wr.wr.ud.hlen	 = hlen;
+		priv->tx_wr.opcode	 = IB_WR_LSO;
+	} else
+		priv->tx_wr.opcode	 = IB_WR_SEND;
 
 	return ib_post_send(priv->qp, &priv->tx_wr, &bad_wr);
 }
@@ -414,14 +449,30 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_tx_buf *tx_req;
+	int hlen;
+	void *phead;
 
-	if (unlikely(skb->len > priv->mcast_mtu + IPOIB_ENCAP_LEN)) {
-		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
-			   skb->len, priv->mcast_mtu + IPOIB_ENCAP_LEN);
-		++dev->stats.tx_dropped;
-		++dev->stats.tx_errors;
-		ipoib_cm_skb_too_long(dev, skb, priv->mcast_mtu);
-		return;
+	if (skb_is_gso(skb)) {
+		hlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		phead = skb->data;
+		if (unlikely(!skb_pull(skb, hlen))) {
+			ipoib_warn(priv, "linear data too small\n");
+			++dev->stats.tx_dropped;
+			++dev->stats.tx_errors;
+			dev_kfree_skb_any(skb);
+			return;
+		}
+	} else {
+		if (unlikely(skb->len > priv->mcast_mtu + IPOIB_ENCAP_LEN)) {
+			ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
+				   skb->len, priv->mcast_mtu + IPOIB_ENCAP_LEN);
+			++dev->stats.tx_dropped;
+			++dev->stats.tx_errors;
+			ipoib_cm_skb_too_long(dev, skb, priv->mcast_mtu);
+			return;
+		}
+		phead = NULL;
+		hlen  = 0;
 	}
 
 	ipoib_dbg_data(priv, "sending packet, length=%d address=%p qpn=0x%06x\n",
@@ -442,10 +493,13 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		return;
 	}
 
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		priv->tx_wr.send_flags |= IB_SEND_IP_CSUM;
+	else
+		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
+
 	if (unlikely(post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
-			       address->ah, qpn,
-			       tx_req->mapping, skb_headlen(skb),
-			       skb_shinfo(skb)->frags, skb_shinfo(skb)->nr_frags))) {
+			       address->ah, qpn, tx_req, phead, hlen))) {
 		ipoib_warn(priv, "post_send failed\n");
 		++dev->stats.tx_errors;
 		ipoib_dma_unmap_tx(priv->ca, tx_req);
@@ -540,7 +594,7 @@ static void ipoib_pkey_dev_check_presence(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	u16 pkey_index = 0;
 
-	if (ib_find_cached_pkey(priv->ca, priv->port, priv->pkey, &pkey_index))
+	if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &pkey_index))
 		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 	else
 		set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
@@ -781,13 +835,13 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv, int pkey_event)
 			clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 			ipoib_ib_dev_down(dev, 0);
 			ipoib_ib_dev_stop(dev, 0);
-			ipoib_pkey_dev_delay_open(dev);
-			return;
+			if (ipoib_pkey_dev_delay_open(dev))
+				return;
 		}
-		set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 
 		/* restart QP only if P_Key index is changed */
-		if (new_index == priv->pkey_index) {
+		if (test_and_set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags) &&
+		    new_index == priv->pkey_index) {
 			ipoib_dbg(priv, "Not flushing - P_Key index not changed.\n");
 			return;
 		}

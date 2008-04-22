@@ -28,6 +28,7 @@
 #ifndef __ASM_DB1X00_H
 #define __ASM_DB1X00_H
 
+#include <asm/mach-au1x00/au1xxx_psc.h>
 
 #ifdef CONFIG_MIPS_DB1550
 

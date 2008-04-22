@@ -596,7 +596,7 @@ static void h3800_control_egpio(enum ipaq_egpio_type x, int setp)
 	case IPAQ_EGPIO_CODEC_NRESET:
 	case IPAQ_EGPIO_AUDIO_ON:
 	case IPAQ_EGPIO_QMUTE:
-		printk("%s: error - should not be called\n", __FUNCTION__);
+		printk("%s: error - should not be called\n", __func__);
 		break;
 	case IPAQ_EGPIO_OPT_NVRAM_ON:
 		SET_ASIC2(GPIO2_OPT_ON_NVRAM);
@@ -638,7 +638,7 @@ static int h3800_pm_callback(int req)
 	static u16 asic2_data;
 	int result = 0;
 
-	printk("%s %d\n", __FUNCTION__, req);
+	printk("%s %d\n", __func__, req);
 
 	switch (req) {
 	case PM_RESUME:
@@ -666,7 +666,7 @@ static int h3800_pm_callback(int req)
 		asic2_data = H3800_ASIC2_GPIOPIOD;
 		break;
 	default:
-		printk("%s: unrecognized PM callback\n", __FUNCTION__);
+		printk("%s: unrecognized PM callback\n", __func__);
 		break;
 	}
 	return result;
@@ -706,7 +706,7 @@ static void h3800_IRQ_demux(unsigned int irq, struct irq_desc *desc)
 {
 	int i;
 
-	if (0) printk("%s: interrupt received\n", __FUNCTION__);
+	if (0) printk("%s: interrupt received\n", __func__);
 
 	desc->chip->ack(irq);
 
@@ -716,21 +716,21 @@ static void h3800_IRQ_demux(unsigned int irq, struct irq_desc *desc)
 
 		/* KPIO */
 		irq = H3800_ASIC2_KPIINTFLAG;
-		if (0) printk("%s KPIO 0x%08X\n", __FUNCTION__, irq);
+		if (0) printk("%s KPIO 0x%08X\n", __func__, irq);
 		for (j = 0; j < H3800_KPIO_IRQ_COUNT; j++)
 			if (irq & kpio_irq_mask[j])
 				handle_edge_irq(H3800_KPIO_IRQ_COUNT + j, irq_desc + H3800_KPIO_IRQ_COUNT + j);
 
 		/* GPIO2 */
 		irq = H3800_ASIC2_GPIINTFLAG;
-		if (0) printk("%s GPIO 0x%08X\n", __FUNCTION__, irq);
+		if (0) printk("%s GPIO 0x%08X\n", __func__, irq);
 		for (j = 0; j < H3800_GPIO_IRQ_COUNT; j++)
 			if (irq & gpio_irq_mask[j])
 				handle_edge_irq(H3800_GPIO_IRQ_COUNT + j, irq_desc + H3800_GPIO_IRQ_COUNT + j);
 	}
 
 	if (i >= MAX_ASIC_ISR_LOOPS)
-		printk("%s: interrupt processing overrun\n", __FUNCTION__);
+		printk("%s: interrupt processing overrun\n", __func__);
 
 	/* For level-based interrupts */
 	desc->chip->unmask(irq);

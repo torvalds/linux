@@ -387,11 +387,15 @@ static inline int XFS_bwrite(xfs_buf_t *bp)
 	return error;
 }
 
-static inline int xfs_bdwrite(void *mp, xfs_buf_t *bp)
+/*
+ * No error can be returned from xfs_buf_iostart for delwri
+ * buffers as they are queued and no I/O is issued.
+ */
+static inline void xfs_bdwrite(void *mp, xfs_buf_t *bp)
 {
 	bp->b_strat = xfs_bdstrat_cb;
 	bp->b_fspriv3 = mp;
-	return xfs_buf_iostart(bp, XBF_DELWRI | XBF_ASYNC);
+	(void)xfs_buf_iostart(bp, XBF_DELWRI | XBF_ASYNC);
 }
 
 #define XFS_bdstrat(bp) xfs_buf_iorequest(bp)
