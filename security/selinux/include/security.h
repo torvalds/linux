@@ -62,7 +62,7 @@ enum {
 extern int selinux_policycap_netpeer;
 extern int selinux_policycap_openperm;
 
-int security_load_policy(void * data, size_t len);
+int security_load_policy(void *data, size_t len);
 
 int security_policycap_supported(unsigned int req_cap);
 
@@ -110,7 +110,7 @@ int security_node_sid(u16 domain, void *addr, u32 addrlen,
 	u32 *out_sid);
 
 int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
-                                 u16 tclass);
+				 u16 tclass);
 
 int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid);
 
