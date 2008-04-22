@@ -46,7 +46,7 @@
 
 #define S3C24XX_I2S_DEBUG 0
 #if S3C24XX_I2S_DEBUG
-#define DBG(x...) printk(KERN_DEBUG x)
+#define DBG(x...) printk(KERN_DEBUG "s3c24xx-i2s: " x)
 #else
 #define DBG(x...)
 #endif
@@ -414,6 +414,8 @@ static int s3c24xx_i2s_probe(struct platform_device *pdev)
 int s3c24xx_i2s_suspend(struct platform_device *pdev,
 		struct snd_soc_cpu_dai *cpu_dai)
 {
+	DBG("Entered %s\n", __func__);
+
 	s3c24xx_i2s.iiscon = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 	s3c24xx_i2s.iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 	s3c24xx_i2s.iisfcon = readl(s3c24xx_i2s.regs + S3C2410_IISFCON);
@@ -427,6 +429,7 @@ int s3c24xx_i2s_suspend(struct platform_device *pdev,
 int s3c24xx_i2s_resume(struct platform_device *pdev,
 		struct snd_soc_cpu_dai *cpu_dai)
 {
+	DBG("Entered %s\n", __func__);
 	clk_enable(s3c24xx_i2s.iis_clk);
 
 	writel(s3c24xx_i2s.iiscon, s3c24xx_i2s.regs + S3C2410_IISCON);

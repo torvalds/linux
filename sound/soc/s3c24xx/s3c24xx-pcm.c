@@ -39,7 +39,7 @@
 
 #define S3C24XX_PCM_DEBUG 0
 #if S3C24XX_PCM_DEBUG
-#define DBG(x...) printk(KERN_DEBUG x)
+#define DBG(x...) printk(KERN_DEBUG "s3c24xx-pcm: " x)
 #else
 #define DBG(x...)
 #endif
