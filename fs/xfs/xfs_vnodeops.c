@@ -1636,8 +1636,7 @@ xfs_lookup(
 	struct xfs_name		*name,
 	xfs_inode_t		**ipp)
 {
-	xfs_inode_t		*ip;
-	xfs_ino_t		e_inum;
+	xfs_ino_t		inum;
 	int			error;
 	uint			lock_mode;
 
@@ -1647,12 +1646,21 @@ xfs_lookup(
 		return XFS_ERROR(EIO);
 
 	lock_mode = xfs_ilock_map_shared(dp);
-	error = xfs_dir_lookup_int(dp, lock_mode, name, &e_inum, &ip);
-	if (!error) {
-		*ipp = ip;
-		xfs_itrace_ref(ip);
-	}
+	error = xfs_dir_lookup(NULL, dp, name, &inum);
 	xfs_iunlock_map_shared(dp, lock_mode);
+
+	if (error)
+		goto out;
+
+	error = xfs_iget(dp->i_mount, NULL, inum, 0, 0, ipp, 0);
+	if (error)
+		goto out;
+
+	xfs_itrace_ref(*ipp);
+	return 0;
+
+ out:
+	*ipp = NULL;
 	return error;
 }
 
