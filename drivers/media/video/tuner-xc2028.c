@@ -41,6 +41,11 @@ MODULE_PARM_DESC(audio_std,
 	"NICAM/A\n"
 	"NICAM/B\n");
 
+static char firmware_name[FIRMWARE_NAME_MAX];
+module_param_string(firmware_name, firmware_name, sizeof(firmware_name), 0);
+MODULE_PARM_DESC(firmware_name, "Firmware file name. Allows overriding the "
+				"default firmware name\n");
+
 static LIST_HEAD(xc2028_list);
 static DEFINE_MUTEX(xc2028_list_mutex);
 
@@ -253,19 +258,24 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	int                   rc = 0;
 	int		      n, n_array;
 	char		      name[33];
+	char		      *fname;
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
-	tuner_dbg("Reading firmware %s\n", priv->ctrl.fname);
-	rc = request_firmware(&fw, priv->ctrl.fname,
-			      &priv->i2c_props.adap->dev);
+	if (!firmware_name[0])
+		fname = priv->ctrl.fname;
+	else
+		fname = firmware_name;
+
+	tuner_dbg("Reading firmware %s\n", fname);
+	rc = request_firmware(&fw, fname, &priv->i2c_props.adap->dev);
 	if (rc < 0) {
 		if (rc == -ENOENT)
 			tuner_err("Error: firmware %s not found.\n",
-				   priv->ctrl.fname);
+				   fname);
 		else
 			tuner_err("Error %d while requesting firmware %s \n",
-				   rc, priv->ctrl.fname);
+				   rc, fname);
 
 		return rc;
 	}
@@ -274,7 +284,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 
 	if (fw->size < sizeof(name) - 1 + 2 + 2) {
 		tuner_err("Error: firmware file %s has invalid size!\n",
-			  priv->ctrl.fname);
+			  fname);
 		goto corrupt;
 	}
 
@@ -289,7 +299,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	p += 2;
 
 	tuner_info("Loading %d firmware images from %s, type: %s, ver %d.%d\n",
-		   n_array, priv->ctrl.fname, name,
+		   n_array, fname, name,
 		   priv->firm_version >> 8, priv->firm_version & 0xff);
 
 	priv->firm = kzalloc(sizeof(*priv->firm) * n_array, GFP_KERNEL);
