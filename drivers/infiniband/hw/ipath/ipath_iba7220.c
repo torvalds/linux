@@ -1215,7 +1215,7 @@ static int ipath_msi_enabled(struct pci_dev *pdev)
 
 /*
  * disable msi interrupt if enabled, and clear the flag.
- * flag is used primarily for the fallback to IntX, but
+ * flag is used primarily for the fallback to INTx, but
  * is also used in reinit after reset as a flag.
  */
 static void ipath_7220_nomsi(struct ipath_devdata *dd)
@@ -1615,7 +1615,7 @@ static int ipath_reinit_msi(struct ipath_devdata *dd)
 
 bail:
 	if (!ret) {
-		ipath_dbg("Using IntX, MSI disabled or not configured\n");
+		ipath_dbg("Using INTx, MSI disabled or not configured\n");
 		ipath_enable_intx(dd->pcidev);
 		ret = 1;
 	}
@@ -2144,12 +2144,12 @@ static void ipath_7220_read_counters(struct ipath_devdata *dd,
 		counters[i] = ipath_snap_cntr(dd, i);
 }
 
-/* if we are using MSI, try to fallback to IntX */
+/* if we are using MSI, try to fallback to INTx */
 static int ipath_7220_intr_fallback(struct ipath_devdata *dd)
 {
 	if (dd->ipath_msi_lo) {
 		dev_info(&dd->pcidev->dev, "MSI interrupt not detected,"
-			" trying IntX interrupts\n");
+			" trying INTx interrupts\n");
 		ipath_7220_nomsi(dd);
 		ipath_enable_intx(dd->pcidev);
 		/*
@@ -2162,7 +2162,7 @@ static int ipath_7220_intr_fallback(struct ipath_devdata *dd)
 		if (request_irq(dd->ipath_irq, ipath_intr, IRQF_SHARED,
 			IPATH_DRV_NAME, dd))
 			ipath_dev_err(dd,
-				"Could not re-request_irq for IntX\n");
+				"Could not re-request_irq for INTx\n");
 		return 1;
 	}
 	return 0;
