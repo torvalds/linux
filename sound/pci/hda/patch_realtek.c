@@ -10404,6 +10404,7 @@ static const char *alc268_models[ALC268_MODEL_LAST] = {
 };
 
 static struct snd_pci_quirk alc268_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1025, 0x011e, "Acer Aspire 5720z", ALC268_ACER),
 	SND_PCI_QUIRK(0x1025, 0x0126, "Acer", ALC268_ACER),
 	SND_PCI_QUIRK(0x1025, 0x012e, "Acer Aspire 5310", ALC268_ACER),
 	SND_PCI_QUIRK(0x1025, 0x0130, "Acer Extensa 5210", ALC268_ACER),
