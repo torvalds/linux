@@ -15,7 +15,6 @@ struct xfs_iomap;
 
 
 int xfs_open(struct xfs_inode *ip);
-int xfs_getattr(struct xfs_inode *ip, struct bhv_vattr *vap, int flags);
 int xfs_setattr(struct xfs_inode *ip, struct bhv_vattr *vap, int flags,
 		struct cred *credp);
 int xfs_readlink(struct xfs_inode *ip, char *link);
