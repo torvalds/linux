@@ -163,6 +163,11 @@ struct pvr2_decoder_ctrl {
 #define FW1_STATE_RELOAD 3
 #define FW1_STATE_OK 4
 
+/* What state the device is in if it is a hybrid */
+#define PVR2_PATHWAY_UNKNOWN 0
+#define PVR2_PATHWAY_ANALOG 1
+#define PVR2_PATHWAY_DIGITAL 2
+
 typedef int (*pvr2_i2c_func)(struct pvr2_hdw *,u8,u8 *,u16,u8 *, u16);
 #define PVR2_I2C_FUNC_CNT 128
 
@@ -229,6 +234,7 @@ struct pvr2_hdw {
 
 	/* Bits of state that describe what is going on with various parts
 	   of the driver. */
+	int state_pathway_ok;         /* Pathway config is ok */
 	int state_encoder_ok;         /* Encoder is operational */
 	int state_encoder_run;        /* Encoder is running */
 	int state_encoder_config;     /* Encoder is configured */
@@ -267,6 +273,7 @@ struct pvr2_hdw {
 	int flag_disconnected;  /* flag_ok == 0 due to disconnect */
 	int flag_init_ok;       /* true if structure is fully initialized */
 	int fw1_state;          /* current situation with fw1 */
+	int pathway_state;      /* one of PVR2_PATHWAY_xxx */
 	int flag_decoder_missed;/* We've noticed missing decoder */
 	int flag_tripped;       /* Indicates overall failure to start */
 
