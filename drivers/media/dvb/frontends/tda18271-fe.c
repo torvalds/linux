@@ -1081,6 +1081,9 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 
 		fe->tuner_priv = priv;
 
+		if (cfg)
+			priv->small_i2c = cfg->small_i2c;
+
 		if (tda18271_get_id(fe) < 0)
 			goto fail;
 

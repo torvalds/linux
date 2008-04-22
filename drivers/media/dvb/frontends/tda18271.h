@@ -58,6 +58,9 @@ struct tda18271_config {
 
 	/* use i2c gate provided by analog or digital demod */
 	enum tda18271_i2c_gate gate;
+
+	/* some i2c providers cant write all 39 registers at once */
+	unsigned int small_i2c:1;
 };
 
 #if defined(CONFIG_DVB_TDA18271) || (defined(CONFIG_DVB_TDA18271_MODULE) && defined(MODULE))

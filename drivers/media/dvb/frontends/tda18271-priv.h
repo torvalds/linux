@@ -110,6 +110,7 @@ struct tda18271_priv {
 
 	unsigned int tm_rfcal;
 	unsigned int cal_initialized:1;
+	unsigned int small_i2c:1;
 
 	struct tda18271_map_layout *maps;
 	struct tda18271_std_map std;

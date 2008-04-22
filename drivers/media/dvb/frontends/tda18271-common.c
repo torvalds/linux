@@ -311,7 +311,12 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	regs[R_EB22] = 0x48;
 	regs[R_EB23] = 0xb0;
 
-	tda18271_write_regs(fe, 0x00, TDA18271_NUM_REGS);
+	if (priv->small_i2c) {
+		tda18271_write_regs(fe, 0x00, 0x10);
+		tda18271_write_regs(fe, 0x10, 0x10);
+		tda18271_write_regs(fe, 0x20, 0x07);
+	} else
+		tda18271_write_regs(fe, 0x00, TDA18271_NUM_REGS);
 
 	/* setup agc1 gain */
 	regs[R_EB17] = 0x00;
