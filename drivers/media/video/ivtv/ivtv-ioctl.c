@@ -712,6 +712,7 @@ static int ivtv_debug_ioctls(struct file *filp, unsigned int cmd, void *arg)
 int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void *arg)
 {
 	struct ivtv_open_id *id = NULL;
+	struct yuv_playback_info *yi = &itv->yuv_info;
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	int streamtype = 0;
 
@@ -837,8 +838,14 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			cropcap->pixelaspect.numerator = itv->is_50hz ? 59 : 10;
 			cropcap->pixelaspect.denominator = itv->is_50hz ? 54 : 11;
 		} else if (streamtype == IVTV_DEC_STREAM_TYPE_YUV) {
-			cropcap->bounds.width = itv->yuv_info.osd_full_w;
-			cropcap->bounds.height = itv->yuv_info.osd_full_h;
+			if (yi->track_osd) {
+				cropcap->bounds.width = yi->osd_full_w;
+				cropcap->bounds.height = yi->osd_full_h;
+			} else {
+				cropcap->bounds.width = 720;
+				cropcap->bounds.height =
+						itv->is_out_50hz ? 576 : 480;
+			}
 			cropcap->pixelaspect.numerator = itv->is_out_50hz ? 59 : 10;
 			cropcap->pixelaspect.denominator = itv->is_out_50hz ? 54 : 11;
 		} else {
@@ -856,7 +863,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		if (crop->type == V4L2_BUF_TYPE_VIDEO_OUTPUT &&
 		    (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)) {
 			if (streamtype == IVTV_DEC_STREAM_TYPE_YUV) {
-				itv->yuv_info.main_rect = crop->c;
+				yi->main_rect = crop->c;
 				return 0;
 			} else {
 				if (!ivtv_vapi(itv, CX2341X_OSD_SET_FRAMEBUFFER_WINDOW, 4,
@@ -878,7 +885,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		if (crop->type == V4L2_BUF_TYPE_VIDEO_OUTPUT &&
 		    (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)) {
 			if (streamtype == IVTV_DEC_STREAM_TYPE_YUV)
-				crop->c = itv->yuv_info.main_rect;
+				crop->c = yi->main_rect;
 			else
 				crop->c = itv->main_rect;
 			return 0;
@@ -1070,11 +1077,10 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			itv->main_rect.height = itv->params.height;
 			ivtv_vapi(itv, CX2341X_OSD_SET_FRAMEBUFFER_WINDOW, 4,
 				720, itv->main_rect.height, 0, 0);
-			itv->yuv_info.main_rect = itv->main_rect;
+			yi->main_rect = itv->main_rect;
 			if (!itv->osd_info) {
-				itv->yuv_info.osd_full_w = 720;
-				itv->yuv_info.osd_full_h =
-						itv->is_out_50hz ? 576 : 480;
+				yi->osd_full_w = 720;
+				yi->osd_full_h = itv->is_out_50hz ? 576 : 480;
 			}
 		}
 		break;
@@ -1272,6 +1278,8 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			else
 				fb->flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
 		}
+		if (yi->track_osd)
+			fb->flags |= V4L2_FBUF_FLAG_OVERLAY;
 		break;
 	}
 
@@ -1285,6 +1293,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			(fb->flags & (V4L2_FBUF_FLAG_LOCAL_ALPHA|V4L2_FBUF_FLAG_LOCAL_INV_ALPHA)) != 0;
 		itv->osd_chroma_key_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
 		ivtv_set_osd_alpha(itv);
+		yi->track_osd = (fb->flags & V4L2_FBUF_FLAG_OVERLAY) != 0;
 		break;
 	}
 

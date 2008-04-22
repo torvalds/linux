@@ -711,6 +711,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->yuv_info.lace_mode = ivtv_yuv_mode;
 	itv->yuv_info.lace_threshold = ivtv_yuv_threshold;
 	itv->yuv_info.max_frames_buffered = 3;
+	itv->yuv_info.track_osd = 1;
 	return 0;
 }
 

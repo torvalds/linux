@@ -456,6 +456,8 @@ struct yuv_playback_info
 	int v_filter_2;
 	int h_filter;
 
+	u8 track_osd; /* Should yuv output track the OSD size & position */
+
 	u32 osd_x_offset;
 	u32 osd_y_offset;
 
