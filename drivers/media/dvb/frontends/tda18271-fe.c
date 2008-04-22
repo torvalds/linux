@@ -70,15 +70,9 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	regs[R_EP4]  &= ~0x80;
 	regs[R_EP4]  |= map->fm_rfn << 7;
 
-	/* update RF_TOP / IF_TOP */
-	switch (priv->mode) {
-	case TDA18271_ANALOG:
-		regs[R_EB22]  = 0x2c;
-		break;
-	case TDA18271_DIGITAL:
-		regs[R_EB22]  = 0x37;
-		break;
-	}
+	/* update rf top / if top */
+	regs[R_EB22]  = 0x00;
+	regs[R_EB22] |= map->rfagc_top;
 	tda18271_write_regs(fe, R_EB22, 1);
 
 	/* --------------------------------------------------------------- */
