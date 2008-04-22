@@ -2221,7 +2221,7 @@ xfs_icsb_disable_counter(
 	if (!test_and_set_bit(field, &mp->m_icsb_counters)) {
 		/* drain back to superblock */
 
-		xfs_icsb_count(mp, &cnt, XFS_ICSB_SB_LOCKED|XFS_ICSB_LAZY_COUNT);
+		xfs_icsb_count(mp, &cnt, XFS_ICSB_LAZY_COUNT);
 		switch(field) {
 		case XFS_SBS_ICOUNT:
 			mp->m_sb.sb_icount = cnt.icsb_icount;
