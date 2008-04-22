@@ -3193,15 +3193,30 @@ int pvr2_hdw_cmd_deep_reset(struct pvr2_hdw *hdw)
 }
 
 
-int pvr2_hdw_cmd_powerup(struct pvr2_hdw *hdw)
+static int pvr2_hdw_cmd_power_ctrl(struct pvr2_hdw *hdw, int onoff)
 {
 	int status;
 	LOCK_TAKE(hdw->ctl_lock); do {
-		pvr2_trace(PVR2_TRACE_INIT,"Requesting powerup");
-		hdw->cmd_buffer[0] = FX2CMD_POWER_ON;
-		status = pvr2_send_request(hdw,hdw->cmd_buffer,1,NULL,0);
+		if (onoff) {
+			pvr2_trace(PVR2_TRACE_INIT, "Requesting powerup");
+			hdw->cmd_buffer[0] = FX2CMD_POWER_ON;
+		} else {
+			pvr2_trace(PVR2_TRACE_INIT, "Requesting powerdown");
+			hdw->cmd_buffer[0] = FX2CMD_POWER_OFF;
+		}
+		status = pvr2_send_request(hdw, hdw->cmd_buffer, 1, NULL, 0);
 	} while (0); LOCK_GIVE(hdw->ctl_lock);
 	return status;
+}
+
+int pvr2_hdw_cmd_powerup(struct pvr2_hdw *hdw)
+{
+	return pvr2_hdw_cmd_power_ctrl(hdw, 1);
+}
+
+int pvr2_hdw_cmd_powerdown(struct pvr2_hdw *hdw)
+{
+	return pvr2_hdw_cmd_power_ctrl(hdw, 0);
 }
 
 

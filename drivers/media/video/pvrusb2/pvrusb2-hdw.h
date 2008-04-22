@@ -255,6 +255,9 @@ int pvr2_hdw_cmd_deep_reset(struct pvr2_hdw *);
 /* Execute simple reset command */
 int pvr2_hdw_cmd_powerup(struct pvr2_hdw *);
 
+/* suspend */
+int pvr2_hdw_cmd_powerdown(struct pvr2_hdw *);
+
 /* Order decoder to reset */
 int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *);
 
