@@ -173,7 +173,7 @@ int pvr2_channel_claim_stream(struct pvr2_channel *cp,
 	int code = 0;
 	pvr2_context_enter(cp->mc_head); do {
 		if (sp == cp->stream) break;
-		if (sp->user) {
+		if (sp && sp->user) {
 			code = -EBUSY;
 			break;
 		}
