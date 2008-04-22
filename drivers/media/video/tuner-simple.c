@@ -810,6 +810,52 @@ fail:
 	return ret;
 }
 
+static int simple_init(struct dvb_frontend *fe)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+
+	if (priv->i2c_props.adap == NULL)
+		return -EINVAL;
+
+	if (priv->tun->initdata) {
+		int ret;
+
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+
+		ret = tuner_i2c_xfer_send(&priv->i2c_props,
+					  priv->tun->initdata + 1,
+					  priv->tun->initdata[0]);
+		if (ret != priv->tun->initdata[0])
+			return ret;
+	}
+
+	return 0;
+}
+
+static int simple_sleep(struct dvb_frontend *fe)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+
+	if (priv->i2c_props.adap == NULL)
+		return -EINVAL;
+
+	if (priv->tun->sleepdata) {
+		int ret;
+
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+
+		ret = tuner_i2c_xfer_send(&priv->i2c_props,
+					  priv->tun->sleepdata + 1,
+					  priv->tun->sleepdata[0]);
+		if (ret != priv->tun->sleepdata[0])
+			return ret;
+	}
+
+	return 0;
+}
+
 static int simple_release(struct dvb_frontend *fe)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
@@ -841,6 +887,8 @@ static int simple_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 }
 
 static struct dvb_tuner_ops simple_tuner_ops = {
+	.init              = simple_init,
+	.sleep             = simple_sleep,
 	.set_analog_params = simple_set_params,
 	.set_params        = simple_dvb_set_params,
 	.calc_regs         = simple_dvb_calc_regs,

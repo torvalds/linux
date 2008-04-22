@@ -35,6 +35,27 @@
  *	based on the video standard in use.
  */
 
+/* The following was taken from dvb-pll.c: */
+
+/* Set AGC TOP value to 103 dBuV:
+ *	0x80 = Control Byte
+ *	0x40 = 250 uA charge pump (irrelevant)
+ *	0x18 = Aux Byte to follow
+ *	0x06 = 64.5 kHz divider (irrelevant)
+ *	0x01 = Disable Vt (aka sleep)
+ *
+ *	0x00 = AGC Time constant 2s Iagc = 300 nA (vs 0x80 = 9 nA)
+ *	0x50 = AGC Take over point = 103 dBuV
+ */
+static u8 tua603x_agc103[] = { 2, 0x80|0x40|0x18|0x06|0x01, 0x00|0x50 };
+
+/*	0x04 = 166.67 kHz divider
+ *
+ *	0x80 = AGC Time constant 50ms Iagc = 9 uA
+ *	0x20 = AGC Take over point = 112 dBuV
+ */
+static u8 tua603x_agc112[] = { 2, 0x80|0x40|0x18|0x04|0x01, 0x80|0x20 };
+
 /* 0-9 */
 /* ------------ TUNER_TEMIC_PAL - TEMIC PAL ------------ */
 
@@ -1425,6 +1446,7 @@ struct tunertype tuners[] = {
 		.min    = 16 *  57.00,
 		.max    = 16 * 863.00,
 		.stepsize = 62500,
+		.initdata = tua603x_agc103,
 	},
 	[TUNER_TENA_9533_DI] = { /* Philips PAL */
 		.name   = "Tena TNF9533-D/IF/TNF9533-B/DF",
@@ -1439,6 +1461,8 @@ struct tunertype tuners[] = {
 		.name   = "Philips FMD1216ME MK3 Hybrid Tuner",
 		.params = tuner_philips_fmd1216me_mk3_params,
 		.count  = ARRAY_SIZE(tuner_philips_fmd1216me_mk3_params),
+		.initdata = tua603x_agc112,
+		.sleepdata = (u8[]){ 4, 0x9c, 0x60, 0x85, 0x54 },
 	},
 	[TUNER_LG_TDVS_H06XF] = { /* LGINNOTEK ATSC */
 		.name   = "LG TDVS-H06xF", /* H061F, H062F & H064F */
@@ -1447,6 +1471,7 @@ struct tunertype tuners[] = {
 		.min    = 16 *  54.00,
 		.max    = 16 * 863.00,
 		.stepsize = 62500,
+		.initdata = tua603x_agc103,
 	},
 	[TUNER_YMEC_TVF66T5_B_DFF] = { /* Philips PAL */
 		.name   = "Ymec TVF66T5-B/DFF",

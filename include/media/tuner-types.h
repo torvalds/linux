@@ -120,6 +120,9 @@ struct tunertype {
 	u16 min;
 	u16 max;
 	u16 stepsize;
+
+	u8 *initdata;
+	u8 *sleepdata;
 };
 
 extern struct tunertype tuners[];
