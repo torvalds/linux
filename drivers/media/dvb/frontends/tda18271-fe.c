@@ -422,7 +422,7 @@ static int tda18271_powerscan(struct dvb_frontend *fe,
 
 		count += 200;
 
-		if (count < count_limit)
+		if (count <= count_limit)
 			continue;
 
 		if (sgn <= 0)
