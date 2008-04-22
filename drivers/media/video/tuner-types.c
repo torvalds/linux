@@ -1048,12 +1048,23 @@ static struct tuner_range tuner_tuv1236d_ntsc_ranges[] = {
 	{ 16 * 999.99        , 0xce, 0x04, },
 };
 
+static struct tuner_range tuner_tuv1236d_atsc_ranges[] = {
+	{ 16 * 157.25 /*MHz*/, 0xc6, 0x41, },
+	{ 16 * 454.00 /*MHz*/, 0xc6, 0x42, },
+	{ 16 * 999.99        , 0xc6, 0x44, },
+};
 
 static struct tuner_params tuner_tuv1236d_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_tuv1236d_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_tuv1236d_ntsc_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_tuv1236d_atsc_ranges,
+		.count  = ARRAY_SIZE(tuner_tuv1236d_atsc_ranges),
+		.iffreq = 16 * 44.00,
 	},
 };
 
@@ -1510,6 +1521,9 @@ struct tunertype tuners[] = {
 		.name   = "Philips TUV1236D ATSC/NTSC dual in",
 		.params = tuner_tuv1236d_params,
 		.count  = ARRAY_SIZE(tuner_tuv1236d_params),
+		.min    = 16 *  54.00,
+		.max    = 16 * 864.00,
+		.stepsize = 62500,
 	},
 	[TUNER_TNF_5335MF] = { /* Tenna PAL/NTSC */
 		.name   = "Tena TNF 5335 and similar models",
