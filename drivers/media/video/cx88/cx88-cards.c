@@ -1591,6 +1591,29 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x16d9,
 		}},
 	},
+	[CX88_BOARD_PROLINK_PV_8000GT] = {
+		.name           = "Prolink Pixelview MPEG 8000GT",
+		.tuner_type     = TUNER_XC2028,
+		.tuner_addr     = 0x61,
+		.input          = { {
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0 = 0x0ff,
+			.gpio2 = 0x0cfb,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio2 = 0x0cfb,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio2 = 0x0cfb,
+		} },
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio2 = 0x0cfb,
+		},
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -1928,11 +1951,15 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x14f1,
 		.subdevice = 0x8852,
 		.card      = CX88_BOARD_GENIATECH_X8000_MT,
-	},{
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xd610,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD,
-	}
+	}, {
+		.subvendor = 0x1554,
+		.subdevice = 0x4935,
+		.card      = CX88_BOARD_PROLINK_PV_8000GT,
+	},
 };
 
 /* ----------------------------------------------------------------------- */
@@ -2063,9 +2090,10 @@ static void gdi_eeprom(struct cx88_core *core, u8 *eeprom_data)
 
 /* ------------------------------------------------------------------- */
 /* some Divco specific stuff                                           */
-static int cx88_dvico_xc2028_callback(void *ptr, int command, int arg)
+static int cx88_dvico_xc2028_callback(void *priv, int command, int arg)
 {
-	struct cx88_core *core = ptr;
+	struct i2c_algo_bit_data *i2c_algo = priv;
+	struct cx88_core *core = i2c_algo->data;
 
 	switch (command) {
 	case XC2028_TUNER_RESET:
@@ -2111,6 +2139,28 @@ static int cx88_xc3028_geniatech_tuner_callback(void *priv, int command, int mod
 		return 0;
 	}
 	return -EINVAL;
+}
+
+/* ------------------------------------------------------------------- */
+/* some Divco specific stuff                                           */
+static int cx88_pv_8000gt_callback(void *priv, int command, int arg)
+{
+	struct i2c_algo_bit_data *i2c_algo = priv;
+	struct cx88_core *core = i2c_algo->data;
+
+	switch (command) {
+	case XC2028_TUNER_RESET:
+		cx_write(MO_GP2_IO, 0xcf7);
+		mdelay(50);
+		cx_write(MO_GP2_IO, 0xef5);
+		mdelay(50);
+		cx_write(MO_GP2_IO, 0xcf7);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -2159,6 +2209,8 @@ static int cx88_xc2028_tuner_callback(void *priv, int command, int arg)
 	case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
 	case CX88_BOARD_GENIATECH_X8000_MT:
 		return cx88_xc3028_geniatech_tuner_callback(priv, command, arg);
+	case CX88_BOARD_PROLINK_PV_8000GT:
+		return cx88_pv_8000gt_callback(priv, command, arg);
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
 		return cx88_dvico_xc2028_callback(priv, command, arg);
 	}
@@ -2291,6 +2343,16 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 		cx_set(MO_GP0_IO, 0x00000080); /* 702 out of reset */
 		udelay(1000);
 		break;
+
+	case CX88_BOARD_PROLINK_PV_8000GT:
+		cx_write(MO_GP2_IO, 0xcf7);
+		mdelay(50);
+		cx_write(MO_GP2_IO, 0xef5);
+		mdelay(50);
+		cx_write(MO_GP2_IO, 0xcf7);
+		msleep(10);
+		break;
+
 	 case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
 		/* Enable the xc5000 tuner */
 		cx_set(MO_GP0_IO, 0x00001010);
