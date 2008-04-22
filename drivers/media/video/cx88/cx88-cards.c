@@ -1437,140 +1437,140 @@ static const struct cx88_board cx88_boards[] = {
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_PINNACLE_HYBRID_PCTV] = {
-	       .name           = "Pinnacle Hybrid PCTV",
-	       .tuner_type     = TUNER_XC2028,
-	       .tuner_addr     = 0x61,
-	       .input          = { {
-		       .type   = CX88_VMUX_TELEVISION,
-		       .vmux   = 0,
-	       }, {
-		       .type   = CX88_VMUX_COMPOSITE1,
-		       .vmux   = 1,
-	       }, {
-		       .type   = CX88_VMUX_SVIDEO,
-		       .vmux   = 2,
-	       } },
-	       .radio = {
-		       .type   = CX88_RADIO,
-		       .gpio0  = 0x004ff,
-		       .gpio1  = 0x010ff,
-		       .gpio2  = 0x0ff,
-	       },
-       },
-       [CX88_BOARD_WINFAST_TV2000_XP_GLOBAL] = {
-	       .name           = "Winfast TV2000 XP Global",
-	       .tuner_type     = TUNER_XC2028,
-	       .tuner_addr     = 0x61,
-	       .input          = { {
-		       .type   = CX88_VMUX_TELEVISION,
-		       .vmux   = 0,
-		       .gpio0  = 0x0400, /* pin 2:mute = 0 (off?) */
-		       .gpio1  = 0x0000,
-		       .gpio2  = 0x0800, /* pin 19:audio = 0 (tv) */
-
-	       }, {
-		       .type   = CX88_VMUX_COMPOSITE1,
-		       .vmux   = 1,
-		       .gpio0  = 0x0400, /* probably?  or 0x0404 to turn mute on */
-		       .gpio1  = 0x0000,
-		       .gpio2  = 0x0808, /* pin 19:audio = 1 (line) */
-
-	       }, {
-		       .type   = CX88_VMUX_SVIDEO,
-		       .vmux   = 2,
-	       } },
-	       .radio = {
-		       .type   = CX88_RADIO,
-		       .gpio0  = 0x004ff,
-		       .gpio1  = 0x010ff,
-		       .gpio2  = 0x0ff,
-	       },
-       },
-       [CX88_BOARD_POWERCOLOR_REAL_ANGEL] = {
-	       .name           = "PowerColor Real Angel 330",
-	       .tuner_type     = TUNER_XC2028,
-	       .tuner_addr     = 0x61,
-	       .input          = { {
-		       .type   = CX88_VMUX_TELEVISION,
-		       .vmux   = 0,
-		       .gpio0 = 0x0400, /* pin 2:mute = 0 (off?) */
-		       .gpio1 = 0xf35d,
-		       .gpio2 = 0x0800, /* pin 19:audio = 0 (tv) */
-	       }, {
-		       .type   = CX88_VMUX_COMPOSITE1,
-		       .vmux   = 1,
-		       .gpio0 = 0x0400, /* probably?  or 0x0404 to turn mute on */
-		       .gpio1 = 0x0000,
-		       .gpio2 = 0x0808, /* pin 19:audio = 1 (line) */
-	       }, {
-		       .type   = CX88_VMUX_SVIDEO,
-		       .vmux   = 2,
-		       .gpio0  = 0x000ff,
-		       .gpio1  = 0x0f37d,
-		       .gpio2  = 0x00019,
-		       .gpio3  = 0x00000,
-	       } },
-	       .radio = {
-		       .type   = CX88_RADIO,
-		       .gpio0  = 0x000ff,
-		       .gpio1  = 0x0f35d,
-		       .gpio2  = 0x00019,
-		       .gpio3  = 0x00000,
-	       },
-       },
-       [CX88_BOARD_GENIATECH_X8000_MT] = {
-		/* Also PowerColor Real Angel 330 and Geniatech X800 OEM */
-	       .name           = "Geniatech X8000-MT DVBT",
-	       .tuner_type     = TUNER_XC2028,
-	       .tuner_addr     = 0x61,
-	       .input          = { {
-		       .type   = CX88_VMUX_TELEVISION,
-		       .vmux   = 0,
-		       .gpio0  = 0x00000000,
-		       .gpio1  = 0x00e3e341,
-		       .gpio2  = 0x00000000,
-		       .gpio3  = 0x00000000,
-	       }, {
-		       .type   = CX88_VMUX_COMPOSITE1,
-		       .vmux   = 1,
-		       .gpio0  = 0x00000000,
-		       .gpio1  = 0x00e3e361,
-		       .gpio2  = 0x00000000,
-		       .gpio3  = 0x00000000,
-	       }, {
-		       .type   = CX88_VMUX_SVIDEO,
-		       .vmux   = 2,
-		       .gpio0  = 0x00000000,
-		       .gpio1  = 0x00e3e361,
-		       .gpio2  = 0x00000000,
-		       .gpio3  = 0x00000000,
-	       } },
-	       .radio = {
-		       .type   = CX88_RADIO,
-		       .gpio0  = 0x00000000,
-		       .gpio1  = 0x00e3e341,
-		       .gpio2  = 0x00000000,
-		       .gpio3  = 0x00000000,
-	       },
-	       .mpeg           = CX88_MPEG_DVB,
-       },
-       [CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO] = {
-	       .name           = "DViCO FusionHDTV DVB-T PRO",
-	       .tuner_type     = TUNER_ABSENT, /* XXX: Has XC3028 */
-	       .radio_type     = UNSET,
-	       .tuner_addr     = ADDR_UNSET,
-	       .radio_addr     = ADDR_UNSET,
-	       .input          = { {
-		       .type   = CX88_VMUX_COMPOSITE1,
-		       .vmux   = 1,
-		       .gpio0  = 0x000067df,
+		.name           = "Pinnacle Hybrid PCTV",
+		.tuner_type     = TUNER_XC2028,
+		.tuner_addr     = 0x61,
+		.input          = { {
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
 		}, {
-		       .type   = CX88_VMUX_SVIDEO,
-		       .vmux   = 2,
-		       .gpio0  = 0x000067df,
-	       } },
-	       .mpeg           = CX88_MPEG_DVB,
-       },
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+		} },
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0  = 0x004ff,
+			.gpio1  = 0x010ff,
+			.gpio2  = 0x0ff,
+		},
+	},
+	[CX88_BOARD_WINFAST_TV2000_XP_GLOBAL] = {
+		.name           = "Winfast TV2000 XP Global",
+		.tuner_type     = TUNER_XC2028,
+		.tuner_addr     = 0x61,
+		.input          = { {
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x0400, /* pin 2:mute = 0 (off?) */
+			.gpio1  = 0x0000,
+			.gpio2  = 0x0800, /* pin 19:audio = 0 (tv) */
+
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x0400, /* probably?  or 0x0404 to turn mute on */
+			.gpio1  = 0x0000,
+			.gpio2  = 0x0808, /* pin 19:audio = 1 (line) */
+
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+		} },
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0  = 0x004ff,
+			.gpio1  = 0x010ff,
+			.gpio2  = 0x0ff,
+		},
+	},
+	[CX88_BOARD_POWERCOLOR_REAL_ANGEL] = {
+		.name           = "PowerColor Real Angel 330",
+		.tuner_type     = TUNER_XC2028,
+		.tuner_addr     = 0x61,
+		.input          = { {
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0 = 0x0400, /* pin 2:mute = 0 (off?) */
+			.gpio1 = 0xf35d,
+			.gpio2 = 0x0800, /* pin 19:audio = 0 (tv) */
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0 = 0x0400, /* probably?  or 0x0404 to turn mute on */
+			.gpio1 = 0x0000,
+			.gpio2 = 0x0808, /* pin 19:audio = 1 (line) */
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x000ff,
+			.gpio1  = 0x0f37d,
+			.gpio2  = 0x00019,
+			.gpio3  = 0x00000,
+		} },
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0  = 0x000ff,
+			.gpio1  = 0x0f35d,
+			.gpio2  = 0x00019,
+			.gpio3  = 0x00000,
+		},
+	},
+	[CX88_BOARD_GENIATECH_X8000_MT] = {
+		/* Also PowerColor Real Angel 330 and Geniatech X800 OEM */
+		.name           = "Geniatech X8000-MT DVBT",
+		.tuner_type     = TUNER_XC2028,
+		.tuner_addr     = 0x61,
+		.input          = { {
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x00000000,
+			.gpio1  = 0x00e3e341,
+			.gpio2  = 0x00000000,
+			.gpio3  = 0x00000000,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x00000000,
+			.gpio1  = 0x00e3e361,
+			.gpio2  = 0x00000000,
+			.gpio3  = 0x00000000,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x00000000,
+			.gpio1  = 0x00e3e361,
+			.gpio2  = 0x00000000,
+			.gpio3  = 0x00000000,
+		} },
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0  = 0x00000000,
+			.gpio1  = 0x00e3e341,
+			.gpio2  = 0x00000000,
+			.gpio3  = 0x00000000,
+		},
+		.mpeg           = CX88_MPEG_DVB,
+	},
+	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO] = {
+		.name           = "DViCO FusionHDTV DVB-T PRO",
+		.tuner_type     = TUNER_ABSENT, /* XXX: Has XC3028 */
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = { {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x000067df,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x000067df,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD] = {
 		.name           = "DViCO FusionHDTV 7 Gold",
 		.tuner_type     = TUNER_XC5000,
