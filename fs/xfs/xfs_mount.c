@@ -55,7 +55,6 @@ STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
 STATIC void	xfs_icsb_destroy_counters(xfs_mount_t *);
 STATIC void	xfs_icsb_balance_counter(xfs_mount_t *, xfs_sb_field_t,
 						int, int);
-STATIC void	xfs_icsb_sync_counters(xfs_mount_t *);
 STATIC int	xfs_icsb_modify_counters(xfs_mount_t *, xfs_sb_field_t,
 						int64_t, int);
 STATIC void	xfs_icsb_disable_counter(xfs_mount_t *, xfs_sb_field_t);
@@ -64,7 +63,6 @@ STATIC void	xfs_icsb_disable_counter(xfs_mount_t *, xfs_sb_field_t);
 
 #define xfs_icsb_destroy_counters(mp)			do { } while (0)
 #define xfs_icsb_balance_counter(mp, a, b, c)		do { } while (0)
-#define xfs_icsb_sync_counters(mp)			do { } while (0)
 #define xfs_icsb_modify_counters(mp, a, b, c)		do { } while (0)
 
 #endif
@@ -1400,7 +1398,7 @@ xfs_log_sbcount(
 	if (!xfs_fs_writable(mp))
 		return 0;
 
-	xfs_icsb_sync_counters(mp);
+	xfs_icsb_sync_counters(mp, 0);
 
 	/*
 	 * we don't need to do this if we are updating the superblock
@@ -2278,38 +2276,33 @@ xfs_icsb_enable_counter(
 }
 
 void
-xfs_icsb_sync_counters_flags(
+xfs_icsb_sync_counters_locked(
 	xfs_mount_t	*mp,
 	int		flags)
 {
 	xfs_icsb_cnts_t	cnt;
 
-	/* Pass 1: lock all counters */
-	if ((flags & XFS_ICSB_SB_LOCKED) == 0)
-		spin_lock(&mp->m_sb_lock);
-
 	xfs_icsb_count(mp, &cnt, flags);
 
-	/* Step 3: update mp->m_sb fields */
 	if (!xfs_icsb_counter_disabled(mp, XFS_SBS_ICOUNT))
 		mp->m_sb.sb_icount = cnt.icsb_icount;
 	if (!xfs_icsb_counter_disabled(mp, XFS_SBS_IFREE))
 		mp->m_sb.sb_ifree = cnt.icsb_ifree;
 	if (!xfs_icsb_counter_disabled(mp, XFS_SBS_FDBLOCKS))
 		mp->m_sb.sb_fdblocks = cnt.icsb_fdblocks;
-
-	if ((flags & XFS_ICSB_SB_LOCKED) == 0)
-		spin_unlock(&mp->m_sb_lock);
 }
 
 /*
  * Accurate update of per-cpu counters to incore superblock
  */
-STATIC void
+void
 xfs_icsb_sync_counters(
-	xfs_mount_t	*mp)
+	xfs_mount_t	*mp,
+	int		flags)
 {
-	xfs_icsb_sync_counters_flags(mp, 0);
+	spin_lock(&mp->m_sb_lock);
+	xfs_icsb_sync_counters_locked(mp, flags);
+	spin_unlock(&mp->m_sb_lock);
 }
 
 /*
