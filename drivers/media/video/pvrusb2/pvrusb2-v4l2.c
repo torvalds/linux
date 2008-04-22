@@ -267,6 +267,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		ret = 0;
 		switch (vi->index) {
 		case PVR2_CVAL_INPUT_TV:
+		case PVR2_CVAL_INPUT_DTV:
 		case PVR2_CVAL_INPUT_RADIO:
 			tmp.type = V4L2_INPUT_TYPE_TUNER;
 			break;
