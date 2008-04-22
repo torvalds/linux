@@ -619,11 +619,12 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 		else
 			ts_type = 0;
 
-		if (otype == DMX_OUT_TS_TAP || otype == DMX_OUT_TSDEMUX_TAP)
+		if (otype == DMX_OUT_TS_TAP)
 			ts_type |= TS_PACKET;
-
-		if (otype == DMX_OUT_TAP)
-			ts_type |= TS_PAYLOAD_ONLY | TS_PACKET;
+		else if (otype == DMX_OUT_TSDEMUX_TAP)
+			ts_type |= TS_PACKET | TS_DEMUX;
+		else if (otype == DMX_OUT_TAP)
+			ts_type |= TS_PACKET | TS_DEMUX | TS_PAYLOAD_ONLY;
 
 		ret = dmxdev->demux->allocate_ts_feed(dmxdev->demux,
 						      tsfeed,

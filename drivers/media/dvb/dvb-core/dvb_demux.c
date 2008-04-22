@@ -368,7 +368,7 @@ static inline void dvb_dmx_swfilter_packet_type(struct dvb_demux_feed *feed,
 #define DVR_FEED(f)							\
 	(((f)->type == DMX_TYPE_TS) &&					\
 	((f)->feed.ts.is_filtering) &&					\
-	(((f)->ts_type & (TS_PACKET|TS_PAYLOAD_ONLY)) == TS_PACKET))
+	(((f)->ts_type & (TS_PACKET | TS_DEMUX)) == TS_PACKET))
 
 static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 {
