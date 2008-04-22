@@ -952,7 +952,7 @@ void cx23885_free_buffer(struct videobuf_queue *q, struct cx23885_buffer *buf)
 	videobuf_waiton(&buf->vb, 0, 0);
 	videobuf_dma_unmap(q, dma);
 	videobuf_dma_free(dma);
-	btcx_riscmem_free((struct pci_dev *)q->dev, &buf->risc);
+	btcx_riscmem_free(to_pci_dev(q->dev), &buf->risc);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
