@@ -155,13 +155,17 @@ __fail:									\
 	__ret;								\
 })
 
-#define hybrid_tuner_release_state(state) do {				\
+#define hybrid_tuner_release_state(state)				\
+({									\
+	int __ret;							\
 	state->i2c_props.count--;					\
+	__ret = state->i2c_props.count;					\
 	if (!state->i2c_props.count) {					\
 		__tuner_info(state->i2c_props, "destroying instance\n");\
 		list_del(&state->hybrid_tuner_instance_list);		\
 		kfree(state);						\
 	}								\
-} while (0)
+	__ret;								\
+})
 
 #endif /* __TUNER_I2C_H__ */
