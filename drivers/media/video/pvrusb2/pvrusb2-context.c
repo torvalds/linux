@@ -75,10 +75,9 @@ struct pvr2_context *pvr2_context_create(
 		mp = NULL;
 		goto done;
 	}
-	pvr2_hdw_set_state_callback(mp->hdw,
-				    (void (*)(void *))pvr2_context_state_check,
-				    mp);
-	pvr2_context_state_check(mp);
+	pvr2_hdw_initialize(mp->hdw,
+			    (void (*)(void *))pvr2_context_state_check,
+			    mp);
  done:
 	return mp;
 }

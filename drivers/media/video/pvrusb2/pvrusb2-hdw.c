@@ -1813,8 +1813,23 @@ static void pvr2_hdw_setup(struct pvr2_hdw *hdw)
 }
 
 
-/* Create and return a structure for interacting with the underlying
-   hardware */
+/* Perform second stage initialization.  Set callback pointer first so that
+   we can avoid a possible initialization race (if the kernel thread runs
+   before the callback has been set). */
+void pvr2_hdw_initialize(struct pvr2_hdw *hdw,
+			 void (*callback_func)(void *),
+			 void *callback_data)
+{
+	LOCK_TAKE(hdw->big_lock); do {
+		hdw->state_data = callback_data;
+		hdw->state_func = callback_func;
+	} while (0); LOCK_GIVE(hdw->big_lock);
+	queue_work(hdw->workqueue,&hdw->workinit);
+}
+
+
+/* Create, set up, and return a structure for interacting with the
+   underlying hardware.  */
 struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 				 const struct usb_device_id *devid)
 {
@@ -2039,7 +2054,6 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	mutex_init(&hdw->ctl_lock_mutex);
 	mutex_init(&hdw->big_lock_mutex);
 
-	queue_work(hdw->workqueue,&hdw->workinit);
 	return hdw;
  fail:
 	if (hdw) {
@@ -2518,17 +2532,6 @@ static int pvr2_hdw_wait(struct pvr2_hdw *hdw,int state)
 		hdw->state_wait_data,
 		(hdw->state_stale == 0) &&
 		(!state || (hdw->master_state != state)));
-}
-
-
-void pvr2_hdw_set_state_callback(struct pvr2_hdw *hdw,
-				 void (*callback_func)(void *),
-				 void *callback_data)
-{
-	LOCK_TAKE(hdw->big_lock); do {
-		hdw->state_data = callback_data;
-		hdw->state_func = callback_func;
-	} while (0); LOCK_GIVE(hdw->big_lock);
 }
 
 
