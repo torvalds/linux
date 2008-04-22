@@ -2383,6 +2383,10 @@ static void cx88_card_setup(struct cx88_core *core)
 		ctl.max_len = 64;
 
 		switch (core->boardnr) {
+		case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
+			/* Doesn't work with firmware version 2.7 */
+			ctl.fname = "xc3028-v25.fw";
+			break;
 		case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
 			ctl.scode_table = XC3028_FE_ZARLINK456;
 			break;
