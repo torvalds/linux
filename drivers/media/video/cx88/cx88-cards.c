@@ -1572,7 +1572,7 @@ static const struct cx88_board cx88_boards[] = {
 	       .mpeg           = CX88_MPEG_DVB,
        },
 	[CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD] = {
-		.name           = "DVICO FusionHDTV7 Gold",
+		.name           = "DViCO FusionHDTV 7 Gold",
 		.tuner_type     = TUNER_XC5000,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
@@ -1580,15 +1580,15 @@ static const struct cx88_board cx88_boards[] = {
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
-			.gpio0  = 0x37df,
+			.gpio0  = 0x10df,
 		},{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
-			.gpio0  = 0x37df,
+			.gpio0  = 0x16d9,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
-			.gpio0  = 0x37df,
+			.gpio0  = 0x16d9,
 		}},
 	},
 };
