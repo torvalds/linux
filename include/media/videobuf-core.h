@@ -151,7 +151,7 @@ struct videobuf_qtype_ops {
 struct videobuf_queue {
 	struct mutex               vb_lock;
 	spinlock_t                 *irqlock;
-	void			   *dev; /* on pci, points to struct pci_dev */
+	struct device		   *dev;
 
 	enum v4l2_buf_type         type;
 	unsigned int               inputs; /* for V4L2_BUF_FLAG_INPUT */
@@ -185,7 +185,7 @@ void *videobuf_alloc(struct videobuf_queue* q);
 
 void videobuf_queue_core_init(struct videobuf_queue *q,
 			 struct videobuf_queue_ops *ops,
-			 void *dev,
+			 struct device *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,

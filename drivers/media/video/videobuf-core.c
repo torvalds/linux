@@ -120,7 +120,7 @@ int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
 
 void videobuf_queue_core_init(struct videobuf_queue *q,
 			 struct videobuf_queue_ops *ops,
-			 void *dev,
+			 struct device *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
