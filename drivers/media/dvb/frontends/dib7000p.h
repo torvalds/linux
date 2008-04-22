@@ -31,6 +31,8 @@ struct dib7000p_config {
 	u8 spur_protect;
 
 	int (*agc_control) (struct dvb_frontend *, u8 before);
+
+	u8 output_mode;
 };
 
 #define DEFAULT_DIB7000P_I2C_ADDRESS 18

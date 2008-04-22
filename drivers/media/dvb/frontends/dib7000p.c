@@ -1168,7 +1168,7 @@ static int dib7000p_set_frontend(struct dvb_frontend* fe,
 	ret = dib7000p_tune(fe, fep);
 
 	/* make this a config parameter */
-	dib7000p_set_output_mode(state, OUTMODE_MPEG2_FIFO);
+	dib7000p_set_output_mode(state, state->cfg.output_mode);
     return ret;
 }
 
@@ -1329,6 +1329,12 @@ struct dvb_frontend * dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr,
 	st->i2c_addr = i2c_addr;
 	st->gpio_val = cfg->gpio_val;
 	st->gpio_dir = cfg->gpio_dir;
+
+	/* Ensure the output mode remains at the previous default if it's
+	 * not specifically set by the caller.
+	 */
+	if (st->cfg.output_mode != OUTMODE_MPEG2_SERIAL)
+		st->cfg.output_mode = OUTMODE_MPEG2_FIFO;
 
 	demod                   = &st->demod;
 	demod->demodulator_priv = st;
