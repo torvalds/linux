@@ -604,9 +604,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dvico_fusionhdtv_hybrid,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap,
-				   DVB_PLL_THOMSON_FE6600);
+			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &dev->core->i2c_adap, 0x61,
+				   TUNER_THOMSON_FE6600);
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
