@@ -332,16 +332,9 @@ static struct mv_sata_platform_data qnap_ts209_sata_data = {
 
  * General Setup
  ****************************************************************************/
-
-static struct platform_device *qnap_ts209_devices[] __initdata = {
-	&qnap_ts209_nor_flash,
-	&qnap_ts209_button_device,
-};
-
 /*
  * QNAP TS-[12]09 specific power off method via UART1-attached PIC
  */
-
 #define UART1_REG(x)	(UART1_VIRT_BASE + ((UART_##x) << 2))
 
 static void qnap_ts209_power_off(void)
@@ -370,12 +363,6 @@ static void __init qnap_ts209_init(void)
 	 * Setup basic Orion functions. Need to be called early.
 	 */
 	orion5x_init();
-
-	/*
-	 * Setup flash mapping
-	 */
-	orion5x_setup_dev_boot_win(QNAP_TS209_NOR_BOOT_BASE,
-				   QNAP_TS209_NOR_BOOT_SIZE);
 
 	/*
 	 * Open a special address decode windows for the PCIe WA.
@@ -411,11 +398,22 @@ static void __init qnap_ts209_init(void)
 	orion5x_write(MPP_16_19_CTRL, 0x5500);
 	orion5x_gpio_set_valid_pins(0x3cc0fff);
 
-	/* register ts209 specific power-off method */
-	pm_power_off = qnap_ts209_power_off;
+	/*
+	 * Configure peripherals.
+	 */
+	orion5x_ehci0_init();
+	orion5x_ehci1_init();
+	ts209_find_mac_addr();
+	orion5x_eth_init(&qnap_ts209_eth_data);
+	orion5x_i2c_init();
+	orion5x_sata_init(&qnap_ts209_sata_data);
+	orion5x_uart0_init();
 
-	platform_add_devices(qnap_ts209_devices,
-				ARRAY_SIZE(qnap_ts209_devices));
+	orion5x_setup_dev_boot_win(QNAP_TS209_NOR_BOOT_BASE,
+				   QNAP_TS209_NOR_BOOT_SIZE);
+	platform_device_register(&qnap_ts209_nor_flash);
+
+	platform_device_register(&qnap_ts209_button_device);
 
 	/* Get RTC IRQ and register the chip */
 	if (gpio_request(TS209_RTC_GPIO, "rtc") == 0) {
@@ -428,10 +426,8 @@ static void __init qnap_ts209_init(void)
 		pr_warning("qnap_ts209_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &qnap_ts209_i2c_rtc, 1);
 
-	ts209_find_mac_addr();
-	orion5x_eth_init(&qnap_ts209_eth_data);
-
-	orion5x_sata_init(&qnap_ts209_sata_data);
+	/* register ts209 specific power-off method */
+	pm_power_off = qnap_ts209_power_off;
 }
 
 MACHINE_START(TS209, "QNAP TS-109/TS-209")

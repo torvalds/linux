@@ -63,65 +63,20 @@ void __init orion5x_map_io(void)
 	iotable_init(orion5x_io_desc, ARRAY_SIZE(orion5x_io_desc));
 }
 
+
 /*****************************************************************************
- * UART
+ * EHCI
  ****************************************************************************/
-
-static struct resource orion5x_uart_resources[] = {
-	{
-		.start		= UART0_PHYS_BASE,
-		.end		= UART0_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_ORION5X_UART0,
-		.end		= IRQ_ORION5X_UART0,
-		.flags		= IORESOURCE_IRQ,
-	}, {
-		.start		= UART1_PHYS_BASE,
-		.end		= UART1_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_ORION5X_UART1,
-		.end		= IRQ_ORION5X_UART1,
-		.flags		= IORESOURCE_IRQ,
-	},
+static struct orion_ehci_data orion5x_ehci_data = {
+	.dram		= &orion5x_mbus_dram_info,
 };
 
-static struct plat_serial8250_port orion5x_uart_data[] = {
-	{
-		.mapbase	= UART0_PHYS_BASE,
-		.membase	= (char *)UART0_VIRT_BASE,
-		.irq		= IRQ_ORION5X_UART0,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= ORION5X_TCLK,
-	}, {
-		.mapbase	= UART1_PHYS_BASE,
-		.membase	= (char *)UART1_VIRT_BASE,
-		.irq		= IRQ_ORION5X_UART1,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= ORION5X_TCLK,
-	}, {
-	},
-};
+static u64 ehci_dmamask = 0xffffffffUL;
 
-static struct platform_device orion5x_uart = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev			= {
-		.platform_data	= orion5x_uart_data,
-	},
-	.resource		= orion5x_uart_resources,
-	.num_resources		= ARRAY_SIZE(orion5x_uart_resources),
-};
 
-/*******************************************************************************
- * USB Controller - 2 interfaces
- ******************************************************************************/
-
+/*****************************************************************************
+ * EHCI0
+ ****************************************************************************/
 static struct resource orion5x_ehci0_resources[] = {
 	{
 		.start	= ORION5X_USB0_PHYS_BASE,
@@ -134,24 +89,6 @@ static struct resource orion5x_ehci0_resources[] = {
 	},
 };
 
-static struct resource orion5x_ehci1_resources[] = {
-	{
-		.start	= ORION5X_USB1_PHYS_BASE,
-		.end	= ORION5X_USB1_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_ORION5X_USB1_CTRL,
-		.end	= IRQ_ORION5X_USB1_CTRL,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct orion_ehci_data orion5x_ehci_data = {
-	.dram		= &orion5x_mbus_dram_info,
-};
-
-static u64 ehci_dmamask = 0xffffffffUL;
-
 static struct platform_device orion5x_ehci0 = {
 	.name		= "orion-ehci",
 	.id		= 0,
@@ -162,6 +99,27 @@ static struct platform_device orion5x_ehci0 = {
 	},
 	.resource	= orion5x_ehci0_resources,
 	.num_resources	= ARRAY_SIZE(orion5x_ehci0_resources),
+};
+
+void __init orion5x_ehci0_init(void)
+{
+	platform_device_register(&orion5x_ehci0);
+}
+
+
+/*****************************************************************************
+ * EHCI1
+ ****************************************************************************/
+static struct resource orion5x_ehci1_resources[] = {
+	{
+		.start	= ORION5X_USB1_PHYS_BASE,
+		.end	= ORION5X_USB1_PHYS_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_ORION5X_USB1_CTRL,
+		.end	= IRQ_ORION5X_USB1_CTRL,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device orion5x_ehci1 = {
@@ -176,11 +134,15 @@ static struct platform_device orion5x_ehci1 = {
 	.num_resources	= ARRAY_SIZE(orion5x_ehci1_resources),
 };
 
-/*****************************************************************************
- * Gigabit Ethernet port
- * (The Orion and Discovery (MV643xx) families use the same Ethernet driver)
- ****************************************************************************/
+void __init orion5x_ehci1_init(void)
+{
+	platform_device_register(&orion5x_ehci1);
+}
 
+
+/*****************************************************************************
+ * GigE
+ ****************************************************************************/
 struct mv643xx_eth_shared_platform_data orion5x_eth_shared_data = {
 	.dram		= &orion5x_mbus_dram_info,
 	.t_clk		= ORION5X_TCLK,
@@ -229,11 +191,10 @@ void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 	platform_device_register(&orion5x_eth);
 }
 
-/*****************************************************************************
- * I2C controller
- * (The Orion and Discovery (MV643xx) families share the same I2C controller)
- ****************************************************************************/
 
+/*****************************************************************************
+ * I2C
+ ****************************************************************************/
 static struct mv64xxx_i2c_pdata orion5x_i2c_pdata = {
 	.freq_m		= 8, /* assumes 166 MHz TCLK */
 	.freq_n		= 3,
@@ -244,7 +205,7 @@ static struct resource orion5x_i2c_resources[] = {
 	{
 		.name	= "i2c base",
 		.start	= I2C_PHYS_BASE,
-		.end	= I2C_PHYS_BASE + 0x20 -1,
+		.end	= I2C_PHYS_BASE + 0x1f,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.name	= "i2c irq",
@@ -264,8 +225,14 @@ static struct platform_device orion5x_i2c = {
 	},
 };
 
+void __init orion5x_i2c_init(void)
+{
+	platform_device_register(&orion5x_i2c);
+}
+
+
 /*****************************************************************************
- * Sata port
+ * SATA
  ****************************************************************************/
 static struct resource orion5x_sata_resources[] = {
 	{
@@ -298,10 +265,98 @@ void __init orion5x_sata_init(struct mv_sata_platform_data *sata_data)
 	platform_device_register(&orion5x_sata);
 }
 
+
+/*****************************************************************************
+ * UART0
+ ****************************************************************************/
+static struct plat_serial8250_port orion5x_uart0_data[] = {
+	{
+		.mapbase	= UART0_PHYS_BASE,
+		.membase	= (char *)UART0_VIRT_BASE,
+		.irq		= IRQ_ORION5X_UART0,
+		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+		.uartclk	= ORION5X_TCLK,
+	}, {
+	},
+};
+
+static struct resource orion5x_uart0_resources[] = {
+	{
+		.start		= UART0_PHYS_BASE,
+		.end		= UART0_PHYS_BASE + 0xff,
+		.flags		= IORESOURCE_MEM,
+	}, {
+		.start		= IRQ_ORION5X_UART0,
+		.end		= IRQ_ORION5X_UART0,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device orion5x_uart0 = {
+	.name			= "serial8250",
+	.id			= PLAT8250_DEV_PLATFORM,
+	.dev			= {
+		.platform_data	= orion5x_uart0_data,
+	},
+	.resource		= orion5x_uart0_resources,
+	.num_resources		= ARRAY_SIZE(orion5x_uart0_resources),
+};
+
+void __init orion5x_uart0_init(void)
+{
+	platform_device_register(&orion5x_uart0);
+}
+
+
+/*****************************************************************************
+ * UART1
+ ****************************************************************************/
+static struct plat_serial8250_port orion5x_uart1_data[] = {
+	{
+		.mapbase	= UART1_PHYS_BASE,
+		.membase	= (char *)UART1_VIRT_BASE,
+		.irq		= IRQ_ORION5X_UART1,
+		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+		.uartclk	= ORION5X_TCLK,
+	}, {
+	},
+};
+
+static struct resource orion5x_uart1_resources[] = {
+	{
+		.start		= UART1_PHYS_BASE,
+		.end		= UART1_PHYS_BASE + 0xff,
+		.flags		= IORESOURCE_MEM,
+	}, {
+		.start		= IRQ_ORION5X_UART1,
+		.end		= IRQ_ORION5X_UART1,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device orion5x_uart1 = {
+	.name			= "serial8250",
+	.id			= PLAT8250_DEV_PLATFORM1,
+	.dev			= {
+		.platform_data	= orion5x_uart1_data,
+	},
+	.resource		= orion5x_uart1_resources,
+	.num_resources		= ARRAY_SIZE(orion5x_uart1_resources),
+};
+
+void __init orion5x_uart1_init(void)
+{
+	platform_device_register(&orion5x_uart1);
+}
+
+
 /*****************************************************************************
  * Time handling
  ****************************************************************************/
-
 static void orion5x_timer_init(void)
 {
 	orion_time_init(IRQ_ORION5X_BRIDGE, ORION5X_TCLK);
@@ -311,10 +366,10 @@ struct sys_timer orion5x_timer = {
 	.init = orion5x_timer_init,
 };
 
+
 /*****************************************************************************
  * General
  ****************************************************************************/
-
 /*
  * Identify device ID and rev from PCIe configuration header space '0'.
  */
@@ -359,15 +414,6 @@ void __init orion5x_init(void)
 	 * Setup Orion address map
 	 */
 	orion5x_setup_cpu_mbus_bridge();
-
-	/*
-	 * Register devices.
-	 */
-	platform_device_register(&orion5x_uart);
-	platform_device_register(&orion5x_ehci0);
-	if (dev == MV88F5182_DEV_ID)
-		platform_device_register(&orion5x_ehci1);
-	platform_device_register(&orion5x_i2c);
 }
 
 /*

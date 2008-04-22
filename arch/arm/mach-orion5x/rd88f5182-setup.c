@@ -241,24 +241,12 @@ static struct mv_sata_platform_data rd88f5182_sata_data = {
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
-
-static struct platform_device *rd88f5182_devices[] __initdata = {
-	&rd88f5182_nor_flash,
-};
-
 static void __init rd88f5182_init(void)
 {
 	/*
 	 * Setup basic Orion functions. Need to be called early.
 	 */
 	orion5x_init();
-
-	/*
-	 * Setup the CPU address decode windows for our devices
-	 */
-	orion5x_setup_dev_boot_win(RD88F5182_NOR_BOOT_BASE,
-				RD88F5182_NOR_BOOT_SIZE);
-	orion5x_setup_dev1_win(RD88F5182_NOR_BASE, RD88F5182_NOR_SIZE);
 
 	/*
 	 * Open a special address decode windows for the PCIe WA.
@@ -296,10 +284,23 @@ static void __init rd88f5182_init(void)
 
 	orion5x_gpio_set_valid_pins(0x000000fb);
 
-	platform_add_devices(rd88f5182_devices, ARRAY_SIZE(rd88f5182_devices));
-	i2c_register_board_info(0, &rd88f5182_i2c_rtc, 1);
+	/*
+	 * Configure peripherals.
+	 */
+	orion5x_ehci0_init();
+	orion5x_ehci1_init();
 	orion5x_eth_init(&rd88f5182_eth_data);
+	orion5x_i2c_init();
 	orion5x_sata_init(&rd88f5182_sata_data);
+	orion5x_uart0_init();
+
+	orion5x_setup_dev_boot_win(RD88F5182_NOR_BOOT_BASE,
+				   RD88F5182_NOR_BOOT_SIZE);
+
+	orion5x_setup_dev1_win(RD88F5182_NOR_BASE, RD88F5182_NOR_SIZE);
+	platform_device_register(&rd88f5182_nor_flash);
+
+	i2c_register_board_info(0, &rd88f5182_i2c_rtc, 1);
 }
 
 MACHINE_START(RD88F5182, "Marvell Orion-NAS Reference Design")

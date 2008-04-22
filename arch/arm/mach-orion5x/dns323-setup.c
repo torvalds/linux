@@ -213,12 +213,6 @@ static struct platform_device dns323_button_device = {
  * General Setup
  */
 
-static struct platform_device *dns323_plat_devices[] __initdata = {
-	&dns323_nor_flash,
-	&dns323_gpio_leds,
-	&dns323_button_device,
-};
-
 /*
  * On the DNS-323 the following devices are attached via I2C:
  *
@@ -252,11 +246,6 @@ static void __init dns323_init(void)
 {
 	/* Setup basic Orion functions. Need to be called early. */
 	orion5x_init();
-
-	/* setup flash mapping
-	 * CS3 holds a 8 MB Spansion S29GL064M90TFIR4
-	 */
-	orion5x_setup_dev_boot_win(DNS323_NOR_BOOT_BASE, DNS323_NOR_BOOT_SIZE);
 
 	/* DNS-323 has a Marvell 88X7042 SATA controller attached via PCIe
 	 *
@@ -294,21 +283,32 @@ static void __init dns323_init(void)
 	*/
 	orion5x_gpio_set_valid_pins(0x07f6);
 
-	/* register dns323 specific power-off method */
-	if (gpio_request(DNS323_GPIO_POWER_OFF, "POWEROFF") != 0 ||
-	    gpio_direction_output(DNS323_GPIO_POWER_OFF, 0) != 0)
-		pr_err("DNS323: failed to setup power-off GPIO\n");
+	/*
+	 * Configure peripherals.
+	 */
+	orion5x_ehci0_init();
+	orion5x_eth_init(&dns323_eth_data);
+	orion5x_i2c_init();
+	orion5x_uart0_init();
 
-	pm_power_off = dns323_power_off;
+	/* setup flash mapping
+	 * CS3 holds a 8 MB Spansion S29GL064M90TFIR4
+	 */
+	orion5x_setup_dev_boot_win(DNS323_NOR_BOOT_BASE, DNS323_NOR_BOOT_SIZE);
+	platform_device_register(&dns323_nor_flash);
 
-	/* register flash and other platform devices */
-	platform_add_devices(dns323_plat_devices,
-			     ARRAY_SIZE(dns323_plat_devices));
+	platform_device_register(&dns323_gpio_leds);
+
+	platform_device_register(&dns323_button_device);
 
 	i2c_register_board_info(0, dns323_i2c_devices,
 				ARRAY_SIZE(dns323_i2c_devices));
 
-	orion5x_eth_init(&dns323_eth_data);
+	/* register dns323 specific power-off method */
+	if (gpio_request(DNS323_GPIO_POWER_OFF, "POWEROFF") != 0 ||
+	    gpio_direction_output(DNS323_GPIO_POWER_OFF, 0) != 0)
+		pr_err("DNS323: failed to setup power-off GPIO\n");
+	pm_power_off = dns323_power_off;
 }
 
 /* Warning: D-Link uses a wrong mach-type (=526) in their bootloader */

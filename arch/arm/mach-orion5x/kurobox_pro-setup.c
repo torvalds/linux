@@ -188,13 +188,6 @@ static void __init kurobox_pro_init(void)
 	orion5x_init();
 
 	/*
-	 * Setup the CPU address decode windows for our devices
-	 */
-	orion5x_setup_dev_boot_win(KUROBOX_PRO_NOR_BOOT_BASE,
-				KUROBOX_PRO_NOR_BOOT_SIZE);
-	orion5x_setup_dev0_win(KUROBOX_PRO_NAND_BASE, KUROBOX_PRO_NAND_SIZE);
-
-	/*
 	 * Open a special address decode windows for the PCIe WA.
 	 */
 	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
@@ -221,12 +214,27 @@ static void __init kurobox_pro_init(void)
 
 	orion5x_gpio_set_valid_pins(0x0000000c);
 
-	platform_device_register(&kurobox_pro_nor_flash);
-	if (machine_is_kurobox_pro())
-		platform_device_register(&kurobox_pro_nand_flash);
-	i2c_register_board_info(0, &kurobox_pro_i2c_rtc, 1);
+	/*
+	 * Configure peripherals.
+	 */
+	orion5x_ehci0_init();
+	orion5x_ehci1_init();
 	orion5x_eth_init(&kurobox_pro_eth_data);
+	orion5x_i2c_init();
 	orion5x_sata_init(&kurobox_pro_sata_data);
+	orion5x_uart0_init();
+
+	orion5x_setup_dev_boot_win(KUROBOX_PRO_NOR_BOOT_BASE,
+				   KUROBOX_PRO_NOR_BOOT_SIZE);
+	platform_device_register(&kurobox_pro_nor_flash);
+
+	if (machine_is_kurobox_pro()) {
+		orion5x_setup_dev0_win(KUROBOX_PRO_NAND_BASE,
+				       KUROBOX_PRO_NAND_SIZE);
+		platform_device_register(&kurobox_pro_nand_flash);
+	}
+
+	i2c_register_board_info(0, &kurobox_pro_i2c_rtc, 1);
 }
 
 #ifdef CONFIG_MACH_KUROBOX_PRO
