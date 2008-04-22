@@ -125,16 +125,16 @@ int tda18271_read_regs(struct dvb_frontend *fe)
 	unsigned char buf = 0x00;
 	int ret;
 	struct i2c_msg msg[] = {
-		{ .addr = priv->i2c_addr, .flags = 0,
+		{ .addr = priv->i2c_props.addr, .flags = 0,
 		  .buf = &buf, .len = 1 },
-		{ .addr = priv->i2c_addr, .flags = I2C_M_RD,
+		{ .addr = priv->i2c_props.addr, .flags = I2C_M_RD,
 		  .buf = regs, .len = 16 }
 	};
 
 	tda18271_i2c_gate_ctrl(fe, 1);
 
 	/* read all registers */
-	ret = i2c_transfer(priv->i2c_adap, msg, 2);
+	ret = i2c_transfer(priv->i2c_props.adap, msg, 2);
 
 	tda18271_i2c_gate_ctrl(fe, 0);
 
@@ -155,16 +155,16 @@ int tda18271_read_extended(struct dvb_frontend *fe)
 	unsigned char buf = 0x00;
 	int ret, i;
 	struct i2c_msg msg[] = {
-		{ .addr = priv->i2c_addr, .flags = 0,
+		{ .addr = priv->i2c_props.addr, .flags = 0,
 		  .buf = &buf, .len = 1 },
-		{ .addr = priv->i2c_addr, .flags = I2C_M_RD,
+		{ .addr = priv->i2c_props.addr, .flags = I2C_M_RD,
 		  .buf = regdump, .len = TDA18271_NUM_REGS }
 	};
 
 	tda18271_i2c_gate_ctrl(fe, 1);
 
 	/* read all registers */
-	ret = i2c_transfer(priv->i2c_adap, msg, 2);
+	ret = i2c_transfer(priv->i2c_props.adap, msg, 2);
 
 	tda18271_i2c_gate_ctrl(fe, 0);
 
@@ -192,7 +192,7 @@ int tda18271_write_regs(struct dvb_frontend *fe, int idx, int len)
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	unsigned char buf[TDA18271_NUM_REGS + 1];
-	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
+	struct i2c_msg msg = { .addr = priv->i2c_props.addr, .flags = 0,
 			       .buf = buf, .len = len + 1 };
 	int i, ret;
 
@@ -205,7 +205,7 @@ int tda18271_write_regs(struct dvb_frontend *fe, int idx, int len)
 	tda18271_i2c_gate_ctrl(fe, 1);
 
 	/* write registers */
-	ret = i2c_transfer(priv->i2c_adap, &msg, 1);
+	ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
 
 	tda18271_i2c_gate_ctrl(fe, 0);
 
@@ -223,7 +223,8 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	unsigned char *regs = priv->tda18271_regs;
 
 	tda_dbg("initializing registers for device @ %d-%04x\n",
-		i2c_adapter_id(priv->i2c_adap), priv->i2c_addr);
+		i2c_adapter_id(priv->i2c_props.adap),
+		priv->i2c_props.addr);
 
 	/* initialize registers */
 	switch (priv->id) {

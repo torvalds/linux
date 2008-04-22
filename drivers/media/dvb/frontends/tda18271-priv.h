@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
+#include "tuner-i2c.h"
 #include "tda18271.h"
 
 #define R_ID     0x00	/* ID byte                */
@@ -98,17 +99,15 @@ enum tda18271_ver {
 };
 
 struct tda18271_priv {
-	u8 i2c_addr;
-	struct i2c_adapter *i2c_adap;
 	unsigned char tda18271_regs[TDA18271_NUM_REGS];
 
-	struct list_head tda18271_list;
+	struct list_head	hybrid_tuner_instance_list;
+	struct tuner_i2c_props	i2c_props;
 
 	enum tda18271_mode mode;
 	enum tda18271_i2c_gate gate;
 	enum tda18271_ver id;
 
-	unsigned int count;
 	unsigned int tm_rfcal;
 	unsigned int cal_initialized:1;
 

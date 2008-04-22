@@ -31,8 +31,8 @@ static int tda18271_cal_on_startup;
 module_param_named(cal, tda18271_cal_on_startup, int, 0644);
 MODULE_PARM_DESC(cal, "perform RF tracking filter calibration on startup");
 
-static LIST_HEAD(tda18271_list);
 static DEFINE_MUTEX(tda18271_list_mutex);
+static LIST_HEAD(hybrid_tuner_instance_list);
 
 /*---------------------------------------------------------------------*/
 
@@ -986,16 +986,9 @@ static int tda18271_release(struct dvb_frontend *fe)
 
 	mutex_lock(&tda18271_list_mutex);
 
-	priv->count--;
+	if (priv)
+		hybrid_tuner_release_state(priv);
 
-	if (!priv->count) {
-		tda_dbg("destroying instance @ %d-%04x\n",
-			i2c_adapter_id(priv->i2c_adap),
-			priv->i2c_addr);
-		list_del(&priv->tda18271_list);
-
-		kfree(priv);
-	}
 	mutex_unlock(&tda18271_list_mutex);
 
 	fe->tuner_priv = NULL;
@@ -1109,7 +1102,8 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 	}
 
 	tda_info("%s detected @ %d-%04x%s\n", name,
-		 i2c_adapter_id(priv->i2c_adap), priv->i2c_addr,
+		 i2c_adapter_id(priv->i2c_props.adap),
+		 priv->i2c_props.addr,
 		 (0 == ret) ? "" : ", device not supported.");
 
 	return ret;
@@ -1136,45 +1130,24 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 				     struct tda18271_config *cfg)
 {
 	struct tda18271_priv *priv = NULL;
-	int state_found = 0;
+	int instance;
 
 	mutex_lock(&tda18271_list_mutex);
 
-	list_for_each_entry(priv, &tda18271_list, tda18271_list) {
-		if ((i2c_adapter_id(priv->i2c_adap) == i2c_adapter_id(i2c)) &&
-		    (priv->i2c_addr == addr)) {
-			tda_dbg("attaching existing tuner @ %d-%04x\n",
-				i2c_adapter_id(priv->i2c_adap),
-				priv->i2c_addr);
-			priv->count++;
-			fe->tuner_priv = priv;
-			state_found = 1;
-			/* allow dvb driver to override i2c gate setting */
-			if ((cfg) && (cfg->gate != TDA18271_GATE_ANALOG))
-				priv->gate = cfg->gate;
-			break;
-		}
-	}
-	if (state_found == 0) {
-		tda_dbg("creating new tuner instance @ %d-%04x\n",
-			i2c_adapter_id(i2c), addr);
-
-		priv = kzalloc(sizeof(struct tda18271_priv), GFP_KERNEL);
-		if (priv == NULL) {
-			mutex_unlock(&tda18271_list_mutex);
-			return NULL;
-		}
-
-		priv->i2c_addr = addr;
-		priv->i2c_adap = i2c;
+	instance = hybrid_tuner_request_state(struct tda18271_priv, priv,
+					      hybrid_tuner_instance_list,
+					      i2c, addr, "tda18271");
+	switch (instance) {
+	case 0:
+		goto fail;
+		break;
+	case 1:
+		/* new tuner instance */
 		priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
 		priv->cal_initialized = false;
 		mutex_init(&priv->lock);
-		priv->count++;
 
 		fe->tuner_priv = priv;
-
-		list_add_tail(&priv->tda18271_list, &tda18271_list);
 
 		if (tda18271_get_id(fe) < 0)
 			goto fail;
@@ -1189,6 +1162,15 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 			tda18271_rf_cal_init(fe);
 
 		mutex_unlock(&priv->lock);
+		break;
+	default:
+		/* existing tuner instance */
+		fe->tuner_priv = priv;
+
+		/* allow dvb driver to override i2c gate setting */
+		if ((cfg) && (cfg->gate != TDA18271_GATE_ANALOG))
+			priv->gate = cfg->gate;
+		break;
 	}
 
 	/* override default std map with values in config struct */
