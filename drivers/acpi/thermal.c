@@ -1136,7 +1136,7 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE &&
 			tz->trips.active[i].flags.valid; i++, trips++);
-	tz->thermal_zone = thermal_zone_device_register("ACPI thermal zone",
+	tz->thermal_zone = thermal_zone_device_register("acpitz",
 					trips, tz, &acpi_thermal_zone_ops);
 	if (IS_ERR(tz->thermal_zone))
 		return -ENODEV;
