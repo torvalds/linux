@@ -220,7 +220,7 @@ static void airprime_close(struct usb_serial_port *port, struct file * filp)
 	mutex_lock(&port->serial->disc_mutex);
 	if (!port->serial->disconnected)
 		airprime_send_setup(port);
-	mutex_lock(&port->serial->disc_mutex);
+	mutex_unlock(&port->serial->disc_mutex);
 
 	for (i = 0; i < NUM_READ_URBS; ++i) {
 		usb_kill_urb (priv->read_urbp[i]);
