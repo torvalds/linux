@@ -1685,20 +1685,6 @@ enum soc_au1200_ints {
 #define IOMEM_RESOURCE_START  0x10000000
 #define IOMEM_RESOURCE_END    0xffffffff
 
-  /*
-   * Borrowed from the PPC arch:
-   * The following macro is used to lookup irqs in a standard table
-   * format for those PPC systems that do not already have PCI
-   * interrupts properly routed.
-   */
-  /* FIXME - double check this from asm-ppc/pci-bridge.h */
-#define PCI_IRQ_TABLE_LOOKUP                            \
-  ({ long _ctl_ = -1;                                 \
-      if (idsel >= min_idsel && idsel <= max_idsel && pin <= irqs_per_slot)    \
-	       _ctl_ = pci_irq_table[idsel - min_idsel][pin-1];               \
-		      _ctl_; })
-
-
 #else /* Au1000 and Au1100 and Au1200 */
 
 /* don't allow any legacy ports probing */
