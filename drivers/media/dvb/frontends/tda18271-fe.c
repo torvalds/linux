@@ -752,54 +752,8 @@ static int tda18271c1_tune(struct dvb_frontend *fe,
 	if (0 == tda18271_calc_rf_cal(fe, &freq))
 		tda18271_write_regs(fe, R_EB14, 1);
 
-	/* Channel Configuration */
+	tda18271_channel_configuration(fe, ifc, freq, bw, std, radio);
 
-	switch (priv->mode) {
-	case TDA18271_ANALOG:
-		regs[R_EB22]  = 0x2c;
-		break;
-	case TDA18271_DIGITAL:
-		regs[R_EB22]  = 0x37;
-		break;
-	}
-	tda18271_write_regs(fe, R_EB22, 1);
-
-	regs[R_EP1]  |= 0x40; /* set dis power level on */
-
-	/* set standard */
-	regs[R_EP3]  &= ~0x1f; /* clear std bits */
-
-	/* see table 22 */
-	regs[R_EP3]  |= std;
-
-	regs[R_EP4]  &= ~0x03; /* set cal mode to normal */
-
-	regs[R_EP4]  &= ~0x1c; /* clear if level bits */
-	switch (priv->mode) {
-	case TDA18271_ANALOG:
-		regs[R_MPD]  &= ~0x80; /* IF notch = 0 */
-		break;
-	case TDA18271_DIGITAL:
-		regs[R_EP4]  |= 0x04;
-		regs[R_MPD]  |= 0x80;
-		break;
-	}
-
-	if (radio)
-		regs[R_EP4]  |=  0x80;
-	else
-		regs[R_EP4]  &= ~0x80;
-
-	/* image rejection validity */
-	tda18271_calc_ir_measure(fe, &freq);
-
-	/* calculate MAIN PLL */
-	N = freq + ifc;
-
-	tda18271_calc_main_pll(fe, N);
-
-	tda18271_write_regs(fe, R_TM, 15);
-	msleep(5);
 	mutex_unlock(&priv->lock);
 
 	return 0;
