@@ -986,7 +986,8 @@ static int snd_intel8x0_free(struct intel8x0m *chip)
 	for (i = 0; i < chip->bdbars_count; i++)
 		iputbyte(chip, ICH_REG_OFF_CR + chip->ichd[i].reg_offset, ICH_RESETREGS);
 	/* --- */
-	synchronize_irq(chip->irq);
+	if (chip->irq >= 0)
+		synchronize_irq(chip->irq);
       __hw_end:
 	if (chip->bdbars.area)
 		snd_dma_free_pages(&chip->bdbars);

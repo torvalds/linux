@@ -2475,7 +2475,8 @@ static inline void snd_es1968_free_gameport(struct es1968 *chip) { }
 static int snd_es1968_free(struct es1968 *chip)
 {
 	if (chip->io_port) {
-		synchronize_irq(chip->irq);
+		if (chip->irq >= 0)
+			synchronize_irq(chip->irq);
 		outw(1, chip->io_port + 0x04); /* clear WP interrupts */
 		outw(0, chip->io_port + ESM_PORT_HOST_IRQ); /* disable IRQ */
 	}

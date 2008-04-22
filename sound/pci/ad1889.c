@@ -854,8 +854,6 @@ snd_ad1889_free(struct snd_ad1889 *chip)
 
 	spin_unlock_irq(&chip->lock);
 
-	synchronize_irq(chip->irq);
-	
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
 

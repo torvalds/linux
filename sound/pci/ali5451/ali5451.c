@@ -2047,10 +2047,8 @@ static int snd_ali_free(struct snd_ali * codec)
 {
 	if (codec->hw_initialized)
 		snd_ali_disable_address_interrupt(codec);
-	if (codec->irq >= 0) {
-		synchronize_irq(codec->irq);
+	if (codec->irq >= 0)
 		free_irq(codec->irq, codec);
-	}
 	if (codec->port)
 		pci_release_regions(codec->pci);
 	pci_disable_device(codec->pci);

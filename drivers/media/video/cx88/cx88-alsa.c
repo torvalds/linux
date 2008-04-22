@@ -690,10 +690,8 @@ MODULE_DEVICE_TABLE(pci, cx88_audio_pci_tbl);
 static int snd_cx88_free(snd_cx88_card_t *chip)
 {
 
-	if (chip->irq >= 0){
-		synchronize_irq(chip->irq);
+	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-	}
 
 	cx88_core_put(chip->core,chip->pci);
 

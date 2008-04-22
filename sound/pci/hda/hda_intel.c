@@ -1682,7 +1682,6 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 		snd_hda_suspend(chip->bus, state);
 	azx_stop_chip(chip);
 	if (chip->irq >= 0) {
-		synchronize_irq(chip->irq);
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
 	}
@@ -1738,10 +1737,8 @@ static int azx_free(struct azx *chip)
 		azx_stop_chip(chip);
 	}
 
-	if (chip->irq >= 0) {
-		synchronize_irq(chip->irq);
+	if (chip->irq >= 0)
 		free_irq(chip->irq, (void*)chip);
-	}
 	if (chip->msi)
 		pci_disable_msi(chip->pci);
 	if (chip->remap_addr)

@@ -954,10 +954,8 @@ static void snd_saa7134_free(struct snd_card * card)
 	if (chip->dev->dmasound.priv_data == NULL)
 		return;
 
-	if (chip->irq >= 0) {
-		synchronize_irq(chip->irq);
+	if (chip->irq >= 0)
 		free_irq(chip->irq, &chip->dev->dmasound);
-	}
 
 	chip->dev->dmasound.priv_data = NULL;
 

@@ -410,10 +410,8 @@ static void oxygen_card_free(struct snd_card *card)
 	oxygen_write16(chip, OXYGEN_DMA_STATUS, 0);
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
 	spin_unlock_irq(&chip->reg_lock);
-	if (chip->irq >= 0) {
+	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-		synchronize_irq(chip->irq);
-	}
 	flush_scheduled_work();
 	chip->model->cleanup(chip);
 	mutex_destroy(&chip->mutex);

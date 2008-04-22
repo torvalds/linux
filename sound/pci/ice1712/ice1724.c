@@ -2153,10 +2153,8 @@ static int snd_vt1724_free(struct snd_ice1712 *ice)
 	outb(0xff, ICEREG1724(ice, IRQMASK));
 	/* --- */
       __hw_end:
-	if (ice->irq >= 0) {
-		synchronize_irq(ice->irq);
+	if (ice->irq >= 0)
 		free_irq(ice->irq, ice);
-	}
 	pci_release_regions(ice->pci);
 	snd_ice1712_akm4xxx_free(ice);
 	pci_disable_device(ice->pci);

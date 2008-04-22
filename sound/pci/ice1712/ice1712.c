@@ -2490,10 +2490,9 @@ static int snd_ice1712_free(struct snd_ice1712 *ice)
 	outb(0xff, ICEREG(ice, IRQMASK));
 	/* --- */
       __hw_end:
-	if (ice->irq >= 0) {
-		synchronize_irq(ice->irq);
+	if (ice->irq >= 0)
 		free_irq(ice->irq, ice);
-	}
+
 	if (ice->port)
 		pci_release_regions(ice->pci);
 	snd_ice1712_akm4xxx_free(ice);

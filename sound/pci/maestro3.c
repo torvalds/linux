@@ -2542,10 +2542,8 @@ static int snd_m3_free(struct snd_m3 *chip)
 	vfree(chip->suspend_mem);
 #endif
 
-	if (chip->irq >= 0) {
-		synchronize_irq(chip->irq);
+	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-	}
 
 	if (chip->iobase)
 		pci_release_regions(chip->pci);

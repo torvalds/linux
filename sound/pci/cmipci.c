@@ -2933,8 +2933,6 @@ static int snd_cmipci_free(struct cmipci *cm)
 		/* reset mixer */
 		snd_cmipci_mixer_write(cm, 0, 0);
 
-		synchronize_irq(cm->irq);
-
 		free_irq(cm->irq, cm);
 	}
 

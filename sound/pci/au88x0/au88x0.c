@@ -126,7 +126,6 @@ static int snd_vortex_dev_free(struct snd_device *device)
 	vortex_gameport_unregister(vortex);
 	vortex_core_shutdown(vortex);
 	// Take down PCI interface.
-	synchronize_irq(vortex->irq);
 	free_irq(vortex->irq, vortex);
 	iounmap(vortex->mmio);
 	pci_release_regions(vortex->pci_dev);
@@ -220,7 +219,6 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 	return 0;
 
       alloc_out:
-	synchronize_irq(chip->irq);
 	free_irq(chip->irq, chip);
       irq_out:
 	vortex_core_shutdown(chip);
