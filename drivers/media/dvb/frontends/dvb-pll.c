@@ -480,20 +480,6 @@ static struct dvb_pll_desc dvb_pll_philips_td1316 = {
 	},
 };
 
-/* FE6600 used on DViCO Hybrid */
-static struct dvb_pll_desc dvb_pll_thomson_fe6600 = {
-	.name = "Thomson FE6600",
-	.min =  44250000,
-	.max = 858000000,
-	.iffreq= 36125000,
-	.count = 4,
-	.entries = {
-		{ 250000000, 166667, 0xb4, 0x12 },
-		{ 455000000, 166667, 0xfe, 0x11 },
-		{ 775500000, 166667, 0xbc, 0x18 },
-		{ 999999999, 166667, 0xf4, 0x18 },
-	}
-};
 
 static void opera1_bw(struct dvb_frontend *fe, u8 *buf,
 		      const struct dvb_frontend_parameters *params)
@@ -559,7 +545,6 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_SAMSUNG_TBMV]           = &dvb_pll_samsung_tbmv,
 	[DVB_PLL_PHILIPS_SD1878_TDA8261] = &dvb_pll_philips_sd1878_tda8261,
 	[DVB_PLL_PHILIPS_TD1316]         = &dvb_pll_philips_td1316,
-	[DVB_PLL_THOMSON_FE6600]         = &dvb_pll_thomson_fe6600,
 	[DVB_PLL_OPERA1]                 = &dvb_pll_opera1,
 	[DVB_PLL_FCV1236D]               = &dvb_pll_fcv1236d,
 };
