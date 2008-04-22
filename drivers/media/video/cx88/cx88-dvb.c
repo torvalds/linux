@@ -461,6 +461,13 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 		.video_dev = dev->core,
 	};
 
+	if (!dev->dvb.frontend) {
+		printk(KERN_ERR "%s/2: dvb frontend not attached. "
+				"Can't attach xc3028\n",
+		       dev->core->name);
+		return -EINVAL;
+	}
+
 	fe = dvb_attach(xc2028_attach, dev->dvb.frontend, &cfg);
 	if (!fe) {
 		printk(KERN_ERR "%s/2: xc3028 attach failed\n",
