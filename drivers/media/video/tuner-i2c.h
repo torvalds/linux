@@ -83,7 +83,8 @@ static inline int tuner_i2c_xfer_send_recv(struct tuner_i2c_props *props,
 
 #define tuner_printk(kernlvl, i2cprops, fmt, arg...) do {		\
 	printk(kernlvl "%s %d-%04x: " fmt, i2cprops.name,		\
-			i2c_adapter_id(i2cprops.adap),			\
+			i2cprops.adap ?					\
+				i2c_adapter_id(i2cprops.adap) : -1,	\
 			i2cprops.addr, ##arg);				\
 	 } while (0)
 
@@ -128,9 +129,10 @@ static inline int tuner_i2c_xfer_send_recv(struct tuner_i2c_props *props,
 ({									\
 	int __ret = 0;							\
 	list_for_each_entry(state, &list, hybrid_tuner_instance_list) {	\
-		if ((i2c_adapter_id(state->i2c_props.adap) ==		\
-		     i2c_adapter_id(i2cadap)) &&			\
-		    (state->i2c_props.addr == i2caddr)) {		\
+		if ((state->i2c_props.addr == i2caddr) &&		\
+		    ((state->i2c_props.adap ?				\
+			i2c_adapter_id(state->i2c_props.adap) : -1) ==	\
+		     (i2cadap ? i2c_adapter_id(i2cadap) : -1))) {	\
 			__tuner_info(state->i2c_props,			\
 				     "attaching existing instance\n");	\
 			state->i2c_props.count++;			\
