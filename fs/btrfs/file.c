@@ -864,6 +864,14 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	last_index = (pos + count) >> PAGE_CACHE_SHIFT;
 
 	/*
+	 * if this is a nodatasum mount, force summing off for the inode
+	 * all the time.  That way a later mount with summing on won't
+	 * get confused
+	 */
+	if (btrfs_test_opt(root, NODATASUM))
+		btrfs_set_flag(inode, NODATASUM);
+
+	/*
 	 * there are lots of better ways to do this, but this code
 	 * makes sure the first and last page in the file range are
 	 * up to date and ready for cow
