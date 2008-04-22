@@ -411,7 +411,7 @@ static int s3c24xx_i2s_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-int s3c24xx_i2s_suspend(struct platform_device *pdev,
+static int s3c24xx_i2s_suspend(struct platform_device *pdev,
 		struct snd_soc_cpu_dai *cpu_dai)
 {
 	DBG("Entered %s\n", __func__);
@@ -426,7 +426,7 @@ int s3c24xx_i2s_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-int s3c24xx_i2s_resume(struct platform_device *pdev,
+static int s3c24xx_i2s_resume(struct platform_device *pdev,
 		struct snd_soc_cpu_dai *cpu_dai)
 {
 	DBG("Entered %s\n", __func__);
