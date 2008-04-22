@@ -101,7 +101,7 @@ static int radio[IVTV_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
 static unsigned int cardtype_c = 1;
 static unsigned int tuner_c = 1;
 static unsigned int radio_c = 1;
-static char pal[] = "--";
+static char pal[] = "---";
 static char secam[] = "--";
 static char ntsc[] = "-";
 
@@ -132,6 +132,7 @@ static int ivtv_pci_latency = 1;
 
 int ivtv_debug;
 
+static int tunerhz;
 static int newi2c = -1;
 
 module_param_array(tuner, int, &tuner_c, 0644);
@@ -154,6 +155,7 @@ module_param(dec_mpg_buffers, int, 0644);
 module_param(dec_yuv_buffers, int, 0644);
 module_param(dec_vbi_buffers, int, 0644);
 
+module_param(tunerhz, int, 0644);
 module_param(newi2c, int, 0644);
 
 MODULE_PARM_DESC(tuner, "Tuner type selection,\n"
@@ -190,9 +192,14 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t24 = AverMedia EZMaker PCI Deluxe\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
-MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
-MODULE_PARM_DESC(secam, "Set SECAM standard: B, G, H, D, K, L, LC");
-MODULE_PARM_DESC(ntsc, "Set NTSC standard: M, J, K");
+MODULE_PARM_DESC(pal, "Set PAL standard: BGH, DK, I, M, N, Nc, 60");
+MODULE_PARM_DESC(secam, "Set SECAM standard: BGH, DK, L, LC");
+MODULE_PARM_DESC(ntsc, "Set NTSC standard: M, J (Japan), K (South Korea)");
+MODULE_PARM_DESC(tunerhz,
+		"Specify tuner type:\n"
+		"\t\t\t50 = 50 Hz tuner (PAL-B/G/H/D/K/I, SECAM-B/G/H/D/K/L/Lc)\n"
+		"\t\t\t60 = 60 Hz tuner (NTSC-M/J/K, PAL-M/N/Nc/60)\n"
+		"\t\t\t 0 = Autodetect (default)\n");
 MODULE_PARM_DESC(debug,
 		 "Debug level (bitmask). Default: 0\n"
 		 "\t\t\t   1/0x0001: warning\n"
@@ -490,30 +497,35 @@ static v4l2_std_id ivtv_parse_std(struct ivtv *itv)
 {
 	switch (pal[0]) {
 		case '6':
+			tunerhz = 60;
 			return V4L2_STD_PAL_60;
 		case 'b':
 		case 'B':
 		case 'g':
 		case 'G':
-			return V4L2_STD_PAL_BG;
 		case 'h':
 		case 'H':
-			return V4L2_STD_PAL_H;
+			tunerhz = 50;
+			return V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
 		case 'n':
 		case 'N':
+			tunerhz = 60;
 			if (pal[1] == 'c' || pal[1] == 'C')
 				return V4L2_STD_PAL_Nc;
 			return V4L2_STD_PAL_N;
 		case 'i':
 		case 'I':
+			tunerhz = 50;
 			return V4L2_STD_PAL_I;
 		case 'd':
 		case 'D':
 		case 'k':
 		case 'K':
+			tunerhz = 50;
 			return V4L2_STD_PAL_DK;
 		case 'M':
 		case 'm':
+			tunerhz = 60;
 			return V4L2_STD_PAL_M;
 		case '-':
 			break;
@@ -529,14 +541,17 @@ static v4l2_std_id ivtv_parse_std(struct ivtv *itv)
 		case 'G':
 		case 'h':
 		case 'H':
+			tunerhz = 50;
 			return V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H;
 		case 'd':
 		case 'D':
 		case 'k':
 		case 'K':
+			tunerhz = 50;
 			return V4L2_STD_SECAM_DK;
 		case 'l':
 		case 'L':
+			tunerhz = 50;
 			if (secam[1] == 'C' || secam[1] == 'c')
 				return V4L2_STD_SECAM_LC;
 			return V4L2_STD_SECAM_L;
@@ -550,12 +565,15 @@ static v4l2_std_id ivtv_parse_std(struct ivtv *itv)
 	switch (ntsc[0]) {
 		case 'm':
 		case 'M':
+			tunerhz = 60;
 			return V4L2_STD_NTSC_M;
 		case 'j':
 		case 'J':
+			tunerhz = 60;
 			return V4L2_STD_NTSC_M_JP;
 		case 'k':
 		case 'K':
+			tunerhz = 60;
 			return V4L2_STD_NTSC_M_KR;
 		case '-':
 			break;
@@ -584,8 +602,13 @@ static void ivtv_process_options(struct ivtv *itv)
 	itv->options.tuner = tuner[itv->num];
 	itv->options.radio = radio[itv->num];
 	itv->options.newi2c = newi2c;
-
+	if (tunerhz != 0 && tunerhz != 50 && tunerhz != 60) {
+		IVTV_WARN("Invalid tunerhz argument, will autodetect instead\n");
+		tunerhz = 0;
+	}
 	itv->std = ivtv_parse_std(itv);
+	if (itv->std == 0 && tunerhz)
+		itv->std = (tunerhz == 60) ? V4L2_STD_525_60 : V4L2_STD_625_50;
 	itv->has_cx23415 = (itv->dev->device == PCI_DEVICE_ID_IVTV15);
 	chipname = itv->has_cx23415 ? "cx23415" : "cx23416";
 	if (itv->options.cardtype == -1) {
