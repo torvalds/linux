@@ -1465,7 +1465,7 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 }
 
 #ifdef CONFIG_PM
-int stk_camera_suspend(struct usb_interface *intf, pm_message_t message)
+static int stk_camera_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct stk_camera *dev = usb_get_intfdata(intf);
 	if (is_streaming(dev)) {
@@ -1476,7 +1476,7 @@ int stk_camera_suspend(struct usb_interface *intf, pm_message_t message)
 	return 0;
 }
 
-int stk_camera_resume(struct usb_interface *intf)
+static int stk_camera_resume(struct usb_interface *intf)
 {
 	struct stk_camera *dev = usb_get_intfdata(intf);
 	if (!is_initialised(dev))
