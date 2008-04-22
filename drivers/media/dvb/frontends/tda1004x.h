@@ -94,7 +94,6 @@ struct tda1004x_config
 
 	/* slave address and configuration of the tuner */
 	u8 tuner_address;
-	u8 tuner_config;
 	u8 antenna_switch;
 
 	/* if the board uses another I2c Bridge (tda8290), its address */

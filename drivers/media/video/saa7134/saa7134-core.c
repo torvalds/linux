@@ -864,6 +864,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	struct saa7134_dev *dev;
 	struct saa7134_mpeg_ops *mops;
 	int err;
+	int mask;
 
 	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
 	if (NULL == dev)
@@ -1061,6 +1062,11 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (TUNER_ABSENT != dev->tuner_type)
 		saa7134_i2c_call_clients(dev, TUNER_SET_STANDBY, NULL);
 
+	if (card(dev).gpiomask != 0) {
+		mask = card(dev).gpiomask;
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   mask, mask);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, mask, 0);
+	}
 	return 0;
 
  fail4:

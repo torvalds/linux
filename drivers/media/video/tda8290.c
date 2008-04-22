@@ -172,7 +172,7 @@ static void tda8290_set_params(struct dvb_frontend *fe,
 	set_audio(fe, params);
 
 	if (priv->cfg.config)
-		tuner_dbg("tda827xa config is 0x%02x\n", *priv->cfg.config);
+		tuner_dbg("tda827xa config is 0x%02x\n", priv->cfg.config);
 	tuner_i2c_xfer_send(&priv->i2c_props, easy_mode, 2);
 	tuner_i2c_xfer_send(&priv->i2c_props, agc_out_on, 2);
 	tuner_i2c_xfer_send(&priv->i2c_props, soft_reset, 2);
@@ -442,8 +442,7 @@ static void tda8290_init_if(struct dvb_frontend *fe)
 	unsigned char set_GP00_CF[] = { 0x20, 0x01 };
 	unsigned char set_GP01_CF[] = { 0x20, 0x0B };
 
-	if ((priv->cfg.config) &&
-	    ((*priv->cfg.config == 1) || (*priv->cfg.config == 2)))
+	if ((priv->cfg.config == 1) || (priv->cfg.config == 2))
 		tuner_i2c_xfer_send(&priv->i2c_props, set_GP00_CF, 2);
 	else
 		tuner_i2c_xfer_send(&priv->i2c_props, set_GP01_CF, 2);
@@ -588,8 +587,8 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 		else
 			priv->ver |= TDA8275A;
 
-		tda827x_attach(fe, priv->tda827x_addr,
-			       priv->i2c_props.adap, &priv->cfg);
+		tda827x_attach(fe, priv->tda827x_addr, priv->i2c_props.adap, &priv->cfg);
+		priv->cfg.switch_addr = priv->i2c_props.addr;
 	}
 	if (fe->ops.tuner_ops.init)
 		fe->ops.tuner_ops.init(fe);

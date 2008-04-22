@@ -320,7 +320,7 @@ static void tuner_i2c_address_check(struct tuner *t)
 static void attach_tda829x(struct tuner *t)
 {
 	struct tda829x_config cfg = {
-		.lna_cfg        = &t->config,
+		.lna_cfg        = t->config,
 		.tuner_callback = t->tuner_callback,
 	};
 	tda829x_attach(&t->fe, t->i2c->adapter, t->i2c->addr, &cfg);

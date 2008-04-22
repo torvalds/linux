@@ -626,13 +626,8 @@ void saa7134_set_tvnorm_hw(struct saa7134_dev *dev)
 {
 	saa7134_set_decoder(dev);
 
-	if (card_in(dev, dev->ctl_input).tv) {
-		if ((card(dev).tuner_type == TUNER_PHILIPS_TDA8290)
-				&& ((card(dev).tuner_config == 1)
-				||  (card(dev).tuner_config == 2)))
-			saa7134_set_gpio(dev, 22, 5);
+	if (card_in(dev, dev->ctl_input).tv)
 		saa7134_i2c_call_clients(dev, VIDIOC_S_STD, &dev->tvnorm->id);
-	}
 }
 
 static void set_h_prescale(struct saa7134_dev *dev, int task, int prescale)
