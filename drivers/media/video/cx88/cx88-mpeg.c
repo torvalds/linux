@@ -613,6 +613,8 @@ static int cx8802_request_acquire(struct cx8802_driver *drv)
 	    core->active_type_id != drv->type_id)
 		return -EBUSY;
 
+	core->input = CX88_VMUX_DVB;
+
 	if (drv->advise_acquire)
 	{
 		mutex_lock(&drv->core->lock);

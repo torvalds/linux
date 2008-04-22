@@ -27,6 +27,7 @@
 
 #include "cx88.h"
 #include "tea5767.h"
+#include "tuner-xc2028.h"
 
 static unsigned int tuner[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 static unsigned int radio[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
@@ -1908,26 +1909,63 @@ static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
 	}
 }
 
+static int cx88_xc2028_tuner_callback(void *priv, int command, int arg)
+{
+	struct i2c_algo_bit_data *i2c_algo = priv;
+	struct cx88_core *core = i2c_algo->data;
+
+	switch (command) {
+	case XC2028_TUNER_RESET:
+	{
+		switch (INPUT(core->input).type) {
+		case CX88_RADIO:
+			printk(KERN_INFO "setting GPIO to radio!\n");
+			cx_write(MO_GP0_IO, 0x4ff);
+			mdelay(250);
+			cx_write(MO_GP2_IO, 0xff);
+			mdelay(250);
+			cx_write(MO_GP1_IO, 0x101010);
+			mdelay(250);
+			cx_write(MO_GP1_IO, 0x101000);
+			mdelay(250);
+			cx_write(MO_GP1_IO, 0x101010);
+			mdelay(250);
+			return 0;
+		case CX88_VMUX_DVB:	/* Digital TV*/
+		default:		/* Analog TV */
+			printk(KERN_INFO "setting GPIO to TV!\n");
+			cx_write(MO_GP1_IO, 0x101010);
+			mdelay(250);
+			cx_write(MO_GP1_IO, 0x101000);
+			mdelay(250);
+			cx_write(MO_GP1_IO, 0x101010);
+			mdelay(250);
+			return 0;
+		}
+	}
+	}
+	return -EINVAL;
+}
+
 /* ----------------------------------------------------------------------- */
 /* Tuner callback function. Currently only needed for the Pinnacle 	   *
  * PCTV HD 800i with an xc5000 sillicon tuner. This is used for both	   *
  * analog tuner attach (tuner-core.c) and dvb tuner attach (cx88-dvb.c)    */
 
-int cx88_tuner_callback(void *priv, int command, int arg)
+static int cx88_xc5000_tuner_callback(void *priv, int command, int arg)
 {
 	struct i2c_algo_bit_data *i2c_algo = priv;
 	struct cx88_core *core = i2c_algo->data;
 
-	switch(core->boardnr) {
+	switch (core->boardnr) {
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
-		if(command == 0) { /* This is the reset command from xc5000 */
+		if (command == 0) { /* This is the reset command from xc5000 */
 			/* Reset XC5000 tuner via SYS_RSTO_pin */
 			cx_write(MO_SRST_IO, 0);
 			msleep(10);
 			cx_write(MO_SRST_IO, 1);
 			return 0;
-		}
-		else {
+		} else {
 			printk(KERN_ERR
 				"xc5000: unknown tuner callback command.\n");
 			return -EINVAL;
@@ -1935,6 +1973,20 @@ int cx88_tuner_callback(void *priv, int command, int arg)
 		break;
 	}
 	return 0; /* Should never be here */
+}
+
+int cx88_tuner_callback(void *priv, int command, int arg)
+{
+	struct i2c_algo_bit_data *i2c_algo = priv;
+	struct cx88_core *core = i2c_algo->data;
+
+	switch (core->board.tuner_type) {
+		case TUNER_XC2028:
+			return cx88_xc2028_tuner_callback(priv, command, arg);
+		case TUNER_XC5000:
+			return cx88_xc5000_tuner_callback(priv, command, arg);
+	}
+	return -EINVAL;
 }
 EXPORT_SYMBOL(cx88_tuner_callback);
 
@@ -2090,6 +2142,26 @@ static void cx88_card_setup(struct cx88_core *core)
 		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &tea5767_cfg);
 	}
 	}
+
+	if (core->board.tuner_type == TUNER_XC2028) {
+		struct v4l2_priv_tun_config  xc2028_cfg;
+		struct xc2028_ctrl           ctl;
+
+		memset(&xc2028_cfg, 0, sizeof(ctl));
+		memset(&ctl, 0, sizeof(ctl));
+
+		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
+		ctl.max_len = 64;
+		/* FIXME: Those should be device-dependent */
+		ctl.demod = XC3028_FE_OREN538;
+		ctl.mts = 1;
+
+		xc2028_cfg.tuner = TUNER_XC2028;
+		xc2028_cfg.priv  = &ctl;
+
+		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &xc2028_cfg);
+	}
+
 }
 
 /* ------------------------------------------------------------------ */
@@ -2235,12 +2307,3 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 
 	return core;
 }
-
-/* ------------------------------------------------------------------ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
- */
