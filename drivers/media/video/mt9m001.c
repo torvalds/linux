@@ -17,7 +17,9 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
 
+#ifdef CONFIG_MT9M001_PCA9536_SWITCH
 #include <asm/gpio.h>
+#endif
 
 /* mt9m001 i2c address 0x5d
  * The platform has to define i2c_board_info
@@ -223,10 +225,6 @@ static int mt9m001_set_capture_format(struct soc_camera_device *icd,
 	if ((mt9m001->datawidth != 10 && (width_flag == IS_DATAWIDTH_10)) ||
 	    (mt9m001->datawidth != 9  && (width_flag == IS_DATAWIDTH_9)) ||
 	    (mt9m001->datawidth != 8  && (width_flag == IS_DATAWIDTH_8))) {
-		/* data width switch requested */
-		if (!gpio_is_valid(mt9m001->switch_gpio))
-			return -EINVAL;
-
 		/* Well, we actually only can do 10 or 8 bits... */
 		if (width_flag == IS_DATAWIDTH_9)
 			return -EINVAL;
