@@ -328,7 +328,7 @@ struct v4l2_standard *pvr2_std_create_enum(unsigned int *countptr,
 	struct v4l2_standard *stddefs;
 
 	if (pvrusb2_debug & PVR2_TRACE_STD) {
-		char buf[80];
+		char buf[100];
 		bcnt = pvr2_std_id_to_str(buf,sizeof(buf),id);
 		pvr2_trace(
 			PVR2_TRACE_STD,"Mapping standards mask=0x%x (%.*s)",
@@ -356,7 +356,7 @@ struct v4l2_standard *pvr2_std_create_enum(unsigned int *countptr,
 	fmsk &= ~CSTD_ATSC;
 
 	if (fmsk) {
-		char buf[80];
+		char buf[100];
 		bcnt = pvr2_std_id_to_str(buf,sizeof(buf),fmsk);
 		pvr2_trace(
 			PVR2_TRACE_ERROR_LEGS,
