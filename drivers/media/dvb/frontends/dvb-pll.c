@@ -507,23 +507,6 @@ static struct dvb_pll_desc dvb_pll_opera1 = {
 	}
 };
 
-/* Philips FCV1236D
- */
-static struct dvb_pll_desc dvb_pll_fcv1236d = {
-/* Bit_0: RF Input select
- * Bit_1: 0=digital, 1=analog
- */
-	.name  = "Philips FCV1236D",
-	.min   =  53000000,
-	.max   = 803000000,
-	.iffreq= 44000000,
-	.count = 3,
-	.entries = {
-		{ 159000000, 62500, 0x8e, 0xa0 },
-		{ 453000000, 62500, 0x8e, 0x90 },
-		{ 999999999, 62500, 0x8e, 0x30 },
-	},
-};
 
 /* ----------------------------------------------------------- */
 
@@ -546,7 +529,6 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_PHILIPS_SD1878_TDA8261] = &dvb_pll_philips_sd1878_tda8261,
 	[DVB_PLL_PHILIPS_TD1316]         = &dvb_pll_philips_td1316,
 	[DVB_PLL_OPERA1]                 = &dvb_pll_opera1,
-	[DVB_PLL_FCV1236D]               = &dvb_pll_fcv1236d,
 };
 
 /* ----------------------------------------------------------- */
