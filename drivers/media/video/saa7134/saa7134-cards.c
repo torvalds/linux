@@ -3333,7 +3333,7 @@ struct saa7134_board saa7134_boards[] = {
   /*	Juan Pablo Sormani <sorman@gmail.com> */
 		.name           = "Encore ENLTV-FM",
 		.audio_clock    = 0x00200000,
-		.tuner_type     = TUNER_PHILIPS_ATSC,
+		.tuner_type     = TUNER_PHILIPS_FCV1236D,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,

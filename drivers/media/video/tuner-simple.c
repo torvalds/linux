@@ -284,7 +284,7 @@ static void simple_set_rf_input(struct dvb_frontend *fe,
 			break;
 		}
 		break;
-	case TUNER_PHILIPS_ATSC:
+	case TUNER_PHILIPS_FCV1236D:
 		switch (rf) {
 		case 1:
 			*cb |= 0x01;
@@ -356,7 +356,7 @@ static int simple_std_setup(struct dvb_frontend *fe,
 		}
 		break;
 
-	case TUNER_PHILIPS_ATSC:
+	case TUNER_PHILIPS_FCV1236D:
 		/* 0x00 -> ATSC antenna input 1 */
 		/* 0x01 -> ATSC antenna input 2 */
 		/* 0x02 -> NTSC antenna input 1 */
@@ -766,7 +766,7 @@ static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
 			buf[3] |= 1 << 3;
 		break;
 	case TUNER_PHILIPS_TUV1236D:
-	case TUNER_PHILIPS_ATSC:
+	case TUNER_PHILIPS_FCV1236D:
 	{
 		unsigned int new_rf;
 

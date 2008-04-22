@@ -615,7 +615,7 @@ static struct tuner_params tuner_philips_pal_mk_params[] = {
 	},
 };
 
-/* ---- TUNER_PHILIPS_ATSC - Philips FCV1236D (ATSC/NTSC) ---- */
+/* ---- TUNER_PHILIPS_FCV1236D - Philips FCV1236D (ATSC/NTSC) ---- */
 
 static struct tuner_range tuner_philips_fcv1236d_ntsc_ranges[] = {
 	{ 16 * 157.25 /*MHz*/, 0x8e, 0xa2, },
@@ -1434,7 +1434,7 @@ struct tunertype tuners[] = {
 		.params = tuner_philips_pal_mk_params,
 		.count  = ARRAY_SIZE(tuner_philips_pal_mk_params),
 	},
-	[TUNER_PHILIPS_ATSC] = { /* Philips ATSC */
+	[TUNER_PHILIPS_FCV1236D] = { /* Philips ATSC */
 		.name   = "Philips FCV1236D ATSC/NTSC dual in",
 		.params = tuner_philips_fcv1236d_params,
 		.count  = ARRAY_SIZE(tuner_philips_fcv1236d_params),
