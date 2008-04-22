@@ -81,12 +81,6 @@ struct dvb_pll_desc {
 /* descriptions                                                */
 
 
-/*	0x04 = 166.67 kHz divider
-
-	0x80 = AGC Time constant 50ms Iagc = 9 uA
-	0x20 = AGC Take over point = 112 dBuV */
-static u8 tua603x_agc112[] = { 2, 0x80|0x40|0x18|0x04|0x01, 0x80|0x20 };
-
 static struct dvb_pll_desc dvb_pll_thomson_dtt7579 = {
 	.name  = "Thomson dtt7579",
 	.min   = 177000000,
@@ -252,37 +246,6 @@ static struct dvb_pll_desc dvb_pll_tua6034 = {
 	},
 };
 
-
-/* Philips FMD1216ME
- * used in Medion Hybrid PCMCIA card and USB Box
- */
-static void fmd1216me_bw(struct dvb_frontend *fe, u8 *buf,
-			 const struct dvb_frontend_parameters *params)
-{
-	if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ &&
-	    params->frequency >= 158870000)
-		buf[3] |= 0x08;
-}
-
-static struct dvb_pll_desc dvb_pll_fmd1216me = {
-	.name = "Philips FMD1216ME",
-	.min = 50870000,
-	.max = 858000000,
-	.iffreq= 36125000,
-	.set   = fmd1216me_bw,
-	.initdata = tua603x_agc112,
-	.sleepdata = (u8[]){ 4, 0x9c, 0x60, 0x85, 0x54 },
-	.count = 7,
-	.entries = {
-		{ 143870000, 166667, 0xbc, 0x41 },
-		{ 158870000, 166667, 0xf4, 0x41 },
-		{ 329870000, 166667, 0xbc, 0x42 },
-		{ 441870000, 166667, 0xf4, 0x42 },
-		{ 625870000, 166667, 0xbc, 0x44 },
-		{ 803870000, 166667, 0xf4, 0x44 },
-		{ 999999999, 166667, 0xfc, 0x44 },
-	}
-};
 
 /* ALPS TDED4
  * used in Nebula-Cards and USB boxes
@@ -494,7 +457,6 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_ENV57H1XD5]             = &dvb_pll_env57h1xd5,
 	[DVB_PLL_TUA6034]                = &dvb_pll_tua6034,
 	[DVB_PLL_TDA665X]                = &dvb_pll_tda665x,
-	[DVB_PLL_FMD1216ME]              = &dvb_pll_fmd1216me,
 	[DVB_PLL_TDED4]                  = &dvb_pll_tded4,
 	[DVB_PLL_TUV1236D]               = &dvb_pll_tuv1236d,
 	[DVB_PLL_TDHU2]                  = &dvb_pll_tdhu2,
