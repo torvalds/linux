@@ -327,7 +327,7 @@ static void ap192_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 	revo_set_rate_val(ak, rate);
 
 	/* reset CKS */
-	snd_ice1712_gpio_write_bits(ice, 1 << 8, rate > 96000 ? 1 : 0);
+	snd_ice1712_gpio_write_bits(ice, 1 << 8, rate > 96000 ? 1 << 8 : 0);
 	/* reset DFS pins of AK5385A for ADC, too */
 	if (rate > 96000)
 		dfs = 2;
@@ -338,7 +338,7 @@ static void ap192_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 	snd_ice1712_gpio_write_bits(ice, 3 << 9, dfs << 9);
 	/* reset ADC */
 	snd_ice1712_gpio_write_bits(ice, 1 << 11, 0);
-	snd_ice1712_gpio_write_bits(ice, 1 << 11, 1);
+	snd_ice1712_gpio_write_bits(ice, 1 << 11, 1 << 11);
 }
 
 static const struct snd_akm4xxx_dac_channel ap192_dac[] = {
