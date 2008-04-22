@@ -187,7 +187,7 @@ static int bus_switch_request(struct mt9v022 *mt9v022, struct soc_camera_link *i
 	int ret;
 	unsigned int gpio = icl->gpio;
 
-	if (gpio != NO_GPIO) {
+	if (gpio_is_valid(gpio)) {
 		/* We have a data bus switch. */
 		ret = gpio_request(gpio, "mt9v022");
 		if (ret < 0) {
@@ -206,7 +206,7 @@ static int bus_switch_request(struct mt9v022 *mt9v022, struct soc_camera_link *i
 
 	mt9v022->switch_gpio = gpio;
 #else
-	mt9v022->switch_gpio = NO_GPIO;
+	mt9v022->switch_gpio = -EINVAL;
 #endif
 	return 0;
 }
@@ -214,7 +214,7 @@ static int bus_switch_request(struct mt9v022 *mt9v022, struct soc_camera_link *i
 static void bus_switch_release(struct mt9v022 *mt9v022)
 {
 #ifdef CONFIG_MT9V022_PCA9536_SWITCH
-	if (mt9v022->switch_gpio != NO_GPIO)
+	if (gpio_is_valid(mt9v022->switch_gpio))
 		gpio_free(mt9v022->switch_gpio);
 #endif
 }
@@ -222,7 +222,7 @@ static void bus_switch_release(struct mt9v022 *mt9v022)
 static int bus_switch_act(struct mt9v022 *mt9v022, int go8bit)
 {
 #ifdef CONFIG_MT9V022_PCA9536_SWITCH
-	if (mt9v022->switch_gpio == NO_GPIO)
+	if (!gpio_is_valid(mt9v022->switch_gpio))
 		return -ENODEV;
 
 	gpio_set_value_cansleep(mt9v022->switch_gpio, go8bit);
@@ -303,7 +303,7 @@ static int mt9v022_set_capture_format(struct soc_camera_device *icd,
 	    (mt9v022->datawidth != 9  && (width_flag == IS_DATAWIDTH_9)) ||
 	    (mt9v022->datawidth != 8  && (width_flag == IS_DATAWIDTH_8))) {
 		/* data width switch requested */
-		if (mt9v022->switch_gpio == NO_GPIO)
+		if (!gpio_is_valid(mt9v022->switch_gpio))
 			return -EINVAL;
 
 		/* Well, we actually only can do 10 or 8 bits... */
