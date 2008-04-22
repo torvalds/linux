@@ -1114,6 +1114,8 @@ static int snd_ca0106_free(struct snd_ca0106 *chip)
 		 * So we can fix: snd-malloc: Memory leak?  pages not freed = 8
 		 */
 	}
+	if (chip->irq >= 0)
+		free_irq(chip->irq, chip);
 	// release the data
 #if 1
 	if (chip->buffer.area)
@@ -1123,9 +1125,6 @@ static int snd_ca0106_free(struct snd_ca0106 *chip)
 	// release the i/o port
 	release_and_free_resource(chip->res_port);
 
-	// release the irq
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
 	pci_disable_device(chip->pci);
 	kfree(chip);
 	return 0;

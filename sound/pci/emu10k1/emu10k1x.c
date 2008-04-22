@@ -754,12 +754,12 @@ static int snd_emu10k1x_free(struct emu10k1x *chip)
 	// disable audio
 	outl(HCFG_LOCKSOUNDCACHE, chip->port + HCFG);
 
-	// release the i/o port
-	release_and_free_resource(chip->res_port);
-
-	// release the irq
+	/* release the irq */
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
+
+	// release the i/o port
+	release_and_free_resource(chip->res_port);
 
 	// release the DMA
 	if (chip->dma_buffer.area) {
