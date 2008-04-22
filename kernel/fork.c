@@ -870,8 +870,6 @@ int unshare_files(void)
 	return error;
 }
 
-EXPORT_SYMBOL(unshare_files);
-
 static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
 {
 	struct sighand_struct *sig;
