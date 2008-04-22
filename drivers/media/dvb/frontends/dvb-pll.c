@@ -80,7 +80,6 @@ struct dvb_pll_desc {
 /* ----------------------------------------------------------- */
 /* descriptions                                                */
 
-
 static struct dvb_pll_desc dvb_pll_thomson_dtt7579 = {
 	.name  = "Thomson dtt7579",
 	.min   = 177000000,
@@ -95,7 +94,6 @@ static struct dvb_pll_desc dvb_pll_thomson_dtt7579 = {
 		{  999999999, 166667, 0xf4, 0x08 },
 	},
 };
-
 
 static void thomson_dtt759x_bw(struct dvb_frontend *fe, u8 *buf,
 			       const struct dvb_frontend_parameters *params)
@@ -136,7 +134,6 @@ static struct dvb_pll_desc dvb_pll_lg_z201 = {
 		{  999999999, 166667, 0xfc, 0x04 },
 	},
 };
-
 
 static struct dvb_pll_desc dvb_pll_unknown_1 = {
 	.name  = "unknown 1", /* used by dntv live dvb-t */
@@ -246,7 +243,6 @@ static struct dvb_pll_desc dvb_pll_tua6034 = {
 	},
 };
 
-
 /* ALPS TDED4
  * used in Nebula-Cards and USB boxes
  */
@@ -289,7 +285,6 @@ static struct dvb_pll_desc dvb_pll_tdhu2 = {
 	}
 };
 
-
 /* Samsung TBMV30111IN / TBMV30712IN1
  * used in Air2PC ATSC - 2nd generation (nxt2002)
  */
@@ -326,8 +321,6 @@ static struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261 = {
 	},
 };
 
-
-
 static void opera1_bw(struct dvb_frontend *fe, u8 *buf,
 		      const struct dvb_frontend_parameters *params)
 {
@@ -353,7 +346,6 @@ static struct dvb_pll_desc dvb_pll_opera1 = {
 		{ 2250000, 500, 0xe5, 0xc4 },
 	}
 };
-
 
 /* ----------------------------------------------------------- */
 
