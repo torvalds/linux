@@ -1832,8 +1832,10 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	switch (core->boardnr) {
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD:
-		request_module("ir-kbd-i2c");
 		request_module("rtc-isl1208");
+		/* break intentionally omitted */
+	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
+		request_module("ir-kbd-i2c");
 	}
 
 	/* register v4l devices */

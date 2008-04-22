@@ -1402,7 +1402,8 @@ static const struct cx88_board cx88_boards[] = {
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO] = {
-		.name           = "DVICO HDTV5 PCI Nano",
+		.name           = "DViCO FusionHDTV 5 PCI nano",
+		/* xc3008 tuner, digital only for now */
 		.tuner_type     = TUNER_ABSENT,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
