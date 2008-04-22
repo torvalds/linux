@@ -914,7 +914,7 @@ static void ivtv_yuv_init(struct ivtv *itv)
 }
 
 /* Get next available yuv buffer on PVR350 */
-void ivtv_yuv_next_free(struct ivtv *itv)
+static void ivtv_yuv_next_free(struct ivtv *itv)
 {
 	int draw, display;
 	struct yuv_playback_info *yi = &itv->yuv_info;
@@ -937,7 +937,7 @@ void ivtv_yuv_next_free(struct ivtv *itv)
 }
 
 /* Set up frame according to ivtv_dma_frame parameters */
-void ivtv_yuv_setup_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
+static void ivtv_yuv_setup_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 {
 	struct yuv_playback_info *yi = &itv->yuv_info;
 	u8 frame = yi->draw_frame;
@@ -1042,7 +1042,7 @@ void ivtv_yuv_frame_complete(struct ivtv *itv)
 			(itv->yuv_info.draw_frame + 1) % IVTV_YUV_BUFFERS);
 }
 
-int ivtv_yuv_udma_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
+static int ivtv_yuv_udma_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 {
 	DEFINE_WAIT(wait);
 	int rc = 0;
