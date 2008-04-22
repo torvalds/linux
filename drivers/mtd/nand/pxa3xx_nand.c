@@ -18,8 +18,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
-#include <asm/io.h>
-#include <asm/irq.h>
+#include <linux/io.h>
+#include <linux/irq.h>
 #include <asm/dma.h>
 
 #include <asm/arch/pxa-regs.h>
@@ -494,7 +494,7 @@ static int handle_data_pio(struct pxa3xx_nand_info *info)
 				info->data_size << 2);
 		break;
 	default:
-		printk(KERN_ERR "%s: invalid state %d\n", __FUNCTION__,
+		printk(KERN_ERR "%s: invalid state %d\n", __func__,
 				info->state);
 		return -EINVAL;
 	}
@@ -638,10 +638,10 @@ static inline int is_buf_blank(uint8_t *buf, size_t len)
 }
 
 static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
-		int column, int page_addr )
+				int column, int page_addr)
 {
 	struct pxa3xx_nand_info *info = mtd->priv;
-	struct pxa3xx_nand_flash * flash_info = info->flash_info;
+	struct pxa3xx_nand_flash *flash_info = info->flash_info;
 	struct pxa3xx_nand_cmdset *cmdset = flash_info->cmdset;
 	int ret;
 
@@ -1040,7 +1040,7 @@ static void pxa3xx_nand_init_mtd(struct mtd_info *mtd,
 	else
 		this->ecc.layout = &hw_smallpage_ecclayout;
 
-	this->chip_delay= 25;
+	this->chip_delay = 25;
 }
 
 static int pxa3xx_nand_probe(struct platform_device *pdev)
@@ -1054,17 +1054,17 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 
-	if (pdata == NULL) {
+	if (!pdata) {
 		dev_err(&pdev->dev, "no platform data defined\n");
 		return -ENODEV;
 	}
 
 	mtd = kzalloc(sizeof(struct mtd_info) + sizeof(struct pxa3xx_nand_info),
 			GFP_KERNEL);
-	if (mtd == NULL) {
+	if (!mtd) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
-        }
+	}
 
 	info = (struct pxa3xx_nand_info *)(&mtd[1]);
 	info->pdev = pdev;
