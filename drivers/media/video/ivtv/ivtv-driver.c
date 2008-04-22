@@ -509,7 +509,7 @@ static v4l2_std_id ivtv_parse_std(struct ivtv *itv)
 			return V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
 		case 'n':
 		case 'N':
-			tunerhz = 60;
+			tunerhz = 50;
 			if (pal[1] == 'c' || pal[1] == 'C')
 				return V4L2_STD_PAL_Nc;
 			return V4L2_STD_PAL_N;
