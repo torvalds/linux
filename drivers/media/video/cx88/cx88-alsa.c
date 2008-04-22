@@ -283,7 +283,7 @@ static int dsp_buffer_free(snd_cx88_card_t *chip)
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2,"Freeing buffer\n");
-	videobuf_pci_dma_unmap(chip->pci, chip->dma_risc);
+	videobuf_sg_dma_unmap(&chip->pci->dev, chip->dma_risc);
 	videobuf_dma_free(chip->dma_risc);
 	btcx_riscmem_free(chip->pci,&chip->buf->risc);
 	kfree(chip->buf);
@@ -385,7 +385,7 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	BUG_ON(!chip->dma_size);
 	BUG_ON(chip->num_periods & (chip->num_periods-1));
 
-	buf = videobuf_pci_alloc(sizeof(*buf));
+	buf = videobuf_sg_alloc(sizeof(*buf));
 	if (NULL == buf)
 		return -ENOMEM;
 
@@ -396,14 +396,14 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	buf->vb.height = chip->num_periods;
 	buf->vb.size   = chip->dma_size;
 
-	dma=videobuf_to_dma(&buf->vb);
+	dma = videobuf_to_dma(&buf->vb);
 	videobuf_dma_init(dma);
 	ret = videobuf_dma_init_kernel(dma, PCI_DMA_FROMDEVICE,
 			(PAGE_ALIGN(buf->vb.size) >> PAGE_SHIFT));
 	if (ret < 0)
 		goto error;
 
-	ret = videobuf_pci_dma_map(chip->pci,dma);
+	ret = videobuf_sg_dma_map(&chip->pci->dev, dma);
 	if (ret < 0)
 		goto error;
 

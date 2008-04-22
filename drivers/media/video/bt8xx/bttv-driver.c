@@ -2372,7 +2372,7 @@ static int setup_window(struct bttv_fh *fh, struct bttv *btv,
 	if (check_btres(fh, RESOURCE_OVERLAY)) {
 		struct bttv_buffer *new;
 
-		new = videobuf_pci_alloc(sizeof(*new));
+		new = videobuf_sg_alloc(sizeof(*new));
 		new->crop = btv->crop[!!fh->do_crop].rect;
 		bttv_overlay_risc(btv, &fh->ov, fh->ovfmt, new);
 		retval = bttv_switch_overlay(btv,fh,new);
@@ -2760,7 +2760,7 @@ static int bttv_overlay(struct file *file, void *f, unsigned int on)
 	mutex_lock(&fh->cap.vb_lock);
 	if (on) {
 		fh->ov.tvnorm = btv->tvnorm;
-		new = videobuf_pci_alloc(sizeof(*new));
+		new = videobuf_sg_alloc(sizeof(*new));
 		new->crop = btv->crop[!!fh->do_crop].rect;
 		bttv_overlay_risc(btv, &fh->ov, fh->ovfmt, new);
 	} else {
@@ -2834,7 +2834,7 @@ static int bttv_s_fbuf(struct file *file, void *f,
 		if (check_btres(fh, RESOURCE_OVERLAY)) {
 			struct bttv_buffer *new;
 
-			new = videobuf_pci_alloc(sizeof(*new));
+			new = videobuf_sg_alloc(sizeof(*new));
 			new->crop = btv->crop[!!fh->do_crop].rect;
 			bttv_overlay_risc(btv, &fh->ov, fh->ovfmt, new);
 			retval = bttv_switch_overlay(btv, fh, new);
@@ -3184,7 +3184,7 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 			/* need to capture a new frame */
 			if (locked_btres(fh->btv,RESOURCE_VIDEO_STREAM))
 				goto err;
-			fh->cap.read_buf = videobuf_pci_alloc(fh->cap.msize);
+			fh->cap.read_buf = videobuf_sg_alloc(fh->cap.msize);
 			if (NULL == fh->cap.read_buf)
 				goto err;
 			fh->cap.read_buf->memory = V4L2_MEMORY_USERPTR;
@@ -3251,14 +3251,14 @@ static int bttv_open(struct inode *inode, struct file *file)
 	fh->ov.setup_ok = 0;
 	v4l2_prio_open(&btv->prio,&fh->prio);
 
-	videobuf_queue_pci_init(&fh->cap, &bttv_video_qops,
-			    btv->c.pci, &btv->s_lock,
+	videobuf_queue_sg_init(&fh->cap, &bttv_video_qops,
+			    &btv->c.pci->dev, &btv->s_lock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct bttv_buffer),
 			    fh);
-	videobuf_queue_pci_init(&fh->vbi, &bttv_vbi_qops,
-			    btv->c.pci, &btv->s_lock,
+	videobuf_queue_sg_init(&fh->vbi, &bttv_vbi_qops,
+			    &btv->c.pci->dev, &btv->s_lock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB,
 			    sizeof(struct bttv_buffer),

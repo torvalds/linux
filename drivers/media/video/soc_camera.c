@@ -210,7 +210,7 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 
 	/* We must pass NULL as dev pointer, then all pci_* dma operations
 	 * transform to normal dma_* ones. Do we need an irqlock? */
-	videobuf_queue_pci_init(&icf->vb_vidq, ici->vbq_ops, NULL, NULL,
+	videobuf_queue_sg_init(&icf->vb_vidq, ici->vbq_ops, NULL, NULL,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
 				ici->msize, icd);
 

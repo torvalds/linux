@@ -1,5 +1,5 @@
 /*
- * helper functions for PCI DMA video4linux capture buffers
+ * helper functions for SG DMA video4linux capture buffers
  *
  * The functions expect the hardware being able to scatter gatter
  * (i.e. the buffers are not linear in physical memory, but fragmented
@@ -81,7 +81,7 @@ struct videobuf_dmabuf {
 	int                 direction;
 };
 
-struct videbuf_pci_sg_memory
+struct videobuf_dma_sg_memory
 {
 	u32                 magic;
 
@@ -103,11 +103,11 @@ int videobuf_dma_sync(struct videobuf_queue* q,struct videobuf_dmabuf *dma);
 int videobuf_dma_unmap(struct videobuf_queue* q,struct videobuf_dmabuf *dma);
 struct videobuf_dmabuf *videobuf_to_dma (struct videobuf_buffer *buf);
 
-void *videobuf_pci_alloc (size_t size);
+void *videobuf_sg_alloc(size_t size);
 
-void videobuf_queue_pci_init(struct videobuf_queue* q,
+void videobuf_queue_sg_init(struct videobuf_queue* q,
 			 struct videobuf_queue_ops *ops,
-			 void *dev,
+			 struct device *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
@@ -117,6 +117,6 @@ void videobuf_queue_pci_init(struct videobuf_queue* q,
 	/*FIXME: these variants are used only on *-alsa code, where videobuf is
 	 * used without queue
 	 */
-int videobuf_pci_dma_map(struct pci_dev *pci,struct videobuf_dmabuf *dma);
-int videobuf_pci_dma_unmap(struct pci_dev *pci,struct videobuf_dmabuf *dma);
+int videobuf_sg_dma_map(struct device *dev, struct videobuf_dmabuf *dma);
+int videobuf_sg_dma_unmap(struct device *dev, struct videobuf_dmabuf *dma);
 

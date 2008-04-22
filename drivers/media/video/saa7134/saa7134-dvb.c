@@ -899,8 +899,8 @@ static int dvb_init(struct saa7134_dev *dev)
 	dev->ts.nr_bufs    = 32;
 	dev->ts.nr_packets = 32*4;
 	dev->dvb.name = dev->name;
-	videobuf_queue_pci_init(&dev->dvb.dvbq, &saa7134_ts_qops,
-			    dev->pci, &dev->slock,
+	videobuf_queue_sg_init(&dev->dvb.dvbq, &saa7134_ts_qops,
+			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_ALTERNATE,
 			    sizeof(struct saa7134_buf),

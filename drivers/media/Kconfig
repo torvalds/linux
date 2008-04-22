@@ -160,7 +160,7 @@ config VIDEOBUF_GEN
 	tristate
 
 config VIDEOBUF_DMA_SG
-	depends on PCI || ARCH_PXA
+	depends on HAS_DMA
 	select VIDEOBUF_GEN
 	tristate
 

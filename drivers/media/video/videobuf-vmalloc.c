@@ -102,7 +102,7 @@ static struct vm_operations_struct videobuf_vm_ops =
 /* Allocated area consists on 3 parts:
 	struct video_buffer
 	struct <driver>_buffer (cx88_buffer, saa7134_buf, ...)
-	struct videobuf_pci_sg_memory
+	struct videobuf_dma_sg_memory
  */
 
 static void *__videobuf_alloc(size_t size)
