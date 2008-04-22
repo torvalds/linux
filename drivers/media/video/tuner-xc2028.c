@@ -145,7 +145,7 @@ static unsigned int xc2028_get_reg(struct xc2028_data *priv, u16 reg, u16 *val)
 }
 
 #define dump_firm_type(t) 	dump_firm_type_and_int_freq(t, 0)
-void dump_firm_type_and_int_freq(unsigned int type, u16 int_freq)
+static void dump_firm_type_and_int_freq(unsigned int type, u16 int_freq)
 {
 	 if (type & BASE)
 		printk("BASE ");
