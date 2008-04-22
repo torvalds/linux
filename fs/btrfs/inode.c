@@ -80,6 +80,7 @@ int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
 	u64 total = btrfs_super_total_bytes(&root->fs_info->super_copy);
 	u64 used = btrfs_super_bytes_used(&root->fs_info->super_copy);
 	u64 thresh;
+	unsigned long flags;
 	int ret = 0;
 
 	if (for_del)
@@ -89,10 +90,10 @@ int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
 
 	do_div(thresh, 100);
 
-	spin_lock(&root->fs_info->delalloc_lock);
+	spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
 	if (used + root->fs_info->delalloc_bytes + num_required > thresh)
 		ret = -ENOSPC;
-	spin_unlock(&root->fs_info->delalloc_lock);
+	spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
 	return ret;
 }
 
@@ -275,12 +276,13 @@ static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
 		       unsigned long old, unsigned long bits)
 {
+	unsigned long flags;
 	if (!(old & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = BTRFS_I(inode)->root;
-		spin_lock(&root->fs_info->delalloc_lock);
+		spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
 		BTRFS_I(inode)->delalloc_bytes += end - start + 1;
 		root->fs_info->delalloc_bytes += end - start + 1;
-		spin_unlock(&root->fs_info->delalloc_lock);
+		spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
 	}
 	return 0;
 }
@@ -290,7 +292,9 @@ int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 {
 	if ((old & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = BTRFS_I(inode)->root;
-		spin_lock(&root->fs_info->delalloc_lock);
+		unsigned long flags;
+
+		spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
 		if (end - start + 1 > root->fs_info->delalloc_bytes) {
 			printk("warning: delalloc account %Lu %Lu\n",
 			       end - start + 1, root->fs_info->delalloc_bytes);
@@ -300,7 +304,7 @@ int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 			root->fs_info->delalloc_bytes -= end - start + 1;
 			BTRFS_I(inode)->delalloc_bytes -= end - start + 1;
 		}
-		spin_unlock(&root->fs_info->delalloc_lock);
+		spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
 	}
 	return 0;
 }

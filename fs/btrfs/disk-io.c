@@ -936,14 +936,25 @@ void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 	struct inode *inode;
 	struct extent_map_tree *em_tree;
 	struct extent_map *em;
+	struct address_space *mapping;
 	u64 offset;
 
+	/* the generic O_DIRECT read code does this */
 	if (!page) {
 		__unplug_io_fn(bdi, page);
 		return;
 	}
 
-	inode = page->mapping->host;
+	/*
+	 * page->mapping may change at any time.  Get a consistent copy
+	 * and use that for everything below
+	 */
+	smp_mb();
+	mapping = page->mapping;
+	if (!mapping)
+		return;
+
+	inode = mapping->host;
 	offset = page_offset(page);
 
 	em_tree = &BTRFS_I(inode)->extent_tree;
