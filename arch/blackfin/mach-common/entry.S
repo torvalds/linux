@@ -121,10 +121,14 @@ ENTRY(_ex_icplb_miss)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SAVE_ALL_SYS
-	DEBUG_HWTRACE_SAVE(p5, r7)
 #ifdef CONFIG_MPU
+	/* We must load R1 here, _before_ DEBUG_HWTRACE_SAVE, since that
+	 * will change the stack pointer.  */
 	R0 = SEQSTAT;
 	R1 = SP;
+#endif
+	DEBUG_HWTRACE_SAVE(p5, r7)
+#ifdef CONFIG_MPU
 	sp += -12;
 	call _cplb_hdr;
 	sp += 12;
@@ -191,6 +195,7 @@ ENTRY(_bfin_return_from_exception)
 ENDPROC(_bfin_return_from_exception)
 
 ENTRY(_handle_bad_cplb)
+	DEBUG_HWTRACE_RESTORE(p5, r7)
 	/* To get here, we just tried and failed to change a CPLB
 	 * so, handle things in trap_c (C code), by lowering to
 	 * IRQ5, just like we normally do. Since this is not a
