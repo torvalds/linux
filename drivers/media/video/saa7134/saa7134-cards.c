@@ -2911,15 +2911,13 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 	},
 	[SAA7134_BOARD_MD7134_BRIDGE_2] = {
-		/* This card has two saa7134 chips on it,
-		   but only one of them is currently working.
-		   The programming for the primary decoder is
-		   in SAA7134_BOARD_MD7134 */
+		/* The second saa7134 on this card only serves as DVB-S host bridge */
 		.name           = "Medion 7134 Bridge #2",
 		.audio_clock    = 0x00187de7,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
 	},
 	[SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS] = {
 		.name		= "LifeView FlyDVB-T Hybrid Cardbus/MSI TV @nywhere A/D NB",
@@ -5438,7 +5436,6 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A169_B:
-	case SAA7134_BOARD_MD7134_BRIDGE_2:
 		printk("%s: %s: dual saa713x broadcast decoders\n"
 		       "%s: Sorry, none of the inputs to this chip are supported yet.\n"
 		       "%s: Dual decoder functionality is disabled for now, use the other chip.\n",

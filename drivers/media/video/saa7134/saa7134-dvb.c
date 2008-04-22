@@ -1156,6 +1156,29 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &dev->i2c_adap);
 		attach_xc3028 = 1;
 		break;
+	case SAA7134_BOARD_MD7134_BRIDGE_2:
+		dev->dvb.frontend = dvb_attach(tda10086_attach,
+						&flydvbs, &dev->i2c_adap);
+		if (dev->dvb.frontend) {
+			struct dvb_frontend *fe;
+			if (dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
+				  &dev->i2c_adap, DVB_PLL_PHILIPS_SD1878_TDA8261) == NULL)
+				wprintk("%s: MD7134 DVB-S, no SD1878 "
+					"found !\n", __FUNCTION__);
+			/* we need to open the i2c gate (we know it exists) */
+			fe = dev->dvb.frontend;
+			fe->ops.i2c_gate_ctrl(fe, 1);
+			if (dvb_attach(isl6405_attach, fe,
+					&dev->i2c_adap, 0x08, 0, 0) == NULL)
+				wprintk("%s: MD7134 DVB-S, no ISL6405 "
+					"found !\n", __FUNCTION__);
+			fe->ops.i2c_gate_ctrl(fe, 0);
+			dev->original_set_voltage = fe->ops.set_voltage;
+			fe->ops.set_voltage = md8800_set_voltage;
+			dev->original_set_high_voltage = fe->ops.enable_high_lnb_voltage;
+			fe->ops.enable_high_lnb_voltage = md8800_set_high_voltage;
+		}
+		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
 		break;
