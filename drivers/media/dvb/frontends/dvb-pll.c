@@ -48,10 +48,6 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-static unsigned int input[DVB_PLL_MAX] = { [ 0 ... (DVB_PLL_MAX-1) ] = 0 };
-module_param_array(input, int, NULL, 0644);
-MODULE_PARM_DESC(input,"specify rf input choice, 0 for autoselect (default)");
-
 static unsigned int id[DVB_PLL_MAX] =
 	{ [ 0 ... (DVB_PLL_MAX-1) ] = DVB_PLL_UNDEFINED };
 module_param_array(id, int, NULL, 0644);
@@ -608,20 +604,6 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 		printk(": id# %d (%s) attached, %s\n", pll_desc_id, desc->name,
 		       id[priv->nr] == pll_desc_id ?
 				"insmod option" : "autodetected");
-	}
-	if ((debug) || (input[priv->nr] > 0)) {
-		printk("dvb-pll[%d]", priv->nr);
-		if (i2c != NULL)
-			printk(" %d-%04x", i2c_adapter_id(i2c), pll_addr);
-		printk(": tuner rf input will be ");
-		switch (input[priv->nr]) {
-		case 0:
-			printk("autoselected\n");
-			break;
-		default:
-			printk("set to input %d (insmod option)\n",
-			       input[priv->nr]);
-		}
 	}
 
 	return fe;
