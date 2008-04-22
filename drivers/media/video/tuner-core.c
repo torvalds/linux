@@ -317,11 +317,6 @@ static void tuner_i2c_address_check(struct tuner *t)
 	tuner_warn("====================== WARNING! ======================\n");
 }
 
-static inline void attach_simple_tuner(struct tuner *t)
-{
-	simple_tuner_attach(&t->fe, t->i2c->adapter, t->i2c->addr, t->type);
-}
-
 static void attach_tda829x(struct tuner *t)
 {
 	struct tda829x_config cfg = {
@@ -399,7 +394,12 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[2] = 0x86;
 		buffer[3] = 0x54;
 		i2c_master_send(c, buffer, 4);
-		attach_simple_tuner(t);
+		if (simple_tuner_attach(&t->fe, t->i2c->adapter, t->i2c->addr,
+					t->type) == NULL) {
+			t->type = TUNER_ABSENT;
+			t->mode_mask = T_UNINITIALIZED;
+			return;
+		}
 		break;
 	case TUNER_PHILIPS_TD1316:
 		buffer[0] = 0x0b;
@@ -407,7 +407,12 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[2] = 0x86;
 		buffer[3] = 0xa4;
 		i2c_master_send(c,buffer,4);
-		attach_simple_tuner(t);
+		if (simple_tuner_attach(&t->fe, t->i2c->adapter,
+					t->i2c->addr, t->type) == NULL) {
+			t->type = TUNER_ABSENT;
+			t->mode_mask = T_UNINITIALIZED;
+			return;
+		}
 		break;
 	case TUNER_XC2028:
 	{
@@ -445,7 +450,12 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		}
 		break;
 	default:
-		attach_simple_tuner(t);
+		if (simple_tuner_attach(&t->fe, t->i2c->adapter,
+					t->i2c->addr, t->type) == NULL) {
+			t->type = TUNER_ABSENT;
+			t->mode_mask = T_UNINITIALIZED;
+			return;
+		}
 		break;
 	}
 
