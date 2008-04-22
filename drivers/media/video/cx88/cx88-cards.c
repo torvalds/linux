@@ -1494,7 +1494,7 @@ static const struct cx88_board cx88_boards[] = {
 		       .type   = CX88_VMUX_TELEVISION,
 		       .vmux   = 0,
 		       .gpio0 = 0x0400, /* pin 2:mute = 0 (off?) */
-		       .gpio1 = 0x0000,
+		       .gpio1 = 0xf35d,
 		       .gpio2 = 0x0800, /* pin 19:audio = 0 (tv) */
 	       }, {
 		       .type   = CX88_VMUX_COMPOSITE1,
