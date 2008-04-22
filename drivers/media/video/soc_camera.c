@@ -179,11 +179,9 @@ static int soc_camera_dqbuf(struct file *file, void *priv,
 
 static int soc_camera_open(struct inode *inode, struct file *file)
 {
-	struct video_device *vdev = video_devdata(file);
-	struct soc_camera_device *icd = container_of(vdev->dev,
-					     struct soc_camera_device, dev);
-	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
+	struct video_device *vdev;
+	struct soc_camera_device *icd;
+	struct soc_camera_host *ici;
 	struct soc_camera_file *icf;
 	int ret;
 
@@ -191,7 +189,12 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 	if (!icf)
 		return -ENOMEM;
 
-	icf->icd = icd;
+	/* Protect against icd->remove() until we module_get() both drivers. */
+	mutex_lock(&video_lock);
+
+	vdev = video_devdata(file);
+	icd = container_of(vdev->dev, struct soc_camera_device, dev);
+	ici = to_soc_camera_host(icd->dev.parent);
 
 	if (!try_module_get(icd->ops->owner)) {
 		dev_err(&icd->dev, "Couldn't lock sensor driver.\n");
@@ -205,6 +208,22 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 		goto emgi;
 	}
 
+	icd->use_count++;
+
+	icf->icd = icd;
+
+	/* Now we really have to activate the camera */
+	if (icd->use_count == 1) {
+		ret = ici->add(icd);
+		if (ret < 0) {
+			dev_err(&icd->dev, "Couldn't activate the camera: %d\n", ret);
+			icd->use_count--;
+			goto eiciadd;
+		}
+	}
+
+	mutex_unlock(&video_lock);
+
 	file->private_data = icf;
 	dev_dbg(&icd->dev, "camera device open\n");
 
@@ -216,9 +235,13 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 
 	return 0;
 
+	/* All errors are entered with the video_lock held */
+eiciadd:
+	module_put(ici->owner);
 emgi:
 	module_put(icd->ops->owner);
 emgd:
+	mutex_unlock(&video_lock);
 	vfree(icf);
 	return ret;
 }
@@ -230,8 +253,14 @@ static int soc_camera_close(struct inode *inode, struct file *file)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct video_device *vdev = icd->vdev;
 
+	mutex_lock(&video_lock);
+	icd->use_count--;
+	if (!icd->use_count)
+		ici->remove(icd);
 	module_put(icd->ops->owner);
 	module_put(ici->owner);
+	mutex_unlock(&video_lock);
+
 	vfree(file->private_data);
 
 	dev_dbg(vdev->dev, "camera device close\n");
@@ -673,14 +702,14 @@ static int soc_camera_probe(struct device *dev)
 	if (!icd->probe)
 		return -ENODEV;
 
+	/* We only call ->add() here to activate and probe the camera.
+	 * We shall ->remove() and deactivate it immediately afterwards. */
 	ret = ici->add(icd);
 	if (ret < 0)
 		return ret;
 
 	ret = icd->probe(icd);
-	if (ret < 0)
-		ici->remove(icd);
-	else {
+	if (ret >= 0) {
 		const struct v4l2_queryctrl *qctrl;
 
 		qctrl = soc_camera_find_qctrl(icd->ops, V4L2_CID_GAIN);
@@ -689,6 +718,7 @@ static int soc_camera_probe(struct device *dev)
 		icd->exposure = qctrl ? qctrl->default_value :
 			(unsigned short)~0;
 	}
+	ici->remove(icd);
 
 	return ret;
 }
@@ -698,13 +728,9 @@ static int soc_camera_probe(struct device *dev)
 static int soc_camera_remove(struct device *dev)
 {
 	struct soc_camera_device *icd = to_soc_camera_dev(dev);
-	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
 
 	if (icd->remove)
 		icd->remove(icd);
-
-	ici->remove(icd);
 
 	return 0;
 }

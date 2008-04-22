@@ -41,6 +41,8 @@ struct soc_camera_device {
 	int (*probe)(struct soc_camera_device *icd);
 	void (*remove)(struct soc_camera_device *icd);
 	struct module *owner;
+	/* soc_camera.c private count. Only accessed with video_lock held */
+	int use_count;
 };
 
 struct soc_camera_file {
