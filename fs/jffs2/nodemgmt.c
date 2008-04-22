@@ -57,7 +57,6 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 	/* this needs a little more thought (true <tglx> :)) */
 	while(ret == -EAGAIN) {
 		while(c->nr_free_blocks + c->nr_erasing_blocks < blocksneeded) {
-			int ret;
 			uint32_t dirty, avail;
 
 			/* calculate real dirty size
