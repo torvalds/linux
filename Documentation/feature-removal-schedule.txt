@@ -261,17 +261,6 @@ Who:	Michael Buesch <mb@bu3sch.de>
 
 ---------------------------
 
-What:	Solaris/SunOS syscall and binary support on Sparc
-When:	2.6.26
-Why:	Largely unmaintained and almost entirely unused.  File system
-	layering used to divert library and dynamic linker searches to
-	/usr/gnemul is extremely buggy and unfixable.  Making it work
-	is largely pointless as without a lot of work only the most
-	trivial of Solaris binaries can work with the emulation code.
-Who:	David S. Miller <davem@davemloft.net>
-
----------------------------
-
 What:	init_mm export
 When:	2.6.26
 Why:	Not used in-tree. The current out-of-tree users used it to
