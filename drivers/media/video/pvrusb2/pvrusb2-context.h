@@ -30,7 +30,6 @@ struct pvr2_stream;  /* stream interface - defined elsewhere */
 struct pvr2_context;        /* All central state */
 struct pvr2_channel;        /* One I/O pathway to a user */
 struct pvr2_context_stream; /* Wrapper for a stream */
-struct pvr2_crit_reg;       /* Critical region pointer */
 struct pvr2_ioread;         /* Low level stream structure */
 
 struct pvr2_context_stream {
