@@ -987,6 +987,28 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 		return NULL;
 	}
 
+	/* If i2c_adap is set, check that the tuner is at the correct address.
+	 * Otherwise, if i2c_adap is NULL, the tuner will be programmed directly
+	 * by the digital demod via calc_regs.
+	 */
+	if (i2c_adap != NULL) {
+		u8 b[1];
+		struct i2c_msg msg = {
+			.addr = i2c_addr, .flags = I2C_M_RD,
+			.buf = b, .len = 1,
+		};
+
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
+
+		if (1 != i2c_transfer(i2c_adap, &msg, 1))
+			tuner_warn("unable to probe %s, proceeding anyway.",
+				   tuners[type].name);
+
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 0);
+	}
+
 	mutex_lock(&tuner_simple_list_mutex);
 
 	instance = hybrid_tuner_request_state(struct tuner_simple_priv, priv,
