@@ -48,7 +48,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 
 	/* set standard */
 	regs[R_EP3]  &= ~0x1f; /* clear std bits */
-	regs[R_EP3]  |= map->std_bits;
+	regs[R_EP3]  |= (map->agc_mode << 3) | map->std;
 
 	/* set cal mode to normal */
 	regs[R_EP4]  &= ~0x03;
@@ -731,8 +731,8 @@ static int tda18271_tune(struct dvb_frontend *fe,
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 
-	tda_dbg("freq = %d, ifc = %d, bw = %d, std = 0x%02x\n",
-		freq, map->if_freq, bw, map->std_bits);
+	tda_dbg("freq = %d, ifc = %d, bw = %d, agc_mode = %d, std = %d\n",
+		freq, map->if_freq, bw, map->agc_mode, map->std);
 
 	tda18271_init(fe);
 
@@ -927,15 +927,17 @@ static int tda18271_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 /* ------------------------------------------------------------------ */
 
 #define tda18271_update_std(std_cfg, name) do {				\
-	if (map->std_cfg.if_freq + map->std_cfg.std_bits > 0) {		\
+	if (map->std_cfg.if_freq +					\
+		map->std_cfg.agc_mode + map->std_cfg.std > 0) {		\
 		tda_dbg("Using custom std config for %s\n", name);	\
 		memcpy(&std->std_cfg, &map->std_cfg,			\
 			sizeof(struct tda18271_std_map_item));		\
 	} } while (0)
 
 #define tda18271_dump_std_item(std_cfg, name) do {			\
-	tda_dbg("(%s) if freq = %d, std bits = 0x%02x\n",		\
-		name, std->std_cfg.if_freq, std->std_cfg.std_bits);	\
+	tda_dbg("(%s) if freq = %d, agc_mode = %d, std = %d\n",		\
+		name, std->std_cfg.if_freq,				\
+		std->std_cfg.agc_mode, std->std_cfg.std);		\
 	} while (0)
 
 static int tda18271_dump_std_map(struct dvb_frontend *fe)

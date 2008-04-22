@@ -26,7 +26,12 @@
 
 struct tda18271_std_map_item {
 	u16 if_freq;
-	u8 std_bits;
+
+	/* EP3[4:3] */
+	unsigned int agc_mode:2;
+	/* EP3[2:0] */
+	unsigned int std:3;
+	/* EP4[7] */
 	unsigned int fm_rfn:1;
 };
 
