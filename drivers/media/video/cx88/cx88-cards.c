@@ -2062,34 +2062,22 @@ static int cx88_xc3028_geniatech_tuner_callback(void *priv, int command, int mod
 	case XC2028_TUNER_RESET:
 		switch (INPUT(core->input).type) {
 		case CX88_RADIO:
-			cx_write(MO_GP1_IO, 0x101010);
-			mdelay(50);
-			cx_write(MO_GP1_IO, 0x101000);
-			mdelay(50);
-			cx_write(MO_GP1_IO, 0x101010);
-			mdelay(50);
-			return 0;
+			break;
 		case CX88_VMUX_DVB:
 			cx_write(MO_GP1_IO, 0x030302);
 			mdelay(50);
-			cx_write(MO_GP1_IO, 0x101010);
-			mdelay(50);
-			cx_write(MO_GP1_IO, 0x101000);
-			mdelay(50);
-			cx_write(MO_GP1_IO, 0x101010);
-			mdelay(50);
-			return 0;
+			break;
 		default:
 			cx_write(MO_GP1_IO, 0x030301);
 			mdelay(50);
-			cx_write(MO_GP1_IO, 0x101010);
-			mdelay(50);
-			cx_write(MO_GP1_IO, 0x101000);
-			mdelay(50);
-			cx_write(MO_GP1_IO, 0x101010);
-			mdelay(50);
-			return 0;
-		 }
+		}
+		cx_write(MO_GP1_IO, 0x101010);
+		mdelay(50);
+		cx_write(MO_GP1_IO, 0x101000);
+		mdelay(50);
+		cx_write(MO_GP1_IO, 0x101010);
+		mdelay(50);
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -2145,7 +2133,6 @@ static int cx88_xc2028_tuner_callback(void *priv, int command, int arg)
 
 	switch (command) {
 	case XC2028_TUNER_RESET:
-	{
 		switch (INPUT(core->input).type) {
 		case CX88_RADIO:
 			printk(KERN_INFO "setting GPIO to radio!\n");
@@ -2153,25 +2140,19 @@ static int cx88_xc2028_tuner_callback(void *priv, int command, int arg)
 			mdelay(250);
 			cx_write(MO_GP2_IO, 0xff);
 			mdelay(250);
-			cx_write(MO_GP1_IO, 0x101010);
-			mdelay(250);
-			cx_write(MO_GP1_IO, 0x101000);
-			mdelay(250);
-			cx_write(MO_GP1_IO, 0x101010);
-			mdelay(250);
-			return 0;
+			break;
 		case CX88_VMUX_DVB:	/* Digital TV*/
 		default:		/* Analog TV */
 			printk(KERN_INFO "setting GPIO to TV!\n");
-			cx_write(MO_GP1_IO, 0x101010);
-			mdelay(250);
-			cx_write(MO_GP1_IO, 0x101000);
-			mdelay(250);
-			cx_write(MO_GP1_IO, 0x101010);
-			mdelay(250);
-			return 0;
+			break;
 		}
-	}
+		cx_write(MO_GP1_IO, 0x101010);
+		mdelay(250);
+		cx_write(MO_GP1_IO, 0x101000);
+		mdelay(250);
+		cx_write(MO_GP1_IO, 0x101010);
+		mdelay(250);
+		return 0;
 	}
 	return -EINVAL;
 }
