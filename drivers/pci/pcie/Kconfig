@@ -33,7 +33,7 @@ source "drivers/pci/pcie/aer/Kconfig"
 config PCIEASPM
 	bool "PCI Express ASPM support(Experimental)"
 	depends on PCI && EXPERIMENTAL && PCIEPORTBUS
-	default y
+	default n
 	help
 	  This enables PCI Express ASPM (Active State Power Management) and
 	  Clock Power Management. ASPM supports state L0/L0s/L1.
