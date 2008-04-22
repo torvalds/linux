@@ -211,7 +211,6 @@ xfs_setattr(
 	int			flags,
 	cred_t			*credp)
 {
-	bhv_vnode_t		*vp = XFS_ITOV(ip);
 	xfs_mount_t		*mp = ip->i_mount;
 	xfs_trans_t		*tp;
 	int			mask;
@@ -222,7 +221,6 @@ xfs_setattr(
 	gid_t			gid=0, igid=0;
 	int			timeflags = 0;
 	xfs_prid_t		projid=0, iprojid=0;
-	int			mandlock_before, mandlock_after;
 	struct xfs_dquot	*udqp, *gdqp, *olddquot1, *olddquot2;
 	int			file_owner;
 	int			need_iolock = 1;
@@ -383,7 +381,7 @@ xfs_setattr(
 				m |= S_ISGID;
 #if 0
 			/* Linux allows this, Irix doesn't. */
-			if ((vap->va_mode & S_ISVTX) && !VN_ISDIR(vp))
+			if ((vap->va_mode & S_ISVTX) && !S_ISDIR(ip->i_d.di_mode))
 				m |= S_ISVTX;
 #endif
 			if (m && !capable(CAP_FSETID))
@@ -461,10 +459,10 @@ xfs_setattr(
 			goto error_return;
 		}
 
-		if (VN_ISDIR(vp)) {
+		if (S_ISDIR(ip->i_d.di_mode)) {
 			code = XFS_ERROR(EISDIR);
 			goto error_return;
-		} else if (!VN_ISREG(vp)) {
+		} else if (!S_ISREG(ip->i_d.di_mode)) {
 			code = XFS_ERROR(EINVAL);
 			goto error_return;
 		}
@@ -625,9 +623,6 @@ xfs_setattr(
 		xfs_trans_ijoin(tp, ip, lock_flags);
 		xfs_trans_ihold(tp, ip);
 	}
-
-	/* determine whether mandatory locking mode changes */
-	mandlock_before = MANDLOCK(vp, ip->i_d.di_mode);
 
 	/*
 	 * Truncate file.  Must have write permission and not be a directory.
@@ -857,13 +852,6 @@ xfs_setattr(
 
 		code = xfs_trans_commit(tp, commit_flags);
 	}
-
-	/*
-	 * If the (regular) file's mandatory locking mode changed, then
-	 * notify the vnode.  We do this under the inode lock to prevent
-	 * racing calls to vop_vnode_change.
-	 */
-	mandlock_after = MANDLOCK(vp, ip->i_d.di_mode);
 
 	xfs_iunlock(ip, lock_flags);
 
@@ -1491,7 +1479,7 @@ xfs_release(
 	xfs_mount_t	*mp = ip->i_mount;
 	int		error;
 
-	if (!VN_ISREG(vp) || (ip->i_d.di_mode == 0))
+	if (!S_ISREG(ip->i_d.di_mode) || (ip->i_d.di_mode == 0))
 		return 0;
 
 	/* If this is a read-only mount, don't do this (would generate I/O) */
