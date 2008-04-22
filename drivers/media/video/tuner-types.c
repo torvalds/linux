@@ -855,6 +855,11 @@ static struct tuner_range tuner_thomson_dtt761x_ntsc_ranges[] = {
 	{ 16 * 999.99        , 0x8e, 0x3c, },
 };
 
+static struct tuner_range tuner_thomson_dtt761x_atsc_ranges[] = {
+	{ 16 * 147.00 /*MHz*/, 0x8e, 0x39, },
+	{ 16 * 417.00 /*MHz*/, 0x8e, 0x3a, },
+	{ 16 * 999.99        , 0x8e, 0x3c, },
+};
 
 static struct tuner_params tuner_thomson_dtt761x_params[] = {
 	{
@@ -864,6 +869,12 @@ static struct tuner_params tuner_thomson_dtt761x_params[] = {
 		.has_tda9887 = 1,
 		.fm_gain_normal = 1,
 		.radio_if = 2, /* 41.3 MHz */
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_thomson_dtt761x_atsc_ranges,
+		.count  = ARRAY_SIZE(tuner_thomson_dtt761x_atsc_ranges),
+		.iffreq = 16 * 44.00, /*MHz*/
 	},
 };
 
@@ -1411,6 +1422,9 @@ struct tunertype tuners[] = {
 		.name   = "Thomson DTT 761X (ATSC/NTSC)",
 		.params = tuner_thomson_dtt761x_params,
 		.count  = ARRAY_SIZE(tuner_thomson_dtt761x_params),
+		.min    = 16 *  57.00,
+		.max    = 16 * 863.00,
+		.stepsize = 62500,
 	},
 	[TUNER_TENA_9533_DI] = { /* Philips PAL */
 		.name   = "Tena TNF9533-D/IF/TNF9533-B/DF",
