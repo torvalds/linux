@@ -22,7 +22,6 @@
 #define DVB_PLL_TDHU2                  16
 #define DVB_PLL_SAMSUNG_TBMV           17
 #define DVB_PLL_PHILIPS_SD1878_TDA8261 18
-#define DVB_PLL_PHILIPS_TD1316         19
 #define DVB_PLL_OPERA1                 21
 
 /**

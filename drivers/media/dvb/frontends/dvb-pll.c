@@ -374,48 +374,6 @@ static struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261 = {
 	},
 };
 
-/*
- * Philips TD1316 Tuner.
- */
-static void td1316_bw(struct dvb_frontend *fe, u8 *buf,
-		      const struct dvb_frontend_parameters *params)
-{
-	u8 band;
-
-	/* determine band */
-	if (params->frequency < 161000000)
-		band = 1;
-	else if (params->frequency < 444000000)
-		band = 2;
-	else
-		band = 4;
-
-	buf[3] |= band;
-
-	/* setup PLL filter */
-	if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
-		buf[3] |= 1 << 3;
-}
-
-static struct dvb_pll_desc dvb_pll_philips_td1316 = {
-	.name  = "Philips TD1316",
-	.min   =  87000000,
-	.max   = 895000000,
-	.iffreq= 36166667,
-	.set   = td1316_bw,
-	.count = 9,
-	.entries = {
-		{  93834000, 166667, 0xca, 0x60},
-		{ 123834000, 166667, 0xca, 0xa0},
-		{ 163834000, 166667, 0xca, 0xc0},
-		{ 253834000, 166667, 0xca, 0x60},
-		{ 383834000, 166667, 0xca, 0xa0},
-		{ 443834000, 166667, 0xca, 0xc0},
-		{ 583834000, 166667, 0xca, 0x60},
-		{ 793834000, 166667, 0xca, 0xa0},
-		{ 858834000, 166667, 0xca, 0xe0},
-	},
-};
 
 
 static void opera1_bw(struct dvb_frontend *fe, u8 *buf,
@@ -462,7 +420,6 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_TDHU2]                  = &dvb_pll_tdhu2,
 	[DVB_PLL_SAMSUNG_TBMV]           = &dvb_pll_samsung_tbmv,
 	[DVB_PLL_PHILIPS_SD1878_TDA8261] = &dvb_pll_philips_sd1878_tda8261,
-	[DVB_PLL_PHILIPS_TD1316]         = &dvb_pll_philips_td1316,
 	[DVB_PLL_OPERA1]                 = &dvb_pll_opera1,
 };
 
