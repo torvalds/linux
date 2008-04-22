@@ -258,6 +258,14 @@ int pvr2_hdw_cmd_powerup(struct pvr2_hdw *);
 /* suspend */
 int pvr2_hdw_cmd_powerdown(struct pvr2_hdw *);
 
+/* Hauppauge - specific */
+int pvr2_hdw_cmd_hcw_demod_reset(struct pvr2_hdw *hdw, int onoff);
+int pvr2_hdw_cmd_hcw_usbstream_dvb(struct pvr2_hdw *hdw, int onoff);
+
+/* onair - specific */
+int pvr2_hdw_cmd_onair_fe_power_ctrl(struct pvr2_hdw *hdw, int onoff);
+int pvr2_hdw_cmd_onair_digital_path_ctrl(struct pvr2_hdw *hdw, int onoff);
+
 /* Order decoder to reset */
 int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *);
 

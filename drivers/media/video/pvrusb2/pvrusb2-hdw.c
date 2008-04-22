@@ -3241,6 +3241,61 @@ int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 }
 
 
+int pvr2_hdw_cmd_hcw_demod_reset(struct pvr2_hdw *hdw, int onoff)
+{
+	int status;
+
+	LOCK_TAKE(hdw->ctl_lock); do {
+		pvr2_trace(PVR2_TRACE_INIT, "Issuing fe demod wake command");
+		hdw->flag_ok = !0;
+		hdw->cmd_buffer[0] = FX2CMD_HCW_DEMOD_RESETIN;
+		hdw->cmd_buffer[1] = onoff;
+		status = pvr2_send_request(hdw, hdw->cmd_buffer, 2, NULL, 0);
+	} while (0); LOCK_GIVE(hdw->ctl_lock);
+
+	return status;
+}
+
+int pvr2_hdw_cmd_hcw_usbstream_dvb(struct pvr2_hdw *hdw, int onoff)
+{
+	int status;
+	LOCK_TAKE(hdw->ctl_lock); do {
+		hdw->cmd_buffer[0] =
+			(onoff ? FX2CMD_HCW_DTV_STREAMING_ON :
+				 FX2CMD_HCW_DTV_STREAMING_OFF);
+		status = pvr2_send_request(hdw, hdw->cmd_buffer, 1, NULL, 0);
+	} while (0); LOCK_GIVE(hdw->ctl_lock);
+	return status;
+}
+
+int pvr2_hdw_cmd_onair_fe_power_ctrl(struct pvr2_hdw *hdw, int onoff)
+{
+	int status;
+
+	LOCK_TAKE(hdw->ctl_lock); do {
+		pvr2_trace(PVR2_TRACE_INIT, "Issuing fe power command to CPLD");
+		hdw->flag_ok = !0;
+		hdw->cmd_buffer[0] =
+			(onoff ? FX2CMD_ONAIR_DTV_POWER_ON :
+				 FX2CMD_ONAIR_DTV_POWER_OFF);
+		status = pvr2_send_request(hdw, hdw->cmd_buffer, 1, NULL, 0);
+	} while (0); LOCK_GIVE(hdw->ctl_lock);
+
+	return status;
+}
+
+int pvr2_hdw_cmd_onair_digital_path_ctrl(struct pvr2_hdw *hdw, int onoff)
+{
+	int status;
+	LOCK_TAKE(hdw->ctl_lock); do {
+		hdw->cmd_buffer[0] =
+			(onoff ? FX2CMD_ONAIR_DTV_STREAMING_ON :
+				 FX2CMD_ONAIR_DTV_STREAMING_OFF);
+		status = pvr2_send_request(hdw, hdw->cmd_buffer, 1, NULL, 0);
+	} while (0); LOCK_GIVE(hdw->ctl_lock);
+	return status;
+}
+
 /* Stop / start video stream transport */
 static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl)
 {
