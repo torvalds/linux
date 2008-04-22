@@ -828,8 +828,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_CROPCAP: {
 		struct v4l2_cropcap *cropcap = arg;
 
-		if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
-		    cropcap->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		if (cropcap->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 			return -EINVAL;
 		cropcap->bounds.top = cropcap->bounds.left = 0;
 		cropcap->bounds.width = 720;
@@ -874,9 +873,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			}
 			return -EINVAL;
 		}
-		if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		return itv->video_dec_func(itv, VIDIOC_S_CROP, arg);
+		return -EINVAL;
 	}
 
 	case VIDIOC_G_CROP: {
@@ -890,9 +887,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 				crop->c = itv->main_rect;
 			return 0;
 		}
-		if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		return itv->video_dec_func(itv, VIDIOC_G_CROP, arg);
+		return -EINVAL;
 	}
 
 	case VIDIOC_ENUM_FMT: {
