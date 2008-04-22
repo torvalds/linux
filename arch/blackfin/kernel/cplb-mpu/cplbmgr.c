@@ -143,30 +143,39 @@ static noinline int dcplb_miss(void)
 	unsigned long d_data;
 
 	nr_dcplb_miss++;
-	if (addr >= _ramend)
-		return CPLB_PROT_VIOL;
 
 	d_data = CPLB_SUPV_WR | CPLB_VALID | CPLB_DIRTY | PAGE_SIZE_4KB;
 #ifdef CONFIG_BFIN_DCACHE
-	d_data |= CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
+	if (addr < _ramend - DMA_UNCACHED_REGION) {
+		d_data |= CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
 #ifdef CONFIG_BFIN_WT
-	d_data |= CPLB_L1_AOW | CPLB_WT;
+		d_data |= CPLB_L1_AOW | CPLB_WT;
 #endif
-#endif
-	mask = current_rwx_mask;
-	if (mask) {
-		int page = addr >> PAGE_SHIFT;
-		int offs = page >> 5;
-		int bit = 1 << (page & 31);
-
-		if (mask[offs] & bit)
-			d_data |= CPLB_USER_RD;
-
-		mask += page_mask_nelts;
-		if (mask[offs] & bit)
-			d_data |= CPLB_USER_WR;
 	}
+#endif
+	if (addr >= _ramend) {
+		if (addr >= ASYNC_BANK0_BASE && addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE
+		    && (status & FAULT_USERSUPV)) {
+			addr &= ~0x3fffff;
+			d_data &= ~PAGE_SIZE_4KB;
+			d_data |= PAGE_SIZE_4MB;
+		} else
+			return CPLB_PROT_VIOL;
+	} else {
+		mask = current_rwx_mask;
+		if (mask) {
+			int page = addr >> PAGE_SHIFT;
+			int offs = page >> 5;
+			int bit = 1 << (page & 31);
 
+			if (mask[offs] & bit)
+				d_data |= CPLB_USER_RD;
+
+			mask += page_mask_nelts;
+			if (mask[offs] & bit)
+				d_data |= CPLB_USER_WR;
+		}
+	}
 	idx = evict_one_dcplb();
 
 	addr &= PAGE_MASK;
@@ -280,8 +289,7 @@ int cplb_hdr(int seqstat, struct pt_regs *regs)
 	case 0x26:
 		return dcplb_miss();
 	default:
-	    return 1;
-		panic_cplb_error(seqstat, regs);
+		return 1;
 	}
 }
 
