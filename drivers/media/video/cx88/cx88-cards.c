@@ -1426,6 +1426,124 @@ static const struct cx88_board cx88_boards[] = {
 		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_PINNACLE_HYBRID_PCTV] = {
+	       .name           = "Pinnacle Hybrid PCTV",
+	       .tuner_type     = TUNER_XC2028,
+	       .tuner_addr     = 0x61,
+	       .input          = { {
+		       .type   = CX88_VMUX_TELEVISION,
+		       .vmux   = 0,
+	       }, {
+		       .type   = CX88_VMUX_COMPOSITE1,
+		       .vmux   = 1,
+	       }, {
+		       .type   = CX88_VMUX_SVIDEO,
+		       .vmux   = 2,
+	       } },
+	       .radio = {
+		       .type   = CX88_RADIO,
+		       .gpio0  = 0x004ff,
+		       .gpio1  = 0x010ff,
+		       .gpio2  = 0x0ff,
+	       },
+       },
+       [CX88_BOARD_WINFAST_TV2000_XP_GLOBAL] = {
+	       .name           = "Winfast TV2000 XP Global",
+	       .tuner_type     = TUNER_XC2028,
+	       .tuner_addr     = 0x61,
+	       .input          = { {
+		       .type   = CX88_VMUX_TELEVISION,
+		       .vmux   = 0,
+		       .gpio0  = 0x0400, /* pin 2:mute = 0 (off?) */
+		       .gpio1  = 0x0000,
+		       .gpio2  = 0x0800, /* pin 19:audio = 0 (tv) */
+
+	       }, {
+		       .type   = CX88_VMUX_COMPOSITE1,
+		       .vmux   = 1,
+		       .gpio0  = 0x0400, /* probably?  or 0x0404 to turn mute on */
+		       .gpio1  = 0x0000,
+		       .gpio2  = 0x0808, /* pin 19:audio = 1 (line) */
+
+	       }, {
+		       .type   = CX88_VMUX_SVIDEO,
+		       .vmux   = 2,
+	       } },
+	       .radio = {
+		       .type   = CX88_RADIO,
+		       .gpio0  = 0x004ff,
+		       .gpio1  = 0x010ff,
+		       .gpio2  = 0x0ff,
+	       },
+       },
+       [CX88_BOARD_POWERCOLOR_REAL_ANGEL] = {
+	       .name           = "PowerColor Real Angel 330",
+	       .tuner_type     = TUNER_XC2028,
+	       .tuner_addr     = 0x61,
+	       .input          = { {
+		       .type   = CX88_VMUX_TELEVISION,
+		       .vmux   = 0,
+		       .gpio0 = 0x0400, /* pin 2:mute = 0 (off?) */
+		       .gpio1 = 0x0000,
+		       .gpio2 = 0x0800, /* pin 19:audio = 0 (tv) */
+	       }, {
+		       .type   = CX88_VMUX_COMPOSITE1,
+		       .vmux   = 1,
+		       .gpio0 = 0x0400, /* probably?  or 0x0404 to turn mute on */
+		       .gpio1 = 0x0000,
+		       .gpio2 = 0x0808, /* pin 19:audio = 1 (line) */
+	       }, {
+		       .type   = CX88_VMUX_SVIDEO,
+		       .vmux   = 2,
+		       .gpio0  = 0x000ff,
+		       .gpio1  = 0x0f37d,
+		       .gpio2  = 0x00019,
+		       .gpio3  = 0x00000,
+	       } },
+	       .radio = {
+		       .type   = CX88_RADIO,
+		       .gpio0  = 0x000ff,
+		       .gpio1  = 0x0f35d,
+		       .gpio2  = 0x00019,
+		       .gpio3  = 0x00000,
+	       },
+       },
+       [CX88_BOARD_GENIATECH_X8000_MT] = {
+		/* Also PowerColor Real Angel 330 and Geniatech X800 OEM */
+	       .name           = "Geniatech X8000-MT DVBT",
+	       .tuner_type     = TUNER_XC2028,
+	       .tuner_addr     = 0x61,
+	       .input          = { {
+		       .type   = CX88_VMUX_TELEVISION,
+		       .vmux   = 0,
+		       .gpio0  = 0x00000000,
+		       .gpio1  = 0x00e3e341,
+		       .gpio2  = 0x00000000,
+		       .gpio3  = 0x00000000,
+	       }, {
+		       .type   = CX88_VMUX_COMPOSITE1,
+		       .vmux   = 1,
+		       .gpio0  = 0x00000000,
+		       .gpio1  = 0x00e3e361,
+		       .gpio2  = 0x00000000,
+		       .gpio3  = 0x00000000,
+	       }, {
+		       .type   = CX88_VMUX_SVIDEO,
+		       .vmux   = 2,
+		       .gpio0  = 0x00000000,
+		       .gpio1  = 0x00e3e361,
+		       .gpio2  = 0x00000000,
+		       .gpio3  = 0x00000000,
+	       } },
+	       .radio = {
+		       .type   = CX88_RADIO,
+		       .gpio0  = 0x00000000,
+		       .gpio1  = 0x00e3e341,
+		       .gpio2  = 0x00000000,
+		       .gpio3  = 0x00000000,
+	       },
+	       .mpeg           = CX88_MPEG_DVB,
+       }
 };
 
 /* ------------------------------------------------------------------ */
@@ -1743,7 +1861,23 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x18ac,
 		.subdevice = 0xd530,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO,
-	},
+	}, {
+		.subvendor = 0x12ab,
+		.subdevice = 0x1788,
+		.card      = CX88_BOARD_PINNACLE_HYBRID_PCTV,
+	}, {
+		.subvendor = 0x14f1,
+		.subdevice = 0xea3d,
+		.card      = CX88_BOARD_POWERCOLOR_REAL_ANGEL,
+	}, {
+		.subvendor = 0x107d,
+		.subdevice = 0x6f18,
+		.card      = CX88_BOARD_WINFAST_TV2000_XP_GLOBAL,
+	}, {
+		.subvendor = 0x14f1,
+		.subdevice = 0x8852,
+		.card      = CX88_BOARD_GENIATECH_X8000_MT,
+	}
 };
 
 /* ----------------------------------------------------------------------- */
@@ -1876,6 +2010,50 @@ static void gdi_eeprom(struct cx88_core *core, u8 *eeprom_data)
 }
 
 /* ----------------------------------------------------------------------- */
+/* some Geniatech specific stuff                                           */
+
+static int cx88_xc3028_geniatech_tuner_callback(void *priv, int command, int mode)
+{
+	struct i2c_algo_bit_data *i2c_algo = priv;
+	struct cx88_core *core = i2c_algo->data;
+
+	switch (command) {
+	case XC2028_TUNER_RESET:
+		switch (INPUT(core->input).type) {
+		case CX88_RADIO:
+			cx_write(MO_GP1_IO, 0x101010);
+			mdelay(50);
+			cx_write(MO_GP1_IO, 0x101000);
+			mdelay(50);
+			cx_write(MO_GP1_IO, 0x101010);
+			mdelay(50);
+			return 0;
+		case CX88_VMUX_DVB:
+			cx_write(MO_GP1_IO, 0x030302);
+			mdelay(50);
+			cx_write(MO_GP1_IO, 0x101010);
+			mdelay(50);
+			cx_write(MO_GP1_IO, 0x101000);
+			mdelay(50);
+			cx_write(MO_GP1_IO, 0x101010);
+			mdelay(50);
+			return 0;
+		default:
+			cx_write(MO_GP1_IO, 0x030301);
+			mdelay(50);
+			cx_write(MO_GP1_IO, 0x101010);
+			mdelay(50);
+			cx_write(MO_GP1_IO, 0x101000);
+			mdelay(50);
+			cx_write(MO_GP1_IO, 0x101010);
+			mdelay(50);
+			return 0;
+		 }
+	}
+	return -EINVAL;
+}
+
+/* ----------------------------------------------------------------------- */
 /* some DViCO specific stuff                                               */
 
 static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
@@ -1913,6 +2091,14 @@ static int cx88_xc2028_tuner_callback(void *priv, int command, int arg)
 {
 	struct i2c_algo_bit_data *i2c_algo = priv;
 	struct cx88_core *core = i2c_algo->data;
+
+	/* Board-specific callbacks */
+	switch (core->boardnr) {
+	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
+	case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
+	case CX88_BOARD_GENIATECH_X8000_MT:
+		return cx88_xc3028_geniatech_tuner_callback(priv, command, arg);
+	}
 
 	switch (command) {
 	case XC2028_TUNER_RESET:
