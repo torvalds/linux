@@ -133,7 +133,7 @@ xfs_nfs_get_inode(
 	if (!ip)
 		return ERR_PTR(-EIO);
 
-	if (!ip->i_d.di_mode || ip->i_d.di_gen != generation) {
+	if (ip->i_d.di_gen != generation) {
 		xfs_iput_new(ip, XFS_ILOCK_SHARED);
 		return ERR_PTR(-ENOENT);
 	}

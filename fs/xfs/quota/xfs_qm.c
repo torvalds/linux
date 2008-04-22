@@ -1737,12 +1737,6 @@ xfs_qm_dqusage_adjust(
 		return error;
 	}
 
-	if (ip->i_d.di_mode == 0) {
-		xfs_iput_new(ip, XFS_ILOCK_EXCL);
-		*res = BULKSTAT_RV_NOTHING;
-		return XFS_ERROR(ENOENT);
-	}
-
 	/*
 	 * Obtain the locked dquots. In case of an error (eg. allocation
 	 * fails for ENOSPC), we return the negative of the error number
