@@ -251,11 +251,216 @@ static int simple_config_lookup(struct dvb_frontend *fe,
 
 /* ---------------------------------------------------------------------- */
 
+static int simple_std_setup(struct dvb_frontend *fe,
+			    struct analog_parameters *params,
+			    u8 *buffer, u8 *config, u8 *cb)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	u8 tuneraddr;
+	int rc;
+
+	/* tv norm specific stuff for multi-norm tuners */
+	switch (priv->type) {
+	case TUNER_PHILIPS_SECAM: /* FI1216MF */
+		/* 0x01 -> ??? no change ??? */
+		/* 0x02 -> PAL BDGHI / SECAM L */
+		/* 0x04 -> ??? PAL others / SECAM others ??? */
+		*cb &= ~0x03;
+		if (params->std & V4L2_STD_SECAM_L)
+			/* also valid for V4L2_STD_SECAM */
+			*cb |= PHILIPS_MF_SET_STD_L;
+		else if (params->std & V4L2_STD_SECAM_LC)
+			*cb |= PHILIPS_MF_SET_STD_LC;
+		else /* V4L2_STD_B|V4L2_STD_GH */
+			*cb |= PHILIPS_MF_SET_STD_BG;
+		break;
+
+	case TUNER_TEMIC_4046FM5:
+		*cb &= ~0x0f;
+
+		if (params->std & V4L2_STD_PAL_BG) {
+			*cb |= TEMIC_SET_PAL_BG;
+
+		} else if (params->std & V4L2_STD_PAL_I) {
+			*cb |= TEMIC_SET_PAL_I;
+
+		} else if (params->std & V4L2_STD_PAL_DK) {
+			*cb |= TEMIC_SET_PAL_DK;
+
+		} else if (params->std & V4L2_STD_SECAM_L) {
+			*cb |= TEMIC_SET_PAL_L;
+
+		}
+		break;
+
+	case TUNER_PHILIPS_FQ1216ME:
+		*cb &= ~0x0f;
+
+		if (params->std & (V4L2_STD_PAL_BG|V4L2_STD_PAL_DK)) {
+			*cb |= PHILIPS_SET_PAL_BGDK;
+
+		} else if (params->std & V4L2_STD_PAL_I) {
+			*cb |= PHILIPS_SET_PAL_I;
+
+		} else if (params->std & V4L2_STD_SECAM_L) {
+			*cb |= PHILIPS_SET_PAL_L;
+
+		}
+		break;
+
+	case TUNER_PHILIPS_ATSC:
+		/* 0x00 -> ATSC antenna input 1 */
+		/* 0x01 -> ATSC antenna input 2 */
+		/* 0x02 -> NTSC antenna input 1 */
+		/* 0x03 -> NTSC antenna input 2 */
+		*cb &= ~0x03;
+		if (!(params->std & V4L2_STD_ATSC))
+			*cb |= 2;
+		/* FIXME: input */
+		break;
+
+	case TUNER_MICROTUNE_4042FI5:
+		/* Set the charge pump for fast tuning */
+		*config |= TUNER_CHARGE_PUMP;
+		break;
+
+	case TUNER_PHILIPS_TUV1236D:
+		/* 0x40 -> ATSC antenna input 1 */
+		/* 0x48 -> ATSC antenna input 2 */
+		/* 0x00 -> NTSC antenna input 1 */
+		/* 0x08 -> NTSC antenna input 2 */
+		buffer[0] = 0x14;
+		buffer[1] = 0x00;
+		buffer[2] = 0x17;
+		buffer[3] = 0x00;
+		*cb &= ~0x40;
+		if (params->std & V4L2_STD_ATSC) {
+			*cb |= 0x40;
+			buffer[1] = 0x04;
+		}
+		/* set to the correct mode (analog or digital) */
+		tuneraddr = priv->i2c_props.addr;
+		priv->i2c_props.addr = 0x0a;
+		rc = tuner_i2c_xfer_send(&priv->i2c_props, &buffer[0], 2);
+		if (2 != rc)
+			tuner_warn("i2c i/o error: rc == %d "
+				   "(should be 2)\n", rc);
+		rc = tuner_i2c_xfer_send(&priv->i2c_props, &buffer[2], 2);
+		if (2 != rc)
+			tuner_warn("i2c i/o error: rc == %d "
+				   "(should be 2)\n", rc);
+		priv->i2c_props.addr = tuneraddr;
+		/* FIXME: input */
+		break;
+	}
+
+	return 0;
+}
+
+static int simple_post_tune(struct dvb_frontend *fe, u8 *buffer,
+			    u16 div, u8 config, u8 cb)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	int rc;
+
+	switch (priv->type) {
+	case TUNER_LG_TDVS_H06XF:
+		/* Set the Auxiliary Byte. */
+		buffer[0] = buffer[2];
+		buffer[0] &= ~0x20;
+		buffer[0] |= 0x18;
+		buffer[1] = 0x20;
+		tuner_dbg("tv 0x%02x 0x%02x\n", buffer[0], buffer[1]);
+
+		rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 2);
+		if (2 != rc)
+			tuner_warn("i2c i/o error: rc == %d "
+				   "(should be 2)\n", rc);
+		break;
+	case TUNER_MICROTUNE_4042FI5:
+	{
+		/* FIXME - this may also work for other tuners */
+		unsigned long timeout = jiffies + msecs_to_jiffies(1);
+		u8 status_byte = 0;
+
+		/* Wait until the PLL locks */
+		for (;;) {
+			if (time_after(jiffies, timeout))
+				return 0;
+			rc = tuner_i2c_xfer_recv(&priv->i2c_props,
+						 &status_byte, 1);
+			if (1 != rc) {
+				tuner_warn("i2c i/o read error: rc == %d "
+					   "(should be 1)\n", rc);
+				break;
+			}
+			if (status_byte & TUNER_PLL_LOCKED)
+				break;
+			udelay(10);
+		}
+
+		/* Set the charge pump for optimized phase noise figure */
+		config &= ~TUNER_CHARGE_PUMP;
+		buffer[0] = (div>>8) & 0x7f;
+		buffer[1] = div      & 0xff;
+		buffer[2] = config;
+		buffer[3] = cb;
+		tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
+			  buffer[0], buffer[1], buffer[2], buffer[3]);
+
+		rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 4);
+		if (4 != rc)
+			tuner_warn("i2c i/o error: rc == %d "
+				   "(should be 4)\n", rc);
+		break;
+	}
+	}
+
+	return 0;
+}
+
+static int simple_radio_bandswitch(struct dvb_frontend *fe, u8 *buffer)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+
+	switch (priv->type) {
+	case TUNER_TENA_9533_DI:
+	case TUNER_YMEC_TVF_5533MF:
+		tuner_dbg("This tuner doesn't have FM. "
+			  "Most cards have a TEA5767 for FM\n");
+		return 0;
+	case TUNER_PHILIPS_FM1216ME_MK3:
+	case TUNER_PHILIPS_FM1236_MK3:
+	case TUNER_PHILIPS_FMD1216ME_MK3:
+	case TUNER_LG_NTSC_TAPE:
+	case TUNER_PHILIPS_FM1256_IH3:
+		buffer[3] = 0x19;
+		break;
+	case TUNER_TNF_5335MF:
+		buffer[3] = 0x11;
+		break;
+	case TUNER_LG_PAL_FM:
+		buffer[3] = 0xa5;
+		break;
+	case TUNER_THOMSON_DTT761X:
+		buffer[3] = 0x39;
+		break;
+	case TUNER_MICROTUNE_4049FM5:
+	default:
+		buffer[3] = 0xa4;
+		break;
+	}
+
+	return 0;
+}
+
+/* ---------------------------------------------------------------------- */
+
 static int simple_set_tv_freq(struct dvb_frontend *fe,
 			      struct analog_parameters *params)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
-	u8 config, cb, tuneraddr;
+	u8 config, cb;
 	u16 div;
 	struct tunertype *tun;
 	u8 buffer[4];
@@ -306,99 +511,7 @@ static int simple_set_tv_freq(struct dvb_frontend *fe,
 		  offset / 16, offset % 16 * 100 / 16, div);
 
 	/* tv norm specific stuff for multi-norm tuners */
-	switch (priv->type) {
-	case TUNER_PHILIPS_SECAM: /* FI1216MF */
-		/* 0x01 -> ??? no change ??? */
-		/* 0x02 -> PAL BDGHI / SECAM L */
-		/* 0x04 -> ??? PAL others / SECAM others ??? */
-		cb &= ~0x03;
-		if (params->std & V4L2_STD_SECAM_L)
-			/* also valid for V4L2_STD_SECAM */
-			cb |= PHILIPS_MF_SET_STD_L;
-		else if (params->std & V4L2_STD_SECAM_LC)
-			cb |= PHILIPS_MF_SET_STD_LC;
-		else /* V4L2_STD_B|V4L2_STD_GH */
-			cb |= PHILIPS_MF_SET_STD_BG;
-		break;
-
-	case TUNER_TEMIC_4046FM5:
-		cb &= ~0x0f;
-
-		if (params->std & V4L2_STD_PAL_BG) {
-			cb |= TEMIC_SET_PAL_BG;
-
-		} else if (params->std & V4L2_STD_PAL_I) {
-			cb |= TEMIC_SET_PAL_I;
-
-		} else if (params->std & V4L2_STD_PAL_DK) {
-			cb |= TEMIC_SET_PAL_DK;
-
-		} else if (params->std & V4L2_STD_SECAM_L) {
-			cb |= TEMIC_SET_PAL_L;
-
-		}
-		break;
-
-	case TUNER_PHILIPS_FQ1216ME:
-		cb &= ~0x0f;
-
-		if (params->std & (V4L2_STD_PAL_BG|V4L2_STD_PAL_DK)) {
-			cb |= PHILIPS_SET_PAL_BGDK;
-
-		} else if (params->std & V4L2_STD_PAL_I) {
-			cb |= PHILIPS_SET_PAL_I;
-
-		} else if (params->std & V4L2_STD_SECAM_L) {
-			cb |= PHILIPS_SET_PAL_L;
-
-		}
-		break;
-
-	case TUNER_PHILIPS_ATSC:
-		/* 0x00 -> ATSC antenna input 1 */
-		/* 0x01 -> ATSC antenna input 2 */
-		/* 0x02 -> NTSC antenna input 1 */
-		/* 0x03 -> NTSC antenna input 2 */
-		cb &= ~0x03;
-		if (!(params->std & V4L2_STD_ATSC))
-			cb |= 2;
-		/* FIXME: input */
-		break;
-
-	case TUNER_MICROTUNE_4042FI5:
-		/* Set the charge pump for fast tuning */
-		config |= TUNER_CHARGE_PUMP;
-		break;
-
-	case TUNER_PHILIPS_TUV1236D:
-		/* 0x40 -> ATSC antenna input 1 */
-		/* 0x48 -> ATSC antenna input 2 */
-		/* 0x00 -> NTSC antenna input 1 */
-		/* 0x08 -> NTSC antenna input 2 */
-		buffer[0] = 0x14;
-		buffer[1] = 0x00;
-		buffer[2] = 0x17;
-		buffer[3] = 0x00;
-		cb &= ~0x40;
-		if (params->std & V4L2_STD_ATSC) {
-			cb |= 0x40;
-			buffer[1] = 0x04;
-		}
-		/* set to the correct mode (analog or digital) */
-		tuneraddr = priv->i2c_props.addr;
-		priv->i2c_props.addr = 0x0a;
-		rc = tuner_i2c_xfer_send(&priv->i2c_props, &buffer[0], 2);
-		if (2 != rc)
-			tuner_warn("i2c i/o error: rc == %d "
-				   "(should be 2)\n", rc);
-		rc = tuner_i2c_xfer_send(&priv->i2c_props, &buffer[2], 2);
-		if (2 != rc)
-			tuner_warn("i2c i/o error: rc == %d "
-				   "(should be 2)\n", rc);
-		priv->i2c_props.addr = tuneraddr;
-		/* FIXME: input */
-		break;
-	}
+	simple_std_setup(fe, params, &buffer[1], &config, &cb);
 
 	if (t_params->cb_first_if_lower_freq && div < priv->last_div) {
 		buffer[0] = config;
@@ -463,58 +576,8 @@ static int simple_set_tv_freq(struct dvb_frontend *fe,
 	if (4 != rc)
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n", rc);
 
-	switch (priv->type) {
-	case TUNER_LG_TDVS_H06XF:
-		/* Set the Auxiliary Byte. */
-		buffer[0] = buffer[2];
-		buffer[0] &= ~0x20;
-		buffer[0] |= 0x18;
-		buffer[1] = 0x20;
-		tuner_dbg("tv 0x%02x 0x%02x\n", buffer[0], buffer[1]);
+	simple_post_tune(fe, &buffer[0], div, config, cb);
 
-		rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 2);
-		if (2 != rc)
-			tuner_warn("i2c i/o error: rc == %d "
-				   "(should be 2)\n", rc);
-		break;
-	case TUNER_MICROTUNE_4042FI5:
-	{
-		/* FIXME - this may also work for other tuners */
-		unsigned long timeout = jiffies + msecs_to_jiffies(1);
-		u8 status_byte = 0;
-
-		/* Wait until the PLL locks */
-		for (;;) {
-			if (time_after(jiffies, timeout))
-				return 0;
-			rc = tuner_i2c_xfer_recv(&priv->i2c_props,
-						 &status_byte, 1);
-			if (1 != rc) {
-				tuner_warn("i2c i/o read error: rc == %d "
-					   "(should be 1)\n", rc);
-				break;
-			}
-			if (status_byte & TUNER_PLL_LOCKED)
-				break;
-			udelay(10);
-		}
-
-		/* Set the charge pump for optimized phase noise figure */
-		config &= ~TUNER_CHARGE_PUMP;
-		buffer[0] = (div>>8) & 0x7f;
-		buffer[1] = div      & 0xff;
-		buffer[2] = config;
-		buffer[3] = cb;
-		tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
-			  buffer[0], buffer[1], buffer[2], buffer[3]);
-
-		rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 4);
-		if (4 != rc)
-			tuner_warn("i2c i/o error: rc == %d "
-				   "(should be 4)\n", rc);
-		break;
-	}
-	}
 	return 0;
 }
 
@@ -555,33 +618,7 @@ static int simple_set_radio_freq(struct dvb_frontend *fe,
 	}
 
 	/* Bandswitch byte */
-	switch (priv->type) {
-	case TUNER_TENA_9533_DI:
-	case TUNER_YMEC_TVF_5533MF:
-		tuner_dbg("This tuner doesn't have FM. "
-			  "Most cards have a TEA5767 for FM\n");
-		return 0;
-	case TUNER_PHILIPS_FM1216ME_MK3:
-	case TUNER_PHILIPS_FM1236_MK3:
-	case TUNER_PHILIPS_FMD1216ME_MK3:
-	case TUNER_LG_NTSC_TAPE:
-	case TUNER_PHILIPS_FM1256_IH3:
-		buffer[3] = 0x19;
-		break;
-	case TUNER_TNF_5335MF:
-		buffer[3] = 0x11;
-		break;
-	case TUNER_LG_PAL_FM:
-		buffer[3] = 0xa5;
-		break;
-	case TUNER_THOMSON_DTT761X:
-		buffer[3] = 0x39;
-		break;
-	case TUNER_MICROTUNE_4049FM5:
-	default:
-		buffer[3] = 0xa4;
-		break;
-	}
+	simple_radio_bandswitch(fe, &buffer[0]);
 
 	buffer[2] = (t_params->ranges[0].config & ~TUNER_RATIO_MASK) |
 		    TUNER_RATIO_SELECT_50; /* 50 kHz step */
