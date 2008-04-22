@@ -1502,7 +1502,7 @@ struct pvr2_std_hack {
    default - which can always be overridden explicitly - and if the user
    has otherwise named a default then that default will always be used in
    place of this table. */
-const static struct pvr2_std_hack std_eeprom_maps[] = {
+static const struct pvr2_std_hack std_eeprom_maps[] = {
 	{	/* PAL(B/G) */
 		.pat = V4L2_STD_B|V4L2_STD_GH,
 		.std = V4L2_STD_PAL_B|V4L2_STD_PAL_B1|V4L2_STD_PAL_G,
@@ -3695,7 +3695,7 @@ static int state_update_pipeline_state(struct pvr2_hdw *hdw)
 typedef int (*state_eval_func)(struct pvr2_hdw *);
 
 /* Set of functions to be run to evaluate various states in the driver. */
-const static state_eval_func eval_funcs[] = {
+static const state_eval_func eval_funcs[] = {
 	state_eval_pathway_ok,
 	state_eval_pipeline_config,
 	state_eval_encoder_ok,
