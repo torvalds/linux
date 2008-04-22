@@ -1063,11 +1063,29 @@ static struct tuner_range tuner_philips_td1316_pal_ranges[] = {
 	{ 16 * 999.99        , 0xc8, 0xa4, },
 };
 
+static struct tuner_range tuner_philips_td1316_dvb_ranges[] = {
+	{ 16 *  93.834 /*MHz*/, 0xca, 0x60, },
+	{ 16 * 123.834 /*MHz*/, 0xca, 0xa0, },
+	{ 16 * 163.834 /*MHz*/, 0xca, 0xc0, },
+	{ 16 * 253.834 /*MHz*/, 0xca, 0x60, },
+	{ 16 * 383.834 /*MHz*/, 0xca, 0xa0, },
+	{ 16 * 443.834 /*MHz*/, 0xca, 0xc0, },
+	{ 16 * 583.834 /*MHz*/, 0xca, 0x60, },
+	{ 16 * 793.834 /*MHz*/, 0xca, 0xa0, },
+	{ 16 * 999.999        , 0xca, 0xe0, },
+};
+
 static struct tuner_params tuner_philips_td1316_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_PAL,
 		.ranges = tuner_philips_td1316_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_philips_td1316_pal_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_philips_td1316_dvb_ranges,
+		.count  = ARRAY_SIZE(tuner_philips_td1316_dvb_ranges),
+		.iffreq = 16 * 36.166667 /*MHz*/,
 	},
 };
 
@@ -1556,6 +1574,9 @@ struct tunertype tuners[] = {
 		.name   = "Philips TD1316 Hybrid Tuner",
 		.params = tuner_philips_td1316_params,
 		.count  = ARRAY_SIZE(tuner_philips_td1316_params),
+		.min    = 16 *  87.00,
+		.max    = 16 * 895.00,
+		.stepsize = 166667,
 	},
 	[TUNER_PHILIPS_TUV1236D] = { /* Philips ATSC */
 		.name   = "Philips TUV1236D ATSC/NTSC dual in",

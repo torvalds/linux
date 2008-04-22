@@ -756,6 +756,15 @@ static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
 		    params->frequency >= 158870000)
 			buf[3] |= 0x08;
 		break;
+	case TUNER_PHILIPS_TD1316:
+		/* determine band */
+		buf[3] |= (params->frequency < 161000000) ? 1 :
+			  (params->frequency < 444000000) ? 2 : 4;
+
+		/* setup PLL filter */
+		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
+			buf[3] |= 1 << 3;
+		break;
 	case TUNER_PHILIPS_TUV1236D:
 	case TUNER_PHILIPS_ATSC:
 	{
