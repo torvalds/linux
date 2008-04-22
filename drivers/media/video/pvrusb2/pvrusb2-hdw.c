@@ -3352,6 +3352,7 @@ static void pvr2_hdw_cmd_modeswitch(struct pvr2_hdw *hdw,int digitalFl)
 	default: break;
 	}
 
+	pvr2_hdw_untrip_unlocked(hdw);
 	hdw->pathway_state = cmode;
 }
 
@@ -3814,6 +3815,7 @@ static int pvr2_hdw_state_eval(struct pvr2_hdw *hdw)
 	unsigned int st;
 	int state_updated = 0;
 	int callback_flag = 0;
+	int analog_mode;
 
 	pvr2_trace(PVR2_TRACE_STBITS,
 		   "Drive state check START");
@@ -3824,17 +3826,20 @@ static int pvr2_hdw_state_eval(struct pvr2_hdw *hdw)
 	/* Process all state and get back over disposition */
 	state_updated = pvr2_hdw_state_update(hdw);
 
+	analog_mode = (hdw->pathway_state != PVR2_PATHWAY_DIGITAL);
+
 	/* Update master state based upon all other states. */
 	if (!hdw->flag_ok) {
 		st = PVR2_STATE_DEAD;
 	} else if (hdw->fw1_state != FW1_STATE_OK) {
 		st = PVR2_STATE_COLD;
-	} else if (!hdw->state_encoder_ok) {
+	} else if (analog_mode && !hdw->state_encoder_ok) {
 		st = PVR2_STATE_WARM;
-	} else if (hdw->flag_tripped || hdw->flag_decoder_missed) {
+	} else if (hdw->flag_tripped ||
+		   (analog_mode && hdw->flag_decoder_missed)) {
 		st = PVR2_STATE_ERROR;
 	} else if (hdw->state_usbstream_run &&
-		   ((hdw->pathway_state != PVR2_PATHWAY_ANALOG) ||
+		   (!analog_mode ||
 		    (hdw->state_encoder_run && hdw->state_decoder_run))) {
 		st = PVR2_STATE_RUN;
 	} else {
