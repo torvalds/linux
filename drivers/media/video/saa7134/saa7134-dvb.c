@@ -47,6 +47,7 @@
 #include "isl6421.h"
 #include "isl6405.h"
 #include "lnbp21.h"
+#include "tuner-simple.h"
 
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
@@ -938,8 +939,9 @@ static int dvb_init(struct saa7134_dev *dev)
 					       &medion_cardbus,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, medion_cardbus.tuner_address,
-				   &dev->i2c_adap, DVB_PLL_FMD1216ME);
+			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &dev->i2c_adap, medion_cardbus.tuner_address,
+				   TUNER_PHILIPS_FMD1216ME_MK3);
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TOUGH:
@@ -1108,8 +1110,9 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->original_demod_sleep = dev->dvb.frontend->ops.sleep;
 			dev->dvb.frontend->ops.sleep = philips_europa_demod_sleep;
 
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, medion_cardbus.tuner_address,
-				   &dev->i2c_adap, DVB_PLL_FMD1216ME);
+			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &dev->i2c_adap, medion_cardbus.tuner_address,
+				   TUNER_PHILIPS_FMD1216ME_MK3);
 		}
 		break;
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200A:

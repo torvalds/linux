@@ -453,8 +453,9 @@ static struct mt352_config cxusb_mt352_xc3028_config = {
 /* Callbacks for DVB USB */
 static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
-		   DVB_PLL_FMD1216ME);
+	dvb_attach(simple_tuner_attach, adap->fe,
+		   &adap->dev->i2c_adap, 0x61,
+		   TUNER_PHILIPS_FMD1216ME_MK3);
 	return 0;
 }
 

@@ -525,8 +525,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &hauppauge_hvr_config,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap, DVB_PLL_FMD1216ME);
+			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &dev->core->i2c_adap, 0x61,
+				   TUNER_PHILIPS_FMD1216ME_MK3);
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
@@ -593,8 +594,9 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = dvb_attach(mt352_attach, &dntv_live_dvbt_pro_config,
 					       &dev->vp3054->adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   &dev->core->i2c_adap, DVB_PLL_FMD1216ME);
+			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &dev->core->i2c_adap, 0x61,
+				   TUNER_PHILIPS_FMD1216ME_MK3);
 		}
 #else
 		printk(KERN_ERR "%s/2: built without vp3054 support\n", dev->core->name);
