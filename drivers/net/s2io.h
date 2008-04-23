@@ -868,8 +868,6 @@ struct s2io_nic {
 	int device_enabled_once;
 
 	char name[60];
-	struct tasklet_struct task;
-	volatile unsigned long tasklet_status;
 
 	/* Timer that handles I/O errors/exceptions */
 	struct timer_list alarm_timer;
@@ -1094,7 +1092,6 @@ static void s2io_handle_errors(void * dev_id);
 static int s2io_starter(void);
 static void s2io_closer(void);
 static void s2io_tx_watchdog(struct net_device *dev);
-static void s2io_tasklet(unsigned long dev_addr);
 static void s2io_set_multicast(struct net_device *dev);
 static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp);
 static void s2io_link(struct s2io_nic * sp, int link);
