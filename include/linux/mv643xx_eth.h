@@ -17,6 +17,7 @@
 
 struct mv643xx_eth_shared_platform_data {
 	struct mbus_dram_target_info	*dram;
+	unsigned int	t_clk;
 };
 
 struct mv643xx_eth_platform_data {

@@ -519,6 +519,8 @@ struct mv643xx_shared_private {
 	spinlock_t phy_lock;
 
 	u32 win_protect;
+
+	unsigned int t_clk;
 };
 
 struct mv643xx_private {
@@ -1129,7 +1131,6 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
  *
  * INPUT:
  *	struct mv643xx_private *mp	Ethernet port
- *	unsigned int t_clk		t_clk of the MV-643xx chip in HZ units
  *	unsigned int delay		Delay in usec
  *
  * OUTPUT:
@@ -1140,10 +1141,10 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
  *
  */
 static unsigned int eth_port_set_rx_coal(struct mv643xx_private *mp,
-					unsigned int t_clk, unsigned int delay)
+					unsigned int delay)
 {
 	unsigned int port_num = mp->port_num;
-	unsigned int coal = ((t_clk / 1000000) * delay) / 64;
+	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
 
 	/* Set RX Coalescing mechanism */
 	wrl(mp, SDMA_CONFIG_REG(port_num),
@@ -1168,7 +1169,6 @@ static unsigned int eth_port_set_rx_coal(struct mv643xx_private *mp,
  *
  * INPUT:
  *	struct mv643xx_private *mp	Ethernet port
- *	unsigned int t_clk		t_clk of the MV-643xx chip in HZ units
  *	unsigned int delay		Delay in uSeconds
  *
  * OUTPUT:
@@ -1179,9 +1179,9 @@ static unsigned int eth_port_set_rx_coal(struct mv643xx_private *mp,
  *
  */
 static unsigned int eth_port_set_tx_coal(struct mv643xx_private *mp,
-					unsigned int t_clk, unsigned int delay)
+					unsigned int delay)
 {
-	unsigned int coal = ((t_clk / 1000000) * delay) / 64;
+	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
 
 	/* Set TX Coalescing mechanism */
 	wrl(mp, TX_FIFO_URGENT_THRESHOLD_REG(mp->port_num), coal << 4);
@@ -1423,11 +1423,11 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 #ifdef MV643XX_COAL
 	mp->rx_int_coal =
-		eth_port_set_rx_coal(mp, 133000000, MV643XX_RX_COAL);
+		eth_port_set_rx_coal(mp, MV643XX_RX_COAL);
 #endif
 
 	mp->tx_int_coal =
-		eth_port_set_tx_coal(mp, 133000000, MV643XX_TX_COAL);
+		eth_port_set_tx_coal(mp, MV643XX_TX_COAL);
 
 	/* Unmask phy and link status changes interrupts */
 	wrl(mp, INTERRUPT_EXTEND_MASK_REG(port_num), ETH_INT_UNMASK_ALL_EXT);
@@ -2063,6 +2063,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 		goto out_free;
 
 	spin_lock_init(&msp->phy_lock);
+	msp->t_clk = (pd != NULL && pd->t_clk != 0) ? pd->t_clk : 133000000;
 
 	platform_set_drvdata(pdev, msp);
 
