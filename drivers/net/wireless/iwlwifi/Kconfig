@@ -49,7 +49,9 @@ config IWL4965_HT
 
 config IWL4965_LEDS
 	bool "Enable LEDS features in iwl4965 driver"
-	depends on IWL4965 && MAC80211_LEDS && LEDS_CLASS
+	depends on IWL4965
+	select MAC80211_LEDS
+	select LEDS_CLASS
 	select IWLWIFI_LEDS
 	---help---
 	  This option enables LEDS for the iwlwifi drivers
@@ -134,7 +136,9 @@ config IWL3945_SPECTRUM_MEASUREMENT
 
 config IWL3945_LEDS
 	bool "Enable LEDS features in iwl3945 driver"
-	depends on IWL3945 && MAC80211_LEDS && LEDS_CLASS
+	depends on IWL3945
+	select MAC80211_LEDS
+	select LEDS_CLASS
 	---help---
 	  This option enables LEDS for the iwl3945 driver.
 
