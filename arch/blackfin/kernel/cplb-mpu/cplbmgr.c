@@ -165,7 +165,7 @@ static noinline int dcplb_miss(void)
 		    && (status & (FAULT_RW | FAULT_USERSUPV)) == FAULT_USERSUPV) {
 			addr &= ~(1 * 1024 * 1024 - 1);
 			d_data &= ~PAGE_SIZE_4KB;
-			d_data |= PAGE_SIZE_1MB | CPLB_USER_RD;
+			d_data |= PAGE_SIZE_1MB;
 		} else
 			return CPLB_PROT_VIOL;
 	} else if (addr >= _ramend) {
@@ -243,7 +243,13 @@ static noinline int icplb_miss(void)
 #endif
 
 	if (addr >= physical_mem_end) {
-	    return CPLB_PROT_VIOL;
+		if (addr >= BOOT_ROM_START && addr < BOOT_ROM_START + BOOT_ROM_LENGTH
+		    && (status & FAULT_USERSUPV)) {
+			addr &= ~(1 * 1024 * 1024 - 1);
+			i_data &= ~PAGE_SIZE_4KB;
+			i_data |= PAGE_SIZE_1MB;
+		} else
+		    return CPLB_PROT_VIOL;
 	} else if (addr >= _ramend) {
 		i_data |= CPLB_USER_RD;
 	} else {
