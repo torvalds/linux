@@ -2372,25 +2372,21 @@ const char *kmem_cache_name(struct kmem_cache *s)
 EXPORT_SYMBOL(kmem_cache_name);
 
 /*
- * Attempt to free all slabs on a node. Return the number of slabs we
- * were unable to free.
+ * Attempt to free all partial slabs on a node.
  */
-static int free_list(struct kmem_cache *s, struct kmem_cache_node *n,
-			struct list_head *list)
+static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
 {
-	int slabs_inuse = 0;
 	unsigned long flags;
 	struct page *page, *h;
 
 	spin_lock_irqsave(&n->list_lock, flags);
-	list_for_each_entry_safe(page, h, list, lru)
+	list_for_each_entry_safe(page, h, &n->partial, lru)
 		if (!page->inuse) {
 			list_del(&page->lru);
 			discard_slab(s, page);
-		} else
-			slabs_inuse++;
+			n->nr_partial--;
+		}
 	spin_unlock_irqrestore(&n->list_lock, flags);
-	return slabs_inuse;
 }
 
 /*
@@ -2407,8 +2403,8 @@ static inline int kmem_cache_close(struct kmem_cache *s)
 	for_each_node_state(node, N_NORMAL_MEMORY) {
 		struct kmem_cache_node *n = get_node(s, node);
 
-		n->nr_partial -= free_list(s, n, &n->partial);
-		if (slabs_node(s, node))
+		free_partial(s, n);
+		if (n->nr_partial || slabs_node(s, node))
 			return 1;
 	}
 	free_kmem_cache_nodes(s);
