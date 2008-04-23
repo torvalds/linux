@@ -749,7 +749,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 	unsigned long flags;
 	unsigned int baud, quot;
-	unsigned short val, ier, lsr, lcr = 0;
+	unsigned short val, ier, lcr = 0;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS8:
