@@ -527,6 +527,8 @@ struct mv643xx_private {
 	struct mv643xx_shared_private *shared;
 	int port_num;			/* User Ethernet port number	*/
 
+	struct mv643xx_shared_private *shared_smi;
+
 	u32 rx_sram_addr;		/* Base address of rx sram area */
 	u32 rx_sram_size;		/* Size of rx sram area		*/
 	u32 tx_sram_addr;		/* Base address of tx sram area */
@@ -1898,6 +1900,10 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	if (mp->shared->win_protect)
 		wrl(mp, WINDOW_PROTECT(port_num), mp->shared->win_protect);
 
+	mp->shared_smi = mp->shared;
+	if (pd->shared_smi != NULL)
+		mp->shared_smi = platform_get_drvdata(pd->shared_smi);
+
 	/* set default config values */
 	eth_port_uc_addr_get(mp, dev->dev_addr);
 	mp->rx_ring_size = PORT_DEFAULT_RECEIVE_QUEUE_SIZE;
@@ -2986,15 +2992,16 @@ static void eth_port_reset(struct mv643xx_private *mp)
 static void eth_port_read_smi_reg(struct mv643xx_private *mp,
 				unsigned int phy_reg, unsigned int *value)
 {
+	void __iomem *smi_reg = mp->shared_smi->eth_base + SMI_REG;
 	int phy_addr = ethernet_phy_get(mp);
 	unsigned long flags;
 	int i;
 
 	/* the SMI register is a shared resource */
-	spin_lock_irqsave(&mp->shared->phy_lock, flags);
+	spin_lock_irqsave(&mp->shared_smi->phy_lock, flags);
 
 	/* wait for the SMI register to become available */
-	for (i = 0; rdl(mp, SMI_REG) & ETH_SMI_BUSY; i++) {
+	for (i = 0; readl(smi_reg) & ETH_SMI_BUSY; i++) {
 		if (i == PHY_WAIT_ITERATIONS) {
 			printk("%s: PHY busy timeout\n", mp->dev->name);
 			goto out;
@@ -3002,11 +3009,11 @@ static void eth_port_read_smi_reg(struct mv643xx_private *mp,
 		udelay(PHY_WAIT_MICRO_SECONDS);
 	}
 
-	wrl(mp, SMI_REG,
-		(phy_addr << 16) | (phy_reg << 21) | ETH_SMI_OPCODE_READ);
+	writel((phy_addr << 16) | (phy_reg << 21) | ETH_SMI_OPCODE_READ,
+		smi_reg);
 
 	/* now wait for the data to be valid */
-	for (i = 0; !(rdl(mp, SMI_REG) & ETH_SMI_READ_VALID); i++) {
+	for (i = 0; !(readl(smi_reg) & ETH_SMI_READ_VALID); i++) {
 		if (i == PHY_WAIT_ITERATIONS) {
 			printk("%s: PHY read timeout\n", mp->dev->name);
 			goto out;
@@ -3014,9 +3021,9 @@ static void eth_port_read_smi_reg(struct mv643xx_private *mp,
 		udelay(PHY_WAIT_MICRO_SECONDS);
 	}
 
-	*value = rdl(mp, SMI_REG) & 0xffff;
+	*value = readl(smi_reg) & 0xffff;
 out:
-	spin_unlock_irqrestore(&mp->shared->phy_lock, flags);
+	spin_unlock_irqrestore(&mp->shared_smi->phy_lock, flags);
 }
 
 /*
@@ -3042,17 +3049,16 @@ out:
 static void eth_port_write_smi_reg(struct mv643xx_private *mp,
 				   unsigned int phy_reg, unsigned int value)
 {
-	int phy_addr;
-	int i;
+	void __iomem *smi_reg = mp->shared_smi->eth_base + SMI_REG;
+	int phy_addr = ethernet_phy_get(mp);
 	unsigned long flags;
-
-	phy_addr = ethernet_phy_get(mp);
+	int i;
 
 	/* the SMI register is a shared resource */
-	spin_lock_irqsave(&mp->shared->phy_lock, flags);
+	spin_lock_irqsave(&mp->shared_smi->phy_lock, flags);
 
 	/* wait for the SMI register to become available */
-	for (i = 0; rdl(mp, SMI_REG) & ETH_SMI_BUSY; i++) {
+	for (i = 0; readl(smi_reg) & ETH_SMI_BUSY; i++) {
 		if (i == PHY_WAIT_ITERATIONS) {
 			printk("%s: PHY busy timeout\n", mp->dev->name);
 			goto out;
@@ -3060,10 +3066,10 @@ static void eth_port_write_smi_reg(struct mv643xx_private *mp,
 		udelay(PHY_WAIT_MICRO_SECONDS);
 	}
 
-	wrl(mp, SMI_REG, (phy_addr << 16) | (phy_reg << 21) |
-				ETH_SMI_OPCODE_WRITE | (value & 0xffff));
+	writel((phy_addr << 16) | (phy_reg << 21) |
+		ETH_SMI_OPCODE_WRITE | (value & 0xffff), smi_reg);
 out:
-	spin_unlock_irqrestore(&mp->shared->phy_lock, flags);
+	spin_unlock_irqrestore(&mp->shared_smi->phy_lock, flags);
 }
 
 /*

@@ -24,6 +24,8 @@ struct mv643xx_eth_platform_data {
 	struct platform_device	*shared;
 	int		port_number;
 
+	struct platform_device	*shared_smi;
+
 	u16		force_phy_addr;	/* force override if phy_addr == 0 */
 	u16		phy_addr;
 
