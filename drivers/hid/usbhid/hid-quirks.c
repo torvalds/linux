@@ -1113,7 +1113,7 @@ static void usbhid_fixup_microsoft_descriptor(unsigned char *rdesc, int rsize)
 			 && rdesc[557] == 0x19
 			 && rdesc[559] == 0x29) {
 		printk(KERN_INFO "Fixing up Microsoft Wireless Receiver Model 1028 report descriptor\n");
-		rdesc[284] = rdesc[304] = rdesc[558] = 0x35;
+		rdesc[284] = rdesc[304] = rdesc[557] = 0x35;
 		rdesc[352] = 0x36;
 		rdesc[286] = rdesc[355] = 0x46;
 		rdesc[306] = rdesc[559] = 0x45;
