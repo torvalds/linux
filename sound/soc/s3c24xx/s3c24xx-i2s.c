@@ -387,7 +387,7 @@ static int s3c24xx_i2s_probe(struct platform_device *pdev)
 	if (s3c24xx_i2s.regs == NULL)
 		return -ENXIO;
 
-	s3c24xx_i2s.iis_clk=clk_get(&pdev->dev, "iis");
+	s3c24xx_i2s.iis_clk = clk_get(&pdev->dev, "iis");
 	if (s3c24xx_i2s.iis_clk == NULL) {
 		DBG("failed to get iis_clock\n");
 		iounmap(s3c24xx_i2s.regs);
