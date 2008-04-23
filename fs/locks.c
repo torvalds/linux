@@ -1493,8 +1493,7 @@ EXPORT_SYMBOL_GPL(vfs_setlease);
 int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 {
 	struct file_lock fl, *flp = &fl;
-	struct dentry *dentry = filp->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	int error;
 
 	locks_init_lock(&fl);
