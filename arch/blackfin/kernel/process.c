@@ -324,6 +324,12 @@ int _access_ok(unsigned long addr, unsigned long size)
 		return 1;
 	if (addr >= memory_mtd_end && (addr + size) <= physical_mem_end)
 		return 1;
+
+#ifdef CONFIG_ROMFS_MTD_FS
+	/* For XIP, allow user space to use pointers within the ROMFS.  */
+	if (addr >= memory_mtd_start && (addr + size) <= memory_mtd_end)
+		return 1;
+#endif
 #else
 	if (addr >= memory_start && (addr + size) <= physical_mem_end)
 		return 1;
