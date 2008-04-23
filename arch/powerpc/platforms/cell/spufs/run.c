@@ -294,7 +294,7 @@ static int spu_process_callback(struct spu_context *ctx)
 	u32 ls_pointer, npc;
 	void __iomem *ls;
 	long spu_ret;
-	int ret, ret2;
+	int ret;
 
 	/* get syscall block from local store */
 	npc = ctx->ops->npc_read(ctx) & ~3;
@@ -316,11 +316,9 @@ static int spu_process_callback(struct spu_context *ctx)
 		if (spu_ret <= -ERESTARTSYS) {
 			ret = spu_handle_restartsys(ctx, &spu_ret, &npc);
 		}
-		ret2 = spu_acquire(ctx);
+		mutex_lock(&ctx->state_mutex);
 		if (ret == -ERESTARTSYS)
 			return ret;
-		if (ret2)
-			return -EINTR;
 	}
 
 	/* need to re-get the ls, as it may have changed when we released the
