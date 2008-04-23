@@ -321,7 +321,7 @@
   unsigned int addr = port->mapbase + (offset);			\
   if ((size) == 8) {						\
     ctrl_outb(value, addr);					\
-  } else {							\
+  } else if ((size) == 16) {					\
     ctrl_outw(value, addr);					\
   }
 
