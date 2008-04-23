@@ -975,6 +975,7 @@ static int __ieee80211_if_config(struct net_device *dev,
 		conf.ssid_len = sdata->u.sta.ssid_len;
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		conf.beacon = beacon;
+		conf.beacon_control = control;
 		ieee80211_start_mesh(dev);
 	} else if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
 		conf.ssid = sdata->u.ap.ssid;
