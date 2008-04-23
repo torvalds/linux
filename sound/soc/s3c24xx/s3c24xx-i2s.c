@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/jiffies.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -32,7 +33,6 @@
 #include <sound/soc.h>
 
 #include <asm/hardware.h>
-#include <asm/io.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/audio.h>
