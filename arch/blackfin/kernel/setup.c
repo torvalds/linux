@@ -129,7 +129,6 @@ void __init bf53x_relocate_l1_mem(void)
 	/* Copy _sdata_b_l1 to _ebss_b_l1 to L1 data bank B SRAM */
 	dma_memcpy(_sdata_b_l1, _l1_lma_start + l1_code_length +
 			l1_data_a_length, l1_data_b_length);
-
 }
 
 /* add_memory_region to memmap */
@@ -652,7 +651,7 @@ static __init void setup_bootmem_allocator(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-	unsigned long l1_length, sclk, cclk;
+	unsigned long sclk, cclk;
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -750,15 +749,6 @@ void __init setup_arch(char **cmdline_p)
 	setup_bootmem_allocator();
 
 	paging_init();
-
-	/* check the size of the l1 area */
-	l1_length = _etext_l1 - _stext_l1;
-	if (l1_length > L1_CODE_LENGTH)
-		panic("L1 code memory overflow\n");
-
-	l1_length = _ebss_l1 - _sdata_l1;
-	if (l1_length > L1_DATA_A_LENGTH)
-		panic("L1 data memory overflow\n");
 
 	/* Copy atomic sequences to their fixed location, and sanity check that
 	   these locations are the ones that we advertise to userspace.  */
