@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include "dvb_frontend.h"
+#include "dvb_math.h"
 #include "tda10048.h"
 
 #define TDA10048_DEFAULT_FIRMWARE "dvb-fe-tda10048-1.0.fw"
@@ -563,31 +564,167 @@ static int tda10048_read_signal_strength(struct dvb_frontend *fe,
 	u16 *signal_strength)
 {
 	struct tda10048_state *state = fe->demodulator_priv;
-	u16 v;
+	u8 v;
 
 	dprintk(1, "%s()\n", __func__);
 
+	*signal_strength = 65535;
+
 	v = tda10048_readreg(state, TDA10048_NP_OUT);
-	if (v == 0)
-		*signal_strength = 100;
-	else {
-		/* TODO: Apply .db math for correct values */
-		*signal_strength = v;
-	}
+	if (v > 0)
+		*signal_strength -= (v << 8) | v;
 
 	return 0;
 }
 
+/* SNR lookup table */
+static struct snr_tab {
+	u8 val;
+	u8 data;
+} snr_tab[] = {
+	{   0,   0 },
+	{   1, 246 },
+	{   2, 215 },
+	{   3, 198 },
+	{   4, 185 },
+	{   5, 176 },
+	{   6, 168 },
+	{   7, 161 },
+	{   8, 155 },
+	{   9, 150 },
+	{  10, 146 },
+	{  11, 141 },
+	{  12, 138 },
+	{  13, 134 },
+	{  14, 131 },
+	{  15, 128 },
+	{  16, 125 },
+	{  17, 122 },
+	{  18, 120 },
+	{  19, 118 },
+	{  20, 115 },
+	{  21, 113 },
+	{  22, 111 },
+	{  23, 109 },
+	{  24, 107 },
+	{  25, 106 },
+	{  26, 104 },
+	{  27, 102 },
+	{  28, 101 },
+	{  29,  99 },
+	{  30,  98 },
+	{  31,  96 },
+	{  32,  95 },
+	{  33,  94 },
+	{  34,  92 },
+	{  35,  91 },
+	{  36,  90 },
+	{  37,  89 },
+	{  38,  88 },
+	{  39,  86 },
+	{  40,  85 },
+	{  41,  84 },
+	{  42,  83 },
+	{  43,  82 },
+	{  44,  81 },
+	{  45,  80 },
+	{  46,  79 },
+	{  47,  78 },
+	{  48,  77 },
+	{  49,  76 },
+	{  50,  76 },
+	{  51,  75 },
+	{  52,  74 },
+	{  53,  73 },
+	{  54,  72 },
+	{  56,  71 },
+	{  57,  70 },
+	{  58,  69 },
+	{  60,  68 },
+	{  61,  67 },
+	{  63,  66 },
+	{  64,  65 },
+	{  66,  64 },
+	{  67,  63 },
+	{  68,  62 },
+	{  69,  62 },
+	{  70,  61 },
+	{  72,  60 },
+	{  74,  59 },
+	{  75,  58 },
+	{  77,  57 },
+	{  79,  56 },
+	{  81,  55 },
+	{  83,  54 },
+	{  85,  53 },
+	{  87,  52 },
+	{  89,  51 },
+	{  91,  50 },
+	{  93,  49 },
+	{  95,  48 },
+	{  97,  47 },
+	{ 100,  46 },
+	{ 102,  45 },
+	{ 104,  44 },
+	{ 107,  43 },
+	{ 109,  42 },
+	{ 112,  41 },
+	{ 114,  40 },
+	{ 117,  39 },
+	{ 120,  38 },
+	{ 123,  37 },
+	{ 125,  36 },
+	{ 128,  35 },
+	{ 131,  34 },
+	{ 134,  33 },
+	{ 138,  32 },
+	{ 141,  31 },
+	{ 144,  30 },
+	{ 147,  29 },
+	{ 151,  28 },
+	{ 154,  27 },
+	{ 158,  26 },
+	{ 162,  25 },
+	{ 165,  24 },
+	{ 169,  23 },
+	{ 173,  22 },
+	{ 177,  21 },
+	{ 181,  20 },
+	{ 186,  19 },
+	{ 190,  18 },
+	{ 194,  17 },
+	{ 199,  16 },
+	{ 204,  15 },
+	{ 208,  14 },
+	{ 213,  13 },
+	{ 218,  12 },
+	{ 223,  11 },
+	{ 229,  10 },
+	{ 234,   9 },
+	{ 239,   8 },
+	{ 245,   7 },
+	{ 251,   6 },
+	{ 255,   5 },
+};
+
 static int tda10048_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct tda10048_state *state = fe->demodulator_priv;
+	u8 v;
+	int i, ret = -EINVAL;
 
 	dprintk(1, "%s()\n", __func__);
 
-	/* TODO: This result should be the same as signal strength */
-	*snr = tda10048_readreg(state, TDA10048_NP_OUT);
+	v = tda10048_readreg(state, TDA10048_NP_OUT);
+	for (i = 0; i < ARRAY_SIZE(snr_tab); i++) {
+		if (v <= snr_tab[i].val) {
+			*snr = snr_tab[i].data;
+			ret = 0;
+			break;
+		}
+	}
 
-	return 0;
+	return ret;
 }
 
 static int tda10048_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
