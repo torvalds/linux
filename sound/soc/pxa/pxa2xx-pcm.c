@@ -64,8 +64,8 @@ static void pxa2xx_pcm_dma_irq(int dma_ch, void *dev_id)
 	if (dcsr & DCSR_ENDINTR) {
 		snd_pcm_period_elapsed(substream);
 	} else {
-		printk( KERN_ERR "%s: DMA error on channel %d (DCSR=%#x)\n",
-			prtd->params->name, dma_ch, dcsr );
+		printk(KERN_ERR "%s: DMA error on channel %d (DCSR=%#x)\n",
+			prtd->params->name, dma_ch, dcsr);
 	}
 }
 
@@ -84,8 +84,8 @@ static int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	/* return if this is a bufferless transfer e.g.
 	 * codec <--> BT codec or GSM modem -- lg FIXME */
-	 if (!dma)
-	 	return 0;
+	if (!dma)
+		return 0;
 
 	/* this may get called several times by oss emulation
 	 * with different params */
@@ -363,7 +363,6 @@ struct snd_soc_platform pxa2xx_soc_platform = {
 	.pcm_new	= pxa2xx_pcm_new,
 	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
 };
-
 EXPORT_SYMBOL_GPL(pxa2xx_soc_platform);
 
 MODULE_AUTHOR("Nicolas Pitre");
