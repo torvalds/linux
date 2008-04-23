@@ -69,41 +69,40 @@ int ehca_static_rate   = -1;
 int ehca_scaling_code  = 0;
 int ehca_lock_hcalls   = -1;
 
-module_param_named(open_aqp1,     ehca_open_aqp1,     int, S_IRUGO);
-module_param_named(debug_level,   ehca_debug_level,   int, S_IRUGO);
-module_param_named(hw_level,      ehca_hw_level,      int, S_IRUGO);
-module_param_named(nr_ports,      ehca_nr_ports,      int, S_IRUGO);
-module_param_named(use_hp_mr,     ehca_use_hp_mr,     int, S_IRUGO);
-module_param_named(port_act_time, ehca_port_act_time, int, S_IRUGO);
-module_param_named(poll_all_eqs,  ehca_poll_all_eqs,  int, S_IRUGO);
-module_param_named(static_rate,   ehca_static_rate,   int, S_IRUGO);
-module_param_named(scaling_code,  ehca_scaling_code,  int, S_IRUGO);
+module_param_named(open_aqp1,     ehca_open_aqp1,     bool, S_IRUGO);
+module_param_named(debug_level,   ehca_debug_level,   int,  S_IRUGO);
+module_param_named(hw_level,      ehca_hw_level,      int,  S_IRUGO);
+module_param_named(nr_ports,      ehca_nr_ports,      int,  S_IRUGO);
+module_param_named(use_hp_mr,     ehca_use_hp_mr,     bool, S_IRUGO);
+module_param_named(port_act_time, ehca_port_act_time, int,  S_IRUGO);
+module_param_named(poll_all_eqs,  ehca_poll_all_eqs,  bool, S_IRUGO);
+module_param_named(static_rate,   ehca_static_rate,   int,  S_IRUGO);
+module_param_named(scaling_code,  ehca_scaling_code,  bool, S_IRUGO);
 module_param_named(lock_hcalls,   ehca_lock_hcalls,   bool, S_IRUGO);
 
 MODULE_PARM_DESC(open_aqp1,
-		 "AQP1 on startup (0: no (default), 1: yes)");
+		 "Open AQP1 on startup (default: no)");
 MODULE_PARM_DESC(debug_level,
 		 "Amount of debug output (0: none (default), 1: traces, "
 		 "2: some dumps, 3: lots)");
 MODULE_PARM_DESC(hw_level,
-		 "hardware level"
-		 " (0: autosensing (default), 1: v. 0.20, 2: v. 0.21)");
+		 "Hardware level (0: autosensing (default), "
+		 "0x10..0x14: eHCA, 0x20..0x23: eHCA2)");
 MODULE_PARM_DESC(nr_ports,
 		 "number of connected ports (-1: autodetect, 1: port one only, "
 		 "2: two ports (default)");
 MODULE_PARM_DESC(use_hp_mr,
-		 "high performance MRs (0: no (default), 1: yes)");
+		 "Use high performance MRs (default: no)");
 MODULE_PARM_DESC(port_act_time,
-		 "time to wait for port activation (default: 30 sec)");
+		 "Time to wait for port activation (default: 30 sec)");
 MODULE_PARM_DESC(poll_all_eqs,
-		 "polls all event queues periodically"
-		 " (0: no, 1: yes (default))");
+		 "Poll all event queues periodically (default: yes)");
 MODULE_PARM_DESC(static_rate,
-		 "set permanent static rate (default: disabled)");
+		 "Set permanent static rate (default: no static rate)");
 MODULE_PARM_DESC(scaling_code,
-		 "set scaling code (0: disabled/default, 1: enabled)");
+		 "Enable scaling code (default: no)");
 MODULE_PARM_DESC(lock_hcalls,
-		 "serialize all hCalls made by the driver "
+		 "Serialize all hCalls made by the driver "
 		 "(default: autodetect)");
 
 DEFINE_RWLOCK(ehca_qp_idr_lock);
