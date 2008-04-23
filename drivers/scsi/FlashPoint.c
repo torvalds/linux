@@ -1499,7 +1499,7 @@ static void FlashPoint_StartCCB(unsigned long pCurrCard, struct sccb *p_Sccb)
 	thisCard = ((struct sccb_card *)pCurrCard)->cardIndex;
 	ioport = ((struct sccb_card *)pCurrCard)->ioPort;
 
-	if ((p_Sccb->TargID > MAX_SCSI_TAR) || (p_Sccb->Lun > MAX_LUN)) {
+	if ((p_Sccb->TargID >= MAX_SCSI_TAR) || (p_Sccb->Lun >= MAX_LUN)) {
 
 		p_Sccb->HostStatus = SCCB_COMPLETE;
 		p_Sccb->SccbStatus = SCCB_ERROR;
