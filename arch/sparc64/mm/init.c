@@ -25,6 +25,7 @@
 #include <linux/sort.h>
 #include <linux/percpu.h>
 #include <linux/lmb.h>
+#include <linux/mmzone.h>
 
 #include <asm/head.h>
 #include <asm/system.h>
@@ -73,9 +74,7 @@ extern struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
 #define MAX_BANKS	32
 
 static struct linux_prom64_registers pavail[MAX_BANKS] __initdata;
-static struct linux_prom64_registers pavail_rescan[MAX_BANKS] __initdata;
 static int pavail_ents __initdata;
-static int pavail_rescan_ents __initdata;
 
 static int cmp_p64(const void *a, const void *b)
 {
@@ -716,19 +715,28 @@ out:
 		smp_new_mmu_context_version();
 }
 
-/* Find a free area for the bootmem map, avoiding the kernel image
- * and the initial ramdisk.
- */
-static unsigned long __init choose_bootmap_pfn(unsigned long start_pfn,
-					       unsigned long end_pfn)
+static int numa_enabled = 1;
+static int numa_debug;
+
+static int __init early_numa(char *p)
 {
-	unsigned long bootmap_size;
+	if (!p)
+		return 0;
 
-	bootmap_size = bootmem_bootmap_pages(end_pfn - start_pfn);
-	bootmap_size <<= PAGE_SHIFT;
+	if (strstr(p, "off"))
+		numa_enabled = 0;
 
-	return lmb_alloc(bootmap_size, PAGE_SIZE) >> PAGE_SHIFT;
+	if (strstr(p, "debug"))
+		numa_debug = 1;
+
+	return 0;
 }
+early_param("numa", early_numa);
+
+#define numadbg(f, a...) \
+do {	if (numa_debug) \
+		printk(KERN_INFO f, ## a); \
+} while (0)
 
 static void __init find_ramdisk(unsigned long phys_base)
 {
@@ -755,6 +763,9 @@ static void __init find_ramdisk(unsigned long phys_base)
 		ramdisk_image -= KERNBASE;
 		ramdisk_image += phys_base;
 
+		numadbg("Found ramdisk at physical address 0x%lx, size %u\n",
+			ramdisk_image, sparc_ramdisk_size);
+
 		initrd_start = ramdisk_image;
 		initrd_end = ramdisk_image + sparc_ramdisk_size;
 
@@ -763,60 +774,625 @@ static void __init find_ramdisk(unsigned long phys_base)
 #endif
 }
 
-/* About pages_avail, this is the value we will use to calculate
- * the zholes_size[] argument given to free_area_init_node().  The
- * page allocator uses this to calculate nr_kernel_pages,
- * nr_all_pages and zone->present_pages.  On NUMA it is used
- * to calculate zone->min_unmapped_pages and zone->min_slab_pages.
- *
- * So this number should really be set to what the page allocator
- * actually ends up with.  This means:
- * 1) It should include bootmem map pages, we'll release those.
- * 2) It should not include the kernel image, except for the
- *    __init sections which we will also release.
- * 3) It should include the initrd image, since we'll release
- *    that too.
- */
-static unsigned long __init bootmem_init(unsigned long *pages_avail,
-					 unsigned long phys_base)
+struct node_mem_mask {
+	unsigned long mask;
+	unsigned long val;
+	unsigned long bootmem_paddr;
+};
+static struct node_mem_mask node_masks[MAX_NUMNODES];
+static int num_node_masks;
+
+int numa_cpu_lookup_table[NR_CPUS];
+cpumask_t numa_cpumask_lookup_table[MAX_NUMNODES];
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+static bootmem_data_t plat_node_bdata[MAX_NUMNODES];
+
+struct mdesc_mblock {
+	u64	base;
+	u64	size;
+	u64	offset; /* RA-to-PA */
+};
+static struct mdesc_mblock *mblocks;
+static int num_mblocks;
+
+static unsigned long ra_to_pa(unsigned long addr)
 {
-	unsigned long end_pfn;
 	int i;
 
-	*pages_avail = lmb_phys_mem_size() >> PAGE_SHIFT;
-	end_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
+	for (i = 0; i < num_mblocks; i++) {
+		struct mdesc_mblock *m = &mblocks[i];
 
-	/* Initialize the boot-time allocator. */
+		if (addr >= m->base &&
+		    addr < (m->base + m->size)) {
+			addr += m->offset;
+			break;
+		}
+	}
+	return addr;
+}
+
+static int find_node(unsigned long addr)
+{
+	int i;
+
+	addr = ra_to_pa(addr);
+	for (i = 0; i < num_node_masks; i++) {
+		struct node_mem_mask *p = &node_masks[i];
+
+		if ((addr & p->mask) == p->val)
+			return i;
+	}
+	return -1;
+}
+
+static unsigned long nid_range(unsigned long start, unsigned long end,
+			       int *nid)
+{
+	*nid = find_node(start);
+	start += PAGE_SIZE;
+	while (start < end) {
+		int n = find_node(start);
+
+		if (n != *nid)
+			break;
+		start += PAGE_SIZE;
+	}
+
+	return start;
+}
+#else
+static unsigned long nid_range(unsigned long start, unsigned long end,
+			       int *nid)
+{
+	*nid = 0;
+	return end;
+}
+#endif
+
+/* This must be invoked after performing all of the necessary
+ * add_active_range() calls for 'nid'.  We need to be able to get
+ * correct data from get_pfn_range_for_nid().
+ */
+static void __init allocate_node_data(int nid)
+{
+	unsigned long paddr, num_pages, start_pfn, end_pfn;
+	struct pglist_data *p;
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	paddr = lmb_alloc_nid(sizeof(struct pglist_data),
+			      SMP_CACHE_BYTES, nid, nid_range);
+	if (!paddr) {
+		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
+		prom_halt();
+	}
+	NODE_DATA(nid) = __va(paddr);
+	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
+
+	NODE_DATA(nid)->bdata = &plat_node_bdata[nid];
+#endif
+
+	p = NODE_DATA(nid);
+
+	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
+	p->node_start_pfn = start_pfn;
+	p->node_spanned_pages = end_pfn - start_pfn;
+
+	if (p->node_spanned_pages) {
+		num_pages = bootmem_bootmap_pages(p->node_spanned_pages);
+
+		paddr = lmb_alloc_nid(num_pages << PAGE_SHIFT, PAGE_SIZE, nid,
+				      nid_range);
+		if (!paddr) {
+			prom_printf("Cannot allocate bootmap for nid[%d]\n",
+				  nid);
+			prom_halt();
+		}
+		node_masks[nid].bootmem_paddr = paddr;
+	}
+}
+
+static void init_node_masks_nonnuma(void)
+{
+	int i;
+
+	numadbg("Initializing tables for non-numa.\n");
+
+	node_masks[0].mask = node_masks[0].val = 0;
+	num_node_masks = 1;
+
+	for (i = 0; i < NR_CPUS; i++)
+		numa_cpu_lookup_table[i] = 0;
+
+	numa_cpumask_lookup_table[0] = CPU_MASK_ALL;
+}
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+struct pglist_data *node_data[MAX_NUMNODES];
+
+EXPORT_SYMBOL(numa_cpu_lookup_table);
+EXPORT_SYMBOL(numa_cpumask_lookup_table);
+EXPORT_SYMBOL(node_data);
+
+struct mdesc_mlgroup {
+	u64	node;
+	u64	latency;
+	u64	match;
+	u64	mask;
+};
+static struct mdesc_mlgroup *mlgroups;
+static int num_mlgroups;
+
+static int scan_pio_for_cfg_handle(struct mdesc_handle *md, u64 pio,
+				   u32 cfg_handle)
+{
+	u64 arc;
+
+	mdesc_for_each_arc(arc, md, pio, MDESC_ARC_TYPE_FWD) {
+		u64 target = mdesc_arc_target(md, arc);
+		const u64 *val;
+
+		val = mdesc_get_property(md, target,
+					 "cfg-handle", NULL);
+		if (val && *val == cfg_handle)
+			return 0;
+	}
+	return -ENODEV;
+}
+
+static int scan_arcs_for_cfg_handle(struct mdesc_handle *md, u64 grp,
+				    u32 cfg_handle)
+{
+	u64 arc, candidate, best_latency = ~(u64)0;
+
+	candidate = MDESC_NODE_NULL;
+	mdesc_for_each_arc(arc, md, grp, MDESC_ARC_TYPE_FWD) {
+		u64 target = mdesc_arc_target(md, arc);
+		const char *name = mdesc_node_name(md, target);
+		const u64 *val;
+
+		if (strcmp(name, "pio-latency-group"))
+			continue;
+
+		val = mdesc_get_property(md, target, "latency", NULL);
+		if (!val)
+			continue;
+
+		if (*val < best_latency) {
+			candidate = target;
+			best_latency = *val;
+		}
+	}
+
+	if (candidate == MDESC_NODE_NULL)
+		return -ENODEV;
+
+	return scan_pio_for_cfg_handle(md, candidate, cfg_handle);
+}
+
+int of_node_to_nid(struct device_node *dp)
+{
+	const struct linux_prom64_registers *regs;
+	struct mdesc_handle *md;
+	u32 cfg_handle;
+	int count, nid;
+	u64 grp;
+
+	if (!mlgroups)
+		return -1;
+
+	regs = of_get_property(dp, "reg", NULL);
+	if (!regs)
+		return -1;
+
+	cfg_handle = (regs->phys_addr >> 32UL) & 0x0fffffff;
+
+	md = mdesc_grab();
+
+	count = 0;
+	nid = -1;
+	mdesc_for_each_node_by_name(md, grp, "group") {
+		if (!scan_arcs_for_cfg_handle(md, grp, cfg_handle)) {
+			nid = count;
+			break;
+		}
+		count++;
+	}
+
+	mdesc_release(md);
+
+	return nid;
+}
+
+static void add_node_ranges(void)
+{
+	int i;
+
+	for (i = 0; i < lmb.memory.cnt; i++) {
+		unsigned long size = lmb_size_bytes(&lmb.memory, i);
+		unsigned long start, end;
+
+		start = lmb.memory.region[i].base;
+		end = start + size;
+		while (start < end) {
+			unsigned long this_end;
+			int nid;
+
+			this_end = nid_range(start, end, &nid);
+
+			numadbg("Adding active range nid[%d] "
+				"start[%lx] end[%lx]\n",
+				nid, start, this_end);
+
+			add_active_range(nid,
+					 start >> PAGE_SHIFT,
+					 this_end >> PAGE_SHIFT);
+
+			start = this_end;
+		}
+	}
+}
+
+static int __init grab_mlgroups(struct mdesc_handle *md)
+{
+	unsigned long paddr;
+	int count = 0;
+	u64 node;
+
+	mdesc_for_each_node_by_name(md, node, "memory-latency-group")
+		count++;
+	if (!count)
+		return -ENOENT;
+
+	paddr = lmb_alloc(count * sizeof(struct mdesc_mlgroup),
+			  SMP_CACHE_BYTES);
+	if (!paddr)
+		return -ENOMEM;
+
+	mlgroups = __va(paddr);
+	num_mlgroups = count;
+
+	count = 0;
+	mdesc_for_each_node_by_name(md, node, "memory-latency-group") {
+		struct mdesc_mlgroup *m = &mlgroups[count++];
+		const u64 *val;
+
+		m->node = node;
+
+		val = mdesc_get_property(md, node, "latency", NULL);
+		m->latency = *val;
+		val = mdesc_get_property(md, node, "address-match", NULL);
+		m->match = *val;
+		val = mdesc_get_property(md, node, "address-mask", NULL);
+		m->mask = *val;
+
+		numadbg("MLGROUP[%d]: node[%lx] latency[%lx] "
+			"match[%lx] mask[%lx]\n",
+			count - 1, m->node, m->latency, m->match, m->mask);
+	}
+
+	return 0;
+}
+
+static int __init grab_mblocks(struct mdesc_handle *md)
+{
+	unsigned long paddr;
+	int count = 0;
+	u64 node;
+
+	mdesc_for_each_node_by_name(md, node, "mblock")
+		count++;
+	if (!count)
+		return -ENOENT;
+
+	paddr = lmb_alloc(count * sizeof(struct mdesc_mblock),
+			  SMP_CACHE_BYTES);
+	if (!paddr)
+		return -ENOMEM;
+
+	mblocks = __va(paddr);
+	num_mblocks = count;
+
+	count = 0;
+	mdesc_for_each_node_by_name(md, node, "mblock") {
+		struct mdesc_mblock *m = &mblocks[count++];
+		const u64 *val;
+
+		val = mdesc_get_property(md, node, "base", NULL);
+		m->base = *val;
+		val = mdesc_get_property(md, node, "size", NULL);
+		m->size = *val;
+		val = mdesc_get_property(md, node,
+					 "address-congruence-offset", NULL);
+		m->offset = *val;
+
+		numadbg("MBLOCK[%d]: base[%lx] size[%lx] offset[%lx]\n",
+			count - 1, m->base, m->size, m->offset);
+	}
+
+	return 0;
+}
+
+static void __init numa_parse_mdesc_group_cpus(struct mdesc_handle *md,
+					       u64 grp, cpumask_t *mask)
+{
+	u64 arc;
+
+	cpus_clear(*mask);
+
+	mdesc_for_each_arc(arc, md, grp, MDESC_ARC_TYPE_BACK) {
+		u64 target = mdesc_arc_target(md, arc);
+		const char *name = mdesc_node_name(md, target);
+		const u64 *id;
+
+		if (strcmp(name, "cpu"))
+			continue;
+		id = mdesc_get_property(md, target, "id", NULL);
+		if (*id < NR_CPUS)
+			cpu_set(*id, *mask);
+	}
+}
+
+static struct mdesc_mlgroup * __init find_mlgroup(u64 node)
+{
+	int i;
+
+	for (i = 0; i < num_mlgroups; i++) {
+		struct mdesc_mlgroup *m = &mlgroups[i];
+		if (m->node == node)
+			return m;
+	}
+	return NULL;
+}
+
+static int __init numa_attach_mlgroup(struct mdesc_handle *md, u64 grp,
+				      int index)
+{
+	struct mdesc_mlgroup *candidate = NULL;
+	u64 arc, best_latency = ~(u64)0;
+	struct node_mem_mask *n;
+
+	mdesc_for_each_arc(arc, md, grp, MDESC_ARC_TYPE_FWD) {
+		u64 target = mdesc_arc_target(md, arc);
+		struct mdesc_mlgroup *m = find_mlgroup(target);
+		if (!m)
+			continue;
+		if (m->latency < best_latency) {
+			candidate = m;
+			best_latency = m->latency;
+		}
+	}
+	if (!candidate)
+		return -ENOENT;
+
+	if (num_node_masks != index) {
+		printk(KERN_ERR "Inconsistent NUMA state, "
+		       "index[%d] != num_node_masks[%d]\n",
+		       index, num_node_masks);
+		return -EINVAL;
+	}
+
+	n = &node_masks[num_node_masks++];
+
+	n->mask = candidate->mask;
+	n->val = candidate->match;
+
+	numadbg("NUMA NODE[%d]: mask[%lx] val[%lx] (latency[%lx])\n",
+		index, n->mask, n->val, candidate->latency);
+
+	return 0;
+}
+
+static int __init numa_parse_mdesc_group(struct mdesc_handle *md, u64 grp,
+					 int index)
+{
+	cpumask_t mask;
+	int cpu;
+
+	numa_parse_mdesc_group_cpus(md, grp, &mask);
+
+	for_each_cpu_mask(cpu, mask)
+		numa_cpu_lookup_table[cpu] = index;
+	numa_cpumask_lookup_table[index] = mask;
+
+	if (numa_debug) {
+		printk(KERN_INFO "NUMA GROUP[%d]: cpus [ ", index);
+		for_each_cpu_mask(cpu, mask)
+			printk("%d ", cpu);
+		printk("]\n");
+	}
+
+	return numa_attach_mlgroup(md, grp, index);
+}
+
+static int __init numa_parse_mdesc(void)
+{
+	struct mdesc_handle *md = mdesc_grab();
+	int i, err, count;
+	u64 node;
+
+	node = mdesc_node_by_name(md, MDESC_NODE_NULL, "latency-groups");
+	if (node == MDESC_NODE_NULL) {
+		mdesc_release(md);
+		return -ENOENT;
+	}
+
+	err = grab_mblocks(md);
+	if (err < 0)
+		goto out;
+
+	err = grab_mlgroups(md);
+	if (err < 0)
+		goto out;
+
+	count = 0;
+	mdesc_for_each_node_by_name(md, node, "group") {
+		err = numa_parse_mdesc_group(md, node, count);
+		if (err < 0)
+			break;
+		count++;
+	}
+
+	add_node_ranges();
+
+	for (i = 0; i < num_node_masks; i++) {
+		allocate_node_data(i);
+		node_set_online(i);
+	}
+
+	err = 0;
+out:
+	mdesc_release(md);
+	return err;
+}
+
+static int __init numa_parse_sun4u(void)
+{
+	return -1;
+}
+
+static int __init bootmem_init_numa(void)
+{
+	int err = -1;
+
+	numadbg("bootmem_init_numa()\n");
+
+	if (numa_enabled) {
+		if (tlb_type == hypervisor)
+			err = numa_parse_mdesc();
+		else
+			err = numa_parse_sun4u();
+	}
+	return err;
+}
+
+#else
+
+static int bootmem_init_numa(void)
+{
+	return -1;
+}
+
+#endif
+
+static void __init bootmem_init_nonnuma(void)
+{
+	unsigned long top_of_ram = lmb_end_of_DRAM();
+	unsigned long total_ram = lmb_phys_mem_size();
+	unsigned int i;
+
+	numadbg("bootmem_init_nonnuma()\n");
+
+	printk(KERN_INFO "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
+	       top_of_ram, total_ram);
+	printk(KERN_INFO "Memory hole size: %ldMB\n",
+	       (top_of_ram - total_ram) >> 20);
+
+	init_node_masks_nonnuma();
+
+	for (i = 0; i < lmb.memory.cnt; i++) {
+		unsigned long size = lmb_size_bytes(&lmb.memory, i);
+		unsigned long start_pfn, end_pfn;
+
+		if (!size)
+			continue;
+
+		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
+		end_pfn = start_pfn + lmb_size_pages(&lmb.memory, i);
+		add_active_range(0, start_pfn, end_pfn);
+	}
+
+	allocate_node_data(0);
+
+	node_set_online(0);
+}
+
+static void __init reserve_range_in_node(int nid, unsigned long start,
+					 unsigned long end)
+{
+	numadbg("    reserve_range_in_node(nid[%d],start[%lx],end[%lx]\n",
+		nid, start, end);
+	while (start < end) {
+		unsigned long this_end;
+		int n;
+
+		this_end = nid_range(start, end, &n);
+		if (n == nid) {
+			numadbg("      MATCH reserving range [%lx:%lx]\n",
+				start, this_end);
+			reserve_bootmem_node(NODE_DATA(nid), start,
+					     (this_end - start), BOOTMEM_DEFAULT);
+		} else
+			numadbg("      NO MATCH, advancing start to %lx\n",
+				this_end);
+
+		start = this_end;
+	}
+}
+
+static void __init trim_reserved_in_node(int nid)
+{
+	int i;
+
+	numadbg("  trim_reserved_in_node(%d)\n", nid);
+
+	for (i = 0; i < lmb.reserved.cnt; i++) {
+		unsigned long start = lmb.reserved.region[i].base;
+		unsigned long size = lmb_size_bytes(&lmb.reserved, i);
+		unsigned long end = start + size;
+
+		reserve_range_in_node(nid, start, end);
+	}
+}
+
+static void __init bootmem_init_one_node(int nid)
+{
+	struct pglist_data *p;
+
+	numadbg("bootmem_init_one_node(%d)\n", nid);
+
+	p = NODE_DATA(nid);
+
+	if (p->node_spanned_pages) {
+		unsigned long paddr = node_masks[nid].bootmem_paddr;
+		unsigned long end_pfn;
+
+		end_pfn = p->node_start_pfn + p->node_spanned_pages;
+
+		numadbg("  init_bootmem_node(%d, %lx, %lx, %lx)\n",
+			nid, paddr >> PAGE_SHIFT, p->node_start_pfn, end_pfn);
+
+		init_bootmem_node(p, paddr >> PAGE_SHIFT,
+				  p->node_start_pfn, end_pfn);
+
+		numadbg("  free_bootmem_with_active_regions(%d, %lx)\n",
+			nid, end_pfn);
+		free_bootmem_with_active_regions(nid, end_pfn);
+
+		trim_reserved_in_node(nid);
+
+		numadbg("  sparse_memory_present_with_active_regions(%d)\n",
+			nid);
+		sparse_memory_present_with_active_regions(nid);
+	}
+}
+
+static unsigned long __init bootmem_init(unsigned long phys_base)
+{
+	unsigned long end_pfn;
+	int nid;
+
+	end_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
 	max_pfn = max_low_pfn = end_pfn;
 	min_low_pfn = (phys_base >> PAGE_SHIFT);
 
-	init_bootmem_node(NODE_DATA(0),
-			  choose_bootmap_pfn(min_low_pfn, end_pfn),
-			  min_low_pfn, end_pfn);
+	if (bootmem_init_numa() < 0)
+		bootmem_init_nonnuma();
 
-	/* Now register the available physical memory with the
-	 * allocator.
-	 */
-	for (i = 0; i < lmb.memory.cnt; i++)
-		free_bootmem(lmb.memory.region[i].base,
-			     lmb_size_bytes(&lmb.memory, i));
+	/* XXX cpu notifier XXX */
 
-	for (i = 0; i < lmb.reserved.cnt; i++)
-		reserve_bootmem(lmb.reserved.region[i].base,
-				lmb_size_bytes(&lmb.reserved, i),
-				BOOTMEM_DEFAULT);
-
-	*pages_avail -= PAGE_ALIGN(kern_size) >> PAGE_SHIFT;
-
-	for (i = 0; i < lmb.memory.cnt; ++i) {
-		unsigned long start_pfn, end_pfn, pages;
-
-		pages = lmb_size_pages(&lmb.memory, i);
-		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
-		end_pfn = start_pfn + pages;
-
-		memory_present(0, start_pfn, end_pfn);
-	}
+	for_each_online_node(nid)
+		bootmem_init_one_node(nid);
 
 	sparse_init();
 
@@ -1112,7 +1688,7 @@ void __init setup_per_cpu_areas(void)
 
 void __init paging_init(void)
 {
-	unsigned long end_pfn, pages_avail, shift, phys_base;
+	unsigned long end_pfn, shift, phys_base;
 	unsigned long real_end, i;
 
 	/* These build time checkes make sure that the dcache_dirty_cpu()
@@ -1220,27 +1796,21 @@ void __init paging_init(void)
 		sun4v_mdesc_init();
 
 	/* Setup bootmem... */
-	pages_avail = 0;
-	last_valid_pfn = end_pfn = bootmem_init(&pages_avail, phys_base);
+	last_valid_pfn = end_pfn = bootmem_init(phys_base);
 
+#ifndef CONFIG_NEED_MULTIPLE_NODES
 	max_mapnr = last_valid_pfn;
-
+#endif
 	kernel_physical_mapping_init();
 
 	{
-		unsigned long zones_size[MAX_NR_ZONES];
-		unsigned long zholes_size[MAX_NR_ZONES];
-		int znum;
+		unsigned long max_zone_pfns[MAX_NR_ZONES];
 
-		for (znum = 0; znum < MAX_NR_ZONES; znum++)
-			zones_size[znum] = zholes_size[znum] = 0;
+		memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 
-		zones_size[ZONE_NORMAL] = end_pfn;
-		zholes_size[ZONE_NORMAL] = end_pfn - pages_avail;
+		max_zone_pfns[ZONE_NORMAL] = end_pfn;
 
-		free_area_init_node(0, &contig_page_data, zones_size,
-				    __pa(PAGE_OFFSET) >> PAGE_SHIFT,
-				    zholes_size);
+		free_area_init_nodes(max_zone_pfns);
 	}
 
 	printk("Booting Linux...\n");
@@ -1249,21 +1819,52 @@ void __init paging_init(void)
 	cpu_probe();
 }
 
-static void __init taint_real_pages(void)
+int __init page_in_phys_avail(unsigned long paddr)
+{
+	int i;
+
+	paddr &= PAGE_MASK;
+
+	for (i = 0; i < pavail_ents; i++) {
+		unsigned long start, end;
+
+		start = pavail[i].phys_addr;
+		end = start + pavail[i].reg_size;
+
+		if (paddr >= start && paddr < end)
+			return 1;
+	}
+	if (paddr >= kern_base && paddr < (kern_base + kern_size))
+		return 1;
+#ifdef CONFIG_BLK_DEV_INITRD
+	if (paddr >= __pa(initrd_start) &&
+	    paddr < __pa(PAGE_ALIGN(initrd_end)))
+		return 1;
+#endif
+
+	return 0;
+}
+
+static struct linux_prom64_registers pavail_rescan[MAX_BANKS] __initdata;
+static int pavail_rescan_ents __initdata;
+
+/* Certain OBP calls, such as fetching "available" properties, can
+ * claim physical memory.  So, along with initializing the valid
+ * address bitmap, what we do here is refetch the physical available
+ * memory list again, and make sure it provides at least as much
+ * memory as 'pavail' does.
+ */
+static void setup_valid_addr_bitmap_from_pavail(void)
 {
 	int i;
 
 	read_obp_memory("available", &pavail_rescan[0], &pavail_rescan_ents);
 
-	/* Find changes discovered in the physmem available rescan and
-	 * reserve the lost portions in the bootmem maps.
-	 */
 	for (i = 0; i < pavail_ents; i++) {
 		unsigned long old_start, old_end;
 
 		old_start = pavail[i].phys_addr;
-		old_end = old_start +
-			pavail[i].reg_size;
+		old_end = old_start + pavail[i].reg_size;
 		while (old_start < old_end) {
 			int n;
 
@@ -1281,38 +1882,21 @@ static void __init taint_real_pages(void)
 					goto do_next_page;
 				}
 			}
-			reserve_bootmem(old_start, PAGE_SIZE, BOOTMEM_DEFAULT);
+
+			prom_printf("mem_init: Lost memory in pavail\n");
+			prom_printf("mem_init: OLD start[%lx] size[%lx]\n",
+				    pavail[i].phys_addr,
+				    pavail[i].reg_size);
+			prom_printf("mem_init: NEW start[%lx] size[%lx]\n",
+				    pavail_rescan[i].phys_addr,
+				    pavail_rescan[i].reg_size);
+			prom_printf("mem_init: Cannot continue, aborting.\n");
+			prom_halt();
 
 		do_next_page:
 			old_start += PAGE_SIZE;
 		}
 	}
-}
-
-int __init page_in_phys_avail(unsigned long paddr)
-{
-	int i;
-
-	paddr &= PAGE_MASK;
-
-	for (i = 0; i < pavail_rescan_ents; i++) {
-		unsigned long start, end;
-
-		start = pavail_rescan[i].phys_addr;
-		end = start + pavail_rescan[i].reg_size;
-
-		if (paddr >= start && paddr < end)
-			return 1;
-	}
-	if (paddr >= kern_base && paddr < (kern_base + kern_size))
-		return 1;
-#ifdef CONFIG_BLK_DEV_INITRD
-	if (paddr >= __pa(initrd_start) &&
-	    paddr < __pa(PAGE_ALIGN(initrd_end)))
-		return 1;
-#endif
-
-	return 0;
 }
 
 void __init mem_init(void)
@@ -1337,14 +1921,26 @@ void __init mem_init(void)
 		addr += PAGE_SIZE;
 	}
 
-	taint_real_pages();
+	setup_valid_addr_bitmap_from_pavail();
 
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	for_each_online_node(i) {
+		if (NODE_DATA(i)->node_spanned_pages != 0) {
+			totalram_pages +=
+				free_all_bootmem_node(NODE_DATA(i));
+		}
+	}
+#else
+	totalram_pages = free_all_bootmem();
+#endif
 
 	/* We subtract one to account for the mem_map_zero page
 	 * allocated below.
 	 */
-	totalram_pages = num_physpages = free_all_bootmem() - 1;
+	totalram_pages -= 1;
+	num_physpages = totalram_pages;
 
 	/*
 	 * Set up the zero page, mark it reserved, so that page count
