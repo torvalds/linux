@@ -1,6 +1,7 @@
 /*
  * MV-643XX ethernet platform device data definition file.
  */
+
 #ifndef __LINUX_MV643XX_ETH_H
 #define __LINUX_MV643XX_ETH_H
 
@@ -13,7 +14,9 @@
 #define MV643XX_ETH_BASE_ADDR_ENABLE_REG	0x2290
 
 struct mv643xx_eth_platform_data {
+	struct platform_device	*shared;
 	int		port_number;
+
 	u16		force_phy_addr;	/* force override if phy_addr == 0 */
 	u16		phy_addr;
 

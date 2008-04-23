@@ -239,6 +239,8 @@ static int __init mv64x60_eth_device_setup(struct device_node *np, int id,
 
 	memset(&pdata, 0, sizeof(pdata));
 
+	pdata.shared = shared_pdev;
+
 	prop = of_get_property(np, "reg", NULL);
 	if (!prop)
 		return -ENODEV;
