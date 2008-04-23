@@ -143,6 +143,7 @@ static void scif_sercon_init(char *s)
 {
 	struct uart_port *port = &scif_port;
 	unsigned baud = DEFAULT_BAUD;
+	unsigned int status;
 	char *e;
 
 	if (*s == ',')
@@ -161,12 +162,17 @@ static void scif_sercon_init(char *s)
 			baud = DEFAULT_BAUD;
 	}
 
+	do {
+		status = sci_in(port, SCxSR);
+	} while (!(status & SCxSR_TEND(port)));
+
 	sci_out(port, SCSCR, 0);	 /* TE=0, RE=0 */
 	sci_out(port, SCSMR, 0);
 
 	/* Set baud rate */
 	sci_out(port, SCBRR, (CONFIG_SH_PCLK_FREQ + 16 * baud) /
 		(32 * baud) - 1);
+	udelay((1000000+(baud-1)) / baud); /* Wait one bit interval */
 
 	sci_out(port, SCFCR, 12);
 	sci_out(port, SCFCR, 8);
