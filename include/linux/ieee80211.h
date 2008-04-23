@@ -465,13 +465,19 @@ enum ieee80211_eid {
 	WLAN_EID_TS_DELAY = 43,
 	WLAN_EID_TCLAS_PROCESSING = 44,
 	WLAN_EID_QOS_CAPA = 46,
-	/* 802.11s */
-	WLAN_EID_MESH_CONFIG = 36,      /* Pending IEEE 802.11 ANA approval */
-	WLAN_EID_MESH_ID = 37,          /* Pending IEEE 802.11 ANA approval */
-	WLAN_EID_PEER_LINK = 40,	/* Pending IEEE 802.11 ANA approval */
-	WLAN_EID_PREQ = 53,		/* Pending IEEE 802.11 ANA approval */
-	WLAN_EID_PREP = 54,		/* Pending IEEE 802.11 ANA approval */
-	WLAN_EID_PERR = 55,		/* Pending IEEE 802.11 ANA approval */
+	/* 802.11s
+	 *
+	 * All mesh EID numbers are pending IEEE 802.11 ANA approval.
+	 * The numbers have been incremented from those suggested in
+	 * 802.11s/D2.0 so that MESH_CONFIG does not conflict with
+	 * EXT_SUPP_RATES.
+	 */
+	WLAN_EID_MESH_CONFIG = 51,
+	WLAN_EID_MESH_ID = 52,
+	WLAN_EID_PEER_LINK = 55,
+	WLAN_EID_PREQ = 68,
+	WLAN_EID_PREP = 69,
+	WLAN_EID_PERR = 70,
 	/* 802.11h */
 	WLAN_EID_PWR_CONSTRAINT = 32,
 	WLAN_EID_PWR_CAPABILITY = 33,
