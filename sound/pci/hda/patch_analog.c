@@ -3740,6 +3740,9 @@ static struct hda_verb ad1984a_thinkpad_verbs[] = {
 	{0x11, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | AD1884A_HP_EVENT},
 	/* internal mic - dmic */
 	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	/* set magic COEFs for dmic */
+	{0x01, AC_VERB_SET_COEF_INDEX, 0x13f7},
+	{0x01, AC_VERB_SET_PROC_COEF, 0x08},
 	{ } /* end */
 };
 
