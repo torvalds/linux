@@ -147,6 +147,18 @@ struct e1000_ring {
 	struct e1000_queue_stats stats;
 };
 
+/* PHY register snapshot values */
+struct e1000_phy_regs {
+	u16 bmcr;		/* basic mode control register    */
+	u16 bmsr;		/* basic mode status register     */
+	u16 advertise;		/* auto-negotiation advertisement */
+	u16 lpa;		/* link partner ability register  */
+	u16 expansion;		/* auto-negotiation expansion reg */
+	u16 ctrl1000;		/* 1000BASE-T control register    */
+	u16 stat1000;		/* 1000BASE-T status register     */
+	u16 estatus;		/* extended status register       */
+};
+
 /* board specific private data structure */
 struct e1000_adapter {
 	struct timer_list watchdog_timer;
@@ -202,8 +214,8 @@ struct e1000_adapter {
 	/* Tx stats */
 	u64 tpt_old;
 	u64 colc_old;
-	u64 gotcl_old;
-	u32 gotcl;
+	u32 gotc;
+	u64 gotc_old;
 	u32 tx_timeout_count;
 	u32 tx_fifo_head;
 	u32 tx_head_addr;
@@ -227,8 +239,8 @@ struct e1000_adapter {
 	u64 hw_csum_err;
 	u64 hw_csum_good;
 	u64 rx_hdr_split;
-	u64 gorcl_old;
-	u32 gorcl;
+	u32 gorc;
+	u64 gorc_old;
 	u32 alloc_rx_buff_failed;
 	u32 rx_dma_failed;
 
@@ -249,6 +261,9 @@ struct e1000_adapter {
 	struct e1000_hw_stats stats;
 	struct e1000_phy_info phy_info;
 	struct e1000_phy_stats phy_stats;
+
+	/* Snapshot of PHY registers */
+	struct e1000_phy_regs phy_regs;
 
 	struct e1000_ring test_tx_ring;
 	struct e1000_ring test_rx_ring;
@@ -286,8 +301,6 @@ struct e1000_info {
 #define FLAG_HAS_CTRLEXT_ON_LOAD          (1 << 5)
 #define FLAG_HAS_SWSM_ON_LOAD             (1 << 6)
 #define FLAG_HAS_JUMBO_FRAMES             (1 << 7)
-#define FLAG_HAS_STATS_ICR_ICT            (1 << 9)
-#define FLAG_HAS_STATS_PTC_PRC            (1 << 10)
 #define FLAG_HAS_SMART_POWER_DOWN         (1 << 11)
 #define FLAG_IS_QUAD_PORT_A               (1 << 12)
 #define FLAG_IS_QUAD_PORT                 (1 << 13)
