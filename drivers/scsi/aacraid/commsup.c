@@ -515,7 +515,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 				}
 				udelay(5);
 			}
-		} else if (down_interruptible(&fibptr->event_wait) == 0) {
+		} else if (down_interruptible(&fibptr->event_wait)) {
 			fibptr->done = 2;
 			up(&fibptr->event_wait);
 		}
