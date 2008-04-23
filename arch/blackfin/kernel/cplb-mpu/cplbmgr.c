@@ -146,14 +146,16 @@ static noinline int dcplb_miss(void)
 
 	d_data = CPLB_SUPV_WR | CPLB_VALID | CPLB_DIRTY | PAGE_SIZE_4KB;
 #ifdef CONFIG_BFIN_DCACHE
-	if (addr < _ramend - DMA_UNCACHED_REGION) {
+	if (addr < _ramend - DMA_UNCACHED_REGION ||
+	    (reserved_mem_dcache_on && addr >= _ramend &&
+	     addr < physical_mem_end)) {
 		d_data |= CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
 #ifdef CONFIG_BFIN_WT
 		d_data |= CPLB_L1_AOW | CPLB_WT;
 #endif
 	}
 #endif
-	if (addr >= _ramend) {
+	if (addr >= physical_mem_end) {
 		if (addr >= ASYNC_BANK0_BASE && addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE
 		    && (status & FAULT_USERSUPV)) {
 			addr &= ~0x3fffff;
@@ -161,6 +163,8 @@ static noinline int dcplb_miss(void)
 			d_data |= PAGE_SIZE_4MB;
 		} else
 			return CPLB_PROT_VIOL;
+	} else if (addr >= _ramend) {
+	    d_data |= CPLB_USER_RD | CPLB_USER_WR;
 	} else {
 		mask = current_rwx_mask;
 		if (mask) {
@@ -198,11 +202,13 @@ static noinline int icplb_miss(void)
 	unsigned long i_data;
 
 	nr_icplb_miss++;
+
+	/* If inside the uncached DMA region, fault.  */
+	if (addr >= _ramend - DMA_UNCACHED_REGION && addr < _ramend)
+		return CPLB_PROT_VIOL;
+
 	if (status & FAULT_USERSUPV)
 		nr_icplb_supv_miss++;
-
-	if (addr >= _ramend)
-		return CPLB_PROT_VIOL;
 
 	/*
 	 * First, try to find a CPLB that matches this address.  If we
@@ -220,30 +226,42 @@ static noinline int icplb_miss(void)
 	}
 
 	i_data = CPLB_VALID | CPLB_PORTPRIO | PAGE_SIZE_4KB;
+
 #ifdef CONFIG_BFIN_ICACHE
-	i_data |= CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
+	/*
+	 * Normal RAM, and possibly the reserved memory area, are
+	 * cacheable.
+	 */
+	if (addr < _ramend ||
+	    (addr < physical_mem_end && reserved_mem_icache_on))
+		i_data |= CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
 #endif
 
-	/*
-	 * Two cases to distinguish - a supervisor access must necessarily
-	 * be for a module page; we grant it unconditionally (could do better
-	 * here in the future).  Otherwise, check the x bitmap of the current
-	 * process.
-	 */
-	if (!(status & FAULT_USERSUPV)) {
-		unsigned long *mask = current_rwx_mask;
+	if (addr >= physical_mem_end) {
+	    return CPLB_PROT_VIOL;
+	} else if (addr >= _ramend) {
+		i_data |= CPLB_USER_RD;
+	} else {
+		/*
+		 * Two cases to distinguish - a supervisor access must
+		 * necessarily be for a module page; we grant it
+		 * unconditionally (could do better here in the future).
+		 * Otherwise, check the x bitmap of the current process.
+		 */
+		if (!(status & FAULT_USERSUPV)) {
+			unsigned long *mask = current_rwx_mask;
 
-		if (mask) {
-			int page = addr >> PAGE_SHIFT;
-			int offs = page >> 5;
-			int bit = 1 << (page & 31);
+			if (mask) {
+				int page = addr >> PAGE_SHIFT;
+				int offs = page >> 5;
+				int bit = 1 << (page & 31);
 
-			mask += 2 * page_mask_nelts;
-			if (mask[offs] & bit)
-				i_data |= CPLB_USER_RD;
+				mask += 2 * page_mask_nelts;
+				if (mask[offs] & bit)
+					i_data |= CPLB_USER_RD;
+			}
 		}
 	}
-
 	idx = evict_one_icplb();
 	addr &= PAGE_MASK;
 	icplb_tbl[idx].addr = addr;
