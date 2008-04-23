@@ -49,12 +49,10 @@ static void snd_mpu401_uart_output_write(struct snd_mpu401 * mpu);
 
  */
 
-#define snd_mpu401_input_avail(mpu)	(!(mpu->read(mpu, MPU401C(mpu)) & 0x80))
-#define snd_mpu401_output_ready(mpu)	(!(mpu->read(mpu, MPU401C(mpu)) & 0x40))
-
-#define MPU401_RESET		0xff
-#define MPU401_ENTER_UART	0x3f
-#define MPU401_ACK		0xfe
+#define snd_mpu401_input_avail(mpu) \
+	(!(mpu->read(mpu, MPU401C(mpu)) & MPU401_RX_EMPTY))
+#define snd_mpu401_output_ready(mpu) \
+	(!(mpu->read(mpu, MPU401C(mpu)) & MPU401_TX_FULL))
 
 /* Build in lowlevel io */
 static void mpu401_write_port(struct snd_mpu401 *mpu, unsigned char data,
