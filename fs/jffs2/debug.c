@@ -246,6 +246,10 @@ void __jffs2_dbg_superblock_counts(struct jffs2_sb_info *c)
 		nr_counted++;
 		erasing += c->sector_size;
 	}
+	list_for_each_entry(jeb, &c->erase_checking_list, list) {
+		nr_counted++;
+		erasing += c->sector_size;
+	}
 	list_for_each_entry(jeb, &c->erase_complete_list, list) {
 		nr_counted++;
 		erasing += c->sector_size;
@@ -577,6 +581,21 @@ __jffs2_dbg_dump_block_lists_nolock(struct jffs2_sb_info *c)
 
 			if (!(jeb->used_size == 0 && jeb->dirty_size == 0 && jeb->wasted_size == 0)) {
 				printk(JFFS2_DBG "erasing_list: %#08x (used %#08x, dirty %#08x, wasted %#08x, unchecked %#08x, free %#08x)\n",
+					jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size,
+					jeb->unchecked_size, jeb->free_size);
+			}
+		}
+	}
+	if (list_empty(&c->erase_checking_list)) {
+		printk(JFFS2_DBG "erase_checking_list: empty\n");
+	} else {
+		struct list_head *this;
+
+		list_for_each(this, &c->erase_checking_list) {
+			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
+
+			if (!(jeb->used_size == 0 && jeb->dirty_size == 0 && jeb->wasted_size == 0)) {
+				printk(JFFS2_DBG "erase_checking_list: %#08x (used %#08x, dirty %#08x, wasted %#08x, unchecked %#08x, free %#08x)\n",
 					jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size,
 					jeb->unchecked_size, jeb->free_size);
 			}

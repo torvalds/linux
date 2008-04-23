@@ -87,6 +87,7 @@ struct jffs2_sb_info {
 	struct list_head erasable_list;		/* Blocks which are completely dirty, and need erasing */
 	struct list_head erasable_pending_wbuf_list;	/* Blocks which need erasing but only after the current wbuf is flushed */
 	struct list_head erasing_list;		/* Blocks which are currently erasing */
+	struct list_head erase_checking_list;	/* Blocks which are being checked and marked */
 	struct list_head erase_pending_list;	/* Blocks which need erasing now */
 	struct list_head erase_complete_list;	/* Blocks which are erased and need the clean marker written to them */
 	struct list_head free_list;		/* Blocks which are free and ready to be used */

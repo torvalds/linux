@@ -116,7 +116,7 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 
 		if (!list_empty(&c->erase_complete_list)) {
 			jeb = list_entry(c->erase_complete_list.next, struct jffs2_eraseblock, list);
-			list_del(&jeb->list);
+			list_move(&jeb->list, &c->erase_checking_list);
 			spin_unlock(&c->erase_completion_lock);
 			mutex_unlock(&c->erase_free_sem);
 			jffs2_mark_erased_block(c, jeb);
@@ -465,7 +465,7 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	if (c->cleanmarker_size && !jffs2_cleanmarker_oob(c))
 		jffs2_link_node_ref(c, jeb, jeb->offset | REF_NORMAL, c->cleanmarker_size, NULL);
 
-	list_add_tail(&jeb->list, &c->free_list);
+	list_move_tail(&jeb->list, &c->free_list);
 	c->nr_erasing_blocks--;
 	c->nr_free_blocks++;
 
@@ -482,7 +482,7 @@ filebad:
 	spin_lock(&c->erase_completion_lock);
 	/* Stick it on a list (any list) so erase_failed can take it
 	   right off again.  Silly, but shouldn't happen often. */
-	list_add(&jeb->list, &c->erasing_list);
+	list_move(&jeb->list, &c->erasing_list);
 	spin_unlock(&c->erase_completion_lock);
 	mutex_unlock(&c->erase_free_sem);
 	jffs2_erase_failed(c, jeb, bad_offset);
@@ -493,7 +493,7 @@ refile:
 	jffs2_erase_pending_trigger(c);
 	mutex_lock(&c->erase_free_sem);
 	spin_lock(&c->erase_completion_lock);
-	list_add(&jeb->list, &c->erase_complete_list);
+	list_move(&jeb->list, &c->erase_complete_list);
 	spin_unlock(&c->erase_completion_lock);
 	mutex_unlock(&c->erase_free_sem);
 	return;
