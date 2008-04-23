@@ -571,10 +571,9 @@ int pci_enable_msi(struct pci_dev* dev)
 }
 EXPORT_SYMBOL(pci_enable_msi);
 
-void pci_disable_msi(struct pci_dev* dev)
+void pci_msi_shutdown(struct pci_dev* dev)
 {
 	struct msi_desc *entry;
-	int default_irq;
 
 	if (!pci_msi_enable || !dev || !dev->msi_enabled)
 		return;
@@ -590,15 +589,26 @@ void pci_disable_msi(struct pci_dev* dev)
 		u32 mask = entry->msi_attrib.maskbits_mask;
 		msi_set_mask_bits(dev->irq, mask, ~mask);
 	}
-	if (!entry->dev || entry->msi_attrib.type != PCI_CAP_ID_MSI) {
+	if (!entry->dev || entry->msi_attrib.type != PCI_CAP_ID_MSI)
 		return;
-	}
-
-	default_irq = entry->msi_attrib.default_irq;
-	msi_free_irqs(dev);
 
 	/* Restore dev->irq to its default pin-assertion irq */
-	dev->irq = default_irq;
+	dev->irq = entry->msi_attrib.default_irq;
+}
+void pci_disable_msi(struct pci_dev* dev)
+{
+	struct msi_desc *entry;
+
+	if (!pci_msi_enable || !dev || !dev->msi_enabled)
+		return;
+
+	pci_msi_shutdown(dev);
+
+	entry = list_entry(dev->msi_list.next, struct msi_desc, list);
+	if (!entry->dev || entry->msi_attrib.type != PCI_CAP_ID_MSI)
+		return;
+
+	msi_free_irqs(dev);
 }
 EXPORT_SYMBOL(pci_disable_msi);
 
@@ -691,7 +701,7 @@ static void msix_free_all_irqs(struct pci_dev *dev)
 	msi_free_irqs(dev);
 }
 
-void pci_disable_msix(struct pci_dev* dev)
+void pci_msix_shutdown(struct pci_dev* dev)
 {
 	if (!pci_msi_enable || !dev || !dev->msix_enabled)
 		return;
@@ -699,6 +709,13 @@ void pci_disable_msix(struct pci_dev* dev)
 	msix_set_enable(dev, 0);
 	pci_intx_for_msi(dev, 1);
 	dev->msix_enabled = 0;
+}
+void pci_disable_msix(struct pci_dev* dev)
+{
+	if (!pci_msi_enable || !dev || !dev->msix_enabled)
+		return;
+
+	pci_msix_shutdown(dev);
 
 	msix_free_all_irqs(dev);
 }
