@@ -6473,7 +6473,6 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 
 	if (priv->vif != vif) {
 		IWL_DEBUG_MAC80211("leave - priv->vif != vif\n");
-		mutex_unlock(&priv->mutex);
 		return 0;
 	}
 
