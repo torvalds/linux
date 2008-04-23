@@ -363,21 +363,19 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 {
 	unsigned int fcr_val = 0;
+	unsigned short data;
 
-	if (cflag & CRTSCTS) {
-		fcr_val |= SCFCR_MCE;
+	if (port->mapbase == 0xffe00000) {
+		data = ctrl_inw(PSCR);
+		data &= ~0x03cf;
+		if (cflag & CRTSCTS)
+			fcr_val |= SCFCR_MCE;
+		else
+			data |= 0x0340;
 
-		ctrl_outw(0x0000, PORT_PSCR);
-	} else {
-		unsigned short data;
-
-		data = ctrl_inw(PORT_PSCR);
-		data &= 0x033f;
-		data |= 0x0400;
-		ctrl_outw(data, PORT_PSCR);
-
-		ctrl_outw(ctrl_inw(SCSPTR0) & 0x17, SCSPTR0);
+		ctrl_outw(data, PSCR);
 	}
+	/* SCIF1 and SCIF2 should be setup by board code */
 
 	sci_out(port, SCFCR, fcr_val);
 }
