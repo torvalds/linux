@@ -316,7 +316,7 @@ static void bfin_demux_error_irq(unsigned int int_err_irq,
 		printk(KERN_ERR
 		       "%s : %s : LINE %d :\nIRQ ?: PERIPHERAL ERROR"
 		       " INTERRUPT ASSERTED BUT NO SOURCE FOUND\n",
-		       __FUNCTION__, __FILE__, __LINE__);
+		       __func__, __FILE__, __LINE__);
 
 }
 #endif				/* BF537_GENERIC_ERROR_INT_DEMUX */

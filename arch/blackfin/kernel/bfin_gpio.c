@@ -821,7 +821,7 @@ int peripheral_request(unsigned short per, const char *label)
 		dump_stack();
 		printk(KERN_ERR
 		    "%s: Peripheral %d is already reserved as GPIO by %s !\n",
-		       __FUNCTION__, ident, get_label(ident));
+		       __func__, ident, get_label(ident));
 		local_irq_restore(flags);
 		return -EBUSY;
 	}
@@ -848,7 +848,7 @@ int peripheral_request(unsigned short per, const char *label)
 			dump_stack();
 			printk(KERN_ERR
 			       "%s: Peripheral %d function %d is already reserved by %s !\n",
-			       __FUNCTION__, ident, P_FUNCT2MUX(per), get_label(ident));
+			       __func__, ident, P_FUNCT2MUX(per), get_label(ident));
 			local_irq_restore(flags);
 			return -EBUSY;
 		}
@@ -891,7 +891,7 @@ int peripheral_request(unsigned short per, const char *label)
 			dump_stack();
 			printk(KERN_ERR
 			       "%s: Peripheral %d is already reserved as GPIO by %s !\n",
-			       __FUNCTION__, ident, get_label(ident));
+			       __func__, ident, get_label(ident));
 			local_irq_restore(flags);
 			return -EBUSY;
 		}
@@ -919,7 +919,7 @@ int peripheral_request(unsigned short per, const char *label)
 			printk(KERN_ERR
 			       "%s: Peripheral %d function %d is already"
 			       " reserved by %s !\n",
-			       __FUNCTION__, ident, P_FUNCT2MUX(per),
+			       __func__, ident, P_FUNCT2MUX(per),
 				get_label(ident));
 			local_irq_restore(flags);
 			return -EBUSY;

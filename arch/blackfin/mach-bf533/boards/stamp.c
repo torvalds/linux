@@ -553,7 +553,7 @@ static int __init stamp_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
+	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 
 #ifdef CONFIG_I2C_BOARDINFO
 	i2c_register_board_info(0, bfin_i2c_board_info,

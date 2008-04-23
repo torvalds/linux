@@ -695,7 +695,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 static int __init ezkit_init(void)
 {
-	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
+	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 
 #ifdef CONFIG_I2C_BOARDINFO
 	i2c_register_board_info(0, bfin_i2c_board_info0,
