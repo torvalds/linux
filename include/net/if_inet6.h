@@ -148,7 +148,6 @@ struct ifacaddr6
 #define	IFA_HOST	IPV6_ADDR_LOOPBACK
 #define	IFA_LINK	IPV6_ADDR_LINKLOCAL
 #define	IFA_SITE	IPV6_ADDR_SITELOCAL
-#define	IFA_GLOBAL	0x0000U
 
 struct ipv6_devstat {
 	struct proc_dir_entry	*proc_dir_entry;
