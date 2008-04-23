@@ -35,6 +35,7 @@ u16 _bfin_swrst;
 EXPORT_SYMBOL(_bfin_swrst);
 
 unsigned long memory_start, memory_end, physical_mem_end;
+unsigned long _rambase, _ramstart, _ramend;
 unsigned long reserved_mem_dcache_on;
 unsigned long reserved_mem_icache_on;
 EXPORT_SYMBOL(memory_start);
