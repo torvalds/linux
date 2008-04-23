@@ -45,6 +45,7 @@
 #include <asm/tlb.h>
 #include <asm/sections.h>
 #include <asm/vdso.h>
+#include <asm/fixmap.h>
 
 #include "mmu_decl.h"
 
@@ -56,6 +57,20 @@
 int init_bootmem_done;
 int mem_init_done;
 unsigned long memory_limit;
+
+#ifdef CONFIG_HIGHMEM
+pte_t *kmap_pte;
+pgprot_t kmap_prot;
+
+EXPORT_SYMBOL(kmap_prot);
+EXPORT_SYMBOL(kmap_pte);
+
+static inline pte_t *virt_to_kpte(unsigned long vaddr)
+{
+	return pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr),
+			vaddr), vaddr), vaddr);
+}
+#endif
 
 int page_is_ram(unsigned long pfn)
 {
@@ -311,14 +326,19 @@ void __init paging_init(void)
 	unsigned long top_of_ram = lmb_end_of_DRAM();
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 
+#ifdef CONFIG_PPC32
+	unsigned long v = __fix_to_virt(__end_of_fixed_addresses - 1);
+	unsigned long end = __fix_to_virt(FIX_HOLE);
+
+	for (; v < end; v += PAGE_SIZE)
+		map_page(v, 0, 0); /* XXX gross */
+#endif
+
 #ifdef CONFIG_HIGHMEM
 	map_page(PKMAP_BASE, 0, 0);	/* XXX gross */
-	pkmap_page_table = pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k
-			(PKMAP_BASE), PKMAP_BASE), PKMAP_BASE), PKMAP_BASE);
-	map_page(KMAP_FIX_BEGIN, 0, 0);	/* XXX gross */
-	kmap_pte = pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k
-			(KMAP_FIX_BEGIN), KMAP_FIX_BEGIN), KMAP_FIX_BEGIN),
-			 KMAP_FIX_BEGIN);
+	pkmap_page_table = virt_to_kpte(PKMAP_BASE);
+
+	kmap_pte = virt_to_kpte(__fix_to_virt(FIX_KMAP_BEGIN));
 	kmap_prot = PAGE_KERNEL;
 #endif /* CONFIG_HIGHMEM */
 

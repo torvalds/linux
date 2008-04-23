@@ -626,20 +626,6 @@ config ADVANCED_OPTIONS
 comment "Default settings for advanced configuration options are used"
 	depends on !ADVANCED_OPTIONS
 
-config HIGHMEM_START_BOOL
-	bool "Set high memory pool address"
-	depends on ADVANCED_OPTIONS && HIGHMEM
-	help
-	  This option allows you to set the base address of the kernel virtual
-	  area used to map high memory pages.  This can be useful in
-	  optimizing the layout of kernel virtual memory.
-
-	  Say N here unless you know what you are doing.
-
-config HIGHMEM_START
-	hex "Virtual start address of high memory pool" if HIGHMEM_START_BOOL
-	default "0xfe000000"
-
 config LOWMEM_SIZE_BOOL
 	bool "Set maximum low memory"
 	depends on ADVANCED_OPTIONS

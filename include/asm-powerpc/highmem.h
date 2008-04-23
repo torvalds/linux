@@ -27,9 +27,7 @@
 #include <asm/kmap_types.h>
 #include <asm/tlbflush.h>
 #include <asm/page.h>
-
-/* undef for production */
-#define HIGHMEM_DEBUG 1
+#include <asm/fixmap.h>
 
 extern pte_t *kmap_pte;
 extern pgprot_t kmap_prot;
@@ -40,13 +38,11 @@ extern pte_t *pkmap_page_table;
  * easily, subsequent pte tables have to be allocated in one physical
  * chunk of RAM.
  */
-#define PKMAP_BASE 	CONFIG_HIGHMEM_START
 #define LAST_PKMAP 	(1 << PTE_SHIFT)
 #define LAST_PKMAP_MASK (LAST_PKMAP-1)
+#define PKMAP_BASE	((FIXADDR_START - PAGE_SIZE*(LAST_PKMAP + 1)) & PMD_MASK)
 #define PKMAP_NR(virt)  ((virt-PKMAP_BASE) >> PAGE_SHIFT)
 #define PKMAP_ADDR(nr)  (PKMAP_BASE + ((nr) << PAGE_SHIFT))
-
-#define KMAP_FIX_BEGIN	(PKMAP_BASE + 0x00400000UL)
 
 extern void *kmap_high(struct page *page);
 extern void kunmap_high(struct page *page);
@@ -73,7 +69,7 @@ static inline void kunmap(struct page *page)
  * be used in IRQ contexts, so in some (very limited) cases we need
  * it.
  */
-static inline void *kmap_atomic(struct page *page, enum km_type type)
+static inline void *kmap_atomic_prot(struct page *page, enum km_type type, pgprot_t prot)
 {
 	unsigned int idx;
 	unsigned long vaddr;
@@ -84,34 +80,39 @@ static inline void *kmap_atomic(struct page *page, enum km_type type)
 		return page_address(page);
 
 	idx = type + KM_TYPE_NR*smp_processor_id();
-	vaddr = KMAP_FIX_BEGIN + idx * PAGE_SIZE;
-#ifdef HIGHMEM_DEBUG
-	BUG_ON(!pte_none(*(kmap_pte+idx)));
+	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
+#ifdef CONFIG_DEBUG_HIGHMEM
+	BUG_ON(!pte_none(*(kmap_pte-idx)));
 #endif
-	set_pte_at(&init_mm, vaddr, kmap_pte+idx, mk_pte(page, kmap_prot));
+	set_pte_at(&init_mm, vaddr, kmap_pte-idx, mk_pte(page, prot));
 	flush_tlb_page(NULL, vaddr);
 
 	return (void*) vaddr;
 }
 
+static inline void *kmap_atomic(struct page *page, enum km_type type)
+{
+	return kmap_atomic_prot(page, type, kmap_prot);
+}
+
 static inline void kunmap_atomic(void *kvaddr, enum km_type type)
 {
-#ifdef HIGHMEM_DEBUG
+#ifdef CONFIG_DEBUG_HIGHMEM
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
-	unsigned int idx = type + KM_TYPE_NR*smp_processor_id();
+	enum fixed_addresses idx = type + KM_TYPE_NR*smp_processor_id();
 
-	if (vaddr < KMAP_FIX_BEGIN) { // FIXME
+	if (vaddr < __fix_to_virt(FIX_KMAP_END)) {
 		pagefault_enable();
 		return;
 	}
 
-	BUG_ON(vaddr != KMAP_FIX_BEGIN + idx * PAGE_SIZE);
+	BUG_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
 
 	/*
 	 * force other mappings to Oops if they'll try to access
 	 * this pte without first remap it
 	 */
-	pte_clear(&init_mm, vaddr, kmap_pte+idx);
+	pte_clear(&init_mm, vaddr, kmap_pte-idx);
 	flush_tlb_page(NULL, vaddr);
 #endif
 	pagefault_enable();
@@ -120,12 +121,14 @@ static inline void kunmap_atomic(void *kvaddr, enum km_type type)
 static inline struct page *kmap_atomic_to_page(void *ptr)
 {
 	unsigned long idx, vaddr = (unsigned long) ptr;
+	pte_t *pte;
 
-	if (vaddr < KMAP_FIX_BEGIN)
+	if (vaddr < FIXADDR_START)
 		return virt_to_page(ptr);
 
-	idx = (vaddr - KMAP_FIX_BEGIN) >> PAGE_SHIFT;
-	return pte_page(kmap_pte[idx]);
+	idx = virt_to_fix(vaddr);
+	pte = kmap_pte - (idx - FIX_KMAP_BEGIN);
+	return pte_page(*pte);
 }
 
 #define flush_cache_kmaps()	flush_cache_all()

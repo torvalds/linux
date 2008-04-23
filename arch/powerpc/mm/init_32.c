@@ -71,14 +71,6 @@ unsigned long agp_special_page;
 EXPORT_SYMBOL(agp_special_page);
 #endif
 
-#ifdef CONFIG_HIGHMEM
-pte_t *kmap_pte;
-pgprot_t kmap_prot;
-
-EXPORT_SYMBOL(kmap_prot);
-EXPORT_SYMBOL(kmap_pte);
-#endif
-
 void MMU_init(void);
 
 /* XXX should be in current.h  -- paulus */
