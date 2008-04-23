@@ -160,6 +160,7 @@ struct ehca_qp {
 	};
 	u32 qp_type;
 	enum ehca_ext_qp_type ext_type;
+	enum ib_qp_state state;
 	struct ipz_queue ipz_squeue;
 	struct ipz_queue ipz_rqueue;
 	struct h_galpas galpas;

@@ -421,6 +421,11 @@ int ehca_post_send(struct ib_qp *qp,
 	int ret = 0;
 	unsigned long flags;
 
+	if (unlikely(my_qp->state != IB_QPS_RTS)) {
+		ehca_err(qp->device, "QP not in RTS state  qpn=%x", qp->qp_num);
+		return -EINVAL;
+	}
+
 	/* LOCK the QUEUE */
 	spin_lock_irqsave(&my_qp->spinlock_s, flags);
 

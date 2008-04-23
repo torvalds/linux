@@ -550,6 +550,7 @@ static struct ehca_qp *internal_create_qp(
 	spin_lock_init(&my_qp->spinlock_r);
 	my_qp->qp_type = qp_type;
 	my_qp->ext_type = parms.ext_type;
+	my_qp->state = IB_QPS_RESET;
 
 	if (init_attr->recv_cq)
 		my_qp->recv_cq =
@@ -1507,6 +1508,8 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 
 	if (attr_mask & IB_QP_QKEY)
 		my_qp->qkey = attr->qkey;
+
+	my_qp->state = qp_new_state;
 
 modify_qp_exit2:
 	if (squeue_locked) { /* this means: sqe -> rts */
