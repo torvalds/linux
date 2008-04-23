@@ -763,8 +763,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	mutex_init(&ubi->volumes_mutex);
 	spin_lock_init(&ubi->volumes_lock);
 
-	dbg_msg("attaching mtd%d to ubi%d: VID header offset %d",
-		mtd->index, ubi_num, vid_hdr_offset);
+	ubi_msg("attaching mtd%d to ubi%d", mtd->index, ubi_num);
 
 	err = io_init(ubi);
 	if (err)
