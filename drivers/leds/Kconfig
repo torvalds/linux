@@ -1,6 +1,5 @@
 menuconfig NEW_LEDS
 	bool "LED Support"
-	depends on HAS_IOMEM
 	help
 	  Say Y to enable Linux LED support.  This allows control of supported
 	  LEDs from both userspace and optionally, by kernel events (triggers).
