@@ -1976,7 +1976,7 @@ static int nes_destroy_cq(struct ib_cq *ib_cq)
 
 	if (nescq->cq_mem_size)
 		pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size,
-				(void *)nescq->hw_cq.cq_vbase, nescq->hw_cq.cq_pbase);
+				    nescq->hw_cq.cq_vbase, nescq->hw_cq.cq_pbase);
 	kfree(nescq);
 
 	return ret;
@@ -3610,6 +3610,12 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	while (cqe_count < num_entries) {
 		if (le32_to_cpu(nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX]) &
 				NES_CQE_VALID) {
+			/*
+			 * Make sure we read CQ entry contents *after*
+			 * we've checked the valid bit.
+			 */
+			rmb();
+
 			cqe = nescq->hw_cq.cq_vbase[head];
 			nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX] = 0;
 			u32temp = le32_to_cpu(cqe.cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX]);
