@@ -898,12 +898,17 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "processor\t: %d\n"
 		"vendor_id\t: %s\n"
 		"cpu family\t: 0x%x\n"
-		"model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK)\n"
+		"model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n"
 		"stepping\t: %d\n",
 		0,
 		vendor,
 		(bfin_read_CHIPID() & CHIPID_FAMILY),
 		cpu, cclk/1000000, sclk/1000000,
+#ifdef CONFIG_MPU
+		"mpu on",
+#else
+		"mpu off",
+#endif
 		revid);
 
 	seq_printf(m, "cpu MHz\t\t: %lu.%03lu/%lu.%03lu\n",
@@ -1012,7 +1017,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "No Ways are locked\n");
 	}
 #endif
-
 	seq_printf(m, "board name\t: %s\n", bfin_board_name);
 	seq_printf(m, "board memory\t: %ld kB (0x%p -> 0x%p)\n",
 		 physical_mem_end >> 10, (void *)0, (void *)physical_mem_end);
