@@ -199,7 +199,6 @@ static inline int hard_smp_processor_id(void)
 #ifdef CONFIG_HOTPLUG_CPU
 extern void cpu_exit_clear(void);
 extern void cpu_uninit(void);
-extern void remove_siblinginfo(int cpu);
 #endif
 
 extern void smp_alloc_memory(void);
