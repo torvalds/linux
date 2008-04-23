@@ -18,6 +18,9 @@
 
 #ifndef __ASSEMBLY__
 
+extern void setup_memory_map(void);
+extern void finish_e820_parsing(void);
+
 extern struct e820map e820;
 extern void update_e820(void);
 
@@ -32,7 +35,6 @@ extern void update_memory_range(u64 start, u64 size, unsigned old_type,
 				unsigned new_type);
 extern void e820_register_memory(void);
 extern void limit_regions(unsigned long long size);
-extern void print_memory_map(char *who);
 extern void init_iomem_resources(struct resource *code_resource,
 				 struct resource *data_resource,
 				 struct resource *bss_resource);

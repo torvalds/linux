@@ -30,7 +30,6 @@ unsigned long pci_mem_start = 0x10000000;
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL(pci_mem_start);
 #endif
-extern int user_defined_memmap;
 
 static struct resource system_rom_resource = {
 	.name	= "System ROM",
@@ -584,7 +583,7 @@ void __init e820_register_memory(void)
 		pci_mem_start, gapstart, gapsize);
 }
 
-void __init print_memory_map(char *who)
+static void __init print_memory_map(char *who)
 {
 	int i;
 
@@ -692,6 +691,54 @@ e820_all_mapped(unsigned long s, unsigned long e, unsigned type)
 	return 0;
 }
 
+/* Overridden in paravirt.c if CONFIG_PARAVIRT */
+char * __init __attribute__((weak)) memory_setup(void)
+{
+	return machine_specific_memory_setup();
+}
+
+void __init setup_memory_map(void)
+{
+	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
+	print_memory_map(memory_setup());
+}
+
+static int __initdata user_defined_memmap;
+
+/*
+ * "mem=nopentium" disables the 4MB page tables.
+ * "mem=XXX[kKmM]" defines a memory region from HIGH_MEM
+ * to <mem>, overriding the bios size.
+ * "memmap=XXX[KkmM]@XXX[KkmM]" defines a memory region from
+ * <start> to <start>+<mem>, overriding the bios size.
+ *
+ * HPA tells me bootloaders need to parse mem=, so no new
+ * option should be mem=  [also see Documentation/i386/boot.txt]
+ */
+static int __init parse_mem(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	if (strcmp(arg, "nopentium") == 0) {
+		setup_clear_cpu_cap(X86_FEATURE_PSE);
+	} else {
+		/* If the user specifies memory size, we
+		 * limit the BIOS-provided memory map to
+		 * that size. exactmap can be used to specify
+		 * the exact map. mem=number can be used to
+		 * trim the existing memory map.
+		 */
+		unsigned long long mem_size;
+
+		mem_size = memparse(arg, &arg);
+		limit_regions(mem_size);
+		user_defined_memmap = 1;
+	}
+	return 0;
+}
+early_param("mem", parse_mem);
+
 static int __init parse_memmap(char *arg)
 {
 	if (!arg)
@@ -762,6 +809,15 @@ void __init update_memory_range(u64 start, u64 size, unsigned old_type,
 					 new_type);
 	}
 }
+
+void __init finish_e820_parsing(void)
+{
+	if (user_defined_memmap) {
+		printk(KERN_INFO "user-defined physical RAM map:\n");
+		print_memory_map("user");
+	}
+}
+
 void __init update_e820(void)
 {
 	u8 nr_map;
