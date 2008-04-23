@@ -34,6 +34,10 @@
 #define LOADER_MAGIC1	le32_to_cpu(0xfeedfa42)
 #define LOADER_MAGIC2	le32_to_cpu(0xfeed1281)
 
+#ifndef SQUASHFS_MAGIC
+#define SQUASHFS_MAGIC	0x73717368
+#endif
+
 struct ar7_bin_rec {
 	unsigned int checksum;
 	unsigned int length;
@@ -47,7 +51,8 @@ static int create_mtd_partitions(struct mtd_info *master,
 				 unsigned long origin)
 {
 	struct ar7_bin_rec header;
-	unsigned int offset, len;
+	unsigned int offset;
+	size_t len;
 	unsigned int pre_size = master->erasesize, post_size = 0;
 	unsigned int root_offset = ROOT_OFFSET;
 
@@ -66,7 +71,7 @@ static int create_mtd_partitions(struct mtd_info *master,
 	do { /* Try 10 blocks starting from master->erasesize */
 		offset = pre_size;
 		master->read(master, offset,
-			sizeof(header), &len, (u8 *)&header);
+			     sizeof(header), &len, (uint8_t *)&header);
 		if (!strncmp((char *)&header, "TIENV0.8", 8))
 			ar7_parts[1].offset = pre_size;
 		if (header.checksum == LOADER_MAGIC1)
@@ -88,7 +93,7 @@ static int create_mtd_partitions(struct mtd_info *master,
 		while (header.length) {
 			offset += sizeof(header) + header.length;
 			master->read(master, offset, sizeof(header),
-				     &len, (u8 *)&header);
+				     &len, (uint8_t *)&header);
 		}
 		root_offset = offset + sizeof(header) + 4;
 		break;
@@ -96,10 +101,10 @@ static int create_mtd_partitions(struct mtd_info *master,
 		while (header.length) {
 			offset += sizeof(header) + header.length;
 			master->read(master, offset, sizeof(header),
-				     &len, (u8 *)&header);
+				     &len, (uint8_t *)&header);
 		}
 		root_offset = offset + sizeof(header) + 4 + 0xff;
-		root_offset &= ~(u32)0xff;
+		root_offset &= ~(uint32_t)0xff;
 		break;
 	default:
 		printk(KERN_WARNING "Unknown magic: %08x\n", header.checksum);
