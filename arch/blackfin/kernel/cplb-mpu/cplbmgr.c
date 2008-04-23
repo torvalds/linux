@@ -307,7 +307,7 @@ void flush_switched_cplbs(void)
 	enable_icplb();
 
 	disable_dcplb();
-	for (i = first_mask_dcplb; i < MAX_CPLBS; i++) {
+	for (i = first_switched_dcplb; i < MAX_CPLBS; i++) {
 		dcplb_tbl[i].data = 0;
 		bfin_write32(DCPLB_DATA0 + i * 4, 0);
 	}
