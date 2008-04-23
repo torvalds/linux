@@ -298,7 +298,7 @@ int do_select(int n, fd_set_bits *fds, s64 *timeout)
 #define MAX_SELECT_SECONDS \
 	((unsigned long) (MAX_SCHEDULE_TIMEOUT / HZ)-1)
 
-static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
+int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 			   fd_set __user *exp, s64 *timeout)
 {
 	fd_set_bits fds;
