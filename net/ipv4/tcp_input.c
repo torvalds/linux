@@ -2298,7 +2298,7 @@ static inline int tcp_packet_delayed(struct tcp_sock *tp)
 {
 	return !tp->retrans_stamp ||
 		(tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr &&
-		 (__s32)(tp->rx_opt.rcv_tsecr - tp->retrans_stamp) < 0);
+		 before(tp->rx_opt.rcv_tsecr, tp->retrans_stamp));
 }
 
 /* Undo procedures. */

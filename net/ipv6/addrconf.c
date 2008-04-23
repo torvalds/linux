@@ -4338,12 +4338,6 @@ int unregister_inet6addr_notifier(struct notifier_block *nb)
 
 EXPORT_SYMBOL(unregister_inet6addr_notifier);
 
-
-static int addrconf_net_init(struct net *net)
-{
-	return 0;
-}
-
 static void addrconf_net_exit(struct net *net)
 {
 	struct net_device *dev;
@@ -4360,7 +4354,6 @@ static void addrconf_net_exit(struct net *net)
 }
 
 static struct pernet_operations addrconf_net_ops = {
-	.init = addrconf_net_init,
 	.exit = addrconf_net_exit,
 };
 

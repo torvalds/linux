@@ -1543,7 +1543,7 @@ out_timer:
 static void fib6_net_exit(struct net *net)
 {
 	rt6_ifdown(net, NULL);
-	del_timer(net->ipv6.ip6_fib_timer);
+	del_timer_sync(net->ipv6.ip6_fib_timer);
 	kfree(net->ipv6.ip6_fib_timer);
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	kfree(net->ipv6.fib6_local_tbl);

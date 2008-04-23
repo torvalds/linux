@@ -847,7 +847,7 @@ static void icmp_echo(struct sk_buff *skb)
  */
 static void icmp_timestamp(struct sk_buff *skb)
 {
-	struct timeval tv;
+	struct timespec tv;
 	struct icmp_bxm icmp_param;
 	/*
 	 *	Too short.
@@ -858,9 +858,9 @@ static void icmp_timestamp(struct sk_buff *skb)
 	/*
 	 *	Fill in the current time as ms since midnight UT:
 	 */
-	do_gettimeofday(&tv);
-	icmp_param.data.times[1] = htonl((tv.tv_sec % 86400) * 1000 +
-					 tv.tv_usec / 1000);
+	getnstimeofday(&tv);
+	icmp_param.data.times[1] = htonl((tv.tv_sec % 86400) * MSEC_PER_SEC +
+					 tv.tv_nsec / NSEC_PER_MSEC);
 	icmp_param.data.times[2] = icmp_param.data.times[1];
 	if (skb_copy_bits(skb, 0, &icmp_param.data.times[0], 4))
 		BUG();
@@ -1144,7 +1144,7 @@ static void __net_exit icmp_sk_exit(struct net *net)
 	net->ipv4.icmp_sk = NULL;
 }
 
-int __net_init icmp_sk_init(struct net *net)
+static int __net_init icmp_sk_init(struct net *net)
 {
 	int i, err;
 

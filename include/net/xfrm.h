@@ -436,6 +436,9 @@ struct xfrm_tmpl
 /* May skip this transfomration if no SA is found */
 	__u8			optional;
 
+/* Skip aalgos/ealgos/calgos checks. */
+	__u8			allalgs;
+
 /* Bit mask of algos allowed for acquisition */
 	__u32			aalgos;
 	__u32			ealgos;
