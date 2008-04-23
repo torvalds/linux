@@ -140,6 +140,8 @@ static inline int i2c_is_busy(enum i2c_status status)
 {
 	switch (status) {
 	case BUSY:
+	case TO_SCL:
+	case TO_ARB:
 		return true;
 	default:
 		return false;
