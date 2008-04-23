@@ -400,7 +400,10 @@ __jffs2_dbg_dump_node_refs_nolock(struct jffs2_sb_info *c,
 
 	printk(JFFS2_DBG);
 	for (ref = jeb->first_node; ; ref = ref_next(ref)) {
-		printk("%#08x(%#x)", ref_offset(ref), ref->__totlen);
+		printk("%#08x", ref_offset(ref));
+#ifdef TEST_TOTLEN
+		printk("(%x)", ref->__totlen);
+#endif
 		if (ref_next(ref))
 			printk("->");
 		else
