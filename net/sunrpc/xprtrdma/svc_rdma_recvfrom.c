@@ -457,8 +457,6 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 		ret, rqstp->rq_arg.len,	rqstp->rq_arg.head[0].iov_base,
 		rqstp->rq_arg.head[0].iov_len);
 
-	/* Indicate that we've consumed an RQ credit */
-	rqstp->rq_xprt_ctxt = rqstp->rq_xprt;
 	svc_xprt_received(rqstp->rq_xprt);
 	return ret;
 }
@@ -479,13 +477,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	int len;
 
 	dprintk("svcrdma: rqstp=%p\n", rqstp);
-
-	/*
-	 * The rq_xprt_ctxt indicates if we've consumed an RQ credit
-	 * or not. It is used in the rdma xpo_release_rqst function to
-	 * determine whether or not to return an RQ WQE to the RQ.
-	 */
-	rqstp->rq_xprt_ctxt = NULL;
 
 	spin_lock_bh(&rdma_xprt->sc_read_complete_lock);
 	if (!list_empty(&rdma_xprt->sc_read_complete_q)) {
@@ -550,9 +541,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 		return 0;
 	}
 
-	/* Indicate we've consumed an RQ credit */
-	rqstp->rq_xprt_ctxt = rqstp->rq_xprt;
-
 	ret = rqstp->rq_arg.head[0].iov_len
 		+ rqstp->rq_arg.page_len
 		+ rqstp->rq_arg.tail[0].iov_len;
@@ -569,11 +557,8 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	return ret;
 
  close_out:
-	if (ctxt) {
+	if (ctxt)
 		svc_rdma_put_context(ctxt, 1);
-		/* Indicate we've consumed an RQ credit */
-		rqstp->rq_xprt_ctxt = rqstp->rq_xprt;
-	}
 	dprintk("svcrdma: transport %p is closing\n", xprt);
 	/*
 	 * Set the close bit and enqueue it. svc_recv will see the

@@ -910,27 +910,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	return NULL;
 }
 
-/*
- * Post an RQ WQE to the RQ when the rqst is being released. This
- * effectively returns an RQ credit to the client. The rq_xprt_ctxt
- * will be null if the request is deferred due to an RDMA_READ or the
- * transport had no data ready (EAGAIN). Note that an RPC deferred in
- * svc_process will still return the credit, this is because the data
- * is copied and no longer consume a WQE/WC.
- */
 static void svc_rdma_release_rqst(struct svc_rqst *rqstp)
 {
-	int err;
-	struct svcxprt_rdma *rdma =
-		container_of(rqstp->rq_xprt, struct svcxprt_rdma, sc_xprt);
-	if (rqstp->rq_xprt_ctxt) {
-		BUG_ON(rqstp->rq_xprt_ctxt != rdma);
-		err = svc_rdma_post_recv(rdma);
-		if (err)
-			dprintk("svcrdma: failed to post an RQ WQE error=%d\n",
-				err);
-	}
-	rqstp->rq_xprt_ctxt = NULL;
 }
 
 /*
