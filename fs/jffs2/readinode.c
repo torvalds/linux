@@ -825,8 +825,9 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 	else // normal case...
 		tn->fn->size = je32_to_cpu(rd->dsize);
 
-	dbg_readinode("dnode @%08x: ver %u, offset %#04x, dsize %#04x, csize %#04x\n",
-		  ref_offset(ref), je32_to_cpu(rd->version), je32_to_cpu(rd->offset), je32_to_cpu(rd->dsize), csize);
+	dbg_readinode2("dnode @%08x: ver %u, offset %#04x, dsize %#04x, csize %#04x\n",
+		       ref_offset(ref), je32_to_cpu(rd->version),
+		       je32_to_cpu(rd->offset), je32_to_cpu(rd->dsize), csize);
 
 	ret = jffs2_add_tn_to_tree(c, rii, tn);
 
@@ -836,13 +837,13 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 		jffs2_free_tmp_dnode_info(tn);
 		return ret;
 	}
-#ifdef JFFS2_DBG_READINODE_MESSAGES
-	dbg_readinode("After adding ver %d:\n", je32_to_cpu(rd->version));
+#ifdef JFFS2_DBG_READINODE2_MESSAGES
+	dbg_readinode2("After adding ver %d:\n", je32_to_cpu(rd->version));
 	tn = tn_first(&rii->tn_root);
 	while (tn) {
-		dbg_readinode("%p: v %d r 0x%x-0x%x ov %d\n",
-			     tn, tn->version, tn->fn->ofs,
-			     tn->fn->ofs+tn->fn->size, tn->overlapped);
+		dbg_readinode2("%p: v %d r 0x%x-0x%x ov %d\n",
+			       tn, tn->version, tn->fn->ofs,
+			       tn->fn->ofs+tn->fn->size, tn->overlapped);
 		tn = tn_next(tn);
 	}
 #endif
