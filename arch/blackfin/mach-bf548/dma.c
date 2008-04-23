@@ -32,7 +32,7 @@
 #include <asm/blackfin.h>
 #include <asm/dma.h>
 
- struct dma_register *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
+struct dma_register *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
 	(struct dma_register *) DMA0_NEXT_DESC_PTR,
 	(struct dma_register *) DMA1_NEXT_DESC_PTR,
 	(struct dma_register *) DMA2_NEXT_DESC_PTR,
