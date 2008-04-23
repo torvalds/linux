@@ -167,6 +167,7 @@ static void scif_sercon_init(char *s)
 	} while (!(status & SCxSR_TEND(port)));
 
 	sci_out(port, SCSCR, 0);	 /* TE=0, RE=0 */
+	sci_out(port, SCFCR, SCFCR_RFRST | SCFCR_TFRST);
 	sci_out(port, SCSMR, 0);
 
 	/* Set baud rate */
@@ -174,12 +175,11 @@ static void scif_sercon_init(char *s)
 		(32 * baud) - 1);
 	udelay((1000000+(baud-1)) / baud); /* Wait one bit interval */
 
-	sci_out(port, SCFCR, 12);
-	sci_out(port, SCFCR, 8);
-
 	sci_out(port, SCSPTR, 0);
 	sci_out(port, SCxSR, 0x60);
 	sci_out(port, SCLSR, 0);
+
+	sci_out(port, SCFCR, 0);
 	sci_out(port, SCSCR, 0x30);	 /* TE=1, RE=1 */
 }
 #endif /* defined(CONFIG_CPU_SUBTYPE_SH7720) */
