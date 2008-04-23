@@ -1022,6 +1022,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	struct uart_port *port = &ourport->port;
 	struct s3c2410_uartcfg *cfg;
 	struct resource *res;
+	int ret;
 
 	dbg("s3c24xx_serial_init_port: port=%p, platdev=%p\n", port, platdev);
 
@@ -1064,9 +1065,11 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	port->mapbase	= res->start;
 	port->membase	= S3C24XX_VA_UART + (res->start - S3C24XX_PA_UART);
-	port->irq	= platform_get_irq(platdev, 0);
-	if (port->irq < 0)
+	ret = platform_get_irq(platdev, 0);
+	if (ret < 0)
 		port->irq = 0;
+	else
+		port->irq = ret;
 
 	ourport->clk	= clk_get(&platdev->dev, "uart");
 
