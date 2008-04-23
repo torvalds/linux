@@ -5,6 +5,8 @@
 #ifndef __LINUX_MV643XX_ETH_H
 #define __LINUX_MV643XX_ETH_H
 
+#include <linux/mbus.h>
+
 #define MV643XX_ETH_SHARED_NAME		"mv643xx_eth_shared"
 #define MV643XX_ETH_NAME		"mv643xx_eth"
 #define MV643XX_ETH_SHARED_REGS		0x2000
@@ -12,6 +14,10 @@
 #define MV643XX_ETH_BAR_4		0x2220
 #define MV643XX_ETH_SIZE_REG_4		0x2224
 #define MV643XX_ETH_BASE_ADDR_ENABLE_REG	0x2290
+
+struct mv643xx_eth_shared_platform_data {
+	struct mbus_dram_target_info	*dram;
+};
 
 struct mv643xx_eth_platform_data {
 	struct platform_device	*shared;
