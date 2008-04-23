@@ -803,7 +803,7 @@ static int __devexit hwicap_of_remove(struct of_device *op)
 }
 
 /* Match table for of_platform binding */
-static const struct of_device_id __devinit hwicap_of_match[] = {
+static const struct of_device_id __devinitconst hwicap_of_match[] = {
 	{ .compatible = "xlnx,opb-hwicap-1.00.b", .data = &buffer_icap_config},
 	{ .compatible = "xlnx,xps-hwicap-1.00.a", .data = &fifo_icap_config},
 	{},
