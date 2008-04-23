@@ -116,7 +116,10 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			spin_unlock(&c->erase_completion_lock);
 
 			ret = jffs2_garbage_collect_pass(c);
-			if (ret)
+
+			if (ret == -EAGAIN)
+				jffs2_erase_pending_blocks(c, 1);
+			else if (ret)
 				return ret;
 
 			cond_resched();

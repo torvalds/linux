@@ -221,7 +221,13 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		jeb = jffs2_find_gc_block(c);
 
 	if (!jeb) {
-		D1 (printk(KERN_NOTICE "jffs2: Couldn't find erase block to garbage collect!\n"));
+		/* Couldn't find a free block. But maybe we can just erase one and make 'progress'? */
+		if (!list_empty(&c->erase_pending_list)) {
+			spin_unlock(&c->erase_completion_lock);
+			mutex_unlock(&c->alloc_sem);
+			return -EAGAIN;
+		}
+		D1(printk(KERN_NOTICE "jffs2: Couldn't find erase block to garbage collect!\n"));
 		spin_unlock(&c->erase_completion_lock);
 		mutex_unlock(&c->alloc_sem);
 		return -EIO;
