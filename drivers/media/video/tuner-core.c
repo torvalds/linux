@@ -1111,8 +1111,8 @@ static int tuner_probe(struct i2c_client *client)
 	if (!no_autodetect) {
 		switch (client->addr) {
 		case 0x10:
-			if (tea5761_autodetection(t->i2c->adapter, t->i2c->addr)
-					!= EINVAL) {
+			if (tea5761_autodetection(t->i2c->adapter,
+						  t->i2c->addr) >= 0) {
 				t->type = TUNER_TEA5761;
 				t->mode_mask = T_RADIO;
 				t->mode = T_STANDBY;
@@ -1124,7 +1124,7 @@ static int tuner_probe(struct i2c_client *client)
 
 				goto register_client;
 			}
-			break;
+			return -ENODEV;
 		case 0x42:
 		case 0x43:
 		case 0x4a:

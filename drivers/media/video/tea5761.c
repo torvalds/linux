@@ -247,14 +247,19 @@ int tea5761_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 
 	if (16 != (rc = tuner_i2c_xfer_recv(&i2c, buffer, 16))) {
 		printk(KERN_WARNING "it is not a TEA5761. Received %i chars.\n", rc);
-		return EINVAL;
+		return -EINVAL;
 	}
 
-	if (!((buffer[13] != 0x2b) || (buffer[14] != 0x57) || (buffer[15] != 0x061))) {
-		printk(KERN_WARNING "Manufacturer ID= 0x%02x, Chip ID = %02x%02x. It is not a TEA5761\n",buffer[13],buffer[14],buffer[15]);
-		return EINVAL;
+	if ((buffer[13] != 0x2b) || (buffer[14] != 0x57) || (buffer[15] != 0x061)) {
+		printk(KERN_WARNING "Manufacturer ID= 0x%02x, Chip ID = %02x%02x."
+				    " It is not a TEA5761\n",
+				    buffer[13], buffer[14], buffer[15]);
+		return -EINVAL;
 	}
-	printk(KERN_WARNING "TEA5761 detected.\n");
+	printk(KERN_WARNING "tea5761: TEA%02x%02x detected. "
+			    "Manufacturer ID= 0x%02x\n",
+			    buffer[14], buffer[15], buffer[13]);
+
 	return 0;
 }
 
