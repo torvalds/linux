@@ -460,12 +460,13 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	if (c->cleanmarker_size && !jffs2_cleanmarker_oob(c))
 		jffs2_link_node_ref(c, jeb, jeb->offset | REF_NORMAL, c->cleanmarker_size, NULL);
 
-	jffs2_dbg_acct_sanity_check_nolock(c,jeb);
-	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
-
 	list_add_tail(&jeb->list, &c->free_list);
 	c->nr_erasing_blocks--;
 	c->nr_free_blocks++;
+
+	jffs2_dbg_acct_sanity_check_nolock(c, jeb);
+	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
+
 	spin_unlock(&c->erase_completion_lock);
 	mutex_unlock(&c->erase_free_sem);
 	wake_up(&c->erase_wait);
