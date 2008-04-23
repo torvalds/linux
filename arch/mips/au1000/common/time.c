@@ -34,19 +34,11 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/kernel_stat.h>
-#include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/hardirq.h>
 
-#include <asm/compiler.h>
 #include <asm/mipsregs.h>
 #include <asm/time.h>
-#include <asm/div64.h>
 #include <asm/mach-au1x00/au1000.h>
-
-#include <linux/mc146818rtc.h>
-#include <linux/timex.h>
 
 static int no_au1xxx_32khz;
 extern int allow_au1k_wait; /* default off for CP0 Counter */

@@ -23,27 +23,11 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/ioport.h>
-#include <linux/mm.h>
-#include <linux/console.h>
-#include <linux/mc146818rtc.h>
-#include <linux/delay.h>
-
-#if defined(CONFIG_BLK_DEV_IDE_AU1XXX)
-#include <linux/ide.h>
-#endif
-
-#include <asm/cpu.h>
-#include <asm/bootinfo.h>
-#include <asm/irq.h>
-#include <asm/mipsregs.h>
-#include <asm/reboot.h>
-#include <asm/pgtable.h>
 
 #include <au1000.h>
-#include <au1xxx_dbdma.h>
 #include <prom.h>
 
 #ifdef CONFIG_MIPS_PB1200
@@ -52,8 +36,6 @@
 
 #ifdef CONFIG_MIPS_DB1200
 #include <asm/mach-db1x00/db1200.h>
-#define PB1200_ETH_INT DB1200_ETH_INT
-#define PB1200_IDE_INT DB1200_IDE_INT
 #endif
 
 extern void _board_init_irq(void);
