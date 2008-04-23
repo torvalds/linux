@@ -812,10 +812,6 @@ struct snd_ice1712_card_info snd_vt1724_prodigy192_cards[] __devinitdata = {
 		.build_controls = prodigy192_add_controls,
 		.eeprom_size = sizeof(prodigy71_eeprom),
 		.eeprom_data = prodigy71_eeprom,
-		/* the current MPU401 code loops infinitely
-		 * when opening midi device
-		 */
-		.no_mpu401 = 1,
 	},
 	{ } /* terminator */
 };

@@ -223,6 +223,32 @@ static unsigned int snd_vt1724_get_gpio_data(struct snd_ice1712 *ice)
 }
 
 /*
+ * MPU401 accessor
+ */
+static unsigned char snd_vt1724_mpu401_read(struct snd_mpu401 *mpu,
+					    unsigned long addr)
+{
+	/* fix status bits to the standard position */
+	/* only RX_EMPTY and TX_FULL are checked */
+	if (addr == MPU401C(mpu))
+		return (inb(addr) & 0x0c) << 4;
+	else
+		return inb(addr);
+}
+
+static void snd_vt1724_mpu401_write(struct snd_mpu401 *mpu,
+				    unsigned char data, unsigned long addr)
+{
+	if (addr == MPU401C(mpu)) {
+		if (data == MPU401_ENTER_UART)
+			outb(0x01, addr);
+		/* what else? */
+	} else
+		outb(data, addr);
+}
+
+
+/*
  *  Interrupt handler
  */
 
@@ -230,24 +256,53 @@ static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id)
 {
 	struct snd_ice1712 *ice = dev_id;
 	unsigned char status;
+	unsigned char status_mask =
+		VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX | VT1724_IRQ_MTPCM;
 	int handled = 0;
+#ifdef CONFIG_SND_DEBUG
+	int timeout = 0;
+#endif
 
 	while (1) {
 		status = inb(ICEREG1724(ice, IRQSTAT));
+		status &= status_mask;
 		if (status == 0)
 			break;
-
-		handled = 1;		
-		/* these should probably be separated at some point, 
-		 * but as we don't currently have MPU support on the board
-		 * I will leave it
-		 */
-		if ((status & VT1724_IRQ_MPU_RX)||(status & VT1724_IRQ_MPU_TX)) {
-			if (ice->rmidi[0])
-				snd_mpu401_uart_interrupt(irq, ice->rmidi[0]->private_data);
-			outb(status & (VT1724_IRQ_MPU_RX|VT1724_IRQ_MPU_TX), ICEREG1724(ice, IRQSTAT));
-			status &= ~(VT1724_IRQ_MPU_RX|VT1724_IRQ_MPU_TX);
+#ifdef CONFIG_SND_DEBUG
+		if (++timeout > 10) {
+			printk(KERN_ERR
+			       "ice1724: Too long irq loop, status = 0x%x\n",
+			       status);
+			break;
 		}
+#endif
+		handled = 1;		
+		if (status & VT1724_IRQ_MPU_TX) {
+			if (ice->rmidi[0])
+				snd_mpu401_uart_interrupt_tx(irq,
+					ice->rmidi[0]->private_data);
+			else /* disable TX to be sure */
+				outb(inb(ICEREG1724(ice, IRQMASK)) |
+				     VT1724_IRQ_MPU_TX,
+				     ICEREG1724(ice, IRQMASK));
+			/* Due to mysterical reasons, MPU_TX is always
+			 * generated (and can't be cleared) when a PCM
+			 * playback is going.  So let's ignore at the
+			 * next loop.
+			 */
+			status_mask &= ~VT1724_IRQ_MPU_TX;
+		}
+		if (status & VT1724_IRQ_MPU_RX) {
+			if (ice->rmidi[0])
+				snd_mpu401_uart_interrupt(irq,
+					ice->rmidi[0]->private_data);
+			else /* disable RX to be sure */
+				outb(inb(ICEREG1724(ice, IRQMASK)) |
+				     VT1724_IRQ_MPU_RX,
+				     ICEREG1724(ice, IRQMASK));
+		}
+		/* ack MPU irq */
+		outb(status, ICEREG1724(ice, IRQSTAT));
 		if (status & VT1724_IRQ_MTPCM) {
 			/*
 			 * Multi-track PCM
@@ -2236,10 +2291,7 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 	}
 
 	/* unmask used interrupts */
-	if (! (ice->eeprom.data[ICE_EEP2_SYSCONF] & VT1724_CFG_MPU401))
-		mask = VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX;
-	else
-		mask = 0;
+	mask = VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX;
 	outb(mask, ICEREG1724(ice, IRQMASK));
 	/* don't handle FIFO overrun/underruns (just yet),
 	 * since they cause machine lockups
@@ -2373,14 +2425,29 @@ static int __devinit snd_vt1724_probe(struct pci_dev *pci,
 
 	if (! c->no_mpu401) {
 		if (ice->eeprom.data[ICE_EEP2_SYSCONF] & VT1724_CFG_MPU401) {
+			struct snd_mpu401 *mpu;
 			if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,
 						       ICEREG1724(ice, MPU_CTRL),
-						       MPU401_INFO_INTEGRATED,
+						       (MPU401_INFO_INTEGRATED |
+							MPU401_INFO_TX_IRQ),
 						       ice->irq, 0,
 						       &ice->rmidi[0])) < 0) {
 				snd_card_free(card);
 				return err;
 			}
+			mpu = ice->rmidi[0]->private_data;
+			mpu->read = snd_vt1724_mpu401_read;
+			mpu->write = snd_vt1724_mpu401_write;
+			/* unmask MPU RX/TX irqs */
+			outb(inb(ICEREG1724(ice, IRQMASK)) &
+			     ~(VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX),
+			     ICEREG1724(ice, IRQMASK));
+#if 0 /* for testing */
+			/* set watermarks */
+			outb(VT1724_MPU_RX_FIFO | 0x1,
+			     ICEREG1724(ice, MPU_FIFO_WM));
+			outb(0x1, ICEREG1724(ice, MPU_FIFO_WM));
+#endif
 		}
 	}
 
