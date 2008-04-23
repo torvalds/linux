@@ -87,6 +87,8 @@ EXPORT_SYMBOL(memory_start);
 unsigned long memory_end = 0;
 EXPORT_SYMBOL(memory_end);
 
+static struct resource mem_resources[MAX_NUMNODES];
+
 int l1i_cache_shape, l1d_cache_shape, l2_cache_shape;
 
 static int __init early_parse_mem(char *p)
@@ -175,6 +177,40 @@ static inline void __init reserve_crashkernel(void)
 {}
 #endif
 
+void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
+						unsigned long end_pfn)
+{
+	struct resource *res = &mem_resources[nid];
+
+	WARN_ON(res->name); /* max one active range per node for now */
+
+	res->name = "System RAM";
+	res->start = start_pfn << PAGE_SHIFT;
+	res->end = (end_pfn << PAGE_SHIFT) - 1;
+	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+	if (request_resource(&iomem_resource, res)) {
+		pr_err("unable to request memory_resource 0x%lx 0x%lx\n",
+		       start_pfn, end_pfn);
+		return;
+	}
+
+	/*
+	 *  We don't know which RAM region contains kernel data,
+	 *  so we try it repeatedly and let the resource manager
+	 *  test it.
+	 */
+	request_resource(res, &code_resource);
+	request_resource(res, &data_resource);
+	request_resource(res, &bss_resource);
+
+#ifdef CONFIG_KEXEC
+	if (crashk_res.start != crashk_res.end)
+		request_resource(res, &crashk_res);
+#endif
+
+	add_active_range(nid, start_pfn, end_pfn);
+}
+
 void __init setup_bootmem_allocator(unsigned long free_pfn)
 {
 	unsigned long bootmap_size;
@@ -187,7 +223,7 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	bootmap_size = init_bootmem_node(NODE_DATA(0), free_pfn,
 					 min_low_pfn, max_low_pfn);
 
-	add_active_range(0, min_low_pfn, max_low_pfn);
+	__add_active_range(0, min_low_pfn, max_low_pfn);
 	register_bootmem_low_pages();
 
 	node_set_online(0);
