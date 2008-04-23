@@ -30,6 +30,7 @@
 #include "tuner-xc2028.h"
 #include <media/v4l2-common.h>
 #include <media/tveeprom.h>
+#include "tea5767.h"
 
 /* commly used strings */
 static char name_mute[]    = "mute";
@@ -1049,7 +1050,7 @@ struct saa7134_board saa7134_boards[] = {
 	},
 	[SAA7134_BOARD_MANLI_MTV002] = {
 		/* Ognjen Nastic <ognjen@logosoft.ba> */
-		.name           = "Manli MuchTV M-TV002/Behold TV 403 FM",
+		.name           = "Manli MuchTV M-TV002",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_PHILIPS_PAL,
 		.radio_type     = UNSET,
@@ -1076,7 +1077,7 @@ struct saa7134_board saa7134_boards[] = {
 	},
 	[SAA7134_BOARD_MANLI_MTV001] = {
 		/* Ognjen Nastic <ognjen@logosoft.ba> UNTESTED */
-		.name           = "Manli MuchTV M-TV001/Behold TV 401",
+		.name           = "Manli MuchTV M-TV001",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_PHILIPS_PAL,
 		.radio_type     = UNSET,
@@ -2198,6 +2199,8 @@ struct saa7134_board saa7134_boards[] = {
 	},
 	[SAA7134_BOARD_BEHOLD_409FM] = {
 		/* <http://tuner.beholder.ru>, Sergey <skiv@orel.ru> */
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 409 FM",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
@@ -2205,6 +2208,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x00008000,
 		.inputs         = {{
 			  .name = name_tv,
 			  .vmux = 3,
@@ -3576,12 +3580,15 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 	},
 	[SAA7134_BOARD_BEHOLD_401] = {
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 401",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_FQ1216ME,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
+		.gpiomask       = 0x00008000,
 		.inputs         = {{
 			.name = name_svideo,
 			.vmux = 8,
@@ -3602,12 +3609,15 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_BEHOLD_403] = {
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 403",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_FQ1216ME,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
+		.gpiomask       = 0x00008000,
 		.inputs         = {{
 			.name = name_svideo,
 			.vmux = 8,
@@ -3624,12 +3634,15 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 	},
 	[SAA7134_BOARD_BEHOLD_403FM] = {
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 403 FM",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_FQ1216ME,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
+		.gpiomask       = 0x00008000,
 		.inputs         = {{
 			.name = name_svideo,
 			.vmux = 8,
@@ -3650,6 +3663,8 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_BEHOLD_405] = {
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 405",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
@@ -3657,6 +3672,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x00008000,
 		.inputs         = {{
 			.name = name_svideo,
 			.vmux = 8,
@@ -3674,6 +3690,8 @@ struct saa7134_board saa7134_boards[] = {
 	},
 	[SAA7134_BOARD_BEHOLD_405FM] = {
 		/* Sergey <skiv@orel.ru> */
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 405 FM",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
@@ -3681,6 +3699,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x00008000,
 		.inputs         = {{
 			.name = name_svideo,
 			.vmux = 8,
@@ -3701,6 +3720,8 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_BEHOLD_407] = {
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name 		= "Beholder BeholdTV 407",
 		.audio_clock 	= 0x00187de7,
 		.tuner_type 	= TUNER_PHILIPS_FM1216ME_MK3,
@@ -3708,7 +3729,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr 	= ADDR_UNSET,
 		.radio_addr 	= ADDR_UNSET,
 		.tda9887_conf 	= TDA9887_PRESENT,
-		.gpiomask = 0xc0c000,
+		.gpiomask       = 0x00008000,
 		.inputs = {{
 			.name = name_svideo,
 			.vmux = 8,
@@ -3728,6 +3749,8 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 	},
 	[SAA7134_BOARD_BEHOLD_407FM] = {
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name 		= "Beholder BeholdTV 407 FM",
 		.audio_clock 	= 0x00187de7,
 		.tuner_type 	= TUNER_PHILIPS_FM1216ME_MK3,
@@ -3735,7 +3758,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr 	= ADDR_UNSET,
 		.radio_addr 	= ADDR_UNSET,
 		.tda9887_conf 	= TDA9887_PRESENT,
-		.gpiomask = 0xc0c000,
+		.gpiomask       = 0x00008000,
 		.inputs = {{
 			.name = name_svideo,
 			.vmux = 8,
@@ -3760,6 +3783,8 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_BEHOLD_409] = {
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 409",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
@@ -3767,6 +3792,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x00008000,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 3,
@@ -3783,6 +3809,8 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 	},
 	[SAA7134_BOARD_BEHOLD_505FM] = {
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 505 FM/RDS",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
@@ -3790,6 +3818,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x00008000,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 3,
@@ -3814,6 +3843,8 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_BEHOLD_507_9FM] = {
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV 507 FM/RDS / BeholdTV 509 FM",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
@@ -3821,6 +3852,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x00008000,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 3,
@@ -3841,6 +3873,8 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM] = {
+		/*       Beholder Intl. Ltd. 2008      */
+		/*Dmitry Belimov <d.belimov@gmail.com> */
 		.name           = "Beholder BeholdTV Columbus TVFM",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_ALPS_TSBE5_PAL,
@@ -3848,23 +3882,28 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x000A8004,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 3,
 			.amux = TV,
 			.tv   = 1,
-		},{
+			.gpio = 0x000A8004,
+		}, {
 			.name = name_comp1,
 			.vmux = 1,
 			.amux = LINE1,
-		},{
+			.gpio = 0x000A8000,
+		}, {
 			.name = name_svideo,
 			.vmux = 8,
 			.amux = LINE1,
-		}},
+			.gpio = 0x000A8000,
+		} },
 		.radio = {
 			.name = name_radio,
 			.amux = LINE2,
+			.gpio = 0x000A8000,
 		},
 	},
 	[SAA7134_BOARD_BEHOLD_607_9FM] = {
@@ -5471,7 +5510,6 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS:
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
 	case SAA7134_BOARD_AVERMEDIA_M115:
-	case SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM:
 	case SAA7134_BOARD_AVERMEDIA_A16D:
 		/* power-down tuner chip */
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0xffffffff, 0);
@@ -5481,6 +5519,18 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0xffffffff, 0xffffffff);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0xffffffff, 0xffffffff);
 		msleep(10);
+		break;
+	case SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM:
+		/* power-down tuner chip */
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x000A8004, 0x000A8004);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x000A8004, 0);
+		msleep(10);
+		/* power-up tuner chip */
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x000A8004, 0x000A8004);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x000A8004, 0x000A8004);
+		msleep(10);
+		/* remote via GPIO */
+		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_RTD_VFG7350:
 
@@ -5768,6 +5818,20 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 			printk(KERN_WARNING "%s: Unexpected tuner type info: %x in eeprom\n",
 				dev->name, dev->eedata[0x41]);
 			break;
+		}
+		break;
+	case SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM:
+		{
+		struct v4l2_priv_tun_config tea5767_cfg;
+		struct tea5767_ctrl ctl;
+
+		dev->i2c_client.addr = 0xC0;
+		/* set TEA5767(analog FM) defines */
+		memset(&ctl, 0, sizeof(ctl));
+		ctl.xtal_freq = TEA5767_HIGH_LO_13MHz;
+		tea5767_cfg.tuner = TUNER_TEA5767;
+		tea5767_cfg.priv  = &ctl;
+		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &tea5767_cfg);
 		}
 		break;
 	}

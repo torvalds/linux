@@ -331,6 +331,11 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_MANLI_MTV001:
 	case SAA7134_BOARD_MANLI_MTV002:
+		ir_codes     = ir_codes_manli;
+		mask_keycode = 0x001f00;
+		mask_keyup   = 0x004000;
+		polling      = 50; /* ms */
+		break;
 	case SAA7134_BOARD_BEHOLD_409FM:
 	case SAA7134_BOARD_BEHOLD_401:
 	case SAA7134_BOARD_BEHOLD_403:
@@ -343,7 +348,13 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_505FM:
 	case SAA7134_BOARD_BEHOLD_507_9FM:
 		ir_codes     = ir_codes_manli;
-		mask_keycode = 0x001f00;
+		mask_keycode = 0x003f00;
+		mask_keyup   = 0x004000;
+		polling      = 50; /* ms */
+		break;
+	case SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM:
+		ir_codes     = ir_codes_behold_columbus;
+		mask_keycode = 0x003f00;
 		mask_keyup   = 0x004000;
 		polling      = 50; // ms
 		break;
