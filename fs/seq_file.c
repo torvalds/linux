@@ -25,6 +25,7 @@
  *	into the buffer.  In case of error ->start() and ->next() return
  *	ERR_PTR(error).  In the end of sequence they return %NULL. ->show()
  *	returns 0 in case of success and negative number in case of error.
+ *	Returning SEQ_SKIP means "discard this element and move on".
  */
 int seq_open(struct file *file, const struct seq_operations *op)
 {
@@ -114,8 +115,10 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 		if (!p || IS_ERR(p))
 			break;
 		err = m->op->show(m, p);
-		if (err)
+		if (err < 0)
 			break;
+		if (unlikely(err))
+			m->count = 0;
 		if (m->count < m->size)
 			goto Fill;
 		m->op->stop(m, p);
@@ -140,9 +143,10 @@ Fill:
 			break;
 		}
 		err = m->op->show(m, p);
-		if (err || m->count == m->size) {
+		if (m->count == m->size || err) {
 			m->count = offs;
-			break;
+			if (likely(err <= 0))
+				break;
 		}
 		pos = next;
 	}
@@ -199,8 +203,12 @@ static int traverse(struct seq_file *m, loff_t offset)
 		if (IS_ERR(p))
 			break;
 		error = m->op->show(m, p);
-		if (error)
+		if (error < 0)
 			break;
+		if (unlikely(error)) {
+			error = 0;
+			m->count = 0;
+		}
 		if (m->count == m->size)
 			goto Eoverflow;
 		if (pos + m->count > offset) {

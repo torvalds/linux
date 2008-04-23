@@ -94,8 +94,6 @@ static inline void mntput(struct vfsmount *mnt)
 	}
 }
 
-extern void free_vfsmnt(struct vfsmount *mnt);
-extern struct vfsmount *alloc_vfsmnt(const char *name);
 extern struct vfsmount *do_kern_mount(const char *fstype, int flags,
 				      const char *name, void *data);
 

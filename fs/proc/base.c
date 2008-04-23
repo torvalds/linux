@@ -1626,7 +1626,6 @@ static int proc_readfd_common(struct file * filp, void * dirent,
 	unsigned int fd, ino;
 	int retval;
 	struct files_struct * files;
-	struct fdtable *fdt;
 
 	retval = -ENOENT;
 	if (!p)
@@ -1649,9 +1648,8 @@ static int proc_readfd_common(struct file * filp, void * dirent,
 			if (!files)
 				goto out;
 			rcu_read_lock();
-			fdt = files_fdtable(files);
 			for (fd = filp->f_pos-2;
-			     fd < fdt->max_fds;
+			     fd < files_fdtable(files)->max_fds;
 			     fd++, filp->f_pos++) {
 				char name[PROC_NUMBUF];
 				int len;

@@ -39,6 +39,7 @@
 #include <linux/mutex.h>
 #include <linux/file.h>
 #include <asm/uaccess.h>
+#include "internal.h"
 
 
 LIST_HEAD(super_blocks);

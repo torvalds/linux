@@ -196,13 +196,13 @@ static int dummy_sb_statfs (struct dentry *dentry)
 	return 0;
 }
 
-static int dummy_sb_mount (char *dev_name, struct nameidata *nd, char *type,
+static int dummy_sb_mount (char *dev_name, struct path *path, char *type,
 			   unsigned long flags, void *data)
 {
 	return 0;
 }
 
-static int dummy_sb_check_sb (struct vfsmount *mnt, struct nameidata *nd)
+static int dummy_sb_check_sb (struct vfsmount *mnt, struct path *path)
 {
 	return 0;
 }
@@ -229,17 +229,17 @@ static void dummy_sb_post_remount (struct vfsmount *mnt, unsigned long flags,
 }
 
 
-static void dummy_sb_post_addmount (struct vfsmount *mnt, struct nameidata *nd)
+static void dummy_sb_post_addmount (struct vfsmount *mnt, struct path *path)
 {
 	return;
 }
 
-static int dummy_sb_pivotroot (struct nameidata *old_nd, struct nameidata *new_nd)
+static int dummy_sb_pivotroot (struct path *old_path, struct path *new_path)
 {
 	return 0;
 }
 
-static void dummy_sb_post_pivotroot (struct nameidata *old_nd, struct nameidata *new_nd)
+static void dummy_sb_post_pivotroot (struct path *old_path, struct path *new_path)
 {
 	return;
 }

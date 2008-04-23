@@ -230,7 +230,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	loopback/bind mount (@flags & MS_BIND), @dev_name identifies the
  *	pathname of the object being mounted.
  *	@dev_name contains the name for object being mounted.
- *	@nd contains the nameidata structure for mount point object.
+ *	@path contains the path for mount point object.
  *	@type contains the filesystem type.
  *	@flags contains the mount flags.
  *	@data contains the filesystem-specific data.
@@ -249,7 +249,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Check permission before the device with superblock @mnt->sb is mounted
  *	on the mount point named by @nd.
  *	@mnt contains the vfsmount for device being mounted.
- *	@nd contains the nameidata object for the mount point.
+ *	@path contains the path for the mount point.
  *	Return 0 if permission is granted.
  * @sb_umount:
  *	Check permission before the @mnt file system is unmounted.
@@ -278,16 +278,16 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	This hook is called any time a mount is successfully grafetd to
  *	the tree.
  *	@mnt contains the mounted filesystem.
- *	@mountpoint_nd contains the nameidata structure for the mount point.
+ *	@mountpoint contains the path for the mount point.
  * @sb_pivotroot:
  *	Check permission before pivoting the root filesystem.
- *	@old_nd contains the nameidata structure for the new location of the current root (put_old).
- *      @new_nd contains the nameidata structure for the new root (new_root).
+ *	@old_path contains the path for the new location of the current root (put_old).
+ *      @new_path contains the path for the new root (new_root).
  *	Return 0 if permission is granted.
  * @sb_post_pivotroot:
  *	Update module state after a successful pivot.
- *	@old_nd contains the nameidata structure for the old root.
- *      @new_nd contains the nameidata structure for the new root.
+ *	@old_path contains the path for the old root.
+ *      @new_path contains the path for the new root.
  * @sb_get_mnt_opts:
  *	Get the security relevant mount options used for a superblock
  *	@sb the superblock to get security mount options from
@@ -1315,20 +1315,20 @@ struct security_operations {
 	int (*sb_copy_data)(char *orig, char *copy);
 	int (*sb_kern_mount) (struct super_block *sb, void *data);
 	int (*sb_statfs) (struct dentry *dentry);
-	int (*sb_mount) (char *dev_name, struct nameidata * nd,
+	int (*sb_mount) (char *dev_name, struct path *path,
 			 char *type, unsigned long flags, void *data);
-	int (*sb_check_sb) (struct vfsmount * mnt, struct nameidata * nd);
+	int (*sb_check_sb) (struct vfsmount * mnt, struct path *path);
 	int (*sb_umount) (struct vfsmount * mnt, int flags);
 	void (*sb_umount_close) (struct vfsmount * mnt);
 	void (*sb_umount_busy) (struct vfsmount * mnt);
 	void (*sb_post_remount) (struct vfsmount * mnt,
 				 unsigned long flags, void *data);
 	void (*sb_post_addmount) (struct vfsmount * mnt,
-				  struct nameidata * mountpoint_nd);
-	int (*sb_pivotroot) (struct nameidata * old_nd,
-			     struct nameidata * new_nd);
-	void (*sb_post_pivotroot) (struct nameidata * old_nd,
-				   struct nameidata * new_nd);
+				  struct path *mountpoint);
+	int (*sb_pivotroot) (struct path *old_path,
+			     struct path *new_path);
+	void (*sb_post_pivotroot) (struct path *old_path,
+				   struct path *new_path);
 	int (*sb_get_mnt_opts) (const struct super_block *sb,
 				struct security_mnt_opts *opts);
 	int (*sb_set_mnt_opts) (struct super_block *sb,
@@ -1593,16 +1593,16 @@ void security_sb_free(struct super_block *sb);
 int security_sb_copy_data(char *orig, char *copy);
 int security_sb_kern_mount(struct super_block *sb, void *data);
 int security_sb_statfs(struct dentry *dentry);
-int security_sb_mount(char *dev_name, struct nameidata *nd,
+int security_sb_mount(char *dev_name, struct path *path,
                        char *type, unsigned long flags, void *data);
-int security_sb_check_sb(struct vfsmount *mnt, struct nameidata *nd);
+int security_sb_check_sb(struct vfsmount *mnt, struct path *path);
 int security_sb_umount(struct vfsmount *mnt, int flags);
 void security_sb_umount_close(struct vfsmount *mnt);
 void security_sb_umount_busy(struct vfsmount *mnt);
 void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *data);
-void security_sb_post_addmount(struct vfsmount *mnt, struct nameidata *mountpoint_nd);
-int security_sb_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd);
-void security_sb_post_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd);
+void security_sb_post_addmount(struct vfsmount *mnt, struct path *mountpoint);
+int security_sb_pivotroot(struct path *old_path, struct path *new_path);
+void security_sb_post_pivotroot(struct path *old_path, struct path *new_path);
 int security_sb_get_mnt_opts(const struct super_block *sb,
 				struct security_mnt_opts *opts);
 int security_sb_set_mnt_opts(struct super_block *sb, struct security_mnt_opts *opts);
@@ -1872,7 +1872,7 @@ static inline int security_sb_statfs (struct dentry *dentry)
 	return 0;
 }
 
-static inline int security_sb_mount (char *dev_name, struct nameidata *nd,
+static inline int security_sb_mount (char *dev_name, struct path *path,
 				    char *type, unsigned long flags,
 				    void *data)
 {
@@ -1880,7 +1880,7 @@ static inline int security_sb_mount (char *dev_name, struct nameidata *nd,
 }
 
 static inline int security_sb_check_sb (struct vfsmount *mnt,
-					struct nameidata *nd)
+					struct path *path)
 {
 	return 0;
 }
@@ -1901,17 +1901,17 @@ static inline void security_sb_post_remount (struct vfsmount *mnt,
 { }
 
 static inline void security_sb_post_addmount (struct vfsmount *mnt,
-					      struct nameidata *mountpoint_nd)
+					      struct path *mountpoint)
 { }
 
-static inline int security_sb_pivotroot (struct nameidata *old_nd,
-					 struct nameidata *new_nd)
+static inline int security_sb_pivotroot (struct path *old_path,
+					 struct path *new_path)
 {
 	return 0;
 }
 
-static inline void security_sb_post_pivotroot (struct nameidata *old_nd,
-					       struct nameidata *new_nd)
+static inline void security_sb_post_pivotroot (struct path *old_path,
+					       struct path *new_path)
 { }
 static inline int security_sb_get_mnt_opts(const struct super_block *sb,
 					   struct security_mnt_opts *opts)

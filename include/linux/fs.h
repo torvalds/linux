@@ -305,7 +305,6 @@ struct vfsmount;
 
 extern void __init inode_init(void);
 extern void __init inode_init_early(void);
-extern void __init mnt_init(void);
 extern void __init files_init(unsigned long);
 
 struct buffer_head;
@@ -1536,12 +1535,7 @@ extern struct vfsmount *kern_mount_data(struct file_system_type *, void *data);
 #define kern_mount(type) kern_mount_data(type, NULL)
 extern int may_umount_tree(struct vfsmount *);
 extern int may_umount(struct vfsmount *);
-extern void umount_tree(struct vfsmount *, int, struct list_head *);
-extern void release_mounts(struct list_head *);
 extern long do_mount(char *, char *, char *, unsigned long, void *);
-extern struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
-extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
-				  struct vfsmount *);
 extern struct vfsmount *collect_mounts(struct vfsmount *, struct dentry *);
 extern void drop_collected_mounts(struct vfsmount *);
 

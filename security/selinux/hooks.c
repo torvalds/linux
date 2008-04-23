@@ -2401,22 +2401,22 @@ static int selinux_sb_statfs(struct dentry *dentry)
 }
 
 static int selinux_mount(char *dev_name,
-			 struct nameidata *nd,
+			 struct path *path,
 			 char *type,
 			 unsigned long flags,
 			 void *data)
 {
 	int rc;
 
-	rc = secondary_ops->sb_mount(dev_name, nd, type, flags, data);
+	rc = secondary_ops->sb_mount(dev_name, path, type, flags, data);
 	if (rc)
 		return rc;
 
 	if (flags & MS_REMOUNT)
-		return superblock_has_perm(current, nd->path.mnt->mnt_sb,
+		return superblock_has_perm(current, path->mnt->mnt_sb,
 					   FILESYSTEM__REMOUNT, NULL);
 	else
-		return dentry_has_perm(current, nd->path.mnt, nd->path.dentry,
+		return dentry_has_perm(current, path->mnt, path->dentry,
 				       FILE__MOUNTON);
 }
 

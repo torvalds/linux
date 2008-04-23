@@ -30,6 +30,8 @@ struct seq_operations {
 	int (*show) (struct seq_file *m, void *v);
 };
 
+#define SEQ_SKIP 1
+
 int seq_open(struct file *, const struct seq_operations *);
 ssize_t seq_read(struct file *, char __user *, size_t, loff_t *);
 loff_t seq_lseek(struct file *, loff_t, int);
