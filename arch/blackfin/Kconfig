@@ -220,16 +220,6 @@ config BF54x
 	depends on (BF542 || BF544 || BF547 || BF548 || BF549)
 	default y
 
-config BFIN_DUAL_CORE
-	bool
-	depends on (BF561)
-	default y
-
-config BFIN_SINGLE_CORE
-	bool
-	depends on !BFIN_DUAL_CORE
-	default y
-
 config MEM_GENERIC_BOARD
 	bool
 	depends on GENERIC_BOARD
