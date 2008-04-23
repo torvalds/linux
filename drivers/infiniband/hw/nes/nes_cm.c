@@ -1054,6 +1054,7 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 	int arpindex = 0;
 	struct nes_device *nesdev;
 	struct nes_adapter *nesadapter;
+	DECLARE_MAC_BUF(mac);
 
 	/* create an hte and cm_node for this instance */
 	cm_node = kzalloc(sizeof(*cm_node), GFP_ATOMIC);
@@ -1116,11 +1117,8 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 
 	/* copy the mac addr to node context */
 	memcpy(cm_node->rem_mac, nesadapter->arp_table[arpindex].mac_addr, ETH_ALEN);
-	nes_debug(NES_DBG_CM, "Remote mac addr from arp table:%02x,"
-			" %02x, %02x, %02x, %02x, %02x\n",
-			cm_node->rem_mac[0], cm_node->rem_mac[1],
-			cm_node->rem_mac[2], cm_node->rem_mac[3],
-			cm_node->rem_mac[4], cm_node->rem_mac[5]);
+	nes_debug(NES_DBG_CM, "Remote mac addr from arp table: %s\n",
+		  print_mac(mac, cm_node->rem_mac));
 
 	add_hte_node(cm_core, cm_node);
 	atomic_inc(&cm_nodes_created);

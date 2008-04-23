@@ -353,13 +353,11 @@ struct ib_qp *nes_get_qp(struct ib_device *device, int qpn)
  */
 static void nes_print_macaddr(struct net_device *netdev)
 {
-	nes_debug(NES_DBG_INIT, "%s: MAC %02X:%02X:%02X:%02X:%02X:%02X, IRQ %u\n",
-			netdev->name,
-			netdev->dev_addr[0], netdev->dev_addr[1], netdev->dev_addr[2],
-			netdev->dev_addr[3], netdev->dev_addr[4], netdev->dev_addr[5],
-			netdev->irq);
-}
+	DECLARE_MAC_BUF(mac);
 
+	nes_debug(NES_DBG_INIT, "%s: %s, IRQ %u\n",
+		  netdev->name, print_mac(mac, netdev->dev_addr), netdev->irq);
+}
 
 /**
  * nes_interrupt - handle interrupts
