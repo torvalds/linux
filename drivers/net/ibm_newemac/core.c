@@ -738,7 +738,7 @@ static int __emac_mdio_read(struct emac_instance *dev, u8 id, u8 reg)
 		rgmii_get_mdio(dev->rgmii_dev, dev->rgmii_port);
 
 	/* Wait for management interface to become idle */
-	n = 10;
+	n = 20;
 	while (!emac_phy_done(dev, in_be32(&p->stacr))) {
 		udelay(1);
 		if (!--n) {
@@ -763,7 +763,7 @@ static int __emac_mdio_read(struct emac_instance *dev, u8 id, u8 reg)
 	out_be32(&p->stacr, r);
 
 	/* Wait for read to complete */
-	n = 100;
+	n = 200;
 	while (!emac_phy_done(dev, (r = in_be32(&p->stacr)))) {
 		udelay(1);
 		if (!--n) {
@@ -810,7 +810,7 @@ static void __emac_mdio_write(struct emac_instance *dev, u8 id, u8 reg,
 		rgmii_get_mdio(dev->rgmii_dev, dev->rgmii_port);
 
 	/* Wait for management interface to be idle */
-	n = 10;
+	n = 20;
 	while (!emac_phy_done(dev, in_be32(&p->stacr))) {
 		udelay(1);
 		if (!--n) {
@@ -836,7 +836,7 @@ static void __emac_mdio_write(struct emac_instance *dev, u8 id, u8 reg,
 	out_be32(&p->stacr, r);
 
 	/* Wait for write to complete */
-	n = 100;
+	n = 200;
 	while (!emac_phy_done(dev, in_be32(&p->stacr))) {
 		udelay(1);
 		if (!--n) {
