@@ -2530,7 +2530,6 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 	struct config_param *config;
 	u64 tmp;
 	struct buffAdd *ba;
-	unsigned long flags;
 	struct RxD_t *first_rxdp = NULL;
 	u64 Buffer0_ptr = 0, Buffer1_ptr = 0;
 	struct RxD1 *rxdp1;
@@ -2578,15 +2577,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 			DBG_PRINT(INTR_DBG, "%s: Next block at: %p\n",
 				  dev->name, rxdp);
 		}
-		if(!napi) {
-			spin_lock_irqsave(&nic->put_lock, flags);
-			mac_control->rings[ring_no].put_pos =
-			(block_no * (rxd_count[nic->rxd_mode] + 1)) + off;
-			spin_unlock_irqrestore(&nic->put_lock, flags);
-		} else {
-			mac_control->rings[ring_no].put_pos =
-			(block_no * (rxd_count[nic->rxd_mode] + 1)) + off;
-		}
+
 		if ((rxdp->Control_1 & RXD_OWN_XENA) &&
 			((nic->rxd_mode == RXD_MODE_3B) &&
 				(rxdp->Control_2 & s2BIT(0)))) {
@@ -2964,7 +2955,7 @@ static void rx_intr_handler(struct ring_info *ring_data)
 {
 	struct s2io_nic *nic = ring_data->nic;
 	struct net_device *dev = (struct net_device *) nic->dev;
-	int get_block, put_block, put_offset;
+	int get_block, put_block;
 	struct rx_curr_get_info get_info, put_info;
 	struct RxD_t *rxdp;
 	struct sk_buff *skb;
@@ -2973,19 +2964,11 @@ static void rx_intr_handler(struct ring_info *ring_data)
 	struct RxD1* rxdp1;
 	struct RxD3* rxdp3;
 
-	spin_lock(&nic->rx_lock);
-
 	get_info = ring_data->rx_curr_get_info;
 	get_block = get_info.block_index;
 	memcpy(&put_info, &ring_data->rx_curr_put_info, sizeof(put_info));
 	put_block = put_info.block_index;
 	rxdp = ring_data->rx_blocks[get_block].rxds[get_info.offset].virt_addr;
-	if (!napi) {
-		spin_lock(&nic->put_lock);
-		put_offset = ring_data->put_pos;
-		spin_unlock(&nic->put_lock);
-	} else
-		put_offset = ring_data->put_pos;
 
 	while (RXD_IS_UP2DT(rxdp)) {
 		/*
@@ -3002,7 +2985,6 @@ static void rx_intr_handler(struct ring_info *ring_data)
 			DBG_PRINT(ERR_DBG, "%s: The skb is ",
 				  dev->name);
 			DBG_PRINT(ERR_DBG, "Null in Rx Intr\n");
-			spin_unlock(&nic->rx_lock);
 			return;
 		}
 		if (nic->rxd_mode == RXD_MODE_1) {
@@ -3058,8 +3040,6 @@ static void rx_intr_handler(struct ring_info *ring_data)
 			}
 		}
 	}
-
-	spin_unlock(&nic->rx_lock);
 }
 
 /**
@@ -7083,7 +7063,6 @@ static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
 {
 	int cnt = 0;
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
-	unsigned long flags;
 	register u64 val64 = 0;
 	struct config_param *config;
 	config = &sp->config;
@@ -7142,9 +7121,7 @@ static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
 	free_tx_buffers(sp);
 
 	/* Free all Rx buffers */
-	spin_lock_irqsave(&sp->rx_lock, flags);
 	free_rx_buffers(sp);
-	spin_unlock_irqrestore(&sp->rx_lock, flags);
 
 	clear_bit(__S2IO_STATE_LINK_TASK, &(sp->state));
 }
@@ -8043,10 +8020,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	/* Initialize spinlocks */
 	for (i = 0; i < sp->config.tx_fifo_num; i++)
 		spin_lock_init(&mac_control->fifos[i].tx_lock);
-
-	if (!napi)
-		spin_lock_init(&sp->put_lock);
-	spin_lock_init(&sp->rx_lock);
 
 	/*
 	 * SXE-002: Configure link and activity LED to init state
