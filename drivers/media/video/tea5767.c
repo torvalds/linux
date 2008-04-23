@@ -393,11 +393,6 @@ int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 		return EINVAL;
 	}
 
-	/* It seems that tea5767 returns 0xff after the 5th byte */
-	if ((buffer[5] != 0xff) || (buffer[6] != 0xff)) {
-		printk(KERN_WARNING "Returned more than 5 bytes. It is not a TEA5767\n");
-		return EINVAL;
-	}
 
 	return 0;
 }
