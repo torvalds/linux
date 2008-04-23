@@ -67,7 +67,7 @@ static int __init blackfin_dma_init(void)
 
 	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++) {
 		dma_ch[i].chan_status = DMA_CHANNEL_FREE;
-		dma_ch[i].regs = base_addr[i];
+		dma_ch[i].regs = dma_io_base_addr[i];
 		mutex_init(&(dma_ch[i].dmalock));
 	}
 	/* Mark MEMDMA Channel 0 as requested since we're using it internally */

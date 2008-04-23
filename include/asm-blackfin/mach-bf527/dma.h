@@ -59,7 +59,4 @@
 #define CH_NFC			CH_EMAC_TX /* PPI receive/transmit or NFC */
 #endif
 
-extern int channel2irq(unsigned int channel);
-extern struct dma_register *base_addr[];
-
 #endif
