@@ -318,6 +318,8 @@ void __init generate_cpl_tables(void)
 	struct cplb_tab *t_d = NULL;
 	struct s_cplb cplb;
 
+	printk(KERN_INFO "NOMPU: setting up cplb tables for global access\n");
+
 	cplb.init_i.size = MAX_CPLBS;
 	cplb.init_d.size = MAX_CPLBS;
 	cplb.switch_i.size = MAX_SWITCH_I_CPLBS;

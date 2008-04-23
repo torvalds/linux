@@ -43,6 +43,8 @@ void __init generate_cpl_tables(void)
 	unsigned long d_data, i_data;
 	unsigned long d_cache = 0, i_cache = 0;
 
+	printk(KERN_INFO "MPU: setting up cplb tables with memory protection\n");
+
 #ifdef CONFIG_BFIN_ICACHE
 	i_cache = CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
 #endif
