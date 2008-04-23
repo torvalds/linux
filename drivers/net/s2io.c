@@ -2458,7 +2458,7 @@ static void free_tx_buffers(struct s2io_nic *nic)
 	for (i = 0; i < config->tx_fifo_num; i++) {
 		unsigned long flags;
 		spin_lock_irqsave(&mac_control->fifos[i].tx_lock, flags);
-		for (j = 0; j < config->tx_cfg[i].fifo_len - 1; j++) {
+		for (j = 0; j < config->tx_cfg[i].fifo_len; j++) {
 			txdp = (struct TxD *) \
 			mac_control->fifos[i].list_info[j].list_virt_addr;
 			skb = s2io_txdl_getskb(&mac_control->fifos[i], txdp, j);
