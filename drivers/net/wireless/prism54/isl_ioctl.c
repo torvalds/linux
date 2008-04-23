@@ -1186,7 +1186,7 @@ prism54_get_encode(struct net_device *ndev, struct iw_request_info *info,
 	rvalue |= mgt_get_request(priv, DOT11_OID_DEFKEYID, 0, NULL, &r);
 	devindex = r.u;
 	/* Now get the key, return it */
-	if ((index < 0) || (index > 3))
+	if (index == -1 || index > 3)
 		/* no index provided, use the current one */
 		index = devindex;
 	rvalue |= mgt_get_request(priv, DOT11_OID_DEFKEYX, index, NULL, &r);
