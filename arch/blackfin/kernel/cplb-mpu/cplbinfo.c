@@ -39,14 +39,6 @@
 #include <asm/cplbinit.h>
 #include <asm/blackfin.h>
 
-#define CPLB_I 1
-#define CPLB_D 2
-
-#define SYNC_SYS    SSYNC()
-#define SYNC_CORE   CSYNC()
-
-#define CPLB_BIT_PAGESIZE 0x30000
-
 static char page_size_string_table[][4] = { "1K", "4K", "1M", "4M" };
 
 static char *cplb_print_entry(char *buf, struct cplb_entry *tbl, int switched)

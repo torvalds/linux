@@ -161,6 +161,11 @@ static noinline int dcplb_miss(void)
 			addr &= ~0x3fffff;
 			d_data &= ~PAGE_SIZE_4KB;
 			d_data |= PAGE_SIZE_4MB;
+		} else if (addr >= BOOT_ROM_START && addr < BOOT_ROM_START + BOOT_ROM_LENGTH
+		    && (status & (FAULT_RW | FAULT_USERSUPV)) == FAULT_USERSUPV) {
+			addr &= ~(1 * 1024 * 1024 - 1);
+			d_data &= ~PAGE_SIZE_4KB;
+			d_data |= PAGE_SIZE_1MB | CPLB_USER_RD;
 		} else
 			return CPLB_PROT_VIOL;
 	} else if (addr >= _ramend) {
@@ -277,7 +282,6 @@ static noinline int icplb_miss(void)
 
 static noinline int dcplb_protection_fault(void)
 {
-	unsigned long addr = bfin_read_DCPLB_FAULT_ADDR();
 	int status = bfin_read_DCPLB_STATUS();
 
 	nr_dcplb_prot++;
