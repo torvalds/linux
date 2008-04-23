@@ -343,12 +343,13 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 	if (mutex_lock_interruptible(&ctx->run_mutex))
 		return -ERESTARTSYS;
 
-	spu_enable_spu(ctx);
 	ctx->event_return = 0;
 
 	ret = spu_acquire(ctx);
 	if (ret)
 		goto out_unlock;
+
+	spu_enable_spu(ctx);
 
 	spu_update_sched_info(ctx);
 
