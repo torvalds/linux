@@ -174,16 +174,6 @@ static int cplbinfo_read_proc(char *page, char **start, off_t off,
 	return len;
 }
 
-static int cplbinfo_write_proc(struct file *file, const char __user *buffer,
-			       unsigned long count, void *data)
-{
-	printk(KERN_INFO "Reset the CPLB swap in/out counts.\n");
-	memset(ipdt_swapcount_table, 0, MAX_SWITCH_I_CPLBS * sizeof(unsigned long));
-	memset(dpdt_swapcount_table, 0, MAX_SWITCH_D_CPLBS * sizeof(unsigned long));
-
-	return count;
-}
-
 static int __init cplbinfo_init(void)
 {
 	struct proc_dir_entry *entry;
@@ -193,7 +183,6 @@ static int __init cplbinfo_init(void)
 		return -ENOMEM;
 
 	entry->read_proc = cplbinfo_read_proc;
-	entry->write_proc = cplbinfo_write_proc;
 	entry->data = NULL;
 
 	return 0;

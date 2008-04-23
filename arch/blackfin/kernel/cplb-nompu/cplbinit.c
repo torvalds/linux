@@ -26,6 +26,29 @@
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
+/*
+* Number of required data CPLB switchtable entries
+* MEMSIZE / 4 (we mostly install 4M page size CPLBs
+* approx 16 for smaller 1MB page size CPLBs for allignment purposes
+* 1 for L1 Data Memory
+* possibly 1 for L2 Data Memory
+* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
+* 1 for ASYNC Memory
+*/
+#define MAX_SWITCH_D_CPLBS (((CONFIG_MEM_SIZE / 4) + 16 + 1 + 1 + 1 \
+				 + ASYNC_MEMORY_CPLB_COVERAGE) * 2)
+
+/*
+* Number of required instruction CPLB switchtable entries
+* MEMSIZE / 4 (we mostly install 4M page size CPLBs
+* approx 12 for smaller 1MB page size CPLBs for allignment purposes
+* 1 for L1 Instruction Memory
+* possibly 1 for L2 Instruction Memory
+* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
+*/
+#define MAX_SWITCH_I_CPLBS (((CONFIG_MEM_SIZE / 4) + 12 + 1 + 1 + 1) * 2)
+
+
 u_long icplb_table[MAX_CPLBS + 1];
 u_long dcplb_table[MAX_CPLBS + 1];
 
