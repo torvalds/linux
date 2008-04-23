@@ -24,11 +24,11 @@
 
 /*
  * This file defines the layout of UBI headers and all the other UBI on-flash
- * data structures. May be included by user-space.
+ * data structures.
  */
 
-#ifndef __UBI_HEADER_H__
-#define __UBI_HEADER_H__
+#ifndef __UBI_MEDIA_H__
+#define __UBI_MEDIA_H__
 
 #include <asm/byteorder.h>
 
@@ -369,4 +369,4 @@ struct ubi_vtbl_record {
 	__be32  crc;
 } __attribute__ ((packed));
 
-#endif /* !__UBI_HEADER_H__ */
+#endif /* !__UBI_MEDIA_H__ */

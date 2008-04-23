@@ -37,10 +37,9 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/mtd/mtd.h>
-
-#include <mtd/ubi-header.h>
 #include <linux/mtd/ubi.h>
 
+#include "ubi-media.h"
 #include "scan.h"
 #include "debug.h"
 

@@ -99,8 +99,10 @@ void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG_BLD
 /* Initialization and build messages */
 #define dbg_bld(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
+#define UBI_IO_DEBUG 1
 #else
 #define dbg_bld(fmt, ...) ({})
+#define UBI_IO_DEBUG 0
 #endif
 
 #ifdef CONFIG_MTD_UBI_DEBUG_EMULATE_BITFLIPS
