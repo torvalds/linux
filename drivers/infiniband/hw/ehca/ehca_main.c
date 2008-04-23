@@ -85,8 +85,8 @@ module_param_named(lock_hcalls,   ehca_lock_hcalls,   bool, S_IRUGO);
 MODULE_PARM_DESC(open_aqp1,
 		 "AQP1 on startup (0: no (default), 1: yes)");
 MODULE_PARM_DESC(debug_level,
-		 "debug level"
-		 " (0: no debug traces (default), 1: with debug traces)");
+		 "Amount of debug output (0: none (default), 1: traces, "
+		 "2: some dumps, 3: lots)");
 MODULE_PARM_DESC(hw_level,
 		 "hardware level"
 		 " (0: autosensing (default), 1: v. 0.20, 2: v. 0.21)");
@@ -275,6 +275,7 @@ static int ehca_sense_attributes(struct ehca_shca *shca)
 	u64 h_ret;
 	struct hipz_query_hca *rblock;
 	struct hipz_query_port *port;
+	const char *loc_code;
 
 	static const u32 pgsize_map[] = {
 		HCA_CAP_MR_PGSIZE_4K,  0x1000,
@@ -282,6 +283,12 @@ static int ehca_sense_attributes(struct ehca_shca *shca)
 		HCA_CAP_MR_PGSIZE_1M,  0x100000,
 		HCA_CAP_MR_PGSIZE_16M, 0x1000000,
 	};
+
+	ehca_gen_dbg("Probing adapter %s...",
+		     shca->ofdev->node->full_name);
+	loc_code = of_get_property(shca->ofdev->node, "ibm,loc-code", NULL);
+	if (loc_code)
+		ehca_gen_dbg(" ... location lode=%s", loc_code);
 
 	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);
 	if (!rblock) {
@@ -567,8 +574,7 @@ static int ehca_destroy_aqp1(struct ehca_sport *sport)
 
 static ssize_t ehca_show_debug_level(struct device_driver *ddp, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			ehca_debug_level);
+	return snprintf(buf, PAGE_SIZE, "%d\n", ehca_debug_level);
 }
 
 static ssize_t ehca_store_debug_level(struct device_driver *ddp,

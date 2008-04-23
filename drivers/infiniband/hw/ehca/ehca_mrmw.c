@@ -1794,8 +1794,9 @@ static int ehca_check_kpages_per_ate(struct scatterlist *page_list,
 	int t;
 	for (t = start_idx; t <= end_idx; t++) {
 		u64 pgaddr = page_to_pfn(sg_page(&page_list[t])) << PAGE_SHIFT;
-		ehca_gen_dbg("chunk_page=%lx value=%016lx", pgaddr,
-			     *(u64 *)abs_to_virt(phys_to_abs(pgaddr)));
+		if (ehca_debug_level >= 3)
+			ehca_gen_dbg("chunk_page=%lx value=%016lx", pgaddr,
+				     *(u64 *)abs_to_virt(phys_to_abs(pgaddr)));
 		if (pgaddr - PAGE_SIZE != *prev_pgaddr) {
 			ehca_gen_err("uncontiguous page found pgaddr=%lx "
 				     "prev_pgaddr=%lx page_list_i=%x",
@@ -1862,10 +1863,13 @@ static int ehca_set_pagebuf_user2(struct ehca_mr_pginfo *pginfo,
 						pgaddr &
 						~(pginfo->hwpage_size - 1));
 				}
-				ehca_gen_dbg("kpage=%lx chunk_page=%lx "
-					     "value=%016lx", *kpage, pgaddr,
-					     *(u64 *)abs_to_virt(
-						     phys_to_abs(pgaddr)));
+				if (ehca_debug_level >= 3) {
+					u64 val = *(u64 *)abs_to_virt(
+						phys_to_abs(pgaddr));
+					ehca_gen_dbg("kpage=%lx chunk_page=%lx "
+						     "value=%016lx",
+						     *kpage, pgaddr, val);
+				}
 				prev_pgaddr = pgaddr;
 				i++;
 				pginfo->kpage_cnt++;
