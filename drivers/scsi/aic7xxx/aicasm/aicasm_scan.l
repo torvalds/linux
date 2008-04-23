@@ -228,15 +228,15 @@ ret			{ return T_RET; }
 nop			{ return T_NOP; }
 
 	/* ARP2 16bit extensions */
-or16			{ return T_OR16; }
-and16			{ return T_AND16; }
-xor16			{ return T_XOR16; }
-add16			{ return T_ADD16; }
-adc16			{ return T_ADC16; }
-mvi16			{ return T_MVI16; }
-test16			{ return T_TEST16; }
-cmp16			{ return T_CMP16; }
-cmpxchg			{ return T_CMPXCHG; }
+	/* or16			{ return T_OR16; } */
+	/* and16			{ return T_AND16; }*/
+	/* xor16			{ return T_XOR16; }*/
+	/* add16			{ return T_ADD16; }*/
+	/* adc16			{ return T_ADC16; }*/
+	/* mvi16			{ return T_MVI16; }*/
+	/* test16			{ return T_TEST16; }*/
+	/* cmp16			{ return T_CMP16; }*/
+	/* cmpxchg			{ return T_CMPXCHG; }*/
 
 	/* Allowed Symbols */
 \<\<			{ return T_EXPR_LSHIFT; }
