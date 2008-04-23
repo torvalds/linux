@@ -122,8 +122,7 @@ stop() is the place to free it.
 	}
 
 Finally, the show() function should format the object currently pointed to
-by the iterator for output. It should return zero, or an error code if
-something goes wrong. The example module's show() function is:
+by the iterator for output.  The example module's show() function is:
 
 	static int ct_seq_show(struct seq_file *s, void *v)
 	{
@@ -131,6 +130,12 @@ something goes wrong. The example module's show() function is:
 	        seq_printf(s, "%lld\n", (long long)*spos);
 	        return 0;
 	}
+
+If all is well, the show() function should return zero.  A negative error
+code in the usual manner indicates that something went wrong; it will be
+passed back to user space.  This function can also return SEQ_SKIP, which
+causes the current item to be skipped; if the show() function has already
+generated output before returning SEQ_SKIP, that output will be dropped.
 
 We will look at seq_printf() in a moment. But first, the definition of the
 seq_file iterator is finished by creating a seq_operations structure with
