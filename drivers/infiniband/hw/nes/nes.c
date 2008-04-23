@@ -139,8 +139,9 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 
 	addr = ntohl(ifa->ifa_address);
 	mask = ntohl(ifa->ifa_mask);
-	nes_debug(NES_DBG_NETDEV, "nes_inetaddr_event: ip address %08X, netmask %08X.\n",
-			addr, mask);
+	nes_debug(NES_DBG_NETDEV, "nes_inetaddr_event: ip address " NIPQUAD_FMT
+		  ", netmask " NIPQUAD_FMT ".\n",
+		  HIPQUAD(addr), HIPQUAD(mask));
 	list_for_each_entry(nesdev, &nes_dev_list, list) {
 		nes_debug(NES_DBG_NETDEV, "Nesdev list entry = 0x%p. (%s)\n",
 				nesdev, nesdev->netdev[0]->name);
