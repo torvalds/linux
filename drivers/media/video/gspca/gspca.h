@@ -90,17 +90,18 @@ struct ctrl {
 /* subdriver description */
 struct sd_desc {
 /* information */
-	char *name;			/* sub-driver name */
+	char *name;		/* sub-driver name */
 /* controls */
 	struct ctrl *ctrls;
 	int nctrls;
 /* operations */
-	cam_cf_op config;		/* called on probe */
-	cam_op open;			/* called on open */
-	cam_v_op start;			/* called on stream on */
-	cam_v_op stopN;			/* called on stream off - main alt */
-	cam_v_op stop0;			/* called on stream off - alt 0 */
-	cam_v_op close;			/* called on close */
+	cam_cf_op config;	/* called on probe */
+	cam_op open;		/* called on open */
+	cam_v_op start;		/* called on stream on */
+	cam_v_op stopN;		/* called on stream off - main alt */
+	cam_v_op stop0;		/* called on stream off - alt 0 */
+	cam_v_op close;		/* called on close */
+	cam_v_op dq_callback;	/* called when a frame has been dequeued */
 	cam_pkt_op pkt_scan;
 	cam_jpg_op get_jcomp;
 	cam_jpg_op set_jcomp;
@@ -167,8 +168,6 @@ int gspca_dev_probe(struct usb_interface *intf,
 		const struct usb_device_id *id,
 		const struct sd_desc *sd_desc,
 		int dev_size);
-int gspca_dev_init(struct gspca_dev *gspca_dev,
-		   struct usb_interface *intf);
 void gspca_disconnect(struct usb_interface *intf);
 struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				    int packet_type,
