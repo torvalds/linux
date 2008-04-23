@@ -112,15 +112,6 @@ extern void init_leds(void);
 
 extern const char bfin_board_name[];
 extern unsigned long wall_jiffies;
-extern unsigned long ipdt_table[];
-extern unsigned long dpdt_table[];
-extern unsigned long icplb_table[];
-extern unsigned long dcplb_table[];
-
-extern unsigned long ipdt_swapcount_table[];
-extern unsigned long dpdt_swapcount_table[];
-
-extern unsigned long table_start, table_end;
 
 extern unsigned long bfin_sic_iwr[];
 extern u16 _bfin_swrst; /* shadow for Software Reset Register (SWRST) */

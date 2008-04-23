@@ -33,9 +33,7 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 
-#include <asm/current.h>
-#include <asm/system.h>
-#include <asm/cplb.h>
+#include <asm/cplbinit.h>
 #include <asm/blackfin.h>
 
 #define CPLB_I 1
