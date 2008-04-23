@@ -1404,6 +1404,7 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 			rdlease_count++;
 	}
 
+	error = -EAGAIN;
 	if ((arg == F_RDLCK && (wrlease_count > 0)) ||
 	    (arg == F_WRLCK && ((rdlease_count + wrlease_count) > 0)))
 		goto out;
