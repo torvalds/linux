@@ -82,8 +82,6 @@
 #define STATUS_P1	0x02
 #define STATUS_P0	0x01
 
-/* UART 0*/
-
 /* DMA Channnel */
 #define bfin_read_CH_UART_RX() bfin_read_CH_UART0_RX()
 #define bfin_write_CH_UART_RX(val) bfin_write_CH_UART0_RX(val)
@@ -106,37 +104,37 @@
 /* MMR Registers*/
 #define bfin_read_UART_THR() bfin_read_UART0_THR()
 #define bfin_write_UART_THR(val) bfin_write_UART0_THR(val)
-#define UART_THR UART0_THR
+#define BFIN_UART_THR UART0_THR
 #define bfin_read_UART_RBR() bfin_read_UART0_RBR()
 #define bfin_write_UART_RBR(val) bfin_write_UART0_RBR(val)
-#define UART_RBR UART0_RBR
+#define BFIN_UART_RBR UART0_RBR
 #define bfin_read_UART_DLL() bfin_read_UART0_DLL()
 #define bfin_write_UART_DLL(val) bfin_write_UART0_DLL(val)
-#define UART_DLL UART0_DLL
+#define BFIN_UART_DLL UART0_DLL
 #define bfin_read_UART_IER() bfin_read_UART0_IER()
 #define bfin_write_UART_IER(val) bfin_write_UART0_IER(val)
-#define UART_IER UART0_IER
+#define BFIN_UART_IER UART0_IER
 #define bfin_read_UART_DLH() bfin_read_UART0_DLH()
 #define bfin_write_UART_DLH(val) bfin_write_UART0_DLH(val)
-#define UART_DLH UART0_DLH
+#define BFIN_UART_DLH UART0_DLH
 #define bfin_read_UART_IIR() bfin_read_UART0_IIR()
 #define bfin_write_UART_IIR(val) bfin_write_UART0_IIR(val)
-#define UART_IIR UART0_IIR
+#define BFIN_UART_IIR UART0_IIR
 #define bfin_read_UART_LCR() bfin_read_UART0_LCR()
 #define bfin_write_UART_LCR(val) bfin_write_UART0_LCR(val)
-#define UART_LCR UART0_LCR
+#define BFIN_UART_LCR UART0_LCR
 #define bfin_read_UART_MCR() bfin_read_UART0_MCR()
 #define bfin_write_UART_MCR(val) bfin_write_UART0_MCR(val)
-#define UART_MCR UART0_MCR
+#define BFIN_UART_MCR UART0_MCR
 #define bfin_read_UART_LSR() bfin_read_UART0_LSR()
 #define bfin_write_UART_LSR(val) bfin_write_UART0_LSR(val)
-#define UART_LSR UART0_LSR
+#define BFIN_UART_LSR UART0_LSR
 #define bfin_read_UART_SCR() bfin_read_UART0_SCR()
 #define bfin_write_UART_SCR(val) bfin_write_UART0_SCR(val)
-#define UART_SCR  UART0_SCR
+#define BFIN_UART_SCR  UART0_SCR
 #define bfin_read_UART_GCTL() bfin_read_UART0_GCTL()
 #define bfin_write_UART_GCTL(val) bfin_write_UART0_GCTL(val)
-#define UART_GCTL UART0_GCTL
+#define BFIN_UART_GCTL UART0_GCTL
 
 /* DPMC*/
 #define bfin_read_STOPCK_OFF() bfin_read_STOPCK()
