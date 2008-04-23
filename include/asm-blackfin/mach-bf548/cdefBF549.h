@@ -1740,7 +1740,7 @@
 #define bfin_read_USB_DMA5ADDRHIGH()		bfin_read16(USB_DMA5ADDRHIGH)
 #define bfin_write_USB_DMA5ADDRHIGH(val)		bfin_write16(USB_DMA5ADDRHIGH, val)
 #define bfin_read_USB_DMA5COUNTLOW()		bfin_read16(USB_DMA5COUNTLOW)
-#define bfin_write_USB_DMA5COUNTLOW(val)	fin_write16(USB_DMA5COUNTLOW, val)
+#define bfin_write_USB_DMA5COUNTLOW(val)	bfin_write16(USB_DMA5COUNTLOW, val)
 #define bfin_read_USB_DMA5COUNTHIGH()		bfin_read16(USB_DMA5COUNTHIGH)
 #define bfin_write_USB_DMA5COUNTHIGH(val)	bfin_write16(USB_DMA5COUNTHIGH, val)
 
