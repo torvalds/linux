@@ -195,7 +195,7 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 		return 0;
 	}
 
-	if (new_mtu > IPOIB_PACKET_SIZE - IPOIB_ENCAP_LEN)
+	if (new_mtu > IPOIB_UD_MTU(priv->max_ib_mtu))
 		return -EINVAL;
 
 	priv->admin_mtu = new_mtu;
@@ -971,10 +971,6 @@ static void ipoib_setup(struct net_device *dev)
 				    NETIF_F_LLTX		|
 				    NETIF_F_HIGHDMA);
 
-	/* MTU will be reset when mcast join happens */
-	dev->mtu		 = IPOIB_PACKET_SIZE - IPOIB_ENCAP_LEN;
-	priv->mcast_mtu		 = priv->admin_mtu = dev->mtu;
-
 	memcpy(dev->broadcast, ipv4_bcast_addr, INFINIBAND_ALEN);
 
 	netif_carrier_off(dev);
@@ -1107,6 +1103,7 @@ static struct net_device *ipoib_add_port(const char *format,
 {
 	struct ipoib_dev_priv *priv;
 	struct ib_device_attr *device_attr;
+	struct ib_port_attr attr;
 	int result = -ENOMEM;
 
 	priv = ipoib_intf_alloc(format);
@@ -1114,6 +1111,18 @@ static struct net_device *ipoib_add_port(const char *format,
 		goto alloc_mem_failed;
 
 	SET_NETDEV_DEV(priv->dev, hca->dma_device);
+
+	if (!ib_query_port(hca, port, &attr))
+		priv->max_ib_mtu = ib_mtu_enum_to_int(attr.max_mtu);
+	else {
+		printk(KERN_WARNING "%s: ib_query_port %d failed\n",
+		       hca->name, port);
+		goto device_init_failed;
+	}
+
+	/* MTU will be reset when mcast join happens */
+	priv->dev->mtu  = IPOIB_UD_MTU(priv->max_ib_mtu);
+	priv->mcast_mtu  = priv->admin_mtu = priv->dev->mtu;
 
 	result = ib_query_pkey(hca, port, 0, &priv->pkey);
 	if (result) {
