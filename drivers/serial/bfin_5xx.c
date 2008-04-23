@@ -806,10 +806,6 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	UART_SET_ANOMALY_THRESHOLD(uart, USEC_PER_SEC / baud * 15);
 
-	do {
-		lsr = UART_GET_LSR(uart);
-	} while (!(lsr & TEMT));
-
 	/* Disable UART */
 	ier = UART_GET_IER(uart);
 #ifdef CONFIG_BF54x
