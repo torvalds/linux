@@ -2248,10 +2248,13 @@ static void ieee80211_rx_bss_put(struct net_device *dev,
 				 struct ieee80211_sta_bss *bss)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	if (!atomic_dec_and_test(&bss->users))
-		return;
 
-	spin_lock_bh(&local->sta_bss_lock);
+	local_bh_disable();
+	if (!atomic_dec_and_lock(&bss->users, &local->sta_bss_lock)) {
+		local_bh_enable();
+		return;
+	}
+
 	__ieee80211_rx_bss_hash_del(dev, bss);
 	list_del(&bss->list);
 	spin_unlock_bh(&local->sta_bss_lock);
