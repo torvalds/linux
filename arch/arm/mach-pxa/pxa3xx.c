@@ -486,6 +486,8 @@ static int pxa3xx_set_wake(unsigned int irq, unsigned int on)
 	case IRQ_MMC3:
 		mask = ADXER_MFP_GEN12;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	local_irq_save(flags);
