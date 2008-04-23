@@ -307,7 +307,6 @@ sys_fsetxattr(int fd, char __user *name, void __user *value,
 		error = setxattr(dentry, name, value, size, flags);
 		mnt_drop_write(f->f_path.mnt);
 	}
-out_fput:
 	fput(f);
 	return error;
 }

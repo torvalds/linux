@@ -28,6 +28,57 @@ static inline struct vfsmount *next_slave(struct vfsmount *p)
 	return list_entry(p->mnt_slave.next, struct vfsmount, mnt_slave);
 }
 
+/*
+ * Return true if path is reachable from root
+ *
+ * namespace_sem is held, and mnt is attached
+ */
+static bool is_path_reachable(struct vfsmount *mnt, struct dentry *dentry,
+			 const struct path *root)
+{
+	while (mnt != root->mnt && mnt->mnt_parent != mnt) {
+		dentry = mnt->mnt_mountpoint;
+		mnt = mnt->mnt_parent;
+	}
+	return mnt == root->mnt && is_subdir(dentry, root->dentry);
+}
+
+static struct vfsmount *get_peer_under_root(struct vfsmount *mnt,
+					    struct mnt_namespace *ns,
+					    const struct path *root)
+{
+	struct vfsmount *m = mnt;
+
+	do {
+		/* Check the namespace first for optimization */
+		if (m->mnt_ns == ns && is_path_reachable(m, m->mnt_root, root))
+			return m;
+
+		m = next_peer(m);
+	} while (m != mnt);
+
+	return NULL;
+}
+
+/*
+ * Get ID of closest dominating peer group having a representative
+ * under the given root.
+ *
+ * Caller must hold namespace_sem
+ */
+int get_dominating_id(struct vfsmount *mnt, const struct path *root)
+{
+	struct vfsmount *m;
+
+	for (m = mnt->mnt_master; m != NULL; m = m->mnt_master) {
+		struct vfsmount *d = get_peer_under_root(m, mnt->mnt_ns, root);
+		if (d)
+			return d->mnt_group_id;
+	}
+
+	return 0;
+}
+
 static int do_make_slave(struct vfsmount *mnt)
 {
 	struct vfsmount *peer_mnt = mnt, *master = mnt->mnt_master;
@@ -46,7 +97,11 @@ static int do_make_slave(struct vfsmount *mnt)
 		if (peer_mnt == mnt)
 			peer_mnt = NULL;
 	}
+	if (IS_MNT_SHARED(mnt) && list_empty(&mnt->mnt_share))
+		mnt_release_group_id(mnt);
+
 	list_del_init(&mnt->mnt_share);
+	mnt->mnt_group_id = 0;
 
 	if (peer_mnt)
 		master = peer_mnt;
@@ -68,7 +123,6 @@ static int do_make_slave(struct vfsmount *mnt)
 	}
 	mnt->mnt_master = master;
 	CLEAR_MNT_SHARED(mnt);
-	INIT_LIST_HEAD(&mnt->mnt_slave_list);
 	return 0;
 }
 
