@@ -941,7 +941,7 @@ int peripheral_request(unsigned short per, const char *label)
 EXPORT_SYMBOL(peripheral_request);
 #endif
 
-int peripheral_request_list(unsigned short per[], const char *label)
+int peripheral_request_list(const unsigned short per[], const char *label)
 {
 	u16 cnt;
 	int ret;
@@ -994,7 +994,7 @@ void peripheral_free(unsigned short per)
 }
 EXPORT_SYMBOL(peripheral_free);
 
-void peripheral_free_list(unsigned short per[])
+void peripheral_free_list(const unsigned short per[])
 {
 	u16 cnt;
 	for (cnt = 0; per[cnt] != 0; cnt++)
