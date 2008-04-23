@@ -1849,8 +1849,10 @@ static int mini_cm_recv_pkt(struct nes_cm_core *cm_core, struct nes_vnic *nesvni
 	nfo.rem_addr = ntohl(iph->saddr);
 	nfo.rem_port = ntohs(tcph->source);
 
-	nes_debug(NES_DBG_CM, "Received packet: dest=0x%08X:0x%04X src=0x%08X:0x%04X\n",
-			iph->daddr, tcph->dest, iph->saddr, tcph->source);
+	nes_debug(NES_DBG_CM, "Received packet: dest=" NIPQUAD_FMT
+		  ":0x%04X src=" NIPQUAD_FMT ":0x%04X\n",
+		  NIPQUAD(iph->daddr), tcph->dest,
+		  NIPQUAD(iph->saddr), tcph->source);
 
 	/* note: this call is going to increment cm_node ref count */
 	cm_node = find_node(cm_core,
