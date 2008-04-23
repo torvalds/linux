@@ -1368,17 +1368,17 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	lease = *flp;
 
 	if (arg != F_UNLCK) {
+		error = -ENOMEM;
+		new_fl = locks_alloc_lock();
+		if (new_fl == NULL)
+			goto out;
+
 		error = -EAGAIN;
 		if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
 			goto out;
 		if ((arg == F_WRLCK)
 		    && ((atomic_read(&dentry->d_count) > 1)
 			|| (atomic_read(&inode->i_count) > 1)))
-			goto out;
-
-		error = -ENOMEM;
-		new_fl = locks_alloc_lock();
-		if (new_fl == NULL)
 			goto out;
 	}
 
