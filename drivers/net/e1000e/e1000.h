@@ -70,6 +70,9 @@ struct e1000_info;
 #define E1000_MAX_RXD			4096
 #define E1000_MIN_RXD			80
 
+#define E1000_MIN_ITR_USECS		10 /* 100000 irq/sec */
+#define E1000_MAX_ITR_USECS		10000 /* 100    irq/sec */
+
 /* Early Receive defines */
 #define E1000_ERT_2048			0x100
 
