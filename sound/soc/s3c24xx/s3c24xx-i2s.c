@@ -159,10 +159,10 @@ static void s3c24xx_snd_rxctrl(int on)
 		 * DMA engine will simply freeze randomly.
 		 */
 
-        iisfcon &= ~S3C2410_IISFCON_RXENABLE;
-        iisfcon &= ~S3C2410_IISFCON_RXDMA;
-        iiscon  |= S3C2410_IISCON_RXIDLE;
-        iiscon  &= ~S3C2410_IISCON_RXDMAEN;
+		iisfcon &= ~S3C2410_IISFCON_RXENABLE;
+		iisfcon &= ~S3C2410_IISFCON_RXDMA;
+		iiscon  |= S3C2410_IISCON_RXIDLE;
+		iiscon  &= ~S3C2410_IISCON_RXDMAEN;
 		iismod  &= ~S3C2410_IISMOD_RXMODE;
 
 		writel(iisfcon, s3c24xx_i2s.regs + S3C2410_IISFCON);
