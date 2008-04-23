@@ -26,6 +26,12 @@ config H8606_HVSISTEMAS
 	help
 	  HV Sistemas H8606 board support.
 
+config BFIN532_IP0X
+	bool "IP04/IP08 IP-PBX"
+	depends on (BF532)
+	help
+	  Core support for IP04/IP04 open hardware IP-PBX.
+
 config GENERIC_BF533_BOARD
 	bool "Generic"
 	help

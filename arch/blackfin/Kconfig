@@ -249,7 +249,7 @@ config MEM_MT48LC8M32B2B5_7
 
 config MEM_MT48LC32M16A2TG_75
 	bool
-	depends on (BFIN527_EZKIT)
+	depends on (BFIN527_EZKIT || BFIN532_IP0X)
 	default y
 
 source "arch/blackfin/mach-bf527/Kconfig"
@@ -281,6 +281,7 @@ config CLKIN_HZ
 	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS)
 	default "30000000" if BFIN561_EZKIT
 	default "24576000" if PNAV10
+	default "10000000" if BFIN532_IP0X
 	help
 	  The frequency of CLKIN crystal oscillator on the board in Hz.
 
@@ -304,6 +305,7 @@ config MEM_ADD_WIDTH
 	default 10 if BFIN537_STAMP
 	default 11 if BFIN533_STAMP
 	default 10 if PNAV10
+	default 10 if BFIN532_IP0X
 
 config PLL_BYPASS
 	bool "Bypass PLL"
@@ -450,6 +452,7 @@ config MEM_SIZE
 	default  64 if PNAV10
 	default  32 if H8606_HVSISTEMAS
 	default  64 if BFIN548_BLUETECHNIX_CM
+	default  64 if BFIN532_IP0X
 
 choice
 	prompt "DDR SDRAM Chip Type"
