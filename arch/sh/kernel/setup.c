@@ -77,6 +77,11 @@ static struct resource data_resource = {
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
 };
 
+static struct resource bss_resource = {
+	.name	= "Kernel bss",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM,
+};
+
 unsigned long memory_start;
 EXPORT_SYMBOL(memory_start);
 unsigned long memory_end = 0;
@@ -268,6 +273,8 @@ void __init setup_arch(char **cmdline_p)
 	code_resource.end = virt_to_phys(_etext)-1;
 	data_resource.start = virt_to_phys(_etext);
 	data_resource.end = virt_to_phys(_edata)-1;
+	bss_resource.start = virt_to_phys(__bss_start);
+	bss_resource.end = virt_to_phys(_ebss)-1;
 
 	memory_start = (unsigned long)__va(__MEMORY_START);
 	if (!memory_end)
