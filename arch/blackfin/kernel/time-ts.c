@@ -12,6 +12,7 @@
 #include <linux/profile.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
+#include <linux/timex.h>
 #include <linux/irq.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
@@ -35,9 +36,7 @@ static inline unsigned long long cycles_2_ns(cycle_t cyc)
 
 static cycle_t read_cycles(void)
 {
-	unsigned long tmp, tmp2;
-	asm("%0 = cycles; %1 = cycles2;" : "=d"(tmp), "=d"(tmp2));
-	return tmp | ((cycle_t)tmp2 << 32);
+	return get_cycles();
 }
 
 unsigned long long sched_clock(void)
