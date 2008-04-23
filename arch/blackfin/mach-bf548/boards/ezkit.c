@@ -339,7 +339,7 @@ static struct mtd_partition ezkit_partitions[] = {
 		.offset     = 0,
 	}, {
 		.name       = "Kernel",
-		.size       = 0xE0000,
+		.size       = 0x1C0000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "RootFS",
