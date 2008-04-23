@@ -83,6 +83,11 @@ SECTIONS
 		. = ALIGN(32);
 		*(.data.cacheline_aligned)
 
+#if !L1_DATA_A_LENGTH
+		. = ALIGN(32);
+		*(.data_l1.cacheline_aligned)
+#endif
+
 		DATA_DATA
 		*(.data.*)
 		CONSTRUCTORS
