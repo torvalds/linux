@@ -910,11 +910,14 @@ static DEFINE_PER_CPU(unsigned long long, prev_cpu_time);
 static DEFINE_SPINLOCK(time_sync_lock);
 static unsigned long long prev_global_time;
 
-static unsigned long long __sync_cpu_clock(cycles_t time, int cpu)
+static unsigned long long __sync_cpu_clock(unsigned long long time, int cpu)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&time_sync_lock, flags);
+	/*
+	 * We want this inlined, to not get tracer function calls
+	 * in this critical section:
+	 */
+	spin_acquire(&time_sync_lock.dep_map, 0, 0, _THIS_IP_);
+	__raw_spin_lock(&time_sync_lock.raw_lock);
 
 	if (time < prev_global_time) {
 		per_cpu(time_offset, cpu) += prev_global_time - time;
@@ -923,7 +926,8 @@ static unsigned long long __sync_cpu_clock(cycles_t time, int cpu)
 		prev_global_time = time;
 	}
 
-	spin_unlock_irqrestore(&time_sync_lock, flags);
+	__raw_spin_unlock(&time_sync_lock.raw_lock);
+	spin_release(&time_sync_lock.dep_map, 1, _THIS_IP_);
 
 	return time;
 }
@@ -931,7 +935,6 @@ static unsigned long long __sync_cpu_clock(cycles_t time, int cpu)
 static unsigned long long __cpu_clock(int cpu)
 {
 	unsigned long long now;
-	unsigned long flags;
 	struct rq *rq;
 
 	/*
@@ -941,11 +944,9 @@ static unsigned long long __cpu_clock(int cpu)
 	if (unlikely(!scheduler_running))
 		return 0;
 
-	local_irq_save(flags);
 	rq = cpu_rq(cpu);
 	update_rq_clock(rq);
 	now = rq->clock;
-	local_irq_restore(flags);
 
 	return now;
 }
@@ -957,13 +958,18 @@ static unsigned long long __cpu_clock(int cpu)
 unsigned long long cpu_clock(int cpu)
 {
 	unsigned long long prev_cpu_time, time, delta_time;
+	unsigned long flags;
 
+	local_irq_save(flags);
 	prev_cpu_time = per_cpu(prev_cpu_time, cpu);
 	time = __cpu_clock(cpu) + per_cpu(time_offset, cpu);
 	delta_time = time-prev_cpu_time;
 
-	if (unlikely(delta_time > time_sync_thresh))
+	if (unlikely(delta_time > time_sync_thresh)) {
 		time = __sync_cpu_clock(time, cpu);
+		per_cpu(prev_cpu_time, cpu) = time;
+	}
+	local_irq_restore(flags);
 
 	return time;
 }
