@@ -468,6 +468,9 @@ static struct of_device_id celleb_phb_match[] __initdata = {
 		.name = "epci",
 		.data = &celleb_epci_spec,
 	}, {
+		.name = "pcie",
+		.data = &celleb_pciex_spec,
+	}, {
 	},
 };
 

@@ -33,6 +33,7 @@ obj-$(CONFIG_PCI_MSI)			+= axon_msi.o
 ifeq ($(CONFIG_PPC_CELLEB),y)
 obj-y					+= celleb_setup.o \
 					   celleb_pci.o celleb_scc_epci.o \
+					   celleb_scc_pciex.o \
 					   celleb_scc_uhc.o \
 					   io-workarounds.o spider-pci.o \
 					   beat.o beat_htab.o beat_hvCall.o \
