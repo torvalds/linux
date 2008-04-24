@@ -101,6 +101,12 @@ static void at91_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 	struct nand_chip *nand_chip = mtd->priv;
 	struct at91_nand_host *host = nand_chip->priv;
 
+	if (host->board->enable_pin && (ctrl & NAND_CTRL_CHANGE)) {
+		if (ctrl & NAND_NCE)
+			at91_set_gpio_value(host->board->enable_pin, 0);
+		else
+			at91_set_gpio_value(host->board->enable_pin, 1);
+	}
 	if (cmd == NAND_CMD_NONE)
 		return;
 
