@@ -289,7 +289,6 @@ out:
 static void virtblk_remove(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
-	int major = vblk->disk->major;
 
 	/* Nothing should be pending. */
 	BUG_ON(!list_empty(&vblk->reqs));
@@ -299,7 +298,6 @@ static void virtblk_remove(struct virtio_device *vdev)
 
 	blk_cleanup_queue(vblk->disk->queue);
 	put_disk(vblk->disk);
-	unregister_blkdev(major, "virtblk");
 	mempool_destroy(vblk->pool);
 	vdev->config->del_vq(vblk->vq);
 	kfree(vblk);
