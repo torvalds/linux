@@ -108,6 +108,30 @@ static inline int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
 }
 #endif
 
+#ifdef CONFIG_NONPROMISC_DEVMEM
+static inline int range_is_allowed(unsigned long from, unsigned long to)
+{
+	unsigned long cursor;
+
+	cursor = from >> PAGE_SHIFT;
+	while ((cursor << PAGE_SHIFT) < to) {
+		if (!devmem_is_allowed(cursor)) {
+			printk(KERN_INFO "Program %s tried to read /dev/mem "
+				"between %lx->%lx.\n",
+				current->comm, from, to);
+			return 0;
+		}
+		cursor++;
+	}
+	return 1;
+}
+#else
+static inline int range_is_allowed(unsigned long from, unsigned long to)
+{
+	return 1;
+}
+#endif
+
 /*
  * This funcion reads the *physical* memory. The f_pos points directly to the 
  * memory location. 
@@ -157,6 +181,8 @@ static ssize_t read_mem(struct file * file, char __user * buf,
 		 */
 		ptr = xlate_dev_mem_ptr(p);
 
+		if (!range_is_allowed(p, p+count))
+			return -EPERM;
 		if (copy_to_user(buf, ptr, sz))
 			return -EFAULT;
 		buf += sz;
@@ -214,6 +240,8 @@ static ssize_t write_mem(struct file * file, const char __user * buf,
 		 */
 		ptr = xlate_dev_mem_ptr(p);
 
+		if (!range_is_allowed(p, p+sz))
+			return -EPERM;
 		copied = copy_from_user(ptr, buf, sz);
 		if (copied) {
 			written += sz - copied;
