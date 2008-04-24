@@ -3827,27 +3827,8 @@ static struct ccw_driver qeth_ccw_driver = {
 static int qeth_core_driver_group(const char *buf, struct device *root_dev,
 				unsigned long driver_id)
 {
-	const char *start, *end;
-	char bus_ids[3][BUS_ID_SIZE], *argv[3];
-	int i;
-
-	start = buf;
-	for (i = 0; i < 3; i++) {
-		static const char delim[] = { ',', ',', '\n' };
-		int len;
-
-		end = strchr(start, delim[i]);
-		if (!end)
-			return -EINVAL;
-		len = min_t(ptrdiff_t, BUS_ID_SIZE, end - start);
-		strncpy(bus_ids[i], start, len);
-		bus_ids[i][len] = '\0';
-		start = end + 1;
-		argv[i] = bus_ids[i];
-	}
-
-	return (ccwgroup_create(root_dev, driver_id,
-				&qeth_ccw_driver, 3, argv));
+	return ccwgroup_create_from_string(root_dev, driver_id,
+					   &qeth_ccw_driver, 3, buf);
 }
 
 int qeth_core_hardsetup_card(struct qeth_card *card)
