@@ -506,8 +506,7 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 		uart->rx_dma_buf.tail = uart->rx_dma_buf.head;
 	}
 
-	uart->rx_dma_timer.expires = jiffies + DMA_RX_FLUSH_JIFFIES;
-	add_timer(&(uart->rx_dma_timer));
+	mod_timer(&(uart->rx_dma_timer), jiffies + DMA_RX_FLUSH_JIFFIES);
 }
 
 static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
@@ -550,9 +549,7 @@ static irqreturn_t bfin_serial_dma_rx_int(int irq, void *dev_id)
 	clear_dma_irqstat(uart->rx_dma_channel);
 	spin_unlock(&uart->port.lock);
 
-	del_timer(&(uart->rx_dma_timer));
-	uart->rx_dma_timer.expires = jiffies;
-	add_timer(&(uart->rx_dma_timer));
+	mod_timer(&(uart->rx_dma_timer), jiffies);
 
 	return IRQ_HANDLED;
 }
