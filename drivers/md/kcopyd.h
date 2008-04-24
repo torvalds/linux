@@ -1,29 +1,33 @@
 /*
- * Copyright (C) 2001 Sistina Software
+ * Copyright (C) 2001 - 2003 Sistina Software
+ * Copyright (C) 2004 - 2008 Red Hat, Inc. All rights reserved.
+ *
+ * kcopyd provides a simple interface for copying an area of one
+ * block-device to one or more other block-devices, either synchronous
+ * or with an asynchronous completion notification.
  *
  * This file is released under the GPL.
- *
- * Kcopyd provides a simple interface for copying an area of one
- * block-device to one or more other block-devices, with an asynchronous
- * completion notification.
  */
 
-#ifndef DM_KCOPYD_H
-#define DM_KCOPYD_H
+#ifndef _LINUX_DM_KCOPYD_H
+#define _LINUX_DM_KCOPYD_H
+
+#ifdef __KERNEL__
 
 #include "dm-io.h"
 
 /* FIXME: make this configurable */
-#define KCOPYD_MAX_REGIONS 8
+#define DM_KCOPYD_MAX_REGIONS 8
 
-#define KCOPYD_IGNORE_ERROR 1
+#define DM_KCOPYD_IGNORE_ERROR 1
 
 /*
- * To use kcopyd you must first create a kcopyd client object.
+ * To use kcopyd you must first create a dm_kcopyd_client object.
  */
-struct kcopyd_client;
-int kcopyd_client_create(unsigned int num_pages, struct kcopyd_client **result);
-void kcopyd_client_destroy(struct kcopyd_client *kc);
+struct dm_kcopyd_client;
+int dm_kcopyd_client_create(unsigned num_pages,
+			    struct dm_kcopyd_client **result);
+void dm_kcopyd_client_destroy(struct dm_kcopyd_client *kc);
 
 /*
  * Submit a copy job to kcopyd.  This is built on top of the
@@ -32,11 +36,12 @@ void kcopyd_client_destroy(struct kcopyd_client *kc);
  * read_err is a boolean,
  * write_err is a bitset, with 1 bit for each destination region
  */
-typedef void (*kcopyd_notify_fn)(int read_err, unsigned long write_err,
-				 void *context);
+typedef void (*dm_kcopyd_notify_fn)(int read_err, unsigned long write_err,
+				    void *context);
 
-int kcopyd_copy(struct kcopyd_client *kc, struct dm_io_region *from,
-		unsigned num_dests, struct dm_io_region *dests,
-		unsigned int flags, kcopyd_notify_fn fn, void *context);
+int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
+		   unsigned num_dests, struct dm_io_region *dests,
+		   unsigned flags, dm_kcopyd_notify_fn fn, void *context);
 
-#endif
+#endif	/* __KERNEL__ */
+#endif	/* _LINUX_DM_KCOPYD_H */

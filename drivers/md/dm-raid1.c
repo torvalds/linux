@@ -133,7 +133,7 @@ struct mirror_set {
 	struct dm_target *ti;
 	struct list_head list;
 	struct region_hash rh;
-	struct kcopyd_client *kcopyd_client;
+	struct dm_kcopyd_client *kcopyd_client;
 	uint64_t features;
 
 	spinlock_t lock;	/* protects the lists */
@@ -788,7 +788,7 @@ static int recover(struct mirror_set *ms, struct region *reg)
 {
 	int r;
 	unsigned int i;
-	struct dm_io_region from, to[KCOPYD_MAX_REGIONS], *dest;
+	struct dm_io_region from, to[DM_KCOPYD_MAX_REGIONS], *dest;
 	struct mirror *m;
 	unsigned long flags = 0;
 
@@ -820,9 +820,9 @@ static int recover(struct mirror_set *ms, struct region *reg)
 	}
 
 	/* hand to kcopyd */
-	set_bit(KCOPYD_IGNORE_ERROR, &flags);
-	r = kcopyd_copy(ms->kcopyd_client, &from, ms->nr_mirrors - 1, to, flags,
-			recovery_complete, reg);
+	set_bit(DM_KCOPYD_IGNORE_ERROR, &flags);
+	r = dm_kcopyd_copy(ms->kcopyd_client, &from, ms->nr_mirrors - 1, to,
+			   flags, recovery_complete, reg);
 
 	return r;
 }
@@ -1504,7 +1504,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argc -= args_used;
 
 	if (!argc || sscanf(argv[0], "%u", &nr_mirrors) != 1 ||
-	    nr_mirrors < 2 || nr_mirrors > KCOPYD_MAX_REGIONS + 1) {
+	    nr_mirrors < 2 || nr_mirrors > DM_KCOPYD_MAX_REGIONS + 1) {
 		ti->error = "Invalid number of mirrors";
 		dm_destroy_dirty_log(dl);
 		return -EINVAL;
@@ -1569,7 +1569,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_destroy_wq;
 	}
 
-	r = kcopyd_client_create(DM_IO_PAGES, &ms->kcopyd_client);
+	r = dm_kcopyd_client_create(DM_IO_PAGES, &ms->kcopyd_client);
 	if (r)
 		goto err_destroy_wq;
 
@@ -1588,7 +1588,7 @@ static void mirror_dtr(struct dm_target *ti)
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
 
 	flush_workqueue(ms->kmirrord_wq);
-	kcopyd_client_destroy(ms->kcopyd_client);
+	dm_kcopyd_client_destroy(ms->kcopyd_client);
 	destroy_workqueue(ms->kmirrord_wq);
 	free_context(ms, ti, ms->nr_mirrors);
 }

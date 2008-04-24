@@ -9,9 +9,8 @@
  * completion notification.
  */
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <asm/atomic.h>
-
 #include <linux/blkdev.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -39,7 +38,7 @@ static void wake(void)
  * Each kcopyd client has its own little pool of preallocated
  * pages for kcopyd io.
  *---------------------------------------------------------------*/
-struct kcopyd_client {
+struct dm_kcopyd_client {
 	struct list_head list;
 
 	spinlock_t lock;
@@ -76,7 +75,7 @@ static void free_pl(struct page_list *pl)
 	kfree(pl);
 }
 
-static int kcopyd_get_pages(struct kcopyd_client *kc,
+static int kcopyd_get_pages(struct dm_kcopyd_client *kc,
 			    unsigned int nr, struct page_list **pages)
 {
 	struct page_list *pl;
@@ -99,7 +98,7 @@ static int kcopyd_get_pages(struct kcopyd_client *kc,
 	return 0;
 }
 
-static void kcopyd_put_pages(struct kcopyd_client *kc, struct page_list *pl)
+static void kcopyd_put_pages(struct dm_kcopyd_client *kc, struct page_list *pl)
 {
 	struct page_list *cursor;
 
@@ -127,7 +126,7 @@ static void drop_pages(struct page_list *pl)
 	}
 }
 
-static int client_alloc_pages(struct kcopyd_client *kc, unsigned int nr)
+static int client_alloc_pages(struct dm_kcopyd_client *kc, unsigned int nr)
 {
 	unsigned int i;
 	struct page_list *pl = NULL, *next;
@@ -148,7 +147,7 @@ static int client_alloc_pages(struct kcopyd_client *kc, unsigned int nr)
 	return 0;
 }
 
-static void client_free_pages(struct kcopyd_client *kc)
+static void client_free_pages(struct dm_kcopyd_client *kc)
 {
 	BUG_ON(kc->nr_free_pages != kc->nr_pages);
 	drop_pages(kc->pages);
@@ -162,7 +161,7 @@ static void client_free_pages(struct kcopyd_client *kc)
  * ever having to do io (which could cause a deadlock).
  *---------------------------------------------------------------*/
 struct kcopyd_job {
-	struct kcopyd_client *kc;
+	struct dm_kcopyd_client *kc;
 	struct list_head list;
 	unsigned long flags;
 
@@ -182,7 +181,7 @@ struct kcopyd_job {
 	 * The destinations for the transfer.
 	 */
 	unsigned int num_dests;
-	struct dm_io_region dests[KCOPYD_MAX_REGIONS];
+	struct dm_io_region dests[DM_KCOPYD_MAX_REGIONS];
 
 	sector_t offset;
 	unsigned int nr_pages;
@@ -192,7 +191,7 @@ struct kcopyd_job {
 	 * Set this to ensure you are notified when the job has
 	 * completed.  'context' is for callback to use.
 	 */
-	kcopyd_notify_fn fn;
+	dm_kcopyd_notify_fn fn;
 	void *context;
 
 	/*
@@ -295,8 +294,8 @@ static int run_complete_job(struct kcopyd_job *job)
 	void *context = job->context;
 	int read_err = job->read_err;
 	unsigned long write_err = job->write_err;
-	kcopyd_notify_fn fn = job->fn;
-	struct kcopyd_client *kc = job->kc;
+	dm_kcopyd_notify_fn fn = job->fn;
+	struct dm_kcopyd_client *kc = job->kc;
 
 	kcopyd_put_pages(kc, job->pages);
 	mempool_free(job, _job_pool);
@@ -318,7 +317,7 @@ static void complete_io(unsigned long error, void *context)
 		else
 			job->read_err = 1;
 
-		if (!test_bit(KCOPYD_IGNORE_ERROR, &job->flags)) {
+		if (!test_bit(DM_KCOPYD_IGNORE_ERROR, &job->flags)) {
 			push(&_complete_jobs, job);
 			wake();
 			return;
@@ -470,7 +469,7 @@ static void segment_complete(int read_err, unsigned long write_err,
 	 * Only dispatch more work if there hasn't been an error.
 	 */
 	if ((!job->read_err && !job->write_err) ||
-	    test_bit(KCOPYD_IGNORE_ERROR, &job->flags)) {
+	    test_bit(DM_KCOPYD_IGNORE_ERROR, &job->flags)) {
 		/* get the next chunk of work */
 		progress = job->progress;
 		count = job->source.count - progress;
@@ -527,9 +526,9 @@ static void split_job(struct kcopyd_job *job)
 		segment_complete(0, 0u, job);
 }
 
-int kcopyd_copy(struct kcopyd_client *kc, struct dm_io_region *from,
-		unsigned int num_dests, struct dm_io_region *dests,
-		unsigned int flags, kcopyd_notify_fn fn, void *context)
+int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
+		   unsigned int num_dests, struct dm_io_region *dests,
+		   unsigned int flags, dm_kcopyd_notify_fn fn, void *context)
 {
 	struct kcopyd_job *job;
 
@@ -570,6 +569,7 @@ int kcopyd_copy(struct kcopyd_client *kc, struct dm_io_region *from,
 
 	return 0;
 }
+EXPORT_SYMBOL(dm_kcopyd_copy);
 
 /*
  * Cancels a kcopyd job, eg. someone might be deactivating a
@@ -589,14 +589,14 @@ int kcopyd_cancel(struct kcopyd_job *job, int block)
 static DEFINE_MUTEX(_client_lock);
 static LIST_HEAD(_clients);
 
-static void client_add(struct kcopyd_client *kc)
+static void client_add(struct dm_kcopyd_client *kc)
 {
 	mutex_lock(&_client_lock);
 	list_add(&kc->list, &_clients);
 	mutex_unlock(&_client_lock);
 }
 
-static void client_del(struct kcopyd_client *kc)
+static void client_del(struct dm_kcopyd_client *kc)
 {
 	mutex_lock(&_client_lock);
 	list_del(&kc->list);
@@ -650,10 +650,11 @@ static void kcopyd_exit(void)
 	mutex_unlock(&kcopyd_init_lock);
 }
 
-int kcopyd_client_create(unsigned int nr_pages, struct kcopyd_client **result)
+int dm_kcopyd_client_create(unsigned int nr_pages,
+			    struct dm_kcopyd_client **result)
 {
 	int r = 0;
-	struct kcopyd_client *kc;
+	struct dm_kcopyd_client *kc;
 
 	r = kcopyd_init();
 	if (r)
@@ -691,8 +692,9 @@ int kcopyd_client_create(unsigned int nr_pages, struct kcopyd_client **result)
 	*result = kc;
 	return 0;
 }
+EXPORT_SYMBOL(dm_kcopyd_client_create);
 
-void kcopyd_client_destroy(struct kcopyd_client *kc)
+void dm_kcopyd_client_destroy(struct dm_kcopyd_client *kc)
 {
 	/* Wait for completion of all jobs submitted by this client. */
 	wait_event(kc->destroyq, !atomic_read(&kc->nr_jobs));
@@ -703,7 +705,4 @@ void kcopyd_client_destroy(struct kcopyd_client *kc)
 	kfree(kc);
 	kcopyd_exit();
 }
-
-EXPORT_SYMBOL(kcopyd_client_create);
-EXPORT_SYMBOL(kcopyd_client_destroy);
-EXPORT_SYMBOL(kcopyd_copy);
+EXPORT_SYMBOL(dm_kcopyd_client_destroy);

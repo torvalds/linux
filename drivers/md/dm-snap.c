@@ -558,7 +558,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad4;
 	}
 
-	r = kcopyd_client_create(SNAPSHOT_PAGES, &s->kcopyd_client);
+	r = dm_kcopyd_client_create(SNAPSHOT_PAGES, &s->kcopyd_client);
 	if (r) {
 		ti->error = "Could not create kcopyd client";
 		goto bad5;
@@ -591,7 +591,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	return 0;
 
  bad6:
-	kcopyd_client_destroy(s->kcopyd_client);
+	dm_kcopyd_client_destroy(s->kcopyd_client);
 
  bad5:
 	s->store.destroy(&s->store);
@@ -613,7 +613,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 static void __free_exceptions(struct dm_snapshot *s)
 {
-	kcopyd_client_destroy(s->kcopyd_client);
+	dm_kcopyd_client_destroy(s->kcopyd_client);
 	s->kcopyd_client = NULL;
 
 	exit_exception_table(&s->pending, pending_cache);
@@ -839,7 +839,7 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 	dest.count = src.count;
 
 	/* Hand over to kcopyd */
-	kcopyd_copy(s->kcopyd_client,
+	dm_kcopyd_copy(s->kcopyd_client,
 		    &src, 1, &dest, 0, copy_callback, pe);
 }
 
