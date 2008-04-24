@@ -44,11 +44,31 @@
  */
 #define CACHE_DLINESIZE	32
 
+	.bss
+	.align 3
+__cache_params_loc:
+	.space	8
+
 	.text
+__cache_params:
+	.word	__cache_params_loc
+
 /*
  * cpu_feroceon_proc_init()
  */
 ENTRY(cpu_feroceon_proc_init)
+	mrc	p15, 0, r0, c0, c0, 1		@ read cache type register
+	ldr	r1, __cache_params
+	mov	r2, #(16 << 5)
+	tst	r0, #(1 << 16)			@ get way
+	mov	r0, r0, lsr #18			@ get cache size order
+	movne	r3, #((4 - 1) << 30)		@ 4-way
+	and	r0, r0, #0xf
+	moveq	r3, #0				@ 1-way
+	mov	r2, r2, lsl r0			@ actual cache size
+	movne	r2, r2, lsr #2			@ turned into # of sets
+	sub	r2, r2, #(1 << 5)
+	stmia	r1, {r2, r3}
 	mov	pc, lr
 
 /*
@@ -117,11 +137,19 @@ ENTRY(feroceon_flush_user_cache_all)
  */
 ENTRY(feroceon_flush_kern_cache_all)
 	mov	r2, #VM_EXEC
-	mov	ip, #0
+
 __flush_whole_cache:
-1:	mrc	p15, 0, r15, c7, c14, 3 	@ test,clean,invalidate
-	bne	1b
+	ldr	r1, __cache_params
+	ldmia	r1, {r1, r3}
+1:	orr	ip, r1, r3
+2:	mcr	p15, 0, ip, c7, c14, 2		@ clean + invalidate D set/way
+	subs	ip, ip, #(1 << 30)		@ next way
+	bcs	2b
+	subs	r1, r1, #(1 << 5)		@ next set
+	bcs	1b
+
 	tst	r2, #VM_EXEC
+	mov	ip, #0
 	mcrne	p15, 0, ip, c7, c5, 0		@ invalidate I cache
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
 	mov	pc, lr
@@ -138,7 +166,6 @@ __flush_whole_cache:
  */
 	.align	5
 ENTRY(feroceon_flush_user_cache_range)
-	mov	ip, #0
 	sub	r3, r1, r0			@ calculate total size
 	cmp	r3, #CACHE_DLIMIT
 	bgt	__flush_whole_cache
@@ -152,6 +179,7 @@ ENTRY(feroceon_flush_user_cache_range)
 	cmp	r0, r1
 	blo	1b
 	tst	r2, #VM_EXEC
+	mov	ip, #0
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
 	mov	pc, lr
 
@@ -306,16 +334,25 @@ ENTRY(cpu_feroceon_dcache_clean_area)
 	.align	5
 ENTRY(cpu_feroceon_switch_mm)
 #ifdef CONFIG_MMU
-	mov	ip, #0
-@ && 'Clean & Invalidate whole DCache'
-1:	mrc	p15, 0, r15, c7, c14, 3 	@ test,clean,invalidate
-	bne	1b
-	mcr	p15, 0, ip, c7, c5, 0		@ invalidate I cache
-	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
+	/*
+	 * Note: we wish to call __flush_whole_cache but we need to preserve
+	 * lr to do so.  The only way without touching main memory is to
+	 * use r2 which is normally used to test the VM_EXEC flag, and
+	 * compensate locally for the skipped ops if it is not set.
+	 */
+	mov	r2, lr				@ abuse r2 to preserve lr
+	bl	__flush_whole_cache
+	@ if r2 contains the VM_EXEC bit then the next 2 ops are done already
+	tst	r2, #VM_EXEC
+	mcreq	p15, 0, ip, c7, c5, 0		@ invalidate I cache
+	mcreq	p15, 0, ip, c7, c10, 4		@ drain WB
+
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
-#endif
+	mov	pc, r2
+#else
 	mov	pc, lr
+#endif
 
 /*
  * cpu_feroceon_set_pte_ext(ptep, pte, ext)
