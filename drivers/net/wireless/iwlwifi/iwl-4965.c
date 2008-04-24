@@ -618,8 +618,8 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 
 	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 		    CSR49_HW_IF_CONFIG_REG_BIT_4965_R |
-		    CSR49_HW_IF_CONFIG_REG_BIT_RADIO_SI |
-		    CSR49_HW_IF_CONFIG_REG_BIT_MAC_SI);
+		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
+		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
 	ret = iwl_grab_nic_access(priv);
 	if (ret < 0) {
