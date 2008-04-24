@@ -43,10 +43,6 @@
 
 #define iob()  __asm__ __volatile__("eieio; sync":::"memory")
 
-struct epci_private {
-	dma_addr_t	dummy_page_da;
-};
-
 static inline PCI_IO_ADDR celleb_epci_get_epci_base(
 					struct pci_controller *hose)
 {
@@ -69,42 +65,6 @@ static inline PCI_IO_ADDR celleb_epci_get_epci_cfg(
 	 */
 
 	return hose->cfg_data;
-}
-
-static void scc_epci_dummy_read(struct pci_controller *hose)
-{
-	PCI_IO_ADDR epci_base;
-	u32 val;
-
-	epci_base = celleb_epci_get_epci_base(hose);
-
-	val = in_be32(epci_base + SCC_EPCI_WATRP);
-	iosync();
-
-	return;
-}
-
-void __init epci_workaround_init(struct pci_controller *hose)
-{
-	PCI_IO_ADDR epci_base;
-	PCI_IO_ADDR reg;
-	struct epci_private *private = hose->private_data;
-
-	BUG_ON(!private);
-
-	private->dummy_page_da = dma_map_single(hose->parent,
-		celleb_dummy_page_va, PAGE_SIZE, DMA_FROM_DEVICE);
-	if (private->dummy_page_da == DMA_ERROR_CODE) {
-		printk(KERN_ERR "EPCI: dummy read disabled. "
-		       "Map dummy page failed.\n");
-		return;
-	}
-
-	celleb_pci_add_one(hose, scc_epci_dummy_read);
-	epci_base = celleb_epci_get_epci_base(hose);
-
-	reg = epci_base + SCC_EPCI_DUMYRADR;
-	out_be32(reg, private->dummy_page_da);
 }
 
 static inline void clear_and_disable_master_abort_interrupt(
@@ -425,8 +385,8 @@ static int __init celleb_epci_init(struct pci_controller *hose)
 	return 0;
 }
 
-int __init celleb_setup_epci(struct device_node *node,
-				struct pci_controller *hose)
+static int __init celleb_setup_epci(struct device_node *node,
+				    struct pci_controller *hose)
 {
 	struct resource r;
 
@@ -462,20 +422,12 @@ int __init celleb_setup_epci(struct device_node *node,
 		 r.start, (unsigned long)hose->cfg_data,
 		(r.end - r.start + 1));
 
-	hose->private_data = kzalloc(sizeof(struct epci_private), GFP_KERNEL);
-	if (hose->private_data == NULL) {
-		printk(KERN_ERR "EPCI: no memory for private data.\n");
-		goto error;
-	}
-
 	hose->ops = &celleb_epci_ops;
 	celleb_epci_init(hose);
 
 	return 0;
 
 error:
-	kfree(hose->private_data);
-
 	if (hose->cfg_addr)
 		iounmap(hose->cfg_addr);
 
@@ -483,3 +435,10 @@ error:
 		iounmap(hose->cfg_data);
 	return 1;
 }
+
+struct celleb_phb_spec celleb_epci_spec __initdata = {
+	.setup = celleb_setup_epci,
+	.ops = &spiderpci_ops,
+	.iowa_init = &spiderpci_iowa_init,
+	.iowa_data = (void *)0,
+};

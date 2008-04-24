@@ -27,3 +27,9 @@ obj-$(CONFIG_SPU_BASE)			+= spu_callbacks.o spu_base.o \
 					   spufs/
 
 obj-$(CONFIG_PCI_MSI)			+= axon_msi.o
+
+
+# celleb stuff
+ifeq ($(CONFIG_PPC_CELLEB),y)
+obj-y					+= io-workarounds.o spider-pci.o
+endif
