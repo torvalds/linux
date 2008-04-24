@@ -20,6 +20,8 @@ void save_stack_trace(struct stack_trace *trace)
 	thread_base = (unsigned long) tp;
 	do {
 		struct reg_window *rw;
+		struct pt_regs *regs;
+		unsigned long pc;
 
 		/* Bogus frame pointer? */
 		if (fp < (thread_base + sizeof(struct thread_info)) ||
@@ -27,11 +29,19 @@ void save_stack_trace(struct stack_trace *trace)
 			break;
 
 		rw = (struct reg_window *) fp;
+		regs = (struct pt_regs *) (rw + 1);
+
+		if ((regs->magic & ~0x1ff) == PT_REGS_MAGIC) {
+			pc = regs->tpc;
+			fp = regs->u_regs[UREG_I6] + STACK_BIAS;
+		} else {
+			pc = rw->ins[7];
+			fp = rw->ins[6] + STACK_BIAS;
+		}
+
 		if (trace->skip > 0)
 			trace->skip--;
 		else
-			trace->entries[trace->nr_entries++] = rw->ins[7];
-
-		fp = rw->ins[6] + STACK_BIAS;
+			trace->entries[trace->nr_entries++] = pc;
 	} while (trace->nr_entries < trace->max_entries);
 }
