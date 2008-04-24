@@ -46,6 +46,26 @@
 
 #define IWL5000_UCODE_API  "-1"
 
+static struct iwl_hcmd_ops iwl5000_hcmd = {
+};
+
+static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
+};
+
+static struct iwl_lib_ops iwl5000_lib = {
+	.eeprom_ops = {
+		.verify_signature  = iwlcore_eeprom_verify_signature,
+		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
+		.release_semaphore = iwlcore_eeprom_release_semaphore,
+	},
+};
+
+static struct iwl_ops iwl5000_ops = {
+	.lib = &iwl5000_lib,
+	.hcmd = &iwl5000_hcmd,
+	.utils = &iwl5000_hcmd_utils,
+};
+
 static struct iwl_mod_params iwl50_mod_params = {
 	.num_of_queues = IWL50_NUM_QUEUES,
 	.enable_qos = 1,
@@ -58,6 +78,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.name = "5300AGN",
 	.fw_name = "iwlwifi-5000" IWL5000_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.ops = &iwl5000_ops,
 	.mod_params = &iwl50_mod_params,
 };
 
@@ -65,6 +86,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.name = "5100AGN",
 	.fw_name = "iwlwifi-5000" IWL5000_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.ops = &iwl5000_ops,
 	.mod_params = &iwl50_mod_params,
 };
 
@@ -72,6 +94,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.name = "5350AGN",
 	.fw_name = "iwlwifi-5000" IWL5000_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.ops = &iwl5000_ops,
 	.mod_params = &iwl50_mod_params,
 };
 
