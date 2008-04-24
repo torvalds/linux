@@ -38,7 +38,7 @@ enum {
 };
 
 static struct intc_vect vectors[] __initdata = {
-	INTC_VECT(IRQ4, 0x680), INTC_VECT(IRQ5, 0x6a0),
+	/* IRQ0->5 are handled in setup-sh3.c */
 	INTC_VECT(DMAC_DEI0, 0x800), INTC_VECT(DMAC_DEI1, 0x820),
 	INTC_VECT(DMAC_DEI2, 0x840), INTC_VECT(DMAC_DEI3, 0x860),
 	INTC_VECT(SCIF0_ERI, 0x880), INTC_VECT(SCIF0_RXI, 0x8a0),
@@ -89,14 +89,6 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7710", vectors, groups,
-			 NULL, prio_registers, NULL);
-
-static struct intc_vect vectors_irq[] __initdata = {
-	INTC_VECT(IRQ0, 0x600), INTC_VECT(IRQ1, 0x620),
-	INTC_VECT(IRQ2, 0x640), INTC_VECT(IRQ3, 0x660),
-};
-
-static DECLARE_INTC_DESC(intc_desc_irq, "sh7710-irq", vectors_irq, NULL,
 			 NULL, prio_registers, NULL);
 
 static struct resource rtc_resources[] = {
@@ -170,16 +162,8 @@ static int __init sh7710_devices_setup(void)
 }
 __initcall(sh7710_devices_setup);
 
-void __init plat_irq_setup_pins(int mode)
-{
-	if (mode == IRQ_MODE_IRQ) {
-		register_intc_controller(&intc_desc_irq);
-		return;
-	}
-	BUG();
-}
-
 void __init plat_irq_setup(void)
 {
 	register_intc_controller(&intc_desc);
+	plat_irq_setup_sh3();
 }

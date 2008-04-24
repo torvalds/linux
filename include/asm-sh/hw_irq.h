@@ -95,6 +95,9 @@ void __init register_intc_controller(struct intc_desc *desc);
 int intc_set_priority(unsigned int irq, unsigned int prio);
 
 void __init plat_irq_setup(void);
+#ifdef CONFIG_CPU_SH3
+void __init plat_irq_setup_sh3(void);
+#endif
 
 enum { IRQ_MODE_IRQ, IRQ_MODE_IRQ7654, IRQ_MODE_IRQ3210,
        IRQ_MODE_IRL7654_MASK, IRQ_MODE_IRL3210_MASK,
