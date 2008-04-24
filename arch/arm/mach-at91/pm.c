@@ -61,6 +61,15 @@ static inline void sdram_selfrefresh_enable(void)
 #else
 #include <asm/arch/at91sam9_sdramc.h>
 
+#ifdef CONFIG_ARCH_AT91SAM9263
+/*
+ * FIXME either or both the SDRAM controllers (EB0, EB1) might be in use;
+ * handle those cases both here and in the Suspend-To-RAM support.
+ */
+#define	AT91_SDRAMC	AT91_SDRAMC0
+#warning Assuming EB1 SDRAM controller is *NOT* used
+#endif
+
 static u32 saved_lpr;
 
 static inline void sdram_selfrefresh_enable(void)
@@ -74,11 +83,6 @@ static inline void sdram_selfrefresh_enable(void)
 }
 
 #define sdram_selfrefresh_disable()	at91_sys_write(AT91_SDRAMC_LPR, saved_lpr)
-
-/*
- * FIXME: The AT91SAM9263 has a second EBI controller which may have
- *        additional SDRAM.  pm_slowclock.S will require a similar fix.
- */
 
 #endif
 
