@@ -621,19 +621,6 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
 		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret < 0) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		IWL_DEBUG_INFO("Failed to init the card\n");
-		return ret;
-	}
-
-	iwl_read_prph(priv, APMG_PS_CTRL_REG);
-	iwl_set_bits_prph(priv, APMG_PS_CTRL_REG, APMG_PS_CTRL_VAL_RESET_REQ);
-	udelay(5);
-	iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG, APMG_PS_CTRL_VAL_RESET_REQ);
-
-	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl4965_hw_card_show_info(priv);
