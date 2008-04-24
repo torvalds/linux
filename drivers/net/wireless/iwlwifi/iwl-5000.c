@@ -86,6 +86,38 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 	return ret;
 }
 
+static void iwl5000_nic_init(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	u16 radio_cfg;
+	u8 val_link;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	pci_read_config_byte(priv->pci_dev, PCI_LINK_CTRL, &val_link);
+
+	/* disable L1 entry -- workaround for pre-B1 */
+	pci_write_config_byte(priv->pci_dev, PCI_LINK_CTRL, val_link & ~0x02);
+
+	radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
+
+	/* write radio config values to register */
+	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) < EEPROM_5000_RF_CFG_TYPE_MAX)
+		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+			    EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
+			    EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
+			    EEPROM_RF_CFG_DASH_MSK(radio_cfg));
+
+	/* set CSR_HW_CONFIG_REG for uCode use */
+	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
+		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
+
+
 /*
  * EEPROM
  */
@@ -407,6 +439,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
+		.config = iwl5000_nic_init,
 		.set_pwr_src = iwl4965_set_pwr_src,
 	},
 	.eeprom_ops = {

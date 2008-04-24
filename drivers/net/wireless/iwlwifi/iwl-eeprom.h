@@ -295,6 +295,7 @@ struct iwl_eeprom_calib_info {
 
 #define EEPROM_3945_RF_CFG_TYPE_MAX  0x0
 #define EEPROM_4965_RF_CFG_TYPE_MAX  0x1
+#define EEPROM_5000_RF_CFG_TYPE_MAX  0x3
 
 /*
  * Per-channel regulatory data.
