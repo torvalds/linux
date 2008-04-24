@@ -104,13 +104,7 @@ extern int mode_to_acl(struct inode *inode, const char *path, __u64);
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
 			const char *);
 extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-extern void dfs_shrink_umount_helper(struct vfsmount *vfsmnt);
-#else
-static inline void dfs_shrink_umount_helper(struct vfsmount *vfsmnt)
-{
-}
-#endif /* DFS_UPCALL */
+extern void cifs_dfs_release_automount_timer(void);
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
 
