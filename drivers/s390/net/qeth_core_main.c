@@ -3803,8 +3803,9 @@ retry:
 		QETH_DBF_TEXT_(SETUP, 2, "2err%d", rc);
 		return rc;
 	}
-
-	mpno = QETH_MAX_PORTNO;
+	mpno = qdio_get_ssqd_pct(CARD_DDEV(card));
+	if (mpno)
+		mpno = min(mpno - 1, QETH_MAX_PORTNO);
 	if (card->info.portno > mpno) {
 		PRINT_ERR("Device %s does not offer port number %d \n.",
 			CARD_BUS_ID(card), card->info.portno);
