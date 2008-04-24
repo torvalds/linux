@@ -346,7 +346,7 @@ u64 __init __lmb_alloc_base(u64 size, u64 align, u64 max_addr)
 			if (j < 0) {
 				/* this area isn't reserved, take it */
 				if (lmb_add_region(&lmb.reserved, base,
-						   size) < 0)
+						   lmb_align_up(size, align)) < 0)
 					return 0;
 				return base;
 			}
