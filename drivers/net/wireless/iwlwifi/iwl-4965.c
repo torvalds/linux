@@ -55,44 +55,6 @@ static struct iwl_mod_params iwl4965_mod_params = {
 
 static void iwl4965_hw_card_show_info(struct iwl_priv *priv);
 
-#define IWL_DECLARE_RATE_INFO(r, s, ip, in, rp, rn, pp, np)    \
-	[IWL_RATE_##r##M_INDEX] = { IWL_RATE_##r##M_PLCP,      \
-				    IWL_RATE_SISO_##s##M_PLCP, \
-				    IWL_RATE_MIMO2_##s##M_PLCP,\
-				    IWL_RATE_MIMO3_##s##M_PLCP,\
-				    IWL_RATE_##r##M_IEEE,      \
-				    IWL_RATE_##ip##M_INDEX,    \
-				    IWL_RATE_##in##M_INDEX,    \
-				    IWL_RATE_##rp##M_INDEX,    \
-				    IWL_RATE_##rn##M_INDEX,    \
-				    IWL_RATE_##pp##M_INDEX,    \
-				    IWL_RATE_##np##M_INDEX }
-
-/*
- * Parameter order:
- *   rate, ht rate, prev rate, next rate, prev tgg rate, next tgg rate
- *
- * If there isn't a valid next or previous rate then INV is used which
- * maps to IWL_RATE_INVALID
- *
- */
-const struct iwl4965_rate_info iwl4965_rates[IWL_RATE_COUNT] = {
-	IWL_DECLARE_RATE_INFO(1, INV, INV, 2, INV, 2, INV, 2),    /*  1mbps */
-	IWL_DECLARE_RATE_INFO(2, INV, 1, 5, 1, 5, 1, 5),          /*  2mbps */
-	IWL_DECLARE_RATE_INFO(5, INV, 2, 6, 2, 11, 2, 11),        /*5.5mbps */
-	IWL_DECLARE_RATE_INFO(11, INV, 9, 12, 9, 12, 5, 18),      /* 11mbps */
-	IWL_DECLARE_RATE_INFO(6, 6, 5, 9, 5, 11, 5, 11),        /*  6mbps */
-	IWL_DECLARE_RATE_INFO(9, 6, 6, 11, 6, 11, 5, 11),       /*  9mbps */
-	IWL_DECLARE_RATE_INFO(12, 12, 11, 18, 11, 18, 11, 18),   /* 12mbps */
-	IWL_DECLARE_RATE_INFO(18, 18, 12, 24, 12, 24, 11, 24),   /* 18mbps */
-	IWL_DECLARE_RATE_INFO(24, 24, 18, 36, 18, 36, 18, 36),   /* 24mbps */
-	IWL_DECLARE_RATE_INFO(36, 36, 24, 48, 24, 48, 24, 48),   /* 36mbps */
-	IWL_DECLARE_RATE_INFO(48, 48, 36, 54, 36, 54, 36, 54),   /* 48mbps */
-	IWL_DECLARE_RATE_INFO(54, 54, 48, INV, 48, INV, 48, INV),/* 54mbps */
-	IWL_DECLARE_RATE_INFO(60, 60, 48, INV, 48, INV, 48, INV),/* 60mbps */
-	/* FIXME:RS:          ^^    should be INV (legacy) */
-};
-
 #ifdef CONFIG_IWL4965_HT
 
 static const u16 default_tid_to_tx_fifo[] = {
@@ -262,107 +224,11 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 	return 0;
 }
 
-static int iwl4965_init_drv(struct iwl_priv *priv)
-{
-	int ret;
-	int i;
-
-	priv->retry_rate = 1;
-	priv->ibss_beacon = NULL;
-
-	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->power_data.lock);
-	spin_lock_init(&priv->sta_lock);
-	spin_lock_init(&priv->hcmd_lock);
-	spin_lock_init(&priv->lq_mngr.lock);
-
-	for (i = 0; i < IWL_IBSS_MAC_HASH_SIZE; i++)
-		INIT_LIST_HEAD(&priv->ibss_mac_hash[i]);
-
-	INIT_LIST_HEAD(&priv->free_frames);
-
-	mutex_init(&priv->mutex);
-
-	/* Clear the driver's (not device's) station table */
-	iwlcore_clear_stations_table(priv);
-
-	priv->data_retry_limit = -1;
-	priv->ieee_channels = NULL;
-	priv->ieee_rates = NULL;
-	priv->band = IEEE80211_BAND_2GHZ;
-
-	priv->iw_mode = IEEE80211_IF_TYPE_STA;
-
-	priv->use_ant_b_for_management_frame = 1; /* start with ant B */
-	priv->ps_mode = IWL_MIMO_PS_NONE;
-
-	/* Choose which receivers/antennas to use */
-	iwl4965_set_rxon_chain(priv);
-
-	iwlcore_reset_qos(priv);
-
-	priv->qos_data.qos_active = 0;
-	priv->qos_data.qos_cap.val = 0;
-
-	iwlcore_set_rxon_channel(priv, IEEE80211_BAND_2GHZ, 6);
-
-	priv->rates_mask = IWL_RATES_MASK;
-	/* If power management is turned on, default to AC mode */
-	priv->power_mode = IWL_POWER_AC;
-	priv->user_txpower_limit = IWL_DEFAULT_TX_POWER;
-
-	ret = iwl_init_channel_map(priv);
-	if (ret) {
-		IWL_ERROR("initializing regulatory failed: %d\n", ret);
-		goto err;
-	}
-
-	ret = iwl4965_init_geos(priv);
-	if (ret) {
-		IWL_ERROR("initializing geos failed: %d\n", ret);
-		goto err_free_channel_map;
-	}
-
-	ret = ieee80211_register_hw(priv->hw);
-	if (ret) {
-		IWL_ERROR("Failed to register network device (error %d)\n",
-				ret);
-		goto err_free_geos;
-	}
-
-	priv->hw->conf.beacon_int = 100;
-	priv->mac80211_registered = 1;
-
-	return 0;
-
-err_free_geos:
-	iwl4965_free_geos(priv);
-err_free_channel_map:
-	iwl_free_channel_map(priv);
-err:
-	return ret;
-}
-
 static int is_fat_channel(__le32 rxon_flags)
 {
 	return (rxon_flags & RXON_FLG_CHANNEL_MODE_PURE_40_MSK) ||
 		(rxon_flags & RXON_FLG_CHANNEL_MODE_MIXED_MSK);
 }
-
-#ifdef CONFIG_IWL4965_HT
-static u8 is_single_rx_stream(struct iwl_priv *priv)
-{
-	return !priv->current_ht_config.is_ht ||
-	       ((priv->current_ht_config.supp_mcs_set[1] == 0) &&
-		(priv->current_ht_config.supp_mcs_set[2] == 0)) ||
-	       priv->ps_mode == IWL_MIMO_PS_STATIC;
-}
-#else
-static inline u8 is_single_rx_stream(struct iwl_priv *priv)
-{
-	return 1;
-}
-#endif	/*CONFIG_IWL4965_HT */
 
 int iwl4965_hwrate_to_plcp_idx(u32 rate_n_flags)
 {
@@ -420,41 +286,6 @@ void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 	else
 		control->tx_rate =
 			&priv->bands[IEEE80211_BAND_2GHZ].bitrates[rate_index];
-}
-
-/*
- * Determine how many receiver/antenna chains to use.
- * More provides better reception via diversity.  Fewer saves power.
- * MIMO (dual stream) requires at least 2, but works better with 3.
- * This does not determine *which* chains to use, just how many.
- */
-static int iwl4965_get_rx_chain_counter(struct iwl_priv *priv,
-					u8 *idle_state, u8 *rx_state)
-{
-	u8 is_single = is_single_rx_stream(priv);
-	u8 is_cam = test_bit(STATUS_POWER_PMI, &priv->status) ? 0 : 1;
-
-	/* # of Rx chains to use when expecting MIMO. */
-	if (is_single || (!is_cam && (priv->ps_mode == IWL_MIMO_PS_STATIC)))
-		*rx_state = 2;
-	else
-		*rx_state = 3;
-
-	/* # Rx chains when idling and maybe trying to save power */
-	switch (priv->ps_mode) {
-	case IWL_MIMO_PS_STATIC:
-	case IWL_MIMO_PS_DYNAMIC:
-		*idle_state = (is_cam) ? 2 : 1;
-		break;
-	case IWL_MIMO_PS_NONE:
-		*idle_state = (is_cam) ? *rx_state : 1;
-		break;
-	default:
-		*idle_state = 1;
-		break;
-	}
-
-	return 0;
 }
 
 int iwl4965_hw_rxq_stop(struct iwl_priv *priv)
@@ -2527,44 +2358,6 @@ static void iwl4965_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 }
 
 /**
- * iwl4965_set_rxon_chain - Set up Rx chain usage in "staging" RXON image
- *
- * Selects how many and which Rx receivers/antennas/chains to use.
- * This should not be used for scan command ... it puts data in wrong place.
- */
-void iwl4965_set_rxon_chain(struct iwl_priv *priv)
-{
-	u8 is_single = is_single_rx_stream(priv);
-	u8 idle_state, rx_state;
-
-	priv->staging_rxon.rx_chain = 0;
-	rx_state = idle_state = 3;
-
-	/* Tell uCode which antennas are actually connected.
-	 * Before first association, we assume all antennas are connected.
-	 * Just after first association, iwl_chain_noise_calibration()
-	 *    checks which antennas actually *are* connected. */
-	priv->staging_rxon.rx_chain |=
-		    cpu_to_le16(priv->hw_params.valid_rx_ant <<
-						 RXON_RX_CHAIN_VALID_POS);
-
-	/* How many receivers should we use? */
-	iwl4965_get_rx_chain_counter(priv, &idle_state, &rx_state);
-	priv->staging_rxon.rx_chain |=
-		cpu_to_le16(rx_state << RXON_RX_CHAIN_MIMO_CNT_POS);
-	priv->staging_rxon.rx_chain |=
-		cpu_to_le16(idle_state << RXON_RX_CHAIN_CNT_POS);
-
-	if (!is_single && (rx_state >= 2) &&
-	    !test_bit(STATUS_POWER_PMI, &priv->status))
-		priv->staging_rxon.rx_chain |= RXON_RX_CHAIN_MIMO_FORCE_MSK;
-	else
-		priv->staging_rxon.rx_chain &= ~RXON_RX_CHAIN_MIMO_FORCE_MSK;
-
-	IWL_DEBUG_ASSOC("rx chain %X\n", priv->staging_rxon.rx_chain);
-}
-
-/**
  * sign_extend - Sign extend a value using specified bit as sign-bit
  *
  * Example: sign_extend(9, 3) would return -7 as bit3 of 1001b is 1
@@ -3126,41 +2919,6 @@ static int iwl4965_calc_rssi(struct iwl4965_rx_phy_res *rx_resp)
 	 * Higher AGC (higher radio gain) means lower signal. */
 	return (max_rssi - agc - IWL_RSSI_OFFSET);
 }
-
-#ifdef CONFIG_IWL4965_HT
-
-void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,
-			      struct ieee80211_ht_info *ht_info,
-			      enum ieee80211_band band)
-{
-	ht_info->cap = 0;
-	memset(ht_info->supp_mcs_set, 0, 16);
-
-	ht_info->ht_supported = 1;
-
-	if (priv->hw_params.fat_channel & BIT(band)) {
-		ht_info->cap |= (u16)IEEE80211_HT_CAP_SUP_WIDTH;
-		ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_40;
-		ht_info->supp_mcs_set[4] = 0x01;
-	}
-	ht_info->cap |= (u16)IEEE80211_HT_CAP_GRN_FLD;
-	ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_20;
-	ht_info->cap |= (u16)(IEEE80211_HT_CAP_MIMO_PS &
-			     (IWL_MIMO_PS_NONE << 2));
-
-	if (priv->cfg->mod_params->amsdu_size_8K)
-		ht_info->cap |= (u16)IEEE80211_HT_CAP_MAX_AMSDU;
-
-	ht_info->ampdu_factor = CFG_HT_RX_AMPDU_FACTOR_DEF;
-	ht_info->ampdu_density = CFG_HT_MPDU_DENSITY_DEF;
-
-	ht_info->supp_mcs_set[0] = 0xFF;
-	if (priv->hw_params.tx_chains_num >= 2)
-		ht_info->supp_mcs_set[1] = 0xFF;
-	if (priv->hw_params.tx_chains_num >= 3)
-		ht_info->supp_mcs_set[2] = 0xFF;
-}
-#endif /* CONFIG_IWL4965_HT */
 
 static void iwl4965_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id)
 {
@@ -4039,7 +3797,7 @@ void iwl4965_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 
 	rxon->flags |= cpu_to_le32(val << RXON_FLG_HT_OPERATING_MODE_POS);
 
-	iwl4965_set_rxon_chain(priv);
+	iwl_set_rxon_chain(priv);
 
 	IWL_DEBUG_ASSOC("supported HT rate 0x%X 0x%X 0x%X "
 			"rxon flags 0x%X operation mode :0x%X "
@@ -4356,7 +4114,6 @@ static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 };
 
 static struct iwl_lib_ops iwl4965_lib = {
-	.init_drv = iwl4965_init_drv,
 	.set_hw_params = iwl4965_hw_set_hw_params,
 	.alloc_shared_mem = iwl4965_alloc_shared_mem,
 	.free_shared_mem = iwl4965_free_shared_mem,

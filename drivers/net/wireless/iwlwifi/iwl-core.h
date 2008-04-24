@@ -97,8 +97,6 @@ struct iwl_hcmd_utils_ops {
 };
 
 struct iwl_lib_ops {
-	/* iwlwifi driver (priv) init */
-	int (*init_drv)(struct iwl_priv *priv);
 	/* set hw dependant perameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
 	/* ucode shared memory */
@@ -164,11 +162,12 @@ struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 void iwl_hw_detect(struct iwl_priv *priv);
 
 void iwlcore_clear_stations_table(struct iwl_priv *priv);
-void iwlcore_reset_qos(struct iwl_priv *priv);
-int iwlcore_set_rxon_channel(struct iwl_priv *priv,
+void iwl_reset_qos(struct iwl_priv *priv);
+void iwl_set_rxon_chain(struct iwl_priv *priv);
+int iwl_set_rxon_channel(struct iwl_priv *priv,
 				enum ieee80211_band band,
 				u16 channel);
-
+void iwlcore_free_geos(struct iwl_priv *priv);
 int iwl_setup(struct iwl_priv *priv);
 
 /*****************************************************

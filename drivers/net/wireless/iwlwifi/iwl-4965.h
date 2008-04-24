@@ -748,7 +748,6 @@ extern int iwl4965_tx_queue_update_wr_ptr(struct iwl_priv *priv,
 					  u16 byte_cnt);
 extern void iwl4965_add_station(struct iwl_priv *priv, const u8 *addr,
 				int is_ap);
-extern void iwl4965_set_rxon_chain(struct iwl_priv *priv);
 extern int iwl4965_alive_notify(struct iwl_priv *priv);
 extern void iwl4965_update_rate_scaling(struct iwl_priv *priv, u8 mode);
 extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
