@@ -30,13 +30,11 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
-#include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 
-#include "scc.h"
-#include "../cell/celleb_pci.h"
-#include "interrupt.h"
+#include "celleb_scc.h"
+#include "celleb_pci.h"
 
 #define MAX_PCI_DEVICES   32
 #define MAX_PCI_FUNCTIONS  8
@@ -111,10 +109,8 @@ static int celleb_epci_check_abort(struct pci_controller *hose,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static PCI_IO_ADDR celleb_epci_make_config_addr(
-					struct pci_bus *bus,
-					struct pci_controller *hose,
-					unsigned int devfn, int where)
+static PCI_IO_ADDR celleb_epci_make_config_addr(struct pci_bus *bus,
+		struct pci_controller *hose, unsigned int devfn, int where)
 {
 	PCI_IO_ADDR addr;
 
@@ -410,8 +406,7 @@ static int __init celleb_setup_epci(struct device_node *node,
 	if (!hose->cfg_addr)
 		goto error;
 	pr_debug("EPCI: cfg_addr map 0x%016lx->0x%016lx + 0x%016lx\n",
-		 r.start, (unsigned long)hose->cfg_addr,
-		(r.end - r.start + 1));
+		 r.start, (unsigned long)hose->cfg_addr, (r.end - r.start + 1));
 
 	if (of_address_to_resource(node, 2, &r))
 		goto error;
@@ -419,8 +414,7 @@ static int __init celleb_setup_epci(struct device_node *node,
 	if (!hose->cfg_data)
 		goto error;
 	pr_debug("EPCI: cfg_data map 0x%016lx->0x%016lx + 0x%016lx\n",
-		 r.start, (unsigned long)hose->cfg_data,
-		(r.end - r.start + 1));
+		 r.start, (unsigned long)hose->cfg_data, (r.end - r.start + 1));
 
 	hose->ops = &celleb_epci_ops;
 	celleb_epci_init(hose);
