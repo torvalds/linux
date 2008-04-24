@@ -73,6 +73,7 @@
 #include <linux/signal.h>
 #include <linux/highmem.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/times.h>
 #include <linux/cpuset.h>
 #include <linux/rcupdate.h>

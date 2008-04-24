@@ -1,7 +1,7 @@
 #ifndef _LINUX__INIT_TASK_H
 #define _LINUX__INIT_TASK_H
 
-#include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/rcupdate.h>
 #include <linux/irqflags.h>
 #include <linux/utsname.h>

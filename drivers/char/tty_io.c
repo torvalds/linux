@@ -78,6 +78,7 @@
 #include <linux/tty_flip.h>
 #include <linux/devpts_fs.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/console.h>
 #include <linux/timer.h>
 #include <linux/ctype.h>

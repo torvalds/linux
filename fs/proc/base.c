@@ -56,6 +56,7 @@
 #include <linux/init.h>
 #include <linux/capability.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
 #include <linux/namei.h>

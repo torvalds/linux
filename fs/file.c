@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>

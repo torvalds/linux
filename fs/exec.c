@@ -24,6 +24,7 @@
 
 #include <linux/slab.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/mman.h>
 #include <linux/a.out.h>
 #include <linux/stat.h>
