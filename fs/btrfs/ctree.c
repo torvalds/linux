@@ -1485,7 +1485,7 @@ static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 		ret = push_nodes_for_insert(trans, root, path, level);
 		c = path->nodes[level];
 		if (!ret && btrfs_header_nritems(c) <
-		    BTRFS_NODEPTRS_PER_BLOCK(root) - 1)
+		    BTRFS_NODEPTRS_PER_BLOCK(root) - 3)
 			return 0;
 		if (ret < 0)
 			return ret;
