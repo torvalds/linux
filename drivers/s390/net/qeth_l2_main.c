@@ -849,6 +849,22 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 	return;
 }
 
+static int qeth_l2_ethtool_set_tso(struct net_device *dev, u32 data)
+{
+	struct qeth_card *card = netdev_priv(dev);
+
+	if (data) {
+		if (card->options.large_send == QETH_LARGE_SEND_NO) {
+			card->options.large_send = QETH_LARGE_SEND_EDDP;
+			dev->features |= NETIF_F_TSO;
+		}
+	} else {
+		dev->features &= ~NETIF_F_TSO;
+		card->options.large_send = QETH_LARGE_SEND_NO;
+	}
+	return 0;
+}
+
 static struct ethtool_ops qeth_l2_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_tx_csum = ethtool_op_get_tx_csum,
@@ -856,7 +872,7 @@ static struct ethtool_ops qeth_l2_ethtool_ops = {
 	.get_sg = ethtool_op_get_sg,
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = ethtool_op_get_tso,
-	.set_tso = ethtool_op_set_tso,
+	.set_tso = qeth_l2_ethtool_set_tso,
 	.get_strings = qeth_core_get_strings,
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
 	.get_stats_count = qeth_core_get_stats_count,
