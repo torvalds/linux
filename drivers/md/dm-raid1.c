@@ -154,6 +154,9 @@ struct mirror_set {
 
 	struct workqueue_struct *kmirrord_wq;
 	struct work_struct kmirrord_work;
+	struct timer_list timer;
+	unsigned long timer_pending;
+
 	struct work_struct trigger_event;
 
 	unsigned int nr_mirrors;
@@ -176,6 +179,25 @@ static inline sector_t region_to_sector(struct region_hash *rh, region_t region)
 static void wake(struct mirror_set *ms)
 {
 	queue_work(ms->kmirrord_wq, &ms->kmirrord_work);
+}
+
+static void delayed_wake_fn(unsigned long data)
+{
+	struct mirror_set *ms = (struct mirror_set *) data;
+
+	clear_bit(0, &ms->timer_pending);
+	wake(ms);
+}
+
+static void delayed_wake(struct mirror_set *ms)
+{
+	if (test_and_set_bit(0, &ms->timer_pending))
+		return;
+
+	ms->timer.expires = jiffies + HZ / 5;
+	ms->timer.data = (unsigned long) ms;
+	ms->timer.function = delayed_wake_fn;
+	add_timer(&ms->timer);
 }
 
 /* FIXME move this */
@@ -1180,6 +1202,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		spin_lock_irq(&ms->lock);
 		bio_list_merge(&ms->failures, &sync);
 		spin_unlock_irq(&ms->lock);
+		wake(ms);
 	} else
 		while ((bio = bio_list_pop(&sync)))
 			do_write(ms, bio);
@@ -1239,7 +1262,7 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 	bio_list_merge(&ms->failures, failures);
 	spin_unlock_irq(&ms->lock);
 
-	wake(ms);
+	delayed_wake(ms);
 }
 
 static void trigger_event(struct work_struct *work)
@@ -1253,7 +1276,7 @@ static void trigger_event(struct work_struct *work)
 /*-----------------------------------------------------------------
  * kmirrord
  *---------------------------------------------------------------*/
-static int _do_mirror(struct work_struct *work)
+static void do_mirror(struct work_struct *work)
 {
 	struct mirror_set *ms =container_of(work, struct mirror_set,
 					    kmirrord_work);
@@ -1274,24 +1297,6 @@ static int _do_mirror(struct work_struct *work)
 	do_reads(ms, &reads);
 	do_writes(ms, &writes);
 	do_failures(ms, &failures);
-
-	return (ms->failures.head) ? 1 : 0;
-}
-
-static void do_mirror(struct work_struct *work)
-{
-	/*
-	 * If _do_mirror returns 1, we give it
-	 * another shot.  This helps for cases like
-	 * 'suspend' where we call flush_workqueue
-	 * and expect all work to be finished.  If
-	 * a failure happens during a suspend, we
-	 * couldn't issue a 'wake' because it would
-	 * not be honored.  Therefore, we return '1'
-	 * from _do_mirror, and retry here.
-	 */
-	while (_do_mirror(work))
-		schedule();
 }
 
 
@@ -1545,6 +1550,8 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_free_context;
 	}
 	INIT_WORK(&ms->kmirrord_work, do_mirror);
+	init_timer(&ms->timer);
+	ms->timer_pending = 0;
 	INIT_WORK(&ms->trigger_event, trigger_event);
 
 	r = parse_features(ms, argc, argv, &args_used);
@@ -1587,6 +1594,7 @@ static void mirror_dtr(struct dm_target *ti)
 {
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
 
+	del_timer_sync(&ms->timer);
 	flush_workqueue(ms->kmirrord_wq);
 	dm_kcopyd_client_destroy(ms->kcopyd_client);
 	destroy_workqueue(ms->kmirrord_wq);
