@@ -438,7 +438,9 @@ static const struct file_operations usb_dsbr100_fops = {
 	.open		= usb_dsbr100_open,
 	.release	= usb_dsbr100_close,
 	.ioctl		= video_ioctl2,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.llseek		= no_llseek,
 };
 

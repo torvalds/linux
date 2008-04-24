@@ -48,7 +48,7 @@ struct cx22702_state {
 	u8 prevUCBlocks;
 };
 
-static int debug = 0;
+static int debug;
 #define dprintk	if (debug) printk
 
 /* Register values to initialise the demod */
@@ -90,7 +90,7 @@ static int cx22702_writereg (struct cx22702_state* state, u8 reg, u8 data)
 
 	if (ret != 1)
 		printk("%s: writereg error (reg == 0x%02x, val == 0x%02x, ret == %i)\n",
-			__FUNCTION__, reg, data, ret);
+			__func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -108,7 +108,7 @@ static u8 cx22702_readreg (struct cx22702_state* state, u8 reg)
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2)
-		printk("%s: readreg error (ret == %i)\n", __FUNCTION__, ret);
+		printk("%s: readreg error (ret == %i)\n", __func__, ret);
 
 	return b1[0];
 }
@@ -195,7 +195,7 @@ static int cx22702_get_tps (struct cx22702_state *state, struct dvb_ofdm_paramet
 static int cx22702_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 {
 	struct cx22702_state* state = fe->demodulator_priv;
-	dprintk ("%s(%d)\n", __FUNCTION__, enable);
+	dprintk ("%s(%d)\n", __func__, enable);
 	if (enable)
 		return cx22702_writereg (state, 0x0D, cx22702_readreg(state, 0x0D) & 0xfe);
 	else
@@ -228,7 +228,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 		cx22702_writereg(state, 0x0C, cx22702_readreg(state, 0x0C) &0xcf );
 		break;
 	default:
-		dprintk ("%s: invalid bandwidth\n",__FUNCTION__);
+		dprintk ("%s: invalid bandwidth\n",__func__);
 		return -EINVAL;
 	}
 
@@ -250,7 +250,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 		cx22702_writereg(state, 0x0B, cx22702_readreg(state, 0x0B) & 0xfc );
 		cx22702_writereg(state, 0x0C, (cx22702_readreg(state, 0x0C) & 0xBF) | 0x40 );
 		cx22702_writereg(state, 0x00, 0x01); /* Begin aquisition */
-		dprintk("%s: Autodetecting\n",__FUNCTION__);
+		dprintk("%s: Autodetecting\n",__func__);
 		return 0;
 	}
 
@@ -261,7 +261,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 		case QAM_16: val = (val&0xe7)|0x08; break;
 		case QAM_64: val = (val&0xe7)|0x10; break;
 		default:
-			dprintk ("%s: invalid constellation\n",__FUNCTION__);
+			dprintk ("%s: invalid constellation\n",__func__);
 			return -EINVAL;
 	}
 	switch(p->u.ofdm.hierarchy_information) {
@@ -270,7 +270,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 		case    HIERARCHY_2: val = (val&0xf8)|2; break;
 		case    HIERARCHY_4: val = (val&0xf8)|3; break;
 		default:
-			dprintk ("%s: invalid hierarchy\n",__FUNCTION__);
+			dprintk ("%s: invalid hierarchy\n",__func__);
 			return -EINVAL;
 	}
 	cx22702_writereg (state, 0x06, val);
@@ -284,7 +284,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 		case FEC_5_6: val = (val&0xc7)|0x18; break;
 		case FEC_7_8: val = (val&0xc7)|0x20; break;
 		default:
-			dprintk ("%s: invalid code_rate_HP\n",__FUNCTION__);
+			dprintk ("%s: invalid code_rate_HP\n",__func__);
 			return -EINVAL;
 	}
 	switch(p->u.ofdm.code_rate_LP) {
@@ -295,7 +295,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 		case FEC_5_6: val = (val&0xf8)|3; break;
 		case FEC_7_8: val = (val&0xf8)|4; break;
 		default:
-			dprintk ("%s: invalid code_rate_LP\n",__FUNCTION__);
+			dprintk ("%s: invalid code_rate_LP\n",__func__);
 			return -EINVAL;
 	}
 	cx22702_writereg (state, 0x07, val);
@@ -307,14 +307,14 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 		case  GUARD_INTERVAL_1_8: val = (val&0xf3)|0x08; break;
 		case  GUARD_INTERVAL_1_4: val = (val&0xf3)|0x0c; break;
 		default:
-			dprintk ("%s: invalid guard_interval\n",__FUNCTION__);
+			dprintk ("%s: invalid guard_interval\n",__func__);
 			return -EINVAL;
 	}
 	switch(p->u.ofdm.transmission_mode) {
 		case TRANSMISSION_MODE_2K: val = (val&0xfc); break;
 		case TRANSMISSION_MODE_8K: val = (val&0xfc)|1; break;
 		default:
-			dprintk ("%s: invalid transmission_mode\n",__FUNCTION__);
+			dprintk ("%s: invalid transmission_mode\n",__func__);
 			return -EINVAL;
 	}
 	cx22702_writereg(state, 0x08, val);
@@ -360,7 +360,7 @@ static int cx22702_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	reg23 = cx22702_readreg (state, 0x23);
 
 	dprintk ("%s: status demod=0x%02x agc=0x%02x\n"
-		,__FUNCTION__,reg0A,reg23);
+		,__func__,reg0A,reg23);
 
 	if(reg0A & 0x10) {
 		*status |= FE_HAS_LOCK;

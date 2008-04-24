@@ -31,11 +31,11 @@
 
 #include "tda9840.h"
 
-static int debug = 0;		/* insmod parameter */
+static int debug;		/* insmod parameter */
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 #define dprintk(args...) \
-	    do { if (debug) { printk("%s: %s()[%d]: ", KBUILD_MODNAME, __FUNCTION__, __LINE__); printk(args); } } while (0)
+	    do { if (debug) { printk("%s: %s()[%d]: ", KBUILD_MODNAME, __func__, __LINE__); printk(args); } } while (0)
 
 #define	SWITCH		0x00
 #define	LEVEL_ADJUST	0x02

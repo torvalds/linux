@@ -23,6 +23,8 @@
  *
  * see Documentation/dvb/README.dvb-usb for more information
  */
+#include <media/tuner.h>
+
 #include "cxusb.h"
 
 #include "cx22702.h"
@@ -31,12 +33,15 @@
 #include "mt352_priv.h"
 #include "zl10353.h"
 #include "tuner-xc2028.h"
-#include "tuner-xc2028-types.h"
+#include "tuner-simple.h"
 
 /* debug */
 static int dvb_usb_cxusb_debug;
 module_param_named(debug, dvb_usb_cxusb_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
+
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 #define deb_info(args...)   dprintk(dvb_usb_cxusb_debug,0x01,args)
 #define deb_i2c(args...)    if (d->udev->descriptor.idVendor == USB_VID_MEDION) \
 				dprintk(dvb_usb_cxusb_debug,0x01,args)
@@ -450,8 +455,9 @@ static struct mt352_config cxusb_mt352_xc3028_config = {
 /* Callbacks for DVB USB */
 static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
-		   DVB_PLL_FMD1216ME);
+	dvb_attach(simple_tuner_attach, adap->fe,
+		   &adap->dev->i2c_adap, 0x61,
+		   TUNER_PHILIPS_FMD1216ME_MK3);
 	return 0;
 }
 
@@ -477,8 +483,8 @@ static int cxusb_dtt7579_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int cxusb_lgh064f_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
-		   DVB_PLL_LG_TDVS_H06XF);
+	dvb_attach(simple_tuner_attach, adap->fe,
+		   &adap->dev->i2c_adap, 0x61, TUNER_LG_TDVS_H06XF);
 	return 0;
 }
 
@@ -488,14 +494,14 @@ static int dvico_bluebird_xc2028_callback(void *ptr, int command, int arg)
 
 	switch (command) {
 	case XC2028_TUNER_RESET:
-		deb_info("%s: XC2028_TUNER_RESET %d\n", __FUNCTION__, arg);
+		deb_info("%s: XC2028_TUNER_RESET %d\n", __func__, arg);
 		cxusb_bluebird_gpio_pulse(d, 0x01, 1);
 		break;
 	case XC2028_RESET_CLK:
-		deb_info("%s: XC2028_RESET_CLK %d\n", __FUNCTION__, arg);
+		deb_info("%s: XC2028_RESET_CLK %d\n", __func__, arg);
 		break;
 	default:
-		deb_info("%s: unknown command %d, arg %d\n", __FUNCTION__,
+		deb_info("%s: unknown command %d, arg %d\n", __func__,
 			 command, arg);
 		return -EINVAL;
 	}
@@ -509,13 +515,12 @@ static int cxusb_dvico_xc3028_tuner_attach(struct dvb_usb_adapter *adap)
 	struct xc2028_config	  cfg = {
 		.i2c_adap  = &adap->dev->i2c_adap,
 		.i2c_addr  = 0x61,
-		.video_dev = adap->dev,
 		.callback  = dvico_bluebird_xc2028_callback,
 	};
 	static struct xc2028_ctrl ctl = {
 		.fname       = "xc3028-dvico-au-01.fw",
 		.max_len     = 64,
-		.scode_table = ZARLINK456,
+		.scode_table = XC3028_FE_ZARLINK456,
 	};
 
 	fe = dvb_attach(xc2028_attach, adap->fe, &cfg);
@@ -720,16 +725,24 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_needsfirmware_prope
 static int cxusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
-	if (dvb_usb_device_init(intf,&cxusb_medion_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_lgh064f_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_dee1601_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_lgz201_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_dtt7579_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_dualdig4_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_nano2_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_nano2_needsfirmware_properties,THIS_MODULE,NULL) == 0) {
+	if (0 == dvb_usb_device_init(intf, &cxusb_medion_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_lgh064f_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_dee1601_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_lgz201_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_dtt7579_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_dualdig4_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_nano2_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf,
+				&cxusb_bluebird_nano2_needsfirmware_properties,
+				     THIS_MODULE, NULL, adapter_nr))
 		return 0;
-	}
 
 	return -EINVAL;
 }

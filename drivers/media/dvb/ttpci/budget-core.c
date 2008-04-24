@@ -57,6 +57,8 @@ module_param_named(bufsize, dma_buffer_size, int, 0444);
 MODULE_PARM_DESC(debug, "Turn on/off budget debugging (default:off).");
 MODULE_PARM_DESC(bufsize, "DMA buffer size in KB, default: 188, min: 188, max: 1410 (Activy: 564)");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 /****************************************************************************
  * TT budget / WinTV Nova
  ****************************************************************************/
@@ -223,7 +225,7 @@ static void vpeirq(unsigned long data)
 
 	if (budget->buffer_warnings && time_after(jiffies, budget->buffer_warning_time)) {
 		printk("%s %s: used %d times >80%% of buffer (%u bytes now)\n",
-			budget->dev->name, __FUNCTION__, budget->buffer_warnings, count);
+			budget->dev->name, __func__, budget->buffer_warnings, count);
 		budget->buffer_warning_time = jiffies + BUFFER_WARNING_WAIT;
 		budget->buffer_warnings = 0;
 	}
@@ -471,9 +473,10 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 		budget->buffer_width, budget->buffer_height);
 	printk("%s: dma buffer size %u\n", budget->dev->name, budget->buffer_size);
 
-	if ((ret = dvb_register_adapter(&budget->dvb_adapter, budget->card->name, owner, &budget->dev->pci->dev)) < 0) {
+	ret = dvb_register_adapter(&budget->dvb_adapter, budget->card->name,
+				   owner, &budget->dev->pci->dev, adapter_nr);
+	if (ret < 0)
 		return ret;
-	}
 
 	/* set dd1 stream a & b */
 	saa7146_write(dev, DD1_STREAM_B, 0x00000000);

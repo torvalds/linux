@@ -5,6 +5,8 @@
  *
  * see flexcop.c for copyright information.
  */
+#include <media/tuner.h>
+
 #include "flexcop.h"
 
 #include "stv0299.h"
@@ -15,6 +17,15 @@
 #include "mt312.h"
 #include "lgdt330x.h"
 #include "dvb-pll.h"
+#include "tuner-simple.h"
+
+#include "s5h1420.h"
+#include "itd1000.h"
+
+#include "cx24123.h"
+#include "cx24113.h"
+
+#include "isl6421.h"
 
 /* lnb control */
 
@@ -180,13 +191,13 @@ static int samsung_tbmu24112_tuner_set_params(struct dvb_frontend* fe, struct dv
 	buf[2] = 0x84;  /* 0xC4 */
 	buf[3] = 0x08;
 
-	if (params->frequency < 1500000) buf[3] |= 0x10;
+	if (params->frequency < 1500000)
+		buf[3] |= 0x10;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&fc->i2c_adap, &msg, 1) != 1) {
+	if (i2c_transfer(&fc->fc_i2c_adap[0].i2c_adap, &msg, 1) != 1)
 		return -EIO;
-	}
 	return 0;
 }
 
@@ -241,7 +252,7 @@ static struct stv0299_config samsung_tbmu24112_config = {
 	.mclk = 88000000UL,
 	.invert = 0,
 	.skip_reinit = 0,
-	.lock_output = STV0229_LOCKOUTPUT_LK,
+	.lock_output = STV0299_LOCKOUTPUT_LK,
 	.volt13_op0_op1 = STV0299_VOLT13_OP1,
 	.min_delay_ms = 100,
 	.set_symbol_rate = samsung_tbmu24112_set_symbol_rate,
@@ -337,7 +348,7 @@ static int skystar23_samsung_tbdu18132_tuner_set_params(struct dvb_frontend* fe,
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&fc->i2c_adap, &msg, 1) != 1)
+	if (i2c_transfer(&fc->fc_i2c_adap[0].i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
 }
@@ -386,10 +397,11 @@ static int alps_tdee4_stv0297_tuner_set_params(struct dvb_frontend* fe,
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 	deb_tuner("tuner buffer for %d Hz: %x %x %x %x\n",fep->frequency, buf[0],buf[1],buf[2],buf[3]);
-	ret = fc->i2c_request(fc, FC_WRITE, FC_I2C_PORT_TUNER, 0x61, buf[0], &buf[1], 3);
+	ret = fc->i2c_request(&fc->fc_i2c_adap[2],
+		FC_WRITE, 0x61, buf[0], &buf[1], 3);
 	deb_tuner("tuner write returned: %d\n",ret);
 
-	return 0;
+	return ret;
 }
 
 static u8 alps_tdee4_stv0297_inittab[] = {
@@ -472,56 +484,159 @@ static struct stv0297_config alps_tdee4_stv0297_config = {
 //	.pll_set = alps_tdee4_stv0297_pll_set,
 };
 
+
+/* SkyStar2 rev2.7 (a/u) */
+static struct s5h1420_config skystar2_rev2_7_s5h1420_config = {
+	.demod_address = 0x53,
+	.invert = 1,
+	.repeated_start_workaround = 1,
+};
+
+static struct itd1000_config skystar2_rev2_7_itd1000_config = {
+	.i2c_address = 0x61,
+};
+
+/* SkyStar2 rev2.8 */
+static struct cx24123_config skystar2_rev2_8_cx24123_config = {
+	.demod_address = 0x55,
+	.dont_use_pll = 1,
+	.agc_callback = cx24113_agc_callback,
+};
+
+static const struct cx24113_config skystar2_rev2_8_cx24113_config = {
+	.i2c_addr = 0x54,
+	.xtal_khz = 10111,
+};
+
 /* try to figure out the frontend, each card/box can have on of the following list */
 int flexcop_frontend_init(struct flexcop_device *fc)
 {
 	struct dvb_frontend_ops *ops;
+	struct i2c_adapter *i2c = &fc->fc_i2c_adap[0].i2c_adap;
+	struct i2c_adapter *i2c_tuner;
+
+	/* enable no_base_addr - no repeated start when reading */
+	fc->fc_i2c_adap[0].no_base_addr = 1;
+	fc->fe = dvb_attach(s5h1420_attach, &skystar2_rev2_7_s5h1420_config, i2c);
+	if (fc->fe != NULL) {
+		flexcop_ibi_value r108;
+		i2c_tuner = s5h1420_get_tuner_i2c_adapter(fc->fe);
+		ops = &fc->fe->ops;
+
+		fc->fe_sleep = ops->sleep;
+		ops->sleep   = flexcop_sleep;
+
+		fc->dev_type = FC_SKY_REV27;
+
+		/* enable no_base_addr - no repeated start when reading */
+		fc->fc_i2c_adap[2].no_base_addr = 1;
+		if (dvb_attach(isl6421_attach, fc->fe, &fc->fc_i2c_adap[2].i2c_adap, 0x08, 1, 1) == NULL)
+			err("ISL6421 could NOT be attached");
+		else
+			info("ISL6421 successfully attached");
+
+		/* the ITD1000 requires a lower i2c clock - it slows down the stuff for everyone - but is it a problem ? */
+		r108.raw = 0x00000506;
+		fc->write_ibi_reg(fc, tw_sm_c_108, r108);
+		if (i2c_tuner) {
+			if (dvb_attach(itd1000_attach, fc->fe, i2c_tuner, &skystar2_rev2_7_itd1000_config) == NULL)
+				err("ITD1000 could NOT be attached");
+			else
+				info("ITD1000 successfully attached");
+		}
+		goto fe_found;
+	}
+	fc->fc_i2c_adap[0].no_base_addr = 0; /* for the next devices we need it again */
+
+	/* try the sky v2.8 (cx24123, isl6421) */
+	fc->fe = dvb_attach(cx24123_attach,
+		&skystar2_rev2_8_cx24123_config, i2c);
+	if (fc->fe != NULL) {
+		i2c_tuner = cx24123_get_tuner_i2c_adapter(fc->fe);
+		if (i2c_tuner != NULL) {
+			if (dvb_attach(cx24113_attach, fc->fe,
+					&skystar2_rev2_8_cx24113_config,
+					i2c_tuner) == NULL)
+				err("CX24113 could NOT be attached");
+			else
+				info("CX24113 successfully attached");
+		}
+
+		fc->dev_type = FC_SKY_REV28;
+
+		fc->fc_i2c_adap[2].no_base_addr = 1;
+		if (dvb_attach(isl6421_attach, fc->fe,
+		       &fc->fc_i2c_adap[2].i2c_adap, 0x08, 0, 0) == NULL)
+			err("ISL6421 could NOT be attached");
+		else
+			info("ISL6421 successfully attached");
+
+		/* TODO on i2c_adap[1] addr 0x11 (EEPROM) there seems to be an
+		 * IR-receiver (PIC16F818) - but the card has no input for
+		 * that ??? */
+
+		goto fe_found;
+    }
 
 	/* try the sky v2.6 (stv0299/Samsung tbmu24112(sl1935)) */
-	if ((fc->fe = dvb_attach(stv0299_attach, &samsung_tbmu24112_config, &fc->i2c_adap)) != NULL) {
+	fc->fe = dvb_attach(stv0299_attach, &samsung_tbmu24112_config, i2c);
+	if (fc->fe != NULL) {
 		ops = &fc->fe->ops;
 
 		ops->tuner_ops.set_params = samsung_tbmu24112_tuner_set_params;
 
 		ops->set_voltage = flexcop_set_voltage;
 
-		fc->fe_sleep             = ops->sleep;
-		ops->sleep               = flexcop_sleep;
+		fc->fe_sleep = ops->sleep;
+		ops->sleep = flexcop_sleep;
 
-		fc->dev_type          = FC_SKY;
-		info("found the stv0299 at i2c address: 0x%02x",samsung_tbmu24112_config.demod_address);
-	} else
+		fc->dev_type = FC_SKY;
+		goto fe_found;
+	}
+
 	/* try the air dvb-t (mt352/Samsung tdtc9251dh0(??)) */
-	if ((fc->fe = dvb_attach(mt352_attach, &samsung_tdtc9251dh0_config, &fc->i2c_adap)) != NULL ) {
-		fc->dev_type          = FC_AIR_DVB;
+	fc->fe = dvb_attach(mt352_attach, &samsung_tdtc9251dh0_config, i2c);
+	if (fc->fe != NULL) {
+		fc->dev_type = FC_AIR_DVB;
 		fc->fe->ops.tuner_ops.calc_regs = samsung_tdtc9251dh0_calc_regs;
-		info("found the mt352 at i2c address: 0x%02x",samsung_tdtc9251dh0_config.demod_address);
-	} else
+		goto fe_found;
+	}
+
 	/* try the air atsc 2nd generation (nxt2002) */
-	if ((fc->fe = dvb_attach(nxt200x_attach, &samsung_tbmv_config, &fc->i2c_adap)) != NULL) {
-		fc->dev_type          = FC_AIR_ATSC2;
+	fc->fe = dvb_attach(nxt200x_attach, &samsung_tbmv_config, i2c);
+	if (fc->fe != NULL) {
+		fc->dev_type = FC_AIR_ATSC2;
 		dvb_attach(dvb_pll_attach, fc->fe, 0x61, NULL, DVB_PLL_SAMSUNG_TBMV);
-		info("found the nxt2002 at i2c address: 0x%02x",samsung_tbmv_config.demod_address);
-	} else
-	/* try the air atsc 3nd generation (lgdt3303) */
-	if ((fc->fe = dvb_attach(lgdt330x_attach, &air2pc_atsc_hd5000_config, &fc->i2c_adap)) != NULL) {
-		fc->dev_type          = FC_AIR_ATSC3;
-		dvb_attach(dvb_pll_attach, fc->fe, 0x61, &fc->i2c_adap, DVB_PLL_LG_TDVS_H06XF);
-		info("found the lgdt3303 at i2c address: 0x%02x",air2pc_atsc_hd5000_config.demod_address);
-	} else
+		goto fe_found;
+	}
+
+	fc->fe = dvb_attach(lgdt330x_attach, &air2pc_atsc_hd5000_config, i2c);
+	if (fc->fe != NULL) {
+		fc->dev_type = FC_AIR_ATSC3;
+		dvb_attach(simple_tuner_attach, fc->fe, i2c, 0x61,
+				TUNER_LG_TDVS_H06XF);
+		goto fe_found;
+	}
+
 	/* try the air atsc 1nd generation (bcm3510)/panasonic ct10s */
-	if ((fc->fe = dvb_attach(bcm3510_attach, &air2pc_atsc_first_gen_config, &fc->i2c_adap)) != NULL) {
-		fc->dev_type          = FC_AIR_ATSC1;
-		info("found the bcm3510 at i2c address: 0x%02x",air2pc_atsc_first_gen_config.demod_address);
-	} else
+	fc->fe = dvb_attach(bcm3510_attach, &air2pc_atsc_first_gen_config, i2c);
+	if (fc->fe != NULL) {
+		fc->dev_type = FC_AIR_ATSC1;
+		goto fe_found;
+	}
+
 	/* try the cable dvb (stv0297) */
-	if ((fc->fe = dvb_attach(stv0297_attach, &alps_tdee4_stv0297_config, &fc->i2c_adap)) != NULL) {
-		fc->dev_type                        = FC_CABLE;
+	fc->fe = dvb_attach(stv0297_attach, &alps_tdee4_stv0297_config, i2c);
+	if (fc->fe != NULL) {
+		fc->dev_type = FC_CABLE;
 		fc->fe->ops.tuner_ops.set_params = alps_tdee4_stv0297_tuner_set_params;
-		info("found the stv0297 at i2c address: 0x%02x",alps_tdee4_stv0297_config.demod_address);
-	} else
+		goto fe_found;
+	}
+
 	/* try the sky v2.3 (vp310/Samsung tbdu18132(tsa5059)) */
-	if ((fc->fe = dvb_attach(vp310_mt312_attach, &skystar23_samsung_tbdu18132_config, &fc->i2c_adap)) != NULL) {
+	fc->fe = dvb_attach(vp310_mt312_attach,
+		&skystar23_samsung_tbdu18132_config, i2c);
+	if (fc->fe != NULL) {
 		ops = &fc->fe->ops;
 
 		ops->tuner_ops.set_params = skystar23_samsung_tbdu18132_tuner_set_params;
@@ -535,19 +650,21 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 		ops->sleep                  = flexcop_sleep;
 
 		fc->dev_type                = FC_SKY_OLD;
-		info("found the vp310 (aka mt312) at i2c address: 0x%02x",skystar23_samsung_tbdu18132_config.demod_address);
+		goto fe_found;
 	}
 
-	if (fc->fe == NULL) {
-		err("no frontend driver found for this B2C2/FlexCop adapter");
-		return -ENODEV;
-	} else {
-		if (dvb_register_frontend(&fc->dvb_adapter, fc->fe)) {
-			err("frontend registration failed!");
-			dvb_frontend_detach(fc->fe);
-			fc->fe = NULL;
-			return -EINVAL;
-		}
+	err("no frontend driver found for this B2C2/FlexCop adapter");
+	return -ENODEV;
+
+fe_found:
+	info("found '%s' .", fc->fe->ops.info.name);
+	if (dvb_register_frontend(&fc->dvb_adapter, fc->fe)) {
+		err("frontend registration failed!");
+		ops = &fc->fe->ops;
+		if (ops->release != NULL)
+			ops->release(fc->fe);
+		fc->fe = NULL;
+		return -EINVAL;
 	}
 	fc->init_state |= FC_STATE_FE_INIT;
 	return 0;

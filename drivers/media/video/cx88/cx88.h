@@ -37,6 +37,7 @@
 
 #include "btcx-risc.h"
 #include "cx88-reg.h"
+#include "tuner-xc2028.h"
 
 #include <linux/version.h>
 #include <linux/mutex.h>
@@ -211,6 +212,15 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_HAUPPAUGE_HVR1300       56
 #define CX88_BOARD_ADSTECH_PTV_390         57
 #define CX88_BOARD_PINNACLE_PCTV_HD_800i   58
+#define CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO 59
+#define CX88_BOARD_PINNACLE_HYBRID_PCTV    60
+#define CX88_BOARD_WINFAST_TV2000_XP_GLOBAL 61
+#define CX88_BOARD_POWERCOLOR_REAL_ANGEL   62
+#define CX88_BOARD_GENIATECH_X8000_MT      63
+#define CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO 64
+#define CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD 65
+#define CX88_BOARD_PROLINK_PV_8000GT       66
+#define CX88_BOARD_KWORLD_ATSC_120         67
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -595,6 +605,7 @@ extern int cx88_tuner_callback(void *dev, int command, int arg);
 extern int cx88_get_resources(const struct cx88_core *core,
 			      struct pci_dev *pci);
 extern struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr);
+extern void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl);
 
 /* ----------------------------------------------------------- */
 /* cx88-tvaudio.c                                              */
@@ -640,7 +651,8 @@ void cx8802_cancel_buffers(struct cx8802_dev *dev);
 /* ----------------------------------------------------------- */
 /* cx88-video.c*/
 extern const u32 cx88_user_ctrls[];
-extern int cx8800_ctrl_query(struct v4l2_queryctrl *qctrl);
+extern int cx8800_ctrl_query(struct cx88_core *core,
+			     struct v4l2_queryctrl *qctrl);
 int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i);
 int cx88_set_freq (struct cx88_core  *core,struct v4l2_frequency *f);
 int cx88_get_control(struct cx88_core *core, struct v4l2_control *ctl);

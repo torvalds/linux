@@ -121,7 +121,7 @@ static int init_model2_yb = -1;
 
 /* 01.01.08 - Added for RCA video in support -LO */
 /* Settings for camera model 3 */
-static int init_model3_input = 0;
+static int init_model3_input;
 
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level: 0-9 (default=0)");
@@ -802,6 +802,21 @@ static enum ParseState ibmcam_model2_320x240_parse_lines(
 		return scan_Continue;
 }
 
+/*
+ * ibmcam_model3_parse_lines()
+ *
+ * | Even lines |     Odd Lines       |
+ * -----------------------------------|
+ * |YYY........Y|UYVYUYVY.........UYVY|
+ * |YYY........Y|UYVYUYVY.........UYVY|
+ * |............|.....................|
+ * |YYY........Y|UYVYUYVY.........UYVY|
+ * |------------+---------------------|
+ *
+ * There is one (U, V) chroma pair for every four luma (Y) values.  This
+ * function reads a pair of lines at a time and obtains missing chroma values
+ * from adjacent pixels.
+ */
 static enum ParseState ibmcam_model3_parse_lines(
 	struct uvd *uvd,
 	struct usbvideo_frame *frame,
@@ -816,6 +831,7 @@ static enum ParseState ibmcam_model3_parse_lines(
 	const int ccm = 128; /* Color correction median - see below */
 	int i, u, v, rw, data_w=0, data_h=0, color_corr;
 	static unsigned char lineBuffer[640*3];
+	int line;
 
 	color_corr = (uvd->vpic.colour - 0x8000) >> 8; /* -128..+127 = -ccm..+(ccm-1)*/
 	RESTRICT_TO_RANGE(color_corr, -ccm, ccm+1);
@@ -869,15 +885,15 @@ static enum ParseState ibmcam_model3_parse_lines(
 		return scan_NextFrame;
 	}
 
-	/* Make sure there's enough data for the entire line */
-	len = 3 * data_w; /* <y-data> <uv-data> */
+	/* Make sure that lineBuffer can store two lines of data */
+	len = 3 * data_w; /* <y-data> <uyvy-data> */
 	assert(len <= sizeof(lineBuffer));
 
-	/* Make sure there's enough data for the entire line */
+	/* Make sure there's enough data for two lines */
 	if (RingQueue_GetLength(&uvd->dp) < len)
 		return scan_Out;
 
-	/* Suck one line out of the ring queue */
+	/* Suck two lines of data out of the ring queue */
 	RingQueue_Dequeue(&uvd->dp, lineBuffer, len);
 
 	data = lineBuffer;
@@ -887,15 +903,23 @@ static enum ParseState ibmcam_model3_parse_lines(
 	rw = (int)VIDEOSIZE_Y(frame->request) - (int)(frame->curline) - 1;
 	RESTRICT_TO_RANGE(rw, 0, VIDEOSIZE_Y(frame->request)-1);
 
-	for (i = 0; i < VIDEOSIZE_X(frame->request); i++) {
-		int y, rv, gv, bv;	/* RGB components */
+	/* Iterate over two lines. */
+	for (line = 0; line < 2; line++) {
+		for (i = 0; i < VIDEOSIZE_X(frame->request); i++) {
+			int y;
+			int rv, gv, bv;	/* RGB components */
 
-		if (i < data_w) {
-			y = data[i];	/* Luminosity is the first line */
+			if (i >= data_w) {
+				RGB24_PUTPIXEL(frame, i, rw, 0, 0, 0);
+				continue;
+			}
+
+			/* first line is YYY...Y; second is UYVY...UYVY */
+			y = data[(line == 0) ? i : (i*2 + 1)];
 
 			/* Apply static color correction */
-			u = color[i*2] + hue_corr;
-			v = color[i*2 + 1] + hue2_corr;
+			u = color[(i/2)*4] + hue_corr;
+			v = color[(i/2)*4 + 2] + hue2_corr;
 
 			/* Apply color correction */
 			if (color_corr != 0) {
@@ -903,13 +927,21 @@ static enum ParseState ibmcam_model3_parse_lines(
 				u = 128 + ((ccm + color_corr) * (u - 128)) / ccm;
 				v = 128 + ((ccm + color_corr) * (v - 128)) / ccm;
 			}
-		} else
-			y = 0, u = v = 128;
 
-		YUV_TO_RGB_BY_THE_BOOK(y, u, v, rv, gv, bv);
-		RGB24_PUTPIXEL(frame, i, rw, rv, gv, bv); /* Done by deinterlacing now */
+
+			YUV_TO_RGB_BY_THE_BOOK(y, u, v, rv, gv, bv);
+			RGB24_PUTPIXEL(frame, i, rw, rv, gv, bv);  /* No deinterlacing */
+		}
+
+		/* Check for the end of requested data */
+		if (rw == 0)
+			break;
+
+		/* Prepare for the second line */
+		rw--;
+		data = lineBuffer + data_w;
 	}
-	frame->deinterlace = Deinterlace_FillEvenLines;
+	frame->deinterlace = Deinterlace_None;
 
 	/*
 	 * Account for number of bytes that we wrote into output V4L frame.

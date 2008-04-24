@@ -10,11 +10,9 @@
 #include "tuner-i2c.h"
 #include "mt20xx.h"
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
-
-#define PREFIX "mt20xx"
 
 /* ---------------------------------------------------------------------- */
 
@@ -24,7 +22,7 @@ module_param(optimize_vco,      int, 0644);
 static unsigned int tv_antenna    = 1;
 module_param(tv_antenna,        int, 0644);
 
-static unsigned int radio_antenna = 0;
+static unsigned int radio_antenna;
 module_param(radio_antenna,     int, 0644);
 
 /* ---------------------------------------------------------------------- */
@@ -611,6 +609,7 @@ struct dvb_frontend *microtune_attach(struct dvb_frontend *fe,
 
 	priv->i2c_props.addr = i2c_addr;
 	priv->i2c_props.adap = i2c_adap;
+	priv->i2c_props.name = "mt20xx";
 
 	//priv->radio_if2 = 10700 * 1000;	/* 10.7MHz - FM radio */
 

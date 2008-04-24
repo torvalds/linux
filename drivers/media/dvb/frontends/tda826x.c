@@ -26,7 +26,7 @@
 
 #include "tda826x.h"
 
-static int debug = 0;
+static int debug;
 #define dprintk(args...) \
 	do { \
 		if (debug) printk(KERN_DEBUG "tda826x: " args); \
@@ -54,7 +54,7 @@ static int tda826x_sleep(struct dvb_frontend *fe)
 	u8 buf [] = { 0x00, 0x8d };
 	struct i2c_msg msg = { .addr = priv->i2c_address, .flags = 0, .buf = buf, .len = 2 };
 
-	dprintk("%s:\n", __FUNCTION__);
+	dprintk("%s:\n", __func__);
 
 	if (!priv->has_loopthrough)
 		buf[1] = 0xad;
@@ -62,7 +62,7 @@ static int tda826x_sleep(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((ret = i2c_transfer (priv->i2c, &msg, 1)) != 1) {
-		dprintk("%s: i2c error\n", __FUNCTION__);
+		dprintk("%s: i2c error\n", __func__);
 	}
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
@@ -75,12 +75,23 @@ static int tda826x_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 	struct tda826x_priv *priv = fe->tuner_priv;
 	int ret;
 	u32 div;
+	u32 ksyms;
+	u32 bandwidth;
 	u8 buf [11];
 	struct i2c_msg msg = { .addr = priv->i2c_address, .flags = 0, .buf = buf, .len = 11 };
 
-	dprintk("%s:\n", __FUNCTION__);
+	dprintk("%s:\n", __func__);
 
 	div = (params->frequency + (1000-1)) / 1000;
+
+	/* BW = ((1 + RO) * SR/2 + 5) * 1.3      [SR in MSPS, BW in MHz] */
+	/* with R0 = 0.35 and some transformations: */
+	ksyms = params->u.qpsk.symbol_rate / 1000;
+	bandwidth = (878 * ksyms + 6500000) / 1000000 + 1;
+	if (bandwidth < 5)
+		bandwidth = 5;
+	else if (bandwidth > 36)
+		bandwidth = 36;
 
 	buf[0] = 0x00; // subaddress
 	buf[1] = 0x09; // powerdown RSSI + the magic value 1
@@ -89,7 +100,7 @@ static int tda826x_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 	buf[2] = (1<<5) | 0x0b; // 1Mhz + 0.45 VCO
 	buf[3] = div >> 7;
 	buf[4] = div << 1;
-	buf[5] = 0x77; // baseband cut-off 19 MHz
+	buf[5] = ((bandwidth - 5) << 3) | 7; /* baseband cut-off */
 	buf[6] = 0xfe; // baseband gain 9 db + no RF attenuation
 	buf[7] = 0x83; // charge pumps at high, tests off
 	buf[8] = 0x80; // recommended value 4 for AMPVCO + disable ports.
@@ -99,7 +110,7 @@ static int tda826x_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((ret = i2c_transfer (priv->i2c, &msg, 1)) != 1) {
-		dprintk("%s: i2c error\n", __FUNCTION__);
+		dprintk("%s: i2c error\n", __func__);
 	}
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
@@ -138,7 +149,7 @@ struct dvb_frontend *tda826x_attach(struct dvb_frontend *fe, int addr, struct i2
 	};
 	int ret;
 
-	dprintk("%s:\n", __FUNCTION__);
+	dprintk("%s:\n", __func__);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);

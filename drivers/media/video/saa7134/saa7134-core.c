@@ -42,23 +42,23 @@ MODULE_LICENSE("GPL");
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int irq_debug = 0;
+static unsigned int irq_debug;
 module_param(irq_debug, int, 0644);
 MODULE_PARM_DESC(irq_debug,"enable debug messages [IRQ handler]");
 
-static unsigned int core_debug = 0;
+static unsigned int core_debug;
 module_param(core_debug, int, 0644);
 MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 
-static unsigned int gpio_tracking = 0;
+static unsigned int gpio_tracking;
 module_param(gpio_tracking, int, 0644);
 MODULE_PARM_DESC(gpio_tracking,"enable debug messages [gpio]");
 
-static unsigned int alsa = 0;
+static unsigned int alsa;
 module_param(alsa, int, 0644);
 MODULE_PARM_DESC(alsa,"enable ALSA DMA sound [dmasound]");
 
-static unsigned int oss = 0;
+static unsigned int oss;
 module_param(oss, int, 0644);
 MODULE_PARM_DESC(oss,"enable OSS DMA sound [dmasound]");
 
@@ -140,39 +140,6 @@ void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, index, 0);
 		break;
 	}
-}
-
-int saa7134_tuner_callback(void *ptr, int command, int arg)
-{
-	u8 sync_control;
-	struct saa7134_dev *dev = ptr;
-
-	switch (dev->tuner_type) {
-	case TUNER_PHILIPS_TDA8290:
-		switch (command) {
-		case 0: /* switch LNA gain through GPIO 22*/
-			saa7134_set_gpio(dev, 22, arg) ;
-			break;
-		case 1: /* vsync output at GPIO22. 50 / 60Hz */
-			dprintk("setting GPIO22 to vsync %d\n", arg);
-			saa_andorb(SAA7134_VIDEO_PORT_CTRL3, 0x80, 0x80);
-			saa_andorb(SAA7134_VIDEO_PORT_CTRL6, 0x0f, 0x03);
-			if (arg == 1)
-				sync_control = 11;
-			else
-				sync_control = 17;
-			saa_writeb(SAA7134_VGATE_START, sync_control);
-			saa_writeb(SAA7134_VGATE_STOP, sync_control + 1);
-			saa_andorb(SAA7134_MISC_VGATE_MSB, 0x03, 0x00);
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	default:
-		return -ENODEV;
-	}
-	return 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -897,6 +864,10 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	struct saa7134_dev *dev;
 	struct saa7134_mpeg_ops *mops;
 	int err;
+	int mask;
+
+	if (saa7134_devcount == SAA7134_MAXBOARDS)
+		return -ENOMEM;
 
 	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
 	if (NULL == dev)
@@ -1094,6 +1065,11 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (TUNER_ABSENT != dev->tuner_type)
 		saa7134_i2c_call_clients(dev, TUNER_SET_STANDBY, NULL);
 
+	if (card(dev).gpiomask != 0) {
+		mask = card(dev).gpiomask;
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   mask, mask);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, mask, 0);
+	}
 	return 0;
 
  fail4:

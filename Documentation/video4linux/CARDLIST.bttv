@@ -148,3 +148,5 @@
 147 -> VoodooTV 200 (USA)                                  [121a:3000]
 148 -> DViCO FusionHDTV 2                                  [dbc0:d200]
 149 -> Typhoon TV-Tuner PCI (50684)
+150 -> Geovision GV-600                                    [008a:763c]
+151 -> Kozumi KTV-01C

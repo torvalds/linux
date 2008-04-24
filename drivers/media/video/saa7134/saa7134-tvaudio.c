@@ -35,18 +35,18 @@
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int audio_debug = 0;
+static unsigned int audio_debug;
 module_param(audio_debug, int, 0644);
 MODULE_PARM_DESC(audio_debug,"enable debug messages [tv audio]");
 
-static unsigned int audio_ddep = 0;
+static unsigned int audio_ddep;
 module_param(audio_ddep, int, 0644);
 MODULE_PARM_DESC(audio_ddep,"audio ddep overwrite");
 
 static int audio_clock_override = UNSET;
 module_param(audio_clock_override, int, 0644);
 
-static int audio_clock_tweak = 0;
+static int audio_clock_tweak;
 module_param(audio_clock_tweak, int, 0644);
 MODULE_PARM_DESC(audio_clock_tweak, "Audio clock tick fine tuning for cards with audio crystal that's slightly off (range [-1024 .. 1024])");
 
@@ -653,6 +653,17 @@ static char *stdres[0x20] = {
 
 #define DSP_RETRY 32
 #define DSP_DELAY 16
+#define SAA7135_DSP_RWCLEAR_RERR 1
+
+static inline int saa_dsp_reset_error_bit(struct saa7134_dev *dev)
+{
+	int state = saa_readb(SAA7135_DSP_RWSTATE);
+	if (unlikely(state & SAA7135_DSP_RWSTATE_ERR)) {
+		d2printk("%s: resetting error bit\n", dev->name);
+		saa_writeb(SAA7135_DSP_RWCLEAR, SAA7135_DSP_RWCLEAR_RERR);
+	}
+	return 0;
+}
 
 static inline int saa_dsp_wait_bit(struct saa7134_dev *dev, int bit)
 {
@@ -660,8 +671,8 @@ static inline int saa_dsp_wait_bit(struct saa7134_dev *dev, int bit)
 
 	state = saa_readb(SAA7135_DSP_RWSTATE);
 	if (unlikely(state & SAA7135_DSP_RWSTATE_ERR)) {
-		printk("%s: dsp access error\n",dev->name);
-		/* FIXME: send ack ... */
+		printk(KERN_WARNING "%s: dsp access error\n", dev->name);
+		saa_dsp_reset_error_bit(dev);
 		return -EIO;
 	}
 	while (0 == (state & bit)) {

@@ -151,7 +151,7 @@ typedef struct {
 #define FM_Radio_INPUT2 	21
 #define FM_Radio_INPUT1 	22
 
-XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
+static XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"M/N-NTSC/PAL-BTSC", 0x0400, 0x8020},
 	{"M/N-NTSC/PAL-A2",   0x0600, 0x8020},
 	{"M/N-NTSC/PAL-EIAJ", 0x0440, 0x8020},
@@ -209,7 +209,7 @@ static void xc5000_TunerReset(struct dvb_frontend *fe)
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	if (priv->cfg->tuner_callback) {
 		ret = priv->cfg->tuner_callback(priv->cfg->priv,
@@ -330,7 +330,7 @@ static int xc_load_i2c_sequence(struct dvb_frontend *fe, u8 i2c_sequence[])
 
 static int xc_initialize(struct xc5000_priv *priv)
 {
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 	return xc_write_reg(priv, XREG_INIT, 0);
 }
 
@@ -338,9 +338,9 @@ static int xc_SetTVStandard(struct xc5000_priv *priv,
 	u16 VideoMode, u16 AudioMode)
 {
 	int ret;
-	dprintk(1, "%s(0x%04x,0x%04x)\n", __FUNCTION__, VideoMode, AudioMode);
+	dprintk(1, "%s(0x%04x,0x%04x)\n", __func__, VideoMode, AudioMode);
 	dprintk(1, "%s() Standard = %s\n",
-		__FUNCTION__,
+		__func__,
 		XC5000_Standard[priv->video_standard].Name);
 
 	ret = xc_write_reg(priv, XREG_VIDEO_MODE, VideoMode);
@@ -361,7 +361,7 @@ static int xc_shutdown(struct xc5000_priv *priv)
 
 static int xc_SetSignalSource(struct xc5000_priv *priv, u16 rf_mode)
 {
-	dprintk(1, "%s(%d) Source = %s\n", __FUNCTION__, rf_mode,
+	dprintk(1, "%s(%d) Source = %s\n", __func__, rf_mode,
 		rf_mode == XC_RF_MODE_AIR ? "ANTENNA" : "CABLE");
 
 	if ((rf_mode != XC_RF_MODE_AIR) && (rf_mode != XC_RF_MODE_CABLE))
@@ -369,7 +369,7 @@ static int xc_SetSignalSource(struct xc5000_priv *priv, u16 rf_mode)
 		rf_mode = XC_RF_MODE_CABLE;
 		printk(KERN_ERR
 			"%s(), Invalid mode, defaulting to CABLE",
-			__FUNCTION__);
+			__func__);
 	}
 	return xc_write_reg(priv, XREG_SIGNALSOURCE, rf_mode);
 }
@@ -380,7 +380,7 @@ static int xc_set_RF_frequency(struct xc5000_priv *priv, u32 freq_hz)
 {
 	u16 freq_code;
 
-	dprintk(1, "%s(%u)\n", __FUNCTION__, freq_hz);
+	dprintk(1, "%s(%u)\n", __func__, freq_hz);
 
 	if ((freq_hz > xc5000_tuner_ops.info.frequency_max) ||
 		(freq_hz < xc5000_tuner_ops.info.frequency_min))
@@ -396,7 +396,7 @@ static int xc_set_IF_frequency(struct xc5000_priv *priv, u32 freq_khz)
 {
 	u32 freq_code = (freq_khz * 1024)/1000;
 	dprintk(1, "%s(freq_khz = %d) freq_code = 0x%x\n",
-		__FUNCTION__, freq_khz, freq_code);
+		__func__, freq_khz, freq_code);
 
 	return xc_write_reg(priv, XREG_IF_OUT, freq_code);
 }
@@ -488,7 +488,7 @@ static int xc_tune_channel(struct xc5000_priv *priv, u32 freq_hz)
 {
 	int found = 0;
 
-	dprintk(1, "%s(%u)\n", __FUNCTION__, freq_hz);
+	dprintk(1, "%s(%u)\n", __func__, freq_hz);
 
 	if (xc_set_RF_frequency(priv, freq_hz) != XC_RESULT_SUCCESS)
 		return 0;
@@ -627,12 +627,12 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	dprintk(1, "%s() frequency=%d (Hz)\n", __FUNCTION__, params->frequency);
+	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
 
 	switch(params->u.vsb.modulation) {
 	case VSB_8:
 	case VSB_16:
-		dprintk(1, "%s() VSB modulation\n", __FUNCTION__);
+		dprintk(1, "%s() VSB modulation\n", __func__);
 		priv->rf_mode = XC_RF_MODE_AIR;
 		priv->freq_hz = params->frequency - 1750000;
 		priv->bandwidth = BANDWIDTH_6_MHZ;
@@ -641,7 +641,7 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 	case QAM_64:
 	case QAM_256:
 	case QAM_AUTO:
-		dprintk(1, "%s() QAM modulation\n", __FUNCTION__);
+		dprintk(1, "%s() QAM modulation\n", __func__);
 		priv->rf_mode = XC_RF_MODE_CABLE;
 		priv->freq_hz = params->frequency - 1750000;
 		priv->bandwidth = BANDWIDTH_6_MHZ;
@@ -652,7 +652,7 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 	}
 
 	dprintk(1, "%s() frequency=%d (compensated)\n",
-		__FUNCTION__, priv->freq_hz);
+		__func__, priv->freq_hz);
 
 	ret = xc_SetSignalSource(priv, priv->rf_mode);
 	if (ret != XC_RESULT_SUCCESS) {
@@ -697,7 +697,7 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 		xc_load_fw_and_init_tuner(fe);
 
 	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
-		__FUNCTION__, params->frequency);
+		__func__, params->frequency);
 
 	priv->rf_mode = XC_RF_MODE_CABLE; /* Fix me: it could be air. */
 
@@ -775,7 +775,7 @@ tune_channel:
 static int xc5000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 	*freq = priv->freq_hz;
 	return 0;
 }
@@ -783,7 +783,7 @@ static int xc5000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 static int xc5000_get_bandwidth(struct dvb_frontend *fe, u32 *bw)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	*bw = priv->bandwidth;
 	return 0;
@@ -796,7 +796,7 @@ static int xc5000_get_status(struct dvb_frontend *fe, u32 *status)
 
 	xc_get_lock_status(priv, &lock_status);
 
-	dprintk(1, "%s() lock_status = 0x%08x\n", __FUNCTION__, lock_status);
+	dprintk(1, "%s() lock_status = 0x%08x\n", __func__, lock_status);
 
 	*status = lock_status;
 
@@ -836,7 +836,7 @@ static int xc5000_sleep(struct dvb_frontend *fe)
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	/* On Pinnacle PCTV HD 800i, the tuner cannot be reinitialized
 	 * once shutdown without reloading the driver. Maybe I am not
@@ -848,7 +848,7 @@ static int xc5000_sleep(struct dvb_frontend *fe)
 	if(ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR
 			"xc5000: %s() unable to shutdown tuner\n",
-			__FUNCTION__);
+			__func__);
 		return -EREMOTEIO;
 	}
 	else {
@@ -860,7 +860,7 @@ static int xc5000_sleep(struct dvb_frontend *fe)
 static int xc5000_init(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc5000: Unable to initialise tuner\n");
@@ -875,7 +875,7 @@ static int xc5000_init(struct dvb_frontend *fe)
 
 static int xc5000_release(struct dvb_frontend *fe)
 {
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
 	return 0;
@@ -907,7 +907,7 @@ struct dvb_frontend * xc5000_attach(struct dvb_frontend *fe,
 	struct xc5000_priv *priv = NULL;
 	u16 id = 0;
 
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	priv = kzalloc(sizeof(struct xc5000_priv), GFP_KERNEL);
 	if (priv == NULL)

@@ -16,11 +16,9 @@
 #include "tuner-i2c.h"
 #include "tea5767.h"
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
-
-#define PREFIX "tea5767"
 
 /*****************************************************************************/
 
@@ -137,14 +135,14 @@ static void tea5767_status_dump(struct tea5767_priv *priv,
 	unsigned int div, frq;
 
 	if (TEA5767_READY_FLAG_MASK & buffer[0])
-		printk(PREFIX "Ready Flag ON\n");
+		tuner_info("Ready Flag ON\n");
 	else
-		printk(PREFIX "Ready Flag OFF\n");
+		tuner_info("Ready Flag OFF\n");
 
 	if (TEA5767_BAND_LIMIT_MASK & buffer[0])
-		printk(PREFIX "Tuner at band limit\n");
+		tuner_info("Tuner at band limit\n");
 	else
-		printk(PREFIX "Tuner not at band limit\n");
+		tuner_info("Tuner not at band limit\n");
 
 	div = ((buffer[0] & 0x3f) << 8) | buffer[1];
 
@@ -166,23 +164,23 @@ static void tea5767_status_dump(struct tea5767_priv *priv,
 	buffer[0] = (div >> 8) & 0x3f;
 	buffer[1] = div & 0xff;
 
-	printk(PREFIX "Frequency %d.%03d KHz (divider = 0x%04x)\n",
-	       frq / 1000, frq % 1000, div);
+	tuner_info("Frequency %d.%03d KHz (divider = 0x%04x)\n",
+		   frq / 1000, frq % 1000, div);
 
 	if (TEA5767_STEREO_MASK & buffer[2])
-		printk(PREFIX "Stereo\n");
+		tuner_info("Stereo\n");
 	else
-		printk(PREFIX "Mono\n");
+		tuner_info("Mono\n");
 
-	printk(PREFIX "IF Counter = %d\n", buffer[2] & TEA5767_IF_CNTR_MASK);
+	tuner_info("IF Counter = %d\n", buffer[2] & TEA5767_IF_CNTR_MASK);
 
-	printk(PREFIX "ADC Level = %d\n",
-	       (buffer[3] & TEA5767_ADC_LEVEL_MASK) >> 4);
+	tuner_info("ADC Level = %d\n",
+		   (buffer[3] & TEA5767_ADC_LEVEL_MASK) >> 4);
 
-	printk(PREFIX "Chip ID = %d\n", (buffer[3] & TEA5767_CHIP_ID_MASK));
+	tuner_info("Chip ID = %d\n", (buffer[3] & TEA5767_CHIP_ID_MASK));
 
-	printk(PREFIX "Reserved = 0x%02x\n",
-	       (buffer[4] & TEA5767_RESERVED_MASK));
+	tuner_info("Reserved = 0x%02x\n",
+		   (buffer[4] & TEA5767_RESERVED_MASK));
 }
 
 /* Freq should be specifyed at 62.5 Hz */
@@ -395,11 +393,6 @@ int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 		return EINVAL;
 	}
 
-	/* It seems that tea5767 returns 0xff after the 5th byte */
-	if ((buffer[5] != 0xff) || (buffer[6] != 0xff)) {
-		printk(KERN_WARNING "Returned more than 5 bytes. It is not a TEA5767\n");
-		return EINVAL;
-	}
 
 	return 0;
 }
@@ -456,6 +449,8 @@ struct dvb_frontend *tea5767_attach(struct dvb_frontend *fe,
 
 	priv->i2c_props.addr  = i2c_addr;
 	priv->i2c_props.adap  = i2c_adap;
+	priv->i2c_props.name  = "tea5767";
+
 	priv->ctrl.xtal_freq  = TEA5767_HIGH_LO_32768;
 	priv->ctrl.port1      = 1;
 	priv->ctrl.port2      = 1;

@@ -701,7 +701,9 @@ static const struct file_operations saa_fops = {
 	.open		= saa5249_open,
 	.release       	= saa5249_release,
 	.ioctl          = saa5249_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.llseek         = no_llseek,
 };
 

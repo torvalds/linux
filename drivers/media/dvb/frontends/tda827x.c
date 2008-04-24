@@ -25,7 +25,7 @@
 
 #include "tda827x.h"
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
@@ -142,7 +142,7 @@ static int tda827xo_set_params(struct dvb_frontend *fe,
 	int i, tuner_freq, if_freq;
 	u32 N;
 
-	dprintk("%s:\n", __FUNCTION__);
+	dprintk("%s:\n", __func__);
 	switch (params->u.ofdm.bandwidth) {
 	case BANDWIDTH_6_MHZ:
 		if_freq = 4000000;
@@ -186,7 +186,7 @@ static int tda827xo_set_params(struct dvb_frontend *fe,
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(priv->i2c_adap, &msg, 1) != 1) {
 		printk("%s: could not write to tuner at addr: 0x%02x\n",
-		       __FUNCTION__, priv->i2c_addr << 1);
+		       __func__, priv->i2c_addr << 1);
 		return -EIO;
 	}
 	msleep(500);
@@ -212,7 +212,7 @@ static int tda827xo_sleep(struct dvb_frontend *fe)
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
 			       .buf = buf, .len = sizeof(buf) };
 
-	dprintk("%s:\n", __FUNCTION__);
+	dprintk("%s:\n", __func__);
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(priv->i2c_adap, &msg, 1);
@@ -389,6 +389,79 @@ static struct tda827xa_data tda827xa_analog[] = {
 	{ .lomax =         0, .svco = 0, .spd = 0, .scr = 0, .sbs = 0, .gc3 = 0}
 };
 
+static int tda827xa_sleep(struct dvb_frontend *fe)
+{
+	struct tda827x_priv *priv = fe->tuner_priv;
+	static u8 buf[] = { 0x30, 0x90 };
+	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
+			       .buf = buf, .len = sizeof(buf) };
+
+	dprintk("%s:\n", __func__);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	i2c_transfer(priv->i2c_adap, &msg, 1);
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	if (priv->cfg && priv->cfg->sleep)
+		priv->cfg->sleep(fe);
+
+	return 0;
+}
+
+static void tda827xa_lna_gain(struct dvb_frontend *fe, int high,
+			      struct analog_parameters *params)
+{
+	struct tda827x_priv *priv = fe->tuner_priv;
+	unsigned char buf[] = {0x22, 0x01};
+	int arg;
+	int gp_func;
+	struct i2c_msg msg = { .addr = priv->cfg->switch_addr, .flags = 0,
+			       .buf = buf, .len = sizeof(buf) };
+
+	if (NULL == priv->cfg) {
+		dprintk("tda827x_config not defined, cannot set LNA gain!\n");
+		return;
+	}
+	if (priv->cfg->config) {
+		if (high)
+			dprintk("setting LNA to high gain\n");
+		else
+			dprintk("setting LNA to low gain\n");
+	}
+	switch (priv->cfg->config) {
+	case 0: /* no LNA */
+		break;
+	case 1: /* switch is GPIO 0 of tda8290 */
+	case 2:
+		if (params == NULL) {
+			gp_func = 0;
+			arg  = 0;
+		} else {
+			/* turn Vsync on */
+			gp_func = 1;
+			if (params->std & V4L2_STD_MN)
+				arg = 1;
+			else
+				arg = 0;
+		}
+		if (priv->cfg->tuner_callback)
+			priv->cfg->tuner_callback(priv->i2c_adap->algo_data,
+								gp_func, arg);
+		buf[1] = high ? 0 : 1;
+		if (priv->cfg->config == 2)
+			buf[1] = high ? 1 : 0;
+		i2c_transfer(priv->i2c_adap, &msg, 1);
+		break;
+	case 3: /* switch with GPIO of saa713x */
+		if (priv->cfg->tuner_callback)
+			priv->cfg->tuner_callback(priv->i2c_adap->algo_data, 0, high);
+		break;
+	}
+}
+
 static int tda827xa_set_params(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *params)
 {
@@ -401,9 +474,9 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 	int i, tuner_freq, if_freq;
 	u32 N;
 
-	dprintk("%s:\n", __FUNCTION__);
-	if (priv->cfg && priv->cfg->lna_gain)
-		priv->cfg->lna_gain(fe, 1);
+	dprintk("%s:\n", __func__);
+
+	tda827xa_lna_gain(fe, 1, NULL);
 	msleep(20);
 
 	switch (params->u.ofdm.bandwidth) {
@@ -444,7 +517,7 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(priv->i2c_adap, &msg, 1) != 1) {
 		printk("%s: could not write to tuner at addr: 0x%02x\n",
-		       __FUNCTION__, priv->i2c_addr << 1);
+		       __func__, priv->i2c_addr << 1);
 		return -EIO;
 	}
 	buf[0] = 0x90;
@@ -474,8 +547,7 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 	buf[1] >>= 4;
 	dprintk("tda8275a AGC2 gain is: %d\n", buf[1]);
 	if ((buf[1]) < 2) {
-		if (priv->cfg && priv->cfg->lna_gain)
-			priv->cfg->lna_gain(fe, 0);
+		tda827xa_lna_gain(fe, 0, NULL);
 		buf[0] = 0x60;
 		buf[1] = 0x0c;
 		if (fe->ops.i2c_gate_ctrl)
@@ -523,75 +595,6 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int tda827xa_sleep(struct dvb_frontend *fe)
-{
-	struct tda827x_priv *priv = fe->tuner_priv;
-	static u8 buf[] = { 0x30, 0x90 };
-	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
-			       .buf = buf, .len = sizeof(buf) };
-
-	dprintk("%s:\n", __FUNCTION__);
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-
-	i2c_transfer(priv->i2c_adap, &msg, 1);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-
-	if (priv->cfg && priv->cfg->sleep)
-		priv->cfg->sleep(fe);
-
-	return 0;
-}
-
-/* ------------------------------------------------------------------ */
-
-static void tda827xa_lna_gain(struct dvb_frontend *fe, int high,
-			      struct analog_parameters *params)
-{
-	struct tda827x_priv *priv = fe->tuner_priv;
-	unsigned char buf[] = {0x22, 0x01};
-	int arg;
-	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
-			       .buf = buf, .len = sizeof(buf) };
-
-	if (NULL == priv->cfg) {
-		dprintk("tda827x_config not defined, cannot set LNA gain!\n");
-		return;
-	}
-
-	if (priv->cfg->config) {
-		if (high)
-			dprintk("setting LNA to high gain\n");
-		else
-			dprintk("setting LNA to low gain\n");
-	}
-	switch (*priv->cfg->config) {
-	case 0: /* no LNA */
-		break;
-	case 1: /* switch is GPIO 0 of tda8290 */
-	case 2:
-		/* turn Vsync on */
-		if (params->std & V4L2_STD_MN)
-			arg = 1;
-		else
-			arg = 0;
-		if (priv->cfg->tuner_callback)
-			priv->cfg->tuner_callback(priv->i2c_adap->algo_data,
-						  1, arg);
-		buf[1] = high ? 0 : 1;
-		if (*priv->cfg->config == 2)
-			buf[1] = high ? 1 : 0;
-		i2c_transfer(priv->i2c_adap, &msg, 1);
-		break;
-	case 3: /* switch with GPIO of saa713x */
-		if (priv->cfg->tuner_callback)
-			priv->cfg->tuner_callback(priv->i2c_adap->algo_data,
-						  0, high);
-		break;
-	}
-}
 
 static int tda827xa_set_analog_params(struct dvb_frontend *fe,
 				      struct analog_parameters *params)
@@ -726,7 +729,7 @@ static int tda827x_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 static int tda827x_init(struct dvb_frontend *fe)
 {
 	struct tda827x_priv *priv = fe->tuner_priv;
-	dprintk("%s:\n", __FUNCTION__);
+	dprintk("%s:\n", __func__);
 	if (priv->cfg && priv->cfg->init)
 		priv->cfg->init(fe);
 
@@ -794,7 +797,7 @@ static int tda827x_probe_version(struct dvb_frontend *fe)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(priv->i2c_adap, &msg, 1) != 1) {
 		printk("%s: could not read from tuner at addr: 0x%02x\n",
-		       __FUNCTION__, msg.addr << 1);
+		       __func__, msg.addr << 1);
 		return -EIO;
 	}
 	if ((data & 0x3c) == 0) {
@@ -818,7 +821,7 @@ struct dvb_frontend *tda827x_attach(struct dvb_frontend *fe, int addr,
 {
 	struct tda827x_priv *priv = NULL;
 
-	dprintk("%s:\n", __FUNCTION__);
+	dprintk("%s:\n", __func__);
 	priv = kzalloc(sizeof(struct tda827x_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return NULL;

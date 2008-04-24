@@ -66,7 +66,7 @@ static int ves1820_writereg(struct ves1820_state *state, u8 reg, u8 data)
 
 	if (ret != 1)
 		printk("ves1820: %s(): writereg error (reg == 0x%02x, "
-			"val == 0x%02x, ret == %i)\n", __FUNCTION__, reg, data, ret);
+			"val == 0x%02x, ret == %i)\n", __func__, reg, data, ret);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
@@ -85,7 +85,7 @@ static u8 ves1820_readreg(struct ves1820_state *state, u8 reg)
 
 	if (ret != 2)
 		printk("ves1820: %s(): readreg error (reg == 0x%02x, "
-		"ret == %i)\n", __FUNCTION__, reg, ret);
+		"ret == %i)\n", __func__, reg, ret);
 
 	return b1[0];
 }

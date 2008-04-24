@@ -50,7 +50,7 @@
 static int debug;
 module_param(debug, int, 0644);    /* debug level (0,1,2) */
 
-static int hauppauge = 0;
+static int hauppauge;
 module_param(hauppauge, int, 0644);    /* Choose Hauppauge remote */
 MODULE_PARM_DESC(hauppauge, "Specify Hauppauge remote: 0=black, 1=grey (defaults to 0)");
 
@@ -153,7 +153,7 @@ static int get_key_fusionhdtv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	}
 
 	if(buf[0] !=0 || buf[1] !=0 || buf[2] !=0 || buf[3] != 0)
-		dprintk(2, "%s: 0x%2x 0x%2x 0x%2x 0x%2x\n", __FUNCTION__,
+		dprintk(2, "%s: 0x%2x 0x%2x 0x%2x 0x%2x\n", __func__,
 			buf[0], buf[1], buf[2], buf[3]);
 
 	/* no key pressed or signal from other ir remote */
@@ -508,10 +508,10 @@ static int ir_probe(struct i2c_adapter *adap)
 	static const int probe_em28XX[] = { 0x30, 0x47, -1 };
 	static const int probe_cx88[] = { 0x18, 0x6b, 0x71, -1 };
 	static const int probe_cx23885[] = { 0x6b, -1 };
-	const int *probe = NULL;
-	struct i2c_client c;
+	const int *probe;
+	struct i2c_client *c;
 	unsigned char buf;
-	int i,rc;
+	int i, rc;
 
 	switch (adap->id) {
 	case I2C_HW_B_BT848:
@@ -532,23 +532,27 @@ static int ir_probe(struct i2c_adapter *adap)
 	case I2C_HW_B_CX23885:
 		probe = probe_cx23885;
 		break;
-	}
-	if (NULL == probe)
+	default:
 		return 0;
+	}
 
-	memset(&c,0,sizeof(c));
-	c.adapter = adap;
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	if (!c)
+		return -ENOMEM;
+
+	c->adapter = adap;
 	for (i = 0; -1 != probe[i]; i++) {
-		c.addr = probe[i];
-		rc = i2c_master_recv(&c,&buf,0);
+		c->addr = probe[i];
+		rc = i2c_master_recv(c, &buf, 0);
 		dprintk(1,"probe 0x%02x @ %s: %s\n",
 			probe[i], adap->name,
 			(0 == rc) ? "yes" : "no");
 		if (0 == rc) {
-			ir_attach(adap,probe[i],0,0);
+			ir_attach(adap, probe[i], 0, 0);
 			break;
 		}
 	}
+	kfree(c);
 	return 0;
 }
 

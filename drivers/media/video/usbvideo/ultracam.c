@@ -28,9 +28,9 @@ typedef struct {
 
 static struct usbvideo *cams = NULL;
 
-static int debug = 0;
+static int debug;
 
-static int flags = 0; /* FLAGS_DISPLAY_HINTS | FLAGS_OVERLAY_STATS; */
+static int flags; /* FLAGS_DISPLAY_HINTS | FLAGS_OVERLAY_STATS; */
 
 static const int min_canvasWidth  = 8;
 static const int min_canvasHeight = 4;

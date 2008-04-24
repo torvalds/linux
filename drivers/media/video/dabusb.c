@@ -205,7 +205,7 @@ static void dabusb_iso_complete (struct urb *purb)
 /*-------------------------------------------------------------------*/
 static int dabusb_alloc_buffers (pdabusb_t s)
 {
-	int buffers = 0;
+	int transfer_len = 0;
 	pbuff_t b;
 	unsigned int pipe = usb_rcvisocpipe (s->usbdev, _DABUSB_ISOPIPE);
 	int pipesize = usb_maxpacket (s->usbdev, pipe, usb_pipeout (pipe));
@@ -216,7 +216,7 @@ static int dabusb_alloc_buffers (pdabusb_t s)
 	dbg("dabusb_alloc_buffers pipesize:%d packets:%d transfer_buffer_len:%d",
 		 pipesize, packets, transfer_buffer_length);
 
-	while (buffers < (s->total_buffer_size << 10)) {
+	while (transfer_len < (s->total_buffer_size << 10)) {
 		b = kzalloc(sizeof (buff_t), GFP_KERNEL);
 		if (!b) {
 			err("kzalloc(sizeof(buff_t))==NULL");
@@ -251,10 +251,10 @@ static int dabusb_alloc_buffers (pdabusb_t s)
 			b->purb->iso_frame_desc[i].length = pipesize;
 		}
 
-		buffers += transfer_buffer_length;
+		transfer_len += transfer_buffer_length;
 		list_add_tail (&b->buff_list, &s->free_buff_list);
 	}
-	s->got_mem = buffers;
+	s->got_mem = transfer_len;
 
 	return 0;
 

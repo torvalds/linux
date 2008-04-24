@@ -352,7 +352,7 @@ static void cx23885_initialize(struct i2c_client *client)
 static void input_change(struct i2c_client *client)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
-	v4l2_std_id std = cx25840_get_v4lstd(client);
+	v4l2_std_id std = state->std;
 
 	/* Follow step 8c and 8d of section 3.16 in the cx25840 datasheet */
 	if (std & V4L2_STD_SECAM) {
@@ -523,32 +523,34 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 
 /* ----------------------------------------------------------------------- */
 
-static int set_v4lstd(struct i2c_client *client, v4l2_std_id std)
+static int set_v4lstd(struct i2c_client *client)
 {
-	u8 fmt=0; 	/* zero is autodetect */
+	struct cx25840_state *state = i2c_get_clientdata(client);
+	u8 fmt = 0; 	/* zero is autodetect */
+	u8 pal_m = 0;
 
 	/* First tests should be against specific std */
-	if (std == V4L2_STD_NTSC_M_JP) {
-		fmt=0x2;
-	} else if (std == V4L2_STD_NTSC_443) {
-		fmt=0x3;
-	} else if (std == V4L2_STD_PAL_M) {
-		fmt=0x5;
-	} else if (std == V4L2_STD_PAL_N) {
-		fmt=0x6;
-	} else if (std == V4L2_STD_PAL_Nc) {
-		fmt=0x7;
-	} else if (std == V4L2_STD_PAL_60) {
-		fmt=0x8;
+	if (state->std == V4L2_STD_NTSC_M_JP) {
+		fmt = 0x2;
+	} else if (state->std == V4L2_STD_NTSC_443) {
+		fmt = 0x3;
+	} else if (state->std == V4L2_STD_PAL_M) {
+		pal_m = 1;
+		fmt = 0x5;
+	} else if (state->std == V4L2_STD_PAL_N) {
+		fmt = 0x6;
+	} else if (state->std == V4L2_STD_PAL_Nc) {
+		fmt = 0x7;
+	} else if (state->std == V4L2_STD_PAL_60) {
+		fmt = 0x8;
 	} else {
 		/* Then, test against generic ones */
-		if (std & V4L2_STD_NTSC) {
-			fmt=0x1;
-		} else if (std & V4L2_STD_PAL) {
-			fmt=0x4;
-		} else if (std & V4L2_STD_SECAM) {
-			fmt=0xc;
-		}
+		if (state->std & V4L2_STD_NTSC)
+			fmt = 0x1;
+		else if (state->std & V4L2_STD_PAL)
+			fmt = 0x4;
+		else if (state->std & V4L2_STD_SECAM)
+			fmt = 0xc;
 	}
 
 	v4l_dbg(1, cx25840_debug, client, "changing video std to fmt %i\n",fmt);
@@ -563,40 +565,11 @@ static int set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 		cx25840_and_or(client, 0x47b, ~6, 0);
 	}
 	cx25840_and_or(client, 0x400, ~0xf, fmt);
+	cx25840_and_or(client, 0x403, ~0x3, pal_m);
 	cx25840_vbi_setup(client);
+	if (!state->is_cx25836)
+		input_change(client);
 	return 0;
-}
-
-v4l2_std_id cx25840_get_v4lstd(struct i2c_client * client)
-{
-	struct cx25840_state *state = i2c_get_clientdata(client);
-	/* check VID_FMT_SEL first */
-	u8 fmt = cx25840_read(client, 0x400) & 0xf;
-
-	if (!fmt) {
-		/* check AFD_FMT_STAT if set to autodetect */
-		fmt = cx25840_read(client, 0x40d) & 0xf;
-	}
-
-	switch (fmt) {
-	case 0x1:
-	{
-		/* if the audio std is A2-M, then this is the South Korean
-		   NTSC standard */
-		if (!state->is_cx25836 && cx25840_read(client, 0x805) == 2)
-			return V4L2_STD_NTSC_M_KR;
-		return V4L2_STD_NTSC_M;
-	}
-	case 0x2: return V4L2_STD_NTSC_M_JP;
-	case 0x3: return V4L2_STD_NTSC_443;
-	case 0x4: return V4L2_STD_PAL;
-	case 0x5: return V4L2_STD_PAL_M;
-	case 0x6: return V4L2_STD_PAL_N;
-	case 0x7: return V4L2_STD_PAL_Nc;
-	case 0x8: return V4L2_STD_PAL_60;
-	case 0xc: return V4L2_STD_SECAM;
-	default: return V4L2_STD_UNKNOWN;
-	}
 }
 
 /* ----------------------------------------------------------------------- */
@@ -718,9 +691,10 @@ static int get_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 
 static int set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 {
+	struct cx25840_state *state = i2c_get_clientdata(client);
 	struct v4l2_pix_format *pix;
 	int HSC, VSC, Vsrc, Hsrc, filter, Vlines;
-	int is_50Hz = !(cx25840_get_v4lstd(client) & V4L2_STD_525_60);
+	int is_50Hz = !(state->std & V4L2_STD_525_60);
 
 	switch (fmt->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
@@ -1096,12 +1070,15 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 	}
 
 	case VIDIOC_G_STD:
-		*(v4l2_std_id *)arg = cx25840_get_v4lstd(client);
+		*(v4l2_std_id *)arg = state->std;
 		break;
 
 	case VIDIOC_S_STD:
+		if (state->radio == 0 && state->std == *(v4l2_std_id *)arg)
+			return 0;
 		state->radio = 0;
-		return set_v4lstd(client, *(v4l2_std_id *)arg);
+		state->std = *(v4l2_std_id *)arg;
+		return set_v4lstd(client);
 
 	case AUDC_SET_RADIO:
 		state->radio = 1;
@@ -1290,6 +1267,12 @@ static int cx25840_probe(struct i2c_client *client)
 	state->vbi_line_offset = 8;
 	state->id = id;
 	state->rev = device_id;
+
+	if (state->is_cx23885) {
+		/* Drive GPIO2 direction and values */
+		cx25840_write(client, 0x160, 0x1d);
+		cx25840_write(client, 0x164, 0x00);
+	}
 
 	return 0;
 }

@@ -32,6 +32,7 @@
 
 #include "btcx-risc.h"
 #include "cx23885-reg.h"
+#include "media/cx2341x.h"
 
 #include <linux/version.h>
 #include <linux/mutex.h>
@@ -59,6 +60,9 @@
 #define CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP   4
 #define CX23885_BOARD_HAUPPAUGE_HVR1500Q       5
 #define CX23885_BOARD_HAUPPAUGE_HVR1500        6
+#define CX23885_BOARD_HAUPPAUGE_HVR1200        7
+#define CX23885_BOARD_HAUPPAUGE_HVR1700        8
+#define CX23885_BOARD_HAUPPAUGE_HVR1400        9
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
 #define CX23885_NORMS (\
@@ -154,6 +158,7 @@ typedef enum {
 	CX23885_MPEG_UNDEFINED = 0,
 	CX23885_MPEG_DVB,
 	CX23885_ANALOG_VIDEO,
+	CX23885_MPEG_ENCODER,
 } port_t;
 
 struct cx23885_board {
@@ -252,6 +257,8 @@ struct cx23885_tsport {
 	u32                        gen_ctrl_val;
 	u32                        ts_clk_en_val;
 	u32                        src_sel_val;
+	u32                        vld_misc_val;
+	u32                        hw_sop_ctrl_val;
 };
 
 struct cx23885_dev {
@@ -312,6 +319,14 @@ struct cx23885_dev {
 	struct cx23885_dmaqueue    vidq;
 	struct cx23885_dmaqueue    vbiq;
 	spinlock_t                 slock;
+
+	/* MPEG Encoder ONLY settings */
+	u32                        cx23417_mailbox;
+	struct cx2341x_mpeg_params mpeg_params;
+	struct video_device        *v4l_device;
+	atomic_t                   v4l_reader_count;
+	struct cx23885_tvnorm      encodernorm;
+
 };
 
 extern struct list_head cx23885_devlist;
@@ -431,6 +446,18 @@ extern int cx23885_i2c_register(struct cx23885_i2c *bus);
 extern int cx23885_i2c_unregister(struct cx23885_i2c *bus);
 extern void cx23885_call_i2c_clients(struct cx23885_i2c *bus, unsigned int cmd,
 				     void *arg);
+extern void cx23885_av_clk(struct cx23885_dev *dev, int enable);
+
+/* ----------------------------------------------------------- */
+/* cx23885-417.c                                               */
+extern int cx23885_417_register(struct cx23885_dev *dev);
+extern void cx23885_417_unregister(struct cx23885_dev *dev);
+extern int cx23885_irq_417(struct cx23885_dev *dev, u32 status);
+extern void cx23885_417_check_encoder(struct cx23885_dev *dev);
+extern void cx23885_mc417_init(struct cx23885_dev *dev);
+extern int mc417_memory_read(struct cx23885_dev *dev, u32 address, u32 *value);
+extern int mc417_memory_write(struct cx23885_dev *dev, u32 address, u32 value);
+
 
 /* ----------------------------------------------------------- */
 /* tv norms                                                    */

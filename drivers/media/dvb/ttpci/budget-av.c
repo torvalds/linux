@@ -178,7 +178,7 @@ static int ciintf_read_cam_control(struct dvb_ca_en50221 *ca, int slot, u8 addre
 	udelay(1);
 
 	result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, address & 3, 1, 0, 0);
-	if ((result == -ETIMEDOUT) || ((result == 0xff) && ((address & 3) < 2))) {
+	if (result == -ETIMEDOUT) {
 		ciintf_slot_shutdown(ca, slot);
 		printk(KERN_INFO "budget-av: cam ejected 3\n");
 		return -ETIMEDOUT;
@@ -577,7 +577,7 @@ static struct stv0299_config typhoon_config = {
 	.mclk = 88000000UL,
 	.invert = 0,
 	.skip_reinit = 0,
-	.lock_output = STV0229_LOCKOUTPUT_1,
+	.lock_output = STV0299_LOCKOUTPUT_1,
 	.volt13_op0_op1 = STV0299_VOLT13_OP0,
 	.min_delay_ms = 100,
 	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
@@ -590,7 +590,7 @@ static struct stv0299_config cinergy_1200s_config = {
 	.mclk = 88000000UL,
 	.invert = 0,
 	.skip_reinit = 0,
-	.lock_output = STV0229_LOCKOUTPUT_0,
+	.lock_output = STV0299_LOCKOUTPUT_0,
 	.volt13_op0_op1 = STV0299_VOLT13_OP0,
 	.min_delay_ms = 100,
 	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
@@ -602,7 +602,7 @@ static struct stv0299_config cinergy_1200s_1894_0010_config = {
 	.mclk = 88000000UL,
 	.invert = 1,
 	.skip_reinit = 0,
-	.lock_output = STV0229_LOCKOUTPUT_1,
+	.lock_output = STV0299_LOCKOUTPUT_1,
 	.volt13_op0_op1 = STV0299_VOLT13_OP0,
 	.min_delay_ms = 100,
 	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
@@ -869,7 +869,7 @@ static struct stv0299_config philips_sd1878_config = {
 	.mclk = 88000000UL,
 	.invert = 0,
 	.skip_reinit = 0,
-	.lock_output = STV0229_LOCKOUTPUT_1,
+	.lock_output = STV0299_LOCKOUTPUT_1,
 	.volt13_op0_op1 = STV0299_VOLT13_OP0,
 	.min_delay_ms = 100,
 	.set_symbol_rate = philips_sd1878_ci_set_symbol_rate,
@@ -941,6 +941,12 @@ static void frontend_init(struct budget_av *budget_av)
 	switch (saa->pci->subsystem_device) {
 
 	case SUBID_DVBS_KNC1:
+		/*
+		 * maybe that setting is needed for other dvb-s cards as well,
+		 * but so far it has been only confirmed for this type
+		 */
+		budget_av->reinitialise_demod = 1;
+		/* fall through */
 	case SUBID_DVBS_KNC1_PLUS:
 	case SUBID_DVBS_EASYWATCH_1:
 		if (saa->pci->subsystem_vendor == 0x1894) {

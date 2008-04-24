@@ -20,9 +20,10 @@
 #include <linux/fs.h>
 #include <linux/kthread.h>
 #include <linux/file.h>
+
 #include <linux/freezer.h>
 
-#include <media/videobuf-dma-sg.h>
+#include <media/videobuf-core.h>
 #include <media/videobuf-dvb.h>
 
 /* ------------------------------------------------------------------ */
@@ -30,7 +31,7 @@
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
-static unsigned int debug = 0;
+static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"enable debug messages");
 
@@ -45,7 +46,7 @@ static int videobuf_dvb_thread(void *data)
 	struct videobuf_buffer *buf;
 	unsigned long flags;
 	int err;
-	struct videobuf_dmabuf *dma;
+	void *outp;
 
 	dprintk("dvb thread started\n");
 	set_freezable();
@@ -66,9 +67,10 @@ static int videobuf_dvb_thread(void *data)
 		try_to_freeze();
 
 		/* feed buffer data to demux */
-		dma=videobuf_to_dma(buf);
+		outp = videobuf_queue_to_vmalloc (&dvb->dvbq, buf);
+
 		if (buf->state == VIDEOBUF_DONE)
-			dvb_dmx_swfilter(&dvb->demux, dma->vmalloc,
+			dvb_dmx_swfilter(&dvb->demux, outp,
 					 buf->size);
 
 		/* requeue buffer */
@@ -138,14 +140,16 @@ static int videobuf_dvb_stop_feed(struct dvb_demux_feed *feed)
 int videobuf_dvb_register(struct videobuf_dvb *dvb,
 			  struct module *module,
 			  void *adapter_priv,
-			  struct device *device)
+			  struct device *device,
+			  short *adapter_nr)
 {
 	int result;
 
 	mutex_init(&dvb->lock);
 
 	/* register adapter */
-	result = dvb_register_adapter(&dvb->adapter, dvb->name, module, device);
+	result = dvb_register_adapter(&dvb->adapter, dvb->name, module, device,
+				      adapter_nr);
 	if (result < 0) {
 		printk(KERN_WARNING "%s: dvb_register_adapter failed (errno = %d)\n",
 		       dvb->name, result);

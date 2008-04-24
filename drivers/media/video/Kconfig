@@ -270,6 +270,15 @@ config VIDEO_SAA711X
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
 
+config VIDEO_SAA717X
+	tristate "Philips SAA7171/3/4 audio/video decoders"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the Philips SAA7171/3/4 audio/video decoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa717x.
+
 config VIDEO_SAA7191
 	tristate "Philips SAA7191 video decoder"
 	depends on VIDEO_V4L1 && I2C
@@ -689,6 +698,8 @@ source "drivers/media/video/cx88/Kconfig"
 
 source "drivers/media/video/cx23885/Kconfig"
 
+source "drivers/media/video/au0828/Kconfig"
+
 source "drivers/media/video/ivtv/Kconfig"
 
 config VIDEO_M32R_AR
@@ -835,5 +846,50 @@ config USB_STKWEBCAM
 	  module will be called stkwebcam.
 
 endif # V4L_USB_DRIVERS
+
+config SOC_CAMERA
+	tristate "SoC camera support"
+	depends on VIDEO_V4L2
+	select VIDEOBUF_DMA_SG
+	help
+	  SoC Camera is a common API to several cameras, not connecting
+	  over a bus like PCI or USB. For example some i2c camera connected
+	  directly to the data bus of an SoC.
+
+config SOC_CAMERA_MT9M001
+	tristate "mt9m001 support"
+	depends on SOC_CAMERA
+	select GPIO_PCA953X if MT9M001_PCA9536_SWITCH
+	help
+	  This driver supports MT9M001 cameras from Micron, monochrome
+	  and colour models.
+
+config MT9M001_PCA9536_SWITCH
+	bool "pca9536 datawidth switch for mt9m001"
+	depends on SOC_CAMERA_MT9M001 && GENERIC_GPIO
+	help
+	  Select this if your MT9M001 camera uses a PCA9536 I2C GPIO
+	  extender to switch between 8 and 10 bit datawidth modes
+
+config SOC_CAMERA_MT9V022
+	tristate "mt9v022 support"
+	depends on SOC_CAMERA
+	select GPIO_PCA953X if MT9V022_PCA9536_SWITCH
+	help
+	  This driver supports MT9V022 cameras from Micron
+
+config MT9V022_PCA9536_SWITCH
+	bool "pca9536 datawidth switch for mt9v022"
+	depends on SOC_CAMERA_MT9V022 && GENERIC_GPIO
+	help
+	  Select this if your MT9V022 camera uses a PCA9536 I2C GPIO
+	  extender to switch between 8 and 10 bit datawidth modes
+
+config VIDEO_PXA27x
+	tristate "PXA27x Quick Capture Interface driver"
+	depends on VIDEO_DEV && PXA27x
+	select SOC_CAMERA
+	---help---
+	  This is a v4l2 driver for the PXA27x Quick Capture Interface
 
 endif # VIDEO_CAPTURE_DRIVERS

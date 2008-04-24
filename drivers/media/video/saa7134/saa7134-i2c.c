@@ -33,11 +33,11 @@
 
 /* ----------------------------------------------------------- */
 
-static unsigned int i2c_debug = 0;
+static unsigned int i2c_debug;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug,"enable debug messages [i2c]");
 
-static unsigned int i2c_scan = 0;
+static unsigned int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
@@ -140,6 +140,8 @@ static inline int i2c_is_busy(enum i2c_status status)
 {
 	switch (status) {
 	case BUSY:
+	case TO_SCL:
+	case TO_ARB:
 		return true;
 	default:
 		return false;

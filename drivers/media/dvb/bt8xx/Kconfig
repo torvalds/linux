@@ -7,8 +7,8 @@ config DVB_BT8XX
 	select DVB_CX24110 if !DVB_FE_CUSTOMISE
 	select DVB_OR51211 if !DVB_FE_CUSTOMISE
 	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
-	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
+	select TUNER_SIMPLE if !DVB_FE_CUSTOMISE
 	select FW_LOADER
 	help
 	  Support for PCI cards based on the Bt8xx PCI bridge. Examples are

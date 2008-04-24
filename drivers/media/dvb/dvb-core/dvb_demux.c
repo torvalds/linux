@@ -368,7 +368,7 @@ static inline void dvb_dmx_swfilter_packet_type(struct dvb_demux_feed *feed,
 #define DVR_FEED(f)							\
 	(((f)->type == DMX_TYPE_TS) &&					\
 	((f)->feed.ts.is_filtering) &&					\
-	(((f)->ts_type & (TS_PACKET|TS_PAYLOAD_ONLY)) == TS_PACKET))
+	(((f)->ts_type & (TS_PACKET | TS_DEMUX)) == TS_PACKET))
 
 static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 {
@@ -553,7 +553,7 @@ static void dvb_demux_feed_add(struct dvb_demux_feed *feed)
 	spin_lock_irq(&feed->demux->lock);
 	if (dvb_demux_feed_find(feed)) {
 		printk(KERN_ERR "%s: feed already in list (type=%x state=%x pid=%x)\n",
-		       __FUNCTION__, feed->type, feed->state, feed->pid);
+		       __func__, feed->type, feed->state, feed->pid);
 		goto out;
 	}
 
@@ -567,7 +567,7 @@ static void dvb_demux_feed_del(struct dvb_demux_feed *feed)
 	spin_lock_irq(&feed->demux->lock);
 	if (!(dvb_demux_feed_find(feed))) {
 		printk(KERN_ERR "%s: feed not in list (type=%x state=%x pid=%x)\n",
-		       __FUNCTION__, feed->type, feed->state, feed->pid);
+		       __func__, feed->type, feed->state, feed->pid);
 		goto out;
 	}
 

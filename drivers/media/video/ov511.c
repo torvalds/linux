@@ -4659,7 +4659,9 @@ static const struct file_operations ov511_fops = {
 	.read =		ov51x_v4l1_read,
 	.mmap =		ov51x_v4l1_mmap,
 	.ioctl =	ov51x_v4l1_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.llseek =	no_llseek,
 };
 
@@ -5831,7 +5833,7 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		goto error;
 
 	memcpy(ov->vdev, &vdev_template, sizeof(*ov->vdev));
-	ov->vdev->dev = &dev->dev;
+	ov->vdev->dev = &intf->dev;
 	video_set_drvdata(ov->vdev, ov);
 
 	for (i = 0; i < OV511_MAX_UNIT_VIDEO; i++) {

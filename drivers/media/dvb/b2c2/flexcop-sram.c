@@ -90,7 +90,7 @@ static void flexcop_sram_write(struct adapter *adapter, u32 bank, u32 addr, u8 *
 		};
 
 		if (retries == 0)
-			printk("%s: SRAM timeout\n", __FUNCTION__);
+			printk("%s: SRAM timeout\n", __func__);
 
 		write_reg_dw(adapter, 0x700, command);
 
@@ -115,7 +115,7 @@ static void flex_sram_read(struct adapter *adapter, u32 bank, u32 addr, u8 *buf,
 		};
 
 		if (retries == 0)
-			printk("%s: SRAM timeout\n", __FUNCTION__);
+			printk("%s: SRAM timeout\n", __func__);
 
 		write_reg_dw(adapter, 0x700, command);
 
@@ -127,7 +127,7 @@ static void flex_sram_read(struct adapter *adapter, u32 bank, u32 addr, u8 *buf,
 		};
 
 		if (retries == 0)
-			printk("%s: SRAM timeout\n", __FUNCTION__);
+			printk("%s: SRAM timeout\n", __func__);
 
 		value = read_reg_dw(adapter, 0x700) >> 0x10;
 
@@ -240,13 +240,13 @@ static void sram_init(struct adapter *adapter)
 
 		adapter->dw_sram_type = tmp & 0x30000;
 
-		ddprintk("%s: dw_sram_type = %x\n", __FUNCTION__, adapter->dw_sram_type);
+		ddprintk("%s: dw_sram_type = %x\n", __func__, adapter->dw_sram_type);
 
 	} else {
 
 		adapter->dw_sram_type = 0x10000;
 
-		ddprintk("%s: dw_sram_type = %x\n", __FUNCTION__, adapter->dw_sram_type);
+		ddprintk("%s: dw_sram_type = %x\n", __func__, adapter->dw_sram_type);
 	}
 
 	/* return value is never used? */
@@ -257,7 +257,7 @@ static int sram_test_location(struct adapter *adapter, u32 mask, u32 addr)
 {
 	u8 tmp1, tmp2;
 
-	dprintk("%s: mask = %x, addr = %x\n", __FUNCTION__, mask, addr);
+	dprintk("%s: mask = %x, addr = %x\n", __func__, mask, addr);
 
 	sram_set_size(adapter, mask);
 	sram_init(adapter);
@@ -275,7 +275,7 @@ static int sram_test_location(struct adapter *adapter, u32 mask, u32 addr)
 	sram_read(adapter, addr, &tmp2, 1);
 	sram_read(adapter, addr, &tmp2, 1);
 
-	dprintk("%s: wrote 0xa5, read 0x%2x\n", __FUNCTION__, tmp2);
+	dprintk("%s: wrote 0xa5, read 0x%2x\n", __func__, tmp2);
 
 	if (tmp2 != 0xa5)
 		return 0;
@@ -293,7 +293,7 @@ static int sram_test_location(struct adapter *adapter, u32 mask, u32 addr)
 	sram_read(adapter, addr, &tmp2, 1);
 	sram_read(adapter, addr, &tmp2, 1);
 
-	dprintk("%s: wrote 0x5a, read 0x%2x\n", __FUNCTION__, tmp2);
+	dprintk("%s: wrote 0x5a, read 0x%2x\n", __func__, tmp2);
 
 	if (tmp2 != 0x5a)
 		return 0;
@@ -340,7 +340,7 @@ static int flexcop_sram_detect(struct flexcop_device *fc)
 
 	tmp3 = read_reg_dw(adapter, 0x71c);
 
-	dprintk("%s: tmp3 = %x\n", __FUNCTION__, tmp3);
+	dprintk("%s: tmp3 = %x\n", __func__, tmp3);
 
 	write_reg_dw(adapter, 0x71c, tmp2);
 
@@ -351,7 +351,7 @@ static int flexcop_sram_detect(struct flexcop_device *fc)
 		sram_init(adapter);
 		write_reg_dw(adapter, 0x208, tmp);
 
-		dprintk("%s: sram size = 32K\n", __FUNCTION__);
+		dprintk("%s: sram size = 32K\n", __func__);
 
 		return 32;
 	}
@@ -361,7 +361,7 @@ static int flexcop_sram_detect(struct flexcop_device *fc)
 		sram_init(adapter);
 		write_reg_dw(adapter, 0x208, tmp);
 
-		dprintk("%s: sram size = 128K\n", __FUNCTION__);
+		dprintk("%s: sram size = 128K\n", __func__);
 
 		return 128;
 	}
@@ -371,7 +371,7 @@ static int flexcop_sram_detect(struct flexcop_device *fc)
 		sram_init(adapter);
 		write_reg_dw(adapter, 0x208, tmp);
 
-		dprintk("%s: sram size = 64K\n", __FUNCTION__);
+		dprintk("%s: sram size = 64K\n", __func__);
 
 		return 64;
 	}
@@ -381,7 +381,7 @@ static int flexcop_sram_detect(struct flexcop_device *fc)
 		sram_init(adapter);
 		write_reg_dw(adapter, 0x208, tmp);
 
-		dprintk("%s: sram size = 32K\n", __FUNCTION__);
+		dprintk("%s: sram size = 32K\n", __func__);
 
 		return 32;
 	}
@@ -390,7 +390,7 @@ static int flexcop_sram_detect(struct flexcop_device *fc)
 	sram_init(adapter);
 	write_reg_dw(adapter, 0x208, tmp);
 
-	dprintk("%s: SRAM detection failed. Set to 32K \n", __FUNCTION__);
+	dprintk("%s: SRAM detection failed. Set to 32K \n", __func__);
 
 	return 0;
 }

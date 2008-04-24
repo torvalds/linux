@@ -38,7 +38,7 @@
 #define MXB_BOARD_CAN_DO_VBI(dev)   (dev->revision != 0)
 
 /* global variable */
-static int mxb_num = 0;
+static int mxb_num;
 
 /* initial frequence the tuner will be tuned to.
    in verden (lower saxony, germany) 4148 is a
@@ -47,7 +47,7 @@ static int freq = 4148;
 module_param(freq, int, 0644);
 MODULE_PARM_DESC(freq, "initial frequency the tuner will be tuned to while setup");
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 

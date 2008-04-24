@@ -31,6 +31,10 @@
 
 #define DVB_MAJOR 212
 
+#define DVB_MAX_ADAPTERS 8
+
+#define DVB_UNSET (-1)
+
 #define DVB_DEVICE_VIDEO      0
 #define DVB_DEVICE_AUDIO      1
 #define DVB_DEVICE_SEC        2
@@ -41,6 +45,11 @@
 #define DVB_DEVICE_NET        7
 #define DVB_DEVICE_OSD        8
 
+#define DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr) \
+	static short adapter_nr[] = \
+		{[0 ... (DVB_MAX_ADAPTERS - 1)] = DVB_UNSET }; \
+	module_param_array(adapter_nr, short, NULL, 0444); \
+	MODULE_PARM_DESC(adapter_nr, "DVB adapter numbers")
 
 struct dvb_adapter {
 	int num;
@@ -78,7 +87,9 @@ struct dvb_device {
 };
 
 
-extern int dvb_register_adapter (struct dvb_adapter *adap, const char *name, struct module *module, struct device *device);
+extern int dvb_register_adapter(struct dvb_adapter *adap, const char *name,
+				struct module *module, struct device *device,
+				short *adapter_nums);
 extern int dvb_unregister_adapter (struct dvb_adapter *adap);
 
 extern int dvb_register_device (struct dvb_adapter *adap,

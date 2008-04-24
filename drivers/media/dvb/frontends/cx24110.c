@@ -121,7 +121,7 @@ static int cx24110_writereg (struct cx24110_state* state, int reg, int data)
 
 	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
 		dprintk ("%s: writereg error (err == %i, reg == 0x%02x,"
-			 " data == 0x%02x)\n", __FUNCTION__, err, reg, data);
+			 " data == 0x%02x)\n", __func__, err, reg, data);
 		return -EREMOTEIO;
 	}
 
@@ -247,7 +247,7 @@ static int cx24110_set_symbolrate (struct cx24110_state* state, u32 srate)
 	static const u32 bands[]={5000000UL,15000000UL,90999000UL/2};
 	int i;
 
-	dprintk("cx24110 debug: entering %s(%d)\n",__FUNCTION__,srate);
+	dprintk("cx24110 debug: entering %s(%d)\n",__func__,srate);
 	if (srate>90999000UL/2)
 		srate=90999000UL/2;
 	if (srate<500000)
@@ -358,7 +358,7 @@ static int cx24110_initfe(struct dvb_frontend* fe)
 /* fixme (low): error handling */
 	int i;
 
-	dprintk("%s: init chip\n", __FUNCTION__);
+	dprintk("%s: init chip\n", __func__);
 
 	for(i = 0; i < ARRAY_SIZE(cx24110_regdata); i++) {
 		cx24110_writereg(state, cx24110_regdata[i].reg, cx24110_regdata[i].data);

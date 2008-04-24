@@ -58,7 +58,7 @@
 
 static struct saa7146 saa7146s[SAA7146_MAX];
 
-static int saa_num = 0;		/* number of SAA7146s in use */
+static int saa_num;		/* number of SAA7146s in use */
 
 static int video_nr = -1;
 module_param(video_nr, int, 0);
@@ -248,7 +248,7 @@ static void I2CBusScan(struct saa7146 *saa)
 			attach_inform(saa, i);
 }
 
-static int debiwait_maxwait = 0;
+static int debiwait_maxwait;
 
 static int wait_for_debi_done(struct saa7146 *saa)
 {
@@ -1906,7 +1906,9 @@ static const struct file_operations saa_fops = {
 	.open = saa_open,
 	.release = saa_release,
 	.ioctl = saa_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.read = saa_read,
 	.llseek = no_llseek,
 	.write = saa_write,

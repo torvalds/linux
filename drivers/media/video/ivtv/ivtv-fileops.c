@@ -219,7 +219,9 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 			/* Process pending program info updates and pending VBI data */
 			ivtv_update_pgm_info(itv);
 
-			if (jiffies - itv->dualwatch_jiffies > msecs_to_jiffies(1000)) {
+			if (time_after(jiffies,
+				       itv->dualwatch_jiffies +
+				       msecs_to_jiffies(1000))) {
 				itv->dualwatch_jiffies = jiffies;
 				ivtv_dualwatch(itv);
 			}
@@ -753,7 +755,7 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
 	IVTV_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
-	if (eof || s->q_full.length)
+	if (eof || s->q_full.length || s->q_io.length)
 		return POLLIN | POLLRDNORM;
 	return 0;
 }

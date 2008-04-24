@@ -53,7 +53,7 @@ static int ttusbdecfe_read_status(struct dvb_frontend* fe, fe_status_t* status)
 		return ret;
 
 	if(len != 4) {
-		printk(KERN_ERR "%s: unexpected reply\n", __FUNCTION__);
+		printk(KERN_ERR "%s: unexpected reply\n", __func__);
 		return -EIO;
 	}
 
@@ -70,7 +70,7 @@ static int ttusbdecfe_read_status(struct dvb_frontend* fe, fe_status_t* status)
 			break;
 		default:
 			pr_info("%s: returned unknown value: %d\n",
-				__FUNCTION__, result[3]);
+				__func__, result[3]);
 			return -EIO;
 	}
 

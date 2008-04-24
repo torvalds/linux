@@ -130,8 +130,8 @@ static int default_fbufs = 3;   /* Default number of frame buffers */
 #ifdef CONFIG_USB_PWC_DEBUG
 	int pwc_trace = PWC_DEBUG_LEVEL;
 #endif
-static int power_save = 0;
-static int led_on = 100, led_off = 0; /* defaults to LED that is on while in use */
+static int power_save;
+static int led_on = 100, led_off; /* defaults to LED that is on while in use */
 static int pwc_preferred_compression = 1; /* 0..3 = uncompressed..high */
 static struct {
 	int type;
@@ -159,7 +159,9 @@ static const struct file_operations pwc_fops = {
 	.poll =		pwc_video_poll,
 	.mmap =		pwc_video_mmap,
 	.ioctl =        pwc_video_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.llseek =       no_llseek,
 };
 static struct video_device pwc_template = {
@@ -487,7 +489,7 @@ static void pwc_reset_buffers(struct pwc_device *pdev)
 	int i;
 	unsigned long flags;
 
-	PWC_DEBUG_MEMORY(">> %s __enter__\n", __FUNCTION__);
+	PWC_DEBUG_MEMORY(">> %s __enter__\n", __func__);
 
 	spin_lock_irqsave(&pdev->ptrlock, flags);
 	pdev->full_frames = NULL;
@@ -509,7 +511,7 @@ static void pwc_reset_buffers(struct pwc_device *pdev)
 	pdev->fill_image = 0;
 	spin_unlock_irqrestore(&pdev->ptrlock, flags);
 
-	PWC_DEBUG_MEMORY("<< %s __leaving__\n", __FUNCTION__);
+	PWC_DEBUG_MEMORY("<< %s __leaving__\n", __func__);
 }
 
 
@@ -786,8 +788,8 @@ static void pwc_isoc_handler(struct urb *urb)
 		} /* ..status == 0 */
 		else {
 			/* This is normally not interesting to the user, unless
-			 * you are really debugging something */
-			static int iso_error = 0;
+			 * you are really debugging something, default = 0 */
+			static int iso_error;
 			iso_error++;
 			if (iso_error < 20)
 				PWC_DEBUG_FLOW("Iso frame %d of USB has error %d\n", i, fst);
@@ -1426,7 +1428,7 @@ static int pwc_video_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long page, pos = 0;
 	int index;
 
-	PWC_DEBUG_MEMORY(">> %s\n", __FUNCTION__);
+	PWC_DEBUG_MEMORY(">> %s\n", __func__);
 	pdev = vdev->priv;
 	size = vma->vm_end - vma->vm_start;
 	start = vma->vm_start;

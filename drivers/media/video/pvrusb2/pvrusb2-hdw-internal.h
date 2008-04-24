@@ -163,6 +163,11 @@ struct pvr2_decoder_ctrl {
 #define FW1_STATE_RELOAD 3
 #define FW1_STATE_OK 4
 
+/* What state the device is in if it is a hybrid */
+#define PVR2_PATHWAY_UNKNOWN 0
+#define PVR2_PATHWAY_ANALOG 1
+#define PVR2_PATHWAY_DIGITAL 2
+
 typedef int (*pvr2_i2c_func)(struct pvr2_hdw *,u8,u8 *,u16,u8 *, u16);
 #define PVR2_I2C_FUNC_CNT 128
 
@@ -182,7 +187,6 @@ struct pvr2_hdw {
 	struct workqueue_struct *workqueue;
 	struct work_struct workpoll;     /* Update driver state */
 	struct work_struct worki2csync;  /* Update i2c clients */
-	struct work_struct workinit;     /* Driver initialization sequence */
 
 	/* Video spigot */
 	struct pvr2_stream *vid_stream;
@@ -229,23 +233,28 @@ struct pvr2_hdw {
 
 	/* Bits of state that describe what is going on with various parts
 	   of the driver. */
+	int state_pathway_ok;         /* Pathway config is ok */
 	int state_encoder_ok;         /* Encoder is operational */
 	int state_encoder_run;        /* Encoder is running */
 	int state_encoder_config;     /* Encoder is configured */
 	int state_encoder_waitok;     /* Encoder pre-wait done */
+	int state_encoder_runok;      /* Encoder has run for >= .25 sec */
 	int state_decoder_run;        /* Decoder is running */
 	int state_usbstream_run;      /* FX2 is streaming */
 	int state_decoder_quiescent;  /* Decoder idle for > 50msec */
 	int state_pipeline_config;    /* Pipeline is configured */
-	int state_pipeline_req;                /* Somebody wants to stream */
-	int state_pipeline_pause;              /* Pipeline must be paused */
-	int state_pipeline_idle;               /* Pipeline not running */
+	int state_pipeline_req;       /* Somebody wants to stream */
+	int state_pipeline_pause;     /* Pipeline must be paused */
+	int state_pipeline_idle;      /* Pipeline not running */
 
 	/* This is the master state of the driver.  It is the combined
 	   result of other bits of state.  Examining this will indicate the
 	   overall state of the driver.  Values here are one of
 	   PVR2_STATE_xxxx */
 	unsigned int master_state;
+
+	/* True if device led is currently on */
+	int led_on;
 
 	/* True if states must be re-evaluated */
 	int state_stale;
@@ -259,6 +268,9 @@ struct pvr2_hdw {
 	/* Timer for measuring encoder pre-wait time */
 	struct timer_list encoder_wait_timer;
 
+	/* Timer for measuring encoder minimum run time */
+	struct timer_list encoder_run_timer;
+
 	/* Place to block while waiting for state changes */
 	wait_queue_head_t state_wait_data;
 
@@ -267,6 +279,7 @@ struct pvr2_hdw {
 	int flag_disconnected;  /* flag_ok == 0 due to disconnect */
 	int flag_init_ok;       /* true if structure is fully initialized */
 	int fw1_state;          /* current situation with fw1 */
+	int pathway_state;      /* one of PVR2_PATHWAY_xxx */
 	int flag_decoder_missed;/* We've noticed missing decoder */
 	int flag_tripped;       /* Indicates overall failure to start */
 
@@ -322,6 +335,11 @@ struct pvr2_hdw {
 	int v4l_minor_number_video;
 	int v4l_minor_number_vbi;
 	int v4l_minor_number_radio;
+
+	/* Bit mask of PVR2_CVAL_INPUT choices which are valid for the hardware */
+	unsigned int input_avail_mask;
+	/* Bit mask of PVR2_CVAL_INPUT choices which are currenly allowed */
+	unsigned int input_allowed_mask;
 
 	/* Location of eeprom or a negative number if none */
 	int eeprom_addr;

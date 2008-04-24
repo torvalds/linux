@@ -32,8 +32,6 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "tda8290"
-
 /* ---------------------------------------------------------------------- */
 
 struct tda8290_priv {
@@ -174,7 +172,7 @@ static void tda8290_set_params(struct dvb_frontend *fe,
 	set_audio(fe, params);
 
 	if (priv->cfg.config)
-		tuner_dbg("tda827xa config is 0x%02x\n", *priv->cfg.config);
+		tuner_dbg("tda827xa config is 0x%02x\n", priv->cfg.config);
 	tuner_i2c_xfer_send(&priv->i2c_props, easy_mode, 2);
 	tuner_i2c_xfer_send(&priv->i2c_props, agc_out_on, 2);
 	tuner_i2c_xfer_send(&priv->i2c_props, soft_reset, 2);
@@ -365,7 +363,7 @@ static void tda8295_set_params(struct dvb_frontend *fe,
 
 	set_audio(fe, params);
 
-	tuner_dbg("%s: freq = %d\n", __FUNCTION__, params->frequency);
+	tuner_dbg("%s: freq = %d\n", __func__, params->frequency);
 
 	tda8295_power(fe, 1);
 	tda8295_agc1_out(fe, 1);
@@ -444,8 +442,7 @@ static void tda8290_init_if(struct dvb_frontend *fe)
 	unsigned char set_GP00_CF[] = { 0x20, 0x01 };
 	unsigned char set_GP01_CF[] = { 0x20, 0x0B };
 
-	if ((priv->cfg.config) &&
-	    ((*priv->cfg.config == 1) || (*priv->cfg.config == 2)))
+	if ((priv->cfg.config == 1) || (priv->cfg.config == 2))
 		tuner_i2c_xfer_send(&priv->i2c_props, set_GP00_CF, 2);
 	else
 		tuner_i2c_xfer_send(&priv->i2c_props, set_GP01_CF, 2);
@@ -590,8 +587,8 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 		else
 			priv->ver |= TDA8275A;
 
-		tda827x_attach(fe, priv->tda827x_addr,
-			       priv->i2c_props.adap, &priv->cfg);
+		tda827x_attach(fe, priv->tda827x_addr, priv->i2c_props.adap, &priv->cfg);
+		priv->cfg.switch_addr = priv->i2c_props.addr;
 	}
 	if (fe->ops.tuner_ops.init)
 		fe->ops.tuner_ops.init(fe);
@@ -616,7 +613,7 @@ static int tda8290_probe(struct tuner_i2c_props *i2c_props)
 	if (tda8290_id[1] == TDA8290_ID) {
 		if (debug)
 			printk(KERN_DEBUG "%s: tda8290 detected @ %d-%04x\n",
-			       __FUNCTION__, i2c_adapter_id(i2c_props->adap),
+			       __func__, i2c_adapter_id(i2c_props->adap),
 			       i2c_props->addr);
 		return 0;
 	}
@@ -636,7 +633,7 @@ static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 	if (tda8295_id[1] == TDA8295_ID) {
 		if (debug)
 			printk(KERN_DEBUG "%s: tda8295 detected @ %d-%04x\n",
-			       __FUNCTION__, i2c_adapter_id(i2c_props->adap),
+			       __func__, i2c_adapter_id(i2c_props->adap),
 			       i2c_props->addr);
 		return 0;
 	}
@@ -674,6 +671,7 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 
 	priv->i2c_props.addr     = i2c_addr;
 	priv->i2c_props.adap     = i2c_adap;
+	priv->i2c_props.name     = "tda829x";
 	if (cfg) {
 		priv->cfg.config         = cfg->lna_cfg;
 		priv->cfg.tuner_callback = cfg->tuner_callback;

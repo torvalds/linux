@@ -188,6 +188,14 @@ config DVB_DIB7000P
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
 
+config DVB_TDA10048
+	tristate "Philips TDA10048HN based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	select FW_LOADER
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
 
@@ -291,6 +299,14 @@ config DVB_S5H1409
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
+config DVB_AU8522
+	tristate "Auvitek AU8522 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
+	  to support this frontend.
+
 comment "Tuners/PLL support"
 	depends on DVB_CORE
 
@@ -369,11 +385,23 @@ config DVB_TUNER_XC5000
 	  This device is only used inside a SiP called togther with a
 	  demodulator for now.
 
+config DVB_TUNER_ITD1000
+	tristate "Integrant ITD1000 Zero IF tuner for DVB-S/DSS"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+
 comment "Miscellaneous devices"
 	depends on DVB_CORE
 
 config DVB_LNBP21
 	tristate "LNBP21 SEC controller"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  An SEC control chip.
+
+config DVB_ISL6405
+	tristate "ISL6405 SEC controller"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help

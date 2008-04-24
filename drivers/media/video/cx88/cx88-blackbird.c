@@ -45,7 +45,7 @@ static unsigned int mpegbufs = 32;
 module_param(mpegbufs,int,0644);
 MODULE_PARM_DESC(mpegbufs,"number of mpeg buffers, range 2-32");
 
-static unsigned int debug = 0;
+static unsigned int debug;
 module_param(debug,int,0644);
 MODULE_PARM_DESC(debug,"enable debug messages [blackbird]");
 
@@ -314,7 +314,7 @@ static int blackbird_mbox_func(void *priv, u32 command, int in, int out, u32 dat
 	u32 value, flag, retval;
 	int i;
 
-	dprintk(1,"%s: 0x%X\n", __FUNCTION__, command);
+	dprintk(1,"%s: 0x%X\n", __func__, command);
 
 	/* this may not be 100% safe if we can't read any memory location
 	   without side effects */
@@ -693,7 +693,7 @@ static int blackbird_queryctrl(struct cx8802_dev *dev, struct v4l2_queryctrl *qc
 		return -EINVAL;
 
 	/* Standard V4L2 controls */
-	if (cx8800_ctrl_query(qctrl) == 0)
+	if (cx8800_ctrl_query(dev->core, qctrl) == 0)
 		return 0;
 
 	/* MPEG V4L2 controls */
@@ -933,7 +933,7 @@ static int vidioc_queryctrl (struct file *file, void *priv,
 	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
 	if (unlikely(qctrl->id == 0))
 		return -EINVAL;
-	return cx8800_ctrl_query(qctrl);
+	return cx8800_ctrl_query(dev->core, qctrl);
 }
 
 static int vidioc_enum_input (struct file *file, void *priv,
@@ -1055,7 +1055,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 
 	dev = cx8802_get_device(inode);
 
-	dprintk( 1, "%s\n", __FUNCTION__);
+	dprintk( 1, "%s\n", __func__);
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -1065,7 +1065,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	if (drv) {
 		err = drv->request_acquire(drv);
 		if(err != 0) {
-			dprintk(1,"%s: Unable to acquire hardware, %d\n", __FUNCTION__, err);
+			dprintk(1,"%s: Unable to acquire hardware, %d\n", __func__, err);
 			return err;
 		}
 	}
@@ -1087,8 +1087,8 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	file->private_data = fh;
 	fh->dev      = dev;
 
-	videobuf_queue_pci_init(&fh->mpegq, &blackbird_qops,
-			    dev->pci, &dev->slock,
+	videobuf_queue_sg_init(&fh->mpegq, &blackbird_qops,
+			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx88_buffer),
@@ -1284,7 +1284,7 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	struct cx8802_dev *dev = core->dvbdev;
 	int err;
 
-	dprintk( 1, "%s\n", __FUNCTION__);
+	dprintk( 1, "%s\n", __func__);
 	dprintk( 1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
 		core->boardnr,
 		core->name,

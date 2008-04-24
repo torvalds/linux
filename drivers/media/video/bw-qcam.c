@@ -523,7 +523,7 @@ static inline int qc_readbytes(struct qcam_device *q, char buffer[])
 	int ret=1;
 	unsigned int hi, lo;
 	unsigned int hi2, lo2;
-	static int state = 0;
+	static int state;
 
 	if (buffer == NULL)
 	{
@@ -898,7 +898,9 @@ static const struct file_operations qcam_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl          = qcam_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.read		= qcam_read,
 	.llseek         = no_llseek,
 };
@@ -912,7 +914,7 @@ static struct video_device qcam_template=
 
 #define MAX_CAMS 4
 static struct qcam_device *qcams[MAX_CAMS];
-static unsigned int num_cams = 0;
+static unsigned int num_cams;
 
 static int init_bwqcam(struct parport *port)
 {

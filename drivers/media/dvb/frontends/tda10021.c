@@ -79,7 +79,7 @@ static int _tda10021_writereg (struct tda10021_state* state, u8 reg, u8 data)
 	if (ret != 1)
 		printk("DVB: TDA10021(%d): %s, writereg error "
 			"(reg == 0x%02x, val == 0x%02x, ret == %i)\n",
-			state->frontend.dvb->num, __FUNCTION__, reg, data, ret);
+			state->frontend.dvb->num, __func__, reg, data, ret);
 
 	msleep(10);
 	return (ret != 1) ? -EREMOTEIO : 0;
@@ -97,7 +97,7 @@ static u8 tda10021_readreg (struct tda10021_state* state, u8 reg)
 	// Don't print an error message if the id is read.
 	if (ret != 2 && reg != 0x1a)
 		printk("DVB: TDA10021: %s: readreg error (ret == %i)\n",
-				__FUNCTION__, ret);
+				__func__, ret);
 	return b1[0];
 }
 

@@ -32,10 +32,12 @@
 
 static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
-MODULE_PARM_DESC(ir_debug,"enable debug messages [IR]");
+MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
-#define dprintk(fmt, arg...)	if (ir_debug) \
-	printk(KERN_DEBUG "%s/ir: " fmt, ir->c.name , ## arg)
+#define dprintk(fmt, arg...) \
+	if (ir_debug) { \
+		printk(KERN_DEBUG "%s/ir: " fmt, ir->c.name , ## arg); \
+	}
 
 /* ----------------------------------------------------------------------- */
 
@@ -44,7 +46,7 @@ int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	unsigned char b;
 
 	/* poll IR chip */
-	if (1 != i2c_master_recv(&ir->c,&b,1)) {
+	if (1 != i2c_master_recv(&ir->c, &b, 1)) {
 		dprintk("read error\n");
 		return -EIO;
 	}
@@ -74,24 +76,25 @@ int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	unsigned char code;
 
 	/* poll IR chip */
-	if (2 != i2c_master_recv(&ir->c,buf,2))
+	if (2 != i2c_master_recv(&ir->c, buf, 2))
 		return -EIO;
 
 	/* Does eliminate repeated parity code */
-	if (buf[1]==0xff)
+	if (buf[1] == 0xff)
 		return 0;
 
-	ir->old=buf[1];
+	ir->old = buf[1];
 
 	/* Rearranges bits to the right order */
-	code=    ((buf[0]&0x01)<<5) | /* 0010 0000 */
+	code =   ((buf[0]&0x01)<<5) | /* 0010 0000 */
 		 ((buf[0]&0x02)<<3) | /* 0001 0000 */
 		 ((buf[0]&0x04)<<1) | /* 0000 1000 */
 		 ((buf[0]&0x08)>>1) | /* 0000 0100 */
 		 ((buf[0]&0x10)>>3) | /* 0000 0010 */
 		 ((buf[0]&0x20)>>5);  /* 0000 0001 */
 
-	dprintk("ir hauppauge (em2840): code=0x%02x (rcv=0x%02x)\n",code,buf[0]);
+	dprintk("ir hauppauge (em2840): code=0x%02x (rcv=0x%02x)\n",
+			code, buf[0]);
 
 	/* return key */
 	*ir_key = code;
@@ -106,15 +109,14 @@ int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 
 	/* poll IR chip */
 
-	if (3 != i2c_master_recv(&ir->c,buf,3)) {
+	if (3 != i2c_master_recv(&ir->c, buf, 3)) {
 		dprintk("read error\n");
 		return -EIO;
 	}
 
 	dprintk("key %02x\n", buf[2]&0x3f);
-	if (buf[0]!=0x00){
+	if (buf[0] != 0x00)
 		return 0;
-	}
 
 	*ir_key = buf[2]&0x3f;
 	*ir_raw = buf[2]&0x3f;

@@ -419,7 +419,7 @@ static int or51132_read_status(struct dvb_frontend* fe, fe_status_t* status)
 		*status = 0;
 		return -EREMOTEIO;
 	}
-	dprintk("%s: read_status %04x\n", __FUNCTION__, reg);
+	dprintk("%s: read_status %04x\n", __func__, reg);
 
 	if (reg & 0x0100) /* Receiver Lock */
 		*status = FE_HAS_SIGNAL|FE_HAS_CARRIER|FE_HAS_VITERBI|
@@ -504,14 +504,14 @@ start:
 		if (retry--) goto start;
 		return -EREMOTEIO;
 	}
-	dprintk("%s: modulation %02x, NTSC rej O%s\n", __FUNCTION__,
+	dprintk("%s: modulation %02x, NTSC rej O%s\n", __func__,
 		reg&0xff, reg&0x1000?"n":"ff");
 
 	/* Calculate SNR using noise, c, and NTSC rejection correction */
 	state->snr = calculate_snr(noise, c) - usK;
 	*snr = (state->snr) >> 16;
 
-	dprintk("%s: noise = 0x%08x, snr = %d.%02d dB\n", __FUNCTION__, noise,
+	dprintk("%s: noise = 0x%08x, snr = %d.%02d dB\n", __func__, noise,
 		state->snr >> 24, (((state->snr>>8) & 0xffff) * 100) >> 16);
 
 	return 0;

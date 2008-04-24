@@ -13,6 +13,8 @@
 
 #include "mt352.h"
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 static int umt_mt352_demod_init(struct dvb_frontend *fe)
 {
 	static u8 mt352_clock_config[] = { 0x89, 0xb8, 0x2d };
@@ -75,7 +77,8 @@ static struct dvb_usb_device_properties umt_properties;
 static int umt_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	if (dvb_usb_device_init(intf,&umt_properties,THIS_MODULE,NULL) == 0)
+	if (0 == dvb_usb_device_init(intf, &umt_properties,
+				     THIS_MODULE, NULL, adapter_nr))
 		return 0;
 	return -EINVAL;
 }

@@ -48,7 +48,7 @@ struct ves1x93_state {
 	u8 demod_type;
 };
 
-static int debug = 0;
+static int debug;
 #define dprintk	if (debug) printk
 
 #define DEMOD_VES1893		0
@@ -98,7 +98,7 @@ static int ves1x93_writereg (struct ves1x93_state* state, u8 reg, u8 data)
 	int err;
 
 	if ((err = i2c_transfer (state->i2c, &msg, 1)) != 1) {
-		dprintk ("%s: writereg error (err == %i, reg == 0x%02x, data == 0x%02x)\n", __FUNCTION__, err, reg, data);
+		dprintk ("%s: writereg error (err == %i, reg == 0x%02x, data == 0x%02x)\n", __func__, err, reg, data);
 		return -EREMOTEIO;
 	}
 
@@ -179,7 +179,7 @@ static int ves1x93_set_symbolrate (struct ves1x93_state* state, u32 srate)
 	u32 tmp;
 	u32 FIN;
 
-	dprintk("%s: srate == %d\n", __FUNCTION__, (unsigned int) srate);
+	dprintk("%s: srate == %d\n", __func__, (unsigned int) srate);
 
 	if (srate > state->config->xin/2)
 		srate = state->config->xin/2;
@@ -266,7 +266,7 @@ static int ves1x93_init (struct dvb_frontend* fe)
 	int i;
 	int val;
 
-	dprintk("%s: init chip\n", __FUNCTION__);
+	dprintk("%s: init chip\n", __func__);
 
 	for (i = 0; i < state->tab_size; i++) {
 		if (state->init_1x93_wtab[i]) {

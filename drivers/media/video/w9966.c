@@ -61,10 +61,10 @@
 #include <media/v4l2-common.h>
 #include <linux/parport.h>
 
-//#define DEBUG				// Undef me for production
+/*#define DEBUG*/				/* Undef me for production */
 
 #ifdef DEBUG
-#define DPRINTF(x, a...) printk(KERN_DEBUG "W9966: %s(): "x, __FUNCTION__ , ##a)
+#define DPRINTF(x, a...) printk(KERN_DEBUG "W9966: %s(): "x, __func__ , ##a)
 #else
 #define DPRINTF(x...)
 #endif
@@ -134,7 +134,7 @@ MODULE_PARM_DESC(pardev, "pardev: where to search for\n\
 \tEg: >pardev=parport3,aggressive,parport2,parport1< would assign\n\
 \tcam 1 to parport3 and search every parport for cam 2 etc...");
 
-static int parmode = 0;
+static int parmode;
 module_param(parmode, int, 0);
 MODULE_PARM_DESC(parmode, "parmode: transfer mode (0=auto, 1=ecp, 2=epp");
 
@@ -188,7 +188,9 @@ static const struct file_operations w9966_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl          = w9966_v4l_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.read           = w9966_v4l_read,
 	.llseek         = no_llseek,
 };

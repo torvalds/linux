@@ -48,10 +48,10 @@
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
-#define STV0229_LOCKOUTPUT_0  0
-#define STV0229_LOCKOUTPUT_1  1
-#define STV0229_LOCKOUTPUT_CF 2
-#define STV0229_LOCKOUTPUT_LK 3
+#define STV0299_LOCKOUTPUT_0  0
+#define STV0299_LOCKOUTPUT_1  1
+#define STV0299_LOCKOUTPUT_CF 2
+#define STV0299_LOCKOUTPUT_LK 3
 
 #define STV0299_VOLT13_OP0 0
 #define STV0299_VOLT13_OP1 1
@@ -82,6 +82,9 @@ struct stv0299_config
 	/* Is 13v controlled by OP0 or OP1? */
 	u8 volt13_op0_op1:1;
 
+	/* Turn-off OP0? */
+	u8 op0_off:1;
+
 	/* minimum delay before retuning */
 	int min_delay_ms;
 
@@ -96,7 +99,7 @@ extern struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
 static inline struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
 					   struct i2c_adapter* i2c)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif // CONFIG_DVB_STV0299

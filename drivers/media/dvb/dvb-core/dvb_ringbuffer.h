@@ -69,6 +69,7 @@ struct dvb_ringbuffer {
 **     to lock read or write operations.
 **     Two or more readers must be locked against each other.
 **     Flushing the buffer counts as a read operation.
+**     Resetting the buffer counts as a read and write operation.
 **     Two or more writers must be locked against each other.
 */
 
@@ -83,6 +84,13 @@ extern ssize_t dvb_ringbuffer_free(struct dvb_ringbuffer *rbuf);
 
 /* return the number of bytes waiting in the buffer */
 extern ssize_t dvb_ringbuffer_avail(struct dvb_ringbuffer *rbuf);
+
+
+/*
+** Reset the read and write pointers to zero and flush the buffer
+** This counts as a read and write operation
+*/
+extern void dvb_ringbuffer_reset(struct dvb_ringbuffer *rbuf);
 
 
 /* read routines & macros */

@@ -57,7 +57,7 @@ MODULE_AUTHOR(  "Maxim Yevtyushkin, Kevin Thayer, Chris Kennedy, "
 		"Hans Verkuil, Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
 
-static int debug = 0;
+static int debug;
 module_param(debug, bool, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
@@ -957,7 +957,7 @@ static void saa711x_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 
 		if (std == V4L2_STD_PAL_M) {
 			reg |= 0x30;
-		} else if (std == V4L2_STD_PAL_N) {
+		} else if (std == V4L2_STD_PAL_Nc) {
 			reg |= 0x20;
 		} else if (std == V4L2_STD_PAL_60) {
 			reg |= 0x10;

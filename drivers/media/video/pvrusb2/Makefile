@@ -1,5 +1,6 @@
 obj-pvrusb2-sysfs-$(CONFIG_VIDEO_PVRUSB2_SYSFS) := pvrusb2-sysfs.o
 obj-pvrusb2-debugifc-$(CONFIG_VIDEO_PVRUSB2_DEBUGIFC) := pvrusb2-debugifc.o
+obj-pvrusb2-dvb-$(CONFIG_VIDEO_PVRUSB2_DVB) := pvrusb2-dvb.o
 
 pvrusb2-objs	:= pvrusb2-i2c-core.o pvrusb2-i2c-cmd-v4l2.o \
 		   pvrusb2-audio.o pvrusb2-i2c-chips-v4l2.o \
@@ -9,6 +10,11 @@ pvrusb2-objs	:= pvrusb2-i2c-core.o pvrusb2-i2c-cmd-v4l2.o \
 		   pvrusb2-ctrl.o pvrusb2-std.o pvrusb2-devattr.o \
 		   pvrusb2-context.o pvrusb2-io.o pvrusb2-ioread.o \
 		   pvrusb2-cx2584x-v4l.o pvrusb2-wm8775.o \
+		   $(obj-pvrusb2-dvb-y) \
 		   $(obj-pvrusb2-sysfs-y) $(obj-pvrusb2-debugifc-y)
 
 obj-$(CONFIG_VIDEO_PVRUSB2) += pvrusb2.o
+
+EXTRA_CFLAGS += -Idrivers/media/video
+EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
+EXTRA_CFLAGS += -Idrivers/media/dvb/frontends

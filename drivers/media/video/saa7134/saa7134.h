@@ -253,7 +253,17 @@ struct saa7134_format {
 #define SAA7134_BOARD_BEHOLD_607_9FM	129
 #define SAA7134_BOARD_BEHOLD_M6		130
 #define SAA7134_BOARD_TWINHAN_DTV_DVB_3056 131
-#define SAA7134_BOARD_GENIUS_TVGO_A11MCE 132
+#define SAA7134_BOARD_GENIUS_TVGO_A11MCE   132
+#define SAA7134_BOARD_PHILIPS_SNAKE        133
+#define SAA7134_BOARD_CREATIX_CTX953       134
+#define SAA7134_BOARD_MSI_TVANYWHERE_AD11  135
+#define SAA7134_BOARD_AVERMEDIA_CARDBUS_506 136
+#define SAA7134_BOARD_AVERMEDIA_A16D       137
+#define SAA7134_BOARD_AVERMEDIA_M115       138
+#define SAA7134_BOARD_VIDEOMATE_T750       139
+#define SAA7134_BOARD_AVERMEDIA_A700_PRO    140
+#define SAA7134_BOARD_AVERMEDIA_A700_HYBRID 141
+
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -380,9 +390,7 @@ struct saa7134_fh {
 	unsigned int               radio;
 	enum v4l2_buf_type         type;
 	unsigned int               resources;
-#ifdef VIDIOC_G_PRIORITY
 	enum v4l2_priority	   prio;
-#endif
 
 	/* video overlay */
 	struct v4l2_window         win;
@@ -454,9 +462,7 @@ struct saa7134_dev {
 	struct list_head           devlist;
 	struct mutex               lock;
 	spinlock_t                 slock;
-#ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state     prio;
-#endif
 	/* workstruct for loading modules */
 	struct work_struct request_module_wk;
 
@@ -556,7 +562,9 @@ struct saa7134_dev {
 #if defined(CONFIG_VIDEO_SAA7134_DVB) || defined(CONFIG_VIDEO_SAA7134_DVB_MODULE)
 	/* SAA7134_MPEG_DVB only */
 	struct videobuf_dvb        dvb;
-	int (*original_demod_sleep)(struct dvb_frontend* fe);
+	int (*original_demod_sleep)(struct dvb_frontend *fe);
+	int (*original_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
+	int (*original_set_high_voltage)(struct dvb_frontend *fe, long arg);
 #endif
 };
 
@@ -594,7 +602,6 @@ extern int saa7134_no_overlay;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
 void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value);
-int saa7134_tuner_callback(void *ptr, int command, int arg);
 
 #define SAA7134_PGTABLE_SIZE 4096
 
@@ -631,6 +638,7 @@ extern struct pci_device_id __devinitdata saa7134_pci_tbl[];
 
 extern int saa7134_board_init1(struct saa7134_dev *dev);
 extern int saa7134_board_init2(struct saa7134_dev *dev);
+int saa7134_tuner_callback(void *priv, int command, int arg);
 
 
 /* ----------------------------------------------------------- */

@@ -38,7 +38,7 @@ struct nxt6000_state {
 	struct dvb_frontend frontend;
 };
 
-static int debug = 0;
+static int debug;
 #define dprintk if (debug) printk
 
 static int nxt6000_writereg(struct nxt6000_state* state, u8 reg, u8 data)

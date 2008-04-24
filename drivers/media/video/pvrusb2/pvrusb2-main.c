@@ -60,6 +60,10 @@ static void pvr_setup_attach(struct pvr2_context *pvr)
 {
 	/* Create association with v4l layer */
 	pvr2_v4l2_create(pvr);
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+	/* Create association with dvb layer */
+	pvr2_dvb_create(pvr);
+#endif
 #ifdef CONFIG_VIDEO_PVRUSB2_SYSFS
 	pvr2_sysfs_create(pvr,class_ptr);
 #endif /* CONFIG_VIDEO_PVRUSB2_SYSFS */
@@ -121,6 +125,12 @@ static int __init pvr_init(void)
 
 	pvr2_trace(PVR2_TRACE_INIT,"pvr_init");
 
+	ret = pvr2_context_global_init();
+	if (ret != 0) {
+		pvr2_trace(PVR2_TRACE_INIT,"pvr_init failure code=%d",ret);
+		return ret;
+	}
+
 #ifdef CONFIG_VIDEO_PVRUSB2_SYSFS
 	class_ptr = pvr2_sysfs_class_create();
 #endif /* CONFIG_VIDEO_PVRUSB2_SYSFS */
@@ -131,6 +141,8 @@ static int __init pvr_init(void)
 		info(DRIVER_DESC " : " DRIVER_VERSION);
 	if (pvrusb2_debug) info("Debug mask is %d (0x%x)",
 				pvrusb2_debug,pvrusb2_debug);
+
+	pvr2_trace(PVR2_TRACE_INIT,"pvr_init complete");
 
 	return ret;
 }
@@ -144,6 +156,10 @@ static void __exit pvr_exit(void)
 #ifdef CONFIG_VIDEO_PVRUSB2_SYSFS
 	pvr2_sysfs_class_destroy(class_ptr);
 #endif /* CONFIG_VIDEO_PVRUSB2_SYSFS */
+
+	pvr2_context_global_done();
+
+	pvr2_trace(PVR2_TRACE_INIT,"pvr_exit complete");
 }
 
 module_init(pvr_init);

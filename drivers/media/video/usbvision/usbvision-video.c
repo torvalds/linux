@@ -97,10 +97,10 @@ USBVISION_DRIVER_VERSION_PATCHLEVEL)
 
 
 #ifdef USBVISION_DEBUG
-	#define PDEBUG(level, fmt, args...) \
+	#define PDEBUG(level, fmt, args...) { \
 		if (video_debug & (level)) \
-			info("[%s:%d] " fmt, __PRETTY_FUNCTION__, __LINE__ ,\
-				## args)
+			info("[%s:%d] " fmt, __func__, __LINE__ , ## args); \
+	}
 #else
 	#define PDEBUG(level, fmt, args...) do {} while(0)
 #endif
@@ -115,7 +115,7 @@ USBVISION_DRIVER_VERSION_PATCHLEVEL)
 
 
 /* sequential number of usbvision device */
-static int usbvision_nr = 0;
+static int usbvision_nr;
 
 static struct usbvision_v4l2_format_st usbvision_v4l2_format[] = {
 	{ 1, 1,  8, V4L2_PIX_FMT_GREY    , "GREY" },
@@ -135,7 +135,7 @@ static void usbvision_release(struct usb_usbvision *usbvision);
 /* Set the default format for ISOC endpoint */
 static int isocMode = ISOC_MODE_COMPRESS;
 /* Set the default Debug Mode of the device driver */
-static int video_debug = 0;
+static int video_debug;
 /* Set the default device to power on at startup */
 static int PowerOnAtOpen = 1;
 /* Sequential Number of Video Device */
@@ -343,7 +343,7 @@ static void usbvision_create_sysfs(struct video_device *vdev)
 			return;
 	} while (0);
 
-	err("%s error: %d\n", __FUNCTION__, res);
+	err("%s error: %d\n", __func__, res);
 }
 
 static void usbvision_remove_sysfs(struct video_device *vdev)
@@ -490,7 +490,7 @@ static int usbvision_v4l2_close(struct inode *inode, struct file *file)
 	mutex_unlock(&usbvision->lock);
 
 	if (usbvision->remove_pending) {
-		printk(KERN_INFO "%s: Final disconnect\n", __FUNCTION__);
+		printk(KERN_INFO "%s: Final disconnect\n", __func__);
 		usbvision_release(usbvision);
 	}
 
@@ -522,7 +522,7 @@ static int vidioc_g_register (struct file *file, void *priv,
 	errCode = usbvision_read_reg(usbvision, reg->reg&0xff);
 	if (errCode < 0) {
 		err("%s: VIDIOC_DBG_G_REGISTER failed: error %d",
-		    __FUNCTION__, errCode);
+		    __func__, errCode);
 		return errCode;
 	}
 	reg->val = errCode;
@@ -543,7 +543,7 @@ static int vidioc_s_register (struct file *file, void *priv,
 	errCode = usbvision_write_reg(usbvision, reg->reg&0xff, reg->val);
 	if (errCode < 0) {
 		err("%s: VIDIOC_DBG_S_REGISTER failed: error %d",
-		    __FUNCTION__, errCode);
+		    __func__, errCode);
 		return errCode;
 	}
 	return 0;
@@ -1102,7 +1102,7 @@ static ssize_t usbvision_v4l2_read(struct file *file, char __user *buf,
 	int ret,i;
 	struct usbvision_frame *frame;
 
-	PDEBUG(DBG_IO, "%s: %ld bytes, noblock=%d", __FUNCTION__,
+	PDEBUG(DBG_IO, "%s: %ld bytes, noblock=%d", __func__,
 	       (unsigned long)count, noblock);
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision) || (buf == NULL))
@@ -1171,7 +1171,7 @@ static ssize_t usbvision_v4l2_read(struct file *file, char __user *buf,
 	}
 
 	PDEBUG(DBG_IO, "%s: frmx=%d, bytes_read=%ld, scanlength=%ld",
-	       __FUNCTION__,
+	       __func__,
 	       frame->index, frame->bytes_read, frame->scanlength);
 
 	/* copy bytes to user space; we allow for partials reads */
@@ -1184,7 +1184,7 @@ static ssize_t usbvision_v4l2_read(struct file *file, char __user *buf,
 
 	frame->bytes_read += count;
 	PDEBUG(DBG_IO, "%s: {copy} count used=%ld, new bytes_read=%ld",
-	       __FUNCTION__,
+	       __func__,
 	       (unsigned long)count, frame->bytes_read);
 
 	/* For now, forget the frame if it has not been read in one shot. */
@@ -1269,12 +1269,12 @@ static int usbvision_radio_open(struct inode *inode, struct file *file)
 		(struct usb_usbvision *) video_get_drvdata(dev);
 	int errCode = 0;
 
-	PDEBUG(DBG_IO, "%s:", __FUNCTION__);
+	PDEBUG(DBG_IO, "%s:", __func__);
 
 	mutex_lock(&usbvision->lock);
 
 	if (usbvision->user) {
-		err("%s: Someone tried to open an already opened USBVision Radio!", __FUNCTION__);
+		err("%s: Someone tried to open an already opened USBVision Radio!", __func__);
 		errCode = -EBUSY;
 	}
 	else {
@@ -1342,7 +1342,7 @@ static int usbvision_radio_close(struct inode *inode, struct file *file)
 	mutex_unlock(&usbvision->lock);
 
 	if (usbvision->remove_pending) {
-		printk(KERN_INFO "%s: Final disconnect\n", __FUNCTION__);
+		printk(KERN_INFO "%s: Final disconnect\n", __func__);
 		usbvision_release(usbvision);
 	}
 
@@ -1507,7 +1507,7 @@ static struct video_device *usbvision_vdev_init(struct usb_usbvision *usbvision,
 	struct video_device *vdev;
 
 	if (usb_dev == NULL) {
-		err("%s: usbvision->dev is not set", __FUNCTION__);
+		err("%s: usbvision->dev is not set", __func__);
 		return NULL;
 	}
 
@@ -1759,7 +1759,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 		PDEBUG(DBG_PROBE, "model out of bounds %d",model);
 		return -ENODEV;
 	}
-	printk(KERN_INFO "%s: %s found\n", __FUNCTION__,
+	printk(KERN_INFO "%s: %s found\n", __func__,
 				usbvision_device_data[model].ModelString);
 
 	if (usbvision_device_data[model].Interface >= 0) {
@@ -1771,20 +1771,20 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) !=
 	    USB_ENDPOINT_XFER_ISOC) {
 		err("%s: interface %d. has non-ISO endpoint!",
-		    __FUNCTION__, ifnum);
+		    __func__, ifnum);
 		err("%s: Endpoint attributes %d",
-		    __FUNCTION__, endpoint->bmAttributes);
+		    __func__, endpoint->bmAttributes);
 		return -ENODEV;
 	}
 	if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) ==
 	    USB_DIR_OUT) {
 		err("%s: interface %d. has ISO OUT endpoint!",
-		    __FUNCTION__, ifnum);
+		    __func__, ifnum);
 		return -ENODEV;
 	}
 
 	if ((usbvision = usbvision_alloc(dev)) == NULL) {
-		err("%s: couldn't allocate USBVision struct", __FUNCTION__);
+		err("%s: couldn't allocate USBVision struct", __func__);
 		return -ENOMEM;
 	}
 
@@ -1868,7 +1868,7 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 	PDEBUG(DBG_PROBE, "");
 
 	if (usbvision == NULL) {
-		err("%s: usb_get_intfdata() failed", __FUNCTION__);
+		err("%s: usb_get_intfdata() failed", __func__);
 		return;
 	}
 	usb_set_intfdata (intf, NULL);
@@ -1891,7 +1891,7 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 
 	if (usbvision->user) {
 		printk(KERN_INFO "%s: In use, disconnect pending\n",
-		       __FUNCTION__);
+		       __func__);
 		wake_up_interruptible(&usbvision->wait_frame);
 		wake_up_interruptible(&usbvision->wait_stream);
 	} else {

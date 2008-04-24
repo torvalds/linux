@@ -65,7 +65,7 @@ MODULE_SUPPORTED_DEVICE("Video");
  */
 
 #define MAX_DMA_BUFS 3
-static int alloc_bufs_at_read = 0;
+static int alloc_bufs_at_read;
 module_param(alloc_bufs_at_read, bool, 0444);
 MODULE_PARM_DESC(alloc_bufs_at_read,
 		"Non-zero value causes DMA buffers to be allocated when the "
@@ -99,7 +99,7 @@ MODULE_PARM_DESC(max_buffers,
 		"will be allowed to allocate.  These buffers are big and live "
 		"in vmalloc space.");
 
-static int flip = 0;
+static int flip;
 module_param(flip, bool, 0444);
 MODULE_PARM_DESC(flip,
 		"If set, the sensor will be instructed to flip the image "

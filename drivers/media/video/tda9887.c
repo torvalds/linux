@@ -25,10 +25,12 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "tda9887"
+static DEFINE_MUTEX(tda9887_list_mutex);
+static LIST_HEAD(hybrid_tuner_instance_list);
 
 struct tda9887_priv {
 	struct tuner_i2c_props i2c_props;
+	struct list_head hybrid_tuner_instance_list;
 
 	unsigned char 	   data[4];
 	unsigned int       config;
@@ -644,7 +646,15 @@ static int tda9887_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 static void tda9887_release(struct dvb_frontend *fe)
 {
-	kfree(fe->analog_demod_priv);
+	struct tda9887_priv *priv = fe->analog_demod_priv;
+
+	mutex_lock(&tda9887_list_mutex);
+
+	if (priv)
+		hybrid_tuner_release_state(priv);
+
+	mutex_unlock(&tda9887_list_mutex);
+
 	fe->analog_demod_priv = NULL;
 }
 
@@ -665,17 +675,29 @@ struct dvb_frontend *tda9887_attach(struct dvb_frontend *fe,
 				    u8 i2c_addr)
 {
 	struct tda9887_priv *priv = NULL;
+	int instance;
 
-	priv = kzalloc(sizeof(struct tda9887_priv), GFP_KERNEL);
-	if (priv == NULL)
+	mutex_lock(&tda9887_list_mutex);
+
+	instance = hybrid_tuner_request_state(struct tda9887_priv, priv,
+					      hybrid_tuner_instance_list,
+					      i2c_adap, i2c_addr, "tda9887");
+	switch (instance) {
+	case 0:
+		mutex_unlock(&tda9887_list_mutex);
 		return NULL;
-	fe->analog_demod_priv = priv;
+		break;
+	case 1:
+		fe->analog_demod_priv = priv;
+		priv->mode = T_STANDBY;
+		tuner_info("tda988[5/6/7] found\n");
+		break;
+	default:
+		fe->analog_demod_priv = priv;
+		break;
+	}
 
-	priv->i2c_props.addr = i2c_addr;
-	priv->i2c_props.adap = i2c_adap;
-	priv->mode = T_STANDBY;
-
-	tuner_info("tda988[5/6/7] found\n");
+	mutex_unlock(&tda9887_list_mutex);
 
 	memcpy(&fe->ops.analog_ops, &tda9887_ops,
 	       sizeof(struct analog_demod_ops));

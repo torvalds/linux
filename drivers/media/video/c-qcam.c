@@ -36,6 +36,7 @@
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <linux/mutex.h>
+#include <linux/jiffies.h>
 
 #include <asm/uaccess.h>
 
@@ -69,7 +70,7 @@ struct qcam_device {
 
 static int parport[MAX_CAMS] = { [1 ... MAX_CAMS-1] = -1 };
 static int probe = 2;
-static int force_rgb = 0;
+static int force_rgb;
 static int video_nr = -1;
 
 static inline void qcam_set_ack(struct qcam_device *qcam, unsigned int i)
@@ -95,7 +96,8 @@ static unsigned int qcam_await_ready1(struct qcam_device *qcam,
 	unsigned long oldjiffies = jiffies;
 	unsigned int i;
 
-	for (oldjiffies = jiffies; (jiffies - oldjiffies) < msecs_to_jiffies(40); )
+	for (oldjiffies = jiffies;
+	     time_before(jiffies, oldjiffies + msecs_to_jiffies(40)); )
 		if (qcam_ready1(qcam) == value)
 			return 0;
 
@@ -120,7 +122,8 @@ static unsigned int qcam_await_ready2(struct qcam_device *qcam, int value)
 	unsigned long oldjiffies = jiffies;
 	unsigned int i;
 
-	for (oldjiffies = jiffies; (jiffies - oldjiffies) < msecs_to_jiffies(40); )
+	for (oldjiffies = jiffies;
+	     time_before(jiffies, oldjiffies + msecs_to_jiffies(40)); )
 		if (qcam_ready2(qcam) == value)
 			return 0;
 
@@ -689,7 +692,9 @@ static const struct file_operations qcam_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl          = qcam_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.read		= qcam_read,
 	.llseek         = no_llseek,
 };
@@ -741,7 +746,7 @@ static struct qcam_device *qcam_init(struct parport *port)
 }
 
 static struct qcam_device *qcams[MAX_CAMS];
-static unsigned int num_cams = 0;
+static unsigned int num_cams;
 
 static int init_cqcam(struct parport *port)
 {

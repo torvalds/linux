@@ -40,7 +40,7 @@ extern struct dvb_frontend* tda10021_attach(const struct tda1002x_config* config
 static inline struct dvb_frontend* tda10021_attach(const struct tda1002x_config* config,
 					    struct i2c_adapter* i2c, u8 pwm)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif // CONFIG_DVB_TDA10021
@@ -52,7 +52,7 @@ extern struct dvb_frontend* tda10023_attach(const struct tda1002x_config* config
 static inline struct dvb_frontend* tda10023_attach(const struct tda1002x_config* config,
 					    struct i2c_adapter* i2c, u8 pwm)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif // CONFIG_DVB_TDA10023

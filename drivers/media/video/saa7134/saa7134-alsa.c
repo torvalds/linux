@@ -31,7 +31,7 @@
 #include "saa7134.h"
 #include "saa7134-reg.h"
 
-static unsigned int debug  = 0;
+static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"enable debug messages [alsa]");
 
@@ -503,7 +503,7 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 	/* release the old buffer */
 	if (substream->runtime->dma_area) {
 		saa7134_pgtable_free(dev->pci, &dev->dmasound.pt);
-		videobuf_pci_dma_unmap(dev->pci, &dev->dmasound.dma);
+		videobuf_sg_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
 		dsp_buffer_free(dev);
 		substream->runtime->dma_area = NULL;
 	}
@@ -519,12 +519,12 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 		return err;
 	}
 
-	if (0 != (err = videobuf_pci_dma_map(dev->pci, &dev->dmasound.dma))) {
+	if (0 != (err = videobuf_sg_dma_map(&dev->pci->dev, &dev->dmasound.dma))) {
 		dsp_buffer_free(dev);
 		return err;
 	}
 	if (0 != (err = saa7134_pgtable_alloc(dev->pci,&dev->dmasound.pt))) {
-		videobuf_pci_dma_unmap(dev->pci, &dev->dmasound.dma);
+		videobuf_sg_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
 		dsp_buffer_free(dev);
 		return err;
 	}
@@ -533,7 +533,7 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 						dev->dmasound.dma.sglen,
 						0))) {
 		saa7134_pgtable_free(dev->pci, &dev->dmasound.pt);
-		videobuf_pci_dma_unmap(dev->pci, &dev->dmasound.dma);
+		videobuf_sg_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
 		dsp_buffer_free(dev);
 		return err;
 	}
@@ -569,7 +569,7 @@ static int snd_card_saa7134_hw_free(struct snd_pcm_substream * substream)
 
 	if (substream->runtime->dma_area) {
 		saa7134_pgtable_free(dev->pci, &dev->dmasound.pt);
-		videobuf_pci_dma_unmap(dev->pci, &dev->dmasound.dma);
+		videobuf_sg_dma_unmap(&dev->pci->dev, &dev->dmasound.dma);
 		dsp_buffer_free(dev);
 		substream->runtime->dma_area = NULL;
 	}

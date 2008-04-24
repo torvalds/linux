@@ -40,7 +40,7 @@ static unsigned int empress_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 module_param_array(empress_nr, int, NULL, 0444);
 MODULE_PARM_DESC(empress_nr,"ts device number");
 
-static unsigned int debug = 0;
+static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"enable debug messages");
 
@@ -402,7 +402,7 @@ static int empress_init(struct saa7134_dev *dev)
 {
 	int err;
 
-	dprintk("%s: %s\n",dev->name,__FUNCTION__);
+	dprintk("%s: %s\n",dev->name,__func__);
 	dev->empress_dev = video_device_alloc();
 	if (NULL == dev->empress_dev)
 		return -ENOMEM;
@@ -427,8 +427,8 @@ static int empress_init(struct saa7134_dev *dev)
 	printk(KERN_INFO "%s: registered device video%d [mpeg]\n",
 	       dev->name,dev->empress_dev->minor & 0x1f);
 
-	videobuf_queue_pci_init(&dev->empress_tsq, &saa7134_ts_qops,
-			    dev->pci, &dev->slock,
+	videobuf_queue_sg_init(&dev->empress_tsq, &saa7134_ts_qops,
+			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_ALTERNATE,
 			    sizeof(struct saa7134_buf),
@@ -440,7 +440,7 @@ static int empress_init(struct saa7134_dev *dev)
 
 static int empress_fini(struct saa7134_dev *dev)
 {
-	dprintk("%s: %s\n",dev->name,__FUNCTION__);
+	dprintk("%s: %s\n",dev->name,__func__);
 
 	if (NULL == dev->empress_dev)
 		return 0;

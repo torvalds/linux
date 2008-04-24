@@ -6,10 +6,11 @@
 #define __TUNER_TYPES_H__
 
 enum param_type {
-	TUNER_PARAM_TYPE_RADIO, \
-	TUNER_PARAM_TYPE_PAL, \
-	TUNER_PARAM_TYPE_SECAM, \
-	TUNER_PARAM_TYPE_NTSC
+	TUNER_PARAM_TYPE_RADIO,
+	TUNER_PARAM_TYPE_PAL,
+	TUNER_PARAM_TYPE_SECAM,
+	TUNER_PARAM_TYPE_NTSC,
+	TUNER_PARAM_TYPE_DIGITAL,
 };
 
 struct tuner_range {
@@ -105,6 +106,7 @@ struct tuner_params {
 	   the SECAM-L/L' standards. Range: -16:+15 */
 	signed int default_top_secam_high:5;
 
+	u16 iffreq;
 
 	unsigned int count;
 	struct tuner_range *ranges;
@@ -114,6 +116,13 @@ struct tunertype {
 	char *name;
 	unsigned int count;
 	struct tuner_params *params;
+
+	u16 min;
+	u16 max;
+	u32 stepsize;
+
+	u8 *initdata;
+	u8 *sleepdata;
 };
 
 extern struct tunertype tuners[];

@@ -95,7 +95,7 @@ static int ttpci_eeprom_read_encodedMAC(struct i2c_adapter *adapter, u8 * encode
 		{ .addr = 0x50, .flags = I2C_M_RD, .buf = encodedMAC, .len = 20 }
 	};
 
-	/* dprintk("%s\n", __FUNCTION__); */
+	/* dprintk("%s\n", __func__); */
 
 	ret = i2c_transfer(adapter, msg, 2);
 

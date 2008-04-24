@@ -34,7 +34,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
-//#define _CPIA2_DEBUG_
+/* #define _CPIA2_DEBUG_ */
 
 #include "cpia2patch.h"
 
@@ -48,7 +48,7 @@ static const char *block_name[] = {
 };
 #endif
 
-static unsigned int debugs_on = 0;//DEBUG_REG;
+static unsigned int debugs_on;	/* default 0 - DEBUG_REG */
 
 
 /******************************************************************************
@@ -570,7 +570,7 @@ int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 			    block_name[block_index]);
 		break;
 	default:
-		LOG("%s: invalid request mode\n",__FUNCTION__);
+		LOG("%s: invalid request mode\n",__func__);
 		return -EINVAL;
 	}
 
@@ -952,7 +952,7 @@ static int set_default_user_mode(struct camera_data *cam)
 			frame_rate = CPIA2_VP_FRAMERATE_30;
 		break;
 	default:
-		LOG("%s: Invalid sensor flag value 0x%0X\n",__FUNCTION__,
+		LOG("%s: Invalid sensor flag value 0x%0X\n",__func__,
 		    cam->params.version.sensor_flags);
 		return -EINVAL;
 	}
@@ -2356,12 +2356,12 @@ long cpia2_read(struct camera_data *cam,
 	}
 
 	if (!buf) {
-		ERR("%s: buffer NULL\n",__FUNCTION__);
+		ERR("%s: buffer NULL\n",__func__);
 		return -EINVAL;
 	}
 
 	if (!cam) {
-		ERR("%s: Internal error, camera_data NULL!\n",__FUNCTION__);
+		ERR("%s: Internal error, camera_data NULL!\n",__func__);
 		return -EINVAL;
 	}
 
@@ -2370,7 +2370,7 @@ long cpia2_read(struct camera_data *cam,
 		return -ERESTARTSYS;
 
 	if (!cam->present) {
-		LOG("%s: camera removed\n",__FUNCTION__);
+		LOG("%s: camera removed\n",__func__);
 		mutex_unlock(&cam->busy_lock);
 		return 0;	/* EOF */
 	}
@@ -2434,7 +2434,7 @@ unsigned int cpia2_poll(struct camera_data *cam, struct file *filp,
 	unsigned int status=0;
 
 	if(!cam) {
-		ERR("%s: Internal error, camera_data not found!\n",__FUNCTION__);
+		ERR("%s: Internal error, camera_data not found!\n",__func__);
 		return POLLERR;
 	}
 

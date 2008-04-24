@@ -20,6 +20,9 @@
 static int dvb_usb_digitv_debug;
 module_param_named(debug,dvb_usb_digitv_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
+
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 #define deb_rc(args...)   dprintk(dvb_usb_digitv_debug,0x01,args)
 
 static int digitv_ctrl_msg(struct dvb_usb_device *d,
@@ -256,8 +259,9 @@ static int digitv_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
 	struct dvb_usb_device *d;
-	int ret;
-	if ((ret = dvb_usb_device_init(intf,&digitv_properties,THIS_MODULE,&d)) == 0) {
+	int ret = dvb_usb_device_init(intf, &digitv_properties, THIS_MODULE, &d,
+				      adapter_nr);
+	if (ret == 0) {
 		u8 b[4] = { 0 };
 
 		if (d != NULL) { /* do that only when the firmware is loaded */

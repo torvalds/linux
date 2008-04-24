@@ -11,7 +11,7 @@ static unsigned int vbibufs = 4;
 module_param(vbibufs,int,0644);
 MODULE_PARM_DESC(vbibufs,"number of vbi buffers, range 2-32");
 
-static unsigned int vbi_debug = 0;
+static unsigned int vbi_debug;
 module_param(vbi_debug,int,0644);
 MODULE_PARM_DESC(vbi_debug,"enable debug messages [vbi]");
 

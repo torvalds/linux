@@ -29,6 +29,8 @@ static struct mutex lock;
 #include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
 #define RADIO_VERSION KERNEL_VERSION(0,0,2)
 
+#define AUD_VOL_INDEX 1
+
 static struct v4l2_queryctrl radio_qctrl[] = {
 	{
 		.id            = V4L2_CID_AUDIO_MUTE,
@@ -37,13 +39,14 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 		.maximum       = 1,
 		.default_value = 1,
 		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	},{
+	},
+	[AUD_VOL_INDEX] = {
 		.id            = V4L2_CID_AUDIO_VOLUME,
 		.name          = "Volume",
 		.minimum       = 0,
-		.maximum       = 65535,
-		.step          = 1<<12,
-		.default_value = 0xff,
+		.maximum       = 15,
+		.step          = 1,
+		.default_value = 0,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
 	}
 };
@@ -61,7 +64,7 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 struct fmr2_device
 {
 	int port;
-	int curvol; /* 0-65535, if not volume 0 or 65535 */
+	int curvol; /* 0-15 */
 	int mute;
 	int stereo; /* card is producing stereo audio */
 	unsigned long curfreq; /* freq in kHz */
@@ -176,51 +179,35 @@ static int fmr2_setfreq(struct fmr2_device *dev)
 /* !!! not tested, in my card this does't work !!! */
 static int fmr2_setvolume(struct fmr2_device *dev)
 {
-	int i,a,n, port = dev->port;
+	int vol[16] = { 0x021, 0x084, 0x090, 0x104,
+			0x110, 0x204, 0x210, 0x402,
+			0x404, 0x408, 0x410, 0x801,
+			0x802, 0x804, 0x808, 0x810 };
+	int i, a, port = dev->port;
+	int n = vol[dev->curvol & 0x0f];
 
-	if (dev->card_type != 11) return 1;
+	if (dev->card_type != 11)
+		return 1;
 
-	switch( (dev->curvol+(1<<11)) >> 12 )
-	{
-	case 0: case 1: n = 0x21; break;
-	case 2: n = 0x84; break;
-	case 3: n = 0x90; break;
-	case 4: n = 0x104; break;
-	case 5: n = 0x110; break;
-	case 6: n = 0x204; break;
-	case 7: n = 0x210; break;
-	case 8: n = 0x402; break;
-	case 9: n = 0x404; break;
-	default:
-	case 10: n = 0x408; break;
-	case 11: n = 0x410; break;
-	case 12: n = 0x801; break;
-	case 13: n = 0x802; break;
-	case 14: n = 0x804; break;
-	case 15: n = 0x808; break;
-	case 16: n = 0x810; break;
-	}
-	for(i=12;--i>=0;)
-	{
+	for (i = 12; --i >= 0; ) {
 		a = ((n >> i) & 1) << 6; /* if (a=0) a= 0; else a= 0x40; */
-		outb(a|4, port);
-		wait(4,port);
-		outb(a|0x24, port);
-		wait(4,port);
-		outb(a|4, port);
-		wait(4,port);
+		outb(a | 4, port);
+		wait(4, port);
+		outb(a | 0x24, port);
+		wait(4, port);
+		outb(a | 4, port);
+		wait(4, port);
 	}
-	for(i=6;--i>=0;)
-	{
+	for (i = 6; --i >= 0; ) {
 		a = ((0x18 >> i) & 1) << 6;
-		outb(a|4, port);
+		outb(a | 4, port);
 		wait(4,port);
-		outb(a|0x24, port);
+		outb(a | 0x24, port);
 		wait(4,port);
 		outb(a|4, port);
 		wait(4,port);
 	}
-	wait(4,port);
+	wait(4, port);
 	outb(0x14, port);
 
 	return 0;
@@ -312,16 +299,10 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 					struct v4l2_queryctrl *qc)
 {
 	int i;
-	struct video_device *dev = video_devdata(file);
-	struct fmr2_device *fmr2 = dev->priv;
 
 	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
-		if ((fmr2->card_type != 11)
-				&& V4L2_CID_AUDIO_VOLUME)
-			radio_qctrl[i].step = 65535;
 		if (qc->id && qc->id == radio_qctrl[i].id) {
-			memcpy(qc, &(radio_qctrl[i]),
-						sizeof(*qc));
+			memcpy(qc, &radio_qctrl[i], sizeof(*qc));
 			return 0;
 		}
 	}
@@ -354,24 +335,13 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 		fmr2->mute = ctrl->value;
-		if (fmr2->card_type != 11) {
-			if (!fmr2->mute)
-				fmr2->curvol = 65535;
-			else
-				fmr2->curvol = 0;
-		}
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
-		fmr2->curvol = ctrl->value;
-		if (fmr2->card_type != 11) {
-			if (fmr2->curvol) {
-				fmr2->curvol = 65535;
-				fmr2->mute = 0;
-			} else {
-				fmr2->curvol = 0;
-				fmr2->mute = 1;
-			}
-		}
+		if (ctrl->value > radio_qctrl[AUD_VOL_INDEX].maximum)
+			fmr2->curvol = radio_qctrl[AUD_VOL_INDEX].maximum;
+		else
+			fmr2->curvol = ctrl->value;
+
 		break;
 	default:
 		return -EINVAL;
@@ -387,6 +357,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	mutex_lock(&lock);
 	if (fmr2->curvol && !fmr2->mute) {
 		fmr2_setvolume(fmr2);
+		/* Set frequency and unmute card */
 		fmr2_setfreq(fmr2);
 	} else
 		fmr2_mute(fmr2->port);
@@ -433,7 +404,9 @@ static const struct file_operations fmr2_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl          = video_ioctl2,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.llseek         = no_llseek,
 };
 
@@ -487,6 +460,11 @@ static int __init fmr2_init(void)
 	fmr2_product_info(&fmr2_unit);
 	mutex_unlock(&lock);
 	debug_print((KERN_DEBUG "card_type %d\n", fmr2_unit.card_type));
+
+	/* Only card_type == 11 implements volume */
+	if (fmr2_unit.card_type != 11)
+		radio_qctrl[AUD_VOL_INDEX].maximum = 1;
+
 	return 0;
 }
 

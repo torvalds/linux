@@ -25,8 +25,8 @@
  24 -> KNC One TV-Station DVR                   [1894:a006]
  25 -> ASUS TV-FM 7133                          [1043:4843]
  26 -> Pinnacle PCTV Stereo (saa7134)           [11bd:002b]
- 27 -> Manli MuchTV M-TV002/Behold TV 403 FM
- 28 -> Manli MuchTV M-TV001/Behold TV 401
+ 27 -> Manli MuchTV M-TV002
+ 28 -> Manli MuchTV M-TV001
  29 -> Nagase Sangyo TransGear 3000TV           [1461:050c]
  30 -> Elitegroup ECS TVP3XP FM1216 Tuner Card(PAL-BG,FM)  [1019:4cb4]
  31 -> Elitegroup ECS TVP3XP FM1236 Tuner Card (NTSC,FM) [1019:4cb5]
@@ -131,3 +131,12 @@
 130 -> Beholder BeholdTV M6 / BeholdTV M6 Extra [5ace:6190,5ace:6193]
 131 -> Twinhan Hybrid DTV-DVB 3056 PCI          [1822:0022]
 132 -> Genius TVGO AM11MCE
+133 -> NXP Snake DVB-S reference design
+134 -> Medion/Creatix CTX953 Hybrid             [16be:0010]
+135 -> MSI TV@nywhere A/D v1.1                  [1462:8625]
+136 -> AVerMedia Cardbus TV/Radio (E506R)       [1461:f436]
+137 -> AVerMedia Hybrid TV/Radio (A16D)         [1461:f936]
+138 -> Avermedia M115                           [1461:a836]
+139 -> Compro VideoMate T750                    [185b:c900]
+140 -> Avermedia DVB-S Pro A700                 [1461:a7a1]
+141 -> Avermedia DVB-S Hybrid+FM A700           [1461:a7a2]

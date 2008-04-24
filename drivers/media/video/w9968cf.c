@@ -3461,7 +3461,9 @@ static const struct file_operations w9968cf_fops = {
 	.release = w9968cf_release,
 	.read =    w9968cf_read,
 	.ioctl =   w9968cf_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.mmap =    w9968cf_mmap,
 	.llseek =  no_llseek,
 };
@@ -3481,7 +3483,7 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	enum w9968cf_model_id mod_id;
 	struct list_head* ptr;
 	u8 sc = 0; /* number of simultaneous cameras */
-	static unsigned short dev_nr = 0; /* we are handling device number n */
+	static unsigned short dev_nr; /* 0 - we are handling device number n */
 
 	if (le16_to_cpu(udev->descriptor.idVendor)  == winbond_id_table[0].idVendor &&
 	    le16_to_cpu(udev->descriptor.idProduct) == winbond_id_table[0].idProduct)

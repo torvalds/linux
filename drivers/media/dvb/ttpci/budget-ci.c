@@ -86,7 +86,7 @@ static int rc5_device = -1;
 module_param(rc5_device, int, 0644);
 MODULE_PARM_DESC(rc5_device, "only IR commands to given RC5 device (device = 0 - 31, any device = 255, default: autodetect)");
 
-static int ir_debug = 0;
+static int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
 
@@ -728,7 +728,7 @@ static struct stv0299_config philips_su1278_tt_config = {
 	.mclk = 64000000UL,
 	.invert = 0,
 	.skip_reinit = 1,
-	.lock_output = STV0229_LOCKOUTPUT_1,
+	.lock_output = STV0299_LOCKOUTPUT_1,
 	.volt13_op0_op1 = STV0299_VOLT13_OP1,
 	.min_delay_ms = 50,
 	.set_symbol_rate = philips_su1278_tt_set_symbol_rate,
@@ -1121,7 +1121,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 
 			budget_ci->budget.dvb_frontend->ops.dishnetwork_send_legacy_command = NULL;
 			if (dvb_attach(lnbp21_attach, budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, LNBP21_LLC, 0) == NULL) {
-				printk("%s: No LNBP21 found!\n", __FUNCTION__);
+				printk("%s: No LNBP21 found!\n", __func__);
 				dvb_frontend_detach(budget_ci->budget.dvb_frontend);
 				budget_ci->budget.dvb_frontend = NULL;
 			}

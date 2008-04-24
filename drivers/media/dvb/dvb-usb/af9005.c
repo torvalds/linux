@@ -39,6 +39,8 @@ int dvb_usb_af9005_dump_eeprom = 0;
 module_param_named(dump_eeprom, dvb_usb_af9005_dump_eeprom, int, 0);
 MODULE_PARM_DESC(dump_eeprom, "dump contents of the eeprom.");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 /* remote control decoder */
 int (*rc_decode) (struct dvb_usb_device * d, u8 * data, int len, u32 * event,
 		  int *state);
@@ -1020,7 +1022,8 @@ static struct dvb_usb_device_properties af9005_properties;
 static int af9005_usb_probe(struct usb_interface *intf,
 			    const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf, &af9005_properties, THIS_MODULE, NULL);
+	return dvb_usb_device_init(intf, &af9005_properties,
+				   THIS_MODULE, NULL, adapter_nr);
 }
 
 static struct usb_device_id af9005_usb_table[] = {

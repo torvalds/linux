@@ -40,7 +40,7 @@
 #define I2C_VPX3220        0x86
 #define VPX3220_DEBUG	KERN_DEBUG "vpx3220: "
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 

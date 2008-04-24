@@ -21,6 +21,8 @@ int dvb_usb_vp702x_debug;
 module_param_named(debug,dvb_usb_vp702x_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,rc=4 (or-able))." DVB_USB_DEBUG_STATUS);
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 struct vp702x_state {
 	int pid_filter_count;
 	int pid_filter_can_bypass;
@@ -238,7 +240,8 @@ static struct dvb_usb_device_properties vp702x_properties;
 static int vp702x_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&vp702x_properties,THIS_MODULE,NULL);
+	return dvb_usb_device_init(intf, &vp702x_properties,
+				   THIS_MODULE, NULL, adapter_nr);
 }
 
 static struct usb_device_id vp702x_usb_table [] = {

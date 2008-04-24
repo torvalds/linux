@@ -146,8 +146,6 @@ struct vivi_buffer {
 
 struct vivi_dmaqueue {
 	struct list_head       active;
-	struct list_head       queued;
-	struct timer_list      timeout;
 
 	/* thread for generating video stream*/
 	struct task_struct         *kthread;
@@ -162,8 +160,8 @@ static LIST_HEAD(vivi_devlist);
 struct vivi_dev {
 	struct list_head           vivi_devlist;
 
-	struct mutex               lock;
 	spinlock_t                 slock;
+	struct mutex		   mutex;
 
 	int                        users;
 
@@ -322,24 +320,26 @@ static void gen_line(char *basep, int inipos, int wmax,
 end:
 	return;
 }
+
 static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 {
 	int h , pos = 0;
 	int hmax  = buf->vb.height;
 	int wmax  = buf->vb.width;
 	struct timeval ts;
-	char *tmpbuf = kmalloc(wmax * 2, GFP_KERNEL);
+	char *tmpbuf = kmalloc(wmax * 2, GFP_ATOMIC);
 	void *vbuf = videobuf_to_vmalloc(&buf->vb);
 
 	if (!tmpbuf)
 		return;
 
+	if (!vbuf)
+		return;
+
 	for (h = 0; h < hmax; h++) {
 		gen_line(tmpbuf, 0, wmax, hmax, h, dev->mv_count,
 			 dev->timestr);
-		/* FIXME: replacing to __copy_to_user */
-		if (copy_to_user(vbuf + pos, tmpbuf, wmax * 2) != 0)
-			dprintk(dev, 2, "vivifill copy_to_user failed.\n");
+		memcpy(vbuf + pos, tmpbuf, wmax * 2);
 		pos += wmax*2;
 	}
 
@@ -372,107 +372,71 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 			dev->timestr, (unsigned long)tmpbuf, pos);
 
 	/* Advice that buffer was filled */
-	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
 	do_gettimeofday(&ts);
 	buf->vb.ts = ts;
-
-	list_del(&buf->vb.queue);
-	wake_up(&buf->vb.done);
+	buf->vb.state = VIDEOBUF_DONE;
 }
 
-static int restart_video_queue(struct vivi_dmaqueue *dma_q);
-
-static void vivi_thread_tick(struct vivi_dmaqueue  *dma_q)
+static void vivi_thread_tick(struct vivi_fh *fh)
 {
-	struct vivi_buffer    *buf;
-	struct vivi_dev *dev = container_of(dma_q, struct vivi_dev, vidq);
+	struct vivi_buffer *buf;
+	struct vivi_dev *dev = fh->dev;
+	struct vivi_dmaqueue *dma_q = &dev->vidq;
 
-	int bc;
+	unsigned long flags = 0;
 
-	spin_lock(&dev->slock);
-	/* Announces videobuf that all went ok */
-	for (bc = 0;; bc++) {
-		if (list_empty(&dma_q->active)) {
-			dprintk(dev, 1, "No active queue to serve\n");
-			break;
-		}
+	dprintk(dev, 1, "Thread tick\n");
 
-		buf = list_entry(dma_q->active.next,
-				 struct vivi_buffer, vb.queue);
-
-		/* Nobody is waiting something to be done, just return */
-		if (!waitqueue_active(&buf->vb.done)) {
-			mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-			spin_unlock(&dev->slock);
-			return;
-		}
-
-		do_gettimeofday(&buf->vb.ts);
-		dprintk(dev, 2, "[%p/%d] wakeup\n", buf, buf->vb. i);
-
-		/* Fill buffer */
-		vivi_fillbuff(dev, buf);
-
-		if (list_empty(&dma_q->active)) {
-			del_timer(&dma_q->timeout);
-		} else {
-			mod_timer(&dma_q->timeout, jiffies + BUFFER_TIMEOUT);
-		}
+	spin_lock_irqsave(&dev->slock, flags);
+	if (list_empty(&dma_q->active)) {
+		dprintk(dev, 1, "No active queue to serve\n");
+		goto unlock;
 	}
-	if (bc != 1)
-		dprintk(dev, 1, "%s: %d buffers handled (should be 1)\n",
-			__FUNCTION__, bc);
-	spin_unlock(&dev->slock);
+
+	buf = list_entry(dma_q->active.next,
+			 struct vivi_buffer, vb.queue);
+
+	/* Nobody is waiting on this buffer, return */
+	if (!waitqueue_active(&buf->vb.done))
+		goto unlock;
+
+	list_del(&buf->vb.queue);
+
+	do_gettimeofday(&buf->vb.ts);
+
+	/* Fill buffer */
+	vivi_fillbuff(dev, buf);
+	dprintk(dev, 1, "filled buffer %p\n", buf);
+
+	wake_up(&buf->vb.done);
+	dprintk(dev, 2, "[%p/%d] wakeup\n", buf, buf->vb. i);
+unlock:
+	spin_unlock_irqrestore(&dev->slock, flags);
+	return;
 }
 
 #define frames_to_ms(frames)					\
 	((frames * WAKE_NUMERATOR * 1000) / WAKE_DENOMINATOR)
 
-static void vivi_sleep(struct vivi_dmaqueue  *dma_q)
+static void vivi_sleep(struct vivi_fh *fh)
 {
-	struct vivi_dev *dev = container_of(dma_q, struct vivi_dev, vidq);
-	int timeout, running_time;
+	struct vivi_dev *dev = fh->dev;
+	struct vivi_dmaqueue *dma_q = &dev->vidq;
+	int timeout;
 	DECLARE_WAITQUEUE(wait, current);
 
-	dprintk(dev, 1, "%s dma_q=0x%08lx\n", __FUNCTION__,
+	dprintk(dev, 1, "%s dma_q=0x%08lx\n", __func__,
 		(unsigned long)dma_q);
 
 	add_wait_queue(&dma_q->wq, &wait);
 	if (kthread_should_stop())
 		goto stop_task;
 
-	running_time = jiffies - dma_q->ini_jiffies;
-	dma_q->frame++;
-
 	/* Calculate time to wake up */
-	timeout = msecs_to_jiffies(frames_to_ms(dma_q->frame)) - running_time;
+	timeout = msecs_to_jiffies(frames_to_ms(1));
 
-	if (timeout > msecs_to_jiffies(frames_to_ms(2)) || timeout <= 0) {
-		int old = dma_q->frame;
-		int nframes;
-
-		dma_q->frame = (jiffies_to_msecs(running_time) /
-			       frames_to_ms(1)) + 1;
-
-		timeout = msecs_to_jiffies(frames_to_ms(dma_q->frame))
-			  - running_time;
-
-		if (unlikely (timeout <= 0))
-			timeout = 1;
-
-		nframes = (dma_q->frame > old)?
-				  dma_q->frame - old : old - dma_q->frame;
-
-		dprintk(dev, 1, "%ld: %s %d frames. "
-			"Current frame is %d. Will sleep for %d jiffies\n",
-			jiffies,
-			(dma_q->frame > old)? "Underrun, losed" : "Overrun of",
-			nframes, dma_q->frame, timeout);
-	} else
-		dprintk(dev, 1, "will sleep for %d jiffies\n", timeout);
-
-	vivi_thread_tick(dma_q);
+	vivi_thread_tick(fh);
 
 	schedule_timeout_interruptible(timeout);
 
@@ -483,16 +447,15 @@ stop_task:
 
 static int vivi_thread(void *data)
 {
-	struct vivi_dmaqueue  *dma_q = data;
-	struct vivi_dev *dev = container_of(dma_q, struct vivi_dev, vidq);
+	struct vivi_fh  *fh = data;
+	struct vivi_dev *dev = fh->dev;
 
 	dprintk(dev, 1, "thread started\n");
 
-	mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
 	set_freezable();
 
 	for (;;) {
-		vivi_sleep(dma_q);
+		vivi_sleep(fh);
 
 		if (kthread_should_stop())
 			break;
@@ -501,16 +464,17 @@ static int vivi_thread(void *data)
 	return 0;
 }
 
-static int vivi_start_thread(struct vivi_dmaqueue  *dma_q)
+static int vivi_start_thread(struct vivi_fh *fh)
 {
-	struct vivi_dev *dev = container_of(dma_q, struct vivi_dev, vidq);
+	struct vivi_dev *dev = fh->dev;
+	struct vivi_dmaqueue *dma_q = &dev->vidq;
 
 	dma_q->frame = 0;
 	dma_q->ini_jiffies = jiffies;
 
-	dprintk(dev, 1, "%s\n", __FUNCTION__);
+	dprintk(dev, 1, "%s\n", __func__);
 
-	dma_q->kthread = kthread_run(vivi_thread, dma_q, "vivi");
+	dma_q->kthread = kthread_run(vivi_thread, fh, "vivi");
 
 	if (IS_ERR(dma_q->kthread)) {
 		printk(KERN_ERR "vivi: kernel_thread() failed\n");
@@ -519,7 +483,7 @@ static int vivi_start_thread(struct vivi_dmaqueue  *dma_q)
 	/* Wakes thread */
 	wake_up_interruptible(&dma_q->wq);
 
-	dprintk(dev, 1, "returning from %s\n", __FUNCTION__);
+	dprintk(dev, 1, "returning from %s\n", __func__);
 	return 0;
 }
 
@@ -527,97 +491,12 @@ static void vivi_stop_thread(struct vivi_dmaqueue  *dma_q)
 {
 	struct vivi_dev *dev = container_of(dma_q, struct vivi_dev, vidq);
 
-	dprintk(dev, 1, "%s\n", __FUNCTION__);
+	dprintk(dev, 1, "%s\n", __func__);
 	/* shutdown control thread */
 	if (dma_q->kthread) {
 		kthread_stop(dma_q->kthread);
 		dma_q->kthread = NULL;
 	}
-}
-
-static int restart_video_queue(struct vivi_dmaqueue *dma_q)
-{
-	struct vivi_dev *dev = container_of(dma_q, struct vivi_dev, vidq);
-	struct vivi_buffer *buf, *prev;
-
-	dprintk(dev, 1, "%s dma_q=0x%08lx\n", __FUNCTION__,
-		(unsigned long)dma_q);
-
-	if (!list_empty(&dma_q->active)) {
-		buf = list_entry(dma_q->active.next,
-				 struct vivi_buffer, vb.queue);
-		dprintk(dev, 2, "restart_queue [%p/%d]: restart dma\n",
-			buf, buf->vb.i);
-
-		dprintk(dev, 1, "Restarting video dma\n");
-		vivi_stop_thread(dma_q);
-
-		/* cancel all outstanding capture / vbi requests */
-		list_for_each_entry_safe(buf, prev, &dma_q->active, vb.queue) {
-			list_del(&buf->vb.queue);
-			buf->vb.state = VIDEOBUF_ERROR;
-			wake_up(&buf->vb.done);
-		}
-		mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-
-		return 0;
-	}
-
-	prev = NULL;
-	for (;;) {
-		if (list_empty(&dma_q->queued))
-			return 0;
-		buf = list_entry(dma_q->queued.next,
-				 struct vivi_buffer, vb.queue);
-		if (NULL == prev) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue, &dma_q->active);
-
-			dprintk(dev, 1, "Restarting video dma\n");
-			vivi_stop_thread(dma_q);
-			vivi_start_thread(dma_q);
-
-			buf->vb.state = VIDEOBUF_ACTIVE;
-			mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-			dprintk(dev, 2,
-				"[%p/%d] restart_queue - first active\n",
-				buf, buf->vb.i);
-
-		} else if (prev->vb.width  == buf->vb.width  &&
-			   prev->vb.height == buf->vb.height &&
-			   prev->fmt       == buf->fmt) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue, &dma_q->active);
-			buf->vb.state = VIDEOBUF_ACTIVE;
-			dprintk(dev, 2,
-				"[%p/%d] restart_queue - move to active\n",
-				buf, buf->vb.i);
-		} else {
-			return 0;
-		}
-		prev = buf;
-	}
-}
-
-static void vivi_vid_timeout(unsigned long data)
-{
-	struct vivi_dev      *dev  = (struct vivi_dev *)data;
-	struct vivi_dmaqueue *vidq = &dev->vidq;
-	struct vivi_buffer   *buf;
-
-	spin_lock(&dev->slock);
-
-	while (!list_empty(&vidq->active)) {
-		buf = list_entry(vidq->active.next,
-				 struct vivi_buffer, vb.queue);
-		list_del(&buf->vb.queue);
-		buf->vb.state = VIDEOBUF_ERROR;
-		wake_up(&buf->vb.done);
-		printk(KERN_INFO "vivi/0: [%p/%d] timeout\n", buf, buf->vb.i);
-	}
-	restart_video_queue(vidq);
-
-	spin_unlock(&dev->slock);
 }
 
 /* ------------------------------------------------------------------
@@ -637,7 +516,7 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	while (*size * *count > vid_limit * 1024 * 1024)
 		(*count)--;
 
-	dprintk(dev, 1, "%s, count=%d, size=%d\n", __FUNCTION__,
+	dprintk(dev, 1, "%s, count=%d, size=%d\n", __func__,
 		*count, *size);
 
 	return 0;
@@ -648,13 +527,13 @@ static void free_buffer(struct videobuf_queue *vq, struct vivi_buffer *buf)
 	struct vivi_fh  *fh = vq->priv_data;
 	struct vivi_dev *dev  = fh->dev;
 
-	dprintk(dev, 1, "%s\n", __FUNCTION__);
+	dprintk(dev, 1, "%s, state: %i\n", __func__, buf->vb.state);
 
 	if (in_interrupt())
 		BUG();
 
-	videobuf_waiton(&buf->vb, 0, 0);
 	videobuf_vmalloc_free(&buf->vb);
+	dprintk(dev, 1, "free_buffer: freed\n");
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
@@ -667,28 +546,25 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	struct vivi_fh     *fh  = vq->priv_data;
 	struct vivi_dev    *dev = fh->dev;
 	struct vivi_buffer *buf = container_of(vb, struct vivi_buffer, vb);
-	int rc, init_buffer = 0;
+	int rc;
 
-	dprintk(dev, 1, "%s, field=%d\n", __FUNCTION__, field);
+	dprintk(dev, 1, "%s, field=%d\n", __func__, field);
 
 	BUG_ON(NULL == fh->fmt);
+
 	if (fh->width  < 48 || fh->width  > norm_maxw() ||
 	    fh->height < 32 || fh->height > norm_maxh())
 		return -EINVAL;
+
 	buf->vb.size = fh->width*fh->height*2;
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < buf->vb.size)
 		return -EINVAL;
 
-	if (buf->fmt       != fh->fmt    ||
-	    buf->vb.width  != fh->width  ||
-	    buf->vb.height != fh->height ||
-	buf->vb.field  != field) {
-		buf->fmt       = fh->fmt;
-		buf->vb.width  = fh->width;
-		buf->vb.height = fh->height;
-		buf->vb.field  = field;
-		init_buffer = 1;
-	}
+	/* These properties only change when queue is idle, see s_fmt */
+	buf->fmt       = fh->fmt;
+	buf->vb.width  = fh->width;
+	buf->vb.height = fh->height;
+	buf->vb.field  = field;
 
 	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		rc = videobuf_iolock(vq, &buf->vb, NULL);
@@ -711,45 +587,12 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 	struct vivi_buffer    *buf  = container_of(vb, struct vivi_buffer, vb);
 	struct vivi_fh        *fh   = vq->priv_data;
 	struct vivi_dev       *dev  = fh->dev;
-	struct vivi_dmaqueue  *vidq = &dev->vidq;
-	struct vivi_buffer    *prev;
+	struct vivi_dmaqueue *vidq = &dev->vidq;
 
-	if (!list_empty(&vidq->queued)) {
-		dprintk(dev, 1, "adding vb queue=0x%08lx\n",
-			(unsigned long)&buf->vb.queue);
-		list_add_tail(&buf->vb.queue, &vidq->queued);
-		buf->vb.state = VIDEOBUF_QUEUED;
-		dprintk(dev, 2, "[%p/%d] buffer_queue - append to queued\n",
-			buf, buf->vb.i);
-	} else if (list_empty(&vidq->active)) {
-		list_add_tail(&buf->vb.queue, &vidq->active);
+	dprintk(dev, 1, "%s\n", __func__);
 
-		buf->vb.state = VIDEOBUF_ACTIVE;
-		mod_timer(&vidq->timeout, jiffies+BUFFER_TIMEOUT);
-		dprintk(dev, 2, "[%p/%d] buffer_queue - first active\n",
-			buf, buf->vb.i);
-
-		vivi_start_thread(vidq);
-	} else {
-		prev = list_entry(vidq->active.prev,
-				  struct vivi_buffer, vb.queue);
-		if (prev->vb.width  == buf->vb.width  &&
-		    prev->vb.height == buf->vb.height &&
-		    prev->fmt       == buf->fmt) {
-			list_add_tail(&buf->vb.queue, &vidq->active);
-			buf->vb.state = VIDEOBUF_ACTIVE;
-			dprintk(dev, 2,
-				"[%p/%d] buffer_queue - append to active\n",
-				buf, buf->vb.i);
-
-		} else {
-			list_add_tail(&buf->vb.queue, &vidq->queued);
-			buf->vb.state = VIDEOBUF_QUEUED;
-			dprintk(dev, 2,
-				"[%p/%d] buffer_queue - first queued\n",
-				buf, buf->vb.i);
-		}
-	}
+	buf->vb.state = VIDEOBUF_QUEUED;
+	list_add_tail(&buf->vb.queue, &vidq->active);
 }
 
 static void buffer_release(struct videobuf_queue *vq,
@@ -758,11 +601,8 @@ static void buffer_release(struct videobuf_queue *vq,
 	struct vivi_buffer   *buf  = container_of(vb, struct vivi_buffer, vb);
 	struct vivi_fh       *fh   = vq->priv_data;
 	struct vivi_dev      *dev  = (struct vivi_dev *)fh->dev;
-	struct vivi_dmaqueue *vidq = &dev->vidq;
 
-	dprintk(dev, 1, "%s\n", __FUNCTION__);
-
-	vivi_stop_thread(vidq);
+	dprintk(dev, 1, "%s\n", __func__);
 
 	free_buffer(vq, buf);
 }
@@ -869,9 +709,19 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct vivi_fh  *fh = priv;
+	struct videobuf_queue *q = &fh->vb_vidq;
+
 	int ret = vidioc_try_fmt_cap(file, fh, f);
 	if (ret < 0)
 		return (ret);
+
+	mutex_lock(&q->vb_lock);
+
+	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
+		dprintk(fh->dev, 1, "%s queue busy\n", __func__);
+		ret = -EBUSY;
+		goto out;
+	}
 
 	fh->fmt           = &format;
 	fh->width         = f->fmt.pix.width;
@@ -879,7 +729,11 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	fh->vb_vidq.field = f->fmt.pix.field;
 	fh->type          = f->type;
 
-	return (0);
+	ret = 0;
+out:
+	mutex_unlock(&q->vb_lock);
+
+	return (ret);
 }
 
 static int vidioc_reqbufs(struct file *file, void *priv,
@@ -1036,6 +890,7 @@ static int vivi_open(struct inode *inode, struct file *file)
 	struct vivi_dev *dev;
 	struct vivi_fh *fh;
 	int i;
+	int retval = 0;
 
 	printk(KERN_DEBUG "vivi: open called (minor=%d)\n", minor);
 
@@ -1045,8 +900,14 @@ static int vivi_open(struct inode *inode, struct file *file)
 	return -ENODEV;
 
 found:
-	/* If more than one user, mutex should be added */
+	mutex_lock(&dev->mutex);
 	dev->users++;
+
+	if (dev->users > 1) {
+		dev->users--;
+		retval = -EBUSY;
+		goto unlock;
+	}
 
 	dprintk(dev, 1, "open minor=%d type=%s users=%d\n", minor,
 		v4l2_type_names[V4L2_BUF_TYPE_VIDEO_CAPTURE], dev->users);
@@ -1055,8 +916,13 @@ found:
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (NULL == fh) {
 		dev->users--;
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto unlock;
 	}
+unlock:
+	mutex_unlock(&dev->mutex);
+	if (retval)
+		return retval;
 
 	file->private_data = fh;
 	fh->dev      = dev;
@@ -1084,6 +950,8 @@ found:
 			NULL, &dev->slock, fh->type, V4L2_FIELD_INTERLACED,
 			sizeof(struct vivi_buffer), fh);
 
+	vivi_start_thread(fh);
+
 	return 0;
 }
 
@@ -1106,7 +974,7 @@ vivi_poll(struct file *file, struct poll_table_struct *wait)
 	struct vivi_dev       *dev = fh->dev;
 	struct videobuf_queue *q = &fh->vb_vidq;
 
-	dprintk(dev, 1, "%s\n", __FUNCTION__);
+	dprintk(dev, 1, "%s\n", __func__);
 
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != fh->type)
 		return POLLERR;
@@ -1128,7 +996,9 @@ static int vivi_close(struct inode *inode, struct file *file)
 
 	kfree(fh);
 
+	mutex_lock(&dev->mutex);
 	dev->users--;
+	mutex_unlock(&dev->mutex);
 
 	dprintk(dev, 1, "close called (minor=%d, users=%d)\n",
 		minor, dev->users);
@@ -1182,6 +1052,7 @@ static const struct file_operations vivi_fops = {
 	.read           = vivi_read,
 	.poll		= vivi_poll,
 	.ioctl          = video_ioctl2, /* V4L2 ioctl handler */
+	.compat_ioctl   = v4l_compat_ioctl32,
 	.mmap           = vivi_mmap,
 	.llseek         = no_llseek,
 };
@@ -1236,16 +1107,11 @@ static int __init vivi_init(void)
 
 		/* init video dma queues */
 		INIT_LIST_HEAD(&dev->vidq.active);
-		INIT_LIST_HEAD(&dev->vidq.queued);
 		init_waitqueue_head(&dev->vidq.wq);
 
 		/* initialize locks */
-		mutex_init(&dev->lock);
 		spin_lock_init(&dev->slock);
-
-		dev->vidq.timeout.function = vivi_vid_timeout;
-		dev->vidq.timeout.data     = (unsigned long)dev;
-		init_timer(&dev->vidq.timeout);
+		mutex_init(&dev->mutex);
 
 		vfd = video_device_alloc();
 		if (NULL == vfd)

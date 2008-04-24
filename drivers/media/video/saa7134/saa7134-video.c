@@ -40,7 +40,7 @@
 
 unsigned int video_debug;
 static unsigned int gbuffers      = 8;
-static unsigned int noninterlaced = 0;
+static unsigned int noninterlaced; /* 0 */
 static unsigned int gbufsize      = 720*576*4;
 static unsigned int gbufsize_max  = 720*576*4;
 static char secam[] = "--";
@@ -626,13 +626,8 @@ void saa7134_set_tvnorm_hw(struct saa7134_dev *dev)
 {
 	saa7134_set_decoder(dev);
 
-	if (card_in(dev, dev->ctl_input).tv) {
-		if ((card(dev).tuner_type == TUNER_PHILIPS_TDA8290)
-				&& ((card(dev).tuner_config == 1)
-				||  (card(dev).tuner_config == 2)))
-			saa7134_set_gpio(dev, 22, 5);
+	if (card_in(dev, dev->ctl_input).tv)
 		saa7134_i2c_call_clients(dev, VIDIOC_S_STD, &dev->tvnorm->id);
-	}
 }
 
 static void set_h_prescale(struct saa7134_dev *dev, int task, int prescale)
@@ -1350,14 +1345,14 @@ static int video_open(struct inode *inode, struct file *file)
 	fh->height   = 576;
 	v4l2_prio_open(&dev->prio,&fh->prio);
 
-	videobuf_queue_pci_init(&fh->cap, &video_qops,
-			    dev->pci, &dev->slock,
+	videobuf_queue_sg_init(&fh->cap, &video_qops,
+			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct saa7134_buf),
 			    fh);
-	videobuf_queue_pci_init(&fh->vbi, &saa7134_vbi_qops,
-			    dev->pci, &dev->slock,
+	videobuf_queue_sg_init(&fh->vbi, &saa7134_vbi_qops,
+			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB,
 			    sizeof(struct saa7134_buf),
