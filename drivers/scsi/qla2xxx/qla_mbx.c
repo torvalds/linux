@@ -784,7 +784,6 @@ qla2x00_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 		DEBUG2_3_11(printk("qla2x00_abort_command(%ld): failed=%x.\n",
 		    ha->host_no, rval));
 	} else {
-		sp->flags |= SRB_ABORT_PENDING;
 		DEBUG11(printk("qla2x00_abort_command(%ld): done.\n",
 		    ha->host_no));
 	}
@@ -2210,7 +2209,6 @@ qla24xx_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 		rval = QLA_FUNCTION_FAILED;
 	} else {
 		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
-		sp->flags |= SRB_ABORT_PENDING;
 	}
 
 	dma_pool_free(ha->s_dma_pool, abt, abt_dma);
