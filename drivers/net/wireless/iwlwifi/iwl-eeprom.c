@@ -279,6 +279,11 @@ void iwl_eeprom_free(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_eeprom_free);
 
+int iwl_eeprom_check_version(struct iwl_priv *priv)
+{
+	return priv->cfg->ops->lib->eeprom_ops.check_version(priv);
+}
+EXPORT_SYMBOL(iwl_eeprom_check_version);
 
 const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
 {
@@ -421,12 +426,6 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	if (priv->channel_count) {
 		IWL_DEBUG_INFO("Channel map already initialized.\n");
 		return 0;
-	}
-
-	if (iwl_eeprom_query16(priv, EEPROM_VERSION) < 0x2f) {
-		IWL_WARNING("Unsupported EEPROM version: 0x%04X\n",
-			    iwl_eeprom_query16(priv, EEPROM_VERSION));
-		return -EINVAL;
 	}
 
 	IWL_DEBUG_INFO("Initializing regulatory info from EEPROM\n");

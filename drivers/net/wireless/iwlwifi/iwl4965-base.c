@@ -7479,6 +7479,10 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		IWL_ERROR("Unable to init EEPROM\n");
 		goto out_iounmap;
 	}
+	err = iwl_eeprom_check_version(priv);
+	if (err)
+		goto out_iounmap;
+
 	/* MAC Address location in EEPROM same for 3945/4965 */
 	iwl_eeprom_get_mac(priv, priv->mac_addr);
 	IWL_DEBUG_INFO("MAC address: %s\n", print_mac(mac, priv->mac_addr));

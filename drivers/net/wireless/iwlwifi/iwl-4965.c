@@ -494,6 +494,31 @@ int iwl4965_hw_rxq_stop(struct iwl_priv *priv)
 	return 0;
 }
 
+/*
+ * EEPROM handlers
+ */
+
+static int iwl4965_eeprom_check_version(struct iwl_priv *priv)
+{
+	u16 eeprom_ver;
+	u16 calib_ver;
+
+	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
+
+	calib_ver = iwl_eeprom_query16(priv, EEPROM_4965_CALIB_VERSION_OFFSET);
+
+	if (eeprom_ver < EEPROM_4965_EEPROM_VERSION ||
+	    calib_ver < EEPROM_4965_TX_POWER_VERSION)
+		goto err;
+
+	return 0;
+err:
+	IWL_ERROR("Unsuported EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
+		  eeprom_ver, EEPROM_4965_EEPROM_VERSION,
+		  calib_ver, EEPROM_4965_TX_POWER_VERSION);
+	return -EINVAL;
+
+}
 int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 {
 	int ret;
@@ -762,12 +787,6 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (iwl_eeprom_query16(priv, EEPROM_4965_CALIB_VERSION_OFFSET) <
-		EEPROM_4965_TX_POWER_VERSION) {
-		IWL_ERROR("Older EEPROM detected!  Aborting.\n");
-		return -EINVAL;
-	}
 
 	pci_read_config_byte(priv->pci_dev, PCI_LINK_CTRL, &val_link);
 
@@ -4354,6 +4373,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
+		.check_version = iwl4965_eeprom_check_version,
 		.query_addr = iwlcore_eeprom_query_addr,
 	},
 	.radio_kill_sw = iwl4965_radio_kill_sw,

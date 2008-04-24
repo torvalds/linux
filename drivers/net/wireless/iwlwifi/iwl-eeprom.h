@@ -134,6 +134,7 @@ struct iwl_eeprom_channel {
 /* 4965 Specific */
 /* 4965 driver does not work with txpower calibration version < 5 */
 #define EEPROM_4965_TX_POWER_VERSION    (5)
+#define EEPROM_4965_EEPROM_VERSION	(0x2f)
 #define EEPROM_4965_CALIB_VERSION_OFFSET       (2*0xB6) /* 2 bytes */
 #define EEPROM_4965_CALIB_TXPOWER_OFFSET       (2*0xE8) /* 48  bytes */
 #define EEPROM_4965_BOARD_REVISION             (2*0x4F) /* 2 bytes */
@@ -322,6 +323,7 @@ struct iwl_eeprom_ops {
 	int (*verify_signature) (struct iwl_priv *priv);
 	int (*acquire_semaphore) (struct iwl_priv *priv);
 	void (*release_semaphore) (struct iwl_priv *priv);
+	int (*check_version) (struct iwl_priv *priv);
 	const u8* (*query_addr) (const struct iwl_priv *priv, size_t offset);
 };
 
@@ -329,6 +331,7 @@ struct iwl_eeprom_ops {
 void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
 int iwl_eeprom_init(struct iwl_priv *priv);
 void iwl_eeprom_free(struct iwl_priv *priv);
+int  iwl_eeprom_check_version(struct iwl_priv *priv);
 const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset);
 u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset);
 
