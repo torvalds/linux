@@ -35,6 +35,7 @@ struct led_classdev {
 #define LED_SUSPENDED		(1 << 0)
 
 	/* Set LED brightness level */
+	/* Must not sleep, use a workqueue if needed */
 	void		(*brightness_set)(struct led_classdev *led_cdev,
 					  enum led_brightness brightness);
 	/* Get LED brightness level */
