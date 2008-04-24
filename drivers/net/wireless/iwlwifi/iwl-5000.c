@@ -125,6 +125,33 @@ static u32 eeprom_indirect_address(const struct iwl_priv *priv, u32 address)
 	return (address & ADDRESS_MSK) + (offset << 1);
 }
 
+static int iwl5000_eeprom_check_version(struct iwl_priv *priv)
+{
+	u16 eeprom_ver;
+	struct iwl_eeprom_calib_hdr {
+		u8 version;
+		u8 pa_type;
+		u16 voltage;
+	} *hdr;
+
+	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
+
+	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(priv,
+							EEPROM_5000_CALIB_ALL);
+
+	if (eeprom_ver < EEPROM_5000_EEPROM_VERSION ||
+	    hdr->version < EEPROM_5000_TX_POWER_VERSION)
+		goto err;
+
+	return 0;
+err:
+	IWL_ERROR("Unsuported EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
+		  eeprom_ver, EEPROM_5000_EEPROM_VERSION,
+		  hdr->version, EEPROM_5000_TX_POWER_VERSION);
+	return -EINVAL;
+
+}
+
 #ifdef CONFIG_IWL5000_RUN_TIME_CALIB
 
 static void iwl5000_gain_computation(struct iwl_priv *priv,
@@ -178,6 +205,7 @@ static void iwl5000_gain_computation(struct iwl_priv *priv,
 	data->chain_signal_c = 0;
 	data->beacon_count = 0;
 }
+
 
 static void iwl5000_chain_noise_reset(struct iwl_priv *priv)
 {
@@ -394,6 +422,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
+		.check_version	= iwl5000_eeprom_check_version,
 		.query_addr = iwl5000_eeprom_query_addr,
 	},
 };

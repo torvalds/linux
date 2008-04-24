@@ -140,6 +140,10 @@ struct iwl_eeprom_channel {
 #define EEPROM_4965_BOARD_REVISION             (2*0x4F) /* 2 bytes */
 #define EEPROM_4965_BOARD_PBA                  (2*0x56+1) /* 9 bytes */
 
+/* 5000 Specific */
+#define EEPROM_5000_TX_POWER_VERSION    (4)
+#define EEPROM_5000_EEPROM_VERSION	(0x11A)
+
 /*5000 calibrations */
 #define EEPROM_5000_CALIB_ALL	(INDIRECT_ADDRESS | INDIRECT_CALIBRATION)
 
