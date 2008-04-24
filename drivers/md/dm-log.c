@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2003 Sistina Software
+ * Copyright (C) 2004-2008 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the LGPL.
  */
@@ -12,7 +13,7 @@
 #include "dm-log.h"
 #include "dm-io.h"
 
-#define DM_MSG_PREFIX "mirror log"
+#define DM_MSG_PREFIX "dirty region log"
 
 static LIST_HEAD(_log_types);
 static DEFINE_SPINLOCK(_lock);
@@ -315,7 +316,7 @@ static int create_log_context(struct dirty_log *log, struct dm_target *ti,
 	int r;
 
 	if (argc < 1 || argc > 2) {
-		DMWARN("wrong number of arguments to mirror log");
+		DMWARN("wrong number of arguments to dirty region log");
 		return -EINVAL;
 	}
 
@@ -325,8 +326,8 @@ static int create_log_context(struct dirty_log *log, struct dm_target *ti,
 		else if (!strcmp(argv[1], "nosync"))
 			sync = NOSYNC;
 		else {
-			DMWARN("unrecognised sync argument to mirror log: %s",
-			       argv[1]);
+			DMWARN("unrecognised sync argument to "
+			       "dirty region log: %s", argv[1]);
 			return -EINVAL;
 		}
 	}
@@ -467,7 +468,7 @@ static int disk_ctr(struct dirty_log *log, struct dm_target *ti,
 	struct dm_dev *dev;
 
 	if (argc < 2 || argc > 3) {
-		DMWARN("wrong number of arguments to disk mirror log");
+		DMWARN("wrong number of arguments to disk dirty region log");
 		return -EINVAL;
 	}
 
@@ -524,7 +525,7 @@ static int disk_resume(struct dirty_log *log)
 	/* read the disk header */
 	r = read_header(lc);
 	if (r) {
-		DMWARN("%s: Failed to read header on mirror log device",
+		DMWARN("%s: Failed to read header on dirty region log device",
 		       lc->log_dev->name);
 		fail_log_device(lc);
 		/*
@@ -562,7 +563,7 @@ static int disk_resume(struct dirty_log *log)
 	/* write the new header */
 	r = write_header(lc);
 	if (r) {
-		DMWARN("%s: Failed to write header on mirror log device",
+		DMWARN("%s: Failed to write header on dirty region log device",
 		       lc->log_dev->name);
 		fail_log_device(lc);
 	}
