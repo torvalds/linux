@@ -1061,10 +1061,11 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	 * about for the moment.
 	 */
 
-	lock_kernel();
-	if (sb->s_op->umount_begin)
-		sb->s_op->umount_begin(mnt, flags);
-	unlock_kernel();
+	if (flags & MNT_FORCE && sb->s_op->umount_begin) {
+		lock_kernel();
+		sb->s_op->umount_begin(sb);
+		unlock_kernel();
+	}
 
 	/*
 	 * No sense to grab the lock for this test, but test itself looks
