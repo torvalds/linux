@@ -395,32 +395,6 @@ inline void portmux_setup(unsigned short portno, unsigned short function)
 # define portmux_setup(...)  do { } while (0)
 #endif
 
-#ifndef BF548_FAMILY
-static void default_gpio(unsigned gpio)
-{
-	unsigned short bank, bitmask;
-	unsigned long flags;
-
-	bank = gpio_bank(gpio);
-	bitmask = gpio_bit(gpio);
-
-	local_irq_save(flags);
-
-	gpio_bankb[bank]->maska_clear = bitmask;
-	gpio_bankb[bank]->maskb_clear = bitmask;
-	SSYNC();
-	gpio_bankb[bank]->inen &= ~bitmask;
-	gpio_bankb[bank]->dir &= ~bitmask;
-	gpio_bankb[bank]->polar &= ~bitmask;
-	gpio_bankb[bank]->both &= ~bitmask;
-	gpio_bankb[bank]->edge &= ~bitmask;
-	AWA_DUMMY_READ(edge);
-	local_irq_restore(flags);
-}
-#else
-# define default_gpio(...)  do { } while (0)
-#endif
-
 static int __init bfin_gpio_init(void)
 {
 	printk(KERN_INFO "Blackfin GPIO Controller\n");
@@ -1080,8 +1054,6 @@ void gpio_free(unsigned gpio)
 		return;
 	}
 
-	default_gpio(gpio);
-
 	reserved_gpio_map[gpio_bank(gpio)] &= ~gpio_bit(gpio);
 
 	set_label(gpio, "free");
@@ -1143,6 +1115,18 @@ int gpio_get_value(unsigned gpio)
 	return (1 & (gpio_array[gpio_bank(gpio)]->port_data >> gpio_sub_n(gpio)));
 }
 EXPORT_SYMBOL(gpio_get_value);
+
+void bfin_gpio_irq_prepare(unsigned gpio)
+{
+	unsigned long flags;
+
+	port_setup(gpio, GPIO_USAGE);
+
+	local_irq_save(flags);
+	gpio_array[gpio_bank(gpio)]->port_dir_clear = gpio_bit(gpio);
+	gpio_array[gpio_bank(gpio)]->port_inen |= gpio_bit(gpio);
+	local_irq_restore(flags);
+}
 
 #else
 
@@ -1208,6 +1192,11 @@ void bfin_gpio_reset_spi0_ssel1(void)
 	gpio_bankb[gpio_bank(gpio)]->data_set = gpio_bit(gpio);
 	AWA_DUMMY_READ(data_set);
 	udelay(1);
+}
+
+void bfin_gpio_irq_prepare(unsigned gpio)
+{
+	port_setup(gpio, GPIO_USAGE);
 }
 
 #endif /*BF548_FAMILY */
