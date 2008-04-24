@@ -36,9 +36,9 @@
 #define SNAPSHOT_COPY_PRIORITY 2
 
 /*
- * Each snapshot reserves this many pages for io
+ * Reserve 1MB for each snapshot initially (with minimum of 1 page).
  */
-#define SNAPSHOT_PAGES 256
+#define SNAPSHOT_PAGES (((1UL << 20) >> PAGE_SHIFT) ? : 1)
 
 static struct workqueue_struct *ksnapd;
 static void flush_queued_bios(struct work_struct *work);
