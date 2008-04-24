@@ -165,7 +165,7 @@ void __init plat_time_init(void)
 
 	if (!cpu_has_counter && IOASIC)
 		/* For pre-R4k systems we use the I/O ASIC's counter.  */
-		clocksource_mips.read = dec_ioasic_hpt_read;
+		dec_ioasic_clocksource_init();
 
 	/* Set up the rate of periodic DS1287 interrupts.  */
 	CMOS_WRITE(RTC_REF_CLCK_32KHZ | (16 - __ffs(HZ)), RTC_REG_A);

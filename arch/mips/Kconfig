@@ -82,6 +82,7 @@ config MACH_DECSTATION
 	bool "DECstations"
 	select BOOT_ELF32
 	select CEVT_R4K
+	select CSRC_IOASIC
 	select CSRC_R4K
 	select CPU_DADDI_WORKAROUNDS if 64BIT
 	select CPU_R4000_WORKAROUNDS if 64BIT
@@ -782,6 +783,9 @@ config CEVT_TXX9
 	bool
 
 config CSRC_BCM1480
+	bool
+
+config CSRC_IOASIC
 	bool
 
 config CSRC_R4K
