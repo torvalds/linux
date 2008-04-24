@@ -112,6 +112,14 @@ config IWLWIFI_DEBUG
 	  as the debug information can assist others in helping you resolve
 	  any problems you may encounter.
 
+config IWL5000
+	bool "Intel Wireless WiFi 5000AGN"
+	depends on IWL4965
+	---help---
+	  This option enables support for Intel Wireless WiFi Link 5000AGN Family
+	  Dependency on 4965 is temporary
+
+
 config IWLWIFI_DEBUGFS
         bool "Iwlwifi debugfs support"
         depends on IWLCORE && IWLWIFI_DEBUG && MAC80211_DEBUGFS

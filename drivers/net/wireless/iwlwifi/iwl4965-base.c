@@ -7389,6 +7389,11 @@ static int iwl4965_pci_resume(struct pci_dev *pdev)
 static struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x4229, PCI_ANY_ID, iwl4965_agn_cfg)},
 	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
+#ifdef CONFIG_IWL5000
+	{IWL_PCI_DEVICE(0x4235, PCI_ANY_ID, iwl5300_agn_cfg)},
+	{IWL_PCI_DEVICE(0x4232, PCI_ANY_ID, iwl5100_agn_cfg)},
+	{IWL_PCI_DEVICE(0x423A, PCI_ANY_ID, iwl5350_agn_cfg)},
+#endif /* CONFIG_IWL5000 */
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
