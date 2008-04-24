@@ -435,7 +435,7 @@ static int iwl4965_kw_init(struct iwl_priv *priv)
 	if (rc)
 		goto out;
 
-	iwl_write_direct32(priv, IWL_FH_KW_MEM_ADDR_REG,
+	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG,
 			     priv->kw.dma_addr >> 4);
 	iwl_release_nic_access(priv);
 out:
@@ -726,9 +726,9 @@ void iwl4965_hw_txq_ctx_stop(struct iwl_priv *priv)
 		}
 
 		iwl_write_direct32(priv,
-				   IWL_FH_TCSR_CHNL_TX_CONFIG_REG(txq_id), 0x0);
-		iwl_poll_direct_bit(priv, IWL_FH_TSSR_TX_STATUS_REG,
-				    IWL_FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE
+				   FH_TCSR_CHNL_TX_CONFIG_REG(txq_id), 0x0);
+		iwl_poll_direct_bit(priv, FH_TSSR_TX_STATUS_REG,
+				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE
 				    (txq_id), 200);
 		iwl_release_nic_access(priv);
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -2256,9 +2256,9 @@ int iwl4965_hw_tx_queue_init(struct iwl_priv *priv, struct iwl4965_tx_queue *txq
 
 	/* Enable DMA channel, using same id as for TFD queue */
 	iwl_write_direct32(
-		priv, IWL_FH_TCSR_CHNL_TX_CONFIG_REG(txq_id),
-		IWL_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
-		IWL_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL);
+		priv, FH_TCSR_CHNL_TX_CONFIG_REG(txq_id),
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL);
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
