@@ -264,7 +264,6 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	struct inode	*inode;
 	int		accmode = MAY_SATTR;
 	int		ftype = 0;
-	int		imode;
 	__be32		err;
 	int		host_err;
 	int		size_change = 0;
@@ -360,25 +359,25 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 		DQUOT_INIT(inode);
 	}
 
-	imode = inode->i_mode;
+	/* sanitize the mode change */
 	if (iap->ia_valid & ATTR_MODE) {
 		iap->ia_mode &= S_IALLUGO;
-		imode = iap->ia_mode |= (imode & ~S_IALLUGO);
-		/* if changing uid/gid revoke setuid/setgid in mode */
-		if ((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid) {
-			iap->ia_valid |= ATTR_KILL_PRIV;
+		iap->ia_mode |= (inode->i_mode & ~S_IALLUGO);
+	}
+
+	/* Revoke setuid/setgid on chown */
+	if (((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid) ||
+	    ((iap->ia_valid & ATTR_GID) && iap->ia_gid != inode->i_gid)) {
+		iap->ia_valid |= ATTR_KILL_PRIV;
+		if (iap->ia_valid & ATTR_MODE) {
+			/* we're setting mode too, just clear the s*id bits */
 			iap->ia_mode &= ~S_ISUID;
+			if (iap->ia_mode & S_IXGRP)
+				iap->ia_mode &= ~S_ISGID;
+		} else {
+			/* set ATTR_KILL_* bits and let VFS handle it */
+			iap->ia_valid |= (ATTR_KILL_SUID | ATTR_KILL_SGID);
 		}
-		if ((iap->ia_valid & ATTR_GID) && iap->ia_gid != inode->i_gid)
-			iap->ia_mode &= ~S_ISGID;
-	} else {
-		/*
-		 * Revoke setuid/setgid bit on chown/chgrp
-		 */
-		if ((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid)
-			iap->ia_valid |= ATTR_KILL_SUID | ATTR_KILL_PRIV;
-		if ((iap->ia_valid & ATTR_GID) && iap->ia_gid != inode->i_gid)
-			iap->ia_valid |= ATTR_KILL_SGID;
 	}
 
 	/* Change the attributes. */
@@ -988,7 +987,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	 * flushing the data to disk is handled separately below.
 	 */
 
-	if (file->f_op->fsync == 0) {/* COMMIT3 cannot work */
+	if (!file->f_op->fsync) {/* COMMIT3 cannot work */
 	       stable = 2;
 	       *stablep = 2; /* FILE_SYNC */
 	}
@@ -1152,7 +1151,7 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 }
 #endif /* CONFIG_NFSD_V3 */
 
-__be32
+static __be32
 nfsd_create_setattr(struct svc_rqst *rqstp, struct svc_fh *resfhp,
 			struct iattr *iap)
 {

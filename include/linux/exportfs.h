@@ -43,7 +43,7 @@ struct fid {
 			u32 parent_ino;
 			u32 parent_gen;
 		} i32;
-		__u32 raw[6];
+		__u32 raw[0];
 	};
 };
 

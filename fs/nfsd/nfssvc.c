@@ -244,7 +244,6 @@ static int nfsd_init_socks(int port)
 	if (error < 0)
 		return error;
 
-#ifdef CONFIG_NFSD_TCP
 	error = lockd_up(IPPROTO_TCP);
 	if (error >= 0) {
 		error = svc_create_xprt(nfsd_serv, "tcp", port,
@@ -254,7 +253,6 @@ static int nfsd_init_socks(int port)
 	}
 	if (error < 0)
 		return error;
-#endif
 	return 0;
 }
 

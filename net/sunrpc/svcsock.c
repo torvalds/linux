@@ -38,6 +38,7 @@
 #include <net/checksum.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/tcp.h>
 #include <net/tcp_states.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
@@ -45,6 +46,7 @@
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/xdr.h>
+#include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/stats.h>
 
@@ -822,8 +824,8 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	 * the next four bytes. Otherwise try to gobble up as much as
 	 * possible up to the complete record length.
 	 */
-	if (svsk->sk_tcplen < 4) {
-		unsigned long	want = 4 - svsk->sk_tcplen;
+	if (svsk->sk_tcplen < sizeof(rpc_fraghdr)) {
+		int		want = sizeof(rpc_fraghdr) - svsk->sk_tcplen;
 		struct kvec	iov;
 
 		iov.iov_base = ((char *) &svsk->sk_reclen) + svsk->sk_tcplen;
@@ -833,32 +835,31 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 		svsk->sk_tcplen += len;
 
 		if (len < want) {
-			dprintk("svc: short recvfrom while reading record length (%d of %lu)\n",
-				len, want);
+			dprintk("svc: short recvfrom while reading record "
+				"length (%d of %d)\n", len, want);
 			svc_xprt_received(&svsk->sk_xprt);
 			return -EAGAIN; /* record header not complete */
 		}
 
 		svsk->sk_reclen = ntohl(svsk->sk_reclen);
-		if (!(svsk->sk_reclen & 0x80000000)) {
+		if (!(svsk->sk_reclen & RPC_LAST_STREAM_FRAGMENT)) {
 			/* FIXME: technically, a record can be fragmented,
 			 *  and non-terminal fragments will not have the top
 			 *  bit set in the fragment length header.
 			 *  But apparently no known nfs clients send fragmented
 			 *  records. */
 			if (net_ratelimit())
-				printk(KERN_NOTICE "RPC: bad TCP reclen 0x%08lx"
-				       " (non-terminal)\n",
-				       (unsigned long) svsk->sk_reclen);
+				printk(KERN_NOTICE "RPC: multiple fragments "
+					"per record not supported\n");
 			goto err_delete;
 		}
-		svsk->sk_reclen &= 0x7fffffff;
+		svsk->sk_reclen &= RPC_FRAGMENT_SIZE_MASK;
 		dprintk("svc: TCP record, %d bytes\n", svsk->sk_reclen);
 		if (svsk->sk_reclen > serv->sv_max_mesg) {
 			if (net_ratelimit())
-				printk(KERN_NOTICE "RPC: bad TCP reclen 0x%08lx"
-				       " (large)\n",
-				       (unsigned long) svsk->sk_reclen);
+				printk(KERN_NOTICE "RPC: "
+					"fragment too large: 0x%08lx\n",
+					(unsigned long)svsk->sk_reclen);
 			goto err_delete;
 		}
 	}
@@ -1045,7 +1046,6 @@ void svc_cleanup_xprt_sock(void)
 static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 {
 	struct sock	*sk = svsk->sk_sk;
-	struct tcp_sock *tp = tcp_sk(sk);
 
 	svc_xprt_init(&svc_tcp_class, &svsk->sk_xprt, serv);
 	set_bit(XPT_CACHE_AUTH, &svsk->sk_xprt.xpt_flags);
@@ -1063,7 +1063,7 @@ static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 		svsk->sk_reclen = 0;
 		svsk->sk_tcplen = 0;
 
-		tp->nonagle = 1;        /* disable Nagle's algorithm */
+		tcp_sk(sk)->nonagle |= TCP_NAGLE_OFF;
 
 		/* initialise setting must have enough space to
 		 * receive and respond to one request.
@@ -1101,6 +1101,7 @@ void svc_sock_update_bufs(struct svc_serv *serv)
 	}
 	spin_unlock_bh(&serv->sv_lock);
 }
+EXPORT_SYMBOL(svc_sock_update_bufs);
 
 /*
  * Initialize socket for RPC use and create svc_sock struct

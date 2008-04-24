@@ -571,7 +571,6 @@ static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 		return -ETIMEDOUT;
 
 	dreq->item = item;
-	dreq->recv_time = get_seconds();
 
 	spin_lock(&cache_defer_lock);
 

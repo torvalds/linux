@@ -29,6 +29,7 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/nlm.h>
 #include <linux/lockd/lockd.h>
+#include <linux/kthread.h>
 
 #define NLMDBG_FACILITY		NLMDBG_SVCLOCK
 
@@ -226,8 +227,7 @@ failed:
 }
 
 /*
- * Delete a block. If the lock was cancelled or the grant callback
- * failed, unlock is set to 1.
+ * Delete a block.
  * It is the caller's responsibility to check whether the file
  * can be closed hereafter.
  */
@@ -887,7 +887,7 @@ nlmsvc_retry_blocked(void)
 	unsigned long	timeout = MAX_SCHEDULE_TIMEOUT;
 	struct nlm_block *block;
 
-	while (!list_empty(&nlm_blocked)) {
+	while (!list_empty(&nlm_blocked) && !kthread_should_stop()) {
 		block = list_entry(nlm_blocked.next, struct nlm_block, b_list);
 
 		if (block->b_when == NLM_NEVER)

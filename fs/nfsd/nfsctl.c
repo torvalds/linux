@@ -37,6 +37,7 @@
 #include <linux/nfsd/syscall.h>
 
 #include <asm/uaccess.h>
+#include <net/ipv6.h>
 
 /*
  *	We have a single directory with 9 nodes in it.
@@ -149,7 +150,6 @@ static const struct file_operations transaction_ops = {
 	.release	= simple_transaction_release,
 };
 
-extern struct seq_operations nfs_exports_op;
 static int exports_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &nfs_exports_op);
@@ -222,6 +222,7 @@ static ssize_t write_getfs(struct file *file, char *buf, size_t size)
 	struct auth_domain *clp;
 	int err = 0;
 	struct knfsd_fh *res;
+	struct in6_addr in6;
 
 	if (size < sizeof(*data))
 		return -EINVAL;
@@ -236,7 +237,11 @@ static ssize_t write_getfs(struct file *file, char *buf, size_t size)
 	res = (struct knfsd_fh*)buf;
 
 	exp_readlock();
-	if (!(clp = auth_unix_lookup(sin->sin_addr)))
+
+	ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &in6);
+
+	clp = auth_unix_lookup(&in6);
+	if (!clp)
 		err = -EPERM;
 	else {
 		err = exp_rootfh(clp, data->gd_path, res, data->gd_maxlen);
@@ -257,6 +262,7 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
 	int err = 0;
 	struct knfsd_fh fh;
 	char *res;
+	struct in6_addr in6;
 
 	if (size < sizeof(*data))
 		return -EINVAL;
@@ -271,7 +277,11 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
 	res = buf;
 	sin = (struct sockaddr_in *)&data->gd_addr;
 	exp_readlock();
-	if (!(clp = auth_unix_lookup(sin->sin_addr)))
+
+	ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &in6);
+
+	clp = auth_unix_lookup(&in6);
+	if (!clp)
 		err = -EPERM;
 	else {
 		err = exp_rootfh(clp, data->gd_path, &fh, NFS_FHSIZE);
@@ -347,8 +357,6 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	return mesg - buf;	
 }
 
-extern int nfsd_nrthreads(void);
-
 static ssize_t write_threads(struct file *file, char *buf, size_t size)
 {
 	/* if size > 0, look for a number of threads and call nfsd_svc
@@ -370,10 +378,6 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 	sprintf(buf, "%d\n", nfsd_nrthreads());
 	return strlen(buf);
 }
-
-extern int nfsd_nrpools(void);
-extern int nfsd_get_nrthreads(int n, int *);
-extern int nfsd_set_nrthreads(int n, int *);
 
 static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 {
