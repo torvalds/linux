@@ -18,6 +18,7 @@
 
 #include <pcmcia/ss.h>
 #include <asm/hardware.h>
+#include <asm/mach-types.h>
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
@@ -146,6 +147,9 @@ static struct platform_device *cmx270_pcmcia_device;
 static int __init cmx270_pcmcia_init(void)
 {
 	int ret;
+
+	if (!machine_is_armcore())
+		return -ENODEV;
 
 	cmx270_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
 

@@ -22,6 +22,7 @@
 #include <pcmcia/ss.h>
 
 #include <asm/hardware.h>
+#include <asm/mach-types.h>
 #include <asm/irq.h>
 
 #include <asm/arch/pxa-regs.h>
@@ -152,6 +153,9 @@ static struct platform_device *mst_pcmcia_device;
 static int __init mst_pcmcia_init(void)
 {
 	int ret;
+
+	if (!machine_is_mainstone())
+		return -ENODEV;
 
 	mst_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
 	if (!mst_pcmcia_device)
