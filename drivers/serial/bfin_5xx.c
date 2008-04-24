@@ -151,7 +151,8 @@ void kgdb_put_debug_char(int chr)
 {
 	struct bfin_serial_port *uart;
 	
-	if (CONFIG_KGDB_UART_PORT<0 || CONFIG_KGDB_UART_PORT>=NR_PORTS)
+	if (CONFIG_KGDB_UART_PORT < 0
+		|| CONFIG_KGDB_UART_PORT >= BFIN_UART_NR_PORTS)
 		uart = &bfin_serial_ports[0];
 	else
 		uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
@@ -173,7 +174,8 @@ int kgdb_get_debug_char(void)
 	struct bfin_serial_port *uart;
 	unsigned char chr;
 
-	if (CONFIG_KGDB_UART_PORT<0 || CONFIG_KGDB_UART_PORT>=NR_PORTS)
+	if (CONFIG_KGDB_UART_PORT < 0
+		|| CONFIG_KGDB_UART_PORT >= BFIN_UART_NR_PORTS)
 		uart = &bfin_serial_ports[0];
 	else
 		uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
@@ -1193,7 +1195,7 @@ static struct uart_driver bfin_serial_reg = {
 	.dev_name		= BFIN_SERIAL_NAME,
 	.major			= BFIN_SERIAL_MAJOR,
 	.minor			= BFIN_SERIAL_MINOR,
-	.nr			= NR_PORTS,
+	.nr			= BFIN_UART_NR_PORTS,
 	.cons			= BFIN_SERIAL_CONSOLE,
 };
 
