@@ -1468,7 +1468,7 @@ qla24xx_login_fabric(scsi_qla_host_t *ha, uint16_t loop_id, uint8_t domain,
 	lg->port_id[0] = al_pa;
 	lg->port_id[1] = area;
 	lg->port_id[2] = domain;
-	lg->vp_index = cpu_to_le16(ha->vp_idx);
+	lg->vp_index = ha->vp_idx;
 	rval = qla2x00_issue_iocb(ha, lg, lg_dma, 0);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2_3_11(printk("%s(%ld): failed to issue Login IOCB "
@@ -1723,7 +1723,7 @@ qla24xx_fabric_logout(scsi_qla_host_t *ha, uint16_t loop_id, uint8_t domain,
 	lg->port_id[0] = al_pa;
 	lg->port_id[1] = area;
 	lg->port_id[2] = domain;
-	lg->vp_index = cpu_to_le16(ha->vp_idx);
+	lg->vp_index = ha->vp_idx;
 	rval = qla2x00_issue_iocb(ha, lg, lg_dma, 0);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2_3_11(printk("%s(%ld): failed to issue Logout IOCB "
@@ -2642,11 +2642,10 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *ha,
 	struct vp_rpt_id_entry_24xx *rptid_entry)
 {
 	uint8_t vp_idx;
+	uint16_t stat = le16_to_cpu(rptid_entry->vp_idx);
 	scsi_qla_host_t *vha;
 
 	if (rptid_entry->entry_status != 0)
-		return;
-	if (rptid_entry->entry_status != __constant_cpu_to_le16(CS_COMPLETE))
 		return;
 
 	if (rptid_entry->format == 0) {
@@ -2657,17 +2656,17 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *ha,
 			rptid_entry->port_id[2], rptid_entry->port_id[1],
 			rptid_entry->port_id[0]));
 	} else if (rptid_entry->format == 1) {
-		vp_idx = LSB(rptid_entry->vp_idx);
+		vp_idx = LSB(stat);
 		DEBUG15(printk("%s:format 1: scsi(%ld): VP[%d] enabled "
 		    "- status %d - "
 		    "with port id %02x%02x%02x\n",__func__,ha->host_no,
-		    vp_idx, MSB(rptid_entry->vp_idx),
+		    vp_idx, MSB(stat),
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]));
 		if (vp_idx == 0)
 			return;
 
-		if (MSB(rptid_entry->vp_idx) == 1)
+		if (MSB(stat) == 1)
 			return;
 
 		list_for_each_entry(vha, &ha->vp_list, vp_list)
