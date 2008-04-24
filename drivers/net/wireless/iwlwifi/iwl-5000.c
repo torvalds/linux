@@ -181,6 +181,21 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 						IWL_ANTENNA_AUX | 0x04);
 		break;
 	}
+
+	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	case CSR_HW_REV_TYPE_5100:
+	case CSR_HW_REV_TYPE_5300:
+		/* 5X00 wants in Celsius */
+		priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD;
+		break;
+	case CSR_HW_REV_TYPE_5150:
+	case CSR_HW_REV_TYPE_5350:
+		/* 5X50 wants in Kelvin */
+		priv->hw_params.ct_kill_threshold =
+				CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
+		break;
+	}
+
 	return 0;
 }
 static struct iwl_hcmd_ops iwl5000_hcmd = {
