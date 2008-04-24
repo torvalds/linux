@@ -16,10 +16,34 @@
 #include <linux/irq.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/cpufreq.h>
 
 #include <asm/blackfin.h>
+#include <asm/time.h>
 
 #ifdef CONFIG_CYCLES_CLOCKSOURCE
+
+/* Accelerators for sched_clock()
+ * convert from cycles(64bits) => nanoseconds (64bits)
+ *  basic equation:
+ *		ns = cycles / (freq / ns_per_sec)
+ *		ns = cycles * (ns_per_sec / freq)
+ *		ns = cycles * (10^9 / (cpu_khz * 10^3))
+ *		ns = cycles * (10^6 / cpu_khz)
+ *
+ *	Then we use scaling math (suggested by george@mvista.com) to get:
+ *		ns = cycles * (10^6 * SC / cpu_khz) / SC
+ *		ns = cycles * cyc2ns_scale / SC
+ *
+ *	And since SC is a constant power of two, we can convert the div
+ *  into a shift.
+ *
+ *  We can use khz divisor instead of mhz to keep a better precision, since
+ *  cyc2ns_scale is limited to 10^6 * 2^10, which fits in 32 bits.
+ *  (mathieu.desnoyers@polymtl.ca)
+ *
+ *			-johnstul@us.ibm.com "math is hard, lets go shopping!"
+ */
 
 static unsigned long cyc2ns_scale;
 #define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
@@ -82,8 +106,9 @@ static void bfin_timer_set_mode(enum clock_event_mode mode,
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC: {
-		unsigned long tcount = ((get_cclk() / (HZ * 1)) - 1);
+		unsigned long tcount = ((get_cclk() / (HZ * TIME_SCALE)) - 1);
 		bfin_write_TCNTL(TMPWR);
+		bfin_write_TSCALE(TIME_SCALE - 1);
 		CSYNC();
 		bfin_write_TPERIOD(tcount);
 		bfin_write_TCOUNT(tcount);
@@ -92,6 +117,7 @@ static void bfin_timer_set_mode(enum clock_event_mode mode,
 		break;
 	}
 	case CLOCK_EVT_MODE_ONESHOT:
+		bfin_write_TSCALE(0);
 		bfin_write_TCOUNT(0);
 		bfin_write_TCNTL(TMPWR | TMREN);
 		CSYNC();
@@ -115,7 +141,7 @@ static void __init bfin_timer_init(void)
 	/*
 	 * the TSCALE prescaler counter.
 	 */
-	bfin_write_TSCALE(0);
+	bfin_write_TSCALE(TIME_SCALE - 1);
 	bfin_write_TPERIOD(0);
 	bfin_write_TCOUNT(0);
 
