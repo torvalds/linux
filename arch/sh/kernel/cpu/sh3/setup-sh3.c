@@ -35,15 +35,22 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xa4000018, 0, 16, 4, /* IPRD */ { 0, 0, IRQ5, IRQ4 } },
 };
 
+static struct intc_mask_reg ack_registers[] __initdata = {
+	{ 0xa4000004, 0, 8, /* IRR0 */
+	  { 0, 0, IRQ5, IRQ4, IRQ3, IRQ2, IRQ1, IRQ0 } },
+};
+
 static struct intc_sense_reg sense_registers[] __initdata = {
 	{ 0xa4000010, 16, 2, { 0, 0, IRQ5, IRQ4, IRQ3, IRQ2, IRQ1, IRQ0 } },
 };
 
-static DECLARE_INTC_DESC(intc_desc_irq0123, "sh3-irq0123", vectors_irq0123,
-			 NULL, NULL, prio_registers, sense_registers);
+static DECLARE_INTC_DESC_ACK(intc_desc_irq0123, "sh3-irq0123",
+			     vectors_irq0123, NULL, NULL,
+			     prio_registers, sense_registers, ack_registers);
 
-static DECLARE_INTC_DESC(intc_desc_irq45, "sh3-irq45", vectors_irq45,
-			 NULL, NULL, prio_registers, sense_registers);
+static DECLARE_INTC_DESC_ACK(intc_desc_irq45, "sh3-irq45",
+			     vectors_irq45, NULL, NULL,
+			     prio_registers, sense_registers, ack_registers);
 
 #define INTC_ICR1		0xa4000010UL
 #define INTC_ICR1_IRQLVL	(1<<14)
