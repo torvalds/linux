@@ -2982,8 +2982,8 @@ qla84xx_verify_chip(struct scsi_qla_host *ha, uint16_t *status)
 	/* We update the firmware with only one data sequence. */
 	options |= VCO_END_OF_DATA;
 
-	retry = 0;
 	do {
+		retry = 0;
 		memset(mn, 0, sizeof(*mn));
 		mn->p.req.entry_type = VERIFY_CHIP_IOCB_TYPE;
 		mn->p.req.entry_count = 1;
