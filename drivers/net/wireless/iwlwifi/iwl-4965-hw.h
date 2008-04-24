@@ -62,7 +62,7 @@
  *****************************************************************************/
 /*
  * Please use this file (iwl-4965-hw.h) only for hardware-related definitions.
- * Use iwl-4965-commands.h for uCode API definitions.
+ * Use iwl-commands.h for uCode API definitions.
  * Use iwl-4965.h for driver implementation definitions.
  */
 
@@ -98,7 +98,7 @@
 #define IWL_RSSI_OFFSET	44
 
 
-#include "iwl-4965-commands.h"
+#include "iwl-commands.h"
 
 #define PCI_LINK_CTRL      0x0F0
 #define PCI_POWER_SOURCE   0x0C8

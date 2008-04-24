@@ -61,7 +61,7 @@
  *
  *****************************************************************************/
 /*
- * Please use this file (iwl-4965-commands.h) only for uCode API definitions.
+ * Please use this file (iwl-commands.h) only for uCode API definitions.
  * Please use iwl-4965-hw.h for hardware-related definitions.
  * Please use iwl-4965.h for driver implementation definitions.
  */

@@ -37,7 +37,7 @@
 #include "iwl-eeprom.h"
 #include "iwl-4965.h"
 #include "iwl-core.h"
-#include "iwl-4965-commands.h"
+#include "iwl-commands.h"
 #include "iwl-debug.h"
 #include "iwl-power.h"
 #include "iwl-helpers.h"

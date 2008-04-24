@@ -29,7 +29,7 @@
 #define __iwl_power_setting_h__
 
 #include <net/mac80211.h>
-#include "iwl-4965-commands.h"
+#include "iwl-commands.h"
 
 struct iwl_priv;
 
