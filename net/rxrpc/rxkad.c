@@ -493,8 +493,8 @@ static int rxkad_verify_packet(const struct rxrpc_call *call,
 		__be32 x[2];
 	} tmpbuf __attribute__((aligned(8))); /* must all be in same page */
 	__be32 x;
-	u16 y;
 	__be16 cksum;
+	u32 y;
 	int ret;
 
 	sp = rxrpc_skb(skb);
