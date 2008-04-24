@@ -24,7 +24,7 @@
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
 
-#include "../cell/beat_wrapper.h"
+#include "beat_wrapper.h"
 
 static inline void _int_mask_set(struct spu *spu, int class, u64 mask)
 {

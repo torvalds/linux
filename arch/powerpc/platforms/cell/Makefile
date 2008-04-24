@@ -39,4 +39,5 @@ obj-y					+= celleb_setup.o \
 					   beat_iommu.o
 
 obj-$(CONFIG_SERIAL_TXX9)		+= celleb_scc_sio.o
+obj-$(CONFIG_SPU_BASE)			+= beat_spu_priv1.o
 endif
