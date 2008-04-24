@@ -26,8 +26,8 @@
 
 #include <asm/machdep.h>
 
-#include "interrupt.h"
-#include "../cell/beat_wrapper.h"
+#include "beat_interrupt.h"
+#include "beat_wrapper.h"
 
 #define	MAX_IRQS	NR_IRQS
 static DEFINE_SPINLOCK(beatic_irq_mask_lock);

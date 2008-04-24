@@ -37,7 +37,7 @@
 #include <asm/machdep.h>
 #include <asm/udbg.h>
 
-#include "interrupt.h"
+#include "beat_interrupt.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

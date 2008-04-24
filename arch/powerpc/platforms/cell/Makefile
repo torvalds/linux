@@ -35,9 +35,11 @@ obj-y					+= celleb_setup.o \
 					   celleb_pci.o celleb_scc_epci.o \
 					   celleb_scc_uhc.o \
 					   io-workarounds.o spider-pci.o \
-					   beat_htab.o beat_hvCall.o \
-					   beat_iommu.o
+					   beat.o beat_htab.o beat_hvCall.o \
+					   beat_interrupt.o beat_iommu.o
 
+obj-$(CONFIG_SMP)			+= beat_smp.o
+obj-$(CONFIG_PPC_UDBG_BEAT)		+= beat_udbg.o
 obj-$(CONFIG_SERIAL_TXX9)		+= celleb_scc_sio.o
 obj-$(CONFIG_SPU_BASE)			+= beat_spu_priv1.o
 endif

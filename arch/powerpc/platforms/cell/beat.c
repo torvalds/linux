@@ -31,9 +31,9 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 
-#include "../cell/beat_wrapper.h"
+#include "beat_wrapper.h"
 #include "beat.h"
-#include "interrupt.h"
+#include "beat_interrupt.h"
 
 static int beat_pm_poweroff_flag;
 

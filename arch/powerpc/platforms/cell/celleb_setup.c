@@ -56,9 +56,9 @@
 #include <asm/rtas.h>
 #include <asm/cell-regs.h>
 
-#include "../celleb/interrupt.h"
+#include "beat_interrupt.h"
 #include "beat_wrapper.h"
-#include "../celleb/beat.h"
+#include "beat.h"
 #include "celleb_pci.h"
 #include "interrupt.h"
 #include "pervasive.h"
