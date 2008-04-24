@@ -28,7 +28,7 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;					\
+	 nop;						\
 	nop;
 
 #define TRAP_7INSNS(routine)				\
@@ -38,7 +38,7 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;
+	 nop;
 
 #define TRAP_SAVEFPU(routine)				\
 	sethi	%hi(109f), %g7;				\
@@ -47,7 +47,7 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;					\
+	 nop;						\
 	nop;
 
 #define TRAP_NOSAVE(routine)				\
@@ -67,7 +67,7 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;					\
+	 nop;						\
 	nop;
 	
 #define TRAP_ARG(routine, arg)				\
@@ -78,7 +78,7 @@
 	call	routine;				\
 	 mov	arg, %o1;				\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;
+	 nop;
 	
 #define TRAPTL1_ARG(routine, arg)			\
 	sethi	%hi(109f), %g7;				\
@@ -88,7 +88,7 @@
 	call	routine;				\
 	 mov	arg, %o1;				\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;
+	 nop;
 	
 #define SYSCALL_TRAP(routine, systbl)			\
 	sethi	%hi(109f), %g7;				\
@@ -166,7 +166,7 @@
 	ldx	[%sp + PTREGS_OFF + PT_V9_TNPC], %l1;			\
 	add	%l1, 4, %l2;						\
 	stx	%l1, [%sp + PTREGS_OFF + PT_V9_TPC];			\
-	ba,pt	%xcc, rtrap_clr_l6;					\
+	ba,pt	%xcc, rtrap;						\
 	 stx	%l2, [%sp + PTREGS_OFF + PT_V9_TNPC];
 	        
 #ifdef CONFIG_KPROBES

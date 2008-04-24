@@ -369,10 +369,12 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	sd->host_controller = pbm;
 	sd->prom_node = node;
 	sd->op = of_find_device_by_node(node);
+	sd->numa_node = pbm->numa_node;
 
 	sd = &sd->op->dev.archdata;
 	sd->iommu = pbm->iommu;
 	sd->stc = &pbm->stc;
+	sd->numa_node = pbm->numa_node;
 
 	type = of_get_property(node, "device_type", NULL);
 	if (type == NULL)
@@ -1158,6 +1160,16 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 
 	return 0;
 }
+
+#ifdef CONFIG_NUMA
+int pcibus_to_node(struct pci_bus *pbus)
+{
+	struct pci_pbm_info *pbm = pbus->sysdata;
+
+	return pbm->numa_node;
+}
+EXPORT_SYMBOL(pcibus_to_node);
+#endif
 
 /* Return the domain nuber for this pci bus */
 

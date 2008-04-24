@@ -1,10 +1,10 @@
 /* mdesc.c: Sun4V machine description handling.
  *
- * Copyright (C) 2007 David S. Miller <davem@davemloft.net>
+ * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
  */
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/bootmem.h>
+#include <linux/lmb.h>
 #include <linux/log2.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -84,24 +84,28 @@ static void mdesc_handle_init(struct mdesc_handle *hp,
 	hp->handle_size = handle_size;
 }
 
-static struct mdesc_handle * __init mdesc_bootmem_alloc(unsigned int mdesc_size)
+static struct mdesc_handle * __init mdesc_lmb_alloc(unsigned int mdesc_size)
 {
-	struct mdesc_handle *hp;
 	unsigned int handle_size, alloc_size;
+	struct mdesc_handle *hp;
+	unsigned long paddr;
 
 	handle_size = (sizeof(struct mdesc_handle) -
 		       sizeof(struct mdesc_hdr) +
 		       mdesc_size);
 	alloc_size = PAGE_ALIGN(handle_size);
 
-	hp = __alloc_bootmem(alloc_size, PAGE_SIZE, 0UL);
-	if (hp)
-		mdesc_handle_init(hp, handle_size, hp);
+	paddr = lmb_alloc(alloc_size, PAGE_SIZE);
 
+	hp = NULL;
+	if (paddr) {
+		hp = __va(paddr);
+		mdesc_handle_init(hp, handle_size, hp);
+	}
 	return hp;
 }
 
-static void mdesc_bootmem_free(struct mdesc_handle *hp)
+static void mdesc_lmb_free(struct mdesc_handle *hp)
 {
 	unsigned int alloc_size, handle_size = hp->handle_size;
 	unsigned long start, end;
@@ -124,9 +128,9 @@ static void mdesc_bootmem_free(struct mdesc_handle *hp)
 	}
 }
 
-static struct mdesc_mem_ops bootmem_mdesc_ops = {
-	.alloc = mdesc_bootmem_alloc,
-	.free  = mdesc_bootmem_free,
+static struct mdesc_mem_ops lmb_mdesc_ops = {
+	.alloc = mdesc_lmb_alloc,
+	.free  = mdesc_lmb_free,
 };
 
 static struct mdesc_handle *mdesc_kmalloc(unsigned int mdesc_size)
@@ -888,7 +892,7 @@ void __init sun4v_mdesc_init(void)
 
 	printk("MDESC: Size is %lu bytes.\n", len);
 
-	hp = mdesc_alloc(len, &bootmem_mdesc_ops);
+	hp = mdesc_alloc(len, &lmb_mdesc_ops);
 	if (hp == NULL) {
 		prom_printf("MDESC: alloc of %lu bytes failed.\n", len);
 		prom_halt();

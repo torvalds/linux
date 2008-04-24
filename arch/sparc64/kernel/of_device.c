@@ -6,6 +6,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/irq.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 
@@ -660,6 +661,7 @@ static unsigned int __init build_one_device_irq(struct of_device *op,
 	struct device_node *dp = op->node;
 	struct device_node *pp, *ip;
 	unsigned int orig_irq = irq;
+	int nid;
 
 	if (irq == 0xffffffff)
 		return irq;
@@ -672,7 +674,7 @@ static unsigned int __init build_one_device_irq(struct of_device *op,
 			printk("%s: direct translate %x --> %x\n",
 			       dp->full_name, orig_irq, irq);
 
-		return irq;
+		goto out;
 	}
 
 	/* Something more complicated.  Walk up to the root, applying
@@ -743,6 +745,14 @@ static unsigned int __init build_one_device_irq(struct of_device *op,
 	if (of_irq_verbose)
 		printk("%s: Apply IRQ trans [%s] %x --> %x\n",
 		       op->node->full_name, ip->full_name, orig_irq, irq);
+
+out:
+	nid = of_node_to_nid(dp);
+	if (nid != -1) {
+		cpumask_t numa_mask = node_to_cpumask(nid);
+
+		irq_set_affinity(irq, numa_mask);
+	}
 
 	return irq;
 }

@@ -8,6 +8,8 @@
  * stack during a system call and basically all traps.
  */
 
+#define PT_REGS_MAGIC 0x57ac6c00
+
 #ifndef __ASSEMBLY__
 
 struct pt_regs {
@@ -16,7 +18,19 @@ struct pt_regs {
 	unsigned long tpc;
 	unsigned long tnpc;
 	unsigned int y;
-	unsigned int fprs;
+
+	/* We encode a magic number, PT_REGS_MAGIC, along
+	 * with the %tt (trap type) register value at trap
+	 * entry time.  The magic number allows us to identify
+	 * accurately a trap stack frame in the stack
+	 * unwinder, and the %tt value allows us to test
+	 * things like "in a system call" etc. for an arbitray
+	 * process.
+	 *
+	 * The PT_REGS_MAGIC is choosen such that it can be
+	 * loaded completely using just a sethi instruction.
+	 */
+	unsigned int magic;
 };
 
 struct pt_regs32 {
@@ -147,7 +161,7 @@ extern void __show_regs(struct pt_regs *);
 #define PT_V9_TPC    0x88
 #define PT_V9_TNPC   0x90
 #define PT_V9_Y      0x98
-#define PT_V9_FPRS   0x9c
+#define PT_V9_MAGIC  0x9c
 #define PT_TSTATE	PT_V9_TSTATE
 #define PT_TPC		PT_V9_TPC
 #define PT_TNPC		PT_V9_TNPC

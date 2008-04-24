@@ -321,7 +321,8 @@ retry_tsb_alloc:
 	if (new_size > (PAGE_SIZE * 2))
 		gfp_flags = __GFP_NOWARN | __GFP_NORETRY;
 
-	new_tsb = kmem_cache_alloc(tsb_caches[new_cache_index], gfp_flags);
+	new_tsb = kmem_cache_alloc_node(tsb_caches[new_cache_index],
+					gfp_flags, numa_node_id());
 	if (unlikely(!new_tsb)) {
 		/* Not being able to fork due to a high-order TSB
 		 * allocation failure is very bad behavior.  Just back

@@ -250,6 +250,26 @@ endchoice
 
 endmenu
 
+config NUMA
+	bool "NUMA support"
+
+config NODES_SHIFT
+	int
+	default "4"
+	depends on NEED_MULTIPLE_NODES
+
+# Some NUMA nodes have memory ranges that span
+# other nodes.  Even though a pfn is valid and
+# between a node's start and end pfns, it may not
+# reside on that node.  See memmap_init_zone()
+# for details.
+config NODES_SPAN_OTHER_NODES
+	def_bool y
+	depends on NEED_MULTIPLE_NODES
+
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 

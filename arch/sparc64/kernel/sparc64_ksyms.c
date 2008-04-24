@@ -68,8 +68,6 @@ extern void *__memscan_zero(void *, size_t);
 extern void *__memscan_generic(void *, int, size_t);
 extern int __memcmp(const void *, const void *, __kernel_size_t);
 extern __kernel_size_t strlen(const char *);
-extern void linux_sparc_syscall(void);
-extern void rtrap(void);
 extern void show_regs(struct pt_regs *);
 extern void syscall_trace(struct pt_regs *, int);
 extern void sys_sigsuspend(void);

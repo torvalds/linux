@@ -18,12 +18,6 @@
 #define		RTRAP_PSTATE_IRQOFF	(PSTATE_RMO|PSTATE_PEF|PSTATE_PRIV)
 #define		RTRAP_PSTATE_AG_IRQOFF	(PSTATE_RMO|PSTATE_PEF|PSTATE_PRIV|PSTATE_AG)
 
-		/* Register %l6 keeps track of whether we are returning
-		 * from a system call or not.  It is cleared if we call
-		 * do_notify_resume, and it must not be otherwise modified
-		 * until we fully commit to returning to userspace.
-		 */
-
 		.text
 		.align			32
 __handle_softirq:
@@ -56,14 +50,12 @@ __handle_user_windows:
 		be,pt			%xcc, __handle_user_windows_continue
 		 nop
 		mov			%l5, %o1
-		mov			%l6, %o2
 		add			%sp, PTREGS_OFF, %o0
-		mov			%l0, %o3
+		mov			%l0, %o2
 
 		call			do_notify_resume
 		 wrpr			%g0, RTRAP_PSTATE, %pstate
 		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
-		clr			%l6
 		/* Signal delivery can modify pt_regs tstate, so we must
 		 * reload it.
 		 */
@@ -99,14 +91,12 @@ __handle_perfctrs:
 		be,pt			%xcc, __handle_perfctrs_continue
 		 sethi			%hi(TSTATE_PEF), %o0
 		mov			%l5, %o1
-		mov			%l6, %o2
 		add			%sp, PTREGS_OFF, %o0
-		mov			%l0, %o3
+		mov			%l0, %o2
 		call			do_notify_resume
 
 		 wrpr			%g0, RTRAP_PSTATE, %pstate
 		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
-		clr			%l6
 		/* Signal delivery can modify pt_regs tstate, so we must
 		 * reload it.
 		 */
@@ -127,13 +117,11 @@ __handle_userfpu:
 
 __handle_signal:
 		mov			%l5, %o1
-		mov			%l6, %o2
 		add			%sp, PTREGS_OFF, %o0
-		mov			%l0, %o3
+		mov			%l0, %o2
 		call			do_notify_resume
 		 wrpr			%g0, RTRAP_PSTATE, %pstate
 		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
-		clr			%l6
 
 		/* Signal delivery can modify pt_regs tstate, so we must
 		 * reload it.
@@ -145,9 +133,8 @@ __handle_signal:
 		 andn			%l1, %l4, %l1
 
 		.align			64
-		.globl			rtrap_irq, rtrap_clr_l6, rtrap, irqsz_patchme, rtrap_xcall
+		.globl			rtrap_irq, rtrap, irqsz_patchme, rtrap_xcall
 rtrap_irq:
-rtrap_clr_l6:	clr			%l6
 rtrap:
 #ifndef CONFIG_SMP
 		sethi			%hi(per_cpu____cpu_data), %l0

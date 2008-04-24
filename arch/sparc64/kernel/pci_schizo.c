@@ -1220,7 +1220,8 @@ static int schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 	/* Leave diag mode enabled for full-flushing done
 	 * in pci_iommu.c
 	 */
-	err = iommu_table_init(iommu, tsbsize * 8 * 1024, vdma[0], dma_mask);
+	err = iommu_table_init(iommu, tsbsize * 8 * 1024, vdma[0], dma_mask,
+			       pbm->numa_node);
 	if (err)
 		return err;
 
@@ -1378,6 +1379,8 @@ static int __init schizo_pbm_init(struct pci_controller_info *p,
 
 	pbm->next = pci_pbm_root;
 	pci_pbm_root = pbm;
+
+	pbm->numa_node = -1;
 
 	pbm->scan_bus = schizo_scan_bus;
 	pbm->pci_ops = &sun4u_pci_ops;

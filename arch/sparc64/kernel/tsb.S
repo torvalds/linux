@@ -275,7 +275,7 @@ sparc64_realfault_common:
 	stx	%l5, [%g6 + TI_FAULT_ADDR]	! Save fault address
 	call	do_sparc64_fault		! Call fault handler
 	 add	%sp, PTREGS_OFF, %o0		! Compute pt_regs arg
-	ba,pt	%xcc, rtrap_clr_l6		! Restore cpu state
+	ba,pt	%xcc, rtrap			! Restore cpu state
 	 nop					! Delay slot (fill me)
 
 winfix_trampoline:

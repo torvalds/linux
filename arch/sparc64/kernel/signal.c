@@ -510,15 +510,20 @@ static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-static void do_signal(struct pt_regs *regs, unsigned long orig_i0, int restart_syscall)
+static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 {
-	siginfo_t info;
 	struct signal_deliver_cookie cookie;
 	struct k_sigaction ka;
-	int signr;
 	sigset_t *oldset;
+	siginfo_t info;
+	int signr, tt;
 	
-	cookie.restart_syscall = restart_syscall;
+	tt = regs->magic & 0x1ff;
+	if (tt == 0x110 || tt == 0x111 || tt == 0x16d) {
+		regs->magic &= ~0x1ff;
+		cookie.restart_syscall = 1;
+	} else
+		cookie.restart_syscall = 0;
 	cookie.orig_i0 = orig_i0;
 
 	if (test_thread_flag(TIF_RESTORE_SIGMASK))
@@ -529,9 +534,8 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0, int restart_s
 #ifdef CONFIG_SPARC32_COMPAT
 	if (test_thread_flag(TIF_32BIT)) {
 		extern void do_signal32(sigset_t *, struct pt_regs *,
-					unsigned long, int);
-		do_signal32(oldset, regs, orig_i0,
-			    cookie.restart_syscall);
+					struct signal_deliver_cookie *);
+		do_signal32(oldset, regs, &cookie);
 		return;
 	}
 #endif	
@@ -539,7 +543,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0, int restart_s
 	signr = get_signal_to_deliver(&info, &ka, regs, &cookie);
 	if (signr > 0) {
 		if (cookie.restart_syscall)
-			syscall_restart(orig_i0, regs, &ka.sa);
+			syscall_restart(cookie.orig_i0, regs, &ka.sa);
 		handle_signal(signr, &ka, &info, oldset, regs);
 
 		/* a signal was successfully delivered; the saved
@@ -576,11 +580,10 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0, int restart_s
 	}
 }
 
-void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, int restart_syscall,
-		      unsigned long thread_info_flags)
+void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long thread_info_flags)
 {
 	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
-		do_signal(regs, orig_i0, restart_syscall);
+		do_signal(regs, orig_i0);
 }
 
 void ptrace_signal_deliver(struct pt_regs *regs, void *cookie)

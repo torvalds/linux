@@ -476,7 +476,6 @@ xcall_sync_tick:
 #endif
 	call		smp_synchronize_tick_client
 	 nop
-	clr		%l6
 	b		rtrap_xcall
 	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 
@@ -511,7 +510,6 @@ xcall_report_regs:
 #endif
 	call		__show_regs
 	 add		%sp, PTREGS_OFF, %o0
-	clr		%l6
 	/* Has to be a non-v9 branch due to the large distance. */
 	b		rtrap_xcall
 	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
@@ -576,7 +574,7 @@ __hypervisor_tlb_xcall_error:
 	mov	%l4, %o0
 	call	hypervisor_tlbop_error_xcall
 	 mov	%l5, %o1
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 	.globl		__hypervisor_xcall_flush_tlb_mm
 __hypervisor_xcall_flush_tlb_mm: /* 21 insns */
