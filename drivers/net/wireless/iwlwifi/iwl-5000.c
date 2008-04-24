@@ -46,6 +46,46 @@
 
 #define IWL5000_UCODE_API  "-1"
 
+static int iwl5000_apm_init(struct iwl_priv *priv)
+{
+	int ret = 0;
+
+	iwl_set_bit(priv, CSR_GIO_CHICKEN_BITS,
+		    CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
+
+	iwl_set_bit(priv, CSR_ANA_PLL_CFG, CSR50_ANA_PLL_CFG_VAL);
+
+	/* set "initialization complete" bit to move adapter
+	 * D0U* --> D0A* state */
+	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+
+	/* wait for clock stabilization */
+	ret = iwl_poll_bit(priv, CSR_GP_CNTRL,
+			  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+			  CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
+	if (ret < 0) {
+		IWL_DEBUG_INFO("Failed to init the card\n");
+		return ret;
+	}
+
+	ret = iwl_grab_nic_access(priv);
+	if (ret)
+		return ret;
+
+	/* enable DMA */
+	iwl_write_prph(priv, APMG_CLK_EN_REG,
+			APMG_CLK_VAL_DMA_CLK_RQT);
+
+	udelay(20);
+
+	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
+			APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+
+	iwl_release_nic_access(priv);
+
+	return ret;
+}
+
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 };
 
@@ -53,6 +93,9 @@ static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 };
 
 static struct iwl_lib_ops iwl5000_lib = {
+	.apm_ops = {
+		.init =	iwl5000_apm_init,
+	},
 	.eeprom_ops = {
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
