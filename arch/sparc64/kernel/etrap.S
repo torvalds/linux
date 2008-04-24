@@ -53,7 +53,11 @@ etrap_irq:
 		stx	%g3, [%g2 + STACKFRAME_SZ + PT_V9_TPC]
 		rd	%y, %g3
 		stx	%g1, [%g2 + STACKFRAME_SZ + PT_V9_TNPC]
+		rdpr	%tt, %g1
 		st	%g3, [%g2 + STACKFRAME_SZ + PT_V9_Y]
+		sethi	%hi(PT_REGS_MAGIC), %g3
+		or	%g3, %g1, %g1
+		st	%g1, [%g2 + STACKFRAME_SZ + PT_V9_MAGIC]
 
 		rdpr	%cansave, %g1
 		brnz,pt %g1, etrap_save
