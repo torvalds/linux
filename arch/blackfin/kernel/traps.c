@@ -137,17 +137,30 @@ static void decode_address(char *buf, unsigned long address)
 				/* FLAT does not have its text aligned to the start of
 				 * the map while FDPIC ELF does ...
 				 */
-				if (current->mm &&
-				    (address > current->mm->start_code) &&
-				    (address < current->mm->end_code))
-					offset = address - current->mm->start_code;
-				else
-					offset = (address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
 
-				sprintf(buf, "<0x%p> [ %s + 0x%lx ]",
-					(void *)address, name, offset);
+				/* before we can check flat/fdpic, we need to
+				 * make sure current is valid
+				 */
+				if ((unsigned long)current >= FIXED_CODE_START &&
+				    !((unsigned long)current & 0x3)) {
+					if (current->mm &&
+					    (address > current->mm->start_code) &&
+					    (address < current->mm->end_code))
+						offset = address - current->mm->start_code;
+					else
+						offset = (address - vma->vm_start) +
+							 (vma->vm_pgoff << PAGE_SHIFT);
+
+					sprintf(buf, "<0x%p> [ %s + 0x%lx ]",
+						(void *)address, name, offset);
+				} else
+					sprintf(buf, "<0x%p> [ %s vma:0x%lx-0x%lx]",
+						(void *)address, name,
+						vma->vm_start, vma->vm_end);
+
 				if (!in_atomic)
 					mmput(mm);
+
 				goto done;
 			}
 
@@ -658,7 +671,8 @@ void dump_bfin_process(struct pt_regs *fp)
 	/* Because we are crashing, and pointers could be bad, we check things
 	 * pretty closely before we use them
 	 */
-	if (!((unsigned long)current & 0x3) && current->pid) {
+	if ((unsigned long)current >= FIXED_CODE_START &&
+	    !((unsigned long)current & 0x3) && current->pid) {
 		printk(KERN_NOTICE "CURRENT PROCESS:\n");
 		if (current->comm >= (char *)FIXED_CODE_START)
 			printk(KERN_NOTICE "COMM=%s PID=%d\n",
