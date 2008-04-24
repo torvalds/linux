@@ -2091,6 +2091,11 @@ static int qeth_l3_stop_card(struct qeth_card *card, int recovery_mode)
 	    (card->state == CARD_STATE_UP)) {
 		if (recovery_mode)
 			qeth_l3_stop(card->dev);
+		else {
+			rtnl_lock();
+			dev_close(card->dev);
+			rtnl_unlock();
+		}
 		if (!card->use_hard_stop) {
 			rc = qeth_send_stoplan(card);
 			if (rc)
@@ -3135,9 +3140,15 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	netif_carrier_on(card->dev);
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
-	if ((recover_flag == CARD_STATE_RECOVER) && recovery_mode) {
+	if (recover_flag == CARD_STATE_RECOVER) {
+		if (recovery_mode)
 			qeth_l3_open(card->dev);
-			qeth_l3_set_multicast_list(card->dev);
+		else {
+			rtnl_lock();
+			dev_open(card->dev);
+			rtnl_unlock();
+		}
+		qeth_l3_set_multicast_list(card->dev);
 	}
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
