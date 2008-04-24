@@ -72,7 +72,9 @@ static const unsigned long	nlm_timeout_min = 3;
 static const unsigned long	nlm_timeout_max = 20;
 static const int		nlm_port_min = 0, nlm_port_max = 65535;
 
+#ifdef CONFIG_SYSCTL
 static struct ctl_table_header * nlm_sysctl_table;
+#endif
 
 static unsigned long get_lockd_grace_period(void)
 {
@@ -349,6 +351,8 @@ out:
 }
 EXPORT_SYMBOL(lockd_down);
 
+#ifdef CONFIG_SYSCTL
+
 /*
  * Sysctl parameters (same as module parameters, different interface).
  */
@@ -433,6 +437,8 @@ static ctl_table nlm_sysctl_root[] = {
 	{ .ctl_name = 0 }
 };
 
+#endif	/* CONFIG_SYSCTL */
+
 /*
  * Module (and sysfs) parameters.
  */
@@ -506,15 +512,21 @@ module_param(nsm_use_hostnames, bool, 0644);
 
 static int __init init_nlm(void)
 {
+#ifdef CONFIG_SYSCTL
 	nlm_sysctl_table = register_sysctl_table(nlm_sysctl_root);
 	return nlm_sysctl_table ? 0 : -ENOMEM;
+#else
+	return 0;
+#endif
 }
 
 static void __exit exit_nlm(void)
 {
 	/* FIXME: delete all NLM clients */
 	nlm_shutdown_hosts();
+#ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(nlm_sysctl_table);
+#endif
 }
 
 module_init(init_nlm);

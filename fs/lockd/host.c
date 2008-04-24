@@ -41,11 +41,12 @@ static struct nsm_handle *	nsm_find(const struct sockaddr_in *sin,
 /*
  * Common host lookup routine for server & client
  */
-static struct nlm_host *
-nlm_lookup_host(int server, const struct sockaddr_in *sin,
-		int proto, int version, const char *hostname,
-		unsigned int hostname_len,
-		const struct sockaddr_in *ssin)
+static struct nlm_host *nlm_lookup_host(int server,
+					const struct sockaddr_in *sin,
+					int proto, u32 version,
+					const char *hostname,
+					unsigned int hostname_len,
+					const struct sockaddr_in *ssin)
 {
 	struct hlist_head *chain;
 	struct hlist_node *pos;
@@ -54,7 +55,7 @@ nlm_lookup_host(int server, const struct sockaddr_in *sin,
 	int		hash;
 
 	dprintk("lockd: nlm_lookup_host("NIPQUAD_FMT"->"NIPQUAD_FMT
-			", p=%d, v=%d, my role=%s, name=%.*s)\n",
+			", p=%d, v=%u, my role=%s, name=%.*s)\n",
 			NIPQUAD(ssin->sin_addr.s_addr),
 			NIPQUAD(sin->sin_addr.s_addr), proto, version,
 			server? "server" : "client",
@@ -172,9 +173,10 @@ nlm_destroy_host(struct nlm_host *host)
 /*
  * Find an NLM server handle in the cache. If there is none, create it.
  */
-struct nlm_host *
-nlmclnt_lookup_host(const struct sockaddr_in *sin, int proto, int version,
-			const char *hostname, unsigned int hostname_len)
+struct nlm_host *nlmclnt_lookup_host(const struct sockaddr_in *sin,
+				     int proto, u32 version,
+				     const char *hostname,
+				     unsigned int hostname_len)
 {
 	struct sockaddr_in ssin = {0};
 

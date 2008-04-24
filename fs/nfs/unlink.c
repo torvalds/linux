@@ -234,7 +234,7 @@ nfs_async_unlink(struct inode *dir, struct dentry *dentry)
 	if (data == NULL)
 		goto out;
 
-	data->cred = rpcauth_lookupcred(NFS_CLIENT(dir)->cl_auth, 0);
+	data->cred = rpc_lookup_cred();
 	if (IS_ERR(data->cred)) {
 		status = PTR_ERR(data->cred);
 		goto out_free;

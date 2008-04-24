@@ -112,6 +112,7 @@ struct nfs_client_initdata {
 static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 {
 	struct nfs_client *clp;
+	struct rpc_cred *cred;
 
 	if ((clp = kzalloc(sizeof(*clp), GFP_KERNEL)) == NULL)
 		goto error_0;
@@ -150,6 +151,9 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	clp->cl_boot_time = CURRENT_TIME;
 	clp->cl_state = 1 << NFS4CLNT_LEASE_EXPIRED;
 #endif
+	cred = rpc_lookup_machine_cred();
+	if (!IS_ERR(cred))
+		clp->cl_machine_cred = cred;
 
 	return clp;
 
@@ -170,6 +174,8 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 	BUG_ON(!RB_EMPTY_ROOT(&clp->cl_state_owners));
 	if (__test_and_clear_bit(NFS_CS_IDMAP, &clp->cl_res_state))
 		nfs_idmap_delete(clp);
+
+	rpc_destroy_wait_queue(&clp->cl_rpcwaitq);
 #endif
 }
 
@@ -188,6 +194,9 @@ static void nfs_free_client(struct nfs_client *clp)
 
 	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
 		nfs_callback_down();
+
+	if (clp->cl_machine_cred != NULL)
+		put_rpccred(clp->cl_machine_cred);
 
 	kfree(clp->cl_hostname);
 	kfree(clp);
@@ -680,9 +689,21 @@ static int nfs_init_server(struct nfs_server *server,
 	if (error < 0)
 		goto error;
 
+	server->port = data->nfs_server.port;
+
 	error = nfs_init_server_rpcclient(server, &timeparms, data->auth_flavors[0]);
 	if (error < 0)
 		goto error;
+
+	/* Preserve the values of mount_server-related mount options */
+	if (data->mount_server.addrlen) {
+		memcpy(&server->mountd_address, &data->mount_server.address,
+			data->mount_server.addrlen);
+		server->mountd_addrlen = data->mount_server.addrlen;
+	}
+	server->mountd_version = data->mount_server.version;
+	server->mountd_port = data->mount_server.port;
+	server->mountd_protocol = data->mount_server.protocol;
 
 	server->namelen  = data->namlen;
 	/* Create a client RPC handle for the NFSv3 ACL management interface */
@@ -1061,6 +1082,8 @@ static int nfs4_init_server(struct nfs_server *server,
 	server->acregmax = data->acregmax * HZ;
 	server->acdirmin = data->acdirmin * HZ;
 	server->acdirmax = data->acdirmax * HZ;
+
+	server->port = data->nfs_server.port;
 
 	error = nfs_init_server_rpcclient(server, &timeparms, data->auth_flavors[0]);
 

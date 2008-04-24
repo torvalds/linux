@@ -71,6 +71,29 @@ static int nfs4_init_client(struct nfs_client *clp, struct rpc_cred *cred)
 	return status;
 }
 
+static struct rpc_cred *nfs4_get_machine_cred(struct nfs_client *clp)
+{
+	struct rpc_cred *cred = NULL;
+
+	spin_lock(&clp->cl_lock);
+	if (clp->cl_machine_cred != NULL)
+		cred = get_rpccred(clp->cl_machine_cred);
+	spin_unlock(&clp->cl_lock);
+	return cred;
+}
+
+static void nfs4_clear_machine_cred(struct nfs_client *clp)
+{
+	struct rpc_cred *cred;
+
+	spin_lock(&clp->cl_lock);
+	cred = clp->cl_machine_cred;
+	clp->cl_machine_cred = NULL;
+	spin_unlock(&clp->cl_lock);
+	if (cred != NULL)
+		put_rpccred(cred);
+}
+
 struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
@@ -91,13 +114,18 @@ static struct rpc_cred *nfs4_get_setclientid_cred(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
 	struct rb_node *pos;
+	struct rpc_cred *cred;
 
+	cred = nfs4_get_machine_cred(clp);
+	if (cred != NULL)
+		goto out;
 	pos = rb_first(&clp->cl_state_owners);
 	if (pos != NULL) {
 		sp = rb_entry(pos, struct nfs4_state_owner, so_client_node);
-		return get_rpccred(sp->so_cred);
+		cred = get_rpccred(sp->so_cred);
 	}
-	return NULL;
+out:
+	return cred;
 }
 
 static void nfs_alloc_unique_id(struct rb_root *root, struct nfs_unique_id *new,
@@ -292,8 +320,10 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 	spin_unlock(&clp->cl_lock);
 	if (sp == new)
 		get_rpccred(cred);
-	else
+	else {
+		rpc_destroy_wait_queue(&new->so_sequence.wait);
 		kfree(new);
+	}
 	return sp;
 }
 
@@ -310,6 +340,7 @@ void nfs4_put_state_owner(struct nfs4_state_owner *sp)
 		return;
 	nfs4_remove_state_owner(clp, sp);
 	spin_unlock(&clp->cl_lock);
+	rpc_destroy_wait_queue(&sp->so_sequence.wait);
 	put_rpccred(cred);
 	kfree(sp);
 }
@@ -529,6 +560,7 @@ static void nfs4_free_lock_state(struct nfs4_lock_state *lsp)
 	spin_lock(&clp->cl_lock);
 	nfs_free_unique_id(&clp->cl_lockowner_id, &lsp->ls_id);
 	spin_unlock(&clp->cl_lock);
+	rpc_destroy_wait_queue(&lsp->ls_sequence.wait);
 	kfree(lsp);
 }
 
@@ -731,7 +763,7 @@ int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task)
 		list_add_tail(&seqid->list, &sequence->list);
 	if (list_first_entry(&sequence->list, struct nfs_seqid, list) == seqid)
 		goto unlock;
-	rpc_sleep_on(&sequence->wait, task, NULL, NULL);
+	rpc_sleep_on(&sequence->wait, task, NULL);
 	status = -EAGAIN;
 unlock:
 	spin_unlock(&sequence->lock);
@@ -920,10 +952,10 @@ restart_loop:
 	if (cred != NULL) {
 		/* Yes there are: try to renew the old lease */
 		status = nfs4_proc_renew(clp, cred);
+		put_rpccred(cred);
 		switch (status) {
 			case 0:
 			case -NFS4ERR_CB_PATH_DOWN:
-				put_rpccred(cred);
 				goto out;
 			case -NFS4ERR_STALE_CLIENTID:
 			case -NFS4ERR_LEASE_MOVED:
@@ -932,14 +964,19 @@ restart_loop:
 	} else {
 		/* "reboot" to ensure we clear all state on the server */
 		clp->cl_boot_time = CURRENT_TIME;
-		cred = nfs4_get_setclientid_cred(clp);
 	}
 	/* We're going to have to re-establish a clientid */
 	nfs4_state_mark_reclaim(clp);
 	status = -ENOENT;
+	cred = nfs4_get_setclientid_cred(clp);
 	if (cred != NULL) {
 		status = nfs4_init_client(clp, cred);
 		put_rpccred(cred);
+		/* Handle case where the user hasn't set up machine creds */
+		if (status == -EACCES && cred == clp->cl_machine_cred) {
+			nfs4_clear_machine_cred(clp);
+			goto restart_loop;
+		}
 	}
 	if (status)
 		goto out_error;
