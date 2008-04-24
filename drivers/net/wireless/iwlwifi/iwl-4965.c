@@ -2502,9 +2502,6 @@ static void iwl4965_free_shared_mem(struct iwl_priv *priv)
 				    priv->shared_phys);
 }
 
-#define IWL_TX_CRC_SIZE		4
-#define IWL_TX_DELIMITER_SIZE	4
-
 /**
  * iwl4965_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
  */

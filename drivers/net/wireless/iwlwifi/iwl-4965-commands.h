@@ -1101,6 +1101,14 @@ struct iwl4965_rx_mpdu_res_start {
 #define TX_CMD_SEC_KEY128	0x08
 
 /*
+ * security overhead sizes
+ */
+#define WEP_IV_LEN 4
+#define WEP_ICV_LEN 4
+#define CCMP_MIC_LEN 8
+#define TKIP_ICV_LEN 4
+
+/*
  * 4965 uCode updates these Tx attempt count values in host DRAM.
  * Used for managing Tx retries when expecting block-acks.
  * Driver should set these fields to 0.

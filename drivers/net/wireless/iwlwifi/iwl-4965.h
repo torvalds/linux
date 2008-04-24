@@ -803,8 +803,8 @@ struct iwl4965_kw {
 #define IWL_EXT_CHANNEL_OFFSET_RESERVE1  2
 #define IWL_EXT_CHANNEL_OFFSET_BELOW     3
 
-#define NRG_NUM_PREV_STAT_L     20
-#define NUM_RX_CHAINS           (3)
+#define IWL_TX_CRC_SIZE 4
+#define IWL_TX_DELIMITER_SIZE 4
 
 #define TX_POWER_IWL_ILLEGAL_VOLTAGE -10000
 
@@ -853,6 +853,9 @@ struct iwl4965_lq_mngr {
 #define ALL_BAND_FILTER			0xFF00
 #define IN_BAND_FILTER			0xFF
 #define MIN_AVERAGE_NOISE_MAX_VALUE	0xFFFFFFFF
+
+#define NRG_NUM_PREV_STAT_L     20
+#define NUM_RX_CHAINS           3
 
 enum iwl4965_false_alarm_state {
 	IWL_FA_TOO_MANY = 0,
