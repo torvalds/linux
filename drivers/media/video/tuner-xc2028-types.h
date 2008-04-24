@@ -57,11 +57,13 @@
 /* LCD firmwares exist only for MTS STD/MN (PAL or NTSC/M)
 	and for non-MTS STD/MN (PAL, NTSC/M or NTSC/Kr)
 	There are variants both with and without NOGD
+	Those firmwares produce better result with LCD displays
  */
 #define LCD		(1<<12)
 
 /* NOGD firmwares exist only for MTS STD/MN (PAL or NTSC/M)
 	and for non-MTS STD/MN (PAL, NTSC/M or NTSC/Kr)
+	The NOGD firmwares don't have group delay compensation filter
  */
 #define NOGD		(1<<13)
 
@@ -88,7 +90,10 @@
 /* This flag identifies that the scode table has a new format */
 #define HAS_IF         (1 << 30)
 
-#define SCODE_TYPES SCODE
+/* There are different scode tables for MTS and non-MTS.
+   The MTS firmwares support mono only
+  */
+#define SCODE_TYPES (SCODE | MTS)
 
 
 /* Newer types not defined on videodev2.h.
