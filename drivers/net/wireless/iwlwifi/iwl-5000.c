@@ -95,6 +95,7 @@ static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 static struct iwl_lib_ops iwl5000_lib = {
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
+		.set_pwr_src = iwl4965_set_pwr_src,
 	},
 	.eeprom_ops = {
 		.verify_signature  = iwlcore_eeprom_verify_signature,
