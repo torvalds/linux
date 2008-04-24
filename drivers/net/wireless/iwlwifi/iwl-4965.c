@@ -47,7 +47,7 @@
 
 /* module parameters */
 static struct iwl_mod_params iwl4965_mod_params = {
-	.num_of_queues = IWL4965_MAX_NUM_QUEUES,
+	.num_of_queues = IWL49_NUM_QUEUES,
 	.enable_qos = 1,
 	.amsdu_size_8K = 1,
 	/* the rest are 0 by default */
@@ -1164,11 +1164,11 @@ static void iwl4965_tx_queue_set_status(struct iwl_priv *priv,
 
 	/* Set up and activate */
 	iwl_write_prph(priv, IWL49_SCD_QUEUE_STATUS_BITS(txq_id),
-				 (active << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
-				 (tx_fifo_id << SCD_QUEUE_STTS_REG_POS_TXF) |
-				 (scd_retry << SCD_QUEUE_STTS_REG_POS_WSL) |
-				 (scd_retry << SCD_QUEUE_STTS_REG_POS_SCD_ACK) |
-				 SCD_QUEUE_STTS_REG_MSK);
+			 (active << IWL49_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+			 (tx_fifo_id << IWL49_SCD_QUEUE_STTS_REG_POS_TXF) |
+			 (scd_retry << IWL49_SCD_QUEUE_STTS_REG_POS_WSL) |
+			 (scd_retry << IWL49_SCD_QUEUE_STTS_REG_POS_SCD_ACK) |
+			 IWL49_SCD_QUEUE_STTS_REG_MSK);
 
 	txq->sched_retry = scd_retry;
 
@@ -1182,7 +1182,7 @@ static const u16 default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_AC2,
 	IWL_TX_FIFO_AC1,
 	IWL_TX_FIFO_AC0,
-	IWL_CMD_FIFO_NUM,
+	IWL49_CMD_FIFO_NUM,
 	IWL_TX_FIFO_HCCA_1,
 	IWL_TX_FIFO_HCCA_2
 };
@@ -1223,10 +1223,10 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 
 	/* Clear 4965's internal Tx Scheduler data base */
 	priv->scd_base_addr = iwl_read_prph(priv, IWL49_SCD_SRAM_BASE_ADDR);
-	a = priv->scd_base_addr + SCD_CONTEXT_DATA_OFFSET;
-	for (; a < priv->scd_base_addr + SCD_TX_STTS_BITMAP_OFFSET; a += 4)
+	a = priv->scd_base_addr + IWL49_SCD_CONTEXT_DATA_OFFSET;
+	for (; a < priv->scd_base_addr + IWL49_SCD_TX_STTS_BITMAP_OFFSET; a += 4)
 		iwl_write_targ_mem(priv, a, 0);
-	for (; a < priv->scd_base_addr + SCD_TRANSLATE_TBL_OFFSET; a += 4)
+	for (; a < priv->scd_base_addr + IWL49_SCD_TRANSLATE_TBL_OFFSET; a += 4)
 		iwl_write_targ_mem(priv, a, 0);
 	for (; a < sizeof(u16) * priv->hw_params.max_txq_num; a += 4)
 		iwl_write_targ_mem(priv, a, 0);
@@ -1248,18 +1248,18 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 
 		/* Max Tx Window size for Scheduler-ACK mode */
 		iwl_write_targ_mem(priv, priv->scd_base_addr +
-					SCD_CONTEXT_QUEUE_OFFSET(i),
-					(SCD_WIN_SIZE <<
-					SCD_QUEUE_CTX_REG1_WIN_SIZE_POS) &
-					SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK);
+				IWL49_SCD_CONTEXT_QUEUE_OFFSET(i),
+				(SCD_WIN_SIZE <<
+				IWL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_POS) &
+				IWL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK);
 
 		/* Frame limit */
 		iwl_write_targ_mem(priv, priv->scd_base_addr +
-					SCD_CONTEXT_QUEUE_OFFSET(i) +
-					sizeof(u32),
-					(SCD_FRAME_LIMIT <<
-					SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
-					SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
+				IWL49_SCD_CONTEXT_QUEUE_OFFSET(i) +
+				sizeof(u32),
+				(SCD_FRAME_LIMIT <<
+				IWL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
+				IWL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
 
 	}
 	iwl_write_prph(priv, IWL49_SCD_INTERRUPT_MASK,
@@ -1320,10 +1320,10 @@ static struct iwl_sensitivity_ranges iwl4965_sensitivity = {
 int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 {
 
-	if ((priv->cfg->mod_params->num_of_queues > IWL4965_MAX_NUM_QUEUES) ||
+	if ((priv->cfg->mod_params->num_of_queues > IWL49_NUM_QUEUES) ||
 	    (priv->cfg->mod_params->num_of_queues < IWL_MIN_NUM_QUEUES)) {
 		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
-			  IWL_MIN_NUM_QUEUES, IWL4965_MAX_NUM_QUEUES);
+			  IWL_MIN_NUM_QUEUES, IWL49_NUM_QUEUES);
 		return -EINVAL;
 	}
 
@@ -2520,9 +2520,9 @@ static void iwl4965_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 		       tfd_offset[txq->q.write_ptr], byte_cnt, len);
 
 	/* If within first 64 entries, duplicate at end */
-	if (txq->q.write_ptr < IWL4965_MAX_WIN_SIZE)
+	if (txq->q.write_ptr < IWL49_MAX_WIN_SIZE)
 		IWL_SET_BITS16(shared_data->queues_byte_cnt_tbls[txq_id].
-			tfd_offset[IWL4965_QUEUE_SIZE + txq->q.write_ptr],
+			tfd_offset[IWL49_QUEUE_SIZE + txq->q.write_ptr],
 			byte_cnt, len);
 }
 
@@ -3646,8 +3646,8 @@ static void iwl4965_tx_queue_stop_scheduler(struct iwl_priv *priv,
 	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
 	iwl_write_prph(priv,
 		IWL49_SCD_QUEUE_STATUS_BITS(txq_id),
-		(0 << SCD_QUEUE_STTS_REG_POS_ACTIVE)|
-		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+		(0 << IWL49_SCD_QUEUE_STTS_REG_POS_ACTIVE)|
+		(1 << IWL49_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
 
 /**
@@ -3812,10 +3812,10 @@ static int iwl4965_tx_queue_set_q2ratid(struct iwl_priv *priv, u16 ra_tid,
 	u32 tbl_dw;
 	u16 scd_q2ratid;
 
-	scd_q2ratid = ra_tid & SCD_QUEUE_RA_TID_MAP_RATID_MSK;
+	scd_q2ratid = ra_tid & IWL49_SCD_QUEUE_RA_TID_MAP_RATID_MSK;
 
 	tbl_dw_addr = priv->scd_base_addr +
-			SCD_TRANSLATE_TBL_OFFSET_QUEUE(txq_id);
+			IWL49_SCD_TRANSLATE_TBL_OFFSET_QUEUE(txq_id);
 
 	tbl_dw = iwl_read_targ_mem(priv, tbl_dw_addr);
 
@@ -3877,14 +3877,14 @@ static int iwl4965_tx_queue_agg_enable(struct iwl_priv *priv, int txq_id,
 
 	/* Set up Tx window size and frame limit for this queue */
 	iwl_write_targ_mem(priv,
-			priv->scd_base_addr + SCD_CONTEXT_QUEUE_OFFSET(txq_id),
-			(SCD_WIN_SIZE << SCD_QUEUE_CTX_REG1_WIN_SIZE_POS) &
-			SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK);
+		priv->scd_base_addr + IWL49_SCD_CONTEXT_QUEUE_OFFSET(txq_id),
+		(SCD_WIN_SIZE << IWL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_POS) &
+		IWL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK);
 
 	iwl_write_targ_mem(priv, priv->scd_base_addr +
-			SCD_CONTEXT_QUEUE_OFFSET(txq_id) + sizeof(u32),
-			(SCD_FRAME_LIMIT << SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS)
-			& SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
+		IWL49_SCD_CONTEXT_QUEUE_OFFSET(txq_id) + sizeof(u32),
+		(SCD_FRAME_LIMIT << IWL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS)
+		& IWL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
 
 	iwl_set_bits_prph(priv, IWL49_SCD_INTERRUPT_MASK, (1 << txq_id));
 
