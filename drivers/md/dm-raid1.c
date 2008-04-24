@@ -405,24 +405,22 @@ static void rh_update_states(struct region_hash *rh)
 	write_lock_irq(&rh->hash_lock);
 	spin_lock(&rh->region_lock);
 	if (!list_empty(&rh->clean_regions)) {
-		list_splice(&rh->clean_regions, &clean);
-		INIT_LIST_HEAD(&rh->clean_regions);
+		list_splice_init(&rh->clean_regions, &clean);
 
 		list_for_each_entry(reg, &clean, list)
 			list_del(&reg->hash_list);
 	}
 
 	if (!list_empty(&rh->recovered_regions)) {
-		list_splice(&rh->recovered_regions, &recovered);
-		INIT_LIST_HEAD(&rh->recovered_regions);
+		list_splice_init(&rh->recovered_regions, &recovered);
 
 		list_for_each_entry (reg, &recovered, list)
 			list_del(&reg->hash_list);
 	}
 
 	if (!list_empty(&rh->failed_recovered_regions)) {
-		list_splice(&rh->failed_recovered_regions, &failed_recovered);
-		INIT_LIST_HEAD(&rh->failed_recovered_regions);
+		list_splice_init(&rh->failed_recovered_regions,
+				 &failed_recovered);
 
 		list_for_each_entry(reg, &failed_recovered, list)
 			list_del(&reg->hash_list);
