@@ -27,6 +27,7 @@
 #define NUM_SUBAUTHS 5 /* number of sub authority fields */
 #define NUM_WK_SIDS 7 /* number of well known sids */
 #define SIDNAMELENGTH 20 /* long enough for the ones we care about */
+#define DEFSECDESCLEN 192 /* sec desc len contaiting a dacl with three aces */
 
 #define READ_BIT        0x4
 #define WRITE_BIT       0x2

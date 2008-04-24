@@ -23,7 +23,7 @@
 #include "dns_resolve.h"
 #include "cifs_debug.h"
 
-LIST_HEAD(cifs_dfs_automount_list);
+static LIST_HEAD(cifs_dfs_automount_list);
 
 /*
  * DFS functions
