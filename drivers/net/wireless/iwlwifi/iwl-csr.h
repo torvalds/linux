@@ -198,6 +198,11 @@
 #define CSR_HW_REV_TYPE_MSK            (0x00000F0)
 #define CSR_HW_REV_TYPE_3945           (0x00000D0)
 #define CSR_HW_REV_TYPE_4965           (0x0000000)
+#define CSR_HW_REV_TYPE_5300           (0x0000020)
+#define CSR_HW_REV_TYPE_5350           (0x0000030)
+#define CSR_HW_REV_TYPE_5100           (0x0000050)
+#define CSR_HW_REV_TYPE_5150           (0x0000040)
+#define CSR_HW_REV_TYPE_NONE           (0x00000F0)
 
 /* EEPROM REG */
 #define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)
