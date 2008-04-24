@@ -115,7 +115,9 @@ struct iwl_lib_ops {
 	int (*load_ucode)(struct iwl_priv *priv);
 	/* rfkill */
 	void (*radio_kill_sw)(struct iwl_priv *priv, int disable_radio);
+	 /* power management */
 	struct {
+		int (*init)(struct iwl_priv *priv);
 		int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
 	} apm_ops;
 	/* power */

@@ -7462,21 +7462,15 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	printk(KERN_INFO DRV_NAME
 		": Detected Intel Wireless WiFi Link %s\n", priv->cfg->name);
 
+	/* amp init */
+	err = priv->cfg->ops->lib->apm_ops.init(priv);
+	if (err < 0) {
+		IWL_DEBUG_INFO("Failed to init APMG\n");
+		goto out_iounmap;
+	}
 	/*****************
 	 * 4. Read EEPROM
 	 *****************/
-	/* nic init */
-	iwl_set_bit(priv, CSR_GIO_CHICKEN_BITS,
-		CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
-
-	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-	err = iwl_poll_bit(priv, CSR_GP_CNTRL,
-		CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-		CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
-	if (err < 0) {
-		IWL_DEBUG_INFO("Failed to init the card\n");
-		goto out_iounmap;
-	}
 	/* Read the EEPROM */
 	err = iwl_eeprom_init(priv);
 	if (err) {
