@@ -2599,6 +2599,10 @@ qla2x00_timer(scsi_qla_host_t *ha)
 		start_dpc++;
 	}
 
+	/* Process any deferred work. */
+	if (!list_empty(&ha->work_list))
+		start_dpc++;
+
 	/* Schedule the DPC routine if needed */
 	if ((test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) ||
 	    test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) ||
