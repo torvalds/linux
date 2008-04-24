@@ -131,7 +131,7 @@ struct pstore {
 
 static unsigned sectors_to_pages(unsigned sectors)
 {
-	return sectors / (PAGE_SIZE >> 9);
+	return DIV_ROUND_UP(sectors, PAGE_SIZE >> 9);
 }
 
 static int alloc_area(struct pstore *ps)
