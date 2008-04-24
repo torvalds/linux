@@ -680,13 +680,20 @@ static inline int __init get_mem_size(void)
 	return EBSZ_TO_MEG(bfin_read_EBIU_SDBCTL());
 #  endif
 # elif defined(EBIU_DDRCTL1)
-	switch (bfin_read_EBIU_DDRCTL1() & 0xc0000) {
-		case DEVSZ_64:  return 64 / 8;
-		case DEVSZ_128: return 128 / 8;
-		case DEVSZ_256: return 256 / 8;
-		case DEVSZ_512: return 512 / 8;
-		default:        return 0;
+	u32 ddrctl = bfin_read_EBIU_DDRCTL1();
+	int ret = 0;
+	switch (ddrctl & 0xc0000) {
+		case DEVSZ_64:  ret = 64 / 8;
+		case DEVSZ_128: ret = 128 / 8;
+		case DEVSZ_256: ret = 256 / 8;
+		case DEVSZ_512: ret = 512 / 8;
 	}
+	switch (ddrctl & 0x30000) {
+		case DEVWD_4:  ret *= 2;
+		case DEVWD_8:  ret *= 2;
+		case DEVWD_16: break;
+	}
+	return ret;
 # endif
 #endif
 	BUG();
