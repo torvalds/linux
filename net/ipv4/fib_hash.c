@@ -1003,7 +1003,7 @@ static unsigned fib_flag_trans(int type, __be32 mask, struct fib_info *fi)
 static int fib_seq_show(struct seq_file *seq, void *v)
 {
 	struct fib_iter_state *iter;
-	char bf[128];
+	int len;
 	__be32 prefix, mask;
 	unsigned flags;
 	struct fib_node *f;
@@ -1025,18 +1025,19 @@ static int fib_seq_show(struct seq_file *seq, void *v)
 	mask	= FZ_MASK(iter->zone);
 	flags	= fib_flag_trans(fa->fa_type, mask, fi);
 	if (fi)
-		snprintf(bf, sizeof(bf),
-			 "%s\t%08X\t%08X\t%04X\t%d\t%u\t%d\t%08X\t%d\t%u\t%u",
+		seq_printf(seq,
+			 "%s\t%08X\t%08X\t%04X\t%d\t%u\t%d\t%08X\t%d\t%u\t%u%n",
 			 fi->fib_dev ? fi->fib_dev->name : "*", prefix,
 			 fi->fib_nh->nh_gw, flags, 0, 0, fi->fib_priority,
 			 mask, (fi->fib_advmss ? fi->fib_advmss + 40 : 0),
 			 fi->fib_window,
-			 fi->fib_rtt >> 3);
+			 fi->fib_rtt >> 3, &len);
 	else
-		snprintf(bf, sizeof(bf),
-			 "*\t%08X\t%08X\t%04X\t%d\t%u\t%d\t%08X\t%d\t%u\t%u",
-			 prefix, 0, flags, 0, 0, 0, mask, 0, 0, 0);
-	seq_printf(seq, "%-127s\n", bf);
+		seq_printf(seq,
+			 "*\t%08X\t%08X\t%04X\t%d\t%u\t%d\t%08X\t%d\t%u\t%u%n",
+			 prefix, 0, flags, 0, 0, 0, mask, 0, 0, 0, &len);
+
+	seq_printf(seq, "%*s\n", 127 - len, "");
 out:
 	return 0;
 }

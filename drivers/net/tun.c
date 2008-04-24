@@ -668,16 +668,23 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case TUNSETLINK:
+	{
+		int ret;
+
 		/* Only allow setting the type when the interface is down */
+		rtnl_lock();
 		if (tun->dev->flags & IFF_UP) {
 			DBG(KERN_INFO "%s: Linktype set failed because interface is up\n",
 				tun->dev->name);
-			return -EBUSY;
+			ret = -EBUSY;
 		} else {
 			tun->dev->type = (int) arg;
 			DBG(KERN_INFO "%s: linktype set to %d\n", tun->dev->name, tun->dev->type);
+			ret = 0;
 		}
-		break;
+		rtnl_unlock();
+		return ret;
+	}
 
 #ifdef TUN_DEBUG
 	case TUNSETDEBUG:
@@ -734,7 +741,12 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 	case SIOCADDMULTI:
 		/** Add the specified group to the character device's multicast filter
 		 * list. */
+		rtnl_lock();
+		netif_tx_lock_bh(tun->dev);
 		add_multi(tun->chr_filter, ifr.ifr_hwaddr.sa_data);
+		netif_tx_unlock_bh(tun->dev);
+		rtnl_unlock();
+
 		DBG(KERN_DEBUG "%s: add multi: %s\n",
 		    tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
 		return 0;
@@ -742,7 +754,12 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 	case SIOCDELMULTI:
 		/** Remove the specified group from the character device's multicast
 		 * filter list. */
+		rtnl_lock();
+		netif_tx_lock_bh(tun->dev);
 		del_multi(tun->chr_filter, ifr.ifr_hwaddr.sa_data);
+		netif_tx_unlock_bh(tun->dev);
+		rtnl_unlock();
+
 		DBG(KERN_DEBUG "%s: del multi: %s\n",
 		    tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
 		return 0;

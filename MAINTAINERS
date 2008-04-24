@@ -2558,12 +2558,10 @@ W:	http://www.tazenda.demon.co.uk/phil/linux-hp
 S:	Maintained
 
 MAC80211
-P:	Michael Wu
-M:	flamingice@sourmilk.net
 P:	Johannes Berg
 M:	johannes@sipsolutions.net
-P:	Jiri Benc
-M:	jbenc@suse.cz
+P:	Michael Wu
+M:	flamingice@sourmilk.net
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git

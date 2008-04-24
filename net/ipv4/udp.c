@@ -1619,7 +1619,8 @@ void udp_proc_unregister(struct net *net, struct udp_seq_afinfo *afinfo)
 }
 
 /* ------------------------------------------------------------------------ */
-static void udp4_format_sock(struct sock *sp, char *tmpbuf, int bucket)
+static void udp4_format_sock(struct sock *sp, struct seq_file *f,
+		int bucket, int *len)
 {
 	struct inet_sock *inet = inet_sk(sp);
 	__be32 dest = inet->daddr;
@@ -1627,13 +1628,13 @@ static void udp4_format_sock(struct sock *sp, char *tmpbuf, int bucket)
 	__u16 destp	  = ntohs(inet->dport);
 	__u16 srcp	  = ntohs(inet->sport);
 
-	sprintf(tmpbuf, "%4d: %08X:%04X %08X:%04X"
-		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p",
+	seq_printf(f, "%4d: %08X:%04X %08X:%04X"
+		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p%n",
 		bucket, src, srcp, dest, destp, sp->sk_state,
 		atomic_read(&sp->sk_wmem_alloc),
 		atomic_read(&sp->sk_rmem_alloc),
 		0, 0L, 0, sock_i_uid(sp), 0, sock_i_ino(sp),
-		atomic_read(&sp->sk_refcnt), sp);
+		atomic_read(&sp->sk_refcnt), sp, len);
 }
 
 int udp4_seq_show(struct seq_file *seq, void *v)
@@ -1644,11 +1645,11 @@ int udp4_seq_show(struct seq_file *seq, void *v)
 			   "rx_queue tr tm->when retrnsmt   uid  timeout "
 			   "inode");
 	else {
-		char tmpbuf[129];
 		struct udp_iter_state *state = seq->private;
+		int len;
 
-		udp4_format_sock(v, tmpbuf, state->bucket);
-		seq_printf(seq, "%-127s\n", tmpbuf);
+		udp4_format_sock(v, seq, state->bucket, &len);
+		seq_printf(seq, "%*s\n", 127 - len ,"");
 	}
 	return 0;
 }
