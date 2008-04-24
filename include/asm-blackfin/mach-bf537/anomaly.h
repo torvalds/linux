@@ -7,7 +7,7 @@
  */
 
 /* This file shoule be up to date with:
- *  - Revision A, 09/04/2007; ADSP-BF534/ADSP-BF536/ADSP-BF537 Blackfin Processor Anomaly List
+ *  - Revision C, 02/08/2008; ADSP-BF534/ADSP-BF536/ADSP-BF537 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -132,10 +132,24 @@
 #define ANOMALY_05000322 (1)
 /* Ethernet MAC MDIO Reads Do Not Meet IEEE Specification */
 #define ANOMALY_05000341 (__SILICON_REVISION__ >= 3)
+/* New Feature: UART Remains Enabled after UART Boot (Not Available on Older Silicon) */
+#define ANOMALY_05000350 (__SILICON_REVISION__ < 3)
+/* Regulator Programming Blocked when Hibernate Wakeup Source Remains Active */
+#define ANOMALY_05000355 (1)
 /* Serial Port (SPORT) Multichannel Transmit Failure when Channel 0 Is Disabled */
 #define ANOMALY_05000357 (1)
 /* DMAs that Go Urgent during Tight Core Writes to External Memory Are Blocked */
 #define ANOMALY_05000359 (1)
+/* PPI Underflow Error Goes Undetected in ITU-R 656 Mode */
+#define ANOMALY_05000366 (1)
+/* Possible RETS Register Corruption when Subroutine Is under 5 Cycles in Duration */
+#define ANOMALY_05000371 (1)
+/* SSYNC Stalls Processor when Executed from Non-Cacheable Memory */
+#define ANOMALY_05000402 (__SILICON_REVISION__ >= 3)
+/* Level-Sensitive External GPIO Wakeups May Cause Indefinite Stall */
+#define ANOMALY_05000403 (1)
+
+
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000125 (0)
@@ -146,5 +160,6 @@
 #define ANOMALY_05000266 (0)
 #define ANOMALY_05000311 (0)
 #define ANOMALY_05000323 (0)
+#define ANOMALY_05000363 (0)
 
 #endif
