@@ -45,12 +45,16 @@ struct sysdev_class_attribute {
 	ssize_t (*store)(struct sysdev_class *, const char *, size_t);
 };
 
-#define SYSDEV_CLASS_ATTR(_name,_mode,_show,_store) 		\
-struct sysdev_class_attribute attr_##_name = { 			\
+#define _SYSDEV_CLASS_ATTR(_name,_mode,_show,_store) 		\
+{					 			\
 	.attr = {.name = __stringify(_name), .mode = _mode },	\
 	.show	= _show,					\
 	.store	= _store,					\
-};
+}
+
+#define SYSDEV_CLASS_ATTR(_name,_mode,_show,_store) 		\
+	struct sysdev_class_attribute attr_##_name = 		\
+		_SYSDEV_CLASS_ATTR(_name,_mode,_show,_store)
 
 
 extern int sysdev_class_register(struct sysdev_class *);
@@ -100,15 +104,16 @@ struct sysdev_attribute {
 };
 
 
-#define _SYSDEV_ATTR(_name,_mode,_show,_store)			\
+#define _SYSDEV_ATTR(_name, _mode, _show, _store)		\
 {								\
 	.attr = { .name = __stringify(_name), .mode = _mode },	\
 	.show	= _show,					\
 	.store	= _store,					\
 }
 
-#define SYSDEV_ATTR(_name,_mode,_show,_store)		\
-struct sysdev_attribute attr_##_name = _SYSDEV_ATTR(_name,_mode,_show,_store);
+#define SYSDEV_ATTR(_name, _mode, _show, _store)		\
+	struct sysdev_attribute attr_##_name =			\
+		_SYSDEV_ATTR(_name, _mode, _show, _store);
 
 extern int sysdev_create_file(struct sys_device *, struct sysdev_attribute *);
 extern void sysdev_remove_file(struct sys_device *, struct sysdev_attribute *);

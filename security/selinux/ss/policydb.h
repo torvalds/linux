@@ -243,6 +243,8 @@ struct policydb {
 
 	struct ebitmap policycaps;
 
+	struct ebitmap permissive_map;
+
 	unsigned int policyvers;
 
 	unsigned int reject_unknown : 1;

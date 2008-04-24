@@ -67,4 +67,10 @@
 #define PR_CAPBSET_READ 23
 #define PR_CAPBSET_DROP 24
 
+/* Get/set the process' ability to use the timestamp counter instruction */
+#define PR_GET_TSC 25
+#define PR_SET_TSC 26
+# define PR_TSC_ENABLE		1	/* allow the use of the timestamp counter */
+# define PR_TSC_SIGSEGV		2	/* throw a SIGSEGV instead of reading the TSC */
+
 #endif /* _LINUX_PRCTL_H */

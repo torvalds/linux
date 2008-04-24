@@ -228,7 +228,10 @@ cris_ide_fill_descriptor(cris_dma_descr_type *d, void* buf, unsigned int len, in
 static void
 cris_ide_start_dma(ide_drive_t *drive, cris_dma_descr_type *d, int dir,int type,int len)
 {
-	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2, int, IDE_DATA_REG);
+	ide_hwif_t *hwif = drive->hwif;
+
+	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2, int,
+					       hwif->io_ports[IDE_DATA_OFFSET]);
 	reg_ata_rw_trf_cnt trf_cnt = {0};
 
 	mycontext.saved_data = (dma_descr_data*)virt_to_phys(d);
@@ -264,8 +267,12 @@ cris_ide_wait_dma(int dir)
 
 static int cris_dma_test_irq(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	int intr = REG_RD_INT(ata, regi_ata, r_intr);
-	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2, int, IDE_DATA_REG);
+
+	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2, int,
+					       hwif->io_ports[IDE_DATA_OFFSET]);
+
 	return intr & (1 << ctrl2.sel) ? 1 : 0;
 }
 
@@ -523,7 +530,8 @@ static void cris_ide_start_dma(ide_drive_t *drive, cris_dma_descr_type *d, int d
 	                          IO_STATE(R_ATA_CTRL_DATA, handsh, dma);
 	*R_ATA_CTRL_DATA =
 		cmd |
-		IO_FIELD(R_ATA_CTRL_DATA, data, IDE_DATA_REG) |
+		IO_FIELD(R_ATA_CTRL_DATA, data,
+			 drive->hwif->io_ports[IDE_DATA_OFFSET]) |
 		IO_STATE(R_ATA_CTRL_DATA, src_dst,  dma)  |
 		IO_STATE(R_ATA_CTRL_DATA, multi,    on)   |
 		IO_STATE(R_ATA_CTRL_DATA, dma_size, word);
@@ -541,7 +549,9 @@ cris_ide_wait_dma(int dir)
 static int cris_dma_test_irq(ide_drive_t *drive)
 {
 	int intr = *R_IRQ_MASK0_RD;
-	int bus = IO_EXTRACT(R_ATA_CTRL_DATA, sel, IDE_DATA_REG);
+	int bus = IO_EXTRACT(R_ATA_CTRL_DATA, sel,
+			     drive->hwif->io_ports[IDE_DATA_OFFSET]);
+
 	return intr & (1 << (bus + IO_BITNR(R_IRQ_MASK0_RD, ata_irq0))) ? 1 : 0;
 }
 

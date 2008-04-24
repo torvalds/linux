@@ -126,7 +126,7 @@ extern int sn9c102_write_regs(struct sn9c102_device*, const u8 valreg[][2],
    Register adresses must be < 256.
 */
 #define sn9c102_write_const_regs(sn9c102_device, data...)                     \
-	({ const static u8 _valreg[][2] = {data};                             \
+	({ static const u8 _valreg[][2] = {data};                             \
 	sn9c102_write_regs(sn9c102_device, _valreg, ARRAY_SIZE(_valreg)); })
 
 /*****************************************************************************/

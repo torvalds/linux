@@ -315,7 +315,7 @@ static unsigned int get_cur_freq(unsigned int cpu)
 	cpumask_t saved_mask;
 
 	saved_mask = current->cpus_allowed;
-	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 	if (smp_processor_id() != cpu)
 		return 0;
 
@@ -333,7 +333,7 @@ static unsigned int get_cur_freq(unsigned int cpu)
 		clock_freq = extract_clock(l, cpu, 1);
 	}
 
-	set_cpus_allowed(current, saved_mask);
+	set_cpus_allowed_ptr(current, &saved_mask);
 	return clock_freq;
 }
 
@@ -487,7 +487,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 		else
 			cpu_set(j, set_mask);
 
-		set_cpus_allowed(current, set_mask);
+		set_cpus_allowed_ptr(current, &set_mask);
 		preempt_disable();
 		if (unlikely(!cpu_isset(smp_processor_id(), set_mask))) {
 			dprintk("couldn't limit to CPUs in this domain\n");
@@ -555,7 +555,8 @@ static int centrino_target (struct cpufreq_policy *policy,
 
 		if (!cpus_empty(covered_cpus)) {
 			for_each_cpu_mask(j, covered_cpus) {
-				set_cpus_allowed(current, cpumask_of_cpu(j));
+				set_cpus_allowed_ptr(current,
+						     &cpumask_of_cpu(j));
 				wrmsr(MSR_IA32_PERF_CTL, oldmsr, h);
 			}
 		}
@@ -569,12 +570,12 @@ static int centrino_target (struct cpufreq_policy *policy,
 			cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 		}
 	}
-	set_cpus_allowed(current, saved_mask);
+	set_cpus_allowed_ptr(current, &saved_mask);
 	return 0;
 
 migrate_end:
 	preempt_enable();
-	set_cpus_allowed(current, saved_mask);
+	set_cpus_allowed_ptr(current, &saved_mask);
 	return 0;
 }
 

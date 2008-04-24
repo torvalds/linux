@@ -3,6 +3,10 @@
 # see Documentation/kbuild/kconfig-language.txt.
 #
 
+config SCHED_MC
+	def_bool y
+	depends on SMP
+
 config MMU
 	def_bool y
 
@@ -39,6 +43,9 @@ config GENERIC_HWEIGHT
 config GENERIC_TIME
 	def_bool y
 
+config GENERIC_CLOCKEVENTS
+	def_bool y
+
 config GENERIC_BUG
 	bool
 	depends on BUG
@@ -68,6 +75,8 @@ source "init/Kconfig"
 menu "Base setup"
 
 comment "Processor type and features"
+
+source "kernel/time/Kconfig"
 
 config 64BIT
 	bool "64 bit kernel"
@@ -301,10 +310,7 @@ config QDIO
 	tristate "QDIO support"
 	---help---
 	  This driver provides the Queued Direct I/O base support for
-	  IBM mainframes.
-
-	  For details please refer to the documentation provided by IBM at
-	  <http://www10.software.ibm.com/developerworks/opensource/linux390>
+	  IBM System z.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called qdio.
@@ -485,25 +491,6 @@ config APPLDATA_NET_SUM
 	  appldata_net_sum.o.
 
 source kernel/Kconfig.hz
-
-config NO_IDLE_HZ
-	bool "No HZ timer ticks in idle"
-	help
-	  Switches the regular HZ timer off when the system is going idle.
-	  This helps z/VM to detect that the Linux system is idle. VM can
-	  then "swap-out" this guest which reduces memory usage. It also
-	  reduces the overhead of idle systems.
-
-	  The HZ timer can be switched on/off via /proc/sys/kernel/hz_timer.
-	  hz_timer=0 means HZ timer is disabled. hz_timer=1 means HZ
-	  timer is active.
-
-config NO_IDLE_HZ_INIT
-	bool "HZ timer in idle off by default"
-	depends on NO_IDLE_HZ
-	help
-	  The HZ timer is switched off in idle by default. That means the
-	  HZ timer is already disabled at boot time.
 
 config S390_HYPFS_FS
 	bool "s390 hypervisor file system support"

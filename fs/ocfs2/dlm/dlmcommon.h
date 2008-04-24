@@ -49,6 +49,41 @@
 /* Intended to make it easier for us to switch out hash functions */
 #define dlm_lockid_hash(_n, _l) full_name_hash(_n, _l)
 
+enum dlm_mle_type {
+	DLM_MLE_BLOCK,
+	DLM_MLE_MASTER,
+	DLM_MLE_MIGRATION
+};
+
+struct dlm_lock_name {
+	u8 len;
+	u8 name[DLM_LOCKID_NAME_MAX];
+};
+
+struct dlm_master_list_entry {
+	struct list_head list;
+	struct list_head hb_events;
+	struct dlm_ctxt *dlm;
+	spinlock_t spinlock;
+	wait_queue_head_t wq;
+	atomic_t woken;
+	struct kref mle_refs;
+	int inuse;
+	unsigned long maybe_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long vote_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long response_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long node_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	u8 master;
+	u8 new_master;
+	enum dlm_mle_type type;
+	struct o2hb_callback_func mle_hb_up;
+	struct o2hb_callback_func mle_hb_down;
+	union {
+		struct dlm_lock_resource *res;
+		struct dlm_lock_name name;
+	} u;
+};
+
 enum dlm_ast_type {
 	DLM_AST = 0,
 	DLM_BAST,
@@ -101,6 +136,7 @@ struct dlm_ctxt
 	struct list_head purge_list;
 	struct list_head pending_asts;
 	struct list_head pending_basts;
+	struct list_head tracking_list;
 	unsigned int purge_count;
 	spinlock_t spinlock;
 	spinlock_t ast_lock;
@@ -121,6 +157,9 @@ struct dlm_ctxt
 	atomic_t local_resources;
 	atomic_t remote_resources;
 	atomic_t unknown_resources;
+
+	struct dlm_debug_ctxt *dlm_debug_ctxt;
+	struct dentry *dlm_debugfs_subroot;
 
 	/* NOTE: Next three are protected by dlm_domain_lock */
 	struct kref dlm_refs;
@@ -269,6 +308,9 @@ struct dlm_lock_resource
 	 */
 	struct list_head dirty;
 	struct list_head recovering; // dlm_recovery_ctxt.resources list
+
+	/* Added during init and removed during release */
+	struct list_head tracking;	/* dlm->tracking_list */
 
 	/* unused lock resources have their last_used stamped and are
 	 * put on a list for the dlm thread to run. */
@@ -963,9 +1005,16 @@ static inline void __dlm_wait_on_lockres(struct dlm_lock_resource *res)
 					  DLM_LOCK_RES_MIGRATING));
 }
 
+/* create/destroy slab caches */
+int dlm_init_master_caches(void);
+void dlm_destroy_master_caches(void);
+
+int dlm_init_lock_cache(void);
+void dlm_destroy_lock_cache(void);
 
 int dlm_init_mle_cache(void);
 void dlm_destroy_mle_cache(void);
+
 void dlm_hb_event_notify_attached(struct dlm_ctxt *dlm, int idx, int node_up);
 int dlm_drop_lockres_ref(struct dlm_ctxt *dlm,
 			 struct dlm_lock_resource *res);

@@ -19,7 +19,6 @@
 #define cpu_to_logical_apicid (genapic->cpu_to_logical_apicid) 
 #define cpu_present_to_apicid (genapic->cpu_present_to_apicid)
 #define apicid_to_cpu_present (genapic->apicid_to_cpu_present)
-#define mpc_apic_id (genapic->mpc_apic_id) 
 #define setup_portio_remap (genapic->setup_portio_remap)
 #define check_apicid_present (genapic->check_apicid_present)
 #define check_phys_apicid_present (genapic->check_phys_apicid_present)

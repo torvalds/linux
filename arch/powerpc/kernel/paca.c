@@ -15,7 +15,6 @@
 #include <asm/ptrace.h>
 #include <asm/page.h>
 #include <asm/lppaca.h>
-#include <asm/iseries/it_lp_reg_save.h>
 #include <asm/paca.h>
 #include <asm/mmu.h>
 
@@ -25,13 +24,13 @@
 extern unsigned long __toc_start;
 
 /*
- * iSeries structure which the hypervisor knows about - this structure
+ * The structure which the hypervisor knows about - this structure
  * should not cross a page boundary.  The vpa_init/register_vpa call
  * is now known to fail if the lppaca structure crosses a page
- * boundary.  The lppaca is also used on POWER5 pSeries boxes.  The
- * lppaca is 640 bytes long, and cannot readily change since the
- * hypervisor knows its layout, so a 1kB alignment will suffice to
- * ensure that it doesn't cross a page boundary.
+ * boundary.  The lppaca is also used on legacy iSeries and POWER5
+ * pSeries boxes.  The lppaca is 640 bytes long, and cannot readily
+ * change since the hypervisor knows its layout, so a 1kB alignment
+ * will suffice to ensure that it doesn't cross a page boundary.
  */
 struct lppaca lppaca[] = {
 	[0 ... (NR_CPUS-1)] = {
@@ -66,31 +65,16 @@ struct slb_shadow slb_shadow[] __cacheline_aligned = {
  * processors.  The processor VPD array needs one entry per physical
  * processor (not thread).
  */
-#define PACA_INIT_COMMON(number)					    \
+#define PACA_INIT(number)						    \
+{									    \
 	.lppaca_ptr = &lppaca[number],					    \
 	.lock_token = 0x8000,						    \
 	.paca_index = (number),		/* Paca Index */		    \
 	.kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL,		    \
 	.hw_cpu_id = 0xffff,						    \
-	.slb_shadow_ptr = &slb_shadow[number],
-
-#ifdef CONFIG_PPC_ISERIES
-#define PACA_INIT_ISERIES(number)					    \
-	.reg_save_ptr = &iseries_reg_save[number],
-
-#define PACA_INIT(number)						    \
-{									    \
-	PACA_INIT_COMMON(number)					    \
-	PACA_INIT_ISERIES(number)					    \
+	.slb_shadow_ptr = &slb_shadow[number],				    \
+	.__current = &init_task,					    \
 }
-
-#else
-#define PACA_INIT(number)						    \
-{									    \
-	PACA_INIT_COMMON(number)					    \
-}
-
-#endif
 
 struct paca_struct paca[] = {
 	PACA_INIT(0),

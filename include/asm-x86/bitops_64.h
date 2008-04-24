@@ -17,35 +17,35 @@ static inline long __scanbit(unsigned long val, unsigned long max)
 	return val;
 }
 
-#define find_first_bit(addr,size) \
-((__builtin_constant_p(size) && (size) <= BITS_PER_LONG ? \
-  (__scanbit(*(unsigned long *)addr,(size))) : \
-  find_first_bit(addr,size)))
-
 #define find_next_bit(addr,size,off) \
 ((__builtin_constant_p(size) && (size) <= BITS_PER_LONG ? 	  \
   ((off) + (__scanbit((*(unsigned long *)addr) >> (off),(size)-(off)))) : \
 	find_next_bit(addr,size,off)))
 
-#define find_first_zero_bit(addr,size) \
-((__builtin_constant_p(size) && (size) <= BITS_PER_LONG ? \
-  (__scanbit(~*(unsigned long *)addr,(size))) : \
-  	find_first_zero_bit(addr,size)))
-	
 #define find_next_zero_bit(addr,size,off) \
 ((__builtin_constant_p(size) && (size) <= BITS_PER_LONG ? 	  \
   ((off)+(__scanbit(~(((*(unsigned long *)addr)) >> (off)),(size)-(off)))) : \
 	find_next_zero_bit(addr,size,off)))
 
-static inline void set_bit_string(unsigned long *bitmap, unsigned long i, 
-				  int len) 
-{ 
-	unsigned long end = i + len; 
+#define find_first_bit(addr, size)					\
+	((__builtin_constant_p((size)) && (size) <= BITS_PER_LONG	\
+	  ? (__scanbit(*(unsigned long *)(addr), (size)))		\
+	  : find_first_bit((addr), (size))))
+
+#define find_first_zero_bit(addr, size)					\
+	((__builtin_constant_p((size)) && (size) <= BITS_PER_LONG	\
+	  ? (__scanbit(~*(unsigned long *)(addr), (size)))		\
+	  : find_first_zero_bit((addr), (size))))
+
+static inline void set_bit_string(unsigned long *bitmap, unsigned long i,
+				  int len)
+{
+	unsigned long end = i + len;
 	while (i < end) {
-		__set_bit(i, bitmap); 
+		__set_bit(i, bitmap);
 		i++;
 	}
-} 
+}
 
 /**
  * ffz - find first zero in word.
@@ -150,10 +150,10 @@ static inline int fls(int x)
 
 #include <asm-generic/bitops/ext2-non-atomic.h>
 
-#define ext2_set_bit_atomic(lock,nr,addr) \
-	        test_and_set_bit((nr),(unsigned long*)addr)
-#define ext2_clear_bit_atomic(lock,nr,addr) \
-	        test_and_clear_bit((nr),(unsigned long*)addr)
+#define ext2_set_bit_atomic(lock, nr, addr)			\
+	test_and_set_bit((nr), (unsigned long *)(addr))
+#define ext2_clear_bit_atomic(lock, nr, addr)			\
+	test_and_clear_bit((nr), (unsigned long *)(addr))
 
 #include <asm-generic/bitops/minix.h>
 

@@ -359,9 +359,30 @@ static void __init smp_init(void)
 #endif
 
 static inline void setup_per_cpu_areas(void) { }
+static inline void setup_nr_cpu_ids(void) { }
 static inline void smp_prepare_cpus(unsigned int maxcpus) { }
 
 #else
+
+#if NR_CPUS > BITS_PER_LONG
+cpumask_t cpu_mask_all __read_mostly = CPU_MASK_ALL;
+EXPORT_SYMBOL(cpu_mask_all);
+#endif
+
+/* Setup number of possible processor ids */
+int nr_cpu_ids __read_mostly = NR_CPUS;
+EXPORT_SYMBOL(nr_cpu_ids);
+
+/* An arch may set nr_cpu_ids earlier if needed, so this would be redundant */
+static void __init setup_nr_cpu_ids(void)
+{
+	int cpu, highest_cpu = 0;
+
+	for_each_possible_cpu(cpu)
+		highest_cpu = cpu;
+
+	nr_cpu_ids = highest_cpu + 1;
+}
 
 #ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
@@ -537,6 +558,7 @@ asmlinkage void __init start_kernel(void)
 	setup_command_line(command_line);
 	unwind_setup();
 	setup_per_cpu_areas();
+	setup_nr_cpu_ids();
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 
 	/*
@@ -811,7 +833,7 @@ static int __init kernel_init(void * unused)
 	/*
 	 * init can run on any cpu.
 	 */
-	set_cpus_allowed(current, CPU_MASK_ALL);
+	set_cpus_allowed_ptr(current, CPU_MASK_ALL_PTR);
 	/*
 	 * Tell the world that we're going to be the grim
 	 * reaper of innocent orphaned children.

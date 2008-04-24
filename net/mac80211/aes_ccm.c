@@ -13,7 +13,7 @@
 #include <linux/err.h>
 
 #include <net/mac80211.h>
-#include "ieee80211_key.h"
+#include "key.h"
 #include "aes_ccm.h"
 
 

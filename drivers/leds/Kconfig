@@ -1,6 +1,5 @@
 menuconfig NEW_LEDS
 	bool "LED Support"
-	depends on HAS_IOMEM
 	help
 	  Say Y to enable Linux LED support.  This allows control of supported
 	  LEDs from both userspace and optionally, by kernel events (triggers).
@@ -45,13 +44,6 @@ config LEDS_SPITZ
 	help
 	  This option enables support for the LEDs on Sharp Zaurus
 	  SL-Cxx00 series (C1000, C3000, C3100).
-
-config LEDS_TOSA
-	tristate "LED Support for the Sharp SL-6000 series"
-	depends on LEDS_CLASS && PXA_SHARPSL
-	help
-	  This option enables support for the LEDs on Sharp Zaurus
-	  SL-6000 series.
 
 config LEDS_S3C24XX
 	tristate "LED Support for Samsung S3C24XX GPIO LEDs"

@@ -1456,7 +1456,6 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 /* notification of system call entry/exit
  * - triggered by current->work.syscall_trace
  */
-__attribute__((regparm(3)))
 int do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	int is_sysemu = test_thread_flag(TIF_SYSCALL_EMU);

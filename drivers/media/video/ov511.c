@@ -41,7 +41,6 @@
 #include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/pagemap.h>
-#include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <linux/mm.h>
 #include <linux/device.h>

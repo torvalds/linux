@@ -301,7 +301,6 @@ static inline int
 svc_pool_map_set_cpumask(unsigned int pidx, cpumask_t *oldmask)
 {
 	struct svc_pool_map *m = &svc_pool_map;
-	unsigned int node; /* or cpu */
 
 	/*
 	 * The caller checks for sv_nrpools > 1, which
@@ -314,15 +313,22 @@ svc_pool_map_set_cpumask(unsigned int pidx, cpumask_t *oldmask)
 	default:
 		return 0;
 	case SVC_POOL_PERCPU:
-		node = m->pool_to[pidx];
+	{
+		unsigned int cpu = m->pool_to[pidx];
+
 		*oldmask = current->cpus_allowed;
-		set_cpus_allowed(current, cpumask_of_cpu(node));
+		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 		return 1;
+	}
 	case SVC_POOL_PERNODE:
-		node = m->pool_to[pidx];
+	{
+		unsigned int node = m->pool_to[pidx];
+		node_to_cpumask_ptr(nodecpumask, node);
+
 		*oldmask = current->cpus_allowed;
-		set_cpus_allowed(current, node_to_cpumask(node));
+		set_cpus_allowed_ptr(current, nodecpumask);
 		return 1;
+	}
 	}
 }
 

@@ -39,6 +39,7 @@
 #include <linux/pfn.h>
 #include <linux/ctype.h>
 #include <linux/reboot.h>
+#include <linux/topology.h>
 
 #include <asm/ipl.h>
 #include <asm/uaccess.h>
@@ -427,7 +428,7 @@ setup_lowcore(void)
 	lc->io_new_psw.mask = psw_kernel_bits;
 	lc->io_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) io_int_handler;
 	lc->ipl_device = S390_lowcore.ipl_device;
-	lc->jiffy_timer = -1LL;
+	lc->clock_comparator = -1ULL;
 	lc->kernel_stack = ((unsigned long) &init_thread_union) + THREAD_SIZE;
 	lc->async_stack = (unsigned long)
 		__alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0) + ASYNC_SIZE;
@@ -687,7 +688,7 @@ static __init unsigned int stfl(void)
 	return S390_lowcore.stfl_fac_list;
 }
 
-static __init int stfle(unsigned long long *list, int doublewords)
+static int __init __stfle(unsigned long long *list, int doublewords)
 {
 	typedef struct { unsigned long long _[doublewords]; } addrtype;
 	register unsigned long __nr asm("0") = doublewords - 1;
@@ -695,6 +696,13 @@ static __init int stfle(unsigned long long *list, int doublewords)
 	asm volatile(".insn s,0xb2b00000,%0" /* stfle */
 		     : "=m" (*(addrtype *) list), "+d" (__nr) : : "cc");
 	return __nr + 1;
+}
+
+int __init stfle(unsigned long long *list, int doublewords)
+{
+	if (!(stfl() & (1UL << 24)))
+		return -EOPNOTSUPP;
+	return __stfle(list, doublewords);
 }
 
 /*
@@ -741,7 +749,7 @@ static void __init setup_hwcaps(void)
 	 *   HWCAP_S390_DFP bit 6.
 	 */
 	if ((elf_hwcap & (1UL << 2)) &&
-	    stfle(&facility_list_extended, 1) > 0) {
+	    __stfle(&facility_list_extended, 1) > 0) {
 		if (facility_list_extended & (1ULL << (64 - 43)))
 			elf_hwcap |= 1UL << 6;
 	}
@@ -823,6 +831,7 @@ setup_arch(char **cmdline_p)
 
         cpu_init();
         __cpu_logical_map[0] = S390_lowcore.cpu_data.cpu_addr;
+	s390_init_cpu_topology();
 
 	/*
 	 * Setup capabilities (ELF_HWCAP & ELF_PLATFORM).

@@ -42,10 +42,7 @@ struct task_struct;
  * Defines the layout of the paca.
  *
  * This structure is not directly accessed by firmware or the service
- * processor except for the first two pointers that point to the
- * lppaca area and the ItLpRegSave area for this CPU.  The lppaca
- * object is currently contained within the PACA but it doesn't need
- * to be.
+ * processor.
  */
 struct paca_struct {
 	/*
@@ -55,14 +52,7 @@ struct paca_struct {
 	 * avoid cacheline bouncing.
 	 */
 
-	/*
-	 * MAGIC: These first two pointers can't be moved - they're
-	 * accessed by the firmware
-	 */
 	struct lppaca *lppaca_ptr;	/* Pointer to LpPaca for PLIC */
-#ifdef CONFIG_PPC_ISERIES
-	void *reg_save_ptr; /* Pointer to LpRegSave for PLIC */
-#endif /* CONFIG_PPC_ISERIES */
 
 	/*
 	 * MAGIC: the spinlock functions in arch/powerpc/lib/locks.c 

@@ -51,7 +51,7 @@ static void program_fw_provided_values(struct pci_dev *dev)
 	    !hpp.t0 || (hpp.t0->revision > 1)) {
 		printk(KERN_WARNING
 		       "%s: Could not get hotplug parameters. Use defaults\n",
-		       __FUNCTION__);
+		       __func__);
 		hpp.t0 = &hpp.type0_data;
 		hpp.t0->revision = 0;
 		hpp.t0->cache_line_size = 8;
@@ -169,7 +169,7 @@ int shpchp_unconfigure_device(struct slot *p_slot)
 	u8 bctl = 0;
 	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
 
-	dbg("%s: bus/dev = %x/%x\n", __FUNCTION__, p_slot->bus, p_slot->device);
+	dbg("%s: bus/dev = %x/%x\n", __func__, p_slot->bus, p_slot->device);
 
 	for (j=0; j<8 ; j++) {
 		struct pci_dev* temp = pci_get_slot(parent,

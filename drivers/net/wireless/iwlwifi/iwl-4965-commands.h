@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,6 +83,9 @@ enum {
 	REPLY_ADD_STA = 0x18,
 	REPLY_REMOVE_STA = 0x19,	/* not used */
 	REPLY_REMOVE_ALL_STA = 0x1a,	/* not used */
+
+	/* Security */
+	REPLY_WEPKEY = 0x20,
 
 	/* RX, TX, LEDs */
 	REPLY_TX = 0x1c,
@@ -139,7 +142,7 @@ enum {
 	REPLY_PHY_CALIBRATION_CMD = 0xb0,
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
-	REPLY_4965_RX = 0xc3,
+	REPLY_RX = 0xc3,
 	REPLY_COMPRESSED_BA = 0xc5,
 	REPLY_MAX = 0xff
 };
@@ -151,16 +154,16 @@ enum {
  *
  *****************************************************************************/
 
-/* iwl4965_cmd_header flags value */
+/* iwl_cmd_header flags value */
 #define IWL_CMD_FAILED_MSK 0x40
 
 /**
- * struct iwl4965_cmd_header
+ * struct iwl_cmd_header
  *
  * This header format appears in the beginning of each command sent from the
  * driver, and each response/notification received from uCode.
  */
-struct iwl4965_cmd_header {
+struct iwl_cmd_header {
 	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
 	u8 flags;	/* IWL_CMD_* */
 	/*
@@ -194,7 +197,7 @@ struct iwl4965_cmd_header {
  * 4965 rate_n_flags bit fields
  *
  * rate_n_flags format is used in following 4965 commands:
- *  REPLY_4965_RX (response only)
+ *  REPLY_RX (response only)
  *  REPLY_TX (both command and response)
  *  REPLY_TX_LINK_QUALITY_CMD
  *
@@ -266,11 +269,10 @@ struct iwl4965_cmd_header {
  *          10 B active, A inactive
  *          11 Both active
  */
-#define RATE_MCS_ANT_A_POS	14
-#define RATE_MCS_ANT_B_POS	15
-#define RATE_MCS_ANT_A_MSK	0x4000
-#define RATE_MCS_ANT_B_MSK	0x8000
-#define RATE_MCS_ANT_AB_MSK	0xc000
+#define RATE_MCS_ANT_POS       14
+#define RATE_MCS_ANT_A_MSK     0x04000
+#define RATE_MCS_ANT_B_MSK     0x08000
+#define RATE_MCS_ANT_AB_MSK    0x0C000
 
 
 /**
@@ -727,14 +729,21 @@ struct iwl4965_qosparam_cmd {
 #define STA_CONTROL_MODIFY_MSK		0x01
 
 /* key flags __le16*/
-#define STA_KEY_FLG_ENCRYPT_MSK	__constant_cpu_to_le16(0x7)
-#define STA_KEY_FLG_NO_ENC	__constant_cpu_to_le16(0x0)
-#define STA_KEY_FLG_WEP		__constant_cpu_to_le16(0x1)
-#define STA_KEY_FLG_CCMP	__constant_cpu_to_le16(0x2)
-#define STA_KEY_FLG_TKIP	__constant_cpu_to_le16(0x3)
+#define STA_KEY_FLG_ENCRYPT_MSK	__constant_cpu_to_le16(0x0007)
+#define STA_KEY_FLG_NO_ENC	__constant_cpu_to_le16(0x0000)
+#define STA_KEY_FLG_WEP		__constant_cpu_to_le16(0x0001)
+#define STA_KEY_FLG_CCMP	__constant_cpu_to_le16(0x0002)
+#define STA_KEY_FLG_TKIP	__constant_cpu_to_le16(0x0003)
 
 #define STA_KEY_FLG_KEYID_POS	8
 #define STA_KEY_FLG_INVALID 	__constant_cpu_to_le16(0x0800)
+/* wep key is either from global key (0) or from station info array (1) */
+#define STA_KEY_FLG_MAP_KEY_MSK	__constant_cpu_to_le16(0x0008)
+
+/* wep key in STA: 5-bytes (0) or 13-bytes (1) */
+#define STA_KEY_FLG_KEY_SIZE_MSK     __constant_cpu_to_le16(0x1000)
+#define STA_KEY_MULTICAST_MSK        __constant_cpu_to_le16(0x4000)
+#define STA_KEY_MAX_NUM		8
 
 /* Flags indicate whether to modify vs. don't change various station params */
 #define	STA_MODIFY_KEY_MASK		0x01
@@ -752,7 +761,8 @@ struct iwl4965_keyinfo {
 	u8 tkip_rx_tsc_byte2;	/* TSC[2] for key mix ph1 detection */
 	u8 reserved1;
 	__le16 tkip_rx_ttak[5];	/* 10-byte unicast TKIP TTAK */
-	__le16 reserved2;
+	u8 key_offset;
+	u8 reserved2;
 	u8 key[16];		/* 16-byte unicast decryption key */
 } __attribute__ ((packed));
 
@@ -842,6 +852,30 @@ struct iwl4965_add_sta_resp {
 	u8 status;	/* ADD_STA_* */
 } __attribute__ ((packed));
 
+/*
+ * REPLY_WEP_KEY = 0x20
+ */
+struct iwl_wep_key {
+	u8 key_index;
+	u8 key_offset;
+	u8 reserved1[2];
+	u8 key_size;
+	u8 reserved2[3];
+	u8 key[16];
+} __attribute__ ((packed));
+
+struct iwl_wep_cmd {
+	u8 num_keys;
+	u8 global_key_type;
+	u8 flags;
+	u8 reserved;
+	struct iwl_wep_key key[0];
+} __attribute__ ((packed));
+
+#define WEP_KEY_WEP_TYPE 1
+#define WEP_KEYS_MAX 4
+#define WEP_INVALID_OFFSET 0xff
+#define WEP_KEY_LEN_128 13
 
 /******************************************************************************
  * (4)
@@ -868,26 +902,35 @@ struct iwl4965_rx_frame_hdr {
 	u8 payload[0];
 } __attribute__ ((packed));
 
-#define	RX_RES_STATUS_NO_CRC32_ERROR	__constant_cpu_to_le32(1 << 0)
-#define	RX_RES_STATUS_NO_RXE_OVERFLOW	__constant_cpu_to_le32(1 << 1)
+#define RX_RES_STATUS_NO_CRC32_ERROR	__constant_cpu_to_le32(1 << 0)
+#define RX_RES_STATUS_NO_RXE_OVERFLOW	__constant_cpu_to_le32(1 << 1)
 
-#define	RX_RES_PHY_FLAGS_BAND_24_MSK	__constant_cpu_to_le16(1 << 0)
-#define	RX_RES_PHY_FLAGS_MOD_CCK_MSK		__constant_cpu_to_le16(1 << 1)
-#define	RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK	__constant_cpu_to_le16(1 << 2)
-#define	RX_RES_PHY_FLAGS_NARROW_BAND_MSK	__constant_cpu_to_le16(1 << 3)
-#define	RX_RES_PHY_FLAGS_ANTENNA_MSK		__constant_cpu_to_le16(0xf0)
+#define RX_RES_PHY_FLAGS_BAND_24_MSK	__constant_cpu_to_le16(1 << 0)
+#define RX_RES_PHY_FLAGS_MOD_CCK_MSK		__constant_cpu_to_le16(1 << 1)
+#define RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK	__constant_cpu_to_le16(1 << 2)
+#define RX_RES_PHY_FLAGS_NARROW_BAND_MSK	__constant_cpu_to_le16(1 << 3)
+#define RX_RES_PHY_FLAGS_ANTENNA_MSK		__constant_cpu_to_le16(0xf0)
 
-#define	RX_RES_STATUS_SEC_TYPE_MSK	(0x7 << 8)
-#define	RX_RES_STATUS_SEC_TYPE_NONE	(0x0 << 8)
-#define	RX_RES_STATUS_SEC_TYPE_WEP	(0x1 << 8)
-#define	RX_RES_STATUS_SEC_TYPE_CCMP	(0x2 << 8)
-#define	RX_RES_STATUS_SEC_TYPE_TKIP	(0x3 << 8)
+#define RX_RES_STATUS_SEC_TYPE_MSK	(0x7 << 8)
+#define RX_RES_STATUS_SEC_TYPE_NONE	(0x0 << 8)
+#define RX_RES_STATUS_SEC_TYPE_WEP	(0x1 << 8)
+#define RX_RES_STATUS_SEC_TYPE_CCMP	(0x2 << 8)
+#define RX_RES_STATUS_SEC_TYPE_TKIP	(0x3 << 8)
+#define	RX_RES_STATUS_SEC_TYPE_ERR	(0x7 << 8)
 
-#define	RX_RES_STATUS_DECRYPT_TYPE_MSK	(0x3 << 11)
-#define	RX_RES_STATUS_NOT_DECRYPT	(0x0 << 11)
-#define	RX_RES_STATUS_DECRYPT_OK	(0x3 << 11)
-#define	RX_RES_STATUS_BAD_ICV_MIC	(0x1 << 11)
-#define	RX_RES_STATUS_BAD_KEY_TTAK	(0x2 << 11)
+#define RX_RES_STATUS_STATION_FOUND	(1<<6)
+#define RX_RES_STATUS_NO_STATION_INFO_MISMATCH	(1<<7)
+
+#define RX_RES_STATUS_DECRYPT_TYPE_MSK	(0x3 << 11)
+#define RX_RES_STATUS_NOT_DECRYPT	(0x0 << 11)
+#define RX_RES_STATUS_DECRYPT_OK	(0x3 << 11)
+#define RX_RES_STATUS_BAD_ICV_MIC	(0x1 << 11)
+#define RX_RES_STATUS_BAD_KEY_TTAK	(0x2 << 11)
+
+#define RX_MPDU_RES_STATUS_ICV_OK	(0x20)
+#define RX_MPDU_RES_STATUS_MIC_OK	(0x40)
+#define RX_MPDU_RES_STATUS_TTAK_OK	(1 << 7)
+#define RX_MPDU_RES_STATUS_DEC_DONE_MSK	(0x800)
 
 struct iwl4965_rx_frame_end {
 	__le32 status;
@@ -922,7 +965,7 @@ struct iwl4965_rx_non_cfg_phy {
 } __attribute__ ((packed));
 
 /*
- * REPLY_4965_RX = 0xc3 (response only, not a command)
+ * REPLY_RX = 0xc3 (response only, not a command)
  * Used only for legacy (non 11n) frames.
  */
 #define RX_RES_PHY_CNT 14
@@ -1037,6 +1080,10 @@ struct iwl4965_rx_mpdu_res_start {
  * field (but not both).  Driver must align frame data (i.e. data following
  * MAC header) to DWORD boundary. */
 #define TX_CMD_FLG_MH_PAD_MSK __constant_cpu_to_le32(1 << 20)
+
+/* accelerate aggregation support
+ * 0 - no CCMP encryption; 1 - CCMP encryption */
+#define TX_CMD_FLG_AGG_CCMP_MSK __constant_cpu_to_le32(1 << 22)
 
 /* HCCA-AP - disable duration overwriting. */
 #define TX_CMD_FLG_DUR_MSK __constant_cpu_to_le32(1 << 25)
@@ -1300,6 +1347,25 @@ struct iwl4965_tx_resp {
 	__le32 status;	/* TX status (for aggregation status of 1st frame) */
 } __attribute__ ((packed));
 
+struct agg_tx_status {
+	__le16 status;
+	__le16 sequence;
+} __attribute__ ((packed));
+
+struct iwl4965_tx_resp_agg {
+	u8 frame_count;         /* 1 no aggregation, >1 aggregation */
+	u8 reserved1;
+	u8 failure_rts;
+	u8 failure_frame;
+	__le32 rate_n_flags;
+	__le16 wireless_media_time;
+	__le16 reserved3;
+	__le32 pa_power1;
+	__le32 pa_power2;
+	struct agg_tx_status status;    /* TX status (for aggregation status */
+					/* of 1st frame) */
+} __attribute__ ((packed));
+
 /*
  * REPLY_COMPRESSED_BA = 0xc5 (response only, not a command)
  *
@@ -1313,9 +1379,8 @@ struct iwl4965_compressed_ba_resp {
 	/* Index of recipient (BA-sending) station in uCode's station table */
 	u8 sta_id;
 	u8 tid;
-	__le16 ba_seq_ctl;
-	__le32 ba_bitmap0;
-	__le32 ba_bitmap1;
+	__le16 seq_ctl;
+	__le64 bitmap;
 	__le16 scd_flow;
 	__le16 scd_ssn;
 } __attribute__ ((packed));
@@ -1348,11 +1413,11 @@ struct iwl4965_txpowertable_cmd {
 
 
 /**
- * struct iwl4965_link_qual_general_params
+ * struct iwl_link_qual_general_params
  *
  * Used in REPLY_TX_LINK_QUALITY_CMD
  */
-struct iwl4965_link_qual_general_params {
+struct iwl_link_qual_general_params {
 	u8 flags;
 
 	/* No entries at or above this (driver chosen) index contain MIMO */
@@ -1379,11 +1444,11 @@ struct iwl4965_link_qual_general_params {
 } __attribute__ ((packed));
 
 /**
- * struct iwl4965_link_qual_agg_params
+ * struct iwl_link_qual_agg_params
  *
  * Used in REPLY_TX_LINK_QUALITY_CMD
  */
-struct iwl4965_link_qual_agg_params {
+struct iwl_link_qual_agg_params {
 
 	/* Maximum number of uSec in aggregation.
 	 * Driver should set this to 4000 (4 milliseconds). */
@@ -1593,14 +1658,14 @@ struct iwl4965_link_qual_agg_params {
  * legacy), and then repeat the search process.
  *
  */
-struct iwl4965_link_quality_cmd {
+struct iwl_link_quality_cmd {
 
 	/* Index of destination/recipient station in uCode's station table */
 	u8 sta_id;
 	u8 reserved1;
 	__le16 control;		/* not used */
-	struct iwl4965_link_qual_general_params general_params;
-	struct iwl4965_link_qual_agg_params agg_params;
+	struct iwl_link_qual_general_params general_params;
+	struct iwl_link_qual_agg_params agg_params;
 
 	/*
 	 * Rate info; when using rate-scaling, Tx command's initial_rate_index
@@ -2625,7 +2690,7 @@ struct iwl4965_led_cmd {
 
 struct iwl4965_rx_packet {
 	__le32 len;
-	struct iwl4965_cmd_header hdr;
+	struct iwl_cmd_header hdr;
 	union {
 		struct iwl4965_alive_resp alive_frame;
 		struct iwl4965_rx_frame rx_frame;

@@ -23,7 +23,7 @@ fctiwz(u32 *frD, void *frB)
 	__FPU_FPSCR = fpscr;
 
 #ifdef DEBUG
-	printk("%s: D %p, B %p: ", __FUNCTION__, frD, frB);
+	printk("%s: D %p, B %p: ", __func__, frD, frB);
 	dump_double(frD);
 	printk("\n");
 #endif

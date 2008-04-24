@@ -15,7 +15,7 @@
 #include <linux/version.h>
 #include <linux/rbtree.h>
 #include <linux/posix_acl.h>
-#include <asm/semaphore.h>
+#include <linux/semaphore.h>
 
 struct jffs2_inode_info {
 	/* We need an internal mutex similar to inode->i_mutex.

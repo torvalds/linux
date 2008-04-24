@@ -161,13 +161,13 @@ struct e1000_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
 	unsigned long time_stamp;
-	uint16_t length;
-	uint16_t next_to_watch;
+	u16 length;
+	u16 next_to_watch;
 };
 
 
 struct e1000_ps_page { struct page *ps_page[PS_PAGE_BUFFERS]; };
-struct e1000_ps_page_dma { uint64_t ps_page_dma[PS_PAGE_BUFFERS]; };
+struct e1000_ps_page_dma { u64 ps_page_dma[PS_PAGE_BUFFERS]; };
 
 struct e1000_tx_ring {
 	/* pointer to the descriptor ring memory */
@@ -186,9 +186,9 @@ struct e1000_tx_ring {
 	struct e1000_buffer *buffer_info;
 
 	spinlock_t tx_lock;
-	uint16_t tdh;
-	uint16_t tdt;
-	boolean_t last_tx_tso;
+	u16 tdh;
+	u16 tdt;
+	bool last_tx_tso;
 };
 
 struct e1000_rx_ring {
@@ -213,8 +213,8 @@ struct e1000_rx_ring {
 	/* cpu for rx queue */
 	int cpu;
 
-	uint16_t rdh;
-	uint16_t rdt;
+	u16 rdh;
+	u16 rdt;
 };
 
 #define E1000_DESC_UNUSED(R) \
@@ -237,31 +237,30 @@ struct e1000_adapter {
 	struct timer_list watchdog_timer;
 	struct timer_list phy_info_timer;
 	struct vlan_group *vlgrp;
-	uint16_t mng_vlan_id;
-	uint32_t bd_number;
-	uint32_t rx_buffer_len;
-	uint32_t wol;
-	uint32_t smartspeed;
-	uint32_t en_mng_pt;
-	uint16_t link_speed;
-	uint16_t link_duplex;
+	u16 mng_vlan_id;
+	u32 bd_number;
+	u32 rx_buffer_len;
+	u32 wol;
+	u32 smartspeed;
+	u32 en_mng_pt;
+	u16 link_speed;
+	u16 link_duplex;
 	spinlock_t stats_lock;
 #ifdef CONFIG_E1000_NAPI
 	spinlock_t tx_queue_lock;
 #endif
-	atomic_t irq_sem;
 	unsigned int total_tx_bytes;
 	unsigned int total_tx_packets;
 	unsigned int total_rx_bytes;
 	unsigned int total_rx_packets;
 	/* Interrupt Throttle Rate */
-	uint32_t itr;
-	uint32_t itr_setting;
-	uint16_t tx_itr;
-	uint16_t rx_itr;
+	u32 itr;
+	u32 itr_setting;
+	u16 tx_itr;
+	u16 rx_itr;
 
 	struct work_struct reset_task;
-	uint8_t fc_autoneg;
+	u8 fc_autoneg;
 
 	struct timer_list blink_timer;
 	unsigned long led_status;
@@ -270,30 +269,30 @@ struct e1000_adapter {
 	struct e1000_tx_ring *tx_ring;      /* One per active queue */
 	unsigned int restart_queue;
 	unsigned long tx_queue_len;
-	uint32_t txd_cmd;
-	uint32_t tx_int_delay;
-	uint32_t tx_abs_int_delay;
-	uint32_t gotcl;
-	uint64_t gotcl_old;
-	uint64_t tpt_old;
-	uint64_t colc_old;
-	uint32_t tx_timeout_count;
-	uint32_t tx_fifo_head;
-	uint32_t tx_head_addr;
-	uint32_t tx_fifo_size;
-	uint8_t  tx_timeout_factor;
+	u32 txd_cmd;
+	u32 tx_int_delay;
+	u32 tx_abs_int_delay;
+	u32 gotcl;
+	u64 gotcl_old;
+	u64 tpt_old;
+	u64 colc_old;
+	u32 tx_timeout_count;
+	u32 tx_fifo_head;
+	u32 tx_head_addr;
+	u32 tx_fifo_size;
+	u8  tx_timeout_factor;
 	atomic_t tx_fifo_stall;
-	boolean_t pcix_82544;
-	boolean_t detect_tx_hung;
+	bool pcix_82544;
+	bool detect_tx_hung;
 
 	/* RX */
 #ifdef CONFIG_E1000_NAPI
-	boolean_t (*clean_rx) (struct e1000_adapter *adapter,
-			       struct e1000_rx_ring *rx_ring,
-			       int *work_done, int work_to_do);
+	bool (*clean_rx) (struct e1000_adapter *adapter,
+			  struct e1000_rx_ring *rx_ring,
+			  int *work_done, int work_to_do);
 #else
-	boolean_t (*clean_rx) (struct e1000_adapter *adapter,
-			       struct e1000_rx_ring *rx_ring);
+	bool (*clean_rx) (struct e1000_adapter *adapter,
+			  struct e1000_rx_ring *rx_ring);
 #endif
 	void (*alloc_rx_buf) (struct e1000_adapter *adapter,
 			      struct e1000_rx_ring *rx_ring,
@@ -306,17 +305,17 @@ struct e1000_adapter {
 	int num_tx_queues;
 	int num_rx_queues;
 
-	uint64_t hw_csum_err;
-	uint64_t hw_csum_good;
-	uint64_t rx_hdr_split;
-	uint32_t alloc_rx_buff_failed;
-	uint32_t rx_int_delay;
-	uint32_t rx_abs_int_delay;
-	boolean_t rx_csum;
+	u64 hw_csum_err;
+	u64 hw_csum_good;
+	u64 rx_hdr_split;
+	u32 alloc_rx_buff_failed;
+	u32 rx_int_delay;
+	u32 rx_abs_int_delay;
+	bool rx_csum;
 	unsigned int rx_ps_pages;
-	uint32_t gorcl;
-	uint64_t gorcl_old;
-	uint16_t rx_ps_bsize0;
+	u32 gorcl;
+	u64 gorcl_old;
+	u16 rx_ps_bsize0;
 
 
 	/* OS defined structs */
@@ -330,19 +329,19 @@ struct e1000_adapter {
 	struct e1000_phy_info phy_info;
 	struct e1000_phy_stats phy_stats;
 
-	uint32_t test_icr;
+	u32 test_icr;
 	struct e1000_tx_ring test_tx_ring;
 	struct e1000_rx_ring test_rx_ring;
 
 	int msg_enable;
-	boolean_t have_msi;
+	bool have_msi;
 
 	/* to not mess up cache alignment, always add to the bottom */
-	boolean_t tso_force;
-	boolean_t smart_power_down;	/* phy smart power down */
-	boolean_t quad_port_a;
+	bool tso_force;
+	bool smart_power_down;	/* phy smart power down */
+	bool quad_port_a;
 	unsigned long flags;
-	uint32_t eeprom_wol;
+	u32 eeprom_wol;
 };
 
 enum e1000_state_t {

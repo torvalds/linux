@@ -14,9 +14,6 @@
 
 #ifdef __KERNEL__
 
-
-#define ide_default_io_ctl(base)	(0)
-
 #include <asm-generic/ide_iops.h>
 
 #endif /* __KERNEL__ */

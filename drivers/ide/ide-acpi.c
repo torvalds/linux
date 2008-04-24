@@ -710,6 +710,8 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	for (i = 0; i < MAX_DRIVES; i++) {
 		drive = &hwif->drives[i];
 
+		memset(drive->acpidata, 0, sizeof(*drive->acpidata));
+
 		if (!drive->present)
 			continue;
 

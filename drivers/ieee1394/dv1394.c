@@ -2179,8 +2179,7 @@ static struct ieee1394_device_id dv1394_id_table[] = {
 MODULE_DEVICE_TABLE(ieee1394, dv1394_id_table);
 
 static struct hpsb_protocol_driver dv1394_driver = {
-	.name		= "dv1394",
-	.id_table	= dv1394_id_table,
+	.name = "dv1394",
 };
 
 
@@ -2568,7 +2567,6 @@ static int __init dv1394_init_module(void)
 
 	cdev_init(&dv1394_cdev, &dv1394_fops);
 	dv1394_cdev.owner = THIS_MODULE;
-	kobject_set_name(&dv1394_cdev.kobj, "dv1394");
 	ret = cdev_add(&dv1394_cdev, IEEE1394_DV1394_DEV, 16);
 	if (ret) {
 		printk(KERN_ERR "dv1394: unable to register character device\n");

@@ -23,7 +23,7 @@ int ip6_route_me_harder(struct sk_buff *skb)
 		    .saddr = iph->saddr, } },
 	};
 
-	dst = ip6_route_output(skb->sk, &fl);
+	dst = ip6_route_output(&init_net, skb->sk, &fl);
 
 #ifdef CONFIG_XFRM
 	if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
@@ -86,7 +86,7 @@ static int nf_ip6_reroute(struct sk_buff *skb,
 
 static int nf_ip6_route(struct dst_entry **dst, struct flowi *fl)
 {
-	*dst = ip6_route_output(NULL, fl);
+	*dst = ip6_route_output(&init_net, NULL, fl);
 	return (*dst)->error;
 }
 
@@ -121,16 +121,44 @@ __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 	}
 	return csum;
 }
-
 EXPORT_SYMBOL(nf_ip6_checksum);
 
+static __sum16 nf_ip6_checksum_partial(struct sk_buff *skb, unsigned int hook,
+				       unsigned int dataoff, unsigned int len,
+				       u_int8_t protocol)
+{
+	struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	__wsum hsum;
+	__sum16 csum = 0;
+
+	switch (skb->ip_summed) {
+	case CHECKSUM_COMPLETE:
+		if (len == skb->len - dataoff)
+			return nf_ip6_checksum(skb, hook, dataoff, protocol);
+		/* fall through */
+	case CHECKSUM_NONE:
+		hsum = skb_checksum(skb, 0, dataoff, 0);
+		skb->csum = ~csum_unfold(csum_ipv6_magic(&ip6h->saddr,
+							 &ip6h->daddr,
+							 skb->len - dataoff,
+							 protocol,
+							 csum_sub(0, hsum)));
+		skb->ip_summed = CHECKSUM_NONE;
+		csum = __skb_checksum_complete_head(skb, dataoff + len);
+		if (!csum)
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
+	return csum;
+};
+
 static const struct nf_afinfo nf_ip6_afinfo = {
-	.family		= AF_INET6,
-	.checksum	= nf_ip6_checksum,
-	.route		= nf_ip6_route,
-	.saveroute	= nf_ip6_saveroute,
-	.reroute	= nf_ip6_reroute,
-	.route_key_size	= sizeof(struct ip6_rt_info),
+	.family			= AF_INET6,
+	.checksum		= nf_ip6_checksum,
+	.checksum_partial	= nf_ip6_checksum_partial,
+	.route			= nf_ip6_route,
+	.saveroute		= nf_ip6_saveroute,
+	.reroute		= nf_ip6_reroute,
+	.route_key_size		= sizeof(struct ip6_rt_info),
 };
 
 int __init ipv6_netfilter_init(void)

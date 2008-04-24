@@ -199,58 +199,6 @@ static struct pci_ops * __init pci_check_direct(void)
 }
 
 /*
- * Several buggy motherboards address only 16 devices and mirror
- * them to next 16 IDs. We try to detect this `feature' on all
- * primary buses (those containing host bridges as they are
- * expected to be unique) and remove the ghost devices.
- */
-
-static void __init pcibios_fixup_ghosts(struct pci_bus *b)
-{
-	struct list_head *ln, *mn;
-	struct pci_dev *d, *e;
-	int mirror = PCI_DEVFN(16,0);
-	int seen_host_bridge = 0;
-	int i;
-
-	for (ln=b->devices.next; ln != &b->devices; ln=ln->next) {
-		d = pci_dev_b(ln);
-		if ((d->class >> 8) == PCI_CLASS_BRIDGE_HOST)
-			seen_host_bridge++;
-		for (mn=ln->next; mn != &b->devices; mn=mn->next) {
-			e = pci_dev_b(mn);
-			if (e->devfn != d->devfn + mirror ||
-			    e->vendor != d->vendor ||
-			    e->device != d->device ||
-			    e->class != d->class)
-				continue;
-			for(i=0; i<PCI_NUM_RESOURCES; i++)
-				if (e->resource[i].start != d->resource[i].start ||
-				    e->resource[i].end != d->resource[i].end ||
-				    e->resource[i].flags != d->resource[i].flags)
-					continue;
-			break;
-		}
-		if (mn == &b->devices)
-			return;
-	}
-	if (!seen_host_bridge)
-		return;
-	printk("PCI: Ignoring ghost devices on bus %02x\n", b->number);
-
-	ln = &b->devices;
-	while (ln->next != &b->devices) {
-		d = pci_dev_b(ln->next);
-		if (d->devfn >= mirror) {
-			list_del(&d->global_list);
-			list_del(&d->bus_list);
-			kfree(d);
-		} else
-			ln = ln->next;
-	}
-}
-
-/*
  * Discover remaining PCI buses in case there are peer host bridges.
  * We use the number of last PCI bus provided by the PCI BIOS.
  */
@@ -356,7 +304,6 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 #if 0
 	printk("### PCIBIOS_FIXUP_BUS(%d)\n",bus->number);
 #endif
-	pcibios_fixup_ghosts(bus);
 	pci_read_bridge_bases(bus);
 
 	if (bus->number == 0) {

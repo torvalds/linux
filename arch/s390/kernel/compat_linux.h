@@ -162,4 +162,77 @@ struct ucontext32 {
 	compat_sigset_t		uc_sigmask;	/* mask last for extensibility */
 };
 
+struct __sysctl_args32;
+struct stat64_emu31;
+struct mmap_arg_struct_emu31;
+struct fadvise64_64_args;
+struct old_sigaction32;
+struct old_sigaction32;
+
+long sys32_chown16(const char __user * filename, u16 user, u16 group);
+long sys32_lchown16(const char __user * filename, u16 user, u16 group);
+long sys32_fchown16(unsigned int fd, u16 user, u16 group);
+long sys32_setregid16(u16 rgid, u16 egid);
+long sys32_setgid16(u16 gid);
+long sys32_setreuid16(u16 ruid, u16 euid);
+long sys32_setuid16(u16 uid);
+long sys32_setresuid16(u16 ruid, u16 euid, u16 suid);
+long sys32_getresuid16(u16 __user *ruid, u16 __user *euid, u16 __user *suid);
+long sys32_setresgid16(u16 rgid, u16 egid, u16 sgid);
+long sys32_getresgid16(u16 __user *rgid, u16 __user *egid, u16 __user *sgid);
+long sys32_setfsuid16(u16 uid);
+long sys32_setfsgid16(u16 gid);
+long sys32_getgroups16(int gidsetsize, u16 __user *grouplist);
+long sys32_setgroups16(int gidsetsize, u16 __user *grouplist);
+long sys32_getuid16(void);
+long sys32_geteuid16(void);
+long sys32_getgid16(void);
+long sys32_getegid16(void);
+long sys32_ipc(u32 call, int first, int second, int third, u32 ptr);
+long sys32_truncate64(const char __user * path, unsigned long high,
+		      unsigned long low);
+long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned long low);
+long sys32_sched_rr_get_interval(compat_pid_t pid,
+				 struct compat_timespec __user *interval);
+long sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
+			  compat_sigset_t __user *oset, size_t sigsetsize);
+long sys32_rt_sigpending(compat_sigset_t __user *set, size_t sigsetsize);
+long sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo);
+long sys32_execve(void);
+long sys32_init_module(void __user *umod, unsigned long len,
+		       const char __user *uargs);
+long sys32_delete_module(const char __user *name_user, unsigned int flags);
+long sys32_gettimeofday(struct compat_timeval __user *tv,
+			struct timezone __user *tz);
+long sys32_settimeofday(struct compat_timeval __user *tv,
+			struct timezone __user *tz);
+long sys32_pause(void);
+long sys32_pread64(unsigned int fd, char __user *ubuf, size_t count,
+		   u32 poshi, u32 poslo);
+long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
+		    size_t count, u32 poshi, u32 poslo);
+compat_ssize_t sys32_readahead(int fd, u32 offhi, u32 offlo, s32 count);
+long sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset,
+		    size_t count);
+long sys32_sendfile64(int out_fd, int in_fd, compat_loff_t __user *offset,
+		      s32 count);
+long sys32_sysctl(struct __sysctl_args32 __user *args);
+long sys32_stat64(char __user * filename, struct stat64_emu31 __user * statbuf);
+long sys32_lstat64(char __user * filename,
+		   struct stat64_emu31 __user * statbuf);
+long sys32_fstat64(unsigned long fd, struct stat64_emu31 __user * statbuf);
+long sys32_fstatat64(unsigned int dfd, char __user *filename,
+		     struct stat64_emu31 __user* statbuf, int flag);
+unsigned long old32_mmap(struct mmap_arg_struct_emu31 __user *arg);
+long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg);
+long sys32_read(unsigned int fd, char __user * buf, size_t count);
+long sys32_write(unsigned int fd, char __user * buf, size_t count);
+long sys32_clone(void);
+long sys32_fadvise64(int fd, loff_t offset, size_t len, int advise);
+long sys32_fadvise64_64(struct fadvise64_64_args __user *args);
+long sys32_sigaction(int sig, const struct old_sigaction32 __user *act,
+		     struct old_sigaction32 __user *oact);
+long sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
+			struct sigaction32 __user *oact, size_t sigsetsize);
+long sys32_sigaltstack(const stack_t32 __user *uss, stack_t32 __user *uoss);
 #endif /* _ASM_S390X_S390_H */

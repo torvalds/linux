@@ -35,13 +35,13 @@
 
 /*  Local function prototypes */
 
-static uint32_t ixgb_hash_mc_addr(struct ixgb_hw *hw, uint8_t * mc_addr);
+static u32 ixgb_hash_mc_addr(struct ixgb_hw *hw, u8 * mc_addr);
 
-static void ixgb_mta_set(struct ixgb_hw *hw, uint32_t hash_value);
+static void ixgb_mta_set(struct ixgb_hw *hw, u32 hash_value);
 
 static void ixgb_get_bus_info(struct ixgb_hw *hw);
 
-static boolean_t ixgb_link_reset(struct ixgb_hw *hw);
+static bool ixgb_link_reset(struct ixgb_hw *hw);
 
 static void ixgb_optics_reset(struct ixgb_hw *hw);
 
@@ -55,18 +55,18 @@ static void ixgb_clear_vfta(struct ixgb_hw *hw);
 
 static void ixgb_init_rx_addrs(struct ixgb_hw *hw);
 
-static uint16_t ixgb_read_phy_reg(struct ixgb_hw *hw,
-				  uint32_t reg_address,
-				  uint32_t phy_address,
-				  uint32_t device_type);
+static u16 ixgb_read_phy_reg(struct ixgb_hw *hw,
+				  u32 reg_address,
+				  u32 phy_address,
+				  u32 device_type);
 
-static boolean_t ixgb_setup_fc(struct ixgb_hw *hw);
+static bool ixgb_setup_fc(struct ixgb_hw *hw);
 
-static boolean_t mac_addr_valid(uint8_t *mac_addr);
+static bool mac_addr_valid(u8 *mac_addr);
 
-static uint32_t ixgb_mac_reset(struct ixgb_hw *hw)
+static u32 ixgb_mac_reset(struct ixgb_hw *hw)
 {
-	uint32_t ctrl_reg;
+	u32 ctrl_reg;
 
 	ctrl_reg =  IXGB_CTRL0_RST |
 				IXGB_CTRL0_SDP3_DIR |   /* All pins are Output=1 */
@@ -114,11 +114,11 @@ static uint32_t ixgb_mac_reset(struct ixgb_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-boolean_t
+bool
 ixgb_adapter_stop(struct ixgb_hw *hw)
 {
-	uint32_t ctrl_reg;
-	uint32_t icr_reg;
+	u32 ctrl_reg;
+	u32 icr_reg;
 
 	DEBUGFUNC("ixgb_adapter_stop");
 
@@ -127,13 +127,13 @@ ixgb_adapter_stop(struct ixgb_hw *hw)
 	 */
 	if(hw->adapter_stopped) {
 		DEBUGOUT("Exiting because the adapter is already stopped!!!\n");
-		return FALSE;
+		return false;
 	}
 
 	/* Set the Adapter Stopped flag so other driver functions stop
 	 * touching the Hardware.
 	 */
-	hw->adapter_stopped = TRUE;
+	hw->adapter_stopped = true;
 
 	/* Clear interrupt mask to stop board from generating interrupts */
 	DEBUGOUT("Masking off all interrupts\n");
@@ -179,8 +179,8 @@ ixgb_adapter_stop(struct ixgb_hw *hw)
 static ixgb_xpak_vendor
 ixgb_identify_xpak_vendor(struct ixgb_hw *hw)
 {
-	uint32_t i;
-	uint16_t vendor_name[5];
+	u32 i;
+	u16 vendor_name[5];
 	ixgb_xpak_vendor xpak_vendor;
 
 	DEBUGFUNC("ixgb_identify_xpak_vendor");
@@ -286,15 +286,15 @@ ixgb_identify_phy(struct ixgb_hw *hw)
  * Leaves the transmit and receive units disabled and uninitialized.
  *
  * Returns:
- *      TRUE if successful,
- *      FALSE if unrecoverable problems were encountered.
+ *      true if successful,
+ *      false if unrecoverable problems were encountered.
  *****************************************************************************/
-boolean_t
+bool
 ixgb_init_hw(struct ixgb_hw *hw)
 {
-	uint32_t i;
-	uint32_t ctrl_reg;
-	boolean_t status;
+	u32 i;
+	u32 ctrl_reg;
+	bool status;
 
 	DEBUGFUNC("ixgb_init_hw");
 
@@ -318,9 +318,8 @@ ixgb_init_hw(struct ixgb_hw *hw)
 	/* Delay a few ms just to allow the reset to complete */
 	msleep(IXGB_DELAY_AFTER_EE_RESET);
 
-	if (ixgb_get_eeprom_data(hw) == FALSE) {
-		return(FALSE);
-	}
+	if (!ixgb_get_eeprom_data(hw))
+		return false;
 
 	/* Use the device id to determine the type of phy/transceiver. */
 	hw->device_id = ixgb_get_ee_device_id(hw);
@@ -337,11 +336,11 @@ ixgb_init_hw(struct ixgb_hw *hw)
 	 */
 	if (!mac_addr_valid(hw->curr_mac_addr)) {
 		DEBUGOUT("MAC address invalid after ixgb_init_rx_addrs\n");
-		return(FALSE);
+		return(false);
 	}
 
 	/* tell the routines in this file they can access hardware again */
-	hw->adapter_stopped = FALSE;
+	hw->adapter_stopped = false;
 
 	/* Fill in the bus_info structure */
 	ixgb_get_bus_info(hw);
@@ -378,7 +377,7 @@ ixgb_init_hw(struct ixgb_hw *hw)
 static void
 ixgb_init_rx_addrs(struct ixgb_hw *hw)
 {
-	uint32_t i;
+	u32 i;
 
 	DEBUGFUNC("ixgb_init_rx_addrs");
 
@@ -438,13 +437,13 @@ ixgb_init_rx_addrs(struct ixgb_hw *hw)
  *****************************************************************************/
 void
 ixgb_mc_addr_list_update(struct ixgb_hw *hw,
-			  uint8_t *mc_addr_list,
-			  uint32_t mc_addr_count,
-			  uint32_t pad)
+			  u8 *mc_addr_list,
+			  u32 mc_addr_count,
+			  u32 pad)
 {
-	uint32_t hash_value;
-	uint32_t i;
-	uint32_t rar_used_count = 1;		/* RAR[0] is used for our MAC address */
+	u32 hash_value;
+	u32 i;
+	u32 rar_used_count = 1;		/* RAR[0] is used for our MAC address */
 
 	DEBUGFUNC("ixgb_mc_addr_list_update");
 
@@ -516,11 +515,11 @@ ixgb_mc_addr_list_update(struct ixgb_hw *hw,
  * Returns:
  *      The hash value
  *****************************************************************************/
-static uint32_t
+static u32
 ixgb_hash_mc_addr(struct ixgb_hw *hw,
-		   uint8_t *mc_addr)
+		   u8 *mc_addr)
 {
-	uint32_t hash_value = 0;
+	u32 hash_value = 0;
 
 	DEBUGFUNC("ixgb_hash_mc_addr");
 
@@ -534,18 +533,18 @@ ixgb_hash_mc_addr(struct ixgb_hw *hw,
 	case 0:
 		/* [47:36] i.e. 0x563 for above example address */
 		hash_value =
-		    ((mc_addr[4] >> 4) | (((uint16_t) mc_addr[5]) << 4));
+		    ((mc_addr[4] >> 4) | (((u16) mc_addr[5]) << 4));
 		break;
 	case 1:		/* [46:35] i.e. 0xAC6 for above example address */
 		hash_value =
-		    ((mc_addr[4] >> 3) | (((uint16_t) mc_addr[5]) << 5));
+		    ((mc_addr[4] >> 3) | (((u16) mc_addr[5]) << 5));
 		break;
 	case 2:		/* [45:34] i.e. 0x5D8 for above example address */
 		hash_value =
-		    ((mc_addr[4] >> 2) | (((uint16_t) mc_addr[5]) << 6));
+		    ((mc_addr[4] >> 2) | (((u16) mc_addr[5]) << 6));
 		break;
 	case 3:		/* [43:32] i.e. 0x634 for above example address */
-		hash_value = ((mc_addr[4]) | (((uint16_t) mc_addr[5]) << 8));
+		hash_value = ((mc_addr[4]) | (((u16) mc_addr[5]) << 8));
 		break;
 	default:
 		/* Invalid mc_filter_type, what should we do? */
@@ -566,10 +565,10 @@ ixgb_hash_mc_addr(struct ixgb_hw *hw,
  *****************************************************************************/
 static void
 ixgb_mta_set(struct ixgb_hw *hw,
-		  uint32_t hash_value)
+		  u32 hash_value)
 {
-	uint32_t hash_bit, hash_reg;
-	uint32_t mta_reg;
+	u32 hash_bit, hash_reg;
+	u32 mta_reg;
 
 	/* The MTA is a register array of 128 32-bit registers.
 	 * It is treated like an array of 4096 bits.  We want to set
@@ -600,23 +599,23 @@ ixgb_mta_set(struct ixgb_hw *hw,
  *****************************************************************************/
 void
 ixgb_rar_set(struct ixgb_hw *hw,
-		  uint8_t *addr,
-		  uint32_t index)
+		  u8 *addr,
+		  u32 index)
 {
-	uint32_t rar_low, rar_high;
+	u32 rar_low, rar_high;
 
 	DEBUGFUNC("ixgb_rar_set");
 
 	/* HW expects these in little endian so we reverse the byte order
 	 * from network order (big endian) to little endian
 	 */
-	rar_low = ((uint32_t) addr[0] |
-		   ((uint32_t)addr[1] << 8) |
-		   ((uint32_t)addr[2] << 16) |
-		   ((uint32_t)addr[3] << 24));
+	rar_low = ((u32) addr[0] |
+		   ((u32)addr[1] << 8) |
+		   ((u32)addr[2] << 16) |
+		   ((u32)addr[3] << 24));
 
-	rar_high = ((uint32_t) addr[4] |
-			((uint32_t)addr[5] << 8) |
+	rar_high = ((u32) addr[4] |
+			((u32)addr[5] << 8) |
 			IXGB_RAH_AV);
 
 	IXGB_WRITE_REG_ARRAY(hw, RA, (index << 1), rar_low);
@@ -633,8 +632,8 @@ ixgb_rar_set(struct ixgb_hw *hw,
  *****************************************************************************/
 void
 ixgb_write_vfta(struct ixgb_hw *hw,
-		 uint32_t offset,
-		 uint32_t value)
+		 u32 offset,
+		 u32 value)
 {
 	IXGB_WRITE_REG_ARRAY(hw, VFTA, offset, value);
 	return;
@@ -648,7 +647,7 @@ ixgb_write_vfta(struct ixgb_hw *hw,
 static void
 ixgb_clear_vfta(struct ixgb_hw *hw)
 {
-	uint32_t offset;
+	u32 offset;
 
 	for(offset = 0; offset < IXGB_VLAN_FILTER_TBL_SIZE; offset++)
 		IXGB_WRITE_REG_ARRAY(hw, VFTA, offset, 0);
@@ -661,12 +660,12 @@ ixgb_clear_vfta(struct ixgb_hw *hw)
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
 
-static boolean_t
+static bool
 ixgb_setup_fc(struct ixgb_hw *hw)
 {
-	uint32_t ctrl_reg;
-	uint32_t pap_reg = 0;   /* by default, assume no pause time */
-	boolean_t status = TRUE;
+	u32 ctrl_reg;
+	u32 pap_reg = 0;   /* by default, assume no pause time */
+	bool status = true;
 
 	DEBUGFUNC("ixgb_setup_fc");
 
@@ -763,15 +762,15 @@ ixgb_setup_fc(struct ixgb_hw *hw)
  * This requires that first an address cycle command is sent, followed by a
  * read command.
  *****************************************************************************/
-static uint16_t
+static u16
 ixgb_read_phy_reg(struct ixgb_hw *hw,
-		uint32_t reg_address,
-		uint32_t phy_address,
-		uint32_t device_type)
+		u32 reg_address,
+		u32 phy_address,
+		u32 device_type)
 {
-	uint32_t i;
-	uint32_t data;
-	uint32_t command = 0;
+	u32 i;
+	u32 data;
+	u32 command = 0;
 
 	ASSERT(reg_address <= IXGB_MAX_PHY_REG_ADDRESS);
 	ASSERT(phy_address <= IXGB_MAX_PHY_ADDRESS);
@@ -836,7 +835,7 @@ ixgb_read_phy_reg(struct ixgb_hw *hw,
 	 */
 	data = IXGB_READ_REG(hw, MSRWD);
 	data >>= IXGB_MSRWD_READ_DATA_SHIFT;
-	return((uint16_t) data);
+	return((u16) data);
 }
 
 /******************************************************************************
@@ -858,20 +857,20 @@ ixgb_read_phy_reg(struct ixgb_hw *hw,
  *****************************************************************************/
 static void
 ixgb_write_phy_reg(struct ixgb_hw *hw,
-			uint32_t reg_address,
-			uint32_t phy_address,
-			uint32_t device_type,
-			uint16_t data)
+			u32 reg_address,
+			u32 phy_address,
+			u32 device_type,
+			u16 data)
 {
-	uint32_t i;
-	uint32_t command = 0;
+	u32 i;
+	u32 command = 0;
 
 	ASSERT(reg_address <= IXGB_MAX_PHY_REG_ADDRESS);
 	ASSERT(phy_address <= IXGB_MAX_PHY_ADDRESS);
 	ASSERT(device_type <= IXGB_MAX_PHY_DEV_TYPE);
 
 	/* Put the data in the MDIO Read/Write Data register */
-	IXGB_WRITE_REG(hw, MSRWD, (uint32_t)data);
+	IXGB_WRITE_REG(hw, MSRWD, (u32)data);
 
 	/* Setup and write the address cycle command */
 	command = ((reg_address << IXGB_MSCA_NP_ADDR_SHIFT)  |
@@ -940,8 +939,8 @@ ixgb_write_phy_reg(struct ixgb_hw *hw,
 void
 ixgb_check_for_link(struct ixgb_hw *hw)
 {
-	uint32_t status_reg;
-	uint32_t xpcss_reg;
+	u32 status_reg;
+	u32 xpcss_reg;
 
 	DEBUGFUNC("ixgb_check_for_link");
 
@@ -950,7 +949,7 @@ ixgb_check_for_link(struct ixgb_hw *hw)
 
 	if ((xpcss_reg & IXGB_XPCSS_ALIGN_STATUS) &&
 	    (status_reg & IXGB_STATUS_LU)) {
-		hw->link_up = TRUE;
+		hw->link_up = true;
 	} else if (!(xpcss_reg & IXGB_XPCSS_ALIGN_STATUS) &&
 		   (status_reg & IXGB_STATUS_LU)) {
 		DEBUGOUT("XPCSS Not Aligned while Status:LU is set.\n");
@@ -974,10 +973,10 @@ ixgb_check_for_link(struct ixgb_hw *hw)
  *
  * Called by any function that needs to check the link status of the adapter.
  *****************************************************************************/
-boolean_t ixgb_check_for_bad_link(struct ixgb_hw *hw)
+bool ixgb_check_for_bad_link(struct ixgb_hw *hw)
 {
-	uint32_t newLFC, newRFC;
-	boolean_t bad_link_returncode = FALSE;
+	u32 newLFC, newRFC;
+	bool bad_link_returncode = false;
 
 	if (hw->phy_type == ixgb_phy_type_txn17401) {
 		newLFC = IXGB_READ_REG(hw, LFC);
@@ -986,7 +985,7 @@ boolean_t ixgb_check_for_bad_link(struct ixgb_hw *hw)
 		    || (hw->lastRFC + 250 < newRFC)) {
 			DEBUGOUT
 			    ("BAD LINK! too many LFC/RFC since last check\n");
-			bad_link_returncode = TRUE;
+			bad_link_returncode = true;
 		}
 		hw->lastLFC = newLFC;
 		hw->lastRFC = newRFC;
@@ -1003,7 +1002,7 @@ boolean_t ixgb_check_for_bad_link(struct ixgb_hw *hw)
 static void
 ixgb_clear_hw_cntrs(struct ixgb_hw *hw)
 {
-	volatile uint32_t temp_reg;
+	volatile u32 temp_reg;
 
 	DEBUGFUNC("ixgb_clear_hw_cntrs");
 
@@ -1084,7 +1083,7 @@ ixgb_clear_hw_cntrs(struct ixgb_hw *hw)
 void
 ixgb_led_on(struct ixgb_hw *hw)
 {
-	uint32_t ctrl0_reg = IXGB_READ_REG(hw, CTRL0);
+	u32 ctrl0_reg = IXGB_READ_REG(hw, CTRL0);
 
 	/* To turn on the LED, clear software-definable pin 0 (SDP0). */
 	ctrl0_reg &= ~IXGB_CTRL0_SDP0;
@@ -1100,7 +1099,7 @@ ixgb_led_on(struct ixgb_hw *hw)
 void
 ixgb_led_off(struct ixgb_hw *hw)
 {
-	uint32_t ctrl0_reg = IXGB_READ_REG(hw, CTRL0);
+	u32 ctrl0_reg = IXGB_READ_REG(hw, CTRL0);
 
 	/* To turn off the LED, set software-definable pin 0 (SDP0). */
 	ctrl0_reg |= IXGB_CTRL0_SDP0;
@@ -1116,7 +1115,7 @@ ixgb_led_off(struct ixgb_hw *hw)
 static void
 ixgb_get_bus_info(struct ixgb_hw *hw)
 {
-	uint32_t status_reg;
+	u32 status_reg;
 
 	status_reg = IXGB_READ_REG(hw, STATUS);
 
@@ -1155,21 +1154,21 @@ ixgb_get_bus_info(struct ixgb_hw *hw)
  * mac_addr - pointer to MAC address.
  *
  *****************************************************************************/
-static boolean_t
-mac_addr_valid(uint8_t *mac_addr)
+static bool
+mac_addr_valid(u8 *mac_addr)
 {
-	boolean_t is_valid = TRUE;
+	bool is_valid = true;
 	DEBUGFUNC("mac_addr_valid");
 
 	/* Make sure it is not a multicast address */
 	if (IS_MULTICAST(mac_addr)) {
 		DEBUGOUT("MAC address is multicast\n");
-		is_valid = FALSE;
+		is_valid = false;
 	}
 	/* Not a broadcast address */
 	else if (IS_BROADCAST(mac_addr)) {
 		DEBUGOUT("MAC address is broadcast\n");
-		is_valid = FALSE;
+		is_valid = false;
 	}
 	/* Reject the zero address */
 	else if (mac_addr[0] == 0 &&
@@ -1179,7 +1178,7 @@ mac_addr_valid(uint8_t *mac_addr)
 			 mac_addr[4] == 0 &&
 			 mac_addr[5] == 0) {
 		DEBUGOUT("MAC address is all zeros\n");
-		is_valid = FALSE;
+		is_valid = false;
 	}
 	return (is_valid);
 }
@@ -1190,12 +1189,12 @@ mac_addr_valid(uint8_t *mac_addr)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-static boolean_t
+static bool
 ixgb_link_reset(struct ixgb_hw *hw)
 {
-	boolean_t link_status = FALSE;
-	uint8_t wait_retries = MAX_RESET_ITERATIONS;
-	uint8_t lrst_retries = MAX_RESET_ITERATIONS;
+	bool link_status = false;
+	u8 wait_retries = MAX_RESET_ITERATIONS;
+	u8 lrst_retries = MAX_RESET_ITERATIONS;
 
 	do {
 		/* Reset the link */
@@ -1208,7 +1207,7 @@ ixgb_link_reset(struct ixgb_hw *hw)
 			link_status =
 			    ((IXGB_READ_REG(hw, STATUS) & IXGB_STATUS_LU)
 			     && (IXGB_READ_REG(hw, XPCSS) &
-				 IXGB_XPCSS_ALIGN_STATUS)) ? TRUE : FALSE;
+				 IXGB_XPCSS_ALIGN_STATUS)) ? true : false;
 		} while (!link_status && --wait_retries);
 
 	} while (!link_status && --lrst_retries);
@@ -1225,7 +1224,7 @@ static void
 ixgb_optics_reset(struct ixgb_hw *hw)
 {
 	if (hw->phy_type == ixgb_phy_type_txn17401) {
-		uint16_t mdio_reg;
+		u16 mdio_reg;
 
 		ixgb_write_phy_reg(hw,
 					MDIO_PMA_PMD_CR1,

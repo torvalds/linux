@@ -75,6 +75,20 @@ _GLOBAL(strcmp)
 	beq	1b
 	blr
 
+_GLOBAL(strncmp)
+	PPC_LCMPI r5,0
+	beqlr
+	mtctr	r5
+	addi	r5,r3,-1
+	addi	r4,r4,-1
+1:	lbzu	r3,1(r5)
+	cmpwi	1,r3,0
+	lbzu	r0,1(r4)
+	subf.	r3,r0,r3
+	beqlr	1
+	bdnzt	eq,1b
+	blr
+
 _GLOBAL(strlen)
 	addi	r4,r3,-1
 1:	lbzu	r0,1(r4)

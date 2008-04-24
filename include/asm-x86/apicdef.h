@@ -12,17 +12,15 @@
 
 #define	APIC_ID		0x20
 
-#ifdef CONFIG_X86_64
-# define	APIC_ID_MASK		(0xFFu<<24)
-# define	GET_APIC_ID(x)		(((x)>>24)&0xFFu)
-# define	SET_APIC_ID(x)		(((x)<<24))
-#endif
-
 #define	APIC_LVR	0x30
 #define		APIC_LVR_MASK		0xFF00FF
-#define		GET_APIC_VERSION(x)	((x)&0xFFu)
-#define		GET_APIC_MAXLVT(x)	(((x)>>16)&0xFFu)
-#define		APIC_INTEGRATED(x)	((x)&0xF0u)
+#define		GET_APIC_VERSION(x)	((x) & 0xFFu)
+#define		GET_APIC_MAXLVT(x)	(((x) >> 16) & 0xFFu)
+#ifdef CONFIG_X86_32
+#  define	APIC_INTEGRATED(x)	((x) & 0xF0u)
+#else
+#  define	APIC_INTEGRATED(x)	(1)
+#endif
 #define		APIC_XAPIC(x)		((x) >= 0x14)
 #define	APIC_TASKPRI	0x80
 #define		APIC_TPRI_MASK		0xFFu
@@ -33,16 +31,16 @@
 #define		APIC_EIO_ACK		0x0
 #define	APIC_RRR	0xC0
 #define	APIC_LDR	0xD0
-#define		APIC_LDR_MASK		(0xFFu<<24)
-#define		GET_APIC_LOGICAL_ID(x)	(((x)>>24)&0xFFu)
-#define		SET_APIC_LOGICAL_ID(x)	(((x)<<24))
+#define		APIC_LDR_MASK		(0xFFu << 24)
+#define		GET_APIC_LOGICAL_ID(x)	(((x) >> 24) & 0xFFu)
+#define		SET_APIC_LOGICAL_ID(x)	(((x) << 24))
 #define		APIC_ALL_CPUS		0xFFu
 #define	APIC_DFR	0xE0
 #define		APIC_DFR_CLUSTER		0x0FFFFFFFul
 #define		APIC_DFR_FLAT			0xFFFFFFFFul
 #define	APIC_SPIV	0xF0
-#define		APIC_SPIV_FOCUS_DISABLED	(1<<9)
-#define		APIC_SPIV_APIC_ENABLED		(1<<8)
+#define		APIC_SPIV_FOCUS_DISABLED	(1 << 9)
+#define		APIC_SPIV_APIC_ENABLED		(1 << 8)
 #define	APIC_ISR	0x100
 #define	APIC_ISR_NR     0x8     /* Number of 32 bit ISR registers. */
 #define	APIC_TMR	0x180
@@ -78,27 +76,27 @@
 #define		APIC_DM_EXTINT		0x00700
 #define		APIC_VECTOR_MASK	0x000FF
 #define	APIC_ICR2	0x310
-#define		GET_APIC_DEST_FIELD(x)	(((x)>>24)&0xFF)
-#define		SET_APIC_DEST_FIELD(x)	((x)<<24)
+#define		GET_APIC_DEST_FIELD(x)	(((x) >> 24) & 0xFF)
+#define		SET_APIC_DEST_FIELD(x)	((x) << 24)
 #define	APIC_LVTT	0x320
 #define	APIC_LVTTHMR	0x330
 #define	APIC_LVTPC	0x340
 #define	APIC_LVT0	0x350
-#define		APIC_LVT_TIMER_BASE_MASK	(0x3<<18)
-#define		GET_APIC_TIMER_BASE(x)		(((x)>>18)&0x3)
-#define		SET_APIC_TIMER_BASE(x)		(((x)<<18))
+#define		APIC_LVT_TIMER_BASE_MASK	(0x3 << 18)
+#define		GET_APIC_TIMER_BASE(x)		(((x) >> 18) & 0x3)
+#define		SET_APIC_TIMER_BASE(x)		(((x) << 18))
 #define		APIC_TIMER_BASE_CLKIN		0x0
 #define		APIC_TIMER_BASE_TMBASE		0x1
 #define		APIC_TIMER_BASE_DIV		0x2
-#define		APIC_LVT_TIMER_PERIODIC		(1<<17)
-#define		APIC_LVT_MASKED			(1<<16)
-#define		APIC_LVT_LEVEL_TRIGGER		(1<<15)
-#define		APIC_LVT_REMOTE_IRR		(1<<14)
-#define		APIC_INPUT_POLARITY		(1<<13)
-#define		APIC_SEND_PENDING		(1<<12)
+#define		APIC_LVT_TIMER_PERIODIC		(1 << 17)
+#define		APIC_LVT_MASKED			(1 << 16)
+#define		APIC_LVT_LEVEL_TRIGGER		(1 << 15)
+#define		APIC_LVT_REMOTE_IRR		(1 << 14)
+#define		APIC_INPUT_POLARITY		(1 << 13)
+#define		APIC_SEND_PENDING		(1 << 12)
 #define		APIC_MODE_MASK			0x700
-#define		GET_APIC_DELIVERY_MODE(x)	(((x)>>8)&0x7)
-#define		SET_APIC_DELIVERY_MODE(x, y)	(((x)&~0x700)|((y)<<8))
+#define		GET_APIC_DELIVERY_MODE(x)	(((x) >> 8) & 0x7)
+#define		SET_APIC_DELIVERY_MODE(x, y)	(((x) & ~0x700) | ((y) << 8))
 #define			APIC_MODE_FIXED		0x0
 #define			APIC_MODE_NMI		0x4
 #define			APIC_MODE_EXTINT	0x7
@@ -107,7 +105,7 @@
 #define	APIC_TMICT	0x380
 #define	APIC_TMCCT	0x390
 #define	APIC_TDCR	0x3E0
-#define		APIC_TDR_DIV_TMBASE	(1<<2)
+#define		APIC_TDR_DIV_TMBASE	(1 << 2)
 #define		APIC_TDR_DIV_1		0xB
 #define		APIC_TDR_DIV_2		0x0
 #define		APIC_TDR_DIV_4		0x1
@@ -117,14 +115,14 @@
 #define		APIC_TDR_DIV_64		0x9
 #define		APIC_TDR_DIV_128	0xA
 #define	APIC_EILVT0     0x500
-#define		APIC_EILVT_NR_AMD_K8	1	/* Number of extended interrupts */
+#define		APIC_EILVT_NR_AMD_K8	1	/* # of extended interrupts */
 #define		APIC_EILVT_NR_AMD_10H	4
-#define		APIC_EILVT_LVTOFF(x)	(((x)>>4)&0xF)
+#define		APIC_EILVT_LVTOFF(x)	(((x) >> 4) & 0xF)
 #define		APIC_EILVT_MSG_FIX	0x0
 #define		APIC_EILVT_MSG_SMI	0x2
 #define		APIC_EILVT_MSG_NMI	0x4
 #define		APIC_EILVT_MSG_EXT	0x7
-#define		APIC_EILVT_MASKED	(1<<16)
+#define		APIC_EILVT_MASKED	(1 << 16)
 #define	APIC_EILVT1     0x510
 #define	APIC_EILVT2     0x520
 #define	APIC_EILVT3     0x530
@@ -135,7 +133,7 @@
 # define MAX_IO_APICS 64
 #else
 # define MAX_IO_APICS 128
-# define MAX_LOCAL_APIC 256
+# define MAX_LOCAL_APIC 32768
 #endif
 
 /*
@@ -408,6 +406,9 @@ struct local_apic {
 
 #undef u32
 
-#define BAD_APICID 0xFFu
-
+#ifdef CONFIG_X86_32
+ #define BAD_APICID 0xFFu
+#else
+ #define BAD_APICID 0xFFFFu
+#endif
 #endif

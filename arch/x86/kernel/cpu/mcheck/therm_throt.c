@@ -1,5 +1,4 @@
 /*
- * linux/arch/i386/kernel/cpu/mcheck/therm_throt.c
  *
  * Thermal throttle event support code (such as syslog messaging and rate
  * limiting) that was factored out from x86_64 (mce_intel.c) and i386 (p4.c).

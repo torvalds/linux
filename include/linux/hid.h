@@ -284,6 +284,7 @@ struct hid_item {
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_B8		0x02000000
 #define HID_QUIRK_HWHEEL_WHEEL_INVERT		0x04000000
 #define HID_QUIRK_MICROSOFT_KEYS		0x08000000
+#define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
 
 /*
  * Separate quirks for runtime report descriptor fixup
@@ -296,6 +297,8 @@ struct hid_item {
 #define HID_QUIRK_RDESC_MACBOOK_JIS		0x00000010
 #define HID_QUIRK_RDESC_BUTTON_CONSUMER		0x00000020
 #define HID_QUIRK_RDESC_SAMSUNG_REMOTE		0x00000040
+#define HID_QUIRK_RDESC_MICROSOFT_RECV_1028	0x00000080
+#define HID_QUIRK_RDESC_SUNPLUS_WDESKTOP	0x00000100
 
 /*
  * This is the global environment of the parser. This information is
@@ -320,7 +323,7 @@ struct hid_global {
  * This is the local environment. It is persistent up the next main-item.
  */
 
-#define HID_MAX_USAGES			8192
+#define HID_MAX_USAGES			12288
 #define HID_DEFAULT_NUM_COLLECTIONS	16
 
 struct hid_local {
@@ -421,6 +424,7 @@ struct hid_control_fifo {
 #define HID_RESET_PENDING	4
 #define HID_SUSPENDED		5
 #define HID_CLEAR_HALT		6
+#define HID_DISCONNECTED	7
 
 struct hid_input {
 	struct list_head list;
@@ -451,8 +455,6 @@ struct hid_device {							/* device report descriptor */
 	void *hiddev;							/* The hiddev structure */
 	void *hidraw;
 	int minor;							/* Hiddev minor number */
-
-	wait_queue_head_t wait;						/* For sleeping */
 
 	int open;							/* is the device open by anyone? */
 	char name[128];							/* Device name */
@@ -530,14 +532,12 @@ int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int 
 int hidinput_mapping_quirks(struct hid_usage *, struct input_dev *, unsigned long **, int *);
 int hidinput_event_quirks(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 int hidinput_apple_event(struct hid_device *, struct input_dev *, struct hid_usage *, __s32);
-void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt);
 void hid_output_report(struct hid_report *report, __u8 *data);
 void hid_free_device(struct hid_device *device);
 struct hid_device *hid_parse_report(__u8 *start, unsigned size);
 
 /* HID quirks API */
 u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);
-int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct, const u32 quirks);
 int usbhid_quirks_init(char **quirks_param);
 void usbhid_quirks_exit(void);
 void usbhid_fixup_report_descriptor(const u16, const u16, char *, unsigned, char **);
@@ -546,6 +546,7 @@ void usbhid_fixup_report_descriptor(const u16, const u16, char *, unsigned, char
 int hid_ff_init(struct hid_device *hid);
 
 int hid_lgff_init(struct hid_device *hid);
+int hid_lg2ff_init(struct hid_device *hid);
 int hid_plff_init(struct hid_device *hid);
 int hid_tmff_init(struct hid_device *hid);
 int hid_zpff_init(struct hid_device *hid);
@@ -566,7 +567,11 @@ static inline int hid_ff_init(struct hid_device *hid) { return -1; }
 #define dbg_hid_line(format, arg...) if (hid_debug) \
 				printk(format, ## arg)
 #else
-#define dbg_hid(format, arg...) do {} while (0)
+static inline int __attribute__((format(printf, 1, 2)))
+dbg_hid(const char *fmt, ...)
+{
+	return 0;
+}
 #define dbg_hid_line dbg_hid
 #endif
 

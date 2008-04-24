@@ -49,6 +49,19 @@ config IRQ_PER_CPU
 	bool
 	default y
 
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
+config TRACE_IRQFLAGS_SUPPORT
+	bool
+	depends on PPC64
+	default y
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 
@@ -81,6 +94,11 @@ config GENERIC_FIND_NEXT_BIT
 	bool
 	default y
 
+config GENERIC_GPIO
+	bool
+	help
+	  Generic GPIO API support
+
 config ARCH_NO_VIRT_TO_BUS
 	def_bool PPC64
 
@@ -91,6 +109,7 @@ config PPC
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_LMB
 
 config EARLY_PRINTK
 	bool
@@ -210,15 +229,6 @@ source kernel/Kconfig.hz
 source kernel/Kconfig.preempt
 source "fs/Kconfig.binfmt"
 
-# We optimistically allocate largepages from the VM, so make the limit
-# large enough (16MB). This badly named config option is actually
-# max order + 1
-config FORCE_MAX_ZONEORDER
-	int
-	depends on PPC64
-	default "9" if PPC_64K_PAGES
-	default "13"
-
 config HUGETLB_PAGE_SIZE_VARIABLE
 	bool
 	depends on HUGETLB_PAGE
@@ -307,6 +317,16 @@ config CRASH_DUMP
 
 	  Don't change this unless you know what you are doing.
 
+config PHYP_DUMP
+	bool "Hypervisor-assisted dump (EXPERIMENTAL)"
+	depends on PPC_PSERIES && EXPERIMENTAL
+	help
+	  Hypervisor-assisted dump is meant to be a kdump replacement
+	  offering robustness and speed not possible without system
+	  hypervisor assistence.
+
+	  If unsure, say "N"
+
 config PPCBUG_NVRAM
 	bool "Enable reading PPCBUG NVRAM during boot" if PPLUS || LOPEC
 	default y if PPC_PREP
@@ -380,6 +400,26 @@ config PPC_64K_PAGES
 	  them by loading each individual 4k page on demand transparently,
 	  while on hardware with such support, it will be used to map
 	  normal application pages.
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	default "9" if PPC_64K_PAGES
+	default "13" if PPC64 && !PPC_64K_PAGES
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
+	  The page size is not necessarily 4KB.  For example, on 64-bit
+	  systems, 64KB pages can be enabled via CONFIG_PPC_64K_PAGES.  Keep
+	  this in mind when choosing a value for this option.
 
 config PPC_SUBPAGE_PROT
 	bool "Support setting protections for 4k subpages"
@@ -489,6 +529,14 @@ config FSL_SOC
 config FSL_PCI
  	bool
 	select PPC_INDIRECT_PCI
+
+config 4xx_SOC
+	bool
+
+config FSL_LBC
+	bool
+	help
+	  Freescale Localbus support
 
 # Yes MCA RS/6000s exist but Linux-PPC does not currently support any
 config MCA
@@ -662,22 +710,6 @@ config CONSISTENT_SIZE_BOOL
 config CONSISTENT_SIZE
 	hex "Size of consistent memory pool" if CONSISTENT_SIZE_BOOL
 	default "0x00200000" if NOT_COHERENT_CACHE
-
-config BOOT_LOAD_BOOL
-	bool "Set the boot link/load address"
-	depends on ADVANCED_OPTIONS && !PPC_MULTIPLATFORM
-	help
-	  This option allows you to set the initial load address of the zImage
-	  or zImage.initrd file.  This can be useful if you are on a board
-	  which has a small amount of memory.
-
-	  Say N here unless you know what you are doing.
-
-config BOOT_LOAD
-	hex "Link/load address for booting" if BOOT_LOAD_BOOL
-	default "0x00400000" if 40x || 8xx || 8260
-	default "0x01000000" if 44x
-	default "0x00800000"
 
 config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"

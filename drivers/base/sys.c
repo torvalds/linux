@@ -167,6 +167,22 @@ int sysdev_driver_register(struct sysdev_class *cls, struct sysdev_driver *drv)
 {
 	int err = 0;
 
+	if (!cls) {
+		printk(KERN_WARNING "sysdev: invalid class passed to "
+			"sysdev_driver_register!\n");
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	/* Check whether this driver has already been added to a class. */
+	if ((drv->entry.next != drv->entry.prev) ||
+	    (drv->entry.next != NULL)) {
+		printk(KERN_WARNING "sysdev: class %s: driver (%p) has already"
+			" been registered to a class, something is wrong, but "
+			"will forge on!\n", cls->name, drv);
+		WARN_ON(1);
+	}
+
 	mutex_lock(&sysdev_drivers_lock);
 	if (cls && kset_get(&cls->kset)) {
 		list_add_tail(&drv->entry, &cls->drivers);
@@ -179,7 +195,7 @@ int sysdev_driver_register(struct sysdev_class *cls, struct sysdev_driver *drv)
 		}
 	} else {
 		err = -EINVAL;
-		printk(KERN_ERR "%s: invalid device class\n", __FUNCTION__);
+		printk(KERN_ERR "%s: invalid device class\n", __func__);
 		WARN_ON(1);
 	}
 	mutex_unlock(&sysdev_drivers_lock);

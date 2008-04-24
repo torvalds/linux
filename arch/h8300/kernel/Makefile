@@ -5,7 +5,7 @@
 extra-y := vmlinux.lds
 
 obj-y := process.o traps.o ptrace.o irq.o \
-	 sys_h8300.o time.o semaphore.o signal.o \
+	 sys_h8300.o time.o signal.o \
          setup.o gpio.o init_task.o syscalls.o \
 	 entry.o
 

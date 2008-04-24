@@ -22,7 +22,6 @@
 #include "udfdecl.h"
 #include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/udf_fs.h>
 #include <linux/buffer_head.h>
 
 #include "udf_i.h"
@@ -180,6 +179,24 @@ void udf_discard_prealloc(struct inode *inode)
 	brelse(epos.bh);
 }
 
+static void udf_update_alloc_ext_desc(struct inode *inode,
+				      struct extent_position *epos,
+				      u32 lenalloc)
+{
+	struct super_block *sb = inode->i_sb;
+	struct udf_sb_info *sbi = UDF_SB(sb);
+
+	struct allocExtDesc *aed = (struct allocExtDesc *) (epos->bh->b_data);
+	int len = sizeof(struct allocExtDesc);
+
+	aed->lengthAllocDescs =	cpu_to_le32(lenalloc);
+	if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT) || sbi->s_udfrev >= 0x0201)
+		len += lenalloc;
+
+	udf_update_tag(epos->bh->b_data, len);
+	mark_buffer_dirty_inode(epos->bh, inode);
+}
+
 void udf_truncate_extents(struct inode *inode)
 {
 	struct extent_position epos;
@@ -187,7 +204,6 @@ void udf_truncate_extents(struct inode *inode)
 	uint32_t elen, nelen = 0, indirect_ext_len = 0, lenalloc;
 	int8_t etype;
 	struct super_block *sb = inode->i_sb;
-	struct udf_sb_info *sbi = UDF_SB(sb);
 	sector_t first_block = inode->i_size >> sb->s_blocksize_bits, offset;
 	loff_t byte_offset;
 	int adsize;
@@ -224,35 +240,15 @@ void udf_truncate_extents(struct inode *inode)
 				if (indirect_ext_len) {
 					/* We managed to free all extents in the
 					 * indirect extent - free it too */
-					if (!epos.bh)
-						BUG();
+					BUG_ON(!epos.bh);
 					udf_free_blocks(sb, inode, epos.block,
 							0, indirect_ext_len);
-				} else {
-					if (!epos.bh) {
-						iinfo->i_lenAlloc =
-								lenalloc;
-						mark_inode_dirty(inode);
-					} else {
-						struct allocExtDesc *aed =
-							(struct allocExtDesc *)
-							(epos.bh->b_data);
-						int len =
-						    sizeof(struct allocExtDesc);
-
-						aed->lengthAllocDescs =
-						    cpu_to_le32(lenalloc);
-						if (!UDF_QUERY_FLAG(sb,
-							UDF_FLAG_STRICT) ||
-						    sbi->s_udfrev >= 0x0201)
-							len += lenalloc;
-
-						udf_update_tag(epos.bh->b_data,
-								len);
-						mark_buffer_dirty_inode(
-								epos.bh, inode);
-					}
-				}
+				} else if (!epos.bh) {
+					iinfo->i_lenAlloc = lenalloc;
+					mark_inode_dirty(inode);
+				} else
+					udf_update_alloc_ext_desc(inode,
+							&epos, lenalloc);
 				brelse(epos.bh);
 				epos.offset = sizeof(struct allocExtDesc);
 				epos.block = eloc;
@@ -272,29 +268,14 @@ void udf_truncate_extents(struct inode *inode)
 		}
 
 		if (indirect_ext_len) {
-			if (!epos.bh)
-				BUG();
+			BUG_ON(!epos.bh);
 			udf_free_blocks(sb, inode, epos.block, 0,
 					indirect_ext_len);
-		} else {
-			if (!epos.bh) {
-				iinfo->i_lenAlloc = lenalloc;
-				mark_inode_dirty(inode);
-			} else {
-				struct allocExtDesc *aed =
-				    (struct allocExtDesc *)(epos.bh->b_data);
-				aed->lengthAllocDescs = cpu_to_le32(lenalloc);
-				if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT) ||
-				    sbi->s_udfrev >= 0x0201)
-					udf_update_tag(epos.bh->b_data,
-						lenalloc +
-						sizeof(struct allocExtDesc));
-				else
-					udf_update_tag(epos.bh->b_data,
-						sizeof(struct allocExtDesc));
-				mark_buffer_dirty_inode(epos.bh, inode);
-			}
-		}
+		} else if (!epos.bh) {
+			iinfo->i_lenAlloc = lenalloc;
+			mark_inode_dirty(inode);
+		} else
+			udf_update_alloc_ext_desc(inode, &epos, lenalloc);
 	} else if (inode->i_size) {
 		if (byte_offset) {
 			kernel_long_ad extent;

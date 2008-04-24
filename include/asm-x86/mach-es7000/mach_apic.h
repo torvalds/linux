@@ -1,9 +1,7 @@
 #ifndef __ASM_MACH_APIC_H
 #define __ASM_MACH_APIC_H
 
-extern u8 bios_cpu_apicid[];
-
-#define xapic_phys_to_log_apicid(cpu) (bios_cpu_apicid[cpu])
+#define xapic_phys_to_log_apicid(cpu) per_cpu(x86_bios_cpu_apicid, cpu)
 #define esr_disable (1)
 
 static inline int apic_id_registered(void)
@@ -80,7 +78,7 @@ extern void enable_apic_mode(void);
 extern int apic_version [MAX_APICS];
 static inline void setup_apic_routing(void)
 {
-	int apic = bios_cpu_apicid[smp_processor_id()];
+	int apic = per_cpu(x86_bios_cpu_apicid, smp_processor_id());
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs, target cpus %lx\n",
 		(apic_version[apic] == 0x14) ? 
 		"Physical Cluster" : "Logical Cluster", nr_ioapics, cpus_addr(TARGET_CPUS)[0]);
@@ -102,7 +100,7 @@ static inline int cpu_present_to_apicid(int mps_cpu)
 	if (!mps_cpu)
 		return boot_cpu_physical_apicid;
 	else if (mps_cpu < NR_CPUS)
-		return (int) bios_cpu_apicid[mps_cpu];
+		return (int) per_cpu(x86_bios_cpu_apicid, mps_cpu);
 	else
 		return BAD_APICID;
 }
@@ -129,16 +127,6 @@ static inline int cpu_to_logical_apicid(int cpu)
 #endif
 }
 
-static inline int mpc_apic_id(struct mpc_config_processor *m, struct mpc_config_translation *unused)
-{
-	printk("Processor #%d %u:%u APIC version %d\n",
-	       m->mpc_apicid,
-	       (m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
-	       (m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
-	       m->mpc_apicver);
-	return (m->mpc_apicid);
-}
-
 static inline physid_mask_t ioapic_phys_id_map(physid_mask_t phys_map)
 {
 	/* For clustered we don't have a good way to do this yet - hack */
@@ -153,7 +141,7 @@ static inline void setup_portio_remap(void)
 extern unsigned int boot_cpu_physical_apicid;
 static inline int check_phys_apicid_present(int cpu_physical_apicid)
 {
-	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
+	boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
 	return (1);
 }
 

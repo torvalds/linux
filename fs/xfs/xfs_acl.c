@@ -307,12 +307,13 @@ xfs_acl_vset(
 
 	VN_HOLD(vp);
 	error = xfs_acl_allow_set(vp, kind);
-	if (error)
-		goto out;
 
 	/* Incoming ACL exists, set file mode based on its value */
-	if (kind == _ACL_TYPE_ACCESS)
-		xfs_acl_setmode(vp, xfs_acl, &basicperms);
+	if (!error && kind == _ACL_TYPE_ACCESS)
+		error = xfs_acl_setmode(vp, xfs_acl, &basicperms);
+
+	if (error)
+		goto out;
 
 	/*
 	 * If we have more than std unix permissions, set up the actual attr.
@@ -323,7 +324,7 @@ xfs_acl_vset(
 	if (!basicperms) {
 		xfs_acl_set_attr(vp, xfs_acl, kind, &error);
 	} else {
-		xfs_acl_vremove(vp, _ACL_TYPE_ACCESS);
+		error = -xfs_acl_vremove(vp, _ACL_TYPE_ACCESS);
 	}
 
 out:
@@ -707,7 +708,9 @@ xfs_acl_inherit(
 
 	memcpy(cacl, pdaclp, sizeof(xfs_acl_t));
 	xfs_acl_filter_mode(mode, cacl);
-	xfs_acl_setmode(vp, cacl, &basicperms);
+	error = xfs_acl_setmode(vp, cacl, &basicperms);
+	if (error)
+		goto out_error;
 
 	/*
 	 * Set the Default and Access ACL on the file.  The mode is already
@@ -720,6 +723,7 @@ xfs_acl_inherit(
 		xfs_acl_set_attr(vp, pdaclp, _ACL_TYPE_DEFAULT, &error);
 	if (!error && !basicperms)
 		xfs_acl_set_attr(vp, cacl, _ACL_TYPE_ACCESS, &error);
+out_error:
 	_ACL_FREE(cacl);
 	return error;
 }

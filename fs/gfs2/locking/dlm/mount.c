@@ -236,6 +236,27 @@ static void gdlm_withdraw(void *lockspace)
 	gdlm_kobject_release(ls);
 }
 
+static int gdlm_plock(void *lockspace, struct lm_lockname *name,
+	       struct file *file, int cmd, struct file_lock *fl)
+{
+	struct gdlm_ls *ls = lockspace;
+	return dlm_posix_lock(ls->dlm_lockspace, name->ln_number, file, cmd, fl);
+}
+
+static int gdlm_punlock(void *lockspace, struct lm_lockname *name,
+		 struct file *file, struct file_lock *fl)
+{
+	struct gdlm_ls *ls = lockspace;
+	return dlm_posix_unlock(ls->dlm_lockspace, name->ln_number, file, fl);
+}
+
+static int gdlm_plock_get(void *lockspace, struct lm_lockname *name,
+		   struct file *file, struct file_lock *fl)
+{
+	struct gdlm_ls *ls = lockspace;
+	return dlm_posix_get(ls->dlm_lockspace, name->ln_number, file, fl);
+}
+
 const struct lm_lockops gdlm_ops = {
 	.lm_proto_name = "lock_dlm",
 	.lm_mount = gdlm_mount,

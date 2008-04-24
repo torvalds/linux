@@ -91,7 +91,7 @@ static int or51132_writebuf(struct or51132_state *state, const u8 *buf, int len)
    Less code and more efficient that loading a buffer on the stack with
    the bytes to send and then calling or51132_writebuf() on that. */
 #define or51132_writebytes(state, data...)  \
-	({ const static u8 _data[] = {data}; \
+	({ static const u8 _data[] = {data}; \
 	or51132_writebuf(state, _data, sizeof(_data)); })
 
 /* Read data from demod into buffer.  Returns 0 on success. */
@@ -132,7 +132,7 @@ static int or51132_readreg(struct or51132_state *state, u8 reg)
 static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware *fw)
 {
 	struct or51132_state* state = fe->demodulator_priv;
-	const static u8 run_buf[] = {0x7F,0x01};
+	static const u8 run_buf[] = {0x7F,0x01};
 	u8 rec_buf[8];
 	u32 firmwareAsize, firmwareBsize;
 	int i,ret;

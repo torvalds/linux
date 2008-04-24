@@ -5,13 +5,14 @@
 # Common support (must be linked before board specific support)
 obj-y				+= clock.o devices.o generic.o irq.o dma.o \
 				   time.o gpio.o
-obj-$(CONFIG_PXA25x)		+= pxa25x.o
-obj-$(CONFIG_PXA27x)		+= pxa27x.o
-obj-$(CONFIG_PXA3xx)		+= pxa3xx.o mfp.o smemc.o
+obj-$(CONFIG_PXA25x)		+= pxa25x.o mfp-pxa2xx.o
+obj-$(CONFIG_PXA27x)		+= pxa27x.o mfp-pxa2xx.o
+obj-$(CONFIG_PXA3xx)		+= pxa3xx.o mfp-pxa3xx.o smemc.o
 obj-$(CONFIG_CPU_PXA300)	+= pxa300.o
 obj-$(CONFIG_CPU_PXA320)	+= pxa320.o
 
 # Specific board support
+obj-$(CONFIG_ARCH_GUMSTIX)	+= gumstix.o
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o
 obj-$(CONFIG_MACH_LOGICPD_PXA270) += lpd270.o
 obj-$(CONFIG_MACH_MAINSTONE)	+= mainstone.o

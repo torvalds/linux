@@ -141,4 +141,7 @@ config HAS_DMA
 config CHECK_SIGNATURE
 	bool
 
+config HAVE_LMB
+	boolean
+
 endmenu

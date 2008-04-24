@@ -152,5 +152,35 @@ extern int tps65010_config_vregs1(unsigned value);
  */
 extern int tps65013_set_low_pwr(unsigned mode);
 
+
+struct i2c_client;
+
+/**
+ * struct tps65010_board - packages GPIO and LED lines
+ * @base: the GPIO number to assign to GPIO-1
+ * @outmask: bit (N-1) is set to allow GPIO-N to be used as an
+ *	(open drain) output
+ * @setup: optional callback issued once the GPIOs are valid
+ * @teardown: optional callback issued before the GPIOs are invalidated
+ * @context: optional parameter passed to setup() and teardown()
+ *
+ * Board data may be used to package the GPIO (and LED) lines for use
+ * in by the generic GPIO and LED frameworks.  The first four GPIOs
+ * starting at gpio_base are GPIO1..GPIO4.  The next two are LED1/nPG
+ * and LED2 (with hardware blinking capability, not currently exposed).
+ *
+ * The @setup callback may be used with the kind of board-specific glue
+ * which hands the (now-valid) GPIOs to other drivers, or which puts
+ * devices in their initial states using these GPIOs.
+ */
+struct tps65010_board {
+	int				base;
+	unsigned			outmask;
+
+	int		(*setup)(struct i2c_client *client, void *context);
+	int		(*teardown)(struct i2c_client *client, void *context);
+	void		*context;
+};
+
 #endif /*  __LINUX_I2C_TPS65010_H */
 

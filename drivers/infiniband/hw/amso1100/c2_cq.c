@@ -422,8 +422,8 @@ void c2_free_cq(struct c2_dev *c2dev, struct c2_cq *cq)
 		goto bail1;
 
 	reply = (struct c2wr_cq_destroy_rep *) (unsigned long) (vq_req->reply_msg);
-
-	vq_repbuf_free(c2dev, reply);
+	if (reply)
+		vq_repbuf_free(c2dev, reply);
       bail1:
 	vq_req_free(c2dev, vq_req);
       bail0:

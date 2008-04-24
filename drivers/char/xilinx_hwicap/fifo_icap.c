@@ -78,13 +78,6 @@
 #define XHI_CR_READ_MASK 0x00000002 /* Read from ICAP to FIFO */
 #define XHI_CR_WRITE_MASK 0x00000001 /* Write from FIFO to ICAP */
 
-/* Status Register (SR) */
-#define XHI_SR_CFGERR_N_MASK 0x00000100 /* Config Error Mask */
-#define XHI_SR_DALIGN_MASK 0x00000080 /* Data Alignment Mask */
-#define XHI_SR_RIP_MASK 0x00000040 /* Read back Mask */
-#define XHI_SR_IN_ABORT_N_MASK 0x00000020 /* Select Map Abort Mask */
-#define XHI_SR_DONE_MASK 0x00000001 /* Done bit Mask  */
-
 
 #define XHI_WFO_MAX_VACANCY 1024 /* Max Write FIFO Vacancy, in words */
 #define XHI_RFO_MAX_OCCUPANCY 256 /* Max Read FIFO Occupancy, in words */
@@ -152,13 +145,35 @@ static inline void fifo_icap_start_readback(struct hwicap_drvdata *drvdata)
 }
 
 /**
+ * fifo_icap_get_status - Get the contents of the status register.
+ * @drvdata: a pointer to the drvdata.
+ *
+ * The status register contains the ICAP status and the done bit.
+ *
+ * D8 - cfgerr
+ * D7 - dalign
+ * D6 - rip
+ * D5 - in_abort_l
+ * D4 - Always 1
+ * D3 - Always 1
+ * D2 - Always 1
+ * D1 - Always 1
+ * D0 - Done bit
+ **/
+u32 fifo_icap_get_status(struct hwicap_drvdata *drvdata)
+{
+	u32 status = in_be32(drvdata->base_address + XHI_SR_OFFSET);
+	dev_dbg(drvdata->dev, "Getting status = %x\n", status);
+	return status;
+}
+
+/**
  * fifo_icap_busy - Return true if the ICAP is still processing a transaction.
  * @drvdata: a pointer to the drvdata.
  **/
 static inline u32 fifo_icap_busy(struct hwicap_drvdata *drvdata)
 {
 	u32 status = in_be32(drvdata->base_address + XHI_SR_OFFSET);
-	dev_dbg(drvdata->dev, "Getting status = %x\n", status);
 	return (status & XHI_SR_DONE_MASK) ? 0 : 1;
 }
 

@@ -415,21 +415,21 @@ int br_sysfs_addbr(struct net_device *dev)
 	err = sysfs_create_group(brobj, &bridge_group);
 	if (err) {
 		pr_info("%s: can't create group %s/%s\n",
-			__FUNCTION__, dev->name, bridge_group.name);
+			__func__, dev->name, bridge_group.name);
 		goto out1;
 	}
 
 	err = sysfs_create_bin_file(brobj, &bridge_forward);
 	if (err) {
 		pr_info("%s: can't create attribute file %s/%s\n",
-			__FUNCTION__, dev->name, bridge_forward.attr.name);
+			__func__, dev->name, bridge_forward.attr.name);
 		goto out2;
 	}
 
 	br->ifobj = kobject_create_and_add(SYSFS_BRIDGE_PORT_SUBDIR, brobj);
 	if (!br->ifobj) {
 		pr_info("%s: can't add kobject (directory) %s/%s\n",
-			__FUNCTION__, dev->name, SYSFS_BRIDGE_PORT_SUBDIR);
+			__func__, dev->name, SYSFS_BRIDGE_PORT_SUBDIR);
 		goto out3;
 	}
 	return 0;

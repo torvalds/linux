@@ -73,7 +73,7 @@ void __init build_cpu_to_node_map(void)
 	for(node=0; node < MAX_NUMNODES; node++)
 		cpus_clear(node_to_cpu_mask[node]);
 
-	for(cpu = 0; cpu < NR_CPUS; ++cpu) {
+	for_each_possible_early_cpu(cpu) {
 		node = -1;
 		for (i = 0; i < NR_CPUS; ++i)
 			if (cpu_physical_id(cpu) == node_cpuid[i].phys_id) {

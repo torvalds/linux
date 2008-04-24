@@ -166,7 +166,7 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 
 	if (!(mp->m_flags & XFS_MOUNT_ATTR2)) {
 		if (bytes <= XFS_IFORK_ASIZE(dp))
-			return mp->m_attroffset >> 3;
+			return dp->i_d.di_forkoff;
 		return 0;
 	}
 

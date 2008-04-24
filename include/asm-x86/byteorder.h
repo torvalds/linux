@@ -8,50 +8,59 @@
 
 #ifdef __i386__
 
-static __inline__ __attribute_const__ __u32 ___arch__swab32(__u32 x)
+static inline __attribute_const__ __u32 ___arch__swab32(__u32 x)
 {
 #ifdef CONFIG_X86_BSWAP
-	__asm__("bswap %0" : "=r" (x) : "0" (x));
+	asm("bswap %0" : "=r" (x) : "0" (x));
 #else
-	__asm__("xchgb %b0,%h0\n\t"	/* swap lower bytes	*/
-		"rorl $16,%0\n\t"	/* swap words		*/
-		"xchgb %b0,%h0"		/* swap higher bytes	*/
-		:"=q" (x)
-		: "0" (x));
+	asm("xchgb %b0,%h0\n\t"	/* swap lower bytes	*/
+	    "rorl $16,%0\n\t"	/* swap words		*/
+	    "xchgb %b0,%h0"	/* swap higher bytes	*/
+	    : "=q" (x)
+	    : "0" (x));
 #endif
 	return x;
 }
 
-static __inline__ __attribute_const__ __u64 ___arch__swab64(__u64 val)
+static inline __attribute_const__ __u64 ___arch__swab64(__u64 val)
 {
 	union {
-		struct { __u32 a,b; } s;
+		struct {
+			__u32 a;
+			__u32 b;
+		} s;
 		__u64 u;
 	} v;
 	v.u = val;
 #ifdef CONFIG_X86_BSWAP
-	__asm__("bswapl %0 ; bswapl %1 ; xchgl %0,%1"
+	asm("bswapl %0 ; bswapl %1 ; xchgl %0,%1"
 	    : "=r" (v.s.a), "=r" (v.s.b)
 	    : "0" (v.s.a), "1" (v.s.b));
 #else
 	v.s.a = ___arch__swab32(v.s.a);
 	v.s.b = ___arch__swab32(v.s.b);
-	__asm__("xchgl %0,%1" : "=r" (v.s.a), "=r" (v.s.b) : "0" (v.s.a), "1" (v.s.b));
+	asm("xchgl %0,%1"
+	    : "=r" (v.s.a), "=r" (v.s.b)
+	    : "0" (v.s.a), "1" (v.s.b));
 #endif
 	return v.u;
 }
 
 #else /* __i386__ */
 
-static __inline__ __attribute_const__ __u64 ___arch__swab64(__u64 x)
+static inline __attribute_const__ __u64 ___arch__swab64(__u64 x)
 {
-	__asm__("bswapq %0" : "=r" (x) : "0" (x));
+	asm("bswapq %0"
+	    : "=r" (x)
+	    : "0" (x));
 	return x;
 }
 
-static __inline__ __attribute_const__ __u32 ___arch__swab32(__u32 x)
+static inline __attribute_const__ __u32 ___arch__swab32(__u32 x)
 {
-	__asm__("bswapl %0" : "=r" (x) : "0" (x));
+	asm("bswapl %0"
+	    : "=r" (x)
+	    : "0" (x));
 	return x;
 }
 

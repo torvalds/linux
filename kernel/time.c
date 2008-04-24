@@ -379,6 +379,7 @@ void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec)
 	ts->tv_sec = sec;
 	ts->tv_nsec = nsec;
 }
+EXPORT_SYMBOL(set_normalized_timespec);
 
 /**
  * ns_to_timespec - Convert nanoseconds to timespec

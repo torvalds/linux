@@ -44,14 +44,3 @@ _GLOBAL(as1_writeb)
 	sync
 	isync
 	blr
-
-/*
- * void ppc44x_reset_system(char *cmd)
- *
- * At present, this routine just applies a system reset.
- */
-_GLOBAL(ppc44x_reset_system)
-	mfspr	r13,SPRN_DBCR0
-	oris	r13,r13,DBCR0_RST_SYSTEM@h
-	mtspr	SPRN_DBCR0,r13
-	b	.			/* Just in case the reset doesn't work */

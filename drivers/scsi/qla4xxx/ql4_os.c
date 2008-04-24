@@ -71,6 +71,7 @@ static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session);
 static int qla4xxx_queuecommand(struct scsi_cmnd *cmd,
 				void (*done) (struct scsi_cmnd *));
 static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd);
+static int qla4xxx_eh_target_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_slave_alloc(struct scsi_device *device);
 static int qla4xxx_slave_configure(struct scsi_device *device);
@@ -84,6 +85,7 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.queuecommand		= qla4xxx_queuecommand,
 
 	.eh_device_reset_handler = qla4xxx_eh_device_reset,
+	.eh_target_reset_handler = qla4xxx_eh_target_reset,
 	.eh_host_reset_handler	= qla4xxx_eh_host_reset,
 
 	.slave_configure	= qla4xxx_slave_configure,
@@ -1482,7 +1484,7 @@ static int qla4xxx_wait_for_hba_online(struct scsi_qla_host *ha)
 }
 
 /**
- * qla4xxx_eh_wait_for_active_target_commands - wait for active cmds to finish.
+ * qla4xxx_eh_wait_for_commands - wait for active cmds to finish.
  * @ha: pointer to to HBA
  * @t: target id
  * @l: lun id
@@ -1490,20 +1492,22 @@ static int qla4xxx_wait_for_hba_online(struct scsi_qla_host *ha)
  * This function waits for all outstanding commands to a lun to complete. It
  * returns 0 if all pending commands are returned and 1 otherwise.
  **/
-static int qla4xxx_eh_wait_for_active_target_commands(struct scsi_qla_host *ha,
-						 int t, int l)
+static int qla4xxx_eh_wait_for_commands(struct scsi_qla_host *ha,
+					struct scsi_target *stgt,
+					struct scsi_device *sdev)
 {
 	int cnt;
 	int status = 0;
 	struct scsi_cmnd *cmd;
 
 	/*
-	 * Waiting for all commands for the designated target in the active
-	 * array
+	 * Waiting for all commands for the designated target or dev
+	 * in the active array
 	 */
 	for (cnt = 0; cnt < ha->host->can_queue; cnt++) {
 		cmd = scsi_host_find_tag(ha->host, cnt);
-		if (cmd && cmd->device->id == t && cmd->device->lun == l) {
+		if (cmd && stgt == scsi_target(cmd->device) &&
+		    (!sdev || sdev == cmd->device)) {
 			if (!qla4xxx_eh_wait_on_command(ha, cmd)) {
 				status++;
 				break;
@@ -1548,23 +1552,18 @@ static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
 		goto eh_dev_reset_done;
 	}
 
-	/* Send marker. */
-	ha->marker_needed = 1;
-
-	/*
-	 * If we are coming down the EH path, wait for all commands to complete
-	 * for the device.
-	 */
-	if (cmd->device->host->shost_state == SHOST_RECOVERY) {
-		if (qla4xxx_eh_wait_for_active_target_commands(ha,
-							  cmd->device->id,
-							  cmd->device->lun)){
-			dev_info(&ha->pdev->dev,
-				   "DEVICE RESET FAILED - waiting for "
-				   "commands.\n");
-			goto eh_dev_reset_done;
-		}
+	if (qla4xxx_eh_wait_for_commands(ha, scsi_target(cmd->device),
+					 cmd->device)) {
+		dev_info(&ha->pdev->dev,
+			   "DEVICE RESET FAILED - waiting for "
+			   "commands.\n");
+		goto eh_dev_reset_done;
 	}
+
+	/* Send marker. */
+	if (qla4xxx_send_marker_iocb(ha, ddb_entry, cmd->device->lun,
+		MM_LUN_RESET) != QLA_SUCCESS)
+		goto eh_dev_reset_done;
 
 	dev_info(&ha->pdev->dev,
 		   "scsi(%ld:%d:%d:%d): DEVICE RESET SUCCEEDED.\n",
@@ -1576,6 +1575,59 @@ static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
 eh_dev_reset_done:
 
 	return ret;
+}
+
+/**
+ * qla4xxx_eh_target_reset - callback for target reset.
+ * @cmd: Pointer to Linux's SCSI command structure
+ *
+ * This routine is called by the Linux OS to reset the target.
+ **/
+static int qla4xxx_eh_target_reset(struct scsi_cmnd *cmd)
+{
+	struct scsi_qla_host *ha = to_qla_host(cmd->device->host);
+	struct ddb_entry *ddb_entry = cmd->device->hostdata;
+	int stat;
+
+	if (!ddb_entry)
+		return FAILED;
+
+	starget_printk(KERN_INFO, scsi_target(cmd->device),
+		       "WARM TARGET RESET ISSUED.\n");
+
+	DEBUG2(printk(KERN_INFO
+		      "scsi%ld: TARGET_DEVICE_RESET cmd=%p jiffies = 0x%lx, "
+		      "to=%x,dpc_flags=%lx, status=%x allowed=%d\n",
+		      ha->host_no, cmd, jiffies, cmd->timeout_per_command / HZ,
+		      ha->dpc_flags, cmd->result, cmd->allowed));
+
+	stat = qla4xxx_reset_target(ha, ddb_entry);
+	if (stat != QLA_SUCCESS) {
+		starget_printk(KERN_INFO, scsi_target(cmd->device),
+			       "WARM TARGET RESET FAILED.\n");
+		return FAILED;
+	}
+
+	if (qla4xxx_eh_wait_for_commands(ha, scsi_target(cmd->device),
+					 NULL)) {
+		starget_printk(KERN_INFO, scsi_target(cmd->device),
+			       "WARM TARGET DEVICE RESET FAILED - "
+			       "waiting for commands.\n");
+		return FAILED;
+	}
+
+	/* Send marker. */
+	if (qla4xxx_send_marker_iocb(ha, ddb_entry, cmd->device->lun,
+		MM_TGT_WARM_RESET) != QLA_SUCCESS) {
+		starget_printk(KERN_INFO, scsi_target(cmd->device),
+			       "WARM TARGET DEVICE RESET FAILED - "
+			       "marker iocb failed.\n");
+		return FAILED;
+	}
+
+	starget_printk(KERN_INFO, scsi_target(cmd->device),
+		       "WARM TARGET RESET SUCCEEDED.\n");
+	return SUCCESS;
 }
 
 /**

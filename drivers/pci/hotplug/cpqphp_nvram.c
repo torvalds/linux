@@ -160,7 +160,7 @@ static int check_for_compaq_ROM (void __iomem *rom_start)
 	    (temp6 == 'Q')) {
 		result = 1;
 	}
-	dbg ("%s - returned %d\n", __FUNCTION__, result);
+	dbg ("%s - returned %d\n", __func__, result);
 	return result;
 }
 

@@ -11,6 +11,7 @@
 #include <asm/cpufeature.h>
 #include <asm/processor-flags.h>
 #include <asm/tlbflush.h>
+#include <asm/pat.h>
 #include "mtrr.h"
 
 struct mtrr_state {
@@ -35,12 +36,119 @@ static struct fixed_range_block fixed_range_blocks[] = {
 
 static unsigned long smp_changes_mask;
 static struct mtrr_state mtrr_state = {};
+static int mtrr_state_set;
+static u64 tom2;
 
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX "mtrr."
 
 static int mtrr_show;
 module_param_named(show, mtrr_show, bool, 0);
+
+/*
+ * Returns the effective MTRR type for the region
+ * Error returns:
+ * - 0xFE - when the range is "not entirely covered" by _any_ var range MTRR
+ * - 0xFF - when MTRR is not enabled
+ */
+u8 mtrr_type_lookup(u64 start, u64 end)
+{
+	int i;
+	u64 base, mask;
+	u8 prev_match, curr_match;
+
+	if (!mtrr_state_set)
+		return 0xFF;
+
+	if (!mtrr_state.enabled)
+		return 0xFF;
+
+	/* Make end inclusive end, instead of exclusive */
+	end--;
+
+	/* Look in fixed ranges. Just return the type as per start */
+	if (mtrr_state.have_fixed && (start < 0x100000)) {
+		int idx;
+
+		if (start < 0x80000) {
+			idx = 0;
+			idx += (start >> 16);
+			return mtrr_state.fixed_ranges[idx];
+		} else if (start < 0xC0000) {
+			idx = 1 * 8;
+			idx += ((start - 0x80000) >> 14);
+			return mtrr_state.fixed_ranges[idx];
+		} else if (start < 0x1000000) {
+			idx = 3 * 8;
+			idx += ((start - 0xC0000) >> 12);
+			return mtrr_state.fixed_ranges[idx];
+		}
+	}
+
+	/*
+	 * Look in variable ranges
+	 * Look of multiple ranges matching this address and pick type
+	 * as per MTRR precedence
+	 */
+	if (!mtrr_state.enabled & 2) {
+		return mtrr_state.def_type;
+	}
+
+	prev_match = 0xFF;
+	for (i = 0; i < num_var_ranges; ++i) {
+		unsigned short start_state, end_state;
+
+		if (!(mtrr_state.var_ranges[i].mask_lo & (1 << 11)))
+			continue;
+
+		base = (((u64)mtrr_state.var_ranges[i].base_hi) << 32) +
+		       (mtrr_state.var_ranges[i].base_lo & PAGE_MASK);
+		mask = (((u64)mtrr_state.var_ranges[i].mask_hi) << 32) +
+		       (mtrr_state.var_ranges[i].mask_lo & PAGE_MASK);
+
+		start_state = ((start & mask) == (base & mask));
+		end_state = ((end & mask) == (base & mask));
+		if (start_state != end_state)
+			return 0xFE;
+
+		if ((start & mask) != (base & mask)) {
+			continue;
+		}
+
+		curr_match = mtrr_state.var_ranges[i].base_lo & 0xff;
+		if (prev_match == 0xFF) {
+			prev_match = curr_match;
+			continue;
+		}
+
+		if (prev_match == MTRR_TYPE_UNCACHABLE ||
+		    curr_match == MTRR_TYPE_UNCACHABLE) {
+			return MTRR_TYPE_UNCACHABLE;
+		}
+
+		if ((prev_match == MTRR_TYPE_WRBACK &&
+		     curr_match == MTRR_TYPE_WRTHROUGH) ||
+		    (prev_match == MTRR_TYPE_WRTHROUGH &&
+		     curr_match == MTRR_TYPE_WRBACK)) {
+			prev_match = MTRR_TYPE_WRTHROUGH;
+			curr_match = MTRR_TYPE_WRTHROUGH;
+		}
+
+		if (prev_match != curr_match) {
+			return MTRR_TYPE_UNCACHABLE;
+		}
+	}
+
+	if (tom2) {
+		if (start >= (1ULL<<32) && (end < tom2))
+			return MTRR_TYPE_WRBACK;
+	}
+
+	if (prev_match != 0xFF)
+		return prev_match;
+
+	return mtrr_state.def_type;
+}
 
 /*  Get the MSR pair relating to a var range  */
 static void
@@ -79,12 +187,16 @@ static void print_fixed(unsigned base, unsigned step, const mtrr_type*types)
 			base, base + step - 1, mtrr_attrib_to_str(*types));
 }
 
+static void prepare_set(void);
+static void post_set(void);
+
 /*  Grab all of the MTRR state for this CPU into *state  */
 void __init get_mtrr_state(void)
 {
 	unsigned int i;
 	struct mtrr_var_range *vrs;
 	unsigned lo, dummy;
+	unsigned long flags;
 
 	vrs = mtrr_state.var_ranges;
 
@@ -100,6 +212,15 @@ void __init get_mtrr_state(void)
 	mtrr_state.def_type = (lo & 0xff);
 	mtrr_state.enabled = (lo & 0xc00) >> 10;
 
+	if (amd_special_default_mtrr()) {
+		unsigned lo, hi;
+		/* TOP_MEM2 */
+		rdmsr(MSR_K8_TOP_MEM2, lo, hi);
+		tom2 = hi;
+		tom2 <<= 32;
+		tom2 |= lo;
+		tom2 &= 0xffffff8000000ULL;
+	}
 	if (mtrr_show) {
 		int high_width;
 
@@ -130,7 +251,22 @@ void __init get_mtrr_state(void)
 			else
 				printk(KERN_INFO "MTRR %u disabled\n", i);
 		}
+		if (tom2) {
+			printk(KERN_INFO "TOM2: %016llx aka %lldM\n",
+					  tom2, tom2>>20);
+		}
 	}
+	mtrr_state_set = 1;
+
+	/* PAT setup for BP. We need to go through sync steps here */
+	local_irq_save(flags);
+	prepare_set();
+
+	pat_init();
+
+	post_set();
+	local_irq_restore(flags);
+
 }
 
 /*  Some BIOS's are fucked and don't set all MTRRs the same!  */
@@ -396,6 +532,9 @@ static void generic_set_all(void)
 
 	/* Actually set the state */
 	mask = set_mtrr_state();
+
+	/* also set PAT */
+	pat_init();
 
 	post_set();
 	local_irq_restore(flags);

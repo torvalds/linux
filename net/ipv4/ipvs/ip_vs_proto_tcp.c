@@ -550,7 +550,7 @@ tcp_app_conn_bind(struct ip_vs_conn *cp)
 
 			IP_VS_DBG(9, "%s: Binding conn %u.%u.%u.%u:%u->"
 				  "%u.%u.%u.%u:%u to app %s on port %u\n",
-				  __FUNCTION__,
+				  __func__,
 				  NIPQUAD(cp->caddr), ntohs(cp->cport),
 				  NIPQUAD(cp->vaddr), ntohs(cp->vport),
 				  inc->name, ntohs(inc->port));

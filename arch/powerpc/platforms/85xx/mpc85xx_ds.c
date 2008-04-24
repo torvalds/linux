@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/of_platform.h>
 
 #include <asm/system.h>
 #include <asm/time.h>
@@ -36,7 +37,7 @@
 #undef DEBUG
 
 #ifdef DEBUG
-#define DBG(fmt, args...) printk(KERN_ERR "%s: " fmt, __FUNCTION__, ## args)
+#define DBG(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 #else
 #define DBG(fmt, args...)
 #endif
@@ -182,6 +183,18 @@ static int __init mpc8544_ds_probe(void)
 		return 0;
 	}
 }
+
+static struct of_device_id mpc85xxds_ids[] = {
+	{ .type = "soc", },
+	{ .compatible = "soc", },
+	{},
+};
+
+static int __init mpc85xxds_publish_devices(void)
+{
+	return of_platform_bus_probe(NULL, mpc85xxds_ids, NULL);
+}
+machine_device_initcall(mpc8544_ds, mpc85xxds_publish_devices);
 
 /*
  * Called very early, device-tree isn't unflattened

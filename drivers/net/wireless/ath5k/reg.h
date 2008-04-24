@@ -1923,7 +1923,9 @@ after DFS is enabled */
 #define AR5K_PHY_SDELAY_32MHZ		0x000000ff
 #define AR5K_PHY_SPENDING		0x99f8
 #define AR5K_PHY_SPENDING_RF5111	0x00000018
-#define AR5K_PHY_SPENDING_RF5112	0x00000014
+#define AR5K_PHY_SPENDING_RF5112	0x00000014 /* <- i 've only seen this on 2425 dumps ! */
+#define AR5K_PHY_SPENDING_RF5112A	0x0000000e /* but since i only have 5112A-based chips */
+#define AR5K_PHY_SPENDING_RF5424	0x00000012 /* to test it might be also for old 5112.  */
 
 /*
  * Misc PHY/radio registers [5110 - 5111]

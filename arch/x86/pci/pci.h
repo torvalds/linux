@@ -19,8 +19,6 @@
 #define PCI_PROBE_MASK		0x000f
 #define PCI_PROBE_NOEARLY	0x0010
 
-#define PCI_NO_SORT		0x0100
-#define PCI_BIOS_SORT		0x0200
 #define PCI_NO_CHECKS		0x0400
 #define PCI_USE_PIRQ_MASK	0x0800
 #define PCI_ASSIGN_ROMS		0x1000
@@ -44,7 +42,6 @@ enum pci_bf_sort_state {
 extern unsigned int pcibios_max_latency;
 
 void pcibios_resource_survey(void);
-int pcibios_enable_resources(struct pci_dev *, int);
 
 /* pci-pc.c */
 
@@ -101,7 +98,6 @@ extern int pci_direct_probe(void);
 extern void pci_direct_init(int type);
 extern void pci_pcbios_init(void);
 extern void pci_mmcfg_init(int type);
-extern void pcibios_sort(void);
 
 /* pci-mmconfig.c */
 

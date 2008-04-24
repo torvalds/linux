@@ -4,7 +4,7 @@
  * Renesas Solutions Highlander Support.
  *
  * Copyright (C) 2002 Atom Create Engineering Co., Ltd.
- * Copyright (C) 2005 - 2007 Paul Mundt
+ * Copyright (C) 2005 - 2008 Paul Mundt
  *
  * This contains support for the R7780RP-1, R7780MP, and R7785RP
  * Highlander modules.
@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/types.h>
+#include <linux/i2c.h>
 #include <net/ax88796.h>
 #include <asm/machvec.h>
 #include <asm/r7780rp.h>
@@ -176,11 +177,38 @@ static struct platform_device ax88796_device = {
 	.resource       = ax88796_resources,
 };
 
+static struct resource smbus_resources[] = {
+	[0] = {
+		.start	= PA_SMCR,
+		.end	= PA_SMCR + 0x100 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_SMBUS,
+		.end	= IRQ_SMBUS,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device smbus_device = {
+	.name		= "i2c-highlander",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(smbus_resources),
+	.resource	= smbus_resources,
+};
+
+static struct i2c_board_info __initdata highlander_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("rtc-rs5c372", 0x32),
+		.type	= "r2025sd",
+	},
+};
 
 static struct platform_device *r7780rp_devices[] __initdata = {
 	&r8a66597_usb_host_device,
 	&m66592_usb_peripheral_device,
 	&heartbeat_device,
+	&smbus_device,
 #ifndef CONFIG_SH_R7780RP
 	&ax88796_device,
 #endif
@@ -199,12 +227,20 @@ static struct trapped_io cf_trapped_io = {
 
 static int __init r7780rp_devices_setup(void)
 {
+	int ret = 0;
+
 #ifndef CONFIG_SH_R7780RP
 	if (register_trapped_io(&cf_trapped_io) == 0)
-		platform_device_register(&cf_ide_device);
+		ret |= platform_device_register(&cf_ide_device);
 #endif
-	return platform_add_devices(r7780rp_devices,
+
+	ret |= platform_add_devices(r7780rp_devices,
 				    ARRAY_SIZE(r7780rp_devices));
+
+	ret |= i2c_register_board_info(0, highlander_i2c_devices,
+				       ARRAY_SIZE(highlander_i2c_devices));
+
+	return ret;
 }
 device_initcall(r7780rp_devices_setup);
 

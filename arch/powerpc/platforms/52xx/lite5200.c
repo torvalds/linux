@@ -63,7 +63,7 @@ lite5200_fix_clock_config(void)
 	of_node_put(np);
 	if (!cdm) {
 		printk(KERN_ERR "%s() failed; expect abnormal behaviour\n",
-		       __FUNCTION__);
+		       __func__);
 		return;
 	}
 
@@ -98,7 +98,7 @@ lite5200_fix_port_config(void)
 	of_node_put(np);
 	if (!gpio) {
 		printk(KERN_ERR "%s() failed. expect abnormal behavior\n",
-		       __FUNCTION__);
+		       __func__);
 		return;
 	}
 

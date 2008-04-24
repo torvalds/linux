@@ -69,7 +69,7 @@ static void __iomem *gpmc_base =
 static void __iomem *gpmc_cs_base =
 	(void __iomem *) IO_ADDRESS(GPMC_BASE) + GPMC_CS0;
 
-static struct clk *gpmc_l3_clk;
+static struct clk *gpmc_fck;
 
 static void gpmc_write_reg(int idx, u32 val)
 {
@@ -94,11 +94,10 @@ u32 gpmc_cs_read_reg(int cs, int idx)
 	return __raw_readl(gpmc_cs_base + (cs * GPMC_CS_SIZE) + idx);
 }
 
-/* TODO: Add support for gpmc_fck to clock framework and use it */
 unsigned long gpmc_get_fclk_period(void)
 {
 	/* In picoseconds */
-	return 1000000000 / ((clk_get_rate(gpmc_l3_clk)) / 1000);
+	return 1000000000 / ((clk_get_rate(gpmc_fck)) / 1000);
 }
 
 unsigned int gpmc_ns_to_ticks(unsigned int time_ns)
@@ -398,8 +397,11 @@ void __init gpmc_init(void)
 {
 	u32 l;
 
-	gpmc_l3_clk = clk_get(NULL, "core_l3_ck");
-	BUG_ON(IS_ERR(gpmc_l3_clk));
+	gpmc_fck = clk_get(NULL, "gpmc_fck"); /* Always on ENABLE_ON_INIT */
+	if (IS_ERR(gpmc_fck))
+		WARN_ON(1);
+	else
+		clk_enable(gpmc_fck);
 
 	l = gpmc_read_reg(GPMC_REVISION);
 	printk(KERN_INFO "GPMC revision %d.%d\n", (l >> 4) & 0x0f, l & 0x0f);

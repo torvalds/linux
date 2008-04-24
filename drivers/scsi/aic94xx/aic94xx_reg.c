@@ -32,8 +32,8 @@
  * Offset comes before value to remind that the operation of
  * this function is *offs = val.
  */
-static inline void asd_write_byte(struct asd_ha_struct *asd_ha,
-				  unsigned long offs, u8 val)
+static void asd_write_byte(struct asd_ha_struct *asd_ha,
+			   unsigned long offs, u8 val)
 {
 	if (unlikely(asd_ha->iospace))
 		outb(val,
@@ -43,8 +43,8 @@ static inline void asd_write_byte(struct asd_ha_struct *asd_ha,
 	wmb();
 }
 
-static inline void asd_write_word(struct asd_ha_struct *asd_ha,
-				  unsigned long offs, u16 val)
+static void asd_write_word(struct asd_ha_struct *asd_ha,
+			   unsigned long offs, u16 val)
 {
 	if (unlikely(asd_ha->iospace))
 		outw(val,
@@ -54,8 +54,8 @@ static inline void asd_write_word(struct asd_ha_struct *asd_ha,
 	wmb();
 }
 
-static inline void asd_write_dword(struct asd_ha_struct *asd_ha,
-				   unsigned long offs, u32 val)
+static void asd_write_dword(struct asd_ha_struct *asd_ha,
+			    unsigned long offs, u32 val)
 {
 	if (unlikely(asd_ha->iospace))
 		outl(val,
@@ -67,8 +67,7 @@ static inline void asd_write_dword(struct asd_ha_struct *asd_ha,
 
 /* Reading from device address space.
  */
-static inline u8 asd_read_byte(struct asd_ha_struct *asd_ha,
-			       unsigned long offs)
+static u8 asd_read_byte(struct asd_ha_struct *asd_ha, unsigned long offs)
 {
 	u8 val;
 	if (unlikely(asd_ha->iospace))
@@ -80,8 +79,8 @@ static inline u8 asd_read_byte(struct asd_ha_struct *asd_ha,
 	return val;
 }
 
-static inline u16 asd_read_word(struct asd_ha_struct *asd_ha,
-				unsigned long offs)
+static u16 asd_read_word(struct asd_ha_struct *asd_ha,
+			 unsigned long offs)
 {
 	u16 val;
 	if (unlikely(asd_ha->iospace))
@@ -93,8 +92,8 @@ static inline u16 asd_read_word(struct asd_ha_struct *asd_ha,
 	return val;
 }
 
-static inline u32 asd_read_dword(struct asd_ha_struct *asd_ha,
-				 unsigned long offs)
+static u32 asd_read_dword(struct asd_ha_struct *asd_ha,
+			  unsigned long offs)
 {
 	u32 val;
 	if (unlikely(asd_ha->iospace))
@@ -124,22 +123,22 @@ static inline u32 asd_mem_offs_swb(void)
 /* We know that the register wanted is in the range
  * of the sliding window.
  */
-#define ASD_READ_SW(ww, type, ord)                                     \
-static inline type asd_read_##ww##_##ord (struct asd_ha_struct *asd_ha,\
-					  u32 reg)                     \
-{                                                                      \
-	struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0];    \
-	u32 map_offs=(reg - io_handle-> ww##_base )+asd_mem_offs_##ww ();\
-	return asd_read_##ord (asd_ha, (unsigned long) map_offs);      \
+#define ASD_READ_SW(ww, type, ord)					\
+static type asd_read_##ww##_##ord(struct asd_ha_struct *asd_ha,		\
+				   u32 reg)				\
+{									\
+	struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0];	\
+	u32 map_offs = (reg - io_handle->ww##_base) + asd_mem_offs_##ww();\
+	return asd_read_##ord(asd_ha, (unsigned long)map_offs);	\
 }
 
-#define ASD_WRITE_SW(ww, type, ord)                                    \
-static inline void asd_write_##ww##_##ord (struct asd_ha_struct *asd_ha,\
-				  u32 reg, type val)                   \
-{                                                                      \
-	struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0];    \
-	u32 map_offs=(reg - io_handle-> ww##_base )+asd_mem_offs_##ww ();\
-	asd_write_##ord (asd_ha, (unsigned long) map_offs, val);       \
+#define ASD_WRITE_SW(ww, type, ord)					\
+static void asd_write_##ww##_##ord(struct asd_ha_struct *asd_ha,	\
+				    u32 reg, type val)			\
+{									\
+	struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0];	\
+	u32 map_offs = (reg - io_handle->ww##_base) + asd_mem_offs_##ww();\
+	asd_write_##ord(asd_ha, (unsigned long)map_offs, val);		\
 }
 
 ASD_READ_SW(swa, u8,  byte);
@@ -186,7 +185,7 @@ ASD_WRITE_SW(swc, u32, dword);
  * @asd_ha: pointer to host adapter structure
  * @reg: register desired to be within range of the new window
  */
-static inline void asd_move_swb(struct asd_ha_struct *asd_ha, u32 reg)
+static void asd_move_swb(struct asd_ha_struct *asd_ha, u32 reg)
 {
 	u32 base = reg & ~(MBAR0_SWB_SIZE-1);
 	pci_write_config_dword(asd_ha->pcidev, PCI_CONF_MBAR0_SWB, base);

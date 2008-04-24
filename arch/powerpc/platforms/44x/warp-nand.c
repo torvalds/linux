@@ -11,6 +11,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/ndfc.h>
+#include <asm/machdep.h>
 
 #ifdef CONFIG_MTD_NAND_NDFC
 
@@ -100,6 +101,6 @@ static int warp_setup_nand_flash(void)
 
 	return 0;
 }
-device_initcall(warp_setup_nand_flash);
+machine_device_initcall(warp, warp_setup_nand_flash);
 
 #endif

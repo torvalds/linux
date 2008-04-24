@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2005 QLogic Corporation
+ * Copyright (c)  2003-2008 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -11,9 +11,6 @@
 
 #include <scsi/scsi_tcq.h>
 
-static inline uint16_t qla2x00_get_cmd_direction(struct scsi_cmnd *cmd);
-static inline cont_entry_t *qla2x00_prep_cont_type0_iocb(scsi_qla_host_t *);
-static inline cont_a64_entry_t *qla2x00_prep_cont_type1_iocb(scsi_qla_host_t *);
 static request_t *qla2x00_req_pkt(scsi_qla_host_t *ha);
 static void qla2x00_isp_cmd(scsi_qla_host_t *ha);
 

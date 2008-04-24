@@ -368,11 +368,6 @@ void sctp_sysctl_unregister(void);
 #else
 static inline void sctp_sysctl_register(void) { return; }
 static inline void sctp_sysctl_unregister(void) { return; }
-static inline int sctp_sysctl_jiffies_ms(ctl_table *table, int __user *name, int nlen,
-		void __user *oldval, size_t __user *oldlenp,
-		void __user *newval, size_t newlen) {
-	return -ENOSYS;
-}
 #endif
 
 /* Size of Supported Address Parameter for 'x' address types. */

@@ -30,8 +30,12 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 
 #include <linux/i2c/tps65010.h>
+
+#include <asm/gpio.h>
+
 
 /*-------------------------------------------------------------------------*/
 
@@ -84,7 +88,9 @@ struct tps65010 {
 	u8			chgstatus, regstatus, chgconf;
 	u8			nmask1, nmask2;
 
-	/* not currently tracking GPIO state */
+	u8			outmask;
+	struct gpio_chip	chip;
+	struct platform_device	*leds;
 };
 
 #define	POWER_POLL_DELAY	msecs_to_jiffies(5000)
@@ -449,12 +455,72 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 
 /*-------------------------------------------------------------------------*/
 
+/* offsets 0..3 == GPIO1..GPIO4
+ * offsets 4..5 == LED1/nPG, LED2 (we set one of the non-BLINK modes)
+ */
+static void
+tps65010_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+{
+	if (offset < 4)
+		tps65010_set_gpio_out_value(offset + 1, value);
+	else
+		tps65010_set_led(offset - 3, value ? ON : OFF);
+}
+
+static int
+tps65010_output(struct gpio_chip *chip, unsigned offset, int value)
+{
+	/* GPIOs may be input-only */
+	if (offset < 4) {
+		struct tps65010		*tps;
+
+		tps = container_of(chip, struct tps65010, chip);
+		if (!(tps->outmask & (1 << offset)))
+			return -EINVAL;
+		tps65010_set_gpio_out_value(offset + 1, value);
+	} else
+		tps65010_set_led(offset - 3, value ? ON : OFF);
+
+	return 0;
+}
+
+static int tps65010_gpio_get(struct gpio_chip *chip, unsigned offset)
+{
+	int			value;
+	struct tps65010		*tps;
+
+	tps = container_of(chip, struct tps65010, chip);
+
+	if (offset < 4) {
+		value = i2c_smbus_read_byte_data(tps->client, TPS_DEFGPIO);
+		if (value < 0)
+			return 0;
+		if (value & (1 << (offset + 4)))	/* output */
+			return !(value & (1 << offset));
+		else					/* input */
+			return (value & (1 << offset));
+	}
+
+	/* REVISIT we *could* report LED1/nPG and LED2 state ... */
+	return 0;
+}
+
+
+/*-------------------------------------------------------------------------*/
+
 static struct tps65010 *the_tps;
 
 static int __exit tps65010_remove(struct i2c_client *client)
 {
 	struct tps65010		*tps = i2c_get_clientdata(client);
+	struct tps65010_board	*board = client->dev.platform_data;
 
+	if (board && board->teardown) {
+		int status = board->teardown(client, board->context);
+		if (status < 0)
+			dev_dbg(&client->dev, "board %s %s err %d\n",
+				"teardown", client->name, status);
+	}
 	if (client->irq > 0)
 		free_irq(client->irq, tps);
 	cancel_delayed_work(&tps->work);
@@ -469,6 +535,7 @@ static int tps65010_probe(struct i2c_client *client)
 {
 	struct tps65010		*tps;
 	int			status;
+	struct tps65010_board	*board = client->dev.platform_data;
 
 	if (the_tps) {
 		dev_dbg(&client->dev, "only one tps6501x chip allowed\n");
@@ -577,6 +644,38 @@ static int tps65010_probe(struct i2c_client *client)
 
 	tps->file = debugfs_create_file(DRIVER_NAME, S_IRUGO, NULL,
 				tps, DEBUG_FOPS);
+
+	/* optionally register GPIOs */
+	if (board && board->base > 0) {
+		tps->outmask = board->outmask;
+
+		tps->chip.label = client->name;
+
+		tps->chip.set = tps65010_gpio_set;
+		tps->chip.direction_output = tps65010_output;
+
+		/* NOTE:  only partial support for inputs; nyet IRQs */
+		tps->chip.get = tps65010_gpio_get;
+
+		tps->chip.base = board->base;
+		tps->chip.ngpio = 6;
+		tps->chip.can_sleep = 1;
+
+		status = gpiochip_add(&tps->chip);
+		if (status < 0)
+			dev_err(&client->dev, "can't add gpiochip, err %d\n",
+					status);
+		else if (board->setup) {
+			status = board->setup(client, board->context);
+			if (status < 0) {
+				dev_dbg(&client->dev,
+					"board %s %s err %d\n",
+					"setup", client->name, status);
+				status = 0;
+			}
+		}
+	}
+
 	return 0;
 fail1:
 	kfree(tps);

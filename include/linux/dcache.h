@@ -301,7 +301,9 @@ extern int d_validate(struct dentry *, struct dentry *);
  */
 extern char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
 
+extern char *__d_path(const struct path *path, struct path *root, char *, int);
 extern char *d_path(struct path *, char *, int);
+extern char *dentry_path(struct dentry *, char *, int);
 
 /* Allocation counts.. */
 
@@ -359,7 +361,6 @@ static inline int d_mountpoint(struct dentry *dentry)
 }
 
 extern struct vfsmount *lookup_mnt(struct vfsmount *, struct dentry *);
-extern struct vfsmount *__lookup_mnt(struct vfsmount *, struct dentry *, int);
 extern struct dentry *lookup_create(struct nameidata *nd, int is_dir);
 
 extern int sysctl_vfs_cache_pressure;

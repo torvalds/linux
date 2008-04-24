@@ -26,6 +26,26 @@
 /*
  * RealView EB + ARM11MPCore peripheral addresses
  */
+#define REALVIEW_EB_UART0_BASE		0x10009000	/* UART 0 */
+#define REALVIEW_EB_UART1_BASE		0x1000A000	/* UART 1 */
+#define REALVIEW_EB_UART2_BASE		0x1000B000	/* UART 2 */
+#define REALVIEW_EB_UART3_BASE		0x1000C000	/* UART 3 */
+#define REALVIEW_EB_SSP_BASE		0x1000D000	/* Synchronous Serial Port */
+#define REALVIEW_EB_WATCHDOG_BASE	0x10010000	/* watchdog interface */
+#define REALVIEW_EB_TIMER0_1_BASE	0x10011000	/* Timer 0 and 1 */
+#define REALVIEW_EB_TIMER2_3_BASE	0x10012000	/* Timer 2 and 3 */
+#define REALVIEW_EB_GPIO0_BASE		0x10013000	/* GPIO port 0 */
+#define REALVIEW_EB_RTC_BASE		0x10017000	/* Real Time Clock */
+#define REALVIEW_EB_CLCD_BASE		0x10020000	/* CLCD */
+#define REALVIEW_EB_GIC_CPU_BASE	0x10040000	/* Generic interrupt controller CPU interface */
+#define REALVIEW_EB_GIC_DIST_BASE	0x10041000	/* Generic interrupt controller distributor */
+#define REALVIEW_EB_SMC_BASE		0x10080000	/* Static memory controller */
+
+#define REALVIEW_EB_FLASH_BASE		0x40000000
+#define REALVIEW_EB_FLASH_SIZE		SZ_64M
+#define REALVIEW_EB_ETH_BASE		0x4E000000	/* Ethernet */
+#define REALVIEW_EB_USB_BASE		0x4F000000	/* USB */
+
 #ifdef CONFIG_REALVIEW_EB_ARM11MP_REVB
 #define REALVIEW_EB11MP_SCU_BASE	0x10100000	/* SCU registers */
 #define REALVIEW_EB11MP_GIC_CPU_BASE	0x10100100	/* Generic interrupt controller CPU interface */

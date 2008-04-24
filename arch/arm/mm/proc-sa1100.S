@@ -238,6 +238,7 @@ ENTRY(sa1100_processor_functions)
 	.word	cpu_sa1100_dcache_clean_area
 	.word	cpu_sa1100_switch_mm
 	.word	cpu_sa1100_set_pte_ext
+	.word	pabort_noifar
 	.size	sa1100_processor_functions, . - sa1100_processor_functions
 
 	.section ".rodata"

@@ -15,7 +15,6 @@
 #include <linux/pci_ids.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
-#include <linux/ide.h>
 #include <linux/seq_file.h>
 #include <linux/initrd.h>
 #include <linux/console.h>
@@ -168,85 +167,6 @@ lopec_power_off(void)
 	lopec_halt();
 }
 
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-int lopec_ide_ports_known = 0;
-static unsigned long lopec_ide_regbase[MAX_HWIFS];
-static unsigned long lopec_ide_ctl_regbase[MAX_HWIFS];
-static unsigned long lopec_idedma_regbase;
-
-static void
-lopec_ide_probe(void)
-{
-	struct pci_dev *dev = pci_get_device(PCI_VENDOR_ID_WINBOND,
-					      PCI_DEVICE_ID_WINBOND_82C105,
-					      NULL);
-	lopec_ide_ports_known = 1;
-
-	if (dev) {
-		lopec_ide_regbase[0] = dev->resource[0].start;
-		lopec_ide_regbase[1] = dev->resource[2].start;
-		lopec_ide_ctl_regbase[0] = dev->resource[1].start;
-		lopec_ide_ctl_regbase[1] = dev->resource[3].start;
-		lopec_idedma_regbase = dev->resource[4].start;
-		pci_dev_put(dev);
-	}
-}
-
-static int
-lopec_ide_default_irq(unsigned long base)
-{
-	if (lopec_ide_ports_known == 0)
-		lopec_ide_probe();
-
-	if (base == lopec_ide_regbase[0])
-		return 14;
-	else if (base == lopec_ide_regbase[1])
-		return 15;
-	else
-		return 0;
-}
-
-static unsigned long
-lopec_ide_default_io_base(int index)
-{
-	if (lopec_ide_ports_known == 0)
-		lopec_ide_probe();
-	return lopec_ide_regbase[index];
-}
-
-static void __init
-lopec_ide_init_hwif_ports(hw_regs_t *hw, unsigned long data,
-			  unsigned long ctl, int *irq)
-{
-	unsigned long reg = data;
-	uint alt_status_base;
-	int i;
-
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++)
-		hw->io_ports[i] = reg++;
-
-	if (data == lopec_ide_regbase[0]) {
-		alt_status_base = lopec_ide_ctl_regbase[0] + 2;
-		hw->irq = 14;
-	} else if (data == lopec_ide_regbase[1]) {
-		alt_status_base = lopec_ide_ctl_regbase[1] + 2;
-		hw->irq = 15;
-	} else {
-		alt_status_base = 0;
-		hw->irq = 0;
-	}
-
-	if (ctl)
-		hw->io_ports[IDE_CONTROL_OFFSET] = ctl;
-	else
-		hw->io_ports[IDE_CONTROL_OFFSET] = alt_status_base;
-
-	if (irq != NULL)
-		*irq = hw->irq;
-
-}
-#endif /* BLK_DEV_IDE */
-
 static void __init
 lopec_init_IRQ(void)
 {
@@ -384,11 +304,6 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.nvram_read_val = todc_direct_read_val;
 	ppc_md.nvram_write_val = todc_direct_write_val;
 
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-	ppc_ide_md.default_irq = lopec_ide_default_irq;
-	ppc_ide_md.default_io_base = lopec_ide_default_io_base;
-	ppc_ide_md.ide_init_hwif = lopec_ide_init_hwif_ports;
-#endif
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	ppc_md.progress = gen550_progress;
 #endif

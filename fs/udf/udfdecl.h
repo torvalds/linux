@@ -1,17 +1,37 @@
 #ifndef __UDF_DECL_H
 #define __UDF_DECL_H
 
-#include <linux/udf_fs.h>
 #include "ecma_167.h"
 #include "osta_udf.h"
 
 #include <linux/fs.h>
 #include <linux/types.h>
-#include <linux/udf_fs_i.h>
-#include <linux/udf_fs_sb.h>
 #include <linux/buffer_head.h>
+#include <linux/udf_fs_i.h>
 
+#include "udf_sb.h"
 #include "udfend.h"
+#include "udf_i.h"
+
+#define UDF_PREALLOCATE
+#define UDF_DEFAULT_PREALLOC_BLOCKS	8
+
+#define UDFFS_DEBUG
+
+#ifdef UDFFS_DEBUG
+#define udf_debug(f, a...) \
+do { \
+	printk(KERN_DEBUG "UDF-fs DEBUG %s:%d:%s: ", \
+		__FILE__, __LINE__, __func__); \
+	printk(f, ##a); \
+} while (0)
+#else
+#define udf_debug(f, a...) /**/
+#endif
+
+#define udf_info(f, a...) \
+	printk(KERN_INFO "UDF-fs INFO " f, ##a);
+
 
 #define udf_fixed_to_variable(x) ( ( ( (x) >> 5 ) * 39 ) + ( (x) & 0x0000001F ) )
 #define udf_variable_to_fixed(x) ( ( ( (x) / 39 ) << 5 ) + ( (x) % 39 ) )
@@ -23,16 +43,24 @@
 #define UDF_NAME_LEN		256
 #define UDF_PATH_LEN		1023
 
-#define udf_file_entry_alloc_offset(inode)\
-	(UDF_I(inode)->i_use ?\
-		sizeof(struct unallocSpaceEntry) :\
-		((UDF_I(inode)->i_efe ?\
-			sizeof(struct extendedFileEntry) :\
-			sizeof(struct fileEntry)) + UDF_I(inode)->i_lenEAttr))
+static inline size_t udf_file_entry_alloc_offset(struct inode *inode)
+{
+	struct udf_inode_info *iinfo = UDF_I(inode);
+	if (iinfo->i_use)
+		return sizeof(struct unallocSpaceEntry);
+	else if (iinfo->i_efe)
+		return sizeof(struct extendedFileEntry) + iinfo->i_lenEAttr;
+	else
+		return sizeof(struct fileEntry) + iinfo->i_lenEAttr;
+}
 
-#define udf_ext0_offset(inode)\
-	(UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB ?\
-		udf_file_entry_alloc_offset(inode) : 0)
+static inline size_t udf_ext0_offset(struct inode *inode)
+{
+	if (UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+		return udf_file_entry_alloc_offset(inode);
+	else
+		return 0;
+}
 
 #define udf_get_lb_pblock(sb,loc,offset) udf_get_pblock((sb), (loc).logicalBlockNum, (loc).partitionReferenceNum, (offset))
 
@@ -83,7 +111,6 @@ struct extent_position {
 };
 
 /* super.c */
-extern void udf_error(struct super_block *, const char *, const char *, ...);
 extern void udf_warning(struct super_block *, const char *, const char *, ...);
 
 /* namei.c */
@@ -150,6 +177,8 @@ extern uint32_t udf_get_pblock_virt20(struct super_block *, uint32_t, uint16_t,
 				      uint32_t);
 extern uint32_t udf_get_pblock_spar15(struct super_block *, uint32_t, uint16_t,
 				      uint32_t);
+extern uint32_t udf_get_pblock_meta25(struct super_block *, uint32_t, uint16_t,
+					  uint32_t);
 extern int udf_relocate_blocks(struct super_block *, long, long *);
 
 /* unicode.c */
@@ -157,7 +186,7 @@ extern int udf_get_filename(struct super_block *, uint8_t *, uint8_t *, int);
 extern int udf_put_filename(struct super_block *, const uint8_t *, uint8_t *,
 			    int);
 extern int udf_build_ustr(struct ustr *, dstring *, int);
-extern int udf_CS0toUTF8(struct ustr *, struct ustr *);
+extern int udf_CS0toUTF8(struct ustr *, const struct ustr *);
 
 /* ialloc.c */
 extern void udf_free_inode(struct inode *);
@@ -191,11 +220,9 @@ extern struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize,
 extern long_ad *udf_get_filelongad(uint8_t *, int, uint32_t *, int);
 extern short_ad *udf_get_fileshortad(uint8_t *, int, uint32_t *, int);
 
-/* crc.c */
-extern uint16_t udf_crc(uint8_t *, uint32_t, uint16_t);
-
 /* udftime.c */
-extern time_t *udf_stamp_to_time(time_t *, long *, kernel_timestamp);
-extern kernel_timestamp *udf_time_to_stamp(kernel_timestamp *, struct timespec);
+extern struct timespec *udf_disk_stamp_to_time(struct timespec *dest,
+						timestamp src);
+extern timestamp *udf_time_to_disk_stamp(timestamp *dest, struct timespec src);
 
 #endif				/* __UDF_DECL_H */

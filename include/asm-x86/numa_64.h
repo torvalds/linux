@@ -1,14 +1,16 @@
-#ifndef _ASM_X8664_NUMA_H 
+#ifndef _ASM_X8664_NUMA_H
 #define _ASM_X8664_NUMA_H 1
 
 #include <linux/nodemask.h>
 #include <asm/apicdef.h>
 
 struct bootnode {
-	u64 start,end; 
+	u64 start;
+	u64 end;
 };
 
-extern int compute_hash_shift(struct bootnode *nodes, int numnodes);
+extern int compute_hash_shift(struct bootnode *nodes, int numblks,
+			      int *nodeids);
 
 #define ZONE_ALIGN (1UL << (MAX_ORDER+PAGE_SHIFT))
 

@@ -149,8 +149,7 @@ static bool udf_add_free_space(struct udf_sb_info *sbi,
 		return false;
 
 	lvid = (struct logicalVolIntegrityDesc *)sbi->s_lvid_bh->b_data;
-	lvid->freeSpaceTable[partition] = cpu_to_le32(le32_to_cpu(
-					lvid->freeSpaceTable[partition]) + cnt);
+	le32_add_cpu(&lvid->freeSpaceTable[partition], cnt);
 	return true;
 }
 
@@ -589,10 +588,8 @@ static void udf_table_free_blocks(struct super_block *sb,
 					sptr = oepos.bh->b_data + epos.offset;
 					aed = (struct allocExtDesc *)
 						oepos.bh->b_data;
-					aed->lengthAllocDescs =
-						cpu_to_le32(le32_to_cpu(
-							aed->lengthAllocDescs) +
-								adsize);
+					le32_add_cpu(&aed->lengthAllocDescs,
+							adsize);
 				} else {
 					sptr = iinfo->i_ext.i_data +
 								epos.offset;
@@ -645,9 +642,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 				mark_inode_dirty(table);
 			} else {
 				aed = (struct allocExtDesc *)epos.bh->b_data;
-				aed->lengthAllocDescs =
-					cpu_to_le32(le32_to_cpu(
-					    aed->lengthAllocDescs) + adsize);
+				le32_add_cpu(&aed->lengthAllocDescs, adsize);
 				udf_update_tag(epos.bh->b_data, epos.offset);
 				mark_buffer_dirty(epos.bh);
 			}

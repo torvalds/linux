@@ -20,6 +20,7 @@
 #include <asm/hardware.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/arch/cm-x270.h>
 
 #include "soc_common.h"

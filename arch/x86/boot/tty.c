@@ -9,8 +9,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * arch/i386/boot/tty.c
- *
  * Very simple screen I/O
  * XXX: Probably should add very simple serial I/O?
  */

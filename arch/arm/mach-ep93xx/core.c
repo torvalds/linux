@@ -159,7 +159,7 @@ static const u8 int_type2_register_offset[3]	= { 0x94, 0xb0, 0x50 };
 static const u8 eoi_register_offset[3]		= { 0x98, 0xb4, 0x54 };
 static const u8 int_en_register_offset[3]	= { 0x9c, 0xb8, 0x5c };
 
-static void update_gpio_int_params(unsigned port)
+void ep93xx_gpio_update_int_params(unsigned port)
 {
 	BUG_ON(port > 2);
 
@@ -175,98 +175,10 @@ static void update_gpio_int_params(unsigned port)
 		EP93XX_GPIO_REG(int_en_register_offset[port]));
 }
 
-/* Port ordering is: A B F D E C G H */
-static const u8 data_register_offset[8] = {
-	0x00, 0x04, 0x30, 0x0c, 0x20, 0x08, 0x38, 0x40,
-};
-
-static const u8 data_direction_register_offset[8] = {
-	0x10, 0x14, 0x34, 0x1c, 0x24, 0x18, 0x3c, 0x44,
-};
-
-#define GPIO_IN		0
-#define GPIO_OUT	1
-
-static void ep93xx_gpio_set_direction(unsigned line, int direction)
+void ep93xx_gpio_int_mask(unsigned line)
 {
-	unsigned int data_direction_register;
-	unsigned long flags;
-	unsigned char v;
-
-	data_direction_register =
-		EP93XX_GPIO_REG(data_direction_register_offset[line >> 3]);
-
-	local_irq_save(flags);
-	if (direction == GPIO_OUT) {
-		if (line >= 0 && line <= EP93XX_GPIO_LINE_MAX_IRQ) {
-			/* Port A/B/F */
-			gpio_int_unmasked[line >> 3] &= ~(1 << (line & 7));
-			update_gpio_int_params(line >> 3);
-		}
-
-		v = __raw_readb(data_direction_register);
-		v |= 1 << (line & 7);
-		__raw_writeb(v, data_direction_register);
-	} else if (direction == GPIO_IN) {
-		v = __raw_readb(data_direction_register);
-		v &= ~(1 << (line & 7));
-		__raw_writeb(v, data_direction_register);
-	}
-	local_irq_restore(flags);
+	gpio_int_unmasked[line >> 3] &= ~(1 << (line & 7));
 }
-
-int gpio_direction_input(unsigned gpio)
-{
-	if (gpio > EP93XX_GPIO_LINE_MAX)
-		return -EINVAL;
-
-	ep93xx_gpio_set_direction(gpio, GPIO_IN);
-
-	return 0;
-}
-EXPORT_SYMBOL(gpio_direction_input);
-
-int gpio_direction_output(unsigned gpio, int value)
-{
-	if (gpio > EP93XX_GPIO_LINE_MAX)
-		return -EINVAL;
-
-	gpio_set_value(gpio, value);
-	ep93xx_gpio_set_direction(gpio, GPIO_OUT);
-
-	return 0;
-}
-EXPORT_SYMBOL(gpio_direction_output);
-
-int gpio_get_value(unsigned gpio)
-{
-	unsigned int data_register;
-
-	data_register = EP93XX_GPIO_REG(data_register_offset[gpio >> 3]);
-
-	return !!(__raw_readb(data_register) & (1 << (gpio & 7)));
-}
-EXPORT_SYMBOL(gpio_get_value);
-
-void gpio_set_value(unsigned gpio, int value)
-{
-	unsigned int data_register;
-	unsigned long flags;
-	unsigned char v;
-
-	data_register = EP93XX_GPIO_REG(data_register_offset[gpio >> 3]);
-
-	local_irq_save(flags);
-	v = __raw_readb(data_register);
-	if (value)
-		v |= 1 << (gpio & 7);
-	else
-		v &= ~(1 << (gpio & 7));
-	__raw_writeb(v, data_register);
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL(gpio_set_value);
-
 
 /*************************************************************************
  * EP93xx IRQ handling
@@ -316,7 +228,7 @@ static void ep93xx_gpio_irq_ack(unsigned int irq)
 
 	if ((irq_desc[irq].status & IRQ_TYPE_SENSE_MASK) == IRQT_BOTHEDGE) {
 		gpio_int_type2[port] ^= port_mask; /* switch edge direction */
-		update_gpio_int_params(port);
+		ep93xx_gpio_update_int_params(port);
 	}
 
 	__raw_writeb(port_mask, EP93XX_GPIO_REG(eoi_register_offset[port]));
@@ -332,7 +244,7 @@ static void ep93xx_gpio_irq_mask_ack(unsigned int irq)
 		gpio_int_type2[port] ^= port_mask; /* switch edge direction */
 
 	gpio_int_unmasked[port] &= ~port_mask;
-	update_gpio_int_params(port);
+	ep93xx_gpio_update_int_params(port);
 
 	__raw_writeb(port_mask, EP93XX_GPIO_REG(eoi_register_offset[port]));
 }
@@ -343,7 +255,7 @@ static void ep93xx_gpio_irq_mask(unsigned int irq)
 	int port = line >> 3;
 
 	gpio_int_unmasked[port] &= ~(1 << (line & 7));
-	update_gpio_int_params(port);
+	ep93xx_gpio_update_int_params(port);
 }
 
 static void ep93xx_gpio_irq_unmask(unsigned int irq)
@@ -352,7 +264,7 @@ static void ep93xx_gpio_irq_unmask(unsigned int irq)
 	int port = line >> 3;
 
 	gpio_int_unmasked[port] |= 1 << (line & 7);
-	update_gpio_int_params(port);
+	ep93xx_gpio_update_int_params(port);
 }
 
 
@@ -368,7 +280,7 @@ static int ep93xx_gpio_irq_type(unsigned int irq, unsigned int type)
 	const int port = gpio >> 3;
 	const int port_mask = 1 << (gpio & 7);
 
-	ep93xx_gpio_set_direction(gpio, GPIO_IN);
+	gpio_direction_output(gpio, gpio_get_value(gpio));
 
 	switch (type) {
 	case IRQT_RISING:
@@ -411,7 +323,7 @@ static int ep93xx_gpio_irq_type(unsigned int irq, unsigned int type)
 	desc->status &= ~IRQ_TYPE_SENSE_MASK;
 	desc->status |= type & IRQ_TYPE_SENSE_MASK;
 
-	update_gpio_int_params(port);
+	ep93xx_gpio_update_int_params(port);
 
 	return 0;
 }
@@ -549,6 +461,7 @@ static struct platform_device ep93xx_ohci_device = {
 	.resource	= ep93xx_ohci_resources,
 };
 
+extern void ep93xx_gpio_init(void);
 
 void __init ep93xx_init_devices(void)
 {
@@ -561,6 +474,8 @@ void __init ep93xx_init_devices(void)
 	v &= ~EP93XX_SYSCON_DEVICE_CONFIG_CRUNCH_ENABLE;
 	__raw_writel(0xaa, EP93XX_SYSCON_SWLOCK);
 	__raw_writel(v, EP93XX_SYSCON_DEVICE_CONFIG);
+
+	ep93xx_gpio_init();
 
 	amba_device_register(&uart1_device, &iomem_resource);
 	amba_device_register(&uart2_device, &iomem_resource);

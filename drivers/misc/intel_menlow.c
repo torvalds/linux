@@ -213,7 +213,7 @@ static int intel_menlow_memory_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-const static struct acpi_device_id intel_menlow_memory_ids[] = {
+static const struct acpi_device_id intel_menlow_memory_ids[] = {
 	{"INT0002", 0},
 	{"", 0},
 };

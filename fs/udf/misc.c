@@ -23,8 +23,8 @@
 
 #include <linux/fs.h>
 #include <linux/string.h>
-#include <linux/udf_fs.h>
 #include <linux/buffer_head.h>
+#include <linux/crc-itu-t.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"
@@ -136,8 +136,8 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 		/* rewrite CRC + checksum of eahd */
 		crclen = sizeof(struct extendedAttrHeaderDesc) - sizeof(tag);
 		eahd->descTag.descCRCLength = cpu_to_le16(crclen);
-		eahd->descTag.descCRC = cpu_to_le16(udf_crc((char *)eahd +
-						sizeof(tag), crclen, 0));
+		eahd->descTag.descCRC = cpu_to_le16(crc_itu_t(0, (char *)eahd +
+						sizeof(tag), crclen));
 		eahd->descTag.tagChecksum = udf_tag_checksum(&eahd->descTag);
 		iinfo->i_lenEAttr += size;
 		return (struct genericFormat *)&ea[offset];
@@ -204,16 +204,15 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 {
 	tag *tag_p;
 	struct buffer_head *bh = NULL;
-	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	/* Read the block */
 	if (block == 0xFFFFFFFF)
 		return NULL;
 
-	bh = udf_tread(sb, block + sbi->s_session);
+	bh = udf_tread(sb, block);
 	if (!bh) {
 		udf_debug("block=%d, location=%d: read failed\n",
-			  block + sbi->s_session, location);
+			  block, location);
 		return NULL;
 	}
 
@@ -223,8 +222,7 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 
 	if (location != le32_to_cpu(tag_p->tagLocation)) {
 		udf_debug("location mismatch block %u, tag %u != %u\n",
-			  block + sbi->s_session,
-			  le32_to_cpu(tag_p->tagLocation), location);
+			  block, le32_to_cpu(tag_p->tagLocation), location);
 		goto error_out;
 	}
 
@@ -244,13 +242,13 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 
 	/* Verify the descriptor CRC */
 	if (le16_to_cpu(tag_p->descCRCLength) + sizeof(tag) > sb->s_blocksize ||
-	    le16_to_cpu(tag_p->descCRC) == udf_crc(bh->b_data + sizeof(tag),
-					le16_to_cpu(tag_p->descCRCLength), 0))
+	    le16_to_cpu(tag_p->descCRC) == crc_itu_t(0,
+					bh->b_data + sizeof(tag),
+					le16_to_cpu(tag_p->descCRCLength)))
 		return bh;
 
-	udf_debug("Crc failure block %d: crc = %d, crclen = %d\n",
-		  block + sbi->s_session, le16_to_cpu(tag_p->descCRC),
-		  le16_to_cpu(tag_p->descCRCLength));
+	udf_debug("Crc failure block %d: crc = %d, crclen = %d\n", block,
+	    le16_to_cpu(tag_p->descCRC), le16_to_cpu(tag_p->descCRCLength));
 
 error_out:
 	brelse(bh);
@@ -270,7 +268,7 @@ void udf_update_tag(char *data, int length)
 	length -= sizeof(tag);
 
 	tptr->descCRCLength = cpu_to_le16(length);
-	tptr->descCRC = cpu_to_le16(udf_crc(data + sizeof(tag), length, 0));
+	tptr->descCRC = cpu_to_le16(crc_itu_t(0, data + sizeof(tag), length));
 	tptr->tagChecksum = udf_tag_checksum(tptr);
 }
 

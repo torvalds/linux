@@ -624,7 +624,6 @@ static int compat_blkdev_driver_ioctl(struct inode *inode, struct file *file,
 	case HDIO_GET_IDENTITY:
 	case HDIO_DRIVE_TASK:
 	case HDIO_DRIVE_CMD:
-	case HDIO_SCAN_HWIF:
 	/* 0x330 is reserved -- it used to be HDIO_GETGEO_BIG */
 	case 0x330:
 	/* 0x02 -- Floppy ioctls */

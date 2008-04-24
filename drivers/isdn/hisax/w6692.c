@@ -38,8 +38,6 @@ static const PCI_ENTRY id_list[] =
 #define W6692_DYNALINK 1
 #define W6692_USR      2
 
-extern const char *CardType[];
-
 static const char *w6692_revision = "$Revision: 1.18.2.4 $";
 
 #define DBUSY_TIMER_VALUE 80

@@ -44,7 +44,6 @@
 #include <net/checksum.h>
 #include <linux/smp_lock.h>
 #include <linux/stat.h>
-#include <asm/semaphore.h>
 
 #define FL_READONLY 128
 #define FL_DIR_SEM_HELD 256

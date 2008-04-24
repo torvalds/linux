@@ -406,6 +406,34 @@ do_clear_global_summary(void)
 #define CHSC_FLAG_SIGA_SYNC_DONE_ON_THININTS 0x08
 #define CHSC_FLAG_SIGA_SYNC_DONE_ON_OUTB_PCIS 0x04
 
+struct qdio_chsc_ssqd {
+	struct chsc_header request;
+	u16 reserved1:10;
+	u16 ssid:2;
+	u16 fmt:4;
+	u16 first_sch;
+	u16 reserved2;
+	u16 last_sch;
+	u32 reserved3;
+	struct chsc_header response;
+	u32 reserved4;
+	u8  flags;
+	u8  reserved5;
+	u16 sch;
+	u8  qfmt;
+	u8  parm;
+	u8  qdioac1;
+	u8  sch_class;
+	u8  pct;
+	u8  icnt;
+	u8  reserved7;
+	u8  ocnt;
+	u8  reserved8;
+	u8  mbccnt;
+	u16 qdioac2;
+	u64 sch_token;
+};
+
 struct qdio_perf_stats {
 #ifdef CONFIG_64BIT
 	atomic64_t tl_runs;

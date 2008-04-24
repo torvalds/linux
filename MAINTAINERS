@@ -486,6 +486,12 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/GUMSTIX MACHINE SUPPORT
+P:	Steve Sakoman
+M:	sakoman@gmail.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+
 ARM/HP JORNADA 7XX MACHINE SUPPORT
 P:      Kristoffer Ericson
 M:      kristoffer.ericson@gmail.com
@@ -678,6 +684,11 @@ L:	linux-wireless@vger.kernel.org
 L:	ath5k-devel@lists.ath5k.org
 S:	Maintained
 
+ATI_REMOTE2 DRIVER
+P:	Ville Syrjala
+M:	syrjala@sci.fi
+S:	Maintained
+
 ATL1 ETHERNET DRIVER
 P:	Jay Cliburn
 M:	jcliburn@gmail.com
@@ -839,15 +850,6 @@ M:	stefano.brivio@polimi.it
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/en/users/Drivers/b43
 S:	Maintained
-
-BCM43XX WIRELESS DRIVER (SOFTMAC BASED VERSION)
-P:	Larry Finger
-M:	Larry.Finger@lwfinger.net
-P:	Stefano Brivio
-M:	stefano.brivio@polimi.it
-L:	linux-wireless@vger.kernel.org
-W:	http://bcm43xx.berlios.de/
-S:	Obsolete
 
 BEFS FILE SYSTEM
 P:	Sergey S. Kostyliov
@@ -2319,6 +2321,12 @@ L:	linux-kernel@vger.kernel.org
 L:	kexec@lists.infradead.org
 S:	Maintained
 
+KGDB
+P:	Jason Wessel
+M:	jason.wessel@windriver.com
+L:	kgdb-bugreport@lists.sourceforge.net
+S:	Maintained
+
 KPROBES
 P:	Ananth N Mavinakayanahalli
 M:	ananth@in.ibm.com
@@ -2944,8 +2952,9 @@ P:	Mark Fasheh
 M:	mfasheh@suse.com
 P:	Joel Becker
 M:	joel.becker@oracle.com
-L:	ocfs2-devel@oss.oracle.com
+L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://oss.oracle.com/projects/ocfs2/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfasheh/ocfs2.git
 S:	Supported
 
 OMNIKEY CARDMAN 4000 DRIVER
@@ -3061,11 +3070,10 @@ L:	linux-pci@atrey.karlin.mff.cuni.cz
 S:	Supported
 
 PCI SUBSYSTEM
-P:	Greg Kroah-Hartman
-M:	gregkh@suse.de
+P:	Jesse Barnes
+M:	jbarnes@virtuousgeek.org
 L:	linux-kernel@vger.kernel.org
 L:	linux-pci@atrey.karlin.mff.cuni.cz
-T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
 S:	Supported
 
 PCI HOTPLUG CORE
@@ -3472,7 +3480,7 @@ P:	Vlad Yasevich
 M:	vladislav.yasevich@hp.com
 P:	Sridhar Samudrala
 M:	sri@us.ibm.com
-L:	lksctp-developers@lists.sourceforge.net
+L:	linux-sctp@vger.kernel.org
 W:	http://lksctp.sourceforge.net
 S:	Supported
 
@@ -3606,11 +3614,10 @@ M:	mhoffman@lightlink.com
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
-SOFTMAC LAYER (IEEE 802.11)
-P:	Daniel Drake
-M:	dsd@gentoo.org
-L:	linux-wireless@vger.kernel.org
-S:	Obsolete
+SMX UIO Interface
+P:	Ben Nizette
+M:	bn@niasdigital.com
+S:	Maintained
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
 P:	Ingo Molnar

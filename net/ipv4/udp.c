@@ -137,29 +137,28 @@ static inline int __udp_lib_lport_inuse(struct net *net, __u16 num,
 	struct hlist_node *node;
 
 	sk_for_each(sk, node, &udptable[num & (UDP_HTABLE_SIZE - 1)])
-		if (sk->sk_net == net && sk->sk_hash == num)
+		if (net_eq(sock_net(sk), net) && sk->sk_hash == num)
 			return 1;
 	return 0;
 }
 
 /**
- *  __udp_lib_get_port  -  UDP/-Lite port lookup for IPv4 and IPv6
+ *  udp_lib_get_port  -  UDP/-Lite port lookup for IPv4 and IPv6
  *
  *  @sk:          socket struct in question
  *  @snum:        port number to look up
- *  @udptable:    hash list table, must be of UDP_HTABLE_SIZE
  *  @saddr_comp:  AF-dependent comparison of bound local IP addresses
  */
-int __udp_lib_get_port(struct sock *sk, unsigned short snum,
-		       struct hlist_head udptable[],
+int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		       int (*saddr_comp)(const struct sock *sk1,
 					 const struct sock *sk2 )    )
 {
+	struct hlist_head *udptable = sk->sk_prot->h.udp_hash;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct sock *sk2;
 	int    error = 1;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	write_lock_bh(&udp_hash_lock);
 
@@ -219,7 +218,7 @@ gotit:
 		sk_for_each(sk2, node, head)
 			if (sk2->sk_hash == snum                             &&
 			    sk2 != sk                                        &&
-			    sk2->sk_net == net				     &&
+			    net_eq(sock_net(sk2), net)			     &&
 			    (!sk2->sk_reuse        || !sk->sk_reuse)         &&
 			    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if
 			     || sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
@@ -232,7 +231,7 @@ gotit:
 	if (sk_unhashed(sk)) {
 		head = &udptable[snum & (UDP_HTABLE_SIZE - 1)];
 		sk_add_node(sk, head);
-		sock_prot_inuse_add(sk->sk_prot, 1);
+		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	}
 	error = 0;
 fail:
@@ -240,13 +239,7 @@ fail:
 	return error;
 }
 
-int udp_get_port(struct sock *sk, unsigned short snum,
-			int (*scmp)(const struct sock *, const struct sock *))
-{
-	return  __udp_lib_get_port(sk, snum, udp_hash, scmp);
-}
-
-int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
+static int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
 {
 	struct inet_sock *inet1 = inet_sk(sk1), *inet2 = inet_sk(sk2);
 
@@ -255,9 +248,9 @@ int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
 		   inet1->rcv_saddr == inet2->rcv_saddr      ));
 }
 
-static inline int udp_v4_get_port(struct sock *sk, unsigned short snum)
+int udp_v4_get_port(struct sock *sk, unsigned short snum)
 {
-	return udp_get_port(sk, snum, ipv4_rcv_saddr_equal);
+	return udp_lib_get_port(sk, snum, ipv4_rcv_saddr_equal);
 }
 
 /* UDP is nearly always wildcards out the wazoo, it makes no sense to try
@@ -276,7 +269,7 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 	sk_for_each(sk, node, &udptable[hnum & (UDP_HTABLE_SIZE - 1)]) {
 		struct inet_sock *inet = inet_sk(sk);
 
-		if (sk->sk_net == net && sk->sk_hash == hnum &&
+		if (net_eq(sock_net(sk), net) && sk->sk_hash == hnum &&
 				!ipv6_only_sock(sk)) {
 			int score = (sk->sk_family == PF_INET ? 1 : 0);
 			if (inet->rcv_saddr) {
@@ -364,7 +357,7 @@ void __udp4_lib_err(struct sk_buff *skb, u32 info, struct hlist_head udptable[])
 	int harderr;
 	int err;
 
-	sk = __udp4_lib_lookup(skb->dev->nd_net, iph->daddr, uh->dest,
+	sk = __udp4_lib_lookup(dev_net(skb->dev), iph->daddr, uh->dest,
 			iph->saddr, uh->source, skb->dev->ifindex, udptable);
 	if (sk == NULL) {
 		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
@@ -614,7 +607,7 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	ipc.oif = sk->sk_bound_dev_if;
 	if (msg->msg_controllen) {
-		err = ip_cmsg_send(msg, &ipc);
+		err = ip_cmsg_send(sock_net(sk), msg, &ipc);
 		if (err)
 			return err;
 		if (ipc.opt)
@@ -663,7 +656,7 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 					       { .sport = inet->sport,
 						 .dport = dport } } };
 		security_sk_classify_flow(sk, &fl);
-		err = ip_route_output_flow(&init_net, &rt, &fl, sk, 1);
+		err = ip_route_output_flow(sock_net(sk), &rt, &fl, sk, 1);
 		if (err) {
 			if (err == -ENETUNREACH)
 				IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
@@ -1188,7 +1181,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	if (rt->rt_flags & (RTCF_BROADCAST|RTCF_MULTICAST))
 		return __udp4_lib_mcast_deliver(skb, uh, saddr, daddr, udptable);
 
-	sk = __udp4_lib_lookup(skb->dev->nd_net, saddr, uh->source, daddr,
+	sk = __udp4_lib_lookup(dev_net(skb->dev), saddr, uh->source, daddr,
 			uh->dest, inet_iif(skb), udptable);
 
 	if (sk != NULL) {
@@ -1228,7 +1221,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	return 0;
 
 short_packet:
-	LIMIT_NETDEBUG(KERN_DEBUG "UDP%s: short packet: From %u.%u.%u.%u:%u %d/%d to %u.%u.%u.%u:%u\n",
+	LIMIT_NETDEBUG(KERN_DEBUG "UDP%s: short packet: From " NIPQUAD_FMT ":%u %d/%d to " NIPQUAD_FMT ":%u\n",
 		       proto == IPPROTO_UDPLITE ? "-Lite" : "",
 		       NIPQUAD(saddr),
 		       ntohs(uh->source),
@@ -1243,7 +1236,7 @@ csum_error:
 	 * RFC1122: OK.  Discards the bad packet silently (as far as
 	 * the network is concerned, anyway) as per 4.1.3.4 (MUST).
 	 */
-	LIMIT_NETDEBUG(KERN_DEBUG "UDP%s: bad checksum. From %d.%d.%d.%d:%d to %d.%d.%d.%d:%d ulen %d\n",
+	LIMIT_NETDEBUG(KERN_DEBUG "UDP%s: bad checksum. From " NIPQUAD_FMT ":%u to " NIPQUAD_FMT ":%u ulen %d\n",
 		       proto == IPPROTO_UDPLITE ? "-Lite" : "",
 		       NIPQUAD(saddr),
 		       ntohs(uh->source),
@@ -1474,8 +1467,6 @@ unsigned int udp_poll(struct file *file, struct socket *sock, poll_table *wait)
 
 }
 
-DEFINE_PROTO_INUSE(udp)
-
 struct proto udp_prot = {
 	.name		   = "UDP",
 	.owner		   = THIS_MODULE,
@@ -1498,11 +1489,11 @@ struct proto udp_prot = {
 	.sysctl_wmem	   = &sysctl_udp_wmem_min,
 	.sysctl_rmem	   = &sysctl_udp_rmem_min,
 	.obj_size	   = sizeof(struct udp_sock),
+	.h.udp_hash	   = udp_hash,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_udp_setsockopt,
 	.compat_getsockopt = compat_udp_getsockopt,
 #endif
-	REF_PROTO_INUSE(udp)
 };
 
 /* ------------------------------------------------------------------------ */
@@ -1512,10 +1503,13 @@ static struct sock *udp_get_first(struct seq_file *seq)
 {
 	struct sock *sk;
 	struct udp_iter_state *state = seq->private;
+	struct net *net = seq_file_net(seq);
 
 	for (state->bucket = 0; state->bucket < UDP_HTABLE_SIZE; ++state->bucket) {
 		struct hlist_node *node;
 		sk_for_each(sk, node, state->hashtable + state->bucket) {
+			if (!net_eq(sock_net(sk), net))
+				continue;
 			if (sk->sk_family == state->family)
 				goto found;
 		}
@@ -1528,12 +1522,13 @@ found:
 static struct sock *udp_get_next(struct seq_file *seq, struct sock *sk)
 {
 	struct udp_iter_state *state = seq->private;
+	struct net *net = seq_file_net(seq);
 
 	do {
 		sk = sk_next(sk);
 try_again:
 		;
-	} while (sk && sk->sk_family != state->family);
+	} while (sk && (!net_eq(sock_net(sk), net) || sk->sk_family != state->family));
 
 	if (!sk && ++state->bucket < UDP_HTABLE_SIZE) {
 		sk = sk_head(state->hashtable + state->bucket);
@@ -1581,47 +1576,36 @@ static void udp_seq_stop(struct seq_file *seq, void *v)
 static int udp_seq_open(struct inode *inode, struct file *file)
 {
 	struct udp_seq_afinfo *afinfo = PDE(inode)->data;
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct udp_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
+	struct udp_iter_state *s;
+	int err;
 
-	if (!s)
-		goto out;
+	err = seq_open_net(inode, file, &afinfo->seq_ops,
+			   sizeof(struct udp_iter_state));
+	if (err < 0)
+		return err;
+
+	s = ((struct seq_file *)file->private_data)->private;
 	s->family		= afinfo->family;
 	s->hashtable		= afinfo->hashtable;
-	s->seq_ops.start	= udp_seq_start;
-	s->seq_ops.next		= udp_seq_next;
-	s->seq_ops.show		= afinfo->seq_show;
-	s->seq_ops.stop		= udp_seq_stop;
-
-	rc = seq_open(file, &s->seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq	     = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return err;
 }
 
 /* ------------------------------------------------------------------------ */
-int udp_proc_register(struct udp_seq_afinfo *afinfo)
+int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo)
 {
 	struct proc_dir_entry *p;
 	int rc = 0;
 
-	if (!afinfo)
-		return -EINVAL;
-	afinfo->seq_fops->owner		= afinfo->owner;
-	afinfo->seq_fops->open		= udp_seq_open;
-	afinfo->seq_fops->read		= seq_read;
-	afinfo->seq_fops->llseek	= seq_lseek;
-	afinfo->seq_fops->release	= seq_release_private;
+	afinfo->seq_fops.open		= udp_seq_open;
+	afinfo->seq_fops.read		= seq_read;
+	afinfo->seq_fops.llseek		= seq_lseek;
+	afinfo->seq_fops.release	= seq_release_net;
 
-	p = proc_net_fops_create(&init_net, afinfo->name, S_IRUGO, afinfo->seq_fops);
+	afinfo->seq_ops.start		= udp_seq_start;
+	afinfo->seq_ops.next		= udp_seq_next;
+	afinfo->seq_ops.stop		= udp_seq_stop;
+
+	p = proc_net_fops_create(net, afinfo->name, S_IRUGO, &afinfo->seq_fops);
 	if (p)
 		p->data = afinfo;
 	else
@@ -1629,12 +1613,9 @@ int udp_proc_register(struct udp_seq_afinfo *afinfo)
 	return rc;
 }
 
-void udp_proc_unregister(struct udp_seq_afinfo *afinfo)
+void udp_proc_unregister(struct net *net, struct udp_seq_afinfo *afinfo)
 {
-	if (!afinfo)
-		return;
-	proc_net_remove(&init_net, afinfo->name);
-	memset(afinfo->seq_fops, 0, sizeof(*afinfo->seq_fops));
+	proc_net_remove(net, afinfo->name);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1673,24 +1654,41 @@ int udp4_seq_show(struct seq_file *seq, void *v)
 }
 
 /* ------------------------------------------------------------------------ */
-static struct file_operations udp4_seq_fops;
 static struct udp_seq_afinfo udp4_seq_afinfo = {
-	.owner		= THIS_MODULE,
 	.name		= "udp",
 	.family		= AF_INET,
 	.hashtable	= udp_hash,
-	.seq_show	= udp4_seq_show,
-	.seq_fops	= &udp4_seq_fops,
+	.seq_fops	= {
+		.owner	=	THIS_MODULE,
+	},
+	.seq_ops	= {
+		.show		= udp4_seq_show,
+	},
+};
+
+static int udp4_proc_init_net(struct net *net)
+{
+	return udp_proc_register(net, &udp4_seq_afinfo);
+}
+
+static void udp4_proc_exit_net(struct net *net)
+{
+	udp_proc_unregister(net, &udp4_seq_afinfo);
+}
+
+static struct pernet_operations udp4_net_ops = {
+	.init = udp4_proc_init_net,
+	.exit = udp4_proc_exit_net,
 };
 
 int __init udp4_proc_init(void)
 {
-	return udp_proc_register(&udp4_seq_afinfo);
+	return register_pernet_subsys(&udp4_net_ops);
 }
 
 void udp4_proc_exit(void)
 {
-	udp_proc_unregister(&udp4_seq_afinfo);
+	unregister_pernet_subsys(&udp4_net_ops);
 }
 #endif /* CONFIG_PROC_FS */
 
@@ -1717,12 +1715,12 @@ EXPORT_SYMBOL(udp_disconnect);
 EXPORT_SYMBOL(udp_hash);
 EXPORT_SYMBOL(udp_hash_lock);
 EXPORT_SYMBOL(udp_ioctl);
-EXPORT_SYMBOL(udp_get_port);
 EXPORT_SYMBOL(udp_prot);
 EXPORT_SYMBOL(udp_sendmsg);
 EXPORT_SYMBOL(udp_lib_getsockopt);
 EXPORT_SYMBOL(udp_lib_setsockopt);
 EXPORT_SYMBOL(udp_poll);
+EXPORT_SYMBOL(udp_lib_get_port);
 
 #ifdef CONFIG_PROC_FS
 EXPORT_SYMBOL(udp_proc_register);

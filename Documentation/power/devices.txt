@@ -196,6 +196,11 @@ its parent; and can't be removed or suspended after that parent.
 
 The policy is that the device tree should match hardware bus topology.
 (Or at least the control bus, for devices which use multiple busses.)
+In particular, this means that a device registration may fail if the parent of
+the device is suspending (ie. has been chosen by the PM core as the next
+device to suspend) or has already suspended, as well as after all of the other
+devices have been suspended.  Device drivers must be prepared to cope with such
+situations.
 
 
 Suspending Devices

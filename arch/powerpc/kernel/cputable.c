@@ -36,6 +36,8 @@ extern void __setup_cpu_440epx(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_440gx(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_440grx(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_440spe(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_460ex(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_460gt(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_603(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_604(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_750(unsigned long offset, struct cpu_spec* spec);
@@ -1397,6 +1399,30 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_440A,
 		.platform		= "ppc440",
 	},
+	{ /* 460EX */
+		.pvr_mask		= 0xffff0002,
+		.pvr_value		= 0x13020002,
+		.cpu_name		= "460EX",
+		.cpu_features		= CPU_FTRS_44X,
+		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_460ex,
+		.machine_check		= machine_check_440A,
+		.platform		= "ppc440",
+	},
+	{ /* 460GT */
+		.pvr_mask		= 0xffff0002,
+		.pvr_value		= 0x13020000,
+		.cpu_name		= "460GT",
+		.cpu_features		= CPU_FTRS_44X,
+		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_460gt,
+		.machine_check		= machine_check_440A,
+		.platform		= "ppc440",
+	},
 #endif /* CONFIG_44x */
 #ifdef CONFIG_FSL_BOOKE
 #ifdef CONFIG_E200
@@ -1512,7 +1538,7 @@ struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 				*t = *s;
 			*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
 #if defined(CONFIG_PPC64) || defined(CONFIG_BOOKE)
-			/* ppc64 and booke expect identify_cpu to also call 
+			/* ppc64 and booke expect identify_cpu to also call
 			 * setup_cpu for that processor. I will consolidate
 			 * that at a later time, for now, just use #ifdef.
 			 * we also don't need to PTRRELOC the function pointer

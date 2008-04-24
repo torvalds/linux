@@ -167,7 +167,7 @@ static inline int is_geode(void)
 /* MFGPTs */
 
 #define MFGPT_MAX_TIMERS	8
-#define MFGPT_TIMER_ANY		-1
+#define MFGPT_TIMER_ANY		(-1)
 
 #define MFGPT_DOMAIN_WORKING	1
 #define MFGPT_DOMAIN_STANDBY	2

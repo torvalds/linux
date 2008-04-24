@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2006, 2007, 2008 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -62,6 +62,33 @@
  * accessing eeprom contents from within the kernel, only via sysfs.
  */
 
+/* Added functionality for IBA7220-based cards */
+#define IPATH_EEPROM_DEV_V1 0xA0
+#define IPATH_EEPROM_DEV_V2 0xA2
+#define IPATH_TEMP_DEV 0x98
+#define IPATH_BAD_DEV (IPATH_EEPROM_DEV_V2+2)
+#define IPATH_NO_DEV (0xFF)
+
+/*
+ * The number of I2C chains is proliferating. Table below brings
+ * some order to the madness. The basic principle is that the
+ * table is scanned from the top, and a "probe" is made to the
+ * device probe_dev. If that succeeds, the chain is considered
+ * to be of that type, and dd->i2c_chain_type is set to the index+1
+ * of the entry.
+ * The +1 is so static initialization can mean "unknown, do probe."
+ */
+static struct i2c_chain_desc {
+	u8 probe_dev;	/* If seen at probe, chain is this type */
+	u8 eeprom_dev;	/* Dev addr (if any) for EEPROM */
+	u8 temp_dev;	/* Dev Addr (if any) for Temp-sense */
+} i2c_chains[] = {
+	{ IPATH_BAD_DEV, IPATH_NO_DEV, IPATH_NO_DEV }, /* pre-iba7220 bds */
+	{ IPATH_EEPROM_DEV_V1, IPATH_EEPROM_DEV_V1, IPATH_TEMP_DEV}, /* V1 */
+	{ IPATH_EEPROM_DEV_V2, IPATH_EEPROM_DEV_V2, IPATH_TEMP_DEV}, /* V2 */
+	{ IPATH_NO_DEV }
+};
+
 enum i2c_type {
 	i2c_line_scl = 0,
 	i2c_line_sda
@@ -74,13 +101,6 @@ enum i2c_state {
 
 #define READ_CMD 1
 #define WRITE_CMD 0
-
-static int eeprom_init;
-
-/*
- * The gpioval manipulation really should be protected by spinlocks
- * or be converted to use atomic operations.
- */
 
 /**
  * i2c_gpio_set - set a GPIO line
@@ -241,6 +261,27 @@ static int i2c_ackrcv(struct ipath_devdata *dd)
 }
 
 /**
+ * rd_byte - read a byte, leaving ACK, STOP, etc up to caller
+ * @dd: the infinipath device
+ *
+ * Returns byte shifted out of device
+ */
+static int rd_byte(struct ipath_devdata *dd)
+{
+	int bit_cntr, data;
+
+	data = 0;
+
+	for (bit_cntr = 7; bit_cntr >= 0; --bit_cntr) {
+		data <<= 1;
+		scl_out(dd, i2c_line_high);
+		data |= sda_in(dd, 0);
+		scl_out(dd, i2c_line_low);
+	}
+	return data;
+}
+
+/**
  * wr_byte - write a byte, one bit at a time
  * @dd: the infinipath device
  * @data: the byte to write
@@ -331,7 +372,6 @@ static int eeprom_reset(struct ipath_devdata *dd)
 	ipath_cdbg(VERBOSE, "Resetting i2c eeprom; initial gpioout reg "
 		   "is %llx\n", (unsigned long long) *gpioval);
 
-	eeprom_init = 1;
 	/*
 	 * This is to get the i2c into a known state, by first going low,
 	 * then tristate sda (and then tristate scl as first thing
@@ -340,12 +380,17 @@ static int eeprom_reset(struct ipath_devdata *dd)
 	scl_out(dd, i2c_line_low);
 	sda_out(dd, i2c_line_high);
 
+	/* Clock up to 9 cycles looking for SDA hi, then issue START and STOP */
 	while (clock_cycles_left--) {
 		scl_out(dd, i2c_line_high);
 
+		/* SDA seen high, issue START by dropping it while SCL high */
 		if (sda_in(dd, 0)) {
 			sda_out(dd, i2c_line_low);
 			scl_out(dd, i2c_line_low);
+			/* ATMEL spec says must be followed by STOP. */
+			scl_out(dd, i2c_line_high);
+			sda_out(dd, i2c_line_high);
 			ret = 0;
 			goto bail;
 		}
@@ -359,29 +404,121 @@ bail:
 	return ret;
 }
 
-/**
- * ipath_eeprom_read - receives bytes from the eeprom via I2C
- * @dd: the infinipath device
- * @eeprom_offset: address to read from
- * @buffer: where to store result
- * @len: number of bytes to receive
+/*
+ * Probe for I2C device at specified address. Returns 0 for "success"
+ * to match rest of this file.
+ * Leave bus in "reasonable" state for further commands.
  */
+static int i2c_probe(struct ipath_devdata *dd, int devaddr)
+{
+	int ret = 0;
+
+	ret = eeprom_reset(dd);
+	if (ret) {
+		ipath_dev_err(dd, "Failed reset probing device 0x%02X\n",
+			      devaddr);
+		return ret;
+	}
+	/*
+	 * Reset no longer leaves bus in start condition, so normal
+	 * i2c_startcmd() will do.
+	 */
+	ret = i2c_startcmd(dd, devaddr | READ_CMD);
+	if (ret)
+		ipath_cdbg(VERBOSE, "Failed startcmd for device 0x%02X\n",
+			   devaddr);
+	else {
+		/*
+		 * Device did respond. Complete a single-byte read, because some
+		 * devices apparently cannot handle STOP immediately after they
+		 * ACK the start-cmd.
+		 */
+		int data;
+		data = rd_byte(dd);
+		stop_cmd(dd);
+		ipath_cdbg(VERBOSE, "Response from device 0x%02X\n", devaddr);
+	}
+	return ret;
+}
+
+/*
+ * Returns the "i2c type". This is a pointer to a struct that describes
+ * the I2C chain on this board. To minimize impact on struct ipath_devdata,
+ * the (small integer) index into the table is actually memoized, rather
+ * then the pointer.
+ * Memoization is because the type is determined on the first call per chip.
+ * An alternative would be to move type determination to early
+ * init code.
+ */
+static struct i2c_chain_desc *ipath_i2c_type(struct ipath_devdata *dd)
+{
+	int idx;
+
+	/* Get memoized index, from previous successful probes */
+	idx = dd->ipath_i2c_chain_type - 1;
+	if (idx >= 0 && idx < (ARRAY_SIZE(i2c_chains) - 1))
+		goto done;
+
+	idx = 0;
+	while (i2c_chains[idx].probe_dev != IPATH_NO_DEV) {
+		/* if probe succeeds, this is type */
+		if (!i2c_probe(dd, i2c_chains[idx].probe_dev))
+			break;
+		++idx;
+	}
+
+	/*
+	 * Old EEPROM (first entry) may require a reset after probe,
+	 * rather than being able to "start" after "stop"
+	 */
+	if (idx == 0)
+		eeprom_reset(dd);
+
+	if (i2c_chains[idx].probe_dev == IPATH_NO_DEV)
+		idx = -1;
+	else
+		dd->ipath_i2c_chain_type = idx + 1;
+done:
+	return (idx >= 0) ? i2c_chains + idx : NULL;
+}
 
 static int ipath_eeprom_internal_read(struct ipath_devdata *dd,
 					u8 eeprom_offset, void *buffer, int len)
 {
-	/* compiler complains unless initialized */
-	u8 single_byte = 0;
-	int bit_cntr;
 	int ret;
+	struct i2c_chain_desc *icd;
+	u8 *bp = buffer;
 
-	if (!eeprom_init)
-		eeprom_reset(dd);
+	ret = 1;
+	icd = ipath_i2c_type(dd);
+	if (!icd)
+		goto bail;
 
-	eeprom_offset = (eeprom_offset << 1) | READ_CMD;
-
-	if (i2c_startcmd(dd, eeprom_offset)) {
-		ipath_dbg("Failed startcmd\n");
+	if (icd->eeprom_dev == IPATH_NO_DEV) {
+		/* legacy not-really-I2C */
+		ipath_cdbg(VERBOSE, "Start command only address\n");
+		eeprom_offset = (eeprom_offset << 1) | READ_CMD;
+		ret = i2c_startcmd(dd, eeprom_offset);
+	} else {
+		/* Actual I2C */
+		ipath_cdbg(VERBOSE, "Start command uses devaddr\n");
+		if (i2c_startcmd(dd, icd->eeprom_dev | WRITE_CMD)) {
+			ipath_dbg("Failed EEPROM startcmd\n");
+			stop_cmd(dd);
+			ret = 1;
+			goto bail;
+		}
+		ret = wr_byte(dd, eeprom_offset);
+		stop_cmd(dd);
+		if (ret) {
+			ipath_dev_err(dd, "Failed to write EEPROM address\n");
+			ret = 1;
+			goto bail;
+		}
+		ret = i2c_startcmd(dd, icd->eeprom_dev | READ_CMD);
+	}
+	if (ret) {
+		ipath_dbg("Failed startcmd for dev %02X\n", icd->eeprom_dev);
 		stop_cmd(dd);
 		ret = 1;
 		goto bail;
@@ -392,22 +529,11 @@ static int ipath_eeprom_internal_read(struct ipath_devdata *dd,
 	 * incrementing the address.
 	 */
 	while (len-- > 0) {
-		/* get data */
-		single_byte = 0;
-		for (bit_cntr = 8; bit_cntr; bit_cntr--) {
-			u8 bit;
-			scl_out(dd, i2c_line_high);
-			bit = sda_in(dd, 0);
-			single_byte |= bit << (bit_cntr - 1);
-			scl_out(dd, i2c_line_low);
-		}
-
+		/* get and store data */
+		*bp++ = rd_byte(dd);
 		/* send ack if not the last byte */
 		if (len)
 			send_ack(dd);
-
-		*((u8 *) buffer) = single_byte;
-		buffer++;
 	}
 
 	stop_cmd(dd);
@@ -418,31 +544,40 @@ bail:
 	return ret;
 }
 
-
-/**
- * ipath_eeprom_write - writes data to the eeprom via I2C
- * @dd: the infinipath device
- * @eeprom_offset: where to place data
- * @buffer: data to write
- * @len: number of bytes to write
- */
 static int ipath_eeprom_internal_write(struct ipath_devdata *dd, u8 eeprom_offset,
 				       const void *buffer, int len)
 {
-	u8 single_byte;
 	int sub_len;
 	const u8 *bp = buffer;
 	int max_wait_time, i;
 	int ret;
+	struct i2c_chain_desc *icd;
 
-	if (!eeprom_init)
-		eeprom_reset(dd);
+	ret = 1;
+	icd = ipath_i2c_type(dd);
+	if (!icd)
+		goto bail;
 
 	while (len > 0) {
-		if (i2c_startcmd(dd, (eeprom_offset << 1) | WRITE_CMD)) {
-			ipath_dbg("Failed to start cmd offset %u\n",
-				  eeprom_offset);
-			goto failed_write;
+		if (icd->eeprom_dev == IPATH_NO_DEV) {
+			if (i2c_startcmd(dd,
+					 (eeprom_offset << 1) | WRITE_CMD)) {
+				ipath_dbg("Failed to start cmd offset %u\n",
+					eeprom_offset);
+				goto failed_write;
+			}
+		} else {
+			/* Real I2C */
+			if (i2c_startcmd(dd, icd->eeprom_dev | WRITE_CMD)) {
+				ipath_dbg("Failed EEPROM startcmd\n");
+				goto failed_write;
+			}
+			ret = wr_byte(dd, eeprom_offset);
+			if (ret) {
+				ipath_dev_err(dd, "Failed to write EEPROM "
+					      "address\n");
+				goto failed_write;
+			}
 		}
 
 		sub_len = min(len, 4);
@@ -468,9 +603,11 @@ static int ipath_eeprom_internal_write(struct ipath_devdata *dd, u8 eeprom_offse
 		 * the writes have completed.   We do this inline to avoid
 		 * the debug prints that are in the real read routine
 		 * if the startcmd fails.
+		 * We also use the proper device address, so it doesn't matter
+		 * whether we have real eeprom_dev. legacy likes any address.
 		 */
 		max_wait_time = 100;
-		while (i2c_startcmd(dd, READ_CMD)) {
+		while (i2c_startcmd(dd, icd->eeprom_dev | READ_CMD)) {
 			stop_cmd(dd);
 			if (!--max_wait_time) {
 				ipath_dbg("Did not get successful read to "
@@ -478,15 +615,8 @@ static int ipath_eeprom_internal_write(struct ipath_devdata *dd, u8 eeprom_offse
 				goto failed_write;
 			}
 		}
-		/* now read the zero byte */
-		for (i = single_byte = 0; i < 8; i++) {
-			u8 bit;
-			scl_out(dd, i2c_line_high);
-			bit = sda_in(dd, 0);
-			scl_out(dd, i2c_line_low);
-			single_byte <<= 1;
-			single_byte |= bit;
-		}
+		/* now read (and ignore) the resulting byte */
+		rd_byte(dd);
 		stop_cmd(dd);
 	}
 
@@ -501,9 +631,12 @@ bail:
 	return ret;
 }
 
-/*
- * The public entry-points ipath_eeprom_read() and ipath_eeprom_write()
- * are now just wrappers around the internal functions.
+/**
+ * ipath_eeprom_read - receives bytes from the eeprom via I2C
+ * @dd: the infinipath device
+ * @eeprom_offset: address to read from
+ * @buffer: where to store result
+ * @len: number of bytes to receive
  */
 int ipath_eeprom_read(struct ipath_devdata *dd, u8 eeprom_offset,
 			void *buff, int len)
@@ -519,6 +652,13 @@ int ipath_eeprom_read(struct ipath_devdata *dd, u8 eeprom_offset,
 	return ret;
 }
 
+/**
+ * ipath_eeprom_write - writes data to the eeprom via I2C
+ * @dd: the infinipath device
+ * @eeprom_offset: where to place data
+ * @buffer: data to write
+ * @len: number of bytes to write
+ */
 int ipath_eeprom_write(struct ipath_devdata *dd, u8 eeprom_offset,
 			const void *buff, int len)
 {
@@ -820,7 +960,7 @@ int ipath_update_eeprom_log(struct ipath_devdata *dd)
 	 * if we log an hour at 31 minutes, then we would need to set
 	 * active_time to -29 to accurately count the _next_ hour.
 	 */
-	if (new_time > 3600) {
+	if (new_time >= 3600) {
 		new_hrs = new_time / 3600;
 		atomic_sub((new_hrs * 3600), &dd->ipath_active_time);
 		new_hrs += dd->ipath_eep_hrs;
@@ -884,4 +1024,160 @@ void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr)
 	dd->ipath_eep_st_new_errs[eidx] = new_val;
 	spin_unlock_irqrestore(&dd->ipath_eep_st_lock, flags);
 	return;
+}
+
+static int ipath_tempsense_internal_read(struct ipath_devdata *dd, u8 regnum)
+{
+	int ret;
+	struct i2c_chain_desc *icd;
+
+	ret = -ENOENT;
+
+	icd = ipath_i2c_type(dd);
+	if (!icd)
+		goto bail;
+
+	if (icd->temp_dev == IPATH_NO_DEV) {
+		/* tempsense only exists on new, real-I2C boards */
+		ret = -ENXIO;
+		goto bail;
+	}
+
+	if (i2c_startcmd(dd, icd->temp_dev | WRITE_CMD)) {
+		ipath_dbg("Failed tempsense startcmd\n");
+		stop_cmd(dd);
+		ret = -ENXIO;
+		goto bail;
+	}
+	ret = wr_byte(dd, regnum);
+	stop_cmd(dd);
+	if (ret) {
+		ipath_dev_err(dd, "Failed tempsense WR command %02X\n",
+			      regnum);
+		ret = -ENXIO;
+		goto bail;
+	}
+	if (i2c_startcmd(dd, icd->temp_dev | READ_CMD)) {
+		ipath_dbg("Failed tempsense RD startcmd\n");
+		stop_cmd(dd);
+		ret = -ENXIO;
+		goto bail;
+	}
+	/*
+	 * We can only clock out one byte per command, sensibly
+	 */
+	ret = rd_byte(dd);
+	stop_cmd(dd);
+
+bail:
+	return ret;
+}
+
+#define VALID_TS_RD_REG_MASK 0xBF
+
+/**
+ * ipath_tempsense_read - read register of temp sensor via I2C
+ * @dd: the infinipath device
+ * @regnum: register to read from
+ *
+ * returns reg contents (0..255) or < 0 for error
+ */
+int ipath_tempsense_read(struct ipath_devdata *dd, u8 regnum)
+{
+	int ret;
+
+	if (regnum > 7)
+		return -EINVAL;
+
+	/* return a bogus value for (the one) register we do not have */
+	if (!((1 << regnum) & VALID_TS_RD_REG_MASK))
+		return 0;
+
+	ret = mutex_lock_interruptible(&dd->ipath_eep_lock);
+	if (!ret) {
+		ret = ipath_tempsense_internal_read(dd, regnum);
+		mutex_unlock(&dd->ipath_eep_lock);
+	}
+
+	/*
+	 * There are three possibilities here:
+	 * ret is actual value (0..255)
+	 * ret is -ENXIO or -EINVAL from code in this file
+	 * ret is -EINTR from mutex_lock_interruptible.
+	 */
+	return ret;
+}
+
+static int ipath_tempsense_internal_write(struct ipath_devdata *dd,
+					  u8 regnum, u8 data)
+{
+	int ret = -ENOENT;
+	struct i2c_chain_desc *icd;
+
+	icd = ipath_i2c_type(dd);
+	if (!icd)
+		goto bail;
+
+	if (icd->temp_dev == IPATH_NO_DEV) {
+		/* tempsense only exists on new, real-I2C boards */
+		ret = -ENXIO;
+		goto bail;
+	}
+	if (i2c_startcmd(dd, icd->temp_dev | WRITE_CMD)) {
+		ipath_dbg("Failed tempsense startcmd\n");
+		stop_cmd(dd);
+		ret = -ENXIO;
+		goto bail;
+	}
+	ret = wr_byte(dd, regnum);
+	if (ret) {
+		stop_cmd(dd);
+		ipath_dev_err(dd, "Failed to write tempsense command %02X\n",
+			      regnum);
+		ret = -ENXIO;
+		goto bail;
+	}
+	ret = wr_byte(dd, data);
+	stop_cmd(dd);
+	ret = i2c_startcmd(dd, icd->temp_dev | READ_CMD);
+	if (ret) {
+		ipath_dev_err(dd, "Failed tempsense data wrt to %02X\n",
+			      regnum);
+		ret = -ENXIO;
+	}
+
+bail:
+	return ret;
+}
+
+#define VALID_TS_WR_REG_MASK ((1 << 9) | (1 << 0xB) | (1 << 0xD))
+
+/**
+ * ipath_tempsense_write - write register of temp sensor via I2C
+ * @dd: the infinipath device
+ * @regnum: register to write
+ * @data: data to write
+ *
+ * returns 0 for success or < 0 for error
+ */
+int ipath_tempsense_write(struct ipath_devdata *dd, u8 regnum, u8 data)
+{
+	int ret;
+
+	if (regnum > 15 || !((1 << regnum) & VALID_TS_WR_REG_MASK))
+		return -EINVAL;
+
+	ret = mutex_lock_interruptible(&dd->ipath_eep_lock);
+	if (!ret) {
+		ret = ipath_tempsense_internal_write(dd, regnum, data);
+		mutex_unlock(&dd->ipath_eep_lock);
+	}
+
+	/*
+	 * There are three possibilities here:
+	 * ret is 0 for success
+	 * ret is -ENXIO or -EINVAL from code in this file
+	 * ret is -EINTR from mutex_lock_interruptible.
+	 */
+	return ret;
 }

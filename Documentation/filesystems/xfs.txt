@@ -52,16 +52,15 @@ When mounting an XFS filesystem, the following options are accepted.
 	and also gets the setgid bit set if it is a directory itself.
 
   ihashsize=value
-	Sets the number of hash buckets available for hashing the
-	in-memory inodes of the specified mount point.  If a value
-	of zero is used, the value selected by the default algorithm
-	will be displayed in /proc/mounts.
+	In memory inode hashes have been removed, so this option has
+	no function as of August 2007. Option is deprecated.
 
   ikeep/noikeep
-	When inode clusters are emptied of inodes, keep them around
-	on the disk (ikeep) - this is the traditional XFS behaviour
-	and is still the default for now.  Using the noikeep option,
-	inode clusters are returned to the free space pool.
+	When ikeep is specified, XFS does not delete empty inode clusters
+	and keeps them around on disk. ikeep is the traditional XFS
+	behaviour. When noikeep is specified, empty inode clusters
+	are returned to the free space pool. The default is noikeep for
+	non-DMAPI mounts, while ikeep is the default when DMAPI is in use.
 
   inode64
 	Indicates that XFS is allowed to create inodes at any location

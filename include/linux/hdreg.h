@@ -422,9 +422,11 @@ struct hd_geometry {
 #define HDIO_SET_NOWERR		0x0325	/* change ignore-write-error flag */
 #define HDIO_SET_DMA		0x0326	/* change use-dma flag */
 #define HDIO_SET_PIO_MODE	0x0327	/* reconfig interface to new speed */
+#ifndef __KERNEL__
 #define HDIO_SCAN_HWIF		0x0328	/* register and (re)scan interface */
-#define HDIO_SET_NICE		0x0329	/* set nice flags */
 #define HDIO_UNREGISTER_HWIF	0x032a  /* unregister interface */
+#endif
+#define HDIO_SET_NICE		0x0329	/* set nice flags */
 #define HDIO_SET_WCACHE		0x032b	/* change write cache enable-disable */
 #define HDIO_SET_ACOUSTIC	0x032c	/* change acoustic behavior */
 #define HDIO_SET_BUSSTATE	0x032d	/* set the bus state of the hwif */

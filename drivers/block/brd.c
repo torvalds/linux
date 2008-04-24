@@ -108,7 +108,7 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
 #ifndef CONFIG_BLK_DEV_XIP
 	gfp_flags |= __GFP_HIGHMEM;
 #endif
-	page = alloc_page(GFP_NOIO | __GFP_HIGHMEM | __GFP_ZERO);
+	page = alloc_page(gfp_flags);
 	if (!page)
 		return NULL;
 

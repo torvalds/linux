@@ -130,6 +130,7 @@ static int __init umc8672_probe(void)
 {
 	unsigned long flags;
 	static u8 idx[4] = { 0, 1, 0xff, 0xff };
+	hw_regs_t hw[2];
 
 	if (!request_region(0x108, 2, "umc8672")) {
 		printk(KERN_ERR "umc8672: ports 0x108-0x109 already in use.\n");
@@ -147,6 +148,17 @@ static int __init umc8672_probe(void)
 
 	umc_set_speeds (current_speeds);
 	local_irq_restore(flags);
+
+	memset(&hw, 0, sizeof(hw));
+
+	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
+	hw[0].irq = 14;
+
+	ide_std_init_ports(&hw[1], 0x170, 0x376);
+	hw[1].irq = 15;
+
+	ide_init_port_hw(&ide_hwifs[0], &hw[0]);
+	ide_init_port_hw(&ide_hwifs[1], &hw[1]);
 
 	ide_hwifs[0].set_pio_mode = &umc_set_pio_mode;
 	ide_hwifs[1].set_pio_mode = &umc_set_pio_mode;

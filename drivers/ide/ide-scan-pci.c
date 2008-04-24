@@ -88,13 +88,8 @@ static int __init ide_scan_pcibus(void)
 	struct list_head *l, *n;
 
 	pre_init = 0;
-	if (!ide_scan_direction)
-		while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)))
-			ide_scan_pcidev(dev);
-	else
-		while ((dev = pci_get_device_reverse(PCI_ANY_ID, PCI_ANY_ID,
-						     dev)))
-			ide_scan_pcidev(dev);
+	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)))
+		ide_scan_pcidev(dev);
 
 	/*
 	 *	Hand the drivers over to the PCI layer now we

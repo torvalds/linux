@@ -228,20 +228,10 @@ static inline void set_pending_irq(unsigned int irq, cpumask_t mask)
 
 #endif /* CONFIG_GENERIC_PENDING_IRQ */
 
-extern int irq_set_affinity(unsigned int irq, cpumask_t cpumask);
-extern int irq_can_set_affinity(unsigned int irq);
-
 #else /* CONFIG_SMP */
 
 #define move_native_irq(x)
 #define move_masked_irq(x)
-
-static inline int irq_set_affinity(unsigned int irq, cpumask_t cpumask)
-{
-	return -EINVAL;
-}
-
-static inline int irq_can_set_affinity(unsigned int irq) { return 0; }
 
 #endif /* CONFIG_SMP */
 

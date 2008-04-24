@@ -16,7 +16,7 @@ fctiw(u32 *frD, void *frB)
 	frD[1] = r;
 
 #ifdef DEBUG
-	printk("%s: D %p, B %p: ", __FUNCTION__, frD, frB);
+	printk("%s: D %p, B %p: ", __func__, frD, frB);
 	dump_double(frD);
 	printk("\n");
 #endif

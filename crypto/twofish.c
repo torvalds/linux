@@ -197,18 +197,18 @@ static struct crypto_alg alg = {
 	.cia_decrypt        =   twofish_decrypt } }
 };
 
-static int __init init(void)
+static int __init twofish_mod_init(void)
 {
 	return crypto_register_alg(&alg);
 }
 
-static void __exit fini(void)
+static void __exit twofish_mod_fini(void)
 {
 	crypto_unregister_alg(&alg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(twofish_mod_init);
+module_exit(twofish_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION ("Twofish Cipher Algorithm");

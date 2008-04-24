@@ -153,7 +153,7 @@ static int tcpprobe_sprint(char *tbuf, int n)
 		= ktime_to_timespec(ktime_sub(p->tstamp, tcp_probe.start));
 
 	return snprintf(tbuf, n,
-			"%lu.%09lu %d.%d.%d.%d:%u %d.%d.%d.%d:%u"
+			"%lu.%09lu " NIPQUAD_FMT ":%u " NIPQUAD_FMT ":%u"
 			" %d %#x %#x %u %u %u %u\n",
 			(unsigned long) tv.tv_sec,
 			(unsigned long) tv.tv_nsec,

@@ -496,7 +496,6 @@ dino_card_setup(struct pci_bus *bus, void __iomem *base_addr)
 		list_for_each_safe(ln, tmp_ln, &bus->devices) {
 			struct pci_dev *dev = pci_dev_b(ln);
 
-			list_del(&dev->global_list);
 			list_del(&dev->bus_list);
 		}
 			

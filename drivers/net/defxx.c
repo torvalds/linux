@@ -971,7 +971,8 @@ static int __devinit dfx_driver_init(struct net_device *dev,
 	int alloc_size;			/* total buffer size needed */
 	char *top_v, *curr_v;		/* virtual addrs into memory block */
 	dma_addr_t top_p, curr_p;	/* physical addrs into memory block */
-	u32 data, le32;			/* host data register value */
+	u32 data;			/* host data register value */
+	__le32 le32;
 	char *board_name = NULL;
 
 	DBG_printk("In dfx_driver_init...\n");

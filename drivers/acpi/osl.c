@@ -4,6 +4,8 @@
  *  Copyright (C) 2000       Andrew Henroid
  *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
+ *  Copyright (c) 2008 Intel Corporation
+ *   Author: Matthew Wilcox <willy@linux.intel.com>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -37,15 +39,18 @@
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
 #include <linux/acpi.h>
-#include <acpi/acpi.h>
-#include <asm/io.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/processor.h>
-#include <asm/uaccess.h>
-
 #include <linux/efi.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
+#include <linux/jiffies.h>
+#include <linux/semaphore.h>
+
+#include <asm/io.h>
+#include <asm/uaccess.h>
+
+#include <acpi/acpi.h>
+#include <acpi/acpi_bus.h>
+#include <acpi/processor.h>
 
 #define _COMPONENT		ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osl");
@@ -764,7 +769,6 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 {
 	struct semaphore *sem = NULL;
 
-
 	sem = acpi_os_allocate(sizeof(struct semaphore));
 	if (!sem)
 		return AE_NO_MEMORY;
@@ -791,12 +795,12 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 {
 	struct semaphore *sem = (struct semaphore *)handle;
 
-
 	if (!sem)
 		return AE_BAD_PARAMETER;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Deleting semaphore[%p].\n", handle));
 
+	BUG_ON(!list_empty(&sem->wait_list));
 	kfree(sem);
 	sem = NULL;
 
@@ -804,20 +808,14 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 }
 
 /*
- * TODO: The kernel doesn't have a 'down_timeout' function -- had to
- * improvise.  The process is to sleep for one scheduler quantum
- * until the semaphore becomes available.  Downside is that this
- * may result in starvation for timeout-based waits when there's
- * lots of semaphore activity.
- *
  * TODO: Support for units > 1?
  */
 acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 {
 	acpi_status status = AE_OK;
 	struct semaphore *sem = (struct semaphore *)handle;
+	long jiffies;
 	int ret = 0;
-
 
 	if (!sem || (units < 1))
 		return AE_BAD_PARAMETER;
@@ -828,58 +826,14 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Waiting for semaphore[%p|%d|%d]\n",
 			  handle, units, timeout));
 
-	/*
-	 * This can be called during resume with interrupts off.
-	 * Like boot-time, we should be single threaded and will
-	 * always get the lock if we try -- timeout or not.
-	 * If this doesn't succeed, then we will oops courtesy of
-	 * might_sleep() in down().
-	 */
-	if (!down_trylock(sem))
-		return AE_OK;
-
-	switch (timeout) {
-		/*
-		 * No Wait:
-		 * --------
-		 * A zero timeout value indicates that we shouldn't wait - just
-		 * acquire the semaphore if available otherwise return AE_TIME
-		 * (a.k.a. 'would block').
-		 */
-	case 0:
-		if (down_trylock(sem))
-			status = AE_TIME;
-		break;
-
-		/*
-		 * Wait Indefinitely:
-		 * ------------------
-		 */
-	case ACPI_WAIT_FOREVER:
-		down(sem);
-		break;
-
-		/*
-		 * Wait w/ Timeout:
-		 * ----------------
-		 */
-	default:
-		// TODO: A better timeout algorithm?
-		{
-			int i = 0;
-			static const int quantum_ms = 1000 / HZ;
-
-			ret = down_trylock(sem);
-			for (i = timeout; (i > 0 && ret != 0); i -= quantum_ms) {
-				schedule_timeout_interruptible(1);
-				ret = down_trylock(sem);
-			}
-
-			if (ret != 0)
-				status = AE_TIME;
-		}
-		break;
-	}
+	if (timeout == ACPI_WAIT_FOREVER)
+		jiffies = MAX_SCHEDULE_TIMEOUT;
+	else
+		jiffies = msecs_to_jiffies(timeout);
+	
+	ret = down_timeout(sem, jiffies);
+	if (ret)
+		status = AE_TIME;
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
@@ -901,7 +855,6 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
 {
 	struct semaphore *sem = (struct semaphore *)handle;
-
 
 	if (!sem || (units < 1))
 		return AE_BAD_PARAMETER;

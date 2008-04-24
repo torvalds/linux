@@ -613,9 +613,6 @@ static int au_ide_probe(struct device *dev)
 
 	hwif->dev = dev;
 
-	/* hold should be on in all cases */
-	hwif->hold                      = 1;
-
 	hwif->mmio  = 1;
 
 	/* If the user has selected DDMA assisted copies,
@@ -673,7 +670,7 @@ static int au_ide_remove(struct device *dev)
 	ide_hwif_t *hwif = dev_get_drvdata(dev);
 	_auide_hwif *ahwif = &auide_hwif;
 
-	ide_unregister(hwif->index, 0, 0);
+	ide_unregister(hwif->index);
 
 	iounmap((void *)ahwif->regbase);
 

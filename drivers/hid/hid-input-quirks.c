@@ -276,6 +276,21 @@ static int quirk_btc_8193(struct hid_usage *usage, struct input_dev *input,
 	return 1;
 }
 
+static int quirk_sunplus_wdesktop(struct hid_usage *usage, struct input_dev *input,
+			      unsigned long **bit, int *max)
+{
+	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
+		return 0;
+
+	switch (usage->hid & HID_USAGE) {
+		case 0x2003: map_key_clear(KEY_ZOOMIN);		break;
+		case 0x2103: map_key_clear(KEY_ZOOMOUT);	break;
+		default:
+			return 0;
+	}
+	return 1;
+}
+
 #define VENDOR_ID_BELKIN			0x1020
 #define DEVICE_ID_BELKIN_WIRELESS_KEYBOARD	0x0006
 
@@ -306,6 +321,9 @@ static int quirk_btc_8193(struct hid_usage *usage, struct input_dev *input,
 #define VENDOR_ID_PETALYNX			0x18b1
 #define DEVICE_ID_PETALYNX_MAXTER_REMOTE	0x0037
 
+#define VENDOR_ID_SUNPLUS			0x04fc
+#define DEVICE_ID_SUNPLUS_WDESKTOP		0x05d8
+
 static const struct hid_input_blacklist {
 	__u16 idVendor;
 	__u16 idProduct;
@@ -332,8 +350,10 @@ static const struct hid_input_blacklist {
 	{ VENDOR_ID_MONTEREY, DEVICE_ID_GENIUS_KB29E, quirk_cherry_genius_29e },
 
 	{ VENDOR_ID_PETALYNX, DEVICE_ID_PETALYNX_MAXTER_REMOTE, quirk_petalynx_remote },
-	
-	{ 0, 0, 0 }
+
+	{ VENDOR_ID_SUNPLUS, DEVICE_ID_SUNPLUS_WDESKTOP, quirk_sunplus_wdesktop },
+
+	{ 0, 0, NULL }
 };
 
 int hidinput_mapping_quirks(struct hid_usage *usage, 

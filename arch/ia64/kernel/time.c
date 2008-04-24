@@ -59,6 +59,84 @@ static struct clocksource clocksource_itc = {
 };
 static struct clocksource *itc_clocksource;
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+
+#include <linux/kernel_stat.h>
+
+extern cputime_t cycle_to_cputime(u64 cyc);
+
+/*
+ * Called from the context switch with interrupts disabled, to charge all
+ * accumulated times to the current process, and to prepare accounting on
+ * the next process.
+ */
+void ia64_account_on_switch(struct task_struct *prev, struct task_struct *next)
+{
+	struct thread_info *pi = task_thread_info(prev);
+	struct thread_info *ni = task_thread_info(next);
+	cputime_t delta_stime, delta_utime;
+	__u64 now;
+
+	now = ia64_get_itc();
+
+	delta_stime = cycle_to_cputime(pi->ac_stime + (now - pi->ac_stamp));
+	account_system_time(prev, 0, delta_stime);
+	account_system_time_scaled(prev, delta_stime);
+
+	if (pi->ac_utime) {
+		delta_utime = cycle_to_cputime(pi->ac_utime);
+		account_user_time(prev, delta_utime);
+		account_user_time_scaled(prev, delta_utime);
+	}
+
+	pi->ac_stamp = ni->ac_stamp = now;
+	ni->ac_stime = ni->ac_utime = 0;
+}
+
+/*
+ * Account time for a transition between system, hard irq or soft irq state.
+ * Note that this function is called with interrupts enabled.
+ */
+void account_system_vtime(struct task_struct *tsk)
+{
+	struct thread_info *ti = task_thread_info(tsk);
+	unsigned long flags;
+	cputime_t delta_stime;
+	__u64 now;
+
+	local_irq_save(flags);
+
+	now = ia64_get_itc();
+
+	delta_stime = cycle_to_cputime(ti->ac_stime + (now - ti->ac_stamp));
+	account_system_time(tsk, 0, delta_stime);
+	account_system_time_scaled(tsk, delta_stime);
+	ti->ac_stime = 0;
+
+	ti->ac_stamp = now;
+
+	local_irq_restore(flags);
+}
+
+/*
+ * Called from the timer interrupt handler to charge accumulated user time
+ * to the current process.  Must be called with interrupts disabled.
+ */
+void account_process_tick(struct task_struct *p, int user_tick)
+{
+	struct thread_info *ti = task_thread_info(p);
+	cputime_t delta_utime;
+
+	if (ti->ac_utime) {
+		delta_utime = cycle_to_cputime(ti->ac_utime);
+		account_user_time(p, delta_utime);
+		account_user_time_scaled(p, delta_utime);
+		ti->ac_utime = 0;
+	}
+}
+
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+
 static irqreturn_t
 timer_interrupt (int irq, void *dev_id)
 {

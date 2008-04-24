@@ -135,7 +135,15 @@ static void process_complete(struct gdlm_lock *lp)
 			 lp->lksb.sb_status, lp->lockname.ln_type,
 			 (unsigned long long)lp->lockname.ln_number,
 			 lp->flags);
-		return;
+		if (lp->lksb.sb_status == -EDEADLOCK &&
+		    lp->ls->fsflags & LM_MFLAG_CONV_NODROP) {
+			lp->req = lp->cur;
+			acb.lc_ret |= LM_OUT_CONV_DEADLK;
+			if (lp->cur == DLM_LOCK_IV)
+				lp->lksb.sb_lkid = 0;
+			goto out;
+		} else
+			return;
 	}
 
 	/*

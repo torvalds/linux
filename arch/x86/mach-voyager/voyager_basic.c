@@ -2,8 +2,6 @@
  *
  * Author: J.E.J.Bottomley@HansenPartnership.com
  *
- * linux/arch/i386/kernel/voyager.c
- *
  * This file contains all the voyager specific routines for getting
  * initialisation of the architecture to function.  For additional
  * features see:

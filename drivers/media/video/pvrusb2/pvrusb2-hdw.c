@@ -25,7 +25,6 @@
 #include <linux/firmware.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
-#include <asm/semaphore.h>
 #include "pvrusb2.h"
 #include "pvrusb2-std.h"
 #include "pvrusb2-util.h"

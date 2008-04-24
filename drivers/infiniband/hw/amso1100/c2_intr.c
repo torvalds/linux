@@ -174,7 +174,11 @@ static void handle_vq(struct c2_dev *c2dev, u32 mq_index)
 		return;
 	}
 
-	err = c2_errno(reply_msg);
+	if (reply_msg)
+		err = c2_errno(reply_msg);
+	else
+		err = -ENOMEM;
+
 	if (!err) switch (req->event) {
 	case IW_CM_EVENT_ESTABLISHED:
 		c2_set_qp_state(req->qp,

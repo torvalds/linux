@@ -1413,6 +1413,10 @@ ahd_linux_run_command(struct ahd_softc *ahd, struct ahd_linux_device *dev,
 	unsigned long flags;
 	int nseg;
 
+	nseg = scsi_dma_map(cmd);
+	if (nseg < 0)
+		return SCSI_MLQUEUE_HOST_BUSY;
+
 	ahd_lock(ahd, &flags);
 
 	/*
@@ -1430,6 +1434,7 @@ ahd_linux_run_command(struct ahd_softc *ahd, struct ahd_linux_device *dev,
 	if ((scb = ahd_get_scb(ahd, col_idx)) == NULL) {
 		ahd->flags |= AHD_RESOURCE_SHORTAGE;
 		ahd_unlock(ahd, &flags);
+		scsi_dma_unmap(cmd);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
@@ -1485,8 +1490,6 @@ ahd_linux_run_command(struct ahd_softc *ahd, struct ahd_linux_device *dev,
 	ahd_set_sense_residual(scb, 0);
 	scb->sg_count = 0;
 
-	nseg = scsi_dma_map(cmd);
-	BUG_ON(nseg < 0);
 	if (nseg > 0) {
 		void *sg = scb->sg_list;
 		struct scatterlist *cur_seg;

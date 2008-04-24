@@ -213,6 +213,11 @@ int __sg_alloc_table(struct sg_table *, unsigned int, unsigned int, gfp_t,
 		     sg_alloc_fn *);
 int sg_alloc_table(struct sg_table *, unsigned int, gfp_t);
 
+size_t sg_copy_from_buffer(struct scatterlist *sgl, unsigned int nents,
+			   void *buf, size_t buflen);
+size_t sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
+			 void *buf, size_t buflen);
+
 /*
  * Maximum number of entries that will be allocated in one piece, if
  * a list larger than this is required then chaining will be utilized.

@@ -41,17 +41,6 @@ static ide_hwif_t *ide_match_hwif(unsigned long io_base, u8 bootable, const char
 	ide_hwif_t *hwif;
 
 	/*
-	 * Look for a hwif with matching io_base specified using
-	 * parameters to ide_setup().
-	 */
-	for (h = 0; h < MAX_HWIFS; ++h) {
-		hwif = &ide_hwifs[h];
-		if (hwif->io_ports[IDE_DATA_OFFSET] == io_base) {
-			if (hwif->chipset == ide_forced)
-				return hwif; /* a perfect match */
-		}
-	}
-	/*
 	 * Look for a hwif with matching io_base default value.
 	 * If chipset is "ide_unknown", then claim that hwif slot.
 	 * Otherwise, some other chipset has already claimed it..  :(
@@ -356,7 +345,6 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
 	u8 bootable = (d->host_flags & IDE_HFLAG_BOOTABLE) ? 1 : 0;
-	u8 oldnoprobe = 0;
 	struct hw_regs_s hw;
 
 	if ((d->host_flags & IDE_HFLAG_ISA_PORTS) == 0) {
@@ -382,18 +370,12 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 		return NULL;	/* no room in ide_hwifs[] */
 
 	memset(&hw, 0, sizeof(hw));
-	hw.irq = hwif->irq ? hwif->irq : irq;
+	hw.irq = irq;
 	hw.dev = &dev->dev;
 	hw.chipset = d->chipset ? d->chipset : ide_pci;
 	ide_std_init_ports(&hw, base, ctl | 2);
 
-	if (hwif->io_ports[IDE_DATA_OFFSET] == base &&
-	    hwif->io_ports[IDE_CONTROL_OFFSET] == (ctl | 2))
-		oldnoprobe = hwif->noprobe;
-
 	ide_init_port_hw(hwif, &hw);
-
-	hwif->noprobe = oldnoprobe;
 
 	hwif->dev = &dev->dev;
 	hwif->cds = d;

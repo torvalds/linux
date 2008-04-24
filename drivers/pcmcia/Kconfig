@@ -200,6 +200,7 @@ config PCMCIA_AU1X00
 config PCMCIA_SA1100
 	tristate "SA1100 support"
 	depends on ARM && ARCH_SA1100 && PCMCIA
+	depends on ARCH_LUBBOCK || MACH_MAINSTONE || PXA_SHARPSL || MACH_ARMCORE
 	help
 	  Say Y here to include support for SA11x0-based PCMCIA or CF
 	  sockets, found on HP iPAQs, Yopy, and other StrongARM(R)/

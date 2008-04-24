@@ -1,5 +1,6 @@
 include include/asm-generic/Kbuild.asm
 
+header-y += a.out.h
 header-y += auxvec.h
 header-y += ioctls.h
 header-y += mman.h
@@ -23,7 +24,6 @@ header-y += sigcontext.h
 header-y += statfs.h
 header-y += ps3fb.h
 
-unifdef-y += a.out.h
 unifdef-y += asm-compat.h
 unifdef-y += bootx.h
 unifdef-y += byteorder.h

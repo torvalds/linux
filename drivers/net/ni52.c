@@ -134,10 +134,10 @@ static int fifo = 0x8;	/* don't change */
 #define ni_disint()   { outb(0, dev->base_addr + NI52_INTDIS); }
 #define ni_enaint()   { outb(0, dev->base_addr + NI52_INTENA); }
 
-#define make32(ptr16) (p->memtop + (short) (ptr16))
-#define make24(ptr32) ((unsigned long)(ptr32)) - p->base
-#define make16(ptr32) ((unsigned short) ((unsigned long)(ptr32)\
-					- (unsigned long) p->memtop))
+#define make32(ptr16) ((void __iomem *)(p->memtop + (short) (ptr16)))
+#define make24(ptr32) ((char __iomem *)(ptr32)) - p->base
+#define make16(ptr32) ((unsigned short) ((char __iomem *)(ptr32)\
+					- p->memtop))
 
 /******************* how to calculate the buffers *****************************
 
@@ -179,34 +179,35 @@ static void    ni52_timeout(struct net_device *dev);
 
 /* helper-functions */
 static int     init586(struct net_device *dev);
-static int     check586(struct net_device *dev, char *where, unsigned size);
+static int     check586(struct net_device *dev, unsigned size);
 static void    alloc586(struct net_device *dev);
 static void    startrecv586(struct net_device *dev);
-static void   *alloc_rfa(struct net_device *dev, void *ptr);
+static void   __iomem *alloc_rfa(struct net_device *dev, void __iomem *ptr);
 static void    ni52_rcv_int(struct net_device *dev);
 static void    ni52_xmt_int(struct net_device *dev);
 static void    ni52_rnr_int(struct net_device *dev);
 
 struct priv {
 	struct net_device_stats stats;
-	unsigned long base;
-	char *memtop;
+	char __iomem *base;
+	char __iomem *mapped;
+	char __iomem *memtop;
 	spinlock_t spinlock;
 	int reset;
-	struct rfd_struct *rfd_last, *rfd_top, *rfd_first;
-	struct scp_struct *scp;
-	struct iscp_struct *iscp;
-	struct scb_struct *scb;
-	struct tbd_struct *xmit_buffs[NUM_XMIT_BUFFS];
+	struct rfd_struct __iomem *rfd_last, *rfd_top, *rfd_first;
+	struct scp_struct __iomem *scp;
+	struct iscp_struct __iomem *iscp;
+	struct scb_struct __iomem *scb;
+	struct tbd_struct __iomem *xmit_buffs[NUM_XMIT_BUFFS];
 #if (NUM_XMIT_BUFFS == 1)
-	struct transmit_cmd_struct *xmit_cmds[2];
-	struct nop_cmd_struct *nop_cmds[2];
+	struct transmit_cmd_struct __iomem *xmit_cmds[2];
+	struct nop_cmd_struct __iomem *nop_cmds[2];
 #else
-	struct transmit_cmd_struct *xmit_cmds[NUM_XMIT_BUFFS];
-	struct nop_cmd_struct *nop_cmds[NUM_XMIT_BUFFS];
+	struct transmit_cmd_struct __iomem *xmit_cmds[NUM_XMIT_BUFFS];
+	struct nop_cmd_struct __iomem *nop_cmds[NUM_XMIT_BUFFS];
 #endif
 	int nop_point, num_recv_buffs;
-	char *xmit_cbuffs[NUM_XMIT_BUFFS];
+	char __iomem *xmit_cbuffs[NUM_XMIT_BUFFS];
 	int xmit_count, xmit_last;
 };
 
@@ -240,7 +241,8 @@ static void wait_for_scb_cmd_ruc(struct net_device *dev)
 		udelay(4);
 		if (i == 16383) {
 			printk(KERN_ERR "%s: scb_cmd (ruc) timed out: %04x,%04x .. disabling i82586!!\n",
-				dev->name, p->scb->cmd_ruc, p->scb->rus);
+				dev->name, readb(&p->scb->cmd_ruc),
+				readb(&p->scb->rus));
 			if (!p->reset) {
 				p->reset = 1;
 				ni_reset586();
@@ -249,9 +251,9 @@ static void wait_for_scb_cmd_ruc(struct net_device *dev)
 	}
 }
 
-static void wait_for_stat_compl(void *p)
+static void wait_for_stat_compl(void __iomem *p)
 {
-	struct nop_cmd_struct *addr = p;
+	struct nop_cmd_struct __iomem *addr = p;
 	int i;
 	for (i = 0; i < 32767; i++) {
 		if (readw(&((addr)->cmd_status)) & STAT_COMPL)
@@ -293,47 +295,58 @@ static int ni52_open(struct net_device *dev)
 	return 0; /* most done by init */
 }
 
+static int check_iscp(struct net_device *dev, void __iomem *addr)
+{
+	struct iscp_struct __iomem *iscp = addr;
+	struct priv *p = dev->priv;
+	memset_io(iscp, 0, sizeof(struct iscp_struct));
+
+	writel(make24(iscp), &p->scp->iscp);
+	writeb(1, &iscp->busy);
+
+	ni_reset586();
+	ni_attn586();
+	mdelay(32);	/* wait a while... */
+	/* i82586 clears 'busy' after successful init */
+	if (readb(&iscp->busy))
+		return 0;
+	return 1;
+}
+
 /**********************************************
  * Check to see if there's an 82586 out there.
  */
-static int check586(struct net_device *dev, char *where, unsigned size)
+static int check586(struct net_device *dev, unsigned size)
 {
-	struct priv pb;
-	struct priv *p = /* (struct priv *) dev->priv*/ &pb;
-	char *iscp_addrs[2];
+	struct priv *p = dev->priv;
 	int i;
 
-	p->base = (unsigned long) isa_bus_to_virt((unsigned long)where)
-							+ size - 0x01000000;
-	p->memtop = isa_bus_to_virt((unsigned long)where) + size;
-	p->scp = (struct scp_struct *)(p->base + SCP_DEFAULT_ADDRESS);
-	memset_io((char *)p->scp, 0, sizeof(struct scp_struct));
-	for (i = 0; i < sizeof(struct scp_struct); i++)
-		/* memory was writeable? */
-		if (readb((char *)p->scp + i))
-			return 0;
-	writeb(SYSBUSVAL, &p->scp->sysbus);	/* 1 = 8Bit-Bus, 0 = 16 Bit */
-	if (readb(&p->scp->sysbus) != SYSBUSVAL)
+	p->mapped = ioremap(dev->mem_start, size);
+	if (!p->mapped)
 		return 0;
 
-	iscp_addrs[0] = isa_bus_to_virt((unsigned long)where);
-	iscp_addrs[1] = (char *) p->scp - sizeof(struct iscp_struct);
+	p->base = p->mapped + size - 0x01000000;
+	p->memtop = p->mapped + size;
+	p->scp = (struct scp_struct __iomem *)(p->base + SCP_DEFAULT_ADDRESS);
+	p->scb	= (struct scb_struct __iomem *)	p->mapped;
+	p->iscp = (struct iscp_struct __iomem *)p->scp - 1;
+	memset_io(p->scp, 0, sizeof(struct scp_struct));
+	for (i = 0; i < sizeof(struct scp_struct); i++)
+		/* memory was writeable? */
+		if (readb((char __iomem *)p->scp + i))
+			goto Enodev;
+	writeb(SYSBUSVAL, &p->scp->sysbus);	/* 1 = 8Bit-Bus, 0 = 16 Bit */
+	if (readb(&p->scp->sysbus) != SYSBUSVAL)
+		goto Enodev;
 
-	for (i = 0; i < 2; i++) {
-		p->iscp = (struct iscp_struct *) iscp_addrs[i];
-		memset_io((char *)p->iscp, 0, sizeof(struct iscp_struct));
-
-		writel(make24(p->iscp), &p->scp->iscp);
-		writeb(1, &p->iscp->busy);
-
-		ni_reset586();
-		ni_attn586();
-		mdelay(32);	/* wait a while... */
-		/* i82586 clears 'busy' after successful init */
-		if (readb(&p->iscp->busy))
-			return 0;
-	}
+	if (!check_iscp(dev, p->mapped))
+		goto Enodev;
+	if (!check_iscp(dev, p->iscp))
+		goto Enodev;
 	return 1;
+Enodev:
+	iounmap(p->mapped);
+	return 0;
 }
 
 /******************************************************************
@@ -345,13 +358,6 @@ static void alloc586(struct net_device *dev)
 
 	ni_reset586();
 	mdelay(32);
-
-	spin_lock_init(&p->spinlock);
-
-	p->scp	= (struct scp_struct *)	(p->base + SCP_DEFAULT_ADDRESS);
-	p->scb	= (struct scb_struct *)	isa_bus_to_virt(dev->mem_start);
-	p->iscp = (struct iscp_struct *)
-			((char *)p->scp - sizeof(struct iscp_struct));
 
 	memset_io(p->iscp, 0, sizeof(struct iscp_struct));
 	memset_io(p->scp , 0, sizeof(struct scp_struct));
@@ -371,7 +377,7 @@ static void alloc586(struct net_device *dev)
 
 	p->reset = 0;
 
-	memset_io((char *)p->scb, 0, sizeof(struct scb_struct));
+	memset_io(p->scb, 0, sizeof(struct scb_struct));
 }
 
 /* set: io,irq,memstart,memend or set it when calling insmod */
@@ -387,11 +393,14 @@ struct net_device * __init ni52_probe(int unit)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct priv));
 	static int ports[] = {0x300, 0x280, 0x360 , 0x320 , 0x340, 0};
+	struct priv *p;
 	int *port;
 	int err = 0;
 
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
+
+	p = dev->priv;
 
 	if (unit >= 0) {
 		sprintf(dev->name, "eth%d", unit);
@@ -427,6 +436,7 @@ got_it:
 		goto out1;
 	return dev;
 out1:
+	iounmap(p->mapped);
 	release_region(dev->base_addr, NI52_TOTAL_SIZE);
 out:
 	free_netdev(dev);
@@ -436,11 +446,14 @@ out:
 static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 {
 	int i, size, retval;
+	struct priv *priv = dev->priv;
 
 	dev->base_addr = ioaddr;
 	dev->irq = irq;
 	dev->mem_start = memstart;
 	dev->mem_end = memend;
+
+	spin_lock_init(&priv->spinlock);
 
 	if (!request_region(ioaddr, NI52_TOTAL_SIZE, DRV_NAME))
 		return -EBUSY;
@@ -474,7 +487,7 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 		retval = -ENODEV;
 		goto out;
 	}
-	if (!check586(dev, (char *)dev->mem_start, size)) {
+	if (!check586(dev, size)) {
 		printk(KERN_ERR "?memcheck, Can't find memory at 0x%lx with size %d!\n", dev->mem_start, size);
 		retval = -ENODEV;
 		goto out;
@@ -483,9 +496,9 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 	if (dev->mem_start != 0) {
 		/* no auto-mem-probe */
 		size = 0x4000; /* check for 16K mem */
-		if (!check586(dev, (char *) dev->mem_start, size)) {
+		if (!check586(dev, size)) {
 			size = 0x2000; /* check for 8K mem */
-			if (!check586(dev, (char *)dev->mem_start, size)) {
+			if (!check586(dev, size)) {
 				printk(KERN_ERR "?memprobe, Can't find memory at 0x%lx!\n", dev->mem_start);
 				retval = -ENODEV;
 				goto out;
@@ -504,11 +517,11 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 			}
 			dev->mem_start = memaddrs[i];
 			size = 0x2000; /* check for 8K mem */
-			if (check586(dev, (char *)dev->mem_start, size))
+			if (check586(dev, size))
 				/* 8K-check */
 				break;
 			size = 0x4000; /* check for 16K mem */
-			if (check586(dev, (char *)dev->mem_start, size))
+			if (check586(dev, size))
 				/* 16K-check */
 				break;
 		}
@@ -517,19 +530,13 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 	dev->mem_end = dev->mem_start + size;
 #endif
 
-	memset((char *)dev->priv, 0, sizeof(struct priv));
-
-	((struct priv *)(dev->priv))->memtop =
-				isa_bus_to_virt(dev->mem_start) + size;
-	((struct priv *)(dev->priv))->base =  (unsigned long)
-			isa_bus_to_virt(dev->mem_start) + size - 0x01000000;
 	alloc586(dev);
 
 	/* set number of receive-buffs according to memsize */
 	if (size == 0x2000)
-		((struct priv *) dev->priv)->num_recv_buffs = NUM_RECV_BUFFS_8;
+		priv->num_recv_buffs = NUM_RECV_BUFFS_8;
 	else
-		((struct priv *) dev->priv)->num_recv_buffs = NUM_RECV_BUFFS_16;
+		priv->num_recv_buffs = NUM_RECV_BUFFS_16;
 
 	printk(KERN_DEBUG "Memaddr: 0x%lx, Memsize: %d, ",
 				dev->mem_start, size);
@@ -546,6 +553,7 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 		if (!dev->irq) {
 			printk("?autoirq, Failed to detect IRQ line!\n");
 			retval = -EAGAIN;
+			iounmap(priv->mapped);
 			goto out;
 		}
 		printk("IRQ %d (autodetected).\n", dev->irq);
@@ -578,19 +586,19 @@ out:
 
 static int init586(struct net_device *dev)
 {
-	void *ptr;
+	void __iomem *ptr;
 	int i, result = 0;
 	struct priv *p = (struct priv *)dev->priv;
-	struct configure_cmd_struct *cfg_cmd;
-	struct iasetup_cmd_struct *ias_cmd;
-	struct tdr_cmd_struct *tdr_cmd;
-	struct mcsetup_cmd_struct *mc_cmd;
+	struct configure_cmd_struct __iomem *cfg_cmd;
+	struct iasetup_cmd_struct __iomem *ias_cmd;
+	struct tdr_cmd_struct __iomem *tdr_cmd;
+	struct mcsetup_cmd_struct __iomem *mc_cmd;
 	struct dev_mc_list *dmi = dev->mc_list;
 	int num_addrs = dev->mc_count;
 
-	ptr = (void *) ((char *)p->scb + sizeof(struct scb_struct));
+	ptr = p->scb + 1;
 
-	cfg_cmd = (struct configure_cmd_struct *)ptr; /* configure-command */
+	cfg_cmd = ptr; /* configure-command */
 	writew(0, &cfg_cmd->cmd_status);
 	writew(CMD_CONFIGURE | CMD_LAST, &cfg_cmd->cmd_cmd);
 	writew(0xFFFF, &cfg_cmd->cmd_link);
@@ -609,7 +617,7 @@ static int init586(struct net_device *dev)
 	writeb(0xf2, &cfg_cmd->time_high);
 	writeb(0x00, &cfg_cmd->promisc);;
 	if (dev->flags & IFF_ALLMULTI) {
-		int len = ((char *) p->iscp - (char *) ptr - 8) / 6;
+		int len = ((char __iomem *)p->iscp - (char __iomem *)ptr - 8) / 6;
 		if (num_addrs > len) {
 			printk(KERN_ERR "%s: switching to promisc. mode\n",
 				dev->name);
@@ -620,7 +628,7 @@ static int init586(struct net_device *dev)
 		writeb(0x01, &cfg_cmd->promisc);
 	writeb(0x00, &cfg_cmd->carr_coll);
 	writew(make16(cfg_cmd), &p->scb->cbl_offset);
-	writew(0, &p->scb->cmd_ruc);
+	writeb(0, &p->scb->cmd_ruc);
 
 	writeb(CUC_START, &p->scb->cmd_cuc); /* cmd.-unit start */
 	ni_attn586();
@@ -638,13 +646,13 @@ static int init586(struct net_device *dev)
 	 * individual address setup
 	 */
 
-	ias_cmd = (struct iasetup_cmd_struct *)ptr;
+	ias_cmd = ptr;
 
 	writew(0, &ias_cmd->cmd_status);
 	writew(CMD_IASETUP | CMD_LAST, &ias_cmd->cmd_cmd);
 	writew(0xffff, &ias_cmd->cmd_link);
 
-	memcpy_toio((char *)&ias_cmd->iaddr, (char *)dev->dev_addr, ETH_ALEN);
+	memcpy_toio(&ias_cmd->iaddr, (char *)dev->dev_addr, ETH_ALEN);
 
 	writew(make16(ias_cmd), &p->scb->cbl_offset);
 
@@ -663,7 +671,7 @@ static int init586(struct net_device *dev)
 	 * TDR, wire check .. e.g. no resistor e.t.c
 	 */
 
-	tdr_cmd = (struct tdr_cmd_struct *)ptr;
+	tdr_cmd = ptr;
 
 	writew(0, &tdr_cmd->cmd_status);
 	writew(CMD_TDR | CMD_LAST, &tdr_cmd->cmd_cmd);
@@ -707,14 +715,14 @@ static int init586(struct net_device *dev)
 	 * Multicast setup
 	 */
 	if (num_addrs && !(dev->flags & IFF_PROMISC)) {
-		mc_cmd = (struct mcsetup_cmd_struct *) ptr;
+		mc_cmd = ptr;
 		writew(0, &mc_cmd->cmd_status);
 		writew(CMD_MCSETUP | CMD_LAST, &mc_cmd->cmd_cmd);
 		writew(0xffff, &mc_cmd->cmd_link);
 		writew(num_addrs * 6, &mc_cmd->mc_cnt);
 
 		for (i = 0; i < num_addrs; i++, dmi = dmi->next)
-			memcpy_toio((char *) mc_cmd->mc_list[i],
+			memcpy_toio(mc_cmd->mc_list[i],
 							dmi->dmi_addr, 6);
 
 		writew(make16(mc_cmd), &p->scb->cbl_offset);
@@ -733,43 +741,43 @@ static int init586(struct net_device *dev)
 	 */
 #if (NUM_XMIT_BUFFS == 1)
 	for (i = 0; i < 2; i++) {
-		p->nop_cmds[i] = (struct nop_cmd_struct *)ptr;
+		p->nop_cmds[i] = ptr;
 		writew(CMD_NOP, &p->nop_cmds[i]->cmd_cmd);
 		writew(0, &p->nop_cmds[i]->cmd_status);
 		writew(make16(p->nop_cmds[i]), &p->nop_cmds[i]->cmd_link);
-		ptr = (char *) ptr + sizeof(struct nop_cmd_struct);
+		ptr = ptr + sizeof(struct nop_cmd_struct);
 	}
 #else
 	for (i = 0; i < NUM_XMIT_BUFFS; i++) {
-		p->nop_cmds[i] = (struct nop_cmd_struct *)ptr;
+		p->nop_cmds[i] = ptr;
 		writew(CMD_NOP, &p->nop_cmds[i]->cmd_cmd);
 		writew(0, &p->nop_cmds[i]->cmd_status);
 		writew(make16(p->nop_cmds[i]), &p->nop_cmds[i]->cmd_link);
-		ptr = (char *) ptr + sizeof(struct nop_cmd_struct);
+		ptr = ptr + sizeof(struct nop_cmd_struct);
 	}
 #endif
 
-	ptr = alloc_rfa(dev, (void *)ptr); /* init receive-frame-area */
+	ptr = alloc_rfa(dev, ptr); /* init receive-frame-area */
 
 	/*
 	 * alloc xmit-buffs / init xmit_cmds
 	 */
 	for (i = 0; i < NUM_XMIT_BUFFS; i++) {
 		/* Transmit cmd/buff 0 */
-		p->xmit_cmds[i] = (struct transmit_cmd_struct *)ptr;
-		ptr = (char *) ptr + sizeof(struct transmit_cmd_struct);
-		p->xmit_cbuffs[i] = (char *)ptr; /* char-buffs */
-		ptr = (char *) ptr + XMIT_BUFF_SIZE;
-		p->xmit_buffs[i] = (struct tbd_struct *)ptr; /* TBD */
-		ptr = (char *) ptr + sizeof(struct tbd_struct);
-		if ((void *)ptr > (void *)p->iscp) {
+		p->xmit_cmds[i] = ptr;
+		ptr = ptr + sizeof(struct transmit_cmd_struct);
+		p->xmit_cbuffs[i] = ptr; /* char-buffs */
+		ptr = ptr + XMIT_BUFF_SIZE;
+		p->xmit_buffs[i] = ptr; /* TBD */
+		ptr = ptr + sizeof(struct tbd_struct);
+		if ((void __iomem *)ptr > (void __iomem *)p->iscp) {
 			printk(KERN_ERR "%s: not enough shared-mem for your configuration!\n",
 				dev->name);
 			return 1;
 		}
-		memset_io((char *)(p->xmit_cmds[i]), 0,
+		memset_io(p->xmit_cmds[i], 0,
 					sizeof(struct transmit_cmd_struct));
-		memset_io((char *)(p->xmit_buffs[i]), 0,
+		memset_io(p->xmit_buffs[i], 0,
 					sizeof(struct tbd_struct));
 		writew(make16(p->nop_cmds[(i+1)%NUM_XMIT_BUFFS]),
 					&p->xmit_cmds[i]->cmd_link);
@@ -816,14 +824,14 @@ static int init586(struct net_device *dev)
  * It sets up the Receive Frame Area (RFA).
  */
 
-static void *alloc_rfa(struct net_device *dev, void *ptr)
+static void __iomem *alloc_rfa(struct net_device *dev, void __iomem *ptr)
 {
-	struct rfd_struct *rfd = (struct rfd_struct *)ptr;
-	struct rbd_struct *rbd;
+	struct rfd_struct __iomem *rfd = ptr;
+	struct rbd_struct __iomem *rbd;
 	int i;
 	struct priv *p = (struct priv *) dev->priv;
 
-	memset_io((char *) rfd, 0,
+	memset_io(rfd, 0,
 		sizeof(struct rfd_struct) * (p->num_recv_buffs + rfdadd));
 	p->rfd_first = rfd;
 
@@ -835,20 +843,19 @@ static void *alloc_rfa(struct net_device *dev, void *ptr)
 	/* RU suspend */
 	writeb(RFD_SUSP, &rfd[p->num_recv_buffs-1+rfdadd].last);
 
-	ptr = (void *) (rfd + (p->num_recv_buffs + rfdadd));
+	ptr = rfd + (p->num_recv_buffs + rfdadd);
 
-	rbd = (struct rbd_struct *) ptr;
-	ptr = (void *) (rbd + p->num_recv_buffs);
+	rbd = ptr;
+	ptr = rbd + p->num_recv_buffs;
 
 	 /* clr descriptors */
-	memset_io((char *)rbd, 0,
-			sizeof(struct rbd_struct) * (p->num_recv_buffs));
+	memset_io(rbd, 0, sizeof(struct rbd_struct) * (p->num_recv_buffs));
 
 	for (i = 0; i < p->num_recv_buffs; i++) {
 		writew(make16(rbd + (i+1) % p->num_recv_buffs), &rbd[i].next);
 		writew(RECV_BUFF_SIZE, &rbd[i].size);
 		writel(make24(ptr), &rbd[i].buffer);
-		ptr = (char *) ptr + RECV_BUFF_SIZE;
+		ptr = ptr + RECV_BUFF_SIZE;
 	}
 	p->rfd_top	= p->rfd_first;
 	p->rfd_last = p->rfd_first + (p->num_recv_buffs - 1 + rfdadd);
@@ -892,7 +899,7 @@ static irqreturn_t ni52_interrupt(int irq, void *dev_id)
 			if (readb(&p->scb->rus) & RU_SUSPEND) {
 				/* special case: RU_SUSPEND */
 				wait_for_scb_cmd(dev);
-				p->scb->cmd_ruc = RUC_RESUME;
+				writeb(RUC_RESUME, &p->scb->cmd_ruc);
 				ni_attn586();
 				wait_for_scb_cmd_ruc(dev);
 			} else {
@@ -919,7 +926,7 @@ static irqreturn_t ni52_interrupt(int irq, void *dev_id)
 
 		/* Wait for ack. (ni52_xmt_int can be faster than ack!!) */
 		wait_for_scb_cmd(dev);
-		if (p->scb->cmd_cuc) {	 /* timed out? */
+		if (readb(&p->scb->cmd_cuc)) {	 /* timed out? */
 			printk(KERN_ERR "%s: Acknowledge timed out.\n",
 				dev->name);
 			ni_disint();
@@ -942,14 +949,14 @@ static void ni52_rcv_int(struct net_device *dev)
 	int status, cnt = 0;
 	unsigned short totlen;
 	struct sk_buff *skb;
-	struct rbd_struct *rbd;
+	struct rbd_struct __iomem *rbd;
 	struct priv *p = (struct priv *)dev->priv;
 
 	if (debuglevel > 0)
 		printk("R");
 
 	for (; (status = readb(&p->rfd_top->stat_high)) & RFD_COMPL;) {
-		rbd = (struct rbd_struct *) make32(p->rfd_top->rbd_offset);
+		rbd = make32(readw(&p->rfd_top->rbd_offset));
 		if (status & RFD_OK) { /* frame received without error? */
 			totlen = readw(&rbd->status);
 			if (totlen & RBD_LAST) {
@@ -960,7 +967,7 @@ static void ni52_rcv_int(struct net_device *dev)
 				if (skb != NULL) {
 					skb_reserve(skb, 2);
 					skb_put(skb, totlen);
-					skb_copy_to_linear_data(skb, (char *)p->base + (unsigned long) rbd->buffer, totlen);
+					memcpy_fromio(skb->data, p->base + readl(&rbd->buffer), totlen);
 					skb->protocol = eth_type_trans(skb, dev);
 					netif_rx(skb);
 					dev->last_rx = jiffies;
@@ -979,7 +986,7 @@ static void ni52_rcv_int(struct net_device *dev)
 						break;
 					}
 					writew(0, &rbd->status);
-					rbd = (struct rbd_struct *) make32(readl(&rbd->next));
+					rbd = make32(readw(&rbd->next));
 				}
 				totlen += rstat & RBD_MASK;
 				writew(0, &rbd->status);
@@ -997,7 +1004,7 @@ static void ni52_rcv_int(struct net_device *dev)
 		writew(0xffff, &p->rfd_top->rbd_offset);
 		writeb(0, &p->rfd_last->last);	/* delete RFD_SUSP	*/
 		p->rfd_last = p->rfd_top;
-		p->rfd_top = (struct rfd_struct *) make32(p->rfd_top->next); /* step to next RFD */
+		p->rfd_top = make32(readw(&p->rfd_top->next)); /* step to next RFD */
 		writew(make16(p->rfd_top), &p->scb->rfa_offset);
 
 		if (debuglevel > 0)
@@ -1042,11 +1049,12 @@ static void ni52_rnr_int(struct net_device *dev)
 	ni_attn586();
 	wait_for_scb_cmd_ruc(dev);		/* wait for accept cmd. */
 
-	alloc_rfa(dev, (char *)p->rfd_first);
+	alloc_rfa(dev, p->rfd_first);
 	/* maybe add a check here, before restarting the RU */
 	startrecv586(dev); /* restart RU */
 
-	printk(KERN_ERR "%s: Receive-Unit restarted. Status: %04x\n", dev->name, p->scb->rus);
+	printk(KERN_ERR "%s: Receive-Unit restarted. Status: %04x\n",
+		dev->name, readb(&p->scb->rus));
 
 }
 
@@ -1178,12 +1186,11 @@ static int ni52_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	skb_copy_from_linear_data(skb, (char *)p->xmit_cbuffs[p->xmit_count],
-							skb->len);
+	memcpy_toio(p->xmit_cbuffs[p->xmit_count], skb->data, skb->len);
 	len = skb->len;
 	if (len < ETH_ZLEN) {
 		len = ETH_ZLEN;
-		memset((char *)p->xmit_cbuffs[p->xmit_count]+skb->len, 0,
+		memset_io(p->xmit_cbuffs[p->xmit_count]+skb->len, 0,
 							len - skb->len);
 	}
 
@@ -1191,14 +1198,14 @@ static int ni52_send_packet(struct sk_buff *skb, struct net_device *dev)
 #	ifdef NO_NOPCOMMANDS
 
 #ifdef DEBUG
-	if (p->scb->cus & CU_ACTIVE) {
+	if (readb(&p->scb->cus) & CU_ACTIVE) {
 		printk(KERN_ERR "%s: Hmmm .. CU is still running and we wanna send a new packet.\n", dev->name);
 		printk(KERN_ERR "%s: stat: %04x %04x\n",
 				dev->name, readb(&p->scb->cus),
 				readw(&p->xmit_cmds[0]->cmd_status));
 	}
 #endif
-	writew(TBD_LAST | len, &p->xmit_buffs[0]->size);;
+	writew(TBD_LAST | len, &p->xmit_buffs[0]->size);
 	for (i = 0; i < 16; i++) {
 		writew(0, &p->xmit_cmds[0]->cmd_status);
 		wait_for_scb_cmd(dev);
@@ -1330,7 +1337,9 @@ int __init init_module(void)
 
 void __exit cleanup_module(void)
 {
+	struct priv *p = dev_ni52->priv;
 	unregister_netdev(dev_ni52);
+	iounmap(p->mapped);
 	release_region(dev_ni52->base_addr, NI52_TOTAL_SIZE);
 	free_netdev(dev_ni52);
 }

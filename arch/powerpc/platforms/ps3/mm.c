@@ -21,9 +21,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/memory_hotplug.h>
+#include <linux/lmb.h>
 
 #include <asm/firmware.h>
-#include <asm/lmb.h>
+#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
 

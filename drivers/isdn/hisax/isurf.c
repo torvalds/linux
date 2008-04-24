@@ -17,8 +17,6 @@
 #include "isdnl1.h"
 #include <linux/isapnp.h>
 
-extern const char *CardType[];
-
 static const char *ISurf_revision = "$Revision: 1.12.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
@@ -251,22 +249,19 @@ setup_isurf(struct IsdnCard *card)
 			return(0);
 		}
 #else
-		printk(KERN_WARNING "HiSax: %s port/mem not set\n",
-			CardType[card->typ]);
+		printk(KERN_WARNING "HiSax: Siemens I-Surf port/mem not set\n");
 		return (0);
 #endif
 	}
 	if (!request_region(cs->hw.isurf.reset, 1, "isurf isdn")) {
 		printk(KERN_WARNING
-			"HiSax: %s config port %x already in use\n",
-			CardType[card->typ],
+			"HiSax: Siemens I-Surf config port %x already in use\n",
 			cs->hw.isurf.reset);
 			return (0);
 	}
 	if (!request_region(cs->hw.isurf.phymem, ISURF_IOMEM_SIZE, "isurf iomem")) {
-		printk(KERN_WARNING
-			"HiSax: %s memory region %lx-%lx already in use\n",
-			CardType[card->typ],
+		printk(KERN_WARNING "HiSax: Siemens I-Surf memory region "
+			"%lx-%lx already in use\n",
 			cs->hw.isurf.phymem,
 			cs->hw.isurf.phymem + ISURF_IOMEM_SIZE);
 		release_region(cs->hw.isurf.reset, 1);

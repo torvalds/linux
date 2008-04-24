@@ -75,8 +75,13 @@ __error_p:
 #ifdef CONFIG_DEBUG_LL
 	adr	r0, str_p1
 	bl	printascii
+	mov	r0, r9
+	bl	printhex8
+	adr	r0, str_p2
+	bl	printascii
 	b	__error
-str_p1:	.asciz	"\nError: unrecognized/unsupported processor variant.\n"
+str_p1:	.asciz	"\nError: unrecognized/unsupported processor variant (0x"
+str_p2:	.asciz	").\n"
 	.align
 #endif
 

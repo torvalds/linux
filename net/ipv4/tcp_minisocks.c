@@ -35,6 +35,8 @@
 #endif
 
 int sysctl_tcp_syncookies __read_mostly = SYNC_INIT;
+EXPORT_SYMBOL(sysctl_tcp_syncookies);
+
 int sysctl_tcp_abort_on_overflow __read_mostly;
 
 struct inet_timewait_death_row tcp_death_row = {
@@ -536,7 +538,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 		 * Enforce "SYN-ACK" according to figure 8, figure 6
 		 * of RFC793, fixed by RFC1122.
 		 */
-		req->rsk_ops->rtx_syn_ack(sk, req, NULL);
+		req->rsk_ops->rtx_syn_ack(sk, req);
 		return NULL;
 	}
 
@@ -569,10 +571,8 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 	   does sequence test, SYN is truncated, and thus we consider
 	   it a bare ACK.
 
-	   If icsk->icsk_accept_queue.rskq_defer_accept, we silently drop this
-	   bare ACK.  Otherwise, we create an established connection.  Both
-	   ends (listening sockets) accept the new incoming connection and try
-	   to talk to each other. 8-)
+	   Both ends (listening sockets) accept the new incoming
+	   connection and try to talk to each other. 8-)
 
 	   Note: This case is both harmless, and rare.  Possibility is about the
 	   same as us discovering intelligent life on another plant tomorrow.
@@ -640,13 +640,6 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 		if (!(flg & TCP_FLAG_ACK))
 			return NULL;
 
-		/* If TCP_DEFER_ACCEPT is set, drop bare ACK. */
-		if (inet_csk(sk)->icsk_accept_queue.rskq_defer_accept &&
-		    TCP_SKB_CB(skb)->end_seq == tcp_rsk(req)->rcv_isn + 1) {
-			inet_rsk(req)->acked = 1;
-			return NULL;
-		}
-
 		/* OK, ACK is valid, create big socket and
 		 * feed this segment to it. It will repeat all
 		 * the tests. THIS SEGMENT MUST MOVE SOCKET TO
@@ -685,7 +678,24 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 		inet_csk_reqsk_queue_unlink(sk, req, prev);
 		inet_csk_reqsk_queue_removed(sk, req);
 
-		inet_csk_reqsk_queue_add(sk, req, child);
+		if (inet_csk(sk)->icsk_accept_queue.rskq_defer_accept &&
+		    TCP_SKB_CB(skb)->end_seq == tcp_rsk(req)->rcv_isn + 1) {
+
+			/* the accept queue handling is done is est recv slow
+			 * path so lets make sure to start there
+			 */
+			tcp_sk(child)->pred_flags = 0;
+			sock_hold(sk);
+			sock_hold(child);
+			tcp_sk(child)->defer_tcp_accept.listen_sk = sk;
+			tcp_sk(child)->defer_tcp_accept.request = req;
+
+			inet_csk_reset_keepalive_timer(child,
+						       inet_csk(sk)->icsk_accept_queue.rskq_defer_accept * HZ);
+		} else {
+			inet_csk_reqsk_queue_add(sk, req, child);
+		}
+
 		return child;
 
 	listen_overflow:

@@ -14,7 +14,4 @@ extern int nf_nat_rule_find(struct sk_buff *skb,
 
 extern unsigned int
 alloc_null_binding(struct nf_conn *ct, unsigned int hooknum);
-
-extern unsigned int
-alloc_null_binding_confirmed(struct nf_conn *ct, unsigned int hooknum);
 #endif /* _NF_NAT_RULE_H */

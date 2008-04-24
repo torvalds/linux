@@ -55,15 +55,9 @@ static u8 ns16550_tstc(void)
 int ns16550_console_init(void *devp, struct serial_console_data *scdp)
 {
 	int n;
-	unsigned long reg_phys;
 
-	n = getprop(devp, "virtual-reg", &reg_base, sizeof(reg_base));
-	if (n != sizeof(reg_base)) {
-		if (!dt_xlate_reg(devp, 0, &reg_phys, NULL))
-			return -1;
-
-		reg_base = (void *)reg_phys;
-	}
+	if (dt_get_virtual_reg(devp, (void **)&reg_base, 1) < 1)
+		return -1;
 
 	n = getprop(devp, "reg-shift", &reg_shift, sizeof(reg_shift));
 	if (n != sizeof(reg_shift))

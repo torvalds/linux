@@ -19,21 +19,34 @@ static struct sysdev_class node_class = {
 };
 
 
-static ssize_t node_read_cpumap(struct sys_device * dev, char * buf)
+static ssize_t node_read_cpumap(struct sys_device *dev, int type, char *buf)
 {
 	struct node *node_dev = to_node(dev);
-	cpumask_t mask = node_to_cpumask(node_dev->sysdev.id);
+	node_to_cpumask_ptr(mask, node_dev->sysdev.id);
 	int len;
 
-	/* 2004/06/03: buf currently PAGE_SIZE, need > 1 char per 4 bits. */
-	BUILD_BUG_ON(MAX_NUMNODES/4 > PAGE_SIZE/2);
+	/* 2008/04/07: buf currently PAGE_SIZE, need 9 chars per 32 bits. */
+	BUILD_BUG_ON((NR_CPUS/32 * 9) > (PAGE_SIZE-1));
 
-	len = cpumask_scnprintf(buf, PAGE_SIZE-1, mask);
-	len += sprintf(buf + len, "\n");
+	len = type?
+		cpulist_scnprintf(buf, PAGE_SIZE-2, *mask):
+		cpumask_scnprintf(buf, PAGE_SIZE-2, *mask);
+ 	buf[len++] = '\n';
+ 	buf[len] = '\0';
 	return len;
 }
 
-static SYSDEV_ATTR(cpumap, S_IRUGO, node_read_cpumap, NULL);
+static inline ssize_t node_read_cpumask(struct sys_device *dev, char *buf)
+{
+	return node_read_cpumap(dev, 0, buf);
+}
+static inline ssize_t node_read_cpulist(struct sys_device *dev, char *buf)
+{
+	return node_read_cpumap(dev, 1, buf);
+}
+
+static SYSDEV_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
+static SYSDEV_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
 
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
@@ -149,6 +162,7 @@ int register_node(struct node *node, int num, struct node *parent)
 
 	if (!error){
 		sysdev_create_file(&node->sysdev, &attr_cpumap);
+		sysdev_create_file(&node->sysdev, &attr_cpulist);
 		sysdev_create_file(&node->sysdev, &attr_meminfo);
 		sysdev_create_file(&node->sysdev, &attr_numastat);
 		sysdev_create_file(&node->sysdev, &attr_distance);
@@ -166,6 +180,7 @@ int register_node(struct node *node, int num, struct node *parent)
 void unregister_node(struct node *node)
 {
 	sysdev_remove_file(&node->sysdev, &attr_cpumap);
+	sysdev_remove_file(&node->sysdev, &attr_cpulist);
 	sysdev_remove_file(&node->sysdev, &attr_meminfo);
 	sysdev_remove_file(&node->sysdev, &attr_numastat);
 	sysdev_remove_file(&node->sysdev, &attr_distance);

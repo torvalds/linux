@@ -23,7 +23,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
-#include <asm/svr4.h>
 #include <asm/pgtable.h>
 #include <asm/psrcompat.h>
 #include <asm/fpumacro.h>
@@ -798,281 +797,6 @@ sigsegv:
 	force_sigsegv(signo, current);
 }
 
-/* Setup a Solaris stack frame */
-static void
-setup_svr4_frame32(struct sigaction *sa, unsigned long pc, unsigned long npc,
-		   struct pt_regs *regs, int signr, sigset_t *oldset)
-{
-	svr4_signal_frame_t __user *sfp;
-	svr4_gregset_t  __user *gr;
-	svr4_siginfo_t  __user *si;
-	svr4_mcontext_t __user *mc;
-	svr4_gwindows_t __user *gw;
-	svr4_ucontext_t __user *uc;
-	svr4_sigset_t setv;
-	unsigned int psr;
-	int i, err;
-
-	synchronize_user_stack();
-	save_and_clear_fpu();
-	
-	regs->u_regs[UREG_FP] &= 0x00000000ffffffffUL;
-	sfp = (svr4_signal_frame_t __user *)
-		get_sigframe(sa, regs,
-			     sizeof(struct reg_window32) + SVR4_SF_ALIGNED);
-
-	if (invalid_frame_pointer(sfp, sizeof(*sfp)))
-		do_exit(SIGILL);
-
-	/* Start with a clean frame pointer and fill it */
-	err = clear_user(sfp, sizeof(*sfp));
-
-	/* Setup convenience variables */
-	si = &sfp->si;
-	uc = &sfp->uc;
-	gw = &sfp->gw;
-	mc = &uc->mcontext;
-	gr = &mc->greg;
-	
-	/* FIXME: where am I supposed to put this?
-	 * sc->sigc_onstack = old_status;
-	 * anyways, it does not look like it is used for anything at all.
-	 */
-	setv.sigbits[0] = oldset->sig[0];
-	setv.sigbits[1] = (oldset->sig[0] >> 32);
-	if (_NSIG_WORDS >= 2) {
-		setv.sigbits[2] = oldset->sig[1];
-		setv.sigbits[3] = (oldset->sig[1] >> 32);
-		err |= __copy_to_user(&uc->sigmask, &setv, sizeof(svr4_sigset_t));
-	} else
-		err |= __copy_to_user(&uc->sigmask, &setv,
-				      2 * sizeof(unsigned int));
-	
-	/* Store registers */
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-	err |= __put_user(regs->tpc, &((*gr)[SVR4_PC]));
-	err |= __put_user(regs->tnpc, &((*gr)[SVR4_NPC]));
-	psr = tstate_to_psr(regs->tstate);
-	if (current_thread_info()->fpsaved[0] & FPRS_FEF)
-		psr |= PSR_EF;
-	err |= __put_user(psr, &((*gr)[SVR4_PSR]));
-	err |= __put_user(regs->y, &((*gr)[SVR4_Y]));
-	
-	/* Copy g[1..7] and o[0..7] registers */
-	for (i = 0; i < 7; i++)
-		err |= __put_user(regs->u_regs[UREG_G1+i], (&(*gr)[SVR4_G1])+i);
-	for (i = 0; i < 8; i++)
-		err |= __put_user(regs->u_regs[UREG_I0+i], (&(*gr)[SVR4_O0])+i);
-
-	/* Setup sigaltstack */
-	err |= __put_user(current->sas_ss_sp, &uc->stack.sp);
-	err |= __put_user(sas_ss_flags(regs->u_regs[UREG_FP]), &uc->stack.flags);
-	err |= __put_user(current->sas_ss_size, &uc->stack.size);
-
-	/* Save the currently window file: */
-
-	/* 1. Link sfp->uc->gwins to our windows */
-	err |= __put_user(ptr_to_compat(gw), &mc->gwin);
-	    
-	/* 2. Number of windows to restore at setcontext (): */
-	err |= __put_user(get_thread_wsaved(), &gw->count);
-
-	/* 3. We just pay attention to the gw->count field on setcontext */
-	set_thread_wsaved(0); /* So process is allowed to execute. */
-
-	/* Setup the signal information.  Solaris expects a bunch of
-	 * information to be passed to the signal handler, we don't provide
-	 * that much currently, should use siginfo.
-	 */
-	err |= __put_user(signr, &si->siginfo.signo);
-	err |= __put_user(SVR4_SINOINFO, &si->siginfo.code);
-	if (err)
-		goto sigsegv;
-
-	regs->u_regs[UREG_FP] = (unsigned long) sfp;
-	regs->tpc = (unsigned long) sa->sa_handler;
-	regs->tnpc = (regs->tpc + 4);
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-
-	/* Arguments passed to signal handler */
-	if (regs->u_regs[14]){
-		struct reg_window32 __user *rw = (struct reg_window32 __user *)
-			(regs->u_regs[14] & 0x00000000ffffffffUL);
-
-		err |= __put_user(signr, &rw->ins[0]);
-		err |= __put_user((u64)si, &rw->ins[1]);
-		err |= __put_user((u64)uc, &rw->ins[2]);
-		err |= __put_user((u64)sfp, &rw->ins[6]);	/* frame pointer */
-		if (err)
-			goto sigsegv;
-
-		regs->u_regs[UREG_I0] = signr;
-		regs->u_regs[UREG_I1] = (u32)(u64) si;
-		regs->u_regs[UREG_I2] = (u32)(u64) uc;
-	}
-	return;
-
-sigsegv:
-	force_sigsegv(signr, current);
-}
-
-asmlinkage int
-svr4_getcontext(svr4_ucontext_t __user *uc, struct pt_regs *regs)
-{
-	svr4_gregset_t  __user *gr;
-	svr4_mcontext_t __user *mc;
-	svr4_sigset_t setv;
-	int i, err;
-	u32 psr;
-
-	synchronize_user_stack();
-	save_and_clear_fpu();
-	
-	if (get_thread_wsaved())
-		do_exit(SIGSEGV);
-
-	err = clear_user(uc, sizeof(*uc));
-
-	/* Setup convenience variables */
-	mc = &uc->mcontext;
-	gr = &mc->greg;
-
-	setv.sigbits[0] = current->blocked.sig[0];
-	setv.sigbits[1] = (current->blocked.sig[0] >> 32);
-	if (_NSIG_WORDS >= 2) {
-		setv.sigbits[2] = current->blocked.sig[1];
-		setv.sigbits[3] = (current->blocked.sig[1] >> 32);
-		err |= __copy_to_user(&uc->sigmask, &setv, sizeof(svr4_sigset_t));
-	} else
-		err |= __copy_to_user(&uc->sigmask, &setv, 2 * sizeof(unsigned));
-
-	/* Store registers */
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-	err |= __put_user(regs->tpc, &uc->mcontext.greg[SVR4_PC]);
-	err |= __put_user(regs->tnpc, &uc->mcontext.greg[SVR4_NPC]);
-
-	psr = tstate_to_psr(regs->tstate) & ~PSR_EF;		   
-	if (current_thread_info()->fpsaved[0] & FPRS_FEF)
-		psr |= PSR_EF;
-	err |= __put_user(psr, &uc->mcontext.greg[SVR4_PSR]);
-
-	err |= __put_user(regs->y, &uc->mcontext.greg[SVR4_Y]);
-	
-	/* Copy g[1..7] and o[0..7] registers */
-	for (i = 0; i < 7; i++)
-		err |= __put_user(regs->u_regs[UREG_G1+i], (&(*gr)[SVR4_G1])+i);
-	for (i = 0; i < 8; i++)
-		err |= __put_user(regs->u_regs[UREG_I0+i], (&(*gr)[SVR4_O0])+i);
-
-	/* Setup sigaltstack */
-	err |= __put_user(current->sas_ss_sp, &uc->stack.sp);
-	err |= __put_user(sas_ss_flags(regs->u_regs[UREG_FP]), &uc->stack.flags);
-	err |= __put_user(current->sas_ss_size, &uc->stack.size);
-
-	/* The register file is not saved
-	 * we have already stuffed all of it with sync_user_stack
-	 */
-	return (err ? -EFAULT : 0);
-}
-
-
-/* Set the context for a svr4 application, this is Solaris way to sigreturn */
-asmlinkage int svr4_setcontext(svr4_ucontext_t __user *c, struct pt_regs *regs)
-{
-	svr4_gregset_t  __user *gr;
-	mm_segment_t old_fs;
-	u32 pc, npc, psr, u_ss_sp;
-	sigset_t set;
-	svr4_sigset_t setv;
-	int i, err;
-	stack_t st;
-	
-	/* Fixme: restore windows, or is this already taken care of in
-	 * svr4_setup_frame when sync_user_windows is done?
-	 */
-	flush_user_windows();
-	
-	if (get_thread_wsaved())
-		goto sigsegv;
-
-	if (((unsigned long) c) & 3){
-		printk("Unaligned structure passed\n");
-		goto sigsegv;
-	}
-
-	if (!__access_ok(c, sizeof(*c))) {
-		/* Miguel, add nice debugging msg _here_. ;-) */
-		goto sigsegv;
-	}
-
-	/* Check for valid PC and nPC */
-	gr = &c->mcontext.greg;
-	err = __get_user(pc, &((*gr)[SVR4_PC]));
-	err |= __get_user(npc, &((*gr)[SVR4_NPC]));
-	if ((pc | npc) & 3)
-		goto sigsegv;
-	
-	/* Retrieve information from passed ucontext */
-	/* note that nPC is ored a 1, this is used to inform entry.S */
-	/* that we don't want it to mess with our PC and nPC */
-	
-	err |= copy_from_user(&setv, &c->sigmask, sizeof(svr4_sigset_t));
-	set.sig[0] = setv.sigbits[0] | (((long)setv.sigbits[1]) << 32);
-	if (_NSIG_WORDS >= 2)
-		set.sig[1] = setv.sigbits[2] | (((long)setv.sigbits[3]) << 32);
-	
-	err |= __get_user(u_ss_sp, &c->stack.sp);
-	st.ss_sp = compat_ptr(u_ss_sp);
-	err |= __get_user(st.ss_flags, &c->stack.flags);
-	err |= __get_user(st.ss_size, &c->stack.size);
-	if (err)
-		goto sigsegv;
-		
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	do_sigaltstack((stack_t __user *) &st, NULL, regs->u_regs[UREG_I6]);
-	set_fs(old_fs);
-	
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	regs->tpc = pc;
-	regs->tnpc = npc | 1;
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-	err |= __get_user(regs->y, &((*gr)[SVR4_Y]));
-	err |= __get_user(psr, &((*gr)[SVR4_PSR]));
-	regs->tstate &= ~(TSTATE_ICC|TSTATE_XCC);
-	regs->tstate |= psr_to_tstate_icc(psr);
-
-	/* Restore g[1..7] and o[0..7] registers */
-	for (i = 0; i < 7; i++)
-		err |= __get_user(regs->u_regs[UREG_G1+i], (&(*gr)[SVR4_G1])+i);
-	for (i = 0; i < 8; i++)
-		err |= __get_user(regs->u_regs[UREG_I0+i], (&(*gr)[SVR4_O0])+i);
-	if (err)
-		goto sigsegv;
-
-	return -EINTR;
-sigsegv:
-	return -EFAULT;
-}
-
 static void setup_rt_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 			     unsigned long signr, sigset_t *oldset,
 			     siginfo_t *info)
@@ -1216,20 +940,14 @@ sigsegv:
 
 static inline void handle_signal32(unsigned long signr, struct k_sigaction *ka,
 				   siginfo_t *info,
-				   sigset_t *oldset, struct pt_regs *regs,
-				   int svr4_signal)
+				   sigset_t *oldset, struct pt_regs *regs)
 {
-	if (svr4_signal)
-		setup_svr4_frame32(&ka->sa, regs->tpc, regs->tnpc,
-				   regs, signr, oldset);
-	else {
-		if (ka->sa.sa_flags & SA_SIGINFO)
-			setup_rt_frame32(ka, regs, signr, oldset, info);
-		else if (test_thread_flag(TIF_NEWSIGNALS))
-			new_setup_frame32(ka, regs, signr, oldset);
-		else
-			setup_frame32(&ka->sa, regs, signr, oldset, info);
-	}
+	if (ka->sa.sa_flags & SA_SIGINFO)
+		setup_rt_frame32(ka, regs, signr, oldset, info);
+	else if (test_thread_flag(TIF_NEWSIGNALS))
+		new_setup_frame32(ka, regs, signr, oldset);
+	else
+		setup_frame32(&ka->sa, regs, signr, oldset, info);
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
 	if (!(ka->sa.sa_flags & SA_NOMASK))
@@ -1270,7 +988,6 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs,
 	struct signal_deliver_cookie cookie;
 	struct k_sigaction ka;
 	int signr;
-	int svr4_signal = current->personality == PER_SVR4;
 	
 	cookie.restart_syscall = restart_syscall;
 	cookie.orig_i0 = orig_i0;
@@ -1279,8 +996,7 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs,
 	if (signr > 0) {
 		if (cookie.restart_syscall)
 			syscall_restart32(orig_i0, regs, &ka.sa);
-		handle_signal32(signr, &ka, &info, oldset,
-				regs, svr4_signal);
+		handle_signal32(signr, &ka, &info, oldset, regs);
 
 		/* a signal was successfully delivered; the saved
 		 * sigmask will have been stored in the signal frame,

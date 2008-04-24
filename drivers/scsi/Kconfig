@@ -588,18 +588,20 @@ config SCSI_BUSLOGIC
 	  <http://www.tldp.org/docs.html#howto>, and the files
 	  <file:Documentation/scsi/BusLogic.txt> and
 	  <file:Documentation/scsi/FlashPoint.txt> for more information.
+	  Note that support for FlashPoint is only available for 32-bit
+	  x86 configurations.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called BusLogic.
 
-config SCSI_OMIT_FLASHPOINT
-	bool "Omit FlashPoint support"
-	depends on SCSI_BUSLOGIC
+config SCSI_FLASHPOINT
+	bool "FlashPoint support"
+	depends on SCSI_BUSLOGIC && PCI && X86_32
 	help
-	  This option allows you to omit the FlashPoint support from the
+	  This option allows you to add FlashPoint support to the
 	  BusLogic SCSI driver. The FlashPoint SCCB Manager code is
-	  substantial, so users of MultiMaster Host Adapters may wish to omit
-	  it.
+	  substantial, so users of MultiMaster Host Adapters may not
+	  wish to include it.
 
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"

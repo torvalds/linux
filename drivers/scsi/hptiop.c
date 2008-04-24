@@ -338,7 +338,8 @@ static int iop_get_config_mv(struct hptiop_hba *hba,
 	req->header.size =
 		cpu_to_le32(sizeof(struct hpt_iop_request_get_config));
 	req->header.result = cpu_to_le32(IOP_RESULT_PENDING);
-	req->header.context = cpu_to_le64(IOP_REQUEST_TYPE_GET_CONFIG<<5);
+	req->header.context = cpu_to_le32(IOP_REQUEST_TYPE_GET_CONFIG<<5);
+	req->header.context_hi32 = 0;
 
 	if (iop_send_sync_request_mv(hba, 0, 20000)) {
 		dprintk("Get config send cmd failed\n");
@@ -392,7 +393,8 @@ static int iop_set_config_mv(struct hptiop_hba *hba,
 	req->header.size =
 		cpu_to_le32(sizeof(struct hpt_iop_request_set_config));
 	req->header.result = cpu_to_le32(IOP_RESULT_PENDING);
-	req->header.context = cpu_to_le64(IOP_REQUEST_TYPE_SET_CONFIG<<5);
+	req->header.context = cpu_to_le32(IOP_REQUEST_TYPE_SET_CONFIG<<5);
+	req->header.context_hi32 = 0;
 
 	if (iop_send_sync_request_mv(hba, 0, 20000)) {
 		dprintk("Set config send cmd failed\n");
@@ -857,14 +859,16 @@ static int hptiop_adjust_disk_queue_depth(struct scsi_device *sdev,
 	return queue_depth;
 }
 
-static ssize_t hptiop_show_version(struct class_device *class_dev, char *buf)
+static ssize_t hptiop_show_version(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%s\n", driver_ver);
 }
 
-static ssize_t hptiop_show_fw_version(struct class_device *class_dev, char *buf)
+static ssize_t hptiop_show_fw_version(struct device *dev,
+				      struct device_attribute *attr, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(class_dev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	struct hptiop_hba *hba = (struct hptiop_hba *)host->hostdata;
 
 	return snprintf(buf, PAGE_SIZE, "%d.%d.%d.%d\n",
@@ -874,7 +878,7 @@ static ssize_t hptiop_show_fw_version(struct class_device *class_dev, char *buf)
 				hba->firmware_version & 0xff);
 }
 
-static struct class_device_attribute hptiop_attr_version = {
+static struct device_attribute hptiop_attr_version = {
 	.attr = {
 		.name = "driver-version",
 		.mode = S_IRUGO,
@@ -882,7 +886,7 @@ static struct class_device_attribute hptiop_attr_version = {
 	.show = hptiop_show_version,
 };
 
-static struct class_device_attribute hptiop_attr_fw_version = {
+static struct device_attribute hptiop_attr_fw_version = {
 	.attr = {
 		.name = "firmware-version",
 		.mode = S_IRUGO,
@@ -890,7 +894,7 @@ static struct class_device_attribute hptiop_attr_fw_version = {
 	.show = hptiop_show_fw_version,
 };
 
-static struct class_device_attribute *hptiop_attrs[] = {
+static struct device_attribute *hptiop_attrs[] = {
 	&hptiop_attr_version,
 	&hptiop_attr_fw_version,
 	NULL
@@ -903,7 +907,6 @@ static struct scsi_host_template driver_template = {
 	.eh_device_reset_handler    = hptiop_reset,
 	.eh_bus_reset_handler       = hptiop_reset,
 	.info                       = hptiop_info,
-	.unchecked_isa_dma          = 0,
 	.emulated                   = 0,
 	.use_clustering             = ENABLE_CLUSTERING,
 	.proc_name                  = driver_name,

@@ -299,7 +299,7 @@ elsa_interrupt(int intno, void *dev_id)
 		val = serial_inp(cs, UART_IIR);
 		if (!(val & UART_IIR_NO_INT)) {
 			debugl1(cs,"IIR %02x", val);
-			rs_interrupt_elsa(intno, cs);
+			rs_interrupt_elsa(cs);
 		}
 	}
 #endif
@@ -379,7 +379,7 @@ elsa_interrupt_ipac(int intno, void *dev_id)
 		val = serial_inp(cs, UART_IIR);
 		if (!(val & UART_IIR_NO_INT)) {
 			debugl1(cs,"IIR %02x", val);
-			rs_interrupt_elsa(intno, cs);
+			rs_interrupt_elsa(cs);
 		}
 	}
 #endif

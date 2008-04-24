@@ -167,6 +167,12 @@ config CPU_SUBTYPE_SH7263
 	select CPU_SH2A
 	select CPU_HAS_FPU
 
+config CPU_SUBTYPE_MXG
+	bool "Support MX-G processor"
+	select CPU_SH2A
+	help
+	  Select MX-G if running on an R8A03022BG part.
+
 # SH-3 Processor Support
 
 config CPU_SUBTYPE_SH7705
@@ -270,6 +276,15 @@ config CPU_SUBTYPE_SH4_202
 
 # SH-4A Processor Support
 
+config CPU_SUBTYPE_SH7723
+	bool "Support SH7723 processor"
+	select CPU_SH4A
+	select CPU_SHX2
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_NUMA
+	help
+	  Select SH7723 if you have an SH-MobileR2 CPU.
+
 config CPU_SUBTYPE_SH7763
 	bool "Support SH7763 processor"
 	select CPU_SH4A
@@ -366,6 +381,14 @@ config SH_7619_SOLUTION_ENGINE
 	  Select 7619 SolutionEngine if configuring for a Hitachi SH7619
 	  evaluation board.
 	
+config SH_7721_SOLUTION_ENGINE
+	bool "SolutionEngine7721"
+	select SOLUTION_ENGINE
+	depends on CPU_SUBTYPE_SH7721
+	help
+	  Select 7721 SolutionEngine if configuring for a Hitachi SH7721
+	  evaluation board.
+
 config SH_7722_SOLUTION_ENGINE
 	bool "SolutionEngine7722"
 	select SOLUTION_ENGINE
@@ -560,7 +583,7 @@ config SH_TMU
 config SH_CMT
 	def_bool y
 	prompt "CMT timer support"
-	depends on CPU_SH2
+	depends on CPU_SH2 && !CPU_SUBTYPE_MXG
 	help
 	  This enables the use of the CMT as the system timer.
 
@@ -578,6 +601,7 @@ config SH_TIMER_IRQ
 	default "86" if CPU_SUBTYPE_SH7619
 	default "140" if CPU_SUBTYPE_SH7206
 	default "142" if CPU_SUBTYPE_SH7203
+	default "238" if CPU_SUBTYPE_MXG
 	default "16"
 
 config SH_PCLK_FREQ
@@ -585,10 +609,10 @@ config SH_PCLK_FREQ
 	default "27000000" if CPU_SUBTYPE_SH7343
 	default "31250000" if CPU_SUBTYPE_SH7619
 	default "32000000" if CPU_SUBTYPE_SH7722
-	default "33333333" if CPU_SUBTYPE_SH7770 || \
+	default "33333333" if CPU_SUBTYPE_SH7770 || CPU_SUBTYPE_SH7723 || \
 			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
 			      CPU_SUBTYPE_SH7203 || CPU_SUBTYPE_SH7206 || \
-			      CPU_SUBTYPE_SH7263
+			      CPU_SUBTYPE_SH7263 || CPU_SUBTYPE_MXG
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"

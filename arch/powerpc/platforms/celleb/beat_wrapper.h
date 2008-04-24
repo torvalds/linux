@@ -197,7 +197,8 @@ static inline s64 beat_put_characters_to_console(u64 termno, u64 len,
 	u64 b[2];
 
 	memcpy(b, buffer, len);
-	return beat_hcall_norets(HV_put_characters_to_console, termno, len,					 b[0], b[1]);
+	return beat_hcall_norets(HV_put_characters_to_console, termno, len,
+		b[0], b[1]);
 }
 
 static inline s64 beat_get_spe_privileged_state_1_registers(

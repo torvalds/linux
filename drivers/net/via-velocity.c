@@ -3460,21 +3460,22 @@ static int velocity_resume(struct pci_dev *pdev)
 static int velocity_netdev_event(struct notifier_block *nb, unsigned long notification, void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *) ptr;
+	struct net_device *dev = ifa->ifa_dev->dev;
+	struct velocity_info *vptr;
+	unsigned long flags;
 
-	if (ifa) {
-		struct net_device *dev = ifa->ifa_dev->dev;
-		struct velocity_info *vptr;
-		unsigned long flags;
+	if (dev_net(dev) != &init_net)
+		return NOTIFY_DONE;
 
-		spin_lock_irqsave(&velocity_dev_list_lock, flags);
-		list_for_each_entry(vptr, &velocity_dev_list, list) {
-			if (vptr->dev == dev) {
-				velocity_get_ip(vptr);
-				break;
-			}
+	spin_lock_irqsave(&velocity_dev_list_lock, flags);
+	list_for_each_entry(vptr, &velocity_dev_list, list) {
+		if (vptr->dev == dev) {
+			velocity_get_ip(vptr);
+			break;
 		}
-		spin_unlock_irqrestore(&velocity_dev_list_lock, flags);
 	}
+	spin_unlock_irqrestore(&velocity_dev_list_lock, flags);
+
 	return NOTIFY_DONE;
 }
 

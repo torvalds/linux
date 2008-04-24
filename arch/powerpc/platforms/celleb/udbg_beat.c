@@ -54,7 +54,8 @@ static int udbg_getc_poll_beat(void)
 	if (inbuflen == 0) {
 		/* get some more chars. */
 		inbuflen = 0;
-		rc = beat_get_term_char(celleb_vtermno, &inbuflen, inbuf+0, inbuf+1);
+		rc = beat_get_term_char(celleb_vtermno, &inbuflen,
+					inbuf+0, inbuf+1);
 		if (rc != 0)
 			inbuflen = 0;	/* otherwise inbuflen is garbage */
 	}
@@ -78,7 +79,7 @@ static int udbg_getc_beat(void)
 		if (ch == -1) {
 			/* This shouldn't be needed...but... */
 			volatile unsigned long delay;
-			for (delay=0; delay < 2000000; delay++)
+			for (delay = 0; delay < 2000000; delay++)
 				;
 		} else {
 			return ch;

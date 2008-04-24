@@ -107,7 +107,7 @@ static int ses_set_page2_descriptor(struct enclosure_device *edev,
 				      unsigned char *desc)
 {
 	int i, j, count = 0, descriptor = ecomp->number;
-	struct scsi_device *sdev = to_scsi_device(edev->cdev.dev);
+	struct scsi_device *sdev = to_scsi_device(edev->edev.parent);
 	struct ses_device *ses_dev = edev->scratch;
 	unsigned char *type_ptr = ses_dev->page1 + 12 + ses_dev->page1[11];
 	unsigned char *desc_ptr = ses_dev->page2 + 8;
@@ -137,7 +137,7 @@ static unsigned char *ses_get_page2_descriptor(struct enclosure_device *edev,
 				      struct enclosure_component *ecomp)
 {
 	int i, j, count = 0, descriptor = ecomp->number;
-	struct scsi_device *sdev = to_scsi_device(edev->cdev.dev);
+	struct scsi_device *sdev = to_scsi_device(edev->edev.parent);
 	struct ses_device *ses_dev = edev->scratch;
 	unsigned char *type_ptr = ses_dev->page1 + 12 + ses_dev->page1[11];
 	unsigned char *desc_ptr = ses_dev->page2 + 8;
@@ -269,10 +269,10 @@ int ses_match_host(struct enclosure_device *edev, void *data)
 	struct ses_host_edev *sed = data;
 	struct scsi_device *sdev;
 
-	if (!scsi_is_sdev_device(edev->cdev.dev))
+	if (!scsi_is_sdev_device(edev->edev.parent))
 		return 0;
 
-	sdev = to_scsi_device(edev->cdev.dev);
+	sdev = to_scsi_device(edev->edev.parent);
 
 	if (sdev->host != sed->shost)
 		return 0;
@@ -407,10 +407,10 @@ static void ses_match_to_enclosure(struct enclosure_device *edev,
 
 #define INIT_ALLOC_SIZE 32
 
-static int ses_intf_add(struct class_device *cdev,
+static int ses_intf_add(struct device *cdev,
 			struct class_interface *intf)
 {
-	struct scsi_device *sdev = to_scsi_device(cdev->dev);
+	struct scsi_device *sdev = to_scsi_device(cdev->parent);
 	struct scsi_device *tmp_sdev;
 	unsigned char *buf = NULL, *hdr_buf, *type_ptr, *desc_ptr = NULL,
 		*addl_desc_ptr = NULL;
@@ -426,7 +426,7 @@ static int ses_intf_add(struct class_device *cdev,
 		edev = enclosure_find(&sdev->host->shost_gendev);
 		if (edev) {
 			ses_match_to_enclosure(edev, sdev);
-			class_device_put(&edev->cdev);
+			put_device(&edev->edev);
 		}
 		return -ENODEV;
 	}
@@ -515,7 +515,7 @@ static int ses_intf_add(struct class_device *cdev,
 	if (!scomp)
 		goto err_free;
 
-	edev = enclosure_register(cdev->dev, sdev->sdev_gendev.bus_id,
+	edev = enclosure_register(cdev->parent, sdev->sdev_gendev.bus_id,
 				  components, &ses_enclosure_callbacks);
 	if (IS_ERR(edev)) {
 		err = PTR_ERR(edev);
@@ -625,17 +625,17 @@ static int ses_remove(struct device *dev)
 	return 0;
 }
 
-static void ses_intf_remove(struct class_device *cdev,
+static void ses_intf_remove(struct device *cdev,
 			    struct class_interface *intf)
 {
-	struct scsi_device *sdev = to_scsi_device(cdev->dev);
+	struct scsi_device *sdev = to_scsi_device(cdev->parent);
 	struct enclosure_device *edev;
 	struct ses_device *ses_dev;
 
 	if (!scsi_device_enclosure(sdev))
 		return;
 
-	edev = enclosure_find(cdev->dev);
+	edev = enclosure_find(cdev->parent);
 	if (!edev)
 		return;
 
@@ -649,13 +649,13 @@ static void ses_intf_remove(struct class_device *cdev,
 
 	kfree(edev->component[0].scratch);
 
-	class_device_put(&edev->cdev);
+	put_device(&edev->edev);
 	enclosure_unregister(edev);
 }
 
 static struct class_interface ses_interface = {
-	.add	= ses_intf_add,
-	.remove	= ses_intf_remove,
+	.add_dev	= ses_intf_add,
+	.remove_dev	= ses_intf_remove,
 };
 
 static struct scsi_driver ses_template = {

@@ -108,7 +108,7 @@ static inline int convert_error(struct zcrypt_device *zdev,
 		return -EINVAL;
 	case REP82_ERROR_MESSAGE_TYPE:
 	//   REP88_ERROR_MESSAGE_TYPE		// '20' CEX2A
-		/**
+		/*
 		 * To sent a message of the wrong type is a bug in the
 		 * device driver. Warn about it, disable the device
 		 * and then repeat the request.

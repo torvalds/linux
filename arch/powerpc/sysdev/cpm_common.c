@@ -58,7 +58,6 @@ void __init udbg_init_cpm(void)
 }
 #endif
 
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 static spinlock_t cpm_muram_lock;
 static rh_block_t cpm_boot_muram_rh_block[16];
 static rh_info_t cpm_muram_info;
@@ -199,5 +198,3 @@ dma_addr_t cpm_muram_dma(void __iomem *addr)
 	return muram_pbase + ((u8 __iomem *)addr - muram_vbase);
 }
 EXPORT_SYMBOL(cpm_muram_dma);
-
-#endif /* CONFIG_PPC_CPM_NEW_BINDING */

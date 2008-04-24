@@ -68,7 +68,7 @@ static void walnut_fixups(void)
 	ibm4xx_quiesce_eth((u32 *)0xef600800, NULL);
 	ibm4xx_fixup_ebc_ranges("/plb/ebc");
 	walnut_flashsel_fixup();
-	dt_fixup_mac_addresses((u8 *) WALNUT_OPENBIOS_MAC_OFF);
+	dt_fixup_mac_address_by_alias("ethernet0", (u8 *) WALNUT_OPENBIOS_MAC_OFF);
 }
 
 void platform_init(void)

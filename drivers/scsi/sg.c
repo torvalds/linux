@@ -101,16 +101,16 @@ static int scatter_elem_sz_prev = SG_SCATTER_SZ;
 #define SG_SECTOR_SZ 512
 #define SG_SECTOR_MSK (SG_SECTOR_SZ - 1)
 
-static int sg_add(struct class_device *, struct class_interface *);
-static void sg_remove(struct class_device *, struct class_interface *);
+static int sg_add(struct device *, struct class_interface *);
+static void sg_remove(struct device *, struct class_interface *);
 
 static DEFINE_IDR(sg_index_idr);
 static DEFINE_RWLOCK(sg_index_lock);	/* Also used to lock
 							   file descriptor list for device */
 
 static struct class_interface sg_interface = {
-	.add		= sg_add,
-	.remove		= sg_remove,
+	.add_dev	= sg_add,
+	.remove_dev	= sg_remove,
 };
 
 typedef struct sg_scatter_hold { /* holding area for scsi scatter gather info */
@@ -1401,9 +1401,9 @@ static Sg_device *sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 }
 
 static int
-sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
+sg_add(struct device *cl_dev, struct class_interface *cl_intf)
 {
-	struct scsi_device *scsidp = to_scsi_device(cl_dev->dev);
+	struct scsi_device *scsidp = to_scsi_device(cl_dev->parent);
 	struct gendisk *disk;
 	Sg_device *sdp = NULL;
 	struct cdev * cdev = NULL;
@@ -1439,19 +1439,19 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 
 	sdp->cdev = cdev;
 	if (sg_sysfs_valid) {
-		struct class_device * sg_class_member;
+		struct device *sg_class_member;
 
-		sg_class_member = class_device_create(sg_sysfs_class, NULL,
-				MKDEV(SCSI_GENERIC_MAJOR, sdp->index),
-				cl_dev->dev, "%s",
-				disk->disk_name);
+		sg_class_member = device_create(sg_sysfs_class, cl_dev->parent,
+						MKDEV(SCSI_GENERIC_MAJOR,
+						      sdp->index),
+						"%s", disk->disk_name);
 		if (IS_ERR(sg_class_member)) {
 			printk(KERN_ERR "sg_add: "
-			       "class_device_create failed\n");
+			       "device_create failed\n");
 			error = PTR_ERR(sg_class_member);
 			goto cdev_add_err;
 		}
-		class_set_devdata(sg_class_member, sdp);
+		dev_set_drvdata(sg_class_member, sdp);
 		error = sysfs_create_link(&scsidp->sdev_gendev.kobj,
 					  &sg_class_member->kobj, "generic");
 		if (error)
@@ -1464,7 +1464,7 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 		    "Attached scsi generic sg%d type %d\n", sdp->index,
 		    scsidp->type);
 
-	class_set_devdata(cl_dev, sdp);
+	dev_set_drvdata(cl_dev, sdp);
 
 	return 0;
 
@@ -1482,10 +1482,10 @@ out:
 }
 
 static void
-sg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
+sg_remove(struct device *cl_dev, struct class_interface *cl_intf)
 {
-	struct scsi_device *scsidp = to_scsi_device(cl_dev->dev);
-	Sg_device *sdp = class_get_devdata(cl_dev);
+	struct scsi_device *scsidp = to_scsi_device(cl_dev->parent);
+	Sg_device *sdp = dev_get_drvdata(cl_dev);
 	unsigned long iflags;
 	Sg_fd *sfp;
 	Sg_fd *tsfp;
@@ -1528,7 +1528,7 @@ sg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
 	write_unlock_irqrestore(&sg_index_lock, iflags);
 
 	sysfs_remove_link(&scsidp->sdev_gendev.kobj, "generic");
-	class_device_destroy(sg_sysfs_class, MKDEV(SCSI_GENERIC_MAJOR, sdp->index));
+	device_destroy(sg_sysfs_class, MKDEV(SCSI_GENERIC_MAJOR, sdp->index));
 	cdev_del(sdp->cdev);
 	sdp->cdev = NULL;
 	put_disk(sdp->disk);

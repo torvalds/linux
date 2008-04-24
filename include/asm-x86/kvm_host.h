@@ -22,15 +22,16 @@
 
 #define CR3_PAE_RESERVED_BITS ((X86_CR3_PWT | X86_CR3_PCD) - 1)
 #define CR3_NONPAE_RESERVED_BITS ((PAGE_SIZE-1) & ~(X86_CR3_PWT | X86_CR3_PCD))
-#define CR3_L_MODE_RESERVED_BITS (CR3_NONPAE_RESERVED_BITS|0xFFFFFF0000000000ULL)
+#define CR3_L_MODE_RESERVED_BITS (CR3_NONPAE_RESERVED_BITS |	\
+				  0xFFFFFF0000000000ULL)
 
-#define KVM_GUEST_CR0_MASK \
+#define KVM_GUEST_CR0_MASK				   \
 	(X86_CR0_PG | X86_CR0_PE | X86_CR0_WP | X86_CR0_NE \
 	 | X86_CR0_NW | X86_CR0_CD)
-#define KVM_VM_CR0_ALWAYS_ON \
+#define KVM_VM_CR0_ALWAYS_ON						\
 	(X86_CR0_PG | X86_CR0_PE | X86_CR0_WP | X86_CR0_NE | X86_CR0_TS \
 	 | X86_CR0_MP)
-#define KVM_GUEST_CR4_MASK \
+#define KVM_GUEST_CR4_MASK						\
 	(X86_CR4_VME | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_PGE | X86_CR4_VMXE)
 #define KVM_PMODE_VM_CR4_ALWAYS_ON (X86_CR4_PAE | X86_CR4_VMXE)
 #define KVM_RMODE_VM_CR4_ALWAYS_ON (X86_CR4_VME | X86_CR4_PAE | X86_CR4_VMXE)
@@ -133,12 +134,12 @@ struct kvm_pte_chain {
 union kvm_mmu_page_role {
 	unsigned word;
 	struct {
-		unsigned glevels : 4;
-		unsigned level : 4;
-		unsigned quadrant : 2;
-		unsigned pad_for_nice_hex_output : 6;
-		unsigned metaphysical : 1;
-		unsigned access : 3;
+		unsigned glevels:4;
+		unsigned level:4;
+		unsigned quadrant:2;
+		unsigned pad_for_nice_hex_output:6;
+		unsigned metaphysical:1;
+		unsigned access:3;
 	};
 };
 
@@ -606,6 +607,7 @@ static inline void kvm_inject_gp(struct kvm_vcpu *vcpu, u32 error_code)
 #define TSS_BASE_SIZE 0x68
 #define TSS_IOPB_SIZE (65536 / 8)
 #define TSS_REDIRECTION_SIZE (256 / 8)
-#define RMODE_TSS_SIZE (TSS_BASE_SIZE + TSS_REDIRECTION_SIZE + TSS_IOPB_SIZE + 1)
+#define RMODE_TSS_SIZE							\
+	(TSS_BASE_SIZE + TSS_REDIRECTION_SIZE + TSS_IOPB_SIZE + 1)
 
 #endif

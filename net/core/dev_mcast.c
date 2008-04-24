@@ -156,38 +156,13 @@ void dev_mc_unsync(struct net_device *to, struct net_device *from)
 EXPORT_SYMBOL(dev_mc_unsync);
 
 #ifdef CONFIG_PROC_FS
-static void *dev_mc_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(dev_base_lock)
-{
-	struct net *net = seq_file_net(seq);
-	struct net_device *dev;
-	loff_t off = 0;
-
-	read_lock(&dev_base_lock);
-	for_each_netdev(net, dev) {
-		if (off++ == *pos)
-			return dev;
-	}
-	return NULL;
-}
-
-static void *dev_mc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	++*pos;
-	return next_net_device((struct net_device *)v);
-}
-
-static void dev_mc_seq_stop(struct seq_file *seq, void *v)
-	__releases(dev_base_lock)
-{
-	read_unlock(&dev_base_lock);
-}
-
-
 static int dev_mc_seq_show(struct seq_file *seq, void *v)
 {
 	struct dev_addr_list *m;
 	struct net_device *dev = v;
+
+	if (v == SEQ_START_TOKEN)
+		return 0;
 
 	netif_tx_lock_bh(dev);
 	for (m = dev->mc_list; m; m = m->next) {
@@ -206,9 +181,9 @@ static int dev_mc_seq_show(struct seq_file *seq, void *v)
 }
 
 static const struct seq_operations dev_mc_seq_ops = {
-	.start = dev_mc_seq_start,
-	.next  = dev_mc_seq_next,
-	.stop  = dev_mc_seq_stop,
+	.start = dev_seq_start,
+	.next  = dev_seq_next,
+	.stop  = dev_seq_stop,
 	.show  = dev_mc_seq_show,
 };
 

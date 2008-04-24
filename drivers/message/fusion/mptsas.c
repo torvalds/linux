@@ -230,6 +230,20 @@ static inline MPT_ADAPTER *rphy_to_ioc(struct sas_rphy *rphy)
 	return ((MPT_SCSI_HOST *)shost->hostdata)->ioc;
 }
 
+static struct mptsas_portinfo *
+mptsas_get_hba_portinfo(MPT_ADAPTER *ioc)
+{
+	struct list_head	*head = &ioc->sas_topology;
+	struct mptsas_portinfo	*pi = NULL;
+
+	/* always the first entry on sas_topology list */
+
+	if (!list_empty(head))
+		pi = list_entry(head->next, struct mptsas_portinfo, list);
+
+	return pi;
+}
+
 /*
  * mptsas_find_portinfo_by_handle
  *
@@ -1290,7 +1304,7 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		struct mptsas_portinfo *port_info;
 
 		mutex_lock(&ioc->sas_topology_mutex);
-		port_info = mptsas_find_portinfo_by_handle(ioc, ioc->handle);
+		port_info = mptsas_get_hba_portinfo(ioc);
 		if (port_info && port_info->phy_info)
 			sas_address =
 				port_info->phy_info[0].phy->identify.sas_address;
@@ -2028,8 +2042,7 @@ static int mptsas_probe_one_phy(struct device *dev,
 			int i;
 
 			mutex_lock(&ioc->sas_topology_mutex);
-			port_info = mptsas_find_portinfo_by_handle(ioc,
-								   ioc->handle);
+			port_info = mptsas_get_hba_portinfo(ioc);
 			mutex_unlock(&ioc->sas_topology_mutex);
 
 			for (i = 0; i < port_info->num_phys; i++)
@@ -2099,8 +2112,7 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc)
 
 	mptsas_sas_io_unit_pg1(ioc);
 	mutex_lock(&ioc->sas_topology_mutex);
-	ioc->handle = hba->phy_info[0].handle;
-	port_info = mptsas_find_portinfo_by_handle(ioc, ioc->handle);
+	port_info = mptsas_get_hba_portinfo(ioc);
 	if (!port_info) {
 		port_info = hba;
 		list_add_tail(&port_info->list, &ioc->sas_topology);

@@ -19,7 +19,6 @@
 #include "isdnl1.h"
 #include <linux/pci.h>
 
-extern const char *CardType[];
 static const char *telespci_revision = "$Revision: 2.23.2.3 $";
 
 #define ZORAN_PO_RQ_PEN	0x02000000
@@ -329,8 +328,8 @@ setup_telespci(struct IsdnCard *card)
 	/* writel(0x00800000, cs->hw.teles0.membase + 0x200); */
 
 	printk(KERN_INFO
-	       "HiSax: %s config irq:%d mem:%p\n",
-	       CardType[cs->typ], cs->irq,
+	       "HiSax: Teles PCI config irq:%d mem:%p\n",
+	       cs->irq,
 	       cs->hw.teles0.membase);
 
 	setup_isac(cs);

@@ -401,18 +401,18 @@ static void copy_tx_mac(struct s_smc *smc, u_long td, struct fddi_mac *mac,
 /* int len ;		 length of the frame including the FC */
 {
 	int	i ;
-	u_int	*p ;
+	__le32	*p ;
 
 	CHECK_NPP() ;
 	MARW(off) ;		/* set memory address reg for writes */
 
-	p = (u_int *) mac ;
+	p = (__le32 *) mac ;
 	for (i = (len + 3)/4 ; i ; i--) {
 		if (i == 1) {
 			/* last word, set the tag bit */
 			outpw(FM_A(FM_CMDREG2),FM_ISTTB) ;
 		}
-		write_mdr(smc,MDR_REVERSE(*p)) ;
+		write_mdr(smc,le32_to_cpu(*p)) ;
 		p++ ;
 	}
 
@@ -444,7 +444,7 @@ static void copy_tx_mac(struct s_smc *smc, u_long td, struct fddi_mac *mac,
  */
 static void directed_beacon(struct s_smc *smc)
 {
-	SK_LOC_DECL(u_int,a[2]) ;
+	SK_LOC_DECL(__le32,a[2]) ;
 
 	/*
 	 * set UNA in frame
@@ -458,9 +458,9 @@ static void directed_beacon(struct s_smc *smc)
 	CHECK_NPP() ;
 	 /* set memory address reg for writes */
 	MARW(smc->hw.fp.fifo.rbc_ram_start+DBEACON_FRAME_OFF+4) ;
-	write_mdr(smc,MDR_REVERSE(a[0])) ;
+	write_mdr(smc,le32_to_cpu(a[0])) ;
 	outpw(FM_A(FM_CMDREG2),FM_ISTTB) ;	/* set the tag bit */
-	write_mdr(smc,MDR_REVERSE(a[1])) ;
+	write_mdr(smc,le32_to_cpu(a[1])) ;
 
 	outpw(FM_A(FM_SABC),smc->hw.fp.fifo.rbc_ram_start + DBEACON_FRAME_OFF) ;
 }

@@ -35,43 +35,47 @@ static struct rio_table_hdr *rio_table_hdr __initdata;
 static struct scal_detail   *scal_devs[MAX_NUMNODES] __initdata;
 static struct rio_detail    *rio_devs[MAX_NUMNODES*4] __initdata;
 
+static int mp_bus_id_to_node[MAX_MP_BUSSES] __initdata;
+
 static int __init setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 {
 	int twister = 0, node = 0;
 	int i, bus, num_buses;
 
-	for(i = 0; i < rio_table_hdr->num_rio_dev; i++){
-		if (rio_devs[i]->node_id == rio_devs[wpeg_num]->owner_id){
+	for (i = 0; i < rio_table_hdr->num_rio_dev; i++) {
+		if (rio_devs[i]->node_id == rio_devs[wpeg_num]->owner_id) {
 			twister = rio_devs[i]->owner_id;
 			break;
 		}
 	}
-	if (i == rio_table_hdr->num_rio_dev){
-		printk(KERN_ERR "%s: Couldn't find owner Cyclone for Winnipeg!\n", __FUNCTION__);
+	if (i == rio_table_hdr->num_rio_dev) {
+		printk(KERN_ERR "%s: Couldn't find owner Cyclone for Winnipeg!\n", __func__);
 		return last_bus;
 	}
 
-	for(i = 0; i < rio_table_hdr->num_scal_dev; i++){
-		if (scal_devs[i]->node_id == twister){
+	for (i = 0; i < rio_table_hdr->num_scal_dev; i++) {
+		if (scal_devs[i]->node_id == twister) {
 			node = scal_devs[i]->node_id;
 			break;
 		}
 	}
-	if (i == rio_table_hdr->num_scal_dev){
-		printk(KERN_ERR "%s: Couldn't find owner Twister for Cyclone!\n", __FUNCTION__);
+	if (i == rio_table_hdr->num_scal_dev) {
+		printk(KERN_ERR "%s: Couldn't find owner Twister for Cyclone!\n", __func__);
 		return last_bus;
 	}
 
-	switch (rio_devs[wpeg_num]->type){
+	switch (rio_devs[wpeg_num]->type) {
 	case CompatWPEG:
-		/* The Compatibility Winnipeg controls the 2 legacy buses,
+		/*
+		 * The Compatibility Winnipeg controls the 2 legacy buses,
 		 * the 66MHz PCI bus [2 slots] and the 2 "extra" buses in case
 		 * a PCI-PCI bridge card is used in either slot: total 5 buses.
 		 */
 		num_buses = 5;
 		break;
 	case AltWPEG:
-		/* The Alternate Winnipeg controls the 2 133MHz buses [1 slot
+		/*
+		 * The Alternate Winnipeg controls the 2 133MHz buses [1 slot
 		 * each], their 2 "extra" buses, the 100MHz bus [2 slots] and
 		 * the "extra" buses for each of those slots: total 7 buses.
 		 */
@@ -79,17 +83,18 @@ static int __init setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 		break;
 	case LookOutAWPEG:
 	case LookOutBWPEG:
-		/* A Lookout Winnipeg controls 3 100MHz buses [2 slots each]
+		/*
+		 * A Lookout Winnipeg controls 3 100MHz buses [2 slots each]
 		 * & the "extra" buses for each of those slots: total 9 buses.
 		 */
 		num_buses = 9;
 		break;
 	default:
-		printk(KERN_INFO "%s: Unsupported Winnipeg type!\n", __FUNCTION__);
+		printk(KERN_INFO "%s: Unsupported Winnipeg type!\n", __func__);
 		return last_bus;
 	}
 
-	for(bus = last_bus; bus < last_bus + num_buses; bus++)
+	for (bus = last_bus; bus < last_bus + num_buses; bus++)
 		mp_bus_id_to_node[bus] = node;
 	return bus;
 }
@@ -99,14 +104,14 @@ static int __init build_detail_arrays(void)
 	unsigned long ptr;
 	int i, scal_detail_size, rio_detail_size;
 
-	if (rio_table_hdr->num_scal_dev > MAX_NUMNODES){
-		printk(KERN_WARNING "%s: MAX_NUMNODES too low!  Defined as %d, but system has %d nodes.\n", __FUNCTION__, MAX_NUMNODES, rio_table_hdr->num_scal_dev);
+	if (rio_table_hdr->num_scal_dev > MAX_NUMNODES) {
+		printk(KERN_WARNING "%s: MAX_NUMNODES too low!  Defined as %d, but system has %d nodes.\n", __func__, MAX_NUMNODES, rio_table_hdr->num_scal_dev);
 		return 0;
 	}
 
-	switch (rio_table_hdr->version){
+	switch (rio_table_hdr->version) {
 	default:
-		printk(KERN_WARNING "%s: Invalid Rio Grande Table Version: %d\n", __FUNCTION__, rio_table_hdr->version);
+		printk(KERN_WARNING "%s: Invalid Rio Grande Table Version: %d\n", __func__, rio_table_hdr->version);
 		return 0;
 	case 2:
 		scal_detail_size = 11;
@@ -119,10 +124,10 @@ static int __init build_detail_arrays(void)
 	}
 
 	ptr = (unsigned long)rio_table_hdr + 3;
-	for(i = 0; i < rio_table_hdr->num_scal_dev; i++, ptr += scal_detail_size)
+	for (i = 0; i < rio_table_hdr->num_scal_dev; i++, ptr += scal_detail_size)
 		scal_devs[i] = (struct scal_detail *)ptr;
 
-	for(i = 0; i < rio_table_hdr->num_rio_dev; i++, ptr += rio_detail_size)
+	for (i = 0; i < rio_table_hdr->num_rio_dev; i++, ptr += rio_detail_size)
 		rio_devs[i] = (struct rio_detail *)ptr;
 
 	return 1;
@@ -140,9 +145,9 @@ void __init setup_summit(void)
 
 	rio_table_hdr = NULL;
 	offset = 0x180;
-	while (offset){
+	while (offset) {
 		/* The block id is stored in the 2nd word */
-		if (*((unsigned short *)(ptr + offset + 2)) == 0x4752){
+		if (*((unsigned short *)(ptr + offset + 2)) == 0x4752) {
 			/* set the pointer past the offset & block id */
 			rio_table_hdr = (struct rio_table_hdr *)(ptr + offset + 4);
 			break;
@@ -150,8 +155,8 @@ void __init setup_summit(void)
 		/* The next offset is stored in the 1st word.  0 means no more */
 		offset = *((unsigned short *)(ptr + offset));
 	}
-	if (!rio_table_hdr){
-		printk(KERN_ERR "%s: Unable to locate Rio Grande Table in EBDA - bailing!\n", __FUNCTION__);
+	if (!rio_table_hdr) {
+		printk(KERN_ERR "%s: Unable to locate Rio Grande Table in EBDA - bailing!\n", __func__);
 		return;
 	}
 
@@ -161,8 +166,8 @@ void __init setup_summit(void)
 	/* The first Winnipeg we're looking for has an index of 0 */
 	next_wpeg = 0;
 	do {
-		for(i = 0; i < rio_table_hdr->num_rio_dev; i++){
-			if (is_WPEG(rio_devs[i]) && rio_devs[i]->WP_index == next_wpeg){
+		for (i = 0; i < rio_table_hdr->num_rio_dev; i++) {
+			if (is_WPEG(rio_devs[i]) && rio_devs[i]->WP_index == next_wpeg) {
 				/* It's the Winnipeg we're looking for! */
 				next_bus = setup_pci_node_map_for_wpeg(i, next_bus);
 				next_wpeg++;

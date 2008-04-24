@@ -145,10 +145,11 @@ nla_put_failure:
 static inline int
 ctnetlink_dump_protoinfo(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	struct nf_conntrack_l4proto *l4proto = nf_ct_l4proto_find_get(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num, ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
+	struct nf_conntrack_l4proto *l4proto;
 	struct nlattr *nest_proto;
 	int ret;
 
+	l4proto = nf_ct_l4proto_find_get(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	if (!l4proto->to_nlattr) {
 		nf_ct_l4proto_put(l4proto);
 		return 0;
@@ -368,8 +369,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	nfmsg  = NLMSG_DATA(nlh);
 
 	nlh->nlmsg_flags    = (nowait && pid) ? NLM_F_MULTI : 0;
-	nfmsg->nfgen_family =
-		ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
+	nfmsg->nfgen_family = nf_ct_l3num(ct);
 	nfmsg->version      = NFNETLINK_V0;
 	nfmsg->res_id	    = 0;
 
@@ -454,7 +454,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	nfmsg = NLMSG_DATA(nlh);
 
 	nlh->nlmsg_flags    = flags;
-	nfmsg->nfgen_family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
+	nfmsg->nfgen_family = nf_ct_l3num(ct);
 	nfmsg->version	= NFNETLINK_V0;
 	nfmsg->res_id	= 0;
 
@@ -535,8 +535,6 @@ static int ctnetlink_done(struct netlink_callback *cb)
 	return 0;
 }
 
-#define L3PROTO(ct) (ct)->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num
-
 static int
 ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 {
@@ -558,7 +556,7 @@ restart:
 			/* Dump entries of a given L3 protocol number.
 			 * If it is not specified, ie. l3proto == 0,
 			 * then dump everything. */
-			if (l3proto && L3PROTO(ct) != l3proto)
+			if (l3proto && nf_ct_l3num(ct) != l3proto)
 				continue;
 			if (cb->args[1]) {
 				if (ct != last)
@@ -704,20 +702,11 @@ static int nfnetlink_parse_nat_proto(struct nlattr *attr,
 	if (err < 0)
 		return err;
 
-	npt = nf_nat_proto_find_get(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
-
-	if (!npt->nlattr_to_range) {
-		nf_nat_proto_put(npt);
-		return 0;
-	}
-
-	/* nlattr_to_range returns 1 if it parsed, 0 if not, neg. on error */
-	if (npt->nlattr_to_range(tb, range) > 0)
-		range->flags |= IP_NAT_RANGE_PROTO_SPECIFIED;
-
+	npt = nf_nat_proto_find_get(nf_ct_protonum(ct));
+	if (npt->nlattr_to_range)
+		err = npt->nlattr_to_range(tb, range);
 	nf_nat_proto_put(npt);
-
-	return 0;
+	return err;
 }
 
 static const struct nla_policy nat_nla_policy[CTA_NAT_MAX+1] = {
@@ -1010,14 +999,11 @@ ctnetlink_change_protoinfo(struct nf_conn *ct, struct nlattr *cda[])
 {
 	struct nlattr *tb[CTA_PROTOINFO_MAX+1], *attr = cda[CTA_PROTOINFO];
 	struct nf_conntrack_l4proto *l4proto;
-	u_int16_t npt = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum;
-	u_int16_t l3num = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	int err = 0;
 
 	nla_parse_nested(tb, CTA_PROTOINFO_MAX, attr, NULL);
 
-	l4proto = nf_ct_l4proto_find_get(l3num, npt);
-
+	l4proto = nf_ct_l4proto_find_get(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	if (l4proto->from_nlattr)
 		err = l4proto->from_nlattr(tb, ct);
 	nf_ct_l4proto_put(l4proto);

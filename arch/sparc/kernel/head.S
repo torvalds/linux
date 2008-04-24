@@ -78,11 +78,6 @@ sun4e_notsup:
         .asciz  "Sparc-Linux sun4e support does not exist\n\n"
 	.align 4
 
-#ifndef CONFIG_SUNOS_EMUL
-#undef SUNOS_SYSCALL_TRAP
-#define SUNOS_SYSCALL_TRAP SUNOS_NO_SYSCALL_TRAP
-#endif
-
 	/* The Sparc trap table, bootloader gives us control at _start. */
 	.text
 	.globl	start, _stext, _start, __stext
@@ -158,7 +153,7 @@ t_bad6f:BAD_TRAP(0x6f) BAD_TRAP(0x70) BAD_TRAP(0x71) BAD_TRAP(0x72) BAD_TRAP(0x7
 t_bad74:BAD_TRAP(0x74) BAD_TRAP(0x75) BAD_TRAP(0x76) BAD_TRAP(0x77) BAD_TRAP(0x78)
 t_bad79:BAD_TRAP(0x79) BAD_TRAP(0x7a) BAD_TRAP(0x7b) BAD_TRAP(0x7c) BAD_TRAP(0x7d)
 t_bad7e:BAD_TRAP(0x7e) BAD_TRAP(0x7f)
-t_sunos:SUNOS_SYSCALL_TRAP                  /* SunOS System Call             */
+t_bad80:BAD_TRAP(0x80)                      /* SunOS System Call             */
 t_sbkpt:BREAKPOINT_TRAP                     /* Software Breakpoint/KGDB      */
 t_divz:	TRAP_ENTRY(0x82, do_hw_divzero)     /* Divide by zero trap           */
 t_flwin:TRAP_ENTRY(0x83, do_flush_windows)  /* Flush Windows Trap            */
@@ -166,8 +161,8 @@ t_clwin:BAD_TRAP(0x84)                      /* Clean Windows Trap            */
 t_rchk:	BAD_TRAP(0x85)                      /* Range Check                   */
 t_funal:BAD_TRAP(0x86)                      /* Fix Unaligned Access Trap     */
 t_iovf:	BAD_TRAP(0x87)                      /* Integer Overflow Trap         */
-t_slowl:SOLARIS_SYSCALL_TRAP                /* Slowaris System Call          */
-t_netbs:NETBSD_SYSCALL_TRAP                 /* Net-B.S. System Call          */
+t_bad88:BAD_TRAP(0x88)                      /* Slowaris System Call          */
+t_bad89:BAD_TRAP(0x89)                      /* Net-B.S. System Call          */
 t_bad8a:BAD_TRAP(0x8a) BAD_TRAP(0x8b) BAD_TRAP(0x8c) BAD_TRAP(0x8d) BAD_TRAP(0x8e)
 t_bad8f:BAD_TRAP(0x8f)
 t_linux:LINUX_SYSCALL_TRAP                  /* Linux System Call             */
@@ -178,7 +173,7 @@ t_getcc:GETCC_TRAP                          /* Get Condition Codes           */
 t_setcc:SETCC_TRAP                          /* Set Condition Codes           */
 t_getpsr:GETPSR_TRAP                        /* Get PSR Register              */
 t_bada3:BAD_TRAP(0xa3) BAD_TRAP(0xa4) BAD_TRAP(0xa5) BAD_TRAP(0xa6)
-t_slowi:INDIRECT_SOLARIS_SYSCALL(156)
+t_bada7:BAD_TRAP(0xa7)
 t_bada8:BAD_TRAP(0xa8) BAD_TRAP(0xa9) BAD_TRAP(0xaa) BAD_TRAP(0xab)
 t_badac:BAD_TRAP(0xac) BAD_TRAP(0xad) BAD_TRAP(0xae) BAD_TRAP(0xaf) BAD_TRAP(0xb0)
 t_badb1:BAD_TRAP(0xb1) BAD_TRAP(0xb2) BAD_TRAP(0xb3) BAD_TRAP(0xb4) BAD_TRAP(0xb5)
@@ -243,19 +238,19 @@ trapbase_cpu1:
 	BAD_TRAP(0x74) BAD_TRAP(0x75) BAD_TRAP(0x76) BAD_TRAP(0x77) BAD_TRAP(0x78)
 	BAD_TRAP(0x79) BAD_TRAP(0x7a) BAD_TRAP(0x7b) BAD_TRAP(0x7c) BAD_TRAP(0x7d)
 	BAD_TRAP(0x7e) BAD_TRAP(0x7f)
-	SUNOS_SYSCALL_TRAP 
+	BAD_TRAP(0x80)
 	BREAKPOINT_TRAP
 	TRAP_ENTRY(0x82, do_hw_divzero)
 	TRAP_ENTRY(0x83, do_flush_windows) BAD_TRAP(0x84) BAD_TRAP(0x85)
-	BAD_TRAP(0x86) BAD_TRAP(0x87) SOLARIS_SYSCALL_TRAP
-	NETBSD_SYSCALL_TRAP BAD_TRAP(0x8a) BAD_TRAP(0x8b) BAD_TRAP(0x8c)
+	BAD_TRAP(0x86) BAD_TRAP(0x87) BAD_TRAP(0x88)
+	BAD_TRAP(0x89) BAD_TRAP(0x8a) BAD_TRAP(0x8b) BAD_TRAP(0x8c)
 	BAD_TRAP(0x8d) BAD_TRAP(0x8e) BAD_TRAP(0x8f)
 	LINUX_SYSCALL_TRAP BAD_TRAP(0x91) BAD_TRAP(0x92) BAD_TRAP(0x93) BAD_TRAP(0x94)
 	BAD_TRAP(0x95) BAD_TRAP(0x96) BAD_TRAP(0x97) BAD_TRAP(0x98) BAD_TRAP(0x99)
 	BAD_TRAP(0x9a) BAD_TRAP(0x9b) BAD_TRAP(0x9c) BAD_TRAP(0x9d) BAD_TRAP(0x9e)
 	BAD_TRAP(0x9f) GETCC_TRAP SETCC_TRAP GETPSR_TRAP
 	BAD_TRAP(0xa3) BAD_TRAP(0xa4) BAD_TRAP(0xa5) BAD_TRAP(0xa6)
-	INDIRECT_SOLARIS_SYSCALL(156) BAD_TRAP(0xa8) BAD_TRAP(0xa9) BAD_TRAP(0xaa) BAD_TRAP(0xab)
+	BAD_TRAP(0xa7) BAD_TRAP(0xa8) BAD_TRAP(0xa9) BAD_TRAP(0xaa) BAD_TRAP(0xab)
 	BAD_TRAP(0xac) BAD_TRAP(0xad) BAD_TRAP(0xae) BAD_TRAP(0xaf) BAD_TRAP(0xb0)
 	BAD_TRAP(0xb1) BAD_TRAP(0xb2) BAD_TRAP(0xb3) BAD_TRAP(0xb4) BAD_TRAP(0xb5)
 	BAD_TRAP(0xb6) BAD_TRAP(0xb7) BAD_TRAP(0xb8) BAD_TRAP(0xb9) BAD_TRAP(0xba)
@@ -311,19 +306,19 @@ trapbase_cpu2:
 	BAD_TRAP(0x74) BAD_TRAP(0x75) BAD_TRAP(0x76) BAD_TRAP(0x77) BAD_TRAP(0x78)
 	BAD_TRAP(0x79) BAD_TRAP(0x7a) BAD_TRAP(0x7b) BAD_TRAP(0x7c) BAD_TRAP(0x7d)
 	BAD_TRAP(0x7e) BAD_TRAP(0x7f)
-	SUNOS_SYSCALL_TRAP 
+	BAD_TRAP(0x80)
 	BREAKPOINT_TRAP
 	TRAP_ENTRY(0x82, do_hw_divzero)
 	TRAP_ENTRY(0x83, do_flush_windows) BAD_TRAP(0x84) BAD_TRAP(0x85)
-	BAD_TRAP(0x86) BAD_TRAP(0x87) SOLARIS_SYSCALL_TRAP
-	NETBSD_SYSCALL_TRAP BAD_TRAP(0x8a) BAD_TRAP(0x8b) BAD_TRAP(0x8c)
+	BAD_TRAP(0x86) BAD_TRAP(0x87) BAD_TRAP(0x88)
+	BAD_TRAP(0x89) BAD_TRAP(0x8a) BAD_TRAP(0x8b) BAD_TRAP(0x8c)
 	BAD_TRAP(0x8d) BAD_TRAP(0x8e) BAD_TRAP(0x8f)
 	LINUX_SYSCALL_TRAP BAD_TRAP(0x91) BAD_TRAP(0x92) BAD_TRAP(0x93) BAD_TRAP(0x94)
 	BAD_TRAP(0x95) BAD_TRAP(0x96) BAD_TRAP(0x97) BAD_TRAP(0x98) BAD_TRAP(0x99)
 	BAD_TRAP(0x9a) BAD_TRAP(0x9b) BAD_TRAP(0x9c) BAD_TRAP(0x9d) BAD_TRAP(0x9e)
 	BAD_TRAP(0x9f) GETCC_TRAP SETCC_TRAP GETPSR_TRAP
 	BAD_TRAP(0xa3) BAD_TRAP(0xa4) BAD_TRAP(0xa5) BAD_TRAP(0xa6)
-	INDIRECT_SOLARIS_SYSCALL(156) BAD_TRAP(0xa8) BAD_TRAP(0xa9) BAD_TRAP(0xaa) BAD_TRAP(0xab)
+	BAD_TRAP(0xa7) BAD_TRAP(0xa8) BAD_TRAP(0xa9) BAD_TRAP(0xaa) BAD_TRAP(0xab)
 	BAD_TRAP(0xac) BAD_TRAP(0xad) BAD_TRAP(0xae) BAD_TRAP(0xaf) BAD_TRAP(0xb0)
 	BAD_TRAP(0xb1) BAD_TRAP(0xb2) BAD_TRAP(0xb3) BAD_TRAP(0xb4) BAD_TRAP(0xb5)
 	BAD_TRAP(0xb6) BAD_TRAP(0xb7) BAD_TRAP(0xb8) BAD_TRAP(0xb9) BAD_TRAP(0xba)
@@ -379,19 +374,19 @@ trapbase_cpu3:
 	BAD_TRAP(0x74) BAD_TRAP(0x75) BAD_TRAP(0x76) BAD_TRAP(0x77) BAD_TRAP(0x78)
 	BAD_TRAP(0x79) BAD_TRAP(0x7a) BAD_TRAP(0x7b) BAD_TRAP(0x7c) BAD_TRAP(0x7d)
 	BAD_TRAP(0x7e) BAD_TRAP(0x7f)
-	SUNOS_SYSCALL_TRAP  
+	BAD_TRAP(0x80)
 	BREAKPOINT_TRAP
 	TRAP_ENTRY(0x82, do_hw_divzero)
 	TRAP_ENTRY(0x83, do_flush_windows) BAD_TRAP(0x84) BAD_TRAP(0x85)
-	BAD_TRAP(0x86) BAD_TRAP(0x87) SOLARIS_SYSCALL_TRAP
-	NETBSD_SYSCALL_TRAP BAD_TRAP(0x8a) BAD_TRAP(0x8b) BAD_TRAP(0x8c)
+	BAD_TRAP(0x86) BAD_TRAP(0x87) BAD_TRAP(0x88)
+	BAD_TRAP(0x89) BAD_TRAP(0x8a) BAD_TRAP(0x8b) BAD_TRAP(0x8c)
 	BAD_TRAP(0x8d) BAD_TRAP(0x8e) BAD_TRAP(0x8f)
 	LINUX_SYSCALL_TRAP BAD_TRAP(0x91) BAD_TRAP(0x92) BAD_TRAP(0x93) BAD_TRAP(0x94)
 	BAD_TRAP(0x95) BAD_TRAP(0x96) BAD_TRAP(0x97) BAD_TRAP(0x98) BAD_TRAP(0x99)
 	BAD_TRAP(0x9a) BAD_TRAP(0x9b) BAD_TRAP(0x9c) BAD_TRAP(0x9d) BAD_TRAP(0x9e)
 	BAD_TRAP(0x9f) GETCC_TRAP SETCC_TRAP GETPSR_TRAP
 	BAD_TRAP(0xa3) BAD_TRAP(0xa4) BAD_TRAP(0xa5) BAD_TRAP(0xa6)
-	INDIRECT_SOLARIS_SYSCALL(156) BAD_TRAP(0xa8) BAD_TRAP(0xa9) BAD_TRAP(0xaa) BAD_TRAP(0xab)
+	BAD_TRAP(0xa7) BAD_TRAP(0xa8) BAD_TRAP(0xa9) BAD_TRAP(0xaa) BAD_TRAP(0xab)
 	BAD_TRAP(0xac) BAD_TRAP(0xad) BAD_TRAP(0xae) BAD_TRAP(0xaf) BAD_TRAP(0xb0)
 	BAD_TRAP(0xb1) BAD_TRAP(0xb2) BAD_TRAP(0xb3) BAD_TRAP(0xb4) BAD_TRAP(0xb5)
 	BAD_TRAP(0xb6) BAD_TRAP(0xb7) BAD_TRAP(0xb8) BAD_TRAP(0xb9) BAD_TRAP(0xba)

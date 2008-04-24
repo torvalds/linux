@@ -122,24 +122,6 @@ config BLK_DEV_IDE_SATA
 
 	  If unsure, say N.
 
-config BLK_DEV_HD_IDE
-	bool "Use old disk-only driver on primary interface"
-	depends on (X86 || SH_MPC1211)
-	---help---
-	  There are two drivers for MFM/RLL/IDE disks.  Most people use just
-	  the new enhanced driver by itself.  This option however installs the
-	  old hard disk driver to control the primary IDE/disk interface in
-	  the system, leaving the new enhanced IDE driver to take care of only
-	  the 2nd/3rd/4th IDE interfaces.  Doing this will prevent you from
-	  having an IDE/ATAPI CD-ROM or tape drive connected to the primary
-	  IDE interface.  Choosing this option may be useful for older systems
-	  which have MFM/RLL/ESDI controller+drives at the primary port
-	  address (0x1f0), along with IDE drives at the secondary/3rd/4th port
-	  addresses.
-
-	  Normally, just say N here; you will then use the new driver for all
-	  4 interfaces.
-
 config BLK_DEV_IDEDISK
 	tristate "Include IDE/ATA-2 DISK support"
 	---help---
@@ -325,6 +307,7 @@ comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
+	depends on ALPHA || X86 || IA64 || M32R || MIPS || PPC32
 	help
 	  If unsure, say N.
 
@@ -415,12 +398,6 @@ config BLK_DEV_OFFBOARD
 	  off-board controllers on ide0/1 and on-board controllers on ide2/3.
 	  This can improve the usability of some boot managers such as lilo
 	  when booting from a drive on an off-board controller.
-
-	  If you say Y here, and you actually want to reverse the device scan
-	  order as explained above, you also need to issue the kernel command
-	  line option "ide=reverse". (Try "man bootparam" or see the
-	  documentation of your boot loader (lilo or loadlin) about how to
-	  pass options to the kernel at boot time.)
 
 	  Note that, if you do this, the order of the hd* devices will be
 	  rearranged which may require modification of fstab and other files.
@@ -615,8 +592,7 @@ config BLK_DEV_HPT366
 	  reference to device 0x80. The other solution is to say Y to "Boot
 	  off-board chipsets first support" (CONFIG_BLK_DEV_OFFBOARD) unless
 	  your mother board has the chipset natively mounted. Regardless one
-	  should use the fore mentioned option and call at LILO or include
-	  "ide=reverse" in LILO's append-line.
+	  should use the fore mentioned option and call at LILO.
 
 	  This driver requires dynamic tuning of the chipset during the
 	  ide-probe at boot. It is reported to support DVD II drives, by the
@@ -1049,7 +1025,7 @@ config IDE_EXT_DIRECT
 endchoice
 
 # no isa -> no vlb
-if ISA
+if ISA && (ALPHA || X86 || MIPS)
 
 comment "Other IDE chipsets support"
 comment "Note: most of these also require special kernel boot parameters"
@@ -1060,8 +1036,8 @@ config BLK_DEV_4DRIVES
 	  Certain older chipsets, including the Tekram 690CD, use a single set
 	  of I/O ports at 0x1f0 to control up to four drives, instead of the
 	  customary two drives per port. Support for this can be enabled at
-	  runtime using the "ide0=four" kernel boot parameter if you say Y
-	  here.
+	  runtime using the "ide-4drives.probe" kernel boot parameter if you
+	  say Y here.
 
 config BLK_DEV_ALI14XX
 	tristate "ALI M14xx support"
@@ -1114,14 +1090,10 @@ config BLK_DEV_IDEDMA
 	def_bool BLK_DEV_IDEDMA_SFF || BLK_DEV_IDEDMA_PMAC || \
 		 BLK_DEV_IDEDMA_ICS || BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 
-config IDE_ARCH_OBSOLETE_INIT
-	def_bool ALPHA || (ARM && !ARCH_L7200) || BLACKFIN || X86 || IA64 || M32R || MIPS || PARISC || PPC || (SUPERH64 && BLK_DEV_IDEPCI) || SPARC
-
 endif
 
 config BLK_DEV_HD_ONLY
 	bool "Old hard disk (MFM/RLL/IDE) driver"
-	depends on BLK_DEV_IDE=n
 	help
 	  There are two drivers for MFM/RLL/IDE hard disks. Most people use
 	  the newer enhanced driver, but this old one is still around for two
@@ -1133,12 +1105,16 @@ config BLK_DEV_HD_ONLY
 	  for systems with only older MFM/RLL/ESDI drives. Choosing the old
 	  driver can save 13 KB or so of kernel memory.
 
+	  If you want to use this driver together with the new one you have
+	  to use "hda=noprobe hdb=noprobe" kernel parameters to prevent the new
+	  driver from probing the primary interface.
+
 	  If you are unsure, then just choose the Enhanced IDE/MFM/RLL driver
 	  instead of this one. For more detailed information, read the
 	  Disk-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
 config BLK_DEV_HD
-	def_bool BLK_DEV_HD_IDE || BLK_DEV_HD_ONLY
+	def_bool BLK_DEV_HD_ONLY
 
 endif # IDE

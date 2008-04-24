@@ -11,8 +11,6 @@
 
 #include "lock_dlm.h"
 
-extern struct lm_lockops gdlm_ops;
-
 static int __init init_lock_dlm(void)
 {
 	int error;
@@ -30,13 +28,6 @@ static int __init init_lock_dlm(void)
 		return error;
 	}
 
-	error = gdlm_plock_init();
-	if (error) {
-		gdlm_sysfs_exit();
-		gfs2_unregister_lockproto(&gdlm_ops);
-		return error;
-	}
-
 	printk(KERN_INFO
 	       "Lock_DLM (built %s %s) installed\n", __DATE__, __TIME__);
 	return 0;
@@ -44,7 +35,6 @@ static int __init init_lock_dlm(void)
 
 static void __exit exit_lock_dlm(void)
 {
-	gdlm_plock_exit();
 	gdlm_sysfs_exit();
 	gfs2_unregister_lockproto(&gdlm_ops);
 }

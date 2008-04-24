@@ -375,7 +375,7 @@ static int veth_newlink(struct net_device *dev,
 	else
 		snprintf(ifname, IFNAMSIZ, DRV_NAME "%%d");
 
-	peer = rtnl_create_link(dev->nd_net, ifname, &veth_link_ops, tbp);
+	peer = rtnl_create_link(dev_net(dev), ifname, &veth_link_ops, tbp);
 	if (IS_ERR(peer))
 		return PTR_ERR(peer);
 

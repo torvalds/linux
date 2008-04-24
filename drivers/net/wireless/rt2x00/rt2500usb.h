@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2007 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -135,7 +135,7 @@
  * Misc MAC_CSR registers.
  * MAC_CSR9: Timer control.
  * MAC_CSR10: Slot time.
- * MAC_CSR11: IFS.
+ * MAC_CSR11: SIFS.
  * MAC_CSR12: EIFS.
  * MAC_CSR13: Power mode0.
  * MAC_CSR14: Power mode1.
@@ -686,6 +686,7 @@
  */
 #define EEPROM_BBPTUNE_VGC		0x0034
 #define EEPROM_BBPTUNE_VGCUPPER		FIELD16(0x00ff)
+#define EEPROM_BBPTUNE_VGCLOWER		FIELD16(0xff00)
 
 /*
  * EEPROM BBP R17 Tuning.
@@ -786,8 +787,8 @@
 #define RXD_W3_EIV			FIELD32(0xffffffff)
 
 /*
- * Macro's for converting txpower from EEPROM to dscape value
- * and from dscape value to register value.
+ * Macro's for converting txpower from EEPROM to mac80211 value
+ * and from mac80211 value to register value.
  */
 #define MIN_TXPOWER	0
 #define MAX_TXPOWER	31

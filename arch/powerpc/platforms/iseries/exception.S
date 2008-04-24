@@ -38,11 +38,19 @@
 
 	.globl system_reset_iSeries
 system_reset_iSeries:
-	mfspr	r13,SPRN_SPRG3		/* Get paca address */
+	mfspr	r13,SPRN_SPRG3		/* Get alpaca address */
+	LOAD_REG_IMMEDIATE(r23, alpaca)
+	li	r0,ALPACA_SIZE
+	sub	r23,r13,r23
+	divdu	r23,r23,r0		/* r23 has cpu number */
+	LOAD_REG_IMMEDIATE(r13, paca)
+	mulli	r0,r23,PACA_SIZE
+	add	r13,r13,r0
+	mtspr	SPRN_SPRG3,r13		/* Save it away for the future */
 	mfmsr	r24
 	ori	r24,r24,MSR_RI
 	mtmsrd	r24			/* RI on */
-	lhz	r24,PACAPACAINDEX(r13)	/* Get processor # */
+	mr	r24,r23
 	cmpwi	0,r24,0			/* Are we processor 0? */
 	bne	1f
 	b	.__start_initialization_iSeries	/* Start up the first processor */

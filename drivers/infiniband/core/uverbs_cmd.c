@@ -1065,6 +1065,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	attr.srq           = srq;
 	attr.sq_sig_type   = cmd.sq_sig_all ? IB_SIGNAL_ALL_WR : IB_SIGNAL_REQ_WR;
 	attr.qp_type       = cmd.qp_type;
+	attr.create_flags  = 0;
 
 	attr.cap.max_send_wr     = cmd.max_send_wr;
 	attr.cap.max_recv_wr     = cmd.max_recv_wr;
@@ -1462,7 +1463,6 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 		next->num_sge    = user_wr->num_sge;
 		next->opcode     = user_wr->opcode;
 		next->send_flags = user_wr->send_flags;
-		next->imm_data   = (__be32 __force) user_wr->imm_data;
 
 		if (is_ud) {
 			next->wr.ud.ah = idr_read_ah(user_wr->wr.ud.ah,
@@ -1475,13 +1475,23 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 			next->wr.ud.remote_qkey = user_wr->wr.ud.remote_qkey;
 		} else {
 			switch (next->opcode) {
-			case IB_WR_RDMA_WRITE:
 			case IB_WR_RDMA_WRITE_WITH_IMM:
+				next->ex.imm_data =
+					(__be32 __force) user_wr->ex.imm_data;
+			case IB_WR_RDMA_WRITE:
 			case IB_WR_RDMA_READ:
 				next->wr.rdma.remote_addr =
 					user_wr->wr.rdma.remote_addr;
 				next->wr.rdma.rkey        =
 					user_wr->wr.rdma.rkey;
+				break;
+			case IB_WR_SEND_WITH_IMM:
+				next->ex.imm_data =
+					(__be32 __force) user_wr->ex.imm_data;
+				break;
+			case IB_WR_SEND_WITH_INV:
+				next->ex.invalidate_rkey =
+					user_wr->ex.invalidate_rkey;
 				break;
 			case IB_WR_ATOMIC_CMP_AND_SWP:
 			case IB_WR_ATOMIC_FETCH_AND_ADD:

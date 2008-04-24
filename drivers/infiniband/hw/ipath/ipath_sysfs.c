@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2006, 2007, 2008 QLogic Corporation. All rights reserved.
  * Copyright (c) 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -34,6 +34,7 @@
 #include <linux/ctype.h>
 
 #include "ipath_kernel.h"
+#include "ipath_verbs.h"
 #include "ipath_common.h"
 
 /**
@@ -161,6 +162,15 @@ static ssize_t show_boardversion(struct device *dev,
 	struct ipath_devdata *dd = dev_get_drvdata(dev);
 	/* The string printed here is already newline-terminated. */
 	return scnprintf(buf, PAGE_SIZE, "%s", dd->ipath_boardversion);
+}
+
+static ssize_t show_localbus_info(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+	/* The string printed here is already newline-terminated. */
+	return scnprintf(buf, PAGE_SIZE, "%s", dd->ipath_lbus_info);
 }
 
 static ssize_t show_lmc(struct device *dev,
@@ -311,6 +321,8 @@ static ssize_t store_guid(struct device *dev,
 
 	dd->ipath_guid = new_guid;
 	dd->ipath_nguid = 1;
+	if (dd->verbs_dev)
+		dd->verbs_dev->ibdev.node_guid = new_guid;
 
 	ret = strlen(buf);
 	goto bail;
@@ -919,21 +931,21 @@ static ssize_t store_rx_polinv_enb(struct device *dev,
 	u16 val;
 
 	ret = ipath_parse_ushort(buf, &val);
-	if (ret < 0 || val > 1)
-		goto invalid;
-
-	r = dd->ipath_f_set_ib_cfg(dd, IPATH_IB_CFG_RXPOL_ENB, val);
-	if (r < 0) {
-		ret = r;
+	if (ret >= 0 && val > 1) {
+		ipath_dev_err(dd,
+			"attempt to set invalid Rx Polarity (enable)\n");
+		ret = -EINVAL;
 		goto bail;
 	}
 
-	goto bail;
-invalid:
-	ipath_dev_err(dd, "attempt to set invalid Rx Polarity (enable)\n");
+	r = dd->ipath_f_set_ib_cfg(dd, IPATH_IB_CFG_RXPOL_ENB, val);
+	if (r < 0)
+		ret = r;
+
 bail:
 	return ret;
 }
+
 /*
  * Get/Set RX lane-reversal enable. 0=no, 1=yes.
  */
@@ -988,6 +1000,75 @@ static struct attribute_group driver_attr_group = {
 	.attrs = driver_attributes
 };
 
+static ssize_t store_tempsense(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf,
+			       size_t count)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+	int ret, stat;
+	u16 val;
+
+	ret = ipath_parse_ushort(buf, &val);
+	if (ret <= 0) {
+		ipath_dev_err(dd, "attempt to set invalid tempsense config\n");
+		goto bail;
+	}
+	/* If anything but the highest limit, enable T_CRIT_A "interrupt" */
+	stat = ipath_tempsense_write(dd, 9, (val == 0x7f7f) ? 0x80 : 0);
+	if (stat) {
+		ipath_dev_err(dd, "Unable to set tempsense config\n");
+		ret = -1;
+		goto bail;
+	}
+	stat = ipath_tempsense_write(dd, 0xB, (u8) (val & 0xFF));
+	if (stat) {
+		ipath_dev_err(dd, "Unable to set local Tcrit\n");
+		ret = -1;
+		goto bail;
+	}
+	stat = ipath_tempsense_write(dd, 0xD, (u8) (val >> 8));
+	if (stat) {
+		ipath_dev_err(dd, "Unable to set remote Tcrit\n");
+		ret = -1;
+		goto bail;
+	}
+
+bail:
+	return ret;
+}
+
+/*
+ * dump tempsense regs. in decimal, to ease shell-scripts.
+ */
+static ssize_t show_tempsense(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+	int ret;
+	int idx;
+	u8 regvals[8];
+
+	ret = -ENXIO;
+	for (idx = 0; idx < 8; ++idx) {
+		if (idx == 6)
+			continue;
+		ret = ipath_tempsense_read(dd, idx);
+		if (ret < 0)
+			break;
+		regvals[idx] = ret;
+	}
+	if (idx == 8)
+		ret = scnprintf(buf, PAGE_SIZE, "%d %d %02X %02X %d %d\n",
+			*(signed char *)(regvals),
+			*(signed char *)(regvals + 1),
+			regvals[2], regvals[3],
+			*(signed char *)(regvals + 5),
+			*(signed char *)(regvals + 7));
+	return ret;
+}
+
 struct attribute_group *ipath_driver_attr_groups[] = {
 	&driver_attr_group,
 	NULL,
@@ -1011,10 +1092,13 @@ static DEVICE_ATTR(unit, S_IRUGO, show_unit, NULL);
 static DEVICE_ATTR(rx_pol_inv, S_IWUSR, NULL, store_rx_pol_inv);
 static DEVICE_ATTR(led_override, S_IWUSR, NULL, store_led_override);
 static DEVICE_ATTR(logged_errors, S_IRUGO, show_logged_errs, NULL);
+static DEVICE_ATTR(localbus_info, S_IRUGO, show_localbus_info, NULL);
 static DEVICE_ATTR(jint_max_packets, S_IWUSR | S_IRUGO,
 		   show_jint_max_packets, store_jint_max_packets);
 static DEVICE_ATTR(jint_idle_ticks, S_IWUSR | S_IRUGO,
 		   show_jint_idle_ticks, store_jint_idle_ticks);
+static DEVICE_ATTR(tempsense, S_IWUSR | S_IRUGO,
+		   show_tempsense, store_tempsense);
 
 static struct attribute *dev_attributes[] = {
 	&dev_attr_guid.attr,
@@ -1034,6 +1118,8 @@ static struct attribute *dev_attributes[] = {
 	&dev_attr_rx_pol_inv.attr,
 	&dev_attr_led_override.attr,
 	&dev_attr_logged_errors.attr,
+	&dev_attr_tempsense.attr,
+	&dev_attr_localbus_info.attr,
 	NULL
 };
 

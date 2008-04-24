@@ -97,7 +97,7 @@ static void flat_send_IPI_all(int vector)
 
 static int flat_apic_id_registered(void)
 {
-	return physid_isset(GET_APIC_ID(apic_read(APIC_ID)), phys_cpu_present_map);
+	return physid_isset(GET_APIC_ID(read_apic_id()), phys_cpu_present_map);
 }
 
 static unsigned int flat_cpu_mask_to_apicid(cpumask_t cpumask)
@@ -138,11 +138,8 @@ static cpumask_t physflat_target_cpus(void)
 
 static cpumask_t physflat_vector_allocation_domain(int cpu)
 {
-	cpumask_t domain = CPU_MASK_NONE;
-	cpu_set(cpu, domain);
-	return domain;
+	return cpumask_of_cpu(cpu);
 }
-
 
 static void physflat_send_IPI_mask(cpumask_t cpumask, int vector)
 {

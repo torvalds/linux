@@ -11,9 +11,7 @@ struct scatterlist {
 	unsigned int	offset;
 	unsigned int	length;
 	dma_addr_t	dma_address;
-#ifdef CONFIG_X86_64
 	unsigned int	dma_length;
-#endif
 };
 
 #define ARCH_HAS_SG_CHAIN

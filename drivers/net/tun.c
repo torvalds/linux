@@ -62,7 +62,9 @@
 #include <linux/if_ether.h>
 #include <linux/if_tun.h>
 #include <linux/crc32.h>
+#include <linux/nsproxy.h>
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -106,7 +108,11 @@ struct tun_struct {
 
 /* Network device part of the driver */
 
-static LIST_HEAD(tun_dev_list);
+static unsigned int tun_net_id;
+struct tun_net {
+	struct list_head dev_list;
+};
+
 static const struct ethtool_ops tun_ethtool_ops;
 
 /* Net device open. */
@@ -471,14 +477,15 @@ static void tun_setup(struct net_device *dev)
 	dev->stop = tun_net_close;
 	dev->ethtool_ops = &tun_ethtool_ops;
 	dev->destructor = free_netdev;
+	dev->features |= NETIF_F_NETNS_LOCAL;
 }
 
-static struct tun_struct *tun_get_by_name(const char *name)
+static struct tun_struct *tun_get_by_name(struct tun_net *tn, const char *name)
 {
 	struct tun_struct *tun;
 
 	ASSERT_RTNL();
-	list_for_each_entry(tun, &tun_dev_list, list) {
+	list_for_each_entry(tun, &tn->dev_list, list) {
 		if (!strncmp(tun->dev->name, name, IFNAMSIZ))
 		    return tun;
 	}
@@ -486,13 +493,15 @@ static struct tun_struct *tun_get_by_name(const char *name)
 	return NULL;
 }
 
-static int tun_set_iff(struct file *file, struct ifreq *ifr)
+static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 {
+	struct tun_net *tn;
 	struct tun_struct *tun;
 	struct net_device *dev;
 	int err;
 
-	tun = tun_get_by_name(ifr->ifr_name);
+	tn = net_generic(net, tun_net_id);
+	tun = tun_get_by_name(tn, ifr->ifr_name);
 	if (tun) {
 		if (tun->attached)
 			return -EBUSY;
@@ -505,7 +514,7 @@ static int tun_set_iff(struct file *file, struct ifreq *ifr)
 		     !capable(CAP_NET_ADMIN))
 			return -EPERM;
 	}
-	else if (__dev_get_by_name(&init_net, ifr->ifr_name))
+	else if (__dev_get_by_name(net, ifr->ifr_name))
 		return -EINVAL;
 	else {
 		char *name;
@@ -536,6 +545,7 @@ static int tun_set_iff(struct file *file, struct ifreq *ifr)
 		if (!dev)
 			return -ENOMEM;
 
+		dev_net_set(dev, net);
 		tun = netdev_priv(dev);
 		tun->dev = dev;
 		tun->flags = flags;
@@ -558,7 +568,7 @@ static int tun_set_iff(struct file *file, struct ifreq *ifr)
 		if (err < 0)
 			goto err_free_dev;
 
-		list_add(&tun->list, &tun_dev_list);
+		list_add(&tun->list, &tn->dev_list);
 	}
 
 	DBG(KERN_INFO "%s: tun_set_iff\n", tun->dev->name);
@@ -575,6 +585,7 @@ static int tun_set_iff(struct file *file, struct ifreq *ifr)
 
 	file->private_data = tun;
 	tun->attached = 1;
+	get_net(dev_net(tun->dev));
 
 	strcpy(ifr->ifr_name, tun->dev->name);
 	return 0;
@@ -603,7 +614,7 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		ifr.ifr_name[IFNAMSIZ-1] = '\0';
 
 		rtnl_lock();
-		err = tun_set_iff(file, &ifr);
+		err = tun_set_iff(current->nsproxy->net_ns, file, &ifr);
 		rtnl_unlock();
 
 		if (err)
@@ -790,6 +801,7 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 	/* Detach from net device */
 	file->private_data = NULL;
 	tun->attached = 0;
+	put_net(dev_net(tun->dev));
 
 	/* Drop read queue */
 	skb_queue_purge(&tun->readq);
@@ -909,6 +921,46 @@ static const struct ethtool_ops tun_ethtool_ops = {
 	.set_rx_csum	= tun_set_rx_csum
 };
 
+static int tun_init_net(struct net *net)
+{
+	struct tun_net *tn;
+
+	tn = kmalloc(sizeof(*tn), GFP_KERNEL);
+	if (tn == NULL)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&tn->dev_list);
+
+	if (net_assign_generic(net, tun_net_id, tn)) {
+		kfree(tn);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void tun_exit_net(struct net *net)
+{
+	struct tun_net *tn;
+	struct tun_struct *tun, *nxt;
+
+	tn = net_generic(net, tun_net_id);
+
+	rtnl_lock();
+	list_for_each_entry_safe(tun, nxt, &tn->dev_list, list) {
+		DBG(KERN_INFO "%s cleaned up\n", tun->dev->name);
+		unregister_netdevice(tun->dev);
+	}
+	rtnl_unlock();
+
+	kfree(tn);
+}
+
+static struct pernet_operations tun_net_ops = {
+	.init = tun_init_net,
+	.exit = tun_exit_net,
+};
+
 static int __init tun_init(void)
 {
 	int ret = 0;
@@ -916,25 +968,29 @@ static int __init tun_init(void)
 	printk(KERN_INFO "tun: %s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
 	printk(KERN_INFO "tun: %s\n", DRV_COPYRIGHT);
 
+	ret = register_pernet_gen_device(&tun_net_id, &tun_net_ops);
+	if (ret) {
+		printk(KERN_ERR "tun: Can't register pernet ops\n");
+		goto err_pernet;
+	}
+
 	ret = misc_register(&tun_miscdev);
-	if (ret)
+	if (ret) {
 		printk(KERN_ERR "tun: Can't register misc device %d\n", TUN_MINOR);
+		goto err_misc;
+	}
+	return 0;
+
+err_misc:
+	unregister_pernet_gen_device(tun_net_id, &tun_net_ops);
+err_pernet:
 	return ret;
 }
 
 static void tun_cleanup(void)
 {
-	struct tun_struct *tun, *nxt;
-
 	misc_deregister(&tun_miscdev);
-
-	rtnl_lock();
-	list_for_each_entry_safe(tun, nxt, &tun_dev_list, list) {
-		DBG(KERN_INFO "%s cleaned up\n", tun->dev->name);
-		unregister_netdevice(tun->dev);
-	}
-	rtnl_unlock();
-
+	unregister_pernet_gen_device(tun_net_id, &tun_net_ops);
 }
 
 module_init(tun_init);

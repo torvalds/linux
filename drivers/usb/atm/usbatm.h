@@ -24,7 +24,6 @@
 #ifndef	_USBATM_H_
 #define	_USBATM_H_
 
-#include <asm/semaphore.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/completion.h>

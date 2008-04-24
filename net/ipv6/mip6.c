@@ -44,9 +44,9 @@ static inline void *mip6_padn(__u8 *data, __u8 padlen)
 	if (!data)
 		return NULL;
 	if (padlen == 1) {
-		data[0] = MIP6_OPT_PAD_1;
+		data[0] = IPV6_TLV_PAD0;
 	} else if (padlen > 1) {
-		data[0] = MIP6_OPT_PAD_N;
+		data[0] = IPV6_TLV_PADN;
 		data[1] = padlen - 2;
 		if (padlen > 2)
 			memset(data+2, 0, data[1]);
@@ -304,13 +304,13 @@ static int mip6_destopt_offset(struct xfrm_state *x, struct sk_buff *skb,
 static int mip6_destopt_init_state(struct xfrm_state *x)
 {
 	if (x->id.spi) {
-		printk(KERN_INFO "%s: spi is not 0: %u\n", __FUNCTION__,
+		printk(KERN_INFO "%s: spi is not 0: %u\n", __func__,
 		       x->id.spi);
 		return -EINVAL;
 	}
 	if (x->props.mode != XFRM_MODE_ROUTEOPTIMIZATION) {
 		printk(KERN_INFO "%s: state's mode is not %u: %u\n",
-		       __FUNCTION__, XFRM_MODE_ROUTEOPTIMIZATION, x->props.mode);
+		       __func__, XFRM_MODE_ROUTEOPTIMIZATION, x->props.mode);
 		return -EINVAL;
 	}
 
@@ -439,13 +439,13 @@ static int mip6_rthdr_offset(struct xfrm_state *x, struct sk_buff *skb,
 static int mip6_rthdr_init_state(struct xfrm_state *x)
 {
 	if (x->id.spi) {
-		printk(KERN_INFO "%s: spi is not 0: %u\n", __FUNCTION__,
+		printk(KERN_INFO "%s: spi is not 0: %u\n", __func__,
 		       x->id.spi);
 		return -EINVAL;
 	}
 	if (x->props.mode != XFRM_MODE_ROUTEOPTIMIZATION) {
 		printk(KERN_INFO "%s: state's mode is not %u: %u\n",
-		       __FUNCTION__, XFRM_MODE_ROUTEOPTIMIZATION, x->props.mode);
+		       __func__, XFRM_MODE_ROUTEOPTIMIZATION, x->props.mode);
 		return -EINVAL;
 	}
 
@@ -480,15 +480,15 @@ static int __init mip6_init(void)
 	printk(KERN_INFO "Mobile IPv6\n");
 
 	if (xfrm_register_type(&mip6_destopt_type, AF_INET6) < 0) {
-		printk(KERN_INFO "%s: can't add xfrm type(destopt)\n", __FUNCTION__);
+		printk(KERN_INFO "%s: can't add xfrm type(destopt)\n", __func__);
 		goto mip6_destopt_xfrm_fail;
 	}
 	if (xfrm_register_type(&mip6_rthdr_type, AF_INET6) < 0) {
-		printk(KERN_INFO "%s: can't add xfrm type(rthdr)\n", __FUNCTION__);
+		printk(KERN_INFO "%s: can't add xfrm type(rthdr)\n", __func__);
 		goto mip6_rthdr_xfrm_fail;
 	}
 	if (rawv6_mh_filter_register(mip6_mh_filter) < 0) {
-		printk(KERN_INFO "%s: can't add rawv6 mh filter\n", __FUNCTION__);
+		printk(KERN_INFO "%s: can't add rawv6 mh filter\n", __func__);
 		goto mip6_rawv6_mh_fail;
 	}
 
@@ -506,11 +506,11 @@ static int __init mip6_init(void)
 static void __exit mip6_fini(void)
 {
 	if (rawv6_mh_filter_unregister(mip6_mh_filter) < 0)
-		printk(KERN_INFO "%s: can't remove rawv6 mh filter\n", __FUNCTION__);
+		printk(KERN_INFO "%s: can't remove rawv6 mh filter\n", __func__);
 	if (xfrm_unregister_type(&mip6_rthdr_type, AF_INET6) < 0)
-		printk(KERN_INFO "%s: can't remove xfrm type(rthdr)\n", __FUNCTION__);
+		printk(KERN_INFO "%s: can't remove xfrm type(rthdr)\n", __func__);
 	if (xfrm_unregister_type(&mip6_destopt_type, AF_INET6) < 0)
-		printk(KERN_INFO "%s: can't remove xfrm type(destopt)\n", __FUNCTION__);
+		printk(KERN_INFO "%s: can't remove xfrm type(destopt)\n", __func__);
 }
 
 module_init(mip6_init);

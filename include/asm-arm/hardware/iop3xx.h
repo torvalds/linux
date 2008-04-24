@@ -29,6 +29,7 @@ extern void gpio_line_config(int line, int direction);
 extern int  gpio_line_get(int line);
 extern void gpio_line_set(int line, int value);
 extern int init_atu;
+extern int iop3xx_get_init_atu(void);
 #endif
 
 
@@ -111,14 +112,6 @@ extern int init_atu;
 #define IOP3XX_INIT_ATU_DEFAULT 0
 #define IOP3XX_INIT_ATU_DISABLE -1
 #define IOP3XX_INIT_ATU_ENABLE	 1
-
-#ifdef CONFIG_IOP3XX_ATU
-#define iop3xx_get_init_atu(x) (init_atu == IOP3XX_INIT_ATU_DEFAULT ?\
-				IOP3XX_INIT_ATU_ENABLE : init_atu)
-#else
-#define iop3xx_get_init_atu(x) (init_atu == IOP3XX_INIT_ATU_DEFAULT ?\
-				IOP3XX_INIT_ATU_DISABLE : init_atu)
-#endif
 
 /* Messaging Unit  */
 #define IOP3XX_IMR0		(volatile u32 *)IOP3XX_REG_ADDR(0x0310)

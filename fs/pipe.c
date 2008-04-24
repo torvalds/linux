@@ -988,7 +988,10 @@ struct file *create_write_pipe(void)
 	return f;
 
  err_dentry:
+	free_pipe_info(inode);
 	dput(dentry);
+	return ERR_PTR(err);
+
  err_inode:
 	free_pipe_info(inode);
 	iput(inode);

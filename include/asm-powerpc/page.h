@@ -53,6 +53,7 @@
 
 #define PAGE_OFFSET     ASM_CONST(CONFIG_KERNEL_START)
 #define KERNELBASE      (PAGE_OFFSET + PHYSICAL_START)
+#define LOAD_OFFSET	PAGE_OFFSET
 
 #ifdef CONFIG_FLATMEM
 #define pfn_valid(pfn)		((pfn) < max_mapnr)

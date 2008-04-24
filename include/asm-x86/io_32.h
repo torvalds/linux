@@ -65,14 +65,14 @@
  *
  *	The returned physical address is the physical (CPU) mapping for
  *	the memory address given. It is only valid to use this function on
- *	addresses directly mapped or allocated via kmalloc. 
+ *	addresses directly mapped or allocated via kmalloc.
  *
  *	This function does not give bus mappings for DMA transfers. In
  *	almost all conceivable cases a device driver should not be using
  *	this function
  */
- 
-static inline unsigned long virt_to_phys(volatile void * address)
+
+static inline unsigned long virt_to_phys(volatile void *address)
 {
 	return __pa(address);
 }
@@ -90,7 +90,7 @@ static inline unsigned long virt_to_phys(volatile void * address)
  *	this function
  */
 
-static inline void * phys_to_virt(unsigned long address)
+static inline void *phys_to_virt(unsigned long address)
 {
 	return __va(address);
 }
@@ -169,16 +169,19 @@ extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
 static inline unsigned char readb(const volatile void __iomem *addr)
 {
-	return *(volatile unsigned char __force *) addr;
+	return *(volatile unsigned char __force *)addr;
 }
+
 static inline unsigned short readw(const volatile void __iomem *addr)
 {
-	return *(volatile unsigned short __force *) addr;
+	return *(volatile unsigned short __force *)addr;
 }
+
 static inline unsigned int readl(const volatile void __iomem *addr)
 {
 	return *(volatile unsigned int __force *) addr;
 }
+
 #define readb_relaxed(addr) readb(addr)
 #define readw_relaxed(addr) readw(addr)
 #define readl_relaxed(addr) readl(addr)
@@ -188,15 +191,17 @@ static inline unsigned int readl(const volatile void __iomem *addr)
 
 static inline void writeb(unsigned char b, volatile void __iomem *addr)
 {
-	*(volatile unsigned char __force *) addr = b;
+	*(volatile unsigned char __force *)addr = b;
 }
+
 static inline void writew(unsigned short b, volatile void __iomem *addr)
 {
-	*(volatile unsigned short __force *) addr = b;
+	*(volatile unsigned short __force *)addr = b;
 }
+
 static inline void writel(unsigned int b, volatile void __iomem *addr)
 {
-	*(volatile unsigned int __force *) addr = b;
+	*(volatile unsigned int __force *)addr = b;
 }
 #define __raw_writeb writeb
 #define __raw_writew writew
@@ -239,12 +244,12 @@ memcpy_toio(volatile void __iomem *dst, const void *src, int count)
  *	1. Out of order aware processors
  *	2. Accidentally out of order processors (PPro errata #51)
  */
- 
+
 #if defined(CONFIG_X86_OOSTORE) || defined(CONFIG_X86_PPRO_FENCE)
 
 static inline void flush_write_buffers(void)
 {
-	__asm__ __volatile__ ("lock; addl $0,0(%%esp)": : :"memory");
+	asm volatile("lock; addl $0,0(%%esp)": : :"memory");
 }
 
 #else
@@ -264,7 +269,8 @@ extern void io_delay_init(void);
 #include <asm/paravirt.h>
 #else
 
-static inline void slow_down_io(void) {
+static inline void slow_down_io(void)
+{
 	native_io_delay();
 #ifdef REALLY_SLOW_IO
 	native_io_delay();
@@ -275,51 +281,74 @@ static inline void slow_down_io(void) {
 
 #endif
 
-#define __BUILDIO(bwl,bw,type) \
-static inline void out##bwl(unsigned type value, int port) { \
-	out##bwl##_local(value, port); \
-} \
-static inline unsigned type in##bwl(int port) { \
-	return in##bwl##_local(port); \
+#define __BUILDIO(bwl, bw, type)				\
+static inline void out##bwl(unsigned type value, int port)	\
+{								\
+	out##bwl##_local(value, port);				\
+}								\
+								\
+static inline unsigned type in##bwl(int port)			\
+{								\
+	return in##bwl##_local(port);				\
 }
 
-#define BUILDIO(bwl,bw,type) \
-static inline void out##bwl##_local(unsigned type value, int port) { \
-	__asm__ __volatile__("out" #bwl " %" #bw "0, %w1" : : "a"(value), "Nd"(port)); \
-} \
-static inline unsigned type in##bwl##_local(int port) { \
-	unsigned type value; \
-	__asm__ __volatile__("in" #bwl " %w1, %" #bw "0" : "=a"(value) : "Nd"(port)); \
-	return value; \
-} \
-static inline void out##bwl##_local_p(unsigned type value, int port) { \
-	out##bwl##_local(value, port); \
-	slow_down_io(); \
-} \
-static inline unsigned type in##bwl##_local_p(int port) { \
-	unsigned type value = in##bwl##_local(port); \
-	slow_down_io(); \
-	return value; \
-} \
-__BUILDIO(bwl,bw,type) \
-static inline void out##bwl##_p(unsigned type value, int port) { \
-	out##bwl(value, port); \
-	slow_down_io(); \
-} \
-static inline unsigned type in##bwl##_p(int port) { \
-	unsigned type value = in##bwl(port); \
-	slow_down_io(); \
-	return value; \
-} \
-static inline void outs##bwl(int port, const void *addr, unsigned long count) { \
-	__asm__ __volatile__("rep; outs" #bwl : "+S"(addr), "+c"(count) : "d"(port)); \
-} \
-static inline void ins##bwl(int port, void *addr, unsigned long count) { \
-	__asm__ __volatile__("rep; ins" #bwl : "+D"(addr), "+c"(count) : "d"(port)); \
+#define BUILDIO(bwl, bw, type)						\
+static inline void out##bwl##_local(unsigned type value, int port)	\
+{									\
+	asm volatile("out" #bwl " %" #bw "0, %w1"		\
+		     : : "a"(value), "Nd"(port));			\
+}									\
+									\
+static inline unsigned type in##bwl##_local(int port)			\
+{									\
+	unsigned type value;						\
+	asm volatile("in" #bwl " %w1, %" #bw "0"		\
+		     : "=a"(value) : "Nd"(port));			\
+	return value;							\
+}									\
+									\
+static inline void out##bwl##_local_p(unsigned type value, int port)	\
+{									\
+	out##bwl##_local(value, port);					\
+	slow_down_io();							\
+}									\
+									\
+static inline unsigned type in##bwl##_local_p(int port)			\
+{									\
+	unsigned type value = in##bwl##_local(port);			\
+	slow_down_io();							\
+	return value;							\
+}									\
+									\
+__BUILDIO(bwl, bw, type)						\
+									\
+static inline void out##bwl##_p(unsigned type value, int port)		\
+{									\
+	out##bwl(value, port);						\
+	slow_down_io();							\
+}									\
+									\
+static inline unsigned type in##bwl##_p(int port)			\
+{									\
+	unsigned type value = in##bwl(port);				\
+	slow_down_io();							\
+	return value;							\
+}									\
+									\
+static inline void outs##bwl(int port, const void *addr, unsigned long count) \
+{									\
+	asm volatile("rep; outs" #bwl					\
+		     : "+S"(addr), "+c"(count) : "d"(port));		\
+}									\
+									\
+static inline void ins##bwl(int port, void *addr, unsigned long count)	\
+{									\
+	asm volatile("rep; ins" #bwl					\
+		     : "+D"(addr), "+c"(count) : "d"(port));		\
 }
 
-BUILDIO(b,b,char)
-BUILDIO(w,w,short)
-BUILDIO(l,,int)
+BUILDIO(b, b, char)
+BUILDIO(w, w, short)
+BUILDIO(l, , int)
 
 #endif

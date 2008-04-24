@@ -41,15 +41,15 @@ static int __init bastide_register(unsigned int base, unsigned int aux, int irq)
 	hw.io_ports[IDE_CONTROL_OFFSET] = aux + (6 * 0x20);
 	hw.irq = irq;
 
-	hwif = ide_deprecated_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
 	if (hwif == NULL)
 		goto out;
 
 	i = hwif->index;
 
 	if (hwif->present)
-		ide_unregister(i, 0, 0);
-	else if (!hwif->hold)
+		ide_unregister(i);
+	else
 		ide_init_port_data(hwif, i);
 
 	ide_init_port_hw(hwif, &hw);

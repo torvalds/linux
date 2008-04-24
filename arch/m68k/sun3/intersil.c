@@ -15,7 +15,6 @@
 
 #include <asm/errno.h>
 #include <asm/system.h>
-#include <asm/semaphore.h>
 #include <asm/rtc.h>
 #include <asm/intersil.h>
 

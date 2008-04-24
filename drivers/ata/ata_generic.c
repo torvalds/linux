@@ -95,53 +95,13 @@ static int generic_set_mode(struct ata_link *link, struct ata_device **unused)
 }
 
 static struct scsi_host_template generic_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
+	ATA_BMDMA_SHT(DRV_NAME),
 };
 
 static struct ata_port_operations generic_port_ops = {
-	.set_mode	= generic_set_mode,
-
-	.tf_load	= ata_tf_load,
-	.tf_read	= ata_tf_read,
-	.check_status 	= ata_check_status,
-	.exec_command	= ata_exec_command,
-	.dev_select 	= ata_std_dev_select,
-
-	.bmdma_setup 	= ata_bmdma_setup,
-	.bmdma_start 	= ata_bmdma_start,
-	.bmdma_stop	= ata_bmdma_stop,
-	.bmdma_status 	= ata_bmdma_status,
-
-	.data_xfer	= ata_data_xfer,
-
-	.freeze		= ata_bmdma_freeze,
-	.thaw		= ata_bmdma_thaw,
-	.error_handler	= ata_bmdma_error_handler,
-	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.inherits	= &ata_bmdma_port_ops,
 	.cable_detect	= ata_cable_unknown,
-
-	.qc_prep 	= ata_qc_prep,
-	.qc_issue	= ata_qc_issue_prot,
-
-	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
-	.irq_on		= ata_irq_on,
-
-	.port_start	= ata_sff_port_start,
+	.set_mode	= generic_set_mode,
 };
 
 static int all_generic_ide;		/* Set to claim all devices */
@@ -160,7 +120,6 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 {
 	u16 command;
 	static const struct ata_port_info info = {
-		.sht = &generic_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -191,9 +150,9 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 		return -ENODEV;
 
 	if (dev->vendor == PCI_VENDOR_ID_AL)
-	    	ata_pci_clear_simplex(dev);
+		ata_pci_bmdma_clear_simplex(dev);
 
-	return ata_pci_init_one(dev, ppi);
+	return ata_pci_sff_init_one(dev, ppi, &generic_sht, NULL);
 }
 
 static struct pci_device_id ata_generic[] = {

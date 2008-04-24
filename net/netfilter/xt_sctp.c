@@ -46,7 +46,8 @@ match_packet(const struct sk_buff *skb,
 	     bool *hotdrop)
 {
 	u_int32_t chunkmapcopy[256 / sizeof (u_int32_t)];
-	sctp_chunkhdr_t _sch, *sch;
+	const sctp_chunkhdr_t *sch;
+	sctp_chunkhdr_t _sch;
 	int chunk_match_type = info->chunk_match_type;
 	const struct xt_sctp_flag_info *flag_info = info->flag_info;
 	int flag_count = info->flag_count;
@@ -121,7 +122,8 @@ sctp_mt(const struct sk_buff *skb, const struct net_device *in,
         const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct xt_sctp_info *info = matchinfo;
-	sctp_sctphdr_t _sh, *sh;
+	const sctp_sctphdr_t *sh;
+	sctp_sctphdr_t _sh;
 
 	if (offset) {
 		duprintf("Dropping non-first fragment.. FIXME\n");

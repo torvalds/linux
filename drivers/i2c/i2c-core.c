@@ -35,8 +35,8 @@
 #include <linux/completion.h>
 #include <linux/hardirq.h>
 #include <linux/irqflags.h>
+#include <linux/semaphore.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 
 #include "i2c-core.h"
 
@@ -1506,7 +1506,7 @@ static s32 i2c_smbus_xfer_emulated(struct i2c_adapter * adapter, u16 addr,
 		read_write = I2C_SMBUS_READ;
 		if (data->block[0] > I2C_SMBUS_BLOCK_MAX) {
 			dev_err(&adapter->dev, "%s called with invalid "
-				"block proc call size (%d)\n", __FUNCTION__,
+				"block proc call size (%d)\n", __func__,
 				data->block[0]);
 			return -1;
 		}

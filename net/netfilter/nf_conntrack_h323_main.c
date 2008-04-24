@@ -218,7 +218,6 @@ static int get_h245_addr(struct nf_conn *ct, const unsigned char *data,
 			 union nf_inet_addr *addr, __be16 *port)
 {
 	const unsigned char *p;
-	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	int len;
 
 	if (taddr->choice != eH245_TransportAddress_unicastAddress)
@@ -226,13 +225,13 @@ static int get_h245_addr(struct nf_conn *ct, const unsigned char *data,
 
 	switch (taddr->unicastAddress.choice) {
 	case eUnicastAddress_iPAddress:
-		if (family != AF_INET)
+		if (nf_ct_l3num(ct) != AF_INET)
 			return 0;
 		p = data + taddr->unicastAddress.iPAddress.network;
 		len = 4;
 		break;
 	case eUnicastAddress_iP6Address:
-		if (family != AF_INET6)
+		if (nf_ct_l3num(ct) != AF_INET6)
 			return 0;
 		p = data + taddr->unicastAddress.iP6Address.network;
 		len = 16;
@@ -277,7 +276,7 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 	/* Create expect for RTP */
 	if ((rtp_exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(rtp_exp, ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(rtp_exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
 			  IPPROTO_UDP, NULL, &rtp_port);
@@ -287,7 +286,7 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 		nf_ct_expect_put(rtp_exp);
 		return -1;
 	}
-	nf_ct_expect_init(rtcp_exp, ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(rtcp_exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
 			  IPPROTO_UDP, NULL, &rtcp_port);
@@ -304,9 +303,9 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 		if (nf_ct_expect_related(rtp_exp) == 0) {
 			if (nf_ct_expect_related(rtcp_exp) == 0) {
 				pr_debug("nf_ct_h323: expect RTP ");
-				NF_CT_DUMP_TUPLE(&rtp_exp->tuple);
+				nf_ct_dump_tuple(&rtp_exp->tuple);
 				pr_debug("nf_ct_h323: expect RTCP ");
-				NF_CT_DUMP_TUPLE(&rtcp_exp->tuple);
+				nf_ct_dump_tuple(&rtcp_exp->tuple);
 			} else {
 				nf_ct_unexpect_related(rtp_exp);
 				ret = -1;
@@ -344,7 +343,7 @@ static int expect_t120(struct sk_buff *skb,
 	/* Create expect for T.120 connections */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
 			  IPPROTO_TCP, NULL, &port);
@@ -361,7 +360,7 @@ static int expect_t120(struct sk_buff *skb,
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
 			pr_debug("nf_ct_h323: expect T.120 ");
-			NF_CT_DUMP_TUPLE(&exp->tuple);
+			nf_ct_dump_tuple(&exp->tuple);
 		} else
 			ret = -1;
 	}
@@ -583,7 +582,7 @@ static int h245_help(struct sk_buff *skb, unsigned int protoff,
 	while (get_tpkt_data(skb, protoff, ct, ctinfo,
 			     &data, &datalen, &dataoff)) {
 		pr_debug("nf_ct_h245: TPKT len=%d ", datalen);
-		NF_CT_DUMP_TUPLE(&ct->tuplehash[CTINFO2DIR(ctinfo)].tuple);
+		nf_ct_dump_tuple(&ct->tuplehash[CTINFO2DIR(ctinfo)].tuple);
 
 		/* Decode H.245 signal */
 		ret = DecodeMultimediaSystemControlMessage(data, datalen,
@@ -612,13 +611,17 @@ static int h245_help(struct sk_buff *skb, unsigned int protoff,
 }
 
 /****************************************************************************/
+static const struct nf_conntrack_expect_policy h245_exp_policy = {
+	.max_expected	= H323_RTP_CHANNEL_MAX * 4 + 2 /* T.120 */,
+	.timeout	= 240,
+};
+
 static struct nf_conntrack_helper nf_conntrack_helper_h245 __read_mostly = {
 	.name			= "H.245",
 	.me			= THIS_MODULE,
-	.max_expected		= H323_RTP_CHANNEL_MAX * 4 + 2 /* T.120 */,
-	.timeout		= 240,
 	.tuple.dst.protonum	= IPPROTO_UDP,
-	.help			= h245_help
+	.help			= h245_help,
+	.expect_policy		= &h245_exp_policy,
 };
 
 /****************************************************************************/
@@ -627,18 +630,17 @@ int get_h225_addr(struct nf_conn *ct, unsigned char *data,
 		  union nf_inet_addr *addr, __be16 *port)
 {
 	const unsigned char *p;
-	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	int len;
 
 	switch (taddr->choice) {
 	case eTransportAddress_ipAddress:
-		if (family != AF_INET)
+		if (nf_ct_l3num(ct) != AF_INET)
 			return 0;
 		p = data + taddr->ipAddress.ip;
 		len = 4;
 		break;
 	case eTransportAddress_ip6Address:
-		if (family != AF_INET6)
+		if (nf_ct_l3num(ct) != AF_INET6)
 			return 0;
 		p = data + taddr->ip6Address.ip;
 		len = 16;
@@ -676,7 +678,7 @@ static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 	/* Create expect for h245 connection */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
 			  IPPROTO_TCP, NULL, &port);
@@ -693,7 +695,7 @@ static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
 			pr_debug("nf_ct_q931: expect H.245 ");
-			NF_CT_DUMP_TUPLE(&exp->tuple);
+			nf_ct_dump_tuple(&exp->tuple);
 		} else
 			ret = -1;
 	}
@@ -784,7 +786,7 @@ static int expect_callforwarding(struct sk_buff *skb,
 	 * we don't need to track the second call */
 	if (callforward_filter &&
 	    callforward_do_filter(&addr, &ct->tuplehash[!dir].tuple.src.u3,
-				  ct->tuplehash[!dir].tuple.src.l3num)) {
+				  nf_ct_l3num(ct))) {
 		pr_debug("nf_ct_q931: Call Forwarding not tracked\n");
 		return 0;
 	}
@@ -792,7 +794,7 @@ static int expect_callforwarding(struct sk_buff *skb,
 	/* Create expect for the second call leg */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
 			  IPPROTO_TCP, NULL, &port);
 	exp->helper = nf_conntrack_helper_q931;
@@ -808,7 +810,7 @@ static int expect_callforwarding(struct sk_buff *skb,
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
 			pr_debug("nf_ct_q931: expect Call Forwarding ");
-			NF_CT_DUMP_TUPLE(&exp->tuple);
+			nf_ct_dump_tuple(&exp->tuple);
 		} else
 			ret = -1;
 	}
@@ -1128,7 +1130,7 @@ static int q931_help(struct sk_buff *skb, unsigned int protoff,
 	while (get_tpkt_data(skb, protoff, ct, ctinfo,
 			     &data, &datalen, &dataoff)) {
 		pr_debug("nf_ct_q931: TPKT len=%d ", datalen);
-		NF_CT_DUMP_TUPLE(&ct->tuplehash[CTINFO2DIR(ctinfo)].tuple);
+		nf_ct_dump_tuple(&ct->tuplehash[CTINFO2DIR(ctinfo)].tuple);
 
 		/* Decode Q.931 signal */
 		ret = DecodeQ931(data, datalen, &q931);
@@ -1156,28 +1158,30 @@ static int q931_help(struct sk_buff *skb, unsigned int protoff,
 }
 
 /****************************************************************************/
+static const struct nf_conntrack_expect_policy q931_exp_policy = {
+	/* T.120 and H.245 */
+	.max_expected		= H323_RTP_CHANNEL_MAX * 4 + 4,
+	.timeout		= 240,
+};
+
 static struct nf_conntrack_helper nf_conntrack_helper_q931[] __read_mostly = {
 	{
 		.name			= "Q.931",
 		.me			= THIS_MODULE,
-					  /* T.120 and H.245 */
-		.max_expected		= H323_RTP_CHANNEL_MAX * 4 + 4,
-		.timeout		= 240,
 		.tuple.src.l3num	= AF_INET,
 		.tuple.src.u.tcp.port	= __constant_htons(Q931_PORT),
 		.tuple.dst.protonum	= IPPROTO_TCP,
-		.help			= q931_help
+		.help			= q931_help,
+		.expect_policy		= &q931_exp_policy,
 	},
 	{
 		.name			= "Q.931",
 		.me			= THIS_MODULE,
-					  /* T.120 and H.245 */
-		.max_expected		= H323_RTP_CHANNEL_MAX * 4 + 4,
-		.timeout		= 240,
 		.tuple.src.l3num	= AF_INET6,
 		.tuple.src.u.tcp.port	= __constant_htons(Q931_PORT),
 		.tuple.dst.protonum	= IPPROTO_TCP,
-		.help			= q931_help
+		.help			= q931_help,
+		.expect_policy		= &q931_exp_policy,
 	},
 };
 
@@ -1261,7 +1265,7 @@ static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 	/* Create expect for Q.931 */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  gkrouted_only ? /* only accept calls from GK? */
 				&ct->tuplehash[!dir].tuple.src.u3 : NULL,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
@@ -1275,7 +1279,7 @@ static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
 			pr_debug("nf_ct_ras: expect Q.931 ");
-			NF_CT_DUMP_TUPLE(&exp->tuple);
+			nf_ct_dump_tuple(&exp->tuple);
 
 			/* Save port for looking up expect in processing RCF */
 			info->sig_port[dir] = port;
@@ -1332,14 +1336,14 @@ static int process_gcf(struct sk_buff *skb, struct nf_conn *ct,
 	/* Need new expect */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
 			  IPPROTO_UDP, NULL, &port);
 	exp->helper = nf_conntrack_helper_ras;
 
 	if (nf_ct_expect_related(exp) == 0) {
 		pr_debug("nf_ct_ras: expect RAS ");
-		NF_CT_DUMP_TUPLE(&exp->tuple);
+		nf_ct_dump_tuple(&exp->tuple);
 	} else
 		ret = -1;
 
@@ -1423,7 +1427,7 @@ static int process_rcf(struct sk_buff *skb, struct nf_conn *ct,
 			pr_debug("nf_ct_ras: set Q.931 expect "
 				 "timeout to %u seconds for",
 				 info->timeout);
-			NF_CT_DUMP_TUPLE(&exp->tuple);
+			nf_ct_dump_tuple(&exp->tuple);
 			set_expect_timeout(exp, info->timeout);
 		}
 		spin_unlock_bh(&nf_conntrack_lock);
@@ -1536,7 +1540,7 @@ static int process_acf(struct sk_buff *skb, struct nf_conn *ct,
 	/* Need new expect */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
 			  IPPROTO_TCP, NULL, &port);
 	exp->flags = NF_CT_EXPECT_PERMANENT;
@@ -1544,7 +1548,7 @@ static int process_acf(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (nf_ct_expect_related(exp) == 0) {
 		pr_debug("nf_ct_ras: expect Q.931 ");
-		NF_CT_DUMP_TUPLE(&exp->tuple);
+		nf_ct_dump_tuple(&exp->tuple);
 	} else
 		ret = -1;
 
@@ -1589,7 +1593,7 @@ static int process_lcf(struct sk_buff *skb, struct nf_conn *ct,
 	/* Need new expect for call signal */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
 			  IPPROTO_TCP, NULL, &port);
 	exp->flags = NF_CT_EXPECT_PERMANENT;
@@ -1597,7 +1601,7 @@ static int process_lcf(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (nf_ct_expect_related(exp) == 0) {
 		pr_debug("nf_ct_ras: expect Q.931 ");
-		NF_CT_DUMP_TUPLE(&exp->tuple);
+		nf_ct_dump_tuple(&exp->tuple);
 	} else
 		ret = -1;
 
@@ -1701,7 +1705,7 @@ static int ras_help(struct sk_buff *skb, unsigned int protoff,
 	if (data == NULL)
 		goto accept;
 	pr_debug("nf_ct_ras: RAS message len=%d ", datalen);
-	NF_CT_DUMP_TUPLE(&ct->tuplehash[CTINFO2DIR(ctinfo)].tuple);
+	nf_ct_dump_tuple(&ct->tuplehash[CTINFO2DIR(ctinfo)].tuple);
 
 	/* Decode RAS message */
 	ret = DecodeRasMessage(data, datalen, &ras);
@@ -1728,26 +1732,29 @@ static int ras_help(struct sk_buff *skb, unsigned int protoff,
 }
 
 /****************************************************************************/
+static const struct nf_conntrack_expect_policy ras_exp_policy = {
+	.max_expected		= 32,
+	.timeout		= 240,
+};
+
 static struct nf_conntrack_helper nf_conntrack_helper_ras[] __read_mostly = {
 	{
 		.name			= "RAS",
 		.me			= THIS_MODULE,
-		.max_expected		= 32,
-		.timeout		= 240,
 		.tuple.src.l3num	= AF_INET,
 		.tuple.src.u.udp.port	= __constant_htons(RAS_PORT),
 		.tuple.dst.protonum	= IPPROTO_UDP,
 		.help			= ras_help,
+		.expect_policy		= &ras_exp_policy,
 	},
 	{
 		.name			= "RAS",
 		.me			= THIS_MODULE,
-		.max_expected		= 32,
-		.timeout		= 240,
 		.tuple.src.l3num	= AF_INET6,
 		.tuple.src.u.udp.port	= __constant_htons(RAS_PORT),
 		.tuple.dst.protonum	= IPPROTO_UDP,
 		.help			= ras_help,
+		.expect_policy		= &ras_exp_policy,
 	},
 };
 

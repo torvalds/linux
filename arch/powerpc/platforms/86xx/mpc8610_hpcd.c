@@ -52,7 +52,7 @@ static int __init mpc8610_declare_of_platform_devices(void)
 }
 machine_device_initcall(mpc86xx_hpcd, mpc8610_declare_of_platform_devices);
 
-void __init
+static void __init
 mpc86xx_hpcd_init_irq(void)
 {
 	struct mpic *mpic1;
@@ -200,7 +200,7 @@ static int __init mpc86xx_hpcd_probe(void)
 	return 0;
 }
 
-long __init
+static long __init
 mpc86xx_time_init(void)
 {
 	unsigned int temp;

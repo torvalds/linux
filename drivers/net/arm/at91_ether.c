@@ -1043,7 +1043,9 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 	} else if (machine_is_csb337()) {
 		/* mix link activity status into LED2 link state */
 		write_phy(phy_address, MII_LEDCTRL_REG, 0x0d22);
-	}
+	} else if (machine_is_ecbat91())
+		write_phy(phy_address, MII_LEDCTRL_REG, 0x156A);
+
 	disable_mdi();
 	spin_unlock_irq(&lp->lock);
 

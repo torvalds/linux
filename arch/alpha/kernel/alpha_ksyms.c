@@ -77,15 +77,6 @@ EXPORT_SYMBOL(__do_clear_user);
 EXPORT_SYMBOL(__strncpy_from_user);
 EXPORT_SYMBOL(__strnlen_user);
 
-/* Semaphore helper functions.  */
-EXPORT_SYMBOL(__down_failed);
-EXPORT_SYMBOL(__down_failed_interruptible);
-EXPORT_SYMBOL(__up_wakeup);
-EXPORT_SYMBOL(down);
-EXPORT_SYMBOL(down_interruptible);
-EXPORT_SYMBOL(down_trylock);
-EXPORT_SYMBOL(up);
-
 /* 
  * SMP-specific symbols.
  */

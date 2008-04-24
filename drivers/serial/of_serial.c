@@ -56,7 +56,9 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
 		| UPF_FIXED_PORT;
 	port->dev = &ofdev->dev;
-	port->custom_divisor = *clk / (16 * (*spd));
+	/* If current-speed was set, then try not to change it. */
+	if (spd)
+		port->custom_divisor = *clk / (16 * (*spd));
 
 	return 0;
 }

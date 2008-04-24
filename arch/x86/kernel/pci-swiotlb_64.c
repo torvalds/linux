@@ -11,11 +11,18 @@
 
 int swiotlb __read_mostly;
 
+static dma_addr_t
+swiotlb_map_single_phys(struct device *hwdev, phys_addr_t paddr, size_t size,
+			int direction)
+{
+	return swiotlb_map_single(hwdev, phys_to_virt(paddr), size, direction);
+}
+
 const struct dma_mapping_ops swiotlb_dma_ops = {
 	.mapping_error = swiotlb_dma_mapping_error,
 	.alloc_coherent = swiotlb_alloc_coherent,
 	.free_coherent = swiotlb_free_coherent,
-	.map_single = swiotlb_map_single,
+	.map_single = swiotlb_map_single_phys,
 	.unmap_single = swiotlb_unmap_single,
 	.sync_single_for_cpu = swiotlb_sync_single_for_cpu,
 	.sync_single_for_device = swiotlb_sync_single_for_device,

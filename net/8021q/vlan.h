@@ -3,8 +3,6 @@
 
 #include <linux/if_vlan.h>
 
-extern unsigned short vlan_name_type;
-
 #define VLAN_GRP_HASH_SHIFT	5
 #define VLAN_GRP_HASH_SIZE	(1 << VLAN_GRP_HASH_SHIFT)
 #define VLAN_GRP_HASH_MASK	(VLAN_GRP_HASH_SIZE - 1)
@@ -49,5 +47,18 @@ static inline int is_vlan_dev(struct net_device *dev)
 {
 	return dev->priv_flags & IFF_802_1Q_VLAN;
 }
+
+extern int vlan_net_id;
+
+struct proc_dir_entry;
+
+struct vlan_net {
+	/* /proc/net/vlan */
+	struct proc_dir_entry *proc_vlan_dir;
+	/* /proc/net/vlan/config */
+	struct proc_dir_entry *proc_vlan_conf;
+	/* Determines interface naming scheme. */
+	unsigned short name_type;
+};
 
 #endif /* !(__BEN_VLAN_802_1Q_INC__) */

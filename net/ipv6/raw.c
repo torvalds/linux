@@ -53,6 +53,7 @@
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 #include <net/mip6.h>
 #endif
+#include <linux/mroute6.h>
 
 #include <net/raw.h>
 #include <net/rawv6.h>
@@ -62,19 +63,8 @@
 #include <linux/seq_file.h>
 
 static struct raw_hashinfo raw_v6_hashinfo = {
-	.lock = __RW_LOCK_UNLOCKED(),
+	.lock = __RW_LOCK_UNLOCKED(raw_v6_hashinfo.lock),
 };
-
-static void raw_v6_hash(struct sock *sk)
-{
-	raw_hash_sk(sk, &raw_v6_hashinfo);
-}
-
-static void raw_v6_unhash(struct sock *sk)
-{
-	raw_unhash_sk(sk, &raw_v6_hashinfo);
-}
-
 
 static struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
 		unsigned short num, struct in6_addr *loc_addr,
@@ -87,7 +77,7 @@ static struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
 		if (inet_sk(sk)->num == num) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
 
-			if (sk->sk_net != net)
+			if (!net_eq(sock_net(sk), net))
 				continue;
 
 			if (!ipv6_addr_any(&np->daddr) &&
@@ -179,15 +169,10 @@ static int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	read_lock(&raw_v6_hashinfo.lock);
 	sk = sk_head(&raw_v6_hashinfo.ht[hash]);
 
-	/*
-	 *	The first socket found will be delivered after
-	 *	delivery to transport protocols.
-	 */
-
 	if (sk == NULL)
 		goto out;
 
-	net = skb->dev->nd_net;
+	net = dev_net(skb->dev);
 	sk = __raw_v6_lookup(net, sk, nexthdr, daddr, saddr, IP6CB(skb)->iif);
 
 	while (sk) {
@@ -291,7 +276,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			if (!sk->sk_bound_dev_if)
 				goto out;
 
-			dev = dev_get_by_index(sk->sk_net, sk->sk_bound_dev_if);
+			dev = dev_get_by_index(sock_net(sk), sk->sk_bound_dev_if);
 			if (!dev) {
 				err = -ENODEV;
 				goto out;
@@ -304,7 +289,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		v4addr = LOOPBACK4_IPV6;
 		if (!(addr_type & IPV6_ADDR_MULTICAST))	{
 			err = -EADDRNOTAVAIL;
-			if (!ipv6_chk_addr(sk->sk_net, &addr->sin6_addr,
+			if (!ipv6_chk_addr(sock_net(sk), &addr->sin6_addr,
 					   dev, 0)) {
 				if (dev)
 					dev_put(dev);
@@ -372,11 +357,11 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 	read_lock(&raw_v6_hashinfo.lock);
 	sk = sk_head(&raw_v6_hashinfo.ht[hash]);
 	if (sk != NULL) {
-		struct ipv6hdr *hdr = (struct ipv6hdr *) skb->data;
-
-		saddr = &hdr->saddr;
-		daddr = &hdr->daddr;
-		net = skb->dev->nd_net;
+		/* Note: ipv6_hdr(skb) != skb->data */
+		struct ipv6hdr *ip6h = (struct ipv6hdr *)skb->data;
+		saddr = &ip6h->saddr;
+		daddr = &ip6h->daddr;
+		net = dev_net(skb->dev);
 
 		while ((sk = __raw_v6_lookup(net, sk, nexthdr, saddr, daddr,
 						IP6CB(skb)->iif))) {
@@ -822,15 +807,6 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		fl.fl6_flowlabel = np->flow_label;
 	}
 
-	if (ipv6_addr_any(daddr)) {
-		/*
-		 * unspecified destination address
-		 * treated as error... is this correct ?
-		 */
-		fl6_sock_release(flowlabel);
-		return(-EINVAL);
-	}
-
 	if (fl.oif == 0)
 		fl.oif = sk->sk_bound_dev_if;
 
@@ -863,7 +839,10 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	if (err)
 		goto out;
 
-	ipv6_addr_copy(&fl.fl6_dst, daddr);
+	if (!ipv6_addr_any(daddr))
+		ipv6_addr_copy(&fl.fl6_dst, daddr);
+	else
+		fl.fl6_dst.s6_addr[15] = 0x1; /* :: means loopback (BSD'ism) */
 	if (ipv6_addr_any(&fl.fl6_src) && !ipv6_addr_any(&np->saddr))
 		ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 
@@ -898,9 +877,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		else
 			hlimit = np->hop_limit;
 		if (hlimit < 0)
-			hlimit = dst_metric(dst, RTAX_HOPLIMIT);
-		if (hlimit < 0)
-			hlimit = ipv6_get_hoplimit(dst->dev);
+			hlimit = ip6_dst_hoplimit(dst);
 	}
 
 	if (tclass < 0) {
@@ -1155,7 +1132,11 @@ static int rawv6_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		}
 
 		default:
+#ifdef CONFIG_IPV6_MROUTE
+			return ip6mr_ioctl(sk, cmd, (void __user *)arg);
+#else
 			return -ENOIOCTLCMD;
+#endif
 	}
 }
 
@@ -1163,7 +1144,7 @@ static void rawv6_close(struct sock *sk, long timeout)
 {
 	if (inet_sk(sk)->num == IPPROTO_RAW)
 		ip6_ra_control(sk, -1, NULL);
-
+	ip6mr_sk_done(sk);
 	sk_common_release(sk);
 }
 
@@ -1186,8 +1167,6 @@ static int rawv6_init_sk(struct sock *sk)
 	return(0);
 }
 
-DEFINE_PROTO_INUSE(rawv6)
-
 struct proto rawv6_prot = {
 	.name		   = "RAWv6",
 	.owner		   = THIS_MODULE,
@@ -1203,14 +1182,14 @@ struct proto rawv6_prot = {
 	.recvmsg	   = rawv6_recvmsg,
 	.bind		   = rawv6_bind,
 	.backlog_rcv	   = rawv6_rcv_skb,
-	.hash		   = raw_v6_hash,
-	.unhash		   = raw_v6_unhash,
+	.hash		   = raw_hash_sk,
+	.unhash		   = raw_unhash_sk,
 	.obj_size	   = sizeof(struct raw6_sock),
+	.h.raw_hash	   = &raw_v6_hashinfo,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_rawv6_setsockopt,
 	.compat_getsockopt = compat_rawv6_getsockopt,
 #endif
-	REF_PROTO_INUSE(rawv6)
 };
 
 #ifdef CONFIG_PROC_FS

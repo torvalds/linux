@@ -11,10 +11,6 @@ config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
 
-config SEMAPHORE_SLEEPERS
-	bool
-	default y
-
 config 3_LEVEL_PGTABLES
        bool
        default y

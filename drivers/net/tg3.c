@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.90"
-#define DRV_MODULE_RELDATE	"April 12, 2008"
+#define DRV_MODULE_VERSION	"3.91"
+#define DRV_MODULE_RELDATE	"April 18, 2008"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -4135,10 +4135,20 @@ static int tigon3_dma_hwbug_workaround(struct tg3 *tp, struct sk_buff *skb,
 				       u32 last_plus_one, u32 *start,
 				       u32 base_flags, u32 mss)
 {
-	struct sk_buff *new_skb = skb_copy(skb, GFP_ATOMIC);
+	struct sk_buff *new_skb;
 	dma_addr_t new_addr = 0;
 	u32 entry = *start;
 	int i, ret = 0;
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701)
+		new_skb = skb_copy(skb, GFP_ATOMIC);
+	else {
+		int more_headroom = 4 - ((unsigned long)skb->data & 3);
+
+		new_skb = skb_copy_expand(skb,
+					  skb_headroom(skb) + more_headroom,
+					  skb_tailroom(skb), GFP_ATOMIC);
+	}
 
 	if (!new_skb) {
 		ret = -1;
@@ -4462,7 +4472,9 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 
 	would_hit_hwbug = 0;
 
-	if (tg3_4g_overflow_test(mapping, len))
+	if (tp->tg3_flags3 & TG3_FLG3_5701_DMA_BUG)
+		would_hit_hwbug = 1;
+	else if (tg3_4g_overflow_test(mapping, len))
 		would_hit_hwbug = 1;
 
 	tg3_set_txd(tp, entry, mapping, len, base_flags,
@@ -11333,6 +11345,38 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 			     tp->pdev->bus->number)) {
 
 				tp->tg3_flags2 |= TG3_FLG2_ICH_WORKAROUND;
+				pci_dev_put(bridge);
+				break;
+			}
+		}
+	}
+
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)) {
+		static struct tg3_dev_id {
+			u32	vendor;
+			u32	device;
+		} bridge_chipsets[] = {
+			{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PXH_0 },
+			{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PXH_1 },
+			{ },
+		};
+		struct tg3_dev_id *pci_id = &bridge_chipsets[0];
+		struct pci_dev *bridge = NULL;
+
+		while (pci_id->vendor != 0) {
+			bridge = pci_get_device(pci_id->vendor,
+						pci_id->device,
+						bridge);
+			if (!bridge) {
+				pci_id++;
+				continue;
+			}
+			if (bridge->subordinate &&
+			    (bridge->subordinate->number <=
+			     tp->pdev->bus->number) &&
+			    (bridge->subordinate->subordinate >=
+			     tp->pdev->bus->number)) {
+				tp->tg3_flags3 |= TG3_FLG3_5701_DMA_BUG;
 				pci_dev_put(bridge);
 				break;
 			}

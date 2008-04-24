@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2007 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -29,6 +29,9 @@
 /*
  * 82571EB Gigabit Ethernet Controller
  * 82571EB Gigabit Ethernet Controller (Fiber)
+ * 82571EB Dual Port Gigabit Mezzanine Adapter
+ * 82571EB Quad Port Gigabit Mezzanine Adapter
+ * 82571PT Gigabit PT Quad Port Server ExpressModule
  * 82572EI Gigabit Ethernet Controller (Copper)
  * 82572EI Gigabit Ethernet Controller (Fiber)
  * 82572EI Gigabit Ethernet Controller
@@ -72,7 +75,7 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 
-	if (hw->media_type != e1000_media_type_copper) {
+	if (hw->phy.media_type != e1000_media_type_copper) {
 		phy->type = e1000_phy_none;
 		return 0;
 	}
@@ -150,7 +153,8 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 		if (((eecd >> 15) & 0x3) == 0x3) {
 			nvm->type = e1000_nvm_flash_hw;
 			nvm->word_size = 2048;
-			/* Autonomous Flash update bit must be cleared due
+			/*
+			 * Autonomous Flash update bit must be cleared due
 			 * to Flash update issue.
 			 */
 			eecd &= ~E1000_EECD_AUPDEN;
@@ -159,13 +163,18 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 		}
 		/* Fall Through */
 	default:
-		nvm->type	= e1000_nvm_eeprom_spi;
+		nvm->type = e1000_nvm_eeprom_spi;
 		size = (u16)((eecd & E1000_EECD_SIZE_EX_MASK) >>
 				  E1000_EECD_SIZE_EX_SHIFT);
-		/* Added to a constant, "size" becomes the left-shift value
+		/*
+		 * Added to a constant, "size" becomes the left-shift value
 		 * for setting word_size.
 		 */
 		size += NVM_WORD_SIZE_BASE_SHIFT;
+
+		/* EEPROM access above 16k is unsupported */
+		if (size > 14)
+			size = 14;
 		nvm->word_size	= 1 << size;
 		break;
 	}
@@ -190,16 +199,16 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	case E1000_DEV_ID_82571EB_FIBER:
 	case E1000_DEV_ID_82572EI_FIBER:
 	case E1000_DEV_ID_82571EB_QUAD_FIBER:
-		hw->media_type = e1000_media_type_fiber;
+		hw->phy.media_type = e1000_media_type_fiber;
 		break;
 	case E1000_DEV_ID_82571EB_SERDES:
 	case E1000_DEV_ID_82572EI_SERDES:
 	case E1000_DEV_ID_82571EB_SERDES_DUAL:
 	case E1000_DEV_ID_82571EB_SERDES_QUAD:
-		hw->media_type = e1000_media_type_internal_serdes;
+		hw->phy.media_type = e1000_media_type_internal_serdes;
 		break;
 	default:
-		hw->media_type = e1000_media_type_copper;
+		hw->phy.media_type = e1000_media_type_copper;
 		break;
 	}
 
@@ -208,25 +217,28 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES;
 	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid =
-		(er32(FWSM) & E1000_FWSM_MODE_MASK) ? 1 : 0;
+	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK) ? 1 : 0;
 
 	/* check for link */
-	switch (hw->media_type) {
+	switch (hw->phy.media_type) {
 	case e1000_media_type_copper:
 		func->setup_physical_interface = e1000_setup_copper_link_82571;
 		func->check_for_link = e1000e_check_for_copper_link;
 		func->get_link_up_info = e1000e_get_speed_and_duplex_copper;
 		break;
 	case e1000_media_type_fiber:
-		func->setup_physical_interface = e1000_setup_fiber_serdes_link_82571;
+		func->setup_physical_interface =
+			e1000_setup_fiber_serdes_link_82571;
 		func->check_for_link = e1000e_check_for_fiber_link;
-		func->get_link_up_info = e1000e_get_speed_and_duplex_fiber_serdes;
+		func->get_link_up_info =
+			e1000e_get_speed_and_duplex_fiber_serdes;
 		break;
 	case e1000_media_type_internal_serdes:
-		func->setup_physical_interface = e1000_setup_fiber_serdes_link_82571;
+		func->setup_physical_interface =
+			e1000_setup_fiber_serdes_link_82571;
 		func->check_for_link = e1000e_check_for_serdes_link;
-		func->get_link_up_info = e1000e_get_speed_and_duplex_fiber_serdes;
+		func->get_link_up_info =
+			e1000e_get_speed_and_duplex_fiber_serdes;
 		break;
 	default:
 		return -E1000_ERR_CONFIG;
@@ -236,7 +248,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	return 0;
 }
 
-static s32 e1000_get_invariants_82571(struct e1000_adapter *adapter)
+static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	static int global_quad_port_a; /* global port a indication */
@@ -322,10 +334,12 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
-		/* The 82571 firmware may still be configuring the PHY.
+		/*
+		 * The 82571 firmware may still be configuring the PHY.
 		 * In this case, we cannot access the PHY until the
 		 * configuration is done.  So we explicitly set the
-		 * PHY ID. */
+		 * PHY ID.
+		 */
 		phy->id = IGP01E1000_I_PHY_ID;
 		break;
 	case e1000_82573:
@@ -479,8 +493,10 @@ static s32 e1000_update_nvm_checksum_82571(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/* If our nvm is an EEPROM, then we're done
-	 * otherwise, commit the checksum to the flash NVM. */
+	/*
+	 * If our nvm is an EEPROM, then we're done
+	 * otherwise, commit the checksum to the flash NVM.
+	 */
 	if (hw->nvm.type != e1000_nvm_flash_hw)
 		return ret_val;
 
@@ -496,7 +512,8 @@ static s32 e1000_update_nvm_checksum_82571(struct e1000_hw *hw)
 
 	/* Reset the firmware if using STM opcode. */
 	if ((er32(FLOP) & 0xFF00) == E1000_STM_OPCODE) {
-		/* The enabling of and the actual reset must be done
+		/*
+		 * The enabling of and the actual reset must be done
 		 * in two write cycles.
 		 */
 		ew32(HICR, E1000_HICR_FW_RESET_ENABLE);
@@ -557,8 +574,10 @@ static s32 e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
 	u32 eewr = 0;
 	s32 ret_val = 0;
 
-	/* A check for invalid values:  offset too large, too many words,
-	 * and not enough words. */
+	/*
+	 * A check for invalid values:  offset too large, too many words,
+	 * and not enough words.
+	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
 		hw_dbg(hw, "nvm parameter(s) out of bounds\n");
@@ -645,30 +664,32 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
 	} else {
 		data &= ~IGP02E1000_PM_D0_LPLU;
 		ret_val = e1e_wphy(hw, IGP02E1000_PHY_POWER_MGMT, data);
-		/* LPLU and SmartSpeed are mutually exclusive.  LPLU is used
+		/*
+		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
 		 * during Dx states where the power conservation is most
 		 * important.  During driver activity we should enable
-		 * SmartSpeed, so performance is maintained. */
+		 * SmartSpeed, so performance is maintained.
+		 */
 		if (phy->smart_speed == e1000_smart_speed_on) {
 			ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CONFIG,
-						     &data);
+					   &data);
 			if (ret_val)
 				return ret_val;
 
 			data |= IGP01E1000_PSCFR_SMART_SPEED;
 			ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG,
-						     data);
+					   data);
 			if (ret_val)
 				return ret_val;
 		} else if (phy->smart_speed == e1000_smart_speed_off) {
 			ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CONFIG,
-						     &data);
+					   &data);
 			if (ret_val)
 				return ret_val;
 
 			data &= ~IGP01E1000_PSCFR_SMART_SPEED;
 			ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG,
-						     data);
+					   data);
 			if (ret_val)
 				return ret_val;
 		}
@@ -693,7 +714,8 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 i = 0;
 
-	/* Prevent the PCI-E bus from sticking if there is no TLP connection
+	/*
+	 * Prevent the PCI-E bus from sticking if there is no TLP connection
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = e1000e_disable_pcie_master(hw);
@@ -709,8 +731,10 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 
 	msleep(10);
 
-	/* Must acquire the MDIO ownership before MAC reset.
-	 * Ownership defaults to firmware after a reset. */
+	/*
+	 * Must acquire the MDIO ownership before MAC reset.
+	 * Ownership defaults to firmware after a reset.
+	 */
 	if (hw->mac.type == e1000_82573) {
 		extcnf_ctrl = er32(EXTCNF_CTRL);
 		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
@@ -747,7 +771,8 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 		/* We don't want to continue accessing MAC registers. */
 		return ret_val;
 
-	/* Phy configuration from NVM just starts after EECD_AUTO_RD is set.
+	/*
+	 * Phy configuration from NVM just starts after EECD_AUTO_RD is set.
 	 * Need to wait for Phy configuration completion before accessing
 	 * NVM and Phy.
 	 */
@@ -793,7 +818,8 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	e1000e_clear_vfta(hw);
 
 	/* Setup the receive address. */
-	/* If, however, a locally administered address was assigned to the
+	/*
+	 * If, however, a locally administered address was assigned to the
 	 * 82571, we must reserve a RAR for it to work around an issue where
 	 * resetting one port will reload the MAC on the other port.
 	 */
@@ -810,19 +836,19 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	ret_val = e1000_setup_link_82571(hw);
 
 	/* Set the transmit descriptor write-back policy */
-	reg_data = er32(TXDCTL);
+	reg_data = er32(TXDCTL(0));
 	reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
 		   E1000_TXDCTL_FULL_TX_DESC_WB |
 		   E1000_TXDCTL_COUNT_DESC;
-	ew32(TXDCTL, reg_data);
+	ew32(TXDCTL(0), reg_data);
 
 	/* ...for both queues. */
 	if (mac->type != e1000_82573) {
-		reg_data = er32(TXDCTL1);
+		reg_data = er32(TXDCTL(1));
 		reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
 			   E1000_TXDCTL_FULL_TX_DESC_WB |
 			   E1000_TXDCTL_COUNT_DESC;
-		ew32(TXDCTL1, reg_data);
+		ew32(TXDCTL(1), reg_data);
 	} else {
 		e1000e_enable_tx_pkt_filtering(hw);
 		reg_data = er32(GCR);
@@ -830,7 +856,8 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 		ew32(GCR, reg_data);
 	}
 
-	/* Clear all of the statistics registers (clear on read).  It is
+	/*
+	 * Clear all of the statistics registers (clear on read).  It is
 	 * important that we do this after we have tried to establish link
 	 * because the symbol error count will increment wildly if there
 	 * is no link.
@@ -851,17 +878,17 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	u32 reg;
 
 	/* Transmit Descriptor Control 0 */
-	reg = er32(TXDCTL);
+	reg = er32(TXDCTL(0));
 	reg |= (1 << 22);
-	ew32(TXDCTL, reg);
+	ew32(TXDCTL(0), reg);
 
 	/* Transmit Descriptor Control 1 */
-	reg = er32(TXDCTL1);
+	reg = er32(TXDCTL(1));
 	reg |= (1 << 22);
-	ew32(TXDCTL1, reg);
+	ew32(TXDCTL(1), reg);
 
 	/* Transmit Arbitration Control 0 */
-	reg = er32(TARC0);
+	reg = er32(TARC(0));
 	reg &= ~(0xF << 27); /* 30:27 */
 	switch (hw->mac.type) {
 	case e1000_82571:
@@ -871,10 +898,10 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	default:
 		break;
 	}
-	ew32(TARC0, reg);
+	ew32(TARC(0), reg);
 
 	/* Transmit Arbitration Control 1 */
-	reg = er32(TARC1);
+	reg = er32(TARC(1));
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
@@ -884,7 +911,7 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 			reg &= ~(1 << 28);
 		else
 			reg |= (1 << 28);
-		ew32(TARC1, reg);
+		ew32(TARC(1), reg);
 		break;
 	default:
 		break;
@@ -922,7 +949,8 @@ void e1000e_clear_vfta(struct e1000_hw *hw)
 
 	if (hw->mac.type == e1000_82573) {
 		if (hw->mng_cookie.vlan_id != 0) {
-			/* The VFTA is a 4096b bit-field, each identifying
+			/*
+			 * The VFTA is a 4096b bit-field, each identifying
 			 * a single VLAN ID.  The following operations
 			 * determine which 32b entry (i.e. offset) into the
 			 * array we want to set the VLAN ID (i.e. bit) of
@@ -936,7 +964,8 @@ void e1000e_clear_vfta(struct e1000_hw *hw)
 		}
 	}
 	for (offset = 0; offset < E1000_VLAN_FILTER_TBL_SIZE; offset++) {
-		/* If the offset we want to clear is the same offset of the
+		/*
+		 * If the offset we want to clear is the same offset of the
 		 * manageability VLAN ID, then clear all bits except that of
 		 * the manageability unit.
 		 */
@@ -947,7 +976,7 @@ void e1000e_clear_vfta(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_mc_addr_list_update_82571 - Update Multicast addresses
+ *  e1000_update_mc_addr_list_82571 - Update Multicast addresses
  *  @hw: pointer to the HW structure
  *  @mc_addr_list: array of multicast addresses to program
  *  @mc_addr_count: number of multicast addresses to program
@@ -959,7 +988,7 @@ void e1000e_clear_vfta(struct e1000_hw *hw)
  *  The parameter rar_count will usually be hw->mac.rar_entry_count
  *  unless there are workarounds that change this.
  **/
-static void e1000_mc_addr_list_update_82571(struct e1000_hw *hw,
+static void e1000_update_mc_addr_list_82571(struct e1000_hw *hw,
 					    u8 *mc_addr_list,
 					    u32 mc_addr_count,
 					    u32 rar_used_count,
@@ -968,8 +997,8 @@ static void e1000_mc_addr_list_update_82571(struct e1000_hw *hw,
 	if (e1000e_get_laa_state_82571(hw))
 		rar_count--;
 
-	e1000e_mc_addr_list_update_generic(hw, mc_addr_list, mc_addr_count,
-					  rar_used_count, rar_count);
+	e1000e_update_mc_addr_list_generic(hw, mc_addr_list, mc_addr_count,
+					   rar_used_count, rar_count);
 }
 
 /**
@@ -984,12 +1013,13 @@ static void e1000_mc_addr_list_update_82571(struct e1000_hw *hw,
  **/
 static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 {
-	/* 82573 does not have a word in the NVM to determine
+	/*
+	 * 82573 does not have a word in the NVM to determine
 	 * the default flow control setting, so we explicitly
 	 * set it to full.
 	 */
 	if (hw->mac.type == e1000_82573)
-		hw->mac.fc = e1000_fc_full;
+		hw->fc.type = e1000_fc_full;
 
 	return e1000e_setup_link(hw);
 }
@@ -1050,14 +1080,14 @@ static s32 e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw)
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
-		/* If SerDes loopback mode is entered, there is no form
+		/*
+		 * If SerDes loopback mode is entered, there is no form
 		 * of reset to take the adapter out of that mode.  So we
 		 * have to explicitly take the adapter out of loopback
 		 * mode.  This prevents drivers from twiddling their thumbs
 		 * if another tool failed to take it out of loopback mode.
 		 */
-		ew32(SCTL,
-				E1000_SCTL_DISABLE_SERDES_LOOPBACK);
+		ew32(SCTL, E1000_SCTL_DISABLE_SERDES_LOOPBACK);
 		break;
 	default:
 		break;
@@ -1124,7 +1154,8 @@ void e1000e_set_laa_state_82571(struct e1000_hw *hw, bool state)
 
 	/* If workaround is activated... */
 	if (state)
-		/* Hold a copy of the LAA in RAR[14] This is done so that
+		/*
+		 * Hold a copy of the LAA in RAR[14] This is done so that
 		 * between the time RAR[0] gets clobbered and the time it
 		 * gets fixed, the actual LAA is in one of the RARs and no
 		 * incoming packets directed to this port are dropped.
@@ -1152,7 +1183,8 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
 	if (nvm->type != e1000_nvm_flash_hw)
 		return 0;
 
-	/* Check bit 4 of word 10h.  If it is 0, firmware is done updating
+	/*
+	 * Check bit 4 of word 10h.  If it is 0, firmware is done updating
 	 * 10h-12h.  Checksum may need to be fixed.
 	 */
 	ret_val = e1000_read_nvm(hw, 0x10, 1, &data);
@@ -1160,7 +1192,8 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
 		return ret_val;
 
 	if (!(data & 0x10)) {
-		/* Read 0x23 and check bit 15.  This bit is a 1
+		/*
+		 * Read 0x23 and check bit 15.  This bit is a 1
 		 * when the checksum has already been fixed.  If
 		 * the checksum is still wrong and this bit is a
 		 * 1, we need to return bad checksum.  Otherwise,
@@ -1240,7 +1273,7 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	/* .get_link_up_info: media type dependent */
 	.led_on			= e1000e_led_on_generic,
 	.led_off		= e1000e_led_off_generic,
-	.mc_addr_list_update	= e1000_mc_addr_list_update_82571,
+	.update_mc_addr_list	= e1000_update_mc_addr_list_82571,
 	.reset_hw		= e1000_reset_hw_82571,
 	.init_hw		= e1000_init_hw_82571,
 	.setup_link		= e1000_setup_link_82571,
@@ -1304,7 +1337,7 @@ struct e1000_info e1000_82571_info = {
 				  | FLAG_TARC_SPEED_MODE_BIT /* errata */
 				  | FLAG_APME_CHECK_PORT_B,
 	.pba			= 38,
-	.get_invariants		= e1000_get_invariants_82571,
+	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_igp,
 	.nvm_ops		= &e82571_nvm_ops,
@@ -1322,7 +1355,7 @@ struct e1000_info e1000_82572_info = {
 				  | FLAG_HAS_STATS_ICR_ICT
 				  | FLAG_TARC_SPEED_MODE_BIT, /* errata */
 	.pba			= 38,
-	.get_invariants		= e1000_get_invariants_82571,
+	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_igp,
 	.nvm_ops		= &e82571_nvm_ops,
@@ -1342,7 +1375,7 @@ struct e1000_info e1000_82573_info = {
 				  | FLAG_HAS_ERT
 				  | FLAG_HAS_SWSM_ON_LOAD,
 	.pba			= 20,
-	.get_invariants		= e1000_get_invariants_82571,
+	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_m88,
 	.nvm_ops		= &e82571_nvm_ops,

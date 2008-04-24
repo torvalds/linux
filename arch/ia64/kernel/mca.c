@@ -69,6 +69,7 @@
  * 2007-04-27 Russ Anderson <rja@sgi.com>
  *	      Support multiple cpus going through OS_MCA in the same event.
  */
+#include <linux/jiffies.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -97,6 +98,7 @@
 
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
+#include <asm/tlb.h>
 
 #include "mca_drv.h"
 #include "entry.h"
@@ -107,11 +109,26 @@
 # define IA64_MCA_DEBUG(fmt...)
 #endif
 
+#define NOTIFY_INIT(event, regs, arg, spin)				\
+do {									\
+	if ((notify_die((event), "INIT", (regs), (arg), 0, 0)		\
+			== NOTIFY_STOP) && ((spin) == 1))		\
+		ia64_mca_spin(__func__);				\
+} while (0)
+
+#define NOTIFY_MCA(event, regs, arg, spin)				\
+do {									\
+	if ((notify_die((event), "MCA", (regs), (arg), 0, 0)		\
+			== NOTIFY_STOP) && ((spin) == 1))		\
+		ia64_mca_spin(__func__);				\
+} while (0)
+
 /* Used by mca_asm.S */
 DEFINE_PER_CPU(u64, ia64_mca_data); /* == __per_cpu_mca[smp_processor_id()] */
 DEFINE_PER_CPU(u64, ia64_mca_per_cpu_pte); /* PTE to map per-CPU area */
 DEFINE_PER_CPU(u64, ia64_mca_pal_pte);	    /* PTE to map PAL code */
 DEFINE_PER_CPU(u64, ia64_mca_pal_base);    /* vaddr PAL code granule */
+DEFINE_PER_CPU(u64, ia64_mca_tr_reload);   /* Flag for TR reload */
 
 unsigned long __per_cpu_mca[NR_CPUS];
 
@@ -293,7 +310,8 @@ static void ia64_mlogbuf_dump_from_init(void)
 	if (mlogbuf_finished)
 		return;
 
-	if (mlogbuf_timestamp && (mlogbuf_timestamp + 30*HZ > jiffies)) {
+	if (mlogbuf_timestamp &&
+			time_before(jiffies, mlogbuf_timestamp + 30 * HZ)) {
 		printk(KERN_ERR "INIT: mlogbuf_dump is interrupted by INIT "
 			" and the system seems to be messed up.\n");
 		ia64_mlogbuf_finish(0);
@@ -762,9 +780,8 @@ ia64_mca_rendez_int_handler(int rendez_irq, void *arg)
 
 	/* Mask all interrupts */
 	local_irq_save(flags);
-	if (notify_die(DIE_MCA_RENDZVOUS_ENTER, "MCA", get_irq_regs(),
-		       (long)&nd, 0, 0) == NOTIFY_STOP)
-		ia64_mca_spin(__func__);
+
+	NOTIFY_MCA(DIE_MCA_RENDZVOUS_ENTER, get_irq_regs(), (long)&nd, 1);
 
 	ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_DONE;
 	/* Register with the SAL monarch that the slave has
@@ -772,17 +789,13 @@ ia64_mca_rendez_int_handler(int rendez_irq, void *arg)
 	 */
 	ia64_sal_mc_rendez();
 
-	if (notify_die(DIE_MCA_RENDZVOUS_PROCESS, "MCA", get_irq_regs(),
-		       (long)&nd, 0, 0) == NOTIFY_STOP)
-		ia64_mca_spin(__func__);
+	NOTIFY_MCA(DIE_MCA_RENDZVOUS_PROCESS, get_irq_regs(), (long)&nd, 1);
 
 	/* Wait for the monarch cpu to exit. */
 	while (monarch_cpu != -1)
 	       cpu_relax();	/* spin until monarch leaves */
 
-	if (notify_die(DIE_MCA_RENDZVOUS_LEAVE, "MCA", get_irq_regs(),
-		       (long)&nd, 0, 0) == NOTIFY_STOP)
-		ia64_mca_spin(__func__);
+	NOTIFY_MCA(DIE_MCA_RENDZVOUS_LEAVE, get_irq_regs(), (long)&nd, 1);
 
 	ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_NOTDONE;
 	/* Enable all interrupts */
@@ -1182,6 +1195,49 @@ all_in:
 	return;
 }
 
+/*  mca_insert_tr
+ *
+ *  Switch rid when TR reload and needed!
+ *  iord: 1: itr, 2: itr;
+ *
+*/
+static void mca_insert_tr(u64 iord)
+{
+
+	int i;
+	u64 old_rr;
+	struct ia64_tr_entry *p;
+	unsigned long psr;
+	int cpu = smp_processor_id();
+
+	psr = ia64_clear_ic();
+	for (i = IA64_TR_ALLOC_BASE; i < IA64_TR_ALLOC_MAX; i++) {
+		p = &__per_cpu_idtrs[cpu][iord-1][i];
+		if (p->pte & 0x1) {
+			old_rr = ia64_get_rr(p->ifa);
+			if (old_rr != p->rr) {
+				ia64_set_rr(p->ifa, p->rr);
+				ia64_srlz_d();
+			}
+			ia64_ptr(iord, p->ifa, p->itir >> 2);
+			ia64_srlz_i();
+			if (iord & 0x1) {
+				ia64_itr(0x1, i, p->ifa, p->pte, p->itir >> 2);
+				ia64_srlz_i();
+			}
+			if (iord & 0x2) {
+				ia64_itr(0x2, i, p->ifa, p->pte, p->itir >> 2);
+				ia64_srlz_i();
+			}
+			if (old_rr != p->rr) {
+				ia64_set_rr(p->ifa, old_rr);
+				ia64_srlz_d();
+			}
+		}
+	}
+	ia64_set_psr(psr);
+}
+
 /*
  * ia64_mca_handler
  *
@@ -1209,7 +1265,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 	int recover, cpu = smp_processor_id();
 	struct task_struct *previous_current;
 	struct ia64_mca_notify_die nd =
-		{ .sos = sos, .monarch_cpu = &monarch_cpu };
+		{ .sos = sos, .monarch_cpu = &monarch_cpu, .data = &recover };
 	static atomic_t mca_count;
 	static cpumask_t mca_cpu;
 
@@ -1225,9 +1281,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 
 	previous_current = ia64_mca_modify_original_stack(regs, sw, sos, "MCA");
 
-	if (notify_die(DIE_MCA_MONARCH_ENTER, "MCA", regs, (long)&nd, 0, 0)
-			== NOTIFY_STOP)
-		ia64_mca_spin(__func__);
+	NOTIFY_MCA(DIE_MCA_MONARCH_ENTER, regs, (long)&nd, 1);
 
 	ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_CONCURRENT_MCA;
 	if (sos->monarch) {
@@ -1241,13 +1295,12 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		 * does not work.
 		 */
 		ia64_mca_wakeup_all();
-		if (notify_die(DIE_MCA_MONARCH_PROCESS, "MCA", regs, (long)&nd, 0, 0)
-				== NOTIFY_STOP)
-			ia64_mca_spin(__func__);
 	} else {
 		while (cpu_isset(cpu, mca_cpu))
 			cpu_relax();	/* spin until monarch wakes us */
-        }
+	}
+
+	NOTIFY_MCA(DIE_MCA_MONARCH_PROCESS, regs, (long)&nd, 1);
 
 	/* Get the MCA error record and log it */
 	ia64_mca_log_sal_error_record(SAL_INFO_TYPE_MCA);
@@ -1266,15 +1319,14 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 	} else {
 		/* Dump buffered message to console */
 		ia64_mlogbuf_finish(1);
-#ifdef CONFIG_KEXEC
-		atomic_set(&kdump_in_progress, 1);
-		monarch_cpu = -1;
-#endif
 	}
-	if (notify_die(DIE_MCA_MONARCH_LEAVE, "MCA", regs, (long)&nd, 0, recover)
-			== NOTIFY_STOP)
-		ia64_mca_spin(__func__);
 
+	if (__get_cpu_var(ia64_mca_tr_reload)) {
+		mca_insert_tr(0x1); /*Reload dynamic itrs*/
+		mca_insert_tr(0x2); /*Reload dynamic itrs*/
+	}
+
+	NOTIFY_MCA(DIE_MCA_MONARCH_LEAVE, regs, (long)&nd, 1);
 
 	if (atomic_dec_return(&mca_count) > 0) {
 		int i;
@@ -1595,7 +1647,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	struct ia64_mca_notify_die nd =
 		{ .sos = sos, .monarch_cpu = &monarch_cpu };
 
-	(void) notify_die(DIE_INIT_ENTER, "INIT", regs, (long)&nd, 0, 0);
+	NOTIFY_INIT(DIE_INIT_ENTER, regs, (long)&nd, 0);
 
 	mprintk(KERN_INFO "Entered OS INIT handler. PSP=%lx cpu=%d monarch=%ld\n",
 		sos->proc_state_param, cpu, sos->monarch);
@@ -1632,17 +1684,15 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 		ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_INIT;
 		while (monarch_cpu == -1)
 		       cpu_relax();	/* spin until monarch enters */
-		if (notify_die(DIE_INIT_SLAVE_ENTER, "INIT", regs, (long)&nd, 0, 0)
-				== NOTIFY_STOP)
-			ia64_mca_spin(__func__);
-		if (notify_die(DIE_INIT_SLAVE_PROCESS, "INIT", regs, (long)&nd, 0, 0)
-				== NOTIFY_STOP)
-			ia64_mca_spin(__func__);
+
+		NOTIFY_INIT(DIE_INIT_SLAVE_ENTER, regs, (long)&nd, 1);
+		NOTIFY_INIT(DIE_INIT_SLAVE_PROCESS, regs, (long)&nd, 1);
+
 		while (monarch_cpu != -1)
 		       cpu_relax();	/* spin until monarch leaves */
-		if (notify_die(DIE_INIT_SLAVE_LEAVE, "INIT", regs, (long)&nd, 0, 0)
-				== NOTIFY_STOP)
-			ia64_mca_spin(__func__);
+
+		NOTIFY_INIT(DIE_INIT_SLAVE_LEAVE, regs, (long)&nd, 1);
+
 		mprintk("Slave on cpu %d returning to normal service.\n", cpu);
 		set_curr_task(cpu, previous_current);
 		ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_NOTDONE;
@@ -1651,9 +1701,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	}
 
 	monarch_cpu = cpu;
-	if (notify_die(DIE_INIT_MONARCH_ENTER, "INIT", regs, (long)&nd, 0, 0)
-			== NOTIFY_STOP)
-		ia64_mca_spin(__func__);
+	NOTIFY_INIT(DIE_INIT_MONARCH_ENTER, regs, (long)&nd, 1);
 
 	/*
 	 * Wait for a bit.  On some machines (e.g., HP's zx2000 and zx6000, INIT can be
@@ -1668,12 +1716,9 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	 * to default_monarch_init_process() above and just print all the
 	 * tasks.
 	 */
-	if (notify_die(DIE_INIT_MONARCH_PROCESS, "INIT", regs, (long)&nd, 0, 0)
-			== NOTIFY_STOP)
-		ia64_mca_spin(__func__);
-	if (notify_die(DIE_INIT_MONARCH_LEAVE, "INIT", regs, (long)&nd, 0, 0)
-			== NOTIFY_STOP)
-		ia64_mca_spin(__func__);
+	NOTIFY_INIT(DIE_INIT_MONARCH_PROCESS, regs, (long)&nd, 1);
+	NOTIFY_INIT(DIE_INIT_MONARCH_LEAVE, regs, (long)&nd, 1);
+
 	mprintk("\nINIT dump complete.  Monarch on cpu %d returning to normal service.\n", cpu);
 	atomic_dec(&monarchs);
 	set_curr_task(cpu, previous_current);
@@ -1905,7 +1950,7 @@ ia64_mca_init(void)
 			printk(KERN_INFO "Increasing MCA rendezvous timeout from "
 				"%ld to %ld milliseconds\n", timeout, isrv.v0);
 			timeout = isrv.v0;
-			(void) notify_die(DIE_MCA_NEW_TIMEOUT, "MCA", NULL, timeout, 0, 0);
+			NOTIFY_MCA(DIE_MCA_NEW_TIMEOUT, NULL, timeout, 0);
 			continue;
 		}
 		printk(KERN_ERR "Failed to register rendezvous interrupt "

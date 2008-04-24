@@ -1,6 +1,4 @@
 /*
- * arch/i386/kernel/acpi/processor.c
- *
  * Copyright (C) 2005 Intel Corporation
  * 	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
  * 	- Added _PDC for platforms with Intel CPUs

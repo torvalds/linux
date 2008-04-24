@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2007 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -29,64 +29,78 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
-
-/*
- * The MAC and BSSID addressess are simple array of bytes,
- * these arrays are little endian, so when sending the addressess
- * to the drivers, copy the it into a endian-signed variable.
- *
- * Note that all devices (except rt2500usb) have 32 bits
- * register word sizes. This means that whatever variable we
- * pass _must_ be a multiple of 32 bits. Otherwise the device
- * might not accept what we are sending to it.
- * This will also make it easier for the driver to write
- * the data to the device.
- *
- * Also note that when NULL is passed as address the
- * we will send 00:00:00:00:00 to the device to clear the address.
- * This will prevent the device being confused when it wants
- * to ACK frames or consideres itself associated.
- */
-void rt2x00lib_config_mac_addr(struct rt2x00_dev *rt2x00dev, u8 *mac)
+void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
+			   struct rt2x00_intf *intf,
+			   enum ieee80211_if_types type,
+			   u8 *mac, u8 *bssid)
 {
-	__le32 reg[2];
+	struct rt2x00intf_conf conf;
+	unsigned int flags = 0;
 
-	memset(&reg, 0, sizeof(reg));
-	if (mac)
-		memcpy(&reg, mac, ETH_ALEN);
-
-	rt2x00dev->ops->lib->config_mac_addr(rt2x00dev, &reg[0]);
-}
-
-void rt2x00lib_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid)
-{
-	__le32 reg[2];
-
-	memset(&reg, 0, sizeof(reg));
-	if (bssid)
-		memcpy(&reg, bssid, ETH_ALEN);
-
-	rt2x00dev->ops->lib->config_bssid(rt2x00dev, &reg[0]);
-}
-
-void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, const int type)
-{
-	int tsf_sync;
+	conf.type = type;
 
 	switch (type) {
 	case IEEE80211_IF_TYPE_IBSS:
 	case IEEE80211_IF_TYPE_AP:
-		tsf_sync = TSF_SYNC_BEACON;
+		conf.sync = TSF_SYNC_BEACON;
 		break;
 	case IEEE80211_IF_TYPE_STA:
-		tsf_sync = TSF_SYNC_INFRA;
+		conf.sync = TSF_SYNC_INFRA;
 		break;
 	default:
-		tsf_sync = TSF_SYNC_NONE;
+		conf.sync = TSF_SYNC_NONE;
 		break;
 	}
 
-	rt2x00dev->ops->lib->config_type(rt2x00dev, type, tsf_sync);
+	/*
+	 * Note that when NULL is passed as address we will send
+	 * 00:00:00:00:00 to the device to clear the address.
+	 * This will prevent the device being confused when it wants
+	 * to ACK frames or consideres itself associated.
+	 */
+	memset(&conf.mac, 0, sizeof(conf.mac));
+	if (mac)
+		memcpy(&conf.mac, mac, ETH_ALEN);
+
+	memset(&conf.bssid, 0, sizeof(conf.bssid));
+	if (bssid)
+		memcpy(&conf.bssid, bssid, ETH_ALEN);
+
+	flags |= CONFIG_UPDATE_TYPE;
+	if (mac || (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count))
+		flags |= CONFIG_UPDATE_MAC;
+	if (bssid || (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count))
+		flags |= CONFIG_UPDATE_BSSID;
+
+	rt2x00dev->ops->lib->config_intf(rt2x00dev, intf, &conf, flags);
+}
+
+void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
+			  struct rt2x00_intf *intf,
+			  struct ieee80211_bss_conf *bss_conf)
+{
+	struct rt2x00lib_erp erp;
+
+	memset(&erp, 0, sizeof(erp));
+
+	erp.short_preamble = bss_conf->use_short_preamble;
+	erp.ack_timeout = PLCP + get_duration(ACK_SIZE, 10);
+	erp.ack_consume_time = SIFS + PLCP + get_duration(ACK_SIZE, 10);
+
+	if (rt2x00dev->hw->conf.flags & IEEE80211_CONF_SHORT_SLOT_TIME)
+		erp.ack_timeout += SHORT_DIFS;
+	else
+		erp.ack_timeout += DIFS;
+
+	if (bss_conf->use_short_preamble) {
+		erp.ack_timeout += SHORT_PREAMBLE;
+		erp.ack_consume_time += SHORT_PREAMBLE;
+	} else {
+		erp.ack_timeout += PREAMBLE;
+		erp.ack_consume_time += PREAMBLE;
+	}
+
+	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp);
 }
 
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
@@ -113,7 +127,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * The latter is required since we need to recalibrate the
 	 * noise-sensitivity ratio for the new setup.
 	 */
-	rt2x00dev->ops->lib->config(rt2x00dev, CONFIG_UPDATE_ANTENNA, &libconf);
+	rt2x00dev->ops->lib->config(rt2x00dev, &libconf, CONFIG_UPDATE_ANTENNA);
 	rt2x00lib_reset_link_tuner(rt2x00dev);
 
 	rt2x00dev->link.ant.active.rx = libconf.ant.rx;
@@ -123,12 +137,26 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);
 }
 
+static u32 rt2x00lib_get_basic_rates(struct ieee80211_supported_band *band)
+{
+	const struct rt2x00_rate *rate;
+	unsigned int i;
+	u32 mask = 0;
+
+	for (i = 0; i < band->n_bitrates; i++) {
+		rate = rt2x00_get_rate(band->bitrates[i].hw_value);
+		if (rate->flags & DEV_RATE_BASIC)
+			mask |= rate->ratemask;
+	}
+
+	return mask;
+}
+
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf, const int force_config)
 {
 	struct rt2x00lib_conf libconf;
-	struct ieee80211_hw_mode *mode;
-	struct ieee80211_rate *rate;
+	struct ieee80211_supported_band *band;
 	struct antenna_setup *default_ant = &rt2x00dev->default_ant;
 	struct antenna_setup *active_ant = &rt2x00dev->link.ant.active;
 	int flags = 0;
@@ -147,9 +175,9 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	 * Check which configuration options have been
 	 * updated and should be send to the device.
 	 */
-	if (rt2x00dev->rx_status.phymode != conf->phymode)
+	if (rt2x00dev->rx_status.band != conf->channel->band)
 		flags |= CONFIG_UPDATE_PHYMODE;
-	if (rt2x00dev->rx_status.channel != conf->channel)
+	if (rt2x00dev->rx_status.freq != conf->channel->center_freq)
 		flags |= CONFIG_UPDATE_CHANNEL;
 	if (rt2x00dev->tx_power != conf->power_level)
 		flags |= CONFIG_UPDATE_TXPOWER;
@@ -204,33 +232,15 @@ config:
 	memset(&libconf, 0, sizeof(libconf));
 
 	if (flags & CONFIG_UPDATE_PHYMODE) {
-		switch (conf->phymode) {
-		case MODE_IEEE80211A:
-			libconf.phymode = HWMODE_A;
-			break;
-		case MODE_IEEE80211B:
-			libconf.phymode = HWMODE_B;
-			break;
-		case MODE_IEEE80211G:
-			libconf.phymode = HWMODE_G;
-			break;
-		default:
-			ERROR(rt2x00dev,
-			      "Attempt to configure unsupported mode (%d)"
-			      "Defaulting to 802.11b", conf->phymode);
-			libconf.phymode = HWMODE_B;
-		}
+		band = &rt2x00dev->bands[conf->channel->band];
 
-		mode = &rt2x00dev->hwmodes[libconf.phymode];
-		rate = &mode->rates[mode->num_rates - 1];
-
-		libconf.basic_rates =
-		    DEVICE_GET_RATE_FIELD(rate->val, RATEMASK) & DEV_BASIC_RATEMASK;
+		libconf.band = conf->channel->band;
+		libconf.basic_rates = rt2x00lib_get_basic_rates(band);
 	}
 
 	if (flags & CONFIG_UPDATE_CHANNEL) {
 		memcpy(&libconf.rf,
-		       &rt2x00dev->spec.channels[conf->channel_val],
+		       &rt2x00dev->spec.channels[conf->channel->hw_value],
 		       sizeof(libconf.rf));
 	}
 
@@ -266,7 +276,7 @@ config:
 	/*
 	 * Start configuration.
 	 */
-	rt2x00dev->ops->lib->config(rt2x00dev, flags, &libconf);
+	rt2x00dev->ops->lib->config(rt2x00dev, &libconf, flags);
 
 	/*
 	 * Some configuration changes affect the link quality
@@ -276,12 +286,11 @@ config:
 		rt2x00lib_reset_link_tuner(rt2x00dev);
 
 	if (flags & CONFIG_UPDATE_PHYMODE) {
-		rt2x00dev->curr_hwmode = libconf.phymode;
-		rt2x00dev->rx_status.phymode = conf->phymode;
+		rt2x00dev->curr_band = conf->channel->band;
+		rt2x00dev->rx_status.band = conf->channel->band;
 	}
 
-	rt2x00dev->rx_status.freq = conf->freq;
-	rt2x00dev->rx_status.channel = conf->channel;
+	rt2x00dev->rx_status.freq = conf->channel->center_freq;
 	rt2x00dev->tx_power = conf->power_level;
 
 	if (flags & CONFIG_UPDATE_ANTENNA) {

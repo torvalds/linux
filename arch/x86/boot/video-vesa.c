@@ -9,8 +9,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * arch/i386/boot/video-vesa.c
- *
  * VESA text modes
  */
 
@@ -24,7 +22,11 @@ static struct vesa_mode_info vminfo;
 
 __videocard video_vesa;
 
+#ifndef _WAKEUP
 static void vesa_store_mode_params_graphics(void);
+#else /* _WAKEUP */
+static inline void vesa_store_mode_params_graphics(void) {}
+#endif /* _WAKEUP */
 
 static int vesa_probe(void)
 {
@@ -165,6 +167,8 @@ static int vesa_set_mode(struct mode_info *mode)
 }
 
 
+#ifndef _WAKEUP
+
 /* Switch DAC to 8-bit mode */
 static void vesa_dac_set_8bits(void)
 {
@@ -287,6 +291,8 @@ void vesa_store_edid(void)
 	    : "esi");
 #endif /* CONFIG_FIRMWARE_EDID */
 }
+
+#endif /* not _WAKEUP */
 
 __videocard video_vesa =
 {

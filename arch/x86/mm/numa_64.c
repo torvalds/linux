@@ -31,13 +31,15 @@ bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 struct memnode memnode;
 
+#ifdef CONFIG_SMP
 int x86_cpu_to_node_map_init[NR_CPUS] = {
 	[0 ... NR_CPUS-1] = NUMA_NO_NODE
 };
 void *x86_cpu_to_node_map_early_ptr;
+EXPORT_SYMBOL(x86_cpu_to_node_map_early_ptr);
+#endif
 DEFINE_PER_CPU(int, x86_cpu_to_node_map) = NUMA_NO_NODE;
 EXPORT_PER_CPU_SYMBOL(x86_cpu_to_node_map);
-EXPORT_SYMBOL(x86_cpu_to_node_map_early_ptr);
 
 s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
@@ -58,7 +60,7 @@ unsigned long __initdata nodemap_size;
  * -1 if node overlap or lost ram (shift too big)
  */
 static int __init populate_memnodemap(const struct bootnode *nodes,
-				      int numnodes, int shift)
+				      int numnodes, int shift, int *nodeids)
 {
 	unsigned long addr, end;
 	int i, res = -1;
@@ -74,7 +76,12 @@ static int __init populate_memnodemap(const struct bootnode *nodes,
 		do {
 			if (memnodemap[addr >> shift] != NUMA_NO_NODE)
 				return -1;
-			memnodemap[addr >> shift] = i;
+
+			if (!nodeids)
+				memnodemap[addr >> shift] = i;
+			else
+				memnodemap[addr >> shift] = nodeids[i];
+
 			addr += (1UL << shift);
 		} while (addr < end);
 		res = 1;
@@ -137,7 +144,8 @@ static int __init extract_lsb_from_nodes(const struct bootnode *nodes,
 	return i;
 }
 
-int __init compute_hash_shift(struct bootnode *nodes, int numnodes)
+int __init compute_hash_shift(struct bootnode *nodes, int numnodes,
+			      int *nodeids)
 {
 	int shift;
 
@@ -147,7 +155,7 @@ int __init compute_hash_shift(struct bootnode *nodes, int numnodes)
 	printk(KERN_DEBUG "NUMA: Using %d for the hash shift.\n",
 		shift);
 
-	if (populate_memnodemap(nodes, numnodes, shift) != 1) {
+	if (populate_memnodemap(nodes, numnodes, shift, nodeids) != 1) {
 		printk(KERN_INFO "Your memory is not aligned you need to "
 		       "rebuild your kernel with a bigger NODEMAPSIZE "
 		       "shift=%d\n", shift);
@@ -378,9 +386,10 @@ static int __init split_nodes_by_size(struct bootnode *nodes, u64 *addr,
  * Sets up the system RAM area from start_pfn to end_pfn according to the
  * numa=fake command-line option.
  */
+static struct bootnode nodes[MAX_NUMNODES] __initdata;
+
 static int __init numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
 {
-	struct bootnode nodes[MAX_NUMNODES];
 	u64 size, addr = start_pfn << PAGE_SHIFT;
 	u64 max_addr = end_pfn << PAGE_SHIFT;
 	int num_nodes = 0, num = 0, coeff_flag, coeff = -1, i;
@@ -460,7 +469,7 @@ done:
 		}
 	}
 out:
-	memnode_shift = compute_hash_shift(nodes, num_nodes);
+	memnode_shift = compute_hash_shift(nodes, num_nodes, NULL);
 	if (memnode_shift < 0) {
 		memnode_shift = 0;
 		printk(KERN_ERR "No NUMA hash function found.  NUMA emulation "
@@ -547,8 +556,6 @@ __cpuinit void numa_add_cpu(int cpu)
 void __cpuinit numa_set_node(int cpu, int node)
 {
 	int *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
-
-	cpu_pda(cpu)->nodenumber = node;
 
 	if(cpu_to_node_map)
 		cpu_to_node_map[cpu] = node;

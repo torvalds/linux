@@ -86,13 +86,6 @@ u32 tipc_createport_raw(void *usr_handle,
 			void (*wakeup)(struct tipc_port *),
 			const u32 importance);
 
-/*
- * tipc_set_msg_option(): port must be locked.
- */
-int tipc_set_msg_option(struct tipc_port *tp_ptr,
-			const char *opt,
-			const u32 len);
-
 int tipc_reject_msg(struct sk_buff *buf, u32 err);
 
 int tipc_send_buf_fast(struct sk_buff *buf, u32 destnode);
@@ -102,6 +95,12 @@ void tipc_acknowledge(u32 port_ref,u32 ack);
 struct tipc_port *tipc_get_port(const u32 ref);
 
 void *tipc_get_handle(const u32 ref);
+
+/*
+ * The following routines require that the port be locked on entry
+ */
+
+int tipc_disconnect_port(struct tipc_port *tp_ptr);
 
 
 #endif

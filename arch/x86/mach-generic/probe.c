@@ -1,8 +1,9 @@
-/* Copyright 2003 Andi Kleen, SuSE Labs. 
- * Subject to the GNU Public License, v.2 
- * 
+/*
+ * Copyright 2003 Andi Kleen, SuSE Labs.
+ * Subject to the GNU Public License, v.2
+ *
  * Generic x86 APIC driver probe layer.
- */  
+ */
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/string.h>
@@ -24,7 +25,7 @@ struct genapic *genapic = &apic_default;
 
 static struct genapic *apic_probe[] __initdata = {
 	&apic_summit,
-	&apic_bigsmp, 
+	&apic_bigsmp,
 	&apic_es7000,
 	&apic_default,	/* must be last */
 	NULL,
@@ -69,7 +70,7 @@ void __init generic_bigsmp_probe(void)
 }
 
 void __init generic_apic_probe(void)
-{ 
+{
 	if (!cmdline_apic) {
 		int i;
 		for (i = 0; apic_probe[i]; i++) {
@@ -83,40 +84,40 @@ void __init generic_apic_probe(void)
 			panic("Didn't find an APIC driver");
 	}
 	printk(KERN_INFO "Using APIC driver %s\n", genapic->name);
-} 
+}
 
 /* These functions can switch the APIC even after the initial ->probe() */
 
 int __init mps_oem_check(struct mp_config_table *mpc, char *oem, char *productid)
-{ 
+{
 	int i;
-	for (i = 0; apic_probe[i]; ++i) { 
-		if (apic_probe[i]->mps_oem_check(mpc,oem,productid)) { 
+	for (i = 0; apic_probe[i]; ++i) {
+		if (apic_probe[i]->mps_oem_check(mpc, oem, productid)) {
 			if (!cmdline_apic) {
 				genapic = apic_probe[i];
 				printk(KERN_INFO "Switched to APIC driver `%s'.\n",
 				       genapic->name);
 			}
 			return 1;
-		} 
-	} 
+		}
+	}
 	return 0;
-} 
+}
 
 int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	int i;
-	for (i = 0; apic_probe[i]; ++i) { 
-		if (apic_probe[i]->acpi_madt_oem_check(oem_id, oem_table_id)) { 
+	for (i = 0; apic_probe[i]; ++i) {
+		if (apic_probe[i]->acpi_madt_oem_check(oem_id, oem_table_id)) {
 			if (!cmdline_apic) {
 				genapic = apic_probe[i];
 				printk(KERN_INFO "Switched to APIC driver `%s'.\n",
 				       genapic->name);
 			}
 			return 1;
-		} 
-	} 
-	return 0;	
+		}
+	}
+	return 0;
 }
 
 int hard_smp_processor_id(void)

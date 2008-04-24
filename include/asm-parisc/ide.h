@@ -17,8 +17,6 @@
 #define MAX_HWIFS	2
 #endif
 
-#define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
-
 #define ide_request_irq(irq,hand,flg,dev,id)	request_irq((irq),(hand),(flg),(dev),(id))
 #define ide_free_irq(irq,dev_id)		free_irq((irq), (dev_id))
 #define ide_request_region(from,extent,name)	request_region((from), (extent), (name))

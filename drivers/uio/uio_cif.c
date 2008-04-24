@@ -15,10 +15,6 @@
 
 #include <asm/io.h>
 
-#ifndef PCI_DEVICE_ID_PLX_9030
-#define PCI_DEVICE_ID_PLX_9030	0x9030
-#endif
-
 #define PLX9030_INTCSR		0x4C
 #define INTSCR_INT1_ENABLE	0x01
 #define INTSCR_INT1_STATUS	0x04
@@ -116,7 +112,7 @@ static void hilscher_pci_remove(struct pci_dev *dev)
 	kfree (info);
 }
 
-static struct pci_device_id hilscher_pci_ids[] = {
+static struct pci_device_id hilscher_pci_ids[] __devinitdata = {
 	{
 		.vendor =	PCI_VENDOR_ID_PLX,
 		.device =	PCI_DEVICE_ID_PLX_9030,

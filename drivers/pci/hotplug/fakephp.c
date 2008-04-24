@@ -293,7 +293,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 	/* mis-use enable_slot for rescanning of the pci bus */
 	cancel_work_sync(&pci_rescan_work);
 	queue_work(dummyphp_wq, &pci_rescan_work);
-	return -ENODEV;
+	return 0;
 }
 
 /* find the hotplug_slot for the pci_dev */
@@ -320,7 +320,7 @@ static int disable_slot(struct hotplug_slot *slot)
 		return -ENODEV;
 	dslot = slot->private;
 
-	dbg("%s - physical_slot = %s\n", __FUNCTION__, slot->name);
+	dbg("%s - physical_slot = %s\n", __func__, slot->name);
 
 	/* don't disable bridged devices just yet, we can't handle them easily... */
 	if (dslot->dev->subordinate) {

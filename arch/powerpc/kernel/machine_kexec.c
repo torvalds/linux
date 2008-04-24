@@ -12,8 +12,9 @@
 #include <linux/kexec.h>
 #include <linux/reboot.h>
 #include <linux/threads.h>
+#include <linux/lmb.h>
 #include <asm/machdep.h>
-#include <asm/lmb.h>
+#include <asm/prom.h>
 
 void machine_crash_shutdown(struct pt_regs *regs)
 {

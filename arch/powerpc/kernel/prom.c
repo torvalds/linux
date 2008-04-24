@@ -31,10 +31,10 @@
 #include <linux/kexec.h>
 #include <linux/debugfs.h>
 #include <linux/irq.h>
+#include <linux/lmb.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
-#include <asm/lmb.h>
 #include <asm/page.h>
 #include <asm/processor.h>
 #include <asm/irq.h>
@@ -51,6 +51,7 @@
 #include <asm/machdep.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/pci-bridge.h>
+#include <asm/phyp_dump.h>
 #include <asm/kexec.h>
 
 #ifdef DEBUG
@@ -436,7 +437,7 @@ early_param("mem", early_parse_mem);
  * The device tree may be allocated beyond our memory limit, or inside the
  * crash kernel region for kdump. If so, move it out of the way.
  */
-static void move_device_tree(void)
+static void __init move_device_tree(void)
 {
 	unsigned long start, size;
 	void *p;
@@ -1040,6 +1041,87 @@ static void __init early_reserve_mem(void)
 #endif
 }
 
+#ifdef CONFIG_PHYP_DUMP
+/**
+ * phyp_dump_calculate_reserve_size() - reserve variable boot area 5% or arg
+ *
+ * Function to find the largest size we need to reserve
+ * during early boot process.
+ *
+ * It either looks for boot param and returns that OR
+ * returns larger of 256 or 5% rounded down to multiples of 256MB.
+ *
+ */
+static inline unsigned long phyp_dump_calculate_reserve_size(void)
+{
+	unsigned long tmp;
+
+	if (phyp_dump_info->reserve_bootvar)
+		return phyp_dump_info->reserve_bootvar;
+
+	/* divide by 20 to get 5% of value */
+	tmp = lmb_end_of_DRAM();
+	do_div(tmp, 20);
+
+	/* round it down in multiples of 256 */
+	tmp = tmp & ~0x0FFFFFFFUL;
+
+	return (tmp > PHYP_DUMP_RMR_END ? tmp : PHYP_DUMP_RMR_END);
+}
+
+/**
+ * phyp_dump_reserve_mem() - reserve all not-yet-dumped mmemory
+ *
+ * This routine may reserve memory regions in the kernel only
+ * if the system is supported and a dump was taken in last
+ * boot instance or if the hardware is supported and the
+ * scratch area needs to be setup. In other instances it returns
+ * without reserving anything. The memory in case of dump being
+ * active is freed when the dump is collected (by userland tools).
+ */
+static void __init phyp_dump_reserve_mem(void)
+{
+	unsigned long base, size;
+	unsigned long variable_reserve_size;
+
+	if (!phyp_dump_info->phyp_dump_configured) {
+		printk(KERN_ERR "Phyp-dump not supported on this hardware\n");
+		return;
+	}
+
+	if (!phyp_dump_info->phyp_dump_at_boot) {
+		printk(KERN_INFO "Phyp-dump disabled at boot time\n");
+		return;
+	}
+
+	variable_reserve_size = phyp_dump_calculate_reserve_size();
+
+	if (phyp_dump_info->phyp_dump_is_active) {
+		/* Reserve *everything* above RMR.Area freed by userland tools*/
+		base = variable_reserve_size;
+		size = lmb_end_of_DRAM() - base;
+
+		/* XXX crashed_ram_end is wrong, since it may be beyond
+		 * the memory_limit, it will need to be adjusted. */
+		lmb_reserve(base, size);
+
+		phyp_dump_info->init_reserve_start = base;
+		phyp_dump_info->init_reserve_size = size;
+	} else {
+		size = phyp_dump_info->cpu_state_size +
+			phyp_dump_info->hpte_region_size +
+			variable_reserve_size;
+		base = lmb_end_of_DRAM() - size;
+		lmb_reserve(base, size);
+		phyp_dump_info->init_reserve_start = base;
+		phyp_dump_info->init_reserve_size = size;
+	}
+}
+#else
+static inline void __init phyp_dump_reserve_mem(void) {}
+#endif /* CONFIG_PHYP_DUMP  && CONFIG_PPC_RTAS */
+
+
 void __init early_init_devtree(void *params)
 {
 	DBG(" -> early_init_devtree(%p)\n", params);
@@ -1050,6 +1132,11 @@ void __init early_init_devtree(void *params)
 #ifdef CONFIG_PPC_RTAS
 	/* Some machines might need RTAS info for debugging, grab it now. */
 	of_scan_flat_dt(early_init_dt_scan_rtas, NULL);
+#endif
+
+#ifdef CONFIG_PHYP_DUMP
+	/* scan tree to see if dump occured during last boot */
+	of_scan_flat_dt(early_init_dt_scan_phyp_dump, NULL);
 #endif
 
 	/* Retrieve various informations from the /chosen node of the
@@ -1072,6 +1159,7 @@ void __init early_init_devtree(void *params)
 	reserve_kdump_trampoline();
 	reserve_crashkernel();
 	early_reserve_mem();
+	phyp_dump_reserve_mem();
 
 	lmb_enforce_memory_limit(memory_limit);
 	lmb_analyze();
@@ -1244,12 +1332,14 @@ EXPORT_SYMBOL(of_node_put);
  */
 void of_attach_node(struct device_node *np)
 {
-	write_lock(&devtree_lock);
+	unsigned long flags;
+
+	write_lock_irqsave(&devtree_lock, flags);
 	np->sibling = np->parent->child;
 	np->allnext = allnodes;
 	np->parent->child = np;
 	allnodes = np;
-	write_unlock(&devtree_lock);
+	write_unlock_irqrestore(&devtree_lock, flags);
 }
 
 /*
@@ -1260,8 +1350,9 @@ void of_attach_node(struct device_node *np)
 void of_detach_node(struct device_node *np)
 {
 	struct device_node *parent;
+	unsigned long flags;
 
-	write_lock(&devtree_lock);
+	write_lock_irqsave(&devtree_lock, flags);
 
 	parent = np->parent;
 	if (!parent)
@@ -1292,7 +1383,7 @@ void of_detach_node(struct device_node *np)
 	of_node_set_flag(np, OF_DETACHED);
 
 out_unlock:
-	write_unlock(&devtree_lock);
+	write_unlock_irqrestore(&devtree_lock, flags);
 }
 
 #ifdef CONFIG_PPC_PSERIES
@@ -1373,20 +1464,21 @@ __initcall(prom_reconfig_setup);
 int prom_add_property(struct device_node* np, struct property* prop)
 {
 	struct property **next;
+	unsigned long flags;
 
 	prop->next = NULL;	
-	write_lock(&devtree_lock);
+	write_lock_irqsave(&devtree_lock, flags);
 	next = &np->properties;
 	while (*next) {
 		if (strcmp(prop->name, (*next)->name) == 0) {
 			/* duplicate ! don't insert it */
-			write_unlock(&devtree_lock);
+			write_unlock_irqrestore(&devtree_lock, flags);
 			return -1;
 		}
 		next = &(*next)->next;
 	}
 	*next = prop;
-	write_unlock(&devtree_lock);
+	write_unlock_irqrestore(&devtree_lock, flags);
 
 #ifdef CONFIG_PROC_DEVICETREE
 	/* try to add to proc as well if it was initialized */
@@ -1406,9 +1498,10 @@ int prom_add_property(struct device_node* np, struct property* prop)
 int prom_remove_property(struct device_node *np, struct property *prop)
 {
 	struct property **next;
+	unsigned long flags;
 	int found = 0;
 
-	write_lock(&devtree_lock);
+	write_lock_irqsave(&devtree_lock, flags);
 	next = &np->properties;
 	while (*next) {
 		if (*next == prop) {
@@ -1421,7 +1514,7 @@ int prom_remove_property(struct device_node *np, struct property *prop)
 		}
 		next = &(*next)->next;
 	}
-	write_unlock(&devtree_lock);
+	write_unlock_irqrestore(&devtree_lock, flags);
 
 	if (!found)
 		return -ENODEV;
@@ -1447,9 +1540,10 @@ int prom_update_property(struct device_node *np,
 			 struct property *oldprop)
 {
 	struct property **next;
+	unsigned long flags;
 	int found = 0;
 
-	write_lock(&devtree_lock);
+	write_lock_irqsave(&devtree_lock, flags);
 	next = &np->properties;
 	while (*next) {
 		if (*next == oldprop) {
@@ -1463,7 +1557,7 @@ int prom_update_property(struct device_node *np,
 		}
 		next = &(*next)->next;
 	}
-	write_unlock(&devtree_lock);
+	write_unlock_irqrestore(&devtree_lock, flags);
 
 	if (!found)
 		return -ENODEV;

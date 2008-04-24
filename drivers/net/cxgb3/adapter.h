@@ -43,7 +43,6 @@
 #include <linux/mutex.h>
 #include <linux/bitops.h>
 #include "t3cdev.h"
-#include <asm/semaphore.h>
 #include <asm/io.h>
 
 struct vlan_group;

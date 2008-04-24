@@ -639,7 +639,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 #ifdef CONFIG_X86_32
 	/* It's safe to allow irq's after cr2 has been saved and the vmalloc
 	   fault has been handled. */
-	if (regs->flags & (X86_EFLAGS_IF|VM_MASK))
+	if (regs->flags & (X86_EFLAGS_IF | X86_VM_MASK))
 		local_irq_enable();
 
 	/*
@@ -976,9 +976,5 @@ void vmalloc_sync_all(void)
 		if (address == start)
 			start = address + PGDIR_SIZE;
 	}
-	/* Check that there is no need to do the same for the modules area. */
-	BUILD_BUG_ON(!(MODULES_VADDR > __START_KERNEL));
-	BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) ==
-				(__START_KERNEL & PGDIR_MASK)));
 #endif
 }

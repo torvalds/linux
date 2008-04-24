@@ -1349,9 +1349,9 @@ cciss_unregister_scsi(int ctlr)
 	/* set scsi_host to NULL so our detect routine will 
 	   find us on register */
 	sa->scsi_host = NULL;
+	spin_unlock_irqrestore(CCISS_LOCK(ctlr), flags);
 	scsi_cmd_stack_free(ctlr);
 	kfree(sa);
-	spin_unlock_irqrestore(CCISS_LOCK(ctlr), flags);
 }
 
 static int 

@@ -276,12 +276,12 @@ static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 	switch (i2c->state) {
 
 	case STATE_IDLE:
-		dev_err(i2c->dev, "%s: called in STATE_IDLE\n", __FUNCTION__);
+		dev_err(i2c->dev, "%s: called in STATE_IDLE\n", __func__);
 		goto out;
 		break;
 
 	case STATE_STOP:
-		dev_err(i2c->dev, "%s: called in STATE_STOP\n", __FUNCTION__);
+		dev_err(i2c->dev, "%s: called in STATE_STOP\n", __func__);
 		s3c24xx_i2c_disable_irq(i2c);		
 		goto out_ack;
 
@@ -948,3 +948,4 @@ module_exit(i2c_adap_s3c_exit);
 MODULE_DESCRIPTION("S3C24XX I2C Bus driver");
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:s3c2410-i2c");

@@ -38,6 +38,7 @@
 #include <linux/hardirq.h>
 
 #include <linux/mlx4/cmd.h>
+#include <linux/mlx4/cq.h>
 
 #include "mlx4.h"
 #include "icm.h"
@@ -47,21 +48,19 @@ struct mlx4_cq_context {
 	u16			reserved1[3];
 	__be16			page_offset;
 	__be32			logsize_usrpage;
-	u8			reserved2;
-	u8			cq_period;
-	u8			reserved3;
-	u8			cq_max_count;
-	u8			reserved4[3];
+	__be16			cq_period;
+	__be16			cq_max_count;
+	u8			reserved2[3];
 	u8			comp_eqn;
 	u8			log_page_size;
-	u8			reserved5[2];
+	u8			reserved3[2];
 	u8			mtt_base_addr_h;
 	__be32			mtt_base_addr_l;
 	__be32			last_notified_index;
 	__be32			solicit_producer_index;
 	__be32			consumer_index;
 	__be32			producer_index;
-	u32			reserved6[2];
+	u32			reserved4[2];
 	__be64			db_rec_addr;
 };
 
@@ -121,6 +120,13 @@ static int mlx4_SW2HW_CQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			MLX4_CMD_TIME_CLASS_A);
 }
 
+static int mlx4_MODIFY_CQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
+			 int cq_num, u32 opmod)
+{
+	return mlx4_cmd(dev, mailbox->dma, cq_num, opmod, MLX4_CMD_MODIFY_CQ,
+			MLX4_CMD_TIME_CLASS_A);
+}
+
 static int mlx4_HW2SW_CQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			 int cq_num)
 {
@@ -128,6 +134,58 @@ static int mlx4_HW2SW_CQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			    mailbox ? 0 : 1, MLX4_CMD_HW2SW_CQ,
 			    MLX4_CMD_TIME_CLASS_A);
 }
+
+int mlx4_cq_modify(struct mlx4_dev *dev, struct mlx4_cq *cq,
+		   u16 count, u16 period)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_cq_context *cq_context;
+	int err;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	cq_context = mailbox->buf;
+	memset(cq_context, 0, sizeof *cq_context);
+
+	cq_context->cq_max_count = cpu_to_be16(count);
+	cq_context->cq_period    = cpu_to_be16(period);
+
+	err = mlx4_MODIFY_CQ(dev, mailbox, cq->cqn, 1);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_cq_modify);
+
+int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
+		   int entries, struct mlx4_mtt *mtt)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_cq_context *cq_context;
+	u64 mtt_addr;
+	int err;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	cq_context = mailbox->buf;
+	memset(cq_context, 0, sizeof *cq_context);
+
+	cq_context->logsize_usrpage = cpu_to_be32(ilog2(entries) << 24);
+	cq_context->log_page_size   = mtt->page_shift - 12;
+	mtt_addr = mlx4_mtt_addr(dev, mtt);
+	cq_context->mtt_base_addr_h = mtt_addr >> 32;
+	cq_context->mtt_base_addr_l = cpu_to_be32(mtt_addr & 0xffffffff);
+
+	err = mlx4_MODIFY_CQ(dev, mailbox, cq->cqn, 1);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_cq_resize);
 
 int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
 		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq)

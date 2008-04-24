@@ -71,29 +71,6 @@ This driver automatically probes for most IDE interfaces (including all PCI
 ones), for the drives/geometries attached to those interfaces, and for the IRQ
 lines being used by the interfaces (normally 14, 15 for ide0/ide1).
 
-For special cases, interfaces may be specified using kernel "command line"
-options.  For example,
-
-	ide3=0x168,0x36e,10	/* ioports 0x168-0x16f,0x36e, irq 10 */
-
-Normally the irq number need not be specified, as ide.c will probe for it:
-
-	ide3=0x168,0x36e	/* ioports 0x168-0x16f,0x36e */
-
-The standard port, and irq values are these:
-
-	ide0=0x1f0,0x3f6,14
-	ide1=0x170,0x376,15
-	ide2=0x1e8,0x3ee,11
-	ide3=0x168,0x36e,10
-
-Note that the first parameter reserves 8 contiguous ioports, whereas the
-second value denotes a single ioport. If in doubt, do a 'cat /proc/ioports'.
-
-In all probability the device uses these ports and IRQs if it is attached
-to the appropriate ide channel.  Pass the parameter for the correct ide
-channel to the kernel, as explained above.
-
 Any number of interfaces may share a single IRQ if necessary, at a slight
 performance penalty, whether on separate cards or a single VLB card.
 The IDE driver automatically detects and handles this.  However, this may
@@ -184,13 +161,6 @@ provided it is mounted with the default block size of 1024 (as above).
 Please pass on any feedback on any of this stuff to the maintainer,
 whose address can be found in linux/MAINTAINERS.
 
-Note that if BOTH hd.c and ide.c are configured into the kernel,
-hd.c will normally be allowed to control the primary IDE interface.
-This is useful for older hardware that may be incompatible with ide.c,
-and still allows newer hardware to run on the 2nd/3rd/4th IDE ports
-under control of ide.c.   To have ide.c also "take over" the primary
-IDE port in this situation, use the "command line" parameter:  ide0=0x1f0
-
 The IDE driver is modularized.  The high level disk/CD-ROM/tape/floppy
 drivers can always be compiled as loadable modules, the chipset drivers
 can only be compiled into the kernel, and the core code (ide.c) can be
@@ -206,7 +176,7 @@ When ide.c is used as a module, you can pass command line parameters to the
 driver using the "options=" keyword to insmod, while replacing any ',' with
 ';'.  For example:
 
-	insmod ide.o options="ide0=serialize ide1=serialize ide2=0x1e8;0x3ee;11"
+	insmod ide.o options="hda=nodma hdb=nodma"
 
 
 ================================================================================
@@ -247,20 +217,10 @@ Summary of ide driver parameters for kernel command line
 			  As for VLB, it is safest to not specify it.
 			  Bigger values are safer than smaller ones.
 
- "idex=base"		: probe for an interface at the addr specified,
-			  where "base" is usually 0x1f0 or 0x170
-			  and "ctl" is assumed to be "base"+0x206
-
- "idex=base,ctl"	: specify both base and ctl
-
- "idex=base,ctl,irq"	: specify base, ctl, and irq number
-
  "idex=serialize"	: do not overlap operations on idex. Please note
 			  that you will have to specify this option for
 			  both the respective primary and secondary channel
 			  to take effect.
-
- "idex=four"		: four drives on idex and ide(x^1) share same ports
 
  "idex=reset"		: reset interface after probe
 
@@ -268,8 +228,6 @@ Summary of ide driver parameters for kernel command line
 			  for chipsets that are ATA-66 capable, but the
 			  ability to bit test for detection is currently
 			  unknown.
-
- "ide=reverse"		: formerly called to pci sub-system, but now local.
 
  "ide=doubler"		: probe/support IDE doublers on Amiga
 
@@ -289,6 +247,9 @@ i.e. to enable probing for ALI M14xx chipsets (ali14xx host driver) use:
 Also for legacy CMD640 host driver (cmd640) you need to use "probe_vlb"
 kernel paremeter to enable probing for VLB version of the chipset (PCI ones
 are detected automatically).
+
+You also need to use "probe" kernel parameter for ide-4drives driver
+(support for IDE generic chipset with four drives on one port).
 
 ================================================================================
 

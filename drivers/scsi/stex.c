@@ -33,6 +33,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_dbg.h>
+#include <scsi/scsi_eh.h>
 
 #define DRV_NAME "stex"
 #define ST_DRIVER_VERSION "3.6.0000.1"
@@ -362,22 +363,14 @@ static struct status_msg *stex_get_status(struct st_hba *hba)
 	return status;
 }
 
-static void stex_set_sense(struct scsi_cmnd *cmd, u8 sk, u8 asc, u8 ascq)
-{
-	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
-
-	cmd->sense_buffer[0] = 0x70;    /* fixed format, current */
-	cmd->sense_buffer[2] = sk;
-	cmd->sense_buffer[7] = 18 - 8;  /* additional sense length */
-	cmd->sense_buffer[12] = asc;
-	cmd->sense_buffer[13] = ascq;
-}
-
 static void stex_invalid_field(struct scsi_cmnd *cmd,
 			       void (*done)(struct scsi_cmnd *))
 {
+	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
+
 	/* "Invalid field in cbd" */
-	stex_set_sense(cmd, ILLEGAL_REQUEST, 0x24, 0x0);
+	scsi_build_sense_buffer(0, cmd->sense_buffer, ILLEGAL_REQUEST, 0x24,
+				0x0);
 	done(cmd);
 }
 
@@ -426,49 +419,13 @@ static int stex_map_sg(struct st_hba *hba,
 	return 0;
 }
 
-static void stex_internal_copy(struct scsi_cmnd *cmd,
-	const void *src, size_t *count, int sg_count, int direction)
-{
-	size_t lcount;
-	size_t len;
-	void *s, *d, *base = NULL;
-	size_t offset;
-
-	if (*count > scsi_bufflen(cmd))
-		*count = scsi_bufflen(cmd);
-	lcount = *count;
-	while (lcount) {
-		len = lcount;
-		s = (void *)src;
-
-		offset = *count - lcount;
-		s += offset;
-		base = scsi_kmap_atomic_sg(scsi_sglist(cmd),
-					   sg_count, &offset, &len);
-		if (!base) {
-			*count -= lcount;
-			return;
-		}
-		d = base + offset;
-
-		if (direction == ST_TO_CMD)
-			memcpy(d, s, len);
-		else
-			memcpy(s, d, len);
-
-		lcount -= len;
-		scsi_kunmap_atomic_sg(base);
-	}
-}
-
 static void stex_controller_info(struct st_hba *hba, struct st_ccb *ccb)
 {
 	struct st_frame *p;
 	size_t count = sizeof(struct st_frame);
 
 	p = hba->copy_buffer;
-	stex_internal_copy(ccb->cmd, p, &count, scsi_sg_count(ccb->cmd),
-			   ST_FROM_CMD);
+	count = scsi_sg_copy_to_buffer(ccb->cmd, p, count);
 	memset(p->base, 0, sizeof(u32)*6);
 	*(unsigned long *)(p->base) = pci_resource_start(hba->pdev, 0);
 	p->rom_addr = 0;
@@ -486,8 +443,7 @@ static void stex_controller_info(struct st_hba *hba, struct st_ccb *ccb)
 	p->subid =
 		hba->pdev->subsystem_vendor << 16 | hba->pdev->subsystem_device;
 
-	stex_internal_copy(ccb->cmd, p, &count, scsi_sg_count(ccb->cmd),
-			   ST_TO_CMD);
+	count = scsi_sg_copy_from_buffer(ccb->cmd, p, count);
 }
 
 static void
@@ -554,10 +510,8 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 		unsigned char page;
 		page = cmd->cmnd[2] & 0x3f;
 		if (page == 0x8 || page == 0x3f) {
-			size_t cp_len = sizeof(ms10_caching_page);
-			stex_internal_copy(cmd, ms10_caching_page,
-					   &cp_len, scsi_sg_count(cmd),
-					   ST_TO_CMD);
+			scsi_sg_copy_from_buffer(cmd, ms10_caching_page,
+						 sizeof(ms10_caching_page));
 			cmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8;
 			done(cmd);
 		} else
@@ -586,10 +540,8 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 		if (id != host->max_id - 1)
 			break;
 		if (lun == 0 && (cmd->cmnd[1] & INQUIRY_EVPD) == 0) {
-			size_t cp_len = sizeof(console_inq_page);
-			stex_internal_copy(cmd, console_inq_page,
-					   &cp_len, scsi_sg_count(cmd),
-					   ST_TO_CMD);
+			scsi_sg_copy_from_buffer(cmd, (void *)console_inq_page,
+						 sizeof(console_inq_page));
 			cmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8;
 			done(cmd);
 		} else
@@ -606,8 +558,7 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 			ver.signature[0] = PASSTHRU_SIGNATURE;
 			ver.console_id = host->max_id - 1;
 			ver.host_no = hba->host->host_no;
-			stex_internal_copy(cmd, &ver, &cp_len,
-					   scsi_sg_count(cmd), ST_TO_CMD);
+			cp_len = scsi_sg_copy_from_buffer(cmd, &ver, cp_len);
 			cmd->result = sizeof(ver) == cp_len ?
 				DID_OK << 16 | COMMAND_COMPLETE << 8 :
 				DID_ERROR << 16 | COMMAND_COMPLETE << 8;
@@ -700,15 +651,12 @@ static void stex_copy_data(struct st_ccb *ccb,
 
 	if (ccb->cmd == NULL)
 		return;
-	stex_internal_copy(ccb->cmd,
-		resp->variable, &count, scsi_sg_count(ccb->cmd), ST_TO_CMD);
+	count = scsi_sg_copy_from_buffer(ccb->cmd, resp->variable, count);
 }
 
 static void stex_ys_commands(struct st_hba *hba,
 	struct st_ccb *ccb, struct status_msg *resp)
 {
-	size_t count;
-
 	if (ccb->cmd->cmnd[0] == MGT_CMD &&
 		resp->scsi_status != SAM_STAT_CHECK_CONDITION) {
 		scsi_set_resid(ccb->cmd, scsi_bufflen(ccb->cmd) -
@@ -724,9 +672,8 @@ static void stex_ys_commands(struct st_hba *hba,
 		resp->scsi_status == SAM_STAT_GOOD) {
 		ST_INQ *inq_data;
 
-		count = STEX_EXTRA_SIZE;
-		stex_internal_copy(ccb->cmd, hba->copy_buffer,
-			&count, scsi_sg_count(ccb->cmd), ST_FROM_CMD);
+		scsi_sg_copy_to_buffer(ccb->cmd, hba->copy_buffer,
+				       STEX_EXTRA_SIZE);
 		inq_data = (ST_INQ *)hba->copy_buffer;
 		if (inq_data->DeviceTypeQualifier != 0)
 			ccb->srb_status = SRB_STATUS_SELECTION_TIMEOUT;

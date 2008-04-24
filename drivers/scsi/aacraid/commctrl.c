@@ -39,7 +39,7 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h> /* ssleep prototype */
 #include <linux/kthread.h>
-#include <asm/semaphore.h>
+#include <linux/semaphore.h>
 #include <asm/uaccess.h>
 
 #include "aacraid.h"

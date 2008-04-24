@@ -1782,7 +1782,7 @@ static int sctp_process_inv_paramlength(const struct sctp_association *asoc,
 					const struct sctp_chunk *chunk,
 					struct sctp_chunk **errp)
 {
-	char		error[] = "The following parameter had invalid length:";
+	static const char error[] = "The following parameter had invalid length:";
 	size_t		payload_len = WORD_ROUND(sizeof(error)) +
 						sizeof(sctp_paramhdr_t);
 
@@ -2269,8 +2269,8 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	 * high (for example, implementations MAY use the size of the receiver
 	 * advertised window).
 	 */
-	list_for_each(pos, &asoc->peer.transport_addr_list) {
-		transport = list_entry(pos, struct sctp_transport, transports);
+	list_for_each_entry(transport, &asoc->peer.transport_addr_list,
+			transports) {
 		transport->ssthresh = asoc->peer.i.a_rwnd;
 	}
 
@@ -3066,7 +3066,6 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 	union sctp_addr	addr;
 	struct sctp_bind_addr *bp = &asoc->base.bind_addr;
 	union sctp_addr_param *addr_param;
-	struct list_head *pos;
 	struct sctp_transport *transport;
 	struct sctp_sockaddr_entry *saddr;
 	int retval = 0;
@@ -3094,9 +3093,8 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 		local_bh_disable();
 		retval = sctp_del_bind_addr(bp, &addr);
 		local_bh_enable();
-		list_for_each(pos, &asoc->peer.transport_addr_list) {
-			transport = list_entry(pos, struct sctp_transport,
-						 transports);
+		list_for_each_entry(transport, &asoc->peer.transport_addr_list,
+				transports) {
 			dst_release(transport->dst);
 			sctp_transport_route(transport, NULL,
 					     sctp_sk(asoc->base.sk));

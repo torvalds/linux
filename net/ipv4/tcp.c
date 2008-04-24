@@ -1722,7 +1722,7 @@ static int tcp_close_state(struct sock *sk)
 
 /*
  *	Shutdown the sending side of a connection. Much like close except
- *	that we don't receive shut down or set_sock_flag(sk, SOCK_DEAD).
+ *	that we don't receive shut down or sock_set_flag(sk, SOCK_DEAD).
  */
 
 void tcp_shutdown(struct sock *sk, int how)
@@ -2105,15 +2105,12 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		break;
 
 	case TCP_DEFER_ACCEPT:
-		icsk->icsk_accept_queue.rskq_defer_accept = 0;
-		if (val > 0) {
-			/* Translate value in seconds to number of
-			 * retransmits */
-			while (icsk->icsk_accept_queue.rskq_defer_accept < 32 &&
-			       val > ((TCP_TIMEOUT_INIT / HZ) <<
-				       icsk->icsk_accept_queue.rskq_defer_accept))
-				icsk->icsk_accept_queue.rskq_defer_accept++;
-			icsk->icsk_accept_queue.rskq_defer_accept++;
+		if (val < 0) {
+			err = -EINVAL;
+		} else {
+			if (val > MAX_TCP_ACCEPT_DEFERRED)
+				val = MAX_TCP_ACCEPT_DEFERRED;
+			icsk->icsk_accept_queue.rskq_defer_accept = val;
 		}
 		break;
 
@@ -2295,8 +2292,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 			val = (val ? : sysctl_tcp_fin_timeout) / HZ;
 		break;
 	case TCP_DEFER_ACCEPT:
-		val = !icsk->icsk_accept_queue.rskq_defer_accept ? 0 :
-			((TCP_TIMEOUT_INIT / HZ) << (icsk->icsk_accept_queue.rskq_defer_accept - 1));
+		val = icsk->icsk_accept_queue.rskq_defer_accept;
 		break;
 	case TCP_WINDOW_CLAMP:
 		val = tp->window_clamp;

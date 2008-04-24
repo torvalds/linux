@@ -197,7 +197,7 @@ static int rose_device_event(struct notifier_block *this, unsigned long event,
 {
 	struct net_device *dev = (struct net_device *)ptr;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	if (event != NETDEV_DOWN)
@@ -551,7 +551,7 @@ static struct sock *rose_make_new(struct sock *osk)
 	if (osk->sk_type != SOCK_SEQPACKET)
 		return NULL;
 
-	sk = sk_alloc(osk->sk_net, PF_ROSE, GFP_ATOMIC, &rose_proto);
+	sk = sk_alloc(sock_net(osk), PF_ROSE, GFP_ATOMIC, &rose_proto);
 	if (sk == NULL)
 		return NULL;
 
@@ -760,8 +760,10 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 
 	rose->neighbour = rose_get_neigh(&addr->srose_addr, &cause,
 					 &diagnostic);
-	if (!rose->neighbour)
-		return -ENETUNREACH;
+	if (!rose->neighbour) {
+		err = -ENETUNREACH;
+		goto out_release;
+	}
 
 	rose->lci = rose_new_lci(rose->neighbour);
 	if (!rose->lci) {

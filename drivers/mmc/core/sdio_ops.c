@@ -17,6 +17,7 @@
 #include <linux/mmc/sdio.h>
 
 #include "core.h"
+#include "sdio_ops.h"
 
 int mmc_send_io_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 {

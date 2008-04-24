@@ -94,7 +94,7 @@ zfcp_sysfs_unit_add_store(struct device *dev, struct device_attribute *attr, con
 
 	retval = 0;
 
-	zfcp_erp_unit_reopen(unit, 0);
+	zfcp_erp_unit_reopen(unit, 0, 94, NULL);
 	zfcp_erp_wait(unit->port->adapter);
 	zfcp_unit_put(unit);
  out:
@@ -150,7 +150,7 @@ zfcp_sysfs_unit_remove_store(struct device *dev, struct device_attribute *attr, 
 		goto out;
 	}
 
-	zfcp_erp_unit_shutdown(unit, 0);
+	zfcp_erp_unit_shutdown(unit, 0, 95, NULL);
 	zfcp_erp_wait(unit->port->adapter);
 	zfcp_unit_put(unit);
 	zfcp_unit_dequeue(unit);
@@ -193,8 +193,9 @@ zfcp_sysfs_port_failed_store(struct device *dev, struct device_attribute *attr, 
 		goto out;
 	}
 
-	zfcp_erp_modify_port_status(port, ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
-	zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED);
+	zfcp_erp_modify_port_status(port, 45, NULL,
+				    ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
+	zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED, 96, NULL);
 	zfcp_erp_wait(port->adapter);
  out:
 	up(&zfcp_data.config_sema);

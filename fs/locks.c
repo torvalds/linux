@@ -127,7 +127,6 @@
 #include <linux/rcupdate.h>
 #include <linux/pid_namespace.h>
 
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #define IS_POSIX(fl)	(fl->fl_flags & FL_POSIX)

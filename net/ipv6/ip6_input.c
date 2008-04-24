@@ -29,6 +29,7 @@
 #include <linux/netdevice.h>
 #include <linux/in6.h>
 #include <linux/icmpv6.h>
+#include <linux/mroute6.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
@@ -60,11 +61,6 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	struct ipv6hdr *hdr;
 	u32 		pkt_len;
 	struct inet6_dev *idev;
-
-	if (dev->nd_net != &init_net) {
-		kfree_skb(skb);
-		return 0;
-	}
 
 	if (skb->pkt_type == PACKET_OTHERHOST) {
 		kfree_skb(skb);
@@ -241,38 +237,84 @@ int ip6_mc_input(struct sk_buff *skb)
 	hdr = ipv6_hdr(skb);
 	deliver = ipv6_chk_mcast_addr(skb->dev, &hdr->daddr, NULL);
 
+#ifdef CONFIG_IPV6_MROUTE
 	/*
-	 *	IPv6 multicast router mode isnt currently supported.
+	 *      IPv6 multicast router mode is now supported ;)
 	 */
-#if 0
-	if (ipv6_config.multicast_route) {
-		int addr_type;
+	if (ipv6_devconf.mc_forwarding &&
+	    likely(!(IP6CB(skb)->flags & IP6SKB_FORWARDED))) {
+		/*
+		 * Okay, we try to forward - split and duplicate
+		 * packets.
+		 */
+		struct sk_buff *skb2;
+		struct inet6_skb_parm *opt = IP6CB(skb);
 
-		addr_type = ipv6_addr_type(&hdr->daddr);
+		/* Check for MLD */
+		if (unlikely(opt->ra)) {
+			/* Check if this is a mld message */
+			u8 *ptr = skb_network_header(skb) + opt->ra;
+			struct icmp6hdr *icmp6;
+			u8 nexthdr = hdr->nexthdr;
+			int offset;
 
-		if (!(addr_type & (IPV6_ADDR_LOOPBACK | IPV6_ADDR_LINKLOCAL))) {
-			struct sk_buff *skb2;
-			struct dst_entry *dst;
+			/* Check if the value of Router Alert
+			 * is for MLD (0x0000).
+			 */
+			if ((ptr[2] | ptr[3]) == 0) {
+				deliver = 0;
 
-			dst = skb->dst;
+				if (!ipv6_ext_hdr(nexthdr)) {
+					/* BUG */
+					goto out;
+				}
+				offset = ipv6_skip_exthdr(skb, sizeof(*hdr),
+							  &nexthdr);
+				if (offset < 0)
+					goto out;
 
-			if (deliver) {
-				skb2 = skb_clone(skb, GFP_ATOMIC);
-				dst_output(skb2);
-			} else {
-				dst_output(skb);
-				return 0;
+				if (nexthdr != IPPROTO_ICMPV6)
+					goto out;
+
+				if (!pskb_may_pull(skb, (skb_network_header(skb) +
+						   offset + 1 - skb->data)))
+					goto out;
+
+				icmp6 = (struct icmp6hdr *)(skb_network_header(skb) + offset);
+
+				switch (icmp6->icmp6_type) {
+				case ICMPV6_MGM_QUERY:
+				case ICMPV6_MGM_REPORT:
+				case ICMPV6_MGM_REDUCTION:
+				case ICMPV6_MLD2_REPORT:
+					deliver = 1;
+					break;
+				}
+				goto out;
 			}
+			/* unknown RA - process it normally */
+		}
+
+		if (deliver)
+			skb2 = skb_clone(skb, GFP_ATOMIC);
+		else {
+			skb2 = skb;
+			skb = NULL;
+		}
+
+		if (skb2) {
+			skb2->dev = skb2->dst->dev;
+			ip6_mr_input(skb2);
 		}
 	}
+out:
 #endif
-
-	if (likely(deliver)) {
+	if (likely(deliver))
 		ip6_input(skb);
-		return 0;
+	else {
+		/* discard */
+		kfree_skb(skb);
 	}
-	/* discard */
-	kfree_skb(skb);
 
 	return 0;
 }

@@ -112,9 +112,8 @@ static void
 sgiioc4_maskproc(ide_drive_t * drive, int mask)
 {
 	writeb(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
-	       (void __iomem *)IDE_CONTROL_REG);
+	       (void __iomem *)drive->hwif->io_ports[IDE_CONTROL_OFFSET]);
 }
-
 
 static int
 sgiioc4_checkirq(ide_hwif_t * hwif)
@@ -142,18 +141,18 @@ sgiioc4_clearirq(ide_drive_t * drive)
 	intr_reg = readl((void __iomem *)other_ir);
 	if (intr_reg & 0x03) { /* Valid IOC4-IDE interrupt */
 		/*
-		 * Using sgiioc4_INB to read the IDE_STATUS_REG has a side effect
-		 * of clearing the interrupt.  The first read should clear it
-		 * if it is set.  The second read should return a "clear" status
-		 * if it got cleared.  If not, then spin for a bit trying to
-		 * clear it.
+		 * Using sgiioc4_INB to read the Status register has a side
+		 * effect of clearing the interrupt.  The first read should
+		 * clear it if it is set.  The second read should return
+		 * a "clear" status if it got cleared.  If not, then spin
+		 * for a bit trying to clear it.
 		 */
-		u8 stat = sgiioc4_INB(IDE_STATUS_REG);
+		u8 stat = sgiioc4_INB(hwif->io_ports[IDE_STATUS_OFFSET]);
 		int count = 0;
-		stat = sgiioc4_INB(IDE_STATUS_REG);
+		stat = sgiioc4_INB(hwif->io_ports[IDE_STATUS_OFFSET]);
 		while ((stat & 0x80) && (count++ < 100)) {
 			udelay(1);
-			stat = sgiioc4_INB(IDE_STATUS_REG);
+			stat = sgiioc4_INB(hwif->io_ports[IDE_STATUS_OFFSET]);
 		}
 
 		if (intr_reg & 0x02) {
@@ -562,7 +561,6 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 						clear interrupts */
 	hwif->maskproc = &sgiioc4_maskproc;	/* Mask on/off NIEN register */
 	hwif->quirkproc = NULL;
-	hwif->busproc = NULL;
 
 	hwif->INB = &sgiioc4_INB;
 

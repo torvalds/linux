@@ -17,8 +17,9 @@
 #include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
+#include <linux/lmb.h>
 #include <asm/sparsemem.h>
-#include <asm/lmb.h>
+#include <asm/prom.h>
 #include <asm/system.h>
 #include <asm/smp.h>
 

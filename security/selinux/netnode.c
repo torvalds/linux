@@ -344,7 +344,7 @@ static __init int sel_netnode_init(void)
 		INIT_LIST_HEAD(&sel_netnode_hash[iter]);
 
 	ret = avc_add_callback(sel_netnode_avc_callback, AVC_CALLBACK_RESET,
-	                       SECSID_NULL, SECSID_NULL, SECCLASS_NULL, 0);
+			       SECSID_NULL, SECSID_NULL, SECCLASS_NULL, 0);
 	if (ret != 0)
 		panic("avc_add_callback() failed, error %d\n", ret);
 

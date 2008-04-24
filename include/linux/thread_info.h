@@ -9,6 +9,9 @@
 
 #include <linux/types.h>
 
+struct timespec;
+struct compat_timespec;
+
 /*
  * System call restart block.
  */
@@ -26,6 +29,15 @@ struct restart_block {
 			u32 bitset;
 			u64 time;
 		} futex;
+		/* For nanosleep */
+		struct {
+			clockid_t index;
+			struct timespec __user *rmtp;
+#ifdef CONFIG_COMPAT
+			struct compat_timespec __user *compat_rmtp;
+#endif
+			u64 expires;
+		} nanosleep;
 	};
 };
 

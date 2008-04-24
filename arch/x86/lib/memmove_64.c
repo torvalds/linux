@@ -6,10 +6,10 @@
 #include <linux/module.h>
 
 #undef memmove
-void *memmove(void * dest,const void *src,size_t count)
+void *memmove(void *dest, const void *src, size_t count)
 {
-	if (dest < src) { 
-		return memcpy(dest,src,count);
+	if (dest < src) {
+		return memcpy(dest, src, count);
 	} else {
 		char *p = dest + count;
 		const char *s = src + count;
@@ -17,5 +17,5 @@ void *memmove(void * dest,const void *src,size_t count)
 			*--p = *--s;
 	}
 	return dest;
-} 
+}
 EXPORT_SYMBOL(memmove);

@@ -11,6 +11,8 @@
 #include <asm/mce.h>
 #include <asm/nmi.h>
 #include <asm/vsyscall.h>
+#include <asm/cacheflush.h>
+#include <asm/io.h>
 
 #define MAX_PATCH_LEN (255-1)
 
@@ -177,7 +179,7 @@ static const unsigned char*const * find_nop_table(void)
 #endif /* CONFIG_X86_64 */
 
 /* Use this to add nops to a buffer, then text_poke the whole buffer. */
-static void add_nops(void *insns, unsigned int len)
+void add_nops(void *insns, unsigned int len)
 {
 	const unsigned char *const *noptable = find_nop_table();
 
@@ -190,6 +192,7 @@ static void add_nops(void *insns, unsigned int len)
 		len -= noplen;
 	}
 }
+EXPORT_SYMBOL_GPL(add_nops);
 
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 extern u8 *__smp_locks[], *__smp_locks_end[];
@@ -205,7 +208,7 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 	struct alt_instr *a;
 	char insnbuf[MAX_PATCH_LEN];
 
-	DPRINTK("%s: alt table %p -> %p\n", __FUNCTION__, start, end);
+	DPRINTK("%s: alt table %p -> %p\n", __func__, start, end);
 	for (a = start; a < end; a++) {
 		u8 *instr = a->instr;
 		BUG_ON(a->replacementlen > a->instrlen);
@@ -217,13 +220,13 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 		if (instr >= (u8 *)VSYSCALL_START && instr < (u8*)VSYSCALL_END) {
 			instr = __va(instr - (u8*)VSYSCALL_START + (u8*)__pa_symbol(&__vsyscall_0));
 			DPRINTK("%s: vsyscall fixup: %p => %p\n",
-				__FUNCTION__, a->instr, instr);
+				__func__, a->instr, instr);
 		}
 #endif
 		memcpy(insnbuf, a->replacement, a->replacementlen);
 		add_nops(insnbuf + a->replacementlen,
 			 a->instrlen - a->replacementlen);
-		text_poke(instr, insnbuf, a->instrlen);
+		text_poke_early(instr, insnbuf, a->instrlen);
 	}
 }
 
@@ -284,7 +287,6 @@ void alternatives_smp_module_add(struct module *mod, char *name,
 				 void *text,  void *text_end)
 {
 	struct smp_alt_module *smp;
-	unsigned long flags;
 
 	if (noreplace_smp)
 		return;
@@ -307,42 +309,40 @@ void alternatives_smp_module_add(struct module *mod, char *name,
 	smp->text	= text;
 	smp->text_end	= text_end;
 	DPRINTK("%s: locks %p -> %p, text %p -> %p, name %s\n",
-		__FUNCTION__, smp->locks, smp->locks_end,
+		__func__, smp->locks, smp->locks_end,
 		smp->text, smp->text_end, smp->name);
 
-	spin_lock_irqsave(&smp_alt, flags);
+	spin_lock(&smp_alt);
 	list_add_tail(&smp->next, &smp_alt_modules);
 	if (boot_cpu_has(X86_FEATURE_UP))
 		alternatives_smp_unlock(smp->locks, smp->locks_end,
 					smp->text, smp->text_end);
-	spin_unlock_irqrestore(&smp_alt, flags);
+	spin_unlock(&smp_alt);
 }
 
 void alternatives_smp_module_del(struct module *mod)
 {
 	struct smp_alt_module *item;
-	unsigned long flags;
 
 	if (smp_alt_once || noreplace_smp)
 		return;
 
-	spin_lock_irqsave(&smp_alt, flags);
+	spin_lock(&smp_alt);
 	list_for_each_entry(item, &smp_alt_modules, next) {
 		if (mod != item->mod)
 			continue;
 		list_del(&item->next);
-		spin_unlock_irqrestore(&smp_alt, flags);
-		DPRINTK("%s: %s\n", __FUNCTION__, item->name);
+		spin_unlock(&smp_alt);
+		DPRINTK("%s: %s\n", __func__, item->name);
 		kfree(item);
 		return;
 	}
-	spin_unlock_irqrestore(&smp_alt, flags);
+	spin_unlock(&smp_alt);
 }
 
 void alternatives_smp_switch(int smp)
 {
 	struct smp_alt_module *mod;
-	unsigned long flags;
 
 #ifdef CONFIG_LOCKDEP
 	/*
@@ -359,7 +359,7 @@ void alternatives_smp_switch(int smp)
 		return;
 	BUG_ON(!smp && (num_online_cpus() > 1));
 
-	spin_lock_irqsave(&smp_alt, flags);
+	spin_lock(&smp_alt);
 
 	/*
 	 * Avoid unnecessary switches because it forces JIT based VMs to
@@ -383,7 +383,7 @@ void alternatives_smp_switch(int smp)
 						mod->text, mod->text_end);
 	}
 	smp_mode = smp;
-	spin_unlock_irqrestore(&smp_alt, flags);
+	spin_unlock(&smp_alt);
 }
 
 #endif
@@ -411,7 +411,7 @@ void apply_paravirt(struct paravirt_patch_site *start,
 
 		/* Pad the rest with nops */
 		add_nops(insnbuf + used, p->len - used);
-		text_poke(p->instr, insnbuf, p->len);
+		text_poke_early(p->instr, insnbuf, p->len);
 	}
 }
 extern struct paravirt_patch_site __start_parainstructions[],
@@ -420,8 +420,6 @@ extern struct paravirt_patch_site __start_parainstructions[],
 
 void __init alternative_instructions(void)
 {
-	unsigned long flags;
-
 	/* The patching is not fully atomic, so try to avoid local interruptions
 	   that might execute the to be patched code.
 	   Other CPUs are not running. */
@@ -430,7 +428,6 @@ void __init alternative_instructions(void)
 	stop_mce();
 #endif
 
-	local_irq_save(flags);
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
 
 	/* switch to patch-once-at-boottime-only mode and free the
@@ -462,7 +459,6 @@ void __init alternative_instructions(void)
 	}
 #endif
  	apply_paravirt(__parainstructions, __parainstructions_end);
-	local_irq_restore(flags);
 
 	if (smp_alt_once)
 		free_init_pages("SMP alternatives",
@@ -475,18 +471,71 @@ void __init alternative_instructions(void)
 #endif
 }
 
-/*
- * Warning:
+/**
+ * text_poke_early - Update instructions on a live kernel at boot time
+ * @addr: address to modify
+ * @opcode: source of the copy
+ * @len: length to copy
+ *
  * When you use this code to patch more than one byte of an instruction
  * you need to make sure that other CPUs cannot execute this code in parallel.
- * Also no thread must be currently preempted in the middle of these instructions.
- * And on the local CPU you need to be protected again NMI or MCE handlers
- * seeing an inconsistent instruction while you patch.
+ * Also no thread must be currently preempted in the middle of these
+ * instructions. And on the local CPU you need to be protected again NMI or MCE
+ * handlers seeing an inconsistent instruction while you patch.
  */
-void __kprobes text_poke(void *addr, unsigned char *opcode, int len)
+void *text_poke_early(void *addr, const void *opcode, size_t len)
 {
+	unsigned long flags;
+	local_irq_save(flags);
 	memcpy(addr, opcode, len);
+	local_irq_restore(flags);
 	sync_core();
 	/* Could also do a CLFLUSH here to speed up CPU recovery; but
 	   that causes hangs on some VIA CPUs. */
+	return addr;
+}
+
+/**
+ * text_poke - Update instructions on a live kernel
+ * @addr: address to modify
+ * @opcode: source of the copy
+ * @len: length to copy
+ *
+ * Only atomic text poke/set should be allowed when not doing early patching.
+ * It means the size must be writable atomically and the address must be aligned
+ * in a way that permits an atomic write. It also makes sure we fit on a single
+ * page.
+ */
+void *__kprobes text_poke(void *addr, const void *opcode, size_t len)
+{
+	unsigned long flags;
+	char *vaddr;
+	int nr_pages = 2;
+
+	BUG_ON(len > sizeof(long));
+	BUG_ON((((long)addr + len - 1) & ~(sizeof(long) - 1))
+		- ((long)addr & ~(sizeof(long) - 1)));
+	if (kernel_text_address((unsigned long)addr)) {
+		struct page *pages[2] = { virt_to_page(addr),
+			virt_to_page(addr + PAGE_SIZE) };
+		if (!pages[1])
+			nr_pages = 1;
+		vaddr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
+		BUG_ON(!vaddr);
+		local_irq_save(flags);
+		memcpy(&vaddr[(unsigned long)addr & ~PAGE_MASK], opcode, len);
+		local_irq_restore(flags);
+		vunmap(vaddr);
+	} else {
+		/*
+		 * modules are in vmalloc'ed memory, always writable.
+		 */
+		local_irq_save(flags);
+		memcpy(addr, opcode, len);
+		local_irq_restore(flags);
+	}
+	sync_core();
+	/* Could also do a CLFLUSH here to speed up CPU recovery; but
+	   that causes hangs on some VIA CPUs. */
+	return addr;
 }

@@ -117,8 +117,8 @@ struct ixgb_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
 	unsigned long time_stamp;
-	uint16_t length;
-	uint16_t next_to_watch;
+	u16 length;
+	u16 next_to_watch;
 };
 
 struct ixgb_desc_ring {
@@ -152,13 +152,12 @@ struct ixgb_desc_ring {
 struct ixgb_adapter {
 	struct timer_list watchdog_timer;
 	struct vlan_group *vlgrp;
-	uint32_t bd_number;
-	uint32_t rx_buffer_len;
-	uint32_t part_num;
-	uint16_t link_speed;
-	uint16_t link_duplex;
+	u32 bd_number;
+	u32 rx_buffer_len;
+	u32 part_num;
+	u16 link_speed;
+	u16 link_duplex;
 	spinlock_t tx_lock;
-	atomic_t irq_sem;
 	struct work_struct tx_timeout_task;
 
 	struct timer_list blink_timer;
@@ -168,20 +167,20 @@ struct ixgb_adapter {
 	struct ixgb_desc_ring tx_ring ____cacheline_aligned_in_smp;
 	unsigned int restart_queue;
 	unsigned long timeo_start;
-	uint32_t tx_cmd_type;
-	uint64_t hw_csum_tx_good;
-	uint64_t hw_csum_tx_error;
-	uint32_t tx_int_delay;
-	uint32_t tx_timeout_count;
-	boolean_t tx_int_delay_enable;
-	boolean_t detect_tx_hung;
+	u32 tx_cmd_type;
+	u64 hw_csum_tx_good;
+	u64 hw_csum_tx_error;
+	u32 tx_int_delay;
+	u32 tx_timeout_count;
+	bool tx_int_delay_enable;
+	bool detect_tx_hung;
 
 	/* RX */
 	struct ixgb_desc_ring rx_ring;
-	uint64_t hw_csum_rx_error;
-	uint64_t hw_csum_rx_good;
-	uint32_t rx_int_delay;
-	boolean_t rx_csum;
+	u64 hw_csum_rx_error;
+	u64 hw_csum_rx_good;
+	u32 rx_int_delay;
+	bool rx_csum;
 
 	/* OS defined structs */
 	struct napi_struct napi;
@@ -193,8 +192,17 @@ struct ixgb_adapter {
 	struct ixgb_hw hw;
 	u16 msg_enable;
 	struct ixgb_hw_stats stats;
-	uint32_t alloc_rx_buff_failed;
-	boolean_t have_msi;
+	u32 alloc_rx_buff_failed;
+	bool have_msi;
+	unsigned long flags;
+};
+
+enum ixgb_state_t {
+	/* TBD
+	__IXGB_TESTING,
+	__IXGB_RESETTING,
+	*/
+	__IXGB_DOWN
 };
 
 /* Exported from other modules */
@@ -202,5 +210,15 @@ extern void ixgb_check_options(struct ixgb_adapter *adapter);
 extern void ixgb_set_ethtool_ops(struct net_device *netdev);
 extern char ixgb_driver_name[];
 extern const char ixgb_driver_version[];
+
+extern int ixgb_up(struct ixgb_adapter *adapter);
+extern void ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog);
+extern void ixgb_reset(struct ixgb_adapter *adapter);
+extern int ixgb_setup_rx_resources(struct ixgb_adapter *adapter);
+extern int ixgb_setup_tx_resources(struct ixgb_adapter *adapter);
+extern void ixgb_free_rx_resources(struct ixgb_adapter *adapter);
+extern void ixgb_free_tx_resources(struct ixgb_adapter *adapter);
+extern void ixgb_update_stats(struct ixgb_adapter *adapter);
+
 
 #endif /* _IXGB_H_ */

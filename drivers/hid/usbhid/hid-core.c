@@ -82,6 +82,7 @@ static int hid_start_in(struct hid_device *hid)
 
 	spin_lock_irqsave(&usbhid->inlock, flags);
 	if (hid->open > 0 && !test_bit(HID_SUSPENDED, &usbhid->iofl) &&
+			!test_bit(HID_DISCONNECTED, &usbhid->iofl) &&
 			!test_and_set_bit(HID_IN_RUNNING, &usbhid->iofl)) {
 		rc = usb_submit_urb(usbhid->urbin, GFP_ATOMIC);
 		if (rc != 0)
@@ -155,7 +156,7 @@ static void hid_io_error(struct hid_device *hid)
 	spin_lock_irqsave(&usbhid->inlock, flags);
 
 	/* Stop when disconnected */
-	if (usb_get_intfdata(usbhid->intf) == NULL)
+	if (test_bit(HID_DISCONNECTED, &usbhid->iofl))
 		goto done;
 
 	/* If it has been a while since the last error, we'll assume
@@ -341,7 +342,7 @@ static void hid_irq_out(struct urb *urb)
 	if (usbhid->outhead != usbhid->outtail) {
 		if (hid_submit_out(hid)) {
 			clear_bit(HID_OUT_RUNNING, &usbhid->iofl);
-			wake_up(&hid->wait);
+			wake_up(&usbhid->wait);
 		}
 		spin_unlock_irqrestore(&usbhid->outlock, flags);
 		return;
@@ -349,7 +350,7 @@ static void hid_irq_out(struct urb *urb)
 
 	clear_bit(HID_OUT_RUNNING, &usbhid->iofl);
 	spin_unlock_irqrestore(&usbhid->outlock, flags);
-	wake_up(&hid->wait);
+	wake_up(&usbhid->wait);
 }
 
 /*
@@ -391,7 +392,7 @@ static void hid_ctrl(struct urb *urb)
 	if (usbhid->ctrlhead != usbhid->ctrltail) {
 		if (hid_submit_ctrl(hid)) {
 			clear_bit(HID_CTRL_RUNNING, &usbhid->iofl);
-			wake_up(&hid->wait);
+			wake_up(&usbhid->wait);
 		}
 		spin_unlock_irqrestore(&usbhid->ctrllock, flags);
 		return;
@@ -399,7 +400,7 @@ static void hid_ctrl(struct urb *urb)
 
 	clear_bit(HID_CTRL_RUNNING, &usbhid->iofl);
 	spin_unlock_irqrestore(&usbhid->ctrllock, flags);
-	wake_up(&hid->wait);
+	wake_up(&usbhid->wait);
 }
 
 void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, unsigned char dir)
@@ -478,8 +479,9 @@ int usbhid_wait_io(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
 
-	if (!wait_event_timeout(hid->wait, (!test_bit(HID_CTRL_RUNNING, &usbhid->iofl) &&
-					!test_bit(HID_OUT_RUNNING, &usbhid->iofl)),
+	if (!wait_event_timeout(usbhid->wait,
+				(!test_bit(HID_CTRL_RUNNING, &usbhid->iofl) &&
+				!test_bit(HID_OUT_RUNNING, &usbhid->iofl)),
 					10*HZ)) {
 		dbg_hid("timeout waiting for ctrl or out queue to clear\n");
 		return -1;
@@ -610,10 +612,11 @@ static void usbhid_set_leds(struct hid_device *hid)
 /*
  * Traverse the supplied list of reports and find the longest
  */
-static void hid_find_max_report(struct hid_device *hid, unsigned int type, int *max)
+static void hid_find_max_report(struct hid_device *hid, unsigned int type,
+		unsigned int *max)
 {
 	struct hid_report *report;
-	int size;
+	unsigned int size;
 
 	list_for_each_entry(report, &hid->report_enum[type].report_list, list) {
 		size = ((report->size - 1) >> 3) + 1;
@@ -705,9 +708,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	struct hid_descriptor *hdesc;
 	struct hid_device *hid;
 	u32 quirks = 0;
-	unsigned rsize = 0;
+	unsigned int insize = 0, rsize = 0;
 	char *rdesc;
-	int n, len, insize = 0;
+	int n, len;
 	struct usbhid_device *usbhid;
 
 	quirks = usbhid_lookup_quirk(le16_to_cpu(dev->descriptor.idVendor),
@@ -800,6 +803,22 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		goto fail;
 	}
 
+	hid->name[0] = 0;
+
+	if (dev->manufacturer)
+		strlcpy(hid->name, dev->manufacturer, sizeof(hid->name));
+
+	if (dev->product) {
+		if (dev->manufacturer)
+			strlcat(hid->name, " ", sizeof(hid->name));
+		strlcat(hid->name, dev->product, sizeof(hid->name));
+	}
+
+	if (!strlen(hid->name))
+		snprintf(hid->name, sizeof(hid->name), "HID %04x:%04x",
+			 le16_to_cpu(dev->descriptor.idVendor),
+			 le16_to_cpu(dev->descriptor.idProduct));
+
 	for (n = 0; n < interface->desc.bNumEndpoints; n++) {
 
 		struct usb_endpoint_descriptor *endpoint;
@@ -811,6 +830,14 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 			continue;
 
 		interval = endpoint->bInterval;
+
+		/* Some vendors give fullspeed interval on highspeed devides */
+		if (quirks & HID_QUIRK_FULLSPEED_INTERVAL  &&
+		    dev->speed == USB_SPEED_HIGH) {
+			interval = fls(endpoint->bInterval*8);
+			printk(KERN_INFO "%s: Fixing fullspeed to highspeed interval: %d -> %d\n",
+			       hid->name, endpoint->bInterval, interval);
+		}
 
 		/* Change the polling interval of mice. */
 		if (hid->collection->usage == HID_GD_MOUSE && hid_mousepoll_interval > 0)
@@ -844,8 +871,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		goto fail;
 	}
 
-	init_waitqueue_head(&hid->wait);
-
+	init_waitqueue_head(&usbhid->wait);
 	INIT_WORK(&usbhid->reset_work, hid_reset);
 	setup_timer(&usbhid->io_retry, hid_retry_timeout, (unsigned long) hid);
 
@@ -858,22 +884,6 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->dev = &intf->dev;
 	usbhid->intf = intf;
 	usbhid->ifnum = interface->desc.bInterfaceNumber;
-
-	hid->name[0] = 0;
-
-	if (dev->manufacturer)
-		strlcpy(hid->name, dev->manufacturer, sizeof(hid->name));
-
-	if (dev->product) {
-		if (dev->manufacturer)
-			strlcat(hid->name, " ", sizeof(hid->name));
-		strlcat(hid->name, dev->product, sizeof(hid->name));
-	}
-
-	if (!strlen(hid->name))
-		snprintf(hid->name, sizeof(hid->name), "HID %04x:%04x",
-			 le16_to_cpu(dev->descriptor.idVendor),
-			 le16_to_cpu(dev->descriptor.idProduct));
 
 	hid->bus = BUS_USB;
 	hid->vendor = le16_to_cpu(dev->descriptor.idVendor);
@@ -932,6 +942,7 @@ static void hid_disconnect(struct usb_interface *intf)
 
 	spin_lock_irq(&usbhid->inlock);	/* Sync with error handler */
 	usb_set_intfdata(intf, NULL);
+	set_bit(HID_DISCONNECTED, &usbhid->iofl);
 	spin_unlock_irq(&usbhid->inlock);
 	usb_kill_urb(usbhid->urbin);
 	usb_kill_urb(usbhid->urbout);

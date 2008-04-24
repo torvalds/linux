@@ -55,13 +55,10 @@ static inline void set_fs(mm_segment_t s)
  * If we don't have an MMU (or if its disabled) the only thing we really have
  * to look out for is if the address resides somewhere outside of what
  * available RAM we have.
- *
- * TODO: This check could probably also stand to be restricted somewhat more..
- * though it still does the Right Thing(tm) for the time being.
  */
 static inline int __access_ok(unsigned long addr, unsigned long size)
 {
-	return ((addr >= memory_start) && ((addr + size) < memory_end));
+	return 1;
 }
 #else /* CONFIG_MMU */
 #define __addr_ok(addr) \

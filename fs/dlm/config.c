@@ -114,7 +114,7 @@ struct cluster_attribute {
 };
 
 static ssize_t cluster_set(struct cluster *cl, unsigned int *cl_field,
-			   unsigned int *info_field, int check_zero,
+			   int *info_field, int check_zero,
 			   const char *buf, size_t len)
 {
 	unsigned int x;
@@ -284,6 +284,7 @@ struct node {
 	struct list_head list; /* space->members */
 	int nodeid;
 	int weight;
+	int new;
 };
 
 static struct configfs_group_operations clusters_ops = {
@@ -565,6 +566,7 @@ static struct config_item *make_node(struct config_group *g, const char *name)
 	config_item_init_type_name(&nd->item, name, &node_type);
 	nd->nodeid = -1;
 	nd->weight = 1;  /* default weight of 1 if none is set */
+	nd->new = 1;     /* set to 0 once it's been read by dlm_nodeid_list() */
 
 	mutex_lock(&sp->members_lock);
 	list_add(&nd->list, &sp->members);
@@ -805,12 +807,13 @@ static void put_comm(struct comm *cm)
 }
 
 /* caller must free mem */
-int dlm_nodeid_list(char *lsname, int **ids_out)
+int dlm_nodeid_list(char *lsname, int **ids_out, int *ids_count_out,
+		    int **new_out, int *new_count_out)
 {
 	struct space *sp;
 	struct node *nd;
-	int i = 0, rv = 0;
-	int *ids;
+	int i = 0, rv = 0, ids_count = 0, new_count = 0;
+	int *ids, *new;
 
 	sp = get_space(lsname);
 	if (!sp)
@@ -818,23 +821,50 @@ int dlm_nodeid_list(char *lsname, int **ids_out)
 
 	mutex_lock(&sp->members_lock);
 	if (!sp->members_count) {
-		rv = 0;
+		rv = -EINVAL;
+		printk(KERN_ERR "dlm: zero members_count\n");
 		goto out;
 	}
 
-	ids = kcalloc(sp->members_count, sizeof(int), GFP_KERNEL);
+	ids_count = sp->members_count;
+
+	ids = kcalloc(ids_count, sizeof(int), GFP_KERNEL);
 	if (!ids) {
 		rv = -ENOMEM;
 		goto out;
 	}
 
-	rv = sp->members_count;
-	list_for_each_entry(nd, &sp->members, list)
+	list_for_each_entry(nd, &sp->members, list) {
 		ids[i++] = nd->nodeid;
+		if (nd->new)
+			new_count++;
+	}
 
-	if (rv != i)
-		printk("bad nodeid count %d %d\n", rv, i);
+	if (ids_count != i)
+		printk(KERN_ERR "dlm: bad nodeid count %d %d\n", ids_count, i);
 
+	if (!new_count)
+		goto out_ids;
+
+	new = kcalloc(new_count, sizeof(int), GFP_KERNEL);
+	if (!new) {
+		kfree(ids);
+		rv = -ENOMEM;
+		goto out;
+	}
+
+	i = 0;
+	list_for_each_entry(nd, &sp->members, list) {
+		if (nd->new) {
+			new[i++] = nd->nodeid;
+			nd->new = 0;
+		}
+	}
+	*new_count_out = new_count;
+	*new_out = new;
+
+ out_ids:
+	*ids_count_out = ids_count;
 	*ids_out = ids;
  out:
 	mutex_unlock(&sp->members_lock);

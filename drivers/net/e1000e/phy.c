@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2007 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -134,7 +134,8 @@ static s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 		return -E1000_ERR_PARAM;
 	}
 
-	/* Set up Op-code, Phy Address, and register offset in the MDI
+	/*
+	 * Set up Op-code, Phy Address, and register offset in the MDI
 	 * Control register.  The MAC will take care of interfacing with the
 	 * PHY to retrieve the desired data.
 	 */
@@ -144,7 +145,11 @@ static s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 
 	ew32(MDIC, mdic);
 
-	/* Poll the ready bit to see if the MDI read completed */
+	/*
+	 * Poll the ready bit to see if the MDI read completed
+	 * Increasing the time out as testing showed failures with
+	 * the lower time out
+	 */
 	for (i = 0; i < 64; i++) {
 		udelay(50);
 		mdic = er32(MDIC);
@@ -182,7 +187,8 @@ static s32 e1000_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 		return -E1000_ERR_PARAM;
 	}
 
-	/* Set up Op-code, Phy Address, and register offset in the MDI
+	/*
+	 * Set up Op-code, Phy Address, and register offset in the MDI
 	 * Control register.  The MAC will take care of interfacing with the
 	 * PHY to retrieve the desired data.
 	 */
@@ -409,14 +415,15 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	/* Enable CRS on TX. This must be set for half-duplex operation. */
+	/* Enable CRS on Tx. This must be set for half-duplex operation. */
 	ret_val = e1e_rphy(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
 	if (ret_val)
 		return ret_val;
 
 	phy_data |= M88E1000_PSCR_ASSERT_CRS_ON_TX;
 
-	/* Options:
+	/*
+	 * Options:
 	 *   MDI/MDI-X = 0 (default)
 	 *   0 - Auto for all speeds
 	 *   1 - MDI mode
@@ -441,7 +448,8 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 		break;
 	}
 
-	/* Options:
+	/*
+	 * Options:
 	 *   disable_polarity_correction = 0 (default)
 	 *       Automatic Correction for Reversed Cable Polarity
 	 *   0 - Disabled
@@ -456,7 +464,8 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 		return ret_val;
 
 	if (phy->revision < 4) {
-		/* Force TX_CLK in the Extended PHY Specific Control Register
+		/*
+		 * Force TX_CLK in the Extended PHY Specific Control Register
 		 * to 25MHz clock.
 		 */
 		ret_val = e1e_rphy(hw, M88E1000_EXT_PHY_SPEC_CTRL, &phy_data);
@@ -543,19 +552,21 @@ s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw)
 
 	/* set auto-master slave resolution settings */
 	if (hw->mac.autoneg) {
-		/* when autonegotiation advertisement is only 1000Mbps then we
+		/*
+		 * when autonegotiation advertisement is only 1000Mbps then we
 		 * should disable SmartSpeed and enable Auto MasterSlave
-		 * resolution as hardware default. */
+		 * resolution as hardware default.
+		 */
 		if (phy->autoneg_advertised == ADVERTISE_1000_FULL) {
 			/* Disable SmartSpeed */
 			ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CONFIG,
-						     &data);
+					   &data);
 			if (ret_val)
 				return ret_val;
 
 			data &= ~IGP01E1000_PSCFR_SMART_SPEED;
 			ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG,
-						     data);
+					   data);
 			if (ret_val)
 				return ret_val;
 
@@ -630,14 +641,16 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 			return ret_val;
 	}
 
-	/* Need to parse both autoneg_advertised and fc and set up
+	/*
+	 * Need to parse both autoneg_advertised and fc and set up
 	 * the appropriate PHY registers.  First we will parse for
 	 * autoneg_advertised software override.  Since we can advertise
 	 * a plethora of combinations, we need to check each bit
 	 * individually.
 	 */
 
-	/* First we clear all the 10/100 mb speed bits in the Auto-Neg
+	/*
+	 * First we clear all the 10/100 mb speed bits in the Auto-Neg
 	 * Advertisement Register (Address 4) and the 1000 mb speed bits in
 	 * the  1000Base-T Control Register (Address 9).
 	 */
@@ -683,7 +696,8 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 		mii_1000t_ctrl_reg |= CR_1000T_FD_CAPS;
 	}
 
-	/* Check for a software override of the flow control settings, and
+	/*
+	 * Check for a software override of the flow control settings, and
 	 * setup the PHY advertisement registers accordingly.  If
 	 * auto-negotiation is enabled, then software will have to set the
 	 * "PAUSE" bits to the correct value in the Auto-Negotiation
@@ -696,38 +710,42 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 	 *	  but not send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
 	 *	  but we do not support receiving pause frames).
-	 *      3:  Both Rx and TX flow control (symmetric) are enabled.
+	 *      3:  Both Rx and Tx flow control (symmetric) are enabled.
 	 *  other:  No software override.  The flow control configuration
 	 *	  in the EEPROM is used.
 	 */
-	switch (hw->mac.fc) {
+	switch (hw->fc.type) {
 	case e1000_fc_none:
-		/* Flow control (RX & TX) is completely disabled by a
+		/*
+		 * Flow control (Rx & Tx) is completely disabled by a
 		 * software over-ride.
 		 */
 		mii_autoneg_adv_reg &= ~(NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
 		break;
 	case e1000_fc_rx_pause:
-		/* RX Flow control is enabled, and TX Flow control is
+		/*
+		 * Rx Flow control is enabled, and Tx Flow control is
 		 * disabled, by a software over-ride.
-		 */
-		/* Since there really isn't a way to advertise that we are
-		 * capable of RX Pause ONLY, we will advertise that we
-		 * support both symmetric and asymmetric RX PAUSE.  Later
+		 *
+		 * Since there really isn't a way to advertise that we are
+		 * capable of Rx Pause ONLY, we will advertise that we
+		 * support both symmetric and asymmetric Rx PAUSE.  Later
 		 * (in e1000e_config_fc_after_link_up) we will disable the
 		 * hw's ability to send PAUSE frames.
 		 */
 		mii_autoneg_adv_reg |= (NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
 		break;
 	case e1000_fc_tx_pause:
-		/* TX Flow control is enabled, and RX Flow control is
+		/*
+		 * Tx Flow control is enabled, and Rx Flow control is
 		 * disabled, by a software over-ride.
 		 */
 		mii_autoneg_adv_reg |= NWAY_AR_ASM_DIR;
 		mii_autoneg_adv_reg &= ~NWAY_AR_PAUSE;
 		break;
 	case e1000_fc_full:
-		/* Flow control (both RX and TX) is enabled by a software
+		/*
+		 * Flow control (both Rx and Tx) is enabled by a software
 		 * over-ride.
 		 */
 		mii_autoneg_adv_reg |= (NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
@@ -758,7 +776,7 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
  *  Performs initial bounds checking on autoneg advertisement parameter, then
  *  configure to advertise the full capability.  Setup the PHY to autoneg
  *  and restart the negotiation process between the link partner.  If
- *  wait_for_link, then wait for autoneg to complete before exiting.
+ *  autoneg_wait_to_complete, then wait for autoneg to complete before exiting.
  **/
 static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 {
@@ -766,12 +784,14 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_ctrl;
 
-	/* Perform some bounds checking on the autoneg advertisement
+	/*
+	 * Perform some bounds checking on the autoneg advertisement
 	 * parameter.
 	 */
 	phy->autoneg_advertised &= phy->autoneg_mask;
 
-	/* If autoneg_advertised is zero, we assume it was not defaulted
+	/*
+	 * If autoneg_advertised is zero, we assume it was not defaulted
 	 * by the calling code so we set to advertise full capability.
 	 */
 	if (phy->autoneg_advertised == 0)
@@ -785,7 +805,8 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	}
 	hw_dbg(hw, "Restarting Auto-Neg\n");
 
-	/* Restart auto-negotiation by setting the Auto Neg Enable bit and
+	/*
+	 * Restart auto-negotiation by setting the Auto Neg Enable bit and
 	 * the Auto Neg Restart bit in the PHY control register.
 	 */
 	ret_val = e1e_rphy(hw, PHY_CONTROL, &phy_ctrl);
@@ -797,10 +818,11 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/* Does the user want to wait for Auto-Neg to complete here, or
+	/*
+	 * Does the user want to wait for Auto-Neg to complete here, or
 	 * check at a later time (for example, callback routine).
 	 */
-	if (phy->wait_for_link) {
+	if (phy->autoneg_wait_to_complete) {
 		ret_val = e1000_wait_autoneg(hw);
 		if (ret_val) {
 			hw_dbg(hw, "Error while waiting for "
@@ -829,14 +851,18 @@ s32 e1000e_setup_copper_link(struct e1000_hw *hw)
 	bool link;
 
 	if (hw->mac.autoneg) {
-		/* Setup autoneg and flow control advertisement and perform
-		 * autonegotiation. */
+		/*
+		 * Setup autoneg and flow control advertisement and perform
+		 * autonegotiation.
+		 */
 		ret_val = e1000_copper_link_autoneg(hw);
 		if (ret_val)
 			return ret_val;
 	} else {
-		/* PHY will be set to 10H, 10F, 100H or 100F
-		 * depending on user settings. */
+		/*
+		 * PHY will be set to 10H, 10F, 100H or 100F
+		 * depending on user settings.
+		 */
 		hw_dbg(hw, "Forcing Speed and Duplex\n");
 		ret_val = e1000_phy_force_speed_duplex(hw);
 		if (ret_val) {
@@ -845,7 +871,8 @@ s32 e1000e_setup_copper_link(struct e1000_hw *hw)
 		}
 	}
 
-	/* Check link status. Wait up to 100 microseconds for link to become
+	/*
+	 * Check link status. Wait up to 100 microseconds for link to become
 	 * valid.
 	 */
 	ret_val = e1000e_phy_has_link_generic(hw,
@@ -891,7 +918,8 @@ s32 e1000e_phy_force_speed_duplex_igp(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/* Clear Auto-Crossover to force MDI manually.  IGP requires MDI
+	/*
+	 * Clear Auto-Crossover to force MDI manually.  IGP requires MDI
 	 * forced whenever speed and duplex are forced.
 	 */
 	ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CTRL, &phy_data);
@@ -909,7 +937,7 @@ s32 e1000e_phy_force_speed_duplex_igp(struct e1000_hw *hw)
 
 	udelay(1);
 
-	if (phy->wait_for_link) {
+	if (phy->autoneg_wait_to_complete) {
 		hw_dbg(hw, "Waiting for forced speed/duplex link on IGP phy.\n");
 
 		ret_val = e1000e_phy_has_link_generic(hw,
@@ -941,7 +969,7 @@ s32 e1000e_phy_force_speed_duplex_igp(struct e1000_hw *hw)
  *  Calls the PHY setup function to force speed and duplex.  Clears the
  *  auto-crossover to force MDI manually.  Resets the PHY to commit the
  *  changes.  If time expires while waiting for link up, we reset the DSP.
- *  After reset, TX_CLK and CRS on TX must be set.  Return successful upon
+ *  After reset, TX_CLK and CRS on Tx must be set.  Return successful upon
  *  successful completion, else return corresponding error code.
  **/
 s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
@@ -951,7 +979,8 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 	u16 phy_data;
 	bool link;
 
-	/* Clear Auto-Crossover to force MDI manually.  M88E1000 requires MDI
+	/*
+	 * Clear Auto-Crossover to force MDI manually.  M88E1000 requires MDI
 	 * forced whenever speed and duplex are forced.
 	 */
 	ret_val = e1e_rphy(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
@@ -980,7 +1009,7 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 
 	udelay(1);
 
-	if (phy->wait_for_link) {
+	if (phy->autoneg_wait_to_complete) {
 		hw_dbg(hw, "Waiting for forced speed/duplex link on M88 phy.\n");
 
 		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
@@ -989,10 +1018,12 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 			return ret_val;
 
 		if (!link) {
-			/* We didn't get link.
+			/*
+			 * We didn't get link.
 			 * Reset the DSP and cross our fingers.
 			 */
-			ret_val = e1e_wphy(hw, M88E1000_PHY_PAGE_SELECT, 0x001d);
+			ret_val = e1e_wphy(hw, M88E1000_PHY_PAGE_SELECT,
+					   0x001d);
 			if (ret_val)
 				return ret_val;
 			ret_val = e1000e_phy_reset_dsp(hw);
@@ -1011,7 +1042,8 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/* Resetting the phy means we need to re-force TX_CLK in the
+	/*
+	 * Resetting the phy means we need to re-force TX_CLK in the
 	 * Extended PHY Specific Control Register to 25MHz clock from
 	 * the reset value of 2.5MHz.
 	 */
@@ -1020,7 +1052,8 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/* In addition, we must re-enable CRS on Tx for both half and full
+	/*
+	 * In addition, we must re-enable CRS on Tx for both half and full
 	 * duplex.
 	 */
 	ret_val = e1e_rphy(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
@@ -1051,7 +1084,7 @@ void e1000e_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl)
 	u32 ctrl;
 
 	/* Turn off flow control when forcing speed/duplex */
-	mac->fc = e1000_fc_none;
+	hw->fc.type = e1000_fc_none;
 
 	/* Force speed/duplex on the mac */
 	ctrl = er32(CTRL);
@@ -1124,30 +1157,32 @@ s32 e1000e_set_d3_lplu_state(struct e1000_hw *hw, bool active)
 					     data);
 		if (ret_val)
 			return ret_val;
-		/* LPLU and SmartSpeed are mutually exclusive.  LPLU is used
+		/*
+		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
 		 * during Dx states where the power conservation is most
 		 * important.  During driver activity we should enable
-		 * SmartSpeed, so performance is maintained. */
+		 * SmartSpeed, so performance is maintained.
+		 */
 		if (phy->smart_speed == e1000_smart_speed_on) {
 			ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CONFIG,
-						    &data);
+					   &data);
 			if (ret_val)
 				return ret_val;
 
 			data |= IGP01E1000_PSCFR_SMART_SPEED;
 			ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG,
-						     data);
+					   data);
 			if (ret_val)
 				return ret_val;
 		} else if (phy->smart_speed == e1000_smart_speed_off) {
 			ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CONFIG,
-						     &data);
+					   &data);
 			if (ret_val)
 				return ret_val;
 
 			data &= ~IGP01E1000_PSCFR_SMART_SPEED;
 			ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG,
-						     data);
+					   data);
 			if (ret_val)
 				return ret_val;
 		}
@@ -1249,8 +1284,10 @@ static s32 e1000_check_polarity_igp(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 data, offset, mask;
 
-	/* Polarity is determined based on the speed of
-	 * our connection. */
+	/*
+	 * Polarity is determined based on the speed of
+	 * our connection.
+	 */
 	ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_STATUS, &data);
 	if (ret_val)
 		return ret_val;
@@ -1260,7 +1297,8 @@ static s32 e1000_check_polarity_igp(struct e1000_hw *hw)
 		offset	= IGP01E1000_PHY_PCS_INIT_REG;
 		mask	= IGP01E1000_PHY_POLARITY_MASK;
 	} else {
-		/* This really only applies to 10Mbps since
+		/*
+		 * This really only applies to 10Mbps since
 		 * there is no polarity for 100Mbps (always 0).
 		 */
 		offset	= IGP01E1000_PHY_PORT_STATUS;
@@ -1278,7 +1316,7 @@ static s32 e1000_check_polarity_igp(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_wait_autoneg - Wait for auto-neg compeletion
+ *  e1000_wait_autoneg - Wait for auto-neg completion
  *  @hw: pointer to the HW structure
  *
  *  Waits for auto-negotiation to complete or for the auto-negotiation time
@@ -1302,7 +1340,8 @@ static s32 e1000_wait_autoneg(struct e1000_hw *hw)
 		msleep(100);
 	}
 
-	/* PHY_AUTO_NEG_TIME expiration doesn't guarantee auto-negotiation
+	/*
+	 * PHY_AUTO_NEG_TIME expiration doesn't guarantee auto-negotiation
 	 * has completed.
 	 */
 	return ret_val;
@@ -1324,7 +1363,8 @@ s32 e1000e_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
 	u16 i, phy_status;
 
 	for (i = 0; i < iterations; i++) {
-		/* Some PHYs require the PHY_STATUS register to be read
+		/*
+		 * Some PHYs require the PHY_STATUS register to be read
 		 * twice due to the link bit being sticky.  No harm doing
 		 * it across the board.
 		 */
@@ -1412,10 +1452,12 @@ s32 e1000e_get_cable_length_igp_2(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 
-		/* Getting bits 15:9, which represent the combination of
+		/*
+		 * Getting bits 15:9, which represent the combination of
 		 * course and fine gain values.  The result is a number
 		 * that can be put into the lookup table to obtain the
-		 * approximate cable length. */
+		 * approximate cable length.
+		 */
 		cur_agc_index = (phy_data >> IGP02E1000_AGC_LENGTH_SHIFT) &
 				IGP02E1000_AGC_LENGTH_MASK;
 
@@ -1466,7 +1508,7 @@ s32 e1000e_get_phy_info_m88(struct e1000_hw *hw)
 	u16 phy_data;
 	bool link;
 
-	if (hw->media_type != e1000_media_type_copper) {
+	if (hw->phy.media_type != e1000_media_type_copper) {
 		hw_dbg(hw, "Phy info is only valid for copper media\n");
 		return -E1000_ERR_CONFIG;
 	}

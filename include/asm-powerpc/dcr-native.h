@@ -82,6 +82,19 @@ static inline void __mtdcri(int base_addr, int base_data, int reg,
 	spin_unlock_irqrestore(&dcr_ind_lock, flags);
 }
 
+static inline void __dcri_clrset(int base_addr, int base_data, int reg,
+				 unsigned clr, unsigned set)
+{
+	unsigned long flags;
+	unsigned int val;
+
+	spin_lock_irqsave(&dcr_ind_lock, flags);
+	__mtdcr(base_addr, reg);
+	val = (__mfdcr(base_data) & ~clr) | set;
+	__mtdcr(base_data, val);
+	spin_unlock_irqrestore(&dcr_ind_lock, flags);
+}
+
 #define mfdcri(base, reg)	__mfdcri(DCRN_ ## base ## _CONFIG_ADDR,	\
 					 DCRN_ ## base ## _CONFIG_DATA,	\
 					 reg)
@@ -89,6 +102,10 @@ static inline void __mtdcri(int base_addr, int base_data, int reg,
 #define mtdcri(base, reg, data)	__mtdcri(DCRN_ ## base ## _CONFIG_ADDR,	\
 					 DCRN_ ## base ## _CONFIG_DATA,	\
 					 reg, data)
+
+#define dcri_clrset(base, reg, clr, set)	__dcri_clrset(DCRN_ ## base ## _CONFIG_ADDR,	\
+							      DCRN_ ## base ## _CONFIG_DATA,	\
+							      reg, clr, set)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

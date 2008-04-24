@@ -43,8 +43,7 @@ struct ip_options {
 	unsigned char	srr;
 	unsigned char	rr;
 	unsigned char	ts;
-	unsigned char	is_data:1,
-			is_strictroute:1,
+	unsigned char	is_strictroute:1,
 			srr_is_hit:1,
 			is_changed:1,
 			rr_needaddr:1,
@@ -137,7 +136,7 @@ struct inet_sock {
 		unsigned int		flags;
 		unsigned int		fragsize;
 		struct ip_options	*opt;
-		struct rtable		*rt;
+		struct dst_entry	*dst;
 		int			length; /* Total length of all frames */
 		__be32			addr;
 		struct flowi		fl;
@@ -195,7 +194,7 @@ static inline int inet_sk_ehashfn(const struct sock *sk)
 
 static inline int inet_iif(const struct sk_buff *skb)
 {
-	return ((struct rtable *)skb->dst)->rt_iif;
+	return skb->rtable->rt_iif;
 }
 
 #endif	/* _INET_SOCK_H */

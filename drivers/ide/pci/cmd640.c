@@ -409,19 +409,9 @@ static void __init check_prefetch (unsigned int index)
  */
 static void __init setup_device_ptrs (void)
 {
-	unsigned int i;
+	cmd_hwif0 = &ide_hwifs[0];
+	cmd_hwif1 = &ide_hwifs[1];
 
-	cmd_hwif0 = &ide_hwifs[0]; /* default, if not found below */
-	cmd_hwif1 = &ide_hwifs[1]; /* default, if not found below */
-	for (i = 0; i < MAX_HWIFS; i++) {
-		ide_hwif_t *hwif = &ide_hwifs[i];
-		if (hwif->chipset == ide_unknown || hwif->chipset == ide_forced) {
-			if (hwif->io_ports[IDE_DATA_OFFSET] == 0x1f0)
-				cmd_hwif0 = hwif;
-			else if (hwif->io_ports[IDE_DATA_OFFSET] == 0x170)
-				cmd_hwif1 = hwif;
-		}
-	}
 	cmd_drives[0] = &cmd_hwif0->drives[0];
 	cmd_drives[1] = &cmd_hwif0->drives[1];
 	cmd_drives[2] = &cmd_hwif1->drives[0];
@@ -724,6 +714,7 @@ static int __init cmd640x_init(void)
 	unsigned int index;
 	u8 b, cfr;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw[2];
 
 	if (cmd640_vlb && probe_for_cmd640_vlb()) {
 		bus_type = "VLB";
@@ -762,12 +753,23 @@ static int __init cmd640x_init(void)
 		return 0;
 	}
 
+	memset(&hw, 0, sizeof(hw));
+
+	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
+	hw[0].irq = 14;
+
+	ide_std_init_ports(&hw[1], 0x170, 0x376);
+	hw[1].irq = 15;
+
+	printk(KERN_INFO "cmd640: buggy cmd640%c interface on %s, config=0x%02x"
+			 "\n", 'a' + cmd640_chip_version - 1, bus_type, cfr);
+
 	/*
 	 * Initialize data for primary port
 	 */
 	setup_device_ptrs ();
-	printk("%s: buggy cmd640%c interface on %s, config=0x%02x\n",
-	       cmd_hwif0->name, 'a' + cmd640_chip_version - 1, bus_type, cfr);
+
+	ide_init_port_hw(cmd_hwif0, &hw[0]);
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 	cmd_hwif0->set_pio_mode = &cmd640_set_pio_mode;
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
@@ -787,8 +789,7 @@ static int __init cmd640x_init(void)
 	/*
 	 * Try to enable the secondary interface, if not already enabled
 	 */
-	if (cmd_hwif1->noprobe ||
-	    (cmd_hwif1->drives[0].noprobe && cmd_hwif1->drives[1].noprobe)) {
+	if (cmd_hwif1->drives[0].noprobe && cmd_hwif1->drives[1].noprobe) {
 		port2 = "not probed";
 	} else {
 		b = get_cmd640_reg(CNTRL);
@@ -820,6 +821,7 @@ static int __init cmd640x_init(void)
 	 * Initialize data for secondary cmd640 port, if enabled
 	 */
 	if (second_port_cmd640) {
+		ide_init_port_hw(cmd_hwif1, &hw[1]);
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 		cmd_hwif1->set_pio_mode = &cmd640_set_pio_mode;
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */

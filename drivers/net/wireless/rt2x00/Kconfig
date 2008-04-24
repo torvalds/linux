@@ -5,30 +5,28 @@ config RT2X00
 	  This will enable the experimental support for the Ralink drivers,
 	  developed in the rt2x00 project <http://rt2x00.serialmonkey.com>.
 
-	  These drivers will make use of the Devicescape ieee80211 stack.
+	  These drivers will make use of the mac80211 stack.
 
 	  When building one of the individual drivers, the rt2x00 library
 	  will also be created. That library (when the driver is built as
 	  a module) will be called "rt2x00lib.ko".
 
+if RT2X00
+
 config RT2X00_LIB
 	tristate
-	depends on RT2X00
 
 config RT2X00_LIB_PCI
 	tristate
-	depends on RT2X00
 	select RT2X00_LIB
 
 config RT2X00_LIB_USB
 	tristate
-	depends on RT2X00
 	select RT2X00_LIB
 
 config RT2X00_LIB_FIRMWARE
 	boolean
 	depends on RT2X00_LIB
-	select CRC_ITU_T
 	select FW_LOADER
 
 config RT2X00_LIB_RFKILL
@@ -37,9 +35,13 @@ config RT2X00_LIB_RFKILL
 	select RFKILL
 	select INPUT_POLLDEV
 
+config RT2X00_LIB_LEDS
+	boolean
+	depends on RT2X00_LIB
+
 config RT2400PCI
 	tristate "Ralink rt2400 pci/pcmcia support"
-	depends on RT2X00 && PCI
+	depends on PCI
 	select RT2X00_LIB_PCI
 	select EEPROM_93CX6
 	---help---
@@ -56,9 +58,17 @@ config RT2400PCI_RFKILL
 	  hardware button to control the radio state.
 	  This feature depends on the RF switch subsystem rfkill.
 
+config RT2400PCI_LEDS
+	bool "RT2400 leds support"
+	depends on RT2400PCI
+	select LEDS_CLASS
+	select RT2X00_LIB_LEDS
+	---help---
+	  This adds support for led triggers provided my mac80211.
+
 config RT2500PCI
 	tristate "Ralink rt2500 pci/pcmcia support"
-	depends on RT2X00 && PCI
+	depends on PCI
 	select RT2X00_LIB_PCI
 	select EEPROM_93CX6
 	---help---
@@ -75,11 +85,20 @@ config RT2500PCI_RFKILL
 	  hardware button to control the radio state.
 	  This feature depends on the RF switch subsystem rfkill.
 
+config RT2500PCI_LEDS
+	bool "RT2500 leds support"
+	depends on RT2500PCI
+	select LEDS_CLASS
+	select RT2X00_LIB_LEDS
+	---help---
+	  This adds support for led triggers provided my mac80211.
+
 config RT61PCI
 	tristate "Ralink rt61 pci/pcmcia support"
-	depends on RT2X00 && PCI
+	depends on PCI
 	select RT2X00_LIB_PCI
 	select RT2X00_LIB_FIRMWARE
+	select CRC_ITU_T
 	select EEPROM_93CX6
 	---help---
 	  This is an experimental driver for the Ralink rt61 wireless chip.
@@ -95,24 +114,49 @@ config RT61PCI_RFKILL
 	  hardware button to control the radio state.
 	  This feature depends on the RF switch subsystem rfkill.
 
+config RT61PCI_LEDS
+	bool "RT61 leds support"
+	depends on RT61PCI
+	select LEDS_CLASS
+	select RT2X00_LIB_LEDS
+	---help---
+	  This adds support for led triggers provided my mac80211.
+
 config RT2500USB
 	tristate "Ralink rt2500 usb support"
-	depends on RT2X00 && USB
+	depends on USB
 	select RT2X00_LIB_USB
 	---help---
 	  This is an experimental driver for the Ralink rt2500 wireless chip.
 
 	  When compiled as a module, this driver will be called "rt2500usb.ko".
 
+config RT2500USB_LEDS
+	bool "RT2500 leds support"
+	depends on RT2500USB
+	select LEDS_CLASS
+	select RT2X00_LIB_LEDS
+	---help---
+	  This adds support for led triggers provided my mac80211.
+
 config RT73USB
 	tristate "Ralink rt73 usb support"
-	depends on RT2X00 && USB
+	depends on USB
 	select RT2X00_LIB_USB
 	select RT2X00_LIB_FIRMWARE
+	select CRC_ITU_T
 	---help---
 	  This is an experimental driver for the Ralink rt73 wireless chip.
 
 	  When compiled as a module, this driver will be called "rt73usb.ko".
+
+config RT73USB_LEDS
+	bool "RT73 leds support"
+	depends on RT73USB
+	select LEDS_CLASS
+	select RT2X00_LIB_LEDS
+	---help---
+	  This adds support for led triggers provided my mac80211.
 
 config RT2X00_LIB_DEBUGFS
 	bool "Ralink debugfs support"
@@ -128,3 +172,4 @@ config RT2X00_DEBUG
 	---help---
 	  Enable debugging output for all rt2x00 modules
 
+endif

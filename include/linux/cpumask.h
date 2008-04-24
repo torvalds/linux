@@ -222,8 +222,13 @@ int __next_cpu(int n, const cpumask_t *srcp);
 #define next_cpu(n, src)	({ (void)(src); 1; })
 #endif
 
+#ifdef CONFIG_HAVE_CPUMASK_OF_CPU_MAP
+extern cpumask_t *cpumask_of_cpu_map;
+#define cpumask_of_cpu(cpu)    (cpumask_of_cpu_map[cpu])
+
+#else
 #define cpumask_of_cpu(cpu)						\
-({									\
+(*({									\
 	typeof(_unused_cpumask_arg_) m;					\
 	if (sizeof(m) == sizeof(unsigned long)) {			\
 		m.bits[0] = 1UL<<(cpu);					\
@@ -231,8 +236,9 @@ int __next_cpu(int n, const cpumask_t *srcp);
 		cpus_clear(m);						\
 		cpu_set((cpu), m);					\
 	}								\
-	m;								\
-})
+	&m;								\
+}))
+#endif
 
 #define CPU_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(NR_CPUS)
 
@@ -243,6 +249,8 @@ int __next_cpu(int n, const cpumask_t *srcp);
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
 } }
 
+#define CPU_MASK_ALL_PTR	(&CPU_MASK_ALL)
+
 #else
 
 #define CPU_MASK_ALL							\
@@ -250,6 +258,10 @@ int __next_cpu(int n, const cpumask_t *srcp);
 	[0 ... BITS_TO_LONGS(NR_CPUS)-2] = ~0UL,			\
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
 } }
+
+/* cpu_mask_all is in init/main.c */
+extern cpumask_t cpu_mask_all;
+#define CPU_MASK_ALL_PTR	(&cpu_mask_all)
 
 #endif
 
@@ -271,6 +283,13 @@ static inline int __cpumask_scnprintf(char *buf, int len,
 					const cpumask_t *srcp, int nbits)
 {
 	return bitmap_scnprintf(buf, len, srcp->bits, nbits);
+}
+
+#define cpumask_scnprintf_len(len) \
+			__cpumask_scnprintf_len((len))
+static inline int __cpumask_scnprintf_len(int len)
+{
+	return bitmap_scnprintf_len(len);
 }
 
 #define cpumask_parse_user(ubuf, ulen, dst) \

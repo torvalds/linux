@@ -2586,9 +2586,9 @@ void isr_io_pin( SLMP_INFO *info, u16 status )
  * 	dev_id		device ID supplied during interrupt registration
  * 	regs		interrupted processor context
  */
-static irqreturn_t synclinkmp_interrupt(int irq, void *dev_id)
+static irqreturn_t synclinkmp_interrupt(int dummy, void *dev_id)
 {
-	SLMP_INFO * info;
+	SLMP_INFO *info = dev_id;
 	unsigned char status, status0, status1=0;
 	unsigned char dmastatus, dmastatus0, dmastatus1=0;
 	unsigned char timerstatus0, timerstatus1=0;
@@ -2597,12 +2597,8 @@ static irqreturn_t synclinkmp_interrupt(int irq, void *dev_id)
 	unsigned short tmp;
 
 	if ( debug_level >= DEBUG_LEVEL_ISR )
-		printk("%s(%d): synclinkmp_interrupt(%d)entry.\n",
-			__FILE__,__LINE__,irq);
-
-	info = (SLMP_INFO *)dev_id;
-	if (!info)
-		return IRQ_NONE;
+		printk(KERN_DEBUG "%s(%d): synclinkmp_interrupt(%d)entry.\n",
+			__FILE__, __LINE__, info->irq_level);
 
 	spin_lock(&info->lock);
 
@@ -2615,9 +2611,9 @@ static irqreturn_t synclinkmp_interrupt(int irq, void *dev_id)
 		timerstatus0 = read_reg(info, ISR2);
 
 		if ( debug_level >= DEBUG_LEVEL_ISR )
-			printk("%s(%d):%s status0=%02x, dmastatus0=%02x, timerstatus0=%02x\n",
-				__FILE__,__LINE__,info->device_name,
-				status0,dmastatus0,timerstatus0);
+			printk(KERN_DEBUG "%s(%d):%s status0=%02x, dmastatus0=%02x, timerstatus0=%02x\n",
+				__FILE__, __LINE__, info->device_name,
+				status0, dmastatus0, timerstatus0);
 
 		if (info->port_count == 4) {
 			/* get status for SCA1 (ports 2-3) */
@@ -2702,8 +2698,8 @@ static irqreturn_t synclinkmp_interrupt(int irq, void *dev_id)
 	spin_unlock(&info->lock);
 
 	if ( debug_level >= DEBUG_LEVEL_ISR )
-		printk("%s(%d):synclinkmp_interrupt(%d)exit.\n",
-			__FILE__,__LINE__,irq);
+		printk(KERN_DEBUG "%s(%d):synclinkmp_interrupt(%d)exit.\n",
+			__FILE__, __LINE__, info->irq_level);
 	return IRQ_HANDLED;
 }
 
