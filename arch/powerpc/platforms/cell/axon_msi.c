@@ -123,7 +123,7 @@ static struct axon_msic *find_msi_translator(struct pci_dev *dev)
 		return NULL;
 	}
 
-	for (; dn; tmp = of_get_parent(dn), of_node_put(dn), dn = tmp) {
+	for (; dn; dn = of_get_next_parent(dn)) {
 		ph = of_get_property(dn, "msi-translator", NULL);
 		if (ph)
 			break;
@@ -169,7 +169,7 @@ static int axon_msi_check_device(struct pci_dev *dev, int nvec, int type)
 
 static int setup_msi_msg_address(struct pci_dev *dev, struct msi_msg *msg)
 {
-	struct device_node *dn, *tmp;
+	struct device_node *dn;
 	struct msi_desc *entry;
 	int len;
 	const u32 *prop;
@@ -182,7 +182,7 @@ static int setup_msi_msg_address(struct pci_dev *dev, struct msi_msg *msg)
 
 	entry = list_first_entry(&dev->msi_list, struct msi_desc, list);
 
-	for (; dn; tmp = of_get_parent(dn), of_node_put(dn), dn = tmp) {
+	for (; dn; dn = of_get_next_parent(dn)) {
 		if (entry->msi_attrib.is_64) {
 			prop = of_get_property(dn, "msi-address-64", &len);
 			if (prop)
