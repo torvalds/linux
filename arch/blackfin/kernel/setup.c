@@ -649,6 +649,49 @@ static __init void setup_bootmem_allocator(void)
 		BOOTMEM_DEFAULT);
 }
 
+#define EBSZ_TO_MEG(ebsz) \
+({ \
+	int meg = 0; \
+	switch (ebsz & 0xf) { \
+		case 0x1: meg =  16; break; \
+		case 0x3: meg =  32; break; \
+		case 0x5: meg =  64; break; \
+		case 0x7: meg = 128; break; \
+		case 0x9: meg = 256; break; \
+		case 0xb: meg = 512; break; \
+	} \
+	meg; \
+})
+static inline int __init get_mem_size(void)
+{
+#ifdef CONFIG_MEM_SIZE
+	return CONFIG_MEM_SIZE;
+#else
+# if defined(EBIU_SDBCTL)
+#  if defined(BF561_FAMILY)
+	int ret = 0;
+	u32 sdbctl = bfin_read_EBIU_SDBCTL();
+	ret += EBSZ_TO_MEG(sdbctl >>  0);
+	ret += EBSZ_TO_MEG(sdbctl >>  8);
+	ret += EBSZ_TO_MEG(sdbctl >> 16);
+	ret += EBSZ_TO_MEG(sdbctl >> 24);
+	return ret;
+#  else
+	return EBSZ_TO_MEG(bfin_read_EBIU_SDBCTL());
+#  endif
+# elif defined(EBIU_DDRCTL1)
+	switch (bfin_read_EBIU_DDRCTL1() & 0xc0000) {
+		case DEVSZ_64:  return 64;
+		case DEVSZ_128: return 128;
+		case DEVSZ_256: return 256;
+		case DEVSZ_512: return 512;
+		default:        return 0;
+	}
+# endif
+#endif
+	BUG();
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	unsigned long sclk, cclk;
@@ -669,7 +712,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/* setup memory defaults from the user config */
 	physical_mem_end = 0;
-	_ramend = CONFIG_MEM_SIZE * 1024 * 1024;
+	_ramend = get_mem_size() * 1024 * 1024;
 
 	memset(&bfin_memmap, 0, sizeof(bfin_memmap));
 
