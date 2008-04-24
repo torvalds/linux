@@ -2047,7 +2047,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 		goto drop;
 	}
 
-	IWL_DEBUG_RATE("station Id %d\n", sta_id);
+	IWL_DEBUG_TX("station Id %d\n", sta_id);
 
 	qc = ieee80211_get_qos_ctrl(hdr);
 	if (qc) {
