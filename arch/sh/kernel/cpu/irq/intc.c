@@ -101,17 +101,26 @@ static void write_32(unsigned long addr, unsigned long h, unsigned long data)
 
 static void modify_8(unsigned long addr, unsigned long h, unsigned long data)
 {
+	unsigned long flags;
+	local_irq_save(flags);
 	ctrl_outb(set_field(ctrl_inb(addr), data, h), addr);
+	local_irq_restore(flags);
 }
 
 static void modify_16(unsigned long addr, unsigned long h, unsigned long data)
 {
+	unsigned long flags;
+	local_irq_save(flags);
 	ctrl_outw(set_field(ctrl_inw(addr), data, h), addr);
+	local_irq_restore(flags);
 }
 
 static void modify_32(unsigned long addr, unsigned long h, unsigned long data)
 {
+	unsigned long flags;
+	local_irq_save(flags);
 	ctrl_outl(set_field(ctrl_inl(addr), data, h), addr);
+	local_irq_restore(flags);
 }
 
 enum {	REG_FN_ERR = 0, REG_FN_WRITE_BASE = 1, REG_FN_MODIFY_BASE = 5 };
