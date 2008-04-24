@@ -19,32 +19,6 @@
 static LIST_HEAD(_log_types);
 static DEFINE_SPINLOCK(_lock);
 
-int dm_dirty_log_type_register(struct dm_dirty_log_type *type)
-{
-	spin_lock(&_lock);
-	type->use_count = 0;
-	list_add(&type->list, &_log_types);
-	spin_unlock(&_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(dm_dirty_log_type_register);
-
-int dm_dirty_log_type_unregister(struct dm_dirty_log_type *type)
-{
-	spin_lock(&_lock);
-
-	if (type->use_count)
-		DMWARN("Attempt to unregister a log type that is still in use");
-	else
-		list_del(&type->list);
-
-	spin_unlock(&_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(dm_dirty_log_type_unregister);
-
 static struct dm_dirty_log_type *_get_type(const char *type_name)
 {
 	struct dm_dirty_log_type *type;
@@ -121,6 +95,32 @@ static void put_type(struct dm_dirty_log_type *type)
 		module_put(type->module);
 	spin_unlock(&_lock);
 }
+
+int dm_dirty_log_type_register(struct dm_dirty_log_type *type)
+{
+	spin_lock(&_lock);
+	type->use_count = 0;
+	list_add(&type->list, &_log_types);
+	spin_unlock(&_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(dm_dirty_log_type_register);
+
+int dm_dirty_log_type_unregister(struct dm_dirty_log_type *type)
+{
+	spin_lock(&_lock);
+
+	if (type->use_count)
+		DMWARN("Attempt to unregister a log type that is still in use");
+	else
+		list_del(&type->list);
+
+	spin_unlock(&_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(dm_dirty_log_type_unregister);
 
 struct dm_dirty_log *dm_dirty_log_create(const char *type_name,
 					 struct dm_target *ti,
