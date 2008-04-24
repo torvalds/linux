@@ -873,7 +873,8 @@ identify_siblings(struct cpuinfo_ia64 *c)
 	u16 pltid;
 	pal_logical_to_physical_t info;
 
-	if ((status = ia64_pal_logical_to_phys(-1, &info)) != PAL_STATUS_SUCCESS) {
+	status = ia64_pal_logical_to_phys(-1, &info);
+	if (status != PAL_STATUS_SUCCESS) {
 		if (status != PAL_STATUS_UNIMPLEMENTED) {
 			printk(KERN_ERR
 				"ia64_pal_logical_to_phys failed with %ld\n",
@@ -885,8 +886,13 @@ identify_siblings(struct cpuinfo_ia64 *c)
 		info.overview_cpp  = 1;
 		info.overview_tpc  = 1;
 	}
-	if ((status = ia64_sal_physical_id_info(&pltid)) != PAL_STATUS_SUCCESS) {
-		printk(KERN_ERR "ia64_sal_pltid failed with %ld\n", status);
+
+	status = ia64_sal_physical_id_info(&pltid);
+	if (status != PAL_STATUS_SUCCESS) {
+		if (status != PAL_STATUS_UNIMPLEMENTED)
+			printk(KERN_ERR
+				"ia64_sal_pltid failed with %ld\n",
+				status);
 		return;
 	}
 
