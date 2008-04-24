@@ -1293,6 +1293,7 @@ static const struct file_operations video1394_fops=
 /*
  * Export information about protocols/devices supported by this driver.
  */
+#ifdef MODULE
 static struct ieee1394_device_id video1394_id_table[] = {
 	{
 		.match_flags	= IEEE1394_MATCH_SPECIFIER_ID | IEEE1394_MATCH_VERSION,
@@ -1313,6 +1314,7 @@ static struct ieee1394_device_id video1394_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(ieee1394, video1394_id_table);
+#endif /* MODULE */
 
 static struct hpsb_protocol_driver video1394_driver = {
 	.name = VIDEO1394_DRIVER_NAME,
