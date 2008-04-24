@@ -289,7 +289,7 @@ config BOOT_LOAD
 comment "Clock/PLL Setup"
 
 config CLKIN_HZ
-	int "Crystal Frequency in Hz"
+	int "Frequency of the crystal on the board in Hz"
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
 	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS)
@@ -298,6 +298,8 @@ config CLKIN_HZ
 	default "10000000" if BFIN532_IP0X
 	help
 	  The frequency of CLKIN crystal oscillator on the board in Hz.
+	  Warning: This value should match the crystal on the board. Otherwise,
+	  peripherals won't work properly.
 
 config BFIN_KERNEL_CLOCK
 	bool "Re-program Clocks while Kernel boots?"
