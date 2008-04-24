@@ -1961,12 +1961,17 @@ fc_timed_out(struct scsi_cmnd *scmd)
 }
 
 /*
- * Must be called with shost->host_lock held
+ * Called by fc_user_scan to locate an rport on the shost that
+ * matches the channel and target id, and invoke scsi_scan_target()
+ * on the rport.
  */
-static int fc_user_scan(struct Scsi_Host *shost, uint channel,
-		uint id, uint lun)
+static void
+fc_user_scan_tgt(struct Scsi_Host *shost, uint channel, uint id, uint lun)
 {
 	struct fc_rport *rport;
+	unsigned long flags;
+
+	spin_lock_irqsave(shost->host_lock, flags);
 
 	list_for_each_entry(rport, &fc_host_rports(shost), peers) {
 		if (rport->scsi_target_id == -1)
@@ -1975,12 +1980,53 @@ static int fc_user_scan(struct Scsi_Host *shost, uint channel,
 		if (rport->port_state != FC_PORTSTATE_ONLINE)
 			continue;
 
-		if ((channel == SCAN_WILD_CARD || channel == rport->channel) &&
-		    (id == SCAN_WILD_CARD || id == rport->scsi_target_id)) {
-			scsi_scan_target(&rport->dev, rport->channel,
-					 rport->scsi_target_id, lun, 1);
+		if ((channel == rport->channel) &&
+		    (id == rport->scsi_target_id)) {
+			spin_unlock_irqrestore(shost->host_lock, flags);
+			scsi_scan_target(&rport->dev, channel, id, lun, 1);
+			return;
 		}
 	}
+
+	spin_unlock_irqrestore(shost->host_lock, flags);
+}
+
+/*
+ * Called via sysfs scan routines. Necessary, as the FC transport
+ * wants to place all target objects below the rport object. So this
+ * routine must invoke the scsi_scan_target() routine with the rport
+ * object as the parent.
+ */
+static int
+fc_user_scan(struct Scsi_Host *shost, uint channel, uint id, uint lun)
+{
+	uint chlo, chhi;
+	uint tgtlo, tgthi;
+
+	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) ||
+	    ((id != SCAN_WILD_CARD) && (id >= shost->max_id)) ||
+	    ((lun != SCAN_WILD_CARD) && (lun > shost->max_lun)))
+		return -EINVAL;
+
+	if (channel == SCAN_WILD_CARD) {
+		chlo = 0;
+		chhi = shost->max_channel + 1;
+	} else {
+		chlo = channel;
+		chhi = channel + 1;
+	}
+
+	if (id == SCAN_WILD_CARD) {
+		tgtlo = 0;
+		tgthi = shost->max_id;
+	} else {
+		tgtlo = id;
+		tgthi = id + 1;
+	}
+
+	for ( ; chlo < chhi; chlo++)
+		for ( ; tgtlo < tgthi; tgtlo++)
+			fc_user_scan_tgt(shost, chlo, tgtlo, lun);
 
 	return 0;
 }
