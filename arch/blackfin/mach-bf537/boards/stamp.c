@@ -503,6 +503,15 @@ static struct bfin5xx_spi_chip spidev_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_MTD_DATAFLASH) \
+	|| defined(CONFIG_MTD_DATAFLASH_MODULE)
+/* DataFlash chip */
+static struct bfin5xx_spi_chip data_flash_chip_info = {
+	.enable_dma = 0,         /* use dma transfer with this chip*/
+	.bits_per_word = 8,
+};
+#endif
+
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_MTD_M25P80) \
 	|| defined(CONFIG_MTD_M25P80_MODULE)
@@ -517,7 +526,17 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_MODE_3,
 	},
 #endif
-
+#if defined(CONFIG_MTD_DATAFLASH) \
+	|| defined(CONFIG_MTD_DATAFLASH_MODULE)
+	{	/* DataFlash chip */
+		.modalias = "mtd_dataflash",
+		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0, /* Framework bus number */
+		.chip_select = 1, /* Framework chip select. On STAMP537 it is SPISSEL1*/
+		.controller_data = &data_flash_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
 #if defined(CONFIG_SPI_ADC_BF533) \
 	|| defined(CONFIG_SPI_ADC_BF533_MODULE)
 	{
