@@ -2135,7 +2135,7 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	kfree(ha->nvram);
 }
 
-struct qla_work_evt *
+static struct qla_work_evt *
 qla2x00_alloc_work(struct scsi_qla_host *ha, enum qla_work_type type,
     int locked)
 {
@@ -2152,7 +2152,7 @@ qla2x00_alloc_work(struct scsi_qla_host *ha, enum qla_work_type type,
 	return e;
 }
 
-int
+static int
 qla2x00_post_work(struct scsi_qla_host *ha, struct qla_work_evt *e, int locked)
 {
 	unsigned long flags;
