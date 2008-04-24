@@ -250,16 +250,21 @@ static inline void save_spu_status(struct spu_state *csa, struct spu *spu)
 	}
 }
 
-static inline void save_mfc_decr(struct spu_state *csa, struct spu *spu)
+static inline void save_mfc_stopped_status(struct spu_state *csa,
+		struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
+	const u64 mask = MFC_CNTL_DECREMENTER_RUNNING |
+			MFC_CNTL_DMA_QUEUES_EMPTY;
 
 	/* Save, Step 12:
 	 *     Read MFC_CNTL[Ds].  Update saved copy of
 	 *     CSA.MFC_CNTL[Ds].
+	 *
+	 * update: do the same with MFC_CNTL[Q].
 	 */
-	csa->priv2.mfc_control_RW |=
-		in_be64(&priv2->mfc_control_RW) & MFC_CNTL_DECREMENTER_RUNNING;
+	csa->priv2.mfc_control_RW &= ~mask;
+	csa->priv2.mfc_control_RW |= in_be64(&priv2->mfc_control_RW) & mask;
 }
 
 static inline void halt_mfc_decr(struct spu_state *csa, struct spu *spu)
@@ -1791,7 +1796,7 @@ static int quiece_spu(struct spu_state *prev, struct spu *spu)
 	save_spu_runcntl(prev, spu);	        /* Step 9. */
 	save_mfc_sr1(prev, spu);	        /* Step 10. */
 	save_spu_status(prev, spu);	        /* Step 11. */
-	save_mfc_decr(prev, spu);	        /* Step 12. */
+	save_mfc_stopped_status(prev, spu);     /* Step 12. */
 	halt_mfc_decr(prev, spu);	        /* Step 13. */
 	save_timebase(prev, spu);		/* Step 14. */
 	remove_other_spu_access(prev, spu);	/* Step 15. */
