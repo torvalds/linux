@@ -72,22 +72,7 @@ struct qeth_dbf_info {
 	debug_sprintf_event(qeth_dbf[QETH_DBF_MSG].id, level, text)
 
 #define QETH_DBF_TEXT_(name, level, text...) \
-	do { \
-		if (qeth_dbf_passes(qeth_dbf[QETH_DBF_##name].id, level)) { \
-			char *dbf_txt_buf = \
-				get_cpu_var(QETH_DBF_TXT_BUF); \
-			sprintf(dbf_txt_buf, text); \
-			debug_text_event(qeth_dbf[QETH_DBF_##name].id, \
-					level, dbf_txt_buf); \
-			put_cpu_var(QETH_DBF_TXT_BUF); \
-		} \
-	} while (0)
-
-/* Allow to sort out low debug levels early to avoid wasted sprints */
-static inline int qeth_dbf_passes(debug_info_t *dbf_grp, int level)
-{
-	return (level <= dbf_grp->level);
-}
+	qeth_dbf_longtext(QETH_DBF_##name, level, text)
 
 /**
  * some more debug stuff
@@ -894,6 +879,7 @@ void qeth_core_get_ethtool_stats(struct net_device *,
 				struct ethtool_stats *, u64 *);
 void qeth_core_get_strings(struct net_device *, u32, u8 *);
 void qeth_core_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
+void qeth_dbf_longtext(enum qeth_dbf_names dbf_nix, int level, char *text, ...);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

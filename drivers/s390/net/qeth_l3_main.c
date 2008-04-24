@@ -28,8 +28,6 @@
 #include "qeth_l3.h"
 #include "qeth_core_offl.h"
 
-DEFINE_PER_CPU(char[256], qeth_l3_dbf_txt_buf);
-
 static int qeth_l3_set_offline(struct ccwgroup_device *);
 static int qeth_l3_recover(void *);
 static int qeth_l3_stop(struct net_device *);

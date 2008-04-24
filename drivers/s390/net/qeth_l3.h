@@ -13,9 +13,6 @@
 
 #include "qeth_core.h"
 
-#define QETH_DBF_TXT_BUF qeth_l3_dbf_txt_buf
-DECLARE_PER_CPU(char[256], qeth_l3_dbf_txt_buf);
-
 struct qeth_ipaddr {
 	struct list_head entry;
 	enum qeth_ip_types type;

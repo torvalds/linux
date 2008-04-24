@@ -22,9 +22,6 @@
 #include "qeth_core.h"
 #include "qeth_core_offl.h"
 
-#define QETH_DBF_TXT_BUF qeth_l2_dbf_txt_buf
-static DEFINE_PER_CPU(char[256], qeth_l2_dbf_txt_buf);
-
 static int qeth_l2_set_offline(struct ccwgroup_device *);
 static int qeth_l2_stop(struct net_device *);
 static int qeth_l2_send_delmac(struct qeth_card *, __u8 *);

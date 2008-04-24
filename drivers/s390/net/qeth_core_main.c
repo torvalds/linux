@@ -26,9 +26,6 @@
 #include "qeth_core.h"
 #include "qeth_core_offl.h"
 
-static DEFINE_PER_CPU(char[256], qeth_core_dbf_txt_buf);
-#define QETH_DBF_TXT_BUF qeth_core_dbf_txt_buf
-
 struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS] = {
 	/* define dbf - Name, Pages, Areas, Maxlen, Level, View, Handle */
 	/*                   N  P  A    M  L  V                      H  */
@@ -4066,6 +4063,18 @@ static void qeth_unregister_dbf_views(void)
 		qeth_dbf[x].id = NULL;
 	}
 }
+
+void qeth_dbf_longtext(enum qeth_dbf_names dbf_nix, int level, char *text, ...)
+{
+	char dbf_txt_buf[32];
+
+	if (level > (qeth_dbf[dbf_nix].id)->level)
+		return;
+	snprintf(dbf_txt_buf, sizeof(dbf_txt_buf), text);
+	debug_text_event(qeth_dbf[dbf_nix].id, level, dbf_txt_buf);
+	
+}
+EXPORT_SYMBOL_GPL(qeth_dbf_longtext);
 
 static int qeth_register_dbf_views(void)
 {
