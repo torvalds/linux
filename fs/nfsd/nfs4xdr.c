@@ -376,20 +376,6 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval, struct iattr *ia
 			goto xdr_error;
 		}
 	}
-	if (bmval[1] & FATTR4_WORD1_TIME_METADATA) {
-		/* We require the high 32 bits of 'seconds' to be 0, and we ignore
-		   all 32 bits of 'nseconds'. */
-		READ_BUF(12);
-		len += 12;
-		READ32(dummy32);
-		if (dummy32)
-			return nfserr_inval;
-		READ32(iattr->ia_ctime.tv_sec);
-		READ32(iattr->ia_ctime.tv_nsec);
-		if (iattr->ia_ctime.tv_nsec >= (u32)1000000000)
-			return nfserr_inval;
-		iattr->ia_valid |= ATTR_CTIME;
-	}
 	if (bmval[1] & FATTR4_WORD1_TIME_MODIFY_SET) {
 		READ_BUF(4);
 		len += 4;
