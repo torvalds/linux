@@ -861,6 +861,7 @@ static struct ethtool_ops qeth_l2_ethtool_ops = {
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
 	.get_stats_count = qeth_core_get_stats_count,
 	.get_drvinfo = qeth_core_get_drvinfo,
+	.get_settings = qeth_core_ethtool_get_settings,
 };
 
 static struct ethtool_ops qeth_l2_osn_ops = {
