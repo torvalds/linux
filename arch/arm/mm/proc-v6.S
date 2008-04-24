@@ -219,6 +219,7 @@ v6_crval:
 	.type	v6_processor_functions, #object
 ENTRY(v6_processor_functions)
 	.word	v6_early_abort
+	.word	pabort_noifar
 	.word	cpu_v6_proc_init
 	.word	cpu_v6_proc_fin
 	.word	cpu_v6_reset
@@ -226,7 +227,6 @@ ENTRY(v6_processor_functions)
 	.word	cpu_v6_dcache_clean_area
 	.word	cpu_v6_switch_mm
 	.word	cpu_v6_set_pte_ext
-	.word	pabort_noifar
 	.size	v6_processor_functions, . - v6_processor_functions
 
 	.type	cpu_arch_name, #object

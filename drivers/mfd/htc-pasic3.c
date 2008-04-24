@@ -19,8 +19,6 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/htc-pasic3.h>
 
-#include <asm/arch/pxa-regs.h>
-
 struct pasic3_data {
 	void __iomem *mapping;
 	unsigned int bus_shift;
@@ -30,7 +28,6 @@ struct pasic3_data {
 
 #define REG_ADDR  5
 #define REG_DATA  6
-#define NUM_REGS  7
 
 #define READ_MODE 0x80
 

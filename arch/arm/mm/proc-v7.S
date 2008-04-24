@@ -205,6 +205,7 @@ __v7_setup_stack:
 	.type	v7_processor_functions, #object
 ENTRY(v7_processor_functions)
 	.word	v7_early_abort
+	.word	pabort_ifar
 	.word	cpu_v7_proc_init
 	.word	cpu_v7_proc_fin
 	.word	cpu_v7_reset
@@ -212,7 +213,6 @@ ENTRY(v7_processor_functions)
 	.word	cpu_v7_dcache_clean_area
 	.word	cpu_v7_switch_mm
 	.word	cpu_v7_set_pte_ext
-	.word	pabort_ifar
 	.size	v7_processor_functions, . - v7_processor_functions
 
 	.type	cpu_arch_name, #object
