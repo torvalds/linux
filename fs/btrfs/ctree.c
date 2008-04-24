@@ -29,7 +29,7 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 		      struct btrfs_path *path, int data_size, int extend);
 static int push_node_left(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, struct extent_buffer *dst,
-			  struct extent_buffer *src);
+			  struct extent_buffer *src, int empty);
 static int balance_node_right(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct extent_buffer *dst_buf,
@@ -789,7 +789,7 @@ static int balance_level(struct btrfs_trans_handle *trans,
 	/* first, try to make some room in the middle buffer */
 	if (left) {
 		orig_slot += btrfs_header_nritems(left);
-		wret = push_node_left(trans, root, left, mid);
+		wret = push_node_left(trans, root, left, mid, 0);
 		if (wret < 0)
 			ret = wret;
 		if (btrfs_header_nritems(mid) < 2)
@@ -800,7 +800,7 @@ static int balance_level(struct btrfs_trans_handle *trans,
 	 * then try to empty the right most buffer into the middle
 	 */
 	if (right) {
-		wret = push_node_left(trans, root, mid, right);
+		wret = push_node_left(trans, root, mid, right, 1);
 		if (wret < 0 && wret != -ENOSPC)
 			ret = wret;
 		if (btrfs_header_nritems(right) == 0) {
@@ -941,7 +941,7 @@ static int noinline push_nodes_for_insert(struct btrfs_trans_handle *trans,
 				wret = 1;
 			else {
 				wret = push_node_left(trans, root,
-						      left, mid);
+						      left, mid, 0);
 			}
 		}
 		if (wret < 0)
@@ -1239,7 +1239,7 @@ static int fixup_low_keys(struct btrfs_trans_handle *trans,
  */
 static int push_node_left(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, struct extent_buffer *dst,
-			  struct extent_buffer *src)
+			  struct extent_buffer *src, int empty)
 {
 	int push_items = 0;
 	int src_nritems;
@@ -1252,12 +1252,17 @@ static int push_node_left(struct btrfs_trans_handle *trans,
 	WARN_ON(btrfs_header_generation(src) != trans->transid);
 	WARN_ON(btrfs_header_generation(dst) != trans->transid);
 
+	if (!empty && src_nritems <= 2)
+		return 1;
+
 	if (push_items <= 0) {
 		return 1;
 	}
 
-	if (src_nritems < push_items)
-		push_items = src_nritems;
+	if (empty)
+		push_items = min(src_nritems, push_items);
+	else
+		push_items = min(src_nritems - 2, push_items);
 
 	copy_extent_buffer(dst, src,
 			   btrfs_node_key_ptr_offset(dst_nritems),
