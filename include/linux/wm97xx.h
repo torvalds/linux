@@ -282,6 +282,7 @@ struct wm97xx {
 	unsigned pen_is_down:1;		/* Pen is down */
 	unsigned aux_waiting:1;		/* aux measurement waiting */
 	unsigned pen_probably_down:1;	/* used in polling mode */
+	u16 suspend_mode;               /* PRP in suspend mode */
 };
 
 /*
@@ -296,6 +297,8 @@ void wm97xx_config_gpio(struct wm97xx *wm, u32 gpio,
 				     enum wm97xx_gpio_pol pol,
 				     enum wm97xx_gpio_sticky sticky,
 				     enum wm97xx_gpio_wake wake);
+
+void wm97xx_set_suspend_mode(struct wm97xx *wm, u16 mode);
 
 /* codec AC97 IO access */
 int wm97xx_reg_read(struct wm97xx *wm, u16 reg);
