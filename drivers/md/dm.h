@@ -195,4 +195,7 @@ void dm_kobject_uevent(struct mapped_device *md);
 int dm_dirty_log_init(void);
 void dm_dirty_log_exit(void);
 
+int dm_kcopyd_init(void);
+void dm_kcopyd_exit(void);
+
 #endif

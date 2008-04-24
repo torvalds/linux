@@ -204,6 +204,7 @@ static int (*_inits[])(void) __initdata = {
 	dm_target_init,
 	dm_linear_init,
 	dm_stripe_init,
+	dm_kcopyd_init,
 	dm_interface_init,
 };
 
@@ -212,6 +213,7 @@ static void (*_exits[])(void) = {
 	dm_target_exit,
 	dm_linear_exit,
 	dm_stripe_exit,
+	dm_kcopyd_exit,
 	dm_interface_exit,
 };
 

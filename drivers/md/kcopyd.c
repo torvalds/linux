@@ -31,8 +31,6 @@
  * pages for kcopyd io.
  *---------------------------------------------------------------*/
 struct dm_kcopyd_client {
-	struct list_head list;
-
 	spinlock_t lock;
 	struct page_list *pages;
 	unsigned int nr_pages;
@@ -224,7 +222,7 @@ struct kcopyd_job {
 
 static struct kmem_cache *_job_cache;
 
-static int jobs_init(void)
+int __init dm_kcopyd_init(void)
 {
 	_job_cache = KMEM_CACHE(kcopyd_job, 0);
 	if (!_job_cache)
@@ -233,7 +231,7 @@ static int jobs_init(void)
 	return 0;
 }
 
-static void jobs_exit(void)
+void dm_kcopyd_exit(void)
 {
 	kmem_cache_destroy(_job_cache);
 	_job_cache = NULL;
@@ -581,78 +579,17 @@ int kcopyd_cancel(struct kcopyd_job *job, int block)
 #endif  /*  0  */
 
 /*-----------------------------------------------------------------
- * Unit setup
+ * Client setup
  *---------------------------------------------------------------*/
-static DEFINE_MUTEX(_client_lock);
-static LIST_HEAD(_clients);
-
-static void client_add(struct dm_kcopyd_client *kc)
-{
-	mutex_lock(&_client_lock);
-	list_add(&kc->list, &_clients);
-	mutex_unlock(&_client_lock);
-}
-
-static void client_del(struct dm_kcopyd_client *kc)
-{
-	mutex_lock(&_client_lock);
-	list_del(&kc->list);
-	mutex_unlock(&_client_lock);
-}
-
-static DEFINE_MUTEX(kcopyd_init_lock);
-static int kcopyd_clients = 0;
-
-static int kcopyd_init(void)
-{
-	int r;
-
-	mutex_lock(&kcopyd_init_lock);
-
-	if (kcopyd_clients) {
-		/* Already initialized. */
-		kcopyd_clients++;
-		mutex_unlock(&kcopyd_init_lock);
-		return 0;
-	}
-
-	r = jobs_init();
-	if (r) {
-		mutex_unlock(&kcopyd_init_lock);
-		return r;
-	}
-
-	kcopyd_clients++;
-	mutex_unlock(&kcopyd_init_lock);
-	return 0;
-}
-
-static void kcopyd_exit(void)
-{
-	mutex_lock(&kcopyd_init_lock);
-	kcopyd_clients--;
-	if (!kcopyd_clients) {
-		jobs_exit();
-	}
-	mutex_unlock(&kcopyd_init_lock);
-}
-
 int dm_kcopyd_client_create(unsigned int nr_pages,
 			    struct dm_kcopyd_client **result)
 {
-	int r = 0;
+	int r = -ENOMEM;
 	struct dm_kcopyd_client *kc;
 
-	r = kcopyd_init();
-	if (r)
-		return r;
-
 	kc = kmalloc(sizeof(*kc), GFP_KERNEL);
-	if (!kc) {
-		r = -ENOMEM;
-		kcopyd_exit();
-		return r;
-	}
+	if (!kc)
+		return -ENOMEM;
 
 	spin_lock_init(&kc->lock);
 	spin_lock_init(&kc->job_lock);
@@ -661,51 +598,42 @@ int dm_kcopyd_client_create(unsigned int nr_pages,
 	INIT_LIST_HEAD(&kc->pages_jobs);
 
 	kc->job_pool = mempool_create_slab_pool(MIN_JOBS, _job_cache);
-	if (!kc->job_pool) {
-		r = -ENOMEM;
-		kfree(kc);
-		kcopyd_exit();
-		return r;
-	}
+	if (!kc->job_pool)
+		goto bad_slab;
 
 	INIT_WORK(&kc->kcopyd_work, do_work);
 	kc->kcopyd_wq = create_singlethread_workqueue("kcopyd");
-	if (!kc->kcopyd_wq) {
-		r = -ENOMEM;
-		mempool_destroy(kc->job_pool);
-		kfree(kc);
-		kcopyd_exit();
-		return r;
-	}
+	if (!kc->kcopyd_wq)
+		goto bad_workqueue;
 
 	kc->pages = NULL;
 	kc->nr_pages = kc->nr_free_pages = 0;
 	r = client_alloc_pages(kc, nr_pages);
-	if (r) {
-		destroy_workqueue(kc->kcopyd_wq);
-		mempool_destroy(kc->job_pool);
-		kfree(kc);
-		kcopyd_exit();
-		return r;
-	}
+	if (r)
+		goto bad_client_pages;
 
 	kc->io_client = dm_io_client_create(nr_pages);
 	if (IS_ERR(kc->io_client)) {
 		r = PTR_ERR(kc->io_client);
-		client_free_pages(kc);
-		destroy_workqueue(kc->kcopyd_wq);
-		mempool_destroy(kc->job_pool);
-		kfree(kc);
-		kcopyd_exit();
-		return r;
+		goto bad_io_client;
 	}
 
 	init_waitqueue_head(&kc->destroyq);
 	atomic_set(&kc->nr_jobs, 0);
 
-	client_add(kc);
 	*result = kc;
 	return 0;
+
+bad_io_client:
+	client_free_pages(kc);
+bad_client_pages:
+	destroy_workqueue(kc->kcopyd_wq);
+bad_workqueue:
+	mempool_destroy(kc->job_pool);
+bad_slab:
+	kfree(kc);
+
+	return r;
 }
 EXPORT_SYMBOL(dm_kcopyd_client_create);
 
@@ -720,9 +648,7 @@ void dm_kcopyd_client_destroy(struct dm_kcopyd_client *kc)
 	destroy_workqueue(kc->kcopyd_wq);
 	dm_io_client_destroy(kc->io_client);
 	client_free_pages(kc);
-	client_del(kc);
 	mempool_destroy(kc->job_pool);
 	kfree(kc);
-	kcopyd_exit();
 }
 EXPORT_SYMBOL(dm_kcopyd_client_destroy);
