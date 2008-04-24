@@ -358,9 +358,6 @@ __feroceon_setup:
 	mrc	p15, 0, r0, c1, c0		@ get control register v4
 	bic	r0, r0, r5
 	orr	r0, r0, r6
-#ifdef CONFIG_CPU_CACHE_ROUND_ROBIN
-	orr	r0, r0, #0x4000			@ .1.. .... .... ....
-#endif
 	mov	pc, lr
 	.size	__feroceon_setup, . - __feroceon_setup
 
