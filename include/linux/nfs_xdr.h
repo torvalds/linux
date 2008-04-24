@@ -140,6 +140,7 @@ struct nfs_openres {
 	__u32                   rflags;
 	struct nfs_fattr *      f_attr;
 	struct nfs_fattr *      dir_attr;
+	struct nfs_seqid *	seqid;
 	const struct nfs_server *server;
 	int			delegation_type;
 	nfs4_stateid		delegation;
@@ -159,6 +160,7 @@ struct nfs_open_confirmargs {
 
 struct nfs_open_confirmres {
 	nfs4_stateid            stateid;
+	struct nfs_seqid *	seqid;
 };
 
 /*
@@ -175,6 +177,7 @@ struct nfs_closeargs {
 struct nfs_closeres {
 	nfs4_stateid            stateid;
 	struct nfs_fattr *	fattr;
+	struct nfs_seqid *	seqid;
 	const struct nfs_server *server;
 };
 /*
@@ -199,7 +202,9 @@ struct nfs_lock_args {
 };
 
 struct nfs_lock_res {
-	nfs4_stateid			stateid;
+	nfs4_stateid		stateid;
+	struct nfs_seqid *	lock_seqid;
+	struct nfs_seqid *	open_seqid;
 };
 
 struct nfs_locku_args {
@@ -210,7 +215,8 @@ struct nfs_locku_args {
 };
 
 struct nfs_locku_res {
-	nfs4_stateid			stateid;
+	nfs4_stateid		stateid;
+	struct nfs_seqid *	seqid;
 };
 
 struct nfs_lockt_args {

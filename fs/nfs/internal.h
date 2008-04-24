@@ -46,9 +46,9 @@ struct nfs_parsed_mount_data {
 		struct sockaddr_storage	address;
 		size_t			addrlen;
 		char			*hostname;
-		unsigned int		version;
+		u32			version;
 		unsigned short		port;
-		int			protocol;
+		unsigned short		protocol;
 	} mount_server;
 
 	struct {
@@ -56,7 +56,8 @@ struct nfs_parsed_mount_data {
 		size_t			addrlen;
 		char			*hostname;
 		char			*export_path;
-		int			protocol;
+		unsigned short		port;
+		unsigned short		protocol;
 	} nfs_server;
 
 	struct security_mnt_opts lsm_opts;
@@ -115,13 +116,8 @@ extern void nfs_destroy_readpagecache(void);
 extern int __init nfs_init_writepagecache(void);
 extern void nfs_destroy_writepagecache(void);
 
-#ifdef CONFIG_NFS_DIRECTIO
 extern int __init nfs_init_directcache(void);
 extern void nfs_destroy_directcache(void);
-#else
-#define nfs_init_directcache() (0)
-#define nfs_destroy_directcache() do {} while(0)
-#endif
 
 /* nfs2xdr.c */
 extern int nfs_stat_to_errno(int);
@@ -146,6 +142,7 @@ extern struct rpc_procinfo nfs4_procedures[];
 extern int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask);
 
 /* inode.c */
+extern struct workqueue_struct *nfsiod_workqueue;
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
 extern void nfs_destroy_inode(struct inode *);
 extern int nfs_write_inode(struct inode *,int);

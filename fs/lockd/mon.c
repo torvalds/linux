@@ -18,6 +18,8 @@
 
 #define NLMDBG_FACILITY		NLMDBG_MONITOR
 
+#define XDR_ADDRBUF_LEN		(20)
+
 static struct rpc_clnt *	nsm_create(void);
 
 static struct rpc_program	nsm_program;
@@ -147,28 +149,55 @@ nsm_create(void)
 
 /*
  * XDR functions for NSM.
+ *
+ * See http://www.opengroup.org/ for details on the Network
+ * Status Monitor wire protocol.
  */
 
-static __be32 *
-xdr_encode_common(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
+static __be32 *xdr_encode_nsm_string(__be32 *p, char *string)
 {
-	char	buffer[20], *name;
+	size_t len = strlen(string);
 
-	/*
-	 * Use the dotted-quad IP address of the remote host as
-	 * identifier. Linux statd always looks up the canonical
-	 * hostname first for whatever remote hostname it receives,
-	 * so this works alright.
-	 */
-	if (nsm_use_hostnames) {
-		name = argp->mon_name;
-	} else {
-		sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(argp->addr));
+	if (len > SM_MAXSTRLEN)
+		len = SM_MAXSTRLEN;
+	return xdr_encode_opaque(p, string, len);
+}
+
+/*
+ * "mon_name" specifies the host to be monitored.
+ *
+ * Linux uses a text version of the IP address of the remote
+ * host as the host identifier (the "mon_name" argument).
+ *
+ * Linux statd always looks up the canonical hostname first for
+ * whatever remote hostname it receives, so this works alright.
+ */
+static __be32 *xdr_encode_mon_name(__be32 *p, struct nsm_args *argp)
+{
+	char	buffer[XDR_ADDRBUF_LEN + 1];
+	char	*name = argp->mon_name;
+
+	if (!nsm_use_hostnames) {
+		snprintf(buffer, XDR_ADDRBUF_LEN,
+			 NIPQUAD_FMT, NIPQUAD(argp->addr));
 		name = buffer;
 	}
-	if (!(p = xdr_encode_string(p, name))
-	 || !(p = xdr_encode_string(p, utsname()->nodename)))
+
+	return xdr_encode_nsm_string(p, name);
+}
+
+/*
+ * The "my_id" argument specifies the hostname and RPC procedure
+ * to be called when the status manager receives notification
+ * (via the SM_NOTIFY call) that the state of host "mon_name"
+ * has changed.
+ */
+static __be32 *xdr_encode_my_id(__be32 *p, struct nsm_args *argp)
+{
+	p = xdr_encode_nsm_string(p, utsname()->nodename);
+	if (!p)
 		return ERR_PTR(-EIO);
+
 	*p++ = htonl(argp->prog);
 	*p++ = htonl(argp->vers);
 	*p++ = htonl(argp->proc);
@@ -176,18 +205,48 @@ xdr_encode_common(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 	return p;
 }
 
-static int
-xdr_encode_mon(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
+/*
+ * The "mon_id" argument specifies the non-private arguments
+ * of an SM_MON or SM_UNMON call.
+ */
+static __be32 *xdr_encode_mon_id(__be32 *p, struct nsm_args *argp)
 {
-	p = xdr_encode_common(rqstp, p, argp);
-	if (IS_ERR(p))
-		return PTR_ERR(p);
+	p = xdr_encode_mon_name(p, argp);
+	if (!p)
+		return ERR_PTR(-EIO);
 
-	/* Surprise - there may even be room for an IPv6 address now */
+	return xdr_encode_my_id(p, argp);
+}
+
+/*
+ * The "priv" argument may contain private information required
+ * by the SM_MON call. This information will be supplied in the
+ * SM_NOTIFY call.
+ *
+ * Linux provides the raw IP address of the monitored host,
+ * left in network byte order.
+ */
+static __be32 *xdr_encode_priv(__be32 *p, struct nsm_args *argp)
+{
 	*p++ = argp->addr;
 	*p++ = 0;
 	*p++ = 0;
 	*p++ = 0;
+
+	return p;
+}
+
+static int
+xdr_encode_mon(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
+{
+	p = xdr_encode_mon_id(p, argp);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
+
+	p = xdr_encode_priv(p, argp);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
+
 	rqstp->rq_slen = xdr_adjust_iovec(rqstp->rq_svec, p);
 	return 0;
 }
@@ -195,7 +254,7 @@ xdr_encode_mon(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 static int
 xdr_encode_unmon(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 {
-	p = xdr_encode_common(rqstp, p, argp);
+	p = xdr_encode_mon_id(p, argp);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 	rqstp->rq_slen = xdr_adjust_iovec(rqstp->rq_svec, p);
@@ -220,9 +279,11 @@ xdr_decode_stat(struct rpc_rqst *rqstp, __be32 *p, struct nsm_res *resp)
 }
 
 #define SM_my_name_sz	(1+XDR_QUADLEN(SM_MAXSTRLEN))
-#define SM_my_id_sz	(3+1+SM_my_name_sz)
-#define SM_mon_id_sz	(1+XDR_QUADLEN(20)+SM_my_id_sz)
-#define SM_mon_sz	(SM_mon_id_sz+4)
+#define SM_my_id_sz	(SM_my_name_sz+3)
+#define SM_mon_name_sz	(1+XDR_QUADLEN(SM_MAXSTRLEN))
+#define SM_mon_id_sz	(SM_mon_name_sz+SM_my_id_sz)
+#define SM_priv_sz	(XDR_QUADLEN(SM_PRIV_SIZE))
+#define SM_mon_sz	(SM_mon_id_sz+SM_priv_sz)
 #define SM_monres_sz	2
 #define SM_unmonres_sz	1
 
