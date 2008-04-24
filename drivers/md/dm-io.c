@@ -20,7 +20,7 @@ struct dm_io_client {
 
 /* FIXME: can we shrink this ? */
 struct io {
-	unsigned long error;
+	unsigned long error_bits;
 	atomic_t count;
 	struct task_struct *sleeper;
 	struct dm_io_client *client;
@@ -107,14 +107,14 @@ static inline unsigned bio_get_region(struct bio *bio)
 static void dec_count(struct io *io, unsigned int region, int error)
 {
 	if (error)
-		set_bit(region, &io->error);
+		set_bit(region, &io->error_bits);
 
 	if (atomic_dec_and_test(&io->count)) {
 		if (io->sleeper)
 			wake_up_process(io->sleeper);
 
 		else {
-			unsigned long r = io->error;
+			unsigned long r = io->error_bits;
 			io_notify_fn fn = io->callback;
 			void *context = io->context;
 
@@ -357,7 +357,7 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 		return -EIO;
 	}
 
-	io.error = 0;
+	io.error_bits = 0;
 	atomic_set(&io.count, 1); /* see dispatch_io() */
 	io.sleeper = current;
 	io.client = client;
@@ -378,9 +378,9 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 		return -EINTR;
 
 	if (error_bits)
-		*error_bits = io.error;
+		*error_bits = io.error_bits;
 
-	return io.error ? -EIO : 0;
+	return io.error_bits ? -EIO : 0;
 }
 
 static int async_io(struct dm_io_client *client, unsigned int num_regions,
@@ -396,7 +396,7 @@ static int async_io(struct dm_io_client *client, unsigned int num_regions,
 	}
 
 	io = mempool_alloc(client->pool, GFP_NOIO);
-	io->error = 0;
+	io->error_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
 	io->sleeper = NULL;
 	io->client = client;
