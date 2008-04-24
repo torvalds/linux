@@ -291,6 +291,29 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 
 	return 0;
 }
+
+static int iwl5000_alloc_shared_mem(struct iwl_priv *priv)
+{
+	priv->shared_virt = pci_alloc_consistent(priv->pci_dev,
+					sizeof(struct iwl5000_shared),
+					&priv->shared_phys);
+	if (!priv->shared_virt)
+		return -ENOMEM;
+
+	memset(priv->shared_virt, 0, sizeof(struct iwl5000_shared));
+
+	return 0;
+}
+
+static void iwl5000_free_shared_mem(struct iwl_priv *priv)
+{
+	if (priv->shared_virt)
+		pci_free_consistent(priv->pci_dev,
+				    sizeof(struct iwl5000_shared),
+				    priv->shared_virt,
+				    priv->shared_phys);
+}
+
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 };
 
@@ -303,6 +326,8 @@ static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 
 static struct iwl_lib_ops iwl5000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
+	.alloc_shared_mem = iwl5000_alloc_shared_mem,
+	.free_shared_mem = iwl5000_free_shared_mem,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.set_pwr_src = iwl4965_set_pwr_src,
