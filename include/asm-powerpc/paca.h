@@ -108,6 +108,7 @@ struct paca_struct {
 };
 
 extern struct paca_struct paca[];
+extern void initialise_pacas(void);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PACA_H */
