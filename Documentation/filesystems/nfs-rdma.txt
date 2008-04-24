@@ -5,7 +5,7 @@
 ################################################################################
 
  Author: NetApp and Open Grid Computing
- Date: February 25, 2008
+ Date: April 15, 2008
 
 Table of Contents
 ~~~~~~~~~~~~~~~~~
@@ -197,12 +197,16 @@ NFS/RDMA Setup
   - On the server system, configure the /etc/exports file and
     start the NFS/RDMA server.
 
-    Exports entries with the following format have been tested:
+    Exports entries with the following formats have been tested:
 
-    /vol0   10.97.103.47(rw,async) 192.168.0.47(rw,async,insecure,no_root_squash)
+    /vol0   192.168.0.47(fsid=0,rw,async,insecure,no_root_squash)
+    /vol0   192.168.0.0/255.255.255.0(fsid=0,rw,async,insecure,no_root_squash)
 
-    Here the first IP address is the client's Ethernet address and the second
-    IP address is the clients IPoIB address.
+    The IP address(es) is(are) the client's IPoIB address for an InfiniBand HCA or the
+    cleint's iWARP address(es) for an RNIC.
+
+    NOTE: The "insecure" option must be used because the NFS/RDMA client does not
+    use a reserved port.
 
  Each time a machine boots:
 
