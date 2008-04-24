@@ -16,8 +16,6 @@
  * bootup setup stuff..
  */
 
-#undef DEBUG
-
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>

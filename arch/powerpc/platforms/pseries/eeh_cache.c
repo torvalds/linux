@@ -28,7 +28,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 
-#undef DEBUG
 
 /**
  * The pci address cache subsystem.  This subsystem places
