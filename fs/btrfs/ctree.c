@@ -789,7 +789,7 @@ static int balance_level(struct btrfs_trans_handle *trans,
 	/* first, try to make some room in the middle buffer */
 	if (left) {
 		orig_slot += btrfs_header_nritems(left);
-		wret = push_node_left(trans, root, left, mid, 0);
+		wret = push_node_left(trans, root, left, mid, 1);
 		if (wret < 0)
 			ret = wret;
 		if (btrfs_header_nritems(mid) < 2)
@@ -843,6 +843,11 @@ static int balance_level(struct btrfs_trans_handle *trans,
 		if (wret < 0) {
 			ret = wret;
 			goto enospc;
+		}
+		if (wret == 1) {
+			wret = push_node_left(trans, root, left, mid, 1);
+			if (wret < 0)
+				ret = wret;
 		}
 		BUG_ON(wret == 1);
 	}
@@ -1252,17 +1257,27 @@ static int push_node_left(struct btrfs_trans_handle *trans,
 	WARN_ON(btrfs_header_generation(src) != trans->transid);
 	WARN_ON(btrfs_header_generation(dst) != trans->transid);
 
-	if (!empty && src_nritems <= 2)
+	if (!empty && src_nritems <= 8)
 		return 1;
 
 	if (push_items <= 0) {
 		return 1;
 	}
 
-	if (empty)
+	if (empty) {
 		push_items = min(src_nritems, push_items);
-	else
-		push_items = min(src_nritems - 2, push_items);
+		if (push_items < src_nritems) {
+			/* leave at least 8 pointers in the node if
+			 * we aren't going to empty it
+			 */
+			if (src_nritems - push_items < 8) {
+				if (push_items <= 8)
+					return 1;
+				push_items -= 8;
+			}
+		}
+	} else
+		push_items = min(src_nritems - 8, push_items);
 
 	copy_extent_buffer(dst, src,
 			   btrfs_node_key_ptr_offset(dst_nritems),
@@ -1308,13 +1323,19 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
 	src_nritems = btrfs_header_nritems(src);
 	dst_nritems = btrfs_header_nritems(dst);
 	push_items = BTRFS_NODEPTRS_PER_BLOCK(root) - dst_nritems;
-	if (push_items <= 0)
+	if (push_items <= 0) {
 		return 1;
+	}
+
+	if (src_nritems < 4) {
+		return 1;
+	}
 
 	max_push = src_nritems / 2 + 1;
 	/* don't try to empty the node */
-	if (max_push >= src_nritems)
+	if (max_push >= src_nritems) {
 		return 1;
+	}
 
 	if (max_push < push_items)
 		push_items = max_push;
