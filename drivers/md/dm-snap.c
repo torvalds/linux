@@ -536,7 +536,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	s->last_percent = 0;
 	init_rwsem(&s->lock);
 	spin_lock_init(&s->pe_lock);
-	s->table = ti->table;
+	s->ti = ti;
 
 	/* Allocate hash table for COW data */
 	if (init_hash_tables(s)) {
@@ -699,7 +699,7 @@ static void __invalidate_snapshot(struct dm_snapshot *s, int err)
 
 	s->valid = 0;
 
-	dm_table_event(s->table);
+	dm_table_event(s->ti->table);
 }
 
 static void get_pending_exception(struct dm_snap_pending_exception *pe)
@@ -1060,7 +1060,7 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 			goto next_snapshot;
 
 		/* Nothing to do if writing beyond end of snapshot */
-		if (bio->bi_sector >= dm_table_get_size(snap->table))
+		if (bio->bi_sector >= dm_table_get_size(snap->ti->table))
 			goto next_snapshot;
 
 		/*

@@ -132,7 +132,7 @@ struct exception_store {
 
 struct dm_snapshot {
 	struct rw_semaphore lock;
-	struct dm_table *table;
+	struct dm_target *ti;
 
 	struct dm_dev *origin;
 	struct dm_dev *cow;
