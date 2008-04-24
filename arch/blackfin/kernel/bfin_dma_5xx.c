@@ -108,10 +108,10 @@ int request_dma(unsigned int channel, char *device_id)
 	if (channel >= CH_UART2_RX && channel <= CH_UART3_TX) {
 		if (strncmp(device_id, "BFIN_UART", 9) == 0)
 			dma_ch[channel].regs->peripheral_map |=
-				(channel - CH_UART2_RX + 0xC);
+				((channel - CH_UART2_RX + 0xC)<<12);
 		else
 			dma_ch[channel].regs->peripheral_map |=
-				(channel - CH_UART2_RX + 0x6);
+				((channel - CH_UART2_RX + 0x6)<<12);
 	}
 #endif
 
