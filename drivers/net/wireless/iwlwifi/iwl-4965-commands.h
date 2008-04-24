@@ -2671,6 +2671,37 @@ struct iwl4965_calibration_cmd {
 	u8 reserved1;
 } __attribute__ ((packed));
 
+/* Phy calibration command for 5000 series */
+
+enum {
+	IWL5000_PHY_CALIBRATE_DC_CMD		= 8,
+	IWL5000_PHY_CALIBRATE_LO_CMD		= 9,
+	IWL5000_PHY_CALIBRATE_RX_BB_CMD		= 10,
+	IWL5000_PHY_CALIBRATE_TX_IQ_CMD		= 11,
+	IWL5000_PHY_CALIBRATE_RX_IQ_CMD		= 12,
+	IWL5000_PHY_CALIBRATION_NOISE_CMD	= 13,
+	IWL5000_PHY_CALIBRATE_AGC_TABLE_CMD	= 14,
+	IWL5000_PHY_CALIBRATE_CRYSTAL_FRQ_CMD	= 15,
+	IWL5000_PHY_CALIBRATE_BASE_BAND_CMD	= 16,
+	IWL5000_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD = 18,
+	IWL5000_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD = 19,
+};
+
+struct iwl5000_calibration_chain_noise_reset_cmd {
+	u8 op_code;	/* IWL5000_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD */
+	u8 flags;	/* not used */
+	__le16 reserved;
+} __attribute__ ((packed));
+
+struct iwl5000_calibration_chain_noise_gain_cmd {
+	u8 op_code;	/* IWL5000_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD */
+	u8 flags;	/* not used */
+	__le16 reserved;
+	u8 delta_gain_1;
+	u8 delta_gain_2;
+	__le16 reserved1;
+} __attribute__ ((packed));
+
 /******************************************************************************
  * (12)
  * Miscellaneous Commands:

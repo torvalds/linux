@@ -119,6 +119,15 @@ config IWL5000
 	  This option enables support for Intel Wireless WiFi Link 5000AGN Family
 	  Dependency on 4965 is temporary
 
+config IWL5000_RUN_TIME_CALIB
+	bool "Enable run time Calibration for 5000 NIC"
+	select IWLWIFI_RUN_TIME_CALIB
+	depends on IWL5000
+	default y
+	---help---
+	  This option will enable run time calibration for the iwl5000 driver.
+	  These calibrations are Sensitivity and Chain Noise. If unsure, say yes
+
 
 config IWLWIFI_DEBUGFS
         bool "Iwlwifi debugfs support"
