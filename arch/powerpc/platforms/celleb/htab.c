@@ -32,7 +32,7 @@
 #include <asm/machdep.h>
 #include <asm/udbg.h>
 
-#include "beat_wrapper.h"
+#include "../cell/beat_wrapper.h"
 
 #ifdef DEBUG_LOW
 #define DBG_LOW(fmt...) do { udbg_printf(fmt); } while (0)

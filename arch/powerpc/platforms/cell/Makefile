@@ -34,7 +34,8 @@ ifeq ($(CONFIG_PPC_CELLEB),y)
 obj-y					+= celleb_setup.o \
 					   celleb_pci.o celleb_scc_epci.o \
 					   celleb_scc_uhc.o \
-					   io-workarounds.o spider-pci.o
+					   io-workarounds.o spider-pci.o \
+					   beat_hvCall.o
 
 obj-$(CONFIG_SERIAL_TXX9)		+= celleb_scc_sio.o
 endif

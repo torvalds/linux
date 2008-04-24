@@ -57,7 +57,7 @@
 #include <asm/cell-regs.h>
 
 #include "../celleb/interrupt.h"
-#include "../celleb/beat_wrapper.h"
+#include "beat_wrapper.h"
 #include "../celleb/beat.h"
 #include "celleb_pci.h"
 #include "interrupt.h"

@@ -1,5 +1,5 @@
 obj-y				+= interrupt.o iommu.o \
-				   htab.o beat.o hvCall.o
+				   htab.o beat.o
 
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_PPC_UDBG_BEAT)	+= udbg_beat.o
