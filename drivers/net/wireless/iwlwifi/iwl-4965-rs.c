@@ -620,17 +620,21 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 }
 
 /* FIXME:RS: in 4965 we don't use greenfield at all */
-static inline u8 rs_use_green(struct iwl_priv *priv,
-			      struct ieee80211_conf *conf)
+/* FIXME:RS: don't use greenfield for now in TX */
+/* #ifdef CONFIG_IWL4965_HT */
+#if 0
+static inline u8 rs_use_green(struct iwl_priv *priv, struct ieee80211_conf *conf)
 {
-#ifdef CONFIG_IWL4965_HT
 	return ((conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) &&
 		priv->current_ht_config.is_green_field &&
 		!priv->current_ht_config.non_GF_STA_present);
-#else
-	return 0;
-#endif	/* CONFIG_IWL4965_HT */
 }
+#else
+static inline u8 rs_use_green(struct iwl_priv *priv, struct ieee80211_conf *conf)
+{
+	return 0;
+}
+#endif	/* CONFIG_IWL4965_HT */
 
 /**
  * rs_get_supported_rates - get the available rates
@@ -1058,7 +1062,7 @@ static void rs_set_expected_tpt_table(struct iwl4965_lq_sta *lq_sta,
 static s32 rs_get_best_rate(struct iwl_priv *priv,
 			    struct iwl4965_lq_sta *lq_sta,
 			    struct iwl4965_scale_tbl_info *tbl,	/* "search" */
-			    u16 rate_mask, s8 index, s8 rate)
+			    u16 rate_mask, s8 index)
 {
 	/* "active" values */
 	struct iwl4965_scale_tbl_info *active_tbl =
@@ -1071,6 +1075,7 @@ static s32 rs_get_best_rate(struct iwl_priv *priv,
 
 	s32 new_rate, high, low, start_hi;
 	u16 high_low;
+	s8 rate = index;
 
 	new_rate = high = low = start_hi = IWL_RATE_INVALID;
 
@@ -1197,7 +1202,7 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 
 	rs_set_expected_tpt_table(lq_sta, tbl);
 
-	rate = rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index, index);
+	rate = rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index);
 
 	IWL_DEBUG_RATE("LQ: MIMO2 best rate %d mask %X\n", rate, rate_mask);
 
@@ -1270,7 +1275,7 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 		tbl->is_SGI = 0; /*11n spec: no SGI in SISO+Greenfield*/
 
 	rs_set_expected_tpt_table(lq_sta, tbl);
-	rate = rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index, index);
+	rate = rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index);
 
 	IWL_DEBUG_RATE("LQ: get best rate %d mask %X\n", rate, rate_mask);
 	if ((rate == IWL_RATE_INVALID) || !((1 << rate) & rate_mask)) {
@@ -1284,7 +1289,6 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	return 0;
 #else
 	return -1;
-
 #endif	/*CONFIG_IWL4965_HT */
 }
 
@@ -1311,7 +1315,7 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 	for (; ;) {
 		switch (tbl->action) {
 		case IWL_LEGACY_SWITCH_ANTENNA:
-			IWL_DEBUG_RATE("LQ Legacy toggle Antenna\n");
+			IWL_DEBUG_RATE("LQ: Legacy toggle Antenna\n");
 
 			lq_sta->action_counter++;
 
@@ -1579,9 +1583,6 @@ static void rs_stay_in_table(struct iwl4965_lq_sta *lq_sta)
 			    time_after(jiffies,
 				       (unsigned long)(lq_sta->flush_timer +
 					IWL_RATE_SCALE_FLUSH_INTVL));
-
-		/* For now, disable the elapsed time criterion */
-		flush_interval_passed = 0;
 
 		/*
 		 * Check if we should allow search for new modulation mode.
