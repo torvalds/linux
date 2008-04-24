@@ -71,25 +71,13 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82378, quirk_i
 static void __init
 quirk_cypress(struct pci_dev *dev)
 {
-	/* The Notorious Cy82C693 chip.  */
-
-	/* The Cypress IDE controller doesn't support native mode, but it
-	   has programmable addresses of IDE command/control registers.
-	   This violates PCI specifications, confuses the IDE subsystem and
-	   causes resource conflicts between the primary HD_CMD register and
-	   the floppy controller.  Ugh.  Fix that.  */
-	if (dev->class >> 8 == PCI_CLASS_STORAGE_IDE) {
-		dev->resource[0].flags = 0;
-		dev->resource[1].flags = 0;
-	}
-
 	/* The Cypress bridge responds on the PCI bus in the address range
 	   0xffff0000-0xffffffff (conventional x86 BIOS ROM).  There is no
 	   way to turn this off.  The bridge also supports several extended
 	   BIOS ranges (disabled after power-up), and some consoles do turn
 	   them on.  So if we use a large direct-map window, or a large SG
 	   window, we must avoid the entire 0xfff00000-0xffffffff region.  */
-	else if (dev->class >> 8 == PCI_CLASS_BRIDGE_ISA) {
+	if (dev->class >> 8 == PCI_CLASS_BRIDGE_ISA) {
 		if (__direct_map_base + __direct_map_size >= 0xfff00000UL)
 			__direct_map_size = 0xfff00000UL - __direct_map_base;
 		else {
@@ -391,7 +379,7 @@ pcibios_set_master(struct pci_dev *dev)
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 64);
 }
 
-static void __init
+void __init
 pcibios_claim_one_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
@@ -405,7 +393,8 @@ pcibios_claim_one_bus(struct pci_bus *b)
 
 			if (r->parent || !r->start || !r->flags)
 				continue;
-			pci_claim_resource(dev, i);
+			if (pci_probe_only || (r->flags & IORESOURCE_PCI_FIXED))
+				pci_claim_resource(dev, i);
 		}
 	}
 
@@ -444,8 +433,7 @@ common_init_pci(void)
 		}
 	}
 
-	if (pci_probe_only)
-		pcibios_claim_console_setup();
+	pcibios_claim_console_setup();
 
 	pci_assign_unassigned_resources();
 	pci_fixup_irqs(alpha_mv.pci_swizzle, alpha_mv.pci_map_irq);

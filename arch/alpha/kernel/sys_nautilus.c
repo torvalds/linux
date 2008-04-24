@@ -187,6 +187,7 @@ nautilus_machine_check(unsigned long vector, unsigned long la_ptr)
 }
 
 extern void free_reserved_mem(void *, void *);
+extern void pcibios_claim_one_bus(struct pci_bus *);
 
 static struct resource irongate_mem = {
 	.name	= "Irongate PCI MEM",
@@ -205,6 +206,7 @@ nautilus_init_pci(void)
 	/* Scan our single hose.  */
 	bus = pci_scan_bus(0, alpha_mv.pci_ops, hose);
 	hose->bus = bus;
+	pcibios_claim_one_bus(bus);
 
 	irongate = pci_get_bus_and_slot(0, 0);
 	bus->self = irongate;
