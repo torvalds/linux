@@ -103,6 +103,21 @@ struct snd_mpu401 {
 #define MPU401D(mpu) (mpu)->port
 
 /*
+ * control register bits
+ */
+/* read MPU401C() */
+#define MPU401_RX_EMPTY		0x80
+#define MPU401_TX_FULL		0x40
+
+/* write MPU401C() */
+#define MPU401_RESET		0xff
+#define MPU401_ENTER_UART	0x3f
+
+/* read MPU401D() */
+#define MPU401_ACK		0xfe
+
+
+/*
 
  */
 

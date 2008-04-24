@@ -319,12 +319,11 @@ static int stac9460_mic_sw_put(struct snd_kcontrol *kcontrol,
 /*
  * Handler for setting correct codec rate - called when rate change is detected
  */
-static void stac9460_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
+static void stac9460_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 {
 	unsigned char old, new;
 	int idx;
 	unsigned char changed[7];
-	struct snd_ice1712 *ice = ak->private_data[0];
 	struct prodigy192_spec *spec = ice->spec;
 
 	if (rate == 0)  /* no hint - S/PDIF input is master, simply return */
@@ -356,16 +355,6 @@ static void stac9460_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 	}
 	mutex_unlock(&spec->mute_mutex);
 }
-
-/* using akm infrastructure for setting rate of the codec */
-static struct snd_akm4xxx akmlike_stac9460 __devinitdata = {
-	.type = NON_AKM,	/* special value */
-	.num_adcs = 6,		/* not used in any way, just for completeness */
-	.num_dacs = 2,
-	.ops = {
-		.set_rate_val = stac9460_set_rate_val
-	}
-};
 
 
 static const DECLARE_TLV_DB_SCALE(db_scale_dac, -19125, 75, 0);
@@ -642,12 +631,19 @@ static int prodigy192_ak4114_init(struct snd_ice1712 *ice)
 		0x41, 0x02, 0x2c, 0x00, 0x00
 	};
 	struct prodigy192_spec *spec = ice->spec;
+	int err;
 
-	return snd_ak4114_create(ice->card,
+	err = snd_ak4114_create(ice->card,
 				 prodigy192_ak4114_read,
 				 prodigy192_ak4114_write,
 				 ak4114_init_vals, ak4114_init_txcsb,
 				 ice, &spec->ak4114);
+	if (err < 0)
+		return err;
+	/* AK4114 in Prodigy192 cannot detect external rate correctly.
+	 * No reason to stop capture stream due to incorrect checks */
+	spec->ak4114->check_flags = AK4114_CHECK_NO_RATE;
+	return 0;
 }
 
 static void stac9460_proc_regs_read(struct snd_info_entry *entry,
@@ -743,7 +739,6 @@ static int __devinit prodigy192_init(struct snd_ice1712 *ice)
 	};
 	const unsigned short *p;
 	int err = 0;
-	struct snd_akm4xxx *ak;
 	struct prodigy192_spec *spec;
 
 	/* prodigy 192 */
@@ -761,15 +756,7 @@ static int __devinit prodigy192_init(struct snd_ice1712 *ice)
 	p = stac_inits_prodigy;
 	for (; *p != (unsigned short)-1; p += 2)
 		stac9460_put(ice, p[0], p[1]);
-	/* reusing the akm codecs infrastructure,
-	 * for setting rate on stac9460 */
-	ak = ice->akm = kmalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
-	if (!ak)
-		return -ENOMEM;
-	ice->akm_codecs = 1;
-	err = snd_ice1712_akm4xxx_init(ak, &akmlike_stac9460, NULL, ice);
-	if (err < 0)
-		return err;
+	ice->gpio.set_pro_rate = stac9460_set_rate_val;
 
 	/* MI/ODI/O add on card with AK4114 */
 	if (prodigy192_miodio_exists(ice)) {
@@ -825,10 +812,6 @@ struct snd_ice1712_card_info snd_vt1724_prodigy192_cards[] __devinitdata = {
 		.build_controls = prodigy192_add_controls,
 		.eeprom_size = sizeof(prodigy71_eeprom),
 		.eeprom_data = prodigy71_eeprom,
-		/* the current MPU401 code loops infinitely
-		 * when opening midi device
-		 */
-		.no_mpu401 = 1,
 	},
 	{ } /* terminator */
 };

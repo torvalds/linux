@@ -31,6 +31,7 @@
 #include <sound/initval.h>
 #include "hda_local.h"
 #include <sound/hda_hwdep.h>
+#include "hda_patch.h"	/* codec presets */
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 /* define this option here to hide as static */
@@ -51,21 +52,50 @@ struct hda_vendor_id {
 
 /* codec vendor labels */
 static struct hda_vendor_id hda_vendor_ids[] = {
-	{ 0x10ec, "Realtek" },
+	{ 0x1002, "ATI" },
 	{ 0x1057, "Motorola" },
+	{ 0x1095, "Silicon Image" },
+	{ 0x10ec, "Realtek" },
 	{ 0x1106, "VIA" },
 	{ 0x111d, "IDT" },
+	{ 0x11c1, "LSI" },
 	{ 0x11d4, "Analog Devices" },
 	{ 0x13f6, "C-Media" },
 	{ 0x14f1, "Conexant" },
+	{ 0x17e8, "Chrontel" },
+	{ 0x1854, "LG" },
 	{ 0x434d, "C-Media" },
 	{ 0x8384, "SigmaTel" },
 	{} /* terminator */
 };
 
-/* codec presets */
-#include "hda_patch.h"
-
+static const struct hda_codec_preset *hda_preset_tables[] = {
+#ifdef CONFIG_SND_HDA_CODEC_REALTEK
+	snd_hda_preset_realtek,
+#endif
+#ifdef CONFIG_SND_HDA_CODEC_CMEDIA
+	snd_hda_preset_cmedia,
+#endif
+#ifdef CONFIG_SND_HDA_CODEC_ANALOG
+	snd_hda_preset_analog,
+#endif
+#ifdef CONFIG_SND_HDA_CODEC_SIGMATEL
+	snd_hda_preset_sigmatel,
+#endif
+#ifdef CONFIG_SND_HDA_CODEC_SI3054
+	snd_hda_preset_si3054,
+#endif
+#ifdef CONFIG_SND_HDA_CODEC_ATIHDMI
+	snd_hda_preset_atihdmi,
+#endif
+#ifdef CONFIG_SND_HDA_CODEC_CONEXANT
+	snd_hda_preset_conexant,
+#endif
+#ifdef CONFIG_SND_HDA_CODEC_VIA
+	snd_hda_preset_via,
+#endif
+	NULL
+};
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static void hda_power_work(struct work_struct *work);
@@ -690,6 +720,19 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, format);
 }
 
+void snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid)
+{
+	if (!nid)
+		return;
+
+	snd_printdd("hda_codec_cleanup_stream: NID=0x%x\n", nid);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CHANNEL_STREAMID, 0);
+#if 0 /* keep the format */
+	msleep(1);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, 0);
+#endif
+}
+
 /*
  * amp access functions
  */
@@ -1037,14 +1080,22 @@ void snd_hda_set_vmaster_tlv(struct hda_codec *codec, hda_nid_t nid, int dir,
 }
 
 /* find a mixer control element with the given name */
-struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
-					    const char *name)
+static struct snd_kcontrol *
+_snd_hda_find_mixer_ctl(struct hda_codec *codec,
+			const char *name, int idx)
 {
 	struct snd_ctl_elem_id id;
 	memset(&id, 0, sizeof(id));
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	id.index = idx;
 	strcpy(id.name, name);
 	return snd_ctl_find_id(codec->bus->card, &id);
+}
+
+struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
+					    const char *name)
+{
+	return _snd_hda_find_mixer_ctl(codec, name, 0);
 }
 
 /* create a virtual master control and add slaves */
@@ -1481,6 +1532,8 @@ static struct snd_kcontrol_new dig_mixes[] = {
 	{ } /* end */
 };
 
+#define SPDIF_MAX_IDX	4	/* 4 instances should be enough to probe */
+
 /**
  * snd_hda_create_spdif_out_ctls - create Output SPDIF-related controls
  * @codec: the HDA codec
@@ -1496,9 +1549,20 @@ int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 	int err;
 	struct snd_kcontrol *kctl;
 	struct snd_kcontrol_new *dig_mix;
+	int idx;
 
+	for (idx = 0; idx < SPDIF_MAX_IDX; idx++) {
+		if (!_snd_hda_find_mixer_ctl(codec, "IEC958 Playback Switch",
+					     idx))
+			break;
+	}
+	if (idx >= SPDIF_MAX_IDX) {
+		printk(KERN_ERR "hda_codec: too many IEC958 outputs\n");
+		return -EBUSY;
+	}
 	for (dig_mix = dig_mixes; dig_mix->name; dig_mix++) {
 		kctl = snd_ctl_new1(dig_mix, codec);
+		kctl->id.index = idx;
 		kctl->private_value = nid;
 		err = snd_ctl_add(codec->bus->card, kctl);
 		if (err < 0)
@@ -1509,6 +1573,43 @@ int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 				   AC_VERB_GET_DIGI_CONVERT_1, 0);
 	codec->spdif_status = convert_to_spdif_status(codec->spdif_ctls);
 	return 0;
+}
+
+/*
+ * SPDIF sharing with analog output
+ */
+static int spdif_share_sw_get(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_multi_out *mout = snd_kcontrol_chip(kcontrol);
+	ucontrol->value.integer.value[0] = mout->share_spdif;
+	return 0;
+}
+
+static int spdif_share_sw_put(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_multi_out *mout = snd_kcontrol_chip(kcontrol);
+	mout->share_spdif = !!ucontrol->value.integer.value[0];
+	return 0;
+}
+
+static struct snd_kcontrol_new spdif_share_sw = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "IEC958 Default PCM Playback Switch",
+	.info = snd_ctl_boolean_mono_info,
+	.get = spdif_share_sw_get,
+	.put = spdif_share_sw_put,
+};
+
+int snd_hda_create_spdif_share_sw(struct hda_codec *codec,
+				  struct hda_multi_out *mout)
+{
+	if (!mout->dig_out_nid)
+		return 0;
+	/* ATTENTION: here mout is passed as private_data, instead of codec */
+	return snd_ctl_add(codec->bus->card,
+			   snd_ctl_new1(&spdif_share_sw, mout));
 }
 
 /*
@@ -1595,7 +1696,17 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 	int err;
 	struct snd_kcontrol *kctl;
 	struct snd_kcontrol_new *dig_mix;
+	int idx;
 
+	for (idx = 0; idx < SPDIF_MAX_IDX; idx++) {
+		if (!_snd_hda_find_mixer_ctl(codec, "IEC958 Capture Switch",
+					     idx))
+			break;
+	}
+	if (idx >= SPDIF_MAX_IDX) {
+		printk(KERN_ERR "hda_codec: too many IEC958 inputs\n");
+		return -EBUSY;
+	}
 	for (dig_mix = dig_in_ctls; dig_mix->name; dig_mix++) {
 		kctl = snd_ctl_new1(dig_mix, codec);
 		kctl->private_value = nid;
@@ -2106,7 +2217,7 @@ static int hda_pcm_default_cleanup(struct hda_pcm_stream *hinfo,
 				   struct hda_codec *codec,
 				   struct snd_pcm_substream *substream)
 {
-	snd_hda_codec_setup_stream(codec, hinfo->nid, 0, 0, 0);
+	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
 	return 0;
 }
 
@@ -2491,7 +2602,7 @@ int snd_hda_multi_out_dig_open(struct hda_codec *codec,
 	mutex_lock(&codec->spdif_mutex);
 	if (mout->dig_out_used == HDA_DIG_ANALOG_DUP)
 		/* already opened as analog dup; reset it once */
-		snd_hda_codec_setup_stream(codec, mout->dig_out_nid, 0, 0, 0);
+		snd_hda_codec_cleanup_stream(codec, mout->dig_out_nid);
 	mout->dig_out_used = HDA_DIG_EXCLUSIVE;
 	mutex_unlock(&codec->spdif_mutex);
 	return 0;
@@ -2526,9 +2637,36 @@ int snd_hda_multi_out_dig_close(struct hda_codec *codec,
  */
 int snd_hda_multi_out_analog_open(struct hda_codec *codec,
 				  struct hda_multi_out *mout,
-				  struct snd_pcm_substream *substream)
+				  struct snd_pcm_substream *substream,
+				  struct hda_pcm_stream *hinfo)
 {
-	substream->runtime->hw.channels_max = mout->max_channels;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	runtime->hw.channels_max = mout->max_channels;
+	if (mout->dig_out_nid) {
+		if (!mout->analog_rates) {
+			mout->analog_rates = hinfo->rates;
+			mout->analog_formats = hinfo->formats;
+			mout->analog_maxbps = hinfo->maxbps;
+		} else {
+			runtime->hw.rates = mout->analog_rates;
+			runtime->hw.formats = mout->analog_formats;
+			hinfo->maxbps = mout->analog_maxbps;
+		}
+		if (!mout->spdif_rates) {
+			snd_hda_query_supported_pcm(codec, mout->dig_out_nid,
+						    &mout->spdif_rates,
+						    &mout->spdif_formats,
+						    &mout->spdif_maxbps);
+		}
+		mutex_lock(&codec->spdif_mutex);
+		if (mout->share_spdif) {
+			runtime->hw.rates &= mout->spdif_rates;
+			runtime->hw.formats &= mout->spdif_formats;
+			if (mout->spdif_maxbps < hinfo->maxbps)
+				hinfo->maxbps = mout->spdif_maxbps;
+		}
+		mutex_unlock(&codec->spdif_mutex);
+	}
 	return snd_pcm_hw_constraint_step(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 }
@@ -2548,7 +2686,8 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 	int i;
 
 	mutex_lock(&codec->spdif_mutex);
-	if (mout->dig_out_nid && mout->dig_out_used != HDA_DIG_EXCLUSIVE) {
+	if (mout->dig_out_nid && mout->share_spdif &&
+	    mout->dig_out_used != HDA_DIG_EXCLUSIVE) {
 		if (chs == 2 &&
 		    snd_hda_is_supported_format(codec, mout->dig_out_nid,
 						format) &&
@@ -2558,8 +2697,7 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 					     stream_tag, format);
 		} else {
 			mout->dig_out_used = 0;
-			snd_hda_codec_setup_stream(codec, mout->dig_out_nid,
-						   0, 0, 0);
+			snd_hda_codec_cleanup_stream(codec, mout->dig_out_nid);
 		}
 	}
 	mutex_unlock(&codec->spdif_mutex);
@@ -2601,17 +2739,16 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
 	int i;
 
 	for (i = 0; i < mout->num_dacs; i++)
-		snd_hda_codec_setup_stream(codec, nids[i], 0, 0, 0);
+		snd_hda_codec_cleanup_stream(codec, nids[i]);
 	if (mout->hp_nid)
-		snd_hda_codec_setup_stream(codec, mout->hp_nid, 0, 0, 0);
+		snd_hda_codec_cleanup_stream(codec, mout->hp_nid);
 	for (i = 0; i < ARRAY_SIZE(mout->extra_out_nid); i++)
 		if (mout->extra_out_nid[i])
-			snd_hda_codec_setup_stream(codec,
-						   mout->extra_out_nid[i],
-						   0, 0, 0);
+			snd_hda_codec_cleanup_stream(codec,
+						     mout->extra_out_nid[i]);
 	mutex_lock(&codec->spdif_mutex);
 	if (mout->dig_out_nid && mout->dig_out_used == HDA_DIG_ANALOG_DUP) {
-		snd_hda_codec_setup_stream(codec, mout->dig_out_nid, 0, 0, 0);
+		snd_hda_codec_cleanup_stream(codec, mout->dig_out_nid);
 		mout->dig_out_used = 0;
 	}
 	mutex_unlock(&codec->spdif_mutex);
@@ -2787,6 +2924,30 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		case AC_JACK_SPDIF_IN:
 			cfg->dig_in_pin = nid;
 			break;
+		}
+	}
+
+	/* FIX-UP:
+	 * If no line-out is defined but multiple HPs are found,
+	 * some of them might be the real line-outs.
+	 */
+	if (!cfg->line_outs && cfg->hp_outs > 1) {
+		int i = 0;
+		while (i < cfg->hp_outs) {
+			/* The real HPs should have the sequence 0x0f */
+			if ((sequences_hp[i] & 0x0f) == 0x0f) {
+				i++;
+				continue;
+			}
+			/* Move it to the line-out table */
+			cfg->line_out_pins[cfg->line_outs] = cfg->hp_pins[i];
+			sequences_line_out[cfg->line_outs] = sequences_hp[i];
+			cfg->line_outs++;
+			cfg->hp_outs--;
+			memmove(cfg->hp_pins + i, cfg->hp_pins + i + 1,
+				sizeof(cfg->hp_pins[0]) * (cfg->hp_outs - i));
+			memmove(sequences_hp + i - 1, sequences_hp + i,
+				sizeof(sequences_hp[0]) * (cfg->hp_outs - i));
 		}
 	}
 

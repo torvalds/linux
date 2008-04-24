@@ -284,6 +284,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
            control correctly. If you have problems regarding this, try
            another ALSA compliant mixer (alsamixer works).
 
+  Module snd-aw2
+  --------------
+
+    Module for Audiowerk2 sound card
+
+    This module supports multiple cards.
+
   Module snd-azt2320
   ------------------
 
@@ -818,18 +825,24 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  hippo_1	Hippo (Benq) with jack detection
 	  sony-assamd	Sony ASSAMD
 	  ultra		Samsung Q1 Ultra Vista model
+	  lenovo-3000	Lenovo 3000 y410
 	  basic		fixed pin assignment w/o SPDIF
 	  auto		auto-config reading BIOS (default)
 
-	ALC268
+	ALC267/268
+	  quanta-il1	Quanta IL1 mini-notebook
 	  3stack	3-stack model
 	  toshiba	Toshiba A205
 	  acer		Acer laptops
 	  dell		Dell OEM laptops (Vostro 1200)
+	  zepto		Zepto laptops
 	  test		for testing/debugging purpose, almost all controls can
 			adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
 	  auto		auto-config reading BIOS (default)
+
+	ALC269
+	  basic		Basic preset
 
 	ALC662
 	  3stack-dig	3-stack (2-channel) with SPDIF
@@ -871,10 +884,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  lenovo-nb0763	Lenovo NB0763
 	  lenovo-ms7195-dig Lenovo MS7195
 	  haier-w66	Haier W66
-	  6stack-hp	HP machines with 6stack (Nettle boards)
 	  3stack-hp	HP machines with 3stack (Lucknow, Samba boards)
 	  6stack-dell	Dell machines with 6stack (Inspiron 530)
 	  mitac		Mitac 8252D
+	  clevo-m720	Clevo M720 laptop series
+	  fujitsu-pi2515 Fujitsu AMILO Pi2515
 	  auto		auto-config reading BIOS (default)
 
 	ALC861/660
@@ -911,6 +925,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack	3-stack mode (default)
 	  6stack	6-stack mode
 
+	AD1884A / AD1883 / AD1984A / AD1984B
+	  desktop	3-stack desktop (default)
+	  laptop	laptop with HP jack sensing
+	  mobile	mobile devices with HP jack sensing
+	  thinkpad	Lenovo Thinkpad X300
+
 	AD1884
 	  N/A
 
@@ -936,7 +956,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  laptop-automute 2-channel with EAPD and HP-automute (Lenovo N100)
 	  ultra		2-channel with EAPD (Samsung Ultra tablet PC)
 
-	AD1988
+	AD1988/AD1988B/AD1989A/AD1989B
 	  6stack	6-jack
 	  6stack-dig	ditto with SPDIF
 	  3stack	3-jack
@@ -979,6 +999,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  dell-m26	Dell Inspiron 1501
 	  dell-m27	Dell Inspiron E1705/9400
 	  gateway	Gateway laptops with EAPD control
+	  panasonic	Panasonic CF-74
 
 	STAC9205/9254
 	  ref		Reference board
@@ -1017,6 +1038,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack	D965 3stack
 	  5stack	D965 5stack + SPDIF
 	  dell-3stack	Dell Dimension E520
+	  dell-bios	Fixes with Dell BIOS setup
+
+	STAC92HD71B*
+	  ref		Reference board
+	  dell-m4-1	Dell desktops
+	  dell-m4-2	Dell desktops
+
+	STAC92HD73*
+	  ref		Reference board
+	  dell-m6	Dell desktops
 
 	STAC9872
 	  vaio		Setup for VAIO FE550G/SZ110
@@ -1589,6 +1620,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     This module supports autoprobe and multiple cards.
 
     Power management is _not_ supported.
+
+  Module snd-pcsp
+  -----------------
+
+    Module for internal PC-Speaker.
+
+    nforce_wa	- enable NForce chipset workaround. Expect bad sound.
+
+    This module supports system beeps, some kind of PCM playback and
+    even a few mixer controls.
 
   Module snd-pcxhr
   ----------------

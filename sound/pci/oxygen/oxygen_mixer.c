@@ -32,8 +32,8 @@ static int dac_volume_info(struct snd_kcontrol *ctl,
 
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	info->count = chip->model->dac_channels;
-	info->value.integer.min = 0;
-	info->value.integer.max = 0xff;
+	info->value.integer.min = chip->model->dac_volume_min;
+	info->value.integer.max = chip->model->dac_volume_max;
 	return 0;
 }
 
@@ -446,6 +446,50 @@ static int spdif_loopback_put(struct snd_kcontrol *ctl,
 	return changed;
 }
 
+static int monitor_volume_info(struct snd_kcontrol *ctl,
+			       struct snd_ctl_elem_info *info)
+{
+	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	info->count = 1;
+	info->value.integer.min = 0;
+	info->value.integer.max = 1;
+	return 0;
+}
+
+static int monitor_get(struct snd_kcontrol *ctl,
+		       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u8 bit = ctl->private_value;
+	int invert = ctl->private_value & (1 << 8);
+
+	value->value.integer.value[0] =
+		!!invert ^ !!(oxygen_read8(chip, OXYGEN_ADC_MONITOR) & bit);
+	return 0;
+}
+
+static int monitor_put(struct snd_kcontrol *ctl,
+		       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u8 bit = ctl->private_value;
+	int invert = ctl->private_value & (1 << 8);
+	u8 oldreg, newreg;
+	int changed;
+
+	spin_lock_irq(&chip->reg_lock);
+	oldreg = oxygen_read8(chip, OXYGEN_ADC_MONITOR);
+	if ((!!value->value.integer.value[0] ^ !!invert) != 0)
+		newreg = oldreg | bit;
+	else
+		newreg = oldreg & ~bit;
+	changed = newreg != oldreg;
+	if (changed)
+		oxygen_write8(chip, OXYGEN_ADC_MONITOR, newreg);
+	spin_unlock_irq(&chip->reg_lock);
+	return changed;
+}
+
 static int ac97_switch_get(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_value *value)
 {
@@ -464,6 +508,21 @@ static int ac97_switch_get(struct snd_kcontrol *ctl,
 	else
 		value->value.integer.value[0] = 0;
 	return 0;
+}
+
+static void mute_ac97_ctl(struct oxygen *chip, unsigned int control)
+{
+	unsigned int priv_idx = chip->controls[control]->private_value & 0xff;
+	u16 value;
+
+	value = oxygen_read_ac97(chip, 0, priv_idx);
+	if (!(value & 0x8000)) {
+		oxygen_write_ac97(chip, 0, priv_idx, value | 0x8000);
+		if (chip->model->ac97_switch)
+			chip->model->ac97_switch(chip, priv_idx, 0x8000);
+		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &chip->controls[control]->id);
+	}
 }
 
 static int ac97_switch_put(struct snd_kcontrol *ctl,
@@ -487,9 +546,24 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 	change = newreg != oldreg;
 	if (change) {
 		oxygen_write_ac97(chip, codec, index, newreg);
-		if (bitnr == 15 && chip->model->ac97_switch_hook)
-			chip->model->ac97_switch_hook(chip, codec, index,
-						      newreg & 0x8000);
+		if (codec == 0 && chip->model->ac97_switch)
+			chip->model->ac97_switch(chip, index, newreg & 0x8000);
+		if (index == AC97_LINE) {
+			oxygen_write_ac97_masked(chip, 0, CM9780_GPIO_STATUS,
+						 newreg & 0x8000 ?
+						 CM9780_GPO0 : 0, CM9780_GPO0);
+			if (!(newreg & 0x8000)) {
+				mute_ac97_ctl(chip, CONTROL_MIC_CAPTURE_SWITCH);
+				mute_ac97_ctl(chip, CONTROL_CD_CAPTURE_SWITCH);
+				mute_ac97_ctl(chip, CONTROL_AUX_CAPTURE_SWITCH);
+			}
+		} else if ((index == AC97_MIC || index == AC97_CD ||
+			    index == AC97_VIDEO || index == AC97_AUX) &&
+			   bitnr == 15 && !(newreg & 0x8000)) {
+			mute_ac97_ctl(chip, CONTROL_LINE_CAPTURE_SWITCH);
+			oxygen_write_ac97_masked(chip, 0, CM9780_GPIO_STATUS,
+						 CM9780_GPO0, CM9780_GPO0);
+		}
 	}
 	mutex_unlock(&chip->mutex);
 	return change;
@@ -608,6 +682,7 @@ static int ac97_fp_rec_volume_put(struct snd_kcontrol *ctl,
 		.private_value = ((codec) << 24) | (index), \
 	}
 
+static DECLARE_TLV_DB_SCALE(monitor_db_scale, -1000, 1000, 0);
 static DECLARE_TLV_DB_SCALE(ac97_db_scale, -3450, 150, 0);
 static DECLARE_TLV_DB_SCALE(ac97_rec_db_scale, 0, 150, 0);
 
@@ -667,6 +742,9 @@ static const struct snd_kcontrol_new controls[] = {
 		.get = spdif_pcm_get,
 		.put = spdif_pcm_put,
 	},
+};
+
+static const struct snd_kcontrol_new spdif_input_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 		.device = 1,
@@ -692,11 +770,118 @@ static const struct snd_kcontrol_new controls[] = {
 	},
 };
 
+static const struct {
+	unsigned int pcm_dev;
+	struct snd_kcontrol_new controls[2];
+} monitor_controls[] = {
+	{
+		.pcm_dev = CAPTURE_0_FROM_I2S_1,
+		.controls = {
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Switch",
+				.info = snd_ctl_boolean_mono_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_A,
+			},
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Volume",
+				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+				.info = monitor_volume_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_A_HALF_VOL
+						| (1 << 8),
+				.tlv = { .p = monitor_db_scale, },
+			},
+		},
+	},
+	{
+		.pcm_dev = CAPTURE_0_FROM_I2S_2,
+		.controls = {
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Switch",
+				.info = snd_ctl_boolean_mono_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_B,
+			},
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Volume",
+				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+				.info = monitor_volume_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_B_HALF_VOL
+						| (1 << 8),
+				.tlv = { .p = monitor_db_scale, },
+			},
+		},
+	},
+	{
+		.pcm_dev = CAPTURE_2_FROM_I2S_2,
+		.controls = {
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Switch",
+				.index = 1,
+				.info = snd_ctl_boolean_mono_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_B,
+			},
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Volume",
+				.index = 1,
+				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+				.info = monitor_volume_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_B_HALF_VOL
+						| (1 << 8),
+				.tlv = { .p = monitor_db_scale, },
+			},
+		},
+	},
+	{
+		.pcm_dev = CAPTURE_1_FROM_SPDIF,
+		.controls = {
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Digital Input Monitor Switch",
+				.info = snd_ctl_boolean_mono_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_C,
+			},
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Digital Input Monitor Volume",
+				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+				.info = monitor_volume_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_C_HALF_VOL
+						| (1 << 8),
+				.tlv = { .p = monitor_db_scale, },
+			},
+		},
+	},
+};
+
 static const struct snd_kcontrol_new ac97_controls[] = {
 	AC97_VOLUME("Mic Capture Volume", 0, AC97_MIC),
 	AC97_SWITCH("Mic Capture Switch", 0, AC97_MIC, 15, 1),
 	AC97_SWITCH("Mic Boost (+20dB)", 0, AC97_MIC, 6, 0),
-	AC97_VOLUME("Line Capture Volume", 0, AC97_LINE),
 	AC97_SWITCH("Line Capture Switch", 0, AC97_LINE, 15, 1),
 	AC97_VOLUME("CD Capture Volume", 0, AC97_CD),
 	AC97_SWITCH("CD Capture Switch", 0, AC97_CD, 15, 1),
@@ -756,6 +941,11 @@ static int add_controls(struct oxygen *chip,
 			return err;
 		if (err == 1)
 			continue;
+		if (!strcmp(template.name, "Master Playback Volume") &&
+		    chip->model->dac_tlv) {
+			template.tlv.p = chip->model->dac_tlv;
+			template.access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+		}
 		ctl = snd_ctl_new1(&template, chip);
 		if (!ctl)
 			return -ENOMEM;
@@ -773,11 +963,26 @@ static int add_controls(struct oxygen *chip,
 
 int oxygen_mixer_init(struct oxygen *chip)
 {
+	unsigned int i;
 	int err;
 
 	err = add_controls(chip, controls, ARRAY_SIZE(controls));
 	if (err < 0)
 		return err;
+	if (chip->model->pcm_dev_cfg & CAPTURE_1_FROM_SPDIF) {
+		err = add_controls(chip, spdif_input_controls,
+				   ARRAY_SIZE(spdif_input_controls));
+		if (err < 0)
+			return err;
+	}
+	for (i = 0; i < ARRAY_SIZE(monitor_controls); ++i) {
+		if (!(chip->model->pcm_dev_cfg & monitor_controls[i].pcm_dev))
+			continue;
+		err = add_controls(chip, monitor_controls[i].controls,
+				   ARRAY_SIZE(monitor_controls[i].controls));
+		if (err < 0)
+			return err;
+	}
 	if (chip->has_ac97_0) {
 		err = add_controls(chip, ac97_controls,
 				   ARRAY_SIZE(ac97_controls));

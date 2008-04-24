@@ -372,7 +372,7 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->codec;
 	struct cs4270_private *cs4270 = codec->private_data;
-	unsigned int ret = 0;
+	int ret;
 	unsigned int i;
 	unsigned int rate;
 	unsigned int ratio;

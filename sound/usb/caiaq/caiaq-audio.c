@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2006,2007 Daniel Mack, Karsten Wiese
+ *   Copyright (c) 2006-2008 Daniel Mack, Karsten Wiese
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -39,7 +39,8 @@
 #define BYTES_PER_SAMPLE	3
 #define BYTES_PER_SAMPLE_USB	4
 #define MAX_BUFFER_SIZE		(128*1024)
-				 
+#define MAX_ENDPOINT_SIZE	512
+
 #define ENDPOINT_CAPTURE	2
 #define ENDPOINT_PLAYBACK	6
 
@@ -77,10 +78,15 @@ static void
 deactivate_substream(struct snd_usb_caiaqdev *dev,
 		     struct snd_pcm_substream *sub)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&dev->spinlock, flags);
+
 	if (sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dev->sub_playback[sub->number] = NULL;
 	else
 		dev->sub_capture[sub->number] = NULL;
+
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
 static int
@@ -97,13 +103,13 @@ static int stream_start(struct snd_usb_caiaqdev *dev)
 {
 	int i, ret;
 
-	debug("stream_start(%p)\n", dev);
-	spin_lock_irq(&dev->spinlock);
-	if (dev->streaming) {
-		spin_unlock_irq(&dev->spinlock);
-		return -EINVAL;
-	}
+	debug("%s(%p)\n", __func__, dev);
 
+	if (dev->streaming)
+		return -EINVAL;
+
+	memset(dev->sub_playback, 0, sizeof(dev->sub_playback));
+	memset(dev->sub_capture, 0, sizeof(dev->sub_capture));
 	dev->input_panic = 0;
 	dev->output_panic = 0;
 	dev->first_packet = 1;
@@ -112,37 +118,35 @@ static int stream_start(struct snd_usb_caiaqdev *dev)
 	for (i = 0; i < N_URBS; i++) {
 		ret = usb_submit_urb(dev->data_urbs_in[i], GFP_ATOMIC);
 		if (ret) {
-			log("unable to trigger initial read #%d! (ret = %d)\n",
-				i, ret);
+			log("unable to trigger read #%d! (ret %d)\n", i, ret);
 			dev->streaming = 0;
-			spin_unlock_irq(&dev->spinlock);
 			return -EPIPE;
 		}
 	}
 	
-	spin_unlock_irq(&dev->spinlock);
 	return 0;
 }
 
 static void stream_stop(struct snd_usb_caiaqdev *dev)
 {
 	int i;
-	
-	debug("stream_stop(%p)\n", dev);
+
+	debug("%s(%p)\n", __func__, dev);
 	if (!dev->streaming)
 		return;
 	
 	dev->streaming = 0;
+
 	for (i = 0; i < N_URBS; i++) {
-		usb_unlink_urb(dev->data_urbs_in[i]);
-		usb_unlink_urb(dev->data_urbs_out[i]);
+		usb_kill_urb(dev->data_urbs_in[i]);
+		usb_kill_urb(dev->data_urbs_out[i]);
 	}
 }
 
 static int snd_usb_caiaq_substream_open(struct snd_pcm_substream *substream)
 {
 	struct snd_usb_caiaqdev *dev = snd_pcm_substream_chip(substream);
-	debug("snd_usb_caiaq_substream_open(%p)\n", substream);
+	debug("%s(%p)\n", __func__, substream);
 	substream->runtime->hw = dev->pcm_info;
 	snd_pcm_limit_hw_rates(substream->runtime);
 	return 0;
@@ -152,7 +156,7 @@ static int snd_usb_caiaq_substream_close(struct snd_pcm_substream *substream)
 {
 	struct snd_usb_caiaqdev *dev = snd_pcm_substream_chip(substream);
 
-	debug("snd_usb_caiaq_substream_close(%p)\n", substream);
+	debug("%s(%p)\n", __func__, substream);
 	if (all_substreams_zero(dev->sub_playback) &&
 	    all_substreams_zero(dev->sub_capture)) {
 		/* when the last client has stopped streaming, 
@@ -160,24 +164,22 @@ static int snd_usb_caiaq_substream_close(struct snd_pcm_substream *substream)
 		stream_stop(dev);
 		dev->pcm_info.rates = dev->samplerates;
 	}
-	
+
 	return 0;
 }
 
 static int snd_usb_caiaq_pcm_hw_params(struct snd_pcm_substream *sub,
 			     		struct snd_pcm_hw_params *hw_params)
 {
-	debug("snd_usb_caiaq_pcm_hw_params(%p)\n", sub);
+	debug("%s(%p)\n", __func__, sub);
 	return snd_pcm_lib_malloc_pages(sub, params_buffer_bytes(hw_params));
 }
 
 static int snd_usb_caiaq_pcm_hw_free(struct snd_pcm_substream *sub)
 {
 	struct snd_usb_caiaqdev *dev = snd_pcm_substream_chip(sub);
-	debug("snd_usb_caiaq_pcm_hw_free(%p)\n", sub);
-	spin_lock_irq(&dev->spinlock);
+	debug("%s(%p)\n", __func__, sub);
 	deactivate_substream(dev, sub);
-	spin_unlock_irq(&dev->spinlock);
 	return snd_pcm_lib_free_pages(sub);
 }
 
@@ -196,12 +198,12 @@ static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 	struct snd_usb_caiaqdev *dev = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	debug("snd_usb_caiaq_pcm_prepare(%p)\n", substream);
+	debug("%s(%p)\n", __func__, substream);
 	
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dev->audio_out_buf_pos[index] = BYTES_PER_SAMPLE + 1;
 	else
-		dev->audio_in_buf_pos[index] = 0;
+		dev->audio_in_buf_pos[index] = BYTES_PER_SAMPLE;
 	
 	if (dev->streaming)
 		return 0;
@@ -220,7 +222,10 @@ static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 	
 	bpp = ((runtime->rate / 8000) + CLOCK_DRIFT_TOLERANCE)
 		* bytes_per_sample * CHANNELS_PER_STREAM * dev->n_streams;
-	
+
+	if (bpp > MAX_ENDPOINT_SIZE)
+		bpp = MAX_ENDPOINT_SIZE;
+
 	ret = snd_usb_caiaq_set_audio_params(dev, runtime->rate,
 					     runtime->sample_bits, bpp);
 	if (ret)
@@ -247,15 +252,11 @@ static int snd_usb_caiaq_pcm_trigger(struct snd_pcm_substream *sub, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		spin_lock(&dev->spinlock);
 		activate_substream(dev, sub);
-		spin_unlock(&dev->spinlock);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		spin_lock(&dev->spinlock);
 		deactivate_substream(dev, sub);
-		spin_unlock(&dev->spinlock);
 		break;
 	default:
 		return -EINVAL;
@@ -328,8 +329,6 @@ static void read_in_urb_mode0(struct snd_usb_caiaqdev *dev,
 	if (all_substreams_zero(dev->sub_capture))
 		return;
 
-	spin_lock(&dev->spinlock);
-	
 	for (i = 0; i < iso->actual_length;) {
 		for (stream = 0; stream < dev->n_streams; stream++, i++) {
 			sub = dev->sub_capture[stream];
@@ -345,8 +344,6 @@ static void read_in_urb_mode0(struct snd_usb_caiaqdev *dev,
 			}
 		}
 	}
-	
-	spin_unlock(&dev->spinlock);
 }
 
 static void read_in_urb_mode2(struct snd_usb_caiaqdev *dev,
@@ -358,8 +355,6 @@ static void read_in_urb_mode2(struct snd_usb_caiaqdev *dev,
 	struct snd_pcm_substream *sub;
 	int stream, i;
 
-	spin_lock(&dev->spinlock);
-	
 	for (i = 0; i < iso->actual_length;) {
 		if (i % (dev->n_streams * BYTES_PER_SAMPLE_USB) == 0) {
 			for (stream = 0; 
@@ -393,8 +388,6 @@ static void read_in_urb_mode2(struct snd_usb_caiaqdev *dev,
 			}
 		}
 	}
-
-	spin_unlock(&dev->spinlock);
 }
 
 static void read_in_urb(struct snd_usb_caiaqdev *dev,
@@ -418,8 +411,6 @@ static void read_in_urb(struct snd_usb_caiaqdev *dev,
 				dev->input_panic ? "(input)" : "",
 				dev->output_panic ? "(output)" : "");
 	}
-
-	check_for_elapsed_periods(dev, dev->sub_capture);
 }
 
 static void fill_out_urb(struct snd_usb_caiaqdev *dev, 
@@ -429,8 +420,6 @@ static void fill_out_urb(struct snd_usb_caiaqdev *dev,
 	unsigned char *usb_buf = urb->transfer_buffer + iso->offset;
 	struct snd_pcm_substream *sub;
 	int stream, i;
-
-	spin_lock(&dev->spinlock);
 	
 	for (i = 0; i < iso->length;) {
 		for (stream = 0; stream < dev->n_streams; stream++, i++) {
@@ -456,9 +445,6 @@ static void fill_out_urb(struct snd_usb_caiaqdev *dev,
 		    for (stream = 0; stream < dev->n_streams; stream++, i++)
 		    	usb_buf[i] = MAKE_CHECKBYTE(dev, stream, i);
 	}
-
-	spin_unlock(&dev->spinlock);
-	check_for_elapsed_periods(dev, dev->sub_playback);
 }
 
 static void read_completed(struct urb *urb)
@@ -472,6 +458,7 @@ static void read_completed(struct urb *urb)
 		return;
 
 	dev = info->dev;
+
 	if (!dev->streaming)
 		return;
 
@@ -489,8 +476,12 @@ static void read_completed(struct urb *urb)
 		out->iso_frame_desc[outframe].offset = BYTES_PER_FRAME * frame;
 		
 		if (len > 0) {
+			spin_lock(&dev->spinlock);
 			fill_out_urb(dev, out, &out->iso_frame_desc[outframe]);
 			read_in_urb(dev, urb, &urb->iso_frame_desc[frame]);
+			spin_unlock(&dev->spinlock);
+			check_for_elapsed_periods(dev, dev->sub_playback);
+			check_for_elapsed_periods(dev, dev->sub_capture);
 			send_it = 1;
 		}
 
@@ -696,7 +687,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *dev)
 
 void snd_usb_caiaq_audio_free(struct snd_usb_caiaqdev *dev)
 {
-	debug("snd_usb_caiaq_audio_free (%p)\n", dev);
+	debug("%s(%p)\n", __func__, dev);
 	stream_stop(dev);
 	free_urbs(dev->data_urbs_in);
 	free_urbs(dev->data_urbs_out);

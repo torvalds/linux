@@ -540,7 +540,8 @@ static void hdspm_set_sgbuf(struct hdspm * hdspm, struct snd_sg_buf *sgbuf,
 
 static inline int HDSPM_bit2freq(int n)
 {
-	static int bit2freq_tab[] = { 0, 32000, 44100, 48000, 64000, 88200,
+	static const int bit2freq_tab[] = {
+		0, 32000, 44100, 48000, 64000, 88200,
 		96000, 128000, 176400, 192000 };
 	if (n < 1 || n > 9)
 		return 0;
@@ -582,7 +583,7 @@ static inline int hdspm_read_pb_gain(struct hdspm * hdspm, unsigned int chan,
 	return hdspm->mixer->ch[chan].pb[pb];
 }
 
-static inline int hdspm_write_in_gain(struct hdspm * hdspm, unsigned int chan,
+static int hdspm_write_in_gain(struct hdspm *hdspm, unsigned int chan,
 				      unsigned int in, unsigned short data)
 {
 	if (chan >= HDSPM_MIXER_CHANNELS || in >= HDSPM_MIXER_CHANNELS)
@@ -595,7 +596,7 @@ static inline int hdspm_write_in_gain(struct hdspm * hdspm, unsigned int chan,
 	return 0;
 }
 
-static inline int hdspm_write_pb_gain(struct hdspm * hdspm, unsigned int chan,
+static int hdspm_write_pb_gain(struct hdspm *hdspm, unsigned int chan,
 				      unsigned int pb, unsigned short data)
 {
 	if (chan >= HDSPM_MIXER_CHANNELS || pb >= HDSPM_MIXER_CHANNELS)
@@ -621,7 +622,7 @@ static inline void snd_hdspm_enable_out(struct hdspm * hdspm, int i, int v)
 }
 
 /* check if same process is writing and reading */
-static inline int snd_hdspm_use_is_exclusive(struct hdspm * hdspm)
+static int snd_hdspm_use_is_exclusive(struct hdspm *hdspm)
 {
 	unsigned long flags;
 	int ret = 1;
@@ -636,7 +637,7 @@ static inline int snd_hdspm_use_is_exclusive(struct hdspm * hdspm)
 }
 
 /* check for external sample rate */
-static inline int hdspm_external_sample_rate(struct hdspm * hdspm)
+static int hdspm_external_sample_rate(struct hdspm *hdspm)
 {
 	if (hdspm->is_aes32) {
 		unsigned int status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
@@ -787,7 +788,7 @@ static inline void hdspm_stop_audio(struct hdspm * s)
 }
 
 /* should I silence all or only opened ones ? doit all for first even is 4MB*/
-static inline void hdspm_silence_playback(struct hdspm * hdspm)
+static void hdspm_silence_playback(struct hdspm *hdspm)
 {
 	int i;
 	int n = hdspm->period_bytes;
@@ -1028,9 +1029,9 @@ static inline void snd_hdspm_midi_write_byte (struct hdspm *hdspm, int id,
 {
 	/* the hardware already does the relevant bit-mask with 0xff */
 	if (id)
-		return hdspm_write(hdspm, HDSPM_midiDataOut1, val);
+		hdspm_write(hdspm, HDSPM_midiDataOut1, val);
 	else
-		return hdspm_write(hdspm, HDSPM_midiDataOut0, val);
+		hdspm_write(hdspm, HDSPM_midiDataOut0, val);
 }
 
 static inline int snd_hdspm_midi_input_available (struct hdspm *hdspm, int id)
@@ -1057,7 +1058,7 @@ static inline int snd_hdspm_midi_output_possible (struct hdspm *hdspm, int id)
 		return 0;
 }
 
-static inline void snd_hdspm_flush_midi_input (struct hdspm *hdspm, int id)
+static void snd_hdspm_flush_midi_input(struct hdspm *hdspm, int id)
 {
 	while (snd_hdspm_midi_input_available (hdspm, id))
 		snd_hdspm_midi_read_byte (hdspm, id);

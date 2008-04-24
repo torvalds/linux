@@ -650,19 +650,55 @@ static int __devinit rename_ctl(struct snd_card *card, const char *src, const ch
 
 #define ADD_CTLS(emu, ctls)						\
 	do {								\
-		int i, err;						\
+		int i, _err;						\
 		for (i = 0; i < ARRAY_SIZE(ctls); i++) {		\
-			err = snd_ctl_add(card, snd_ctl_new1(&ctls[i], emu)); \
-			if (err < 0)					\
-				return err;				\
+			_err = snd_ctl_add(card, snd_ctl_new1(&ctls[i], emu)); \
+			if (_err < 0)					\
+				return _err;				\
 		}							\
 	} while (0)
+
+static __devinitdata
+DECLARE_TLV_DB_SCALE(snd_ca0106_master_db_scale, -6375, 50, 1);
+
+static char *slave_vols[] __devinitdata = {
+	"Analog Front Playback Volume",
+        "Analog Rear Playback Volume",
+	"Analog Center/LFE Playback Volume",
+        "Analog Side Playback Volume",
+        "IEC958 Front Playback Volume",
+	"IEC958 Rear Playback Volume",
+	"IEC958 Center/LFE Playback Volume",
+	"IEC958 Unknown Playback Volume",
+        "CAPTURE feedback Playback Volume",
+	NULL
+};
+
+static char *slave_sws[] __devinitdata = {
+	"Analog Front Playback Switch",
+	"Analog Rear Playback Switch",
+	"Analog Center/LFE Playback Switch",
+	"Analog Side Playback Switch",
+	"IEC958 Playback Switch",
+	NULL
+};
+
+static void __devinit add_slaves(struct snd_card *card,
+				 struct snd_kcontrol *master, char **list)
+{
+	for (; *list; list++) {
+		struct snd_kcontrol *slave = ctl_find(card, *list);
+		if (slave)
+			snd_ctl_add_slave(master, slave);
+	}
+}
 
 int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 {
 	int err;
         struct snd_card *card = emu->card;
 	char **c;
+	struct snd_kcontrol *vmaster;
 	static char *ca0106_remove_ctls[] = {
 		"Master Mono Playback Switch",
 		"Master Mono Playback Volume",
@@ -719,6 +755,21 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 	}
 	if (emu->details->spi_dac == 1)
 		ADD_CTLS(emu, snd_ca0106_volume_spi_dac_ctls);
+
+	/* Create virtual master controls */
+	vmaster = snd_ctl_make_virtual_master("Master Playback Volume",
+					      snd_ca0106_master_db_scale);
+	if (!vmaster)
+		return -ENOMEM;
+	add_slaves(card, vmaster, slave_vols);
+
+	if (emu->details->spi_dac == 1) {
+		vmaster = snd_ctl_make_virtual_master("Master Playback Switch",
+						      NULL);
+		if (!vmaster)
+			return -ENOMEM;
+		add_slaves(card, vmaster, slave_sws);
+	}
         return 0;
 }
 

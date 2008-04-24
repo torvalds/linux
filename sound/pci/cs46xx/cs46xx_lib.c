@@ -2772,6 +2772,9 @@ static int snd_cs46xx_free(struct snd_cs46xx *chip)
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
 
+	if (chip->active_ctrl)
+		chip->active_ctrl(chip, -chip->amplifier);
+
 	for (idx = 0; idx < 5; idx++) {
 		struct snd_cs46xx_region *region = &chip->region.idx[idx];
 		if (region->remap_addr)
@@ -2779,9 +2782,6 @@ static int snd_cs46xx_free(struct snd_cs46xx *chip)
 		release_and_free_resource(region->resource);
 	}
 
-	if (chip->active_ctrl)
-		chip->active_ctrl(chip, -chip->amplifier);
-	
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 	if (chip->dsp_spos_instance) {
 		cs46xx_dsp_spos_destroy(chip);

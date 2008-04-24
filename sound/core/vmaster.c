@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/control.h>
+#include <sound/tlv.h>
 
 /*
  * a subset of information returned via ctl info callback
@@ -34,6 +35,7 @@ struct link_master {
 	struct list_head slaves;
 	struct link_ctl_info info;
 	int val;		/* the master value */
+	unsigned int tlv[4];
 };
 
 /*
@@ -253,6 +255,8 @@ int snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_ctl_add_slave);
+
 /*
  * ctl callbacks for master controls
  */
@@ -355,10 +359,13 @@ struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 	kctl->private_free = master_free;
 
 	/* additional (constant) TLV read */
-	if (tlv) {
-		/* FIXME: this assumes that the max volume is 0 dB */
+	if (tlv && tlv[0] == SNDRV_CTL_TLVT_DB_SCALE) {
 		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		kctl->tlv.p = tlv;
+		memcpy(master->tlv, tlv, sizeof(master->tlv));
+		kctl->tlv.p = master->tlv;
 	}
+
 	return kctl;
 }
+
+EXPORT_SYMBOL(snd_ctl_make_virtual_master);

@@ -322,17 +322,23 @@ static struct snd_pt2258 ptc_revo51_volume;
 static void ap192_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 {
 	struct snd_ice1712 *ice = ak->private_data[0];
+	int dfs;
 
 	revo_set_rate_val(ak, rate);
 
-#if 1 /* FIXME: do we need this procedure? */
-	/* reset DFS pin of AK5385A for ADC, too */
-	/* DFS0 (pin 18) -- GPIO10 pin 77 */
-	snd_ice1712_save_gpio_status(ice);
-	snd_ice1712_gpio_write_bits(ice, 1 << 10,
-				    rate > 48000 ? (1 << 10) : 0);
-	snd_ice1712_restore_gpio_status(ice);
-#endif
+	/* reset CKS */
+	snd_ice1712_gpio_write_bits(ice, 1 << 8, rate > 96000 ? 1 << 8 : 0);
+	/* reset DFS pins of AK5385A for ADC, too */
+	if (rate > 96000)
+		dfs = 2;
+	else if (rate > 48000)
+		dfs = 1;
+	else
+		dfs = 0;
+	snd_ice1712_gpio_write_bits(ice, 3 << 9, dfs << 9);
+	/* reset ADC */
+	snd_ice1712_gpio_write_bits(ice, 1 << 11, 0);
+	snd_ice1712_gpio_write_bits(ice, 1 << 11, 1 << 11);
 }
 
 static const struct snd_akm4xxx_dac_channel ap192_dac[] = {
@@ -353,28 +359,20 @@ static struct snd_ak4xxx_private akm_ap192_priv __devinitdata = {
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
 	.clk_mask = VT1724_REVO_CCLK,
-	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS3,
-	.cs_addr = VT1724_REVO_CS3,
-	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS3,
+	.cs_mask = VT1724_REVO_CS0 | VT1724_REVO_CS1,
+	.cs_addr = VT1724_REVO_CS1,
+	.cs_none = VT1724_REVO_CS0 | VT1724_REVO_CS1,
 	.add_flags = VT1724_REVO_CCLK, /* high at init */
 	.mask_flags = 0,
 };
 
-#if 0
-/* FIXME: ak4114 makes the sound much lower due to some confliction,
- *        so let's disable it right now...
- */
-#define BUILD_AK4114_AP192
-#endif
-
-#ifdef BUILD_AK4114_AP192
 /* AK4114 support on Audiophile 192 */
 /* CDTO (pin 32) -- GPIO2 pin 52
  * CDTI (pin 33) -- GPIO3 pin 53 (shared with AK4358)
  * CCLK (pin 34) -- GPIO1 pin 51 (shared with AK4358)
  * CSN  (pin 35) -- GPIO7 pin 59
  */
-#define AK4114_ADDR	0x00
+#define AK4114_ADDR	0x02
 
 static void write_data(struct snd_ice1712 *ice, unsigned int gpio,
 		       unsigned int data, int idx)
@@ -428,7 +426,7 @@ static unsigned int ap192_4wire_start(struct snd_ice1712 *ice)
 	tmp = snd_ice1712_gpio_read(ice);
 	tmp |= VT1724_REVO_CCLK; /* high at init */
 	tmp |= VT1724_REVO_CS0;
-	tmp &= ~VT1724_REVO_CS3;
+	tmp &= ~VT1724_REVO_CS1;
 	snd_ice1712_gpio_write(ice, tmp);
 	udelay(1);
 	return tmp;
@@ -436,7 +434,7 @@ static unsigned int ap192_4wire_start(struct snd_ice1712 *ice)
 
 static void ap192_4wire_finish(struct snd_ice1712 *ice, unsigned int tmp)
 {
-	tmp |= VT1724_REVO_CS3;
+	tmp |= VT1724_REVO_CS1;
 	tmp |= VT1724_REVO_CS0;
 	snd_ice1712_gpio_write(ice, tmp);
 	udelay(1);
@@ -485,13 +483,17 @@ static int __devinit ap192_ak4114_init(struct snd_ice1712 *ice)
 	struct ak4114 *ak;
 	int err;
 
-	return snd_ak4114_create(ice->card,
+	err = snd_ak4114_create(ice->card,
 				 ap192_ak4114_read,
 				 ap192_ak4114_write,
 				 ak4114_init_vals, ak4114_init_txcsb,
 				 ice, &ak);
+	/* AK4114 in Revo cannot detect external rate correctly.
+	 * No reason to stop capture stream due to incorrect checks */
+	ak->check_flags = AK4114_CHECK_NO_RATE;
+
+	return 0; /* error ignored; it's no fatal error */
 }
-#endif /* BUILD_AK4114_AP192 */
 
 static int __devinit revo_init(struct snd_ice1712 *ice)
 {
@@ -557,6 +559,9 @@ static int __devinit revo_init(struct snd_ice1712 *ice)
 		if (err < 0)
 			return err;
 		
+		/* unmute all codecs */
+		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE,
+					    VT1724_REVO_MUTE);
 		break;
 	}
 
@@ -588,11 +593,9 @@ static int __devinit revo_add_controls(struct snd_ice1712 *ice)
 		err = snd_ice1712_akm4xxx_build_controls(ice);
 		if (err < 0)
 			return err;
-#ifdef BUILD_AK4114_AP192
 		err = ap192_ak4114_init(ice);
 		if (err < 0)
 			return err;
-#endif
 		break;
 	}
 	return 0;

@@ -181,3 +181,7 @@ config SND_PCM_XRUN_DEBUG
 	  It is usually not required, but if you have trouble with
 	  sound clicking when system is loaded, it may help to determine
 	  the process or driver which causes the scheduling gaps.
+
+config SND_VMASTER
+	bool
+	depends on SND

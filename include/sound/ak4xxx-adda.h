@@ -68,7 +68,7 @@ struct snd_akm4xxx {
 	enum {
 		SND_AK4524, SND_AK4528, SND_AK4529,
 		SND_AK4355, SND_AK4358, SND_AK4381,
-		SND_AK5365, NON_AKM
+		SND_AK5365
 	} type;
 
 	/* (array) information of combined codecs */

@@ -2068,7 +2068,7 @@ static int __devinit snd_m3_mixer(struct snd_m3 *chip)
 {
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
-	struct snd_ctl_elem_id id;
+	struct snd_ctl_elem_id elem_id;
 	int err;
 	static struct snd_ac97_bus_ops ops = {
 		.write = snd_m3_ac97_write,
@@ -2088,14 +2088,14 @@ static int __devinit snd_m3_mixer(struct snd_m3 *chip)
 	schedule_timeout_uninterruptible(msecs_to_jiffies(100));
 	snd_ac97_write(chip->ac97, AC97_PCM, 0);
 
-	memset(&id, 0, sizeof(id));
-	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	strcpy(id.name, "Master Playback Switch");
-	chip->master_switch = snd_ctl_find_id(chip->card, &id);
-	memset(&id, 0, sizeof(id));
-	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	strcpy(id.name, "Master Playback Volume");
-	chip->master_volume = snd_ctl_find_id(chip->card, &id);
+	memset(&elem_id, 0, sizeof(elem_id));
+	elem_id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	strcpy(elem_id.name, "Master Playback Switch");
+	chip->master_switch = snd_ctl_find_id(chip->card, &elem_id);
+	memset(&elem_id, 0, sizeof(elem_id));
+	elem_id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	strcpy(elem_id.name, "Master Playback Volume");
+	chip->master_volume = snd_ctl_find_id(chip->card, &elem_id);
 
 	return 0;
 }
@@ -2542,10 +2542,8 @@ static int snd_m3_free(struct snd_m3 *chip)
 	vfree(chip->suspend_mem);
 #endif
 
-	if (chip->irq >= 0) {
-		synchronize_irq(chip->irq);
+	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-	}
 
 	if (chip->iobase)
 		pci_release_regions(chip->pci);
@@ -2569,7 +2567,7 @@ static int m3_suspend(struct pci_dev *pci, pm_message_t state)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct snd_m3 *chip = card->private_data;
-	int i, index;
+	int i, dsp_index;
 
 	if (chip->suspend_mem == NULL)
 		return 0;
@@ -2583,12 +2581,12 @@ static int m3_suspend(struct pci_dev *pci, pm_message_t state)
 	snd_m3_assp_halt(chip);
 
 	/* save dsp image */
-	index = 0;
+	dsp_index = 0;
 	for (i = REV_B_CODE_MEMORY_BEGIN; i <= REV_B_CODE_MEMORY_END; i++)
-		chip->suspend_mem[index++] = 
+		chip->suspend_mem[dsp_index++] =
 			snd_m3_assp_read(chip, MEMTYPE_INTERNAL_CODE, i);
 	for (i = REV_B_DATA_MEMORY_BEGIN ; i <= REV_B_DATA_MEMORY_END; i++)
-		chip->suspend_mem[index++] = 
+		chip->suspend_mem[dsp_index++] =
 			snd_m3_assp_read(chip, MEMTYPE_INTERNAL_DATA, i);
 
 	pci_disable_device(pci);
@@ -2601,7 +2599,7 @@ static int m3_resume(struct pci_dev *pci)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct snd_m3 *chip = card->private_data;
-	int i, index;
+	int i, dsp_index;
 
 	if (chip->suspend_mem == NULL)
 		return 0;
@@ -2625,13 +2623,13 @@ static int m3_resume(struct pci_dev *pci)
 	snd_m3_ac97_reset(chip);
 
 	/* restore dsp image */
-	index = 0;
+	dsp_index = 0;
 	for (i = REV_B_CODE_MEMORY_BEGIN; i <= REV_B_CODE_MEMORY_END; i++)
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, i, 
-				  chip->suspend_mem[index++]);
+				  chip->suspend_mem[dsp_index++]);
 	for (i = REV_B_DATA_MEMORY_BEGIN ; i <= REV_B_DATA_MEMORY_END; i++)
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA, i, 
-				  chip->suspend_mem[index++]);
+				  chip->suspend_mem[dsp_index++]);
 
 	/* tell the dma engine to restart itself */
 	snd_m3_assp_write(chip, MEMTYPE_INTERNAL_DATA, 

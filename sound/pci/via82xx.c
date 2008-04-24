@@ -2236,7 +2236,7 @@ static int snd_via82xx_free(struct via82xx *chip)
 	/* disable interrupts */
 	for (i = 0; i < chip->num_devs; i++)
 		snd_via82xx_channel_reset(chip, &chip->devs[i]);
-	synchronize_irq(chip->irq);
+
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
  __end_hw:

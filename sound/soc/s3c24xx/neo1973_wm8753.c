@@ -659,6 +659,7 @@ static int __init neo1973_init(void)
 
 static void __exit neo1973_exit(void)
 {
+	i2c_del_driver(&lm4857_i2c_driver);
 	platform_device_unregister(neo1973_snd_device);
 }
 

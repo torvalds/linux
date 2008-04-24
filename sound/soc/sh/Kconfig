@@ -1,4 +1,5 @@
 menu "SoC Audio support for SuperH"
+	depends on SUPERH
 
 config SND_SOC_PCM_SH7760
 	tristate "SoC Audio support for Renesas SH7760"
