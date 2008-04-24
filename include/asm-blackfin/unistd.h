@@ -265,14 +265,14 @@
 				/* 258 __NR_remap_file_pages */
 #define __NR_set_tid_address	259
 #define __NR_timer_create	260
-#define __NR_timer_settime	(__NR_timer_create+1)
-#define __NR_timer_gettime	(__NR_timer_create+2)
-#define __NR_timer_getoverrun	(__NR_timer_create+3)
-#define __NR_timer_delete	(__NR_timer_create+4)
-#define __NR_clock_settime	(__NR_timer_create+5)
-#define __NR_clock_gettime	(__NR_timer_create+6)
-#define __NR_clock_getres	(__NR_timer_create+7)
-#define __NR_clock_nanosleep	(__NR_timer_create+8)
+#define __NR_timer_settime	261
+#define __NR_timer_gettime	262
+#define __NR_timer_getoverrun	263
+#define __NR_timer_delete	264
+#define __NR_clock_settime	265
+#define __NR_clock_gettime	266
+#define __NR_clock_getres	267
+#define __NR_clock_nanosleep	268
 #define __NR_statfs64		269
 #define __NR_fstatfs64		270
 #define __NR_tgkill		271
@@ -283,11 +283,11 @@
 				/* 276 __NR_get_mempolicy */
 				/* 277 __NR_set_mempolicy */
 #define __NR_mq_open 		278
-#define __NR_mq_unlink		(__NR_mq_open+1)
-#define __NR_mq_timedsend	(__NR_mq_open+2)
-#define __NR_mq_timedreceive	(__NR_mq_open+3)
-#define __NR_mq_notify		(__NR_mq_open+4)
-#define __NR_mq_getsetattr	(__NR_mq_open+5)
+#define __NR_mq_unlink		279
+#define __NR_mq_timedsend	280
+#define __NR_mq_timedreceive	281
+#define __NR_mq_notify		282
+#define __NR_mq_getsetattr	283
 #define __NR_kexec_load		284
 #define __NR_waitid		285
 #define __NR_add_key		286

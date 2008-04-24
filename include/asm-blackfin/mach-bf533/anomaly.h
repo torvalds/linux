@@ -7,7 +7,7 @@
  */
 
 /* This file shoule be up to date with:
- *  - Revision B, 12/10/2007; ADSP-BF531/BF532/BF533 Blackfin Processor Anomaly List
+ *  - Revision C, 02/08/2008; ADSP-BF531/BF532/BF533 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -251,10 +251,18 @@
 #define ANOMALY_05000206 (__SILICON_REVISION__ < 3)
 /* Serial Port (SPORT) Multichannel Transmit Failure when Channel 0 Is Disabled */
 #define ANOMALY_05000357 (1)
+/* UART Break Signal Issues */
+#define ANOMALY_05000363 (__SILICON_REVISION__ < 5)
 /* PPI Underflow Error Goes Undetected in ITU-R 656 Mode */
 #define ANOMALY_05000366 (1)
 /* Possible RETS Register Corruption when Subroutine Is under 5 Cycles in Duration */
 #define ANOMALY_05000371 (1)
+/* PPI Does Not Start Properly In Specific Mode */
+#define ANOMALY_05000400 (__SILICON_REVISION__ == 5)
+/* SSYNC Stalls Processor when Executed from Non-Cacheable Memory */
+#define ANOMALY_05000402 (__SILICON_REVISION__ == 5)
+/* Level-Sensitive External GPIO Wakeups May Cause Indefinite Stall */
+#define ANOMALY_05000403 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000266 (0)

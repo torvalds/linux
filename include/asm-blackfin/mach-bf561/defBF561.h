@@ -110,18 +110,23 @@
 #define WDOGB_STAT 				0xFFC01208	/* Watchdog Status register */
 
 /* UART Controller (0xFFC00400 - 0xFFC004FF) */
-#define UART_THR             	0xFFC00400	/* Transmit Holding register */
-#define UART_RBR             	0xFFC00400	/* Receive Buffer register */
-#define UART_DLL              	0xFFC00400	/* Divisor Latch (Low-Byte) */
-#define UART_IER              	0xFFC00404	/* Interrupt Enable Register */
-#define UART_DLH              	0xFFC00404	/* Divisor Latch (High-Byte) */
-#define UART_IIR              	0xFFC00408	/* Interrupt Identification Register */
-#define UART_LCR              	0xFFC0040C	/* Line Control Register */
-#define UART_MCR			 	0xFFC00410	/* Modem Control Register */
-#define UART_LSR              	0xFFC00414	/* Line Status Register */
-#define UART_MSR            	0xFFC00418	/* Modem Status Register */
-#define UART_SCR              	0xFFC0041C	/* SCR Scratch Register */
-#define UART_GCTL      	      	0xFFC00424	/* Global Control Register */
+
+/*
+ * Because include/linux/serial_reg.h have defined UART_*,
+ * So we define blackfin uart regs to BFIN_UART0_*.
+ */
+#define BFIN_UART_THR			0xFFC00400  /* Transmit Holding register */
+#define BFIN_UART_RBR			0xFFC00400  /* Receive Buffer register */
+#define BFIN_UART_DLL			0xFFC00400  /* Divisor Latch (Low-Byte) */
+#define BFIN_UART_IER			0xFFC00404  /* Interrupt Enable Register */
+#define BFIN_UART_DLH			0xFFC00404  /* Divisor Latch (High-Byte) */
+#define BFIN_UART_IIR			0xFFC00408  /* Interrupt Identification Register */
+#define BFIN_UART_LCR			0xFFC0040C  /* Line Control Register */
+#define BFIN_UART_MCR			0xFFC00410  /* Modem Control Register */
+#define BFIN_UART_LSR			0xFFC00414  /* Line Status Register */
+#define BFIN_UART_MSR			0xFFC00418  /* Modem Status Register */
+#define BFIN_UART_SCR			0xFFC0041C  /* SCR Scratch Register */
+#define BFIN_UART_GCTL			0xFFC00424  /* Global Control Register */
 
 /* SPI Controller (0xFFC00500 - 0xFFC005FF) */
 #define SPI0_REGBASE          		0xFFC00500
@@ -866,6 +871,8 @@
 /* PLL_DIV Masks */
 #define SCLK_DIV(x)  (x)	/* SCLK = VCO / x */
 
+#define CSEL			0x30		/* Core Select */
+#define SSEL			0xf		/* System Select */
 #define CCLK_DIV1              0x00000000	/* CCLK = VCO / 1 */
 #define CCLK_DIV2              0x00000010	/* CCLK = VCO / 2 */
 #define CCLK_DIV4              0x00000020	/* CCLK = VCO / 4 */

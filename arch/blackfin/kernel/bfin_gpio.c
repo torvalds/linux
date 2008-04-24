@@ -95,14 +95,14 @@ enum {
 	AWA_data_clear = SYSCR,
 	AWA_data_set = SYSCR,
 	AWA_toggle = SYSCR,
-	AWA_maska = UART_SCR,
-	AWA_maska_clear = UART_SCR,
-	AWA_maska_set = UART_SCR,
-	AWA_maska_toggle = UART_SCR,
-	AWA_maskb = UART_GCTL,
-	AWA_maskb_clear = UART_GCTL,
-	AWA_maskb_set = UART_GCTL,
-	AWA_maskb_toggle = UART_GCTL,
+	AWA_maska = BFIN_UART_SCR,
+	AWA_maska_clear = BFIN_UART_SCR,
+	AWA_maska_set = BFIN_UART_SCR,
+	AWA_maska_toggle = BFIN_UART_SCR,
+	AWA_maskb = BFIN_UART_GCTL,
+	AWA_maskb_clear = BFIN_UART_GCTL,
+	AWA_maskb_set = BFIN_UART_GCTL,
+	AWA_maskb_toggle = BFIN_UART_GCTL,
 	AWA_dir = SPORT1_STAT,
 	AWA_polar = SPORT1_STAT,
 	AWA_edge = SPORT1_STAT,
@@ -348,11 +348,10 @@ static void portmux_setup(unsigned short per, unsigned short function)
 			offset = port_mux_lut[y].offset;
 			muxreg = bfin_read_PORT_MUX();
 
-			if (offset != 1) {
+			if (offset != 1)
 				muxreg &= ~(1 << offset);
-			} else {
+			else
 				muxreg &= ~(3 << 1);
-			}
 
 			muxreg |= (function << offset);
 			bfin_write_PORT_MUX(muxreg);
@@ -396,39 +395,11 @@ inline void portmux_setup(unsigned short portno, unsigned short function)
 # define portmux_setup(...)  do { } while (0)
 #endif
 
-#ifndef BF548_FAMILY
-static void default_gpio(unsigned gpio)
-{
-	unsigned short bank, bitmask;
-	unsigned long flags;
-
-	bank = gpio_bank(gpio);
-	bitmask = gpio_bit(gpio);
-
-	local_irq_save(flags);
-
-	gpio_bankb[bank]->maska_clear = bitmask;
-	gpio_bankb[bank]->maskb_clear = bitmask;
-	SSYNC();
-	gpio_bankb[bank]->inen &= ~bitmask;
-	gpio_bankb[bank]->dir &= ~bitmask;
-	gpio_bankb[bank]->polar &= ~bitmask;
-	gpio_bankb[bank]->both &= ~bitmask;
-	gpio_bankb[bank]->edge &= ~bitmask;
-	AWA_DUMMY_READ(edge);
-	local_irq_restore(flags);
-}
-#else
-# define default_gpio(...)  do { } while (0)
-#endif
-
 static int __init bfin_gpio_init(void)
 {
-
 	printk(KERN_INFO "Blackfin GPIO Controller\n");
 
 	return 0;
-
 }
 arch_initcall(bfin_gpio_init);
 
@@ -821,10 +792,10 @@ int peripheral_request(unsigned short per, const char *label)
 	local_irq_save(flags);
 
 	if (unlikely(reserved_gpio_map[gpio_bank(ident)] & gpio_bit(ident))) {
+		dump_stack();
 		printk(KERN_ERR
 		    "%s: Peripheral %d is already reserved as GPIO by %s !\n",
-		       __FUNCTION__, ident, get_label(ident));
-		dump_stack();
+		       __func__, ident, get_label(ident));
 		local_irq_restore(flags);
 		return -EBUSY;
 	}
@@ -833,31 +804,31 @@ int peripheral_request(unsigned short per, const char *label)
 
 		u16 funct = get_portmux(ident);
 
-	/*
-	 * Pin functions like AMC address strobes my
-	 * be requested and used by several drivers
-	 */
+		/*
+		 * Pin functions like AMC address strobes my
+		 * be requested and used by several drivers
+		 */
 
 		if (!((per & P_MAYSHARE) && (funct == P_FUNCT2MUX(per)))) {
 
-		/*
-		 * Allow that the identical pin function can
-		 * be requested from the same driver twice
-		 */
+			/*
+			 * Allow that the identical pin function can
+			 * be requested from the same driver twice
+			 */
 
-		if (cmp_label(ident, label) == 0)
-			goto anyway;
+			if (cmp_label(ident, label) == 0)
+				goto anyway;
 
+			dump_stack();
 			printk(KERN_ERR
 			       "%s: Peripheral %d function %d is already reserved by %s !\n",
-			       __FUNCTION__, ident, P_FUNCT2MUX(per), get_label(ident));
-			dump_stack();
+			       __func__, ident, P_FUNCT2MUX(per), get_label(ident));
 			local_irq_restore(flags);
 			return -EBUSY;
 		}
 	}
 
-anyway:
+ anyway:
 	reserved_peri_map[gpio_bank(ident)] |= gpio_bit(ident);
 
 	portmux_setup(ident, P_FUNCT2MUX(per));
@@ -890,47 +861,47 @@ int peripheral_request(unsigned short per, const char *label)
 
 	if (!check_gpio(ident)) {
 
-	if (unlikely(reserved_gpio_map[gpio_bank(ident)] & gpio_bit(ident))) {
-		printk(KERN_ERR
-		       "%s: Peripheral %d is already reserved as GPIO by %s !\n",
-		       __FUNCTION__, ident, get_label(ident));
-		dump_stack();
-		local_irq_restore(flags);
-		return -EBUSY;
-	}
-
-	}
-
-	if (unlikely(reserved_peri_map[gpio_bank(ident)] & gpio_bit(ident))) {
-
-	/*
-	 * Pin functions like AMC address strobes my
-	 * be requested and used by several drivers
-	 */
-
-	if (!(per & P_MAYSHARE)) {
-
-	/*
-	 * Allow that the identical pin function can
-	 * be requested from the same driver twice
-	 */
-
-		if (cmp_label(ident, label) == 0)
-			goto anyway;
-
-			printk(KERN_ERR
-			       "%s: Peripheral %d function %d is already"
-			       " reserved by %s !\n",
-			       __FUNCTION__, ident, P_FUNCT2MUX(per),
-				get_label(ident));
+		if (unlikely(reserved_gpio_map[gpio_bank(ident)] & gpio_bit(ident))) {
 			dump_stack();
+			printk(KERN_ERR
+			       "%s: Peripheral %d is already reserved as GPIO by %s !\n",
+			       __func__, ident, get_label(ident));
 			local_irq_restore(flags);
 			return -EBUSY;
 		}
 
 	}
 
-anyway:
+	if (unlikely(reserved_peri_map[gpio_bank(ident)] & gpio_bit(ident))) {
+
+		/*
+		 * Pin functions like AMC address strobes my
+		 * be requested and used by several drivers
+		 */
+
+		if (!(per & P_MAYSHARE)) {
+
+			/*
+			 * Allow that the identical pin function can
+			 * be requested from the same driver twice
+			 */
+
+			if (cmp_label(ident, label) == 0)
+				goto anyway;
+
+			dump_stack();
+			printk(KERN_ERR
+			       "%s: Peripheral %d function %d is already"
+			       " reserved by %s !\n",
+			       __func__, ident, P_FUNCT2MUX(per),
+				get_label(ident));
+			local_irq_restore(flags);
+			return -EBUSY;
+		}
+
+	}
+
+ anyway:
 	portmux_setup(per, P_FUNCT2MUX(per));
 
 	port_setup(ident, PERIPHERAL_USAGE);
@@ -944,7 +915,7 @@ anyway:
 EXPORT_SYMBOL(peripheral_request);
 #endif
 
-int peripheral_request_list(unsigned short per[], const char *label)
+int peripheral_request_list(const unsigned short per[], const char *label)
 {
 	u16 cnt;
 	int ret;
@@ -954,10 +925,10 @@ int peripheral_request_list(unsigned short per[], const char *label)
 		ret = peripheral_request(per[cnt], label);
 
 		if (ret < 0) {
-			for ( ; cnt > 0; cnt--) {
+			for ( ; cnt > 0; cnt--)
 				peripheral_free(per[cnt - 1]);
-			}
-		return ret;
+
+			return ret;
 		}
 	}
 
@@ -981,15 +952,13 @@ void peripheral_free(unsigned short per)
 
 	local_irq_save(flags);
 
-	if (unlikely(!(reserved_peri_map[gpio_bank(ident)]
-			 & gpio_bit(ident)))) {
+	if (unlikely(!(reserved_peri_map[gpio_bank(ident)] & gpio_bit(ident)))) {
 		local_irq_restore(flags);
 		return;
 	}
 
-	if (!(per & P_MAYSHARE)) {
+	if (!(per & P_MAYSHARE))
 		port_setup(ident, GPIO_USAGE);
-	}
 
 	reserved_peri_map[gpio_bank(ident)] &= ~gpio_bit(ident);
 
@@ -999,14 +968,11 @@ void peripheral_free(unsigned short per)
 }
 EXPORT_SYMBOL(peripheral_free);
 
-void peripheral_free_list(unsigned short per[])
+void peripheral_free_list(const unsigned short per[])
 {
 	u16 cnt;
-
-	for (cnt = 0; per[cnt] != 0; cnt++) {
+	for (cnt = 0; per[cnt] != 0; cnt++)
 		peripheral_free(per[cnt]);
-	}
-
 }
 EXPORT_SYMBOL(peripheral_free_list);
 
@@ -1046,17 +1012,17 @@ int gpio_request(unsigned gpio, const char *label)
 	}
 
 	if (unlikely(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
+		dump_stack();
 		printk(KERN_ERR "bfin-gpio: GPIO %d is already reserved by %s !\n",
 			 gpio, get_label(gpio));
-		dump_stack();
 		local_irq_restore(flags);
 		return -EBUSY;
 	}
 	if (unlikely(reserved_peri_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
+		dump_stack();
 		printk(KERN_ERR
 		       "bfin-gpio: GPIO %d is already reserved as Peripheral by %s !\n",
 		       gpio, get_label(gpio));
-		dump_stack();
 		local_irq_restore(flags);
 		return -EBUSY;
 	}
@@ -1082,13 +1048,11 @@ void gpio_free(unsigned gpio)
 	local_irq_save(flags);
 
 	if (unlikely(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)))) {
-		gpio_error(gpio);
 		dump_stack();
+		gpio_error(gpio);
 		local_irq_restore(flags);
 		return;
 	}
-
-	default_gpio(gpio);
 
 	reserved_gpio_map[gpio_bank(gpio)] &= ~gpio_bit(gpio);
 
@@ -1151,6 +1115,18 @@ int gpio_get_value(unsigned gpio)
 	return (1 & (gpio_array[gpio_bank(gpio)]->port_data >> gpio_sub_n(gpio)));
 }
 EXPORT_SYMBOL(gpio_get_value);
+
+void bfin_gpio_irq_prepare(unsigned gpio)
+{
+	unsigned long flags;
+
+	port_setup(gpio, GPIO_USAGE);
+
+	local_irq_save(flags);
+	gpio_array[gpio_bank(gpio)]->port_dir_clear = gpio_bit(gpio);
+	gpio_array[gpio_bank(gpio)]->port_inen |= gpio_bit(gpio);
+	local_irq_restore(flags);
+}
 
 #else
 
@@ -1216,6 +1192,11 @@ void bfin_gpio_reset_spi0_ssel1(void)
 	gpio_bankb[gpio_bank(gpio)]->data_set = gpio_bit(gpio);
 	AWA_DUMMY_READ(data_set);
 	udelay(1);
+}
+
+void bfin_gpio_irq_prepare(unsigned gpio)
+{
+	port_setup(gpio, GPIO_USAGE);
 }
 
 #endif /*BF548_FAMILY */

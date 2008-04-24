@@ -151,7 +151,8 @@ void kgdb_put_debug_char(int chr)
 {
 	struct bfin_serial_port *uart;
 	
-	if (CONFIG_KGDB_UART_PORT<0 || CONFIG_KGDB_UART_PORT>=NR_PORTS)
+	if (CONFIG_KGDB_UART_PORT < 0
+		|| CONFIG_KGDB_UART_PORT >= BFIN_UART_NR_PORTS)
 		uart = &bfin_serial_ports[0];
 	else
 		uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
@@ -173,7 +174,8 @@ int kgdb_get_debug_char(void)
 	struct bfin_serial_port *uart;
 	unsigned char chr;
 
-	if (CONFIG_KGDB_UART_PORT<0 || CONFIG_KGDB_UART_PORT>=NR_PORTS)
+	if (CONFIG_KGDB_UART_PORT < 0
+		|| CONFIG_KGDB_UART_PORT >= BFIN_UART_NR_PORTS)
 		uart = &bfin_serial_ports[0];
 	else
 		uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
@@ -192,7 +194,7 @@ int kgdb_get_debug_char(void)
 }
 #endif
 
-#if ANOMALY_05000230 && defined(CONFIG_SERIAL_BFIN_PIO)
+#if ANOMALY_05000363 && defined(CONFIG_SERIAL_BFIN_PIO)
 # define UART_GET_ANOMALY_THRESHOLD(uart)    ((uart)->anomaly_threshold)
 # define UART_SET_ANOMALY_THRESHOLD(uart, v) ((uart)->anomaly_threshold = (v))
 #else
@@ -237,7 +239,7 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 	}
 #endif
 
-	if (ANOMALY_05000230) {
+	if (ANOMALY_05000363) {
 		/* The BF533 (and BF561) family of processors have a nice anomaly
 		 * where they continuously generate characters for a "single" break.
 		 * We have to basically ignore this flood until the "next" valid
@@ -249,9 +251,6 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 		 * timeout was picked as it must absolutely be larger than 1
 		 * character time +/- some percent.  So 1.5 sounds good.  All other
 		 * Blackfin families operate properly.  Woo.
-		 * Note: While Anomaly 05000230 does not directly address this,
-		 *       the changes that went in for it also fixed this issue.
-		 *       That anomaly was fixed in 0.5+ silicon.  I like bunnies.
 		 */
 		if (anomaly_start.tv_sec) {
 			struct timeval curr;
@@ -285,7 +284,7 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 	}
 
 	if (status & BI) {
-		if (ANOMALY_05000230)
+		if (ANOMALY_05000363)
 			if (bfin_revid() < 5)
 				do_gettimeofday(&anomaly_start);
 		uart->port.icount.brk++;
@@ -507,8 +506,7 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 		uart->rx_dma_buf.tail = uart->rx_dma_buf.head;
 	}
 
-	uart->rx_dma_timer.expires = jiffies + DMA_RX_FLUSH_JIFFIES;
-	add_timer(&(uart->rx_dma_timer));
+	mod_timer(&(uart->rx_dma_timer), jiffies + DMA_RX_FLUSH_JIFFIES);
 }
 
 static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
@@ -551,9 +549,7 @@ static irqreturn_t bfin_serial_dma_rx_int(int irq, void *dev_id)
 	clear_dma_irqstat(uart->rx_dma_channel);
 	spin_unlock(&uart->port.lock);
 
-	del_timer(&(uart->rx_dma_timer));
-	uart->rx_dma_timer.expires = jiffies;
-	add_timer(&(uart->rx_dma_timer));
+	mod_timer(&(uart->rx_dma_timer), jiffies);
 
 	return IRQ_HANDLED;
 }
@@ -749,7 +745,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 	unsigned long flags;
 	unsigned int baud, quot;
-	unsigned short val, ier, lsr, lcr = 0;
+	unsigned short val, ier, lcr = 0;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS8:
@@ -805,10 +801,6 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	spin_lock_irqsave(&uart->port.lock, flags);
 
 	UART_SET_ANOMALY_THRESHOLD(uart, USEC_PER_SEC / baud * 15);
-
-	do {
-		lsr = UART_GET_LSR(uart);
-	} while (!(lsr & TEMT));
 
 	/* Disable UART */
 	ier = UART_GET_IER(uart);
@@ -898,6 +890,31 @@ static int
 bfin_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	return 0;
+}
+
+/*
+ * Enable the IrDA function if tty->ldisc.num is N_IRDA.
+ * In other cases, disable IrDA function.
+ */
+static void bfin_set_ldisc(struct tty_struct *tty)
+{
+	int line = tty->index;
+	unsigned short val;
+
+	if (line >= tty->driver->num)
+		return;
+
+	switch (tty->ldisc.num) {
+	case N_IRDA:
+		val = UART_GET_GCTL(&bfin_serial_ports[line]);
+		val |= (IREN | RPOLC);
+		UART_PUT_GCTL(&bfin_serial_ports[line], val);
+		break;
+	default:
+		val = UART_GET_GCTL(&bfin_serial_ports[line]);
+		val &= ~(IREN | RPOLC);
+		UART_PUT_GCTL(&bfin_serial_ports[line], val);
+	}
 }
 
 static struct uart_ops bfin_serial_pops = {
@@ -1172,7 +1189,7 @@ static struct uart_driver bfin_serial_reg = {
 	.dev_name		= BFIN_SERIAL_NAME,
 	.major			= BFIN_SERIAL_MAJOR,
 	.minor			= BFIN_SERIAL_MINOR,
-	.nr			= NR_PORTS,
+	.nr			= BFIN_UART_NR_PORTS,
 	.cons			= BFIN_SERIAL_CONSOLE,
 };
 
@@ -1261,6 +1278,7 @@ static int __init bfin_serial_init(void)
 
 	ret = uart_register_driver(&bfin_serial_reg);
 	if (ret == 0) {
+		bfin_serial_reg.tty_driver->set_ldisc = bfin_set_ldisc;
 		ret = platform_driver_register(&bfin_serial_driver);
 		if (ret) {
 			pr_debug("uart register failed\n");

@@ -38,6 +38,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
+#include <asm/fixed_code.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
@@ -50,18 +51,20 @@ struct rt_sigframe {
 	int sig;
 	struct siginfo *pinfo;
 	void *puc;
+	/* This is no longer needed by the kernel, but unfortunately userspace
+	 * code expects it to be there.  */
 	char retcode[8];
 	struct siginfo info;
 	struct ucontext uc;
 };
 
-asmlinkage int sys_sigaltstack(const stack_t * uss, stack_t * uoss)
+asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 {
 	return do_sigaltstack(uss, uoss, rdusp());
 }
 
 static inline int
-rt_restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc, int *pr0)
+rt_restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *pr0)
 {
 	unsigned long usp = 0;
 	int err = 0;
@@ -159,11 +162,6 @@ static inline int rt_setup_sigcontext(struct sigcontext *sc, struct pt_regs *reg
 	return err;
 }
 
-static inline void push_cache(unsigned long vaddr, unsigned int len)
-{
-	flush_icache_range(vaddr, vaddr + len);
-}
-
 static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 				 size_t frame_size)
 {
@@ -209,18 +207,8 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t * info,
 	err |= rt_setup_sigcontext(&frame->uc.uc_mcontext, regs);
 	err |= copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
-	/* Set up to return from userspace.  */
-	err |= __put_user(0x28, &(frame->retcode[0]));
-	err |= __put_user(0xe1, &(frame->retcode[1]));
-	err |= __put_user(0xad, &(frame->retcode[2]));
-	err |= __put_user(0x00, &(frame->retcode[3]));
-	err |= __put_user(0xa0, &(frame->retcode[4]));
-	err |= __put_user(0x00, &(frame->retcode[5]));
-
 	if (err)
 		goto give_sigsegv;
-
-	push_cache((unsigned long)&frame->retcode, sizeof(frame->retcode));
 
 	/* Set up registers for signal handler */
 	wrusp((unsigned long)frame);
@@ -231,7 +219,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t * info,
 		__get_user(regs->p3, &funcptr->GOT);
 	} else
 		regs->pc = (unsigned long)ka->sa.sa_handler;
-	regs->rets = (unsigned long)(frame->retcode);
+	regs->rets = SIGRETURN_STUB;
 
 	regs->r0 = frame->sig;
 	regs->r1 = (unsigned long)(&frame->info);

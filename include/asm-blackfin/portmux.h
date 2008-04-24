@@ -17,8 +17,8 @@
 
 int peripheral_request(unsigned short per, const char *label);
 void peripheral_free(unsigned short per);
-int peripheral_request_list(unsigned short per[], const char *label);
-void peripheral_free_list(unsigned short per[]);
+int peripheral_request_list(const unsigned short per[], const char *label);
+void peripheral_free_list(const unsigned short per[]);
 
 #include <asm/gpio.h>
 #include <asm/mach/portmux.h>

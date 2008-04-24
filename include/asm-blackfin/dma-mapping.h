@@ -27,6 +27,14 @@ void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 extern dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 				 enum dma_data_direction direction);
 
+static inline dma_addr_t
+dma_map_page(struct device *dev, struct page *page,
+	     unsigned long offset, size_t size,
+	     enum dma_data_direction dir)
+{
+	return dma_map_single(dev, page_address(page) + offset, size, dir);
+}
+
 /*
  * Unmap a single streaming mode DMA translation.  The dma_addr and size
  * must match what was provided for in a previous pci_map_single call.  All
@@ -37,6 +45,13 @@ extern dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
  */
 extern void dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 			  enum dma_data_direction direction);
+
+static inline void
+dma_unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
+	       enum dma_data_direction dir)
+{
+	dma_unmap_single(dev, dma_addr, size, dir);
+}
 
 /*
  * Map a set of buffers described by scatterlist in streaming

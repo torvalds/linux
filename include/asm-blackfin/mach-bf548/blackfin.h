@@ -153,17 +153,33 @@
 #define bfin_write_UART_SCR(val)	bfin_write_UART1_SCR(val)
 #define bfin_read_UART_GCTL()		bfin_read_UART1_GCTL()
 #define bfin_write_UART_GCTL(val)	bfin_write_UART1_GCTL(val)
-#define UART_THR			UART1_THR
-#define UART_RBR			UART1_RBR
-#define UART_DLL			UART1_DLL
-#define UART_IER			UART1_IER
-#define UART_DLH			UART1_DLH
-#define UART_IIR			UART1_IIR
-#define UART_LCR			UART1_LCR
-#define UART_MCR			UART1_MCR
-#define UART_LSR			UART1_LSR
-#define UART_SCR			UART1_SCR
-#define UART_GCTL			UART1_GCTL
+
+#define BFIN_UART_THR			UART1_THR
+#define BFIN_UART_RBR			UART1_RBR
+#define BFIN_UART_DLL			UART1_DLL
+#define BFIN_UART_IER			UART1_IER
+#define BFIN_UART_DLH			UART1_DLH
+#define BFIN_UART_IIR			UART1_IIR
+#define BFIN_UART_LCR			UART1_LCR
+#define BFIN_UART_MCR			UART1_MCR
+#define BFIN_UART_LSR			UART1_LSR
+#define BFIN_UART_SCR			UART1_SCR
+#define BFIN_UART_GCTL			UART1_GCTL
+
+#define BFIN_UART_NR_PORTS	4
+
+#define OFFSET_DLL              0x00	/* Divisor Latch (Low-Byte)             */
+#define OFFSET_DLH              0x04	/* Divisor Latch (High-Byte)            */
+#define OFFSET_GCTL             0x08	/* Global Control Register              */
+#define OFFSET_LCR              0x0C	/* Line Control Register                */
+#define OFFSET_MCR              0x10	/* Modem Control Register               */
+#define OFFSET_LSR              0x14	/* Line Status Register                 */
+#define OFFSET_MSR              0x18	/* Modem Status Register                */
+#define OFFSET_SCR              0x1C	/* SCR Scratch Register                 */
+#define OFFSET_IER_SET          0x20	/* Set Interrupt Enable Register        */
+#define OFFSET_IER_CLEAR        0x24	/* Clear Interrupt Enable Register      */
+#define OFFSET_THR              0x28	/* Transmit Holding register            */
+#define OFFSET_RBR              0x2C	/* Receive Buffer register              */
 
 /* PLL_DIV Masks */
 #define CCLK_DIV1 CSEL_DIV1	/* CCLK = VCO / 1 */

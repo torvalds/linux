@@ -47,10 +47,6 @@ config GENERIC_IRQ_PROBE
 	bool
 	default y
 
-config GENERIC_TIME
-	bool
-	default n
-
 config GENERIC_GPIO
 	bool
 	default y
@@ -224,16 +220,6 @@ config BF54x
 	depends on (BF542 || BF544 || BF547 || BF548 || BF549)
 	default y
 
-config BFIN_DUAL_CORE
-	bool
-	depends on (BF561)
-	default y
-
-config BFIN_SINGLE_CORE
-	bool
-	depends on !BFIN_DUAL_CORE
-	default y
-
 config MEM_GENERIC_BOARD
 	bool
 	depends on GENERIC_BOARD
@@ -263,7 +249,7 @@ config MEM_MT48LC8M32B2B5_7
 
 config MEM_MT48LC32M16A2TG_75
 	bool
-	depends on (BFIN527_EZKIT)
+	depends on (BFIN527_EZKIT || BFIN532_IP0X)
 	default y
 
 source "arch/blackfin/mach-bf527/Kconfig"
@@ -286,17 +272,34 @@ config CMDLINE
 	  to the kernel, you may specify one here. As a minimum, you should specify
 	  the memory size and the root device (e.g., mem=8M, root=/dev/nfs).
 
+config BOOT_LOAD
+	hex "Kernel load address for booting"
+	default "0x1000"
+	range 0x1000 0x20000000
+	help
+	  This option allows you to set the load address of the kernel.
+	  This can be useful if you are on a board which has a small amount
+	  of memory or you wish to reserve some memory at the beginning of
+	  the address space.
+
+	  Note that you need to keep this value above 4k (0x1000) as this
+	  memory region is used to capture NULL pointer references as well
+	  as some core kernel functions.
+
 comment "Clock/PLL Setup"
 
 config CLKIN_HZ
-	int "Crystal Frequency in Hz"
+	int "Frequency of the crystal on the board in Hz"
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
 	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS)
 	default "30000000" if BFIN561_EZKIT
 	default "24576000" if PNAV10
+	default "10000000" if BFIN532_IP0X
 	help
 	  The frequency of CLKIN crystal oscillator on the board in Hz.
+	  Warning: This value should match the crystal on the board. Otherwise,
+	  peripherals won't work properly.
 
 config BFIN_KERNEL_CLOCK
 	bool "Re-program Clocks while Kernel boots?"
@@ -306,6 +309,25 @@ config BFIN_KERNEL_CLOCK
 	  bootloader settings. If the clocks are not set, the SDRAM settings
 	  are also not changed, and the Bootloader does 100% of the hardware
 	  configuration.
+
+config MEM_SIZE
+	int "SDRAM Memory Size in MBytes"
+	depends on BFIN_KERNEL_CLOCK
+	default 64
+
+config MEM_ADD_WIDTH
+	int "Memory Address Width"
+	depends on BFIN_KERNEL_CLOCK
+	depends on (!BF54x)
+	range 8 11
+	default  9 if BFIN533_EZKIT
+	default  9 if BFIN561_EZKIT
+	default  9 if H8606_HVSISTEMAS
+	default 10 if BFIN527_EZKIT
+	default 10 if BFIN537_STAMP
+	default 11 if BFIN533_STAMP
+	default 10 if PNAV10
+	default 10 if BFIN532_IP0X
 
 config PLL_BYPASS
 	bool "Bypass PLL"
@@ -325,7 +347,7 @@ config VCO_MULT
 	range 1 64
 	default "22" if BFIN533_EZKIT
 	default "45" if BFIN533_STAMP
-	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT)
+	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM)
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if BFIN537_BLUETECHNIX_CM
 	default "20" if BFIN561_BLUETECHNIX_CM
@@ -360,18 +382,32 @@ config SCLK_DIV
 	int "System Clock Divider"
 	depends on BFIN_KERNEL_CLOCK
 	range 1 15
-	default 5 if BFIN533_EZKIT
-	default 5 if BFIN533_STAMP
-	default 4 if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT)
-	default 5 if BFIN533_BLUETECHNIX_CM
-	default 4 if BFIN537_BLUETECHNIX_CM
-	default 4 if BFIN561_BLUETECHNIX_CM
-	default 5 if BFIN561_EZKIT
-	default 3 if H8606_HVSISTEMAS
+	default 5
 	help
 	  This sets the frequency of the system clock (including SDRAM or DDR).
 	  This can be between 1 and 15
 	  System Clock = (PLL frequency) / (this setting)
+
+config MAX_MEM_SIZE
+	int "Max SDRAM Memory Size in MBytes"
+	depends on !BFIN_KERNEL_CLOCK && !MPU
+	default 512
+	help
+	  This is the max memory size that the kernel will create CPLB
+	  tables for.  Your system will not be able to handle any more.
+
+choice
+	prompt "DDR SDRAM Chip Type"
+	depends on BFIN_KERNEL_CLOCK
+	depends on BF54x
+	default MEM_MT46V32M16_5B
+
+config MEM_MT46V32M16_6T
+	bool "MT46V32M16_6T"
+
+config MEM_MT46V32M16_5B
+	bool "MT46V32M16_5B"
+endchoice
 
 #
 # Max & Min Speeds for various Chips
@@ -415,42 +451,33 @@ comment "Kernel Timer/Scheduler"
 
 source kernel/Kconfig.hz
 
+config GENERIC_TIME
+	bool "Generic time"
+	default y
+
+config GENERIC_CLOCKEVENTS
+	bool "Generic clock events"
+	depends on GENERIC_TIME
+	default y
+
+config CYCLES_CLOCKSOURCE
+	bool "Use 'CYCLES' as a clocksource (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on GENERIC_CLOCKEVENTS
+	depends on !BFIN_SCRATCH_REG_CYCLES
+	default n
+	help
+	  If you say Y here, you will enable support for using the 'cycles'
+	  registers as a clock source.  Doing so means you will be unable to
+	  safely write to the 'cycles' register during runtime.  You will
+	  still be able to read it (such as for performance monitoring), but
+	  writing the registers will most likely crash the kernel.
+
+source kernel/time/Kconfig
+
 comment "Memory Setup"
 
-config MEM_SIZE
-	int "SDRAM Memory Size in MBytes"
-	default  32 if BFIN533_EZKIT
-	default  64 if BFIN527_EZKIT
-	default  64 if BFIN537_STAMP
-	default  64 if BFIN548_EZKIT
-	default  64 if BFIN561_EZKIT
-	default 128 if BFIN533_STAMP
-	default  64 if PNAV10
-	default  32 if H8606_HVSISTEMAS
-
-config MEM_ADD_WIDTH
-	int "SDRAM Memory Address Width"
-	depends on (!BF54x)
-	default  9 if BFIN533_EZKIT
-	default  9 if BFIN561_EZKIT
-	default  9 if H8606_HVSISTEMAS
-	default 10 if BFIN527_EZKIT
-	default 10 if BFIN537_STAMP
-	default 11 if BFIN533_STAMP
-	default 10 if PNAV10
-
-
-choice
-	prompt "DDR SDRAM Chip Type"
-	depends on BFIN548_EZKIT
-	default MEM_MT46V32M16_5B
-
-config MEM_MT46V32M16_6T
-        bool "MT46V32M16_6T"
-
-config MEM_MT46V32M16_5B
-        bool "MT46V32M16_5B"
-endchoice
+comment "Misc"
 
 config ENET_FLASH_PIN
 	int "PF port/pin used for flash and ethernet sharing"
@@ -461,20 +488,6 @@ config ENET_FLASH_PIN
 	  pins to be used on other platforms without having to touch common
 	  code.
 	  For example: PF0 --> 0,PF1 --> 1,PF2 --> 2, etc.
-
-config BOOT_LOAD
-	hex "Kernel load address for booting"
-	default "0x1000"
-	range 0x1000 0x20000000
-	help
-	  This option allows you to set the load address of the kernel.
-	  This can be useful if you are on a board which has a small amount
-	  of memory or you wish to reserve some memory at the beginning of
-	  the address space.
-
-	  Note that you need to keep this value above 4k (0x1000) as this
-	  memory region is used to capture NULL pointer references as well
-	  as some core kernel functions.
 
 choice
 	prompt "Blackfin Exception Scratch Register"
@@ -660,14 +673,6 @@ config ROMKERNEL
 endchoice
 
 source "mm/Kconfig"
-
-config LARGE_ALLOCS
-	bool "Allow allocating large blocks (> 1MB) of memory"
-	help
-	  Allow the slab memory allocator to keep chains for very large
-	  memory sizes - upto 32MB. You may need this if your system has
-	  a lot of RAM, and you need to able to allocate very large
-	  contiguous chunks. If unsure, say N.
 
 config BFIN_GPTIMERS
 	tristate "Enable Blackfin General Purpose Timers API"

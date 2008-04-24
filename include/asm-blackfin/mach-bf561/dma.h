@@ -32,7 +32,4 @@
 #define CH_IMEM_STREAM1_SRC	34
 #define CH_IMEM_STREAM1_DEST	35
 
-extern int channel2irq(unsigned int channel);
-extern struct dma_register *base_addr[];
-
 #endif

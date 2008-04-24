@@ -62,14 +62,14 @@ extern unsigned long software_trace_buff[];
 	preg.L = LO(TBUFCTL); \
 	preg.H = HI(TBUFCTL); \
 	dreg = [preg]; \
-	[sp++] = dreg; \
+	[--sp] = dreg; \
 	dreg = 0x1; \
 	[preg] = dreg;
 
 #define trace_buffer_restore(preg, dreg) \
 	preg.L = LO(TBUFCTL); \
 	preg.H = HI(TBUFCTL); \
-	dreg = [sp--]; \
+	dreg = [sp++]; \
 	[preg] = dreg;
 
 #else /* CONFIG_DEBUG_BFIN_HWTRACE_ON */

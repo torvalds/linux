@@ -7,7 +7,7 @@
  */
 
 /* This file shoule be up to date with:
- *  - Revision O, 11/15/2007; ADSP-BF561 Blackfin Processor Anomaly List
+ *  - Revision P, 02/08/2008; ADSP-BF561 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -256,10 +256,14 @@
 #define ANOMALY_05000357 (1)
 /* Conflicting Column Address Widths Causes SDRAM Errors */
 #define ANOMALY_05000362 (1)
+/* UART Break Signal Issues */
+#define ANOMALY_05000363 (__SILICON_REVISION__ < 5)
 /* PPI Underflow Error Goes Undetected in ITU-R 656 Mode */
 #define ANOMALY_05000366 (1)
 /* Possible RETS Register Corruption when Subroutine Is under 5 Cycles in Duration */
 #define ANOMALY_05000371 (1)
+/* Level-Sensitive External GPIO Wakeups May Cause Indefinite Stall */
+#define ANOMALY_05000403 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000158 (0)

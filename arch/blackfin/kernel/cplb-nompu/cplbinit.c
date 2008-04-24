@@ -26,6 +26,35 @@
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
+#ifdef CONFIG_MAX_MEM_SIZE
+# define CPLB_MEM CONFIG_MAX_MEM_SIZE
+#else
+# define CPLB_MEM CONFIG_MEM_SIZE
+#endif
+
+/*
+* Number of required data CPLB switchtable entries
+* MEMSIZE / 4 (we mostly install 4M page size CPLBs
+* approx 16 for smaller 1MB page size CPLBs for allignment purposes
+* 1 for L1 Data Memory
+* possibly 1 for L2 Data Memory
+* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
+* 1 for ASYNC Memory
+*/
+#define MAX_SWITCH_D_CPLBS (((CPLB_MEM / 4) + 16 + 1 + 1 + 1 \
+				 + ASYNC_MEMORY_CPLB_COVERAGE) * 2)
+
+/*
+* Number of required instruction CPLB switchtable entries
+* MEMSIZE / 4 (we mostly install 4M page size CPLBs
+* approx 12 for smaller 1MB page size CPLBs for allignment purposes
+* 1 for L1 Instruction Memory
+* possibly 1 for L2 Instruction Memory
+* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
+*/
+#define MAX_SWITCH_I_CPLBS (((CPLB_MEM / 4) + 12 + 1 + 1 + 1) * 2)
+
+
 u_long icplb_table[MAX_CPLBS + 1];
 u_long dcplb_table[MAX_CPLBS + 1];
 
@@ -294,6 +323,8 @@ void __init generate_cpl_tables(void)
 	struct cplb_tab *t_i = NULL;
 	struct cplb_tab *t_d = NULL;
 	struct s_cplb cplb;
+
+	printk(KERN_INFO "NOMPU: setting up cplb tables for global access\n");
 
 	cplb.init_i.size = MAX_CPLBS;
 	cplb.init_d.size = MAX_CPLBS;
