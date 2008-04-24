@@ -9,9 +9,9 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/dm-io.h>
+#include <linux/dm-dirty-log.h>
 
-#include "dm-log.h"
-#include "dm-io.h"
 #include "dm.h"
 
 #define DM_MSG_PREFIX "dirty region log"

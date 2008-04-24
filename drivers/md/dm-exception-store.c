@@ -9,13 +9,13 @@
 
 #include "dm.h"
 #include "dm-snap.h"
-#include "dm-io.h"
-#include "kcopyd.h"
 
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/dm-io.h>
+#include <linux/dm-kcopyd.h>
 
 #define DM_MSG_PREFIX "snapshots"
 #define DM_CHUNK_SIZE_DEFAULT_SECTORS 32	/* 16KB */

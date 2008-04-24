@@ -14,7 +14,7 @@
 
 #ifdef __KERNEL__
 
-#include "dm-io.h"
+#include <linux/dm-io.h>
 
 /* FIXME: make this configurable */
 #define DM_KCOPYD_MAX_REGIONS 8

@@ -7,9 +7,6 @@
 #include "dm.h"
 #include "dm-bio-list.h"
 #include "dm-bio-record.h"
-#include "dm-io.h"
-#include "dm-log.h"
-#include "kcopyd.h"
 
 #include <linux/ctype.h>
 #include <linux/init.h>
@@ -22,6 +19,9 @@
 #include <linux/workqueue.h>
 #include <linux/log2.h>
 #include <linux/hardirq.h>
+#include <linux/dm-io.h>
+#include <linux/dm-dirty-log.h>
+#include <linux/dm-kcopyd.h>
 
 #define DM_MSG_PREFIX "raid1"
 #define DM_IO_PAGES 64

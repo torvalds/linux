@@ -5,7 +5,6 @@
  * This file is released under the GPL.
  */
 
-#include "dm-io.h"
 #include "dm.h"
 
 #include <linux/bio.h>
@@ -13,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/dm-io.h>
 
 struct dm_io_client {
 	mempool_t *pool;

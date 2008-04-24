@@ -22,8 +22,8 @@
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/dm-kcopyd.h>
 
-#include "kcopyd.h"
 #include "dm.h"
 
 /*-----------------------------------------------------------------
