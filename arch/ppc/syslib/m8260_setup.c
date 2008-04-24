@@ -175,12 +175,6 @@ m8260_init_IRQ(void)
 	 * in case the boot rom changed something on us.
 	 */
 	cpm2_immr->im_intctl.ic_siprr = 0x05309770;
-
-#if defined(CONFIG_PCI) && (defined(CONFIG_ADS8272) || defined(CONFIG_PQ2FADS))
- 	/* Initialize stuff for the 82xx CPLD IC and install demux  */
- 	pq2pci_init_irq();
-#endif
-
 }
 
 /*
