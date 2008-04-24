@@ -1862,15 +1862,9 @@ static int __init dm_mirror_init(void)
 {
 	int r;
 
-	r = dm_dirty_log_init();
-	if (r)
-		return r;
-
 	r = dm_register_target(&mirror_target);
-	if (r < 0) {
+	if (r < 0)
 		DMERR("Failed to register mirror target");
-		dm_dirty_log_exit();
-	}
 
 	return r;
 }
@@ -1882,8 +1876,6 @@ static void __exit dm_mirror_exit(void)
 	r = dm_unregister_target(&mirror_target);
 	if (r < 0)
 		DMERR("unregister failed %d", r);
-
-	dm_dirty_log_exit();
 }
 
 /* Module hooks */
