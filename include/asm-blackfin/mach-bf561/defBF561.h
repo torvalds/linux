@@ -871,6 +871,8 @@
 /* PLL_DIV Masks */
 #define SCLK_DIV(x)  (x)	/* SCLK = VCO / x */
 
+#define CSEL			0x30		/* Core Select */
+#define SSEL			0xf		/* System Select */
 #define CCLK_DIV1              0x00000000	/* CCLK = VCO / 1 */
 #define CCLK_DIV2              0x00000010	/* CCLK = VCO / 2 */
 #define CCLK_DIV4              0x00000020	/* CCLK = VCO / 4 */
