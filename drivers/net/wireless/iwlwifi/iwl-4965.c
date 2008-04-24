@@ -739,7 +739,6 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	struct iwl4965_rx_queue *rxq = &priv->rxq;
-	u8 rev_id;
 	u8 val_link;
 	u32 val;
 	int ret;
@@ -751,18 +750,11 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_INT_COALESCING, 512 / 32);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* Determine HW type */
-	ret = pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &rev_id);
-	if (ret)
-		return ret;
-
-	IWL_DEBUG_INFO("HW Revision ID = 0x%X\n", rev_id);
-
 	ret = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if ((rev_id & 0x80) == 0x80 && (rev_id & 0x7f) < 8) {
+	if ((priv->rev_id & 0x80) == 0x80 && (priv->rev_id & 0x7f) < 8) {
 		pci_read_config_dword(priv->pci_dev, PCI_REG_WUM8, &val);
 		/* Enable No Snoop field */
 		pci_write_config_dword(priv->pci_dev, PCI_REG_WUM8,

@@ -194,6 +194,11 @@
 #define CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW          (0x08000000)
 
 
+/* HW REV */
+#define CSR_HW_REV_TYPE_MSK            (0x00000F0)
+#define CSR_HW_REV_TYPE_3945           (0x00000D0)
+#define CSR_HW_REV_TYPE_4965           (0x0000000)
+
 /* EEPROM REG */
 #define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)
 #define CSR_EEPROM_REG_BIT_CMD		(0x00000002)

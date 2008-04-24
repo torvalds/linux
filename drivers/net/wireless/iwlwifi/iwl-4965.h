@@ -1003,6 +1003,9 @@ struct iwl_priv {
 
 	/* pci hardware address support */
 	void __iomem *hw_base;
+	u32  hw_rev;
+	u32  hw_wa_rev;
+	u8   rev_id;
 
 	/* uCode images, save to reload in case of failure */
 	struct fw_desc ucode_code;	/* runtime inst */

@@ -159,6 +159,7 @@ struct iwl_cfg {
 
 struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 		struct ieee80211_ops *hw_ops);
+void iwl_hw_detect(struct iwl_priv *priv);
 
 void iwlcore_clear_stations_table(struct iwl_priv *priv);
 void iwlcore_reset_qos(struct iwl_priv *priv);

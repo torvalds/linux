@@ -7459,8 +7459,10 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		(unsigned long long) pci_resource_len(pdev, 0));
 	IWL_DEBUG_INFO("pci_resource_base = %p\n", priv->hw_base);
 
+	iwl_hw_detect(priv);
 	printk(KERN_INFO DRV_NAME
-		": Detected Intel Wireless WiFi Link %s\n", priv->cfg->name);
+		": Detected Intel Wireless WiFi Link %s REV=0x%X\n",
+		priv->cfg->name, priv->hw_rev);
 
 	/* amp init */
 	err = priv->cfg->ops->lib->apm_ops.init(priv);
