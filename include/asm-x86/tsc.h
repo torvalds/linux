@@ -18,7 +18,6 @@ extern unsigned int cpu_khz;
 extern unsigned int tsc_khz;
 
 extern void disable_TSC(void);
-extern void enable_TSC(void);
 
 static inline cycles_t get_cycles(void)
 {

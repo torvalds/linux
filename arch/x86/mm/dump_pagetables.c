@@ -324,7 +324,7 @@ static const struct file_operations ptdump_fops = {
 	.release	= single_release,
 };
 
-int pt_dump_init(void)
+static int pt_dump_init(void)
 {
 	struct dentry *pe;
 

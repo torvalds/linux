@@ -1905,32 +1905,31 @@ get_valid_domain_for_dev(struct pci_dev *pdev)
 	return domain;
 }
 
-static dma_addr_t intel_map_single(struct device *hwdev, void *addr,
-	size_t size, int dir)
+static dma_addr_t
+intel_map_single(struct device *hwdev, phys_addr_t paddr, size_t size, int dir)
 {
 	struct pci_dev *pdev = to_pci_dev(hwdev);
-	int ret;
 	struct dmar_domain *domain;
-	unsigned long start_addr;
+	unsigned long start_paddr;
 	struct iova *iova;
 	int prot = 0;
+	int ret;
 
 	BUG_ON(dir == DMA_NONE);
 	if (pdev->dev.archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO)
-		return virt_to_bus(addr);
+		return paddr;
 
 	domain = get_valid_domain_for_dev(pdev);
 	if (!domain)
 		return 0;
 
-	addr = (void *)virt_to_phys(addr);
-	size = aligned_size((u64)addr, size);
+	size = aligned_size((u64)paddr, size);
 
 	iova = __intel_alloc_iova(hwdev, domain, size);
 	if (!iova)
 		goto error;
 
-	start_addr = iova->pfn_lo << PAGE_SHIFT_4K;
+	start_paddr = iova->pfn_lo << PAGE_SHIFT_4K;
 
 	/*
 	 * Check if DMAR supports zero-length reads on write only
@@ -1942,33 +1941,33 @@ static dma_addr_t intel_map_single(struct device *hwdev, void *addr,
 	if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL)
 		prot |= DMA_PTE_WRITE;
 	/*
-	 * addr - (addr + size) might be partial page, we should map the whole
+	 * paddr - (paddr + size) might be partial page, we should map the whole
 	 * page.  Note: if two part of one page are separately mapped, we
-	 * might have two guest_addr mapping to the same host addr, but this
+	 * might have two guest_addr mapping to the same host paddr, but this
 	 * is not a big problem
 	 */
-	ret = domain_page_mapping(domain, start_addr,
-		((u64)addr) & PAGE_MASK_4K, size, prot);
+	ret = domain_page_mapping(domain, start_paddr,
+		((u64)paddr) & PAGE_MASK_4K, size, prot);
 	if (ret)
 		goto error;
 
 	pr_debug("Device %s request: %lx@%llx mapping: %lx@%llx, dir %d\n",
-		pci_name(pdev), size, (u64)addr,
-		size, (u64)start_addr, dir);
+		pci_name(pdev), size, (u64)paddr,
+		size, (u64)start_paddr, dir);
 
 	/* it's a non-present to present mapping */
 	ret = iommu_flush_iotlb_psi(domain->iommu, domain->id,
-			start_addr, size >> PAGE_SHIFT_4K, 1);
+			start_paddr, size >> PAGE_SHIFT_4K, 1);
 	if (ret)
 		iommu_flush_write_buffer(domain->iommu);
 
-	return (start_addr + ((u64)addr & (~PAGE_MASK_4K)));
+	return (start_paddr + ((u64)paddr & (~PAGE_MASK_4K)));
 
 error:
 	if (iova)
 		__free_iova(&domain->iovad, iova);
 	printk(KERN_ERR"Device %s request: %lx@%llx dir %d --- failed\n",
-		pci_name(pdev), size, (u64)addr, dir);
+		pci_name(pdev), size, (u64)paddr, dir);
 	return 0;
 }
 
@@ -2082,7 +2081,7 @@ static void * intel_alloc_coherent(struct device *hwdev, size_t size,
 		return NULL;
 	memset(vaddr, 0, size);
 
-	*dma_handle = intel_map_single(hwdev, vaddr, size, DMA_BIDIRECTIONAL);
+	*dma_handle = intel_map_single(hwdev, virt_to_bus(vaddr), size, DMA_BIDIRECTIONAL);
 	if (*dma_handle)
 		return vaddr;
 	free_pages((unsigned long)vaddr, order);

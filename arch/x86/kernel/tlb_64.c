@@ -191,7 +191,7 @@ void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
 	spin_unlock(&f->tlbstate_lock);
 }
 
-int __cpuinit init_smp_flush(void)
+static int __cpuinit init_smp_flush(void)
 {
 	int i;
 

@@ -206,11 +206,6 @@ static struct irq_chip vic_chip = {
 /* used to count up as CPUs are brought on line (starts at 0) */
 static int cpucount = 0;
 
-/* steal a page from the bottom of memory for the trampoline and
- * squirrel its address away here.  This will be in kernel virtual
- * space */
-unsigned char *trampoline_base;
-
 /* The per cpu profile stuff - used in smp_local_timer_interrupt */
 static DEFINE_PER_CPU(int, prof_multiplier) = 1;
 static DEFINE_PER_CPU(int, prof_old_multiplier) = 1;
@@ -425,18 +420,6 @@ void __init smp_store_cpu_info(int id)
 	*c = boot_cpu_data;
 
 	identify_secondary_cpu(c);
-}
-
-/* set up the trampoline and return the physical address of the code */
-unsigned long __init setup_trampoline(void)
-{
-	/* these two are global symbols in trampoline.S */
-	extern const __u8 trampoline_end[];
-	extern const __u8 trampoline_data[];
-
-	memcpy(trampoline_base, trampoline_data,
-	       trampoline_end - trampoline_data);
-	return virt_to_phys(trampoline_base);
 }
 
 /* Routine initially called when a non-boot CPU is brought online */

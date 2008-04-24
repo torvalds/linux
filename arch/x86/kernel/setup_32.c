@@ -442,7 +442,7 @@ static void __init reserve_ebda_region(void)
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-void __init setup_bootmem_allocator(void);
+static void __init setup_bootmem_allocator(void);
 static unsigned long __init setup_memory(void)
 {
 	/*
@@ -477,7 +477,7 @@ static unsigned long __init setup_memory(void)
 	return max_low_pfn;
 }
 
-void __init zone_sizes_init(void)
+static void __init zone_sizes_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));

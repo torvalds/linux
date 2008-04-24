@@ -550,7 +550,7 @@ static void hard_enable_TSC(void)
 	write_cr4(read_cr4() & ~X86_CR4_TSD);
 }
 
-void enable_TSC(void)
+static void enable_TSC(void)
 {
 	preempt_disable();
 	if (test_and_clear_thread_flag(TIF_NOTSC))

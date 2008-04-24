@@ -11,22 +11,9 @@
 /* Have we found an MP table */
 int smp_found_config;
 
-/*
- * Various Linux-internal data structures created from the
- * MP-table.
- */
-int apic_version [MAX_APICS];
-
 int pic_mode;
-unsigned long mp_lapic_addr;
 
-/* Processor that is doing the boot up */
-unsigned int boot_cpu_physical_apicid = -1U;
-
-/* Bitmask of physically existing CPUs */
-physid_mask_t phys_cpu_present_map;
-
-unsigned int __initdata maxcpus = NR_CPUS;
+extern unsigned int __cpuinitdata maxcpus;
 
 /*
  * The Visual Workstation is Intel MP compliant in the hardware

@@ -429,7 +429,7 @@ void __init setup_boot_APIC_clock(void)
  * set the DUMMY flag again and force the broadcast mode in the
  * clockevents layer.
  */
-void __cpuinit check_boot_apic_timer_broadcast(void)
+static void __cpuinit check_boot_apic_timer_broadcast(void)
 {
 	if (!disable_apic_timer ||
 	    (lapic_clockevent.features & CLOCK_EVT_FEAT_DUMMY))
@@ -834,7 +834,7 @@ void __cpuinit setup_local_APIC(void)
 	preempt_enable();
 }
 
-void __cpuinit lapic_setup_esr(void)
+static void __cpuinit lapic_setup_esr(void)
 {
 	unsigned maxlvt = lapic_get_maxlvt();
 
