@@ -44,6 +44,26 @@ typedef unsigned int u32;
 typedef signed long s64;
 typedef unsigned long u64;
 
+#define S8_C(x)  x
+#define U8_C(x)  x ## U
+#define S16_C(x) x
+#define U16_C(x) x ## U
+#define S32_C(x) x
+#define U32_C(x) x ## U
+#define S64_C(x) x ## L
+#define U64_C(x) x ## UL
+
+#else /* __ASSEMBLY__ */
+
+#define S8_C(x)  x
+#define U8_C(x)  x
+#define S16_C(x) x
+#define U16_C(x) x
+#define S32_C(x) x
+#define U32_C(x) x
+#define S64_C(x) x
+#define U64_C(x) x
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
