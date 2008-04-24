@@ -68,6 +68,9 @@
 #ifndef __iwl_5000_hw_h__
 #define __iwl_5000_hw_h__
 
+/* EERPROM */
+#define IWL_5000_EEPROM_IMG_SIZE			2048
+
 
 #define IWL50_MAX_WIN_SIZE                64
 #define IWL50_QUEUE_SIZE                 256

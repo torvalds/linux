@@ -86,6 +86,55 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 	return ret;
 }
 
+/*
+ * EEPROM
+ */
+static u32 eeprom_indirect_address(const struct iwl_priv *priv, u32 address)
+{
+	u16 offset = 0;
+
+	if ((address & INDIRECT_ADDRESS) == 0)
+		return address;
+
+	switch (address & INDIRECT_TYPE_MSK) {
+	case INDIRECT_HOST:
+		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_HOST);
+		break;
+	case INDIRECT_GENERAL:
+		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_GENERAL);
+		break;
+	case INDIRECT_REGULATORY:
+		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_REGULATORY);
+		break;
+	case INDIRECT_CALIBRATION:
+		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_CALIBRATION);
+		break;
+	case INDIRECT_PROCESS_ADJST:
+		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_PROCESS_ADJST);
+		break;
+	case INDIRECT_OTHERS:
+		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_OTHERS);
+		break;
+	default:
+		IWL_ERROR("illegal indirect type: 0x%X\n",
+		address & INDIRECT_TYPE_MSK);
+		break;
+	}
+
+	/* translate the offset from words to byte */
+	return (address & ADDRESS_MSK) + (offset << 1);
+}
+
+static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
+					   size_t offset)
+{
+	u32 address = eeprom_indirect_address(priv, offset);
+	BUG_ON(address >= priv->cfg->eeprom_size);
+	return &priv->eeprom[address];
+}
+
+
+
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 };
 
@@ -98,9 +147,19 @@ static struct iwl_lib_ops iwl5000_lib = {
 		.set_pwr_src = iwl4965_set_pwr_src,
 	},
 	.eeprom_ops = {
+		.regulatory_bands = {
+			EEPROM_5000_REG_BAND_1_CHANNELS,
+			EEPROM_5000_REG_BAND_2_CHANNELS,
+			EEPROM_5000_REG_BAND_3_CHANNELS,
+			EEPROM_5000_REG_BAND_4_CHANNELS,
+			EEPROM_5000_REG_BAND_5_CHANNELS,
+			EEPROM_5000_REG_BAND_24_FAT_CHANNELS,
+			EEPROM_5000_REG_BAND_52_FAT_CHANNELS
+		},
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
+		.query_addr = iwl5000_eeprom_query_addr,
 	},
 };
 
@@ -123,6 +182,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.fw_name = "iwlwifi-5000" IWL5000_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
+	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
 	.mod_params = &iwl50_mod_params,
 };
 
@@ -131,6 +191,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.fw_name = "iwlwifi-5000" IWL5000_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
+	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
 	.mod_params = &iwl50_mod_params,
 };
 
@@ -139,6 +200,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.fw_name = "iwlwifi-5000" IWL5000_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
+	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
 	.mod_params = &iwl50_mod_params,
 };
 
