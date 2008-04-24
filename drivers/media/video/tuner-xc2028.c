@@ -844,20 +844,27 @@ static int xc2028_signal(struct dvb_frontend *fe, u16 *strength)
 
 	/* Sync Lock Indicator */
 	rc = xc2028_get_reg(priv, 0x0002, &frq_lock);
-	if (rc < 0 || frq_lock == 0)
+	if (rc < 0)
 		goto ret;
 
-	/* Frequency is locked. Return signal quality */
+	/* Frequency is locked */
+	if (frq_lock == 1)
+		signal = 32768;
 
 	/* Get SNR of the video signal */
 	rc = xc2028_get_reg(priv, 0x0040, &signal);
 	if (rc < 0)
-		signal = -frq_lock;
+		goto ret;
+
+	/* Use both frq_lock and signal to generate the result */
+	signal = signal || ((signal & 0x07) << 12);
 
 ret:
 	mutex_unlock(&priv->lock);
 
 	*strength = signal;
+
+	tuner_dbg("signal strength is %d\n", signal);
 
 	return rc;
 }
