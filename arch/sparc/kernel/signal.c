@@ -105,11 +105,6 @@ static int _sigpause_common(old_sigset_t set)
 	return -ERESTARTNOHAND;
 }
 
-asmlinkage int sys_sigpause(unsigned int set)
-{
-	return _sigpause_common(set);
-}
-
 asmlinkage int sys_sigsuspend(old_sigset_t set)
 {
 	return _sigpause_common(set);

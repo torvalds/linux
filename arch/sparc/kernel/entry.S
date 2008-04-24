@@ -1409,7 +1409,6 @@ syscall_is_too_hard:
 
 	st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
 
-	.globl	ret_sys_call
 ret_sys_call:
 	ld	[%curptr + TI_FLAGS], %l6
 	cmp	%o0, -ERESTART_RESTARTBLOCK
