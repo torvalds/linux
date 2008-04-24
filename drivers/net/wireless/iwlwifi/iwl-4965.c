@@ -579,12 +579,53 @@ out:
 	return ret;
 }
 
+
+static void iwl4965_nic_config(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	u32 val;
+	u16 radio_cfg;
+	u8 val_link;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	if ((priv->rev_id & 0x80) == 0x80 && (priv->rev_id & 0x7f) < 8) {
+		pci_read_config_dword(priv->pci_dev, PCI_REG_WUM8, &val);
+		/* Enable No Snoop field */
+		pci_write_config_dword(priv->pci_dev, PCI_REG_WUM8,
+				       val & ~(1 << 11));
+	}
+
+	pci_read_config_byte(priv->pci_dev, PCI_LINK_CTRL, &val_link);
+
+	/* disable L1 entry -- workaround for pre-B1 */
+	pci_write_config_byte(priv->pci_dev, PCI_LINK_CTRL, val_link & ~0x02);
+
+	radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
+
+	/* write radio config values to register */
+	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) == EEPROM_4965_RF_CFG_TYPE_MAX)
+		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+			    EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
+			    EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
+			    EEPROM_RF_CFG_DASH_MSK(radio_cfg));
+
+	/* set CSR_HW_CONFIG_REG for uCode use */
+	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
+		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
+
+	priv->calib_info = (struct iwl_eeprom_calib_info *)
+		iwl_eeprom_query_addr(priv, EEPROM_4965_CALIB_TXPOWER_OFFSET);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
+
 int iwl4965_hw_nic_init(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	struct iwl4965_rx_queue *rxq = &priv->rxq;
-	u8 val_link;
-	u32 val;
 	int ret;
 
 	/* nic_init */
@@ -596,32 +637,7 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 
 	ret = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
 
-	spin_lock_irqsave(&priv->lock, flags);
-
-	if ((priv->rev_id & 0x80) == 0x80 && (priv->rev_id & 0x7f) < 8) {
-		pci_read_config_dword(priv->pci_dev, PCI_REG_WUM8, &val);
-		/* Enable No Snoop field */
-		pci_write_config_dword(priv->pci_dev, PCI_REG_WUM8,
-				       val & ~(1 << 11));
-	}
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	pci_read_config_byte(priv->pci_dev, PCI_LINK_CTRL, &val_link);
-
-	/* disable L1 entry -- workaround for pre-B1 */
-	pci_write_config_byte(priv->pci_dev, PCI_LINK_CTRL, val_link & ~0x02);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* set CSR_HW_CONFIG_REG for uCode use */
-
-	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-		    CSR49_HW_IF_CONFIG_REG_BIT_4965_R |
-		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
-		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
+	priv->cfg->ops->lib->apm_ops.config(priv);
 
 	iwl4965_hw_card_show_info(priv);
 
@@ -645,10 +661,6 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 
 	rxq->need_update = 1;
 	iwl4965_rx_queue_update_write_ptr(priv, rxq);
-
-	/* init the txpower calibration pointer */
-	priv->calib_info = (struct iwl_eeprom_calib_info *)
-		iwl_eeprom_query_addr(priv, EEPROM_4965_CALIB_TXPOWER_OFFSET);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -4112,6 +4124,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.load_ucode = iwl4965_load_bsm,
 	.apm_ops = {
 		.init = iwl4965_apm_init,
+		.config = iwl4965_nic_config,
 		.set_pwr_src = iwl4965_set_pwr_src,
 	},
 	.eeprom_ops = {
