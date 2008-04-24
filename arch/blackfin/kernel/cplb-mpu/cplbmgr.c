@@ -24,8 +24,6 @@
 #include <asm/cplbinit.h>
 #include <asm/mmu_context.h>
 
-#ifdef CONFIG_BFIN_ICACHE
-
 #define FAULT_RW	(1 << 16)
 #define FAULT_USERSUPV	(1 << 17)
 
@@ -370,5 +368,3 @@ void set_mask_dcplbs(unsigned long *masks)
 	}
 	enable_dcplb();
 }
-
-#endif
