@@ -1793,7 +1793,8 @@ lcs_get_skb(struct lcs_card *card, char *skb_data, unsigned int skb_len)
 	skb->protocol =	card->lan_type_trans(skb, card->dev);
 	card->stats.rx_bytes += skb_len;
 	card->stats.rx_packets++;
-	*((__u32 *)skb->cb) = ++card->pkt_seq;
+	if (skb->protocol == htons(ETH_P_802_2))
+		*((__u32 *)skb->cb) = ++card->pkt_seq;
 	netif_rx(skb);
 }
 
