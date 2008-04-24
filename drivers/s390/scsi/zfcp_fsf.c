@@ -1927,7 +1927,8 @@ zfcp_fsf_exchange_config_data_sync(struct zfcp_adapter *adapter,
 
 	/* setup new FSF request */
 	retval = zfcp_fsf_req_create(adapter, FSF_QTCB_EXCHANGE_CONFIG_DATA,
-				     0, NULL, &lock_flags, &fsf_req);
+				     ZFCP_WAIT_FOR_SBAL, NULL, &lock_flags,
+				     &fsf_req);
 	if (retval) {
 		ZFCP_LOG_INFO("error: Could not create exchange configuration "
 			      "data request for adapter %s.\n",
