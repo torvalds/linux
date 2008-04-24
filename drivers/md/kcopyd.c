@@ -43,6 +43,8 @@ struct dm_kcopyd_client {
 	wait_queue_head_t destroyq;
 	atomic_t nr_jobs;
 
+	mempool_t *job_pool;
+
 	struct workqueue_struct *kcopyd_wq;
 	struct work_struct kcopyd_work;
 
@@ -221,7 +223,6 @@ struct kcopyd_job {
 #define MIN_JOBS 512
 
 static struct kmem_cache *_job_cache;
-static mempool_t *_job_pool;
 
 static int jobs_init(void)
 {
@@ -229,20 +230,12 @@ static int jobs_init(void)
 	if (!_job_cache)
 		return -ENOMEM;
 
-	_job_pool = mempool_create_slab_pool(MIN_JOBS, _job_cache);
-	if (!_job_pool) {
-		kmem_cache_destroy(_job_cache);
-		return -ENOMEM;
-	}
-
 	return 0;
 }
 
 static void jobs_exit(void)
 {
-	mempool_destroy(_job_pool);
 	kmem_cache_destroy(_job_cache);
-	_job_pool = NULL;
 	_job_cache = NULL;
 }
 
@@ -295,7 +288,7 @@ static int run_complete_job(struct kcopyd_job *job)
 	struct dm_kcopyd_client *kc = job->kc;
 
 	kcopyd_put_pages(kc, job->pages);
-	mempool_free(job, _job_pool);
+	mempool_free(job, kc->job_pool);
 	fn(read_err, write_err, context);
 
 	if (atomic_dec_and_test(&kc->nr_jobs))
@@ -487,7 +480,8 @@ static void segment_complete(int read_err, unsigned long write_err,
 
 	if (count) {
 		int i;
-		struct kcopyd_job *sub_job = mempool_alloc(_job_pool, GFP_NOIO);
+		struct kcopyd_job *sub_job = mempool_alloc(job->kc->job_pool,
+							   GFP_NOIO);
 
 		*sub_job = *job;
 		sub_job->source.sector += progress;
@@ -511,7 +505,7 @@ static void segment_complete(int read_err, unsigned long write_err,
 		 * after we've completed.
 		 */
 		job->fn(read_err, write_err, job->context);
-		mempool_free(job, _job_pool);
+		mempool_free(job, job->kc->job_pool);
 	}
 }
 
@@ -538,7 +532,7 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	/*
 	 * Allocate a new job.
 	 */
-	job = mempool_alloc(_job_pool, GFP_NOIO);
+	job = mempool_alloc(kc->job_pool, GFP_NOIO);
 
 	/*
 	 * set up for the read.
@@ -666,10 +660,19 @@ int dm_kcopyd_client_create(unsigned int nr_pages,
 	INIT_LIST_HEAD(&kc->io_jobs);
 	INIT_LIST_HEAD(&kc->pages_jobs);
 
+	kc->job_pool = mempool_create_slab_pool(MIN_JOBS, _job_cache);
+	if (!kc->job_pool) {
+		r = -ENOMEM;
+		kfree(kc);
+		kcopyd_exit();
+		return r;
+	}
+
 	INIT_WORK(&kc->kcopyd_work, do_work);
 	kc->kcopyd_wq = create_singlethread_workqueue("kcopyd");
 	if (!kc->kcopyd_wq) {
 		r = -ENOMEM;
+		mempool_destroy(kc->job_pool);
 		kfree(kc);
 		kcopyd_exit();
 		return r;
@@ -680,6 +683,7 @@ int dm_kcopyd_client_create(unsigned int nr_pages,
 	r = client_alloc_pages(kc, nr_pages);
 	if (r) {
 		destroy_workqueue(kc->kcopyd_wq);
+		mempool_destroy(kc->job_pool);
 		kfree(kc);
 		kcopyd_exit();
 		return r;
@@ -690,6 +694,7 @@ int dm_kcopyd_client_create(unsigned int nr_pages,
 		r = PTR_ERR(kc->io_client);
 		client_free_pages(kc);
 		destroy_workqueue(kc->kcopyd_wq);
+		mempool_destroy(kc->job_pool);
 		kfree(kc);
 		kcopyd_exit();
 		return r;
@@ -716,6 +721,7 @@ void dm_kcopyd_client_destroy(struct dm_kcopyd_client *kc)
 	dm_io_client_destroy(kc->io_client);
 	client_free_pages(kc);
 	client_del(kc);
+	mempool_destroy(kc->job_pool);
 	kfree(kc);
 	kcopyd_exit();
 }
