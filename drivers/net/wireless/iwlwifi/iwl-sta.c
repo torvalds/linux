@@ -36,8 +36,6 @@
 #include "iwl-sta.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
-#include "iwl-4965.h"
-#include "iwl-sta.h"
 
 u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
 {

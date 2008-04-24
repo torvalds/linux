@@ -29,14 +29,6 @@
 #ifndef __iwl_sta_h__
 #define __iwl_sta_h__
 
-#include <net/mac80211.h>
-
-#include "iwl-eeprom.h"
-#include "iwl-core.h"
-#include "iwl-4965.h"
-#include "iwl-io.h"
-#include "iwl-helpers.h"
-
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty);
 int iwl_remove_default_wep_key(struct iwl_priv *priv,
