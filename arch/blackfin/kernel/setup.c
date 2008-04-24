@@ -681,10 +681,10 @@ static inline int __init get_mem_size(void)
 #  endif
 # elif defined(EBIU_DDRCTL1)
 	switch (bfin_read_EBIU_DDRCTL1() & 0xc0000) {
-		case DEVSZ_64:  return 64;
-		case DEVSZ_128: return 128;
-		case DEVSZ_256: return 256;
-		case DEVSZ_512: return 512;
+		case DEVSZ_64:  return 64 / 8;
+		case DEVSZ_128: return 128 / 8;
+		case DEVSZ_256: return 256 / 8;
+		case DEVSZ_512: return 512 / 8;
 		default:        return 0;
 	}
 # endif
