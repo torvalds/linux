@@ -1128,15 +1128,6 @@ static int iwl4965_send_beacon_cmd(struct iwl_priv *priv)
  *
  ******************************************************************************/
 
-static void iwl4965_unset_hw_params(struct iwl_priv *priv)
-{
-	if (priv->shared_virt)
-		pci_free_consistent(priv->pci_dev,
-				    sizeof(struct iwl4965_shared),
-				    priv->shared_virt,
-				    priv->shared_phys);
-}
-
 /**
  * iwl4965_supported_rate_to_ie - fill in the supported rate in IE field
  *
@@ -5298,6 +5289,7 @@ static void __iwl4965_down(struct iwl_priv *priv)
 	iwl4965_hw_nic_stop_master(priv);
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 	iwl4965_hw_nic_reset(priv);
+	priv->cfg->ops->lib->free_shared_mem(priv);
 
  exit:
 	memset(&priv->card_alive, 0, sizeof(struct iwl4965_alive_resp));
@@ -5358,6 +5350,12 @@ static int __iwl4965_up(struct iwl_priv *priv)
 
 	iwl_rfkill_set_hw_state(priv);
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
+
+	ret = priv->cfg->ops->lib->alloc_shared_mem(priv);
+	if (ret) {
+		IWL_ERROR("Unable to allocate shared memory\n");
+		return ret;
+	}
 
 	ret = priv->cfg->ops->lib->hw_nic_init(priv);
 	if (ret) {
@@ -7503,7 +7501,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	err = iwl_setup(priv);
 	if (err)
-		goto out_unset_hw_params;
+		goto out_free_eeprom;
 	/* At this point both hw and priv are initialized. */
 
 	/**********************************
@@ -7529,7 +7527,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	err = sysfs_create_group(&pdev->dev.kobj, &iwl4965_attribute_group);
 	if (err) {
 		IWL_ERROR("failed to create sysfs device attributes\n");
-		goto out_unset_hw_params;
+		goto out_free_eeprom;
 	}
 
 	err = iwl_dbgfs_register(priv, DRV_NAME);
@@ -7553,8 +7551,6 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
  out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &iwl4965_attribute_group);
- out_unset_hw_params:
-	iwl4965_unset_hw_params(priv);
  out_free_eeprom:
 	iwl_eeprom_free(priv);
  out_iounmap:
@@ -7618,7 +7614,6 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 		iwl4965_rx_queue_free(priv, &priv->rxq);
 	iwl4965_hw_txq_ctx_free(priv);
 
-	iwl4965_unset_hw_params(priv);
 	iwlcore_clear_stations_table(priv);
 	iwl_eeprom_free(priv);
 

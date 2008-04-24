@@ -276,18 +276,6 @@ static int iwl4965_init_drv(struct iwl_priv *priv)
 	spin_lock_init(&priv->hcmd_lock);
 	spin_lock_init(&priv->lq_mngr.lock);
 
-	priv->shared_virt = pci_alloc_consistent(priv->pci_dev,
-					sizeof(struct iwl4965_shared),
-					&priv->shared_phys);
-
-	if (!priv->shared_virt) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	memset(priv->shared_virt, 0, sizeof(struct iwl4965_shared));
-
-
 	for (i = 0; i < IWL_IBSS_MAC_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&priv->ibss_mac_hash[i]);
 
@@ -2492,6 +2480,28 @@ static void iwl4965_hw_card_show_info(struct iwl_priv *priv)
 		       &priv->eeprom[EEPROM_4965_BOARD_PBA]);
 }
 
+static int iwl4965_alloc_shared_mem(struct iwl_priv *priv)
+{
+	priv->shared_virt = pci_alloc_consistent(priv->pci_dev,
+					sizeof(struct iwl4965_shared),
+					&priv->shared_phys);
+	if (!priv->shared_virt)
+		return -ENOMEM;
+
+	memset(priv->shared_virt, 0, sizeof(struct iwl4965_shared));
+
+	return 0;
+}
+
+static void iwl4965_free_shared_mem(struct iwl_priv *priv)
+{
+	if (priv->shared_virt)
+		pci_free_consistent(priv->pci_dev,
+				    sizeof(struct iwl4965_shared),
+				    priv->shared_virt,
+				    priv->shared_phys);
+}
+
 #define IWL_TX_CRC_SIZE		4
 #define IWL_TX_DELIMITER_SIZE	4
 
@@ -4351,6 +4361,8 @@ static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 static struct iwl_lib_ops iwl4965_lib = {
 	.init_drv = iwl4965_init_drv,
 	.set_hw_params = iwl4965_hw_set_hw_params,
+	.alloc_shared_mem = iwl4965_alloc_shared_mem,
+	.free_shared_mem = iwl4965_free_shared_mem,
 	.txq_update_byte_cnt_tbl = iwl4965_txq_update_byte_cnt_tbl,
 	.hw_nic_init = iwl4965_hw_nic_init,
 	.is_valid_rtc_data_addr = iwl4965_hw_valid_rtc_data_addr,
