@@ -208,7 +208,7 @@ struct log_c {
 	struct dm_dev *log_dev;
 	struct log_header header;
 
-	struct io_region header_location;
+	struct dm_io_region header_location;
 	struct log_header *disk_header;
 };
 

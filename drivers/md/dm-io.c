@@ -6,6 +6,7 @@
  */
 
 #include "dm-io.h"
+#include "dm.h"
 
 #include <linux/bio.h>
 #include <linux/mempool.h>
@@ -271,7 +272,7 @@ static void km_dp_init(struct dpages *dp, void *data)
 /*-----------------------------------------------------------------
  * IO routines that accept a list of pages.
  *---------------------------------------------------------------*/
-static void do_region(int rw, unsigned int region, struct io_region *where,
+static void do_region(int rw, unsigned region, struct dm_io_region *where,
 		      struct dpages *dp, struct io *io)
 {
 	struct bio *bio;
@@ -320,7 +321,7 @@ static void do_region(int rw, unsigned int region, struct io_region *where,
 }
 
 static void dispatch_io(int rw, unsigned int num_regions,
-			struct io_region *where, struct dpages *dp,
+			struct dm_io_region *where, struct dpages *dp,
 			struct io *io, int sync)
 {
 	int i;
@@ -347,7 +348,7 @@ static void dispatch_io(int rw, unsigned int num_regions,
 }
 
 static int sync_io(struct dm_io_client *client, unsigned int num_regions,
-		   struct io_region *where, int rw, struct dpages *dp,
+		   struct dm_io_region *where, int rw, struct dpages *dp,
 		   unsigned long *error_bits)
 {
 	struct io io;
@@ -384,7 +385,7 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 }
 
 static int async_io(struct dm_io_client *client, unsigned int num_regions,
-		    struct io_region *where, int rw, struct dpages *dp,
+		    struct dm_io_region *where, int rw, struct dpages *dp,
 		    io_notify_fn fn, void *context)
 {
 	struct io *io;
@@ -438,7 +439,7 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp)
  * New collapsed (a)synchronous interface
  */
 int dm_io(struct dm_io_request *io_req, unsigned num_regions,
-	  struct io_region *where, unsigned long *sync_error_bits)
+	  struct dm_io_region *where, unsigned long *sync_error_bits)
 {
 	int r;
 	struct dpages dp;

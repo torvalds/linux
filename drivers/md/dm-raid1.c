@@ -788,7 +788,7 @@ static int recover(struct mirror_set *ms, struct region *reg)
 {
 	int r;
 	unsigned int i;
-	struct io_region from, to[KCOPYD_MAX_REGIONS], *dest;
+	struct dm_io_region from, to[KCOPYD_MAX_REGIONS], *dest;
 	struct mirror *m;
 	unsigned long flags = 0;
 
@@ -907,7 +907,7 @@ static void map_bio(struct mirror *m, struct bio *bio)
 	bio->bi_sector = map_sector(m, bio);
 }
 
-static void map_region(struct io_region *io, struct mirror *m,
+static void map_region(struct dm_io_region *io, struct mirror *m,
 		       struct bio *bio)
 {
 	io->bdev = m->dev->bdev;
@@ -949,7 +949,7 @@ static void read_callback(unsigned long error, void *context)
 /* Asynchronous read. */
 static void read_async_bio(struct mirror *m, struct bio *bio)
 {
-	struct io_region io;
+	struct dm_io_region io;
 	struct dm_io_request io_req = {
 		.bi_rw = READ,
 		.mem.type = DM_IO_BVEC,
@@ -1105,7 +1105,7 @@ out:
 static void do_write(struct mirror_set *ms, struct bio *bio)
 {
 	unsigned int i;
-	struct io_region io[ms->nr_mirrors], *dest = io;
+	struct dm_io_region io[ms->nr_mirrors], *dest = io;
 	struct mirror *m;
 	struct dm_io_request io_req = {
 		.bi_rw = WRITE,

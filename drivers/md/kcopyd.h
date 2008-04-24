@@ -35,8 +35,8 @@ void kcopyd_client_destroy(struct kcopyd_client *kc);
 typedef void (*kcopyd_notify_fn)(int read_err, unsigned long write_err,
 				 void *context);
 
-int kcopyd_copy(struct kcopyd_client *kc, struct io_region *from,
-		unsigned int num_dests, struct io_region *dests,
+int kcopyd_copy(struct kcopyd_client *kc, struct dm_io_region *from,
+		unsigned num_dests, struct dm_io_region *dests,
 		unsigned int flags, kcopyd_notify_fn fn, void *context);
 
 #endif

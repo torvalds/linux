@@ -25,6 +25,7 @@
 #include <linux/mutex.h>
 
 #include "kcopyd.h"
+#include "dm.h"
 
 static struct workqueue_struct *_kcopyd_wq;
 static struct work_struct _kcopyd_work;
@@ -175,13 +176,13 @@ struct kcopyd_job {
 	 * Either READ or WRITE
 	 */
 	int rw;
-	struct io_region source;
+	struct dm_io_region source;
 
 	/*
 	 * The destinations for the transfer.
 	 */
 	unsigned int num_dests;
-	struct io_region dests[KCOPYD_MAX_REGIONS];
+	struct dm_io_region dests[KCOPYD_MAX_REGIONS];
 
 	sector_t offset;
 	unsigned int nr_pages;
@@ -526,8 +527,8 @@ static void split_job(struct kcopyd_job *job)
 		segment_complete(0, 0u, job);
 }
 
-int kcopyd_copy(struct kcopyd_client *kc, struct io_region *from,
-		unsigned int num_dests, struct io_region *dests,
+int kcopyd_copy(struct kcopyd_client *kc, struct dm_io_region *from,
+		unsigned int num_dests, struct dm_io_region *dests,
 		unsigned int flags, kcopyd_notify_fn fn, void *context)
 {
 	struct kcopyd_job *job;

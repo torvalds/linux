@@ -1,15 +1,20 @@
 /*
  * Copyright (C) 2003 Sistina Software
+ * Copyright (C) 2004 - 2008 Red Hat, Inc. All rights reserved.
+ *
+ * Device-Mapper low-level I/O.
  *
  * This file is released under the GPL.
  */
 
-#ifndef _DM_IO_H
-#define _DM_IO_H
+#ifndef _LINUX_DM_IO_H
+#define _LINUX_DM_IO_H
 
-#include "dm.h"
+#ifdef __KERNEL__
 
-struct io_region {
+#include <linux/types.h>
+
+struct dm_io_region {
 	struct block_device *bdev;
 	sector_t sector;
 	sector_t count;		/* If this is zero the region is ignored. */
@@ -74,6 +79,7 @@ void dm_io_client_destroy(struct dm_io_client *client);
  * error occurred doing io to the corresponding region.
  */
 int dm_io(struct dm_io_request *io_req, unsigned num_regions,
-	  struct io_region *region, unsigned long *sync_error_bits);
+	  struct dm_io_region *region, unsigned long *sync_error_bits);
 
-#endif
+#endif	/* __KERNEL__ */
+#endif	/* _LINUX_DM_IO_H */

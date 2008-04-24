@@ -159,7 +159,7 @@ static void free_area(struct pstore *ps)
 }
 
 struct mdata_req {
-	struct io_region *where;
+	struct dm_io_region *where;
 	struct dm_io_request *io_req;
 	struct work_struct work;
 	int result;
@@ -177,7 +177,7 @@ static void do_metadata(struct work_struct *work)
  */
 static int chunk_io(struct pstore *ps, uint32_t chunk, int rw, int metadata)
 {
-	struct io_region where = {
+	struct dm_io_region where = {
 		.bdev = ps->snap->cow->bdev,
 		.sector = ps->snap->chunk_size * chunk,
 		.count = ps->snap->chunk_size,
