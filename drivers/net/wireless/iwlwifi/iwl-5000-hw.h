@@ -83,6 +83,10 @@
 #define IWL50_NUM_QUEUES                  20
 #define IWL50_BACK_QUEUE_FIRST_ID         10
 
+#define IWL_sta_id_POS 12
+#define IWL_sta_id_LEN 4
+#define IWL_sta_id_SYM val
+
 /* Fixed (non-configurable) rx data from phy */
 
 /* Base physical address of iwl5000_shared is provided to SCD_DRAM_BASE_ADDR

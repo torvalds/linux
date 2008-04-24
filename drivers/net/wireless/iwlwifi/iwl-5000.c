@@ -314,6 +314,54 @@ static void iwl5000_free_shared_mem(struct iwl_priv *priv)
 				    priv->shared_phys);
 }
 
+/**
+ * iwl5000_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
+ */
+static void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
+					    struct iwl4965_tx_queue *txq,
+					    u16 byte_cnt)
+{
+	struct iwl5000_shared *shared_data = priv->shared_virt;
+	int txq_id = txq->q.id;
+	u8 sec_ctl = 0;
+	u8 sta = 0;
+	int len;
+
+	len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
+
+	if (txq_id != IWL_CMD_QUEUE_NUM) {
+		sta = txq->cmd[txq->q.write_ptr].cmd.tx.sta_id;
+		sec_ctl = txq->cmd[txq->q.write_ptr].cmd.tx.sec_ctl;
+
+		switch (sec_ctl & TX_CMD_SEC_MSK) {
+		case TX_CMD_SEC_CCM:
+			len += CCMP_MIC_LEN;
+			break;
+		case TX_CMD_SEC_TKIP:
+			len += TKIP_ICV_LEN;
+			break;
+		case TX_CMD_SEC_WEP:
+			len += WEP_IV_LEN + WEP_ICV_LEN;
+			break;
+		}
+	}
+
+	IWL_SET_BITS16(shared_data->queues_byte_cnt_tbls[txq_id].
+		       tfd_offset[txq->q.write_ptr], byte_cnt, len);
+
+	IWL_SET_BITS16(shared_data->queues_byte_cnt_tbls[txq_id].
+		       tfd_offset[txq->q.write_ptr], sta_id, sta);
+
+	if (txq->q.write_ptr < IWL50_MAX_WIN_SIZE) {
+		IWL_SET_BITS16(shared_data->queues_byte_cnt_tbls[txq_id].
+			tfd_offset[IWL50_QUEUE_SIZE + txq->q.write_ptr],
+			byte_cnt, len);
+		IWL_SET_BITS16(shared_data->queues_byte_cnt_tbls[txq_id].
+			tfd_offset[IWL50_QUEUE_SIZE + txq->q.write_ptr],
+			sta_id, sta);
+	}
+}
+
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 };
 
@@ -328,6 +376,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.alloc_shared_mem = iwl5000_alloc_shared_mem,
 	.free_shared_mem = iwl5000_free_shared_mem,
+	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.set_pwr_src = iwl4965_set_pwr_src,
