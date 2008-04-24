@@ -31,7 +31,7 @@
 #include <linux/version.h>
 #include <net/mac80211.h>
 
-#include "iwl-4965.h" /* FIXME: remove */
+#include "iwl-dev.h" /* FIXME: remove */
 #include "iwl-debug.h"
 #include "iwl-eeprom.h"
 #include "iwl-core.h"

@@ -24,7 +24,7 @@
  *
  *****************************************************************************/
 /*
- * Please use this file (iwl-4965.h) for driver implementation definitions.
+ * Please use this file (iwl-dev.h) for driver implementation definitions.
  * Please use iwl-commands.h for uCode API definitions.
  * Please use iwl-4965-hw.h for hardware-related definitions.
  */

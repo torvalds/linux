@@ -31,7 +31,7 @@
 #include <linux/etherdevice.h>
 
 #include "iwl-eeprom.h"
-#include "iwl-4965.h"
+#include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-sta.h"
 #include "iwl-io.h"

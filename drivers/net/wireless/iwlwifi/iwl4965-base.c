@@ -46,7 +46,7 @@
 #include <asm/div64.h>
 
 #include "iwl-eeprom.h"
-#include "iwl-4965.h"
+#include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"

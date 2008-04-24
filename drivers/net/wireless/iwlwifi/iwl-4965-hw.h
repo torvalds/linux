@@ -63,7 +63,7 @@
 /*
  * Please use this file (iwl-4965-hw.h) only for hardware-related definitions.
  * Use iwl-commands.h for uCode API definitions.
- * Use iwl-4965.h for driver implementation definitions.
+ * Use iwl-dev.h for driver implementation definitions.
  */
 
 #ifndef __iwl_4965_hw_h__

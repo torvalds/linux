@@ -33,7 +33,7 @@
 #include <net/mac80211.h>
 
 #include "iwl-eeprom.h"
-#include "iwl-4965.h"
+#include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-helpers.h"
 

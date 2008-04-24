@@ -39,7 +39,7 @@
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
 
-#include "iwl-4965.h"
+#include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"

@@ -34,7 +34,7 @@
 struct iwl_priv; /* FIXME: remove */
 #include "iwl-debug.h"
 #include "iwl-eeprom.h"
-#include "iwl-4965.h" /* FIXME: remove */
+#include "iwl-dev.h" /* FIXME: remove */
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-rfkill.h"

@@ -27,7 +27,7 @@
 #ifndef __iwl_4965_rs_h__
 #define __iwl_4965_rs_h__
 
-#include "iwl-4965.h"
+#include "iwl-dev.h"
 
 struct iwl4965_rate_info {
 	u8 plcp;	/* uCode API:  IWL_RATE_6M_PLCP, etc. */

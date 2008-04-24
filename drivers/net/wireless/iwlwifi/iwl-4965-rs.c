@@ -37,7 +37,7 @@
 
 #include "../net/mac80211/rate.h"
 
-#include "iwl-4965.h"
+#include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-helpers.h"
 

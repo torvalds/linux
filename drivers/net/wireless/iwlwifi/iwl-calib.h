@@ -69,7 +69,7 @@
 #include <net/mac80211.h>
 #include "iwl-eeprom.h"
 #include "iwl-core.h"
-#include "iwl-4965.h"
+#include "iwl-dev.h"
 
 #ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 void iwl_chain_noise_calibration(struct iwl_priv *priv,
