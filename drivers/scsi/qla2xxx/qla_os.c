@@ -2373,7 +2373,7 @@ qla2x00_do_dpc(void *data)
 					} else {
 						fcport->login_retry = 0;
 					}
-					if (fcport->login_retry == 0)
+					if (fcport->login_retry == 0 && status != QLA_SUCCESS)
 						fcport->loop_id = FC_NO_LOOP_ID;
 				}
 				if (test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags))
