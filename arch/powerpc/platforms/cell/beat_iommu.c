@@ -26,7 +26,7 @@
 
 #include <asm/machdep.h>
 
-#include "../cell/beat_wrapper.h"
+#include "beat_wrapper.h"
 
 #define DMA_FLAGS 0xf800000000000000UL	/* r/w permitted, coherency required,
 					   strongest order */
