@@ -1559,7 +1559,7 @@ linux_sparc_syscall32:
 
 	/* Linux native system calls enter here... */
 	.align	32
-	.globl	linux_sparc_syscall, ret_sys_call
+	.globl	linux_sparc_syscall
 linux_sparc_syscall:
 	/* Direct access to user regs, much faster. */
 	cmp		%g1, NR_SYSCALLS			! IEU1	Group
