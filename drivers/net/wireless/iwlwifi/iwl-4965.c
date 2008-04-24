@@ -4065,7 +4065,7 @@ int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 #endif /* CONFIG_IWL4965_HT */
 
 /* Set up 4965-specific Rx frame reply handlers */
-void iwl4965_hw_rx_handler_setup(struct iwl_priv *priv)
+static void iwl4965_rx_handler_setup(struct iwl_priv *priv)
 {
 	/* Legacy Rx frames */
 	priv->rx_handlers[REPLY_RX] = iwl4965_rx_reply_rx;
@@ -4119,6 +4119,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.free_shared_mem = iwl4965_free_shared_mem,
 	.txq_update_byte_cnt_tbl = iwl4965_txq_update_byte_cnt_tbl,
 	.hw_nic_init = iwl4965_hw_nic_init,
+	.rx_handler_setup = iwl4965_rx_handler_setup,
 	.is_valid_rtc_data_addr = iwl4965_hw_valid_rtc_data_addr,
 	.alive_notify = iwl4965_alive_notify,
 	.load_ucode = iwl4965_load_bsm,

@@ -105,6 +105,8 @@ struct iwl_lib_ops {
 	void (*txq_update_byte_cnt_tbl)(struct iwl_priv *priv,
 					struct iwl4965_tx_queue *txq,
 					u16 byte_cnt);
+	/* setup Rx handler */
+	void (*rx_handler_setup)(struct iwl_priv *priv);
 	/* nic init */
 	int (*hw_nic_init)(struct iwl_priv *priv);
 	/* alive notification */
