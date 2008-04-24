@@ -56,13 +56,13 @@
 #include <asm/rtas.h>
 #include <asm/cell-regs.h>
 
+#include "../celleb/interrupt.h"
+#include "../celleb/beat_wrapper.h"
+#include "../celleb/beat.h"
+#include "celleb_pci.h"
 #include "interrupt.h"
-#include "beat_wrapper.h"
-#include "beat.h"
-#include "pci.h"
-#include "../cell/interrupt.h"
-#include "../cell/pervasive.h"
-#include "../cell/ras.h"
+#include "pervasive.h"
+#include "ras.h"
 
 static char celleb_machine_type[128] = "Celleb";
 

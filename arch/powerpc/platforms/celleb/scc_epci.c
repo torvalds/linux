@@ -35,7 +35,7 @@
 #include <asm/ppc-pci.h>
 
 #include "scc.h"
-#include "pci.h"
+#include "../cell/celleb_pci.h"
 #include "interrupt.h"
 
 #define MAX_PCI_DEVICES   32

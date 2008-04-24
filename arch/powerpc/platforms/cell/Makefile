@@ -31,5 +31,7 @@ obj-$(CONFIG_PCI_MSI)			+= axon_msi.o
 
 # celleb stuff
 ifeq ($(CONFIG_PPC_CELLEB),y)
-obj-y					+= io-workarounds.o spider-pci.o
+obj-y					+= celleb_setup.o \
+					   celleb_pci.o \
+					   io-workarounds.o spider-pci.o
 endif

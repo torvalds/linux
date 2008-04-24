@@ -1,5 +1,5 @@
-obj-y				+= interrupt.o iommu.o setup.o \
-				   htab.o beat.o hvCall.o pci.o \
+obj-y				+= interrupt.o iommu.o \
+				   htab.o beat.o hvCall.o \
 				   scc_epci.o scc_uhc.o
 
 obj-$(CONFIG_SMP)		+= smp.o

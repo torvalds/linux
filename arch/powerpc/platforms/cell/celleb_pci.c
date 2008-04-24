@@ -37,13 +37,11 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
-#include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 
-#include "../cell/io-workarounds.h"
-#include "pci.h"
-#include "interrupt.h"
+#include "io-workarounds.h"
+#include "celleb_pci.h"
 
 #define MAX_PCI_DEVICES    32
 #define MAX_PCI_FUNCTIONS   8
@@ -191,7 +189,7 @@ static int celleb_fake_pci_read_config(struct pci_bus *bus,
 
 
 static int celleb_fake_pci_write_config(struct pci_bus *bus,
-		 unsigned int devfn, int where, int size, u32 val)
+		unsigned int devfn, int where, int size, u32 val)
 {
 	char *config;
 	struct device_node *node;
