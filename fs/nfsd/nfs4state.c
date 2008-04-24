@@ -2712,9 +2712,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	* Note: locks.c uses the BKL to protect the inode's lock list.
 	*/
 
-	/* XXX?: Just to divert the locks_release_private at the start of
-	 * locks_copy_lock: */
-	locks_init_lock(&conflock);
 	err = vfs_lock_file(filp, cmd, &file_lock, &conflock);
 	switch (-err) {
 	case 0: /* success! */

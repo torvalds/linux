@@ -224,7 +224,7 @@ static void locks_copy_private(struct file_lock *new, struct file_lock *fl)
 /*
  * Initialize a new lock from an existing file_lock structure.
  */
-static void __locks_copy_lock(struct file_lock *new, const struct file_lock *fl)
+void __locks_copy_lock(struct file_lock *new, const struct file_lock *fl)
 {
 	new->fl_owner = fl->fl_owner;
 	new->fl_pid = fl->fl_pid;
@@ -833,7 +833,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 			if (!posix_locks_conflict(request, fl))
 				continue;
 			if (conflock)
-				locks_copy_lock(conflock, fl);
+				__locks_copy_lock(conflock, fl);
 			error = -EAGAIN;
 			if (!(request->fl_flags & FL_SLEEP))
 				goto out;
