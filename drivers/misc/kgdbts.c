@@ -47,6 +47,7 @@
  *       to test the HW NMI watchdog
  * F## = Break at do_fork for ## iterations
  * S## = Break at sys_open for ## iterations
+ * I## = Run the single step test ## iterations
  *
  * NOTE: that the do_fork and sys_open tests are mutually exclusive.
  *
@@ -875,7 +876,9 @@ static void kgdbts_run_tests(void)
 	char *ptr;
 	int fork_test = 0;
 	int do_sys_open_test = 0;
+	int sstep_test = 1000;
 	int nmi_sleep = 0;
+	int i;
 
 	ptr = strstr(config, "F");
 	if (ptr)
@@ -886,6 +889,9 @@ static void kgdbts_run_tests(void)
 	ptr = strstr(config, "N");
 	if (ptr)
 		nmi_sleep = simple_strtol(ptr+1, NULL, 10);
+	ptr = strstr(config, "I");
+	if (ptr)
+		sstep_test = simple_strtol(ptr+1, NULL, 10);
 
 	/* required internal KGDB tests */
 	v1printk("kgdbts:RUN plant and detach test\n");
@@ -894,8 +900,13 @@ static void kgdbts_run_tests(void)
 	run_breakpoint_test(0);
 	v1printk("kgdbts:RUN bad memory access test\n");
 	run_bad_read_test();
-	v1printk("kgdbts:RUN singlestep breakpoint test\n");
-	run_singlestep_break_test();
+	v1printk("kgdbts:RUN singlestep test %i iterations\n", sstep_test);
+	for (i = 0; i < sstep_test; i++) {
+		run_singlestep_break_test();
+		if (i % 100 == 0)
+			v1printk("kgdbts:RUN singlestep [%i/%i]\n",
+				 i, sstep_test);
+	}
 
 	/* ===Optional tests=== */
 
