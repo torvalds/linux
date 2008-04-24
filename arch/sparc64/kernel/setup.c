@@ -82,7 +82,7 @@ unsigned long cmdline_memory_size = 0;
 static struct console prom_early_console = {
 	.name =		"earlyprom",
 	.write =	prom_console_write,
-	.flags =	CON_PRINTBUFFER | CON_BOOT,
+	.flags =	CON_PRINTBUFFER | CON_BOOT | CON_ANYTIME,
 	.index =	-1,
 };
 
