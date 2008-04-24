@@ -74,7 +74,7 @@ struct region_hash {
 	unsigned region_shift;
 
 	/* holds persistent region state */
-	struct dirty_log *log;
+	struct dm_dirty_log *log;
 
 	/* hash table */
 	rwlock_t hash_lock;
@@ -184,7 +184,7 @@ static void queue_bio(struct mirror_set *ms, struct bio *bio, int rw);
 #define MIN_REGIONS 64
 #define MAX_RECOVERY 1
 static int rh_init(struct region_hash *rh, struct mirror_set *ms,
-		   struct dirty_log *log, uint32_t region_size,
+		   struct dm_dirty_log *log, uint32_t region_size,
 		   region_t nr_regions)
 {
 	unsigned int nr_buckets, max_buckets;
@@ -249,7 +249,7 @@ static void rh_exit(struct region_hash *rh)
 	}
 
 	if (rh->log)
-		dm_destroy_dirty_log(rh->log);
+		dm_dirty_log_destroy(rh->log);
 	if (rh->region_pool)
 		mempool_destroy(rh->region_pool);
 	vfree(rh->buckets);
@@ -831,7 +831,7 @@ static void do_recovery(struct mirror_set *ms)
 {
 	int r;
 	struct region *reg;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 
 	/*
 	 * Start quiescing some regions.
@@ -1017,7 +1017,7 @@ static void __bio_mark_nosync(struct mirror_set *ms,
 {
 	unsigned long flags;
 	struct region_hash *rh = &ms->rh;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 	struct region *reg;
 	region_t region = bio_to_region(rh, bio);
 	int recovering = 0;
@@ -1301,7 +1301,7 @@ static void do_mirror(struct work_struct *work)
 static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 					uint32_t region_size,
 					struct dm_target *ti,
-					struct dirty_log *dl)
+					struct dm_dirty_log *dl)
 {
 	size_t len;
 	struct mirror_set *ms = NULL;
@@ -1401,12 +1401,12 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 /*
  * Create dirty log: log_type #log_params <log_params>
  */
-static struct dirty_log *create_dirty_log(struct dm_target *ti,
+static struct dm_dirty_log *create_dirty_log(struct dm_target *ti,
 					  unsigned int argc, char **argv,
 					  unsigned int *args_used)
 {
 	unsigned int param_count;
-	struct dirty_log *dl;
+	struct dm_dirty_log *dl;
 
 	if (argc < 2) {
 		ti->error = "Insufficient mirror log arguments";
@@ -1425,7 +1425,7 @@ static struct dirty_log *create_dirty_log(struct dm_target *ti,
 		return NULL;
 	}
 
-	dl = dm_create_dirty_log(argv[0], ti, param_count, argv + 2);
+	dl = dm_dirty_log_create(argv[0], ti, param_count, argv + 2);
 	if (!dl) {
 		ti->error = "Error creating mirror dirty log";
 		return NULL;
@@ -1433,7 +1433,7 @@ static struct dirty_log *create_dirty_log(struct dm_target *ti,
 
 	if (!_check_region_size(ti, dl->type->get_region_size(dl))) {
 		ti->error = "Invalid region size";
-		dm_destroy_dirty_log(dl);
+		dm_dirty_log_destroy(dl);
 		return NULL;
 	}
 
@@ -1494,7 +1494,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int r;
 	unsigned int nr_mirrors, m, args_used;
 	struct mirror_set *ms;
-	struct dirty_log *dl;
+	struct dm_dirty_log *dl;
 
 	dl = create_dirty_log(ti, argc, argv, &args_used);
 	if (!dl)
@@ -1506,7 +1506,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (!argc || sscanf(argv[0], "%u", &nr_mirrors) != 1 ||
 	    nr_mirrors < 2 || nr_mirrors > DM_KCOPYD_MAX_REGIONS + 1) {
 		ti->error = "Invalid number of mirrors";
-		dm_destroy_dirty_log(dl);
+		dm_dirty_log_destroy(dl);
 		return -EINVAL;
 	}
 
@@ -1514,13 +1514,13 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (argc < nr_mirrors * 2) {
 		ti->error = "Too few mirror arguments";
-		dm_destroy_dirty_log(dl);
+		dm_dirty_log_destroy(dl);
 		return -EINVAL;
 	}
 
 	ms = alloc_context(nr_mirrors, dl->type->get_region_size(dl), ti, dl);
 	if (!ms) {
-		dm_destroy_dirty_log(dl);
+		dm_dirty_log_destroy(dl);
 		return -ENOMEM;
 	}
 
@@ -1732,7 +1732,7 @@ out:
 static void mirror_presuspend(struct dm_target *ti)
 {
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 
 	atomic_set(&ms->suspend, 1);
 
@@ -1761,7 +1761,7 @@ static void mirror_presuspend(struct dm_target *ti)
 static void mirror_postsuspend(struct dm_target *ti)
 {
 	struct mirror_set *ms = ti->private;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 
 	if (log->type->postsuspend && log->type->postsuspend(log))
 		/* FIXME: need better error handling */
@@ -1771,7 +1771,7 @@ static void mirror_postsuspend(struct dm_target *ti)
 static void mirror_resume(struct dm_target *ti)
 {
 	struct mirror_set *ms = ti->private;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 
 	atomic_set(&ms->suspend, 0);
 	if (log->type->resume && log->type->resume(log))
@@ -1809,7 +1809,7 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 {
 	unsigned int m, sz = 0;
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 	char buffer[ms->nr_mirrors + 1];
 
 	switch (type) {

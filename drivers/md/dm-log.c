@@ -12,13 +12,14 @@
 
 #include "dm-log.h"
 #include "dm-io.h"
+#include "dm.h"
 
 #define DM_MSG_PREFIX "dirty region log"
 
 static LIST_HEAD(_log_types);
 static DEFINE_SPINLOCK(_lock);
 
-int dm_register_dirty_log_type(struct dirty_log_type *type)
+int dm_dirty_log_type_register(struct dm_dirty_log_type *type)
 {
 	spin_lock(&_lock);
 	type->use_count = 0;
@@ -27,8 +28,9 @@ int dm_register_dirty_log_type(struct dirty_log_type *type)
 
 	return 0;
 }
+EXPORT_SYMBOL(dm_dirty_log_type_register);
 
-int dm_unregister_dirty_log_type(struct dirty_log_type *type)
+int dm_dirty_log_type_unregister(struct dm_dirty_log_type *type)
 {
 	spin_lock(&_lock);
 
@@ -41,10 +43,11 @@ int dm_unregister_dirty_log_type(struct dirty_log_type *type)
 
 	return 0;
 }
+EXPORT_SYMBOL(dm_dirty_log_type_unregister);
 
-static struct dirty_log_type *_get_type(const char *type_name)
+static struct dm_dirty_log_type *_get_type(const char *type_name)
 {
-	struct dirty_log_type *type;
+	struct dm_dirty_log_type *type;
 
 	spin_lock(&_lock);
 	list_for_each_entry (type, &_log_types, list)
@@ -79,10 +82,10 @@ static struct dirty_log_type *_get_type(const char *type_name)
  *
  * Returns: dirty_log_type* on success, NULL on failure
  */
-static struct dirty_log_type *get_type(const char *type_name)
+static struct dm_dirty_log_type *get_type(const char *type_name)
 {
 	char *p, *type_name_dup;
-	struct dirty_log_type *type;
+	struct dm_dirty_log_type *type;
 
 	type = _get_type(type_name);
 	if (type)
@@ -111,7 +114,7 @@ static struct dirty_log_type *get_type(const char *type_name)
 	return type;
 }
 
-static void put_type(struct dirty_log_type *type)
+static void put_type(struct dm_dirty_log_type *type)
 {
 	spin_lock(&_lock);
 	if (!--type->use_count)
@@ -119,11 +122,12 @@ static void put_type(struct dirty_log_type *type)
 	spin_unlock(&_lock);
 }
 
-struct dirty_log *dm_create_dirty_log(const char *type_name, struct dm_target *ti,
-				      unsigned int argc, char **argv)
+struct dm_dirty_log *dm_dirty_log_create(const char *type_name,
+					 struct dm_target *ti,
+					 unsigned int argc, char **argv)
 {
-	struct dirty_log_type *type;
-	struct dirty_log *log;
+	struct dm_dirty_log_type *type;
+	struct dm_dirty_log *log;
 
 	log = kmalloc(sizeof(*log), GFP_KERNEL);
 	if (!log)
@@ -144,13 +148,15 @@ struct dirty_log *dm_create_dirty_log(const char *type_name, struct dm_target *t
 
 	return log;
 }
+EXPORT_SYMBOL(dm_dirty_log_create);
 
-void dm_destroy_dirty_log(struct dirty_log *log)
+void dm_dirty_log_destroy(struct dm_dirty_log *log)
 {
 	log->type->dtr(log);
 	put_type(log->type);
 	kfree(log);
 }
+EXPORT_SYMBOL(dm_dirty_log_destroy);
 
 /*-----------------------------------------------------------------
  * Persistent and core logs share a lot of their implementation.
@@ -216,7 +222,7 @@ struct log_c {
  * The touched member needs to be updated every time we access
  * one of the bitsets.
  */
-static  inline int log_test_bit(uint32_t *bs, unsigned bit)
+static inline int log_test_bit(uint32_t *bs, unsigned bit)
 {
 	return ext2_test_bit(bit, (unsigned long *) bs) ? 1 : 0;
 }
@@ -303,7 +309,7 @@ static inline int write_header(struct log_c *log)
  * argv contains region_size followed optionally by [no]sync
  *--------------------------------------------------------------*/
 #define BYTE_SHIFT 3
-static int create_log_context(struct dirty_log *log, struct dm_target *ti,
+static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 			      unsigned int argc, char **argv,
 			      struct dm_dev *dev)
 {
@@ -435,7 +441,7 @@ static int create_log_context(struct dirty_log *log, struct dm_target *ti,
 	return 0;
 }
 
-static int core_ctr(struct dirty_log *log, struct dm_target *ti,
+static int core_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 		    unsigned int argc, char **argv)
 {
 	return create_log_context(log, ti, argc, argv, NULL);
@@ -448,7 +454,7 @@ static void destroy_log_context(struct log_c *lc)
 	kfree(lc);
 }
 
-static void core_dtr(struct dirty_log *log)
+static void core_dtr(struct dm_dirty_log *log)
 {
 	struct log_c *lc = (struct log_c *) log->context;
 
@@ -461,7 +467,7 @@ static void core_dtr(struct dirty_log *log)
  *
  * argv contains log_device region_size followed optionally by [no]sync
  *--------------------------------------------------------------*/
-static int disk_ctr(struct dirty_log *log, struct dm_target *ti,
+static int disk_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 		    unsigned int argc, char **argv)
 {
 	int r;
@@ -486,7 +492,7 @@ static int disk_ctr(struct dirty_log *log, struct dm_target *ti,
 	return 0;
 }
 
-static void disk_dtr(struct dirty_log *log)
+static void disk_dtr(struct dm_dirty_log *log)
 {
 	struct log_c *lc = (struct log_c *) log->context;
 
@@ -515,7 +521,7 @@ static void fail_log_device(struct log_c *lc)
 	dm_table_event(lc->ti->table);
 }
 
-static int disk_resume(struct dirty_log *log)
+static int disk_resume(struct dm_dirty_log *log)
 {
 	int r;
 	unsigned i;
@@ -571,38 +577,38 @@ static int disk_resume(struct dirty_log *log)
 	return r;
 }
 
-static uint32_t core_get_region_size(struct dirty_log *log)
+static uint32_t core_get_region_size(struct dm_dirty_log *log)
 {
 	struct log_c *lc = (struct log_c *) log->context;
 	return lc->region_size;
 }
 
-static int core_resume(struct dirty_log *log)
+static int core_resume(struct dm_dirty_log *log)
 {
 	struct log_c *lc = (struct log_c *) log->context;
 	lc->sync_search = 0;
 	return 0;
 }
 
-static int core_is_clean(struct dirty_log *log, region_t region)
+static int core_is_clean(struct dm_dirty_log *log, region_t region)
 {
 	struct log_c *lc = (struct log_c *) log->context;
 	return log_test_bit(lc->clean_bits, region);
 }
 
-static int core_in_sync(struct dirty_log *log, region_t region, int block)
+static int core_in_sync(struct dm_dirty_log *log, region_t region, int block)
 {
 	struct log_c *lc = (struct log_c *) log->context;
 	return log_test_bit(lc->sync_bits, region);
 }
 
-static int core_flush(struct dirty_log *log)
+static int core_flush(struct dm_dirty_log *log)
 {
 	/* no op */
 	return 0;
 }
 
-static int disk_flush(struct dirty_log *log)
+static int disk_flush(struct dm_dirty_log *log)
 {
 	int r;
 	struct log_c *lc = (struct log_c *) log->context;
@@ -620,19 +626,19 @@ static int disk_flush(struct dirty_log *log)
 	return r;
 }
 
-static void core_mark_region(struct dirty_log *log, region_t region)
+static void core_mark_region(struct dm_dirty_log *log, region_t region)
 {
 	struct log_c *lc = (struct log_c *) log->context;
 	log_clear_bit(lc, lc->clean_bits, region);
 }
 
-static void core_clear_region(struct dirty_log *log, region_t region)
+static void core_clear_region(struct dm_dirty_log *log, region_t region)
 {
 	struct log_c *lc = (struct log_c *) log->context;
 	log_set_bit(lc, lc->clean_bits, region);
 }
 
-static int core_get_resync_work(struct dirty_log *log, region_t *region)
+static int core_get_resync_work(struct dm_dirty_log *log, region_t *region)
 {
 	struct log_c *lc = (struct log_c *) log->context;
 
@@ -655,7 +661,7 @@ static int core_get_resync_work(struct dirty_log *log, region_t *region)
 	return 1;
 }
 
-static void core_set_region_sync(struct dirty_log *log, region_t region,
+static void core_set_region_sync(struct dm_dirty_log *log, region_t region,
 				 int in_sync)
 {
 	struct log_c *lc = (struct log_c *) log->context;
@@ -670,7 +676,7 @@ static void core_set_region_sync(struct dirty_log *log, region_t region,
 	}
 }
 
-static region_t core_get_sync_count(struct dirty_log *log)
+static region_t core_get_sync_count(struct dm_dirty_log *log)
 {
         struct log_c *lc = (struct log_c *) log->context;
 
@@ -681,7 +687,7 @@ static region_t core_get_sync_count(struct dirty_log *log)
 	if (lc->sync != DEFAULTSYNC) \
 		DMEMIT("%ssync ", lc->sync == NOSYNC ? "no" : "")
 
-static int core_status(struct dirty_log *log, status_type_t status,
+static int core_status(struct dm_dirty_log *log, status_type_t status,
 		       char *result, unsigned int maxlen)
 {
 	int sz = 0;
@@ -701,7 +707,7 @@ static int core_status(struct dirty_log *log, status_type_t status,
 	return sz;
 }
 
-static int disk_status(struct dirty_log *log, status_type_t status,
+static int disk_status(struct dm_dirty_log *log, status_type_t status,
 		       char *result, unsigned int maxlen)
 {
 	int sz = 0;
@@ -723,7 +729,7 @@ static int disk_status(struct dirty_log *log, status_type_t status,
 	return sz;
 }
 
-static struct dirty_log_type _core_type = {
+static struct dm_dirty_log_type _core_type = {
 	.name = "core",
 	.module = THIS_MODULE,
 	.ctr = core_ctr,
@@ -741,7 +747,7 @@ static struct dirty_log_type _core_type = {
 	.status = core_status,
 };
 
-static struct dirty_log_type _disk_type = {
+static struct dm_dirty_log_type _disk_type = {
 	.name = "disk",
 	.module = THIS_MODULE,
 	.ctr = disk_ctr,
@@ -764,14 +770,14 @@ int __init dm_dirty_log_init(void)
 {
 	int r;
 
-	r = dm_register_dirty_log_type(&_core_type);
+	r = dm_dirty_log_type_register(&_core_type);
 	if (r)
 		DMWARN("couldn't register core log");
 
-	r = dm_register_dirty_log_type(&_disk_type);
+	r = dm_dirty_log_type_register(&_disk_type);
 	if (r) {
 		DMWARN("couldn't register disk type");
-		dm_unregister_dirty_log_type(&_core_type);
+		dm_dirty_log_type_unregister(&_core_type);
 	}
 
 	return r;
@@ -779,14 +785,9 @@ int __init dm_dirty_log_init(void)
 
 void __exit dm_dirty_log_exit(void)
 {
-	dm_unregister_dirty_log_type(&_disk_type);
-	dm_unregister_dirty_log_type(&_core_type);
+	dm_dirty_log_type_unregister(&_disk_type);
+	dm_dirty_log_type_unregister(&_core_type);
 }
-
-EXPORT_SYMBOL(dm_register_dirty_log_type);
-EXPORT_SYMBOL(dm_unregister_dirty_log_type);
-EXPORT_SYMBOL(dm_create_dirty_log);
-EXPORT_SYMBOL(dm_destroy_dirty_log);
 
 module_init(dm_dirty_log_init);
 module_exit(dm_dirty_log_exit);

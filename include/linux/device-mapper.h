@@ -10,6 +10,8 @@
 
 #ifdef __KERNEL__
 
+#include <linux/bio.h>
+
 struct dm_target;
 struct dm_table;
 struct dm_dev;

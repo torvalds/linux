@@ -189,4 +189,10 @@ int dm_lock_for_deletion(struct mapped_device *md);
 
 void dm_kobject_uevent(struct mapped_device *md);
 
+/*
+ * Dirty log
+ */
+int dm_dirty_log_init(void);
+void dm_dirty_log_exit(void);
+
 #endif
