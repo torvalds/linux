@@ -25,10 +25,8 @@ struct dm_dirty_log {
 };
 
 struct dm_dirty_log_type {
-	struct list_head list;
 	const char *name;
 	struct module *module;
-	unsigned use_count;
 
 	int (*ctr)(struct dm_dirty_log *log, struct dm_target *ti,
 		   unsigned argc, char **argv);

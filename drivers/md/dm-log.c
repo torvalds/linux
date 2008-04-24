@@ -16,34 +16,51 @@
 
 #define DM_MSG_PREFIX "dirty region log"
 
+struct dm_dirty_log_internal {
+	struct dm_dirty_log_type *type;
+
+	struct list_head list;
+	long use;
+};
+
 static LIST_HEAD(_log_types);
 static DEFINE_SPINLOCK(_lock);
 
-static struct dm_dirty_log_type *_get_type(const char *type_name)
+static struct dm_dirty_log_internal *__find_dirty_log_type(const char *name)
 {
-	struct dm_dirty_log_type *type;
+	struct dm_dirty_log_internal *log_type;
+
+	list_for_each_entry(log_type, &_log_types, list)
+		if (!strcmp(name, log_type->type->name))
+			return log_type;
+
+	return NULL;
+}
+
+static struct dm_dirty_log_internal *_get_dirty_log_type(const char *name)
+{
+	struct dm_dirty_log_internal *log_type;
 
 	spin_lock(&_lock);
-	list_for_each_entry (type, &_log_types, list)
-		if (!strcmp(type_name, type->name)) {
-			if (!type->use_count && !try_module_get(type->module)){
-				spin_unlock(&_lock);
-				return NULL;
-			}
-			type->use_count++;
-			spin_unlock(&_lock);
-			return type;
-		}
+
+	log_type = __find_dirty_log_type(name);
+	if (log_type) {
+		if (!log_type->use && !try_module_get(log_type->type->module))
+			log_type = NULL;
+		else
+			log_type->use++;
+	}
 
 	spin_unlock(&_lock);
-	return NULL;
+
+	return log_type;
 }
 
 /*
  * get_type
  * @type_name
  *
- * Attempt to retrieve the dirty_log_type by name.  If not already
+ * Attempt to retrieve the dm_dirty_log_type by name.  If not already
  * available, attempt to load the appropriate module.
  *
  * Log modules are named "dm-log-" followed by the 'type_name'.
@@ -59,11 +76,14 @@ static struct dm_dirty_log_type *_get_type(const char *type_name)
 static struct dm_dirty_log_type *get_type(const char *type_name)
 {
 	char *p, *type_name_dup;
-	struct dm_dirty_log_type *type;
+	struct dm_dirty_log_internal *log_type;
 
-	type = _get_type(type_name);
-	if (type)
-		return type;
+	if (!type_name)
+		return NULL;
+
+	log_type = _get_dirty_log_type(type_name);
+	if (log_type)
+		return log_type->type;
 
 	type_name_dup = kstrdup(type_name, GFP_KERNEL);
 	if (!type_name_dup) {
@@ -73,50 +93,95 @@ static struct dm_dirty_log_type *get_type(const char *type_name)
 	}
 
 	while (request_module("dm-log-%s", type_name_dup) ||
-	       !(type = _get_type(type_name))) {
+	       !(log_type = _get_dirty_log_type(type_name))) {
 		p = strrchr(type_name_dup, '-');
 		if (!p)
 			break;
 		p[0] = '\0';
 	}
 
-	if (!type)
+	if (!log_type)
 		DMWARN("Module for logging type \"%s\" not found.", type_name);
 
 	kfree(type_name_dup);
 
-	return type;
+	return log_type ? log_type->type : NULL;
 }
 
 static void put_type(struct dm_dirty_log_type *type)
 {
+	struct dm_dirty_log_internal *log_type;
+
+	if (!type)
+		return;
+
 	spin_lock(&_lock);
-	if (!--type->use_count)
+	log_type = __find_dirty_log_type(type->name);
+	if (!log_type)
+		goto out;
+
+	if (!--log_type->use)
 		module_put(type->module);
+
+	BUG_ON(log_type->use < 0);
+
+out:
 	spin_unlock(&_lock);
+}
+
+static struct dm_dirty_log_internal *_alloc_dirty_log_type(struct dm_dirty_log_type *type)
+{
+	struct dm_dirty_log_internal *log_type = kzalloc(sizeof(*log_type),
+							 GFP_KERNEL);
+
+	if (log_type)
+		log_type->type = type;
+
+	return log_type;
 }
 
 int dm_dirty_log_type_register(struct dm_dirty_log_type *type)
 {
+	struct dm_dirty_log_internal *log_type = _alloc_dirty_log_type(type);
+	int r = 0;
+
+	if (!log_type)
+		return -ENOMEM;
+
 	spin_lock(&_lock);
-	type->use_count = 0;
-	list_add(&type->list, &_log_types);
+	if (!__find_dirty_log_type(type->name))
+		list_add(&log_type->list, &_log_types);
+	else {
+		kfree(log_type);
+		r = -EEXIST;
+	}
 	spin_unlock(&_lock);
 
-	return 0;
+	return r;
 }
 EXPORT_SYMBOL(dm_dirty_log_type_register);
 
 int dm_dirty_log_type_unregister(struct dm_dirty_log_type *type)
 {
+	struct dm_dirty_log_internal *log_type;
+
 	spin_lock(&_lock);
 
-	if (type->use_count)
-		DMWARN("Attempt to unregister a log type that is still in use");
-	else
-		list_del(&type->list);
+	log_type = __find_dirty_log_type(type->name);
+	if (!log_type) {
+		spin_unlock(&_lock);
+		return -EINVAL;
+	}
+
+	if (log_type->use) {
+		spin_unlock(&_lock);
+		return -ETXTBSY;
+	}
+
+	list_del(&log_type->list);
 
 	spin_unlock(&_lock);
+	kfree(log_type);
 
 	return 0;
 }
