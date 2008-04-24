@@ -134,9 +134,12 @@ static struct sys_device lpd270_irq_device = {
 
 static int __init lpd270_irq_device_init(void)
 {
-	int ret = sysdev_class_register(&lpd270_irq_sysclass);
-	if (ret == 0)
-		ret = sysdev_register(&lpd270_irq_device);
+	int ret = -ENODEV;
+	if (machine_is_logicpd_pxa270()) {
+		ret = sysdev_class_register(&lpd270_irq_sysclass);
+		if (ret == 0)
+			ret = sysdev_register(&lpd270_irq_device);
+	}
 	return ret;
 }
 
