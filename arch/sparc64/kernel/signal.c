@@ -580,8 +580,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	}
 }
 
-void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, int restart_syscall,
-		      unsigned long thread_info_flags)
+void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long thread_info_flags)
 {
 	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
 		do_signal(regs, orig_i0);

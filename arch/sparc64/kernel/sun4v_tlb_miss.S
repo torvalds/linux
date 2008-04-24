@@ -262,7 +262,7 @@ sun4v_iacc:
 	mov	%l5, %o2
 	call	sun4v_insn_access_exception
 	 add	%sp, PTREGS_OFF, %o0
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 	/* Instruction Access Exception, tl1. */
 sun4v_iacc_tl1:
@@ -278,7 +278,7 @@ sun4v_iacc_tl1:
 	mov	%l5, %o2
 	call	sun4v_insn_access_exception_tl1
 	 add	%sp, PTREGS_OFF, %o0
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 	/* Data Access Exception, tl0. */
 sun4v_dacc:
@@ -294,7 +294,7 @@ sun4v_dacc:
 	mov	%l5, %o2
 	call	sun4v_data_access_exception
 	 add	%sp, PTREGS_OFF, %o0
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 	/* Data Access Exception, tl1. */
 sun4v_dacc_tl1:
@@ -310,7 +310,7 @@ sun4v_dacc_tl1:
 	mov	%l5, %o2
 	call	sun4v_data_access_exception_tl1
 	 add	%sp, PTREGS_OFF, %o0
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 	/* Memory Address Unaligned.  */
 sun4v_mna:
@@ -344,7 +344,7 @@ sun4v_mna:
 	mov	%l5, %o2
 	call	sun4v_do_mna
 	 add	%sp, PTREGS_OFF, %o0
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 	/* Privileged Action.  */
 sun4v_privact:
@@ -352,7 +352,7 @@ sun4v_privact:
 	 rd	%pc, %g7
 	call	do_privact
 	 add	%sp, PTREGS_OFF, %o0
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 	/* Unaligned ldd float, tl0. */
 sun4v_lddfmna:
@@ -368,7 +368,7 @@ sun4v_lddfmna:
 	mov	%l5, %o2
 	call	handle_lddfmna
 	 add	%sp, PTREGS_OFF, %o0
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 	/* Unaligned std float, tl0. */
 sun4v_stdfmna:
@@ -384,7 +384,7 @@ sun4v_stdfmna:
 	mov	%l5, %o2
 	call	handle_stdfmna
 	 add	%sp, PTREGS_OFF, %o0
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 #define BRANCH_ALWAYS	0x10680000
 #define NOP		0x01000000
