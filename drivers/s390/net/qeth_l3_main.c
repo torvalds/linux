@@ -2568,9 +2568,10 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	 * v6 uses passthrough, v4 sets the tag in the QDIO header.
 	 */
 	if (card->vlangrp && vlan_tx_tag_present(skb)) {
-		hdr->hdr.l3.ext_flags = (ipv == 4) ?
-			QETH_HDR_EXT_VLAN_FRAME :
-			QETH_HDR_EXT_INCLUDE_VLAN_TAG;
+		if ((ipv == 4) || (card->info.type == QETH_CARD_TYPE_IQD))
+			hdr->hdr.l3.ext_flags = QETH_HDR_EXT_VLAN_FRAME;
+		else
+			hdr->hdr.l3.ext_flags = QETH_HDR_EXT_INCLUDE_VLAN_TAG;
 		hdr->hdr.l3.vlan_id = vlan_tx_tag_get(skb);
 	}
 
