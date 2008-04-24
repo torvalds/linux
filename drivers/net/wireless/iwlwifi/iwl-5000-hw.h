@@ -68,6 +68,11 @@
 #ifndef __iwl_5000_hw_h__
 #define __iwl_5000_hw_h__
 
+#define IWL50_RTC_INST_UPPER_BOUND		(0x020000)
+#define IWL50_RTC_DATA_UPPER_BOUND		(0x80C000)
+#define IWL50_RTC_INST_SIZE (IWL50_RTC_INST_UPPER_BOUND - RTC_INST_LOWER_BOUND)
+#define IWL50_RTC_DATA_SIZE (IWL50_RTC_DATA_UPPER_BOUND - RTC_DATA_LOWER_BOUND)
+
 /* EERPROM */
 #define IWL_5000_EEPROM_IMG_SIZE			2048
 
@@ -77,6 +82,48 @@
 #define IWL50_CMD_FIFO_NUM                 7
 #define IWL50_NUM_QUEUES                  20
 #define IWL50_BACK_QUEUE_FIRST_ID         10
+
+/* Fixed (non-configurable) rx data from phy */
+
+/* Base physical address of iwl5000_shared is provided to SCD_DRAM_BASE_ADDR
+ * and &iwl5000_shared.val0 is provided to FH_RSCSR_CHNL0_STTS_WPTR_REG */
+struct iwl5000_sched_queue_byte_cnt_tbl {
+	struct iwl4965_queue_byte_cnt_entry tfd_offset[IWL50_QUEUE_SIZE +
+						       IWL50_MAX_WIN_SIZE];
+} __attribute__ ((packed));
+
+struct iwl5000_shared {
+	struct iwl5000_sched_queue_byte_cnt_tbl
+	 queues_byte_cnt_tbls[IWL50_NUM_QUEUES];
+	__le32 rb_closed;
+
+	/* __le32 rb_closed_stts_rb_num:12; */
+#define IWL_rb_closed_stts_rb_num_POS 0
+#define IWL_rb_closed_stts_rb_num_LEN 12
+#define IWL_rb_closed_stts_rb_num_SYM rb_closed
+	/* __le32 rsrv1:4; */
+	/* __le32 rb_closed_stts_rx_frame_num:12; */
+#define IWL_rb_closed_stts_rx_frame_num_POS 16
+#define IWL_rb_closed_stts_rx_frame_num_LEN 12
+#define IWL_rb_closed_stts_rx_frame_num_SYM rb_closed
+	/* __le32 rsrv2:4; */
+
+	__le32 frm_finished;
+	/* __le32 frame_finished_stts_rb_num:12; */
+#define IWL_frame_finished_stts_rb_num_POS 0
+#define IWL_frame_finished_stts_rb_num_LEN 12
+#define IWL_frame_finished_stts_rb_num_SYM frm_finished
+	/* __le32 rsrv3:4; */
+	/* __le32 frame_finished_stts_rx_frame_num:12; */
+#define IWL_frame_finished_stts_rx_frame_num_POS 16
+#define IWL_frame_finished_stts_rx_frame_num_LEN 12
+#define IWL_frame_finished_stts_rx_frame_num_SYM frm_finished
+	/* __le32 rsrv4:4; */
+
+	__le32 padding1;  /* so that allocation will be aligned to 16B */
+	__le32 padding2;
+} __attribute__ ((packed));
+
 
 #endif /* __iwl_5000_hw_h__ */
 

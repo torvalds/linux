@@ -133,8 +133,56 @@ static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 	return &priv->eeprom[address];
 }
 
+static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
+{
+	if ((priv->cfg->mod_params->num_of_queues > IWL50_NUM_QUEUES) ||
+	    (priv->cfg->mod_params->num_of_queues < IWL_MIN_NUM_QUEUES)) {
+		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
+			  IWL_MIN_NUM_QUEUES, IWL50_NUM_QUEUES);
+		return -EINVAL;
+	}
 
+	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
+	priv->hw_params.sw_crypto = priv->cfg->mod_params->sw_crypto;
+	priv->hw_params.tx_cmd_len = sizeof(struct iwl4965_tx_cmd);
+	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
+	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
+	if (priv->cfg->mod_params->amsdu_size_8K)
+		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_8K;
+	else
+		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_4K;
+	priv->hw_params.max_pkt_size = priv->hw_params.rx_buf_size - 256;
+	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
+	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
+	priv->hw_params.max_data_size = IWL50_RTC_DATA_SIZE;
+	priv->hw_params.max_inst_size = IWL50_RTC_INST_SIZE;
+	priv->hw_params.max_bsm_size = BSM_SRAM_SIZE;
+	priv->hw_params.fat_channel =  BIT(IEEE80211_BAND_2GHZ) |
+					BIT(IEEE80211_BAND_5GHZ);
 
+	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	case CSR_HW_REV_TYPE_5100:
+	case CSR_HW_REV_TYPE_5150:
+		priv->hw_params.tx_chains_num = 1;
+		priv->hw_params.rx_chains_num = 2;
+		/* FIXME: move to ANT_A, ANT_B, ANT_C enum */
+		priv->hw_params.valid_tx_ant = IWL_ANTENNA_MAIN;
+		priv->hw_params.valid_rx_ant = (IWL_ANTENNA_MAIN |
+						IWL_ANTENNA_AUX);
+		break;
+	case CSR_HW_REV_TYPE_5300:
+	case CSR_HW_REV_TYPE_5350:
+		priv->hw_params.tx_chains_num = 3;
+		priv->hw_params.rx_chains_num = 3;
+		/* FIXME: move to ANT_A, ANT_B, ANT_C enum */
+		priv->hw_params.valid_tx_ant = (IWL_ANTENNA_MAIN |
+						IWL_ANTENNA_AUX | 0x04);
+		priv->hw_params.valid_rx_ant = (IWL_ANTENNA_MAIN |
+						IWL_ANTENNA_AUX | 0x04);
+		break;
+	}
+	return 0;
+}
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 };
 
@@ -142,6 +190,7 @@ static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 };
 
 static struct iwl_lib_ops iwl5000_lib = {
+	.set_hw_params = iwl5000_hw_set_hw_params,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.set_pwr_src = iwl4965_set_pwr_src,
