@@ -982,20 +982,16 @@ static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs
  * mistake.
  */
 void do_signal32(sigset_t *oldset, struct pt_regs * regs,
-		 unsigned long orig_i0, int restart_syscall)
+		 struct signal_deliver_cookie *cookie)
 {
-	siginfo_t info;
-	struct signal_deliver_cookie cookie;
 	struct k_sigaction ka;
+	siginfo_t info;
 	int signr;
 	
-	cookie.restart_syscall = restart_syscall;
-	cookie.orig_i0 = orig_i0;
-
-	signr = get_signal_to_deliver(&info, &ka, regs, &cookie);
+	signr = get_signal_to_deliver(&info, &ka, regs, cookie);
 	if (signr > 0) {
-		if (cookie.restart_syscall)
-			syscall_restart32(orig_i0, regs, &ka.sa);
+		if (cookie->restart_syscall)
+			syscall_restart32(cookie->orig_i0, regs, &ka.sa);
 		handle_signal32(signr, &ka, &info, oldset, regs);
 
 		/* a signal was successfully delivered; the saved
@@ -1007,16 +1003,16 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs,
 			clear_thread_flag(TIF_RESTORE_SIGMASK);
 		return;
 	}
-	if (cookie.restart_syscall &&
+	if (cookie->restart_syscall &&
 	    (regs->u_regs[UREG_I0] == ERESTARTNOHAND ||
 	     regs->u_regs[UREG_I0] == ERESTARTSYS ||
 	     regs->u_regs[UREG_I0] == ERESTARTNOINTR)) {
 		/* replay the system call when we are done */
-		regs->u_regs[UREG_I0] = cookie.orig_i0;
+		regs->u_regs[UREG_I0] = cookie->orig_i0;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
 	}
-	if (cookie.restart_syscall &&
+	if (cookie->restart_syscall &&
 	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) {
 		regs->u_regs[UREG_G1] = __NR_restart_syscall;
 		regs->tpc -= 4;
