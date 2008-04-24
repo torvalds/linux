@@ -668,16 +668,23 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case TUNSETLINK:
+	{
+		int ret;
+
 		/* Only allow setting the type when the interface is down */
+		rtnl_lock();
 		if (tun->dev->flags & IFF_UP) {
 			DBG(KERN_INFO "%s: Linktype set failed because interface is up\n",
 				tun->dev->name);
-			return -EBUSY;
+			ret = -EBUSY;
 		} else {
 			tun->dev->type = (int) arg;
 			DBG(KERN_INFO "%s: linktype set to %d\n", tun->dev->name, tun->dev->type);
+			ret = 0;
 		}
-		break;
+		rtnl_unlock();
+		return ret;
+	}
 
 #ifdef TUN_DEBUG
 	case TUNSETDEBUG:
