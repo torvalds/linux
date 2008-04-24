@@ -735,7 +735,7 @@ static u32 rs_get_lower_rate(struct iwl4965_lq_sta *lq_sta,
 		else
 			tbl->lq_type = LQ_G;
 
-		if (num_of_ant(tbl->ant_type > 1))
+		if (num_of_ant(tbl->ant_type) > 1)
 			tbl->ant_type = ANT_A;/*FIXME:RS*/
 
 		tbl->is_fat = 0;
