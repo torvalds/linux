@@ -367,10 +367,10 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			   "HHUptod\tSpecDst");
 	else {
 		struct rtable *r = v;
-		char temp[256];
+		int len;
 
-		sprintf(temp, "%s\t%08lX\t%08lX\t%8X\t%d\t%u\t%d\t"
-			      "%08lX\t%d\t%u\t%u\t%02X\t%d\t%1d\t%08X",
+		seq_printf(seq, "%s\t%08lX\t%08lX\t%8X\t%d\t%u\t%d\t"
+			      "%08lX\t%d\t%u\t%u\t%02X\t%d\t%1d\t%08X%n",
 			r->u.dst.dev ? r->u.dst.dev->name : "*",
 			(unsigned long)r->rt_dst, (unsigned long)r->rt_gateway,
 			r->rt_flags, atomic_read(&r->u.dst.__refcnt),
@@ -384,8 +384,9 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			r->u.dst.hh ? atomic_read(&r->u.dst.hh->hh_refcnt) : -1,
 			r->u.dst.hh ? (r->u.dst.hh->hh_output ==
 				       dev_queue_xmit) : 0,
-			r->rt_spec_dst);
-		seq_printf(seq, "%-127s\n", temp);
+			r->rt_spec_dst, &len);
+
+		seq_printf(seq, "%*s\n", 127 - len, "");
 	}
 	return 0;
 }

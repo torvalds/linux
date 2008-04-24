@@ -83,13 +83,12 @@ static sctp_dbg_objcnt_entry_t sctp_dbg_objcnt[] = {
  */
 static int sctp_objcnt_seq_show(struct seq_file *seq, void *v)
 {
-	int i;
-	char temp[128];
+	int i, len;
 
 	i = (int)*(loff_t *)v;
-	sprintf(temp, "%s: %d", sctp_dbg_objcnt[i].label,
-				atomic_read(sctp_dbg_objcnt[i].counter));
-	seq_printf(seq, "%-127s\n", temp);
+	seq_printf(seq, "%s: %d%n", sctp_dbg_objcnt[i].label,
+				atomic_read(sctp_dbg_objcnt[i].counter), &len);
+	seq_printf(seq, "%*s\n", 127 - len, "");
 	return 0;
 }
 
