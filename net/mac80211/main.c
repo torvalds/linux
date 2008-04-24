@@ -255,7 +255,7 @@ static int ieee80211_open(struct net_device *dev)
 
 	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_WDS:
-		if (is_zero_ether_addr(sdata->u.wds.remote_addr))
+		if (!is_valid_ether_addr(sdata->u.wds.remote_addr))
 			return -ENOLINK;
 
 		/* Create STA entry for the WDS peer */
