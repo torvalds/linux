@@ -632,8 +632,6 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	enum qeth_large_send_types large_send = QETH_LARGE_SEND_NO;
 	struct qeth_eddp_context *ctx = NULL;
 
-	QETH_DBF_TEXT(TRACE, 6, "l2xmit");
-
 	if ((card->state != CARD_STATE_UP) || !card->lan_online) {
 		card->stats.tx_carrier_errors++;
 		goto tx_drop;
@@ -655,9 +653,12 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		hdr = (struct qeth_hdr *)skb->data;
 	else {
-		new_skb = qeth_prepare_skb(card, skb, &hdr);
+		/* create a clone with writeable headroom */
+		new_skb = skb_realloc_headroom(skb, sizeof(struct qeth_hdr));
 		if (!new_skb)
 			goto tx_drop;
+		hdr = (struct qeth_hdr *)skb_push(new_skb,
+						sizeof(struct qeth_hdr));
 		qeth_l2_fill_header(card, hdr, new_skb, ipv, cast_type);
 	}
 
@@ -744,7 +745,6 @@ static void qeth_l2_qdio_input_handler(struct ccw_device *ccwdev,
 	int index;
 	int i;
 
-	QETH_DBF_TEXT(TRACE, 6, "qdinput");
 	card = (struct qeth_card *) card_ptr;
 	net_dev = card->dev;
 	if (card->options.performance_stats) {

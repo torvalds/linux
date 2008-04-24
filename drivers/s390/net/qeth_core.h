@@ -758,27 +758,6 @@ static inline int qeth_get_micros(void)
 	return (int) (get_clock() >> 12);
 }
 
-static inline void *qeth_push_skb(struct qeth_card *card, struct sk_buff *skb,
-		int size)
-{
-	void *hdr;
-
-	hdr = (void *) skb_push(skb, size);
-	/*
-	 * sanity check, the Linux memory allocation scheme should
-	 * never present us cases like this one (the qdio header size plus
-	 * the first 40 bytes of the paket cross a 4k boundary)
-	 */
-	if ((((unsigned long) hdr) & (~(PAGE_SIZE - 1))) !=
-	    (((unsigned long) hdr + size +
-	    QETH_IP_HEADER_SIZE) & (~(PAGE_SIZE - 1)))) {
-		PRINT_ERR("Misaligned packet on interface %s. Discarded.",
-			QETH_CARD_IFNAME(card));
-		return NULL;
-	}
-	return hdr;
-}
-
 static inline int qeth_get_ip_version(struct sk_buff *skb)
 {
 	switch (skb->protocol) {
@@ -789,6 +768,12 @@ static inline int qeth_get_ip_version(struct sk_buff *skb)
 	default:
 		return 0;
 	}
+}
+
+static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
+		struct qeth_buffer_pool_entry *entry)
+{
+	list_add_tail(&entry->list, &card->qdio.in_buf_pool.entry_list);
 }
 
 struct qeth_eddp_context;
@@ -828,8 +813,6 @@ struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *,
 int qeth_query_setadapterparms(struct qeth_card *);
 int qeth_check_qdio_errors(struct qdio_buffer *, unsigned int,
 		       unsigned int, const char *);
-void qeth_put_buffer_pool_entry(struct qeth_card *,
-			   struct qeth_buffer_pool_entry *);
 void qeth_queue_input_buffer(struct qeth_card *, int);
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
 		struct qdio_buffer *, struct qdio_buffer_element **, int *,
@@ -865,8 +848,6 @@ int qeth_send_control_data(struct qeth_card *, int, struct qeth_cmd_buffer *,
 	void *reply_param);
 int qeth_get_cast_type(struct qeth_card *, struct sk_buff *);
 int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
-struct sk_buff *qeth_prepare_skb(struct qeth_card *, struct sk_buff *,
-		 struct qeth_hdr **);
 int qeth_get_elements_no(struct qeth_card *, void *, struct sk_buff *, int);
 int qeth_do_send_packet_fast(struct qeth_card *, struct qeth_qdio_out_q *,
 			struct sk_buff *, struct qeth_hdr *, int,

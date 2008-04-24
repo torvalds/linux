@@ -2252,14 +2252,6 @@ void qeth_print_status_message(struct qeth_card *card)
 }
 EXPORT_SYMBOL_GPL(qeth_print_status_message);
 
-void qeth_put_buffer_pool_entry(struct qeth_card *card,
-		struct qeth_buffer_pool_entry *entry)
-{
-	QETH_DBF_TEXT(TRACE, 6, "ptbfplen");
-	list_add_tail(&entry->list, &card->qdio.in_buf_pool.entry_list);
-}
-EXPORT_SYMBOL_GPL(qeth_put_buffer_pool_entry);
-
 static void qeth_initialize_working_pool_list(struct qeth_card *card)
 {
 	struct qeth_buffer_pool_entry *entry;
@@ -2600,7 +2592,6 @@ void qeth_queue_input_buffer(struct qeth_card *card, int index)
 	int rc;
 	int newcount = 0;
 
-	QETH_DBF_TEXT(TRACE, 6, "queinbuf");
 	count = (index < queue->next_buf_to_init)?
 		card->qdio.in_buf_pool.buf_count -
 		(queue->next_buf_to_init - index) :
@@ -2788,8 +2779,6 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int under_int,
 	int rc;
 	int i;
 	unsigned int qdio_flags;
-
-	QETH_DBF_TEXT(TRACE, 6, "flushbuf");
 
 	for (i = index; i < index + count; ++i) {
 		buf = &queue->bufs[i % QDIO_MAX_BUFFERS_PER_Q];
@@ -3034,49 +3023,6 @@ int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(qeth_get_priority_queue);
 
-static void __qeth_free_new_skb(struct sk_buff *orig_skb,
-		struct sk_buff *new_skb)
-{
-	if (orig_skb != new_skb)
-		dev_kfree_skb_any(new_skb);
-}
-
-static inline struct sk_buff *qeth_realloc_headroom(struct qeth_card *card,
-		struct sk_buff *skb, int size)
-{
-	struct sk_buff *new_skb = skb;
-
-	if (skb_headroom(skb) >= size)
-		return skb;
-	new_skb = skb_realloc_headroom(skb, size);
-	if (!new_skb)
-		PRINT_ERR("Could not realloc headroom for qeth_hdr "
-			  "on interface %s", QETH_CARD_IFNAME(card));
-	return new_skb;
-}
-
-struct sk_buff *qeth_prepare_skb(struct qeth_card *card, struct sk_buff *skb,
-		 struct qeth_hdr **hdr)
-{
-	struct sk_buff *new_skb;
-
-	QETH_DBF_TEXT(TRACE, 6, "prepskb");
-
-	new_skb = qeth_realloc_headroom(card, skb,
-			sizeof(struct qeth_hdr));
-	if (!new_skb)
-		return NULL;
-
-	*hdr = ((struct qeth_hdr *)qeth_push_skb(card, new_skb,
-			sizeof(struct qeth_hdr)));
-	if (*hdr == NULL) {
-		__qeth_free_new_skb(skb, new_skb);
-		return NULL;
-	}
-	return new_skb;
-}
-EXPORT_SYMBOL_GPL(qeth_prepare_skb);
-
 int qeth_get_elements_no(struct qeth_card *card, void *hdr,
 		     struct sk_buff *skb, int elems)
 {
@@ -3097,8 +3043,8 @@ int qeth_get_elements_no(struct qeth_card *card, void *hdr,
 }
 EXPORT_SYMBOL_GPL(qeth_get_elements_no);
 
-static void __qeth_fill_buffer(struct sk_buff *skb, struct qdio_buffer *buffer,
-		int is_tso, int *next_element_to_fill)
+static inline void __qeth_fill_buffer(struct sk_buff *skb,
+	struct qdio_buffer *buffer, int is_tso, int *next_element_to_fill)
 {
 	int length = skb->len;
 	int length_here;
@@ -3140,14 +3086,12 @@ static void __qeth_fill_buffer(struct sk_buff *skb, struct qdio_buffer *buffer,
 	*next_element_to_fill = element;
 }
 
-static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
+static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 		struct qeth_qdio_out_buffer *buf, struct sk_buff *skb)
 {
 	struct qdio_buffer *buffer;
 	struct qeth_hdr_tso *hdr;
 	int flush_cnt = 0, hdr_len, large_send = 0;
-
-	QETH_DBF_TEXT(TRACE, 6, "qdfillbf");
 
 	buffer = buf->buffer;
 	atomic_inc(&skb->users);
@@ -3207,8 +3151,6 @@ int qeth_do_send_packet_fast(struct qeth_card *card,
 	int flush_cnt = 0;
 	int index;
 
-	QETH_DBF_TEXT(TRACE, 6, "dosndpfa");
-
 	/* spin until we get the queue ... */
 	while (atomic_cmpxchg(&queue->state, QETH_OUT_Q_UNLOCKED,
 			      QETH_OUT_Q_LOCKED) != QETH_OUT_Q_UNLOCKED);
@@ -3259,8 +3201,6 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 	int do_pack = 0;
 	int tmp;
 	int rc = 0;
-
-	QETH_DBF_TEXT(TRACE, 6, "dosndpkt");
 
 	/* spin until we get the queue ... */
 	while (atomic_cmpxchg(&queue->state, QETH_OUT_Q_UNLOCKED,
@@ -3958,7 +3898,6 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 	int use_rx_sg = 0;
 	int frag = 0;
 
-	QETH_DBF_TEXT(TRACE, 6, "nextskb");
 	/* qeth_hdr must not cross element boundaries */
 	if (element->length < offset + sizeof(struct qeth_hdr)) {
 		if (qeth_is_last_sbale(element))
