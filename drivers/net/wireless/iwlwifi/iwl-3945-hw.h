@@ -289,17 +289,6 @@ struct iwl3945_eeprom {
 #define PCI_REG_WUM8       0x0E8
 #define PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT         (0x80000000)
 
-/* SCD (3945 Tx Frame Scheduler) */
-#define SCD_BASE                        (CSR_BASE + 0x2E00)
-
-#define SCD_MODE_REG                    (SCD_BASE + 0x000)
-#define SCD_ARASTAT_REG                 (SCD_BASE + 0x004)
-#define SCD_TXFACT_REG                  (SCD_BASE + 0x010)
-#define SCD_TXF4MF_REG                  (SCD_BASE + 0x014)
-#define SCD_TXF5MF_REG                  (SCD_BASE + 0x020)
-#define SCD_SBYP_MODE_1_REG             (SCD_BASE + 0x02C)
-#define SCD_SBYP_MODE_2_REG             (SCD_BASE + 0x030)
-
 /*=== FH (data Flow Handler) ===*/
 #define FH_BASE     (0x800)
 
