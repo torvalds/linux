@@ -939,8 +939,6 @@ int __init init_arch_irq(void)
 
 	local_irq_disable();
 
-	init_exception_buff();
-
 #ifdef CONFIG_BF54x
 # ifdef CONFIG_PINTx_REASSIGN
 	pint[0]->assign = CONFIG_PINT0_ASSIGN;
