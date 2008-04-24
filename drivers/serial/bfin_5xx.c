@@ -194,7 +194,7 @@ int kgdb_get_debug_char(void)
 }
 #endif
 
-#if ANOMALY_05000230 && defined(CONFIG_SERIAL_BFIN_PIO)
+#if ANOMALY_05000363 && defined(CONFIG_SERIAL_BFIN_PIO)
 # define UART_GET_ANOMALY_THRESHOLD(uart)    ((uart)->anomaly_threshold)
 # define UART_SET_ANOMALY_THRESHOLD(uart, v) ((uart)->anomaly_threshold = (v))
 #else
@@ -239,7 +239,7 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 	}
 #endif
 
-	if (ANOMALY_05000230) {
+	if (ANOMALY_05000363) {
 		/* The BF533 (and BF561) family of processors have a nice anomaly
 		 * where they continuously generate characters for a "single" break.
 		 * We have to basically ignore this flood until the "next" valid
@@ -251,9 +251,6 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 		 * timeout was picked as it must absolutely be larger than 1
 		 * character time +/- some percent.  So 1.5 sounds good.  All other
 		 * Blackfin families operate properly.  Woo.
-		 * Note: While Anomaly 05000230 does not directly address this,
-		 *       the changes that went in for it also fixed this issue.
-		 *       That anomaly was fixed in 0.5+ silicon.  I like bunnies.
 		 */
 		if (anomaly_start.tv_sec) {
 			struct timeval curr;
@@ -287,7 +284,7 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 	}
 
 	if (status & BI) {
-		if (ANOMALY_05000230)
+		if (ANOMALY_05000363)
 			if (bfin_revid() < 5)
 				do_gettimeofday(&anomaly_start);
 		uart->port.icount.brk++;
