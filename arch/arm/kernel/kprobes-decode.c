@@ -1176,7 +1176,7 @@ space_cccc_001x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	 * *S (bit 20) updates condition codes
 	 * ADC/SBC/RSC reads the C flag
 	 */
-	insn &= 0xfff00ff0;	/* Rn = r0, Rd = r0 */
+	insn &= 0xfff00fff;	/* Rn = r0, Rd = r0 */
 	asi->insn[0] = insn;
 	asi->insn_handler = (insn & (1 << 20)) ?  /* S-bit */
 			emulate_alu_imm_rwflags : emulate_alu_imm_rflags;
