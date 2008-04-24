@@ -440,7 +440,7 @@ __feroceon_old_id_proc_info:
 	.long	cpu_feroceon_name
 	.long	feroceon_processor_functions
 	.long	v4wbi_tlb_fns
-	.long	v4wb_user_fns
+	.long	feroceon_user_fns
 	.long	feroceon_cache_fns
 	.size	__feroceon_old_id_proc_info, . - __feroceon_old_id_proc_info
 #endif
@@ -466,6 +466,6 @@ __feroceon_proc_info:
 	.long	cpu_feroceon_name
 	.long	feroceon_processor_functions
 	.long	v4wbi_tlb_fns
-	.long	v4wb_user_fns
+	.long	feroceon_user_fns
 	.long	feroceon_cache_fns
 	.size	__feroceon_proc_info, . - __feroceon_proc_info

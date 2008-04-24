@@ -372,7 +372,7 @@ config CPU_FEROCEON
 	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
-	select CPU_COPY_V4WB if MMU
+	select CPU_COPY_FEROCEON if MMU
 	select CPU_TLB_V4WBI if MMU
 
 config CPU_FEROCEON_OLD_ID
@@ -521,6 +521,9 @@ config CPU_COPY_V4WT
 	bool
 
 config CPU_COPY_V4WB
+	bool
+
+config CPU_COPY_FEROCEON
 	bool
 
 config CPU_COPY_V6
