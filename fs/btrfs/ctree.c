@@ -1146,7 +1146,7 @@ again:
 				slot -= 1;
 			p->slots[level] = slot;
 			if (ins_len > 0 && btrfs_header_nritems(b) >=
-			    BTRFS_NODEPTRS_PER_BLOCK(root) - 1) {
+			    BTRFS_NODEPTRS_PER_BLOCK(root) - 3) {
 				int sret = split_node(trans, root, p, level);
 				BUG_ON(sret > 0);
 				if (sret)
