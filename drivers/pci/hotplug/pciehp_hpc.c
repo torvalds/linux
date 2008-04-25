@@ -279,6 +279,7 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd, u16 mask)
 	slot_ctrl |= ((cmd & mask) | CMD_CMPL_INTR_ENABLE);
 
 	ctrl->cmd_busy = 1;
+	smp_mb();
 	retval = pciehp_writew(ctrl, SLOTCTRL, slot_ctrl);
 	if (retval)
 		err("%s: Cannot write to SLOTCTRL register\n", __func__);
@@ -759,6 +760,7 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	/* Check Command Complete Interrupt Pending */
 	if (intr_loc & CMD_COMPLETED) {
 		ctrl->cmd_busy = 0;
+		smp_mb();
 		wake_up_interruptible(&ctrl->queue);
 	}
 
