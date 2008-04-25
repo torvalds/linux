@@ -537,6 +537,10 @@ static void hpc_set_green_led_blink(struct slot *slot)
 
 static void hpc_release_ctlr(struct controller *ctrl)
 {
+	/* Mask Hot-plug Interrupt Enable */
+	if (pcie_write_cmd(ctrl, 0, HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE))
+		err("%s: Cannot mask hotplut interrupt enable\n", __func__);
+
 	if (pciehp_poll_mode)
 		del_timer(&ctrl->poll_timer);
 	else
