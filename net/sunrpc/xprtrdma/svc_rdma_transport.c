@@ -524,6 +524,8 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 	recv_wr.wr_id = (u64)(unsigned long)ctxt;
 
 	ret = ib_post_recv(xprt->sc_qp, &recv_wr, &bad_recv_wr);
+	if (ret)
+		svc_rdma_put_context(ctxt, 1);
 	return ret;
 }
 
