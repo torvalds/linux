@@ -374,7 +374,6 @@ void ahd_delay(long);
 
 /***************************** Low Level I/O **********************************/
 uint8_t ahd_inb(struct ahd_softc * ahd, long port);
-uint16_t ahd_inw_atomic(struct ahd_softc * ahd, long port);
 void ahd_outb(struct ahd_softc * ahd, long port, uint8_t val);
 void ahd_outw_atomic(struct ahd_softc * ahd,
 				     long port, uint16_t val);

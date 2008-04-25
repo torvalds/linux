@@ -51,8 +51,7 @@
 #endif
 
 /***************************** Lookup Tables **********************************/
-char *ahc_chip_names[] =
-{
+static const char *const ahc_chip_names[] = {
 	"NONE",
 	"aic7770",
 	"aic7850",
@@ -75,10 +74,10 @@ static const u_int num_chip_names = ARRAY_SIZE(ahc_chip_names);
  */
 struct ahc_hard_error_entry {
         uint8_t errno;
-	char *errmesg;
+	const char *errmesg;
 };
 
-static struct ahc_hard_error_entry ahc_hard_errors[] = {
+static const struct ahc_hard_error_entry ahc_hard_errors[] = {
 	{ ILLHADDR,	"Illegal Host Access" },
 	{ ILLSADDR,	"Illegal Sequencer Address referrenced" },
 	{ ILLOPCODE,	"Illegal Opcode in sequencer program" },
@@ -90,7 +89,7 @@ static struct ahc_hard_error_entry ahc_hard_errors[] = {
 };
 static const u_int num_errors = ARRAY_SIZE(ahc_hard_errors);
 
-static struct ahc_phase_table_entry ahc_phase_table[] =
+static const struct ahc_phase_table_entry ahc_phase_table[] =
 {
 	{ P_DATAOUT,	MSG_NOOP,		"in Data-out phase"	},
 	{ P_DATAIN,	MSG_INITIATOR_DET_ERR,	"in Data-in phase"	},
@@ -115,7 +114,7 @@ static const u_int num_phases = ARRAY_SIZE(ahc_phase_table) - 1;
  * Provides a mapping of tranfer periods in ns to the proper value to
  * stick in the scsixfer reg.
  */
-static struct ahc_syncrate ahc_syncrates[] =
+static const struct ahc_syncrate ahc_syncrates[] =
 {
       /* ultra2    fast/ultra  period     rate */
 	{ 0x42,      0x000,      9,      "80.0" },
@@ -148,7 +147,7 @@ static struct ahc_tmode_tstate*
 static void		ahc_free_tstate(struct ahc_softc *ahc,
 					u_int scsi_id, char channel, int force);
 #endif
-static struct ahc_syncrate*
+static const struct ahc_syncrate*
 			ahc_devlimited_syncrate(struct ahc_softc *ahc,
 					        struct ahc_initiator_tinfo *,
 						u_int *period,
@@ -204,9 +203,9 @@ static void		ahc_setup_target_msgin(struct ahc_softc *ahc,
 #endif
 
 static bus_dmamap_callback_t	ahc_dmamap_cb; 
-static void			ahc_build_free_scb_list(struct ahc_softc *ahc);
-static int			ahc_init_scbdata(struct ahc_softc *ahc);
-static void			ahc_fini_scbdata(struct ahc_softc *ahc);
+static void		ahc_build_free_scb_list(struct ahc_softc *ahc);
+static int		ahc_init_scbdata(struct ahc_softc *ahc);
+static void		ahc_fini_scbdata(struct ahc_softc *ahc);
 static void		ahc_qinfifo_requeue(struct ahc_softc *ahc,
 					    struct scb *prev_scb,
 					    struct scb *scb);
@@ -238,6 +237,71 @@ static int		ahc_handle_target_cmd(struct ahc_softc *ahc,
 					      struct target_cmd *cmd);
 #endif
 
+static u_int		ahc_index_busy_tcl(struct ahc_softc *ahc, u_int tcl);
+static void		ahc_unbusy_tcl(struct ahc_softc *ahc, u_int tcl);
+static void		ahc_busy_tcl(struct ahc_softc *ahc,
+				     u_int tcl, u_int busyid);
+
+/************************** SCB and SCB queue management **********************/
+static void		ahc_run_untagged_queues(struct ahc_softc *ahc);
+static void		ahc_run_untagged_queue(struct ahc_softc *ahc,
+					       struct scb_tailq *queue);
+
+/****************************** Initialization ********************************/
+static void		 ahc_alloc_scbs(struct ahc_softc *ahc);
+static void		 ahc_shutdown(void *arg);
+
+/*************************** Interrupt Services *******************************/
+static void		ahc_clear_intstat(struct ahc_softc *ahc);
+static void		ahc_run_qoutfifo(struct ahc_softc *ahc);
+#ifdef AHC_TARGET_MODE
+static void		ahc_run_tqinfifo(struct ahc_softc *ahc, int paused);
+#endif
+static void		ahc_handle_brkadrint(struct ahc_softc *ahc);
+static void		ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat);
+static void		ahc_handle_scsiint(struct ahc_softc *ahc,
+					   u_int intstat);
+static void		ahc_clear_critical_section(struct ahc_softc *ahc);
+
+/***************************** Error Recovery *********************************/
+static void		ahc_freeze_devq(struct ahc_softc *ahc, struct scb *scb);
+static int		ahc_abort_scbs(struct ahc_softc *ahc, int target,
+				       char channel, int lun, u_int tag,
+				       role_t role, uint32_t status);
+static void		ahc_calc_residual(struct ahc_softc *ahc,
+					  struct scb *scb);
+
+/*********************** Untagged Transaction Routines ************************/
+static inline void	ahc_freeze_untagged_queues(struct ahc_softc *ahc);
+static inline void	ahc_release_untagged_queues(struct ahc_softc *ahc);
+
+/*
+ * Block our completion routine from starting the next untagged
+ * transaction for this target or target lun.
+ */
+static inline void
+ahc_freeze_untagged_queues(struct ahc_softc *ahc)
+{
+	if ((ahc->flags & AHC_SCB_BTT) == 0)
+		ahc->untagged_queue_lock++;
+}
+
+/*
+ * Allow the next untagged transaction for this target or target lun
+ * to be executed.  We use a counting semaphore to allow the lock
+ * to be acquired recursively.  Once the count drops to zero, the
+ * transaction queues will be run.
+ */
+static inline void
+ahc_release_untagged_queues(struct ahc_softc *ahc)
+{
+	if ((ahc->flags & AHC_SCB_BTT) == 0) {
+		ahc->untagged_queue_lock--;
+		if (ahc->untagged_queue_lock == 0)
+			ahc_run_untagged_queues(ahc);
+	}
+}
+
 /************************* Sequencer Execution Control ************************/
 /*
  * Work around any chip bugs related to halting sequencer execution.
@@ -247,7 +311,7 @@ static int		ahc_handle_target_cmd(struct ahc_softc *ahc,
  * manual pause while accessing scb ram, accesses to certain registers
  * will hang the system (infinite pci retries).
  */
-void
+static void
 ahc_pause_bug_fix(struct ahc_softc *ahc)
 {
 	if ((ahc->features & AHC_ULTRA2) != 0)
@@ -304,7 +368,7 @@ ahc_unpause(struct ahc_softc *ahc)
 }
 
 /************************** Memory mapping routines ***************************/
-struct ahc_dma_seg *
+static struct ahc_dma_seg *
 ahc_sg_bus_to_virt(struct scb *scb, uint32_t sg_busaddr)
 {
 	int sg_index;
@@ -316,7 +380,7 @@ ahc_sg_bus_to_virt(struct scb *scb, uint32_t sg_busaddr)
 	return (&scb->sg_list[sg_index]);
 }
 
-uint32_t
+static uint32_t
 ahc_sg_virt_to_bus(struct scb *scb, struct ahc_dma_seg *sg)
 {
 	int sg_index;
@@ -327,14 +391,14 @@ ahc_sg_virt_to_bus(struct scb *scb, struct ahc_dma_seg *sg)
 	return (scb->sg_list_phys + (sg_index * sizeof(*scb->sg_list)));
 }
 
-uint32_t
+static uint32_t
 ahc_hscb_busaddr(struct ahc_softc *ahc, u_int index)
 {
 	return (ahc->scb_data->hscb_busaddr
 		+ (sizeof(struct hardware_scb) * index));
 }
 
-void
+static void
 ahc_sync_scb(struct ahc_softc *ahc, struct scb *scb, int op)
 {
 	ahc_dmamap_sync(ahc, ahc->scb_data->hscb_dmat,
@@ -355,18 +419,20 @@ ahc_sync_sglist(struct ahc_softc *ahc, struct scb *scb, int op)
 			/*len*/sizeof(struct ahc_dma_seg) * scb->sg_count, op);
 }
 
-uint32_t
+#ifdef AHC_TARGET_MODE
+static uint32_t
 ahc_targetcmd_offset(struct ahc_softc *ahc, u_int index)
 {
 	return (((uint8_t *)&ahc->targetcmds[index]) - ahc->qoutfifo);
 }
+#endif
 
 /*********************** Miscelaneous Support Functions ***********************/
 /*
  * Determine whether the sequencer reported a residual
  * for this SCB/transaction.
  */
-void
+static void
 ahc_update_residual(struct ahc_softc *ahc, struct scb *scb)
 {
 	uint32_t sgptr;
@@ -504,7 +570,7 @@ ahc_lookup_scb(struct ahc_softc *ahc, u_int tag)
 	return (scb);
 }
 
-void
+static void
 ahc_swap_with_next_hscb(struct ahc_softc *ahc, struct scb *scb)
 {
 	struct hardware_scb *q_hscb;
@@ -593,7 +659,7 @@ ahc_get_sense_buf(struct ahc_softc *ahc, struct scb *scb)
 	return (&ahc->scb_data->sense[offset]);
 }
 
-uint32_t
+static uint32_t
 ahc_get_sense_bufaddr(struct ahc_softc *ahc, struct scb *scb)
 {
 	int offset;
@@ -604,14 +670,14 @@ ahc_get_sense_bufaddr(struct ahc_softc *ahc, struct scb *scb)
 }
 
 /************************** Interrupt Processing ******************************/
-void
+static void
 ahc_sync_qoutfifo(struct ahc_softc *ahc, int op)
 {
 	ahc_dmamap_sync(ahc, ahc->shared_data_dmat, ahc->shared_data_dmamap,
 			/*offset*/0, /*len*/256, op);
 }
 
-void
+static void
 ahc_sync_tqinfifo(struct ahc_softc *ahc, int op)
 {
 #ifdef AHC_TARGET_MODE
@@ -631,7 +697,7 @@ ahc_sync_tqinfifo(struct ahc_softc *ahc, int op)
  */
 #define AHC_RUN_QOUTFIFO 0x1
 #define AHC_RUN_TQINFIFO 0x2
-u_int
+static u_int
 ahc_check_cmdcmpltqueues(struct ahc_softc *ahc)
 {
 	u_int retval;
@@ -745,7 +811,7 @@ ahc_intr(struct ahc_softc *ahc)
 /*
  * Restart the sequencer program from address zero
  */
-void
+static void
 ahc_restart(struct ahc_softc *ahc)
 {
 
@@ -806,7 +872,7 @@ ahc_restart(struct ahc_softc *ahc)
 }
 
 /************************* Input/Output Queues ********************************/
-void
+static void
 ahc_run_qoutfifo(struct ahc_softc *ahc)
 {
 	struct scb *scb;
@@ -853,7 +919,7 @@ ahc_run_qoutfifo(struct ahc_softc *ahc)
 	}
 }
 
-void
+static void
 ahc_run_untagged_queues(struct ahc_softc *ahc)
 {
 	int i;
@@ -862,7 +928,7 @@ ahc_run_untagged_queues(struct ahc_softc *ahc)
 		ahc_run_untagged_queue(ahc, &ahc->untagged_queues[i]);
 }
 
-void
+static void
 ahc_run_untagged_queue(struct ahc_softc *ahc, struct scb_tailq *queue)
 {
 	struct scb *scb;
@@ -878,7 +944,7 @@ ahc_run_untagged_queue(struct ahc_softc *ahc, struct scb_tailq *queue)
 }
 
 /************************* Interrupt Handling *********************************/
-void
+static void
 ahc_handle_brkadrint(struct ahc_softc *ahc)
 {
 	/*
@@ -907,7 +973,7 @@ ahc_handle_brkadrint(struct ahc_softc *ahc)
 	ahc_shutdown(ahc);
 }
 
-void
+static void
 ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 {
 	struct scb *scb;
@@ -1458,7 +1524,7 @@ unpause:
 	ahc_unpause(ahc);
 }
 
-void
+static void
 ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 {
 	u_int	scb_index;
@@ -1911,7 +1977,7 @@ ahc_force_renegotiation(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 }
 
 #define AHC_MAX_STEPS 2000
-void
+static void
 ahc_clear_critical_section(struct ahc_softc *ahc)
 {
 	int	stepping;
@@ -2004,7 +2070,7 @@ ahc_clear_critical_section(struct ahc_softc *ahc)
 /*
  * Clear any pending interrupt status.
  */
-void
+static void
 ahc_clear_intstat(struct ahc_softc *ahc)
 {
 	/* Clear any interrupt conditions this may have caused */
@@ -2023,7 +2089,8 @@ ahc_clear_intstat(struct ahc_softc *ahc)
 uint32_t ahc_debug = AHC_DEBUG_OPTS;
 #endif
 
-void
+#if 0 /* unused */
+static void
 ahc_print_scb(struct scb *scb)
 {
 	int i;
@@ -2055,6 +2122,7 @@ ahc_print_scb(struct scb *scb)
 		}
 	}
 }
+#endif
 
 /************************* Transfer Negotiation *******************************/
 /*
@@ -2138,7 +2206,7 @@ ahc_free_tstate(struct ahc_softc *ahc, u_int scsi_id, char channel, int force)
  * by the capabilities of the bus connectivity of and sync settings for
  * the target.
  */
-struct ahc_syncrate *
+const struct ahc_syncrate *
 ahc_devlimited_syncrate(struct ahc_softc *ahc,
 			struct ahc_initiator_tinfo *tinfo,
 			u_int *period, u_int *ppr_options, role_t role)
@@ -2193,11 +2261,11 @@ ahc_devlimited_syncrate(struct ahc_softc *ahc,
  * Return the period and offset that should be sent to the target
  * if this was the beginning of an SDTR.
  */
-struct ahc_syncrate *
+const struct ahc_syncrate *
 ahc_find_syncrate(struct ahc_softc *ahc, u_int *period,
 		  u_int *ppr_options, u_int maxsync)
 {
-	struct ahc_syncrate *syncrate;
+	const struct ahc_syncrate *syncrate;
 
 	if ((ahc->features & AHC_DT) == 0)
 		*ppr_options &= ~MSG_EXT_PPR_DT_REQ;
@@ -2272,7 +2340,7 @@ ahc_find_syncrate(struct ahc_softc *ahc, u_int *period,
 u_int
 ahc_find_period(struct ahc_softc *ahc, u_int scsirate, u_int maxsync)
 {
-	struct ahc_syncrate *syncrate;
+	const struct ahc_syncrate *syncrate;
 
 	if ((ahc->features & AHC_ULTRA2) != 0)
 		scsirate &= SXFR_ULTRA2;
@@ -2310,10 +2378,10 @@ ahc_find_period(struct ahc_softc *ahc, u_int scsirate, u_int maxsync)
  * Truncate the given synchronous offset to a value the
  * current adapter type and syncrate are capable of.
  */
-void
+static void
 ahc_validate_offset(struct ahc_softc *ahc,
 		    struct ahc_initiator_tinfo *tinfo,
-		    struct ahc_syncrate *syncrate,
+		    const struct ahc_syncrate *syncrate,
 		    u_int *offset, int wide, role_t role)
 {
 	u_int maxoffset;
@@ -2342,7 +2410,7 @@ ahc_validate_offset(struct ahc_softc *ahc,
  * Truncate the given transfer width parameter to a value the
  * current adapter type is capable of.
  */
-void
+static void
 ahc_validate_width(struct ahc_softc *ahc, struct ahc_initiator_tinfo *tinfo,
 		   u_int *bus_width, role_t role)
 {
@@ -2417,7 +2485,7 @@ ahc_update_neg_request(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
  */
 void
 ahc_set_syncrate(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
-		 struct ahc_syncrate *syncrate, u_int period,
+		 const struct ahc_syncrate *syncrate, u_int period,
 		 u_int offset, u_int ppr_options, u_int type, int paused)
 {
 	struct	ahc_initiator_tinfo *tinfo;
@@ -2724,11 +2792,11 @@ ahc_fetch_devinfo(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 			    role);
 }
 
-struct ahc_phase_table_entry*
+static const struct ahc_phase_table_entry*
 ahc_lookup_phase_entry(int phase)
 {
-	struct ahc_phase_table_entry *entry;
-	struct ahc_phase_table_entry *last_entry;
+	const struct ahc_phase_table_entry *entry;
+	const struct ahc_phase_table_entry *last_entry;
 
 	/*
 	 * num_phases doesn't include the default entry which
@@ -2894,7 +2962,7 @@ ahc_build_transfer_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 	 */
 	struct	ahc_initiator_tinfo *tinfo;
 	struct	ahc_tmode_tstate *tstate;
-	struct	ahc_syncrate *rate;
+	const struct ahc_syncrate *rate;
 	int	dowide;
 	int	dosync;
 	int	doppr;
@@ -3560,7 +3628,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		switch (ahc->msgin_buf[2]) {
 		case MSG_EXT_SDTR:
 		{
-			struct	 ahc_syncrate *syncrate;
+			const struct ahc_syncrate *syncrate;
 			u_int	 period;
 			u_int	 ppr_options;
 			u_int	 offset;
@@ -3735,7 +3803,7 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		}
 		case MSG_EXT_PPR:
 		{
-			struct	ahc_syncrate *syncrate;
+			const struct ahc_syncrate *syncrate;
 			u_int	period;
 			u_int	offset;
 			u_int	bus_width;
@@ -4488,7 +4556,7 @@ ahc_free(struct ahc_softc *ahc)
 	return;
 }
 
-void
+static void
 ahc_shutdown(void *arg)
 {
 	struct	ahc_softc *ahc;
@@ -4892,7 +4960,7 @@ ahc_fini_scbdata(struct ahc_softc *ahc)
 		free(scb_data->scbarray, M_DEVBUF);
 }
 
-void
+static void
 ahc_alloc_scbs(struct ahc_softc *ahc)
 {
 	struct scb_data *scb_data;
@@ -5625,7 +5693,7 @@ ahc_resume(struct ahc_softc *ahc)
  * Return the untagged transaction id for a given target/channel lun.
  * Optionally, clear the entry.
  */
-u_int
+static u_int
 ahc_index_busy_tcl(struct ahc_softc *ahc, u_int tcl)
 {
 	u_int scbid;
@@ -5646,7 +5714,7 @@ ahc_index_busy_tcl(struct ahc_softc *ahc, u_int tcl)
 	return (scbid);
 }
 
-void
+static void
 ahc_unbusy_tcl(struct ahc_softc *ahc, u_int tcl)
 {
 	u_int target_offset;
@@ -5664,7 +5732,7 @@ ahc_unbusy_tcl(struct ahc_softc *ahc, u_int tcl)
 	}
 }
 
-void
+static void
 ahc_busy_tcl(struct ahc_softc *ahc, u_int tcl, u_int scbid)
 {
 	u_int target_offset;
@@ -5719,7 +5787,7 @@ ahc_match_scb(struct ahc_softc *ahc, struct scb *scb, int target,
 	return match;
 }
 
-void
+static void
 ahc_freeze_devq(struct ahc_softc *ahc, struct scb *scb)
 {
 	int	target;
@@ -6260,7 +6328,7 @@ ahc_rem_wscb(struct ahc_softc *ahc, u_int scbpos, u_int prev)
  * been modified from CAM_REQ_INPROG.  This routine assumes that the sequencer
  * is paused before it is called.
  */
-int
+static int
 ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 	       int lun, u_int tag, role_t role, uint32_t status)
 {
@@ -6582,7 +6650,7 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 /*
  * Calculate the residual for a just completed SCB.
  */
-void
+static void
 ahc_calc_residual(struct ahc_softc *ahc, struct scb *scb)
 {
 	struct hardware_scb *hscb;
@@ -7049,7 +7117,7 @@ ahc_download_instr(struct ahc_softc *ahc, u_int instrptr, uint8_t *dconsts)
 }
 
 int
-ahc_print_register(ahc_reg_parse_entry_t *table, u_int num_entries,
+ahc_print_register(const ahc_reg_parse_entry_t *table, u_int num_entries,
 		   const char *name, u_int address, u_int value,
 		   u_int *cur_column, u_int wrap_point)
 {
@@ -7733,7 +7801,7 @@ ahc_update_scsiid(struct ahc_softc *ahc, u_int targid_mask)
 		ahc_outb(ahc, SCSIID, scsiid);
 }
 
-void
+static void
 ahc_run_tqinfifo(struct ahc_softc *ahc, int paused)
 {
 	struct target_cmd *cmd;

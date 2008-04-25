@@ -266,6 +266,18 @@ static int		ahd_match_scb(struct ahd_softc *ahd, struct scb *scb,
 				      int target, char channel, int lun,
 				      u_int tag, role_t role);
 
+static void		ahd_reset_cmds_pending(struct ahd_softc *ahd);
+
+/*************************** Interrupt Services *******************************/
+static void		ahd_run_qoutfifo(struct ahd_softc *ahd);
+#ifdef AHD_TARGET_MODE
+static void		ahd_run_tqinfifo(struct ahd_softc *ahd, int paused);
+#endif
+static void		ahd_handle_hwerrint(struct ahd_softc *ahd);
+static void		ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat);
+static void		ahd_handle_scsiint(struct ahd_softc *ahd,
+				           u_int intstat);
+
 /************************ Sequencer Execution Control *************************/
 void
 ahd_set_modes(struct ahd_softc *ahd, ahd_mode src, ahd_mode dst)
@@ -285,7 +297,7 @@ ahd_set_modes(struct ahd_softc *ahd, ahd_mode src, ahd_mode dst)
 	ahd->dst_mode = dst;
 }
 
-void
+static void
 ahd_update_modes(struct ahd_softc *ahd)
 {
 	ahd_mode_state mode_ptr;
@@ -301,7 +313,7 @@ ahd_update_modes(struct ahd_softc *ahd)
 	ahd_known_modes(ahd, src, dst);
 }
 
-void
+static void
 ahd_assert_modes(struct ahd_softc *ahd, ahd_mode srcmode,
 		 ahd_mode dstmode, const char *file, int line)
 {
@@ -422,7 +434,7 @@ ahd_sg_setup(struct ahd_softc *ahd, struct scb *scb,
 	}
 }
 
-void
+static void
 ahd_setup_scb_common(struct ahd_softc *ahd, struct scb *scb)
 {
 	/* XXX Handle target mode SCBs. */
@@ -443,7 +455,7 @@ ahd_setup_scb_common(struct ahd_softc *ahd, struct scb *scb)
 		    ahd_htole32(scb->sense_busaddr);
 }
 
-void
+static void
 ahd_setup_data_scb(struct ahd_softc *ahd, struct scb *scb)
 {
 	/*
@@ -480,7 +492,7 @@ ahd_setup_data_scb(struct ahd_softc *ahd, struct scb *scb)
 	scb->hscb->sgptr = ahd_htole32(scb->sg_list_busaddr|SG_FULL_RESID);
 }
 
-void
+static void
 ahd_setup_noxfer_scb(struct ahd_softc *ahd, struct scb *scb)
 {
 	scb->hscb->sgptr = ahd_htole32(SG_LIST_NULL);
@@ -489,7 +501,7 @@ ahd_setup_noxfer_scb(struct ahd_softc *ahd, struct scb *scb)
 }
 
 /************************** Memory mapping routines ***************************/
-void *
+static void *
 ahd_sg_bus_to_virt(struct ahd_softc *ahd, struct scb *scb, uint32_t sg_busaddr)
 {
 	dma_addr_t sg_offset;
@@ -499,7 +511,7 @@ ahd_sg_bus_to_virt(struct ahd_softc *ahd, struct scb *scb, uint32_t sg_busaddr)
 	return ((uint8_t *)scb->sg_list + sg_offset);
 }
 
-uint32_t
+static uint32_t
 ahd_sg_virt_to_bus(struct ahd_softc *ahd, struct scb *scb, void *sg)
 {
 	dma_addr_t sg_offset;
@@ -511,7 +523,7 @@ ahd_sg_virt_to_bus(struct ahd_softc *ahd, struct scb *scb, void *sg)
 	return (scb->sg_list_busaddr + sg_offset);
 }
 
-void
+static void
 ahd_sync_scb(struct ahd_softc *ahd, struct scb *scb, int op)
 {
 	ahd_dmamap_sync(ahd, ahd->scb_data.hscb_dmat,
@@ -532,7 +544,7 @@ ahd_sync_sglist(struct ahd_softc *ahd, struct scb *scb, int op)
 			/*len*/ahd_sg_size(ahd) * scb->sg_count, op);
 }
 
-void
+static void
 ahd_sync_sense(struct ahd_softc *ahd, struct scb *scb, int op)
 {
 	ahd_dmamap_sync(ahd, ahd->scb_data.sense_dmat,
@@ -541,12 +553,14 @@ ahd_sync_sense(struct ahd_softc *ahd, struct scb *scb, int op)
 			/*len*/AHD_SENSE_BUFSIZE, op);
 }
 
-uint32_t
+#ifdef AHD_TARGET_MODE
+static uint32_t
 ahd_targetcmd_offset(struct ahd_softc *ahd, u_int index)
 {
 	return (((uint8_t *)&ahd->targetcmds[index])
 	       - (uint8_t *)ahd->qoutfifo);
 }
+#endif
 
 /*********************** Miscelaneous Support Functions ***********************/
 /*
@@ -653,31 +667,35 @@ ahd_set_scbptr(struct ahd_softc *ahd, u_int scbptr)
 	ahd_outb(ahd, SCBPTR+1, (scbptr >> 8) & 0xFF);
 }
 
-u_int
+#if 0 /* unused */
+static u_int
 ahd_get_hnscb_qoff(struct ahd_softc *ahd)
 {
 	return (ahd_inw_atomic(ahd, HNSCB_QOFF));
 }
+#endif
 
-void
+static void
 ahd_set_hnscb_qoff(struct ahd_softc *ahd, u_int value)
 {
 	ahd_outw_atomic(ahd, HNSCB_QOFF, value);
 }
 
-u_int
+#if 0 /* unused */
+static u_int
 ahd_get_hescb_qoff(struct ahd_softc *ahd)
 {
 	return (ahd_inb(ahd, HESCB_QOFF));
 }
+#endif
 
-void
+static void
 ahd_set_hescb_qoff(struct ahd_softc *ahd, u_int value)
 {
 	ahd_outb(ahd, HESCB_QOFF, value);
 }
 
-u_int
+static u_int
 ahd_get_snscb_qoff(struct ahd_softc *ahd)
 {
 	u_int oldvalue;
@@ -688,35 +706,39 @@ ahd_get_snscb_qoff(struct ahd_softc *ahd)
 	return (oldvalue);
 }
 
-void
+static void
 ahd_set_snscb_qoff(struct ahd_softc *ahd, u_int value)
 {
 	AHD_ASSERT_MODES(ahd, AHD_MODE_CCHAN_MSK, AHD_MODE_CCHAN_MSK);
 	ahd_outw(ahd, SNSCB_QOFF, value);
 }
 
-u_int
+#if 0 /* unused */
+static u_int
 ahd_get_sescb_qoff(struct ahd_softc *ahd)
 {
 	AHD_ASSERT_MODES(ahd, AHD_MODE_CCHAN_MSK, AHD_MODE_CCHAN_MSK);
 	return (ahd_inb(ahd, SESCB_QOFF));
 }
+#endif
 
-void
+static void
 ahd_set_sescb_qoff(struct ahd_softc *ahd, u_int value)
 {
 	AHD_ASSERT_MODES(ahd, AHD_MODE_CCHAN_MSK, AHD_MODE_CCHAN_MSK);
 	ahd_outb(ahd, SESCB_QOFF, value);
 }
 
-u_int
+#if 0 /* unused */
+static u_int
 ahd_get_sdscb_qoff(struct ahd_softc *ahd)
 {
 	AHD_ASSERT_MODES(ahd, AHD_MODE_CCHAN_MSK, AHD_MODE_CCHAN_MSK);
 	return (ahd_inb(ahd, SDSCB_QOFF) | (ahd_inb(ahd, SDSCB_QOFF + 1) << 8));
 }
+#endif
 
-void
+static void
 ahd_set_sdscb_qoff(struct ahd_softc *ahd, u_int value)
 {
 	AHD_ASSERT_MODES(ahd, AHD_MODE_CCHAN_MSK, AHD_MODE_CCHAN_MSK);
@@ -756,14 +778,14 @@ ahd_inw_scbram(struct ahd_softc *ahd, u_int offset)
 	      | (ahd_inb_scbram(ahd, offset+1) << 8));
 }
 
-uint32_t
+static uint32_t
 ahd_inl_scbram(struct ahd_softc *ahd, u_int offset)
 {
 	return (ahd_inw_scbram(ahd, offset)
 	      | (ahd_inw_scbram(ahd, offset+2) << 16));
 }
 
-uint64_t
+static uint64_t
 ahd_inq_scbram(struct ahd_softc *ahd, u_int offset)
 {
 	return (ahd_inl_scbram(ahd, offset)
@@ -784,7 +806,7 @@ ahd_lookup_scb(struct ahd_softc *ahd, u_int tag)
 	return (scb);
 }
 
-void
+static void
 ahd_swap_with_next_hscb(struct ahd_softc *ahd, struct scb *scb)
 {
 	struct	 hardware_scb *q_hscb;
@@ -869,7 +891,7 @@ ahd_queue_scb(struct ahd_softc *ahd, struct scb *scb)
 }
 
 /************************** Interrupt Processing ******************************/
-void
+static void
 ahd_sync_qoutfifo(struct ahd_softc *ahd, int op)
 {
 	ahd_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_map.dmamap,
@@ -877,7 +899,7 @@ ahd_sync_qoutfifo(struct ahd_softc *ahd, int op)
 			/*len*/AHD_SCB_MAX * sizeof(struct ahd_completion), op);
 }
 
-void
+static void
 ahd_sync_tqinfifo(struct ahd_softc *ahd, int op)
 {
 #ifdef AHD_TARGET_MODE
@@ -897,7 +919,7 @@ ahd_sync_tqinfifo(struct ahd_softc *ahd, int op)
  */
 #define AHD_RUN_QOUTFIFO 0x1
 #define AHD_RUN_TQINFIFO 0x2
-u_int
+static u_int
 ahd_check_cmdcmpltqueues(struct ahd_softc *ahd)
 {
 	u_int retval;
@@ -1640,7 +1662,7 @@ clrchn:
  * a copy of the first byte (little endian) of the sgptr
  * hscb field.
  */
-void
+static void
 ahd_run_qoutfifo(struct ahd_softc *ahd)
 {
 	struct ahd_completion *completion;
@@ -1679,7 +1701,7 @@ ahd_run_qoutfifo(struct ahd_softc *ahd)
 }
 
 /************************* Interrupt Handling *********************************/
-void
+static void
 ahd_handle_hwerrint(struct ahd_softc *ahd)
 {
 	/*
@@ -1753,7 +1775,7 @@ ahd_dump_sglist(struct scb *scb)
 }
 #endif  /*  AHD_DEBUG  */
 
-void
+static void
 ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 {
 	u_int seqintcode;
@@ -2365,7 +2387,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 	ahd_unpause(ahd);
 }
 
-void
+static void
 ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 {
 	struct scb	*scb;
@@ -8131,7 +8153,7 @@ ahd_qinfifo_count(struct ahd_softc *ahd)
 		      + ARRAY_SIZE(ahd->qinfifo) - wrap_qinpos);
 }
 
-void
+static void
 ahd_reset_cmds_pending(struct ahd_softc *ahd)
 {
 	struct		scb *scb;
@@ -9656,7 +9678,7 @@ sized:
 }
 
 int
-ahd_print_register(ahd_reg_parse_entry_t *table, u_int num_entries,
+ahd_print_register(const ahd_reg_parse_entry_t *table, u_int num_entries,
 		   const char *name, u_int address, u_int value,
 		   u_int *cur_column, u_int wrap_point)
 {
@@ -10647,7 +10669,7 @@ ahd_update_scsiid(struct ahd_softc *ahd, u_int targid_mask)
 #endif
 }
 
-void
+static void
 ahd_run_tqinfifo(struct ahd_softc *ahd, int paused)
 {
 	struct target_cmd *cmd;

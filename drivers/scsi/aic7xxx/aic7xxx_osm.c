@@ -2386,7 +2386,7 @@ static void ahc_linux_set_period(struct scsi_target *starget, int period)
 	unsigned int ppr_options = tinfo->goal.ppr_options;
 	unsigned long flags;
 	unsigned long offset = tinfo->goal.offset;
-	struct ahc_syncrate *syncrate;
+	const struct ahc_syncrate *syncrate;
 
 	if (offset == 0)
 		offset = MAX_OFFSET;
@@ -2430,7 +2430,7 @@ static void ahc_linux_set_offset(struct scsi_target *starget, int offset)
 	unsigned int ppr_options = 0;
 	unsigned int period = 0;
 	unsigned long flags;
-	struct ahc_syncrate *syncrate = NULL;
+	const struct ahc_syncrate *syncrate = NULL;
 
 	ahc_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
 			    starget->channel + 'A', ROLE_INITIATOR);
@@ -2460,7 +2460,7 @@ static void ahc_linux_set_dt(struct scsi_target *starget, int dt)
 	unsigned int period = tinfo->goal.period;
 	unsigned int width = tinfo->goal.width;
 	unsigned long flags;
-	struct ahc_syncrate *syncrate;
+	const struct ahc_syncrate *syncrate;
 
 	if (dt && spi_max_width(starget)) {
 		ppr_options |= MSG_EXT_PPR_DT_REQ;

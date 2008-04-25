@@ -398,9 +398,6 @@ struct info_str {
 	int pos;
 };
 
-void	ahc_format_transinfo(struct info_str *info,
-			     struct ahc_transinfo *tinfo);
-
 /******************************** Locking *************************************/
 /* Lock protecting internal data structures */
 

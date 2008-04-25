@@ -66,10 +66,6 @@ static __inline void ahd_extract_mode_state(struct ahd_softc *ahd,
 
 void ahd_set_modes(struct ahd_softc *ahd, ahd_mode src,
 		   ahd_mode dst);
-void ahd_update_modes(struct ahd_softc *ahd);
-void ahd_assert_modes(struct ahd_softc *ahd, ahd_mode srcmode,
-		      ahd_mode dstmode, const char *file,
-		      int line);
 ahd_mode_state ahd_save_modes(struct ahd_softc *ahd);
 void ahd_restore_modes(struct ahd_softc *ahd,
 		       ahd_mode_state state);
@@ -104,33 +100,12 @@ ahd_extract_mode_state(struct ahd_softc *ahd, ahd_mode_state state,
 void	*ahd_sg_setup(struct ahd_softc *ahd, struct scb *scb,
 		      void *sgptr, dma_addr_t addr,
 		      bus_size_t len, int last);
-void	 ahd_setup_scb_common(struct ahd_softc *ahd,
-			      struct scb *scb);
-void	 ahd_setup_data_scb(struct ahd_softc *ahd,
-			    struct scb *scb);
-void	 ahd_setup_noxfer_scb(struct ahd_softc *ahd,
-			      struct scb *scb);
 
 /************************** Memory mapping routines ***************************/
 static __inline size_t	ahd_sg_size(struct ahd_softc *ahd);
 
-void *
-	ahd_sg_bus_to_virt(struct ahd_softc *ahd,
-			   struct scb *scb,
-			   uint32_t sg_busaddr);
-uint32_t
-	ahd_sg_virt_to_bus(struct ahd_softc *ahd,
-			   struct scb *scb,
-			   void *sg);
-void	ahd_sync_scb(struct ahd_softc *ahd,
-		     struct scb *scb, int op);
 void	ahd_sync_sglist(struct ahd_softc *ahd,
 			struct scb *scb, int op);
-void	ahd_sync_sense(struct ahd_softc *ahd,
-		       struct scb *scb, int op);
-uint32_t
-	ahd_targetcmd_offset(struct ahd_softc *ahd,
-			     u_int index);
 
 static __inline size_t
 ahd_sg_size(struct ahd_softc *ahd)
@@ -160,26 +135,10 @@ void	ahd_outq(struct ahd_softc *ahd, u_int port,
 		 uint64_t value);
 u_int	ahd_get_scbptr(struct ahd_softc *ahd);
 void	ahd_set_scbptr(struct ahd_softc *ahd, u_int scbptr);
-u_int	ahd_get_hnscb_qoff(struct ahd_softc *ahd);
-void	ahd_set_hnscb_qoff(struct ahd_softc *ahd, u_int value);
-u_int	ahd_get_hescb_qoff(struct ahd_softc *ahd);
-void	ahd_set_hescb_qoff(struct ahd_softc *ahd, u_int value);
-u_int	ahd_get_snscb_qoff(struct ahd_softc *ahd);
-void	ahd_set_snscb_qoff(struct ahd_softc *ahd, u_int value);
-u_int	ahd_get_sescb_qoff(struct ahd_softc *ahd);
-void	ahd_set_sescb_qoff(struct ahd_softc *ahd, u_int value);
-u_int	ahd_get_sdscb_qoff(struct ahd_softc *ahd);
-void	ahd_set_sdscb_qoff(struct ahd_softc *ahd, u_int value);
 u_int	ahd_inb_scbram(struct ahd_softc *ahd, u_int offset);
 u_int	ahd_inw_scbram(struct ahd_softc *ahd, u_int offset);
-uint32_t
-	ahd_inl_scbram(struct ahd_softc *ahd, u_int offset);
-uint64_t
-	ahd_inq_scbram(struct ahd_softc *ahd, u_int offset);
 struct scb *
 	ahd_lookup_scb(struct ahd_softc *ahd, u_int tag);
-void	ahd_swap_with_next_hscb(struct ahd_softc *ahd,
-				struct scb *scb);
 void	ahd_queue_scb(struct ahd_softc *ahd, struct scb *scb);
 
 static __inline uint8_t *
@@ -212,9 +171,6 @@ ahd_get_sense_bufaddr(struct ahd_softc *ahd, struct scb *scb)
 }
 
 /************************** Interrupt Processing ******************************/
-void	ahd_sync_qoutfifo(struct ahd_softc *ahd, int op);
-void	ahd_sync_tqinfifo(struct ahd_softc *ahd, int op);
-u_int	ahd_check_cmdcmpltqueues(struct ahd_softc *ahd);
 int	ahd_intr(struct ahd_softc *ahd);
 
 #endif  /* _AIC79XX_INLINE_H_ */

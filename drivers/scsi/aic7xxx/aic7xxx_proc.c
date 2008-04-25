@@ -137,7 +137,7 @@ copy_info(struct info_str *info, char *fmt, ...)
 	return (len);
 }
 
-void
+static void
 ahc_format_transinfo(struct info_str *info, struct ahc_transinfo *tinfo)
 {
 	u_int speed;

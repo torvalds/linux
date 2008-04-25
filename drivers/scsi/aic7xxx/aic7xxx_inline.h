@@ -46,58 +46,13 @@
 #define _AIC7XXX_INLINE_H_
 
 /************************* Sequencer Execution Control ************************/
-void ahc_pause_bug_fix(struct ahc_softc *ahc);
 int  ahc_is_paused(struct ahc_softc *ahc);
 void ahc_pause(struct ahc_softc *ahc);
 void ahc_unpause(struct ahc_softc *ahc);
 
-/*********************** Untagged Transaction Routines ************************/
-static __inline void	ahc_freeze_untagged_queues(struct ahc_softc *ahc);
-static __inline void	ahc_release_untagged_queues(struct ahc_softc *ahc);
-
-/*
- * Block our completion routine from starting the next untagged
- * transaction for this target or target lun.
- */
-static __inline void
-ahc_freeze_untagged_queues(struct ahc_softc *ahc)
-{
-	if ((ahc->flags & AHC_SCB_BTT) == 0)
-		ahc->untagged_queue_lock++;
-}
-
-/*
- * Allow the next untagged transaction for this target or target lun
- * to be executed.  We use a counting semaphore to allow the lock
- * to be acquired recursively.  Once the count drops to zero, the
- * transaction queues will be run.
- */
-static __inline void
-ahc_release_untagged_queues(struct ahc_softc *ahc)
-{
-	if ((ahc->flags & AHC_SCB_BTT) == 0) {
-		ahc->untagged_queue_lock--;
-		if (ahc->untagged_queue_lock == 0)
-			ahc_run_untagged_queues(ahc);
-	}
-}
-
 /************************** Memory mapping routines ***************************/
-struct ahc_dma_seg *
-	ahc_sg_bus_to_virt(struct scb *scb,
-			   uint32_t sg_busaddr);
-uint32_t
-	ahc_sg_virt_to_bus(struct scb *scb,
-			   struct ahc_dma_seg *sg);
-uint32_t
-	ahc_hscb_busaddr(struct ahc_softc *ahc, u_int index);
-void	ahc_sync_scb(struct ahc_softc *ahc,
-		     struct scb *scb, int op);
 void	ahc_sync_sglist(struct ahc_softc *ahc,
 			struct scb *scb, int op);
-uint32_t
-	ahc_targetcmd_offset(struct ahc_softc *ahc,
-			     u_int index);
 
 /******************************** Debugging ***********************************/
 static __inline char *ahc_name(struct ahc_softc *ahc);
@@ -110,8 +65,6 @@ ahc_name(struct ahc_softc *ahc)
 
 /*********************** Miscellaneous Support Functions ***********************/
 
-void	ahc_update_residual(struct ahc_softc *ahc,
-			    struct scb *scb);
 struct ahc_initiator_tinfo *
 	ahc_fetch_transinfo(struct ahc_softc *ahc,
 			    char channel, u_int our_id,
@@ -134,20 +87,12 @@ struct scb*
 void	ahc_free_scb(struct ahc_softc *ahc, struct scb *scb);
 struct scb *
 	ahc_lookup_scb(struct ahc_softc *ahc, u_int tag);
-void	ahc_swap_with_next_hscb(struct ahc_softc *ahc,
-				struct scb *scb);
 void	ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb);
 struct scsi_sense_data *
 	ahc_get_sense_buf(struct ahc_softc *ahc,
 			  struct scb *scb);
-uint32_t
-	ahc_get_sense_bufaddr(struct ahc_softc *ahc,
-			      struct scb *scb);
 
 /************************** Interrupt Processing ******************************/
-void	ahc_sync_qoutfifo(struct ahc_softc *ahc, int op);
-void	ahc_sync_tqinfifo(struct ahc_softc *ahc, int op);
-u_int	ahc_check_cmdcmpltqueues(struct ahc_softc *ahc);
 int	ahc_intr(struct ahc_softc *ahc);
 
 #endif  /* _AIC7XXX_INLINE_H_ */
