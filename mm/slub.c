@@ -2371,6 +2371,32 @@ const char *kmem_cache_name(struct kmem_cache *s)
 }
 EXPORT_SYMBOL(kmem_cache_name);
 
+static void list_slab_objects(struct kmem_cache *s, struct page *page,
+							const char *text)
+{
+#ifdef CONFIG_SLUB_DEBUG
+	void *addr = page_address(page);
+	void *p;
+	DECLARE_BITMAP(map, page->objects);
+
+	bitmap_zero(map, page->objects);
+	slab_err(s, page, "%s", text);
+	slab_lock(page);
+	for_each_free_object(p, s, page->freelist)
+		set_bit(slab_index(p, s, addr), map);
+
+	for_each_object(p, s, addr, page->objects) {
+
+		if (!test_bit(slab_index(p, s, addr), map)) {
+			printk(KERN_ERR "INFO: Object 0x%p @offset=%tu\n",
+							p, p - addr);
+			print_tracking(s, p);
+		}
+	}
+	slab_unlock(page);
+#endif
+}
+
 /*
  * Attempt to free all partial slabs on a node.
  */
@@ -2380,12 +2406,16 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
 	struct page *page, *h;
 
 	spin_lock_irqsave(&n->list_lock, flags);
-	list_for_each_entry_safe(page, h, &n->partial, lru)
+	list_for_each_entry_safe(page, h, &n->partial, lru) {
 		if (!page->inuse) {
 			list_del(&page->lru);
 			discard_slab(s, page);
 			n->nr_partial--;
+		} else {
+			list_slab_objects(s, page,
+				"Objects remaining on kmem_cache_close()");
 		}
+	}
 	spin_unlock_irqrestore(&n->list_lock, flags);
 }
 
