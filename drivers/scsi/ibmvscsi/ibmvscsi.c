@@ -686,7 +686,7 @@ static void handle_cmd_rsp(struct srp_event_struct *evt_struct)
 	}
 	
 	if (cmnd) {
-		cmnd->result = rsp->status;
+		cmnd->result |= rsp->status;
 		if (((cmnd->result >> 1) & 0x1f) == CHECK_CONDITION)
 			memcpy(cmnd->sense_buffer,
 			       rsp->data,
@@ -730,6 +730,7 @@ static int ibmvscsi_queuecommand(struct scsi_cmnd *cmnd,
 	u16 lun = lun_from_dev(cmnd->device);
 	u8 out_fmt, in_fmt;
 
+	cmnd->result = (DID_OK << 16);
 	evt_struct = get_event_struct(&hostdata->pool);
 	if (!evt_struct)
 		return SCSI_MLQUEUE_HOST_BUSY;
@@ -1347,6 +1348,8 @@ void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 
 	del_timer(&evt_struct->timer);
 
+	if (crq->status != VIOSRP_OK && evt_struct->cmnd)
+		evt_struct->cmnd->result = DID_ERROR << 16;
 	if (evt_struct->done)
 		evt_struct->done(evt_struct);
 	else
