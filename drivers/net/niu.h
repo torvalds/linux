@@ -2937,6 +2937,15 @@ struct rx_ring_info {
 
 #define NIU_MAX_MTU		9216
 
+/* VPD strings */
+#define	NIU_QGC_LP_BM_STR	"501-7606"
+#define	NIU_2XGF_LP_BM_STR	"501-7283"
+#define	NIU_QGC_PEM_BM_STR	"501-7765"
+#define	NIU_2XGF_PEM_BM_STR	"501-7626"
+#define	NIU_ALONSO_BM_STR	"373-0202"
+#define	NIU_FOXXY_BM_STR	"501-7961"
+#define	NIU_2XGF_MRVL_BM_STR	"SK-6E82"
+
 #define NIU_VPD_MIN_MAJOR	3
 #define NIU_VPD_MIN_MINOR	4
 

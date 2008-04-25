@@ -6773,6 +6773,37 @@ static int __devinit niu_phy_type_prop_decode(struct niu *np,
 	return 0;
 }
 
+/* niu board models have a trailing dash version incremented
+ * with HW rev change. Need to ingnore the  dash version while
+ * checking for match
+ *
+ * for example, for the 10G card the current vpd.board_model
+ * is 501-5283-04, of which -04 is the  dash version and have
+ * to be ignored
+ */
+static int niu_board_model_match(struct niu *np, const char *model)
+{
+	return !strncmp(np->vpd.board_model, model, strlen(model));
+}
+
+static int niu_pci_vpd_get_nports(struct niu *np)
+{
+	int ports = 0;
+
+	if ((niu_board_model_match(np, NIU_QGC_LP_BM_STR)) ||
+	    (niu_board_model_match(np, NIU_QGC_PEM_BM_STR)) ||
+	    (niu_board_model_match(np, NIU_ALONSO_BM_STR))) {
+		ports = 4;
+	} else if ((niu_board_model_match(np, NIU_2XGF_LP_BM_STR)) ||
+		   (niu_board_model_match(np, NIU_2XGF_PEM_BM_STR)) ||
+		   (niu_board_model_match(np, NIU_FOXXY_BM_STR)) ||
+		   (niu_board_model_match(np, NIU_2XGF_MRVL_BM_STR))) {
+		ports = 2;
+	}
+
+	return ports;
+}
+
 static void __devinit niu_pci_vpd_validate(struct niu *np)
 {
 	struct net_device *dev = np->dev;
@@ -6987,11 +7018,17 @@ static int __devinit niu_get_and_validate_port(struct niu *np)
 		if (parent->plat_type == PLAT_TYPE_NIU) {
 			parent->num_ports = 2;
 		} else {
-			parent->num_ports = nr64(ESPC_NUM_PORTS_MACS) &
-				ESPC_NUM_PORTS_MACS_VAL;
+			parent->num_ports = niu_pci_vpd_get_nports(np);
+			if (!parent->num_ports) {
+				/* Fall back to SPROM as last resort.
+				 * This will fail on most cards.
+				 */
+				parent->num_ports = nr64(ESPC_NUM_PORTS_MACS) &
+					ESPC_NUM_PORTS_MACS_VAL;
 
-			if (!parent->num_ports)
-				parent->num_ports = 4;
+				if (!parent->num_ports)
+					return -ENODEV;
+			}
 		}
 	}
 
@@ -7733,15 +7770,16 @@ static int __devinit niu_get_invariants(struct niu *np)
 
 	have_props = !err;
 
-	err = niu_get_and_validate_port(np);
-	if (err)
-		return err;
-
 	err = niu_init_mac_ipp_pcs_base(np);
 	if (err)
 		return err;
 
-	if (!have_props) {
+	if (have_props) {
+		err = niu_get_and_validate_port(np);
+		if (err)
+			return err;
+
+	} else  {
 		if (np->parent->plat_type == PLAT_TYPE_NIU)
 			return -EINVAL;
 
@@ -7753,10 +7791,17 @@ static int __devinit niu_get_invariants(struct niu *np)
 			niu_pci_vpd_fetch(np, offset);
 		nw64(ESPC_PIO_EN, 0);
 
-		if (np->flags & NIU_FLAGS_VPD_VALID)
+		if (np->flags & NIU_FLAGS_VPD_VALID) {
 			niu_pci_vpd_validate(np);
+			err = niu_get_and_validate_port(np);
+			if (err)
+				return err;
+		}
 
 		if (!(np->flags & NIU_FLAGS_VPD_VALID)) {
+			err = niu_get_and_validate_port(np);
+			if (err)
+				return err;
 			err = niu_pci_probe_sprom(np);
 			if (err)
 				return err;
