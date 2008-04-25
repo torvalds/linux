@@ -101,8 +101,11 @@ struct wacom {
 	dma_addr_t data_dma;
 	struct input_dev *dev;
 	struct usb_device *usbdev;
+	struct usb_interface *intf;
 	struct urb *irq;
 	struct wacom_wac * wacom_wac;
+	struct mutex lock;
+	int open:1;
 	char phys[32];
 };
 

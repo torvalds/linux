@@ -254,6 +254,7 @@ static int __devexit jornada680kbd_remove(struct platform_device *pdev)
 static struct platform_driver jornada680kbd_driver = {
 	.driver	= {
 		.name	= "jornada680_kbd",
+		.owner	= THIS_MODULE,
 	},
 	.probe	= jornada680kbd_probe,
 	.remove	= __devexit_p(jornada680kbd_remove),
@@ -275,3 +276,4 @@ module_exit(jornada680kbd_exit);
 MODULE_AUTHOR("Kristoffer Ericson <kristoffer.ericson@gmail.com>");
 MODULE_DESCRIPTION("HP Jornada 620/660/680/690 Keyboard Driver");
 MODULE_LICENSE("GPLv2");
+MODULE_ALIAS("platform:jornada680_kbd");

@@ -362,6 +362,7 @@ static struct platform_driver corgits_driver = {
 	.resume		= corgits_resume,
 	.driver		= {
 		.name	= "corgi-ts",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -381,3 +382,4 @@ module_exit(corgits_exit);
 MODULE_AUTHOR("Richard Purdie <rpurdie@rpsys.net>");
 MODULE_DESCRIPTION("Corgi TouchScreen Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:corgi-ts");
