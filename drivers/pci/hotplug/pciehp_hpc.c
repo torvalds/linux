@@ -1058,11 +1058,11 @@ int pcie_init_hardware_part2(struct controller *ctrl, struct pcie_device *dev)
 	}
 
 	cmd = PRSN_DETECT_ENABLE;
-	if (ATTN_BUTTN(ctrl->ctrlcap))
+	if (ATTN_BUTTN(ctrl))
 		cmd |= ATTN_BUTTN_ENABLE;
-	if (POWER_CTRL(ctrl->ctrlcap))
+	if (POWER_CTRL(ctrl))
 		cmd |= PWR_FAULT_DETECT_ENABLE;
-	if (MRL_SENS(ctrl->ctrlcap))
+	if (MRL_SENS(ctrl))
 		cmd |= MRL_DETECT_ENABLE;
 	if (!pciehp_poll_mode)
 		cmd |= HP_INTR_ENABLE;
@@ -1181,7 +1181,7 @@ int pcie_init(struct controller *ctrl, struct pcie_device *dev)
 	ctrl->slot_device_offset = 0;
 	ctrl->num_slots = 1;
 	ctrl->first_slot = slot_cap >> 19;
-	ctrl->ctrlcap = slot_cap & 0x0000007f;
+	ctrl->slot_cap = slot_cap;
 
 	rc = pcie_init_hardware_part1(ctrl, dev);
 	if (rc)
