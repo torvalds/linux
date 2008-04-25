@@ -53,6 +53,7 @@ EXPORT_SYMBOL(cpu_data);
  * sh_mv= on the command line, prior to .machvec.init teardown.
  */
 struct sh_machine_vector sh_mv = { .mv_name = "generic", };
+EXPORT_SYMBOL(sh_mv);
 
 #ifdef CONFIG_VT
 struct screen_info screen_info;
