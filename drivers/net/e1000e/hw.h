@@ -592,10 +592,8 @@ struct e1000_hw_stats {
 	u64 bprc;
 	u64 mprc;
 	u64 gptc;
-	u64 gorcl;
-	u64 gorch;
-	u64 gotcl;
-	u64 gotch;
+	u64 gorc;
+	u64 gotc;
 	u64 rnbc;
 	u64 ruc;
 	u64 rfc;
@@ -604,10 +602,8 @@ struct e1000_hw_stats {
 	u64 mgprc;
 	u64 mgpdc;
 	u64 mgptc;
-	u64 torl;
-	u64 torh;
-	u64 totl;
-	u64 toth;
+	u64 tor;
+	u64 tot;
 	u64 tpr;
 	u64 tpt;
 	u64 ptc64;

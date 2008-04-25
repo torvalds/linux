@@ -43,6 +43,8 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/uaccess.h>
+#include <asm/dcr.h>
+#include <asm/dcr-regs.h>
 
 #include "core.h"
 
@@ -127,8 +129,33 @@ static struct device_node *emac_boot_list[EMAC_BOOT_LIST_SIZE];
 static inline void emac_report_timeout_error(struct emac_instance *dev,
 					     const char *error)
 {
-	if (net_ratelimit())
+	if (emac_has_feature(dev, EMAC_FTR_440GX_PHY_CLK_FIX |
+				  EMAC_FTR_440EP_PHY_CLK_FIX))
+		DBG(dev, "%s" NL, error);
+	else if (net_ratelimit())
 		printk(KERN_ERR "%s: %s\n", dev->ndev->name, error);
+}
+
+/* EMAC PHY clock workaround:
+ * 440EP/440GR has more sane SDR0_MFR register implementation than 440GX,
+ * which allows controlling each EMAC clock
+ */
+static inline void emac_rx_clk_tx(struct emac_instance *dev)
+{
+#ifdef CONFIG_PPC_DCR_NATIVE
+	if (emac_has_feature(dev, EMAC_FTR_440EP_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_MFR,
+			    0, SDR0_MFR_ECS >> dev->cell_index);
+#endif
+}
+
+static inline void emac_rx_clk_default(struct emac_instance *dev)
+{
+#ifdef CONFIG_PPC_DCR_NATIVE
+	if (emac_has_feature(dev, EMAC_FTR_440EP_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_MFR,
+			    SDR0_MFR_ECS >> dev->cell_index, 0);
+#endif
 }
 
 /* PHY polling intervals */
@@ -524,7 +551,10 @@ static int emac_configure(struct emac_instance *dev)
 		rx_size = dev->rx_fifo_size_gige;
 
 		if (dev->ndev->mtu > ETH_DATA_LEN) {
-			mr1 |= EMAC_MR1_JPSM;
+			if (emac_has_feature(dev, EMAC_FTR_EMAC4))
+				mr1 |= EMAC4_MR1_JPSM;
+			else
+				mr1 |= EMAC_MR1_JPSM;
 			dev->stop_timeout = STOP_TIMEOUT_1000_JUMBO;
 		} else
 			dev->stop_timeout = STOP_TIMEOUT_1000;
@@ -708,7 +738,7 @@ static int __emac_mdio_read(struct emac_instance *dev, u8 id, u8 reg)
 		rgmii_get_mdio(dev->rgmii_dev, dev->rgmii_port);
 
 	/* Wait for management interface to become idle */
-	n = 10;
+	n = 20;
 	while (!emac_phy_done(dev, in_be32(&p->stacr))) {
 		udelay(1);
 		if (!--n) {
@@ -733,7 +763,7 @@ static int __emac_mdio_read(struct emac_instance *dev, u8 id, u8 reg)
 	out_be32(&p->stacr, r);
 
 	/* Wait for read to complete */
-	n = 100;
+	n = 200;
 	while (!emac_phy_done(dev, (r = in_be32(&p->stacr)))) {
 		udelay(1);
 		if (!--n) {
@@ -780,7 +810,7 @@ static void __emac_mdio_write(struct emac_instance *dev, u8 id, u8 reg,
 		rgmii_get_mdio(dev->rgmii_dev, dev->rgmii_port);
 
 	/* Wait for management interface to be idle */
-	n = 10;
+	n = 20;
 	while (!emac_phy_done(dev, in_be32(&p->stacr))) {
 		udelay(1);
 		if (!--n) {
@@ -806,7 +836,7 @@ static void __emac_mdio_write(struct emac_instance *dev, u8 id, u8 reg,
 	out_be32(&p->stacr, r);
 
 	/* Wait for write to complete */
-	n = 100;
+	n = 200;
 	while (!emac_phy_done(dev, in_be32(&p->stacr))) {
 		udelay(1);
 		if (!--n) {
@@ -1094,9 +1124,11 @@ static int emac_open(struct net_device *ndev)
 		int link_poll_interval;
 		if (dev->phy.def->ops->poll_link(&dev->phy)) {
 			dev->phy.def->ops->read_link(&dev->phy);
+			emac_rx_clk_default(dev);
 			netif_carrier_on(dev->ndev);
 			link_poll_interval = PHY_POLL_LINK_ON;
 		} else {
+			emac_rx_clk_tx(dev);
 			netif_carrier_off(dev->ndev);
 			link_poll_interval = PHY_POLL_LINK_OFF;
 		}
@@ -1174,6 +1206,7 @@ static void emac_link_timer(struct work_struct *work)
 
 	if (dev->phy.def->ops->poll_link(&dev->phy)) {
 		if (!netif_carrier_ok(dev->ndev)) {
+			emac_rx_clk_default(dev);
 			/* Get new link parameters */
 			dev->phy.def->ops->read_link(&dev->phy);
 
@@ -1186,6 +1219,7 @@ static void emac_link_timer(struct work_struct *work)
 		link_poll_interval = PHY_POLL_LINK_ON;
 	} else {
 		if (netif_carrier_ok(dev->ndev)) {
+			emac_rx_clk_tx(dev);
 			netif_carrier_off(dev->ndev);
 			netif_tx_disable(dev->ndev);
 			emac_reinitialize(dev);
@@ -2237,7 +2271,7 @@ static int __devinit emac_of_bus_notify(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block emac_of_bus_notifier = {
+static struct notifier_block emac_of_bus_notifier __devinitdata = {
 	.notifier_call = emac_of_bus_notify
 };
 
@@ -2330,6 +2364,19 @@ static int __devinit emac_init_phy(struct emac_instance *dev)
 	dev->phy.mdio_read = emac_mdio_read;
 	dev->phy.mdio_write = emac_mdio_write;
 
+	/* Enable internal clock source */
+#ifdef CONFIG_PPC_DCR_NATIVE
+	if (emac_has_feature(dev, EMAC_FTR_440GX_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_MFR, 0, SDR0_MFR_ECS);
+#endif
+	/* PHY clock workaround */
+	emac_rx_clk_tx(dev);
+
+	/* Enable internal clock source on 440GX*/
+#ifdef CONFIG_PPC_DCR_NATIVE
+	if (emac_has_feature(dev, EMAC_FTR_440GX_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_MFR, 0, SDR0_MFR_ECS);
+#endif
 	/* Configure EMAC with defaults so we can at least use MDIO
 	 * This is needed mostly for 440GX
 	 */
@@ -2362,6 +2409,12 @@ static int __devinit emac_init_phy(struct emac_instance *dev)
 			if (!emac_mii_phy_probe(&dev->phy, i))
 				break;
 		}
+
+	/* Enable external clock source */
+#ifdef CONFIG_PPC_DCR_NATIVE
+	if (emac_has_feature(dev, EMAC_FTR_440GX_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_MFR, SDR0_MFR_ECS, 0);
+#endif
 	mutex_unlock(&emac_phy_map_lock);
 	if (i == 0x20) {
 		printk(KERN_WARNING "%s: can't find PHY!\n", np->full_name);
@@ -2487,8 +2540,15 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 	}
 
 	/* Check EMAC version */
-	if (of_device_is_compatible(np, "ibm,emac4"))
+	if (of_device_is_compatible(np, "ibm,emac4")) {
 		dev->features |= EMAC_FTR_EMAC4;
+		if (of_device_is_compatible(np, "ibm,emac-440gx"))
+			dev->features |= EMAC_FTR_440GX_PHY_CLK_FIX;
+	} else {
+		if (of_device_is_compatible(np, "ibm,emac-440ep") ||
+		    of_device_is_compatible(np, "ibm,emac-440gr"))
+			dev->features |= EMAC_FTR_440EP_PHY_CLK_FIX;
+	}
 
 	/* Fixup some feature bits based on the device tree */
 	if (of_get_property(np, "has-inverted-stacr-oc", NULL))
@@ -2559,8 +2619,11 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	struct device_node **blist = NULL;
 	int err, i;
 
-	/* Skip unused/unwired EMACS */
-	if (of_get_property(np, "unused", NULL))
+	/* Skip unused/unwired EMACS.  We leave the check for an unused
+	 * property here for now, but new flat device trees should set a
+	 * status property to "disabled" instead.
+	 */
+	if (of_get_property(np, "unused", NULL) || !of_device_is_available(np))
 		return -ENODEV;
 
 	/* Find ourselves in the bootlist if we are there */

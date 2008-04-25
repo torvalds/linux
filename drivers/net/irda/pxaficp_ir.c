@@ -908,6 +908,7 @@ static int pxa_irda_remove(struct platform_device *_dev)
 static struct platform_driver pxa_ir_driver = {
 	.driver         = {
 		.name   = "pxa2xx-ir",
+		.owner	= THIS_MODULE,
 	},
 	.probe		= pxa_irda_probe,
 	.remove		= pxa_irda_remove,
@@ -929,3 +930,4 @@ module_init(pxa_irda_init);
 module_exit(pxa_irda_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pxa2xx-ir");

@@ -91,6 +91,144 @@
 #include "atlx.c"
 
 /*
+ * This is the only thing that needs to be changed to adjust the
+ * maximum number of ports that the driver can manage.
+ */
+#define ATL1_MAX_NIC 4
+
+#define OPTION_UNSET    -1
+#define OPTION_DISABLED 0
+#define OPTION_ENABLED  1
+
+#define ATL1_PARAM_INIT { [0 ... ATL1_MAX_NIC] = OPTION_UNSET }
+
+/*
+ * Interrupt Moderate Timer in units of 2 us
+ *
+ * Valid Range: 10-65535
+ *
+ * Default Value: 100 (200us)
+ */
+static int __devinitdata int_mod_timer[ATL1_MAX_NIC+1] = ATL1_PARAM_INIT;
+static int num_int_mod_timer;
+module_param_array_named(int_mod_timer, int_mod_timer, int,
+	&num_int_mod_timer, 0);
+MODULE_PARM_DESC(int_mod_timer, "Interrupt moderator timer");
+
+#define DEFAULT_INT_MOD_CNT	100	/* 200us */
+#define MAX_INT_MOD_CNT		65000
+#define MIN_INT_MOD_CNT		50
+
+struct atl1_option {
+	enum { enable_option, range_option, list_option } type;
+	char *name;
+	char *err;
+	int def;
+	union {
+		struct {	/* range_option info */
+			int min;
+			int max;
+		} r;
+		struct {	/* list_option info */
+			int nr;
+			struct atl1_opt_list {
+				int i;
+				char *str;
+			} *p;
+		} l;
+	} arg;
+};
+
+static int __devinit atl1_validate_option(int *value, struct atl1_option *opt,
+	struct pci_dev *pdev)
+{
+	if (*value == OPTION_UNSET) {
+		*value = opt->def;
+		return 0;
+	}
+
+	switch (opt->type) {
+	case enable_option:
+		switch (*value) {
+		case OPTION_ENABLED:
+			dev_info(&pdev->dev, "%s enabled\n", opt->name);
+			return 0;
+		case OPTION_DISABLED:
+			dev_info(&pdev->dev, "%s disabled\n", opt->name);
+			return 0;
+		}
+		break;
+	case range_option:
+		if (*value >= opt->arg.r.min && *value <= opt->arg.r.max) {
+			dev_info(&pdev->dev, "%s set to %i\n", opt->name,
+				*value);
+			return 0;
+		}
+		break;
+	case list_option:{
+			int i;
+			struct atl1_opt_list *ent;
+
+			for (i = 0; i < opt->arg.l.nr; i++) {
+				ent = &opt->arg.l.p[i];
+				if (*value == ent->i) {
+					if (ent->str[0] != '\0')
+						dev_info(&pdev->dev, "%s\n",
+							ent->str);
+					return 0;
+				}
+			}
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	dev_info(&pdev->dev, "invalid %s specified (%i) %s\n",
+		opt->name, *value, opt->err);
+	*value = opt->def;
+	return -1;
+}
+
+/*
+ * atl1_check_options - Range Checking for Command Line Parameters
+ * @adapter: board private structure
+ *
+ * This routine checks all command line parameters for valid user
+ * input.  If an invalid value is given, or if no user specified
+ * value exists, a default value is used.  The final value is stored
+ * in a variable in the adapter structure.
+ */
+void __devinit atl1_check_options(struct atl1_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	int bd = adapter->bd_number;
+	if (bd >= ATL1_MAX_NIC) {
+		dev_notice(&pdev->dev, "no configuration for board#%i\n", bd);
+		dev_notice(&pdev->dev, "using defaults for all values\n");
+	}
+	{			/* Interrupt Moderate Timer */
+		struct atl1_option opt = {
+			.type = range_option,
+			.name = "Interrupt Moderator Timer",
+			.err = "using default of "
+				__MODULE_STRING(DEFAULT_INT_MOD_CNT),
+			.def = DEFAULT_INT_MOD_CNT,
+			.arg = {.r = {.min = MIN_INT_MOD_CNT,
+					.max = MAX_INT_MOD_CNT} }
+		};
+		int val;
+		if (num_int_mod_timer > bd) {
+			val = int_mod_timer[bd];
+			atl1_validate_option(&val, &opt, pdev);
+			adapter->imt = (u16) val;
+		} else
+			adapter->imt = (u16) (opt.def);
+	}
+}
+
+/*
  * atl1_pci_tbl - PCI Device ID Table
  */
 static const struct pci_device_id atl1_pci_tbl[] = {

@@ -1132,8 +1132,8 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 	u32 fw_minor = 0;
 	u32 fw_build = 0;
 	char brd_name[NETXEN_MAX_SHORT_NAME];
-	struct netxen_new_user_info user_info;
-	int i, addr = NETXEN_USER_START;
+	char serial_num[32];
+	int i, addr;
 	__le32 *ptr32;
 
 	struct netxen_board_info *board_info = &(adapter->ahw.boardcfg);
@@ -1150,10 +1150,10 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 		valid = 0;
 	}
 	if (valid) {
-		ptr32 = (u32 *) & user_info;
-		for (i = 0;
-		     i < sizeof(struct netxen_new_user_info) / sizeof(u32);
-		     i++) {
+		ptr32 = (u32 *)&serial_num;
+		addr = NETXEN_USER_START +
+		       offsetof(struct netxen_new_user_info, serial_num);
+		for (i = 0; i < 8; i++) {
 			if (netxen_rom_fast_read(adapter, addr, ptr32) == -1) {
 				printk("%s: ERROR reading %s board userarea.\n",
 				       netxen_nic_driver_name,
@@ -1163,10 +1163,11 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 			ptr32++;
 			addr += sizeof(u32);
 		}
+
 		get_brd_name_by_type(board_info->board_type, brd_name);
 
 		printk("NetXen %s Board S/N %s  Chip id 0x%x\n",
-		       brd_name, user_info.serial_num, board_info->chip_id);
+		       brd_name, serial_num, board_info->chip_id);
 
 		printk("NetXen %s Board #%d, Chip id 0x%x\n",
 		       board_info->board_type == 0x0b ? "XGB" : "GBE",
