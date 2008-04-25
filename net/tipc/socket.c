@@ -1756,8 +1756,8 @@ static int getsockopt(struct socket *sock,
 	else if (len < sizeof(value)) {
 		res = -EINVAL;
 	}
-	else if ((res = copy_to_user(ov, &value, sizeof(value)))) {
-		/* couldn't return value */
+	else if (copy_to_user(ov, &value, sizeof(value))) {
+		res = -EFAULT;
 	}
 	else {
 		res = put_user(sizeof(value), ol);

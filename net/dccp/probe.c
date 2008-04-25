@@ -140,7 +140,7 @@ static ssize_t dccpprobe_read(struct file *file, char __user *buf,
 		goto out_free;
 
 	cnt = kfifo_get(dccpw.fifo, tbuf, len);
-	error = copy_to_user(buf, tbuf, cnt);
+	error = copy_to_user(buf, tbuf, cnt) ? -EFAULT : 0;
 
 out_free:
 	vfree(tbuf);
