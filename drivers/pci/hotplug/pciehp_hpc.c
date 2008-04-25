@@ -221,6 +221,32 @@ static void start_int_poll_timer(struct controller *ctrl, int sec)
 	add_timer(&ctrl->poll_timer);
 }
 
+static inline int pciehp_request_irq(struct controller *ctrl)
+{
+	int retval, irq = ctrl->pci_dev->irq;
+
+	/* Install interrupt polling timer. Start with 10 sec delay */
+	if (pciehp_poll_mode) {
+		init_timer(&ctrl->poll_timer);
+		start_int_poll_timer(ctrl, 10);
+		return 0;
+	}
+
+	/* Installs the interrupt handler */
+	retval = request_irq(irq, pcie_isr, IRQF_SHARED, MY_NAME, ctrl);
+	if (retval)
+		err("Cannot get irq %d for the hotplug controller\n", irq);
+	return retval;
+}
+
+static inline void pciehp_free_irq(struct controller *ctrl)
+{
+	if (pciehp_poll_mode)
+		del_timer_sync(&ctrl->poll_timer);
+	else
+		free_irq(ctrl->pci_dev->irq, ctrl);
+}
+
 static inline int pcie_wait_cmd(struct controller *ctrl)
 {
 	int retval = 0;
@@ -541,10 +567,8 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	if (pcie_write_cmd(ctrl, 0, HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE))
 		err("%s: Cannot mask hotplut interrupt enable\n", __func__);
 
-	if (pciehp_poll_mode)
-		del_timer(&ctrl->poll_timer);
-	else
-		free_irq(ctrl->pci_dev->irq, ctrl);
+	/* Free interrupt handler or interrupt polling timer */
+	pciehp_free_irq(ctrl);
 
 	/*
 	 * If this is the last controller to be released, destroy the
@@ -1057,121 +1081,79 @@ abort:
 	return -1;
 }
 
+static inline void dbg_ctrl(struct controller *ctrl)
+{
+	int i;
+	u16 reg16;
+	struct pci_dev *pdev = ctrl->pci_dev;
+
+	if (!pciehp_debug)
+		return;
+
+	dbg("Hotplug Controller:\n");
+	dbg("  Seg/Bus/Dev/Func/IRQ : %s IRQ %d\n", pci_name(pdev), pdev->irq);
+	dbg("  Vendor ID            : 0x%04x\n", pdev->vendor);
+	dbg("  Device ID            : 0x%04x\n", pdev->device);
+	dbg("  Subsystem ID         : 0x%04x\n", pdev->subsystem_device);
+	dbg("  Subsystem Vendor ID  : 0x%04x\n", pdev->subsystem_vendor);
+	dbg("  PCIe Cap offset      : 0x%02x\n", ctrl->cap_base);
+	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+		if (!pci_resource_len(pdev, i))
+			continue;
+		dbg("  PCI resource [%d]     : 0x%llx@0x%llx\n", i,
+		    (unsigned long long)pci_resource_len(pdev, i),
+		    (unsigned long long)pci_resource_start(pdev, i));
+	}
+	dbg("Slot Capabilities      : 0x%08x\n", ctrl->slot_cap);
+	dbg("  Physical Slot Number : %d\n", ctrl->first_slot);
+	dbg("  Attention Button     : %3s\n", ATTN_BUTTN(ctrl) ? "yes" : "no");
+	dbg("  Power Controller     : %3s\n", POWER_CTRL(ctrl) ? "yes" : "no");
+	dbg("  MRL Sensor           : %3s\n", MRL_SENS(ctrl)   ? "yes" : "no");
+	dbg("  Attention Indicator  : %3s\n", ATTN_LED(ctrl)   ? "yes" : "no");
+	dbg("  Power Indicator      : %3s\n", PWR_LED(ctrl)    ? "yes" : "no");
+	dbg("  Hot-Plug Surprise    : %3s\n", HP_SUPR_RM(ctrl) ? "yes" : "no");
+	dbg("  EMI Present          : %3s\n", EMI(ctrl)        ? "yes" : "no");
+	pciehp_readw(ctrl, SLOTSTATUS, &reg16);
+	dbg("Slot Status            : 0x%04x\n", reg16);
+	pciehp_readw(ctrl, SLOTSTATUS, &reg16);
+	dbg("Slot Control           : 0x%04x\n", reg16);
+}
+
 int pcie_init(struct controller *ctrl, struct pcie_device *dev)
 {
-	int rc;
-	u16 cap_reg;
 	u32 slot_cap;
-	int cap_base;
-	u16 slot_status, slot_ctrl;
-	struct pci_dev *pdev;
+	struct pci_dev *pdev = dev->port;
 
-	pdev = dev->port;
-	ctrl->pci_dev = pdev;	/* save pci_dev in context */
-
-	dbg("%s: hotplug controller vendor id 0x%x device id 0x%x\n",
-			__func__, pdev->vendor, pdev->device);
-
-	cap_base = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	if (cap_base == 0) {
-		dbg("%s: Can't find PCI_CAP_ID_EXP (0x10)\n", __func__);
+	ctrl->pci_dev = pdev;
+	ctrl->cap_base = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	if (!ctrl->cap_base) {
+		err("%s: Cannot find PCI Express capability\n", __func__);
 		goto abort;
 	}
-
-	ctrl->cap_base = cap_base;
-
-	dbg("%s: pcie_cap_base %x\n", __func__, cap_base);
-
-	rc = pciehp_readw(ctrl, CAPREG, &cap_reg);
-	if (rc) {
-		err("%s: Cannot read CAPREG register\n", __func__);
-		goto abort;
-	}
-	dbg("%s: CAPREG offset %x cap_reg %x\n",
-	    __func__, ctrl->cap_base + CAPREG, cap_reg);
-
-	if (((cap_reg & SLOT_IMPL) == 0) ||
-	    (((cap_reg & DEV_PORT_TYPE) != 0x0040)
-		&& ((cap_reg & DEV_PORT_TYPE) != 0x0060))) {
-		dbg("%s : This is not a root port or the port is not "
-		    "connected to a slot\n", __func__);
-		goto abort;
-	}
-
-	rc = pciehp_readl(ctrl, SLOTCAP, &slot_cap);
-	if (rc) {
+	if (pciehp_readl(ctrl, SLOTCAP, &slot_cap)) {
 		err("%s: Cannot read SLOTCAP register\n", __func__);
 		goto abort;
 	}
-	dbg("%s: SLOTCAP offset %x slot_cap %x\n",
-	    __func__, ctrl->cap_base + SLOTCAP, slot_cap);
 
-	if (!(slot_cap & HP_CAP)) {
-		dbg("%s : This slot is not hot-plug capable\n", __func__);
-		goto abort;
-	}
-	/* For debugging purpose */
-	rc = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
-	if (rc) {
-		err("%s: Cannot read SLOTSTATUS register\n", __func__);
-		goto abort;
-	}
-	dbg("%s: SLOTSTATUS offset %x slot_status %x\n",
-	    __func__, ctrl->cap_base + SLOTSTATUS, slot_status);
-
-	rc = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
-	if (rc) {
-		err("%s: Cannot read SLOTCTRL register\n", __func__);
-		goto abort;
-	}
-	dbg("%s: SLOTCTRL offset %x slot_ctrl %x\n",
-	    __func__, ctrl->cap_base + SLOTCTRL, slot_ctrl);
-
-	for (rc = 0; rc < DEVICE_COUNT_RESOURCE; rc++)
-		if (pci_resource_len(pdev, rc) > 0)
-			dbg("pci resource[%d] start=0x%llx(len=0x%llx)\n", rc,
-			    (unsigned long long)pci_resource_start(pdev, rc),
-			    (unsigned long long)pci_resource_len(pdev, rc));
+	ctrl->slot_cap = slot_cap;
+	ctrl->first_slot = slot_cap >> 19;
+	ctrl->slot_device_offset = 0;
+	ctrl->num_slots = 1;
+	ctrl->hpc_ops = &pciehp_hpc_ops;
+	mutex_init(&ctrl->crit_sect);
+	mutex_init(&ctrl->ctrl_lock);
+	init_waitqueue_head(&ctrl->queue);
+	dbg_ctrl(ctrl);
 
 	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n",
 	     pdev->vendor, pdev->device,
 	     pdev->subsystem_vendor, pdev->subsystem_device);
 
-	mutex_init(&ctrl->crit_sect);
-	mutex_init(&ctrl->ctrl_lock);
-
-	/* setup wait queue */
-	init_waitqueue_head(&ctrl->queue);
-
-	/* return PCI Controller Info */
-	ctrl->slot_device_offset = 0;
-	ctrl->num_slots = 1;
-	ctrl->first_slot = slot_cap >> 19;
-	ctrl->slot_cap = slot_cap;
-
-	rc = pcie_init_hardware_part1(ctrl, dev);
-	if (rc)
+	if (pcie_init_hardware_part1(ctrl, dev))
 		goto abort;
 
-	if (pciehp_poll_mode) {
-		/* Install interrupt polling timer. Start with 10 sec delay */
-		init_timer(&ctrl->poll_timer);
-		start_int_poll_timer(ctrl, 10);
-	} else {
-		/* Installs the interrupt handler */
-		rc = request_irq(ctrl->pci_dev->irq, pcie_isr, IRQF_SHARED,
-				 MY_NAME, (void *)ctrl);
-		dbg("%s: request_irq %d for hpc%d (returns %d)\n",
-		    __func__, ctrl->pci_dev->irq,
-		    atomic_read(&pciehp_num_controllers), rc);
-		if (rc) {
-			err("Can't get irq %d for the hotplug controller\n",
-			    ctrl->pci_dev->irq);
-			goto abort;
-		}
-	}
-	dbg("pciehp ctrl b:d:f:irq=0x%x:%x:%x:%x\n", pdev->bus->number,
-		PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn), dev->irq);
+	if (pciehp_request_irq(ctrl))
+		goto abort;
 
 	/*
 	 * If this is the first controller to be initialized,
@@ -1180,21 +1162,17 @@ int pcie_init(struct controller *ctrl, struct pcie_device *dev)
 	if (atomic_add_return(1, &pciehp_num_controllers) == 1) {
 		pciehp_wq = create_singlethread_workqueue("pciehpd");
 		if (!pciehp_wq) {
-			rc = -ENOMEM;
 			goto abort_free_irq;
 		}
 	}
 
-	rc = pcie_init_hardware_part2(ctrl, dev);
-	if (rc == 0) {
-		ctrl->hpc_ops = &pciehp_hpc_ops;
-		return 0;
-	}
+	if (pcie_init_hardware_part2(ctrl, dev))
+		goto abort_free_irq;
+
+	return 0;
+
 abort_free_irq:
-	if (pciehp_poll_mode)
-		del_timer_sync(&ctrl->poll_timer);
-	else
-		free_irq(ctrl->pci_dev->irq, ctrl);
+	pciehp_free_irq(ctrl);
 abort:
 	return -1;
 }
