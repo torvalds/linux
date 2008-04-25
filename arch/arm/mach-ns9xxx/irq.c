@@ -64,15 +64,14 @@ void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
 
 	spin_lock(&desc->lock);
 
-	if (unlikely(desc->status & IRQ_INPROGRESS))
-		goto out_unlock;
+	BUG_ON(desc->status & IRQ_INPROGRESS);
 
 	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
 	kstat_cpu(cpu).irqs[irq]++;
 
 	action = desc->action;
 	if (unlikely(!action || (desc->status & IRQ_DISABLED)))
-		goto out_unlock;
+		goto out_mask;
 
 	desc->status |= IRQ_INPROGRESS;
 	spin_unlock(&desc->lock);
@@ -81,10 +80,14 @@ void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
 
 	spin_lock(&desc->lock);
 	desc->status &= ~IRQ_INPROGRESS;
-	if (!(desc->status & IRQ_DISABLED) && desc->chip->ack)
-		desc->chip->ack(irq);
 
-out_unlock:
+	if (desc->status & IRQ_DISABLED)
+out_mask:
+		desc->chip->mask(irq);
+
+	/* ack unconditionally to unmask lower prio irqs */
+	desc->chip->ack(irq);
+
 	spin_unlock(&desc->lock);
 }
 #define handle_irq handle_prio_irq
