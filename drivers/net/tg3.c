@@ -4017,6 +4017,8 @@ static int tg3_halt(struct tg3 *, int, int);
  * Invoked with tp->lock held.
  */
 static int tg3_restart_hw(struct tg3 *tp, int reset_phy)
+	__releases(tp->lock)
+	__acquires(tp->lock)
 {
 	int err;
 
