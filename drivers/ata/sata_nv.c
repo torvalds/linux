@@ -1591,13 +1591,16 @@ static void nv_mcp55_thaw(struct ata_port *ap)
 static int nv_hardreset(struct ata_link *link, unsigned int *class,
 			unsigned long deadline)
 {
-	unsigned int dummy;
+	int rc;
 
 	/* SATA hardreset fails to retrieve proper device signature on
-	 * some controllers.  Don't classify on hardreset.  For more
-	 * info, see http://bugzilla.kernel.org/show_bug.cgi?id=3352
+	 * some controllers.  Request follow up SRST.  For more info,
+	 * see http://bugzilla.kernel.org/show_bug.cgi?id=3352
 	 */
-	return sata_sff_hardreset(link, &dummy, deadline);
+	rc = sata_sff_hardreset(link, class, deadline);
+	if (rc)
+		return rc;
+	return -EAGAIN;
 }
 
 static void nv_adma_error_handler(struct ata_port *ap)
