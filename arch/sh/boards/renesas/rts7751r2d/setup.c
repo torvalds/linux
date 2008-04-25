@@ -109,7 +109,6 @@ static struct platform_device heartbeat_device = {
 	.resource	= heartbeat_resources,
 };
 
-#ifdef CONFIG_MFD_SM501
 static struct plat_serial8250_port uart_platform_data[] = {
 	{
 		.membase	= (void __iomem *)0xb3e30000,
@@ -208,13 +207,9 @@ static struct platform_device sm501_device = {
 	.resource	= sm501_resources,
 };
 
-#endif /* CONFIG_MFD_SM501 */
-
 static struct platform_device *rts7751r2d_devices[] __initdata = {
-#ifdef CONFIG_MFD_SM501
 	&uart_device,
 	&sm501_device,
-#endif
 	&heartbeat_device,
 	&spi_sh_sci_device,
 };
@@ -234,7 +229,9 @@ static int __init rts7751r2d_devices_setup(void)
 {
 	if (register_trapped_io(&cf_trapped_io) == 0)
 		platform_device_register(&cf_ide_device);
+
 	spi_register_board_info(spi_bus, ARRAY_SIZE(spi_bus));
+
 	return platform_add_devices(rts7751r2d_devices,
 				    ARRAY_SIZE(rts7751r2d_devices));
 }
