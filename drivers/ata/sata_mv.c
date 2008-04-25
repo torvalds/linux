@@ -172,10 +172,11 @@ enum {
 	PCIE_IRQ_MASK_OFS	= 0x1910,
 	PCIE_UNMASK_ALL_IRQS	= 0x40a,	/* assorted bits */
 
-	HC_MAIN_IRQ_CAUSE_OFS	= 0x1d60,
-	HC_MAIN_IRQ_MASK_OFS	= 0x1d64,
-	HC_SOC_MAIN_IRQ_CAUSE_OFS = 0x20020,
-	HC_SOC_MAIN_IRQ_MASK_OFS = 0x20024,
+	/* Host Controller Main Interrupt Cause/Mask registers (1 per-chip) */
+	PCI_HC_MAIN_IRQ_CAUSE_OFS = 0x1d60,
+	PCI_HC_MAIN_IRQ_MASK_OFS  = 0x1d64,
+	SOC_HC_MAIN_IRQ_CAUSE_OFS = 0x20020,
+	SOC_HC_MAIN_IRQ_MASK_OFS  = 0x20024,
 	ERR_IRQ			= (1 << 0),	/* shift by port # */
 	DONE_IRQ		= (1 << 1),	/* shift by port # */
 	HC0_IRQ_PEND		= 0x1ff,	/* bits 0-8 = HC0's ports */
@@ -445,8 +446,8 @@ struct mv_host_priv {
 	const struct mv_hw_ops	*ops;
 	int			n_ports;
 	void __iomem		*base;
-	void __iomem		*main_cause_reg_addr;
-	void __iomem		*main_mask_reg_addr;
+	void __iomem		*main_irq_cause_addr;
+	void __iomem		*main_irq_mask_addr;
 	u32			irq_cause_ofs;
 	u32			irq_mask_ofs;
 	u32			unmask_all_irqs;
@@ -727,8 +728,8 @@ static inline unsigned int mv_hardport_from_port(unsigned int port)
  * Simple code, with two return values, so macro rather than inline.
  *
  * port is the sole input, in range 0..7.
- * shift is one output, for use with the main_cause and main_mask registers.
- * hardport is the other output, in range 0..3
+ * shift is one output, for use with main_irq_cause / main_irq_mask registers.
+ * hardport is the other output, in range 0..3.
  *
  * Note that port and hardport may be the same variable in some cases.
  */
@@ -1679,12 +1680,12 @@ static void mv_process_crpb_entries(struct ata_port *ap, struct mv_port_priv *pp
 /**
  *      mv_host_intr - Handle all interrupts on the given host controller
  *      @host: host specific structure
- *      @main_cause: Main interrupt cause register for the chip.
+ *      @main_irq_cause: Main interrupt cause register for the chip.
  *
  *      LOCKING:
  *      Inherited from caller.
  */
-static int mv_host_intr(struct ata_host *host, u32 main_cause)
+static int mv_host_intr(struct ata_host *host, u32 main_irq_cause)
 {
 	struct mv_host_priv *hpriv = host->private_data;
 	void __iomem *mmio = hpriv->base, *hc_mmio = NULL;
@@ -1705,7 +1706,7 @@ static int mv_host_intr(struct ata_host *host, u32 main_cause)
 		 * Do nothing if port is not interrupting or is disabled:
 		 */
 		MV_PORT_TO_SHIFT_AND_HARDPORT(port, shift, hardport);
-		port_cause = (main_cause >> shift) & (DONE_IRQ | ERR_IRQ);
+		port_cause = (main_irq_cause >> shift) & (DONE_IRQ | ERR_IRQ);
 		if (!port_cause || !ap || (ap->flags & ATA_FLAG_DISABLED))
 			continue;
 		/*
@@ -1811,20 +1812,20 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 	struct ata_host *host = dev_instance;
 	struct mv_host_priv *hpriv = host->private_data;
 	unsigned int handled = 0;
-	u32 main_cause, main_mask;
+	u32 main_irq_cause, main_irq_mask;
 
 	spin_lock(&host->lock);
-	main_cause = readl(hpriv->main_cause_reg_addr);
-	main_mask  = readl(hpriv->main_mask_reg_addr);
+	main_irq_cause = readl(hpriv->main_irq_cause_addr);
+	main_irq_mask  = readl(hpriv->main_irq_mask_addr);
 	/*
 	 * Deal with cases where we either have nothing pending, or have read
 	 * a bogus register value which can indicate HW removal or PCI fault.
 	 */
-	if ((main_cause & main_mask) && (main_cause != 0xffffffffU)) {
-		if (unlikely((main_cause & PCI_ERR) && HAS_PCI(host)))
+	if ((main_irq_cause & main_irq_mask) && (main_irq_cause != 0xffffffffU)) {
+		if (unlikely((main_irq_cause & PCI_ERR) && HAS_PCI(host)))
 			handled = mv_pci_error(host, hpriv->base);
 		else
-			handled = mv_host_intr(host, main_cause);
+			handled = mv_host_intr(host, main_irq_cause);
 	}
 	spin_unlock(&host->lock);
 	return IRQ_RETVAL(handled);
@@ -2027,7 +2028,7 @@ static void mv_reset_pci_bus(struct ata_host *host, void __iomem *mmio)
 	ZERO(MV_PCI_DISC_TIMER);
 	ZERO(MV_PCI_MSI_TRIGGER);
 	writel(0x000100ff, mmio + MV_PCI_XBAR_TMOUT);
-	ZERO(HC_MAIN_IRQ_MASK_OFS);
+	ZERO(PCI_HC_MAIN_IRQ_MASK_OFS);
 	ZERO(MV_PCI_SERR_MASK);
 	ZERO(hpriv->irq_cause_ofs);
 	ZERO(hpriv->irq_mask_ofs);
@@ -2404,7 +2405,7 @@ static void mv_eh_freeze(struct ata_port *ap)
 {
 	struct mv_host_priv *hpriv = ap->host->private_data;
 	unsigned int shift, hardport, port = ap->port_no;
-	u32 main_mask;
+	u32 main_irq_mask;
 
 	/* FIXME: handle coalescing completion events properly */
 
@@ -2412,9 +2413,9 @@ static void mv_eh_freeze(struct ata_port *ap)
 	MV_PORT_TO_SHIFT_AND_HARDPORT(port, shift, hardport);
 
 	/* disable assertion of portN err, done events */
-	main_mask = readl(hpriv->main_mask_reg_addr);
-	main_mask &= ~((DONE_IRQ | ERR_IRQ) << shift);
-	writelfl(main_mask, hpriv->main_mask_reg_addr);
+	main_irq_mask = readl(hpriv->main_irq_mask_addr);
+	main_irq_mask &= ~((DONE_IRQ | ERR_IRQ) << shift);
+	writelfl(main_irq_mask, hpriv->main_irq_mask_addr);
 }
 
 static void mv_eh_thaw(struct ata_port *ap)
@@ -2423,7 +2424,7 @@ static void mv_eh_thaw(struct ata_port *ap)
 	unsigned int shift, hardport, port = ap->port_no;
 	void __iomem *hc_mmio = mv_hc_base_from_port(hpriv->base, port);
 	void __iomem *port_mmio = mv_ap_base(ap);
-	u32 main_mask, hc_irq_cause;
+	u32 main_irq_mask, hc_irq_cause;
 
 	/* FIXME: handle coalescing completion events properly */
 
@@ -2438,9 +2439,9 @@ static void mv_eh_thaw(struct ata_port *ap)
 	writelfl(hc_irq_cause, hc_mmio + HC_IRQ_CAUSE_OFS);
 
 	/* enable assertion of portN err, done events */
-	main_mask = readl(hpriv->main_mask_reg_addr);
-	main_mask |= ((DONE_IRQ | ERR_IRQ) << shift);
-	writelfl(main_mask, hpriv->main_mask_reg_addr);
+	main_irq_mask = readl(hpriv->main_irq_mask_addr);
+	main_irq_mask |= ((DONE_IRQ | ERR_IRQ) << shift);
+	writelfl(main_irq_mask, hpriv->main_irq_mask_addr);
 }
 
 /**
@@ -2654,15 +2655,15 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 		goto done;
 
 	if (HAS_PCI(host)) {
-		hpriv->main_cause_reg_addr = mmio + HC_MAIN_IRQ_CAUSE_OFS;
-		hpriv->main_mask_reg_addr  = mmio + HC_MAIN_IRQ_MASK_OFS;
+		hpriv->main_irq_cause_addr = mmio + PCI_HC_MAIN_IRQ_CAUSE_OFS;
+		hpriv->main_irq_mask_addr  = mmio + PCI_HC_MAIN_IRQ_MASK_OFS;
 	} else {
-		hpriv->main_cause_reg_addr = mmio + HC_SOC_MAIN_IRQ_CAUSE_OFS;
-		hpriv->main_mask_reg_addr  = mmio + HC_SOC_MAIN_IRQ_MASK_OFS;
+		hpriv->main_irq_cause_addr = mmio + SOC_HC_MAIN_IRQ_CAUSE_OFS;
+		hpriv->main_irq_mask_addr  = mmio + SOC_HC_MAIN_IRQ_MASK_OFS;
 	}
 
 	/* global interrupt mask: 0 == mask everything */
-	writel(0, hpriv->main_mask_reg_addr);
+	writel(0, hpriv->main_irq_mask_addr);
 
 	n_hc = mv_get_hc_count(host->ports[0]->flags);
 
@@ -2712,23 +2713,23 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 		writelfl(hpriv->unmask_all_irqs, mmio + hpriv->irq_mask_ofs);
 		if (IS_GEN_I(hpriv))
 			writelfl(~HC_MAIN_MASKED_IRQS_5,
-				 hpriv->main_mask_reg_addr);
+				 hpriv->main_irq_mask_addr);
 		else
 			writelfl(~HC_MAIN_MASKED_IRQS,
-				 hpriv->main_mask_reg_addr);
+				 hpriv->main_irq_mask_addr);
 
 		VPRINTK("HC MAIN IRQ cause/mask=0x%08x/0x%08x "
 			"PCI int cause/mask=0x%08x/0x%08x\n",
-			readl(hpriv->main_cause_reg_addr),
-			readl(hpriv->main_mask_reg_addr),
+			readl(hpriv->main_irq_cause_addr),
+			readl(hpriv->main_irq_mask_addr),
 			readl(mmio + hpriv->irq_cause_ofs),
 			readl(mmio + hpriv->irq_mask_ofs));
 	} else {
 		writelfl(~HC_MAIN_MASKED_IRQS_SOC,
-			 hpriv->main_mask_reg_addr);
+			 hpriv->main_irq_mask_addr);
 		VPRINTK("HC MAIN IRQ cause/mask=0x%08x/0x%08x\n",
-			readl(hpriv->main_cause_reg_addr),
-			readl(hpriv->main_mask_reg_addr));
+			readl(hpriv->main_irq_cause_addr),
+			readl(hpriv->main_irq_mask_addr));
 	}
 done:
 	return rc;
