@@ -462,11 +462,6 @@ static int hpc_toggle_emi(struct slot *slot)
 
 	slot_cmd = EMI_CTRL;
 	cmd_mask = EMI_CTRL;
-	if (!pciehp_poll_mode) {
-		slot_cmd = slot_cmd | HP_INTR_ENABLE;
-		cmd_mask = cmd_mask | HP_INTR_ENABLE;
-	}
-
 	rc = pcie_write_cmd(slot->ctrl, slot_cmd, cmd_mask);
 	slot->last_emi_toggle = get_seconds();
 
@@ -494,11 +489,6 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 		default:
 			return -1;
 	}
-	if (!pciehp_poll_mode) {
-		slot_cmd = slot_cmd | HP_INTR_ENABLE;
-		cmd_mask = cmd_mask | HP_INTR_ENABLE;
-	}
-
 	rc = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __func__, ctrl->cap_base + SLOTCTRL, slot_cmd);
@@ -514,13 +504,7 @@ static void hpc_set_green_led_on(struct slot *slot)
 
 	slot_cmd = 0x0100;
 	cmd_mask = PWR_LED_CTRL;
-	if (!pciehp_poll_mode) {
-		slot_cmd = slot_cmd | HP_INTR_ENABLE;
-		cmd_mask = cmd_mask | HP_INTR_ENABLE;
-	}
-
 	pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
-
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __func__, ctrl->cap_base + SLOTCTRL, slot_cmd);
 }
@@ -533,11 +517,6 @@ static void hpc_set_green_led_off(struct slot *slot)
 
 	slot_cmd = 0x0300;
 	cmd_mask = PWR_LED_CTRL;
-	if (!pciehp_poll_mode) {
-		slot_cmd = slot_cmd | HP_INTR_ENABLE;
-		cmd_mask = cmd_mask | HP_INTR_ENABLE;
-	}
-
 	pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __func__, ctrl->cap_base + SLOTCTRL, slot_cmd);
@@ -551,13 +530,7 @@ static void hpc_set_green_led_blink(struct slot *slot)
 
 	slot_cmd = 0x0200;
 	cmd_mask = PWR_LED_CTRL;
-	if (!pciehp_poll_mode) {
-		slot_cmd = slot_cmd | HP_INTR_ENABLE;
-		cmd_mask = cmd_mask | HP_INTR_ENABLE;
-	}
-
 	pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
-
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __func__, ctrl->cap_base + SLOTCTRL, slot_cmd);
 }
@@ -607,16 +580,10 @@ static int hpc_power_on_slot(struct slot * slot)
 	cmd_mask = PWR_CTRL;
 	/* Enable detection that we turned off at slot power-off time */
 	if (!pciehp_poll_mode) {
-		slot_cmd = slot_cmd |
-		           PWR_FAULT_DETECT_ENABLE |
-		           MRL_DETECT_ENABLE |
-		           PRSN_DETECT_ENABLE |
-		           HP_INTR_ENABLE;
-		cmd_mask = cmd_mask |
-		           PWR_FAULT_DETECT_ENABLE |
-		           MRL_DETECT_ENABLE |
-		           PRSN_DETECT_ENABLE |
-		           HP_INTR_ENABLE;
+		slot_cmd |= (PWR_FAULT_DETECT_ENABLE | MRL_DETECT_ENABLE |
+			     PRSN_DETECT_ENABLE);
+		cmd_mask |= (PWR_FAULT_DETECT_ENABLE | MRL_DETECT_ENABLE |
+			     PRSN_DETECT_ENABLE);
 	}
 
 	retval = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
@@ -692,15 +659,10 @@ static int hpc_power_off_slot(struct slot * slot)
 	 * till the slot is powered on again.
 	 */
 	if (!pciehp_poll_mode) {
-		slot_cmd = (slot_cmd &
-		            ~PWR_FAULT_DETECT_ENABLE &
-		            ~MRL_DETECT_ENABLE &
-		            ~PRSN_DETECT_ENABLE) | HP_INTR_ENABLE;
-		cmd_mask = cmd_mask |
-			   PWR_FAULT_DETECT_ENABLE |
-			   MRL_DETECT_ENABLE |
-			   PRSN_DETECT_ENABLE |
-			   HP_INTR_ENABLE;
+		slot_cmd &= ~(PWR_FAULT_DETECT_ENABLE | MRL_DETECT_ENABLE |
+			      PRSN_DETECT_ENABLE);
+		cmd_mask |= (PWR_FAULT_DETECT_ENABLE | MRL_DETECT_ENABLE |
+			     PRSN_DETECT_ENABLE);
 	}
 
 	retval = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
