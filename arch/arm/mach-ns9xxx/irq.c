@@ -56,7 +56,7 @@ static struct irq_chip ns9xxx_chip = {
 #if 0
 #define handle_irq handle_level_irq
 #else
-void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
+static void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int cpu = smp_processor_id();
 	struct irqaction *action;
