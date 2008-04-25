@@ -132,6 +132,13 @@ static inline void disable_interrupts(struct spu_state *csa, struct spu *spu)
 	spu_int_mask_set(spu, 2, 0ul);
 	eieio();
 	spin_unlock_irq(&spu->register_lock);
+
+	/*
+	 * This flag needs to be set before calling synchronize_irq so
+	 * that the update will be visible to the relevant handlers
+	 * via a simple load.
+	 */
+	set_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags);
 	synchronize_irq(spu->irqs[0]);
 	synchronize_irq(spu->irqs[1]);
 	synchronize_irq(spu->irqs[2]);
@@ -166,9 +173,8 @@ static inline void set_switch_pending(struct spu_state *csa, struct spu *spu)
 	/* Save, Step 7:
 	 * Restore, Step 5:
 	 *     Set a software context switch pending flag.
+	 *     Done above in Step 3 - disable_interrupts().
 	 */
-	set_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags);
-	mb();
 }
 
 static inline void save_mfc_cntl(struct spu_state *csa, struct spu *spu)
