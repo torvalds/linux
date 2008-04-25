@@ -27,6 +27,7 @@
 #include <linux/phy.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/ethtool.h>
 #include <linux/skbuff.h>
 #include <linux/platform_device.h>
 
@@ -453,6 +454,51 @@ static int mii_probe(struct net_device *dev)
 
 	return 0;
 }
+
+/*
+ * Ethtool support
+ */
+
+static int
+bfin_mac_ethtool_getsettings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct bfin_mac_local *lp = netdev_priv(dev);
+
+	if (lp->phydev)
+		return phy_ethtool_gset(lp->phydev, cmd);
+
+	return -EINVAL;
+}
+
+static int
+bfin_mac_ethtool_setsettings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct bfin_mac_local *lp = netdev_priv(dev);
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	if (lp->phydev)
+		return phy_ethtool_sset(lp->phydev, cmd);
+
+	return -EINVAL;
+}
+
+static void bfin_mac_ethtool_getdrvinfo(struct net_device *dev,
+					struct ethtool_drvinfo *info)
+{
+	strcpy(info->driver, DRV_NAME);
+	strcpy(info->version, DRV_VERSION);
+	strcpy(info->fw_version, "N/A");
+	strcpy(info->bus_info, dev->dev.bus_id);
+}
+
+static struct ethtool_ops bfin_mac_ethtool_ops = {
+	.get_settings = bfin_mac_ethtool_getsettings,
+	.set_settings = bfin_mac_ethtool_setsettings,
+	.get_link = ethtool_op_get_link,
+	.get_drvinfo = bfin_mac_ethtool_getdrvinfo,
+};
 
 /**************************************************************************/
 void setup_system_regs(struct net_device *dev)
@@ -997,6 +1043,7 @@ static int __init bfin_mac_probe(struct platform_device *pdev)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	ndev->poll_controller = bfin_mac_poll;
 #endif
+	ndev->ethtool_ops = &bfin_mac_ethtool_ops;
 
 	spin_lock_init(&lp->lock);
 
