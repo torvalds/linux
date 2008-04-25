@@ -324,6 +324,8 @@ extern struct bio *bio_map_user_iov(struct request_queue *,
 extern void bio_unmap_user(struct bio *);
 extern struct bio *bio_map_kern(struct request_queue *, void *, unsigned int,
 				gfp_t);
+extern struct bio *bio_copy_kern(struct request_queue *, void *, unsigned int,
+				 gfp_t, int);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
 extern struct bio *bio_copy_user(struct request_queue *, unsigned long, unsigned int, int);

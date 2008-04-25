@@ -937,6 +937,95 @@ struct bio *bio_map_kern(struct request_queue *q, void *data, unsigned int len,
 	return ERR_PTR(-EINVAL);
 }
 
+static void bio_copy_kern_endio(struct bio *bio, int err)
+{
+	struct bio_vec *bvec;
+	const int read = bio_data_dir(bio) == READ;
+	char *p = bio->bi_private;
+	int i;
+
+	__bio_for_each_segment(bvec, bio, i, 0) {
+		char *addr = page_address(bvec->bv_page);
+
+		if (read && !err)
+			memcpy(p, addr, bvec->bv_len);
+
+		__free_page(bvec->bv_page);
+		p += bvec->bv_len;
+	}
+
+	bio_put(bio);
+}
+
+/**
+ *	bio_copy_kern	-	copy kernel address into bio
+ *	@q: the struct request_queue for the bio
+ *	@data: pointer to buffer to copy
+ *	@len: length in bytes
+ *	@gfp_mask: allocation flags for bio and page allocation
+ *
+ *	copy the kernel address into a bio suitable for io to a block
+ *	device. Returns an error pointer in case of error.
+ */
+struct bio *bio_copy_kern(struct request_queue *q, void *data, unsigned int len,
+			  gfp_t gfp_mask, int reading)
+{
+	unsigned long kaddr = (unsigned long)data;
+	unsigned long end = (kaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	unsigned long start = kaddr >> PAGE_SHIFT;
+	const int nr_pages = end - start;
+	struct bio *bio;
+	struct bio_vec *bvec;
+	int i, ret;
+
+	bio = bio_alloc(gfp_mask, nr_pages);
+	if (!bio)
+		return ERR_PTR(-ENOMEM);
+
+	while (len) {
+		struct page *page;
+		unsigned int bytes = PAGE_SIZE;
+
+		if (bytes > len)
+			bytes = len;
+
+		page = alloc_page(q->bounce_gfp | gfp_mask);
+		if (!page) {
+			ret = -ENOMEM;
+			goto cleanup;
+		}
+
+		if (bio_add_pc_page(q, bio, page, bytes, 0) < bytes) {
+			ret = -EINVAL;
+			goto cleanup;
+		}
+
+		len -= bytes;
+	}
+
+	if (!reading) {
+		void *p = data;
+
+		bio_for_each_segment(bvec, bio, i) {
+			char *addr = page_address(bvec->bv_page);
+
+			memcpy(addr, p, bvec->bv_len);
+			p += bvec->bv_len;
+		}
+	}
+
+	bio->bi_private = data;
+	bio->bi_end_io = bio_copy_kern_endio;
+	return bio;
+cleanup:
+	bio_for_each_segment(bvec, bio, i)
+		__free_page(bvec->bv_page);
+
+	bio_put(bio);
+
+	return ERR_PTR(ret);
+}
+
 /*
  * bio_set_pages_dirty() and bio_check_pages_dirty() are support functions
  * for performing direct-IO in BIOs.
@@ -1273,6 +1362,7 @@ EXPORT_SYMBOL(bio_get_nr_vecs);
 EXPORT_SYMBOL(bio_map_user);
 EXPORT_SYMBOL(bio_unmap_user);
 EXPORT_SYMBOL(bio_map_kern);
+EXPORT_SYMBOL(bio_copy_kern);
 EXPORT_SYMBOL(bio_pair_release);
 EXPORT_SYMBOL(bio_split);
 EXPORT_SYMBOL(bio_split_pool);
