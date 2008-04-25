@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/firmware.h>
+#include <asm/div64.h>
 
 #include "dvb_frontend.h"
 #include "drx397xD.h"
@@ -1024,17 +1025,15 @@ static int drx_tune(struct drx397xD_state *s,
 	rc = WR16(s, 0x0820050, rc);
 
 	{
-		long dummy;
-
 		/* Configure bandwidth specific factor */
-		ebx = div_ll_X_l_rem(((u64) (s->f_osc) << 21) + (ebx >> 1),
-				     ebx, &dummy) - 0x800000;
+		ebx = div64_64(((u64) (s->f_osc) << 21) + (ebx >> 1),
+				     (u64)ebx) - 0x800000;
 		EXIT_RC(WR16(s, 0x0c50010, ebx & 0xffff));
 		EXIT_RC(WR16(s, 0x0c50011, ebx >> 16));
 
 		/* drx397xD oscillator calibration */
-		ebx = div_ll_X_l_rem(((u64) (s->config.f_if + df_tuner) << 28) +
-				     (s->f_osc >> 1), s->f_osc, &dummy);
+		ebx = div64_64(((u64) (s->config.f_if + df_tuner) << 28) +
+				     (s->f_osc >> 1), (u64)s->f_osc);
 	}
 	ebx &= 0xfffffff;
 	if (fep->inversion == INVERSION_ON)
