@@ -143,10 +143,8 @@ static void queue_flush(struct request_queue *q, unsigned which)
 		end_io = post_flush_end_io;
 	}
 
-	rq->cmd_flags = REQ_HARDBARRIER;
 	rq_init(q, rq);
-	rq->elevator_private = NULL;
-	rq->elevator_private2 = NULL;
+	rq->cmd_flags = REQ_HARDBARRIER;
 	rq->rq_disk = q->bar_rq.rq_disk;
 	rq->end_io = end_io;
 	q->prepare_flush_fn(q, rq);
@@ -167,14 +165,11 @@ static inline struct request *start_ordered(struct request_queue *q,
 	blkdev_dequeue_request(rq);
 	q->orig_bar_rq = rq;
 	rq = &q->bar_rq;
-	rq->cmd_flags = 0;
 	rq_init(q, rq);
 	if (bio_data_dir(q->orig_bar_rq->bio) == WRITE)
 		rq->cmd_flags |= REQ_RW;
 	if (q->ordered & QUEUE_ORDERED_FUA)
 		rq->cmd_flags |= REQ_FUA;
-	rq->elevator_private = NULL;
-	rq->elevator_private2 = NULL;
 	init_request_from_bio(rq, q->orig_bar_rq->bio);
 	rq->end_io = bar_end_io;
 
