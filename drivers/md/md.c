@@ -4807,6 +4807,12 @@ static int set_disk_faulty(mddev_t *mddev, dev_t dev)
 	return 0;
 }
 
+/*
+ * We have a problem here : there is no easy way to give a CHS
+ * virtual geometry. We currently pretend that we have a 2 heads
+ * 4 sectors (with a BIG number of cylinders...). This drives
+ * dosfs just mad... ;-)
+ */
 static int md_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
 	mddev_t *mddev = bdev->bd_disk->private_data;
@@ -4958,12 +4964,6 @@ static int md_ioctl(struct inode *inode, struct file *file,
 			err = do_md_stop (mddev, 1);
 			goto done_unlock;
 
-	/*
-	 * We have a problem here : there is no easy way to give a CHS
-	 * virtual geometry. We currently pretend that we have a 2 heads
-	 * 4 sectors (with a BIG number of cylinders...). This drives
-	 * dosfs just mad... ;-)
-	 */
 	}
 
 	/*
