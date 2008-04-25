@@ -252,7 +252,6 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd, u16 mask)
 	int retval = 0;
 	u16 slot_status;
 	u16 slot_ctrl;
-	unsigned long flags;
 
 	mutex_lock(&ctrl->ctrl_lock);
 
@@ -270,11 +269,10 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd, u16 mask)
 		    __func__);
 	}
 
-	spin_lock_irqsave(&ctrl->lock, flags);
 	retval = pciehp_readw(ctrl, SLOTCTRL, &slot_ctrl);
 	if (retval) {
 		err("%s: Cannot read SLOTCTRL register\n", __func__);
-		goto out_spin_unlock;
+		goto out;
 	}
 
 	slot_ctrl &= ~mask;
@@ -284,9 +282,6 @@ static int pcie_write_cmd(struct slot *slot, u16 cmd, u16 mask)
 	retval = pciehp_writew(ctrl, SLOTCTRL, slot_ctrl);
 	if (retval)
 		err("%s: Cannot write to SLOTCTRL register\n", __func__);
-
- out_spin_unlock:
-	spin_unlock_irqrestore(&ctrl->lock, flags);
 
 	/*
 	 * Wait for command completion.
@@ -733,139 +728,55 @@ static int hpc_power_off_slot(struct slot * slot)
 static irqreturn_t pcie_isr(int irq, void *dev_id)
 {
 	struct controller *ctrl = (struct controller *)dev_id;
-	u16 slot_status, intr_detect, intr_loc;
-	u16 temp_word;
-	int hp_slot = 0;	/* only 1 slot per PCI Express port */
-	int rc = 0;
-	unsigned long flags;
+	u16 detected, intr_loc;
 
-	rc = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
-	if (rc) {
-		err("%s: Cannot read SLOTSTATUS register\n", __func__);
-		return IRQ_NONE;
-	}
-
-	intr_detect = (ATTN_BUTTN_PRESSED | PWR_FAULT_DETECTED |
-		       MRL_SENS_CHANGED | PRSN_DETECT_CHANGED | CMD_COMPLETED);
-
-	intr_loc = slot_status & intr_detect;
-
-	/* Check to see if it was our interrupt */
-	if ( !intr_loc )
-		return IRQ_NONE;
-
-	dbg("%s: intr_loc %x\n", __func__, intr_loc);
-	/* Mask Hot-plug Interrupt Enable */
-	if (!pciehp_poll_mode) {
-		spin_lock_irqsave(&ctrl->lock, flags);
-		rc = pciehp_readw(ctrl, SLOTCTRL, &temp_word);
-		if (rc) {
-			err("%s: Cannot read SLOT_CTRL register\n",
-			    __func__);
-			spin_unlock_irqrestore(&ctrl->lock, flags);
+	/*
+	 * In order to guarantee that all interrupt events are
+	 * serviced, we need to re-inspect Slot Status register after
+	 * clearing what is presumed to be the last pending interrupt.
+	 */
+	intr_loc = 0;
+	do {
+		if (pciehp_readw(ctrl, SLOTSTATUS, &detected)) {
+			err("%s: Cannot read SLOTSTATUS\n", __func__);
 			return IRQ_NONE;
 		}
 
-		dbg("%s: pciehp_readw(SLOTCTRL) with value %x\n",
-		    __func__, temp_word);
-		temp_word = (temp_word & ~HP_INTR_ENABLE &
-			     ~CMD_CMPL_INTR_ENABLE) | 0x00;
-		rc = pciehp_writew(ctrl, SLOTCTRL, temp_word);
-		if (rc) {
-			err("%s: Cannot write to SLOTCTRL register\n",
-			    __func__);
-			spin_unlock_irqrestore(&ctrl->lock, flags);
+		detected &= (ATTN_BUTTN_PRESSED | PWR_FAULT_DETECTED |
+			     MRL_SENS_CHANGED | PRSN_DETECT_CHANGED |
+			     CMD_COMPLETED);
+		intr_loc |= detected;
+		if (!intr_loc)
+			return IRQ_NONE;
+		if (pciehp_writew(ctrl, SLOTSTATUS, detected)) {
+			err("%s: Cannot write to SLOTSTATUS\n", __func__);
 			return IRQ_NONE;
 		}
-		spin_unlock_irqrestore(&ctrl->lock, flags);
+	} while (detected);
 
-		rc = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
-		if (rc) {
-			err("%s: Cannot read SLOT_STATUS register\n",
-			    __func__);
-			return IRQ_NONE;
-		}
-		dbg("%s: pciehp_readw(SLOTSTATUS) with value %x\n",
-		    __func__, slot_status);
+	dbg("%s: intr_loc %x\n", __FUNCTION__, intr_loc);
 
-		/* Clear command complete interrupt caused by this write */
-		temp_word = 0x1f;
-		rc = pciehp_writew(ctrl, SLOTSTATUS, temp_word);
-		if (rc) {
-			err("%s: Cannot write to SLOTSTATUS register\n",
-			    __func__);
-			return IRQ_NONE;
-		}
-	}
-
+	/* Check Command Complete Interrupt Pending */
 	if (intr_loc & CMD_COMPLETED) {
-		/*
-		 * Command Complete Interrupt Pending
-		 */
 		ctrl->cmd_busy = 0;
 		wake_up_interruptible(&ctrl->queue);
 	}
 
+	/* Check MRL Sensor Changed */
 	if (intr_loc & MRL_SENS_CHANGED)
-		pciehp_handle_switch_change(hp_slot, ctrl);
+		pciehp_handle_switch_change(0, ctrl);
 
+	/* Check Attention Button Pressed */
 	if (intr_loc & ATTN_BUTTN_PRESSED)
-		pciehp_handle_attention_button(hp_slot, ctrl);
+		pciehp_handle_attention_button(0, ctrl);
 
+	/* Check Presence Detect Changed */
 	if (intr_loc & PRSN_DETECT_CHANGED)
-		pciehp_handle_presence_change(hp_slot, ctrl);
+		pciehp_handle_presence_change(0, ctrl);
 
+	/* Check Power Fault Detected */
 	if (intr_loc & PWR_FAULT_DETECTED)
-		pciehp_handle_power_fault(hp_slot, ctrl);
-
-	/* Clear all events after serving them */
-	temp_word = 0x1F;
-	rc = pciehp_writew(ctrl, SLOTSTATUS, temp_word);
-	if (rc) {
-		err("%s: Cannot write to SLOTSTATUS register\n", __func__);
-		return IRQ_NONE;
-	}
-	/* Unmask Hot-plug Interrupt Enable */
-	if (!pciehp_poll_mode) {
-		spin_lock_irqsave(&ctrl->lock, flags);
-		rc = pciehp_readw(ctrl, SLOTCTRL, &temp_word);
-		if (rc) {
-			err("%s: Cannot read SLOTCTRL register\n",
-			    __func__);
-			spin_unlock_irqrestore(&ctrl->lock, flags);
-			return IRQ_NONE;
-		}
-
-		dbg("%s: Unmask Hot-plug Interrupt Enable\n", __func__);
-		temp_word = (temp_word & ~HP_INTR_ENABLE) | HP_INTR_ENABLE;
-
-		rc = pciehp_writew(ctrl, SLOTCTRL, temp_word);
-		if (rc) {
-			err("%s: Cannot write to SLOTCTRL register\n",
-			    __func__);
-			spin_unlock_irqrestore(&ctrl->lock, flags);
-			return IRQ_NONE;
-		}
-		spin_unlock_irqrestore(&ctrl->lock, flags);
-
-		rc = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
-		if (rc) {
-			err("%s: Cannot read SLOT_STATUS register\n",
-			    __func__);
-			return IRQ_NONE;
-		}
-
-		/* Clear command complete interrupt caused by this write */
-		temp_word = 0x1F;
-		rc = pciehp_writew(ctrl, SLOTSTATUS, temp_word);
-		if (rc) {
-			err("%s: Cannot write to SLOTSTATUS failed\n",
-			    __func__);
-			return IRQ_NONE;
-		}
-		dbg("%s: pciehp_writew(SLOTSTATUS) with value %x\n",
-		    __func__, temp_word);
-	}
+		pciehp_handle_power_fault(0, ctrl);
 
 	return IRQ_HANDLED;
 }
@@ -1334,7 +1245,6 @@ int pcie_init(struct controller *ctrl, struct pcie_device *dev)
 
 	mutex_init(&ctrl->crit_sect);
 	mutex_init(&ctrl->ctrl_lock);
-	spin_lock_init(&ctrl->lock);
 
 	/* setup wait queue */
 	init_waitqueue_head(&ctrl->queue);
