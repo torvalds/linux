@@ -1657,42 +1657,6 @@ void aggregate_group_weight(struct task_group *tg, struct sched_domain *sd)
 }
 
 /*
- * Redistribute tg->shares amongst all tg->cfs_rq[]s.
- */
-static void __aggregate_redistribute_shares(struct task_group *tg)
-{
-	int i, max_cpu = smp_processor_id();
-	unsigned long rq_weight = 0;
-	unsigned long shares, max_shares = 0, shares_rem = tg->shares;
-
-	for_each_possible_cpu(i)
-		rq_weight += tg->cfs_rq[i]->load.weight;
-
-	for_each_possible_cpu(i) {
-		/*
-		 * divide shares proportional to the rq_weights.
-		 */
-		shares = tg->shares * tg->cfs_rq[i]->load.weight;
-		shares /= rq_weight + 1;
-
-		tg->cfs_rq[i]->shares = shares;
-
-		if (shares > max_shares) {
-			max_shares = shares;
-			max_cpu = i;
-		}
-		shares_rem -= shares;
-	}
-
-	/*
-	 * Ensure it all adds up to tg->shares; we can loose a few
-	 * due to rounding down when computing the per-cpu shares.
-	 */
-	if (shares_rem)
-		tg->cfs_rq[max_cpu]->shares += shares_rem;
-}
-
-/*
  * Compute the weight of this group on the given cpus.
  */
 static
@@ -1701,18 +1665,11 @@ void aggregate_group_shares(struct task_group *tg, struct sched_domain *sd)
 	unsigned long shares = 0;
 	int i;
 
-again:
 	for_each_cpu_mask(i, sd->span)
 		shares += tg->cfs_rq[i]->shares;
 
-	/*
-	 * When the span doesn't have any shares assigned, but does have
-	 * tasks to run do a machine wide rebalance (should be rare).
-	 */
-	if (unlikely(!shares && aggregate(tg, sd)->rq_weight)) {
-		__aggregate_redistribute_shares(tg);
-		goto again;
-	}
+	if ((!shares && aggregate(tg, sd)->rq_weight) || shares > tg->shares)
+		shares = tg->shares;
 
 	aggregate(tg, sd)->shares = shares;
 }

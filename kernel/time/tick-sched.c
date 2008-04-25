@@ -393,6 +393,7 @@ void tick_nohz_restart_sched_tick(void)
 		sub_preempt_count(HARDIRQ_OFFSET);
 	}
 
+	touch_softlockup_watchdog();
 	/*
 	 * Cancel the scheduled timer and restore the tick
 	 */
