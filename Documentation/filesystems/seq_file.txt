@@ -187,12 +187,18 @@ The first two output a single character and a string, just like one would
 expect. seq_escape() is like seq_puts(), except that any character in s
 which is in the string esc will be represented in octal form in the output.
 
-There is also a function for printing filenames:
+There is also a pair of functions for printing filenames:
 
 	int seq_path(struct seq_file *m, struct path *path, char *esc);
+	int seq_path_root(struct seq_file *m, struct path *path,
+			  struct path *root, char *esc)
 
 Here, path indicates the file of interest, and esc is a set of characters
-which should be escaped in the output.
+which should be escaped in the output.  A call to seq_path() will output
+the path relative to the current process's filesystem root.  If a different
+root is desired, it can be used with seq_path_root().  Note that, if it
+turns out that path cannot be reached from root, the value of root will be
+changed in seq_file_root() to a root which *does* work.
 
 
 Making it all work
