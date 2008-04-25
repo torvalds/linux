@@ -14,7 +14,7 @@
 #define CLEVO_MAIL_LED_BLINK_1HZ	0x008A
 #define CLEVO_MAIL_LED_BLINK_0_5HZ	0x0083
 
-MODULE_AUTHOR("Márton Németh <nm127@freemail.hu>");
+MODULE_AUTHOR("MÃ¡rton NÃ©meth <nm127@freemail.hu>");
 MODULE_DESCRIPTION("Clevo mail LED driver");
 MODULE_LICENSE("GPL");
 
@@ -69,6 +69,16 @@ static struct dmi_system_id __initdata mail_led_whitelist[] = {
 	},
 	{
 		.callback = clevo_mail_led_dmi_callback,
+		.ident = "Clevo D400P",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Clevo"),
+			DMI_MATCH(DMI_BOARD_NAME, "D400P"),
+			DMI_MATCH(DMI_BOARD_VERSION, "Rev.A"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "0106")
+		}
+	},
+	{
+		.callback = clevo_mail_led_dmi_callback,
 		.ident = "Clevo D410V",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Clevo, Co."),
@@ -93,8 +103,8 @@ static void clevo_mail_led_set(struct led_classdev *led_cdev,
 }
 
 static int clevo_mail_led_blink(struct led_classdev *led_cdev,
-				unsigned long* delay_on,
-				unsigned long* delay_off)
+				unsigned long *delay_on,
+				unsigned long *delay_off)
 {
 	int status = -EINVAL;
 

@@ -24,6 +24,8 @@ struct gpio_led_data {
 	u8 new_level;
 	u8 can_sleep;
 	u8 active_low;
+	int (*platform_gpio_blink_set)(unsigned gpio,
+			unsigned long *delay_on, unsigned long *delay_off);
 };
 
 static void gpio_led_work(struct work_struct *work)
@@ -60,6 +62,15 @@ static void gpio_led_set(struct led_classdev *led_cdev,
 		gpio_set_value(led_dat->gpio, level);
 }
 
+static int gpio_blink_set(struct led_classdev *led_cdev,
+	unsigned long *delay_on, unsigned long *delay_off)
+{
+	struct gpio_led_data *led_dat =
+		container_of(led_cdev, struct gpio_led_data, cdev);
+
+	return led_dat->platform_gpio_blink_set(led_dat->gpio, delay_on, delay_off);
+}
+
 static int gpio_led_probe(struct platform_device *pdev)
 {
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
@@ -88,6 +99,10 @@ static int gpio_led_probe(struct platform_device *pdev)
 		led_dat->gpio = cur_led->gpio;
 		led_dat->can_sleep = gpio_cansleep(cur_led->gpio);
 		led_dat->active_low = cur_led->active_low;
+		if (pdata->gpio_blink_set) {
+			led_dat->platform_gpio_blink_set = pdata->gpio_blink_set;
+			led_dat->cdev.blink_set = gpio_blink_set;
+		}
 		led_dat->cdev.brightness_set = gpio_led_set;
 		led_dat->cdev.brightness = LED_OFF;
 

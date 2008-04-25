@@ -26,20 +26,20 @@
 void h1940_greenled_set(struct led_classdev *led_dev, enum led_brightness value)
 {
 	switch (value) {
-		case LED_HALF:
-			h1940_latch_control(0,H1940_LATCH_LED_FLASH);
-			s3c2410_gpio_setpin(S3C2410_GPA7,1);
-			break;
-		case LED_FULL:
-			h1940_latch_control(0,H1940_LATCH_LED_GREEN);
-			s3c2410_gpio_setpin(S3C2410_GPA7,1);
-			break;
-		default:
-		case LED_OFF:
-			h1940_latch_control(H1940_LATCH_LED_FLASH,0);
-			h1940_latch_control(H1940_LATCH_LED_GREEN,0);
-			s3c2410_gpio_setpin(S3C2410_GPA7,0);
-			break;
+	case LED_HALF:
+		h1940_latch_control(0, H1940_LATCH_LED_FLASH);
+		s3c2410_gpio_setpin(S3C2410_GPA7, 1);
+		break;
+	case LED_FULL:
+		h1940_latch_control(0, H1940_LATCH_LED_GREEN);
+		s3c2410_gpio_setpin(S3C2410_GPA7, 1);
+		break;
+	default:
+	case LED_OFF:
+		h1940_latch_control(H1940_LATCH_LED_FLASH, 0);
+		h1940_latch_control(H1940_LATCH_LED_GREEN, 0);
+		s3c2410_gpio_setpin(S3C2410_GPA7, 0);
+		break;
 	}
 }
 
@@ -55,20 +55,20 @@ static struct led_classdev h1940_greenled = {
 void h1940_redled_set(struct led_classdev *led_dev, enum led_brightness value)
 {
 	switch (value) {
-		case LED_HALF:
-			h1940_latch_control(0,H1940_LATCH_LED_FLASH);
-			s3c2410_gpio_setpin(S3C2410_GPA1,1);
-			break;
-		case LED_FULL:
-			h1940_latch_control(0,H1940_LATCH_LED_RED);
-			s3c2410_gpio_setpin(S3C2410_GPA1,1);
-			break;
-		default:
-		case LED_OFF:
-			h1940_latch_control(H1940_LATCH_LED_FLASH,0);
-			h1940_latch_control(H1940_LATCH_LED_RED,0);
-			s3c2410_gpio_setpin(S3C2410_GPA1,0);
-			break;
+	case LED_HALF:
+		h1940_latch_control(0, H1940_LATCH_LED_FLASH);
+		s3c2410_gpio_setpin(S3C2410_GPA1, 1);
+		break;
+	case LED_FULL:
+		h1940_latch_control(0, H1940_LATCH_LED_RED);
+		s3c2410_gpio_setpin(S3C2410_GPA1, 1);
+		break;
+	default:
+	case LED_OFF:
+		h1940_latch_control(H1940_LATCH_LED_FLASH, 0);
+		h1940_latch_control(H1940_LATCH_LED_RED, 0);
+		s3c2410_gpio_setpin(S3C2410_GPA1, 0);
+		break;
 	}
 }
 
@@ -86,11 +86,11 @@ void h1940_blueled_set(struct led_classdev *led_dev, enum led_brightness value)
 {
 	if (value) {
 		/* flashing Blue */
-		h1940_latch_control(0,H1940_LATCH_LED_FLASH);
-		s3c2410_gpio_setpin(S3C2410_GPA3,1);
+		h1940_latch_control(0, H1940_LATCH_LED_FLASH);
+		s3c2410_gpio_setpin(S3C2410_GPA3, 1);
 	} else {
-		h1940_latch_control(H1940_LATCH_LED_FLASH,0);
-		s3c2410_gpio_setpin(S3C2410_GPA3,0);
+		h1940_latch_control(H1940_LATCH_LED_FLASH, 0);
+		s3c2410_gpio_setpin(S3C2410_GPA3, 0);
 	}
 
 }
