@@ -77,12 +77,6 @@ config GENERIC_BUG
 	def_bool y
 	depends on BUG
 
-config GENERIC_FIND_FIRST_BIT
-	def_bool y
-
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
 config GENERIC_HWEIGHT
 	def_bool y
 
