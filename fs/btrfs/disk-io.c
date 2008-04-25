@@ -1278,7 +1278,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_lock(&fs_info->fs_mutex);
 
 	ret = btrfs_read_sys_array(tree_root);
-	BUG_ON(ret);
+	if (ret) {
+		printk("btrfs: failed to read the system array on %s\n",
+		       sb->s_id);
+		goto fail_sys_array;
+	}
 
 	blocksize = btrfs_level_size(tree_root,
 				     btrfs_super_chunk_root_level(disk_super));
@@ -1335,8 +1339,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 fail_extent_root:
 	free_extent_buffer(extent_root->node);
 fail_tree_root:
-	mutex_unlock(&fs_info->fs_mutex);
 	free_extent_buffer(tree_root->node);
+fail_sys_array:
+	mutex_unlock(&fs_info->fs_mutex);
 fail_sb_buffer:
 	free_extent_buffer(fs_info->sb_buffer);
 	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
@@ -1344,6 +1349,8 @@ fail_iput:
 	iput(fs_info->btree_inode);
 fail:
 	close_all_devices(fs_info);
+	btrfs_mapping_tree_free(&fs_info->mapping_tree);
+
 	kfree(extent_root);
 	kfree(tree_root);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)

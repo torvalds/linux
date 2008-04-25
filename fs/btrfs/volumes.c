@@ -1365,14 +1365,14 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	struct extent_buffer *sb = root->fs_info->sb_buffer;
 	struct btrfs_disk_key *disk_key;
 	struct btrfs_chunk *chunk;
-	struct btrfs_key key;
+	u8 *ptr;
+	unsigned long sb_ptr;
+	int ret = 0;
 	u32 num_stripes;
 	u32 array_size;
 	u32 len = 0;
-	u8 *ptr;
-	unsigned long sb_ptr;
 	u32 cur;
-	int ret;
+	struct btrfs_key key;
 
 	array_size = btrfs_super_sys_array_size(super_copy);
 
@@ -1397,17 +1397,19 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 		if (key.type == BTRFS_CHUNK_ITEM_KEY) {
 			chunk = (struct btrfs_chunk *)sb_ptr;
 			ret = read_one_chunk(root, &key, sb, chunk);
-			BUG_ON(ret);
+			if (ret)
+				break;
 			num_stripes = btrfs_chunk_num_stripes(sb, chunk);
 			len = btrfs_chunk_item_size(num_stripes);
 		} else {
-			BUG();
+			ret = -EIO;
+			break;
 		}
 		ptr += len;
 		sb_ptr += len;
 		cur += len;
 	}
-	return 0;
+	return ret;
 }
 
 int btrfs_read_chunk_tree(struct btrfs_root *root)
