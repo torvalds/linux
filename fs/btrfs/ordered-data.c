@@ -269,3 +269,16 @@ int btrfs_del_ordered_inode(struct inode *inode)
 	return ret;
 }
 
+int btrfs_ordered_throttle(struct btrfs_root *root, struct inode *inode)
+{
+	struct btrfs_transaction *cur = root->fs_info->running_transaction;
+	while(cur == root->fs_info->running_transaction &&
+	      atomic_read(&BTRFS_I(inode)->ordered_writeback)) {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,18)
+		congestion_wait(WRITE, HZ/20);
+#else
+		blk_congestion_wait(WRITE, HZ/20);
+#endif
+	}
+	return 0;
+}

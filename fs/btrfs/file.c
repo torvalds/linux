@@ -977,6 +977,7 @@ out_nolock:
 		     (start_pos + num_written - 1) >> PAGE_CACHE_SHIFT);
 	}
 	current->backing_dev_info = NULL;
+	btrfs_ordered_throttle(root, inode);
 	return num_written ? num_written : err;
 }
 

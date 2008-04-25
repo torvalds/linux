@@ -512,8 +512,11 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 		mutex_unlock(&root->fs_info->trans_mutex);
 		mutex_unlock(&root->fs_info->fs_mutex);
 
-		if (S_ISREG(inode->i_mode))
+		if (S_ISREG(inode->i_mode)) {
+			atomic_inc(&BTRFS_I(inode)->ordered_writeback);
 			filemap_fdatawrite(inode->i_mapping);
+			atomic_dec(&BTRFS_I(inode)->ordered_writeback);
+		}
 		iput(inode);
 
 		mutex_lock(&root->fs_info->fs_mutex);
@@ -530,8 +533,11 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 		mutex_unlock(&root->fs_info->trans_mutex);
 		mutex_unlock(&root->fs_info->fs_mutex);
 
-		if (S_ISREG(inode->i_mode))
+		if (S_ISREG(inode->i_mode)) {
+			atomic_inc(&BTRFS_I(inode)->ordered_writeback);
 			filemap_write_and_wait(inode->i_mapping);
+			atomic_dec(&BTRFS_I(inode)->ordered_writeback);
+		}
 		atomic_dec(&inode->i_count);
 		iput(inode);
 

@@ -1419,6 +1419,7 @@ static int btrfs_init_locked_inode(struct inode *inode, void *p)
 			     inode->i_mapping, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 			     inode->i_mapping, GFP_NOFS);
+	atomic_set(&BTRFS_I(inode)->ordered_writeback, 0);
 	return 0;
 }
 
@@ -1728,6 +1729,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 			     inode->i_mapping, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 			     inode->i_mapping, GFP_NOFS);
+	atomic_set(&BTRFS_I(inode)->ordered_writeback, 0);
 	BTRFS_I(inode)->delalloc_bytes = 0;
 	BTRFS_I(inode)->root = root;
 
@@ -1956,6 +1958,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 				     inode->i_mapping, GFP_NOFS);
 		BTRFS_I(inode)->delalloc_bytes = 0;
+		atomic_set(&BTRFS_I(inode)->ordered_writeback, 0);
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 	}
 	dir->i_sb->s_dirt = 1;
@@ -3292,6 +3295,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 				     inode->i_mapping, GFP_NOFS);
 		BTRFS_I(inode)->delalloc_bytes = 0;
+		atomic_set(&BTRFS_I(inode)->ordered_writeback, 0);
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 	}
 	dir->i_sb->s_dirt = 1;
