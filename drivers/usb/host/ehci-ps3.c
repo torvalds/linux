@@ -125,7 +125,6 @@ static int ps3_ehci_probe(struct ps3_system_bus_device *dev)
 		goto fail_irq;
 	}
 
-	dev->core.power.power_state = PMSG_ON;
 	dev->core.dma_mask = &dummy_mask; /* FIXME: for improper usb code */
 
 	hcd = usb_create_hcd(&ps3_ehci_hc_driver, &dev->core, dev->core.bus_id);

@@ -78,7 +78,7 @@ static int lcd_open(struct inode *inode, struct file *file)
 	interface = usb_find_interface(&lcd_driver, subminor);
 	if (!interface) {
 		err ("USBLCD: %s - error, can't find device for minor %d",
-		     __FUNCTION__, subminor);
+		     __func__, subminor);
 		return -ENODEV;
 	}
 
@@ -185,7 +185,7 @@ static void lcd_write_bulk_callback(struct urb *urb)
 	struct usb_lcd *dev;
 	int status = urb->status;
 
-	dev = (struct usb_lcd *)urb->context;
+	dev = urb->context;
 
 	/* sync/async unlink faults aren't errors */
 	if (status &&
@@ -193,7 +193,7 @@ static void lcd_write_bulk_callback(struct urb *urb)
 	      status == -ECONNRESET ||
               status == -ESHUTDOWN)) {
 		dbg("USBLCD: %s - nonzero write bulk status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 	}
 
 	/* free up our allocated buffer */
@@ -248,7 +248,7 @@ static ssize_t lcd_write(struct file *file, const char __user * user_buffer, siz
 	/* send the data out the bulk port */
 	retval = usb_submit_urb(urb, GFP_KERNEL);
 	if (retval) {
-		err("USBLCD: %s - failed submitting write urb, error %d", __FUNCTION__, retval);
+		err("USBLCD: %s - failed submitting write urb, error %d", __func__, retval);
 		goto error_unanchor;
 	}
 	

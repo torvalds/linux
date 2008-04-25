@@ -50,4 +50,4 @@ struct usb_ac_header_descriptor_##n {				\
 	__u8  baInterfaceNr[n];					\
 } __attribute__ ((packed))
 
-#endif
+#endif /* __LINUX_USB_AUDIO_H */

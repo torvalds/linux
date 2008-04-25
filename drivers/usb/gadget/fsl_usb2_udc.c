@@ -773,11 +773,11 @@ fsl_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	/* catch various bogus parameters */
 	if (!_req || !req->req.complete || !req->req.buf
 			|| !list_empty(&req->queue)) {
-		VDBG("%s, bad params\n", __FUNCTION__);
+		VDBG("%s, bad params\n", __func__);
 		return -EINVAL;
 	}
 	if (unlikely(!_ep || !ep->desc)) {
-		VDBG("%s, bad ep\n", __FUNCTION__);
+		VDBG("%s, bad ep\n", __func__);
 		return -EINVAL;
 	}
 	if (ep->desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {

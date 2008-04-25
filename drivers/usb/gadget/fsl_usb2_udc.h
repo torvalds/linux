@@ -512,7 +512,7 @@ struct fsl_udc {
 
 #ifdef DEBUG
 #define DBG(fmt, args...) 	printk(KERN_DEBUG "[%s]  " fmt "\n", \
-				__FUNCTION__, ## args)
+				__func__, ## args)
 #else
 #define DBG(fmt, args...)	do{}while(0)
 #endif

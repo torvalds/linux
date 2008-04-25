@@ -28,7 +28,7 @@
 /*
  * USB Packet IDs (PIDs)
  */
-#define USB_PID_UNDEF_0			0xf0
+#define USB_PID_EXT			0xf0	/* USB 2.0 LPM ECN */
 #define USB_PID_OUT			0xe1
 #define USB_PID_ACK			0xd2
 #define USB_PID_DATA0			0xc3
@@ -99,6 +99,7 @@ struct usb_hcd {
 	unsigned		poll_pending:1;	/* status has changed? */
 	unsigned		wireless:1;	/* Wireless USB HCD */
 	unsigned		authorized_default:1;
+	unsigned		has_tt:1;	/* Integrated TT in root hub */
 
 	int			irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */
@@ -177,10 +178,10 @@ struct hc_driver {
 	 * a whole, not just the root hub; they're for PCI bus glue.
 	 */
 	/* called after suspending the hub, before entering D3 etc */
-	int	(*suspend) (struct usb_hcd *hcd, pm_message_t message);
+	int	(*pci_suspend) (struct usb_hcd *hcd, pm_message_t message);
 
 	/* called after entering D0 (etc), before resuming the hub */
-	int	(*resume) (struct usb_hcd *hcd);
+	int	(*pci_resume) (struct usb_hcd *hcd);
 
 	/* cleanly make HCD stop writing memory and doing I/O */
 	void	(*stop) (struct usb_hcd *hcd);
@@ -209,8 +210,6 @@ struct hc_driver {
 	int	(*bus_suspend)(struct usb_hcd *);
 	int	(*bus_resume)(struct usb_hcd *);
 	int	(*start_port_reset)(struct usb_hcd *, unsigned port_num);
-	void	(*hub_irq_enable)(struct usb_hcd *);
-		/* Needed only if port-change IRQs are level-triggered */
 
 		/* force handover of high-speed port to full-speed companion */
 	void	(*relinquish_port)(struct usb_hcd *, int);

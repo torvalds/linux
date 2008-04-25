@@ -1,11 +1,13 @@
 /* USB OTG (On The Go) defines */
-
 /*
+ *
  * These APIs may be used between USB controllers.  USB device drivers
  * (for either host or peripheral roles) don't use these calls; they
  * continue to use just usb_device and usb_gadget.
  */
 
+#ifndef __LINUX_USB_OTG_H
+#define __LINUX_USB_OTG_H
 
 /* OTG defines lots of enumeration states before device reset */
 enum usb_otg_state {
@@ -129,3 +131,5 @@ otg_start_srp(struct otg_transceiver *otg)
 
 /* for OTG controller drivers (and maybe other stuff) */
 extern int usb_bus_start_enum(struct usb_bus *bus, unsigned port_num);
+
+#endif /* __LINUX_USB_OTG_H */

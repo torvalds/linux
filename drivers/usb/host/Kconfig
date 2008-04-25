@@ -30,8 +30,8 @@ config USB_EHCI_HCD
 	  module will be called ehci-hcd.
 
 config USB_EHCI_ROOT_HUB_TT
-	bool "Root Hub Transaction Translators (EXPERIMENTAL)"
-	depends on USB_EHCI_HCD && EXPERIMENTAL
+	bool "Root Hub Transaction Translators"
+	depends on USB_EHCI_HCD
 	---help---
 	  Some EHCI chips have vendor-specific extensions to integrate
 	  transaction translators, so that no OHCI or UHCI companion
@@ -260,3 +260,9 @@ config USB_R8A66597_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called r8a66597-hcd.
 
+config SUPERH_ON_CHIP_R8A66597
+	boolean "Enable SuperH on-chip USB like the R8A66597"
+	depends on USB_R8A66597_HCD && CPU_SUBTYPE_SH7366
+	help
+	   Renesas SuperH processor has USB like the R8A66597.
+	   This driver supported processor is SH7366.

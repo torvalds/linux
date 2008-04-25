@@ -83,7 +83,7 @@
 		if (debug >= 1) \
 			dev_dbg(&(usb_dev)->dev, \
 				"[ueagle-atm dbg] %s: " format, \
-					__FUNCTION__, ##args); \
+					__func__, ##args); \
 	} while (0)
 
 #define uea_vdbg(usb_dev, format, args...)	\
@@ -94,10 +94,10 @@
 	} while (0)
 
 #define uea_enters(usb_dev) \
-	uea_vdbg(usb_dev, "entering %s\n", __FUNCTION__)
+	uea_vdbg(usb_dev, "entering %s\n", __func__)
 
 #define uea_leaves(usb_dev) \
-	uea_vdbg(usb_dev, "leaving  %s\n", __FUNCTION__)
+	uea_vdbg(usb_dev, "leaving  %s\n", __func__)
 
 #define uea_err(usb_dev, format,args...) \
 	dev_err(&(usb_dev)->dev ,"[UEAGLE-ATM] " format , ##args)

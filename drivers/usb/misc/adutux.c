@@ -147,10 +147,10 @@ static void adu_abort_transfers(struct adu_device *dev)
 {
 	unsigned long flags;
 
-	dbg(2," %s : enter", __FUNCTION__);
+	dbg(2," %s : enter", __func__);
 
 	if (dev->udev == NULL) {
-		dbg(1," %s : udev is null", __FUNCTION__);
+		dbg(1," %s : udev is null", __func__);
 		goto exit;
 	}
 
@@ -172,12 +172,12 @@ static void adu_abort_transfers(struct adu_device *dev)
 		spin_unlock_irqrestore(&dev->buflock, flags);
 
 exit:
-	dbg(2," %s : leave", __FUNCTION__);
+	dbg(2," %s : leave", __func__);
 }
 
 static void adu_delete(struct adu_device *dev)
 {
-	dbg(2, "%s enter", __FUNCTION__);
+	dbg(2, "%s enter", __func__);
 
 	/* free data structures */
 	usb_free_urb(dev->interrupt_in_urb);
@@ -188,7 +188,7 @@ static void adu_delete(struct adu_device *dev)
 	kfree(dev->interrupt_out_buffer);
 	kfree(dev);
 
-	dbg(2, "%s : leave", __FUNCTION__);
+	dbg(2, "%s : leave", __func__);
 }
 
 static void adu_interrupt_in_callback(struct urb *urb)
@@ -196,8 +196,8 @@ static void adu_interrupt_in_callback(struct urb *urb)
 	struct adu_device *dev = urb->context;
 	int status = urb->status;
 
-	dbg(4," %s : enter, status %d", __FUNCTION__, status);
-	adu_debug_data(5, __FUNCTION__, urb->actual_length,
+	dbg(4," %s : enter, status %d", __func__, status);
+	adu_debug_data(5, __func__, urb->actual_length,
 		       urb->transfer_buffer);
 
 	spin_lock(&dev->buflock);
@@ -206,7 +206,7 @@ static void adu_interrupt_in_callback(struct urb *urb)
 		if ((status != -ENOENT) && (status != -ECONNRESET) &&
 			(status != -ESHUTDOWN)) {
 			dbg(1," %s : nonzero status received: %d",
-			    __FUNCTION__, status);
+			    __func__, status);
 		}
 		goto exit;
 	}
@@ -220,10 +220,10 @@ static void adu_interrupt_in_callback(struct urb *urb)
 				dev->interrupt_in_buffer, urb->actual_length);
 
 			dev->read_buffer_length += urb->actual_length;
-			dbg(2," %s reading  %d ", __FUNCTION__,
+			dbg(2," %s reading  %d ", __func__,
 			    urb->actual_length);
 		} else {
-			dbg(1," %s : read_buffer overflow", __FUNCTION__);
+			dbg(1," %s : read_buffer overflow", __func__);
 		}
 	}
 
@@ -232,9 +232,9 @@ exit:
 	spin_unlock(&dev->buflock);
 	/* always wake up so we recover from errors */
 	wake_up_interruptible(&dev->read_wait);
-	adu_debug_data(5, __FUNCTION__, urb->actual_length,
+	adu_debug_data(5, __func__, urb->actual_length,
 		       urb->transfer_buffer);
-	dbg(4," %s : leave, status %d", __FUNCTION__, status);
+	dbg(4," %s : leave, status %d", __func__, status);
 }
 
 static void adu_interrupt_out_callback(struct urb *urb)
@@ -242,14 +242,14 @@ static void adu_interrupt_out_callback(struct urb *urb)
 	struct adu_device *dev = urb->context;
 	int status = urb->status;
 
-	dbg(4," %s : enter, status %d", __FUNCTION__, status);
-	adu_debug_data(5,__FUNCTION__, urb->actual_length, urb->transfer_buffer);
+	dbg(4," %s : enter, status %d", __func__, status);
+	adu_debug_data(5,__func__, urb->actual_length, urb->transfer_buffer);
 
 	if (status != 0) {
 		if ((status != -ENOENT) &&
 		    (status != -ECONNRESET)) {
 			dbg(1, " %s :nonzero status received: %d",
-			    __FUNCTION__, status);
+			    __func__, status);
 		}
 		goto exit;
 	}
@@ -260,9 +260,9 @@ static void adu_interrupt_out_callback(struct urb *urb)
 	spin_unlock(&dev->buflock);
 exit:
 
-	adu_debug_data(5, __FUNCTION__, urb->actual_length,
+	adu_debug_data(5, __func__, urb->actual_length,
 		       urb->transfer_buffer);
-	dbg(4," %s : leave, status %d", __FUNCTION__, status);
+	dbg(4," %s : leave, status %d", __func__, status);
 }
 
 static int adu_open(struct inode *inode, struct file *file)
@@ -272,19 +272,19 @@ static int adu_open(struct inode *inode, struct file *file)
 	int subminor;
 	int retval;
 
-	dbg(2,"%s : enter", __FUNCTION__);
+	dbg(2,"%s : enter", __func__);
 
 	subminor = iminor(inode);
 
 	if ((retval = mutex_lock_interruptible(&adutux_mutex))) {
-		dbg(2, "%s : mutex lock failed", __FUNCTION__);
+		dbg(2, "%s : mutex lock failed", __func__);
 		goto exit_no_lock;
 	}
 
 	interface = usb_find_interface(&adu_driver, subminor);
 	if (!interface) {
 		err("%s - error, can't find device for minor %d",
-		    __FUNCTION__, subminor);
+		    __func__, subminor);
 		retval = -ENODEV;
 		goto exit_no_device;
 	}
@@ -302,7 +302,7 @@ static int adu_open(struct inode *inode, struct file *file)
 	}
 
 	++dev->open_count;
-	dbg(2,"%s : open count %d", __FUNCTION__, dev->open_count);
+	dbg(2,"%s : open count %d", __func__, dev->open_count);
 
 	/* save device in the file's private structure */
 	file->private_data = dev;
@@ -332,23 +332,23 @@ static int adu_open(struct inode *inode, struct file *file)
 exit_no_device:
 	mutex_unlock(&adutux_mutex);
 exit_no_lock:
-	dbg(2,"%s : leave, return value %d ", __FUNCTION__, retval);
+	dbg(2,"%s : leave, return value %d ", __func__, retval);
 	return retval;
 }
 
 static void adu_release_internal(struct adu_device *dev)
 {
-	dbg(2," %s : enter", __FUNCTION__);
+	dbg(2," %s : enter", __func__);
 
 	/* decrement our usage count for the device */
 	--dev->open_count;
-	dbg(2," %s : open count %d", __FUNCTION__, dev->open_count);
+	dbg(2," %s : open count %d", __func__, dev->open_count);
 	if (dev->open_count <= 0) {
 		adu_abort_transfers(dev);
 		dev->open_count = 0;
 	}
 
-	dbg(2," %s : leave", __FUNCTION__);
+	dbg(2," %s : leave", __func__);
 }
 
 static int adu_release(struct inode *inode, struct file *file)
@@ -356,17 +356,17 @@ static int adu_release(struct inode *inode, struct file *file)
 	struct adu_device *dev;
 	int retval = 0;
 
-	dbg(2," %s : enter", __FUNCTION__);
+	dbg(2," %s : enter", __func__);
 
 	if (file == NULL) {
- 		dbg(1," %s : file is NULL", __FUNCTION__);
+ 		dbg(1," %s : file is NULL", __func__);
 		retval = -ENODEV;
 		goto exit;
 	}
 
 	dev = file->private_data;
 	if (dev == NULL) {
- 		dbg(1," %s : object is NULL", __FUNCTION__);
+ 		dbg(1," %s : object is NULL", __func__);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -374,7 +374,7 @@ static int adu_release(struct inode *inode, struct file *file)
 	mutex_lock(&adutux_mutex); /* not interruptible */
 
 	if (dev->open_count <= 0) {
-		dbg(1," %s : device not opened", __FUNCTION__);
+		dbg(1," %s : device not opened", __func__);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -388,7 +388,7 @@ static int adu_release(struct inode *inode, struct file *file)
 
 exit:
 	mutex_unlock(&adutux_mutex);
-	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
+	dbg(2," %s : leave, return value %d", __func__, retval);
 	return retval;
 }
 
@@ -405,10 +405,10 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 	unsigned long flags;
 	DECLARE_WAITQUEUE(wait, current);
 
-	dbg(2," %s : enter, count = %Zd, file=%p", __FUNCTION__, count, file);
+	dbg(2," %s : enter, count = %Zd, file=%p", __func__, count, file);
 
 	dev = file->private_data;
-	dbg(2," %s : dev=%p", __FUNCTION__, dev);
+	dbg(2," %s : dev=%p", __func__, dev);
 
 	if (mutex_lock_interruptible(&dev->mtx))
 		return -ERESTARTSYS;
@@ -422,16 +422,16 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 
 	/* verify that some data was requested */
 	if (count == 0) {
-		dbg(1," %s : read request of 0 bytes", __FUNCTION__);
+		dbg(1," %s : read request of 0 bytes", __func__);
 		goto exit;
 	}
 
 	timeout = COMMAND_TIMEOUT;
-	dbg(2," %s : about to start looping", __FUNCTION__);
+	dbg(2," %s : about to start looping", __func__);
 	while (bytes_to_read) {
 		int data_in_secondary = dev->secondary_tail - dev->secondary_head;
 		dbg(2," %s : while, data_in_secondary=%d, status=%d",
-		    __FUNCTION__, data_in_secondary,
+		    __func__, data_in_secondary,
 		    dev->interrupt_in_urb->status);
 
 		if (data_in_secondary) {
@@ -456,7 +456,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 				/* we secure access to the primary */
 				char *tmp;
 				dbg(2," %s : swap, read_buffer_length = %d",
-				    __FUNCTION__, dev->read_buffer_length);
+				    __func__, dev->read_buffer_length);
 				tmp = dev->read_buffer_secondary;
 				dev->read_buffer_secondary = dev->read_buffer_primary;
 				dev->read_buffer_primary = tmp;
@@ -471,10 +471,10 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 				if (!dev->read_urb_finished) {
 					/* somebody is doing IO */
 					spin_unlock_irqrestore(&dev->buflock, flags);
-					dbg(2," %s : submitted already", __FUNCTION__);
+					dbg(2," %s : submitted already", __func__);
 				} else {
 					/* we must initiate input */
-					dbg(2," %s : initiate input", __FUNCTION__);
+					dbg(2," %s : initiate input", __func__);
 					dev->read_urb_finished = 0;
 					spin_unlock_irqrestore(&dev->buflock, flags);
 
@@ -492,7 +492,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 						if (retval == -ENOMEM) {
 							retval = bytes_read ? bytes_read : -ENOMEM;
 						}
-						dbg(2," %s : submit failed", __FUNCTION__);
+						dbg(2," %s : submit failed", __func__);
 						goto exit;
 					}
 				}
@@ -511,13 +511,13 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 				remove_wait_queue(&dev->read_wait, &wait);
 
 				if (timeout <= 0) {
-					dbg(2," %s : timeout", __FUNCTION__);
+					dbg(2," %s : timeout", __func__);
 					retval = bytes_read ? bytes_read : -ETIMEDOUT;
 					goto exit;
 				}
 
 				if (signal_pending(current)) {
-					dbg(2," %s : signal pending", __FUNCTION__);
+					dbg(2," %s : signal pending", __func__);
 					retval = bytes_read ? bytes_read : -EINTR;
 					goto exit;
 				}
@@ -550,7 +550,7 @@ exit:
 	/* unlock the device */
 	mutex_unlock(&dev->mtx);
 
-	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
+	dbg(2," %s : leave, return value %d", __func__, retval);
 	return retval;
 }
 
@@ -565,7 +565,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 	unsigned long flags;
 	int retval;
 
-	dbg(2," %s : enter, count = %Zd", __FUNCTION__, count);
+	dbg(2," %s : enter, count = %Zd", __func__, count);
 
 	dev = file->private_data;
 
@@ -582,7 +582,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 
 	/* verify that we actually have some data to write */
 	if (count == 0) {
-		dbg(1," %s : write request of 0 bytes", __FUNCTION__);
+		dbg(1," %s : write request of 0 bytes", __func__);
 		goto exit;
 	}
 
@@ -595,13 +595,13 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 
 			mutex_unlock(&dev->mtx);
 			if (signal_pending(current)) {
-				dbg(1," %s : interrupted", __FUNCTION__);
+				dbg(1," %s : interrupted", __func__);
 				set_current_state(TASK_RUNNING);
 				retval = -EINTR;
 				goto exit_onqueue;
 			}
 			if (schedule_timeout(COMMAND_TIMEOUT) == 0) {
-				dbg(1, "%s - command timed out.", __FUNCTION__);
+				dbg(1, "%s - command timed out.", __func__);
 				retval = -ETIMEDOUT;
 				goto exit_onqueue;
 			}
@@ -612,18 +612,18 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 				goto exit_nolock;
 			}
 
-			dbg(4," %s : in progress, count = %Zd", __FUNCTION__, count);
+			dbg(4," %s : in progress, count = %Zd", __func__, count);
 		} else {
 			spin_unlock_irqrestore(&dev->buflock, flags);
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&dev->write_wait, &waita);
-			dbg(4," %s : sending, count = %Zd", __FUNCTION__, count);
+			dbg(4," %s : sending, count = %Zd", __func__, count);
 
 			/* write the data into interrupt_out_buffer from userspace */
 			buffer_size = le16_to_cpu(dev->interrupt_out_endpoint->wMaxPacketSize);
 			bytes_to_write = count > buffer_size ? buffer_size : count;
 			dbg(4," %s : buffer_size = %Zd, count = %Zd, bytes_to_write = %Zd",
-			    __FUNCTION__, buffer_size, count, bytes_to_write);
+			    __func__, buffer_size, count, bytes_to_write);
 
 			if (copy_from_user(dev->interrupt_out_buffer, buffer, bytes_to_write) != 0) {
 				retval = -EFAULT;
@@ -661,7 +661,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 exit:
 	mutex_unlock(&dev->mtx);
 exit_nolock:
-	dbg(2," %s : leave, return value %d", __FUNCTION__, retval);
+	dbg(2," %s : leave, return value %d", __func__, retval);
 	return retval;
 
 exit_onqueue:
@@ -706,7 +706,7 @@ static int adu_probe(struct usb_interface *interface,
 	int out_end_size;
 	int i;
 
-	dbg(2," %s : enter", __FUNCTION__);
+	dbg(2," %s : enter", __func__);
 
 	if (udev == NULL) {
 		dev_err(&interface->dev, "udev is NULL.\n");
@@ -807,7 +807,7 @@ static int adu_probe(struct usb_interface *interface,
 		dev_err(&interface->dev, "Could not retrieve serial number\n");
 		goto error;
 	}
-	dbg(2," %s : serial_number=%s", __FUNCTION__, dev->serial_number);
+	dbg(2," %s : serial_number=%s", __func__, dev->serial_number);
 
 	/* we can register the device now, as it is ready */
 	usb_set_intfdata(interface, dev);
@@ -828,7 +828,7 @@ static int adu_probe(struct usb_interface *interface,
 		 udev->descriptor.idProduct, dev->serial_number,
 		 (dev->minor - ADU_MINOR_BASE));
 exit:
-	dbg(2," %s : leave, return value %p (dev)", __FUNCTION__, dev);
+	dbg(2," %s : leave, return value %p (dev)", __func__, dev);
 
 	return retval;
 
@@ -847,7 +847,7 @@ static void adu_disconnect(struct usb_interface *interface)
 	struct adu_device *dev;
 	int minor;
 
-	dbg(2," %s : enter", __FUNCTION__);
+	dbg(2," %s : enter", __func__);
 
 	dev = usb_get_intfdata(interface);
 
@@ -861,7 +861,7 @@ static void adu_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 
 	/* if the device is not opened, then we clean up right now */
-	dbg(2," %s : open count %d", __FUNCTION__, dev->open_count);
+	dbg(2," %s : open count %d", __func__, dev->open_count);
 	if (!dev->open_count)
 		adu_delete(dev);
 
@@ -870,7 +870,7 @@ static void adu_disconnect(struct usb_interface *interface)
 	dev_info(&interface->dev, "ADU device adutux%d now disconnected\n",
 		 (minor - ADU_MINOR_BASE));
 
-	dbg(2," %s : leave", __FUNCTION__);
+	dbg(2," %s : leave", __func__);
 }
 
 /* usb specific object needed to register this driver with the usb subsystem */
@@ -885,7 +885,7 @@ static int __init adu_init(void)
 {
 	int result;
 
-	dbg(2," %s : enter", __FUNCTION__);
+	dbg(2," %s : enter", __func__);
 
 	/* register this driver with the USB subsystem */
 	result = usb_register(&adu_driver);
@@ -899,17 +899,17 @@ static int __init adu_init(void)
 	info("adutux is an experimental driver. Use at your own risk");
 
 exit:
-	dbg(2," %s : leave, return value %d", __FUNCTION__, result);
+	dbg(2," %s : leave, return value %d", __func__, result);
 
 	return result;
 }
 
 static void __exit adu_exit(void)
 {
-	dbg(2," %s : enter", __FUNCTION__);
+	dbg(2," %s : enter", __func__);
 	/* deregister this driver with the USB subsystem */
 	usb_deregister(&adu_driver);
-	dbg(2," %s : leave", __FUNCTION__);
+	dbg(2," %s : leave", __func__);
 }
 
 module_init(adu_init);

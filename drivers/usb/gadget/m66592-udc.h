@@ -486,10 +486,10 @@ struct m66592 {
 
 	struct usb_request	*ep0_req;	/* for internal request */
 	u16			ep0_data;	/* for internal request */
+	u16			old_vbus;
 
 	struct timer_list	timer;
 
-	u16			old_vbus;
 	int			scount;
 
 	int			old_dvsq;

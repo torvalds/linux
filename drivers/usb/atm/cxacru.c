@@ -444,7 +444,7 @@ CXACRU_ALL_FILES(INIT);
 /* the following three functions are stolen from drivers/usb/core/message.c */
 static void cxacru_blocking_completion(struct urb *urb)
 {
-	complete((struct completion *)urb->context);
+	complete(urb->context);
 }
 
 static void cxacru_timeout_kill(unsigned long data)

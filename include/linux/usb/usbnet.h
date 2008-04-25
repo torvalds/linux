@@ -19,10 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-
-#ifndef	__USBNET_H
-#define	__USBNET_H
-
+#ifndef	__LINUX_USB_USBNET_H
+#define	__LINUX_USB_USBNET_H
 
 /* interface from usbnet core to each USB networking link we handle */
 struct usbnet {
@@ -211,4 +209,4 @@ extern int usbnet_nway_reset(struct net_device *net);
 	printk(KERN_INFO "%s: " fmt "\n" , (usbnet)->net->name , ## arg); \
 
 
-#endif	/* __USBNET_H */
+#endif /* __LINUX_USB_USBNET_H */
