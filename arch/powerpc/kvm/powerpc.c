@@ -36,13 +36,12 @@ gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 {
-	/* XXX implement me */
-	return 0;
+	return !!(v->arch.pending_exceptions);
 }
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
-	return 1;
+	return !(v->arch.msr & MSR_WE);
 }
 
 
@@ -214,6 +213,11 @@ static void kvmppc_decrementer_func(unsigned long data)
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
 
 	kvmppc_queue_exception(vcpu, BOOKE_INTERRUPT_DECREMENTER);
+
+	if (waitqueue_active(&vcpu->wq)) {
+		wake_up_interruptible(&vcpu->wq);
+		vcpu->stat.halt_wakeup++;
+	}
 }
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
@@ -339,6 +343,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	int r;
 	sigset_t sigsaved;
 
+	vcpu_load(vcpu);
+
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
@@ -363,12 +369,20 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
 
+	vcpu_put(vcpu);
+
 	return r;
 }
 
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 {
 	kvmppc_queue_exception(vcpu, BOOKE_INTERRUPT_EXTERNAL);
+
+	if (waitqueue_active(&vcpu->wq)) {
+		wake_up_interruptible(&vcpu->wq);
+		vcpu->stat.halt_wakeup++;
+	}
+
 	return 0;
 }
 

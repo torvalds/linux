@@ -77,12 +77,17 @@ static inline void kvmppc_clear_exception(struct kvm_vcpu *vcpu, int exception)
 	clear_bit(priority, &vcpu->arch.pending_exceptions);
 }
 
+/* Helper function for "full" MSR writes. No need to call this if only EE is
+ * changing. */
 static inline void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 {
 	if ((new_msr & MSR_PR) != (vcpu->arch.msr & MSR_PR))
 		kvmppc_mmu_priv_switch(vcpu, new_msr & MSR_PR);
 
 	vcpu->arch.msr = new_msr;
+
+	if (vcpu->arch.msr & MSR_WE)
+		kvm_vcpu_block(vcpu);
 }
 
 #endif /* __POWERPC_KVM_PPC_H__ */
