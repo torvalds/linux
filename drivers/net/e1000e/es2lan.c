@@ -41,6 +41,7 @@
 #define E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL	 0x00
 #define E1000_KMRNCTRLSTA_OFFSET_INB_CTRL	 0x02
 #define E1000_KMRNCTRLSTA_OFFSET_HD_CTRL	 0x10
+#define E1000_KMRNCTRLSTA_OFFSET_MAC2PHY_OPMODE	 0x1F
 
 #define E1000_KMRNCTRLSTA_FIFO_CTRL_RX_BYPASS	 0x0008
 #define E1000_KMRNCTRLSTA_FIFO_CTRL_TX_BYPASS	 0x0800
@@ -48,6 +49,7 @@
 
 #define E1000_KMRNCTRLSTA_HD_CTRL_10_100_DEFAULT 0x0004
 #define E1000_KMRNCTRLSTA_HD_CTRL_1000_DEFAULT	 0x0000
+#define E1000_KMRNCTRLSTA_OPMODE_E_IDLE		 0x2000
 
 #define E1000_TCTL_EXT_GCEX_MASK 0x000FFC00 /* Gigabit Carry Extend Padding */
 #define DEFAULT_TCTL_EXT_GCEX_80003ES2LAN	 0x00010000
@@ -84,6 +86,9 @@
 
 /* Kumeran Mode Control Register (Page 193, Register 16) */
 #define GG82563_KMCR_PASS_FALSE_CARRIER		 0x0800
+
+/* Max number of times Kumeran read/write should be validated */
+#define GG82563_MAX_KMRN_RETRY  0x5
 
 /* Power Management Control Register (Page 193, Register 20) */
 #define GG82563_PMCR_ENABLE_ELECTRICAL_IDLE	 0x0001
@@ -270,6 +275,7 @@ static s32 e1000_acquire_phy_80003es2lan(struct e1000_hw *hw)
 	u16 mask;
 
 	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
+	mask |= E1000_SWFW_CSR_SM;
 
 	return e1000_acquire_swfw_sync_80003es2lan(hw, mask);
 }
@@ -286,6 +292,8 @@ static void e1000_release_phy_80003es2lan(struct e1000_hw *hw)
 	u16 mask;
 
 	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
+	mask |= E1000_SWFW_CSR_SM;
+
 	e1000_release_swfw_sync_80003es2lan(hw, mask);
 }
 
@@ -410,20 +418,27 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 	u32 page_select;
 	u16 temp;
 
+	ret_val = e1000_acquire_phy_80003es2lan(hw);
+	if (ret_val)
+		return ret_val;
+
 	/* Select Configuration Page */
-	if ((offset & MAX_PHY_REG_ADDRESS) < GG82563_MIN_ALT_REG)
+	if ((offset & MAX_PHY_REG_ADDRESS) < GG82563_MIN_ALT_REG) {
 		page_select = GG82563_PHY_PAGE_SELECT;
-	else
+	} else {
 		/*
 		 * Use Alternative Page Select register to access
 		 * registers 30 and 31
 		 */
 		page_select = GG82563_PHY_PAGE_SELECT_ALT;
+	}
 
 	temp = (u16)((u16)offset >> GG82563_PAGE_SHIFT);
-	ret_val = e1000e_write_phy_reg_m88(hw, page_select, temp);
-	if (ret_val)
+	ret_val = e1000e_write_phy_reg_mdic(hw, page_select, temp);
+	if (ret_val) {
+		e1000_release_phy_80003es2lan(hw);
 		return ret_val;
+	}
 
 	/*
 	 * The "ready" bit in the MDIC register may be incorrectly set
@@ -433,20 +448,21 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 	udelay(200);
 
 	/* ...and verify the command was successful. */
-	ret_val = e1000e_read_phy_reg_m88(hw, page_select, &temp);
+	ret_val = e1000e_read_phy_reg_mdic(hw, page_select, &temp);
 
 	if (((u16)offset >> GG82563_PAGE_SHIFT) != temp) {
 		ret_val = -E1000_ERR_PHY;
+		e1000_release_phy_80003es2lan(hw);
 		return ret_val;
 	}
 
 	udelay(200);
 
-	ret_val = e1000e_read_phy_reg_m88(hw,
-					 MAX_PHY_REG_ADDRESS & offset,
-					 data);
+	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
+					   data);
 
 	udelay(200);
+	e1000_release_phy_80003es2lan(hw);
 
 	return ret_val;
 }
@@ -467,20 +483,27 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 	u32 page_select;
 	u16 temp;
 
+	ret_val = e1000_acquire_phy_80003es2lan(hw);
+	if (ret_val)
+		return ret_val;
+
 	/* Select Configuration Page */
-	if ((offset & MAX_PHY_REG_ADDRESS) < GG82563_MIN_ALT_REG)
+	if ((offset & MAX_PHY_REG_ADDRESS) < GG82563_MIN_ALT_REG) {
 		page_select = GG82563_PHY_PAGE_SELECT;
-	else
+	} else {
 		/*
 		 * Use Alternative Page Select register to access
 		 * registers 30 and 31
 		 */
 		page_select = GG82563_PHY_PAGE_SELECT_ALT;
+	}
 
 	temp = (u16)((u16)offset >> GG82563_PAGE_SHIFT);
-	ret_val = e1000e_write_phy_reg_m88(hw, page_select, temp);
-	if (ret_val)
+	ret_val = e1000e_write_phy_reg_mdic(hw, page_select, temp);
+	if (ret_val) {
+		e1000_release_phy_80003es2lan(hw);
 		return ret_val;
+	}
 
 
 	/*
@@ -491,18 +514,20 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 	udelay(200);
 
 	/* ...and verify the command was successful. */
-	ret_val = e1000e_read_phy_reg_m88(hw, page_select, &temp);
+	ret_val = e1000e_read_phy_reg_mdic(hw, page_select, &temp);
 
-	if (((u16)offset >> GG82563_PAGE_SHIFT) != temp)
+	if (((u16)offset >> GG82563_PAGE_SHIFT) != temp) {
+		e1000_release_phy_80003es2lan(hw);
 		return -E1000_ERR_PHY;
+	}
 
 	udelay(200);
 
-	ret_val = e1000e_write_phy_reg_m88(hw,
-					  MAX_PHY_REG_ADDRESS & offset,
-					  data);
+	ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
+					    data);
 
 	udelay(200);
+	e1000_release_phy_80003es2lan(hw);
 
 	return ret_val;
 }
@@ -882,10 +907,10 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 	u32 ctrl_ext;
-	u16 data;
+	u32 i = 0;
+	u16 data, data2;
 
-	ret_val = e1e_rphy(hw, GG82563_PHY_MAC_SPEC_CTRL,
-				     &data);
+	ret_val = e1e_rphy(hw, GG82563_PHY_MAC_SPEC_CTRL, &data);
 	if (ret_val)
 		return ret_val;
 
@@ -893,8 +918,7 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	/* Use 25MHz for both link down and 1000Base-T for Tx clock. */
 	data |= GG82563_MSCR_TX_CLK_1000MBPS_25;
 
-	ret_val = e1e_wphy(hw, GG82563_PHY_MAC_SPEC_CTRL,
-				      data);
+	ret_val = e1e_wphy(hw, GG82563_PHY_MAC_SPEC_CTRL, data);
 	if (ret_val)
 		return ret_val;
 
@@ -954,6 +978,18 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
+	ret_val = e1000e_read_kmrn_reg(hw,
+				       E1000_KMRNCTRLSTA_OFFSET_MAC2PHY_OPMODE,
+				       &data);
+	if (ret_val)
+		return ret_val;
+	data |= E1000_KMRNCTRLSTA_OPMODE_E_IDLE;
+	ret_val = e1000e_write_kmrn_reg(hw,
+					E1000_KMRNCTRLSTA_OFFSET_MAC2PHY_OPMODE,
+					data);
+	if (ret_val)
+		return ret_val;
+
 	ret_val = e1e_rphy(hw, GG82563_PHY_SPEC_CTRL_2, &data);
 	if (ret_val)
 		return ret_val;
@@ -983,9 +1019,18 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 
-		ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL, &data);
-		if (ret_val)
-			return ret_val;
+		do {
+			ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL,
+					   &data);
+			if (ret_val)
+				return ret_val;
+
+			ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL,
+					   &data2);
+			if (ret_val)
+				return ret_val;
+			i++;
+		} while ((data != data2) && (i < GG82563_MAX_KMRN_RETRY));
 
 		data &= ~GG82563_KMCR_PASS_FALSE_CARRIER;
 		ret_val = e1e_wphy(hw, GG82563_PHY_KMRN_MODE_CTRL, data);
@@ -1074,7 +1119,8 @@ static s32 e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex)
 {
 	s32 ret_val;
 	u32 tipg;
-	u16 reg_data;
+	u32 i = 0;
+	u16 reg_data, reg_data2;
 
 	reg_data = E1000_KMRNCTRLSTA_HD_CTRL_10_100_DEFAULT;
 	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
@@ -1088,9 +1134,16 @@ static s32 e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex)
 	tipg |= DEFAULT_TIPG_IPGT_10_100_80003ES2LAN;
 	ew32(TIPG, tipg);
 
-	ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL, &reg_data);
-	if (ret_val)
-		return ret_val;
+	do {
+		ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL, &reg_data);
+		if (ret_val)
+			return ret_val;
+
+		ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL, &reg_data2);
+		if (ret_val)
+			return ret_val;
+		i++;
+	} while ((reg_data != reg_data2) && (i < GG82563_MAX_KMRN_RETRY));
 
 	if (duplex == HALF_DUPLEX)
 		reg_data |= GG82563_KMCR_PASS_FALSE_CARRIER;
@@ -1112,8 +1165,9 @@ static s32 e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex)
 static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 {
 	s32 ret_val;
-	u16 reg_data;
+	u16 reg_data, reg_data2;
 	u32 tipg;
+	u32 i = 0;
 
 	reg_data = E1000_KMRNCTRLSTA_HD_CTRL_1000_DEFAULT;
 	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
@@ -1127,9 +1181,16 @@ static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 	tipg |= DEFAULT_TIPG_IPGT_1000_80003ES2LAN;
 	ew32(TIPG, tipg);
 
-	ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL, &reg_data);
-	if (ret_val)
-		return ret_val;
+	do {
+		ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL, &reg_data);
+		if (ret_val)
+			return ret_val;
+
+		ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL, &reg_data2);
+		if (ret_val)
+			return ret_val;
+		i++;
+	} while ((reg_data != reg_data2) && (i < GG82563_MAX_KMRN_RETRY));
 
 	reg_data &= ~GG82563_KMCR_PASS_FALSE_CARRIER;
 	ret_val = e1e_wphy(hw, GG82563_PHY_KMRN_MODE_CTRL, reg_data);
@@ -1231,12 +1292,10 @@ struct e1000_info e1000_es2_info = {
 	.mac			= e1000_80003es2lan,
 	.flags			= FLAG_HAS_HW_VLAN_FILTER
 				  | FLAG_HAS_JUMBO_FRAMES
-				  | FLAG_HAS_STATS_PTC_PRC
 				  | FLAG_HAS_WOL
 				  | FLAG_APME_IN_CTRL3
 				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_CTRLEXT_ON_LOAD
-				  | FLAG_HAS_STATS_ICR_ICT
 				  | FLAG_RX_NEEDS_RESTART /* errata */
 				  | FLAG_TARC_SET_BIT_ZERO /* errata */
 				  | FLAG_APME_CHECK_PORT_B

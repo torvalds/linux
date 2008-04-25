@@ -42,6 +42,7 @@
 MODULE_AUTHOR("Eugene Konev <ejka@imfi.kspu.ru>");
 MODULE_DESCRIPTION("TI AR7 ethernet driver (CPMAC)");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:cpmac");
 
 static int debug_level = 8;
 static int dumb_switch;
@@ -1103,6 +1104,7 @@ static int __devexit cpmac_remove(struct platform_device *pdev)
 
 static struct platform_driver cpmac_driver = {
 	.driver.name = "cpmac",
+	.driver.owner = THIS_MODULE,
 	.probe = cpmac_probe,
 	.remove = __devexit_p(cpmac_remove),
 };

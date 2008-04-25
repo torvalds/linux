@@ -2611,7 +2611,7 @@ static int ehea_stop(struct net_device *dev)
 	return ret;
 }
 
-void ehea_purge_sq(struct ehea_qp *orig_qp)
+static void ehea_purge_sq(struct ehea_qp *orig_qp)
 {
 	struct ehea_qp qp = *orig_qp;
 	struct ehea_qp_init_attr *init_attr = &qp.init_attr;
@@ -2625,7 +2625,7 @@ void ehea_purge_sq(struct ehea_qp *orig_qp)
 	}
 }
 
-void ehea_flush_sq(struct ehea_port *port)
+static void ehea_flush_sq(struct ehea_port *port)
 {
 	int i;
 

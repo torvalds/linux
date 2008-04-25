@@ -96,6 +96,7 @@
 #define DEV_HAS_PAUSEFRAME_TX_V2   0x10000  /* device supports tx pause frames version 2 */
 #define DEV_HAS_PAUSEFRAME_TX_V3   0x20000  /* device supports tx pause frames version 3 */
 #define DEV_NEED_TX_LIMIT          0x40000  /* device needs to limit tx */
+#define DEV_HAS_GEAR_MODE          0x80000  /* device supports gear mode */
 
 enum {
 	NvRegIrqStatus = 0x000,
@@ -174,11 +175,13 @@ enum {
 	NvRegReceiverStatus = 0x98,
 #define NVREG_RCVSTAT_BUSY	0x01
 
-	NvRegRandomSeed = 0x9c,
-#define NVREG_RNDSEED_MASK	0x00ff
-#define NVREG_RNDSEED_FORCE	0x7f00
-#define NVREG_RNDSEED_FORCE2	0x2d00
-#define NVREG_RNDSEED_FORCE3	0x7400
+	NvRegSlotTime = 0x9c,
+#define NVREG_SLOTTIME_LEGBF_ENABLED	0x80000000
+#define NVREG_SLOTTIME_10_100_FULL	0x00007f00
+#define NVREG_SLOTTIME_1000_FULL 	0x0003ff00
+#define NVREG_SLOTTIME_HALF		0x0000ff00
+#define NVREG_SLOTTIME_DEFAULT	 	0x00007f00
+#define NVREG_SLOTTIME_MASK		0x000000ff
 
 	NvRegTxDeferral = 0xA0,
 #define NVREG_TX_DEFERRAL_DEFAULT		0x15050f
@@ -201,6 +204,11 @@ enum {
 
 	NvRegPhyInterface = 0xC0,
 #define PHY_RGMII		0x10000000
+	NvRegBackOffControl = 0xC4,
+#define NVREG_BKOFFCTRL_DEFAULT			0x70000000
+#define NVREG_BKOFFCTRL_SEED_MASK		0x000003ff
+#define NVREG_BKOFFCTRL_SELECT			24
+#define NVREG_BKOFFCTRL_GEAR			12
 
 	NvRegTxRingPhysAddr = 0x100,
 	NvRegRxRingPhysAddr = 0x104,
@@ -352,6 +360,7 @@ union ring_type {
 
 #define NV_TX_LASTPACKET	(1<<16)
 #define NV_TX_RETRYERROR	(1<<19)
+#define NV_TX_RETRYCOUNT_MASK	(0xF<<20)
 #define NV_TX_FORCED_INTERRUPT	(1<<24)
 #define NV_TX_DEFERRED		(1<<26)
 #define NV_TX_CARRIERLOST	(1<<27)
@@ -362,6 +371,7 @@ union ring_type {
 
 #define NV_TX2_LASTPACKET	(1<<29)
 #define NV_TX2_RETRYERROR	(1<<18)
+#define NV_TX2_RETRYCOUNT_MASK	(0xF<<19)
 #define NV_TX2_FORCED_INTERRUPT	(1<<30)
 #define NV_TX2_DEFERRED		(1<<25)
 #define NV_TX2_CARRIERLOST	(1<<26)
@@ -473,16 +483,22 @@ union ring_type {
 #define DESC_VER_3	3
 
 /* PHY defines */
-#define PHY_OUI_MARVELL	0x5043
-#define PHY_OUI_CICADA	0x03f1
-#define PHY_OUI_VITESSE	0x01c1
-#define PHY_OUI_REALTEK	0x0732
+#define PHY_OUI_MARVELL		0x5043
+#define PHY_OUI_CICADA		0x03f1
+#define PHY_OUI_VITESSE		0x01c1
+#define PHY_OUI_REALTEK		0x0732
+#define PHY_OUI_REALTEK2	0x0020
 #define PHYID1_OUI_MASK	0x03ff
 #define PHYID1_OUI_SHFT	6
 #define PHYID2_OUI_MASK	0xfc00
 #define PHYID2_OUI_SHFT	10
 #define PHYID2_MODEL_MASK		0x03f0
-#define PHY_MODEL_MARVELL_E3016		0x220
+#define PHY_MODEL_REALTEK_8211		0x0110
+#define PHY_REV_MASK			0x0001
+#define PHY_REV_REALTEK_8211B		0x0000
+#define PHY_REV_REALTEK_8211C		0x0001
+#define PHY_MODEL_REALTEK_8201		0x0200
+#define PHY_MODEL_MARVELL_E3016		0x0220
 #define PHY_MARVELL_E3016_INITMASK	0x0300
 #define PHY_CICADA_INIT1	0x0f000
 #define PHY_CICADA_INIT2	0x0e00
@@ -509,10 +525,18 @@ union ring_type {
 #define PHY_REALTEK_INIT_REG1	0x1f
 #define PHY_REALTEK_INIT_REG2	0x19
 #define PHY_REALTEK_INIT_REG3	0x13
+#define PHY_REALTEK_INIT_REG4	0x14
+#define PHY_REALTEK_INIT_REG5	0x18
+#define PHY_REALTEK_INIT_REG6	0x11
 #define PHY_REALTEK_INIT1	0x0000
 #define PHY_REALTEK_INIT2	0x8e00
 #define PHY_REALTEK_INIT3	0x0001
 #define PHY_REALTEK_INIT4	0xad17
+#define PHY_REALTEK_INIT5	0xfb54
+#define PHY_REALTEK_INIT6	0xf5c7
+#define PHY_REALTEK_INIT7	0x1000
+#define PHY_REALTEK_INIT8	0x0003
+#define PHY_REALTEK_INIT_MSK1	0x0003
 
 #define PHY_GIGABIT	0x0100
 
@@ -691,6 +715,7 @@ struct fe_priv {
 	int wolenabled;
 	unsigned int phy_oui;
 	unsigned int phy_model;
+	unsigned int phy_rev;
 	u16 gigabit;
 	int intr_test;
 	int recover_error;
@@ -704,6 +729,7 @@ struct fe_priv {
 	u32 txrxctl_bits;
 	u32 vlanctl_bits;
 	u32 driver_data;
+	u32 device_id;
 	u32 register_size;
 	int rx_csum;
 	u32 mac_in_use;
@@ -813,6 +839,16 @@ enum {
 	NV_DMA_64BIT_ENABLED
 };
 static int dma_64bit = NV_DMA_64BIT_ENABLED;
+
+/*
+ * Crossover Detection
+ * Realtek 8201 phy + some OEM boards do not work properly.
+ */
+enum {
+	NV_CROSSOVER_DETECTION_DISABLED,
+	NV_CROSSOVER_DETECTION_ENABLED
+};
+static int phy_cross = NV_CROSSOVER_DETECTION_DISABLED;
 
 static inline struct fe_priv *get_nvpriv(struct net_device *dev)
 {
@@ -1078,25 +1114,53 @@ static int phy_init(struct net_device *dev)
 		}
 	}
 	if (np->phy_oui == PHY_OUI_REALTEK) {
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
+		if (np->phy_model == PHY_MODEL_REALTEK_8211 &&
+		    np->phy_rev == PHY_REV_REALTEK_8211B) {
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, PHY_REALTEK_INIT2)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG3, PHY_REALTEK_INIT4)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG4, PHY_REALTEK_INIT5)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG5, PHY_REALTEK_INIT6)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
 		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, PHY_REALTEK_INIT2)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG3, PHY_REALTEK_INIT4)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
+		if (np->phy_model == PHY_MODEL_REALTEK_8201) {
+			if (np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_32 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_33 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_34 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_35 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_36 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_37 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_38 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_39) {
+				phy_reserved = mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG6, MII_READ);
+				phy_reserved |= PHY_REALTEK_INIT7;
+				if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG6, phy_reserved)) {
+					printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+					return PHY_ERROR;
+				}
+			}
 		}
 	}
 
@@ -1236,26 +1300,71 @@ static int phy_init(struct net_device *dev)
 		}
 	}
 	if (np->phy_oui == PHY_OUI_REALTEK) {
-		/* reset could have cleared these out, set them back */
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
+		if (np->phy_model == PHY_MODEL_REALTEK_8211 &&
+		    np->phy_rev == PHY_REV_REALTEK_8211B) {
+			/* reset could have cleared these out, set them back */
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, PHY_REALTEK_INIT2)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG3, PHY_REALTEK_INIT4)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG4, PHY_REALTEK_INIT5)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG5, PHY_REALTEK_INIT6)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
 		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, PHY_REALTEK_INIT2)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG3, PHY_REALTEK_INIT4)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
+		if (np->phy_model == PHY_MODEL_REALTEK_8201) {
+			if (np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_32 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_33 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_34 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_35 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_36 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_37 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_38 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_39) {
+				phy_reserved = mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG6, MII_READ);
+				phy_reserved |= PHY_REALTEK_INIT7;
+				if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG6, phy_reserved)) {
+					printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+					return PHY_ERROR;
+				}
+			}
+			if (phy_cross == NV_CROSSOVER_DETECTION_DISABLED) {
+				if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
+					printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+					return PHY_ERROR;
+				}
+				phy_reserved = mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, MII_READ);
+				phy_reserved &= ~PHY_REALTEK_INIT_MSK1;
+				phy_reserved |= PHY_REALTEK_INIT3;
+				if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, phy_reserved)) {
+					printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+					return PHY_ERROR;
+				}
+				if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
+					printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+					return PHY_ERROR;
+				}
+			}
 		}
 	}
 
@@ -1769,6 +1878,115 @@ static inline u32 nv_get_empty_tx_slots(struct fe_priv *np)
 	return (u32)(np->tx_ring_size - ((np->tx_ring_size + (np->put_tx_ctx - np->get_tx_ctx)) % np->tx_ring_size));
 }
 
+static void nv_legacybackoff_reseed(struct net_device *dev)
+{
+	u8 __iomem *base = get_hwbase(dev);
+	u32 reg;
+	u32 low;
+	int tx_status = 0;
+
+	reg = readl(base + NvRegSlotTime) & ~NVREG_SLOTTIME_MASK;
+	get_random_bytes(&low, sizeof(low));
+	reg |= low & NVREG_SLOTTIME_MASK;
+
+	/* Need to stop tx before change takes effect.
+	 * Caller has already gained np->lock.
+	 */
+	tx_status = readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_START;
+	if (tx_status)
+		nv_stop_tx(dev);
+	nv_stop_rx(dev);
+	writel(reg, base + NvRegSlotTime);
+	if (tx_status)
+		nv_start_tx(dev);
+	nv_start_rx(dev);
+}
+
+/* Gear Backoff Seeds */
+#define BACKOFF_SEEDSET_ROWS	8
+#define BACKOFF_SEEDSET_LFSRS	15
+
+/* Known Good seed sets */
+static const u32 main_seedset[BACKOFF_SEEDSET_ROWS][BACKOFF_SEEDSET_LFSRS] = {
+    {145, 155, 165, 175, 185, 196, 235, 245, 255, 265, 275, 285, 660, 690, 874},
+    {245, 255, 265, 575, 385, 298, 335, 345, 355, 366, 375, 385, 761, 790, 974},
+    {145, 155, 165, 175, 185, 196, 235, 245, 255, 265, 275, 285, 660, 690, 874},
+    {245, 255, 265, 575, 385, 298, 335, 345, 355, 366, 375, 386, 761, 790, 974},
+    {266, 265, 276, 585, 397, 208, 345, 355, 365, 376, 385, 396, 771, 700, 984},
+    {266, 265, 276, 586, 397, 208, 346, 355, 365, 376, 285, 396, 771, 700, 984},
+    {366, 365, 376, 686, 497, 308, 447, 455, 466, 476, 485, 496, 871, 800,  84},
+    {466, 465, 476, 786, 597, 408, 547, 555, 566, 576, 585, 597, 971, 900, 184}};
+
+static const u32 gear_seedset[BACKOFF_SEEDSET_ROWS][BACKOFF_SEEDSET_LFSRS] = {
+    {251, 262, 273, 324, 319, 508, 375, 364, 341, 371, 398, 193, 375,  30, 295},
+    {351, 375, 373, 469, 551, 639, 477, 464, 441, 472, 498, 293, 476, 130, 395},
+    {351, 375, 373, 469, 551, 639, 477, 464, 441, 472, 498, 293, 476, 130, 397},
+    {251, 262, 273, 324, 319, 508, 375, 364, 341, 371, 398, 193, 375,  30, 295},
+    {251, 262, 273, 324, 319, 508, 375, 364, 341, 371, 398, 193, 375,  30, 295},
+    {351, 375, 373, 469, 551, 639, 477, 464, 441, 472, 498, 293, 476, 130, 395},
+    {351, 375, 373, 469, 551, 639, 477, 464, 441, 472, 498, 293, 476, 130, 395},
+    {351, 375, 373, 469, 551, 639, 477, 464, 441, 472, 498, 293, 476, 130, 395}};
+
+static void nv_gear_backoff_reseed(struct net_device *dev)
+{
+	u8 __iomem *base = get_hwbase(dev);
+	u32 miniseed1, miniseed2, miniseed2_reversed, miniseed3, miniseed3_reversed;
+	u32 temp, seedset, combinedSeed;
+	int i;
+
+	/* Setup seed for free running LFSR */
+	/* We are going to read the time stamp counter 3 times
+	   and swizzle bits around to increase randomness */
+	get_random_bytes(&miniseed1, sizeof(miniseed1));
+	miniseed1 &= 0x0fff;
+	if (miniseed1 == 0)
+		miniseed1 = 0xabc;
+
+	get_random_bytes(&miniseed2, sizeof(miniseed2));
+	miniseed2 &= 0x0fff;
+	if (miniseed2 == 0)
+		miniseed2 = 0xabc;
+	miniseed2_reversed =
+		((miniseed2 & 0xF00) >> 8) |
+		 (miniseed2 & 0x0F0) |
+		 ((miniseed2 & 0x00F) << 8);
+
+	get_random_bytes(&miniseed3, sizeof(miniseed3));
+	miniseed3 &= 0x0fff;
+	if (miniseed3 == 0)
+		miniseed3 = 0xabc;
+	miniseed3_reversed =
+		((miniseed3 & 0xF00) >> 8) |
+		 (miniseed3 & 0x0F0) |
+		 ((miniseed3 & 0x00F) << 8);
+
+	combinedSeed = ((miniseed1 ^ miniseed2_reversed) << 12) |
+		       (miniseed2 ^ miniseed3_reversed);
+
+	/* Seeds can not be zero */
+	if ((combinedSeed & NVREG_BKOFFCTRL_SEED_MASK) == 0)
+		combinedSeed |= 0x08;
+	if ((combinedSeed & (NVREG_BKOFFCTRL_SEED_MASK << NVREG_BKOFFCTRL_GEAR)) == 0)
+		combinedSeed |= 0x8000;
+
+	/* No need to disable tx here */
+	temp = NVREG_BKOFFCTRL_DEFAULT | (0 << NVREG_BKOFFCTRL_SELECT);
+	temp |= combinedSeed & NVREG_BKOFFCTRL_SEED_MASK;
+	temp |= combinedSeed >> NVREG_BKOFFCTRL_GEAR;
+	writel(temp,base + NvRegBackOffControl);
+
+    	/* Setup seeds for all gear LFSRs. */
+	get_random_bytes(&seedset, sizeof(seedset));
+	seedset = seedset % BACKOFF_SEEDSET_ROWS;
+	for (i = 1; i <= BACKOFF_SEEDSET_LFSRS; i++)
+	{
+		temp = NVREG_BKOFFCTRL_DEFAULT | (i << NVREG_BKOFFCTRL_SELECT);
+		temp |= main_seedset[seedset][i-1] & 0x3ff;
+		temp |= ((gear_seedset[seedset][i-1] & 0x3ff) << NVREG_BKOFFCTRL_GEAR);
+		writel(temp, base + NvRegBackOffControl);
+	}
+}
+
 /*
  * nv_start_xmit: dev->hard_start_xmit function
  * Called with netif_tx_lock held.
@@ -2088,6 +2306,8 @@ static void nv_tx_done(struct net_device *dev)
 						dev->stats.tx_fifo_errors++;
 					if (flags & NV_TX_CARRIERLOST)
 						dev->stats.tx_carrier_errors++;
+					if ((flags & NV_TX_RETRYERROR) && !(flags & NV_TX_RETRYCOUNT_MASK))
+						nv_legacybackoff_reseed(dev);
 					dev->stats.tx_errors++;
 				} else {
 					dev->stats.tx_packets++;
@@ -2103,6 +2323,8 @@ static void nv_tx_done(struct net_device *dev)
 						dev->stats.tx_fifo_errors++;
 					if (flags & NV_TX2_CARRIERLOST)
 						dev->stats.tx_carrier_errors++;
+					if ((flags & NV_TX2_RETRYERROR) && !(flags & NV_TX2_RETRYCOUNT_MASK))
+						nv_legacybackoff_reseed(dev);
 					dev->stats.tx_errors++;
 				} else {
 					dev->stats.tx_packets++;
@@ -2144,6 +2366,15 @@ static void nv_tx_done_optimized(struct net_device *dev, int limit)
 		if (flags & NV_TX2_LASTPACKET) {
 			if (!(flags & NV_TX2_ERROR))
 				dev->stats.tx_packets++;
+			else {
+				if ((flags & NV_TX2_RETRYERROR) && !(flags & NV_TX2_RETRYCOUNT_MASK)) {
+					if (np->driver_data & DEV_HAS_GEAR_MODE)
+						nv_gear_backoff_reseed(dev);
+					else
+						nv_legacybackoff_reseed(dev);
+				}
+			}
+
 			dev_kfree_skb_any(np->get_tx_ctx->skb);
 			np->get_tx_ctx->skb = NULL;
 
@@ -2905,15 +3136,14 @@ set_speed:
 	}
 
 	if (np->gigabit == PHY_GIGABIT) {
-		phyreg = readl(base + NvRegRandomSeed);
+		phyreg = readl(base + NvRegSlotTime);
 		phyreg &= ~(0x3FF00);
-		if ((np->linkspeed & 0xFFF) == NVREG_LINKSPEED_10)
-			phyreg |= NVREG_RNDSEED_FORCE3;
-		else if ((np->linkspeed & 0xFFF) == NVREG_LINKSPEED_100)
-			phyreg |= NVREG_RNDSEED_FORCE2;
+		if (((np->linkspeed & 0xFFF) == NVREG_LINKSPEED_10) ||
+		    ((np->linkspeed & 0xFFF) == NVREG_LINKSPEED_100))
+			phyreg |= NVREG_SLOTTIME_10_100_FULL;
 		else if ((np->linkspeed & 0xFFF) == NVREG_LINKSPEED_1000)
-			phyreg |= NVREG_RNDSEED_FORCE;
-		writel(phyreg, base + NvRegRandomSeed);
+			phyreg |= NVREG_SLOTTIME_1000_FULL;
+		writel(phyreg, base + NvRegSlotTime);
 	}
 
 	phyreg = readl(base + NvRegPhyInterface);
@@ -4843,6 +5073,7 @@ static int nv_open(struct net_device *dev)
 	u8 __iomem *base = get_hwbase(dev);
 	int ret = 1;
 	int oom, i;
+	u32 low;
 
 	dprintk(KERN_DEBUG "nv_open: begin\n");
 
@@ -4902,8 +5133,20 @@ static int nv_open(struct net_device *dev)
 	writel(np->rx_buf_sz, base + NvRegOffloadConfig);
 
 	writel(readl(base + NvRegReceiverStatus), base + NvRegReceiverStatus);
-	get_random_bytes(&i, sizeof(i));
-	writel(NVREG_RNDSEED_FORCE | (i&NVREG_RNDSEED_MASK), base + NvRegRandomSeed);
+
+	get_random_bytes(&low, sizeof(low));
+	low &= NVREG_SLOTTIME_MASK;
+	if (np->desc_ver == DESC_VER_1) {
+		writel(low|NVREG_SLOTTIME_DEFAULT, base + NvRegSlotTime);
+	} else {
+		if (!(np->driver_data & DEV_HAS_GEAR_MODE)) {
+			/* setup legacy backoff */
+			writel(NVREG_SLOTTIME_LEGBF_ENABLED|NVREG_SLOTTIME_10_100_FULL|low, base + NvRegSlotTime);
+		} else {
+			writel(NVREG_SLOTTIME_10_100_FULL, base + NvRegSlotTime);
+			nv_gear_backoff_reseed(dev);
+		}
+	}
 	writel(NVREG_TX_DEFERRAL_DEFAULT, base + NvRegTxDeferral);
 	writel(NVREG_RX_DEFERRAL_DEFAULT, base + NvRegRxDeferral);
 	if (poll_interval == -1) {
@@ -5110,6 +5353,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 
 	/* copy of driver data */
 	np->driver_data = id->driver_data;
+	/* copy of device id */
+	np->device_id = id->device;
 
 	/* handle different descriptor versions */
 	if (id->driver_data & DEV_HAS_HIGH_DMA) {
@@ -5399,6 +5644,14 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 			pci_name(pci_dev), id1, id2, phyaddr);
 		np->phyaddr = phyaddr;
 		np->phy_oui = id1 | id2;
+
+		/* Realtek hardcoded phy id1 to all zero's on certain phys */
+		if (np->phy_oui == PHY_OUI_REALTEK2)
+			np->phy_oui = PHY_OUI_REALTEK;
+		/* Setup phy revision for Realtek */
+		if (np->phy_oui == PHY_OUI_REALTEK && np->phy_model == PHY_MODEL_REALTEK_8211)
+			np->phy_rev = mii_rw(dev, phyaddr, MII_RESV1, MII_READ) & PHY_REV_MASK;
+
 		break;
 	}
 	if (i == 33) {
@@ -5477,6 +5730,28 @@ out:
 	return err;
 }
 
+static void nv_restore_phy(struct net_device *dev)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	u16 phy_reserved, mii_control;
+
+	if (np->phy_oui == PHY_OUI_REALTEK &&
+	    np->phy_model == PHY_MODEL_REALTEK_8201 &&
+	    phy_cross == NV_CROSSOVER_DETECTION_DISABLED) {
+		mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3);
+		phy_reserved = mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, MII_READ);
+		phy_reserved &= ~PHY_REALTEK_INIT_MSK1;
+		phy_reserved |= PHY_REALTEK_INIT8;
+		mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, phy_reserved);
+		mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1);
+
+		/* restart auto negotiation */
+		mii_control = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
+		mii_control |= (BMCR_ANRESTART | BMCR_ANENABLE);
+		mii_rw(dev, np->phyaddr, MII_BMCR, mii_control);
+	}
+}
+
 static void __devexit nv_remove(struct pci_dev *pci_dev)
 {
 	struct net_device *dev = pci_get_drvdata(pci_dev);
@@ -5492,6 +5767,9 @@ static void __devexit nv_remove(struct pci_dev *pci_dev)
 	writel(np->orig_mac[1], base + NvRegMacAddrB);
 	writel(readl(base + NvRegTransmitPoll) & ~NVREG_TRANSMITPOLL_MAC_ADDR_REV,
 	       base + NvRegTransmitPoll);
+
+	/* restore any phy related changes */
+	nv_restore_phy(dev);
 
 	/* free all structures */
 	free_rings(dev);
@@ -5632,83 +5910,83 @@ static struct pci_device_id pci_tbl[] = {
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_20),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_21),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_22),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_23),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_24),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_25),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_26),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_27),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP73 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_28),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP73 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_29),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP73 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_30),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP73 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_31),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP77 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_32),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP77 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_33),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP77 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_34),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP77 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_35),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP79 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_36),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP79 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_37),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP79 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_38),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP79 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_39),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{0,},
 };
@@ -5744,6 +6022,8 @@ module_param(msix, int, 0);
 MODULE_PARM_DESC(msix, "MSIX interrupts are enabled by setting to 1 and disabled by setting to 0.");
 module_param(dma_64bit, int, 0);
 MODULE_PARM_DESC(dma_64bit, "High DMA is enabled by setting to 1 and disabled by setting to 0.");
+module_param(phy_cross, int, 0);
+MODULE_PARM_DESC(phy_cross, "Phy crossover detection for Realtek 8201 phy is enabled by setting to 1 and disabled by setting to 0.");
 
 MODULE_AUTHOR("Manfred Spraul <manfred@colorfullife.com>");
 MODULE_DESCRIPTION("Reverse Engineered nForce ethernet driver");
