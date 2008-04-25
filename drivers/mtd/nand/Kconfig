@@ -278,6 +278,54 @@ config MTD_NAND_AT91
 	help
 	  Enables support for NAND Flash / Smart Media Card interface
 	  on Atmel AT91 processors.
+choice
+	prompt "ECC management for NAND Flash / SmartMedia on AT91"
+	depends on MTD_NAND_AT91
+
+config MTD_NAND_AT91_ECC_HW
+	bool "Hardware ECC"
+	depends on ARCH_AT91SAM9263 || ARCH_AT91SAM9260
+	help
+	  Uses hardware ECC provided by the at91sam9260/at91sam9263 chip
+	  instead of software ECC.
+	  The hardware ECC controller is capable of single bit error
+	  correction and 2-bit random detection per page.
+
+	  NB : hardware and software ECC schemes are incompatible.
+	  If you switch from one to another, you'll have to erase your
+	  mtd partition.
+
+	  If unsure, say Y
+
+config MTD_NAND_AT91_ECC_SOFT
+	bool "Software ECC"
+	help
+	  Uses software ECC.
+
+	  NB : hardware and software ECC schemes are incompatible.
+	  If you switch from one to another, you'll have to erase your
+	  mtd partition.
+
+config MTD_NAND_AT91_ECC_NONE
+	bool "No ECC (testing only, DANGEROUS)"
+	depends on DEBUG_KERNEL
+	help
+	  No ECC will be used.
+	  It's not a good idea and it should be reserved for testing
+	  purpose only.
+
+	  If unsure, say N
+
+	  endchoice
+
+endchoice
+
+config MTD_NAND_PXA3xx
+	bool "Support for NAND flash devices on PXA3xx"
+	depends on MTD_NAND && PXA3xx
+	help
+	  This enables the driver for the NAND flash device found on
+	  PXA3xx processors
 
 config MTD_NAND_CM_X270
 	tristate "Support for NAND Flash on CM-X270 modules"
@@ -329,5 +377,13 @@ config MTD_NAND_FSL_ELBC
 	  Controller Module with built-in hardware ECC capabilities.
 	  Enabling this option will enable you to use this to control
 	  external NAND devices.
+
+config MTD_NAND_FSL_UPM
+	tristate "Support for NAND on Freescale UPM"
+	depends on MTD_NAND && OF_GPIO && (PPC_83xx || PPC_85xx)
+	select FSL_LBC
+	help
+	  Enables support for NAND Flash chips wired onto Freescale PowerPC
+	  processor localbus with User-Programmable Machine support.
 
 endif # MTD_NAND

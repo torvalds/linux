@@ -137,12 +137,12 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 							     JFFS2_SUMMARY_INODE_SIZE);
 			} else {
 				/* Locking pain */
-				up(&f->sem);
+				mutex_unlock(&f->sem);
 				jffs2_complete_reservation(c);
 
 				ret = jffs2_reserve_space(c, sizeof(*ri) + datalen, &dummy,
 							  alloc_mode, JFFS2_SUMMARY_INODE_SIZE);
-				down(&f->sem);
+				mutex_lock(&f->sem);
 			}
 
 			if (!ret) {
@@ -285,12 +285,12 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 							     JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 			} else {
 				/* Locking pain */
-				up(&f->sem);
+				mutex_unlock(&f->sem);
 				jffs2_complete_reservation(c);
 
 				ret = jffs2_reserve_space(c, sizeof(*rd) + namelen, &dummy,
 							  alloc_mode, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
-				down(&f->sem);
+				mutex_lock(&f->sem);
 			}
 
 			if (!ret) {
@@ -353,7 +353,7 @@ int jffs2_write_inode_range(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			D1(printk(KERN_DEBUG "jffs2_reserve_space returned %d\n", ret));
 			break;
 		}
-		down(&f->sem);
+		mutex_lock(&f->sem);
 		datalen = min_t(uint32_t, writelen, PAGE_CACHE_SIZE - (offset & (PAGE_CACHE_SIZE-1)));
 		cdatalen = min_t(uint32_t, alloclen - sizeof(*ri), datalen);
 
@@ -381,7 +381,7 @@ int jffs2_write_inode_range(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 
 		if (IS_ERR(fn)) {
 			ret = PTR_ERR(fn);
-			up(&f->sem);
+			mutex_unlock(&f->sem);
 			jffs2_complete_reservation(c);
 			if (!retried) {
 				/* Write error to be retried */
@@ -403,11 +403,11 @@ int jffs2_write_inode_range(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			jffs2_mark_node_obsolete(c, fn->raw);
 			jffs2_free_full_dnode(fn);
 
-			up(&f->sem);
+			mutex_unlock(&f->sem);
 			jffs2_complete_reservation(c);
 			break;
 		}
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		jffs2_complete_reservation(c);
 		if (!datalen) {
 			printk(KERN_WARNING "Eep. We didn't actually write any data in jffs2_write_inode_range()\n");
@@ -439,7 +439,7 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 				JFFS2_SUMMARY_INODE_SIZE);
 	D1(printk(KERN_DEBUG "jffs2_do_create(): reserved 0x%x bytes\n", alloclen));
 	if (ret) {
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		return ret;
 	}
 
@@ -454,7 +454,7 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 	if (IS_ERR(fn)) {
 		D1(printk(KERN_DEBUG "jffs2_write_dnode() failed\n"));
 		/* Eeek. Wave bye bye */
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		jffs2_complete_reservation(c);
 		return PTR_ERR(fn);
 	}
@@ -463,7 +463,7 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 	*/
 	f->metadata = fn;
 
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 	jffs2_complete_reservation(c);
 
 	ret = jffs2_init_security(&f->vfs_inode, &dir_f->vfs_inode);
@@ -489,7 +489,7 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 		return -ENOMEM;
 	}
 
-	down(&dir_f->sem);
+	mutex_lock(&dir_f->sem);
 
 	rd->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	rd->nodetype = cpu_to_je16(JFFS2_NODETYPE_DIRENT);
@@ -513,7 +513,7 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 		/* dirent failed to write. Delete the inode normally
 		   as if it were the final unlink() */
 		jffs2_complete_reservation(c);
-		up(&dir_f->sem);
+		mutex_unlock(&dir_f->sem);
 		return PTR_ERR(fd);
 	}
 
@@ -522,7 +522,7 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 	jffs2_add_fd_to_list(c, fd, &dir_f->dents);
 
 	jffs2_complete_reservation(c);
-	up(&dir_f->sem);
+	mutex_unlock(&dir_f->sem);
 
 	return 0;
 }
@@ -551,7 +551,7 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 			return ret;
 		}
 
-		down(&dir_f->sem);
+		mutex_lock(&dir_f->sem);
 
 		/* Build a deletion node */
 		rd->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
@@ -574,21 +574,21 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 
 		if (IS_ERR(fd)) {
 			jffs2_complete_reservation(c);
-			up(&dir_f->sem);
+			mutex_unlock(&dir_f->sem);
 			return PTR_ERR(fd);
 		}
 
 		/* File it. This will mark the old one obsolete. */
 		jffs2_add_fd_to_list(c, fd, &dir_f->dents);
-		up(&dir_f->sem);
+		mutex_unlock(&dir_f->sem);
 	} else {
-		struct jffs2_full_dirent *fd = dir_f->dents;
 		uint32_t nhash = full_name_hash(name, namelen);
 
+		fd = dir_f->dents;
 		/* We don't actually want to reserve any space, but we do
 		   want to be holding the alloc_sem when we write to flash */
-		down(&c->alloc_sem);
-		down(&dir_f->sem);
+		mutex_lock(&c->alloc_sem);
+		mutex_lock(&dir_f->sem);
 
 		for (fd = dir_f->dents; fd; fd = fd->next) {
 			if (fd->nhash == nhash &&
@@ -607,7 +607,7 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 				break;
 			}
 		}
-		up(&dir_f->sem);
+		mutex_unlock(&dir_f->sem);
 	}
 
 	/* dead_f is NULL if this was a rename not a real unlink */
@@ -615,7 +615,7 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 	   pointing to an inode which didn't exist. */
 	if (dead_f && dead_f->inocache) {
 
-		down(&dead_f->sem);
+		mutex_lock(&dead_f->sem);
 
 		if (S_ISDIR(OFNI_EDONI_2SFFJ(dead_f)->i_mode)) {
 			while (dead_f->dents) {
@@ -639,7 +639,7 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 
 		dead_f->inocache->nlink--;
 		/* NB: Caller must set inode nlink if appropriate */
-		up(&dead_f->sem);
+		mutex_unlock(&dead_f->sem);
 	}
 
 	jffs2_complete_reservation(c);
@@ -666,7 +666,7 @@ int jffs2_do_link (struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint
 		return ret;
 	}
 
-	down(&dir_f->sem);
+	mutex_lock(&dir_f->sem);
 
 	/* Build a deletion node */
 	rd->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
@@ -691,7 +691,7 @@ int jffs2_do_link (struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint
 
 	if (IS_ERR(fd)) {
 		jffs2_complete_reservation(c);
-		up(&dir_f->sem);
+		mutex_unlock(&dir_f->sem);
 		return PTR_ERR(fd);
 	}
 
@@ -699,7 +699,7 @@ int jffs2_do_link (struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint
 	jffs2_add_fd_to_list(c, fd, &dir_f->dents);
 
 	jffs2_complete_reservation(c);
-	up(&dir_f->sem);
+	mutex_unlock(&dir_f->sem);
 
 	return 0;
 }

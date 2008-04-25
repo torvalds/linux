@@ -33,7 +33,7 @@
 /* Flash opcodes. */
 #define	OPCODE_WREN		0x06	/* Write enable */
 #define	OPCODE_RDSR		0x05	/* Read status register */
-#define	OPCODE_READ		0x03	/* Read data bytes (low frequency) */
+#define	OPCODE_NORM_READ	0x03	/* Read data bytes (low frequency) */
 #define	OPCODE_FAST_READ	0x0b	/* Read data bytes (high frequency) */
 #define	OPCODE_PP		0x02	/* Page program (up to 256 bytes) */
 #define	OPCODE_BE_4K 		0x20	/* Erase 4KiB block */
@@ -52,7 +52,15 @@
 
 /* Define max times to check status register before we give up. */
 #define	MAX_READY_WAIT_COUNT	100000
+#define	CMD_SIZE		4
 
+#ifdef CONFIG_M25PXX_USE_FAST_READ
+#define OPCODE_READ 	OPCODE_FAST_READ
+#define FAST_READ_DUMMY_BYTE 1
+#else
+#define OPCODE_READ 	OPCODE_NORM_READ
+#define FAST_READ_DUMMY_BYTE 0
+#endif
 
 #ifdef CONFIG_MTD_PARTITIONS
 #define	mtd_has_partitions()	(1)
@@ -68,7 +76,7 @@ struct m25p {
 	struct mtd_info		mtd;
 	unsigned		partitioned:1;
 	u8			erase_opcode;
-	u8			command[4];
+	u8			command[CMD_SIZE + FAST_READ_DUMMY_BYTE];
 };
 
 static inline struct m25p *mtd_to_m25p(struct mtd_info *mtd)
@@ -151,7 +159,7 @@ static int wait_till_ready(struct m25p *flash)
 static int erase_sector(struct m25p *flash, u32 offset)
 {
 	DEBUG(MTD_DEBUG_LEVEL3, "%s: %s %dKiB at 0x%08x\n",
-			flash->spi->dev.bus_id, __FUNCTION__,
+			flash->spi->dev.bus_id, __func__,
 			flash->mtd.erasesize / 1024, offset);
 
 	/* Wait until finished previous write command. */
@@ -167,7 +175,7 @@ static int erase_sector(struct m25p *flash, u32 offset)
 	flash->command[2] = offset >> 8;
 	flash->command[3] = offset;
 
-	spi_write(flash->spi, flash->command, sizeof(flash->command));
+	spi_write(flash->spi, flash->command, CMD_SIZE);
 
 	return 0;
 }
@@ -188,7 +196,7 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 	u32 addr,len;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %d\n",
-			flash->spi->dev.bus_id, __FUNCTION__, "at",
+			flash->spi->dev.bus_id, __func__, "at",
 			(u32)instr->addr, instr->len);
 
 	/* sanity checks */
@@ -240,7 +248,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct spi_message m;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
-			flash->spi->dev.bus_id, __FUNCTION__, "from",
+			flash->spi->dev.bus_id, __func__, "from",
 			(u32)from, len);
 
 	/* sanity checks */
@@ -253,8 +261,12 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));
 
+	/* NOTE:
+	 * OPCODE_FAST_READ (if available) is faster.
+	 * Should add 1 byte DUMMY_BYTE.
+	 */
 	t[0].tx_buf = flash->command;
-	t[0].len = sizeof(flash->command);
+	t[0].len = CMD_SIZE + FAST_READ_DUMMY_BYTE;
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].rx_buf = buf;
@@ -287,7 +299,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	spi_sync(flash->spi, &m);
 
-	*retlen = m.actual_length - sizeof(flash->command);
+	*retlen = m.actual_length - CMD_SIZE - FAST_READ_DUMMY_BYTE;
 
 	mutex_unlock(&flash->lock);
 
@@ -308,7 +320,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct spi_message m;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
-			flash->spi->dev.bus_id, __FUNCTION__, "to",
+			flash->spi->dev.bus_id, __func__, "to",
 			(u32)to, len);
 
 	if (retlen)
@@ -325,7 +337,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	memset(t, 0, (sizeof t));
 
 	t[0].tx_buf = flash->command;
-	t[0].len = sizeof(flash->command);
+	t[0].len = CMD_SIZE;
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].tx_buf = buf;
@@ -354,7 +366,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 		spi_sync(flash->spi, &m);
 
-		*retlen = m.actual_length - sizeof(flash->command);
+		*retlen = m.actual_length - CMD_SIZE;
 	} else {
 		u32 i;
 
@@ -364,7 +376,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 		t[1].len = page_size;
 		spi_sync(flash->spi, &m);
 
-		*retlen = m.actual_length - sizeof(flash->command);
+		*retlen = m.actual_length - CMD_SIZE;
 
 		/* write everything in PAGESIZE chunks */
 		for (i = page_size; i < len; i += page_size) {
@@ -387,8 +399,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 			spi_sync(flash->spi, &m);
 
 			if (retlen)
-				*retlen += m.actual_length
-					- sizeof(flash->command);
+				*retlen += m.actual_length - CMD_SIZE;
 		}
 	}
 
@@ -435,6 +446,7 @@ static struct flash_info __devinitdata m25p_data [] = {
 	{ "at25fs040",  0x1f6604, 64 * 1024, 8, SECT_4K, },
 
 	{ "at25df041a", 0x1f4401, 64 * 1024, 8, SECT_4K, },
+	{ "at25df641",  0x1f4800, 64 * 1024, 128, SECT_4K, },
 
 	{ "at26f004",   0x1f0400, 64 * 1024, 8, SECT_4K, },
 	{ "at26df081a", 0x1f4501, 64 * 1024, 16, SECT_4K, },
