@@ -236,6 +236,7 @@ void __locks_copy_lock(struct file_lock *new, const struct file_lock *fl)
 	new->fl_ops = NULL;
 	new->fl_lmops = NULL;
 }
+EXPORT_SYMBOL(__locks_copy_lock);
 
 void locks_copy_lock(struct file_lock *new, struct file_lock *fl)
 {
