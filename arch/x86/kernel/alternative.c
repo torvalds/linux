@@ -519,6 +519,7 @@ void *__kprobes text_poke(void *addr, const void *opcode, size_t len)
 		pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
 	} else {
 		pages[0] = virt_to_page(addr);
+		WARN_ON(!PageReserved(pages[0]));
 		pages[1] = virt_to_page(addr + PAGE_SIZE);
 	}
 	BUG_ON(!pages[0]);
