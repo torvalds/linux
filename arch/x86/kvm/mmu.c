@@ -1233,7 +1233,6 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 		return;
 	spin_lock(&vcpu->kvm->mmu_lock);
-#ifdef CONFIG_X86_64
 	if (vcpu->arch.mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
 
@@ -1245,7 +1244,6 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 		spin_unlock(&vcpu->kvm->mmu_lock);
 		return;
 	}
-#endif
 	for (i = 0; i < 4; ++i) {
 		hpa_t root = vcpu->arch.mmu.pae_root[i];
 
@@ -1271,7 +1269,6 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 
 	root_gfn = vcpu->arch.cr3 >> PAGE_SHIFT;
 
-#ifdef CONFIG_X86_64
 	if (vcpu->arch.mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
 
@@ -1286,7 +1283,6 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		vcpu->arch.mmu.root_hpa = root;
 		return;
 	}
-#endif
 	metaphysical = !is_paging(vcpu);
 	if (tdp_enabled)
 		metaphysical = 1;
