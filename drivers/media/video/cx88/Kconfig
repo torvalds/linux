@@ -58,6 +58,7 @@ config VIDEO_CX88_DVB
 	select DVB_CX24123 if !DVB_FE_CUSTOMISE
 	select DVB_ISL6421 if !DVB_FE_CUSTOMISE
 	select TUNER_SIMPLE if !DVB_FE_CUSTOMISE
+	select DVB_S5H1411 if !DVB_FE_CUSTOMISE
 	---help---
 	  This adds support for DVB/ATSC cards based on the
 	  Conexant 2388x chip.

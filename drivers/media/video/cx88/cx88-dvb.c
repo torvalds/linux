@@ -47,6 +47,7 @@
 #include "isl6421.h"
 #include "tuner-simple.h"
 #include "tda9887.h"
+#include "s5h1411.h"
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -463,6 +464,22 @@ static struct zl10353_config cx88_geniatech_x8000_mt = {
        .no_tuner = 1,
 };
 
+static struct s5h1411_config dvico_fusionhdtv7_config = {
+	.output_mode   = S5H1411_SERIAL_OUTPUT,
+	.gpio          = S5H1411_GPIO_ON,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+	.qam_if        = S5H1411_IF_44000,
+	.vsb_if        = S5H1411_IF_44000,
+	.inversion     = S5H1411_INVERSION_OFF,
+	.status_mode   = S5H1411_DEMODLOCKING
+};
+
+static struct xc5000_config dvico_fusionhdtv7_tuner_config = {
+	.i2c_address    = 0xc2 >> 1,
+	.if_khz         = 5380,
+	.tuner_callback = cx88_tuner_callback,
+};
+
 static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 {
 	struct dvb_frontend *fe;
@@ -843,6 +860,21 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dev->core->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0)
 			return -EINVAL;
+		break;
+	case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
+		dev->dvb.frontend = dvb_attach(s5h1411_attach,
+					       &dvico_fusionhdtv7_config,
+					       &dev->core->i2c_adap);
+		if (dev->dvb.frontend != NULL) {
+			/* tuner_config.video_dev must point to
+			 * i2c_adap.algo_data
+			 */
+			dvico_fusionhdtv7_tuner_config.priv =
+						dev->core->i2c_adap.algo_data;
+			dvb_attach(xc5000_attach, dev->dvb.frontend,
+				   &dev->core->i2c_adap,
+				   &dvico_fusionhdtv7_tuner_config);
+		}
 		break;
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card isn't supported yet\n",
