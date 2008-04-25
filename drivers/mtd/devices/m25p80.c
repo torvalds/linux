@@ -446,6 +446,7 @@ static struct flash_info __devinitdata m25p_data [] = {
 	{ "at25fs040",  0x1f6604, 64 * 1024, 8, SECT_4K, },
 
 	{ "at25df041a", 0x1f4401, 64 * 1024, 8, SECT_4K, },
+	{ "at25df641",  0x1f4800, 64 * 1024, 128, SECT_4K, },
 
 	{ "at26f004",   0x1f0400, 64 * 1024, 8, SECT_4K, },
 	{ "at26df081a", 0x1f4501, 64 * 1024, 16, SECT_4K, },
