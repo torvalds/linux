@@ -141,14 +141,17 @@ void __init qnap_ts209_pci_preinit(void)
 
 static int __init qnap_ts209_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	/*
-	 * PCIE IRQ is connected internally (not GPIO)
-	 */
-	if (dev->bus->number == orion5x_pcie_local_bus_nr())
-		return IRQ_ORION5X_PCIE0_INT;
+	int irq;
 
 	/*
-	 * PCI IRQs are connected via GPIOs
+	 * Check for devices with hard-wired IRQs.
+	 */
+	irq = orion5x_pci_map_irq(dev, slot, pin);
+	if (irq != -1)
+		return irq;
+
+	/*
+	 * PCI IRQs are connected via GPIOs.
 	 */
 	switch (slot - QNAP_TS209_PCI_SLOT0_OFFS) {
 	case 0:

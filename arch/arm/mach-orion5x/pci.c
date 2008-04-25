@@ -41,11 +41,6 @@ void __init orion5x_pcie_id(u32 *dev, u32 *rev)
 	*rev = orion_pcie_rev(PCIE_BASE);
 }
 
-int __init orion5x_pcie_local_bus_nr(void)
-{
-	return orion_pcie_get_local_bus_nr(PCIE_BASE);
-}
-
 static int pcie_valid_config(int bus, int dev)
 {
 	/*
@@ -269,7 +264,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
  */
 static DEFINE_SPINLOCK(orion5x_pci_lock);
 
-int orion5x_pci_local_bus_nr(void)
+static int orion5x_pci_local_bus_nr(void)
 {
 	u32 conf = orion5x_read(PCI_P2P_CONF);
 	return((conf & PCI_P2P_BUS_MASK) >> PCI_P2P_BUS_OFFS);
@@ -556,4 +551,17 @@ struct pci_bus __init *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys
 	}
 
 	return bus;
+}
+
+int __init orion5x_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+{
+	int bus = dev->bus->number;
+
+	/*
+	 * PCIe endpoint?
+	 */
+	if (bus < orion5x_pci_local_bus_nr())
+		return IRQ_ORION5X_PCIE0_INT;
+
+	return -1;
 }
