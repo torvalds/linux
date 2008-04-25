@@ -3377,7 +3377,7 @@ int ata_wait_ready(struct ata_link *link, unsigned long deadline,
  *	RETURNS:
  *	0 if @linke is ready before @deadline; otherwise, -errno.
  */
-extern int ata_wait_after_reset(struct ata_link *link, unsigned long deadline,
+int ata_wait_after_reset(struct ata_link *link, unsigned long deadline,
 				int (*check_ready)(struct ata_link *link))
 {
 	msleep(ATA_WAIT_AFTER_RESET_MSECS);
