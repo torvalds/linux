@@ -37,7 +37,7 @@ subdir-ymn      := $(sort $(subdir-ym) $(subdir-n) $(subdir-))
 
 subdir-ymn	:= $(addprefix $(obj)/,$(subdir-ymn))
 
-# build a list of files to remove, usually releative to the current
+# build a list of files to remove, usually relative to the current
 # directory
 
 __clean-files	:= $(extra-y) $(always)                  \

@@ -27,12 +27,12 @@ ccflags-y  :=
 cppflags-y :=
 ldflags-y  :=
 
-# Read .config if it exist, otherwise ignore
+# Read auto.conf if it exists, otherwise ignore
 -include include/config/auto.conf
 
 include scripts/Kbuild.include
 
-# For backward compatibility check that these variables does not change
+# For backward compatibility check that these variables do not change
 save-cflags := $(CFLAGS)
 
 # The filename Kbuild has precedence over Makefile
@@ -55,7 +55,7 @@ hostprogs-y += $(host-progs)
 endif
 endif
 
-# Do not include host rules unles needed
+# Do not include host rules unless needed
 ifneq ($(hostprogs-y)$(hostprogs-m),)
 include scripts/Makefile.host
 endif
