@@ -1114,7 +1114,7 @@ typedef int (ahc_device_setup_t)(struct ahc_softc *);
 struct ahc_pci_identity {
 	uint64_t		 full_id;
 	uint64_t		 id_mask;
-	char			*name;
+	const char		*name;
 	ahc_device_setup_t	*setup;
 };
 
@@ -1135,9 +1135,9 @@ extern const int ahc_num_aic7770_devs;
 /******************************************************************************/
 
 /***************************** PCI Front End *********************************/
-struct ahc_pci_identity	*ahc_find_pci_device(ahc_dev_softc_t);
+const struct ahc_pci_identity	*ahc_find_pci_device(ahc_dev_softc_t);
 int			 ahc_pci_config(struct ahc_softc *,
-					struct ahc_pci_identity *);
+					const struct ahc_pci_identity *);
 int			 ahc_pci_test_register_access(struct ahc_softc *);
 #ifdef CONFIG_PM
 void			 ahc_pci_resume(struct ahc_softc *ahc);

@@ -168,8 +168,7 @@ static ahc_device_setup_t ahc_aha394XX_setup;
 static ahc_device_setup_t ahc_aha494XX_setup;
 static ahc_device_setup_t ahc_aha398XX_setup;
 
-static struct ahc_pci_identity ahc_pci_ident_table [] =
-{
+static const struct ahc_pci_identity ahc_pci_ident_table[] = {
 	/* aic7850 based controllers */
 	{
 		ID_AHA_2902_04_10_15_20C_30C,
@@ -668,7 +667,7 @@ ahc_9005_subdevinfo_valid(uint16_t device, uint16_t vendor,
 	return (result);
 }
 
-struct ahc_pci_identity *
+const struct ahc_pci_identity *
 ahc_find_pci_device(ahc_dev_softc_t pci)
 {
 	uint64_t  full_id;
@@ -676,7 +675,7 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 	uint16_t  vendor;
 	uint16_t  subdevice;
 	uint16_t  subvendor;
-	struct	  ahc_pci_identity *entry;
+	const struct ahc_pci_identity *entry;
 	u_int	  i;
 
 	vendor = ahc_pci_read_config(pci, PCIR_DEVVENDOR, /*bytes*/2);
@@ -710,7 +709,7 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 }
 
 int
-ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
+ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 {
 	u_int	 command;
 	u_int	 our_id;

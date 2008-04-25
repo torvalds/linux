@@ -193,7 +193,7 @@ struct ahd_linux_iocell_opts
 #define AIC79XX_PRECOMP_INDEX	0
 #define AIC79XX_SLEWRATE_INDEX	1
 #define AIC79XX_AMPLITUDE_INDEX	2
-static struct ahd_linux_iocell_opts aic79xx_iocell_info[] =
+static const struct ahd_linux_iocell_opts aic79xx_iocell_info[] =
 {
 	AIC79XX_DEFAULT_IOOPTS,
 	AIC79XX_DEFAULT_IOOPTS,
@@ -557,13 +557,11 @@ ahd_linux_info(struct Scsi_Host *host)
 	bp = &buffer[0];
 	ahd = *(struct ahd_softc **)host->hostdata;
 	memset(bp, 0, sizeof(buffer));
-	strcpy(bp, "Adaptec AIC79XX PCI-X SCSI HBA DRIVER, Rev ");
-	strcat(bp, AIC79XX_DRIVER_VERSION);
-	strcat(bp, "\n");
-	strcat(bp, "        <");
+	strcpy(bp, "Adaptec AIC79XX PCI-X SCSI HBA DRIVER, Rev " AIC79XX_DRIVER_VERSION "\n"
+			"        <");
 	strcat(bp, ahd->description);
-	strcat(bp, ">\n");
-	strcat(bp, "        ");
+	strcat(bp, ">\n"
+			"        ");
 	ahd_controller_info(ahd, ahd_info);
 	strcat(bp, ahd_info);
 
@@ -1148,7 +1146,7 @@ aic79xx_setup(char *s)
 	char   *p;
 	char   *end;
 
-	static struct {
+	static const struct {
 		const char *name;
 		uint32_t *flag;
 	} options[] = {
@@ -1380,7 +1378,7 @@ ahd_platform_init(struct ahd_softc *ahd)
 	 * Lookup and commit any modified IO Cell options.
 	 */
 	if (ahd->unit < ARRAY_SIZE(aic79xx_iocell_info)) {
-		struct ahd_linux_iocell_opts *iocell_opts;
+		const struct ahd_linux_iocell_opts *iocell_opts;
 
 		iocell_opts = &aic79xx_iocell_info[ahd->unit];
 		if (iocell_opts->precomp != AIC79XX_DEFAULT_PRECOMP)
@@ -2770,7 +2768,7 @@ static void ahd_linux_set_pcomp_en(struct scsi_target *starget, int pcomp)
 		uint8_t precomp;
 
 		if (ahd->unit < ARRAY_SIZE(aic79xx_iocell_info)) {
-			struct ahd_linux_iocell_opts *iocell_opts;
+			const struct ahd_linux_iocell_opts *iocell_opts;
 
 			iocell_opts = &aic79xx_iocell_info[ahd->unit];
 			precomp = iocell_opts->precomp;

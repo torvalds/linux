@@ -52,7 +52,7 @@
 
 
 /***************************** Lookup Tables **********************************/
-static char *ahd_chip_names[] =
+static const char *const ahd_chip_names[] =
 {
 	"NONE",
 	"aic7901",
@@ -66,10 +66,10 @@ static const u_int num_chip_names = ARRAY_SIZE(ahd_chip_names);
  */
 struct ahd_hard_error_entry {
         uint8_t errno;
-	char *errmesg;
+	const char *errmesg;
 };
 
-static struct ahd_hard_error_entry ahd_hard_errors[] = {
+static const struct ahd_hard_error_entry ahd_hard_errors[] = {
 	{ DSCTMOUT,	"Discard Timer has timed out" },
 	{ ILLOPCODE,	"Illegal Opcode in sequencer program" },
 	{ SQPARERR,	"Sequencer Parity Error" },
@@ -79,7 +79,7 @@ static struct ahd_hard_error_entry ahd_hard_errors[] = {
 };
 static const u_int num_errors = ARRAY_SIZE(ahd_hard_errors);
 
-static struct ahd_phase_table_entry ahd_phase_table[] =
+static const struct ahd_phase_table_entry ahd_phase_table[] =
 {
 	{ P_DATAOUT,	MSG_NOOP,		"in Data-out phase"	},
 	{ P_DATAIN,	MSG_INITIATOR_DET_ERR,	"in Data-in phase"	},
@@ -213,7 +213,7 @@ static void		ahd_dumpseq(struct ahd_softc *ahd);
 #endif
 static void		ahd_loadseq(struct ahd_softc *ahd);
 static int		ahd_check_patch(struct ahd_softc *ahd,
-					struct patch **start_patch,
+					const struct patch **start_patch,
 					u_int start_instr, u_int *skip_addr);
 static u_int		ahd_resolve_seqaddr(struct ahd_softc *ahd,
 					    u_int address);
@@ -254,7 +254,7 @@ static void		ahd_freeze_devq(struct ahd_softc *ahd,
 					struct scb *scb);
 static void		ahd_handle_scb_status(struct ahd_softc *ahd,
 					      struct scb *scb);
-static struct ahd_phase_table_entry* ahd_lookup_phase_entry(int phase);
+static const struct ahd_phase_table_entry* ahd_lookup_phase_entry(int phase);
 static void		ahd_shutdown(void *arg);
 static void		ahd_update_coalescing_values(struct ahd_softc *ahd,
 						     u_int timer,
@@ -4337,11 +4337,11 @@ ahd_print_devinfo(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 	       devinfo->target, devinfo->lun);
 }
 
-static struct ahd_phase_table_entry*
+static const struct ahd_phase_table_entry*
 ahd_lookup_phase_entry(int phase)
 {
-	struct ahd_phase_table_entry *entry;
-	struct ahd_phase_table_entry *last_entry;
+	const struct ahd_phase_table_entry *entry;
+	const struct ahd_phase_table_entry *last_entry;
 
 	/*
 	 * num_phases doesn't include the default entry which
@@ -9354,7 +9354,7 @@ ahd_loadseq(struct ahd_softc *ahd)
 	struct	cs cs_table[num_critical_sections];
 	u_int	begin_set[num_critical_sections];
 	u_int	end_set[num_critical_sections];
-	struct	patch *cur_patch;
+	const struct patch *cur_patch;
 	u_int	cs_count;
 	u_int	cur_cs;
 	u_int	i;
@@ -9509,11 +9509,11 @@ ahd_loadseq(struct ahd_softc *ahd)
 }
 
 static int
-ahd_check_patch(struct ahd_softc *ahd, struct patch **start_patch,
+ahd_check_patch(struct ahd_softc *ahd, const struct patch **start_patch,
 		u_int start_instr, u_int *skip_addr)
 {
-	struct	patch *cur_patch;
-	struct	patch *last_patch;
+	const struct patch *cur_patch;
+	const struct patch *last_patch;
 	u_int	num_patches;
 
 	num_patches = ARRAY_SIZE(patches);
@@ -9547,7 +9547,7 @@ ahd_check_patch(struct ahd_softc *ahd, struct patch **start_patch,
 static u_int
 ahd_resolve_seqaddr(struct ahd_softc *ahd, u_int address)
 {
-	struct patch *cur_patch;
+	const struct patch *cur_patch;
 	int address_offset;
 	u_int skip_addr;
 	u_int i;

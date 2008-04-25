@@ -815,7 +815,7 @@ struct ahd_tmode_tstate {
 struct ahd_phase_table_entry {
         uint8_t phase;
         uint8_t mesg_out; /* Message response to parity errors */
-	char *phasemsg;
+	const char *phasemsg;
 };
 
 /************************** Serial EEPROM Format ******************************/
@@ -1335,9 +1335,9 @@ extern const int ahd_num_aic7770_devs;
 /******************************************************************************/
 
 /***************************** PCI Front End *********************************/
-struct	ahd_pci_identity *ahd_find_pci_device(ahd_dev_softc_t);
+const struct	ahd_pci_identity *ahd_find_pci_device(ahd_dev_softc_t);
 int			  ahd_pci_config(struct ahd_softc *,
-					 struct ahd_pci_identity *);
+					 const struct ahd_pci_identity *);
 int	ahd_pci_test_register_access(struct ahd_softc *);
 #ifdef CONFIG_PM
 void	ahd_pci_suspend(struct ahd_softc *);

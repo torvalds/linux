@@ -84,16 +84,16 @@ struct seeprom_cmd {
 };
 
 /* Short opcodes for the c46 */
-static struct seeprom_cmd seeprom_ewen = {9, {1, 0, 0, 1, 1, 0, 0, 0, 0}};
-static struct seeprom_cmd seeprom_ewds = {9, {1, 0, 0, 0, 0, 0, 0, 0, 0}};
+static const struct seeprom_cmd seeprom_ewen = {9, {1, 0, 0, 1, 1, 0, 0, 0, 0}};
+static const struct seeprom_cmd seeprom_ewds = {9, {1, 0, 0, 0, 0, 0, 0, 0, 0}};
 
 /* Long opcodes for the C56/C66 */
-static struct seeprom_cmd seeprom_long_ewen = {11, {1, 0, 0, 1, 1, 0, 0, 0, 0}};
-static struct seeprom_cmd seeprom_long_ewds = {11, {1, 0, 0, 0, 0, 0, 0, 0, 0}};
+static const struct seeprom_cmd seeprom_long_ewen = {11, {1, 0, 0, 1, 1, 0, 0, 0, 0}};
+static const struct seeprom_cmd seeprom_long_ewds = {11, {1, 0, 0, 0, 0, 0, 0, 0, 0}};
 
 /* Common opcodes */
-static struct seeprom_cmd seeprom_write = {3, {1, 0, 1}};
-static struct seeprom_cmd seeprom_read  = {3, {1, 1, 0}};
+static const struct seeprom_cmd seeprom_write = {3, {1, 0, 1}};
+static const struct seeprom_cmd seeprom_read  = {3, {1, 1, 0}};
 
 /*
  * Wait for the SEERDY to go high; about 800 ns.
@@ -108,7 +108,7 @@ static struct seeprom_cmd seeprom_read  = {3, {1, 1, 0}};
  * Send a START condition and the given command
  */
 static void
-send_seeprom_cmd(struct seeprom_descriptor *sd, struct seeprom_cmd *cmd)
+send_seeprom_cmd(struct seeprom_descriptor *sd, const struct seeprom_cmd *cmd)
 {
 	uint8_t temp;
 	int i = 0;
@@ -227,7 +227,7 @@ int
 ahc_write_seeprom(struct seeprom_descriptor *sd, uint16_t *buf,
 		  u_int start_addr, u_int count)
 {
-	struct seeprom_cmd *ewen, *ewds;
+	const struct seeprom_cmd *ewen, *ewds;
 	uint16_t v;
 	uint8_t temp;
 	int i, k;
