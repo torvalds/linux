@@ -7948,11 +7948,6 @@ void __init sched_init_smp(void)
 #else
 void __init sched_init_smp(void)
 {
-#if defined(CONFIG_NUMA)
-	sched_group_nodes_bycpu = kzalloc(nr_cpu_ids * sizeof(void **),
-								GFP_KERNEL);
-	BUG_ON(sched_group_nodes_bycpu == NULL);
-#endif
 	sched_init_granularity();
 }
 #endif /* CONFIG_SMP */
