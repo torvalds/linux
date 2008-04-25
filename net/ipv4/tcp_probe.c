@@ -190,19 +190,18 @@ static ssize_t tcpprobe_read(struct file *file, char __user *buf,
 
 		width = tcpprobe_sprint(tbuf, sizeof(tbuf));
 
-		if (width < len)
+		if (cnt + width < len)
 			tcp_probe.tail = (tcp_probe.tail + 1) % bufsize;
 
 		spin_unlock_bh(&tcp_probe.lock);
 
 		/* if record greater than space available
 		   return partial buffer (so far) */
-		if (width >= len)
+		if (cnt + width >= len)
 			break;
 
-		error = copy_to_user(buf + cnt, tbuf, width);
-		if (error)
-			break;
+		if (copy_to_user(buf + cnt, tbuf, width))
+			return -EFAULT;
 		cnt += width;
 	}
 
