@@ -25,7 +25,7 @@
 #include <asm/io.h>
 #include <asm/machdep.h>
 
-#include "scc.h"
+#include "celleb_scc.h"
 
 #define UHC_RESET_WAIT_MAX 10000
 

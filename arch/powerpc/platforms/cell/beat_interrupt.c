@@ -26,7 +26,7 @@
 
 #include <asm/machdep.h>
 
-#include "interrupt.h"
+#include "beat_interrupt.h"
 #include "beat_wrapper.h"
 
 #define	MAX_IRQS	NR_IRQS

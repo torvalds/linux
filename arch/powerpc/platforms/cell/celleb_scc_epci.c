@@ -30,22 +30,16 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
-#include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 
-#include "scc.h"
-#include "pci.h"
-#include "interrupt.h"
+#include "celleb_scc.h"
+#include "celleb_pci.h"
 
 #define MAX_PCI_DEVICES   32
 #define MAX_PCI_FUNCTIONS  8
 
 #define iob()  __asm__ __volatile__("eieio; sync":::"memory")
-
-struct epci_private {
-	dma_addr_t	dummy_page_da;
-};
 
 static inline PCI_IO_ADDR celleb_epci_get_epci_base(
 					struct pci_controller *hose)
@@ -69,42 +63,6 @@ static inline PCI_IO_ADDR celleb_epci_get_epci_cfg(
 	 */
 
 	return hose->cfg_data;
-}
-
-static void scc_epci_dummy_read(struct pci_controller *hose)
-{
-	PCI_IO_ADDR epci_base;
-	u32 val;
-
-	epci_base = celleb_epci_get_epci_base(hose);
-
-	val = in_be32(epci_base + SCC_EPCI_WATRP);
-	iosync();
-
-	return;
-}
-
-void __init epci_workaround_init(struct pci_controller *hose)
-{
-	PCI_IO_ADDR epci_base;
-	PCI_IO_ADDR reg;
-	struct epci_private *private = hose->private_data;
-
-	BUG_ON(!private);
-
-	private->dummy_page_da = dma_map_single(hose->parent,
-		celleb_dummy_page_va, PAGE_SIZE, DMA_FROM_DEVICE);
-	if (private->dummy_page_da == DMA_ERROR_CODE) {
-		printk(KERN_ERR "EPCI: dummy read disabled. "
-		       "Map dummy page failed.\n");
-		return;
-	}
-
-	celleb_pci_add_one(hose, scc_epci_dummy_read);
-	epci_base = celleb_epci_get_epci_base(hose);
-
-	reg = epci_base + SCC_EPCI_DUMYRADR;
-	out_be32(reg, private->dummy_page_da);
 }
 
 static inline void clear_and_disable_master_abort_interrupt(
@@ -151,10 +109,8 @@ static int celleb_epci_check_abort(struct pci_controller *hose,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static PCI_IO_ADDR celleb_epci_make_config_addr(
-					struct pci_bus *bus,
-					struct pci_controller *hose,
-					unsigned int devfn, int where)
+static PCI_IO_ADDR celleb_epci_make_config_addr(struct pci_bus *bus,
+		struct pci_controller *hose, unsigned int devfn, int where)
 {
 	PCI_IO_ADDR addr;
 
@@ -425,8 +381,8 @@ static int __init celleb_epci_init(struct pci_controller *hose)
 	return 0;
 }
 
-int __init celleb_setup_epci(struct device_node *node,
-				struct pci_controller *hose)
+static int __init celleb_setup_epci(struct device_node *node,
+				    struct pci_controller *hose)
 {
 	struct resource r;
 
@@ -450,8 +406,7 @@ int __init celleb_setup_epci(struct device_node *node,
 	if (!hose->cfg_addr)
 		goto error;
 	pr_debug("EPCI: cfg_addr map 0x%016lx->0x%016lx + 0x%016lx\n",
-		 r.start, (unsigned long)hose->cfg_addr,
-		(r.end - r.start + 1));
+		 r.start, (unsigned long)hose->cfg_addr, (r.end - r.start + 1));
 
 	if (of_address_to_resource(node, 2, &r))
 		goto error;
@@ -459,14 +414,7 @@ int __init celleb_setup_epci(struct device_node *node,
 	if (!hose->cfg_data)
 		goto error;
 	pr_debug("EPCI: cfg_data map 0x%016lx->0x%016lx + 0x%016lx\n",
-		 r.start, (unsigned long)hose->cfg_data,
-		(r.end - r.start + 1));
-
-	hose->private_data = kzalloc(sizeof(struct epci_private), GFP_KERNEL);
-	if (hose->private_data == NULL) {
-		printk(KERN_ERR "EPCI: no memory for private data.\n");
-		goto error;
-	}
+		 r.start, (unsigned long)hose->cfg_data, (r.end - r.start + 1));
 
 	hose->ops = &celleb_epci_ops;
 	celleb_epci_init(hose);
@@ -474,8 +422,6 @@ int __init celleb_setup_epci(struct device_node *node,
 	return 0;
 
 error:
-	kfree(hose->private_data);
-
 	if (hose->cfg_addr)
 		iounmap(hose->cfg_addr);
 
@@ -483,3 +429,10 @@ error:
 		iounmap(hose->cfg_data);
 	return 1;
 }
+
+struct celleb_phb_spec celleb_epci_spec __initdata = {
+	.setup = celleb_setup_epci,
+	.ops = &spiderpci_ops,
+	.iowa_init = &spiderpci_iowa_init,
+	.iowa_data = (void *)0,
+};

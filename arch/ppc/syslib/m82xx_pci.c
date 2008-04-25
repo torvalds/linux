@@ -150,14 +150,6 @@ pq2pci_init_irq(void)
 {
 	int irq;
 	volatile cpm2_map_t *immap = cpm2_immr;
-#if defined CONFIG_ADS8272
-	/* configure chip select for PCI interrupt controller */
-	immap->im_memctl.memc_br3 = PCI_INT_STAT_REG | 0x00001801;
-	immap->im_memctl.memc_or3 = 0xffff8010;
-#elif defined CONFIG_PQ2FADS
-	immap->im_memctl.memc_br8 = PCI_INT_STAT_REG | 0x00001801;
-	immap->im_memctl.memc_or8 = 0xffff8010;
-#endif
 	for (irq = NR_CPM_INTS; irq < NR_CPM_INTS + 4; irq++)
 		irq_desc[irq].chip = &pq2pci_ic;
 
@@ -222,26 +214,6 @@ pq2ads_setup_pci(struct pci_controller *hose)
 	immap->im_memctl.memc_pcibr1  = M82xx_PCI_SEC_WND_BASE | PCIBR_ENABLE;
 #endif
 
-#if defined CONFIG_ADS8272
-	immap->im_siu_conf.siu_82xx.sc_siumcr =
-		(immap->im_siu_conf.siu_82xx.sc_siumcr &
-		~(SIUMCR_BBD | SIUMCR_ESE | SIUMCR_PBSE |
-		SIUMCR_CDIS | SIUMCR_DPPC11 | SIUMCR_L2CPC11 |
-		SIUMCR_LBPC11 | SIUMCR_APPC11 |
-		SIUMCR_CS10PC11 | SIUMCR_BCTLC11 | SIUMCR_MMR11)) |
-		SIUMCR_DPPC11 | SIUMCR_L2CPC01 | SIUMCR_LBPC00 |
-		SIUMCR_APPC10 | SIUMCR_CS10PC00 |
-		SIUMCR_BCTLC00 | SIUMCR_MMR11 ;
-
-#elif defined CONFIG_PQ2FADS
-	/*
-	 * Setting required to enable IRQ1-IRQ7 (SIUMCR [DPPC]),
-	 * and local bus for PCI (SIUMCR [LBPC]).
-	 */
-	immap->im_siu_conf.siu_82xx.sc_siumcr = (immap->im_siu_conf.siu_82xx.sc_siumcr &
-				~(SIUMCR_L2CPC11 | SIUMCR_LBPC11 | SIUMCR_CS10PC11 | SIUMCR_APPC11) |
-				SIUMCR_BBD | SIUMCR_LBPC01 | SIUMCR_DPPC11 | SIUMCR_APPC10);
-#endif
 	/* Enable PCI  */
 	immap->im_pci.pci_gcr = cpu_to_le32(PCIGCR_PCI_BUS_EN);
 
@@ -284,12 +256,6 @@ pq2ads_setup_pci(struct pci_controller *hose)
 	immap->im_pci.pci_pibar0 = cpu_to_le32(M82xx_PCI_SLAVE_MEM_BUS  >> PITA_ADDR_SHIFT);
 	immap->im_pci.pci_pitar0 = cpu_to_le32(M82xx_PCI_SLAVE_MEM_LOCAL>> PITA_ADDR_SHIFT);
 
-#if defined CONFIG_ADS8272
-	/* PCI int highest prio */
-	immap->im_siu_conf.siu_82xx.sc_ppc_alrh = 0x01236745;
-#elif defined CONFIG_PQ2FADS
-	immap->im_siu_conf.siu_82xx.sc_ppc_alrh = 0x03124567;
-#endif
 	/* park bus on PCI */
 	immap->im_siu_conf.siu_82xx.sc_ppc_acr = PPC_ACR_BUS_PARK_PCI;
 
@@ -319,10 +285,6 @@ void __init pq2_find_bridges(void)
 	hose->first_busno = 0;
 	hose->bus_offset = 0;
 	hose->last_busno = 0xff;
-
-#ifdef CONFIG_ADS8272
-	hose->set_cfg_type = 1;
-#endif
 
 	setup_m8260_indirect_pci(hose,
 				 (unsigned long)&cpm2_immr->im_pci.pci_cfg_addr,

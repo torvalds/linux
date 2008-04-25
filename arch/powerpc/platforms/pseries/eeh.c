@@ -39,7 +39,6 @@
 #include <asm/ppc-pci.h>
 #include <asm/rtas.h>
 
-#undef DEBUG
 
 /** Overview:
  *  EEH, or "Extended Error Handling" is a PCI bridge technology for

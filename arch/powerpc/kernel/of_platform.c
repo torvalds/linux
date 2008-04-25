@@ -275,6 +275,8 @@ static int __devinit of_pci_phb_probe(struct of_device *dev,
 
 	/* Scan the bus */
 	scan_phb(phb);
+	if (phb->bus == NULL)
+		return -ENXIO;
 
 	/* Claim resources. This might need some rework as well depending
 	 * wether we are doing probe-only or not, like assigning unassigned

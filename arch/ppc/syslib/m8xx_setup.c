@@ -141,16 +141,6 @@ m8xx_setup_arch(void)
 #endif
 #endif
 
-#if defined (CONFIG_MPC86XADS) || defined (CONFIG_MPC885ADS)
-#if defined(CONFIG_MTD_PHYSMAP)
-       physmap_configure(binfo->bi_flashstart, binfo->bi_flashsize,
-                                               MPC8xxADS_BANK_WIDTH, NULL);
-#ifdef CONFIG_MTD_PARTITIONS
-       physmap_set_partitions(mpc8xxads_partitions, mpc8xxads_part_num);
-#endif /* CONFIG_MTD_PARTITIONS */
-#endif /* CONFIG_MTD_PHYSMAP */
-#endif
-
 	board_init();
 }
 

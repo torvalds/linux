@@ -27,16 +27,19 @@
 #include <asm/prom.h>
 #include <asm/ppc-pci.h>
 
+#include "io-workarounds.h"
+
+struct celleb_phb_spec {
+	int (*setup)(struct device_node *, struct pci_controller *);
+	struct ppc_pci_io *ops;
+	int (*iowa_init)(struct iowa_bus *, void *);
+	void *iowa_data;
+};
+
 extern int celleb_setup_phb(struct pci_controller *);
 extern int celleb_pci_probe_mode(struct pci_bus *);
 
-extern int celleb_setup_epci(struct device_node *, struct pci_controller *);
-
-extern void *celleb_dummy_page_va;
-extern int __init celleb_pci_workaround_init(void);
-extern void __init celleb_pci_add_one(struct pci_controller *,
-				      void (*)(struct pci_controller *));
-extern void fake_pci_workaround_init(struct pci_controller *);
-extern void epci_workaround_init(struct pci_controller *);
+extern struct celleb_phb_spec celleb_epci_spec;
+extern struct celleb_phb_spec celleb_pciex_spec;
 
 #endif /* _CELLEB_PCI_H */

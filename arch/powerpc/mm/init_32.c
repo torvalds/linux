@@ -59,21 +59,16 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 unsigned long total_memory;
 unsigned long total_lowmem;
 
-phys_addr_t memstart_addr;
+phys_addr_t memstart_addr = (phys_addr_t)~0ull;
+EXPORT_SYMBOL(memstart_addr);
+phys_addr_t kernstart_addr;
+EXPORT_SYMBOL(kernstart_addr);
 phys_addr_t lowmem_end_addr;
 
 int boot_mapsize;
 #ifdef CONFIG_PPC_PMAC
 unsigned long agp_special_page;
 EXPORT_SYMBOL(agp_special_page);
-#endif
-
-#ifdef CONFIG_HIGHMEM
-pte_t *kmap_pte;
-pgprot_t kmap_prot;
-
-EXPORT_SYMBOL(kmap_prot);
-EXPORT_SYMBOL(kmap_pte);
 #endif
 
 void MMU_init(void);

@@ -56,13 +56,13 @@
 #include <asm/rtas.h>
 #include <asm/cell-regs.h>
 
-#include "interrupt.h"
+#include "beat_interrupt.h"
 #include "beat_wrapper.h"
 #include "beat.h"
-#include "pci.h"
-#include "../cell/interrupt.h"
-#include "../cell/pervasive.h"
-#include "../cell/ras.h"
+#include "celleb_pci.h"
+#include "interrupt.h"
+#include "pervasive.h"
+#include "ras.h"
 
 static char celleb_machine_type[128] = "Celleb";
 
@@ -113,8 +113,6 @@ static int __init celleb_publish_devices(void)
 {
 	/* Publish OF platform devices for southbridge IOs */
 	of_platform_bus_probe(NULL, celleb_bus_ids, NULL);
-
-	celleb_pci_workaround_init();
 
 	return 0;
 }

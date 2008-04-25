@@ -2278,6 +2278,7 @@ config TSI108_ETH
 config GELIC_NET
 	tristate "PS3 Gigabit Ethernet driver"
 	depends on PPC_PS3
+	select PS3_SYS_MANAGER
 	help
 	  This driver supports the network device on the PS3 game
 	  console.  This driver has built-in support for Ethernet.

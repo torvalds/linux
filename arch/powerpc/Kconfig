@@ -626,20 +626,6 @@ config ADVANCED_OPTIONS
 comment "Default settings for advanced configuration options are used"
 	depends on !ADVANCED_OPTIONS
 
-config HIGHMEM_START_BOOL
-	bool "Set high memory pool address"
-	depends on ADVANCED_OPTIONS && HIGHMEM
-	help
-	  This option allows you to set the base address of the kernel virtual
-	  area used to map high memory pages.  This can be useful in
-	  optimizing the layout of kernel virtual memory.
-
-	  Say N here unless you know what you are doing.
-
-config HIGHMEM_START
-	hex "Virtual start address of high memory pool" if HIGHMEM_START_BOOL
-	default "0xfe000000"
-
 config LOWMEM_SIZE_BOOL
 	bool "Set maximum low memory"
 	depends on ADVANCED_OPTIONS
@@ -656,20 +642,75 @@ config LOWMEM_SIZE
 	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
 	default "0x30000000"
 
+config RELOCATABLE
+	bool "Build a relocatable kernel (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && ADVANCED_OPTIONS && FLATMEM && FSL_BOOKE
+	help
+	  This builds a kernel image that is capable of running at the
+	  location the kernel is loaded at (some alignment restrictions may
+	  exist).
+
+	  One use is for the kexec on panic case where the recovery kernel
+	  must live at a different physical address than the primary
+	  kernel.
+
+	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
+	  it has been loaded at and the compile time physical addresses
+	  CONFIG_PHYSICAL_START is ignored.  However CONFIG_PHYSICAL_START
+	  setting can still be useful to bootwrappers that need to know the
+	  load location of the kernel (eg. u-boot/mkimage).
+
+config PAGE_OFFSET_BOOL
+	bool "Set custom page offset address"
+	depends on ADVANCED_OPTIONS
+	help
+	  This option allows you to set the kernel virtual address at which
+	  the kernel will map low memory.  This can be useful in optimizing
+	  the virtual memory layout of the system.
+
+	  Say N here unless you know what you are doing.
+
+config PAGE_OFFSET
+	hex "Virtual address of memory base" if PAGE_OFFSET_BOOL
+	default "0xc0000000"
+
 config KERNEL_START_BOOL
 	bool "Set custom kernel base address"
 	depends on ADVANCED_OPTIONS
 	help
 	  This option allows you to set the kernel virtual address at which
-	  the kernel will map low memory (the kernel image will be linked at
-	  this address).  This can be useful in optimizing the virtual memory
-	  layout of the system.
+	  the kernel will be loaded.  Normally this should match PAGE_OFFSET
+	  however there are times (like kdump) that one might not want them
+	  to be the same.
 
 	  Say N here unless you know what you are doing.
 
 config KERNEL_START
 	hex "Virtual address of kernel base" if KERNEL_START_BOOL
+	default PAGE_OFFSET if PAGE_OFFSET_BOOL
+	default "0xc2000000" if CRASH_DUMP
 	default "0xc0000000"
+
+config PHYSICAL_START_BOOL
+	bool "Set physical address where the kernel is loaded"
+	depends on ADVANCED_OPTIONS && FLATMEM && FSL_BOOKE
+	help
+	  This gives the physical address where the kernel is loaded.
+
+	  Say N here unless you know what you are doing.
+
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded" if PHYSICAL_START_BOOL
+	default "0x02000000" if PPC_STD_MMU && CRASH_DUMP
+	default "0x00000000"
+
+config PHYSICAL_ALIGN
+	hex
+	default "0x10000000" if FSL_BOOKE
+	help
+	  This value puts the alignment restrictions on physical address
+	  where kernel is loaded and run from. Kernel is compiled for an
+	  address which meets above alignment restriction.
 
 config TASK_SIZE_BOOL
 	bool "Set custom user task size"
@@ -717,9 +758,17 @@ config PIN_TLB
 endmenu
 
 if PPC64
-config KERNEL_START
+config PAGE_OFFSET
 	hex
 	default "0xc000000000000000"
+config KERNEL_START
+	hex
+	default "0xc000000002000000" if CRASH_DUMP
+	default "0xc000000000000000"
+config PHYSICAL_START
+	hex
+	default "0x02000000" if CRASH_DUMP
+	default "0x00000000"
 endif
 
 source "net/Kconfig"

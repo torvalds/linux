@@ -37,12 +37,11 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
-#include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 
-#include "pci.h"
-#include "interrupt.h"
+#include "io-workarounds.h"
+#include "celleb_pci.h"
 
 #define MAX_PCI_DEVICES    32
 #define MAX_PCI_FUNCTIONS   8
@@ -190,7 +189,7 @@ static int celleb_fake_pci_read_config(struct pci_bus *bus,
 
 
 static int celleb_fake_pci_write_config(struct pci_bus *bus,
-		 unsigned int devfn, int where, int size, u32 val)
+		unsigned int devfn, int where, int size, u32 val)
 {
 	char *config;
 	struct device_node *node;
@@ -457,33 +456,42 @@ static int __init celleb_setup_fake_pci(struct device_node *dev,
 	return 0;
 }
 
-void __init fake_pci_workaround_init(struct pci_controller *phb)
-{
-	/**
-	 *  We will add fake pci bus to scc_pci_bus for the purpose to improve
-	 *  I/O Macro performance. But device-tree and device drivers
-	 *  are not ready to use address with a token.
-	 */
-
-	/* celleb_pci_add_one(phb, NULL); */
-}
+static struct celleb_phb_spec celleb_fake_pci_spec __initdata = {
+	.setup = celleb_setup_fake_pci,
+};
 
 static struct of_device_id celleb_phb_match[] __initdata = {
 	{
 		.name = "pci-pseudo",
-		.data = celleb_setup_fake_pci,
+		.data = &celleb_fake_pci_spec,
 	}, {
 		.name = "epci",
-		.data = celleb_setup_epci,
+		.data = &celleb_epci_spec,
+	}, {
+		.name = "pcie",
+		.data = &celleb_pciex_spec,
 	}, {
 	},
 };
+
+static int __init celleb_io_workaround_init(struct pci_controller *phb,
+					    struct celleb_phb_spec *phb_spec)
+{
+	if (phb_spec->ops) {
+		iowa_register_bus(phb, phb_spec->ops, phb_spec->iowa_init,
+				  phb_spec->iowa_data);
+		io_workaround_init();
+	}
+
+	return 0;
+}
 
 int __init celleb_setup_phb(struct pci_controller *phb)
 {
 	struct device_node *dev = phb->dn;
 	const struct of_device_id *match;
-	int (*setup_func)(struct device_node *, struct pci_controller *);
+	struct celleb_phb_spec *phb_spec;
+	int rc;
 
 	match = of_match_node(celleb_phb_match, dev);
 	if (!match)
@@ -492,8 +500,12 @@ int __init celleb_setup_phb(struct pci_controller *phb)
 	phb_set_bus_ranges(dev, phb);
 	phb->buid = 1;
 
-	setup_func = match->data;
-	return (*setup_func)(dev, phb);
+	phb_spec = match->data;
+	rc = (*phb_spec->setup)(dev, phb);
+	if (rc)
+		return 1;
+
+	return celleb_io_workaround_init(phb, phb_spec);
 }
 
 int celleb_pci_probe_mode(struct pci_bus *bus)

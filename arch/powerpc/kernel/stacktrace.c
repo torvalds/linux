@@ -13,7 +13,6 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 #include <asm/ptrace.h>
-#include <asm/asm-offsets.h>
 
 /*
  * Save stack-backtrace addresses into a stack_trace buffer.

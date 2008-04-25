@@ -1106,6 +1106,12 @@ M:	kernel@wantstofly.org
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 
+CIRRUS LOGIC CS4270 SOUND DRIVER
+P:	Timur Tabi
+M:	timur@freescale.com
+L:	alsa-devel@alsa-project.org
+S:	Supported
+
 CIRRUS LOGIC CS4280/CS461x SOUNDDRIVER
 P:	Cirrus Logic Corporation (kernel 2.2 driver)
 M:	Cirrus Logic Corporation, Thomas Woller <twoller@crystal.cirrus.com>
@@ -1628,6 +1634,12 @@ L:	linuxppc-dev@ozlabs.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+FREESCALE QUICC ENGINE LIBRARY
+P:	Timur Tabi
+M:	timur@freescale.com
+L:	linuxppc-dev@ozlabs.org
+S:	Supported
+
 FREESCALE HIGHSPEED USB DEVICE DRIVER
 P:	Li Yang
 M:	leoli@freescale.com
@@ -1641,6 +1653,19 @@ M:	leoli@freescale.com
 L:	netdev@vger.kernel.org
 L:	linuxppc-dev@ozlabs.org
 S:	Maintained
+
+FREESCALE QUICC ENGINE UCC UART DRIVER
+P:	Timur Tabi
+M:	timur@freescale.com
+L:	linuxppc-dev@ozlabs.org
+S:	Supported
+
+FREESCALE SOC SOUND DRIVERS
+P:	Timur Tabi
+M:	timur@freescale.com
+L:	alsa-devel@alsa-project.org
+L:	linuxppc-dev@ozlabs.org
+S:	Supported
 
 FILE LOCKING (flock() and fcntl()/lockf())
 P:	Matthew Wilcox

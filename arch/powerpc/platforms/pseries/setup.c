@@ -16,8 +16,6 @@
  * bootup setup stuff..
  */
 
-#undef DEBUG
-
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -70,11 +68,6 @@
 #include "plpar_wrappers.h"
 #include "pseries.h"
 
-#ifdef DEBUG
-#define DBG(fmt...) udbg_printf(fmt)
-#else
-#define DBG(fmt...)
-#endif
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 
@@ -326,7 +319,7 @@ static int pseries_set_xdabr(unsigned long dabr)
  */
 static void __init pSeries_init_early(void)
 {
-	DBG(" -> pSeries_init_early()\n");
+	pr_debug(" -> pSeries_init_early()\n");
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		find_udbg_vterm();
@@ -338,7 +331,7 @@ static void __init pSeries_init_early(void)
 
 	iommu_init_early_pSeries();
 
-	DBG(" <- pSeries_init_early()\n");
+	pr_debug(" <- pSeries_init_early()\n");
 }
 
 /*
@@ -383,7 +376,7 @@ static int __init pSeries_probe(void)
 	    of_flat_dt_is_compatible(root, "IBM,CBEA"))
 		return 0;
 
-	DBG("pSeries detected, looking for LPAR capability...\n");
+	pr_debug("pSeries detected, looking for LPAR capability...\n");
 
 	/* Now try to figure out if we are running on LPAR */
 	of_scan_flat_dt(pSeries_probe_hypertas, NULL);
@@ -393,8 +386,8 @@ static int __init pSeries_probe(void)
 	else
 		hpte_init_native();
 
-	DBG("Machine is%s LPAR !\n",
-	    (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
+	pr_debug("Machine is%s LPAR !\n",
+	         (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
 
 	return 1;
 }

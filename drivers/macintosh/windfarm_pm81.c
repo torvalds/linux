@@ -770,7 +770,7 @@ static struct platform_driver wf_smu_driver = {
         .remove = __devexit_p(wf_smu_remove),
 	.driver = {
 		.name = "windfarm",
-		.bus = &platform_bus_type,
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -810,4 +810,4 @@ module_exit(wf_smu_exit);
 MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
 MODULE_DESCRIPTION("Thermal control logic for iMac G5");
 MODULE_LICENSE("GPL");
-
+MODULE_ALIAS("platform:windfarm");

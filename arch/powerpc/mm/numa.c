@@ -18,6 +18,7 @@
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/lmb.h>
+#include <linux/of.h>
 #include <asm/sparsemem.h>
 #include <asm/prom.h>
 #include <asm/system.h>

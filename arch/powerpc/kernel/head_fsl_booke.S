@@ -371,6 +371,17 @@ skpinv:	addi	r6,r6,1				/* Increment */
 
 	bl	early_init
 
+#ifdef CONFIG_RELOCATABLE
+	lis	r3,kernstart_addr@ha
+	la	r3,kernstart_addr@l(r3)
+#ifdef CONFIG_PHYS_64BIT
+	stw	r23,0(r3)
+	stw	r25,4(r3)
+#else
+	stw	r25,0(r3)
+#endif
+#endif
+
 	mfspr	r3,SPRN_TLB1CFG
 	andi.	r3,r3,0xfff
 	lis	r4,num_tlbcam_entries@ha
