@@ -20,11 +20,10 @@ static inline void __iomem *
 __arch_ioremap(unsigned long paddr, size_t size, unsigned int mtype)
 {
 	void __iomem *retval;
-
-	if (mtype == MT_DEVICE && size && paddr >= ORION5X_REGS_PHYS_BASE &&
-	    paddr + size <= ORION5X_REGS_PHYS_BASE + ORION5X_REGS_SIZE) {
-		retval = (void __iomem *)ORION5X_REGS_VIRT_BASE +
-				(paddr - ORION5X_REGS_PHYS_BASE);
+	unsigned long offs = paddr - ORION5X_REGS_PHYS_BASE;
+	if (mtype == MT_DEVICE && size && offs < ORION5X_REGS_SIZE &&
+	    size <= ORION5X_REGS_SIZE && offs + size <= ORION5X_REGS_SIZE) {
+		retval = (void __iomem *)ORION5X_REGS_VIRT_BASE + offs;
 	} else {
 		retval = __arm_ioremap(paddr, size, mtype);
 	}
