@@ -396,7 +396,8 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		       "svcrdma: could not post a receive buffer, err=%d."
 		       "Closing transport %p.\n", ret, rdma);
 		set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
-		return 0;
+		svc_rdma_put_context(ctxt, 0);
+		return -ENOTCONN;
 	}
 
 	/* Prepare the context */
