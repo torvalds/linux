@@ -2050,7 +2050,7 @@ typedef struct {
 						      to 0xFFFF00 */
 #define CIFS_UNIX_LARGE_WRITE_CAP       0x00000080
 #define CIFS_UNIX_TRANSPORT_ENCRYPTION_CAP 0x00000100 /* can do SPNEGO crypt */
-#define CIFS_UNIX_TRANPSORT_ENCRYPTION_MANDATORY_CAP  0x00000200 /* must do  */
+#define CIFS_UNIX_TRANSPORT_ENCRYPTION_MANDATORY_CAP  0x00000200 /* must do  */
 #define CIFS_UNIX_PROXY_CAP             0x00000400 /* Proxy cap: 0xACE ioctl and
 						      QFS PROXY call */
 #ifdef CONFIG_CIFS_POSIX
