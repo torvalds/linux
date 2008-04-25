@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
 
 /*-------------------------------------------------------------------*/
 /* Debug support 						     */
@@ -232,7 +233,7 @@ typedef struct auerscon
 /* USB device context */
 typedef struct
 {
-	struct semaphore 	mutex;         	    /* protection in user context */
+	struct mutex 	mutex;         	    /* protection in user context */
 	char 			name[20];	    /* name of the /dev/usb entry */
 	unsigned int		dtindex;	    /* index in the device table */
 	struct usb_device *	usbdev;      	    /* USB device handle */
@@ -253,12 +254,12 @@ typedef struct
 /* character device context */
 typedef struct
 {
-	struct semaphore mutex;         /* protection in user context */
+	struct mutex mutex;		/* protection in user context */
 	pauerswald_t auerdev;           /* context pointer of assigned device */
         auerbufctl_t bufctl;            /* controls the buffer chain */
         auerscon_t scontext;            /* service context */
 	wait_queue_head_t readwait;     /* for synchronous reading */
-	struct semaphore readmutex;     /* protection against multiple reads */
+	struct mutex readmutex;		/* protection against multiple reads */
 	pauerbuf_t readbuf;		/* buffer held for partial reading */
 	unsigned int readoffset;	/* current offset in readbuf */
 	unsigned int removed;		/* is != 0 if device is removed */
@@ -283,7 +284,7 @@ static void auerchain_complete (struct urb * urb)
         int result;
 
         /* get pointer to element and to chain */
-        pauerchainelement_t acep = (pauerchainelement_t) urb->context;
+	pauerchainelement_t acep = urb->context;
         pauerchain_t         acp = acep->chain;
 
         /* restore original entries in urb */
@@ -593,7 +594,7 @@ ac_fail:/* free the elements */
 /* completion handler for synchronous chained URBs */
 static void auerchain_blocking_completion (struct urb *urb)
 {
-	pauerchain_chs_t pchs = (pauerchain_chs_t)urb->context;
+	pauerchain_chs_t pchs = urb->context;
 	pchs->done = 1;
 	wmb();
 	wake_up (&pchs->wqh);
@@ -846,7 +847,7 @@ static int auerswald_status_retry (int status)
 /* Completion of asynchronous write block */
 static void auerchar_ctrlwrite_complete (struct urb * urb)
 {
-	pauerbuf_t bp = (pauerbuf_t) urb->context;
+	pauerbuf_t bp =  urb->context;
 	pauerswald_t cp = ((pauerswald_t)((char *)(bp->list)-(unsigned long)(&((pauerswald_t)0)->bufctl)));
 	dbg ("auerchar_ctrlwrite_complete called");
 
@@ -859,7 +860,7 @@ static void auerchar_ctrlwrite_complete (struct urb * urb)
 /* Completion handler for dummy retry packet */
 static void auerswald_ctrlread_wretcomplete (struct urb * urb)
 {
-        pauerbuf_t bp = (pauerbuf_t) urb->context;
+	pauerbuf_t bp = urb->context;
         pauerswald_t cp;
 	int ret;
 	int status = urb->status;
@@ -903,7 +904,7 @@ static void auerswald_ctrlread_complete (struct urb * urb)
         unsigned int  serviceid;
         pauerswald_t  cp;
         pauerscon_t   scp;
-        pauerbuf_t    bp  = (pauerbuf_t) urb->context;
+	pauerbuf_t bp = urb->context;
 	int status = urb->status;
 	int ret;
 
@@ -980,9 +981,9 @@ static void auerswald_int_complete (struct urb * urb)
         int ret;
 	int status = urb->status;
         pauerbuf_t   bp = NULL;
-        pauerswald_t cp = (pauerswald_t) urb->context;
+	pauerswald_t cp = urb->context;
 
-        dbg ("%s called", __FUNCTION__);
+        dbg ("%s called", __func__);
 
 	switch (status) {
 	case 0:
@@ -992,10 +993,10 @@ static void auerswald_int_complete (struct urb * urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, status);
+		dbg("%s - urb shutting down with status: %d", __func__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__, status);
+		dbg("%s - nonzero urb status received: %d", __func__, status);
 		goto exit;
 	}
 
@@ -1080,7 +1081,7 @@ exit:
 	ret = usb_submit_urb (urb, GFP_ATOMIC);
 	if (ret)
 		err ("%s - usb_submit_urb failed with result %d",
-		     __FUNCTION__, ret);
+		     __func__, ret);
 }
 
 /* int memory deallocation
@@ -1376,7 +1377,7 @@ static int auerchar_open (struct inode *inode, struct file *file)
 	if (cp == NULL) {
 		return -ENODEV;
 	}
-	if (down_interruptible (&cp->mutex)) {
+	if (mutex_lock_interruptible(&cp->mutex)) {
 		return -ERESTARTSYS;
 	}
 
@@ -1389,8 +1390,8 @@ static int auerchar_open (struct inode *inode, struct file *file)
 	}
 
 	/* Initialize device descriptor */
-	init_MUTEX( &ccp->mutex);
-	init_MUTEX( &ccp->readmutex);
+	mutex_init(&ccp->mutex);
+	mutex_init(&ccp->readmutex);
         auerbuf_init (&ccp->bufctl);
         ccp->scontext.id = AUH_UNASSIGNED;
         ccp->scontext.dispatch = auerchar_ctrlread_dispatch;
@@ -1405,7 +1406,7 @@ static int auerchar_open (struct inode *inode, struct file *file)
 	cp->open_count++;
 	ccp->auerdev = cp;
 	dbg("open %s as /dev/%s", cp->dev_desc, cp->name);
-	up (&cp->mutex);
+	mutex_unlock(&cp->mutex);
 
 	/* file IO stuff */
 	file->f_pos = 0;
@@ -1413,7 +1414,7 @@ static int auerchar_open (struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 
 	/* Error exit */
-ofail:	up (&cp->mutex);
+ofail:	mutex_unlock(&cp->mutex);
 	auerchar_delete (ccp);
 	return ret;
 }
@@ -1432,23 +1433,23 @@ static int auerchar_ioctl (struct inode *inode, struct file *file, unsigned int 
         dbg ("ioctl");
 
 	/* get the mutexes */
-	if (down_interruptible (&ccp->mutex)) {
+	if (mutex_lock_interruptible(&ccp->mutex)) {
 		return -ERESTARTSYS;
 	}
 	cp = ccp->auerdev;
 	if (!cp) {
-		up (&ccp->mutex);
+		mutex_unlock(&ccp->mutex);
                 return -ENODEV;
 	}
-	if (down_interruptible (&cp->mutex)) {
-		up(&ccp->mutex);
+	if (mutex_lock_interruptible(&cp->mutex)) {
+		mutex_unlock(&ccp->mutex);
 		return -ERESTARTSYS;
 	}
 
 	/* Check for removal */
 	if (!cp->usbdev) {
-		up(&cp->mutex);
-		up(&ccp->mutex);
+		mutex_unlock(&cp->mutex);
+		mutex_unlock(&ccp->mutex);
                 return -ENODEV;
 	}
 
@@ -1550,8 +1551,8 @@ static int auerchar_ioctl (struct inode *inode, struct file *file, unsigned int 
 		break;
         }
 	/* release the mutexes */
-	up(&cp->mutex);
-	up(&ccp->mutex);
+	mutex_unlock(&cp->mutex);
+	mutex_unlock(&ccp->mutex);
 	return ret;
 }
 
@@ -1574,18 +1575,18 @@ static ssize_t auerchar_read (struct file *file, char __user *buf, size_t count,
 		return 0;
 
 	/* get the mutex */
-	if (down_interruptible (&ccp->mutex))
+	if (mutex_lock_interruptible(&ccp->mutex))
 		return -ERESTARTSYS;
 
 	/* Can we expect to read something? */
 	if (ccp->scontext.id == AUH_UNASSIGNED) {
-		up (&ccp->mutex);
+		mutex_unlock(&ccp->mutex);
                 return -EIO;
 	}
 
 	/* only one reader per device allowed */
-	if (down_interruptible (&ccp->readmutex)) {
-		up (&ccp->mutex);
+	if (mutex_lock_interruptible(&ccp->readmutex)) {
+		mutex_unlock(&ccp->mutex);
 		return -ERESTARTSYS;
 	}
 
@@ -1602,8 +1603,8 @@ doreadbuf:
 		if (count) {
 			if (copy_to_user (buf, bp->bufp+ccp->readoffset, count)) {
 				dbg ("auerswald_read: copy_to_user failed");
-				up (&ccp->readmutex);
-				up (&ccp->mutex);
+				mutex_unlock(&ccp->readmutex);
+				mutex_unlock(&ccp->mutex);
 				return -EFAULT;
 			}
 		}
@@ -1617,8 +1618,8 @@ doreadbuf:
 		}
 		/* return with number of bytes read */
 		if (count) {
-			up (&ccp->readmutex);
-			up (&ccp->mutex);
+			mutex_unlock(&ccp->readmutex);
+			mutex_unlock(&ccp->mutex);
 			return count;
 		}
 	}
@@ -1654,29 +1655,29 @@ doreadlist:
                 dbg ("No read buffer available, returning -EAGAIN");
 		set_current_state (TASK_RUNNING);
 		remove_wait_queue (&ccp->readwait, &wait);
-		up (&ccp->readmutex);
-		up (&ccp->mutex);
+		mutex_unlock(&ccp->readmutex);
+		mutex_unlock(&ccp->mutex);
 		return -EAGAIN;  /* nonblocking, no data available */
         }
 
 	/* yes, we should wait! */
-	up (&ccp->mutex); /* allow other operations while we wait */
+	mutex_unlock(&ccp->mutex); /* allow other operations while we wait */
 	schedule();
 	remove_wait_queue (&ccp->readwait, &wait);
 	if (signal_pending (current)) {
 		/* waked up by a signal */
-		up (&ccp->readmutex);
+		mutex_unlock(&ccp->readmutex);
 		return -ERESTARTSYS;
 	}
 
 	/* Anything left to read? */
 	if ((ccp->scontext.id == AUH_UNASSIGNED) || ccp->removed) {
-		up (&ccp->readmutex);
+		mutex_unlock(&ccp->readmutex);
 		return -EIO;
 	}
 
-	if (down_interruptible (&ccp->mutex)) {
-		up (&ccp->readmutex);
+	if (mutex_lock_interruptible(&ccp->mutex)) {
+		mutex_unlock(&ccp->readmutex);
 		return -ERESTARTSYS;
 	}
 
@@ -1707,27 +1708,27 @@ static ssize_t auerchar_write (struct file *file, const char __user *buf, size_t
 
 write_again:
 	/* get the mutex */
-	if (down_interruptible (&ccp->mutex))
+	if (mutex_lock_interruptible(&ccp->mutex))
 		return -ERESTARTSYS;
 
 	/* Can we expect to write something? */
 	if (ccp->scontext.id == AUH_UNASSIGNED) {
-		up (&ccp->mutex);
+		mutex_unlock(&ccp->mutex);
                 return -EIO;
 	}
 
 	cp = ccp->auerdev;
 	if (!cp) {
-		up (&ccp->mutex);
+		mutex_unlock(&ccp->mutex);
 		return -ERESTARTSYS;
 	}
-	if (down_interruptible (&cp->mutex)) {
-		up (&ccp->mutex);
+	if (mutex_lock_interruptible(&cp->mutex)) {
+		mutex_unlock(&ccp->mutex);
 		return -ERESTARTSYS;
 	}
 	if (!cp->usbdev) {
-		up (&cp->mutex);
-		up (&ccp->mutex);
+		mutex_unlock(&cp->mutex);
+		mutex_unlock(&ccp->mutex);
 		return -EIO;
 	}
 	/* Prepare for sleep */
@@ -1750,8 +1751,8 @@ write_again:
 
 	/* are there any buffers left? */
 	if (!bp) {
-		up (&cp->mutex);
-		up (&ccp->mutex);
+		mutex_unlock(&cp->mutex);
+		mutex_unlock(&ccp->mutex);
 
 		/* NONBLOCK: don't wait */
 		if (file->f_flags & O_NONBLOCK) {
@@ -1783,8 +1784,8 @@ write_again:
 		auerbuf_releasebuf (bp);
 		/* Wake up all processes waiting for a buffer */
 		wake_up (&cp->bufferwait);
-		up (&cp->mutex);
-		up (&ccp->mutex);
+		mutex_unlock(&cp->mutex);
+		mutex_unlock(&ccp->mutex);
 		return -EFAULT;
 	}
 
@@ -1803,18 +1804,18 @@ write_again:
 		    auerchar_ctrlwrite_complete, bp);
 	/* up we go */
 	ret = auerchain_submit_urb (&cp->controlchain, bp->urbp);
-	up (&cp->mutex);
+	mutex_unlock(&cp->mutex);
 	if (ret) {
 		dbg ("auerchar_write: nonzero result of auerchain_submit_urb %d", ret);
 		auerbuf_releasebuf (bp);
 		/* Wake up all processes waiting for a buffer */
 		wake_up (&cp->bufferwait);
-		up (&ccp->mutex);
+		mutex_unlock(&ccp->mutex);
 		return -EIO;
 	}
 	else {
 		dbg ("auerchar_write: Write OK");
-		up (&ccp->mutex);
+		mutex_unlock(&ccp->mutex);
 		return len;
 	}
 }
@@ -1827,24 +1828,24 @@ static int auerchar_release (struct inode *inode, struct file *file)
 	pauerswald_t cp;
 	dbg("release");
 
-	down(&ccp->mutex);
+	mutex_lock(&ccp->mutex);
 	cp = ccp->auerdev;
 	if (cp) {
-		down(&cp->mutex);
+		mutex_lock(&cp->mutex);
 		/* remove an open service */
 		auerswald_removeservice (cp, &ccp->scontext);
 		/* detach from device */
 		if ((--cp->open_count <= 0) && (cp->usbdev == NULL)) {
 			/* usb device waits for removal */
-			up (&cp->mutex);
+			mutex_unlock(&cp->mutex);
 			auerswald_delete (cp);
 		} else {
-			up (&cp->mutex);
+			mutex_unlock(&cp->mutex);
 		}
 		cp = NULL;
 		ccp->auerdev = NULL;
 	}
-	up (&ccp->mutex);
+	mutex_unlock(&ccp->mutex);
 	auerchar_delete (ccp);
 
 	return 0;
@@ -1917,7 +1918,7 @@ static int auerswald_probe (struct usb_interface *intf,
 	}
 
 	/* Initialize device descriptor */
-	init_MUTEX (&cp->mutex);
+	mutex_init(&cp->mutex);
 	cp->usbdev = usbdev;
 	auerchain_init (&cp->controlchain);
         auerbuf_init (&cp->bufctl);
@@ -2042,7 +2043,7 @@ static void auerswald_disconnect (struct usb_interface *intf)
 	/* give back our USB minor number */
 	usb_deregister_dev(intf, &auerswald_class);
 
-	down (&cp->mutex);
+	mutex_lock(&cp->mutex);
 	info ("device /dev/%s now disconnecting", cp->name);
 
 	/* Stop the interrupt endpoint */
@@ -2057,16 +2058,18 @@ static void auerswald_disconnect (struct usb_interface *intf)
 
 	if (cp->open_count == 0) {
 		/* nobody is using this device. So we can clean up now */
-		up (&cp->mutex);/* up() is possible here because no other task
-				   can open the device (see above). I don't want
-				   to kfree() a locked mutex. */
+		mutex_unlock(&cp->mutex);
+		/* mutex_unlock() is possible here because no other task
+		   can open the device (see above). I don't want
+		   to kfree() a locked mutex. */
+
 		auerswald_delete (cp);
 	} else {
 		/* device is used. Remove the pointer to the
 		   usb device (it's not valid any more). The last
 		   release() will do the clean up */
 		cp->usbdev = NULL;
-		up (&cp->mutex);
+		mutex_unlock(&cp->mutex);
 		/* Terminate waiting writers */
 		wake_up (&cp->bufferwait);
 		/* Inform all waiting readers */

@@ -245,44 +245,6 @@ int dm_table_create(struct dm_table **result, int mode,
 	return 0;
 }
 
-int dm_create_error_table(struct dm_table **result, struct mapped_device *md)
-{
-	struct dm_table *t;
-	sector_t dev_size = 1;
-	int r;
-
-	/*
-	 * Find current size of device.
-	 * Default to 1 sector if inactive.
-	 */
-	t = dm_get_table(md);
-	if (t) {
-		dev_size = dm_table_get_size(t);
-		dm_table_put(t);
-	}
-
-	r = dm_table_create(&t, FMODE_READ, 1, md);
-	if (r)
-		return r;
-
-	r = dm_table_add_target(t, "error", 0, dev_size, NULL);
-	if (r)
-		goto out;
-
-	r = dm_table_complete(t);
-	if (r)
-		goto out;
-
-	*result = t;
-
-out:
-	if (r)
-		dm_table_put(t);
-
-	return r;
-}
-EXPORT_SYMBOL_GPL(dm_create_error_table);
-
 static void free_devices(struct list_head *devices)
 {
 	struct list_head *tmp, *next;
@@ -954,7 +916,7 @@ void dm_table_presuspend_targets(struct dm_table *t)
 	if (!t)
 		return;
 
-	return suspend_targets(t, 0);
+	suspend_targets(t, 0);
 }
 
 void dm_table_postsuspend_targets(struct dm_table *t)
@@ -962,7 +924,7 @@ void dm_table_postsuspend_targets(struct dm_table *t)
 	if (!t)
 		return;
 
-	return suspend_targets(t, 1);
+	suspend_targets(t, 1);
 }
 
 int dm_table_resume_targets(struct dm_table *t)

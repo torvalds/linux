@@ -22,11 +22,14 @@
 */
 
 struct s3c2410_nand_set {
+	unsigned int		disable_ecc : 1;
+
 	int			nr_chips;
 	int			nr_partitions;
 	char			*name;
 	int			*nr_map;
 	struct mtd_partition	*partitions;
+	struct nand_ecclayout	*ecc_layout;
 };
 
 struct s3c2410_platform_nand {
@@ -35,6 +38,8 @@ struct s3c2410_platform_nand {
 	int	tacls;	/* time for active CLE/ALE to nWE/nOE */
 	int	twrph0;	/* active time for nWE/nOE */
 	int	twrph1;	/* time for release CLE/ALE from nWE/nOE inactive */
+
+	unsigned int	ignore_unset_ecc : 1;
 
 	int			nr_sets;
 	struct s3c2410_nand_set *sets;

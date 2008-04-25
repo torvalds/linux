@@ -454,8 +454,8 @@ asmlinkage long sys_ipc(unsigned int call, int first, unsigned long second,
 			err = sys_semget(first, (int)second, (int)third);
 			goto out;
 		case SEMCTL: {
-			err = sys_semctl(first, third,
-					 (int)second | IPC_64,
+			err = sys_semctl(first, second,
+					 (int)third | IPC_64,
 					 (union semun) ptr);
 			goto out;
 		}

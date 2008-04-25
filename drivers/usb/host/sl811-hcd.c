@@ -94,12 +94,10 @@ static void port_power(struct sl811 *sl811, int is_on)
 
 		sl811->port1 = (1 << USB_PORT_FEAT_POWER);
 		sl811->irq_enable = SL11H_INTMASK_INSRMV;
-		hcd->self.controller->power.power_state = PMSG_ON;
 	} else {
 		sl811->port1 = 0;
 		sl811->irq_enable = 0;
 		hcd->state = HC_STATE_HALT;
-		hcd->self.controller->power.power_state = PMSG_SUSPEND;
 	}
 	sl811->ctrl1 = 0;
 	sl811_write(sl811, SL11H_IRQ_ENABLE, 0);
@@ -1337,7 +1335,7 @@ static int
 sl811h_bus_suspend(struct usb_hcd *hcd)
 {
 	// SOFs off
-	DBG("%s\n", __FUNCTION__);
+	DBG("%s\n", __func__);
 	return 0;
 }
 
@@ -1345,7 +1343,7 @@ static int
 sl811h_bus_resume(struct usb_hcd *hcd)
 {
 	// SOFs on
-	DBG("%s\n", __FUNCTION__);
+	DBG("%s\n", __func__);
 	return 0;
 }
 
@@ -1772,8 +1770,6 @@ sl811h_suspend(struct platform_device *dev, pm_message_t state)
 		port_power(sl811, 0);
 		break;
 	}
-	if (retval == 0)
-		dev->dev.power.power_state = state;
 	return retval;
 }
 
@@ -1786,15 +1782,13 @@ sl811h_resume(struct platform_device *dev)
 	/* with no "check to see if VBUS is still powered" board hook,
 	 * let's assume it'd only be powered to enable remote wakeup.
 	 */
-	if (dev->dev.power.power_state.event == PM_EVENT_SUSPEND
-			|| !device_can_wakeup(&hcd->self.root_hub->dev)) {
+	if (!sl811->port1 || !device_can_wakeup(&hcd->self.root_hub->dev)) {
 		sl811->port1 = 0;
 		port_power(sl811, 1);
 		usb_root_hub_lost_power(hcd->self.root_hub);
 		return 0;
 	}
 
-	dev->dev.power.power_state = PMSG_ON;
 	return sl811h_bus_resume(hcd);
 }
 

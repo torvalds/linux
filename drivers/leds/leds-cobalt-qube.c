@@ -18,7 +18,7 @@ static void __iomem *led_port;
 static u8 led_value;
 
 static void qube_front_led_set(struct led_classdev *led_cdev,
-                               enum led_brightness brightness)
+			       enum led_brightness brightness)
 {
 	if (brightness)
 		led_value = LED_FRONT_LEFT | LED_FRONT_RIGHT;

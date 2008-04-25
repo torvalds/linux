@@ -36,6 +36,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	unsigned int ivalid;
 	uint32_t alloclen;
 	int ret;
+	int alloc_type = ALLOC_NORMAL;
 
 	D1(printk(KERN_DEBUG "jffs2_setattr(): ino #%lu\n", inode->i_ino));
 
@@ -50,20 +51,20 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 		mdata = (char *)&dev;
 		D1(printk(KERN_DEBUG "jffs2_setattr(): Writing %d bytes of kdev_t\n", mdatalen));
 	} else if (S_ISLNK(inode->i_mode)) {
-		down(&f->sem);
+		mutex_lock(&f->sem);
 		mdatalen = f->metadata->size;
 		mdata = kmalloc(f->metadata->size, GFP_USER);
 		if (!mdata) {
-			up(&f->sem);
+			mutex_unlock(&f->sem);
 			return -ENOMEM;
 		}
 		ret = jffs2_read_dnode(c, f, f->metadata, mdata, 0, mdatalen);
 		if (ret) {
-			up(&f->sem);
+			mutex_unlock(&f->sem);
 			kfree(mdata);
 			return ret;
 		}
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		D1(printk(KERN_DEBUG "jffs2_setattr(): Writing %d bytes of symlink target\n", mdatalen));
 	}
 
@@ -82,7 +83,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 			 kfree(mdata);
 		return ret;
 	}
-	down(&f->sem);
+	mutex_lock(&f->sem);
 	ivalid = iattr->ia_valid;
 
 	ri->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
@@ -115,6 +116,10 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 		ri->compr = JFFS2_COMPR_ZERO;
 		ri->dsize = cpu_to_je32(iattr->ia_size - inode->i_size);
 		ri->offset = cpu_to_je32(inode->i_size);
+	} else if (ivalid & ATTR_SIZE && !iattr->ia_size) {
+		/* For truncate-to-zero, treat it as deletion because
+		   it'll always be obsoleting all previous nodes */
+		alloc_type = ALLOC_DELETION;
 	}
 	ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
 	if (mdatalen)
@@ -122,14 +127,14 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	else
 		ri->data_crc = cpu_to_je32(0);
 
-	new_metadata = jffs2_write_dnode(c, f, ri, mdata, mdatalen, ALLOC_NORMAL);
+	new_metadata = jffs2_write_dnode(c, f, ri, mdata, mdatalen, alloc_type);
 	if (S_ISLNK(inode->i_mode))
 		kfree(mdata);
 
 	if (IS_ERR(new_metadata)) {
 		jffs2_complete_reservation(c);
 		jffs2_free_raw_inode(ri);
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		return PTR_ERR(new_metadata);
 	}
 	/* It worked. Update the inode */
@@ -149,6 +154,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	if (ivalid & ATTR_SIZE && inode->i_size < iattr->ia_size) {
 		jffs2_add_full_dnode_to_inode(c, f, new_metadata);
 		inode->i_size = iattr->ia_size;
+		inode->i_blocks = (inode->i_size + 511) >> 9;
 		f->metadata = NULL;
 	} else {
 		f->metadata = new_metadata;
@@ -159,7 +165,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	}
 	jffs2_free_raw_inode(ri);
 
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 	jffs2_complete_reservation(c);
 
 	/* We have to do the vmtruncate() without f->sem held, since
@@ -167,8 +173,10 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	   We are protected from a simultaneous write() extending i_size
 	   back past iattr->ia_size, because do_truncate() holds the
 	   generic inode semaphore. */
-	if (ivalid & ATTR_SIZE && inode->i_size > iattr->ia_size)
-		vmtruncate(inode, iattr->ia_size);
+	if (ivalid & ATTR_SIZE && inode->i_size > iattr->ia_size) {
+		vmtruncate(inode, iattr->ia_size);	
+		inode->i_blocks = (inode->i_size + 511) >> 9;
+	}	
 
 	return 0;
 }
@@ -248,12 +256,12 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	c = JFFS2_SB_INFO(inode->i_sb);
 
 	jffs2_init_inode_info(f);
-	down(&f->sem);
+	mutex_lock(&f->sem);
 
 	ret = jffs2_do_read_inode(c, f, inode->i_ino, &latest_node);
 
 	if (ret) {
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		iget_failed(inode);
 		return ERR_PTR(ret);
 	}
@@ -330,7 +338,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 		printk(KERN_WARNING "jffs2_read_inode(): Bogus imode %o for ino %lu\n", inode->i_mode, (unsigned long)inode->i_ino);
 	}
 
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 
 	D1(printk(KERN_DEBUG "jffs2_read_inode() returning\n"));
 	unlock_new_inode(inode);
@@ -339,7 +347,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 error_io:
 	ret = -EIO;
 error:
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 	jffs2_do_clear_inode(c, f);
 	iget_failed(inode);
 	return ERR_PTR(ret);
@@ -380,9 +388,9 @@ int jffs2_remount_fs (struct super_block *sb, int *flags, char *data)
 	   Flush the writebuffer, if neccecary, else we loose it */
 	if (!(sb->s_flags & MS_RDONLY)) {
 		jffs2_stop_garbage_collect_thread(c);
-		down(&c->alloc_sem);
+		mutex_lock(&c->alloc_sem);
 		jffs2_flush_wbuf_pad(c);
-		up(&c->alloc_sem);
+		mutex_unlock(&c->alloc_sem);
 	}
 
 	if (!(*flags & MS_RDONLY))
@@ -429,7 +437,7 @@ struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_i
 
 	f = JFFS2_INODE_INFO(inode);
 	jffs2_init_inode_info(f);
-	down(&f->sem);
+	mutex_lock(&f->sem);
 
 	memset(ri, 0, sizeof(*ri));
 	/* Set OS-specific defaults for new inodes */

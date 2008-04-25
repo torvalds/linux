@@ -692,7 +692,7 @@ static void abort_dma(struct goku_ep *ep, int status)
 	req->req.actual = (curr - req->req.dma) + 1;
 	req->req.status = status;
 
-	VDBG(ep->dev, "%s %s %s %d/%d\n", __FUNCTION__, ep->ep.name,
+	VDBG(ep->dev, "%s %s %s %d/%d\n", __func__, ep->ep.name,
 		ep->is_in ? "IN" : "OUT",
 		req->req.actual, req->req.length);
 
@@ -826,7 +826,7 @@ static int goku_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	if (dev->ep0state == EP0_SUSPEND)
 		return -EBUSY;
 
-	VDBG(dev, "%s %s %s %s %p\n", __FUNCTION__, _ep->name,
+	VDBG(dev, "%s %s %s %s %p\n", __func__, _ep->name,
 		ep->is_in ? "IN" : "OUT",
 		ep->dma ? "dma" : "pio",
 		_req);
@@ -898,7 +898,7 @@ static int goku_set_halt(struct usb_ep *_ep, int value)
 
 	/* don't change EPxSTATUS_EP_INVALID to READY */
 	} else if (!ep->desc) {
-		DBG(ep->dev, "%s %s inactive?\n", __FUNCTION__, ep->ep.name);
+		DBG(ep->dev, "%s %s inactive?\n", __func__, ep->ep.name);
 		return -EINVAL;
 	}
 
@@ -940,7 +940,7 @@ static int goku_fifo_status(struct usb_ep *_ep)
 	regs = ep->dev->regs;
 	size = readl(&regs->EPxSizeLA[ep->num]) & DATASIZE;
 	size += readl(&regs->EPxSizeLB[ep->num]) & DATASIZE;
-	VDBG(ep->dev, "%s %s %u\n", __FUNCTION__, ep->ep.name, size);
+	VDBG(ep->dev, "%s %s %u\n", __func__, ep->ep.name, size);
 	return size;
 }
 
@@ -953,11 +953,11 @@ static void goku_fifo_flush(struct usb_ep *_ep)
 	if (!_ep)
 		return;
 	ep = container_of(_ep, struct goku_ep, ep);
-	VDBG(ep->dev, "%s %s\n", __FUNCTION__, ep->ep.name);
+	VDBG(ep->dev, "%s %s\n", __func__, ep->ep.name);
 
 	/* don't change EPxSTATUS_EP_INVALID to READY */
 	if (!ep->desc && ep->num != 0) {
-		DBG(ep->dev, "%s %s inactive?\n", __FUNCTION__, ep->ep.name);
+		DBG(ep->dev, "%s %s inactive?\n", __func__, ep->ep.name);
 		return;
 	}
 
@@ -1286,7 +1286,7 @@ static void ep0_start(struct goku_udc *dev)
 	struct goku_udc_regs __iomem	*regs = dev->regs;
 	unsigned			i;
 
-	VDBG(dev, "%s\n", __FUNCTION__);
+	VDBG(dev, "%s\n", __func__);
 
 	udc_reset(dev);
 	udc_reinit (dev);
@@ -1322,7 +1322,7 @@ static void udc_enable(struct goku_udc *dev)
 	if (readl(&dev->regs->power_detect) & PW_DETECT)
 		ep0_start(dev);
 	else {
-		DBG(dev, "%s\n", __FUNCTION__);
+		DBG(dev, "%s\n", __func__);
 		dev->int_enable = INT_PWRDETECT;
 		writel(dev->int_enable, &dev->regs->int_enable);
 	}
@@ -1387,7 +1387,7 @@ stop_activity(struct goku_udc *dev, struct usb_gadget_driver *driver)
 {
 	unsigned	i;
 
-	DBG (dev, "%s\n", __FUNCTION__);
+	DBG (dev, "%s\n", __func__);
 
 	if (dev->gadget.speed == USB_SPEED_UNKNOWN)
 		driver = NULL;
@@ -1726,7 +1726,7 @@ static void goku_remove(struct pci_dev *pdev)
 {
 	struct goku_udc		*dev = pci_get_drvdata(pdev);
 
-	DBG(dev, "%s\n", __FUNCTION__);
+	DBG(dev, "%s\n", __func__);
 
 	BUG_ON(dev->driver);
 

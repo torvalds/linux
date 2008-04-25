@@ -208,13 +208,13 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 				 2000);
 	if (result < 0)
 		dbg("%s - error %d from usb_control_msg", 
-		    __FUNCTION__, result);
+		    __func__, result);
 }
 
 
 static void keyspan_pda_rx_interrupt (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
        	struct tty_struct *tty = port->tty;
 	unsigned char *data = urb->transfer_buffer;
 	int i;
@@ -232,11 +232,11 @@ static void keyspan_pda_rx_interrupt (struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		goto exit;
 	}
 
@@ -274,7 +274,7 @@ exit:
 	retval = usb_submit_urb (urb, GFP_ATOMIC);
 	if (retval)
 		err ("%s - usb_submit_urb failed with result %d",
-		     __FUNCTION__, retval);
+		     __func__, retval);
 }
 
 
@@ -358,7 +358,7 @@ static void keyspan_pda_break_ctl (struct usb_serial_port *port, int break_state
 				value, 0, NULL, 0, 2000);
 	if (result < 0)
 		dbg("%s - error %d from usb_control_msg", 
-		    __FUNCTION__, result);
+		    __func__, result);
 	/* there is something funky about this.. the TCSBRK that 'cu' performs
 	   ought to translate into a break_ctl(-1),break_ctl(0) pair HZ/4
 	   seconds apart, but it feels like the break sent isn't as long as it
@@ -608,7 +608,7 @@ exit:
 
 static void keyspan_pda_write_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct keyspan_pda_private *priv;
 
 	port->write_urb_busy = 0;
@@ -636,14 +636,19 @@ static int keyspan_pda_write_room (struct usb_serial_port *port)
 static int keyspan_pda_chars_in_buffer (struct usb_serial_port *port)
 {
 	struct keyspan_pda_private *priv;
+	unsigned long flags;
+	int ret = 0;
 
 	priv = usb_get_serial_port_data(port);
 
 	/* when throttled, return at least WAKEUP_CHARS to tell select() (via
 	   n_tty.c:normal_poll() ) that we're not writeable. */
+
+	spin_lock_irqsave(&port->lock, flags);
 	if (port->write_urb_busy || priv->tx_throttled)
-		return 256;
-	return 0;
+		ret = 256;
+	spin_unlock_irqrestore(&port->lock, flags);
+	return ret;
 }
 
 
@@ -665,11 +670,11 @@ static int keyspan_pda_open (struct usb_serial_port *port, struct file *filp)
 			     1,
 			     2000);
 	if (rc < 0) {
-		dbg("%s - roomquery failed", __FUNCTION__);
+		dbg("%s - roomquery failed", __func__);
 		goto error;
 	}
 	if (rc == 0) {
-		dbg("%s - roomquery returned 0 bytes", __FUNCTION__);
+		dbg("%s - roomquery returned 0 bytes", __func__);
 		rc = -EIO;
 		goto error;
 	}
@@ -688,7 +693,7 @@ static int keyspan_pda_open (struct usb_serial_port *port, struct file *filp)
 	port->interrupt_in_urb->dev = serial->dev;
 	rc = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (rc) {
-		dbg("%s - usb_submit_urb(read int) failed", __FUNCTION__);
+		dbg("%s - usb_submit_urb(read int) failed", __func__);
 		goto error;
 	}
 
@@ -732,7 +737,7 @@ static int keyspan_pda_fake_startup (struct usb_serial *serial)
 		record = &xircom_pgs_firmware[0];
 #endif
 	if (record == NULL) {
-		err("%s: unknown vendor, aborting.", __FUNCTION__);
+		err("%s: unknown vendor, aborting.", __func__);
 		return -ENODEV;
 	}
 
@@ -779,7 +784,7 @@ static int keyspan_pda_startup (struct usb_serial *serial)
 
 static void keyspan_pda_shutdown (struct usb_serial *serial)
 {
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 	
 	kfree(usb_get_serial_port_data(serial->port[0]));
 }
@@ -793,9 +798,6 @@ static struct usb_serial_driver keyspan_pda_fake_device = {
 	.description =		"Keyspan PDA - (prerenumeration)",
 	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_fake,
-	.num_interrupt_in =	NUM_DONT_CARE,
-	.num_bulk_in =		NUM_DONT_CARE,
-	.num_bulk_out =		NUM_DONT_CARE,
 	.num_ports =		1,
 	.attach =		keyspan_pda_fake_startup,
 };
@@ -810,9 +812,6 @@ static struct usb_serial_driver xircom_pgs_fake_device = {
 	.description =		"Xircom / Entregra PGS - (prerenumeration)",
 	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_fake_xircom,
-	.num_interrupt_in =	NUM_DONT_CARE,
-	.num_bulk_in =		NUM_DONT_CARE,
-	.num_bulk_out =		NUM_DONT_CARE,
 	.num_ports =		1,
 	.attach =		keyspan_pda_fake_startup,
 };
@@ -826,9 +825,6 @@ static struct usb_serial_driver keyspan_pda_device = {
 	.description =		"Keyspan PDA",
 	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_std,
-	.num_interrupt_in =	1,
-	.num_bulk_in =		0,
-	.num_bulk_out =		1,
 	.num_ports =		1,
 	.open =			keyspan_pda_open,
 	.close =		keyspan_pda_close,

@@ -573,7 +573,8 @@ static int raw_getsockopt(struct socket *sock, int level, int optname,
 			int fsize = ro->count * sizeof(struct can_filter);
 			if (len > fsize)
 				len = fsize;
-			err = copy_to_user(optval, ro->filter, len);
+			if (copy_to_user(optval, ro->filter, len))
+				err = -EFAULT;
 		} else
 			len = 0;
 		release_sock(sk);

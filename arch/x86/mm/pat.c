@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/fs.h>
+#include <linux/bootmem.h>
 
 #include <asm/msr.h>
 #include <asm/tlbflush.h>
@@ -21,6 +22,7 @@
 #include <asm/cacheflush.h>
 #include <asm/fcntl.h>
 #include <asm/mtrr.h>
+#include <asm/io.h>
 
 int pat_wc_enabled = 1;
 
@@ -190,6 +192,21 @@ static int pat_x_mtrr_type(u64 start, u64 end, unsigned long prot,
 	return 0;
 }
 
+/*
+ * req_type typically has one of the:
+ * - _PAGE_CACHE_WB
+ * - _PAGE_CACHE_WC
+ * - _PAGE_CACHE_UC_MINUS
+ * - _PAGE_CACHE_UC
+ *
+ * req_type will have a special case value '-1', when requester want to inherit
+ * the memory type from mtrr (if WB), existing PAT, defaulting to UC_MINUS.
+ *
+ * If ret_type is NULL, function will return an error if it cannot reserve the
+ * region with req_type. If ret_type is non-null, function will return
+ * available type in ret_type in case of no error. In case of any error
+ * it will return a negative return value.
+ */
 int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 			unsigned long *ret_type)
 {
@@ -200,9 +217,14 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 
 	/* Only track when pat_wc_enabled */
 	if (!pat_wc_enabled) {
-		if (ret_type)
-			*ret_type = req_type;
-
+		/* This is identical to page table setting without PAT */
+		if (ret_type) {
+			if (req_type == -1) {
+				*ret_type = _PAGE_CACHE_WB;
+			} else {
+				*ret_type = req_type;
+			}
+		}
 		return 0;
 	}
 
@@ -214,8 +236,29 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		return 0;
 	}
 
-	req_type &= _PAGE_CACHE_MASK;
-	err = pat_x_mtrr_type(start, end, req_type, &actual_type);
+	if (req_type == -1) {
+		/*
+		 * Special case where caller wants to inherit from mtrr or
+		 * existing pat mapping, defaulting to UC_MINUS in case of
+		 * no match.
+		 */
+		u8 mtrr_type = mtrr_type_lookup(start, end);
+		if (mtrr_type == 0xFE) { /* MTRR match error */
+			err = -1;
+		}
+
+		if (mtrr_type == MTRR_TYPE_WRBACK) {
+			req_type = _PAGE_CACHE_WB;
+			actual_type = _PAGE_CACHE_WB;
+		} else {
+			req_type = _PAGE_CACHE_UC_MINUS;
+			actual_type = _PAGE_CACHE_UC_MINUS;
+		}
+	} else {
+		req_type &= _PAGE_CACHE_MASK;
+		err = pat_x_mtrr_type(start, end, req_type, &actual_type);
+	}
+
 	if (err) {
 		if (ret_type)
 			*ret_type = actual_type;
@@ -241,7 +284,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		struct memtype *saved_ptr;
 
 		if (parse->start >= end) {
-			printk("New Entry\n");
+			pr_debug("New Entry\n");
 			list_add(&new_entry->nd, parse->nd.prev);
 			new_entry = NULL;
 			break;
@@ -343,7 +386,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				break;
 			}
 
-			printk("Overlap at 0x%Lx-0x%Lx\n",
+			printk(KERN_INFO "Overlap at 0x%Lx-0x%Lx\n",
 			       saved_ptr->start, saved_ptr->end);
 			/* No conflict. Go ahead and add this new entry */
 			list_add(&new_entry->nd, &saved_ptr->nd);
@@ -353,7 +396,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	}
 
 	if (err) {
-		printk(
+		printk(KERN_INFO
 	"reserve_memtype failed 0x%Lx-0x%Lx, track %s, req %s\n",
 			start, end, cattr_name(new_entry->type),
 			cattr_name(req_type));
@@ -365,16 +408,16 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	if (new_entry) {
 		/* No conflict. Not yet added to the list. Add to the tail */
 		list_add_tail(&new_entry->nd, &memtype_list);
-		printk("New Entry\n");
-  	}
+		pr_debug("New Entry\n");
+	}
 
 	if (ret_type) {
-		printk(
+		pr_debug(
 	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s, ret %s\n",
 			start, end, cattr_name(actual_type),
 			cattr_name(req_type), cattr_name(*ret_type));
 	} else {
-		printk(
+		pr_debug(
 	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s\n",
 			start, end, cattr_name(actual_type),
 			cattr_name(req_type));
@@ -411,11 +454,115 @@ int free_memtype(u64 start, u64 end)
 	spin_unlock(&memtype_lock);
 
 	if (err) {
-		printk(KERN_DEBUG "%s:%d freeing invalid memtype %Lx-%Lx\n",
+		printk(KERN_INFO "%s:%d freeing invalid memtype %Lx-%Lx\n",
 			current->comm, current->pid, start, end);
 	}
 
-	printk( "free_memtype request 0x%Lx-0x%Lx\n", start, end);
+	pr_debug("free_memtype request 0x%Lx-0x%Lx\n", start, end);
 	return err;
+}
+
+
+/*
+ * /dev/mem mmap interface. The memtype used for mapping varies:
+ * - Use UC for mappings with O_SYNC flag
+ * - Without O_SYNC flag, if there is any conflict in reserve_memtype,
+ *   inherit the memtype from existing mapping.
+ * - Else use UC_MINUS memtype (for backward compatibility with existing
+ *   X drivers.
+ */
+pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+				unsigned long size, pgprot_t vma_prot)
+{
+	return vma_prot;
+}
+
+int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
+				unsigned long size, pgprot_t *vma_prot)
+{
+	u64 offset = ((u64) pfn) << PAGE_SHIFT;
+	unsigned long flags = _PAGE_CACHE_UC_MINUS;
+	unsigned long ret_flags;
+	int retval;
+
+	if (file->f_flags & O_SYNC) {
+		flags = _PAGE_CACHE_UC;
+	}
+
+#ifdef CONFIG_X86_32
+	/*
+	 * On the PPro and successors, the MTRRs are used to set
+	 * memory types for physical addresses outside main memory,
+	 * so blindly setting UC or PWT on those pages is wrong.
+	 * For Pentiums and earlier, the surround logic should disable
+	 * caching for the high addresses through the KEN pin, but
+	 * we maintain the tradition of paranoia in this code.
+	 */
+	if (!pat_wc_enabled &&
+	    ! ( test_bit(X86_FEATURE_MTRR, boot_cpu_data.x86_capability) ||
+		test_bit(X86_FEATURE_K6_MTRR, boot_cpu_data.x86_capability) ||
+		test_bit(X86_FEATURE_CYRIX_ARR, boot_cpu_data.x86_capability) ||
+		test_bit(X86_FEATURE_CENTAUR_MCR, boot_cpu_data.x86_capability)) &&
+	   (pfn << PAGE_SHIFT) >= __pa(high_memory)) {
+		flags = _PAGE_CACHE_UC;
+	}
+#endif
+
+	/*
+	 * With O_SYNC, we can only take UC mapping. Fail if we cannot.
+	 * Without O_SYNC, we want to get
+	 * - WB for WB-able memory and no other conflicting mappings
+	 * - UC_MINUS for non-WB-able memory with no other conflicting mappings
+	 * - Inherit from confliting mappings otherwise
+	 */
+	if (flags != _PAGE_CACHE_UC_MINUS) {
+		retval = reserve_memtype(offset, offset + size, flags, NULL);
+	} else {
+		retval = reserve_memtype(offset, offset + size, -1, &ret_flags);
+	}
+
+	if (retval < 0)
+		return 0;
+
+	flags = ret_flags;
+
+	if (pfn <= max_pfn_mapped &&
+            ioremap_change_attr((unsigned long)__va(offset), size, flags) < 0) {
+		free_memtype(offset, offset + size);
+		printk(KERN_INFO
+		"%s:%d /dev/mem ioremap_change_attr failed %s for %Lx-%Lx\n",
+			current->comm, current->pid,
+			cattr_name(flags),
+			offset, offset + size);
+		return 0;
+	}
+
+	*vma_prot = __pgprot((pgprot_val(*vma_prot) & ~_PAGE_CACHE_MASK) |
+			     flags);
+	return 1;
+}
+
+void map_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
+{
+	u64 addr = (u64)pfn << PAGE_SHIFT;
+	unsigned long flags;
+	unsigned long want_flags = (pgprot_val(vma_prot) & _PAGE_CACHE_MASK);
+
+	reserve_memtype(addr, addr + size, want_flags, &flags);
+	if (flags != want_flags) {
+		printk(KERN_INFO
+		"%s:%d /dev/mem expected mapping type %s for %Lx-%Lx, got %s\n",
+			current->comm, current->pid,
+			cattr_name(want_flags),
+			addr, addr + size,
+			cattr_name(flags));
+	}
+}
+
+void unmap_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
+{
+	u64 addr = (u64)pfn << PAGE_SHIFT;
+
+	free_memtype(addr, addr + size);
 }
 

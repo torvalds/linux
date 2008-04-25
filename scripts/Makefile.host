@@ -3,9 +3,9 @@
 # Binaries are used during the compilation of the kernel, for example
 # to preprocess a data file.
 #
-# Both C and C++ is supported, but preferred language is C for such utilities.
+# Both C and C++ are supported, but preferred language is C for such utilities.
 #
-# Samle syntax (see Documentation/kbuild/makefile.txt for reference)
+# Sample syntax (see Documentation/kbuild/makefiles.txt for reference)
 # hostprogs-y := bin2hex
 # Will compile bin2hex.c and create an executable named bin2hex
 #
@@ -23,10 +23,10 @@
 # hostprogs-y := conf
 # conf-objs  := conf.o libkconfig.so
 # libkconfig-objs := expr.o type.o
-# Will create a shared library named libkconfig.so that consist of
-# expr.o and type.o (they are both compiled as C code and the object file
+# Will create a shared library named libkconfig.so that consists of
+# expr.o and type.o (they are both compiled as C code and the object files
 # are made as position independent code).
-# conf.c is compiled as a c program, and conf.o is linked together with
+# conf.c is compiled as a C program, and conf.o is linked together with
 # libkconfig.so as the executable conf.
 # Note: Shared libraries consisting of C++ files are not supported
 
@@ -61,7 +61,7 @@ host-cobjs	:= $(filter-out %.so,$(host-cobjs))
 host-cshobjs	:= $(sort $(foreach m,$(host-cshlib),$($(m:.so=-objs))))
 
 # output directory for programs/.o files
-# hostprogs-y := tools/build may have been specified. Retreive directory
+# hostprogs-y := tools/build may have been specified. Retrieve directory
 host-objdirs := $(foreach f,$(__hostprogs), $(if $(dir $(f)),$(dir $(f))))
 # directory of .o files from prog-objs notation
 host-objdirs += $(foreach f,$(host-cmulti),                  \

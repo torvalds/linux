@@ -7,9 +7,6 @@
 #include "dm.h"
 #include "dm-bio-list.h"
 #include "dm-bio-record.h"
-#include "dm-io.h"
-#include "dm-log.h"
-#include "kcopyd.h"
 
 #include <linux/ctype.h>
 #include <linux/init.h>
@@ -22,6 +19,9 @@
 #include <linux/workqueue.h>
 #include <linux/log2.h>
 #include <linux/hardirq.h>
+#include <linux/dm-io.h>
+#include <linux/dm-dirty-log.h>
+#include <linux/dm-kcopyd.h>
 
 #define DM_MSG_PREFIX "raid1"
 #define DM_IO_PAGES 64
@@ -74,7 +74,7 @@ struct region_hash {
 	unsigned region_shift;
 
 	/* holds persistent region state */
-	struct dirty_log *log;
+	struct dm_dirty_log *log;
 
 	/* hash table */
 	rwlock_t hash_lock;
@@ -133,7 +133,7 @@ struct mirror_set {
 	struct dm_target *ti;
 	struct list_head list;
 	struct region_hash rh;
-	struct kcopyd_client *kcopyd_client;
+	struct dm_kcopyd_client *kcopyd_client;
 	uint64_t features;
 
 	spinlock_t lock;	/* protects the lists */
@@ -154,6 +154,9 @@ struct mirror_set {
 
 	struct workqueue_struct *kmirrord_wq;
 	struct work_struct kmirrord_work;
+	struct timer_list timer;
+	unsigned long timer_pending;
+
 	struct work_struct trigger_event;
 
 	unsigned int nr_mirrors;
@@ -178,13 +181,32 @@ static void wake(struct mirror_set *ms)
 	queue_work(ms->kmirrord_wq, &ms->kmirrord_work);
 }
 
+static void delayed_wake_fn(unsigned long data)
+{
+	struct mirror_set *ms = (struct mirror_set *) data;
+
+	clear_bit(0, &ms->timer_pending);
+	wake(ms);
+}
+
+static void delayed_wake(struct mirror_set *ms)
+{
+	if (test_and_set_bit(0, &ms->timer_pending))
+		return;
+
+	ms->timer.expires = jiffies + HZ / 5;
+	ms->timer.data = (unsigned long) ms;
+	ms->timer.function = delayed_wake_fn;
+	add_timer(&ms->timer);
+}
+
 /* FIXME move this */
 static void queue_bio(struct mirror_set *ms, struct bio *bio, int rw);
 
 #define MIN_REGIONS 64
 #define MAX_RECOVERY 1
 static int rh_init(struct region_hash *rh, struct mirror_set *ms,
-		   struct dirty_log *log, uint32_t region_size,
+		   struct dm_dirty_log *log, uint32_t region_size,
 		   region_t nr_regions)
 {
 	unsigned int nr_buckets, max_buckets;
@@ -249,7 +271,7 @@ static void rh_exit(struct region_hash *rh)
 	}
 
 	if (rh->log)
-		dm_destroy_dirty_log(rh->log);
+		dm_dirty_log_destroy(rh->log);
 	if (rh->region_pool)
 		mempool_destroy(rh->region_pool);
 	vfree(rh->buckets);
@@ -405,24 +427,22 @@ static void rh_update_states(struct region_hash *rh)
 	write_lock_irq(&rh->hash_lock);
 	spin_lock(&rh->region_lock);
 	if (!list_empty(&rh->clean_regions)) {
-		list_splice(&rh->clean_regions, &clean);
-		INIT_LIST_HEAD(&rh->clean_regions);
+		list_splice_init(&rh->clean_regions, &clean);
 
 		list_for_each_entry(reg, &clean, list)
 			list_del(&reg->hash_list);
 	}
 
 	if (!list_empty(&rh->recovered_regions)) {
-		list_splice(&rh->recovered_regions, &recovered);
-		INIT_LIST_HEAD(&rh->recovered_regions);
+		list_splice_init(&rh->recovered_regions, &recovered);
 
 		list_for_each_entry (reg, &recovered, list)
 			list_del(&reg->hash_list);
 	}
 
 	if (!list_empty(&rh->failed_recovered_regions)) {
-		list_splice(&rh->failed_recovered_regions, &failed_recovered);
-		INIT_LIST_HEAD(&rh->failed_recovered_regions);
+		list_splice_init(&rh->failed_recovered_regions,
+				 &failed_recovered);
 
 		list_for_each_entry(reg, &failed_recovered, list)
 			list_del(&reg->hash_list);
@@ -790,7 +810,7 @@ static int recover(struct mirror_set *ms, struct region *reg)
 {
 	int r;
 	unsigned int i;
-	struct io_region from, to[KCOPYD_MAX_REGIONS], *dest;
+	struct dm_io_region from, to[DM_KCOPYD_MAX_REGIONS], *dest;
 	struct mirror *m;
 	unsigned long flags = 0;
 
@@ -822,9 +842,9 @@ static int recover(struct mirror_set *ms, struct region *reg)
 	}
 
 	/* hand to kcopyd */
-	set_bit(KCOPYD_IGNORE_ERROR, &flags);
-	r = kcopyd_copy(ms->kcopyd_client, &from, ms->nr_mirrors - 1, to, flags,
-			recovery_complete, reg);
+	set_bit(DM_KCOPYD_IGNORE_ERROR, &flags);
+	r = dm_kcopyd_copy(ms->kcopyd_client, &from, ms->nr_mirrors - 1, to,
+			   flags, recovery_complete, reg);
 
 	return r;
 }
@@ -833,7 +853,7 @@ static void do_recovery(struct mirror_set *ms)
 {
 	int r;
 	struct region *reg;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 
 	/*
 	 * Start quiescing some regions.
@@ -909,7 +929,7 @@ static void map_bio(struct mirror *m, struct bio *bio)
 	bio->bi_sector = map_sector(m, bio);
 }
 
-static void map_region(struct io_region *io, struct mirror *m,
+static void map_region(struct dm_io_region *io, struct mirror *m,
 		       struct bio *bio)
 {
 	io->bdev = m->dev->bdev;
@@ -951,7 +971,7 @@ static void read_callback(unsigned long error, void *context)
 /* Asynchronous read. */
 static void read_async_bio(struct mirror *m, struct bio *bio)
 {
-	struct io_region io;
+	struct dm_io_region io;
 	struct dm_io_request io_req = {
 		.bi_rw = READ,
 		.mem.type = DM_IO_BVEC,
@@ -1019,7 +1039,7 @@ static void __bio_mark_nosync(struct mirror_set *ms,
 {
 	unsigned long flags;
 	struct region_hash *rh = &ms->rh;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 	struct region *reg;
 	region_t region = bio_to_region(rh, bio);
 	int recovering = 0;
@@ -1107,7 +1127,7 @@ out:
 static void do_write(struct mirror_set *ms, struct bio *bio)
 {
 	unsigned int i;
-	struct io_region io[ms->nr_mirrors], *dest = io;
+	struct dm_io_region io[ms->nr_mirrors], *dest = io;
 	struct mirror *m;
 	struct dm_io_request io_req = {
 		.bi_rw = WRITE,
@@ -1182,6 +1202,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		spin_lock_irq(&ms->lock);
 		bio_list_merge(&ms->failures, &sync);
 		spin_unlock_irq(&ms->lock);
+		wake(ms);
 	} else
 		while ((bio = bio_list_pop(&sync)))
 			do_write(ms, bio);
@@ -1241,7 +1262,7 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 	bio_list_merge(&ms->failures, failures);
 	spin_unlock_irq(&ms->lock);
 
-	wake(ms);
+	delayed_wake(ms);
 }
 
 static void trigger_event(struct work_struct *work)
@@ -1255,7 +1276,7 @@ static void trigger_event(struct work_struct *work)
 /*-----------------------------------------------------------------
  * kmirrord
  *---------------------------------------------------------------*/
-static int _do_mirror(struct work_struct *work)
+static void do_mirror(struct work_struct *work)
 {
 	struct mirror_set *ms =container_of(work, struct mirror_set,
 					    kmirrord_work);
@@ -1277,23 +1298,7 @@ static int _do_mirror(struct work_struct *work)
 	do_writes(ms, &writes);
 	do_failures(ms, &failures);
 
-	return (ms->failures.head) ? 1 : 0;
-}
-
-static void do_mirror(struct work_struct *work)
-{
-	/*
-	 * If _do_mirror returns 1, we give it
-	 * another shot.  This helps for cases like
-	 * 'suspend' where we call flush_workqueue
-	 * and expect all work to be finished.  If
-	 * a failure happens during a suspend, we
-	 * couldn't issue a 'wake' because it would
-	 * not be honored.  Therefore, we return '1'
-	 * from _do_mirror, and retry here.
-	 */
-	while (_do_mirror(work))
-		schedule();
+	dm_table_unplug_all(ms->ti->table);
 }
 
 
@@ -1303,7 +1308,7 @@ static void do_mirror(struct work_struct *work)
 static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 					uint32_t region_size,
 					struct dm_target *ti,
-					struct dirty_log *dl)
+					struct dm_dirty_log *dl)
 {
 	size_t len;
 	struct mirror_set *ms = NULL;
@@ -1403,12 +1408,12 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 /*
  * Create dirty log: log_type #log_params <log_params>
  */
-static struct dirty_log *create_dirty_log(struct dm_target *ti,
+static struct dm_dirty_log *create_dirty_log(struct dm_target *ti,
 					  unsigned int argc, char **argv,
 					  unsigned int *args_used)
 {
 	unsigned int param_count;
-	struct dirty_log *dl;
+	struct dm_dirty_log *dl;
 
 	if (argc < 2) {
 		ti->error = "Insufficient mirror log arguments";
@@ -1427,7 +1432,7 @@ static struct dirty_log *create_dirty_log(struct dm_target *ti,
 		return NULL;
 	}
 
-	dl = dm_create_dirty_log(argv[0], ti, param_count, argv + 2);
+	dl = dm_dirty_log_create(argv[0], ti, param_count, argv + 2);
 	if (!dl) {
 		ti->error = "Error creating mirror dirty log";
 		return NULL;
@@ -1435,7 +1440,7 @@ static struct dirty_log *create_dirty_log(struct dm_target *ti,
 
 	if (!_check_region_size(ti, dl->type->get_region_size(dl))) {
 		ti->error = "Invalid region size";
-		dm_destroy_dirty_log(dl);
+		dm_dirty_log_destroy(dl);
 		return NULL;
 	}
 
@@ -1496,7 +1501,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int r;
 	unsigned int nr_mirrors, m, args_used;
 	struct mirror_set *ms;
-	struct dirty_log *dl;
+	struct dm_dirty_log *dl;
 
 	dl = create_dirty_log(ti, argc, argv, &args_used);
 	if (!dl)
@@ -1506,9 +1511,9 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argc -= args_used;
 
 	if (!argc || sscanf(argv[0], "%u", &nr_mirrors) != 1 ||
-	    nr_mirrors < 2 || nr_mirrors > KCOPYD_MAX_REGIONS + 1) {
+	    nr_mirrors < 2 || nr_mirrors > DM_KCOPYD_MAX_REGIONS + 1) {
 		ti->error = "Invalid number of mirrors";
-		dm_destroy_dirty_log(dl);
+		dm_dirty_log_destroy(dl);
 		return -EINVAL;
 	}
 
@@ -1516,13 +1521,13 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (argc < nr_mirrors * 2) {
 		ti->error = "Too few mirror arguments";
-		dm_destroy_dirty_log(dl);
+		dm_dirty_log_destroy(dl);
 		return -EINVAL;
 	}
 
 	ms = alloc_context(nr_mirrors, dl->type->get_region_size(dl), ti, dl);
 	if (!ms) {
-		dm_destroy_dirty_log(dl);
+		dm_dirty_log_destroy(dl);
 		return -ENOMEM;
 	}
 
@@ -1547,6 +1552,8 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_free_context;
 	}
 	INIT_WORK(&ms->kmirrord_work, do_mirror);
+	init_timer(&ms->timer);
+	ms->timer_pending = 0;
 	INIT_WORK(&ms->trigger_event, trigger_event);
 
 	r = parse_features(ms, argc, argv, &args_used);
@@ -1571,7 +1578,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_destroy_wq;
 	}
 
-	r = kcopyd_client_create(DM_IO_PAGES, &ms->kcopyd_client);
+	r = dm_kcopyd_client_create(DM_IO_PAGES, &ms->kcopyd_client);
 	if (r)
 		goto err_destroy_wq;
 
@@ -1589,8 +1596,9 @@ static void mirror_dtr(struct dm_target *ti)
 {
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
 
+	del_timer_sync(&ms->timer);
 	flush_workqueue(ms->kmirrord_wq);
-	kcopyd_client_destroy(ms->kcopyd_client);
+	dm_kcopyd_client_destroy(ms->kcopyd_client);
 	destroy_workqueue(ms->kmirrord_wq);
 	free_context(ms, ti, ms->nr_mirrors);
 }
@@ -1734,7 +1742,7 @@ out:
 static void mirror_presuspend(struct dm_target *ti)
 {
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 
 	atomic_set(&ms->suspend, 1);
 
@@ -1763,7 +1771,7 @@ static void mirror_presuspend(struct dm_target *ti)
 static void mirror_postsuspend(struct dm_target *ti)
 {
 	struct mirror_set *ms = ti->private;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 
 	if (log->type->postsuspend && log->type->postsuspend(log))
 		/* FIXME: need better error handling */
@@ -1773,7 +1781,7 @@ static void mirror_postsuspend(struct dm_target *ti)
 static void mirror_resume(struct dm_target *ti)
 {
 	struct mirror_set *ms = ti->private;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 
 	atomic_set(&ms->suspend, 0);
 	if (log->type->resume && log->type->resume(log))
@@ -1811,7 +1819,7 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 {
 	unsigned int m, sz = 0;
 	struct mirror_set *ms = (struct mirror_set *) ti->private;
-	struct dirty_log *log = ms->rh.log;
+	struct dm_dirty_log *log = ms->rh.log;
 	char buffer[ms->nr_mirrors + 1];
 
 	switch (type) {
@@ -1864,15 +1872,9 @@ static int __init dm_mirror_init(void)
 {
 	int r;
 
-	r = dm_dirty_log_init();
-	if (r)
-		return r;
-
 	r = dm_register_target(&mirror_target);
-	if (r < 0) {
+	if (r < 0)
 		DMERR("Failed to register mirror target");
-		dm_dirty_log_exit();
-	}
 
 	return r;
 }
@@ -1884,8 +1886,6 @@ static void __exit dm_mirror_exit(void)
 	r = dm_unregister_target(&mirror_target);
 	if (r < 0)
 		DMERR("unregister failed %d", r);
-
-	dm_dirty_log_exit();
 }
 
 /* Module hooks */

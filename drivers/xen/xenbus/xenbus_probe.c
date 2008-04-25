@@ -88,6 +88,16 @@ int xenbus_match(struct device *_dev, struct device_driver *_drv)
 	return match_device(drv->ids, to_xenbus_device(_dev)) != NULL;
 }
 
+static int xenbus_uevent(struct device *_dev, struct kobj_uevent_env *env)
+{
+	struct xenbus_device *dev = to_xenbus_device(_dev);
+
+	if (add_uevent_var(env, "MODALIAS=xen:%s", dev->devicetype))
+		return -ENOMEM;
+
+	return 0;
+}
+
 /* device/<type>/<id> => <type>-<id> */
 static int frontend_bus_id(char bus_id[BUS_ID_SIZE], const char *nodename)
 {
@@ -166,6 +176,7 @@ static struct xen_bus_type xenbus_frontend = {
 	.bus = {
 		.name     = "xen",
 		.match    = xenbus_match,
+		.uevent   = xenbus_uevent,
 		.probe    = xenbus_dev_probe,
 		.remove   = xenbus_dev_remove,
 		.shutdown = xenbus_dev_shutdown,
@@ -438,6 +449,12 @@ static ssize_t xendev_show_devtype(struct device *dev,
 }
 DEVICE_ATTR(devtype, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_devtype, NULL);
 
+static ssize_t xendev_show_modalias(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "xen:%s\n", to_xenbus_device(dev)->devicetype);
+}
+DEVICE_ATTR(modalias, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_modalias, NULL);
 
 int xenbus_probe_node(struct xen_bus_type *bus,
 		      const char *type,
@@ -492,10 +509,16 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 
 	err = device_create_file(&xendev->dev, &dev_attr_devtype);
 	if (err)
-		goto fail_remove_file;
+		goto fail_remove_nodename;
+
+	err = device_create_file(&xendev->dev, &dev_attr_modalias);
+	if (err)
+		goto fail_remove_devtype;
 
 	return 0;
-fail_remove_file:
+fail_remove_devtype:
+	device_remove_file(&xendev->dev, &dev_attr_devtype);
+fail_remove_nodename:
 	device_remove_file(&xendev->dev, &dev_attr_nodename);
 fail_unregister:
 	device_unregister(&xendev->dev);
@@ -846,6 +869,7 @@ static int is_disconnected_device(struct device *dev, void *data)
 {
 	struct xenbus_device *xendev = to_xenbus_device(dev);
 	struct device_driver *drv = data;
+	struct xenbus_driver *xendrv;
 
 	/*
 	 * A device with no driver will never connect. We care only about
@@ -858,7 +882,9 @@ static int is_disconnected_device(struct device *dev, void *data)
 	if (drv && (dev->driver != drv))
 		return 0;
 
-	return (xendev->state != XenbusStateConnected);
+	xendrv = to_xenbus_driver(dev->driver);
+	return (xendev->state != XenbusStateConnected ||
+		(xendrv->is_ready && !xendrv->is_ready(xendev)));
 }
 
 static int exists_disconnected_device(struct device_driver *drv)

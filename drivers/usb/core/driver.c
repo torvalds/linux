@@ -157,7 +157,7 @@ static int usb_probe_device(struct device *dev)
 	struct usb_device *udev;
 	int error = -ENODEV;
 
-	dev_dbg(dev, "%s\n", __FUNCTION__);
+	dev_dbg(dev, "%s\n", __func__);
 
 	if (!is_usb_device(dev))	/* Sanity check */
 		return error;
@@ -194,7 +194,7 @@ static int usb_probe_interface(struct device *dev)
 	const struct usb_device_id *id;
 	int error = -ENODEV;
 
-	dev_dbg(dev, "%s\n", __FUNCTION__);
+	dev_dbg(dev, "%s\n", __func__);
 
 	if (is_usb_device(dev))		/* Sanity check */
 		return error;
@@ -211,7 +211,7 @@ static int usb_probe_interface(struct device *dev)
 	if (!id)
 		id = usb_match_dynamic_id(intf, driver);
 	if (id) {
-		dev_dbg(dev, "%s - got id\n", __FUNCTION__);
+		dev_dbg(dev, "%s - got id\n", __func__);
 
 		error = usb_autoresume_device(udev);
 		if (error)
@@ -793,9 +793,7 @@ static int usb_suspend_device(struct usb_device *udev, pm_message_t msg)
 	status = udriver->suspend(udev, msg);
 
  done:
-	dev_vdbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
-	if (status == 0)
-		udev->dev.power.power_state.event = msg.event;
+	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
 	return status;
 }
 
@@ -823,11 +821,9 @@ static int usb_resume_device(struct usb_device *udev)
 	status = udriver->resume(udev);
 
  done:
-	dev_vdbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
-	if (status == 0) {
+	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
+	if (status == 0)
 		udev->autoresume_disabled = 0;
-		udev->dev.power.power_state.event = PM_EVENT_ON;
-	}
 	return status;
 }
 
@@ -864,7 +860,7 @@ static int usb_suspend_interface(struct usb_interface *intf, pm_message_t msg)
 	}
 
  done:
-	dev_vdbg(&intf->dev, "%s: status %d\n", __FUNCTION__, status);
+	dev_vdbg(&intf->dev, "%s: status %d\n", __func__, status);
 	return status;
 }
 
@@ -914,7 +910,7 @@ static int usb_resume_interface(struct usb_interface *intf, int reset_resume)
 	}
 
 done:
-	dev_vdbg(&intf->dev, "%s: status %d\n", __FUNCTION__, status);
+	dev_vdbg(&intf->dev, "%s: status %d\n", __func__, status);
 	if (status == 0)
 		mark_active(intf);
 
@@ -936,7 +932,6 @@ static int autosuspend_check(struct usb_device *udev, int reschedule)
 	 * is disabled.  Also fail if any interfaces require remote wakeup
 	 * but it isn't available.
 	 */
-	udev->do_remote_wakeup = device_may_wakeup(&udev->dev);
 	if (udev->pm_usage_cnt > 0)
 		return -EBUSY;
 	if (udev->autosuspend_delay < 0 || udev->autosuspend_disabled)
@@ -1098,7 +1093,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	}
 
  done:
-	dev_vdbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
+	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
 	return status;
 }
 
@@ -1180,8 +1175,7 @@ static int usb_resume_both(struct usb_device *udev)
 		}
 	} else {
 
-		/* Needed for setting udev->dev.power.power_state.event,
-		 * for possible debugging message, and for reset_resume. */
+		/* Needed for reset-resume */
 		status = usb_resume_device(udev);
 	}
 
@@ -1193,8 +1187,9 @@ static int usb_resume_both(struct usb_device *udev)
 	}
 
  done:
-	dev_vdbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
-	udev->reset_resume = 0;
+	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
+	if (!status)
+		udev->reset_resume = 0;
 	return status;
 }
 
@@ -1262,7 +1257,7 @@ void usb_autosuspend_device(struct usb_device *udev)
 
 	status = usb_autopm_do_device(udev, -1);
 	dev_vdbg(&udev->dev, "%s: cnt %d\n",
-			__FUNCTION__, udev->pm_usage_cnt);
+			__func__, udev->pm_usage_cnt);
 }
 
 /**
@@ -1282,7 +1277,7 @@ void usb_try_autosuspend_device(struct usb_device *udev)
 {
 	usb_autopm_do_device(udev, 0);
 	dev_vdbg(&udev->dev, "%s: cnt %d\n",
-			__FUNCTION__, udev->pm_usage_cnt);
+			__func__, udev->pm_usage_cnt);
 }
 
 /**
@@ -1310,7 +1305,7 @@ int usb_autoresume_device(struct usb_device *udev)
 
 	status = usb_autopm_do_device(udev, 1);
 	dev_vdbg(&udev->dev, "%s: status %d cnt %d\n",
-			__FUNCTION__, status, udev->pm_usage_cnt);
+			__func__, status, udev->pm_usage_cnt);
 	return status;
 }
 
@@ -1382,7 +1377,7 @@ void usb_autopm_put_interface(struct usb_interface *intf)
 
 	status = usb_autopm_do_interface(intf, -1);
 	dev_vdbg(&intf->dev, "%s: status %d cnt %d\n",
-			__FUNCTION__, status, intf->pm_usage_cnt);
+			__func__, status, intf->pm_usage_cnt);
 }
 EXPORT_SYMBOL_GPL(usb_autopm_put_interface);
 
@@ -1426,7 +1421,7 @@ int usb_autopm_get_interface(struct usb_interface *intf)
 
 	status = usb_autopm_do_interface(intf, 1);
 	dev_vdbg(&intf->dev, "%s: status %d cnt %d\n",
-			__FUNCTION__, status, intf->pm_usage_cnt);
+			__func__, status, intf->pm_usage_cnt);
 	return status;
 }
 EXPORT_SYMBOL_GPL(usb_autopm_get_interface);
@@ -1448,7 +1443,7 @@ int usb_autopm_set_interface(struct usb_interface *intf)
 
 	status = usb_autopm_do_interface(intf, 0);
 	dev_vdbg(&intf->dev, "%s: status %d cnt %d\n",
-			__FUNCTION__, status, intf->pm_usage_cnt);
+			__func__, status, intf->pm_usage_cnt);
 	return status;
 }
 EXPORT_SYMBOL_GPL(usb_autopm_set_interface);
@@ -1523,9 +1518,14 @@ static int usb_suspend(struct device *dev, pm_message_t message)
 	udev = to_usb_device(dev);
 
 	/* If udev is already suspended, we can skip this suspend and
-	 * we should also skip the upcoming system resume. */
+	 * we should also skip the upcoming system resume.  High-speed
+	 * root hubs are an exception; they need to resume whenever the
+	 * system wakes up in order for USB-PERSIST port handover to work
+	 * properly.
+	 */
 	if (udev->state == USB_STATE_SUSPENDED) {
-		udev->skip_sys_resume = 1;
+		if (udev->parent || udev->speed != USB_SPEED_HIGH)
+			udev->skip_sys_resume = 1;
 		return 0;
 	}
 

@@ -89,7 +89,7 @@ change_position_v30(struct phidget_servo *servo, int servo_no, int degrees,
 	buffer = kmalloc(6, GFP_KERNEL);
 	if (!buffer) {
 		dev_err(&servo->udev->dev, "%s - out of memory\n",
-			__FUNCTION__);
+			__func__);
 		return -ENOMEM;
 	}
 
@@ -162,7 +162,7 @@ change_position_v20(struct phidget_servo *servo, int servo_no, int degrees,
 	buffer = kmalloc(2, GFP_KERNEL);
 	if (!buffer) {
 		dev_err(&servo->udev->dev, "%s - out of memory\n",
-			__FUNCTION__);
+			__func__);
 		return -ENOMEM;
 	}
 
@@ -259,7 +259,7 @@ servo_probe(struct usb_interface *interface, const struct usb_device_id *id)
 
 	dev = kzalloc(sizeof (struct phidget_servo), GFP_KERNEL);
 	if (dev == NULL) {
-		dev_err(&interface->dev, "%s - out of memory\n", __FUNCTION__);
+		dev_err(&interface->dev, "%s - out of memory\n", __func__);
 		rc = -ENOMEM;
 		goto out;
 	}

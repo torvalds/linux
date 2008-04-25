@@ -224,7 +224,7 @@ static void locks_copy_private(struct file_lock *new, struct file_lock *fl)
 /*
  * Initialize a new lock from an existing file_lock structure.
  */
-static void __locks_copy_lock(struct file_lock *new, const struct file_lock *fl)
+void __locks_copy_lock(struct file_lock *new, const struct file_lock *fl)
 {
 	new->fl_owner = fl->fl_owner;
 	new->fl_pid = fl->fl_pid;
@@ -833,7 +833,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 			if (!posix_locks_conflict(request, fl))
 				continue;
 			if (conflock)
-				locks_copy_lock(conflock, fl);
+				__locks_copy_lock(conflock, fl);
 			error = -EAGAIN;
 			if (!(request->fl_flags & FL_SLEEP))
 				goto out;
@@ -1367,18 +1367,20 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 
 	lease = *flp;
 
-	error = -EAGAIN;
-	if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
-		goto out;
-	if ((arg == F_WRLCK)
-	    && ((atomic_read(&dentry->d_count) > 1)
-		|| (atomic_read(&inode->i_count) > 1)))
-		goto out;
+	if (arg != F_UNLCK) {
+		error = -ENOMEM;
+		new_fl = locks_alloc_lock();
+		if (new_fl == NULL)
+			goto out;
 
-	error = -ENOMEM;
-	new_fl = locks_alloc_lock();
-	if (new_fl == NULL)
-		goto out;
+		error = -EAGAIN;
+		if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
+			goto out;
+		if ((arg == F_WRLCK)
+		    && ((atomic_read(&dentry->d_count) > 1)
+			|| (atomic_read(&inode->i_count) > 1)))
+			goto out;
+	}
 
 	/*
 	 * At this point, we know that if there is an exclusive
@@ -1404,6 +1406,7 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 			rdlease_count++;
 	}
 
+	error = -EAGAIN;
 	if ((arg == F_RDLCK && (wrlease_count > 0)) ||
 	    (arg == F_WRLCK && ((rdlease_count + wrlease_count) > 0)))
 		goto out;
@@ -1490,8 +1493,7 @@ EXPORT_SYMBOL_GPL(vfs_setlease);
 int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 {
 	struct file_lock fl, *flp = &fl;
-	struct dentry *dentry = filp->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	int error;
 
 	locks_init_lock(&fl);

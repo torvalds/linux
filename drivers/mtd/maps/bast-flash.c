@@ -137,7 +137,7 @@ static int bast_flash_probe(struct platform_device *pdev)
 	if (info->map.size > AREA_MAXSIZE)
 		info->map.size = AREA_MAXSIZE;
 
-	pr_debug("%s: area %08lx, size %ld\n", __FUNCTION__,
+	pr_debug("%s: area %08lx, size %ld\n", __func__,
 		 info->map.phys, info->map.size);
 
 	info->area = request_mem_region(res->start, info->map.size,
@@ -149,7 +149,7 @@ static int bast_flash_probe(struct platform_device *pdev)
 	}
 
 	info->map.virt = ioremap(res->start, info->map.size);
-	pr_debug("%s: virt at %08x\n", __FUNCTION__, (int)info->map.virt);
+	pr_debug("%s: virt at %08x\n", __func__, (int)info->map.virt);
 
 	if (info->map.virt == 0) {
 		printk(KERN_ERR PFX "failed to ioremap() region\n");
@@ -223,3 +223,4 @@ module_exit(bast_flash_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("BAST MTD Map driver");
+MODULE_ALIAS("platform:bast-nor");

@@ -478,6 +478,7 @@ static int __init rtc_from4_init(void)
 	struct nand_chip *this;
 	unsigned short bcr1, bcr2, wcr2;
 	int i;
+	int ret;
 
 	/* Allocate memory for MTD device structure and private data */
 	rtc_from4_mtd = kmalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip), GFP_KERNEL);
@@ -537,6 +538,22 @@ static int __init rtc_from4_init(void)
 	this->ecc.hwctl = rtc_from4_enable_hwecc;
 	this->ecc.calculate = rtc_from4_calculate_ecc;
 	this->ecc.correct = rtc_from4_correct_data;
+
+	/* We could create the decoder on demand, if memory is a concern.
+	 * This way we have it handy, if an error happens
+	 *
+	 * Symbolsize is 10 (bits)
+	 * Primitve polynomial is x^10+x^3+1
+	 * first consecutive root is 0
+	 * primitve element to generate roots = 1
+	 * generator polinomial degree = 6
+	 */
+	rs_decoder = init_rs(10, 0x409, 0, 1, 6);
+	if (!rs_decoder) {
+		printk(KERN_ERR "Could not create a RS decoder\n");
+		ret = -ENOMEM;
+		goto err_1;
+	}
 #else
 	printk(KERN_INFO "rtc_from4_init: using software ECC detection.\n");
 
@@ -549,8 +566,8 @@ static int __init rtc_from4_init(void)
 
 	/* Scan to find existence of the device */
 	if (nand_scan(rtc_from4_mtd, RTC_FROM4_MAX_CHIPS)) {
-		kfree(rtc_from4_mtd);
-		return -ENXIO;
+		ret = -ENXIO;
+		goto err_2;
 	}
 
 	/* Perform 'device recovery' for each chip in case there was a power loss. */
@@ -566,28 +583,19 @@ static int __init rtc_from4_init(void)
 #endif
 
 	/* Register the partitions */
-	add_mtd_partitions(rtc_from4_mtd, partition_info, NUM_PARTITIONS);
+	ret = add_mtd_partitions(rtc_from4_mtd, partition_info, NUM_PARTITIONS);
+	if (ret)
+		goto err_3;
 
-#ifdef RTC_FROM4_HWECC
-	/* We could create the decoder on demand, if memory is a concern.
-	 * This way we have it handy, if an error happens
-	 *
-	 * Symbolsize is 10 (bits)
-	 * Primitve polynomial is x^10+x^3+1
-	 * first consecutive root is 0
-	 * primitve element to generate roots = 1
-	 * generator polinomial degree = 6
-	 */
-	rs_decoder = init_rs(10, 0x409, 0, 1, 6);
-	if (!rs_decoder) {
-		printk(KERN_ERR "Could not create a RS decoder\n");
-		nand_release(rtc_from4_mtd);
-		kfree(rtc_from4_mtd);
-		return -ENOMEM;
-	}
-#endif
 	/* Return happy */
 	return 0;
+err_3:
+	nand_release(rtc_from4_mtd);
+err_2:
+	free_rs(rs_decoder);
+err_1:
+	kfree(rtc_from4_mtd);
+	return ret;
 }
 
 module_init(rtc_from4_init);

@@ -291,11 +291,12 @@ int ubi_create_gluebi(struct ubi_device *ubi, struct ubi_volume *vol)
 	/*
 	 * In case of dynamic volume, MTD device size is just volume size. In
 	 * case of a static volume the size is equivalent to the amount of data
-	 * bytes, which is zero at this moment and will be changed after volume
-	 * update.
+	 * bytes.
 	 */
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME)
 		mtd->size = vol->usable_leb_size * vol->reserved_pebs;
+	else
+		mtd->size = vol->used_bytes;
 
 	if (add_mtd_device(mtd)) {
 		ubi_err("cannot not add MTD device\n");

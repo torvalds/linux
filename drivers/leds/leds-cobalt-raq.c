@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 #include <linux/init.h>
 #include <linux/io.h>
@@ -33,7 +33,7 @@ static u8 led_value;
 static DEFINE_SPINLOCK(led_value_lock);
 
 static void raq_web_led_set(struct led_classdev *led_cdev,
-                            enum led_brightness brightness)
+			    enum led_brightness brightness)
 {
 	unsigned long flags;
 
@@ -54,7 +54,7 @@ static struct led_classdev raq_web_led = {
 };
 
 static void raq_power_off_led_set(struct led_classdev *led_cdev,
-                                  enum led_brightness brightness)
+				  enum led_brightness brightness)
 {
 	unsigned long flags;
 

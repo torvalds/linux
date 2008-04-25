@@ -194,7 +194,7 @@ void		  nsm_release(struct nsm_handle *);
  * This is used in garbage collection and resource reclaim
  * A return value != 0 means destroy the lock/block/share
  */
-typedef int	  (*nlm_host_match_fn_t)(struct nlm_host *cur, struct nlm_host *ref);
+typedef int	  (*nlm_host_match_fn_t)(void *cur, struct nlm_host *ref);
 
 /*
  * Server-side lock handling
@@ -219,6 +219,12 @@ void		  nlm_release_file(struct nlm_file *);
 void		  nlmsvc_mark_resources(void);
 void		  nlmsvc_free_host_resources(struct nlm_host *);
 void		  nlmsvc_invalidate_all(void);
+
+/*
+ * Cluster failover support
+ */
+int           nlmsvc_unlock_all_by_sb(struct super_block *sb);
+int           nlmsvc_unlock_all_by_ip(__be32 server_addr);
 
 static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
 {

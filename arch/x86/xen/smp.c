@@ -36,8 +36,9 @@
 #include "mmu.h"
 
 static cpumask_t xen_cpu_initialized_map;
-static DEFINE_PER_CPU(int, resched_irq);
-static DEFINE_PER_CPU(int, callfunc_irq);
+static DEFINE_PER_CPU(int, resched_irq) = -1;
+static DEFINE_PER_CPU(int, callfunc_irq) = -1;
+static DEFINE_PER_CPU(int, debug_irq) = -1;
 
 /*
  * Structure and data for smp_call_function(). This is designed to minimise
@@ -72,6 +73,7 @@ static __cpuinit void cpu_bringup_and_idle(void)
 	int cpu = smp_processor_id();
 
 	cpu_init();
+	xen_enable_sysenter();
 
 	preempt_disable();
 	per_cpu(cpu_state, cpu) = CPU_ONLINE;
@@ -88,9 +90,7 @@ static __cpuinit void cpu_bringup_and_idle(void)
 static int xen_smp_intr_init(unsigned int cpu)
 {
 	int rc;
-	const char *resched_name, *callfunc_name;
-
-	per_cpu(resched_irq, cpu) = per_cpu(callfunc_irq, cpu) = -1;
+	const char *resched_name, *callfunc_name, *debug_name;
 
 	resched_name = kasprintf(GFP_KERNEL, "resched%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_RESCHEDULE_VECTOR,
@@ -114,6 +114,14 @@ static int xen_smp_intr_init(unsigned int cpu)
 		goto fail;
 	per_cpu(callfunc_irq, cpu) = rc;
 
+	debug_name = kasprintf(GFP_KERNEL, "debug%d", cpu);
+	rc = bind_virq_to_irqhandler(VIRQ_DEBUG, cpu, xen_debug_interrupt,
+				     IRQF_DISABLED | IRQF_PERCPU | IRQF_NOBALANCING,
+				     debug_name, NULL);
+	if (rc < 0)
+		goto fail;
+	per_cpu(debug_irq, cpu) = rc;
+
 	return 0;
 
  fail:
@@ -121,6 +129,8 @@ static int xen_smp_intr_init(unsigned int cpu)
 		unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
 	if (per_cpu(callfunc_irq, cpu) >= 0)
 		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
+	if (per_cpu(debug_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(debug_irq, cpu), NULL);
 	return rc;
 }
 

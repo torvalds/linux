@@ -129,7 +129,7 @@ static const u8 usb2_rh_dev_descriptor [18] = {
 
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
 	0x00,	    /*  __u8  bDeviceSubClass; */
-	0x01,       /*  __u8  bDeviceProtocol; [ usb 2.0 single TT ]*/
+	0x00,       /*  __u8  bDeviceProtocol; [ usb 2.0 no TT ] */
 	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
 	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation */
@@ -291,7 +291,6 @@ static int ascii2utf (char *s, u8 *utf, int utfmax)
  * rh_string - provides manufacturer, product and serial strings for root hub
  * @id: the string ID number (1: serial number, 2: product, 3: vendor)
  * @hcd: the host controller for this root hub
- * @type: string describing our driver 
  * @data: return packet in UTF-16 LE
  * @len: length of the return packet
  *
@@ -355,9 +354,10 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 		__attribute__((aligned(4)));
 	const u8	*bufp = tbuf;
 	int		len = 0;
-	int		patch_wakeup = 0;
 	int		status;
 	int		n;
+	u8		patch_wakeup = 0;
+	u8		patch_protocol = 0;
 
 	might_sleep();
 
@@ -434,6 +434,8 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 			else
 				goto error;
 			len = 18;
+			if (hcd->has_tt)
+				patch_protocol = 1;
 			break;
 		case USB_DT_CONFIG << 8:
 			if (hcd->driver->flags & HCD_USB2) {
@@ -528,6 +530,13 @@ error:
 						bmAttributes))
 			((struct usb_config_descriptor *)ubuf)->bmAttributes
 				|= USB_CONFIG_ATT_WAKEUP;
+
+		/* report whether RH hardware has an integrated TT */
+		if (patch_protocol &&
+				len > offsetof(struct usb_device_descriptor,
+						bDeviceProtocol))
+			((struct usb_device_descriptor *) ubuf)->
+					bDeviceProtocol = 1;
 	}
 
 	/* any errors get returned through the urb completion */
@@ -913,15 +922,6 @@ static int register_root_hub(struct usb_hcd *hcd)
 	}
 
 	return retval;
-}
-
-void usb_enable_root_hub_irq (struct usb_bus *bus)
-{
-	struct usb_hcd *hcd;
-
-	hcd = container_of (bus, struct usb_hcd, self);
-	if (hcd->driver->hub_irq_enable && hcd->state != HC_STATE_HALT)
-		hcd->driver->hub_irq_enable (hcd);
 }
 
 
@@ -1677,7 +1677,6 @@ EXPORT_SYMBOL_GPL(usb_bus_start_enum);
  * usb_hcd_irq - hook IRQs to HCD framework (bus glue)
  * @irq: the IRQ being raised
  * @__hcd: pointer to the HCD whose IRQ is being signaled
- * @r: saved hardware registers
  *
  * If the controller isn't HALTed, calls the driver's irq handler.
  * Checks whether the controller is now dead.

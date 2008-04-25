@@ -35,7 +35,7 @@
 
 #define OOPS_PAGE_SIZE 4096
 
-struct mtdoops_context {
+static struct mtdoops_context {
 	int mtd_index;
 	struct work_struct work_erase;
 	struct work_struct work_write;

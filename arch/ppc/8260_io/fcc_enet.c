@@ -165,9 +165,6 @@ static int fcc_enet_set_mac_address(struct net_device *dev, void *addr);
 #ifdef CONFIG_SBC82xx
 #define F1_RXCLK	9
 #define F1_TXCLK	10
-#elif defined(CONFIG_ADS8272)
-#define F1_RXCLK	11
-#define F1_TXCLK	10
 #else
 #define F1_RXCLK	12
 #define F1_TXCLK	11
@@ -175,13 +172,8 @@ static int fcc_enet_set_mac_address(struct net_device *dev, void *addr);
 
 /* FCC2 Clock Source Configuration.  There are board specific.
    Can only choose from CLK13-16 */
-#ifdef CONFIG_ADS8272
-#define F2_RXCLK	15
-#define F2_TXCLK	16
-#else
 #define F2_RXCLK	13
 #define F2_TXCLK	14
-#endif
 
 /* FCC3 Clock Source Configuration.  There are board specific.
    Can only choose from CLK13-16 */
@@ -289,10 +281,7 @@ static int fcc_enet_set_mac_address(struct net_device *dev, void *addr);
 /* TQM8260 has MDIO and MDCK on PC30 and PC31 respectively */
 #define PC_MDIO		((uint)0x00000002)
 #define PC_MDCK		((uint)0x00000001)
-#elif defined(CONFIG_ADS8272)
-#define PC_MDIO		((uint)0x00002000)
-#define PC_MDCK		((uint)0x00001000)
-#elif defined(CONFIG_EST8260) || defined(CONFIG_ADS8260) || defined(CONFIG_PQ2FADS)
+#elif defined(CONFIG_EST8260) || defined(CONFIG_ADS8260)
 #define PC_MDIO		((uint)0x00400000)
 #define PC_MDCK		((uint)0x00200000)
 #else
@@ -2118,11 +2107,6 @@ init_fcc_startup(fcc_info_t *fip, struct net_device *dev)
 		printk("Can't get FCC IRQ %d\n", fip->fc_interrupt);
 
 #ifdef	PHY_INTERRUPT
-#ifdef CONFIG_ADS8272
-	if (request_irq(PHY_INTERRUPT, mii_link_interrupt, IRQF_SHARED,
-				"mii", dev) < 0)
-		printk(KERN_CRIT "Can't get MII IRQ %d\n", PHY_INTERRUPT);
-#else
 	/* Make IRQn edge triggered.  This does not work if PHY_INTERRUPT is
 	 * on Port C.
 	 */
@@ -2132,7 +2116,6 @@ init_fcc_startup(fcc_info_t *fip, struct net_device *dev)
 	if (request_irq(PHY_INTERRUPT, mii_link_interrupt, 0,
 							"mii", dev) < 0)
 		printk(KERN_CRIT "Can't get MII IRQ %d\n", PHY_INTERRUPT);
-#endif
 #endif	/* PHY_INTERRUPT */
 
 	/* Set GFMR to enable Ethernet operating mode.

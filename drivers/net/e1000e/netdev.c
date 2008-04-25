@@ -46,7 +46,7 @@
 
 #include "e1000.h"
 
-#define DRV_VERSION "0.2.0"
+#define DRV_VERSION "0.2.1"
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
@@ -466,10 +466,10 @@ next_desc:
 	if (cleaned_count)
 		adapter->alloc_rx_buf(adapter, cleaned_count);
 
-	adapter->total_rx_packets += total_rx_packets;
 	adapter->total_rx_bytes += total_rx_bytes;
-	adapter->net_stats.rx_packets += total_rx_packets;
+	adapter->total_rx_packets += total_rx_packets;
 	adapter->net_stats.rx_bytes += total_rx_bytes;
+	adapter->net_stats.rx_packets += total_rx_packets;
 	return cleaned;
 }
 
@@ -606,8 +606,8 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 	}
 	adapter->total_tx_bytes += total_tx_bytes;
 	adapter->total_tx_packets += total_tx_packets;
-	adapter->net_stats.tx_packets += total_tx_packets;
 	adapter->net_stats.tx_bytes += total_tx_bytes;
+	adapter->net_stats.tx_packets += total_tx_packets;
 	return cleaned;
 }
 
@@ -775,10 +775,10 @@ next_desc:
 	if (cleaned_count)
 		adapter->alloc_rx_buf(adapter, cleaned_count);
 
-	adapter->total_rx_packets += total_rx_packets;
 	adapter->total_rx_bytes += total_rx_bytes;
-	adapter->net_stats.rx_packets += total_rx_packets;
+	adapter->total_rx_packets += total_rx_packets;
 	adapter->net_stats.rx_bytes += total_rx_bytes;
+	adapter->net_stats.rx_packets += total_rx_packets;
 	return cleaned;
 }
 
@@ -2506,22 +2506,11 @@ void e1000e_update_stats(struct e1000_adapter *adapter)
 
 	adapter->stats.crcerrs += er32(CRCERRS);
 	adapter->stats.gprc += er32(GPRC);
-	adapter->stats.gorcl += er32(GORCL);
-	adapter->stats.gorch += er32(GORCH);
+	adapter->stats.gorc += er32(GORCL);
+	er32(GORCH); /* Clear gorc */
 	adapter->stats.bprc += er32(BPRC);
 	adapter->stats.mprc += er32(MPRC);
 	adapter->stats.roc += er32(ROC);
-
-	if (adapter->flags & FLAG_HAS_STATS_PTC_PRC) {
-		adapter->stats.prc64 += er32(PRC64);
-		adapter->stats.prc127 += er32(PRC127);
-		adapter->stats.prc255 += er32(PRC255);
-		adapter->stats.prc511 += er32(PRC511);
-		adapter->stats.prc1023 += er32(PRC1023);
-		adapter->stats.prc1522 += er32(PRC1522);
-		adapter->stats.symerrs += er32(SYMERRS);
-		adapter->stats.sec += er32(SEC);
-	}
 
 	adapter->stats.mpc += er32(MPC);
 	adapter->stats.scc += er32(SCC);
@@ -2529,33 +2518,15 @@ void e1000e_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.mcc += er32(MCC);
 	adapter->stats.latecol += er32(LATECOL);
 	adapter->stats.dc += er32(DC);
-	adapter->stats.rlec += er32(RLEC);
 	adapter->stats.xonrxc += er32(XONRXC);
 	adapter->stats.xontxc += er32(XONTXC);
 	adapter->stats.xoffrxc += er32(XOFFRXC);
 	adapter->stats.xofftxc += er32(XOFFTXC);
-	adapter->stats.fcruc += er32(FCRUC);
 	adapter->stats.gptc += er32(GPTC);
-	adapter->stats.gotcl += er32(GOTCL);
-	adapter->stats.gotch += er32(GOTCH);
+	adapter->stats.gotc += er32(GOTCL);
+	er32(GOTCH); /* Clear gotc */
 	adapter->stats.rnbc += er32(RNBC);
 	adapter->stats.ruc += er32(RUC);
-	adapter->stats.rfc += er32(RFC);
-	adapter->stats.rjc += er32(RJC);
-	adapter->stats.torl += er32(TORL);
-	adapter->stats.torh += er32(TORH);
-	adapter->stats.totl += er32(TOTL);
-	adapter->stats.toth += er32(TOTH);
-	adapter->stats.tpr += er32(TPR);
-
-	if (adapter->flags & FLAG_HAS_STATS_PTC_PRC) {
-		adapter->stats.ptc64 += er32(PTC64);
-		adapter->stats.ptc127 += er32(PTC127);
-		adapter->stats.ptc255 += er32(PTC255);
-		adapter->stats.ptc511 += er32(PTC511);
-		adapter->stats.ptc1023 += er32(PTC1023);
-		adapter->stats.ptc1522 += er32(PTC1522);
-	}
 
 	adapter->stats.mptc += er32(MPTC);
 	adapter->stats.bptc += er32(BPTC);
@@ -2573,19 +2544,6 @@ void e1000e_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.cexterr += er32(CEXTERR);
 	adapter->stats.tsctc += er32(TSCTC);
 	adapter->stats.tsctfc += er32(TSCTFC);
-
-	adapter->stats.iac += er32(IAC);
-
-	if (adapter->flags & FLAG_HAS_STATS_ICR_ICT) {
-		adapter->stats.icrxoc += er32(ICRXOC);
-		adapter->stats.icrxptc += er32(ICRXPTC);
-		adapter->stats.icrxatc += er32(ICRXATC);
-		adapter->stats.ictxptc += er32(ICTXPTC);
-		adapter->stats.ictxatc += er32(ICTXATC);
-		adapter->stats.ictxqec += er32(ICTXQEC);
-		adapter->stats.ictxqmtc += er32(ICTXQMTC);
-		adapter->stats.icrxdmtc += er32(ICRXDMTC);
-	}
 
 	/* Fill out the OS statistics structure */
 	adapter->net_stats.multicast = adapter->stats.mprc;
@@ -2629,6 +2587,54 @@ void e1000e_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.mgptc += er32(MGTPTC);
 	adapter->stats.mgprc += er32(MGTPRC);
 	adapter->stats.mgpdc += er32(MGTPDC);
+
+	spin_unlock_irqrestore(&adapter->stats_lock, irq_flags);
+}
+
+/**
+ * e1000_phy_read_status - Update the PHY register status snapshot
+ * @adapter: board private structure
+ **/
+static void e1000_phy_read_status(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	struct e1000_phy_regs *phy = &adapter->phy_regs;
+	int ret_val;
+	unsigned long irq_flags;
+
+
+	spin_lock_irqsave(&adapter->stats_lock, irq_flags);
+
+	if ((er32(STATUS) & E1000_STATUS_LU) &&
+	    (adapter->hw.phy.media_type == e1000_media_type_copper)) {
+		ret_val  = e1e_rphy(hw, PHY_CONTROL, &phy->bmcr);
+		ret_val |= e1e_rphy(hw, PHY_STATUS, &phy->bmsr);
+		ret_val |= e1e_rphy(hw, PHY_AUTONEG_ADV, &phy->advertise);
+		ret_val |= e1e_rphy(hw, PHY_LP_ABILITY, &phy->lpa);
+		ret_val |= e1e_rphy(hw, PHY_AUTONEG_EXP, &phy->expansion);
+		ret_val |= e1e_rphy(hw, PHY_1000T_CTRL, &phy->ctrl1000);
+		ret_val |= e1e_rphy(hw, PHY_1000T_STATUS, &phy->stat1000);
+		ret_val |= e1e_rphy(hw, PHY_EXT_STATUS, &phy->estatus);
+		if (ret_val)
+			ndev_warn(adapter->netdev,
+				  "Error reading PHY register\n");
+	} else {
+		/*
+		 * Do not read PHY registers if link is not up
+		 * Set values to typical power-on defaults
+		 */
+		phy->bmcr = (BMCR_SPEED1000 | BMCR_ANENABLE | BMCR_FULLDPLX);
+		phy->bmsr = (BMSR_100FULL | BMSR_100HALF | BMSR_10FULL |
+			     BMSR_10HALF | BMSR_ESTATEN | BMSR_ANEGCAPABLE |
+			     BMSR_ERCAP);
+		phy->advertise = (ADVERTISE_PAUSE_ASYM | ADVERTISE_PAUSE_CAP |
+				  ADVERTISE_ALL | ADVERTISE_CSMA);
+		phy->lpa = 0;
+		phy->expansion = EXPANSION_ENABLENPAGE;
+		phy->ctrl1000 = ADVERTISE_1000FULL;
+		phy->stat1000 = 0;
+		phy->estatus = (ESTATUS_1000_TFULL | ESTATUS_1000_THALF);
+	}
 
 	spin_unlock_irqrestore(&adapter->stats_lock, irq_flags);
 }
@@ -2745,6 +2751,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 		if (!netif_carrier_ok(netdev)) {
 			bool txb2b = 1;
 			/* update snapshot of PHY registers on LSC */
+			e1000_phy_read_status(adapter);
 			mac->ops.get_link_up_info(&adapter->hw,
 						   &adapter->link_speed,
 						   &adapter->link_duplex);
@@ -2842,10 +2849,10 @@ link_up:
 	mac->collision_delta = adapter->stats.colc - adapter->colc_old;
 	adapter->colc_old = adapter->stats.colc;
 
-	adapter->gorcl = adapter->stats.gorcl - adapter->gorcl_old;
-	adapter->gorcl_old = adapter->stats.gorcl;
-	adapter->gotcl = adapter->stats.gotcl - adapter->gotcl_old;
-	adapter->gotcl_old = adapter->stats.gotcl;
+	adapter->gorc = adapter->stats.gorc - adapter->gorc_old;
+	adapter->gorc_old = adapter->stats.gorc;
+	adapter->gotc = adapter->stats.gotc - adapter->gotc_old;
+	adapter->gotc_old = adapter->stats.gotc;
 
 	e1000e_update_adaptive(&adapter->hw);
 
@@ -3500,7 +3507,6 @@ static int e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct mii_ioctl_data *data = if_mii(ifr);
-	unsigned long irq_flags;
 
 	if (adapter->hw.phy.media_type != e1000_media_type_copper)
 		return -EOPNOTSUPP;
@@ -3512,13 +3518,40 @@ static int e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr,
 	case SIOCGMIIREG:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-		spin_lock_irqsave(&adapter->stats_lock, irq_flags);
-		if (e1e_rphy(&adapter->hw, data->reg_num & 0x1F,
-				   &data->val_out)) {
-			spin_unlock_irqrestore(&adapter->stats_lock, irq_flags);
+		switch (data->reg_num & 0x1F) {
+		case MII_BMCR:
+			data->val_out = adapter->phy_regs.bmcr;
+			break;
+		case MII_BMSR:
+			data->val_out = adapter->phy_regs.bmsr;
+			break;
+		case MII_PHYSID1:
+			data->val_out = (adapter->hw.phy.id >> 16);
+			break;
+		case MII_PHYSID2:
+			data->val_out = (adapter->hw.phy.id & 0xFFFF);
+			break;
+		case MII_ADVERTISE:
+			data->val_out = adapter->phy_regs.advertise;
+			break;
+		case MII_LPA:
+			data->val_out = adapter->phy_regs.lpa;
+			break;
+		case MII_EXPANSION:
+			data->val_out = adapter->phy_regs.expansion;
+			break;
+		case MII_CTRL1000:
+			data->val_out = adapter->phy_regs.ctrl1000;
+			break;
+		case MII_STAT1000:
+			data->val_out = adapter->phy_regs.stat1000;
+			break;
+		case MII_ESTATUS:
+			data->val_out = adapter->phy_regs.estatus;
+			break;
+		default:
 			return -EIO;
 		}
-		spin_unlock_irqrestore(&adapter->stats_lock, irq_flags);
 		break;
 	case SIOCSMIIREG:
 	default:
@@ -3774,6 +3807,7 @@ static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	pci_set_master(pdev);
+	pci_restore_state(pdev);
 
 	pci_enable_wake(pdev, PCI_D3hot, 0);
 	pci_enable_wake(pdev, PCI_D3cold, 0);
@@ -3900,6 +3934,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		goto err_pci_reg;
 
 	pci_set_master(pdev);
+	pci_save_state(pdev);
 
 	err = -ENOMEM;
 	netdev = alloc_etherdev(sizeof(struct e1000_adapter));

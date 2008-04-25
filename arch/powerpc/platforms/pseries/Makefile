@@ -2,6 +2,10 @@ ifeq ($(CONFIG_PPC64),y)
 EXTRA_CFLAGS		+= -mno-minimal-toc
 endif
 
+ifeq ($(CONFIG_PPC_PSERIES_DEBUG),y)
+EXTRA_CFLAGS		+= -DDEBUG
+endif
+
 obj-y			:= lpar.o hvCall.o nvram.o reconfig.o \
 			   setup.o iommu.o ras.o rtasd.o \
 			   firmware.o power.o

@@ -458,8 +458,8 @@ __do_out_asm(_rec_outl, "stwbrx")
 /* Structure containing all the hooks */
 extern struct ppc_pci_io {
 
-#define DEF_PCI_AC_RET(name, ret, at, al)	ret (*name) at;
-#define DEF_PCI_AC_NORET(name, at, al)		void (*name) at;
+#define DEF_PCI_AC_RET(name, ret, at, al, space, aa)	ret (*name) at;
+#define DEF_PCI_AC_NORET(name, at, al, space, aa)	void (*name) at;
 
 #include <asm/io-defs.h>
 
@@ -469,7 +469,7 @@ extern struct ppc_pci_io {
 } ppc_pci_io;
 
 /* The inline wrappers */
-#define DEF_PCI_AC_RET(name, ret, at, al)			\
+#define DEF_PCI_AC_RET(name, ret, at, al, space, aa)		\
 static inline ret name at					\
 {								\
 	if (DEF_PCI_HOOK(ppc_pci_io.name) != NULL)		\
@@ -477,7 +477,7 @@ static inline ret name at					\
 	return __do_##name al;					\
 }
 
-#define DEF_PCI_AC_NORET(name, at, al)				\
+#define DEF_PCI_AC_NORET(name, at, al, space, aa)		\
 static inline void name at					\
 {								\
 	if (DEF_PCI_HOOK(ppc_pci_io.name) != NULL)		\

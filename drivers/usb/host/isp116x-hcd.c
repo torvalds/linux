@@ -1400,7 +1400,7 @@ static int isp116x_bus_suspend(struct usb_hcd *hcd)
 		spin_unlock_irqrestore(&isp116x->lock, flags);
 		val &= (~HCCONTROL_HCFS & ~HCCONTROL_RWE);
 		val |= HCCONTROL_USB_SUSPEND;
-		if (device_may_wakeup(&hcd->self.root_hub->dev))
+		if (hcd->self.root_hub->do_remote_wakeup)
 			val |= HCCONTROL_RWE;
 		/* Wait for usb transfers to finish */
 		msleep(2);
@@ -1442,11 +1442,6 @@ static int isp116x_bus_resume(struct usb_hcd *hcd)
 		break;
 	case HCCONTROL_USB_OPER:
 		spin_unlock_irq(&isp116x->lock);
-		/* Without setting power_state here the
-		   SUSPENDED state won't be removed from
-		   sysfs/usbN/power.state as a response to remote
-		   wakeup. Maybe in the future. */
-		hcd->self.root_hub->dev.power.power_state = PMSG_ON;
 		return 0;
 	default:
 		/* HCCONTROL_USB_RESET: this may happen, when during
@@ -1460,7 +1455,6 @@ static int isp116x_bus_resume(struct usb_hcd *hcd)
 		if ((isp116x->rhdesca & RH_A_NDP) == 2)
 			isp116x_hub_control(hcd, SetPortFeature,
 					    USB_PORT_FEAT_POWER, 2, NULL, 0);
-		hcd->self.root_hub->dev.power.power_state = PMSG_ON;
 		return 0;
 	}
 
@@ -1486,8 +1480,6 @@ static int isp116x_bus_resume(struct usb_hcd *hcd)
 	isp116x_write_reg32(isp116x, HCCONTROL,
 			    (val & ~HCCONTROL_HCFS) | HCCONTROL_USB_OPER);
 	spin_unlock_irq(&isp116x->lock);
-	/* see analogous comment above */
-	hcd->self.root_hub->dev.power.power_state = PMSG_ON;
 	hcd->state = HC_STATE_RUNNING;
 
 	return 0;
@@ -1663,7 +1655,6 @@ static int __devinit isp116x_probe(struct platform_device *pdev)
 static int isp116x_suspend(struct platform_device *dev, pm_message_t state)
 {
 	VDBG("%s: state %x\n", __func__, state.event);
-	dev->dev.power.power_state = state;
 	return 0;
 }
 
@@ -1672,8 +1663,7 @@ static int isp116x_suspend(struct platform_device *dev, pm_message_t state)
 */
 static int isp116x_resume(struct platform_device *dev)
 {
-	VDBG("%s:  state %x\n", __func__, dev->power.power_state.event);
-	dev->dev.power.power_state = PMSG_ON;
+	VDBG("%s\n", __func__);
 	return 0;
 }
 

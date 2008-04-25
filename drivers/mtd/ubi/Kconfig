@@ -24,8 +24,13 @@ config MTD_UBI_WL_THRESHOLD
 	  erase counter value and the lowest erase counter value of eraseblocks
 	  of UBI devices. When this threshold is exceeded, UBI starts performing
 	  wear leveling by means of moving data from eraseblock with low erase
-	  counter to eraseblocks with high erase counter. Leave the default
-	  value if unsure.
+	  counter to eraseblocks with high erase counter.
+
+	  The default value should be OK for SLC NAND flashes, NOR flashes and
+	  other flashes which have eraseblock life-cycle 100000 or more.
+	  However, in case of MLC NAND flashes which typically have eraseblock
+	  life-cycle less then 10000, the threshold should be lessened (e.g.,
+	  to 128 or 256, although it does not have to be power of 2).
 
 config MTD_UBI_BEB_RESERVE
 	int "Percentage of reserved eraseblocks for bad eraseblocks handling"

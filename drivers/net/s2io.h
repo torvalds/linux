@@ -703,9 +703,6 @@ struct ring_info {
 	 */
 	struct rx_curr_get_info rx_curr_get_info;
 
-	/* Index to the absolute position of the put pointer of Rx ring */
-	int put_pos;
-
 	/* Buffer Address store. */
 	struct buffAdd **ba;
 	struct s2io_nic *nic;
@@ -868,8 +865,6 @@ struct s2io_nic {
 	int device_enabled_once;
 
 	char name[60];
-	struct tasklet_struct task;
-	volatile unsigned long tasklet_status;
 
 	/* Timer that handles I/O errors/exceptions */
 	struct timer_list alarm_timer;
@@ -878,8 +873,6 @@ struct s2io_nic {
 	u32 config_space[256 / sizeof(u32)];
 
 	atomic_t rx_bufs_left[MAX_RX_RINGS];
-
-	spinlock_t put_lock;
 
 #define PROMISC     1
 #define ALL_MULTI   2
@@ -964,7 +957,6 @@ struct s2io_nic {
 	u8		lro;
 	u16		lro_max_aggr_per_sess;
 	volatile unsigned long state;
-	spinlock_t	rx_lock;
 	u64		general_int_mask;
 #define VPD_STRING_LEN 80
 	u8  product_name[VPD_STRING_LEN];
@@ -1094,7 +1086,6 @@ static void s2io_handle_errors(void * dev_id);
 static int s2io_starter(void);
 static void s2io_closer(void);
 static void s2io_tx_watchdog(struct net_device *dev);
-static void s2io_tasklet(unsigned long dev_addr);
 static void s2io_set_multicast(struct net_device *dev);
 static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp);
 static void s2io_link(struct s2io_nic * sp, int link);

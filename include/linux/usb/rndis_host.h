@@ -17,10 +17,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-
-#ifndef	__RNDIS_HOST_H
-#define	__RNDIS_HOST_H
-
+#ifndef	__LINUX_USB_RNDIS_HOST_H
+#define	__LINUX_USB_RNDIS_HOST_H
 
 /*
  * CONTROL uses CDC "encapsulated commands" with funky notifications.
@@ -270,5 +268,4 @@ extern int rndis_rx_fixup(struct usbnet *dev, struct sk_buff *skb);
 extern struct sk_buff *
 rndis_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags);
 
-#endif	/* __RNDIS_HOST_H */
-
+#endif	/* __LINUX_USB_RNDIS_HOST_H */

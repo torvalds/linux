@@ -235,7 +235,7 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 			|| ep->bEndpointAddress != desc->bEndpointAddress
 			|| ep->fifo_size < le16_to_cpu
 						(desc->wMaxPacketSize)) {
-		DMSG("%s, bad ep or descriptor\n", __FUNCTION__);
+		DMSG("%s, bad ep or descriptor\n", __func__);
 		return -EINVAL;
 	}
 
@@ -243,7 +243,7 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 	if (ep->bmAttributes != desc->bmAttributes
 			&& ep->bmAttributes != USB_ENDPOINT_XFER_BULK
 			&& desc->bmAttributes != USB_ENDPOINT_XFER_INT) {
-		DMSG("%s, %s type mismatch\n", __FUNCTION__, _ep->name);
+		DMSG("%s, %s type mismatch\n", __func__, _ep->name);
 		return -EINVAL;
 	}
 
@@ -252,13 +252,13 @@ static int pxa2xx_ep_enable (struct usb_ep *_ep,
 				&& le16_to_cpu (desc->wMaxPacketSize)
 						!= BULK_FIFO_SIZE)
 			|| !desc->wMaxPacketSize) {
-		DMSG("%s, bad %s maxpacket\n", __FUNCTION__, _ep->name);
+		DMSG("%s, bad %s maxpacket\n", __func__, _ep->name);
 		return -ERANGE;
 	}
 
 	dev = ep->dev;
 	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN) {
-		DMSG("%s, bogus device state\n", __FUNCTION__);
+		DMSG("%s, bogus device state\n", __func__);
 		return -ESHUTDOWN;
 	}
 
@@ -283,7 +283,7 @@ static int pxa2xx_ep_disable (struct usb_ep *_ep)
 
 	ep = container_of (_ep, struct pxa2xx_ep, ep);
 	if (!_ep || !ep->desc) {
-		DMSG("%s, %s not enabled\n", __FUNCTION__,
+		DMSG("%s, %s not enabled\n", __func__,
 			_ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
@@ -461,7 +461,7 @@ void ep0start(struct pxa2xx_udc *dev, u32 flags, const char *tag)
 	USIR0 = USIR0_IR0;
 	dev->req_pending = 0;
 	DBG(DBG_VERY_NOISY, "%s %s, %02x/%02x\n",
-		__FUNCTION__, tag, UDCCS0, flags);
+		__func__, tag, UDCCS0, flags);
 }
 
 static int
@@ -651,20 +651,20 @@ pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	req = container_of(_req, struct pxa2xx_request, req);
 	if (unlikely (!_req || !_req->complete || !_req->buf
 			|| !list_empty(&req->queue))) {
-		DMSG("%s, bad params\n", __FUNCTION__);
+		DMSG("%s, bad params\n", __func__);
 		return -EINVAL;
 	}
 
 	ep = container_of(_ep, struct pxa2xx_ep, ep);
 	if (unlikely (!_ep || (!ep->desc && ep->ep.name != ep0name))) {
-		DMSG("%s, bad ep\n", __FUNCTION__);
+		DMSG("%s, bad ep\n", __func__);
 		return -EINVAL;
 	}
 
 	dev = ep->dev;
 	if (unlikely (!dev->driver
 			|| dev->gadget.speed == USB_SPEED_UNKNOWN)) {
-		DMSG("%s, bogus device state\n", __FUNCTION__);
+		DMSG("%s, bogus device state\n", __func__);
 		return -ESHUTDOWN;
 	}
 
@@ -807,7 +807,7 @@ static int pxa2xx_ep_set_halt(struct usb_ep *_ep, int value)
 	if (unlikely (!_ep
 			|| (!ep->desc && ep->ep.name != ep0name))
 			|| ep->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
-		DMSG("%s, bad ep\n", __FUNCTION__);
+		DMSG("%s, bad ep\n", __func__);
 		return -EINVAL;
 	}
 	if (value == 0) {
@@ -859,7 +859,7 @@ static int pxa2xx_ep_fifo_status(struct usb_ep *_ep)
 
 	ep = container_of(_ep, struct pxa2xx_ep, ep);
 	if (!_ep) {
-		DMSG("%s, bad ep\n", __FUNCTION__);
+		DMSG("%s, bad ep\n", __func__);
 		return -ENODEV;
 	}
 	/* pxa can't report unclaimed bytes from IN fifos */
@@ -878,7 +878,7 @@ static void pxa2xx_ep_fifo_flush(struct usb_ep *_ep)
 
 	ep = container_of(_ep, struct pxa2xx_ep, ep);
 	if (!_ep || ep->ep.name == ep0name || !list_empty(&ep->queue)) {
-		DMSG("%s, bad ep\n", __FUNCTION__);
+		DMSG("%s, bad ep\n", __func__);
 		return;
 	}
 
@@ -1813,7 +1813,7 @@ pxa2xx_udc_irq(int irq, void *_dev)
 
 static void nop_release (struct device *dev)
 {
-	DMSG("%s %s\n", __FUNCTION__, dev->bus_id);
+	DMSG("%s %s\n", __func__, dev->bus_id);
 }
 
 /* this uses load-time allocation and initialization (instead of

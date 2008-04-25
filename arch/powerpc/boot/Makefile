@@ -40,7 +40,7 @@ $(obj)/ebony.o: BOOTCFLAGS += -mcpu=405
 $(obj)/cuboot-taishan.o: BOOTCFLAGS += -mcpu=405
 $(obj)/cuboot-katmai.o: BOOTCFLAGS += -mcpu=405
 $(obj)/treeboot-walnut.o: BOOTCFLAGS += -mcpu=405
-$(obj)/virtex405-head.o: BOOTCFLAGS += -mcpu=405
+$(obj)/virtex405-head.o: BOOTAFLAGS += -mcpu=405
 
 
 zlib       := inffast.c inflate.c inftrees.c

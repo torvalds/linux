@@ -317,3 +317,5 @@ module_exit(ndfc_nand_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Thomas Gleixner <tglx@linutronix.de>");
 MODULE_DESCRIPTION("Platform driver for NDFC");
+MODULE_ALIAS("platform:ndfc-chip");
+MODULE_ALIAS("platform:ndfc-nand");

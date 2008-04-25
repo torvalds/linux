@@ -1552,6 +1552,10 @@ static void read_symbols(char *modname)
 	}
 
 	license = get_modinfo(info.modinfo, info.modinfo_len, "license");
+	if (!license && !is_vmlinux(modname))
+		fatal("modpost: missing MODULE_LICENSE() in %s\n"
+		      "see include/linux/module.h for "
+		      "more information\n", modname);
 	while (license) {
 		if (license_is_gpl_compatible(license))
 			mod->gpl_compatible = 1;
@@ -2015,6 +2019,11 @@ static void write_markers(const char *fname)
 	write_if_changed(&buf, fname);
 }
 
+struct ext_sym_list {
+	struct ext_sym_list *next;
+	const char *file;
+};
+
 int main(int argc, char **argv)
 {
 	struct module *mod;
@@ -2025,8 +2034,10 @@ int main(int argc, char **argv)
 	char *markers_write = NULL;
 	int opt;
 	int err;
+	struct ext_sym_list *extsym_iter;
+	struct ext_sym_list *extsym_start = NULL;
 
-	while ((opt = getopt(argc, argv, "i:I:cmsSo:awM:K:")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:e:cmsSo:awM:K:")) != -1) {
 		switch (opt) {
 		case 'i':
 			kernel_read = optarg;
@@ -2037,6 +2048,14 @@ int main(int argc, char **argv)
 			break;
 		case 'c':
 			cross_build = 1;
+			break;
+		case 'e':
+			external_module = 1;
+			extsym_iter =
+			   NOFAIL(malloc(sizeof(*extsym_iter)));
+			extsym_iter->next = extsym_start;
+			extsym_iter->file = optarg;
+			extsym_start = extsym_iter;
 			break;
 		case 'm':
 			modversions = 1;
@@ -2071,6 +2090,12 @@ int main(int argc, char **argv)
 		read_dump(kernel_read, 1);
 	if (module_read)
 		read_dump(module_read, 0);
+	while (extsym_start) {
+		read_dump(extsym_start->file, 0);
+		extsym_iter = extsym_start->next;
+		free(extsym_start);
+		extsym_start = extsym_iter;
+	}
 
 	while (optind < argc)
 		read_symbols(argv[optind++]);

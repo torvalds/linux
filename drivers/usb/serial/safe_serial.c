@@ -195,18 +195,17 @@ static __u16 __inline__ fcs_compute10 (unsigned char *sp, int len, __u16 fcs)
 
 static void safe_read_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *) urb->context;
+	struct usb_serial_port *port =  urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned char length = urb->actual_length;
-	int i;
 	int result;
 	int status = urb->status;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 
 	if (status) {
 		dbg("%s - nonzero read bulk status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	}
 
@@ -227,28 +226,20 @@ static void safe_read_bulk_callback (struct urb *urb)
 	if (safe) {
 		__u16 fcs;
 		if (!(fcs = fcs_compute10 (data, length, CRC10_INITFCS))) {
-
 			int actual_length = data[length - 2] >> 2;
-
 			if (actual_length <= (length - 2)) {
-
-				info ("%s - actual: %d", __FUNCTION__, actual_length);
-
-				for (i = 0; i < actual_length; i++) {
-					tty_insert_flip_char (port->tty, data[i], 0);
-				}
+				info ("%s - actual: %d", __func__, actual_length);
+				tty_insert_flip_string(port->tty, data, actual_length);
 				tty_flip_buffer_push (port->tty);
 			} else {
-				err ("%s - inconsistent lengths %d:%d", __FUNCTION__,
+				err ("%s - inconsistent lengths %d:%d", __func__,
 				     actual_length, length);
 			}
 		} else {
-			err ("%s - bad CRC %x", __FUNCTION__, fcs);
+			err ("%s - bad CRC %x", __func__, fcs);
 		}
 	} else {
-		for (i = 0; i < length; i++) {
-			tty_insert_flip_char (port->tty, data[i], 0);
-		}
+		tty_insert_flip_string(port->tty, data, length);
 		tty_flip_buffer_push (port->tty);
 	}
 
@@ -259,7 +250,8 @@ static void safe_read_bulk_callback (struct urb *urb)
 		       safe_read_bulk_callback, port);
 
 	if ((result = usb_submit_urb (urb, GFP_ATOMIC))) {
-		err ("%s - failed resubmitting read urb, error %d", __FUNCTION__, result);
+		err ("%s - failed resubmitting read urb, error %d", __func__, result);
+		/* FIXME: Need a mechanism to retry later if this happens */
 	}
 }
 
@@ -274,25 +266,25 @@ static int safe_write (struct usb_serial_port *port, const unsigned char *buf, i
 	     count);
 
 	if (!port->write_urb) {
-		dbg ("%s - write urb NULL", __FUNCTION__);
-		return (0);
+		dbg ("%s - write urb NULL", __func__);
+		return 0;
 	}
 
 	dbg ("safe_write write_urb: %d transfer_buffer_length",
 	     port->write_urb->transfer_buffer_length);
 
 	if (!port->write_urb->transfer_buffer_length) {
-		dbg ("%s - write urb transfer_buffer_length zero", __FUNCTION__);
-		return (0);
+		dbg ("%s - write urb transfer_buffer_length zero", __func__);
+		return 0;
 	}
 	if (count == 0) {
-		dbg ("%s - write request of 0 bytes", __FUNCTION__);
-		return (0);
+		dbg ("%s - write request of 0 bytes", __func__);
+		return 0;
 	}
 	spin_lock_bh(&port->lock);
 	if (port->write_urb_busy) {
 		spin_unlock_bh(&port->lock);
-		dbg("%s - already writing", __FUNCTION__);
+		dbg("%s - already writing", __func__);
 		return 0;
 	}
 	port->write_urb_busy = 1;
@@ -332,7 +324,7 @@ static int safe_write (struct usb_serial_port *port, const unsigned char *buf, i
 		port->write_urb->transfer_buffer_length = count;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, count, port->write_urb->transfer_buffer);
+	usb_serial_debug_data(debug, &port->dev, __func__, count, port->write_urb->transfer_buffer);
 #ifdef ECHO_TX
 	{
 		int i;
@@ -349,28 +341,31 @@ static int safe_write (struct usb_serial_port *port, const unsigned char *buf, i
 	port->write_urb->dev = port->serial->dev;
 	if ((result = usb_submit_urb (port->write_urb, GFP_KERNEL))) {
 		port->write_urb_busy = 0;
-		err ("%s - failed submitting write urb, error %d", __FUNCTION__, result);
+		err ("%s - failed submitting write urb, error %d", __func__, result);
 		return 0;
 	}
-	dbg ("%s urb: %p submitted", __FUNCTION__, port->write_urb);
+	dbg ("%s urb: %p submitted", __func__, port->write_urb);
 
 	return (count);
 }
 
 static int safe_write_room (struct usb_serial_port *port)
 {
-	int room = 0;		// Default: no room
+	int room = 0;		/* Default: no room */
+	unsigned long flags;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 
+	spin_lock_irqsave(&port->lock, flags);
 	if (port->write_urb_busy)
 		room = port->bulk_out_size - (safe ? 2 : 0);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	if (room) {
 		dbg ("safe_write_room returns %d", room);
 	}
 
-	return (room);
+	return room;
 }
 
 static int safe_startup (struct usb_serial *serial)
@@ -394,9 +389,6 @@ static struct usb_serial_driver safe_device = {
 	},
 	.id_table =		id_table,
 	.usb_driver =		&safe_driver,
-	.num_interrupt_in =	NUM_DONT_CARE,
-	.num_bulk_in =		NUM_DONT_CARE,
-	.num_bulk_out =		NUM_DONT_CARE,
 	.num_ports =		1,
 	.write =		safe_write,
 	.write_room =		safe_write_room,

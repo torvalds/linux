@@ -59,6 +59,9 @@ static ssize_t mon_stat_read(struct file *file, char __user *buf,
 
 static int mon_stat_release(struct inode *inode, struct file *file)
 {
+	struct snap *sp = file->private_data;
+	file->private_data = NULL;
+	kfree(sp);
 	return 0;
 }
 

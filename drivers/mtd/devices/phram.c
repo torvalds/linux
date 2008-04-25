@@ -282,7 +282,7 @@ static int phram_setup(const char *val, struct kernel_param *kp)
 }
 
 module_param_call(phram, phram_setup, NULL, NULL, 000);
-MODULE_PARM_DESC(phram,"Memory region to map. \"map=<name>,<start>,<length>\"");
+MODULE_PARM_DESC(phram, "Memory region to map. \"phram=<name>,<start>,<length>\"");
 
 
 static int __init init_phram(void)

@@ -746,7 +746,7 @@ static ssize_t ftdi_elan_read(struct file *file, char __user *buffer,
 
 static void ftdi_elan_write_bulk_callback(struct urb *urb)
 {
-        struct usb_ftdi *ftdi = (struct usb_ftdi *)urb->context;
+	struct usb_ftdi *ftdi = urb->context;
 	int status = urb->status;
 
 	if (status && !(status == -ENOENT || status == -ECONNRESET ||

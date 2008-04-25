@@ -10,7 +10,6 @@
  *
  */
 
-
 #ifndef __LINUX_USB_SERIAL_H
 #define __LINUX_USB_SERIAL_H
 
@@ -146,8 +145,6 @@ struct usb_serial {
 };
 #define to_usb_serial(d) container_of(d, struct usb_serial, kref)
 
-#define NUM_DONT_CARE	99
-
 /* get and set the serial private data pointer helper functions */
 static inline void *usb_get_serial_data(struct usb_serial *serial)
 {
@@ -165,18 +162,6 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
  *	used in the syslog messages when a device is inserted or removed.
  * @id_table: pointer to a list of usb_device_id structures that define all
  *	of the devices this structure can support.
- * @num_interrupt_in: If a device doesn't have this many interrupt-in
- *	endpoints, it won't be sent to the driver's attach() method.
- *	(But it might still be sent to the probe() method.)
- * @num_interrupt_out: If a device doesn't have this many interrupt-out
- *	endpoints, it won't be sent to the driver's attach() method.
- *	(But it might still be sent to the probe() method.)
- * @num_bulk_in: If a device doesn't have this many bulk-in
- *	endpoints, it won't be sent to the driver's attach() method.
- *	(But it might still be sent to the probe() method.)
- * @num_bulk_out: If a device doesn't have this many bulk-out
- *	endpoints, it won't be sent to the driver's attach() method.
- *	(But it might still be sent to the probe() method.)
  * @num_ports: the number of different ports this device will have.
  * @calc_num_ports: pointer to a function to determine how many ports this
  *	device has dynamically.  It will be called after the probe()
@@ -212,10 +197,6 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
 struct usb_serial_driver {
 	const char *description;
 	const struct usb_device_id *id_table;
-	char	num_interrupt_in;
-	char	num_interrupt_out;
-	char	num_bulk_in;
-	char	num_bulk_out;
 	char	num_ports;
 
 	struct list_head	driver_list;
@@ -340,5 +321,5 @@ static inline void usb_serial_debug_data(int debug,
 
 
 
-#endif	/* ifdef __LINUX_USB_SERIAL_H */
+#endif /* __LINUX_USB_SERIAL_H */
 

@@ -249,6 +249,7 @@ out:
 MODULE_DESCRIPTION("Jazz SONIC ethernet driver");
 module_param(sonic_debug, int, 0);
 MODULE_PARM_DESC(sonic_debug, "jazzsonic debug level (1-4)");
+MODULE_ALIAS("platform:jazzsonic");
 
 #include "sonic.c"
 
@@ -271,6 +272,7 @@ static struct platform_driver jazz_sonic_driver = {
 	.remove	= __devexit_p(jazz_sonic_device_remove),
 	.driver	= {
 		.name	= jazz_sonic_string,
+		.owner	= THIS_MODULE,
 	},
 };
 

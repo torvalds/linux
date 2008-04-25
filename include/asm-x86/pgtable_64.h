@@ -24,7 +24,7 @@ extern void paging_init(void);
 
 #endif /* !__ASSEMBLY__ */
 
-#define SHARED_KERNEL_PMD	1
+#define SHARED_KERNEL_PMD	0
 
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map

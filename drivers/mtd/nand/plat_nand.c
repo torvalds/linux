@@ -54,6 +54,7 @@ static int __init plat_nand_probe(struct platform_device *pdev)
 	data->chip.priv = &data;
 	data->mtd.priv = &data->chip;
 	data->mtd.owner = THIS_MODULE;
+	data->mtd.name = pdev->dev.bus_id;
 
 	data->chip.IO_ADDR_R = data->io_base;
 	data->chip.IO_ADDR_W = data->io_base;
@@ -150,3 +151,4 @@ module_exit(plat_nand_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vitaly Wool");
 MODULE_DESCRIPTION("Simple generic NAND driver");
+MODULE_ALIAS("platform:gen_nand");

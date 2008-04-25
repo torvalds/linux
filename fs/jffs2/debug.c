@@ -62,9 +62,9 @@ __jffs2_dbg_acct_sanity_check(struct jffs2_sb_info *c,
 void
 __jffs2_dbg_fragtree_paranoia_check(struct jffs2_inode_info *f)
 {
-	down(&f->sem);
+	mutex_lock(&f->sem);
 	__jffs2_dbg_fragtree_paranoia_check_nolock(f);
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 }
 
 void
@@ -153,6 +153,139 @@ __jffs2_dbg_prewrite_paranoia_check(struct jffs2_sb_info *c,
 	kfree(buf);
 }
 
+void __jffs2_dbg_superblock_counts(struct jffs2_sb_info *c)
+{
+	struct jffs2_eraseblock *jeb;
+	uint32_t free = 0, dirty = 0, used = 0, wasted = 0,
+		erasing = 0, bad = 0, unchecked = 0;
+	int nr_counted = 0;
+	int dump = 0;
+
+	if (c->gcblock) {
+		nr_counted++;
+		free += c->gcblock->free_size;
+		dirty += c->gcblock->dirty_size;
+		used += c->gcblock->used_size;
+		wasted += c->gcblock->wasted_size;
+		unchecked += c->gcblock->unchecked_size;
+	}
+	if (c->nextblock) {
+		nr_counted++;
+		free += c->nextblock->free_size;
+		dirty += c->nextblock->dirty_size;
+		used += c->nextblock->used_size;
+		wasted += c->nextblock->wasted_size;
+		unchecked += c->nextblock->unchecked_size;
+	}
+	list_for_each_entry(jeb, &c->clean_list, list) {
+		nr_counted++;
+		free += jeb->free_size;
+		dirty += jeb->dirty_size;
+		used += jeb->used_size;
+		wasted += jeb->wasted_size;
+		unchecked += jeb->unchecked_size;
+	}
+	list_for_each_entry(jeb, &c->very_dirty_list, list) {
+		nr_counted++;
+		free += jeb->free_size;
+		dirty += jeb->dirty_size;
+		used += jeb->used_size;
+		wasted += jeb->wasted_size;
+		unchecked += jeb->unchecked_size;
+	}
+	list_for_each_entry(jeb, &c->dirty_list, list) {
+		nr_counted++;
+		free += jeb->free_size;
+		dirty += jeb->dirty_size;
+		used += jeb->used_size;
+		wasted += jeb->wasted_size;
+		unchecked += jeb->unchecked_size;
+	}
+	list_for_each_entry(jeb, &c->erasable_list, list) {
+		nr_counted++;
+		free += jeb->free_size;
+		dirty += jeb->dirty_size;
+		used += jeb->used_size;
+		wasted += jeb->wasted_size;
+		unchecked += jeb->unchecked_size;
+	}
+	list_for_each_entry(jeb, &c->erasable_pending_wbuf_list, list) {
+		nr_counted++;
+		free += jeb->free_size;
+		dirty += jeb->dirty_size;
+		used += jeb->used_size;
+		wasted += jeb->wasted_size;
+		unchecked += jeb->unchecked_size;
+	}
+	list_for_each_entry(jeb, &c->erase_pending_list, list) {
+		nr_counted++;
+		free += jeb->free_size;
+		dirty += jeb->dirty_size;
+		used += jeb->used_size;
+		wasted += jeb->wasted_size;
+		unchecked += jeb->unchecked_size;
+	}
+	list_for_each_entry(jeb, &c->free_list, list) {
+		nr_counted++;
+		free += jeb->free_size;
+		dirty += jeb->dirty_size;
+		used += jeb->used_size;
+		wasted += jeb->wasted_size;
+		unchecked += jeb->unchecked_size;
+	}
+	list_for_each_entry(jeb, &c->bad_used_list, list) {
+		nr_counted++;
+		free += jeb->free_size;
+		dirty += jeb->dirty_size;
+		used += jeb->used_size;
+		wasted += jeb->wasted_size;
+		unchecked += jeb->unchecked_size;
+	}
+
+	list_for_each_entry(jeb, &c->erasing_list, list) {
+		nr_counted++;
+		erasing += c->sector_size;
+	}
+	list_for_each_entry(jeb, &c->erase_checking_list, list) {
+		nr_counted++;
+		erasing += c->sector_size;
+	}
+	list_for_each_entry(jeb, &c->erase_complete_list, list) {
+		nr_counted++;
+		erasing += c->sector_size;
+	}
+	list_for_each_entry(jeb, &c->bad_list, list) {
+		nr_counted++;
+		bad += c->sector_size;
+	}
+
+#define check(sz) \
+	if (sz != c->sz##_size) {			\
+		printk(KERN_WARNING #sz "_size mismatch counted 0x%x, c->" #sz "_size 0x%x\n", \
+		       sz, c->sz##_size);		\
+		dump = 1;				\
+	}
+	check(free);
+	check(dirty);
+	check(used);
+	check(wasted);
+	check(unchecked);
+	check(bad);
+	check(erasing);
+#undef check
+
+	if (nr_counted != c->nr_blocks) {
+		printk(KERN_WARNING "%s counted only 0x%x blocks of 0x%x. Where are the others?\n",
+		       __func__, nr_counted, c->nr_blocks);
+		dump = 1;
+	}
+
+	if (dump) {
+		__jffs2_dbg_dump_block_lists_nolock(c);
+		BUG();
+	}
+}
+
 /*
  * Check the space accounting and node_ref list correctness for the JFFS2 erasable block 'jeb'.
  */
@@ -229,6 +362,9 @@ __jffs2_dbg_acct_paranoia_check_nolock(struct jffs2_sb_info *c,
 	}
 #endif
 
+	if (!(c->flags & (JFFS2_SB_FLAG_BUILDING|JFFS2_SB_FLAG_SCANNING)))
+		__jffs2_dbg_superblock_counts(c);
+
 	return;
 
 error:
@@ -268,7 +404,10 @@ __jffs2_dbg_dump_node_refs_nolock(struct jffs2_sb_info *c,
 
 	printk(JFFS2_DBG);
 	for (ref = jeb->first_node; ; ref = ref_next(ref)) {
-		printk("%#08x(%#x)", ref_offset(ref), ref->__totlen);
+		printk("%#08x", ref_offset(ref));
+#ifdef TEST_TOTLEN
+		printk("(%x)", ref->__totlen);
+#endif
 		if (ref_next(ref))
 			printk("->");
 		else
@@ -447,6 +586,21 @@ __jffs2_dbg_dump_block_lists_nolock(struct jffs2_sb_info *c)
 			}
 		}
 	}
+	if (list_empty(&c->erase_checking_list)) {
+		printk(JFFS2_DBG "erase_checking_list: empty\n");
+	} else {
+		struct list_head *this;
+
+		list_for_each(this, &c->erase_checking_list) {
+			struct jffs2_eraseblock *jeb = list_entry(this, struct jffs2_eraseblock, list);
+
+			if (!(jeb->used_size == 0 && jeb->dirty_size == 0 && jeb->wasted_size == 0)) {
+				printk(JFFS2_DBG "erase_checking_list: %#08x (used %#08x, dirty %#08x, wasted %#08x, unchecked %#08x, free %#08x)\n",
+					jeb->offset, jeb->used_size, jeb->dirty_size, jeb->wasted_size,
+					jeb->unchecked_size, jeb->free_size);
+			}
+		}
+	}
 
 	if (list_empty(&c->erase_pending_list)) {
 		printk(JFFS2_DBG "erase_pending_list: empty\n");
@@ -532,9 +686,9 @@ __jffs2_dbg_dump_block_lists_nolock(struct jffs2_sb_info *c)
 void
 __jffs2_dbg_dump_fragtree(struct jffs2_inode_info *f)
 {
-	down(&f->sem);
+	mutex_lock(&f->sem);
 	jffs2_dbg_dump_fragtree_nolock(f);
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 }
 
 void

@@ -154,7 +154,7 @@ MODULE_DEVICE_TABLE(usb, iowarrior_ids);
  */
 static void iowarrior_callback(struct urb *urb)
 {
-	struct iowarrior *dev = (struct iowarrior *)urb->context;
+	struct iowarrior *dev = urb->context;
 	int intr_idx;
 	int read_idx;
 	int aux_idx;
@@ -218,7 +218,7 @@ exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		dev_err(&dev->interface->dev, "%s - usb_submit_urb failed with result %d\n",
-			__FUNCTION__, retval);
+			__func__, retval);
 
 }
 
@@ -230,7 +230,7 @@ static void iowarrior_write_callback(struct urb *urb)
 	struct iowarrior *dev;
 	int status = urb->status;
 
-	dev = (struct iowarrior *)urb->context;
+	dev = urb->context;
 	/* sync/async unlink faults aren't errors */
 	if (status &&
 	    !(status == -ENOENT ||
@@ -453,7 +453,7 @@ static ssize_t iowarrior_write(struct file *file,
 	default:
 		/* what do we have here ? An unsupported Product-ID ? */
 		dev_err(&dev->interface->dev, "%s - not supported for product=0x%x\n",
-			__FUNCTION__, dev->product_id);
+			__func__, dev->product_id);
 		retval = -EFAULT;
 		goto exit;
 		break;
@@ -604,7 +604,7 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 
 	interface = usb_find_interface(&iowarrior_driver, subminor);
 	if (!interface) {
-		err("%s - error, can't find device for minor %d", __FUNCTION__,
+		err("%s - error, can't find device for minor %d", __func__,
 		    subminor);
 		return -ENODEV;
 	}

@@ -299,7 +299,7 @@ static inline void assert_out_naking (struct net2280_ep *ep, const char *where)
 			&ep->regs->ep_rsp);
 	}
 }
-#define ASSERT_OUT_NAKING(ep) assert_out_naking(ep,__FUNCTION__)
+#define ASSERT_OUT_NAKING(ep) assert_out_naking(ep,__func__)
 #else
 #define ASSERT_OUT_NAKING(ep) do {} while (0)
 #endif

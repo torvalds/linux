@@ -126,7 +126,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	int ret = 0, inum, nlink;
 	int xattr = 0;
 
-	if (down_interruptible(&c->alloc_sem))
+	if (mutex_lock_interruptible(&c->alloc_sem))
 		return -EINTR;
 
 	for (;;) {
@@ -143,7 +143,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			       c->unchecked_size);
 			jffs2_dbg_dump_block_lists_nolock(c);
 			spin_unlock(&c->erase_completion_lock);
-			up(&c->alloc_sem);
+			mutex_unlock(&c->alloc_sem);
 			return -ENOSPC;
 		}
 
@@ -190,7 +190,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			 made no progress in this case, but that should be OK */
 			c->checked_ino--;
 
-			up(&c->alloc_sem);
+			mutex_unlock(&c->alloc_sem);
 			sleep_on_spinunlock(&c->inocache_wq, &c->inocache_lock);
 			return 0;
 
@@ -210,7 +210,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			printk(KERN_WARNING "Returned error for crccheck of ino #%u. Expect badness...\n", ic->ino);
 
 		jffs2_set_inocache_state(c, ic, INO_STATE_CHECKEDABSENT);
-		up(&c->alloc_sem);
+		mutex_unlock(&c->alloc_sem);
 		return ret;
 	}
 
@@ -221,9 +221,15 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		jeb = jffs2_find_gc_block(c);
 
 	if (!jeb) {
-		D1 (printk(KERN_NOTICE "jffs2: Couldn't find erase block to garbage collect!\n"));
+		/* Couldn't find a free block. But maybe we can just erase one and make 'progress'? */
+		if (!list_empty(&c->erase_pending_list)) {
+			spin_unlock(&c->erase_completion_lock);
+			mutex_unlock(&c->alloc_sem);
+			return -EAGAIN;
+		}
+		D1(printk(KERN_NOTICE "jffs2: Couldn't find erase block to garbage collect!\n"));
 		spin_unlock(&c->erase_completion_lock);
-		up(&c->alloc_sem);
+		mutex_unlock(&c->alloc_sem);
 		return -EIO;
 	}
 
@@ -232,7 +238,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	   printk(KERN_DEBUG "Nextblock at  %08x, used_size %08x, dirty_size %08x, wasted_size %08x, free_size %08x\n", c->nextblock->offset, c->nextblock->used_size, c->nextblock->dirty_size, c->nextblock->wasted_size, c->nextblock->free_size));
 
 	if (!jeb->used_size) {
-		up(&c->alloc_sem);
+		mutex_unlock(&c->alloc_sem);
 		goto eraseit;
 	}
 
@@ -248,7 +254,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			       jeb->offset, jeb->free_size, jeb->dirty_size, jeb->used_size);
 			jeb->gc_node = raw;
 			spin_unlock(&c->erase_completion_lock);
-			up(&c->alloc_sem);
+			mutex_unlock(&c->alloc_sem);
 			BUG();
 		}
 	}
@@ -266,7 +272,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			/* Just mark it obsolete */
 			jffs2_mark_node_obsolete(c, raw);
 		}
-		up(&c->alloc_sem);
+		mutex_unlock(&c->alloc_sem);
 		goto eraseit_lock;
 	}
 
@@ -334,7 +340,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		*/
 		printk(KERN_CRIT "Inode #%u already in state %d in jffs2_garbage_collect_pass()!\n",
 		       ic->ino, ic->state);
-		up(&c->alloc_sem);
+		mutex_unlock(&c->alloc_sem);
 		spin_unlock(&c->inocache_lock);
 		BUG();
 
@@ -345,7 +351,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		   the alloc_sem() (for marking nodes invalid) so we must
 		   drop the alloc_sem before sleeping. */
 
-		up(&c->alloc_sem);
+		mutex_unlock(&c->alloc_sem);
 		D1(printk(KERN_DEBUG "jffs2_garbage_collect_pass() waiting for ino #%u in state %d\n",
 			  ic->ino, ic->state));
 		sleep_on_spinunlock(&c->inocache_wq, &c->inocache_lock);
@@ -416,7 +422,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		ret = -ENOSPC;
 	}
  release_sem:
-	up(&c->alloc_sem);
+	mutex_unlock(&c->alloc_sem);
 
  eraseit_lock:
 	/* If we've finished this block, start it erasing */
@@ -445,7 +451,7 @@ static int jffs2_garbage_collect_live(struct jffs2_sb_info *c,  struct jffs2_era
 	uint32_t start = 0, end = 0, nrfrags = 0;
 	int ret = 0;
 
-	down(&f->sem);
+	mutex_lock(&f->sem);
 
 	/* Now we have the lock for this inode. Check that it's still the one at the head
 	   of the list. */
@@ -525,7 +531,7 @@ static int jffs2_garbage_collect_live(struct jffs2_sb_info *c,  struct jffs2_era
 		}
 	}
  upnout:
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 
 	return ret;
 }
@@ -846,7 +852,7 @@ static int jffs2_garbage_collect_deletion_dirent(struct jffs2_sb_info *c, struct
 		/* Prevent the erase code from nicking the obsolete node refs while
 		   we're looking at them. I really don't like this extra lock but
 		   can't see any alternative. Suggestions on a postcard to... */
-		down(&c->erase_free_sem);
+		mutex_lock(&c->erase_free_sem);
 
 		for (raw = f->inocache->nodes; raw != (void *)f->inocache; raw = raw->next_in_ino) {
 
@@ -899,7 +905,7 @@ static int jffs2_garbage_collect_deletion_dirent(struct jffs2_sb_info *c, struct
 			/* OK. The name really does match. There really is still an older node on
 			   the flash which our deletion dirent obsoletes. So we have to write out
 			   a new deletion dirent to replace it */
-			up(&c->erase_free_sem);
+			mutex_unlock(&c->erase_free_sem);
 
 			D1(printk(KERN_DEBUG "Deletion dirent at %08x still obsoletes real dirent \"%s\" at %08x for ino #%u\n",
 				  ref_offset(fd->raw), fd->name, ref_offset(raw), je32_to_cpu(rd->ino)));
@@ -908,7 +914,7 @@ static int jffs2_garbage_collect_deletion_dirent(struct jffs2_sb_info *c, struct
 			return jffs2_garbage_collect_dirent(c, jeb, f, fd);
 		}
 
-		up(&c->erase_free_sem);
+		mutex_unlock(&c->erase_free_sem);
 		kfree(rd);
 	}
 
@@ -1081,7 +1087,7 @@ static int jffs2_garbage_collect_hole(struct jffs2_sb_info *c, struct jffs2_eras
 	return 0;
 }
 
-static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
+static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *orig_jeb,
 				       struct jffs2_inode_info *f, struct jffs2_full_dnode *fn,
 				       uint32_t start, uint32_t end)
 {

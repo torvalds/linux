@@ -187,4 +187,7 @@ struct onenand_manufacturers {
         char *name;
 };
 
+int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
+			 struct mtd_oob_ops *ops);
+
 #endif	/* __LINUX_MTD_ONENAND_H */

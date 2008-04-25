@@ -29,7 +29,7 @@ struct xen_memory_reservation {
      *   OUT: GMFN bases of extents that were allocated
      *   (NB. This command also updates the mach_to_phys translation table)
      */
-    GUEST_HANDLE(ulong) extent_start;
+    ulong extent_start;
 
     /* Number of extents, and size/alignment of each (2^extent_order pages). */
     unsigned long  nr_extents;
@@ -50,7 +50,6 @@ struct xen_memory_reservation {
     domid_t        domid;
 
 };
-DEFINE_GUEST_HANDLE_STRUCT(xen_memory_reservation);
 
 /*
  * Returns the maximum machine frame number of mapped RAM in this system.
@@ -86,7 +85,7 @@ struct xen_machphys_mfn_list {
      * any large discontiguities in the machine address space, 2MB gaps in
      * the machphys table will be represented by an MFN base of zero.
      */
-    GUEST_HANDLE(ulong) extent_start;
+    ulong extent_start;
 
     /*
      * Number of extents written to the above array. This will be smaller
@@ -94,7 +93,6 @@ struct xen_machphys_mfn_list {
      */
     unsigned int nr_extents;
 };
-DEFINE_GUEST_HANDLE_STRUCT(xen_machphys_mfn_list);
 
 /*
  * Sets the GPFN at which a particular page appears in the specified guest's
@@ -117,7 +115,6 @@ struct xen_add_to_physmap {
     /* GPFN where the source mapping page should appear. */
     unsigned long gpfn;
 };
-DEFINE_GUEST_HANDLE_STRUCT(xen_add_to_physmap);
 
 /*
  * Translates a list of domain-specific GPFNs into MFNs. Returns a -ve error
@@ -132,14 +129,13 @@ struct xen_translate_gpfn_list {
     unsigned long nr_gpfns;
 
     /* List of GPFNs to translate. */
-    GUEST_HANDLE(ulong) gpfn_list;
+    ulong gpfn_list;
 
     /*
      * Output list to contain MFN translations. May be the same as the input
      * list (in which case each input GPFN is overwritten with the output MFN).
      */
-    GUEST_HANDLE(ulong) mfn_list;
+    ulong mfn_list;
 };
-DEFINE_GUEST_HANDLE_STRUCT(xen_translate_gpfn_list);
 
 #endif /* __XEN_PUBLIC_MEMORY_H__ */

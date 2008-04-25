@@ -1,11 +1,7 @@
 /*
  * NetChip 2280 high/full speed USB device controller.
  * Unlike many such controllers, this one talks PCI.
- */
-#ifndef __LINUX_USB_NET2280_H
-#define __LINUX_USB_NET2280_H
-
-/*
+ *
  * Copyright (C) 2002 NetChip Technology, Inc. (http://www.netchip.com)
  * Copyright (C) 2003 David Brownell
  *
@@ -23,6 +19,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+
+#ifndef __LINUX_USB_NET2280_H
+#define __LINUX_USB_NET2280_H
 
 /*-------------------------------------------------------------------------*/
 

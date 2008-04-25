@@ -143,9 +143,6 @@ static struct usb_serial_driver mct_u232_device = {
 	.description =	     "MCT U232",
 	.usb_driver = 	     &mct_u232_driver,
 	.id_table =	     id_table_combined,
-	.num_interrupt_in =  2,
-	.num_bulk_in =	     0,
-	.num_bulk_out =	     1,
 	.num_ports =	     1,
 	.open =		     mct_u232_open,
 	.close =	     mct_u232_close,
@@ -402,7 +399,7 @@ static void mct_u232_shutdown (struct usb_serial *serial)
 	struct mct_u232_private *priv;
 	int i;
 	
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	for (i=0; i < serial->num_ports; ++i) {
 		/* My special items, the standard routines free my urbs */
@@ -424,7 +421,7 @@ static int  mct_u232_open (struct usb_serial_port *port, struct file *filp)
 	unsigned char last_lcr;
 	unsigned char last_msr;
 
-	dbg("%s port %d", __FUNCTION__, port->number);
+	dbg("%s port %d", __func__, port->number);
 
 	/* Compensate for a hardware bug: although the Sitecom U232-P25
 	 * device reports a maximum output packet size of 32 bytes,
@@ -489,7 +486,7 @@ static void mct_u232_close (struct usb_serial_port *port, struct file *filp)
 	unsigned int c_cflag;
 	unsigned int control_state;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
-	dbg("%s port %d", __FUNCTION__, port->number);
+	dbg("%s port %d", __func__, port->number);
 
    	if (port->tty) {
 		c_cflag = port->tty->termios->c_cflag;
@@ -517,7 +514,7 @@ static void mct_u232_close (struct usb_serial_port *port, struct file *filp)
 
 static void mct_u232_read_int_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
 	struct tty_struct *tty;
@@ -535,21 +532,21 @@ static void mct_u232_read_int_callback (struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		goto exit;
 	}
 
 	if (!serial) {
-		dbg("%s - bad serial pointer, exiting", __FUNCTION__);
+		dbg("%s - bad serial pointer, exiting", __func__);
 		return;
 	}
 
-        dbg("%s - port %d", __FUNCTION__, port->number);
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
+        dbg("%s - port %d", __func__, port->number);
+	usb_serial_debug_data(debug, &port->dev, __func__, urb->actual_length, data);
 
 	/*
 	 * Work-a-round: handle the 'usual' bulk-in pipe here
@@ -606,7 +603,7 @@ exit:
 	retval = usb_submit_urb (urb, GFP_ATOMIC);
 	if (retval)
 		err ("%s - usb_submit_urb failed with result %d",
-		     __FUNCTION__, retval);
+		     __func__, retval);
 } /* mct_u232_read_int_callback */
 
 static void mct_u232_set_termios (struct usb_serial_port *port,
@@ -636,7 +633,7 @@ static void mct_u232_set_termios (struct usb_serial_port *port,
 
         /* reassert DTR and RTS on transition from B0 */
 	if ((old_cflag & CBAUD) == B0) {
-		dbg("%s: baud was B0", __FUNCTION__);
+		dbg("%s: baud was B0", __func__);
 		control_state |= TIOCM_DTR | TIOCM_RTS;
 		mct_u232_set_modem_ctrl(serial, control_state);
 	}
@@ -644,7 +641,7 @@ static void mct_u232_set_termios (struct usb_serial_port *port,
 	mct_u232_set_baud_rate(serial, port, tty_get_baud_rate(port->tty));
 
 	if ((cflag & CBAUD) == B0 ) {
-		dbg("%s: baud is B0", __FUNCTION__);
+		dbg("%s: baud is B0", __func__);
 		/* Drop RTS and DTR */
 		control_state &= ~(TIOCM_DTR | TIOCM_RTS);
        		mct_u232_set_modem_ctrl(serial, control_state);
@@ -699,7 +696,7 @@ static void mct_u232_break_ctl( struct usb_serial_port *port, int break_state )
 	unsigned char lcr;
 	unsigned long flags;
 
-	dbg("%sstate=%d", __FUNCTION__, break_state);
+	dbg("%sstate=%d", __func__, break_state);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	lcr = priv->last_lcr;
@@ -718,7 +715,7 @@ static int mct_u232_tiocmget (struct usb_serial_port *port, struct file *file)
 	unsigned int control_state;
 	unsigned long flags;
 	
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	control_state = priv->control_state;
@@ -735,7 +732,7 @@ static int mct_u232_tiocmset (struct usb_serial_port *port, struct file *file,
 	unsigned int control_state;
 	unsigned long flags;
 	
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	control_state = priv->control_state;
@@ -757,7 +754,7 @@ static int mct_u232_tiocmset (struct usb_serial_port *port, struct file *file,
 static int mct_u232_ioctl (struct usb_serial_port *port, struct file * file,
 			   unsigned int cmd, unsigned long arg)
 {
-	dbg("%scmd=0x%x", __FUNCTION__, cmd);
+	dbg("%scmd=0x%x", __func__, cmd);
 
 	/* Based on code from acm.c and others */
 	switch (cmd) {
@@ -772,7 +769,7 @@ static int mct_u232_ioctl (struct usb_serial_port *port, struct file * file,
 		return 0;
 
 	default:
-		dbg("%s: arg not supported - 0x%04x", __FUNCTION__,cmd);
+		dbg("%s: arg not supported - 0x%04x", __func__,cmd);
 		return(-ENOIOCTLCMD);
 		break;
 	}
@@ -787,7 +784,7 @@ static void mct_u232_throttle (struct usb_serial_port *port)
 	struct tty_struct *tty;
 
 	tty = port->tty;
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->rx_flags |= THROTTLED;
@@ -809,7 +806,7 @@ static void mct_u232_unthrottle (struct usb_serial_port *port)
 	unsigned int control_state;
 	struct tty_struct *tty;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	tty = port->tty;
 	spin_lock_irqsave(&priv->lock, flags);

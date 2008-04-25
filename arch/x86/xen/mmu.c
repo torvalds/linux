@@ -156,6 +156,10 @@ void set_pte_mfn(unsigned long vaddr, unsigned long mfn, pgprot_t flags)
 void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval)
 {
+	/* updates to init_mm may be done without lock */
+	if (mm == &init_mm)
+		preempt_disable();
+
 	if (mm == current->mm || mm == &init_mm) {
 		if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
 			struct multicall_space mcs;
@@ -163,14 +167,61 @@ void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 
 			MULTI_update_va_mapping(mcs.mc, addr, pteval, 0);
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
-			return;
+			goto out;
 		} else
 			if (HYPERVISOR_update_va_mapping(addr, pteval, 0) == 0)
-				return;
+				goto out;
 	}
 	xen_set_pte(ptep, pteval);
+
+out:
+	if (mm == &init_mm)
+		preempt_enable();
 }
 
+pteval_t xen_pte_val(pte_t pte)
+{
+	pteval_t ret = pte.pte;
+
+	if (ret & _PAGE_PRESENT)
+		ret = machine_to_phys(XMADDR(ret)).paddr | _PAGE_PRESENT;
+
+	return ret;
+}
+
+pgdval_t xen_pgd_val(pgd_t pgd)
+{
+	pgdval_t ret = pgd.pgd;
+	if (ret & _PAGE_PRESENT)
+		ret = machine_to_phys(XMADDR(ret)).paddr | _PAGE_PRESENT;
+	return ret;
+}
+
+pte_t xen_make_pte(pteval_t pte)
+{
+	if (pte & _PAGE_PRESENT) {
+		pte = phys_to_machine(XPADDR(pte)).maddr;
+		pte &= ~(_PAGE_PCD | _PAGE_PWT);
+	}
+
+	return (pte_t){ .pte = pte };
+}
+
+pgd_t xen_make_pgd(pgdval_t pgd)
+{
+	if (pgd & _PAGE_PRESENT)
+		pgd = phys_to_machine(XPADDR(pgd)).maddr;
+
+	return (pgd_t){ pgd };
+}
+
+pmdval_t xen_pmd_val(pmd_t pmd)
+{
+	pmdval_t ret = native_pmd_val(pmd);
+	if (ret & _PAGE_PRESENT)
+		ret = machine_to_phys(XMADDR(ret)).paddr | _PAGE_PRESENT;
+	return ret;
+}
 #ifdef CONFIG_X86_PAE
 void xen_set_pud(pud_t *ptr, pud_t val)
 {
@@ -214,99 +265,17 @@ void xen_pmd_clear(pmd_t *pmdp)
 	xen_set_pmd(pmdp, __pmd(0));
 }
 
-unsigned long long xen_pte_val(pte_t pte)
+pmd_t xen_make_pmd(pmdval_t pmd)
 {
-	unsigned long long ret = 0;
-
-	if (pte.pte_low) {
-		ret = ((unsigned long long)pte.pte_high << 32) | pte.pte_low;
-		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
-	}
-
-	return ret;
-}
-
-unsigned long long xen_pmd_val(pmd_t pmd)
-{
-	unsigned long long ret = pmd.pmd;
-	if (ret)
-		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
-	return ret;
-}
-
-unsigned long long xen_pgd_val(pgd_t pgd)
-{
-	unsigned long long ret = pgd.pgd;
-	if (ret)
-		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
-	return ret;
-}
-
-pte_t xen_make_pte(unsigned long long pte)
-{
-	if (pte & _PAGE_PRESENT) {
-		pte = phys_to_machine(XPADDR(pte)).maddr;
-		pte &= ~(_PAGE_PCD | _PAGE_PWT);
-	}
-
-	return (pte_t){ .pte = pte };
-}
-
-pmd_t xen_make_pmd(unsigned long long pmd)
-{
-	if (pmd & 1)
+	if (pmd & _PAGE_PRESENT)
 		pmd = phys_to_machine(XPADDR(pmd)).maddr;
 
-	return (pmd_t){ pmd };
-}
-
-pgd_t xen_make_pgd(unsigned long long pgd)
-{
-	if (pgd & _PAGE_PRESENT)
-		pgd = phys_to_machine(XPADDR(pgd)).maddr;
-
-	return (pgd_t){ pgd };
+	return native_make_pmd(pmd);
 }
 #else  /* !PAE */
 void xen_set_pte(pte_t *ptep, pte_t pte)
 {
 	*ptep = pte;
-}
-
-unsigned long xen_pte_val(pte_t pte)
-{
-	unsigned long ret = pte.pte_low;
-
-	if (ret & _PAGE_PRESENT)
-		ret = machine_to_phys(XMADDR(ret)).paddr;
-
-	return ret;
-}
-
-unsigned long xen_pgd_val(pgd_t pgd)
-{
-	unsigned long ret = pgd.pgd;
-	if (ret)
-		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
-	return ret;
-}
-
-pte_t xen_make_pte(unsigned long pte)
-{
-	if (pte & _PAGE_PRESENT) {
-		pte = phys_to_machine(XPADDR(pte)).maddr;
-		pte &= ~(_PAGE_PCD | _PAGE_PWT);
-	}
-
-	return (pte_t){ pte };
-}
-
-pgd_t xen_make_pgd(unsigned long pgd)
-{
-	if (pgd & _PAGE_PRESENT)
-		pgd = phys_to_machine(XPADDR(pgd)).maddr;
-
-	return (pgd_t){ pgd };
 }
 #endif	/* CONFIG_X86_PAE */
 

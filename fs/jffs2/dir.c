@@ -86,7 +86,7 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 	dir_f = JFFS2_INODE_INFO(dir_i);
 	c = JFFS2_SB_INFO(dir_i->i_sb);
 
-	down(&dir_f->sem);
+	mutex_lock(&dir_f->sem);
 
 	/* NB: The 2.2 backport will need to explicitly check for '.' and '..' here */
 	for (fd_list = dir_f->dents; fd_list && fd_list->nhash <= target->d_name.hash; fd_list = fd_list->next) {
@@ -99,7 +99,7 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 	}
 	if (fd)
 		ino = fd->ino;
-	up(&dir_f->sem);
+	mutex_unlock(&dir_f->sem);
 	if (ino) {
 		inode = jffs2_iget(dir_i->i_sb, ino);
 		if (IS_ERR(inode)) {
@@ -146,7 +146,7 @@ static int jffs2_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	}
 
 	curofs=1;
-	down(&f->sem);
+	mutex_lock(&f->sem);
 	for (fd = f->dents; fd; fd = fd->next) {
 
 		curofs++;
@@ -166,7 +166,7 @@ static int jffs2_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			break;
 		offset++;
 	}
-	up(&f->sem);
+	mutex_unlock(&f->sem);
  out:
 	filp->f_pos = offset;
 	return 0;
@@ -275,9 +275,9 @@ static int jffs2_link (struct dentry *old_dentry, struct inode *dir_i, struct de
 	ret = jffs2_do_link(c, dir_f, f->inocache->ino, type, dentry->d_name.name, dentry->d_name.len, now);
 
 	if (!ret) {
-		down(&f->sem);
+		mutex_lock(&f->sem);
 		old_dentry->d_inode->i_nlink = ++f->inocache->nlink;
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		d_instantiate(dentry, old_dentry->d_inode);
 		dir_i->i_mtime = dir_i->i_ctime = ITIME(now);
 		atomic_inc(&old_dentry->d_inode->i_count);
@@ -351,7 +351,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 
 	if (IS_ERR(fn)) {
 		/* Eeek. Wave bye bye */
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		jffs2_complete_reservation(c);
 		jffs2_clear_inode(inode);
 		return PTR_ERR(fn);
@@ -361,7 +361,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	f->target = kmalloc(targetlen + 1, GFP_KERNEL);
 	if (!f->target) {
 		printk(KERN_WARNING "Can't allocate %d bytes of memory\n", targetlen + 1);
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		jffs2_complete_reservation(c);
 		jffs2_clear_inode(inode);
 		return -ENOMEM;
@@ -374,7 +374,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	   obsoleted by the first data write
 	*/
 	f->metadata = fn;
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 
 	jffs2_complete_reservation(c);
 
@@ -406,7 +406,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	}
 
 	dir_f = JFFS2_INODE_INFO(dir_i);
-	down(&dir_f->sem);
+	mutex_lock(&dir_f->sem);
 
 	rd->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	rd->nodetype = cpu_to_je16(JFFS2_NODETYPE_DIRENT);
@@ -429,7 +429,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 		   as if it were the final unlink() */
 		jffs2_complete_reservation(c);
 		jffs2_free_raw_dirent(rd);
-		up(&dir_f->sem);
+		mutex_unlock(&dir_f->sem);
 		jffs2_clear_inode(inode);
 		return PTR_ERR(fd);
 	}
@@ -442,7 +442,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	   one if necessary. */
 	jffs2_add_fd_to_list(c, fd, &dir_f->dents);
 
-	up(&dir_f->sem);
+	mutex_unlock(&dir_f->sem);
 	jffs2_complete_reservation(c);
 
 	d_instantiate(dentry, inode);
@@ -507,7 +507,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 
 	if (IS_ERR(fn)) {
 		/* Eeek. Wave bye bye */
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		jffs2_complete_reservation(c);
 		jffs2_clear_inode(inode);
 		return PTR_ERR(fn);
@@ -516,7 +516,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	   obsoleted by the first data write
 	*/
 	f->metadata = fn;
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 
 	jffs2_complete_reservation(c);
 
@@ -548,7 +548,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	}
 
 	dir_f = JFFS2_INODE_INFO(dir_i);
-	down(&dir_f->sem);
+	mutex_lock(&dir_f->sem);
 
 	rd->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	rd->nodetype = cpu_to_je16(JFFS2_NODETYPE_DIRENT);
@@ -571,7 +571,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 		   as if it were the final unlink() */
 		jffs2_complete_reservation(c);
 		jffs2_free_raw_dirent(rd);
-		up(&dir_f->sem);
+		mutex_unlock(&dir_f->sem);
 		jffs2_clear_inode(inode);
 		return PTR_ERR(fd);
 	}
@@ -585,7 +585,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	   one if necessary. */
 	jffs2_add_fd_to_list(c, fd, &dir_f->dents);
 
-	up(&dir_f->sem);
+	mutex_unlock(&dir_f->sem);
 	jffs2_complete_reservation(c);
 
 	d_instantiate(dentry, inode);
@@ -673,7 +673,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 
 	if (IS_ERR(fn)) {
 		/* Eeek. Wave bye bye */
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		jffs2_complete_reservation(c);
 		jffs2_clear_inode(inode);
 		return PTR_ERR(fn);
@@ -682,7 +682,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	   obsoleted by the first data write
 	*/
 	f->metadata = fn;
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 
 	jffs2_complete_reservation(c);
 
@@ -714,7 +714,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	}
 
 	dir_f = JFFS2_INODE_INFO(dir_i);
-	down(&dir_f->sem);
+	mutex_lock(&dir_f->sem);
 
 	rd->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	rd->nodetype = cpu_to_je16(JFFS2_NODETYPE_DIRENT);
@@ -740,7 +740,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 		   as if it were the final unlink() */
 		jffs2_complete_reservation(c);
 		jffs2_free_raw_dirent(rd);
-		up(&dir_f->sem);
+		mutex_unlock(&dir_f->sem);
 		jffs2_clear_inode(inode);
 		return PTR_ERR(fd);
 	}
@@ -753,7 +753,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	   one if necessary. */
 	jffs2_add_fd_to_list(c, fd, &dir_f->dents);
 
-	up(&dir_f->sem);
+	mutex_unlock(&dir_f->sem);
 	jffs2_complete_reservation(c);
 
 	d_instantiate(dentry, inode);
@@ -780,14 +780,14 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 		if (S_ISDIR(new_dentry->d_inode->i_mode)) {
 			struct jffs2_full_dirent *fd;
 
-			down(&victim_f->sem);
+			mutex_lock(&victim_f->sem);
 			for (fd = victim_f->dents; fd; fd = fd->next) {
 				if (fd->ino) {
-					up(&victim_f->sem);
+					mutex_unlock(&victim_f->sem);
 					return -ENOTEMPTY;
 				}
 			}
-			up(&victim_f->sem);
+			mutex_unlock(&victim_f->sem);
 		}
 	}
 
@@ -816,9 +816,9 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 		/* Don't oops if the victim was a dirent pointing to an
 		   inode which didn't exist. */
 		if (victim_f->inocache) {
-			down(&victim_f->sem);
+			mutex_lock(&victim_f->sem);
 			victim_f->inocache->nlink--;
-			up(&victim_f->sem);
+			mutex_unlock(&victim_f->sem);
 		}
 	}
 
@@ -836,11 +836,11 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 	if (ret) {
 		/* Oh shit. We really ought to make a single node which can do both atomically */
 		struct jffs2_inode_info *f = JFFS2_INODE_INFO(old_dentry->d_inode);
-		down(&f->sem);
+		mutex_lock(&f->sem);
 		inc_nlink(old_dentry->d_inode);
 		if (f->inocache)
 			f->inocache->nlink++;
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 
 		printk(KERN_NOTICE "jffs2_rename(): Link succeeded, unlink failed (err %d). You now have a hard link\n", ret);
 		/* Might as well let the VFS know */
