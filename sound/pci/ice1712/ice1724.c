@@ -2443,12 +2443,10 @@ static int __devinit snd_vt1724_probe(struct pci_dev *pci,
 			outb(inb(ICEREG1724(ice, IRQMASK)) &
 			     ~(VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX),
 			     ICEREG1724(ice, IRQMASK));
-#if 0 /* for testing */
 			/* set watermarks */
 			outb(VT1724_MPU_RX_FIFO | 0x1,
 			     ICEREG1724(ice, MPU_FIFO_WM));
 			outb(0x1, ICEREG1724(ice, MPU_FIFO_WM));
-#endif
 		}
 	}
 
