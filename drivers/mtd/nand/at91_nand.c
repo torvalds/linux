@@ -199,7 +199,7 @@ static int at91_nand_calculate(struct mtd_info *mtd,
 	unsigned int ecc_value;
 
 	/* get the first 2 ECC bytes */
-	ecc_value = ecc_readl(host->ecc, PR) & AT91_ECC_PARITY;
+	ecc_value = ecc_readl(host->ecc, PR);
 
 	ecc_code[eccpos[0]] = ecc_value & 0xFF;
 	ecc_code[eccpos[1]] = (ecc_value >> 8) & 0xFF;
