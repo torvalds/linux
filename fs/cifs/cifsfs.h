@@ -110,5 +110,5 @@ extern int cifs_ioctl(struct inode *inode, struct file *filep,
 extern const struct export_operations cifs_export_ops;
 #endif /* EXPERIMENTAL */
 
-#define CIFS_VERSION   "1.52"
+#define CIFS_VERSION   "1.53"
 #endif				/* _CIFSFS_H */
