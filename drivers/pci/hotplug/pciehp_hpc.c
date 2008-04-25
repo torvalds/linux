@@ -954,7 +954,7 @@ static struct hpc_ops pciehp_hpc_ops = {
 };
 
 #ifdef CONFIG_ACPI
-int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
+static int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 {
 	acpi_status status;
 	acpi_handle chandle, handle = DEVICE_ACPI_HANDLE(&(dev->dev));
