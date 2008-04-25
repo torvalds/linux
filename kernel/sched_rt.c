@@ -1309,7 +1309,7 @@ static void set_curr_task_rt(struct rq *rq)
 	p->se.exec_start = rq->clock;
 }
 
-const struct sched_class rt_sched_class = {
+static const struct sched_class rt_sched_class = {
 	.next			= &fair_sched_class,
 	.enqueue_task		= enqueue_task_rt,
 	.dequeue_task		= dequeue_task_rt,
