@@ -18,10 +18,10 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/log2.h>
+#include <linux/dm-kcopyd.h>
 
 #include "dm-snap.h"
 #include "dm-bio-list.h"
-#include "kcopyd.h"
 
 #define DM_MSG_PREFIX "snapshots"
 
@@ -36,9 +36,9 @@
 #define SNAPSHOT_COPY_PRIORITY 2
 
 /*
- * Each snapshot reserves this many pages for io
+ * Reserve 1MB for each snapshot initially (with minimum of 1 page).
  */
-#define SNAPSHOT_PAGES 256
+#define SNAPSHOT_PAGES (((1UL << 20) >> PAGE_SHIFT) ? : 1)
 
 static struct workqueue_struct *ksnapd;
 static void flush_queued_bios(struct work_struct *work);
@@ -536,7 +536,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	s->last_percent = 0;
 	init_rwsem(&s->lock);
 	spin_lock_init(&s->pe_lock);
-	s->table = ti->table;
+	s->ti = ti;
 
 	/* Allocate hash table for COW data */
 	if (init_hash_tables(s)) {
@@ -558,7 +558,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad4;
 	}
 
-	r = kcopyd_client_create(SNAPSHOT_PAGES, &s->kcopyd_client);
+	r = dm_kcopyd_client_create(SNAPSHOT_PAGES, &s->kcopyd_client);
 	if (r) {
 		ti->error = "Could not create kcopyd client";
 		goto bad5;
@@ -591,7 +591,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	return 0;
 
  bad6:
-	kcopyd_client_destroy(s->kcopyd_client);
+	dm_kcopyd_client_destroy(s->kcopyd_client);
 
  bad5:
 	s->store.destroy(&s->store);
@@ -613,7 +613,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 static void __free_exceptions(struct dm_snapshot *s)
 {
-	kcopyd_client_destroy(s->kcopyd_client);
+	dm_kcopyd_client_destroy(s->kcopyd_client);
 	s->kcopyd_client = NULL;
 
 	exit_exception_table(&s->pending, pending_cache);
@@ -699,7 +699,7 @@ static void __invalidate_snapshot(struct dm_snapshot *s, int err)
 
 	s->valid = 0;
 
-	dm_table_event(s->table);
+	dm_table_event(s->ti->table);
 }
 
 static void get_pending_exception(struct dm_snap_pending_exception *pe)
@@ -824,7 +824,7 @@ static void copy_callback(int read_err, unsigned long write_err, void *context)
 static void start_copy(struct dm_snap_pending_exception *pe)
 {
 	struct dm_snapshot *s = pe->snap;
-	struct io_region src, dest;
+	struct dm_io_region src, dest;
 	struct block_device *bdev = s->origin->bdev;
 	sector_t dev_size;
 
@@ -839,7 +839,7 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 	dest.count = src.count;
 
 	/* Hand over to kcopyd */
-	kcopyd_copy(s->kcopyd_client,
+	dm_kcopyd_copy(s->kcopyd_client,
 		    &src, 1, &dest, 0, copy_callback, pe);
 }
 
@@ -1060,7 +1060,7 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 			goto next_snapshot;
 
 		/* Nothing to do if writing beyond end of snapshot */
-		if (bio->bi_sector >= dm_table_get_size(snap->table))
+		if (bio->bi_sector >= dm_table_get_size(snap->ti->table))
 			goto next_snapshot;
 
 		/*

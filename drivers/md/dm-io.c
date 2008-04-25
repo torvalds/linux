@@ -5,13 +5,14 @@
  * This file is released under the GPL.
  */
 
-#include "dm-io.h"
+#include "dm.h"
 
 #include <linux/bio.h>
 #include <linux/mempool.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/dm-io.h>
 
 struct dm_io_client {
 	mempool_t *pool;
@@ -20,7 +21,7 @@ struct dm_io_client {
 
 /* FIXME: can we shrink this ? */
 struct io {
-	unsigned long error;
+	unsigned long error_bits;
 	atomic_t count;
 	struct task_struct *sleeper;
 	struct dm_io_client *client;
@@ -107,14 +108,14 @@ static inline unsigned bio_get_region(struct bio *bio)
 static void dec_count(struct io *io, unsigned int region, int error)
 {
 	if (error)
-		set_bit(region, &io->error);
+		set_bit(region, &io->error_bits);
 
 	if (atomic_dec_and_test(&io->count)) {
 		if (io->sleeper)
 			wake_up_process(io->sleeper);
 
 		else {
-			unsigned long r = io->error;
+			unsigned long r = io->error_bits;
 			io_notify_fn fn = io->callback;
 			void *context = io->context;
 
@@ -271,7 +272,7 @@ static void km_dp_init(struct dpages *dp, void *data)
 /*-----------------------------------------------------------------
  * IO routines that accept a list of pages.
  *---------------------------------------------------------------*/
-static void do_region(int rw, unsigned int region, struct io_region *where,
+static void do_region(int rw, unsigned region, struct dm_io_region *where,
 		      struct dpages *dp, struct io *io)
 {
 	struct bio *bio;
@@ -320,7 +321,7 @@ static void do_region(int rw, unsigned int region, struct io_region *where,
 }
 
 static void dispatch_io(int rw, unsigned int num_regions,
-			struct io_region *where, struct dpages *dp,
+			struct dm_io_region *where, struct dpages *dp,
 			struct io *io, int sync)
 {
 	int i;
@@ -347,17 +348,17 @@ static void dispatch_io(int rw, unsigned int num_regions,
 }
 
 static int sync_io(struct dm_io_client *client, unsigned int num_regions,
-		   struct io_region *where, int rw, struct dpages *dp,
+		   struct dm_io_region *where, int rw, struct dpages *dp,
 		   unsigned long *error_bits)
 {
 	struct io io;
 
-	if (num_regions > 1 && rw != WRITE) {
+	if (num_regions > 1 && (rw & RW_MASK) != WRITE) {
 		WARN_ON(1);
 		return -EIO;
 	}
 
-	io.error = 0;
+	io.error_bits = 0;
 	atomic_set(&io.count, 1); /* see dispatch_io() */
 	io.sleeper = current;
 	io.client = client;
@@ -378,25 +379,25 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 		return -EINTR;
 
 	if (error_bits)
-		*error_bits = io.error;
+		*error_bits = io.error_bits;
 
-	return io.error ? -EIO : 0;
+	return io.error_bits ? -EIO : 0;
 }
 
 static int async_io(struct dm_io_client *client, unsigned int num_regions,
-		    struct io_region *where, int rw, struct dpages *dp,
+		    struct dm_io_region *where, int rw, struct dpages *dp,
 		    io_notify_fn fn, void *context)
 {
 	struct io *io;
 
-	if (num_regions > 1 && rw != WRITE) {
+	if (num_regions > 1 && (rw & RW_MASK) != WRITE) {
 		WARN_ON(1);
 		fn(1, context);
 		return -EIO;
 	}
 
 	io = mempool_alloc(client->pool, GFP_NOIO);
-	io->error = 0;
+	io->error_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
 	io->sleeper = NULL;
 	io->client = client;
@@ -435,10 +436,15 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp)
 }
 
 /*
- * New collapsed (a)synchronous interface
+ * New collapsed (a)synchronous interface.
+ *
+ * If the IO is asynchronous (i.e. it has notify.fn), you must either unplug
+ * the queue with blk_unplug() some time later or set the BIO_RW_SYNC bit in
+ * io_req->bi_rw. If you fail to do one of these, the IO will be submitted to
+ * the disk after q->unplug_delay, which defaults to 3ms in blk-settings.c.
  */
 int dm_io(struct dm_io_request *io_req, unsigned num_regions,
-	  struct io_region *where, unsigned long *sync_error_bits)
+	  struct dm_io_region *where, unsigned long *sync_error_bits)
 {
 	int r;
 	struct dpages dp;
