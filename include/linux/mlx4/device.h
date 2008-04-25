@@ -234,6 +234,12 @@ struct mlx4_db {
 	int			order;
 };
 
+struct mlx4_hwq_resources {
+	struct mlx4_db		db;
+	struct mlx4_mtt		mtt;
+	struct mlx4_buf		buf;
+};
+
 struct mlx4_mr {
 	struct mlx4_mtt		mtt;
 	u64			iova;
@@ -369,6 +375,11 @@ int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 
 int mlx4_db_alloc(struct mlx4_dev *dev, struct mlx4_db *db, int order);
 void mlx4_db_free(struct mlx4_dev *dev, struct mlx4_db *db);
+
+int mlx4_alloc_hwq_res(struct mlx4_dev *dev, struct mlx4_hwq_resources *wqres,
+		       int size, int max_direct);
+void mlx4_free_hwq_res(struct mlx4_dev *mdev, struct mlx4_hwq_resources *wqres,
+		       int size);
 
 int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
 		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq);
