@@ -39,6 +39,7 @@
 int shpchp_debug;
 int shpchp_poll_mode;
 int shpchp_poll_time;
+int shpchp_slot_with_bus;
 struct workqueue_struct *shpchp_wq;
 
 #define DRIVER_VERSION	"0.4"
@@ -52,9 +53,11 @@ MODULE_LICENSE("GPL");
 module_param(shpchp_debug, bool, 0644);
 module_param(shpchp_poll_mode, bool, 0644);
 module_param(shpchp_poll_time, int, 0644);
+module_param(shpchp_slot_with_bus, bool, 0644);
 MODULE_PARM_DESC(shpchp_debug, "Debugging mode enabled or not");
 MODULE_PARM_DESC(shpchp_poll_mode, "Using polling mechanism for hot-plug events or not");
 MODULE_PARM_DESC(shpchp_poll_time, "Polling mechanism frequency, in seconds");
+MODULE_PARM_DESC(shpchp_slot_with_bus, "Use bus number in the slot name");
 
 #define SHPC_MODULE_NAME "shpchp"
 
@@ -100,8 +103,12 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 
 static void make_slot_name(struct slot *slot)
 {
-	snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%04d_%04d",
-		 slot->bus, slot->number);
+	if (shpchp_slot_with_bus)
+		snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%04d_%04d",
+			 slot->bus, slot->number);
+	else
+		snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%d",
+			 slot->number);
 }
 
 static int init_slots(struct controller *ctrl)
