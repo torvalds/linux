@@ -42,14 +42,12 @@
 #include <linux/console.h>
 #include <linux/platform_device.h>
 #include <linux/serial_sci.h>
-
-#ifdef CONFIG_CPU_FREQ
 #include <linux/notifier.h>
 #include <linux/cpufreq.h>
-#endif
-
-#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+#include <linux/clk.h>
 #include <linux/ctype.h>
+
+#ifdef CONFIG_SUPERH
 #include <asm/clock.h>
 #include <asm/sh_bios.h>
 #include <asm/kgdb.h>
@@ -80,7 +78,7 @@ struct sci_port {
 	struct timer_list	break_timer;
 	int			break_flag;
 
-#if defined(CONFIG_SUPERH) && !defined(CONFIG_SUPERH64)
+#ifdef CONFIG_SUPERH
 	/* Port clock */
 	struct clk		*clk;
 #endif
