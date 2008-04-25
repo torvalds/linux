@@ -2429,6 +2429,7 @@ static int __devinit snd_vt1724_probe(struct pci_dev *pci,
 			if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,
 						       ICEREG1724(ice, MPU_CTRL),
 						       (MPU401_INFO_INTEGRATED |
+							MPU401_INFO_NO_ACK |
 							MPU401_INFO_TX_IRQ),
 						       ice->irq, 0,
 						       &ice->rmidi[0])) < 0) {
