@@ -41,6 +41,7 @@ int pciehp_debug;
 int pciehp_poll_mode;
 int pciehp_poll_time;
 int pciehp_force;
+int pciehp_slot_with_bus;
 struct workqueue_struct *pciehp_wq;
 
 #define DRIVER_VERSION	"0.4"
@@ -55,10 +56,12 @@ module_param(pciehp_debug, bool, 0644);
 module_param(pciehp_poll_mode, bool, 0644);
 module_param(pciehp_poll_time, int, 0644);
 module_param(pciehp_force, bool, 0644);
+module_param(pciehp_slot_with_bus, bool, 0644);
 MODULE_PARM_DESC(pciehp_debug, "Debugging mode enabled or not");
 MODULE_PARM_DESC(pciehp_poll_mode, "Using polling mechanism for hot-plug events or not");
 MODULE_PARM_DESC(pciehp_poll_time, "Polling mechanism frequency, in seconds");
 MODULE_PARM_DESC(pciehp_force, "Force pciehp, even if _OSC and OSHP are missing");
+MODULE_PARM_DESC(pciehp_slot_with_bus, "Use bus number in the slot name");
 
 #define PCIE_MODULE_NAME "pciehp"
 
@@ -193,8 +196,12 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 
 static void make_slot_name(struct slot *slot)
 {
-	snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%04d_%04d",
-		 slot->bus, slot->number);
+	if (pciehp_slot_with_bus)
+		snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%04d_%04d",
+			 slot->bus, slot->number);
+	else
+		snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%d",
+			 slot->number);
 }
 
 static int init_slots(struct controller *ctrl)
