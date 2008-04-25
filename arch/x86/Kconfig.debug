@@ -5,6 +5,17 @@ config TRACE_IRQFLAGS_SUPPORT
 
 source "lib/Kconfig.debug"
 
+config NONPROMISC_DEVMEM
+	bool "Disable promiscuous /dev/mem"
+	help
+	  The /dev/mem file by default only allows userspace access to PCI
+	  space and the BIOS code and data regions. This is sufficient for
+	  dosemu and X and all common users of /dev/mem. With this config
+	  option, you allow userspace access to all of memory, including
+	  kernel and userspace memory. Accidental access to this is
+	  obviously disasterous, but specific access can be used by people
+	  debugging the kernel.
+
 config EARLY_PRINTK
 	bool "Early printk" if EMBEDDED
 	default y
