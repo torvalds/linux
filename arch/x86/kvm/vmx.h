@@ -351,5 +351,6 @@ enum vmcs_field {
 #define VMX_EPT_EXTENT_INDIVIDUAL_BIT		(1ull << 24)
 #define VMX_EPT_EXTENT_CONTEXT_BIT		(1ull << 25)
 #define VMX_EPT_EXTENT_GLOBAL_BIT		(1ull << 26)
+#define VMX_EPT_DEFAULT_GAW			3
 
 #endif

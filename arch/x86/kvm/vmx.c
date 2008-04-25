@@ -2788,6 +2788,11 @@ static void __init vmx_check_processor_compat(void *rtn)
 	}
 }
 
+static int get_ept_level(void)
+{
+	return VMX_EPT_DEFAULT_GAW + 1;
+}
+
 static struct kvm_x86_ops vmx_x86_ops = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
@@ -2844,6 +2849,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.inject_pending_vectors = do_interrupt_requests,
 
 	.set_tss_addr = vmx_set_tss_addr,
+	.get_tdp_level = get_ept_level,
 };
 
 static int __init vmx_init(void)

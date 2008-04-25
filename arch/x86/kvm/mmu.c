@@ -1343,7 +1343,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 	spin_lock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_free_some_pages(vcpu);
 	r = __direct_map(vcpu, gpa, error_code & PFERR_WRITE_MASK,
-			 largepage, gfn, pfn, TDP_ROOT_LEVEL);
+			 largepage, gfn, pfn, kvm_x86_ops->get_tdp_level());
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 	return r;
@@ -1450,7 +1450,7 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->page_fault = tdp_page_fault;
 	context->free = nonpaging_free;
 	context->prefetch_page = nonpaging_prefetch_page;
-	context->shadow_root_level = TDP_ROOT_LEVEL;
+	context->shadow_root_level = kvm_x86_ops->get_tdp_level();
 	context->root_hpa = INVALID_PAGE;
 
 	if (!is_paging(vcpu)) {

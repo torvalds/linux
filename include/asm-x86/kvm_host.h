@@ -422,6 +422,7 @@ struct kvm_x86_ops {
 				       struct kvm_run *run);
 
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
+	int (*get_tdp_level)(void);
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;

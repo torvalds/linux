@@ -3,12 +3,6 @@
 
 #include <linux/kvm_host.h>
 
-#ifdef CONFIG_X86_64
-#define TDP_ROOT_LEVEL PT64_ROOT_LEVEL
-#else
-#define TDP_ROOT_LEVEL PT32E_ROOT_LEVEL
-#endif
-
 #define PT64_PT_BITS 9
 #define PT64_ENT_PER_PAGE (1 << PT64_PT_BITS)
 #define PT32_PT_BITS 10
