@@ -2322,11 +2322,6 @@ void b43_mac_enable(struct b43_wldev *dev)
 		b43_read32(dev, B43_MMIO_MACCTL);
 		b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);
 		b43_power_saving_ctl_bits(dev, 0);
-
-		/* Re-enable IRQs. */
-		spin_lock_irq(&dev->wl->irq_lock);
-		b43_interrupt_enable(dev, dev->irq_savedstate);
-		spin_unlock_irq(&dev->wl->irq_lock);
 	}
 }
 
@@ -2340,14 +2335,6 @@ void b43_mac_suspend(struct b43_wldev *dev)
 	B43_WARN_ON(dev->mac_suspended < 0);
 
 	if (dev->mac_suspended == 0) {
-		/* Mask IRQs before suspending MAC. Otherwise
-		 * the MAC stays busy and won't suspend. */
-		spin_lock_irq(&dev->wl->irq_lock);
-		tmp = b43_interrupt_disable(dev, B43_IRQ_ALL);
-		spin_unlock_irq(&dev->wl->irq_lock);
-		b43_synchronize_irq(dev);
-		dev->irq_savedstate = tmp;
-
 		b43_power_saving_ctl_bits(dev, B43_PS_AWAKE);
 		b43_write32(dev, B43_MMIO_MACCTL,
 			    b43_read32(dev, B43_MMIO_MACCTL)
