@@ -314,6 +314,9 @@ struct kvm_arch{
 	struct page *apic_access_page;
 
 	gpa_t wall_clock;
+
+	struct page *ept_identity_pagetable;
+	bool ept_identity_pagetable_done;
 };
 
 struct kvm_vm_stat {
