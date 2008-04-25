@@ -1677,6 +1677,16 @@ config MAC_SCSI
 	  SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
+config SCSI_MAC_ESP
+	tristate "Macintosh NCR53c9[46] SCSI"
+	depends on MAC && SCSI
+	help
+	  This is the NCR 53c9x SCSI controller found on most of the 68040
+	  based Macintoshes.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mac_esp.
+
 config MVME147_SCSI
 	bool "WD33C93 SCSI driver for MVME147"
 	depends on MVME147 && SCSI=y
