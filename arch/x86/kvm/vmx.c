@@ -42,6 +42,9 @@ module_param(enable_vpid, bool, 0);
 static int flexpriority_enabled = 1;
 module_param(flexpriority_enabled, bool, 0);
 
+static int enable_ept;
+module_param(enable_ept, bool, 0);
+
 struct vmcs {
 	u32 revision_id;
 	u32 abort;
@@ -106,6 +109,11 @@ static struct vmcs_config {
 	u32 vmexit_ctrl;
 	u32 vmentry_ctrl;
 } vmcs_config;
+
+struct vmx_capability {
+	u32 ept;
+	u32 vpid;
+} vmx_capability;
 
 #define VMX_SEGMENT_FIELD(seg)					\
 	[VCPU_SREG_##seg] = {                                   \
@@ -212,6 +220,32 @@ static inline bool cpu_has_vmx_virtualize_apic_accesses(void)
 	return flexpriority_enabled
 		&& (vmcs_config.cpu_based_2nd_exec_ctrl &
 		    SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
+}
+
+static inline int cpu_has_vmx_invept_individual_addr(void)
+{
+	return (!!(vmx_capability.ept & VMX_EPT_EXTENT_INDIVIDUAL_BIT));
+}
+
+static inline int cpu_has_vmx_invept_context(void)
+{
+	return (!!(vmx_capability.ept & VMX_EPT_EXTENT_CONTEXT_BIT));
+}
+
+static inline int cpu_has_vmx_invept_global(void)
+{
+	return (!!(vmx_capability.ept & VMX_EPT_EXTENT_GLOBAL_BIT));
+}
+
+static inline int cpu_has_vmx_ept(void)
+{
+	return (vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_ENABLE_EPT);
+}
+
+static inline int vm_need_ept(void)
+{
+	return (cpu_has_vmx_ept() && enable_ept);
 }
 
 static inline int vm_need_virtualize_apic_accesses(struct kvm *kvm)
@@ -985,7 +1019,7 @@ static __init int adjust_vmx_controls(u32 ctl_min, u32 ctl_opt,
 static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 {
 	u32 vmx_msr_low, vmx_msr_high;
-	u32 min, opt;
+	u32 min, opt, min2, opt2;
 	u32 _pin_based_exec_control = 0;
 	u32 _cpu_based_exec_control = 0;
 	u32 _cpu_based_2nd_exec_control = 0;
@@ -1003,6 +1037,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	      CPU_BASED_CR8_LOAD_EXITING |
 	      CPU_BASED_CR8_STORE_EXITING |
 #endif
+	      CPU_BASED_CR3_LOAD_EXITING |
+	      CPU_BASED_CR3_STORE_EXITING |
 	      CPU_BASED_USE_IO_BITMAPS |
 	      CPU_BASED_MOV_DR_EXITING |
 	      CPU_BASED_USE_TSC_OFFSETING;
@@ -1018,11 +1054,13 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 					   ~CPU_BASED_CR8_STORE_EXITING;
 #endif
 	if (_cpu_based_exec_control & CPU_BASED_ACTIVATE_SECONDARY_CONTROLS) {
-		min = 0;
-		opt = SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
+		min2 = 0;
+		opt2 = SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 			SECONDARY_EXEC_WBINVD_EXITING |
-			SECONDARY_EXEC_ENABLE_VPID;
-		if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PROCBASED_CTLS2,
+			SECONDARY_EXEC_ENABLE_VPID |
+			SECONDARY_EXEC_ENABLE_EPT;
+		if (adjust_vmx_controls(min2, opt2,
+					MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
 			return -EIO;
 	}
@@ -1031,6 +1069,16 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 				SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
 		_cpu_based_exec_control &= ~CPU_BASED_TPR_SHADOW;
 #endif
+	if (_cpu_based_2nd_exec_control & SECONDARY_EXEC_ENABLE_EPT) {
+		/* CR3 accesses don't need to cause VM Exits when EPT enabled */
+		min &= ~(CPU_BASED_CR3_LOAD_EXITING |
+			 CPU_BASED_CR3_STORE_EXITING);
+		if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PROCBASED_CTLS,
+					&_cpu_based_exec_control) < 0)
+			return -EIO;
+		rdmsr(MSR_IA32_VMX_EPT_VPID_CAP,
+		      vmx_capability.ept, vmx_capability.vpid);
+	}
 
 	min = 0;
 #ifdef CONFIG_X86_64
@@ -1638,6 +1686,9 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 				CPU_BASED_CR8_LOAD_EXITING;
 #endif
 	}
+	if (!vm_need_ept())
+		exec_control |= CPU_BASED_CR3_STORE_EXITING |
+				CPU_BASED_CR3_LOAD_EXITING;
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, exec_control);
 
 	if (cpu_has_secondary_exec_ctrls()) {
@@ -1647,6 +1698,8 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 				~SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
 		if (vmx->vpid == 0)
 			exec_control &= ~SECONDARY_EXEC_ENABLE_VPID;
+		if (!vm_need_ept())
+			exec_control &= ~SECONDARY_EXEC_ENABLE_EPT;
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
 	}
 
