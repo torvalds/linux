@@ -317,7 +317,7 @@ struct sys_timer orion5x_timer = {
  ****************************************************************************/
 
 /*
- * Identify device ID and rev from PCIE configuration header space '0'.
+ * Identify device ID and rev from PCIe configuration header space '0'.
  */
 static void __init orion5x_id(u32 *dev, u32 *rev, char **dev_name)
 {

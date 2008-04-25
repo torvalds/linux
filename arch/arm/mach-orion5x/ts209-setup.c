@@ -376,7 +376,7 @@ static void __init qnap_ts209_init(void)
 			    QNAP_TS209_NOR_BOOT_SIZE);
 
 	/*
-	 * Open a special address decode windows for the PCIE WA.
+	 * Open a special address decode windows for the PCIe WA.
 	 */
 	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
 				ORION5X_PCIE_WA_SIZE);

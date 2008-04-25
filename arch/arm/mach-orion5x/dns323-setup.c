@@ -258,9 +258,9 @@ static void __init dns323_init(void)
 	 */
 	orion5x_setup_dev_boot_win(DNS323_NOR_BOOT_BASE, DNS323_NOR_BOOT_SIZE);
 
-	/* DNS-323 has a Marvell 88X7042 SATA controller attached via PCIE
+	/* DNS-323 has a Marvell 88X7042 SATA controller attached via PCIe
 	 *
-	 * Open a special address decode windows for the PCIE WA.
+	 * Open a special address decode windows for the PCIe WA.
 	 */
 	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
 				ORION5X_PCIE_WA_SIZE);
