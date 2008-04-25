@@ -14,7 +14,6 @@ unsigned long blk_max_low_pfn;
 EXPORT_SYMBOL(blk_max_low_pfn);
 
 unsigned long blk_max_pfn;
-EXPORT_SYMBOL(blk_max_pfn);
 
 /**
  * blk_queue_prep_rq - set a prepare_request function for queue
