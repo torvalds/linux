@@ -167,7 +167,7 @@ config IPV6_SIT
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
 	  encapsulating protocol. This driver implements encapsulation of IPv6
-	  into IPv4 packets. This is useful if you want to connect two IPv6
+	  into IPv4 packets. This is useful if you want to connect to IPv6
 	  networks over an IPv4-only path.
 
 	  Saying M here will produce a module called sit.ko. If unsure, say Y.
