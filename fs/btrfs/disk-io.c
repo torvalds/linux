@@ -818,6 +818,10 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 		return fs_info->tree_root;
 	if (location->objectid == BTRFS_EXTENT_TREE_OBJECTID)
 		return fs_info->extent_root;
+	if (location->objectid == BTRFS_CHUNK_TREE_OBJECTID)
+		return fs_info->chunk_root;
+	if (location->objectid == BTRFS_DEV_TREE_OBJECTID)
+		return fs_info->dev_root;
 
 	root = radix_tree_lookup(&fs_info->fs_roots_radix,
 				 (unsigned long)location->objectid);

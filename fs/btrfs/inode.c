@@ -16,6 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/kernel.h>
 #include <linux/bio.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
@@ -2887,9 +2888,12 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 {
 	u64 new_size;
 	u64 old_size;
+	u64 devid = 1;
 	struct btrfs_ioctl_vol_args *vol_args;
 	struct btrfs_trans_handle *trans;
+	struct btrfs_device *device = NULL;
 	char *sizestr;
+	char *devstr = NULL;
 	int ret = 0;
 	int namelen;
 	int mod = 0;
@@ -2909,9 +2913,25 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 		goto out;
 	}
 
+	mutex_lock(&root->fs_info->fs_mutex);
 	sizestr = vol_args->name;
+	devstr = strchr(sizestr, ':');
+	if (devstr) {
+		char *end;
+		sizestr = devstr + 1;
+		*devstr = '\0';
+		devstr = vol_args->name;
+		devid = simple_strtoull(devstr, &end, 10);
+printk("resizing devid %Lu\n", devid);
+	}
+	device = btrfs_find_device(root, devid, NULL);
+	if (!device) {
+		printk("resizer unable to find device %Lu\n", devid);
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 	if (!strcmp(sizestr, "max"))
-		new_size = root->fs_info->sb->s_bdev->bd_inode->i_size;
+		new_size = device->bdev->bd_inode->i_size;
 	else {
 		if (sizestr[0] == '-') {
 			mod = -1;
@@ -2923,12 +2943,11 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 		new_size = btrfs_parse_size(sizestr);
 		if (new_size == 0) {
 			ret = -EINVAL;
-			goto out;
+			goto out_unlock;
 		}
 	}
 
-	mutex_lock(&root->fs_info->fs_mutex);
-	old_size = btrfs_super_total_bytes(&root->fs_info->super_copy);
+	old_size = device->total_bytes;
 
 	if (mod < 0) {
 		if (new_size > old_size) {
@@ -2944,7 +2963,7 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 		ret = -EINVAL;
 		goto out_unlock;
 	}
-	if (new_size > root->fs_info->sb->s_bdev->bd_inode->i_size) {
+	if (new_size > device->bdev->bd_inode->i_size) {
 		ret = -EFBIG;
 		goto out_unlock;
 	}
@@ -2952,13 +2971,14 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 	do_div(new_size, root->sectorsize);
 	new_size *= root->sectorsize;
 
-printk("new size is %Lu\n", new_size);
+printk("new size for %s is %llu\n", device->name, (unsigned long long)new_size);
+
 	if (new_size > old_size) {
 		trans = btrfs_start_transaction(root, 1);
-		ret = btrfs_grow_extent_tree(trans, root, new_size);
+		ret = btrfs_grow_device(trans, device, new_size);
 		btrfs_commit_transaction(trans, root);
 	} else {
-		ret = btrfs_shrink_extent_tree(root, new_size);
+		ret = btrfs_shrink_device(device, new_size);
 	}
 
 out_unlock:

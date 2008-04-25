@@ -474,6 +474,7 @@ struct btrfs_block_group_cache {
 	u64 pinned;
 	u64 flags;
 	int cached;
+	int ro;
 };
 
 struct btrfs_device;

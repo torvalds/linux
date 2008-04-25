@@ -128,4 +128,9 @@ int btrfs_cleanup_fs_uuids(void);
 int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len);
 int btrfs_unplug_page(struct btrfs_mapping_tree *map_tree,
 		      u64 logical, struct page *page);
+int btrfs_grow_device(struct btrfs_trans_handle *trans,
+		      struct btrfs_device *device, u64 new_size);
+struct btrfs_device *btrfs_find_device(struct btrfs_root *root, u64 devid,
+				       u8 *uuid);
+int btrfs_shrink_device(struct btrfs_device *device, u64 new_size);
 #endif
