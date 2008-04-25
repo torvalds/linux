@@ -320,7 +320,7 @@ static void check_zeroed_page(u32 pfn, int type, struct page *page)
 	 * pdes need to be zeroed.
 	 */
 	if (type & VMI_PAGE_CLONE)
-		limit = USER_PTRS_PER_PGD;
+		limit = KERNEL_PGD_BOUNDARY;
 	for (i = 0; i < limit; i++)
 		BUG_ON(ptr[i]);
 }
@@ -392,13 +392,13 @@ static void *vmi_kmap_atomic_pte(struct page *page, enum km_type type)
 }
 #endif
 
-static void vmi_allocate_pt(struct mm_struct *mm, u32 pfn)
+static void vmi_allocate_pte(struct mm_struct *mm, u32 pfn)
 {
 	vmi_set_page_type(pfn, VMI_PAGE_L1);
 	vmi_ops.allocate_page(pfn, VMI_PAGE_L1, 0, 0, 0);
 }
 
-static void vmi_allocate_pd(struct mm_struct *mm, u32 pfn)
+static void vmi_allocate_pmd(struct mm_struct *mm, u32 pfn)
 {
  	/*
 	 * This call comes in very early, before mem_map is setup.
@@ -409,20 +409,20 @@ static void vmi_allocate_pd(struct mm_struct *mm, u32 pfn)
 	vmi_ops.allocate_page(pfn, VMI_PAGE_L2, 0, 0, 0);
 }
 
-static void vmi_allocate_pd_clone(u32 pfn, u32 clonepfn, u32 start, u32 count)
+static void vmi_allocate_pmd_clone(u32 pfn, u32 clonepfn, u32 start, u32 count)
 {
  	vmi_set_page_type(pfn, VMI_PAGE_L2 | VMI_PAGE_CLONE);
 	vmi_check_page_type(clonepfn, VMI_PAGE_L2);
 	vmi_ops.allocate_page(pfn, VMI_PAGE_L2 | VMI_PAGE_CLONE, clonepfn, start, count);
 }
 
-static void vmi_release_pt(u32 pfn)
+static void vmi_release_pte(u32 pfn)
 {
 	vmi_ops.release_page(pfn, VMI_PAGE_L1);
 	vmi_set_page_type(pfn, VMI_PAGE_NORMAL);
 }
 
-static void vmi_release_pd(u32 pfn)
+static void vmi_release_pmd(u32 pfn)
 {
 	vmi_ops.release_page(pfn, VMI_PAGE_L2);
 	vmi_set_page_type(pfn, VMI_PAGE_NORMAL);
@@ -871,15 +871,15 @@ static inline int __init activate_vmi(void)
 
 	vmi_ops.allocate_page = vmi_get_function(VMI_CALL_AllocatePage);
 	if (vmi_ops.allocate_page) {
-		pv_mmu_ops.alloc_pt = vmi_allocate_pt;
-		pv_mmu_ops.alloc_pd = vmi_allocate_pd;
-		pv_mmu_ops.alloc_pd_clone = vmi_allocate_pd_clone;
+		pv_mmu_ops.alloc_pte = vmi_allocate_pte;
+		pv_mmu_ops.alloc_pmd = vmi_allocate_pmd;
+		pv_mmu_ops.alloc_pmd_clone = vmi_allocate_pmd_clone;
 	}
 
 	vmi_ops.release_page = vmi_get_function(VMI_CALL_ReleasePage);
 	if (vmi_ops.release_page) {
-		pv_mmu_ops.release_pt = vmi_release_pt;
-		pv_mmu_ops.release_pd = vmi_release_pd;
+		pv_mmu_ops.release_pte = vmi_release_pte;
+		pv_mmu_ops.release_pmd = vmi_release_pmd;
 	}
 
 	/* Set linear is needed in all cases */

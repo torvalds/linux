@@ -16,6 +16,7 @@
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
+#include <xen/interface/callback.h>
 #include <xen/interface/physdev.h>
 #include <xen/features.h>
 
@@ -68,6 +69,24 @@ static void __init fiddle_vdso(void)
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
 }
 
+void xen_enable_sysenter(void)
+{
+	int cpu = smp_processor_id();
+	extern void xen_sysenter_target(void);
+	/* Mask events on entry, even though they get enabled immediately */
+	static struct callback_register sysenter = {
+		.type = CALLBACKTYPE_sysenter,
+		.address = { __KERNEL_CS, (unsigned long)xen_sysenter_target },
+		.flags = CALLBACKF_mask_events,
+	};
+
+	if (!boot_cpu_has(X86_FEATURE_SEP) ||
+	    HYPERVISOR_callback_op(CALLBACKOP_register, &sysenter) != 0) {
+		clear_cpu_cap(&cpu_data(cpu), X86_FEATURE_SEP);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_SEP);
+	}
+}
+
 void __init xen_arch_setup(void)
 {
 	struct physdev_set_iopl set_iopl;
@@ -81,6 +100,8 @@ void __init xen_arch_setup(void)
 
 	HYPERVISOR_set_callbacks(__KERNEL_CS, (unsigned long)xen_hypervisor_callback,
 				 __KERNEL_CS, (unsigned long)xen_failsafe_callback);
+
+	xen_enable_sysenter();
 
 	set_iopl.iopl = 1;
 	rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);

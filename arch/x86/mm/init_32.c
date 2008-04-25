@@ -71,7 +71,7 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 	if (!(pgd_val(*pgd) & _PAGE_PRESENT)) {
 		pmd_table = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE);
 
-		paravirt_alloc_pd(&init_mm, __pa(pmd_table) >> PAGE_SHIFT);
+		paravirt_alloc_pmd(&init_mm, __pa(pmd_table) >> PAGE_SHIFT);
 		set_pgd(pgd, __pgd(__pa(pmd_table) | _PAGE_PRESENT));
 		pud = pud_offset(pgd, 0);
 		BUG_ON(pmd_table != pmd_offset(pud, 0));
@@ -100,7 +100,7 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 				(pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
 		}
 
-		paravirt_alloc_pt(&init_mm, __pa(page_table) >> PAGE_SHIFT);
+		paravirt_alloc_pte(&init_mm, __pa(page_table) >> PAGE_SHIFT);
 		set_pmd(pmd, __pmd(__pa(page_table) | _PAGE_TABLE));
 		BUG_ON(page_table != pte_offset_kernel(pmd, 0));
 	}
@@ -365,7 +365,7 @@ void __init native_pagetable_setup_start(pgd_t *base)
 
 		pte_clear(NULL, va, pte);
 	}
-	paravirt_alloc_pd(&init_mm, __pa(base) >> PAGE_SHIFT);
+	paravirt_alloc_pmd(&init_mm, __pa(base) >> PAGE_SHIFT);
 }
 
 void __init native_pagetable_setup_done(pgd_t *base)
@@ -457,7 +457,7 @@ void zap_low_mappings(void)
 	 * Note that "pgd_clear()" doesn't do it for
 	 * us, because pgd_clear() is a no-op on i386.
 	 */
-	for (i = 0; i < USER_PTRS_PER_PGD; i++) {
+	for (i = 0; i < KERNEL_PGD_BOUNDARY; i++) {
 #ifdef CONFIG_X86_PAE
 		set_pgd(swapper_pg_dir+i, __pgd(1 + __pa(empty_zero_page)));
 #else

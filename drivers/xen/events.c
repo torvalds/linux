@@ -33,11 +33,10 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
 
+#include <xen/xen-ops.h>
 #include <xen/events.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/event_channel.h>
-
-#include "xen-ops.h"
 
 /*
  * This lock protects updates to the following mapping and reference-count
@@ -455,6 +454,53 @@ void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector)
 	notify_remote_via_irq(irq);
 }
 
+irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
+{
+	struct shared_info *sh = HYPERVISOR_shared_info;
+	int cpu = smp_processor_id();
+	int i;
+	unsigned long flags;
+	static DEFINE_SPINLOCK(debug_lock);
+
+	spin_lock_irqsave(&debug_lock, flags);
+
+	printk("vcpu %d\n  ", cpu);
+
+	for_each_online_cpu(i) {
+		struct vcpu_info *v = per_cpu(xen_vcpu, i);
+		printk("%d: masked=%d pending=%d event_sel %08lx\n  ", i,
+			(get_irq_regs() && i == cpu) ? xen_irqs_disabled(get_irq_regs()) : v->evtchn_upcall_mask,
+			v->evtchn_upcall_pending,
+			v->evtchn_pending_sel);
+	}
+	printk("pending:\n   ");
+	for(i = ARRAY_SIZE(sh->evtchn_pending)-1; i >= 0; i--)
+		printk("%08lx%s", sh->evtchn_pending[i],
+			i % 8 == 0 ? "\n   " : " ");
+	printk("\nmasks:\n   ");
+	for(i = ARRAY_SIZE(sh->evtchn_mask)-1; i >= 0; i--)
+		printk("%08lx%s", sh->evtchn_mask[i],
+			i % 8 == 0 ? "\n   " : " ");
+
+	printk("\nunmasked:\n   ");
+	for(i = ARRAY_SIZE(sh->evtchn_mask)-1; i >= 0; i--)
+		printk("%08lx%s", sh->evtchn_pending[i] & ~sh->evtchn_mask[i],
+			i % 8 == 0 ? "\n   " : " ");
+
+	printk("\npending list:\n");
+	for(i = 0; i < NR_EVENT_CHANNELS; i++) {
+		if (sync_test_bit(i, sh->evtchn_pending)) {
+			printk("  %d: event %d -> irq %d\n",
+				cpu_evtchn[i], i,
+				evtchn_to_irq[i]);
+		}
+	}
+
+	spin_unlock_irqrestore(&debug_lock, flags);
+
+	return IRQ_HANDLED;
+}
+
 
 /*
  * Search the CPUs pending events bitmasks.  For each one found, map
@@ -470,29 +516,44 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 	int cpu = get_cpu();
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __get_cpu_var(xen_vcpu);
-	unsigned long pending_words;
+	static DEFINE_PER_CPU(unsigned, nesting_count);
+ 	unsigned count;
 
-	vcpu_info->evtchn_upcall_pending = 0;
+	do {
+		unsigned long pending_words;
 
-	/* NB. No need for a barrier here -- XCHG is a barrier on x86. */
-	pending_words = xchg(&vcpu_info->evtchn_pending_sel, 0);
-	while (pending_words != 0) {
-		unsigned long pending_bits;
-		int word_idx = __ffs(pending_words);
-		pending_words &= ~(1UL << word_idx);
+		vcpu_info->evtchn_upcall_pending = 0;
 
-		while ((pending_bits = active_evtchns(cpu, s, word_idx)) != 0) {
-			int bit_idx = __ffs(pending_bits);
-			int port = (word_idx * BITS_PER_LONG) + bit_idx;
-			int irq = evtchn_to_irq[port];
+		if (__get_cpu_var(nesting_count)++)
+			goto out;
 
-			if (irq != -1) {
-				regs->orig_ax = ~irq;
-				do_IRQ(regs);
+#ifndef CONFIG_X86 /* No need for a barrier -- XCHG is a barrier on x86. */
+		/* Clear master flag /before/ clearing selector flag. */
+		rmb();
+#endif
+		pending_words = xchg(&vcpu_info->evtchn_pending_sel, 0);
+		while (pending_words != 0) {
+			unsigned long pending_bits;
+			int word_idx = __ffs(pending_words);
+			pending_words &= ~(1UL << word_idx);
+
+			while ((pending_bits = active_evtchns(cpu, s, word_idx)) != 0) {
+				int bit_idx = __ffs(pending_bits);
+				int port = (word_idx * BITS_PER_LONG) + bit_idx;
+				int irq = evtchn_to_irq[port];
+
+				if (irq != -1)
+					xen_do_IRQ(irq, regs);
 			}
 		}
-	}
 
+		BUG_ON(!irqs_disabled());
+
+		count = __get_cpu_var(nesting_count);
+		__get_cpu_var(nesting_count) = 0;
+	} while(count != 1);
+
+out:
 	put_cpu();
 }
 
@@ -525,6 +586,22 @@ static void set_affinity_irq(unsigned irq, cpumask_t dest)
 	rebind_irq_to_cpu(irq, tcpu);
 }
 
+int resend_irq_on_evtchn(unsigned int irq)
+{
+	int masked, evtchn = evtchn_from_irq(irq);
+	struct shared_info *s = HYPERVISOR_shared_info;
+
+	if (!VALID_EVTCHN(evtchn))
+		return 1;
+
+	masked = sync_test_and_set_bit(evtchn, s->evtchn_mask);
+	sync_set_bit(evtchn, s->evtchn_pending);
+	if (!masked)
+		unmask_evtchn(evtchn);
+
+	return 1;
+}
+
 static void enable_dynirq(unsigned int irq)
 {
 	int evtchn = evtchn_from_irq(irq);
@@ -554,10 +631,16 @@ static void ack_dynirq(unsigned int irq)
 static int retrigger_dynirq(unsigned int irq)
 {
 	int evtchn = evtchn_from_irq(irq);
+	struct shared_info *sh = HYPERVISOR_shared_info;
 	int ret = 0;
 
 	if (VALID_EVTCHN(evtchn)) {
-		set_evtchn(evtchn);
+		int masked;
+
+		masked = sync_test_and_set_bit(evtchn, sh->evtchn_mask);
+		sync_set_bit(evtchn, sh->evtchn_pending);
+		if (!masked)
+			unmask_evtchn(evtchn);
 		ret = 1;
 	}
 

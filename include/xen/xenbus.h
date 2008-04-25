@@ -97,6 +97,7 @@ struct xenbus_driver {
 	int (*uevent)(struct xenbus_device *, char **, int, char *, int);
 	struct device_driver driver;
 	int (*read_otherend_details)(struct xenbus_device *dev);
+	int (*is_ready)(struct xenbus_device *dev);
 };
 
 static inline struct xenbus_driver *to_xenbus_driver(struct device_driver *drv)

@@ -185,6 +185,7 @@ struct gnttab_map_grant_ref {
     grant_handle_t handle;
     uint64_t dev_bus_addr;
 };
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_map_grant_ref);
 
 /*
  * GNTTABOP_unmap_grant_ref: Destroy one or more grant-reference mappings
@@ -206,6 +207,7 @@ struct gnttab_unmap_grant_ref {
     /* OUT parameters. */
     int16_t  status;              /* GNTST_* */
 };
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_unmap_grant_ref);
 
 /*
  * GNTTABOP_setup_table: Set up a grant table for <dom> comprising at least
@@ -223,8 +225,9 @@ struct gnttab_setup_table {
     uint32_t nr_frames;
     /* OUT parameters. */
     int16_t  status;              /* GNTST_* */
-    ulong *frame_list;
+    GUEST_HANDLE(ulong) frame_list;
 };
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_setup_table);
 
 /*
  * GNTTABOP_dump_table: Dump the contents of the grant table to the
@@ -237,6 +240,7 @@ struct gnttab_dump_table {
     /* OUT parameters. */
     int16_t status;               /* GNTST_* */
 };
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_dump_table);
 
 /*
  * GNTTABOP_transfer_grant_ref: Transfer <frame> to a foreign domain. The
@@ -255,7 +259,7 @@ struct gnttab_transfer {
     /* OUT parameters. */
     int16_t       status;
 };
-
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_transfer);
 
 /*
  * GNTTABOP_copy: Hypervisor based copy
@@ -296,6 +300,7 @@ struct gnttab_copy {
 	/* OUT parameters. */
 	int16_t       status;
 };
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_copy);
 
 /*
  * GNTTABOP_query_size: Query the current and maximum sizes of the shared
@@ -313,7 +318,7 @@ struct gnttab_query_size {
     uint32_t max_nr_frames;
     int16_t  status;              /* GNTST_* */
 };
-
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_query_size);
 
 /*
  * Bitfield values for update_pin_status.flags.
