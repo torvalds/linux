@@ -103,6 +103,9 @@ int mac_hid_mouse_emulate_buttons(int caller, unsigned int keycode, int down)
 	return 0;
 }
 
+static struct lock_class_key emumousebtn_event_class;
+static struct lock_class_key emumousebtn_mutex_class;
+
 static int emumousebtn_input_register(void)
 {
 	int ret;
@@ -110,6 +113,9 @@ static int emumousebtn_input_register(void)
 	emumousebtn = input_allocate_device();
 	if (!emumousebtn)
 		return -ENOMEM;
+
+	lockdep_set_class(emumousebtn->event_lock, &emumousebtn_event_class);
+	lockdep_set_class(emumousebtn->mutex, &emumousebtn_mutex_class);
 
 	emumousebtn->name = "Macintosh mouse button emulation";
 	emumousebtn->id.bustype = BUS_ADB;
