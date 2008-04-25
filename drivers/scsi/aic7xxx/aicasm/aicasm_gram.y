@@ -143,6 +143,8 @@ void yyerror(const char *string);
 
 %token <value> T_ADDRESS
 
+%token T_COUNT
+
 %token T_ACCESS_MODE
 
 %token T_MODES
@@ -353,6 +355,7 @@ reg_attribute_list:
 reg_attribute:
 	reg_address
 |	size
+|	count
 |	access_mode
 |	modes
 |	field_defn
@@ -390,6 +393,13 @@ size:
 			if (sym_max_addr > max_addr)
 				stop("SCB or SRAM space exhausted", EX_DATAERR);
 		}
+	}
+;
+
+count:
+	T_COUNT T_NUMBER
+	{
+		cur_symbol->count += $2;
 	}
 ;
 
@@ -801,6 +811,7 @@ scratch_ram:
 			cur_symtype = SRAMLOC;
 			cur_symbol->type = SRAMLOC;
 			initialize_symbol(cur_symbol);
+			cur_symbol->count += 1;
 		}
 		reg_address
 		{
@@ -832,6 +843,7 @@ scb:
 			initialize_symbol(cur_symbol);
 			/* 64 bytes of SCB space */
 			cur_symbol->info.rinfo->size = 64;
+			cur_symbol->count += 1;
 		}
 		reg_address
 		{

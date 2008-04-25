@@ -162,6 +162,7 @@ register		{ return T_REGISTER; }
 const			{ yylval.value = FALSE; return T_CONST; }
 download		{ return T_DOWNLOAD; }
 address			{ return T_ADDRESS; }
+count			{ return T_COUNT; }
 access_mode		{ return T_ACCESS_MODE; }
 modes			{ return T_MODES; }
 RW|RO|WO		{

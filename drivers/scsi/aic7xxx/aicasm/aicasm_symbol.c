@@ -77,6 +77,7 @@ symbol_create(char *name)
 	if (new_symbol->name == NULL)
 		 stop("Unable to strdup symbol name", EX_SOFTWARE);
 	new_symbol->type = UNINITIALIZED;
+	new_symbol->count = 1;
 	return (new_symbol);
 }
 
@@ -198,6 +199,12 @@ symtable_get(char *name)
 		}
 	}
 	memcpy(&stored_ptr, data.data, sizeof(stored_ptr));
+	stored_ptr->count++;
+	data.data = &stored_ptr;
+	if (symtable->put(symtable, &key, &data, /*flags*/0) !=0) {
+		perror("Symtable put failed");
+		exit(EX_SOFTWARE);
+	}
 	return (stored_ptr);
 }
 
@@ -256,7 +263,7 @@ symlist_add(symlist_t *symlist, symbol_t *symbol, int how)
 		    && (curnode->symbol->info.finfo->value >
 			newnode->symbol->info.finfo->value))))
 		 || (!field && (curnode->symbol->info.rinfo->address >
-		               newnode->symbol->info.rinfo->address))) {
+				newnode->symbol->info.rinfo->address))) {
 			SLIST_INSERT_HEAD(symlist, newnode, links);
 			return;
 		}
@@ -271,7 +278,7 @@ symlist_add(symlist_t *symlist, symbol_t *symbol, int how)
 
 				cursymbol = SLIST_NEXT(curnode, links)->symbol;
 				if ((field
-		  		  && (cursymbol->type > symbol->type
+				  && (cursymbol->type > symbol->type
 				   || (cursymbol->type == symbol->type
 				    && (cursymbol->info.finfo->value >
 					symbol->info.finfo->value))))
@@ -351,7 +358,7 @@ aic_print_reg_dump_types(FILE *ofile)
 {
 	if (ofile == NULL)
 		return;
-		
+
 	fprintf(ofile,
 "typedef int (%sreg_print_t)(u_int, u_int *, u_int);\n"
 "typedef struct %sreg_parse_entry {\n"
@@ -370,7 +377,7 @@ aic_print_reg_dump_start(FILE *dfile, symbol_node_t *regnode)
 		return;
 
 	fprintf(dfile,
-"static %sreg_parse_entry_t %s_parse_table[] = {\n",
+"static const %sreg_parse_entry_t %s_parse_table[] = {\n",
 		prefix,
 		regnode->symbol->name);
 }
@@ -385,7 +392,7 @@ aic_print_reg_dump_end(FILE *ofile, FILE *dfile,
 	lower_name = strdup(regnode->symbol->name);
 	if (lower_name == NULL)
 		 stop("Unable to strdup symbol name", EX_SOFTWARE);
-	
+
 	for (letter = lower_name; *letter != '\0'; letter++)
 		*letter = tolower(*letter);
 
@@ -472,6 +479,7 @@ symtable_dump(FILE *ofile, FILE *dfile)
 	DBT		 key;
 	DBT		 data;
 	int		 flag;
+	int		 reg_count = 0, reg_used = 0;
 	u_int		 i;
 
 	if (symtable == NULL)
@@ -541,6 +549,9 @@ symtable_dump(FILE *ofile, FILE *dfile)
 			int		 num_entries;
 
 			num_entries = 0;
+			reg_count++;
+			if (curnode->symbol->count == 1)
+				break;
 			fields = &curnode->symbol->info.rinfo->fields;
 			SLIST_FOREACH(fieldnode, fields, links) {
 				if (num_entries == 0)
@@ -553,11 +564,14 @@ symtable_dump(FILE *ofile, FILE *dfile)
 			}
 			aic_print_reg_dump_end(ofile, dfile,
 					       curnode, num_entries);
+			reg_used++;
 		}
 		default:
 			break;
 		}
 	}
+	fprintf(stderr, "%s: %d of %d register definitions used\n", appname,
+		reg_used, reg_count);
 
 	/* Fold in the masks and bits */
 	while (SLIST_FIRST(&masks) != NULL) {
@@ -646,7 +660,6 @@ symtable_dump(FILE *ofile, FILE *dfile)
 		free(curnode);
 	}
 
-	
 	fprintf(ofile, "\n\n/* Downloaded Constant Definitions */\n");
 
 	for (i = 0; SLIST_FIRST(&download_constants) != NULL; i++) {
