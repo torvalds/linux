@@ -722,6 +722,7 @@ static inline void __mwait(unsigned long eax, unsigned long ecx)
 
 static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
 {
+	trace_hardirqs_on();
 	/* "mwait %eax, %ecx;" */
 	asm volatile("sti; .byte 0x0f, 0x01, 0xc9;"
 		     :: "a" (eax), "c" (ecx));
