@@ -973,6 +973,7 @@ extern int do_sync_mapping_range(struct address_space *mapping, loff_t offset,
 /* fs/locks.c */
 extern void locks_init_lock(struct file_lock *);
 extern void locks_copy_lock(struct file_lock *, struct file_lock *);
+extern void __locks_copy_lock(struct file_lock *, const struct file_lock *);
 extern void locks_remove_posix(struct file *, fl_owner_t);
 extern void locks_remove_flock(struct file *);
 extern void posix_test_lock(struct file *, struct file_lock *);
