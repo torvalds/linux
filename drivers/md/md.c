@@ -4973,14 +4973,12 @@ static int md_ioctl(struct inode *inode, struct file *file,
 	 * here and hit the 'default' below, so only disallow
 	 * 'md' ioctls, and switch to rw mode if started auto-readonly.
 	 */
-	if (_IOC_TYPE(cmd) == MD_MAJOR &&
-	    mddev->ro && mddev->pers) {
+	if (_IOC_TYPE(cmd) == MD_MAJOR && mddev->ro && mddev->pers) {
 		if (mddev->ro == 2) {
 			mddev->ro = 0;
 			sysfs_notify(&mddev->kobj, NULL, "array_state");
 			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 			md_wakeup_thread(mddev->thread);
-
 		} else {
 			err = -EROFS;
 			goto abort_unlock;
