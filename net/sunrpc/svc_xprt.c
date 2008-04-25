@@ -296,8 +296,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	if (!(xprt->xpt_flags &
 	      ((1<<XPT_CONN)|(1<<XPT_DATA)|(1<<XPT_CLOSE)|(1<<XPT_DEFERRED))))
 		return;
-	if (test_bit(XPT_DEAD, &xprt->xpt_flags))
-		return;
 
 	cpu = get_cpu();
 	pool = svc_pool_for_cpu(xprt->xpt_server, cpu);
