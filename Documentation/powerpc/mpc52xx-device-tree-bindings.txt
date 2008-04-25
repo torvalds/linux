@@ -186,6 +186,12 @@ Recommended soc5200 child nodes; populate as needed for your board
 name		device_type	compatible	  Description
 ----		-----------	----------	  -----------
 gpt@<addr>	gpt		fsl,mpc5200-gpt	  General purpose timers
+gpt@<addr>	gpt		fsl,mpc5200-gpt-gpio	General purpose
+							timers in GPIO mode
+gpio@<addr>			fsl,mpc5200-gpio	MPC5200 simple gpio
+							controller
+gpio@<addr>			fsl,mpc5200-gpio-wkup	MPC5200 wakeup gpio
+							controller
 rtc@<addr>	rtc		mpc5200-rtc	  Real time clock
 mscan@<addr>	mscan		mpc5200-mscan	  CAN bus controller
 pci@<addr>	pci		mpc5200-pci	  PCI bridge
@@ -224,6 +230,12 @@ have a "port-number = <0>" property, and PSC1 would have "port-number = <1>".
 PSC in i2s mode:  The mpc5200 and mpc5200b PSCs are not compatible when in
 i2s mode.  An 'mpc5200b-psc-i2s' node cannot include 'mpc5200-psc-i2s' in the
 compatible field.
+
+7) GPIO controller nodes
+Each GPIO controller node should have the empty property gpio-controller and
+#gpio-cells set to 2. First cell is the GPIO number which is interpreted
+according to the bit numbers in the GPIO control registers. The second cell
+is for flags which is currently unsused.
 
 IV - Extra Notes
 ================
