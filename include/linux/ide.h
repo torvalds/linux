@@ -1203,7 +1203,6 @@ static inline void ide_acpi_set_state(ide_hwif_t *hwif, int on) {}
 
 void ide_remove_port_from_hwgroup(ide_hwif_t *);
 extern int ide_hwif_request_regions(ide_hwif_t *hwif);
-extern void ide_hwif_release_regions(ide_hwif_t* hwif);
 void ide_unregister(unsigned int);
 
 void ide_register_region(struct gendisk *);

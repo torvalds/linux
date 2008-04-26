@@ -277,29 +277,6 @@ control_region_busy:
 	return -EBUSY;
 }
 
-/**
- *	ide_hwif_release_regions - free IDE resources
- *
- *	Note that we only release the standard ports,
- *	and do not even try to handle any extra ports
- *	allocated for weird IDE interface chipsets.
- *
- *	Note also that we don't yet handle mmio resources here. More
- *	importantly our caller should be doing this so we need to 
- *	restructure this as a helper function for drivers.
- */
-
-void ide_hwif_release_regions(ide_hwif_t *hwif)
-{
-	if (hwif->mmio)
-		return;
-
-	if (hwif->io_ports[IDE_CONTROL_OFFSET])
-		release_region(hwif->io_ports[IDE_CONTROL_OFFSET], 1);
-
-	release_region(hwif->io_ports[IDE_DATA_OFFSET], 8);
-}
-
 void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 {
 	ide_hwgroup_t *hwgroup = hwif->hwgroup;
@@ -437,8 +414,6 @@ void ide_unregister(unsigned int index)
 
 	if (hwif->dma_base)
 		(void)ide_release_dma(hwif);
-
-	ide_hwif_release_regions(hwif);
 
 	/* restore hwif data to pristine status */
 	ide_init_port_data(hwif, index);
