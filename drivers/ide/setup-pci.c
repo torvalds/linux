@@ -132,6 +132,29 @@ static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_
 out:
 	return dma_base;
 }
+
+/*
+ * Set up BM-DMA capability (PnP BIOS should have done this)
+ */
+static int ide_pci_set_master(struct pci_dev *dev, const char *name)
+{
+	u16 pcicmd;
+
+	pci_read_config_word(dev, PCI_COMMAND, &pcicmd);
+
+	if ((pcicmd & PCI_COMMAND_MASTER) == 0) {
+		pci_set_master(dev);
+
+		if (pci_read_config_word(dev, PCI_COMMAND, &pcicmd) ||
+		    (pcicmd & PCI_COMMAND_MASTER) == 0) {
+			printk(KERN_ERR "%s: error updating PCICMD on %s\n",
+					name, pci_name(dev));
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 void ide_setup_pci_noise(struct pci_dev *dev, const struct ide_port_info *d)
@@ -340,36 +363,26 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 void ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	u16 pcicmd;
-
-	pci_read_config_word(dev, PCI_COMMAND, &pcicmd);
 
 	if ((d->host_flags & IDE_HFLAG_NO_AUTODMA) == 0 ||
 	    ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
 	     (dev->class & 0x80))) {
 		unsigned long dma_base = ide_get_or_set_dma_base(d, hwif);
-		if (dma_base && !(pcicmd & PCI_COMMAND_MASTER)) {
-			/*
-			 * Set up BM-DMA capability
-			 * (PnP BIOS should have done this)
-			 */
-			pci_set_master(dev);
-			if (pci_read_config_word(dev, PCI_COMMAND, &pcicmd) || !(pcicmd & PCI_COMMAND_MASTER)) {
-				printk(KERN_ERR "%s: %s error updating PCICMD\n",
-					hwif->name, d->name);
-				dma_base = 0;
-			}
-		}
-		if (dma_base) {
-			if (d->init_dma)
-				d->init_dma(hwif, dma_base);
 
-			ide_setup_dma(hwif, dma_base);
-		} else {
-			printk(KERN_INFO "%s: %s Bus-Master DMA disabled "
-				"(BIOS)\n", hwif->name, d->name);
-		}
+		if (dma_base == 0 || ide_pci_set_master(dev, d->name) < 0)
+			goto out_disabled;
+
+		if (d->init_dma)
+			d->init_dma(hwif, dma_base);
+
+		ide_setup_dma(hwif, dma_base);
 	}
+
+	return;
+
+out_disabled:
+	printk(KERN_INFO "%s: Bus-Master DMA disabled (BIOS) on %s\n",
+			 d->name, pci_name(dev));
 }
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
