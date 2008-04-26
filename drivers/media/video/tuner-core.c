@@ -730,8 +730,10 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 
-	if (tuner_debug>1)
+	if (tuner_debug > 1) {
 		v4l_i2c_print_ioctl(client,cmd);
+		printk("\n");
+	}
 
 	switch (cmd) {
 	/* --- configuration --- */
