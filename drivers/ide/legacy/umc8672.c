@@ -152,7 +152,7 @@ static int __init umc8672_probe(void)
 	umc_set_speeds(current_speeds);
 	local_irq_restore(flags);
 
-	return ide_legacy_device_add(&umc8672_port_info);
+	return ide_legacy_device_add(&umc8672_port_info, 0);
 }
 
 int probe_umc8672;

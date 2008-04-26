@@ -333,10 +333,8 @@ static const struct ide_port_info qd65xx_port_info __initdata = {
 
 static int __init qd_probe(int base)
 {
-	ide_hwif_t *hwif;
+	int rc;
 	u8 config, unit;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw[2];
 	struct ide_port_info d = qd65xx_port_info;
 
 	config = inb(QD_CONFIG_PORT);
@@ -348,14 +346,6 @@ static int __init qd_probe(int base)
 
 	if (unit)
 		d.host_flags |= IDE_HFLAG_QD_2ND_PORT;
-
-	memset(&hw, 0, sizeof(hw));
-
-	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
-	hw[0].irq = 14;
-
-	ide_std_init_ports(&hw[1], 0x170, 0x376);
-	hw[1].irq = 15;
 
 	if ((config & 0xf0) == QD_CONFIG_QD6500) {
 
@@ -376,19 +366,9 @@ static int __init qd_probe(int base)
 		d.port_ops = &qd6500_port_ops;
 		d.host_flags |= IDE_HFLAG_SINGLE;
 
-		hwif = ide_find_port_slot(&d);
-		if (hwif == NULL)
-			return -ENOENT;
+		rc = ide_legacy_device_add(&d, (base << 8) | config);
 
-		ide_init_port_hw(hwif, &hw[unit]);
-
-		hwif->config_data = (base << 8) | config;
-
-		idx[unit] = hwif->index;
-
-		ide_device_add(idx, &d);
-
-		return 1;
+		return (rc == 0) ? 1 : rc;
 	}
 
 	if (((config & 0xf0) == QD_CONFIG_QD6580_A) ||
@@ -418,40 +398,16 @@ static int __init qd_probe(int base)
 
 			d.host_flags |= IDE_HFLAG_SINGLE;
 
-			hwif = ide_find_port_slot(&d);
-			if (hwif == NULL)
-				return -ENOENT;
+			rc = ide_legacy_device_add(&d, (base << 8) | config);
 
-			ide_init_port_hw(hwif, &hw[unit]);
-
-			hwif->config_data = (base << 8) | config;
-
-			idx[unit] = hwif->index;
-
-			ide_device_add(idx, &d);
-
-			return 1;
+			return (rc == 0) ? 1 : rc;
 		} else {
-			ide_hwif_t *mate;
-
 			/* secondary enabled */
 			printk(KERN_INFO "qd6580: dual IDE board\n");
 
-			hwif = ide_find_port();
-			if (hwif) {
-				ide_init_port_hw(hwif, &hw[0]);
-				idx[0] = hwif->index;
-			}
+			rc = ide_legacy_device_add(&d, (base << 8) | config);
 
-			mate = ide_find_port();
-			if (mate) {
-				ide_init_port_hw(mate, &hw[1]);
-				idx[1] = mate->index;
-			}
-
-			ide_device_add(idx, &d);
-
-			return 0; /* no other qd65xx possible */
+			return rc; /* no other qd65xx possible */
 		}
 	}
 	/* no qd65xx found */

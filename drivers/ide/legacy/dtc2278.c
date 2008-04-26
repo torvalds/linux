@@ -125,7 +125,7 @@ static int __init dtc2278_probe(void)
 #endif
 	local_irq_restore(flags);
 
-	return ide_legacy_device_add(&dtc2278_port_info);
+	return ide_legacy_device_add(&dtc2278_port_info, 0);
 }
 
 int probe_dtc2278 = 0;

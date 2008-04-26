@@ -1634,7 +1634,7 @@ void ide_port_scan(ide_hwif_t *hwif)
 }
 EXPORT_SYMBOL_GPL(ide_port_scan);
 
-int ide_legacy_device_add(const struct ide_port_info *d)
+int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)
 {
 	ide_hwif_t *hwif, *mate;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
@@ -1648,15 +1648,24 @@ int ide_legacy_device_add(const struct ide_port_info *d)
 	ide_std_init_ports(&hw[1], 0x170, 0x376);
 	hw[1].irq = 15;
 
-	hwif = ide_find_port();
+	hwif = ide_find_port_slot(d);
 	if (hwif) {
-		ide_init_port_hw(hwif, &hw[0]);
-		idx[0] = hwif->index;
+		u8 j = (d->host_flags & IDE_HFLAG_QD_2ND_PORT) ? 1 : 0;
+
+		ide_init_port_hw(hwif, &hw[j]);
+		if (config)
+			hwif->config_data = config;
+		idx[j] = hwif->index;
 	}
 
-	mate = ide_find_port();
+	if (hwif == NULL && (d->host_flags & IDE_HFLAG_SINGLE))
+		return -ENOENT;
+
+	mate = ide_find_port_slot(d);
 	if (mate) {
 		ide_init_port_hw(mate, &hw[1]);
+		if (config)
+			mate->config_data = config;
 		idx[1] = mate->index;
 	}
 

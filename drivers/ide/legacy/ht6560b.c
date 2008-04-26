@@ -360,7 +360,7 @@ static int __init ht6560b_init(void)
 		goto release_region;
 	}
 
-	return ide_legacy_device_add(&ht6560b_port_info);
+	return ide_legacy_device_add(&ht6560b_port_info, 0);
 
 release_region:
 	release_region(HT_CONFIG_PORT, 1);

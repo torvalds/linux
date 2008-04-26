@@ -214,7 +214,7 @@ static int __init ali14xx_probe(void)
 		return 1;
 	}
 
-	return ide_legacy_device_add(&ali14xx_port_info);
+	return ide_legacy_device_add(&ali14xx_port_info, 0);
 }
 
 int probe_ali14xx;
