@@ -546,9 +546,11 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 		if (retval < 0)
 			return retval;
 
-		dev->mailbox = blackbird_find_mailbox(dev);
-		if (dev->mailbox < 0)
+		retval = blackbird_find_mailbox(dev);
+		if (retval < 0)
 			return -1;
+
+		dev->mailbox = retval;
 
 		retval = blackbird_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0); /* ping */
 		if (retval < 0) {
