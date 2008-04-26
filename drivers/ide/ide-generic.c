@@ -90,11 +90,21 @@ static int __init ide_generic_init(void)
 	int i;
 
 	for (i = 0; i < MAX_HWIFS; i++) {
-		ide_hwif_t *hwif = &ide_hwifs[i];
+		ide_hwif_t *hwif;
 		unsigned long io_addr = ide_default_io_base(i);
 		hw_regs_t hw;
 
-		if (hwif->chipset == ide_unknown && io_addr) {
+		if (io_addr) {
+			/*
+			 * Skip probing if the corresponding
+			 * slot is already occupied.
+			 */
+			hwif = ide_find_port();
+			if (hwif == NULL || hwif->index != i) {
+				idx[i] = 0xff;
+				continue;
+			}
+
 			memset(&hw, 0, sizeof(hw));
 			ide_std_init_ports(&hw, io_addr, io_addr + 0x206);
 			hw.irq = ide_default_irq(io_addr);
