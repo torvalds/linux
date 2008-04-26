@@ -127,7 +127,7 @@ static int pcmcia_schlvl = PCMCIA_SCHLVL;
  * MPC8xx's internal PCMCIA interface
  */
 #if defined(CONFIG_IDE_8xx_PCCARD) || defined(CONFIG_IDE_8xx_DIRECT)
-static void __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
+static int __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 {
 	unsigned long *p = hw->io_ports;
 	int i;
@@ -236,7 +236,7 @@ static void __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 	if (pcmp->pcmc_pipr & (M8XX_PCMCIA_CD1(_slot_)|M8XX_PCMCIA_CD2(_slot_))) {
 		printk ("No card in slot %c: PIPR=%08x\n",
 			'A' + _slot_, (u32) pcmp->pcmc_pipr);
-		return;		/* No card in slot */
+		return -ENODEV;		/* No card in slot */
 	}
 
 	check_ide_device (pcmcia_base);
@@ -279,9 +279,6 @@ static void __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 	}
 #endif	/* CONFIG_IDE_8xx_PCCARD */
 
-	ide_hwifs[data_port].pio_mask = ATA_PIO4;
-	ide_hwifs[data_port].set_pio_mode = m8xx_ide_set_pio_mode;
-
 	/* Enable Harddisk Interrupt,
 	 * and make it edge sensitive
 	 */
@@ -296,6 +293,8 @@ static void __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 	/* Enable falling edge irq */
 	pcmp->pcmc_per = 0x100000 >> (16 * _slot_);
 #endif	/* CONFIG_IDE_8xx_PCCARD */
+
+	return 0;
 }
 #endif /* CONFIG_IDE_8xx_PCCARD || CONFIG_IDE_8xx_DIRECT */
 
@@ -304,7 +303,7 @@ static void __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
  * MPC8xx's internal PCMCIA interface
  */
 #if defined(CONFIG_IDE_EXT_DIRECT)
-static void __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
+static int __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 {
 	unsigned long *p = hw->io_ports;
 	int i;
@@ -357,15 +356,14 @@ static void __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 	hw->irq = ioport_dsc[data_port].irq;
 	hw->ack_intr = (ide_ack_intr_t *)ide_interrupt_ack;
 
-	ide_hwifs[data_port].pio_mask = ATA_PIO4;
-	ide_hwifs[data_port].set_pio_mode = m8xx_ide_set_pio_mode;
-
 	/* Enable Harddisk Interrupt,
 	 * and make it edge sensitive
 	 */
 	/* (11-18) Set edge detect for irq, no wakeup from low power mode */
 	((immap_t *) IMAP_ADDR)->im_siu_conf.sc_siel |=
 			(0x80000000 >> ioport_dsc[data_port].irq);
+
+	return 0;
 }
 #endif	/* CONFIG_IDE_8xx_DIRECT */
 
@@ -794,14 +792,26 @@ static int __init mpc8xx_ide_probe(void)
 
 #ifdef IDE0_BASE_OFFSET
 	memset(&hw, 0, sizeof(hw));
-	m8xx_ide_init_ports(&hw, 0);
-	ide_init_port_hw(&ide_hwifs[0], &hw);
-	idx[0] = 0;
+	if (!m8xx_ide_init_ports(&hw, 0)) {
+		ide_hwif_t *hwif = &ide_hwifs[0];
+
+		ide_init_port_hw(hwif, &hw);
+		hwif->pio_mask = ATA_PIO4;
+		hwif->set_pio_mode = m8xx_ide_set_pio_mode;
+
+		idx[0] = 0;
+	}
 #ifdef IDE1_BASE_OFFSET
 	memset(&hw, 0, sizeof(hw));
-	m8xx_ide_init_ports(&hw, 1);
-	ide_init_port_hw(&ide_hwifs[1], &hw);
-	idx[1] = 1;
+	if (!m8xx_ide_init_ports(&hw, 1)) {
+		ide_hwif_t *mate = &ide_hwifs[1];
+
+		ide_init_port_hw(mate, &hw);
+		mate->pio_mask = ATA_PIO4;
+		mate->set_pio_mode = m8xx_ide_set_pio_mode;
+
+		idx[1] = 1;
+	}
 #endif
 #endif
 
