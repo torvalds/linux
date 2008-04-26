@@ -100,10 +100,8 @@ struct drm_device;
 #define DRIVER_HAVE_DMA    0x20
 #define DRIVER_HAVE_IRQ    0x40
 #define DRIVER_IRQ_SHARED  0x80
-#define DRIVER_IRQ_VBL     0x100
 #define DRIVER_DMA_QUEUE   0x200
 #define DRIVER_FB_DMA      0x400
-#define DRIVER_IRQ_VBL2    0x800
 
 /***********************************************************************/
 /** \name Begin the DRM... */
@@ -379,13 +377,12 @@ struct drm_buf_entry {
 struct drm_file {
 	int authenticated;
 	int master;
-	int minor;
 	pid_t pid;
 	uid_t uid;
 	drm_magic_t magic;
 	unsigned long ioctl_count;
 	struct list_head lhead;
-	struct drm_head *head;
+	struct drm_minor *minor;
 	int remove_auth_on_close;
 	unsigned long lock_count;
 	struct file *filp;
@@ -580,10 +577,52 @@ struct drm_driver {
 	int (*context_dtor) (struct drm_device *dev, int context);
 	int (*kernel_context_switch) (struct drm_device *dev, int old,
 				      int new);
-	void (*kernel_context_switch_unlock) (struct drm_device *dev);
-	int (*vblank_wait) (struct drm_device *dev, unsigned int *sequence);
-	int (*vblank_wait2) (struct drm_device *dev, unsigned int *sequence);
-	int (*dri_library_name) (struct drm_device *dev, char *buf);
+	void (*kernel_context_switch_unlock) (struct drm_device * dev);
+	/**
+	 * get_vblank_counter - get raw hardware vblank counter
+	 * @dev: DRM device
+	 * @crtc: counter to fetch
+	 *
+	 * Driver callback for fetching a raw hardware vblank counter
+	 * for @crtc.  If a device doesn't have a hardware counter, the
+	 * driver can simply return the value of drm_vblank_count and
+	 * make the enable_vblank() and disable_vblank() hooks into no-ops,
+	 * leaving interrupts enabled at all times.
+	 *
+	 * Wraparound handling and loss of events due to modesetting is dealt
+	 * with in the DRM core code.
+	 *
+	 * RETURNS
+	 * Raw vblank counter value.
+	 */
+	u32 (*get_vblank_counter) (struct drm_device *dev, int crtc);
+
+	/**
+	 * enable_vblank - enable vblank interrupt events
+	 * @dev: DRM device
+	 * @crtc: which irq to enable
+	 *
+	 * Enable vblank interrupts for @crtc.  If the device doesn't have
+	 * a hardware vblank counter, this routine should be a no-op, since
+	 * interrupts will have to stay on to keep the count accurate.
+	 *
+	 * RETURNS
+	 * Zero on success, appropriate errno if the given @crtc's vblank
+	 * interrupt cannot be enabled.
+	 */
+	int (*enable_vblank) (struct drm_device *dev, int crtc);
+
+	/**
+	 * disable_vblank - disable vblank interrupt events
+	 * @dev: DRM device
+	 * @crtc: which irq to enable
+	 *
+	 * Disable vblank interrupts for @crtc.  If the device doesn't have
+	 * a hardware vblank counter, this routine should be a no-op, since
+	 * interrupts will have to stay on to keep the count accurate.
+	 */
+	void (*disable_vblank) (struct drm_device *dev, int crtc);
+	int (*dri_library_name) (struct drm_device *dev, char * buf);
 
 	/**
 	 * Called by \c drm_device_is_agp.  Typically used to determine if a
@@ -602,7 +641,7 @@ struct drm_driver {
 
 	irqreturn_t(*irq_handler) (DRM_IRQ_ARGS);
 	void (*irq_preinstall) (struct drm_device *dev);
-	void (*irq_postinstall) (struct drm_device *dev);
+	int (*irq_postinstall) (struct drm_device *dev);
 	void (*irq_uninstall) (struct drm_device *dev);
 	void (*reclaim_buffers) (struct drm_device *dev,
 				 struct drm_file * file_priv);
@@ -630,16 +669,19 @@ struct drm_driver {
 	struct pci_driver pci_driver;
 };
 
+#define DRM_MINOR_UNASSIGNED 0
+#define DRM_MINOR_LEGACY 1
+
 /**
- * DRM head structure. This structure represent a video head on a card
- * that may contain multiple heads. Embed one per head of these in the
- * private drm_device structure.
+ * DRM minor structure. This structure represents a drm minor number.
  */
-struct drm_head {
-	int minor;			/**< Minor device number */
+struct drm_minor {
+	int index;			/**< Minor device number */
+	int type;                       /**< Control or render */
+	dev_t device;			/**< Device number for mknod */
+	struct device kdev;		/**< Linux device */
 	struct drm_device *dev;
 	struct proc_dir_entry *dev_root;  /**< proc directory entry */
-	dev_t device;			/**< Device number for mknod */
 };
 
 /**
@@ -647,7 +689,6 @@ struct drm_head {
  * may contain multiple heads.
  */
 struct drm_device {
-	struct device dev;		/**< Linux device */
 	char *unique;			/**< Unique identifier: e.g., busid */
 	int unique_len;			/**< Length of unique field */
 	char *devname;			/**< For /proc/interrupts */
@@ -729,13 +770,21 @@ struct drm_device {
 	/** \name VBLANK IRQ support */
 	/*@{ */
 
-	wait_queue_head_t vbl_queue;	/**< VBLANK wait queue */
-	atomic_t vbl_received;
-	atomic_t vbl_received2;		/**< number of secondary VBLANK interrupts */
+	wait_queue_head_t *vbl_queue;	/**< VBLANK wait queue */
+	atomic_t *_vblank_count;	/**< number of VBLANK interrupts (driver must alloc the right number of counters) */
 	spinlock_t vbl_lock;
-	struct list_head vbl_sigs;		/**< signal list to send on VBLANK */
-	struct list_head vbl_sigs2;	/**< signals to send on secondary VBLANK */
-	unsigned int vbl_pending;
+	struct list_head *vbl_sigs;		/**< signal list to send on VBLANK */
+	atomic_t vbl_signal_pending;	/* number of signals pending on all crtcs*/
+	atomic_t *vblank_refcount;	/* number of users of vblank interrupts per crtc */
+	u32 *last_vblank;		/* protected by dev->vbl_lock, used */
+					/* for wraparound handling */
+	u32 *vblank_offset;		/* used to track how many vblanks */
+	int *vblank_enabled;		/* so we don't call enable more than
+					   once per disable */
+	u32 *vblank_premodeset;		/*  were lost during modeset */
+	struct timer_list vblank_disable_timer;
+
+	unsigned long max_vblank_count; /**< size of vblank counter register */
 	spinlock_t tasklet_lock;	/**< For drm_locked_tasklet */
 	void (*locked_tasklet_func)(struct drm_device *dev);
 
@@ -755,6 +804,7 @@ struct drm_device {
 #ifdef __alpha__
 	struct pci_controller *hose;
 #endif
+	int num_crtcs;			/**< Number of CRTCs on this device */
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	void *dev_private;		/**< device private data */
 	struct drm_sigdata sigdata;	   /**< For block_all_signals */
@@ -763,7 +813,7 @@ struct drm_device {
 	struct drm_driver *driver;
 	drm_local_map_t *agp_buffer_map;
 	unsigned int agp_buffer_token;
-	struct drm_head primary;		/**< primary screen head */
+	struct drm_minor *primary;		/**< render type primary screen head */
 
 	/** \name Drawable information */
 	/*@{ */
@@ -989,11 +1039,19 @@ extern void drm_driver_irq_preinstall(struct drm_device *dev);
 extern void drm_driver_irq_postinstall(struct drm_device *dev);
 extern void drm_driver_irq_uninstall(struct drm_device *dev);
 
-extern int drm_wait_vblank(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
-extern int drm_vblank_wait(struct drm_device *dev, unsigned int *vbl_seq);
-extern void drm_vbl_send_signals(struct drm_device *dev);
+extern int drm_vblank_init(struct drm_device *dev, int num_crtcs);
+extern int drm_wait_vblank(struct drm_device *dev, void *data, struct drm_file *filp);
+extern int drm_vblank_wait(struct drm_device * dev, unsigned int *vbl_seq);
 extern void drm_locked_tasklet(struct drm_device *dev, void(*func)(struct drm_device*));
+extern u32 drm_vblank_count(struct drm_device *dev, int crtc);
+extern void drm_update_vblank_count(struct drm_device *dev, int crtc);
+extern void drm_handle_vblank(struct drm_device *dev, int crtc);
+extern int drm_vblank_get(struct drm_device *dev, int crtc);
+extern void drm_vblank_put(struct drm_device *dev, int crtc);
+
+				/* Modesetting support */
+extern int drm_modeset_ctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
 
 				/* AGP/GART support (drm_agpsupport.h) */
 extern struct drm_agp_head *drm_agp_init(struct drm_device *dev);
@@ -1030,23 +1088,20 @@ extern int drm_agp_unbind_memory(DRM_AGP_MEM * handle);
 extern int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 		       struct drm_driver *driver);
 extern int drm_put_dev(struct drm_device *dev);
-extern int drm_put_head(struct drm_head *head);
+extern int drm_put_minor(struct drm_minor **minor);
 extern unsigned int drm_debug;
-extern unsigned int drm_cards_limit;
-extern struct drm_head **drm_heads;
+
 extern struct class *drm_class;
 extern struct proc_dir_entry *drm_proc_root;
+
+extern struct idr drm_minors_idr;
 
 extern drm_local_map_t *drm_getsarea(struct drm_device *dev);
 
 				/* Proc support (drm_proc.h) */
-extern int drm_proc_init(struct drm_device *dev,
-			 int minor,
-			 struct proc_dir_entry *root,
-			 struct proc_dir_entry **dev_root);
-extern int drm_proc_cleanup(int minor,
-			    struct proc_dir_entry *root,
-			    struct proc_dir_entry *dev_root);
+extern int drm_proc_init(struct drm_minor *minor, int minor_id,
+			 struct proc_dir_entry *root);
+extern int drm_proc_cleanup(struct drm_minor *minor, struct proc_dir_entry *root);
 
 				/* Scatter Gather Support (drm_scatter.h) */
 extern void drm_sg_cleanup(struct drm_sg_mem * entry);
@@ -1071,8 +1126,8 @@ extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 struct drm_sysfs_class;
 extern struct class *drm_sysfs_create(struct module *owner, char *name);
 extern void drm_sysfs_destroy(void);
-extern int drm_sysfs_device_add(struct drm_device *dev, struct drm_head *head);
-extern void drm_sysfs_device_remove(struct drm_device *dev);
+extern int drm_sysfs_device_add(struct drm_minor *minor);
+extern void drm_sysfs_device_remove(struct drm_minor *minor);
 
 /*
  * Basic memory manager support (drm_mm.c)

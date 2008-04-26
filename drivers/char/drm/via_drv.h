@@ -75,6 +75,7 @@ typedef struct drm_via_private {
 	struct timeval last_vblank;
 	int last_vblank_valid;
 	unsigned usec_per_vblank;
+	atomic_t vbl_received;
 	drm_via_state_t hc_state;
 	char pci_buf[VIA_PCI_BUF_SIZE];
 	const uint32_t *fire_offsets[VIA_FIRE_BUF_SIZE];
@@ -130,11 +131,13 @@ extern int via_init_context(struct drm_device * dev, int context);
 extern int via_final_context(struct drm_device * dev, int context);
 
 extern int via_do_cleanup_map(struct drm_device * dev);
-extern int via_driver_vblank_wait(struct drm_device * dev, unsigned int *sequence);
+extern u32 via_get_vblank_counter(struct drm_device *dev, int crtc);
+extern int via_enable_vblank(struct drm_device *dev, int crtc);
+extern void via_disable_vblank(struct drm_device *dev, int crtc);
 
 extern irqreturn_t via_driver_irq_handler(DRM_IRQ_ARGS);
 extern void via_driver_irq_preinstall(struct drm_device * dev);
-extern void via_driver_irq_postinstall(struct drm_device * dev);
+extern int via_driver_irq_postinstall(struct drm_device * dev);
 extern void via_driver_irq_uninstall(struct drm_device * dev);
 
 extern int via_dma_cleanup(struct drm_device * dev);
