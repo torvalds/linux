@@ -413,7 +413,7 @@ void ide_unregister(unsigned int index)
 	spin_lock_irq(&ide_lock);
 
 	if (hwif->dma_base)
-		(void)ide_release_dma(hwif);
+		ide_release_dma_engine(hwif);
 
 	/* restore hwif data to pristine status */
 	ide_init_port_data(hwif, index);

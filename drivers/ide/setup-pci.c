@@ -158,7 +158,7 @@ EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
 
 static int ide_pci_enable(struct pci_dev *dev, const struct ide_port_info *d)
 {
-	int ret;
+	int ret, bars;
 
 	if (pci_enable_device(dev)) {
 		ret = pci_enable_device_io(dev);
@@ -181,13 +181,21 @@ static int ide_pci_enable(struct pci_dev *dev, const struct ide_port_info *d)
 		goto out;
 	}
 
-	/* FIXME: Temporary - until we put in the hotplug interface logic
-	   Check that the bits we want are not in use by someone else. */
-	ret = pci_request_region(dev, 4, "ide_tmp");
-	if (ret < 0)
-		goto out;
+	if (d->host_flags & IDE_HFLAG_SINGLE)
+		bars = (1 << 2) - 1;
+	else
+		bars = (1 << 4) - 1;
 
-	pci_release_region(dev, 4);
+	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0) {
+		if (d->host_flags & IDE_HFLAG_CS5520)
+			bars |= (1 << 2);
+		else
+			bars |= (1 << 4);
+	}
+
+	ret = pci_request_selected_regions(dev, bars, d->name);
+	if (ret < 0)
+		printk(KERN_ERR "%s: can't reserve resources\n", d->name);
 out:
 	return ret;
 }

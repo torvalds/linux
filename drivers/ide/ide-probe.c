@@ -1530,12 +1530,6 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 
 		hwif = &ide_hwifs[idx[i]];
 
-		if (ide_hwif_request_regions(hwif)) {
-			printk(KERN_ERR "%s: ports already in use, "
-					"skipping probe\n", hwif->name);
-			continue;
-		}
-
 		if (ide_probe_port(hwif) == 0)
 			hwif->present = 1;
 

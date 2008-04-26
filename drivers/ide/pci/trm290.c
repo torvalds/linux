@@ -257,16 +257,10 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 	printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx",
 	       hwif->name, hwif->dma_base, hwif->dma_base + 3);
 
-	if (!request_region(hwif->dma_base, 4, hwif->name)) {
-		printk(KERN_CONT " -- Error, ports in use.\n");
-		return;
-	}
-
 	hwif->dmatable_cpu = pci_alloc_consistent(dev, PRD_ENTRIES * PRD_BYTES,
 						  &hwif->dmatable_dma);
 	if (!hwif->dmatable_cpu) {
 		printk(KERN_CONT " -- Error, unable to allocate DMA table.\n");
-		release_region(hwif->dma_base, 4);
 		return;
 	}
 	printk(KERN_CONT "\n");
