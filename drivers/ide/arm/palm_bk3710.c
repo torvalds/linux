@@ -317,6 +317,22 @@ static u8 __devinit palm_bk3710_cable_detect(ide_hwif_t *hwif)
 	return ATA_CBL_PATA80;
 }
 
+static int __devinit palm_bk3710_init_dma(ide_hwif_t *hwif,
+					  const struct ide_port_info *d)
+{
+	unsigned long base =
+		hwif->io_ports[IDE_DATA_OFFSET] - IDE_PALM_ATA_PRI_REG_OFFSET;
+
+	printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
+
+	if (ide_allocate_dma_engine(hwif))
+		return -1;
+
+	ide_setup_dma(hwif, base);
+
+	return 0;
+}
+
 static const struct ide_port_ops palm_bk3710_ports_ops = {
 	.set_pio_mode		= palm_bk3710_set_pio_mode,
 	.set_dma_mode		= palm_bk3710_set_dma_mode,
@@ -324,8 +340,8 @@ static const struct ide_port_ops palm_bk3710_ports_ops = {
 };
 
 static const struct ide_port_info __devinitdata palm_bk3710_port_info = {
+	.init_dma		= palm_bk3710_init_dma,
 	.port_ops		= &palm_bk3710_ports_ops,
-	.host_flags		= IDE_HFLAG_NO_DMA, /* hack (no PCI) */
 	.pio_mask		= ATA_PIO4,
 	.udma_mask		= ATA_UDMA4,	/* (input clk 99MHz) */
 	.mwdma_mask		= ATA_MWDMA2,
@@ -391,11 +407,6 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 
 	hwif->mmio = 1;
 	default_hwif_mmiops(hwif);
-
-	printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
-
-	if (ide_allocate_dma_engine(hwif) == 0)
-		ide_setup_dma(hwif, mem->start);
 
 	idx[0] = i;
 
