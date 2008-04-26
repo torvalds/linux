@@ -840,12 +840,10 @@ static int ide_allocate_dma_engine(ide_hwif_t *hwif)
 
 void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
 {
-	u8 dma_stat;
-
 	if (hwif->mmio)
-		printk(KERN_INFO "    %s: MMIO-DMA ", hwif->name);
+		printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
 	else
-		printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx",
+		printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx\n",
 				 hwif->name, base, base + 7);
 
 	hwif->extra_base = base + (hwif->channel ? 8 : 16);
@@ -884,11 +882,6 @@ void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
 		hwif->dma_timeout = &ide_dma_timeout;
 	if (!hwif->dma_lost_irq)
 		hwif->dma_lost_irq = &ide_dma_lost_irq;
-
-	dma_stat = hwif->INB(hwif->dma_status);
-	printk(KERN_CONT ", BIOS settings: %s:%s, %s:%s\n",
-	       hwif->drives[0].name, (dma_stat & 0x20) ? "DMA" : "PIO",
-	       hwif->drives[1].name, (dma_stat & 0x40) ? "DMA" : "PIO");
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_dma);
