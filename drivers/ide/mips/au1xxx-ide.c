@@ -380,13 +380,12 @@ static void auide_dma_timeout(ide_drive_t *drive)
 
 	hwif->ide_dma_end(drive);
 }
-					
 
-static int auide_ddma_init(_auide_hwif *auide) {
-	
+static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
+{
+	_auide_hwif *auide = (_auide_hwif *)hwif->hwif_data;
 	dbdev_tab_t source_dev_tab, target_dev_tab;
 	u32 dev_id, tsize, devwidth, flags;
-	ide_hwif_t *hwif = auide->hwif;
 
 	dev_id   = AU1XXX_ATA_DDMA_REQ;
 
@@ -443,9 +442,9 @@ static int auide_ddma_init(_auide_hwif *auide) {
 	return 0;
 } 
 #else
- 
-static int auide_ddma_init( _auide_hwif *auide )
+static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
+	_auide_hwif *auide = (_auide_hwif *)hwif->hwif_data;
 	dbdev_tab_t source_dev_tab;
 	int flags;
 
@@ -510,9 +509,9 @@ static const struct ide_port_ops au1xxx_port_ops = {
 };
 
 static const struct ide_port_info au1xxx_port_info = {
+	.init_dma		= auide_ddma_init,
 	.port_ops		= &au1xxx_port_ops,
 	.host_flags		= IDE_HFLAG_POST_SET_MODE |
-				  IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
 				  IDE_HFLAG_NO_IO_32BIT |
 				  IDE_HFLAG_UNMASK_IRQS,
 	.pio_mask		= ATA_PIO4,
@@ -605,8 +604,6 @@ static int au_ide_probe(struct device *dev)
 
 	auide_hwif.hwif                 = hwif;
 	hwif->hwif_data                 = &auide_hwif;
-
-	auide_ddma_init(&auide_hwif);
 
 	idx[0] = hwif->index;
 
