@@ -102,7 +102,7 @@ ide_startstop_t ide_dma_intr (ide_drive_t *drive)
 {
 	u8 stat = 0, dma_stat = 0;
 
-	dma_stat = HWIF(drive)->ide_dma_end(drive);
+	dma_stat = drive->hwif->dma_ops->dma_end(drive);
 	stat = ide_read_status(drive);
 
 	if (OK_STAT(stat,DRIVE_READY,drive->bad_wstat|DRQ_STAT)) {
@@ -394,7 +394,7 @@ void ide_dma_off_quietly(ide_drive_t *drive)
 	drive->using_dma = 0;
 	ide_toggle_bounce(drive, 0);
 
-	drive->hwif->dma_host_set(drive, 0);
+	drive->hwif->dma_ops->dma_host_set(drive, 0);
 }
 
 EXPORT_SYMBOL(ide_dma_off_quietly);
@@ -427,7 +427,7 @@ void ide_dma_on(ide_drive_t *drive)
 	drive->using_dma = 1;
 	ide_toggle_bounce(drive, 1);
 
-	drive->hwif->dma_host_set(drive, 1);
+	drive->hwif->dma_ops->dma_host_set(drive, 1);
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_SFF
@@ -802,10 +802,10 @@ void ide_dma_timeout (ide_drive_t *drive)
 
 	printk(KERN_ERR "%s: timeout waiting for DMA\n", drive->name);
 
-	if (hwif->ide_dma_test_irq(drive))
+	if (hwif->dma_ops->dma_test_irq(drive))
 		return;
 
-	hwif->ide_dma_end(drive);
+	hwif->dma_ops->dma_end(drive);
 }
 
 EXPORT_SYMBOL(ide_dma_timeout);
@@ -839,8 +839,21 @@ int ide_allocate_dma_engine(ide_hwif_t *hwif)
 }
 EXPORT_SYMBOL_GPL(ide_allocate_dma_engine);
 
-void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
+static struct ide_dma_ops sff_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
+	.dma_end		= __ide_dma_end,
+	.dma_test_irq		= __ide_dma_test_irq,
+	.dma_timeout		= ide_dma_timeout,
+	.dma_lost_irq		= ide_dma_lost_irq,
+};
+
+void ide_setup_dma(ide_hwif_t *hwif, unsigned long base,
+		   const struct ide_port_info *d)
 {
+	struct ide_dma_ops *dma_ops = d->dma_ops ? d->dma_ops : &sff_dma_ops;
 	hwif->dma_base = base;
 
 	if (!hwif->dma_command)
@@ -854,22 +867,24 @@ void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
 	if (!hwif->dma_prdtable)
 		hwif->dma_prdtable	= hwif->dma_base + 4;
 
-	if (!hwif->dma_host_set)
-		hwif->dma_host_set = &ide_dma_host_set;
-	if (!hwif->dma_setup)
-		hwif->dma_setup = &ide_dma_setup;
-	if (!hwif->dma_exec_cmd)
-		hwif->dma_exec_cmd = &ide_dma_exec_cmd;
-	if (!hwif->dma_start)
-		hwif->dma_start = &ide_dma_start;
-	if (!hwif->ide_dma_end)
-		hwif->ide_dma_end = &__ide_dma_end;
-	if (!hwif->ide_dma_test_irq)
-		hwif->ide_dma_test_irq = &__ide_dma_test_irq;
-	if (!hwif->dma_timeout)
-		hwif->dma_timeout = &ide_dma_timeout;
-	if (!hwif->dma_lost_irq)
-		hwif->dma_lost_irq = &ide_dma_lost_irq;
+	hwif->dma_ops = dma_ops;
+
+	if (dma_ops->dma_host_set == NULL)
+		dma_ops->dma_host_set	= ide_dma_host_set;
+	if (dma_ops->dma_setup == NULL)
+		dma_ops->dma_setup	= ide_dma_setup;
+	if (dma_ops->dma_exec_cmd == NULL)
+		dma_ops->dma_exec_cmd	= ide_dma_exec_cmd;
+	if (dma_ops->dma_start == NULL)
+		dma_ops->dma_start	= ide_dma_start;
+	if (dma_ops->dma_end == NULL)
+		dma_ops->dma_end	= __ide_dma_end;
+	if (dma_ops->dma_test_irq == NULL)
+		dma_ops->dma_test_irq	= __ide_dma_test_irq;
+	if (dma_ops->dma_timeout == NULL)
+		dma_ops->dma_timeout	= ide_dma_timeout;
+	if (dma_ops->dma_lost_irq == NULL)
+		dma_ops->dma_lost_irq	= ide_dma_lost_irq;
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_dma);

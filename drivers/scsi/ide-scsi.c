@@ -393,7 +393,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		printk ("ide-scsi: %s: DMA complete\n", drive->name);
 #endif /* IDESCSI_DEBUG_LOG */
 		pc->xferred = pc->req_xfer;
-		(void) HWIF(drive)->ide_dma_end(drive);
+		(void)hwif->dma_ops->dma_end(drive);
 	}
 
 	/* Clear the interrupt */
@@ -498,7 +498,7 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 	drive->hwif->atapi_output_bytes(drive, scsi->pc->c, 12);
 	if (pc->flags & PC_FLAG_DMA_OK) {
 		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
-		hwif->dma_start(drive);
+		hwif->dma_ops->dma_start(drive);
 	}
 	return ide_started;
 }
@@ -560,7 +560,7 @@ static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
 
 	if (drive->using_dma && !idescsi_map_sg(drive, pc)) {
 		hwif->sg_mapped = 1;
-		dma = !hwif->dma_setup(drive);
+		dma = !hwif->dma_ops->dma_setup(drive);
 		hwif->sg_mapped = 0;
 	}
 

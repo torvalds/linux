@@ -511,6 +511,11 @@ static void __devinit it821x_quirkproc(ide_drive_t *drive)
 
 }
 
+static struct ide_dma_ops it821x_pass_through_dma_ops = {
+	.dma_start		= it821x_dma_start,
+	.dma_end		= it821x_dma_end,
+};
+
 /**
  *	init_hwif_it821x	-	set up hwif structs
  *	@hwif: interface to set up
@@ -562,8 +567,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 
 	if (idev->smart == 0) {
 		/* MWDMA/PIO clock switching for pass through mode */
-		hwif->dma_start = &it821x_dma_start;
-		hwif->ide_dma_end = &it821x_dma_end;
+		hwif->dma_ops = &it821x_pass_through_dma_ops;
 	} else
 		hwif->host_flags |= IDE_HFLAG_NO_SET_MODE;
 

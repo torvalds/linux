@@ -843,7 +843,7 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 
 			drive->nice1 = 1;
 
-			if (hwif->dma_host_set)
+			if (hwif->dma_ops)
 				ide_set_dma(drive);
 		}
 	}
@@ -1390,7 +1390,8 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 			hwif->swdma_mask = 0;
 			hwif->mwdma_mask = 0;
 			hwif->ultra_mask = 0;
-		}
+		} else if (d->dma_ops)
+			hwif->dma_ops = d->dma_ops;
 	}
 
 	if (d->host_flags & IDE_HFLAG_RQSIZE_256)

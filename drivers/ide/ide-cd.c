@@ -539,7 +539,7 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 
 	/* FIXME: for Virtual DMA we must check harder */
 	if (info->dma)
-		info->dma = !hwif->dma_setup(drive);
+		info->dma = !hwif->dma_ops->dma_setup(drive);
 
 	/* set up the controller registers */
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL |
@@ -617,7 +617,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 
 	/* start the DMA if need be */
 	if (info->dma)
-		hwif->dma_start(drive);
+		hwif->dma_ops->dma_start(drive);
 
 	return ide_started;
 }
@@ -929,7 +929,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	dma = info->dma;
 	if (dma) {
 		info->dma = 0;
-		dma_error = HWIF(drive)->ide_dma_end(drive);
+		dma_error = hwif->dma_ops->dma_end(drive);
 		if (dma_error) {
 			printk(KERN_ERR "%s: DMA %s error\n", drive->name,
 					write ? "write" : "read");

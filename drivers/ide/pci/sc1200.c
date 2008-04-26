@@ -165,7 +165,7 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
  *
  *  returns 1 on error, 0 otherwise
  */
-static int sc1200_ide_dma_end (ide_drive_t *drive)
+static int sc1200_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	unsigned long dma_base = hwif->dma_base;
@@ -214,7 +214,7 @@ static void sc1200_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		printk("SC1200: %s: changing (U)DMA mode\n", drive->name);
 		ide_dma_off_quietly(drive);
 		if (ide_set_dma_mode(drive, mode) == 0 && drive->using_dma)
-			hwif->dma_host_set(drive, 1);
+			hwif->dma_ops->dma_host_set(drive, 1);
 		return;
 	}
 
@@ -286,28 +286,20 @@ static int sc1200_resume (struct pci_dev *dev)
 }
 #endif
 
-/*
- * This gets invoked by the IDE driver once for each channel,
- * and performs channel-specific pre-initialization before drive probing.
- */
-static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
-{
-	if (hwif->dma_base == 0)
-		return;
-
-	hwif->ide_dma_end   = &sc1200_ide_dma_end;
-}
-
 static const struct ide_port_ops sc1200_port_ops = {
 	.set_pio_mode		= sc1200_set_pio_mode,
 	.set_dma_mode		= sc1200_set_dma_mode,
 	.udma_filter		= sc1200_udma_filter,
 };
 
+static struct ide_dma_ops sc1200_dma_ops = {
+	.dma_end		= sc1200_dma_end,
+};
+
 static const struct ide_port_info sc1200_chipset __devinitdata = {
 	.name		= "SC1200",
-	.init_hwif	= init_hwif_sc1200,
 	.port_ops	= &sc1200_port_ops,
+	.dma_ops	= &sc1200_dma_ops,
 	.host_flags	= IDE_HFLAG_SERIALIZE |
 			  IDE_HFLAG_POST_SET_MODE |
 			  IDE_HFLAG_ABUSE_DMA_MODES,

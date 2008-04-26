@@ -993,7 +993,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 	stat = ide_read_status(drive);
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
-		if (hwif->ide_dma_end(drive) || (stat & ERR_STAT)) {
+		if (hwif->dma_ops->dma_end(drive) || (stat & ERR_STAT)) {
 			/*
 			 * A DMA error is sometimes expected. For example,
 			 * if the tape is crossing a filemark during a
@@ -1213,7 +1213,7 @@ static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	/* Begin DMA, if necessary */
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS)
-		hwif->dma_start(drive);
+		hwif->dma_ops->dma_start(drive);
 #endif
 	/* Send the actual packet */
 	HWIF(drive)->atapi_output_bytes(drive, pc->c, 12);
@@ -1279,7 +1279,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 		ide_dma_off(drive);
 	}
 	if ((pc->flags & PC_FLAG_DMA_RECOMMENDED) && drive->using_dma)
-		dma_ok = !hwif->dma_setup(drive);
+		dma_ok = !hwif->dma_ops->dma_setup(drive);
 
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_NO_SELECT_MASK |
 			   IDE_TFLAG_OUT_DEVICE, bcount, dma_ok);

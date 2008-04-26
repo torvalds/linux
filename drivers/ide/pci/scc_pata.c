@@ -317,14 +317,14 @@ static int scc_dma_setup(ide_drive_t *drive)
 
 
 /**
- *	scc_ide_dma_end	-	Stop DMA
+ *	scc_dma_end	-	Stop DMA
  *	@drive: IDE drive
  *
  *	Check and clear INT Status register.
  *      Then call __ide_dma_end().
  */
 
-static int scc_ide_dma_end(ide_drive_t * drive)
+static int scc_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	unsigned long intsts_port = hwif->dma_base + 0x014;
@@ -692,10 +692,6 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	/* PTERADD */
 	out_be32((void __iomem *)(hwif->dma_base + 0x018), hwif->dmatable_dma);
 
-	hwif->dma_setup = scc_dma_setup;
-	hwif->ide_dma_end = scc_ide_dma_end;
-	hwif->ide_dma_test_irq = scc_dma_test_irq;
-
 	if (in_be32((void __iomem *)(hwif->config_data + 0xff0)) & CCKCTRL_ATACLKOEN)
 		hwif->ultra_mask = ATA_UDMA6; /* 133MHz */
 	else
@@ -709,12 +705,19 @@ static const struct ide_port_ops scc_port_ops = {
 	.cable_detect		= scc_cable_detect,
 };
 
+static struct ide_dma_ops scc_dma_ops = {
+	.dma_setup		= scc_dma_setup,
+	.dma_end		= scc_dma_end,
+	.dma_test_irq		= scc_dma_test_irq,
+};
+
 #define DECLARE_SCC_DEV(name_str)			\
   {							\
       .name		= name_str,			\
       .init_iops	= init_iops_scc,		\
       .init_hwif	= init_hwif_scc,		\
       .port_ops		= &scc_port_ops,		\
+      .dma_ops		= &scc_dma_ops,			\
       .host_flags	= IDE_HFLAG_SINGLE,		\
       .pio_mask		= ATA_PIO4,			\
   }

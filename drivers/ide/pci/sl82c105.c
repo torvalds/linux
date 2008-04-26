@@ -282,34 +282,25 @@ static unsigned int __devinit init_chipset_sl82c105(struct pci_dev *dev, const c
 	return dev->irq;
 }
 
-/*
- * Initialise IDE channel
- */
-static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
-{
-	DBG(("init_hwif_sl82c105(hwif: ide%d)\n", hwif->index));
-
-	if (!hwif->dma_base)
-		return;
-
-	hwif->dma_lost_irq		= &sl82c105_dma_lost_irq;
-	hwif->dma_start			= &sl82c105_dma_start;
-	hwif->ide_dma_end		= &sl82c105_dma_end;
-	hwif->dma_timeout		= &sl82c105_dma_timeout;
-}
-
 static const struct ide_port_ops sl82c105_port_ops = {
 	.set_pio_mode		= sl82c105_set_pio_mode,
 	.set_dma_mode		= sl82c105_set_dma_mode,
 	.resetproc		= sl82c105_resetproc,
 };
 
+static struct ide_dma_ops sl82c105_dma_ops = {
+	.dma_start		= sl82c105_dma_start,
+	.dma_end		= sl82c105_dma_end,
+	.dma_lost_irq		= sl82c105_dma_lost_irq,
+	.dma_timeout		= sl82c105_dma_timeout,
+};
+
 static const struct ide_port_info sl82c105_chipset __devinitdata = {
 	.name		= "W82C105",
 	.init_chipset	= init_chipset_sl82c105,
-	.init_hwif	= init_hwif_sl82c105,
 	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},
 	.port_ops	= &sl82c105_port_ops,
+	.dma_ops	= &sl82c105_dma_ops,
 	.host_flags	= IDE_HFLAG_IO_32BIT |
 			  IDE_HFLAG_UNMASK_IRQS |
 /* FIXME: check for Compatibility mode in generic IDE PCI code */
@@ -334,7 +325,7 @@ static int __devinit sl82c105_init_one(struct pci_dev *dev, const struct pci_dev
 		 */
 		printk(KERN_INFO "W82C105_IDE: Winbond W83C553 bridge "
 				 "revision %d, BM-DMA disabled\n", rev);
-		d.init_hwif = NULL;
+		d.dma_ops = NULL;
 		d.mwdma_mask = 0;
 		d.host_flags &= ~IDE_HFLAG_SERIALIZE_DMA;
 	}

@@ -413,6 +413,17 @@ struct ide_port_ops {
 	u8	(*cable_detect)(struct hwif_s *);
 };
 
+struct ide_dma_ops {
+	void	(*dma_host_set)(struct ide_drive_s *, int);
+	int	(*dma_setup)(struct ide_drive_s *);
+	void	(*dma_exec_cmd)(struct ide_drive_s *, u8);
+	void	(*dma_start)(struct ide_drive_s *);
+	int	(*dma_end)(struct ide_drive_s *);
+	int	(*dma_test_irq)(struct ide_drive_s *);
+	void	(*dma_lost_irq)(struct ide_drive_s *);
+	void	(*dma_timeout)(struct ide_drive_s *);
+};
+
 typedef struct hwif_s {
 	struct hwif_s *next;		/* for linked-list in ide_hwgroup_t */
 	struct hwif_s *mate;		/* other hwif from same PCI chip */
@@ -451,6 +462,7 @@ typedef struct hwif_s {
 	void (*rw_disk)(ide_drive_t *, struct request *);
 
 	const struct ide_port_ops	*port_ops;
+	struct ide_dma_ops		*dma_ops;
 
 	void (*ata_input_data)(ide_drive_t *, void *, u32);
 	void (*ata_output_data)(ide_drive_t *, void *, u32);
@@ -458,15 +470,7 @@ typedef struct hwif_s {
 	void (*atapi_input_bytes)(ide_drive_t *, void *, u32);
 	void (*atapi_output_bytes)(ide_drive_t *, void *, u32);
 
-	void (*dma_host_set)(ide_drive_t *, int);
-	int (*dma_setup)(ide_drive_t *);
-	void (*dma_exec_cmd)(ide_drive_t *, u8);
-	void (*dma_start)(ide_drive_t *);
-	int (*ide_dma_end)(ide_drive_t *drive);
-	int (*ide_dma_test_irq)(ide_drive_t *drive);
 	void (*ide_dma_clear_irq)(ide_drive_t *drive);
-	void (*dma_lost_irq)(ide_drive_t *drive);
-	void (*dma_timeout)(ide_drive_t *drive);
 
 	void (*OUTB)(u8 addr, unsigned long port);
 	void (*OUTBSYNC)(ide_drive_t *drive, u8 addr, unsigned long port);
@@ -1114,6 +1118,7 @@ struct ide_port_info {
 					    const struct ide_port_info *);
 
 	const struct ide_port_ops	*port_ops;
+	struct ide_dma_ops		*dma_ops;
 
 	ide_pci_enablebit_t	enablebits[2];
 	hwif_chipset_t		chipset;
@@ -1165,7 +1170,7 @@ void ide_destroy_dmatable(ide_drive_t *);
 extern int ide_build_dmatable(ide_drive_t *, struct request *);
 int ide_allocate_dma_engine(ide_hwif_t *);
 void ide_release_dma_engine(ide_hwif_t *);
-extern void ide_setup_dma(ide_hwif_t *, unsigned long);
+void ide_setup_dma(ide_hwif_t *, unsigned long, const struct ide_port_info *);
 
 void ide_dma_host_set(ide_drive_t *, int);
 extern int ide_dma_setup(ide_drive_t *);

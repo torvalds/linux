@@ -328,7 +328,7 @@ static int __devinit palm_bk3710_init_dma(ide_hwif_t *hwif,
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
 
-	ide_setup_dma(hwif, base);
+	ide_setup_dma(hwif, base, d);
 
 	return 0;
 }

@@ -218,7 +218,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		 * we could be smarter and check for current xfer_speed
 		 * in struct drive etc...
 		 */
-		if (drive->hwif->dma_host_set == NULL)
+		if (drive->hwif->dma_ops == NULL)
 			break;
 		/*
 		 * TODO: respect ->using_dma setting
@@ -1238,12 +1238,12 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 
 	if (error < 0) {
 		printk(KERN_WARNING "%s: DMA timeout error\n", drive->name);
-		(void)HWIF(drive)->ide_dma_end(drive);
+		(void)hwif->dma_ops->dma_end(drive);
 		ret = ide_error(drive, "dma timeout error",
 				ide_read_status(drive));
 	} else {
 		printk(KERN_WARNING "%s: DMA timeout retry\n", drive->name);
-		hwif->dma_timeout(drive);
+		hwif->dma_ops->dma_timeout(drive);
 	}
 
 	/*
@@ -1355,7 +1355,7 @@ void ide_timer_expiry (unsigned long data)
 				startstop = handler(drive);
 			} else if (drive_is_ready(drive)) {
 				if (drive->waiting_for_dma)
-					hwgroup->hwif->dma_lost_irq(drive);
+					hwif->dma_ops->dma_lost_irq(drive);
 				(void)ide_ack_intr(hwif);
 				printk(KERN_WARNING "%s: lost interrupt\n", drive->name);
 				startstop = handler(drive);

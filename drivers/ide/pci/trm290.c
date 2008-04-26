@@ -214,7 +214,7 @@ static void trm290_dma_start(ide_drive_t *drive)
 {
 }
 
-static int trm290_ide_dma_end (ide_drive_t *drive)
+static int trm290_dma_end(ide_drive_t *drive)
 {
 	u16 status;
 
@@ -225,7 +225,7 @@ static int trm290_ide_dma_end (ide_drive_t *drive)
 	return status != 0x00ff;
 }
 
-static int trm290_ide_dma_test_irq (ide_drive_t *drive)
+static int trm290_dma_test_irq(ide_drive_t *drive)
 {
 	u16 status;
 
@@ -280,12 +280,6 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 		/* sharing IRQ with mate */
 		hwif->irq = hwif->mate->irq;
 
-	hwif->dma_host_set	= &trm290_dma_host_set;
-	hwif->dma_setup 	= &trm290_dma_setup;
-	hwif->dma_exec_cmd	= &trm290_dma_exec_cmd;
-	hwif->dma_start 	= &trm290_dma_start;
-	hwif->ide_dma_end	= &trm290_ide_dma_end;
-	hwif->ide_dma_test_irq	= &trm290_ide_dma_test_irq;
 #if 1
 	{
 	/*
@@ -319,11 +313,21 @@ static const struct ide_port_ops trm290_port_ops = {
 	.selectproc		= trm290_selectproc,
 };
 
+static struct ide_dma_ops trm290_dma_ops = {
+	.dma_host_set		= trm290_dma_host_set,
+	.dma_setup 		= trm290_dma_setup,
+	.dma_exec_cmd		= trm290_dma_exec_cmd,
+	.dma_start 		= trm290_dma_start,
+	.dma_end		= trm290_dma_end,
+	.dma_test_irq		= trm290_dma_test_irq,
+};
+
 static const struct ide_port_info trm290_chipset __devinitdata = {
 	.name		= "TRM290",
 	.init_hwif	= init_hwif_trm290,
 	.chipset	= ide_trm290,
 	.port_ops	= &trm290_port_ops,
+	.dma_ops	= &trm290_dma_ops,
 	.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
 #if 0 /* play it safe for now */
 			  IDE_HFLAG_TRUST_BIOS_FOR_DMA |

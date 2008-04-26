@@ -930,9 +930,14 @@ static const struct ide_port_ops pmac_ide_port_ops = {
 	.selectproc		= pmac_ide_selectproc,
 };
 
+static struct ide_dma_ops pmac_dma_ops;
+
 static const struct ide_port_info pmac_port_info = {
 	.init_dma		= pmac_ide_init_dma,
 	.chipset		= ide_pmac,
+#ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
+	.dma_ops		= &pmac_dma_ops,
+#endif
 	.port_ops		= &pmac_ide_port_ops,
 	.host_flags		= IDE_HFLAG_SET_PIO_MODE_KEEP_DMA |
 				  IDE_HFLAG_POST_SET_MODE |
@@ -1670,6 +1675,17 @@ pmac_ide_dma_lost_irq (ide_drive_t *drive)
 	printk(KERN_ERR "ide-pmac lost interrupt, dma status: %lx\n", status);
 }
 
+static struct ide_dma_ops pmac_dma_ops = {
+	.dma_host_set		= pmac_ide_dma_host_set,
+	.dma_setup		= pmac_ide_dma_setup,
+	.dma_exec_cmd		= pmac_ide_dma_exec_cmd,
+	.dma_start		= pmac_ide_dma_start,
+	.dma_end		= pmac_ide_dma_end,
+	.dma_test_irq		= pmac_ide_dma_test_irq,
+	.dma_timeout		= ide_dma_timeout,
+	.dma_lost_irq		= pmac_ide_dma_lost_irq,
+};
+
 /*
  * Allocate the data structures needed for using DMA with an interface
  * and fill the proper list of functions pointers
@@ -1701,15 +1717,6 @@ static int __devinit pmac_ide_init_dma(ide_hwif_t *hwif,
 	}
 
 	hwif->sg_max_nents = MAX_DCMDS;
-
-	hwif->dma_host_set = &pmac_ide_dma_host_set;
-	hwif->dma_setup = &pmac_ide_dma_setup;
-	hwif->dma_exec_cmd = &pmac_ide_dma_exec_cmd;
-	hwif->dma_start = &pmac_ide_dma_start;
-	hwif->ide_dma_end = &pmac_ide_dma_end;
-	hwif->ide_dma_test_irq = &pmac_ide_dma_test_irq;
-	hwif->dma_timeout = &ide_dma_timeout;
-	hwif->dma_lost_irq = &pmac_ide_dma_lost_irq;
 
 	return 0;
 }

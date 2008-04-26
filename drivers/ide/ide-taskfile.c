@@ -135,6 +135,7 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct ide_taskfile *tf = &task->tf;
 	ide_handler_t *handler = NULL;
+	struct ide_dma_ops *dma_ops = hwif->dma_ops;
 
 	if (task->data_phase == TASKFILE_MULTI_IN ||
 	    task->data_phase == TASKFILE_MULTI_OUT) {
@@ -178,10 +179,10 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 		return ide_started;
 	default:
 		if (task_dma_ok(task) == 0 || drive->using_dma == 0 ||
-		    hwif->dma_setup(drive))
+		    dma_ops->dma_setup(drive))
 			return ide_stopped;
-		hwif->dma_exec_cmd(drive, tf->command);
-		hwif->dma_start(drive);
+		dma_ops->dma_exec_cmd(drive, tf->command);
+		dma_ops->dma_start(drive);
 		return ide_started;
 	}
 }

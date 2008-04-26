@@ -188,7 +188,7 @@ sgiioc4_clearirq(ide_drive_t * drive)
 	return intr_reg & 3;
 }
 
-static void sgiioc4_ide_dma_start(ide_drive_t * drive)
+static void sgiioc4_dma_start(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	unsigned long ioc4_dma_addr = hwif->dma_base + IOC4_DMA_CTRL * 4;
@@ -215,8 +215,7 @@ sgiioc4_ide_dma_stop(ide_hwif_t *hwif, u64 dma_base)
 }
 
 /* Stops the IOC4 DMA Engine */
-static int
-sgiioc4_ide_dma_end(ide_drive_t * drive)
+static int sgiioc4_dma_end(ide_drive_t *drive)
 {
 	u32 ioc4_dma, bc_dev, bc_mem, num, valid = 0, cnt = 0;
 	ide_hwif_t *hwif = HWIF(drive);
@@ -279,8 +278,7 @@ static void sgiioc4_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /* returns 1 if dma irq issued, 0 otherwise */
-static int
-sgiioc4_ide_dma_test_irq(ide_drive_t * drive)
+static int sgiioc4_dma_test_irq(ide_drive_t *drive)
 {
 	return sgiioc4_checkirq(HWIF(drive));
 }
@@ -294,7 +292,7 @@ static void sgiioc4_dma_host_set(ide_drive_t *drive, int on)
 static void
 sgiioc4_resetproc(ide_drive_t * drive)
 {
-	sgiioc4_ide_dma_end(drive);
+	sgiioc4_dma_end(drive);
 	sgiioc4_clearirq(drive);
 }
 
@@ -326,8 +324,6 @@ sgiioc4_INB(unsigned long port)
 
 	return reg;
 }
-
-static void __devinit ide_init_sgiioc4(ide_hwif_t *);
 
 /* Creates a dma map for the scatter-gather list entries */
 static int __devinit
@@ -377,7 +373,6 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 
 	if (pad) {
 		ide_set_hwifdata(hwif, pad);
-		ide_init_sgiioc4(hwif);
 		return 0;
 	}
 
@@ -526,7 +521,7 @@ use_pio_instead:
 	return 0;		/* revert to PIO for this request */
 }
 
-static int sgiioc4_ide_dma_setup(ide_drive_t *drive)
+static int sgiioc4_dma_setup(ide_drive_t *drive)
 {
 	struct request *rq = HWGROUP(drive)->rq;
 	unsigned int count = 0;
@@ -555,18 +550,6 @@ static int sgiioc4_ide_dma_setup(ide_drive_t *drive)
 	return 0;
 }
 
-static void __devinit
-ide_init_sgiioc4(ide_hwif_t * hwif)
-{
-	hwif->dma_host_set = &sgiioc4_dma_host_set;
-	hwif->dma_setup = &sgiioc4_ide_dma_setup;
-	hwif->dma_start = &sgiioc4_ide_dma_start;
-	hwif->ide_dma_end = &sgiioc4_ide_dma_end;
-	hwif->ide_dma_test_irq = &sgiioc4_ide_dma_test_irq;
-	hwif->dma_lost_irq = &sgiioc4_dma_lost_irq;
-	hwif->dma_timeout = &ide_dma_timeout;
-}
-
 static const struct ide_port_ops sgiioc4_port_ops = {
 	.set_dma_mode		= sgiioc4_set_dma_mode,
 	/* reset DMA engine, clear IRQs */
@@ -575,10 +558,21 @@ static const struct ide_port_ops sgiioc4_port_ops = {
 	.maskproc		= sgiioc4_maskproc,
 };
 
+static struct ide_dma_ops sgiioc4_dma_ops = {
+	.dma_host_set		= sgiioc4_dma_host_set,
+	.dma_setup		= sgiioc4_dma_setup,
+	.dma_start		= sgiioc4_dma_start,
+	.dma_end		= sgiioc4_dma_end,
+	.dma_test_irq		= sgiioc4_dma_test_irq,
+	.dma_lost_irq		= sgiioc4_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
+};
+
 static const struct ide_port_info sgiioc4_port_info __devinitdata = {
 	.chipset		= ide_pci,
 	.init_dma		= ide_dma_sgiioc4,
 	.port_ops		= &sgiioc4_port_ops,
+	.dma_ops		= &sgiioc4_dma_ops,
 	.host_flags		= IDE_HFLAG_NO_AUTOTUNE,
 	.mwdma_mask		= ATA_MWDMA2_ONLY,
 };

@@ -652,21 +652,7 @@ static u8 __devinit ali_cable_detect(ide_hwif_t *hwif)
 	return cbl;
 }
 
-/**
- *	init_hwif_common_ali15x3	-	Set up ALI IDE hardware
- *	@hwif: IDE interface
- *
- *	Initialize the IDE structure side of the ALi 15x3 driver.
- */
- 
-static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
-{
-	if (hwif->dma_base == 0)
-		return;
-
-	hwif->dma_setup = &ali15x3_dma_setup;
-}
-
+#ifndef CONFIG_SPARC64
 /**
  *	init_hwif_ali15x3	-	Initialize the ALI IDE x86 stuff
  *	@hwif: interface to configure
@@ -716,9 +702,8 @@ static void __devinit init_hwif_ali15x3 (ide_hwif_t *hwif)
 		if(irq >= 0)
 			hwif->irq = irq;
 	}
-
-	init_hwif_common_ali15x3(hwif);
 }
+#endif
 
 /**
  *	init_dma_ali15x3	-	set up DMA on ALi15x3
@@ -746,7 +731,7 @@ static int __devinit init_dma_ali15x3(ide_hwif_t *hwif,
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
 
-	ide_setup_dma(hwif, base);
+	ide_setup_dma(hwif, base, d);
 
 	return 0;
 }
@@ -758,10 +743,16 @@ static const struct ide_port_ops ali_port_ops = {
 	.cable_detect		= ali_cable_detect,
 };
 
+static struct ide_dma_ops ali_dma_ops = {
+	.dma_setup		= ali15x3_dma_setup,
+};
+
 static const struct ide_port_info ali15x3_chipset __devinitdata = {
 	.name		= "ALI15X3",
 	.init_chipset	= init_chipset_ali15x3,
+#ifndef CONFIG_SPARC64
 	.init_hwif	= init_hwif_ali15x3,
+#endif
 	.init_dma	= init_dma_ali15x3,
 	.port_ops	= &ali_port_ops,
 	.pio_mask	= ATA_PIO5,
@@ -806,6 +797,8 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 			d.udma_mask = ATA_UDMA5;
 		else
 			d.udma_mask = ATA_UDMA6;
+
+		d.dma_ops = &ali_dma_ops;
 	} else {
 		d.host_flags |= IDE_HFLAG_NO_DMA;
 
@@ -815,9 +808,6 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 	if (idx == 0)
 		d.host_flags |= IDE_HFLAG_CLEAR_SIMPLEX;
 
-#if defined(CONFIG_SPARC64)
-	d.init_hwif = init_hwif_common_ali15x3;
-#endif /* CONFIG_SPARC64 */
 	return ide_setup_pci_device(dev, &d);
 }
 

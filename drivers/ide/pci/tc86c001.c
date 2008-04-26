@@ -168,8 +168,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 
 	/* Sector Count Register limit */
 	hwif->rqsize	 = 0xffff;
-
-	hwif->dma_start 	= &tc86c001_dma_start;
 }
 
 static unsigned int __devinit init_chipset_tc86c001(struct pci_dev *dev,
@@ -188,11 +186,16 @@ static const struct ide_port_ops tc86c001_port_ops = {
 	.cable_detect		= tc86c001_cable_detect,
 };
 
+static struct ide_dma_ops tc86c001_dma_ops = {
+	.dma_start		= tc86c001_dma_start,
+};
+
 static const struct ide_port_info tc86c001_chipset __devinitdata = {
 	.name		= "TC86C001",
 	.init_chipset	= init_chipset_tc86c001,
 	.init_hwif	= init_hwif_tc86c001,
 	.port_ops	= &tc86c001_port_ops,
+	.dma_ops	= &tc86c001_dma_ops,
 	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_OFF_BOARD |
 			  IDE_HFLAG_ABUSE_SET_DMA_MODE,
 	.pio_mask	= ATA_PIO4,

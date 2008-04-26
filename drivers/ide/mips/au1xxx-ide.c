@@ -366,20 +366,30 @@ static void auide_init_dbdma_dev(dbdev_tab_t *dev, u32 dev_id, u32 tsize, u32 de
 	dev->dev_devwidth    = devwidth;
 	dev->dev_flags       = flags;
 }
-  
-#if defined(CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA)
 
+#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 static void auide_dma_timeout(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 
 	printk(KERN_ERR "%s: DMA timeout occurred: ", drive->name);
 
-	if (hwif->ide_dma_test_irq(drive))
+	if (auide_dma_test_irq(drive))
 		return;
 
-	hwif->ide_dma_end(drive);
+	auide_dma_end(drive);
 }
+
+static struct ide_dma_ops au1xxx_dma_ops = {
+	.dma_host_set		= auide_dma_host_set,
+	.dma_setup		= auide_dma_setup,
+	.dma_exec_cmd		= auide_dma_exec_cmd,
+	.dma_start		= auide_dma_start,
+	.dma_end		= auide_dma_end,
+	.dma_test_irq		= auide_dma_test_irq,
+	.dma_lost_irq		= auide_dma_lost_irq,
+	.dma_timeout		= auide_dma_timeout,
+};
 
 static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
@@ -511,6 +521,9 @@ static const struct ide_port_ops au1xxx_port_ops = {
 static const struct ide_port_info au1xxx_port_info = {
 	.init_dma		= auide_ddma_init,
 	.port_ops		= &au1xxx_port_ops,
+#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
+	.dma_ops		= &au1xxx_dma_ops,
+#endif
 	.host_flags		= IDE_HFLAG_POST_SET_MODE |
 				  IDE_HFLAG_NO_IO_32BIT |
 				  IDE_HFLAG_UNMASK_IRQS,
@@ -588,16 +601,6 @@ static int au_ide_probe(struct device *dev)
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA	
 	hwif->INSW                      = auide_insw;
 	hwif->OUTSW                     = auide_outsw;
-#endif
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-	hwif->dma_timeout		= &auide_dma_timeout;
-	hwif->dma_host_set		= &auide_dma_host_set;
-	hwif->dma_exec_cmd              = &auide_dma_exec_cmd;
-	hwif->dma_start                 = &auide_dma_start;
-	hwif->ide_dma_end               = &auide_dma_end;
-	hwif->dma_setup                 = &auide_dma_setup;
-	hwif->ide_dma_test_irq          = &auide_dma_test_irq;
-	hwif->dma_lost_irq		= &auide_dma_lost_irq;
 #endif
 	hwif->select_data               = 0;    /* no chipset-specific code */
 	hwif->config_data               = 0;    /* no chipset-specific code */

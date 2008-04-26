@@ -469,7 +469,7 @@ int set_using_dma(ide_drive_t *drive, int arg)
 	if (!drive->id || !(drive->id->capability & 1))
 		goto out;
 
-	if (hwif->dma_host_set == NULL)
+	if (hwif->dma_ops == NULL)
 		goto out;
 
 	err = -EBUSY;
