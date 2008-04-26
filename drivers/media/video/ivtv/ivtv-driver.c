@@ -1195,13 +1195,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		ivtv_call_i2c_clients(itv, VIDIOC_INT_S_STD_OUTPUT, &itv->std);
 	}
 
-	retval = ivtv_streams_setup(itv);
-	if (retval) {
-		IVTV_ERR("Error %d setting up streams\n", retval);
-		goto free_i2c;
-	}
-
-	IVTV_DEBUG_IRQ("Masking interrupts\n");
 	/* clear interrupt mask, effectively disabling interrupts */
 	ivtv_set_irq_mask(itv, 0xffffffff);
 
@@ -1210,32 +1203,38 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 			     IRQF_SHARED | IRQF_DISABLED, itv->name, (void *)itv);
 	if (retval) {
 		IVTV_ERR("Failed to register irq %d\n", retval);
-		goto free_streams;
+		goto free_i2c;
+	}
+
+	retval = ivtv_streams_setup(itv);
+	if (retval) {
+		IVTV_ERR("Error %d setting up streams\n", retval);
+		goto free_irq;
 	}
 	retval = ivtv_streams_register(itv);
 	if (retval) {
 		IVTV_ERR("Error %d registering devices\n", retval);
-		goto free_irq;
+		goto free_streams;
 	}
 	IVTV_INFO("Initialized card #%d: %s\n", itv->num, itv->card_name);
 	return 0;
 
-      free_irq:
-	free_irq(itv->dev->irq, (void *)itv);
-      free_streams:
+free_streams:
 	ivtv_streams_cleanup(itv);
-      free_i2c:
+free_irq:
+	free_irq(itv->dev->irq, (void *)itv);
+free_i2c:
 	exit_ivtv_i2c(itv);
-      free_io:
+free_io:
 	ivtv_iounmap(itv);
-      free_mem:
+free_mem:
 	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
 	release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (itv->has_cx23415)
 		release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
-      free_workqueue:
+free_workqueue:
 	destroy_workqueue(itv->irq_work_queues);
-      err:
+err:
 	if (retval == 0)
 		retval = -ENODEV;
 	IVTV_ERR("Error %d on initialization\n", retval);
