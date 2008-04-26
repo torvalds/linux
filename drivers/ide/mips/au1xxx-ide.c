@@ -47,7 +47,6 @@
 #define IDE_AU1XXX_BURSTMODE	1
 
 static _auide_hwif auide_hwif;
-static int dbdma_init_done;
 
 static int auide_ddma_init(_auide_hwif *auide);
 
@@ -315,35 +314,6 @@ static int auide_dma_setup(ide_drive_t *drive)
 	return 0;
 }
 
-static u8 auide_mdma_filter(ide_drive_t *drive)
-{
-	/*
-	 * FIXME: ->white_list and ->black_list are based on completely bogus
-	 * ->ide_dma_check implementation which didn't set neither the host
-	 * controller timings nor the device for the desired transfer mode.
-	 *
-	 * They should be either removed or 0x00 MWDMA mask should be
-	 * returned for devices on the ->black_list.
-	 */
-
-	if (dbdma_init_done == 0) {
-		auide_hwif.white_list = ide_in_drive_list(drive->id,
-							  dma_white_list);
-		auide_hwif.black_list = ide_in_drive_list(drive->id,
-							  dma_black_list);
-		auide_hwif.drive = drive;
-		auide_ddma_init(&auide_hwif);
-		dbdma_init_done = 1;
-	}
-
-	/* Is the drive in our DMA black list? */
-	if (auide_hwif.black_list)
-		printk(KERN_WARNING "%s: Disabling DMA for %s (blacklisted)\n",
-				    drive->name, drive->id->model);
-
-	return drive->hwif->mwdma_mask;
-}
-
 static int auide_dma_test_irq(ide_drive_t *drive)
 {	
 	if (drive->waiting_for_dma == 0)
@@ -420,17 +390,8 @@ static int auide_ddma_init(_auide_hwif *auide) {
 
 	dev_id   = AU1XXX_ATA_DDMA_REQ;
 
-	if (auide->white_list || auide->black_list) {
-		tsize    = 8;
-		devwidth = 32;
-	}
-	else { 
-		tsize    = 1;
-		devwidth = 16;
-		
-		printk(KERN_ERR "au1xxx-ide: %s is not on ide driver whitelist.\n",auide_hwif.drive->id->model);
-		printk(KERN_ERR "            please read 'Documentation/mips/AU1xxx_IDE.README'");
-	}
+	tsize    =  8; /*  1 */
+	devwidth = 32; /* 16 */
 
 #ifdef IDE_AU1XXX_BURSTMODE 
 	flags = DEV_FLAGS_SYNC | DEV_FLAGS_BURSTABLE;
@@ -546,9 +507,6 @@ static void auide_setup_ports(hw_regs_t *hw, _auide_hwif *ahwif)
 static const struct ide_port_ops au1xxx_port_ops = {
 	.set_pio_mode		= au1xxx_set_pio_mode,
 	.set_dma_mode		= auide_set_dma_mode,
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-	.mdma_filter		= auide_mdma_filter,
-#endif
 };
 
 static const struct ide_port_info au1xxx_port_info = {
@@ -648,10 +606,7 @@ static int au_ide_probe(struct device *dev)
 	auide_hwif.hwif                 = hwif;
 	hwif->hwif_data                 = &auide_hwif;
 
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA           
 	auide_ddma_init(&auide_hwif);
-	dbdma_init_done = 1;
-#endif
 
 	idx[0] = hwif->index;
 
