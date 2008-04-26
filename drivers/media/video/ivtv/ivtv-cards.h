@@ -258,6 +258,7 @@ struct ivtv_card {
 	int nof_outputs;
 	const struct ivtv_card_output *video_outputs;
 	u8 gr_config; 		/* config byte for the ghost reduction device */
+	u8 xceive_pin; 		/* XCeive tuner GPIO reset pin */
 
 	/* GPIO card-specific settings */
 	struct ivtv_gpio_init 		gpio_init;

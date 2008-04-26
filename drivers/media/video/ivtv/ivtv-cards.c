@@ -924,6 +924,7 @@ static const struct ivtv_card ivtv_card_club3d = {
 	},
 	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO5 },
 	.gpio_init = { .direction = 0x1000, .initial_value = 0x1000 }, /* tuner reset */
+	.xceive_pin = 12,
 	.tuners = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
 	},
@@ -943,20 +944,26 @@ static const struct ivtv_card_pci_info ivtv_pci_avertv_mce116[] = {
 static const struct ivtv_card ivtv_card_avertv_mce116 = {
 	.type = IVTV_CARD_AVERTV_MCE116,
 	.name = "AVerTV MCE 116 Plus",
-	.comment = "only Composite and S-Video inputs are supported, not the tuner\n",
 	.v4l2_capabilities = IVTV_CAP_ENCODER,
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
 	.hw_audio_ctrl = IVTV_HW_CX25840,
-	.hw_all = IVTV_HW_CX25840 | IVTV_HW_WM8739,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER | IVTV_HW_WM8739,
 	.video_inputs = {
-		{ IVTV_CARD_INPUT_SVIDEO1,    0, CX25840_SVIDEO3    },
-		{ IVTV_CARD_INPUT_COMPOSITE1, 0, CX25840_COMPOSITE1 },
+		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
+		{ IVTV_CARD_INPUT_SVIDEO1,    1, CX25840_SVIDEO3    },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 1, CX25840_COMPOSITE1 },
 	},
 	.audio_inputs = {
+		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5       },
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
 	},
-	.gpio_init = { .direction = 0xe000, .initial_value = 0x4000 }, /* enable line-in */
+	/* enable line-in */
+	.gpio_init = { .direction = 0xe400, .initial_value = 0x4400 },
+	.xceive_pin = 10,
+	.tuners = {
+		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
+	},
 	.pci_list = ivtv_pci_avertv_mce116,
 	.i2c = &ivtv_i2c_std,
 };
@@ -1095,7 +1102,8 @@ static const struct ivtv_card ivtv_card_aver_m104 = {
 	},
 	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO_SERIAL, 2 },
 	/* enable line-in + reset tuner */
-	.gpio_init = { .direction = 0xf000, .initial_value = 0x5000 },
+	.gpio_init = { .direction = 0xe400, .initial_value = 0x4000 },
+	.xceive_pin = 10,
 	.tuners = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
 	},
