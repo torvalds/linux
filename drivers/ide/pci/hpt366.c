@@ -1348,8 +1348,6 @@ static void __devinit init_dma_hpt366(ide_hwif_t *hwif, unsigned long dmabase)
 		outb(dma_new, dmabase + 2);
 
 	local_irq_restore(flags);
-
-	ide_setup_dma(hwif, dmabase);
 }
 
 static void __devinit hpt374_init(struct pci_dev *dev, struct pci_dev *dev2)

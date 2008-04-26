@@ -361,11 +361,10 @@ void ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 			}
 		}
 		if (dma_base) {
-			if (d->init_dma) {
+			if (d->init_dma)
 				d->init_dma(hwif, dma_base);
-			} else {
-				ide_setup_dma(hwif, dma_base);
-			}
+
+			ide_setup_dma(hwif, dma_base);
 		} else {
 			printk(KERN_INFO "%s: %s Bus-Master DMA disabled "
 				"(BIOS)\n", hwif->name, d->name);
