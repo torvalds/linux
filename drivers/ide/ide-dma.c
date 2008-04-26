@@ -838,37 +838,17 @@ static int ide_allocate_dma_engine(ide_hwif_t *hwif)
 	return 1;
 }
 
-static int ide_mapped_mmio_dma(ide_hwif_t *hwif, unsigned long base)
-{
-	printk(KERN_INFO "    %s: MMIO-DMA ", hwif->name);
-
-	return 0;
-}
-
-static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base)
-{
-	printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx",
-	       hwif->name, base, base + 7);
-
-	hwif->extra_base = base + (hwif->channel ? 8 : 16);
-
-	return 0;
-}
-
-static int ide_dma_iobase(ide_hwif_t *hwif, unsigned long base)
-{
-	if (hwif->mmio)
-		return ide_mapped_mmio_dma(hwif, base);
-
-	return ide_iomio_dma(hwif, base);
-}
-
 void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
 {
 	u8 dma_stat;
 
-	if (ide_dma_iobase(hwif, base))
-		return;
+	if (hwif->mmio)
+		printk(KERN_INFO "    %s: MMIO-DMA ", hwif->name);
+	else
+		printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx",
+				 hwif->name, base, base + 7);
+
+	hwif->extra_base = base + (hwif->channel ? 8 : 16);
 
 	if (ide_allocate_dma_engine(hwif)) {
 		ide_release_dma_engine(hwif);
