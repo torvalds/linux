@@ -561,15 +561,15 @@ static void cmd640_set_mode(ide_drive_t *drive, unsigned int index,
 	active_time = ide_pio_timings[pio_mode].active_time;
 	recovery_time = cycle_time - (setup_time + active_time);
 	clock_time = 1000 / bus_speed;
-	cycle_count = (cycle_time + clock_time - 1) / clock_time;
+	cycle_count = DIV_ROUND_UP(cycle_time, clock_time);
 
-	setup_count = (setup_time + clock_time - 1) / clock_time;
+	setup_count = DIV_ROUND_UP(setup_time, clock_time);
 
-	active_count = (active_time + clock_time - 1) / clock_time;
+	active_count = DIV_ROUND_UP(active_time, clock_time);
 	if (active_count < 2)
 		active_count = 2; /* minimum allowed by cmd640 */
 
-	recovery_count = (recovery_time + clock_time - 1) / clock_time;
+	recovery_count = DIV_ROUND_UP(recovery_time, clock_time);
 	recovery_count2 = cycle_count - (setup_count + active_count);
 	if (recovery_count2 > recovery_count)
 		recovery_count = recovery_count2;
