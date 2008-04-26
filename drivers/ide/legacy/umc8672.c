@@ -128,8 +128,9 @@ static const struct ide_port_info umc8672_port_info __initdata = {
 
 static int __init umc8672_probe(void)
 {
+	ide_hwif_t *hwif, *mate;
 	unsigned long flags;
-	static u8 idx[4] = { 0, 1, 0xff, 0xff };
+	static u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	hw_regs_t hw[2];
 
 	if (!request_region(0x108, 2, "umc8672")) {
@@ -157,11 +158,19 @@ static int __init umc8672_probe(void)
 	ide_std_init_ports(&hw[1], 0x170, 0x376);
 	hw[1].irq = 15;
 
-	ide_init_port_hw(&ide_hwifs[0], &hw[0]);
-	ide_init_port_hw(&ide_hwifs[1], &hw[1]);
+	hwif = ide_find_port();
+	if (hwif) {
+		ide_init_port_hw(hwif, &hw[0]);
+		hwif->set_pio_mode = umc_set_pio_mode;
+		idx[0] = hwif->index;
+	}
 
-	ide_hwifs[0].set_pio_mode = &umc_set_pio_mode;
-	ide_hwifs[1].set_pio_mode = &umc_set_pio_mode;
+	mate = ide_find_port();
+	if (mate) {
+		ide_init_port_hw(mate, &hw[1]);
+		mate->set_pio_mode = umc_set_pio_mode;
+		idx[1] = mate->index;
+	}
 
 	ide_device_add(idx, &umc8672_port_info);
 

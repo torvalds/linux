@@ -1468,7 +1468,9 @@ ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
 	 * ports 0x1f0/0x170 (the ide0/ide1 defaults).
 	 */
 	if (bootable) {
-		for (i = 0; i < MAX_HWIFS; i++) {
+		i = (d && (d->host_flags & IDE_HFLAG_QD_2ND_PORT)) ? 1 : 0;
+
+		for (; i < MAX_HWIFS; i++) {
 			hwif = &ide_hwifs[i];
 			if (hwif->chipset == ide_unknown)
 				return hwif;

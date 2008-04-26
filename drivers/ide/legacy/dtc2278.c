@@ -102,14 +102,8 @@ static int __init dtc2278_probe(void)
 {
 	unsigned long flags;
 	ide_hwif_t *hwif, *mate;
-	static u8 idx[4] = { 0, 1, 0xff, 0xff };
+	static u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	hw_regs_t hw[2];
-
-	hwif = &ide_hwifs[0];
-	mate = &ide_hwifs[1];
-
-	if (hwif->chipset != ide_unknown || mate->chipset != ide_unknown)
-		return 1;
 
 	local_irq_save(flags);
 	/*
@@ -137,10 +131,18 @@ static int __init dtc2278_probe(void)
 	ide_std_init_ports(&hw[1], 0x170, 0x376);
 	hw[1].irq = 15;
 
-	ide_init_port_hw(hwif, &hw[0]);
-	ide_init_port_hw(mate, &hw[1]);
+	hwif = ide_find_port();
+	if (hwif) {
+		ide_init_port_hw(hwif, &hw[0]);
+		hwif->set_pio_mode = dtc2278_set_pio_mode;
+		idx[0] = hwif->index;
+	}
 
-	hwif->set_pio_mode = &dtc2278_set_pio_mode;
+	mate = ide_find_port();
+	if (mate) {
+		ide_init_port_hw(mate, &hw[1]);
+		idx[1] = mate->index;
+	}
 
 	ide_device_add(idx, &dtc2278_port_info);
 

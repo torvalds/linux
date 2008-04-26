@@ -355,6 +355,7 @@ static int __init qd_probe(int base)
 	u8 config, unit;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	hw_regs_t hw[2];
+	struct ide_port_info d = qd65xx_port_info;
 
 	config = inb(QD_CONFIG_PORT);
 
@@ -362,6 +363,9 @@ static int __init qd_probe(int base)
 		return -ENODEV;
 
 	unit = ! (config & QD_CONFIG_IDE_BASEPORT);
+
+	if (unit)
+		d.host_flags |= IDE_HFLAG_QD_2ND_PORT;
 
 	memset(&hw, 0, sizeof(hw));
 
@@ -378,15 +382,18 @@ static int __init qd_probe(int base)
 
 		/* qd6500 found */
 
-		hwif = &ide_hwifs[unit];
-		printk(KERN_NOTICE "%s: qd6500 at %#x\n", hwif->name, base);
-		printk(KERN_DEBUG "qd6500: config=%#x, ID3=%u\n",
-			config, QD_ID3);
-		
 		if (config & QD_CONFIG_DISABLED) {
 			printk(KERN_WARNING "qd6500 is disabled !\n");
 			return -ENODEV;
 		}
+
+		printk(KERN_NOTICE "qd6500 at %#x\n", base);
+		printk(KERN_DEBUG "qd6500: config=%#x, ID3=%u\n",
+			config, QD_ID3);
+
+		hwif = ide_find_port_slot(&d);
+		if (hwif == NULL)
+			return -ENOENT;
 
 		ide_init_port_hw(hwif, &hw[unit]);
 
@@ -395,9 +402,9 @@ static int __init qd_probe(int base)
 		hwif->port_init_devs = qd6500_port_init_devs;
 		hwif->set_pio_mode = &qd6500_set_pio_mode;
 
-		idx[unit] = unit;
+		idx[unit] = hwif->index;
 
-		ide_device_add(idx, &qd65xx_port_info);
+		ide_device_add(idx, &d);
 
 		return 1;
 	}
@@ -423,9 +430,11 @@ static int __init qd_probe(int base)
 		if (control & QD_CONTR_SEC_DISABLED) {
 			/* secondary disabled */
 
-			hwif = &ide_hwifs[unit];
-			printk(KERN_INFO "%s: qd6580: single IDE board\n",
-					 hwif->name);
+			printk(KERN_INFO "qd6580: single IDE board\n");
+
+			hwif = ide_find_port_slot(&d);
+			if (hwif == NULL)
+				return -ENOENT;
 
 			ide_init_port_hw(hwif, &hw[unit]);
 
@@ -434,35 +443,34 @@ static int __init qd_probe(int base)
 			hwif->port_init_devs = qd6580_port_init_devs;
 			hwif->set_pio_mode = &qd6580_set_pio_mode;
 
-			idx[unit] = unit;
+			idx[unit] = hwif->index;
 
-			ide_device_add(idx, &qd65xx_port_info);
+			ide_device_add(idx, &d);
 
 			return 1;
 		} else {
 			ide_hwif_t *mate;
 
-			hwif = &ide_hwifs[0];
-			mate = &ide_hwifs[1];
 			/* secondary enabled */
-			printk(KERN_INFO "%s&%s: qd6580: dual IDE board\n",
-					hwif->name, mate->name);
+			printk(KERN_INFO "qd6580: dual IDE board\n");
 
-			ide_init_port_hw(hwif, &hw[0]);
-			ide_init_port_hw(mate, &hw[1]);
+			hwif = ide_find_port();
+			if (hwif) {
+				ide_init_port_hw(hwif, &hw[0]);
+				qd_setup(hwif, base, config | (control << 8));
+				hwif->port_init_devs = qd6580_port_init_devs;
+				hwif->set_pio_mode   = qd6580_set_pio_mode;
+				idx[0] = hwif->index;
+			}
 
-			qd_setup(hwif, base, config | (control << 8));
-
-			hwif->port_init_devs = qd6580_port_init_devs;
-			hwif->set_pio_mode = &qd6580_set_pio_mode;
-
-			qd_setup(mate, base, config | (control << 8));
-
-			mate->port_init_devs = qd6580_port_init_devs;
-			mate->set_pio_mode = &qd6580_set_pio_mode;
-
-			idx[0] = 0;
-			idx[1] = 1;
+			mate = ide_find_port();
+			if (mate) {
+				ide_init_port_hw(mate, &hw[1]);
+				qd_setup(mate, base, config | (control << 8));
+				mate->port_init_devs = qd6580_port_init_devs;
+				mate->set_pio_mode   = qd6580_set_pio_mode;
+				idx[1] = mate->index;
+			}
 
 			ide_device_add(idx, &qd65xx_port_info);
 
