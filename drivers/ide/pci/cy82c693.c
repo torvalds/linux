@@ -410,8 +410,7 @@ static const struct ide_port_info cy82c693_chipset __devinitdata = {
 	.init_iops	= init_iops_cy82c693,
 	.init_hwif	= init_hwif_cy82c693,
 	.chipset	= ide_cy82c693,
-	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_CY82C693 |
-			  IDE_HFLAG_BOOTABLE,
+	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_CY82C693,
 	.pio_mask	= ATA_PIO4,
 	.swdma_mask	= ATA_SWDMA2,
 	.mwdma_mask	= ATA_MWDMA2,

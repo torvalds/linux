@@ -721,8 +721,7 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
       .name		= name_str,			\
       .init_iops	= init_iops_scc,		\
       .init_hwif	= init_hwif_scc,		\
-      .host_flags	= IDE_HFLAG_SINGLE |		\
-			  IDE_HFLAG_BOOTABLE,		\
+      .host_flags	= IDE_HFLAG_SINGLE,		\
       .pio_mask		= ATA_PIO4,			\
   }
 

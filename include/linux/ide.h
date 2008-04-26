@@ -1050,8 +1050,8 @@ enum {
 	IDE_HFLAG_VDMA			= (1 << 11),
 	/* ATAPI DMA is unsupported */
 	IDE_HFLAG_NO_ATAPI_DMA		= (1 << 12),
-	/* set if host is a "bootable" controller */
-	IDE_HFLAG_BOOTABLE		= (1 << 13),
+	/* set if host is a "non-bootable" controller */
+	IDE_HFLAG_NON_BOOTABLE		= (1 << 13),
 	/* host doesn't support DMA */
 	IDE_HFLAG_NO_DMA		= (1 << 14),
 	/* check if host is PCI IDE device before allowing DMA */
@@ -1092,9 +1092,9 @@ enum {
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD
-# define IDE_HFLAG_OFF_BOARD	IDE_HFLAG_BOOTABLE
-#else
 # define IDE_HFLAG_OFF_BOARD	0
+#else
+# define IDE_HFLAG_OFF_BOARD	IDE_HFLAG_NON_BOOTABLE
 #endif
 
 struct ide_port_info {

@@ -335,8 +335,7 @@ static const struct ide_port_info opti621_chipsets[] __devinitdata = {
 		.name		= "OPTI621",
 		.init_hwif	= init_hwif_opti621,
 		.enablebits	= {{0x45,0x80,0x00}, {0x40,0x08,0x00}},
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
-				  IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 		.pio_mask	= ATA_PIO3,
 		.swdma_mask	= ATA_SWDMA2,
 		.mwdma_mask	= ATA_MWDMA2,
@@ -344,8 +343,7 @@ static const struct ide_port_info opti621_chipsets[] __devinitdata = {
 		.name		= "OPTI621X",
 		.init_hwif	= init_hwif_opti621,
 		.enablebits	= {{0x45,0x80,0x00}, {0x40,0x08,0x00}},
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
-				  IDE_HFLAG_BOOTABLE,
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 		.pio_mask	= ATA_PIO3,
 		.swdma_mask	= ATA_SWDMA2,
 		.mwdma_mask	= ATA_MWDMA2,

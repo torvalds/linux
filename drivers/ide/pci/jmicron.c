@@ -114,7 +114,6 @@ static void __devinit init_hwif_jmicron(ide_hwif_t *hwif)
 static const struct ide_port_info jmicron_chipset __devinitdata = {
 	.name		= "JMB",
 	.init_hwif	= init_hwif_jmicron,
-	.host_flags	= IDE_HFLAG_BOOTABLE,
 	.enablebits	= { { 0x40, 0x01, 0x01 }, { 0x40, 0x10, 0x10 } },
 	.pio_mask	= ATA_PIO5,
 	.mwdma_mask	= ATA_MWDMA2,

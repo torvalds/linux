@@ -307,8 +307,7 @@ static const struct ide_port_info sc1200_chipset __devinitdata = {
 	.init_hwif	= init_hwif_sc1200,
 	.host_flags	= IDE_HFLAG_SERIALIZE |
 			  IDE_HFLAG_POST_SET_MODE |
-			  IDE_HFLAG_ABUSE_DMA_MODES |
-			  IDE_HFLAG_BOOTABLE,
+			  IDE_HFLAG_ABUSE_DMA_MODES,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
 	.udma_mask	= ATA_UDMA2,

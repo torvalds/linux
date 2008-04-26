@@ -133,7 +133,7 @@ static const struct ide_port_info hpt34x_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_hpt34x,
 		.init_hwif	= init_hwif_hpt34x,
 		.extra		= 16,
-		.host_flags	= IDE_HFLAGS_HPT34X,
+		.host_flags	= IDE_HFLAGS_HPT34X | IDE_HFLAG_NON_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
 	},
 	{ /* 1 */

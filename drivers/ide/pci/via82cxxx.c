@@ -432,8 +432,7 @@ static const struct ide_port_info via82cxxx_chipset __devinitdata = {
 			  IDE_HFLAG_PIO_NO_DOWNGRADE |
 			  IDE_HFLAG_ABUSE_SET_DMA_MODE |
 			  IDE_HFLAG_POST_SET_MODE |
-			  IDE_HFLAG_IO_32BIT |
-			  IDE_HFLAG_BOOTABLE,
+			  IDE_HFLAG_IO_32BIT,
 	.pio_mask	= ATA_PIO5,
 	.swdma_mask	= ATA_SWDMA2,
 	.mwdma_mask	= ATA_MWDMA2,

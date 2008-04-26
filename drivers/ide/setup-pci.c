@@ -320,7 +320,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 {
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
-	u8 bootable = (d->host_flags & IDE_HFLAG_BOOTABLE) ? 1 : 0;
+	u8 bootable = (d->host_flags & IDE_HFLAG_NON_BOOTABLE) ? 0 : 1;
 	struct hw_regs_s hw;
 
 	if ((d->host_flags & IDE_HFLAG_ISA_PORTS) == 0) {
