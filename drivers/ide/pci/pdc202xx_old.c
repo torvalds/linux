@@ -329,13 +329,21 @@ static const struct ide_port_ops pdc2026x_port_ops = {
 	.cable_detect		= pdc2026x_cable_detect,
 };
 
-static struct ide_dma_ops pdc20246_dma_ops = {
+static const struct ide_dma_ops pdc20246_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
+	.dma_end		= __ide_dma_end,
 	.dma_test_irq		= pdc202xx_dma_test_irq,
 	.dma_lost_irq		= pdc202xx_dma_lost_irq,
 	.dma_timeout		= pdc202xx_dma_timeout,
 };
 
-static struct ide_dma_ops pdc2026x_dma_ops = {
+static const struct ide_dma_ops pdc2026x_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= pdc202xx_dma_start,
 	.dma_end		= pdc202xx_dma_end,
 	.dma_test_irq		= pdc202xx_dma_test_irq,

@@ -782,7 +782,7 @@ static const struct ide_port_ops cris_port_ops = {
 	.set_dma_mode		= cris_set_dma_mode,
 };
 
-static struct ide_dma_ops cris_dma_ops;
+static const struct ide_dma_ops cris_dma_ops;
 
 static const struct ide_port_info cris_port_info __initdata = {
 	.chipset		= ide_etrax100,
@@ -1072,7 +1072,7 @@ static void cris_dma_start(ide_drive_t *drive)
 	}
 }
 
-static struct ide_dma_ops cris_dma_ops = {
+static const struct ide_dma_ops cris_dma_ops = {
 	.dma_host_set		= cris_dma_host_set,
 	.dma_setup		= cris_dma_setup,
 	.dma_exec_cmd		= cris_dma_exec_cmd,

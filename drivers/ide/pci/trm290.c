@@ -320,6 +320,8 @@ static struct ide_dma_ops trm290_dma_ops = {
 	.dma_start 		= trm290_dma_start,
 	.dma_end		= trm290_dma_end,
 	.dma_test_irq		= trm290_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
 };
 
 static const struct ide_port_info trm290_chipset __devinitdata = {

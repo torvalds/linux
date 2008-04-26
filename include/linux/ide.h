@@ -462,7 +462,7 @@ typedef struct hwif_s {
 	void (*rw_disk)(ide_drive_t *, struct request *);
 
 	const struct ide_port_ops	*port_ops;
-	struct ide_dma_ops		*dma_ops;
+	const struct ide_dma_ops	*dma_ops;
 
 	void (*ata_input_data)(ide_drive_t *, void *, u32);
 	void (*ata_output_data)(ide_drive_t *, void *, u32);
@@ -1118,7 +1118,7 @@ struct ide_port_info {
 					    const struct ide_port_info *);
 
 	const struct ide_port_ops	*port_ops;
-	struct ide_dma_ops		*dma_ops;
+	const struct ide_dma_ops	*dma_ops;
 
 	ide_pci_enablebit_t	enablebits[2];
 	hwif_chipset_t		chipset;
@@ -1170,12 +1170,14 @@ void ide_destroy_dmatable(ide_drive_t *);
 extern int ide_build_dmatable(ide_drive_t *, struct request *);
 int ide_allocate_dma_engine(ide_hwif_t *);
 void ide_release_dma_engine(ide_hwif_t *);
-void ide_setup_dma(ide_hwif_t *, unsigned long, const struct ide_port_info *);
+void ide_setup_dma(ide_hwif_t *, unsigned long);
 
 void ide_dma_host_set(ide_drive_t *, int);
 extern int ide_dma_setup(ide_drive_t *);
+void ide_dma_exec_cmd(ide_drive_t *, u8);
 extern void ide_dma_start(ide_drive_t *);
 extern int __ide_dma_end(ide_drive_t *);
+int ide_dma_test_irq(ide_drive_t *);
 extern void ide_dma_lost_irq(ide_drive_t *);
 extern void ide_dma_timeout(ide_drive_t *);
 #endif /* CONFIG_BLK_DEV_IDEDMA_SFF */

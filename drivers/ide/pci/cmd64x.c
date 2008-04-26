@@ -391,18 +391,37 @@ static const struct ide_port_ops cmd64x_port_ops = {
 	.cable_detect		= cmd64x_cable_detect,
 };
 
-static struct ide_dma_ops cmd64x_dma_ops = {
+static const struct ide_dma_ops cmd64x_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
 	.dma_end		= cmd64x_dma_end,
 	.dma_test_irq		= cmd64x_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
 };
 
-static struct ide_dma_ops cmd646_rev1_dma_ops = {
+static const struct ide_dma_ops cmd646_rev1_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
 	.dma_end		= cmd646_1_dma_end,
+	.dma_test_irq		= ide_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
 };
 
-static struct ide_dma_ops cmd648_dma_ops = {
+static const struct ide_dma_ops cmd648_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
 	.dma_end		= cmd648_dma_end,
 	.dma_test_irq		= cmd648_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
 };
 
 static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {

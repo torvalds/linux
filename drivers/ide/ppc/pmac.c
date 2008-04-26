@@ -930,7 +930,7 @@ static const struct ide_port_ops pmac_ide_port_ops = {
 	.selectproc		= pmac_ide_selectproc,
 };
 
-static struct ide_dma_ops pmac_dma_ops;
+static const struct ide_dma_ops pmac_dma_ops;
 
 static const struct ide_port_info pmac_port_info = {
 	.init_dma		= pmac_ide_init_dma,
@@ -1675,7 +1675,7 @@ pmac_ide_dma_lost_irq (ide_drive_t *drive)
 	printk(KERN_ERR "ide-pmac lost interrupt, dma status: %lx\n", status);
 }
 
-static struct ide_dma_ops pmac_dma_ops = {
+static const struct ide_dma_ops pmac_dma_ops = {
 	.dma_host_set		= pmac_ide_dma_host_set,
 	.dma_setup		= pmac_ide_dma_setup,
 	.dma_exec_cmd		= pmac_ide_dma_exec_cmd,

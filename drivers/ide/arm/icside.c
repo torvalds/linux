@@ -392,7 +392,7 @@ static int icside_dma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 	return 0;
 }
 
-static struct ide_dma_ops icside_v6_dma_ops = {
+static const struct ide_dma_ops icside_v6_dma_ops = {
 	.dma_host_set		= icside_dma_host_set,
 	.dma_setup		= icside_dma_setup,
 	.dma_exec_cmd		= icside_dma_exec_cmd,

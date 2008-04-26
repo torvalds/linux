@@ -258,9 +258,15 @@ static const struct ide_port_ops ns87415_port_ops = {
 	.selectproc		= ns87415_selectproc,
 };
 
-static struct ide_dma_ops ns87415_dma_ops = {
+static const struct ide_dma_ops ns87415_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ns87415_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
 	.dma_end		= ns87415_dma_end,
+	.dma_test_irq		= ide_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
 };
 
 static const struct ide_port_info ns87415_chipset __devinitdata = {

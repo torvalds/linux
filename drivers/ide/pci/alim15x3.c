@@ -731,7 +731,7 @@ static int __devinit init_dma_ali15x3(ide_hwif_t *hwif,
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
 
-	ide_setup_dma(hwif, base, d);
+	ide_setup_dma(hwif, base);
 
 	return 0;
 }
@@ -743,8 +743,15 @@ static const struct ide_port_ops ali_port_ops = {
 	.cable_detect		= ali_cable_detect,
 };
 
-static struct ide_dma_ops ali_dma_ops = {
+static const struct ide_dma_ops ali_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ali15x3_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
+	.dma_end		= __ide_dma_end,
+	.dma_test_irq		= ide_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
 };
 
 static const struct ide_port_info ali15x3_chipset __devinitdata = {

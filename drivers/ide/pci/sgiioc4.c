@@ -558,7 +558,7 @@ static const struct ide_port_ops sgiioc4_port_ops = {
 	.maskproc		= sgiioc4_maskproc,
 };
 
-static struct ide_dma_ops sgiioc4_dma_ops = {
+static const struct ide_dma_ops sgiioc4_dma_ops = {
 	.dma_host_set		= sgiioc4_dma_host_set,
 	.dma_setup		= sgiioc4_dma_setup,
 	.dma_start		= sgiioc4_dma_start,

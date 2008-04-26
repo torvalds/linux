@@ -705,10 +705,15 @@ static const struct ide_port_ops scc_port_ops = {
 	.cable_detect		= scc_cable_detect,
 };
 
-static struct ide_dma_ops scc_dma_ops = {
+static const struct ide_dma_ops scc_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= scc_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
 	.dma_end		= scc_dma_end,
 	.dma_test_irq		= scc_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
 };
 
 #define DECLARE_SCC_DEV(name_str)			\

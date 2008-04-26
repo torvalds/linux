@@ -380,7 +380,7 @@ static void auide_dma_timeout(ide_drive_t *drive)
 	auide_dma_end(drive);
 }
 
-static struct ide_dma_ops au1xxx_dma_ops = {
+static const struct ide_dma_ops au1xxx_dma_ops = {
 	.dma_host_set		= auide_dma_host_set,
 	.dma_setup		= auide_dma_setup,
 	.dma_exec_cmd		= auide_dma_exec_cmd,
