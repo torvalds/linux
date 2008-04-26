@@ -277,6 +277,7 @@ struct tpacpi_led_classdev {
 	struct led_classdev led_classdev;
 	struct work_struct work;
 	enum led_brightness new_brightness;
+	unsigned int led;
 };
 
 /****************************************************************************
@@ -3814,20 +3815,38 @@ TPACPI_HANDLE(led, ec, "SLED",	/* 570 */
 	   "LED",		/* all others */
 	   );			/* R30, R31 */
 
+#define TPACPI_LED_NUMLEDS 8
+static struct tpacpi_led_classdev *tpacpi_leds;
+static enum led_status_t tpacpi_led_state_cache[TPACPI_LED_NUMLEDS];
+static const char const *tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
+	/* there's a limit of 19 chars + NULL before 2.6.26 */
+	"tpacpi::power",
+	"tpacpi:orange:batt",
+	"tpacpi:green:batt",
+	"tpacpi::dock_active",
+	"tpacpi::bay_active",
+	"tpacpi::dock_batt",
+	"tpacpi::unknown_led",
+	"tpacpi::standby",
+};
+
 static int led_get_status(unsigned int led)
 {
 	int status;
+	enum led_status_t led_s;
 
 	switch (led_supported) {
 	case TPACPI_LED_570:
 		if (!acpi_evalf(ec_handle,
 				&status, "GLED", "dd", 1 << led))
 			return -EIO;
-		return (status == 0)?
+		led_s = (status == 0)?
 				TPACPI_LED_OFF :
 				((status == 1)?
 					TPACPI_LED_ON :
 					TPACPI_LED_BLINK);
+		tpacpi_led_state_cache[led] = led_s;
+		return led_s;
 	default:
 		return -ENXIO;
 	}
@@ -3874,11 +3893,96 @@ static int led_set_status(unsigned int led, enum led_status_t ledstatus)
 		rc = -ENXIO;
 	}
 
+	if (!rc)
+		tpacpi_led_state_cache[led] = ledstatus;
+
 	return rc;
+}
+
+static void led_sysfs_set_status(unsigned int led,
+				 enum led_brightness brightness)
+{
+	led_set_status(led,
+			(brightness == LED_OFF) ?
+			TPACPI_LED_OFF :
+			(tpacpi_led_state_cache[led] == TPACPI_LED_BLINK) ?
+				TPACPI_LED_BLINK : TPACPI_LED_ON);
+}
+
+static void led_set_status_worker(struct work_struct *work)
+{
+	struct tpacpi_led_classdev *data =
+		container_of(work, struct tpacpi_led_classdev, work);
+
+	if (likely(tpacpi_lifecycle == TPACPI_LIFE_RUNNING))
+		led_sysfs_set_status(data->led, data->new_brightness);
+}
+
+static void led_sysfs_set(struct led_classdev *led_cdev,
+			enum led_brightness brightness)
+{
+	struct tpacpi_led_classdev *data = container_of(led_cdev,
+			     struct tpacpi_led_classdev, led_classdev);
+
+	data->new_brightness = brightness;
+	schedule_work(&data->work);
+}
+
+static int led_sysfs_blink_set(struct led_classdev *led_cdev,
+			unsigned long *delay_on, unsigned long *delay_off)
+{
+	struct tpacpi_led_classdev *data = container_of(led_cdev,
+			     struct tpacpi_led_classdev, led_classdev);
+
+	/* Can we choose the flash rate? */
+	if (*delay_on == 0 && *delay_off == 0) {
+		/* yes. set them to the hardware blink rate (1 Hz) */
+		*delay_on = 500; /* ms */
+		*delay_off = 500; /* ms */
+	} else if ((*delay_on != 500) || (*delay_off != 500))
+		return -EINVAL;
+
+	data->new_brightness = TPACPI_LED_BLINK;
+	schedule_work(&data->work);
+
+	return 0;
+}
+
+static enum led_brightness led_sysfs_get(struct led_classdev *led_cdev)
+{
+	int rc;
+
+	struct tpacpi_led_classdev *data = container_of(led_cdev,
+			     struct tpacpi_led_classdev, led_classdev);
+
+	rc = led_get_status(data->led);
+
+	if (rc == TPACPI_LED_OFF || rc < 0)
+		rc = LED_OFF;	/* no error handling in led class :( */
+	else
+		rc = LED_FULL;
+
+	return rc;
+}
+
+static void led_exit(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < TPACPI_LED_NUMLEDS; i++) {
+		if (tpacpi_leds[i].led_classdev.name)
+			led_classdev_unregister(&tpacpi_leds[i].led_classdev);
+	}
+
+	kfree(tpacpi_leds);
+	tpacpi_leds = NULL;
 }
 
 static int __init led_init(struct ibm_init_struct *iibm)
 {
+	unsigned int i;
+	int rc;
+
 	vdbg_printk(TPACPI_DBG_INIT, "initializing LED subdriver\n");
 
 	TPACPI_ACPIHANDLE_INIT(led);
@@ -3898,6 +4002,35 @@ static int __init led_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT, "LED commands are %s, mode %d\n",
 		str_supported(led_supported), led_supported);
+
+	tpacpi_leds = kzalloc(sizeof(*tpacpi_leds) * TPACPI_LED_NUMLEDS,
+			      GFP_KERNEL);
+	if (!tpacpi_leds) {
+		printk(TPACPI_ERR "Out of memory for LED data\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < TPACPI_LED_NUMLEDS; i++) {
+		tpacpi_leds[i].led = i;
+
+		tpacpi_leds[i].led_classdev.brightness_set = &led_sysfs_set;
+		tpacpi_leds[i].led_classdev.blink_set = &led_sysfs_blink_set;
+		if (led_supported == TPACPI_LED_570)
+			tpacpi_leds[i].led_classdev.brightness_get =
+							&led_sysfs_get;
+
+		tpacpi_leds[i].led_classdev.name = tpacpi_led_names[i];
+
+		INIT_WORK(&tpacpi_leds[i].work, led_set_status_worker);
+
+		rc = led_classdev_register(&tpacpi_pdev->dev,
+					   &tpacpi_leds[i].led_classdev);
+		if (rc < 0) {
+			tpacpi_leds[i].led_classdev.name = NULL;
+			led_exit();
+			return rc;
+		}
+	}
 
 	return (led_supported != TPACPI_LED_NONE)? 0 : 1;
 }
@@ -3969,6 +4102,7 @@ static struct ibm_struct led_driver_data = {
 	.name = "led",
 	.read = led_read,
 	.write = led_write,
+	.exit = led_exit,
 };
 
 /*************************************************************************
