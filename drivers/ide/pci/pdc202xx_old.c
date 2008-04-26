@@ -263,12 +263,6 @@ static void pdc202xx_dma_timeout(ide_drive_t *drive)
 	ide_dma_timeout(drive);
 }
 
-static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev,
-							const char *name)
-{
-	return dev->irq;
-}
-
 static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
@@ -286,15 +280,14 @@ static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 	hwif->ide_dma_test_irq = &pdc202xx_old_ide_dma_test_irq;
 }
 
-static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
+static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev,
+						    const char *name)
 {
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	unsigned long dmabase = pci_resource_start(dev, 4);
 	u8 udma_speed_flag = 0, primary_mode = 0, secondary_mode = 0;
 
-	if (hwif->channel) {
-		ide_setup_dma(hwif, dmabase);
-		return;
-	}
+	if (dmabase == 0)
+		goto out;
 
 	udma_speed_flag	= inb(dmabase | 0x1f);
 	primary_mode	= inb(dmabase | 0x1a);
@@ -313,8 +306,8 @@ static void __devinit init_dma_pdc202xx(ide_hwif_t *hwif, unsigned long dmabase)
 		outb(udma_speed_flag | 1, dmabase | 0x1f);
 		printk("%sACTIVE\n", (inb(dmabase | 0x1f) & 1) ? "" : "IN");
 	}
-
-	ide_setup_dma(hwif, dmabase);
+out:
+	return dev->irq;
 }
 
 static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
@@ -358,7 +351,6 @@ static const struct ide_port_ops pdc2026x_port_ops = {
 		.name		= name_str, \
 		.init_chipset	= init_chipset_pdc202xx, \
 		.init_hwif	= init_hwif_pdc202xx, \
-		.init_dma	= init_dma_pdc202xx, \
 		.port_ops	= &pdc2026x_port_ops, \
 		.host_flags	= IDE_HFLAGS_PDC202XX | extra_flags, \
 		.pio_mask	= ATA_PIO4, \
@@ -371,7 +363,6 @@ static const struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
 		.name		= "PDC20246",
 		.init_chipset	= init_chipset_pdc202xx,
 		.init_hwif	= init_hwif_pdc202xx,
-		.init_dma	= init_dma_pdc202xx,
 		.port_ops	= &pdc20246_port_ops,
 		.host_flags	= IDE_HFLAGS_PDC202XX,
 		.pio_mask	= ATA_PIO4,
