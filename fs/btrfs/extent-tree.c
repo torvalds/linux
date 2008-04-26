@@ -1727,7 +1727,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		data = BTRFS_BLOCK_GROUP_METADATA | alloc_profile;
 	}
 again:
-	if (root != root->fs_info->extent_root) {
+	if (root->ref_cows) {
 		if (!(data & BTRFS_BLOCK_GROUP_METADATA)) {
 			ret = do_chunk_alloc(trans, root->fs_info->extent_root,
 					     2 * 1024 * 1024,
