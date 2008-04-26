@@ -534,12 +534,8 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	int i;
 
-	for (i = 0; i < MAX_HWIFS; i++) {
-		hwif = &ide_hwifs[i];
-		if (hwif->chipset == ide_unknown)
-			break; /* pick an unused entry */
-	}
-	if (i == MAX_HWIFS) {
+	hwif = ide_find_port();
+	if (hwif == NULL) {
 		printk(KERN_ERR "%s: too many IDE interfaces, "
 				"no room in table\n", SCC_PATA_NAME);
 		return -ENOMEM;
