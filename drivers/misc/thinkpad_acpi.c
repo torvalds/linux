@@ -3280,13 +3280,49 @@ static int light_set_status(int status)
 	return -ENXIO;
 }
 
+static void light_set_status_worker(struct work_struct *work)
+{
+	struct tpacpi_led_classdev *data =
+			container_of(work, struct tpacpi_led_classdev, work);
+
+	if (likely(tpacpi_lifecycle == TPACPI_LIFE_RUNNING))
+		light_set_status((data->new_brightness != LED_OFF));
+}
+
+static void light_sysfs_set(struct led_classdev *led_cdev,
+			enum led_brightness brightness)
+{
+	struct tpacpi_led_classdev *data =
+		container_of(led_cdev,
+			     struct tpacpi_led_classdev,
+			     led_classdev);
+	data->new_brightness = brightness;
+	schedule_work(&data->work);
+}
+
+static enum led_brightness light_sysfs_get(struct led_classdev *led_cdev)
+{
+	return (light_get_status() == 1)? LED_FULL : LED_OFF;
+}
+
+static struct tpacpi_led_classdev tpacpi_led_thinklight = {
+	.led_classdev = {
+		.name		= "tpacpi::thinklight",
+		.brightness_set	= &light_sysfs_set,
+		.brightness_get	= &light_sysfs_get,
+	}
+};
+
 static int __init light_init(struct ibm_init_struct *iibm)
 {
+	int rc = 0;
+
 	vdbg_printk(TPACPI_DBG_INIT, "initializing light subdriver\n");
 
 	TPACPI_ACPIHANDLE_INIT(ledb);
 	TPACPI_ACPIHANDLE_INIT(lght);
 	TPACPI_ACPIHANDLE_INIT(cmos);
+	INIT_WORK(&tpacpi_led_thinklight.work, light_set_status_worker);
 
 	/* light not supported on 570, 600e/x, 770e, 770x, G4x, R30, R31 */
 	tp_features.light = (cmos_handle || lght_handle) && !ledb_handle;
@@ -3300,7 +3336,25 @@ static int __init light_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "light is %s\n",
 		str_supported(tp_features.light));
 
-	return (tp_features.light)? 0 : 1;
+	if (tp_features.light) {
+		rc = led_classdev_register(&tpacpi_pdev->dev,
+					   &tpacpi_led_thinklight.led_classdev);
+	}
+
+	if (rc < 0) {
+		tp_features.light = 0;
+		tp_features.light_status = 0;
+	} else {
+		rc = (tp_features.light)? 0 : 1;
+	}
+	return rc;
+}
+
+static void light_exit(void)
+{
+	led_classdev_unregister(&tpacpi_led_thinklight.led_classdev);
+	if (work_pending(&tpacpi_led_thinklight.work))
+		flush_scheduled_work();
 }
 
 static int light_read(char *p)
@@ -3348,6 +3402,7 @@ static struct ibm_struct light_driver_data = {
 	.name = "light",
 	.read = light_read,
 	.write = light_write,
+	.exit = light_exit,
 };
 
 /*************************************************************************

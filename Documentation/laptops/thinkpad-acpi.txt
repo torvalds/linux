@@ -693,15 +693,30 @@ while others are still having problems. For more information:
 
 https://bugs.freedesktop.org/show_bug.cgi?id=2000
 
-ThinkLight control -- /proc/acpi/ibm/light
-------------------------------------------
+ThinkLight control
+------------------
 
-The current status of the ThinkLight can be found in this file. A few
-models which do not make the status available will show it as
-"unknown". The available commands are:
+procfs: /proc/acpi/ibm/light
+sysfs attributes: as per led class, for the "tpacpi::thinklight" led
+
+procfs notes:
+
+The ThinkLight status can be read and set through the procfs interface.  A
+few models which do not make the status available will show the ThinkLight
+status as "unknown". The available commands are:
 
 	echo on  > /proc/acpi/ibm/light
 	echo off > /proc/acpi/ibm/light
+
+sysfs notes:
+
+The ThinkLight sysfs interface is documented by the led class
+documentation, in Documentation/leds-class.txt.  The ThinkLight led name
+is "tpacpi::thinklight".
+
+Due to limitations in the sysfs led class, if the status of the thinklight
+cannot be read or if it is unknown, thinkpad-acpi will report it as "off".
+It is impossible to know if the status returned through sysfs is valid.
 
 Docking / undocking -- /proc/acpi/ibm/dock
 ------------------------------------------
