@@ -140,6 +140,7 @@ enum {
 #define TPACPI_HWMON_DRVR_NAME TPACPI_NAME "_hwmon"
 
 #define TPACPI_NVRAM_KTHREAD_NAME "ktpacpi_nvramd"
+#define TPACPI_WORKQUEUE_NAME "ktpacpid"
 
 #define TPACPI_MAX_ACPI_ARGS 3
 
@@ -271,6 +272,8 @@ static enum {
 
 static int experimental;
 static u32 dbg_level;
+
+static struct workqueue_struct *tpacpi_wq;
 
 /* Special LED class that can defer work */
 struct tpacpi_led_classdev {
@@ -3298,7 +3301,7 @@ static void light_sysfs_set(struct led_classdev *led_cdev,
 			     struct tpacpi_led_classdev,
 			     led_classdev);
 	data->new_brightness = brightness;
-	schedule_work(&data->work);
+	queue_work(tpacpi_wq, &data->work);
 }
 
 static enum led_brightness light_sysfs_get(struct led_classdev *led_cdev)
@@ -3355,7 +3358,7 @@ static void light_exit(void)
 {
 	led_classdev_unregister(&tpacpi_led_thinklight.led_classdev);
 	if (work_pending(&tpacpi_led_thinklight.work))
-		flush_scheduled_work();
+		flush_workqueue(tpacpi_wq);
 }
 
 static int light_read(char *p)
@@ -3925,7 +3928,7 @@ static void led_sysfs_set(struct led_classdev *led_cdev,
 			     struct tpacpi_led_classdev, led_classdev);
 
 	data->new_brightness = brightness;
-	schedule_work(&data->work);
+	queue_work(tpacpi_wq, &data->work);
 }
 
 static int led_sysfs_blink_set(struct led_classdev *led_cdev,
@@ -3943,7 +3946,7 @@ static int led_sysfs_blink_set(struct led_classdev *led_cdev,
 		return -EINVAL;
 
 	data->new_brightness = TPACPI_LED_BLINK;
-	schedule_work(&data->work);
+	queue_work(tpacpi_wq, &data->work);
 
 	return 0;
 }
@@ -5408,11 +5411,11 @@ static void fan_watchdog_reset(void)
 	if (fan_watchdog_maxinterval > 0 &&
 	    tpacpi_lifecycle != TPACPI_LIFE_EXITING) {
 		fan_watchdog_active = 1;
-		if (!schedule_delayed_work(&fan_watchdog_task,
+		if (!queue_delayed_work(tpacpi_wq, &fan_watchdog_task,
 				msecs_to_jiffies(fan_watchdog_maxinterval
 						 * 1000))) {
 			printk(TPACPI_ERR
-			       "failed to schedule the fan watchdog, "
+			       "failed to queue the fan watchdog, "
 			       "watchdog will not trigger\n");
 		}
 	} else
@@ -5782,7 +5785,7 @@ static void fan_exit(void)
 			   &driver_attr_fan_watchdog);
 
 	cancel_delayed_work(&fan_watchdog_task);
-	flush_scheduled_work();
+	flush_workqueue(tpacpi_wq);
 }
 
 static int fan_read(char *p)
@@ -6436,6 +6439,9 @@ static void thinkpad_acpi_module_exit(void)
 	if (proc_dir)
 		remove_proc_entry(TPACPI_PROC_DIR, acpi_root_dir);
 
+	if (tpacpi_wq)
+		destroy_workqueue(tpacpi_wq);
+
 	kfree(thinkpad_id.bios_version_str);
 	kfree(thinkpad_id.ec_version_str);
 	kfree(thinkpad_id.model_str);
@@ -6465,6 +6471,12 @@ static int __init thinkpad_acpi_module_init(void)
 
 	TPACPI_ACPIHANDLE_INIT(ecrd);
 	TPACPI_ACPIHANDLE_INIT(ecwr);
+
+	tpacpi_wq = create_singlethread_workqueue(TPACPI_WORKQUEUE_NAME);
+	if (!tpacpi_wq) {
+		thinkpad_acpi_module_exit();
+		return -ENOMEM;
+	}
 
 	proc_dir = proc_mkdir(TPACPI_PROC_DIR, acpi_root_dir);
 	if (!proc_dir) {
