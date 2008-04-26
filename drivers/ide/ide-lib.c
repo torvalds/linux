@@ -85,7 +85,7 @@ static u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 			mode = XFER_PIO_4;
 	}
 
-//	printk("%s: mode 0x%02x, speed 0x%02x\n", __FUNCTION__, mode, speed);
+/*	printk("%s: mode 0x%02x, speed 0x%02x\n", __func__, mode, speed); */
 
 	return min(speed, mode);
 }

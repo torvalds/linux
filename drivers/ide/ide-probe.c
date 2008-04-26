@@ -644,7 +644,7 @@ static int ide_register_port(ide_hwif_t *hwif)
 	ret = device_register(&hwif->gendev);
 	if (ret < 0) {
 		printk(KERN_WARNING "IDE: %s: device_register error: %d\n",
-			__FUNCTION__, ret);
+			__func__, ret);
 		goto out;
 	}
 

@@ -438,7 +438,7 @@ static void m8xx_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 #elif defined(CONFIG_IDE_EXT_DIRECT)
 
 	printk("%s[%d] %s: not implemented yet!\n",
-		__FILE__,__LINE__,__FUNCTION__);
+		__FILE__, __LINE__, __func__);
 #endif /* defined(CONFIG_IDE_8xx_PCCARD) || defined(CONFIG_IDE_8xx_PCMCIA */
 }
 

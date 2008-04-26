@@ -352,12 +352,12 @@ static int __init ht6560b_init(void)
 
 	if (!request_region(HT_CONFIG_PORT, 1, DRV_NAME)) {
 		printk(KERN_NOTICE "%s: HT_CONFIG_PORT not found\n",
-			__FUNCTION__);
+			__func__);
 		return -ENODEV;
 	}
 
 	if (!try_to_init_ht6560b()) {
-		printk(KERN_NOTICE "%s: HBA not found\n", __FUNCTION__);
+		printk(KERN_NOTICE "%s: HBA not found\n", __func__);
 		goto release_region;
 	}
 

@@ -179,7 +179,7 @@ static void sl82c105_dma_start(ide_drive_t *drive)
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	int reg 		= 0x44 + drive->dn * 4;
 
-	DBG(("%s(drive:%s)\n", __FUNCTION__, drive->name));
+	DBG(("%s(drive:%s)\n", __func__, drive->name));
 
 	pci_write_config_word(dev, reg, drive->drive_data >> 16);
 
@@ -203,7 +203,7 @@ static int sl82c105_dma_end(ide_drive_t *drive)
 	int reg 		= 0x44 + drive->dn * 4;
 	int ret;
 
-	DBG(("%s(drive:%s)\n", __FUNCTION__, drive->name));
+	DBG(("%s(drive:%s)\n", __func__, drive->name));
 
 	ret = __ide_dma_end(drive);
 

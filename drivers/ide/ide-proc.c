@@ -599,14 +599,14 @@ static int ide_replace_subdriver(ide_drive_t *drive, const char *driver)
 	err = device_attach(dev);
 	if (err < 0)
 		printk(KERN_WARNING "IDE: %s: device_attach error: %d\n",
-			__FUNCTION__, err);
+			__func__, err);
 	drive->driver_req[0] = 0;
 	if (dev->driver == NULL) {
 		err = device_attach(dev);
 		if (err < 0)
 			printk(KERN_WARNING
 				"IDE: %s: device_attach(2) error: %d\n",
-				__FUNCTION__, err);
+				__func__, err);
 	}
 	if (dev->driver && !strcmp(dev->driver->name, driver))
 		ret = 0;
@@ -820,7 +820,7 @@ static int ide_drivers_show(struct seq_file *s, void *p)
 	err = bus_for_each_drv(&ide_bus_type, NULL, s, proc_print_driver);
 	if (err < 0)
 		printk(KERN_WARNING "IDE: %s: bus_for_each_drv error: %d\n",
-			__FUNCTION__, err);
+			__func__, err);
 	return 0;
 }
 

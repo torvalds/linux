@@ -347,7 +347,7 @@ static int siimage_mmio_ide_dma_test_irq (ide_drive_t *drive)
 			printk(KERN_WARNING "%s: sata_error = 0x%08x, "
 				"watchdog = %d, %s\n",
 				drive->name, sata_error, watchdog,
-				__FUNCTION__);
+				__func__);
 
 		} else {
 			watchdog = (ext_stat & 0x8000) ? 1 : 0;

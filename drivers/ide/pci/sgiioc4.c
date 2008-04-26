@@ -170,10 +170,10 @@ sgiioc4_clearirq(ide_drive_t * drive)
 			printk(KERN_ERR
 			       "%s(%s) : PCI Bus Error when doing DMA:"
 				   " status-cmd reg is 0x%x\n",
-			       __FUNCTION__, drive->name, pci_stat_cmd_reg);
+			       __func__, drive->name, pci_stat_cmd_reg);
 			printk(KERN_ERR
 			       "%s(%s) : PCI Error Address is 0x%x%x\n",
-			       __FUNCTION__, drive->name,
+			       __func__, drive->name,
 			       pci_err_addr_high, pci_err_addr_low);
 			/* Clear the PCI Error indicator */
 			pci_write_config_dword(dev, PCI_COMMAND, 0x00000146);
@@ -232,7 +232,7 @@ sgiioc4_ide_dma_end(ide_drive_t * drive)
 		printk(KERN_ERR
 		       "%s(%s): IOC4 DMA STOP bit is still 1 :"
 		       "ioc4_dma_reg 0x%x\n",
-		       __FUNCTION__, drive->name, ioc4_dma);
+		       __func__, drive->name, ioc4_dma);
 		dma_stat = 1;
 	}
 
@@ -251,7 +251,7 @@ sgiioc4_ide_dma_end(ide_drive_t * drive)
 		udelay(1);
 	}
 	if (!valid) {
-		printk(KERN_ERR "%s(%s) : DMA incomplete\n", __FUNCTION__,
+		printk(KERN_ERR "%s(%s) : DMA incomplete\n", __func__,
 		       drive->name);
 		dma_stat = 1;
 	}
@@ -264,7 +264,7 @@ sgiioc4_ide_dma_end(ide_drive_t * drive)
 			printk(KERN_ERR
 			       "%s(%s): WARNING!! byte_count_dev %d "
 			       "!= byte_count_mem %d\n",
-			       __FUNCTION__, drive->name, bc_dev, bc_mem);
+			       __func__, drive->name, bc_dev, bc_mem);
 		}
 	}
 
@@ -343,7 +343,7 @@ ide_dma_sgiioc4(ide_hwif_t * hwif, unsigned long dma_base)
 		printk(KERN_ERR
 		       "%s(%s) -- ERROR, Addresses 0x%p to 0x%p "
 		       "ALREADY in use\n",
-		       __FUNCTION__, hwif->name, (void *) dma_base,
+		       __func__, hwif->name, (void *) dma_base,
 		       (void *) dma_base + num_ports - 1);
 		return -1;
 	}
@@ -352,7 +352,7 @@ ide_dma_sgiioc4(ide_hwif_t * hwif, unsigned long dma_base)
 	if (virt_dma_base == NULL) {
 		printk(KERN_ERR
 		       "%s(%s) -- ERROR, Unable to map addresses 0x%lx to 0x%lx\n",
-		       __FUNCTION__, hwif->name, dma_base, dma_base + num_ports - 1);
+		       __func__, hwif->name, dma_base, dma_base + num_ports - 1);
 		goto dma_remap_failure;
 	}
 	hwif->dma_base = (unsigned long) virt_dma_base;
@@ -378,7 +378,7 @@ ide_dma_sgiioc4(ide_hwif_t * hwif, unsigned long dma_base)
 			    hwif->dmatable_cpu, hwif->dmatable_dma);
 	printk(KERN_INFO
 	       "%s() -- Error! Unable to allocate DMA Maps for drive %s\n",
-	       __FUNCTION__, hwif->name);
+	       __func__, hwif->name);
 	printk(KERN_INFO
 	       "Changing from DMA to PIO mode for Drive %s\n", hwif->name);
 
@@ -406,14 +406,14 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 	if (ioc4_dma & IOC4_S_DMA_ACTIVE) {
 		printk(KERN_WARNING
 			"%s(%s):Warning!! DMA from previous transfer was still active\n",
-		       __FUNCTION__, drive->name);
+		       __func__, drive->name);
 		writel(IOC4_S_DMA_STOP, (void __iomem *)ioc4_dma_addr);
 		ioc4_dma = sgiioc4_ide_dma_stop(hwif, dma_base);
 
 		if (ioc4_dma & IOC4_S_DMA_STOP)
 			printk(KERN_ERR
 			       "%s(%s) : IOC4 Dma STOP bit is still 1\n",
-			       __FUNCTION__, drive->name);
+			       __func__, drive->name);
 	}
 
 	ioc4_dma = readl((void __iomem *)ioc4_dma_addr);
@@ -421,14 +421,14 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 		printk(KERN_WARNING
 		       "%s(%s) : Warning!! - DMA Error during Previous"
 		       " transfer | status 0x%x\n",
-		       __FUNCTION__, drive->name, ioc4_dma);
+		       __func__, drive->name, ioc4_dma);
 		writel(IOC4_S_DMA_STOP, (void __iomem *)ioc4_dma_addr);
 		ioc4_dma = sgiioc4_ide_dma_stop(hwif, dma_base);
 
 		if (ioc4_dma & IOC4_S_DMA_STOP)
 			printk(KERN_ERR
 			       "%s(%s) : IOC4 DMA STOP bit is still 1\n",
-			       __FUNCTION__, drive->name);
+			       __func__, drive->name);
 	}
 
 	/* Address of the Scatter Gather List */
@@ -618,7 +618,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 		printk(KERN_ERR
 			"%s : %s -- ERROR, Addresses "
 			"0x%p to 0x%p ALREADY in use\n",
-		       __FUNCTION__, hwif->name, (void *) cmd_phys_base,
+		       __func__, hwif->name, (void *) cmd_phys_base,
 		       (void *) cmd_phys_base + IOC4_CMD_CTL_BLK_SIZE);
 		return -ENOMEM;
 	}
