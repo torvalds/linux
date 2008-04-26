@@ -304,6 +304,18 @@ static void __init qd6580_port_init_devs(ide_hwif_t *hwif)
 	hwif->drives[1].drive_data = t2;
 }
 
+static const struct ide_port_ops qd6500_port_ops = {
+	.port_init_devs		= qd6500_port_init_devs,
+	.set_pio_mode		= qd6500_set_pio_mode,
+	.selectproc		= qd65xx_select,
+};
+
+static const struct ide_port_ops qd6580_port_ops = {
+	.port_init_devs		= qd6580_port_init_devs,
+	.set_pio_mode		= qd6580_set_pio_mode,
+	.selectproc		= qd65xx_select,
+};
+
 static const struct ide_port_info qd65xx_port_info __initdata = {
 	.chipset		= ide_qd65xx,
 	.host_flags		= IDE_HFLAG_IO_32BIT |
@@ -361,6 +373,7 @@ static int __init qd_probe(int base)
 		printk(KERN_DEBUG "qd6500: config=%#x, ID3=%u\n",
 			config, QD_ID3);
 
+		d.port_ops = &qd6500_port_ops;
 		d.host_flags |= IDE_HFLAG_SINGLE;
 
 		hwif = ide_find_port_slot(&d);
@@ -370,10 +383,6 @@ static int __init qd_probe(int base)
 		ide_init_port_hw(hwif, &hw[unit]);
 
 		hwif->config_data = (base << 8) | config;
-
-		hwif->port_init_devs = qd6500_port_init_devs;
-		hwif->set_pio_mode   = qd6500_set_pio_mode;
-		hwif->selectproc     = qd65xx_select;
 
 		idx[unit] = hwif->index;
 
@@ -400,6 +409,8 @@ static int __init qd_probe(int base)
 
 		outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
+		d.port_ops = &qd6580_port_ops;
+
 		if (control & QD_CONTR_SEC_DISABLED) {
 			/* secondary disabled */
 
@@ -415,10 +426,6 @@ static int __init qd_probe(int base)
 
 			hwif->config_data = (base << 8) | config;
 
-			hwif->port_init_devs = qd6580_port_init_devs;
-			hwif->set_pio_mode   = qd6580_set_pio_mode;
-			hwif->selectproc     = qd65xx_select;
-
 			idx[unit] = hwif->index;
 
 			ide_device_add(idx, &d);
@@ -433,24 +440,16 @@ static int __init qd_probe(int base)
 			hwif = ide_find_port();
 			if (hwif) {
 				ide_init_port_hw(hwif, &hw[0]);
-				hwif->config_data = (base << 8) | config;
-				hwif->port_init_devs = qd6580_port_init_devs;
-				hwif->set_pio_mode   = qd6580_set_pio_mode;
-				hwif->selectproc     = qd65xx_select;
 				idx[0] = hwif->index;
 			}
 
 			mate = ide_find_port();
 			if (mate) {
 				ide_init_port_hw(mate, &hw[1]);
-				mate->config_data = (base << 8) | config;
-				mate->port_init_devs = qd6580_port_init_devs;
-				mate->set_pio_mode   = qd6580_set_pio_mode;
-				mate->selectproc     = qd65xx_select;
 				idx[1] = mate->index;
 			}
 
-			ide_device_add(idx, &qd65xx_port_info);
+			ide_device_add(idx, &d);
 
 			return 0; /* no other qd65xx possible */
 		}

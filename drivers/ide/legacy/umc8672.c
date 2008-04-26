@@ -120,8 +120,13 @@ static void umc_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
+static const struct ide_port_ops umc8672_port_ops = {
+	.set_pio_mode		= umc_set_pio_mode,
+};
+
 static const struct ide_port_info umc8672_port_info __initdata = {
 	.chipset		= ide_umc8672,
+	.port_ops		= &umc8672_port_ops,
 	.host_flags		= IDE_HFLAG_NO_DMA | IDE_HFLAG_NO_AUTOTUNE,
 	.pio_mask		= ATA_PIO4,
 };
@@ -161,14 +166,12 @@ static int __init umc8672_probe(void)
 	hwif = ide_find_port();
 	if (hwif) {
 		ide_init_port_hw(hwif, &hw[0]);
-		hwif->set_pio_mode = umc_set_pio_mode;
 		idx[0] = hwif->index;
 	}
 
 	mate = ide_find_port();
 	if (mate) {
 		ide_init_port_hw(mate, &hw[1]);
-		mate->set_pio_mode = umc_set_pio_mode;
 		idx[1] = mate->index;
 	}
 

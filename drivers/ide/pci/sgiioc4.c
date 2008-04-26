@@ -552,16 +552,6 @@ static void __devinit
 ide_init_sgiioc4(ide_hwif_t * hwif)
 {
 	hwif->mmio = 1;
-	hwif->set_pio_mode = NULL; /* Sets timing for PIO mode */
-	hwif->set_dma_mode = &sgiioc4_set_dma_mode;
-	hwif->selectproc = NULL;/* Use the default routine to select drive */
-	hwif->reset_poll = NULL;/* No HBA specific reset_poll needed */
-	hwif->pre_reset = NULL;	/* No HBA specific pre_set needed */
-	hwif->resetproc = &sgiioc4_resetproc;/* Reset DMA engine,
-						clear interrupts */
-	hwif->maskproc = &sgiioc4_maskproc;	/* Mask on/off NIEN register */
-	hwif->quirkproc = NULL;
-
 	hwif->INB = &sgiioc4_INB;
 
 	if (hwif->dma_base == 0)
@@ -576,8 +566,17 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	hwif->dma_timeout = &ide_dma_timeout;
 }
 
+static const struct ide_port_ops sgiioc4_port_ops = {
+	.set_dma_mode		= sgiioc4_set_dma_mode,
+	/* reset DMA engine, clear IRQs */
+	.resetproc		= sgiioc4_resetproc,
+	/* mask on/off NIEN register */
+	.maskproc		= sgiioc4_maskproc,
+};
+
 static const struct ide_port_info sgiioc4_port_info __devinitdata = {
 	.chipset		= ide_pci,
+	.port_ops		= &sgiioc4_port_ops,
 	.host_flags		= IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
 				  IDE_HFLAG_NO_AUTOTUNE,
 	.mwdma_mask		= ATA_MWDMA2_ONLY,

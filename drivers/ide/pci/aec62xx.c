@@ -135,7 +135,7 @@ static void aec6260_set_mode(ide_drive_t *drive, const u8 speed)
 
 static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	drive->hwif->set_dma_mode(drive, pio + XFER_PIO_0);
+	drive->hwif->port_ops->set_dma_mode(drive, pio + XFER_PIO_0);
 }
 
 static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev, const char *name)
@@ -175,27 +175,23 @@ static u8 __devinit atp86x_cable_detect(ide_hwif_t *hwif)
 	return (ata66 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 }
 
-static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
-{
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
+static const struct ide_port_ops atp850_port_ops = {
+	.set_pio_mode		= aec_set_pio_mode,
+	.set_dma_mode		= aec6210_set_mode,
+};
 
-	hwif->set_pio_mode = &aec_set_pio_mode;
-
-	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF)
-		hwif->set_dma_mode = &aec6210_set_mode;
-	else {
-		hwif->set_dma_mode = &aec6260_set_mode;
-
-		hwif->cable_detect = atp86x_cable_detect;
-	}
-}
+static const struct ide_port_ops atp86x_port_ops = {
+	.set_pio_mode		= aec_set_pio_mode,
+	.set_dma_mode		= aec6260_set_mode,
+	.cable_detect		= atp86x_cable_detect,
+};
 
 static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "AEC6210",
 		.init_chipset	= init_chipset_aec62xx,
-		.init_hwif	= init_hwif_aec62xx,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
+		.port_ops	= &atp850_port_ops,
 		.host_flags	= IDE_HFLAG_SERIALIZE |
 				  IDE_HFLAG_NO_ATAPI_DMA |
 				  IDE_HFLAG_NO_DSC |
@@ -207,7 +203,7 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 	},{	/* 1 */
 		.name		= "AEC6260",
 		.init_chipset	= init_chipset_aec62xx,
-		.init_hwif	= init_hwif_aec62xx,
+		.port_ops	= &atp86x_port_ops,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA | IDE_HFLAG_NO_AUTODMA |
 				  IDE_HFLAG_ABUSE_SET_DMA_MODE |
 				  IDE_HFLAG_OFF_BOARD,
@@ -217,8 +213,8 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 	},{	/* 2 */
 		.name		= "AEC6260R",
 		.init_chipset	= init_chipset_aec62xx,
-		.init_hwif	= init_hwif_aec62xx,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
+		.port_ops	= &atp86x_port_ops,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
 				  IDE_HFLAG_ABUSE_SET_DMA_MODE |
 				  IDE_HFLAG_NON_BOOTABLE,
@@ -228,7 +224,7 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 	},{	/* 3 */
 		.name		= "AEC6280",
 		.init_chipset	= init_chipset_aec62xx,
-		.init_hwif	= init_hwif_aec62xx,
+		.port_ops	= &atp86x_port_ops,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
 				  IDE_HFLAG_ABUSE_SET_DMA_MODE |
 				  IDE_HFLAG_OFF_BOARD,
@@ -238,8 +234,8 @@ static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
 	},{	/* 4 */
 		.name		= "AEC6280R",
 		.init_chipset	= init_chipset_aec62xx,
-		.init_hwif	= init_hwif_aec62xx,
 		.enablebits	= {{0x4a,0x02,0x02}, {0x4a,0x04,0x04}},
+		.port_ops	= &atp86x_port_ops,
 		.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
 				  IDE_HFLAG_ABUSE_SET_DMA_MODE |
 				  IDE_HFLAG_OFF_BOARD,

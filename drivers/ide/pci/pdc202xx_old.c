@@ -115,7 +115,7 @@ static void pdc202xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	pdc202xx_set_mode(drive, XFER_PIO_0 + pio);
 }
 
-static u8 __devinit pdc2026x_old_cable_detect(ide_hwif_t *hwif)
+static u8 __devinit pdc2026x_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u16 CIS, mask = hwif->channel ? (1 << 11) : (1 << 10);
@@ -226,26 +226,6 @@ somebody_else:
 	return (dma_stat & 4) == 4;	/* return 1 if INTR asserted */
 }
 
-static void pdc202xx_dma_lost_irq(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-
-	if (hwif->resetproc != NULL)
-		hwif->resetproc(drive);
-
-	ide_dma_lost_irq(drive);
-}
-
-static void pdc202xx_dma_timeout(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-
-	if (hwif->resetproc != NULL)
-		hwif->resetproc(drive);
-
-	ide_dma_timeout(drive);
-}
-
 static void pdc202xx_reset_host (ide_hwif_t *hwif)
 {
 	unsigned long high_16	= hwif->extra_base - 16;
@@ -271,6 +251,18 @@ static void pdc202xx_reset (ide_drive_t *drive)
 	ide_set_max_pio(drive);
 }
 
+static void pdc202xx_dma_lost_irq(ide_drive_t *drive)
+{
+	pdc202xx_reset(drive);
+	ide_dma_lost_irq(drive);
+}
+
+static void pdc202xx_dma_timeout(ide_drive_t *drive)
+{
+	pdc202xx_reset(drive);
+	ide_dma_timeout(drive);
+}
+
 static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev,
 							const char *name)
 {
@@ -280,17 +272,6 @@ static unsigned int __devinit init_chipset_pdc202xx(struct pci_dev *dev,
 static void __devinit init_hwif_pdc202xx(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-
-	hwif->set_pio_mode = &pdc202xx_set_pio_mode;
-	hwif->set_dma_mode = &pdc202xx_set_mode;
-
-	hwif->quirkproc = &pdc202xx_quirkproc;
-
-	if (dev->device != PCI_DEVICE_ID_PROMISE_20246) {
-		hwif->resetproc = &pdc202xx_reset;
-
-		hwif->cable_detect = pdc2026x_old_cable_detect;
-	}
 
 	if (hwif->dma_base == 0)
 		return;
@@ -357,6 +338,20 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 	 IDE_HFLAG_ABUSE_SET_DMA_MODE | \
 	 IDE_HFLAG_OFF_BOARD)
 
+static const struct ide_port_ops pdc20246_port_ops = {
+	.set_pio_mode		= pdc202xx_set_pio_mode,
+	.set_dma_mode		= pdc202xx_set_mode,
+	.quirkproc		= pdc202xx_quirkproc,
+};
+
+static const struct ide_port_ops pdc2026x_port_ops = {
+	.set_pio_mode		= pdc202xx_set_pio_mode,
+	.set_dma_mode		= pdc202xx_set_mode,
+	.quirkproc		= pdc202xx_quirkproc,
+	.resetproc		= pdc202xx_reset,
+	.cable_detect		= pdc2026x_cable_detect,
+};
+
 #define DECLARE_PDC2026X_DEV(name_str, udma, extra_flags) \
 	{ \
 		.name		= name_str, \
@@ -364,6 +359,7 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 		.init_hwif	= init_hwif_pdc202xx, \
 		.init_dma	= init_dma_pdc202xx, \
 		.extra		= 48, \
+		.port_ops	= &pdc2026x_port_ops, \
 		.host_flags	= IDE_HFLAGS_PDC202XX | extra_flags, \
 		.pio_mask	= ATA_PIO4, \
 		.mwdma_mask	= ATA_MWDMA2, \
@@ -376,6 +372,7 @@ static const struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_pdc202xx,
 		.init_hwif	= init_hwif_pdc202xx,
 		.init_dma	= init_dma_pdc202xx,
+		.port_ops	= &pdc20246_port_ops,
 		.extra		= 16,
 		.host_flags	= IDE_HFLAGS_PDC202XX,
 		.pio_mask	= ATA_PIO4,

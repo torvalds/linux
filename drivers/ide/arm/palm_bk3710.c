@@ -317,16 +317,14 @@ static u8 __devinit palm_bk3710_cable_detect(ide_hwif_t *hwif)
 	return ATA_CBL_PATA80;
 }
 
-static void __devinit palm_bk3710_init_hwif(ide_hwif_t *hwif)
-{
-	hwif->set_pio_mode = palm_bk3710_set_pio_mode;
-	hwif->set_dma_mode = palm_bk3710_set_dma_mode;
-
-	hwif->cable_detect = palm_bk3710_cable_detect;
-}
+static const struct ide_port_ops palm_bk3710_ports_ops = {
+	.set_pio_mode		= palm_bk3710_set_pio_mode,
+	.set_dma_mode		= palm_bk3710_set_dma_mode,
+	.cable_detect		= palm_bk3710_cable_detect,
+};
 
 static const struct ide_port_info __devinitdata palm_bk3710_port_info = {
-	.init_hwif		= palm_bk3710_init_hwif,
+	.port_ops		= &palm_bk3710_ports_ops,
 	.host_flags		= IDE_HFLAG_NO_DMA, /* hack (no PCI) */
 	.pio_mask		= ATA_PIO4,
 	.udma_mask		= ATA_UDMA4,	/* (input clk 99MHz) */

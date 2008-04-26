@@ -721,6 +721,7 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 #endif
 	if (s->b.set_tune) {
 		ide_hwif_t *hwif = drive->hwif;
+		const struct ide_port_ops *port_ops = hwif->port_ops;
 		u8 req_pio = drive->tune_req;
 
 		s->b.set_tune = 0;
@@ -733,10 +734,10 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 				unsigned long flags;
 
 				spin_lock_irqsave(&ide_lock, flags);
-				hwif->set_pio_mode(drive, req_pio);
+				port_ops->set_pio_mode(drive, req_pio);
 				spin_unlock_irqrestore(&ide_lock, flags);
 			} else
-				hwif->set_pio_mode(drive, req_pio);
+				port_ops->set_pio_mode(drive, req_pio);
 		} else {
 			int keep_dma = drive->using_dma;
 

@@ -382,15 +382,6 @@ static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const c
 	return 0;
 }
 
-/*
- * the init function - called for each ide channel once
- */
-static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
-{
-	hwif->set_pio_mode = &cy82c693_set_pio_mode;
-	hwif->set_dma_mode = &cy82c693_set_dma_mode;
-}
-
 static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
 {
 	static ide_hwif_t *primary;
@@ -404,11 +395,16 @@ static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
 	}
 }
 
+static const struct ide_port_ops cy82c693_port_ops = {
+	.set_pio_mode		= cy82c693_set_pio_mode,
+	.set_dma_mode		= cy82c693_set_dma_mode,
+};
+
 static const struct ide_port_info cy82c693_chipset __devinitdata = {
 	.name		= "CY82C693",
 	.init_chipset	= init_chipset_cy82c693,
 	.init_iops	= init_iops_cy82c693,
-	.init_hwif	= init_hwif_cy82c693,
+	.port_ops	= &cy82c693_port_ops,
 	.chipset	= ide_cy82c693,
 	.host_flags	= IDE_HFLAG_SINGLE,
 	.pio_mask	= ATA_PIO4,

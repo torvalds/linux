@@ -292,19 +292,22 @@ static int sc1200_resume (struct pci_dev *dev)
  */
 static void __devinit init_hwif_sc1200 (ide_hwif_t *hwif)
 {
-	hwif->set_pio_mode = &sc1200_set_pio_mode;
-	hwif->set_dma_mode = &sc1200_set_dma_mode;
-
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->udma_filter = sc1200_udma_filter;
 	hwif->ide_dma_end   = &sc1200_ide_dma_end;
 }
+
+static const struct ide_port_ops sc1200_port_ops = {
+	.set_pio_mode		= sc1200_set_pio_mode,
+	.set_dma_mode		= sc1200_set_dma_mode,
+	.udma_filter		= sc1200_udma_filter,
+};
 
 static const struct ide_port_info sc1200_chipset __devinitdata = {
 	.name		= "SC1200",
 	.init_hwif	= init_hwif_sc1200,
+	.port_ops	= &sc1200_port_ops,
 	.host_flags	= IDE_HFLAG_SERIALIZE |
 			  IDE_HFLAG_POST_SET_MODE |
 			  IDE_HFLAG_ABUSE_DMA_MODES,

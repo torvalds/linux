@@ -418,7 +418,7 @@ static void it821x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /**
- *	ata66_it821x	-	check for 80 pin cable
+ *	it821x_cable_detect	-	cable detection
  *	@hwif: interface to check
  *
  *	Check for the presence of an ATA66 capable cable on the
@@ -426,7 +426,7 @@ static void it821x_set_dma_mode(ide_drive_t *drive, const u8 speed)
  *	the needed logic onboard.
  */
 
-static u8 __devinit ata66_it821x(ide_hwif_t *hwif)
+static u8 __devinit it821x_cable_detect(ide_hwif_t *hwif)
 {
 	/* The reference driver also only does disk side */
 	return ATA_CBL_PATA80;
@@ -527,8 +527,6 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	struct it821x_dev *idev = itdevs[hwif->channel];
 	u8 conf;
 
-	hwif->quirkproc = &it821x_quirkproc;
-
 	ide_set_hwifdata(hwif, idev);
 
 	pci_read_config_byte(dev, 0x50, &conf);
@@ -563,16 +561,11 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	}
 
 	if (idev->smart == 0) {
-		hwif->set_pio_mode = &it821x_set_pio_mode;
-		hwif->set_dma_mode = &it821x_set_dma_mode;
-
 		/* MWDMA/PIO clock switching for pass through mode */
 		hwif->dma_start = &it821x_dma_start;
 		hwif->ide_dma_end = &it821x_dma_end;
 	} else
 		hwif->host_flags |= IDE_HFLAG_NO_SET_MODE;
-
-	hwif->cable_detect = ata66_it821x;
 
 	if (hwif->dma_base == 0)
 		return;
@@ -613,12 +606,20 @@ static unsigned int __devinit init_chipset_it821x(struct pci_dev *dev, const cha
 	return 0;
 }
 
+static const struct ide_port_ops it821x_port_ops = {
+	/* it821x_set_{pio,dma}_mode() are only used in pass-through mode */
+	.set_pio_mode		= it821x_set_pio_mode,
+	.set_dma_mode		= it821x_set_dma_mode,
+	.quirkproc		= it821x_quirkproc,
+	.cable_detect		= it821x_cable_detect,
+};
 
 #define DECLARE_ITE_DEV(name_str)			\
 	{						\
 		.name		= name_str,		\
 		.init_chipset	= init_chipset_it821x,	\
 		.init_hwif	= init_hwif_it821x,	\
+		.port_ops	= &it821x_port_ops,	\
 		.pio_mask	= ATA_PIO4,		\
 	}
 

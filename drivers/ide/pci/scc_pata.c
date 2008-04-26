@@ -703,24 +703,27 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 
 	hwif->dma_setup = scc_dma_setup;
 	hwif->ide_dma_end = scc_ide_dma_end;
-	hwif->set_pio_mode = scc_set_pio_mode;
-	hwif->set_dma_mode = scc_set_dma_mode;
 	hwif->ide_dma_test_irq = scc_dma_test_irq;
-	hwif->udma_filter = scc_udma_filter;
 
 	if (in_be32((void __iomem *)(hwif->config_data + 0xff0)) & CCKCTRL_ATACLKOEN)
 		hwif->ultra_mask = ATA_UDMA6; /* 133MHz */
 	else
 		hwif->ultra_mask = ATA_UDMA5; /* 100MHz */
-
-	hwif->cable_detect = scc_cable_detect;
 }
+
+static const struct ide_port_ops scc_port_ops = {
+	.set_pio_mode		= scc_set_pio_mode,
+	.set_dma_mode		= scc_set_dma_mode,
+	.udma_filter		= scc_udma_filter,
+	.cable_detect		= scc_cable_detect,
+};
 
 #define DECLARE_SCC_DEV(name_str)			\
   {							\
       .name		= name_str,			\
       .init_iops	= init_iops_scc,		\
       .init_hwif	= init_hwif_scc,		\
+      .port_ops		= &scc_port_ops,		\
       .host_flags	= IDE_HFLAG_SINGLE,		\
       .pio_mask		= ATA_PIO4,			\
   }

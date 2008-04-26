@@ -149,27 +149,17 @@ static u8 __devinit it8213_cable_detect(ide_hwif_t *hwif)
 	return (reg42h & 0x02) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 }
 
-/**
- *	init_hwif_it8213	-	set up hwif structs
- *	@hwif: interface to set up
- *
- *	We do the basic set up of the interface structure.
- */
-
-static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
-{
-	hwif->set_dma_mode = &it8213_set_dma_mode;
-	hwif->set_pio_mode = &it8213_set_pio_mode;
-
-	hwif->cable_detect = it8213_cable_detect;
-}
-
+static const struct ide_port_ops it8213_port_ops = {
+	.set_pio_mode		= it8213_set_pio_mode,
+	.set_dma_mode		= it8213_set_dma_mode,
+	.cable_detect		= it8213_cable_detect,
+};
 
 #define DECLARE_ITE_DEV(name_str)			\
 	{						\
 		.name		= name_str,		\
-		.init_hwif	= init_hwif_it8213,	\
 		.enablebits	= { {0x41, 0x80, 0x80} }, \
+		.port_ops	= &it8213_port_ops,	\
 		.host_flags	= IDE_HFLAG_SINGLE,	\
 		.pio_mask	= ATA_PIO4,		\
 		.swdma_mask	= ATA_SWDMA2_ONLY,	\

@@ -292,10 +292,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 
 	DBG(("init_hwif_sl82c105(hwif: ide%d)\n", hwif->index));
 
-	hwif->set_pio_mode	= &sl82c105_set_pio_mode;
-	hwif->set_dma_mode	= &sl82c105_set_dma_mode;
-	hwif->resetproc 	= &sl82c105_resetproc;
-
 	if (!hwif->dma_base)
 		return;
 
@@ -321,11 +317,18 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 		hwif->serialized = hwif->mate->serialized = 1;
 }
 
+static const struct ide_port_ops sl82c105_port_ops = {
+	.set_pio_mode		= sl82c105_set_pio_mode,
+	.set_dma_mode		= sl82c105_set_dma_mode,
+	.resetproc		= sl82c105_resetproc,
+};
+
 static const struct ide_port_info sl82c105_chipset __devinitdata = {
 	.name		= "W82C105",
 	.init_chipset	= init_chipset_sl82c105,
 	.init_hwif	= init_hwif_sl82c105,
 	.enablebits	= {{0x40,0x01,0x01}, {0x40,0x10,0x10}},
+	.port_ops	= &sl82c105_port_ops,
 	.host_flags	= IDE_HFLAG_IO_32BIT |
 			  IDE_HFLAG_UNMASK_IRQS |
 /* FIXME: check for Compatibility mode in generic IDE PCI code */

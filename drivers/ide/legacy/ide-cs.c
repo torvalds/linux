@@ -143,6 +143,10 @@ static void ide_detach(struct pcmcia_device *link)
     kfree(link->priv);
 } /* ide_detach */
 
+static const struct ide_port_ops idecs_port_ops = {
+	.quirkproc		= ide_undecoded_slave,
+};
+
 static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq, struct pcmcia_device *handle)
 {
     ide_hwif_t *hwif;
@@ -168,7 +172,7 @@ static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq
 	ide_init_port_data(hwif, i);
 
     ide_init_port_hw(hwif, &hw);
-    hwif->quirkproc = &ide_undecoded_slave;
+    hwif->port_ops = &idecs_port_ops;
 
     idx[0] = i;
 

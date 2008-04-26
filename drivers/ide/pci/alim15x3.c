@@ -610,7 +610,7 @@ static int ali_cable_override(struct pci_dev *pdev)
 }
 
 /**
- *	ata66_ali15x3	-	check for UDMA 66 support
+ *	ali_cable_detect	-	cable detection
  *	@hwif: IDE interface
  *
  *	This checks if the controller and the cable are capable
@@ -620,7 +620,7 @@ static int ali_cable_override(struct pci_dev *pdev)
  *	FIXME: frobs bits that are not defined on newer ALi devicea
  */
 
-static u8 __devinit ata66_ali15x3(ide_hwif_t *hwif)
+static u8 __devinit ali_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long flags;
@@ -661,12 +661,6 @@ static u8 __devinit ata66_ali15x3(ide_hwif_t *hwif)
  
 static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 {
-	hwif->set_pio_mode = &ali_set_pio_mode;
-	hwif->set_dma_mode = &ali_set_dma_mode;
-	hwif->udma_filter = &ali_udma_filter;
-
-	hwif->cable_detect = ata66_ali15x3;
-
 	if (hwif->dma_base == 0)
 		return;
 
@@ -745,11 +739,19 @@ static void __devinit init_dma_ali15x3 (ide_hwif_t *hwif, unsigned long dmabase)
 	ide_setup_dma(hwif, dmabase);
 }
 
+static const struct ide_port_ops ali_port_ops = {
+	.set_pio_mode		= ali_set_pio_mode,
+	.set_dma_mode		= ali_set_dma_mode,
+	.udma_filter		= ali_udma_filter,
+	.cable_detect		= ali_cable_detect,
+};
+
 static const struct ide_port_info ali15x3_chipset __devinitdata = {
 	.name		= "ALI15X3",
 	.init_chipset	= init_chipset_ali15x3,
 	.init_hwif	= init_hwif_ali15x3,
 	.init_dma	= init_dma_ali15x3,
+	.port_ops	= &ali_port_ops,
 	.pio_mask	= ATA_PIO5,
 	.swdma_mask	= ATA_SWDMA2,
 	.mwdma_mask	= ATA_MWDMA2,

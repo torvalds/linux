@@ -192,8 +192,13 @@ static int __init initRegisters(void)
 	return t;
 }
 
+static const struct ide_port_ops ali14xx_port_ops = {
+	.set_pio_mode		= ali14xx_set_pio_mode,
+};
+
 static const struct ide_port_info ali14xx_port_info = {
 	.chipset		= ide_ali14xx,
+	.port_ops		= &ali14xx_port_ops,
 	.host_flags		= IDE_HFLAG_NO_DMA | IDE_HFLAG_NO_AUTOTUNE,
 	.pio_mask		= ATA_PIO4,
 };
@@ -224,14 +229,12 @@ static int __init ali14xx_probe(void)
 	hwif = ide_find_port();
 	if (hwif) {
 		ide_init_port_hw(hwif, &hw[0]);
-		hwif->set_pio_mode = &ali14xx_set_pio_mode;
 		idx[0] = hwif->index;
 	}
 
 	mate = ide_find_port();
 	if (mate) {
 		ide_init_port_hw(mate, &hw[1]);
-		mate->set_pio_mode = &ali14xx_set_pio_mode;
 		idx[1] = mate->index;
 	}
 

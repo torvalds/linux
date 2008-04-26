@@ -195,8 +195,6 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	u8 stat;
 #endif
 
-	hwif->selectproc = &ns87415_selectproc;
-
 	/*
 	 * We cannot probe for IRQ: both ports share common IRQ on INTA.
 	 * Also, leave IRQ masked during drive probing, to prevent infinite
@@ -258,12 +256,17 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	hwif->ide_dma_end = &ns87415_ide_dma_end;
 }
 
+static const struct ide_port_ops ns87415_port_ops = {
+	.selectproc		= ns87415_selectproc,
+};
+
 static const struct ide_port_info ns87415_chipset __devinitdata = {
 	.name		= "NS87415",
 #ifdef CONFIG_SUPERIO
 	.init_iops	= init_iops_ns87415,
 #endif
 	.init_hwif	= init_hwif_ns87415,
+	.port_ops	= &ns87415_port_ops,
 	.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 			  IDE_HFLAG_NO_ATAPI_DMA,
 };

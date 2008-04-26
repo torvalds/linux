@@ -105,19 +105,22 @@ static void cs5520_dma_host_set(ide_drive_t *drive, int on)
 
 static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 {
-	hwif->set_pio_mode = &cs5520_set_pio_mode;
-	hwif->set_dma_mode = &cs5520_set_dma_mode;
-
 	if (hwif->dma_base == 0)
 		return;
 
 	hwif->dma_host_set = &cs5520_dma_host_set;
 }
 
+static const struct ide_port_ops cs5520_port_ops = {
+	.set_pio_mode		= cs5520_set_pio_mode,
+	.set_dma_mode		= cs5520_set_dma_mode,
+};
+
 #define DECLARE_CS_DEV(name_str)				\
 	{							\
 		.name		= name_str,			\
 		.init_hwif	= init_hwif_cs5520,		\
+		.port_ops	= &cs5520_port_ops,		\
 		.host_flags	= IDE_HFLAG_ISA_PORTS |		\
 				  IDE_HFLAG_CS5520 |		\
 				  IDE_HFLAG_VDMA |		\

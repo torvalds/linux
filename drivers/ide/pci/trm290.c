@@ -297,8 +297,6 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 	hwif->dma_start 	= &trm290_dma_start;
 	hwif->ide_dma_end	= &trm290_ide_dma_end;
 	hwif->ide_dma_test_irq	= &trm290_ide_dma_test_irq;
-
-	hwif->selectproc = &trm290_selectproc;
 #if 1
 	{
 	/*
@@ -328,10 +326,15 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 #endif
 }
 
+static const struct ide_port_ops trm290_port_ops = {
+	.selectproc		= trm290_selectproc,
+};
+
 static const struct ide_port_info trm290_chipset __devinitdata = {
 	.name		= "TRM290",
 	.init_hwif	= init_hwif_trm290,
 	.chipset	= ide_trm290,
+	.port_ops	= &trm290_port_ops,
 	.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
 #if 0 /* play it safe for now */
 			  IDE_HFLAG_TRUST_BIOS_FOR_DMA |

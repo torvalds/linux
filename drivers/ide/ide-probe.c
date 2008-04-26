@@ -821,13 +821,14 @@ static int ide_probe_port(ide_hwif_t *hwif)
 
 static void ide_port_tune_devices(ide_hwif_t *hwif)
 {
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 	int unit;
 
 	for (unit = 0; unit < MAX_DRIVES; unit++) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
-		if (drive->present && hwif->quirkproc)
-			hwif->quirkproc(drive);
+		if (drive->present && port_ops && port_ops->quirkproc)
+			port_ops->quirkproc(drive);
 	}
 
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
@@ -1324,6 +1325,7 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 
 static void ide_port_init_devices(ide_hwif_t *hwif)
 {
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 	int i;
 
 	for (i = 0; i < MAX_DRIVES; i++) {
@@ -1339,8 +1341,8 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 			drive->autotune = 1;
 	}
 
-	if (hwif->port_init_devs)
-		hwif->port_init_devs(hwif);
+	if (port_ops && port_ops->port_init_devs)
+		port_ops->port_init_devs(hwif);
 }
 
 static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
@@ -1365,6 +1367,10 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	hwif->host_flags = d->host_flags;
 	hwif->pio_mask = d->pio_mask;
 
+	/* ->set_pio_mode for DTC2278 is currently limited to port 0 */
+	if (hwif->chipset != ide_dtc2278 || hwif->channel == 0)
+		hwif->port_ops = d->port_ops;
+
 	if ((d->host_flags & IDE_HFLAG_SERIALIZE) && hwif->mate)
 		hwif->mate->serialized = hwif->serialized = 1;
 
@@ -1386,9 +1392,11 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 
 static void ide_port_cable_detect(ide_hwif_t *hwif)
 {
-	if (hwif->cable_detect && (hwif->ultra_mask & 0x78)) {
+	const struct ide_port_ops *port_ops = hwif->port_ops;
+
+	if (port_ops && port_ops->cable_detect && (hwif->ultra_mask & 0x78)) {
 		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-			hwif->cbl = hwif->cable_detect(hwif);
+			hwif->cbl = port_ops->cable_detect(hwif);
 	}
 }
 

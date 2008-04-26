@@ -347,7 +347,7 @@ static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		sis_program_timings(drive, speed);
 }
 
-static u8 sis5513_ata133_udma_filter(ide_drive_t *drive)
+static u8 sis_ata133_udma_filter(ide_drive_t *drive)
 {
 	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
 	u32 regdw = 0;
@@ -514,7 +514,7 @@ static const struct sis_laptop sis_laptop[] = {
 	{ 0, }
 };
 
-static u8 __devinit ata66_sis5513(ide_hwif_t *hwif)
+static u8 __devinit sis_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	const struct sis_laptop *lap = &sis_laptop[0];
@@ -543,21 +543,22 @@ static u8 __devinit ata66_sis5513(ide_hwif_t *hwif)
 	return ata66 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 }
 
-static void __devinit init_hwif_sis5513(ide_hwif_t *hwif)
-{
-	hwif->set_pio_mode = &sis_set_pio_mode;
-	hwif->set_dma_mode = &sis_set_dma_mode;
+static const struct ide_port_ops sis_port_ops = {
+	.set_pio_mode		= sis_set_pio_mode,
+	.set_dma_mode		= sis_set_dma_mode,
+	.cable_detect		= sis_cable_detect,
+};
 
-	if (chipset_family >= ATA_133)
-		hwif->udma_filter = sis5513_ata133_udma_filter;
-
-	hwif->cable_detect = ata66_sis5513;
-}
+static const struct ide_port_ops sis_ata133_port_ops = {
+	.set_pio_mode		= sis_set_pio_mode,
+	.set_dma_mode		= sis_set_dma_mode,
+	.udma_filter		= sis_ata133_udma_filter,
+	.cable_detect		= sis_cable_detect,
+};
 
 static const struct ide_port_info sis5513_chipset __devinitdata = {
 	.name		= "SIS5513",
 	.init_chipset	= init_chipset_sis5513,
-	.init_hwif	= init_hwif_sis5513,
 	.enablebits	= { {0x4a, 0x02, 0x02}, {0x4a, 0x04, 0x04} },
 	.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_NO_AUTODMA,
 	.pio_mask	= ATA_PIO4,
@@ -571,6 +572,11 @@ static int __devinit sis5513_init_one(struct pci_dev *dev, const struct pci_devi
 
 	if (sis_find_family(dev) == 0)
 		return -ENOTSUPP;
+
+	if (chipset_family >= ATA_133)
+		d.port_ops = &sis_ata133_port_ops;
+	else
+		d.port_ops = &sis_port_ops;
 
 	d.udma_mask = udma_rates[chipset_family];
 

@@ -585,11 +585,12 @@ int set_pio_mode(ide_drive_t *drive, int arg)
 {
 	struct request rq;
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 
 	if (arg < 0 || arg > 255)
 		return -EINVAL;
 
-	if (hwif->set_pio_mode == NULL ||
+	if (port_ops == NULL || port_ops->set_pio_mode == NULL ||
 	    (hwif->host_flags & IDE_HFLAG_NO_SET_MODE))
 		return -ENOSYS;
 

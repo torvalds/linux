@@ -782,8 +782,14 @@ static void __init cris_setup_ports(hw_regs_t *hw, unsigned long base)
 	hw->ack_intr = cris_ide_ack_intr;
 }
 
+static const struct ide_port_ops cris_port_ops = {
+	.set_pio_mode		= cris_set_pio_mode,
+	.set_dma_mode		= cris_set_dma_mode,
+};
+
 static const struct ide_port_info cris_port_info __initdata = {
 	.chipset		= ide_etrax100,
+	.port_ops		= &cris_port_ops,
 	.host_flags		= IDE_HFLAG_NO_ATAPI_DMA |
 				  IDE_HFLAG_NO_DMA, /* no SFF-style DMA */
 	.pio_mask		= ATA_PIO4,
@@ -810,8 +816,6 @@ static int __init init_e100_ide(void)
 		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
 		hwif->mmio = 1;
-		hwif->set_pio_mode = &cris_set_pio_mode;
-		hwif->set_dma_mode = &cris_set_dma_mode;
 		hwif->ata_input_data = &cris_ide_input_data;
 		hwif->ata_output_data = &cris_ide_output_data;
 		hwif->atapi_input_bytes = &cris_atapi_input_bytes;

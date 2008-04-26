@@ -442,6 +442,10 @@ static void m8xx_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 #endif /* defined(CONFIG_IDE_8xx_PCCARD) || defined(CONFIG_IDE_8xx_PCMCIA */
 }
 
+static const struct ide_port_ops m8xx_port_ops = {
+	.set_pio_mode		= m8xx_ide_set_pio_mode,
+};
+
 static void
 ide_interrupt_ack (void *dev)
 {
@@ -812,7 +816,7 @@ static int __init mpc8xx_ide_probe(void)
 		ide_init_port_hw(hwif, &hw);
 		hwif->mmio = 1;
 		hwif->pio_mask = ATA_PIO4;
-		hwif->set_pio_mode = m8xx_ide_set_pio_mode;
+		hwif->port_ops = &m8xx_port_ops;
 
 		idx[0] = 0;
 	}
@@ -824,7 +828,7 @@ static int __init mpc8xx_ide_probe(void)
 		ide_init_port_hw(mate, &hw);
 		mate->mmio = 1;
 		mate->pio_mask = ATA_PIO4;
-		mate->set_pio_mode = m8xx_ide_set_pio_mode;
+		mate->port_ops = &m8xx_port_ops;
 
 		idx[1] = 1;
 	}

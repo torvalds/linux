@@ -86,8 +86,13 @@ static void dtc2278_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	}
 }
 
+static const struct ide_port_ops dtc2278_port_ops = {
+	.set_pio_mode		= dtc2278_set_pio_mode,
+};
+
 static const struct ide_port_info dtc2278_port_info __initdata = {
 	.chipset		= ide_dtc2278,
+	.port_ops		= &dtc2278_port_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE |
 				  IDE_HFLAG_NO_UNMASK_IRQS |
 				  IDE_HFLAG_IO_32BIT |
@@ -134,7 +139,6 @@ static int __init dtc2278_probe(void)
 	hwif = ide_find_port();
 	if (hwif) {
 		ide_init_port_hw(hwif, &hw[0]);
-		hwif->set_pio_mode = dtc2278_set_pio_mode;
 		idx[0] = hwif->index;
 	}
 

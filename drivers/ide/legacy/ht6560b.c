@@ -328,8 +328,15 @@ int probe_ht6560b = 0;
 module_param_named(probe, probe_ht6560b, bool, 0);
 MODULE_PARM_DESC(probe, "probe for HT6560B chipset");
 
+static const struct ide_port_ops ht6560b_port_ops = {
+	.port_init_devs		= ht6560b_port_init_devs,
+	.set_pio_mode		= ht6560b_set_pio_mode,
+	.selectproc		= ht6560b_selectproc,
+};
+
 static const struct ide_port_info ht6560b_port_info __initdata = {
 	.chipset		= ide_ht6560b,
+	.port_ops		= &ht6560b_port_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE | /* is this needed? */
 				  IDE_HFLAG_NO_DMA |
 				  IDE_HFLAG_NO_AUTOTUNE |
@@ -368,18 +375,12 @@ static int __init ht6560b_init(void)
 	hwif = ide_find_port();
 	if (hwif) {
 		ide_init_port_hw(hwif, &hw[0]);
-		hwif->selectproc     = ht6560b_selectproc;
-		hwif->set_pio_mode   = ht6560b_set_pio_mode;
-		hwif->port_init_devs = ht6560b_port_init_devs;
 		idx[0] = hwif->index;
 	}
 
 	mate = ide_find_port();
 	if (mate) {
 		ide_init_port_hw(mate, &hw[1]);
-		mate->selectproc     = ht6560b_selectproc;
-		mate->set_pio_mode   = ht6560b_set_pio_mode;
-		mate->port_init_devs = ht6560b_port_init_devs;
 		idx[1] = mate->index;
 	}
 

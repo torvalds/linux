@@ -633,6 +633,9 @@ static void cmd640_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	display_clocks(index);
 }
 
+static const struct ide_port_ops cmd640_port_ops = {
+	.set_pio_mode		= cmd640_set_pio_mode,
+};
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 
 static int pci_conf1(void)
@@ -678,6 +681,7 @@ static const struct ide_port_info cmd640_port_info __initdata = {
 				  IDE_HFLAG_ABUSE_PREFETCH |
 				  IDE_HFLAG_ABUSE_FAST_DEVSEL,
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
+	.port_ops		= &cmd640_port_ops,
 	.pio_mask		= ATA_PIO5,
 #endif
 };
@@ -752,9 +756,6 @@ static int __init cmd640x_init(void)
 	 */
 	if (cmd_hwif0) {
 		ide_init_port_hw(cmd_hwif0, &hw[0]);
-#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-		cmd_hwif0->set_pio_mode = &cmd640_set_pio_mode;
-#endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 
 		idx[0] = cmd_hwif0->index;
 	}
@@ -808,9 +809,6 @@ static int __init cmd640x_init(void)
 	 */
 	if (second_port_cmd640 && cmd_hwif1) {
 		ide_init_port_hw(cmd_hwif1, &hw[1]);
-#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-		cmd_hwif1->set_pio_mode = &cmd640_set_pio_mode;
-#endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 
 		idx[1] = cmd_hwif1->index;
 	}

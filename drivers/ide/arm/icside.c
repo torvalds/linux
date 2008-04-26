@@ -191,6 +191,10 @@ static void icside_maskproc(ide_drive_t *drive, int mask)
 	local_irq_restore(flags);
 }
 
+static const struct ide_port_ops icside_v6_no_dma_port_ops = {
+	.maskproc		= icside_maskproc,
+};
+
 #ifdef CONFIG_BLK_DEV_IDEDMA_ICS
 /*
  * SG-DMA support.
@@ -265,6 +269,11 @@ static void icside_set_dma_mode(ide_drive_t *drive, const u8 xfer_mode)
 	printk("%s: %s selected (peak %dMB/s)\n", drive->name,
 		ide_xfer_verbose(xfer_mode), 2000 / drive->drive_data);
 }
+
+static const struct ide_port_ops icside_v6_port_ops = {
+	.set_dma_mode		= icside_set_dma_mode,
+	.maskproc		= icside_maskproc,
+};
 
 static void icside_dma_host_set(ide_drive_t *drive, int on)
 {
@@ -379,7 +388,6 @@ static void icside_dma_init(ide_hwif_t *hwif)
 {
 	hwif->dmatable_cpu	= NULL;
 	hwif->dmatable_dma	= 0;
-	hwif->set_dma_mode	= icside_set_dma_mode;
 
 	hwif->dma_host_set	= icside_dma_host_set;
 	hwif->dma_setup		= icside_dma_setup;
@@ -462,6 +470,7 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 }
 
 static const struct ide_port_info icside_v6_port_info __initdata = {
+	.port_ops		= &icside_v6_no_dma_port_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE |
 				  IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
 				  IDE_HFLAG_NO_AUTOTUNE,
@@ -526,7 +535,6 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	state->hwif[0]    = hwif;
 	state->hwif[1]    = mate;
 
-	hwif->maskproc    = icside_maskproc;
 	hwif->hwif_data   = state;
 	hwif->config_data = (unsigned long)ioc_base;
 	hwif->select_data = sel;
@@ -539,6 +547,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	if (ec->dma != NO_DMA && !request_dma(ec->dma, hwif->name)) {
 		icside_dma_init(hwif);
 		icside_dma_init(mate);
+		d.port_ops = &icside_v6_dma_port_ops;
 	} else
 		d.mwdma_mask = d.swdma_mask = 0;
 
