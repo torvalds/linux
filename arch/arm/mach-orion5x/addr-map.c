@@ -34,11 +34,7 @@
  * Non-CPU Masters address decoding --
  * Unlike the CPU, we setup the access from Orion's master interfaces to DDR
  * banks only (the typical use case).
- * Setup access for each master to DDR is issued by common.c.
- *
- * Note: although orion_setbits() and orion_clrbits() are not atomic
- * no locking is necessary here since code in this file is only called
- * at boot time when there is no concurrency issues.
+ * Setup access for each master to DDR is issued by platform device setup.
  */
 
 /*
@@ -48,10 +44,6 @@
 #define TARGET_DEV_BUS		1
 #define TARGET_PCI		3
 #define TARGET_PCIE		4
-#define ATTR_DDR_CS(n)		(((n) ==0) ? 0xe :	\
-				((n) == 1) ? 0xd :	\
-				((n) == 2) ? 0xb :	\
-				((n) == 3) ? 0x7 : 0xf)
 #define ATTR_PCIE_MEM		0x59
 #define ATTR_PCIE_IO		0x51
 #define ATTR_PCIE_WA		0x79
@@ -61,17 +53,12 @@
 #define ATTR_DEV_CS1		0x1d
 #define ATTR_DEV_CS2		0x1b
 #define ATTR_DEV_BOOT		0xf
-#define WIN_EN			1
 
 /*
  * Helpers to get DDR bank info
  */
-#define DDR_BASE_CS(n)		ORION5X_DDR_REG(0x1500 + ((n) * 8))
-#define DDR_SIZE_CS(n)		ORION5X_DDR_REG(0x1504 + ((n) * 8))
-#define DDR_MAX_CS		4
-#define DDR_REG_TO_SIZE(reg)	(((reg) | 0xffffff) + 1)
-#define DDR_REG_TO_BASE(reg)	((reg) & 0xff000000)
-#define DDR_BANK_EN		1
+#define DDR_BASE_CS(n)		ORION5X_DDR_REG(0x1500 + ((n) << 3))
+#define DDR_SIZE_CS(n)		ORION5X_DDR_REG(0x1504 + ((n) << 3))
 
 /*
  * CPU Address Decode Windows registers
