@@ -296,9 +296,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 	hwif->dma_start			= &sl82c105_dma_start;
 	hwif->ide_dma_end		= &sl82c105_dma_end;
 	hwif->dma_timeout		= &sl82c105_dma_timeout;
-
-	if (hwif->mate)
-		hwif->serialized = hwif->mate->serialized = 1;
 }
 
 static const struct ide_port_ops sl82c105_port_ops = {
@@ -319,6 +316,7 @@ static const struct ide_port_info sl82c105_chipset __devinitdata = {
 #if defined(CONFIG_LOPEC) || defined(CONFIG_SANDPOINT)
 			  IDE_HFLAG_FORCE_LEGACY_IRQS |
 #endif
+			  IDE_HFLAG_SERIALIZE_DMA |
 			  IDE_HFLAG_NO_AUTODMA,
 	.pio_mask	= ATA_PIO5,
 	.mwdma_mask	= ATA_MWDMA2,
@@ -338,6 +336,7 @@ static int __devinit sl82c105_init_one(struct pci_dev *dev, const struct pci_dev
 				 "revision %d, BM-DMA disabled\n", rev);
 		d.init_hwif = NULL;
 		d.mwdma_mask = 0;
+		d.host_flags &= ~IDE_HFLAG_SERIALIZE_DMA;
 	}
 
 	return ide_setup_pci_device(dev, &d);
