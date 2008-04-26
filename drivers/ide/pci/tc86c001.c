@@ -18,20 +18,20 @@ static void tc86c001_set_mode(ide_drive_t *drive, const u8 speed)
 	u16 mode, scr		= inw(scr_port);
 
 	switch (speed) {
-		case XFER_UDMA_4:	mode = 0x00c0; break;
-		case XFER_UDMA_3:	mode = 0x00b0; break;
-		case XFER_UDMA_2:	mode = 0x00a0; break;
-		case XFER_UDMA_1:	mode = 0x0090; break;
-		case XFER_UDMA_0:	mode = 0x0080; break;
-		case XFER_MW_DMA_2:	mode = 0x0070; break;
-		case XFER_MW_DMA_1:	mode = 0x0060; break;
-		case XFER_MW_DMA_0:	mode = 0x0050; break;
-		case XFER_PIO_4:	mode = 0x0400; break;
-		case XFER_PIO_3:	mode = 0x0300; break;
-		case XFER_PIO_2:	mode = 0x0200; break;
-		case XFER_PIO_1:	mode = 0x0100; break;
-		case XFER_PIO_0:
-		default:		mode = 0x0000; break;
+	case XFER_UDMA_4:	mode = 0x00c0; break;
+	case XFER_UDMA_3:	mode = 0x00b0; break;
+	case XFER_UDMA_2:	mode = 0x00a0; break;
+	case XFER_UDMA_1:	mode = 0x0090; break;
+	case XFER_UDMA_0:	mode = 0x0080; break;
+	case XFER_MW_DMA_2:	mode = 0x0070; break;
+	case XFER_MW_DMA_1:	mode = 0x0060; break;
+	case XFER_MW_DMA_0:	mode = 0x0050; break;
+	case XFER_PIO_4:	mode = 0x0400; break;
+	case XFER_PIO_3:	mode = 0x0300; break;
+	case XFER_PIO_2:	mode = 0x0200; break;
+	case XFER_PIO_1:	mode = 0x0100; break;
+	case XFER_PIO_0:
+	default:		mode = 0x0000; break;
 	}
 
 	scr &= (speed < XFER_MW_DMA_0) ? 0xf8ff : 0xff0f;
