@@ -63,8 +63,7 @@ static u8 __devinit ata66_jmicron(ide_hwif_t *hwif)
 	 *	actually do our cable checking etc. Thankfully we don't need
 	 *	to do the plumbing for other cases.
 	 */
-	switch (port_map[port])
-	{
+	switch (port_map[port]) {
 	case PORT_PATA0:
 		if (control & (1 << 3))	/* 40/80 pin primary */
 			return ATA_CBL_PATA40;
