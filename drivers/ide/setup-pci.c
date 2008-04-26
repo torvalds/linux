@@ -20,51 +20,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-
-/**
- *	ide_match_hwif	-	find free ide_hwifs[] slot
- *	@bootable: bootable flag
- *
- *	Return the new hwif.  If we are out of free slots return NULL.
- */
-
-static ide_hwif_t *ide_match_hwif(u8 bootable)
-{
-	ide_hwif_t *hwif;
-	int h;
-
-	/*
-	 * Claim an unassigned slot.
-	 *
-	 * Give preference to claiming other slots before claiming ide0/ide1,
-	 * just in case there's another interface yet-to-be-scanned
-	 * which uses ports 1f0/170 (the ide0/ide1 defaults).
-	 *
-	 * Unless there is a bootable card that does not use the standard
-	 * ports 1f0/170 (the ide0/ide1 defaults). The (bootable) flag.
-	 */
-	if (bootable) {
-		for (h = 0; h < MAX_HWIFS; ++h) {
-			hwif = &ide_hwifs[h];
-			if (hwif->chipset == ide_unknown)
-				return hwif;	/* pick an unused entry */
-		}
-	} else {
-		for (h = 2; h < MAX_HWIFS; ++h) {
-			hwif = ide_hwifs + h;
-			if (hwif->chipset == ide_unknown)
-				return hwif;	/* pick an unused entry */
-		}
-	}
-	for (h = 0; h < 2 && h < MAX_HWIFS; ++h) {
-		hwif = ide_hwifs + h;
-		if (hwif->chipset == ide_unknown)
-			return hwif;	/* pick an unused entry */
-	}
-
-	return NULL;
-}
-
 /**
  *	ide_setup_pci_baseregs	-	place a PCI IDE controller native
  *	@dev: PCI device of interface to switch native
@@ -320,7 +275,6 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 {
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
-	u8 bootable = (d->host_flags & IDE_HFLAG_NON_BOOTABLE) ? 0 : 1;
 	struct hw_regs_s hw;
 
 	if ((d->host_flags & IDE_HFLAG_ISA_PORTS) == 0) {
@@ -346,7 +300,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 		base = port ? 0x170 : 0x1f0;
 	}
 
-	hwif = ide_match_hwif(bootable);
+	hwif = ide_find_port_slot(d);
 	if (hwif == NULL) {
 		printk(KERN_ERR "%s: too many IDE interfaces, no room in "
 				"table\n", d->name);

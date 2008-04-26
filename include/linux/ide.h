@@ -170,7 +170,6 @@ typedef struct hw_regs_s {
 	struct device	*dev;
 } hw_regs_t;
 
-struct hwif_s *ide_find_port(void);
 void ide_init_port_data(struct hwif_s *, unsigned int);
 void ide_init_port_hw(struct hwif_s *, hw_regs_t *);
 
@@ -808,6 +807,13 @@ int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *, unsig
 extern	ide_hwif_t	ide_hwifs[];		/* master data repository */
 #endif
 extern int noautodma;
+
+ide_hwif_t *ide_find_port_slot(const struct ide_port_info *);
+
+static inline ide_hwif_t *ide_find_port(void)
+{
+	return ide_find_port_slot(NULL);
+}
 
 extern int ide_end_request (ide_drive_t *drive, int uptodate, int nrsecs);
 int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
