@@ -359,9 +359,7 @@ static u8 sis5513_ata133_udma_filter(ide_drive_t *drive)
 	return (regdw & 0x08) ? ATA_UDMA6 : ATA_UDMA5;
 }
 
-/* Chip detection and general config */
-static unsigned int __devinit init_chipset_sis5513(struct pci_dev *dev,
-						   const char *name)
+static int __devinit sis_find_family(struct pci_dev *dev)
 {
 	struct pci_dev *host;
 	int i = 0;
@@ -442,14 +440,16 @@ static unsigned int __devinit init_chipset_sis5513(struct pci_dev *dev,
 			}
 	}
 
-	if (!chipset_family)
-		return -1;
+	return chipset_family;
+}
 
+static unsigned int __devinit init_chipset_sis5513(struct pci_dev *dev,
+						   const char *name)
+{
 	/* Make general config ops here
 	   1/ tell IDE channels to operate in Compatibility mode only
 	   2/ tell old chips to allow per drive IDE timings */
 
-	{
 	u8 reg;
 	u16 regw;
 
@@ -494,7 +494,6 @@ static unsigned int __devinit init_chipset_sis5513(struct pci_dev *dev,
 		if (!(reg & 0x08))
 			pci_write_config_byte(dev, 0x52, reg|0x08);
 		break;
-	}
 	}
 
 	return 0;
@@ -546,8 +545,6 @@ static u8 __devinit ata66_sis5513(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_sis5513(ide_hwif_t *hwif)
 {
-	u8 udma_rates[] = { 0x00, 0x00, 0x07, 0x1f, 0x3f, 0x3f, 0x7f, 0x7f };
-
 	hwif->set_pio_mode = &sis_set_pio_mode;
 	hwif->set_dma_mode = &sis_set_dma_mode;
 
@@ -555,11 +552,6 @@ static void __devinit init_hwif_sis5513(ide_hwif_t *hwif)
 		hwif->udma_filter = sis5513_ata133_udma_filter;
 
 	hwif->cable_detect = ata66_sis5513;
-
-	if (hwif->dma_base == 0)
-		return;
-
-	hwif->ultra_mask = udma_rates[chipset_family];
 }
 
 static const struct ide_port_info sis5513_chipset __devinitdata = {
@@ -574,7 +566,15 @@ static const struct ide_port_info sis5513_chipset __devinitdata = {
 
 static int __devinit sis5513_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &sis5513_chipset);
+	struct ide_port_info d = sis5513_chipset;
+	u8 udma_rates[] = { 0x00, 0x00, 0x07, 0x1f, 0x3f, 0x3f, 0x7f, 0x7f };
+
+	if (sis_find_family(dev) == 0)
+		return -ENOTSUPP;
+
+	d.udma_mask = udma_rates[chipset_family];
+
+	return ide_setup_pci_device(dev, &d);
 }
 
 static const struct pci_device_id sis5513_pci_tbl[] = {
