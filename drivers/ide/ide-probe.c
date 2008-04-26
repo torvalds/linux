@@ -1530,8 +1530,7 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 
 		hwif = &ide_hwifs[idx[i]];
 
-		if ((hwif->chipset != ide_4drives || !hwif->mate ||
-		     !hwif->mate->present) && ide_hwif_request_regions(hwif)) {
+		if (ide_hwif_request_regions(hwif)) {
 			printk(KERN_ERR "%s: ports already in use, "
 					"skipping probe\n", hwif->name);
 			continue;
