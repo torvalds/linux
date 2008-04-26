@@ -921,7 +921,6 @@ pmac_ide_do_resume(ide_hwif_t *hwif)
 static const struct ide_port_info pmac_port_info = {
 	.chipset		= ide_pmac,
 	.host_flags		= IDE_HFLAG_SET_PIO_MODE_KEEP_DMA |
-				  IDE_HFLAG_PIO_NO_DOWNGRADE |
 				  IDE_HFLAG_POST_SET_MODE |
 				  IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
 				  IDE_HFLAG_UNMASK_IRQS,
