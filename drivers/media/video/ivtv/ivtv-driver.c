@@ -1097,6 +1097,13 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		   The PCI IDs are not always reliable. */
 		ivtv_process_eeprom(itv);
 	}
+	if (itv->card->comment)
+		IVTV_INFO("%s", itv->card->comment);
+	if (itv->card->v4l2_capabilities == 0) {
+		/* card was detected but is not supported */
+		retval = -ENODEV;
+		goto free_i2c;
+	}
 
 	if (itv->std == 0) {
 		itv->std = V4L2_STD_NTSC_M;

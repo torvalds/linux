@@ -244,6 +244,7 @@ struct ivtv_card_tuner_i2c {
 struct ivtv_card {
 	int type;
 	char *name;
+	char *comment;
 	u32 v4l2_capabilities;
 	u32 hw_video;		/* hardware used to process video */
 	u32 hw_audio;		/* hardware used to process audio */
