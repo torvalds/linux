@@ -22,7 +22,6 @@ void orion5x_setup_dev0_win(u32 base, u32 size);
 void orion5x_setup_dev1_win(u32 base, u32 size);
 void orion5x_setup_dev2_win(u32 base, u32 size);
 void orion5x_setup_pcie_wa_win(u32 base, u32 size);
-void orion5x_setup_eth_wins(void);
 
 /*
  * Shared code used internally by other Orion core functions.

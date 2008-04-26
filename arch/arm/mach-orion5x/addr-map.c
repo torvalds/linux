@@ -81,17 +81,6 @@
 #define CPU_WIN_REMAP_LO(n)	ORION5X_BRIDGE_REG(0x008 | ((n) << 4))
 #define CPU_WIN_REMAP_HI(n)	ORION5X_BRIDGE_REG(0x00c | ((n) << 4))
 
-/*
- * Gigabit Ethernet Address Decode Windows registers
- */
-#define ETH_WIN_BASE(win)	ORION5X_ETH_REG(0x200 + ((win) * 8))
-#define ETH_WIN_SIZE(win)	ORION5X_ETH_REG(0x204 + ((win) * 8))
-#define ETH_WIN_REMAP(win)	ORION5X_ETH_REG(0x280 + ((win) * 4))
-#define ETH_WIN_EN		ORION5X_ETH_REG(0x290)
-#define ETH_WIN_PROT		ORION5X_ETH_REG(0x294)
-#define ETH_MAX_WIN		6
-#define ETH_MAX_REMAP_WIN	4
-
 
 struct mbus_dram_target_info orion5x_mbus_dram_info;
 
@@ -201,40 +190,4 @@ void __init orion5x_setup_dev2_win(u32 base, u32 size)
 void __init orion5x_setup_pcie_wa_win(u32 base, u32 size)
 {
 	setup_cpu_win(7, base, size, TARGET_PCIE, ATTR_PCIE_WA, -1);
-}
-
-void __init orion5x_setup_eth_wins(void)
-{
-	int i;
-
-	/*
-	 * First, disable and clear windows
-	 */
-	for (i = 0; i < ETH_MAX_WIN; i++) {
-		orion5x_write(ETH_WIN_BASE(i), 0);
-		orion5x_write(ETH_WIN_SIZE(i), 0);
-		orion5x_setbits(ETH_WIN_EN, 1 << i);
-		orion5x_clrbits(ETH_WIN_PROT, 0x3 << (i * 2));
-		if (i < ETH_MAX_REMAP_WIN)
-			orion5x_write(ETH_WIN_REMAP(i), 0);
-	}
-
-	/*
-	 * Setup windows for DDR banks.
-	 */
-	for (i = 0; i < DDR_MAX_CS; i++) {
-		u32 base, size;
-		size = orion5x_read(DDR_SIZE_CS(i));
-		base = orion5x_read(DDR_BASE_CS(i));
-		if (size & DDR_BANK_EN) {
-			base = DDR_REG_TO_BASE(base);
-			size = DDR_REG_TO_SIZE(size);
-			orion5x_write(ETH_WIN_SIZE(i), (size-1) & 0xffff0000);
-			orion5x_write(ETH_WIN_BASE(i), (base & 0xffff0000) |
-					(ATTR_DDR_CS(i) << 8) |
-					TARGET_DDR);
-			orion5x_clrbits(ETH_WIN_EN, 1 << i);
-			orion5x_setbits(ETH_WIN_PROT, 0x3 << (i * 2));
-		}
-	}
 }
