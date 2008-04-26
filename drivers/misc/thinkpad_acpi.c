@@ -251,7 +251,8 @@ struct thinkpad_id_data {
 	u16 bios_model;		/* Big Endian, TP-1Y = 0x5931, 0 = unknown */
 	u16 ec_model;
 
-	char *model_str;
+	char *model_str;	/* ThinkPad T43 */
+	char *nummodel_str;	/* 9384A9C for a 9384-A9C model */
 };
 static struct thinkpad_id_data thinkpad_id;
 
@@ -988,12 +989,14 @@ static int __init thinkpad_acpi_driver_init(struct ibm_init_struct *iibm)
 			thinkpad_id.ec_version_str : "unknown");
 
 	if (thinkpad_id.vendor && thinkpad_id.model_str)
-		printk(TPACPI_INFO "%s %s\n",
+		printk(TPACPI_INFO "%s %s, model %s\n",
 			(thinkpad_id.vendor == PCI_VENDOR_ID_IBM) ?
 				"IBM" : ((thinkpad_id.vendor ==
 						PCI_VENDOR_ID_LENOVO) ?
 					"Lenovo" : "Unknown vendor"),
-			thinkpad_id.model_str);
+			thinkpad_id.model_str,
+			(thinkpad_id.nummodel_str) ?
+				thinkpad_id.nummodel_str : "unknown");
 
 	return 0;
 }
@@ -5875,6 +5878,9 @@ static void __init get_thinkpad_model_data(struct thinkpad_id_data *tp)
 		kfree(tp->model_str);
 		tp->model_str = NULL;
 	}
+
+	tp->nummodel_str = kstrdup(dmi_get_system_info(DMI_PRODUCT_NAME),
+					GFP_KERNEL);
 }
 
 static int __init probe_for_thinkpad(void)
