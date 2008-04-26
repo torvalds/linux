@@ -55,6 +55,32 @@ struct key_type key_type_dns_resolver = {
 	.match       = user_match,
 };
 
+/* Checks if supplied name is IP address
+ * returns:
+ * 		1 - name is IP
+ * 		0 - name is not IP
+ */
+static int is_ip(const char *name)
+{
+	int rc;
+	struct sockaddr_in sin_server;
+	struct sockaddr_in6 sin_server6;
+
+	rc = cifs_inet_pton(AF_INET, name,
+			&sin_server.sin_addr.s_addr);
+
+	if (rc <= 0) {
+		/* not ipv4 address, try ipv6 */
+		rc = cifs_inet_pton(AF_INET6, name,
+				&sin_server6.sin6_addr.in6_u);
+		if (rc > 0)
+			return 1;
+	} else {
+		return 1;
+	}
+	/* we failed translating address */
+	return 0;
+}
 
 /* Resolves server name to ip address.
  * input:
@@ -67,8 +93,9 @@ int
 dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 {
 	int rc = -EAGAIN;
-	struct key *rkey;
+	struct key *rkey = ERR_PTR(-EAGAIN);
 	char *name;
+	char *data = NULL;
 	int len;
 
 	if (!ip_addr || !unc)
@@ -97,26 +124,41 @@ dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 	memcpy(name, unc+2, len);
 	name[len] = 0;
 
+	if (is_ip(name)) {
+		cFYI(1, ("%s: it is IP, skipping dns upcall: %s",
+					__func__, name));
+		data = name;
+		goto skip_upcall;
+	}
+
 	rkey = request_key(&key_type_dns_resolver, name, "");
 	if (!IS_ERR(rkey)) {
-		len = strlen(rkey->payload.data);
-		*ip_addr = kmalloc(len+1, GFP_KERNEL);
-		if (*ip_addr) {
-			memcpy(*ip_addr, rkey->payload.data, len);
-			(*ip_addr)[len] = '\0';
-			cFYI(1, ("%s: resolved: %s to %s", __func__,
+		data = rkey->payload.data;
+		cFYI(1, ("%s: resolved: %s to %s", __func__,
 					rkey->description,
 					*ip_addr
 				));
+	} else {
+		cERROR(1, ("%s: unable to resolve: %s", __func__, name));
+		goto out;
+	}
+
+skip_upcall:
+	if (data) {
+		len = strlen(data);
+		*ip_addr = kmalloc(len+1, GFP_KERNEL);
+		if (*ip_addr) {
+			memcpy(*ip_addr, data, len);
+			(*ip_addr)[len] = '\0';
 			rc = 0;
 		} else {
 			rc = -ENOMEM;
 		}
-		key_put(rkey);
-	} else {
-		cERROR(1, ("%s: unable to resolve: %s", __func__, name));
+		if (!IS_ERR(rkey))
+			key_put(rkey);
 	}
 
+out:
 	kfree(name);
 	return rc;
 }
