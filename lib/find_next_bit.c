@@ -16,14 +16,12 @@
 
 #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
 
-/**
- * find_next_bit - find the next set bit in a memory region
- * @addr: The address to base the search on
- * @offset: The bitnumber to start searching at
- * @size: The maximum size to search
+#ifdef CONFIG_GENERIC_FIND_NEXT_BIT
+/*
+ * Find the next set bit in a memory region.
  */
-unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
-		unsigned long offset)
+unsigned long __find_next_bit(const unsigned long *addr,
+		unsigned long size, unsigned long offset)
 {
 	const unsigned long *p = addr + BITOP_WORD(offset);
 	unsigned long result = offset & ~(BITS_PER_LONG-1);
@@ -60,15 +58,14 @@ found_first:
 found_middle:
 	return result + __ffs(tmp);
 }
-
-EXPORT_SYMBOL(find_next_bit);
+EXPORT_SYMBOL(__find_next_bit);
 
 /*
  * This implementation of find_{first,next}_zero_bit was stolen from
  * Linus' asm-alpha/bitops.h.
  */
-unsigned long find_next_zero_bit(const unsigned long *addr, unsigned long size,
-		unsigned long offset)
+unsigned long __find_next_zero_bit(const unsigned long *addr,
+		unsigned long size, unsigned long offset)
 {
 	const unsigned long *p = addr + BITOP_WORD(offset);
 	unsigned long result = offset & ~(BITS_PER_LONG-1);
@@ -105,8 +102,64 @@ found_first:
 found_middle:
 	return result + ffz(tmp);
 }
+EXPORT_SYMBOL(__find_next_zero_bit);
+#endif /* CONFIG_GENERIC_FIND_NEXT_BIT */
 
-EXPORT_SYMBOL(find_next_zero_bit);
+#ifdef CONFIG_GENERIC_FIND_FIRST_BIT
+/*
+ * Find the first set bit in a memory region.
+ */
+unsigned long __find_first_bit(const unsigned long *addr,
+		unsigned long size)
+{
+	const unsigned long *p = addr;
+	unsigned long result = 0;
+	unsigned long tmp;
+
+	while (size & ~(BITS_PER_LONG-1)) {
+		if ((tmp = *(p++)))
+			goto found;
+		result += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
+	}
+	if (!size)
+		return result;
+
+	tmp = (*p) & (~0UL >> (BITS_PER_LONG - size));
+	if (tmp == 0UL)		/* Are any bits set? */
+		return result + size;	/* Nope. */
+found:
+	return result + __ffs(tmp);
+}
+EXPORT_SYMBOL(__find_first_bit);
+
+/*
+ * Find the first cleared bit in a memory region.
+ */
+unsigned long __find_first_zero_bit(const unsigned long *addr,
+		unsigned long size)
+{
+	const unsigned long *p = addr;
+	unsigned long result = 0;
+	unsigned long tmp;
+
+	while (size & ~(BITS_PER_LONG-1)) {
+		if (~(tmp = *(p++)))
+			goto found;
+		result += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
+	}
+	if (!size)
+		return result;
+
+	tmp = (*p) | (~0UL << size);
+	if (tmp == ~0UL)	/* Are any bits zero? */
+		return result + size;	/* Nope. */
+found:
+	return result + ffz(tmp);
+}
+EXPORT_SYMBOL(__find_first_zero_bit);
+#endif /* CONFIG_GENERIC_FIND_FIRST_BIT */
 
 #ifdef __BIG_ENDIAN
 

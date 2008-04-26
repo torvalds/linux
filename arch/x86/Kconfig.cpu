@@ -278,6 +278,11 @@ config GENERIC_CPU
 
 endchoice
 
+config X86_CPU
+	def_bool y
+	select GENERIC_FIND_FIRST_BIT
+	select GENERIC_FIND_NEXT_BIT
+
 config X86_GENERIC
 	bool "Generic x86 support"
 	depends on X86_32
@@ -398,7 +403,7 @@ config X86_TSC
 # generates cmov.
 config X86_CMOV
 	def_bool y
-	depends on (MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7)
+	depends on (MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7 || X86_64)
 
 config X86_MINIMUM_CPU_FAMILY
 	int
