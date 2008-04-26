@@ -1591,6 +1591,7 @@ static const struct cx88_board cx88_boards[] = {
 			.vmux   = 2,
 			.gpio0  = 0x16d9,
 		}},
+		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_PROLINK_PV_8000GT] = {
 		.name           = "Prolink Pixelview MPEG 8000GT",

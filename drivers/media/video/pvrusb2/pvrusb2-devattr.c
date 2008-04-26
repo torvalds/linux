@@ -36,6 +36,7 @@ pvr2_device_desc structures.
 #include "pvrusb2-hdw-internal.h"
 #include "lgdt330x.h"
 #include "s5h1409.h"
+#include "s5h1411.h"
 #include "tda10048.h"
 #include "tda18271.h"
 #include "tda8290.h"
@@ -368,6 +369,15 @@ static struct s5h1409_config pvr2_s5h1409_config = {
 	.status_mode   = S5H1409_DEMODLOCKING,
 };
 
+static struct s5h1411_config pvr2_s5h1411_config = {
+	.output_mode   = S5H1411_PARALLEL_OUTPUT,
+	.gpio          = S5H1411_GPIO_OFF,
+	.vsb_if        = S5H1411_IF_44000,
+	.qam_if        = S5H1411_IF_4000,
+	.inversion     = S5H1411_INVERSION_ON,
+	.status_mode   = S5H1411_DEMODLOCKING,
+};
+
 static struct tda18271_std_map hauppauge_tda18271_std_map = {
 	.atsc_6   = { .if_freq = 5380, .agc_mode = 3, .std = 3,
 		      .if_lvl = 6, .rfagc_top = 0x37, },
@@ -390,6 +400,16 @@ static int pvr2_s5h1409_attach(struct pvr2_dvb_adapter *adap)
 	return -EIO;
 }
 
+static int pvr2_s5h1411_attach(struct pvr2_dvb_adapter *adap)
+{
+	adap->fe = dvb_attach(s5h1411_attach, &pvr2_s5h1411_config,
+			      &adap->channel.hdw->i2c_adap);
+	if (adap->fe)
+		return 0;
+
+	return -EIO;
+}
+
 static int pvr2_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 {
 	dvb_attach(tda829x_attach, adap->fe,
@@ -404,6 +424,11 @@ static int pvr2_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 
 struct pvr2_dvb_props pvr2_750xx_dvb_props = {
 	.frontend_attach = pvr2_s5h1409_attach,
+	.tuner_attach    = pvr2_tda18271_8295_attach,
+};
+
+struct pvr2_dvb_props pvr2_751xx_dvb_props = {
+	.frontend_attach = pvr2_s5h1411_attach,
 	.tuner_attach    = pvr2_tda18271_8295_attach,
 };
 #endif
@@ -454,6 +479,9 @@ static const struct pvr2_device_desc pvr2_device_751xx = {
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.default_std_mask = V4L2_STD_NTSC_M,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+		.dvb_props = &pvr2_751xx_dvb_props,
+#endif
 };
 
 

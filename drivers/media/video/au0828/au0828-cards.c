@@ -36,7 +36,6 @@ struct au0828_board au0828_boards[] = {
 		.name	= "DViCO FusionHDTV USB",
 	},
 };
-const unsigned int au0828_bcount = ARRAY_SIZE(au0828_boards);
 
 /* Tuner callback function for au0828 boards. Currently only needed
  * for HVR1500Q, which has an xc5000 tuner.

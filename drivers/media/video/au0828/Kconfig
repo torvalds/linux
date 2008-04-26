@@ -1,7 +1,7 @@
 
 config VIDEO_AU0828
 	tristate "Auvitek AU0828 support"
-	depends on VIDEO_DEV && I2C && INPUT
+       depends on VIDEO_DEV && I2C && INPUT && DVB_CORE
 	select I2C_ALGOBIT
 	select DVB_AU8522 if !DVB_FE_CUSTOMIZE
 	select DVB_TUNER_XC5000 if !DVB_FE_CUSTOMIZE

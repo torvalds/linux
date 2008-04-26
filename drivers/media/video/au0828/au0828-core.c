@@ -32,17 +32,9 @@
  * 4 = I2C related
  * 8 = Bridge related
  */
-unsigned int debug;
-module_param(debug, int, 0644);
+int au0828_debug;
+module_param_named(debug, au0828_debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
-
-unsigned int usb_debug;
-module_param(usb_debug, int, 0644);
-MODULE_PARM_DESC(usb_debug, "enable usb debug messages");
-
-unsigned int bridge_debug;
-module_param(bridge_debug, int, 0644);
-MODULE_PARM_DESC(bridge_debug, "enable bridge debug messages");
 
 #define _AU0828_BULKPIPE 0x03
 #define _BULKPIPESIZE 0xffff
@@ -229,24 +221,18 @@ static int __init au0828_init(void)
 {
 	int ret;
 
-	if (debug)
+	if (au0828_debug & 1)
 		printk(KERN_INFO "%s() Debugging is enabled\n", __func__);
 
-	if (usb_debug) {
+	if (au0828_debug & 2)
 		printk(KERN_INFO "%s() USB Debugging is enabled\n", __func__);
-		debug |= 2;
-	}
 
-	if (i2c_debug) {
+	if (au0828_debug & 4)
 		printk(KERN_INFO "%s() I2C Debugging is enabled\n", __func__);
-		debug |= 4;
-	}
 
-	if (bridge_debug) {
+	if (au0828_debug & 8)
 		printk(KERN_INFO "%s() Bridge Debugging is enabled\n",
 		       __func__);
-		debug |= 8;
-	}
 
 	printk(KERN_INFO "au0828 driver loaded\n");
 
