@@ -1787,7 +1787,7 @@ bad_unshare_out:
 int unshare_files(struct files_struct **displaced)
 {
 	struct task_struct *task = current;
-	struct files_struct *copy;
+	struct files_struct *copy = NULL;
 	int error;
 
 	error = unshare_fd(CLONE_FILES, &copy);
