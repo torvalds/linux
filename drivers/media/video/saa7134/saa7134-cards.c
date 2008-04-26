@@ -5230,6 +5230,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x5ace,
 		.subdevice    = 0x6193,
 		.driver_data  = SAA7134_BOARD_BEHOLD_M6,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5ace,
+		.subdevice    = 0x6191,
+		.driver_data  = SAA7134_BOARD_BEHOLD_M6,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
