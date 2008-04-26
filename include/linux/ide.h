@@ -1007,10 +1007,15 @@ void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *, int, u8
 void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
-void ide_hwif_setup_dma(ide_hwif_t *, const struct ide_port_info *);
+int ide_pci_set_master(struct pci_dev *, const char *);
+unsigned long ide_pci_dma_base(ide_hwif_t *, const struct ide_port_info *);
+int ide_hwif_setup_dma(ide_hwif_t *, const struct ide_port_info *);
 #else
-static inline void ide_hwif_setup_dma(ide_hwif_t *hwif,
-				      const struct ide_port_info *d) { }
+static inline int ide_hwif_setup_dma(ide_hwif_t *hwif,
+				     const struct ide_port_info *d)
+{
+	return -EINVAL;
+}
 #endif
 
 extern void default_hwif_iops(ide_hwif_t *);
@@ -1103,7 +1108,8 @@ struct ide_port_info {
 	unsigned int		(*init_chipset)(struct pci_dev *, const char *);
 	void			(*init_iops)(ide_hwif_t *);
 	void                    (*init_hwif)(ide_hwif_t *);
-	void			(*init_dma)(ide_hwif_t *, unsigned long);
+	int			(*init_dma)(ide_hwif_t *,
+					    const struct ide_port_info *);
 
 	const struct ide_port_ops	*port_ops;
 

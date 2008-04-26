@@ -72,16 +72,16 @@ static void ide_pci_clear_simplex(unsigned long dma_base, const char *name)
 }
 
 /**
- *	ide_get_or_set_dma_base		-	setup BMIBA
- *	@d: IDE port info
+ *	ide_pci_dma_base	-	setup BMIBA
  *	@hwif: IDE interface
+ *	@d: IDE port info
  *
  *	Fetch the DMA Bus-Master-I/O-Base-Address (BMIBA) from PCI space.
  *	Where a device has a partner that is already in DMA mode we check
  *	and enforce IDE simplex rules.
  */
 
-static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_hwif_t *hwif)
+unsigned long ide_pci_dma_base(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long dma_base = 0;
@@ -132,11 +132,12 @@ static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_
 out:
 	return dma_base;
 }
+EXPORT_SYMBOL_GPL(ide_pci_dma_base);
 
 /*
  * Set up BM-DMA capability (PnP BIOS should have done this)
  */
-static int ide_pci_set_master(struct pci_dev *dev, const char *name)
+int ide_pci_set_master(struct pci_dev *dev, const char *name)
 {
 	u16 pcicmd;
 
@@ -155,6 +156,7 @@ static int ide_pci_set_master(struct pci_dev *dev, const char *name)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ide_pci_set_master);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 void ide_setup_pci_noise(struct pci_dev *dev, const struct ide_port_info *d)
@@ -360,20 +362,17 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
  *	state
  */
 
-void ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
+int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
 	if ((d->host_flags & IDE_HFLAG_NO_AUTODMA) == 0 ||
 	    ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
 	     (dev->class & 0x80))) {
-		unsigned long base = ide_get_or_set_dma_base(d, hwif);
+		unsigned long base = ide_pci_dma_base(hwif, d);
 
 		if (base == 0 || ide_pci_set_master(dev, d->name) < 0)
-			goto out_disabled;
-
-		if (d->init_dma)
-			d->init_dma(hwif, base);
+			return -1;
 
 		if (hwif->mmio)
 			printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
@@ -383,15 +382,13 @@ void ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 
 		hwif->extra_base = base + (hwif->channel ? 8 : 16);
 
-		if (ide_allocate_dma_engine(hwif) == 0)
-			ide_setup_dma(hwif, base);
+		if (ide_allocate_dma_engine(hwif))
+			return -1;
+
+		ide_setup_dma(hwif, base);
 	}
 
-	return;
-
-out_disabled:
-	printk(KERN_INFO "%s: Bus-Master DMA disabled (BIOS) on %s\n",
-			 d->name, pci_name(dev));
+	return 0;
 }
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 

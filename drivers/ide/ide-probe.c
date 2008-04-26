@@ -1356,9 +1356,6 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	if (d->init_iops)
 		d->init_iops(hwif);
 
-	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0)
-		ide_hwif_setup_dma(hwif, d);
-
 	if ((!hwif->irq && (d->host_flags & IDE_HFLAG_LEGACY_IRQS)) ||
 	    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS))
 		hwif->irq = port ? 15 : 14;
@@ -1377,9 +1374,21 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	hwif->mwdma_mask = d->mwdma_mask;
 	hwif->ultra_mask = d->udma_mask;
 
-	/* reset DMA masks only for SFF-style DMA controllers */
-	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0 && hwif->dma_base == 0)
-		hwif->swdma_mask = hwif->mwdma_mask = hwif->ultra_mask = 0;
+	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0) {
+		int rc;
+
+		if (d->init_dma)
+			rc = d->init_dma(hwif, d);
+		else
+			rc = ide_hwif_setup_dma(hwif, d);
+
+		if (rc < 0) {
+			printk(KERN_INFO "%s: DMA disabled\n", hwif->name);
+			hwif->swdma_mask = 0;
+			hwif->mwdma_mask = 0;
+			hwif->ultra_mask = 0;
+		}
+	}
 
 	if (d->host_flags & IDE_HFLAG_RQSIZE_256)
 		hwif->rqsize = 256;

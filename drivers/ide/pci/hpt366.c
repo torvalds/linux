@@ -1327,14 +1327,17 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 		hwif->dma_lost_irq	= &hpt366_dma_lost_irq;
 }
 
-static void __devinit init_dma_hpt366(ide_hwif_t *hwif, unsigned long dmabase)
+static int __devinit init_dma_hpt366(ide_hwif_t *hwif,
+				     const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	u8 masterdma	= 0, slavedma	= 0;
-	u8 dma_new	= 0, dma_old	= 0;
-	unsigned long flags;
+	unsigned long flags, base = ide_pci_dma_base(hwif, d);
+	u8 dma_old, dma_new, masterdma = 0, slavedma = 0;
 
-	dma_old = inb(dmabase + 2);
+	if (base == 0 || ide_pci_set_master(dev, d->name) < 0)
+		return -1;
+
+	dma_old = inb(base + 2);
 
 	local_irq_save(flags);
 
@@ -1345,9 +1348,21 @@ static void __devinit init_dma_hpt366(ide_hwif_t *hwif, unsigned long dmabase)
 	if (masterdma & 0x30)	dma_new |= 0x20;
 	if ( slavedma & 0x30)	dma_new |= 0x40;
 	if (dma_new != dma_old)
-		outb(dma_new, dmabase + 2);
+		outb(dma_new, base + 2);
 
 	local_irq_restore(flags);
+
+	printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx\n",
+			 hwif->name, base, base + 7);
+
+	hwif->extra_base = base + (hwif->channel ? 8 : 16);
+
+	if (ide_allocate_dma_engine(hwif))
+		return -1;
+
+	ide_setup_dma(hwif, base);
+
+	return 0;
 }
 
 static void __devinit hpt374_init(struct pci_dev *dev, struct pci_dev *dev2)
