@@ -41,10 +41,10 @@
 
 #include <scsi/scsi.h>	/* For SCSI -> ATAPI command conversion */
 
-#include <asm/irq.h>
-#include <asm/io.h>
+#include <linux/irq.h>
+#include <linux/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include "ide-cd.h"
