@@ -237,6 +237,10 @@ static struct {
 	u32 hotkey_poll_active:1;
 } tp_features;
 
+static struct {
+	u16 hotkey_mask_ff:1;
+} tp_warned;
+
 struct thinkpad_id_data {
 	unsigned int vendor;	/* ThinkPad vendor:
 				 * PCI_VENDOR_ID_IBM/PCI_VENDOR_ID_LENOVO */
@@ -1182,6 +1186,19 @@ static int hotkey_mask_set(u32 mask)
 	int rc = 0;
 
 	if (tp_features.hotkey_mask) {
+		if (!tp_warned.hotkey_mask_ff &&
+		    (mask == 0xffff || mask == 0xffffff ||
+		     mask == 0xffffffff)) {
+			tp_warned.hotkey_mask_ff = 1;
+			printk(TPACPI_NOTICE
+			       "setting the hotkey mask to 0x%08x is likely "
+			       "not the best way to go about it\n", mask);
+			printk(TPACPI_NOTICE
+			       "please consider using the driver defaults, "
+			       "and refer to up-to-date thinkpad-acpi "
+			       "documentation\n");
+		}
+
 		HOTKEY_CONFIG_CRITICAL_START
 		for (i = 0; i < 32; i++) {
 			u32 m = 1 << i;
