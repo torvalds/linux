@@ -204,10 +204,11 @@ static void qd6500_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static void qd6580_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	int base = HWIF(drive)->select_data;
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned int cycle_time;
 	int active_time   = 175;
 	int recovery_time = 415; /* worst case values from the dos driver */
+	u8 base = (hwif->config_data & 0xff00) >> 8;
 
 	if (drive->id && !qd_find_disk_type(drive, &active_time, &recovery_time)) {
 		cycle_time = ide_pio_cycle_time(drive, pio);
@@ -278,21 +279,10 @@ static int __init qd_testreg(int port)
 	return (readreg != QD_TESTVAL);
 }
 
-/*
- * qd_setup:
- *
- * called to setup an ata channel : adjusts attributes & links for tuning
- */
-
-static void __init qd_setup(ide_hwif_t *hwif, int base, int config)
-{
-	hwif->select_data = base;
-	hwif->config_data = config;
-}
-
 static void __init qd6500_port_init_devs(ide_hwif_t *hwif)
 {
-	u8 base = hwif->select_data, config = QD_CONFIG(hwif);
+	u8 base = (hwif->config_data & 0xff00) >> 8;
+	u8 config = QD_CONFIG(hwif);
 
 	hwif->drives[0].drive_data = QD6500_DEF_DATA;
 	hwif->drives[1].drive_data = QD6500_DEF_DATA;
@@ -301,9 +291,10 @@ static void __init qd6500_port_init_devs(ide_hwif_t *hwif)
 static void __init qd6580_port_init_devs(ide_hwif_t *hwif)
 {
 	u16 t1, t2;
-	u8 base = hwif->select_data, config = QD_CONFIG(hwif);
+	u8 base = (hwif->config_data & 0xff00) >> 8;
+	u8 config = QD_CONFIG(hwif);
 
-	if (QD_CONTROL(hwif) & QD_CONTR_SEC_DISABLED) {
+	if (hwif->host_flags & IDE_HFLAG_SINGLE) {
 		t1 = QD6580_DEF_DATA;
 		t2 = QD6580_DEF_DATA2;
 	} else
@@ -370,13 +361,15 @@ static int __init qd_probe(int base)
 		printk(KERN_DEBUG "qd6500: config=%#x, ID3=%u\n",
 			config, QD_ID3);
 
+		d.host_flags |= IDE_HFLAG_SINGLE;
+
 		hwif = ide_find_port_slot(&d);
 		if (hwif == NULL)
 			return -ENOENT;
 
 		ide_init_port_hw(hwif, &hw[unit]);
 
-		qd_setup(hwif, base, config);
+		hwif->config_data = (base << 8) | config;
 
 		hwif->port_init_devs = qd6500_port_init_devs;
 		hwif->set_pio_mode   = qd6500_set_pio_mode;
@@ -412,13 +405,15 @@ static int __init qd_probe(int base)
 
 			printk(KERN_INFO "qd6580: single IDE board\n");
 
+			d.host_flags |= IDE_HFLAG_SINGLE;
+
 			hwif = ide_find_port_slot(&d);
 			if (hwif == NULL)
 				return -ENOENT;
 
 			ide_init_port_hw(hwif, &hw[unit]);
 
-			qd_setup(hwif, base, config | (control << 8));
+			hwif->config_data = (base << 8) | config;
 
 			hwif->port_init_devs = qd6580_port_init_devs;
 			hwif->set_pio_mode   = qd6580_set_pio_mode;
@@ -438,7 +433,7 @@ static int __init qd_probe(int base)
 			hwif = ide_find_port();
 			if (hwif) {
 				ide_init_port_hw(hwif, &hw[0]);
-				qd_setup(hwif, base, config | (control << 8));
+				hwif->config_data = (base << 8) | config;
 				hwif->port_init_devs = qd6580_port_init_devs;
 				hwif->set_pio_mode   = qd6580_set_pio_mode;
 				hwif->selectproc     = qd65xx_select;
@@ -448,7 +443,7 @@ static int __init qd_probe(int base)
 			mate = ide_find_port();
 			if (mate) {
 				ide_init_port_hw(mate, &hw[1]);
-				qd_setup(mate, base, config | (control << 8));
+				mate->config_data = (base << 8) | config;
 				mate->port_init_devs = qd6580_port_init_devs;
 				mate->set_pio_mode   = qd6580_set_pio_mode;
 				mate->selectproc     = qd65xx_select;
