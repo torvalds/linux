@@ -36,6 +36,8 @@
 #include <asm/machdep.h>
 #include <asm/irq.h>
 
+#define DRV_NAME "ide-mpc8xx"
+
 static int identify  (volatile u8 *p);
 static void print_fixed (volatile u8 *p);
 static void print_funcid (int func);
@@ -182,6 +184,13 @@ static int __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 			pcmcia_phy_base, pcmcia_phy_end,
 			pcmcia_phy_end - pcmcia_phy_base);
 
+		if (!request_mem_region(pcmcia_phy_base,
+					pcmcia_phy_end - pcmcia_phy_base,
+					DRV_NAME)) {
+			printk(KERN_ERR "%s: resources busy\n", DRV_NAME);
+			return -EBUSY;
+		}
+
 		pcmcia_base=(unsigned long)ioremap(pcmcia_phy_base,
 						   pcmcia_phy_end-pcmcia_phy_base);
 
@@ -326,7 +335,12 @@ static int __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 		printk ("IDE phys mem : %08x...%08x (size %08x)\n",
 			ide_phy_base, ide_phy_end,
 			ide_phy_end - ide_phy_base);
-		
+
+		if (!request_mem_region(ide_phy_base, 0x200, DRV_NAME)) {
+			printk(KERN_ERR "%s: resources busy\n", DRV_NAME);
+			return -EBUSY;
+		}
+
 		ide_base=(unsigned long)ioremap(ide_phy_base,
 						ide_phy_end-ide_phy_base);
 
@@ -796,6 +810,7 @@ static int __init mpc8xx_ide_probe(void)
 		ide_hwif_t *hwif = &ide_hwifs[0];
 
 		ide_init_port_hw(hwif, &hw);
+		hwif->mmio = 1;
 		hwif->pio_mask = ATA_PIO4;
 		hwif->set_pio_mode = m8xx_ide_set_pio_mode;
 
@@ -807,6 +822,7 @@ static int __init mpc8xx_ide_probe(void)
 		ide_hwif_t *mate = &ide_hwifs[1];
 
 		ide_init_port_hw(mate, &hw);
+		mate->mmio = 1;
 		mate->pio_mask = ATA_PIO4;
 		mate->set_pio_mode = m8xx_ide_set_pio_mode;
 
