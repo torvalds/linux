@@ -88,12 +88,12 @@
 static int timings[4]={-1,-1,-1,-1}; /* stores current timing for each timer */
 
 /*
- * qd_select:
+ * qd65xx_select:
  *
- * This routine is invoked from ide.c to prepare for access to a given drive.
+ * This routine is invoked to prepare for access to a given drive.
  */
 
-static void qd_select (ide_drive_t *drive)
+static void qd65xx_select(ide_drive_t *drive)
 {
 	u8 index = ((	(QD_TIMREG(drive)) & 0x80 ) >> 7) |
 			(QD_TIMREG(drive) & 0x02);
@@ -168,36 +168,15 @@ static int qd_find_disk_type (ide_drive_t *drive,
 }
 
 /*
- * qd_timing_ok:
- *
- * check whether timings don't conflict
- */
-
-static int qd_timing_ok (ide_drive_t drives[])
-{
-	return (IDE_IMPLY(drives[0].present && drives[1].present,
-			IDE_IMPLY(QD_TIMREG(drives) == QD_TIMREG(drives+1),
-			          QD_TIMING(drives) == QD_TIMING(drives+1))));
-	/* if same timing register, must be same timing */
-}
-
-/*
  * qd_set_timing:
  *
- * records the timing, and enables selectproc as needed
+ * records the timing
  */
 
 static void qd_set_timing (ide_drive_t *drive, u8 timing)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-
 	drive->drive_data &= 0xff00;
 	drive->drive_data |= timing;
-	if (qd_timing_ok(hwif->drives)) {
-		qd_select(drive); /* selects once */
-		hwif->selectproc = NULL;
-	} else
-		hwif->selectproc = &qd_select;
 
 	printk(KERN_DEBUG "%s: %#x\n", drive->name, timing);
 }
@@ -400,7 +379,8 @@ static int __init qd_probe(int base)
 		qd_setup(hwif, base, config);
 
 		hwif->port_init_devs = qd6500_port_init_devs;
-		hwif->set_pio_mode = &qd6500_set_pio_mode;
+		hwif->set_pio_mode   = qd6500_set_pio_mode;
+		hwif->selectproc     = qd65xx_select;
 
 		idx[unit] = hwif->index;
 
@@ -441,7 +421,8 @@ static int __init qd_probe(int base)
 			qd_setup(hwif, base, config | (control << 8));
 
 			hwif->port_init_devs = qd6580_port_init_devs;
-			hwif->set_pio_mode = &qd6580_set_pio_mode;
+			hwif->set_pio_mode   = qd6580_set_pio_mode;
+			hwif->selectproc     = qd65xx_select;
 
 			idx[unit] = hwif->index;
 
@@ -460,6 +441,7 @@ static int __init qd_probe(int base)
 				qd_setup(hwif, base, config | (control << 8));
 				hwif->port_init_devs = qd6580_port_init_devs;
 				hwif->set_pio_mode   = qd6580_set_pio_mode;
+				hwif->selectproc     = qd65xx_select;
 				idx[0] = hwif->index;
 			}
 
@@ -469,6 +451,7 @@ static int __init qd_probe(int base)
 				qd_setup(mate, base, config | (control << 8));
 				mate->port_init_devs = qd6580_port_init_devs;
 				mate->set_pio_mode   = qd6580_set_pio_mode;
+				mate->selectproc     = qd65xx_select;
 				idx[1] = mate->index;
 			}
 
