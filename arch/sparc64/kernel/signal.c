@@ -8,7 +8,7 @@
  *  Copyright (C) 1997,1998 Jakub Jelinek   (jj@sunsite.mff.cuni.cz)
  */
 
-#ifdef CONFIG_SPARC32_COMPAT
+#ifdef CONFIG_COMPAT
 #include <linux/compat.h>	/* for compat_old_sigset_t */
 #endif
 #include <linux/sched.h>
@@ -531,7 +531,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	else
 		oldset = &current->blocked;
 
-#ifdef CONFIG_SPARC32_COMPAT
+#ifdef CONFIG_COMPAT
 	if (test_thread_flag(TIF_32BIT)) {
 		extern void do_signal32(sigset_t *, struct pt_regs *,
 					struct signal_deliver_cookie *);
