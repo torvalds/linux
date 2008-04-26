@@ -27,13 +27,13 @@
  *
  *	We attempt to place the PCI interface into PCI native mode. If
  *	we succeed the BARs are ok and the controller is in PCI mode.
- *	Returns 0 on success or an errno code. 
+ *	Returns 0 on success or an errno code.
  *
  *	FIXME: if we program the interface and then fail to set the BARS
  *	we don't switch it back to legacy mode. Do we actually care ??
  */
- 
-static int ide_setup_pci_baseregs (struct pci_dev *dev, const char *name)
+
+static int ide_setup_pci_baseregs(struct pci_dev *dev, const char *name)
 {
 	u8 progif = 0;
 
@@ -140,7 +140,6 @@ void ide_setup_pci_noise(struct pci_dev *dev, const struct ide_port_info *d)
 			 " PCI slot %s\n", d->name, dev->vendor, dev->device,
 			 dev->revision, pci_name(dev));
 }
-
 EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
 
 
@@ -153,7 +152,7 @@ EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
  *	but if that fails then we only need IO space. The PCI code should
  *	have setup the proper resources for us already for controllers in
  *	legacy mode.
- *	
+ *
  *	Returns zero on success or an error code
  */
 
@@ -212,8 +211,8 @@ static int ide_pci_configure(struct pci_dev *dev, const struct ide_port_info *d)
 	 * Maybe the user deliberately *disabled* the device,
 	 * but we'll eventually ignore it again if no drives respond.
 	 */
-	if (ide_setup_pci_baseregs(dev, d->name) || pci_write_config_word(dev, PCI_COMMAND, pcicmd|PCI_COMMAND_IO)) 
-	{
+	if (ide_setup_pci_baseregs(dev, d->name) ||
+	    pci_write_config_word(dev, PCI_COMMAND, pcicmd | PCI_COMMAND_IO)) {
 		printk(KERN_INFO "%s: device disabled (BIOS)\n", d->name);
 		return -ENODEV;
 	}
@@ -242,7 +241,7 @@ static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *
 			       int bar)
 {
 	ulong flags = pci_resource_flags(dev, bar);
-	
+
 	/* Unconfigured ? */
 	if (!flags || pci_resource_len(dev, bar) == 0)
 		return 0;
@@ -250,7 +249,7 @@ static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *
 	/* I/O space */
 	if (flags & IORESOURCE_IO)
 		return 0;
-		
+
 	/* Bad */
 	return -EINVAL;
 }
@@ -284,7 +283,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 					"as MEM for port %d!\n", d->name, port);
 			return NULL;
 		}
- 
+
 		ctl  = pci_resource_start(dev, 2*port+1);
 		base = pci_resource_start(dev, 2*port);
 		if ((ctl && !base) || (base && !ctl)) {
@@ -293,8 +292,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 			return NULL;
 		}
 	}
-	if (!ctl)
-	{
+	if (!ctl) {
 		/* Use default values */
 		ctl = port ? 0x374 : 0x3f4;
 		base = port ? 0x170 : 0x1f0;
@@ -345,9 +343,9 @@ void ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 		unsigned long dma_base = ide_get_or_set_dma_base(d, hwif);
 		if (dma_base && !(pcicmd & PCI_COMMAND_MASTER)) {
 			/*
- 			 * Set up BM-DMA capability
+			 * Set up BM-DMA capability
 			 * (PnP BIOS should have done this)
- 			 */
+			 */
 			pci_set_master(dev);
 			if (pci_read_config_word(dev, PCI_COMMAND, &pcicmd) || !(pcicmd & PCI_COMMAND_MASTER)) {
 				printk(KERN_ERR "%s: %s error updating PCICMD\n",
@@ -452,7 +450,6 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int
 		*(idx + port) = hwif->index;
 	}
 }
-
 EXPORT_SYMBOL_GPL(ide_pci_setup_ports);
 
 /*
@@ -535,7 +532,6 @@ int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 
 	return ret;
 }
-
 EXPORT_SYMBOL_GPL(ide_setup_pci_device);
 
 int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
@@ -559,5 +555,4 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 out:
 	return ret;
 }
-
 EXPORT_SYMBOL_GPL(ide_setup_pci_devices);
