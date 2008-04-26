@@ -137,7 +137,7 @@ static int __init q40ide_init(void)
 //			m68kide_iops,
 			q40ide_default_irq(pcide_bases[i]));
 
-	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif) {
 		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);

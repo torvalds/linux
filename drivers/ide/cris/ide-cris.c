@@ -804,7 +804,7 @@ static int __init init_e100_ide(void)
 
 		cris_setup_ports(&hw, cris_ide_base_address(h));
 
-		hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+		hwif = ide_find_port();
 		if (hwif == NULL)
 			continue;
 		ide_init_port_data(hwif, hwif->index);

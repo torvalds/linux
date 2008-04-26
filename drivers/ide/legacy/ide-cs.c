@@ -156,7 +156,7 @@ static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq
     hw.chipset = ide_pci;
     hw.dev = &handle->dev;
 
-    hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+    hwif = ide_find_port();
     if (hwif == NULL)
 	return -1;
 

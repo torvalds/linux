@@ -99,8 +99,7 @@ static int __init h8300_ide_init(void)
 
 	hw_setup(&hw);
 
-	/* register if */
-	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif == NULL) {
 		printk(KERN_ERR "ide-h8300: IDE I/F register failed\n");
 		return -ENOENT;

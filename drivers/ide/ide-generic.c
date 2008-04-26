@@ -33,7 +33,7 @@ static ssize_t store_add(struct class *cls, const char *buf, size_t n)
 	if (sscanf(buf, "%x:%x:%d", &base, &ctl, &irq) != 3)
 		return -EINVAL;
 
-	hwif = ide_find_port(base);
+	hwif = ide_find_port();
 	if (hwif == NULL)
 		return -ENOENT;
 

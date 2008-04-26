@@ -232,28 +232,19 @@ static int ide_system_bus_speed(void)
 	return pci_dev_present(pci_default) ? 33 : 50;
 }
 
-ide_hwif_t * ide_find_port(unsigned long base)
+ide_hwif_t *ide_find_port(void)
 {
 	ide_hwif_t *hwif;
 	int i;
 
 	for (i = 0; i < MAX_HWIFS; i++) {
 		hwif = &ide_hwifs[i];
-		if (hwif->io_ports[IDE_DATA_OFFSET] == base)
-			goto found;
-	}
-
-	for (i = 0; i < MAX_HWIFS; i++) {
-		hwif = &ide_hwifs[i];
 		if (hwif->chipset == ide_unknown)
-			goto found;
+			return hwif;
 	}
 
-	hwif = NULL;
-found:
-	return hwif;
+	return NULL;
 }
-
 EXPORT_SYMBOL_GPL(ide_find_port);
 
 static struct resource* hwif_request_region(ide_hwif_t *hwif,
