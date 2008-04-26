@@ -89,7 +89,6 @@ static void cdrom_saw_media_change (ide_drive_t *drive)
 
 	cd->cd_flags |= IDE_CD_FLAG_MEDIA_CHANGED;
 	cd->cd_flags &= ~IDE_CD_FLAG_TOC_VALID;
-	cd->nsectors_buffered = 0;
 }
 
 static int cdrom_log_sense(ide_drive_t *drive, struct request *rq,
@@ -626,47 +625,6 @@ static void ide_cd_drain_data(ide_drive_t *drive, int nsects)
 }
 
 /*
- * Buffer up to SECTORS_TO_TRANSFER sectors from the drive in our sector
- * buffer.  Once the first sector is added, any subsequent sectors are
- * assumed to be continuous (until the buffer is cleared).  For the first
- * sector added, SECTOR is its sector number.  (SECTOR is then ignored until
- * the buffer is cleared.)
- */
-static void cdrom_buffer_sectors (ide_drive_t *drive, unsigned long sector,
-                                  int sectors_to_transfer)
-{
-	struct cdrom_info *info = drive->driver_data;
-
-	/* Number of sectors to read into the buffer. */
-	int sectors_to_buffer = min_t(int, sectors_to_transfer,
-				     (SECTOR_BUFFER_SIZE >> SECTOR_BITS) -
-				       info->nsectors_buffered);
-
-	char *dest;
-
-	/* If we couldn't get a buffer, don't try to buffer anything... */
-	if (info->buffer == NULL)
-		sectors_to_buffer = 0;
-
-	/* If this is the first sector in the buffer, remember its number. */
-	if (info->nsectors_buffered == 0)
-		info->sector_buffered = sector;
-
-	/* Read the data into the buffer. */
-	dest = info->buffer + info->nsectors_buffered * SECTOR_SIZE;
-	while (sectors_to_buffer > 0) {
-		HWIF(drive)->atapi_input_bytes(drive, dest, SECTOR_SIZE);
-		--sectors_to_buffer;
-		--sectors_to_transfer;
-		++info->nsectors_buffered;
-		dest += SECTOR_SIZE;
-	}
-
-	/* Throw away any remaining data. */
-	ide_cd_drain_data(drive, sectors_to_transfer);
-}
-
-/*
  * Check the contents of the interrupt reason register from the cdrom
  * and attempt to recover if there are problems.  Returns  0 if everything's
  * ok; nonzero if the request has been terminated.
@@ -732,65 +690,6 @@ static int ide_cd_check_transfer_size(ide_drive_t *drive, int len)
 	}
 
 	return 1;
-}
-
-/*
- * Try to satisfy some of the current read request from our cached data.
- * Returns nonzero if the request has been completed, zero otherwise.
- */
-static int cdrom_read_from_buffer (ide_drive_t *drive)
-{
-	struct cdrom_info *info = drive->driver_data;
-	struct request *rq = HWGROUP(drive)->rq;
-	unsigned short sectors_per_frame;
-
-	sectors_per_frame = queue_hardsect_size(drive->queue) >> SECTOR_BITS;
-
-	/* Can't do anything if there's no buffer. */
-	if (info->buffer == NULL) return 0;
-
-	/* Loop while this request needs data and the next block is present
-	   in our cache. */
-	while (rq->nr_sectors > 0 &&
-	       rq->sector >= info->sector_buffered &&
-	       rq->sector < info->sector_buffered + info->nsectors_buffered) {
-		if (rq->current_nr_sectors == 0)
-			cdrom_end_request(drive, 1);
-
-		memcpy (rq->buffer,
-			info->buffer +
-			(rq->sector - info->sector_buffered) * SECTOR_SIZE,
-			SECTOR_SIZE);
-		rq->buffer += SECTOR_SIZE;
-		--rq->current_nr_sectors;
-		--rq->nr_sectors;
-		++rq->sector;
-	}
-
-	/* If we've satisfied the current request,
-	   terminate it successfully. */
-	if (rq->nr_sectors == 0) {
-		cdrom_end_request(drive, 1);
-		return -1;
-	}
-
-	/* Move on to the next buffer if needed. */
-	if (rq->current_nr_sectors == 0)
-		cdrom_end_request(drive, 1);
-
-	/* If this condition does not hold, then the kluge i use to
-	   represent the number of sectors to skip at the start of a transfer
-	   will fail.  I think that this will never happen, but let's be
-	   paranoid and check. */
-	if (rq->current_nr_sectors < bio_cur_sectors(rq->bio) &&
-	    (rq->sector & (sectors_per_frame - 1))) {
-		printk(KERN_ERR "%s: cdrom_read_from_buffer: buffer botch (%ld)\n",
-			drive->name, (long)rq->sector);
-		cdrom_end_request(drive, 0);
-		return -1;
-	}
-
-	return 0;
 }
 
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *);
@@ -1134,11 +1033,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		if (!ptr) {
 			if (blk_fs_request(rq) && !write)
 				/*
-				 * If the buffers are full, cache the rest
-				 * of the data in our internal buffer.
-				 */
-				cdrom_buffer_sectors(drive, rq->sector,
-						     thislen >> 9);
+				 * If the buffers are full, pipe the rest into
+				 * oblivion. */
+				ide_cd_drain_data(drive, thislen >> 9);
 			else {
 				printk(KERN_ERR "%s: confused, missing data\n",
 						drive->name);
@@ -1243,10 +1140,6 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 		 * weirdness which might be present in the request packet.
 		 */
 		restore_request(rq);
-
-		/* Satisfy whatever we can of this request from our cache. */
-		if (cdrom_read_from_buffer(drive))
-			return ide_stopped;
 	}
 
 	/*
@@ -1261,9 +1154,6 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 		cd->dma = 0;
 	} else
 		cd->dma = drive->using_dma;
-
-	/* Clear the local sector buffer. */
-	cd->nsectors_buffered = 0;
 
 	if (write)
 		cd->devinfo.media_written = 1;
@@ -2030,7 +1920,6 @@ static void ide_cd_release(struct kref *kref)
 	ide_drive_t *drive = info->drive;
 	struct gendisk *g = info->disk;
 
-	kfree(info->buffer);
 	kfree(info->toc);
 	if (devinfo->handle == drive)
 		unregister_cdrom(devinfo);
@@ -2090,11 +1979,7 @@ static int idecd_open(struct inode * inode, struct file * file)
 	if (!(info = ide_cd_get(disk)))
 		return -ENXIO;
 
-	if (!info->buffer)
-		info->buffer = kmalloc(SECTOR_BUFFER_SIZE, GFP_KERNEL|__GFP_REPEAT);
-
-	if (info->buffer)
-		rc = cdrom_open(&info->devinfo, inode, file);
+	rc = cdrom_open(&info->devinfo, inode, file);
 
 	if (rc < 0)
 		ide_cd_put(info);
