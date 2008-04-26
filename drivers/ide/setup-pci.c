@@ -367,15 +367,24 @@ void ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 	if ((d->host_flags & IDE_HFLAG_NO_AUTODMA) == 0 ||
 	    ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
 	     (dev->class & 0x80))) {
-		unsigned long dma_base = ide_get_or_set_dma_base(d, hwif);
+		unsigned long base = ide_get_or_set_dma_base(d, hwif);
 
-		if (dma_base == 0 || ide_pci_set_master(dev, d->name) < 0)
+		if (base == 0 || ide_pci_set_master(dev, d->name) < 0)
 			goto out_disabled;
 
 		if (d->init_dma)
-			d->init_dma(hwif, dma_base);
+			d->init_dma(hwif, base);
 
-		ide_setup_dma(hwif, dma_base);
+		if (hwif->mmio)
+			printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
+		else
+			printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx\n",
+					 hwif->name, base, base + 7);
+
+		hwif->extra_base = base + (hwif->channel ? 8 : 16);
+
+		if (ide_allocate_dma_engine(hwif) == 0)
+			ide_setup_dma(hwif, base);
 	}
 
 	return;

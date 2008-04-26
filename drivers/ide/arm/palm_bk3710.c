@@ -392,7 +392,10 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	hwif->mmio = 1;
 	default_hwif_mmiops(hwif);
 
-	ide_setup_dma(hwif, mem->start);
+	printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
+
+	if (ide_allocate_dma_engine(hwif) == 0)
+		ide_setup_dma(hwif, mem->start);
 
 	idx[0] = i;
 

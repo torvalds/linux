@@ -841,19 +841,6 @@ EXPORT_SYMBOL_GPL(ide_allocate_dma_engine);
 
 void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
 {
-	if (hwif->mmio)
-		printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
-	else
-		printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx\n",
-				 hwif->name, base, base + 7);
-
-	hwif->extra_base = base + (hwif->channel ? 8 : 16);
-
-	if (ide_allocate_dma_engine(hwif)) {
-		ide_release_dma_engine(hwif);
-		return;
-	}
-
 	hwif->dma_base = base;
 
 	if (!hwif->dma_command)
