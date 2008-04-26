@@ -239,6 +239,7 @@ static struct {
 
 static struct {
 	u16 hotkey_mask_ff:1;
+	u16 bright_cmos_ec_unsync:1;
 } tp_warned;
 
 struct thinkpad_id_data {
@@ -4323,13 +4324,20 @@ static int brightness_get(struct backlight_device *bd)
 		level = lcmos;
 	}
 
-	if (brightness_mode == 3 && lec != lcmos) {
-		printk(TPACPI_ERR
-			"CMOS NVRAM (%u) and EC (%u) do not agree "
-			"on display brightness level\n",
-			(unsigned int) lcmos,
-			(unsigned int) lec);
-		return -EIO;
+	if (brightness_mode == 3) {
+		if (lec == lcmos)
+			tp_warned.bright_cmos_ec_unsync = 0;
+		else {
+			if (!tp_warned.bright_cmos_ec_unsync) {
+				printk(TPACPI_ERR
+					"CMOS NVRAM (%u) and EC (%u) do not "
+					"agree on display brightness level\n",
+					(unsigned int) lcmos,
+					(unsigned int) lec);
+				tp_warned.bright_cmos_ec_unsync = 1;
+			}
+			return -EIO;
+		}
 	}
 
 	return level;
