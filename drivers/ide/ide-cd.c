@@ -651,7 +651,7 @@ static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
 
 		/* Whoops... */
 		printk(KERN_ERR "%s: %s: wrong transfer direction!\n",
-				drive->name, __FUNCTION__);
+				drive->name, __func__);
 
 		xf = rw ? hwif->atapi_output_bytes : hwif->atapi_input_bytes;
 		ide_cd_pad_transfer(drive, xf, len);
@@ -664,7 +664,7 @@ static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
 	} else {
 		/* Drive wants a command packet, or invalid ireason... */
 		printk(KERN_ERR "%s: %s: bad interrupt reason 0x%02x\n",
-				drive->name, __FUNCTION__, ireason);
+				drive->name, __func__, ireason);
 	}
 
 	if (rq->cmd_type == REQ_TYPE_ATA_PC)
@@ -686,7 +686,7 @@ static int ide_cd_check_transfer_size(ide_drive_t *drive, int len)
 		return 0;
 
 	printk(KERN_ERR "%s: %s: Bad transfer size %d\n",
-			drive->name, __FUNCTION__, len);
+			drive->name, __func__, len);
 
 	if (cd->cd_flags & IDE_CD_FLAG_LIMIT_NFRAMES)
 		printk(KERN_ERR "  This drive is not supported by "
@@ -731,7 +731,7 @@ static ide_startstop_t cdrom_start_rw_cont(ide_drive_t *drive)
 			if (rq->current_nr_sectors !=
 			    bio_cur_sectors(rq->bio)) {
 				printk(KERN_ERR "%s: %s: buffer botch (%u)\n",
-						drive->name, __FUNCTION__,
+						drive->name, __func__,
 						rq->current_nr_sectors);
 				cdrom_end_request(drive, 0);
 				return ide_stopped;
@@ -965,7 +965,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			if (rq->current_nr_sectors > 0) {
 				printk(KERN_ERR "%s: %s: data underrun "
 						"(%d blocks)\n",
-						drive->name, __FUNCTION__,
+						drive->name, __func__,
 						rq->current_nr_sectors);
 				if (!write)
 					rq->cmd_flags |= REQ_FAILED;
