@@ -821,7 +821,7 @@ void ide_release_dma_engine(ide_hwif_t *hwif)
 	}
 }
 
-static int ide_allocate_dma_engine(ide_hwif_t *hwif)
+int ide_allocate_dma_engine(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 
@@ -837,6 +837,7 @@ static int ide_allocate_dma_engine(ide_hwif_t *hwif)
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(ide_allocate_dma_engine);
 
 void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
 {
