@@ -67,6 +67,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/input.h>
+#include <linux/leds.h>
 #include <asm/uaccess.h>
 
 #include <linux/dmi.h>
@@ -85,6 +86,8 @@
 #define TP_CMOS_VOLUME_MUTE	2
 #define TP_CMOS_BRIGHTNESS_UP	4
 #define TP_CMOS_BRIGHTNESS_DOWN	5
+#define TP_CMOS_THINKLIGHT_ON	12
+#define TP_CMOS_THINKLIGHT_OFF	13
 
 /* NVRAM Addresses */
 enum tp_nvram_addr {
@@ -268,6 +271,13 @@ static enum {
 
 static int experimental;
 static u32 dbg_level;
+
+/* Special LED class that can defer work */
+struct tpacpi_led_classdev {
+	struct led_classdev led_classdev;
+	struct work_struct work;
+	enum led_brightness new_brightness;
+};
 
 /****************************************************************************
  ****************************************************************************
@@ -3237,6 +3247,39 @@ static struct ibm_struct video_driver_data = {
 TPACPI_HANDLE(lght, root, "\\LGHT");	/* A21e, A2xm/p, T20-22, X20-21 */
 TPACPI_HANDLE(ledb, ec, "LEDB");		/* G4x */
 
+static int light_get_status(void)
+{
+	int status = 0;
+
+	if (tp_features.light_status) {
+		if (!acpi_evalf(ec_handle, &status, "KBLT", "d"))
+			return -EIO;
+		return (!!status);
+	}
+
+	return -ENXIO;
+}
+
+static int light_set_status(int status)
+{
+	int rc;
+
+	if (tp_features.light) {
+		if (cmos_handle) {
+			rc = acpi_evalf(cmos_handle, NULL, NULL, "vd",
+					(status)?
+						TP_CMOS_THINKLIGHT_ON :
+						TP_CMOS_THINKLIGHT_OFF);
+		} else {
+			rc = acpi_evalf(lght_handle, NULL, NULL, "vd",
+					(status)? 1 : 0);
+		}
+		return (rc)? 0 : -EIO;
+	}
+
+	return -ENXIO;
+}
+
 static int __init light_init(struct ibm_init_struct *iibm)
 {
 	vdbg_printk(TPACPI_DBG_INIT, "initializing light subdriver\n");
@@ -3263,7 +3306,7 @@ static int __init light_init(struct ibm_init_struct *iibm)
 static int light_read(char *p)
 {
 	int len = 0;
-	int status = 0;
+	int status;
 
 	if (!tp_features.light) {
 		len += sprintf(p + len, "status:\t\tnot supported\n");
@@ -3271,8 +3314,9 @@ static int light_read(char *p)
 		len += sprintf(p + len, "status:\t\tunknown\n");
 		len += sprintf(p + len, "commands:\ton, off\n");
 	} else {
-		if (!acpi_evalf(ec_handle, &status, "KBLT", "d"))
-			return -EIO;
+		status = light_get_status();
+		if (status < 0)
+			return status;
 		len += sprintf(p + len, "status:\t\t%s\n", onoff(status, 0));
 		len += sprintf(p + len, "commands:\ton, off\n");
 	}
@@ -3282,31 +3326,22 @@ static int light_read(char *p)
 
 static int light_write(char *buf)
 {
-	int cmos_cmd, lght_cmd;
 	char *cmd;
-	int success;
+	int newstatus = 0;
 
 	if (!tp_features.light)
 		return -ENODEV;
 
 	while ((cmd = next_cmd(&buf))) {
 		if (strlencmp(cmd, "on") == 0) {
-			cmos_cmd = 0x0c;
-			lght_cmd = 1;
+			newstatus = 1;
 		} else if (strlencmp(cmd, "off") == 0) {
-			cmos_cmd = 0x0d;
-			lght_cmd = 0;
+			newstatus = 0;
 		} else
 			return -EINVAL;
-
-		success = cmos_handle ?
-		    acpi_evalf(cmos_handle, NULL, NULL, "vd", cmos_cmd) :
-		    acpi_evalf(lght_handle, NULL, NULL, "vd", lght_cmd);
-		if (!success)
-			return -EIO;
 	}
 
-	return 0;
+	return light_set_status(newstatus);
 }
 
 static struct ibm_struct light_driver_data = {
@@ -3710,6 +3745,12 @@ enum {	/* For TPACPI_LED_OLD */
 	TPACPI_LED_EC_HLMS = 0x0e,	/* EC reg to select led to command */
 };
 
+enum led_status_t {
+	TPACPI_LED_OFF = 0,
+	TPACPI_LED_ON,
+	TPACPI_LED_BLINK,
+};
+
 static enum led_access_mode led_supported;
 
 TPACPI_HANDLE(led, ec, "SLED",	/* 570 */
@@ -3717,6 +3758,69 @@ TPACPI_HANDLE(led, ec, "SLED",	/* 570 */
 				/* T20-22, X20-21 */
 	   "LED",		/* all others */
 	   );			/* R30, R31 */
+
+static int led_get_status(unsigned int led)
+{
+	int status;
+
+	switch (led_supported) {
+	case TPACPI_LED_570:
+		if (!acpi_evalf(ec_handle,
+				&status, "GLED", "dd", 1 << led))
+			return -EIO;
+		return (status == 0)?
+				TPACPI_LED_OFF :
+				((status == 1)?
+					TPACPI_LED_ON :
+					TPACPI_LED_BLINK);
+	default:
+		return -ENXIO;
+	}
+
+	/* not reached */
+}
+
+static int led_set_status(unsigned int led, enum led_status_t ledstatus)
+{
+	/* off, on, blink. Index is led_status_t */
+	static const int const led_sled_arg1[] = { 0, 1, 3 };
+	static const int const led_exp_hlbl[] = { 0, 0, 1 };	/* led# * */
+	static const int const led_exp_hlcl[] = { 0, 1, 1 };	/* led# * */
+	static const int const led_led_arg1[] = { 0, 0x80, 0xc0 };
+
+	int rc = 0;
+
+	switch (led_supported) {
+	case TPACPI_LED_570:
+			/* 570 */
+			led = 1 << led;
+			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
+					led, led_sled_arg1[ledstatus]))
+				rc = -EIO;
+			break;
+	case TPACPI_LED_OLD:
+			/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20 */
+			led = 1 << led;
+			rc = ec_write(TPACPI_LED_EC_HLMS, led);
+			if (rc >= 0)
+				rc = ec_write(TPACPI_LED_EC_HLBL,
+					      led * led_exp_hlbl[ledstatus]);
+			if (rc >= 0)
+				rc = ec_write(TPACPI_LED_EC_HLCL,
+					       led * led_exp_hlcl[ledstatus]);
+			break;
+	case TPACPI_LED_NEW:
+			/* all others */
+			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
+					led, led_led_arg1[ledstatus]))
+				rc = -EIO;
+			break;
+	default:
+		rc = -ENXIO;
+	}
+
+	return rc;
+}
 
 static int __init led_init(struct ibm_init_struct *iibm)
 {
@@ -3743,7 +3847,9 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	return (led_supported != TPACPI_LED_NONE)? 0 : 1;
 }
 
-#define led_status(s) ((s) == 0 ? "off" : ((s) == 1 ? "on" : "blinking"))
+#define str_led_status(s) \
+	((s) == TPACPI_LED_OFF ? "off" : \
+		((s) == TPACPI_LED_ON ? "on" : "blinking"))
 
 static int led_read(char *p)
 {
@@ -3759,11 +3865,11 @@ static int led_read(char *p)
 		/* 570 */
 		int i, status;
 		for (i = 0; i < 8; i++) {
-			if (!acpi_evalf(ec_handle,
-					&status, "GLED", "dd", 1 << i))
+			status = led_get_status(i);
+			if (status < 0)
 				return -EIO;
 			len += sprintf(p + len, "%d:\t\t%s\n",
-				       i, led_status(status));
+				       i, str_led_status(status));
 		}
 	}
 
@@ -3773,16 +3879,11 @@ static int led_read(char *p)
 	return len;
 }
 
-/* off, on, blink */
-static const int led_sled_arg1[] = { 0, 1, 3 };
-static const int led_exp_hlbl[] = { 0, 0, 1 };	/* led# * */
-static const int led_exp_hlcl[] = { 0, 1, 1 };	/* led# * */
-static const int led_led_arg1[] = { 0, 0x80, 0xc0 };
-
 static int led_write(char *buf)
 {
 	char *cmd;
-	int led, ind, ret;
+	int led, rc;
+	enum led_status_t s;
 
 	if (!led_supported)
 		return -ENODEV;
@@ -3792,38 +3893,18 @@ static int led_write(char *buf)
 			return -EINVAL;
 
 		if (strstr(cmd, "off")) {
-			ind = 0;
+			s = TPACPI_LED_OFF;
 		} else if (strstr(cmd, "on")) {
-			ind = 1;
+			s = TPACPI_LED_ON;
 		} else if (strstr(cmd, "blink")) {
-			ind = 2;
-		} else
-			return -EINVAL;
-
-		if (led_supported == TPACPI_LED_570) {
-			/* 570 */
-			led = 1 << led;
-			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
-					led, led_sled_arg1[ind]))
-				return -EIO;
-		} else if (led_supported == TPACPI_LED_OLD) {
-			/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20 */
-			led = 1 << led;
-			ret = ec_write(TPACPI_LED_EC_HLMS, led);
-			if (ret >= 0)
-				ret = ec_write(TPACPI_LED_EC_HLBL,
-						led * led_exp_hlbl[ind]);
-			if (ret >= 0)
-				ret = ec_write(TPACPI_LED_EC_HLCL,
-						led * led_exp_hlcl[ind]);
-			if (ret < 0)
-				return ret;
+			s = TPACPI_LED_BLINK;
 		} else {
-			/* all others */
-			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
-					led, led_led_arg1[ind]))
-				return -EIO;
+			return -EINVAL;
 		}
+
+		rc = led_set_status(led, s);
+		if (rc < 0)
+			return rc;
 	}
 
 	return 0;

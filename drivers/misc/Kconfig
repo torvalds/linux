@@ -245,6 +245,8 @@ config THINKPAD_ACPI
 	select HWMON
 	select NVRAM
 	depends on INPUT
+	select NEW_LEDS
+	select LEDS_CLASS
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
