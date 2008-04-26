@@ -225,6 +225,7 @@ static struct {
 	u32 light:1;
 	u32 light_status:1;
 	u32 bright_16levels:1;
+	u32 bright_acpimode:1;
 	u32 wan:1;
 	u32 fan_ctrl_status_undef:1;
 	u32 input_device_registered:1;
@@ -803,6 +804,80 @@ static int parse_strtoul(const char *buf,
 		endp++;
 	if (*endp || *value > max)
 		return -EINVAL;
+
+	return 0;
+}
+
+static int __init tpacpi_query_bcl_levels(acpi_handle handle)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	int rc;
+
+	if (ACPI_SUCCESS(acpi_evaluate_object(handle, NULL, NULL, &buffer))) {
+		obj = (union acpi_object *)buffer.pointer;
+		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
+			printk(TPACPI_ERR "Unknown _BCL data, "
+			       "please report this to %s\n", TPACPI_MAIL);
+			rc = 0;
+		} else {
+			rc = obj->package.count;
+		}
+	} else {
+		return 0;
+	}
+
+	kfree(buffer.pointer);
+	return rc;
+}
+
+static acpi_status __init tpacpi_acpi_walk_find_bcl(acpi_handle handle,
+					u32 lvl, void *context, void **rv)
+{
+	char name[ACPI_PATH_SEGMENT_LENGTH];
+	struct acpi_buffer buffer = { sizeof(name), &name };
+
+	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
+	    !strncmp("_BCL", name, sizeof(name) - 1)) {
+		BUG_ON(!rv || !*rv);
+		**(int **)rv = tpacpi_query_bcl_levels(handle);
+		return AE_CTRL_TERMINATE;
+	} else {
+		return AE_OK;
+	}
+}
+
+/*
+ * Returns 0 (no ACPI _BCL or _BCL invalid), or size of brightness map
+ */
+static int __init tpacpi_check_std_acpi_brightness_support(void)
+{
+	int status;
+	int bcl_levels = 0;
+	void *bcl_ptr = &bcl_levels;
+
+	if (!vid_handle) {
+		TPACPI_ACPIHANDLE_INIT(vid);
+	}
+	if (!vid_handle)
+		return 0;
+
+	/*
+	 * Search for a _BCL method, and execute it.  This is safe on all
+	 * ThinkPads, and as a side-effect, _BCL will place a Lenovo Vista
+	 * BIOS in ACPI backlight control mode.  We do NOT have to care
+	 * about calling the _BCL method in an enabled video device, any
+	 * will do for our purposes.
+	 */
+
+	status = acpi_walk_namespace(ACPI_TYPE_METHOD, vid_handle, 3,
+				     tpacpi_acpi_walk_find_bcl, NULL,
+				     &bcl_ptr);
+
+	if (ACPI_SUCCESS(status) && bcl_levels > 2) {
+		tp_features.bright_acpimode = 1;
+		return (bcl_levels - 2);
+	}
 
 	return 0;
 }
@@ -1887,6 +1962,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
 		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
 
+		/* These either have to go through ACPI video, or
+		 * act like in the IBM ThinkPads, so don't ever
+		 * enable them by default */
 		KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
 		KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
 
@@ -2089,6 +2167,32 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		if (tp_features.hotkey_tablet) {
 			set_bit(EV_SW, tpacpi_inputdev->evbit);
 			set_bit(SW_TABLET_MODE, tpacpi_inputdev->swbit);
+		}
+
+		/* Do not issue duplicate brightness change events to
+		 * userspace */
+		if (!tp_features.bright_acpimode)
+			/* update bright_acpimode... */
+			tpacpi_check_std_acpi_brightness_support();
+
+		if (tp_features.bright_acpimode) {
+			printk(TPACPI_INFO
+			       "This ThinkPad has standard ACPI backlight "
+			       "brightness control, supported by the ACPI "
+			       "video driver\n");
+			printk(TPACPI_NOTICE
+			       "Disabling thinkpad-acpi brightness events "
+			       "by default...\n");
+
+			/* The hotkey_reserved_mask change below is not
+			 * necessary while the keys are at KEY_RESERVED in the
+			 * default map, but better safe than sorry, leave it
+			 * here as a marker of what we have to do, especially
+			 * when we finally become able to set this at runtime
+			 * on response to X.org requests */
+			hotkey_reserved_mask |=
+				(1 << TP_ACPI_HOTKEYSCAN_FNHOME)
+				| (1 << TP_ACPI_HOTKEYSCAN_FNEND);
 		}
 
 		dbg_printk(TPACPI_DBG_INIT,
@@ -4273,100 +4377,6 @@ static struct backlight_ops ibm_backlight_data = {
 
 /* --------------------------------------------------------------------- */
 
-static int __init tpacpi_query_bcll_levels(acpi_handle handle)
-{
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	int rc;
-
-	if (ACPI_SUCCESS(acpi_evaluate_object(handle, NULL, NULL, &buffer))) {
-		obj = (union acpi_object *)buffer.pointer;
-		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
-			printk(TPACPI_ERR "Unknown BCLL data, "
-			       "please report this to %s\n", TPACPI_MAIL);
-			rc = 0;
-		} else {
-			rc = obj->package.count;
-		}
-	} else {
-		return 0;
-	}
-
-	kfree(buffer.pointer);
-	return rc;
-}
-
-static acpi_status __init brightness_find_bcll(acpi_handle handle, u32 lvl,
-					void *context, void **rv)
-{
-	char name[ACPI_PATH_SEGMENT_LENGTH];
-	struct acpi_buffer buffer = { sizeof(name), &name };
-
-	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
-	    !strncmp("BCLL", name, sizeof(name) - 1)) {
-		if (tpacpi_query_bcll_levels(handle) == 16) {
-			*rv = handle;
-			return AE_CTRL_TERMINATE;
-		} else {
-			return AE_OK;
-		}
-	} else {
-		return AE_OK;
-	}
-}
-
-static int __init brightness_check_levels(void)
-{
-	int status;
-	void *found_node = NULL;
-
-	if (!vid_handle) {
-		TPACPI_ACPIHANDLE_INIT(vid);
-	}
-	if (!vid_handle)
-		return 0;
-
-	/* Search for a BCLL package with 16 levels */
-	status = acpi_walk_namespace(ACPI_TYPE_PACKAGE, vid_handle, 3,
-					brightness_find_bcll, NULL,
-					&found_node);
-
-	return (ACPI_SUCCESS(status) && found_node != NULL);
-}
-
-static acpi_status __init brightness_find_bcl(acpi_handle handle, u32 lvl,
-					void *context, void **rv)
-{
-	char name[ACPI_PATH_SEGMENT_LENGTH];
-	struct acpi_buffer buffer = { sizeof(name), &name };
-
-	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
-	    !strncmp("_BCL", name, sizeof(name) - 1)) {
-		*rv = handle;
-		return AE_CTRL_TERMINATE;
-	} else {
-		return AE_OK;
-	}
-}
-
-static int __init brightness_check_std_acpi_support(void)
-{
-	int status;
-	void *found_node = NULL;
-
-	if (!vid_handle) {
-		TPACPI_ACPIHANDLE_INIT(vid);
-	}
-	if (!vid_handle)
-		return 0;
-
-	/* Search for a _BCL method, but don't execute it */
-	status = acpi_walk_namespace(ACPI_TYPE_METHOD, vid_handle, 3,
-				     brightness_find_bcl, NULL, &found_node);
-
-	return (ACPI_SUCCESS(status) && found_node != NULL);
-}
-
 static int __init brightness_init(struct ibm_init_struct *iibm)
 {
 	int b;
@@ -4375,19 +4385,41 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 
 	mutex_init(&brightness_mutex);
 
-	if (!brightness_enable) {
-		dbg_printk(TPACPI_DBG_INIT,
-			   "brightness support disabled by "
-			   "module parameter\n");
-		return 1;
-	} else if (brightness_enable > 1) {
-		if (brightness_check_std_acpi_support()) {
+	/*
+	 * We always attempt to detect acpi support, so as to switch
+	 * Lenovo Vista BIOS to ACPI brightness mode even if we are not
+	 * going to publish a backlight interface
+	 */
+	b = tpacpi_check_std_acpi_brightness_support();
+	if (b > 0) {
+		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO) {
+			printk(TPACPI_NOTICE
+			       "Lenovo BIOS switched to ACPI backlight "
+			       "control mode\n");
+		}
+		if (brightness_enable > 1) {
 			printk(TPACPI_NOTICE
 			       "standard ACPI backlight interface "
 			       "available, not loading native one...\n");
 			return 1;
 		}
 	}
+
+	if (!brightness_enable) {
+		dbg_printk(TPACPI_DBG_INIT,
+			   "brightness support disabled by "
+			   "module parameter\n");
+		return 1;
+	}
+
+	if (b > 16) {
+		printk(TPACPI_ERR
+		       "Unsupported brightness interface, "
+		       "please contact %s\n", TPACPI_MAIL);
+		return 1;
+	}
+	if (b == 16)
+		tp_features.bright_16levels = 1;
 
 	if (!brightness_mode) {
 		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO)
@@ -4401,10 +4433,6 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 
 	if (brightness_mode > 3)
 		return -EINVAL;
-
-	tp_features.bright_16levels =
-			thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO &&
-			brightness_check_levels();
 
 	b = brightness_get(NULL);
 	if (b < 0)
