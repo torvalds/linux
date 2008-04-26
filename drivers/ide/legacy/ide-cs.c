@@ -51,6 +51,8 @@
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
 
+#define DRV_NAME "ide-cs"
+
 /*====================================================================*/
 
 /* Module parameters */
@@ -72,16 +74,11 @@ static char *version =
 
 /*====================================================================*/
 
-static const char ide_major[] = {
-    IDE0_MAJOR, IDE1_MAJOR, IDE2_MAJOR, IDE3_MAJOR,
-    IDE4_MAJOR, IDE5_MAJOR
-};
-
 typedef struct ide_info_t {
 	struct pcmcia_device	*p_dev;
+	ide_hwif_t		*hwif;
     int		ndev;
     dev_node_t	node;
-    int		hd;
 } ide_info_t;
 
 static void ide_release(struct pcmcia_device *);
@@ -136,23 +133,43 @@ static int ide_probe(struct pcmcia_device *link)
 
 static void ide_detach(struct pcmcia_device *link)
 {
+    ide_info_t *info = link->priv;
+    ide_hwif_t *hwif = info->hwif;
+
     DEBUG(0, "ide_detach(0x%p)\n", link);
 
     ide_release(link);
 
-    kfree(link->priv);
+    release_region(hwif->io_ports[IDE_CONTROL_OFFSET], 1);
+    release_region(hwif->io_ports[IDE_DATA_OFFSET], 8);
+
+    kfree(info);
 } /* ide_detach */
 
 static const struct ide_port_ops idecs_port_ops = {
 	.quirkproc		= ide_undecoded_slave,
 };
 
-static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq, struct pcmcia_device *handle)
+static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
+				unsigned long irq, struct pcmcia_device *handle)
 {
     ide_hwif_t *hwif;
     hw_regs_t hw;
     int i;
     u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+
+    if (!request_region(io, 8, DRV_NAME)) {
+	printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
+			DRV_NAME, io, io + 7);
+	return NULL;
+    }
+
+    if (!request_region(ctl, 1, DRV_NAME)) {
+	printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
+			DRV_NAME, ctl);
+	release_region(io, 8);
+	return NULL;
+    }
 
     memset(&hw, 0, sizeof(hw));
     ide_std_init_ports(&hw, io, ctl);
@@ -162,7 +179,7 @@ static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq
 
     hwif = ide_find_port();
     if (hwif == NULL)
-	return -1;
+	goto out_release;
 
     i = hwif->index;
 
@@ -178,7 +195,13 @@ static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq
 
     ide_device_add(idx, NULL);
 
-    return hwif->present ? i : -1;
+    if (hwif->present)
+	return hwif;
+
+out_release:
+    release_region(ctl, 1);
+    release_region(io, 8);
+    return NULL;
 }
 
 /*======================================================================
@@ -203,8 +226,9 @@ static int ide_config(struct pcmcia_device *link)
 	cistpl_cftable_entry_t dflt;
     } *stk = NULL;
     cistpl_cftable_entry_t *cfg;
-    int i, pass, last_ret = 0, last_fn = 0, hd, is_kme = 0;
+    int i, pass, last_ret = 0, last_fn = 0, is_kme = 0;
     unsigned long io_base, ctl_base;
+    ide_hwif_t *hwif;
 
     DEBUG(0, "ide_config(0x%p)\n", link);
 
@@ -300,14 +324,15 @@ static int ide_config(struct pcmcia_device *link)
 	outb(0x81, ctl_base+1);
 
     /* retry registration in case device is still spinning up */
-    for (hd = -1, i = 0; i < 10; i++) {
-	hd = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
-	if (hd >= 0) break;
+    for (i = 0; i < 10; i++) {
+	hwif = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
+	if (hwif)
+	    break;
 	if (link->io.NumPorts1 == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
-	    hd = idecs_register(io_base + 0x10, ctl_base + 0x10,
-				link->irq.AssignedIRQ, link);
-	    if (hd >= 0) {
+	    hwif = idecs_register(io_base + 0x10, ctl_base + 0x10,
+				  link->irq.AssignedIRQ, link);
+	    if (hwif) {
 		io_base += 0x10;
 		ctl_base += 0x10;
 		break;
@@ -316,7 +341,7 @@ static int ide_config(struct pcmcia_device *link)
 	msleep(100);
     }
 
-    if (hd < 0) {
+    if (hwif == NULL) {
 	printk(KERN_NOTICE "ide-cs: ide_register() at 0x%3lx & 0x%3lx"
 	       ", irq %u failed\n", io_base, ctl_base,
 	       link->irq.AssignedIRQ);
@@ -324,10 +349,10 @@ static int ide_config(struct pcmcia_device *link)
     }
 
     info->ndev = 1;
-    sprintf(info->node.dev_name, "hd%c", 'a' + (hd * 2));
-    info->node.major = ide_major[hd];
+    sprintf(info->node.dev_name, "hd%c", 'a' + hwif->index * 2);
+    info->node.major = hwif->major;
     info->node.minor = 0;
-    info->hd = hd;
+    info->hwif = hwif;
     link->dev_node = &info->node;
     printk(KERN_INFO "ide-cs: %s: Vpp = %d.%d\n",
 	   info->node.dev_name, link->conf.Vpp / 10, link->conf.Vpp % 10);
@@ -358,13 +383,14 @@ failed:
 void ide_release(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
+    ide_hwif_t *hwif = info->hwif;
 
     DEBUG(0, "ide_release(0x%p)\n", link);
 
     if (info->ndev) {
 	/* FIXME: if this fails we need to queue the cleanup somehow
 	   -- need to investigate the required PCMCIA magic */
-	ide_unregister(info->hd);
+	ide_unregister(hwif->index);
     }
     info->ndev = 0;
 
