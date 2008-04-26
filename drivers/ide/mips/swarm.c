@@ -76,16 +76,11 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	if (!SIBYTE_HAVE_IDE)
 		return -ENODEV;
 
-	/* Find an empty slot.  */
-	for (i = 0; i < MAX_HWIFS; i++)
-		if (!ide_hwifs[i].io_ports[IDE_DATA_OFFSET])
-			break;
-	if (i >= MAX_HWIFS) {
+	hwif = ide_find_port();
+	if (hwif == NULL) {
 		printk(KERN_ERR DRV_NAME ": no free slot for interface\n");
 		return -ENOMEM;
 	}
-
-	hwif = ide_hwifs + i;
 
 	base = ioremap(A_IO_EXT_BASE, 0x800);
 	offset = __raw_readq(base + R_IO_EXT_REG(R_IO_EXT_START_ADDR, IDE_CS));
