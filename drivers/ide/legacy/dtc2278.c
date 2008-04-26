@@ -16,6 +16,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "dtc2278"
+
 /*
  * Changing this #undef to #define may solve start up problems in some systems.
  */
@@ -91,6 +93,7 @@ static const struct ide_port_ops dtc2278_port_ops = {
 };
 
 static const struct ide_port_info dtc2278_port_info __initdata = {
+	.name			= DRV_NAME,
 	.chipset		= ide_dtc2278,
 	.port_ops		= &dtc2278_port_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE |

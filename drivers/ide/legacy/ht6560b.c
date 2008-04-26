@@ -335,6 +335,7 @@ static const struct ide_port_ops ht6560b_port_ops = {
 };
 
 static const struct ide_port_info ht6560b_port_info __initdata = {
+	.name			= DRV_NAME,
 	.chipset		= ide_ht6560b,
 	.port_ops		= &ht6560b_port_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE | /* is this needed? */

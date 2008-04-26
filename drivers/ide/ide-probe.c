@@ -1648,12 +1648,26 @@ static void ide_legacy_init_one(u8 *idx, hw_regs_t *hw, u8 port_no,
 		irq  = 15;
 	}
 
+	if (!request_region(base, 8, d->name)) {
+		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
+				d->name, base, base + 7);
+		return;
+	}
+
+	if (!request_region(ctl, 1, d->name)) {
+		printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
+				d->name, ctl);
+		release_region(base, 8);
+		return;
+	}
+
 	ide_std_init_ports(hw, base, ctl);
 	hw->irq = irq;
 
 	hwif = ide_find_port_slot(d);
 	if (hwif) {
 		ide_init_port_hw(hwif, hw);
+		hwif->mmio = 1;
 		if (config)
 			hwif->config_data = config;
 		idx[port_no] = hwif->index;

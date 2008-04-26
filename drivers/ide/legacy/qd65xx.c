@@ -37,6 +37,8 @@
 #include <asm/system.h>
 #include <asm/io.h>
 
+#define DRV_NAME "qd65xx"
+
 #include "qd65xx.h"
 
 /*
@@ -317,6 +319,7 @@ static const struct ide_port_ops qd6580_port_ops = {
 };
 
 static const struct ide_port_info qd65xx_port_info __initdata = {
+	.name			= DRV_NAME,
 	.chipset		= ide_qd65xx,
 	.host_flags		= IDE_HFLAG_IO_32BIT |
 				  IDE_HFLAG_NO_DMA |
