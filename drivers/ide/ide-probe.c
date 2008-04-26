@@ -1630,40 +1630,50 @@ void ide_port_scan(ide_hwif_t *hwif)
 }
 EXPORT_SYMBOL_GPL(ide_port_scan);
 
+static void ide_legacy_init_one(u8 *idx, hw_regs_t *hw, u8 port_no,
+				const struct ide_port_info *d,
+				unsigned long config)
+{
+	ide_hwif_t *hwif;
+	unsigned long base, ctl;
+	int irq;
+
+	if (port_no == 0) {
+		base = 0x1f0;
+		ctl  = 0x3f6;
+		irq  = 14;
+	} else {
+		base = 0x170;
+		ctl  = 0x376;
+		irq  = 15;
+	}
+
+	ide_std_init_ports(hw, base, ctl);
+	hw->irq = irq;
+
+	hwif = ide_find_port_slot(d);
+	if (hwif) {
+		ide_init_port_hw(hwif, hw);
+		if (config)
+			hwif->config_data = config;
+		idx[port_no] = hwif->index;
+	}
+}
+
 int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)
 {
-	ide_hwif_t *hwif, *mate;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	hw_regs_t hw[2];
 
 	memset(&hw, 0, sizeof(hw));
 
-	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
-	hw[0].irq = 14;
+	if ((d->host_flags & IDE_HFLAG_QD_2ND_PORT) == 0)
+		ide_legacy_init_one(idx, &hw[0], 0, d, config);
+	ide_legacy_init_one(idx, &hw[1], 1, d, config);
 
-	ide_std_init_ports(&hw[1], 0x170, 0x376);
-	hw[1].irq = 15;
-
-	hwif = ide_find_port_slot(d);
-	if (hwif) {
-		u8 j = (d->host_flags & IDE_HFLAG_QD_2ND_PORT) ? 1 : 0;
-
-		ide_init_port_hw(hwif, &hw[j]);
-		if (config)
-			hwif->config_data = config;
-		idx[j] = hwif->index;
-	}
-
-	if (hwif == NULL && (d->host_flags & IDE_HFLAG_SINGLE))
+	if (idx[0] == 0xff && idx[1] == 0xff &&
+	    (d->host_flags & IDE_HFLAG_SINGLE))
 		return -ENOENT;
-
-	mate = ide_find_port_slot(d);
-	if (mate) {
-		ide_init_port_hw(mate, &hw[1]);
-		if (config)
-			mate->config_data = config;
-		idx[1] = mate->index;
-	}
 
 	ide_device_add(idx, d);
 
