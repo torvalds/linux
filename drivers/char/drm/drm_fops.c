@@ -345,7 +345,7 @@ int drm_release(struct inode *inode, struct file *filp)
 		if (drm_i_have_hw_lock(dev, file_priv)) {
 			dev->driver->reclaim_buffers_locked(dev, file_priv);
 		} else {
-			unsigned long _end=jiffies + 3*DRM_HZ;
+			unsigned long endtime = jiffies + 3 * DRM_HZ;
 			int locked = 0;
 
 			drm_idlelock_take(&dev->lock);
@@ -363,7 +363,7 @@ int drm_release(struct inode *inode, struct file *filp)
 				if (locked)
 					break;
 				schedule();
-			} while (!time_after_eq(jiffies, _end));
+			} while (!time_after_eq(jiffies, endtime));
 
 			if (!locked) {
 				DRM_ERROR("reclaim_buffers_locked() deadlock. Please rework this\n"
