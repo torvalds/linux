@@ -833,7 +833,7 @@ static int ide_allocate_dma_engine(ide_hwif_t *hwif)
 		return 0;
 
 	printk(KERN_ERR "%s: -- Error, unable to allocate DMA table.\n",
-	       hwif->cds->name);
+			hwif->name);
 
 	return 1;
 }

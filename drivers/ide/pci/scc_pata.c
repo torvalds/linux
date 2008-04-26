@@ -541,7 +541,6 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 	hw.chipset = ide_pci;
 	ide_init_port_hw(hwif, &hw);
 	hwif->dev = &dev->dev;
-	hwif->cds = d;
 
 	idx[0] = hwif->index;
 

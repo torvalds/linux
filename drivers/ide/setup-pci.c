@@ -322,7 +322,6 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 	ide_init_port_hw(hwif, &hw);
 
 	hwif->dev = &dev->dev;
-	hwif->cds = d;
 
 	return hwif;
 }
