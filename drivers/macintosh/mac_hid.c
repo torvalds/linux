@@ -114,8 +114,8 @@ static int emumousebtn_input_register(void)
 	if (!emumousebtn)
 		return -ENOMEM;
 
-	lockdep_set_class(emumousebtn->event_lock, &emumousebtn_event_class);
-	lockdep_set_class(emumousebtn->mutex, &emumousebtn_mutex_class);
+	lockdep_set_class(&emumousebtn->event_lock, &emumousebtn_event_class);
+	lockdep_set_class(&emumousebtn->mutex, &emumousebtn_mutex_class);
 
 	emumousebtn->name = "Macintosh mouse button emulation";
 	emumousebtn->id.bustype = BUS_ADB;
