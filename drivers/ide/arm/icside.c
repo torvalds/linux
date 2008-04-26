@@ -384,7 +384,7 @@ static void icside_dma_lost_irq(ide_drive_t *drive)
 	printk(KERN_ERR "%s: IRQ lost\n", drive->name);
 }
 
-static void icside_dma_init(ide_hwif_t *hwif)
+static int icside_dma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	hwif->dmatable_cpu	= NULL;
 	hwif->dmatable_dma	= 0;
@@ -397,10 +397,15 @@ static void icside_dma_init(ide_hwif_t *hwif)
 	hwif->ide_dma_test_irq	= icside_dma_test_irq;
 	hwif->dma_timeout	= icside_dma_timeout;
 	hwif->dma_lost_irq	= icside_dma_lost_irq;
+
+	return 0;
 }
-#else
-#define icside_dma_init(hwif)	(0)
 #endif
+
+static int icside_dma_off_init(ide_hwif_t *hwif, const struct ide_port_info *d)
+{
+	return -EOPNOTSUPP;
+}
 
 static ide_hwif_t *
 icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *ec)
@@ -468,9 +473,9 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 }
 
 static const struct ide_port_info icside_v6_port_info __initdata = {
+	.init_dma		= icside_dma_off_init,
 	.port_ops		= &icside_v6_no_dma_port_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE |
-				  IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
 				  IDE_HFLAG_NO_AUTOTUNE,
 	.mwdma_mask		= ATA_MWDMA2,
 	.swdma_mask		= ATA_SWDMA2,
@@ -543,11 +548,9 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	mate->select_data = sel | 1;
 
 	if (ec->dma != NO_DMA && !request_dma(ec->dma, hwif->name)) {
-		icside_dma_init(hwif);
-		icside_dma_init(mate);
+		d.init_dma = icside_dma_init;
 		d.port_ops = &icside_v6_dma_port_ops;
-	} else
-		d.mwdma_mask = d.swdma_mask = 0;
+	}
 
 	idx[0] = hwif->index;
 	idx[1] = mate->index;
