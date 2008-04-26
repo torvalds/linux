@@ -726,10 +726,6 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 		s->b.set_tune = 0;
 
 		if (set_pio_mode_abuse(drive->hwif, req_pio)) {
-
-			if (hwif->set_pio_mode == NULL)
-				return ide_stopped;
-
 			/*
 			 * take ide_lock for drive->[no_]unmask/[no_]io_32bit
 			 */
