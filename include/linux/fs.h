@@ -1309,7 +1309,7 @@ struct super_operations {
 	int (*statfs) (struct dentry *, struct kstatfs *);
 	int (*remount_fs) (struct super_block *, int *, char *);
 	void (*clear_inode) (struct inode *);
-	void (*umount_begin) (struct vfsmount *, int);
+	void (*umount_begin) (struct super_block *);
 
 	int (*show_options)(struct seq_file *, struct vfsmount *);
 	int (*show_stats)(struct seq_file *, struct vfsmount *);
@@ -2033,9 +2033,6 @@ static inline ino_t parent_ino(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 	return res;
 }
-
-/* kernel/fork.c */
-extern int unshare_files(void);
 
 /* Transaction based IO helpers */
 

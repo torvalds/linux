@@ -466,16 +466,11 @@ static struct quotactl_ops cifs_quotactl_ops = {
 };
 #endif
 
-static void cifs_umount_begin(struct vfsmount *vfsmnt, int flags)
+static void cifs_umount_begin(struct super_block *sb)
 {
-	struct cifs_sb_info *cifs_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsTconInfo *tcon;
 
-	dfs_shrink_umount_helper(vfsmnt);
-
-	if (!(flags & MNT_FORCE))
-		return;
-	cifs_sb = CIFS_SB(vfsmnt->mnt_sb);
 	if (cifs_sb == NULL)
 		return;
 
@@ -1100,6 +1095,7 @@ exit_cifs(void)
 	cFYI(DBG2, ("exit_cifs"));
 	cifs_proc_clean();
 #ifdef CONFIG_CIFS_DFS_UPCALL
+	cifs_dfs_release_automount_timer();
 	unregister_key_type(&key_type_dns_resolver);
 #endif
 #ifdef CONFIG_CIFS_UPCALL
