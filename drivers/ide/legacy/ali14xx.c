@@ -86,7 +86,7 @@ static u8 regOff;	/* output to base port to close registers */
 /*
  * Read a controller register.
  */
-static inline u8 inReg (u8 reg)
+static inline u8 inReg(u8 reg)
 {
 	outb_p(reg, regPort);
 	return inb(dataPort);
@@ -95,7 +95,7 @@ static inline u8 inReg (u8 reg)
 /*
  * Write a controller register.
  */
-static void outReg (u8 data, u8 reg)
+static void outReg(u8 data, u8 reg)
 {
 	outb_p(reg, regPort);
 	outb_p(data, dataPort);
@@ -143,7 +143,7 @@ static void ali14xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 /*
  * Auto-detect the IDE controller port.
  */
-static int __init findPort (void)
+static int __init findPort(void)
 {
 	int i;
 	u8 t;
@@ -175,7 +175,8 @@ static int __init findPort (void)
 /*
  * Initialize controller registers with default values.
  */
-static int __init initRegisters (void) {
+static int __init initRegisters(void)
+{
 	const RegInitializer *p;
 	u8 t;
 	unsigned long flags;
@@ -239,7 +240,7 @@ static int __init ali14xx_probe(void)
 	return 0;
 }
 
-int probe_ali14xx = 0;
+int probe_ali14xx;
 
 module_param_named(probe, probe_ali14xx, bool, 0);
 MODULE_PARM_DESC(probe, "probe for ALI M14xx chipsets");
