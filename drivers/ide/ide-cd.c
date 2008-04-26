@@ -136,8 +136,7 @@ static int cdrom_log_sense(ide_drive_t *drive, struct request *rq,
 	return log;
 }
 
-static
-void cdrom_analyze_sense_data(ide_drive_t *drive,
+static void cdrom_analyze_sense_data(ide_drive_t *drive,
 			      struct request *failed_command,
 			      struct request_sense *sense)
 {
@@ -186,9 +185,8 @@ void cdrom_analyze_sense_data(ide_drive_t *drive,
 			if (valid < 0)
 				valid = 0;
 			if (sector < get_capacity(info->disk) &&
-				drive->probed_capacity - sector < 4 * 75) {
+			    drive->probed_capacity - sector < 4 * 75)
 				set_capacity(info->disk, sector);
-			}
 		}
 	}
 
@@ -219,7 +217,8 @@ static void cdrom_queue_request_sense(ide_drive_t *drive, void *sense,
 
 	rq->data = sense;
 	rq->cmd[0] = GPCMD_REQUEST_SENSE;
-	rq->cmd[4] = rq->data_len = 18;
+	rq->cmd[4] = 18;
+	rq->data_len = 18;
 
 	rq->cmd_type = REQ_TYPE_SENSE;
 
@@ -310,7 +309,8 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 	sense_key = err >> 4;
 
 	if (rq == NULL) {
-		printk("%s: missing rq in cdrom_decode_status\n", drive->name);
+		printk(KERN_ERR "%s: missing rq in %s\n",
+				drive->name, __func__);
 		return 1;
 	}
 
@@ -379,7 +379,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 				cdrom_saw_media_change(drive);
 
 				/* fail the request */
-				printk("%s: tray open\n", drive->name);
+				printk(KERN_ERR "%s: tray open\n", drive->name);
 				do_end_request = 1;
 			} else {
 				struct cdrom_info *info = drive->driver_data;
@@ -411,7 +411,7 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 			}
 		} else if (sense_key == UNIT_ATTENTION) {
 			/* media change */
-			cdrom_saw_media_change (drive);
+			cdrom_saw_media_change(drive);
 
 			/*
 			 * Arrange to retry the request but be sure to give up
@@ -1215,8 +1215,8 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 /*
  * cdrom driver request routine.
  */
-static ide_startstop_t
-ide_do_rw_cdrom(ide_drive_t *drive, struct request *rq, sector_t block)
+static ide_startstop_t ide_do_rw_cdrom(ide_drive_t *drive, struct request *rq,
+					sector_t block)
 {
 	ide_startstop_t action;
 	struct cdrom_info *info = drive->driver_data;
@@ -1271,8 +1271,7 @@ ide_do_rw_cdrom(ide_drive_t *drive, struct request *rq, sector_t block)
  * subsequent request sense command. The pointer can also be NULL, in which case
  * no sense information is returned.
  */
-static
-void msf_from_bcd(struct atapi_msf *msf)
+static void msf_from_bcd(struct atapi_msf *msf)
 {
 	msf->minute = BCD2BIN(msf->minute);
 	msf->second = BCD2BIN(msf->second);
@@ -1487,7 +1486,8 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 
 		toc->last_session_lba = be32_to_cpu(ms_tmp.ent.addr.lba);
 	} else {
-		ms_tmp.hdr.first_track = ms_tmp.hdr.last_track = CDROM_LEADOUT;
+		ms_tmp.hdr.last_track = CDROM_LEADOUT;
+		ms_tmp.hdr.first_track = ms_tmp.hdr.last_track;
 		toc->last_session_lba = msf_to_lba(0, 2, 0); /* 0m 2s 0f */
 	}
 
@@ -1601,8 +1601,7 @@ static int ide_cdrom_register(ide_drive_t *drive, int nslots)
 	return register_cdrom(devinfo);
 }
 
-static
-int ide_cdrom_probe_capabilities(ide_drive_t *drive)
+static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
 {
 	struct cdrom_info *cd = drive->driver_data;
 	struct cdrom_device_info *cdi = &cd->devinfo;
@@ -1792,8 +1791,8 @@ static sector_t ide_cdrom_capacity(ide_drive_t *drive)
 	return capacity * sectors_per_frame;
 }
 
-static int proc_idecd_read_capacity
-	(char *page, char **start, off_t off, int count, int *eof, void *data)
+static int proc_idecd_read_capacity(char *page, char **start, off_t off,
+					int count, int *eof, void *data)
 {
 	ide_drive_t *drive = data;
 	int len;
@@ -1873,8 +1872,7 @@ static unsigned int ide_cd_flags(struct hd_driveid *id)
 	return 0;
 }
 
-static
-int ide_cdrom_setup(ide_drive_t *drive)
+static int ide_cdrom_setup(ide_drive_t *drive)
 {
 	struct cdrom_info *cd = drive->driver_data;
 	struct cdrom_device_info *cdi = &cd->devinfo;
