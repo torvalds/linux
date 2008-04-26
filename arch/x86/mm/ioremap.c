@@ -176,11 +176,11 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 		/*
 		 * Do not fallback to certain memory types with certain
 		 * requested type:
-		 * - request is uncached, return cannot be write-back
-		 * - request is uncached, return cannot be write-combine
+		 * - request is uc-, return cannot be write-back
+		 * - request is uc-, return cannot be write-combine
 		 * - request is write-combine, return cannot be write-back
 		 */
-		if ((prot_val == _PAGE_CACHE_UC &&
+		if ((prot_val == _PAGE_CACHE_UC_MINUS &&
 		     (new_prot_val == _PAGE_CACHE_WB ||
 		      new_prot_val == _PAGE_CACHE_WC)) ||
 		    (prot_val == _PAGE_CACHE_WC &&
@@ -200,6 +200,9 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	case _PAGE_CACHE_UC:
 	default:
 		prot = PAGE_KERNEL_NOCACHE;
+		break;
+	case _PAGE_CACHE_UC_MINUS:
+		prot = PAGE_KERNEL_UC_MINUS;
 		break;
 	case _PAGE_CACHE_WC:
 		prot = PAGE_KERNEL_WC;
@@ -255,7 +258,16 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
  */
 void __iomem *ioremap_nocache(resource_size_t phys_addr, unsigned long size)
 {
-	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_UC,
+	/*
+	 * Ideally, this should be:
+	 *	pat_wc_enabled ? _PAGE_CACHE_UC : _PAGE_CACHE_UC_MINUS;
+	 *
+	 * Till we fix all X drivers to use ioremap_wc(), we will use
+	 * UC MINUS.
+	 */
+	unsigned long val = _PAGE_CACHE_UC_MINUS;
+
+	return __ioremap_caller(phys_addr, size, val,
 				__builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_nocache);
