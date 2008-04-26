@@ -1124,6 +1124,7 @@ void sched_clock_idle_sleep_event(void)
 {
 	struct rq *rq = cpu_rq(smp_processor_id());
 
+	WARN_ON(!irqs_disabled());
 	spin_lock(&rq->lock);
 	__update_rq_clock(rq);
 	spin_unlock(&rq->lock);
@@ -1139,6 +1140,7 @@ void sched_clock_idle_wakeup_event(u64 delta_ns)
 	struct rq *rq = cpu_rq(smp_processor_id());
 	u64 now = sched_clock();
 
+	WARN_ON(!irqs_disabled());
 	rq->idle_clock += delta_ns;
 	/*
 	 * Override the previous timestamp and ignore all
