@@ -22,6 +22,7 @@
 #include <asm/sections.h>
 #include <asm/kdebug.h>
 #include <asm/e820.h>
+#include <asm/bios_ebda.h>
 
 static void __init zap_identity_mappings(void)
 {
@@ -49,7 +50,6 @@ static void __init copy_bootdata(char *real_mode_data)
 	}
 }
 
-#define BIOS_EBDA_SEGMENT 0x40E
 #define BIOS_LOWMEM_KILOBYTES 0x413
 
 /*
@@ -80,8 +80,7 @@ static void __init reserve_ebda_region(void)
 	lowmem <<= 10;
 
 	/* start of EBDA area */
-	ebda_addr = *(unsigned short *)__va(BIOS_EBDA_SEGMENT);
-	ebda_addr <<= 4;
+	ebda_addr = get_bios_ebda();
 
 	/* Fixup: bios puts an EBDA in the top 64K segment */
 	/* of conventional memory, but does not adjust lowmem. */

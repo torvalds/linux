@@ -2068,7 +2068,7 @@ static void __init setup_nmi(void)
  * cycles as some i82489DX-based boards have glue logic that keeps the
  * 8259A interrupt line asserted until INTA.  --macro
  */
-static inline void unlock_ExtINT_logic(void)
+static inline void __init unlock_ExtINT_logic(void)
 {
 	int apic, pin, i;
 	struct IO_APIC_route_entry entry0, entry1;

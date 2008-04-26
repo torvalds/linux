@@ -116,7 +116,7 @@ extern int root_mountflags;
 
 char __initdata command_line[COMMAND_LINE_SIZE];
 
-struct resource standard_io_resources[] = {
+static struct resource standard_io_resources[] = {
 	{ .name = "dma1", .start = 0x00, .end = 0x1f,
 		.flags = IORESOURCE_BUSY | IORESOURCE_IO },
 	{ .name = "pic1", .start = 0x20, .end = 0x21,

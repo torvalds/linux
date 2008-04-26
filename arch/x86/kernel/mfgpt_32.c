@@ -364,7 +364,8 @@ int __init mfgpt_timer_setup(void)
 	geode_mfgpt_write(mfgpt_event_clock, MFGPT_REG_SETUP, val);
 
 	/* Set up the clock event */
-	mfgpt_clockevent.mult = div_sc(MFGPT_HZ, NSEC_PER_SEC, 32);
+	mfgpt_clockevent.mult = div_sc(MFGPT_HZ, NSEC_PER_SEC,
+				       mfgpt_clockevent.shift);
 	mfgpt_clockevent.min_delta_ns = clockevent_delta2ns(0xF,
 			&mfgpt_clockevent);
 	mfgpt_clockevent.max_delta_ns = clockevent_delta2ns(0xFFFE,

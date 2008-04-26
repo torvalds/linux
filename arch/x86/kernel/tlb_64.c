@@ -195,9 +195,9 @@ static int __cpuinit init_smp_flush(void)
 {
 	int i;
 
-	for_each_cpu_mask(i, cpu_possible_map) {
+	for_each_possible_cpu(i)
 		spin_lock_init(&per_cpu(flush_state, i).tlbstate_lock);
-	}
+
 	return 0;
 }
 core_initcall(init_smp_flush);

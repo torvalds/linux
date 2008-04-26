@@ -686,13 +686,11 @@ void __init get_smp_config(void)
 static int __init smp_scan_config(unsigned long base, unsigned long length,
 				  unsigned reserve)
 {
-	extern void __bad_mpf_size(void);
 	unsigned int *bp = phys_to_virt(base);
 	struct intel_mp_floating *mpf;
 
 	Dprintk("Scan SMP from %p for %ld bytes.\n", bp, length);
-	if (sizeof(*mpf) != 16)
-		__bad_mpf_size();
+	BUILD_BUG_ON(sizeof(*mpf) != 16);
 
 	while (length > 0) {
 		mpf = (struct intel_mp_floating *)bp;
@@ -801,7 +799,6 @@ void __init find_smp_config(void)
 #ifdef	CONFIG_X86_IO_APIC
 
 #define MP_ISA_BUS		0
-#define MP_MAX_IOAPIC_PIN	127
 
 extern struct mp_ioapic_routing mp_ioapic_routing[MAX_IO_APICS];
 
@@ -820,7 +817,7 @@ static int mp_find_ioapic(int gsi)
 	return -1;
 }
 
-static u8 uniq_ioapic_id(u8 id)
+static u8 __init uniq_ioapic_id(u8 id)
 {
 #ifdef CONFIG_X86_32
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
@@ -909,14 +906,7 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	intsrc.mpc_dstapic = mp_ioapics[ioapic].mpc_apicid;	/* APIC ID */
 	intsrc.mpc_dstirq = pin;	/* INTIN# */
 
-	Dprintk("Int: type %d, pol %d, trig %d, bus %d, irq %d, %d-%d\n",
-		intsrc.mpc_irqtype, intsrc.mpc_irqflag & 3,
-		(intsrc.mpc_irqflag >> 2) & 3, intsrc.mpc_srcbus,
-		intsrc.mpc_srcbusirq, intsrc.mpc_dstapic, intsrc.mpc_dstirq);
-
-	mp_irqs[mp_irq_entries] = intsrc;
-	if (++mp_irq_entries == MAX_IRQ_SOURCES)
-		panic("Max # of irq sources exceeded!\n");
+	MP_intsrc_info(&intsrc);
 }
 
 int es7000_plat;
@@ -985,23 +975,14 @@ void __init mp_config_acpi_legacy_irqs(void)
 		intsrc.mpc_srcbusirq = i;	/* Identity mapped */
 		intsrc.mpc_dstirq = i;
 
-		Dprintk("Int: type %d, pol %d, trig %d, bus %d, irq %d, "
-			"%d-%d\n", intsrc.mpc_irqtype, intsrc.mpc_irqflag & 3,
-			(intsrc.mpc_irqflag >> 2) & 3, intsrc.mpc_srcbus,
-			intsrc.mpc_srcbusirq, intsrc.mpc_dstapic,
-			intsrc.mpc_dstirq);
-
-		mp_irqs[mp_irq_entries] = intsrc;
-		if (++mp_irq_entries == MAX_IRQ_SOURCES)
-			panic("Max # of irq sources exceeded!\n");
+		MP_intsrc_info(&intsrc);
 	}
 }
 
 int mp_register_gsi(u32 gsi, int triggering, int polarity)
 {
-	int ioapic = -1;
-	int ioapic_pin = 0;
-	int idx, bit = 0;
+	int ioapic;
+	int ioapic_pin;
 #ifdef CONFIG_X86_32
 #define MAX_GSI_NUM	4096
 #define IRQ_COMPRESSION_START	64
@@ -1041,15 +1022,13 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	 * with redundant pin->gsi mappings (but unique PCI devices);
 	 * we only program the IOAPIC on the first.
 	 */
-	bit = ioapic_pin % 32;
-	idx = (ioapic_pin < 32) ? 0 : (ioapic_pin / 32);
-	if (idx > 3) {
+	if (ioapic_pin > MP_MAX_IOAPIC_PIN) {
 		printk(KERN_ERR "Invalid reference to IOAPIC pin "
 		       "%d-%d\n", mp_ioapic_routing[ioapic].apic_id,
 		       ioapic_pin);
 		return gsi;
 	}
-	if ((1 << bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
+	if (test_bit(ioapic_pin, mp_ioapic_routing[ioapic].pin_programmed)) {
 		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
 			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
 #ifdef CONFIG_X86_32
@@ -1059,7 +1038,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 #endif
 	}
 
-	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1 << bit);
+	set_bit(ioapic_pin, mp_ioapic_routing[ioapic].pin_programmed);
 #ifdef CONFIG_X86_32
 	/*
 	 * For GSI >= 64, use IRQ compression

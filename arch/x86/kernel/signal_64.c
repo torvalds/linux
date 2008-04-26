@@ -285,14 +285,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	   even if the handler happens to be interrupting 32-bit code. */
 	regs->cs = __USER_CS;
 
-	/* This, by contrast, has nothing to do with segment registers -
-	   see include/asm-x86_64/uaccess.h for details. */
-	set_fs(USER_DS);
-
-	regs->flags &= ~(X86_EFLAGS_TF | X86_EFLAGS_DF);
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 	return 0;
 
 give_sigsegv:
@@ -380,6 +372,28 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	ret = setup_rt_frame(sig, ka, info, oldset, regs);
 
 	if (ret == 0) {
+		/*
+		 * This has nothing to do with segment registers,
+		 * despite the name.  This magic affects uaccess.h
+		 * macros' behavior.  Reset it to the normal setting.
+		 */
+		set_fs(USER_DS);
+
+		/*
+		 * Clear the direction flag as per the ABI for function entry.
+		 */
+		regs->flags &= ~X86_EFLAGS_DF;
+
+		/*
+		 * Clear TF when entering the signal handler, but
+		 * notify any tracer that was single-stepping it.
+		 * The tracer may want to single-step inside the
+		 * handler too.
+		 */
+		regs->flags &= ~X86_EFLAGS_TF;
+		if (test_thread_flag(TIF_SINGLESTEP))
+			ptrace_notify(SIGTRAP);
+
 		spin_lock_irq(&current->sighand->siglock);
 		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
 		if (!(ka->sa.sa_flags & SA_NODEFER))
