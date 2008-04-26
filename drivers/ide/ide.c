@@ -100,12 +100,7 @@ int ide_noacpitfs = 1;
 int ide_noacpionboot = 1;
 #endif
 
-/*
- * This is declared extern in ide.h, for access by other IDE modules:
- */
 ide_hwif_t ide_hwifs[MAX_HWIFS];	/* master data repository */
-
-EXPORT_SYMBOL(ide_hwifs);
 
 static void ide_port_init_devices_data(ide_hwif_t *);
 
