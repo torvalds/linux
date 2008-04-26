@@ -4,7 +4,7 @@
 #include <linux/module.h>
 #include <linux/ide.h>
 
-int probe_4drives = 0;
+int probe_4drives;
 
 module_param_named(probe, probe_4drives, bool, 0);
 MODULE_PARM_DESC(probe, "probe for generic IDE chipset with 4 drives/port");
