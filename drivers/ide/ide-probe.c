@@ -773,8 +773,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 
 	BUG_ON(hwif->present);
 
-	if (hwif->noprobe ||
-	    (hwif->drives[0].noprobe && hwif->drives[1].noprobe))
+	if (hwif->drives[0].noprobe && hwif->drives[1].noprobe)
 		return -EACCES;
 
 	/*

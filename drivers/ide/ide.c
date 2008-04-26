@@ -454,7 +454,6 @@ void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 {
 	memcpy(hwif->io_ports, hw->io_ports, sizeof(hwif->io_ports));
 	hwif->irq = hw->irq;
-	hwif->noprobe = 0;
 	hwif->chipset = hw->chipset;
 	hwif->gendev.parent = hw->dev;
 	hwif->ack_intr = hw->ack_intr;
@@ -1006,14 +1005,12 @@ static int __init ide_setup(char *s)
 				goto done;
 			case -3: /* "nowerr" */
 				drive->bad_wstat = BAD_R_STAT;
-				hwif->noprobe = 0;
 				goto done;
 			case -4: /* "cdrom" */
 				drive->present = 1;
 				drive->media = ide_cdrom;
 				/* an ATAPI device ignores DRDY */
 				drive->ready_stat = 0;
-				hwif->noprobe = 0;
 				goto done;
 			case -5: /* nodma */
 				drive->nodma = 1;
@@ -1044,7 +1041,6 @@ static int __init ide_setup(char *s)
 				drive->sect	= drive->bios_sect = vals[2];
 				drive->present	= 1;
 				drive->forced_geom = 1;
-				hwif->noprobe = 0;
 				goto done;
 			default:
 				goto bad_option;

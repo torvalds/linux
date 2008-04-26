@@ -424,7 +424,6 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 		}
 		hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)base + info->ctrloffset;
 		hwif->irq     = ec->irq;
-		hwif->noprobe = 0;
 		hwif->chipset = ide_acorn;
 		hwif->gendev.parent = &ec->dev;
 		hwif->dev = &ec->dev;

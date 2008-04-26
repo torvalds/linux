@@ -1049,17 +1049,22 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 	hwif->mmio = 1;
 	hwif->hwif_data = pmif;
 	ide_init_port_hw(hwif, hw);
-	hwif->noprobe = pmif->mediabay;
 	hwif->cbl = pmif->cable_80 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 
 	printk(KERN_INFO "ide%d: Found Apple %s controller, bus ID %d%s, irq %d\n",
 	       hwif->index, model_name[pmif->kind], pmif->aapl_bus_id,
 	       pmif->mediabay ? " (mediabay)" : "", hwif->irq);
-			
+
+	if (pmif->mediabay) {
 #ifdef CONFIG_PMAC_MEDIABAY
-	if (pmif->mediabay && check_media_bay_by_base(pmif->regbase, MB_CD) == 0)
-		hwif->noprobe = 0;
-#endif /* CONFIG_PMAC_MEDIABAY */
+		if (check_media_bay_by_base(pmif->regbase, MB_CD)) {
+#else
+		if (1) {
+#endif
+			hwif->drives[0].noprobe = 1;
+			hwif->drives[1].noprobe = 1;
+		}
+	}
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
 	if (pmif->cable_80 == 0)
