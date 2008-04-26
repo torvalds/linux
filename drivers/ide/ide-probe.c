@@ -1537,18 +1537,15 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			continue;
 		}
 
-		if (ide_probe_port(hwif) < 0) {
-			ide_hwif_release_regions(hwif);
-			continue;
-		}
-
-		hwif->present = 1;
+		if (ide_probe_port(hwif) == 0)
+			hwif->present = 1;
 
 		if (hwif->chipset != ide_4drives || !hwif->mate ||
 		    !hwif->mate->present)
 			ide_register_port(hwif);
 
-		ide_port_tune_devices(hwif);
+		if (hwif->present)
+			ide_port_tune_devices(hwif);
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
@@ -1556,9 +1553,6 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			continue;
 
 		hwif = &ide_hwifs[idx[i]];
-
-		if (!hwif->present)
-			continue;
 
 		if (hwif_init(hwif) == 0) {
 			printk(KERN_INFO "%s: failed to initialize IDE "
@@ -1568,10 +1562,13 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			continue;
 		}
 
-		ide_port_setup_devices(hwif);
+		if (hwif->present)
+			ide_port_setup_devices(hwif);
 
 		ide_acpi_init(hwif);
-		ide_acpi_port_init_devices(hwif);
+
+		if (hwif->present)
+			ide_acpi_port_init_devices(hwif);
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
@@ -1580,11 +1577,11 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 
 		hwif = &ide_hwifs[idx[i]];
 
-		if (hwif->present) {
-			if (hwif->chipset == ide_unknown)
-				hwif->chipset = ide_generic;
+		if (hwif->chipset == ide_unknown)
+			hwif->chipset = ide_generic;
+
+		if (hwif->present)
 			hwif_register_devices(hwif);
-		}
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
@@ -1593,11 +1590,11 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 
 		hwif = &ide_hwifs[idx[i]];
 
-		if (hwif->present) {
-			ide_sysfs_register_port(hwif);
-			ide_proc_register_port(hwif);
+		ide_sysfs_register_port(hwif);
+		ide_proc_register_port(hwif);
+
+		if (hwif->present)
 			ide_proc_port_register_devices(hwif);
-		}
 	}
 
 	return rc;
