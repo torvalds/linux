@@ -1049,9 +1049,9 @@ config MTRR
 	  See <file:Documentation/mtrr.txt> for more information.
 
 config X86_PAT
-	def_bool y
+	bool
 	prompt "x86 PAT support"
-	depends on MTRR && NONPROMISC_DEVMEM
+	depends on MTRR
 	help
 	  Use PAT attributes to setup page level cache control.
 
