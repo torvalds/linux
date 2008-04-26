@@ -521,7 +521,6 @@ typedef struct hwif_s {
 	unsigned	reset      : 1;	/* reset after probe */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 	unsigned	mmio       : 1; /* host uses MMIO */
-	unsigned	straight8  : 1;	/* Alan's straight 8 check */
 
 	struct device		gendev;
 	struct device		*portdev;
