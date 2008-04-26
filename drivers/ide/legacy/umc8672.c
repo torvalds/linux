@@ -51,6 +51,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "umc8672"
+
 /*
  * Default speeds.  These can be changed with "auto-tune" and/or hdparm.
  */
@@ -120,18 +122,21 @@ static void umc_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
+static const struct ide_port_ops umc8672_port_ops = {
+	.set_pio_mode		= umc_set_pio_mode,
+};
+
 static const struct ide_port_info umc8672_port_info __initdata = {
+	.name			= DRV_NAME,
 	.chipset		= ide_umc8672,
+	.port_ops		= &umc8672_port_ops,
 	.host_flags		= IDE_HFLAG_NO_DMA | IDE_HFLAG_NO_AUTOTUNE,
 	.pio_mask		= ATA_PIO4,
 };
 
 static int __init umc8672_probe(void)
 {
-	ide_hwif_t *hwif, *mate;
 	unsigned long flags;
-	static u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw[2];
 
 	if (!request_region(0x108, 2, "umc8672")) {
 		printk(KERN_ERR "umc8672: ports 0x108-0x109 already in use.\n");
@@ -150,31 +155,7 @@ static int __init umc8672_probe(void)
 	umc_set_speeds(current_speeds);
 	local_irq_restore(flags);
 
-	memset(&hw, 0, sizeof(hw));
-
-	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
-	hw[0].irq = 14;
-
-	ide_std_init_ports(&hw[1], 0x170, 0x376);
-	hw[1].irq = 15;
-
-	hwif = ide_find_port();
-	if (hwif) {
-		ide_init_port_hw(hwif, &hw[0]);
-		hwif->set_pio_mode = umc_set_pio_mode;
-		idx[0] = hwif->index;
-	}
-
-	mate = ide_find_port();
-	if (mate) {
-		ide_init_port_hw(mate, &hw[1]);
-		mate->set_pio_mode = umc_set_pio_mode;
-		idx[1] = mate->index;
-	}
-
-	ide_device_add(idx, &umc8672_port_info);
-
-	return 0;
+	return ide_legacy_device_add(&umc8672_port_info, 0);
 }
 
 int probe_umc8672;

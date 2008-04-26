@@ -125,18 +125,16 @@ static u8 __devinit slc90e66_cable_detect(ide_hwif_t *hwif)
 	return (reg47 & mask) ? ATA_CBL_PATA40 : ATA_CBL_PATA80;
 }
 
-static void __devinit init_hwif_slc90e66(ide_hwif_t *hwif)
-{
-	hwif->set_pio_mode = &slc90e66_set_pio_mode;
-	hwif->set_dma_mode = &slc90e66_set_dma_mode;
-
-	hwif->cable_detect = slc90e66_cable_detect;
-}
+static const struct ide_port_ops slc90e66_port_ops = {
+	.set_pio_mode		= slc90e66_set_pio_mode,
+	.set_dma_mode		= slc90e66_set_dma_mode,
+	.cable_detect		= slc90e66_cable_detect,
+};
 
 static const struct ide_port_info slc90e66_chipset __devinitdata = {
 	.name		= "SLC90E66",
-	.init_hwif	= init_hwif_slc90e66,
 	.enablebits	= { {0x41, 0x80, 0x80}, {0x43, 0x80, 0x80} },
+	.port_ops	= &slc90e66_port_ops,
 	.host_flags	= IDE_HFLAG_LEGACY_IRQS,
 	.pio_mask	= ATA_PIO4,
 	.swdma_mask	= ATA_SWDMA2_ONLY,

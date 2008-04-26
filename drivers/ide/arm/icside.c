@@ -191,6 +191,10 @@ static void icside_maskproc(ide_drive_t *drive, int mask)
 	local_irq_restore(flags);
 }
 
+static const struct ide_port_ops icside_v6_no_dma_port_ops = {
+	.maskproc		= icside_maskproc,
+};
+
 #ifdef CONFIG_BLK_DEV_IDEDMA_ICS
 /*
  * SG-DMA support.
@@ -265,6 +269,11 @@ static void icside_set_dma_mode(ide_drive_t *drive, const u8 xfer_mode)
 	printk("%s: %s selected (peak %dMB/s)\n", drive->name,
 		ide_xfer_verbose(xfer_mode), 2000 / drive->drive_data);
 }
+
+static const struct ide_port_ops icside_v6_port_ops = {
+	.set_dma_mode		= icside_set_dma_mode,
+	.maskproc		= icside_maskproc,
+};
 
 static void icside_dma_host_set(ide_drive_t *drive, int on)
 {
@@ -375,24 +384,32 @@ static void icside_dma_lost_irq(ide_drive_t *drive)
 	printk(KERN_ERR "%s: IRQ lost\n", drive->name);
 }
 
-static void icside_dma_init(ide_hwif_t *hwif)
+static int icside_dma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	hwif->dmatable_cpu	= NULL;
 	hwif->dmatable_dma	= 0;
-	hwif->set_dma_mode	= icside_set_dma_mode;
 
-	hwif->dma_host_set	= icside_dma_host_set;
-	hwif->dma_setup		= icside_dma_setup;
-	hwif->dma_exec_cmd	= icside_dma_exec_cmd;
-	hwif->dma_start		= icside_dma_start;
-	hwif->ide_dma_end	= icside_dma_end;
-	hwif->ide_dma_test_irq	= icside_dma_test_irq;
-	hwif->dma_timeout	= icside_dma_timeout;
-	hwif->dma_lost_irq	= icside_dma_lost_irq;
+	return 0;
 }
+
+static const struct ide_dma_ops icside_v6_dma_ops = {
+	.dma_host_set		= icside_dma_host_set,
+	.dma_setup		= icside_dma_setup,
+	.dma_exec_cmd		= icside_dma_exec_cmd,
+	.dma_start		= icside_dma_start,
+	.dma_end		= icside_dma_end,
+	.dma_test_irq		= icside_dma_test_irq,
+	.dma_timeout		= icside_dma_timeout,
+	.dma_lost_irq		= icside_dma_lost_irq,
+};
 #else
-#define icside_dma_init(hwif)	(0)
+#define icside_v6_dma_ops NULL
 #endif
+
+static int icside_dma_off_init(ide_hwif_t *hwif, const struct ide_port_info *d)
+{
+	return -EOPNOTSUPP;
+}
 
 static ide_hwif_t *
 icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *ec)
@@ -408,7 +425,6 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 		 * Ensure we're using MMIO
 		 */
 		default_hwif_mmiops(hwif);
-		hwif->mmio = 1;
 
 		for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
 			hwif->io_ports[i] = port;
@@ -416,7 +432,6 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 		}
 		hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)base + info->ctrloffset;
 		hwif->irq     = ec->irq;
-		hwif->noprobe = 0;
 		hwif->chipset = ide_acorn;
 		hwif->gendev.parent = &ec->dev;
 		hwif->dev = &ec->dev;
@@ -462,8 +477,10 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 }
 
 static const struct ide_port_info icside_v6_port_info __initdata = {
+	.init_dma		= icside_dma_off_init,
+	.port_ops		= &icside_v6_no_dma_port_ops,
+	.dma_ops		= &icside_v6_dma_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE |
-				  IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
 				  IDE_HFLAG_NO_AUTOTUNE,
 	.mwdma_mask		= ATA_MWDMA2,
 	.swdma_mask		= ATA_SWDMA2,
@@ -526,7 +543,6 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	state->hwif[0]    = hwif;
 	state->hwif[1]    = mate;
 
-	hwif->maskproc    = icside_maskproc;
 	hwif->hwif_data   = state;
 	hwif->config_data = (unsigned long)ioc_base;
 	hwif->select_data = sel;
@@ -537,10 +553,10 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	mate->select_data = sel | 1;
 
 	if (ec->dma != NO_DMA && !request_dma(ec->dma, hwif->name)) {
-		icside_dma_init(hwif);
-		icside_dma_init(mate);
-	} else
-		d.mwdma_mask = d.swdma_mask = 0;
+		d.init_dma = icside_dma_init;
+		d.port_ops = &icside_v6_dma_port_ops;
+		d.dma_ops = NULL;
+	}
 
 	idx[0] = hwif->index;
 	idx[1] = mate->index;

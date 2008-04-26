@@ -312,7 +312,7 @@ static u8 __devinit ata66_svwks_cobalt(ide_hwif_t *hwif)
 	return ATA_CBL_PATA40;
 }
 
-static u8 __devinit ata66_svwks(ide_hwif_t *hwif)
+static u8 __devinit svwks_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
@@ -336,17 +336,18 @@ static u8 __devinit ata66_svwks(ide_hwif_t *hwif)
 	return ATA_CBL_PATA40;
 }
 
-static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
-{
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
+static const struct ide_port_ops osb4_port_ops = {
+	.set_pio_mode		= svwks_set_pio_mode,
+	.set_dma_mode		= svwks_set_dma_mode,
+	.udma_filter		= svwks_udma_filter,
+};
 
-	hwif->set_pio_mode = &svwks_set_pio_mode;
-	hwif->set_dma_mode = &svwks_set_dma_mode;
-	hwif->udma_filter = &svwks_udma_filter;
-
-	if (dev->device != PCI_DEVICE_ID_SERVERWORKS_OSB4IDE)
-		hwif->cable_detect = ata66_svwks;
-}
+static const struct ide_port_ops svwks_port_ops = {
+	.set_pio_mode		= svwks_set_pio_mode,
+	.set_dma_mode		= svwks_set_dma_mode,
+	.udma_filter		= svwks_udma_filter,
+	.cable_detect		= svwks_cable_detect,
+};
 
 #define IDE_HFLAGS_SVWKS \
 	(IDE_HFLAG_LEGACY_IRQS | \
@@ -356,7 +357,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "SvrWks OSB4",
 		.init_chipset	= init_chipset_svwks,
-		.init_hwif	= init_hwif_svwks,
+		.port_ops	= &osb4_port_ops,
 		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
@@ -364,7 +365,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 	},{	/* 1 */
 		.name		= "SvrWks CSB5",
 		.init_chipset	= init_chipset_svwks,
-		.init_hwif	= init_hwif_svwks,
+		.port_ops	= &svwks_port_ops,
 		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
@@ -372,7 +373,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 	},{	/* 2 */
 		.name		= "SvrWks CSB6",
 		.init_chipset	= init_chipset_svwks,
-		.init_hwif	= init_hwif_svwks,
+		.port_ops	= &svwks_port_ops,
 		.host_flags	= IDE_HFLAGS_SVWKS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
@@ -380,7 +381,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 	},{	/* 3 */
 		.name		= "SvrWks CSB6",
 		.init_chipset	= init_chipset_svwks,
-		.init_hwif	= init_hwif_svwks,
+		.port_ops	= &svwks_port_ops,
 		.host_flags	= IDE_HFLAGS_SVWKS | IDE_HFLAG_SINGLE,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
@@ -388,7 +389,7 @@ static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 	},{	/* 4 */
 		.name		= "SvrWks HT1000",
 		.init_chipset	= init_chipset_svwks,
-		.init_hwif	= init_hwif_svwks,
+		.port_ops	= &svwks_port_ops,
 		.host_flags	= IDE_HFLAGS_SVWKS | IDE_HFLAG_SINGLE,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,

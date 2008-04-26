@@ -227,79 +227,6 @@ static int ide_system_bus_speed(void)
 	return pci_dev_present(pci_default) ? 33 : 50;
 }
 
-static struct resource* hwif_request_region(ide_hwif_t *hwif,
-					    unsigned long addr, int num)
-{
-	struct resource *res = request_region(addr, num, hwif->name);
-
-	if (!res)
-		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
-				hwif->name, addr, addr+num-1);
-	return res;
-}
-
-/**
- *	ide_hwif_request_regions - request resources for IDE
- *	@hwif: interface to use
- *
- *	Requests all the needed resources for an interface.
- *	Right now core IDE code does this work which is deeply wrong.
- *	MMIO leaves it to the controller driver,
- *	PIO will migrate this way over time.
- */
-
-int ide_hwif_request_regions(ide_hwif_t *hwif)
-{
-	unsigned long addr;
-
-	if (hwif->mmio)
-		return 0;
-
-	addr = hwif->io_ports[IDE_CONTROL_OFFSET];
-
-	if (addr && !hwif_request_region(hwif, addr, 1))
-		goto control_region_busy;
-
-	addr = hwif->io_ports[IDE_DATA_OFFSET];
-	BUG_ON((addr | 7) != hwif->io_ports[IDE_STATUS_OFFSET]);
-
-	if (!hwif_request_region(hwif, addr, 8))
-		goto data_region_busy;
-
-	return 0;
-
-data_region_busy:
-	addr = hwif->io_ports[IDE_CONTROL_OFFSET];
-	if (addr)
-		release_region(addr, 1);
-control_region_busy:
-	/* If any errors are return, we drop the hwif interface. */
-	return -EBUSY;
-}
-
-/**
- *	ide_hwif_release_regions - free IDE resources
- *
- *	Note that we only release the standard ports,
- *	and do not even try to handle any extra ports
- *	allocated for weird IDE interface chipsets.
- *
- *	Note also that we don't yet handle mmio resources here. More
- *	importantly our caller should be doing this so we need to 
- *	restructure this as a helper function for drivers.
- */
-
-void ide_hwif_release_regions(ide_hwif_t *hwif)
-{
-	if (hwif->mmio)
-		return;
-
-	if (hwif->io_ports[IDE_CONTROL_OFFSET])
-		release_region(hwif->io_ports[IDE_CONTROL_OFFSET], 1);
-
-	release_region(hwif->io_ports[IDE_DATA_OFFSET], 8);
-}
-
 void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 {
 	ide_hwgroup_t *hwgroup = hwif->hwgroup;
@@ -436,9 +363,7 @@ void ide_unregister(unsigned int index)
 	spin_lock_irq(&ide_lock);
 
 	if (hwif->dma_base)
-		(void)ide_release_dma(hwif);
-
-	ide_hwif_release_regions(hwif);
+		ide_release_dma_engine(hwif);
 
 	/* restore hwif data to pristine status */
 	ide_init_port_data(hwif, index);
@@ -454,7 +379,6 @@ void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 {
 	memcpy(hwif->io_ports, hw->io_ports, sizeof(hwif->io_ports));
 	hwif->irq = hw->irq;
-	hwif->noprobe = 0;
 	hwif->chipset = hw->chipset;
 	hwif->gendev.parent = hw->dev;
 	hwif->ack_intr = hw->ack_intr;
@@ -545,7 +469,7 @@ int set_using_dma(ide_drive_t *drive, int arg)
 	if (!drive->id || !(drive->id->capability & 1))
 		goto out;
 
-	if (hwif->dma_host_set == NULL)
+	if (hwif->dma_ops == NULL)
 		goto out;
 
 	err = -EBUSY;
@@ -585,11 +509,12 @@ int set_pio_mode(ide_drive_t *drive, int arg)
 {
 	struct request rq;
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 
 	if (arg < 0 || arg > 255)
 		return -EINVAL;
 
-	if (hwif->set_pio_mode == NULL ||
+	if (port_ops == NULL || port_ops->set_pio_mode == NULL ||
 	    (hwif->host_flags & IDE_HFLAG_NO_SET_MODE))
 		return -ENOSYS;
 
@@ -1005,14 +930,12 @@ static int __init ide_setup(char *s)
 				goto done;
 			case -3: /* "nowerr" */
 				drive->bad_wstat = BAD_R_STAT;
-				hwif->noprobe = 0;
 				goto done;
 			case -4: /* "cdrom" */
 				drive->present = 1;
 				drive->media = ide_cdrom;
 				/* an ATAPI device ignores DRDY */
 				drive->ready_stat = 0;
-				hwif->noprobe = 0;
 				goto done;
 			case -5: /* nodma */
 				drive->nodma = 1;
@@ -1043,7 +966,6 @@ static int __init ide_setup(char *s)
 				drive->sect	= drive->bios_sect = vals[2];
 				drive->present	= 1;
 				drive->forced_geom = 1;
-				hwif->noprobe = 0;
 				goto done;
 			default:
 				goto bad_option;

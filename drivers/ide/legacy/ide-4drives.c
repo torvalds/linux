@@ -4,6 +4,8 @@
 #include <linux/module.h>
 #include <linux/ide.h>
 
+#define DRV_NAME "ide-4drives"
+
 int probe_4drives;
 
 module_param_named(probe, probe_4drives, bool, 0);
@@ -12,15 +14,29 @@ MODULE_PARM_DESC(probe, "probe for generic IDE chipset with 4 drives/port");
 static int __init ide_4drives_init(void)
 {
 	ide_hwif_t *hwif, *mate;
+	unsigned long base = 0x1f0, ctl = 0x3f6;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	hw_regs_t hw;
 
 	if (probe_4drives == 0)
 		return -ENODEV;
 
+	if (!request_region(base, 8, DRV_NAME)) {
+		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
+				DRV_NAME, base, base + 7);
+		return -EBUSY;
+	}
+
+	if (!request_region(ctl, 1, DRV_NAME)) {
+		printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
+				DRV_NAME, ctl);
+		release_region(base, 8);
+		return -EBUSY;
+	}
+
 	memset(&hw, 0, sizeof(hw));
 
-	ide_std_init_ports(&hw, 0x1f0, 0x3f6);
+	ide_std_init_ports(&hw, base, ctl);
 	hw.irq = 14;
 	hw.chipset = ide_4drives;
 

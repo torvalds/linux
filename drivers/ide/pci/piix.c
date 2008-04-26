@@ -285,11 +285,6 @@ static u8 __devinit piix_cable_detect(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 {
-	hwif->set_pio_mode = &piix_set_pio_mode;
-	hwif->set_dma_mode = &piix_set_dma_mode;
-
-	hwif->cable_detect = piix_cable_detect;
-
 	if (!hwif->dma_base)
 		return;
 
@@ -306,6 +301,12 @@ static void __devinit init_hwif_ich(ide_hwif_t *hwif)
 		hwif->ide_dma_clear_irq = &piix_dma_clear_irq;
 }
 
+static const struct ide_port_ops piix_port_ops = {
+	.set_pio_mode		= piix_set_pio_mode,
+	.set_dma_mode		= piix_set_dma_mode,
+	.cable_detect		= piix_cable_detect,
+};
+
 #ifndef CONFIG_IA64
  #define IDE_HFLAGS_PIIX IDE_HFLAG_LEGACY_IRQS
 #else
@@ -317,6 +318,7 @@ static void __devinit init_hwif_ich(ide_hwif_t *hwif)
 		.name		= name_str,		\
 		.init_hwif	= init_hwif_piix,	\
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
+		.port_ops	= &piix_port_ops,	\
 		.host_flags	= IDE_HFLAGS_PIIX,	\
 		.pio_mask	= ATA_PIO4,		\
 		.swdma_mask	= ATA_SWDMA2_ONLY,	\
@@ -330,6 +332,7 @@ static void __devinit init_hwif_ich(ide_hwif_t *hwif)
 		.init_chipset	= init_chipset_ich, \
 		.init_hwif	= init_hwif_ich, \
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
+		.port_ops	= &piix_port_ops, \
 		.host_flags	= IDE_HFLAGS_PIIX, \
 		.pio_mask	= ATA_PIO4, \
 		.swdma_mask	= ATA_SWDMA2_ONLY, \

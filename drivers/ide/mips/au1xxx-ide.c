@@ -47,7 +47,6 @@
 #define IDE_AU1XXX_BURSTMODE	1
 
 static _auide_hwif auide_hwif;
-static int dbdma_init_done;
 
 static int auide_ddma_init(_auide_hwif *auide);
 
@@ -61,7 +60,7 @@ void auide_insw(unsigned long port, void *addr, u32 count)
 
 	if(!put_dest_flags(ahwif->rx_chan, (void*)addr, count << 1, 
 			   DDMA_FLAGS_NOIE)) {
-		printk(KERN_ERR "%s failed %d\n", __FUNCTION__, __LINE__);
+		printk(KERN_ERR "%s failed %d\n", __func__, __LINE__);
 		return;
 	}
 	ctp = *((chan_tab_t **)ahwif->rx_chan);
@@ -79,7 +78,7 @@ void auide_outsw(unsigned long port, void *addr, u32 count)
 
 	if(!put_source_flags(ahwif->tx_chan, (void*)addr,
 			     count << 1, DDMA_FLAGS_NOIE)) {
-		printk(KERN_ERR "%s failed %d\n", __FUNCTION__, __LINE__);
+		printk(KERN_ERR "%s failed %d\n", __func__, __LINE__);
 		return;
 	}
 	ctp = *((chan_tab_t **)ahwif->tx_chan);
@@ -250,7 +249,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 						     (void*) sg_virt(sg),
 						     tc, flags)) { 
 					printk(KERN_ERR "%s failed %d\n", 
-					       __FUNCTION__, __LINE__);
+					       __func__, __LINE__);
 				}
 			} else 
 			{
@@ -258,7 +257,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 						   (void*) sg_virt(sg),
 						   tc, flags)) { 
 					printk(KERN_ERR "%s failed %d\n", 
-					       __FUNCTION__, __LINE__);
+					       __func__, __LINE__);
 				}
 			}
 
@@ -315,35 +314,6 @@ static int auide_dma_setup(ide_drive_t *drive)
 	return 0;
 }
 
-static u8 auide_mdma_filter(ide_drive_t *drive)
-{
-	/*
-	 * FIXME: ->white_list and ->black_list are based on completely bogus
-	 * ->ide_dma_check implementation which didn't set neither the host
-	 * controller timings nor the device for the desired transfer mode.
-	 *
-	 * They should be either removed or 0x00 MWDMA mask should be
-	 * returned for devices on the ->black_list.
-	 */
-
-	if (dbdma_init_done == 0) {
-		auide_hwif.white_list = ide_in_drive_list(drive->id,
-							  dma_white_list);
-		auide_hwif.black_list = ide_in_drive_list(drive->id,
-							  dma_black_list);
-		auide_hwif.drive = drive;
-		auide_ddma_init(&auide_hwif);
-		dbdma_init_done = 1;
-	}
-
-	/* Is the drive in our DMA black list? */
-	if (auide_hwif.black_list)
-		printk(KERN_WARNING "%s: Disabling DMA for %s (blacklisted)\n",
-				    drive->name, drive->id->model);
-
-	return drive->hwif->mwdma_mask;
-}
-
 static int auide_dma_test_irq(ide_drive_t *drive)
 {	
 	if (drive->waiting_for_dma == 0)
@@ -396,41 +366,41 @@ static void auide_init_dbdma_dev(dbdev_tab_t *dev, u32 dev_id, u32 tsize, u32 de
 	dev->dev_devwidth    = devwidth;
 	dev->dev_flags       = flags;
 }
-  
-#if defined(CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA)
 
+#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 static void auide_dma_timeout(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 
 	printk(KERN_ERR "%s: DMA timeout occurred: ", drive->name);
 
-	if (hwif->ide_dma_test_irq(drive))
+	if (auide_dma_test_irq(drive))
 		return;
 
-	hwif->ide_dma_end(drive);
+	auide_dma_end(drive);
 }
-					
 
-static int auide_ddma_init(_auide_hwif *auide) {
-	
+static const struct ide_dma_ops au1xxx_dma_ops = {
+	.dma_host_set		= auide_dma_host_set,
+	.dma_setup		= auide_dma_setup,
+	.dma_exec_cmd		= auide_dma_exec_cmd,
+	.dma_start		= auide_dma_start,
+	.dma_end		= auide_dma_end,
+	.dma_test_irq		= auide_dma_test_irq,
+	.dma_lost_irq		= auide_dma_lost_irq,
+	.dma_timeout		= auide_dma_timeout,
+};
+
+static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
+{
+	_auide_hwif *auide = (_auide_hwif *)hwif->hwif_data;
 	dbdev_tab_t source_dev_tab, target_dev_tab;
 	u32 dev_id, tsize, devwidth, flags;
-	ide_hwif_t *hwif = auide->hwif;
 
 	dev_id   = AU1XXX_ATA_DDMA_REQ;
 
-	if (auide->white_list || auide->black_list) {
-		tsize    = 8;
-		devwidth = 32;
-	}
-	else { 
-		tsize    = 1;
-		devwidth = 16;
-		
-		printk(KERN_ERR "au1xxx-ide: %s is not on ide driver whitelist.\n",auide_hwif.drive->id->model);
-		printk(KERN_ERR "            please read 'Documentation/mips/AU1xxx_IDE.README'");
-	}
+	tsize    =  8; /*  1 */
+	devwidth = 32; /* 16 */
 
 #ifdef IDE_AU1XXX_BURSTMODE 
 	flags = DEV_FLAGS_SYNC | DEV_FLAGS_BURSTABLE;
@@ -482,9 +452,9 @@ static int auide_ddma_init(_auide_hwif *auide) {
 	return 0;
 } 
 #else
- 
-static int auide_ddma_init( _auide_hwif *auide )
+static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
+	_auide_hwif *auide = (_auide_hwif *)hwif->hwif_data;
 	dbdev_tab_t source_dev_tab;
 	int flags;
 
@@ -543,9 +513,18 @@ static void auide_setup_ports(hw_regs_t *hw, _auide_hwif *ahwif)
 	*ata_regs = ahwif->regbase + (14 << AU1XXX_ATA_REG_OFFSET);
 }
 
+static const struct ide_port_ops au1xxx_port_ops = {
+	.set_pio_mode		= au1xxx_set_pio_mode,
+	.set_dma_mode		= auide_set_dma_mode,
+};
+
 static const struct ide_port_info au1xxx_port_info = {
+	.init_dma		= auide_ddma_init,
+	.port_ops		= &au1xxx_port_ops,
+#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
+	.dma_ops		= &au1xxx_dma_ops,
+#endif
 	.host_flags		= IDE_HFLAG_POST_SET_MODE |
-				  IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
 				  IDE_HFLAG_NO_IO_32BIT |
 				  IDE_HFLAG_UNMASK_IRQS,
 	.pio_mask		= ATA_PIO4,
@@ -615,8 +594,6 @@ static int au_ide_probe(struct device *dev)
 
 	hwif->dev = dev;
 
-	hwif->mmio  = 1;
-
 	/* If the user has selected DDMA assisted copies,
 	   then set up a few local I/O function entry points 
 	*/
@@ -625,33 +602,11 @@ static int au_ide_probe(struct device *dev)
 	hwif->INSW                      = auide_insw;
 	hwif->OUTSW                     = auide_outsw;
 #endif
-
-	hwif->set_pio_mode		= &au1xxx_set_pio_mode;
-	hwif->set_dma_mode		= &auide_set_dma_mode;
-
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-	hwif->dma_timeout		= &auide_dma_timeout;
-
-	hwif->mdma_filter		= &auide_mdma_filter;
-
-	hwif->dma_host_set		= &auide_dma_host_set;
-	hwif->dma_exec_cmd              = &auide_dma_exec_cmd;
-	hwif->dma_start                 = &auide_dma_start;
-	hwif->ide_dma_end               = &auide_dma_end;
-	hwif->dma_setup                 = &auide_dma_setup;
-	hwif->ide_dma_test_irq          = &auide_dma_test_irq;
-	hwif->dma_lost_irq		= &auide_dma_lost_irq;
-#endif
 	hwif->select_data               = 0;    /* no chipset-specific code */
 	hwif->config_data               = 0;    /* no chipset-specific code */
 
 	auide_hwif.hwif                 = hwif;
 	hwif->hwif_data                 = &auide_hwif;
-
-#ifdef CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA           
-	auide_ddma_init(&auide_hwif);
-	dbdma_init_done = 1;
-#endif
 
 	idx[0] = hwif->index;
 

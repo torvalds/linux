@@ -673,11 +673,6 @@ cris_ide_inb(unsigned long reg)
 	return (unsigned char)cris_ide_inw(reg);
 }
 
-static int cris_dma_end (ide_drive_t *drive);
-static int cris_dma_setup (ide_drive_t *drive);
-static void cris_dma_exec_cmd (ide_drive_t *drive, u8 command);
-static int cris_dma_test_irq(ide_drive_t *drive);
-static void cris_dma_start(ide_drive_t *drive);
 static void cris_ide_input_data (ide_drive_t *drive, void *, unsigned int);
 static void cris_ide_output_data (ide_drive_t *drive, void *, unsigned int);
 static void cris_atapi_input_bytes(ide_drive_t *drive, void *, unsigned int);
@@ -782,8 +777,17 @@ static void __init cris_setup_ports(hw_regs_t *hw, unsigned long base)
 	hw->ack_intr = cris_ide_ack_intr;
 }
 
+static const struct ide_port_ops cris_port_ops = {
+	.set_pio_mode		= cris_set_pio_mode,
+	.set_dma_mode		= cris_set_dma_mode,
+};
+
+static const struct ide_dma_ops cris_dma_ops;
+
 static const struct ide_port_info cris_port_info __initdata = {
 	.chipset		= ide_etrax100,
+	.port_ops		= &cris_port_ops,
+	.dma_ops		= &cris_dma_ops,
 	.host_flags		= IDE_HFLAG_NO_ATAPI_DMA |
 				  IDE_HFLAG_NO_DMA, /* no SFF-style DMA */
 	.pio_mask		= ATA_PIO4,
@@ -809,19 +813,11 @@ static int __init init_e100_ide(void)
 			continue;
 		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
-		hwif->mmio = 1;
-		hwif->set_pio_mode = &cris_set_pio_mode;
-		hwif->set_dma_mode = &cris_set_dma_mode;
+
 		hwif->ata_input_data = &cris_ide_input_data;
 		hwif->ata_output_data = &cris_ide_output_data;
 		hwif->atapi_input_bytes = &cris_atapi_input_bytes;
 		hwif->atapi_output_bytes = &cris_atapi_output_bytes;
-		hwif->dma_host_set = &cris_dma_host_set;
-		hwif->ide_dma_end = &cris_dma_end;
-		hwif->dma_setup = &cris_dma_setup;
-		hwif->dma_exec_cmd = &cris_dma_exec_cmd;
-		hwif->ide_dma_test_irq = &cris_dma_test_irq;
-		hwif->dma_start = &cris_dma_start;
 		hwif->OUTB = &cris_ide_outb;
 		hwif->OUTW = &cris_ide_outw;
 		hwif->OUTBSYNC = &cris_ide_outbsync;
@@ -1075,6 +1071,15 @@ static void cris_dma_start(ide_drive_t *drive)
 		LED_DISK_READ(1);
 	}
 }
+
+static const struct ide_dma_ops cris_dma_ops = {
+	.dma_host_set		= cris_dma_host_set,
+	.dma_setup		= cris_dma_setup,
+	.dma_exec_cmd		= cris_dma_exec_cmd,
+	.dma_start		= cris_dma_start,
+	.dma_end		= cris_dma_end,
+	.dma_test_irq		= cris_dma_test_irq,
+};
 
 module_init(init_e100_ide);
 

@@ -228,8 +228,6 @@ fail_base2:
 				ide_init_port_data(hwif, index);
 				ide_init_port_hw(hwif, &hw);
 
-				hwif->mmio = 1;
-
 				idx[i] = index;
 			}
 		}

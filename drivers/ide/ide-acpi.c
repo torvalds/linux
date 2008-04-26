@@ -55,7 +55,7 @@ struct ide_acpi_hwif_link {
 /* note: adds function name and KERN_DEBUG */
 #ifdef DEBUGGING
 #define DEBPRINT(fmt, args...)	\
-		printk(KERN_DEBUG "%s: " fmt, __FUNCTION__, ## args)
+		printk(KERN_DEBUG "%s: " fmt, __func__, ## args)
 #else
 #define DEBPRINT(fmt, args...)	do {} while (0)
 #endif	/* DEBUGGING */
@@ -309,7 +309,7 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_DEBUG
 		       "%s: Run _GTF error: status = 0x%x\n",
-		       __FUNCTION__, status);
+		       __func__, status);
 		goto out;
 	}
 
@@ -335,7 +335,7 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	    out_obj->buffer.length % REGS_PER_GTF) {
 		printk(KERN_ERR
 		       "%s: unexpected GTF length (%d) or addr (0x%p)\n",
-		       __FUNCTION__, out_obj->buffer.length,
+		       __func__, out_obj->buffer.length,
 		       out_obj->buffer.pointer);
 		err = -ENOENT;
 		kfree(output.pointer);
@@ -384,7 +384,7 @@ static int taskfile_load_raw(ide_drive_t *drive,
 	err = ide_no_data_taskfile(drive, &args);
 	if (err)
 		printk(KERN_ERR "%s: ide_no_data_taskfile failed: %u\n",
-		       __FUNCTION__, err);
+		       __func__, err);
 
 	return err;
 }
@@ -422,7 +422,7 @@ static int do_drive_set_taskfiles(ide_drive_t *drive,
 
 	if (gtf_length % REGS_PER_GTF) {
 		printk(KERN_ERR "%s: unexpected GTF length (%d)\n",
-		       __FUNCTION__, gtf_length);
+		       __func__, gtf_length);
 		goto out;
 	}
 
@@ -547,7 +547,7 @@ void ide_acpi_get_timing(ide_hwif_t *hwif)
 		printk(KERN_ERR
 			"%s: unexpected _GTM length (0x%x)[should be 0x%zx] or "
 			"addr (0x%p)\n",
-			__FUNCTION__, out_obj->buffer.length,
+			__func__, out_obj->buffer.length,
 			sizeof(struct GTM_buffer), out_obj->buffer.pointer);
 		return;
 	}

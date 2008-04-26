@@ -14,6 +14,8 @@
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 
+#define DRV_NAME "ide_arm"
+
 #ifdef CONFIG_ARCH_CLPS7500
 # include <asm/arch/hardware.h>
 #
@@ -28,10 +30,24 @@ static int __init ide_arm_init(void)
 {
 	ide_hwif_t *hwif;
 	hw_regs_t hw;
+	unsigned long base = IDE_ARM_IO, ctl = IDE_ARM_IO + 0x206;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
+	if (!request_region(base, 8, DRV_NAME)) {
+		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
+				DRV_NAME, base, base + 7);
+		return -EBUSY;
+	}
+
+	if (!request_region(ctl, 1, DRV_NAME)) {
+		printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
+				DRV_NAME, ctl);
+		release_region(base, 8);
+		return -EBUSY;
+	}
+
 	memset(&hw, 0, sizeof(hw));
-	ide_std_init_ports(&hw, IDE_ARM_IO, IDE_ARM_IO + 0x206);
+	ide_std_init_ports(&hw, base, ctl);
 	hw.irq = IDE_ARM_IRQ;
 
 	hwif = ide_find_port();

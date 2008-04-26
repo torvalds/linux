@@ -326,28 +326,24 @@ static void __devinit opti621_port_init_devs(ide_hwif_t *hwif)
 	hwif->drives[1].drive_data = PIO_DONT_KNOW;
 }
 
-/*
- * init_hwif_opti621() is called once for each hwif found at boot.
- */
-static void __devinit init_hwif_opti621(ide_hwif_t *hwif)
-{
-	hwif->port_init_devs = opti621_port_init_devs;
-	hwif->set_pio_mode = &opti621_set_pio_mode;
-}
+static const struct ide_port_ops opti621_port_ops = {
+	.port_init_devs		= opti621_port_init_devs,
+	.set_pio_mode		= opti621_set_pio_mode,
+};
 
 static const struct ide_port_info opti621_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "OPTI621",
-		.init_hwif	= init_hwif_opti621,
 		.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
+		.port_ops	= &opti621_port_ops,
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 		.pio_mask	= ATA_PIO3,
 		.swdma_mask	= ATA_SWDMA2,
 		.mwdma_mask	= ATA_MWDMA2,
 	}, {	/* 1 */
 		.name		= "OPTI621X",
-		.init_hwif	= init_hwif_opti621,
 		.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
+		.port_ops	= &opti621_port_ops,
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 		.pio_mask	= ATA_PIO3,
 		.swdma_mask	= ATA_SWDMA2,

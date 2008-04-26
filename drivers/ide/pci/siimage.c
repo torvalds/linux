@@ -301,7 +301,7 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 }
 
 /* returns 1 if dma irq issued, 0 otherwise */
-static int siimage_io_ide_dma_test_irq (ide_drive_t *drive)
+static int siimage_io_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
@@ -320,14 +320,14 @@ static int siimage_io_ide_dma_test_irq (ide_drive_t *drive)
 }
 
 /**
- *	siimage_mmio_ide_dma_test_irq	-	check we caused an IRQ
+ *	siimage_mmio_dma_test_irq	-	check we caused an IRQ
  *	@drive: drive we are testing
  *
  *	Check if we caused an IDE DMA interrupt. We may also have caused
  *	SATA status interrupts, if so we clean them up and continue.
  */
- 
-static int siimage_mmio_ide_dma_test_irq (ide_drive_t *drive)
+
+static int siimage_mmio_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long addr	= siimage_selreg(hwif, 0x1);
@@ -347,7 +347,7 @@ static int siimage_mmio_ide_dma_test_irq (ide_drive_t *drive)
 			printk(KERN_WARNING "%s: sata_error = 0x%08x, "
 				"watchdog = %d, %s\n",
 				drive->name, sata_error, watchdog,
-				__FUNCTION__);
+				__func__);
 
 		} else {
 			watchdog = (ext_stat & 0x8000) ? 1 : 0;
@@ -367,6 +367,14 @@ static int siimage_mmio_ide_dma_test_irq (ide_drive_t *drive)
 		return 0;	//return 1;
 
 	return 0;
+}
+
+static int siimage_dma_test_irq(ide_drive_t *drive)
+{
+	if (drive->hwif->mmio)
+		return siimage_mmio_dma_test_irq(drive);
+	else
+		return siimage_io_dma_test_irq(drive);
 }
 
 /**
@@ -735,14 +743,14 @@ static void __devinit init_iops_siimage(ide_hwif_t *hwif)
 }
 
 /**
- *	ata66_siimage	-	check for 80 pin cable
+ *	sil_cable_detect	-	cable detection
  *	@hwif: interface to check
  *
  *	Check for the presence of an ATA66 capable cable on the
  *	interface.
  */
 
-static u8 __devinit ata66_siimage(ide_hwif_t *hwif)
+static u8 __devinit sil_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long addr = siimage_selreg(hwif, 0);
@@ -756,67 +764,44 @@ static u8 __devinit ata66_siimage(ide_hwif_t *hwif)
 	return (ata66 & 0x01) ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 }
 
-/**
- *	init_hwif_siimage	-	set up hwif structs
- *	@hwif: interface to set up
- *
- *	We do the basic set up of the interface structure. The SIIMAGE
- *	requires several custom handlers so we override the default
- *	ide DMA handlers appropriately
- */
+static const struct ide_port_ops sil_pata_port_ops = {
+	.set_pio_mode		= sil_set_pio_mode,
+	.set_dma_mode		= sil_set_dma_mode,
+	.quirkproc		= sil_quirkproc,
+	.udma_filter		= sil_pata_udma_filter,
+	.cable_detect		= sil_cable_detect,
+};
 
-static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
-{
-	u8 sata = is_sata(hwif);
+static const struct ide_port_ops sil_sata_port_ops = {
+	.set_pio_mode		= sil_set_pio_mode,
+	.set_dma_mode		= sil_set_dma_mode,
+	.reset_poll		= sil_sata_reset_poll,
+	.pre_reset		= sil_sata_pre_reset,
+	.quirkproc		= sil_quirkproc,
+	.udma_filter		= sil_sata_udma_filter,
+	.cable_detect		= sil_cable_detect,
+};
 
-	hwif->set_pio_mode = &sil_set_pio_mode;
-	hwif->set_dma_mode = &sil_set_dma_mode;
-	hwif->quirkproc = &sil_quirkproc;
+static struct ide_dma_ops sil_dma_ops = {
+	.dma_test_irq		= siimage_dma_test_irq,
+};
 
-	if (sata) {
-		static int first = 1;
-
-		hwif->reset_poll = &sil_sata_reset_poll;
-		hwif->pre_reset = &sil_sata_pre_reset;
-		hwif->udma_filter = &sil_sata_udma_filter;
-
-		if (first) {
-			printk(KERN_INFO "siimage: For full SATA support you should use the libata sata_sil module.\n");
-			first = 0;
-		}
-	} else
-		hwif->udma_filter = &sil_pata_udma_filter;
-
-	hwif->cable_detect = ata66_siimage;
-
-	if (hwif->dma_base == 0)
-		return;
-
-	if (sata)
-		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
-
-	if (hwif->mmio) {
-		hwif->ide_dma_test_irq = &siimage_mmio_ide_dma_test_irq;
-	} else {
-		hwif->ide_dma_test_irq = & siimage_io_ide_dma_test_irq;
-	}
-}
-
-#define DECLARE_SII_DEV(name_str)			\
+#define DECLARE_SII_DEV(name_str, p_ops)		\
 	{						\
 		.name		= name_str,		\
 		.init_chipset	= init_chipset_siimage,	\
 		.init_iops	= init_iops_siimage,	\
-		.init_hwif	= init_hwif_siimage,	\
+		.port_ops	= p_ops,		\
+		.dma_ops	= &sil_dma_ops,		\
 		.pio_mask	= ATA_PIO4,		\
 		.mwdma_mask	= ATA_MWDMA2,		\
 		.udma_mask	= ATA_UDMA6,		\
 	}
 
 static const struct ide_port_info siimage_chipsets[] __devinitdata = {
-	/* 0 */ DECLARE_SII_DEV("SiI680"),
-	/* 1 */ DECLARE_SII_DEV("SiI3112 Serial ATA"),
-	/* 2 */ DECLARE_SII_DEV("Adaptec AAR-1210SA")
+	/* 0 */ DECLARE_SII_DEV("SiI680",		&sil_pata_port_ops),
+	/* 1 */ DECLARE_SII_DEV("SiI3112 Serial ATA",	&sil_sata_port_ops),
+	/* 2 */ DECLARE_SII_DEV("Adaptec AAR-1210SA",	&sil_sata_port_ops)
 };
 
 /**
@@ -830,7 +815,24 @@ static const struct ide_port_info siimage_chipsets[] __devinitdata = {
  
 static int __devinit siimage_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &siimage_chipsets[id->driver_data]);
+	struct ide_port_info d;
+	u8 idx = id->driver_data;
+
+	d = siimage_chipsets[idx];
+
+	if (idx) {
+		static int first = 1;
+
+		if (first) {
+			printk(KERN_INFO "siimage: For full SATA support you "
+				"should use the libata sata_sil module.\n");
+			first = 0;
+		}
+
+		d.host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
+	}
+
+	return ide_setup_pci_device(dev, &d);
 }
 
 static const struct pci_device_id siimage_pci_tbl[] = {

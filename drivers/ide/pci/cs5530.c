@@ -228,26 +228,25 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	unsigned long basereg;
 	u32 d0_timings;
 
-	hwif->set_pio_mode = &cs5530_set_pio_mode;
-	hwif->set_dma_mode = &cs5530_set_dma_mode;
-
 	basereg = CS5530_BASEREG(hwif);
 	d0_timings = inl(basereg + 0);
 	if (CS5530_BAD_PIO(d0_timings))
 		outl(cs5530_pio_timings[(d0_timings >> 31) & 1][0], basereg + 0);
 	if (CS5530_BAD_PIO(inl(basereg + 8)))
 		outl(cs5530_pio_timings[(d0_timings >> 31) & 1][0], basereg + 8);
-
-	if (hwif->dma_base == 0)
-		return;
-
-	hwif->udma_filter = cs5530_udma_filter;
 }
+
+static const struct ide_port_ops cs5530_port_ops = {
+	.set_pio_mode		= cs5530_set_pio_mode,
+	.set_dma_mode		= cs5530_set_dma_mode,
+	.udma_filter		= cs5530_udma_filter,
+};
 
 static const struct ide_port_info cs5530_chipset __devinitdata = {
 	.name		= "CS5530",
 	.init_chipset	= init_chipset_cs5530,
 	.init_hwif	= init_hwif_cs5530,
+	.port_ops	= &cs5530_port_ops,
 	.host_flags	= IDE_HFLAG_SERIALIZE |
 			  IDE_HFLAG_POST_SET_MODE,
 	.pio_mask	= ATA_PIO4,

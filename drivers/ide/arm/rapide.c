@@ -53,7 +53,6 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 		ide_init_port_hw(hwif, &hw);
 
-		hwif->mmio = 1;
 		default_hwif_mmiops(hwif);
 
 		idx[0] = hwif->index;

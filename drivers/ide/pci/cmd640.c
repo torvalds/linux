@@ -109,6 +109,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "cmd640"
+
 /*
  * This flag is set in ide.c by the parameter:  ide0=cmd640_vlb
  */
@@ -633,6 +635,9 @@ static void cmd640_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	display_clocks(index);
 }
 
+static const struct ide_port_ops cmd640_port_ops = {
+	.set_pio_mode		= cmd640_set_pio_mode,
+};
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 
 static int pci_conf1(void)
@@ -678,9 +683,28 @@ static const struct ide_port_info cmd640_port_info __initdata = {
 				  IDE_HFLAG_ABUSE_PREFETCH |
 				  IDE_HFLAG_ABUSE_FAST_DEVSEL,
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
+	.port_ops		= &cmd640_port_ops,
 	.pio_mask		= ATA_PIO5,
 #endif
 };
+
+static int cmd640x_init_one(unsigned long base, unsigned long ctl)
+{
+	if (!request_region(base, 8, DRV_NAME)) {
+		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
+				DRV_NAME, base, base + 7);
+		return -EBUSY;
+	}
+
+	if (!request_region(ctl, 1, DRV_NAME)) {
+		printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
+				DRV_NAME, ctl);
+		release_region(base, 8);
+		return -EBUSY;
+	}
+
+	return 0;
+}
 
 /*
  * Probe for a cmd640 chipset, and initialize it if found.
@@ -690,7 +714,7 @@ static int __init cmd640x_init(void)
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 	int second_port_toggled = 0;
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
-	int second_port_cmd640 = 0;
+	int second_port_cmd640 = 0, rc;
 	const char *bus_type, *port2;
 	unsigned int index;
 	u8 b, cfr;
@@ -734,6 +758,17 @@ static int __init cmd640x_init(void)
 		return 0;
 	}
 
+	rc = cmd640x_init_one(0x1f0, 0x3f6);
+	if (rc)
+		return rc;
+
+	rc = cmd640x_init_one(0x170, 0x376);
+	if (rc) {
+		release_region(0x3f6, 1);
+		release_region(0x1f0, 8);
+		return rc;
+	}
+
 	memset(&hw, 0, sizeof(hw));
 
 	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
@@ -752,10 +787,6 @@ static int __init cmd640x_init(void)
 	 */
 	if (cmd_hwif0) {
 		ide_init_port_hw(cmd_hwif0, &hw[0]);
-#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-		cmd_hwif0->set_pio_mode = &cmd640_set_pio_mode;
-#endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
-
 		idx[0] = cmd_hwif0->index;
 	}
 
@@ -808,10 +839,6 @@ static int __init cmd640x_init(void)
 	 */
 	if (second_port_cmd640 && cmd_hwif1) {
 		ide_init_port_hw(cmd_hwif1, &hw[1]);
-#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-		cmd_hwif1->set_pio_mode = &cmd640_set_pio_mode;
-#endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
-
 		idx[1] = cmd_hwif1->index;
 	}
 	printk(KERN_INFO "cmd640: %sserialized, secondary interface %s\n",

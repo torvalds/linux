@@ -49,6 +49,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "ali14xx"
+
 /* port addresses for auto-detection */
 #define ALI_NUM_PORTS 4
 static const int ports[ALI_NUM_PORTS] __initdata =
@@ -192,18 +194,20 @@ static int __init initRegisters(void)
 	return t;
 }
 
+static const struct ide_port_ops ali14xx_port_ops = {
+	.set_pio_mode		= ali14xx_set_pio_mode,
+};
+
 static const struct ide_port_info ali14xx_port_info = {
+	.name			= DRV_NAME,
 	.chipset		= ide_ali14xx,
+	.port_ops		= &ali14xx_port_ops,
 	.host_flags		= IDE_HFLAG_NO_DMA | IDE_HFLAG_NO_AUTOTUNE,
 	.pio_mask		= ATA_PIO4,
 };
 
 static int __init ali14xx_probe(void)
 {
-	ide_hwif_t *hwif, *mate;
-	static u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw[2];
-
 	printk(KERN_DEBUG "ali14xx: base=0x%03x, regOn=0x%02x.\n",
 			  basePort, regOn);
 
@@ -213,31 +217,7 @@ static int __init ali14xx_probe(void)
 		return 1;
 	}
 
-	memset(&hw, 0, sizeof(hw));
-
-	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
-	hw[0].irq = 14;
-
-	ide_std_init_ports(&hw[1], 0x170, 0x376);
-	hw[1].irq = 15;
-
-	hwif = ide_find_port();
-	if (hwif) {
-		ide_init_port_hw(hwif, &hw[0]);
-		hwif->set_pio_mode = &ali14xx_set_pio_mode;
-		idx[0] = hwif->index;
-	}
-
-	mate = ide_find_port();
-	if (mate) {
-		ide_init_port_hw(mate, &hw[1]);
-		mate->set_pio_mode = &ali14xx_set_pio_mode;
-		idx[1] = mate->index;
-	}
-
-	ide_device_add(idx, &ali14xx_port_info);
-
-	return 0;
+	return ide_legacy_device_add(&ali14xx_port_info, 0);
 }
 
 int probe_ali14xx;

@@ -16,6 +16,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "dtc2278"
+
 /*
  * Changing this #undef to #define may solve start up problems in some systems.
  */
@@ -86,8 +88,14 @@ static void dtc2278_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	}
 }
 
+static const struct ide_port_ops dtc2278_port_ops = {
+	.set_pio_mode		= dtc2278_set_pio_mode,
+};
+
 static const struct ide_port_info dtc2278_port_info __initdata = {
+	.name			= DRV_NAME,
 	.chipset		= ide_dtc2278,
+	.port_ops		= &dtc2278_port_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE |
 				  IDE_HFLAG_NO_UNMASK_IRQS |
 				  IDE_HFLAG_IO_32BIT |
@@ -101,9 +109,6 @@ static const struct ide_port_info dtc2278_port_info __initdata = {
 static int __init dtc2278_probe(void)
 {
 	unsigned long flags;
-	ide_hwif_t *hwif, *mate;
-	static u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw[2];
 
 	local_irq_save(flags);
 	/*
@@ -123,30 +128,7 @@ static int __init dtc2278_probe(void)
 #endif
 	local_irq_restore(flags);
 
-	memset(&hw, 0, sizeof(hw));
-
-	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
-	hw[0].irq = 14;
-
-	ide_std_init_ports(&hw[1], 0x170, 0x376);
-	hw[1].irq = 15;
-
-	hwif = ide_find_port();
-	if (hwif) {
-		ide_init_port_hw(hwif, &hw[0]);
-		hwif->set_pio_mode = dtc2278_set_pio_mode;
-		idx[0] = hwif->index;
-	}
-
-	mate = ide_find_port();
-	if (mate) {
-		ide_init_port_hw(mate, &hw[1]);
-		idx[1] = mate->index;
-	}
-
-	ide_device_add(idx, &dtc2278_port_info);
-
-	return 0;
+	return ide_legacy_device_add(&dtc2278_port_info, 0);
 }
 
 int probe_dtc2278 = 0;

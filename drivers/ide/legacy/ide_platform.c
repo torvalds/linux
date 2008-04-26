@@ -100,7 +100,6 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	hw.dev = &pdev->dev;
 
 	ide_init_port_hw(hwif, &hw);
-	hwif->mmio = 1;
 
 	if (mmio)
 		default_hwif_mmiops(hwif);

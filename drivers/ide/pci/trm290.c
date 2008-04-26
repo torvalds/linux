@@ -214,7 +214,7 @@ static void trm290_dma_start(ide_drive_t *drive)
 {
 }
 
-static int trm290_ide_dma_end (ide_drive_t *drive)
+static int trm290_dma_end(ide_drive_t *drive)
 {
 	u16 status;
 
@@ -225,7 +225,7 @@ static int trm290_ide_dma_end (ide_drive_t *drive)
 	return status != 0x00ff;
 }
 
-static int trm290_ide_dma_test_irq (ide_drive_t *drive)
+static int trm290_dma_test_irq(ide_drive_t *drive)
 {
 	u16 status;
 
@@ -254,22 +254,11 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 	hwif->config_data = cfg_base;
 	hwif->dma_base = (cfg_base + 4) ^ (hwif->channel ? 0x80 : 0);
 
-	printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx",
+	printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx\n",
 	       hwif->name, hwif->dma_base, hwif->dma_base + 3);
 
-	if (!request_region(hwif->dma_base, 4, hwif->name)) {
-		printk(KERN_CONT " -- Error, ports in use.\n");
+	if (ide_allocate_dma_engine(hwif))
 		return;
-	}
-
-	hwif->dmatable_cpu = pci_alloc_consistent(dev, PRD_ENTRIES * PRD_BYTES,
-						  &hwif->dmatable_dma);
-	if (!hwif->dmatable_cpu) {
-		printk(KERN_CONT " -- Error, unable to allocate DMA table.\n");
-		release_region(hwif->dma_base, 4);
-		return;
-	}
-	printk(KERN_CONT "\n");
 
 	local_irq_save(flags);
 	/* put config reg into first byte of hwif->select_data */
@@ -291,14 +280,6 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 		/* sharing IRQ with mate */
 		hwif->irq = hwif->mate->irq;
 
-	hwif->dma_host_set	= &trm290_dma_host_set;
-	hwif->dma_setup 	= &trm290_dma_setup;
-	hwif->dma_exec_cmd	= &trm290_dma_exec_cmd;
-	hwif->dma_start 	= &trm290_dma_start;
-	hwif->ide_dma_end	= &trm290_ide_dma_end;
-	hwif->ide_dma_test_irq	= &trm290_ide_dma_test_irq;
-
-	hwif->selectproc = &trm290_selectproc;
 #if 1
 	{
 	/*
@@ -328,10 +309,27 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 #endif
 }
 
+static const struct ide_port_ops trm290_port_ops = {
+	.selectproc		= trm290_selectproc,
+};
+
+static struct ide_dma_ops trm290_dma_ops = {
+	.dma_host_set		= trm290_dma_host_set,
+	.dma_setup 		= trm290_dma_setup,
+	.dma_exec_cmd		= trm290_dma_exec_cmd,
+	.dma_start 		= trm290_dma_start,
+	.dma_end		= trm290_dma_end,
+	.dma_test_irq		= trm290_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
+};
+
 static const struct ide_port_info trm290_chipset __devinitdata = {
 	.name		= "TRM290",
 	.init_hwif	= init_hwif_trm290,
 	.chipset	= ide_trm290,
+	.port_ops	= &trm290_port_ops,
+	.dma_ops	= &trm290_dma_ops,
 	.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
 #if 0 /* play it safe for now */
 			  IDE_HFLAG_TRUST_BIOS_FOR_DMA |

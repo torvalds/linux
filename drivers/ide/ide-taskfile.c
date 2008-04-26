@@ -135,6 +135,7 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct ide_taskfile *tf = &task->tf;
 	ide_handler_t *handler = NULL;
+	const struct ide_dma_ops *dma_ops = hwif->dma_ops;
 
 	if (task->data_phase == TASKFILE_MULTI_IN ||
 	    task->data_phase == TASKFILE_MULTI_OUT) {
@@ -178,10 +179,10 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 		return ide_started;
 	default:
 		if (task_dma_ok(task) == 0 || drive->using_dma == 0 ||
-		    hwif->dma_setup(drive))
+		    dma_ops->dma_setup(drive))
 			return ide_stopped;
-		hwif->dma_exec_cmd(drive, tf->command);
-		hwif->dma_start(drive);
+		dma_ops->dma_exec_cmd(drive, tf->command);
+		dma_ops->dma_start(drive);
 		return ide_started;
 	}
 }
@@ -455,7 +456,7 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 
 	/* Error? */
 	if (stat & ERR_STAT)
-		return task_error(drive, rq, __FUNCTION__, stat);
+		return task_error(drive, rq, __func__, stat);
 
 	/* Didn't want any data? Odd. */
 	if (!(stat & DRQ_STAT))
@@ -467,7 +468,7 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 	if (!hwif->nleft) {
 		stat = wait_drive_not_busy(drive);
 		if (!OK_STAT(stat, 0, BAD_STAT))
-			return task_error(drive, rq, __FUNCTION__, stat);
+			return task_error(drive, rq, __func__, stat);
 		task_end_request(drive, rq, stat);
 		return ide_stopped;
 	}
@@ -488,11 +489,11 @@ static ide_startstop_t task_out_intr (ide_drive_t *drive)
 	u8 stat = ide_read_status(drive);
 
 	if (!OK_STAT(stat, DRIVE_READY, drive->bad_wstat))
-		return task_error(drive, rq, __FUNCTION__, stat);
+		return task_error(drive, rq, __func__, stat);
 
 	/* Deal with unexpected ATA data phase. */
 	if (((stat & DRQ_STAT) == 0) ^ !hwif->nleft)
-		return task_error(drive, rq, __FUNCTION__, stat);
+		return task_error(drive, rq, __func__, stat);
 
 	if (!hwif->nleft) {
 		task_end_request(drive, rq, stat);
@@ -675,7 +676,7 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 				/* (hs): give up if multcount is not set */
 				printk(KERN_ERR "%s: %s Multimode Write " \
 					"multcount is not set\n",
-					drive->name, __FUNCTION__);
+					drive->name, __func__);
 				err = -EPERM;
 				goto abort;
 			}
@@ -692,7 +693,7 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 				/* (hs): give up if multcount is not set */
 				printk(KERN_ERR "%s: %s Multimode Read failure " \
 					"multcount is not set\n",
-					drive->name, __FUNCTION__);
+					drive->name, __func__);
 				err = -EPERM;
 				goto abort;
 			}

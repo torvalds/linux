@@ -159,17 +159,20 @@ EXPORT_SYMBOL(default_hwif_mmiops);
 void SELECT_DRIVE (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 
-	if (hwif->selectproc)
-		hwif->selectproc(drive);
+	if (port_ops && port_ops->selectproc)
+		port_ops->selectproc(drive);
 
 	hwif->OUTB(drive->select.all, hwif->io_ports[IDE_SELECT_OFFSET]);
 }
 
 void SELECT_MASK (ide_drive_t *drive, int mask)
 {
-	if (HWIF(drive)->maskproc)
-		HWIF(drive)->maskproc(drive, mask);
+	const struct ide_port_ops *port_ops = drive->hwif->port_ops;
+
+	if (port_ops && port_ops->maskproc)
+		port_ops->maskproc(drive, mask);
 }
 
 /*
@@ -429,7 +432,7 @@ int drive_is_ready (ide_drive_t *drive)
 	u8 stat			= 0;
 
 	if (drive->waiting_for_dma)
-		return hwif->ide_dma_test_irq(drive);
+		return hwif->dma_ops->dma_test_irq(drive);
 
 #if 0
 	/* need to guarantee 400ns since last command was issued */
@@ -700,8 +703,8 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 //		msleep(50);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	if (hwif->dma_host_set)	/* check if host supports DMA */
-		hwif->dma_host_set(drive, 0);
+	if (hwif->dma_ops)	/* check if host supports DMA */
+		hwif->dma_ops->dma_host_set(drive, 0);
 #endif
 
 	/* Skip setting PIO flow-control modes on pre-EIDE drives */
@@ -759,8 +762,8 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if ((speed >= XFER_SW_DMA_0 || (hwif->host_flags & IDE_HFLAG_VDMA)) &&
 	    drive->using_dma)
-		hwif->dma_host_set(drive, 1);
-	else if (hwif->dma_host_set)	/* check if host supports DMA */
+		hwif->dma_ops->dma_host_set(drive, 1);
+	else if (hwif->dma_ops)	/* check if host supports DMA */
 		ide_dma_off_quietly(drive);
 #endif
 
@@ -905,10 +908,11 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 {
 	ide_hwgroup_t *hwgroup	= HWGROUP(drive);
 	ide_hwif_t *hwif	= HWIF(drive);
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 	u8 tmp;
 
-	if (hwif->reset_poll != NULL) {
-		if (hwif->reset_poll(drive)) {
+	if (port_ops && port_ops->reset_poll) {
+		if (port_ops->reset_poll(drive)) {
 			printk(KERN_ERR "%s: host reset_poll failure for %s.\n",
 				hwif->name, drive->name);
 			return ide_stopped;
@@ -974,6 +978,8 @@ static void ide_disk_pre_reset(ide_drive_t *drive)
 
 static void pre_reset(ide_drive_t *drive)
 {
+	const struct ide_port_ops *port_ops = drive->hwif->port_ops;
+
 	if (drive->media == ide_disk)
 		ide_disk_pre_reset(drive);
 	else
@@ -994,8 +1000,8 @@ static void pre_reset(ide_drive_t *drive)
 		return;
 	}
 
-	if (HWIF(drive)->pre_reset != NULL)
-		HWIF(drive)->pre_reset(drive);
+	if (port_ops && port_ops->pre_reset)
+		port_ops->pre_reset(drive);
 
 	if (drive->current_speed != 0xff)
 		drive->desired_speed = drive->current_speed;
@@ -1023,6 +1029,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	unsigned long flags;
 	ide_hwif_t *hwif;
 	ide_hwgroup_t *hwgroup;
+	const struct ide_port_ops *port_ops;
 	u8 ctl;
 
 	spin_lock_irqsave(&ide_lock, flags);
@@ -1089,8 +1096,9 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	 * state when the disks are reset this way. At least, the Winbond
 	 * 553 documentation says that
 	 */
-	if (hwif->resetproc)
-		hwif->resetproc(drive);
+	port_ops = hwif->port_ops;
+	if (port_ops && port_ops->resetproc)
+		port_ops->resetproc(drive);
 
 	spin_unlock_irqrestore(&ide_lock, flags);
 	return ide_started;

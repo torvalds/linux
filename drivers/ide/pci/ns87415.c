@@ -150,7 +150,7 @@ static void ns87415_selectproc (ide_drive_t *drive)
 	ns87415_prepare_drive (drive, drive->using_dma);
 }
 
-static int ns87415_ide_dma_end (ide_drive_t *drive)
+static int ns87415_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t      *hwif = HWIF(drive);
 	u8 dma_stat = 0, dma_cmd = 0;
@@ -170,7 +170,7 @@ static int ns87415_ide_dma_end (ide_drive_t *drive)
 	return (dma_stat & 7) != 4;
 }
 
-static int ns87415_ide_dma_setup(ide_drive_t *drive)
+static int ns87415_dma_setup(ide_drive_t *drive)
 {
 	/* select DMA xfer */
 	ns87415_prepare_drive(drive, 1);
@@ -194,8 +194,6 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	int timeout;
 	u8 stat;
 #endif
-
-	hwif->selectproc = &ns87415_selectproc;
 
 	/*
 	 * We cannot probe for IRQ: both ports share common IRQ on INTA.
@@ -254,9 +252,22 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 		return;
 
 	outb(0x60, hwif->dma_status);
-	hwif->dma_setup = &ns87415_ide_dma_setup;
-	hwif->ide_dma_end = &ns87415_ide_dma_end;
 }
+
+static const struct ide_port_ops ns87415_port_ops = {
+	.selectproc		= ns87415_selectproc,
+};
+
+static const struct ide_dma_ops ns87415_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ns87415_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
+	.dma_end		= ns87415_dma_end,
+	.dma_test_irq		= ide_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
+};
 
 static const struct ide_port_info ns87415_chipset __devinitdata = {
 	.name		= "NS87415",
@@ -264,6 +275,8 @@ static const struct ide_port_info ns87415_chipset __devinitdata = {
 	.init_iops	= init_iops_ns87415,
 #endif
 	.init_hwif	= init_hwif_ns87415,
+	.port_ops	= &ns87415_port_ops,
+	.dma_ops	= &ns87415_dma_ops,
 	.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 			  IDE_HFLAG_NO_ATAPI_DMA,
 };

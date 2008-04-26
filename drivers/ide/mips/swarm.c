@@ -110,10 +110,8 @@ static int __devinit swarm_ide_probe(struct device *dev)
 
 	/* Setup MMIO ops.  */
 	default_hwif_mmiops(hwif);
-	/* Prevent resource map manipulation.  */
-	hwif->mmio = 1;
+
 	hwif->chipset = ide_generic;
-	hwif->noprobe = 0;
 
 	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++)
 		hwif->io_ports[i] =

@@ -993,7 +993,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 	stat = ide_read_status(drive);
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
-		if (hwif->ide_dma_end(drive) || (stat & ERR_STAT)) {
+		if (hwif->dma_ops->dma_end(drive) || (stat & ERR_STAT)) {
 			/*
 			 * A DMA error is sometimes expected. For example,
 			 * if the tape is crossing a filemark during a
@@ -1213,7 +1213,7 @@ static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	/* Begin DMA, if necessary */
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS)
-		hwif->dma_start(drive);
+		hwif->dma_ops->dma_start(drive);
 #endif
 	/* Send the actual packet */
 	HWIF(drive)->atapi_output_bytes(drive, pc->c, 12);
@@ -1279,7 +1279,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 		ide_dma_off(drive);
 	}
 	if ((pc->flags & PC_FLAG_DMA_RECOMMENDED) && drive->using_dma)
-		dma_ok = !hwif->dma_setup(drive);
+		dma_ok = !hwif->dma_ops->dma_setup(drive);
 
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_NO_SELECT_MASK |
 			   IDE_TFLAG_OUT_DEVICE, bcount, dma_ok);
@@ -1605,14 +1605,6 @@ out:
 }
 
 /* Pipeline related functions */
-static inline int idetape_pipeline_active(idetape_tape_t *tape)
-{
-	int rc1, rc2;
-
-	rc1 = test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags);
-	rc2 = (tape->active_data_rq != NULL);
-	return rc1;
-}
 
 /*
  * The function below uses __get_free_page to allocate a pipeline stage, along
@@ -2058,7 +2050,7 @@ static int __idetape_discard_read_pipeline(ide_drive_t *drive)
 
 	spin_lock_irqsave(&tape->lock, flags);
 	tape->next_stage = NULL;
-	if (idetape_pipeline_active(tape))
+	if (test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags))
 		idetape_wait_for_request(drive, tape->active_data_rq);
 	spin_unlock_irqrestore(&tape->lock, flags);
 
@@ -2131,7 +2123,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int blocks,
 
 	debug_log(DBG_SENSE, "%s: cmd=%d\n", __func__, cmd);
 
-	if (idetape_pipeline_active(tape)) {
+	if (test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags)) {
 		printk(KERN_ERR "ide-tape: bug: the pipeline is active in %s\n",
 				__func__);
 		return (0);
@@ -2162,8 +2154,7 @@ static void idetape_plug_pipeline(ide_drive_t *drive)
 
 	if (tape->next_stage == NULL)
 		return;
-	if (!idetape_pipeline_active(tape)) {
-		set_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags);
+	if (!test_and_set_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags)) {
 		idetape_activate_next_stage(drive);
 		(void) ide_do_drive_cmd(drive, tape->active_data_rq, ide_end);
 	}
@@ -2242,13 +2233,14 @@ static int idetape_add_chrdev_write_request(ide_drive_t *drive, int blocks)
 	/* Attempt to allocate a new stage. Beware possible race conditions. */
 	while ((new_stage = idetape_kmalloc_stage(tape)) == NULL) {
 		spin_lock_irqsave(&tape->lock, flags);
-		if (idetape_pipeline_active(tape)) {
+		if (test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags)) {
 			idetape_wait_for_request(drive, tape->active_data_rq);
 			spin_unlock_irqrestore(&tape->lock, flags);
 		} else {
 			spin_unlock_irqrestore(&tape->lock, flags);
 			idetape_plug_pipeline(drive);
-			if (idetape_pipeline_active(tape))
+			if (test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE,
+					&tape->flags))
 				continue;
 			/*
 			 * The machine is short on memory. Fallback to non-
@@ -2277,7 +2269,7 @@ static int idetape_add_chrdev_write_request(ide_drive_t *drive, int blocks)
 	 * starting to service requests, so that we will be able to keep up with
 	 * the higher speeds of the tape.
 	 */
-	if (!idetape_pipeline_active(tape)) {
+	if (!test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags)) {
 		if (tape->nr_stages >= tape->max_stages * 9 / 10 ||
 			tape->nr_stages >= tape->max_stages -
 			tape->uncontrolled_pipeline_head_speed * 3 * 1024 /
@@ -2304,10 +2296,11 @@ static void idetape_wait_for_pipeline(ide_drive_t *drive)
 	idetape_tape_t *tape = drive->driver_data;
 	unsigned long flags;
 
-	while (tape->next_stage || idetape_pipeline_active(tape)) {
+	while (tape->next_stage || test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE,
+						&tape->flags)) {
 		idetape_plug_pipeline(drive);
 		spin_lock_irqsave(&tape->lock, flags);
-		if (idetape_pipeline_active(tape))
+		if (test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags))
 			idetape_wait_for_request(drive, tape->active_data_rq);
 		spin_unlock_irqrestore(&tape->lock, flags);
 	}
@@ -2464,7 +2457,7 @@ static int idetape_init_read(ide_drive_t *drive, int max_stages)
 			new_stage = idetape_kmalloc_stage(tape);
 		}
 	}
-	if (!idetape_pipeline_active(tape)) {
+	if (!test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags)) {
 		if (tape->nr_pending_stages >= 3 * max_stages / 4) {
 			tape->measure_insert_time = 1;
 			tape->insert_time = jiffies;

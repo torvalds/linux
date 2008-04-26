@@ -94,7 +94,24 @@ static int __init ide_generic_init(void)
 		unsigned long io_addr = ide_default_io_base(i);
 		hw_regs_t hw;
 
+		idx[i] = 0xff;
+
 		if (io_addr) {
+			if (!request_region(io_addr, 8, DRV_NAME)) {
+				printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX "
+						"not free.\n",
+						DRV_NAME, io_addr, io_addr + 7);
+				continue;
+			}
+
+			if (!request_region(io_addr + 0x206, 1, DRV_NAME)) {
+				printk(KERN_ERR "%s: I/O resource 0x%lX "
+						"not free.\n",
+						DRV_NAME, io_addr + 0x206);
+				release_region(io_addr, 8);
+				continue;
+			}
+
 			/*
 			 * Skip probing if the corresponding
 			 * slot is already occupied.
@@ -111,8 +128,7 @@ static int __init ide_generic_init(void)
 			ide_init_port_hw(hwif, &hw);
 
 			idx[i] = i;
-		} else
-			idx[i] = 0xff;
+		}
 	}
 
 	ide_device_add_all(idx, NULL);

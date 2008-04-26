@@ -43,6 +43,10 @@ static const u8 setup[] = {
 	0x00, 0x00, 0x00, 0x00, 0xa4, 0x83, 0x02, 0x13,
 };
 
+static const struct ide_port_ops delkin_cb_port_ops = {
+	.quirkproc		= ide_undecoded_slave,
+};
+
 static int __devinit
 delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 {
@@ -89,8 +93,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		ide_init_port_data(hwif, i);
 
 	ide_init_port_hw(hwif, &hw);
-	hwif->mmio = 1;
-	hwif->quirkproc = &ide_undecoded_slave;
+	hwif->port_ops = &delkin_cb_port_ops;
 
 	idx[0] = i;
 

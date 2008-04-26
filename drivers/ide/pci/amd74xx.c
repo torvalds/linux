@@ -210,12 +210,13 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 
 	if (hwif->irq == 0) /* 0 is bogus but will do for now */
 		hwif->irq = pci_get_legacy_ide_irq(dev, hwif->channel);
-
-	hwif->set_pio_mode = &amd_set_pio_mode;
-	hwif->set_dma_mode = &amd_set_drive;
-
-	hwif->cable_detect = amd_cable_detect;
 }
+
+static const struct ide_port_ops amd_port_ops = {
+	.set_pio_mode		= amd_set_pio_mode,
+	.set_dma_mode		= amd_set_drive,
+	.cable_detect		= amd_cable_detect,
+};
 
 #define IDE_HFLAGS_AMD \
 	(IDE_HFLAG_PIO_NO_BLACKLIST | \
@@ -230,6 +231,7 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},	\
+		.port_ops	= &amd_port_ops,			\
 		.host_flags	= IDE_HFLAGS_AMD,			\
 		.pio_mask	= ATA_PIO5,				\
 		.swdma_mask	= swdma,				\
@@ -243,6 +245,7 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x01,0x01}},	\
+		.port_ops	= &amd_port_ops,			\
 		.host_flags	= IDE_HFLAGS_AMD,			\
 		.pio_mask	= ATA_PIO5,				\
 		.swdma_mask	= ATA_SWDMA2,				\

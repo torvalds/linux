@@ -411,7 +411,7 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 	debug_log("Reached %s interrupt handler\n", __func__);
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
-		dma_error = hwif->ide_dma_end(drive);
+		dma_error = hwif->dma_ops->dma_end(drive);
 		if (dma_error) {
 			printk(KERN_ERR "%s: DMA %s error\n", drive->name,
 					rq_data_dir(rq) ? "write" : "read");
@@ -663,7 +663,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 	dma = 0;
 
 	if ((pc->flags & PC_FLAG_DMA_RECOMMENDED) && drive->using_dma)
-		dma = !hwif->dma_setup(drive);
+		dma = !hwif->dma_ops->dma_setup(drive);
 
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_NO_SELECT_MASK |
 			   IDE_TFLAG_OUT_DEVICE, bcount, dma);
@@ -671,7 +671,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 	if (dma) {
 		/* Begin DMA, if necessary */
 		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
-		hwif->dma_start(drive);
+		hwif->dma_ops->dma_start(drive);
 	}
 
 	/* Can we transfer the packet when we get the interrupt or wait? */
