@@ -192,6 +192,7 @@ static struct platform_device orion5x_ehci1 = {
 
 struct mv643xx_eth_shared_platform_data orion5x_eth_shared_data = {
 	.dram		= &orion5x_mbus_dram_info,
+	.t_clk		= ORION5X_TCLK,
 };
 
 static struct resource orion5x_eth_shared_resources[] = {
