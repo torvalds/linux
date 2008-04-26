@@ -4250,6 +4250,36 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE1,
 		} },
 	},
+	[SAA7134_BOARD_BEHOLD_H6] = {
+		/* Igor Kuznetsov <igk@igk.ru> */
+		.name           = "Beholder BeholdTV H6",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 3,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 1,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+		},
+		/* no DVB support for now */
+		/* .mpeg           = SAA7134_MPEG_DVB, */
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -5248,6 +5278,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x185b,
 		.subdevice    = 0xc900,
 		.driver_data  = SAA7134_BOARD_VIDEOMATE_T750,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5ace,
+		.subdevice    = 0x6290,
+		.driver_data  = SAA7134_BOARD_BEHOLD_H6,
 	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
