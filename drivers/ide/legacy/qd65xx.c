@@ -334,7 +334,7 @@ static const struct ide_port_info qd65xx_port_info __initdata = {
 static int __init qd_probe(int base)
 {
 	int rc;
-	u8 config, unit;
+	u8 config, unit, control;
 	struct ide_port_info d = qd65xx_port_info;
 
 	config = inb(QD_CONFIG_PORT);
@@ -347,12 +347,10 @@ static int __init qd_probe(int base)
 	if (unit)
 		d.host_flags |= IDE_HFLAG_QD_2ND_PORT;
 
-	if ((config & 0xf0) == QD_CONFIG_QD6500) {
-
+	switch (config & 0xf0) {
+	case QD_CONFIG_QD6500:
 		if (qd_testreg(base))
 			 return -ENODEV;	/* bad register */
-
-		/* qd6500 found */
 
 		if (config & QD_CONFIG_DISABLED) {
 			printk(KERN_WARNING "qd6500 is disabled !\n");
@@ -365,21 +363,11 @@ static int __init qd_probe(int base)
 
 		d.port_ops = &qd6500_port_ops;
 		d.host_flags |= IDE_HFLAG_SINGLE;
-
-		rc = ide_legacy_device_add(&d, (base << 8) | config);
-
-		return (rc == 0) ? 1 : rc;
-	}
-
-	if (((config & 0xf0) == QD_CONFIG_QD6580_A) ||
-	    ((config & 0xf0) == QD_CONFIG_QD6580_B)) {
-
-		u8 control;
-
+		break;
+	case QD_CONFIG_QD6580_A:
+	case QD_CONFIG_QD6580_B:
 		if (qd_testreg(base) || qd_testreg(base + 0x02))
 			return -ENODEV;	/* bad registers */
-
-		/* qd6580 found */
 
 		control = inb(QD_CONTROL_PORT);
 
@@ -390,28 +378,22 @@ static int __init qd_probe(int base)
 		outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
 		d.port_ops = &qd6580_port_ops;
-
-		if (control & QD_CONTR_SEC_DISABLED) {
-			/* secondary disabled */
-
-			printk(KERN_INFO "qd6580: single IDE board\n");
-
+		if (control & QD_CONTR_SEC_DISABLED)
 			d.host_flags |= IDE_HFLAG_SINGLE;
 
-			rc = ide_legacy_device_add(&d, (base << 8) | config);
-
-			return (rc == 0) ? 1 : rc;
-		} else {
-			/* secondary enabled */
-			printk(KERN_INFO "qd6580: dual IDE board\n");
-
-			rc = ide_legacy_device_add(&d, (base << 8) | config);
-
-			return rc; /* no other qd65xx possible */
-		}
+		printk(KERN_INFO "qd6580: %s IDE board\n",
+			(control & QD_CONTR_SEC_DISABLED) ? "single" : "dual");
+		break;
+	default:
+		return -ENODEV;
 	}
-	/* no qd65xx found */
-	return -ENODEV;
+
+	rc = ide_legacy_device_add(&d, (base << 8) | config);
+
+	if (d.host_flags & IDE_HFLAG_SINGLE)
+		return (rc == 0) ? 1 : rc;
+
+	return rc;
 }
 
 int probe_qd65xx = 0;
