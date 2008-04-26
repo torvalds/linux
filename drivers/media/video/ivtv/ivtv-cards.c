@@ -1066,6 +1066,41 @@ static const struct ivtv_card ivtv_card_asus_falcon2 = {
 	.i2c = &ivtv_i2c_std,
 };
 
+/* ------------------------------------------------------------------------- */
+
+/* AVerMedia M104 miniPCI card */
+
+static const struct ivtv_card_pci_info ivtv_pci_aver_m104[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc136 },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_aver_m104 = {
+	.type = IVTV_CARD_AVER_M104,
+	.name = "AVerMedia M104",
+	.comment = "Not yet supported!\n",
+	.v4l2_capabilities = 0, /*IVTV_CAP_ENCODER,*/
+	.hw_video = IVTV_HW_CX25840,
+	.hw_audio = IVTV_HW_CX25840,
+	.hw_audio_ctrl = IVTV_HW_CX25840,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER | IVTV_HW_WM8739,
+	.video_inputs = {
+		{ IVTV_CARD_INPUT_SVIDEO1,    0, CX25840_SVIDEO3    },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 0, CX25840_COMPOSITE1 },
+	},
+	.audio_inputs = {
+		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
+	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO_SERIAL, 2 },
+	/* enable line-in + reset tuner */
+	.gpio_init = { .direction = 0xf000, .initial_value = 0x5000 },
+	.tuners = {
+		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
+	},
+	.pci_list = ivtv_pci_aver_m104,
+	.i2c = &ivtv_i2c_std,
+};
+
 static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_pvr250,
 	&ivtv_card_pvr350,
@@ -1091,6 +1126,7 @@ static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_asus_falcon2,
 	&ivtv_card_aver_pvr150,
 	&ivtv_card_aver_ezmaker,
+	&ivtv_card_aver_m104,
 
 	/* Variations of standard cards but with the same PCI IDs.
 	   These cards must come last in this list. */
