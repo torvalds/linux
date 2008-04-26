@@ -299,7 +299,7 @@ static int stk7700d_tuner_attach(struct dvb_usb_adapter *adap)
 }
 
 /* STK7700-PH: Digital/Analog Hybrid Tuner, e.h. Cinergy HT USB HE */
-struct dibx000_agc_config xc3028_agc_config = {
+static struct dibx000_agc_config xc3028_agc_config = {
 	BAND_VHF | BAND_UHF,       /* band_caps */
 
 	/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=0,
@@ -342,7 +342,7 @@ struct dibx000_agc_config xc3028_agc_config = {
 };
 
 /* PLL Configuration for COFDM BW_MHz = 8.00 with external clock = 30.00 */
-struct dibx000_bandwidth_config xc3028_bw_config = {
+static struct dibx000_bandwidth_config xc3028_bw_config = {
 	60000, 30000, /* internal, sampling */
 	1, 8, 3, 1, 0, /* pll_cfg: prediv, ratio, range, reset, bypass */
 	0, 0, 1, 1, 0, /* misc: refdiv, bypclk_div, IO_CLK_en_core, ADClkSrc,
