@@ -327,14 +327,20 @@ sgiioc4_INB(unsigned long port)
 	return reg;
 }
 
+static void __devinit ide_init_sgiioc4(ide_hwif_t *);
+
 /* Creates a dma map for the scatter-gather list entries */
 static int __devinit
-ide_dma_sgiioc4(ide_hwif_t * hwif, unsigned long dma_base)
+ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	unsigned long dma_base = pci_resource_start(dev, 0) + IOC4_DMA_OFFSET;
 	void __iomem *virt_dma_base;
 	int num_ports = sizeof (ioc4_dma_regs_t);
 	void *pad;
+
+	if (dma_base == 0)
+		return -1;
 
 	printk(KERN_INFO "%s: BM-DMA at 0x%04lx-0x%04lx\n", hwif->name,
 	       dma_base, dma_base + num_ports - 1);
@@ -371,6 +377,7 @@ ide_dma_sgiioc4(ide_hwif_t * hwif, unsigned long dma_base)
 
 	if (pad) {
 		ide_set_hwifdata(hwif, pad);
+		ide_init_sgiioc4(hwif);
 		return 0;
 	}
 
@@ -551,11 +558,6 @@ static int sgiioc4_ide_dma_setup(ide_drive_t *drive)
 static void __devinit
 ide_init_sgiioc4(ide_hwif_t * hwif)
 {
-	hwif->INB = &sgiioc4_INB;
-
-	if (hwif->dma_base == 0)
-		return;
-
 	hwif->dma_host_set = &sgiioc4_dma_host_set;
 	hwif->dma_setup = &sgiioc4_ide_dma_setup;
 	hwif->dma_start = &sgiioc4_ide_dma_start;
@@ -575,16 +577,16 @@ static const struct ide_port_ops sgiioc4_port_ops = {
 
 static const struct ide_port_info sgiioc4_port_info __devinitdata = {
 	.chipset		= ide_pci,
+	.init_dma		= ide_dma_sgiioc4,
 	.port_ops		= &sgiioc4_port_ops,
-	.host_flags		= IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
-				  IDE_HFLAG_NO_AUTOTUNE,
+	.host_flags		= IDE_HFLAG_NO_AUTOTUNE,
 	.mwdma_mask		= ATA_MWDMA2_ONLY,
 };
 
 static int __devinit
 sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 {
-	unsigned long cmd_base, dma_base, irqport;
+	unsigned long cmd_base, irqport;
 	unsigned long bar0, cmd_phys_base, ctl;
 	void __iomem *virt_base;
 	ide_hwif_t *hwif;
@@ -610,7 +612,6 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	cmd_base = (unsigned long) virt_base + IOC4_CMD_OFFSET;
 	ctl = (unsigned long) virt_base + IOC4_CTRL_OFFSET;
 	irqport = (unsigned long) virt_base + IOC4_INTR_OFFSET;
-	dma_base = pci_resource_start(dev, 0) + IOC4_DMA_OFFSET;
 
 	cmd_phys_base = bar0 + IOC4_CMD_OFFSET;
 	if (!request_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE,
@@ -639,13 +640,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	/* Initializing chipset IRQ Registers */
 	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
 
-	if (dma_base == 0 || ide_dma_sgiioc4(hwif, dma_base)) {
-		printk(KERN_INFO "%s: %s Bus-Master DMA disabled\n",
-				 hwif->name, DRV_NAME);
-		d.mwdma_mask = 0;
-	}
-
-	ide_init_sgiioc4(hwif);
+	hwif->INB = &sgiioc4_INB;
 
 	idx[0] = hwif->index;
 
