@@ -3881,7 +3881,7 @@ static int led_set_status(unsigned int led, enum led_status_t ledstatus)
 					      led * led_exp_hlbl[ledstatus]);
 			if (rc >= 0)
 				rc = ec_write(TPACPI_LED_EC_HLCL,
-					       led * led_exp_hlcl[ledstatus]);
+					      led * led_exp_hlcl[ledstatus]);
 			break;
 	case TPACPI_LED_NEW:
 			/* all others */
