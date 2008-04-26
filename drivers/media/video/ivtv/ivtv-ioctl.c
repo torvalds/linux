@@ -243,20 +243,31 @@ static int ivtv_validate_speed(int cur_speed, int new_speed)
 	int fact = new_speed < 0 ? -1 : 1;
 	int s;
 
-	if (new_speed < 0) new_speed = -new_speed;
-	if (cur_speed < 0) cur_speed = -cur_speed;
+	if (cur_speed == 0)
+		cur_speed = 1000;
+	if (new_speed < 0)
+		new_speed = -new_speed;
+	if (cur_speed < 0)
+		cur_speed = -cur_speed;
 
 	if (cur_speed <= new_speed) {
-		if (new_speed > 1500) return fact * 2000;
-		if (new_speed > 1000) return fact * 1500;
+		if (new_speed > 1500)
+			return fact * 2000;
+		if (new_speed > 1000)
+			return fact * 1500;
 	}
 	else {
-		if (new_speed >= 2000) return fact * 2000;
-		if (new_speed >= 1500) return fact * 1500;
-		if (new_speed >= 1000) return fact * 1000;
+		if (new_speed >= 2000)
+			return fact * 2000;
+		if (new_speed >= 1500)
+			return fact * 1500;
+		if (new_speed >= 1000)
+			return fact * 1000;
 	}
-	if (new_speed == 0) return 1000;
-	if (new_speed == 1 || new_speed == 1000) return fact * new_speed;
+	if (new_speed == 0)
+		return 1000;
+	if (new_speed == 1 || new_speed == 1000)
+		return fact * new_speed;
 
 	s = new_speed;
 	new_speed = 1000 / new_speed;
