@@ -624,8 +624,6 @@ static int au_ide_probe(struct device *dev)
 
 	hwif->dev = dev;
 
-	hwif->mmio  = 1;
-
 	/* If the user has selected DDMA assisted copies,
 	   then set up a few local I/O function entry points 
 	*/

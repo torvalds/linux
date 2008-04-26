@@ -814,7 +814,6 @@ static int __init mpc8xx_ide_probe(void)
 		ide_hwif_t *hwif = &ide_hwifs[0];
 
 		ide_init_port_hw(hwif, &hw);
-		hwif->mmio = 1;
 		hwif->pio_mask = ATA_PIO4;
 		hwif->port_ops = &m8xx_port_ops;
 
@@ -826,7 +825,6 @@ static int __init mpc8xx_ide_probe(void)
 		ide_hwif_t *mate = &ide_hwifs[1];
 
 		ide_init_port_hw(mate, &hw);
-		mate->mmio = 1;
 		mate->pio_mask = ATA_PIO4;
 		mate->port_ops = &m8xx_port_ops;
 

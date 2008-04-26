@@ -63,7 +63,6 @@ static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 
 		ide_init_port_data(hwif, index);
 		ide_init_port_hw(hwif, &hw);
-		hwif->mmio = 1;
 
 		printk(KERN_INFO "ide%d: generic PnP IDE interface\n", index);
 		pnp_set_drvdata(dev, hwif);

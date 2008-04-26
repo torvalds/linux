@@ -551,7 +551,6 @@ static int sgiioc4_ide_dma_setup(ide_drive_t *drive)
 static void __devinit
 ide_init_sgiioc4(ide_hwif_t * hwif)
 {
-	hwif->mmio = 1;
 	hwif->INB = &sgiioc4_INB;
 
 	if (hwif->dma_base == 0)

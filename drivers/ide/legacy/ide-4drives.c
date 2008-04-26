@@ -43,7 +43,6 @@ static int __init ide_4drives_init(void)
 	hwif = ide_find_port();
 	if (hwif) {
 		ide_init_port_hw(hwif, &hw);
-		hwif->mmio = 1;
 		idx[0] = hwif->index;
 	}
 
@@ -52,7 +51,6 @@ static int __init ide_4drives_init(void)
 		ide_init_port_hw(mate, &hw);
 		mate->drives[0].select.all ^= 0x20;
 		mate->drives[1].select.all ^= 0x20;
-		mate->mmio = 1;
 		idx[1] = mate->index;
 
 		if (hwif) {

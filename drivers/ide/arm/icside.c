@@ -416,7 +416,6 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 		 * Ensure we're using MMIO
 		 */
 		default_hwif_mmiops(hwif);
-		hwif->mmio = 1;
 
 		for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
 			hwif->io_ports[i] = port;

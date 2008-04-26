@@ -128,8 +128,6 @@ static int __init macide_init(void)
 		ide_init_port_data(hwif, index);
 		ide_init_port_hw(hwif, &hw);
 
-		hwif->mmio = 1;
-
 		ide_device_add(idx, NULL);
 	}
 

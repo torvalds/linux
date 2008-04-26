@@ -1661,7 +1661,6 @@ static void ide_legacy_init_one(u8 *idx, hw_regs_t *hw, u8 port_no,
 	hwif = ide_find_port_slot(d);
 	if (hwif) {
 		ide_init_port_hw(hwif, hw);
-		hwif->mmio = 1;
 		if (config)
 			hwif->config_data = config;
 		idx[port_no] = hwif->index;

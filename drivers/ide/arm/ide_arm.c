@@ -53,7 +53,6 @@ static int __init ide_arm_init(void)
 	hwif = ide_find_port();
 	if (hwif) {
 		ide_init_port_hw(hwif, &hw);
-		hwif->mmio = 1;
 		idx[0] = hwif->index;
 
 		ide_device_add(idx, NULL);

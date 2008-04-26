@@ -141,7 +141,6 @@ static int __init q40ide_init(void)
 	if (hwif) {
 		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
-		hwif->mmio = 1;
 
 		idx[i] = hwif->index;
 	}

@@ -182,8 +182,6 @@ found:
 	    ide_init_port_data(hwif, index);
 	    ide_init_port_hw(hwif, &hw);
 
-	    hwif->mmio = 1;
-
 	    idx[i] = index;
 	} else
 	    release_mem_region(res_start, res_n);

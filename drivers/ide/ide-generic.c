@@ -126,7 +126,6 @@ static int __init ide_generic_init(void)
 			ide_std_init_ports(&hw, io_addr, io_addr + 0x206);
 			hw.irq = ide_default_irq(io_addr);
 			ide_init_port_hw(hwif, &hw);
-			hwif->mmio = 1;
 
 			idx[i] = i;
 		}
