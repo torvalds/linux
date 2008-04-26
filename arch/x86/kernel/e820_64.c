@@ -106,14 +106,19 @@ void __init free_early(unsigned long start, unsigned long end)
 	early_res[j - 1].end = 0;
 }
 
-void __init early_res_to_bootmem(void)
+void __init early_res_to_bootmem(unsigned long start, unsigned long end)
 {
 	int i;
+	unsigned long final_start, final_end;
 	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
 		struct early_res *r = &early_res[i];
-		printk(KERN_INFO "early res: %d [%lx-%lx] %s\n", i,
-			r->start, r->end - 1, r->name);
-		reserve_bootmem_generic(r->start, r->end - r->start);
+		final_start = max(start, r->start);
+		final_end = min(end, r->end);
+		if (final_start >= final_end)
+			continue;
+		printk(KERN_INFO "  early res: %d [%lx-%lx] %s\n", i,
+			final_start, final_end - 1, r->name);
+		reserve_bootmem_generic(final_start, final_end - final_start);
 	}
 }
 

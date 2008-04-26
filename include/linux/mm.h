@@ -1229,6 +1229,7 @@ void vmemmap_verify(pte_t *, int, unsigned long, unsigned long);
 int vmemmap_populate_basepages(struct page *start_page,
 						unsigned long pages, int node);
 int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
+void vmemmap_populate_print_last(void);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */
