@@ -732,8 +732,6 @@ static void __devinit init_hwif_ali15x3 (ide_hwif_t *hwif)
 
 static void __devinit init_dma_ali15x3 (ide_hwif_t *hwif, unsigned long dmabase)
 {
-	if (m5229_revision < 0x20)
-		return;
 	if (!hwif->channel)
 		outb(inb(dmabase + 2) & 0x60, dmabase + 2);
 	ide_setup_dma(hwif, dmabase);
@@ -794,6 +792,10 @@ static int __devinit alim15x3_init_one(struct pci_dev *dev, const struct pci_dev
 			d.udma_mask = ATA_UDMA5;
 		else
 			d.udma_mask = ATA_UDMA6;
+	} else {
+		d.host_flags |= IDE_HFLAG_NO_DMA;
+
+		d.mwdma_mask = d.swdma_mask = 0;
 	}
 
 	if (idx == 0)
