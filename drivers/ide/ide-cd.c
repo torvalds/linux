@@ -1898,19 +1898,6 @@ int ide_cdrom_setup(ide_drive_t *drive)
 	return 0;
 }
 
-#ifdef CONFIG_IDE_PROC_FS
-static
-sector_t ide_cdrom_capacity(ide_drive_t *drive)
-{
-	unsigned long capacity, sectors_per_frame;
-
-	if (cdrom_read_capacity(drive, &capacity, &sectors_per_frame, NULL))
-		return 0;
-
-	return capacity * sectors_per_frame;
-}
-#endif
-
 static void ide_cd_remove(ide_drive_t *drive)
 {
 	struct cdrom_info *info = drive->driver_data;
@@ -1943,6 +1930,16 @@ static void ide_cd_release(struct kref *kref)
 static int ide_cd_probe(ide_drive_t *);
 
 #ifdef CONFIG_IDE_PROC_FS
+static sector_t ide_cdrom_capacity(ide_drive_t *drive)
+{
+	unsigned long capacity, sectors_per_frame;
+
+	if (cdrom_read_capacity(drive, &capacity, &sectors_per_frame, NULL))
+		return 0;
+
+	return capacity * sectors_per_frame;
+}
+
 static int proc_idecd_read_capacity
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
