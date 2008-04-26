@@ -18,6 +18,11 @@ This driver used to be named ibm-acpi until kernel 2.6.21 and release
 moved to the drivers/misc tree and renamed to thinkpad-acpi for kernel
 2.6.22, and release 0.14.
 
+The driver is named "thinkpad-acpi".  In some places, like module
+names, "thinkpad_acpi" is used because of userspace issues.
+
+"tpacpi" is used as a shorthand where "thinkpad-acpi" would be too
+long due to length limitations on some Linux kernel versions.
 
 Status
 ------

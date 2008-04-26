@@ -133,7 +133,10 @@ enum {
 #define TPACPI_PROC_DIR "ibm"
 #define TPACPI_ACPI_EVENT_PREFIX "ibm"
 #define TPACPI_DRVR_NAME TPACPI_FILE
+#define TPACPI_DRVR_SHORTNAME "tpacpi"
 #define TPACPI_HWMON_DRVR_NAME TPACPI_NAME "_hwmon"
+
+#define TPACPI_NVRAM_KTHREAD_NAME "ktpacpi_nvramd"
 
 #define TPACPI_MAX_ACPI_ARGS 3
 
@@ -1523,8 +1526,7 @@ static void hotkey_poll_setup(int may_warn)
 	    (tpacpi_inputdev->users > 0 || hotkey_report_mode < 2)) {
 		if (!tpacpi_hotkey_task) {
 			tpacpi_hotkey_task = kthread_run(hotkey_kthread,
-							 NULL,
-							 TPACPI_FILE "d");
+					NULL, TPACPI_NVRAM_KTHREAD_NAME);
 			if (IS_ERR(tpacpi_hotkey_task)) {
 				tpacpi_hotkey_task = NULL;
 				printk(TPACPI_ERR
@@ -6315,6 +6317,8 @@ static int __init thinkpad_acpi_module_init(void)
 
 /* Please remove this in year 2009 */
 MODULE_ALIAS("ibm_acpi");
+
+MODULE_ALIAS(TPACPI_DRVR_SHORTNAME);
 
 /*
  * DMI matching for module autoloading
