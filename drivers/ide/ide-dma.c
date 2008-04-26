@@ -850,8 +850,7 @@ static int ide_iomio_dma(ide_hwif_t *hwif, unsigned long base)
 	printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx",
 	       hwif->name, base, base + 7);
 
-	if (hwif->cds->extra)
-		hwif->extra_base = base + (hwif->channel ? 8 : 16);
+	hwif->extra_base = base + (hwif->channel ? 8 : 16);
 
 	return 0;
 }
