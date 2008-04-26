@@ -741,10 +741,9 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		struct v4l2_capability *vcap = arg;
 
 		memset(vcap, 0, sizeof(*vcap));
-		strcpy(vcap->driver, IVTV_DRIVER_NAME);     /* driver name */
-		strncpy(vcap->card, itv->card_name,
-				sizeof(vcap->card)-1); 	    /* card type */
-		strcpy(vcap->bus_info, pci_name(itv->dev)); /* bus info... */
+		strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
+		strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
+		strlcpy(vcap->bus_info, pci_name(itv->dev), sizeof(vcap->bus_info));
 		vcap->version = IVTV_DRIVER_VERSION; 	    /* version */
 		vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
 
@@ -1018,7 +1017,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 				ivtv_std_60hz : ivtv_std_50hz;
 		vs->index = idx;
 		vs->id = enum_stds[idx].std;
-		strcpy(vs->name, enum_stds[idx].name);
+		strlcpy(vs->name, enum_stds[idx].name, sizeof(vs->name));
 		break;
 	}
 
@@ -1102,10 +1101,10 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		ivtv_call_i2c_clients(itv, VIDIOC_G_TUNER, vt);
 
 		if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags)) {
-			strcpy(vt->name, "ivtv Radio Tuner");
+			strlcpy(vt->name, "ivtv Radio Tuner", sizeof(vt->name));
 			vt->type = V4L2_TUNER_RADIO;
 		} else {
-			strcpy(vt->name, "ivtv TV Tuner");
+			strlcpy(vt->name, "ivtv TV Tuner", sizeof(vt->name));
 			vt->type = V4L2_TUNER_ANALOG_TV;
 		}
 		break;
