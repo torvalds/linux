@@ -16,6 +16,7 @@
 #include <asm/msr.h>
 #include <asm/tlbflush.h>
 #include <asm/processor.h>
+#include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/pat.h>
 #include <asm/e820.h>
@@ -477,6 +478,33 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 	return vma_prot;
 }
 
+#ifdef CONFIG_NONPROMISC_DEVMEM
+/* This check is done in drivers/char/mem.c in case of NONPROMISC_DEVMEM*/
+static inline int range_is_allowed(unsigned long pfn, unsigned long size)
+{
+	return 1;
+}
+#else
+static inline int range_is_allowed(unsigned long pfn, unsigned long size)
+{
+	u64 from = ((u64)pfn) << PAGE_SHIFT;
+	u64 to = from + size;
+	u64 cursor = from;
+
+	while (cursor < to) {
+		if (!devmem_is_allowed(pfn)) {
+			printk(KERN_INFO
+		"Program %s tried to access /dev/mem between %Lx->%Lx.\n",
+				current->comm, from, to);
+			return 0;
+		}
+		cursor += PAGE_SIZE;
+		pfn++;
+	}
+	return 1;
+}
+#endif /* CONFIG_NONPROMISC_DEVMEM */
+
 int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t *vma_prot)
 {
@@ -484,6 +512,9 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	unsigned long flags = _PAGE_CACHE_UC_MINUS;
 	unsigned long ret_flags;
 	int retval;
+
+	if (!range_is_allowed(pfn, size))
+		return 0;
 
 	if (file->f_flags & O_SYNC) {
 		flags = _PAGE_CACHE_UC;
