@@ -332,8 +332,7 @@ static const struct ide_port_info sl82c105_chipset __devinitdata = {
 #if defined(CONFIG_LOPEC) || defined(CONFIG_SANDPOINT)
 			  IDE_HFLAG_FORCE_LEGACY_IRQS |
 #endif
-			  IDE_HFLAG_NO_AUTODMA |
-			  IDE_HFLAG_BOOTABLE,
+			  IDE_HFLAG_NO_AUTODMA,
 	.pio_mask	= ATA_PIO5,
 };
 

@@ -249,8 +249,7 @@ static const struct ide_port_info cs5530_chipset __devinitdata = {
 	.init_chipset	= init_chipset_cs5530,
 	.init_hwif	= init_hwif_cs5530,
 	.host_flags	= IDE_HFLAG_SERIALIZE |
-			  IDE_HFLAG_POST_SET_MODE |
-			  IDE_HFLAG_BOOTABLE,
+			  IDE_HFLAG_POST_SET_MODE,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
 	.udma_mask	= ATA_UDMA2,

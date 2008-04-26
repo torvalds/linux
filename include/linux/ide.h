@@ -170,7 +170,6 @@ typedef struct hw_regs_s {
 	struct device	*dev;
 } hw_regs_t;
 
-struct hwif_s * ide_find_port(unsigned long);
 void ide_init_port_data(struct hwif_s *, unsigned int);
 void ide_init_port_hw(struct hwif_s *, hw_regs_t *);
 
@@ -522,7 +521,6 @@ typedef struct hwif_s {
 	unsigned	reset      : 1;	/* reset after probe */
 	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
 	unsigned	mmio       : 1; /* host uses MMIO */
-	unsigned	straight8  : 1;	/* Alan's straight 8 check */
 
 	struct device		gendev;
 	struct device		*portdev;
@@ -809,6 +807,13 @@ extern	ide_hwif_t	ide_hwifs[];		/* master data repository */
 #endif
 extern int noautodma;
 
+ide_hwif_t *ide_find_port_slot(const struct ide_port_info *);
+
+static inline ide_hwif_t *ide_find_port(void)
+{
+	return ide_find_port_slot(NULL);
+}
+
 extern int ide_end_request (ide_drive_t *drive, int uptodate, int nrsecs);
 int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
 			     int uptodate, int nr_sectors);
@@ -1027,8 +1032,8 @@ enum {
 	IDE_HFLAG_SINGLE		= (1 << 1),
 	/* don't use legacy PIO blacklist */
 	IDE_HFLAG_PIO_NO_BLACKLIST	= (1 << 2),
-	/* don't use conservative PIO "downgrade" */
-	IDE_HFLAG_PIO_NO_DOWNGRADE	= (1 << 3),
+	/* set for the second port of QD65xx */
+	IDE_HFLAG_QD_2ND_PORT		= (1 << 3),
 	/* use PIO8/9 for prefetch off/on */
 	IDE_HFLAG_ABUSE_PREFETCH	= (1 << 4),
 	/* use PIO6/7 for fast-devsel off/on */
@@ -1050,8 +1055,8 @@ enum {
 	IDE_HFLAG_VDMA			= (1 << 11),
 	/* ATAPI DMA is unsupported */
 	IDE_HFLAG_NO_ATAPI_DMA		= (1 << 12),
-	/* set if host is a "bootable" controller */
-	IDE_HFLAG_BOOTABLE		= (1 << 13),
+	/* set if host is a "non-bootable" controller */
+	IDE_HFLAG_NON_BOOTABLE		= (1 << 13),
 	/* host doesn't support DMA */
 	IDE_HFLAG_NO_DMA		= (1 << 14),
 	/* check if host is PCI IDE device before allowing DMA */
@@ -1079,8 +1084,6 @@ enum {
 	/* unmask IRQs */
 	IDE_HFLAG_UNMASK_IRQS		= (1 << 25),
 	IDE_HFLAG_ABUSE_SET_DMA_MODE	= (1 << 26),
-	/* host is CY82C693 */
-	IDE_HFLAG_CY82C693		= (1 << 27),
 	/* force host out of "simplex" mode */
 	IDE_HFLAG_CLEAR_SIMPLEX		= (1 << 28),
 	/* DSC overlap is unsupported */
@@ -1092,9 +1095,9 @@ enum {
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD
-# define IDE_HFLAG_OFF_BOARD	IDE_HFLAG_BOOTABLE
-#else
 # define IDE_HFLAG_OFF_BOARD	0
+#else
+# define IDE_HFLAG_OFF_BOARD	IDE_HFLAG_NON_BOOTABLE
 #endif
 
 struct ide_port_info {

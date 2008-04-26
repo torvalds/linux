@@ -337,7 +337,6 @@ static const struct ide_port_info trm290_chipset __devinitdata = {
 			  IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 #endif
 			  IDE_HFLAG_NO_AUTODMA |
-			  IDE_HFLAG_BOOTABLE |
 			  IDE_HFLAG_NO_LBA48,
 };
 

@@ -96,11 +96,11 @@ static void palm_bk3710_setudmamode(void __iomem *base, unsigned int dev,
 	u16 val16;
 
 	/* DMA Data Setup */
-	t0 = (palm_bk3710_udmatimings[mode].cycletime + ide_palm_clk - 1)
-			/ ide_palm_clk - 1;
-	tenv = (20 + ide_palm_clk - 1) / ide_palm_clk - 1;
-	trp = (palm_bk3710_udmatimings[mode].rptime + ide_palm_clk - 1)
-			/ ide_palm_clk - 1;
+	t0 = DIV_ROUND_UP(palm_bk3710_udmatimings[mode].cycletime,
+			  ide_palm_clk) - 1;
+	tenv = DIV_ROUND_UP(20, ide_palm_clk) - 1;
+	trp = DIV_ROUND_UP(palm_bk3710_udmatimings[mode].rptime,
+			   ide_palm_clk) - 1;
 
 	/* udmatim Register */
 	val16 = readw(base + BK3710_UDMATIM) & (dev ? 0xFF0F : 0xFFF0);
@@ -141,8 +141,8 @@ static void palm_bk3710_setdmamode(void __iomem *base, unsigned int dev,
 	cycletime = max_t(int, t->cycle, min_cycle);
 
 	/* DMA Data Setup */
-	t0 = (cycletime + ide_palm_clk - 1) / ide_palm_clk;
-	td = (t->active + ide_palm_clk - 1) / ide_palm_clk;
+	t0 = DIV_ROUND_UP(cycletime, ide_palm_clk);
+	td = DIV_ROUND_UP(t->active, ide_palm_clk);
 	tkw = t0 - td - 1;
 	td -= 1;
 
@@ -168,9 +168,9 @@ static void palm_bk3710_setpiomode(void __iomem *base, ide_drive_t *mate,
 	struct ide_timing *t;
 
 	/* PIO Data Setup */
-	t0 = (cycletime + ide_palm_clk - 1) / ide_palm_clk;
-	t2 = (ide_timing_find_mode(XFER_PIO_0 + mode)->active +
-	      ide_palm_clk - 1)	/ ide_palm_clk;
+	t0 = DIV_ROUND_UP(cycletime, ide_palm_clk);
+	t2 = DIV_ROUND_UP(ide_timing_find_mode(XFER_PIO_0 + mode)->active,
+			  ide_palm_clk);
 
 	t2i = t0 - t2 - 1;
 	t2 -= 1;
@@ -192,8 +192,8 @@ static void palm_bk3710_setpiomode(void __iomem *base, ide_drive_t *mate,
 
 	/* TASKFILE Setup */
 	t = ide_timing_find_mode(XFER_PIO_0 + mode);
-	t0 = (t->cyc8b + ide_palm_clk - 1) / ide_palm_clk;
-	t2 = (t->act8b + ide_palm_clk - 1) / ide_palm_clk;
+	t0 = DIV_ROUND_UP(t->cyc8b, ide_palm_clk);
+	t2 = DIV_ROUND_UP(t->act8b, ide_palm_clk);
 
 	t2i = t0 - t2 - 1;
 	t2 -= 1;
@@ -378,7 +378,7 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	hw.irq = irq->start;
 	hw.chipset = ide_palm3710;
 
-	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif == NULL)
 		goto out;
 

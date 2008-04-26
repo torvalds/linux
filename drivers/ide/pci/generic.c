@@ -38,8 +38,7 @@ MODULE_PARM_DESC(all_generic_ide, "IDE generic will claim all unknown PCI IDE st
 	{ \
 		.name		= name_str, \
 		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA | \
-				  extra_flags | \
-				  IDE_HFLAG_BOOTABLE, \
+				  extra_flags, \
 		.swdma_mask	= ATA_SWDMA2, \
 		.mwdma_mask	= ATA_MWDMA2, \
 		.udma_mask	= ATA_UDMA6, \
@@ -50,9 +49,8 @@ static const struct ide_port_info generic_chipsets[] __devinitdata = {
 
 	{	/* 1 */
 		.name		= "NS87410",
-		.enablebits	= {{0x43,0x08,0x08}, {0x47,0x08,0x08}},
-		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
-				  IDE_HFLAG_BOOTABLE,
+		.enablebits	= { {0x43, 0x08, 0x08}, {0x47, 0x08, 0x08} },
+		.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA,
 		.swdma_mask	= ATA_SWDMA2,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
@@ -99,7 +97,7 @@ static const struct ide_port_info generic_chipsets[] __devinitdata = {
  *	Called when the PCI registration layer (or the IDE initialization)
  *	finds a device matching our IDE device tables.
  */
- 
+
 static int __devinit generic_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	const struct ide_port_info *d = &generic_chipsets[id->driver_data];

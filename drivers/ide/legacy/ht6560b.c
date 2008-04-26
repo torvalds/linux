@@ -35,6 +35,7 @@
  *  Try:  http://www.maf.iki.fi/~maf/ht6560b/
  */
 
+#define DRV_NAME	"ht6560b"
 #define HT6560B_VERSION "v0.08"
 
 #include <linux/module.h>
@@ -339,16 +340,13 @@ static const struct ide_port_info ht6560b_port_info __initdata = {
 static int __init ht6560b_init(void)
 {
 	ide_hwif_t *hwif, *mate;
-	static u8 idx[4] = { 0, 1, 0xff, 0xff };
+	static u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	hw_regs_t hw[2];
 
 	if (probe_ht6560b == 0)
 		return -ENODEV;
 
-	hwif = &ide_hwifs[0];
-	mate = &ide_hwifs[1];
-
-	if (!request_region(HT_CONFIG_PORT, 1, hwif->name)) {
+	if (!request_region(HT_CONFIG_PORT, 1, DRV_NAME)) {
 		printk(KERN_NOTICE "%s: HT_CONFIG_PORT not found\n",
 			__FUNCTION__);
 		return -ENODEV;
@@ -367,17 +365,23 @@ static int __init ht6560b_init(void)
 	ide_std_init_ports(&hw[1], 0x170, 0x376);
 	hw[1].irq = 15;
 
-	ide_init_port_hw(hwif, &hw[0]);
-	ide_init_port_hw(mate, &hw[1]);
+	hwif = ide_find_port();
+	if (hwif) {
+		ide_init_port_hw(hwif, &hw[0]);
+		hwif->selectproc     = ht6560b_selectproc;
+		hwif->set_pio_mode   = ht6560b_set_pio_mode;
+		hwif->port_init_devs = ht6560b_port_init_devs;
+		idx[0] = hwif->index;
+	}
 
-	hwif->selectproc = &ht6560b_selectproc;
-	hwif->set_pio_mode = &ht6560b_set_pio_mode;
-
-	mate->selectproc = &ht6560b_selectproc;
-	mate->set_pio_mode = &ht6560b_set_pio_mode;
-
-	hwif->port_init_devs = ht6560b_port_init_devs;
-	mate->port_init_devs = ht6560b_port_init_devs;
+	mate = ide_find_port();
+	if (mate) {
+		ide_init_port_hw(mate, &hw[1]);
+		mate->selectproc     = ht6560b_selectproc;
+		mate->set_pio_mode   = ht6560b_set_pio_mode;
+		mate->port_init_devs = ht6560b_port_init_devs;
+		idx[1] = mate->index;
+	}
 
 	ide_device_add(idx, &ht6560b_port_info);
 

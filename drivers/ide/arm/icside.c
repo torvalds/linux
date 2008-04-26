@@ -400,7 +400,7 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 	unsigned long port = (unsigned long)base + info->dataoffset;
 	ide_hwif_t *hwif;
 
-	hwif = ide_find_port(port);
+	hwif = ide_find_port();
 	if (hwif) {
 		int i;
 

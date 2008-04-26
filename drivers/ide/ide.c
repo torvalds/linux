@@ -100,12 +100,7 @@ int ide_noacpitfs = 1;
 int ide_noacpionboot = 1;
 #endif
 
-/*
- * This is declared extern in ide.h, for access by other IDE modules:
- */
 ide_hwif_t ide_hwifs[MAX_HWIFS];	/* master data repository */
-
-EXPORT_SYMBOL(ide_hwifs);
 
 static void ide_port_init_devices_data(ide_hwif_t *);
 
@@ -232,30 +227,6 @@ static int ide_system_bus_speed(void)
 	return pci_dev_present(pci_default) ? 33 : 50;
 }
 
-ide_hwif_t * ide_find_port(unsigned long base)
-{
-	ide_hwif_t *hwif;
-	int i;
-
-	for (i = 0; i < MAX_HWIFS; i++) {
-		hwif = &ide_hwifs[i];
-		if (hwif->io_ports[IDE_DATA_OFFSET] == base)
-			goto found;
-	}
-
-	for (i = 0; i < MAX_HWIFS; i++) {
-		hwif = &ide_hwifs[i];
-		if (hwif->chipset == ide_unknown)
-			goto found;
-	}
-
-	hwif = NULL;
-found:
-	return hwif;
-}
-
-EXPORT_SYMBOL_GPL(ide_find_port);
-
 static struct resource* hwif_request_region(ide_hwif_t *hwif,
 					    unsigned long addr, int num)
 {
@@ -280,29 +251,21 @@ static struct resource* hwif_request_region(ide_hwif_t *hwif,
 int ide_hwif_request_regions(ide_hwif_t *hwif)
 {
 	unsigned long addr;
-	unsigned int i;
 
 	if (hwif->mmio)
 		return 0;
+
 	addr = hwif->io_ports[IDE_CONTROL_OFFSET];
+
 	if (addr && !hwif_request_region(hwif, addr, 1))
 		goto control_region_busy;
-	hwif->straight8 = 0;
+
 	addr = hwif->io_ports[IDE_DATA_OFFSET];
-	if ((addr | 7) == hwif->io_ports[IDE_STATUS_OFFSET]) {
-		if (!hwif_request_region(hwif, addr, 8))
-			goto data_region_busy;
-		hwif->straight8 = 1;
-		return 0;
-	}
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-		addr = hwif->io_ports[i];
-		if (!hwif_request_region(hwif, addr, 1)) {
-			while (--i)
-				release_region(addr, 1);
-			goto data_region_busy;
-		}
-	}
+	BUG_ON((addr | 7) != hwif->io_ports[IDE_STATUS_OFFSET]);
+
+	if (!hwif_request_region(hwif, addr, 8))
+		goto data_region_busy;
+
 	return 0;
 
 data_region_busy:
@@ -328,19 +291,13 @@ control_region_busy:
 
 void ide_hwif_release_regions(ide_hwif_t *hwif)
 {
-	u32 i = 0;
-
 	if (hwif->mmio)
 		return;
+
 	if (hwif->io_ports[IDE_CONTROL_OFFSET])
 		release_region(hwif->io_ports[IDE_CONTROL_OFFSET], 1);
-	if (hwif->straight8) {
-		release_region(hwif->io_ports[IDE_DATA_OFFSET], 8);
-		return;
-	}
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++)
-		if (hwif->io_ports[i])
-			release_region(hwif->io_ports[i], 1);
+
+	release_region(hwif->io_ports[IDE_DATA_OFFSET], 8);
 }
 
 void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
@@ -627,11 +584,13 @@ out:
 int set_pio_mode(ide_drive_t *drive, int arg)
 {
 	struct request rq;
+	ide_hwif_t *hwif = drive->hwif;
 
 	if (arg < 0 || arg > 255)
 		return -EINVAL;
 
-	if (drive->hwif->set_pio_mode == NULL)
+	if (hwif->set_pio_mode == NULL ||
+	    (hwif->host_flags & IDE_HFLAG_NO_SET_MODE))
 		return -ENOSYS;
 
 	if (drive->special.b.set_tune)

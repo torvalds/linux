@@ -11,7 +11,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * (for example /usr/src/linux/COPYING); if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
+ * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -20,12 +20,12 @@
 
 /* Add your devices here :)) */
 static struct pnp_device_id idepnp_devices[] = {
-  	/* Generic ESDI/IDE/ATA compatible hard disk controller */
+	/* Generic ESDI/IDE/ATA compatible hard disk controller */
 	{.id = "PNP0600", .driver_data = 0},
 	{.id = ""}
 };
 
-static int idepnp_probe(struct pnp_dev * dev, const struct pnp_device_id *dev_id)
+static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
@@ -38,7 +38,7 @@ static int idepnp_probe(struct pnp_dev * dev, const struct pnp_device_id *dev_id
 				pnp_port_start(dev, 1));
 	hw.irq = pnp_irq(dev, 0);
 
-	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif) {
 		u8 index = hwif->index;
 		u8 idx[4] = { index, 0xff, 0xff, 0xff };
@@ -47,7 +47,7 @@ static int idepnp_probe(struct pnp_dev * dev, const struct pnp_device_id *dev_id
 		ide_init_port_hw(hwif, &hw);
 
 		printk(KERN_INFO "ide%d: generic PnP IDE interface\n", index);
-		pnp_set_drvdata(dev,hwif);
+		pnp_set_drvdata(dev, hwif);
 
 		ide_device_add(idx, NULL);
 
@@ -57,7 +57,7 @@ static int idepnp_probe(struct pnp_dev * dev, const struct pnp_device_id *dev_id
 	return -1;
 }
 
-static void idepnp_remove(struct pnp_dev * dev)
+static void idepnp_remove(struct pnp_dev *dev)
 {
 	ide_hwif_t *hwif = pnp_get_drvdata(dev);
 

@@ -71,14 +71,13 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		if (setup[i])
 			outb(setup[i], base + i);
 	}
-	pci_release_regions(dev);	/* IDE layer handles regions itself */
 
 	memset(&hw, 0, sizeof(hw));
 	ide_std_init_ports(&hw, base + 0x10, base + 0x1e);
 	hw.irq = dev->irq;
 	hw.chipset = ide_pci;		/* this enables IRQ sharing */
 
-	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif == NULL)
 		goto out_disable;
 
@@ -90,6 +89,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		ide_init_port_data(hwif, i);
 
 	ide_init_port_hw(hwif, &hw);
+	hwif->mmio = 1;
 	hwif->quirkproc = &ide_undecoded_slave;
 
 	idx[0] = i;
@@ -110,6 +110,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 
 out_disable:
 	printk(KERN_ERR "delkin_cb: no IDE devices found\n");
+	pci_release_regions(dev);
 	pci_disable_device(dev);
 	return -ENODEV;
 }
@@ -122,6 +123,7 @@ delkin_cb_remove (struct pci_dev *dev)
 	if (hwif)
 		ide_unregister(hwif->index);
 
+	pci_release_regions(dev);
 	pci_disable_device(dev);
 }
 

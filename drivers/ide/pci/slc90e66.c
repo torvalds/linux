@@ -27,9 +27,9 @@ static void slc90e66_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	unsigned long flags;
 	u16 master_data;
 	u8 slave_data;
- 	int control = 0;
+	int control = 0;
 				     /* ISP  RTC */
-	static const u8 timings[][2]= {
+	static const u8 timings[][2] = {
 					{ 0, 0 },
 					{ 0, 0 },
 					{ 1, 0 },
@@ -136,8 +136,8 @@ static void __devinit init_hwif_slc90e66(ide_hwif_t *hwif)
 static const struct ide_port_info slc90e66_chipset __devinitdata = {
 	.name		= "SLC90E66",
 	.init_hwif	= init_hwif_slc90e66,
-	.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}},
-	.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE,
+	.enablebits	= { {0x41, 0x80, 0x80}, {0x43, 0x80, 0x80} },
+	.host_flags	= IDE_HFLAG_LEGACY_IRQS,
 	.pio_mask	= ATA_PIO4,
 	.swdma_mask	= ATA_SWDMA2_ONLY,
 	.mwdma_mask	= ATA_MWDMA12_ONLY,

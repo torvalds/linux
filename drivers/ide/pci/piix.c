@@ -307,9 +307,9 @@ static void __devinit init_hwif_ich(ide_hwif_t *hwif)
 }
 
 #ifndef CONFIG_IA64
- #define IDE_HFLAGS_PIIX (IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE)
+ #define IDE_HFLAGS_PIIX IDE_HFLAG_LEGACY_IRQS
 #else
- #define IDE_HFLAGS_PIIX IDE_HFLAG_BOOTABLE
+ #define IDE_HFLAGS_PIIX 0
 #endif
 
 #define DECLARE_PIIX_DEV(name_str, udma) \

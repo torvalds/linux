@@ -265,8 +265,7 @@ static const struct ide_port_info ns87415_chipset __devinitdata = {
 #endif
 	.init_hwif	= init_hwif_ns87415,
 	.host_flags	= IDE_HFLAG_TRUST_BIOS_FOR_DMA |
-			  IDE_HFLAG_NO_ATAPI_DMA |
-			  IDE_HFLAG_BOOTABLE,
+			  IDE_HFLAG_NO_ATAPI_DMA,
 };
 
 static int __devinit ns87415_init_one(struct pci_dev *dev, const struct pci_device_id *id)

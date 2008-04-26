@@ -523,15 +523,11 @@ static void __devinit it821x_quirkproc(ide_drive_t *drive)
 static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	struct it821x_dev *idev = kzalloc(sizeof(struct it821x_dev), GFP_KERNEL);
+	struct it821x_dev **itdevs = (struct it821x_dev **)pci_get_drvdata(dev);
+	struct it821x_dev *idev = itdevs[hwif->channel];
 	u8 conf;
 
 	hwif->quirkproc = &it821x_quirkproc;
-
-	if (idev == NULL) {
-		printk(KERN_ERR "it821x: out of memory, falling back to legacy behaviour.\n");
-		return;
-	}
 
 	ide_set_hwifdata(hwif, idev);
 
@@ -623,7 +619,6 @@ static unsigned int __devinit init_chipset_it821x(struct pci_dev *dev, const cha
 		.name		= name_str,		\
 		.init_chipset	= init_chipset_it821x,	\
 		.init_hwif	= init_hwif_it821x,	\
-		.host_flags	= IDE_HFLAG_BOOTABLE,	\
 		.pio_mask	= ATA_PIO4,		\
 	}
 
@@ -642,6 +637,22 @@ static const struct ide_port_info it821x_chipsets[] __devinitdata = {
 
 static int __devinit it821x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
+	struct it821x_dev *itdevs[2] = { NULL, NULL} , *itdev;
+	unsigned int i;
+
+	for (i = 0; i < 2; i++) {
+		itdev = kzalloc(sizeof(*itdev), GFP_KERNEL);
+		if (itdev == NULL) {
+			kfree(itdevs[0]);
+			printk(KERN_ERR "it821x: out of memory\n");
+			return -ENOMEM;
+		}
+
+		itdevs[i] = itdev;
+	}
+
+	pci_set_drvdata(dev, itdevs);
+
 	return ide_setup_pci_device(dev, &it821x_chipsets[id->driver_data]);
 }
 

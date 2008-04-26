@@ -590,20 +590,12 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	unsigned long bar0, cmd_phys_base, ctl;
 	void __iomem *virt_base;
 	ide_hwif_t *hwif;
-	int h;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	hw_regs_t hw;
 	struct ide_port_info d = sgiioc4_port_info;
 
-	/*
-	 * Find an empty HWIF; if none available, return -ENOMEM.
-	 */
-	for (h = 0; h < MAX_HWIFS; ++h) {
-		hwif = &ide_hwifs[h];
-		if (hwif->chipset == ide_unknown)
-			break;
-	}
-	if (h == MAX_HWIFS) {
+	hwif = ide_find_port();
+	if (hwif == NULL) {
 		printk(KERN_ERR "%s: too many IDE interfaces, no room in table\n",
 				DRV_NAME);
 		return -ENOMEM;

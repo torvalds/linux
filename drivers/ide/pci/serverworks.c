@@ -350,8 +350,7 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 
 #define IDE_HFLAGS_SVWKS \
 	(IDE_HFLAG_LEGACY_IRQS | \
-	 IDE_HFLAG_ABUSE_SET_DMA_MODE | \
-	 IDE_HFLAG_BOOTABLE)
+	 IDE_HFLAG_ABUSE_SET_DMA_MODE)
 
 static const struct ide_port_info serverworks_chipsets[] __devinitdata = {
 	{	/* 0 */
@@ -418,7 +417,7 @@ static int __devinit svwks_init_one(struct pci_dev *dev, const struct pci_device
 	else if (idx == 2 || idx == 3) {
 		if ((PCI_FUNC(dev->devfn) & 1) == 0) {
 			if (pci_resource_start(dev, 0) != 0x01f1)
-				d.host_flags &= ~IDE_HFLAG_BOOTABLE;
+				d.host_flags |= IDE_HFLAG_NON_BOOTABLE;
 			d.host_flags |= IDE_HFLAG_SINGLE;
 		} else
 			d.host_flags &= ~IDE_HFLAG_SINGLE;

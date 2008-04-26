@@ -1444,6 +1444,54 @@ static int ide_sysfs_register_port(ide_hwif_t *hwif)
 	return rc;
 }
 
+/**
+ *	ide_find_port_slot	-	find free ide_hwifs[] slot
+ *	@d: IDE port info
+ *
+ *	Return the new hwif.  If we are out of free slots return NULL.
+ */
+
+ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
+{
+	ide_hwif_t *hwif;
+	int i;
+	u8 bootable = (d && (d->host_flags & IDE_HFLAG_NON_BOOTABLE)) ? 0 : 1;
+
+	/*
+	 * Claim an unassigned slot.
+	 *
+	 * Give preference to claiming other slots before claiming ide0/ide1,
+	 * just in case there's another interface yet-to-be-scanned
+	 * which uses ports 0x1f0/0x170 (the ide0/ide1 defaults).
+	 *
+	 * Unless there is a bootable card that does not use the standard
+	 * ports 0x1f0/0x170 (the ide0/ide1 defaults).
+	 */
+	if (bootable) {
+		i = (d && (d->host_flags & IDE_HFLAG_QD_2ND_PORT)) ? 1 : 0;
+
+		for (; i < MAX_HWIFS; i++) {
+			hwif = &ide_hwifs[i];
+			if (hwif->chipset == ide_unknown)
+				return hwif;
+		}
+	} else {
+		for (i = 2; i < MAX_HWIFS; i++) {
+			hwif = &ide_hwifs[i];
+			if (hwif->chipset == ide_unknown)
+				return hwif;
+		}
+		for (i = 0; i < 2 && i < MAX_HWIFS; i++) {
+			hwif = &ide_hwifs[i];
+			if (hwif->chipset == ide_unknown)
+				return hwif;
+		}
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(ide_find_port_slot);
+
 int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 {
 	ide_hwif_t *hwif, *mate = NULL;

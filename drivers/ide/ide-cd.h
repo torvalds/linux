@@ -119,10 +119,6 @@ struct cdrom_info {
 
 	struct atapi_toc *toc;
 
-	unsigned long	sector_buffered;
-	unsigned long	nsectors_buffered;
-	unsigned char	*buffer;
-
 	/* The result of the last successful request sense command
 	   on this device. */
 	struct request_sense sense_data;

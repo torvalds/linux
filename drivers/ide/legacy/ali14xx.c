@@ -86,7 +86,7 @@ static u8 regOff;	/* output to base port to close registers */
 /*
  * Read a controller register.
  */
-static inline u8 inReg (u8 reg)
+static inline u8 inReg(u8 reg)
 {
 	outb_p(reg, regPort);
 	return inb(dataPort);
@@ -95,7 +95,7 @@ static inline u8 inReg (u8 reg)
 /*
  * Write a controller register.
  */
-static void outReg (u8 data, u8 reg)
+static void outReg(u8 data, u8 reg)
 {
 	outb_p(reg, regPort);
 	outb_p(data, dataPort);
@@ -143,7 +143,7 @@ static void ali14xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 /*
  * Auto-detect the IDE controller port.
  */
-static int __init findPort (void)
+static int __init findPort(void)
 {
 	int i;
 	u8 t;
@@ -175,7 +175,8 @@ static int __init findPort (void)
 /*
  * Initialize controller registers with default values.
  */
-static int __init initRegisters (void) {
+static int __init initRegisters(void)
+{
 	const RegInitializer *p;
 	u8 t;
 	unsigned long flags;
@@ -199,7 +200,8 @@ static const struct ide_port_info ali14xx_port_info = {
 
 static int __init ali14xx_probe(void)
 {
-	static u8 idx[4] = { 0, 1, 0xff, 0xff };
+	ide_hwif_t *hwif, *mate;
+	static u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	hw_regs_t hw[2];
 
 	printk(KERN_DEBUG "ali14xx: base=0x%03x, regOn=0x%02x.\n",
@@ -219,18 +221,26 @@ static int __init ali14xx_probe(void)
 	ide_std_init_ports(&hw[1], 0x170, 0x376);
 	hw[1].irq = 15;
 
-	ide_init_port_hw(&ide_hwifs[0], &hw[0]);
-	ide_init_port_hw(&ide_hwifs[1], &hw[1]);
+	hwif = ide_find_port();
+	if (hwif) {
+		ide_init_port_hw(hwif, &hw[0]);
+		hwif->set_pio_mode = &ali14xx_set_pio_mode;
+		idx[0] = hwif->index;
+	}
 
-	ide_hwifs[0].set_pio_mode = &ali14xx_set_pio_mode;
-	ide_hwifs[1].set_pio_mode = &ali14xx_set_pio_mode;
+	mate = ide_find_port();
+	if (mate) {
+		ide_init_port_hw(mate, &hw[1]);
+		mate->set_pio_mode = &ali14xx_set_pio_mode;
+		idx[1] = mate->index;
+	}
 
 	ide_device_add(idx, &ali14xx_port_info);
 
 	return 0;
 }
 
-int probe_ali14xx = 0;
+int probe_ali14xx;
 
 module_param_named(probe, probe_ali14xx, bool, 0);
 MODULE_PARM_DESC(probe, "probe for ALI M14xx chipsets");

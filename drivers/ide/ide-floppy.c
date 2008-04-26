@@ -396,7 +396,7 @@ static void idefloppy_retry_pc(ide_drive_t *drive)
 }
 
 /* The usual interrupt handler called during a packet command. */
-static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
+static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
@@ -1596,13 +1596,13 @@ static int idefloppy_revalidate_disk(struct gendisk *disk)
 }
 
 static struct block_device_operations idefloppy_ops = {
-	.owner		= THIS_MODULE,
-	.open		= idefloppy_open,
-	.release	= idefloppy_release,
-	.ioctl		= idefloppy_ioctl,
-	.getgeo		= idefloppy_getgeo,
-	.media_changed	= idefloppy_media_changed,
-	.revalidate_disk= idefloppy_revalidate_disk
+	.owner			= THIS_MODULE,
+	.open			= idefloppy_open,
+	.release		= idefloppy_release,
+	.ioctl			= idefloppy_ioctl,
+	.getgeo			= idefloppy_getgeo,
+	.media_changed		= idefloppy_media_changed,
+	.revalidate_disk	= idefloppy_revalidate_disk
 };
 
 static int ide_floppy_probe(ide_drive_t *drive)

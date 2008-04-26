@@ -34,7 +34,7 @@ static int __init ide_arm_init(void)
 	ide_std_init_ports(&hw, IDE_ARM_IO, IDE_ARM_IO + 0x206);
 	hw.irq = IDE_ARM_IRQ;
 
-	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif) {
 		ide_init_port_hw(hwif, &hw);
 		idx[0] = hwif->index;

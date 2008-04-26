@@ -210,7 +210,6 @@ unifdef-y += hayesesp.h
 unifdef-y += hdlcdrv.h
 unifdef-y += hdlc.h
 unifdef-y += hdreg.h
-unifdef-y += hdsmart.h
 unifdef-y += hid.h
 unifdef-y += hiddev.h
 unifdef-y += hidraw.h

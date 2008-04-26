@@ -1031,7 +1031,7 @@ comment "Other IDE chipsets support"
 comment "Note: most of these also require special kernel boot parameters"
 
 config BLK_DEV_4DRIVES
-	bool "Generic 4 drives/port support"
+	tristate "Generic 4 drives/port support"
 	help
 	  Certain older chipsets, including the Tekram 690CD, use a single set
 	  of I/O ports at 0x1f0 to control up to four drives, instead of the

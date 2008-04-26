@@ -21,6 +21,8 @@
 #include <asm/arch/bast-map.h>
 #include <asm/arch/bast-irq.h>
 
+#define DRV_NAME "bast-ide"
+
 static int __init bastide_register(unsigned int base, unsigned int aux, int irq)
 {
 	ide_hwif_t *hwif;
@@ -41,7 +43,7 @@ static int __init bastide_register(unsigned int base, unsigned int aux, int irq)
 	hw.io_ports[IDE_CONTROL_OFFSET] = aux + (6 * 0x20);
 	hw.irq = irq;
 
-	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif == NULL)
 		goto out;
 
@@ -53,6 +55,7 @@ static int __init bastide_register(unsigned int base, unsigned int aux, int irq)
 		ide_init_port_data(hwif, i);
 
 	ide_init_port_hw(hwif, &hw);
+	hwif->mmio = 1;
 	hwif->quirkproc = NULL;
 
 	idx[0] = i;
@@ -64,12 +67,19 @@ out:
 
 static int __init bastide_init(void)
 {
+	unsigned long base = BAST_VA_IDEPRI + BAST_IDE_CS;
+
 	/* we can treat the VR1000 and the BAST the same */
 
 	if (!(machine_is_bast() || machine_is_vr1000()))
 		return 0;
 
 	printk("BAST: IDE driver, (c) 2003-2004 Simtec Electronics\n");
+
+	if (!request_mem_region(base, 0x400000, DRV_NAME)) {
+		printk(KERN_ERR "%s: resources busy\n", DRV_NAME);
+		return -EBUSY;
+	}
 
 	bastide_register(BAST_VA_IDEPRI, BAST_VA_IDEPRIAUX, IRQ_IDE0);
 	bastide_register(BAST_VA_IDESEC, BAST_VA_IDESECAUX, IRQ_IDE1);

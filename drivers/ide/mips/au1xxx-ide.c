@@ -599,9 +599,11 @@ static int au_ide_probe(struct device *dev)
 		goto out;
 	}
 
-	/* FIXME:  This might possibly break PCMCIA IDE devices */
-
-	hwif                            = &ide_hwifs[pdev->id];
+	hwif = ide_find_port();
+	if (hwif == NULL) {
+		ret = -ENOENT;
+		goto out;
+	}
 
 	memset(&hw, 0, sizeof(hw));
 	auide_setup_ports(&hw, ahwif);

@@ -122,12 +122,12 @@ static int hd_error;
  *  This struct defines the HD's and their types.
  */
 struct hd_i_struct {
-	unsigned int head,sect,cyl,wpcom,lzone,ctl;
+	unsigned int head, sect, cyl, wpcom, lzone, ctl;
 	int unit;
 	int recalibrate;
 	int special_op;
 };
-	
+
 #ifdef HD_TYPE
 static struct hd_i_struct hd_info[] = { HD_TYPE };
 static int NR_HD = ARRAY_SIZE(hd_info);
@@ -168,7 +168,7 @@ unsigned long read_timer(void)
 
 	spin_lock_irqsave(&i8253_lock, flags);
 	t = jiffies * 11932;
-    	outb_p(0, 0x43);
+	outb_p(0, 0x43);
 	i = inb_p(0x40);
 	i |= inb(0x40) << 8;
 	spin_unlock_irqrestore(&i8253_lock, flags);
@@ -183,7 +183,7 @@ static void __init hd_setup(char *str, int *ints)
 	if (ints[0] != 3)
 		return;
 	if (hd_info[0].head != 0)
-		hdind=1;
+		hdind = 1;
 	hd_info[hdind].head = ints[2];
 	hd_info[hdind].sect = ints[3];
 	hd_info[hdind].cyl = ints[1];
@@ -193,7 +193,7 @@ static void __init hd_setup(char *str, int *ints)
 	NR_HD = hdind+1;
 }
 
-static void dump_status (const char *msg, unsigned int stat)
+static void dump_status(const char *msg, unsigned int stat)
 {
 	char *name = "hd?";
 	if (CURRENT)
@@ -291,7 +291,6 @@ static int controller_ready(unsigned int drive, unsigned int head)
 	return 0;
 }
 
-		
 static void hd_out(struct hd_i_struct *disk,
 		   unsigned int nsect,
 		   unsigned int sect,
@@ -313,15 +312,15 @@ static void hd_out(struct hd_i_struct *disk,
 		return;
 	}
 	SET_HANDLER(intr_addr);
-	outb_p(disk->ctl,HD_CMD);
-	port=HD_DATA;
-	outb_p(disk->wpcom>>2,++port);
-	outb_p(nsect,++port);
-	outb_p(sect,++port);
-	outb_p(cyl,++port);
-	outb_p(cyl>>8,++port);
-	outb_p(0xA0|(disk->unit<<4)|head,++port);
-	outb_p(cmd,++port);
+	outb_p(disk->ctl, HD_CMD);
+	port = HD_DATA;
+	outb_p(disk->wpcom >> 2, ++port);
+	outb_p(nsect, ++port);
+	outb_p(sect, ++port);
+	outb_p(cyl, ++port);
+	outb_p(cyl >> 8, ++port);
+	outb_p(0xA0 | (disk->unit << 4) | head, ++port);
+	outb_p(cmd, ++port);
 }
 
 static void hd_request (void);
@@ -344,14 +343,14 @@ static void reset_controller(void)
 {
 	int	i;
 
-	outb_p(4,HD_CMD);
-	for(i = 0; i < 1000; i++) barrier();
-	outb_p(hd_info[0].ctl & 0x0f,HD_CMD);
-	for(i = 0; i < 1000; i++) barrier();
+	outb_p(4, HD_CMD);
+	for (i = 0; i < 1000; i++) barrier();
+	outb_p(hd_info[0].ctl & 0x0f, HD_CMD);
+	for (i = 0; i < 1000; i++) barrier();
 	if (drive_busy())
 		printk("hd: controller still busy\n");
 	else if ((hd_error = inb(HD_ERROR)) != 1)
-		printk("hd: controller reset failed: %02x\n",hd_error);
+		printk("hd: controller reset failed: %02x\n", hd_error);
 }
 
 static void reset_hd(void)
@@ -371,8 +370,8 @@ repeat:
 	if (++i < NR_HD) {
 		struct hd_i_struct *disk = &hd_info[i];
 		disk->special_op = disk->recalibrate = 1;
-		hd_out(disk,disk->sect,disk->sect,disk->head-1,
-			disk->cyl,WIN_SPECIFY,&reset_hd);
+		hd_out(disk, disk->sect, disk->sect, disk->head-1,
+			disk->cyl, WIN_SPECIFY, &reset_hd);
 		if (reset)
 			goto repeat;
 	} else
@@ -393,7 +392,7 @@ static void unexpected_hd_interrupt(void)
 	unsigned int stat = inb_p(HD_STATUS);
 
 	if (stat & (BUSY_STAT|DRQ_STAT|ECC_STAT|ERR_STAT)) {
-		dump_status ("unexpected interrupt", stat);
+		dump_status("unexpected interrupt", stat);
 		SET_TIMER;
 	}
 }
@@ -453,7 +452,7 @@ static void read_intr(void)
 	return;
 ok_to_read:
 	req = CURRENT;
-	insw(HD_DATA,req->buffer,256);
+	insw(HD_DATA, req->buffer, 256);
 	req->sector++;
 	req->buffer += 512;
 	req->errors = 0;
@@ -507,7 +506,7 @@ ok_to_write:
 		end_request(req, 1);
 	if (i > 0) {
 		SET_HANDLER(&write_intr);
-		outsw(HD_DATA,req->buffer,256);
+		outsw(HD_DATA, req->buffer, 256);
 		local_irq_enable();
 	} else {
 #if (HD_DELAY > 0)
@@ -560,11 +559,11 @@ static int do_special_op(struct hd_i_struct *disk, struct request *req)
 {
 	if (disk->recalibrate) {
 		disk->recalibrate = 0;
-		hd_out(disk,disk->sect,0,0,0,WIN_RESTORE,&recal_intr);
+		hd_out(disk, disk->sect, 0, 0, 0, WIN_RESTORE, &recal_intr);
 		return reset;
 	}
 	if (disk->head > 16) {
-		printk ("%s: cannot handle device with more than 16 heads - giving up\n", req->rq_disk->disk_name);
+		printk("%s: cannot handle device with more than 16 heads - giving up\n", req->rq_disk->disk_name);
 		end_request(req, 0);
 	}
 	disk->special_op = 0;
@@ -633,19 +632,21 @@ repeat:
 	if (blk_fs_request(req)) {
 		switch (rq_data_dir(req)) {
 		case READ:
-			hd_out(disk,nsect,sec,head,cyl,WIN_READ,&read_intr);
+			hd_out(disk, nsect, sec, head, cyl, WIN_READ,
+				&read_intr);
 			if (reset)
 				goto repeat;
 			break;
 		case WRITE:
-			hd_out(disk,nsect,sec,head,cyl,WIN_WRITE,&write_intr);
+			hd_out(disk, nsect, sec, head, cyl, WIN_WRITE,
+				&write_intr);
 			if (reset)
 				goto repeat;
 			if (wait_DRQ()) {
 				bad_rw_intr();
 				goto repeat;
 			}
-			outsw(HD_DATA,req->buffer,256);
+			outsw(HD_DATA, req->buffer, 256);
 			break;
 		default:
 			printk("unknown hd-command\n");
@@ -655,7 +656,7 @@ repeat:
 	}
 }
 
-static void do_hd_request (struct request_queue * q)
+static void do_hd_request(struct request_queue *q)
 {
 	disable_irq(HD_IRQ);
 	hd_request();
@@ -708,12 +709,12 @@ static int __init hd_init(void)
 {
 	int drive;
 
-	if (register_blkdev(MAJOR_NR,"hd"))
+	if (register_blkdev(MAJOR_NR, "hd"))
 		return -1;
 
 	hd_queue = blk_init_queue(do_hd_request, &hd_lock);
 	if (!hd_queue) {
-		unregister_blkdev(MAJOR_NR,"hd");
+		unregister_blkdev(MAJOR_NR, "hd");
 		return -ENOMEM;
 	}
 
@@ -742,7 +743,7 @@ static int __init hd_init(void)
 		goto out;
 	}
 
-	for (drive=0 ; drive < NR_HD ; drive++) {
+	for (drive = 0 ; drive < NR_HD ; drive++) {
 		struct gendisk *disk = alloc_disk(64);
 		struct hd_i_struct *p = &hd_info[drive];
 		if (!disk)
@@ -756,7 +757,7 @@ static int __init hd_init(void)
 		disk->queue = hd_queue;
 		p->unit = drive;
 		hd_gendisk[drive] = disk;
-		printk ("%s: %luMB, CHS=%d/%d/%d\n",
+		printk("%s: %luMB, CHS=%d/%d/%d\n",
 			disk->disk_name, (unsigned long)get_capacity(disk)/2048,
 			p->cyl, p->head, p->sect);
 	}
@@ -776,7 +777,7 @@ static int __init hd_init(void)
 	}
 
 	/* Let them fly */
-	for(drive=0; drive < NR_HD; drive++)
+	for (drive = 0; drive < NR_HD; drive++)
 		add_disk(hd_gendisk[drive]);
 
 	return 0;
@@ -791,7 +792,7 @@ out1:
 	NR_HD = 0;
 out:
 	del_timer(&device_timer);
-	unregister_blkdev(MAJOR_NR,"hd");
+	unregister_blkdev(MAJOR_NR, "hd");
 	blk_cleanup_queue(hd_queue);
 	return -1;
 Enomem:
@@ -800,7 +801,8 @@ Enomem:
 	goto out;
 }
 
-static int __init parse_hd_setup (char *line) {
+static int __init parse_hd_setup(char *line)
+{
 	int ints[6];
 
 	(void) get_options(line, ARRAY_SIZE(ints), ints);

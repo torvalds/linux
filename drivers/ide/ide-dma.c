@@ -703,17 +703,8 @@ static int ide_tune_dma(ide_drive_t *drive)
 
 	speed = ide_max_dma_mode(drive);
 
-	if (!speed) {
-		 /* is this really correct/needed? */
-		if ((hwif->host_flags & IDE_HFLAG_CY82C693) &&
-		    ide_dma_good_drive(drive))
-			return 1;
-		else
-			return 0;
-	}
-
-	if (hwif->host_flags & IDE_HFLAG_NO_SET_MODE)
-		return 1;
+	if (!speed)
+		return 0;
 
 	if (ide_set_dma_mode(drive, speed))
 		return 0;

@@ -35,7 +35,7 @@ static void it8213_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	static DEFINE_SPINLOCK(tune_lock);
 	int control = 0;
 
-	static const u8 timings[][2]= {
+	static const u8 timings[][2] = {
 					{ 0, 0 },
 					{ 0, 0 },
 					{ 1, 0 },
@@ -105,11 +105,10 @@ static void it8213_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 		if (!(reg48 & u_flag))
 			pci_write_config_byte(dev, 0x48, reg48 | u_flag);
-		if (speed >= XFER_UDMA_5) {
+		if (speed >= XFER_UDMA_5)
 			pci_write_config_byte(dev, 0x55, (u8) reg55|w_flag);
-		} else {
+		else
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
-		}
 
 		if ((reg4a & a_speed) != u_speed)
 			pci_write_config_word(dev, 0x4a, (reg4a & ~a_speed) | u_speed);
@@ -170,9 +169,8 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	{						\
 		.name		= name_str,		\
 		.init_hwif	= init_hwif_it8213,	\
-		.enablebits	= {{0x41,0x80,0x80}}, \
-		.host_flags	= IDE_HFLAG_SINGLE |	\
-				  IDE_HFLAG_BOOTABLE,	\
+		.enablebits	= { {0x41, 0x80, 0x80} }, \
+		.host_flags	= IDE_HFLAG_SINGLE,	\
 		.pio_mask	= ATA_PIO4,		\
 		.swdma_mask	= ATA_SWDMA2_ONLY,	\
 		.mwdma_mask	= ATA_MWDMA12_ONLY,	\

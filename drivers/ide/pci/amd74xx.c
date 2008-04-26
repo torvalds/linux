@@ -219,12 +219,10 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 
 #define IDE_HFLAGS_AMD \
 	(IDE_HFLAG_PIO_NO_BLACKLIST | \
-	 IDE_HFLAG_PIO_NO_DOWNGRADE | \
 	 IDE_HFLAG_ABUSE_SET_DMA_MODE | \
 	 IDE_HFLAG_POST_SET_MODE | \
 	 IDE_HFLAG_IO_32BIT | \
-	 IDE_HFLAG_UNMASK_IRQS | \
-	 IDE_HFLAG_BOOTABLE)
+	 IDE_HFLAG_UNMASK_IRQS)
 
 #define DECLARE_AMD_DEV(name_str, swdma, udma)				\
 	{								\
