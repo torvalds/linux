@@ -301,11 +301,12 @@ static int ide_pci_configure(struct pci_dev *dev, const struct ide_port_info *d)
  *	@d: IDE port info
  *	@bar: BAR number
  *
- *	Checks if a BAR is configured and points to MMIO space. If so
- *	print an error and return an error code. Otherwise return 0
+ *	Checks if a BAR is configured and points to MMIO space. If so,
+ *	return an error code. Otherwise return 0
  */
 
-static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *d, int bar)
+static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *d,
+			       int bar)
 {
 	ulong flags = pci_resource_flags(dev, bar);
 	
@@ -313,14 +314,11 @@ static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *
 	if (!flags || pci_resource_len(dev, bar) == 0)
 		return 0;
 
-	/* I/O space */		
-	if(flags & PCI_BASE_ADDRESS_IO_MASK)
+	/* I/O space */
+	if (flags & IORESOURCE_IO)
 		return 0;
 		
 	/* Bad */
-	printk(KERN_ERR "%s: IO baseregs (BIOS) are reported "
-			"as MEM, report to "
-			"<andre@linux-ide.org>.\n", d->name);
 	return -EINVAL;
 }
 
@@ -348,9 +346,12 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 	struct hw_regs_s hw;
 
 	if ((d->host_flags & IDE_HFLAG_ISA_PORTS) == 0) {
-		/*  Possibly we should fail if these checks report true */
-		ide_pci_check_iomem(dev, d, 2*port);
-		ide_pci_check_iomem(dev, d, 2*port+1);
+		if (ide_pci_check_iomem(dev, d, 2 * port) ||
+		    ide_pci_check_iomem(dev, d, 2 * port + 1)) {
+			printk(KERN_ERR "%s: I/O baseregs (BIOS) are reported "
+					"as MEM for port %d!\n", d->name, port);
+			return NULL;
+		}
  
 		ctl  = pci_resource_start(dev, 2*port+1);
 		base = pci_resource_start(dev, 2*port);
