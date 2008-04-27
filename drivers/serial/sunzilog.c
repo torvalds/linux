@@ -1231,7 +1231,7 @@ static inline struct console *SUNZILOG_CONSOLE(void)
 #define SUNZILOG_CONSOLE()	(NULL)
 #endif
 
-static void __devinit sunzilog_init_kbdms(struct uart_sunzilog_port *up, int channel)
+static void __devinit sunzilog_init_kbdms(struct uart_sunzilog_port *up)
 {
 	int baud, brg;
 
@@ -1305,7 +1305,7 @@ static void __devinit sunzilog_init_hw(struct uart_sunzilog_port *up)
 		up->curregs[R7] = 0x7E; /* SDLC Flag    */
 		up->curregs[R9] = NV;
 		up->curregs[R7p] = 0x00;
-		sunzilog_init_kbdms(up, up->port.line);
+		sunzilog_init_kbdms(up);
 		/* Only enable interrupts if an ISR handler available */
 		if (up->flags & SUNZILOG_FLAG_ISR_HANDLER)
 			up->curregs[R9] |= MIE;
