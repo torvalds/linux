@@ -387,8 +387,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				break;
 			}
 
-			printk(KERN_INFO "Overlap at 0x%Lx-0x%Lx\n",
-			       saved_ptr->start, saved_ptr->end);
+			pr_debug(KERN_INFO "Overlap at 0x%Lx-0x%Lx\n",
+				 saved_ptr->start, saved_ptr->end);
 			/* No conflict. Go ahead and add this new entry */
 			list_add(&new_entry->nd, &saved_ptr->nd);
 			new_entry = NULL;
