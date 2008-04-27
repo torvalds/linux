@@ -705,10 +705,6 @@ void ide_add_generic_settings(ide_drive_t *);
 read_proc_t proc_ide_read_capacity;
 read_proc_t proc_ide_read_geometry;
 
-#ifdef CONFIG_BLK_DEV_IDEPCI
-void ide_pci_create_host_proc(const char *, get_info_t *);
-#endif
-
 /*
  * Standard exit stuff:
  */
