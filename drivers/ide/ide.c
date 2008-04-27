@@ -924,7 +924,7 @@ static int __init ide_setup(char *s)
 				drive->media = ide_cdrom;
 				/* an ATAPI device ignores DRDY */
 				drive->ready_stat = 0;
-				goto done;
+				goto obsolete_option;
 			case -5: /* nodma */
 				drive->nodma = 1;
 				goto obsolete_option;
@@ -948,7 +948,7 @@ static int __init ide_setup(char *s)
 				drive->sect	= drive->bios_sect = vals[2];
 				drive->present	= 1;
 				drive->forced_geom = 1;
-				goto done;
+				goto obsolete_option;
 			default:
 				goto bad_option;
 		}
@@ -974,9 +974,6 @@ bad_option:
 	return 1;
 obsolete_option:
 	printk(" -- OBSOLETE OPTION, WILL BE REMOVED SOON!\n");
-	return 1;
-done:
-	printk("\n");
 	return 1;
 }
 
@@ -1167,6 +1164,51 @@ static unsigned int ide_nowerr;
 module_param_call(nowerr, ide_set_dev_param_mask, NULL, &ide_nowerr, 0);
 MODULE_PARM_DESC(nowerr, "ignore the WRERR_STAT bit for a device");
 
+static unsigned int ide_cdroms;
+
+module_param_call(cdrom, ide_set_dev_param_mask, NULL, &ide_cdroms, 0);
+MODULE_PARM_DESC(cdrom, "force device as a CD-ROM");
+
+struct chs_geom {
+	unsigned int	cyl;
+	u8		head;
+	u8		sect;
+};
+
+static unsigned int ide_disks;
+static struct chs_geom ide_disks_chs[MAX_HWIFS * MAX_DRIVES];
+
+static int ide_set_disk_chs(const char *str, struct kernel_param *kp)
+{
+	int a, b, c = 0, h = 0, s = 0, i, j = 1;
+
+	if (sscanf(str, "%d.%d:%d,%d,%d", &a, &b, &c, &h, &s) != 5 &&
+	    sscanf(str, "%d.%d:%d", &a, &b, &j) != 3)
+		return -EINVAL;
+
+	i = a * MAX_DRIVES + b;
+
+	if (i >= MAX_HWIFS * MAX_DRIVES || j < 0 || j > 1)
+		return -EINVAL;
+
+	if (c > INT_MAX || h > 255 || s > 255)
+		return -EINVAL;
+
+	if (j)
+		ide_disks |= (1 << i);
+	else
+		ide_disks &= (1 << i);
+
+	ide_disks_chs[i].cyl  = c;
+	ide_disks_chs[i].head = h;
+	ide_disks_chs[i].sect = s;
+
+	return 0;
+}
+
+module_param_call(chs, ide_set_disk_chs, NULL, NULL, 0);
+MODULE_PARM_DESC(chs, "force device as a disk (using CHS)");
+
 static void ide_dev_apply_params(ide_drive_t *drive)
 {
 	int i = drive->hwif->index * MAX_DRIVES + drive->select.b.unit;
@@ -1188,6 +1230,25 @@ static void ide_dev_apply_params(ide_drive_t *drive)
 		printk(KERN_INFO "ide: ignoring the WRERR_STAT bit for %s\n",
 				 drive->name);
 		drive->bad_wstat = BAD_R_STAT;
+	}
+	if (ide_cdroms & (1 << i)) {
+		printk(KERN_INFO "ide: forcing %s as a CD-ROM\n", drive->name);
+		drive->present = 1;
+		drive->media = ide_cdrom;
+		/* an ATAPI device ignores DRDY */
+		drive->ready_stat = 0;
+	}
+	if (ide_disks & (1 << i)) {
+		drive->cyl  = drive->bios_cyl  = ide_disks_chs[i].cyl;
+		drive->head = drive->bios_head = ide_disks_chs[i].head;
+		drive->sect = drive->bios_sect = ide_disks_chs[i].sect;
+		drive->forced_geom = 1;
+		printk(KERN_INFO "ide: forcing %s as a disk (%d/%d/%d)\n",
+				 drive->name,
+				 drive->cyl, drive->head, drive->sect);
+		drive->present = 1;
+		drive->media = ide_disk;
+		drive->ready_stat = READY_STAT;
 	}
 }
 

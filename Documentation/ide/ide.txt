@@ -82,17 +82,16 @@ Drives are normally found by auto-probing and/or examining the CMOS/BIOS data.
 For really weird situations, the apparent (fdisk) geometry can also be specified
 on the kernel "command line" using LILO.  The format of such lines is:
 
-	hdx=cyls,heads,sects
-or	hdx=cdrom
+	ide_core.chs=[interface_number.device_number]:cyls,heads,sects
+or	ide_core.cdrom=[interface_number.device_number]
 
-where hdx can be any of hda through hdh, Three values are required
-(cyls,heads,sects).  For example:
+For example:
 
-	hdc=1050,32,64  hdd=cdrom
+	ide_core.chs=1.0:1050,32,64  ide_core.cdrom=1.1
 
-either {hda,hdb} or {hdc,hdd}.  The results of successful auto-probing may
-override the physical geometry/irq specified, though the "original" geometry
-may be retained as the "logical" geometry for partitioning purposes (fdisk).
+The results of successful auto-probing may override the physical geometry/irq
+specified, though the "original" geometry may be retained as the "logical"
+geometry for partitioning purposes (fdisk).
 
 If the auto-probing during boot time confuses a drive (ie. the drive works
 with hd.c but not with ide.c), then an command line option may be specified
@@ -101,7 +100,7 @@ probe/identification sequence.  For example:
 
 	ide_core.noprobe=0.1
 or
-	hdc=768,16,32
+	ide_core.chs=1.0:768,16,32
 	ide_core.noprobe=1.0
 
 Note that when only one IDE device is attached to an interface, it should be
@@ -118,9 +117,9 @@ If for some reason your cdrom drive is *not* found at boot time, you can force
 the probe to look harder by supplying a kernel command line parameter
 via LILO, such as:
 
-	hdc=cdrom	/* hdc = "master" on second interface */
+	ide_core.cdrom=1.0	/* "master" on second interface (hdc) */
 or
-	hdd=cdrom	/* hdd = "slave" on second interface */
+	ide_core.cdrom=1.1	/* "slave" on second interface (hdd) */
 
 For example, a GW2000 system might have a hard drive on the primary
 interface (/dev/hda) and an IDE cdrom drive on the secondary interface
@@ -182,12 +181,6 @@ driver using the "options=" keyword to insmod, while replacing any ',' with
 Summary of ide driver parameters for kernel command line
 --------------------------------------------------------
 
- "hdx="  is recognized for all "x" from "a" to "u", such as "hdc".
-
- "hdx=cdrom"		: drive is present, and is a cdrom drive
-
- "hdx=cyl,head,sect"	: disk drive is present, with specified geometry
-
  "ide=doubler"		: probe/support IDE doublers on Amiga
 
 There may be more options than shown -- use the source, Luke!
@@ -229,6 +222,10 @@ Other kernel parameters for ide_core are:
 * "noprobe=[interface_number.device_number]" to skip probing
 
 * "nowerr=[interface_number.device_number]" to ignore the WRERR_STAT bit
+
+* "cdrom=[interface_number.device_number]" to force device as a CD-ROM
+
+* "chs=[interface_number.device_number]" to force device as a disk (using CHS)
 
 ================================================================================
 
