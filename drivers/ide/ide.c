@@ -94,12 +94,6 @@ DEFINE_MUTEX(ide_cfg_mtx);
 
 int noautodma = 0;
 
-#ifdef CONFIG_BLK_DEV_IDEACPI
-int ide_noacpi = 0;
-int ide_noacpitfs = 1;
-int ide_noacpionboot = 1;
-#endif
-
 ide_hwif_t ide_hwifs[MAX_HWIFS];	/* master data repository */
 
 static void ide_port_init_devices_data(ide_hwif_t *);
@@ -880,17 +874,17 @@ static int __init ide_setup(char *s)
 	if (!strcmp(s, "ide=noacpi")) {
 		//printk(" : Disable IDE ACPI support.\n");
 		ide_noacpi = 1;
-		return 1;
+		goto obsolete_option;
 	}
 	if (!strcmp(s, "ide=acpigtf")) {
 		//printk(" : Enable IDE ACPI _GTF support.\n");
-		ide_noacpitfs = 0;
-		return 1;
+		ide_acpigtf = 1;
+		goto obsolete_option;
 	}
 	if (!strcmp(s, "ide=acpionboot")) {
 		//printk(" : Call IDE ACPI methods on boot.\n");
-		ide_noacpionboot = 0;
-		return 1;
+		ide_acpionboot = 1;
+		goto obsolete_option;
 	}
 #endif /* CONFIG_BLK_DEV_IDEACPI */
 

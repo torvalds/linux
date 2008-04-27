@@ -60,9 +60,17 @@ struct ide_acpi_hwif_link {
 #define DEBPRINT(fmt, args...)	do {} while (0)
 #endif	/* DEBUGGING */
 
-extern int ide_noacpi;
-extern int ide_noacpitfs;
-extern int ide_noacpionboot;
+int ide_noacpi;
+module_param_named(noacpi, ide_noacpi, bool, 0);
+MODULE_PARM_DESC(noacpi, "disable IDE ACPI support");
+
+int ide_acpigtf;
+module_param_named(acpigtf, ide_acpigtf, bool, 0);
+MODULE_PARM_DESC(acpigtf, "enable IDE ACPI _GTF support");
+
+int ide_acpionboot;
+module_param_named(acpionboot, ide_acpionboot, bool, 0);
+MODULE_PARM_DESC(acpionboot, "call IDE ACPI methods on boot");
 
 static bool ide_noacpi_psx;
 static int no_acpi_psx(const struct dmi_system_id *id)
@@ -376,7 +384,7 @@ static int taskfile_load_raw(ide_drive_t *drive,
 	memcpy(&args.tf_array[7], &gtf->tfa, 7);
 	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
-	if (ide_noacpitfs) {
+	if (!ide_acpigtf) {
 		DEBPRINT("_GTF execution disabled\n");
 		return err;
 	}
@@ -721,7 +729,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 				 drive->name, err);
 	}
 
-	if (ide_noacpionboot) {
+	if (!ide_acpionboot) {
 		DEBPRINT("ACPI methods disabled on boot\n");
 		return;
 	}
