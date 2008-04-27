@@ -190,10 +190,14 @@ void scsi_proc_host_rm(struct Scsi_Host *shost)
  */
 static int proc_print_scsidevice(struct device *dev, void *data)
 {
-	struct scsi_device *sdev = to_scsi_device(dev);
+	struct scsi_device *sdev;
 	struct seq_file *s = data;
 	int i;
 
+	if (!scsi_is_sdev_device(dev))
+		goto out;
+
+	sdev = to_scsi_device(dev);
 	seq_printf(s,
 		"Host: scsi%d Channel: %02d Id: %02d Lun: %02d\n  Vendor: ",
 		sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
@@ -230,6 +234,7 @@ static int proc_print_scsidevice(struct device *dev, void *data)
 	else
 		seq_printf(s, "\n");
 
+out:
 	return 0;
 }
 

@@ -8,7 +8,7 @@
 
 #include "aic79xx_osm.h"
 
-static ahd_reg_parse_entry_t MODE_PTR_parse_table[] = {
+static const ahd_reg_parse_entry_t MODE_PTR_parse_table[] = {
 	{ "SRC_MODE",		0x07, 0x07 },
 	{ "DST_MODE",		0x70, 0x70 }
 };
@@ -20,7 +20,7 @@ ahd_mode_ptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x00, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t INTSTAT_parse_table[] = {
+static const ahd_reg_parse_entry_t INTSTAT_parse_table[] = {
 	{ "SPLTINT",		0x01, 0x01 },
 	{ "CMDCMPLT",		0x02, 0x02 },
 	{ "SEQINT",		0x04, 0x04 },
@@ -39,7 +39,7 @@ ahd_intstat_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x01, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SEQINTCODE_parse_table[] = {
+static const ahd_reg_parse_entry_t SEQINTCODE_parse_table[] = {
 	{ "NO_SEQINT",		0x00, 0xff },
 	{ "BAD_PHASE",		0x01, 0xff },
 	{ "SEND_REJECT",	0x02, 0xff },
@@ -76,7 +76,7 @@ ahd_seqintcode_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x02, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CLRINT_parse_table[] = {
+static const ahd_reg_parse_entry_t CLRINT_parse_table[] = {
 	{ "CLRSPLTINT",		0x01, 0x01 },
 	{ "CLRCMDINT",		0x02, 0x02 },
 	{ "CLRSEQINT",		0x04, 0x04 },
@@ -94,7 +94,7 @@ ahd_clrint_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x03, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t ERROR_parse_table[] = {
+static const ahd_reg_parse_entry_t ERROR_parse_table[] = {
 	{ "DSCTMOUT",		0x02, 0x02 },
 	{ "ILLOPCODE",		0x04, 0x04 },
 	{ "SQPARERR",		0x08, 0x08 },
@@ -111,24 +111,7 @@ ahd_error_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x04, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CLRERR_parse_table[] = {
-	{ "CLRDSCTMOUT",	0x02, 0x02 },
-	{ "CLRILLOPCODE",	0x04, 0x04 },
-	{ "CLRSQPARERR",	0x08, 0x08 },
-	{ "CLRDPARERR",		0x10, 0x10 },
-	{ "CLRMPARERR",		0x20, 0x20 },
-	{ "CLRCIOACCESFAIL",	0x40, 0x40 },
-	{ "CLRCIOPARERR",	0x80, 0x80 }
-};
-
-int
-ahd_clrerr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CLRERR_parse_table, 7, "CLRERR",
-	    0x04, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t HCNTRL_parse_table[] = {
+static const ahd_reg_parse_entry_t HCNTRL_parse_table[] = {
 	{ "CHIPRST",		0x01, 0x01 },
 	{ "CHIPRSTACK",		0x01, 0x01 },
 	{ "INTEN",		0x02, 0x02 },
@@ -160,7 +143,7 @@ ahd_hescb_qoff_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x08, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t HS_MAILBOX_parse_table[] = {
+static const ahd_reg_parse_entry_t HS_MAILBOX_parse_table[] = {
 	{ "ENINT_COALESCE",	0x40, 0x40 },
 	{ "HOST_TQINPOS",	0x80, 0x80 }
 };
@@ -172,7 +155,7 @@ ahd_hs_mailbox_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x0b, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SEQINTSTAT_parse_table[] = {
+static const ahd_reg_parse_entry_t SEQINTSTAT_parse_table[] = {
 	{ "SEQ_SPLTINT",	0x01, 0x01 },
 	{ "SEQ_PCIINT",		0x02, 0x02 },
 	{ "SEQ_SCSIINT",	0x04, 0x04 },
@@ -187,7 +170,7 @@ ahd_seqintstat_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x0c, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CLRSEQINTSTAT_parse_table[] = {
+static const ahd_reg_parse_entry_t CLRSEQINTSTAT_parse_table[] = {
 	{ "CLRSEQ_SPLTINT",	0x01, 0x01 },
 	{ "CLRSEQ_PCIINT",	0x02, 0x02 },
 	{ "CLRSEQ_SCSIINT",	0x04, 0x04 },
@@ -230,7 +213,7 @@ ahd_sdscb_qoff_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x14, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t QOFF_CTLSTA_parse_table[] = {
+static const ahd_reg_parse_entry_t QOFF_CTLSTA_parse_table[] = {
 	{ "SCB_QSIZE_4",	0x00, 0x0f },
 	{ "SCB_QSIZE_8",	0x01, 0x0f },
 	{ "SCB_QSIZE_16",	0x02, 0x0f },
@@ -258,7 +241,7 @@ ahd_qoff_ctlsta_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x16, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t INTCTL_parse_table[] = {
+static const ahd_reg_parse_entry_t INTCTL_parse_table[] = {
 	{ "SPLTINTEN",		0x01, 0x01 },
 	{ "SEQINTEN",		0x02, 0x02 },
 	{ "SCSIINTEN",		0x04, 0x04 },
@@ -276,7 +259,7 @@ ahd_intctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x18, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t DFCNTRL_parse_table[] = {
+static const ahd_reg_parse_entry_t DFCNTRL_parse_table[] = {
 	{ "DIRECTIONEN",	0x01, 0x01 },
 	{ "FIFOFLUSH",		0x02, 0x02 },
 	{ "FIFOFLUSHACK",	0x02, 0x02 },
@@ -297,7 +280,7 @@ ahd_dfcntrl_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x19, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t DSCOMMAND0_parse_table[] = {
+static const ahd_reg_parse_entry_t DSCOMMAND0_parse_table[] = {
 	{ "CIOPARCKEN",		0x01, 0x01 },
 	{ "DISABLE_TWATE",	0x02, 0x02 },
 	{ "EXTREQLCK",		0x10, 0x10 },
@@ -313,7 +296,7 @@ ahd_dscommand0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x19, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t DFSTATUS_parse_table[] = {
+static const ahd_reg_parse_entry_t DFSTATUS_parse_table[] = {
 	{ "FIFOEMP",		0x01, 0x01 },
 	{ "FIFOFULL",		0x02, 0x02 },
 	{ "DFTHRESH",		0x04, 0x04 },
@@ -330,7 +313,7 @@ ahd_dfstatus_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x1a, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SG_CACHE_SHADOW_parse_table[] = {
+static const ahd_reg_parse_entry_t SG_CACHE_SHADOW_parse_table[] = {
 	{ "LAST_SEG_DONE",	0x01, 0x01 },
 	{ "LAST_SEG",		0x02, 0x02 },
 	{ "ODD_SEG",		0x04, 0x04 },
@@ -344,20 +327,7 @@ ahd_sg_cache_shadow_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x1b, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t ARBCTL_parse_table[] = {
-	{ "USE_TIME",		0x07, 0x07 },
-	{ "RETRY_SWEN",		0x08, 0x08 },
-	{ "RESET_HARB",		0x80, 0x80 }
-};
-
-int
-ahd_arbctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(ARBCTL_parse_table, 3, "ARBCTL",
-	    0x1b, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SG_CACHE_PRE_parse_table[] = {
+static const ahd_reg_parse_entry_t SG_CACHE_PRE_parse_table[] = {
 	{ "LAST_SEG",		0x02, 0x02 },
 	{ "ODD_SEG",		0x04, 0x04 },
 	{ "SG_ADDR_MASK",	0xf8, 0xf8 }
@@ -378,38 +348,10 @@ ahd_lqin_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_typeptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "TYPEPTR",
-	    0x20, regvalue, cur_col, wrap));
-}
-
-int
-ahd_tagptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "TAGPTR",
-	    0x21, regvalue, cur_col, wrap));
-}
-
-int
 ahd_lunptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "LUNPTR",
 	    0x22, regvalue, cur_col, wrap));
-}
-
-int
-ahd_datalenptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DATALENPTR",
-	    0x23, regvalue, cur_col, wrap));
-}
-
-int
-ahd_statlenptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "STATLENPTR",
-	    0x24, regvalue, cur_col, wrap));
 }
 
 int
@@ -448,13 +390,6 @@ ahd_qnextptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_idptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "IDPTR",
-	    0x2a, regvalue, cur_col, wrap));
-}
-
-int
 ahd_abrtbyteptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "ABRTBYTEPTR",
@@ -468,28 +403,7 @@ ahd_abrtbitptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x2c, regvalue, cur_col, wrap));
 }
 
-int
-ahd_maxcmdbytes_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "MAXCMDBYTES",
-	    0x2d, regvalue, cur_col, wrap));
-}
-
-int
-ahd_maxcmd2rcv_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "MAXCMD2RCV",
-	    0x2e, regvalue, cur_col, wrap));
-}
-
-int
-ahd_shortthresh_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "SHORTTHRESH",
-	    0x2f, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t LUNLEN_parse_table[] = {
+static const ahd_reg_parse_entry_t LUNLEN_parse_table[] = {
 	{ "ILUNLEN",		0x0f, 0x0f },
 	{ "TLUNLEN",		0xf0, 0xf0 }
 };
@@ -522,49 +436,7 @@ ahd_maxcmdcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x33, regvalue, cur_col, wrap));
 }
 
-int
-ahd_lqrsvd01_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "LQRSVD01",
-	    0x34, regvalue, cur_col, wrap));
-}
-
-int
-ahd_lqrsvd16_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "LQRSVD16",
-	    0x35, regvalue, cur_col, wrap));
-}
-
-int
-ahd_lqrsvd17_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "LQRSVD17",
-	    0x36, regvalue, cur_col, wrap));
-}
-
-int
-ahd_cmdrsvd0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "CMDRSVD0",
-	    0x37, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t LQCTL0_parse_table[] = {
-	{ "LQ0INITGCLT",	0x03, 0x03 },
-	{ "LQ0TARGCLT",		0x0c, 0x0c },
-	{ "LQIINITGCLT",	0x30, 0x30 },
-	{ "LQITARGCLT",		0xc0, 0xc0 }
-};
-
-int
-ahd_lqctl0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(LQCTL0_parse_table, 4, "LQCTL0",
-	    0x38, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t LQCTL1_parse_table[] = {
+static const ahd_reg_parse_entry_t LQCTL1_parse_table[] = {
 	{ "ABORTPENDING",	0x01, 0x01 },
 	{ "SINGLECMD",		0x02, 0x02 },
 	{ "PCI2PCI",		0x04, 0x04 }
@@ -577,23 +449,7 @@ ahd_lqctl1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x38, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCSBIST0_parse_table[] = {
-	{ "OSBISTRUN",		0x01, 0x01 },
-	{ "OSBISTDONE",		0x02, 0x02 },
-	{ "OSBISTERR",		0x04, 0x04 },
-	{ "GSBISTRUN",		0x10, 0x10 },
-	{ "GSBISTDONE",		0x20, 0x20 },
-	{ "GSBISTERR",		0x40, 0x40 }
-};
-
-int
-ahd_scsbist0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SCSBIST0_parse_table, 6, "SCSBIST0",
-	    0x39, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t LQCTL2_parse_table[] = {
+static const ahd_reg_parse_entry_t LQCTL2_parse_table[] = {
 	{ "LQOPAUSE",		0x01, 0x01 },
 	{ "LQOTOIDLE",		0x02, 0x02 },
 	{ "LQOCONTINUE",	0x04, 0x04 },
@@ -611,20 +467,7 @@ ahd_lqctl2_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x39, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCSBIST1_parse_table[] = {
-	{ "NTBISTRUN",		0x01, 0x01 },
-	{ "NTBISTDONE",		0x02, 0x02 },
-	{ "NTBISTERR",		0x04, 0x04 }
-};
-
-int
-ahd_scsbist1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SCSBIST1_parse_table, 3, "SCSBIST1",
-	    0x3a, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SCSISEQ0_parse_table[] = {
+static const ahd_reg_parse_entry_t SCSISEQ0_parse_table[] = {
 	{ "SCSIRSTO",		0x01, 0x01 },
 	{ "FORCEBUSFREE",	0x10, 0x10 },
 	{ "ENARBO",		0x20, 0x20 },
@@ -639,7 +482,7 @@ ahd_scsiseq0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x3a, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCSISEQ1_parse_table[] = {
+static const ahd_reg_parse_entry_t SCSISEQ1_parse_table[] = {
 	{ "ALTSTIM",		0x01, 0x01 },
 	{ "ENAUTOATNP",		0x02, 0x02 },
 	{ "MANUALP",		0x0c, 0x0c },
@@ -655,7 +498,7 @@ ahd_scsiseq1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x3b, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SXFRCTL0_parse_table[] = {
+static const ahd_reg_parse_entry_t SXFRCTL0_parse_table[] = {
 	{ "SPIOEN",		0x08, 0x08 },
 	{ "BIOSCANCELEN",	0x10, 0x10 },
 	{ "DFPEXP",		0x40, 0x40 },
@@ -669,21 +512,7 @@ ahd_sxfrctl0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x3c, regvalue, cur_col, wrap));
 }
 
-int
-ahd_dlcount_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DLCOUNT",
-	    0x3c, regvalue, cur_col, wrap));
-}
-
-int
-ahd_businitid_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "BUSINITID",
-	    0x3c, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SXFRCTL1_parse_table[] = {
+static const ahd_reg_parse_entry_t SXFRCTL1_parse_table[] = {
 	{ "STPWEN",		0x01, 0x01 },
 	{ "ACTNEGEN",		0x02, 0x02 },
 	{ "ENSTIMER",		0x04, 0x04 },
@@ -700,27 +529,7 @@ ahd_sxfrctl1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x3d, regvalue, cur_col, wrap));
 }
 
-int
-ahd_bustargid_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "BUSTARGID",
-	    0x3e, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SXFRCTL2_parse_table[] = {
-	{ "ASU",		0x07, 0x07 },
-	{ "CMDDMAEN",		0x08, 0x08 },
-	{ "AUTORSTDIS",		0x10, 0x10 }
-};
-
-int
-ahd_sxfrctl2_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SXFRCTL2_parse_table, 3, "SXFRCTL2",
-	    0x3e, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DFFSTAT_parse_table[] = {
+static const ahd_reg_parse_entry_t DFFSTAT_parse_table[] = {
 	{ "CURRFIFO_0",		0x00, 0x03 },
 	{ "CURRFIFO_1",		0x01, 0x03 },
 	{ "CURRFIFO_NONE",	0x03, 0x03 },
@@ -736,7 +545,14 @@ ahd_dffstat_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x3f, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCSISIGO_parse_table[] = {
+int
+ahd_multargid_print(u_int regvalue, u_int *cur_col, u_int wrap)
+{
+	return (ahd_print_register(NULL, 0, "MULTARGID",
+	    0x40, regvalue, cur_col, wrap));
+}
+
+static const ahd_reg_parse_entry_t SCSISIGO_parse_table[] = {
 	{ "P_DATAOUT",		0x00, 0xe0 },
 	{ "P_DATAOUT_DT",	0x20, 0xe0 },
 	{ "P_DATAIN",		0x40, 0xe0 },
@@ -763,14 +579,7 @@ ahd_scsisigo_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x40, regvalue, cur_col, wrap));
 }
 
-int
-ahd_multargid_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "MULTARGID",
-	    0x40, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SCSISIGI_parse_table[] = {
+static const ahd_reg_parse_entry_t SCSISIGI_parse_table[] = {
 	{ "P_DATAOUT",		0x00, 0xe0 },
 	{ "P_DATAOUT_DT",	0x20, 0xe0 },
 	{ "P_DATAIN",		0x40, 0xe0 },
@@ -797,7 +606,7 @@ ahd_scsisigi_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x41, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCSIPHASE_parse_table[] = {
+static const ahd_reg_parse_entry_t SCSIPHASE_parse_table[] = {
 	{ "DATA_OUT_PHASE",	0x01, 0x03 },
 	{ "DATA_IN_PHASE",	0x02, 0x03 },
 	{ "DATA_PHASE_MASK",	0x03, 0x03 },
@@ -815,13 +624,6 @@ ahd_scsiphase_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_scsidat0_img_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "SCSIDAT0_IMG",
-	    0x43, regvalue, cur_col, wrap));
-}
-
-int
 ahd_scsidat_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "SCSIDAT",
@@ -835,7 +637,7 @@ ahd_scsibus_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x46, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t TARGIDIN_parse_table[] = {
+static const ahd_reg_parse_entry_t TARGIDIN_parse_table[] = {
 	{ "TARGID",		0x0f, 0x0f },
 	{ "CLKOUT",		0x80, 0x80 }
 };
@@ -847,7 +649,7 @@ ahd_targidin_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x48, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SELID_parse_table[] = {
+static const ahd_reg_parse_entry_t SELID_parse_table[] = {
 	{ "ONEBIT",		0x08, 0x08 },
 	{ "SELID_MASK",		0xf0, 0xf0 }
 };
@@ -859,7 +661,7 @@ ahd_selid_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x49, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t OPTIONMODE_parse_table[] = {
+static const ahd_reg_parse_entry_t OPTIONMODE_parse_table[] = {
 	{ "AUTO_MSGOUT_DE",	0x02, 0x02 },
 	{ "ENDGFORMCHK",	0x04, 0x04 },
 	{ "BUSFREEREV",		0x10, 0x10 },
@@ -876,7 +678,7 @@ ahd_optionmode_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x4a, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SBLKCTL_parse_table[] = {
+static const ahd_reg_parse_entry_t SBLKCTL_parse_table[] = {
 	{ "SELWIDE",		0x02, 0x02 },
 	{ "ENAB20",		0x04, 0x04 },
 	{ "ENAB40",		0x08, 0x08 },
@@ -891,24 +693,7 @@ ahd_sblkctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x4a, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CLRSINT0_parse_table[] = {
-	{ "CLRARBDO",		0x01, 0x01 },
-	{ "CLRSPIORDY",		0x02, 0x02 },
-	{ "CLROVERRUN",		0x04, 0x04 },
-	{ "CLRIOERR",		0x08, 0x08 },
-	{ "CLRSELINGO",		0x10, 0x10 },
-	{ "CLRSELDI",		0x20, 0x20 },
-	{ "CLRSELDO",		0x40, 0x40 }
-};
-
-int
-ahd_clrsint0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CLRSINT0_parse_table, 7, "CLRSINT0",
-	    0x4b, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SSTAT0_parse_table[] = {
+static const ahd_reg_parse_entry_t SSTAT0_parse_table[] = {
 	{ "ARBDO",		0x01, 0x01 },
 	{ "SPIORDY",		0x02, 0x02 },
 	{ "OVERRUN",		0x04, 0x04 },
@@ -926,7 +711,7 @@ ahd_sstat0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x4b, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SIMODE0_parse_table[] = {
+static const ahd_reg_parse_entry_t SIMODE0_parse_table[] = {
 	{ "ENARBDO",		0x01, 0x01 },
 	{ "ENSPIORDY",		0x02, 0x02 },
 	{ "ENOVERRUN",		0x04, 0x04 },
@@ -943,24 +728,24 @@ ahd_simode0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x4b, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CLRSINT1_parse_table[] = {
-	{ "CLRREQINIT",		0x01, 0x01 },
-	{ "CLRSTRB2FAST",	0x02, 0x02 },
-	{ "CLRSCSIPERR",	0x04, 0x04 },
-	{ "CLRBUSFREE",		0x08, 0x08 },
-	{ "CLRSCSIRSTI",	0x20, 0x20 },
-	{ "CLRATNO",		0x40, 0x40 },
-	{ "CLRSELTIMEO",	0x80, 0x80 }
+static const ahd_reg_parse_entry_t CLRSINT0_parse_table[] = {
+	{ "CLRARBDO",		0x01, 0x01 },
+	{ "CLRSPIORDY",		0x02, 0x02 },
+	{ "CLROVERRUN",		0x04, 0x04 },
+	{ "CLRIOERR",		0x08, 0x08 },
+	{ "CLRSELINGO",		0x10, 0x10 },
+	{ "CLRSELDI",		0x20, 0x20 },
+	{ "CLRSELDO",		0x40, 0x40 }
 };
 
 int
-ahd_clrsint1_print(u_int regvalue, u_int *cur_col, u_int wrap)
+ahd_clrsint0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
-	return (ahd_print_register(CLRSINT1_parse_table, 7, "CLRSINT1",
-	    0x4c, regvalue, cur_col, wrap));
+	return (ahd_print_register(CLRSINT0_parse_table, 7, "CLRSINT0",
+	    0x4b, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SSTAT1_parse_table[] = {
+static const ahd_reg_parse_entry_t SSTAT1_parse_table[] = {
 	{ "REQINIT",		0x01, 0x01 },
 	{ "STRB2FAST",		0x02, 0x02 },
 	{ "SCSIPERR",		0x04, 0x04 },
@@ -978,7 +763,24 @@ ahd_sstat1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x4c, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SSTAT2_parse_table[] = {
+static const ahd_reg_parse_entry_t CLRSINT1_parse_table[] = {
+	{ "CLRREQINIT",		0x01, 0x01 },
+	{ "CLRSTRB2FAST",	0x02, 0x02 },
+	{ "CLRSCSIPERR",	0x04, 0x04 },
+	{ "CLRBUSFREE",		0x08, 0x08 },
+	{ "CLRSCSIRSTI",	0x20, 0x20 },
+	{ "CLRATNO",		0x40, 0x40 },
+	{ "CLRSELTIMEO",	0x80, 0x80 }
+};
+
+int
+ahd_clrsint1_print(u_int regvalue, u_int *cur_col, u_int wrap)
+{
+	return (ahd_print_register(CLRSINT1_parse_table, 7, "CLRSINT1",
+	    0x4c, regvalue, cur_col, wrap));
+}
+
+static const ahd_reg_parse_entry_t SSTAT2_parse_table[] = {
 	{ "BUSFREE_LQO",	0x40, 0xc0 },
 	{ "BUSFREE_DFF0",	0x80, 0xc0 },
 	{ "BUSFREE_DFF1",	0xc0, 0xc0 },
@@ -998,20 +800,7 @@ ahd_sstat2_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x4d, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SIMODE2_parse_table[] = {
-	{ "ENDMADONE",		0x01, 0x01 },
-	{ "ENSDONE",		0x02, 0x02 },
-	{ "ENWIDE_RES",		0x04, 0x04 }
-};
-
-int
-ahd_simode2_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SIMODE2_parse_table, 3, "SIMODE2",
-	    0x4d, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t CLRSINT2_parse_table[] = {
+static const ahd_reg_parse_entry_t CLRSINT2_parse_table[] = {
 	{ "CLRDMADONE",		0x01, 0x01 },
 	{ "CLRSDONE",		0x02, 0x02 },
 	{ "CLRWIDE_RES",	0x04, 0x04 },
@@ -1025,7 +814,7 @@ ahd_clrsint2_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x4d, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t PERRDIAG_parse_table[] = {
+static const ahd_reg_parse_entry_t PERRDIAG_parse_table[] = {
 	{ "DTERR",		0x01, 0x01 },
 	{ "DGFORMERR",		0x02, 0x02 },
 	{ "CRCERR",		0x04, 0x04 },
@@ -1064,7 +853,7 @@ ahd_lqostate_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x4f, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t LQISTAT0_parse_table[] = {
+static const ahd_reg_parse_entry_t LQISTAT0_parse_table[] = {
 	{ "LQIATNCMD",		0x01, 0x01 },
 	{ "LQIATNLQ",		0x02, 0x02 },
 	{ "LQIBADLQT",		0x04, 0x04 },
@@ -1080,23 +869,7 @@ ahd_lqistat0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x50, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CLRLQIINT0_parse_table[] = {
-	{ "CLRLQIATNCMD",	0x01, 0x01 },
-	{ "CLRLQIATNLQ",	0x02, 0x02 },
-	{ "CLRLQIBADLQT",	0x04, 0x04 },
-	{ "CLRLQICRCT2",	0x08, 0x08 },
-	{ "CLRLQICRCT1",	0x10, 0x10 },
-	{ "CLRLQIATNQAS",	0x20, 0x20 }
-};
-
-int
-ahd_clrlqiint0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CLRLQIINT0_parse_table, 6, "CLRLQIINT0",
-	    0x50, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t LQIMODE0_parse_table[] = {
+static const ahd_reg_parse_entry_t LQIMODE0_parse_table[] = {
 	{ "ENLQIATNCMD",	0x01, 0x01 },
 	{ "ENLQIATNLQ",		0x02, 0x02 },
 	{ "ENLQIBADLQT",	0x04, 0x04 },
@@ -1112,7 +885,23 @@ ahd_lqimode0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x50, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t LQIMODE1_parse_table[] = {
+static const ahd_reg_parse_entry_t CLRLQIINT0_parse_table[] = {
+	{ "CLRLQIATNCMD",	0x01, 0x01 },
+	{ "CLRLQIATNLQ",	0x02, 0x02 },
+	{ "CLRLQIBADLQT",	0x04, 0x04 },
+	{ "CLRLQICRCT2",	0x08, 0x08 },
+	{ "CLRLQICRCT1",	0x10, 0x10 },
+	{ "CLRLQIATNQAS",	0x20, 0x20 }
+};
+
+int
+ahd_clrlqiint0_print(u_int regvalue, u_int *cur_col, u_int wrap)
+{
+	return (ahd_print_register(CLRLQIINT0_parse_table, 6, "CLRLQIINT0",
+	    0x50, regvalue, cur_col, wrap));
+}
+
+static const ahd_reg_parse_entry_t LQIMODE1_parse_table[] = {
 	{ "ENLQIOVERI_NLQ",	0x01, 0x01 },
 	{ "ENLQIOVERI_LQ",	0x02, 0x02 },
 	{ "ENLQIBADLQI",	0x04, 0x04 },
@@ -1130,7 +919,7 @@ ahd_lqimode1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x51, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t LQISTAT1_parse_table[] = {
+static const ahd_reg_parse_entry_t LQISTAT1_parse_table[] = {
 	{ "LQIOVERI_NLQ",	0x01, 0x01 },
 	{ "LQIOVERI_LQ",	0x02, 0x02 },
 	{ "LQIBADLQI",		0x04, 0x04 },
@@ -1148,7 +937,7 @@ ahd_lqistat1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x51, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CLRLQIINT1_parse_table[] = {
+static const ahd_reg_parse_entry_t CLRLQIINT1_parse_table[] = {
 	{ "CLRLQIOVERI_NLQ",	0x01, 0x01 },
 	{ "CLRLQIOVERI_LQ",	0x02, 0x02 },
 	{ "CLRLQIBADLQI",	0x04, 0x04 },
@@ -1166,7 +955,7 @@ ahd_clrlqiint1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x51, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t LQISTAT2_parse_table[] = {
+static const ahd_reg_parse_entry_t LQISTAT2_parse_table[] = {
 	{ "LQIGSAVAIL",		0x01, 0x01 },
 	{ "LQISTOPCMD",		0x02, 0x02 },
 	{ "LQISTOPLQ",		0x04, 0x04 },
@@ -1184,7 +973,7 @@ ahd_lqistat2_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x52, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SSTAT3_parse_table[] = {
+static const ahd_reg_parse_entry_t SSTAT3_parse_table[] = {
 	{ "OSRAMPERR",		0x01, 0x01 },
 	{ "NTRAMPERR",		0x02, 0x02 }
 };
@@ -1196,7 +985,7 @@ ahd_sstat3_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x53, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SIMODE3_parse_table[] = {
+static const ahd_reg_parse_entry_t SIMODE3_parse_table[] = {
 	{ "ENOSRAMPERR",	0x01, 0x01 },
 	{ "ENNTRAMPERR",	0x02, 0x02 }
 };
@@ -1208,7 +997,7 @@ ahd_simode3_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x53, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CLRSINT3_parse_table[] = {
+static const ahd_reg_parse_entry_t CLRSINT3_parse_table[] = {
 	{ "CLROSRAMPERR",	0x01, 0x01 },
 	{ "CLRNTRAMPERR",	0x02, 0x02 }
 };
@@ -1220,7 +1009,7 @@ ahd_clrsint3_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x53, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t LQOSTAT0_parse_table[] = {
+static const ahd_reg_parse_entry_t LQOSTAT0_parse_table[] = {
 	{ "LQOTCRC",		0x01, 0x01 },
 	{ "LQOATNPKT",		0x02, 0x02 },
 	{ "LQOATNLQ",		0x04, 0x04 },
@@ -1235,7 +1024,7 @@ ahd_lqostat0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x54, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CLRLQOINT0_parse_table[] = {
+static const ahd_reg_parse_entry_t CLRLQOINT0_parse_table[] = {
 	{ "CLRLQOTCRC",		0x01, 0x01 },
 	{ "CLRLQOATNPKT",	0x02, 0x02 },
 	{ "CLRLQOATNLQ",	0x04, 0x04 },
@@ -1250,7 +1039,7 @@ ahd_clrlqoint0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x54, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t LQOMODE0_parse_table[] = {
+static const ahd_reg_parse_entry_t LQOMODE0_parse_table[] = {
 	{ "ENLQOTCRC",		0x01, 0x01 },
 	{ "ENLQOATNPKT",	0x02, 0x02 },
 	{ "ENLQOATNLQ",		0x04, 0x04 },
@@ -1265,7 +1054,7 @@ ahd_lqomode0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x54, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t LQOMODE1_parse_table[] = {
+static const ahd_reg_parse_entry_t LQOMODE1_parse_table[] = {
 	{ "ENLQOPHACHGINPKT",	0x01, 0x01 },
 	{ "ENLQOBUSFREE",	0x02, 0x02 },
 	{ "ENLQOBADQAS",	0x04, 0x04 },
@@ -1280,7 +1069,7 @@ ahd_lqomode1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x55, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t LQOSTAT1_parse_table[] = {
+static const ahd_reg_parse_entry_t LQOSTAT1_parse_table[] = {
 	{ "LQOPHACHGINPKT",	0x01, 0x01 },
 	{ "LQOBUSFREE",		0x02, 0x02 },
 	{ "LQOBADQAS",		0x04, 0x04 },
@@ -1295,7 +1084,7 @@ ahd_lqostat1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x55, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CLRLQOINT1_parse_table[] = {
+static const ahd_reg_parse_entry_t CLRLQOINT1_parse_table[] = {
 	{ "CLRLQOPHACHGINPKT",	0x01, 0x01 },
 	{ "CLRLQOBUSFREE",	0x02, 0x02 },
 	{ "CLRLQOBADQAS",	0x04, 0x04 },
@@ -1310,7 +1099,7 @@ ahd_clrlqoint1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x55, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t LQOSTAT2_parse_table[] = {
+static const ahd_reg_parse_entry_t LQOSTAT2_parse_table[] = {
 	{ "LQOSTOP0",		0x01, 0x01 },
 	{ "LQOPHACHGOUTPKT",	0x02, 0x02 },
 	{ "LQOWAITFIFO",	0x10, 0x10 },
@@ -1331,7 +1120,7 @@ ahd_os_space_cnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x56, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SIMODE1_parse_table[] = {
+static const ahd_reg_parse_entry_t SIMODE1_parse_table[] = {
 	{ "ENREQINIT",		0x01, 0x01 },
 	{ "ENSTRB2FAST",	0x02, 0x02 },
 	{ "ENSCSIPERR",		0x04, 0x04 },
@@ -1356,7 +1145,7 @@ ahd_gsfifo_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x58, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t DFFSXFRCTL_parse_table[] = {
+static const ahd_reg_parse_entry_t DFFSXFRCTL_parse_table[] = {
 	{ "RSTCHN",		0x01, 0x01 },
 	{ "CLRCHN",		0x02, 0x02 },
 	{ "CLRSHCNT",		0x04, 0x04 },
@@ -1370,15 +1159,17 @@ ahd_dffsxfrctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x5a, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t LQOSCSCTL_parse_table[] = {
+static const ahd_reg_parse_entry_t LQOSCSCTL_parse_table[] = {
 	{ "LQONOCHKOVER",	0x01, 0x01 },
+	{ "LQONOHOLDLACK",	0x02, 0x02 },
+	{ "LQOBUSETDLY",	0x40, 0x40 },
 	{ "LQOH2A_VERSION",	0x80, 0x80 }
 };
 
 int
 ahd_lqoscsctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
-	return (ahd_print_register(LQOSCSCTL_parse_table, 2, "LQOSCSCTL",
+	return (ahd_print_register(LQOSCSCTL_parse_table, 4, "LQOSCSCTL",
 	    0x5a, regvalue, cur_col, wrap));
 }
 
@@ -1389,7 +1180,7 @@ ahd_nextscb_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x5a, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CLRSEQINTSRC_parse_table[] = {
+static const ahd_reg_parse_entry_t CLRSEQINTSRC_parse_table[] = {
 	{ "CLRCFG4TCMD",	0x01, 0x01 },
 	{ "CLRCFG4ICMD",	0x02, 0x02 },
 	{ "CLRCFG4TSTAT",	0x04, 0x04 },
@@ -1406,7 +1197,7 @@ ahd_clrseqintsrc_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x5b, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SEQINTSRC_parse_table[] = {
+static const ahd_reg_parse_entry_t SEQINTSRC_parse_table[] = {
 	{ "CFG4TCMD",		0x01, 0x01 },
 	{ "CFG4ICMD",		0x02, 0x02 },
 	{ "CFG4TSTAT",		0x04, 0x04 },
@@ -1423,14 +1214,7 @@ ahd_seqintsrc_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x5b, regvalue, cur_col, wrap));
 }
 
-int
-ahd_currscb_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "CURRSCB",
-	    0x5c, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SEQIMODE_parse_table[] = {
+static const ahd_reg_parse_entry_t SEQIMODE_parse_table[] = {
 	{ "ENCFG4TCMD",		0x01, 0x01 },
 	{ "ENCFG4ICMD",		0x02, 0x02 },
 	{ "ENCFG4TSTAT",	0x04, 0x04 },
@@ -1447,7 +1231,14 @@ ahd_seqimode_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x5c, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t MDFFSTAT_parse_table[] = {
+int
+ahd_currscb_print(u_int regvalue, u_int *cur_col, u_int wrap)
+{
+	return (ahd_print_register(NULL, 0, "CURRSCB",
+	    0x5c, regvalue, cur_col, wrap));
+}
+
+static const ahd_reg_parse_entry_t MDFFSTAT_parse_table[] = {
 	{ "FIFOFREE",		0x01, 0x01 },
 	{ "DATAINFIFO",		0x02, 0x02 },
 	{ "DLZERO",		0x04, 0x04 },
@@ -1464,54 +1255,11 @@ ahd_mdffstat_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x5d, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CRCCONTROL_parse_table[] = {
-	{ "CRCVALCHKEN",	0x40, 0x40 }
-};
-
-int
-ahd_crccontrol_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CRCCONTROL_parse_table, 1, "CRCCONTROL",
-	    0x5d, regvalue, cur_col, wrap));
-}
-
-int
-ahd_dfftag_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DFFTAG",
-	    0x5e, regvalue, cur_col, wrap));
-}
-
 int
 ahd_lastscb_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "LASTSCB",
 	    0x5e, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SCSITEST_parse_table[] = {
-	{ "SEL_TXPLL_DEBUG",	0x04, 0x04 },
-	{ "CNTRTEST",		0x08, 0x08 }
-};
-
-int
-ahd_scsitest_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SCSITEST_parse_table, 2, "SCSITEST",
-	    0x5e, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t IOPDNCTL_parse_table[] = {
-	{ "PDN_DIFFSENSE",	0x01, 0x01 },
-	{ "PDN_IDIST",		0x04, 0x04 },
-	{ "DISABLE_OE",		0x80, 0x80 }
-};
-
-int
-ahd_iopdnctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(IOPDNCTL_parse_table, 3, "IOPDNCTL",
-	    0x5f, regvalue, cur_col, wrap));
 }
 
 int
@@ -1529,24 +1277,10 @@ ahd_negoaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_dgrpcrci_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DGRPCRCI",
-	    0x60, regvalue, cur_col, wrap));
-}
-
-int
 ahd_negperiod_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "NEGPERIOD",
 	    0x61, regvalue, cur_col, wrap));
-}
-
-int
-ahd_packcrci_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "PACKCRCI",
-	    0x62, regvalue, cur_col, wrap));
 }
 
 int
@@ -1556,7 +1290,7 @@ ahd_negoffset_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x62, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t NEGPPROPTS_parse_table[] = {
+static const ahd_reg_parse_entry_t NEGPPROPTS_parse_table[] = {
 	{ "PPROPT_IUT",		0x01, 0x01 },
 	{ "PPROPT_DT",		0x02, 0x02 },
 	{ "PPROPT_QAS",		0x04, 0x04 },
@@ -1570,7 +1304,7 @@ ahd_negppropts_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x63, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t NEGCONOPTS_parse_table[] = {
+static const ahd_reg_parse_entry_t NEGCONOPTS_parse_table[] = {
 	{ "WIDEXFER",		0x01, 0x01 },
 	{ "ENAUTOATNO",		0x02, 0x02 },
 	{ "ENAUTOATNI",		0x04, 0x04 },
@@ -1601,20 +1335,21 @@ ahd_annexdat_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x66, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCSCHKN_parse_table[] = {
+static const ahd_reg_parse_entry_t SCSCHKN_parse_table[] = {
 	{ "LSTSGCLRDIS",	0x01, 0x01 },
 	{ "SHVALIDSTDIS",	0x02, 0x02 },
 	{ "DFFACTCLR",		0x04, 0x04 },
 	{ "SDONEMSKDIS",	0x08, 0x08 },
 	{ "WIDERESEN",		0x10, 0x10 },
 	{ "CURRFIFODEF",	0x20, 0x20 },
-	{ "STSELSKIDDIS",	0x40, 0x40 }
+	{ "STSELSKIDDIS",	0x40, 0x40 },
+	{ "BIDICHKDIS",		0x80, 0x80 }
 };
 
 int
 ahd_scschkn_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
-	return (ahd_print_register(SCSCHKN_parse_table, 7, "SCSCHKN",
+	return (ahd_print_register(SCSCHKN_parse_table, 8, "SCSCHKN",
 	    0x66, regvalue, cur_col, wrap));
 }
 
@@ -1623,23 +1358,6 @@ ahd_iownid_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "IOWNID",
 	    0x67, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t PLL960CTL0_parse_table[] = {
-	{ "PLL_ENFBM",		0x01, 0x01 },
-	{ "PLL_DLPF",		0x02, 0x02 },
-	{ "PLL_ENLPF",		0x04, 0x04 },
-	{ "PLL_ENLUD",		0x08, 0x08 },
-	{ "PLL_NS",		0x30, 0x30 },
-	{ "PLL_PWDN",		0x40, 0x40 },
-	{ "PLL_VCOSEL",		0x80, 0x80 }
-};
-
-int
-ahd_pll960ctl0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(PLL960CTL0_parse_table, 7, "PLL960CTL0",
-	    0x68, regvalue, cur_col, wrap));
 }
 
 int
@@ -1656,33 +1374,6 @@ ahd_townid_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x69, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t PLL960CTL1_parse_table[] = {
-	{ "PLL_RST",		0x01, 0x01 },
-	{ "PLL_CNTCLR",		0x40, 0x40 },
-	{ "PLL_CNTEN",		0x80, 0x80 }
-};
-
-int
-ahd_pll960ctl1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(PLL960CTL1_parse_table, 3, "PLL960CTL1",
-	    0x69, regvalue, cur_col, wrap));
-}
-
-int
-ahd_pll960cnt0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "PLL960CNT0",
-	    0x6a, regvalue, cur_col, wrap));
-}
-
-int
-ahd_xsig_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "XSIG",
-	    0x6a, regvalue, cur_col, wrap));
-}
-
 int
 ahd_seloid_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
@@ -1690,87 +1381,11 @@ ahd_seloid_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x6b, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t PLL400CTL0_parse_table[] = {
-	{ "PLL_ENFBM",		0x01, 0x01 },
-	{ "PLL_DLPF",		0x02, 0x02 },
-	{ "PLL_ENLPF",		0x04, 0x04 },
-	{ "PLL_ENLUD",		0x08, 0x08 },
-	{ "PLL_NS",		0x30, 0x30 },
-	{ "PLL_PWDN",		0x40, 0x40 },
-	{ "PLL_VCOSEL",		0x80, 0x80 }
-};
-
-int
-ahd_pll400ctl0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(PLL400CTL0_parse_table, 7, "PLL400CTL0",
-	    0x6c, regvalue, cur_col, wrap));
-}
-
-int
-ahd_fairness_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "FAIRNESS",
-	    0x6c, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t PLL400CTL1_parse_table[] = {
-	{ "PLL_RST",		0x01, 0x01 },
-	{ "PLL_CNTCLR",		0x40, 0x40 },
-	{ "PLL_CNTEN",		0x80, 0x80 }
-};
-
-int
-ahd_pll400ctl1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(PLL400CTL1_parse_table, 3, "PLL400CTL1",
-	    0x6d, regvalue, cur_col, wrap));
-}
-
-int
-ahd_unfairness_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "UNFAIRNESS",
-	    0x6e, regvalue, cur_col, wrap));
-}
-
-int
-ahd_pll400cnt0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "PLL400CNT0",
-	    0x6e, regvalue, cur_col, wrap));
-}
-
 int
 ahd_haddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "HADDR",
 	    0x70, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t PLLDELAY_parse_table[] = {
-	{ "SPLIT_DROP_REQ",	0x80, 0x80 }
-};
-
-int
-ahd_plldelay_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(PLLDELAY_parse_table, 1, "PLLDELAY",
-	    0x70, regvalue, cur_col, wrap));
-}
-
-int
-ahd_hodmaadr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "HODMAADR",
-	    0x70, regvalue, cur_col, wrap));
-}
-
-int
-ahd_hodmacnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "HODMACNT",
-	    0x78, regvalue, cur_col, wrap));
 }
 
 int
@@ -1781,10 +1396,10 @@ ahd_hcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_hodmaen_print(u_int regvalue, u_int *cur_col, u_int wrap)
+ahd_sghaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
-	return (ahd_print_register(NULL, 0, "HODMAEN",
-	    0x7a, regvalue, cur_col, wrap));
+	return (ahd_print_register(NULL, 0, "SGHADDR",
+	    0x7c, regvalue, cur_col, wrap));
 }
 
 int
@@ -1795,10 +1410,10 @@ ahd_scbhaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_sghaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
+ahd_sghcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
-	return (ahd_print_register(NULL, 0, "SGHADDR",
-	    0x7c, regvalue, cur_col, wrap));
+	return (ahd_print_register(NULL, 0, "SGHCNT",
+	    0x84, regvalue, cur_col, wrap));
 }
 
 int
@@ -1808,14 +1423,7 @@ ahd_scbhcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x84, regvalue, cur_col, wrap));
 }
 
-int
-ahd_sghcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "SGHCNT",
-	    0x84, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DFF_THRSH_parse_table[] = {
+static const ahd_reg_parse_entry_t DFF_THRSH_parse_table[] = {
 	{ "WR_DFTHRSH_MIN",	0x00, 0x70 },
 	{ "RD_DFTHRSH_MIN",	0x00, 0x07 },
 	{ "RD_DFTHRSH_25",	0x01, 0x07 },
@@ -1843,209 +1451,7 @@ ahd_dff_thrsh_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x88, regvalue, cur_col, wrap));
 }
 
-int
-ahd_romaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "ROMADDR",
-	    0x8a, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t ROMCNTRL_parse_table[] = {
-	{ "RDY",		0x01, 0x01 },
-	{ "REPEAT",		0x02, 0x02 },
-	{ "ROMSPD",		0x18, 0x18 },
-	{ "ROMOP",		0xe0, 0xe0 }
-};
-
-int
-ahd_romcntrl_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(ROMCNTRL_parse_table, 4, "ROMCNTRL",
-	    0x8d, regvalue, cur_col, wrap));
-}
-
-int
-ahd_romdata_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "ROMDATA",
-	    0x8e, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t CMCRXMSG0_parse_table[] = {
-	{ "CFNUM",		0x07, 0x07 },
-	{ "CDNUM",		0xf8, 0xf8 }
-};
-
-int
-ahd_cmcrxmsg0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CMCRXMSG0_parse_table, 2, "CMCRXMSG0",
-	    0x90, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t ROENABLE_parse_table[] = {
-	{ "DCH0ROEN",		0x01, 0x01 },
-	{ "DCH1ROEN",		0x02, 0x02 },
-	{ "SGROEN",		0x04, 0x04 },
-	{ "CMCROEN",		0x08, 0x08 },
-	{ "OVLYROEN",		0x10, 0x10 },
-	{ "MSIROEN",		0x20, 0x20 }
-};
-
-int
-ahd_roenable_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(ROENABLE_parse_table, 6, "ROENABLE",
-	    0x90, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t OVLYRXMSG0_parse_table[] = {
-	{ "CFNUM",		0x07, 0x07 },
-	{ "CDNUM",		0xf8, 0xf8 }
-};
-
-int
-ahd_ovlyrxmsg0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(OVLYRXMSG0_parse_table, 2, "OVLYRXMSG0",
-	    0x90, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DCHRXMSG0_parse_table[] = {
-	{ "CFNUM",		0x07, 0x07 },
-	{ "CDNUM",		0xf8, 0xf8 }
-};
-
-int
-ahd_dchrxmsg0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(DCHRXMSG0_parse_table, 2, "DCHRXMSG0",
-	    0x90, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t OVLYRXMSG1_parse_table[] = {
-	{ "CBNUM",		0xff, 0xff }
-};
-
-int
-ahd_ovlyrxmsg1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(OVLYRXMSG1_parse_table, 1, "OVLYRXMSG1",
-	    0x91, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t NSENABLE_parse_table[] = {
-	{ "DCH0NSEN",		0x01, 0x01 },
-	{ "DCH1NSEN",		0x02, 0x02 },
-	{ "SGNSEN",		0x04, 0x04 },
-	{ "CMCNSEN",		0x08, 0x08 },
-	{ "OVLYNSEN",		0x10, 0x10 },
-	{ "MSINSEN",		0x20, 0x20 }
-};
-
-int
-ahd_nsenable_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NSENABLE_parse_table, 6, "NSENABLE",
-	    0x91, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t CMCRXMSG1_parse_table[] = {
-	{ "CBNUM",		0xff, 0xff }
-};
-
-int
-ahd_cmcrxmsg1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CMCRXMSG1_parse_table, 1, "CMCRXMSG1",
-	    0x91, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DCHRXMSG1_parse_table[] = {
-	{ "CBNUM",		0xff, 0xff }
-};
-
-int
-ahd_dchrxmsg1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(DCHRXMSG1_parse_table, 1, "DCHRXMSG1",
-	    0x91, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DCHRXMSG2_parse_table[] = {
-	{ "MINDEX",		0xff, 0xff }
-};
-
-int
-ahd_dchrxmsg2_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(DCHRXMSG2_parse_table, 1, "DCHRXMSG2",
-	    0x92, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t CMCRXMSG2_parse_table[] = {
-	{ "MINDEX",		0xff, 0xff }
-};
-
-int
-ahd_cmcrxmsg2_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CMCRXMSG2_parse_table, 1, "CMCRXMSG2",
-	    0x92, regvalue, cur_col, wrap));
-}
-
-int
-ahd_ost_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "OST",
-	    0x92, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t OVLYRXMSG2_parse_table[] = {
-	{ "MINDEX",		0xff, 0xff }
-};
-
-int
-ahd_ovlyrxmsg2_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(OVLYRXMSG2_parse_table, 1, "OVLYRXMSG2",
-	    0x92, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DCHRXMSG3_parse_table[] = {
-	{ "MCLASS",		0x0f, 0x0f }
-};
-
-int
-ahd_dchrxmsg3_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(DCHRXMSG3_parse_table, 1, "DCHRXMSG3",
-	    0x93, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t OVLYRXMSG3_parse_table[] = {
-	{ "MCLASS",		0x0f, 0x0f }
-};
-
-int
-ahd_ovlyrxmsg3_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(OVLYRXMSG3_parse_table, 1, "OVLYRXMSG3",
-	    0x93, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t CMCRXMSG3_parse_table[] = {
-	{ "MCLASS",		0x0f, 0x0f }
-};
-
-int
-ahd_cmcrxmsg3_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CMCRXMSG3_parse_table, 1, "CMCRXMSG3",
-	    0x93, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t PCIXCTL_parse_table[] = {
+static const ahd_reg_parse_entry_t PCIXCTL_parse_table[] = {
 	{ "CMPABCDIS",		0x01, 0x01 },
 	{ "TSCSERREN",		0x02, 0x02 },
 	{ "SRSPDPEEN",		0x04, 0x04 },
@@ -2062,46 +1468,7 @@ ahd_pcixctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x93, regvalue, cur_col, wrap));
 }
 
-int
-ahd_ovlyseqbcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "OVLYSEQBCNT",
-	    0x94, regvalue, cur_col, wrap));
-}
-
-int
-ahd_dchseqbcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DCHSEQBCNT",
-	    0x94, regvalue, cur_col, wrap));
-}
-
-int
-ahd_cmcseqbcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "CMCSEQBCNT",
-	    0x94, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t CMCSPLTSTAT0_parse_table[] = {
-	{ "RXSPLTRSP",		0x01, 0x01 },
-	{ "RXSCEMSG",		0x02, 0x02 },
-	{ "RXOVRUN",		0x04, 0x04 },
-	{ "CNTNOTCMPLT",	0x08, 0x08 },
-	{ "SCDATBUCKET",	0x10, 0x10 },
-	{ "SCADERR",		0x20, 0x20 },
-	{ "SCBCERR",		0x40, 0x40 },
-	{ "STAETERM",		0x80, 0x80 }
-};
-
-int
-ahd_cmcspltstat0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CMCSPLTSTAT0_parse_table, 8, "CMCSPLTSTAT0",
-	    0x96, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DCHSPLTSTAT0_parse_table[] = {
+static const ahd_reg_parse_entry_t DCHSPLTSTAT0_parse_table[] = {
 	{ "RXSPLTRSP",		0x01, 0x01 },
 	{ "RXSCEMSG",		0x02, 0x02 },
 	{ "RXOVRUN",		0x04, 0x04 },
@@ -2119,47 +1486,7 @@ ahd_dchspltstat0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x96, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t OVLYSPLTSTAT0_parse_table[] = {
-	{ "RXSPLTRSP",		0x01, 0x01 },
-	{ "RXSCEMSG",		0x02, 0x02 },
-	{ "RXOVRUN",		0x04, 0x04 },
-	{ "CNTNOTCMPLT",	0x08, 0x08 },
-	{ "SCDATBUCKET",	0x10, 0x10 },
-	{ "SCADERR",		0x20, 0x20 },
-	{ "SCBCERR",		0x40, 0x40 },
-	{ "STAETERM",		0x80, 0x80 }
-};
-
-int
-ahd_ovlyspltstat0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(OVLYSPLTSTAT0_parse_table, 8, "OVLYSPLTSTAT0",
-	    0x96, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t CMCSPLTSTAT1_parse_table[] = {
-	{ "RXDATABUCKET",	0x01, 0x01 }
-};
-
-int
-ahd_cmcspltstat1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CMCSPLTSTAT1_parse_table, 1, "CMCSPLTSTAT1",
-	    0x97, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t OVLYSPLTSTAT1_parse_table[] = {
-	{ "RXDATABUCKET",	0x01, 0x01 }
-};
-
-int
-ahd_ovlyspltstat1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(OVLYSPLTSTAT1_parse_table, 1, "OVLYSPLTSTAT1",
-	    0x97, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DCHSPLTSTAT1_parse_table[] = {
+static const ahd_reg_parse_entry_t DCHSPLTSTAT1_parse_table[] = {
 	{ "RXDATABUCKET",	0x01, 0x01 }
 };
 
@@ -2170,139 +1497,7 @@ ahd_dchspltstat1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x97, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SGRXMSG0_parse_table[] = {
-	{ "CFNUM",		0x07, 0x07 },
-	{ "CDNUM",		0xf8, 0xf8 }
-};
-
-int
-ahd_sgrxmsg0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SGRXMSG0_parse_table, 2, "SGRXMSG0",
-	    0x98, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SLVSPLTOUTADR0_parse_table[] = {
-	{ "LOWER_ADDR",		0x7f, 0x7f }
-};
-
-int
-ahd_slvspltoutadr0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SLVSPLTOUTADR0_parse_table, 1, "SLVSPLTOUTADR0",
-	    0x98, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SGRXMSG1_parse_table[] = {
-	{ "CBNUM",		0xff, 0xff }
-};
-
-int
-ahd_sgrxmsg1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SGRXMSG1_parse_table, 1, "SGRXMSG1",
-	    0x99, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SLVSPLTOUTADR1_parse_table[] = {
-	{ "REQ_FNUM",		0x07, 0x07 },
-	{ "REQ_DNUM",		0xf8, 0xf8 }
-};
-
-int
-ahd_slvspltoutadr1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SLVSPLTOUTADR1_parse_table, 2, "SLVSPLTOUTADR1",
-	    0x99, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SGRXMSG2_parse_table[] = {
-	{ "MINDEX",		0xff, 0xff }
-};
-
-int
-ahd_sgrxmsg2_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SGRXMSG2_parse_table, 1, "SGRXMSG2",
-	    0x9a, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SLVSPLTOUTADR2_parse_table[] = {
-	{ "REQ_BNUM",		0xff, 0xff }
-};
-
-int
-ahd_slvspltoutadr2_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SLVSPLTOUTADR2_parse_table, 1, "SLVSPLTOUTADR2",
-	    0x9a, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SGRXMSG3_parse_table[] = {
-	{ "MCLASS",		0x0f, 0x0f }
-};
-
-int
-ahd_sgrxmsg3_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SGRXMSG3_parse_table, 1, "SGRXMSG3",
-	    0x9b, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SLVSPLTOUTADR3_parse_table[] = {
-	{ "RLXORD",		0x10, 0x10 },
-	{ "TAG_NUM",		0x1f, 0x1f }
-};
-
-int
-ahd_slvspltoutadr3_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SLVSPLTOUTADR3_parse_table, 2, "SLVSPLTOUTADR3",
-	    0x9b, regvalue, cur_col, wrap));
-}
-
-int
-ahd_sgseqbcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "SGSEQBCNT",
-	    0x9c, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SLVSPLTOUTATTR0_parse_table[] = {
-	{ "LOWER_BCNT",		0xff, 0xff }
-};
-
-int
-ahd_slvspltoutattr0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SLVSPLTOUTATTR0_parse_table, 1, "SLVSPLTOUTATTR0",
-	    0x9c, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SLVSPLTOUTATTR1_parse_table[] = {
-	{ "CMPLT_FNUM",		0x07, 0x07 },
-	{ "CMPLT_DNUM",		0xf8, 0xf8 }
-};
-
-int
-ahd_slvspltoutattr1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SLVSPLTOUTATTR1_parse_table, 2, "SLVSPLTOUTATTR1",
-	    0x9d, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SLVSPLTOUTATTR2_parse_table[] = {
-	{ "CMPLT_BNUM",		0xff, 0xff }
-};
-
-int
-ahd_slvspltoutattr2_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SLVSPLTOUTATTR2_parse_table, 1, "SLVSPLTOUTATTR2",
-	    0x9e, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SGSPLTSTAT0_parse_table[] = {
+static const ahd_reg_parse_entry_t SGSPLTSTAT0_parse_table[] = {
 	{ "RXSPLTRSP",		0x01, 0x01 },
 	{ "RXSCEMSG",		0x02, 0x02 },
 	{ "RXOVRUN",		0x04, 0x04 },
@@ -2320,7 +1515,7 @@ ahd_sgspltstat0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x9e, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SGSPLTSTAT1_parse_table[] = {
+static const ahd_reg_parse_entry_t SGSPLTSTAT1_parse_table[] = {
 	{ "RXDATABUCKET",	0x01, 0x01 }
 };
 
@@ -2331,19 +1526,7 @@ ahd_sgspltstat1_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x9f, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SFUNCT_parse_table[] = {
-	{ "TEST_NUM",		0x0f, 0x0f },
-	{ "TEST_GROUP",		0xf0, 0xf0 }
-};
-
-int
-ahd_sfunct_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SFUNCT_parse_table, 2, "SFUNCT",
-	    0x9f, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DF0PCISTAT_parse_table[] = {
+static const ahd_reg_parse_entry_t DF0PCISTAT_parse_table[] = {
 	{ "DPR",		0x01, 0x01 },
 	{ "TWATERR",		0x02, 0x02 },
 	{ "RDPERR",		0x04, 0x04 },
@@ -2368,83 +1551,6 @@ ahd_reg0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xa0, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t DF1PCISTAT_parse_table[] = {
-	{ "DPR",		0x01, 0x01 },
-	{ "TWATERR",		0x02, 0x02 },
-	{ "RDPERR",		0x04, 0x04 },
-	{ "SCAAPERR",		0x08, 0x08 },
-	{ "RTA",		0x10, 0x10 },
-	{ "RMA",		0x20, 0x20 },
-	{ "SSE",		0x40, 0x40 },
-	{ "DPE",		0x80, 0x80 }
-};
-
-int
-ahd_df1pcistat_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(DF1PCISTAT_parse_table, 8, "DF1PCISTAT",
-	    0xa1, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SGPCISTAT_parse_table[] = {
-	{ "DPR",		0x01, 0x01 },
-	{ "RDPERR",		0x04, 0x04 },
-	{ "SCAAPERR",		0x08, 0x08 },
-	{ "RTA",		0x10, 0x10 },
-	{ "RMA",		0x20, 0x20 },
-	{ "SSE",		0x40, 0x40 },
-	{ "DPE",		0x80, 0x80 }
-};
-
-int
-ahd_sgpcistat_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SGPCISTAT_parse_table, 7, "SGPCISTAT",
-	    0xa2, regvalue, cur_col, wrap));
-}
-
-int
-ahd_reg1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "REG1",
-	    0xa2, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t CMCPCISTAT_parse_table[] = {
-	{ "DPR",		0x01, 0x01 },
-	{ "TWATERR",		0x02, 0x02 },
-	{ "RDPERR",		0x04, 0x04 },
-	{ "SCAAPERR",		0x08, 0x08 },
-	{ "RTA",		0x10, 0x10 },
-	{ "RMA",		0x20, 0x20 },
-	{ "SSE",		0x40, 0x40 },
-	{ "DPE",		0x80, 0x80 }
-};
-
-int
-ahd_cmcpcistat_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CMCPCISTAT_parse_table, 8, "CMCPCISTAT",
-	    0xa3, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t OVLYPCISTAT_parse_table[] = {
-	{ "DPR",		0x01, 0x01 },
-	{ "RDPERR",		0x04, 0x04 },
-	{ "SCAAPERR",		0x08, 0x08 },
-	{ "RTA",		0x10, 0x10 },
-	{ "RMA",		0x20, 0x20 },
-	{ "SSE",		0x40, 0x40 },
-	{ "DPE",		0x80, 0x80 }
-};
-
-int
-ahd_ovlypcistat_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(OVLYPCISTAT_parse_table, 7, "OVLYPCISTAT",
-	    0xa4, regvalue, cur_col, wrap));
-}
-
 int
 ahd_reg_isr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
@@ -2452,7 +1558,7 @@ ahd_reg_isr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xa4, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SG_STATE_parse_table[] = {
+static const ahd_reg_parse_entry_t SG_STATE_parse_table[] = {
 	{ "SEGS_AVAIL",		0x01, 0x01 },
 	{ "LOADING_NEEDED",	0x02, 0x02 },
 	{ "FETCH_INPROG",	0x04, 0x04 }
@@ -2465,23 +1571,7 @@ ahd_sg_state_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xa6, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t MSIPCISTAT_parse_table[] = {
-	{ "DPR",		0x01, 0x01 },
-	{ "TWATERR",		0x02, 0x02 },
-	{ "CLRPENDMSI",		0x08, 0x08 },
-	{ "RTA",		0x10, 0x10 },
-	{ "RMA",		0x20, 0x20 },
-	{ "SSE",		0x40, 0x40 }
-};
-
-int
-ahd_msipcistat_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(MSIPCISTAT_parse_table, 6, "MSIPCISTAT",
-	    0xa6, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t TARGPCISTAT_parse_table[] = {
+static const ahd_reg_parse_entry_t TARGPCISTAT_parse_table[] = {
 	{ "TWATERR",		0x02, 0x02 },
 	{ "STA",		0x08, 0x08 },
 	{ "SSE",		0x40, 0x40 },
@@ -2496,27 +1586,13 @@ ahd_targpcistat_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_data_count_odd_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DATA_COUNT_ODD",
-	    0xa7, regvalue, cur_col, wrap));
-}
-
-int
 ahd_scbptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "SCBPTR",
 	    0xa8, regvalue, cur_col, wrap));
 }
 
-int
-ahd_ccscbacnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "CCSCBACNT",
-	    0xab, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SCBAUTOPTR_parse_table[] = {
+static const ahd_reg_parse_entry_t SCBAUTOPTR_parse_table[] = {
 	{ "SCBPTR_OFF",		0x07, 0x07 },
 	{ "SCBPTR_ADDR",	0x38, 0x38 },
 	{ "AUSCBPTR_EN",	0x80, 0x80 }
@@ -2537,36 +1613,13 @@ ahd_ccsgaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_ccscbadr_bk_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "CCSCBADR_BK",
-	    0xac, regvalue, cur_col, wrap));
-}
-
-int
 ahd_ccscbaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "CCSCBADDR",
 	    0xac, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CMC_RAMBIST_parse_table[] = {
-	{ "CMC_BUFFER_BIST_EN",	0x01, 0x01 },
-	{ "CMC_BUFFER_BIST_FAIL",0x02, 0x02 },
-	{ "SG_BIST_EN",		0x10, 0x10 },
-	{ "SG_BIST_FAIL",	0x20, 0x20 },
-	{ "SCBRAMBIST_FAIL",	0x40, 0x40 },
-	{ "SG_ELEMENT_SIZE",	0x80, 0x80 }
-};
-
-int
-ahd_cmc_rambist_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(CMC_RAMBIST_parse_table, 6, "CMC_RAMBIST",
-	    0xad, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t CCSCBCTL_parse_table[] = {
+static const ahd_reg_parse_entry_t CCSCBCTL_parse_table[] = {
 	{ "CCSCBRESET",		0x01, 0x01 },
 	{ "CCSCBDIR",		0x04, 0x04 },
 	{ "CCSCBEN",		0x08, 0x08 },
@@ -2582,7 +1635,7 @@ ahd_ccscbctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xad, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t CCSGCTL_parse_table[] = {
+static const ahd_reg_parse_entry_t CCSGCTL_parse_table[] = {
 	{ "CCSGRESET",		0x01, 0x01 },
 	{ "SG_FETCH_REQ",	0x02, 0x02 },
 	{ "CCSGENACK",		0x08, 0x08 },
@@ -2606,43 +1659,10 @@ ahd_ccsgram_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_flexadr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "FLEXADR",
-	    0xb0, regvalue, cur_col, wrap));
-}
-
-int
 ahd_ccscbram_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "CCSCBRAM",
 	    0xb0, regvalue, cur_col, wrap));
-}
-
-int
-ahd_flexcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "FLEXCNT",
-	    0xb3, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t FLEXDMASTAT_parse_table[] = {
-	{ "FLEXDMADONE",	0x01, 0x01 },
-	{ "FLEXDMAERR",		0x02, 0x02 }
-};
-
-int
-ahd_flexdmastat_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(FLEXDMASTAT_parse_table, 2, "FLEXDMASTAT",
-	    0xb5, regvalue, cur_col, wrap));
-}
-
-int
-ahd_flexdata_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "FLEXDATA",
-	    0xb6, regvalue, cur_col, wrap));
 }
 
 int
@@ -2652,7 +1672,7 @@ ahd_brddat_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xb8, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t BRDCTL_parse_table[] = {
+static const ahd_reg_parse_entry_t BRDCTL_parse_table[] = {
 	{ "BRDSTB",		0x01, 0x01 },
 	{ "BRDRW",		0x02, 0x02 },
 	{ "BRDEN",		0x04, 0x04 },
@@ -2682,7 +1702,7 @@ ahd_seedat_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xbc, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SEECTL_parse_table[] = {
+static const ahd_reg_parse_entry_t SEECTL_parse_table[] = {
 	{ "SEEOP_ERAL",		0x40, 0x70 },
 	{ "SEEOP_WRITE",	0x50, 0x70 },
 	{ "SEEOP_READ",		0x60, 0x70 },
@@ -2702,7 +1722,7 @@ ahd_seectl_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xbe, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SEESTAT_parse_table[] = {
+static const ahd_reg_parse_entry_t SEESTAT_parse_table[] = {
 	{ "SEESTART",		0x01, 0x01 },
 	{ "SEEBUSY",		0x02, 0x02 },
 	{ "SEEARBACK",		0x04, 0x04 },
@@ -2718,34 +1738,7 @@ ahd_seestat_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xbe, regvalue, cur_col, wrap));
 }
 
-int
-ahd_scbcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "SCBCNT",
-	    0xbf, regvalue, cur_col, wrap));
-}
-
-int
-ahd_dfwaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DFWADDR",
-	    0xc0, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DSPFLTRCTL_parse_table[] = {
-	{ "DSPFCNTSEL",		0x0f, 0x0f },
-	{ "EDGESENSE",		0x10, 0x10 },
-	{ "FLTRDISABLE",	0x20, 0x20 }
-};
-
-int
-ahd_dspfltrctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(DSPFLTRCTL_parse_table, 3, "DSPFLTRCTL",
-	    0xc0, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DSPDATACTL_parse_table[] = {
+static const ahd_reg_parse_entry_t DSPDATACTL_parse_table[] = {
 	{ "XMITOFFSTDIS",	0x02, 0x02 },
 	{ "RCVROFFSTDIS",	0x04, 0x04 },
 	{ "DESQDIS",		0x10, 0x10 },
@@ -2760,44 +1753,13 @@ ahd_dspdatactl_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_dfraddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DFRADDR",
-	    0xc2, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DSPREQCTL_parse_table[] = {
-	{ "MANREQDLY",		0x3f, 0x3f },
-	{ "MANREQCTL",		0xc0, 0xc0 }
-};
-
-int
-ahd_dspreqctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(DSPREQCTL_parse_table, 2, "DSPREQCTL",
-	    0xc2, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DSPACKCTL_parse_table[] = {
-	{ "MANACKDLY",		0x3f, 0x3f },
-	{ "MANACKCTL",		0xc0, 0xc0 }
-};
-
-int
-ahd_dspackctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(DSPACKCTL_parse_table, 2, "DSPACKCTL",
-	    0xc3, regvalue, cur_col, wrap));
-}
-
-int
 ahd_dfdat_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "DFDAT",
 	    0xc4, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t DSPSELECT_parse_table[] = {
+static const ahd_reg_parse_entry_t DSPSELECT_parse_table[] = {
 	{ "DSPSEL",		0x1f, 0x1f },
 	{ "AUTOINCEN",		0x80, 0x80 }
 };
@@ -2809,7 +1771,7 @@ ahd_dspselect_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xc4, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t WRTBIASCTL_parse_table[] = {
+static const ahd_reg_parse_entry_t WRTBIASCTL_parse_table[] = {
 	{ "XMITMANVAL",		0x3f, 0x3f },
 	{ "AUTOXBCDIS",		0x80, 0x80 }
 };
@@ -2821,91 +1783,7 @@ ahd_wrtbiasctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xc5, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t RCVRBIOSCTL_parse_table[] = {
-	{ "RCVRMANVAL",		0x3f, 0x3f },
-	{ "AUTORBCDIS",		0x80, 0x80 }
-};
-
-int
-ahd_rcvrbiosctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(RCVRBIOSCTL_parse_table, 2, "RCVRBIOSCTL",
-	    0xc6, regvalue, cur_col, wrap));
-}
-
-int
-ahd_wrtbiascalc_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "WRTBIASCALC",
-	    0xc7, regvalue, cur_col, wrap));
-}
-
-int
-ahd_rcvrbiascalc_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "RCVRBIASCALC",
-	    0xc8, regvalue, cur_col, wrap));
-}
-
-int
-ahd_dfptrs_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DFPTRS",
-	    0xc8, regvalue, cur_col, wrap));
-}
-
-int
-ahd_skewcalc_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "SKEWCALC",
-	    0xc9, regvalue, cur_col, wrap));
-}
-
-int
-ahd_dfbkptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DFBKPTR",
-	    0xc9, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t DFDBCTL_parse_table[] = {
-	{ "DFF_RAMBIST_EN",	0x01, 0x01 },
-	{ "DFF_RAMBIST_DONE",	0x02, 0x02 },
-	{ "DFF_RAMBIST_FAIL",	0x04, 0x04 },
-	{ "DFF_DIR_ERR",	0x08, 0x08 },
-	{ "DFF_CIO_RD_RDY",	0x10, 0x10 },
-	{ "DFF_CIO_WR_RDY",	0x20, 0x20 }
-};
-
-int
-ahd_dfdbctl_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(DFDBCTL_parse_table, 6, "DFDBCTL",
-	    0xcb, regvalue, cur_col, wrap));
-}
-
-int
-ahd_dfscnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DFSCNT",
-	    0xcc, regvalue, cur_col, wrap));
-}
-
-int
-ahd_dfbcnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "DFBCNT",
-	    0xce, regvalue, cur_col, wrap));
-}
-
-int
-ahd_ovlyaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "OVLYADDR",
-	    0xd4, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t SEQCTL0_parse_table[] = {
+static const ahd_reg_parse_entry_t SEQCTL0_parse_table[] = {
 	{ "LOADRAM",		0x01, 0x01 },
 	{ "SEQRESET",		0x02, 0x02 },
 	{ "STEP",		0x04, 0x04 },
@@ -2923,21 +1801,7 @@ ahd_seqctl0_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xd6, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SEQCTL1_parse_table[] = {
-	{ "RAMBIST_EN",		0x01, 0x01 },
-	{ "RAMBIST_FAIL",	0x02, 0x02 },
-	{ "RAMBIST_DONE",	0x04, 0x04 },
-	{ "OVRLAY_DATA_CHK",	0x08, 0x08 }
-};
-
-int
-ahd_seqctl1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(SEQCTL1_parse_table, 4, "SEQCTL1",
-	    0xd7, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t FLAGS_parse_table[] = {
+static const ahd_reg_parse_entry_t FLAGS_parse_table[] = {
 	{ "CARRY",		0x01, 0x01 },
 	{ "ZERO",		0x02, 0x02 }
 };
@@ -2949,7 +1813,7 @@ ahd_flags_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0xd8, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SEQINTCTL_parse_table[] = {
+static const ahd_reg_parse_entry_t SEQINTCTL_parse_table[] = {
 	{ "IRET",		0x01, 0x01 },
 	{ "INTMASK1",		0x02, 0x02 },
 	{ "INTMASK2",		0x04, 0x04 },
@@ -3002,24 +1866,6 @@ ahd_dindex_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_brkaddr0_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "BRKADDR0",
-	    0xe6, regvalue, cur_col, wrap));
-}
-
-static ahd_reg_parse_entry_t BRKADDR1_parse_table[] = {
-	{ "BRKDIS",		0x80, 0x80 }
-};
-
-int
-ahd_brkaddr1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(BRKADDR1_parse_table, 1, "BRKADDR1",
-	    0xe6, regvalue, cur_col, wrap));
-}
-
-int
 ahd_allones_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "ALLONES",
@@ -3055,13 +1901,6 @@ ahd_dindir_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_function1_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "FUNCTION1",
-	    0xf0, regvalue, cur_col, wrap));
-}
-
-int
 ahd_stack_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "STACK",
@@ -3080,13 +1919,6 @@ ahd_curaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "CURADDR",
 	    0xf4, regvalue, cur_col, wrap));
-}
-
-int
-ahd_lastaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "LASTADDR",
-	    0xf6, regvalue, cur_col, wrap));
 }
 
 int
@@ -3111,23 +1943,16 @@ ahd_accum_save_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_waiting_scb_tails_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "WAITING_SCB_TAILS",
-	    0x100, regvalue, cur_col, wrap));
-}
-
-int
-ahd_ahd_pci_config_base_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "AHD_PCI_CONFIG_BASE",
-	    0x100, regvalue, cur_col, wrap));
-}
-
-int
 ahd_sram_base_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "SRAM_BASE",
+	    0x100, regvalue, cur_col, wrap));
+}
+
+int
+ahd_waiting_scb_tails_print(u_int regvalue, u_int *cur_col, u_int wrap)
+{
+	return (ahd_print_register(NULL, 0, "WAITING_SCB_TAILS",
 	    0x100, regvalue, cur_col, wrap));
 }
 
@@ -3215,7 +2040,7 @@ ahd_msg_out_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x137, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t DMAPARAMS_parse_table[] = {
+static const ahd_reg_parse_entry_t DMAPARAMS_parse_table[] = {
 	{ "FIFORESET",		0x01, 0x01 },
 	{ "FIFOFLUSH",		0x02, 0x02 },
 	{ "DIRECTION",		0x04, 0x04 },
@@ -3235,7 +2060,7 @@ ahd_dmaparams_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x138, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SEQ_FLAGS_parse_table[] = {
+static const ahd_reg_parse_entry_t SEQ_FLAGS_parse_table[] = {
 	{ "NO_DISCONNECT",	0x01, 0x01 },
 	{ "SPHASE_PENDING",	0x02, 0x02 },
 	{ "DPHASE_PENDING",	0x04, 0x04 },
@@ -3268,7 +2093,7 @@ ahd_saved_lun_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x13b, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t LASTPHASE_parse_table[] = {
+static const ahd_reg_parse_entry_t LASTPHASE_parse_table[] = {
 	{ "P_DATAOUT",		0x00, 0xe0 },
 	{ "P_DATAOUT_DT",	0x20, 0xe0 },
 	{ "P_DATAIN",		0x40, 0xe0 },
@@ -3326,7 +2151,7 @@ ahd_qoutfifo_next_addr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x144, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t ARG_1_parse_table[] = {
+static const ahd_reg_parse_entry_t ARG_1_parse_table[] = {
 	{ "CONT_MSG_LOOP_TARG",	0x02, 0x02 },
 	{ "CONT_MSG_LOOP_READ",	0x03, 0x03 },
 	{ "CONT_MSG_LOOP_WRITE",0x04, 0x04 },
@@ -3358,7 +2183,7 @@ ahd_last_msg_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x14a, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCSISEQ_TEMPLATE_parse_table[] = {
+static const ahd_reg_parse_entry_t SCSISEQ_TEMPLATE_parse_table[] = {
 	{ "ALTSTIM",		0x01, 0x01 },
 	{ "ENAUTOATNP",		0x02, 0x02 },
 	{ "MANUALP",		0x0c, 0x0c },
@@ -3381,7 +2206,7 @@ ahd_initiator_tag_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x14c, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SEQ_FLAGS2_parse_table[] = {
+static const ahd_reg_parse_entry_t SEQ_FLAGS2_parse_table[] = {
 	{ "PENDING_MK_MESSAGE",	0x01, 0x01 },
 	{ "TARGET_MSG_PENDING",	0x02, 0x02 },
 	{ "SELECTOUT_QFROZEN",	0x04, 0x04 }
@@ -3465,20 +2290,20 @@ ahd_mk_message_scsiid_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_scb_base_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "SCB_BASE",
-	    0x180, regvalue, cur_col, wrap));
-}
-
-int
 ahd_scb_residual_datacnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "SCB_RESIDUAL_DATACNT",
 	    0x180, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCB_RESIDUAL_SGPTR_parse_table[] = {
+int
+ahd_scb_base_print(u_int regvalue, u_int *cur_col, u_int wrap)
+{
+	return (ahd_print_register(NULL, 0, "SCB_BASE",
+	    0x180, regvalue, cur_col, wrap));
+}
+
+static const ahd_reg_parse_entry_t SCB_RESIDUAL_SGPTR_parse_table[] = {
 	{ "SG_LIST_NULL",	0x01, 0x01 },
 	{ "SG_OVERRUN_RESID",	0x02, 0x02 },
 	{ "SG_ADDR_MASK",	0xf8, 0xf8 }
@@ -3499,27 +2324,6 @@ ahd_scb_scsi_status_print(u_int regvalue, u_int *cur_col, u_int wrap)
 }
 
 int
-ahd_scb_target_phases_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "SCB_TARGET_PHASES",
-	    0x189, regvalue, cur_col, wrap));
-}
-
-int
-ahd_scb_target_data_dir_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "SCB_TARGET_DATA_DIR",
-	    0x18a, regvalue, cur_col, wrap));
-}
-
-int
-ahd_scb_target_itag_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "SCB_TARGET_ITAG",
-	    0x18b, regvalue, cur_col, wrap));
-}
-
-int
 ahd_scb_sense_busaddr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "SCB_SENSE_BUSADDR",
@@ -3533,7 +2337,7 @@ ahd_scb_tag_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x190, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCB_CONTROL_parse_table[] = {
+static const ahd_reg_parse_entry_t SCB_CONTROL_parse_table[] = {
 	{ "SCB_TAG_TYPE",	0x03, 0x03 },
 	{ "DISCONNECTED",	0x04, 0x04 },
 	{ "STATUS_RCVD",	0x08, 0x08 },
@@ -3550,7 +2354,7 @@ ahd_scb_control_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x192, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCB_SCSIID_parse_table[] = {
+static const ahd_reg_parse_entry_t SCB_SCSIID_parse_table[] = {
 	{ "OID",		0x0f, 0x0f },
 	{ "TID",		0xf0, 0xf0 }
 };
@@ -3562,7 +2366,7 @@ ahd_scb_scsiid_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x193, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCB_LUN_parse_table[] = {
+static const ahd_reg_parse_entry_t SCB_LUN_parse_table[] = {
 	{ "LID",		0xff, 0xff }
 };
 
@@ -3573,7 +2377,7 @@ ahd_scb_lun_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x194, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCB_TASK_ATTRIBUTE_parse_table[] = {
+static const ahd_reg_parse_entry_t SCB_TASK_ATTRIBUTE_parse_table[] = {
 	{ "SCB_XFERLEN_ODD",	0x01, 0x01 }
 };
 
@@ -3584,7 +2388,7 @@ ahd_scb_task_attribute_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x195, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCB_CDB_LEN_parse_table[] = {
+static const ahd_reg_parse_entry_t SCB_CDB_LEN_parse_table[] = {
 	{ "SCB_CDB_LEN_PTR",	0x80, 0x80 }
 };
 
@@ -3609,7 +2413,7 @@ ahd_scb_dataptr_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x198, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCB_DATACNT_parse_table[] = {
+static const ahd_reg_parse_entry_t SCB_DATACNT_parse_table[] = {
 	{ "SG_HIGH_ADDR_BITS",	0x7f, 0x7f },
 	{ "SG_LAST_SEG",	0x80, 0x80 }
 };
@@ -3621,7 +2425,7 @@ ahd_scb_datacnt_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	    0x1a0, regvalue, cur_col, wrap));
 }
 
-static ahd_reg_parse_entry_t SCB_SGPTR_parse_table[] = {
+static const ahd_reg_parse_entry_t SCB_SGPTR_parse_table[] = {
 	{ "SG_LIST_NULL",	0x01, 0x01 },
 	{ "SG_FULL_RESID",	0x02, 0x02 },
 	{ "SG_STATUS_VALID",	0x04, 0x04 }
@@ -3653,13 +2457,6 @@ ahd_scb_next2_print(u_int regvalue, u_int *cur_col, u_int wrap)
 {
 	return (ahd_print_register(NULL, 0, "SCB_NEXT2",
 	    0x1ae, regvalue, cur_col, wrap));
-}
-
-int
-ahd_scb_spare_print(u_int regvalue, u_int *cur_col, u_int wrap)
-{
-	return (ahd_print_register(NULL, 0, "SCB_SPARE",
-	    0x1b0, regvalue, cur_col, wrap));
 }
 
 int

@@ -224,7 +224,7 @@
 #define ESP_TIMEO_CONST       8192
 #define ESP_NEG_DEFP(mhz, cfact) \
         ((ESP_BUS_TIMEOUT * ((mhz) / 1000)) / (8192 * (cfact)))
-#define ESP_MHZ_TO_CYCLE(mhertz)  ((1000000000) / ((mhertz) / 1000))
+#define ESP_HZ_TO_CYCLE(hertz)  ((1000000000) / ((hertz) / 1000))
 #define ESP_TICK(ccf, cycle)  ((7682 * (ccf) * (cycle) / 1000))
 
 /* For slow to medium speed input clock rates we shoot for 5mb/s, but for high
@@ -240,9 +240,9 @@ struct esp_cmd_priv {
 		int		num_sg;
 	} u;
 
-	unsigned int		cur_residue;
+	int			cur_residue;
 	struct scatterlist	*cur_sg;
-	unsigned int		tot_residue;
+	int			tot_residue;
 };
 #define ESP_CMD_PRIV(CMD)	((struct esp_cmd_priv *)(&(CMD)->SCp))
 
@@ -368,6 +368,12 @@ struct esp_driver_ops {
 	 */
 	int (*irq_pending)(struct esp *esp);
 
+	/* Return the maximum allowable size of a DMA transfer for a
+	 * given buffer.
+	 */
+	u32 (*dma_length_limit)(struct esp *esp, u32 dma_addr,
+				u32 dma_len);
+
 	/* Reset the DMA engine entirely.  On return, ESP interrupts
 	 * should be enabled.  Often the interrupt enabling is
 	 * controlled in the DMA engine.
@@ -471,6 +477,7 @@ struct esp {
 #define ESP_FLAG_DOING_SLOWCMD	0x00000004
 #define ESP_FLAG_WIDE_CAPABLE	0x00000008
 #define ESP_FLAG_QUICKIRQ_CHECK	0x00000010
+#define ESP_FLAG_DISABLE_SYNC	0x00000020
 
 	u8			select_state;
 #define ESP_SELECT_NONE		0x00 /* Not selecting */

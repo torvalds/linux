@@ -192,6 +192,16 @@ static void sas_non_host_smp_request(struct request_queue *q)
 	sas_smp_request(q, rphy_to_shost(rphy), rphy);
 }
 
+static void sas_host_release(struct device *dev)
+{
+	struct Scsi_Host *shost = dev_to_shost(dev);
+	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
+	struct request_queue *q = sas_host->q;
+
+	if (q)
+		blk_cleanup_queue(q);
+}
+
 static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 {
 	struct request_queue *q;
@@ -199,6 +209,7 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 	struct device *dev;
 	char namebuf[BUS_ID_SIZE];
 	const char *name;
+	void (*release)(struct device *);
 
 	if (!to_sas_internal(shost->transportt)->f->smp_handler) {
 		printk("%s can't handle SMP requests\n", shost->hostt->name);
@@ -209,17 +220,19 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 		q = blk_init_queue(sas_non_host_smp_request, NULL);
 		dev = &rphy->dev;
 		name = dev->bus_id;
+		release = NULL;
 	} else {
 		q = blk_init_queue(sas_host_smp_request, NULL);
 		dev = &shost->shost_gendev;
 		snprintf(namebuf, sizeof(namebuf),
 			 "sas_host%d", shost->host_no);
 		name = namebuf;
+		release = sas_host_release;
 	}
 	if (!q)
 		return -ENOMEM;
 
-	error = bsg_register_queue(q, dev, name);
+	error = bsg_register_queue(q, dev, name, release);
 	if (error) {
 		blk_cleanup_queue(q);
 		return -ENOMEM;
@@ -253,7 +266,6 @@ static void sas_bsg_remove(struct Scsi_Host *shost, struct sas_rphy *rphy)
 		return;
 
 	bsg_unregister_queue(q);
-	blk_cleanup_queue(q);
 }
 
 /*
@@ -1301,6 +1313,9 @@ static void sas_expander_release(struct device *dev)
 	struct sas_rphy *rphy = dev_to_rphy(dev);
 	struct sas_expander_device *edev = rphy_to_expander_device(rphy);
 
+	if (rphy->q)
+		blk_cleanup_queue(rphy->q);
+
 	put_device(dev->parent);
 	kfree(edev);
 }
@@ -1309,6 +1324,9 @@ static void sas_end_device_release(struct device *dev)
 {
 	struct sas_rphy *rphy = dev_to_rphy(dev);
 	struct sas_end_device *edev = rphy_to_end_device(rphy);
+
+	if (rphy->q)
+		blk_cleanup_queue(rphy->q);
 
 	put_device(dev->parent);
 	kfree(edev);

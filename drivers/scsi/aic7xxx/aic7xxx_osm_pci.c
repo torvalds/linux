@@ -46,7 +46,7 @@
 */
 #define ID(x)	ID_C(x, PCI_CLASS_STORAGE_SCSI)
 
-static struct pci_device_id ahc_linux_pci_id_table[] = {
+static const struct pci_device_id ahc_linux_pci_id_table[] = {
 	/* aic7850 based controllers */
 	ID(ID_AHA_2902_04_10_15_20C_30C),
 	/* aic7860 based controllers */
@@ -206,7 +206,7 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const uint64_t	 mask_39bit = 0x7FFFFFFFFFULL;
 	struct		 ahc_softc *ahc;
 	ahc_dev_softc_t	 pci;
-	struct		 ahc_pci_identity *entry;
+	const struct ahc_pci_identity *entry;
 	char		*name;
 	int		 error;
 	struct device	*dev = &pdev->dev;
@@ -269,6 +269,57 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return (0);
 }
 
+/******************************* PCI Routines *********************************/
+uint32_t
+ahc_pci_read_config(ahc_dev_softc_t pci, int reg, int width)
+{
+	switch (width) {
+	case 1:
+	{
+		uint8_t retval;
+
+		pci_read_config_byte(pci, reg, &retval);
+		return (retval);
+	}
+	case 2:
+	{
+		uint16_t retval;
+		pci_read_config_word(pci, reg, &retval);
+		return (retval);
+	}
+	case 4:
+	{
+		uint32_t retval;
+		pci_read_config_dword(pci, reg, &retval);
+		return (retval);
+	}
+	default:
+		panic("ahc_pci_read_config: Read size too big");
+		/* NOTREACHED */
+		return (0);
+	}
+}
+
+void
+ahc_pci_write_config(ahc_dev_softc_t pci, int reg, uint32_t value, int width)
+{
+	switch (width) {
+	case 1:
+		pci_write_config_byte(pci, reg, value);
+		break;
+	case 2:
+		pci_write_config_word(pci, reg, value);
+		break;
+	case 4:
+		pci_write_config_dword(pci, reg, value);
+		break;
+	default:
+		panic("ahc_pci_write_config: Write size too big");
+		/* NOTREACHED */
+	}
+}
+
+
 static struct pci_driver aic7xxx_pci_driver = {
 	.name		= "aic7xxx",
 	.probe		= ahc_linux_pci_dev_probe,
@@ -293,7 +344,7 @@ ahc_linux_pci_exit(void)
 }
 
 static int
-ahc_linux_pci_reserve_io_region(struct ahc_softc *ahc, u_long *base)
+ahc_linux_pci_reserve_io_region(struct ahc_softc *ahc, resource_size_t *base)
 {
 	if (aic7xxx_allow_memio == 0)
 		return (ENOMEM);
@@ -308,10 +359,10 @@ ahc_linux_pci_reserve_io_region(struct ahc_softc *ahc, u_long *base)
 
 static int
 ahc_linux_pci_reserve_mem_region(struct ahc_softc *ahc,
-				 u_long *bus_addr,
+				 resource_size_t *bus_addr,
 				 uint8_t __iomem **maddr)
 {
-	u_long	start;
+	resource_size_t	start;
 	int	error;
 
 	error = 0;
@@ -336,7 +387,7 @@ int
 ahc_pci_map_registers(struct ahc_softc *ahc)
 {
 	uint32_t command;
-	u_long	 base;
+	resource_size_t	base;
 	uint8_t	__iomem *maddr;
 	int	 error;
 
@@ -374,12 +425,12 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 		} else
 			command |= PCIM_CMD_MEMEN;
 	} else {
-		printf("aic7xxx: PCI%d:%d:%d MEM region 0x%lx "
+		printf("aic7xxx: PCI%d:%d:%d MEM region 0x%llx "
 		       "unavailable. Cannot memory map device.\n",
 		       ahc_get_pci_bus(ahc->dev_softc),
 		       ahc_get_pci_slot(ahc->dev_softc),
 		       ahc_get_pci_function(ahc->dev_softc),
-		       base);
+		       (unsigned long long)base);
 	}
 
 	/*
@@ -390,15 +441,15 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 		error = ahc_linux_pci_reserve_io_region(ahc, &base);
 		if (error == 0) {
 			ahc->tag = BUS_SPACE_PIO;
-			ahc->bsh.ioport = base;
+			ahc->bsh.ioport = (u_long)base;
 			command |= PCIM_CMD_PORTEN;
 		} else {
-			printf("aic7xxx: PCI%d:%d:%d IO region 0x%lx[0..255] "
+			printf("aic7xxx: PCI%d:%d:%d IO region 0x%llx[0..255] "
 			       "unavailable. Cannot map device.\n",
 			       ahc_get_pci_bus(ahc->dev_softc),
 			       ahc_get_pci_slot(ahc->dev_softc),
 			       ahc_get_pci_function(ahc->dev_softc),
-			       base);
+			       (unsigned long long)base);
 		}
 	}
 	ahc_pci_write_config(ahc->dev_softc, PCIR_COMMAND, command, 4);

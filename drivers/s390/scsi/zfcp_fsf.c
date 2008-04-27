@@ -1927,7 +1927,8 @@ zfcp_fsf_exchange_config_data_sync(struct zfcp_adapter *adapter,
 
 	/* setup new FSF request */
 	retval = zfcp_fsf_req_create(adapter, FSF_QTCB_EXCHANGE_CONFIG_DATA,
-				     0, NULL, &lock_flags, &fsf_req);
+				     ZFCP_WAIT_FOR_SBAL, NULL, &lock_flags,
+				     &fsf_req);
 	if (retval) {
 		ZFCP_LOG_INFO("error: Could not create exchange configuration "
 			      "data request for adapter %s.\n",
@@ -2035,21 +2036,21 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 		       min(FC_SERIAL_NUMBER_SIZE, 17));
 	}
 
-	ZFCP_LOG_NORMAL("The adapter %s reported the following "
-			"characteristics:\n"
-			"WWNN 0x%016Lx, "
-			"WWPN 0x%016Lx, "
-			"S_ID 0x%06x,\n"
-			"adapter version 0x%x, "
-			"LIC version 0x%x, "
-			"FC link speed %d Gb/s\n",
-			zfcp_get_busid_by_adapter(adapter),
-			(wwn_t) fc_host_node_name(shost),
-			(wwn_t) fc_host_port_name(shost),
-			fc_host_port_id(shost),
-			adapter->hydra_version,
-			adapter->fsf_lic_version,
-			fc_host_speed(shost));
+	if (fsf_req->erp_action)
+		ZFCP_LOG_NORMAL("The adapter %s reported the following "
+				"characteristics:\n"
+				"WWNN 0x%016Lx, WWPN 0x%016Lx, "
+				"S_ID 0x%06x,\n"
+				"adapter version 0x%x, "
+				"LIC version 0x%x, "
+				"FC link speed %d Gb/s\n",
+				zfcp_get_busid_by_adapter(adapter),
+				(wwn_t) fc_host_node_name(shost),
+				(wwn_t) fc_host_port_name(shost),
+				fc_host_port_id(shost),
+				adapter->hydra_version,
+				adapter->fsf_lic_version,
+				fc_host_speed(shost));
 	if (ZFCP_QTCB_VERSION < bottom->low_qtcb_version) {
 		ZFCP_LOG_NORMAL("error: the adapter %s "
 				"only supports newer control block "
@@ -2114,8 +2115,10 @@ zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *fsf_req)
 			zfcp_erp_adapter_shutdown(adapter, 0, 127, fsf_req);
 			return -EIO;
 		case FC_PORTTYPE_NPORT:
-			ZFCP_LOG_NORMAL("Switched fabric fibrechannel "
-					"network detected at adapter %s.\n",
+			if (fsf_req->erp_action)
+				ZFCP_LOG_NORMAL("Switched fabric fibrechannel "
+						"network detected at adapter "
+						"%s.\n",
 					zfcp_get_busid_by_adapter(adapter));
 			break;
 		default:

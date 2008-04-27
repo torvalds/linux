@@ -477,11 +477,10 @@ const struct file_operations sysfs_file_operations = {
 	.poll		= sysfs_poll,
 };
 
-
-int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
-		   int type)
+int sysfs_add_file_mode(struct sysfs_dirent *dir_sd,
+			const struct attribute *attr, int type, mode_t amode)
 {
-	umode_t mode = (attr->mode & S_IALLUGO) | S_IFREG;
+	umode_t mode = (amode & S_IALLUGO) | S_IFREG;
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
 	int rc;
@@ -499,6 +498,13 @@ int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
 		sysfs_put(sd);
 
 	return rc;
+}
+
+
+int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
+		   int type)
+{
+	return sysfs_add_file_mode(dir_sd, attr, type, attr->mode);
 }
 
 

@@ -322,6 +322,21 @@ out:
 	return NULL;
 }
 
+static void scsi_target_destroy(struct scsi_target *starget)
+{
+	struct device *dev = &starget->dev;
+	struct Scsi_Host *shost = dev_to_shost(dev->parent);
+	unsigned long flags;
+
+	transport_destroy_device(dev);
+	spin_lock_irqsave(shost->host_lock, flags);
+	if (shost->hostt->target_destroy)
+		shost->hostt->target_destroy(starget);
+	list_del_init(&starget->siblings);
+	spin_unlock_irqrestore(shost->host_lock, flags);
+	put_device(dev);
+}
+
 static void scsi_target_dev_release(struct device *dev)
 {
 	struct device *parent = dev->parent;
@@ -331,9 +346,14 @@ static void scsi_target_dev_release(struct device *dev)
 	put_device(parent);
 }
 
+struct device_type scsi_target_type = {
+	.name =		"scsi_target",
+	.release =	scsi_target_dev_release,
+};
+
 int scsi_is_target_device(const struct device *dev)
 {
-	return dev->release == scsi_target_dev_release;
+	return dev->type == &scsi_target_type;
 }
 EXPORT_SYMBOL(scsi_is_target_device);
 
@@ -391,14 +411,17 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	device_initialize(dev);
 	starget->reap_ref = 1;
 	dev->parent = get_device(parent);
-	dev->release = scsi_target_dev_release;
 	sprintf(dev->bus_id, "target%d:%d:%d",
 		shost->host_no, channel, id);
+#ifndef CONFIG_SYSFS_DEPRECATED
+	dev->bus = &scsi_bus_type;
+#endif
+	dev->type = &scsi_target_type;
 	starget->id = id;
 	starget->channel = channel;
 	INIT_LIST_HEAD(&starget->siblings);
 	INIT_LIST_HEAD(&starget->devices);
-	starget->state = STARGET_RUNNING;
+	starget->state = STARGET_CREATED;
 	starget->scsi_level = SCSI_2;
  retry:
 	spin_lock_irqsave(shost->host_lock, flags);
@@ -411,18 +434,6 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	/* allocate and add */
 	transport_setup_device(dev);
-	error = device_add(dev);
-	if (error) {
-		dev_err(dev, "target device_add failed, error %d\n", error);
-		spin_lock_irqsave(shost->host_lock, flags);
-		list_del_init(&starget->siblings);
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		transport_destroy_device(dev);
-		put_device(parent);
-		kfree(starget);
-		return NULL;
-	}
-	transport_add_device(dev);
 	if (shost->hostt->target_alloc) {
 		error = shost->hostt->target_alloc(starget);
 
@@ -430,9 +441,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 			dev_printk(KERN_ERR, dev, "target allocation failed, error %d\n", error);
 			/* don't want scsi_target_reap to do the final
 			 * put because it will be under the host lock */
-			get_device(dev);
-			scsi_target_reap(starget);
-			put_device(dev);
+			scsi_target_destroy(starget);
 			return NULL;
 		}
 	}
@@ -459,18 +468,10 @@ static void scsi_target_reap_usercontext(struct work_struct *work)
 {
 	struct scsi_target *starget =
 		container_of(work, struct scsi_target, ew.work);
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	unsigned long flags;
 
 	transport_remove_device(&starget->dev);
 	device_del(&starget->dev);
-	transport_destroy_device(&starget->dev);
-	spin_lock_irqsave(shost->host_lock, flags);
-	if (shost->hostt->target_destroy)
-		shost->hostt->target_destroy(starget);
-	list_del_init(&starget->siblings);
-	spin_unlock_irqrestore(shost->host_lock, flags);
-	put_device(&starget->dev);
+	scsi_target_destroy(starget);
 }
 
 /**
@@ -485,21 +486,25 @@ void scsi_target_reap(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
+	enum scsi_target_state state;
+	int empty;
 
 	spin_lock_irqsave(shost->host_lock, flags);
-
-	if (--starget->reap_ref == 0 && list_empty(&starget->devices)) {
-		BUG_ON(starget->state == STARGET_DEL);
-		starget->state = STARGET_DEL;
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		execute_in_process_context(scsi_target_reap_usercontext,
-					   &starget->ew);
-		return;
-
-	}
+	state = starget->state;
+	empty = --starget->reap_ref == 0 &&
+		list_empty(&starget->devices) ? 1 : 0;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	return;
+	if (!empty)
+		return;
+
+	BUG_ON(state == STARGET_DEL);
+	starget->state = STARGET_DEL;
+	if (state == STARGET_CREATED)
+		scsi_target_destroy(starget);
+	else
+		execute_in_process_context(scsi_target_reap_usercontext,
+					   &starget->ew);
 }
 
 /**
@@ -1048,8 +1053,9 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 					scsi_inq_str(vend, result, 8, 16),
 					scsi_inq_str(mod, result, 16, 32));
 			});
+
 		}
-		
+
 		res = SCSI_SCAN_TARGET_PRESENT;
 		goto out_free_result;
 	}
@@ -1489,7 +1495,6 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	if (scsi_host_scan_allowed(shost))
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
 	mutex_unlock(&shost->scan_mutex);
-	transport_configure_device(&starget->dev);
 	scsi_target_reap(starget);
 	put_device(&starget->dev);
 
@@ -1570,7 +1575,6 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
  out_reap:
 	/* now determine if the target has any children at all
 	 * and if not, nuke it */
-	transport_configure_device(&starget->dev);
 	scsi_target_reap(starget);
 
 	put_device(&starget->dev);
