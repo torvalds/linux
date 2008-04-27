@@ -417,7 +417,7 @@ static void pmac_ide_kauai_selectproc(ide_drive_t *drive);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
 
 #define PMAC_IDE_REG(x) \
-	((void __iomem *)((drive)->hwif->io_ports[IDE_DATA_OFFSET] + (x)))
+	((void __iomem *)((drive)->hwif->io_ports.data_addr + (x)))
 
 /*
  * Apply the timings of the proper unit (master/slave) to the shared
@@ -1086,8 +1086,9 @@ static void __devinit pmac_ide_init_ports(hw_regs_t *hw, unsigned long base)
 	int i;
 
 	for (i = 0; i < 8; ++i)
-		hw->io_ports[i] = base + i * 0x10;
-	hw->io_ports[8] = base + 0x160;
+		hw->io_ports_array[i] = base + i * 0x10;
+
+	hw->io_ports.ctl_addr = base + 0x160;
 }
 
 /*

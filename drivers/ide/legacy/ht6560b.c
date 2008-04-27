@@ -157,8 +157,8 @@ static void ht6560b_selectproc (ide_drive_t *drive)
 		/*
 		 * Set timing for this drive:
 		 */
-		outb(timing, hwif->io_ports[IDE_SELECT_OFFSET]);
-		(void)inb(hwif->io_ports[IDE_STATUS_OFFSET]);
+		outb(timing, hwif->io_ports.device_addr);
+		(void)inb(hwif->io_ports.status_addr);
 #ifdef DEBUG
 		printk("ht6560b: %s: select=%#x timing=%#x\n",
 			drive->name, select, timing);

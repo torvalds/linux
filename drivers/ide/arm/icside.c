@@ -426,11 +426,12 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 		 */
 		default_hwif_mmiops(hwif);
 
-		for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-			hwif->io_ports[i] = port;
+		for (i = 0; i <= 7; i++) {
+			hwif->io_ports_array[i] = port;
 			port += 1 << info->stepping;
 		}
-		hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)base + info->ctrloffset;
+		hwif->io_ports.ctl_addr =
+			(unsigned long)base + info->ctrloffset;
 		hwif->irq     = ec->irq;
 		hwif->chipset = ide_acorn;
 		hwif->gendev.parent = &ec->dev;

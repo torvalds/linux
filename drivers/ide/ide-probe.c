@@ -264,6 +264,7 @@ err_misc:
 static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	struct ide_io_ports *io_ports = &hwif->io_ports;
 	int use_altstatus = 0, rc;
 	unsigned long timeout;
 	u8 s = 0, a = 0;
@@ -271,7 +272,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	/* take a deep breath */
 	msleep(50);
 
-	if (hwif->io_ports[IDE_CONTROL_OFFSET]) {
+	if (io_ports->ctl_addr) {
 		a = ide_read_altstatus(drive);
 		s = ide_read_status(drive);
 		if ((a ^ s) & ~INDEX_STAT)
@@ -289,10 +290,10 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	 */
 	if ((cmd == WIN_PIDENTIFY))
 		/* disable dma & overlap */
-		hwif->OUTB(0, hwif->io_ports[IDE_FEATURE_OFFSET]);
+		hwif->OUTB(0, io_ports->feature_addr);
 
 	/* ask drive for ID */
-	hwif->OUTB(cmd, hwif->io_ports[IDE_COMMAND_OFFSET]);
+	hwif->OUTB(cmd, io_ports->command_addr);
 
 	timeout = ((cmd == WIN_IDENTIFY) ? WAIT_WORSTCASE : WAIT_PIDENTIFY) / 2;
 	timeout += jiffies;
@@ -353,7 +354,7 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 	 * interrupts during the identify-phase that
 	 * the irq handler isn't expecting.
 	 */
-	if (hwif->io_ports[IDE_CONTROL_OFFSET]) {
+	if (hwif->io_ports.ctl_addr) {
 		if (!hwif->irq) {
 			autoprobe = 1;
 			cookie = probe_irq_on();
@@ -393,7 +394,7 @@ static int ide_busy_sleep(ide_hwif_t *hwif)
 
 	do {
 		msleep(50);
-		stat = hwif->INB(hwif->io_ports[IDE_STATUS_OFFSET]);
+		stat = hwif->INB(hwif->io_ports.status_addr);
 		if ((stat & BUSY_STAT) == 0)
 			return 0;
 	} while (time_before(jiffies, timeout));
@@ -425,6 +426,7 @@ static int ide_busy_sleep(ide_hwif_t *hwif)
 static int do_probe (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	struct ide_io_ports *io_ports = &hwif->io_ports;
 	int rc;
 	u8 stat;
 
@@ -445,7 +447,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	msleep(50);
 	SELECT_DRIVE(drive);
 	msleep(50);
-	if (hwif->INB(hwif->io_ports[IDE_SELECT_OFFSET]) != drive->select.all &&
+	if (hwif->INB(io_ports->device_addr) != drive->select.all &&
 	    !drive->present) {
 		if (drive->select.b.unit != 0) {
 			/* exit with drive0 selected */
@@ -476,11 +478,9 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			printk(KERN_ERR "%s: no response (status = 0x%02x), "
 					"resetting drive\n", drive->name, stat);
 			msleep(50);
-			hwif->OUTB(drive->select.all,
-				   hwif->io_ports[IDE_SELECT_OFFSET]);
+			hwif->OUTB(drive->select.all, io_ports->device_addr);
 			msleep(50);
-			hwif->OUTB(WIN_SRST,
-				   hwif->io_ports[IDE_COMMAND_OFFSET]);
+			hwif->OUTB(WIN_SRST, io_ports->command_addr);
 			(void)ide_busy_sleep(hwif);
 			rc = try_to_identify(drive, cmd);
 		}
@@ -516,7 +516,7 @@ static void enable_nest (ide_drive_t *drive)
 	printk("%s: enabling %s -- ", hwif->name, drive->id->model);
 	SELECT_DRIVE(drive);
 	msleep(50);
-	hwif->OUTB(EXABYTE_ENABLE_NEST, hwif->io_ports[IDE_COMMAND_OFFSET]);
+	hwif->OUTB(EXABYTE_ENABLE_NEST, hwif->io_ports.command_addr);
 
 	if (ide_busy_sleep(hwif)) {
 		printk(KERN_CONT "failed (timeout)\n");
@@ -982,6 +982,7 @@ static void ide_port_setup_devices(ide_hwif_t *hwif)
  */
 static int init_irq (ide_hwif_t *hwif)
 {
+	struct ide_io_ports *io_ports = &hwif->io_ports;
 	unsigned int index;
 	ide_hwgroup_t *hwgroup;
 	ide_hwif_t *match = NULL;
@@ -1065,9 +1066,9 @@ static int init_irq (ide_hwif_t *hwif)
 		if (IDE_CHIPSET_IS_PCI(hwif->chipset))
 			sa = IRQF_SHARED;
 
-		if (hwif->io_ports[IDE_CONTROL_OFFSET])
+		if (io_ports->ctl_addr)
 			/* clear nIEN */
-			hwif->OUTB(0x08, hwif->io_ports[IDE_CONTROL_OFFSET]);
+			hwif->OUTB(0x08, io_ports->ctl_addr);
 
 		if (request_irq(hwif->irq,&ide_intr,sa,hwif->name,hwgroup))
 	       		goto out_unlink;
@@ -1083,12 +1084,11 @@ static int init_irq (ide_hwif_t *hwif)
 
 #if !defined(__mc68000__)
 	printk("%s at 0x%03lx-0x%03lx,0x%03lx on irq %d", hwif->name,
-		hwif->io_ports[IDE_DATA_OFFSET],
-		hwif->io_ports[IDE_DATA_OFFSET]+7,
-		hwif->io_ports[IDE_CONTROL_OFFSET], hwif->irq);
+		io_ports->data_addr, io_ports->status_addr,
+		io_ports->ctl_addr, hwif->irq);
 #else
 	printk("%s at 0x%08lx on irq %d", hwif->name,
-		hwif->io_ports[IDE_DATA_OFFSET], hwif->irq);
+		io_ports->data_addr, hwif->irq);
 #endif /* __mc68000__ */
 	if (match)
 		printk(" (%sed with %s)",
@@ -1230,8 +1230,8 @@ static int hwif_init(ide_hwif_t *hwif)
 	int old_irq;
 
 	if (!hwif->irq) {
-		if (!(hwif->irq = ide_default_irq(hwif->io_ports[IDE_DATA_OFFSET])))
-		{
+		hwif->irq = ide_default_irq(hwif->io_ports.data_addr);
+		if (!hwif->irq) {
 			printk("%s: DISABLED, NO IRQ\n", hwif->name);
 			return 0;
 		}
@@ -1260,7 +1260,8 @@ static int hwif_init(ide_hwif_t *hwif)
 	 *	It failed to initialise. Find the default IRQ for 
 	 *	this port and try that.
 	 */
-	if (!(hwif->irq = ide_default_irq(hwif->io_ports[IDE_DATA_OFFSET]))) {
+	hwif->irq = ide_default_irq(hwif->io_ports.data_addr);
+	if (!hwif->irq) {
 		printk("%s: Disabled unable to get IRQ %d.\n",
 			hwif->name, old_irq);
 		goto out;

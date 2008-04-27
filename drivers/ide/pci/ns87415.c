@@ -72,8 +72,8 @@ static void __devinit superio_ide_init_iops (struct hwif_s *hwif)
 	base = pci_resource_start(pdev, port * 2) & ~3;
 	dmabase = pci_resource_start(pdev, 4) & ~3;
 
-	superio_ide_status[port] = base + IDE_STATUS_OFFSET;
-	superio_ide_select[port] = base + IDE_SELECT_OFFSET;
+	superio_ide_status[port] = base + 7;
+	superio_ide_select[port] = base + 6;
 	superio_ide_dma_status[port] = dmabase + (!port ? 2 : 0xa);
 
 	/* Clear error/interrupt, enable dma */
@@ -231,12 +231,12 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 		 *      SELECT_DRIVE() properly during first ide_probe_port().
 		 */
 		timeout = 10000;
-		outb(12, hwif->io_ports[IDE_CONTROL_OFFSET]);
+		outb(12, hwif->io_ports.ctl_addr);
 		udelay(10);
-		outb(8, hwif->io_ports[IDE_CONTROL_OFFSET]);
+		outb(8, hwif->io_ports.ctl_addr);
 		do {
 			udelay(50);
-			stat = hwif->INB(hwif->io_ports[IDE_STATUS_OFFSET]);
+			stat = hwif->INB(hwif->io_ports.status_addr);
                 	if (stat == 0xff)
                         	break;
         	} while ((stat & BUSY_STAT) && --timeout);
@@ -244,7 +244,7 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 	}
 
 	if (!using_inta)
-		hwif->irq = ide_default_irq(hwif->io_ports[IDE_DATA_OFFSET]);
+		hwif->irq = ide_default_irq(hwif->io_ports.data_addr);
 	else if (!hwif->irq && hwif->mate && hwif->mate->irq)
 		hwif->irq = hwif->mate->irq;	/* share IRQ with mate */
 

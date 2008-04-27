@@ -502,12 +502,11 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 static void auide_setup_ports(hw_regs_t *hw, _auide_hwif *ahwif)
 {
 	int i;
-	unsigned long *ata_regs = hw->io_ports;
+	unsigned long *ata_regs = hw->io_ports_array;
 
 	/* FIXME? */
-	for (i = 0; i < IDE_CONTROL_OFFSET; i++) {
+	for (i = 0; i < 8; i++)
 		*ata_regs++ = ahwif->regbase + (i << AU1XXX_ATA_REG_OFFSET);
-	}
 
 	/* set the Alternative Status register */
 	*ata_regs = ahwif->regbase + (14 << AU1XXX_ATA_REG_OFFSET);

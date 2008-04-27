@@ -334,7 +334,7 @@ static int scc_dma_end(ide_drive_t *drive)
 
 	/* errata A308 workaround: Step5 (check data loss) */
 	/* We don't check non ide_disk because it is limited to UDMA4 */
-	if (!(in_be32((void __iomem *)hwif->io_ports[IDE_ALTSTATUS_OFFSET])
+	if (!(in_be32((void __iomem *)hwif->io_ports.ctl_addr)
 	      & ERR_STAT) &&
 	    drive->media == ide_disk && drive->current_speed > XFER_UDMA_4) {
 		reg = in_be32((void __iomem *)intsts_port);
@@ -438,7 +438,7 @@ static int scc_dma_test_irq(ide_drive_t *drive)
 	u32 int_stat = in_be32((void __iomem *)hwif->dma_base + 0x014);
 
 	/* SCC errata A252,A308 workaround: Step4 */
-	if ((in_be32((void __iomem *)hwif->io_ports[IDE_ALTSTATUS_OFFSET])
+	if ((in_be32((void __iomem *)hwif->io_ports.ctl_addr)
 	     & ERR_STAT) &&
 	    (int_stat & INTSTS_INTRQ))
 		return 1;
@@ -534,8 +534,8 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 	}
 
 	memset(&hw, 0, sizeof(hw));
-	for (i = IDE_DATA_OFFSET; i <= IDE_CONTROL_OFFSET; i++)
-		hw.io_ports[i] = ports->dma + 0x20 + i * 4;
+	for (i = 0; i <= 8; i++)
+		hw.io_ports_array[i] = ports->dma + 0x20 + i * 4;
 	hw.irq = dev->irq;
 	hw.dev = &dev->dev;
 	hw.chipset = ide_pci;

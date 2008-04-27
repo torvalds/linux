@@ -61,23 +61,30 @@ typedef unsigned char	byte;	/* used everywhere */
  */
 #define IDE_NR_PORTS		(10)
 
-#define IDE_DATA_OFFSET		(0)
-#define IDE_ERROR_OFFSET	(1)
-#define IDE_NSECTOR_OFFSET	(2)
-#define IDE_SECTOR_OFFSET	(3)
-#define IDE_LCYL_OFFSET		(4)
-#define IDE_HCYL_OFFSET		(5)
-#define IDE_SELECT_OFFSET	(6)
-#define IDE_STATUS_OFFSET	(7)
-#define IDE_CONTROL_OFFSET	(8)
-#define IDE_IRQ_OFFSET		(9)
+struct ide_io_ports {
+	unsigned long	data_addr;
 
-#define IDE_FEATURE_OFFSET	IDE_ERROR_OFFSET
-#define IDE_COMMAND_OFFSET	IDE_STATUS_OFFSET
-#define IDE_ALTSTATUS_OFFSET	IDE_CONTROL_OFFSET
-#define IDE_IREASON_OFFSET	IDE_NSECTOR_OFFSET
-#define IDE_BCOUNTL_OFFSET	IDE_LCYL_OFFSET
-#define IDE_BCOUNTH_OFFSET	IDE_HCYL_OFFSET
+	union {
+		unsigned long error_addr;	/*   read:  error */
+		unsigned long feature_addr;	/*  write: feature */
+	};
+
+	unsigned long	nsect_addr;
+	unsigned long	lbal_addr;
+	unsigned long	lbam_addr;
+	unsigned long	lbah_addr;
+
+	unsigned long	device_addr;
+
+	union {
+		unsigned long status_addr;	/*  read: status  */
+		unsigned long command_addr;	/* write: command */
+	};
+
+	unsigned long	ctl_addr;
+
+	unsigned long	irq_addr;
+};
 
 #define OK_STAT(stat,good,bad)	(((stat)&((good)|(bad)))==(good))
 #define BAD_R_STAT		(BUSY_STAT   | ERR_STAT)
@@ -156,7 +163,11 @@ typedef u8 hwif_chipset_t;
  * Structure to hold all information about the location of this port
  */
 typedef struct hw_regs_s {
-	unsigned long	io_ports[IDE_NR_PORTS];	/* task file registers */
+	union {
+		struct ide_io_ports	io_ports;
+		unsigned long		io_ports_array[IDE_NR_PORTS];
+	};
+
 	int		irq;			/* our irq number */
 	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
 	hwif_chipset_t  chipset;
@@ -172,10 +183,10 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 {
 	unsigned int i;
 
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++)
-		hw->io_ports[i] = io_addr++;
+	for (i = 0; i <= 7; i++)
+		hw->io_ports_array[i] = io_addr++;
 
-	hw->io_ports[IDE_CONTROL_OFFSET] = ctl_addr;
+	hw->io_ports.ctl_addr = ctl_addr;
 }
 
 #include <asm/ide.h>
@@ -424,8 +435,8 @@ typedef struct hwif_s {
 
 	char name[6];			/* name of interface, eg. "ide0" */
 
-		/* task file registers for pata and sata */
-	unsigned long	io_ports[IDE_NR_PORTS];
+	struct ide_io_ports	io_ports;
+
 	unsigned long	sata_scr[SATA_NR_PORTS];
 
 	ide_drive_t	drives[MAX_DRIVES];	/* drive info */
@@ -1330,29 +1341,28 @@ static inline void ide_set_irq(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	hwif->OUTB(drive->ctl | (on ? 0 : 2),
-		   hwif->io_ports[IDE_CONTROL_OFFSET]);
+	hwif->OUTB(drive->ctl | (on ? 0 : 2), hwif->io_ports.ctl_addr);
 }
 
 static inline u8 ide_read_status(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	return hwif->INB(hwif->io_ports[IDE_STATUS_OFFSET]);
+	return hwif->INB(hwif->io_ports.status_addr);
 }
 
 static inline u8 ide_read_altstatus(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	return hwif->INB(hwif->io_ports[IDE_CONTROL_OFFSET]);
+	return hwif->INB(hwif->io_ports.ctl_addr);
 }
 
 static inline u8 ide_read_error(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	return hwif->INB(hwif->io_ports[IDE_ERROR_OFFSET]);
+	return hwif->INB(hwif->io_ports.error_addr);
 }
 
 /*
@@ -1365,7 +1375,7 @@ static inline void ide_atapi_discard_data(ide_drive_t *drive, unsigned bcount)
 
 	/* FIXME: use ->atapi_input_bytes */
 	while (bcount--)
-		(void)hwif->INB(hwif->io_ports[IDE_DATA_OFFSET]);
+		(void)hwif->INB(hwif->io_ports.data_addr);
 }
 
 static inline void ide_atapi_write_zeros(ide_drive_t *drive, unsigned bcount)
@@ -1374,7 +1384,7 @@ static inline void ide_atapi_write_zeros(ide_drive_t *drive, unsigned bcount)
 
 	/* FIXME: use ->atapi_output_bytes */
 	while (bcount--)
-		hwif->OUTB(0, hwif->io_ports[IDE_DATA_OFFSET]);
+		hwif->OUTB(0, hwif->io_ports.data_addr);
 }
 
 #endif /* _IDE_H */

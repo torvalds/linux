@@ -368,7 +368,7 @@ EXPORT_SYMBOL(ide_unregister);
 
 void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 {
-	memcpy(hwif->io_ports, hw->io_ports, sizeof(hwif->io_ports));
+	memcpy(&hwif->io_ports, &hw->io_ports, sizeof(hwif->io_ports));
 	hwif->irq = hw->irq;
 	hwif->chipset = hw->chipset;
 	hwif->gendev.parent = hw->dev;

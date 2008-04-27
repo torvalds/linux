@@ -80,10 +80,10 @@ void q40_ide_setup_ports ( hw_regs_t *hw,
 	for (i = 0; i < IDE_NR_PORTS; i++) {
 		/* BIG FAT WARNING: 
 		   assumption: only DATA port is ever used in 16 bit mode */
-		if ( i==0 )
-			hw->io_ports[i] = Q40_ISA_IO_W(base + offsets[i]);
+		if (i == 0)
+			hw->io_ports_array[i] = Q40_ISA_IO_W(base + offsets[i]);
 		else
-			hw->io_ports[i] = Q40_ISA_IO_B(base + offsets[i]);
+			hw->io_ports_array[i] = Q40_ISA_IO_B(base + offsets[i]);
 	}
 
 	hw->irq = irq;

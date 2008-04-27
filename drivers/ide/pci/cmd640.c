@@ -347,12 +347,12 @@ static int __init secondary_port_responding(void)
 
 	spin_lock_irqsave(&cmd640_lock, flags);
 
-	outb_p(0x0a, 0x170 + IDE_SELECT_OFFSET);	/* select drive0 */
+	outb_p(0x0a, 0x176);	/* select drive0 */
 	udelay(100);
-	if ((inb_p(0x170 + IDE_SELECT_OFFSET) & 0x1f) != 0x0a) {
-		outb_p(0x1a, 0x170 + IDE_SELECT_OFFSET); /* select drive1 */
+	if ((inb_p(0x176) & 0x1f) != 0x0a) {
+		outb_p(0x1a, 0x176); /* select drive1 */
 		udelay(100);
-		if ((inb_p(0x170 + IDE_SELECT_OFFSET) & 0x1f) != 0x1a) {
+		if ((inb_p(0x176) & 0x1f) != 0x1a) {
 			spin_unlock_irqrestore(&cmd640_lock, flags);
 			return 0; /* nothing responded */
 		}

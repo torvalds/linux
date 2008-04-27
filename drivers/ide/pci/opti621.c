@@ -279,7 +279,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 	spin_lock_irqsave(&opti621_lock, flags);
 
-	reg_base = hwif->io_ports[IDE_DATA_OFFSET];
+	reg_base = hwif->io_ports.data_addr;
 
 	/* allow Register-B */
 	outb(0xc0, reg_base + CNTRL_REG);

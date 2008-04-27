@@ -298,7 +298,7 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 		if (old != compat && old_mask == 0xff) {
 			/* leave lower 10 bits untouched */
 			compat += (next_offset += 0x400);
-			hwif->io_ports[IDE_CONTROL_OFFSET] = compat + 2;
+			hwif->io_ports.ctl_addr = compat + 2;
 			outw(compat | 1, hwif->config_data);
 			new = inw(hwif->config_data);
 			printk(KERN_INFO "%s: control basereg workaround: "

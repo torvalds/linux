@@ -849,10 +849,10 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 		return ide_do_reset(drive);
 	}
 	/* Get the number of bytes to transfer on this interrupt. */
-	bcount = (hwif->INB(hwif->io_ports[IDE_BCOUNTH_OFFSET]) << 8) |
-		  hwif->INB(hwif->io_ports[IDE_BCOUNTL_OFFSET]);
+	bcount = (hwif->INB(hwif->io_ports.lbah_addr) << 8) |
+		  hwif->INB(hwif->io_ports.lbam_addr);
 
-	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]);
+	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 
 	if (ireason & CD) {
 		printk(KERN_ERR "ide-tape: CoD != 0 in %s\n", __func__);
@@ -956,12 +956,12 @@ static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
 				"yet DRQ isn't asserted\n");
 		return startstop;
 	}
-	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]);
+	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 	while (retries-- && ((ireason & CD) == 0 || (ireason & IO))) {
 		printk(KERN_ERR "ide-tape: (IO,CoD != (0,1) while issuing "
 				"a packet command, retrying\n");
 		udelay(100);
-		ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]);
+		ireason = hwif->INB(hwif->io_ports.nsect_addr);
 		if (retries == 0) {
 			printk(KERN_ERR "ide-tape: (IO,CoD != (0,1) while "
 					"issuing a packet command, ignoring\n");
@@ -1058,7 +1058,7 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 				    IDETAPE_WAIT_CMD, NULL);
 		return ide_started;
 	} else {
-		hwif->OUTB(WIN_PACKETCMD, hwif->io_ports[IDE_COMMAND_OFFSET]);
+		hwif->OUTB(WIN_PACKETCMD, hwif->io_ports.command_addr);
 		return idetape_transfer_pc(drive);
 	}
 }

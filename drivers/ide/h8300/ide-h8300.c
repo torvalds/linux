@@ -63,9 +63,9 @@ static inline void hw_setup(hw_regs_t *hw)
 	int i;
 
 	memset(hw, 0, sizeof(hw_regs_t));
-	for (i = 0; i <= IDE_STATUS_OFFSET; i++)
-		hw->io_ports[i] = CONFIG_H8300_IDE_BASE + H8300_IDE_GAP*i;
-	hw->io_ports[IDE_CONTROL_OFFSET] = CONFIG_H8300_IDE_ALT;
+	for (i = 0; i <= 7; i++)
+		hw->io_ports_array[i] = CONFIG_H8300_IDE_BASE + H8300_IDE_GAP*i;
+	hw->io_ports.ctl_addr = CONFIG_H8300_IDE_ALT;
 	hw->irq = EXT_IRQ0 + CONFIG_H8300_IDE_IRQ;
 	hw->chipset = ide_generic;
 }

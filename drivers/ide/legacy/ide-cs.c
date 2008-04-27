@@ -140,8 +140,8 @@ static void ide_detach(struct pcmcia_device *link)
 
     ide_release(link);
 
-    release_region(hwif->io_ports[IDE_CONTROL_OFFSET], 1);
-    release_region(hwif->io_ports[IDE_DATA_OFFSET], 8);
+    release_region(hwif->io_ports.ctl_addr, 1);
+    release_region(hwif->io_ports.data_addr, 8);
 
     kfree(info);
 } /* ide_detach */

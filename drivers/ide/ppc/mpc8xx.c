@@ -131,7 +131,7 @@ static int pcmcia_schlvl = PCMCIA_SCHLVL;
 #if defined(CONFIG_IDE_8xx_PCCARD) || defined(CONFIG_IDE_8xx_DIRECT)
 static int __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 {
-	unsigned long *p = hw->io_ports;
+	unsigned long *p = hw->io_ports_array;
 	int i;
 
 	typedef struct {
@@ -314,7 +314,7 @@ static int __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 #if defined(CONFIG_IDE_EXT_DIRECT)
 static int __init m8xx_ide_init_ports(hw_regs_t *hw, unsigned long data_port)
 {
-	unsigned long *p = hw->io_ports;
+	unsigned long *p = hw->io_ports_array;
 	int i;
 
 	u32 ide_phy_base;

@@ -76,7 +76,7 @@ static int gayle_ack_intr_a4000(ide_hwif_t *hwif)
 {
     unsigned char ch;
 
-    ch = z_readb(hwif->io_ports[IDE_IRQ_OFFSET]);
+    ch = z_readb(hwif->io_ports.irq_addr);
     if (!(ch & GAYLE_IRQ_IDE))
 	return 0;
     return 1;
@@ -86,11 +86,11 @@ static int gayle_ack_intr_a1200(ide_hwif_t *hwif)
 {
     unsigned char ch;
 
-    ch = z_readb(hwif->io_ports[IDE_IRQ_OFFSET]);
+    ch = z_readb(hwif->io_ports.irq_addr);
     if (!(ch & GAYLE_IRQ_IDE))
 	return 0;
-    (void)z_readb(hwif->io_ports[IDE_STATUS_OFFSET]);
-    z_writeb(0x7c, hwif->io_ports[IDE_IRQ_OFFSET]);
+    (void)z_readb(hwif->io_ports.status_addr);
+    z_writeb(0x7c, hwif->io_ports.irq_addr);
     return 1;
 }
 
@@ -102,13 +102,13 @@ static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
 
 	memset(hw, 0, sizeof(*hw));
 
-	hw->io_ports[IDE_DATA_OFFSET] = base;
+	hw->io_ports.data_addr = base;
 
 	for (i = 1; i < 8; i++)
-		hw->io_ports[i] = base + 2 + i * 4;
+		hw->io_ports_array[i] = base + 2 + i * 4;
 
-	hw->io_ports[IDE_CONTROL_OFFSET] = ctl;
-	hw->io_ports[IDE_IRQ_OFFSET] = irq_port;
+	hw->io_ports.ctl_addr = ctl;
+	hw->io_ports.irq_addr = irq_port;
 
 	hw->irq = IRQ_AMIGA_PORTS;
 	hw->ack_intr = ack_intr;
