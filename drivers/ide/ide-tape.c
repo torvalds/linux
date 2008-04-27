@@ -583,20 +583,22 @@ static void idetape_analyze_error(ide_drive_t *drive, u8 *sense)
 	}
 }
 
-/* Free a stage along with its related buffers completely. */
-static void __idetape_kfree_stage(idetape_stage_t *stage)
+/* Free data buffers completely. */
+static void ide_tape_kfree_buffer(idetape_stage_t *stage)
 {
 	struct idetape_bh *prev_bh, *bh = stage->bh;
-	int size;
 
-	while (bh != NULL) {
-		if (bh->b_data != NULL) {
-			size = (int) bh->b_size;
-			while (size > 0) {
-				free_page((unsigned long) bh->b_data);
-				size -= PAGE_SIZE;
-				bh->b_data += PAGE_SIZE;
-			}
+	while (bh) {
+		u32 size = bh->b_size;
+
+		while (size) {
+			unsigned int order = fls(size >> PAGE_SHIFT)-1;
+
+			if (bh->b_data)
+				free_pages((unsigned long)bh->b_data, order);
+
+			size &= (order-1);
+			bh->b_data += (1 << order) * PAGE_SIZE;
 		}
 		prev_bh = bh;
 		bh = bh->b_reqnext;
@@ -1373,7 +1375,7 @@ static idetape_stage_t *ide_tape_kmalloc_buffer(idetape_tape_t *tape, int full,
 		atomic_sub(tape->excess_bh_size, &bh->b_count);
 	return stage;
 abort:
-	__idetape_kfree_stage(stage);
+	ide_tape_kfree_buffer(stage);
 	return NULL;
 }
 
@@ -1649,7 +1651,7 @@ static int __idetape_discard_read_pipeline(ide_drive_t *drive)
 	clear_bit(IDETAPE_FLAG_FILEMARK, &tape->flags);
 	tape->merge_stage_size = 0;
 	if (tape->merge_stage != NULL) {
-		__idetape_kfree_stage(tape->merge_stage);
+		ide_tape_kfree_buffer(tape->merge_stage);
 		tape->merge_stage = NULL;
 	}
 
@@ -1828,7 +1830,7 @@ static void idetape_empty_write_pipeline(ide_drive_t *drive)
 		tape->merge_stage_size = 0;
 	}
 	if (tape->merge_stage != NULL) {
-		__idetape_kfree_stage(tape->merge_stage);
+		ide_tape_kfree_buffer(tape->merge_stage);
 		tape->merge_stage = NULL;
 	}
 	tape->chrdev_dir = IDETAPE_DIR_NONE;
@@ -1866,7 +1868,7 @@ static int idetape_init_read(ide_drive_t *drive)
 							REQ_IDETAPE_READ, 0,
 							tape->merge_stage->bh);
 			if (bytes_read < 0) {
-				__idetape_kfree_stage(tape->merge_stage);
+				ide_tape_kfree_buffer(tape->merge_stage);
 				tape->merge_stage = NULL;
 				tape->chrdev_dir = IDETAPE_DIR_NONE;
 				return bytes_read;
@@ -2145,7 +2147,7 @@ static ssize_t idetape_chrdev_write(struct file *file, const char __user *buf,
 							REQ_IDETAPE_WRITE, 0,
 							tape->merge_stage->bh);
 			if (retval < 0) {
-				__idetape_kfree_stage(tape->merge_stage);
+				ide_tape_kfree_buffer(tape->merge_stage);
 				tape->merge_stage = NULL;
 				tape->chrdev_dir = IDETAPE_DIR_NONE;
 				return retval;
@@ -2512,7 +2514,7 @@ static void idetape_write_release(ide_drive_t *drive, unsigned int minor)
 	if (tape->merge_stage != NULL) {
 		idetape_pad_zeros(drive, tape->blk_size *
 				(tape->user_bs_factor - 1));
-		__idetape_kfree_stage(tape->merge_stage);
+		ide_tape_kfree_buffer(tape->merge_stage);
 		tape->merge_stage = NULL;
 	}
 	idetape_write_filemark(drive);
