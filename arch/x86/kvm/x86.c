@@ -3449,7 +3449,7 @@ static int load_state_from_tss16(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-int kvm_task_switch_16(struct kvm_vcpu *vcpu, u16 tss_selector,
+static int kvm_task_switch_16(struct kvm_vcpu *vcpu, u16 tss_selector,
 		       struct desc_struct *cseg_desc,
 		       struct desc_struct *nseg_desc)
 {
@@ -3472,7 +3472,7 @@ out:
 	return ret;
 }
 
-int kvm_task_switch_32(struct kvm_vcpu *vcpu, u16 tss_selector,
+static int kvm_task_switch_32(struct kvm_vcpu *vcpu, u16 tss_selector,
 		       struct desc_struct *cseg_desc,
 		       struct desc_struct *nseg_desc)
 {

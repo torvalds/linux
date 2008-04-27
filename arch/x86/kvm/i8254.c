@@ -91,7 +91,7 @@ static void pit_set_gate(struct kvm *kvm, int channel, u32 val)
 	c->gate = val;
 }
 
-int pit_get_gate(struct kvm *kvm, int channel)
+static int pit_get_gate(struct kvm *kvm, int channel)
 {
 	WARN_ON(!mutex_is_locked(&kvm->arch.vpit->pit_state.lock));
 
@@ -193,7 +193,7 @@ static void pit_latch_status(struct kvm *kvm, int channel)
 	}
 }
 
-int __pit_timer_fn(struct kvm_kpit_state *ps)
+static int __pit_timer_fn(struct kvm_kpit_state *ps)
 {
 	struct kvm_vcpu *vcpu0 = ps->pit->kvm->vcpus[0];
 	struct kvm_kpit_timer *pt = &ps->pit_timer;
@@ -575,7 +575,7 @@ void kvm_free_pit(struct kvm *kvm)
 	}
 }
 
-void __inject_pit_timer_intr(struct kvm *kvm)
+static void __inject_pit_timer_intr(struct kvm *kvm)
 {
 	mutex_lock(&kvm->lock);
 	kvm_ioapic_set_irq(kvm->arch.vioapic, 0, 1);
