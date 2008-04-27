@@ -527,7 +527,7 @@ static struct of_platform_driver tcx_driver = {
 	.remove		= __devexit_p(tcx_remove),
 };
 
-int __init tcx_init(void)
+static int __init tcx_init(void)
 {
 	if (fb_get_options("tcxfb", NULL))
 		return -ENODEV;
@@ -535,7 +535,7 @@ int __init tcx_init(void)
 	return of_register_driver(&tcx_driver, &of_bus_type);
 }
 
-void __exit tcx_exit(void)
+static void __exit tcx_exit(void)
 {
 	of_unregister_driver(&tcx_driver);
 }
