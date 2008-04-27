@@ -547,14 +547,13 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	hwif->config_data = (unsigned long)ioc_base;
 	hwif->select_data = sel;
 
-	mate->maskproc    = icside_maskproc;
 	mate->hwif_data   = state;
 	mate->config_data = (unsigned long)ioc_base;
 	mate->select_data = sel | 1;
 
 	if (ec->dma != NO_DMA && !request_dma(ec->dma, hwif->name)) {
 		d.init_dma = icside_dma_init;
-		d.port_ops = &icside_v6_dma_port_ops;
+		d.port_ops = &icside_v6_port_ops;
 		d.dma_ops = NULL;
 	}
 
