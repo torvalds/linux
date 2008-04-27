@@ -274,6 +274,15 @@ void c67x00_ll_write_mem_le16(struct c67x00_device *dev, u16 addr,
 void c67x00_ll_read_mem_le16(struct c67x00_device *dev, u16 addr,
 			     void *data, int len);
 
+/* Host specific functions */
+void c67x00_ll_set_husb_eot(struct c67x00_device *dev, u16 value);
+void c67x00_ll_husb_reset(struct c67x00_sie *sie, int port);
+void c67x00_ll_husb_set_current_td(struct c67x00_sie *sie, u16 addr);
+u16 c67x00_ll_husb_get_current_td(struct c67x00_sie *sie);
+u16 c67x00_ll_husb_get_frame(struct c67x00_sie *sie);
+void c67x00_ll_husb_init_host_port(struct c67x00_sie *sie);
+void c67x00_ll_husb_reset_port(struct c67x00_sie *sie, int port);
+
 /* Called by c67x00_irq to handle lcp interrupts */
 void c67x00_ll_irq(struct c67x00_device *dev, u16 int_status);
 

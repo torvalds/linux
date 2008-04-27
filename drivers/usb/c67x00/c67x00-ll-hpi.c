@@ -297,6 +297,81 @@ static int c67x00_comm_exec_int(struct c67x00_device *dev, u16 nr,
 }
 
 /* -------------------------------------------------------------------------- */
+/* Host specific functions */
+
+void c67x00_ll_set_husb_eot(struct c67x00_device *dev, u16 value)
+{
+	mutex_lock(&dev->hpi.lcp.mutex);
+	hpi_write_word(dev, HUSB_pEOT, value);
+	mutex_unlock(&dev->hpi.lcp.mutex);
+}
+
+static inline void c67x00_ll_husb_sie_init(struct c67x00_sie *sie)
+{
+	struct c67x00_device *dev = sie->dev;
+	struct c67x00_lcp_int_data data;
+	int rc;
+
+	rc = c67x00_comm_exec_int(dev, HUSB_SIE_INIT_INT(sie->sie_num), &data);
+	BUG_ON(rc); /* No return path for error code; crash spectacularly */
+}
+
+void c67x00_ll_husb_reset(struct c67x00_sie *sie, int port)
+{
+	struct c67x00_device *dev = sie->dev;
+	struct c67x00_lcp_int_data data;
+	int rc;
+
+	data.regs[0] = 50;	/* Reset USB port for 50ms */
+	data.regs[1] = port | (sie->sie_num << 1);
+	rc = c67x00_comm_exec_int(dev, HUSB_RESET_INT, &data);
+	BUG_ON(rc); /* No return path for error code; crash spectacularly */
+}
+
+void c67x00_ll_husb_set_current_td(struct c67x00_sie *sie, u16 addr)
+{
+	hpi_write_word(sie->dev, HUSB_SIE_pCurrentTDPtr(sie->sie_num), addr);
+}
+
+u16 c67x00_ll_husb_get_current_td(struct c67x00_sie *sie)
+{
+	return hpi_read_word(sie->dev, HUSB_SIE_pCurrentTDPtr(sie->sie_num));
+}
+
+u16 c67x00_ll_husb_get_frame(struct c67x00_sie *sie)
+{
+	return hpi_read_word(sie->dev, HOST_FRAME_REG(sie->sie_num));
+}
+
+void c67x00_ll_husb_init_host_port(struct c67x00_sie *sie)
+{
+	/* Set port into host mode */
+	hpi_set_bits(sie->dev, USB_CTL_REG(sie->sie_num), HOST_MODE);
+	c67x00_ll_husb_sie_init(sie);
+	/* Clear interrupts */
+	c67x00_ll_usb_clear_status(sie, HOST_STAT_MASK);
+	/* Check */
+	if (!(hpi_read_word(sie->dev, USB_CTL_REG(sie->sie_num)) & HOST_MODE))
+		dev_warn(sie_dev(sie),
+			 "SIE %d not set to host mode\n", sie->sie_num);
+}
+
+void c67x00_ll_husb_reset_port(struct c67x00_sie *sie, int port)
+{
+	/* Clear connect change */
+	c67x00_ll_usb_clear_status(sie, PORT_CONNECT_CHANGE(port));
+
+	/* Enable interrupts */
+	hpi_set_bits(sie->dev, HPI_IRQ_ROUTING_REG,
+		     SOFEOP_TO_CPU_EN(sie->sie_num));
+	hpi_set_bits(sie->dev, HOST_IRQ_EN_REG(sie->sie_num),
+		     SOF_EOP_IRQ_EN | DONE_IRQ_EN);
+
+	/* Enable pull down transistors */
+	hpi_set_bits(sie->dev, USB_CTL_REG(sie->sie_num), PORT_RES_EN(port));
+}
+
+/* -------------------------------------------------------------------------- */
 
 void c67x00_ll_irq(struct c67x00_device *dev, u16 int_status)
 {

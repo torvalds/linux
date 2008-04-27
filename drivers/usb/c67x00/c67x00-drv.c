@@ -41,6 +41,7 @@
 #include <linux/usb/c67x00.h>
 
 #include "c67x00.h"
+#include "c67x00-hcd.h"
 
 static void c67x00_probe_sie(struct c67x00_sie *sie,
 			     struct c67x00_device *dev, int sie_num)
@@ -51,6 +52,10 @@ static void c67x00_probe_sie(struct c67x00_sie *sie,
 	sie->mode = c67x00_sie_config(dev->pdata->sie_config, sie_num);
 
 	switch (sie->mode) {
+	case C67X00_SIE_HOST:
+		c67x00_hcd_probe(sie);
+		break;
+
 	case C67X00_SIE_UNUSED:
 		dev_info(sie_dev(sie),
 			 "Not using SIE %d as requested\n", sie->sie_num);
@@ -66,6 +71,14 @@ static void c67x00_probe_sie(struct c67x00_sie *sie,
 
 static void c67x00_remove_sie(struct c67x00_sie *sie)
 {
+	switch (sie->mode) {
+	case C67X00_SIE_HOST:
+		c67x00_hcd_remove(sie);
+		break;
+
+	default:
+		break;
+	}
 }
 
 static irqreturn_t c67x00_irq(int irq, void *__dev)
