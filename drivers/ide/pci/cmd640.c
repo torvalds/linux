@@ -380,6 +380,7 @@ static void cmd640_dump_regs(void)
 }
 #endif
 
+#ifndef CONFIG_BLK_DEV_CMD640_ENHANCED
 /*
  * Check whether prefetch is on for a drive,
  * and initialize the unmask flags for safe operation.
@@ -400,9 +401,7 @@ static void __init check_prefetch(ide_drive_t *drive, unsigned int index)
 		drive->no_io_32bit = 0;
 	}
 }
-
-#ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-
+#else
 /*
  * Sets prefetch mode for a drive.
  */
@@ -457,34 +456,6 @@ static inline u8 pack_nibbles(u8 upper, u8 lower)
 {
 	return ((upper & 0x0f) << 4) | (lower & 0x0f);
 }
-
-/*
- * This routine retrieves the initial drive timings from the chipset.
- */
-static void __init retrieve_drive_counts(unsigned int index)
-{
-	u8 b;
-
-	/*
-	 * Get the internal setup timing, and convert to clock count
-	 */
-	b = get_cmd640_reg(arttim_regs[index]) & ~0x3f;
-	switch (b) {
-	case 0x00: b = 4; break;
-	case 0x80: b = 3; break;
-	case 0x40: b = 2; break;
-	default:   b = 5; break;
-	}
-	setup_counts[index] = b;
-
-	/*
-	 * Get the active/recovery counts
-	 */
-	b = get_cmd640_reg(drwtim_regs[index]);
-	active_counts[index]   = (b >> 4)   ? (b >> 4)   : 0x10;
-	recovery_counts[index] = (b & 0x0f) ? (b & 0x0f) : 0x10;
-}
-
 
 /*
  * This routine writes the prepared setup/active/recovery counts
@@ -683,7 +654,6 @@ static const struct ide_port_info cmd640_port_info __initdata = {
 	.chipset		= ide_cmd640,
 	.host_flags		= IDE_HFLAG_SERIALIZE |
 				  IDE_HFLAG_NO_DMA |
-				  IDE_HFLAG_NO_AUTOTUNE |
 				  IDE_HFLAG_ABUSE_PREFETCH |
 				  IDE_HFLAG_ABUSE_FAST_DEVSEL,
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
@@ -866,29 +836,16 @@ static int __init cmd640x_init(void)
 		}
 
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
-		if (drive->autotune || ((index > 1) && second_port_toggled)) {
-			/*
-			 * Reset timing to the slowest speed and turn off
-			 * prefetch.  This way, the drive identify code has
-			 * a better chance.
-			 */
-			setup_counts    [index] = 4;	/* max possible */
-			active_counts   [index] = 16;	/* max possible */
-			recovery_counts [index] = 16;	/* max possible */
-			program_drive_counts(drive, index);
-			set_prefetch_mode(drive, index, 0);
-			printk("cmd640: drive%d timings/prefetch cleared\n", index);
-		} else {
-			/*
-			 * Record timings/prefetch without changing them.
-			 * This preserves any prior BIOS setup.
-			 */
-			retrieve_drive_counts (index);
-			check_prefetch(drive, index);
-			printk("cmd640: drive%d timings/prefetch(%s) preserved",
-				index, drive->no_io_32bit ? "off" : "on");
-			display_clocks(index);
-		}
+		/*
+		 * Reset timing to the slowest speed and turn off prefetch.
+		 * This way, the drive identify code has a better chance.
+		 */
+		setup_counts    [index] = 4;	/* max possible */
+		active_counts   [index] = 16;	/* max possible */
+		recovery_counts [index] = 16;	/* max possible */
+		program_drive_counts(drive, index);
+		set_prefetch_mode(drive, index, 0);
+		printk("cmd640: drive%d timings/prefetch cleared\n", index);
 #else
 		/*
 		 * Set the drive unmask flags to match the prefetch setting
