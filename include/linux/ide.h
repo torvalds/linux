@@ -801,6 +801,9 @@ extern	ide_hwif_t	ide_hwifs[];		/* master data repository */
 #endif
 extern int noautodma;
 
+extern int ide_vlb_clk;
+extern int ide_pci_clk;
+
 ide_hwif_t *ide_find_port_slot(const struct ide_port_info *);
 
 static inline ide_hwif_t *ide_find_port(void)

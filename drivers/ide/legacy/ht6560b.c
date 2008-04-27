@@ -212,8 +212,8 @@ static u8 ht_pio2timings(ide_drive_t *drive, const u8 pio)
 {
 	int active_time, recovery_time;
 	int active_cycles, recovery_cycles;
-	int bus_speed = system_bus_clock();
-	
+	int bus_speed = ide_vlb_clk ? ide_vlb_clk : system_bus_clock();
+
         if (pio) {
 		unsigned int cycle_time;
 

@@ -1116,6 +1116,18 @@ static void ide_port_class_release(struct device *portdev)
 	put_device(&hwif->gendev);
 }
 
+int ide_vlb_clk;
+EXPORT_SYMBOL_GPL(ide_vlb_clk);
+
+module_param_named(vlb_clock, ide_vlb_clk, int, 0);
+MODULE_PARM_DESC(vlb_clock, "VLB clock frequency (in MHz)");
+
+int ide_pci_clk;
+EXPORT_SYMBOL_GPL(ide_pci_clk);
+
+module_param_named(pci_clock, ide_pci_clk, int, 0);
+MODULE_PARM_DESC(pci_clock, "PCI bus clock frequency (in MHz)");
+
 static unsigned int ide_ignore_cable;
 
 static int ide_set_ignore_cable(const char *s, struct kernel_param *kp)
