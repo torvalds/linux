@@ -32,7 +32,6 @@
 static int ffb_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			 unsigned, struct fb_info *);
 static int ffb_blank(int, struct fb_info *);
-static void ffb_init_fix(struct fb_info *);
 
 static void ffb_imageblit(struct fb_info *, const struct fb_image *);
 static void ffb_fillrect(struct fb_info *, const struct fb_fillrect *);
@@ -1062,7 +1061,7 @@ static struct of_platform_driver ffb_driver = {
 	.remove		= __devexit_p(ffb_remove),
 };
 
-int __init ffb_init(void)
+static int __init ffb_init(void)
 {
 	if (fb_get_options("ffb", NULL))
 		return -ENODEV;
@@ -1070,7 +1069,7 @@ int __init ffb_init(void)
 	return of_register_driver(&ffb_driver, &of_bus_type);
 }
 
-void __exit ffb_exit(void)
+static void __exit ffb_exit(void)
 {
 	of_unregister_driver(&ffb_driver);
 }
