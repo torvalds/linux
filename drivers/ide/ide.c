@@ -915,10 +915,10 @@ static int __init ide_setup(char *s)
 			case -1: /* "none" */
 			case -2: /* "noprobe" */
 				drive->noprobe = 1;
-				goto done;
+				goto obsolete_option;
 			case -3: /* "nowerr" */
 				drive->bad_wstat = BAD_R_STAT;
-				goto done;
+				goto obsolete_option;
 			case -4: /* "cdrom" */
 				drive->present = 1;
 				drive->media = ide_cdrom;
@@ -927,10 +927,10 @@ static int __init ide_setup(char *s)
 				goto done;
 			case -5: /* nodma */
 				drive->nodma = 1;
-				goto done;
+				goto obsolete_option;
 			case -11: /* noflush */
 				drive->noflush = 1;
-				goto done;
+				goto obsolete_option;
 			case -12: /* "remap" */
 				drive->remap_0_to_1 = 1;
 				goto obsolete_option;
@@ -1125,6 +1125,72 @@ EXPORT_SYMBOL_GPL(ide_pci_clk);
 module_param_named(pci_clock, ide_pci_clk, int, 0);
 MODULE_PARM_DESC(pci_clock, "PCI bus clock frequency (in MHz)");
 
+static int ide_set_dev_param_mask(const char *s, struct kernel_param *kp)
+{
+	int a, b, i, j = 1;
+	unsigned int *dev_param_mask = (unsigned int *)kp->arg;
+
+	if (sscanf(s, "%d.%d:%d", &a, &b, &j) != 3 &&
+	    sscanf(s, "%d.%d", &a, &b) != 2)
+		return -EINVAL;
+
+	i = a * MAX_DRIVES + b;
+
+	if (i >= MAX_HWIFS * MAX_DRIVES || j < 0 || j > 1)
+		return -EINVAL;
+
+	if (j)
+		*dev_param_mask |= (1 << i);
+	else
+		*dev_param_mask &= (1 << i);
+
+	return 0;
+}
+
+static unsigned int ide_nodma;
+
+module_param_call(nodma, ide_set_dev_param_mask, NULL, &ide_nodma, 0);
+MODULE_PARM_DESC(nodma, "disallow DMA for a device");
+
+static unsigned int ide_noflush;
+
+module_param_call(noflush, ide_set_dev_param_mask, NULL, &ide_noflush, 0);
+MODULE_PARM_DESC(noflush, "disable flush requests for a device");
+
+static unsigned int ide_noprobe;
+
+module_param_call(noprobe, ide_set_dev_param_mask, NULL, &ide_noprobe, 0);
+MODULE_PARM_DESC(noprobe, "skip probing for a device");
+
+static unsigned int ide_nowerr;
+
+module_param_call(nowerr, ide_set_dev_param_mask, NULL, &ide_nowerr, 0);
+MODULE_PARM_DESC(nowerr, "ignore the WRERR_STAT bit for a device");
+
+static void ide_dev_apply_params(ide_drive_t *drive)
+{
+	int i = drive->hwif->index * MAX_DRIVES + drive->select.b.unit;
+
+	if (ide_nodma & (1 << i)) {
+		printk(KERN_INFO "ide: disallowing DMA for %s\n", drive->name);
+		drive->nodma = 1;
+	}
+	if (ide_noflush & (1 << i)) {
+		printk(KERN_INFO "ide: disabling flush requests for %s\n",
+				 drive->name);
+		drive->noflush = 1;
+	}
+	if (ide_noprobe & (1 << i)) {
+		printk(KERN_INFO "ide: skipping probe for %s\n", drive->name);
+		drive->noprobe = 1;
+	}
+	if (ide_nowerr & (1 << i)) {
+		printk(KERN_INFO "ide: ignoring the WRERR_STAT bit for %s\n",
+				 drive->name);
+		drive->bad_wstat = BAD_R_STAT;
+	}
+}
+
 static unsigned int ide_ignore_cable;
 
 static int ide_set_ignore_cable(const char *s, struct kernel_param *kp)
@@ -1150,11 +1216,16 @@ MODULE_PARM_DESC(ignore_cable, "ignore cable detection");
 
 void ide_port_apply_params(ide_hwif_t *hwif)
 {
+	int i;
+
 	if (ide_ignore_cable & (1 << hwif->index)) {
 		printk(KERN_INFO "ide: ignoring cable detection for %s\n",
 				 hwif->name);
 		hwif->cbl = ATA_CBL_PATA40_SHORT;
 	}
+
+	for (i = 0; i < MAX_DRIVES; i++)
+		ide_dev_apply_params(&hwif->drives[i]);
 }
 
 /*

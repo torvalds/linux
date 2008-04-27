@@ -99,10 +99,10 @@ with hd.c but not with ide.c), then an command line option may be specified
 for each drive for which you'd like the drive to skip the hardware
 probe/identification sequence.  For example:
 
-	hdb=noprobe
+	ide_core.noprobe=0.1
 or
 	hdc=768,16,32
-	hdc=noprobe
+	ide_core.noprobe=1.0
 
 Note that when only one IDE device is attached to an interface, it should be
 jumpered as "single" or "master", *not* "slave".  Many folks have had
@@ -174,9 +174,7 @@ to /etc/modprobe.conf.
 
 When ide.c is used as a module, you can pass command line parameters to the
 driver using the "options=" keyword to insmod, while replacing any ',' with
-';'.  For example:
-
-	insmod ide.o options="hda=nodma hdb=nodma"
+';'.
 
 
 ================================================================================
@@ -186,17 +184,9 @@ Summary of ide driver parameters for kernel command line
 
  "hdx="  is recognized for all "x" from "a" to "u", such as "hdc".
 
- "hdx=noprobe"		: drive may be present, but do not probe for it
-
- "hdx=none"		: drive is NOT present, ignore cmos and do not probe
-
- "hdx=nowerr"		: ignore the WRERR_STAT bit on this drive
-
  "hdx=cdrom"		: drive is present, and is a cdrom drive
 
  "hdx=cyl,head,sect"	: disk drive is present, with specified geometry
-
- "hdx=nodma"		: disallow DMA
 
  "ide=doubler"		: probe/support IDE doublers on Amiga
 
@@ -229,6 +219,16 @@ a case please report it as a bug instead) use "ignore_cable" kernel parameter:
 
 * "ignore_cable=[interface_number]" module parameter (for ide_core module)
   if IDE is compiled as module
+
+Other kernel parameters for ide_core are:
+
+* "nodma=[interface_number.device_number]" to disallow DMA for a device
+
+* "noflush=[interface_number.device_number]" to disable flush requests
+
+* "noprobe=[interface_number.device_number]" to skip probing
+
+* "nowerr=[interface_number.device_number]" to ignore the WRERR_STAT bit
 
 ================================================================================
 
