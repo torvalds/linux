@@ -399,9 +399,8 @@ static int __init bw2_init(void)
 
 static void __exit bw2_exit(void)
 {
-	return of_unregister_driver(&bw2_driver);
+	of_unregister_driver(&bw2_driver);
 }
-
 
 module_init(bw2_init);
 module_exit(bw2_exit);
