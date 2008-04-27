@@ -365,8 +365,6 @@ typedef struct ide_tape_obj {
 	idetape_stage_t *next_stage;
 	/* New requests will be added to the pipeline here */
 	idetape_stage_t *last_stage;
-	/* Optional free stage which we can use */
-	idetape_stage_t *cache_stage;
 	int pages_per_stage;
 	/* Wasted space in each stage */
 	int excess_bh_size;
@@ -1686,16 +1684,10 @@ abort:
 
 static idetape_stage_t *idetape_kmalloc_stage(idetape_tape_t *tape)
 {
-	idetape_stage_t *cache_stage = tape->cache_stage;
-
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
 
 	if (tape->nr_stages >= tape->max_stages)
 		return NULL;
-	if (cache_stage != NULL) {
-		tape->cache_stage = NULL;
-		return cache_stage;
-	}
 	return __idetape_kmalloc_stage(tape, 0, 0);
 }
 
@@ -3245,10 +3237,7 @@ static int idetape_chrdev_release(struct inode *inode, struct file *filp)
 		else
 			idetape_wait_for_pipeline(drive);
 	}
-	if (tape->cache_stage != NULL) {
-		__idetape_kfree_stage(tape->cache_stage);
-		tape->cache_stage = NULL;
-	}
+
 	if (minor < 128 && test_bit(IDETAPE_FLAG_MEDIUM_PRESENT, &tape->flags))
 		(void) idetape_rewind_tape(drive);
 	if (tape->chrdev_dir == IDETAPE_DIR_NONE) {
