@@ -288,7 +288,7 @@ cpufreq_stat_notifier_trans (struct notifier_block *nb, unsigned long val,
 	if (!stat)
 		return 0;
 
-	old_index = freq_table_get_index(stat, freq->old);
+	old_index = stat->last_index;
 	new_index = freq_table_get_index(stat, freq->new);
 
 	cpufreq_stats_update(freq->cpu);
