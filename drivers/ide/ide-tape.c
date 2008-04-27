@@ -315,8 +315,7 @@ typedef struct ide_tape_obj {
 	char *b_data;
 	int b_count;
 
-	/* Pipeline parameters. */
-	int pages_per_stage;
+	int pages_per_buffer;
 	/* Wasted space in each stage */
 	int excess_bh_size;
 
@@ -1302,7 +1301,7 @@ static idetape_stage_t *ide_tape_kmalloc_buffer(idetape_tape_t *tape, int full,
 {
 	idetape_stage_t *stage;
 	struct idetape_bh *prev_bh, *bh;
-	int pages = tape->pages_per_stage;
+	int pages = tape->pages_per_buffer;
 	unsigned int order, b_allocd;
 	char *b_data = NULL;
 
@@ -2746,9 +2745,9 @@ static void idetape_setup(ide_drive_t *drive, idetape_tape_t *tape, int minor)
 		tape->buffer_size = *ctl * tape->blk_size;
 	}
 	buffer_size = tape->buffer_size;
-	tape->pages_per_stage = buffer_size / PAGE_SIZE;
+	tape->pages_per_buffer = buffer_size / PAGE_SIZE;
 	if (buffer_size % PAGE_SIZE) {
-		tape->pages_per_stage++;
+		tape->pages_per_buffer++;
 		tape->excess_bh_size = PAGE_SIZE - buffer_size % PAGE_SIZE;
 	}
 
