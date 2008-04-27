@@ -579,6 +579,19 @@ static uint8_t pfkey_proto_from_xfrm(uint8_t proto)
 	return (proto ? proto : IPSEC_PROTO_ANY);
 }
 
+static inline int pfkey_sockaddr_len(sa_family_t family)
+{
+	switch (family) {
+	case AF_INET:
+		return sizeof(struct sockaddr_in);
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		return sizeof(struct sockaddr_in6);
+#endif
+	}
+	return 0;
+}
+
 static int pfkey_sadb_addr2xfrm_addr(struct sadb_address *addr,
 				     xfrm_address_t *xaddr)
 {
@@ -642,20 +655,11 @@ static struct  xfrm_state *pfkey_xfrm_state_lookup(struct sadb_msg *hdr, void **
 }
 
 #define PFKEY_ALIGN8(a) (1 + (((a) - 1) | (8 - 1)))
+
 static int
 pfkey_sockaddr_size(sa_family_t family)
 {
-	switch (family) {
-	case AF_INET:
-		return PFKEY_ALIGN8(sizeof(struct sockaddr_in));
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	case AF_INET6:
-		return PFKEY_ALIGN8(sizeof(struct sockaddr_in6));
-#endif
-	default:
-		return 0;
-	}
-	/* NOTREACHED */
+	return PFKEY_ALIGN8(pfkey_sockaddr_len(family));
 }
 
 static inline int pfkey_mode_from_xfrm(int mode)
@@ -1952,9 +1956,7 @@ static int pfkey_xfrm_policy2msg_size(struct xfrm_policy *xp)
 
 	for (i=0; i<xp->xfrm_nr; i++) {
 		t = xp->xfrm_vec + i;
-		socklen += (t->encap_family == AF_INET ?
-			    sizeof(struct sockaddr_in) :
-			    sizeof(struct sockaddr_in6));
+		socklen += pfkey_sockaddr_len(t->encap_family);
 	}
 
 	return sizeof(struct sadb_msg) +
@@ -1996,9 +1998,7 @@ static int pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, in
 	int i;
 	int size;
 	int sockaddr_size = pfkey_sockaddr_size(xp->family);
-	int socklen = (xp->family == AF_INET ?
-		       sizeof(struct sockaddr_in) :
-		       sizeof(struct sockaddr_in6));
+	int socklen = pfkey_sockaddr_len(xp->family);
 
 	size = pfkey_xfrm_policy2msg_size(xp);
 
@@ -2122,9 +2122,7 @@ static int pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, in
 
 		req_size = sizeof(struct sadb_x_ipsecrequest);
 		if (t->mode == XFRM_MODE_TUNNEL)
-			req_size += ((t->encap_family == AF_INET ?
-				     sizeof(struct sockaddr_in) :
-				     sizeof(struct sockaddr_in6)) * 2);
+			req_size += pfkey_sockaddr_len(t->encap_family) * 2;
 		else
 			size -= 2*socklen;
 		rq = (void*)skb_put(skb, req_size);
@@ -2459,17 +2457,7 @@ out:
 #ifdef CONFIG_NET_KEY_MIGRATE
 static int pfkey_sockaddr_pair_size(sa_family_t family)
 {
-	switch (family) {
-	case AF_INET:
-		return PFKEY_ALIGN8(sizeof(struct sockaddr_in) * 2);
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	case AF_INET6:
-		return PFKEY_ALIGN8(sizeof(struct sockaddr_in6) * 2);
-#endif
-	default:
-		return 0;
-	}
-	/* NOTREACHED */
+	return PFKEY_ALIGN8(pfkey_sockaddr_len(family) * 2);
 }
 
 static int parse_sockaddr_pair(struct sadb_x_ipsecrequest *rq,
