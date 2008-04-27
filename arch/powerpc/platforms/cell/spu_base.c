@@ -226,11 +226,13 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 		return 0;
 	}
 
-	spu->class_0_pending = 0;
-	spu->dar = ea;
-	spu->dsisr = dsisr;
+	spu->class_1_dar = ea;
+	spu->class_1_dsisr = dsisr;
 
-	spu->stop_callback(spu);
+	spu->stop_callback(spu, 1);
+
+	spu->class_1_dar = 0;
+	spu->class_1_dsisr = 0;
 
 	return 0;
 }
@@ -318,11 +320,15 @@ spu_irq_class_0(int irq, void *data)
 	stat = spu_int_stat_get(spu, 0) & mask;
 
 	spu->class_0_pending |= stat;
-	spu->dsisr = spu_mfc_dsisr_get(spu);
-	spu->dar = spu_mfc_dar_get(spu);
+	spu->class_0_dsisr = spu_mfc_dsisr_get(spu);
+	spu->class_0_dar = spu_mfc_dar_get(spu);
 	spin_unlock(&spu->register_lock);
 
-	spu->stop_callback(spu);
+	spu->stop_callback(spu, 0);
+
+	spu->class_0_pending = 0;
+	spu->class_0_dsisr = 0;
+	spu->class_0_dar = 0;
 
 	spu_int_stat_clear(spu, 0, stat);
 
@@ -363,6 +369,9 @@ spu_irq_class_1(int irq, void *data)
 	if (stat & CLASS1_LS_COMPARE_SUSPEND_ON_PUT_INTR)
 		;
 
+	spu->class_1_dsisr = 0;
+	spu->class_1_dar = 0;
+
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
 
@@ -396,10 +405,10 @@ spu_irq_class_2(int irq, void *data)
 		spu->ibox_callback(spu);
 
 	if (stat & CLASS2_SPU_STOP_INTR)
-		spu->stop_callback(spu);
+		spu->stop_callback(spu, 2);
 
 	if (stat & CLASS2_SPU_HALT_INTR)
-		spu->stop_callback(spu);
+		spu->stop_callback(spu, 2);
 
 	if (stat & CLASS2_SPU_DMA_TAG_GROUP_COMPLETE_INTR)
 		spu->mfc_callback(spu);

@@ -254,7 +254,8 @@ struct spu_state {
 	u64 spu_chnldata_RW[32];
 	u32 spu_mailbox_data[4];
 	u32 pu_mailbox_data[1];
-	u64 dar, dsisr, class_0_pending;
+	u64 class_0_dar, class_0_dsisr, class_0_pending;
+	u64 class_1_dar, class_1_dsisr;
 	unsigned long suspend_time;
 	spinlock_t register_lock;
 };

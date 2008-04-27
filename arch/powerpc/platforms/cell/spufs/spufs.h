@@ -332,7 +332,7 @@ size_t spu_ibox_read(struct spu_context *ctx, u32 *data);
 /* irq callback funcs. */
 void spufs_ibox_callback(struct spu *spu);
 void spufs_wbox_callback(struct spu *spu);
-void spufs_stop_callback(struct spu *spu);
+void spufs_stop_callback(struct spu *spu, int irq);
 void spufs_mfc_callback(struct spu *spu);
 void spufs_dma_callback(struct spu *spu, int type);
 
