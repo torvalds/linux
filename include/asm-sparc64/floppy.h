@@ -293,7 +293,6 @@ static int sun_fd_eject(int drive)
 
 #ifdef CONFIG_PCI
 #include <asm/ebus.h>
-#include <asm/isa.h>
 #include <asm/ns87303.h>
 
 static struct ebus_dma_info sun_pci_fd_ebus_dma;
