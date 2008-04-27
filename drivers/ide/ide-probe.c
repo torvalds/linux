@@ -827,8 +827,7 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 		ide_drive_t *drive = &hwif->drives[unit];
 
 		if (drive->present) {
-			if (drive->autotune)
-				ide_set_max_pio(drive);
+			ide_set_max_pio(drive);
 
 			drive->nice1 = 1;
 
@@ -1325,7 +1324,6 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 			drive->unmask = 1;
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
 			drive->no_unmask = 1;
-		drive->autotune = 1;
 	}
 
 	if (port_ops && port_ops->port_init_devs)

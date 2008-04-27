@@ -196,13 +196,6 @@ Summary of ide driver parameters for kernel command line
 
  "hdx=cyl,head,sect"	: disk drive is present, with specified geometry
 
- "hdx=autotune"		: driver will attempt to tune interface speed
-			  to the fastest PIO mode supported,
-			  if possible for this drive only.
-			  Not fully supported by all chipset types,
-			  and quite likely to cause trouble with
-			  older/odd IDE drives.
-
  "hdx=nodma"		: disallow DMA
 
  "ide=doubler"		: probe/support IDE doublers on Amiga
