@@ -386,7 +386,7 @@ void ide_release(struct pcmcia_device *link)
     if (info->ndev) {
 	/* FIXME: if this fails we need to queue the cleanup somehow
 	   -- need to investigate the required PCMCIA magic */
-	ide_unregister(hwif->index);
+	ide_unregister(hwif);
     }
     info->ndev = 0;
 

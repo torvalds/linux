@@ -287,7 +287,7 @@ EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
 
 /**
  *	ide_unregister		-	free an IDE interface
- *	@index: index of interface (will change soon to a pointer)
+ *	@hwif: IDE interface
  *
  *	Perform the final unregister of an IDE interface. At the moment
  *	we don't refcount interfaces so this will also get split up.
@@ -307,19 +307,16 @@ EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
  *	This is raving bonkers.
  */
 
-void ide_unregister(unsigned int index)
+void ide_unregister(ide_hwif_t *hwif)
 {
-	ide_hwif_t *hwif, *g;
+	ide_hwif_t *g;
 	ide_hwgroup_t *hwgroup;
 	int irq_count = 0;
-
-	BUG_ON(index >= MAX_HWIFS);
 
 	BUG_ON(in_interrupt());
 	BUG_ON(irqs_disabled());
 	mutex_lock(&ide_cfg_mtx);
 	spin_lock_irq(&ide_lock);
-	hwif = &ide_hwifs[index];
 	if (!hwif->present)
 		goto abort;
 	__ide_port_unregister_devices(hwif);
@@ -360,7 +357,7 @@ void ide_unregister(unsigned int index)
 		ide_release_dma_engine(hwif);
 
 	/* restore hwif data to pristine status */
-	ide_init_port_data(hwif, index);
+	ide_init_port_data(hwif, hwif->index);
 
 abort:
 	spin_unlock_irq(&ide_lock);
