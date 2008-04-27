@@ -265,9 +265,7 @@ typedef struct ide_tape_obj {
 	 * While polling for DSC we use postponed_rq to postpone the current
 	 * request so that ide.c will be able to service pending requests on the
 	 * other device. Note that at most we will have only one DSC (usually
-	 * data transfer) request in the device request queue. Additional
-	 * requests can be queued in our internal pipeline, but they will be
-	 * visible to ide.c only one at a time.
+	 * data transfer) request in the device request queue.
 	 */
 	struct request *postponed_rq;
 	/* The time in which we started polling for DSC */
@@ -608,10 +606,6 @@ static void __idetape_kfree_stage(idetape_stage_t *stage)
 	kfree(stage);
 }
 
-/*
- * Finish servicing a request and insert a pending pipeline request into the
- * main device queue.
- */
 static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 {
 	struct request *rq = HWGROUP(drive)->rq;
@@ -1295,8 +1289,6 @@ out:
 	return idetape_issue_pc(drive, pc);
 }
 
-/* Pipeline related functions */
-
 /*
  * The function below uses __get_free_page to allocate a pipeline stage, along
  * with all the necessary small buffers which together make a buffer of size
@@ -1305,9 +1297,6 @@ out:
  *
  * It returns a pointer to the new allocated stage, or NULL if we can't (or
  * don't want to) allocate a stage.
- *
- * Pipeline stages are optional and are used to increase performance. If we
- * can't allocate them, we'll manage without them.
  */
 static idetape_stage_t *__idetape_kmalloc_stage(idetape_tape_t *tape, int full,
 						int clear)
@@ -1875,10 +1864,7 @@ static int idetape_init_read(ide_drive_t *drive)
 	return 0;
 }
 
-/*
- * Called from idetape_chrdev_read() to service a character device read request
- * and add read-ahead requests to our pipeline.
- */
+/* called from idetape_chrdev_read() to service a chrdev read request. */
 static int idetape_add_chrdev_read_request(ide_drive_t *drive, int blocks)
 {
 	idetape_tape_t *tape = drive->driver_data;
@@ -2216,8 +2202,7 @@ static int idetape_write_filemark(ide_drive_t *drive)
  *
  * Note: MTBSF and MTBSFM are not supported when the tape doesn't support
  * spacing over filemarks in the reverse direction. In this case, MTFSFM is also
- * usually not supported (it is supported in the rare case in which we crossed
- * the filemark during our read-ahead pipelined operation mode).
+ * usually not supported.
  *
  * The following commands are currently not supported:
  *
@@ -2233,7 +2218,6 @@ static int idetape_mtioctop(ide_drive_t *drive, short mt_op, int mt_count)
 	debug_log(DBG_ERR, "Handling MTIOCTOP ioctl: mt_op=%d, mt_count=%d\n",
 			mt_op, mt_count);
 
-	/* Commands which need our pipelined read-ahead stages. */
 	switch (mt_op) {
 	case MTFSF:
 	case MTFSFM:
