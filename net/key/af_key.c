@@ -592,25 +592,30 @@ static inline int pfkey_sockaddr_len(sa_family_t family)
 	return 0;
 }
 
-static int pfkey_sadb_addr2xfrm_addr(struct sadb_address *addr,
-				     xfrm_address_t *xaddr)
+static
+int pfkey_sockaddr_extract(const struct sockaddr *sa, xfrm_address_t *xaddr)
 {
-	switch (((struct sockaddr*)(addr + 1))->sa_family) {
+	switch (sa->sa_family) {
 	case AF_INET:
 		xaddr->a4 =
-			((struct sockaddr_in *)(addr + 1))->sin_addr.s_addr;
+			((struct sockaddr_in *)sa)->sin_addr.s_addr;
 		return AF_INET;
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case AF_INET6:
 		memcpy(xaddr->a6,
-		       &((struct sockaddr_in6 *)(addr + 1))->sin6_addr,
+		       &((struct sockaddr_in6 *)sa)->sin6_addr,
 		       sizeof(struct in6_addr));
 		return AF_INET6;
 #endif
-	default:
-		return 0;
 	}
-	/* NOTREACHED */
+	return 0;
+}
+
+static
+int pfkey_sadb_addr2xfrm_addr(struct sadb_address *addr, xfrm_address_t *xaddr)
+{
+	return pfkey_sockaddr_extract((struct sockaddr *)(addr + 1),
+				      xaddr);
 }
 
 static struct  xfrm_state *pfkey_xfrm_state_lookup(struct sadb_msg *hdr, void **ext_hdrs)
@@ -1828,10 +1833,6 @@ static int
 parse_ipsecrequest(struct xfrm_policy *xp, struct sadb_x_ipsecrequest *rq)
 {
 	struct xfrm_tmpl *t = xp->xfrm_vec + xp->xfrm_nr;
-	struct sockaddr_in *sin;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct sockaddr_in6 *sin6;
-#endif
 	int mode;
 
 	if (xp->xfrm_nr >= XFRM_MAX_DEPTH)
@@ -1856,31 +1857,19 @@ parse_ipsecrequest(struct xfrm_policy *xp, struct sadb_x_ipsecrequest *rq)
 
 	/* addresses present only in tunnel mode */
 	if (t->mode == XFRM_MODE_TUNNEL) {
-		struct sockaddr *sa;
-		sa = (struct sockaddr *)(rq+1);
-		switch(sa->sa_family) {
-		case AF_INET:
-			sin = (struct sockaddr_in*)sa;
-			t->saddr.a4 = sin->sin_addr.s_addr;
-			sin++;
-			if (sin->sin_family != AF_INET)
-				return -EINVAL;
-			t->id.daddr.a4 = sin->sin_addr.s_addr;
-			break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-		case AF_INET6:
-			sin6 = (struct sockaddr_in6*)sa;
-			memcpy(t->saddr.a6, &sin6->sin6_addr, sizeof(struct in6_addr));
-			sin6++;
-			if (sin6->sin6_family != AF_INET6)
-				return -EINVAL;
-			memcpy(t->id.daddr.a6, &sin6->sin6_addr, sizeof(struct in6_addr));
-			break;
-#endif
-		default:
+		u8 *sa = (u8 *) (rq + 1);
+		int family, socklen;
+
+		family = pfkey_sockaddr_extract((struct sockaddr *)sa,
+						&t->saddr);
+		if (!family)
 			return -EINVAL;
-		}
-		t->encap_family = sa->sa_family;
+
+		socklen = pfkey_sockaddr_len(family);
+		if (pfkey_sockaddr_extract((struct sockaddr *)(sa + socklen),
+					   &t->id.daddr) != family)
+			return -EINVAL;
+		t->encap_family = family;
 	} else
 		t->encap_family = xp->family;
 
@@ -2375,44 +2364,24 @@ static int parse_sockaddr_pair(struct sadb_x_ipsecrequest *rq,
 			       xfrm_address_t *saddr, xfrm_address_t *daddr,
 			       u16 *family)
 {
-	struct sockaddr *sa = (struct sockaddr *)(rq + 1);
+	u8 *sa = (u8 *) (rq + 1);
+	int af, socklen;
+
 	if (rq->sadb_x_ipsecrequest_len <
-	    pfkey_sockaddr_pair_size(sa->sa_family))
+	    pfkey_sockaddr_pair_size(((struct sockaddr *)sa)->sa_family))
 		return -EINVAL;
 
-	switch (sa->sa_family) {
-	case AF_INET:
-		{
-			struct sockaddr_in *sin;
-			sin = (struct sockaddr_in *)sa;
-			if ((sin+1)->sin_family != AF_INET)
-				return -EINVAL;
-			memcpy(&saddr->a4, &sin->sin_addr, sizeof(saddr->a4));
-			sin++;
-			memcpy(&daddr->a4, &sin->sin_addr, sizeof(daddr->a4));
-			*family = AF_INET;
-			break;
-		}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	case AF_INET6:
-		{
-			struct sockaddr_in6 *sin6;
-			sin6 = (struct sockaddr_in6 *)sa;
-			if ((sin6+1)->sin6_family != AF_INET6)
-				return -EINVAL;
-			memcpy(&saddr->a6, &sin6->sin6_addr,
-			       sizeof(saddr->a6));
-			sin6++;
-			memcpy(&daddr->a6, &sin6->sin6_addr,
-			       sizeof(daddr->a6));
-			*family = AF_INET6;
-			break;
-		}
-#endif
-	default:
+	af = pfkey_sockaddr_extract((struct sockaddr *) sa,
+				    saddr);
+	if (!af)
 		return -EINVAL;
-	}
 
+	socklen = pfkey_sockaddr_len(af);
+	if (pfkey_sockaddr_extract((struct sockaddr *) (sa + socklen),
+				   daddr) != af)
+		return -EINVAL;
+
+	*family = af;
 	return 0;
 }
 
