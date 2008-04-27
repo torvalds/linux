@@ -1293,7 +1293,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			break; }
 
 		case AUDIT_SOCKETCALL: {
-			int i;
 			struct audit_aux_data_socketcall *axs = (void *)aux;
 			audit_log_format(ab, "nargs=%d", axs->nargs);
 			for (i=0; i<axs->nargs; i++)
@@ -1318,7 +1317,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 	for (aux = context->aux_pids; aux; aux = aux->next) {
 		struct audit_aux_data_pids *axs = (void *)aux;
-		int i;
 
 		for (i = 0; i < axs->pid_count; i++)
 			if (audit_log_pid_context(context, axs->target_pid[i],

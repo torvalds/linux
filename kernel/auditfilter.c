@@ -417,7 +417,7 @@ exit_err:
 static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 {
 	struct audit_entry *entry;
-	struct audit_field *f;
+	struct audit_field *ino_f;
 	int err = 0;
 	int i;
 
@@ -499,9 +499,9 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		}
 	}
 
-	f = entry->rule.inode_f;
-	if (f) {
-		switch(f->op) {
+	ino_f = entry->rule.inode_f;
+	if (ino_f) {
+		switch(ino_f->op) {
 		case AUDIT_NOT_EQUAL:
 			entry->rule.inode_f = NULL;
 		case AUDIT_EQUAL:
@@ -526,7 +526,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 {
 	int err = 0;
 	struct audit_entry *entry;
-	struct audit_field *f;
+	struct audit_field *ino_f;
 	void *bufp;
 	size_t remain = datasz - sizeof(struct audit_rule_data);
 	int i;
@@ -654,9 +654,9 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		}
 	}
 
-	f = entry->rule.inode_f;
-	if (f) {
-		switch(f->op) {
+	ino_f = entry->rule.inode_f;
+	if (ino_f) {
+		switch(ino_f->op) {
 		case AUDIT_NOT_EQUAL:
 			entry->rule.inode_f = NULL;
 		case AUDIT_EQUAL:

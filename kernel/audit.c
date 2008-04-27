@@ -813,21 +813,21 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case AUDIT_MAKE_EQUIV: {
 		void *bufp = data;
 		u32 sizes[2];
-		size_t len = nlmsg_len(nlh);
+		size_t msglen = nlmsg_len(nlh);
 		char *old, *new;
 
 		err = -EINVAL;
-		if (len < 2 * sizeof(u32))
+		if (msglen < 2 * sizeof(u32))
 			break;
 		memcpy(sizes, bufp, 2 * sizeof(u32));
 		bufp += 2 * sizeof(u32);
-		len -= 2 * sizeof(u32);
-		old = audit_unpack_string(&bufp, &len, sizes[0]);
+		msglen -= 2 * sizeof(u32);
+		old = audit_unpack_string(&bufp, &msglen, sizes[0]);
 		if (IS_ERR(old)) {
 			err = PTR_ERR(old);
 			break;
 		}
-		new = audit_unpack_string(&bufp, &len, sizes[1]);
+		new = audit_unpack_string(&bufp, &msglen, sizes[1]);
 		if (IS_ERR(new)) {
 			err = PTR_ERR(new);
 			kfree(old);
