@@ -14,7 +14,7 @@ EXPORT_SYMBOL(forbid_dac);
 const struct dma_mapping_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
-int iommu_sac_force __read_mostly = 0;
+static int iommu_sac_force __read_mostly;
 
 #ifdef CONFIG_IOMMU_DEBUG
 int panic_on_overflow __read_mostly = 1;
