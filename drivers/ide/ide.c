@@ -866,7 +866,7 @@ static int __init ide_setup(char *s)
 
 		printk(" : Enabled support for IDE doublers\n");
 		ide_doubler = 1;
-		return 1;
+		goto obsolete_option;
 	}
 #endif /* CONFIG_BLK_DEV_IDEDOUBLER */
 

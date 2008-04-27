@@ -181,12 +181,6 @@ driver using the "options=" keyword to insmod, while replacing any ',' with
 Summary of ide driver parameters for kernel command line
 --------------------------------------------------------
 
- "ide=doubler"		: probe/support IDE doublers on Amiga
-
-There may be more options than shown -- use the source, Luke!
-
-Everything else is rejected with a "BAD OPTION" message.
-
 For legacy IDE VLB host drivers (ali14xx/dtc2278/ht6560b/qd65xx/umc8672)
 you need to explicitly enable probing by using "probe" kernel parameter,
 i.e. to enable probing for ALI M14xx chipsets (ali14xx host driver) use:
@@ -202,6 +196,9 @@ are detected automatically).
 
 You also need to use "probe" kernel parameter for ide-4drives driver
 (support for IDE generic chipset with four drives on one port).
+
+To enable support for IDE doublers on Amiga use "doubler" kernel parameter
+for gayle host driver (i.e. "gayle.doubler" if the driver is built-in).
 
 To force ignoring cable detection (this should be needed only if you're using
 short 40-wires cable which cannot be automatically detected - if this is not
