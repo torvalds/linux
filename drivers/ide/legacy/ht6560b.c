@@ -340,7 +340,6 @@ static const struct ide_port_info ht6560b_port_info __initdata = {
 	.port_ops		= &ht6560b_port_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE | /* is this needed? */
 				  IDE_HFLAG_NO_DMA |
-				  IDE_HFLAG_NO_AUTOTUNE |
 				  IDE_HFLAG_ABUSE_PREFETCH,
 	.pio_mask		= ATA_PIO4,
 };

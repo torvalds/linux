@@ -101,8 +101,7 @@ static const struct ide_port_info dtc2278_port_info __initdata = {
 				  IDE_HFLAG_IO_32BIT |
 				  /* disallow ->io_32bit changes */
 				  IDE_HFLAG_NO_IO_32BIT |
-				  IDE_HFLAG_NO_DMA |
-				  IDE_HFLAG_NO_AUTOTUNE,
+				  IDE_HFLAG_NO_DMA,
 	.pio_mask		= ATA_PIO4,
 };
 

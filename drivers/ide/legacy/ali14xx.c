@@ -202,7 +202,7 @@ static const struct ide_port_info ali14xx_port_info = {
 	.name			= DRV_NAME,
 	.chipset		= ide_ali14xx,
 	.port_ops		= &ali14xx_port_ops,
-	.host_flags		= IDE_HFLAG_NO_DMA | IDE_HFLAG_NO_AUTOTUNE,
+	.host_flags		= IDE_HFLAG_NO_DMA,
 	.pio_mask		= ATA_PIO4,
 };
 

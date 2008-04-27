@@ -12,8 +12,6 @@
  * QDI QD6500/QD6580 EIDE controller fast support
  *
  * To activate controller support, use "ide0=qd65xx"
- * To enable tuning, use "hda=autotune hdb=autotune"
- * To enable 2nd channel tuning (qd6580 only), use "hdc=autotune hdd=autotune"
  */
 
 /*
@@ -324,8 +322,7 @@ static const struct ide_port_info qd65xx_port_info __initdata = {
 	.name			= DRV_NAME,
 	.chipset		= ide_qd65xx,
 	.host_flags		= IDE_HFLAG_IO_32BIT |
-				  IDE_HFLAG_NO_DMA |
-				  IDE_HFLAG_NO_AUTOTUNE,
+				  IDE_HFLAG_NO_DMA,
 	.pio_mask		= ATA_PIO4,
 };
 
