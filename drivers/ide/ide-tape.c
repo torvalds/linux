@@ -221,19 +221,15 @@ enum {
 	/* 0 When the tape position is unknown */
 	IDETAPE_FLAG_ADDRESS_VALID	= (1 <<	1),
 	/* Device already opened */
-	IDETAPE_FLAG_BUSY			= (1 << 2),
-	/* Error detected in a pipeline stage */
-	IDETAPE_FLAG_PIPELINE_ERR	= (1 <<	3),
+	IDETAPE_FLAG_BUSY		= (1 << 2),
 	/* Attempt to auto-detect the current user block size */
-	IDETAPE_FLAG_DETECT_BS		= (1 << 4),
+	IDETAPE_FLAG_DETECT_BS		= (1 << 3),
 	/* Currently on a filemark */
-	IDETAPE_FLAG_FILEMARK		= (1 << 5),
+	IDETAPE_FLAG_FILEMARK		= (1 << 4),
 	/* DRQ interrupt device */
-	IDETAPE_FLAG_DRQ_INTERRUPT	= (1 << 6),
-	/* pipeline active */
-	IDETAPE_FLAG_PIPELINE_ACTIVE	= (1 << 7),
+	IDETAPE_FLAG_DRQ_INTERRUPT	= (1 << 5),
 	/* 0 = no tape is loaded, so we don't rewind after ejecting */
-	IDETAPE_FLAG_MEDIUM_PRESENT	= (1 << 8),
+	IDETAPE_FLAG_MEDIUM_PRESENT	= (1 << 6),
 };
 
 /* A pipeline stage. */
@@ -695,7 +691,6 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 
 	ide_end_drive_cmd(drive, 0, 0);
 
-	clear_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags);
 	spin_unlock_irqrestore(&tape->lock, flags);
 	return 0;
 }
@@ -1728,8 +1723,6 @@ static int __idetape_discard_read_pipeline(ide_drive_t *drive)
 		tape->merge_stage = NULL;
 	}
 
-	/* Clear pipeline flags. */
-	clear_bit(IDETAPE_FLAG_PIPELINE_ERR, &tape->flags);
 	tape->chrdev_dir = IDETAPE_DIR_NONE;
 
 	/* Remove pipeline stages. */
@@ -1807,12 +1800,6 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int blocks,
 	struct request rq;
 
 	debug_log(DBG_SENSE, "%s: cmd=%d\n", __func__, cmd);
-
-	if (test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags)) {
-		printk(KERN_ERR "ide-tape: bug: the pipeline is active in %s\n",
-				__func__);
-		return (0);
-	}
 
 	idetape_init_rq(&rq, cmd);
 	rq.rq_disk = tape->disk;
@@ -1931,7 +1918,6 @@ static void idetape_empty_write_pipeline(ide_drive_t *drive)
 		__idetape_kfree_stage(tape->merge_stage);
 		tape->merge_stage = NULL;
 	}
-	clear_bit(IDETAPE_FLAG_PIPELINE_ERR, &tape->flags);
 	tape->chrdev_dir = IDETAPE_DIR_NONE;
 
 	/*
@@ -1993,14 +1979,13 @@ static int idetape_init_read(ide_drive_t *drive, int max_stages)
 		}
 	}
 
-	if (!test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags)) {
-		if (tape->nr_pending_stages >= 3 * max_stages / 4) {
-			tape->measure_insert_time = 1;
-			tape->insert_time = jiffies;
-			tape->insert_size = 0;
-			tape->insert_speed = 0;
-		}
+	if (tape->nr_pending_stages >= 3 * max_stages / 4) {
+		tape->measure_insert_time = 1;
+		tape->insert_time = jiffies;
+		tape->insert_size = 0;
+		tape->insert_speed = 0;
 	}
+
 	return 0;
 }
 
@@ -2019,9 +2004,6 @@ static int idetape_add_chrdev_read_request(ide_drive_t *drive, int blocks)
 		return 0;
 
 	idetape_init_read(drive, tape->max_stages);
-
-	if (test_bit(IDETAPE_FLAG_PIPELINE_ERR, &tape->flags))
-		return 0;
 
 	return idetape_queue_rw_tail(drive, REQ_IDETAPE_READ, blocks,
 				     tape->merge_stage->bh);
@@ -2603,9 +2585,6 @@ static int idetape_chrdev_open(struct inode *inode, struct file *filp)
 	idetape_read_position(drive);
 	if (!test_bit(IDETAPE_FLAG_ADDRESS_VALID, &tape->flags))
 		(void)idetape_rewind_tape(drive);
-
-	if (tape->chrdev_dir != IDETAPE_DIR_READ)
-		clear_bit(IDETAPE_FLAG_PIPELINE_ERR, &tape->flags);
 
 	/* Read block size and write protect status from drive. */
 	ide_tape_get_bsize_from_bdesc(drive);
