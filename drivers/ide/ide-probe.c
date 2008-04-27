@@ -800,14 +800,9 @@ static int ide_probe_port(ide_hwif_t *hwif)
 		if (drive->present)
 			rc = 0;
 	}
-	if (hwif->io_ports[IDE_CONTROL_OFFSET] && hwif->reset) {
-		printk(KERN_WARNING "%s: reset\n", hwif->name);
-		hwif->OUTB(12, hwif->io_ports[IDE_CONTROL_OFFSET]);
-		udelay(10);
-		hwif->OUTB(8, hwif->io_ports[IDE_CONTROL_OFFSET]);
-		(void)ide_busy_sleep(hwif);
-	}
+
 	local_irq_restore(flags);
+
 	/*
 	 * Use cached IRQ number. It might be (and is...) changed by probe
 	 * code above

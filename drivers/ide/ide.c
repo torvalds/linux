@@ -996,7 +996,7 @@ static int __init ide_setup(char *s)
 		 */
 		static const char *ide_words[] = {
 			"minus1", "minus2", "minus3", "minus4",
-			"reset", "minus6", "ata66", "minus8", "minus9",
+			"minus5", "minus6", "ata66", "minus8", "minus9",
 			"minus10", "four", "qd65xx", "ht6560b", "cmd640_vlb",
 			"dtc2278", "umc8672", "ali14xx", NULL };
 
@@ -1073,9 +1073,7 @@ static int __init ide_setup(char *s)
 #else
 				goto bad_hwif;
 #endif
-			case -5: /* "reset" */
-				hwif->reset = 1;
-				goto obsolete_option;
+			case -5:
 			case -2:
 			case -1:
 			case 0:
