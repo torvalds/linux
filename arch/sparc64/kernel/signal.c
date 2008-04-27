@@ -513,11 +513,10 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	struct k_sigaction ka;
 	sigset_t *oldset;
 	siginfo_t info;
-	int signr, tt;
+	int signr;
 	
-	tt = regs->magic & 0x1ff;
-	if (tt == 0x110 || tt == 0x111 || tt == 0x16d) {
-		regs->magic &= ~0x1ff;
+	if (pt_regs_is_syscall(regs)) {
+		pt_regs_clear_trap_type(regs);
 		cookie.restart_syscall = 1;
 	} else
 		cookie.restart_syscall = 0;
