@@ -691,6 +691,36 @@ static inline int pfkey_mode_to_xfrm(int mode)
 	}
 }
 
+static unsigned int pfkey_sockaddr_fill(xfrm_address_t *xaddr, __be16 port,
+				       struct sockaddr *sa,
+				       unsigned short family)
+{
+	switch (family) {
+	case AF_INET:
+	    {
+		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+		sin->sin_family = AF_INET;
+		sin->sin_port = port;
+		sin->sin_addr.s_addr = xaddr->a4;
+		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
+		return 32;
+	    }
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+	    {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+		sin6->sin6_family = AF_INET6;
+		sin6->sin6_port = port;
+		sin6->sin6_flowinfo = 0;
+		ipv6_addr_copy(&sin6->sin6_addr, (struct in6_addr *)xaddr->a6);
+		sin6->sin6_scope_id = 0;
+		return 128;
+	    }
+#endif
+	}
+	return 0;
+}
+
 static struct sk_buff *__pfkey_xfrm_state2msg(struct xfrm_state *x,
 					      int add_keys, int hsc)
 {
@@ -701,13 +731,9 @@ static struct sk_buff *__pfkey_xfrm_state2msg(struct xfrm_state *x,
 	struct sadb_address *addr;
 	struct sadb_key *key;
 	struct sadb_x_sa2 *sa2;
-	struct sockaddr_in *sin;
 	struct sadb_x_sec_ctx *sec_ctx;
 	struct xfrm_sec_ctx *xfrm_ctx;
 	int ctx_size = 0;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct sockaddr_in6 *sin6;
-#endif
 	int size;
 	int auth_key_size = 0;
 	int encrypt_key_size = 0;
@@ -865,29 +891,12 @@ static struct sk_buff *__pfkey_xfrm_state2msg(struct xfrm_state *x,
 	   protocol's number." - RFC2367 */
 	addr->sadb_address_proto = 0;
 	addr->sadb_address_reserved = 0;
-	if (x->props.family == AF_INET) {
-		addr->sadb_address_prefixlen = 32;
 
-		sin = (struct sockaddr_in *) (addr + 1);
-		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = x->props.saddr.a4;
-		sin->sin_port = 0;
-		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	else if (x->props.family == AF_INET6) {
-		addr->sadb_address_prefixlen = 128;
-
-		sin6 = (struct sockaddr_in6 *) (addr + 1);
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_port = 0;
-		sin6->sin6_flowinfo = 0;
-		memcpy(&sin6->sin6_addr, x->props.saddr.a6,
-		       sizeof(struct in6_addr));
-		sin6->sin6_scope_id = 0;
-	}
-#endif
-	else
+	addr->sadb_address_prefixlen =
+		pfkey_sockaddr_fill(&x->props.saddr, 0,
+				    (struct sockaddr *) (addr + 1),
+				    x->props.family);
+	if (!addr->sadb_address_prefixlen)
 		BUG();
 
 	/* dst address */
@@ -898,70 +907,32 @@ static struct sk_buff *__pfkey_xfrm_state2msg(struct xfrm_state *x,
 			sizeof(uint64_t);
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_DST;
 	addr->sadb_address_proto = 0;
-	addr->sadb_address_prefixlen = 32; /* XXX */
 	addr->sadb_address_reserved = 0;
-	if (x->props.family == AF_INET) {
-		sin = (struct sockaddr_in *) (addr + 1);
-		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = x->id.daddr.a4;
-		sin->sin_port = 0;
-		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
 
-		if (x->sel.saddr.a4 != x->props.saddr.a4) {
-			addr = (struct sadb_address*) skb_put(skb,
-				sizeof(struct sadb_address)+sockaddr_size);
-			addr->sadb_address_len =
-				(sizeof(struct sadb_address)+sockaddr_size)/
-				sizeof(uint64_t);
-			addr->sadb_address_exttype = SADB_EXT_ADDRESS_PROXY;
-			addr->sadb_address_proto =
-				pfkey_proto_from_xfrm(x->sel.proto);
-			addr->sadb_address_prefixlen = x->sel.prefixlen_s;
-			addr->sadb_address_reserved = 0;
-
-			sin = (struct sockaddr_in *) (addr + 1);
-			sin->sin_family = AF_INET;
-			sin->sin_addr.s_addr = x->sel.saddr.a4;
-			sin->sin_port = x->sel.sport;
-			memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-		}
-	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	else if (x->props.family == AF_INET6) {
-		addr->sadb_address_prefixlen = 128;
-
-		sin6 = (struct sockaddr_in6 *) (addr + 1);
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_port = 0;
-		sin6->sin6_flowinfo = 0;
-		memcpy(&sin6->sin6_addr, x->id.daddr.a6, sizeof(struct in6_addr));
-		sin6->sin6_scope_id = 0;
-
-		if (memcmp (x->sel.saddr.a6, x->props.saddr.a6,
-			    sizeof(struct in6_addr))) {
-			addr = (struct sadb_address *) skb_put(skb,
-				sizeof(struct sadb_address)+sockaddr_size);
-			addr->sadb_address_len =
-				(sizeof(struct sadb_address)+sockaddr_size)/
-				sizeof(uint64_t);
-			addr->sadb_address_exttype = SADB_EXT_ADDRESS_PROXY;
-			addr->sadb_address_proto =
-				pfkey_proto_from_xfrm(x->sel.proto);
-			addr->sadb_address_prefixlen = x->sel.prefixlen_s;
-			addr->sadb_address_reserved = 0;
-
-			sin6 = (struct sockaddr_in6 *) (addr + 1);
-			sin6->sin6_family = AF_INET6;
-			sin6->sin6_port = x->sel.sport;
-			sin6->sin6_flowinfo = 0;
-			memcpy(&sin6->sin6_addr, x->sel.saddr.a6,
-			       sizeof(struct in6_addr));
-			sin6->sin6_scope_id = 0;
-		}
-	}
-#endif
-	else
+	addr->sadb_address_prefixlen =
+		pfkey_sockaddr_fill(&x->id.daddr, 0,
+				    (struct sockaddr *) (addr + 1),
+				    x->props.family);
+	if (!addr->sadb_address_prefixlen)
 		BUG();
+
+	if (xfrm_addr_cmp(&x->sel.saddr, &x->props.saddr,
+			  x->props.family)) {
+		addr = (struct sadb_address*) skb_put(skb,
+			sizeof(struct sadb_address)+sockaddr_size);
+		addr->sadb_address_len =
+			(sizeof(struct sadb_address)+sockaddr_size)/
+			sizeof(uint64_t);
+		addr->sadb_address_exttype = SADB_EXT_ADDRESS_PROXY;
+		addr->sadb_address_proto =
+			pfkey_proto_from_xfrm(x->sel.proto);
+		addr->sadb_address_prefixlen = x->sel.prefixlen_s;
+		addr->sadb_address_reserved = 0;
+
+		pfkey_sockaddr_fill(&x->sel.saddr, x->sel.sport,
+				    (struct sockaddr *) (addr + 1),
+				    x->props.family);
+	}
 
 	/* auth key */
 	if (add_keys && auth_key_size) {
@@ -1989,12 +1960,8 @@ static int pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, in
 	struct sadb_address *addr;
 	struct sadb_lifetime *lifetime;
 	struct sadb_x_policy *pol;
-	struct sockaddr_in   *sin;
 	struct sadb_x_sec_ctx *sec_ctx;
 	struct xfrm_sec_ctx *xfrm_ctx;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct sockaddr_in6  *sin6;
-#endif
 	int i;
 	int size;
 	int sockaddr_size = pfkey_sockaddr_size(xp->family);
@@ -2016,26 +1983,10 @@ static int pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, in
 	addr->sadb_address_proto = pfkey_proto_from_xfrm(xp->selector.proto);
 	addr->sadb_address_prefixlen = xp->selector.prefixlen_s;
 	addr->sadb_address_reserved = 0;
-	/* src address */
-	if (xp->family == AF_INET) {
-		sin = (struct sockaddr_in *) (addr + 1);
-		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = xp->selector.saddr.a4;
-		sin->sin_port = xp->selector.sport;
-		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	else if (xp->family == AF_INET6) {
-		sin6 = (struct sockaddr_in6 *) (addr + 1);
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_port = xp->selector.sport;
-		sin6->sin6_flowinfo = 0;
-		memcpy(&sin6->sin6_addr, xp->selector.saddr.a6,
-		       sizeof(struct in6_addr));
-		sin6->sin6_scope_id = 0;
-	}
-#endif
-	else
+	if (!pfkey_sockaddr_fill(&xp->selector.saddr,
+				 xp->selector.sport,
+				 (struct sockaddr *) (addr + 1),
+				 xp->family))
 		BUG();
 
 	/* dst address */
@@ -2048,26 +1999,10 @@ static int pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, in
 	addr->sadb_address_proto = pfkey_proto_from_xfrm(xp->selector.proto);
 	addr->sadb_address_prefixlen = xp->selector.prefixlen_d;
 	addr->sadb_address_reserved = 0;
-	if (xp->family == AF_INET) {
-		sin = (struct sockaddr_in *) (addr + 1);
-		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = xp->selector.daddr.a4;
-		sin->sin_port = xp->selector.dport;
-		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	else if (xp->family == AF_INET6) {
-		sin6 = (struct sockaddr_in6 *) (addr + 1);
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_port = xp->selector.dport;
-		sin6->sin6_flowinfo = 0;
-		memcpy(&sin6->sin6_addr, xp->selector.daddr.a6,
-		       sizeof(struct in6_addr));
-		sin6->sin6_scope_id = 0;
-	}
-#endif
-	else
-		BUG();
+
+	pfkey_sockaddr_fill(&xp->selector.daddr, xp->selector.dport,
+			    (struct sockaddr *) (addr + 1),
+			    xp->family);
 
 	/* hard time */
 	lifetime = (struct sadb_lifetime *)  skb_put(skb,
@@ -2121,10 +2056,13 @@ static int pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, in
 		int mode;
 
 		req_size = sizeof(struct sadb_x_ipsecrequest);
-		if (t->mode == XFRM_MODE_TUNNEL)
-			req_size += pfkey_sockaddr_len(t->encap_family) * 2;
-		else
+		if (t->mode == XFRM_MODE_TUNNEL) {
+			socklen = pfkey_sockaddr_len(t->encap_family);
+			req_size += socklen * 2;
+		} else {
 			size -= 2*socklen;
+			socklen = 0;
+		}
 		rq = (void*)skb_put(skb, req_size);
 		pol->sadb_x_policy_len += req_size/8;
 		memset(rq, 0, sizeof(*rq));
@@ -2139,42 +2077,15 @@ static int pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, in
 		if (t->optional)
 			rq->sadb_x_ipsecrequest_level = IPSEC_LEVEL_USE;
 		rq->sadb_x_ipsecrequest_reqid = t->reqid;
-		if (t->mode == XFRM_MODE_TUNNEL) {
-			switch (t->encap_family) {
-			case AF_INET:
-				sin = (void*)(rq+1);
-				sin->sin_family = AF_INET;
-				sin->sin_addr.s_addr = t->saddr.a4;
-				sin->sin_port = 0;
-				memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-				sin++;
-				sin->sin_family = AF_INET;
-				sin->sin_addr.s_addr = t->id.daddr.a4;
-				sin->sin_port = 0;
-				memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-				break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-			case AF_INET6:
-				sin6 = (void*)(rq+1);
-				sin6->sin6_family = AF_INET6;
-				sin6->sin6_port = 0;
-				sin6->sin6_flowinfo = 0;
-				memcpy(&sin6->sin6_addr, t->saddr.a6,
-				       sizeof(struct in6_addr));
-				sin6->sin6_scope_id = 0;
 
-				sin6++;
-				sin6->sin6_family = AF_INET6;
-				sin6->sin6_port = 0;
-				sin6->sin6_flowinfo = 0;
-				memcpy(&sin6->sin6_addr, t->id.daddr.a6,
-				       sizeof(struct in6_addr));
-				sin6->sin6_scope_id = 0;
-				break;
-#endif
-			default:
-				break;
-			}
+		if (t->mode == XFRM_MODE_TUNNEL) {
+			u8 *sa = (void *)(rq + 1);
+			pfkey_sockaddr_fill(&t->saddr, 0,
+					    (struct sockaddr *)sa,
+					    t->encap_family);
+			pfkey_sockaddr_fill(&t->id.daddr, 0,
+					    (struct sockaddr *) (sa + socklen),
+					    t->encap_family);
 		}
 	}
 
@@ -3079,10 +2990,6 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 	struct sadb_msg *hdr;
 	struct sadb_address *addr;
 	struct sadb_x_policy *pol;
-	struct sockaddr_in *sin;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct sockaddr_in6 *sin6;
-#endif
 	int sockaddr_size;
 	int size;
 	struct sadb_x_sec_ctx *sec_ctx;
@@ -3131,29 +3038,11 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
 	addr->sadb_address_proto = 0;
 	addr->sadb_address_reserved = 0;
-	if (x->props.family == AF_INET) {
-		addr->sadb_address_prefixlen = 32;
-
-		sin = (struct sockaddr_in *) (addr + 1);
-		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = x->props.saddr.a4;
-		sin->sin_port = 0;
-		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	else if (x->props.family == AF_INET6) {
-		addr->sadb_address_prefixlen = 128;
-
-		sin6 = (struct sockaddr_in6 *) (addr + 1);
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_port = 0;
-		sin6->sin6_flowinfo = 0;
-		memcpy(&sin6->sin6_addr,
-		       x->props.saddr.a6, sizeof(struct in6_addr));
-		sin6->sin6_scope_id = 0;
-	}
-#endif
-	else
+	addr->sadb_address_prefixlen =
+		pfkey_sockaddr_fill(&x->props.saddr, 0,
+				    (struct sockaddr *) (addr + 1),
+				    x->props.family);
+	if (!addr->sadb_address_prefixlen)
 		BUG();
 
 	/* dst address */
@@ -3165,29 +3054,11 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_DST;
 	addr->sadb_address_proto = 0;
 	addr->sadb_address_reserved = 0;
-	if (x->props.family == AF_INET) {
-		addr->sadb_address_prefixlen = 32;
-
-		sin = (struct sockaddr_in *) (addr + 1);
-		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = x->id.daddr.a4;
-		sin->sin_port = 0;
-		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	else if (x->props.family == AF_INET6) {
-		addr->sadb_address_prefixlen = 128;
-
-		sin6 = (struct sockaddr_in6 *) (addr + 1);
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_port = 0;
-		sin6->sin6_flowinfo = 0;
-		memcpy(&sin6->sin6_addr,
-		       x->id.daddr.a6, sizeof(struct in6_addr));
-		sin6->sin6_scope_id = 0;
-	}
-#endif
-	else
+	addr->sadb_address_prefixlen =
+		pfkey_sockaddr_fill(&x->id.daddr, 0,
+				    (struct sockaddr *) (addr + 1),
+				    x->props.family);
+	if (!addr->sadb_address_prefixlen)
 		BUG();
 
 	pol = (struct sadb_x_policy *)  skb_put(skb, sizeof(struct sadb_x_policy));
@@ -3313,10 +3184,6 @@ static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, 
 	struct sadb_sa *sa;
 	struct sadb_address *addr;
 	struct sadb_x_nat_t_port *n_port;
-	struct sockaddr_in *sin;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct sockaddr_in6 *sin6;
-#endif
 	int sockaddr_size;
 	int size;
 	__u8 satype = (x->id.proto == IPPROTO_ESP ? SADB_SATYPE_ESP : 0);
@@ -3380,29 +3247,11 @@ static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, 
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_SRC;
 	addr->sadb_address_proto = 0;
 	addr->sadb_address_reserved = 0;
-	if (x->props.family == AF_INET) {
-		addr->sadb_address_prefixlen = 32;
-
-		sin = (struct sockaddr_in *) (addr + 1);
-		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = x->props.saddr.a4;
-		sin->sin_port = 0;
-		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	else if (x->props.family == AF_INET6) {
-		addr->sadb_address_prefixlen = 128;
-
-		sin6 = (struct sockaddr_in6 *) (addr + 1);
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_port = 0;
-		sin6->sin6_flowinfo = 0;
-		memcpy(&sin6->sin6_addr,
-		       x->props.saddr.a6, sizeof(struct in6_addr));
-		sin6->sin6_scope_id = 0;
-	}
-#endif
-	else
+	addr->sadb_address_prefixlen =
+		pfkey_sockaddr_fill(&x->props.saddr, 0,
+				    (struct sockaddr *) (addr + 1),
+				    x->props.family);
+	if (!addr->sadb_address_prefixlen)
 		BUG();
 
 	/* NAT_T_SPORT (old port) */
@@ -3421,28 +3270,11 @@ static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, 
 	addr->sadb_address_exttype = SADB_EXT_ADDRESS_DST;
 	addr->sadb_address_proto = 0;
 	addr->sadb_address_reserved = 0;
-	if (x->props.family == AF_INET) {
-		addr->sadb_address_prefixlen = 32;
-
-		sin = (struct sockaddr_in *) (addr + 1);
-		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = ipaddr->a4;
-		sin->sin_port = 0;
-		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	else if (x->props.family == AF_INET6) {
-		addr->sadb_address_prefixlen = 128;
-
-		sin6 = (struct sockaddr_in6 *) (addr + 1);
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_port = 0;
-		sin6->sin6_flowinfo = 0;
-		memcpy(&sin6->sin6_addr, &ipaddr->a6, sizeof(struct in6_addr));
-		sin6->sin6_scope_id = 0;
-	}
-#endif
-	else
+	addr->sadb_address_prefixlen =
+		pfkey_sockaddr_fill(ipaddr, 0,
+				    (struct sockaddr *) (addr + 1),
+				    x->props.family);
+	if (!addr->sadb_address_prefixlen)
 		BUG();
 
 	/* NAT_T_DPORT (new port) */
@@ -3460,10 +3292,6 @@ static int set_sadb_address(struct sk_buff *skb, int sasize, int type,
 			    struct xfrm_selector *sel)
 {
 	struct sadb_address *addr;
-	struct sockaddr_in *sin;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct sockaddr_in6 *sin6;
-#endif
 	addr = (struct sadb_address *)skb_put(skb, sizeof(struct sadb_address) + sasize);
 	addr->sadb_address_len = (sizeof(struct sadb_address) + sasize)/8;
 	addr->sadb_address_exttype = type;
@@ -3472,50 +3300,16 @@ static int set_sadb_address(struct sk_buff *skb, int sasize, int type,
 
 	switch (type) {
 	case SADB_EXT_ADDRESS_SRC:
-		if (sel->family == AF_INET) {
-			addr->sadb_address_prefixlen = sel->prefixlen_s;
-			sin = (struct sockaddr_in *)(addr + 1);
-			sin->sin_family = AF_INET;
-			memcpy(&sin->sin_addr.s_addr, &sel->saddr,
-			       sizeof(sin->sin_addr.s_addr));
-			sin->sin_port = 0;
-			memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-		}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-		else if (sel->family == AF_INET6) {
-			addr->sadb_address_prefixlen = sel->prefixlen_s;
-			sin6 = (struct sockaddr_in6 *)(addr + 1);
-			sin6->sin6_family = AF_INET6;
-			sin6->sin6_port = 0;
-			sin6->sin6_flowinfo = 0;
-			sin6->sin6_scope_id = 0;
-			memcpy(&sin6->sin6_addr.s6_addr, &sel->saddr,
-			       sizeof(sin6->sin6_addr.s6_addr));
-		}
-#endif
+		addr->sadb_address_prefixlen = sel->prefixlen_s;
+		pfkey_sockaddr_fill(&sel->saddr, 0,
+				    (struct sockaddr *)(addr + 1),
+				    sel->family);
 		break;
 	case SADB_EXT_ADDRESS_DST:
-		if (sel->family == AF_INET) {
-			addr->sadb_address_prefixlen = sel->prefixlen_d;
-			sin = (struct sockaddr_in *)(addr + 1);
-			sin->sin_family = AF_INET;
-			memcpy(&sin->sin_addr.s_addr, &sel->daddr,
-			       sizeof(sin->sin_addr.s_addr));
-			sin->sin_port = 0;
-			memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
-		}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-		else if (sel->family == AF_INET6) {
-			addr->sadb_address_prefixlen = sel->prefixlen_d;
-			sin6 = (struct sockaddr_in6 *)(addr + 1);
-			sin6->sin6_family = AF_INET6;
-			sin6->sin6_port = 0;
-			sin6->sin6_flowinfo = 0;
-			sin6->sin6_scope_id = 0;
-			memcpy(&sin6->sin6_addr.s6_addr, &sel->daddr,
-			       sizeof(sin6->sin6_addr.s6_addr));
-		}
-#endif
+		addr->sadb_address_prefixlen = sel->prefixlen_d;
+		pfkey_sockaddr_fill(&sel->daddr, 0,
+				    (struct sockaddr *)(addr + 1),
+				    sel->family);
 		break;
 	default:
 		return -EINVAL;
@@ -3530,10 +3324,8 @@ static int set_ipsecrequest(struct sk_buff *skb,
 			    xfrm_address_t *src, xfrm_address_t *dst)
 {
 	struct sadb_x_ipsecrequest *rq;
-	struct sockaddr_in *sin;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct sockaddr_in6 *sin6;
-#endif
+	u8 *sa;
+	int socklen = pfkey_sockaddr_len(family);
 	int size_req;
 
 	size_req = sizeof(struct sadb_x_ipsecrequest) +
@@ -3547,38 +3339,10 @@ static int set_ipsecrequest(struct sk_buff *skb,
 	rq->sadb_x_ipsecrequest_level = level;
 	rq->sadb_x_ipsecrequest_reqid = reqid;
 
-	switch (family) {
-	case AF_INET:
-		sin = (struct sockaddr_in *)(rq + 1);
-		sin->sin_family = AF_INET;
-		memcpy(&sin->sin_addr.s_addr, src,
-		       sizeof(sin->sin_addr.s_addr));
-		sin++;
-		sin->sin_family = AF_INET;
-		memcpy(&sin->sin_addr.s_addr, dst,
-		       sizeof(sin->sin_addr.s_addr));
-		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	case AF_INET6:
-		sin6 = (struct sockaddr_in6 *)(rq + 1);
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_port = 0;
-		sin6->sin6_flowinfo = 0;
-		sin6->sin6_scope_id = 0;
-		memcpy(&sin6->sin6_addr.s6_addr, src,
-		       sizeof(sin6->sin6_addr.s6_addr));
-		sin6++;
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_port = 0;
-		sin6->sin6_flowinfo = 0;
-		sin6->sin6_scope_id = 0;
-		memcpy(&sin6->sin6_addr.s6_addr, dst,
-		       sizeof(sin6->sin6_addr.s6_addr));
-		break;
-#endif
-	default:
+	sa = (u8 *) (rq + 1);
+	if (!pfkey_sockaddr_fill(src, 0, (struct sockaddr *)sa, family) ||
+	    !pfkey_sockaddr_fill(dst, 0, (struct sockaddr *)(sa + socklen), family))
 		return -EINVAL;
-	}
 
 	return 0;
 }
