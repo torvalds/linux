@@ -1325,8 +1325,7 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 			drive->unmask = 1;
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
 			drive->no_unmask = 1;
-		if ((hwif->host_flags & IDE_HFLAG_NO_AUTOTUNE) == 0)
-			drive->autotune = 1;
+		drive->autotune = 1;
 	}
 
 	if (port_ops && port_ops->port_init_devs)
