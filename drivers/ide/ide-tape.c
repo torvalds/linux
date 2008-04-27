@@ -692,41 +692,6 @@ static void idetape_kfree_stage(idetape_tape_t *tape, idetape_stage_t *stage)
 }
 
 /*
- * Remove tape->first_stage from the pipeline. The caller should avoid race
- * conditions.
- */
-static void idetape_remove_stage_head(ide_drive_t *drive)
-{
-	idetape_tape_t *tape = drive->driver_data;
-	idetape_stage_t *stage;
-
-	debug_log(DBG_PROCS, "Enter %s\n", __func__);
-
-	if (tape->first_stage == NULL) {
-		printk(KERN_ERR "ide-tape: bug: tape->first_stage is NULL\n");
-		return;
-	}
-	if (tape->active_stage == tape->first_stage) {
-		printk(KERN_ERR "ide-tape: bug: Trying to free our active "
-				"pipeline stage\n");
-		return;
-	}
-	stage = tape->first_stage;
-	tape->first_stage = stage->next;
-	idetape_kfree_stage(tape, stage);
-	tape->nr_stages--;
-	if (tape->first_stage == NULL) {
-		tape->last_stage = NULL;
-		if (tape->next_stage != NULL)
-			printk(KERN_ERR "ide-tape: bug: tape->next_stage !="
-					" NULL\n");
-		if (tape->nr_stages)
-			printk(KERN_ERR "ide-tape: bug: nr_stages should be 0 "
-					"now\n");
-	}
-}
-
-/*
  * This will free all the pipeline stages starting from new_last_stage->next
  * to the end of the list, and point tape->last_stage to new_last_stage.
  */
@@ -762,7 +727,6 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 	idetape_tape_t *tape = drive->driver_data;
 	unsigned long flags;
 	int error;
-	int remove_stage = 0;
 	idetape_stage_t *active_stage;
 
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
@@ -790,7 +754,6 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 		tape->active_data_rq = NULL;
 		tape->nr_pending_stages--;
 		if (rq->cmd[0] & REQ_IDETAPE_WRITE) {
-			remove_stage = 1;
 			if (error) {
 				set_bit(IDETAPE_FLAG_PIPELINE_ERR,
 					&tape->flags);
@@ -831,8 +794,6 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 	}
 	ide_end_drive_cmd(drive, 0, 0);
 
-	if (remove_stage)
-		idetape_remove_stage_head(drive);
 	if (tape->active_data_rq == NULL)
 		clear_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags);
 	spin_unlock_irqrestore(&tape->lock, flags);
@@ -1914,7 +1875,6 @@ static int __idetape_discard_read_pipeline(ide_drive_t *drive)
 		cnt += rq_ptr->nr_sectors - rq_ptr->current_nr_sectors;
 		if (rq_ptr->errors == IDETAPE_ERROR_FILEMARK)
 			++cnt;
-		idetape_remove_stage_head(drive);
 	}
 	tape->nr_pending_stages = 0;
 	tape->max_stages = tape->min_pipeline;
