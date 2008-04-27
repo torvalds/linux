@@ -1636,7 +1636,7 @@ static void idetape_create_test_unit_ready_cmd(struct ide_atapi_pc *pc)
  * to the request list without waiting for it to be serviced! In that case, we
  * usually use idetape_queue_pc_head().
  */
-static int __idetape_queue_pc_tail(ide_drive_t *drive, struct ide_atapi_pc *pc)
+static int idetape_queue_pc_tail(ide_drive_t *drive, struct ide_atapi_pc *pc)
 {
 	struct ide_tape_obj *tape = drive->driver_data;
 	struct request rq;
@@ -1668,7 +1668,7 @@ static int idetape_wait_ready(ide_drive_t *drive, unsigned long timeout)
 	timeout += jiffies;
 	while (time_before(jiffies, timeout)) {
 		idetape_create_test_unit_ready_cmd(&pc);
-		if (!__idetape_queue_pc_tail(drive, &pc))
+		if (!idetape_queue_pc_tail(drive, &pc))
 			return 0;
 		if ((tape->sense_key == 2 && tape->asc == 4 && tape->ascq == 2)
 		    || (tape->asc == 0x3A)) {
@@ -1677,7 +1677,7 @@ static int idetape_wait_ready(ide_drive_t *drive, unsigned long timeout)
 				return -ENOMEDIUM;
 			idetape_create_load_unload_cmd(drive, &pc,
 							IDETAPE_LU_LOAD_MASK);
-			__idetape_queue_pc_tail(drive, &pc);
+			idetape_queue_pc_tail(drive, &pc);
 			load_attempted = 1;
 		/* not about to be ready */
 		} else if (!(tape->sense_key == 2 && tape->asc == 4 &&
@@ -1686,11 +1686,6 @@ static int idetape_wait_ready(ide_drive_t *drive, unsigned long timeout)
 		msleep(100);
 	}
 	return -EIO;
-}
-
-static int idetape_queue_pc_tail(ide_drive_t *drive, struct ide_atapi_pc *pc)
-{
-	return __idetape_queue_pc_tail(drive, pc);
 }
 
 static int idetape_flush_tape_buffers(ide_drive_t *drive)
