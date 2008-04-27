@@ -321,7 +321,7 @@ static int __devinit palm_bk3710_init_dma(ide_hwif_t *hwif,
 					  const struct ide_port_info *d)
 {
 	unsigned long base =
-		hwif->io_ports[IDE_DATA_OFFSET] - IDE_PALM_ATA_PRI_REG_OFFSET;
+		hwif->io_ports.data_addr - IDE_PALM_ATA_PRI_REG_OFFSET;
 
 	printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
 
@@ -386,8 +386,8 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 
 	pribase = mem->start + IDE_PALM_ATA_PRI_REG_OFFSET;
 	for (i = 0; i < IDE_NR_PORTS - 2; i++)
-		hw.io_ports[i] = pribase + i;
-	hw.io_ports[IDE_CONTROL_OFFSET] = mem->start +
+		hw.io_ports_array[i] = pribase + i;
+	hw.io_ports.ctl_addr = mem->start +
 			IDE_PALM_ATA_PRI_CTL_OFFSET;
 	hw.irq = irq->start;
 	hw.chipset = ide_palm3710;
@@ -398,11 +398,7 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 
 	i = hwif->index;
 
-	if (hwif->present)
-		ide_unregister(i);
-	else
-		ide_init_port_data(hwif, i);
-
+	ide_init_port_data(hwif, i);
 	ide_init_port_hw(hwif, &hw);
 
 	hwif->mmio = 1;

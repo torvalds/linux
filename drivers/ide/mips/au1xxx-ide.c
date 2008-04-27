@@ -502,12 +502,11 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 static void auide_setup_ports(hw_regs_t *hw, _auide_hwif *ahwif)
 {
 	int i;
-	unsigned long *ata_regs = hw->io_ports;
+	unsigned long *ata_regs = hw->io_ports_array;
 
 	/* FIXME? */
-	for (i = 0; i < IDE_CONTROL_OFFSET; i++) {
+	for (i = 0; i < 8; i++)
 		*ata_regs++ = ahwif->regbase + (i << AU1XXX_ATA_REG_OFFSET);
-	}
 
 	/* set the Alternative Status register */
 	*ata_regs = ahwif->regbase + (14 << AU1XXX_ATA_REG_OFFSET);
@@ -627,7 +626,7 @@ static int au_ide_remove(struct device *dev)
 	ide_hwif_t *hwif = dev_get_drvdata(dev);
 	_auide_hwif *ahwif = &auide_hwif;
 
-	ide_unregister(hwif->index);
+	ide_unregister(hwif);
 
 	iounmap((void *)ahwif->regbase);
 

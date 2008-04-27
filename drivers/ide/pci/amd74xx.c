@@ -179,7 +179,7 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev,
  * Determine the system bus clock.
  */
 
-	amd_clock = system_bus_clock() * 1000;
+	amd_clock = (ide_pci_clk ? ide_pci_clk : system_bus_clock()) * 1000;
 
 	switch (amd_clock) {
 		case 33000: amd_clock = 33333; break;

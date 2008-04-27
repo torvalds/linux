@@ -140,8 +140,8 @@ static void ide_detach(struct pcmcia_device *link)
 
     ide_release(link);
 
-    release_region(hwif->io_ports[IDE_CONTROL_OFFSET], 1);
-    release_region(hwif->io_ports[IDE_DATA_OFFSET], 8);
+    release_region(hwif->io_ports.ctl_addr, 1);
+    release_region(hwif->io_ports.data_addr, 8);
 
     kfree(info);
 } /* ide_detach */
@@ -183,11 +183,7 @@ static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
 
     i = hwif->index;
 
-    if (hwif->present)
-	ide_unregister(i);
-    else
-	ide_init_port_data(hwif, i);
-
+    ide_init_port_data(hwif, i);
     ide_init_port_hw(hwif, &hw);
     hwif->port_ops = &idecs_port_ops;
 
@@ -390,7 +386,7 @@ void ide_release(struct pcmcia_device *link)
     if (info->ndev) {
 	/* FIXME: if this fails we need to queue the cleanup somehow
 	   -- need to investigate the required PCMCIA magic */
-	ide_unregister(hwif->index);
+	ide_unregister(hwif);
     }
     info->ndev = 0;
 

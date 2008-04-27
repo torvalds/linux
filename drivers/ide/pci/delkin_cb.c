@@ -87,11 +87,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 
 	i = hwif->index;
 
-	if (hwif->present)
-		ide_unregister(i);
-	else
-		ide_init_port_data(hwif, i);
-
+	ide_init_port_data(hwif, i);
 	ide_init_port_hw(hwif, &hw);
 	hwif->port_ops = &delkin_cb_port_ops;
 
@@ -123,8 +119,7 @@ delkin_cb_remove (struct pci_dev *dev)
 {
 	ide_hwif_t *hwif = pci_get_drvdata(dev);
 
-	if (hwif)
-		ide_unregister(hwif->index);
+	ide_unregister(hwif);
 
 	pci_release_regions(dev);
 	pci_disable_device(dev);

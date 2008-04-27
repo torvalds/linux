@@ -37,12 +37,12 @@ static inline void ide_init_hwif_ports(hw_regs_t *hw, unsigned long data_port,
 
 	memset(hw, 0, sizeof(*hw));
 
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-		hw->io_ports[i] = reg;
+	for (i = 0; i <= 7; i++) {
+		hw->io_ports_array[i] = reg;
 		reg += regincr;
 	}
 
-	hw->io_ports[IDE_CONTROL_OFFSET] = ctrl_port;
+	hw->io_ports.ctl_addr = ctrl_port;
 
 	if (irq)
 		*irq = 0;

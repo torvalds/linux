@@ -426,11 +426,12 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 		 */
 		default_hwif_mmiops(hwif);
 
-		for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-			hwif->io_ports[i] = port;
+		for (i = 0; i <= 7; i++) {
+			hwif->io_ports_array[i] = port;
 			port += 1 << info->stepping;
 		}
-		hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)base + info->ctrloffset;
+		hwif->io_ports.ctl_addr =
+			(unsigned long)base + info->ctrloffset;
 		hwif->irq     = ec->irq;
 		hwif->chipset = ide_acorn;
 		hwif->gendev.parent = &ec->dev;
@@ -480,8 +481,7 @@ static const struct ide_port_info icside_v6_port_info __initdata = {
 	.init_dma		= icside_dma_off_init,
 	.port_ops		= &icside_v6_no_dma_port_ops,
 	.dma_ops		= &icside_v6_dma_ops,
-	.host_flags		= IDE_HFLAG_SERIALIZE |
-				  IDE_HFLAG_NO_AUTOTUNE,
+	.host_flags		= IDE_HFLAG_SERIALIZE,
 	.mwdma_mask		= ATA_MWDMA2,
 	.swdma_mask		= ATA_SWDMA2,
 };
@@ -547,14 +547,13 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	hwif->config_data = (unsigned long)ioc_base;
 	hwif->select_data = sel;
 
-	mate->maskproc    = icside_maskproc;
 	mate->hwif_data   = state;
 	mate->config_data = (unsigned long)ioc_base;
 	mate->select_data = sel | 1;
 
 	if (ec->dma != NO_DMA && !request_dma(ec->dma, hwif->name)) {
 		d.init_dma = icside_dma_init;
-		d.port_ops = &icside_v6_dma_port_ops;
+		d.port_ops = &icside_v6_port_ops;
 		d.dma_ops = NULL;
 	}
 

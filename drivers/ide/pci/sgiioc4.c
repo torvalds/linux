@@ -98,28 +98,28 @@ sgiioc4_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
 	int i;
 
 	/* Registers are word (32 bit) aligned */
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++)
-		hw->io_ports[i] = reg + i * 4;
+	for (i = 0; i <= 7; i++)
+		hw->io_ports_array[i] = reg + i * 4;
 
 	if (ctrl_port)
-		hw->io_ports[IDE_CONTROL_OFFSET] = ctrl_port;
+		hw->io_ports.ctl_addr = ctrl_port;
 
 	if (irq_port)
-		hw->io_ports[IDE_IRQ_OFFSET] = irq_port;
+		hw->io_ports.irq_addr = irq_port;
 }
 
 static void
 sgiioc4_maskproc(ide_drive_t * drive, int mask)
 {
 	writeb(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
-	       (void __iomem *)drive->hwif->io_ports[IDE_CONTROL_OFFSET]);
+	       (void __iomem *)drive->hwif->io_ports.ctl_addr);
 }
 
 static int
 sgiioc4_checkirq(ide_hwif_t * hwif)
 {
 	unsigned long intr_addr =
-		hwif->io_ports[IDE_IRQ_OFFSET] + IOC4_INTR_REG * 4;
+		hwif->io_ports.irq_addr + IOC4_INTR_REG * 4;
 
 	if ((u8)readl((void __iomem *)intr_addr) & 0x03)
 		return 1;
@@ -134,8 +134,8 @@ sgiioc4_clearirq(ide_drive_t * drive)
 {
 	u32 intr_reg;
 	ide_hwif_t *hwif = HWIF(drive);
-	unsigned long other_ir =
-	    hwif->io_ports[IDE_IRQ_OFFSET] + (IOC4_INTR_REG << 2);
+	struct ide_io_ports *io_ports = &hwif->io_ports;
+	unsigned long other_ir = io_ports->irq_addr + (IOC4_INTR_REG << 2);
 
 	/* Code to check for PCI error conditions */
 	intr_reg = readl((void __iomem *)other_ir);
@@ -147,12 +147,12 @@ sgiioc4_clearirq(ide_drive_t * drive)
 		 * a "clear" status if it got cleared.  If not, then spin
 		 * for a bit trying to clear it.
 		 */
-		u8 stat = sgiioc4_INB(hwif->io_ports[IDE_STATUS_OFFSET]);
+		u8 stat = sgiioc4_INB(io_ports->status_addr);
 		int count = 0;
-		stat = sgiioc4_INB(hwif->io_ports[IDE_STATUS_OFFSET]);
+		stat = sgiioc4_INB(io_ports->status_addr);
 		while ((stat & 0x80) && (count++ < 100)) {
 			udelay(1);
-			stat = sgiioc4_INB(hwif->io_ports[IDE_STATUS_OFFSET]);
+			stat = sgiioc4_INB(io_ports->status_addr);
 		}
 
 		if (intr_reg & 0x02) {
@@ -162,9 +162,9 @@ sgiioc4_clearirq(ide_drive_t * drive)
 			    pci_stat_cmd_reg;
 
 			pci_err_addr_low =
-				readl((void __iomem *)hwif->io_ports[IDE_IRQ_OFFSET]);
+				readl((void __iomem *)io_ports->irq_addr);
 			pci_err_addr_high =
-				readl((void __iomem *)(hwif->io_ports[IDE_IRQ_OFFSET] + 4));
+				readl((void __iomem *)(io_ports->irq_addr + 4));
 			pci_read_config_dword(dev, PCI_COMMAND,
 					      &pci_stat_cmd_reg);
 			printk(KERN_ERR
@@ -573,7 +573,6 @@ static const struct ide_port_info sgiioc4_port_info __devinitdata = {
 	.init_dma		= ide_dma_sgiioc4,
 	.port_ops		= &sgiioc4_port_ops,
 	.dma_ops		= &sgiioc4_dma_ops,
-	.host_flags		= IDE_HFLAG_NO_AUTOTUNE,
 	.mwdma_mask		= ATA_MWDMA2_ONLY,
 };
 

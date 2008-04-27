@@ -53,8 +53,7 @@
  * If you then set the second drive to another PIO, the old value
  * (automatically selected) will be overrided by yours.
  * There is a 25/33MHz switch in configuration
- * register, but driver is written for use at any frequency which get
- * (use idebus=xx to select PCI bus speed).
+ * register, but driver is written for use at any frequency.
  *
  * Version 0.1, Nov 8, 1996
  * by Jaromir Koutek, for 2.1.8.
@@ -210,7 +209,7 @@ static void compute_clocks(int pio, pio_clocks_t *clks)
 {
 	if (pio != PIO_NOT_EXIST) {
 		int adr_setup, data_pls;
-		int bus_speed = system_bus_clock();
+		int bus_speed = ide_pci_clk ? ide_pci_clk : system_bus_clock();
 
 		adr_setup = ide_pio_timings[pio].setup_time;
 		data_pls = ide_pio_timings[pio].active_time;
@@ -280,7 +279,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 	spin_lock_irqsave(&opti621_lock, flags);
 
-	reg_base = hwif->io_ports[IDE_DATA_OFFSET];
+	reg_base = hwif->io_ports.data_addr;
 
 	/* allow Register-B */
 	outb(0xc0, reg_base + CNTRL_REG);

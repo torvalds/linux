@@ -94,12 +94,6 @@ DEFINE_MUTEX(ide_cfg_mtx);
 
 int noautodma = 0;
 
-#ifdef CONFIG_BLK_DEV_IDEACPI
-int ide_noacpi = 0;
-int ide_noacpitfs = 1;
-int ide_noacpionboot = 1;
-#endif
-
 ide_hwif_t ide_hwifs[MAX_HWIFS];	/* master data repository */
 
 static void ide_port_init_devices_data(ide_hwif_t *);
@@ -293,7 +287,7 @@ EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
 
 /**
  *	ide_unregister		-	free an IDE interface
- *	@index: index of interface (will change soon to a pointer)
+ *	@hwif: IDE interface
  *
  *	Perform the final unregister of an IDE interface. At the moment
  *	we don't refcount interfaces so this will also get split up.
@@ -313,19 +307,16 @@ EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
  *	This is raving bonkers.
  */
 
-void ide_unregister(unsigned int index)
+void ide_unregister(ide_hwif_t *hwif)
 {
-	ide_hwif_t *hwif, *g;
+	ide_hwif_t *g;
 	ide_hwgroup_t *hwgroup;
 	int irq_count = 0;
-
-	BUG_ON(index >= MAX_HWIFS);
 
 	BUG_ON(in_interrupt());
 	BUG_ON(irqs_disabled());
 	mutex_lock(&ide_cfg_mtx);
 	spin_lock_irq(&ide_lock);
-	hwif = &ide_hwifs[index];
 	if (!hwif->present)
 		goto abort;
 	__ide_port_unregister_devices(hwif);
@@ -366,7 +357,7 @@ void ide_unregister(unsigned int index)
 		ide_release_dma_engine(hwif);
 
 	/* restore hwif data to pristine status */
-	ide_init_port_data(hwif, index);
+	ide_init_port_data(hwif, hwif->index);
 
 abort:
 	spin_unlock_irq(&ide_lock);
@@ -377,7 +368,7 @@ EXPORT_SYMBOL(ide_unregister);
 
 void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 {
-	memcpy(hwif->io_ports, hw->io_ports, sizeof(hwif->io_ports));
+	memcpy(&hwif->io_ports, &hw->io_ports, sizeof(hwif->io_ports));
 	hwif->irq = hw->irq;
 	hwif->chipset = hw->chipset;
 	hwif->gendev.parent = hw->dev;
@@ -837,16 +828,6 @@ static int __init match_parm (char *s, const char *keywords[], int vals[], int m
 	return 0;	/* zero = nothing matched */
 }
 
-extern int probe_ali14xx;
-extern int probe_umc8672;
-extern int probe_dtc2278;
-extern int probe_ht6560b;
-extern int probe_qd65xx;
-extern int cmd640_vlb;
-extern int probe_4drives;
-
-static int __initdata is_chipset_set;
-
 /*
  * ide_setup() gets called VERY EARLY during initialization,
  * to handle kernel "command line" strings beginning with "hdx=" or "ide".
@@ -855,14 +836,12 @@ static int __initdata is_chipset_set;
  */
 static int __init ide_setup(char *s)
 {
-	int i, vals[3];
 	ide_hwif_t *hwif;
 	ide_drive_t *drive;
 	unsigned int hw, unit;
+	int vals[3];
 	const char max_drive = 'a' + ((MAX_HWIFS * MAX_DRIVES) - 1);
-	const char max_hwif  = '0' + (MAX_HWIFS - 1);
 
-	
 	if (strncmp(s,"hd",2) == 0 && s[2] == '=')	/* hd= is for hd.c   */
 		return 0;				/* driver and not us */
 
@@ -878,7 +857,7 @@ static int __init ide_setup(char *s)
 
 		printk(" : Enabled support for IDE doublers\n");
 		ide_doubler = 1;
-		return 1;
+		goto obsolete_option;
 	}
 #endif /* CONFIG_BLK_DEV_IDEDOUBLER */
 
@@ -892,17 +871,17 @@ static int __init ide_setup(char *s)
 	if (!strcmp(s, "ide=noacpi")) {
 		//printk(" : Disable IDE ACPI support.\n");
 		ide_noacpi = 1;
-		return 1;
+		goto obsolete_option;
 	}
 	if (!strcmp(s, "ide=acpigtf")) {
 		//printk(" : Enable IDE ACPI _GTF support.\n");
-		ide_noacpitfs = 0;
-		return 1;
+		ide_acpigtf = 1;
+		goto obsolete_option;
 	}
 	if (!strcmp(s, "ide=acpionboot")) {
 		//printk(" : Call IDE ACPI methods on boot.\n");
-		ide_noacpionboot = 0;
-		return 1;
+		ide_acpionboot = 1;
+		goto obsolete_option;
 	}
 #endif /* CONFIG_BLK_DEV_IDEACPI */
 
@@ -912,7 +891,7 @@ static int __init ide_setup(char *s)
 	if (s[0] == 'h' && s[1] == 'd' && s[2] >= 'a' && s[2] <= max_drive) {
 		const char *hd_words[] = {
 			"none", "noprobe", "nowerr", "cdrom", "nodma",
-			"autotune", "noautotune", "-8", "-9", "-10",
+			"-6", "-7", "-8", "-9", "-10",
 			"noflush", "remap", "remap63", "scsi", NULL };
 		unit = s[2] - 'a';
 		hw   = unit / MAX_DRIVES;
@@ -927,28 +906,22 @@ static int __init ide_setup(char *s)
 			case -1: /* "none" */
 			case -2: /* "noprobe" */
 				drive->noprobe = 1;
-				goto done;
+				goto obsolete_option;
 			case -3: /* "nowerr" */
 				drive->bad_wstat = BAD_R_STAT;
-				goto done;
+				goto obsolete_option;
 			case -4: /* "cdrom" */
 				drive->present = 1;
 				drive->media = ide_cdrom;
 				/* an ATAPI device ignores DRDY */
 				drive->ready_stat = 0;
-				goto done;
+				goto obsolete_option;
 			case -5: /* nodma */
 				drive->nodma = 1;
-				goto done;
-			case -6: /* "autotune" */
-				drive->autotune = IDE_TUNE_AUTO;
-				goto obsolete_option;
-			case -7: /* "noautotune" */
-				drive->autotune = IDE_TUNE_NOAUTO;
 				goto obsolete_option;
 			case -11: /* noflush */
 				drive->noflush = 1;
-				goto done;
+				goto obsolete_option;
 			case -12: /* "remap" */
 				drive->remap_0_to_1 = 1;
 				goto obsolete_option;
@@ -966,7 +939,7 @@ static int __init ide_setup(char *s)
 				drive->sect	= drive->bios_sect = vals[2];
 				drive->present	= 1;
 				drive->forced_geom = 1;
-				goto done;
+				goto obsolete_option;
 			default:
 				goto bad_option;
 		}
@@ -984,125 +957,14 @@ static int __init ide_setup(char *s)
 			idebus_parameter = vals[0];
 		} else
 			printk(" -- BAD BUS SPEED! Expected value from 20 to 66");
-		goto done;
+		goto obsolete_option;
 	}
-	/*
-	 * Look for interface options:  "idex="
-	 */
-	if (s[3] >= '0' && s[3] <= max_hwif) {
-		/*
-		 * Be VERY CAREFUL changing this: note hardcoded indexes below
-		 * (-8, -9, -10) are reserved to ease the hardcoding.
-		 */
-		static const char *ide_words[] = {
-			"minus1", "serialize", "minus3", "minus4",
-			"reset", "minus6", "ata66", "minus8", "minus9",
-			"minus10", "four", "qd65xx", "ht6560b", "cmd640_vlb",
-			"dtc2278", "umc8672", "ali14xx", NULL };
 
-		hw = s[3] - '0';
-		hwif = &ide_hwifs[hw];
-		i = match_parm(&s[4], ide_words, vals, 3);
-
-		/*
-		 * Cryptic check to ensure chipset not already set for hwif.
-		 * Note: we can't depend on hwif->chipset here.
-		 */
-		if (i >= -18 && i <= -11) {
-			/* chipset already specified */
-			if (is_chipset_set)
-				goto bad_option;
-			/* these drivers are for "ide0=" only */
-			if (hw != 0)
-				goto bad_hwif;
-			is_chipset_set = 1;
-			printk("\n");
-		}
-
-		switch (i) {
-#ifdef CONFIG_BLK_DEV_ALI14XX
-			case -17: /* "ali14xx" */
-				probe_ali14xx = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_UMC8672
-			case -16: /* "umc8672" */
-				probe_umc8672 = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_DTC2278
-			case -15: /* "dtc2278" */
-				probe_dtc2278 = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_CMD640
-			case -14: /* "cmd640_vlb" */
-				cmd640_vlb = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_HT6560B
-			case -13: /* "ht6560b" */
-				probe_ht6560b = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_QD65XX
-			case -12: /* "qd65xx" */
-				probe_qd65xx = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_4DRIVES
-			case -11: /* "four" drives on one set of ports */
-				probe_4drives = 1;
-				goto obsolete_option;
-#endif
-			case -10: /* minus10 */
-			case -9: /* minus9 */
-			case -8: /* minus8 */
-			case -6:
-			case -4:
-			case -3:
-				goto bad_option;
-			case -7: /* ata66 */
-#ifdef CONFIG_BLK_DEV_IDEPCI
-				/*
-				 * Use ATA_CBL_PATA40_SHORT so drive side
-				 * cable detection is also overriden.
-				 */
-				hwif->cbl = ATA_CBL_PATA40_SHORT;
-				goto obsolete_option;
-#else
-				goto bad_hwif;
-#endif
-			case -5: /* "reset" */
-				hwif->reset = 1;
-				goto obsolete_option;
-			case -2: /* "serialize" */
-				hwif->mate = &ide_hwifs[hw^1];
-				hwif->mate->mate = hwif;
-				hwif->serialized = hwif->mate->serialized = 1;
-				goto obsolete_option;
-
-			case -1:
-			case 0:
-			case 1:
-			case 2:
-			case 3:
-				goto bad_option;
-			default:
-				printk(" -- SUPPORT NOT CONFIGURED IN THIS KERNEL\n");
-				return 1;
-		}
-	}
 bad_option:
 	printk(" -- BAD OPTION\n");
 	return 1;
 obsolete_option:
 	printk(" -- OBSOLETE OPTION, WILL BE REMOVED SOON!\n");
-	return 1;
-bad_hwif:
-	printk("-- NOT SUPPORTED ON ide%d", hw);
-done:
-	printk("\n");
 	return 1;
 }
 
@@ -1239,6 +1101,185 @@ static void ide_port_class_release(struct device *portdev)
 	put_device(&hwif->gendev);
 }
 
+int ide_vlb_clk;
+EXPORT_SYMBOL_GPL(ide_vlb_clk);
+
+module_param_named(vlb_clock, ide_vlb_clk, int, 0);
+MODULE_PARM_DESC(vlb_clock, "VLB clock frequency (in MHz)");
+
+int ide_pci_clk;
+EXPORT_SYMBOL_GPL(ide_pci_clk);
+
+module_param_named(pci_clock, ide_pci_clk, int, 0);
+MODULE_PARM_DESC(pci_clock, "PCI bus clock frequency (in MHz)");
+
+static int ide_set_dev_param_mask(const char *s, struct kernel_param *kp)
+{
+	int a, b, i, j = 1;
+	unsigned int *dev_param_mask = (unsigned int *)kp->arg;
+
+	if (sscanf(s, "%d.%d:%d", &a, &b, &j) != 3 &&
+	    sscanf(s, "%d.%d", &a, &b) != 2)
+		return -EINVAL;
+
+	i = a * MAX_DRIVES + b;
+
+	if (i >= MAX_HWIFS * MAX_DRIVES || j < 0 || j > 1)
+		return -EINVAL;
+
+	if (j)
+		*dev_param_mask |= (1 << i);
+	else
+		*dev_param_mask &= (1 << i);
+
+	return 0;
+}
+
+static unsigned int ide_nodma;
+
+module_param_call(nodma, ide_set_dev_param_mask, NULL, &ide_nodma, 0);
+MODULE_PARM_DESC(nodma, "disallow DMA for a device");
+
+static unsigned int ide_noflush;
+
+module_param_call(noflush, ide_set_dev_param_mask, NULL, &ide_noflush, 0);
+MODULE_PARM_DESC(noflush, "disable flush requests for a device");
+
+static unsigned int ide_noprobe;
+
+module_param_call(noprobe, ide_set_dev_param_mask, NULL, &ide_noprobe, 0);
+MODULE_PARM_DESC(noprobe, "skip probing for a device");
+
+static unsigned int ide_nowerr;
+
+module_param_call(nowerr, ide_set_dev_param_mask, NULL, &ide_nowerr, 0);
+MODULE_PARM_DESC(nowerr, "ignore the WRERR_STAT bit for a device");
+
+static unsigned int ide_cdroms;
+
+module_param_call(cdrom, ide_set_dev_param_mask, NULL, &ide_cdroms, 0);
+MODULE_PARM_DESC(cdrom, "force device as a CD-ROM");
+
+struct chs_geom {
+	unsigned int	cyl;
+	u8		head;
+	u8		sect;
+};
+
+static unsigned int ide_disks;
+static struct chs_geom ide_disks_chs[MAX_HWIFS * MAX_DRIVES];
+
+static int ide_set_disk_chs(const char *str, struct kernel_param *kp)
+{
+	int a, b, c = 0, h = 0, s = 0, i, j = 1;
+
+	if (sscanf(str, "%d.%d:%d,%d,%d", &a, &b, &c, &h, &s) != 5 &&
+	    sscanf(str, "%d.%d:%d", &a, &b, &j) != 3)
+		return -EINVAL;
+
+	i = a * MAX_DRIVES + b;
+
+	if (i >= MAX_HWIFS * MAX_DRIVES || j < 0 || j > 1)
+		return -EINVAL;
+
+	if (c > INT_MAX || h > 255 || s > 255)
+		return -EINVAL;
+
+	if (j)
+		ide_disks |= (1 << i);
+	else
+		ide_disks &= (1 << i);
+
+	ide_disks_chs[i].cyl  = c;
+	ide_disks_chs[i].head = h;
+	ide_disks_chs[i].sect = s;
+
+	return 0;
+}
+
+module_param_call(chs, ide_set_disk_chs, NULL, NULL, 0);
+MODULE_PARM_DESC(chs, "force device as a disk (using CHS)");
+
+static void ide_dev_apply_params(ide_drive_t *drive)
+{
+	int i = drive->hwif->index * MAX_DRIVES + drive->select.b.unit;
+
+	if (ide_nodma & (1 << i)) {
+		printk(KERN_INFO "ide: disallowing DMA for %s\n", drive->name);
+		drive->nodma = 1;
+	}
+	if (ide_noflush & (1 << i)) {
+		printk(KERN_INFO "ide: disabling flush requests for %s\n",
+				 drive->name);
+		drive->noflush = 1;
+	}
+	if (ide_noprobe & (1 << i)) {
+		printk(KERN_INFO "ide: skipping probe for %s\n", drive->name);
+		drive->noprobe = 1;
+	}
+	if (ide_nowerr & (1 << i)) {
+		printk(KERN_INFO "ide: ignoring the WRERR_STAT bit for %s\n",
+				 drive->name);
+		drive->bad_wstat = BAD_R_STAT;
+	}
+	if (ide_cdroms & (1 << i)) {
+		printk(KERN_INFO "ide: forcing %s as a CD-ROM\n", drive->name);
+		drive->present = 1;
+		drive->media = ide_cdrom;
+		/* an ATAPI device ignores DRDY */
+		drive->ready_stat = 0;
+	}
+	if (ide_disks & (1 << i)) {
+		drive->cyl  = drive->bios_cyl  = ide_disks_chs[i].cyl;
+		drive->head = drive->bios_head = ide_disks_chs[i].head;
+		drive->sect = drive->bios_sect = ide_disks_chs[i].sect;
+		drive->forced_geom = 1;
+		printk(KERN_INFO "ide: forcing %s as a disk (%d/%d/%d)\n",
+				 drive->name,
+				 drive->cyl, drive->head, drive->sect);
+		drive->present = 1;
+		drive->media = ide_disk;
+		drive->ready_stat = READY_STAT;
+	}
+}
+
+static unsigned int ide_ignore_cable;
+
+static int ide_set_ignore_cable(const char *s, struct kernel_param *kp)
+{
+	int i, j = 1;
+
+	if (sscanf(s, "%d:%d", &i, &j) != 2 && sscanf(s, "%d", &i) != 1)
+		return -EINVAL;
+
+	if (i >= MAX_HWIFS || j < 0 || j > 1)
+		return -EINVAL;
+
+	if (j)
+		ide_ignore_cable |= (1 << i);
+	else
+		ide_ignore_cable &= (1 << i);
+
+	return 0;
+}
+
+module_param_call(ignore_cable, ide_set_ignore_cable, NULL, NULL, 0);
+MODULE_PARM_DESC(ignore_cable, "ignore cable detection");
+
+void ide_port_apply_params(ide_hwif_t *hwif)
+{
+	int i;
+
+	if (ide_ignore_cable & (1 << hwif->index)) {
+		printk(KERN_INFO "ide: ignoring cable detection for %s\n",
+				 hwif->name);
+		hwif->cbl = ATA_CBL_PATA40_SHORT;
+	}
+
+	for (i = 0; i < MAX_DRIVES; i++)
+		ide_dev_apply_params(&hwif->drives[i]);
+}
+
 /*
  * This is gets invoked once during initialization, to set *everything* up
  */
@@ -1305,11 +1346,6 @@ int __init init_module (void)
 
 void __exit cleanup_module (void)
 {
-	int index;
-
-	for (index = 0; index < MAX_HWIFS; ++index)
-		ide_unregister(index);
-
 	proc_ide_destroy();
 
 	class_destroy(ide_port_class);

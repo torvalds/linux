@@ -113,10 +113,10 @@ static int __devinit swarm_ide_probe(struct device *dev)
 
 	hwif->chipset = ide_generic;
 
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++)
-		hwif->io_ports[i] =
+	for (i = 0; i <= 7; i++)
+		hwif->io_ports_array[i] =
 				(unsigned long)(base + ((0x1f0 + i) << 5));
-	hwif->io_ports[IDE_CONTROL_OFFSET] =
+	hwif->io_ports.ctl_addr =
 				(unsigned long)(base + (0x3f6 << 5));
 	hwif->irq = K_INT_GB_IDE;
 

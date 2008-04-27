@@ -35,12 +35,12 @@ static int __init bastide_register(unsigned int base, unsigned int aux, int irq)
 	base += BAST_IDE_CS;
 	aux  += BAST_IDE_CS;
 
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-		hw.io_ports[i] = (unsigned long)base;
+	for (i = 0; i <= 7; i++) {
+		hw.io_ports_array[i] = (unsigned long)base;
 		base += 0x20;
 	}
 
-	hw.io_ports[IDE_CONTROL_OFFSET] = aux + (6 * 0x20);
+	hw.io_ports.ctl_addr = aux + (6 * 0x20);
 	hw.irq = irq;
 
 	hwif = ide_find_port();
@@ -49,11 +49,7 @@ static int __init bastide_register(unsigned int base, unsigned int aux, int irq)
 
 	i = hwif->index;
 
-	if (hwif->present)
-		ide_unregister(i);
-	else
-		ide_init_port_data(hwif, i);
-
+	ide_init_port_data(hwif, i);
 	ide_init_port_hw(hwif, &hw);
 	hwif->port_ops = NULL;
 

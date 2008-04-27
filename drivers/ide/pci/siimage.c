@@ -622,8 +622,9 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	void *addr		= pci_get_drvdata(dev);
 	u8 ch			= hwif->channel;
-	hw_regs_t		hw;
 	unsigned long		base;
+
+	struct ide_io_ports *io_ports = &hwif->io_ports;
 
 	/*
 	 *	Fill in the basic HWIF bits
@@ -638,7 +639,7 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 	 *	based I/O
 	 */
 
-	memset(&hw, 0, sizeof(hw_regs_t));
+	memset(io_ports, 0, sizeof(*io_ports));
 
 	base = (unsigned long)addr;
 	if (ch)
@@ -651,17 +652,15 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 	 *	so we can't currently use it sanely since we want to
 	 *	use LBA48 mode.
 	 */	
-	hw.io_ports[IDE_DATA_OFFSET]	= base;
-	hw.io_ports[IDE_ERROR_OFFSET]	= base + 1;
-	hw.io_ports[IDE_NSECTOR_OFFSET]	= base + 2;
-	hw.io_ports[IDE_SECTOR_OFFSET]	= base + 3;
-	hw.io_ports[IDE_LCYL_OFFSET]	= base + 4;
-	hw.io_ports[IDE_HCYL_OFFSET]	= base + 5;
-	hw.io_ports[IDE_SELECT_OFFSET]	= base + 6;
-	hw.io_ports[IDE_STATUS_OFFSET]	= base + 7;
-	hw.io_ports[IDE_CONTROL_OFFSET]	= base + 10;
-
-	hw.io_ports[IDE_IRQ_OFFSET]	= 0;
+	io_ports->data_addr	= base;
+	io_ports->error_addr	= base + 1;
+	io_ports->nsect_addr	= base + 2;
+	io_ports->lbal_addr	= base + 3;
+	io_ports->lbam_addr	= base + 4;
+	io_ports->lbah_addr	= base + 5;
+	io_ports->device_addr	= base + 6;
+	io_ports->status_addr	= base + 7;
+	io_ports->ctl_addr	= base + 10;
 
 	if (pdev_is_sata(dev)) {
 		base = (unsigned long)addr;
@@ -671,8 +670,6 @@ static void __devinit init_mmio_iops_siimage(ide_hwif_t *hwif)
 		hwif->sata_scr[SATA_ERROR_OFFSET]	= base + 0x108;
 		hwif->sata_scr[SATA_CONTROL_OFFSET]	= base + 0x100;
 	}
-
-	memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
 
 	hwif->irq = dev->irq;
 

@@ -560,7 +560,7 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 		/* packet command */
 		spin_lock_irqsave(&ide_lock, flags);
 		hwif->OUTBSYNC(drive, WIN_PACKETCMD,
-			       hwif->io_ports[IDE_COMMAND_OFFSET]);
+			       hwif->io_ports.command_addr);
 		ndelay(400);
 		spin_unlock_irqrestore(&ide_lock, flags);
 
@@ -952,9 +952,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	}
 
 	/* ok we fall to pio :/ */
-	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]) & 0x3;
-	lowcyl  = hwif->INB(hwif->io_ports[IDE_BCOUNTL_OFFSET]);
-	highcyl = hwif->INB(hwif->io_ports[IDE_BCOUNTH_OFFSET]);
+	ireason = hwif->INB(hwif->io_ports.nsect_addr) & 0x3;
+	lowcyl  = hwif->INB(hwif->io_ports.lbam_addr);
+	highcyl = hwif->INB(hwif->io_ports.lbah_addr);
 
 	len = lowcyl + (256 * highcyl);
 
@@ -1909,9 +1909,7 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 	/* set correct block size */
 	blk_queue_hardsect_size(drive->queue, CD_FRAMESIZE);
 
-	if (drive->autotune == IDE_TUNE_DEFAULT ||
-	    drive->autotune == IDE_TUNE_AUTO)
-		drive->dsc_overlap = (drive->next != drive);
+	drive->dsc_overlap = (drive->next != drive);
 
 	if (ide_cdrom_register(drive, nslots)) {
 		printk(KERN_ERR "%s: %s failed to register device with the"

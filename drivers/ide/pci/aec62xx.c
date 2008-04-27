@@ -140,7 +140,7 @@ static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev, const char *name)
 {
-	int bus_speed = system_bus_clock();
+	int bus_speed = ide_pci_clk ? ide_pci_clk : system_bus_clock();
 
 	if (bus_speed <= 33)
 		pci_set_drvdata(dev, (void *) aec6xxx_33_base);

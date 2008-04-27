@@ -17,11 +17,11 @@ static void rapide_setup_ports(hw_regs_t *hw, void __iomem *base,
 	unsigned long port = (unsigned long)base;
 	int i;
 
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-		hw->io_ports[i] = port;
+	for (i = 0; i <= 7; i++) {
+		hw->io_ports_array[i] = port;
 		port += sz;
 	}
-	hw->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
+	hw->io_ports.ctl_addr = (unsigned long)ctrl;
 	hw->irq = irq;
 }
 
@@ -75,7 +75,7 @@ static void __devexit rapide_remove(struct expansion_card *ec)
 
 	ecard_set_drvdata(ec, NULL);
 
-	ide_unregister(hwif->index);
+	ide_unregister(hwif);
 
 	ecard_release_resources(ec);
 }

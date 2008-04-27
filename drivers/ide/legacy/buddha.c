@@ -102,7 +102,7 @@ static int buddha_ack_intr(ide_hwif_t *hwif)
 {
     unsigned char ch;
 
-    ch = z_readb(hwif->io_ports[IDE_IRQ_OFFSET]);
+    ch = z_readb(hwif->io_ports.irq_addr);
     if (!(ch & 0x80))
 	    return 0;
     return 1;
@@ -112,9 +112,9 @@ static int xsurf_ack_intr(ide_hwif_t *hwif)
 {
     unsigned char ch;
 
-    ch = z_readb(hwif->io_ports[IDE_IRQ_OFFSET]);
+    ch = z_readb(hwif->io_ports.irq_addr);
     /* X-Surf needs a 0 written to IRQ register to ensure ISA bit A11 stays at 0 */
-    z_writeb(0, hwif->io_ports[IDE_IRQ_OFFSET]); 
+    z_writeb(0, hwif->io_ports.irq_addr);
     if (!(ch & 0x80))
 	    return 0;
     return 1;
@@ -128,13 +128,13 @@ static void __init buddha_setup_ports(hw_regs_t *hw, unsigned long base,
 
 	memset(hw, 0, sizeof(*hw));
 
-	hw->io_ports[IDE_DATA_OFFSET] = base;
+	hw->io_ports.data_addr = base;
 
 	for (i = 1; i < 8; i++)
-		hw->io_ports[i] = base + 2 + i * 4;
+		hw->io_ports_array[i] = base + 2 + i * 4;
 
-	hw->io_ports[IDE_CONTROL_OFFSET] = ctl;
-	hw->io_ports[IDE_IRQ_OFFSET] = irq_port;
+	hw->io_ports.ctl_addr = ctl;
+	hw->io_ports.irq_addr = irq_port;
 
 	hw->irq = IRQ_AMIGA_PORTS;
 	hw->ack_intr = ack_intr;

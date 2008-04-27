@@ -88,8 +88,8 @@ enum /* Transfer types */
 int
 cris_ide_ack_intr(ide_hwif_t* hwif)
 {
-	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2,
-	                         int, hwif->io_ports[0]);
+	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2, int,
+					       hwif->io_ports.data_addr);
 	REG_WR_INT(ata, regi_ata, rw_ack_intr, 1 << ctrl2.sel);
 	return 1;
 }
@@ -231,7 +231,7 @@ cris_ide_start_dma(ide_drive_t *drive, cris_dma_descr_type *d, int dir,int type,
 	ide_hwif_t *hwif = drive->hwif;
 
 	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2, int,
-					       hwif->io_ports[IDE_DATA_OFFSET]);
+					       hwif->io_ports.data_addr);
 	reg_ata_rw_trf_cnt trf_cnt = {0};
 
 	mycontext.saved_data = (dma_descr_data*)virt_to_phys(d);
@@ -271,7 +271,7 @@ static int cris_dma_test_irq(ide_drive_t *drive)
 	int intr = REG_RD_INT(ata, regi_ata, r_intr);
 
 	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2, int,
-					       hwif->io_ports[IDE_DATA_OFFSET]);
+					       hwif->io_ports.data_addr);
 
 	return intr & (1 << ctrl2.sel) ? 1 : 0;
 }
@@ -531,7 +531,7 @@ static void cris_ide_start_dma(ide_drive_t *drive, cris_dma_descr_type *d, int d
 	*R_ATA_CTRL_DATA =
 		cmd |
 		IO_FIELD(R_ATA_CTRL_DATA, data,
-			 drive->hwif->io_ports[IDE_DATA_OFFSET]) |
+			 drive->hwif->io_ports.data_addr) |
 		IO_STATE(R_ATA_CTRL_DATA, src_dst,  dma)  |
 		IO_STATE(R_ATA_CTRL_DATA, multi,    on)   |
 		IO_STATE(R_ATA_CTRL_DATA, dma_size, word);
@@ -550,7 +550,7 @@ static int cris_dma_test_irq(ide_drive_t *drive)
 {
 	int intr = *R_IRQ_MASK0_RD;
 	int bus = IO_EXTRACT(R_ATA_CTRL_DATA, sel,
-			     drive->hwif->io_ports[IDE_DATA_OFFSET]);
+			     drive->hwif->io_ports.data_addr);
 
 	return intr & (1 << (bus + IO_BITNR(R_IRQ_MASK0_RD, ata_irq0))) ? 1 : 0;
 }
@@ -644,7 +644,7 @@ cris_ide_inw(unsigned long reg) {
 		 * call will also timeout on busy, but as long as the
 		 * write is still performed, everything will be fine.
 		 */
-		if (cris_ide_get_reg(reg) == IDE_STATUS_OFFSET)
+		if (cris_ide_get_reg(reg) == 7)
 			return BUSY_STAT;
 		else
 			/* For other rare cases we assume 0 is good enough.  */
@@ -765,13 +765,13 @@ static void __init cris_setup_ports(hw_regs_t *hw, unsigned long base)
 	memset(hw, 0, sizeof(*hw));
 
 	for (i = 0; i <= 7; i++)
-		hw->io_ports[i] = base + cris_ide_reg_addr(i, 0, 1);
+		hw->io_ports_array[i] = base + cris_ide_reg_addr(i, 0, 1);
 
 	/*
 	 * the IDE control register is at ATA address 6,
 	 * with CS1 active instead of CS0
 	 */
-	hw->io_ports[IDE_CONTROL_OFFSET] = base + cris_ide_reg_addr(6, 1, 0);
+	hw->io_ports.ctl_addr = base + cris_ide_reg_addr(6, 1, 0);
 
 	hw->irq = ide_default_irq(0);
 	hw->ack_intr = cris_ide_ack_intr;
