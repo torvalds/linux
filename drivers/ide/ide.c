@@ -1349,11 +1349,6 @@ int __init init_module (void)
 
 void __exit cleanup_module (void)
 {
-	int index;
-
-	for (index = 0; index < MAX_HWIFS; ++index)
-		ide_unregister(index);
-
 	proc_ide_destroy();
 
 	class_destroy(ide_port_class);

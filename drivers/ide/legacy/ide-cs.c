@@ -183,11 +183,7 @@ static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
 
     i = hwif->index;
 
-    if (hwif->present)
-	ide_unregister(i);
-    else
-	ide_init_port_data(hwif, i);
-
+    ide_init_port_data(hwif, i);
     ide_init_port_hw(hwif, &hw);
     hwif->port_ops = &idecs_port_ops;
 
