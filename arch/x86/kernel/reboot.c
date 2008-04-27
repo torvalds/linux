@@ -9,6 +9,7 @@
 #include <asm/desc.h>
 #include <asm/hpet.h>
 #include <asm/pgtable.h>
+#include <asm/proto.h>
 #include <asm/reboot_fixups.h>
 #include <asm/reboot.h>
 
