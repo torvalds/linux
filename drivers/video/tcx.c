@@ -470,7 +470,7 @@ static int __devinit tcx_init_one(struct of_device *op)
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk("%s: TCX at %lx:%lx, %s\n",
+	printk(KERN_INFO "%s: TCX at %lx:%lx, %s\n",
 	       dp->full_name,
 	       par->which_io,
 	       par->physbase,

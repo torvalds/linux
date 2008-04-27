@@ -556,7 +556,7 @@ static int __devinit cg14_probe(struct of_device *op, const struct of_device_id 
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk("%s: cgfourteen at %lx:%lx, %dMB\n",
+	printk(KERN_INFO "%s: cgfourteen at %lx:%lx, %dMB\n",
 	       dp->full_name,
 	       par->iospace, par->physbase,
 	       par->ramsize >> 20);

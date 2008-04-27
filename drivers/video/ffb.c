@@ -1000,7 +1000,7 @@ static int __devinit ffb_probe(struct of_device *op,
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk("%s: %s at %016lx, type %d, "
+	printk(KERN_INFO "%s: %s at %016lx, type %d, "
 	       "DAC pnum[%x] rev[%d] manuf_rev[%d]\n",
 	       dp->full_name,
 	       ((par->flags & FFB_FLAG_AFB) ? "AFB" : "FFB"),
