@@ -53,8 +53,7 @@
  * If you then set the second drive to another PIO, the old value
  * (automatically selected) will be overrided by yours.
  * There is a 25/33MHz switch in configuration
- * register, but driver is written for use at any frequency which get
- * (use idebus=xx to select PCI bus speed).
+ * register, but driver is written for use at any frequency.
  *
  * Version 0.1, Nov 8, 1996
  * by Jaromir Koutek, for 2.1.8.

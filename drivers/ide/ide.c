@@ -969,7 +969,7 @@ static int __init ide_setup(char *s)
 			idebus_parameter = vals[0];
 		} else
 			printk(" -- BAD BUS SPEED! Expected value from 20 to 66");
-		goto done;
+		goto obsolete_option;
 	}
 
 bad_option:

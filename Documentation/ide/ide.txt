@@ -205,16 +205,6 @@ Summary of ide driver parameters for kernel command line
 
  "hdx=nodma"		: disallow DMA
 
- "idebus=xx"		: inform IDE driver of VESA/PCI bus speed in MHz,
-			  where "xx" is between 20 and 66 inclusive,
-			  used when tuning chipset PIO modes.
-			  For PCI bus, 25 is correct for a P75 system,
-			  30 is correct for P90,P120,P180 systems,
-			  and 33 is used for P100,P133,P166 systems.
-			  If in doubt, use idebus=33 for PCI.
-			  As for VLB, it is safest to not specify it.
-			  Bigger values are safer than smaller ones.
-
  "ide=doubler"		: probe/support IDE doublers on Amiga
 
 There may be more options than shown -- use the source, Luke!

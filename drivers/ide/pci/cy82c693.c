@@ -18,8 +18,6 @@
  *   hdparm -t reports 8.17 MB/sec at about 6% CPU usage for the DTTA
  * - this is my first linux driver, so there's probably a lot  of room
  *   for optimizations and bug fixing, so feel free to do it.
- * - use idebus=xx parameter to set PCI bus speed - needed to calc
- *   timings for PIO modes (default will be 40)
  * - if using PIO mode it's a good idea to set the PIO mode and
  *   32-bit I/O support (if possible), e.g. hdparm -p2 -c1 /dev/hda
  * - I had some problems with my IBM DHEA with PIO modes < 2
