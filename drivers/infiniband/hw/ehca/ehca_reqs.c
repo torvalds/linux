@@ -81,7 +81,7 @@ static inline int ehca_write_rwqe(struct ipz_queue *ipz_rqueue,
 			recv_wr->sg_list[cnt_ds].length;
 	}
 
-	if (ehca_debug_level) {
+	if (ehca_debug_level >= 3) {
 		ehca_gen_dbg("RECEIVE WQE written into ipz_rqueue=%p",
 			     ipz_rqueue);
 		ehca_dmp(wqe_p, 16*(6 + wqe_p->nr_of_data_seg), "recv wqe");
@@ -281,7 +281,7 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 		return -EINVAL;
 	}
 
-	if (ehca_debug_level) {
+	if (ehca_debug_level >= 3) {
 		ehca_gen_dbg("SEND WQE written into queue qp=%p ", qp);
 		ehca_dmp( wqe_p, 16*(6 + wqe_p->nr_of_data_seg), "send wqe");
 	}
@@ -421,6 +421,11 @@ int ehca_post_send(struct ib_qp *qp,
 	int ret = 0;
 	unsigned long flags;
 
+	if (unlikely(my_qp->state != IB_QPS_RTS)) {
+		ehca_err(qp->device, "QP not in RTS state  qpn=%x", qp->qp_num);
+		return -EINVAL;
+	}
+
 	/* LOCK the QUEUE */
 	spin_lock_irqsave(&my_qp->spinlock_s, flags);
 
@@ -454,13 +459,14 @@ int ehca_post_send(struct ib_qp *qp,
 			goto post_send_exit0;
 		}
 		wqe_cnt++;
-		ehca_dbg(qp->device, "ehca_qp=%p qp_num=%x wqe_cnt=%d",
-			 my_qp, qp->qp_num, wqe_cnt);
 	} /* eof for cur_send_wr */
 
 post_send_exit0:
 	iosync(); /* serialize GAL register access */
 	hipz_update_sqa(my_qp, wqe_cnt);
+	if (unlikely(ret || ehca_debug_level >= 2))
+		ehca_dbg(qp->device, "ehca_qp=%p qp_num=%x wqe_cnt=%d ret=%i",
+			 my_qp, qp->qp_num, wqe_cnt, ret);
 	my_qp->message_count += wqe_cnt;
 	spin_unlock_irqrestore(&my_qp->spinlock_s, flags);
 	return ret;
@@ -520,13 +526,14 @@ static int internal_post_recv(struct ehca_qp *my_qp,
 			goto post_recv_exit0;
 		}
 		wqe_cnt++;
-		ehca_dbg(dev, "ehca_qp=%p qp_num=%x wqe_cnt=%d",
-			 my_qp, my_qp->real_qp_num, wqe_cnt);
 	} /* eof for cur_recv_wr */
 
 post_recv_exit0:
 	iosync(); /* serialize GAL register access */
 	hipz_update_rqa(my_qp, wqe_cnt);
+	if (unlikely(ret || ehca_debug_level >= 2))
+	    ehca_dbg(dev, "ehca_qp=%p qp_num=%x wqe_cnt=%d ret=%i",
+		     my_qp, my_qp->real_qp_num, wqe_cnt, ret);
 	spin_unlock_irqrestore(&my_qp->spinlock_r, flags);
 	return ret;
 }
@@ -570,16 +577,17 @@ static inline int ehca_poll_cq_one(struct ib_cq *cq, struct ib_wc *wc)
 	struct ehca_cq *my_cq = container_of(cq, struct ehca_cq, ib_cq);
 	struct ehca_cqe *cqe;
 	struct ehca_qp *my_qp;
-	int cqe_count = 0;
+	int cqe_count = 0, is_error;
 
 poll_cq_one_read_cqe:
 	cqe = (struct ehca_cqe *)
 		ipz_qeit_get_inc_valid(&my_cq->ipz_queue);
 	if (!cqe) {
 		ret = -EAGAIN;
-		ehca_dbg(cq->device, "Completion queue is empty ehca_cq=%p "
-			 "cq_num=%x ret=%i", my_cq, my_cq->cq_number, ret);
-		goto  poll_cq_one_exit0;
+		if (ehca_debug_level >= 3)
+			ehca_dbg(cq->device, "Completion queue is empty  "
+				 "my_cq=%p cq_num=%x", my_cq, my_cq->cq_number);
+		goto poll_cq_one_exit0;
 	}
 
 	/* prevents loads being reordered across this point */
@@ -609,7 +617,7 @@ poll_cq_one_read_cqe:
 			ehca_dbg(cq->device,
 				 "Got CQE with purged bit qp_num=%x src_qp=%x",
 				 cqe->local_qp_number, cqe->remote_qp_number);
-			if (ehca_debug_level)
+			if (ehca_debug_level >= 2)
 				ehca_dmp(cqe, 64, "qp_num=%x src_qp=%x",
 					 cqe->local_qp_number,
 					 cqe->remote_qp_number);
@@ -622,11 +630,13 @@ poll_cq_one_read_cqe:
 		}
 	}
 
-	/* tracing cqe */
-	if (unlikely(ehca_debug_level)) {
+	is_error = cqe->status & WC_STATUS_ERROR_BIT;
+
+	/* trace error CQEs if debug_level >= 1, trace all CQEs if >= 3 */
+	if (unlikely(ehca_debug_level >= 3 || (ehca_debug_level && is_error))) {
 		ehca_dbg(cq->device,
-			 "Received COMPLETION ehca_cq=%p cq_num=%x -----",
-			 my_cq, my_cq->cq_number);
+			 "Received %sCOMPLETION ehca_cq=%p cq_num=%x -----",
+			 is_error ? "ERROR " : "", my_cq, my_cq->cq_number);
 		ehca_dmp(cqe, 64, "ehca_cq=%p cq_num=%x",
 			 my_cq, my_cq->cq_number);
 		ehca_dbg(cq->device,
@@ -649,8 +659,9 @@ poll_cq_one_read_cqe:
 		/* update also queue adder to throw away this entry!!! */
 		goto poll_cq_one_exit0;
 	}
+
 	/* eval ib_wc_status */
-	if (unlikely(cqe->status & WC_STATUS_ERROR_BIT)) {
+	if (unlikely(is_error)) {
 		/* complete with errors */
 		map_ib_wc_status(cqe->status, &wc->status);
 		wc->vendor_err = wc->status;
@@ -670,14 +681,6 @@ poll_cq_one_read_cqe:
 	wc->wc_flags = cqe->w_completion_flags;
 	wc->imm_data = cpu_to_be32(cqe->immediate_data);
 	wc->sl = cqe->service_level;
-
-	if (unlikely(wc->status != IB_WC_SUCCESS))
-		ehca_dbg(cq->device,
-			 "ehca_cq=%p cq_num=%x WARNING unsuccessful cqe "
-			 "OPType=%x status=%x qp_num=%x src_qp=%x wr_id=%lx "
-			 "cqe=%p", my_cq, my_cq->cq_number, cqe->optype,
-			 cqe->status, cqe->local_qp_number,
-			 cqe->remote_qp_number, cqe->work_request_id, cqe);
 
 poll_cq_one_exit0:
 	if (cqe_count > 0)

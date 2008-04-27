@@ -633,7 +633,7 @@ static inline int find_next_online_cpu(struct ehca_comp_pool *pool)
 	unsigned long flags;
 
 	WARN_ON_ONCE(!in_interrupt());
-	if (ehca_debug_level)
+	if (ehca_debug_level >= 3)
 		ehca_dmp(&cpu_online_map, sizeof(cpumask_t), "");
 
 	spin_lock_irqsave(&pool->last_cpu_lock, flags);

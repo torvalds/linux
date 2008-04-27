@@ -550,6 +550,7 @@ static struct ehca_qp *internal_create_qp(
 	spin_lock_init(&my_qp->spinlock_r);
 	my_qp->qp_type = qp_type;
 	my_qp->ext_type = parms.ext_type;
+	my_qp->state = IB_QPS_RESET;
 
 	if (init_attr->recv_cq)
 		my_qp->recv_cq =
@@ -965,7 +966,7 @@ static int prepare_sqe_rts(struct ehca_qp *my_qp, struct ehca_shca *shca,
 		 qp_num, bad_send_wqe_p);
 	/* convert wqe pointer to vadr */
 	bad_send_wqe_v = abs_to_virt((u64)bad_send_wqe_p);
-	if (ehca_debug_level)
+	if (ehca_debug_level >= 2)
 		ehca_dmp(bad_send_wqe_v, 32, "qp_num=%x bad_wqe", qp_num);
 	squeue = &my_qp->ipz_squeue;
 	if (ipz_queue_abs_to_offset(squeue, (u64)bad_send_wqe_p, &q_ofs)) {
@@ -978,7 +979,7 @@ static int prepare_sqe_rts(struct ehca_qp *my_qp, struct ehca_shca *shca,
 	wqe = (struct ehca_wqe *)ipz_qeit_calc(squeue, q_ofs);
 	*bad_wqe_cnt = 0;
 	while (wqe->optype != 0xff && wqe->wqef != 0xff) {
-		if (ehca_debug_level)
+		if (ehca_debug_level >= 2)
 			ehca_dmp(wqe, 32, "qp_num=%x wqe", qp_num);
 		wqe->nr_of_data_seg = 0; /* suppress data access */
 		wqe->wqef = WQEF_PURGE; /* WQE to be purged */
@@ -1450,7 +1451,7 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 		/* no support for max_send/recv_sge yet */
 	}
 
-	if (ehca_debug_level)
+	if (ehca_debug_level >= 2)
 		ehca_dmp(mqpcb, 4*70, "qp_num=%x", ibqp->qp_num);
 
 	h_ret = hipz_h_modify_qp(shca->ipz_hca_handle,
@@ -1507,6 +1508,8 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 
 	if (attr_mask & IB_QP_QKEY)
 		my_qp->qkey = attr->qkey;
+
+	my_qp->state = qp_new_state;
 
 modify_qp_exit2:
 	if (squeue_locked) { /* this means: sqe -> rts */
@@ -1763,7 +1766,7 @@ int ehca_query_qp(struct ib_qp *qp,
 	if (qp_init_attr)
 		*qp_init_attr = my_qp->init_attr;
 
-	if (ehca_debug_level)
+	if (ehca_debug_level >= 2)
 		ehca_dmp(qpcb, 4*70, "qp_num=%x", qp->qp_num);
 
 query_qp_exit1:
@@ -1811,7 +1814,7 @@ int ehca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		goto modify_srq_exit0;
 	}
 
-	if (ehca_debug_level)
+	if (ehca_debug_level >= 2)
 		ehca_dmp(mqpcb, 4*70, "qp_num=%x", my_qp->real_qp_num);
 
 	h_ret = hipz_h_modify_qp(shca->ipz_hca_handle, my_qp->ipz_qp_handle,
@@ -1864,7 +1867,7 @@ int ehca_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr)
 	srq_attr->srq_limit = EHCA_BMASK_GET(
 		MQPCB_CURR_SRQ_LIMIT, qpcb->curr_srq_limit);
 
-	if (ehca_debug_level)
+	if (ehca_debug_level >= 2)
 		ehca_dmp(qpcb, 4*70, "qp_num=%x", my_qp->real_qp_num);
 
 query_srq_exit1:

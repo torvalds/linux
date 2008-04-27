@@ -196,3 +196,160 @@ void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf)
 	}
 }
 EXPORT_SYMBOL_GPL(mlx4_buf_free);
+
+static struct mlx4_db_pgdir *mlx4_alloc_db_pgdir(struct device *dma_device)
+{
+	struct mlx4_db_pgdir *pgdir;
+
+	pgdir = kzalloc(sizeof *pgdir, GFP_KERNEL);
+	if (!pgdir)
+		return NULL;
+
+	bitmap_fill(pgdir->order1, MLX4_DB_PER_PAGE / 2);
+	pgdir->bits[0] = pgdir->order0;
+	pgdir->bits[1] = pgdir->order1;
+	pgdir->db_page = dma_alloc_coherent(dma_device, PAGE_SIZE,
+					    &pgdir->db_dma, GFP_KERNEL);
+	if (!pgdir->db_page) {
+		kfree(pgdir);
+		return NULL;
+	}
+
+	return pgdir;
+}
+
+static int mlx4_alloc_db_from_pgdir(struct mlx4_db_pgdir *pgdir,
+				    struct mlx4_db *db, int order)
+{
+	int o;
+	int i;
+
+	for (o = order; o <= 1; ++o) {
+		i = find_first_bit(pgdir->bits[o], MLX4_DB_PER_PAGE >> o);
+		if (i < MLX4_DB_PER_PAGE >> o)
+			goto found;
+	}
+
+	return -ENOMEM;
+
+found:
+	clear_bit(i, pgdir->bits[o]);
+
+	i <<= o;
+
+	if (o > order)
+		set_bit(i ^ 1, pgdir->bits[order]);
+
+	db->u.pgdir = pgdir;
+	db->index   = i;
+	db->db      = pgdir->db_page + db->index;
+	db->dma     = pgdir->db_dma  + db->index * 4;
+	db->order   = order;
+
+	return 0;
+}
+
+int mlx4_db_alloc(struct mlx4_dev *dev, struct mlx4_db *db, int order)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_db_pgdir *pgdir;
+	int ret = 0;
+
+	mutex_lock(&priv->pgdir_mutex);
+
+	list_for_each_entry(pgdir, &priv->pgdir_list, list)
+		if (!mlx4_alloc_db_from_pgdir(pgdir, db, order))
+			goto out;
+
+	pgdir = mlx4_alloc_db_pgdir(&(dev->pdev->dev));
+	if (!pgdir) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	list_add(&pgdir->list, &priv->pgdir_list);
+
+	/* This should never fail -- we just allocated an empty page: */
+	WARN_ON(mlx4_alloc_db_from_pgdir(pgdir, db, order));
+
+out:
+	mutex_unlock(&priv->pgdir_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mlx4_db_alloc);
+
+void mlx4_db_free(struct mlx4_dev *dev, struct mlx4_db *db)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int o;
+	int i;
+
+	mutex_lock(&priv->pgdir_mutex);
+
+	o = db->order;
+	i = db->index;
+
+	if (db->order == 0 && test_bit(i ^ 1, db->u.pgdir->order0)) {
+		clear_bit(i ^ 1, db->u.pgdir->order0);
+		++o;
+	}
+	i >>= o;
+	set_bit(i, db->u.pgdir->bits[o]);
+
+	if (bitmap_full(db->u.pgdir->order1, MLX4_DB_PER_PAGE / 2)) {
+		dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
+				  db->u.pgdir->db_page, db->u.pgdir->db_dma);
+		list_del(&db->u.pgdir->list);
+		kfree(db->u.pgdir);
+	}
+
+	mutex_unlock(&priv->pgdir_mutex);
+}
+EXPORT_SYMBOL_GPL(mlx4_db_free);
+
+int mlx4_alloc_hwq_res(struct mlx4_dev *dev, struct mlx4_hwq_resources *wqres,
+		       int size, int max_direct)
+{
+	int err;
+
+	err = mlx4_db_alloc(dev, &wqres->db, 1);
+	if (err)
+		return err;
+
+	*wqres->db.db = 0;
+
+	err = mlx4_buf_alloc(dev, size, max_direct, &wqres->buf);
+	if (err)
+		goto err_db;
+
+	err = mlx4_mtt_init(dev, wqres->buf.npages, wqres->buf.page_shift,
+			    &wqres->mtt);
+	if (err)
+		goto err_buf;
+
+	err = mlx4_buf_write_mtt(dev, &wqres->mtt, &wqres->buf);
+	if (err)
+		goto err_mtt;
+
+	return 0;
+
+err_mtt:
+	mlx4_mtt_cleanup(dev, &wqres->mtt);
+err_buf:
+	mlx4_buf_free(dev, size, &wqres->buf);
+err_db:
+	mlx4_db_free(dev, &wqres->db);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_alloc_hwq_res);
+
+void mlx4_free_hwq_res(struct mlx4_dev *dev, struct mlx4_hwq_resources *wqres,
+		       int size)
+{
+	mlx4_mtt_cleanup(dev, &wqres->mtt);
+	mlx4_buf_free(dev, size, &wqres->buf);
+	mlx4_db_free(dev, &wqres->db);
+}
+EXPORT_SYMBOL_GPL(mlx4_free_hwq_res);
