@@ -2329,6 +2329,13 @@ L:	kvm-devel@lists.sourceforge.net
 W:	kvm.sourceforge.net
 S:	Supported
 
+KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC
+P:	Hollis Blanchard
+M:	hollisb@us.ibm.com
+L:	kvm-ppc-devel@lists.sourceforge.net
+W:	kvm.sourceforge.net
+S:	Supported
+
 KERNEL VIRTUAL MACHINE For Itanium(KVM/IA64)
 P:	Anthony Xu
 M:	anthony.xu@intel.com
@@ -2336,6 +2343,16 @@ P:	Xiantao Zhang
 M:	xiantao.zhang@intel.com
 L:	kvm-ia64-devel@lists.sourceforge.net
 W:	kvm.sourceforge.net
+S:	Supported
+
+KERNEL VIRTUAL MACHINE for s390 (KVM/s390)
+P:	Carsten Otte
+M:	cotte@de.ibm.com
+P:	Christian Borntraeger
+M:	borntraeger@de.ibm.com
+M:	linux390@de.ibm.com
+L:	linux-s390@vger.kernel.org
+W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 
 KEXEC

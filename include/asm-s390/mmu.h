@@ -7,6 +7,7 @@ typedef struct {
 	unsigned long asce_bits;
 	unsigned long asce_limit;
 	int noexec;
+	int pgstes;
 } mm_context_t;
 
 #endif

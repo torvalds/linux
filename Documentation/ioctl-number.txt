@@ -183,6 +183,8 @@ Code	Seq#	Include File		Comments
 0xAC	00-1F	linux/raw.h
 0xAD	00	Netfilter device	in development:
 					<mailto:rusty@rustcorp.com.au>	
+0xAE	all	linux/kvm.h		Kernel-based Virtual Machine
+					<mailto:kvm-devel@lists.sourceforge.net>
 0xB0	all	RATIO devices		in development:
 					<mailto:vgo@ratio.de>
 0xB1	00-1F	PPPoX			<mailto:mostrows@styx.uwaterloo.ca>

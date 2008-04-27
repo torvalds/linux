@@ -151,6 +151,9 @@ config BOOTX_TEXT
 
 config PPC_EARLY_DEBUG
 	bool "Early debugging (dangerous)"
+	# PPC_EARLY_DEBUG on 440 leaves AS=1 mappings above the TLB high water
+	# mark, which doesn't work with current 440 KVM.
+	depends on !KVM
 	help
 	  Say Y to enable some early debugging facilities that may be available
 	  for your processor/board combination. Those facilities are hacks

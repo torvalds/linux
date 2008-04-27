@@ -62,6 +62,10 @@ config GENERIC_LOCKBREAK
 	default y
 	depends on SMP && PREEMPT
 
+config PGSTE
+	bool
+	default y if KVM
+
 mainmenu "Linux Kernel Configuration"
 
 config S390
@@ -69,6 +73,7 @@ config S390
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_KVM if 64BIT
 
 source "init/Kconfig"
 
@@ -515,6 +520,13 @@ config ZFCPDUMP
 	  Select this option if you want to build an zfcpdump enabled kernel.
 	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
 
+config S390_GUEST
+bool "s390 guest support (EXPERIMENTAL)"
+	depends on 64BIT && EXPERIMENTAL
+	select VIRTIO
+	select VIRTIO_RING
+	help
+	  Select this option if you want to run the kernel under s390 linux
 endmenu
 
 source "net/Kconfig"
@@ -536,3 +548,5 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
+
+source "arch/s390/kvm/Kconfig"

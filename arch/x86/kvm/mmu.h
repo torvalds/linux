@@ -3,6 +3,12 @@
 
 #include <linux/kvm_host.h>
 
+#ifdef CONFIG_X86_64
+#define TDP_ROOT_LEVEL PT64_ROOT_LEVEL
+#else
+#define TDP_ROOT_LEVEL PT32E_ROOT_LEVEL
+#endif
+
 static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 {
 	if (unlikely(vcpu->kvm->arch.n_free_mmu_pages < KVM_MIN_FREE_MMU_PAGES))

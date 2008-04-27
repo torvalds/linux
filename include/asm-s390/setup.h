@@ -62,6 +62,7 @@ extern unsigned long machine_flags;
 #define MACHINE_IS_VM		(machine_flags & 1)
 #define MACHINE_IS_P390		(machine_flags & 4)
 #define MACHINE_HAS_MVPG	(machine_flags & 16)
+#define MACHINE_IS_KVM		(machine_flags & 64)
 #define MACHINE_HAS_IDTE	(machine_flags & 128)
 #define MACHINE_HAS_DIAG9C	(machine_flags & 256)
 

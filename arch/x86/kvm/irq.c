@@ -23,6 +23,22 @@
 #include <linux/kvm_host.h>
 
 #include "irq.h"
+#include "i8254.h"
+
+/*
+ * check if there are pending timer events
+ * to be processed.
+ */
+int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
+{
+	int ret;
+
+	ret = pit_has_pending_timer(vcpu);
+	ret |= apic_has_pending_timer(vcpu);
+
+	return ret;
+}
+EXPORT_SYMBOL(kvm_cpu_has_pending_timer);
 
 /*
  * check if there is pending interrupt without
@@ -66,6 +82,7 @@ EXPORT_SYMBOL_GPL(kvm_cpu_get_interrupt);
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu)
 {
 	kvm_inject_apic_timer_irqs(vcpu);
+	kvm_inject_pit_timer_irqs(vcpu);
 	/* TODO: PIT, RTC etc. */
 }
 EXPORT_SYMBOL_GPL(kvm_inject_pending_timer_irqs);
@@ -73,6 +90,7 @@ EXPORT_SYMBOL_GPL(kvm_inject_pending_timer_irqs);
 void kvm_timer_intr_post(struct kvm_vcpu *vcpu, int vec)
 {
 	kvm_apic_timer_intr_post(vcpu, vec);
+	kvm_pit_timer_intr_post(vcpu, vec);
 	/* TODO: PIT, RTC etc. */
 }
 EXPORT_SYMBOL_GPL(kvm_timer_intr_post);

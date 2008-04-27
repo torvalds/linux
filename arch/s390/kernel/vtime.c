@@ -110,6 +110,7 @@ void account_system_vtime(struct task_struct *tsk)
 	S390_lowcore.steal_clock -= cputime << 12;
 	account_system_time(tsk, 0, cputime);
 }
+EXPORT_SYMBOL_GPL(account_system_vtime);
 
 static inline void set_vtimer(__u64 expires)
 {

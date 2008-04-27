@@ -373,6 +373,25 @@ config VMI
 	  at the moment), by linking the kernel to a GPL-ed ROM module
 	  provided by the hypervisor.
 
+config KVM_CLOCK
+	bool "KVM paravirtualized clock"
+	select PARAVIRT
+	depends on !(X86_VISWS || X86_VOYAGER)
+	help
+	  Turning on this option will allow you to run a paravirtualized clock
+	  when running over the KVM hypervisor. Instead of relying on a PIT
+	  (or probably other) emulation by the underlying device model, the host
+	  provides the guest with timing infrastructure such as time of day, and
+	  system time
+
+config KVM_GUEST
+	bool "KVM Guest support"
+	select PARAVIRT
+	depends on !(X86_VISWS || X86_VOYAGER)
+	help
+	 This option enables various optimizations for running under the KVM
+	 hypervisor.
+
 source "arch/x86/lguest/Kconfig"
 
 config PARAVIRT
