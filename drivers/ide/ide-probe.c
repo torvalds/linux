@@ -472,9 +472,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 		if (stat == (BUSY_STAT | READY_STAT))
 			return 4;
 
-		if ((rc == 1 && cmd == WIN_PIDENTIFY) &&
-			((drive->autotune == IDE_TUNE_DEFAULT) ||
-			(drive->autotune == IDE_TUNE_AUTO))) {
+		if (rc == 1 && cmd == WIN_PIDENTIFY) {
 			printk(KERN_ERR "%s: no response (status = 0x%02x), "
 					"resetting drive\n", drive->name, stat);
 			msleep(50);
@@ -829,12 +827,8 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 		ide_drive_t *drive = &hwif->drives[unit];
 
 		if (drive->present) {
-			if (drive->autotune == IDE_TUNE_AUTO)
+			if (drive->autotune)
 				ide_set_max_pio(drive);
-
-			if (drive->autotune != IDE_TUNE_DEFAULT &&
-			    drive->autotune != IDE_TUNE_AUTO)
-				continue;
 
 			drive->nice1 = 1;
 

@@ -1909,9 +1909,7 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 	/* set correct block size */
 	blk_queue_hardsect_size(drive->queue, CD_FRAMESIZE);
 
-	if (drive->autotune == IDE_TUNE_DEFAULT ||
-	    drive->autotune == IDE_TUNE_AUTO)
-		drive->dsc_overlap = (drive->next != drive);
+	drive->dsc_overlap = (drive->next != drive);
 
 	if (ide_cdrom_register(drive, nslots)) {
 		printk(KERN_ERR "%s: %s failed to register device with the"
