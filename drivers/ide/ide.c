@@ -837,16 +837,6 @@ static int __init match_parm (char *s, const char *keywords[], int vals[], int m
 	return 0;	/* zero = nothing matched */
 }
 
-extern int probe_ali14xx;
-extern int probe_umc8672;
-extern int probe_dtc2278;
-extern int probe_ht6560b;
-extern int probe_qd65xx;
-extern int cmd640_vlb;
-extern int probe_4drives;
-
-static int __initdata is_chipset_set;
-
 /*
  * ide_setup() gets called VERY EARLY during initialization,
  * to handle kernel "command line" strings beginning with "hdx=" or "ide".
@@ -855,14 +845,12 @@ static int __initdata is_chipset_set;
  */
 static int __init ide_setup(char *s)
 {
-	int i, vals[3];
 	ide_hwif_t *hwif;
 	ide_drive_t *drive;
 	unsigned int hw, unit;
+	int vals[3];
 	const char max_drive = 'a' + ((MAX_HWIFS * MAX_DRIVES) - 1);
-	const char max_hwif  = '0' + (MAX_HWIFS - 1);
 
-	
 	if (strncmp(s,"hd",2) == 0 && s[2] == '=')	/* hd= is for hd.c   */
 		return 0;				/* driver and not us */
 
@@ -986,114 +974,13 @@ static int __init ide_setup(char *s)
 			printk(" -- BAD BUS SPEED! Expected value from 20 to 66");
 		goto done;
 	}
-	/*
-	 * Look for interface options:  "idex="
-	 */
-	if (s[3] >= '0' && s[3] <= max_hwif) {
-		/*
-		 * Be VERY CAREFUL changing this: note hardcoded indexes below
-		 * (-8, -9, -10) are reserved to ease the hardcoding.
-		 */
-		static const char *ide_words[] = {
-			"minus1", "minus2", "minus3", "minus4",
-			"minus5", "minus6", "ata66", "minus8", "minus9",
-			"minus10", "four", "qd65xx", "ht6560b", "cmd640_vlb",
-			"dtc2278", "umc8672", "ali14xx", NULL };
 
-		hw = s[3] - '0';
-		hwif = &ide_hwifs[hw];
-		i = match_parm(&s[4], ide_words, vals, 3);
-
-		/*
-		 * Cryptic check to ensure chipset not already set for hwif.
-		 * Note: we can't depend on hwif->chipset here.
-		 */
-		if (i >= -18 && i <= -11) {
-			/* chipset already specified */
-			if (is_chipset_set)
-				goto bad_option;
-			/* these drivers are for "ide0=" only */
-			if (hw != 0)
-				goto bad_hwif;
-			is_chipset_set = 1;
-			printk("\n");
-		}
-
-		switch (i) {
-#ifdef CONFIG_BLK_DEV_ALI14XX
-			case -17: /* "ali14xx" */
-				probe_ali14xx = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_UMC8672
-			case -16: /* "umc8672" */
-				probe_umc8672 = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_DTC2278
-			case -15: /* "dtc2278" */
-				probe_dtc2278 = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_CMD640
-			case -14: /* "cmd640_vlb" */
-				cmd640_vlb = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_HT6560B
-			case -13: /* "ht6560b" */
-				probe_ht6560b = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_QD65XX
-			case -12: /* "qd65xx" */
-				probe_qd65xx = 1;
-				goto obsolete_option;
-#endif
-#ifdef CONFIG_BLK_DEV_4DRIVES
-			case -11: /* "four" drives on one set of ports */
-				probe_4drives = 1;
-				goto obsolete_option;
-#endif
-			case -10: /* minus10 */
-			case -9: /* minus9 */
-			case -8: /* minus8 */
-			case -6:
-			case -4:
-			case -3:
-				goto bad_option;
-			case -7: /* ata66 */
-#ifdef CONFIG_BLK_DEV_IDEPCI
-				/*
-				 * Use ATA_CBL_PATA40_SHORT so drive side
-				 * cable detection is also overriden.
-				 */
-				hwif->cbl = ATA_CBL_PATA40_SHORT;
-				goto obsolete_option;
-#else
-				goto bad_hwif;
-#endif
-			case -5:
-			case -2:
-			case -1:
-			case 0:
-			case 1:
-			case 2:
-			case 3:
-				goto bad_option;
-			default:
-				printk(" -- SUPPORT NOT CONFIGURED IN THIS KERNEL\n");
-				return 1;
-		}
-	}
 bad_option:
 	printk(" -- BAD OPTION\n");
 	return 1;
 obsolete_option:
 	printk(" -- OBSOLETE OPTION, WILL BE REMOVED SOON!\n");
 	return 1;
-bad_hwif:
-	printk("-- NOT SUPPORTED ON ide%d", hw);
 done:
 	printk("\n");
 	return 1;

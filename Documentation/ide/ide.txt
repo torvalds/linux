@@ -186,8 +186,6 @@ Summary of ide driver parameters for kernel command line
 
  "hdx="  is recognized for all "x" from "a" to "u", such as "hdc".
 
- "idex=" is recognized for all "x" from "0" to "9", such as "ide1".
-
  "hdx=noprobe"		: drive may be present, but do not probe for it
 
  "hdx=none"		: drive is NOT present, ignore cmos and do not probe

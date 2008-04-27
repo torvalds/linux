@@ -111,10 +111,7 @@
 
 #define DRV_NAME "cmd640"
 
-/*
- * This flag is set in ide.c by the parameter:  ide0=cmd640_vlb
- */
-int cmd640_vlb;
+static int cmd640_vlb;
 
 /*
  * CMD640 specific registers definition.

@@ -323,7 +323,7 @@ static void __init ht6560b_port_init_devs(ide_hwif_t *hwif)
 	hwif->drives[1].drive_data = t;
 }
 
-int probe_ht6560b = 0;
+static int probe_ht6560b;
 
 module_param_named(probe, probe_ht6560b, bool, 0);
 MODULE_PARM_DESC(probe, "probe for HT6560B chipset");
