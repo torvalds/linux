@@ -2112,7 +2112,7 @@ static void xfrm_audit_helper_pktinfo(struct sk_buff *skb, u16 family,
 		iph6 = ipv6_hdr(skb);
 		audit_log_format(audit_buf,
 				 " src=" NIP6_FMT " dst=" NIP6_FMT
-				 " flowlbl=0x%x%x%x",
+				 " flowlbl=0x%x%02x%02x",
 				 NIP6(iph6->saddr),
 				 NIP6(iph6->daddr),
 				 iph6->flow_lbl[0] & 0x0f,
