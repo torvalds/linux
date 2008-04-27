@@ -642,28 +642,6 @@ static void idetape_analyze_error(ide_drive_t *drive, u8 *sense)
 	}
 }
 
-static void idetape_activate_next_stage(ide_drive_t *drive)
-{
-	idetape_tape_t *tape = drive->driver_data;
-	idetape_stage_t *stage = tape->next_stage;
-	struct request *rq = &stage->rq;
-
-	debug_log(DBG_PROCS, "Enter %s\n", __func__);
-
-	if (stage == NULL) {
-		printk(KERN_ERR "ide-tape: bug: Trying to activate a non"
-				" existing stage\n");
-		return;
-	}
-
-	rq->rq_disk = tape->disk;
-	rq->buffer = NULL;
-	rq->special = (void *)stage->bh;
-	tape->active_data_rq = rq;
-	tape->active_stage = stage;
-	tape->next_stage = stage->next;
-}
-
 /* Free a stage along with its related buffers completely. */
 static void __idetape_kfree_stage(idetape_stage_t *stage)
 {
@@ -1546,28 +1524,6 @@ static void idetape_init_merge_stage(idetape_tape_t *tape)
 	}
 }
 
-/* Install a completion in a pending request and sleep until it is serviced. The
- * caller should ensure that the request will not be serviced before we install
- * the completion (usually by disabling interrupts).
- */
-static void idetape_wait_for_request(ide_drive_t *drive, struct request *rq)
-{
-	DECLARE_COMPLETION_ONSTACK(wait);
-	idetape_tape_t *tape = drive->driver_data;
-
-	if (rq == NULL || !blk_special_request(rq)) {
-		printk(KERN_ERR "ide-tape: bug: Trying to sleep on non-valid"
-				 " request\n");
-		return;
-	}
-	rq->end_io_data = &wait;
-	rq->end_io = blk_end_sync_rq;
-	spin_unlock_irq(&tape->lock);
-	wait_for_completion(&wait);
-	/* The stage and its struct request have been deallocated */
-	spin_lock_irq(&tape->lock);
-}
-
 static ide_startstop_t idetape_read_position_callback(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
@@ -1782,8 +1738,6 @@ static int __idetape_discard_read_pipeline(ide_drive_t *drive)
 
 	spin_lock_irqsave(&tape->lock, flags);
 	tape->next_stage = NULL;
-	if (test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags))
-		idetape_wait_for_request(drive, tape->active_data_rq);
 	spin_unlock_irqrestore(&tape->lock, flags);
 
 	while (tape->first_stage != NULL) {
@@ -1878,19 +1832,6 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int blocks,
 	return (tape->blk_size * (blocks-rq.current_nr_sectors));
 }
 
-/* start servicing the pipeline stages, starting from tape->next_stage. */
-static void idetape_plug_pipeline(ide_drive_t *drive)
-{
-	idetape_tape_t *tape = drive->driver_data;
-
-	if (tape->next_stage == NULL)
-		return;
-	if (!test_and_set_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags)) {
-		idetape_activate_next_stage(drive);
-		(void) ide_do_drive_cmd(drive, tape->active_data_rq, ide_end);
-	}
-}
-
 static void idetape_create_inquiry_cmd(struct ide_atapi_pc *pc)
 {
 	idetape_init_pc(pc);
@@ -1932,45 +1873,11 @@ static void idetape_create_space_cmd(struct ide_atapi_pc *pc, int count, u8 cmd)
 static int idetape_add_chrdev_write_request(ide_drive_t *drive, int blocks)
 {
 	idetape_tape_t *tape = drive->driver_data;
-	unsigned long flags;
 
 	debug_log(DBG_CHRDEV, "Enter %s\n", __func__);
 
-	/* Attempt to allocate a new stage. Beware possible race conditions. */
-	while (1) {
-		spin_lock_irqsave(&tape->lock, flags);
-		if (test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags)) {
-			idetape_wait_for_request(drive, tape->active_data_rq);
-			spin_unlock_irqrestore(&tape->lock, flags);
-		} else {
-			spin_unlock_irqrestore(&tape->lock, flags);
-			idetape_plug_pipeline(drive);
-			if (test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE,
-					&tape->flags))
-				continue;
-			return idetape_queue_rw_tail(drive, REQ_IDETAPE_WRITE,
-						blocks, tape->merge_stage->bh);
-		}
-	}
-}
-
-/*
- * Wait until all pending pipeline requests are serviced. Typically called on
- * device close.
- */
-static void idetape_wait_for_pipeline(ide_drive_t *drive)
-{
-	idetape_tape_t *tape = drive->driver_data;
-	unsigned long flags;
-
-	while (tape->next_stage || test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE,
-						&tape->flags)) {
-		idetape_plug_pipeline(drive);
-		spin_lock_irqsave(&tape->lock, flags);
-		if (test_bit(IDETAPE_FLAG_PIPELINE_ACTIVE, &tape->flags))
-			idetape_wait_for_request(drive, tape->active_data_rq);
-		spin_unlock_irqrestore(&tape->lock, flags);
-	}
+	return idetape_queue_rw_tail(drive, REQ_IDETAPE_WRITE,
+				     blocks, tape->merge_stage->bh);
 }
 
 static void idetape_empty_write_pipeline(ide_drive_t *drive)
@@ -2020,7 +1927,6 @@ static void idetape_empty_write_pipeline(ide_drive_t *drive)
 		(void) idetape_add_chrdev_write_request(drive, blocks);
 		tape->merge_stage_size = 0;
 	}
-	idetape_wait_for_pipeline(drive);
 	if (tape->merge_stage != NULL) {
 		__idetape_kfree_stage(tape->merge_stage);
 		tape->merge_stage = NULL;
@@ -2093,7 +1999,6 @@ static int idetape_init_read(ide_drive_t *drive, int max_stages)
 			tape->insert_time = jiffies;
 			tape->insert_size = 0;
 			tape->insert_speed = 0;
-			idetape_plug_pipeline(drive);
 		}
 	}
 	return 0;
@@ -2593,7 +2498,6 @@ static int idetape_chrdev_ioctl(struct inode *inode, struct file *file,
 		idetape_flush_tape_buffers(drive);
 	}
 	if (cmd == MTIOCGET || cmd == MTIOCPOS) {
-		idetape_wait_for_pipeline(drive);
 		block_offset = tape->merge_stage_size /
 			(tape->blk_size * tape->user_bs_factor);
 		position = idetape_read_position(drive);
@@ -2772,8 +2676,6 @@ static int idetape_chrdev_release(struct inode *inode, struct file *filp)
 	if (tape->chrdev_dir == IDETAPE_DIR_READ) {
 		if (minor < 128)
 			idetape_discard_read_pipeline(drive, 1);
-		else
-			idetape_wait_for_pipeline(drive);
 	}
 
 	if (minor < 128 && test_bit(IDETAPE_FLAG_MEDIUM_PRESENT, &tape->flags))
