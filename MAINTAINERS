@@ -3522,6 +3522,13 @@ M:	pfg@sgi.com
 L:	linux-ia64@vger.kernel.org
 S:	Supported
 
+SFC NETWORK DRIVER
+P:	Steve Hodgson
+P:	Ben Hutchings
+P:	Robert Stonehouse
+M:	linux-net-drivers@solarflare.com
+S:	Supported
+
 SGI VISUAL WORKSTATION 320 AND 540
 P:	Andrey Panin
 M:	pazke@donpac.ru
