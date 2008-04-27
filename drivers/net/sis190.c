@@ -480,30 +480,22 @@ static inline void sis190_make_unusable_by_asic(struct RxDesc *desc)
 	desc->status = 0x0;
 }
 
-static int sis190_alloc_rx_skb(struct pci_dev *pdev, struct sk_buff **sk_buff,
-			       struct RxDesc *desc, u32 rx_buf_sz)
+static struct sk_buff *sis190_alloc_rx_skb(struct pci_dev *pdev,
+					   struct RxDesc *desc, u32 rx_buf_sz)
 {
 	struct sk_buff *skb;
-	dma_addr_t mapping;
-	int ret = 0;
 
 	skb = dev_alloc_skb(rx_buf_sz);
-	if (!skb)
-		goto err_out;
+	if (likely(skb)) {
+		dma_addr_t mapping;
 
-	*sk_buff = skb;
+		mapping = pci_map_single(pdev, skb->data, rx_buf_sz,
+					 PCI_DMA_FROMDEVICE);
+		sis190_map_to_asic(desc, mapping, rx_buf_sz);
+	} else
+		sis190_make_unusable_by_asic(desc);
 
-	mapping = pci_map_single(pdev, skb->data, rx_buf_sz,
-				 PCI_DMA_FROMDEVICE);
-
-	sis190_map_to_asic(desc, mapping, rx_buf_sz);
-out:
-	return ret;
-
-err_out:
-	ret = -ENOMEM;
-	sis190_make_unusable_by_asic(desc);
-	goto out;
+	return skb;
 }
 
 static u32 sis190_rx_fill(struct sis190_private *tp, struct net_device *dev,
@@ -512,14 +504,15 @@ static u32 sis190_rx_fill(struct sis190_private *tp, struct net_device *dev,
 	u32 cur;
 
 	for (cur = start; cur < end; cur++) {
-		int ret, i = cur % NUM_RX_DESC;
+		unsigned int i = cur % NUM_RX_DESC;
 
 		if (tp->Rx_skbuff[i])
 			continue;
 
-		ret = sis190_alloc_rx_skb(tp->pci_dev, tp->Rx_skbuff + i,
-					  tp->RxDescRing + i, tp->rx_buf_sz);
-		if (ret < 0)
+		tp->Rx_skbuff[i] = sis190_alloc_rx_skb(tp->pci_dev,
+						       tp->RxDescRing + i,
+						       tp->rx_buf_sz);
+		if (!tp->Rx_skbuff[i])
 			break;
 	}
 	return cur - start;
