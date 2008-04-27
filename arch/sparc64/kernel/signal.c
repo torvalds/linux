@@ -236,9 +236,6 @@ struct rt_signal_frame {
 	__siginfo_fpu_t		fpu_state;
 };
 
-/* Align macros */
-#define RT_ALIGNEDSZ  (((sizeof(struct rt_signal_frame) + 7) & (~7)))
-
 static long _sigpause_common(old_sigset_t set)
 {
 	set &= _BLOCKABLE;
@@ -400,7 +397,7 @@ setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	synchronize_user_stack();
 	save_and_clear_fpu();
 	
-	sigframe_size = RT_ALIGNEDSZ;
+	sigframe_size = sizeof(struct rt_signal_frame);
 	if (!(current_thread_info()->fpsaved[0] & FPRS_FEF))
 		sigframe_size -= sizeof(__siginfo_fpu_t);
 
