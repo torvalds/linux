@@ -811,24 +811,28 @@ static int __init mpc8xx_ide_probe(void)
 #ifdef IDE0_BASE_OFFSET
 	memset(&hw, 0, sizeof(hw));
 	if (!m8xx_ide_init_ports(&hw, 0)) {
-		ide_hwif_t *hwif = &ide_hwifs[0];
+		ide_hwif_t *hwif = ide_find_port();
 
-		ide_init_port_hw(hwif, &hw);
-		hwif->pio_mask = ATA_PIO4;
-		hwif->port_ops = &m8xx_port_ops;
+		if (hwif) {
+			ide_init_port_hw(hwif, &hw);
+			hwif->pio_mask = ATA_PIO4;
+			hwif->port_ops = &m8xx_port_ops;
 
-		idx[0] = 0;
+			idx[0] = hwif->index;
+		}
 	}
 #ifdef IDE1_BASE_OFFSET
 	memset(&hw, 0, sizeof(hw));
 	if (!m8xx_ide_init_ports(&hw, 1)) {
-		ide_hwif_t *mate = &ide_hwifs[1];
+		ide_hwif_t *mate = ide_find_port();
 
-		ide_init_port_hw(mate, &hw);
-		mate->pio_mask = ATA_PIO4;
-		mate->port_ops = &m8xx_port_ops;
+		if (mate) {
+			ide_init_port_hw(mate, &hw);
+			mate->pio_mask = ATA_PIO4;
+			mate->port_ops = &m8xx_port_ops;
 
-		idx[1] = 1;
+			idx[1] = mate->index;
+		}
 	}
 #endif
 #endif
