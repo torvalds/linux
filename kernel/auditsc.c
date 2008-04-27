@@ -68,9 +68,6 @@
 
 #include "audit.h"
 
-extern struct list_head audit_filter_list[];
-extern int audit_ever_enabled;
-
 /* AUDIT_NAMES is the number of slots we reserve in the audit_context
  * for saving names from getname(). */
 #define AUDIT_NAMES    20
@@ -2361,9 +2358,6 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	struct audit_aux_data_pids *axp;
 	struct task_struct *tsk = current;
 	struct audit_context *ctx = tsk->audit_context;
-	extern pid_t audit_sig_pid;
-	extern uid_t audit_sig_uid;
-	extern u32 audit_sig_sid;
 
 	if (audit_pid && t->tgid == audit_pid) {
 		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1) {

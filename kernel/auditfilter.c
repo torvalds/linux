@@ -89,13 +89,8 @@ struct list_head audit_filter_list[AUDIT_NR_FILTERS] = {
 
 DEFINE_MUTEX(audit_filter_mutex);
 
-/* Inotify handle */
-extern struct inotify_handle *audit_ih;
-
 /* Inotify events we care about. */
 #define AUDIT_IN_WATCH IN_MOVE|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_MOVE_SELF
-
-extern int audit_enabled;
 
 void audit_free_parent(struct inotify_watch *i_watch)
 {
