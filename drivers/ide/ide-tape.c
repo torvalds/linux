@@ -1641,12 +1641,12 @@ static int idetape_create_prevent_cmd(ide_drive_t *drive,
 	return 1;
 }
 
-static int __idetape_discard_read_pipeline(ide_drive_t *drive)
+static void __idetape_discard_read_pipeline(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
 
 	if (tape->chrdev_dir != IDETAPE_DIR_READ)
-		return 0;
+		return;
 
 	clear_bit(IDETAPE_FLAG_FILEMARK, &tape->flags);
 	tape->merge_stage_size = 0;
@@ -1656,8 +1656,6 @@ static int __idetape_discard_read_pipeline(ide_drive_t *drive)
 	}
 
 	tape->chrdev_dir = IDETAPE_DIR_NONE;
-
-	return 0;
 }
 
 /*
@@ -1689,13 +1687,12 @@ static void idetape_discard_read_pipeline(ide_drive_t *drive,
 					  int restore_position)
 {
 	idetape_tape_t *tape = drive->driver_data;
-	int cnt;
 	int seek, position;
 
-	cnt = __idetape_discard_read_pipeline(drive);
+	__idetape_discard_read_pipeline(drive);
 	if (restore_position) {
 		position = idetape_read_position(drive);
-		seek = position > cnt ? position - cnt : 0;
+		seek = position > 0 ? position : 0;
 		if (idetape_position_tape(drive, seek, 0, 0)) {
 			printk(KERN_INFO "ide-tape: %s: position_tape failed in"
 					 " discard_pipeline()\n", tape->name);
