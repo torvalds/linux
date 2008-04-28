@@ -21,6 +21,8 @@
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
+#include <linux/pnp.h>
+#include "../base.h"
 #include "pnpacpi.h"
 
 #ifdef CONFIG_IA64
@@ -80,7 +82,7 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_dev *dev,
 						u32 gsi, int triggering,
 						int polarity, int shareable)
 {
-	struct pnp_resource_table *res = &dev->res;
+	struct pnp_resource_table *res = dev->res;
 	int i = 0;
 	int irq;
 	int p, t;
@@ -176,7 +178,7 @@ static int dma_flags(int type, int bus_master, int transfer)
 static void pnpacpi_parse_allocated_dmaresource(struct pnp_dev *dev,
 						u32 dma, int flags)
 {
-	struct pnp_resource_table *res = &dev->res;
+	struct pnp_resource_table *res = dev->res;
 	int i = 0;
 	static unsigned char warned;
 
@@ -202,7 +204,7 @@ static void pnpacpi_parse_allocated_dmaresource(struct pnp_dev *dev,
 static void pnpacpi_parse_allocated_ioresource(struct pnp_dev *dev,
 					       u64 io, u64 len, int io_decode)
 {
-	struct pnp_resource_table *res = &dev->res;
+	struct pnp_resource_table *res = dev->res;
 	int i = 0;
 	static unsigned char warned;
 
@@ -230,7 +232,7 @@ static void pnpacpi_parse_allocated_memresource(struct pnp_dev *dev,
 						u64 mem, u64 len,
 						int write_protect)
 {
-	struct pnp_resource_table *res = &dev->res;
+	struct pnp_resource_table *res = dev->res;
 	int i = 0;
 	static unsigned char warned;
 

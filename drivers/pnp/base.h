@@ -20,3 +20,15 @@ int pnp_check_dma(struct pnp_dev *dev, struct resource *res);
 void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc);
 
 void pnp_init_resource(struct resource *res);
+
+#define PNP_MAX_PORT		40
+#define PNP_MAX_MEM		24
+#define PNP_MAX_IRQ		 2
+#define PNP_MAX_DMA		 2
+
+struct pnp_resource_table {
+	struct resource port_resource[PNP_MAX_PORT];
+	struct resource mem_resource[PNP_MAX_MEM];
+	struct resource dma_resource[PNP_MAX_DMA];
+	struct resource irq_resource[PNP_MAX_IRQ];
+};

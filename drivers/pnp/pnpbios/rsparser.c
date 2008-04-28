@@ -56,7 +56,7 @@ inline void pcibios_penalize_isa_irq(int irq, int active)
 
 static void pnpbios_parse_allocated_irqresource(struct pnp_dev *dev, int irq)
 {
-	struct pnp_resource_table *res = &dev->res;
+	struct pnp_resource_table *res = dev->res;
 	int i = 0;
 
 	while (!(res->irq_resource[i].flags & IORESOURCE_UNSET)
@@ -76,7 +76,7 @@ static void pnpbios_parse_allocated_irqresource(struct pnp_dev *dev, int irq)
 
 static void pnpbios_parse_allocated_dmaresource(struct pnp_dev *dev, int dma)
 {
-	struct pnp_resource_table *res = &dev->res;
+	struct pnp_resource_table *res = dev->res;
 	int i = 0;
 
 	while (i < PNP_MAX_DMA &&
@@ -96,7 +96,7 @@ static void pnpbios_parse_allocated_dmaresource(struct pnp_dev *dev, int dma)
 static void pnpbios_parse_allocated_ioresource(struct pnp_dev *dev,
 					       int io, int len)
 {
-	struct pnp_resource_table *res = &dev->res;
+	struct pnp_resource_table *res = dev->res;
 	int i = 0;
 
 	while (!(res->port_resource[i].flags & IORESOURCE_UNSET)
@@ -116,7 +116,7 @@ static void pnpbios_parse_allocated_ioresource(struct pnp_dev *dev,
 static void pnpbios_parse_allocated_memresource(struct pnp_dev *dev,
 						int mem, int len)
 {
-	struct pnp_resource_table *res = &dev->res;
+	struct pnp_resource_table *res = dev->res;
 	int i = 0;
 
 	while (!(res->mem_resource[i].flags & IORESOURCE_UNSET)
