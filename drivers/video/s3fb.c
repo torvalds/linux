@@ -888,7 +888,7 @@ static int __devinit s3_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	}
 
 	/* Allocate and fill driver data structure */
-	info = framebuffer_alloc(sizeof(struct s3fb_info), NULL);
+	info = framebuffer_alloc(sizeof(struct s3fb_info), &(dev->dev));
 	if (!info) {
 		dev_err(&(dev->dev), "cannot allocate memory\n");
 		return -ENOMEM;
@@ -903,13 +903,13 @@ static int __devinit s3_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	/* Prepare PCI device */
 	rc = pci_enable_device(dev);
 	if (rc < 0) {
-		dev_err(&(dev->dev), "cannot enable PCI device\n");
+		dev_err(info->dev, "cannot enable PCI device\n");
 		goto err_enable_device;
 	}
 
 	rc = pci_request_regions(dev, "s3fb");
 	if (rc < 0) {
-		dev_err(&(dev->dev), "cannot reserve framebuffer region\n");
+		dev_err(info->dev, "cannot reserve framebuffer region\n");
 		goto err_request_regions;
 	}
 
@@ -921,7 +921,7 @@ static int __devinit s3_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	info->screen_base = pci_iomap(dev, 0, 0);
 	if (! info->screen_base) {
 		rc = -ENOMEM;
-		dev_err(&(dev->dev), "iomap for framebuffer failed\n");
+		dev_err(info->dev, "iomap for framebuffer failed\n");
 		goto err_iomap;
 	}
 
@@ -965,19 +965,19 @@ static int __devinit s3_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	rc = fb_find_mode(&(info->var), info, mode_option, NULL, 0, NULL, 8);
 	if (! ((rc == 1) || (rc == 2))) {
 		rc = -EINVAL;
-		dev_err(&(dev->dev), "mode %s not found\n", mode_option);
+		dev_err(info->dev, "mode %s not found\n", mode_option);
 		goto err_find_mode;
 	}
 
 	rc = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (rc < 0) {
-		dev_err(&(dev->dev), "cannot allocate colormap\n");
+		dev_err(info->dev, "cannot allocate colormap\n");
 		goto err_alloc_cmap;
 	}
 
 	rc = register_framebuffer(info);
 	if (rc < 0) {
-		dev_err(&(dev->dev), "cannot register framebuffer\n");
+		dev_err(info->dev, "cannot register framebuffer\n");
 		goto err_reg_fb;
 	}
 
@@ -1053,7 +1053,7 @@ static int s3_pci_suspend(struct pci_dev* dev, pm_message_t state)
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct s3fb_info *par = info->par;
 
-	dev_info(&(dev->dev), "suspend\n");
+	dev_info(info->dev, "suspend\n");
 
 	acquire_console_sem();
 	mutex_lock(&(par->open_lock));
@@ -1085,7 +1085,7 @@ static int s3_pci_resume(struct pci_dev* dev)
 	struct s3fb_info *par = info->par;
 	int err;
 
-	dev_info(&(dev->dev), "resume\n");
+	dev_info(info->dev, "resume\n");
 
 	acquire_console_sem();
 	mutex_lock(&(par->open_lock));
@@ -1102,7 +1102,7 @@ static int s3_pci_resume(struct pci_dev* dev)
 	if (err) {
 		mutex_unlock(&(par->open_lock));
 		release_console_sem();
-		dev_err(&(dev->dev), "error %d enabling device for resume\n", err);
+		dev_err(info->dev, "error %d enabling device for resume\n", err);
 		return err;
 	}
 	pci_set_master(dev);
