@@ -264,7 +264,6 @@ typedef struct {
 	pcb_struct rx_pcb;	/* PCB for foreground receiving */
 	pcb_struct itx_pcb;	/* PCB for background sending */
 	pcb_struct irx_pcb;	/* PCB for background receiving */
-	struct net_device_stats stats;
 
 	void *dma_buffer;
 
