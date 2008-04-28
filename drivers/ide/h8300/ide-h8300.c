@@ -56,6 +56,18 @@ static void mm_insw(unsigned long addr, void *buf, u32 len)
 		*bp = bswap(*(volatile u16 *)addr);
 }
 
+static void h8300_input_data(ide_drive_t *drive, struct request *rq,
+			     void *buf, unsigned int len)
+{
+	mm_insw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
+}
+
+static void h8300_output_data(ide_drive_t *drive, struct request *rq,
+			      void *buf, unsigned int len)
+{
+	mm_outsw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
+}
+
 #define H8300_IDE_GAP (2)
 
 static inline void hw_setup(hw_regs_t *hw)
@@ -73,6 +85,9 @@ static inline void hw_setup(hw_regs_t *hw)
 static inline void hwif_setup(ide_hwif_t *hwif)
 {
 	default_hwif_iops(hwif);
+
+	hwif->input_data  = h8300_input_data;
+	hwif->output_data = h8300_output_data;
 
 	hwif->OUTW  = mm_outw;
 	hwif->OUTSW = mm_outsw;
