@@ -755,7 +755,7 @@ smp_call_function_on_cpu (void (*func) (void *info), void *info, int retry,
 	if (atomic_read(&data.unstarted_count) > 0) {
 		long start_time = jiffies;
 		printk(KERN_ERR "%s: initial timeout -- trying long wait\n",
-		       __FUNCTION__);
+		       __func__);
 		timeout = jiffies + 30 * HZ;
 		while (atomic_read(&data.unstarted_count) > 0
 		       && time_before(jiffies, timeout))
@@ -764,7 +764,7 @@ smp_call_function_on_cpu (void (*func) (void *info), void *info, int retry,
 			long delta = jiffies - start_time;
 			printk(KERN_ERR 
 			       "%s: response %ld.%ld seconds into long wait\n",
-			       __FUNCTION__, delta / HZ,
+			       __func__, delta / HZ,
 			       (100 * (delta - ((delta / HZ) * HZ))) / HZ);
 		}
 	}
