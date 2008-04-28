@@ -436,6 +436,10 @@ static int vt8623fb_set_par(struct fb_info *info)
 	svga_wcrt_multi(vt8623_offset_regs, offset_value);
 	svga_wseq_multi(vt8623_fetch_count_regs, fetch_value);
 
+	/* Clear H/V Skew */
+	svga_wcrt_mask(0x03, 0x00, 0x60);
+	svga_wcrt_mask(0x05, 0x00, 0x60);
+
 	if (info->var.vmode & FB_VMODE_DOUBLE)
 		svga_wcrt_mask(0x09, 0x80, 0x80);
 	else
