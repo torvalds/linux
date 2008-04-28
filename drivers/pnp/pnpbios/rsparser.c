@@ -4,7 +4,6 @@
 
 #include <linux/ctype.h>
 #include <linux/pnp.h>
-#include <linux/pnpbios.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 
