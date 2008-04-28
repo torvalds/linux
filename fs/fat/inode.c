@@ -433,11 +433,8 @@ EXPORT_SYMBOL_GPL(fat_build_inode);
 static void fat_delete_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
-
-	if (!is_bad_inode(inode)) {
-		inode->i_size = 0;
-		fat_truncate(inode);
-	}
+	inode->i_size = 0;
+	fat_truncate(inode);
 	clear_inode(inode);
 }
 
@@ -445,8 +442,6 @@ static void fat_clear_inode(struct inode *inode)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
 
-	if (is_bad_inode(inode))
-		return;
 	lock_kernel();
 	spin_lock(&sbi->inode_hash_lock);
 	fat_cache_inval_inode(inode);
