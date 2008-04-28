@@ -208,6 +208,8 @@ int tm6000_dvb_attach_frontend(struct tm6000_core *dev)
 	return (!dvb->frontend) ? -1 : 0;
 }
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 int tm6000_dvb_register(struct tm6000_core *dev)
 {
 	int ret = -1;
@@ -225,7 +227,7 @@ int tm6000_dvb_register(struct tm6000_core *dev)
 	}
 
 	ret = dvb_register_adapter(&dvb->adapter, "Trident TVMaster 6000 DVB-T",
-							  THIS_MODULE, &dev->udev->dev);
+							  THIS_MODULE, &dev->udev->dev, adapter_nr);
 	dvb->adapter.priv = dev;
 
 	if (dvb->frontend) {
