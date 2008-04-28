@@ -659,10 +659,8 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 			ext2_xattr_cache_insert(new_bh);
 		} else {
 			/* We need to allocate a new block */
-			int goal = le32_to_cpu(EXT2_SB(sb)->s_es->
-						           s_first_data_block) +
-				   EXT2_I(inode)->i_block_group *
-				   EXT2_BLOCKS_PER_GROUP(sb);
+			ext2_fsblk_t goal = ext2_group_first_block_no(sb,
+						EXT2_I(inode)->i_block_group);
 			int block = ext2_new_block(inode, goal, &error);
 			if (error)
 				goto cleanup;
