@@ -68,6 +68,9 @@ static void gpio_ensure_requested(struct gpio_desc *desc)
 	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0) {
 		pr_warning("GPIO-%d autorequested\n", (int)(desc - gpio_desc));
 		desc_set_label(desc, "[auto]");
+		if (!try_module_get(desc->chip->owner))
+			pr_err("GPIO-%d: module can't be gotten \n",
+					(int)(desc - gpio_desc));
 	}
 }
 
@@ -177,6 +180,9 @@ int gpio_request(unsigned gpio, const char *label)
 	if (desc->chip == NULL)
 		goto done;
 
+	if (!try_module_get(desc->chip->owner))
+		goto done;
+
 	/* NOTE:  gpio_request() can be called in early boot,
 	 * before IRQs are enabled.
 	 */
@@ -184,8 +190,10 @@ int gpio_request(unsigned gpio, const char *label)
 	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0) {
 		desc_set_label(desc, label ? : "?");
 		status = 0;
-	} else
+	} else {
 		status = -EBUSY;
+		module_put(desc->chip->owner);
+	}
 
 done:
 	if (status)
@@ -209,9 +217,10 @@ void gpio_free(unsigned gpio)
 	spin_lock_irqsave(&gpio_lock, flags);
 
 	desc = &gpio_desc[gpio];
-	if (desc->chip && test_and_clear_bit(FLAG_REQUESTED, &desc->flags))
+	if (desc->chip && test_and_clear_bit(FLAG_REQUESTED, &desc->flags)) {
 		desc_set_label(desc, NULL);
-	else
+		module_put(desc->chip->owner);
+	} else
 		WARN_ON(extra_checks);
 
 	spin_unlock_irqrestore(&gpio_lock, flags);

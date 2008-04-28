@@ -17,6 +17,7 @@
 #endif
 
 struct seq_file;
+struct module;
 
 /**
  * struct gpio_chip - abstract a GPIO controller
@@ -48,6 +49,7 @@ struct seq_file;
  */
 struct gpio_chip {
 	char			*label;
+	struct module		*owner;
 
 	int			(*direction_input)(struct gpio_chip *chip,
 						unsigned offset);
