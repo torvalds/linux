@@ -13,6 +13,7 @@
 #include <linux/fb.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <asm/geode.h>
 
 #include "lxfb.h"
 
@@ -101,7 +102,7 @@ static void lx_set_dotpll(u32 pllval)
 	u32 dotpll_lo, dotpll_hi;
 	int i;
 
-	rdmsr(MSR_LX_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
+	rdmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
 
 	if ((dotpll_lo & GLCP_DOTPLL_LOCK) && (dotpll_hi == pllval))
 		return;
@@ -110,7 +111,7 @@ static void lx_set_dotpll(u32 pllval)
 	dotpll_lo &= ~(GLCP_DOTPLL_BYPASS | GLCP_DOTPLL_HALFPIX);
 	dotpll_lo |= GLCP_DOTPLL_RESET;
 
-	wrmsr(MSR_LX_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
+	wrmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
 
 	/* Wait 100us for the PLL to lock */
 
@@ -119,7 +120,7 @@ static void lx_set_dotpll(u32 pllval)
 	/* Now, loop for the lock bit */
 
 	for (i = 0; i < 1000; i++) {
-		rdmsr(MSR_LX_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
+		rdmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
 		if (dotpll_lo & GLCP_DOTPLL_LOCK)
 			break;
 	}
@@ -127,7 +128,7 @@ static void lx_set_dotpll(u32 pllval)
 	/* Clear the reset bit */
 
 	dotpll_lo &= ~GLCP_DOTPLL_RESET;
-	wrmsr(MSR_LX_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
+	wrmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
 }
 
 /* Set the clock based on the frequency specified by the current mode */
@@ -255,7 +256,7 @@ static void lx_graphics_enable(struct fb_info *info)
 		msrlo = DF_DEFAULT_TFT_PAD_SEL_LOW;
 		msrhi = DF_DEFAULT_TFT_PAD_SEL_HIGH;
 
-		wrmsr(MSR_LX_DF_PADSEL, msrlo, msrhi);
+		wrmsr(MSR_LX_MSR_PADSEL, msrlo, msrhi);
 	}
 
 	if (par->output & OUTPUT_CRT) {
@@ -321,7 +322,7 @@ void lx_set_mode(struct fb_info *info)
 
 	/* Set output mode */
 
-	rdmsrl(MSR_LX_DF_GLCONFIG, msrval);
+	rdmsrl(MSR_LX_GLD_MSR_CONFIG, msrval);
 	msrval &= ~DF_CONFIG_OUTPUT_MASK;
 
 	if (par->output & OUTPUT_PANEL) {
@@ -335,7 +336,7 @@ void lx_set_mode(struct fb_info *info)
 		msrval |= DF_OUTPUT_CRT;
 	}
 
-	wrmsrl(MSR_LX_DF_GLCONFIG, msrval);
+	wrmsrl(MSR_LX_GLD_MSR_CONFIG, msrval);
 
 	/* Clear the various buffers */
 	/* FIXME:  Adjust for panning here */
@@ -383,13 +384,13 @@ void lx_set_mode(struct fb_info *info)
 
 	/* Set default watermark values */
 
-	rdmsrl(MSR_LX_DC_SPARE, msrval);
+	rdmsrl(MSR_LX_SPARE_MSR, msrval);
 
 	msrval &= ~(DC_SPARE_DISABLE_CFIFO_HGO | DC_SPARE_VFIFO_ARB_SELECT |
 		    DC_SPARE_LOAD_WM_LPEN_MASK | DC_SPARE_WM_LPEN_OVRD |
 		    DC_SPARE_DISABLE_INIT_VID_PRI | DC_SPARE_DISABLE_VFIFO_WM);
 	msrval |= DC_SPARE_DISABLE_VFIFO_WM | DC_SPARE_DISABLE_INIT_VID_PRI;
-	wrmsrl(MSR_LX_DC_SPARE, msrval);
+	wrmsrl(MSR_LX_SPARE_MSR, msrval);
 
 	gcfg = DC_GCFG_DFLE;   /* Display fifo enable */
 	gcfg |= 0xB600;         /* Set default priority */

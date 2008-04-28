@@ -30,6 +30,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <asm/geode.h>
 
 #include "geodefb.h"
 #include "display_gx.h"
@@ -326,7 +327,7 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	/* Figure out if this is a TFT or CRT part */
 
-	rdmsrl(GLD_MSR_CONFIG, val);
+	rdmsrl(MSR_GX_GLD_MSR_CONFIG, val);
 
 	if ((val & GLD_MSR_CONFIG_DM_FP) == GLD_MSR_CONFIG_DM_FP)
 		par->enable_crt = 0;

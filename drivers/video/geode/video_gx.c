@@ -16,6 +16,7 @@
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/msr.h>
+#include <asm/geode.h>
 
 #include "geodefb.h"
 #include "video_gx.h"
@@ -184,10 +185,10 @@ gx_configure_tft(struct fb_info *info)
 
 	/* Set up the DF pad select MSR */
 
-	rdmsrl(GX_VP_MSR_PAD_SELECT, val);
+	rdmsrl(MSR_GX_MSR_PADSEL, val);
 	val &= ~GX_VP_PAD_SELECT_MASK;
 	val |= GX_VP_PAD_SELECT_TFT;
-	wrmsrl(GX_VP_MSR_PAD_SELECT, val);
+	wrmsrl(MSR_GX_MSR_PADSEL, val);
 
 	/* Turn off the panel */
 

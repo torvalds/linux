@@ -30,7 +30,11 @@ extern int geode_get_dev_base(unsigned int dev);
 
 /* MSRS */
 
-#define GX_GLCP_SYS_RSTPLL	0x4C000014
+#define MSR_LX_GLD_MSR_CONFIG	0x48002001
+#define MSR_LX_MSR_PADSEL	0x48002011	/* NOT 0x48000011; the data
+						 * sheet has the wrong value */
+#define MSR_GLCP_SYS_RSTPLL	0x4C000014
+#define MSR_GLCP_DOTPLL		0x4C000015
 
 #define MSR_LBAR_SMB		0x5140000B
 #define MSR_LBAR_GPIO		0x5140000C
@@ -45,8 +49,14 @@ extern int geode_get_dev_base(unsigned int dev);
 #define MSR_PIC_ZSEL_LOW	0x51400022
 #define MSR_PIC_ZSEL_HIGH	0x51400023
 
-#define MFGPT_IRQ_MSR		0x51400028
-#define MFGPT_NR_MSR		0x51400029
+#define MSR_MFGPT_IRQ		0x51400028
+#define MSR_MFGPT_NR		0x51400029
+#define MSR_MFGPT_SETUP		0x5140002B
+
+#define MSR_LX_SPARE_MSR	0x80000011	/* DC-specific */
+
+#define MSR_GX_GLD_MSR_CONFIG	0xC0002001
+#define MSR_GX_MSR_PADSEL	0xC0002011
 
 /* Resource Sizes */
 

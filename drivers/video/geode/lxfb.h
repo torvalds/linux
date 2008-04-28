@@ -31,14 +31,6 @@ void lx_set_palette_reg(struct fb_info *, unsigned int, unsigned int,
 
 /* MSRS */
 
-#define MSR_LX_GLD_CONFIG    0x48002001
-#define MSR_LX_GLCP_DOTPLL   0x4c000015
-#define MSR_LX_DF_PADSEL     0x48002011
-#define MSR_LX_DC_SPARE      0x80000011
-#define MSR_LX_DF_GLCONFIG   0x48002001
-
-#define MSR_LX_GLIU0_P2D_RO0 0x10000029
-
 #define GLCP_DOTPLL_RESET    (1 << 0)
 #define GLCP_DOTPLL_BYPASS   (1 << 15)
 #define GLCP_DOTPLL_HALFPIX  (1 << 24)
