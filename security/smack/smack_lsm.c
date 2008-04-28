@@ -1242,7 +1242,7 @@ static void smack_set_catset(char *catset, struct netlbl_lsm_secattr *sap)
 	int rc;
 	int byte;
 
-	if (catset == 0)
+	if (!catset)
 		return;
 
 	sap->flags |= NETLBL_SECATTR_MLS_CAT;
