@@ -182,8 +182,6 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 			sector &= ~(bio_sectors - 1);
 			valid = (sector - failed_command->sector) << 9;
 
-			if (valid < 0)
-				valid = 0;
 			if (sector < get_capacity(info->disk) &&
 			    drive->probed_capacity - sector < 4 * 75)
 				set_capacity(info->disk, sector);
