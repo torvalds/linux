@@ -52,7 +52,6 @@ enum {
 #include <linux/spinlock.h>
 #include <linux/nodemask.h>
 
-struct vm_area_struct;
 struct mm_struct;
 
 #ifdef CONFIG_NUMA
@@ -131,10 +130,6 @@ static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
 	return __mpol_equal(a, b);
 }
 
-/* Could later add inheritance of the process policy here. */
-
-#define mpol_set_vma_default(vma) ((vma)->vm_policy = NULL)
-
 /*
  * Tree of shared policies for a shared memory region.
  * Maintain the policies in a pseudo mm that contains vmas. The vmas
@@ -170,7 +165,6 @@ extern void mpol_rebind_task(struct task_struct *tsk,
 extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
 extern void mpol_fix_fork_child_flag(struct task_struct *p);
 
-extern struct mempolicy default_policy;
 extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
 				unsigned long addr, gfp_t gfp_flags,
 				struct mempolicy **mpol, nodemask_t **nodemask);
@@ -195,8 +189,6 @@ static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
 {
 	return 1;
 }
-
-#define mpol_set_vma_default(vma) do {} while(0)
 
 static inline void mpol_free(struct mempolicy *p)
 {
