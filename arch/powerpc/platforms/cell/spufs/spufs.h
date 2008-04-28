@@ -121,6 +121,7 @@ struct spu_context {
 	cpumask_t cpus_allowed;
 	int policy;
 	int prio;
+	int last_ran;
 
 	/* statistics */
 	struct {

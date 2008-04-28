@@ -1704,6 +1704,13 @@ static inline void restore_mfc_sr1(struct spu_state *csa, struct spu *spu)
 	eieio();
 }
 
+static inline void set_int_route(struct spu_state *csa, struct spu *spu)
+{
+	struct spu_context *ctx = spu->ctx;
+
+	spu_cpu_affinity_set(spu, ctx->last_ran);
+}
+
 static inline void restore_other_spu_access(struct spu_state *csa,
 					    struct spu *spu)
 {
@@ -2014,6 +2021,7 @@ static void restore_csa(struct spu_state *next, struct spu *spu)
 	check_ppuint_mb_stat(next, spu);	/* Step 67. */
 	spu_invalidate_slbs(spu);		/* Modified Step 68. */
 	restore_mfc_sr1(next, spu);	        /* Step 69. */
+	set_int_route(next, spu);		/* NEW      */
 	restore_other_spu_access(next, spu);	/* Step 70. */
 	restore_spu_runcntl(next, spu);	        /* Step 71. */
 	restore_mfc_cntl(next, spu);	        /* Step 72. */
