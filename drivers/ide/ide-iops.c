@@ -227,11 +227,11 @@ static void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
  * of the sector count register location, with interrupts disabled
  * to ensure that the reads all happen together.
  */
-static void ata_vlb_sync(ide_drive_t *drive, unsigned long port)
+static void ata_vlb_sync(unsigned long port)
 {
-	(void) HWIF(drive)->INB(port);
-	(void) HWIF(drive)->INB(port);
-	(void) HWIF(drive)->INB(port);
+	(void)inb(port);
+	(void)inb(port);
+	(void)inb(port);
 }
 
 /*
@@ -255,9 +255,9 @@ static void ata_input_data(ide_drive_t *drive, struct request *rq,
 	if (io_32bit) {
 		unsigned long uninitialized_var(flags);
 
-		if (io_32bit & 2) {
+		if ((io_32bit & 2) && !mmio) {
 			local_irq_save(flags);
-			ata_vlb_sync(drive, io_ports->nsect_addr);
+			ata_vlb_sync(io_ports->nsect_addr);
 		}
 
 		if (mmio)
@@ -265,7 +265,7 @@ static void ata_input_data(ide_drive_t *drive, struct request *rq,
 		else
 			insl(data_addr, buf, len / 4);
 
-		if (io_32bit & 2)
+		if ((io_32bit & 2) && !mmio)
 			local_irq_restore(flags);
 
 		if ((len & 3) >= 2) {
@@ -298,9 +298,9 @@ static void ata_output_data(ide_drive_t *drive, struct request *rq,
 	if (io_32bit) {
 		unsigned long uninitialized_var(flags);
 
-		if (io_32bit & 2) {
+		if ((io_32bit & 2) && !mmio) {
 			local_irq_save(flags);
-			ata_vlb_sync(drive, io_ports->nsect_addr);
+			ata_vlb_sync(io_ports->nsect_addr);
 		}
 
 		if (mmio)
@@ -308,7 +308,7 @@ static void ata_output_data(ide_drive_t *drive, struct request *rq,
 		else
 			outsl(data_addr, buf, len / 4);
 
-		if (io_32bit & 2)
+		if ((io_32bit & 2) && !mmio)
 			local_irq_restore(flags);
 
 		if ((len & 3) >= 2) {
