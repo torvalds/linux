@@ -179,7 +179,7 @@ bad_entry:
 	goto fail;
 Eend:
 	p = (struct ufs_dir_entry *)(kaddr + offs);
-	ufs_error(sb, __FUNCTION__,
+	ufs_error(sb, __func__,
 		   "entry in directory #%lu spans the page boundary"
 		   "offset=%lu",
 		   dir->i_ino, (page->index<<PAGE_CACHE_SHIFT)+offs);
@@ -284,7 +284,7 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, struct dentry *dentry,
 			kaddr += ufs_last_byte(dir, n) - reclen;
 			while ((char *) de <= kaddr) {
 				if (de->d_reclen == 0) {
-					ufs_error(dir->i_sb, __FUNCTION__,
+					ufs_error(dir->i_sb, __func__,
 						  "zero-length directory entry");
 					ufs_put_page(page);
 					goto out;
@@ -356,7 +356,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 				goto got_it;
 			}
 			if (de->d_reclen == 0) {
-				ufs_error(dir->i_sb, __FUNCTION__,
+				ufs_error(dir->i_sb, __func__,
 					  "zero-length directory entry");
 				err = -EIO;
 				goto out_unlock;
@@ -456,7 +456,7 @@ ufs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		struct page *page = ufs_get_page(inode, n);
 
 		if (IS_ERR(page)) {
-			ufs_error(sb, __FUNCTION__,
+			ufs_error(sb, __func__,
 				  "bad page in #%lu",
 				  inode->i_ino);
 			filp->f_pos += PAGE_CACHE_SIZE - offset;
@@ -475,7 +475,7 @@ ufs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		limit = kaddr + ufs_last_byte(inode, n) - UFS_DIR_REC_LEN(1);
 		for ( ;(char*)de <= limit; de = ufs_next_entry(sb, de)) {
 			if (de->d_reclen == 0) {
-				ufs_error(sb, __FUNCTION__,
+				ufs_error(sb, __func__,
 					"zero-length directory entry");
 				ufs_put_page(page);
 				return -EIO;
@@ -536,7 +536,7 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 
 	while ((char*)de < (char*)dir) {
 		if (de->d_reclen == 0) {
-			ufs_error(inode->i_sb, __FUNCTION__,
+			ufs_error(inode->i_sb, __func__,
 				  "zero-length directory entry");
 			err = -EIO;
 			goto out;
@@ -633,7 +633,7 @@ int ufs_empty_dir(struct inode * inode)
 
 		while ((char *)de <= kaddr) {
 			if (de->d_reclen == 0) {
-				ufs_error(inode->i_sb, __FUNCTION__,
+				ufs_error(inode->i_sb, __func__,
 					"zero-length directory entry: "
 					"kaddr=%p, de=%p\n", kaddr, de);
 				goto not_empty;

@@ -929,7 +929,7 @@ void ufs_delete_inode (struct inode * inode)
 	old_i_size = inode->i_size;
 	inode->i_size = 0;
 	if (inode->i_blocks && ufs_truncate(inode, old_i_size))
-		ufs_warning(inode->i_sb, __FUNCTION__, "ufs_truncate failed\n");
+		ufs_warning(inode->i_sb, __func__, "ufs_truncate failed\n");
 	ufs_free_inode (inode);
 	unlock_kernel();
 	return;
