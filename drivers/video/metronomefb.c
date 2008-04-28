@@ -671,14 +671,14 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 
 	retval = load_waveform((u8 *) fw_entry->data, fw_entry->size,
 				par->metromem_wfm, 3, 31, &par->frame_count);
+	release_firmware(fw_entry);
 	if (retval < 0) {
 		printk(KERN_ERR "metronomefb: couldn't process waveform\n");
-		goto err_ld_wfm;
+		goto err_dma_free;
 	}
-	release_firmware(fw_entry);
 
 	if (board->setup_irq(info))
-		goto err_ld_wfm;
+		goto err_dma_free;
 
 	retval = metronome_init_regs(par);
 	if (retval < 0)
@@ -719,8 +719,6 @@ err_fb_rel:
 	framebuffer_release(info);
 err_free_irq:
 	board->free_irq(info);
-err_ld_wfm:
-	release_firmware(fw_entry);
 err_dma_free:
 	dma_free_writecombine(&dev->dev, par->metromemsize, par->metromem,
 				par->metromem_dma);
