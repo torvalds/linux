@@ -1821,6 +1821,45 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 
 #ifdef	CONFIG_PM
 
+#define MASK_BITS	(USB_PORT_STAT_POWER | USB_PORT_STAT_CONNECTION | \
+				USB_PORT_STAT_SUSPEND)
+#define WANT_BITS	(USB_PORT_STAT_POWER | USB_PORT_STAT_CONNECTION)
+
+/* Determine whether the device on a port is ready for a normal resume,
+ * is ready for a reset-resume, or should be disconnected.
+ */
+static int check_port_resume_type(struct usb_device *udev,
+		struct usb_hub *hub, int port1,
+		int status, unsigned portchange, unsigned portstatus)
+{
+	/* Is the device still present? */
+	if (status || (portstatus & MASK_BITS) != WANT_BITS) {
+		if (status >= 0)
+			status = -ENODEV;
+	}
+
+	/* Can't do a normal resume if the port isn't enabled */
+	else if (!(portstatus & USB_PORT_STAT_ENABLE) && !udev->reset_resume)
+		status = -ENODEV;
+
+	if (status) {
+		dev_dbg(hub->intfdev,
+				"port %d status %04x.%04x after resume, %d\n",
+				port1, portchange, portstatus, status);
+	} else if (udev->reset_resume) {
+
+		/* Late port handoff can set status-change bits */
+		if (portchange & USB_PORT_STAT_C_CONNECTION)
+			clear_port_feature(hub->hdev, port1,
+					USB_PORT_FEAT_C_CONNECTION);
+		if (portchange & USB_PORT_STAT_C_ENABLE)
+			clear_port_feature(hub->hdev, port1,
+					USB_PORT_FEAT_C_ENABLE);
+	}
+
+	return status;
+}
+
 #ifdef	CONFIG_USB_SUSPEND
 
 /*
@@ -2025,7 +2064,6 @@ int usb_port_resume(struct usb_device *udev)
 	int		port1 = udev->portnum;
 	int		status;
 	u16		portchange, portstatus;
-	unsigned	mask_flags, want_flags;
 
 	/* Skip the initial Clear-Suspend step for a remote wakeup */
 	status = hub_port_status(hub, port1, &portstatus, &portchange);
@@ -2054,35 +2092,23 @@ int usb_port_resume(struct usb_device *udev)
 		 */
 		status = hub_port_status(hub, port1, &portstatus, &portchange);
 
- SuspendCleared:
-		if (udev->reset_resume)
-			want_flags = USB_PORT_STAT_POWER
-					| USB_PORT_STAT_CONNECTION;
-		else
-			want_flags = USB_PORT_STAT_POWER
-					| USB_PORT_STAT_CONNECTION
-					| USB_PORT_STAT_ENABLE;
-		mask_flags = want_flags | USB_PORT_STAT_SUSPEND;
+		/* TRSMRCY = 10 msec */
+		msleep(10);
+	}
 
-		if (status < 0 || (portstatus & mask_flags) != want_flags) {
-			dev_dbg(hub->intfdev,
-				"port %d status %04x.%04x after resume, %d\n",
-				port1, portchange, portstatus, status);
-			if (status >= 0)
-				status = -ENODEV;
-		} else {
-			if (portchange & USB_PORT_STAT_C_SUSPEND)
-				clear_port_feature(hub->hdev, port1,
-						USB_PORT_FEAT_C_SUSPEND);
-			/* TRSMRCY = 10 msec */
-			msleep(10);
-		}
+ SuspendCleared:
+	if (status == 0) {
+		if (portchange & USB_PORT_STAT_C_SUSPEND)
+			clear_port_feature(hub->hdev, port1,
+					USB_PORT_FEAT_C_SUSPEND);
 	}
 
 	clear_bit(port1, hub->busy_bits);
 	if (!hub->hdev->parent && !hub->busy_bits[0])
 		usb_enable_root_hub_irq(hub->hdev->bus);
 
+	status = check_port_resume_type(udev,
+			hub, port1, status, portchange, portstatus);
 	if (status == 0)
 		status = finish_port_resume(udev);
 	if (status < 0) {
@@ -2115,12 +2141,23 @@ int usb_port_suspend(struct usb_device *udev)
 	return 0;
 }
 
+/* However we may need to do a reset-resume */
+
 int usb_port_resume(struct usb_device *udev)
 {
-	int status = 0;
+	struct usb_hub	*hub = hdev_to_hub(udev->parent);
+	int		port1 = udev->portnum;
+	int		status;
+	u16		portchange, portstatus;
 
-	/* However we may need to do a reset-resume */
-	if (udev->reset_resume) {
+	status = hub_port_status(hub, port1, &portstatus, &portchange);
+	status = check_port_resume_type(udev,
+			hub, port1, status, portchange, portstatus);
+
+	if (status) {
+		dev_dbg(&udev->dev, "can't resume, status %d\n", status);
+		hub_port_logical_disconnect(hub, port1);
+	} else if (udev->reset_resume) {
 		dev_dbg(&udev->dev, "reset-resume\n");
 		status = usb_reset_device(udev);
 	}
