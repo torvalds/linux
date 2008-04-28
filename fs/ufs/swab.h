@@ -80,18 +80,18 @@ static inline void
 fs32_add(struct super_block *sbp, __fs32 *n, int d)
 {
 	if (UFS_SB(sbp)->s_bytesex == BYTESEX_LE)
-		*(__le32 *)n = cpu_to_le32(le32_to_cpu(*(__le32 *)n)+d);
+		le32_add_cpu((__le32 *)n, d);
 	else
-		*(__be32 *)n = cpu_to_be32(be32_to_cpu(*(__be32 *)n)+d);
+		be32_add_cpu((__be32 *)n, d);
 }
 
 static inline void
 fs32_sub(struct super_block *sbp, __fs32 *n, int d)
 {
 	if (UFS_SB(sbp)->s_bytesex == BYTESEX_LE)
-		*(__le32 *)n = cpu_to_le32(le32_to_cpu(*(__le32 *)n)-d);
+		le32_add_cpu((__le32 *)n, -d);
 	else
-		*(__be32 *)n = cpu_to_be32(be32_to_cpu(*(__be32 *)n)-d);
+		be32_add_cpu((__be32 *)n, -d);
 }
 
 static inline u16
@@ -116,18 +116,18 @@ static inline void
 fs16_add(struct super_block *sbp, __fs16 *n, int d)
 {
 	if (UFS_SB(sbp)->s_bytesex == BYTESEX_LE)
-		*(__le16 *)n = cpu_to_le16(le16_to_cpu(*(__le16 *)n)+d);
+		le16_add_cpu((__le16 *)n, d);
 	else
-		*(__be16 *)n = cpu_to_be16(be16_to_cpu(*(__be16 *)n)+d);
+		be16_add_cpu((__be16 *)n, d);
 }
 
 static inline void
 fs16_sub(struct super_block *sbp, __fs16 *n, int d)
 {
 	if (UFS_SB(sbp)->s_bytesex == BYTESEX_LE)
-		*(__le16 *)n = cpu_to_le16(le16_to_cpu(*(__le16 *)n)-d);
+		le16_add_cpu((__le16 *)n, -d);
 	else
-		*(__be16 *)n = cpu_to_be16(be16_to_cpu(*(__be16 *)n)-d);
+		be16_add_cpu((__be16 *)n, -d);
 }
 
 #endif /* _UFS_SWAB_H */
