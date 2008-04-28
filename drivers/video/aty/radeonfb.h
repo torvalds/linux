@@ -369,16 +369,6 @@ struct radeonfb_info {
 
 
 /*
- * Debugging stuffs
- */
-#ifdef DEBUG
-#define RTRACE		printk
-#else
-#define RTRACE		if(0) printk
-#endif
-
-
-/*
  * IO macros
  */
 

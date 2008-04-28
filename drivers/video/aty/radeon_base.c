@@ -1490,7 +1490,7 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 		freq = rinfo->pll.ppll_max;
 	if (freq*12 < rinfo->pll.ppll_min)
 		freq = rinfo->pll.ppll_min / 12;
-	RTRACE("freq = %lu, PLL min = %u, PLL max = %u\n",
+	pr_debug("freq = %lu, PLL min = %u, PLL max = %u\n",
 	       freq, rinfo->pll.ppll_min, rinfo->pll.ppll_max);
 
 	for (post_div = &post_divs[0]; post_div->divider; ++post_div) {
@@ -1511,7 +1511,7 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 		post_div = &post_divs[post_div->bitvalue];
 		pll_output_freq = post_div->divider * freq;
 	}
-	RTRACE("ref_div = %d, ref_clk = %d, output_freq = %d\n",
+	pr_debug("ref_div = %d, ref_clk = %d, output_freq = %d\n",
 	       rinfo->pll.ref_div, rinfo->pll.ref_clk,
 	       pll_output_freq);
 
@@ -1521,7 +1521,7 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 		post_div = &post_divs[post_div->bitvalue];
 		pll_output_freq = post_div->divider * freq;
 	}
-	RTRACE("ref_div = %d, ref_clk = %d, output_freq = %d\n",
+	pr_debug("ref_div = %d, ref_clk = %d, output_freq = %d\n",
 	       rinfo->pll.ref_div, rinfo->pll.ref_clk,
 	       pll_output_freq);
 
@@ -1530,9 +1530,9 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 	regs->ppll_ref_div = rinfo->pll.ref_div;
 	regs->ppll_div_3 = fb_div | (post_div->bitvalue << 16);
 
-	RTRACE("post div = 0x%x\n", post_div->bitvalue);
-	RTRACE("fb_div = 0x%x\n", fb_div);
-	RTRACE("ppll_div_3 = 0x%x\n", regs->ppll_div_3);
+	pr_debug("post div = 0x%x\n", post_div->bitvalue);
+	pr_debug("fb_div = 0x%x\n", fb_div);
+	pr_debug("ppll_div_3 = 0x%x\n", regs->ppll_div_3);
 }
 
 static int radeonfb_set_par(struct fb_info *info)
@@ -1604,9 +1604,9 @@ static int radeonfb_set_par(struct fb_info *info)
 	dotClock = 1000000000 / pixClock;
 	freq = dotClock / 10; /* x100 */
 
-	RTRACE("hStart = %d, hEnd = %d, hTotal = %d\n",
+	pr_debug("hStart = %d, hEnd = %d, hTotal = %d\n",
 		hSyncStart, hSyncEnd, hTotal);
-	RTRACE("vStart = %d, vEnd = %d, vTotal = %d\n",
+	pr_debug("vStart = %d, vEnd = %d, vTotal = %d\n",
 		vSyncStart, vSyncEnd, vTotal);
 
 	hsync_wid = (hSyncEnd - hSyncStart) / 8;
@@ -1715,16 +1715,16 @@ static int radeonfb_set_par(struct fb_info *info)
 		newmode->surf_info[i] = 0;
 	}
 
-	RTRACE("h_total_disp = 0x%x\t   hsync_strt_wid = 0x%x\n",
+	pr_debug("h_total_disp = 0x%x\t   hsync_strt_wid = 0x%x\n",
 		newmode->crtc_h_total_disp, newmode->crtc_h_sync_strt_wid);
-	RTRACE("v_total_disp = 0x%x\t   vsync_strt_wid = 0x%x\n",
+	pr_debug("v_total_disp = 0x%x\t   vsync_strt_wid = 0x%x\n",
 		newmode->crtc_v_total_disp, newmode->crtc_v_sync_strt_wid);
 
 	rinfo->bpp = mode->bits_per_pixel;
 	rinfo->depth = depth;
 
-	RTRACE("pixclock = %lu\n", (unsigned long)pixClock);
-	RTRACE("freq = %lu\n", (unsigned long)freq);
+	pr_debug("pixclock = %lu\n", (unsigned long)pixClock);
+	pr_debug("freq = %lu\n", (unsigned long)freq);
 
 	/* We use PPLL_DIV_3 */
 	newmode->clk_cntl_index = 0x300;
@@ -1988,7 +1988,7 @@ static void fixup_memory_mappings(struct radeonfb_info *rinfo)
 	if (rinfo->has_CRTC2)
 		OUTREG(CRTC2_GEN_CNTL, save_crtc2_gen_cntl);	
 
-	RTRACE("aper_base: %08x MC_FB_LOC to: %08x, MC_AGP_LOC to: %08x\n",
+	pr_debug("aper_base: %08x MC_FB_LOC to: %08x, MC_AGP_LOC to: %08x\n",
 		aper_base,
 		((aper_base + aper_size - 1) & 0xffff0000) | (aper_base >> 16),
 		0xffff0000 | (agp_base >> 16));
@@ -2085,7 +2085,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
 	 * ToDo: identify these cases
 	 */
 
-	RTRACE("radeonfb (%s): Found %ldk of %s %d bits wide videoram\n",
+	pr_debug("radeonfb (%s): Found %ldk of %s %d bits wide videoram\n",
 	       pci_name(rinfo->pdev),
 	       rinfo->video_ram / 1024,
 	       rinfo->vram_ddr ? "DDR" : "SDRAM",
@@ -2162,7 +2162,7 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 	int ret;
 	unsigned char c1, c2;
 
-	RTRACE("radeonfb_pci_register BEGIN\n");
+	pr_debug("radeonfb_pci_register BEGIN\n");
 	
 	/* Enable device in PCI config */
 	ret = pci_enable_device(pdev);
@@ -2287,7 +2287,7 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 		goto err_unmap_rom;
 	}
 
-	RTRACE("radeonfb (%s): mapped %ldk videoram\n", pci_name(rinfo->pdev),
+	pr_debug("radeonfb (%s): mapped %ldk videoram\n", pci_name(rinfo->pdev),
 	       rinfo->mapped_vram/1024);
 
 	/*
@@ -2382,7 +2382,7 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 
 	if (rinfo->bios_seg)
 		radeon_unmap_ROM(rinfo, pdev);
-	RTRACE("radeonfb_pci_register END\n");
+	pr_debug("radeonfb_pci_register END\n");
 
 	return 0;
 err_unmap_fb:
