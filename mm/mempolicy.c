@@ -88,6 +88,7 @@
 #include <linux/rmap.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
+#include <linux/ctype.h>
 
 #include <asm/tlbflush.h>
 #include <asm/uaccess.h>
@@ -1945,6 +1946,10 @@ void numa_default_policy(void)
 }
 
 /*
+ * Parse and format mempolicy from/to strings
+ */
+
+/*
  * "local" is pseudo-policy:  MPOL_PREFERRED with MPOL_F_LOCAL flag
  * Used only for mpol_to_str()
  */
@@ -1952,12 +1957,107 @@ void numa_default_policy(void)
 static const char * const policy_types[] =
 	{ "default", "prefer", "bind", "interleave", "local" };
 
+
+#ifdef CONFIG_TMPFS
+/**
+ * mpol_parse_str - parse string to mempolicy
+ * @str:  string containing mempolicy to parse
+ * @mode:  pointer to returned policy mode
+ * @mode_flags:  pointer to returned flags
+ * @policy_nodes:  pointer to returned nodemask
+ *
+ * Format of input:
+ *	<mode>[=<flags>][:<nodelist>]
+ *
+ * Currently only used for tmpfs/shmem mount options
+ */
+int mpol_parse_str(char *str, unsigned short *mode, unsigned short *mode_flags,
+			nodemask_t *policy_nodes)
+{
+	char *nodelist = strchr(str, ':');
+	char *flags = strchr(str, '=');
+	int i;
+	int err = 1;
+
+	if (nodelist) {
+		/* NUL-terminate mode or flags string */
+		*nodelist++ = '\0';
+		if (nodelist_parse(nodelist, *policy_nodes))
+			goto out;
+		if (!nodes_subset(*policy_nodes, node_states[N_HIGH_MEMORY]))
+			goto out;
+	}
+	if (flags)
+		*flags++ = '\0';	/* terminate mode string */
+
+	for (i = 0; i < MPOL_MAX; i++) {
+		if (!strcmp(str, policy_types[i])) {
+			*mode = i;
+			break;
+		}
+	}
+	if (i == MPOL_MAX)
+		goto out;
+
+	switch (*mode) {
+	case MPOL_DEFAULT:
+		/* Don't allow a nodelist nor flags */
+		if (!nodelist && !flags)
+			err = 0;
+		break;
+	case MPOL_PREFERRED:
+		/* Insist on a nodelist of one node only */
+		if (nodelist) {
+			char *rest = nodelist;
+			while (isdigit(*rest))
+				rest++;
+			if (!*rest)
+				err = 0;
+		}
+		break;
+	case MPOL_BIND:
+		/* Insist on a nodelist */
+		if (nodelist)
+			err = 0;
+		break;
+	case MPOL_INTERLEAVE:
+		/*
+		 * Default to online nodes with memory if no nodelist
+		 */
+		if (!nodelist)
+			*policy_nodes = node_states[N_HIGH_MEMORY];
+		err = 0;
+	}
+
+	*mode_flags = 0;
+	if (flags) {
+		/*
+		 * Currently, we only support two mutually exclusive
+		 * mode flags.
+		 */
+		if (!strcmp(flags, "static"))
+			*mode_flags |= MPOL_F_STATIC_NODES;
+		else if (!strcmp(flags, "relative"))
+			*mode_flags |= MPOL_F_RELATIVE_NODES;
+		else
+			err = 1;
+	}
+out:
+	/* Restore string for error message */
+	if (nodelist)
+		*--nodelist = ':';
+	if (flags)
+		*--flags = '=';
+	return err;
+}
+#endif /* CONFIG_TMPFS */
+
 /*
  * Convert a mempolicy into a string.
  * Returns the number of characters in buffer (if positive)
  * or an error (negative)
  */
-static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
+int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 {
 	char *p = buffer;
 	int l;
@@ -2022,7 +2122,7 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 	if (!nodes_empty(nodes)) {
 		if (buffer + maxlen < p + 2)
 			return -ENOSPC;
-		*p++ = '=';
+		*p++ = ':';
 	 	p += nodelist_scnprintf(p, buffer + maxlen - p, nodes);
 	}
 	return p - buffer;

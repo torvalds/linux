@@ -1079,108 +1079,22 @@ redirty:
 
 #ifdef CONFIG_NUMA
 #ifdef CONFIG_TMPFS
-static int shmem_parse_mpol(char *value, unsigned short *policy,
-			unsigned short *mode_flags, nodemask_t *policy_nodes)
-{
-	char *nodelist = strchr(value, ':');
-	char *flags = strchr(value, '=');
-	int err = 1;
-
-	if (nodelist) {
-		/* NUL-terminate policy string */
-		*nodelist++ = '\0';
-		if (nodelist_parse(nodelist, *policy_nodes))
-			goto out;
-		if (!nodes_subset(*policy_nodes, node_states[N_HIGH_MEMORY]))
-			goto out;
-	}
-	if (flags)
-		*flags++ = '\0';
-	if (!strcmp(value, "default")) {
-		*policy = MPOL_DEFAULT;
-		/* Don't allow a nodelist */
-		if (!nodelist)
-			err = 0;
-	} else if (!strcmp(value, "prefer")) {
-		*policy = MPOL_PREFERRED;
-		/* Insist on a nodelist of one node only */
-		if (nodelist) {
-			char *rest = nodelist;
-			while (isdigit(*rest))
-				rest++;
-			if (!*rest)
-				err = 0;
-		}
-	} else if (!strcmp(value, "bind")) {
-		*policy = MPOL_BIND;
-		/* Insist on a nodelist */
-		if (nodelist)
-			err = 0;
-	} else if (!strcmp(value, "interleave")) {
-		*policy = MPOL_INTERLEAVE;
-		/*
-		 * Default to online nodes with memory if no nodelist
-		 */
-		if (!nodelist)
-			*policy_nodes = node_states[N_HIGH_MEMORY];
-		err = 0;
-	}
-
-	*mode_flags = 0;
-	if (flags) {
-		/*
-		 * Currently, we only support two mutually exclusive
-		 * mode flags.
-		 */
-		if (!strcmp(flags, "static"))
-			*mode_flags |= MPOL_F_STATIC_NODES;
-		else if (!strcmp(flags, "relative"))
-			*mode_flags |= MPOL_F_RELATIVE_NODES;
-		else
-			err = 1;	/* unrecognized flag */
-	}
-out:
-	/* Restore string for error message */
-	if (nodelist)
-		*--nodelist = ':';
-	if (flags)
-		*--flags = '=';
-	return err;
-}
-
-static void shmem_show_mpol(struct seq_file *seq, unsigned short policy,
+static void shmem_show_mpol(struct seq_file *seq, unsigned short mode,
 			unsigned short flags, const nodemask_t policy_nodes)
 {
-	char *policy_string;
+	struct mempolicy temp;
+	char buffer[64];
 
-	switch (policy) {
-	case MPOL_PREFERRED:
-		policy_string = "prefer";
-		break;
-	case MPOL_BIND:
-		policy_string = "bind";
-		break;
-	case MPOL_INTERLEAVE:
-		policy_string = "interleave";
-		break;
-	default:
-		/* MPOL_DEFAULT */
-		return;
-	}
+	if (mode == MPOL_DEFAULT)
+		return;		/* show nothing */
 
-	seq_printf(seq, ",mpol=%s", policy_string);
+	temp.mode = mode;
+	temp.flags = flags;
+	temp.v.nodes = policy_nodes;
 
-	if (policy != MPOL_INTERLEAVE ||
-	    !nodes_equal(policy_nodes, node_states[N_HIGH_MEMORY])) {
-		char buffer[64];
-		int len;
+	mpol_to_str(buffer, sizeof(buffer), &temp);
 
-		len = nodelist_scnprintf(buffer, sizeof(buffer), policy_nodes);
-		if (len < sizeof(buffer))
-			seq_printf(seq, ":%s", buffer);
-		else
-			seq_printf(seq, ":?");
-	}
+	seq_printf(seq, ",mpol=%s", buffer);
 }
 #endif /* CONFIG_TMPFS */
 
@@ -1221,12 +1135,6 @@ static struct page *shmem_alloc_page(gfp_t gfp,
 }
 #else /* !CONFIG_NUMA */
 #ifdef CONFIG_TMPFS
-static inline int shmem_parse_mpol(char *value, unsigned short *policy,
-			unsigned short *mode_flags, nodemask_t *policy_nodes)
-{
-	return 1;
-}
-
 static inline void shmem_show_mpol(struct seq_file *seq, unsigned short policy,
 			unsigned short flags, const nodemask_t policy_nodes)
 {
@@ -2231,8 +2139,8 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
 			if (*rest)
 				goto bad_val;
 		} else if (!strcmp(this_char,"mpol")) {
-			if (shmem_parse_mpol(value, &sbinfo->policy,
-				&sbinfo->flags, &sbinfo->policy_nodes))
+			if (mpol_parse_str(value, &sbinfo->policy,
+					 &sbinfo->flags, &sbinfo->policy_nodes))
 				goto bad_val;
 		} else {
 			printk(KERN_ERR "tmpfs: Bad mount option %s\n",

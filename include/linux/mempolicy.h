@@ -214,6 +214,13 @@ static inline void check_highest_zone(enum zone_type k)
 int do_migrate_pages(struct mm_struct *mm,
 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
 
+
+#ifdef CONFIG_TMPFS
+extern int mpol_parse_str(char *str, unsigned short *mode,
+			unsigned short *mode_flags, nodemask_t *policy_nodes);
+
+extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
+#endif
 #else
 
 struct mempolicy {};
@@ -313,6 +320,20 @@ static inline int do_migrate_pages(struct mm_struct *mm,
 static inline void check_highest_zone(int k)
 {
 }
+
+#ifdef CONFIG_TMPFS
+static inline int mpol_parse_str(char *value, unsigned short *policy,
+				unsigned short flags, nodemask_t *policy_nodes)
+{
+	return 1;
+}
+
+static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
+{
+	return 0;
+}
+#endif
+
 #endif /* CONFIG_NUMA */
 #endif /* __KERNEL__ */
 
