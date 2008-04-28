@@ -158,34 +158,6 @@ static int dma_flags(int type, int bus_master, int transfer)
 	return flags;
 }
 
-static void pnpacpi_parse_allocated_dmaresource(struct pnp_dev *dev,
-						u32 dma, int flags)
-{
-	struct resource *res;
-	int i;
-	static unsigned char warned;
-
-	for (i = 0; i < PNP_MAX_DMA; i++) {
-		res = pnp_get_resource(dev, IORESOURCE_DMA, i);
-		if (!pnp_resource_valid(res))
-			break;
-	}
-	if (i < PNP_MAX_DMA) {
-		res->flags = IORESOURCE_DMA;	// Also clears _UNSET flag
-		res->flags |= flags;
-		if (dma == -1) {
-			res->flags |= IORESOURCE_DISABLED;
-			return;
-		}
-		res->start = dma;
-		res->end = dma;
-	} else if (!warned) {
-		printk(KERN_WARNING "pnpacpi: exceeded the max number of DMA "
-				"resources: %d \n", PNP_MAX_DMA);
-		warned = 1;
-	}
-}
-
 static void pnpacpi_parse_allocated_ioresource(struct pnp_dev *dev,
 					       u64 io, u64 len, int io_decode)
 {
@@ -285,7 +257,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	struct acpi_resource_memory32 *memory32;
 	struct acpi_resource_fixed_memory32 *fixed_memory32;
 	struct acpi_resource_extended_irq *extended_irq;
-	int i;
+	int i, flags;
 
 	switch (res->type) {
 	case ACPI_RESOURCE_TYPE_IRQ:
@@ -305,11 +277,13 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 
 	case ACPI_RESOURCE_TYPE_DMA:
 		dma = &res->data.dma;
-		if (dma->channel_count > 0)
-			pnpacpi_parse_allocated_dmaresource(dev,
-				dma->channels[0],
-				dma_flags(dma->type, dma->bus_master,
-					  dma->transfer));
+		if (dma->channel_count > 0) {
+			flags = dma_flags(dma->type, dma->bus_master,
+					  dma->transfer);
+			if (dma->channels[0] == (u8) -1)
+				flags |= IORESOURCE_DISABLED;
+			pnp_add_dma_resource(dev, dma->channels[0], flags);
+		}
 		break;
 
 	case ACPI_RESOURCE_TYPE_IO:

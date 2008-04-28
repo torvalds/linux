@@ -440,16 +440,10 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 				buf += 3;
 				while (isspace(*buf))
 					++buf;
-				pnp_res = pnp_get_pnp_resource(dev,
-						IORESOURCE_DMA, ndma);
-				if (!pnp_res)
-					break;
-				pnp_res->index = ndma;
-				res = &pnp_res->res;
-				res->start = res->end =
-				    simple_strtoul(buf, &buf, 0);
-				res->flags = IORESOURCE_DMA;
-				ndma++;
+				start = simple_strtoul(buf, &buf, 0);
+				pnp_res = pnp_add_dma_resource(dev, start, 0);
+				if (pnp_res)
+					pnp_res->index = ndma++;
 				continue;
 			}
 			break;

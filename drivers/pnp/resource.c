@@ -602,6 +602,32 @@ struct pnp_resource *pnp_add_irq_resource(struct pnp_dev *dev, int irq,
 	return pnp_res;
 }
 
+struct pnp_resource *pnp_add_dma_resource(struct pnp_dev *dev, int dma,
+					  int flags)
+{
+	struct pnp_resource *pnp_res;
+	struct resource *res;
+	static unsigned char warned;
+
+	pnp_res = pnp_new_resource(dev, IORESOURCE_DMA);
+	if (!pnp_res) {
+		if (!warned) {
+			dev_err(&dev->dev, "can't add resource for DMA %d\n",
+				dma);
+			warned = 1;
+		}
+		return NULL;
+	}
+
+	res = &pnp_res->res;
+	res->flags = IORESOURCE_DMA | flags;
+	res->start = dma;
+	res->end = dma;
+
+	dev_dbg(&dev->dev, "  add dma %d flags %#x\n", dma, flags);
+	return pnp_res;
+}
+
 /* format is: pnp_reserve_irq=irq1[,irq2] .... */
 static int __init pnp_setup_reserve_irq(char *str)
 {
