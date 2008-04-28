@@ -33,6 +33,20 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+void ide_tf_dump(const char *s, struct ide_taskfile *tf)
+{
+#ifdef DEBUG
+	printk("%s: tf: feat 0x%02x nsect 0x%02x lbal 0x%02x "
+		"lbam 0x%02x lbah 0x%02x dev 0x%02x cmd 0x%02x\n",
+		s, tf->feature, tf->nsect, tf->lbal,
+		tf->lbam, tf->lbah, tf->device, tf->command);
+	printk("%s: hob: nsect 0x%02x lbal 0x%02x "
+		"lbam 0x%02x lbah 0x%02x\n",
+		s, tf->hob_nsect, tf->hob_lbal,
+		tf->hob_lbam, tf->hob_lbah);
+#endif
+}
+
 void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -42,17 +56,6 @@ void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 
 	if (task->tf_flags & IDE_TFLAG_FLAGGED)
 		HIHI = 0xFF;
-
-#ifdef DEBUG
-	printk("%s: tf: feat 0x%02x nsect 0x%02x lbal 0x%02x "
-		"lbam 0x%02x lbah 0x%02x dev 0x%02x cmd 0x%02x\n",
-		drive->name, tf->feature, tf->nsect, tf->lbal,
-		tf->lbam, tf->lbah, tf->device, tf->command);
-	printk("%s: hob: nsect 0x%02x lbal 0x%02x "
-		"lbam 0x%02x lbah 0x%02x\n",
-		drive->name, tf->hob_nsect, tf->hob_lbal,
-		tf->hob_lbam, tf->hob_lbah);
-#endif
 
 	ide_set_irq(drive, 1);
 
@@ -149,8 +152,10 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	if (task->tf_flags & IDE_TFLAG_FLAGGED)
 		task->tf_flags |= IDE_TFLAG_FLAGGED_SET_IN_FLAGS;
 
-	if ((task->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0)
+	if ((task->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0) {
+		ide_tf_dump(drive->name, tf);
 		ide_tf_load(drive, task);
+	}
 
 	switch (task->data_phase) {
 	case TASKFILE_MULTI_OUT:

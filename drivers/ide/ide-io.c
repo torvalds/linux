@@ -1680,6 +1680,7 @@ void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount, u8 dma)
 	task.tf.lbam    = bcount & 0xff;
 	task.tf.lbah    = (bcount >> 8) & 0xff;
 
+	ide_tf_dump(drive->name, &task.tf);
 	ide_tf_load(drive, &task);
 }
 

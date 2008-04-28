@@ -960,6 +960,8 @@ typedef struct ide_task_s {
 	void			*special;	/* valid_t generally */
 } ide_task_t;
 
+void ide_tf_dump(const char *, struct ide_taskfile *);
+
 void ide_tf_load(ide_drive_t *, ide_task_t *);
 void ide_tf_read(ide_drive_t *, ide_task_t *);
 
