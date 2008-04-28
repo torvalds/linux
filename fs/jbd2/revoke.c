@@ -167,33 +167,41 @@ static struct jbd2_revoke_record_s *find_revoke_record(journal_t *journal,
 	return NULL;
 }
 
+void jbd2_journal_destroy_revoke_caches(void)
+{
+	if (jbd2_revoke_record_cache) {
+		kmem_cache_destroy(jbd2_revoke_record_cache);
+		jbd2_revoke_record_cache = NULL;
+	}
+	if (jbd2_revoke_table_cache) {
+		kmem_cache_destroy(jbd2_revoke_table_cache);
+		jbd2_revoke_table_cache = NULL;
+	}
+}
+
 int __init jbd2_journal_init_revoke_caches(void)
 {
+	J_ASSERT(!jbd2_revoke_record_cache);
+	J_ASSERT(!jbd2_revoke_table_cache);
+
 	jbd2_revoke_record_cache = kmem_cache_create("jbd2_revoke_record",
 					   sizeof(struct jbd2_revoke_record_s),
 					   0,
 					   SLAB_HWCACHE_ALIGN|SLAB_TEMPORARY,
 					   NULL);
 	if (!jbd2_revoke_record_cache)
-		return -ENOMEM;
+		goto record_cache_failure;
 
 	jbd2_revoke_table_cache = kmem_cache_create("jbd2_revoke_table",
 					   sizeof(struct jbd2_revoke_table_s),
 					   0, SLAB_TEMPORARY, NULL);
-	if (!jbd2_revoke_table_cache) {
-		kmem_cache_destroy(jbd2_revoke_record_cache);
-		jbd2_revoke_record_cache = NULL;
-		return -ENOMEM;
-	}
+	if (!jbd2_revoke_table_cache)
+		goto table_cache_failure;
 	return 0;
-}
-
-void jbd2_journal_destroy_revoke_caches(void)
-{
-	kmem_cache_destroy(jbd2_revoke_record_cache);
-	jbd2_revoke_record_cache = NULL;
-	kmem_cache_destroy(jbd2_revoke_table_cache);
-	jbd2_revoke_table_cache = NULL;
+table_cache_failure:
+	jbd2_journal_destroy_revoke_caches();
+record_cache_failure:
+		return -ENOMEM;
 }
 
 /* Initialise the revoke table for a given journal to a given size. */
