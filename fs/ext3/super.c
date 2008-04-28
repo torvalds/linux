@@ -2639,8 +2639,14 @@ static int ext3_dquot_drop(struct inode *inode)
 
 	/* We may delete quota structure so we need to reserve enough blocks */
 	handle = ext3_journal_start(inode, 2*EXT3_QUOTA_DEL_BLOCKS(inode->i_sb));
-	if (IS_ERR(handle))
+	if (IS_ERR(handle)) {
+		/*
+		 * We call dquot_drop() anyway to at least release references
+		 * to quota structures so that umount does not hang.
+		 */
+		dquot_drop(inode);
 		return PTR_ERR(handle);
+	}
 	ret = dquot_drop(inode);
 	err = ext3_journal_stop(handle);
 	if (!ret)
