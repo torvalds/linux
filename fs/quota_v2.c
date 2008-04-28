@@ -59,6 +59,9 @@ static int v2_read_file_info(struct super_block *sb, int type)
 			sb->s_id);
 		return -1;
 	}
+	/* limits are stored as unsigned 32-bit data */
+	info->dqi_maxblimit = 0xffffffff;
+	info->dqi_maxilimit = 0xffffffff;
 	info->dqi_bgrace = le32_to_cpu(dinfo.dqi_bgrace);
 	info->dqi_igrace = le32_to_cpu(dinfo.dqi_igrace);
 	info->dqi_flags = le32_to_cpu(dinfo.dqi_flags);

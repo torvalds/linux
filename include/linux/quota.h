@@ -206,6 +206,8 @@ struct mem_dqinfo {
 	unsigned long dqi_flags;
 	unsigned int dqi_bgrace;
 	unsigned int dqi_igrace;
+	qsize_t dqi_maxblimit;
+	qsize_t dqi_maxilimit;
 	union {
 		struct v1_mem_dqinfo v1_i;
 		struct v2_mem_dqinfo v2_i;
