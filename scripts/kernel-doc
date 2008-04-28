@@ -5,7 +5,7 @@ use strict;
 ## Copyright (c) 1998 Michael Zucchi, All Rights Reserved        ##
 ## Copyright (C) 2000, 1  Tim Waugh <twaugh@redhat.com>          ##
 ## Copyright (C) 2001  Simon Huggins                             ##
-## Copyright (C) 2005-2007  Randy Dunlap                         ##
+## Copyright (C) 2005-2008  Randy Dunlap                         ##
 ## 								 ##
 ## #define enhancements by Armin Kuster <akuster@mvista.com>	 ##
 ## Copyright (c) 2000 MontaVista Software, Inc.			 ##
@@ -366,6 +366,7 @@ foreach my $pattern (keys %highlights) {
 # dumps section contents to arrays/hashes intended for that purpose.
 #
 sub dump_section {
+    my $file = shift;
     my $name = shift;
     my $contents = join "\n", @_;
 
@@ -379,6 +380,10 @@ sub dump_section {
 	$parameterdescs{$name} = $contents;
     } else {
 #	print STDERR "other section '$name' = '$contents'\n";
+	if (defined($sections{$name}) && ($sections{$name} ne "")) {
+		print STDERR "Error(${file}:$.): duplicate section name '$name'\n";
+		++$errors;
+	}
 	$sections{$name} = $contents;
 	push @sectionlist, $name;
     }
@@ -388,6 +393,7 @@ sub dump_section {
 # dump DOC: section after checking that it should go out
 #
 sub dump_doc_section {
+    my $file = shift;
     my $name = shift;
     my $contents = join "\n", @_;
 
@@ -399,7 +405,7 @@ sub dump_doc_section {
 	( $function_only == 1 && defined($function_table{$name})) ||
 	( $function_only == 2 && !defined($function_table{$name})))
     {
-	dump_section $name, $contents;
+	dump_section($file, $name, $contents);
 	output_blockhead({'sectionlist' => \@sectionlist,
 			  'sections' => \%sections,
 			  'module' => $modulename,
@@ -1923,7 +1929,7 @@ sub process_file($) {
 			print STDERR "Warning(${file}:$.): contents before sections\n";
 			++$warnings;
 		    }
-		    dump_section($section, xml_escape($contents));
+		    dump_section($file, $section, xml_escape($contents));
 		    $section = $section_default;
 		}
 
@@ -1940,7 +1946,7 @@ sub process_file($) {
 	    } elsif (/$doc_end/) {
 
 		if ($contents ne "") {
-		    dump_section($section, xml_escape($contents));
+		    dump_section($file, $section, xml_escape($contents));
 		    $section = $section_default;
 		    $contents = "";
 		}
@@ -1954,7 +1960,7 @@ sub process_file($) {
 		# @parameter line to signify start of description
 		if ($1 eq "" &&
 			($section =~ m/^@/ || $section eq $section_context)) {
-		    dump_section($section, xml_escape($contents));
+		    dump_section($file, $section, xml_escape($contents));
 		    $section = $section_default;
 		    $contents = "";
 		} else {
@@ -1974,7 +1980,7 @@ sub process_file($) {
 	} elsif ($state == 4) {
 		# Documentation block
 		if (/$doc_block/) {
-			dump_doc_section($section, xml_escape($contents));
+			dump_doc_section($file, $section, xml_escape($contents));
 			$contents = "";
 			$function = "";
 			%constants = ();
@@ -1992,7 +1998,7 @@ sub process_file($) {
 		}
 		elsif (/$doc_end/)
 		{
-			dump_doc_section($section, xml_escape($contents));
+			dump_doc_section($file, $section, xml_escape($contents));
 			$contents = "";
 			$function = "";
 			%constants = ();
