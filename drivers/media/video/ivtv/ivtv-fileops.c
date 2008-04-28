@@ -755,8 +755,10 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
 	IVTV_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
-	if (eof || s->q_full.length || s->q_io.length)
+	if (s->q_full.length || s->q_io.length)
 		return POLLIN | POLLRDNORM;
+	if (eof)
+		return POLLHUP;
 	return 0;
 }
 
