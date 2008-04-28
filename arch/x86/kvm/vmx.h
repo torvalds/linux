@@ -353,6 +353,15 @@ enum vmcs_field {
 #define VMX_EPT_EXTENT_CONTEXT_BIT		(1ull << 25)
 #define VMX_EPT_EXTENT_GLOBAL_BIT		(1ull << 26)
 #define VMX_EPT_DEFAULT_GAW			3
+#define VMX_EPT_MAX_GAW				0x4
+#define VMX_EPT_MT_EPTE_SHIFT			3
+#define VMX_EPT_GAW_EPTP_SHIFT			3
+#define VMX_EPT_DEFAULT_MT			0x6ull
+#define VMX_EPT_READABLE_MASK			0x1ull
+#define VMX_EPT_WRITABLE_MASK			0x2ull
+#define VMX_EPT_EXECUTABLE_MASK			0x4ull
+#define VMX_EPT_FAKE_ACCESSED_MASK		(1ull << 62)
+#define VMX_EPT_FAKE_DIRTY_MASK			(1ull << 63)
 
 #define VMX_EPT_IDENTITY_PAGETABLE_ADDR		0xfffbc000ul
 
