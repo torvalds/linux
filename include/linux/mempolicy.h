@@ -182,8 +182,7 @@ struct shared_policy {
 	spinlock_t lock;
 };
 
-void mpol_shared_policy_init(struct shared_policy *info, unsigned short mode,
-				unsigned short flags, nodemask_t *nodes);
+void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol);
 int mpol_set_shared_policy(struct shared_policy *info,
 				struct vm_area_struct *vma,
 				struct mempolicy *new);
@@ -216,10 +215,10 @@ int do_migrate_pages(struct mm_struct *mm,
 
 
 #ifdef CONFIG_TMPFS
-extern int mpol_parse_str(char *str, unsigned short *mode,
-			unsigned short *mode_flags, nodemask_t *policy_nodes);
+extern int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context);
 
-extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
+extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol,
+			int no_context);
 #endif
 #else
 
@@ -262,8 +261,8 @@ static inline int mpol_set_shared_policy(struct shared_policy *info,
 	return -EINVAL;
 }
 
-static inline void mpol_shared_policy_init(struct shared_policy *info,
-		unsigned short mode, unsigned short flags, nodemask_t *nodes)
+static inline void mpol_shared_policy_init(struct shared_policy *sp,
+						struct mempolicy *mpol)
 {
 }
 
@@ -322,13 +321,14 @@ static inline void check_highest_zone(int k)
 }
 
 #ifdef CONFIG_TMPFS
-static inline int mpol_parse_str(char *value, unsigned short *policy,
-				unsigned short flags, nodemask_t *policy_nodes)
+static inline int mpol_parse_str(char *str, struct mempolicy **mpol,
+				int no_context)
 {
-	return 1;
+	return 1;	/* error */
 }
 
-static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
+static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol,
+				int no_context)
 {
 	return 0;
 }

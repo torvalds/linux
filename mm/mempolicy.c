@@ -1828,27 +1828,35 @@ restart:
 	return 0;
 }
 
-void mpol_shared_policy_init(struct shared_policy *info, unsigned short policy,
-			unsigned short flags, nodemask_t *policy_nodes)
+/**
+ * mpol_shared_policy_init - initialize shared policy for inode
+ * @sp: pointer to inode shared policy
+ * @mpol:  struct mempolicy to install
+ *
+ * Install non-NULL @mpol in inode's shared policy rb-tree.
+ * On entry, the current task has a reference on a non-NULL @mpol.
+ * This must be released on exit.
+ */
+void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 {
-	info->root = RB_ROOT;
-	spin_lock_init(&info->lock);
+	sp->root = RB_ROOT;		/* empty tree == default mempolicy */
+	spin_lock_init(&sp->lock);
 
-	if (policy != MPOL_DEFAULT) {
-		struct mempolicy *newpol;
+	if (mpol) {
+		struct vm_area_struct pvma;
+		struct mempolicy *new;
 
-		/* Falls back to NULL policy [MPOL_DEFAULT] on any error */
-		newpol = mpol_new(policy, flags, policy_nodes);
-		if (!IS_ERR(newpol)) {
-			/* Create pseudo-vma that contains just the policy */
-			struct vm_area_struct pvma;
+		/* contextualize the tmpfs mount point mempolicy */
+		new = mpol_new(mpol->mode, mpol->flags, &mpol->w.user_nodemask);
+		mpol_put(mpol);	/* drop our ref on sb mpol */
+		if (IS_ERR(new))
+			return;		/* no valid nodemask intersection */
 
-			memset(&pvma, 0, sizeof(struct vm_area_struct));
-			/* Policy covers entire file */
-			pvma.vm_end = TASK_SIZE;
-			mpol_set_shared_policy(info, &pvma, newpol);
-			mpol_put(newpol);
-		}
+		/* Create pseudo-vma that contains just the policy */
+		memset(&pvma, 0, sizeof(struct vm_area_struct));
+		pvma.vm_end = TASK_SIZE;	/* policy covers entire file */
+		mpol_set_shared_policy(sp, &pvma, new); /* adds ref */
+		mpol_put(new);			/* drop initial ref */
 	}
 }
 
@@ -1962,18 +1970,27 @@ static const char * const policy_types[] =
 /**
  * mpol_parse_str - parse string to mempolicy
  * @str:  string containing mempolicy to parse
- * @mode:  pointer to returned policy mode
- * @mode_flags:  pointer to returned flags
- * @policy_nodes:  pointer to returned nodemask
+ * @mpol:  pointer to struct mempolicy pointer, returned on success.
+ * @no_context:  flag whether to "contextualize" the mempolicy
  *
  * Format of input:
  *	<mode>[=<flags>][:<nodelist>]
  *
- * Currently only used for tmpfs/shmem mount options
+ * if @no_context is true, save the input nodemask in w.user_nodemask in
+ * the returned mempolicy.  This will be used to "clone" the mempolicy in
+ * a specific context [cpuset] at a later time.  Used to parse tmpfs mpol
+ * mount option.  Note that if 'static' or 'relative' mode flags were
+ * specified, the input nodemask will already have been saved.  Saving
+ * it again is redundant, but safe.
+ *
+ * On success, returns 0, else 1
  */
-int mpol_parse_str(char *str, unsigned short *mode, unsigned short *mode_flags,
-			nodemask_t *policy_nodes)
+int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
 {
+	struct mempolicy *new = NULL;
+	unsigned short uninitialized_var(mode);
+	unsigned short uninitialized_var(mode_flags);
+	nodemask_t nodes;
 	char *nodelist = strchr(str, ':');
 	char *flags = strchr(str, '=');
 	int i;
@@ -1982,26 +1999,30 @@ int mpol_parse_str(char *str, unsigned short *mode, unsigned short *mode_flags,
 	if (nodelist) {
 		/* NUL-terminate mode or flags string */
 		*nodelist++ = '\0';
-		if (nodelist_parse(nodelist, *policy_nodes))
+		if (nodelist_parse(nodelist, nodes))
 			goto out;
-		if (!nodes_subset(*policy_nodes, node_states[N_HIGH_MEMORY]))
+		if (!nodes_subset(nodes, node_states[N_HIGH_MEMORY]))
 			goto out;
-	}
+	} else
+		nodes_clear(nodes);
+
 	if (flags)
 		*flags++ = '\0';	/* terminate mode string */
 
 	for (i = 0; i <= MPOL_LOCAL; i++) {
 		if (!strcmp(str, policy_types[i])) {
-			*mode = i;
+			mode = i;
 			break;
 		}
 	}
 	if (i > MPOL_LOCAL)
 		goto out;
 
-	switch (*mode) {
+	switch (mode) {
 	case MPOL_PREFERRED:
-		/* Insist on a nodelist of one node only */
+		/*
+		 * Insist on a nodelist of one node only
+		 */
 		if (nodelist) {
 			char *rest = nodelist;
 			while (isdigit(*rest))
@@ -2010,63 +2031,73 @@ int mpol_parse_str(char *str, unsigned short *mode, unsigned short *mode_flags,
 				err = 0;
 		}
 		break;
-	case MPOL_BIND:
-		/* Insist on a nodelist */
-		if (nodelist)
-			err = 0;
-		break;
 	case MPOL_INTERLEAVE:
 		/*
 		 * Default to online nodes with memory if no nodelist
 		 */
 		if (!nodelist)
-			*policy_nodes = node_states[N_HIGH_MEMORY];
+			nodes = node_states[N_HIGH_MEMORY];
 		err = 0;
 		break;
-	default:
+	case MPOL_LOCAL:
 		/*
-		 * MPOL_DEFAULT or MPOL_LOCAL
-		 * Don't allow a nodelist nor flags
+		 * Don't allow a nodelist;  mpol_new() checks flags
 		 */
-		if (!nodelist && !flags)
-			err = 0;
-		if (*mode == MPOL_DEFAULT)
+		if (nodelist)
 			goto out;
-		/* else MPOL_LOCAL */
-		*mode = MPOL_PREFERRED;
-		nodes_clear(*policy_nodes);
+		mode = MPOL_PREFERRED;
 		break;
+
+	/*
+	 * case MPOL_BIND:    mpol_new() enforces non-empty nodemask.
+	 * case MPOL_DEFAULT: mpol_new() enforces empty nodemask, ignores flags.
+	 */
 	}
 
-	*mode_flags = 0;
+	mode_flags = 0;
 	if (flags) {
 		/*
 		 * Currently, we only support two mutually exclusive
 		 * mode flags.
 		 */
 		if (!strcmp(flags, "static"))
-			*mode_flags |= MPOL_F_STATIC_NODES;
+			mode_flags |= MPOL_F_STATIC_NODES;
 		else if (!strcmp(flags, "relative"))
-			*mode_flags |= MPOL_F_RELATIVE_NODES;
+			mode_flags |= MPOL_F_RELATIVE_NODES;
 		else
 			err = 1;
 	}
+
+	new = mpol_new(mode, mode_flags, &nodes);
+	if (IS_ERR(new))
+		err = 1;
+	else if (no_context)
+		new->w.user_nodemask = nodes;	/* save for contextualization */
+
 out:
 	/* Restore string for error message */
 	if (nodelist)
 		*--nodelist = ':';
 	if (flags)
 		*--flags = '=';
+	if (!err)
+		*mpol = new;
 	return err;
 }
 #endif /* CONFIG_TMPFS */
 
-/*
+/**
+ * mpol_to_str - format a mempolicy structure for printing
+ * @buffer:  to contain formatted mempolicy string
+ * @maxlen:  length of @buffer
+ * @pol:  pointer to mempolicy to be formatted
+ * @no_context:  "context free" mempolicy - use nodemask in w.user_nodemask
+ *
  * Convert a mempolicy into a string.
  * Returns the number of characters in buffer (if positive)
  * or an error (negative)
  */
-int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
+int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol, int no_context)
 {
 	char *p = buffer;
 	int l;
@@ -2100,7 +2131,10 @@ int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 	case MPOL_BIND:
 		/* Fall through */
 	case MPOL_INTERLEAVE:
-		nodes = pol->v.nodes;
+		if (no_context)
+			nodes = pol->w.user_nodemask;
+		else
+			nodes = pol->v.nodes;
 		break;
 
 	default:
@@ -2231,7 +2265,7 @@ int show_numa_map(struct seq_file *m, void *v)
 		return 0;
 
 	pol = get_vma_policy(priv->task, vma, vma->vm_start);
-	mpol_to_str(buffer, sizeof(buffer), pol);
+	mpol_to_str(buffer, sizeof(buffer), pol, 0);
 	mpol_cond_put(pol);
 
 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);

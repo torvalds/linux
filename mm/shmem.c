@@ -1079,22 +1079,28 @@ redirty:
 
 #ifdef CONFIG_NUMA
 #ifdef CONFIG_TMPFS
-static void shmem_show_mpol(struct seq_file *seq, unsigned short mode,
-			unsigned short flags, const nodemask_t policy_nodes)
+static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
 {
-	struct mempolicy temp;
 	char buffer[64];
 
-	if (mode == MPOL_DEFAULT)
+	if (!mpol || mpol->mode == MPOL_DEFAULT)
 		return;		/* show nothing */
 
-	temp.mode = mode;
-	temp.flags = flags;
-	temp.v.nodes = policy_nodes;
-
-	mpol_to_str(buffer, sizeof(buffer), &temp);
+	mpol_to_str(buffer, sizeof(buffer), mpol, 1);
 
 	seq_printf(seq, ",mpol=%s", buffer);
+}
+
+static struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
+{
+	struct mempolicy *mpol = NULL;
+	if (sbinfo->mpol) {
+		spin_lock(&sbinfo->stat_lock);	/* prevent replace/use races */
+		mpol = sbinfo->mpol;
+		mpol_get(mpol);
+		spin_unlock(&sbinfo->stat_lock);
+	}
+	return mpol;
 }
 #endif /* CONFIG_TMPFS */
 
@@ -1135,8 +1141,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
 }
 #else /* !CONFIG_NUMA */
 #ifdef CONFIG_TMPFS
-static inline void shmem_show_mpol(struct seq_file *seq, unsigned short policy,
-			unsigned short flags, const nodemask_t policy_nodes)
+static inline void shmem_show_mpol(struct seq_file *seq, struct mempolicy *p)
 {
 }
 #endif /* CONFIG_TMPFS */
@@ -1153,6 +1158,13 @@ static inline struct page *shmem_alloc_page(gfp_t gfp,
 	return alloc_page(gfp);
 }
 #endif /* CONFIG_NUMA */
+
+#if !defined(CONFIG_NUMA) || !defined(CONFIG_TMPFS)
+static inline struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
+{
+	return NULL;
+}
+#endif
 
 /*
  * shmem_getpage - either get the page from swap or allocate a new one
@@ -1508,8 +1520,8 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
 		case S_IFREG:
 			inode->i_op = &shmem_inode_operations;
 			inode->i_fop = &shmem_file_operations;
-			mpol_shared_policy_init(&info->policy, sbinfo->policy,
-					sbinfo->flags, &sbinfo->policy_nodes);
+			mpol_shared_policy_init(&info->policy,
+						 shmem_get_sbmpol(sbinfo));
 			break;
 		case S_IFDIR:
 			inc_nlink(inode);
@@ -1523,8 +1535,7 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
 			 * Must not load anything in the rbtree,
 			 * mpol_free_shared_policy will not be called.
 			 */
-			mpol_shared_policy_init(&info->policy, MPOL_DEFAULT, 0,
-						NULL);
+			mpol_shared_policy_init(&info->policy, NULL);
 			break;
 		}
 	} else
@@ -2139,8 +2150,7 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
 			if (*rest)
 				goto bad_val;
 		} else if (!strcmp(this_char,"mpol")) {
-			if (mpol_parse_str(value, &sbinfo->policy,
-					 &sbinfo->flags, &sbinfo->policy_nodes))
+			if (mpol_parse_str(value, &sbinfo->mpol, 1))
 				goto bad_val;
 		} else {
 			printk(KERN_ERR "tmpfs: Bad mount option %s\n",
@@ -2191,9 +2201,9 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
 	sbinfo->free_blocks = config.max_blocks - blocks;
 	sbinfo->max_inodes  = config.max_inodes;
 	sbinfo->free_inodes = config.max_inodes - inodes;
-	sbinfo->policy      = config.policy;
-	sbinfo->flags	    = config.flags;
-	sbinfo->policy_nodes = config.policy_nodes;
+
+	mpol_put(sbinfo->mpol);
+	sbinfo->mpol        = config.mpol;	/* transfers initial ref */
 out:
 	spin_unlock(&sbinfo->stat_lock);
 	return error;
@@ -2214,8 +2224,7 @@ static int shmem_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_printf(seq, ",uid=%u", sbinfo->uid);
 	if (sbinfo->gid != 0)
 		seq_printf(seq, ",gid=%u", sbinfo->gid);
-	shmem_show_mpol(seq, sbinfo->policy, sbinfo->flags,
-			sbinfo->policy_nodes);
+	shmem_show_mpol(seq, sbinfo->mpol);
 	return 0;
 }
 #endif /* CONFIG_TMPFS */
@@ -2245,9 +2254,7 @@ static int shmem_fill_super(struct super_block *sb,
 	sbinfo->mode = S_IRWXUGO | S_ISVTX;
 	sbinfo->uid = current->fsuid;
 	sbinfo->gid = current->fsgid;
-	sbinfo->policy = MPOL_DEFAULT;
-	sbinfo->flags = 0;
-	sbinfo->policy_nodes = node_states[N_HIGH_MEMORY];
+	sbinfo->mpol = NULL;
 	sb->s_fs_info = sbinfo;
 
 #ifdef CONFIG_TMPFS

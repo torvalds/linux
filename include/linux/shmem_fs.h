@@ -34,9 +34,7 @@ struct shmem_sb_info {
 	uid_t uid;		    /* Mount uid for root directory */
 	gid_t gid;		    /* Mount gid for root directory */
 	mode_t mode;		    /* Mount mode for root directory */
-	unsigned short policy;	    /* Default NUMA memory alloc policy */
-	unsigned short flags;	    /* Optional mempolicy flags */
-	nodemask_t policy_nodes;    /* nodemask for preferred and bind */
+	struct mempolicy *mpol;     /* default memory policy for mappings */
 };
 
 static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
