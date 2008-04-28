@@ -2814,14 +2814,12 @@ unsigned long btrfs_force_ra(struct address_space *mapping,
 			      struct file_ra_state *ra, struct file *file,
 			      pgoff_t offset, pgoff_t last_index)
 {
-	pgoff_t req_size;
+	pgoff_t req_size = last_index - offset + 1;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
-	req_size = last_index - offset + 1;
 	offset = page_cache_readahead(mapping, ra, file, offset, req_size);
 	return offset;
 #else
-	req_size = min(last_index - offset + 1, (pgoff_t)128);
 	page_cache_sync_readahead(mapping, ra, file, offset, req_size);
 	return offset + req_size;
 #endif
@@ -2833,7 +2831,8 @@ int btrfs_defrag_file(struct file *file) {
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct page *page;
 	unsigned long last_index;
-	unsigned long ra_index = 0;
+	unsigned long ra_pages = root->fs_info->bdi.ra_pages;
+	unsigned long total_read = 0;
 	u64 page_start;
 	u64 page_end;
 	unsigned long i;
@@ -2848,11 +2847,11 @@ int btrfs_defrag_file(struct file *file) {
 	mutex_lock(&inode->i_mutex);
 	last_index = inode->i_size >> PAGE_CACHE_SHIFT;
 	for (i = 0; i <= last_index; i++) {
-		if (i == ra_index) {
-			ra_index = btrfs_force_ra(inode->i_mapping,
-						  &file->f_ra,
-						  file, ra_index, last_index);
+		if (total_read % ra_pages == 0) {
+			btrfs_force_ra(inode->i_mapping, &file->f_ra, file, i,
+				       min(last_index, i + ra_pages - 1));
 		}
+		total_read++;
 		page = grab_cache_page(inode->i_mapping, i);
 		if (!page)
 			goto out_unlock;

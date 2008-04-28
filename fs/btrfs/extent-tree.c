@@ -2263,6 +2263,12 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 	return 0;
 }
 
+static unsigned long calc_ra(unsigned long start, unsigned long last,
+			     unsigned long nr)
+{
+	return min(last, start + nr - 1);
+}
+
 static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 					 u64 len)
 {
@@ -2275,6 +2281,8 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 	struct page *page;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct file_ra_state *ra;
+	unsigned long total_read = 0;
+	unsigned long ra_pages;
 
 	ra = kzalloc(sizeof(*ra), GFP_NOFS);
 
@@ -2282,11 +2290,17 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 	i = start >> PAGE_CACHE_SHIFT;
 	last_index = (start + len - 1) >> PAGE_CACHE_SHIFT;
 
+	ra_pages = BTRFS_I(inode)->root->fs_info->bdi.ra_pages;
+
 	file_ra_state_init(ra, inode->i_mapping);
-	btrfs_force_ra(inode->i_mapping, ra, NULL, i, last_index);
 	kfree(ra);
 
 	for (; i <= last_index; i++) {
+		if (total_read % ra_pages == 0) {
+			btrfs_force_ra(inode->i_mapping, ra, NULL, i,
+				       calc_ra(i, last_index, ra_pages));
+		}
+		total_read++;
 		page = grab_cache_page(inode->i_mapping, i);
 		if (!page)
 			goto out_unlock;
