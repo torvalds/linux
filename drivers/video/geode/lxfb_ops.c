@@ -524,37 +524,40 @@ int lx_blank_display(struct fb_info *info, int blank_mode)
 {
 	struct lxfb_par *par = info->par;
 	u32 dcfg, fp_pm;
-	int blank, hsync, vsync;
+	int blank, hsync, vsync, crt;
 
 	/* CRT power saving modes. */
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
-		blank = 0; hsync = 1; vsync = 1;
+		blank = 0; hsync = 1; vsync = 1; crt = 1;
 		break;
 	case FB_BLANK_NORMAL:
-		blank = 1; hsync = 1; vsync = 1;
+		blank = 1; hsync = 1; vsync = 1; crt = 1;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
-		blank = 1; hsync = 1; vsync = 0;
+		blank = 1; hsync = 1; vsync = 0; crt = 1;
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
-		blank = 1; hsync = 0; vsync = 1;
+		blank = 1; hsync = 0; vsync = 1; crt = 1;
 		break;
 	case FB_BLANK_POWERDOWN:
-		blank = 1; hsync = 0; vsync = 0;
+		blank = 1; hsync = 0; vsync = 0; crt = 0;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	dcfg = read_vp(par, VP_DCFG);
-	dcfg &= ~(VP_DCFG_DAC_BL_EN | VP_DCFG_HSYNC_EN | VP_DCFG_VSYNC_EN);
+	dcfg &= ~(VP_DCFG_DAC_BL_EN | VP_DCFG_HSYNC_EN | VP_DCFG_VSYNC_EN |
+			VP_DCFG_CRT_EN);
 	if (!blank)
 		dcfg |= VP_DCFG_DAC_BL_EN;
 	if (hsync)
 		dcfg |= VP_DCFG_HSYNC_EN;
 	if (vsync)
 		dcfg |= VP_DCFG_VSYNC_EN;
+	if (crt)
+		dcfg |= VP_DCFG_CRT_EN;
 	write_vp(par, VP_DCFG, dcfg);
 
 	/* Power on/off flat panel */
