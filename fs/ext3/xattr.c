@@ -234,7 +234,7 @@ ext3_xattr_block_get(struct inode *inode, int name_index, const char *name,
 	ea_bdebug(bh, "b_count=%d, refcount=%d",
 		atomic_read(&(bh->b_count)), le32_to_cpu(BHDR(bh)->h_refcount));
 	if (ext3_xattr_check_block(bh)) {
-bad_block:	ext3_error(inode->i_sb, __FUNCTION__,
+bad_block:	ext3_error(inode->i_sb, __func__,
 			   "inode %lu: bad block "E3FSBLK, inode->i_ino,
 			   EXT3_I(inode)->i_file_acl);
 		error = -EIO;
@@ -376,7 +376,7 @@ ext3_xattr_block_list(struct inode *inode, char *buffer, size_t buffer_size)
 	ea_bdebug(bh, "b_count=%d, refcount=%d",
 		atomic_read(&(bh->b_count)), le32_to_cpu(BHDR(bh)->h_refcount));
 	if (ext3_xattr_check_block(bh)) {
-		ext3_error(inode->i_sb, __FUNCTION__,
+		ext3_error(inode->i_sb, __func__,
 			   "inode %lu: bad block "E3FSBLK, inode->i_ino,
 			   EXT3_I(inode)->i_file_acl);
 		error = -EIO;
@@ -651,7 +651,7 @@ ext3_xattr_block_find(struct inode *inode, struct ext3_xattr_info *i,
 			atomic_read(&(bs->bh->b_count)),
 			le32_to_cpu(BHDR(bs->bh)->h_refcount));
 		if (ext3_xattr_check_block(bs->bh)) {
-			ext3_error(sb, __FUNCTION__,
+			ext3_error(sb, __func__,
 				"inode %lu: bad block "E3FSBLK, inode->i_ino,
 				EXT3_I(inode)->i_file_acl);
 			error = -EIO;
@@ -852,7 +852,7 @@ cleanup_dquot:
 	goto cleanup;
 
 bad_block:
-	ext3_error(inode->i_sb, __FUNCTION__,
+	ext3_error(inode->i_sb, __func__,
 		   "inode %lu: bad block "E3FSBLK, inode->i_ino,
 		   EXT3_I(inode)->i_file_acl);
 	goto cleanup;
@@ -1081,14 +1081,14 @@ ext3_xattr_delete_inode(handle_t *handle, struct inode *inode)
 		goto cleanup;
 	bh = sb_bread(inode->i_sb, EXT3_I(inode)->i_file_acl);
 	if (!bh) {
-		ext3_error(inode->i_sb, __FUNCTION__,
+		ext3_error(inode->i_sb, __func__,
 			"inode %lu: block "E3FSBLK" read error", inode->i_ino,
 			EXT3_I(inode)->i_file_acl);
 		goto cleanup;
 	}
 	if (BHDR(bh)->h_magic != cpu_to_le32(EXT3_XATTR_MAGIC) ||
 	    BHDR(bh)->h_blocks != cpu_to_le32(1)) {
-		ext3_error(inode->i_sb, __FUNCTION__,
+		ext3_error(inode->i_sb, __func__,
 			"inode %lu: bad block "E3FSBLK, inode->i_ino,
 			EXT3_I(inode)->i_file_acl);
 		goto cleanup;
@@ -1215,7 +1215,7 @@ again:
 		}
 		bh = sb_bread(inode->i_sb, ce->e_block);
 		if (!bh) {
-			ext3_error(inode->i_sb, __FUNCTION__,
+			ext3_error(inode->i_sb, __func__,
 				"inode %lu: block %lu read error",
 				inode->i_ino, (unsigned long) ce->e_block);
 		} else if (le32_to_cpu(BHDR(bh)->h_refcount) >=

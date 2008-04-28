@@ -84,7 +84,7 @@ handle_t *ext3_journal_start_sb(struct super_block *sb, int nblocks)
 	 * take the FS itself readonly cleanly. */
 	journal = EXT3_SB(sb)->s_journal;
 	if (is_journal_aborted(journal)) {
-		ext3_abort(sb, __FUNCTION__,
+		ext3_abort(sb, __func__,
 			   "Detected aborted journal");
 		return ERR_PTR(-EROFS);
 	}
@@ -304,7 +304,7 @@ void ext3_update_dynamic_rev(struct super_block *sb)
 	if (le32_to_cpu(es->s_rev_level) > EXT3_GOOD_OLD_REV)
 		return;
 
-	ext3_warning(sb, __FUNCTION__,
+	ext3_warning(sb, __func__,
 		     "updating to rev %d because of new feature flag, "
 		     "running e2fsck is recommended",
 		     EXT3_DYNAMIC_REV);
@@ -1390,7 +1390,7 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 		if (inode->i_nlink) {
 			printk(KERN_DEBUG
 				"%s: truncating inode %lu to %Ld bytes\n",
-				__FUNCTION__, inode->i_ino, inode->i_size);
+				__func__, inode->i_ino, inode->i_size);
 			jbd_debug(2, "truncating inode %lu to %Ld bytes\n",
 				  inode->i_ino, inode->i_size);
 			ext3_truncate(inode);
@@ -1398,7 +1398,7 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 		} else {
 			printk(KERN_DEBUG
 				"%s: deleting unreferenced inode %lu\n",
-				__FUNCTION__, inode->i_ino);
+				__func__, inode->i_ino);
 			jbd_debug(2, "deleting unreferenced inode %lu\n",
 				  inode->i_ino);
 			nr_orphans++;
@@ -2301,9 +2301,9 @@ static void ext3_clear_journal_err(struct super_block * sb,
 		char nbuf[16];
 
 		errstr = ext3_decode_error(sb, j_errno, nbuf);
-		ext3_warning(sb, __FUNCTION__, "Filesystem error recorded "
+		ext3_warning(sb, __func__, "Filesystem error recorded "
 			     "from previous mount: %s", errstr);
-		ext3_warning(sb, __FUNCTION__, "Marking fs in need of "
+		ext3_warning(sb, __func__, "Marking fs in need of "
 			     "filesystem check.");
 
 		EXT3_SB(sb)->s_mount_state |= EXT3_ERROR_FS;
@@ -2430,7 +2430,7 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 	}
 
 	if (sbi->s_mount_opt & EXT3_MOUNT_ABORT)
-		ext3_abort(sb, __FUNCTION__, "Abort forced by user");
+		ext3_abort(sb, __func__, "Abort forced by user");
 
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
 		((sbi->s_mount_opt & EXT3_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);

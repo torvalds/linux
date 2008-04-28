@@ -95,7 +95,7 @@ int ext3_forget(handle_t *handle, int is_metadata, struct inode *inode,
 	BUFFER_TRACE(bh, "call ext3_journal_revoke");
 	err = ext3_journal_revoke(handle, blocknr, bh);
 	if (err)
-		ext3_abort(inode->i_sb, __FUNCTION__,
+		ext3_abort(inode->i_sb, __func__,
 			   "error %d when attempting revoke", err);
 	BUFFER_TRACE(bh, "exit");
 	return err;
@@ -1190,7 +1190,7 @@ int ext3_journal_dirty_data(handle_t *handle, struct buffer_head *bh)
 {
 	int err = journal_dirty_data(handle, bh);
 	if (err)
-		ext3_journal_abort_handle(__FUNCTION__, __FUNCTION__,
+		ext3_journal_abort_handle(__func__, __func__,
 						bh, handle, err);
 	return err;
 }
@@ -3201,7 +3201,7 @@ void ext3_dirty_inode(struct inode *inode)
 		current_handle->h_transaction != handle->h_transaction) {
 		/* This task has a transaction open against a different fs */
 		printk(KERN_EMERG "%s: transactions do not match!\n",
-		       __FUNCTION__);
+		       __func__);
 	} else {
 		jbd_debug(5, "marking dirty.  outer handle=%p\n",
 				current_handle);
