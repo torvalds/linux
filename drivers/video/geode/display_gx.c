@@ -20,6 +20,7 @@
 
 #include "geodefb.h"
 #include "display_gx.h"
+#include "gxfb.h"
 
 unsigned int gx_frame_buffer_size(void)
 {
@@ -50,22 +51,21 @@ static void gx_set_mode(struct fb_info *info)
 	int vactive, vblankstart, vsyncstart, vsyncend, vblankend, vtotal;
 
 	/* Unlock the display controller registers. */
-	readl(par->dc_regs + DC_UNLOCK);
-	writel(DC_UNLOCK_CODE, par->dc_regs + DC_UNLOCK);
+	write_dc(par, DC_UNLOCK, DC_UNLOCK_CODE);
 
-	gcfg = readl(par->dc_regs + DC_GENERAL_CFG);
-	dcfg = readl(par->dc_regs + DC_DISPLAY_CFG);
+	gcfg = read_dc(par, DC_GENERAL_CFG);
+	dcfg = read_dc(par, DC_DISPLAY_CFG);
 
 	/* Disable the timing generator. */
 	dcfg &= ~(DC_DCFG_TGEN);
-	writel(dcfg, par->dc_regs + DC_DISPLAY_CFG);
+	write_dc(par, DC_DISPLAY_CFG, dcfg);
 
 	/* Wait for pending memory requests before disabling the FIFO load. */
 	udelay(100);
 
 	/* Disable FIFO load and compression. */
 	gcfg &= ~(DC_GCFG_DFLE | DC_GCFG_CMPE | DC_GCFG_DECE);
-	writel(gcfg, par->dc_regs + DC_GENERAL_CFG);
+	write_dc(par, DC_GENERAL_CFG, gcfg);
 
 	/* Setup DCLK and its divisor. */
 	par->vid_ops->set_dclk(info);
@@ -83,12 +83,12 @@ static void gx_set_mode(struct fb_info *info)
 	gcfg |= (6 << DC_GCFG_DFHPEL_POS) | (5 << DC_GCFG_DFHPSL_POS) | DC_GCFG_DFLE;
 
 	/* Framebuffer start offset. */
-	writel(0, par->dc_regs + DC_FB_ST_OFFSET);
+	write_dc(par, DC_FB_ST_OFFSET, 0);
 
 	/* Line delta and line buffer length. */
-	writel(info->fix.line_length >> 3, par->dc_regs + DC_GFX_PITCH);
-	writel(((info->var.xres * info->var.bits_per_pixel/8) >> 3) + 2,
-	       par->dc_regs + DC_LINE_SIZE);
+	write_dc(par, DC_GFX_PITCH, info->fix.line_length >> 3);
+	write_dc(par, DC_LINE_SIZE,
+		((info->var.xres * info->var.bits_per_pixel/8) >> 3) + 2);
 
 
 	/* Enable graphics and video data and unmask address lines. */
@@ -127,22 +127,28 @@ static void gx_set_mode(struct fb_info *info)
 	vblankend = vsyncend + info->var.upper_margin;
 	vtotal = vblankend;
 
-	writel((hactive - 1)     | ((htotal - 1) << 16),    par->dc_regs + DC_H_ACTIVE_TIMING);
-	writel((hblankstart - 1) | ((hblankend - 1) << 16), par->dc_regs + DC_H_BLANK_TIMING);
-	writel((hsyncstart - 1)  | ((hsyncend - 1) << 16),  par->dc_regs + DC_H_SYNC_TIMING);
+	write_dc(par, DC_H_ACTIVE_TIMING, (hactive - 1)    |
+			((htotal - 1) << 16));
+	write_dc(par, DC_H_BLANK_TIMING, (hblankstart - 1) |
+			((hblankend - 1) << 16));
+	write_dc(par, DC_H_SYNC_TIMING, (hsyncstart - 1)   |
+			((hsyncend - 1) << 16));
 
-	writel((vactive - 1)     | ((vtotal - 1) << 16),    par->dc_regs + DC_V_ACTIVE_TIMING);
-	writel((vblankstart - 1) | ((vblankend - 1) << 16), par->dc_regs + DC_V_BLANK_TIMING);
-	writel((vsyncstart - 1)  | ((vsyncend - 1) << 16),  par->dc_regs + DC_V_SYNC_TIMING);
+	write_dc(par, DC_V_ACTIVE_TIMING, (vactive - 1)    |
+			((vtotal - 1) << 16));
+	write_dc(par, DC_V_BLANK_TIMING, (vblankstart - 1) |
+			((vblankend - 1) << 16));
+	write_dc(par, DC_V_SYNC_TIMING, (vsyncstart - 1)   |
+			((vsyncend - 1) << 16));
 
 	/* Write final register values. */
-	writel(dcfg, par->dc_regs + DC_DISPLAY_CFG);
-	writel(gcfg, par->dc_regs + DC_GENERAL_CFG);
+	write_dc(par, DC_DISPLAY_CFG, dcfg);
+	write_dc(par, DC_GENERAL_CFG, gcfg);
 
 	par->vid_ops->configure_display(info);
 
 	/* Relock display controller registers */
-	writel(0, par->dc_regs + DC_UNLOCK);
+	write_dc(par, DC_UNLOCK, 0);
 }
 
 static void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
@@ -156,8 +162,8 @@ static void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
 	val |= (green)      & 0x00ff00;
 	val |= (blue  >> 8) & 0x0000ff;
 
-	writel(regno, par->dc_regs + DC_PAL_ADDRESS);
-	writel(val, par->dc_regs + DC_PAL_DATA);
+	write_dc(par, DC_PAL_ADDRESS, regno);
+	write_dc(par, DC_PAL_DATA, val);
 }
 
 struct geode_dc_ops gx_dc_ops = {

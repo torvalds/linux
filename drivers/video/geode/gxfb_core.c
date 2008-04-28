@@ -35,6 +35,7 @@
 #include "geodefb.h"
 #include "display_gx.h"
 #include "video_gx.h"
+#include "gxfb.h"
 
 static char *mode_option;
 static int vram;
@@ -243,8 +244,7 @@ static int __init gxfb_map_video_memory(struct fb_info *info, struct pci_dev *de
 	/* Set the 16MiB aligned base address of the graphics memory region
 	 * in the display controller */
 
-	writel(info->fix.smem_start & 0xFF000000,
-			par->dc_regs + DC_GLIU0_MEM_OFFSET);
+	write_dc(par, DC_GLIU0_MEM_OFFSET, info->fix.smem_start & 0xFF000000);
 
 	dev_info(&dev->dev, "%d KiB of video memory at 0x%lx\n",
 		 info->fix.smem_len / 1024, info->fix.smem_start);
