@@ -585,8 +585,6 @@ error:
 		brelse(bhs[i]);
 	unlock_fat(sbi);
 
-	fat_clusters_flush(sb);
-
 	return err;
 }
 
