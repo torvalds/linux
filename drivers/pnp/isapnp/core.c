@@ -929,62 +929,54 @@ EXPORT_SYMBOL(isapnp_cfg_begin);
 EXPORT_SYMBOL(isapnp_cfg_end);
 EXPORT_SYMBOL(isapnp_write_byte);
 
-static int isapnp_read_resources(struct pnp_dev *dev)
-{
-	struct pnp_resource *pnp_res;
-	int tmp, ret;
-
-	dev->active = isapnp_read_byte(ISAPNP_CFG_ACTIVATE);
-	if (dev->active) {
-		for (tmp = 0; tmp < ISAPNP_MAX_PORT; tmp++) {
-			ret = isapnp_read_word(ISAPNP_CFG_PORT + (tmp << 1));
-			if (!ret)
-				continue;
-			pnp_res = pnp_add_io_resource(dev, ret, ret, 0);
-			if (pnp_res)
-				pnp_res->index = tmp;
-		}
-		for (tmp = 0; tmp < ISAPNP_MAX_MEM; tmp++) {
-			ret =
-			    isapnp_read_word(ISAPNP_CFG_MEM + (tmp << 3)) << 8;
-			if (!ret)
-				continue;
-			pnp_res = pnp_add_mem_resource(dev, ret, ret, 0);
-			if (pnp_res)
-				pnp_res->index = tmp;
-		}
-		for (tmp = 0; tmp < ISAPNP_MAX_IRQ; tmp++) {
-			ret =
-			    (isapnp_read_word(ISAPNP_CFG_IRQ + (tmp << 1)) >>
-			     8);
-			if (!ret)
-				continue;
-			pnp_res = pnp_add_irq_resource(dev, ret, 0);
-			if (pnp_res)
-				pnp_res->index = tmp;
-		}
-		for (tmp = 0; tmp < ISAPNP_MAX_DMA; tmp++) {
-			ret = isapnp_read_byte(ISAPNP_CFG_DMA + tmp);
-			if (ret == 4)
-				continue;
-			pnp_res = pnp_add_dma_resource(dev, ret, 0);
-			if  (pnp_res)
-				pnp_res->index = tmp;
-		}
-	}
-	return 0;
-}
-
 static int isapnp_get_resources(struct pnp_dev *dev)
 {
-	int ret;
+	struct pnp_resource *pnp_res;
+	int i, ret;
 
 	dev_dbg(&dev->dev, "get resources\n");
 	pnp_init_resources(dev);
 	isapnp_cfg_begin(dev->card->number, dev->number);
-	ret = isapnp_read_resources(dev);
+	dev->active = isapnp_read_byte(ISAPNP_CFG_ACTIVATE);
+	if (!dev->active)
+		goto __end;
+
+	for (i = 0; i < ISAPNP_MAX_PORT; i++) {
+		ret = isapnp_read_word(ISAPNP_CFG_PORT + (i << 1));
+		if (ret) {
+			pnp_res = pnp_add_io_resource(dev, ret, ret, 0);
+			if (pnp_res)
+				pnp_res->index = i;
+		}
+	}
+	for (i = 0; i < ISAPNP_MAX_MEM; i++) {
+		ret = isapnp_read_word(ISAPNP_CFG_MEM + (i << 3)) << 8;
+		if (ret) {
+			pnp_res = pnp_add_mem_resource(dev, ret, ret, 0);
+			if (pnp_res)
+				pnp_res->index = i;
+		}
+	}
+	for (i = 0; i < ISAPNP_MAX_IRQ; i++) {
+		ret = isapnp_read_word(ISAPNP_CFG_IRQ + (i << 1)) >> 8;
+		if (ret) {
+			pnp_res = pnp_add_irq_resource(dev, ret, 0);
+			if (pnp_res)
+				pnp_res->index = i;
+		}
+	}
+	for (i = 0; i < ISAPNP_MAX_DMA; i++) {
+		ret = isapnp_read_byte(ISAPNP_CFG_DMA + i);
+		if (ret != 4) {
+			pnp_res = pnp_add_dma_resource(dev, ret, 0);
+			if  (pnp_res)
+				pnp_res->index = i;
+		}
+	}
+
+__end:
 	isapnp_cfg_end();
-	return ret;
+	return 0;
 }
 
 static int isapnp_set_resources(struct pnp_dev *dev)
