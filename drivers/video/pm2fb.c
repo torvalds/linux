@@ -67,7 +67,7 @@
  * Driver data
  */
 static int hwcursor = 1;
-static char *mode __devinitdata;
+static char *mode_option __devinitdata;
 
 /*
  * The XFree GLINT driver will (I think to implement hardware cursor
@@ -1680,10 +1680,10 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 		info->pixmap.scan_align = 1;
 	}
 
-	if (!mode)
-		mode = "640x480@60";
+	if (!mode_option)
+		mode_option = "640x480@60";
 
-	err = fb_find_mode(&info->var, info, mode, NULL, 0, NULL, 8);
+	err = fb_find_mode(&info->var, info, mode_option, NULL, 0, NULL, 8);
 	if (!err || err == 4)
 		info->var = pm2fb_var;
 
@@ -1799,7 +1799,7 @@ static int __init pm2fb_setup(char *options)
 		else if (!strncmp(this_opt, "noaccel", 7))
 			noaccel = 1;
 		else
-			mode = this_opt;
+			mode_option = this_opt;
 	}
 	return 0;
 }
@@ -1835,8 +1835,8 @@ static void __exit pm2fb_exit(void)
 #ifdef MODULE
 module_exit(pm2fb_exit);
 
-module_param(mode, charp, 0);
-MODULE_PARM_DESC(mode, "Preferred video mode e.g. '648x480-8@60'");
+module_param(mode_option, charp, 0);
+MODULE_PARM_DESC(mode_option, "Initial video mode e.g. '648x480-8@60'");
 module_param(lowhsync, bool, 0);
 MODULE_PARM_DESC(lowhsync, "Force horizontal sync low regardless of mode");
 module_param(lowvsync, bool, 0);
