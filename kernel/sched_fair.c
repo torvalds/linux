@@ -1009,7 +1009,7 @@ static int wake_idle(int cpu, struct task_struct *p)
 	 * sibling runqueue info. This will avoid the checks and cache miss
 	 * penalities associated with that.
 	 */
-	if (idle_cpu(cpu) || cpu_rq(cpu)->nr_running > 1)
+	if (idle_cpu(cpu) || cpu_rq(cpu)->cfs.nr_running > 1)
 		return cpu;
 
 	for_each_domain(cpu, sd) {
