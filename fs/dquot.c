@@ -1449,31 +1449,43 @@ static inline void set_enable_flags(struct quota_info *dqopt, int type)
 	switch (type) {
 		case USRQUOTA:
 			dqopt->flags |= DQUOT_USR_ENABLED;
+			dqopt->flags &= ~DQUOT_USR_SUSPENDED;
 			break;
 		case GRPQUOTA:
 			dqopt->flags |= DQUOT_GRP_ENABLED;
+			dqopt->flags &= ~DQUOT_GRP_SUSPENDED;
 			break;
 	}
 }
 
-static inline void reset_enable_flags(struct quota_info *dqopt, int type)
+static inline void reset_enable_flags(struct quota_info *dqopt, int type,
+				      int remount)
 {
 	switch (type) {
 		case USRQUOTA:
 			dqopt->flags &= ~DQUOT_USR_ENABLED;
+			if (remount)
+				dqopt->flags |= DQUOT_USR_SUSPENDED;
+			else
+				dqopt->flags &= ~DQUOT_USR_SUSPENDED;
 			break;
 		case GRPQUOTA:
 			dqopt->flags &= ~DQUOT_GRP_ENABLED;
+			if (remount)
+				dqopt->flags |= DQUOT_GRP_SUSPENDED;
+			else
+				dqopt->flags &= ~DQUOT_GRP_SUSPENDED;
 			break;
 	}
 }
 
+
 /*
  * Turn quota off on a device. type == -1 ==> quotaoff for all types (umount)
  */
-int vfs_quota_off(struct super_block *sb, int type)
+int vfs_quota_off(struct super_block *sb, int type, int remount)
 {
-	int cnt;
+	int cnt, ret = 0;
 	struct quota_info *dqopt = sb_dqopt(sb);
 	struct inode *toputinode[MAXQUOTAS];
 
@@ -1483,9 +1495,17 @@ int vfs_quota_off(struct super_block *sb, int type)
 		toputinode[cnt] = NULL;
 		if (type != -1 && cnt != type)
 			continue;
+		/* If we keep inodes of quota files after remount and quotaoff
+		 * is called, drop kept inodes. */
+		if (!remount && sb_has_quota_suspended(sb, cnt)) {
+			iput(dqopt->files[cnt]);
+			dqopt->files[cnt] = NULL;
+			reset_enable_flags(dqopt, cnt, 0);
+			continue;
+		}
 		if (!sb_has_quota_enabled(sb, cnt))
 			continue;
-		reset_enable_flags(dqopt, cnt);
+		reset_enable_flags(dqopt, cnt, remount);
 
 		/* Note: these are blocking operations */
 		drop_dquot_ref(sb, cnt);
@@ -1501,7 +1521,8 @@ int vfs_quota_off(struct super_block *sb, int type)
 		put_quota_format(dqopt->info[cnt].dqi_format);
 
 		toputinode[cnt] = dqopt->files[cnt];
-		dqopt->files[cnt] = NULL;
+		if (!remount)
+			dqopt->files[cnt] = NULL;
 		dqopt->info[cnt].dqi_flags = 0;
 		dqopt->info[cnt].dqi_igrace = 0;
 		dqopt->info[cnt].dqi_bgrace = 0;
@@ -1531,12 +1552,19 @@ int vfs_quota_off(struct super_block *sb, int type)
 				mutex_unlock(&toputinode[cnt]->i_mutex);
 				mark_inode_dirty(toputinode[cnt]);
 			}
-			iput(toputinode[cnt]);
 			mutex_unlock(&dqopt->dqonoff_mutex);
+			/* On remount RO, we keep the inode pointer so that we
+			 * can reenable quota on the subsequent remount RW.
+			 * But we have better not keep inode pointer when there
+			 * is pending delete on the quota file... */
+			if (!remount)
+				iput(toputinode[cnt]);
+			else if (!toputinode[cnt]->i_nlink)
+				ret = -EBUSY;
 		}
 	if (sb->s_bdev)
 		invalidate_bdev(sb->s_bdev);
-	return 0;
+	return ret;
 }
 
 /*
@@ -1574,7 +1602,8 @@ static int vfs_quota_on_inode(struct inode *inode, int type, int format_id)
 	invalidate_bdev(sb->s_bdev);
 	mutex_lock(&inode->i_mutex);
 	mutex_lock(&dqopt->dqonoff_mutex);
-	if (sb_has_quota_enabled(sb, type)) {
+	if (sb_has_quota_enabled(sb, type) ||
+			sb_has_quota_suspended(sb, type)) {
 		error = -EBUSY;
 		goto out_lock;
 	}
@@ -1597,6 +1626,7 @@ static int vfs_quota_on_inode(struct inode *inode, int type, int format_id)
 
 	dqopt->ops[type] = fmt->qf_ops;
 	dqopt->info[type].dqi_format = fmt;
+	dqopt->info[type].dqi_fmt_id = format_id;
 	INIT_LIST_HEAD(&dqopt->info[type].dqi_dirty_list);
 	mutex_lock(&dqopt->dqio_mutex);
 	if ((error = dqopt->ops[type]->read_file_info(sb, type)) < 0) {
@@ -1632,11 +1662,40 @@ out_fmt:
 	return error; 
 }
 
+/* Reenable quotas on remount RW */
+static int vfs_quota_on_remount(struct super_block *sb, int type)
+{
+	struct quota_info *dqopt = sb_dqopt(sb);
+	struct inode *inode;
+	int ret;
+
+	mutex_lock(&dqopt->dqonoff_mutex);
+	if (!sb_has_quota_suspended(sb, type)) {
+		mutex_unlock(&dqopt->dqonoff_mutex);
+		return 0;
+	}
+	BUG_ON(sb_has_quota_enabled(sb, type));
+
+	inode = dqopt->files[type];
+	dqopt->files[type] = NULL;
+	reset_enable_flags(dqopt, type, 0);
+	mutex_unlock(&dqopt->dqonoff_mutex);
+
+	ret = vfs_quota_on_inode(inode, type, dqopt->info[type].dqi_fmt_id);
+	iput(inode);
+
+	return ret;
+}
+
 /* Actual function called from quotactl() */
-int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path)
+int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path,
+		 int remount)
 {
 	struct nameidata nd;
 	int error;
+
+	if (remount)
+		return vfs_quota_on_remount(sb, type);
 
 	error = path_lookup(path, LOOKUP_FOLLOW, &nd);
 	if (error < 0)

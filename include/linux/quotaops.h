@@ -37,10 +37,11 @@ extern int dquot_release(struct dquot *dquot);
 extern int dquot_commit_info(struct super_block *sb, int type);
 extern int dquot_mark_dquot_dirty(struct dquot *dquot);
 
-extern int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path);
+extern int vfs_quota_on(struct super_block *sb, int type, int format_id,
+		char *path, int remount);
 extern int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
 		int format_id, int type);
-extern int vfs_quota_off(struct super_block *sb, int type);
+extern int vfs_quota_off(struct super_block *sb, int type, int remount);
 extern int vfs_quota_sync(struct super_block *sb, int type);
 extern int vfs_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 extern int vfs_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
@@ -175,12 +176,27 @@ static inline void DQUOT_SYNC(struct super_block *sb)
 	sync_dquots(sb, -1);
 }
 
-static inline int DQUOT_OFF(struct super_block *sb)
+static inline int DQUOT_OFF(struct super_block *sb, int remount)
 {
 	int ret = -ENOSYS;
 
-	if (sb_any_quota_enabled(sb) && sb->s_qcop && sb->s_qcop->quota_off)
-		ret = sb->s_qcop->quota_off(sb, -1);
+	if (sb->s_qcop && sb->s_qcop->quota_off)
+		ret = sb->s_qcop->quota_off(sb, -1, remount);
+	return ret;
+}
+
+static inline int DQUOT_ON_REMOUNT(struct super_block *sb)
+{
+	int cnt;
+	int ret = 0, err;
+
+	if (!sb->s_qcop || !sb->s_qcop->quota_on)
+		return -ENOSYS;
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		err = sb->s_qcop->quota_on(sb, cnt, 0, NULL, 1);
+		if (err < 0 && !ret)
+			ret = err;
+	}
 	return ret;
 }
 
@@ -196,7 +212,8 @@ static inline int DQUOT_OFF(struct super_block *sb)
 #define DQUOT_ALLOC_INODE(inode)		(0)
 #define DQUOT_FREE_INODE(inode)			do { } while(0)
 #define DQUOT_SYNC(sb)				do { } while(0)
-#define DQUOT_OFF(sb)				(0)
+#define DQUOT_OFF(sb, remount)			(0)
+#define DQUOT_ON_REMOUNT(sb)			(0)
 #define DQUOT_TRANSFER(inode, iattr)		(0)
 static inline int DQUOT_PREALLOC_SPACE_NODIRTY(struct inode *inode, qsize_t nr)
 {

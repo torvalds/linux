@@ -179,7 +179,7 @@ void deactivate_super(struct super_block *s)
 	if (atomic_dec_and_lock(&s->s_active, &sb_lock)) {
 		s->s_count -= S_BIAS-1;
 		spin_unlock(&sb_lock);
-		DQUOT_OFF(s);
+		DQUOT_OFF(s, 0);
 		down_write(&s->s_umount);
 		fs->kill_sb(s);
 		put_filesystem(fs);
@@ -608,6 +608,7 @@ retry:
 int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 {
 	int retval;
+	int remount_rw;
 	
 #ifdef CONFIG_BLOCK
 	if (!(flags & MS_RDONLY) && bdev_read_only(sb->s_bdev))
@@ -625,8 +626,11 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 			mark_files_ro(sb);
 		else if (!fs_may_remount_ro(sb))
 			return -EBUSY;
-		DQUOT_OFF(sb);
+		retval = DQUOT_OFF(sb, 1);
+		if (retval < 0 && retval != -ENOSYS)
+			return -EBUSY;
 	}
+	remount_rw = !(flags & MS_RDONLY) && (sb->s_flags & MS_RDONLY);
 
 	if (sb->s_op->remount_fs) {
 		lock_super(sb);
@@ -636,6 +640,8 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 			return retval;
 	}
 	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (flags & MS_RMT_MASK);
+	if (remount_rw)
+		DQUOT_ON_REMOUNT(sb);
 	return 0;
 }
 

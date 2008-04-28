@@ -202,6 +202,8 @@ struct quota_format_type;
 
 struct mem_dqinfo {
 	struct quota_format_type *dqi_format;
+	int dqi_fmt_id;		/* Id of the dqi_format - used when turning
+				 * quotas on after remount RW */
 	struct list_head dqi_dirty_list;	/* List of dirty dquots */
 	unsigned long dqi_flags;
 	unsigned int dqi_bgrace;
@@ -298,8 +300,8 @@ struct dquot_operations {
 
 /* Operations handling requests from userspace */
 struct quotactl_ops {
-	int (*quota_on)(struct super_block *, int, int, char *);
-	int (*quota_off)(struct super_block *, int);
+	int (*quota_on)(struct super_block *, int, int, char *, int);
+	int (*quota_off)(struct super_block *, int, int);
 	int (*quota_sync)(struct super_block *, int);
 	int (*get_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*set_info)(struct super_block *, int, struct if_dqinfo *);
@@ -320,6 +322,10 @@ struct quota_format_type {
 
 #define DQUOT_USR_ENABLED	0x01		/* User diskquotas enabled */
 #define DQUOT_GRP_ENABLED	0x02		/* Group diskquotas enabled */
+#define DQUOT_USR_SUSPENDED	0x04		/* User diskquotas are off, but
+						 * we have necessary info in
+						 * memory to turn them on */
+#define DQUOT_GRP_SUSPENDED	0x08		/* The same for group quotas */
 
 struct quota_info {
 	unsigned int flags;			/* Flags for diskquotas on this device */
@@ -336,6 +342,10 @@ struct quota_info {
 
 #define sb_any_quota_enabled(sb) (sb_has_quota_enabled(sb, USRQUOTA) | \
 				  sb_has_quota_enabled(sb, GRPQUOTA))
+
+#define sb_has_quota_suspended(sb, type) \
+	((type) == USRQUOTA ? (sb_dqopt(sb)->flags & DQUOT_USR_SUSPENDED) : \
+			      (sb_dqopt(sb)->flags & DQUOT_GRP_SUSPENDED))
 
 int register_quota_format(struct quota_format_type *fmt);
 void unregister_quota_format(struct quota_format_type *fmt);
