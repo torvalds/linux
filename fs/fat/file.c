@@ -257,7 +257,8 @@ int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 }
 EXPORT_SYMBOL_GPL(fat_getattr);
 
-static int fat_check_mode(const struct msdos_sb_info *sbi, mode_t mode)
+static int fat_check_mode(const struct msdos_sb_info *sbi, struct inode *inode,
+			  mode_t mode)
 {
 	mode_t mask, req = mode & ~S_IFMT;
 
@@ -271,7 +272,7 @@ static int fat_check_mode(const struct msdos_sb_info *sbi, mode_t mode)
 	 * w bits, either all (subject to umask) or none must be present.
 	 */
 	req &= ~mask;
-	if ((req & (S_IRUGO | S_IXUGO)) != ((S_IRUGO | S_IXUGO) & ~mask))
+	if ((req & (S_IRUGO | S_IXUGO)) != (inode->i_mode & (S_IRUGO|S_IXUGO)))
 		return -EPERM;
 	if ((req & S_IWUGO) && ((req & S_IWUGO) != (S_IWUGO & ~mask)))
 		return -EPERM;
@@ -310,19 +311,15 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 	if (((attr->ia_valid & ATTR_UID) &&
 	     (attr->ia_uid != sbi->options.fs_uid)) ||
 	    ((attr->ia_valid & ATTR_GID) &&
-	     (attr->ia_gid != sbi->options.fs_gid)))
+	     (attr->ia_gid != sbi->options.fs_gid)) ||
+	    ((attr->ia_valid & ATTR_MODE) &&
+	     fat_check_mode(sbi, inode, attr->ia_mode) < 0))
 		error = -EPERM;
 
 	if (error) {
 		if (sbi->options.quiet)
 			error = 0;
 		goto out;
-	}
-
-	if (attr->ia_valid & ATTR_MODE) {
-		error = fat_check_mode(sbi, attr->ia_mode);
-		if (error != 0 && !sbi->options.quiet)
-			goto out;
 	}
 
 	error = inode_setattr(inode, attr);
