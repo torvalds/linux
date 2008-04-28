@@ -50,6 +50,7 @@ enum {
  * are never OR'ed into the mode in mempolicy API arguments.
  */
 #define MPOL_F_SHARED  (1 << 0)	/* identify shared policies */
+#define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
 
 #ifdef __KERNEL__
 

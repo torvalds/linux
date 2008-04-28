@@ -110,7 +110,7 @@ enum zone_type policy_zone = 0;
 struct mempolicy default_policy = {
 	.refcnt = ATOMIC_INIT(1), /* never free it */
 	.mode = MPOL_PREFERRED,
-	.v =  { .preferred_node =  -1 },
+	.flags = MPOL_F_LOCAL,
 };
 
 static const struct mempolicy_operations {
@@ -163,7 +163,7 @@ static int mpol_new_interleave(struct mempolicy *pol, const nodemask_t *nodes)
 static int mpol_new_preferred(struct mempolicy *pol, const nodemask_t *nodes)
 {
 	if (!nodes)
-		pol->v.preferred_node = -1;	/* local allocation */
+		pol->flags |= MPOL_F_LOCAL;	/* local allocation */
 	else if (nodes_empty(*nodes))
 		return -EINVAL;			/*  no allowed nodes */
 	else
@@ -290,14 +290,15 @@ static void mpol_rebind_preferred(struct mempolicy *pol,
 	if (pol->flags & MPOL_F_STATIC_NODES) {
 		int node = first_node(pol->w.user_nodemask);
 
-		if (node_isset(node, *nodes))
+		if (node_isset(node, *nodes)) {
 			pol->v.preferred_node = node;
-		else
-			pol->v.preferred_node = -1;
+			pol->flags &= ~MPOL_F_LOCAL;
+		} else
+			pol->flags |= MPOL_F_LOCAL;
 	} else if (pol->flags & MPOL_F_RELATIVE_NODES) {
 		mpol_relative_nodemask(&tmp, &pol->w.user_nodemask, nodes);
 		pol->v.preferred_node = first_node(tmp);
-	} else if (pol->v.preferred_node != -1) {
+	} else if (!(pol->flags & MPOL_F_LOCAL)) {
 		pol->v.preferred_node = node_remap(pol->v.preferred_node,
 						   pol->w.cpuset_mems_allowed,
 						   *nodes);
@@ -645,7 +646,7 @@ static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
 		*nodes = p->v.nodes;
 		break;
 	case MPOL_PREFERRED:
-		if (p->v.preferred_node >= 0)
+		if (!(p->flags & MPOL_F_LOCAL))
 			node_set(p->v.preferred_node, *nodes);
 		/* else return empty node mask for local allocation */
 		break;
@@ -1324,13 +1325,12 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
 /* Return a zonelist indicated by gfp for node representing a mempolicy */
 static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy)
 {
-	int nd;
+	int nd = numa_node_id();
 
 	switch (policy->mode) {
 	case MPOL_PREFERRED:
-		nd = policy->v.preferred_node;
-		if (nd < 0)
-			nd = numa_node_id();
+		if (!(policy->flags & MPOL_F_LOCAL))
+			nd = policy->v.preferred_node;
 		break;
 	case MPOL_BIND:
 		/*
@@ -1339,16 +1339,13 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy)
 		 * current node is part of the mask, we use the zonelist for
 		 * the first node in the mask instead.
 		 */
-		nd = numa_node_id();
 		if (unlikely(gfp & __GFP_THISNODE) &&
 				unlikely(!node_isset(nd, policy->v.nodes)))
 			nd = first_node(policy->v.nodes);
 		break;
 	case MPOL_INTERLEAVE: /* should not happen */
-		nd = numa_node_id();
 		break;
 	default:
-		nd = 0;
 		BUG();
 	}
 	return node_zonelist(nd, gfp);
@@ -1379,14 +1376,15 @@ static unsigned interleave_nodes(struct mempolicy *policy)
  */
 unsigned slab_node(struct mempolicy *policy)
 {
-	if (!policy)
+	if (!policy || policy->flags & MPOL_F_LOCAL)
 		return numa_node_id();
 
 	switch (policy->mode) {
 	case MPOL_PREFERRED:
-		if (unlikely(policy->v.preferred_node >= 0))
-			return policy->v.preferred_node;
-		return numa_node_id();
+		/*
+		 * handled MPOL_F_LOCAL above
+		 */
+		return policy->v.preferred_node;
 
 	case MPOL_INTERLEAVE:
 		return interleave_nodes(policy);
@@ -1666,7 +1664,8 @@ int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
 	case MPOL_INTERLEAVE:
 		return nodes_equal(a->v.nodes, b->v.nodes);
 	case MPOL_PREFERRED:
-		return a->v.preferred_node == b->v.preferred_node;
+		return a->v.preferred_node == b->v.preferred_node &&
+			a->flags == b->flags;
 	default:
 		BUG();
 		return 0;
@@ -1946,7 +1945,7 @@ void numa_default_policy(void)
 }
 
 /*
- * "local" is pseudo-policy:  MPOL_PREFERRED with preferred_node == -1
+ * "local" is pseudo-policy:  MPOL_PREFERRED with MPOL_F_LOCAL flag
  * Used only for mpol_to_str()
  */
 #define MPOL_LOCAL (MPOL_INTERLEAVE + 1)
@@ -1962,7 +1961,6 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 {
 	char *p = buffer;
 	int l;
-	int nid;
 	nodemask_t nodes;
 	unsigned short mode;
 	unsigned short flags = pol ? pol->flags : 0;
@@ -1979,11 +1977,10 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 
 	case MPOL_PREFERRED:
 		nodes_clear(nodes);
-		nid = pol->v.preferred_node;
-		if (nid < 0)
+		if (flags & MPOL_F_LOCAL)
 			mode = MPOL_LOCAL;	/* pseudo-policy */
 		else
-			node_set(nid, nodes);
+			node_set(pol->v.preferred_node, nodes);
 		break;
 
 	case MPOL_BIND:
@@ -2004,7 +2001,7 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 	strcpy(p, policy_types[mode]);
 	p += l;
 
-	if (flags) {
+	if (flags & MPOL_MODE_FLAGS) {
 		int need_bar = 0;
 
 		if (buffer + maxlen < p + 2)

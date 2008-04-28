@@ -176,12 +176,11 @@ Components of Memory Policies
 	containing the cpu where the allocation takes place.
 
 	    Internally, the Preferred policy uses a single node--the
-	    preferred_node member of struct mempolicy.  A "distinguished
-	    value of this preferred_node, currently '-1', is interpreted
-	    as "the node containing the cpu where the allocation takes
-	    place"--local allocation.  "Local" allocation policy can be
-	    viewed as a Preferred policy that starts at the node containing
-	    the cpu where the allocation takes place.
+	    preferred_node member of struct mempolicy.  When the internal
+	    mode flag MPOL_F_LOCAL is set, the preferred_node is ignored and
+	    the policy is interpreted as local allocation.  "Local" allocation
+	    policy can be viewed as a Preferred policy that starts at the node
+	    containing the cpu where the allocation takes place.
 
 	    It is possible for the user to specify that local allocation is
 	    always preferred by passing an empty nodemask with this mode.
