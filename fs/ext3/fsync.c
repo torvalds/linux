@@ -72,6 +72,9 @@ int ext3_sync_file(struct file * file, struct dentry *dentry, int datasync)
 		goto out;
 	}
 
+	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
+		goto out;
+
 	/*
 	 * The VFS has written the file data.  If the inode is unaltered
 	 * then we need not start a commit.
