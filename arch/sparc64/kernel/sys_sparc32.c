@@ -554,10 +554,8 @@ asmlinkage long compat_sys_sigaction(int sig, struct old_sigaction32 __user *act
         struct k_sigaction new_ka, old_ka;
         int ret;
 
-	if (sig < 0) {
-		set_thread_flag(TIF_NEWSIGNALS);
-		sig = -sig;
-	}
+	WARN_ON_ONCE(sig >= 0);
+	sig = -sig;
 
         if (act) {
 		compat_old_sigset_t mask;
@@ -600,11 +598,6 @@ asmlinkage long compat_sys_rt_sigaction(int sig,
         /* XXX: Don't preclude handling different sized sigset_t's.  */
         if (sigsetsize != sizeof(compat_sigset_t))
                 return -EINVAL;
-
-	/* All tasks which use RT signals (effectively) use
-	 * new style signals.
-	 */
-	set_thread_flag(TIF_NEWSIGNALS);
 
         if (act) {
 		u32 u_handler, u_restorer;

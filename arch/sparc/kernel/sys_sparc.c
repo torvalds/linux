@@ -1,5 +1,4 @@
-/* $Id: sys_sparc.c,v 1.70 2001/04/14 01:12:02 davem Exp $
- * linux/arch/sparc/kernel/sys_sparc.c
+/* linux/arch/sparc/kernel/sys_sparc.c
  *
  * This file contains various random system calls that
  * have a non-standard calling sequence on the Linux/sparc
@@ -395,10 +394,8 @@ sparc_sigaction (int sig, const struct old_sigaction __user *act,
 	struct k_sigaction new_ka, old_ka;
 	int ret;
 
-	if (sig < 0) {
-		current->thread.new_signal = 1;
-		sig = -sig;
-	}
+	WARN_ON_ONCE(sig >= 0);
+	sig = -sig;
 
 	if (act) {
 		unsigned long mask;
@@ -445,11 +442,6 @@ sys_rt_sigaction(int sig,
 	/* XXX: Don't preclude handling different sized sigset_t's.  */
 	if (sigsetsize != sizeof(sigset_t))
 		return -EINVAL;
-
-	/* All tasks which use RT signals (effectively) use
-	 * new style signals.
-	 */
-	current->thread.new_signal = 1;
 
 	if (act) {
 		new_ka.ka_restorer = restorer;

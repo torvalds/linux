@@ -49,7 +49,6 @@
 #endif
 #ifdef CONFIG_PCI
 #include <asm/ebus.h>
-#include <asm/isa.h>
 #endif
 #include <asm/ns87303.h>
 #include <asm/timer.h>
@@ -187,7 +186,6 @@ EXPORT_SYMBOL(insw);
 EXPORT_SYMBOL(insl);
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL(ebus_chain);
-EXPORT_SYMBOL(isa_chain);
 EXPORT_SYMBOL(pci_alloc_consistent);
 EXPORT_SYMBOL(pci_free_consistent);
 EXPORT_SYMBOL(pci_map_single);

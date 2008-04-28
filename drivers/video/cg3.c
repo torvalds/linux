@@ -419,7 +419,7 @@ static int __devinit cg3_probe(struct of_device *op,
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk("%s: cg3 at %lx:%lx\n",
+	printk(KERN_INFO "%s: cg3 at %lx:%lx\n",
 	       dp->full_name, par->which_io, par->physbase);
 
 	return 0;

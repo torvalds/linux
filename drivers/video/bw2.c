@@ -339,7 +339,7 @@ static int __devinit bw2_probe(struct of_device *op, const struct of_device_id *
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk("%s: bwtwo at %lx:%lx\n",
+	printk(KERN_INFO "%s: bwtwo at %lx:%lx\n",
 	       dp->full_name, par->which_io, par->physbase);
 
 	return 0;
@@ -399,9 +399,8 @@ static int __init bw2_init(void)
 
 static void __exit bw2_exit(void)
 {
-	return of_unregister_driver(&bw2_driver);
+	of_unregister_driver(&bw2_driver);
 }
-
 
 module_init(bw2_init);
 module_exit(bw2_exit);
