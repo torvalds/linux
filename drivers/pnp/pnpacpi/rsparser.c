@@ -82,8 +82,8 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_dev *dev,
 						u32 gsi, int triggering,
 						int polarity, int shareable)
 {
-	struct pnp_resource_table *res = dev->res;
-	int i = 0;
+	struct resource *res;
+	int i;
 	int irq;
 	int p, t;
 	static unsigned char warned;
@@ -91,9 +91,11 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_dev *dev,
 	if (!valid_IRQ(gsi))
 		return;
 
-	while (!(res->irq_resource[i].flags & IORESOURCE_UNSET) &&
-	       i < PNP_MAX_IRQ)
-		i++;
+	for (i = 0; i < PNP_MAX_IRQ; i++) {
+		res = pnp_get_resource(dev, IORESOURCE_IRQ, i);
+		if (!pnp_resource_valid(res))
+			break;
+	}
 	if (i >= PNP_MAX_IRQ) {
 		if (!warned) {
 			printk(KERN_WARNING "pnpacpi: exceeded the max number"
@@ -119,16 +121,16 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_dev *dev,
 		}
 	}
 
-	res->irq_resource[i].flags = IORESOURCE_IRQ;	// Also clears _UNSET flag
-	res->irq_resource[i].flags |= irq_flags(triggering, polarity, shareable);
+	res->flags = IORESOURCE_IRQ;	// Also clears _UNSET flag
+	res->flags |= irq_flags(triggering, polarity, shareable);
 	irq = acpi_register_gsi(gsi, triggering, polarity);
 	if (irq < 0) {
-		res->irq_resource[i].flags |= IORESOURCE_DISABLED;
+		res->flags |= IORESOURCE_DISABLED;
 		return;
 	}
 
-	res->irq_resource[i].start = irq;
-	res->irq_resource[i].end = irq;
+	res->start = irq;
+	res->end = irq;
 	pcibios_penalize_isa_irq(irq, 1);
 }
 
@@ -178,22 +180,24 @@ static int dma_flags(int type, int bus_master, int transfer)
 static void pnpacpi_parse_allocated_dmaresource(struct pnp_dev *dev,
 						u32 dma, int flags)
 {
-	struct pnp_resource_table *res = dev->res;
-	int i = 0;
+	struct resource *res;
+	int i;
 	static unsigned char warned;
 
-	while (i < PNP_MAX_DMA &&
-	       !(res->dma_resource[i].flags & IORESOURCE_UNSET))
-		i++;
+	for (i = 0; i < PNP_MAX_DMA; i++) {
+		res = pnp_get_resource(dev, IORESOURCE_DMA, i);
+		if (!pnp_resource_valid(res))
+			break;
+	}
 	if (i < PNP_MAX_DMA) {
-		res->dma_resource[i].flags = IORESOURCE_DMA;	// Also clears _UNSET flag
-		res->dma_resource[i].flags |= flags;
+		res->flags = IORESOURCE_DMA;	// Also clears _UNSET flag
+		res->flags |= flags;
 		if (dma == -1) {
-			res->dma_resource[i].flags |= IORESOURCE_DISABLED;
+			res->flags |= IORESOURCE_DISABLED;
 			return;
 		}
-		res->dma_resource[i].start = dma;
-		res->dma_resource[i].end = dma;
+		res->start = dma;
+		res->end = dma;
 	} else if (!warned) {
 		printk(KERN_WARNING "pnpacpi: exceeded the max number of DMA "
 				"resources: %d \n", PNP_MAX_DMA);
@@ -204,23 +208,25 @@ static void pnpacpi_parse_allocated_dmaresource(struct pnp_dev *dev,
 static void pnpacpi_parse_allocated_ioresource(struct pnp_dev *dev,
 					       u64 io, u64 len, int io_decode)
 {
-	struct pnp_resource_table *res = dev->res;
-	int i = 0;
+	struct resource *res;
+	int i;
 	static unsigned char warned;
 
-	while (!(res->port_resource[i].flags & IORESOURCE_UNSET) &&
-	       i < PNP_MAX_PORT)
-		i++;
+	for (i = 0; i < PNP_MAX_PORT; i++) {
+		res = pnp_get_resource(dev, IORESOURCE_IO, i);
+		if (!pnp_resource_valid(res))
+			break;
+	}
 	if (i < PNP_MAX_PORT) {
-		res->port_resource[i].flags = IORESOURCE_IO;	// Also clears _UNSET flag
+		res->flags = IORESOURCE_IO;	// Also clears _UNSET flag
 		if (io_decode == ACPI_DECODE_16)
-			res->port_resource[i].flags |= PNP_PORT_FLAG_16BITADDR;
+			res->flags |= PNP_PORT_FLAG_16BITADDR;
 		if (len <= 0 || (io + len - 1) >= 0x10003) {
-			res->port_resource[i].flags |= IORESOURCE_DISABLED;
+			res->flags |= IORESOURCE_DISABLED;
 			return;
 		}
-		res->port_resource[i].start = io;
-		res->port_resource[i].end = io + len - 1;
+		res->start = io;
+		res->end = io + len - 1;
 	} else if (!warned) {
 		printk(KERN_WARNING "pnpacpi: exceeded the max number of IO "
 				"resources: %d \n", PNP_MAX_PORT);
@@ -232,24 +238,26 @@ static void pnpacpi_parse_allocated_memresource(struct pnp_dev *dev,
 						u64 mem, u64 len,
 						int write_protect)
 {
-	struct pnp_resource_table *res = dev->res;
-	int i = 0;
+	struct resource *res;
+	int i;
 	static unsigned char warned;
 
-	while (!(res->mem_resource[i].flags & IORESOURCE_UNSET) &&
-	       (i < PNP_MAX_MEM))
-		i++;
+	for (i = 0; i < PNP_MAX_MEM; i++) {
+		res = pnp_get_resource(dev, IORESOURCE_MEM, i);
+		if (!pnp_resource_valid(res))
+			break;
+	}
 	if (i < PNP_MAX_MEM) {
-		res->mem_resource[i].flags = IORESOURCE_MEM;	// Also clears _UNSET flag
+		res->flags = IORESOURCE_MEM;	// Also clears _UNSET flag
 		if (len <= 0) {
-			res->mem_resource[i].flags |= IORESOURCE_DISABLED;
+			res->flags |= IORESOURCE_DISABLED;
 			return;
 		}
 		if (write_protect == ACPI_READ_WRITE_MEMORY)
-			res->mem_resource[i].flags |= IORESOURCE_MEM_WRITEABLE;
+			res->flags |= IORESOURCE_MEM_WRITEABLE;
 
-		res->mem_resource[i].start = mem;
-		res->mem_resource[i].end = mem + len - 1;
+		res->start = mem;
+		res->end = mem + len - 1;
 	} else if (!warned) {
 		printk(KERN_WARNING "pnpacpi: exceeded the max number of mem "
 				"resources: %d\n", PNP_MAX_MEM);

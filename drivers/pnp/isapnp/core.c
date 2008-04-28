@@ -931,7 +931,7 @@ EXPORT_SYMBOL(isapnp_write_byte);
 
 static int isapnp_read_resources(struct pnp_dev *dev)
 {
-	struct pnp_resource_table *res = dev->res;
+	struct resource *res;
 	int tmp, ret;
 
 	dev->active = isapnp_read_byte(ISAPNP_CFG_ACTIVATE);
@@ -940,16 +940,18 @@ static int isapnp_read_resources(struct pnp_dev *dev)
 			ret = isapnp_read_word(ISAPNP_CFG_PORT + (tmp << 1));
 			if (!ret)
 				continue;
-			res->port_resource[tmp].start = ret;
-			res->port_resource[tmp].flags = IORESOURCE_IO;
+			res = pnp_get_resource(dev, IORESOURCE_IO, tmp);
+			res->start = ret;
+			res->flags = IORESOURCE_IO;
 		}
 		for (tmp = 0; tmp < ISAPNP_MAX_MEM; tmp++) {
 			ret =
 			    isapnp_read_word(ISAPNP_CFG_MEM + (tmp << 3)) << 8;
 			if (!ret)
 				continue;
-			res->mem_resource[tmp].start = ret;
-			res->mem_resource[tmp].flags = IORESOURCE_MEM;
+			res = pnp_get_resource(dev, IORESOURCE_MEM, tmp);
+			res->start = ret;
+			res->flags = IORESOURCE_MEM;
 		}
 		for (tmp = 0; tmp < ISAPNP_MAX_IRQ; tmp++) {
 			ret =
@@ -957,17 +959,17 @@ static int isapnp_read_resources(struct pnp_dev *dev)
 			     8);
 			if (!ret)
 				continue;
-			res->irq_resource[tmp].start =
-			    res->irq_resource[tmp].end = ret;
-			res->irq_resource[tmp].flags = IORESOURCE_IRQ;
+			res = pnp_get_resource(dev, IORESOURCE_IRQ, tmp);
+			res->start = res->end = ret;
+			res->flags = IORESOURCE_IRQ;
 		}
 		for (tmp = 0; tmp < ISAPNP_MAX_DMA; tmp++) {
 			ret = isapnp_read_byte(ISAPNP_CFG_DMA + tmp);
 			if (ret == 4)
 				continue;
-			res->dma_resource[tmp].start =
-			    res->dma_resource[tmp].end = ret;
-			res->dma_resource[tmp].flags = IORESOURCE_DMA;
+			res = pnp_get_resource(dev, IORESOURCE_DMA, tmp);
+			res->start = res->end = ret;
+			res->flags = IORESOURCE_DMA;
 		}
 	}
 	return 0;
@@ -987,52 +989,47 @@ static int isapnp_get_resources(struct pnp_dev *dev)
 
 static int isapnp_set_resources(struct pnp_dev *dev)
 {
-	struct pnp_resource_table *res = dev->res;
+	struct resource *res;
 	int tmp;
 
 	dev_dbg(&dev->dev, "set resources\n");
 	isapnp_cfg_begin(dev->card->number, dev->number);
 	dev->active = 1;
-	for (tmp = 0;
-	     tmp < ISAPNP_MAX_PORT
-	     && (res->port_resource[tmp].
-		 flags & (IORESOURCE_IO | IORESOURCE_UNSET)) == IORESOURCE_IO;
-	     tmp++) {
-		dev_dbg(&dev->dev, "  set io  %d to %#llx\n",
-			tmp, (unsigned long long) res->port_resource[tmp].start);
-		isapnp_write_word(ISAPNP_CFG_PORT + (tmp << 1),
-				  res->port_resource[tmp].start);
+	for (tmp = 0; tmp < ISAPNP_MAX_PORT; tmp++) {
+		res = pnp_get_resource(dev, IORESOURCE_IO, tmp);
+		if (pnp_resource_valid(res)) {
+			dev_dbg(&dev->dev, "  set io  %d to %#llx\n",
+				tmp, (unsigned long long) res->start);
+			isapnp_write_word(ISAPNP_CFG_PORT + (tmp << 1),
+					  res->start);
+		}
 	}
-	for (tmp = 0;
-	     tmp < ISAPNP_MAX_IRQ
-	     && (res->irq_resource[tmp].
-		 flags & (IORESOURCE_IRQ | IORESOURCE_UNSET)) == IORESOURCE_IRQ;
-	     tmp++) {
-		int irq = res->irq_resource[tmp].start;
-		if (irq == 2)
-			irq = 9;
-		dev_dbg(&dev->dev, "  set irq %d to %d\n", tmp, irq);
-		isapnp_write_byte(ISAPNP_CFG_IRQ + (tmp << 1), irq);
+	for (tmp = 0; tmp < ISAPNP_MAX_IRQ; tmp++) {
+		res = pnp_get_resource(dev, IORESOURCE_IRQ, tmp);
+		if (pnp_resource_valid(res)) {
+			int irq = res->start;
+			if (irq == 2)
+				irq = 9;
+			dev_dbg(&dev->dev, "  set irq %d to %d\n", tmp, irq);
+			isapnp_write_byte(ISAPNP_CFG_IRQ + (tmp << 1), irq);
+		}
 	}
-	for (tmp = 0;
-	     tmp < ISAPNP_MAX_DMA
-	     && (res->dma_resource[tmp].
-		 flags & (IORESOURCE_DMA | IORESOURCE_UNSET)) == IORESOURCE_DMA;
-	     tmp++) {
-		dev_dbg(&dev->dev, "  set dma %d to %lld\n",
-			tmp, (unsigned long long) res->dma_resource[tmp].start);
-		isapnp_write_byte(ISAPNP_CFG_DMA + tmp,
-				  res->dma_resource[tmp].start);
+	for (tmp = 0; tmp < ISAPNP_MAX_DMA; tmp++) {
+		res = pnp_get_resource(dev, IORESOURCE_DMA, tmp);
+		if (pnp_resource_valid(res)) {
+			dev_dbg(&dev->dev, "  set dma %d to %lld\n",
+				tmp, (unsigned long long) res->start);
+			isapnp_write_byte(ISAPNP_CFG_DMA + tmp, res->start);
+		}
 	}
-	for (tmp = 0;
-	     tmp < ISAPNP_MAX_MEM
-	     && (res->mem_resource[tmp].
-		 flags & (IORESOURCE_MEM | IORESOURCE_UNSET)) == IORESOURCE_MEM;
-	     tmp++) {
-		dev_dbg(&dev->dev, "  set mem %d to %#llx\n",
-			tmp, (unsigned long long) res->mem_resource[tmp].start);
-		isapnp_write_word(ISAPNP_CFG_MEM + (tmp << 3),
-				  (res->mem_resource[tmp].start >> 8) & 0xffff);
+	for (tmp = 0; tmp < ISAPNP_MAX_MEM; tmp++) {
+		res = pnp_get_resource(dev, IORESOURCE_MEM, tmp);
+		if (pnp_resource_valid(res)) {
+			dev_dbg(&dev->dev, "  set mem %d to %#llx\n",
+				tmp, (unsigned long long) res->start);
+			isapnp_write_word(ISAPNP_CFG_MEM + (tmp << 3),
+					  (res->start >> 8) & 0xffff);
+		}
 	}
 	/* FIXME: We aren't handling 32bit mems properly here */
 	isapnp_activate(dev->number);

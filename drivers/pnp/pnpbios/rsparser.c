@@ -56,80 +56,90 @@ inline void pcibios_penalize_isa_irq(int irq, int active)
 
 static void pnpbios_parse_allocated_irqresource(struct pnp_dev *dev, int irq)
 {
-	struct pnp_resource_table *res = dev->res;
-	int i = 0;
+	struct resource *res;
+	int i;
 
-	while (!(res->irq_resource[i].flags & IORESOURCE_UNSET)
-	       && i < PNP_MAX_IRQ)
-		i++;
+	for (i = 0; i < PNP_MAX_IRQ; i++) {
+		res = pnp_get_resource(dev, IORESOURCE_IRQ, i);
+		if (!pnp_resource_valid(res))
+			break;
+	}
+
 	if (i < PNP_MAX_IRQ) {
-		res->irq_resource[i].flags = IORESOURCE_IRQ;	// Also clears _UNSET flag
+		res->flags = IORESOURCE_IRQ;	// Also clears _UNSET flag
 		if (irq == -1) {
-			res->irq_resource[i].flags |= IORESOURCE_DISABLED;
+			res->flags |= IORESOURCE_DISABLED;
 			return;
 		}
-		res->irq_resource[i].start =
-		    res->irq_resource[i].end = (unsigned long)irq;
+		res->start = res->end = (unsigned long)irq;
 		pcibios_penalize_isa_irq(irq, 1);
 	}
 }
 
 static void pnpbios_parse_allocated_dmaresource(struct pnp_dev *dev, int dma)
 {
-	struct pnp_resource_table *res = dev->res;
-	int i = 0;
+	struct resource *res;
+	int i;
 
-	while (i < PNP_MAX_DMA &&
-	       !(res->dma_resource[i].flags & IORESOURCE_UNSET))
-		i++;
+	for (i = 0; i < PNP_MAX_DMA; i++) {
+		res = pnp_get_resource(dev, IORESOURCE_DMA, i);
+		if (!pnp_resource_valid(res))
+			break;
+	}
+
 	if (i < PNP_MAX_DMA) {
-		res->dma_resource[i].flags = IORESOURCE_DMA;	// Also clears _UNSET flag
+		res->flags = IORESOURCE_DMA;	// Also clears _UNSET flag
 		if (dma == -1) {
-			res->dma_resource[i].flags |= IORESOURCE_DISABLED;
+			res->flags |= IORESOURCE_DISABLED;
 			return;
 		}
-		res->dma_resource[i].start =
-		    res->dma_resource[i].end = (unsigned long)dma;
+		res->start = res->end = (unsigned long)dma;
 	}
 }
 
 static void pnpbios_parse_allocated_ioresource(struct pnp_dev *dev,
 					       int io, int len)
 {
-	struct pnp_resource_table *res = dev->res;
-	int i = 0;
+	struct resource *res;
+	int i;
 
-	while (!(res->port_resource[i].flags & IORESOURCE_UNSET)
-	       && i < PNP_MAX_PORT)
-		i++;
+	for (i = 0; i < PNP_MAX_PORT; i++) {
+		res = pnp_get_resource(dev, IORESOURCE_IO, i);
+		if (!pnp_resource_valid(res))
+			break;
+	}
+
 	if (i < PNP_MAX_PORT) {
-		res->port_resource[i].flags = IORESOURCE_IO;	// Also clears _UNSET flag
+		res->flags = IORESOURCE_IO;	// Also clears _UNSET flag
 		if (len <= 0 || (io + len - 1) >= 0x10003) {
-			res->port_resource[i].flags |= IORESOURCE_DISABLED;
+			res->flags |= IORESOURCE_DISABLED;
 			return;
 		}
-		res->port_resource[i].start = (unsigned long)io;
-		res->port_resource[i].end = (unsigned long)(io + len - 1);
+		res->start = (unsigned long)io;
+		res->end = (unsigned long)(io + len - 1);
 	}
 }
 
 static void pnpbios_parse_allocated_memresource(struct pnp_dev *dev,
 						int mem, int len)
 {
-	struct pnp_resource_table *res = dev->res;
-	int i = 0;
+	struct resource *res;
+	int i;
 
-	while (!(res->mem_resource[i].flags & IORESOURCE_UNSET)
-	       && i < PNP_MAX_MEM)
-		i++;
+	for (i = 0; i < PNP_MAX_MEM; i++) {
+		res = pnp_get_resource(dev, IORESOURCE_MEM, i);
+		if (!pnp_resource_valid(res))
+			break;
+	}
+
 	if (i < PNP_MAX_MEM) {
-		res->mem_resource[i].flags = IORESOURCE_MEM;	// Also clears _UNSET flag
+		res->flags = IORESOURCE_MEM;	// Also clears _UNSET flag
 		if (len <= 0) {
-			res->mem_resource[i].flags |= IORESOURCE_DISABLED;
+			res->flags |= IORESOURCE_DISABLED;
 			return;
 		}
-		res->mem_resource[i].start = (unsigned long)mem;
-		res->mem_resource[i].end = (unsigned long)(mem + len - 1);
+		res->start = (unsigned long)mem;
+		res->end = (unsigned long)(mem + len - 1);
 	}
 }
 
