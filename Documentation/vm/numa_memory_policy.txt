@@ -205,6 +205,12 @@ Components of Memory Policies
 	    local allocation for a specific range of addresses--i.e. for
 	    VMA policies.
 
+	    It is possible for the user to specify that local allocation is
+	    always preferred by passing an empty nodemask with this mode.
+	    If an empty nodemask is passed, the policy cannot use the
+	    MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES flags described
+	    below.
+
 	MPOL_INTERLEAVED:  This mode specifies that page allocations be
 	interleaved, on a page granularity, across the nodes specified in
 	the policy.  This mode also behaves slightly differently, based on
@@ -254,7 +260,10 @@ Components of Memory Policies
 	    occurs over that node.  If no nodes from the user's nodemask are
 	    now allowed, the Default behavior is used.
 
-	    MPOL_F_STATIC_NODES cannot be used with MPOL_F_RELATIVE_NODES.
+	    MPOL_F_STATIC_NODES cannot be combined with the
+	    MPOL_F_RELATIVE_NODES flag.  It also cannot be used for
+	    MPOL_PREFERRED policies that were created with an empty nodemask
+	    (local allocation).
 
 	MPOL_F_RELATIVE_NODES:  This flag specifies that the nodemask passed
 	by the user will be mapped relative to the set of the task or VMA's
@@ -301,7 +310,10 @@ Components of Memory Policies
 	    set of memory nodes allowed by the task's cpuset, as that may
 	    change over time.
 
-	    MPOL_F_RELATIVE_NODES cannot be used with MPOL_F_STATIC_NODES.
+	    MPOL_F_RELATIVE_NODES cannot be combined with the
+	    MPOL_F_STATIC_NODES flag.  It also cannot be used for
+	    MPOL_PREFERRED policies that were created with an empty nodemask
+	    (local allocation).
 
 MEMORY POLICY APIs
 

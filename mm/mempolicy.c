@@ -181,27 +181,43 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 {
 	struct mempolicy *policy;
 	nodemask_t cpuset_context_nmask;
-	int localalloc = 0;
 	int ret;
 
 	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
 		 mode, flags, nodes ? nodes_addr(*nodes)[0] : -1);
 
-	if (mode == MPOL_DEFAULT)
-		return NULL;
-	if (!nodes || nodes_empty(*nodes)) {
-		if (mode != MPOL_PREFERRED)
+	if (mode == MPOL_DEFAULT) {
+		if (nodes && !nodes_empty(*nodes))
 			return ERR_PTR(-EINVAL);
-		localalloc = 1;	/* special case:  no mode flags */
+		return NULL;
 	}
+	VM_BUG_ON(!nodes);
+
+	/*
+	 * MPOL_PREFERRED cannot be used with MPOL_F_STATIC_NODES or
+	 * MPOL_F_RELATIVE_NODES if the nodemask is empty (local allocation).
+	 * All other modes require a valid pointer to a non-empty nodemask.
+	 */
+	if (mode == MPOL_PREFERRED) {
+		if (nodes_empty(*nodes)) {
+			if (((flags & MPOL_F_STATIC_NODES) ||
+			     (flags & MPOL_F_RELATIVE_NODES)))
+				return ERR_PTR(-EINVAL);
+			nodes = NULL;	/* flag local alloc */
+		}
+	} else if (nodes_empty(*nodes))
+		return ERR_PTR(-EINVAL);
 	policy = kmem_cache_alloc(policy_cache, GFP_KERNEL);
 	if (!policy)
 		return ERR_PTR(-ENOMEM);
 	atomic_set(&policy->refcnt, 1);
 	policy->policy = mode;
+	policy->flags = flags;
 
-	if (!localalloc) {
-		policy->flags = flags;
+	if (nodes) {
+		/*
+		 * cpuset related setup doesn't apply to local allocation
+		 */
 		cpuset_update_task_memory_state();
 		if (flags & MPOL_F_RELATIVE_NODES)
 			mpol_relative_nodemask(&cpuset_context_nmask, nodes,
@@ -217,7 +233,7 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 	}
 
 	ret = mpol_ops[mode].create(policy,
-				localalloc ? NULL : &cpuset_context_nmask);
+				nodes ? &cpuset_context_nmask : NULL);
 	if (ret < 0) {
 		kmem_cache_free(policy_cache, policy);
 		return ERR_PTR(ret);
@@ -259,10 +275,6 @@ static void mpol_rebind_preferred(struct mempolicy *pol,
 {
 	nodemask_t tmp;
 
-	/*
-	 * check 'STATIC_NODES first, as preferred_node == -1 may be
-	 * a temporary, "fallback" state for this policy.
-	 */
 	if (pol->flags & MPOL_F_STATIC_NODES) {
 		int node = first_node(pol->w.user_nodemask);
 
@@ -270,12 +282,10 @@ static void mpol_rebind_preferred(struct mempolicy *pol,
 			pol->v.preferred_node = node;
 		else
 			pol->v.preferred_node = -1;
-	} else if (pol->v.preferred_node == -1) {
-		return;	/* no remap required for explicit local alloc */
 	} else if (pol->flags & MPOL_F_RELATIVE_NODES) {
 		mpol_relative_nodemask(&tmp, &pol->w.user_nodemask, nodes);
 		pol->v.preferred_node = first_node(tmp);
-	} else {
+	} else if (pol->v.preferred_node != -1) {
 		pol->v.preferred_node = node_remap(pol->v.preferred_node,
 						   pol->w.cpuset_mems_allowed,
 						   *nodes);
