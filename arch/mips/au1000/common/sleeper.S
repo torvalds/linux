@@ -9,9 +9,9 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
+
 #include <asm/asm.h>
 #include <asm/mipsregs.h>
-#include <asm/addrspace.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
 

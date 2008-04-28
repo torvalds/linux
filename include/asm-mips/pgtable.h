@@ -23,15 +23,15 @@ struct vm_area_struct;
 
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _CACHE_CACHABLE_NONCOHERENT)
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
-			PAGE_CACHABLE_DEFAULT)
+				 _page_cachable_default)
 #define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_READ | \
-			PAGE_CACHABLE_DEFAULT)
+				 _page_cachable_default)
 #define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_READ | \
-			PAGE_CACHABLE_DEFAULT)
+				 _page_cachable_default)
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
-			_PAGE_GLOBAL | PAGE_CACHABLE_DEFAULT)
+				 _PAGE_GLOBAL | _page_cachable_default)
 #define PAGE_USERIO	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
-			PAGE_CACHABLE_DEFAULT)
+				 _page_cachable_default)
 #define PAGE_KERNEL_UNCACHED __pgprot(_PAGE_PRESENT | __READABLE | \
 			__WRITEABLE | _PAGE_GLOBAL | _CACHE_UNCACHED)
 
@@ -40,23 +40,30 @@ struct vm_area_struct;
  * read. Also, write permissions imply read permissions. This is the closest
  * we can get by reasonable means..
  */
-#define __P000	PAGE_NONE
-#define __P001	PAGE_READONLY
-#define __P010	PAGE_COPY
-#define __P011	PAGE_COPY
-#define __P100	PAGE_READONLY
-#define __P101	PAGE_READONLY
-#define __P110	PAGE_COPY
-#define __P111	PAGE_COPY
 
-#define __S000	PAGE_NONE
-#define __S001	PAGE_READONLY
-#define __S010	PAGE_SHARED
-#define __S011	PAGE_SHARED
-#define __S100	PAGE_READONLY
-#define __S101	PAGE_READONLY
-#define __S110	PAGE_SHARED
-#define __S111	PAGE_SHARED
+/*
+ * Dummy values to fill the table in mmap.c
+ * The real values will be generated at runtime
+ */
+#define __P000 __pgprot(0)
+#define __P001 __pgprot(0)
+#define __P010 __pgprot(0)
+#define __P011 __pgprot(0)
+#define __P100 __pgprot(0)
+#define __P101 __pgprot(0)
+#define __P110 __pgprot(0)
+#define __P111 __pgprot(0)
+
+#define __S000 __pgprot(0)
+#define __S001 __pgprot(0)
+#define __S010 __pgprot(0)
+#define __S011 __pgprot(0)
+#define __S100 __pgprot(0)
+#define __S101 __pgprot(0)
+#define __S110 __pgprot(0)
+#define __S111 __pgprot(0)
+
+extern unsigned long _page_cachable_default;
 
 /*
  * ZERO_PAGE is a global shared page that is always zero; used
@@ -79,7 +86,7 @@ extern void paging_init(void);
 #define pmd_page(pmd)		(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
 #define pmd_page_vaddr(pmd)	pmd_val(pmd)
 
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32_R1)
+#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
 
 #define pte_none(pte)		(!(((pte).pte_low | (pte).pte_high) & ~_PAGE_GLOBAL))
 #define pte_present(pte)	((pte).pte_low & _PAGE_PRESENT)
@@ -182,7 +189,7 @@ extern pgd_t swapper_pg_dir[];
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32_R1)
+#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
 static inline int pte_write(pte_t pte)	{ return pte.pte_low & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)	{ return pte.pte_low & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)	{ return pte.pte_low & _PAGE_ACCESSED; }
@@ -311,7 +318,7 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
  */
 #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
 
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32_R1)
+#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	pte.pte_low  &= _PAGE_CHG_MASK;

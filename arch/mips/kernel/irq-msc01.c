@@ -17,6 +17,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/msc01_ic.h>
+#include <asm/traps.h>
 
 static unsigned long _icctrl_msc;
 #define MSC01_IC_REG_BASE	_icctrl_msc
@@ -98,14 +99,13 @@ void ll_msc_irq(void)
 	}
 }
 
-void
-msc_bind_eic_interrupt(unsigned int irq, unsigned int set)
+static void msc_bind_eic_interrupt(int irq, int set)
 {
 	MSCIC_WRITE(MSC01_IC_RAMW,
 		    (irq<<MSC01_IC_RAMW_ADDR_SHF) | (set<<MSC01_IC_RAMW_DATA_SHF));
 }
 
-struct irq_chip msc_levelirq_type = {
+static struct irq_chip msc_levelirq_type = {
 	.name = "SOC-it-Level",
 	.ack = level_mask_and_ack_msc_irq,
 	.mask = mask_msc_irq,
@@ -115,7 +115,7 @@ struct irq_chip msc_levelirq_type = {
 	.end = end_msc_irq,
 };
 
-struct irq_chip msc_edgeirq_type = {
+static struct irq_chip msc_edgeirq_type = {
 	.name = "SOC-it-Edge",
 	.ack = edge_mask_and_ack_msc_irq,
 	.mask = mask_msc_irq,
@@ -128,8 +128,6 @@ struct irq_chip msc_edgeirq_type = {
 
 void __init init_msc_irqs(unsigned long icubase, unsigned int irqbase, msc_irqmap_t *imp, int nirq)
 {
-	extern void (*board_bind_eic_interrupt)(unsigned int irq, unsigned int regset);
-
 	_icctrl_msc = (unsigned long) ioremap(icubase, 0x40000);
 
 	/* Reset interrupt controller - initialises all registers to 0 */

@@ -1,7 +1,7 @@
 /*
  *  STB810 specific board startup routines.
  *
- *  Based on the arch/mips/philips/pnx8550/jbs/board_setup.c
+ *  Based on the arch/mips/nxp/pnx8550/jbs/board_setup.c
  *
  *  Author: MontaVista Software, Inc.
  *          source@mvista.com

@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/random.h>
 
+#include <asm/traps.h>
 #include <asm/i8259.h>
 #include <asm/irq_cpu.h>
 #include <asm/irq_regs.h>
@@ -41,6 +42,14 @@
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/msc01_pci.h>
 #include <asm/msc01_ic.h>
+#include <asm/gic.h>
+#include <asm/gcmpregs.h>
+
+int gcmp_present = -1;
+int gic_present;
+static unsigned long _msc01_biu_base;
+static unsigned long _gcmp_base;
+static unsigned int ipi_map[NR_CPUS];
 
 static DEFINE_SPINLOCK(mips_irq_lock);
 
@@ -119,6 +128,17 @@ static void malta_hw0_irqdispatch(void)
 	}
 
 	do_IRQ(MALTA_INT_BASE + irq);
+}
+
+static void malta_ipi_irqdispatch(void)
+{
+	int irq;
+
+	irq = gic_get_int();
+	if (irq < 0)
+		return;  /* interrupt has already been cleared */
+
+	do_IRQ(MIPS_GIC_IRQ_BASE + irq);
 }
 
 static void corehi_irqdispatch(void)
@@ -257,11 +277,60 @@ asmlinkage void plat_irq_dispatch(void)
 
 	if (irq == MIPSCPU_INT_I8259A)
 		malta_hw0_irqdispatch();
+	else if (gic_present && ((1 << irq) & ipi_map[smp_processor_id()]))
+		malta_ipi_irqdispatch();
 	else if (irq >= 0)
 		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
 	else
 		spurious_interrupt();
 }
+
+#ifdef CONFIG_MIPS_MT_SMP
+
+
+#define GIC_MIPS_CPU_IPI_RESCHED_IRQ	3
+#define GIC_MIPS_CPU_IPI_CALL_IRQ	4
+
+#define MIPS_CPU_IPI_RESCHED_IRQ 0	/* SW int 0 for resched */
+#define C_RESCHED C_SW0
+#define MIPS_CPU_IPI_CALL_IRQ 1		/* SW int 1 for resched */
+#define C_CALL C_SW1
+static int cpu_ipi_resched_irq, cpu_ipi_call_irq;
+
+static void ipi_resched_dispatch(void)
+{
+	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ);
+}
+
+static void ipi_call_dispatch(void)
+{
+	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ);
+}
+
+static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
+{
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
+{
+	smp_call_function_interrupt();
+
+	return IRQ_HANDLED;
+}
+
+static struct irqaction irq_resched = {
+	.handler	= ipi_resched_interrupt,
+	.flags		= IRQF_DISABLED|IRQF_PERCPU,
+	.name		= "IPI_resched"
+};
+
+static struct irqaction irq_call = {
+	.handler	= ipi_call_interrupt,
+	.flags		= IRQF_DISABLED|IRQF_PERCPU,
+	.name		= "IPI_call"
+};
+#endif /* CONFIG_MIPS_MT_SMP */
 
 static struct irqaction i8259irq = {
 	.handler = no_action,
@@ -273,13 +342,13 @@ static struct irqaction corehi_irqaction = {
 	.name = "CoreHi"
 };
 
-msc_irqmap_t __initdata msc_irqmap[] = {
+static msc_irqmap_t __initdata msc_irqmap[] = {
 	{MSC01C_INT_TMR,		MSC01_IRQ_EDGE, 0},
 	{MSC01C_INT_PCI,		MSC01_IRQ_LEVEL, 0},
 };
-int __initdata msc_nr_irqs = ARRAY_SIZE(msc_irqmap);
+static int __initdata msc_nr_irqs = ARRAY_SIZE(msc_irqmap);
 
-msc_irqmap_t __initdata msc_eicirqmap[] = {
+static msc_irqmap_t __initdata msc_eicirqmap[] = {
 	{MSC01E_INT_SW0,		MSC01_IRQ_LEVEL, 0},
 	{MSC01E_INT_SW1,		MSC01_IRQ_LEVEL, 0},
 	{MSC01E_INT_I8259A,		MSC01_IRQ_LEVEL, 0},
@@ -291,14 +360,89 @@ msc_irqmap_t __initdata msc_eicirqmap[] = {
 	{MSC01E_INT_PERFCTR,		MSC01_IRQ_LEVEL, 0},
 	{MSC01E_INT_CPUCTR,		MSC01_IRQ_LEVEL, 0}
 };
-int __initdata msc_nr_eicirqs = ARRAY_SIZE(msc_eicirqmap);
+
+static int __initdata msc_nr_eicirqs = ARRAY_SIZE(msc_eicirqmap);
+
+/*
+ * This GIC specific tabular array defines the association between External
+ * Interrupts and CPUs/Core Interrupts. The nature of the External
+ * Interrupts is also defined here - polarity/trigger.
+ */
+static struct gic_intr_map gic_intr_map[] = {
+	{ GIC_EXT_INTR(0), 	X,	X,		X, 		X,		0 },
+	{ GIC_EXT_INTR(1), 	X,	X,		X, 		X,		0 },
+	{ GIC_EXT_INTR(2), 	X,	X,		X, 		X,		0 },
+	{ GIC_EXT_INTR(3), 	0,	GIC_CPU_INT0,	GIC_POL_POS, 	GIC_TRIG_LEVEL,	0 },
+	{ GIC_EXT_INTR(4), 	0,	GIC_CPU_INT1,	GIC_POL_POS, 	GIC_TRIG_LEVEL,	0 },
+	{ GIC_EXT_INTR(5), 	0,	GIC_CPU_INT2,	GIC_POL_POS, 	GIC_TRIG_LEVEL,	0 },
+	{ GIC_EXT_INTR(6), 	0,	GIC_CPU_INT3,	GIC_POL_POS, 	GIC_TRIG_LEVEL,	0 },
+	{ GIC_EXT_INTR(7), 	0,	GIC_CPU_INT4,	GIC_POL_POS, 	GIC_TRIG_LEVEL,	0 },
+	{ GIC_EXT_INTR(8), 	0,	GIC_CPU_INT3,	GIC_POL_POS, 	GIC_TRIG_LEVEL,	0 },
+	{ GIC_EXT_INTR(9), 	0,	GIC_CPU_INT3,	GIC_POL_POS, 	GIC_TRIG_LEVEL,	0 },
+	{ GIC_EXT_INTR(10), 	X,	X,		X, 		X,		0 },
+	{ GIC_EXT_INTR(11), 	X,	X,		X, 		X,		0 },
+	{ GIC_EXT_INTR(12), 	0,	GIC_CPU_INT3,	GIC_POL_POS, 	GIC_TRIG_LEVEL,	0 },
+	{ GIC_EXT_INTR(13), 	0,	GIC_MAP_TO_NMI_MSK,	GIC_POL_POS, GIC_TRIG_LEVEL,	0 },
+	{ GIC_EXT_INTR(14), 	0,	GIC_MAP_TO_NMI_MSK,	GIC_POL_POS, GIC_TRIG_LEVEL,	0 },
+	{ GIC_EXT_INTR(15), 	X,	X,		X, 		X,		0 },
+	{ GIC_EXT_INTR(16), 	0,	GIC_CPU_INT1,	GIC_POL_POS, GIC_TRIG_EDGE,	1 },
+	{ GIC_EXT_INTR(17), 	0,	GIC_CPU_INT2,	GIC_POL_POS, GIC_TRIG_EDGE,	1 },
+	{ GIC_EXT_INTR(18), 	1,	GIC_CPU_INT1,	GIC_POL_POS, GIC_TRIG_EDGE,	1 },
+	{ GIC_EXT_INTR(19), 	1,	GIC_CPU_INT2,	GIC_POL_POS, GIC_TRIG_EDGE,	1 },
+	{ GIC_EXT_INTR(20), 	2,	GIC_CPU_INT1,	GIC_POL_POS, GIC_TRIG_EDGE,	1 },
+	{ GIC_EXT_INTR(21), 	2,	GIC_CPU_INT2,	GIC_POL_POS, GIC_TRIG_EDGE,	1 },
+	{ GIC_EXT_INTR(22), 	3,	GIC_CPU_INT1,	GIC_POL_POS, GIC_TRIG_EDGE,	1 },
+	{ GIC_EXT_INTR(23), 	3,	GIC_CPU_INT2,	GIC_POL_POS, GIC_TRIG_EDGE,	1 },
+};
+
+/*
+ * GCMP needs to be detected before any SMP initialisation
+ */
+int __init gcmp_probe(unsigned long addr, unsigned long size)
+{
+	if (gcmp_present >= 0)
+		return gcmp_present;
+
+	_gcmp_base = (unsigned long) ioremap_nocache(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ);
+	_msc01_biu_base = (unsigned long) ioremap_nocache(MSC01_BIU_REG_BASE, MSC01_BIU_ADDRSPACE_SZ);
+	gcmp_present = (GCMPGCB(GCMPB) & GCMP_GCB_GCMPB_GCMPBASE_MSK) == GCMP_BASE_ADDR;
+
+	if (gcmp_present)
+		printk(KERN_DEBUG "GCMP present\n");
+	return gcmp_present;
+}
+
+void __init fill_ipi_map(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(gic_intr_map); i++) {
+		if (gic_intr_map[i].ipiflag && (gic_intr_map[i].cpunum != X))
+			ipi_map[gic_intr_map[i].cpunum] |=
+				(1 << (gic_intr_map[i].pin + 2));
+	}
+}
 
 void __init arch_init_irq(void)
 {
+	int gic_present, gcmp_present;
+
 	init_i8259_irqs();
 
 	if (!cpu_has_veic)
 		mips_cpu_irq_init();
+
+	gcmp_present = gcmp_probe(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ);
+	if (gcmp_present)  {
+		GCMPGCB(GICBA) = GIC_BASE_ADDR | GCMP_GCB_GICBA_EN_MSK;
+		gic_present = 1;
+	} else {
+		_msc01_biu_base = (unsigned long) ioremap_nocache(MSC01_BIU_REG_BASE, MSC01_BIU_ADDRSPACE_SZ);
+		gic_present = (REG(_msc01_biu_base, MSC01_SC_CFG) &
+		MSC01_SC_CFG_GICPRES_MSK) >> MSC01_SC_CFG_GICPRES_SHF;
+	}
+	if (gic_present)
+		printk(KERN_DEBUG "GIC present\n");
 
 	switch (mips_revision_sconid) {
 	case MIPS_REVISION_SCON_SOCIT:
@@ -360,4 +504,206 @@ void __init arch_init_irq(void)
 		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI,
 						&corehi_irqaction);
 	}
+
+#if defined(CONFIG_MIPS_MT_SMP)
+	if (gic_present) {
+		/* FIXME */
+		int i;
+		struct {
+			unsigned int resched;
+			unsigned int call;
+		} ipiirq[] = {
+			{
+				.resched = GIC_IPI_EXT_INTR_RESCHED_VPE0,
+				.call =  GIC_IPI_EXT_INTR_CALLFNC_VPE0},
+			{
+				.resched = GIC_IPI_EXT_INTR_RESCHED_VPE1,
+				.call =  GIC_IPI_EXT_INTR_CALLFNC_VPE1
+			}, {
+				.resched = GIC_IPI_EXT_INTR_RESCHED_VPE2,
+				.call =  GIC_IPI_EXT_INTR_CALLFNC_VPE2
+			}, {
+				.resched = GIC_IPI_EXT_INTR_RESCHED_VPE3,
+				.call =  GIC_IPI_EXT_INTR_CALLFNC_VPE3
+			}
+		};
+#define NIPI (sizeof(ipiirq)/sizeof(ipiirq[0]))
+		fill_ipi_map();
+		gic_init(GIC_BASE_ADDR, GIC_ADDRSPACE_SZ, gic_intr_map, ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
+		if (!gcmp_present) {
+			/* Enable the GIC */
+			i = REG(_msc01_biu_base, MSC01_SC_CFG);
+			REG(_msc01_biu_base, MSC01_SC_CFG) =
+				(i | (0x1 << MSC01_SC_CFG_GICENA_SHF));
+			pr_debug("GIC Enabled\n");
+		}
+
+		/* set up ipi interrupts */
+		if (cpu_has_vint) {
+			set_vi_handler(MIPSCPU_INT_IPI0, malta_ipi_irqdispatch);
+			set_vi_handler(MIPSCPU_INT_IPI1, malta_ipi_irqdispatch);
+		}
+		/* Argh.. this really needs sorting out.. */
+		printk("CPU%d: status register was %08x\n", smp_processor_id(), read_c0_status());
+		write_c0_status(read_c0_status() | STATUSF_IP3 | STATUSF_IP4);
+		printk("CPU%d: status register now %08x\n", smp_processor_id(), read_c0_status());
+		write_c0_status(0x1100dc00);
+		printk("CPU%d: status register frc %08x\n", smp_processor_id(), read_c0_status());
+		for (i = 0; i < NIPI; i++) {
+			setup_irq(MIPS_GIC_IRQ_BASE + ipiirq[i].resched, &irq_resched);
+			setup_irq(MIPS_GIC_IRQ_BASE + ipiirq[i].call, &irq_call);
+
+			set_irq_handler(MIPS_GIC_IRQ_BASE + ipiirq[i].resched, handle_percpu_irq);
+			set_irq_handler(MIPS_GIC_IRQ_BASE + ipiirq[i].call, handle_percpu_irq);
+		}
+	} else {
+		/* set up ipi interrupts */
+		if (cpu_has_veic) {
+			set_vi_handler (MSC01E_INT_SW0, ipi_resched_dispatch);
+			set_vi_handler (MSC01E_INT_SW1, ipi_call_dispatch);
+			cpu_ipi_resched_irq = MSC01E_INT_SW0;
+			cpu_ipi_call_irq = MSC01E_INT_SW1;
+		} else {
+			if (cpu_has_vint) {
+				set_vi_handler (MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);
+				set_vi_handler (MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
+			}
+			cpu_ipi_resched_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ;
+			cpu_ipi_call_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ;
+		}
+
+		setup_irq(cpu_ipi_resched_irq, &irq_resched);
+		setup_irq(cpu_ipi_call_irq, &irq_call);
+
+		set_irq_handler(cpu_ipi_resched_irq, handle_percpu_irq);
+		set_irq_handler(cpu_ipi_call_irq, handle_percpu_irq);
+	}
+#endif
+}
+
+void malta_be_init(void)
+{
+	if (gcmp_present) {
+		/* Could change CM error mask register */
+	}
+}
+
+
+static char *tr[8] = {
+	"mem",	"gcr",	"gic",	"mmio",
+	"0x04",	"0x05",	"0x06",	"0x07"
+};
+
+static char *mcmd[32] = {
+	[0x00] = "0x00",
+	[0x01] = "Legacy Write",
+	[0x02] = "Legacy Read",
+	[0x03] = "0x03",
+	[0x04] = "0x04",
+	[0x05] = "0x05",
+	[0x06] = "0x06",
+	[0x07] = "0x07",
+	[0x08] = "Coherent Read Own",
+	[0x09] = "Coherent Read Share",
+	[0x0a] = "Coherent Read Discard",
+	[0x0b] = "Coherent Ready Share Always",
+	[0x0c] = "Coherent Upgrade",
+	[0x0d] = "Coherent Writeback",
+	[0x0e] = "0x0e",
+	[0x0f] = "0x0f",
+	[0x10] = "Coherent Copyback",
+	[0x11] = "Coherent Copyback Invalidate",
+	[0x12] = "Coherent Invalidate",
+	[0x13] = "Coherent Write Invalidate",
+	[0x14] = "Coherent Completion Sync",
+	[0x15] = "0x15",
+	[0x16] = "0x16",
+	[0x17] = "0x17",
+	[0x18] = "0x18",
+	[0x19] = "0x19",
+	[0x1a] = "0x1a",
+	[0x1b] = "0x1b",
+	[0x1c] = "0x1c",
+	[0x1d] = "0x1d",
+	[0x1e] = "0x1e",
+	[0x1f] = "0x1f"
+};
+
+static char *core[8] = {
+	"Invalid/OK", 	"Invalid/Data",
+	"Shared/OK",	"Shared/Data",
+	"Modified/OK",	"Modified/Data",
+	"Exclusive/OK",	"Exclusive/Data"
+};
+
+static char *causes[32] = {
+	"None", "GC_WR_ERR", "GC_RD_ERR", "COH_WR_ERR",
+	"COH_RD_ERR", "MMIO_WR_ERR", "MMIO_RD_ERR", "0x07",
+	"0x08", "0x09", "0x0a", "0x0b",
+	"0x0c", "0x0d", "0x0e", "0x0f",
+	"0x10", "0x11", "0x12", "0x13",
+	"0x14", "0x15", "0x16", "INTVN_WR_ERR",
+	"INTVN_RD_ERR", "0x19", "0x1a", "0x1b",
+	"0x1c", "0x1d", "0x1e", "0x1f"
+};
+
+int malta_be_handler(struct pt_regs *regs, int is_fixup)
+{
+	/* This duplicates the handling in do_be which seems wrong */
+	int retval = is_fixup ? MIPS_BE_FIXUP : MIPS_BE_FATAL;
+
+	if (gcmp_present) {
+		unsigned long cm_error = GCMPGCB(GCMEC);
+		unsigned long cm_addr = GCMPGCB(GCMEA);
+		unsigned long cm_other = GCMPGCB(GCMEO);
+		unsigned long cause, ocause;
+		char buf[256];
+
+		cause = (cm_error & GCMP_GCB_GMEC_ERROR_TYPE_MSK);
+		if (cause != 0) {
+			cause >>= GCMP_GCB_GMEC_ERROR_TYPE_SHF;
+			if (cause < 16) {
+				unsigned long cca_bits = (cm_error >> 15) & 7;
+				unsigned long tr_bits = (cm_error >> 12) & 7;
+				unsigned long mcmd_bits = (cm_error >> 7) & 0x1f;
+				unsigned long stag_bits = (cm_error >> 3) & 15;
+				unsigned long sport_bits = (cm_error >> 0) & 7;
+
+				snprintf(buf, sizeof(buf),
+					 "CCA=%lu TR=%s MCmd=%s STag=%lu "
+					 "SPort=%lu\n",
+					 cca_bits, tr[tr_bits], mcmd[mcmd_bits],
+					 stag_bits, sport_bits);
+			} else {
+				/* glob state & sresp together */
+				unsigned long c3_bits = (cm_error >> 18) & 7;
+				unsigned long c2_bits = (cm_error >> 15) & 7;
+				unsigned long c1_bits = (cm_error >> 12) & 7;
+				unsigned long c0_bits = (cm_error >> 9) & 7;
+				unsigned long sc_bit = (cm_error >> 8) & 1;
+				unsigned long mcmd_bits = (cm_error >> 3) & 0x1f;
+				unsigned long sport_bits = (cm_error >> 0) & 7;
+				snprintf(buf, sizeof(buf),
+					 "C3=%s C2=%s C1=%s C0=%s SC=%s "
+					 "MCmd=%s SPort=%lu\n",
+					 core[c3_bits], core[c2_bits],
+					 core[c1_bits], core[c0_bits],
+					 sc_bit ? "True" : "False",
+					 mcmd[mcmd_bits], sport_bits);
+			}
+
+			ocause = (cm_other & GCMP_GCB_GMEO_ERROR_2ND_MSK) >>
+				 GCMP_GCB_GMEO_ERROR_2ND_SHF;
+
+			printk("CM_ERROR=%08lx %s <%s>\n", cm_error,
+			       causes[cause], buf);
+			printk("CM_ADDR =%08lx\n", cm_addr);
+			printk("CM_OTHER=%08lx %s\n", cm_other, causes[ocause]);
+
+			/* reprime cause register */
+			GCMPGCB(GCMEC) = 0;
+		}
+	}
+
+	return retval;
 }

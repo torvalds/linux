@@ -31,9 +31,14 @@
 
 #define M_COUNTER_OVERFLOW		(1UL      << 31)
 
+static int (*save_perf_irq)(void);
+
 #ifdef CONFIG_MIPS_MT_SMP
-#define WHAT		(M_TC_EN_VPE | M_PERFCTL_VPEID(smp_processor_id()))
-#define vpe_id()	smp_processor_id()
+static int cpu_has_mipsmt_pertccounters;
+#define WHAT		(M_TC_EN_VPE | \
+			 M_PERFCTL_VPEID(cpu_data[smp_processor_id()].vpe_id))
+#define vpe_id()	(cpu_has_mipsmt_pertccounters ? \
+			0 : cpu_data[smp_processor_id()].vpe_id)
 
 /*
  * The number of bits to shift to convert between counters per core and
@@ -243,11 +248,11 @@ static inline int __n_counters(void)
 {
 	if (!(read_c0_config1() & M_CONFIG1_PC))
 		return 0;
-	if (!(r_c0_perfctrl0() & M_PERFCTL_MORE))
+	if (!(read_c0_perfctrl0() & M_PERFCTL_MORE))
 		return 1;
-	if (!(r_c0_perfctrl1() & M_PERFCTL_MORE))
+	if (!(read_c0_perfctrl1() & M_PERFCTL_MORE))
 		return 2;
-	if (!(r_c0_perfctrl2() & M_PERFCTL_MORE))
+	if (!(read_c0_perfctrl2() & M_PERFCTL_MORE))
 		return 3;
 
 	return 4;
@@ -274,8 +279,9 @@ static inline int n_counters(void)
 	return counters;
 }
 
-static inline void reset_counters(int counters)
+static void reset_counters(void *arg)
 {
+	int counters = (int)arg;
 	switch (counters) {
 	case 4:
 		w_c0_perfctrl3(0);
@@ -302,9 +308,12 @@ static int __init mipsxx_init(void)
 		return -ENODEV;
 	}
 
-	reset_counters(counters);
-
-	counters = counters_total_to_per_cpu(counters);
+#ifdef CONFIG_MIPS_MT_SMP
+	cpu_has_mipsmt_pertccounters = read_c0_config7() & (1<<19);
+	if (!cpu_has_mipsmt_pertccounters)
+		counters = counters_total_to_per_cpu(counters);
+#endif
+	on_each_cpu(reset_counters, (void *)counters, 0, 1);
 
 	op_model_mipsxx_ops.num_counters = counters;
 	switch (current_cpu_type()) {
@@ -319,6 +328,13 @@ static int __init mipsxx_init(void)
 	case CPU_25KF:
 		op_model_mipsxx_ops.cpu_type = "mips/25K";
 		break;
+
+	case CPU_1004K:
+#if 0
+		/* FIXME: report as 34K for now */
+		op_model_mipsxx_ops.cpu_type = "mips/1004K";
+		break;
+#endif
 
 	case CPU_34K:
 		op_model_mipsxx_ops.cpu_type = "mips/34K";
@@ -355,6 +371,7 @@ static int __init mipsxx_init(void)
 		return -ENODEV;
 	}
 
+	save_perf_irq = perf_irq;
 	perf_irq = mipsxx_perfcount_handler;
 
 	return 0;
@@ -365,9 +382,9 @@ static void mipsxx_exit(void)
 	int counters = op_model_mipsxx_ops.num_counters;
 
 	counters = counters_per_cpu_to_total(counters);
-	reset_counters(counters);
+	on_each_cpu(reset_counters, (void *)counters, 0, 1);
 
-	perf_irq = null_perf_irq;
+	perf_irq = save_perf_irq;
 }
 
 struct op_mips_model op_model_mipsxx_ops = {

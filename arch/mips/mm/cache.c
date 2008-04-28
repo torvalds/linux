@@ -130,8 +130,28 @@ void __update_cache(struct vm_area_struct *vma, unsigned long address,
 	}
 }
 
-static char cache_panic[] __cpuinitdata =
-	"Yeee, unsupported cache architecture.";
+unsigned long _page_cachable_default;
+EXPORT_SYMBOL_GPL(_page_cachable_default);
+
+static inline void setup_protection_map(void)
+{
+	protection_map[0] = PAGE_NONE;
+	protection_map[1] = PAGE_READONLY;
+	protection_map[2] = PAGE_COPY;
+	protection_map[3] = PAGE_COPY;
+	protection_map[4] = PAGE_READONLY;
+	protection_map[5] = PAGE_READONLY;
+	protection_map[6] = PAGE_COPY;
+	protection_map[7] = PAGE_COPY;
+	protection_map[8] = PAGE_NONE;
+	protection_map[9] = PAGE_READONLY;
+	protection_map[10] = PAGE_SHARED;
+	protection_map[11] = PAGE_SHARED;
+	protection_map[12] = PAGE_READONLY;
+	protection_map[13] = PAGE_READONLY;
+	protection_map[14] = PAGE_SHARED;
+	protection_map[15] = PAGE_SHARED;
+}
 
 void __devinit cpu_cache_init(void)
 {
@@ -139,34 +159,29 @@ void __devinit cpu_cache_init(void)
 		extern void __weak r3k_cache_init(void);
 
 		r3k_cache_init();
-		return;
 	}
 	if (cpu_has_6k_cache) {
 		extern void __weak r6k_cache_init(void);
 
 		r6k_cache_init();
-		return;
 	}
 	if (cpu_has_4k_cache) {
 		extern void __weak r4k_cache_init(void);
 
 		r4k_cache_init();
-		return;
 	}
 	if (cpu_has_8k_cache) {
 		extern void __weak r8k_cache_init(void);
 
 		r8k_cache_init();
-		return;
 	}
 	if (cpu_has_tx39_cache) {
 		extern void __weak tx39_cache_init(void);
 
 		tx39_cache_init();
-		return;
 	}
 
-	panic(cache_panic);
+	setup_protection_map();
 }
 
 int __weak __uncached_access(struct file *file, unsigned long addr)

@@ -37,7 +37,7 @@ enum yamon_memtypes {
 	yamon_prom,
 	yamon_free,
 };
-struct prom_pmemblock mdesc[PROM_MAX_PMEMBLOCKS];
+static struct prom_pmemblock mdesc[PROM_MAX_PMEMBLOCKS];
 
 #ifdef DEBUG
 static char *mtypes[3] = {
@@ -50,7 +50,7 @@ static char *mtypes[3] = {
 /* determined physical memory size, not overridden by command line args  */
 unsigned long physical_memsize = 0L;
 
-struct prom_pmemblock * __init prom_getmdesc(void)
+static struct prom_pmemblock * __init prom_getmdesc(void)
 {
 	char *memsize_str;
 	unsigned int memsize;

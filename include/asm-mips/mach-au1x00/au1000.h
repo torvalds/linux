@@ -3,9 +3,8 @@
  * BRIEF MODULE DESCRIPTION
  *	Include file for Alchemy Semiconductor's Au1k CPU.
  *
- * Copyright 2000,2001 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	ppopov@mvista.com or source@mvista.com
+ * Copyright 2000-2001, 2006-2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -116,13 +115,6 @@ struct au1xxx_irqmap {
 extern struct au1xxx_irqmap au1xxx_irq_map[];
 
 #endif /* !defined (_LANGUAGE_ASSEMBLY) */
-
-#ifdef CONFIG_PM
-/* no CP0 timer irq */
-#define ALLINTS (IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3 | IE_IRQ4)
-#else
-#define ALLINTS (IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3 | IE_IRQ4 | IE_IRQ5)
-#endif
 
 /*
  * SDRAM Register Offsets
@@ -1692,20 +1684,6 @@ enum soc_au1200_ints {
 #define IOPORT_RESOURCE_END   0xffffffff
 #define IOMEM_RESOURCE_START  0x10000000
 #define IOMEM_RESOURCE_END    0xffffffff
-
-  /*
-   * Borrowed from the PPC arch:
-   * The following macro is used to lookup irqs in a standard table
-   * format for those PPC systems that do not already have PCI
-   * interrupts properly routed.
-   */
-  /* FIXME - double check this from asm-ppc/pci-bridge.h */
-#define PCI_IRQ_TABLE_LOOKUP                            \
-  ({ long _ctl_ = -1;                                 \
-      if (idsel >= min_idsel && idsel <= max_idsel && pin <= irqs_per_slot)    \
-	       _ctl_ = pci_irq_table[idsel - min_idsel][pin-1];               \
-		      _ctl_; })
-
 
 #else /* Au1000 and Au1100 and Au1200 */
 

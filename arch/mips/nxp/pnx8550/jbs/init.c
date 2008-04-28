@@ -40,7 +40,7 @@ extern char *prom_getenv(char *envname);
 
 const char *get_system_type(void)
 {
-	return "Philips PNX8550/JBS";
+	return "NXP PNX8550/JBS";
 }
 
 void __init prom_init(void)

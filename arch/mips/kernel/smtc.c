@@ -174,14 +174,6 @@ static int clock_hang_reported[NR_CPUS];
 
 #endif /* CONFIG_SMTC_IDLE_HOOK_DEBUG */
 
-/* Initialize shared TLB - the should probably migrate to smtc_setup_cpus() */
-
-void __init sanitize_tlb_entries(void)
-{
-	printk("Deprecated sanitize_tlb_entries() invoked\n");
-}
-
-
 /*
  * Configure shared TLB - VPC configuration bit must be set by caller
  */
@@ -339,7 +331,8 @@ static void smtc_tc_setup(int vpe, int tc, int cpu)
 	/* In general, all TCs should have the same cpu_data indications */
 	memcpy(&cpu_data[cpu], &cpu_data[0], sizeof(struct cpuinfo_mips));
 	/* For 34Kf, start with TC/CPU 0 as sole owner of single FPU context */
-	if (cpu_data[0].cputype == CPU_34K)
+	if (cpu_data[0].cputype == CPU_34K ||
+	    cpu_data[0].cputype == CPU_1004K)
 		cpu_data[cpu].options &= ~MIPS_CPU_FPU;
 	cpu_data[cpu].vpe_id = vpe;
 	cpu_data[cpu].tc_id = tc;

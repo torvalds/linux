@@ -142,7 +142,7 @@ static irqreturn_t ip32_rtc_int(int irq, void *dev_id)
 	reg_c = CMOS_READ(RTC_INTR_FLAGS);
 	if (!(reg_c & RTC_IRQF)) {
 		printk(KERN_WARNING
-			"%s: RTC IRQ without RTC_IRQF\n", __FUNCTION__);
+			"%s: RTC IRQ without RTC_IRQF\n", __func__);
 	}
 	/* Wait until interrupt goes away */
 	disable_irq(MACEISA_RTC_IRQ);

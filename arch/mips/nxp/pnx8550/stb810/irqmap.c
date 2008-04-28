@@ -1,5 +1,5 @@
 /*
- *  Philips STB810 board irqmap.
+ *  NXP STB810 board irqmap.
  *
  *  Author: MontaVista Software, Inc.
  *          source@mvista.com
@@ -20,4 +20,3 @@ char pnx8550_irq_tab[][5] __initdata = {
 	[9]	= { -1, PNX8550_INT_PCI_INTA, 0xff, 0xff, 0xff},
 	[10]	= { -1, PNX8550_INT_PCI_INTA, 0xff, 0xff, 0xff},
 };
-

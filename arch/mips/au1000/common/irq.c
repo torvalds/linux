@@ -1,7 +1,6 @@
 /*
- * Copyright 2001 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *		ppopov@mvista.com or source@mvista.com
+ * Copyright 2001, 2007-2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  * Copyright (C) 2007 Ralf Baechle (ralf@linux-mips.org)
  *
@@ -27,7 +26,6 @@
  */
 #include <linux/bitops.h>
 #include <linux/init.h>
-#include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
@@ -591,7 +589,7 @@ void __init arch_init_irq(void)
 		imp++;
 	}
 
-	set_c0_status(ALLINTS);
+	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3 | IE_IRQ4);
 
 	/* Board specific IRQ initialization.
 	*/

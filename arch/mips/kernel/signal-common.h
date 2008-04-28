@@ -14,7 +14,7 @@
 /* #define DEBUG_SIG */
 
 #ifdef DEBUG_SIG
-#  define DEBUGP(fmt, args...) printk("%s: " fmt, __FUNCTION__ , ##args)
+#  define DEBUGP(fmt, args...) printk("%s: " fmt, __func__, ##args)
 #else
 #  define DEBUGP(fmt, args...)
 #endif
