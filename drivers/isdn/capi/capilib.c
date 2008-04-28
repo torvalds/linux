@@ -44,7 +44,7 @@ static inline void mq_init(struct capilib_ncci * np)
 static inline int mq_enqueue(struct capilib_ncci * np, u16 msgid)
 {
 	struct capilib_msgidqueue *mq;
-	if ((mq = np->msgidfree) == 0)
+	if ((mq = np->msgidfree) == NULL)
 		return 0;
 	np->msgidfree = mq->next;
 	mq->msgid = msgid;

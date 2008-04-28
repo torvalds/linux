@@ -826,7 +826,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 		card = capi_ctr_get(card);
 		if (!card)
 			return -ESRCH;
-		if (card->load_firmware == 0) {
+		if (card->load_firmware == NULL) {
 			printk(KERN_DEBUG "kcapi: load: no load function\n");
 			return -ESRCH;
 		}
@@ -835,7 +835,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 			printk(KERN_DEBUG "kcapi: load: invalid parameter: length of t4file is %d ?\n", ldef.t4file.len);
 			return -EINVAL;
 		}
-		if (ldef.t4file.data == 0) {
+		if (ldef.t4file.data == NULL) {
 			printk(KERN_DEBUG "kcapi: load: invalid parameter: dataptr is 0\n");
 			return -EINVAL;
 		}
@@ -951,7 +951,7 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
 			if (strcmp(driver->name, cdef.driver) == 0)
 				break;
 		}
-		if (driver == 0) {
+		if (driver == NULL) {
 			printk(KERN_ERR "kcapi: driver \"%s\" not loaded.\n",
 					cdef.driver);
 			return -ESRCH;
@@ -1004,9 +1004,9 @@ static int __init kcapi_init(void)
 		return ret;
         kcapi_proc_init();
 
-	if ((p = strchr(revision, ':')) != 0 && p[1]) {
+	if ((p = strchr(revision, ':')) != NULL && p[1]) {
 		strlcpy(rev, p + 2, sizeof(rev));
-		if ((p = strchr(rev, '$')) != 0 && p > rev)
+		if ((p = strchr(rev, '$')) != NULL && p > rev)
 		   *(p-1) = 0;
 	} else
 		strcpy(rev, "1.0");
