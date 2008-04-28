@@ -304,7 +304,7 @@ static int scc_dma_setup(ide_drive_t *drive)
 	}
 
 	/* PRD table */
-	out_be32((void __iomem *)hwif->dma_prdtable, hwif->dmatable_dma);
+	out_be32((void __iomem *)(hwif->dma_base + 8), hwif->dmatable_dma);
 
 	/* specify r/w */
 	out_be32((void __iomem *)hwif->dma_command, reading);
@@ -838,7 +838,6 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 
 	hwif->dma_command = hwif->dma_base;
 	hwif->dma_status = hwif->dma_base + 0x04;
-	hwif->dma_prdtable = hwif->dma_base + 0x08;
 
 	/* PTERADD */
 	out_be32((void __iomem *)(hwif->dma_base + 0x018), hwif->dmatable_dma);
