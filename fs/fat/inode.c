@@ -1215,7 +1215,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	 */
 
 	media = b->media;
-	if (!FAT_VALID_MEDIA(media)) {
+	if (!fat_valid_media(media)) {
 		if (!silent)
 			printk(KERN_ERR "FAT: invalid media value (0x%02x)\n",
 			       media);
