@@ -207,14 +207,43 @@ static inline int DQUOT_ON_REMOUNT(struct super_block *sb)
  */
 #define sb_dquot_ops				(NULL)
 #define sb_quotactl_ops				(NULL)
-#define DQUOT_INIT(inode)			do { } while(0)
-#define DQUOT_DROP(inode)			do { } while(0)
-#define DQUOT_ALLOC_INODE(inode)		(0)
-#define DQUOT_FREE_INODE(inode)			do { } while(0)
-#define DQUOT_SYNC(sb)				do { } while(0)
-#define DQUOT_OFF(sb, remount)			(0)
-#define DQUOT_ON_REMOUNT(sb)			(0)
-#define DQUOT_TRANSFER(inode, iattr)		(0)
+
+static inline void DQUOT_INIT(struct inode *inode)
+{
+}
+
+static inline void DQUOT_DROP(struct inode *inode)
+{
+}
+
+static inline int DQUOT_ALLOC_INODE(struct inode *inode)
+{
+	return 0;
+}
+
+static inline void DQUOT_FREE_INODE(struct inode *inode)
+{
+}
+
+static inline void DQUOT_SYNC(struct super_block *sb)
+{
+}
+
+static inline int DQUOT_OFF(struct super_block *sb, int remount)
+{
+	return 0;
+}
+
+static inline int DQUOT_ON_REMOUNT(struct super_block *sb)
+{
+	return 0;
+}
+
+static inline int DQUOT_TRANSFER(struct inode *inode, struct iattr *iattr)
+{
+	return 0;
+}
+
 static inline int DQUOT_PREALLOC_SPACE_NODIRTY(struct inode *inode, qsize_t nr)
 {
 	inode_add_bytes(inode, nr);
