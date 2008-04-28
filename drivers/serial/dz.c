@@ -819,7 +819,7 @@ static void dz_console_putchar(struct uart_port *uport, int ch)
 		dz_out(dport, DZ_TCR, mask);
 		iob();
 		udelay(2);
-	} while (loops--);
+	} while (--loops);
 
 	if (loops)				/* Cannot send otherwise. */
 		dz_out(dport, DZ_TDR, ch);
