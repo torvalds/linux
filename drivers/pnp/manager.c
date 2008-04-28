@@ -21,13 +21,12 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 {
 	struct resource *res;
 
-	if (idx >= PNP_MAX_PORT) {
+	res = pnp_get_resource(dev, IORESOURCE_IO, idx);
+	if (!res) {
 		dev_err(&dev->dev, "too many I/O port resources\n");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
-
-	res = &dev->res.port_resource[idx];
 
 	/* check if this resource has been manually set, if so skip */
 	if (!(res->flags & IORESOURCE_AUTO)) {
@@ -68,13 +67,12 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 {
 	struct resource *res;
 
-	if (idx >= PNP_MAX_MEM) {
+	res = pnp_get_resource(dev, IORESOURCE_MEM, idx);
+	if (!res) {
 		dev_err(&dev->dev, "too many memory resources\n");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
-
-	res = &dev->res.mem_resource[idx];
 
 	/* check if this resource has been manually set, if so skip */
 	if (!(res->flags & IORESOURCE_AUTO)) {
@@ -131,13 +129,12 @@ static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 		5, 10, 11, 12, 9, 14, 15, 7, 3, 4, 13, 0, 1, 6, 8, 2
 	};
 
-	if (idx >= PNP_MAX_IRQ) {
+	res = pnp_get_resource(dev, IORESOURCE_IRQ, idx);
+	if (!res) {
 		dev_err(&dev->dev, "too many IRQ resources\n");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
-
-	res = &dev->res.irq_resource[idx];
 
 	/* check if this resource has been manually set, if so skip */
 	if (!(res->flags & IORESOURCE_AUTO)) {
@@ -188,12 +185,11 @@ static void pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 		1, 3, 5, 6, 7, 0, 2, 4
 	};
 
-	if (idx >= PNP_MAX_DMA) {
+	res = pnp_get_resource(dev, IORESOURCE_DMA, idx);
+	if (!res) {
 		dev_err(&dev->dev, "too many DMA resources\n");
 		return;
 	}
-
-	res = &dev->res.dma_resource[idx];
 
 	/* check if this resource has been manually set, if so skip */
 	if (!(res->flags & IORESOURCE_AUTO)) {

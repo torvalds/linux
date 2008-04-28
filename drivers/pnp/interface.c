@@ -383,7 +383,10 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 				buf += 2;
 				while (isspace(*buf))
 					++buf;
-				res = &dev->res.port_resource[nport];
+				res = pnp_get_resource(dev, IORESOURCE_IO,
+						       nport);
+				if (!res)
+					break;
 				res->start = simple_strtoul(buf, &buf, 0);
 				while (isspace(*buf))
 					++buf;
@@ -396,15 +399,16 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 					res->end = res->start;
 				res->flags = IORESOURCE_IO;
 				nport++;
-				if (nport >= PNP_MAX_PORT)
-					break;
 				continue;
 			}
 			if (!strnicmp(buf, "mem", 3)) {
 				buf += 3;
 				while (isspace(*buf))
 					++buf;
-				res = &dev->res.mem_resource[nmem];
+				res = pnp_get_resource(dev, IORESOURCE_MEM,
+						       nmem);
+				if (!res)
+					break;
 				res->start = simple_strtoul(buf, &buf, 0);
 				while (isspace(*buf))
 					++buf;
@@ -417,34 +421,34 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 					res->end = res->start;
 				res->flags = IORESOURCE_MEM;
 				nmem++;
-				if (nmem >= PNP_MAX_MEM)
-					break;
 				continue;
 			}
 			if (!strnicmp(buf, "irq", 3)) {
 				buf += 3;
 				while (isspace(*buf))
 					++buf;
-				res = &dev->res.irq_resource[nirq];
+				res = pnp_get_resource(dev, IORESOURCE_IRQ,
+						       nirq);
+				if (!res)
+					break;
 				res->start = res->end =
 				    simple_strtoul(buf, &buf, 0);
 				res->flags = IORESOURCE_IRQ;
 				nirq++;
-				if (nirq >= PNP_MAX_IRQ)
-					break;
 				continue;
 			}
 			if (!strnicmp(buf, "dma", 3)) {
 				buf += 3;
 				while (isspace(*buf))
 					++buf;
-				res = &dev->res.dma_resource[ndma];
+				res = pnp_get_resource(dev, IORESOURCE_DMA,
+						       ndma);
+				if (!res)
+					break;
 				res->start = res->end =
 				    simple_strtoul(buf, &buf, 0);
 				res->flags = IORESOURCE_DMA;
 				ndma++;
-				if (ndma >= PNP_MAX_DMA)
-					break;
 				continue;
 			}
 			break;
