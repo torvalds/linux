@@ -179,6 +179,13 @@ DEVICE_ATTR(link_power_management_policy, S_IRUGO | S_IWUSR,
 		ata_scsi_lpm_show, ata_scsi_lpm_put);
 EXPORT_SYMBOL_GPL(dev_attr_link_power_management_policy);
 
+static void ata_scsi_set_sense(struct scsi_cmnd *cmd, u8 sk, u8 asc, u8 ascq)
+{
+	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
+
+	scsi_build_sense_buffer(0, cmd->sense_buffer, sk, asc, ascq);
+}
+
 static void ata_scsi_invalid_field(struct scsi_cmnd *cmd,
 				   void (*done)(struct scsi_cmnd *))
 {
@@ -1696,10 +1703,9 @@ static inline void ata_scsi_rbuf_put(struct scsi_cmnd *cmd, u8 *buf)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
-void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
-			unsigned int (*actor) (struct ata_scsi_args *args,
-					       u8 *rbuf, unsigned int buflen))
+static void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
+			unsigned int (*actor)(struct ata_scsi_args *args,
+					      u8 *rbuf, unsigned int buflen))
 {
 	u8 *rbuf;
 	unsigned int buflen, rc;
@@ -1748,9 +1754,8 @@ void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
-unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
-			       unsigned int buflen)
+static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
+				       unsigned int buflen)
 {
 	u8 hdr[] = {
 		TYPE_DISK,
@@ -1804,9 +1809,8 @@ unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
-unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf,
-			      unsigned int buflen)
+static unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf,
+				      unsigned int buflen)
 {
 	const u8 pages[] = {
 		0x00,	/* page 0x00, this page */
@@ -1832,9 +1836,8 @@ unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf,
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
-unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
-			      unsigned int buflen)
+static unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
+				      unsigned int buflen)
 {
 	const u8 hdr[] = {
 		0,
@@ -1865,9 +1868,8 @@ unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
-unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
-			      unsigned int buflen)
+static unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
+				      unsigned int buflen)
 {
 	int num;
 	const int sat_model_serial_desc_len = 68;
@@ -1915,9 +1917,8 @@ unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
 static unsigned int ata_scsiop_inq_89(struct ata_scsi_args *args, u8 *rbuf,
-			      unsigned int buflen)
+				      unsigned int buflen)
 {
 	u8 pbuf[60];
 	struct ata_taskfile tf;
@@ -1972,9 +1973,8 @@ static unsigned int ata_scsiop_inq_89(struct ata_scsi_args *args, u8 *rbuf,
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
-unsigned int ata_scsiop_noop(struct ata_scsi_args *args, u8 *rbuf,
-			    unsigned int buflen)
+static unsigned int ata_scsiop_noop(struct ata_scsi_args *args, u8 *rbuf,
+				    unsigned int buflen)
 {
 	VPRINTK("ENTER\n");
 	return 0;
@@ -2310,53 +2310,6 @@ unsigned int ata_scsiop_report_luns(struct ata_scsi_args *args, u8 *rbuf,
 	rbuf[3] = 8;	/* just one lun, LUN 0, size 8 bytes */
 
 	return 0;
-}
-
-/**
- *	ata_scsi_set_sense - Set SCSI sense data and status
- *	@cmd: SCSI request to be handled
- *	@sk: SCSI-defined sense key
- *	@asc: SCSI-defined additional sense code
- *	@ascq: SCSI-defined additional sense code qualifier
- *
- *	Helper function that builds a valid fixed format, current
- *	response code and the given sense key (sk), additional sense
- *	code (asc) and additional sense code qualifier (ascq) with
- *	a SCSI command status of %SAM_STAT_CHECK_CONDITION and
- *	DRIVER_SENSE set in the upper bits of scsi_cmnd::result .
- *
- *	LOCKING:
- *	Not required
- */
-
-void ata_scsi_set_sense(struct scsi_cmnd *cmd, u8 sk, u8 asc, u8 ascq)
-{
-	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
-
-	scsi_build_sense_buffer(0, cmd->sense_buffer, sk, asc, ascq);
-}
-
-/**
- *	ata_scsi_badcmd - End a SCSI request with an error
- *	@cmd: SCSI request to be handled
- *	@done: SCSI command completion function
- *	@asc: SCSI-defined additional sense code
- *	@ascq: SCSI-defined additional sense code qualifier
- *
- *	Helper function that completes a SCSI command with
- *	%SAM_STAT_CHECK_CONDITION, with a sense key %ILLEGAL_REQUEST
- *	and the specified additional sense codes.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-
-void ata_scsi_badcmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *), u8 asc, u8 ascq)
-{
-	DPRINTK("ENTER\n");
-	ata_scsi_set_sense(cmd, ILLEGAL_REQUEST, asc, ascq);
-
-	done(cmd);
 }
 
 static void atapi_sense_complete(struct ata_queued_cmd *qc)
