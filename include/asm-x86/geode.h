@@ -30,6 +30,8 @@ extern int geode_get_dev_base(unsigned int dev);
 
 /* MSRS */
 
+#define MSR_GLIU_P2D_RO0	0x10000029
+
 #define MSR_LX_GLD_MSR_CONFIG	0x48002001
 #define MSR_LX_MSR_PADSEL	0x48002011	/* NOT 0x48000011; the data
 						 * sheet has the wrong value */
