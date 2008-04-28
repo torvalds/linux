@@ -2495,6 +2495,7 @@ struct security_operations smack_ops = {
 	.task_wait = 			smack_task_wait,
 	.task_reparent_to_init =	cap_task_reparent_to_init,
 	.task_to_inode = 		smack_task_to_inode,
+	.task_prctl =			cap_task_prctl,
 
 	.ipc_permission = 		smack_ipc_permission,
 
