@@ -1965,6 +1965,11 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 	unsigned short mode;
 	unsigned short flags = pol ? pol->flags : 0;
 
+	/*
+	 * Sanity check:  room for longest mode, flag and some nodes
+	 */
+	VM_BUG_ON(maxlen < strlen("interleave") + strlen("relative") + 16);
+
 	if (!pol || pol == &default_policy)
 		mode = MPOL_DEFAULT;
 	else
@@ -1991,7 +1996,6 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 
 	default:
 		BUG();
-		return -EFAULT;
 	}
 
 	l = strlen(policy_types[mode]);
@@ -2002,16 +2006,17 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 	p += l;
 
 	if (flags & MPOL_MODE_FLAGS) {
-		int need_bar = 0;
-
 		if (buffer + maxlen < p + 2)
 			return -ENOSPC;
 		*p++ = '=';
 
+		/*
+		 * Currently, the only defined flags are mutually exclusive
+		 */
 		if (flags & MPOL_F_STATIC_NODES)
-			p += sprintf(p, "%sstatic", need_bar++ ? "|" : "");
-		if (flags & MPOL_F_RELATIVE_NODES)
-			p += sprintf(p, "%srelative", need_bar++ ? "|" : "");
+			p += snprintf(p, buffer + maxlen - p, "static");
+		else if (flags & MPOL_F_RELATIVE_NODES)
+			p += snprintf(p, buffer + maxlen - p, "relative");
 	}
 
 	if (!nodes_empty(nodes)) {
