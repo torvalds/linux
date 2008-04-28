@@ -97,7 +97,8 @@ static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
 	struct mempolicy *mpol;
 	struct zonelist *zonelist = huge_zonelist(vma, address,
 					htlb_alloc_mask, &mpol);
-	struct zone *zone, **z;
+	struct zone *zone;
+	struct zoneref *z;
 
 	for_each_zone_zonelist(zone, z, zonelist, MAX_NR_ZONES - 1) {
 		nid = zone_to_nid(zone);

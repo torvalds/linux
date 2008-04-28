@@ -1317,7 +1317,7 @@ static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
  * We are low on memory in the second scan, and should leave no stone
  * unturned looking for a free page.
  */
-static int zlc_zone_worth_trying(struct zonelist *zonelist, struct zone **z,
+static int zlc_zone_worth_trying(struct zonelist *zonelist, struct zoneref *z,
 						nodemask_t *allowednodes)
 {
 	struct zonelist_cache *zlc;	/* cached zonelist speedup info */
@@ -1328,7 +1328,7 @@ static int zlc_zone_worth_trying(struct zonelist *zonelist, struct zone **z,
 	if (!zlc)
 		return 1;
 
-	i = z - zonelist->zones;
+	i = z - zonelist->_zonerefs;
 	n = zlc->z_to_n[i];
 
 	/* This zone is worth trying if it is allowed but not full */
@@ -1340,7 +1340,7 @@ static int zlc_zone_worth_trying(struct zonelist *zonelist, struct zone **z,
  * zlc->fullzones, so that subsequent attempts to allocate a page
  * from that zone don't waste time re-examining it.
  */
-static void zlc_mark_zone_full(struct zonelist *zonelist, struct zone **z)
+static void zlc_mark_zone_full(struct zonelist *zonelist, struct zoneref *z)
 {
 	struct zonelist_cache *zlc;	/* cached zonelist speedup info */
 	int i;				/* index of *z in zonelist zones */
@@ -1349,7 +1349,7 @@ static void zlc_mark_zone_full(struct zonelist *zonelist, struct zone **z)
 	if (!zlc)
 		return;
 
-	i = z - zonelist->zones;
+	i = z - zonelist->_zonerefs;
 
 	set_bit(i, zlc->fullzones);
 }
@@ -1361,13 +1361,13 @@ static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
 	return NULL;
 }
 
-static int zlc_zone_worth_trying(struct zonelist *zonelist, struct zone **z,
+static int zlc_zone_worth_trying(struct zonelist *zonelist, struct zoneref *z,
 				nodemask_t *allowednodes)
 {
 	return 1;
 }
 
-static void zlc_mark_zone_full(struct zonelist *zonelist, struct zone **z)
+static void zlc_mark_zone_full(struct zonelist *zonelist, struct zoneref *z)
 {
 }
 #endif	/* CONFIG_NUMA */
@@ -1380,7 +1380,7 @@ static struct page *
 get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 		struct zonelist *zonelist, int high_zoneidx, int alloc_flags)
 {
-	struct zone **z;
+	struct zoneref *z;
 	struct page *page = NULL;
 	int classzone_idx;
 	struct zone *zone, *preferred_zone;
@@ -1389,8 +1389,8 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
 
 	z = first_zones_zonelist(zonelist, high_zoneidx);
-	classzone_idx = zone_idx(*z);
-	preferred_zone = *z;
+	classzone_idx = zonelist_zone_idx(z);
+	preferred_zone = zonelist_zone(z);
 
 zonelist_scan:
 	/*
@@ -1453,7 +1453,8 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
 {
 	const gfp_t wait = gfp_mask & __GFP_WAIT;
 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
-	struct zone **z;
+	struct zoneref *z;
+	struct zone *zone;
 	struct page *page;
 	struct reclaim_state reclaim_state;
 	struct task_struct *p = current;
@@ -1467,9 +1468,9 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
 		return NULL;
 
 restart:
-	z = zonelist->zones;  /* the list of zones suitable for gfp_mask */
+	z = zonelist->_zonerefs;  /* the list of zones suitable for gfp_mask */
 
-	if (unlikely(*z == NULL)) {
+	if (unlikely(!z->zone)) {
 		/*
 		 * Happens if we have an empty zonelist as a result of
 		 * GFP_THISNODE being used on a memoryless node
@@ -1493,8 +1494,8 @@ restart:
 	if (NUMA_BUILD && (gfp_mask & GFP_THISNODE) == GFP_THISNODE)
 		goto nopage;
 
-	for (z = zonelist->zones; *z; z++)
-		wakeup_kswapd(*z, order);
+	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+		wakeup_kswapd(zone, order);
 
 	/*
 	 * OK, we're below the kswapd watermark and have kicked background
@@ -1575,7 +1576,7 @@ nofail_alloc:
 		if (page)
 			goto got_pg;
 	} else if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
-		if (!try_set_zone_oom(zonelist)) {
+		if (!try_set_zone_oom(zonelist, gfp_mask)) {
 			schedule_timeout_uninterruptible(1);
 			goto restart;
 		}
@@ -1589,18 +1590,18 @@ nofail_alloc:
 		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
 			zonelist, high_zoneidx, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
 		if (page) {
-			clear_zonelist_oom(zonelist);
+			clear_zonelist_oom(zonelist, gfp_mask);
 			goto got_pg;
 		}
 
 		/* The OOM killer will not help higher order allocs so fail */
 		if (order > PAGE_ALLOC_COSTLY_ORDER) {
-			clear_zonelist_oom(zonelist);
+			clear_zonelist_oom(zonelist, gfp_mask);
 			goto nopage;
 		}
 
 		out_of_memory(zonelist, gfp_mask, order);
-		clear_zonelist_oom(zonelist);
+		clear_zonelist_oom(zonelist, gfp_mask);
 		goto restart;
 	}
 
@@ -1702,7 +1703,7 @@ EXPORT_SYMBOL(free_pages);
 
 static unsigned int nr_free_zone_pages(int offset)
 {
-	struct zone **z;
+	struct zoneref *z;
 	struct zone *zone;
 
 	/* Just pick one node, since fallback list is circular */
@@ -1896,7 +1897,8 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
 		zone_type--;
 		zone = pgdat->node_zones + zone_type;
 		if (populated_zone(zone)) {
-			zonelist->zones[nr_zones++] = zone;
+			zoneref_set_zone(zone,
+				&zonelist->_zonerefs[nr_zones++]);
 			check_highest_zone(zone_type);
 		}
 
@@ -2072,11 +2074,12 @@ static void build_zonelists_in_node_order(pg_data_t *pgdat, int node)
 	struct zonelist *zonelist;
 
 	zonelist = &pgdat->node_zonelists[0];
-	for (j = 0; zonelist->zones[j] != NULL; j++)
+	for (j = 0; zonelist->_zonerefs[j].zone != NULL; j++)
 		;
 	j = build_zonelists_node(NODE_DATA(node), zonelist, j,
 							MAX_NR_ZONES - 1);
-	zonelist->zones[j] = NULL;
+	zonelist->_zonerefs[j].zone = NULL;
+	zonelist->_zonerefs[j].zone_idx = 0;
 }
 
 /*
@@ -2089,7 +2092,8 @@ static void build_thisnode_zonelists(pg_data_t *pgdat)
 
 	zonelist = &pgdat->node_zonelists[1];
 	j = build_zonelists_node(pgdat, zonelist, 0, MAX_NR_ZONES - 1);
-	zonelist->zones[j] = NULL;
+	zonelist->_zonerefs[j].zone = NULL;
+	zonelist->_zonerefs[j].zone_idx = 0;
 }
 
 /*
@@ -2114,12 +2118,14 @@ static void build_zonelists_in_zone_order(pg_data_t *pgdat, int nr_nodes)
 			node = node_order[j];
 			z = &NODE_DATA(node)->node_zones[zone_type];
 			if (populated_zone(z)) {
-				zonelist->zones[pos++] = z;
+				zoneref_set_zone(z,
+					&zonelist->_zonerefs[pos++]);
 				check_highest_zone(zone_type);
 			}
 		}
 	}
-	zonelist->zones[pos] = NULL;
+	zonelist->_zonerefs[pos].zone = NULL;
+	zonelist->_zonerefs[pos].zone_idx = 0;
 }
 
 static int default_zonelist_order(void)
@@ -2196,7 +2202,8 @@ static void build_zonelists(pg_data_t *pgdat)
 	/* initialize zonelists */
 	for (i = 0; i < MAX_ZONELISTS; i++) {
 		zonelist = pgdat->node_zonelists + i;
-		zonelist->zones[0] = NULL;
+		zonelist->_zonerefs[0].zone = NULL;
+		zonelist->_zonerefs[0].zone_idx = 0;
 	}
 
 	/* NUMA-aware ordering of nodes */
@@ -2248,13 +2255,13 @@ static void build_zonelist_cache(pg_data_t *pgdat)
 {
 	struct zonelist *zonelist;
 	struct zonelist_cache *zlc;
-	struct zone **z;
+	struct zoneref *z;
 
 	zonelist = &pgdat->node_zonelists[0];
 	zonelist->zlcache_ptr = zlc = &zonelist->zlcache;
 	bitmap_zero(zlc->fullzones, MAX_ZONES_PER_ZONELIST);
-	for (z = zonelist->zones; *z; z++)
-		zlc->z_to_n[z - zonelist->zones] = zone_to_nid(*z);
+	for (z = zonelist->_zonerefs; z->zone; z++)
+		zlc->z_to_n[z - zonelist->_zonerefs] = zonelist_node_idx(z);
 }
 
 
@@ -2297,7 +2304,8 @@ static void build_zonelists(pg_data_t *pgdat)
 							MAX_NR_ZONES - 1);
 	}
 
-	zonelist->zones[j] = NULL;
+	zonelist->_zonerefs[j].zone = NULL;
+	zonelist->_zonerefs[j].zone_idx = 0;
 }
 
 /* non-NUMA variant of zonelist performance cache - just NULL zlcache_ptr */

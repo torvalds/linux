@@ -186,7 +186,7 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
 		for_each_node_mask(nd, *nodes) { 
 			struct zone *z = &NODE_DATA(nd)->node_zones[k];
 			if (z->present_pages > 0) 
-				zl->zones[num++] = z;
+				zoneref_set_zone(z, &zl->_zonerefs[num++]);
 		}
 		if (k == 0)
 			break;
@@ -196,7 +196,8 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
 		kfree(zl);
 		return ERR_PTR(-EINVAL);
 	}
-	zl->zones[num] = NULL;
+	zl->_zonerefs[num].zone = NULL;
+	zl->_zonerefs[num].zone_idx = 0;
 	return zl;
 }
 
@@ -504,9 +505,11 @@ static void get_zonemask(struct mempolicy *p, nodemask_t *nodes)
 	nodes_clear(*nodes);
 	switch (p->policy) {
 	case MPOL_BIND:
-		for (i = 0; p->v.zonelist->zones[i]; i++)
-			node_set(zone_to_nid(p->v.zonelist->zones[i]),
-				*nodes);
+		for (i = 0; p->v.zonelist->_zonerefs[i].zone; i++) {
+			struct zoneref *zref;
+			zref = &p->v.zonelist->_zonerefs[i];
+			node_set(zonelist_node_idx(zref), *nodes);
+		}
 		break;
 	case MPOL_DEFAULT:
 		break;
@@ -1212,12 +1215,13 @@ unsigned slab_node(struct mempolicy *policy)
 	case MPOL_INTERLEAVE:
 		return interleave_nodes(policy);
 
-	case MPOL_BIND:
+	case MPOL_BIND: {
 		/*
 		 * Follow bind policy behavior and start allocation at the
 		 * first node.
 		 */
-		return zone_to_nid(policy->v.zonelist->zones[0]);
+		return zonelist_node_idx(policy->v.zonelist->_zonerefs);
+	}
 
 	case MPOL_PREFERRED:
 		if (policy->v.preferred_node >= 0)
@@ -1323,7 +1327,7 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
 
 	zl = node_zonelist(nid, gfp);
 	page = __alloc_pages(gfp, order, zl);
-	if (page && page_zone(page) == zl->zones[0])
+	if (page && page_zone(page) == zonelist_zone(&zl->_zonerefs[0]))
 		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
 	return page;
 }
@@ -1463,10 +1467,14 @@ int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
 		return a->v.preferred_node == b->v.preferred_node;
 	case MPOL_BIND: {
 		int i;
-		for (i = 0; a->v.zonelist->zones[i]; i++)
-			if (a->v.zonelist->zones[i] != b->v.zonelist->zones[i])
+		for (i = 0; a->v.zonelist->_zonerefs[i].zone; i++) {
+			struct zone *za, *zb;
+			za = zonelist_zone(&a->v.zonelist->_zonerefs[i]);
+			zb = zonelist_zone(&b->v.zonelist->_zonerefs[i]);
+			if (za != zb)
 				return 0;
-		return b->v.zonelist->zones[i] == NULL;
+		}
+		return b->v.zonelist->_zonerefs[i].zone == NULL;
 	}
 	default:
 		BUG();
@@ -1785,12 +1793,12 @@ static void mpol_rebind_policy(struct mempolicy *pol,
 		break;
 	case MPOL_BIND: {
 		nodemask_t nodes;
-		struct zone **z;
+		struct zoneref *z;
 		struct zonelist *zonelist;
 
 		nodes_clear(nodes);
-		for (z = pol->v.zonelist->zones; *z; z++)
-			node_set(zone_to_nid(*z), nodes);
+		for (z = pol->v.zonelist->_zonerefs; z->zone; z++)
+			node_set(zonelist_node_idx(z), nodes);
 		nodes_remap(tmp, nodes, *mpolmask, *newmask);
 		nodes = tmp;
 

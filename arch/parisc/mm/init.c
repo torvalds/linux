@@ -608,7 +608,7 @@ void show_mem(void)
 		for (i = 0; i < npmem_ranges; i++) {
 			zl = node_zonelist(i);
 			for (j = 0; j < MAX_NR_ZONES; j++) {
-				struct zone **z;
+				struct zoneref *z;
 				struct zone *zone;
 
 				printk("Zone list for zone %d on node %d: ", j, i);

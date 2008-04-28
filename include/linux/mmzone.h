@@ -469,6 +469,15 @@ struct zonelist_cache;
 #endif
 
 /*
+ * This struct contains information about a zone in a zonelist. It is stored
+ * here to avoid dereferences into large structures and lookups of tables
+ */
+struct zoneref {
+	struct zone *zone;	/* Pointer to actual zone */
+	int zone_idx;		/* zone_idx(zoneref->zone) */
+};
+
+/*
  * One allocation request operates on a zonelist. A zonelist
  * is a list of zones, the first one is the 'goal' of the
  * allocation, the other zones are fallback zones, in decreasing
@@ -476,11 +485,18 @@ struct zonelist_cache;
  *
  * If zlcache_ptr is not NULL, then it is just the address of zlcache,
  * as explained above.  If zlcache_ptr is NULL, there is no zlcache.
+ * *
+ * To speed the reading of the zonelist, the zonerefs contain the zone index
+ * of the entry being read. Helper functions to access information given
+ * a struct zoneref are
+ *
+ * zonelist_zone()	- Return the struct zone * for an entry in _zonerefs
+ * zonelist_zone_idx()	- Return the index of the zone for an entry
+ * zonelist_node_idx()	- Return the index of the node for an entry
  */
-
 struct zonelist {
 	struct zonelist_cache *zlcache_ptr;		     // NULL or &zlcache
-	struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
+	struct zoneref _zonerefs[MAX_ZONES_PER_ZONELIST + 1];
 #ifdef CONFIG_NUMA
 	struct zonelist_cache zlcache;			     // optional ...
 #endif
@@ -713,26 +729,52 @@ extern struct zone *next_zone(struct zone *zone);
 	     zone;					\
 	     zone = next_zone(zone))
 
+static inline struct zone *zonelist_zone(struct zoneref *zoneref)
+{
+	return zoneref->zone;
+}
+
+static inline int zonelist_zone_idx(struct zoneref *zoneref)
+{
+	return zoneref->zone_idx;
+}
+
+static inline int zonelist_node_idx(struct zoneref *zoneref)
+{
+#ifdef CONFIG_NUMA
+	/* zone_to_nid not available in this context */
+	return zoneref->zone->node;
+#else
+	return 0;
+#endif /* CONFIG_NUMA */
+}
+
+static inline void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+{
+	zoneref->zone = zone;
+	zoneref->zone_idx = zone_idx(zone);
+}
+
 /* Returns the first zone at or below highest_zoneidx in a zonelist */
-static inline struct zone **first_zones_zonelist(struct zonelist *zonelist,
+static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
 					enum zone_type highest_zoneidx)
 {
-	struct zone **z;
+	struct zoneref *z;
 
 	/* Find the first suitable zone to use for the allocation */
-	z = zonelist->zones;
-	while (*z && zone_idx(*z) > highest_zoneidx)
+	z = zonelist->_zonerefs;
+	while (zonelist_zone_idx(z) > highest_zoneidx)
 		z++;
 
 	return z;
 }
 
 /* Returns the next zone at or below highest_zoneidx in a zonelist */
-static inline struct zone **next_zones_zonelist(struct zone **z,
+static inline struct zoneref *next_zones_zonelist(struct zoneref *z,
 					enum zone_type highest_zoneidx)
 {
 	/* Find the next suitable zone to use for the allocation */
-	while (*z && zone_idx(*z) > highest_zoneidx)
+	while (zonelist_zone_idx(z) > highest_zoneidx)
 		z++;
 
 	return z;
@@ -748,9 +790,11 @@ static inline struct zone **next_zones_zonelist(struct zone **z,
  * This iterator iterates though all zones at or below a given zone index.
  */
 #define for_each_zone_zonelist(zone, z, zlist, highidx) \
-	for (z = first_zones_zonelist(zlist, highidx), zone = *z++;	\
+	for (z = first_zones_zonelist(zlist, highidx),			\
+					zone = zonelist_zone(z++);	\
 		zone;							\
-		z = next_zones_zonelist(z, highidx), zone = *z++)
+		z = next_zones_zonelist(z, highidx),			\
+					zone = zonelist_zone(z++))
 
 #ifdef CONFIG_SPARSEMEM
 #include <asm/sparsemem.h>
