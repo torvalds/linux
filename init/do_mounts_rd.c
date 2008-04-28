@@ -212,7 +212,7 @@ int __init rd_load_image(char *from)
 	}
 
 	buf = kmalloc(BLOCK_SIZE, GFP_KERNEL);
-	if (buf == 0) {
+	if (!buf) {
 		printk(KERN_ERR "RAMDISK: could not allocate buffer\n");
 		goto done;
 	}
