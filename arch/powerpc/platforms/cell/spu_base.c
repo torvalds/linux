@@ -141,6 +141,10 @@ static void spu_restart_dma(struct spu *spu)
 
 	if (!test_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags))
 		out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESTART_DMA_COMMAND);
+	else {
+		set_bit(SPU_CONTEXT_FAULT_PENDING, &spu->flags);
+		mb();
+	}
 }
 
 static inline void spu_load_slb(struct spu *spu, int slbe, struct spu_slb *slb)

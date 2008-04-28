@@ -139,6 +139,7 @@ static inline void disable_interrupts(struct spu_state *csa, struct spu *spu)
 	 * via a simple load.
 	 */
 	set_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags);
+	clear_bit(SPU_CONTEXT_FAULT_PENDING, &spu->flags);
 	synchronize_irq(spu->irqs[0]);
 	synchronize_irq(spu->irqs[1]);
 	synchronize_irq(spu->irqs[2]);
@@ -739,10 +740,14 @@ static inline void set_switch_active(struct spu_state *csa, struct spu *spu)
 	/* Save, Step 48:
 	 * Restore, Step 23.
 	 *     Change the software context switch pending flag
-	 *     to context switch active.
+	 *     to context switch active.  This implementation does
+	 *     not uses a switch active flag.
 	 *
-	 *     This implementation does not uses a switch active flag.
+	 * Now that we have saved the mfc in the csa, we can add in the
+	 * restart command if an exception occurred.
 	 */
+	if (test_bit(SPU_CONTEXT_FAULT_PENDING, &spu->flags))
+		csa->priv2.mfc_control_RW |= MFC_CNTL_RESTART_DMA_COMMAND;
 	clear_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags);
 	mb();
 }
@@ -1742,15 +1747,15 @@ static inline void restore_mfc_cntl(struct spu_state *csa, struct spu *spu)
 	 */
 	out_be64(&priv2->mfc_control_RW, csa->priv2.mfc_control_RW);
 	eieio();
+
 	/*
-	 * FIXME: this is to restart a DMA that we were processing
-	 *        before the save. better remember the fault information
-	 *        in the csa instead.
+	 * The queue is put back into the same state that was evident prior to
+	 * the context switch. The suspend flag is added to the saved state in
+	 * the csa, if the operational state was suspending or suspended. In
+	 * this case, the code that suspended the mfc is responsible for
+	 * continuing it. Note that SPE faults do not change the operational
+	 * state of the spu.
 	 */
-	if ((csa->priv2.mfc_control_RW & MFC_CNTL_SUSPEND_DMA_QUEUE_MASK)) {
-		out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESTART_DMA_COMMAND);
-		eieio();
-	}
 }
 
 static inline void enable_user_access(struct spu_state *csa, struct spu *spu)

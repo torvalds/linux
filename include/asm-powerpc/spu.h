@@ -100,6 +100,7 @@
 
 /* Flag indicating progress during context switch. */
 #define SPU_CONTEXT_SWITCH_PENDING	0UL
+#define SPU_CONTEXT_FAULT_PENDING	1UL
 
 struct spu_context;
 struct spu_runqueue;
