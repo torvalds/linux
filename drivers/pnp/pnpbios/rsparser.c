@@ -16,6 +16,7 @@ inline void pcibios_penalize_isa_irq(int irq, int active)
 }
 #endif				/* CONFIG_PCI */
 
+#include "../base.h"
 #include "pnpbios.h"
 
 /* standard resource tags */
@@ -548,13 +549,11 @@ static unsigned char *pnpbios_parse_compatible_ids(unsigned char *p,
 		case SMALL_TAG_COMPATDEVID:	/* compatible ID */
 			if (len != 4)
 				goto len_err;
-			dev_id = kzalloc(sizeof(struct pnp_id), GFP_KERNEL);
-			if (!dev_id)
-				return NULL;
 			pnpid32_to_pnpid(p[1] | p[2] << 8 | p[3] << 16 | p[4] <<
 					 24, id);
-			memcpy(&dev_id->id, id, 7);
-			pnp_add_id(dev_id, dev);
+			dev_id = pnp_add_id(dev, id);
+			if (!dev_id)
+				return NULL;
 			break;
 
 		case SMALL_TAG_END:

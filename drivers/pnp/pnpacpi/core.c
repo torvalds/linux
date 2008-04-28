@@ -73,18 +73,6 @@ static int __init ispnpidacpi(char *id)
 	return 1;
 }
 
-static void __init pnpidacpi_to_pnpid(char *id, char *str)
-{
-	str[0] = id[0];
-	str[1] = id[1];
-	str[2] = id[2];
-	str[3] = tolower(id[3]);
-	str[4] = tolower(id[4]);
-	str[5] = tolower(id[5]);
-	str[6] = tolower(id[6]);
-	str[7] = '\0';
-}
-
 static int pnpacpi_get_resources(struct pnp_dev *dev,
 				 struct pnp_resource_table *res)
 {
@@ -201,12 +189,9 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 
 	dev->number = num;
 
-	/* set the initial values for the PnP device */
-	dev_id = kzalloc(sizeof(struct pnp_id), GFP_KERNEL);
+	dev_id = pnp_add_id(dev, acpi_device_hid(device));
 	if (!dev_id)
 		goto err;
-	pnpidacpi_to_pnpid(acpi_device_hid(device), dev_id->id);
-	pnp_add_id(dev_id, dev);
 
 	if (dev->active) {
 		/* parse allocated resource */
@@ -227,7 +212,6 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 		}
 	}
 
-	/* parse compatible ids */
 	if (device->flags.compatible_ids) {
 		struct acpi_compatible_id_list *cid_list = device->pnp.cid_list;
 		int i;
@@ -235,12 +219,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 		for (i = 0; i < cid_list->count; i++) {
 			if (!ispnpidacpi(cid_list->id[i].value))
 				continue;
-			dev_id = kzalloc(sizeof(struct pnp_id), GFP_KERNEL);
-			if (!dev_id)
-				continue;
-
-			pnpidacpi_to_pnpid(cid_list->id[i].value, dev_id->id);
-			pnp_add_id(dev_id, dev);
+			pnp_add_id(dev, cid_list->id[i].value);
 		}
 	}
 

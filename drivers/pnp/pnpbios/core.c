@@ -332,16 +332,14 @@ static int __init insert_device(struct pnp_bios_node *node)
 	if (!dev)
 		return -1;
 
-	dev_id = kzalloc(sizeof(struct pnp_id), GFP_KERNEL);
+	pnpid32_to_pnpid(node->eisa_id, id);
+	dev_id = pnp_add_id(dev, id);
 	if (!dev_id) {
 		kfree(dev);
 		return -1;
 	}
 
 	dev->number = node->handle;
-	pnpid32_to_pnpid(node->eisa_id, id);
-	memcpy(dev_id->id, id, 7);
-	pnp_add_id(dev_id, dev);
 	pnpbios_parse_data_stream(dev, node);
 	dev->active = pnp_is_active(dev);
 	dev->flags = node->flags;
