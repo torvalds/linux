@@ -37,11 +37,6 @@ static u8 ide_inb (unsigned long port)
 	return (u8) inb(port);
 }
 
-static u16 ide_inw (unsigned long port)
-{
-	return (u16) inw(port);
-}
-
 static void ide_outb (u8 val, unsigned long port)
 {
 	outb(val, port);
@@ -52,18 +47,11 @@ static void ide_outbsync (ide_drive_t *drive, u8 addr, unsigned long port)
 	outb(addr, port);
 }
 
-static void ide_outw (u16 val, unsigned long port)
-{
-	outw(val, port);
-}
-
 void default_hwif_iops (ide_hwif_t *hwif)
 {
 	hwif->OUTB	= ide_outb;
 	hwif->OUTBSYNC	= ide_outbsync;
-	hwif->OUTW	= ide_outw;
 	hwif->INB	= ide_inb;
-	hwif->INW	= ide_inw;
 }
 
 /*
@@ -73,11 +61,6 @@ void default_hwif_iops (ide_hwif_t *hwif)
 static u8 ide_mm_inb (unsigned long port)
 {
 	return (u8) readb((void __iomem *) port);
-}
-
-static u16 ide_mm_inw (unsigned long port)
-{
-	return (u16) readw((void __iomem *) port);
 }
 
 static void ide_mm_outb (u8 value, unsigned long port)
@@ -90,20 +73,13 @@ static void ide_mm_outbsync (ide_drive_t *drive, u8 value, unsigned long port)
 	writeb(value, (void __iomem *) port);
 }
 
-static void ide_mm_outw (u16 value, unsigned long port)
-{
-	writew(value, (void __iomem *) port);
-}
-
 void default_hwif_mmiops (ide_hwif_t *hwif)
 {
 	hwif->OUTB	= ide_mm_outb;
 	/* Most systems will need to override OUTBSYNC, alas however
 	   this one is controller specific! */
 	hwif->OUTBSYNC	= ide_mm_outbsync;
-	hwif->OUTW	= ide_mm_outw;
 	hwif->INB	= ide_mm_inb;
-	hwif->INW	= ide_mm_inw;
 }
 
 EXPORT_SYMBOL(default_hwif_mmiops);

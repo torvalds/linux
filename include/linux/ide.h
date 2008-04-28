@@ -479,10 +479,8 @@ typedef struct hwif_s {
 
 	void (*OUTB)(u8 addr, unsigned long port);
 	void (*OUTBSYNC)(ide_drive_t *drive, u8 addr, unsigned long port);
-	void (*OUTW)(u16 addr, unsigned long port);
 
 	u8  (*INB)(unsigned long port);
-	u16 (*INW)(unsigned long port);
 
 	/* dma physical region descriptor table (cpu view) */
 	unsigned int	*dmatable_cpu;

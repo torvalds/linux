@@ -176,9 +176,6 @@ static inline void hwif_setup(ide_hwif_t *hwif)
 
 	hwif->input_data  = h8300_input_data;
 	hwif->output_data = h8300_output_data;
-
-	hwif->OUTW  = mm_outw;
-	hwif->INW   = mm_inw;
 }
 
 static int __init h8300_ide_init(void)

@@ -903,10 +903,8 @@ static int __init init_e100_ide(void)
 		hwif->output_data = cris_output_data;
 
 		hwif->OUTB = &cris_ide_outb;
-		hwif->OUTW = &cris_ide_outw;
 		hwif->OUTBSYNC = &cris_ide_outbsync;
 		hwif->INB = &cris_ide_inb;
-		hwif->INW = &cris_ide_inw;
 		hwif->cbl = ATA_CBL_PATA40;
 
 		idx[h] = hwif->index;

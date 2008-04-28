@@ -126,12 +126,6 @@ static u8 scc_ide_inb(unsigned long port)
 	return (u8)data;
 }
 
-static u16 scc_ide_inw(unsigned long port)
-{
-	u32 data = in_be32((void*)port);
-	return (u16)data;
-}
-
 static void scc_ide_insw(unsigned long port, void *addr, u32 count)
 {
 	u16 *ptr = (u16 *)addr;
@@ -150,11 +144,6 @@ static void scc_ide_insl(unsigned long port, void *addr, u32 count)
 }
 
 static void scc_ide_outb(u8 addr, unsigned long port)
-{
-	out_be32((void*)port, addr);
-}
-
-static void scc_ide_outw(u16 addr, unsigned long port)
 {
 	out_be32((void*)port, addr);
 }
@@ -630,8 +619,8 @@ static void scc_tf_load(ide_drive_t *drive, ide_task_t *task)
 	ide_set_irq(drive, 1);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_DATA)
-		scc_ide_outw((tf->hob_data << 8) | tf->data,
-			     io_ports->data_addr);
+		out_be32((void *)io_ports->data_addr,
+			 (tf->hob_data << 8) | tf->data);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
 		scc_ide_outb(tf->hob_feature, io_ports->feature_addr);
@@ -666,7 +655,7 @@ static void scc_tf_read(ide_drive_t *drive, ide_task_t *task)
 	struct ide_taskfile *tf = &task->tf;
 
 	if (task->tf_flags & IDE_TFLAG_IN_DATA) {
-		u16 data = scc_ide_inw(io_ports->data_addr);
+		u16 data = (u16)in_be32((void *)io_ports->data_addr);
 
 		tf->data = data & 0xff;
 		tf->hob_data = (data >> 8) & 0xff;
@@ -755,10 +744,8 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 	hwif->output_data = scc_output_data;
 
 	hwif->INB = scc_ide_inb;
-	hwif->INW = scc_ide_inw;
 	hwif->OUTB = scc_ide_outb;
 	hwif->OUTBSYNC = scc_ide_outbsync;
-	hwif->OUTW = scc_ide_outw;
 
 	hwif->dma_base = dma_base;
 	hwif->config_data = ports->ctl;
