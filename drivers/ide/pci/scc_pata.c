@@ -669,13 +669,9 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 
 	hwif->INB = scc_ide_inb;
 	hwif->INW = scc_ide_inw;
-	hwif->INSW = scc_ide_insw;
-	hwif->INSL = scc_ide_insl;
 	hwif->OUTB = scc_ide_outb;
 	hwif->OUTBSYNC = scc_ide_outbsync;
 	hwif->OUTW = scc_ide_outw;
-	hwif->OUTSW = scc_ide_outsw;
-	hwif->OUTSL = scc_ide_outsl;
 
 	hwif->dma_base = dma_base;
 	hwif->config_data = ports->ctl;

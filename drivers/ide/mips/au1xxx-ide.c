@@ -609,9 +609,6 @@ static int au_ide_probe(struct device *dev)
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA	
 	hwif->input_data  = au1xxx_input_data;
 	hwif->output_data = au1xxx_output_data;
-
-	hwif->INSW                      = auide_insw;
-	hwif->OUTSW                     = auide_outsw;
 #endif
 	hwif->select_data               = 0;    /* no chipset-specific code */
 	hwif->config_data               = 0;    /* no chipset-specific code */

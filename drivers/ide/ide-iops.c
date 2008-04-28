@@ -42,16 +42,6 @@ static u16 ide_inw (unsigned long port)
 	return (u16) inw(port);
 }
 
-static void ide_insw (unsigned long port, void *addr, u32 count)
-{
-	insw(port, addr, count);
-}
-
-static void ide_insl (unsigned long port, void *addr, u32 count)
-{
-	insl(port, addr, count);
-}
-
 static void ide_outb (u8 val, unsigned long port)
 {
 	outb(val, port);
@@ -67,27 +57,13 @@ static void ide_outw (u16 val, unsigned long port)
 	outw(val, port);
 }
 
-static void ide_outsw (unsigned long port, void *addr, u32 count)
-{
-	outsw(port, addr, count);
-}
-
-static void ide_outsl (unsigned long port, void *addr, u32 count)
-{
-	outsl(port, addr, count);
-}
-
 void default_hwif_iops (ide_hwif_t *hwif)
 {
 	hwif->OUTB	= ide_outb;
 	hwif->OUTBSYNC	= ide_outbsync;
 	hwif->OUTW	= ide_outw;
-	hwif->OUTSW	= ide_outsw;
-	hwif->OUTSL	= ide_outsl;
 	hwif->INB	= ide_inb;
 	hwif->INW	= ide_inw;
-	hwif->INSW	= ide_insw;
-	hwif->INSL	= ide_insl;
 }
 
 /*
@@ -102,16 +78,6 @@ static u8 ide_mm_inb (unsigned long port)
 static u16 ide_mm_inw (unsigned long port)
 {
 	return (u16) readw((void __iomem *) port);
-}
-
-static void ide_mm_insw (unsigned long port, void *addr, u32 count)
-{
-	__ide_mm_insw((void __iomem *) port, addr, count);
-}
-
-static void ide_mm_insl (unsigned long port, void *addr, u32 count)
-{
-	__ide_mm_insl((void __iomem *) port, addr, count);
 }
 
 static void ide_mm_outb (u8 value, unsigned long port)
@@ -129,16 +95,6 @@ static void ide_mm_outw (u16 value, unsigned long port)
 	writew(value, (void __iomem *) port);
 }
 
-static void ide_mm_outsw (unsigned long port, void *addr, u32 count)
-{
-	__ide_mm_outsw((void __iomem *) port, addr, count);
-}
-
-static void ide_mm_outsl (unsigned long port, void *addr, u32 count)
-{
-	__ide_mm_outsl((void __iomem *) port, addr, count);
-}
-
 void default_hwif_mmiops (ide_hwif_t *hwif)
 {
 	hwif->OUTB	= ide_mm_outb;
@@ -146,12 +102,8 @@ void default_hwif_mmiops (ide_hwif_t *hwif)
 	   this one is controller specific! */
 	hwif->OUTBSYNC	= ide_mm_outbsync;
 	hwif->OUTW	= ide_mm_outw;
-	hwif->OUTSW	= ide_mm_outsw;
-	hwif->OUTSL	= ide_mm_outsl;
 	hwif->INB	= ide_mm_inb;
 	hwif->INW	= ide_mm_inw;
-	hwif->INSW	= ide_mm_insw;
-	hwif->INSL	= ide_mm_insl;
 }
 
 EXPORT_SYMBOL(default_hwif_mmiops);
@@ -203,24 +155,39 @@ static void ata_input_data(ide_drive_t *drive, struct request *rq,
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	unsigned long data_addr = io_ports->data_addr;
 	u8 io_32bit = drive->io_32bit;
+	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 
 	len++;
 
 	if (io_32bit) {
-		if (io_32bit & 2) {
-			unsigned long flags;
+		unsigned long uninitialized_var(flags);
 
+		if (io_32bit & 2) {
 			local_irq_save(flags);
 			ata_vlb_sync(drive, io_ports->nsect_addr);
-			hwif->INSL(data_addr, buf, len / 4);
-			local_irq_restore(flags);
-		} else
-			hwif->INSL(data_addr, buf, len / 4);
+		}
 
-		if ((len & 3) >= 2)
-			hwif->INSW(data_addr, (u8 *)buf + (len & ~3), 1);
-	} else
-		hwif->INSW(data_addr, buf, len / 2);
+		if (mmio)
+			__ide_mm_insl((void __iomem *)data_addr, buf, len / 4);
+		else
+			insl(data_addr, buf, len / 4);
+
+		if (io_32bit & 2)
+			local_irq_restore(flags);
+
+		if ((len & 3) >= 2) {
+			if (mmio)
+				__ide_mm_insw((void __iomem *)data_addr,
+						(u8 *)buf + (len & ~3), 1);
+			else
+				insw(data_addr, (u8 *)buf + (len & ~3), 1);
+		}
+	} else {
+		if (mmio)
+			__ide_mm_insw((void __iomem *)data_addr, buf, len / 2);
+		else
+			insw(data_addr, buf, len / 2);
+	}
 }
 
 /*
@@ -233,22 +200,37 @@ static void ata_output_data(ide_drive_t *drive, struct request *rq,
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	unsigned long data_addr = io_ports->data_addr;
 	u8 io_32bit = drive->io_32bit;
+	u8 mmio = (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 
 	if (io_32bit) {
-		if (io_32bit & 2) {
-			unsigned long flags;
+		unsigned long uninitialized_var(flags);
 
+		if (io_32bit & 2) {
 			local_irq_save(flags);
 			ata_vlb_sync(drive, io_ports->nsect_addr);
-			hwif->OUTSL(data_addr, buf, len / 4);
-			local_irq_restore(flags);
-		} else
-			hwif->OUTSL(data_addr, buf, len / 4);
+		}
 
-		if ((len & 3) >= 2)
-			hwif->OUTSW(data_addr, (u8 *)buf + (len & ~3), 1);
-	} else
-		hwif->OUTSW(data_addr, buf, len / 2);
+		if (mmio)
+			__ide_mm_outsl((void __iomem *)data_addr, buf, len / 4);
+		else
+			outsl(data_addr, buf, len / 4);
+
+		if (io_32bit & 2)
+			local_irq_restore(flags);
+
+		if ((len & 3) >= 2) {
+			if (mmio)
+				__ide_mm_outsw((void __iomem *)data_addr,
+						 (u8 *)buf + (len & ~3), 1);
+			else
+				outsw(data_addr, (u8 *)buf + (len & ~3), 1);
+		}
+	} else {
+		if (mmio)
+			__ide_mm_outsw((void __iomem *)data_addr, buf, len / 2);
+		else
+			outsw(data_addr, buf, len / 2);
+	}
 }
 
 void default_hwif_transport(ide_hwif_t *hwif)
