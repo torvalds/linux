@@ -270,9 +270,9 @@ int pnp_check_port(struct pnp_dev *dev, int idx)
 	}
 
 	/* check for internal conflicts */
-	for (i = 0; i < PNP_MAX_PORT && i != idx; i++) {
+	for (i = 0; i < PNP_MAX_PORT; i++) {
 		tres = &dev->res.port_resource[i];
-		if (tres->flags & IORESOURCE_IO) {
+		if (tres != res && tres->flags & IORESOURCE_IO) {
 			tport = &tres->start;
 			tend = &tres->end;
 			if (ranged_conflict(port, end, tport, tend))
@@ -331,9 +331,9 @@ int pnp_check_mem(struct pnp_dev *dev, int idx)
 	}
 
 	/* check for internal conflicts */
-	for (i = 0; i < PNP_MAX_MEM && i != idx; i++) {
+	for (i = 0; i < PNP_MAX_MEM; i++) {
 		tres = &dev->res.mem_resource[i];
-		if (tres->flags & IORESOURCE_MEM) {
+		if (tres != res && tres->flags & IORESOURCE_MEM) {
 			taddr = &tres->start;
 			tend = &tres->end;
 			if (ranged_conflict(addr, end, taddr, tend))
@@ -391,9 +391,9 @@ int pnp_check_irq(struct pnp_dev *dev, int idx)
 	}
 
 	/* check for internal conflicts */
-	for (i = 0; i < PNP_MAX_IRQ && i != idx; i++) {
+	for (i = 0; i < PNP_MAX_IRQ; i++) {
 		tres = &dev->res.irq_resource[i];
-		if (tres->flags & IORESOURCE_IRQ) {
+		if (tres != res && tres->flags & IORESOURCE_IRQ) {
 			if (tres->start == *irq)
 				return 0;
 		}
@@ -465,9 +465,9 @@ int pnp_check_dma(struct pnp_dev *dev, int idx)
 	}
 
 	/* check for internal conflicts */
-	for (i = 0; i < PNP_MAX_DMA && i != idx; i++) {
+	for (i = 0; i < PNP_MAX_DMA; i++) {
 		tres = &dev->res.dma_resource[i];
-		if (tres->flags & IORESOURCE_DMA) {
+		if (tres != res && tres->flags & IORESOURCE_DMA) {
 			if (tres->start == *dma)
 				return 0;
 		}
