@@ -419,17 +419,19 @@ icside_setup(void __iomem *base, struct cardinfo *info, struct expansion_card *e
 
 	hwif = ide_find_port();
 	if (hwif) {
-		int i;
-
 		/*
 		 * Ensure we're using MMIO
 		 */
 		default_hwif_mmiops(hwif);
 
-		for (i = 0; i <= 7; i++) {
-			hwif->io_ports_array[i] = port;
-			port += 1 << info->stepping;
-		}
+		hwif->io_ports.data_addr = port;
+		hwif->io_ports.error_addr = port + (1 << info->stepping);
+		hwif->io_ports.nsect_addr = port + (2 << info->stepping);
+		hwif->io_ports.lbal_addr = port + (3 << info->stepping);
+		hwif->io_ports.lbam_addr = port + (4 << info->stepping);
+		hwif->io_ports.lbah_addr = port + (5 << info->stepping);
+		hwif->io_ports.device_addr = port + (6 << info->stepping);
+		hwif->io_ports.status_addr = port + (7 << info->stepping);
 		hwif->io_ports.ctl_addr =
 			(unsigned long)base + info->ctrloffset;
 		hwif->irq     = ec->irq;
