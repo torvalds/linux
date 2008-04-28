@@ -208,7 +208,7 @@ gx_configure_tft(struct fb_info *info)
 
 	fp = 0x0F100000;
 
-	/* Add sync polarity */
+	/* Configure sync polarity */
 
 	if (!(info->var.sync & FB_SYNC_VERT_HIGH_ACT))
 		fp |= GX_FP_PT2_VSP;
@@ -269,11 +269,15 @@ static void gx_configure_display(struct fb_info *info)
 	/* Enable hsync and vsync. */
 	dcfg |= GX_DCFG_HSYNC_EN | GX_DCFG_VSYNC_EN;
 
-	/* Sync polarities. */
-	if (info->var.sync & FB_SYNC_HOR_HIGH_ACT)
-		dcfg |= GX_DCFG_CRT_HSYNC_POL;
-	if (info->var.sync & FB_SYNC_VERT_HIGH_ACT)
-		dcfg |= GX_DCFG_CRT_VSYNC_POL;
+	/* Only change the sync polarities if we are running
+	 * in CRT mode.  The FP polarities will be handled in
+	 * gxfb_configure_tft */
+	if (par->enable_crt) {
+		if (!(info->var.sync & FB_SYNC_HOR_HIGH_ACT))
+			dcfg |= GX_DCFG_CRT_HSYNC_POL;
+		if (!(info->var.sync & FB_SYNC_VERT_HIGH_ACT))
+			dcfg |= GX_DCFG_CRT_VSYNC_POL;
+	}
 
 	/* Enable the display logic */
 	/* Set up the DACS to blank normally */
