@@ -1,3 +1,5 @@
+#include "radeonfb.h"
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -11,7 +13,6 @@
 #include <asm/io.h>
 
 #include <video/radeon.h>
-#include "radeonfb.h"
 #include "../edid.h"
 
 static void radeon_gpio_setscl(void* data, int state)
