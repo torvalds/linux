@@ -274,8 +274,7 @@ static struct mempolicy *shm_get_policy(struct vm_area_struct *vma,
 	else if (vma->vm_policy) {
 		pol = vma->vm_policy;
 		mpol_get(pol);	/* get_vma_policy() expects this */
-	} else
-		pol = current->mempolicy;
+	}
 	return pol;
 }
 #endif
