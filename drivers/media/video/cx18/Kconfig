@@ -1,0 +1,20 @@
+config VIDEO_CX18
+	tristate "Conexant cx23418 MPEG encoder support"
+	depends on VIDEO_V4L2 && DVB_CORE && PCI && I2C && EXPERIMENTAL
+	select I2C_ALGOBIT
+	select FW_LOADER
+	select VIDEO_IR
+	select VIDEO_TUNER
+	select VIDEO_TVEEPROM
+	select VIDEO_CX2341X
+	select VIDEO_CS5345
+	select DVB_S5H1409
+	---help---
+	  This is a video4linux driver for Conexant cx23418 based
+	  PCI combo video recorder devices.
+
+	  This is used in devices such as the Hauppauge HVR-1600
+	  cards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx18.
