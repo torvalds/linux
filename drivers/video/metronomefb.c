@@ -13,12 +13,10 @@
  * Corporation. http://support.eink.com/community
  *
  * This driver is written to be used with the Metronome display controller.
- * It was tested with an E-Ink 800x600 Vizplex EPD on a Gumstix Connex board
- * using the Lyre interface board.
+ * It is intended to be architecture independent. A board specific driver
+ * must be used to perform all the physical IO interactions. An example
+ * is provided as am200epd.c
  *
- * General notes:
- * - User must set metronomefb_enable=1 to enable it.
- * - See Documentation/fb/metronomefb.txt for how metronome works.
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -38,8 +36,10 @@
 #include <linux/uaccess.h>
 #include <linux/irq.h>
 
-#include <asm/arch/pxa-regs.h>
+#include <video/metronomefb.h>
+
 #include <asm/unaligned.h>
+
 
 #define DEBUG 1
 #ifdef DEBUG
@@ -52,35 +52,6 @@
 /* Display specific information */
 #define DPY_W 832
 #define DPY_H 622
-
-struct metromem_desc {
-	u32 mFDADR0;
-	u32 mFSADR0;
-	u32 mFIDR0;
-	u32 mLDCMD0;
-};
-
-struct metromem_cmd {
-	u16 opcode;
-	u16 args[((64-2)/2)];
-	u16 csum;
-};
-
-struct metronomefb_par {
-	unsigned char *metromem;
-	struct metromem_desc *metromem_desc;
-	struct metromem_cmd *metromem_cmd;
-	unsigned char *metromem_wfm;
-	unsigned char *metromem_img;
-	u16 *metromem_img_csum;
-	u16 *csum_table;
-	int metromemsize;
-	dma_addr_t metromem_dma;
-	dma_addr_t metromem_desc_dma;
-	struct fb_info *info;
-	wait_queue_head_t waitq;
-	u8 frame_count;
-};
 
 /* frame differs from image. frame includes non-visible pixels */
 struct epd_frame {
@@ -120,8 +91,7 @@ static struct fb_var_screeninfo metronomefb_var __devinitdata = {
 	.transp =	{ 0, 0, 0 },
 };
 
-static unsigned int metronomefb_enable;
-
+/* the waveform structure that is coming from userspace firmware */
 struct waveform_hdr {
 	u8 stuff[32];
 
@@ -301,165 +271,6 @@ static int load_waveform(u8 *mem, size_t size, u8 *metromem, int m, int t,
 	return 0;
 }
 
-/* register offsets for gpio control */
-#define LED_GPIO_PIN 51
-#define STDBY_GPIO_PIN 48
-#define RST_GPIO_PIN 49
-#define RDY_GPIO_PIN 32
-#define ERR_GPIO_PIN 17
-#define PCBPWR_GPIO_PIN 16
-
-#define AF_SEL_GPIO_N 0x3
-#define GAFR0_U_OFFSET(pin) ((pin - 16) * 2)
-#define GAFR1_L_OFFSET(pin) ((pin - 32) * 2)
-#define GAFR1_U_OFFSET(pin) ((pin - 48) * 2)
-#define GPDR1_OFFSET(pin) (pin - 32)
-#define GPCR1_OFFSET(pin) (pin - 32)
-#define GPSR1_OFFSET(pin) (pin - 32)
-#define GPCR0_OFFSET(pin) (pin)
-#define GPSR0_OFFSET(pin) (pin)
-
-static void metronome_set_gpio_output(int pin, int val)
-{
-	u8 index;
-
-	index = pin >> 4;
-
-	switch (index) {
-	case 1:
-		if (val)
-			GPSR0 |= (1 << GPSR0_OFFSET(pin));
-		else
-			GPCR0 |= (1 << GPCR0_OFFSET(pin));
-		break;
-	case 2:
-		break;
-	case 3:
-		if (val)
-			GPSR1 |= (1 << GPSR1_OFFSET(pin));
-		else
-			GPCR1 |= (1 << GPCR1_OFFSET(pin));
-		break;
-	default:
-		printk(KERN_ERR "unimplemented\n");
-	}
-}
-
-static void __devinit metronome_init_gpio_pin(int pin, int dir)
-{
-	u8 index;
-	/* dir 0 is output, 1 is input
-	- do 2 things here:
-	- set gpio alternate function to standard gpio
-	- set gpio direction to input or output  */
-
-	index = pin >> 4;
-	switch (index) {
-	case 1:
-		GAFR0_U &= ~(AF_SEL_GPIO_N << GAFR0_U_OFFSET(pin));
-
-		if (dir)
-			GPDR0 &= ~(1 << pin);
-		else
-			GPDR0 |= (1 << pin);
-		break;
-	case 2:
-		GAFR1_L &= ~(AF_SEL_GPIO_N << GAFR1_L_OFFSET(pin));
-
-		if (dir)
-			GPDR1 &= ~(1 << GPDR1_OFFSET(pin));
-		else
-			GPDR1 |= (1 << GPDR1_OFFSET(pin));
-		break;
-	case 3:
-		GAFR1_U &= ~(AF_SEL_GPIO_N << GAFR1_U_OFFSET(pin));
-
-		if (dir)
-			GPDR1 &= ~(1 << GPDR1_OFFSET(pin));
-		else
-			GPDR1 |= (1 << GPDR1_OFFSET(pin));
-		break;
-	default:
-		printk(KERN_ERR "unimplemented\n");
-	}
-}
-
-static void __devinit metronome_init_gpio_regs(void)
-{
-	metronome_init_gpio_pin(LED_GPIO_PIN, 0);
-	metronome_set_gpio_output(LED_GPIO_PIN, 0);
-
-	metronome_init_gpio_pin(STDBY_GPIO_PIN, 0);
-	metronome_set_gpio_output(STDBY_GPIO_PIN, 0);
-
-	metronome_init_gpio_pin(RST_GPIO_PIN, 0);
-	metronome_set_gpio_output(RST_GPIO_PIN, 0);
-
-	metronome_init_gpio_pin(RDY_GPIO_PIN, 1);
-
-	metronome_init_gpio_pin(ERR_GPIO_PIN, 1);
-
-	metronome_init_gpio_pin(PCBPWR_GPIO_PIN, 0);
-	metronome_set_gpio_output(PCBPWR_GPIO_PIN, 0);
-}
-
-static void metronome_disable_lcd_controller(struct metronomefb_par *par)
-{
-	LCSR = 0xffffffff;	/* Clear LCD Status Register */
-	LCCR0 |= LCCR0_DIS;	/* Disable LCD Controller */
-
-	/* we reset and just wait for things to settle */
-	msleep(200);
-}
-
-static void metronome_enable_lcd_controller(struct metronomefb_par *par)
-{
-	LCSR = 0xffffffff;
-	FDADR0 = par->metromem_desc_dma;
-	LCCR0 |= LCCR0_ENB;
-}
-
-static void __devinit metronome_init_lcdc_regs(struct metronomefb_par *par)
-{
-	/* here we do:
-	- disable the lcd controller
-	- setup lcd control registers
-	- setup dma descriptor
-	- reenable lcd controller
-	*/
-
-	/* disable the lcd controller */
-	metronome_disable_lcd_controller(par);
-
-	/* setup lcd control registers */
-	LCCR0 = LCCR0_LDM | LCCR0_SFM | LCCR0_IUM | LCCR0_EFM | LCCR0_PAS
-		| LCCR0_QDM | LCCR0_BM | LCCR0_OUM;
-
-	LCCR1 = (epd_frame_table[0].fw/2 - 1) /* pixels per line */
-		| (27 << 10) /* hsync pulse width - 1 */
-		| (33 << 16) /* eol pixel count */
-		| (33 << 24); /* bol pixel count */
-
-	LCCR2 = (epd_frame_table[0].fh - 1) /* lines per panel */
-		| (24 << 10) /* vsync pulse width - 1 */
-		| (2 << 16) /* eof pixel count */
-		| (0 << 24); /* bof pixel count */
-
-	LCCR3 = 2 /* pixel clock divisor */
-		| (24 << 8) /* AC Bias pin freq */
-		| LCCR3_16BPP /* BPP */
-		| LCCR3_PCP;  /* PCP falling edge */
-
-	/* setup dma descriptor */
-	par->metromem_desc->mFDADR0 = par->metromem_desc_dma;
-	par->metromem_desc->mFSADR0 = par->metromem_dma;
-	par->metromem_desc->mFIDR0 = 0;
-	par->metromem_desc->mLDCMD0 = epd_frame_table[0].fw
-					* epd_frame_table[0].fh;
-	/* reenable lcd controller */
-	metronome_enable_lcd_controller(par);
-}
-
 static int metronome_display_cmd(struct metronomefb_par *par)
 {
 	int i;
@@ -493,8 +304,7 @@ static int metronome_display_cmd(struct metronomefb_par *par)
 	par->metromem_cmd->csum = cs;
 	par->metromem_cmd->opcode = opcode; /* display cmd */
 
-	i = wait_event_interruptible_timeout(par->waitq, (GPLR1 & 0x01), HZ);
-	return i;
+	return par->board->met_wait_event_intr(par);
 }
 
 static int __devinit metronome_powerup_cmd(struct metronomefb_par *par)
@@ -518,13 +328,12 @@ static int __devinit metronome_powerup_cmd(struct metronomefb_par *par)
 	par->metromem_cmd->csum = cs;
 
 	msleep(1);
-	metronome_set_gpio_output(RST_GPIO_PIN, 1);
+	par->board->set_rst(par, 1);
 
 	msleep(1);
-	metronome_set_gpio_output(STDBY_GPIO_PIN, 1);
+	par->board->set_stdby(par, 1);
 
-	i = wait_event_timeout(par->waitq, (GPLR1 & 0x01), HZ);
-	return i;
+	return par->board->met_wait_event(par);
 }
 
 static int __devinit metronome_config_cmd(struct metronomefb_par *par)
@@ -569,8 +378,7 @@ static int __devinit metronome_config_cmd(struct metronomefb_par *par)
 	par->metromem_cmd->csum = cs;
 	par->metromem_cmd->opcode = 0xCC10; /* config cmd */
 
-	i = wait_event_timeout(par->waitq, (GPLR1 & 0x01), HZ);
-	return i;
+	return par->board->met_wait_event(par);
 }
 
 static int __devinit metronome_init_cmd(struct metronomefb_par *par)
@@ -596,16 +404,19 @@ static int __devinit metronome_init_cmd(struct metronomefb_par *par)
 	par->metromem_cmd->csum = cs;
 	par->metromem_cmd->opcode = 0xCC20; /* init cmd */
 
-	i = wait_event_timeout(par->waitq, (GPLR1 & 0x01), HZ);
-	return i;
+	return par->board->met_wait_event(par);
 }
 
 static int __devinit metronome_init_regs(struct metronomefb_par *par)
 {
 	int res;
 
-	metronome_init_gpio_regs();
-	metronome_init_lcdc_regs(par);
+	par->board->init_gpio_regs(par);
+
+	par->board->init_lcdc_regs(par);
+
+	/* now that lcd is setup, setup dma descriptor */
+	par->board->post_dma_setup(par);
 
 	res = metronome_powerup_cmd(par);
 	if (res)
@@ -616,8 +427,6 @@ static int __devinit metronome_init_regs(struct metronomefb_par *par)
 		return res;
 
 	res = metronome_init_cmd(par);
-	if (res)
-		return res;
 
 	return res;
 }
@@ -632,7 +441,7 @@ static void metronomefb_dpy_update(struct metronomefb_par *par)
 
 	cksum = calc_img_cksum((u16 *) par->metromem_img,
 				(epd_frame_table[0].fw * DPY_H)/2);
-	*((u16 *) (par->metromem_img) +
+	*((u16 *)(par->metromem_img) +
 			(epd_frame_table[0].fw * DPY_H)/2) = cksum;
 	metronome_display_cmd(par);
 }
@@ -641,8 +450,8 @@ static u16 metronomefb_dpy_update_page(struct metronomefb_par *par, int index)
 {
 	int i;
 	u16 csum = 0;
-	u16 *buf = (u16 __force *) (par->info->screen_base + index);
-	u16 *img = (u16 *) (par->metromem_img + index);
+	u16 *buf = (u16 __force *)(par->info->screen_base + index);
+	u16 *img = (u16 *)(par->metromem_img + index);
 
 	/* swizzle from vm to metromem and recalc cksum at the same time*/
 	for (i = 0; i < PAGE_SIZE/2; i++) {
@@ -733,7 +542,7 @@ static ssize_t metronomefb_write(struct fb_info *info, const char __user *buf,
 		count = total_size - p;
 	}
 
-	dst = (void __force *) (info->screen_base + p);
+	dst = (void __force *)(info->screen_base + p);
 
 	if (copy_from_user(dst, buf, count))
 		err = -EFAULT;
@@ -759,18 +568,10 @@ static struct fb_deferred_io metronomefb_defio = {
 	.deferred_io	= metronomefb_dpy_deferred_io,
 };
 
-static irqreturn_t metronome_handle_irq(int irq, void *dev_id)
-{
-	struct fb_info *info = dev_id;
-	struct metronomefb_par *par = info->par;
-
-	wake_up_interruptible(&par->waitq);
-	return IRQ_HANDLED;
-}
-
 static int __devinit metronomefb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
+	struct metronome_board *board;
 	int retval = -ENOMEM;
 	int videomemorysize;
 	unsigned char *videomemory;
@@ -779,17 +580,26 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 	int cmd_size, wfm_size, img_size, padding_size, totalsize;
 	int i;
 
+	/* pick up board specific routines */
+	board = dev->dev.platform_data;
+	if (!board)
+		return -EINVAL;
+
+	/* try to count device specific driver, if can't, platform recalls */
+	if (!try_module_get(board->owner))
+		return -ENODEV;
+
 	/* we have two blocks of memory.
 	info->screen_base which is vm, and is the fb used by apps.
 	par->metromem which is physically contiguous memory and
 	contains the display controller commands, waveform,
 	processed image data and padding. this is the data pulled
-	by the pxa255's LCD controller and pushed to Metronome */
+	by the device's LCD controller and pushed to Metronome */
 
 	videomemorysize = (DPY_W*DPY_H);
 	videomemory = vmalloc(videomemorysize);
 	if (!videomemory)
-		return retval;
+		return -ENOMEM;
 
 	memset(videomemory, 0, videomemorysize);
 
@@ -797,7 +607,7 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 	if (!info)
 		goto err_vfree;
 
-	info->screen_base = (char __iomem *) videomemory;
+	info->screen_base = (char __force __iomem *)videomemory;
 	info->fbops = &metronomefb_ops;
 
 	info->var = metronomefb_var;
@@ -805,6 +615,7 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 	info->fix.smem_len = videomemorysize;
 	par = info->par;
 	par->info = info;
+	par->board = board;
 	init_waitqueue_head(&par->waitq);
 
 	/* this table caches per page csum values. */
@@ -849,11 +660,10 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 	par->metromem_desc_dma = par->metromem_dma + cmd_size + wfm_size
 				 + img_size + padding_size;
 
-	/* load the waveform in. assume mode 3, temp 31 for now */
-	/* 	a) request the waveform file from userspace
+	/* load the waveform in. assume mode 3, temp 31 for now
+		a) request the waveform file from userspace
 		b) process waveform and decode into metromem */
-
-	retval = request_firmware(&fw_entry, "waveform.wbf", &dev->dev);
+	retval = request_firmware(&fw_entry, "metronome.wbf", &dev->dev);
 	if (retval < 0) {
 		printk(KERN_ERR "metronomefb: couldn't get waveform\n");
 		goto err_dma_free;
@@ -867,13 +677,8 @@ static int __devinit metronomefb_probe(struct platform_device *dev)
 	}
 	release_firmware(fw_entry);
 
-	retval = request_irq(IRQ_GPIO(RDY_GPIO_PIN), metronome_handle_irq,
-				IRQF_DISABLED, "Metronome", info);
-	if (retval) {
-		dev_err(&dev->dev, "request_irq failed: %d\n", retval);
+	if (board->setup_irq(info))
 		goto err_ld_wfm;
-	}
-	set_irq_type(IRQ_GPIO(RDY_GPIO_PIN), IRQT_FALLING);
 
 	retval = metronome_init_regs(par);
 	if (retval < 0)
@@ -913,7 +718,7 @@ err_cmap:
 err_fb_rel:
 	framebuffer_release(info);
 err_free_irq:
-	free_irq(IRQ_GPIO(RDY_GPIO_PIN), info);
+	board->free_irq(info);
 err_ld_wfm:
 	release_firmware(fw_entry);
 err_dma_free:
@@ -923,6 +728,7 @@ err_csum_table:
 	vfree(par->csum_table);
 err_vfree:
 	vfree(videomemory);
+	module_put(board->owner);
 	return retval;
 }
 
@@ -939,7 +745,8 @@ static int __devexit metronomefb_remove(struct platform_device *dev)
 		vfree(par->csum_table);
 		unregister_framebuffer(info);
 		vfree((void __force *)info->screen_base);
-		free_irq(IRQ_GPIO(RDY_GPIO_PIN), info);
+		par->board->free_irq(info);
+		module_put(par->board->owner);
 		framebuffer_release(info);
 	}
 	return 0;
@@ -949,47 +756,20 @@ static struct platform_driver metronomefb_driver = {
 	.probe	= metronomefb_probe,
 	.remove = metronomefb_remove,
 	.driver	= {
+		.owner	= THIS_MODULE,
 		.name	= "metronomefb",
 	},
 };
 
-static struct platform_device *metronomefb_device;
-
 static int __init metronomefb_init(void)
 {
-	int ret;
-
-	if (!metronomefb_enable) {
-		printk(KERN_ERR
-			"Use metronomefb_enable to enable the device\n");
-		return -ENXIO;
-	}
-
-	ret = platform_driver_register(&metronomefb_driver);
-	if (!ret) {
-		metronomefb_device = platform_device_alloc("metronomefb", 0);
-		if (metronomefb_device)
-			ret = platform_device_add(metronomefb_device);
-		else
-			ret = -ENOMEM;
-
-		if (ret) {
-			platform_device_put(metronomefb_device);
-			platform_driver_unregister(&metronomefb_driver);
-		}
-	}
-	return ret;
-
+	return platform_driver_register(&metronomefb_driver);
 }
 
 static void __exit metronomefb_exit(void)
 {
-	platform_device_unregister(metronomefb_device);
 	platform_driver_unregister(&metronomefb_driver);
 }
-
-module_param(metronomefb_enable, uint, 0);
-MODULE_PARM_DESC(metronomefb_enable, "Enable communication with Metronome");
 
 module_init(metronomefb_init);
 module_exit(metronomefb_exit);

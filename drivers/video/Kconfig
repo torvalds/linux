@@ -173,6 +173,11 @@ config FB_DEFERRED_IO
 	depends on FB
 	default y
 
+config FB_METRONOME
+	tristate
+	depends on FB
+	depends on FB_DEFERRED_IO
+
 config FB_SVGALIB
 	tristate
 	depends on FB
@@ -1927,19 +1932,18 @@ config FB_XILINX
 	  framebuffer. ML300 carries a 640*480 LCD display on the board,
 	  ML403 uses a standard DB15 VGA connector.
 
-config FB_METRONOME
-       tristate "Metronome display controller support"
+config FB_AM200EPD
+       tristate "AM-200 E-Ink EPD devkit support"
        depends on FB && ARCH_PXA && MMU
        select FB_SYS_FILLRECT
        select FB_SYS_COPYAREA
        select FB_SYS_IMAGEBLIT
        select FB_SYS_FOPS
        select FB_DEFERRED_IO
+       select FB_METRONOME
        help
-         This enables support for the Metronome display controller. Tested
-         with an E-Ink 800x600 display and Gumstix Connex through an AMLCD
-         interface. Please read <file:Documentation/fb/metronomefb.txt>
-         for more information.
+         This enables support for the Metronome display controller used on
+         the E-Ink AM-200 EPD devkit.
 
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"
