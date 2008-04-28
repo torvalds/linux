@@ -16,6 +16,12 @@
 #define ARCH_NR_GPIOS		256
 #endif
 
+static inline int gpio_is_valid(int number)
+{
+	/* only some non-negative numbers are valid */
+	return ((unsigned)number) < ARCH_NR_GPIOS;
+}
+
 struct seq_file;
 struct module;
 
@@ -98,6 +104,12 @@ extern int __gpio_cansleep(unsigned gpio);
 
 
 #else
+
+static inline int gpio_is_valid(int number)
+{
+	/* only non-negative numbers are valid */
+	return number >= 0;
+}
 
 /* platforms that don't directly support access to GPIOs through I2C, SPI,
  * or other blocking infrastructure can use these wrappers.
