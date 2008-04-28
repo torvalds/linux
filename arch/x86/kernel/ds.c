@@ -238,12 +238,12 @@ static inline struct ds_context *ds_alloc_context(struct task_struct *task)
 		context = kzalloc(sizeof(*context), GFP_KERNEL);
 
 		if (!context)
-			return 0;
+			return NULL;
 
 		context->ds = kzalloc(ds_cfg.sizeof_ds, GFP_KERNEL);
 		if (!context->ds) {
 			kfree(context);
-			return 0;
+			return NULL;
 		}
 
 		*p_context = context;
@@ -279,7 +279,7 @@ static inline void ds_put_context(struct ds_context *context)
 	if (--context->count)
 		goto out;
 
-	*(context->this) = 0;
+	*(context->this) = NULL;
 
 	if (context->task)
 		clear_tsk_thread_flag(context->task, TIF_DS_AREA_MSR);
@@ -341,16 +341,16 @@ static inline void *ds_allocate_buffer(size_t size, unsigned int *pages)
 	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
 	vm   = current->mm->total_vm  + pgsz;
 	if (rlim < vm)
-		return 0;
+		return NULL;
 
 	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
 	vm   = current->mm->locked_vm  + pgsz;
 	if (rlim < vm)
-		return 0;
+		return NULL;
 
 	buffer = kzalloc(size, GFP_KERNEL);
 	if (!buffer)
-		return 0;
+		return NULL;
 
 	current->mm->total_vm  += pgsz;
 	current->mm->locked_vm += pgsz;
@@ -395,7 +395,7 @@ static int ds_request(struct task_struct *task, void *base, size_t size,
 	if (context->owner[qual] == current)
 		goto out_unlock;
 	error = -EPERM;
-	if (context->owner[qual] != 0)
+	if (context->owner[qual] != NULL)
 		goto out_unlock;
 	context->owner[qual] = current;
 
@@ -445,7 +445,7 @@ static int ds_request(struct task_struct *task, void *base, size_t size,
 	return error;
 
  out_release:
-	context->owner[qual] = 0;
+	context->owner[qual] = NULL;
 	ds_put_context(context);
 	return error;
 
@@ -825,7 +825,7 @@ void __cpuinit ds_init_intel(struct cpuinfo_x86 *c)
 			ds_configure(&ds_cfg_var);
 			break;
 		case 0xF: /* Core2 */
-        case 0x1C: /* Atom */
+		case 0x1C: /* Atom */
 			ds_configure(&ds_cfg_64);
 			break;
 		default:
