@@ -99,7 +99,7 @@ static int rs5c_get_regs(struct rs5c372 *rs5c)
 	 * least 80219 chips; this works around that bug.
 	 */
 	if ((i2c_transfer(client->adapter, msgs, 1)) != 1) {
-		pr_debug("%s: can't read registers\n", rs5c->rtc->name);
+		dev_warn(&client->dev, "can't read registers\n");
 		return -EIO;
 	}
 
@@ -512,11 +512,11 @@ static int rs5c372_probe(struct i2c_client *client)
 		goto exit;
 	}
 
-	/* we read registers 0x0f then 0x00-0x0f; skip the first one */
-	rs5c372->regs=&rs5c372->buf[1];
-
 	rs5c372->client = client;
 	i2c_set_clientdata(client, rs5c372);
+
+	/* we read registers 0x0f then 0x00-0x0f; skip the first one */
+	rs5c372->regs = &rs5c372->buf[1];
 
 	err = rs5c_get_regs(rs5c372);
 	if (err < 0)
