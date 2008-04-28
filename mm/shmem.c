@@ -1196,7 +1196,7 @@ static struct page *shmem_swapin(swp_entry_t entry, gfp_t gfp,
 	pvma.vm_ops = NULL;
 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
 	page = swapin_readahead(entry, gfp, &pvma, 0);
-	mpol_free(pvma.vm_policy);
+	mpol_put(pvma.vm_policy);
 	return page;
 }
 
@@ -1212,7 +1212,7 @@ static struct page *shmem_alloc_page(gfp_t gfp,
 	pvma.vm_ops = NULL;
 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
 	page = alloc_page_vma(gfp, &pvma, 0);
-	mpol_free(pvma.vm_policy);
+	mpol_put(pvma.vm_policy);
 	return page;
 }
 #else /* !CONFIG_NUMA */

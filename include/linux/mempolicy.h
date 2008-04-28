@@ -71,7 +71,7 @@ struct mm_struct;
  *
  * Freeing policy:
  * Mempolicy objects are reference counted.  A mempolicy will be freed when
- * mpol_free() decrements the reference count to zero.
+ * mpol_put() decrements the reference count to zero.
  *
  * Copying policy objects:
  * mpol_copy() allocates a new mempolicy and copies the specified mempolicy
@@ -98,11 +98,11 @@ struct mempolicy {
  * The default fast path of a NULL MPOL_DEFAULT policy is always inlined.
  */
 
-extern void __mpol_free(struct mempolicy *pol);
-static inline void mpol_free(struct mempolicy *pol)
+extern void __mpol_put(struct mempolicy *pol);
+static inline void mpol_put(struct mempolicy *pol)
 {
 	if (pol)
-		__mpol_free(pol);
+		__mpol_put(pol);
 }
 
 extern struct mempolicy *__mpol_copy(struct mempolicy *pol);
@@ -190,7 +190,7 @@ static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
 	return 1;
 }
 
-static inline void mpol_free(struct mempolicy *p)
+static inline void mpol_put(struct mempolicy *p)
 {
 }
 

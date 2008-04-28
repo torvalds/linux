@@ -116,7 +116,7 @@ static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
 			break;
 		}
 	}
-	mpol_free(mpol);	/* unref if mpol !NULL */
+	mpol_put(mpol);	/* unref if mpol !NULL */
 	return page;
 }
 

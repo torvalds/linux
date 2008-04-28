@@ -529,7 +529,7 @@ static int policy_vma(struct vm_area_struct *vma, struct mempolicy *new)
 	if (!err) {
 		mpol_get(new);
 		vma->vm_policy = new;
-		mpol_free(old);
+		mpol_put(old);
 	}
 	return err;
 }
@@ -595,7 +595,7 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 	new = mpol_new(mode, flags, nodes);
 	if (IS_ERR(new))
 		return PTR_ERR(new);
-	mpol_free(current->mempolicy);
+	mpol_put(current->mempolicy);
 	current->mempolicy = new;
 	mpol_set_task_struct_flag();
 	if (new && new->policy == MPOL_INTERLEAVE &&
@@ -948,7 +948,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 	}
 
 	up_write(&mm->mmap_sem);
-	mpol_free(new);
+	mpol_put(new);
 	return err;
 }
 
@@ -1446,14 +1446,14 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
 		if (unlikely(pol != &default_policy &&
 				pol != current->mempolicy))
-			__mpol_free(pol);	/* finished with pol */
+			__mpol_put(pol);	/* finished with pol */
 		return node_zonelist(nid, gfp_flags);
 	}
 
 	zl = zonelist_policy(GFP_HIGHUSER, pol);
 	if (unlikely(pol != &default_policy && pol != current->mempolicy)) {
 		if (pol->policy != MPOL_BIND)
-			__mpol_free(pol);	/* finished with pol */
+			__mpol_put(pol);	/* finished with pol */
 		else
 			*mpol = pol;	/* unref needed after allocation */
 	}
@@ -1512,7 +1512,7 @@ alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
 		if (unlikely(pol != &default_policy &&
 				pol != current->mempolicy))
-			__mpol_free(pol);	/* finished with pol */
+			__mpol_put(pol);	/* finished with pol */
 		return alloc_page_interleave(gfp, 0, nid);
 	}
 	zl = zonelist_policy(gfp, pol);
@@ -1522,7 +1522,7 @@ alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
 		 */
 		struct page *page =  __alloc_pages_nodemask(gfp, 0,
 						zl, nodemask_policy(gfp, pol));
-		__mpol_free(pol);
+		__mpol_put(pol);
 		return page;
 	}
 	/*
@@ -1624,7 +1624,7 @@ int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
 }
 
 /* Slow path of a mpol destructor. */
-void __mpol_free(struct mempolicy *p)
+void __mpol_put(struct mempolicy *p)
 {
 	if (!atomic_dec_and_test(&p->refcnt))
 		return;
@@ -1720,7 +1720,7 @@ static void sp_delete(struct shared_policy *sp, struct sp_node *n)
 {
 	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
 	rb_erase(&n->nd, &sp->root);
-	mpol_free(n->policy);
+	mpol_put(n->policy);
 	kmem_cache_free(sn_cache, n);
 }
 
@@ -1780,7 +1780,7 @@ restart:
 		sp_insert(sp, new);
 	spin_unlock(&sp->lock);
 	if (new2) {
-		mpol_free(new2->policy);
+		mpol_put(new2->policy);
 		kmem_cache_free(sn_cache, new2);
 	}
 	return 0;
@@ -1805,7 +1805,7 @@ void mpol_shared_policy_init(struct shared_policy *info, unsigned short policy,
 			/* Policy covers entire file */
 			pvma.vm_end = TASK_SIZE;
 			mpol_set_shared_policy(info, &pvma, newpol);
-			mpol_free(newpol);
+			mpol_put(newpol);
 		}
 	}
 }
@@ -1848,7 +1848,7 @@ void mpol_free_shared_policy(struct shared_policy *p)
 		n = rb_entry(next, struct sp_node, nd);
 		next = rb_next(&n->nd);
 		rb_erase(&n->nd, &p->root);
-		mpol_free(n->policy);
+		mpol_put(n->policy);
 		kmem_cache_free(sn_cache, n);
 	}
 	spin_unlock(&p->lock);
@@ -2068,7 +2068,7 @@ int show_numa_map(struct seq_file *m, void *v)
 	 * unref shared or other task's mempolicy
 	 */
 	if (pol != &default_policy && pol != current->mempolicy)
-		__mpol_free(pol);
+		__mpol_put(pol);
 
 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
 
