@@ -61,7 +61,7 @@ __u32 reiserfs_get_unused_objectid(struct reiserfs_transaction_handle *th)
 	/* comment needed -Hans */
 	unused_objectid = le32_to_cpu(map[1]);
 	if (unused_objectid == U32_MAX) {
-		reiserfs_warning(s, "%s: no more object ids", __FUNCTION__);
+		reiserfs_warning(s, "%s: no more object ids", __func__);
 		reiserfs_restore_prepared_buffer(s, SB_BUFFER_WITH_SB(s));
 		return 0;
 	}

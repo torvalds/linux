@@ -1187,7 +1187,7 @@ static int flush_commit_list(struct super_block *s,
 
 	if (retval)
 		reiserfs_abort(s, retval, "Journal write error in %s",
-			       __FUNCTION__);
+			       __func__);
 	put_fs_excl();
 	return retval;
 }
@@ -1534,7 +1534,7 @@ static int flush_journal_list(struct super_block *s,
 			reiserfs_warning(s,
 					 "clm-2082: Unable to flush buffer %llu in %s",
 					 (unsigned long long)saved_bh->
-					 b_blocknr, __FUNCTION__);
+					 b_blocknr, __func__);
 		}
 	      free_cnode:
 		last = cn;
@@ -1586,7 +1586,7 @@ static int flush_journal_list(struct super_block *s,
 	if (err)
 		reiserfs_abort(s, -EIO,
 			       "Write error while pushing transaction to disk in %s",
-			       __FUNCTION__);
+			       __func__);
       flush_older_and_return:
 
 	/* before we can update the journal header block, we _must_ flush all 
@@ -1616,7 +1616,7 @@ static int flush_journal_list(struct super_block *s,
 		if (err)
 			reiserfs_abort(s, -EIO,
 				       "Write error while updating journal header in %s",
-				       __FUNCTION__);
+				       __func__);
 	}
 	remove_all_from_journal_list(s, jl, 0);
 	list_del_init(&jl->j_list);

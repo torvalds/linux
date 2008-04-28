@@ -479,7 +479,7 @@ static void __discard_prealloc(struct reiserfs_transaction_handle *th,
 	if (ei->i_prealloc_count < 0)
 		reiserfs_warning(th->t_super,
 				 "zam-4001:%s: inode has negative prealloc blocks count.",
-				 __FUNCTION__);
+				 __func__);
 #endif
 	while (ei->i_prealloc_count > 0) {
 		reiserfs_free_prealloc_block(th, inode, ei->i_prealloc_block);
@@ -517,7 +517,7 @@ void reiserfs_discard_all_prealloc(struct reiserfs_transaction_handle *th)
 		if (!ei->i_prealloc_count) {
 			reiserfs_warning(th->t_super,
 					 "zam-4001:%s: inode is in prealloc list but has no preallocated blocks.",
-					 __FUNCTION__);
+					 __func__);
 		}
 #endif
 		__discard_prealloc(th, ei);
@@ -632,7 +632,7 @@ int reiserfs_parse_alloc_options(struct super_block *s, char *options)
 		}
 
 		reiserfs_warning(s, "zam-4001: %s : unknown option - %s",
-				 __FUNCTION__, this_char);
+				 __func__, this_char);
 		return 1;
 	}
 
@@ -1254,7 +1254,7 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 	bh = sb_bread(sb, block);
 	if (bh == NULL)
 		reiserfs_warning(sb, "sh-2029: %s: bitmap block (#%u) "
-		                 "reading failed", __FUNCTION__, block);
+		                 "reading failed", __func__, block);
 	else {
 		if (buffer_locked(bh)) {
 			PROC_INFO_INC(sb, scan_bitmap.wait);
