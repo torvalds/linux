@@ -88,16 +88,8 @@ enum pageflags {
 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
 	PG_reclaim,		/* To be reclaimed asap */
 	PG_buddy,		/* Page is free, on buddy lists */
-
-#if (BITS_PER_LONG > 32)
-/*
- * 64-bit-only flags build down from bit 31
- *
- * 32 bit  -------------------------------| FIELDS |       FLAGS         |
- * 64 bit  |           FIELDS             | ??????         FLAGS         |
- *         63                            32                              0
- */
-	PG_uncached = 31,		/* Page has been mapped as uncached */
+#ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
+	PG_uncached,		/* Page has been mapped as uncached */
 #endif
 	__NR_PAGEFLAGS
 };
@@ -194,8 +186,13 @@ static inline int PageSwapCache(struct page *page)
 }
 #endif
 
-#if (BITS_PER_LONG > 32)
+#ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
 PAGEFLAG(Uncached, uncached)
+#else
+static inline int PageUncached(struct page *)
+{
+	return 0;
+}
 #endif
 
 static inline int PageUptodate(struct page *page)
