@@ -115,7 +115,7 @@ static int have_root __initdata = 0;
 /* Set in uml_mem_setup and modified in linux_main */
 long long physmem_size = 32 * 1024 * 1024;
 
-static char *usage_string =
+static const char *usage_string =
 "User Mode Linux v%s\n"
 "	available at http://user-mode-linux.sourceforge.net/\n\n";
 
@@ -202,7 +202,7 @@ static void __init uml_checksetup(char *line, int *add)
 
 	p = &__uml_setup_start;
 	while (p < &__uml_setup_end) {
-		int n;
+		size_t n;
 
 		n = strlen(p->str);
 		if (!strncmp(line, p->str, n) && p->setup_func(line + n, add))
@@ -258,7 +258,8 @@ int __init linux_main(int argc, char **argv)
 {
 	unsigned long avail, diff;
 	unsigned long virtmem_size, max_physmem;
-	unsigned int i, add;
+	unsigned int i;
+	int add;
 	char * mode;
 
 	for (i = 1; i < argc; i++) {
