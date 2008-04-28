@@ -234,6 +234,8 @@ static inline struct kprobe_ctlblk *get_kprobe_ctlblk(void)
 
 int register_kprobe(struct kprobe *p);
 void unregister_kprobe(struct kprobe *p);
+int register_kprobes(struct kprobe **kps, int num);
+void unregister_kprobes(struct kprobe **kps, int num);
 int setjmp_pre_handler(struct kprobe *, struct pt_regs *);
 int longjmp_break_handler(struct kprobe *, struct pt_regs *);
 int register_jprobe(struct jprobe *p);
@@ -261,7 +263,14 @@ static inline int register_kprobe(struct kprobe *p)
 {
 	return -ENOSYS;
 }
+static inline int register_kprobes(struct kprobe **kps, int num)
+{
+	return -ENOSYS;
+}
 static inline void unregister_kprobe(struct kprobe *p)
+{
+}
+static inline void unregister_kprobes(struct kprobe **kps, int num)
 {
 }
 static inline int register_jprobe(struct jprobe *p)
