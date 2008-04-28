@@ -128,11 +128,6 @@ extern void slice_init_context(struct mm_struct *mm, unsigned int psize);
 extern void slice_set_user_psize(struct mm_struct *mm, unsigned int psize);
 #define slice_mm_new_context(mm)	((mm)->context.id == 0)
 
-#define ARCH_HAS_HUGEPAGE_ONLY_RANGE
-extern int is_hugepage_only_range(struct mm_struct *m,
-				  unsigned long addr,
-				  unsigned long len);
-
 #endif /* __ASSEMBLY__ */
 #else
 #define slice_init()
@@ -146,8 +141,6 @@ do {						\
 
 #ifdef CONFIG_HUGETLB_PAGE
 
-#define ARCH_HAS_HUGETLB_FREE_PGD_RANGE
-#define ARCH_HAS_SETCLEAR_HUGE_PTE
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
 
 #endif /* !CONFIG_HUGETLB_PAGE */
