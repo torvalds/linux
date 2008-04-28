@@ -840,16 +840,14 @@ static int __init isapnp_build_device_list(void)
 		       header[5], header[6], header[7], header[8]);
 		printk(KERN_DEBUG "checksum = 0x%x\n", checksum);
 #endif
-		if ((card =
-		     kzalloc(sizeof(struct pnp_card), GFP_KERNEL)) == NULL)
-			continue;
-
-		card->number = csn;
-		INIT_LIST_HEAD(&card->devices);
 		eisa_id = header[0] | header[1] << 8 |
 			  header[2] << 16 | header[3] << 24;
 		pnp_eisa_id_to_string(eisa_id, id);
-		pnp_add_card_id(card, id);
+		card = pnp_alloc_card(&isapnp_protocol, csn, id);
+		if (!card)
+			continue;
+
+		INIT_LIST_HEAD(&card->devices);
 		card->serial =
 		    (header[7] << 24) | (header[6] << 16) | (header[5] << 8) |
 		    header[4];
@@ -860,7 +858,6 @@ static int __init isapnp_build_device_list(void)
 			       "isapnp: checksum for device %i is not valid (0x%x)\n",
 			       csn, isapnp_checksum_value);
 		card->checksum = isapnp_checksum_value;
-		card->protocol = &isapnp_protocol;
 
 		pnp_add_card(card);
 	}

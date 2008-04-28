@@ -151,6 +151,31 @@ static void pnp_release_card(struct device *dmdev)
 	kfree(card);
 }
 
+struct pnp_card *pnp_alloc_card(struct pnp_protocol *protocol, int id, char *pnpid)
+{
+	struct pnp_card *card;
+	struct pnp_id *dev_id;
+
+	card = kzalloc(sizeof(struct pnp_card), GFP_KERNEL);
+	if (!card)
+		return NULL;
+
+	card->protocol = protocol;
+	card->number = id;
+
+	card->dev.parent = &card->protocol->dev;
+	sprintf(card->dev.bus_id, "%02x:%02x", card->protocol->number,
+		card->number);
+
+	dev_id = pnp_add_card_id(card, pnpid);
+	if (!dev_id) {
+		kfree(card);
+		return NULL;
+	}
+
+	return card;
+}
+
 static ssize_t pnp_show_card_name(struct device *dmdev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -206,9 +231,6 @@ int pnp_add_card(struct pnp_card *card)
 	int error;
 	struct list_head *pos, *temp;
 
-	sprintf(card->dev.bus_id, "%02x:%02x", card->protocol->number,
-		card->number);
-	card->dev.parent = &card->protocol->dev;
 	card->dev.bus = NULL;
 	card->dev.release = &pnp_release_card;
 	error = device_register(&card->dev);
