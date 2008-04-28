@@ -110,7 +110,7 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_dev *dev,
 		p = p ? ACPI_ACTIVE_LOW : ACPI_ACTIVE_HIGH;
 
 		if (triggering != t || polarity != p) {
-			pnp_warn("IRQ %d override to %s, %s",
+			dev_warn(&dev->dev, "IRQ %d override to %s, %s\n",
 				gsi, t ? "edge":"level", p ? "low":"high");
 			triggering = t;
 			polarity = p;
@@ -263,7 +263,7 @@ static void pnpacpi_parse_allocated_address_space(struct pnp_dev *dev,
 
 	status = acpi_resource_to_address64(res, p);
 	if (!ACPI_SUCCESS(status)) {
-		pnp_warn("PnPACPI: failed to convert resource type %d",
+		dev_warn(&dev->dev, "failed to convert resource type %d\n",
 			 res->type);
 		return;
 	}
@@ -397,7 +397,8 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		break;
 
 	default:
-		pnp_warn("PnPACPI: unknown resource type %d", res->type);
+		dev_warn(&dev->dev, "unknown resource type %d in _CRS\n",
+			 res->type);
 		return AE_ERROR;
 	}
 
@@ -674,7 +675,8 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 	case ACPI_RESOURCE_TYPE_END_DEPENDENT:
 		/*only one EndDependentFn is allowed */
 		if (!parse_data->option_independent) {
-			pnp_warn("PnPACPI: more than one EndDependentFn");
+			dev_warn(&dev->dev, "more than one EndDependentFn "
+				 "in _PRS\n");
 			return AE_ERROR;
 		}
 		parse_data->option = parse_data->option_independent;
@@ -726,7 +728,8 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 		break;
 
 	default:
-		pnp_warn("PnPACPI: unknown resource type %d", res->type);
+		dev_warn(&dev->dev, "unknown resource type %d in _PRS\n",
+			 res->type);
 		return AE_ERROR;
 	}
 
@@ -808,7 +811,7 @@ int pnpacpi_build_resource_template(struct pnp_dev *dev,
 	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
 				     pnpacpi_count_resources, &res_cnt);
 	if (ACPI_FAILURE(status)) {
-		pnp_err("Evaluate _CRS failed");
+		dev_err(&dev->dev, "can't evaluate _CRS\n");
 		return -EINVAL;
 	}
 	if (!res_cnt)
@@ -823,7 +826,7 @@ int pnpacpi_build_resource_template(struct pnp_dev *dev,
 				     pnpacpi_type_resources, &resource);
 	if (ACPI_FAILURE(status)) {
 		kfree(buffer->pointer);
-		pnp_err("Evaluate _CRS failed");
+		dev_err(&dev->dev, "can't evaluate _CRS\n");
 		return -EINVAL;
 	}
 	/* resource will pointer the end resource now */
@@ -1074,7 +1077,8 @@ int pnpacpi_encode_resources(struct pnp_dev *dev, struct acpi_buffer *buffer)
 		case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
 		case ACPI_RESOURCE_TYPE_GENERIC_REGISTER:
 		default:	/* other type */
-			pnp_warn("unknown resource type %d", resource->type);
+			dev_warn(&dev->dev, "can't encode unknown resource "
+				 "type %d\n", resource->type);
 			return -EINVAL;
 		}
 		resource++;

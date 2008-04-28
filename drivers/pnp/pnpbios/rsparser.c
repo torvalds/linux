@@ -241,9 +241,8 @@ static unsigned char *pnpbios_parse_allocated_resource_data(struct pnp_dev *dev,
 
 		default:	/* an unkown tag */
 len_err:
-			printk(KERN_ERR
-			       "PnPBIOS: Unknown tag '0x%x', length '%d'.\n",
-			       tag, len);
+			dev_err(&dev->dev, "unknown tag %#x length %d\n",
+				tag, len);
 			break;
 		}
 
@@ -254,8 +253,7 @@ len_err:
 			p += len + 1;
 	}
 
-	printk(KERN_ERR
-	       "PnPBIOS: Resource structure does not contain an end tag.\n");
+	dev_err(&dev->dev, "no end tag in resource structure\n");
 
 	return NULL;
 }
@@ -471,8 +469,8 @@ pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
 			if (len != 0)
 				goto len_err;
 			if (option_independent == option)
-				printk(KERN_WARNING
-				       "PnPBIOS: Missing SMALL_TAG_STARTDEP tag\n");
+				dev_warn(&dev->dev, "missing "
+					 "SMALL_TAG_STARTDEP tag\n");
 			option = option_independent;
 			dev_dbg(&dev->dev, "end dependent options\n");
 			break;
@@ -482,9 +480,8 @@ pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
 
 		default:	/* an unkown tag */
 len_err:
-			printk(KERN_ERR
-			       "PnPBIOS: Unknown tag '0x%x', length '%d'.\n",
-			       tag, len);
+			dev_err(&dev->dev, "unknown tag %#x length %d\n",
+				tag, len);
 			break;
 		}
 
@@ -495,8 +492,7 @@ len_err:
 			p += len + 1;
 	}
 
-	printk(KERN_ERR
-	       "PnPBIOS: Resource structure does not contain an end tag.\n");
+	dev_err(&dev->dev, "no end tag in resource structure\n");
 
 	return NULL;
 }
@@ -554,9 +550,8 @@ static unsigned char *pnpbios_parse_compatible_ids(unsigned char *p,
 
 		default:	/* an unkown tag */
 len_err:
-			printk(KERN_ERR
-			       "PnPBIOS: Unknown tag '0x%x', length '%d'.\n",
-			       tag, len);
+			dev_err(&dev->dev, "unknown tag %#x length %d\n",
+				tag, len);
 			break;
 		}
 
@@ -567,8 +562,7 @@ len_err:
 			p += len + 1;
 	}
 
-	printk(KERN_ERR
-	       "PnPBIOS: Resource structure does not contain an end tag.\n");
+	dev_err(&dev->dev, "no end tag in resource structure\n");
 
 	return NULL;
 }
@@ -774,9 +768,8 @@ static unsigned char *pnpbios_encode_allocated_resource_data(struct pnp_dev
 
 		default:	/* an unkown tag */
 len_err:
-			printk(KERN_ERR
-			       "PnPBIOS: Unknown tag '0x%x', length '%d'.\n",
-			       tag, len);
+			dev_err(&dev->dev, "unknown tag %#x length %d\n",
+				tag, len);
 			break;
 		}
 
@@ -787,8 +780,7 @@ len_err:
 			p += len + 1;
 	}
 
-	printk(KERN_ERR
-	       "PnPBIOS: Resource structure does not contain an end tag.\n");
+	dev_err(&dev->dev, "no end tag in resource structure\n");
 
 	return NULL;
 }
