@@ -41,7 +41,7 @@ static int vram;
 static int vt_switch;
 
 /* Modes relevant to the GX (taken from modedb.c) */
-static const struct fb_videomode gx_modedb[] __initdata = {
+static struct fb_videomode gx_modedb[] __initdata = {
 	/* 640x480-60 VESA */
 	{ NULL, 60, 640, 480, 39682,  48, 16, 33, 10, 96, 2,
 	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
@@ -107,6 +107,35 @@ static const struct fb_videomode gx_modedb[] __initdata = {
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
 };
+
+#ifdef CONFIG_OLPC
+#include <asm/olpc.h>
+
+static struct fb_videomode gx_dcon_modedb[] __initdata = {
+	/* The only mode the DCON has is 1200x900 */
+	{ NULL, 50, 1200, 900, 17460, 24, 8, 4, 5, 8, 3,
+	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+	  FB_VMODE_NONINTERLACED, 0 }
+};
+
+static void __init get_modedb(struct fb_videomode **modedb, unsigned int *size)
+{
+	if (olpc_has_dcon()) {
+		*modedb = (struct fb_videomode *) gx_dcon_modedb;
+		*size = ARRAY_SIZE(gx_dcon_modedb);
+	} else {
+		*modedb = (struct fb_videomode *) gx_modedb;
+		*size = ARRAY_SIZE(gx_modedb);
+	}
+}
+
+#else
+static void __init get_modedb(struct fb_videomode **modedb, unsigned int *size)
+{
+	*modedb = (struct fb_videomode *) gx_modedb;
+	*size = ARRAY_SIZE(gx_modedb);
+}
+#endif
 
 static int gxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
@@ -350,6 +379,9 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	int ret;
 	unsigned long val;
 
+	struct fb_videomode *modedb_ptr;
+	unsigned int modedb_size;
+
 	info = gxfb_init_fbinfo(&pdev->dev);
 	if (!info)
 		return -ENOMEM;
@@ -369,8 +401,9 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	else
 		par->enable_crt = 1;
 
+	get_modedb(&modedb_ptr, &modedb_size);
 	ret = fb_find_mode(&info->var, info, mode_option,
-			   gx_modedb, ARRAY_SIZE(gx_modedb), NULL, 16);
+			   modedb_ptr, modedb_size, NULL, 16);
 	if (ret == 0 || ret == 4) {
 		dev_err(&pdev->dev, "could not find valid video mode\n");
 		ret = -EINVAL;

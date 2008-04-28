@@ -36,7 +36,7 @@ static int vt_switch;
  * we try to make it something sane - 640x480-60 is sane
  */
 
-static const struct fb_videomode geode_modedb[] __initdata = {
+static struct fb_videomode geode_modedb[] __initdata = {
 	/* 640x480-60 */
 	{ NULL, 60, 640, 480, 39682, 48, 8, 25, 2, 88, 2,
 	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
@@ -216,6 +216,35 @@ static const struct fb_videomode geode_modedb[] __initdata = {
 	{ NULL, 85, 1920, 1440, 2929, 368, 152, 68, 1, 216, 3,
 	  0, FB_VMODE_NONINTERLACED, 0 },
 };
+
+#ifdef CONFIG_OLPC
+#include <asm/olpc.h>
+
+static struct fb_videomode olpc_dcon_modedb[] __initdata = {
+	/* The only mode the DCON has is 1200x900 */
+	{ NULL, 50, 1200, 900, 17460, 24, 8, 4, 5, 8, 3,
+	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+	  FB_VMODE_NONINTERLACED, 0 }
+};
+
+static void __init get_modedb(struct fb_videomode **modedb, unsigned int *size)
+{
+	if (olpc_has_dcon()) {
+		*modedb = (struct fb_videomode *) olpc_dcon_modedb;
+		*size = ARRAY_SIZE(olpc_dcon_modedb);
+	} else {
+		*modedb = (struct fb_videomode *) geode_modedb;
+		*size = ARRAY_SIZE(geode_modedb);
+	}
+}
+
+#else
+static void __init get_modedb(struct fb_videomode **modedb, unsigned int *size)
+{
+	*modedb = (struct fb_videomode *) geode_modedb;
+	*size = ARRAY_SIZE(geode_modedb);
+}
+#endif
 
 static int lxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
@@ -477,7 +506,7 @@ static int __init lxfb_probe(struct pci_dev *pdev,
 	int ret;
 
 	struct fb_videomode *modedb_ptr;
-	int modedb_size;
+	unsigned int modedb_size;
 
 	info = lxfb_init_fbinfo(&pdev->dev);
 
@@ -502,9 +531,7 @@ static int __init lxfb_probe(struct pci_dev *pdev,
 
 	/* Set up the mode database */
 
-	modedb_ptr = (struct fb_videomode *) geode_modedb;
-	modedb_size = ARRAY_SIZE(geode_modedb);
-
+	get_modedb(&modedb_ptr, &modedb_size);
 	ret = fb_find_mode(&info->var, info, mode_option,
 			   modedb_ptr, modedb_size, NULL, 16);
 
