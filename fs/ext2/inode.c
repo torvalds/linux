@@ -254,13 +254,13 @@ no_block:
  *	Caller must make sure that @ind is valid and will stay that way.
  */
 
-static unsigned long ext2_find_near(struct inode *inode, Indirect *ind)
+static ext2_fsblk_t ext2_find_near(struct inode *inode, Indirect *ind)
 {
 	struct ext2_inode_info *ei = EXT2_I(inode);
 	__le32 *start = ind->bh ? (__le32 *) ind->bh->b_data : ei->i_data;
 	__le32 *p;
-	unsigned long bg_start;
-	unsigned long colour;
+	ext2_fsblk_t bg_start;
+	ext2_fsblk_t colour;
 
 	/* Try to find previous block */
 	for (p = ind->p - 1; p >= start; p--)
@@ -290,8 +290,8 @@ static unsigned long ext2_find_near(struct inode *inode, Indirect *ind)
  *	Returns preferred place for a block (the goal).
  */
 
-static inline int ext2_find_goal(struct inode *inode, long block,
-				 Indirect *partial)
+static inline ext2_fsblk_t ext2_find_goal(struct inode *inode, long block,
+					  Indirect *partial)
 {
 	struct ext2_block_alloc_info *block_i;
 
