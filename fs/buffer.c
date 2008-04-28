@@ -360,16 +360,16 @@ void invalidate_bdev(struct block_device *bdev)
  */
 static void free_more_memory(void)
 {
-	struct zone **zones;
+	struct zonelist *zonelist;
 	pg_data_t *pgdat;
 
 	wakeup_pdflush(1024);
 	yield();
 
 	for_each_online_pgdat(pgdat) {
-		zones = pgdat->node_zonelists[gfp_zone(GFP_NOFS)].zones;
-		if (*zones)
-			try_to_free_pages(zones, 0, GFP_NOFS);
+		zonelist = &pgdat->node_zonelists[gfp_zone(GFP_NOFS)];
+		if (zonelist->zones[0])
+			try_to_free_pages(zonelist, 0, GFP_NOFS);
 	}
 }
 
