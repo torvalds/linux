@@ -1176,8 +1176,10 @@ pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr,
  * old drivers should use this, and they needed to mark their
  * pages reserved for the old functions anyway.
  */
-static int insert_page(struct mm_struct *mm, unsigned long addr, struct page *page, pgprot_t prot)
+static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+			struct page *page, pgprot_t prot)
 {
+	struct mm_struct *mm = vma->vm_mm;
 	int retval;
 	pte_t *pte;
 	spinlock_t *ptl;
@@ -1237,16 +1239,45 @@ out:
  *
  * The page does not need to be reserved.
  */
-int vm_insert_page(struct vm_area_struct *vma, unsigned long addr, struct page *page)
+int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
+			struct page *page)
 {
 	if (addr < vma->vm_start || addr >= vma->vm_end)
 		return -EFAULT;
 	if (!page_count(page))
 		return -EINVAL;
 	vma->vm_flags |= VM_INSERTPAGE;
-	return insert_page(vma->vm_mm, addr, page, vma->vm_page_prot);
+	return insert_page(vma, addr, page, vma->vm_page_prot);
 }
 EXPORT_SYMBOL(vm_insert_page);
+
+static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+			unsigned long pfn, pgprot_t prot)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	int retval;
+	pte_t *pte, entry;
+	spinlock_t *ptl;
+
+	retval = -ENOMEM;
+	pte = get_locked_pte(mm, addr, &ptl);
+	if (!pte)
+		goto out;
+	retval = -EBUSY;
+	if (!pte_none(*pte))
+		goto out_unlock;
+
+	/* Ok, finally just insert the thing.. */
+	entry = pte_mkspecial(pfn_pte(pfn, prot));
+	set_pte_at(mm, addr, pte, entry);
+	update_mmu_cache(vma, addr, entry); /* XXX: why not for insert_page? */
+
+	retval = 0;
+out_unlock:
+	pte_unmap_unlock(pte, ptl);
+out:
+	return retval;
+}
 
 /**
  * vm_insert_pfn - insert single pfn into user vma
@@ -1261,13 +1292,8 @@ EXPORT_SYMBOL(vm_insert_page);
  * in that case the handler should return NULL.
  */
 int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
-		unsigned long pfn)
+			unsigned long pfn)
 {
-	struct mm_struct *mm = vma->vm_mm;
-	int retval;
-	pte_t *pte, entry;
-	spinlock_t *ptl;
-
 	/*
 	 * Technically, architectures with pte_special can avoid all these
 	 * restrictions (same for remap_pfn_range).  However we would like
@@ -1280,27 +1306,35 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
 	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
 
-	retval = -ENOMEM;
-	pte = get_locked_pte(mm, addr, &ptl);
-	if (!pte)
-		goto out;
-	retval = -EBUSY;
-	if (!pte_none(*pte))
-		goto out_unlock;
-
-	/* Ok, finally just insert the thing.. */
-	entry = pte_mkspecial(pfn_pte(pfn, vma->vm_page_prot));
-	set_pte_at(mm, addr, pte, entry);
-	update_mmu_cache(vma, addr, entry);
-
-	retval = 0;
-out_unlock:
-	pte_unmap_unlock(pte, ptl);
-
-out:
-	return retval;
+	if (addr < vma->vm_start || addr >= vma->vm_end)
+		return -EFAULT;
+	return insert_pfn(vma, addr, pfn, vma->vm_page_prot);
 }
 EXPORT_SYMBOL(vm_insert_pfn);
+
+int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+			unsigned long pfn)
+{
+	BUG_ON(!(vma->vm_flags & VM_MIXEDMAP));
+
+	if (addr < vma->vm_start || addr >= vma->vm_end)
+		return -EFAULT;
+
+	/*
+	 * If we don't have pte special, then we have to use the pfn_valid()
+	 * based VM_MIXEDMAP scheme (see vm_normal_page), and thus we *must*
+	 * refcount the page if pfn_valid is true (hence insert_page rather
+	 * than insert_pfn).
+	 */
+	if (!HAVE_PTE_SPECIAL && pfn_valid(pfn)) {
+		struct page *page;
+
+		page = pfn_to_page(pfn);
+		return insert_page(vma, addr, page, vma->vm_page_prot);
+	}
+	return insert_pfn(vma, addr, pfn, vma->vm_page_prot);
+}
+EXPORT_SYMBOL(vm_insert_mixed);
 
 /*
  * maps a range of physical memory into the requested pages. the old
