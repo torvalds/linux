@@ -521,7 +521,9 @@ static unsigned int setup_mmio_siimage (struct pci_dev *dev, const char *name)
 			writeb(tmpbyte & ~0x20, ioaddr + 0x4A);
 			break;
 	}
-	
+
+	tmpbyte = readb(ioaddr + 0x4A);
+
 	writeb(      0x72, ioaddr + 0xA1);
 	writew(    0x328A, ioaddr + 0xA2);
 	writel(0x62DD62DD, ioaddr + 0xA4);
@@ -539,8 +541,6 @@ static unsigned int setup_mmio_siimage (struct pci_dev *dev, const char *name)
 		writel(0x00680000, ioaddr + 0x148);
 		writel(0x00680000, ioaddr + 0x1C8);
 	}
-
-	tmpbyte = readb(ioaddr + 0x4A);
 
 	proc_reports_siimage(dev, (tmpbyte>>4), name);
 	return 1;
