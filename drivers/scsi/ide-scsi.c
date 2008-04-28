@@ -574,9 +574,7 @@ static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
 		return ide_started;
 	} else {
 		/* Issue the packet command */
-		hwif->OUTBSYNC(drive, WIN_PACKETCMD,
-			       hwif->io_ports.command_addr);
-		ndelay(400);
+		ide_execute_pkt_cmd(drive);
 		return idescsi_transfer_pc(drive);
 	}
 }

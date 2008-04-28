@@ -555,14 +555,7 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 				    ATAPI_WAIT_PC, cdrom_timer_expiry);
 		return ide_started;
 	} else {
-		unsigned long flags;
-
-		/* packet command */
-		spin_lock_irqsave(&ide_lock, flags);
-		hwif->OUTBSYNC(drive, WIN_PACKETCMD,
-			       hwif->io_ports.command_addr);
-		ndelay(400);
-		spin_unlock_irqrestore(&ide_lock, flags);
+		ide_execute_pkt_cmd(drive);
 
 		return (*handler) (drive);
 	}

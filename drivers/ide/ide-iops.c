@@ -801,9 +801,19 @@ void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 	ndelay(400);
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
-
 EXPORT_SYMBOL(ide_execute_command);
 
+void ide_execute_pkt_cmd(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ide_lock, flags);
+	hwif->OUTBSYNC(drive, WIN_PACKETCMD, hwif->io_ports.command_addr);
+	ndelay(400);
+	spin_unlock_irqrestore(&ide_lock, flags);
+}
+EXPORT_SYMBOL_GPL(ide_execute_pkt_cmd);
 
 /* needed below */
 static ide_startstop_t do_reset1 (ide_drive_t *, int);

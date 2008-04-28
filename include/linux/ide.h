@@ -822,6 +822,8 @@ extern void ide_set_handler (ide_drive_t *drive, ide_handler_t *handler, unsigne
 void ide_execute_command(ide_drive_t *, u8, ide_handler_t *, unsigned int,
 			 ide_expiry_t *);
 
+void ide_execute_pkt_cmd(ide_drive_t *);
+
 ide_startstop_t __ide_error(ide_drive_t *, struct request *, u8, u8);
 
 ide_startstop_t ide_error (ide_drive_t *drive, const char *msg, byte stat);
