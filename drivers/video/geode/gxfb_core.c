@@ -328,7 +328,7 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	rdmsrl(MSR_GX_GLD_MSR_CONFIG, val);
 
-	if ((val & GLD_MSR_CONFIG_DM_FP) == GLD_MSR_CONFIG_DM_FP)
+	if ((val & MSR_GX_GLD_MSR_CONFIG_FP) == MSR_GX_GLD_MSR_CONFIG_FP)
 		par->enable_crt = 0;
 	else
 		par->enable_crt = 1;

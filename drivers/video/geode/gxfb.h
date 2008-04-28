@@ -252,4 +252,20 @@ static inline void write_fp(struct geodefb_par *par, int reg, uint32_t val)
 	writel(val, par->vid_regs + 8*reg + VP_FP_START);
 }
 
+
+/* MSRs are defined in asm/geode.h; their bitfields are here */
+
+#define MSR_GLCP_SYS_RSTPLL_DOTPOSTDIV3	(1 << 3)
+#define MSR_GLCP_SYS_RSTPLL_DOTPREMULT2	(1 << 2)
+#define MSR_GLCP_SYS_RSTPLL_DOTPREDIV2	(1 << 1)
+
+#define MSR_GLCP_DOTPLL_LOCK		(1 << 25)	/* r/o */
+#define MSR_GLCP_DOTPLL_BYPASS		(1 << 15)
+#define MSR_GLCP_DOTPLL_DOTRESET	(1 << 0)
+
+#define MSR_GX_MSR_PADSEL_MASK		0x3FFFFFFF	/* undocumented? */
+#define MSR_GX_MSR_PADSEL_TFT		0x1FFFFFFF	/* undocumented? */
+
+#define MSR_GX_GLD_MSR_CONFIG_FP	(1 << 3)
+
 #endif

@@ -187,8 +187,8 @@ gx_configure_tft(struct fb_info *info)
 	/* Set up the DF pad select MSR */
 
 	rdmsrl(MSR_GX_MSR_PADSEL, val);
-	val &= ~GX_VP_PAD_SELECT_MASK;
-	val |= GX_VP_PAD_SELECT_TFT;
+	val &= ~MSR_GX_MSR_PADSEL_MASK;
+	val |= MSR_GX_MSR_PADSEL_TFT;
 	wrmsrl(MSR_GX_MSR_PADSEL, val);
 
 	/* Turn off the panel */
