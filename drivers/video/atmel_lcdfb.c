@@ -250,6 +250,8 @@ static int atmel_lcdfb_alloc_video_memory(struct atmel_lcdfb_info *sinfo)
 		return -ENOMEM;
 	}
 
+	memset(info->screen_base, 0, info->fix.smem_len);
+
 	return 0;
 }
 
@@ -634,7 +636,6 @@ static int __init atmel_lcdfb_init_fbinfo(struct atmel_lcdfb_info *sinfo)
 	struct fb_info *info = sinfo->info;
 	int ret = 0;
 
-	memset_io(info->screen_base, 0, info->fix.smem_len);
 	info->var.activate |= FB_ACTIVATE_FORCE | FB_ACTIVATE_NOW;
 
 	dev_info(info->device,
@@ -764,6 +765,11 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
 		if (!info->screen_base)
 			goto release_intmem;
+
+		/*
+		 * Don't clear the framebuffer -- someone may have set
+		 * up a splash image.
+		 */
 	} else {
 		/* alocate memory buffer */
 		ret = atmel_lcdfb_alloc_video_memory(sinfo);
