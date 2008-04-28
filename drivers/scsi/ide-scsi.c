@@ -576,6 +576,7 @@ static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
 		/* Issue the packet command */
 		hwif->OUTBSYNC(drive, WIN_PACKETCMD,
 			       hwif->io_ports.command_addr);
+		ndelay(400);
 		return idescsi_transfer_pc(drive);
 	}
 }
