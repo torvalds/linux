@@ -295,7 +295,7 @@ ext2_readdir (struct file * filp, void * dirent, filldir_t filldir)
 		struct page *page = ext2_get_page(inode, n);
 
 		if (IS_ERR(page)) {
-			ext2_error(sb, __FUNCTION__,
+			ext2_error(sb, __func__,
 				   "bad page in #%lu",
 				   inode->i_ino);
 			filp->f_pos += PAGE_CACHE_SIZE - offset;
@@ -314,7 +314,7 @@ ext2_readdir (struct file * filp, void * dirent, filldir_t filldir)
 		limit = kaddr + ext2_last_byte(inode, n) - EXT2_DIR_REC_LEN(1);
 		for ( ;(char*)de <= limit; de = ext2_next_entry(de)) {
 			if (de->rec_len == 0) {
-				ext2_error(sb, __FUNCTION__,
+				ext2_error(sb, __func__,
 					"zero-length directory entry");
 				ext2_put_page(page);
 				return -EIO;
@@ -381,7 +381,7 @@ struct ext2_dir_entry_2 * ext2_find_entry (struct inode * dir,
 			kaddr += ext2_last_byte(dir, n) - reclen;
 			while ((char *) de <= kaddr) {
 				if (de->rec_len == 0) {
-					ext2_error(dir->i_sb, __FUNCTION__,
+					ext2_error(dir->i_sb, __func__,
 						"zero-length directory entry");
 					ext2_put_page(page);
 					goto out;
@@ -396,7 +396,7 @@ struct ext2_dir_entry_2 * ext2_find_entry (struct inode * dir,
 			n = 0;
 		/* next page is past the blocks we've got */
 		if (unlikely(n > (dir->i_blocks >> (PAGE_CACHE_SHIFT - 9)))) {
-			ext2_error(dir->i_sb, __FUNCTION__,
+			ext2_error(dir->i_sb, __func__,
 				"dir %lu size %lld exceeds block count %llu",
 				dir->i_ino, dir->i_size,
 				(unsigned long long)dir->i_blocks);
@@ -506,7 +506,7 @@ int ext2_add_link (struct dentry *dentry, struct inode *inode)
 				goto got_it;
 			}
 			if (de->rec_len == 0) {
-				ext2_error(dir->i_sb, __FUNCTION__,
+				ext2_error(dir->i_sb, __func__,
 					"zero-length directory entry");
 				err = -EIO;
 				goto out_unlock;
@@ -578,7 +578,7 @@ int ext2_delete_entry (struct ext2_dir_entry_2 * dir, struct page * page )
 
 	while ((char*)de < (char*)dir) {
 		if (de->rec_len == 0) {
-			ext2_error(inode->i_sb, __FUNCTION__,
+			ext2_error(inode->i_sb, __func__,
 				"zero-length directory entry");
 			err = -EIO;
 			goto out;
@@ -670,7 +670,7 @@ int ext2_empty_dir (struct inode * inode)
 
 		while ((char *)de <= kaddr) {
 			if (de->rec_len == 0) {
-				ext2_error(inode->i_sb, __FUNCTION__,
+				ext2_error(inode->i_sb, __func__,
 					"zero-length directory entry");
 				printk("kaddr=%p, de=%p\n", kaddr, de);
 				goto not_empty;
