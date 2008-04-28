@@ -101,6 +101,25 @@ static int __add_section(struct zone *zone, unsigned long phys_start_pfn)
 	return register_new_memory(__pfn_to_section(phys_start_pfn));
 }
 
+static int __remove_section(struct zone *zone, struct mem_section *ms)
+{
+	unsigned long flags;
+	struct pglist_data *pgdat = zone->zone_pgdat;
+	int ret = -EINVAL;
+
+	if (!valid_section(ms))
+		return ret;
+
+	ret = unregister_memory_section(ms);
+	if (ret)
+		return ret;
+
+	pgdat_resize_lock(pgdat, &flags);
+	sparse_remove_one_section(zone, ms);
+	pgdat_resize_unlock(pgdat, &flags);
+	return 0;
+}
+
 /*
  * Reasonably generic function for adding memory.  It is
  * expected that archs that support memory hotplug will
@@ -133,6 +152,42 @@ int __add_pages(struct zone *zone, unsigned long phys_start_pfn,
 	return err;
 }
 EXPORT_SYMBOL_GPL(__add_pages);
+
+/**
+ * __remove_pages() - remove sections of pages from a zone
+ * @zone: zone from which pages need to be removed
+ * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
+ * @nr_pages: number of pages to remove (must be multiple of section size)
+ *
+ * Generic helper function to remove section mappings and sysfs entries
+ * for the section of the memory we are removing. Caller needs to make
+ * sure that pages are marked reserved and zones are adjust properly by
+ * calling offline_pages().
+ */
+int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+		 unsigned long nr_pages)
+{
+	unsigned long i, ret = 0;
+	int sections_to_remove;
+
+	/*
+	 * We can only remove entire sections
+	 */
+	BUG_ON(phys_start_pfn & ~PAGE_SECTION_MASK);
+	BUG_ON(nr_pages % PAGES_PER_SECTION);
+
+	release_mem_region(phys_start_pfn << PAGE_SHIFT, nr_pages * PAGE_SIZE);
+
+	sections_to_remove = nr_pages / PAGES_PER_SECTION;
+	for (i = 0; i < sections_to_remove; i++) {
+		unsigned long pfn = phys_start_pfn + i*PAGES_PER_SECTION;
+		ret = __remove_section(zone, __pfn_to_section(pfn));
+		if (ret)
+			break;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(__remove_pages);
 
 static void grow_zone_span(struct zone *zone,
 		unsigned long start_pfn, unsigned long end_pfn)
