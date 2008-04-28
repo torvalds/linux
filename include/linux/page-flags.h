@@ -134,6 +134,10 @@ static inline int TestClearPage##uname(struct page *page)		\
 #define __PAGEFLAG(uname, lname) TESTPAGEFLAG(uname, lname)		\
 	__SETPAGEFLAG(uname, lname)  __CLEARPAGEFLAG(uname, lname)
 
+#define PAGEFLAG_FALSE(uname) 						\
+static inline int Page##uname(struct page *page) 			\
+			{ return 0; }
+
 #define TESTSCFLAG(uname, lname)					\
 	TESTSETFLAG(uname, lname) TESTCLEARFLAG(uname, lname)
 
@@ -171,28 +175,19 @@ PAGEFLAG(Readahead, reclaim)		/* Reminder to do async read-ahead */
  */
 #define PageHighMem(__p) is_highmem(page_zone(__p))
 #else
-static inline int PageHighMem(struct page *page)
-{
-	return 0;
-}
+PAGEFLAG_FALSE(HighMem)
 #endif
 
 #ifdef CONFIG_SWAP
 PAGEFLAG(SwapCache, swapcache)
 #else
-static inline int PageSwapCache(struct page *page)
-{
-	return 0;
-}
+PAGEFLAG_FALSE(SwapCache)
 #endif
 
 #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
 PAGEFLAG(Uncached, uncached)
 #else
-static inline int PageUncached(struct page *)
-{
-	return 0;
-}
+PAGEFLAG_FALSE(Uncached)
 #endif
 
 static inline int PageUptodate(struct page *page)
