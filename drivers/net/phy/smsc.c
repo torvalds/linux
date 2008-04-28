@@ -38,7 +38,7 @@
 	(MII_LAN83C185_ISF_INT6 | MII_LAN83C185_ISF_INT4)
 
 
-static int lan83c185_config_intr(struct phy_device *phydev)
+static int smsc_phy_config_intr(struct phy_device *phydev)
 {
 	int rc = phy_write (phydev, MII_LAN83C185_IM,
 			((PHY_INTERRUPT_ENABLED == phydev->interrupts)
@@ -48,16 +48,16 @@ static int lan83c185_config_intr(struct phy_device *phydev)
 	return rc < 0 ? rc : 0;
 }
 
-static int lan83c185_ack_interrupt(struct phy_device *phydev)
+static int smsc_phy_ack_interrupt(struct phy_device *phydev)
 {
 	int rc = phy_read (phydev, MII_LAN83C185_ISF);
 
 	return rc < 0 ? rc : 0;
 }
 
-static int lan83c185_config_init(struct phy_device *phydev)
+static int smsc_phy_config_init(struct phy_device *phydev)
 {
-	return lan83c185_ack_interrupt (phydev);
+	return smsc_phy_ack_interrupt (phydev);
 }
 
 
@@ -73,11 +73,11 @@ static struct phy_driver lan83c185_driver = {
 	/* basic functions */
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
-	.config_init	= lan83c185_config_init,
+	.config_init	= smsc_phy_config_init,
 
 	/* IRQ related */
-	.ack_interrupt	= lan83c185_ack_interrupt,
-	.config_intr	= lan83c185_config_intr,
+	.ack_interrupt	= smsc_phy_ack_interrupt,
+	.config_intr	= smsc_phy_config_intr,
 
 	.driver		= { .owner = THIS_MODULE, }
 };
