@@ -1226,7 +1226,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 		le16_to_cpu(get_unaligned((__le16 *)&b->sector_size));
 	if (!is_power_of_2(logical_sector_size)
 	    || (logical_sector_size < 512)
-	    || (PAGE_CACHE_SIZE < logical_sector_size)) {
+	    || (logical_sector_size > 4096)) {
 		if (!silent)
 			printk(KERN_ERR "FAT: bogus logical sector size %u\n",
 			       logical_sector_size);
