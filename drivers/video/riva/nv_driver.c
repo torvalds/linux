@@ -41,11 +41,6 @@
 #include "rivafb.h"
 #include "nvreg.h"
 
-
-#ifndef CONFIG_PCI		/* sanity check */
-#error This driver requires PCI support.
-#endif
-
 #define PFX "rivafb: "
 
 static inline unsigned char MISCin(struct riva_par *par)
