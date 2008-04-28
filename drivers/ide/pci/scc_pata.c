@@ -618,6 +618,38 @@ static int __devinit init_setup_scc(struct pci_dev *dev,
 	return rc;
 }
 
+static void scc_input_data(ide_drive_t *drive, struct request *rq,
+			   void *buf, unsigned int len)
+{
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
+
+	len++;
+
+	if (drive->io_32bit) {
+		scc_ide_insl(data_addr, buf, len / 4);
+
+		if ((len & 3) >= 2)
+			scc_ide_insw(data_addr, (u8 *)buf + (len & ~3), 1);
+	} else
+		scc_ide_insw(data_addr, buf, len / 2);
+}
+
+static void scc_output_data(ide_drive_t *drive,  struct request *rq,
+			    void *buf, unsigned int len)
+{
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
+
+	len++;
+
+	if (drive->io_32bit) {
+		scc_ide_outsl(data_addr, buf, len / 4);
+
+		if ((len & 3) >= 2)
+			scc_ide_outsw(data_addr, (u8 *)buf + (len & ~3), 1);
+	} else
+		scc_ide_outsw(data_addr, buf, len / 2);
+}
+
 /**
  *	init_mmio_iops_scc	-	set up the iops for MMIO
  *	@hwif: interface to set up
@@ -631,6 +663,9 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 	unsigned long dma_base = ports->dma;
 
 	ide_set_hwifdata(hwif, ports);
+
+	hwif->input_data  = scc_input_data;
+	hwif->output_data = scc_output_data;
 
 	hwif->INB = scc_ide_inb;
 	hwif->INW = scc_ide_inw;
