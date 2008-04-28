@@ -3003,17 +3003,18 @@ int extent_buffer_uptodate(struct extent_io_tree *tree,
 			   struct extent_buffer *eb)
 {
 	int ret = 0;
-	int ret2;
 	unsigned long num_pages;
 	unsigned long i;
 	struct page *page;
 	int pg_uptodate = 1;
 
 	if (eb->flags & EXTENT_UPTODATE)
-		ret = 1;
+		return 1;
 
-	ret2  = test_range_bit(tree, eb->start, eb->start + eb->len - 1,
+	ret = test_range_bit(tree, eb->start, eb->start + eb->len - 1,
 			   EXTENT_UPTODATE, 1);
+	if (ret)
+		return ret;
 
 	num_pages = num_extent_pages(eb->start, eb->len);
 	for (i = 0; i < num_pages; i++) {
@@ -3023,11 +3024,7 @@ int extent_buffer_uptodate(struct extent_io_tree *tree,
 			break;
 		}
 	}
-	if ((ret || ret2) && !pg_uptodate) {
-printk("uptodate error2 eb %Lu ret %d ret2 %d pg_uptodate %d\n", eb->start, ret, ret2, pg_uptodate);
-		WARN_ON(1);
-	}
-	return (ret || ret2);
+	return pg_uptodate;
 }
 EXPORT_SYMBOL(extent_buffer_uptodate);
 

@@ -1282,7 +1282,6 @@ again:
 					 num_stripes, sub_stripes);
 
 	index = 0;
-printk("new chunk type %Lu start %Lu size %Lu\n", type, key.offset, *num_bytes);
 	while(index < num_stripes) {
 		struct btrfs_stripe *stripe;
 		BUG_ON(list_empty(&private_devs));
@@ -1299,7 +1298,6 @@ printk("new chunk type %Lu start %Lu size %Lu\n", type, key.offset, *num_bytes);
 			     BTRFS_FIRST_CHUNK_TREE_OBJECTID, key.offset,
 			     calc_size, &dev_offset);
 		BUG_ON(ret);
-printk("alloc chunk start %Lu size %Lu from dev %Lu type %Lu\n", key.offset, calc_size, device->devid, type);
 		device->bytes_used += calc_size;
 		ret = btrfs_update_device(trans, device);
 		BUG_ON(ret);

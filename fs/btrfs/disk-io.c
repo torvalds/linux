@@ -214,25 +214,18 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 	while (1) {
 		ret = read_extent_buffer_pages(io_tree, eb, start, 1,
 					       btree_get_extent, mirror_num);
-		if (!ret) {
-			if (mirror_num)
-printk("good read %Lu mirror %d total %d\n", eb->start, mirror_num, num_copies);
+		if (!ret)
 			return ret;
-		}
+
 		num_copies = btrfs_num_copies(&root->fs_info->mapping_tree,
 					      eb->start, eb->len);
-printk("failed to read %Lu mirror %d total %d\n", eb->start, mirror_num, num_copies);
-		if (num_copies == 1) {
-printk("reading %Lu failed only one copy\n", eb->start);
+		if (num_copies == 1)
 			return ret;
-		}
+
 		mirror_num++;
-		if (mirror_num > num_copies) {
-printk("bailing at mirror %d of %d\n", mirror_num, num_copies);
+		if (mirror_num > num_copies)
 			return ret;
-		}
 	}
-printk("read extent buffer page last\n");
 	return -EIO;
 }
 
@@ -322,7 +315,6 @@ int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	btrfs_clear_buffer_defrag(eb);
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
-printk("bad start on %Lu found %Lu\n", eb->start, found_start);
 		ret = -EIO;
 		goto err;
 	}
