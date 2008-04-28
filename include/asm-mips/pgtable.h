@@ -285,6 +285,8 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return pte;
 }
 #endif
+static inline int pte_special(pte_t pte)	{ return 0; }
+static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 
 /*
  * Macro to make mark a page protection value as "uncacheable".  Note

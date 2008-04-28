@@ -195,6 +195,11 @@ static inline int pte_exec(pte_t pte)
 	return !(pte_val(pte) & _PAGE_NX);
 }
 
+static inline int pte_special(pte_t pte)
+{
+	return 0;
+}
+
 static inline int pmd_large(pmd_t pte)
 {
 	return (pmd_val(pte) & (_PAGE_PSE | _PAGE_PRESENT)) ==
@@ -254,6 +259,11 @@ static inline pte_t pte_mkglobal(pte_t pte)
 static inline pte_t pte_clrglobal(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~(pteval_t)_PAGE_GLOBAL);
+}
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	return pte;
 }
 
 extern pteval_t __supported_pte_mask;

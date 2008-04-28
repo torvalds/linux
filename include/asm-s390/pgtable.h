@@ -518,6 +518,11 @@ static inline int pte_file(pte_t pte)
 	return (pte_val(pte) & mask) == _PAGE_TYPE_FILE;
 }
 
+static inline int pte_special(pte_t pte)
+{
+	return 0;
+}
+
 #define __HAVE_ARCH_PTE_SAME
 #define pte_same(a,b)  (pte_val(a) == pte_val(b))
 
@@ -712,6 +717,11 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	/* S/390 doesn't keep its dirty/referenced bit in the pte.
 	 * There is no point in setting the real referenced bit.
 	 */
+	return pte;
+}
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
 	return pte;
 }
 

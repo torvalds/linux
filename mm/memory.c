@@ -371,33 +371,37 @@ static inline int is_cow_mapping(unsigned int flags)
 }
 
 /*
- * This function gets the "struct page" associated with a pte or returns
- * NULL if no "struct page" is associated with the pte.
+ * vm_normal_page -- This function gets the "struct page" associated with a pte.
  *
- * A raw VM_PFNMAP mapping (ie. one that is not COWed) may not have any "struct
- * page" backing, and even if they do, they are not refcounted. COWed pages of
- * a VM_PFNMAP do always have a struct page, and they are normally refcounted
- * (they are _normal_ pages).
+ * "Special" mappings do not wish to be associated with a "struct page" (either
+ * it doesn't exist, or it exists but they don't want to touch it). In this
+ * case, NULL is returned here. "Normal" mappings do have a struct page.
  *
- * So a raw PFNMAP mapping will have each page table entry just pointing
- * to a page frame number, and as far as the VM layer is concerned, those do
- * not have pages associated with them - even if the PFN might point to memory
- * that otherwise is perfectly fine and has a "struct page".
+ * There are 2 broad cases. Firstly, an architecture may define a pte_special()
+ * pte bit, in which case this function is trivial. Secondly, an architecture
+ * may not have a spare pte bit, which requires a more complicated scheme,
+ * described below.
+ *
+ * A raw VM_PFNMAP mapping (ie. one that is not COWed) is always considered a
+ * special mapping (even if there are underlying and valid "struct pages").
+ * COWed pages of a VM_PFNMAP are always normal.
  *
  * The way we recognize COWed pages within VM_PFNMAP mappings is through the
  * rules set up by "remap_pfn_range()": the vma will have the VM_PFNMAP bit
- * set, and the vm_pgoff will point to the first PFN mapped: thus every
- * page that is a raw mapping will always honor the rule
+ * set, and the vm_pgoff will point to the first PFN mapped: thus every special
+ * mapping will always honor the rule
  *
  *	pfn_of_page == vma->vm_pgoff + ((addr - vma->vm_start) >> PAGE_SHIFT)
  *
- * A call to vm_normal_page() will return NULL for such a page.
+ * And for normal mappings this is false.
  *
- * If the page doesn't follow the "remap_pfn_range()" rule in a VM_PFNMAP
- * then the page has been COW'ed.  A COW'ed page _does_ have a "struct page"
- * associated with it even if it is in a VM_PFNMAP range.  Calling
- * vm_normal_page() on such a page will therefore return the "struct page".
+ * This restricts such mappings to be a linear translation from virtual address
+ * to pfn. To get around this restriction, we allow arbitrary mappings so long
+ * as the vma is not a COW mapping; in that case, we know that all ptes are
+ * special (because none can have been COWed).
  *
+ *
+ * In order to support COW of arbitrary special mappings, we have VM_MIXEDMAP.
  *
  * VM_MIXEDMAP mappings can likewise contain memory with or without "struct
  * page" backing, however the difference is that _all_ pages with a struct
@@ -407,16 +411,29 @@ static inline int is_cow_mapping(unsigned int flags)
  * advantage is that we don't have to follow the strict linearity rule of
  * PFNMAP mappings in order to support COWable mappings.
  *
- * A call to vm_normal_page() with a VM_MIXEDMAP mapping will return the
- * associated "struct page" or NULL for memory not backed by a "struct page".
- *
- *
- * All other mappings should have a valid struct page, which will be
- * returned by a call to vm_normal_page().
  */
-struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
+#ifdef __HAVE_ARCH_PTE_SPECIAL
+# define HAVE_PTE_SPECIAL 1
+#else
+# define HAVE_PTE_SPECIAL 0
+#endif
+struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+				pte_t pte)
 {
-	unsigned long pfn = pte_pfn(pte);
+	unsigned long pfn;
+
+	if (HAVE_PTE_SPECIAL) {
+		if (likely(!pte_special(pte))) {
+			VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+			return pte_page(pte);
+		}
+		VM_BUG_ON(!(vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP)));
+		return NULL;
+	}
+
+	/* !HAVE_PTE_SPECIAL case follows: */
+
+	pfn = pte_pfn(pte);
 
 	if (unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
 		if (vma->vm_flags & VM_MIXEDMAP) {
@@ -424,7 +441,8 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 				return NULL;
 			goto out;
 		} else {
-			unsigned long off = (addr-vma->vm_start) >> PAGE_SHIFT;
+			unsigned long off;
+			off = (addr - vma->vm_start) >> PAGE_SHIFT;
 			if (pfn == vma->vm_pgoff + off)
 				return NULL;
 			if (!is_cow_mapping(vma->vm_flags))
@@ -432,25 +450,12 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 		}
 	}
 
-#ifdef CONFIG_DEBUG_VM
-	/*
-	 * Add some anal sanity checks for now. Eventually,
-	 * we should just do "return pfn_to_page(pfn)", but
-	 * in the meantime we check that we get a valid pfn,
-	 * and that the resulting page looks ok.
-	 */
-	if (unlikely(!pfn_valid(pfn))) {
-		print_bad_pte(vma, pte, addr);
-		return NULL;
-	}
-#endif
+	VM_BUG_ON(!pfn_valid(pfn));
 
 	/*
-	 * NOTE! We still have PageReserved() pages in the page 
-	 * tables. 
+	 * NOTE! We still have PageReserved() pages in the page tables.
 	 *
-	 * The PAGE_ZERO() pages and various VDSO mappings can
-	 * cause them to exist.
+	 * eg. VDSO mappings can cause them to exist.
 	 */
 out:
 	return pfn_to_page(pfn);
@@ -1263,6 +1268,12 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 	pte_t *pte, entry;
 	spinlock_t *ptl;
 
+	/*
+	 * Technically, architectures with pte_special can avoid all these
+	 * restrictions (same for remap_pfn_range).  However we would like
+	 * consistency in testing and feature parity among all, so we should
+	 * try to keep these invariants in place for everybody.
+	 */
 	BUG_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)));
 	BUG_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
 						(VM_PFNMAP|VM_MIXEDMAP));
@@ -1278,7 +1289,7 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 		goto out_unlock;
 
 	/* Ok, finally just insert the thing.. */
-	entry = pfn_pte(pfn, vma->vm_page_prot);
+	entry = pte_mkspecial(pfn_pte(pfn, vma->vm_page_prot));
 	set_pte_at(mm, addr, pte, entry);
 	update_mmu_cache(vma, addr, entry);
 
@@ -1309,7 +1320,7 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 	arch_enter_lazy_mmu_mode();
 	do {
 		BUG_ON(!pte_none(*pte));
-		set_pte_at(mm, addr, pte, pfn_pte(pfn, prot));
+		set_pte_at(mm, addr, pte, pte_mkspecial(pfn_pte(pfn, prot)));
 		pfn++;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	arch_leave_lazy_mmu_mode();
