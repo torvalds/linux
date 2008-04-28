@@ -498,13 +498,13 @@ struct hid_parser {
 
 struct hid_class_descriptor {
 	__u8  bDescriptorType;
-	__u16 wDescriptorLength;
+	__le16 wDescriptorLength;
 } __attribute__ ((packed));
 
 struct hid_descriptor {
 	__u8  bLength;
 	__u8  bDescriptorType;
-	__u16 bcdHID;
+	__le16 bcdHID;
 	__u8  bCountryCode;
 	__u8  bNumDescriptors;
 
