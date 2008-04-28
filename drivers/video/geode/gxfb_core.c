@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/console.h>
+#include <linux/suspend.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <asm/geode.h>
@@ -37,6 +38,7 @@
 
 static char *mode_option;
 static int vram;
+static int vt_switch;
 
 /* Modes relevant to the GX (taken from modedb.c) */
 static const struct fb_videomode gx_modedb[] __initdata = {
@@ -382,6 +384,8 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	gxfb_check_var(&info->var, info);
 	gxfb_set_par(info);
 
+	pm_set_vt_switch(vt_switch);
+
 	if (register_framebuffer(info) < 0) {
 		ret = -EINVAL;
 		goto err;
@@ -501,6 +505,9 @@ MODULE_PARM_DESC(mode_option, "video mode (<x>x<y>[-<bpp>][@<refr>])");
 
 module_param(vram, int, 0);
 MODULE_PARM_DESC(vram, "video memory size");
+
+module_param(vt_switch, int, 0);
+MODULE_PARM_DESC(vt_switch, "enable VT switch during suspend/resume");
 
 MODULE_DESCRIPTION("Framebuffer driver for the AMD Geode GX");
 MODULE_LICENSE("GPL");

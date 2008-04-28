@@ -12,11 +12,22 @@
 #include <asm/errno.h>
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE)
+extern void pm_set_vt_switch(int);
 extern int pm_prepare_console(void);
 extern void pm_restore_console(void);
 #else
-static inline int pm_prepare_console(void) { return 0; }
-static inline void pm_restore_console(void) {}
+static inline void pm_set_vt_switch(int do_switch)
+{
+}
+
+static inline int pm_prepare_console(void)
+{
+	return 0;
+}
+
+static inline void pm_restore_console(void)
+{
+}
 #endif
 
 typedef int __bitwise suspend_state_t;
