@@ -304,7 +304,7 @@ static int finish_unfinished(struct super_block *s)
 	/* Turn quotas off */
 	for (i = 0; i < MAXQUOTAS; i++) {
 		if (sb_dqopt(s)->files[i])
-			vfs_quota_off_mount(s, i);
+			vfs_quota_off(s, i);
 	}
 	if (ms_active_set)
 		/* Restore the flag back */

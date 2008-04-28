@@ -41,7 +41,6 @@ extern int vfs_quota_on(struct super_block *sb, int type, int format_id, char *p
 extern int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
 		int format_id, int type);
 extern int vfs_quota_off(struct super_block *sb, int type);
-#define vfs_quota_off_mount(sb, type) vfs_quota_off(sb, type)
 extern int vfs_quota_sync(struct super_block *sb, int type);
 extern int vfs_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 extern int vfs_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
@@ -59,7 +58,7 @@ extern struct quotactl_ops vfs_quotactl_ops;
 
 /* It is better to call this function outside of any transaction as it might
  * need a lot of space in journal for dquot structure allocation. */
-static __inline__ void DQUOT_INIT(struct inode *inode)
+static inline void DQUOT_INIT(struct inode *inode)
 {
 	BUG_ON(!inode->i_sb);
 	if (sb_any_quota_enabled(inode->i_sb) && !IS_NOQUOTA(inode))
@@ -67,7 +66,7 @@ static __inline__ void DQUOT_INIT(struct inode *inode)
 }
 
 /* The same as with DQUOT_INIT */
-static __inline__ void DQUOT_DROP(struct inode *inode)
+static inline void DQUOT_DROP(struct inode *inode)
 {
 	/* Here we can get arbitrary inode from clear_inode() so we have
 	 * to be careful. OTOH we don't need locking as quota operations
@@ -90,7 +89,7 @@ static __inline__ void DQUOT_DROP(struct inode *inode)
 
 /* The following allocation/freeing/transfer functions *must* be called inside
  * a transaction (deadlocks possible otherwise) */
-static __inline__ int DQUOT_PREALLOC_SPACE_NODIRTY(struct inode *inode, qsize_t nr)
+static inline int DQUOT_PREALLOC_SPACE_NODIRTY(struct inode *inode, qsize_t nr)
 {
 	if (sb_any_quota_enabled(inode->i_sb)) {
 		/* Used space is updated in alloc_space() */
@@ -102,7 +101,7 @@ static __inline__ int DQUOT_PREALLOC_SPACE_NODIRTY(struct inode *inode, qsize_t 
 	return 0;
 }
 
-static __inline__ int DQUOT_PREALLOC_SPACE(struct inode *inode, qsize_t nr)
+static inline int DQUOT_PREALLOC_SPACE(struct inode *inode, qsize_t nr)
 {
 	int ret;
         if (!(ret =  DQUOT_PREALLOC_SPACE_NODIRTY(inode, nr)))
@@ -110,7 +109,7 @@ static __inline__ int DQUOT_PREALLOC_SPACE(struct inode *inode, qsize_t nr)
 	return ret;
 }
 
-static __inline__ int DQUOT_ALLOC_SPACE_NODIRTY(struct inode *inode, qsize_t nr)
+static inline int DQUOT_ALLOC_SPACE_NODIRTY(struct inode *inode, qsize_t nr)
 {
 	if (sb_any_quota_enabled(inode->i_sb)) {
 		/* Used space is updated in alloc_space() */
@@ -122,7 +121,7 @@ static __inline__ int DQUOT_ALLOC_SPACE_NODIRTY(struct inode *inode, qsize_t nr)
 	return 0;
 }
 
-static __inline__ int DQUOT_ALLOC_SPACE(struct inode *inode, qsize_t nr)
+static inline int DQUOT_ALLOC_SPACE(struct inode *inode, qsize_t nr)
 {
 	int ret;
 	if (!(ret = DQUOT_ALLOC_SPACE_NODIRTY(inode, nr)))
@@ -130,7 +129,7 @@ static __inline__ int DQUOT_ALLOC_SPACE(struct inode *inode, qsize_t nr)
 	return ret;
 }
 
-static __inline__ int DQUOT_ALLOC_INODE(struct inode *inode)
+static inline int DQUOT_ALLOC_INODE(struct inode *inode)
 {
 	if (sb_any_quota_enabled(inode->i_sb)) {
 		DQUOT_INIT(inode);
@@ -140,7 +139,7 @@ static __inline__ int DQUOT_ALLOC_INODE(struct inode *inode)
 	return 0;
 }
 
-static __inline__ void DQUOT_FREE_SPACE_NODIRTY(struct inode *inode, qsize_t nr)
+static inline void DQUOT_FREE_SPACE_NODIRTY(struct inode *inode, qsize_t nr)
 {
 	if (sb_any_quota_enabled(inode->i_sb))
 		inode->i_sb->dq_op->free_space(inode, nr);
@@ -148,19 +147,19 @@ static __inline__ void DQUOT_FREE_SPACE_NODIRTY(struct inode *inode, qsize_t nr)
 		inode_sub_bytes(inode, nr);
 }
 
-static __inline__ void DQUOT_FREE_SPACE(struct inode *inode, qsize_t nr)
+static inline void DQUOT_FREE_SPACE(struct inode *inode, qsize_t nr)
 {
 	DQUOT_FREE_SPACE_NODIRTY(inode, nr);
 	mark_inode_dirty(inode);
 }
 
-static __inline__ void DQUOT_FREE_INODE(struct inode *inode)
+static inline void DQUOT_FREE_INODE(struct inode *inode)
 {
 	if (sb_any_quota_enabled(inode->i_sb))
 		inode->i_sb->dq_op->free_inode(inode, 1);
 }
 
-static __inline__ int DQUOT_TRANSFER(struct inode *inode, struct iattr *iattr)
+static inline int DQUOT_TRANSFER(struct inode *inode, struct iattr *iattr)
 {
 	if (sb_any_quota_enabled(inode->i_sb) && !IS_NOQUOTA(inode)) {
 		DQUOT_INIT(inode);
@@ -171,9 +170,12 @@ static __inline__ int DQUOT_TRANSFER(struct inode *inode, struct iattr *iattr)
 }
 
 /* The following two functions cannot be called inside a transaction */
-#define DQUOT_SYNC(sb)	sync_dquots(sb, -1)
+static inline void DQUOT_SYNC(struct super_block *sb)
+{
+	sync_dquots(sb, -1);
+}
 
-static __inline__ int DQUOT_OFF(struct super_block *sb)
+static inline int DQUOT_OFF(struct super_block *sb)
 {
 	int ret = -ENOSYS;
 
@@ -194,7 +196,7 @@ static __inline__ int DQUOT_OFF(struct super_block *sb)
 #define DQUOT_ALLOC_INODE(inode)		(0)
 #define DQUOT_FREE_INODE(inode)			do { } while(0)
 #define DQUOT_SYNC(sb)				do { } while(0)
-#define DQUOT_OFF(sb)				do { } while(0)
+#define DQUOT_OFF(sb)				(0)
 #define DQUOT_TRANSFER(inode, iattr)		(0)
 static inline int DQUOT_PREALLOC_SPACE_NODIRTY(struct inode *inode, qsize_t nr)
 {
@@ -235,11 +237,38 @@ static inline void DQUOT_FREE_SPACE(struct inode *inode, qsize_t nr)
 
 #endif /* CONFIG_QUOTA */
 
-#define DQUOT_PREALLOC_BLOCK_NODIRTY(inode, nr)	DQUOT_PREALLOC_SPACE_NODIRTY(inode, ((qsize_t)(nr)) << (inode)->i_sb->s_blocksize_bits)
-#define DQUOT_PREALLOC_BLOCK(inode, nr)	DQUOT_PREALLOC_SPACE(inode, ((qsize_t)(nr)) << (inode)->i_sb->s_blocksize_bits)
-#define DQUOT_ALLOC_BLOCK_NODIRTY(inode, nr) DQUOT_ALLOC_SPACE_NODIRTY(inode, ((qsize_t)(nr)) << (inode)->i_sb->s_blocksize_bits)
-#define DQUOT_ALLOC_BLOCK(inode, nr) DQUOT_ALLOC_SPACE(inode, ((qsize_t)(nr)) << (inode)->i_sb->s_blocksize_bits)
-#define DQUOT_FREE_BLOCK_NODIRTY(inode, nr) DQUOT_FREE_SPACE_NODIRTY(inode, ((qsize_t)(nr)) << (inode)->i_sb->s_blocksize_bits)
-#define DQUOT_FREE_BLOCK(inode, nr) DQUOT_FREE_SPACE(inode, ((qsize_t)(nr)) << (inode)->i_sb->s_blocksize_bits)
+static inline int DQUOT_PREALLOC_BLOCK_NODIRTY(struct inode *inode, qsize_t nr)
+{
+	return DQUOT_PREALLOC_SPACE_NODIRTY(inode,
+			nr << inode->i_sb->s_blocksize_bits);
+}
+
+static inline int DQUOT_PREALLOC_BLOCK(struct inode *inode, qsize_t nr)
+{
+	return DQUOT_PREALLOC_SPACE(inode,
+			nr << inode->i_sb->s_blocksize_bits);
+}
+
+static inline int DQUOT_ALLOC_BLOCK_NODIRTY(struct inode *inode, qsize_t nr)
+{
+	return DQUOT_ALLOC_SPACE_NODIRTY(inode,
+			nr << inode->i_sb->s_blocksize_bits);
+}
+
+static inline int DQUOT_ALLOC_BLOCK(struct inode *inode, qsize_t nr)
+{
+	return DQUOT_ALLOC_SPACE(inode,
+			nr << inode->i_sb->s_blocksize_bits);
+}
+
+static inline void DQUOT_FREE_BLOCK_NODIRTY(struct inode *inode, qsize_t nr)
+{
+	DQUOT_FREE_SPACE_NODIRTY(inode, nr << inode->i_sb->s_blocksize_bits);
+}
+
+static inline void DQUOT_FREE_BLOCK(struct inode *inode, qsize_t nr)
+{
+	DQUOT_FREE_SPACE(inode, nr << inode->i_sb->s_blocksize_bits);
+}
 
 #endif /* _LINUX_QUOTAOPS_ */

@@ -331,11 +331,6 @@ struct quota_info {
 	struct quota_format_ops *ops[MAXQUOTAS];	/* Operations for each type */
 };
 
-/* Inline would be better but we need to dereference super_block which is not defined yet */
-int mark_dquot_dirty(struct dquot *dquot);
-
-#define dquot_dirty(dquot) test_bit(DQ_MOD_B, &(dquot)->dq_flags)
-
 #define sb_has_quota_enabled(sb, type) ((type)==USRQUOTA ? \
 	(sb_dqopt(sb)->flags & DQUOT_USR_ENABLED) : (sb_dqopt(sb)->flags & DQUOT_GRP_ENABLED))
 

@@ -289,7 +289,15 @@ static void wait_on_dquot(struct dquot *dquot)
 	mutex_unlock(&dquot->dq_lock);
 }
 
-#define mark_dquot_dirty(dquot) ((dquot)->dq_sb->dq_op->mark_dirty(dquot))
+static inline int dquot_dirty(struct dquot *dquot)
+{
+	return test_bit(DQ_MOD_B, &dquot->dq_flags);
+}
+
+static inline int mark_dquot_dirty(struct dquot *dquot)
+{
+	return dquot->dq_sb->dq_op->mark_dirty(dquot);
+}
 
 int dquot_mark_dquot_dirty(struct dquot *dquot)
 {
