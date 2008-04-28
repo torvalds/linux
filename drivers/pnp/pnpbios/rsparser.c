@@ -67,26 +67,15 @@ static void pnpbios_parse_allocated_ioresource(struct pnp_dev *dev,
 }
 
 static void pnpbios_parse_allocated_memresource(struct pnp_dev *dev,
-						int mem, int len)
+						int start, int len)
 {
-	struct resource *res;
-	int i;
+	int flags = 0;
+	int end = start + len - 1;
 
-	for (i = 0; i < PNP_MAX_MEM; i++) {
-		res = pnp_get_resource(dev, IORESOURCE_MEM, i);
-		if (!pnp_resource_valid(res))
-			break;
-	}
+	if (len <= 0)
+		flags |= IORESOURCE_DISABLED;
 
-	if (i < PNP_MAX_MEM) {
-		res->flags = IORESOURCE_MEM;	// Also clears _UNSET flag
-		if (len <= 0) {
-			res->flags |= IORESOURCE_DISABLED;
-			return;
-		}
-		res->start = (unsigned long)mem;
-		res->end = (unsigned long)(mem + len - 1);
-	}
+	pnp_add_mem_resource(dev, start, end, flags);
 }
 
 static unsigned char *pnpbios_parse_allocated_resource_data(struct pnp_dev *dev,

@@ -173,34 +173,18 @@ static void pnpacpi_parse_allocated_ioresource(struct pnp_dev *dev, u64 start,
 }
 
 static void pnpacpi_parse_allocated_memresource(struct pnp_dev *dev,
-						u64 mem, u64 len,
+						u64 start, u64 len,
 						int write_protect)
 {
-	struct resource *res;
-	int i;
-	static unsigned char warned;
+	int flags = 0;
+	u64 end = start + len - 1;
 
-	for (i = 0; i < PNP_MAX_MEM; i++) {
-		res = pnp_get_resource(dev, IORESOURCE_MEM, i);
-		if (!pnp_resource_valid(res))
-			break;
-	}
-	if (i < PNP_MAX_MEM) {
-		res->flags = IORESOURCE_MEM;	// Also clears _UNSET flag
-		if (len <= 0) {
-			res->flags |= IORESOURCE_DISABLED;
-			return;
-		}
-		if (write_protect == ACPI_READ_WRITE_MEMORY)
-			res->flags |= IORESOURCE_MEM_WRITEABLE;
+	if (len == 0)
+		flags |= IORESOURCE_DISABLED;
+	if (write_protect == ACPI_READ_WRITE_MEMORY)
+		flags |= IORESOURCE_MEM_WRITEABLE;
 
-		res->start = mem;
-		res->end = mem + len - 1;
-	} else if (!warned) {
-		printk(KERN_WARNING "pnpacpi: exceeded the max number of mem "
-				"resources: %d\n", PNP_MAX_MEM);
-		warned = 1;
-	}
+	pnp_add_mem_resource(dev, start, end, flags);
 }
 
 static void pnpacpi_parse_allocated_address_space(struct pnp_dev *dev,

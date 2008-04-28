@@ -932,7 +932,6 @@ EXPORT_SYMBOL(isapnp_write_byte);
 static int isapnp_read_resources(struct pnp_dev *dev)
 {
 	struct pnp_resource *pnp_res;
-	struct resource *res;
 	int tmp, ret;
 
 	dev->active = isapnp_read_byte(ISAPNP_CFG_ACTIVATE);
@@ -950,12 +949,9 @@ static int isapnp_read_resources(struct pnp_dev *dev)
 			    isapnp_read_word(ISAPNP_CFG_MEM + (tmp << 3)) << 8;
 			if (!ret)
 				continue;
-			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_MEM,
-						       tmp);
-			pnp_res->index = tmp;
-			res = &pnp_res->res;
-			res->start = ret;
-			res->flags = IORESOURCE_MEM;
+			pnp_res = pnp_add_mem_resource(dev, ret, ret, 0);
+			if (pnp_res)
+				pnp_res->index = tmp;
 		}
 		for (tmp = 0; tmp < ISAPNP_MAX_IRQ; tmp++) {
 			ret =
