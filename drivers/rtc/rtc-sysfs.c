@@ -145,6 +145,8 @@ rtc_sysfs_set_wakealarm(struct device *dev, struct device_attribute *attr,
 	unsigned long now, alarm;
 	struct rtc_wkalrm alm;
 	struct rtc_device *rtc = to_rtc_device(dev);
+	char *buf_ptr;
+	int adjust = 0;
 
 	/* Only request alarms that trigger in the future.  Disable them
 	 * by writing another time, e.g. 0 meaning Jan 1 1970 UTC.
@@ -154,7 +156,15 @@ rtc_sysfs_set_wakealarm(struct device *dev, struct device_attribute *attr,
 		return retval;
 	rtc_tm_to_time(&alm.time, &now);
 
-	alarm = simple_strtoul(buf, NULL, 0);
+	buf_ptr = (char *)buf;
+	if (*buf_ptr == '+') {
+		buf_ptr++;
+		adjust = 1;
+	}
+	alarm = simple_strtoul(buf_ptr, NULL, 0);
+	if (adjust) {
+		alarm += now;
+	}
 	if (alarm > now) {
 		/* Avoid accidentally clobbering active alarms; we can't
 		 * entirely prevent that here, without even the minimal
