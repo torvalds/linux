@@ -1364,7 +1364,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		       u64 root_objectid, u64 ref_generation,
 		       u64 owner, u64 owner_offset,
 		       u64 empty_size, u64 hint_byte,
-		       u64 search_end, struct btrfs_key *ins, int data);
+		       u64 search_end, struct btrfs_key *ins, u64 data);
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct extent_buffer *buf);
 int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root

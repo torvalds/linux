@@ -2864,6 +2864,15 @@ int btrfs_defrag_file(struct file *file) {
 				goto out_unlock;
 			}
 		}
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+		ClearPageDirty(page);
+#else
+		cancel_dirty_page(page, PAGE_CACHE_SIZE);
+#endif
+		wait_on_page_writeback(page);
+		set_page_extent_mapped(page);
+
 		page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 		page_end = page_start + PAGE_CACHE_SIZE - 1;
 
@@ -3105,6 +3114,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_resize(root, (void __user *)arg);
 	case BTRFS_IOC_ADD_DEV:
 		return btrfs_ioctl_add_dev(root, (void __user *)arg);
+	case BTRFS_IOC_BALANCE:
+		return btrfs_balance(root->fs_info->dev_root);
 	}
 
 	return -ENOTTY;

@@ -17,6 +17,7 @@
  */
 #include <linux/sched.h>
 #include <linux/pagemap.h>
+#include <linux/writeback.h>
 #include "hash.h"
 #include "crc32c.h"
 #include "ctree.h"
@@ -1058,6 +1059,26 @@ static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 	}
 }
 
+static u64 reduce_alloc_profile(u64 flags)
+{
+	if ((flags & BTRFS_BLOCK_GROUP_DUP) &&
+	    (flags & (BTRFS_BLOCK_GROUP_RAID1 |
+		      BTRFS_BLOCK_GROUP_RAID10)))
+		flags &= ~BTRFS_BLOCK_GROUP_DUP;
+
+	if ((flags & BTRFS_BLOCK_GROUP_RAID1) &&
+	    (flags & BTRFS_BLOCK_GROUP_RAID10))
+		flags &= ~BTRFS_BLOCK_GROUP_RAID1;
+
+	if ((flags & BTRFS_BLOCK_GROUP_RAID0) &&
+	    ((flags & BTRFS_BLOCK_GROUP_RAID1) |
+	     (flags & BTRFS_BLOCK_GROUP_RAID10) |
+	     (flags & BTRFS_BLOCK_GROUP_DUP)))
+		flags &= ~BTRFS_BLOCK_GROUP_RAID0;
+	return flags;
+}
+
+
 static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *extent_root, u64 alloc_bytes,
 			  u64 flags)
@@ -1067,6 +1088,8 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	u64 start;
 	u64 num_bytes;
 	int ret;
+
+	flags = reduce_alloc_profile(flags);
 
 	space_info = __find_space_info(extent_root->fs_info, flags);
 	if (!space_info) {
@@ -1684,6 +1707,7 @@ enospc:
 error:
 	return ret;
 }
+
 /*
  * finds a free extent and does all the dirty work required for allocation
  * returns the key for the extent through ins, and a tree buffer for
@@ -1697,7 +1721,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		       u64 root_objectid, u64 ref_generation,
 		       u64 owner, u64 owner_offset,
 		       u64 empty_size, u64 hint_byte,
-		       u64 search_end, struct btrfs_key *ins, int data)
+		       u64 search_end, struct btrfs_key *ins, u64 data)
 {
 	int ret;
 	int pending_ret;
@@ -1727,6 +1751,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		data = BTRFS_BLOCK_GROUP_METADATA | alloc_profile;
 	}
 again:
+	data = reduce_alloc_profile(data);
 	if (root->ref_cows) {
 		if (!(data & BTRFS_BLOCK_GROUP_METADATA)) {
 			ret = do_chunk_alloc(trans, root->fs_info->extent_root,
@@ -1751,6 +1776,9 @@ again:
 		num_bytes = num_bytes >> 1;
 		num_bytes = max(num_bytes, min_alloc_size);
 		goto again;
+	}
+	if (ret) {
+		printk("allocation failed flags %Lu\n", data);
 	}
 	BUG_ON(ret);
 	if (ret)
@@ -2274,8 +2302,6 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 {
 	u64 page_start;
 	u64 page_end;
-	u64 delalloc_start;
-	u64 existing_delalloc;
 	unsigned long last_index;
 	unsigned long i;
 	struct page *page;
@@ -2293,7 +2319,6 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 	ra_pages = BTRFS_I(inode)->root->fs_info->bdi.ra_pages;
 
 	file_ra_state_init(ra, inode->i_mapping);
-	kfree(ra);
 
 	for (; i <= last_index; i++) {
 		if (total_read % ra_pages == 0) {
@@ -2313,26 +2338,30 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 				goto out_unlock;
 			}
 		}
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+		ClearPageDirty(page);
+#else
+		cancel_dirty_page(page, PAGE_CACHE_SIZE);
+#endif
+		wait_on_page_writeback(page);
+		set_page_extent_mapped(page);
 		page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 		page_end = page_start + PAGE_CACHE_SIZE - 1;
 
 		lock_extent(io_tree, page_start, page_end, GFP_NOFS);
 
-		delalloc_start = page_start;
-		existing_delalloc = count_range_bits(io_tree,
-					     &delalloc_start, page_end,
-					     PAGE_CACHE_SIZE, EXTENT_DELALLOC);
-
+		set_page_dirty(page);
 		set_extent_delalloc(io_tree, page_start,
 				    page_end, GFP_NOFS);
 
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
-		set_page_dirty(page);
 		unlock_page(page);
 		page_cache_release(page);
+		balance_dirty_pages_ratelimited_nr(inode->i_mapping, 1);
 	}
 
 out_unlock:
+	kfree(ra);
 	mutex_unlock(&inode->i_mutex);
 	return 0;
 }
@@ -2397,8 +2426,6 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 			goto out;
 		}
 		relocate_inode_pages(inode, ref_offset, extent_key->offset);
-		/* FIXME, data=ordered will help get rid of this */
-		filemap_fdatawrite(inode->i_mapping);
 		iput(inode);
 		mutex_lock(&extent_root->fs_info->fs_mutex);
 	} else {
@@ -2486,6 +2513,47 @@ out:
 	return ret;
 }
 
+static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
+{
+	u64 num_devices;
+	u64 stripped = BTRFS_BLOCK_GROUP_RAID0 |
+		BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID10;
+
+	num_devices = btrfs_super_num_devices(&root->fs_info->super_copy);
+	if (num_devices == 1) {
+		stripped |= BTRFS_BLOCK_GROUP_DUP;
+		stripped = flags & ~stripped;
+
+		/* turn raid0 into single device chunks */
+		if (flags & BTRFS_BLOCK_GROUP_RAID0)
+			return stripped;
+
+		/* turn mirroring into duplication */
+		if (flags & (BTRFS_BLOCK_GROUP_RAID1 |
+			     BTRFS_BLOCK_GROUP_RAID10))
+			return stripped | BTRFS_BLOCK_GROUP_DUP;
+		return flags;
+	} else {
+		/* they already had raid on here, just return */
+		if ((flags & BTRFS_BLOCK_GROUP_DUP) &&
+		    (flags & BTRFS_BLOCK_GROUP_RAID1)) {
+		}
+		if (flags & stripped)
+			return flags;
+
+		stripped |= BTRFS_BLOCK_GROUP_DUP;
+		stripped = flags & ~stripped;
+
+		/* switch duplicated blocks with raid1 */
+		if (flags & BTRFS_BLOCK_GROUP_DUP)
+			return stripped | BTRFS_BLOCK_GROUP_RAID1;
+
+		/* turn single device chunks into raid0 */
+		return stripped | BTRFS_BLOCK_GROUP_RAID0;
+	}
+	return flags;
+}
+
 int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 shrink_start)
 {
 	struct btrfs_trans_handle *trans;
@@ -2494,6 +2562,7 @@ int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 shrink_start)
 	u64 cur_byte;
 	u64 total_found;
 	u64 shrink_last_byte;
+	u64 new_alloc_flags;
 	struct btrfs_block_group_cache *shrink_block_group;
 	struct btrfs_fs_info *info = root->fs_info;
 	struct btrfs_key key;
@@ -2511,17 +2580,20 @@ int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 shrink_start)
 
 	shrink_block_group->space_info->total_bytes -=
 		shrink_block_group->key.offset;
-printk("shrink_extent_tree %Lu -> %Lu type %Lu\n", shrink_start, shrink_last_byte, shrink_block_group->flags);
 	path = btrfs_alloc_path();
 	root = root->fs_info->extent_root;
 	path->reada = 2;
 
 again:
-	trans = btrfs_start_transaction(root, 1);
-	do_chunk_alloc(trans, root->fs_info->extent_root,
+	if (btrfs_block_group_used(&shrink_block_group->item) > 0) {
+		trans = btrfs_start_transaction(root, 1);
+		new_alloc_flags = update_block_group_flags(root,
+						   shrink_block_group->flags);
+		do_chunk_alloc(trans, root->fs_info->extent_root,
 			btrfs_block_group_used(&shrink_block_group->item) +
-			2 * 1024 * 1024, shrink_block_group->flags);
-	btrfs_end_transaction(trans, root);
+			2 * 1024 * 1024, new_alloc_flags);
+		btrfs_end_transaction(trans, root);
+	}
 	shrink_block_group->ro = 1;
 
 	total_found = 0;

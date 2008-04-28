@@ -869,6 +869,107 @@ out:
 	return 0;
 }
 
+static u64 div_factor(u64 num, int factor)
+{
+	if (factor == 10)
+		return num;
+	num *= factor;
+	do_div(num, 10);
+	return num;
+}
+
+
+int btrfs_balance(struct btrfs_root *dev_root)
+{
+	int ret;
+	struct list_head *cur;
+	struct list_head *devices = &dev_root->fs_info->fs_devices->devices;
+	struct btrfs_device *device;
+	u64 old_size;
+	u64 size_to_free;
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	struct btrfs_chunk *chunk;
+	struct btrfs_root *chunk_root = dev_root->fs_info->chunk_root;
+	struct btrfs_trans_handle *trans;
+	struct btrfs_key found_key;
+
+
+	dev_root = dev_root->fs_info->dev_root;
+
+	mutex_lock(&dev_root->fs_info->fs_mutex);
+	/* step one make some room on all the devices */
+	list_for_each(cur, devices) {
+		device = list_entry(cur, struct btrfs_device, dev_list);
+		old_size = device->total_bytes;
+		size_to_free = div_factor(old_size, 1);
+		size_to_free = min(size_to_free, (u64)1 * 1024 * 1024);
+		if (device->total_bytes - device->bytes_used > size_to_free)
+			continue;
+
+		ret = btrfs_shrink_device(device, old_size - size_to_free);
+		BUG_ON(ret);
+
+		trans = btrfs_start_transaction(dev_root, 1);
+		BUG_ON(!trans);
+
+		ret = btrfs_grow_device(trans, device, old_size);
+		BUG_ON(ret);
+
+		btrfs_end_transaction(trans, dev_root);
+	}
+
+	/* step two, relocate all the chunks */
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+
+	key.objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
+	key.offset = (u64)-1;
+	key.type = BTRFS_CHUNK_ITEM_KEY;
+
+	while(1) {
+		ret = btrfs_search_slot(NULL, chunk_root, &key, path, 0, 0);
+		if (ret < 0)
+			goto error;
+
+		/*
+		 * this shouldn't happen, it means the last relocate
+		 * failed
+		 */
+		if (ret == 0)
+			break;
+
+		ret = btrfs_previous_item(chunk_root, path, 0,
+					  BTRFS_CHUNK_ITEM_KEY);
+		if (ret) {
+			break;
+		}
+		btrfs_item_key_to_cpu(path->nodes[0], &found_key,
+				      path->slots[0]);
+		if (found_key.objectid != key.objectid)
+			break;
+		chunk = btrfs_item_ptr(path->nodes[0],
+				       path->slots[0],
+				       struct btrfs_chunk);
+		key.offset = found_key.offset;
+		/* chunk zero is special */
+		if (key.offset == 0)
+			break;
+
+		ret = btrfs_relocate_chunk(chunk_root,
+					   chunk_root->root_key.objectid,
+					   found_key.objectid,
+					   found_key.offset);
+		BUG_ON(ret);
+		btrfs_release_path(chunk_root, path);
+	}
+	ret = 0;
+error:
+	btrfs_free_path(path);
+	mutex_unlock(&dev_root->fs_info->fs_mutex);
+	return ret;
+}
+
 /*
  * shrinking a device means finding all of the device extents past
  * the new size, and then following the back refs to the chunks.
@@ -985,15 +1086,6 @@ int btrfs_add_system_chunk(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static u64 div_factor(u64 num, int factor)
-{
-	if (factor == 10)
-		return num;
-	num *= factor;
-	do_div(num, 10);
-	return num;
-}
-
 static u64 chunk_bytes_by_type(u64 type, u64 calc_size, int num_stripes,
 			       int sub_stripes)
 {
@@ -1040,6 +1132,11 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	int stripe_len = 64 * 1024;
 	struct btrfs_key key;
 
+	if ((type & BTRFS_BLOCK_GROUP_RAID1) &&
+	    (type & BTRFS_BLOCK_GROUP_DUP)) {
+		WARN_ON(1);
+		type &= ~BTRFS_BLOCK_GROUP_DUP;
+	}
 	dev_list = &extent_root->fs_info->fs_devices->alloc_list;
 	if (list_empty(dev_list))
 		return -ENOSPC;
