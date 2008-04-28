@@ -27,7 +27,7 @@
 
 static char *mode_option;
 static int noclear, nopanel, nocrt;
-static int fbsize;
+static int vram;
 
 /* Most of these modes are sorted in ascending order, but
  * since the first entry in this table is the "default" mode,
@@ -339,7 +339,7 @@ static int __init lxfb_map_video_memory(struct fb_info *info,
 		return ret;
 
 	info->fix.smem_start = pci_resource_start(dev, 0);
-	info->fix.smem_len = fbsize ? fbsize : lx_framebuffer_size();
+	info->fix.smem_len = vram ? vram : lx_framebuffer_size();
 
 	info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
 
@@ -608,9 +608,7 @@ static int __init lxfb_setup(char *options)
 		if (!*opt)
 			continue;
 
-		if (!strncmp(opt, "fbsize:", 7))
-			fbsize = simple_strtoul(opt+7, NULL, 0);
-		else if (!strcmp(opt, "noclear"))
+		if (!strcmp(opt, "noclear"))
 			noclear = 1;
 		else if (!strcmp(opt, "nopanel"))
 			nopanel = 1;
@@ -647,8 +645,8 @@ module_exit(lxfb_cleanup);
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "video mode (<x>x<y>[-<bpp>][@<refr>])");
 
-module_param(fbsize, int, 0);
-MODULE_PARM_DESC(fbsize, "video memory size");
+module_param(vram, int, 0);
+MODULE_PARM_DESC(vram, "video memory size");
 
 MODULE_DESCRIPTION("Framebuffer driver for the AMD Geode LX");
 MODULE_LICENSE("GPL");
