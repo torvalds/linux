@@ -120,7 +120,7 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	int ret;
 	int is32 = is_32bit_task();
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+	if (current_thread_info()->local_flags & _TLF_RESTORE_SIGMASK)
 		oldset = &current->saved_sigmask;
 	else if (!oldset)
 		oldset = &current->blocked;
@@ -131,9 +131,10 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	check_syscall_restart(regs, &ka, signr > 0);
 
 	if (signr <= 0) {
+		struct thread_info *ti = current_thread_info();
 		/* No signal to deliver -- put the saved sigmask back */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
+		if (ti->local_flags & _TLF_RESTORE_SIGMASK) {
+			ti->local_flags &= ~_TLF_RESTORE_SIGMASK;
 			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 		}
 		return 0;               /* no signals delivered */
@@ -169,10 +170,9 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 
 		/*
 		 * A signal was successfully delivered; the saved sigmask is in
-		 * its frame, and we can clear the TIF_RESTORE_SIGMASK flag.
+		 * its frame, and we can clear the TLF_RESTORE_SIGMASK flag.
 		 */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK))
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
+		current_thread_info()->local_flags &= ~_TLF_RESTORE_SIGMASK;
 	}
 
 	return ret;
