@@ -338,19 +338,35 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 		break;
 	case 15:
 	case 16:
-		var->red.offset = 0;
+		if (sinfo->lcd_wiring_mode == ATMEL_LCDC_WIRING_RGB) {
+			/* RGB:565 mode */
+			var->red.offset = 11;
+			var->blue.offset = 0;
+			var->green.length = 6;
+		} else {
+			/* BGR:555 mode */
+			var->red.offset = 0;
+			var->blue.offset = 10;
+			var->green.length = 5;
+		}
 		var->green.offset = 5;
-		var->blue.offset = 10;
-		var->red.length = var->green.length = var->blue.length = 5;
+		var->red.length = var->blue.length = 5;
 		break;
 	case 32:
 		var->transp.offset = 24;
 		var->transp.length = 8;
 		/* fall through */
 	case 24:
-		var->red.offset = 0;
+		if (sinfo->lcd_wiring_mode == ATMEL_LCDC_WIRING_RGB) {
+			/* RGB:888 mode */
+			var->red.offset = 16;
+			var->blue.offset = 0;
+		} else {
+			/* BGR:888 mode */
+			var->red.offset = 0;
+			var->blue.offset = 16;
+		}
 		var->green.offset = 8;
-		var->blue.offset = 16;
 		var->red.length = var->green.length = var->blue.length = 8;
 		break;
 	default:
@@ -697,6 +713,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		sinfo->atmel_lcdfb_power_control = pdata_sinfo->atmel_lcdfb_power_control;
 		sinfo->guard_time = pdata_sinfo->guard_time;
 		sinfo->lcdcon_is_backlight = pdata_sinfo->lcdcon_is_backlight;
+		sinfo->lcd_wiring_mode = pdata_sinfo->lcd_wiring_mode;
 	} else {
 		dev_err(dev, "cannot get default configuration\n");
 		goto free_info;
