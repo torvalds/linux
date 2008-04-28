@@ -311,6 +311,74 @@ Components of Memory Policies
 	    MPOL_PREFERRED policies that were created with an empty nodemask
 	    (local allocation).
 
+MEMORY POLICY REFERENCE COUNTING
+
+To resolve use/free races, struct mempolicy contains an atomic reference
+count field.  Internal interfaces, mpol_get()/mpol_put() increment and
+decrement this reference count, respectively.  mpol_put() will only free
+the structure back to the mempolicy kmem cache when the reference count
+goes to zero.
+
+When a new memory policy is allocated, it's reference count is initialized
+to '1', representing the reference held by the task that is installing the
+new policy.  When a pointer to a memory policy structure is stored in another
+structure, another reference is added, as the task's reference will be dropped
+on completion of the policy installation.
+
+During run-time "usage" of the policy, we attempt to minimize atomic operations
+on the reference count, as this can lead to cache lines bouncing between cpus
+and NUMA nodes.  "Usage" here means one of the following:
+
+1) querying of the policy, either by the task itself [using the get_mempolicy()
+   API discussed below] or by another task using the /proc/<pid>/numa_maps
+   interface.
+
+2) examination of the policy to determine the policy mode and associated node
+   or node lists, if any, for page allocation.  This is considered a "hot
+   path".  Note that for MPOL_BIND, the "usage" extends across the entire
+   allocation process, which may sleep during page reclaimation, because the
+   BIND policy nodemask is used, by reference, to filter ineligible nodes.
+
+We can avoid taking an extra reference during the usages listed above as
+follows:
+
+1) we never need to get/free the system default policy as this is never
+   changed nor freed, once the system is up and running.
+
+2) for querying the policy, we do not need to take an extra reference on the
+   target task's task policy nor vma policies because we always acquire the
+   task's mm's mmap_sem for read during the query.  The set_mempolicy() and
+   mbind() APIs [see below] always acquire the mmap_sem for write when
+   installing or replacing task or vma policies.  Thus, there is no possibility
+   of a task or thread freeing a policy while another task or thread is
+   querying it.
+
+3) Page allocation usage of task or vma policy occurs in the fault path where
+   we hold them mmap_sem for read.  Again, because replacing the task or vma
+   policy requires that the mmap_sem be held for write, the policy can't be
+   freed out from under us while we're using it for page allocation.
+
+4) Shared policies require special consideration.  One task can replace a
+   shared memory policy while another task, with a distinct mmap_sem, is
+   querying or allocating a page based on the policy.  To resolve this
+   potential race, the shared policy infrastructure adds an extra reference
+   to the shared policy during lookup while holding a spin lock on the shared
+   policy management structure.  This requires that we drop this extra
+   reference when we're finished "using" the policy.  We must drop the
+   extra reference on shared policies in the same query/allocation paths
+   used for non-shared policies.  For this reason, shared policies are marked
+   as such, and the extra reference is dropped "conditionally"--i.e., only
+   for shared policies.
+
+   Because of this extra reference counting, and because we must lookup
+   shared policies in a tree structure under spinlock, shared policies are
+   more expensive to use in the page allocation path.  This is expecially
+   true for shared policies on shared memory regions shared by tasks running
+   on different NUMA nodes.  This extra overhead can be avoided by always
+   falling back to task or system default policy for shared memory regions,
+   or by prefaulting the entire shared memory region into memory and locking
+   it down.  However, this might not be appropriate for all applications.
+
 MEMORY POLICY APIs
 
 Linux supports 3 system calls for controlling memory policy.  These APIS

@@ -241,6 +241,15 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 	return policy;
 }
 
+/* Slow path of a mpol destructor. */
+void __mpol_put(struct mempolicy *p)
+{
+	if (!atomic_dec_and_test(&p->refcnt))
+		return;
+	p->mode = MPOL_DEFAULT;
+	kmem_cache_free(policy_cache, p);
+}
+
 static void mpol_rebind_default(struct mempolicy *pol, const nodemask_t *nodes)
 {
 }
@@ -719,6 +728,7 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 		get_zonemask(pol, nmask);
 
  out:
+	mpol_cond_put(pol);
 	if (vma)
 		up_read(&current->mm->mmap_sem);
 	return err;
@@ -1257,16 +1267,18 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
  *
  * Returns effective policy for a VMA at specified address.
  * Falls back to @task or system default policy, as necessary.
- * Returned policy has extra reference count if shared, vma,
- * or some other task's policy [show_numa_maps() can pass
- * @task != current].  It is the caller's responsibility to
- * free the reference in these cases.
+ * Current or other task's task mempolicy and non-shared vma policies
+ * are protected by the task's mmap_sem, which must be held for read by
+ * the caller.
+ * Shared policies [those marked as MPOL_F_SHARED] require an extra reference
+ * count--added by the get_policy() vm_op, as appropriate--to protect against
+ * freeing by another task.  It is the caller's responsibility to free the
+ * extra reference for shared policies.
  */
 static struct mempolicy *get_vma_policy(struct task_struct *task,
 		struct vm_area_struct *vma, unsigned long addr)
 {
 	struct mempolicy *pol = task->mempolicy;
-	int shared_pol = 0;
 
 	if (vma) {
 		if (vma->vm_ops && vma->vm_ops->get_policy) {
@@ -1274,20 +1286,20 @@ static struct mempolicy *get_vma_policy(struct task_struct *task,
 									addr);
 			if (vpol)
 				pol = vpol;
-			shared_pol = 1;	/* if pol non-NULL, add ref below */
 		} else if (vma->vm_policy &&
 				vma->vm_policy->mode != MPOL_DEFAULT)
 			pol = vma->vm_policy;
 	}
 	if (!pol)
 		pol = &default_policy;
-	else if (!shared_pol && pol != current->mempolicy)
-		mpol_get(pol);	/* vma or other task's policy */
 	return pol;
 }
 
-/* Return a nodemask representing a mempolicy */
-static nodemask_t *nodemask_policy(gfp_t gfp, struct mempolicy *policy)
+/*
+ * Return a nodemask representing a mempolicy for filtering nodes for
+ * page allocation
+ */
+static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
 {
 	/* Lower zones don't get a nodemask applied for MPOL_BIND */
 	if (unlikely(policy->mode == MPOL_BIND) &&
@@ -1298,8 +1310,8 @@ static nodemask_t *nodemask_policy(gfp_t gfp, struct mempolicy *policy)
 	return NULL;
 }
 
-/* Return a zonelist representing a mempolicy */
-static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
+/* Return a zonelist indicated by gfp for node representing a mempolicy */
+static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy)
 {
 	int nd;
 
@@ -1311,10 +1323,10 @@ static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
 		break;
 	case MPOL_BIND:
 		/*
-		 * Normally, MPOL_BIND allocations node-local are node-local
-		 * within the allowed nodemask. However, if __GFP_THISNODE is
-		 * set and the current node is part of the mask, we use the
-		 * the zonelist for the first node in the mask instead.
+		 * Normally, MPOL_BIND allocations are node-local within the
+		 * allowed nodemask.  However, if __GFP_THISNODE is set and the
+		 * current node is part of the mask, we use the zonelist for
+		 * the first node in the mask instead.
 		 */
 		nd = numa_node_id();
 		if (unlikely(gfp & __GFP_THISNODE) &&
@@ -1350,6 +1362,10 @@ static unsigned interleave_nodes(struct mempolicy *policy)
 /*
  * Depending on the memory policy provide a node from which to allocate the
  * next slab entry.
+ * @policy must be protected by freeing by the caller.  If @policy is
+ * the current task's mempolicy, this protection is implicit, as only the
+ * task can change it's policy.  The system default policy requires no
+ * such protection.
  */
 unsigned slab_node(struct mempolicy *policy)
 {
@@ -1435,43 +1451,27 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
  * @mpol = pointer to mempolicy pointer for reference counted mempolicy
  * @nodemask = pointer to nodemask pointer for MPOL_BIND nodemask
  *
- * Returns a zonelist suitable for a huge page allocation.
- * If the effective policy is 'BIND, returns pointer to local node's zonelist,
- * and a pointer to the mempolicy's @nodemask for filtering the zonelist.
- * If it is also a policy for which get_vma_policy() returns an extra
- * reference, we must hold that reference until after the allocation.
- * In that case, return policy via @mpol so hugetlb allocation can drop
- * the reference. For non-'BIND referenced policies, we can/do drop the
- * reference here, so the caller doesn't need to know about the special case
- * for default and current task policy.
+ * Returns a zonelist suitable for a huge page allocation and a pointer
+ * to the struct mempolicy for conditional unref after allocation.
+ * If the effective policy is 'BIND, returns a pointer to the mempolicy's
+ * @nodemask for filtering the zonelist.
  */
 struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
 				gfp_t gfp_flags, struct mempolicy **mpol,
 				nodemask_t **nodemask)
 {
-	struct mempolicy *pol = get_vma_policy(current, vma, addr);
 	struct zonelist *zl;
 
-	*mpol = NULL;		/* probably no unref needed */
+	*mpol = get_vma_policy(current, vma, addr);
 	*nodemask = NULL;	/* assume !MPOL_BIND */
-	if (pol->mode == MPOL_BIND) {
-			*nodemask = &pol->v.nodes;
-	} else if (pol->mode == MPOL_INTERLEAVE) {
-		unsigned nid;
 
-		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
-		if (unlikely(pol != &default_policy &&
-				pol != current->mempolicy))
-			__mpol_put(pol);	/* finished with pol */
-		return node_zonelist(nid, gfp_flags);
-	}
-
-	zl = zonelist_policy(GFP_HIGHUSER, pol);
-	if (unlikely(pol != &default_policy && pol != current->mempolicy)) {
-		if (pol->mode != MPOL_BIND)
-			__mpol_put(pol);	/* finished with pol */
-		else
-			*mpol = pol;	/* unref needed after allocation */
+	if (unlikely((*mpol)->mode == MPOL_INTERLEAVE)) {
+		zl = node_zonelist(interleave_nid(*mpol, vma, addr,
+						HPAGE_SHIFT), gfp_flags);
+	} else {
+		zl = policy_zonelist(gfp_flags, *mpol);
+		if ((*mpol)->mode == MPOL_BIND)
+			*nodemask = &(*mpol)->v.nodes;
 	}
 	return zl;
 }
@@ -1526,25 +1526,23 @@ alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
 		unsigned nid;
 
 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
-		if (unlikely(pol != &default_policy &&
-				pol != current->mempolicy))
-			__mpol_put(pol);	/* finished with pol */
+		mpol_cond_put(pol);
 		return alloc_page_interleave(gfp, 0, nid);
 	}
-	zl = zonelist_policy(gfp, pol);
-	if (pol != &default_policy && pol != current->mempolicy) {
+	zl = policy_zonelist(gfp, pol);
+	if (unlikely(mpol_needs_cond_ref(pol))) {
 		/*
-		 * slow path: ref counted policy -- shared or vma
+		 * slow path: ref counted shared policy
 		 */
 		struct page *page =  __alloc_pages_nodemask(gfp, 0,
-						zl, nodemask_policy(gfp, pol));
+						zl, policy_nodemask(gfp, pol));
 		__mpol_put(pol);
 		return page;
 	}
 	/*
 	 * fast path:  default or task policy
 	 */
-	return __alloc_pages_nodemask(gfp, 0, zl, nodemask_policy(gfp, pol));
+	return __alloc_pages_nodemask(gfp, 0, zl, policy_nodemask(gfp, pol));
 }
 
 /**
@@ -1574,10 +1572,15 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 		cpuset_update_task_memory_state();
 	if (!pol || in_interrupt() || (gfp & __GFP_THISNODE))
 		pol = &default_policy;
+
+	/*
+	 * No reference counting needed for current->mempolicy
+	 * nor system default_policy
+	 */
 	if (pol->mode == MPOL_INTERLEAVE)
 		return alloc_page_interleave(gfp, order, interleave_nodes(pol));
 	return __alloc_pages_nodemask(gfp, order,
-			zonelist_policy(gfp, pol), nodemask_policy(gfp, pol));
+			policy_zonelist(gfp, pol), policy_nodemask(gfp, pol));
 }
 EXPORT_SYMBOL(alloc_pages_current);
 
@@ -1603,6 +1606,28 @@ struct mempolicy *__mpol_dup(struct mempolicy *old)
 	*new = *old;
 	atomic_set(&new->refcnt, 1);
 	return new;
+}
+
+/*
+ * If *frompol needs [has] an extra ref, copy *frompol to *tompol ,
+ * eliminate the * MPOL_F_* flags that require conditional ref and
+ * [NOTE!!!] drop the extra ref.  Not safe to reference *frompol directly
+ * after return.  Use the returned value.
+ *
+ * Allows use of a mempolicy for, e.g., multiple allocations with a single
+ * policy lookup, even if the policy needs/has extra ref on lookup.
+ * shmem_readahead needs this.
+ */
+struct mempolicy *__mpol_cond_copy(struct mempolicy *tompol,
+						struct mempolicy *frompol)
+{
+	if (!mpol_needs_cond_ref(frompol))
+		return frompol;
+
+	*tompol = *frompol;
+	tompol->flags &= ~MPOL_F_SHARED;	/* copy doesn't need unref */
+	__mpol_put(frompol);
+	return tompol;
 }
 
 static int mpol_match_intent(const struct mempolicy *a,
@@ -1637,15 +1662,6 @@ int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
 		BUG();
 		return 0;
 	}
-}
-
-/* Slow path of a mpol destructor. */
-void __mpol_put(struct mempolicy *p)
-{
-	if (!atomic_dec_and_test(&p->refcnt))
-		return;
-	p->mode = MPOL_DEFAULT;
-	kmem_cache_free(policy_cache, p);
 }
 
 /*
@@ -2081,11 +2097,7 @@ int show_numa_map(struct seq_file *m, void *v)
 
 	pol = get_vma_policy(priv->task, vma, vma->vm_start);
 	mpol_to_str(buffer, sizeof(buffer), pol);
-	/*
-	 * unref shared or other task's mempolicy
-	 */
-	if (pol != &default_policy && pol != current->mempolicy)
-		__mpol_put(pol);
+	mpol_cond_put(pol);
 
 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
 

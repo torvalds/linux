@@ -271,10 +271,9 @@ static struct mempolicy *shm_get_policy(struct vm_area_struct *vma,
 
 	if (sfd->vm_ops->get_policy)
 		pol = sfd->vm_ops->get_policy(vma, addr);
-	else if (vma->vm_policy) {
+	else if (vma->vm_policy)
 		pol = vma->vm_policy;
-		mpol_get(pol);	/* get_vma_policy() expects this */
-	}
+
 	return pol;
 }
 #endif

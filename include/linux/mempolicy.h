@@ -112,6 +112,31 @@ static inline void mpol_put(struct mempolicy *pol)
 		__mpol_put(pol);
 }
 
+/*
+ * Does mempolicy pol need explicit unref after use?
+ * Currently only needed for shared policies.
+ */
+static inline int mpol_needs_cond_ref(struct mempolicy *pol)
+{
+	return (pol && (pol->flags & MPOL_F_SHARED));
+}
+
+static inline void mpol_cond_put(struct mempolicy *pol)
+{
+	if (mpol_needs_cond_ref(pol))
+		__mpol_put(pol);
+}
+
+extern struct mempolicy *__mpol_cond_copy(struct mempolicy *tompol,
+					  struct mempolicy *frompol);
+static inline struct mempolicy *mpol_cond_copy(struct mempolicy *tompol,
+						struct mempolicy *frompol)
+{
+	if (!frompol)
+		return frompol;
+	return __mpol_cond_copy(tompol, frompol);
+}
+
 extern struct mempolicy *__mpol_dup(struct mempolicy *pol);
 static inline struct mempolicy *mpol_dup(struct mempolicy *pol)
 {
@@ -199,6 +224,16 @@ static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
 
 static inline void mpol_put(struct mempolicy *p)
 {
+}
+
+static inline void mpol_cond_put(struct mempolicy *pol)
+{
+}
+
+static inline struct mempolicy *mpol_cond_copy(struct mempolicy *to,
+						struct mempolicy *from)
+{
+	return from;
 }
 
 static inline void mpol_get(struct mempolicy *pol)
