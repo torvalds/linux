@@ -31,6 +31,7 @@ struct vm_struct {
 	struct page		**pages;
 	unsigned int		nr_pages;
 	unsigned long		phys_addr;
+	void			*caller;
 };
 
 /*
@@ -66,6 +67,8 @@ static inline size_t get_vm_area_size(const struct vm_struct *area)
 }
 
 extern struct vm_struct *get_vm_area(unsigned long size, unsigned long flags);
+extern struct vm_struct *get_vm_area_caller(unsigned long size,
+					unsigned long flags, void *caller);
 extern struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 					unsigned long start, unsigned long end);
 extern struct vm_struct *get_vm_area_node(unsigned long size,

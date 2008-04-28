@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
+#include <linux/kallsyms.h>
 
 #include <asm/uaccess.h>
 #include <asm/tlbflush.h>
@@ -25,7 +26,7 @@ DEFINE_RWLOCK(vmlist_lock);
 struct vm_struct *vmlist;
 
 static void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t prot,
-			    int node);
+			    int node, void *caller);
 
 static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end)
 {
@@ -204,9 +205,9 @@ unsigned long vmalloc_to_pfn(const void *vmalloc_addr)
 }
 EXPORT_SYMBOL(vmalloc_to_pfn);
 
-static struct vm_struct *__get_vm_area_node(unsigned long size, unsigned long flags,
-					    unsigned long start, unsigned long end,
-					    int node, gfp_t gfp_mask)
+static struct vm_struct *
+__get_vm_area_node(unsigned long size, unsigned long flags, unsigned long start,
+		unsigned long end, int node, gfp_t gfp_mask, void *caller)
 {
 	struct vm_struct **p, *tmp, *area;
 	unsigned long align = 1;
@@ -269,6 +270,7 @@ found:
 	area->pages = NULL;
 	area->nr_pages = 0;
 	area->phys_addr = 0;
+	area->caller = caller;
 	write_unlock(&vmlist_lock);
 
 	return area;
@@ -284,7 +286,8 @@ out:
 struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 				unsigned long start, unsigned long end)
 {
-	return __get_vm_area_node(size, flags, start, end, -1, GFP_KERNEL);
+	return __get_vm_area_node(size, flags, start, end, -1, GFP_KERNEL,
+						__builtin_return_address(0));
 }
 EXPORT_SYMBOL_GPL(__get_vm_area);
 
@@ -299,14 +302,22 @@ EXPORT_SYMBOL_GPL(__get_vm_area);
  */
 struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
 {
-	return __get_vm_area(size, flags, VMALLOC_START, VMALLOC_END);
+	return __get_vm_area_node(size, flags, VMALLOC_START, VMALLOC_END,
+				-1, GFP_KERNEL, __builtin_return_address(0));
+}
+
+struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
+				void *caller)
+{
+	return __get_vm_area_node(size, flags, VMALLOC_START, VMALLOC_END,
+						-1, GFP_KERNEL, caller);
 }
 
 struct vm_struct *get_vm_area_node(unsigned long size, unsigned long flags,
 				   int node, gfp_t gfp_mask)
 {
 	return __get_vm_area_node(size, flags, VMALLOC_START, VMALLOC_END, node,
-				  gfp_mask);
+				  gfp_mask, __builtin_return_address(0));
 }
 
 /* Caller must hold vmlist_lock */
@@ -455,9 +466,11 @@ void *vmap(struct page **pages, unsigned int count,
 	if (count > num_physpages)
 		return NULL;
 
-	area = get_vm_area((count << PAGE_SHIFT), flags);
+	area = get_vm_area_caller((count << PAGE_SHIFT), flags,
+					__builtin_return_address(0));
 	if (!area)
 		return NULL;
+
 	if (map_vm_area(area, prot, &pages)) {
 		vunmap(area->addr);
 		return NULL;
@@ -468,7 +481,7 @@ void *vmap(struct page **pages, unsigned int count,
 EXPORT_SYMBOL(vmap);
 
 static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
-				 pgprot_t prot, int node)
+				 pgprot_t prot, int node, void *caller)
 {
 	struct page **pages;
 	unsigned int nr_pages, array_size, i;
@@ -480,7 +493,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	/* Please note that the recursion is strictly bounded. */
 	if (array_size > PAGE_SIZE) {
 		pages = __vmalloc_node(array_size, gfp_mask | __GFP_ZERO,
-					PAGE_KERNEL, node);
+				PAGE_KERNEL, node, caller);
 		area->flags |= VM_VPAGES;
 	} else {
 		pages = kmalloc_node(array_size,
@@ -488,6 +501,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 				node);
 	}
 	area->pages = pages;
+	area->caller = caller;
 	if (!area->pages) {
 		remove_vm_area(area->addr);
 		kfree(area);
@@ -521,7 +535,8 @@ fail:
 
 void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask, pgprot_t prot)
 {
-	return __vmalloc_area_node(area, gfp_mask, prot, -1);
+	return __vmalloc_area_node(area, gfp_mask, prot, -1,
+					__builtin_return_address(0));
 }
 
 /**
@@ -536,7 +551,7 @@ void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask, pgprot_t prot)
  *	kernel virtual space, using a pagetable protection of @prot.
  */
 static void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t prot,
-			    int node)
+						int node, void *caller)
 {
 	struct vm_struct *area;
 
@@ -544,16 +559,19 @@ static void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t prot,
 	if (!size || (size >> PAGE_SHIFT) > num_physpages)
 		return NULL;
 
-	area = get_vm_area_node(size, VM_ALLOC, node, gfp_mask);
+	area = __get_vm_area_node(size, VM_ALLOC, VMALLOC_START, VMALLOC_END,
+						node, gfp_mask, caller);
+
 	if (!area)
 		return NULL;
 
-	return __vmalloc_area_node(area, gfp_mask, prot, node);
+	return __vmalloc_area_node(area, gfp_mask, prot, node, caller);
 }
 
 void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 {
-	return __vmalloc_node(size, gfp_mask, prot, -1);
+	return __vmalloc_node(size, gfp_mask, prot, -1,
+				__builtin_return_address(0));
 }
 EXPORT_SYMBOL(__vmalloc);
 
@@ -568,7 +586,8 @@ EXPORT_SYMBOL(__vmalloc);
  */
 void *vmalloc(unsigned long size)
 {
-	return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL);
+	return __vmalloc_node(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL,
+					-1, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(vmalloc);
 
@@ -608,7 +627,8 @@ EXPORT_SYMBOL(vmalloc_user);
  */
 void *vmalloc_node(unsigned long size, int node)
 {
-	return __vmalloc_node(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL, node);
+	return __vmalloc_node(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL,
+					node, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(vmalloc_node);
 
@@ -843,7 +863,8 @@ struct vm_struct *alloc_vm_area(size_t size)
 {
 	struct vm_struct *area;
 
-	area = get_vm_area(size, VM_IOREMAP);
+	area = get_vm_area_caller(size, VM_IOREMAP,
+				__builtin_return_address(0));
 	if (area == NULL)
 		return NULL;
 
@@ -913,6 +934,14 @@ static int s_show(struct seq_file *m, void *p)
 
 	seq_printf(m, "0x%p-0x%p %7ld",
 		v->addr, v->addr + v->size, v->size);
+
+	if (v->caller) {
+		char buff[2 * KSYM_NAME_LEN];
+
+		seq_putc(m, ' ');
+		sprint_symbol(buff, (unsigned long)v->caller);
+		seq_puts(m, buff);
+	}
 
 	if (v->nr_pages)
 		seq_printf(m, " pages=%d", v->nr_pages);
