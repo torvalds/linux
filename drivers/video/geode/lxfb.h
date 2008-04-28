@@ -8,12 +8,10 @@
 
 struct lxfb_par {
 	int output;
-	int panel_width;
-	int panel_height;
 
 	void __iomem *gp_regs;
 	void __iomem *dc_regs;
-	void __iomem *df_regs;
+	void __iomem *vp_regs;
 };
 
 static inline unsigned int lx_get_pitch(unsigned int xres, int bpp)
@@ -374,22 +372,22 @@ static inline void write_dc(struct lxfb_par *par, int reg, uint32_t val)
 
 static inline uint32_t read_vp(struct lxfb_par *par, int reg)
 {
-	return readl(par->df_regs + 8*reg);
+	return readl(par->vp_regs + 8*reg);
 }
 
 static inline void write_vp(struct lxfb_par *par, int reg, uint32_t val)
 {
-	writel(val, par->df_regs + 8*reg);
+	writel(val, par->vp_regs + 8*reg);
 }
 
 static inline uint32_t read_fp(struct lxfb_par *par, int reg)
 {
-	return readl(par->df_regs + 8*reg + VP_FP_START);
+	return readl(par->vp_regs + 8*reg + VP_FP_START);
 }
 
 static inline void write_fp(struct lxfb_par *par, int reg, uint32_t val)
 {
-	writel(val, par->df_regs + 8*reg + VP_FP_START);
+	writel(val, par->vp_regs + 8*reg + VP_FP_START);
 }
 
 #endif

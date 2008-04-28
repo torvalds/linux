@@ -333,7 +333,7 @@ static int __init lxfb_map_video_memory(struct fb_info *info,
 	if (ret)
 		return ret;
 
-	ret = pci_request_region(dev, 3, "lxfb-vip");
+	ret = pci_request_region(dev, 3, "lxfb-vp");
 
 	if (ret)
 		return ret;
@@ -360,10 +360,10 @@ static int __init lxfb_map_video_memory(struct fb_info *info,
 	if (par->dc_regs == NULL)
 		return ret;
 
-	par->df_regs = ioremap(pci_resource_start(dev, 3),
+	par->vp_regs = ioremap(pci_resource_start(dev, 3),
 			       pci_resource_len(dev, 3));
 
-	if (par->df_regs == NULL)
+	if (par->vp_regs == NULL)
 		return ret;
 
 	write_dc(par, DC_UNLOCK, DC_UNLOCK_UNLOCK);
@@ -507,8 +507,8 @@ err:
 		iounmap(par->dc_regs);
 		pci_release_region(pdev, 2);
 	}
-	if (par->df_regs) {
-		iounmap(par->df_regs);
+	if (par->vp_regs) {
+		iounmap(par->vp_regs);
 		pci_release_region(pdev, 3);
 	}
 
@@ -534,7 +534,7 @@ static void lxfb_remove(struct pci_dev *pdev)
 	iounmap(par->dc_regs);
 	pci_release_region(pdev, 2);
 
-	iounmap(par->df_regs);
+	iounmap(par->vp_regs);
 	pci_release_region(pdev, 3);
 
 	pci_set_drvdata(pdev, NULL);
