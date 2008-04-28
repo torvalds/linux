@@ -58,7 +58,7 @@ static int displaytype;
 /* defaults which are normally overriden by user values */
 
 /* video mode */
-static char *mode = "640x480";
+static char *mode_option __devinitdata = "640x480";
 static int bpp = 8;
 
 static int noaccel;
@@ -73,7 +73,8 @@ static int memsize;
 static int memdiff;
 static int nativex;
 
-module_param(mode, charp, 0);
+module_param(mode_option, charp, 0);
+MODULE_PARM_DESC(mode_option, "Initial video mode e.g. '648x480-8@60'");
 module_param(bpp, int, 0);
 module_param(center, int, 0);
 module_param(stretch, int, 0);
@@ -1297,7 +1298,8 @@ static int __devinit trident_pci_probe(struct pci_dev * dev,
 #endif
 	fb_info.pseudo_palette = pseudo_pal;
 
-	if (!fb_find_mode(&default_var, &fb_info, mode, NULL, 0, NULL, bpp)) {
+	if (!fb_find_mode(&default_var, &fb_info,
+			  mode_option, NULL, 0, NULL, bpp)) {
 		err = -EINVAL;
 		goto out_unmap2;
 	}
@@ -1385,7 +1387,7 @@ static struct pci_driver tridentfb_pci_driver = {
  *	video=trident:800x600,bpp=16,noaccel
  */
 #ifndef MODULE
-static int tridentfb_setup(char *options)
+static int __init tridentfb_setup(char *options)
 {
 	char *opt;
 	if (!options || !*options)
@@ -1412,7 +1414,7 @@ static int tridentfb_setup(char *options)
 		else if (!strncmp(opt, "nativex=", 8))
 			nativex = simple_strtoul(opt + 8, NULL, 0);
 		else
-			mode = opt;
+			mode_option = opt;
 	}
 	return 0;
 }
