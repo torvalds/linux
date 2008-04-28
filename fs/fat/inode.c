@@ -785,6 +785,8 @@ static int fat_show_options(struct seq_file *m, struct vfsmount *mnt)
 		seq_printf(m, ",gid=%u", opts->fs_gid);
 	seq_printf(m, ",fmask=%04o", opts->fs_fmask);
 	seq_printf(m, ",dmask=%04o", opts->fs_dmask);
+	if (opts->allow_utime)
+		seq_printf(m, ",allow_utime=%04o", opts->allow_utime);
 	if (sbi->nls_disk)
 		seq_printf(m, ",codepage=%s", sbi->nls_disk->charset);
 	if (isvfat) {
@@ -840,9 +842,9 @@ static int fat_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 enum {
 	Opt_check_n, Opt_check_r, Opt_check_s, Opt_uid, Opt_gid,
-	Opt_umask, Opt_dmask, Opt_fmask, Opt_codepage, Opt_usefree, Opt_nocase,
-	Opt_quiet, Opt_showexec, Opt_debug, Opt_immutable,
-	Opt_dots, Opt_nodots,
+	Opt_umask, Opt_dmask, Opt_fmask, Opt_allow_utime, Opt_codepage,
+	Opt_usefree, Opt_nocase, Opt_quiet, Opt_showexec, Opt_debug,
+	Opt_immutable, Opt_dots, Opt_nodots,
 	Opt_charset, Opt_shortname_lower, Opt_shortname_win95,
 	Opt_shortname_winnt, Opt_shortname_mixed, Opt_utf8_no, Opt_utf8_yes,
 	Opt_uni_xl_no, Opt_uni_xl_yes, Opt_nonumtail_no, Opt_nonumtail_yes,
@@ -861,6 +863,7 @@ static match_table_t fat_tokens = {
 	{Opt_umask, "umask=%o"},
 	{Opt_dmask, "dmask=%o"},
 	{Opt_fmask, "fmask=%o"},
+	{Opt_allow_utime, "allow_utime=%o"},
 	{Opt_codepage, "codepage=%u"},
 	{Opt_usefree, "usefree"},
 	{Opt_nocase, "nocase"},
@@ -932,6 +935,7 @@ static int parse_options(char *options, int is_vfat, int silent, int *debug,
 	opts->fs_uid = current->uid;
 	opts->fs_gid = current->gid;
 	opts->fs_fmask = opts->fs_dmask = current->fs->umask;
+	opts->allow_utime = -1;
 	opts->codepage = fat_default_codepage;
 	opts->iocharset = fat_default_iocharset;
 	if (is_vfat)
@@ -1019,6 +1023,11 @@ static int parse_options(char *options, int is_vfat, int silent, int *debug,
 				return 0;
 			opts->fs_fmask = option;
 			break;
+		case Opt_allow_utime:
+			if (match_octal(&args[0], &option))
+				return 0;
+			opts->allow_utime = option & (S_IWGRP | S_IWOTH);
+			break;
 		case Opt_codepage:
 			if (match_int(&args[0], &option))
 				return 0;
@@ -1101,6 +1110,9 @@ static int parse_options(char *options, int is_vfat, int silent, int *debug,
 		       " for FAT filesystems, filesystem will be case sensitive!\n");
 	}
 
+	/* If user doesn't specify allow_utime, it's initialized from dmask. */
+	if (opts->allow_utime == (unsigned short)-1)
+		opts->allow_utime = ~opts->fs_dmask & (S_IWGRP | S_IWOTH);
 	if (opts->unicode_xlate)
 		opts->utf8 = 0;
 

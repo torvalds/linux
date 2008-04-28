@@ -280,11 +280,27 @@ static int fat_check_mode(const struct msdos_sb_info *sbi, struct inode *inode,
 	return 0;
 }
 
+static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
+{
+	mode_t allow_utime = sbi->options.allow_utime;
+
+	if (current->fsuid != inode->i_uid) {
+		if (in_group_p(inode->i_gid))
+			allow_utime >>= 3;
+		if (allow_utime & MAY_WRITE)
+			return 1;
+	}
+
+	/* use a default check */
+	return 0;
+}
+
 int fat_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
 	struct inode *inode = dentry->d_inode;
 	int mask, error = 0;
+	unsigned int ia_valid;
 
 	lock_kernel();
 
@@ -302,7 +318,15 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 
+	/* Check for setting the inode time. */
+	ia_valid = attr->ia_valid;
+	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET)) {
+		if (fat_allow_set_time(sbi, inode))
+			attr->ia_valid &= ~(ATTR_MTIME_SET | ATTR_ATIME_SET);
+	}
+
 	error = inode_change_ok(inode, attr);
+	attr->ia_valid = ia_valid;
 	if (error) {
 		if (sbi->options.quiet)
 			error = 0;
