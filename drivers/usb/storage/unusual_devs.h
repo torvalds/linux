@@ -557,6 +557,13 @@ UNUSUAL_DEV(  0x04e6, 0x1010, 0x0000, 0x9999,
 		US_FL_SINGLE_LUN),
 #endif
 
+/* Reported by Dmitry Khlystov <adminimus@gmail.com> */
+UNUSUAL_DEV(  0x04e8, 0x507c, 0x0220, 0x0220,
+		"Samsung",
+		"YP-U3",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64),
+
 /* Reported by Bob Sass <rls@vectordb.com> -- only rev 1.33 tested */
 UNUSUAL_DEV(  0x050d, 0x0115, 0x0133, 0x0133,
 		"Belkin",
