@@ -239,18 +239,6 @@ static void gx_configure_display(struct fb_info *info)
 	struct geodefb_par *par = info->par;
 	u32 dcfg, misc;
 
-	/* Set up the MISC register */
-
-	misc = readl(par->vid_regs + GX_MISC);
-
-	/* Power up the DAC */
-	misc &= ~(GX_MISC_A_PWRDN | GX_MISC_DAC_PWRDN);
-
-	/* Disable gamma correction */
-	misc |= GX_MISC_GAM_EN;
-
-	writel(misc, par->vid_regs + GX_MISC);
-
 	/* Write the display configuration */
 	dcfg = readl(par->vid_regs + GX_DCFG);
 
@@ -269,14 +257,28 @@ static void gx_configure_display(struct fb_info *info)
 	/* Enable hsync and vsync. */
 	dcfg |= GX_DCFG_HSYNC_EN | GX_DCFG_VSYNC_EN;
 
-	/* Only change the sync polarities if we are running
-	 * in CRT mode.  The FP polarities will be handled in
-	 * gxfb_configure_tft */
+	misc = readl(par->vid_regs + GX_MISC);
+
+	/* Disable gamma correction */
+	misc |= GX_MISC_GAM_EN;
+
 	if (par->enable_crt) {
+
+		/* Power up the CRT DACs */
+		misc &= ~(GX_MISC_A_PWRDN | GX_MISC_DAC_PWRDN);
+		writel(misc, par->vid_regs + GX_MISC);
+
+		/* Only change the sync polarities if we are running
+		 * in CRT mode.  The FP polarities will be handled in
+		 * gxfb_configure_tft */
 		if (!(info->var.sync & FB_SYNC_HOR_HIGH_ACT))
 			dcfg |= GX_DCFG_CRT_HSYNC_POL;
 		if (!(info->var.sync & FB_SYNC_VERT_HIGH_ACT))
 			dcfg |= GX_DCFG_CRT_VSYNC_POL;
+	} else {
+		/* Power down the CRT DACs if in FP mode */
+		misc |= (GX_MISC_A_PWRDN | GX_MISC_DAC_PWRDN);
+		writel(misc, par->vid_regs + GX_MISC);
 	}
 
 	/* Enable the display logic */
