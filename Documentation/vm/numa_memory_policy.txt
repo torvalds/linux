@@ -182,14 +182,9 @@ Components of Memory Policies
 	    The Default mode does not use the optional set of nodes.
 
 	MPOL_BIND:  This mode specifies that memory must come from the
-	set of nodes specified by the policy.
-
-	    The memory policy APIs do not specify an order in which the nodes
-	    will be searched.  However, unlike "local allocation", the Bind
-	    policy does not consider the distance between the nodes.  Rather,
-	    allocations will fallback to the nodes specified by the policy in
-	    order of numeric node id.  Like everything in Linux, this is subject
-	    to change.
+	set of nodes specified by the policy.  Memory will be allocated from
+	the node in the set with sufficient free memory that is closest to
+	the node where the allocation takes place.
 
 	MPOL_PREFERRED:  This mode specifies that the allocation should be
 	attempted from the single node specified in the policy.  If that

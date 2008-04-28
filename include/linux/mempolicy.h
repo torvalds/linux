@@ -54,19 +54,20 @@ struct mm_struct;
  * mmap_sem.
  *
  * Freeing policy:
- * When policy is MPOL_BIND v.zonelist is kmalloc'ed and must be kfree'd.
- * All other policies don't have any external state. mpol_free() handles this.
+ * Mempolicy objects are reference counted.  A mempolicy will be freed when
+ * mpol_free() decrements the reference count to zero.
  *
  * Copying policy objects:
- * For MPOL_BIND the zonelist must be always duplicated. mpol_clone() does this.
+ * mpol_copy() allocates a new mempolicy and copies the specified mempolicy
+ * to the new storage.  The reference count of the new object is initialized
+ * to 1, representing the caller of mpol_copy().
  */
 struct mempolicy {
 	atomic_t refcnt;
 	short policy; 	/* See MPOL_* above */
 	union {
-		struct zonelist  *zonelist;	/* bind */
 		short 		 preferred_node; /* preferred */
-		nodemask_t	 nodes;		/* interleave */
+		nodemask_t	 nodes;		/* interleave/bind */
 		/* undefined for default */
 	} v;
 	nodemask_t cpuset_mems_allowed;	/* mempolicy relative to these nodes */
@@ -151,7 +152,8 @@ extern void mpol_fix_fork_child_flag(struct task_struct *p);
 
 extern struct mempolicy default_policy;
 extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
-		unsigned long addr, gfp_t gfp_flags, struct mempolicy **mpol);
+				unsigned long addr, gfp_t gfp_flags,
+				struct mempolicy **mpol, nodemask_t **nodemask);
 extern unsigned slab_node(struct mempolicy *policy);
 
 extern enum zone_type policy_zone;
@@ -239,8 +241,11 @@ static inline void mpol_fix_fork_child_flag(struct task_struct *p)
 }
 
 static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
- 		unsigned long addr, gfp_t gfp_flags, struct mempolicy **mpol)
+				unsigned long addr, gfp_t gfp_flags,
+				struct mempolicy **mpol, nodemask_t **nodemask)
 {
+	*mpol = NULL;
+	*nodemask = NULL;
 	return node_zonelist(0, gfp_flags);
 }
 

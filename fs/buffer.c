@@ -360,16 +360,17 @@ void invalidate_bdev(struct block_device *bdev)
  */
 static void free_more_memory(void)
 {
-	struct zoneref *zrefs;
+	struct zone *zone;
 	int nid;
 
 	wakeup_pdflush(1024);
 	yield();
 
 	for_each_online_node(nid) {
-		zrefs = first_zones_zonelist(node_zonelist(nid, GFP_NOFS),
-						gfp_zone(GFP_NOFS));
-		if (zrefs->zone)
+		(void)first_zones_zonelist(node_zonelist(nid, GFP_NOFS),
+						gfp_zone(GFP_NOFS), NULL,
+						&zone);
+		if (zone)
 			try_to_free_pages(node_zonelist(nid, GFP_NOFS), 0,
 						GFP_NOFS);
 	}

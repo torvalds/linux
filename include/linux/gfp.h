@@ -182,6 +182,10 @@ static inline void arch_alloc_page(struct page *page, int order) { }
 
 extern struct page *__alloc_pages(gfp_t, unsigned int, struct zonelist *);
 
+extern struct page *
+__alloc_pages_nodemask(gfp_t, unsigned int,
+				struct zonelist *, nodemask_t *nodemask);
+
 static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
 						unsigned int order)
 {

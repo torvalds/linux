@@ -749,36 +749,60 @@ static inline int zonelist_node_idx(struct zoneref *zoneref)
 #endif /* CONFIG_NUMA */
 }
 
-static inline void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
-{
-	zoneref->zone = zone;
-	zoneref->zone_idx = zone_idx(zone);
-}
+/**
+ * next_zones_zonelist - Returns the next zone at or below highest_zoneidx within the allowed nodemask using a cursor within a zonelist as a starting point
+ * @z - The cursor used as a starting point for the search
+ * @highest_zoneidx - The zone index of the highest zone to return
+ * @nodes - An optional nodemask to filter the zonelist with
+ * @zone - The first suitable zone found is returned via this parameter
+ *
+ * This function returns the next zone at or below a given zone index that is
+ * within the allowed nodemask using a cursor as the starting point for the
+ * search. The zoneref returned is a cursor that is used as the next starting
+ * point for future calls to next_zones_zonelist().
+ */
+struct zoneref *next_zones_zonelist(struct zoneref *z,
+					enum zone_type highest_zoneidx,
+					nodemask_t *nodes,
+					struct zone **zone);
 
-/* Returns the first zone at or below highest_zoneidx in a zonelist */
+/**
+ * first_zones_zonelist - Returns the first zone at or below highest_zoneidx within the allowed nodemask in a zonelist
+ * @zonelist - The zonelist to search for a suitable zone
+ * @highest_zoneidx - The zone index of the highest zone to return
+ * @nodes - An optional nodemask to filter the zonelist with
+ * @zone - The first suitable zone found is returned via this parameter
+ *
+ * This function returns the first zone at or below a given zone index that is
+ * within the allowed nodemask. The zoneref returned is a cursor that can be
+ * used to iterate the zonelist with next_zones_zonelist. The cursor should
+ * not be used by the caller as it does not match the value of the zone
+ * returned.
+ */
 static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
-					enum zone_type highest_zoneidx)
+					enum zone_type highest_zoneidx,
+					nodemask_t *nodes,
+					struct zone **zone)
 {
-	struct zoneref *z;
-
-	/* Find the first suitable zone to use for the allocation */
-	z = zonelist->_zonerefs;
-	while (zonelist_zone_idx(z) > highest_zoneidx)
-		z++;
-
-	return z;
+	return next_zones_zonelist(zonelist->_zonerefs, highest_zoneidx, nodes,
+								zone);
 }
 
-/* Returns the next zone at or below highest_zoneidx in a zonelist */
-static inline struct zoneref *next_zones_zonelist(struct zoneref *z,
-					enum zone_type highest_zoneidx)
-{
-	/* Find the next suitable zone to use for the allocation */
-	while (zonelist_zone_idx(z) > highest_zoneidx)
-		z++;
-
-	return z;
-}
+/**
+ * for_each_zone_zonelist_nodemask - helper macro to iterate over valid zones in a zonelist at or below a given zone index and within a nodemask
+ * @zone - The current zone in the iterator
+ * @z - The current pointer within zonelist->zones being iterated
+ * @zlist - The zonelist being iterated
+ * @highidx - The zone index of the highest zone to return
+ * @nodemask - Nodemask allowed by the allocator
+ *
+ * This iterator iterates though all zones at or below a given zone index and
+ * within a given nodemask
+ */
+#define for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
+	for (z = first_zones_zonelist(zlist, highidx, nodemask, &zone);	\
+		zone;							\
+		z = next_zones_zonelist(z, highidx, nodemask, &zone))	\
 
 /**
  * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
@@ -790,11 +814,7 @@ static inline struct zoneref *next_zones_zonelist(struct zoneref *z,
  * This iterator iterates though all zones at or below a given zone index.
  */
 #define for_each_zone_zonelist(zone, z, zlist, highidx) \
-	for (z = first_zones_zonelist(zlist, highidx),			\
-					zone = zonelist_zone(z++);	\
-		zone;							\
-		z = next_zones_zonelist(z, highidx),			\
-					zone = zonelist_zone(z++))
+	for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, NULL)
 
 #ifdef CONFIG_SPARSEMEM
 #include <asm/sparsemem.h>

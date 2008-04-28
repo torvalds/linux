@@ -95,12 +95,14 @@ static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
 	int nid;
 	struct page *page = NULL;
 	struct mempolicy *mpol;
+	nodemask_t *nodemask;
 	struct zonelist *zonelist = huge_zonelist(vma, address,
-					htlb_alloc_mask, &mpol);
+					htlb_alloc_mask, &mpol, &nodemask);
 	struct zone *zone;
 	struct zoneref *z;
 
-	for_each_zone_zonelist(zone, z, zonelist, MAX_NR_ZONES - 1) {
+	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+						MAX_NR_ZONES - 1, nodemask) {
 		nid = zone_to_nid(zone);
 		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask) &&
 		    !list_empty(&hugepage_freelists[nid])) {
