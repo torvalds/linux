@@ -32,9 +32,6 @@
 #include <linux/pci.h>
 #include <asm/geode.h>
 
-#include "geodefb.h"
-#include "display_gx.h"
-#include "video_gx.h"
 #include "gxfb.h"
 
 static char *mode_option;
@@ -142,8 +139,6 @@ static int gxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 static int gxfb_set_par(struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
-
 	if (info->var.bits_per_pixel > 8) {
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		fb_dealloc_cmap(&info->cmap);
@@ -154,7 +149,7 @@ static int gxfb_set_par(struct fb_info *info)
 
 	info->fix.line_length = gx_line_delta(info->var.xres, info->var.bits_per_pixel);
 
-	par->dc_ops->set_mode(info);
+	gx_set_mode(info);
 
 	return 0;
 }
@@ -170,8 +165,6 @@ static int gxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
-
 	if (info->var.grayscale) {
 		/* grayscale = 0.30*R + 0.59*G + 0.11*B */
 		red = green = blue = (red * 77 + green * 151 + blue * 28) >> 8;
@@ -194,7 +187,7 @@ static int gxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		if (regno >= 256)
 			return -EINVAL;
 
-		par->dc_ops->set_palette_reg(info, regno, red, green, blue);
+		gx_set_hw_palette_reg(info, regno, red, green, blue);
 	}
 
 	return 0;
@@ -202,14 +195,12 @@ static int gxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 static int gxfb_blank(int blank_mode, struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
-
-	return par->vid_ops->blank_display(info, blank_mode);
+	return gx_blank_display(info, blank_mode);
 }
 
 static int __init gxfb_map_video_memory(struct fb_info *info, struct pci_dev *dev)
 {
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 	int ret;
 
 	ret = pci_enable_device(dev);
@@ -266,11 +257,12 @@ static struct fb_ops gxfb_ops = {
 
 static struct fb_info * __init gxfb_init_fbinfo(struct device *dev)
 {
-	struct geodefb_par *par;
+	struct gxfb_par *par;
 	struct fb_info *info;
 
 	/* Alloc enough space for the pseudo palette. */
-	info = framebuffer_alloc(sizeof(struct geodefb_par) + sizeof(u32) * 16, dev);
+	info = framebuffer_alloc(sizeof(struct gxfb_par) + sizeof(u32) * 16,
+			dev);
 	if (!info)
 		return NULL;
 
@@ -296,7 +288,7 @@ static struct fb_info * __init gxfb_init_fbinfo(struct device *dev)
 	info->flags		= FBINFO_DEFAULT;
 	info->node		= -1;
 
-	info->pseudo_palette	= (void *)par + sizeof(struct geodefb_par);
+	info->pseudo_palette	= (void *)par + sizeof(struct gxfb_par);
 
 	info->var.grayscale	= 0;
 
@@ -305,7 +297,7 @@ static struct fb_info * __init gxfb_init_fbinfo(struct device *dev)
 
 static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct geodefb_par *par;
+	struct gxfb_par *par;
 	struct fb_info *info;
 	int ret;
 	unsigned long val;
@@ -314,10 +306,6 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	if (!info)
 		return -ENOMEM;
 	par = info->par;
-
-	/* GX display controller and GX video device. */
-	par->dc_ops  = &gx_dc_ops;
-	par->vid_ops = &gx_vid_ops;
 
 	if ((ret = gxfb_map_video_memory(info, pdev)) < 0) {
 		dev_err(&pdev->dev, "failed to map frame buffer or controller registers\n");
@@ -378,7 +366,7 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 static void gxfb_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 
 	unregister_framebuffer(info);
 

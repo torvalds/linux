@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008 Andres Salomon <dilinger@debian.org>
  *
- * Geode GX2 register tables
+ * Geode GX2 header information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,6 +12,23 @@
 #define _GXFB_H_
 
 #include <linux/io.h>
+
+struct gxfb_par {
+	int enable_crt;
+	void __iomem *dc_regs;
+	void __iomem *vid_regs;
+};
+
+unsigned int gx_frame_buffer_size(void);
+int gx_line_delta(int xres, int bpp);
+void gx_set_mode(struct fb_info *info);
+void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
+		unsigned red, unsigned green, unsigned blue);
+
+void gx_set_dclk_frequency(struct fb_info *info);
+void gx_configure_display(struct fb_info *info);
+int gx_blank_display(struct fb_info *info, int blank_mode);
+
 
 /* Display Controller registers (table 6-38 from the data book) */
 enum dc_registers {
@@ -221,33 +238,33 @@ enum fp_registers {
 
 /* register access functions */
 
-static inline uint32_t read_dc(struct geodefb_par *par, int reg)
+static inline uint32_t read_dc(struct gxfb_par *par, int reg)
 {
 	return readl(par->dc_regs + 4*reg);
 }
 
-static inline void write_dc(struct geodefb_par *par, int reg, uint32_t val)
+static inline void write_dc(struct gxfb_par *par, int reg, uint32_t val)
 {
 	writel(val, par->dc_regs + 4*reg);
 }
 
 
-static inline uint32_t read_vp(struct geodefb_par *par, int reg)
+static inline uint32_t read_vp(struct gxfb_par *par, int reg)
 {
 	return readl(par->vid_regs + 8*reg);
 }
 
-static inline void write_vp(struct geodefb_par *par, int reg, uint32_t val)
+static inline void write_vp(struct gxfb_par *par, int reg, uint32_t val)
 {
 	writel(val, par->vid_regs + 8*reg);
 }
 
-static inline uint32_t read_fp(struct geodefb_par *par, int reg)
+static inline uint32_t read_fp(struct gxfb_par *par, int reg)
 {
 	return readl(par->vid_regs + 8*reg + VP_FP_START);
 }
 
-static inline void write_fp(struct geodefb_par *par, int reg, uint32_t val)
+static inline void write_fp(struct gxfb_par *par, int reg, uint32_t val)
 {
 	writel(val, par->vid_regs + 8*reg + VP_FP_START);
 }

@@ -18,8 +18,6 @@
 #include <asm/msr.h>
 #include <asm/geode.h>
 
-#include "geodefb.h"
-#include "video_gx.h"
 #include "gxfb.h"
 
 
@@ -119,7 +117,7 @@ static const struct gx_pll_entry gx_pll_table_14MHz[] = {
 	{  4357, 0, 0x0000057D },	/* 229.5000 */
 };
 
-static void gx_set_dclk_frequency(struct fb_info *info)
+void gx_set_dclk_frequency(struct fb_info *info)
 {
 	const struct gx_pll_entry *pll_table;
 	int pll_table_len;
@@ -180,7 +178,7 @@ static void gx_set_dclk_frequency(struct fb_info *info)
 static void
 gx_configure_tft(struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 	unsigned long val;
 	unsigned long fp;
 
@@ -235,9 +233,9 @@ gx_configure_tft(struct fb_info *info)
 	write_fp(par, FP_PM, fp);
 }
 
-static void gx_configure_display(struct fb_info *info)
+void gx_configure_display(struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 	u32 dcfg, misc;
 
 	/* Write the display configuration */
@@ -297,9 +295,9 @@ static void gx_configure_display(struct fb_info *info)
 		gx_configure_tft(info);
 }
 
-static int gx_blank_display(struct fb_info *info, int blank_mode)
+int gx_blank_display(struct fb_info *info, int blank_mode)
 {
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 	u32 dcfg, fp_pm;
 	int blank, hsync, vsync;
 
@@ -347,9 +345,3 @@ static int gx_blank_display(struct fb_info *info, int blank_mode)
 
 	return 0;
 }
-
-struct geode_vid_ops gx_vid_ops = {
-	.set_dclk	   = gx_set_dclk_frequency,
-	.configure_display = gx_configure_display,
-	.blank_display	   = gx_blank_display,
-};

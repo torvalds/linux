@@ -18,8 +18,6 @@
 #include <asm/div64.h>
 #include <asm/delay.h>
 
-#include "geodefb.h"
-#include "display_gx.h"
 #include "gxfb.h"
 
 unsigned int gx_frame_buffer_size(void)
@@ -43,9 +41,9 @@ int gx_line_delta(int xres, int bpp)
 	return (xres * (bpp >> 3) + 7) & ~0x7;
 }
 
-static void gx_set_mode(struct fb_info *info)
+void gx_set_mode(struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 	u32 gcfg, dcfg;
 	int hactive, hblankstart, hsyncstart, hsyncend, hblankend, htotal;
 	int vactive, vblankstart, vsyncstart, vsyncend, vblankend, vtotal;
@@ -69,7 +67,7 @@ static void gx_set_mode(struct fb_info *info)
 	write_dc(par, DC_GENERAL_CFG, gcfg);
 
 	/* Setup DCLK and its divisor. */
-	par->vid_ops->set_dclk(info);
+	gx_set_dclk_frequency(info);
 
 	/*
 	 * Setup new mode.
@@ -147,16 +145,16 @@ static void gx_set_mode(struct fb_info *info)
 	write_dc(par, DC_DISPLAY_CFG, dcfg);
 	write_dc(par, DC_GENERAL_CFG, gcfg);
 
-	par->vid_ops->configure_display(info);
+	gx_configure_display(info);
 
 	/* Relock display controller registers */
 	write_dc(par, DC_UNLOCK, DC_UNLOCK_LOCK);
 }
 
-static void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
-				   unsigned red, unsigned green, unsigned blue)
+void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
+		unsigned red, unsigned green, unsigned blue)
 {
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 	int val;
 
 	/* Hardware palette is in RGB 8-8-8 format. */
@@ -167,8 +165,3 @@ static void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
 	write_dc(par, DC_PAL_ADDRESS, regno);
 	write_dc(par, DC_PAL_DATA, val);
 }
-
-struct geode_dc_ops gx_dc_ops = {
-	.set_mode	 = gx_set_mode,
-	.set_palette_reg = gx_set_hw_palette_reg,
-};
