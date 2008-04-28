@@ -158,7 +158,7 @@ unsigned long riva_get_memlen(struct riva_par *par)
 	unsigned long memlen = 0;
 	unsigned int chipset = par->Chipset;
 	struct pci_dev* dev;
-	int amt;
+	u32 amt;
 
 	switch (chip->Architecture) {
 	case NV_ARCH_03:

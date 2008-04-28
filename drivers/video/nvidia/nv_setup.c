@@ -265,12 +265,12 @@ static void nv10GetConfig(struct nvidia_par *par)
 
 	dev = pci_get_bus_and_slot(0, 1);
 	if ((par->Chipset & 0xffff) == 0x01a0) {
-		int amt = 0;
+		u32 amt;
 
 		pci_read_config_dword(dev, 0x7c, &amt);
 		par->RamAmountKBytes = (((amt >> 6) & 31) + 1) * 1024;
 	} else if ((par->Chipset & 0xffff) == 0x01f0) {
-		int amt = 0;
+		u32 amt;
 
 		pci_read_config_dword(dev, 0x84, &amt);
 		par->RamAmountKBytes = (((amt >> 4) & 127) + 1) * 1024;
