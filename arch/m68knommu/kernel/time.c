@@ -33,6 +33,7 @@ static inline int set_rtc_mmss(unsigned long nowtime)
 	return -1;
 }
 
+#ifndef CONFIG_GENERIC_CLOCKEVENTS
 /*
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
@@ -54,6 +55,7 @@ irqreturn_t arch_timer_interrupt(int irq, void *dummy)
 #endif
 	return(IRQ_HANDLED);
 }
+#endif
 
 static unsigned long read_rtc_mmss(void)
 {
