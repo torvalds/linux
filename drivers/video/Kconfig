@@ -580,7 +580,7 @@ config FB_VGA16
 
 config FB_BF54X_LQ043
 	tristate "SHARP LQ043 TFT LCD (BF548 EZKIT)"
-	depends on FB && (BF54x)
+	depends on FB && (BF54x) && !BF542
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
