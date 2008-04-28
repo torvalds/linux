@@ -1,6 +1,11 @@
+config IWLWIFI
+	bool
+	default n
+
 config IWLCORE
 	tristate "Intel Wireless Wifi Core"
 	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	select IWLWIFI
 
 config IWLWIFI_LEDS
 	bool
@@ -106,6 +111,7 @@ config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection"
 	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
 	select FW_LOADER
+	select IWLWIFI
 	---help---
 	  Select to build the driver supporting the:
 

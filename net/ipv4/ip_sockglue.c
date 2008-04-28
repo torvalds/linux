@@ -36,6 +36,7 @@
 #include <linux/mroute.h>
 #include <net/route.h>
 #include <net/xfrm.h>
+#include <net/compat.h>
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #include <net/transp_v6.h>
 #endif
@@ -922,6 +923,10 @@ int compat_ip_setsockopt(struct sock *sk, int level, int optname,
 
 	if (level != SOL_IP)
 		return -ENOPROTOOPT;
+
+	if (optname >= MCAST_JOIN_GROUP && optname <= MCAST_MSFILTER)
+		return compat_mc_setsockopt(sk, level, optname, optval, optlen,
+			ip_setsockopt);
 
 	err = do_ip_setsockopt(sk, level, optname, optval, optlen);
 #ifdef CONFIG_NETFILTER

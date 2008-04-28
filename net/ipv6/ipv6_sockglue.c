@@ -52,6 +52,7 @@
 #include <net/udp.h>
 #include <net/udplite.h>
 #include <net/xfrm.h>
+#include <net/compat.h>
 
 #include <asm/uaccess.h>
 
@@ -778,6 +779,10 @@ int compat_ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 	if (level != SOL_IPV6)
 		return -ENOPROTOOPT;
+
+	if (optname >= MCAST_JOIN_GROUP && optname <= MCAST_MSFILTER)
+		return compat_mc_setsockopt(sk, level, optname, optval, optlen,
+			ipv6_setsockopt);
 
 	err = do_ipv6_setsockopt(sk, level, optname, optval, optlen);
 #ifdef CONFIG_NETFILTER

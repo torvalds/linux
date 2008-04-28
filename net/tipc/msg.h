@@ -70,10 +70,9 @@ static inline void msg_set_bits(struct tipc_msg *m, u32 w,
 				u32 pos, u32 mask, u32 val)
 {
 	val = (val & mask) << pos;
-	val = htonl(val);
-	mask = htonl(mask << pos);
-	m->hdr[w] &= ~mask;
-	m->hdr[w] |= val;
+	mask = mask << pos;
+	m->hdr[w] &= ~htonl(mask);
+	m->hdr[w] |= htonl(val);
 }
 
 /*

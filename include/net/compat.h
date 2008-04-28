@@ -40,4 +40,7 @@ extern int put_cmsg_compat(struct msghdr*, int, int, int, void *);
 
 extern int cmsghdr_from_user_compat_to_kern(struct msghdr *, struct sock *, unsigned char *, int);
 
+extern int compat_mc_setsockopt(struct sock *, int, int, char __user *, int,
+	int (*)(struct sock *, int, int, char __user *, int));
+
 #endif /* NET_COMPAT_H */
