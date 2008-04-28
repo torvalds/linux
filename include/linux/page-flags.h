@@ -6,7 +6,10 @@
 #define PAGE_FLAGS_H
 
 #include <linux/types.h>
+#ifndef __GENERATING_BOUNDS_H
 #include <linux/mm_types.h>
+#include <linux/bounds.h>
+#endif /* !__GENERATING_BOUNDS_H */
 
 /*
  * Various page->flags bits:
@@ -59,13 +62,12 @@
  * extends from the high bits downwards.
  *
  *  | FIELD | ... | FLAGS |
- *  N-1     ^             0
- *          (N-FLAGS_RESERVED)
+ *  N-1           ^       0
+ *               (NR_PAGEFLAGS)
  *
- * The fields area is reserved for fields mapping zone, node and SPARSEMEM
- * section.  The boundry between these two areas is defined by
- * FLAGS_RESERVED which defines the width of the fields section
- * (see linux/mmzone.h).  New flags must _not_ overlap with this area.
+ * The fields area is reserved for fields mapping zone, node (for NUMA) and
+ * SPARSEMEM section (for variants of SPARSEMEM that require section ids like
+ * SPARSEMEM_EXTREME with !SPARSEMEM_VMEMMAP).
  */
 enum pageflags {
 	PG_locked,		/* Page is locked. Don't touch. */
@@ -101,8 +103,10 @@ enum pageflags {
  */
 	PG_uncached = 31,		/* Page has been mapped as uncached */
 #endif
-	NR_PAGEFLAGS
+	__NR_PAGEFLAGS
 };
+
+#ifndef __GENERATING_BOUNDS_H
 
 /*
  * Manipulation of page state flags
@@ -304,4 +308,5 @@ static inline void set_page_writeback(struct page *page)
 	test_set_page_writeback(page);
 }
 
+#endif /* !__GENERATING_BOUNDS_H */
 #endif	/* PAGE_FLAGS_H */

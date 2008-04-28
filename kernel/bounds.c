@@ -6,6 +6,7 @@
 
 #define __GENERATING_BOUNDS_H
 /* Include headers that define the enum constants of interest */
+#include <linux/page-flags.h>
 
 #define DEFINE(sym, val) \
         asm volatile("\n->" #sym " %0 " #val : : "i" (val))
@@ -15,5 +16,6 @@
 void foo(void)
 {
 	/* The enum constants to put into include/linux/bounds.h */
+	DEFINE(NR_PAGEFLAGS, __NR_PAGEFLAGS);
 	/* End of constants */
 }
