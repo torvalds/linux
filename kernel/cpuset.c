@@ -941,7 +941,7 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 	cs->mems_generation = cpuset_mems_generation++;
 	mutex_unlock(&callback_mutex);
 
-	cpuset_being_rebound = cs;		/* causes mpol_copy() rebind */
+	cpuset_being_rebound = cs;		/* causes mpol_dup() rebind */
 
 	fudge = 10;				/* spare mmarray[] slots */
 	fudge += cpus_weight(cs->cpus_allowed);	/* imagine one fork-bomb/cpu */
@@ -992,7 +992,7 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 	 * rebind the vma mempolicies of each mm in mmarray[] to their
 	 * new cpuset, and release that mm.  The mpol_rebind_mm()
 	 * call takes mmap_sem, which we couldn't take while holding
-	 * tasklist_lock.  Forks can happen again now - the mpol_copy()
+	 * tasklist_lock.  Forks can happen again now - the mpol_dup()
 	 * cpuset_being_rebound check will catch such forks, and rebind
 	 * their vma mempolicies too.  Because we still hold the global
 	 * cgroup_mutex, we know that no other rebind effort will

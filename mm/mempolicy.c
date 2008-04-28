@@ -1566,15 +1566,15 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 EXPORT_SYMBOL(alloc_pages_current);
 
 /*
- * If mpol_copy() sees current->cpuset == cpuset_being_rebound, then it
+ * If mpol_dup() sees current->cpuset == cpuset_being_rebound, then it
  * rebinds the mempolicy its copying by calling mpol_rebind_policy()
  * with the mems_allowed returned by cpuset_mems_allowed().  This
  * keeps mempolicies cpuset relative after its cpuset moves.  See
  * further kernel/cpuset.c update_nodemask().
  */
 
-/* Slow path of a mempolicy copy */
-struct mempolicy *__mpol_copy(struct mempolicy *old)
+/* Slow path of a mempolicy duplicate */
+struct mempolicy *__mpol_dup(struct mempolicy *old)
 {
 	struct mempolicy *new = kmem_cache_alloc(policy_cache, GFP_KERNEL);
 
