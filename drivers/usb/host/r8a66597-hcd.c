@@ -993,7 +993,7 @@ static void prepare_setup_packet(struct r8a66597 *r8a66597,
 				 struct r8a66597_td *td)
 {
 	int i;
-	u16 *p = (u16 *)td->urb->setup_packet;
+	__le16 *p = (__le16 *)td->urb->setup_packet;
 	unsigned long setup_addr = USBREQ;
 
 	r8a66597_write(r8a66597, make_devsel(td->address) | td->maxpacket,
@@ -1001,7 +1001,7 @@ static void prepare_setup_packet(struct r8a66597 *r8a66597,
 	r8a66597_write(r8a66597, ~(SIGN | SACK), INTSTS1);
 
 	for (i = 0; i < 4; i++) {
-		r8a66597_write(r8a66597, cpu_to_le16(p[i]), setup_addr);
+		r8a66597_write(r8a66597, le16_to_cpu(p[i]), setup_addr);
 		setup_addr += 2;
 	}
 	r8a66597_write(r8a66597, SUREQ, DCPCTR);
@@ -2131,7 +2131,7 @@ static int r8a66597_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	case GetPortStatus:
 		if (wIndex > R8A66597_MAX_ROOT_HUB)
 			goto error;
-		*(u32 *)buf = cpu_to_le32(rh->port);
+		*(__le32 *)buf = cpu_to_le32(rh->port);
 		break;
 	case SetPortFeature:
 		if (wIndex > R8A66597_MAX_ROOT_HUB)

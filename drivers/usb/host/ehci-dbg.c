@@ -398,7 +398,7 @@ static void qh_lines (
 	unsigned		size = *sizep;
 	char			*next = *nextp;
 	char			mark;
-	u32			list_end = EHCI_LIST_END(ehci);
+	__le32			list_end = EHCI_LIST_END(ehci);
 
 	if (qh->hw_qtd_next == list_end)	/* NEC does this */
 		mark = '@';

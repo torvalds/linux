@@ -209,7 +209,7 @@ static void aircable_send(struct usb_serial_port *port)
 	int count, result;
 	struct aircable_private *priv = usb_get_serial_port_data(port);
 	unsigned char* buf;
-	u16 *dbuf;
+	__le16 *dbuf;
 	dbg("%s - port %d", __func__, port->number);
 	if (port->write_urb_busy)
 		return;
@@ -227,7 +227,7 @@ static void aircable_send(struct usb_serial_port *port)
 
 	buf[0] = TX_HEADER_0;
 	buf[1] = TX_HEADER_1;
-	dbuf = (u16 *)&buf[2];
+	dbuf = (__le16 *)&buf[2];
 	*dbuf = cpu_to_le16((u16)count);
 	serial_buf_get(priv->tx_buf,buf + HCI_HEADER_LENGTH, MAX_HCI_FRAMESIZE);
 

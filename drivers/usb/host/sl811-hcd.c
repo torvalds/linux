@@ -1100,7 +1100,7 @@ sl811h_hub_descriptor (
 	/* no overcurrent errors detection/handling */
 	temp |= 0x0010;
 
-	desc->wHubCharacteristics = (__force __u16)cpu_to_le16(temp);
+	desc->wHubCharacteristics = cpu_to_le16(temp);
 
 	/* two bitmaps:  ports removable, and legacy PortPwrCtrlMask */
 	desc->bitmap[0] = 0 << 1;
