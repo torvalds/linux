@@ -270,19 +270,26 @@ struct chip_data {
 
 static void pump_messages(struct work_struct *work);
 
-static int flush(struct driver_data *drv_data)
+static void flush(struct driver_data *drv_data)
 {
-	unsigned long limit = loops_per_jiffy << 1;
 	void __iomem *regs = drv_data->regs;
-	volatile u32 d;
+	u32 control;
 
 	dev_dbg(&drv_data->pdev->dev, "flush\n");
-	do {
-		while (readl(regs + SPI_INT_STATUS) & SPI_STATUS_RR)
-			d = readl(regs + SPI_RXDATA);
-	} while ((readl(regs + SPI_CONTROL) & SPI_CONTROL_XCH) && limit--);
 
-	return limit;
+	/* Wait for end of transaction */
+	do {
+		control = readl(regs + SPI_CONTROL);
+	} while (control & SPI_CONTROL_XCH);
+
+	/* Release chip select if requested, transfer delays are
+	   handled in pump_transfers */
+	if (drv_data->cs_change)
+		drv_data->cs_control(SPI_CS_DEASSERT);
+
+	/* Disable SPI to flush FIFOs */
+	writel(control & ~SPI_CONTROL_SPIEN, regs + SPI_CONTROL);
+	writel(control, regs + SPI_CONTROL);
 }
 
 static void restore_state(struct driver_data *drv_data)
@@ -570,6 +577,7 @@ static void giveback(struct spi_message *message, struct driver_data *drv_data)
 	writel(0, regs + SPI_INT_STATUS);
 	writel(0, regs + SPI_DMA);
 
+	/* Unconditioned deselct */
 	drv_data->cs_control(SPI_CS_DEASSERT);
 
 	message->state = NULL;
@@ -592,12 +600,9 @@ static void dma_err_handler(int channel, void *data, int errcode)
 	/* Disable both rx and tx dma channels */
 	imx_dma_disable(drv_data->rx_channel);
 	imx_dma_disable(drv_data->tx_channel);
-
-	if (flush(drv_data) == 0)
-		dev_err(&drv_data->pdev->dev,
-				"dma_err_handler - flush failed\n");
-
 	unmap_dma_buffers(drv_data);
+
+	flush(drv_data);
 
 	msg->state = ERROR_STATE;
 	tasklet_schedule(&drv_data->pump_transfers);
@@ -612,8 +617,7 @@ static void dma_tx_handler(int channel, void *data)
 	imx_dma_disable(channel);
 
 	/* Now waits for TX FIFO empty */
-	writel(readl(drv_data->regs + SPI_INT_STATUS) | SPI_INTEN_TE,
-			drv_data->regs + SPI_INT_STATUS);
+	writel(SPI_INTEN_TE, drv_data->regs + SPI_INT_STATUS);
 }
 
 static irqreturn_t dma_transfer(struct driver_data *drv_data)
@@ -621,19 +625,18 @@ static irqreturn_t dma_transfer(struct driver_data *drv_data)
 	u32 status;
 	struct spi_message *msg = drv_data->cur_msg;
 	void __iomem *regs = drv_data->regs;
-	unsigned long limit;
 
 	status = readl(regs + SPI_INT_STATUS);
 
-	if ((status & SPI_INTEN_RO) && (status & SPI_STATUS_RO)) {
+	if ((status & (SPI_INTEN_RO | SPI_STATUS_RO))
+			== (SPI_INTEN_RO | SPI_STATUS_RO)) {
 		writel(status & ~SPI_INTEN, regs + SPI_INT_STATUS);
 
+		imx_dma_disable(drv_data->tx_channel);
 		imx_dma_disable(drv_data->rx_channel);
 		unmap_dma_buffers(drv_data);
 
-		if (flush(drv_data) == 0)
-			dev_err(&drv_data->pdev->dev,
-				"dma_transfer - flush failed\n");
+		flush(drv_data);
 
 		dev_warn(&drv_data->pdev->dev,
 				"dma_transfer - fifo overun\n");
@@ -649,19 +652,16 @@ static irqreturn_t dma_transfer(struct driver_data *drv_data)
 
 		if (drv_data->rx) {
 			/* Wait end of transfer before read trailing data */
-			limit = loops_per_jiffy << 1;
-			while ((readl(regs + SPI_CONTROL) & SPI_CONTROL_XCH) &&
-					limit--);
-
-			if (limit == 0)
-				dev_err(&drv_data->pdev->dev,
-					"dma_transfer - end of tx failed\n");
-			else
-				dev_dbg(&drv_data->pdev->dev,
-					"dma_transfer - end of tx\n");
+			while (readl(regs + SPI_CONTROL) & SPI_CONTROL_XCH)
+				cpu_relax();
 
 			imx_dma_disable(drv_data->rx_channel);
 			unmap_dma_buffers(drv_data);
+
+			/* Release chip select if requested, transfer delays are
+			   handled in pump_transfers() */
+			if (drv_data->cs_change)
+				drv_data->cs_control(SPI_CS_DEASSERT);
 
 			/* Calculate number of trailing data and read them */
 			dev_dbg(&drv_data->pdev->dev,
@@ -676,18 +676,11 @@ static irqreturn_t dma_transfer(struct driver_data *drv_data)
 			/* Write only transfer */
 			unmap_dma_buffers(drv_data);
 
-			if (flush(drv_data) == 0)
-				dev_err(&drv_data->pdev->dev,
-					"dma_transfer - flush failed\n");
+			flush(drv_data);
 		}
 
 		/* End of transfer, update total byte transfered */
 		msg->actual_length += drv_data->len;
-
-		/* Release chip select if requested, transfer delays are
-		   handled in pump_transfers() */
-		if (drv_data->cs_change)
-			drv_data->cs_control(SPI_CS_DEASSERT);
 
 		/* Move to next transfer */
 		msg->state = next_transfer(drv_data);
@@ -711,44 +704,43 @@ static irqreturn_t interrupt_wronly_transfer(struct driver_data *drv_data)
 
 	status = readl(regs + SPI_INT_STATUS);
 
-	while (status & SPI_STATUS_TH) {
+	if (status & SPI_INTEN_TE) {
+		/* TXFIFO Empty Interrupt on the last transfered word */
+		writel(status & ~SPI_INTEN, regs + SPI_INT_STATUS);
 		dev_dbg(&drv_data->pdev->dev,
-			"interrupt_wronly_transfer - status = 0x%08X\n", status);
+			"interrupt_wronly_transfer - end of tx\n");
 
-		/* Pump data */
-		if (write(drv_data)) {
-			writel(readl(regs + SPI_INT_STATUS) & ~SPI_INTEN,
-				regs + SPI_INT_STATUS);
+		flush(drv_data);
 
+		/* Update total byte transfered */
+		msg->actual_length += drv_data->len;
+
+		/* Move to next transfer */
+		msg->state = next_transfer(drv_data);
+
+		/* Schedule transfer tasklet */
+		tasklet_schedule(&drv_data->pump_transfers);
+
+		return IRQ_HANDLED;
+	} else {
+		while (status & SPI_STATUS_TH) {
 			dev_dbg(&drv_data->pdev->dev,
-				"interrupt_wronly_transfer - end of tx\n");
+				"interrupt_wronly_transfer - status = 0x%08X\n",
+				status);
 
-			if (flush(drv_data) == 0)
-				dev_err(&drv_data->pdev->dev,
-					"interrupt_wronly_transfer - "
-					"flush failed\n");
+			/* Pump data */
+			if (write(drv_data)) {
+				/* End of TXFIFO writes,
+				   now wait until TXFIFO is empty */
+				writel(SPI_INTEN_TE, regs + SPI_INT_STATUS);
+				return IRQ_HANDLED;
+			}
 
-			/* End of transfer, update total byte transfered */
-			msg->actual_length += drv_data->len;
+			status = readl(regs + SPI_INT_STATUS);
 
-			/* Release chip select if requested, transfer delays are
-			   handled in pump_transfers */
-			if (drv_data->cs_change)
-				drv_data->cs_control(SPI_CS_DEASSERT);
-
-			/* Move to next transfer */
-			msg->state = next_transfer(drv_data);
-
-			/* Schedule transfer tasklet */
-			tasklet_schedule(&drv_data->pump_transfers);
-
-			return IRQ_HANDLED;
+			/* We did something */
+			handled = IRQ_HANDLED;
 		}
-
-		status = readl(regs + SPI_INT_STATUS);
-
-		/* We did something */
-		handled = IRQ_HANDLED;
 	}
 
 	return handled;
@@ -758,45 +750,31 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 {
 	struct spi_message *msg = drv_data->cur_msg;
 	void __iomem *regs = drv_data->regs;
-	u32 status;
+	u32 status, control;
 	irqreturn_t handled = IRQ_NONE;
 	unsigned long limit;
 
 	status = readl(regs + SPI_INT_STATUS);
 
-	while (status & (SPI_STATUS_TH | SPI_STATUS_RO)) {
+	if (status & SPI_INTEN_TE) {
+		/* TXFIFO Empty Interrupt on the last transfered word */
+		writel(status & ~SPI_INTEN, regs + SPI_INT_STATUS);
 		dev_dbg(&drv_data->pdev->dev,
-			"interrupt_transfer - status = 0x%08X\n", status);
+			"interrupt_transfer - end of tx\n");
 
-		if (status & SPI_STATUS_RO) {
-			writel(readl(regs + SPI_INT_STATUS) & ~SPI_INTEN,
-				regs + SPI_INT_STATUS);
+		if (msg->state == ERROR_STATE) {
+			/* RXFIFO overrun was detected and message aborted */
+			flush(drv_data);
+		} else {
+			/* Wait for end of transaction */
+			do {
+				control = readl(regs + SPI_CONTROL);
+			} while (control & SPI_CONTROL_XCH);
 
-			dev_warn(&drv_data->pdev->dev,
-				"interrupt_transfer - fifo overun\n"
-				"    data not yet written = %d\n"
-				"    data not yet read    = %d\n",
-				data_to_write(drv_data),
-				data_to_read(drv_data));
-
-			if (flush(drv_data) == 0)
-				dev_err(&drv_data->pdev->dev,
-					"interrupt_transfer - flush failed\n");
-
-			msg->state = ERROR_STATE;
-			tasklet_schedule(&drv_data->pump_transfers);
-
-			return IRQ_HANDLED;
-		}
-
-		/* Pump data */
-		read(drv_data);
-		if (write(drv_data)) {
-			writel(readl(regs + SPI_INT_STATUS) & ~SPI_INTEN,
-				regs + SPI_INT_STATUS);
-
-			dev_dbg(&drv_data->pdev->dev,
-				"interrupt_transfer - end of tx\n");
+			/* Release chip select if requested, transfer delays are
+			   handled in pump_transfers */
+			if (drv_data->cs_change)
+				drv_data->cs_control(SPI_CS_DEASSERT);
 
 			/* Read trailing bytes */
 			limit = loops_per_jiffy << 1;
@@ -810,27 +788,54 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 				dev_dbg(&drv_data->pdev->dev,
 					"interrupt_transfer - end of rx\n");
 
-			/* End of transfer, update total byte transfered */
+			/* Update total byte transfered */
 			msg->actual_length += drv_data->len;
-
-			/* Release chip select if requested, transfer delays are
-			   handled in pump_transfers */
-			if (drv_data->cs_change)
-				drv_data->cs_control(SPI_CS_DEASSERT);
 
 			/* Move to next transfer */
 			msg->state = next_transfer(drv_data);
-
-			/* Schedule transfer tasklet */
-			tasklet_schedule(&drv_data->pump_transfers);
-
-			return IRQ_HANDLED;
 		}
 
-		status = readl(regs + SPI_INT_STATUS);
+		/* Schedule transfer tasklet */
+		tasklet_schedule(&drv_data->pump_transfers);
 
-		/* We did something */
-		handled = IRQ_HANDLED;
+		return IRQ_HANDLED;
+	} else {
+		while (status & (SPI_STATUS_TH | SPI_STATUS_RO)) {
+			dev_dbg(&drv_data->pdev->dev,
+				"interrupt_transfer - status = 0x%08X\n",
+				status);
+
+			if (status & SPI_STATUS_RO) {
+				/* RXFIFO overrun, abort message end wait
+				   until TXFIFO is empty */
+				writel(SPI_INTEN_TE, regs + SPI_INT_STATUS);
+
+				dev_warn(&drv_data->pdev->dev,
+					"interrupt_transfer - fifo overun\n"
+					"    data not yet written = %d\n"
+					"    data not yet read    = %d\n",
+					data_to_write(drv_data),
+					data_to_read(drv_data));
+
+				msg->state = ERROR_STATE;
+
+				return IRQ_HANDLED;
+			}
+
+			/* Pump data */
+			read(drv_data);
+			if (write(drv_data)) {
+				/* End of TXFIFO writes,
+				   now wait until TXFIFO is empty */
+				writel(SPI_INTEN_TE, regs + SPI_INT_STATUS);
+				return IRQ_HANDLED;
+			}
+
+			status = readl(regs + SPI_INT_STATUS);
+
+			/* We did something */
+			handled = IRQ_HANDLED;
+		}
 	}
 
 	return handled;
