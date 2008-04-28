@@ -270,41 +270,43 @@ static void hecubafb_imageblit(struct fb_info *info,
 static ssize_t hecubafb_write(struct fb_info *info, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	unsigned long p;
-	int err=-EINVAL;
-	struct hecubafb_par *par;
-	unsigned int xres;
-	unsigned int fbmemlength;
+	struct hecubafb_par *par = info->par;
+	unsigned long p = *ppos;
+	void *dst;
+	int err = 0;
+	unsigned long total_size;
 
-	p = *ppos;
-	par = info->par;
-	xres = info->var.xres;
-	fbmemlength = (xres * info->var.yres)/8;
+	if (info->state != FBINFO_STATE_RUNNING)
+		return -EPERM;
 
-	if (p > fbmemlength)
-		return -ENOSPC;
+	total_size = info->fix.smem_len;
 
-	err = 0;
-	if ((count + p) > fbmemlength) {
-		count = fbmemlength - p;
-		err = -ENOSPC;
+	if (p > total_size)
+		return -EFBIG;
+
+	if (count > total_size) {
+		err = -EFBIG;
+		count = total_size;
 	}
 
-	if (count) {
-		char *base_addr;
+	if (count + p > total_size) {
+		if (!err)
+			err = -ENOSPC;
 
-		base_addr = (char __force *)info->screen_base;
-		count -= copy_from_user(base_addr + p, buf, count);
-		*ppos += count;
+		count = total_size - p;
+	}
+
+	dst = (void __force *) (info->screen_base + p);
+
+	if (copy_from_user(dst, buf, count))
 		err = -EFAULT;
-	}
+
+	if  (!err)
+		*ppos += count;
 
 	hecubafb_dpy_update(par);
 
-	if (count)
-		return count;
-
-	return err;
+	return (err) ? err : count;
 }
 
 static struct fb_ops hecubafb_ops = {
