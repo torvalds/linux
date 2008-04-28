@@ -827,6 +827,8 @@ void ide_execute_command(ide_drive_t *, u8, ide_handler_t *, unsigned int,
 
 void ide_execute_pkt_cmd(ide_drive_t *);
 
+void ide_pad_transfer(ide_drive_t *, int, int);
+
 ide_startstop_t __ide_error(ide_drive_t *, struct request *, u8, u8);
 
 ide_startstop_t ide_error (ide_drive_t *drive, const char *msg, byte stat);
@@ -1359,27 +1361,4 @@ static inline u8 ide_read_error(ide_drive_t *drive)
 
 	return hwif->INB(hwif->io_ports.error_addr);
 }
-
-/*
- * Too bad. The drive wants to send us data which we are not ready to accept.
- * Just throw it away.
- */
-static inline void ide_atapi_discard_data(ide_drive_t *drive, unsigned bcount)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	/* FIXME: use ->input_data */
-	while (bcount--)
-		(void)hwif->INB(hwif->io_ports.data_addr);
-}
-
-static inline void ide_atapi_write_zeros(ide_drive_t *drive, unsigned bcount)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	/* FIXME: use ->output_data */
-	while (bcount--)
-		hwif->OUTB(0, hwif->io_ports.data_addr);
-}
-
 #endif /* _IDE_H */

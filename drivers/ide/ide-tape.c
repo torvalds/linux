@@ -395,7 +395,7 @@ static void idetape_input_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 		if (bh == NULL) {
 			printk(KERN_ERR "ide-tape: bh == NULL in "
 				"idetape_input_buffers\n");
-			ide_atapi_discard_data(drive, bcount);
+			ide_pad_transfer(drive, 0, bcount);
 			return;
 		}
 		count = min(
@@ -871,7 +871,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 				printk(KERN_ERR "ide-tape: The tape wants to "
 					"send us more data than expected "
 					"- discarding data\n");
-				ide_atapi_discard_data(drive, bcount);
+				ide_pad_transfer(drive, 0, bcount);
 				ide_set_handler(drive, &idetape_pc_intr,
 						IDETAPE_WAIT_CMD, NULL);
 				return ide_started;

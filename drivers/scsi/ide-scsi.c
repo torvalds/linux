@@ -164,7 +164,7 @@ static void idescsi_input_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 
 	if (bcount) {
 		printk (KERN_ERR "ide-scsi: scatter gather table too small, discarding data\n");
-		ide_atapi_discard_data(drive, bcount);
+		ide_pad_transfer(drive, 0, bcount);
 	}
 }
 
@@ -201,7 +201,7 @@ static void idescsi_output_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 
 	if (bcount) {
 		printk (KERN_ERR "ide-scsi: scatter gather table too small, padding with zeros\n");
-		ide_atapi_write_zeros(drive, bcount);
+		ide_pad_transfer(drive, 1, bcount);
 	}
 }
 
@@ -438,7 +438,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 				}
 				pc->xferred += temp;
 				pc->cur_pos += temp;
-				ide_atapi_discard_data(drive, bcount - temp);
+				ide_pad_transfer(drive, 0, bcount - temp);
 				ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
 				return ide_started;
 			}

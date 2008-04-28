@@ -1642,3 +1642,18 @@ void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount, u8 dma)
 }
 
 EXPORT_SYMBOL_GPL(ide_pktcmd_tf_load);
+
+void ide_pad_transfer(ide_drive_t *drive, int write, int len)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	u8 buf[4] = { 0 };
+
+	while (len > 0) {
+		if (write)
+			hwif->output_data(drive, NULL, buf, min(4, len));
+		else
+			hwif->input_data(drive, NULL, buf, min(4, len));
+		len -= 4;
+	}
+}
+EXPORT_SYMBOL_GPL(ide_pad_transfer);

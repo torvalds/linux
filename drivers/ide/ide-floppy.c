@@ -262,10 +262,7 @@ static void ide_floppy_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	if (bcount) {
 		printk(KERN_ERR "%s: leftover data in %s, bcount == %d\n",
 				drive->name, __func__, bcount);
-		if (direction)
-			ide_atapi_write_zeros(drive, bcount);
-		else
-			ide_atapi_discard_data(drive, bcount);
+		ide_pad_transfer(drive, direction, bcount);
 	}
 }
 
@@ -491,7 +488,7 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 				printk(KERN_ERR "ide-floppy: The floppy wants "
 					"to send us more data than expected "
 					"- discarding data\n");
-				ide_atapi_discard_data(drive, bcount);
+				ide_pad_transfer(drive, 0, bcount);
 
 				ide_set_handler(drive,
 						&idefloppy_pc_intr,
