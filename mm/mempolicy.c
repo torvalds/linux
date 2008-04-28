@@ -1951,7 +1951,7 @@ void numa_default_policy(void)
 
 /*
  * "local" is pseudo-policy:  MPOL_PREFERRED with MPOL_F_LOCAL flag
- * Used only for mpol_to_str()
+ * Used only for mpol_parse_str() and mpol_to_str()
  */
 #define MPOL_LOCAL (MPOL_INTERLEAVE + 1)
 static const char * const policy_types[] =
@@ -1990,21 +1990,16 @@ int mpol_parse_str(char *str, unsigned short *mode, unsigned short *mode_flags,
 	if (flags)
 		*flags++ = '\0';	/* terminate mode string */
 
-	for (i = 0; i < MPOL_MAX; i++) {
+	for (i = 0; i <= MPOL_LOCAL; i++) {
 		if (!strcmp(str, policy_types[i])) {
 			*mode = i;
 			break;
 		}
 	}
-	if (i == MPOL_MAX)
+	if (i > MPOL_LOCAL)
 		goto out;
 
 	switch (*mode) {
-	case MPOL_DEFAULT:
-		/* Don't allow a nodelist nor flags */
-		if (!nodelist && !flags)
-			err = 0;
-		break;
 	case MPOL_PREFERRED:
 		/* Insist on a nodelist of one node only */
 		if (nodelist) {
@@ -2027,6 +2022,20 @@ int mpol_parse_str(char *str, unsigned short *mode, unsigned short *mode_flags,
 		if (!nodelist)
 			*policy_nodes = node_states[N_HIGH_MEMORY];
 		err = 0;
+		break;
+	default:
+		/*
+		 * MPOL_DEFAULT or MPOL_LOCAL
+		 * Don't allow a nodelist nor flags
+		 */
+		if (!nodelist && !flags)
+			err = 0;
+		if (*mode == MPOL_DEFAULT)
+			goto out;
+		/* else MPOL_LOCAL */
+		*mode = MPOL_PREFERRED;
+		nodes_clear(*policy_nodes);
+		break;
 	}
 
 	*mode_flags = 0;
