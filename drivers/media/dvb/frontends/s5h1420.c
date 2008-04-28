@@ -481,7 +481,7 @@ static void s5h1420_setsymbolrate(struct s5h1420_state* state,
 		val *= 2;
 	do_div(val, (state->fclk / 1000));
 
-	dprintk("symbol rate register: %06llx\n", val);
+	dprintk("symbol rate register: %06llx\n", (unsigned long long)val);
 
 	v = s5h1420_readreg(state, Loop01);
 	s5h1420_writereg(state, Loop01, v & 0x7f);
