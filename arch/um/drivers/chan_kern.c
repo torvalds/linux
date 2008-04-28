@@ -125,7 +125,7 @@ static int open_one_chan(struct chan *chan)
 	return 0;
 }
 
-int open_chan(struct list_head *chans)
+static int open_chan(struct list_head *chans)
 {
 	struct list_head *ele;
 	struct chan *chan;
