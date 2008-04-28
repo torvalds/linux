@@ -210,47 +210,47 @@ static void lx_graphics_disable(struct fb_info *info)
 
 	/* Note:  This assumes that the video is in a quitet state */
 
-	write_vp(par, DF_ALPHA_CONTROL_1, 0);
-	write_vp(par, DF_ALPHA_CONTROL_1 + 32, 0);
-	write_vp(par, DF_ALPHA_CONTROL_1 + 64, 0);
+	write_vp(par, VP_A1T, 0);
+	write_vp(par, VP_A2T, 0);
+	write_vp(par, VP_A3T, 0);
 
 	/* Turn off the VGA and video enable */
-	val = read_dc(par, DC_GENERAL_CFG) & ~(DC_GCFG_VGAE | DC_GCFG_VIDE);
+	val = read_dc(par, DC_GENERAL_CFG) & ~(DC_GENERAL_CFG_VGAE |
+			DC_GENERAL_CFG_VIDE);
 
 	write_dc(par, DC_GENERAL_CFG, val);
 
-	val = read_vp(par, DF_VIDEO_CFG) & ~DF_VCFG_VID_EN;
-	write_vp(par, DF_VIDEO_CFG, val);
+	val = read_vp(par, VP_VCFG) & ~VP_VCFG_VID_EN;
+	write_vp(par, VP_VCFG, val);
 
-	write_dc(par, DC_IRQ, DC_IRQ_MASK | DC_VSYNC_IRQ_MASK | DC_IRQ_STATUS |
-			DC_VSYNC_IRQ_STATUS);
+	write_dc(par, DC_IRQ, DC_IRQ_MASK | DC_IRQ_VIP_VSYNC_LOSS_IRQ_MASK |
+			DC_IRQ_STATUS | DC_IRQ_VIP_VSYNC_IRQ_STATUS);
 
-	val = read_dc(par, DC_GENLCK_CTRL) & ~DC_GENLCK_ENABLE;
-	write_dc(par, DC_GENLCK_CTRL, val);
+	val = read_dc(par, DC_GENLK_CTL) & ~DC_GENLK_CTL_GENLK_EN;
+	write_dc(par, DC_GENLK_CTL, val);
 
-	val = read_dc(par, DC_COLOR_KEY) & ~DC_CLR_KEY_ENABLE;
-	write_dc(par, DC_COLOR_KEY, val & ~DC_CLR_KEY_ENABLE);
+	val = read_dc(par, DC_CLR_KEY);
+	write_dc(par, DC_CLR_KEY, val & ~DC_CLR_KEY_CLR_KEY_EN);
 
 	/* We don't actually blank the panel, due to the long latency
 	   involved with bringing it back */
 
-	val = read_vp(par, DF_MISC) | DF_MISC_DAC_PWRDN;
-	write_vp(par, DF_MISC, val);
+	val = read_vp(par, VP_MISC) | VP_MISC_DACPWRDN;
+	write_vp(par, VP_MISC, val);
 
 	/* Turn off the display */
 
-	val = read_vp(par, DF_DISPLAY_CFG);
-	write_vp(par, DF_DISPLAY_CFG, val &
-			~(DF_DCFG_CRT_EN | DF_DCFG_HSYNC_EN |
-			DF_DCFG_VSYNC_EN | DF_DCFG_DAC_BL_EN));
+	val = read_vp(par, VP_DCFG);
+	write_vp(par, VP_DCFG, val & ~(VP_DCFG_CRT_EN | VP_DCFG_HSYNC_EN |
+			VP_DCFG_VSYNC_EN | VP_DCFG_DAC_BL_EN));
 
 	gcfg = read_dc(par, DC_GENERAL_CFG);
-	gcfg &= ~(DC_GCFG_CMPE | DC_GCFG_DECE);
+	gcfg &= ~(DC_GENERAL_CFG_CMPE | DC_GENERAL_CFG_DECE);
 	write_dc(par, DC_GENERAL_CFG, gcfg);
 
 	/* Turn off the TGEN */
 	val = read_dc(par, DC_DISPLAY_CFG);
-	val &= ~DC_DCFG_TGEN;
+	val &= ~DC_DISPLAY_CFG_TGEN;
 	write_dc(par, DC_DISPLAY_CFG, val);
 
 	/* Wait 1000 usecs to ensure that the TGEN is clear */
@@ -258,14 +258,14 @@ static void lx_graphics_disable(struct fb_info *info)
 
 	/* Turn off the FIFO loader */
 
-	gcfg &= ~DC_GCFG_DFLE;
+	gcfg &= ~DC_GENERAL_CFG_DFLE;
 	write_dc(par, DC_GENERAL_CFG, gcfg);
 
 	/* Lastly, wait for the GP to go idle */
 
 	do {
 		val = read_gp(par, GP_BLT_STATUS);
-	} while ((val & GP_BS_BLT_BUSY) || !(val & GP_BS_CB_EMPTY));
+	} while ((val & GP_BLT_STATUS_PB) || !(val & GP_BLT_STATUS_CE));
 }
 
 static void lx_graphics_enable(struct fb_info *info)
@@ -274,30 +274,30 @@ static void lx_graphics_enable(struct fb_info *info)
 	u32 temp, config;
 
 	/* Set the video request register */
-	write_vp(par, DF_VIDEO_REQUEST, 0);
+	write_vp(par, VP_VRR, 0);
 
 	/* Set up the polarities */
 
-	config = read_vp(par, DF_DISPLAY_CFG);
+	config = read_vp(par, VP_DCFG);
 
-	config &= ~(DF_DCFG_CRT_SYNC_SKW_MASK | DF_DCFG_PWR_SEQ_DLY_MASK |
-		  DF_DCFG_CRT_HSYNC_POL     | DF_DCFG_CRT_VSYNC_POL);
+	config &= ~(VP_DCFG_CRT_SYNC_SKW | VP_DCFG_PWR_SEQ_DELAY |
+			VP_DCFG_CRT_HSYNC_POL | VP_DCFG_CRT_VSYNC_POL);
 
-	config |= (DF_DCFG_CRT_SYNC_SKW_INIT | DF_DCFG_PWR_SEQ_DLY_INIT  |
-		   DF_DCFG_GV_PAL_BYP);
+	config |= (VP_DCFG_CRT_SYNC_SKW_DEFAULT | VP_DCFG_PWR_SEQ_DELAY_DEFAULT
+			| VP_DCFG_GV_GAM);
 
 	if (info->var.sync & FB_SYNC_HOR_HIGH_ACT)
-		config |= DF_DCFG_CRT_HSYNC_POL;
+		config |= VP_DCFG_CRT_HSYNC_POL;
 
 	if (info->var.sync & FB_SYNC_VERT_HIGH_ACT)
-		config |= DF_DCFG_CRT_VSYNC_POL;
+		config |= VP_DCFG_CRT_VSYNC_POL;
 
 	if (par->output & OUTPUT_PANEL) {
 		u32 msrlo, msrhi;
 
-		write_fp(par, DF_PANEL_TIM1, DF_DEFAULT_TFT_PMTIM1);
-		write_fp(par, DF_PANEL_TIM2, DF_DEFAULT_TFT_PMTIM2);
-		write_fp(par, DF_DITHER_CONTROL, DF_DEFAULT_TFT_DITHCTL);
+		write_fp(par, FP_PT1, 0);
+		write_fp(par, FP_PT2, FP_PT2_SCRC);
+		write_fp(par, FP_DFC, FP_DFC_BC);
 
 		msrlo = DF_DEFAULT_TFT_PAD_SEL_LOW;
 		msrhi = DF_DEFAULT_TFT_PAD_SEL_HIGH;
@@ -306,27 +306,27 @@ static void lx_graphics_enable(struct fb_info *info)
 	}
 
 	if (par->output & OUTPUT_CRT) {
-		config |= DF_DCFG_CRT_EN   | DF_DCFG_HSYNC_EN |
-			DF_DCFG_VSYNC_EN | DF_DCFG_DAC_BL_EN;
+		config |= VP_DCFG_CRT_EN | VP_DCFG_HSYNC_EN |
+				VP_DCFG_VSYNC_EN | VP_DCFG_DAC_BL_EN;
 	}
 
-	write_vp(par, DF_DISPLAY_CFG, config);
+	write_vp(par, VP_DCFG, config);
 
 	/* Turn the CRT dacs back on */
 
 	if (par->output & OUTPUT_CRT) {
-		temp = read_vp(par, DF_MISC);
-		temp &= ~(DF_MISC_DAC_PWRDN  | DF_MISC_A_PWRDN);
-		write_vp(par, DF_MISC, temp);
+		temp = read_vp(par, VP_MISC);
+		temp &= ~(VP_MISC_DACPWRDN | VP_MISC_APWRDN);
+		write_vp(par, VP_MISC, temp);
 	}
 
 	/* Turn the panel on (if it isn't already) */
 
 	if (par->output & OUTPUT_PANEL) {
-		temp = read_fp(par, DF_FP_PM);
+		temp = read_fp(par, FP_PM);
 
 		if (!(temp & 0x09))
-			write_fp(par, DF_FP_PM, temp | DF_FP_PM_P);
+			write_fp(par, FP_PM, temp | FP_PM_P);
 	}
 }
 
@@ -357,7 +357,7 @@ void lx_set_mode(struct fb_info *info)
 	int vactive, vblankstart, vsyncstart, vsyncend, vblankend, vtotal;
 
 	/* Unlock the DC registers */
-	write_dc(par, DC_UNLOCK, DC_UNLOCK_CODE);
+	write_dc(par, DC_UNLOCK, DC_UNLOCK_UNLOCK);
 
 	lx_graphics_disable(info);
 
@@ -384,45 +384,45 @@ void lx_set_mode(struct fb_info *info)
 	/* Clear the various buffers */
 	/* FIXME:  Adjust for panning here */
 
-	write_dc(par, DC_FB_START, 0);
-	write_dc(par, DC_CB_START, 0);
-	write_dc(par, DC_CURSOR_START, 0);
+	write_dc(par, DC_FB_ST_OFFSET, 0);
+	write_dc(par, DC_CB_ST_OFFSET, 0);
+	write_dc(par, DC_CURS_ST_OFFSET, 0);
 
 	/* FIXME: Add support for interlacing */
 	/* FIXME: Add support for scaling */
 
-	val = read_dc(par, DC_GENLCK_CTRL);
-	val &= ~(DC_GC_ALPHA_FLICK_ENABLE |
-		 DC_GC_FLICKER_FILTER_ENABLE | DC_GC_FLICKER_FILTER_MASK);
+	val = read_dc(par, DC_GENLK_CTL);
+	val &= ~(DC_GENLK_CTL_ALPHA_FLICK_EN | DC_GENLK_CTL_FLICK_EN |
+			DC_GENLK_CTL_FLICK_SEL_MASK);
 
 	/* Default scaling params */
 
 	write_dc(par, DC_GFX_SCALE, (0x4000 << 16) | 0x4000);
 	write_dc(par, DC_IRQ_FILT_CTL, 0);
-	write_dc(par, DC_GENLCK_CTRL, val);
+	write_dc(par, DC_GENLK_CTL, val);
 
 	/* FIXME:  Support compression */
 
 	if (info->fix.line_length > 4096)
-		dv = DC_DV_LINE_SIZE_8192;
+		dv = DC_DV_CTL_DV_LINE_SIZE_8K;
 	else if (info->fix.line_length > 2048)
-		dv = DC_DV_LINE_SIZE_4096;
+		dv = DC_DV_CTL_DV_LINE_SIZE_4K;
 	else if (info->fix.line_length > 1024)
-		dv = DC_DV_LINE_SIZE_2048;
+		dv = DC_DV_CTL_DV_LINE_SIZE_2K;
 	else
-		dv = DC_DV_LINE_SIZE_1024;
+		dv = DC_DV_CTL_DV_LINE_SIZE_1K;
 
 	max = info->fix.line_length * info->var.yres;
 	max = (max + 0x3FF) & 0xFFFFFC00;
 
-	write_dc(par, DC_DV_TOP, max | DC_DV_TOP_ENABLE);
+	write_dc(par, DC_DV_TOP, max | DC_DV_TOP_DV_TOP_EN);
 
-	val = read_dc(par, DC_DV_CTL) & ~DC_DV_LINE_SIZE_MASK;
+	val = read_dc(par, DC_DV_CTL) & ~DC_DV_CTL_DV_LINE_SIZE;
 	write_dc(par, DC_DV_CTL, val | dv);
 
 	size = info->var.xres * (info->var.bits_per_pixel >> 3);
 
-	write_dc(par, DC_GRAPHICS_PITCH, info->fix.line_length >> 3);
+	write_dc(par, DC_GFX_PITCH, info->fix.line_length >> 3);
 	write_dc(par, DC_LINE_SIZE, (size + 7) >> 3);
 
 	/* Set default watermark values */
@@ -435,32 +435,33 @@ void lx_set_mode(struct fb_info *info)
 	msrval |= DC_SPARE_DISABLE_VFIFO_WM | DC_SPARE_DISABLE_INIT_VID_PRI;
 	wrmsrl(MSR_LX_SPARE_MSR, msrval);
 
-	gcfg = DC_GCFG_DFLE;   /* Display fifo enable */
-	gcfg |= 0xB600;         /* Set default priority */
-	gcfg |= DC_GCFG_FDTY;  /* Set the frame dirty mode */
+	gcfg = DC_GENERAL_CFG_DFLE;   /* Display fifo enable */
+	gcfg |= (0x6 << DC_GENERAL_CFG_DFHPSL_SHIFT) | /* default priority */
+			(0xb << DC_GENERAL_CFG_DFHPEL_SHIFT);
+	gcfg |= DC_GENERAL_CFG_FDTY;  /* Set the frame dirty mode */
 
-	dcfg  = DC_DCFG_VDEN;  /* Enable video data */
-	dcfg |= DC_DCFG_GDEN;  /* Enable graphics */
-	dcfg |= DC_DCFG_TGEN;  /* Turn on the timing generator */
-	dcfg |= DC_DCFG_TRUP;  /* Update timings immediately */
-	dcfg |= DC_DCFG_PALB;  /* Palette bypass in > 8 bpp modes */
-	dcfg |= DC_DCFG_VISL;
-	dcfg |= DC_DCFG_DCEN;  /* Always center the display */
+	dcfg  = DC_DISPLAY_CFG_VDEN;  /* Enable video data */
+	dcfg |= DC_DISPLAY_CFG_GDEN;  /* Enable graphics */
+	dcfg |= DC_DISPLAY_CFG_TGEN;  /* Turn on the timing generator */
+	dcfg |= DC_DISPLAY_CFG_TRUP;  /* Update timings immediately */
+	dcfg |= DC_DISPLAY_CFG_PALB;  /* Palette bypass in > 8 bpp modes */
+	dcfg |= DC_DISPLAY_CFG_VISL;
+	dcfg |= DC_DISPLAY_CFG_DCEN;  /* Always center the display */
 
 	/* Set the current BPP mode */
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
-		dcfg |= DC_DCFG_DISP_MODE_8BPP;
+		dcfg |= DC_DISPLAY_CFG_DISP_MODE_8BPP;
 		break;
 
 	case 16:
-		dcfg |= DC_DCFG_DISP_MODE_16BPP | DC_DCFG_16BPP;
+		dcfg |= DC_DISPLAY_CFG_DISP_MODE_16BPP;
 		break;
 
 	case 32:
 	case 24:
-		dcfg |= DC_DCFG_DISP_MODE_24BPP;
+		dcfg |= DC_DISPLAY_CFG_DISP_MODE_24BPP;
 		break;
 	}
 
@@ -504,7 +505,7 @@ void lx_set_mode(struct fb_info *info)
 	write_dc(par, DC_GENERAL_CFG, gcfg);
 
 	/* Lock the DC registers */
-	write_dc(par, DC_UNLOCK, 0);
+	write_dc(par, DC_UNLOCK, DC_UNLOCK_LOCK);
 }
 
 void lx_set_palette_reg(struct fb_info *info, unsigned regno,
@@ -550,26 +551,25 @@ int lx_blank_display(struct fb_info *info, int blank_mode)
 		return -EINVAL;
 	}
 
-	dcfg = read_vp(par, DF_DISPLAY_CFG);
-	dcfg &= ~(DF_DCFG_DAC_BL_EN
-		  | DF_DCFG_HSYNC_EN | DF_DCFG_VSYNC_EN);
+	dcfg = read_vp(par, VP_DCFG);
+	dcfg &= ~(VP_DCFG_DAC_BL_EN | VP_DCFG_HSYNC_EN | VP_DCFG_VSYNC_EN);
 	if (!blank)
-		dcfg |= DF_DCFG_DAC_BL_EN;
+		dcfg |= VP_DCFG_DAC_BL_EN;
 	if (hsync)
-		dcfg |= DF_DCFG_HSYNC_EN;
+		dcfg |= VP_DCFG_HSYNC_EN;
 	if (vsync)
-		dcfg |= DF_DCFG_VSYNC_EN;
-	write_vp(par, DF_DISPLAY_CFG, dcfg);
+		dcfg |= VP_DCFG_VSYNC_EN;
+	write_vp(par, VP_DCFG, dcfg);
 
 	/* Power on/off flat panel */
 
 	if (par->output & OUTPUT_PANEL) {
-		fp_pm = read_fp(par, DF_FP_PM);
+		fp_pm = read_fp(par, FP_PM);
 		if (blank_mode == FB_BLANK_POWERDOWN)
-			fp_pm &= ~DF_FP_PM_P;
+			fp_pm &= ~FP_PM_P;
 		else
-			fp_pm |= DF_FP_PM_P;
-		write_fp(par, DF_FP_PM, fp_pm);
+			fp_pm |= FP_PM_P;
+		write_fp(par, FP_PM, fp_pm);
 	}
 
 	return 0;
