@@ -440,30 +440,6 @@ static void sil_sata_pre_reset(ide_drive_t *drive)
 }
 
 /**
- *	proc_reports_siimage		-	add siimage controller to proc
- *	@dev: PCI device
- *	@clocking: SCSC value
- *	@name: controller name
- *
- *	Report the clocking mode of the controller and add it to
- *	the /proc interface layer
- */
- 
-static void proc_reports_siimage (struct pci_dev *dev, u8 clocking, const char *name)
-{
-	if (!pdev_is_sata(dev)) {
-		printk(KERN_INFO "%s: BASE CLOCK ", name);
-		clocking &= 0x03;
-		switch (clocking) {
-			case 0x03: printk("DISABLED!\n"); break;
-			case 0x02: printk("== 2X PCI\n"); break;
-			case 0x01: printk("== 133\n"); break;
-			case 0x00: printk("== 100\n"); break;
-		}
-	}
-}
-
-/**
  *	setup_mmio_siimage	-	switch an SI controller into MMIO
  *	@dev: PCI device we are configuring
  *	@name: device name
@@ -585,7 +561,14 @@ static unsigned int __devinit init_chipset_siimage(struct pci_dev *dev, const ch
 		writel(0x00680000, ioaddr + 0x1C8);
 	}
 
-	proc_reports_siimage(dev, tmp >> 4, name);
+	/* report the clocking mode of the controller */
+	if (!pdev_is_sata(dev)) {
+		static const char *clk_str[] =
+			{ "== 100", "== 133", "== 2X PCI", "DISABLED!" };
+
+		tmp >>= 4;
+		printk(KERN_INFO "%s: BASE CLOCK %s\n", name, clk_str[tmp & 3]);
+	}
 
 	return 0;
 }
