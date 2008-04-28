@@ -46,4 +46,9 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 	return ptep_get_and_clear(mm, addr, ptep);
 }
 
+static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+					 unsigned long addr, pte_t *ptep)
+{
+}
+
 #endif /* _ASM_X86_HUGETLB_H */

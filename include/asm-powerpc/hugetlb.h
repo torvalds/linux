@@ -34,4 +34,9 @@ static inline void hugetlb_prefault_arch_hook(struct mm_struct *mm)
 {
 }
 
+static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+					 unsigned long addr, pte_t *ptep)
+{
+}
+
 #endif /* _ASM_POWERPC_HUGETLB_H */

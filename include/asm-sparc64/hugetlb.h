@@ -39,4 +39,9 @@ static inline void hugetlb_free_pgd_range(struct mmu_gather **tlb,
 	free_pgd_range(tlb, addr, end, floor, ceiling);
 }
 
+static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
+					 unsigned long addr, pte_t *ptep)
+{
+}
+
 #endif /* _ASM_SPARC64_HUGETLB_H */
