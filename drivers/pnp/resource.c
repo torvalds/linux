@@ -243,13 +243,15 @@ int pnp_check_port(struct pnp_dev *dev, int idx)
 {
 	int i;
 	struct pnp_dev *tdev;
+	struct resource *res, *tres;
 	resource_size_t *port, *end, *tport, *tend;
 
-	port = &dev->res.port_resource[idx].start;
-	end = &dev->res.port_resource[idx].end;
+	res = &dev->res.port_resource[idx];
+	port = &res->start;
+	end = &res->end;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(dev->res.port_resource[idx].flags))
+	if (cannot_compare(res->flags))
 		return 1;
 
 	/* check if the resource is already in use, skip if the
@@ -269,9 +271,10 @@ int pnp_check_port(struct pnp_dev *dev, int idx)
 
 	/* check for internal conflicts */
 	for (i = 0; i < PNP_MAX_PORT && i != idx; i++) {
-		if (dev->res.port_resource[i].flags & IORESOURCE_IO) {
-			tport = &dev->res.port_resource[i].start;
-			tend = &dev->res.port_resource[i].end;
+		tres = &dev->res.port_resource[i];
+		if (tres->flags & IORESOURCE_IO) {
+			tport = &tres->start;
+			tend = &tres->end;
 			if (ranged_conflict(port, end, tport, tend))
 				return 0;
 		}
@@ -282,12 +285,12 @@ int pnp_check_port(struct pnp_dev *dev, int idx)
 		if (tdev == dev)
 			continue;
 		for (i = 0; i < PNP_MAX_PORT; i++) {
-			if (tdev->res.port_resource[i].flags & IORESOURCE_IO) {
-				if (cannot_compare
-				    (tdev->res.port_resource[i].flags))
+			tres = &tdev->res.port_resource[i];
+			if (tres->flags & IORESOURCE_IO) {
+				if (cannot_compare(tres->flags))
 					continue;
-				tport = &tdev->res.port_resource[i].start;
-				tend = &tdev->res.port_resource[i].end;
+				tport = &tres->start;
+				tend = &tres->end;
 				if (ranged_conflict(port, end, tport, tend))
 					return 0;
 			}
@@ -301,13 +304,15 @@ int pnp_check_mem(struct pnp_dev *dev, int idx)
 {
 	int i;
 	struct pnp_dev *tdev;
+	struct resource *res, *tres;
 	resource_size_t *addr, *end, *taddr, *tend;
 
-	addr = &dev->res.mem_resource[idx].start;
-	end = &dev->res.mem_resource[idx].end;
+	res = &dev->res.mem_resource[idx];
+	addr = &res->start;
+	end = &res->end;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(dev->res.mem_resource[idx].flags))
+	if (cannot_compare(res->flags))
 		return 1;
 
 	/* check if the resource is already in use, skip if the
@@ -327,9 +332,10 @@ int pnp_check_mem(struct pnp_dev *dev, int idx)
 
 	/* check for internal conflicts */
 	for (i = 0; i < PNP_MAX_MEM && i != idx; i++) {
-		if (dev->res.mem_resource[i].flags & IORESOURCE_MEM) {
-			taddr = &dev->res.mem_resource[i].start;
-			tend = &dev->res.mem_resource[i].end;
+		tres = &dev->res.mem_resource[i];
+		if (tres->flags & IORESOURCE_MEM) {
+			taddr = &tres->start;
+			tend = &tres->end;
 			if (ranged_conflict(addr, end, taddr, tend))
 				return 0;
 		}
@@ -340,12 +346,12 @@ int pnp_check_mem(struct pnp_dev *dev, int idx)
 		if (tdev == dev)
 			continue;
 		for (i = 0; i < PNP_MAX_MEM; i++) {
-			if (tdev->res.mem_resource[i].flags & IORESOURCE_MEM) {
-				if (cannot_compare
-				    (tdev->res.mem_resource[i].flags))
+			tres = &tdev->res.mem_resource[i];
+			if (tres->flags & IORESOURCE_MEM) {
+				if (cannot_compare(tres->flags))
 					continue;
-				taddr = &tdev->res.mem_resource[i].start;
-				tend = &tdev->res.mem_resource[i].end;
+				taddr = &tres->start;
+				tend = &tres->end;
 				if (ranged_conflict(addr, end, taddr, tend))
 					return 0;
 			}
@@ -364,10 +370,14 @@ int pnp_check_irq(struct pnp_dev *dev, int idx)
 {
 	int i;
 	struct pnp_dev *tdev;
-	resource_size_t *irq = &dev->res.irq_resource[idx].start;
+	struct resource *res, *tres;
+	resource_size_t *irq;
+
+	res = &dev->res.irq_resource[idx];
+	irq = &res->start;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(dev->res.irq_resource[idx].flags))
+	if (cannot_compare(res->flags))
 		return 1;
 
 	/* check if the resource is valid */
@@ -382,8 +392,9 @@ int pnp_check_irq(struct pnp_dev *dev, int idx)
 
 	/* check for internal conflicts */
 	for (i = 0; i < PNP_MAX_IRQ && i != idx; i++) {
-		if (dev->res.irq_resource[i].flags & IORESOURCE_IRQ) {
-			if (dev->res.irq_resource[i].start == *irq)
+		tres = &dev->res.irq_resource[i];
+		if (tres->flags & IORESOURCE_IRQ) {
+			if (tres->start == *irq)
 				return 0;
 		}
 	}
@@ -415,11 +426,11 @@ int pnp_check_irq(struct pnp_dev *dev, int idx)
 		if (tdev == dev)
 			continue;
 		for (i = 0; i < PNP_MAX_IRQ; i++) {
-			if (tdev->res.irq_resource[i].flags & IORESOURCE_IRQ) {
-				if (cannot_compare
-				    (tdev->res.irq_resource[i].flags))
+			tres = &tdev->res.irq_resource[i];
+			if (tres->flags & IORESOURCE_IRQ) {
+				if (cannot_compare(tres->flags))
 					continue;
-				if ((tdev->res.irq_resource[i].start == *irq))
+				if (tres->start == *irq)
 					return 0;
 			}
 		}
@@ -433,10 +444,14 @@ int pnp_check_dma(struct pnp_dev *dev, int idx)
 #ifndef CONFIG_IA64
 	int i;
 	struct pnp_dev *tdev;
-	resource_size_t *dma = &dev->res.dma_resource[idx].start;
+	struct resource *res, *tres;
+	resource_size_t *dma;
+
+	res = &dev->res.dma_resource[idx];
+	dma = &res->start;
 
 	/* if the resource doesn't exist, don't complain about it */
-	if (cannot_compare(dev->res.dma_resource[idx].flags))
+	if (cannot_compare(res->flags))
 		return 1;
 
 	/* check if the resource is valid */
@@ -451,8 +466,9 @@ int pnp_check_dma(struct pnp_dev *dev, int idx)
 
 	/* check for internal conflicts */
 	for (i = 0; i < PNP_MAX_DMA && i != idx; i++) {
-		if (dev->res.dma_resource[i].flags & IORESOURCE_DMA) {
-			if (dev->res.dma_resource[i].start == *dma)
+		tres = &dev->res.dma_resource[i];
+		if (tres->flags & IORESOURCE_DMA) {
+			if (tres->start == *dma)
 				return 0;
 		}
 	}
@@ -470,11 +486,11 @@ int pnp_check_dma(struct pnp_dev *dev, int idx)
 		if (tdev == dev)
 			continue;
 		for (i = 0; i < PNP_MAX_DMA; i++) {
-			if (tdev->res.dma_resource[i].flags & IORESOURCE_DMA) {
-				if (cannot_compare
-				    (tdev->res.dma_resource[i].flags))
+			tres = &tdev->res.dma_resource[i];
+			if (tres->flags & IORESOURCE_DMA) {
+				if (cannot_compare(tres->flags))
 					continue;
-				if ((tdev->res.dma_resource[i].start == *dma))
+				if (tres->start == *dma)
 					return 0;
 			}
 		}
