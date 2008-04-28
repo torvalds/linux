@@ -220,6 +220,8 @@ extern char empty_zero_page[PAGE_SIZE];
 /* Software bits in the page table entry */
 #define _PAGE_SWT	0x001		/* SW pte type bit t */
 #define _PAGE_SWX	0x002		/* SW pte type bit x */
+#define _PAGE_SPECIAL	0x004		/* SW associated with special page */
+#define __HAVE_ARCH_PTE_SPECIAL
 
 /* Six different types of pages. */
 #define _PAGE_TYPE_EMPTY	0x400
@@ -520,7 +522,7 @@ static inline int pte_file(pte_t pte)
 
 static inline int pte_special(pte_t pte)
 {
-	return 0;
+	return (pte_val(pte) & _PAGE_SPECIAL);
 }
 
 #define __HAVE_ARCH_PTE_SAME
@@ -722,6 +724,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 
 static inline pte_t pte_mkspecial(pte_t pte)
 {
+	pte_val(pte) |= _PAGE_SPECIAL;
 	return pte;
 }
 
