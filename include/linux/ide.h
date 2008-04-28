@@ -505,9 +505,7 @@ typedef struct hwif_s {
 
 	unsigned long	dma_base;	/* base addr for dma ports */
 	unsigned long	dma_command;	/* dma command register */
-	unsigned long	dma_vendor1;	/* dma vendor 1 register */
 	unsigned long	dma_status;	/* dma status register */
-	unsigned long	dma_vendor3;	/* dma vendor 3 register */
 	unsigned long	dma_prdtable;	/* actual prd table address */
 
 	unsigned long	config_data;	/* for use by chipset-specific code */
