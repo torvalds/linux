@@ -197,8 +197,8 @@ static inline void __raw_evpe(void)
 	"	.set	pop						\n");
 }
 
-/* Enable multiMT if previous suggested it should be.
-   EMT_ENABLE to force */
+/* Enable virtual processor execution if previous suggested it should be.
+   EVPE_ENABLE to force */
 
 #define EVPE_ENABLE MVPCONTROL_EVP
 
@@ -238,8 +238,8 @@ static inline void __raw_emt(void)
 	"	.set	reorder");
 }
 
-/* enable multiVPE if previous suggested it should be.
-   EVPE_ENABLE to force */
+/* enable multi-threaded execution if previous suggested it should be.
+   EMT_ENABLE to force */
 
 #define EMT_ENABLE VPECONTROL_TE
 

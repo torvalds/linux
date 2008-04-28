@@ -221,6 +221,7 @@ config MIPS_MALTA
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
 	select IRQ_CPU
+	select IRQ_GIC
 	select HW_HAS_PCI
 	select I8253
 	select I8259
@@ -840,6 +841,9 @@ config MIPS_NILE4
 config MIPS_DISABLE_OBSOLETE_IDE
 	bool
 
+config SYNC_R4K
+	bool
+
 config NO_IOPORT
 	def_bool n
 
@@ -907,6 +911,9 @@ config IRQ_TXX9
 	bool
 
 config IRQ_GT641XX
+	bool
+
+config IRQ_GIC
 	bool
 
 config MIPS_BOARDS_GEN
@@ -1810,6 +1817,17 @@ config NR_CPUS
 	  approximately eight kilobytes to the kernel image.  For best
 	  performance should round up your number of processors to the next
 	  power of two.
+
+config MIPS_CMP
+	bool "MIPS CMP framework support"
+	depends on SMP
+	select SYNC_R4K
+	select SYS_SUPPORTS_SCHED_SMT
+	select WEAK_ORDERING
+	default n
+	help
+	  This is a placeholder option for the GCMP work. It will need to
+	  be handled differently...
 
 source "kernel/time/Kconfig"
 

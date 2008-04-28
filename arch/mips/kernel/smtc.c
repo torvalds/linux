@@ -331,7 +331,8 @@ static void smtc_tc_setup(int vpe, int tc, int cpu)
 	/* In general, all TCs should have the same cpu_data indications */
 	memcpy(&cpu_data[cpu], &cpu_data[0], sizeof(struct cpuinfo_mips));
 	/* For 34Kf, start with TC/CPU 0 as sole owner of single FPU context */
-	if (cpu_data[0].cputype == CPU_34K)
+	if (cpu_data[0].cputype == CPU_34K ||
+	    cpu_data[0].cputype == CPU_1004K)
 		cpu_data[cpu].options &= ~MIPS_CPU_FPU;
 	cpu_data[cpu].vpe_id = vpe;
 	cpu_data[cpu].tc_id = tc;

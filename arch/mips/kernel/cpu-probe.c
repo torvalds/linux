@@ -169,6 +169,7 @@ static inline void check_wait(void)
 
 	case CPU_24K:
 	case CPU_34K:
+	case CPU_1004K:
 		cpu_wait = r4k_wait;
 		if (read_c0_config7() & MIPS_CONF7_WII)
 			cpu_wait = r4k_wait_irqoff;
@@ -717,6 +718,9 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 	case PRID_IMP_74K:
 		c->cputype = CPU_74K;
 		break;
+	case PRID_IMP_1004K:
+		c->cputype = CPU_1004K;
+		break;
 	}
 
 	spram_config();
@@ -884,6 +888,7 @@ static __cpuinit const char *cpu_to_name(struct cpuinfo_mips *c)
 	case CPU_24K:		name = "MIPS 24K"; break;
 	case CPU_25KF:		name = "MIPS 25Kf"; break;
 	case CPU_34K:		name = "MIPS 34K"; break;
+	case CPU_1004K:		name = "MIPS 1004K"; break;
 	case CPU_74K:		name = "MIPS 74K"; break;
 	case CPU_VR4111:	name = "NEC VR4111"; break;
 	case CPU_VR4121:	name = "NEC VR4121"; break;

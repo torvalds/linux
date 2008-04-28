@@ -424,6 +424,9 @@ void __init prom_init(void)
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 	console_config();
 #endif
+#ifdef CONFIG_MIPS_CMP
+	register_smp_ops(&cmp_smp_ops);
+#endif
 #ifdef CONFIG_MIPS_MT_SMP
 	register_smp_ops(&vsmp_smp_ops);
 #endif
