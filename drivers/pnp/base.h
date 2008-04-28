@@ -18,3 +18,5 @@ int pnp_check_irq(struct pnp_dev * dev, int idx);
 int pnp_check_dma(struct pnp_dev * dev, int idx);
 
 void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc);
+
+void pnp_init_resource(struct resource *res);

@@ -234,42 +234,52 @@ static void pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 	dev_dbg(&dev->dev, "  disable dma %d\n", idx);
 }
 
+void pnp_init_resource(struct resource *res)
+{
+	unsigned long type;
+
+	type = res->flags & (IORESOURCE_IO  | IORESOURCE_MEM |
+			     IORESOURCE_IRQ | IORESOURCE_DMA);
+
+	res->name = NULL;
+	res->flags = type | IORESOURCE_AUTO | IORESOURCE_UNSET;
+	if (type == IORESOURCE_IRQ || type == IORESOURCE_DMA) {
+		res->start = -1;
+		res->end = -1;
+	} else {
+		res->start = 0;
+		res->end = 0;
+	}
+}
+
 /**
  * pnp_init_resources - Resets a resource table to default values.
  * @table: pointer to the desired resource table
  */
 void pnp_init_resources(struct pnp_dev *dev)
 {
-	struct pnp_resource_table *table = &dev->res;
+	struct resource *res;
 	int idx;
 
 	for (idx = 0; idx < PNP_MAX_IRQ; idx++) {
-		table->irq_resource[idx].name = NULL;
-		table->irq_resource[idx].start = -1;
-		table->irq_resource[idx].end = -1;
-		table->irq_resource[idx].flags =
-		    IORESOURCE_IRQ | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res = &dev->res.irq_resource[idx];
+		res->flags = IORESOURCE_IRQ;
+		pnp_init_resource(res);
 	}
 	for (idx = 0; idx < PNP_MAX_DMA; idx++) {
-		table->dma_resource[idx].name = NULL;
-		table->dma_resource[idx].start = -1;
-		table->dma_resource[idx].end = -1;
-		table->dma_resource[idx].flags =
-		    IORESOURCE_DMA | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res = &dev->res.dma_resource[idx];
+		res->flags = IORESOURCE_DMA;
+		pnp_init_resource(res);
 	}
 	for (idx = 0; idx < PNP_MAX_PORT; idx++) {
-		table->port_resource[idx].name = NULL;
-		table->port_resource[idx].start = 0;
-		table->port_resource[idx].end = 0;
-		table->port_resource[idx].flags =
-		    IORESOURCE_IO | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res = &dev->res.port_resource[idx];
+		res->flags = IORESOURCE_IO;
+		pnp_init_resource(res);
 	}
 	for (idx = 0; idx < PNP_MAX_MEM; idx++) {
-		table->mem_resource[idx].name = NULL;
-		table->mem_resource[idx].start = 0;
-		table->mem_resource[idx].end = 0;
-		table->mem_resource[idx].flags =
-		    IORESOURCE_MEM | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res = &dev->res.mem_resource[idx];
+		res->flags = IORESOURCE_MEM;
+		pnp_init_resource(res);
 	}
 }
 
@@ -279,40 +289,36 @@ void pnp_init_resources(struct pnp_dev *dev)
  */
 static void pnp_clean_resource_table(struct pnp_dev *dev)
 {
-	struct pnp_resource_table *res = &dev->res;
+	struct resource *res;
 	int idx;
 
 	for (idx = 0; idx < PNP_MAX_IRQ; idx++) {
-		if (!(res->irq_resource[idx].flags & IORESOURCE_AUTO))
-			continue;
-		res->irq_resource[idx].start = -1;
-		res->irq_resource[idx].end = -1;
-		res->irq_resource[idx].flags =
-		    IORESOURCE_IRQ | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res = &dev->res.irq_resource[idx];
+		if (res->flags & IORESOURCE_AUTO) {
+			res->flags = IORESOURCE_IRQ;
+			pnp_init_resource(res);
+		}
 	}
 	for (idx = 0; idx < PNP_MAX_DMA; idx++) {
-		if (!(res->dma_resource[idx].flags & IORESOURCE_AUTO))
-			continue;
-		res->dma_resource[idx].start = -1;
-		res->dma_resource[idx].end = -1;
-		res->dma_resource[idx].flags =
-		    IORESOURCE_DMA | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res = &dev->res.dma_resource[idx];
+		if (res->flags & IORESOURCE_AUTO) {
+			res->flags = IORESOURCE_DMA;
+			pnp_init_resource(res);
+		}
 	}
 	for (idx = 0; idx < PNP_MAX_PORT; idx++) {
-		if (!(res->port_resource[idx].flags & IORESOURCE_AUTO))
-			continue;
-		res->port_resource[idx].start = 0;
-		res->port_resource[idx].end = 0;
-		res->port_resource[idx].flags =
-		    IORESOURCE_IO | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res = &dev->res.port_resource[idx];
+		if (res->flags & IORESOURCE_AUTO) {
+			res->flags = IORESOURCE_IO;
+			pnp_init_resource(res);
+		}
 	}
 	for (idx = 0; idx < PNP_MAX_MEM; idx++) {
-		if (!(res->mem_resource[idx].flags & IORESOURCE_AUTO))
-			continue;
-		res->mem_resource[idx].start = 0;
-		res->mem_resource[idx].end = 0;
-		res->mem_resource[idx].flags =
-		    IORESOURCE_MEM | IORESOURCE_AUTO | IORESOURCE_UNSET;
+		res = &dev->res.mem_resource[idx];
+		if (res->flags & IORESOURCE_AUTO) {
+			res->flags = IORESOURCE_MEM;
+			pnp_init_resource(res);
+		}
 	}
 }
 
