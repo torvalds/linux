@@ -25,15 +25,15 @@
 #include "registers.h"
 #include "skas_ptrace.h"
 
-static int ptrace_child(void)
+static void ptrace_child(void)
 {
 	int ret;
 	/* Calling os_getpid because some libcs cached getpid incorrectly */
 	int pid = os_getpid(), ppid = getppid();
 	int sc_result;
 
-	change_sig(SIGWINCH, 0);
-	if (ptrace(PTRACE_TRACEME, 0, 0, 0) < 0) {
+	if (change_sig(SIGWINCH, 0) < 0 ||
+	    ptrace(PTRACE_TRACEME, 0, 0, 0) < 0) {
 		perror("ptrace");
 		kill(pid, SIGKILL);
 	}
@@ -75,9 +75,8 @@ static void fatal(char *fmt, ...)
 	va_list list;
 
 	va_start(list, fmt);
-	vprintf(fmt, list);
+	vfprintf(stderr, fmt, list);
 	va_end(list);
-	fflush(stdout);
 
 	exit(1);
 }
@@ -87,9 +86,8 @@ static void non_fatal(char *fmt, ...)
 	va_list list;
 
 	va_start(list, fmt);
-	vprintf(fmt, list);
+	vfprintf(stderr, fmt, list);
 	va_end(list);
-	fflush(stdout);
 }
 
 static int start_ptraced_child(void)
@@ -495,7 +493,7 @@ int __init parse_iomem(char *str, int *add)
 	driver = str;
 	file = strchr(str,',');
 	if (file == NULL) {
-		printf("parse_iomem : failed to parse iomem\n");
+		fprintf(stderr, "parse_iomem : failed to parse iomem\n");
 		goto out;
 	}
 	*file = '\0';
