@@ -108,7 +108,7 @@ static __inline__ void isdn_net_add_to_bundle(isdn_net_dev *nd, isdn_net_local *
 
 	lp = nd->queue;
 //	printk(KERN_DEBUG "%s: lp:%s(%p) nlp:%s(%p) last(%p)\n",
-//		__FUNCTION__, lp->name, lp, nlp->name, nlp, lp->last);
+//		__func__, lp->name, lp, nlp->name, nlp, lp->last);
 	nlp->last = lp->last;
 	lp->last->next = nlp;
 	lp->last = nlp;
@@ -129,7 +129,7 @@ static __inline__ void isdn_net_rm_from_bundle(isdn_net_local *lp)
 		master_lp = (isdn_net_local *) lp->master->priv;
 
 //	printk(KERN_DEBUG "%s: lp:%s(%p) mlp:%s(%p) last(%p) next(%p) mndq(%p)\n",
-//		__FUNCTION__, lp->name, lp, master_lp->name, master_lp, lp->last, lp->next, master_lp->netdev->queue);
+//		__func__, lp->name, lp, master_lp->name, master_lp, lp->last, lp->next, master_lp->netdev->queue);
 	spin_lock_irqsave(&master_lp->netdev->queue_lock, flags);
 	lp->last->next = lp->next;
 	lp->next->last = lp->last;
@@ -141,7 +141,7 @@ static __inline__ void isdn_net_rm_from_bundle(isdn_net_local *lp)
 	}
 	lp->next = lp->last = lp;	/* (re)set own pointers */
 //	printk(KERN_DEBUG "%s: mndq(%p)\n",
-//		__FUNCTION__, master_lp->netdev->queue);
+//		__func__, master_lp->netdev->queue);
 	spin_unlock_irqrestore(&master_lp->netdev->queue_lock, flags);
 }
 

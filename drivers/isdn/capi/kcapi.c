@@ -154,7 +154,7 @@ static void register_appl(struct capi_ctr *card, u16 applid, capi_register_param
 	if (card)
 		card->register_appl(card, applid, rparam);
 	else
-		printk(KERN_WARNING "%s: cannot get card resources\n", __FUNCTION__);
+		printk(KERN_WARNING "%s: cannot get card resources\n", __func__);
 }
 
 
@@ -178,7 +178,7 @@ static void notify_up(u32 contr)
 	        printk(KERN_DEBUG "kcapi: notify up contr %d\n", contr);
 	}
 	if (!card) {
-		printk(KERN_WARNING "%s: invalid contr %d\n", __FUNCTION__, contr);
+		printk(KERN_WARNING "%s: invalid contr %d\n", __func__, contr);
 		return;
 	}
 	for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
