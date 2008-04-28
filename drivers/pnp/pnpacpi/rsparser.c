@@ -76,10 +76,11 @@ static void decode_irq_flags(int flag, int *triggering, int *polarity)
 	}
 }
 
-static void pnpacpi_parse_allocated_irqresource(struct pnp_resource_table *res,
+static void pnpacpi_parse_allocated_irqresource(struct pnp_dev *dev,
 						u32 gsi, int triggering,
 						int polarity, int shareable)
 {
+	struct pnp_resource_table *res = &dev->res;
 	int i = 0;
 	int irq;
 	int p, t;
@@ -172,9 +173,10 @@ static int dma_flags(int type, int bus_master, int transfer)
 	return flags;
 }
 
-static void pnpacpi_parse_allocated_dmaresource(struct pnp_resource_table *res,
+static void pnpacpi_parse_allocated_dmaresource(struct pnp_dev *dev,
 						u32 dma, int flags)
 {
+	struct pnp_resource_table *res = &dev->res;
 	int i = 0;
 	static unsigned char warned;
 
@@ -197,9 +199,10 @@ static void pnpacpi_parse_allocated_dmaresource(struct pnp_resource_table *res,
 	}
 }
 
-static void pnpacpi_parse_allocated_ioresource(struct pnp_resource_table *res,
+static void pnpacpi_parse_allocated_ioresource(struct pnp_dev *dev,
 					       u64 io, u64 len, int io_decode)
 {
+	struct pnp_resource_table *res = &dev->res;
 	int i = 0;
 	static unsigned char warned;
 
@@ -223,10 +226,11 @@ static void pnpacpi_parse_allocated_ioresource(struct pnp_resource_table *res,
 	}
 }
 
-static void pnpacpi_parse_allocated_memresource(struct pnp_resource_table *res,
+static void pnpacpi_parse_allocated_memresource(struct pnp_dev *dev,
 						u64 mem, u64 len,
 						int write_protect)
 {
+	struct pnp_resource_table *res = &dev->res;
 	int i = 0;
 	static unsigned char warned;
 
@@ -251,7 +255,7 @@ static void pnpacpi_parse_allocated_memresource(struct pnp_resource_table *res,
 	}
 }
 
-static void pnpacpi_parse_allocated_address_space(struct pnp_resource_table *res_table,
+static void pnpacpi_parse_allocated_address_space(struct pnp_dev *dev,
 						  struct acpi_resource *res)
 {
 	struct acpi_resource_address64 addr, *p = &addr;
@@ -268,11 +272,11 @@ static void pnpacpi_parse_allocated_address_space(struct pnp_resource_table *res
 		return;
 
 	if (p->resource_type == ACPI_MEMORY_RANGE)
-		pnpacpi_parse_allocated_memresource(res_table,
+		pnpacpi_parse_allocated_memresource(dev,
 			p->minimum, p->address_length,
 			p->info.mem.write_protect);
 	else if (p->resource_type == ACPI_IO_RANGE)
-		pnpacpi_parse_allocated_ioresource(res_table,
+		pnpacpi_parse_allocated_ioresource(dev,
 			p->minimum, p->address_length,
 			p->granularity == 0xfff ? ACPI_DECODE_10 :
 				ACPI_DECODE_16);
@@ -281,7 +285,7 @@ static void pnpacpi_parse_allocated_address_space(struct pnp_resource_table *res
 static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 					      void *data)
 {
-	struct pnp_resource_table *res_table = data;
+	struct pnp_dev *dev = data;
 	struct acpi_resource_irq *irq;
 	struct acpi_resource_dma *dma;
 	struct acpi_resource_io *io;
@@ -300,7 +304,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		 */
 		irq = &res->data.irq;
 		for (i = 0; i < irq->interrupt_count; i++) {
-			pnpacpi_parse_allocated_irqresource(res_table,
+			pnpacpi_parse_allocated_irqresource(dev,
 				irq->interrupts[i],
 				irq->triggering,
 				irq->polarity,
@@ -311,7 +315,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	case ACPI_RESOURCE_TYPE_DMA:
 		dma = &res->data.dma;
 		if (dma->channel_count > 0)
-			pnpacpi_parse_allocated_dmaresource(res_table,
+			pnpacpi_parse_allocated_dmaresource(dev,
 				dma->channels[0],
 				dma_flags(dma->type, dma->bus_master,
 					  dma->transfer));
@@ -319,7 +323,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 
 	case ACPI_RESOURCE_TYPE_IO:
 		io = &res->data.io;
-		pnpacpi_parse_allocated_ioresource(res_table,
+		pnpacpi_parse_allocated_ioresource(dev,
 			io->minimum,
 			io->address_length,
 			io->io_decode);
@@ -331,7 +335,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 
 	case ACPI_RESOURCE_TYPE_FIXED_IO:
 		fixed_io = &res->data.fixed_io;
-		pnpacpi_parse_allocated_ioresource(res_table,
+		pnpacpi_parse_allocated_ioresource(dev,
 			fixed_io->address,
 			fixed_io->address_length,
 			ACPI_DECODE_10);
@@ -345,21 +349,21 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 
 	case ACPI_RESOURCE_TYPE_MEMORY24:
 		memory24 = &res->data.memory24;
-		pnpacpi_parse_allocated_memresource(res_table,
+		pnpacpi_parse_allocated_memresource(dev,
 			memory24->minimum,
 			memory24->address_length,
 			memory24->write_protect);
 		break;
 	case ACPI_RESOURCE_TYPE_MEMORY32:
 		memory32 = &res->data.memory32;
-		pnpacpi_parse_allocated_memresource(res_table,
+		pnpacpi_parse_allocated_memresource(dev,
 			memory32->minimum,
 			memory32->address_length,
 			memory32->write_protect);
 		break;
 	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
 		fixed_memory32 = &res->data.fixed_memory32;
-		pnpacpi_parse_allocated_memresource(res_table,
+		pnpacpi_parse_allocated_memresource(dev,
 			fixed_memory32->address,
 			fixed_memory32->address_length,
 			fixed_memory32->write_protect);
@@ -367,7 +371,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
-		pnpacpi_parse_allocated_address_space(res_table, res);
+		pnpacpi_parse_allocated_address_space(dev, res);
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
@@ -381,7 +385,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 			return AE_OK;
 
 		for (i = 0; i < extended_irq->interrupt_count; i++) {
-			pnpacpi_parse_allocated_irqresource(res_table,
+			pnpacpi_parse_allocated_irqresource(dev,
 				extended_irq->interrupts[i],
 				extended_irq->triggering,
 				extended_irq->polarity,
@@ -400,14 +404,15 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	return AE_OK;
 }
 
-acpi_status pnpacpi_parse_allocated_resource(acpi_handle handle,
-					     struct pnp_resource_table * res)
+acpi_status pnpacpi_parse_allocated_resource(struct pnp_dev *dev)
 {
+	acpi_handle handle = dev->data;
+
 	/* Blank the resource table values */
-	pnp_init_resource_table(res);
+	pnp_init_resource_table(&dev->res);
 
 	return acpi_walk_resources(handle, METHOD_NAME__CRS,
-				   pnpacpi_allocated_resource, res);
+				   pnpacpi_allocated_resource, dev);
 }
 
 static __init void pnpacpi_parse_dma_option(struct pnp_dev *dev,
@@ -727,9 +732,9 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 	return AE_OK;
 }
 
-acpi_status __init pnpacpi_parse_resource_option_data(acpi_handle handle,
-						      struct pnp_dev *dev)
+acpi_status __init pnpacpi_parse_resource_option_data(struct pnp_dev *dev)
 {
+	acpi_handle handle = dev->data;
 	acpi_status status;
 	struct acpipnp_parse_option_s parse_data;
 
@@ -959,9 +964,9 @@ static void pnpacpi_encode_fixed_mem32(struct acpi_resource *resource,
 	fixed_memory32->address_length = p->end - p->start + 1;
 }
 
-int pnpacpi_encode_resources(struct pnp_resource_table *res_table,
-			     struct acpi_buffer *buffer)
+int pnpacpi_encode_resources(struct pnp_dev *dev, struct acpi_buffer *buffer)
 {
+	struct pnp_resource_table *res_table = &dev->res;
 	int i = 0;
 	/* pnpacpi_build_resource_template allocates extra mem */
 	int res_cnt = (buffer->length - 1) / sizeof(struct acpi_resource) - 1;

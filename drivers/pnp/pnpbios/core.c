@@ -219,7 +219,7 @@ static int pnpbios_get_resources(struct pnp_dev *dev)
 		kfree(node);
 		return -ENODEV;
 	}
-	pnpbios_read_resources_from_node(&dev->res, node);
+	pnpbios_read_resources_from_node(dev, node);
 	dev->active = pnp_is_active(dev);
 	kfree(node);
 	return 0;
@@ -241,7 +241,7 @@ static int pnpbios_set_resources(struct pnp_dev *dev)
 		kfree(node);
 		return -ENODEV;
 	}
-	if (pnpbios_write_resources_to_node(&dev->res, node) < 0) {
+	if (pnpbios_write_resources_to_node(dev, node) < 0) {
 		kfree(node);
 		return -1;
 	}

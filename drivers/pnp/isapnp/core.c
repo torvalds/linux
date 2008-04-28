@@ -932,9 +932,9 @@ EXPORT_SYMBOL(isapnp_cfg_begin);
 EXPORT_SYMBOL(isapnp_cfg_end);
 EXPORT_SYMBOL(isapnp_write_byte);
 
-static int isapnp_read_resources(struct pnp_dev *dev,
-				 struct pnp_resource_table *res)
+static int isapnp_read_resources(struct pnp_dev *dev)
 {
+	struct pnp_resource_table *res = &dev->res;
 	int tmp, ret;
 
 	dev->active = isapnp_read_byte(ISAPNP_CFG_ACTIVATE);
@@ -982,7 +982,7 @@ static int isapnp_get_resources(struct pnp_dev *dev)
 
 	pnp_init_resource_table(&dev->res);
 	isapnp_cfg_begin(dev->card->number, dev->number);
-	ret = isapnp_read_resources(dev, &dev->res);
+	ret = isapnp_read_resources(dev);
 	isapnp_cfg_end();
 	return ret;
 }

@@ -54,9 +54,9 @@ inline void pcibios_penalize_isa_irq(int irq, int active)
  * Allocated Resources
  */
 
-static void pnpbios_parse_allocated_irqresource(struct pnp_resource_table *res,
-						int irq)
+static void pnpbios_parse_allocated_irqresource(struct pnp_dev *dev, int irq)
 {
+	struct pnp_resource_table *res = &dev->res;
 	int i = 0;
 
 	while (!(res->irq_resource[i].flags & IORESOURCE_UNSET)
@@ -74,9 +74,9 @@ static void pnpbios_parse_allocated_irqresource(struct pnp_resource_table *res,
 	}
 }
 
-static void pnpbios_parse_allocated_dmaresource(struct pnp_resource_table *res,
-						int dma)
+static void pnpbios_parse_allocated_dmaresource(struct pnp_dev *dev, int dma)
 {
+	struct pnp_resource_table *res = &dev->res;
 	int i = 0;
 
 	while (i < PNP_MAX_DMA &&
@@ -93,9 +93,10 @@ static void pnpbios_parse_allocated_dmaresource(struct pnp_resource_table *res,
 	}
 }
 
-static void pnpbios_parse_allocated_ioresource(struct pnp_resource_table *res,
+static void pnpbios_parse_allocated_ioresource(struct pnp_dev *dev,
 					       int io, int len)
 {
+	struct pnp_resource_table *res = &dev->res;
 	int i = 0;
 
 	while (!(res->port_resource[i].flags & IORESOURCE_UNSET)
@@ -112,9 +113,10 @@ static void pnpbios_parse_allocated_ioresource(struct pnp_resource_table *res,
 	}
 }
 
-static void pnpbios_parse_allocated_memresource(struct pnp_resource_table *res,
+static void pnpbios_parse_allocated_memresource(struct pnp_dev *dev,
 						int mem, int len)
 {
+	struct pnp_resource_table *res = &dev->res;
 	int i = 0;
 
 	while (!(res->mem_resource[i].flags & IORESOURCE_UNSET)
@@ -131,11 +133,9 @@ static void pnpbios_parse_allocated_memresource(struct pnp_resource_table *res,
 	}
 }
 
-static unsigned char *pnpbios_parse_allocated_resource_data(unsigned char *p,
-							    unsigned char *end,
-							    struct
-							    pnp_resource_table
-							    *res)
+static unsigned char *pnpbios_parse_allocated_resource_data(struct pnp_dev *dev,
+							    unsigned char *p,
+							    unsigned char *end)
 {
 	unsigned int len, tag;
 	int io, size, mask, i;
@@ -144,7 +144,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(unsigned char *p,
 		return NULL;
 
 	/* Blank the resource table values */
-	pnp_init_resource_table(res);
+	pnp_init_resource_table(&dev->res);
 
 	while ((char *)p < (char *)end) {
 
@@ -164,7 +164,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(unsigned char *p,
 				goto len_err;
 			io = *(short *)&p[4];
 			size = *(short *)&p[10];
-			pnpbios_parse_allocated_memresource(res, io, size);
+			pnpbios_parse_allocated_memresource(dev, io, size);
 			break;
 
 		case LARGE_TAG_ANSISTR:
@@ -180,7 +180,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(unsigned char *p,
 				goto len_err;
 			io = *(int *)&p[4];
 			size = *(int *)&p[16];
-			pnpbios_parse_allocated_memresource(res, io, size);
+			pnpbios_parse_allocated_memresource(dev, io, size);
 			break;
 
 		case LARGE_TAG_FIXEDMEM32:
@@ -188,7 +188,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(unsigned char *p,
 				goto len_err;
 			io = *(int *)&p[4];
 			size = *(int *)&p[8];
-			pnpbios_parse_allocated_memresource(res, io, size);
+			pnpbios_parse_allocated_memresource(dev, io, size);
 			break;
 
 		case SMALL_TAG_IRQ:
@@ -199,7 +199,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(unsigned char *p,
 			for (i = 0; i < 16; i++, mask = mask >> 1)
 				if (mask & 0x01)
 					io = i;
-			pnpbios_parse_allocated_irqresource(res, io);
+			pnpbios_parse_allocated_irqresource(dev, io);
 			break;
 
 		case SMALL_TAG_DMA:
@@ -210,7 +210,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(unsigned char *p,
 			for (i = 0; i < 8; i++, mask = mask >> 1)
 				if (mask & 0x01)
 					io = i;
-			pnpbios_parse_allocated_dmaresource(res, io);
+			pnpbios_parse_allocated_dmaresource(dev, io);
 			break;
 
 		case SMALL_TAG_PORT:
@@ -218,7 +218,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(unsigned char *p,
 				goto len_err;
 			io = p[2] + p[3] * 256;
 			size = p[7];
-			pnpbios_parse_allocated_ioresource(res, io, size);
+			pnpbios_parse_allocated_ioresource(dev, io, size);
 			break;
 
 		case SMALL_TAG_VENDOR:
@@ -230,7 +230,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(unsigned char *p,
 				goto len_err;
 			io = p[1] + p[2] * 256;
 			size = p[3];
-			pnpbios_parse_allocated_ioresource(res, io, size);
+			pnpbios_parse_allocated_ioresource(dev, io, size);
 			break;
 
 		case SMALL_TAG_END:
@@ -660,12 +660,12 @@ static void pnpbios_encode_fixed_port(unsigned char *p, struct resource *res)
 	p[3] = len & 0xff;
 }
 
-static unsigned char *pnpbios_encode_allocated_resource_data(unsigned char *p,
-							     unsigned char *end,
-							     struct
-							     pnp_resource_table
-							     *res)
+static unsigned char *pnpbios_encode_allocated_resource_data(struct pnp_dev
+								*dev,
+							     unsigned char *p,
+							     unsigned char *end)
 {
+	struct pnp_resource_table *res = &dev->res;
 	unsigned int len, tag;
 	int port = 0, irq = 0, dma = 0, mem = 0;
 
@@ -774,7 +774,7 @@ int __init pnpbios_parse_data_stream(struct pnp_dev *dev,
 	unsigned char *p = (char *)node->data;
 	unsigned char *end = (char *)(node->data + node->size);
 
-	p = pnpbios_parse_allocated_resource_data(p, end, &dev->res);
+	p = pnpbios_parse_allocated_resource_data(dev, p, end);
 	if (!p)
 		return -EIO;
 	p = pnpbios_parse_resource_option_data(p, end, dev);
@@ -786,25 +786,25 @@ int __init pnpbios_parse_data_stream(struct pnp_dev *dev,
 	return 0;
 }
 
-int pnpbios_read_resources_from_node(struct pnp_resource_table *res,
+int pnpbios_read_resources_from_node(struct pnp_dev *dev,
 				     struct pnp_bios_node *node)
 {
 	unsigned char *p = (char *)node->data;
 	unsigned char *end = (char *)(node->data + node->size);
 
-	p = pnpbios_parse_allocated_resource_data(p, end, res);
+	p = pnpbios_parse_allocated_resource_data(dev, p, end);
 	if (!p)
 		return -EIO;
 	return 0;
 }
 
-int pnpbios_write_resources_to_node(struct pnp_resource_table *res,
+int pnpbios_write_resources_to_node(struct pnp_dev *dev,
 				    struct pnp_bios_node *node)
 {
 	unsigned char *p = (char *)node->data;
 	unsigned char *end = (char *)(node->data + node->size);
 
-	p = pnpbios_encode_allocated_resource_data(p, end, res);
+	p = pnpbios_encode_allocated_resource_data(dev, p, end);
 	if (!p)
 		return -EIO;
 	return 0;

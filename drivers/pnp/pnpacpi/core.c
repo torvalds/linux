@@ -77,8 +77,7 @@ static int pnpacpi_get_resources(struct pnp_dev *dev)
 {
 	acpi_status status;
 
-	status = pnpacpi_parse_allocated_resource((acpi_handle) dev->data,
-						  &dev->res);
+	status = pnpacpi_parse_allocated_resource(dev);
 	return ACPI_FAILURE(status) ? -ENODEV : 0;
 }
 
@@ -92,7 +91,7 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 	ret = pnpacpi_build_resource_template(dev, &buffer);
 	if (ret)
 		return ret;
-	ret = pnpacpi_encode_resources(&dev->res, &buffer);
+	ret = pnpacpi_encode_resources(dev, &buffer);
 	if (ret) {
 		kfree(buffer.pointer);
 		return ret;
@@ -183,8 +182,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 
 	if (dev->active) {
 		/* parse allocated resource */
-		status = pnpacpi_parse_allocated_resource(device->handle,
-							  &dev->res);
+		status = pnpacpi_parse_allocated_resource(dev);
 		if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
 			pnp_err("PnPACPI: METHOD_NAME__CRS failure for %s",
 				acpi_device_hid(device));
@@ -192,8 +190,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	}
 
 	if (dev->capabilities & PNP_CONFIGURABLE) {
-		status = pnpacpi_parse_resource_option_data(device->handle,
-							    dev);
+		status = pnpacpi_parse_resource_option_data(dev);
 		if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
 			pnp_err("PnPACPI: METHOD_NAME__PRS failure for %s",
 				acpi_device_hid(device));
