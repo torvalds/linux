@@ -252,6 +252,8 @@ struct r6_state {
 #define	STRIPE_EXPANDING	9
 #define	STRIPE_EXPAND_SOURCE	10
 #define	STRIPE_EXPAND_READY	11
+#define	STRIPE_IO_STARTED	12 /* do not count towards 'bypass_count' */
+#define	STRIPE_FULL_WRITE	13 /* all blocks are set to be overwritten */
 /*
  * Operations flags (in issue order)
  */
@@ -316,12 +318,17 @@ struct raid5_private_data {
 	int			previous_raid_disks;
 
 	struct list_head	handle_list; /* stripes needing handling */
+	struct list_head	hold_list; /* preread ready stripes */
 	struct list_head	delayed_list; /* stripes that have plugged requests */
 	struct list_head	bitmap_list; /* stripes delaying awaiting bitmap update */
 	struct bio		*retry_read_aligned; /* currently retrying aligned bios   */
 	struct bio		*retry_read_aligned_list; /* aligned bios retry list  */
 	atomic_t		preread_active_stripes; /* stripes with scheduled io */
 	atomic_t		active_aligned_reads;
+	atomic_t		pending_full_writes; /* full write backlog */
+	int			bypass_count; /* bypassed prereads */
+	int			bypass_threshold; /* preread nice */
+	struct list_head	*last_hold; /* detect hold_list promotions */
 
 	atomic_t		reshape_stripes; /* stripes with pending writes for reshape */
 	/* unfortunately we need two cache names as we temporarily have
