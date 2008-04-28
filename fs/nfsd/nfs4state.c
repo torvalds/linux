@@ -1579,8 +1579,8 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct svc_fh *cur_fh, struct nfs4_sta
 	}
 	/* remember the open */
 	filp->f_mode |= open->op_share_access;
-	set_bit(open->op_share_access, &stp->st_access_bmap);
-	set_bit(open->op_share_deny, &stp->st_deny_bmap);
+	__set_bit(open->op_share_access, &stp->st_access_bmap);
+	__set_bit(open->op_share_deny, &stp->st_deny_bmap);
 
 	return nfs_ok;
 }
