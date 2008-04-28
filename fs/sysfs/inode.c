@@ -59,6 +59,8 @@ int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
 	if (error)
 		return error;
 
+	iattr->ia_valid &= ~ATTR_SIZE; /* ignore size changes */
+
 	error = inode_setattr(inode, iattr);
 	if (error)
 		return error;
