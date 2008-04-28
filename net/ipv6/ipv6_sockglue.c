@@ -874,6 +874,8 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		if (copy_from_user(&gsf, optval, GROUP_FILTER_SIZE(0)))
 			return -EFAULT;
+		if (gsf.gf_group.ss_family != AF_INET6)
+			return -EADDRNOTAVAIL;
 		lock_sock(sk);
 		err = ip6_mc_msfget(sk, &gsf,
 			(struct group_filter __user *)optval, optlen);
