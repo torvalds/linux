@@ -538,19 +538,6 @@ static void hub_power_on(struct usb_hub *hub)
 	msleep(max(pgood_delay, (unsigned) 100));
 }
 
-static void hub_quiesce(struct usb_hub *hub)
-{
-	/* (nonblocking) khubd and related activity won't re-trigger */
-	hub->quiescing = 1;
-
-	/* (blocking) stop khubd and related activity */
-	usb_kill_urb(hub->urb);
-	if (hub->has_indicators)
-		cancel_delayed_work_sync(&hub->leds);
-	if (hub->tt.hub)
-		cancel_work_sync(&hub->tt.kevent);
-}
-
 static int hub_hub_status(struct usb_hub *hub,
 		u16 *status, u16 *change)
 {
@@ -607,20 +594,6 @@ static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
 
 	set_bit(port1, hub->change_bits);
  	kick_khubd(hub);
-}
-
-/* caller has locked the hub device */
-static void hub_stop(struct usb_hub *hub)
-{
-	struct usb_device *hdev = hub->hdev;
-	int i;
-
-	/* Disconnect all the children */
-	for (i = 0; i < hdev->maxchild; ++i) {
-		if (hdev->children[i])
-			usb_disconnect(&hdev->children[i]);
-	}
-	hub_quiesce(hub);
 }
 
 enum hub_activation_type {
@@ -732,12 +705,40 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 	kick_khubd(hub);
 }
 
+enum hub_quiescing_type {
+	HUB_DISCONNECT, HUB_PRE_RESET, HUB_SUSPEND
+};
+
+static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
+{
+	struct usb_device *hdev = hub->hdev;
+	int i;
+
+	/* khubd and related activity won't re-trigger */
+	hub->quiescing = 1;
+
+	if (type != HUB_SUSPEND) {
+		/* Disconnect all the children */
+		for (i = 0; i < hdev->maxchild; ++i) {
+			if (hdev->children[i])
+				usb_disconnect(&hdev->children[i]);
+		}
+	}
+
+	/* Stop khubd and related activity */
+	usb_kill_urb(hub->urb);
+	if (hub->has_indicators)
+		cancel_delayed_work_sync(&hub->leds);
+	if (hub->tt.hub)
+		cancel_work_sync(&hub->tt.kevent);
+}
+
 /* caller has locked the hub device */
 static int hub_pre_reset(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata(intf);
 
-	hub_stop(hub);
+	hub_quiesce(hub, HUB_PRE_RESET);
 	return 0;
 }
 
@@ -1024,7 +1025,7 @@ static void hub_disconnect(struct usb_interface *intf)
 
 	/* Disconnect all children and quiesce the hub */
 	hub->error = 0;
-	hub_stop(hub);
+	hub_quiesce(hub, HUB_DISCONNECT);
 
 	usb_set_intfdata (intf, NULL);
 
@@ -2167,7 +2168,7 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 	dev_dbg(&intf->dev, "%s\n", __func__);
 
 	/* stop khubd and related activity */
-	hub_quiesce(hub);
+	hub_quiesce(hub, HUB_SUSPEND);
 	return 0;
 }
 
@@ -2914,7 +2915,7 @@ static void hub_events(void)
 		/* If the hub has died, clean up after it */
 		if (hdev->state == USB_STATE_NOTATTACHED) {
 			hub->error = -ENODEV;
-			hub_stop(hub);
+			hub_quiesce(hub, HUB_DISCONNECT);
 			goto loop;
 		}
 
