@@ -272,6 +272,11 @@ void pnp_init_resource_table(struct pnp_resource_table *table)
 	}
 }
 
+void pnp_init_resources(struct pnp_dev *dev)
+{
+	pnp_init_resource_table(&dev->res);
+}
+
 /**
  * pnp_clean_resources - clears resources that were not manually set
  * @res: the resources to clean

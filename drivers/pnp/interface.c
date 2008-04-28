@@ -351,14 +351,14 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 	if (!strnicmp(buf, "auto", 4)) {
 		if (dev->active)
 			goto done;
-		pnp_init_resource_table(&dev->res);
+		pnp_init_resources(dev);
 		retval = pnp_auto_config_dev(dev);
 		goto done;
 	}
 	if (!strnicmp(buf, "clear", 5)) {
 		if (dev->active)
 			goto done;
-		pnp_init_resource_table(&dev->res);
+		pnp_init_resources(dev);
 		goto done;
 	}
 	if (!strnicmp(buf, "get", 3)) {
@@ -373,7 +373,7 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 		if (dev->active)
 			goto done;
 		buf += 3;
-		pnp_init_resource_table(&dev->res);
+		pnp_init_resources(dev);
 		mutex_lock(&pnp_res_mutex);
 		while (1) {
 			while (isspace(*buf))

@@ -212,7 +212,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 
 	/* clear out the damaged flags */
 	if (!dev->active)
-		pnp_init_resource_table(&dev->res);
+		pnp_init_resources(dev);
 	pnp_add_device(dev);
 	num++;
 

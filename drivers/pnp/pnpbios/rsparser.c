@@ -145,8 +145,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(struct pnp_dev *dev,
 
 	dev_dbg(&dev->dev, "parse allocated resources\n");
 
-	/* Blank the resource table values */
-	pnp_init_resource_table(&dev->res);
+	pnp_init_resources(dev);
 
 	while ((char *)p < (char *)end) {
 
