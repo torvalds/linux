@@ -678,7 +678,7 @@ static void metronomefb_fillrect(struct fb_info *info,
 {
 	struct metronomefb_par *par = info->par;
 
-	cfb_fillrect(info, rect);
+	sys_fillrect(info, rect);
 	metronomefb_dpy_update(par);
 }
 
@@ -687,7 +687,7 @@ static void metronomefb_copyarea(struct fb_info *info,
 {
 	struct metronomefb_par *par = info->par;
 
-	cfb_copyarea(info, area);
+	sys_copyarea(info, area);
 	metronomefb_dpy_update(par);
 }
 
@@ -696,7 +696,7 @@ static void metronomefb_imageblit(struct fb_info *info,
 {
 	struct metronomefb_par *par = info->par;
 
-	cfb_imageblit(info, image);
+	sys_imageblit(info, image);
 	metronomefb_dpy_update(par);
 }
 
