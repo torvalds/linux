@@ -247,7 +247,7 @@ static int fat_parse_long(struct inode *dir, loff_t *pos,
 	unsigned char id, slot, slots, alias_checksum;
 
 	if (!*unicode) {
-		*unicode = (wchar_t *)__get_free_page(GFP_KERNEL);
+		*unicode = __getname();
 		if (!*unicode) {
 			brelse(*bh);
 			return -ENOMEM;
@@ -327,7 +327,7 @@ int fat_search_long(struct inode *inode, const unsigned char *name,
 	loff_t cpos = 0;
 	int chl, i, j, last_u, err;
 
-	bufname = (unsigned char*)__get_free_page(GFP_KERNEL);
+	bufname = __getname();
 	if (!bufname)
 		return -ENOMEM;
 
@@ -396,8 +396,8 @@ parse_record:
 
 		bufuname[last_u] = 0x0000;
 		xlate_len = utf8
-			?utf8_wcstombs(bufname, bufuname, PAGE_SIZE)
-			:uni16_to_x8(bufname, bufuname, PAGE_SIZE, uni_xlate, nls_io);
+			?utf8_wcstombs(bufname, bufuname, PATH_MAX)
+			:uni16_to_x8(bufname, bufuname, PATH_MAX, uni_xlate, nls_io);
 		if (xlate_len == name_len)
 			if ((!anycase && !memcmp(name, bufname, xlate_len)) ||
 			    (anycase && !nls_strnicmp(nls_io, name, bufname,
@@ -406,8 +406,8 @@ parse_record:
 
 		if (nr_slots) {
 			xlate_len = utf8
-				?utf8_wcstombs(bufname, unicode, PAGE_SIZE)
-				:uni16_to_x8(bufname, unicode, PAGE_SIZE, uni_xlate, nls_io);
+				?utf8_wcstombs(bufname, unicode, PATH_MAX)
+				:uni16_to_x8(bufname, unicode, PATH_MAX, uni_xlate, nls_io);
 			if (xlate_len != name_len)
 				continue;
 			if ((!anycase && !memcmp(name, bufname, xlate_len)) ||
@@ -427,9 +427,9 @@ Found:
 	err = 0;
 EODir:
 	if (bufname)
-		free_page((unsigned long)bufname);
+		__putname(bufname);
 	if (unicode)
-		free_page((unsigned long)unicode);
+		__putname(unicode);
 
 	return err;
 }
@@ -619,7 +619,7 @@ parse_record:
 		/* convert the unicode long name. 261 is maximum size
 		 * of unicode buffer. (13 * slots + nul) */
 		void *longname = unicode + 261;
-		int buf_size = PAGE_SIZE - (261 * sizeof(unicode[0]));
+		int buf_size = PATH_MAX - (261 * sizeof(unicode[0]));
 		int long_len = utf8
 			? utf8_wcstombs(longname, unicode, buf_size)
 			: uni16_to_x8(longname, unicode, buf_size, uni_xlate, nls_io);
@@ -652,7 +652,7 @@ EODir:
 FillFailed:
 	brelse(bh);
 	if (unicode)
-		free_page((unsigned long)unicode);
+		__putname(unicode);
 out:
 	unlock_kernel();
 	return ret;

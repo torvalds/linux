@@ -472,7 +472,7 @@ xlate_to_uni(const unsigned char *name, int len, unsigned char *outname,
 	if (utf8) {
 		int name_len = strlen(name);
 
-		*outlen = utf8_mbstowcs((wchar_t *)outname, name, PAGE_SIZE);
+		*outlen = utf8_mbstowcs((wchar_t *)outname, name, PATH_MAX);
 
 		/*
 		 * We stripped '.'s before and set len appropriately,
@@ -565,7 +565,6 @@ static int vfat_build_slots(struct inode *dir, const unsigned char *name,
 	struct fat_mount_options *opts = &sbi->options;
 	struct msdos_dir_slot *ps;
 	struct msdos_dir_entry *de;
-	unsigned long page;
 	unsigned char cksum, lcase;
 	unsigned char msdos_name[MSDOS_NAME];
 	wchar_t *uname;
@@ -575,11 +574,10 @@ static int vfat_build_slots(struct inode *dir, const unsigned char *name,
 
 	*nr_slots = 0;
 
-	page = __get_free_page(GFP_KERNEL);
-	if (!page)
+	uname = __getname();
+	if (!uname)
 		return -ENOMEM;
 
-	uname = (wchar_t *)page;
 	err = xlate_to_uni(name, len, (unsigned char *)uname, &ulen, &usize,
 			   opts->unicode_xlate, opts->utf8, sbi->nls_io);
 	if (err)
@@ -631,7 +629,7 @@ shortname:
 	de->starthi = cpu_to_le16(cluster >> 16);
 	de->size = 0;
 out_free:
-	free_page(page);
+	__putname(uname);
 	return err;
 }
 
