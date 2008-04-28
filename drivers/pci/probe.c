@@ -842,26 +842,10 @@ static void set_pcie_port_type(struct pci_dev *pdev)
  * reading the dword at 0x100 which must either be 0 or a valid extended
  * capability header.
  */
-int pci_cfg_space_size_ext(struct pci_dev *dev, unsigned check_exp_pcix)
+int pci_cfg_space_size_ext(struct pci_dev *dev)
 {
-	int pos;
 	u32 status;
 
-	if (!check_exp_pcix)
-		goto skip;
-
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
-	if (!pos) {
-		pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
-		if (!pos)
-			goto fail;
-
-		pci_read_config_dword(dev, pos + PCI_X_STATUS, &status);
-		if (!(status & (PCI_X_STATUS_266MHZ | PCI_X_STATUS_533MHZ)))
-			goto fail;
-	}
-
- skip:
 	if (pci_read_config_dword(dev, 256, &status) != PCIBIOS_SUCCESSFUL)
 		goto fail;
 	if (status == 0xffffffff)
@@ -875,7 +859,24 @@ int pci_cfg_space_size_ext(struct pci_dev *dev, unsigned check_exp_pcix)
 
 int pci_cfg_space_size(struct pci_dev *dev)
 {
-	return pci_cfg_space_size_ext(dev, 1);
+	int pos;
+	u32 status;
+
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (!pos) {
+		pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
+		if (!pos)
+			goto fail;
+
+		pci_read_config_dword(dev, pos + PCI_X_STATUS, &status);
+		if (!(status & (PCI_X_STATUS_266MHZ | PCI_X_STATUS_533MHZ)))
+			goto fail;
+	}
+
+	return pci_cfg_space_size_ext(dev);
+
+ fail:
+	return PCI_CFG_SPACE_SIZE;
 }
 
 static void pci_release_bus_bridge_dev(struct device *dev)
