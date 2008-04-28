@@ -21,6 +21,9 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc);
 
 void pnp_init_resource(struct resource *res);
 
+struct pnp_resource *pnp_get_pnp_resource(struct pnp_dev *dev,
+					  unsigned int type, unsigned int num);
+
 #define PNP_MAX_PORT		40
 #define PNP_MAX_MEM		24
 #define PNP_MAX_IRQ		 2

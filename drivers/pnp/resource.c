@@ -499,8 +499,8 @@ int pnp_check_dma(struct pnp_dev *dev, struct resource *res)
 #endif
 }
 
-struct resource *pnp_get_resource(struct pnp_dev *dev,
-				  unsigned int type, unsigned int num)
+struct pnp_resource *pnp_get_pnp_resource(struct pnp_dev *dev,
+					  unsigned int type, unsigned int num)
 {
 	struct pnp_resource_table *res = dev->res;
 
@@ -508,20 +508,32 @@ struct resource *pnp_get_resource(struct pnp_dev *dev,
 	case IORESOURCE_IO:
 		if (num >= PNP_MAX_PORT)
 			return NULL;
-		return &res->port[num].res;
+		return &res->port[num];
 	case IORESOURCE_MEM:
 		if (num >= PNP_MAX_MEM)
 			return NULL;
-		return &res->mem[num].res;
+		return &res->mem[num];
 	case IORESOURCE_IRQ:
 		if (num >= PNP_MAX_IRQ)
 			return NULL;
-		return &res->irq[num].res;
+		return &res->irq[num];
 	case IORESOURCE_DMA:
 		if (num >= PNP_MAX_DMA)
 			return NULL;
-		return &res->dma[num].res;
+		return &res->dma[num];
 	}
+	return NULL;
+}
+
+struct resource *pnp_get_resource(struct pnp_dev *dev,
+				  unsigned int type, unsigned int num)
+{
+	struct pnp_resource *pnp_res;
+
+	pnp_res = pnp_get_pnp_resource(dev, type, num);
+	if (pnp_res)
+		return &pnp_res->res;
+
 	return NULL;
 }
 EXPORT_SYMBOL(pnp_get_resource);
