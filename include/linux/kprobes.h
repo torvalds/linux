@@ -173,6 +173,13 @@ struct kretprobe_blackpoint {
 	const char *name;
 	void *addr;
 };
+
+struct kprobe_blackpoint {
+	const char *name;
+	unsigned long start_addr;
+	unsigned long range;
+};
+
 extern struct kretprobe_blackpoint kretprobe_blacklist[];
 
 static inline void kretprobe_assert(struct kretprobe_instance *ri,
