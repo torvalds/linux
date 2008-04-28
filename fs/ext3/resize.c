@@ -1049,6 +1049,7 @@ int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
 		ext3_warning(sb, __FUNCTION__,
 			     "multiple resizers run on filesystem!");
 		unlock_super(sb);
+		ext3_journal_stop(handle);
 		err = -EBUSY;
 		goto exit_put;
 	}
