@@ -321,7 +321,13 @@ static DEFINE_SPINLOCK(task_group_lock);
 # define INIT_TASK_GROUP_LOAD	NICE_0_LOAD
 #endif
 
+/*
+ * A weight of 0, 1 or ULONG_MAX can cause arithmetics problems.
+ * (The default weight is 1024 - so there's no practical
+ *  limitation from this.)
+ */
 #define MIN_SHARES	2
+#define MAX_SHARES	(ULONG_MAX - 1)
 
 static int init_task_group_load = INIT_TASK_GROUP_LOAD;
 #endif
@@ -1804,6 +1810,8 @@ __update_group_shares_cpu(struct task_group *tg, struct sched_domain *sd,
 
 	if (shares < MIN_SHARES)
 		shares = MIN_SHARES;
+	else if (shares > MAX_SHARES)
+		shares = MAX_SHARES;
 
 	__set_se_shares(tg->se[tcpu], shares);
 }
@@ -8785,13 +8793,10 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	if (!tg->se[0])
 		return -EINVAL;
 
-	/*
-	 * A weight of 0 or 1 can cause arithmetics problems.
-	 * (The default weight is 1024 - so there's no practical
-	 *  limitation from this.)
-	 */
 	if (shares < MIN_SHARES)
 		shares = MIN_SHARES;
+	else if (shares > MAX_SHARES)
+		shares = MAX_SHARES;
 
 	mutex_lock(&shares_mutex);
 	if (tg->shares == shares)
@@ -8816,7 +8821,7 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 		 * force a rebalance
 		 */
 		cfs_rq_set_shares(tg->cfs_rq[i], 0);
-		set_se_shares(tg->se[i], shares/nr_cpu_ids);
+		set_se_shares(tg->se[i], shares);
 	}
 
 	/*
