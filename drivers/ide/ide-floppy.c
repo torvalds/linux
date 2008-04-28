@@ -696,7 +696,8 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		return ide_started;
 	} else {
 		/* Issue the packet command */
-		hwif->OUTB(WIN_PACKETCMD, hwif->io_ports.command_addr);
+		hwif->OUTBSYNC(drive, WIN_PACKETCMD,
+			       hwif->io_ports.command_addr);
 		return (*pkt_xfer_routine) (drive);
 	}
 }

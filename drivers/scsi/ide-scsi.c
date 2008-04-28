@@ -256,7 +256,8 @@ idescsi_atapi_error(ide_drive_t *drive, struct request *rq, u8 stat, u8 err)
 
 	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
 		/* force an abort */
-		hwif->OUTB(WIN_IDLEIMMEDIATE, hwif->io_ports.command_addr);
+		hwif->OUTBSYNC(drive, WIN_IDLEIMMEDIATE,
+			       hwif->io_ports.command_addr);
 
 	rq->errors++;
 
@@ -573,7 +574,8 @@ static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
 		return ide_started;
 	} else {
 		/* Issue the packet command */
-		hwif->OUTB(WIN_PACKETCMD, hwif->io_ports.command_addr);
+		hwif->OUTBSYNC(drive, WIN_PACKETCMD,
+			       hwif->io_ports.command_addr);
 		return idescsi_transfer_pc(drive);
 	}
 }

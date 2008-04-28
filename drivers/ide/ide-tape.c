@@ -1056,7 +1056,8 @@ static ide_startstop_t idetape_issue_pc(ide_drive_t *drive,
 				    IDETAPE_WAIT_CMD, NULL);
 		return ide_started;
 	} else {
-		hwif->OUTB(WIN_PACKETCMD, hwif->io_ports.command_addr);
+		hwif->OUTBSYNC(drive, WIN_PACKETCMD,
+			       hwif->io_ports.command_addr);
 		return idetape_transfer_pc(drive);
 	}
 }
