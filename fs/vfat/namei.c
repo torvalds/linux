@@ -176,15 +176,10 @@ static inline int vfat_is_used_badchars(const wchar_t *s, int len)
 	for (i = 0; i < len; i++)
 		if (vfat_bad_char(s[i]))
 			return -EINVAL;
-	return 0;
-}
 
-static int vfat_valid_longname(const unsigned char *name, unsigned int len)
-{
-	if (name[len - 1] == ' ')
+	if (s[i - 1] == ' ') /* last character cannot be space */
 		return -EINVAL;
-	if (len >= 256)
-		return -ENAMETOOLONG;
+
 	return 0;
 }
 
@@ -485,11 +480,14 @@ xlate_to_uni(const unsigned char *name, int len, unsigned char *outname,
 		 */
 		*outlen -= (name_len - len);
 
+		if (*outlen > 255)
+			return -ENAMETOOLONG;
+
 		op = &outname[*outlen * sizeof(wchar_t)];
 	} else {
 		if (nls) {
 			for (i = 0, ip = name, op = outname, *outlen = 0;
-			     i < len && *outlen <= 260;
+			     i < len && *outlen <= 255;
 			     *outlen += 1)
 			{
 				if (escape && (*ip == ':')) {
@@ -525,18 +523,20 @@ xlate_to_uni(const unsigned char *name, int len, unsigned char *outname,
 					op += 2;
 				}
 			}
+			if (i < len)
+				return -ENAMETOOLONG;
 		} else {
 			for (i = 0, ip = name, op = outname, *outlen = 0;
-			     i < len && *outlen <= 260;
+			     i < len && *outlen <= 255;
 			     i++, *outlen += 1)
 			{
 				*op++ = *ip++;
 				*op++ = 0;
 			}
+			if (i < len)
+				return -ENAMETOOLONG;
 		}
 	}
-	if (*outlen > 260)
-		return -ENAMETOOLONG;
 
 	*longlen = *outlen;
 	if (*outlen % 13) {
@@ -574,9 +574,6 @@ static int vfat_build_slots(struct inode *dir, const unsigned char *name,
 	loff_t offset;
 
 	*nr_slots = 0;
-	err = vfat_valid_longname(name, len);
-	if (err)
-		return err;
 
 	page = __get_free_page(GFP_KERNEL);
 	if (!page)
