@@ -4345,9 +4345,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 		else if (hashdist)
 			table = __vmalloc(size, GFP_ATOMIC, PAGE_KERNEL);
 		else {
-			unsigned long order;
-			for (order = 0; ((1UL << order) << PAGE_SHIFT) < size; order++)
-				;
+			unsigned long order = get_order(size);
 			table = (void*) __get_free_pages(GFP_ATOMIC, order);
 			/*
 			 * If bucketsize is not a power-of-two, we may free
