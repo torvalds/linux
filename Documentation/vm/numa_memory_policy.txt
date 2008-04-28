@@ -147,35 +147,18 @@ Components of Memory Policies
 
    Linux memory policy supports the following 4 behavioral modes:
 
-	Default Mode--MPOL_DEFAULT:  The behavior specified by this mode is
-	context or scope dependent.
+	Default Mode--MPOL_DEFAULT:  This mode is only used in the memory
+	policy APIs.  Internally, MPOL_DEFAULT is converted to the NULL
+	memory policy in all policy scopes.  Any existing non-default policy
+	will simply be removed when MPOL_DEFAULT is specified.  As a result,
+	MPOL_DEFAULT means "fall back to the next most specific policy scope."
 
-	    As mentioned in the Policy Scope section above, during normal
-	    system operation, the System Default Policy is hard coded to
-	    contain the Default mode.
+	    For example, a NULL or default task policy will fall back to the
+	    system default policy.  A NULL or default vma policy will fall
+	    back to the task policy.
 
-	    In this context, default mode means "local" allocation--that is
-	    attempt to allocate the page from the node associated with the cpu
-	    where the fault occurs.  If the "local" node has no memory, or the
-	    node's memory can be exhausted [no free pages available], local
-	    allocation will "fallback to"--attempt to allocate pages from--
-	    "nearby" nodes, in order of increasing "distance".
-
-		Implementation detail -- subject to change:  "Fallback" uses
-		a per node list of sibling nodes--called zonelists--built at
-		boot time, or when nodes or memory are added or removed from
-		the system [memory hotplug].  These per node zonelist are
-		constructed with nodes in order of increasing distance based
-		on information provided by the platform firmware.
-
-	    When a task/process policy or a shared policy contains the Default
-	    mode, this also means "local allocation", as described above.
-
-	    In the context of a VMA, Default mode means "fall back to task
-	    policy"--which may or may not specify Default mode.  Thus, Default
-	    mode can not be counted on to mean local allocation when used
-	    on a non-shared region of the address space.  However, see
-	    MPOL_PREFERRED below.
+	    When specified in one of the memory policy APIs, the Default mode
+	    does not use the optional set of nodes.
 
 	    It is an error for the set of nodes specified for this policy to
 	    be non-empty.
@@ -187,19 +170,18 @@ Components of Memory Policies
 
 	MPOL_PREFERRED:  This mode specifies that the allocation should be
 	attempted from the single node specified in the policy.  If that
-	allocation fails, the kernel will search other nodes, exactly as
-	it would for a local allocation that started at the preferred node
-	in increasing distance from the preferred node.  "Local" allocation
-	policy can be viewed as a Preferred policy that starts at the node
+	allocation fails, the kernel will search other nodes, in order of
+	increasing distance from the preferred node based on information
+	provided by the platform firmware.
 	containing the cpu where the allocation takes place.
 
 	    Internally, the Preferred policy uses a single node--the
 	    preferred_node member of struct mempolicy.  A "distinguished
 	    value of this preferred_node, currently '-1', is interpreted
 	    as "the node containing the cpu where the allocation takes
-	    place"--local allocation.  This is the way to specify
-	    local allocation for a specific range of addresses--i.e. for
-	    VMA policies.
+	    place"--local allocation.  "Local" allocation policy can be
+	    viewed as a Preferred policy that starts at the node containing
+	    the cpu where the allocation takes place.
 
 	    It is possible for the user to specify that local allocation is
 	    always preferred by passing an empty nodemask with this mode.
