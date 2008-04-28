@@ -1687,10 +1687,12 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 	if (!err || err == 4)
 		info->var = pm2fb_var;
 
-	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0)
+	retval = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (retval < 0)
 		goto err_exit_both;
 
-	if (register_framebuffer(info) < 0)
+	retval = register_framebuffer(info);
+	if (retval < 0)
 		goto err_exit_all;
 
 	printk(KERN_INFO "fb%d: %s frame buffer device, memory = %dK.\n",
