@@ -204,7 +204,7 @@ static struct page *alloc_fresh_huge_page_node(int nid)
 	if (page) {
 		if (arch_prepare_hugepage(page)) {
 			__free_pages(page, HUGETLB_PAGE_ORDER);
-			return 0;
+			return NULL;
 		}
 		set_compound_page_dtor(page, free_huge_page);
 		spin_lock(&hugetlb_lock);
