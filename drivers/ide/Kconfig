@@ -862,40 +862,6 @@ config BLK_DEV_IDE_BAST
 	  Say Y here if you want to support the onboard IDE channels on the
 	  Simtec BAST or the Thorcom VR1000
 
-config ETRAX_IDE
-	tristate "ETRAX IDE support"
-	depends on CRIS && BROKEN
-	select BLK_DEV_IDEDMA
-	help
-	  Enables the ETRAX IDE driver.
-
-	  You can't use parallel ports or SCSI ports at the same time.
-
-config ETRAX_IDE_DELAY
-	int "Delay for drives to regain consciousness"
-	depends on ETRAX_IDE && ETRAX_ARCH_V10
-	default 15
-	help
-	  Number of seconds to wait for IDE drives to spin up after an IDE
-	  reset.
-
-choice
-	prompt "IDE reset pin"
-	depends on ETRAX_IDE && ETRAX_ARCH_V10
-	default ETRAX_IDE_PB7_RESET
-
-config ETRAX_IDE_PB7_RESET
-	bool "Port_PB_Bit_7"
-	help
-	  IDE reset on pin 7 on port B
-
-config ETRAX_IDE_G27_RESET
-	bool "Port_G_Bit_27"
-	help
-	  IDE reset on pin 27 on port G
-
-endchoice
-
 config IDE_H8300
 	tristate "H8300 IDE support"
 	depends on H8300
