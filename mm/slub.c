@@ -207,11 +207,6 @@ static inline void ClearSlabDebug(struct page *page)
 #define __KMALLOC_CACHE		0x20000000 /* objects freed using kfree */
 #define __PAGE_ALLOC_FALLBACK	0x10000000 /* Allow fallback to page alloc */
 
-/* Not all arches define cache_line_size */
-#ifndef cache_line_size
-#define cache_line_size()	L1_CACHE_BYTES
-#endif
-
 static int kmem_size = sizeof(struct kmem_cache);
 
 #ifdef CONFIG_SMP

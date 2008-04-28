@@ -114,6 +114,9 @@ config GENERIC_TIME_VSYSCALL
 config ARCH_HAS_CPU_RELAX
 	def_bool y
 
+config ARCH_HAS_CACHE_LINE_SIZE
+	def_bool y
+
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool X86_64 || (X86_SMP && !X86_VOYAGER)
 
