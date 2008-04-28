@@ -48,8 +48,6 @@
 
 static _auide_hwif auide_hwif;
 
-static int auide_ddma_init(_auide_hwif *auide);
-
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA)
 
 void auide_insw(unsigned long port, void *addr, u32 count)
