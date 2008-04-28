@@ -242,6 +242,11 @@ static int alloc_fresh_huge_page(void)
 		hugetlb_next_nid = next_nid;
 	} while (!page && hugetlb_next_nid != start_nid);
 
+	if (ret)
+		count_vm_event(HTLB_BUDDY_PGALLOC);
+	else
+		count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+
 	return ret;
 }
 
@@ -302,9 +307,11 @@ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
 		 */
 		nr_huge_pages_node[nid]++;
 		surplus_huge_pages_node[nid]++;
+		__count_vm_event(HTLB_BUDDY_PGALLOC);
 	} else {
 		nr_huge_pages--;
 		surplus_huge_pages--;
+		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
 	}
 	spin_unlock(&hugetlb_lock);
 
