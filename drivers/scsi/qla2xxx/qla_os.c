@@ -67,7 +67,7 @@ static void qla2x00_free_device(scsi_qla_host_t *);
 
 static void qla2x00_config_dma_addressing(scsi_qla_host_t *ha);
 
-int ql2xfdmienable;
+int ql2xfdmienable=1;
 module_param(ql2xfdmienable, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registratons "
@@ -2135,7 +2135,7 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	kfree(ha->nvram);
 }
 
-struct qla_work_evt *
+static struct qla_work_evt *
 qla2x00_alloc_work(struct scsi_qla_host *ha, enum qla_work_type type,
     int locked)
 {
@@ -2152,7 +2152,7 @@ qla2x00_alloc_work(struct scsi_qla_host *ha, enum qla_work_type type,
 	return e;
 }
 
-int
+static int
 qla2x00_post_work(struct scsi_qla_host *ha, struct qla_work_evt *e, int locked)
 {
 	unsigned long flags;
@@ -2373,7 +2373,7 @@ qla2x00_do_dpc(void *data)
 					} else {
 						fcport->login_retry = 0;
 					}
-					if (fcport->login_retry == 0)
+					if (fcport->login_retry == 0 && status != QLA_SUCCESS)
 						fcport->loop_id = FC_NO_LOOP_ID;
 				}
 				if (test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags))
@@ -2598,6 +2598,10 @@ qla2x00_timer(scsi_qla_host_t *ha)
 		set_bit(BEACON_BLINK_NEEDED, &ha->dpc_flags);
 		start_dpc++;
 	}
+
+	/* Process any deferred work. */
+	if (!list_empty(&ha->work_list))
+		start_dpc++;
 
 	/* Schedule the DPC routine if needed */
 	if ((test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) ||

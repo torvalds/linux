@@ -340,7 +340,7 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
 	 * Determine system bus clock.
 	 */
 
-	via_clock = system_bus_clock() * 1000;
+	via_clock = (ide_pci_clk ? ide_pci_clk : system_bus_clock()) * 1000;
 
 	switch (via_clock) {
 		case 33000: via_clock = 33333; break;
@@ -415,25 +415,21 @@ static u8 __devinit via82cxxx_cable_detect(ide_hwif_t *hwif)
 		return ATA_CBL_PATA40;
 }
 
-static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
-{
-	hwif->set_pio_mode = &via_set_pio_mode;
-	hwif->set_dma_mode = &via_set_drive;
-
-	hwif->cable_detect = via82cxxx_cable_detect;
-}
+static const struct ide_port_ops via_port_ops = {
+	.set_pio_mode		= via_set_pio_mode,
+	.set_dma_mode		= via_set_drive,
+	.cable_detect		= via82cxxx_cable_detect,
+};
 
 static const struct ide_port_info via82cxxx_chipset __devinitdata = {
 	.name		= "VP_IDE",
 	.init_chipset	= init_chipset_via82cxxx,
-	.init_hwif	= init_hwif_via82cxxx,
 	.enablebits	= { { 0x40, 0x02, 0x02 }, { 0x40, 0x01, 0x01 } },
+	.port_ops	= &via_port_ops,
 	.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |
-			  IDE_HFLAG_PIO_NO_DOWNGRADE |
 			  IDE_HFLAG_ABUSE_SET_DMA_MODE |
 			  IDE_HFLAG_POST_SET_MODE |
-			  IDE_HFLAG_IO_32BIT |
-			  IDE_HFLAG_BOOTABLE,
+			  IDE_HFLAG_IO_32BIT,
 	.pio_mask	= ATA_PIO5,
 	.swdma_mask	= ATA_SWDMA2,
 	.mwdma_mask	= ATA_MWDMA2,

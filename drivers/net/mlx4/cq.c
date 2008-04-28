@@ -180,7 +180,7 @@ int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
 	cq_context->mtt_base_addr_h = mtt_addr >> 32;
 	cq_context->mtt_base_addr_l = cpu_to_be32(mtt_addr & 0xffffffff);
 
-	err = mlx4_MODIFY_CQ(dev, mailbox, cq->cqn, 1);
+	err = mlx4_MODIFY_CQ(dev, mailbox, cq->cqn, 0);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;

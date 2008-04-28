@@ -543,7 +543,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	unsigned long interp_load_addr = 0;
 	unsigned long start_code, end_code, start_data, end_data;
 	unsigned long reloc_func_desc = 0;
-	struct files_struct *files;
 	int executable_stack = EXSTACK_DEFAULT;
 	unsigned long def_flags = 0;
 	struct {
@@ -593,20 +592,9 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 		goto out_free_ph;
 	}
 
-	files = current->files;	/* Refcounted so ok */
-	retval = unshare_files();
-	if (retval < 0)
-		goto out_free_ph;
-	if (files == current->files) {
-		put_files_struct(files);
-		files = NULL;
-	}
-
-	/* exec will make our files private anyway, but for the a.out
-	   loader stuff we need to do it earlier */
 	retval = get_unused_fd();
 	if (retval < 0)
-		goto out_free_fh;
+		goto out_free_ph;
 	get_file(bprm->file);
 	fd_install(elf_exec_fileno = retval, bprm->file);
 
@@ -727,12 +715,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	retval = flush_old_exec(bprm);
 	if (retval)
 		goto out_free_dentry;
-
-	/* Discard our unneeded old files struct */
-	if (files) {
-		put_files_struct(files);
-		files = NULL;
-	}
 
 	/* OK, This is the point of no return */
 	current->flags &= ~PF_FORKNOEXEC;
@@ -1016,9 +998,6 @@ out_free_interp:
 	kfree(elf_interpreter);
 out_free_file:
 	sys_close(elf_exec_fileno);
-out_free_fh:
-	if (files)
-		reset_files_struct(current, files);
 out_free_ph:
 	kfree(elf_phdata);
 	goto out;

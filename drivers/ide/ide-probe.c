@@ -264,6 +264,7 @@ err_misc:
 static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	struct ide_io_ports *io_ports = &hwif->io_ports;
 	int use_altstatus = 0, rc;
 	unsigned long timeout;
 	u8 s = 0, a = 0;
@@ -271,7 +272,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	/* take a deep breath */
 	msleep(50);
 
-	if (hwif->io_ports[IDE_CONTROL_OFFSET]) {
+	if (io_ports->ctl_addr) {
 		a = ide_read_altstatus(drive);
 		s = ide_read_status(drive);
 		if ((a ^ s) & ~INDEX_STAT)
@@ -289,10 +290,10 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	 */
 	if ((cmd == WIN_PIDENTIFY))
 		/* disable dma & overlap */
-		hwif->OUTB(0, hwif->io_ports[IDE_FEATURE_OFFSET]);
+		hwif->OUTB(0, io_ports->feature_addr);
 
 	/* ask drive for ID */
-	hwif->OUTB(cmd, hwif->io_ports[IDE_COMMAND_OFFSET]);
+	hwif->OUTB(cmd, io_ports->command_addr);
 
 	timeout = ((cmd == WIN_IDENTIFY) ? WAIT_WORSTCASE : WAIT_PIDENTIFY) / 2;
 	timeout += jiffies;
@@ -353,7 +354,7 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 	 * interrupts during the identify-phase that
 	 * the irq handler isn't expecting.
 	 */
-	if (hwif->io_ports[IDE_CONTROL_OFFSET]) {
+	if (hwif->io_ports.ctl_addr) {
 		if (!hwif->irq) {
 			autoprobe = 1;
 			cookie = probe_irq_on();
@@ -393,7 +394,7 @@ static int ide_busy_sleep(ide_hwif_t *hwif)
 
 	do {
 		msleep(50);
-		stat = hwif->INB(hwif->io_ports[IDE_STATUS_OFFSET]);
+		stat = hwif->INB(hwif->io_ports.status_addr);
 		if ((stat & BUSY_STAT) == 0)
 			return 0;
 	} while (time_before(jiffies, timeout));
@@ -425,6 +426,7 @@ static int ide_busy_sleep(ide_hwif_t *hwif)
 static int do_probe (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	struct ide_io_ports *io_ports = &hwif->io_ports;
 	int rc;
 	u8 stat;
 
@@ -445,7 +447,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	msleep(50);
 	SELECT_DRIVE(drive);
 	msleep(50);
-	if (hwif->INB(hwif->io_ports[IDE_SELECT_OFFSET]) != drive->select.all &&
+	if (hwif->INB(io_ports->device_addr) != drive->select.all &&
 	    !drive->present) {
 		if (drive->select.b.unit != 0) {
 			/* exit with drive0 selected */
@@ -472,17 +474,13 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 		if (stat == (BUSY_STAT | READY_STAT))
 			return 4;
 
-		if ((rc == 1 && cmd == WIN_PIDENTIFY) &&
-			((drive->autotune == IDE_TUNE_DEFAULT) ||
-			(drive->autotune == IDE_TUNE_AUTO))) {
+		if (rc == 1 && cmd == WIN_PIDENTIFY) {
 			printk(KERN_ERR "%s: no response (status = 0x%02x), "
 					"resetting drive\n", drive->name, stat);
 			msleep(50);
-			hwif->OUTB(drive->select.all,
-				   hwif->io_ports[IDE_SELECT_OFFSET]);
+			hwif->OUTB(drive->select.all, io_ports->device_addr);
 			msleep(50);
-			hwif->OUTB(WIN_SRST,
-				   hwif->io_ports[IDE_COMMAND_OFFSET]);
+			hwif->OUTB(WIN_SRST, io_ports->command_addr);
 			(void)ide_busy_sleep(hwif);
 			rc = try_to_identify(drive, cmd);
 		}
@@ -518,7 +516,7 @@ static void enable_nest (ide_drive_t *drive)
 	printk("%s: enabling %s -- ", hwif->name, drive->id->model);
 	SELECT_DRIVE(drive);
 	msleep(50);
-	hwif->OUTB(EXABYTE_ENABLE_NEST, hwif->io_ports[IDE_COMMAND_OFFSET]);
+	hwif->OUTB(EXABYTE_ENABLE_NEST, hwif->io_ports.command_addr);
 
 	if (ide_busy_sleep(hwif)) {
 		printk(KERN_CONT "failed (timeout)\n");
@@ -644,7 +642,7 @@ static int ide_register_port(ide_hwif_t *hwif)
 	ret = device_register(&hwif->gendev);
 	if (ret < 0) {
 		printk(KERN_WARNING "IDE: %s: device_register error: %d\n",
-			__FUNCTION__, ret);
+			__func__, ret);
 		goto out;
 	}
 
@@ -773,8 +771,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 
 	BUG_ON(hwif->present);
 
-	if (hwif->noprobe ||
-	    (hwif->drives[0].noprobe && hwif->drives[1].noprobe))
+	if (hwif->drives[0].noprobe && hwif->drives[1].noprobe)
 		return -EACCES;
 
 	/*
@@ -801,14 +798,9 @@ static int ide_probe_port(ide_hwif_t *hwif)
 		if (drive->present)
 			rc = 0;
 	}
-	if (hwif->io_ports[IDE_CONTROL_OFFSET] && hwif->reset) {
-		printk(KERN_WARNING "%s: reset\n", hwif->name);
-		hwif->OUTB(12, hwif->io_ports[IDE_CONTROL_OFFSET]);
-		udelay(10);
-		hwif->OUTB(8, hwif->io_ports[IDE_CONTROL_OFFSET]);
-		(void)ide_busy_sleep(hwif);
-	}
+
 	local_irq_restore(flags);
+
 	/*
 	 * Use cached IRQ number. It might be (and is...) changed by probe
 	 * code above
@@ -821,29 +813,25 @@ static int ide_probe_port(ide_hwif_t *hwif)
 
 static void ide_port_tune_devices(ide_hwif_t *hwif)
 {
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 	int unit;
 
 	for (unit = 0; unit < MAX_DRIVES; unit++) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
-		if (drive->present && hwif->quirkproc)
-			hwif->quirkproc(drive);
+		if (drive->present && port_ops && port_ops->quirkproc)
+			port_ops->quirkproc(drive);
 	}
 
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
 		if (drive->present) {
-			if (drive->autotune == IDE_TUNE_AUTO)
-				ide_set_max_pio(drive);
-
-			if (drive->autotune != IDE_TUNE_DEFAULT &&
-			    drive->autotune != IDE_TUNE_AUTO)
-				continue;
+			ide_set_max_pio(drive);
 
 			drive->nice1 = 1;
 
-			if (hwif->dma_host_set)
+			if (hwif->dma_ops)
 				ide_set_dma(drive);
 		}
 	}
@@ -994,6 +982,7 @@ static void ide_port_setup_devices(ide_hwif_t *hwif)
  */
 static int init_irq (ide_hwif_t *hwif)
 {
+	struct ide_io_ports *io_ports = &hwif->io_ports;
 	unsigned int index;
 	ide_hwgroup_t *hwgroup;
 	ide_hwif_t *match = NULL;
@@ -1077,9 +1066,9 @@ static int init_irq (ide_hwif_t *hwif)
 		if (IDE_CHIPSET_IS_PCI(hwif->chipset))
 			sa = IRQF_SHARED;
 
-		if (hwif->io_ports[IDE_CONTROL_OFFSET])
+		if (io_ports->ctl_addr)
 			/* clear nIEN */
-			hwif->OUTB(0x08, hwif->io_ports[IDE_CONTROL_OFFSET]);
+			hwif->OUTB(0x08, io_ports->ctl_addr);
 
 		if (request_irq(hwif->irq,&ide_intr,sa,hwif->name,hwgroup))
 	       		goto out_unlink;
@@ -1095,12 +1084,11 @@ static int init_irq (ide_hwif_t *hwif)
 
 #if !defined(__mc68000__)
 	printk("%s at 0x%03lx-0x%03lx,0x%03lx on irq %d", hwif->name,
-		hwif->io_ports[IDE_DATA_OFFSET],
-		hwif->io_ports[IDE_DATA_OFFSET]+7,
-		hwif->io_ports[IDE_CONTROL_OFFSET], hwif->irq);
+		io_ports->data_addr, io_ports->status_addr,
+		io_ports->ctl_addr, hwif->irq);
 #else
 	printk("%s at 0x%08lx on irq %d", hwif->name,
-		hwif->io_ports[IDE_DATA_OFFSET], hwif->irq);
+		io_ports->data_addr, hwif->irq);
 #endif /* __mc68000__ */
 	if (match)
 		printk(" (%sed with %s)",
@@ -1242,8 +1230,8 @@ static int hwif_init(ide_hwif_t *hwif)
 	int old_irq;
 
 	if (!hwif->irq) {
-		if (!(hwif->irq = ide_default_irq(hwif->io_ports[IDE_DATA_OFFSET])))
-		{
+		hwif->irq = ide_default_irq(hwif->io_ports.data_addr);
+		if (!hwif->irq) {
 			printk("%s: DISABLED, NO IRQ\n", hwif->name);
 			return 0;
 		}
@@ -1272,7 +1260,8 @@ static int hwif_init(ide_hwif_t *hwif)
 	 *	It failed to initialise. Find the default IRQ for 
 	 *	this port and try that.
 	 */
-	if (!(hwif->irq = ide_default_irq(hwif->io_ports[IDE_DATA_OFFSET]))) {
+	hwif->irq = ide_default_irq(hwif->io_ports.data_addr);
+	if (!hwif->irq) {
 		printk("%s: Disabled unable to get IRQ %d.\n",
 			hwif->name, old_irq);
 		goto out;
@@ -1324,6 +1313,7 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 
 static void ide_port_init_devices(ide_hwif_t *hwif)
 {
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 	int i;
 
 	for (i = 0; i < MAX_DRIVES; i++) {
@@ -1335,12 +1325,10 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 			drive->unmask = 1;
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
 			drive->no_unmask = 1;
-		if ((hwif->host_flags & IDE_HFLAG_NO_AUTOTUNE) == 0)
-			drive->autotune = 1;
 	}
 
-	if (hwif->port_init_devs)
-		hwif->port_init_devs(hwif);
+	if (port_ops && port_ops->port_init_devs)
+		port_ops->port_init_devs(hwif);
 }
 
 static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
@@ -1355,9 +1343,6 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	if (d->init_iops)
 		d->init_iops(hwif);
 
-	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0)
-		ide_hwif_setup_dma(hwif, d);
-
 	if ((!hwif->irq && (d->host_flags & IDE_HFLAG_LEGACY_IRQS)) ||
 	    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS))
 		hwif->irq = port ? 15 : 14;
@@ -1365,16 +1350,36 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	hwif->host_flags = d->host_flags;
 	hwif->pio_mask = d->pio_mask;
 
-	if ((d->host_flags & IDE_HFLAG_SERIALIZE) && hwif->mate)
-		hwif->mate->serialized = hwif->serialized = 1;
+	/* ->set_pio_mode for DTC2278 is currently limited to port 0 */
+	if (hwif->chipset != ide_dtc2278 || hwif->channel == 0)
+		hwif->port_ops = d->port_ops;
+
+	if ((d->host_flags & IDE_HFLAG_SERIALIZE) ||
+	    ((d->host_flags & IDE_HFLAG_SERIALIZE_DMA) && hwif->dma_base)) {
+		if (hwif->mate)
+			hwif->mate->serialized = hwif->serialized = 1;
+	}
 
 	hwif->swdma_mask = d->swdma_mask;
 	hwif->mwdma_mask = d->mwdma_mask;
 	hwif->ultra_mask = d->udma_mask;
 
-	/* reset DMA masks only for SFF-style DMA controllers */
-	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0 && hwif->dma_base == 0)
-		hwif->swdma_mask = hwif->mwdma_mask = hwif->ultra_mask = 0;
+	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0) {
+		int rc;
+
+		if (d->init_dma)
+			rc = d->init_dma(hwif, d);
+		else
+			rc = ide_hwif_setup_dma(hwif, d);
+
+		if (rc < 0) {
+			printk(KERN_INFO "%s: DMA disabled\n", hwif->name);
+			hwif->swdma_mask = 0;
+			hwif->mwdma_mask = 0;
+			hwif->ultra_mask = 0;
+		} else if (d->dma_ops)
+			hwif->dma_ops = d->dma_ops;
+	}
 
 	if (d->host_flags & IDE_HFLAG_RQSIZE_256)
 		hwif->rqsize = 256;
@@ -1386,9 +1391,11 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 
 static void ide_port_cable_detect(ide_hwif_t *hwif)
 {
-	if (hwif->cable_detect && (hwif->ultra_mask & 0x78)) {
+	const struct ide_port_ops *port_ops = hwif->port_ops;
+
+	if (port_ops && port_ops->cable_detect && (hwif->ultra_mask & 0x78)) {
 		if (hwif->cbl != ATA_CBL_PATA40_SHORT)
-			hwif->cbl = hwif->cable_detect(hwif);
+			hwif->cbl = port_ops->cable_detect(hwif);
 	}
 }
 
@@ -1444,18 +1451,73 @@ static int ide_sysfs_register_port(ide_hwif_t *hwif)
 	return rc;
 }
 
+/**
+ *	ide_find_port_slot	-	find free ide_hwifs[] slot
+ *	@d: IDE port info
+ *
+ *	Return the new hwif.  If we are out of free slots return NULL.
+ */
+
+ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
+{
+	ide_hwif_t *hwif;
+	int i;
+	u8 bootable = (d && (d->host_flags & IDE_HFLAG_NON_BOOTABLE)) ? 0 : 1;
+
+	/*
+	 * Claim an unassigned slot.
+	 *
+	 * Give preference to claiming other slots before claiming ide0/ide1,
+	 * just in case there's another interface yet-to-be-scanned
+	 * which uses ports 0x1f0/0x170 (the ide0/ide1 defaults).
+	 *
+	 * Unless there is a bootable card that does not use the standard
+	 * ports 0x1f0/0x170 (the ide0/ide1 defaults).
+	 */
+	if (bootable) {
+		i = (d && (d->host_flags & IDE_HFLAG_QD_2ND_PORT)) ? 1 : 0;
+
+		for (; i < MAX_HWIFS; i++) {
+			hwif = &ide_hwifs[i];
+			if (hwif->chipset == ide_unknown)
+				return hwif;
+		}
+	} else {
+		for (i = 2; i < MAX_HWIFS; i++) {
+			hwif = &ide_hwifs[i];
+			if (hwif->chipset == ide_unknown)
+				return hwif;
+		}
+		for (i = 0; i < 2 && i < MAX_HWIFS; i++) {
+			hwif = &ide_hwifs[i];
+			if (hwif->chipset == ide_unknown)
+				return hwif;
+		}
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(ide_find_port_slot);
+
 int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 {
 	ide_hwif_t *hwif, *mate = NULL;
 	int i, rc = 0;
 
 	for (i = 0; i < MAX_HWIFS; i++) {
-		if (d == NULL || idx[i] == 0xff) {
+		if (idx[i] == 0xff) {
 			mate = NULL;
 			continue;
 		}
 
 		hwif = &ide_hwifs[idx[i]];
+
+		ide_port_apply_params(hwif);
+
+		if (d == NULL) {
+			mate = NULL;
+			continue;
+		}
 
 		if (d->chipset != ide_etrax100 && (i & 1) && mate) {
 			hwif->mate = mate;
@@ -1475,25 +1537,15 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 
 		hwif = &ide_hwifs[idx[i]];
 
-		if ((hwif->chipset != ide_4drives || !hwif->mate ||
-		     !hwif->mate->present) && ide_hwif_request_regions(hwif)) {
-			printk(KERN_ERR "%s: ports already in use, "
-					"skipping probe\n", hwif->name);
-			continue;
-		}
-
-		if (ide_probe_port(hwif) < 0) {
-			ide_hwif_release_regions(hwif);
-			continue;
-		}
-
-		hwif->present = 1;
+		if (ide_probe_port(hwif) == 0)
+			hwif->present = 1;
 
 		if (hwif->chipset != ide_4drives || !hwif->mate ||
 		    !hwif->mate->present)
 			ide_register_port(hwif);
 
-		ide_port_tune_devices(hwif);
+		if (hwif->present)
+			ide_port_tune_devices(hwif);
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
@@ -1501,9 +1553,6 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			continue;
 
 		hwif = &ide_hwifs[idx[i]];
-
-		if (!hwif->present)
-			continue;
 
 		if (hwif_init(hwif) == 0) {
 			printk(KERN_INFO "%s: failed to initialize IDE "
@@ -1513,10 +1562,13 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			continue;
 		}
 
-		ide_port_setup_devices(hwif);
+		if (hwif->present)
+			ide_port_setup_devices(hwif);
 
 		ide_acpi_init(hwif);
-		ide_acpi_port_init_devices(hwif);
+
+		if (hwif->present)
+			ide_acpi_port_init_devices(hwif);
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
@@ -1525,11 +1577,11 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 
 		hwif = &ide_hwifs[idx[i]];
 
-		if (hwif->present) {
-			if (hwif->chipset == ide_unknown)
-				hwif->chipset = ide_generic;
+		if (hwif->chipset == ide_unknown)
+			hwif->chipset = ide_generic;
+
+		if (hwif->present)
 			hwif_register_devices(hwif);
-		}
 	}
 
 	for (i = 0; i < MAX_HWIFS; i++) {
@@ -1538,11 +1590,11 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 
 		hwif = &ide_hwifs[idx[i]];
 
-		if (hwif->present) {
-			ide_sysfs_register_port(hwif);
-			ide_proc_register_port(hwif);
+		ide_sysfs_register_port(hwif);
+		ide_proc_register_port(hwif);
+
+		if (hwif->present)
 			ide_proc_port_register_devices(hwif);
-		}
 	}
 
 	return rc;
@@ -1563,6 +1615,7 @@ EXPORT_SYMBOL_GPL(ide_device_add);
 
 void ide_port_scan(ide_hwif_t *hwif)
 {
+	ide_port_apply_params(hwif);
 	ide_port_cable_detect(hwif);
 	ide_port_init_devices(hwif);
 
@@ -1578,3 +1631,67 @@ void ide_port_scan(ide_hwif_t *hwif)
 	ide_proc_port_register_devices(hwif);
 }
 EXPORT_SYMBOL_GPL(ide_port_scan);
+
+static void ide_legacy_init_one(u8 *idx, hw_regs_t *hw, u8 port_no,
+				const struct ide_port_info *d,
+				unsigned long config)
+{
+	ide_hwif_t *hwif;
+	unsigned long base, ctl;
+	int irq;
+
+	if (port_no == 0) {
+		base = 0x1f0;
+		ctl  = 0x3f6;
+		irq  = 14;
+	} else {
+		base = 0x170;
+		ctl  = 0x376;
+		irq  = 15;
+	}
+
+	if (!request_region(base, 8, d->name)) {
+		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
+				d->name, base, base + 7);
+		return;
+	}
+
+	if (!request_region(ctl, 1, d->name)) {
+		printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
+				d->name, ctl);
+		release_region(base, 8);
+		return;
+	}
+
+	ide_std_init_ports(hw, base, ctl);
+	hw->irq = irq;
+
+	hwif = ide_find_port_slot(d);
+	if (hwif) {
+		ide_init_port_hw(hwif, hw);
+		if (config)
+			hwif->config_data = config;
+		idx[port_no] = hwif->index;
+	}
+}
+
+int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)
+{
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw[2];
+
+	memset(&hw, 0, sizeof(hw));
+
+	if ((d->host_flags & IDE_HFLAG_QD_2ND_PORT) == 0)
+		ide_legacy_init_one(idx, &hw[0], 0, d, config);
+	ide_legacy_init_one(idx, &hw[1], 1, d, config);
+
+	if (idx[0] == 0xff && idx[1] == 0xff &&
+	    (d->host_flags & IDE_HFLAG_SINGLE))
+		return -ENOENT;
+
+	ide_device_add(idx, d);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ide_legacy_device_add);

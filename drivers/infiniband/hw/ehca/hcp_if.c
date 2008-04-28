@@ -123,8 +123,9 @@ static long ehca_plpar_hcall_norets(unsigned long opcode,
 	int i, sleep_msecs;
 	unsigned long flags = 0;
 
-	ehca_gen_dbg("opcode=%lx " HCALL7_REGS_FORMAT,
-		     opcode, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+	if (unlikely(ehca_debug_level >= 2))
+		ehca_gen_dbg("opcode=%lx " HCALL7_REGS_FORMAT,
+			     opcode, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 
 	for (i = 0; i < 5; i++) {
 		/* serialize hCalls to work around firmware issue */
@@ -148,7 +149,8 @@ static long ehca_plpar_hcall_norets(unsigned long opcode,
 				     opcode, ret, arg1, arg2, arg3,
 				     arg4, arg5, arg6, arg7);
 		else
-			ehca_gen_dbg("opcode=%lx ret=%li", opcode, ret);
+			if (unlikely(ehca_debug_level >= 2))
+				ehca_gen_dbg("opcode=%lx ret=%li", opcode, ret);
 
 		return ret;
 	}
@@ -172,8 +174,10 @@ static long ehca_plpar_hcall9(unsigned long opcode,
 	int i, sleep_msecs;
 	unsigned long flags = 0;
 
-	ehca_gen_dbg("INPUT -- opcode=%lx " HCALL9_REGS_FORMAT, opcode,
-		     arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+	if (unlikely(ehca_debug_level >= 2))
+		ehca_gen_dbg("INPUT -- opcode=%lx " HCALL9_REGS_FORMAT, opcode,
+			     arg1, arg2, arg3, arg4, arg5,
+			     arg6, arg7, arg8, arg9);
 
 	for (i = 0; i < 5; i++) {
 		/* serialize hCalls to work around firmware issue */
@@ -201,7 +205,7 @@ static long ehca_plpar_hcall9(unsigned long opcode,
 				     ret, outs[0], outs[1], outs[2], outs[3],
 				     outs[4], outs[5], outs[6], outs[7],
 				     outs[8]);
-		} else
+		} else if (unlikely(ehca_debug_level >= 2))
 			ehca_gen_dbg("OUTPUT -- ret=%li " HCALL9_REGS_FORMAT,
 				     ret, outs[0], outs[1], outs[2], outs[3],
 				     outs[4], outs[5], outs[6], outs[7],
@@ -381,7 +385,7 @@ u64 hipz_h_query_port(const struct ipz_adapter_handle adapter_handle,
 				      r_cb,	             /* r6 */
 				      0, 0, 0, 0);
 
-	if (ehca_debug_level)
+	if (ehca_debug_level >= 2)
 		ehca_dmp(query_port_response_block, 64, "response_block");
 
 	return ret;
@@ -731,9 +735,6 @@ u64 hipz_h_alloc_resource_mr(const struct ipz_adapter_handle adapter_handle,
 	u64 ret;
 	u64 outs[PLPAR_HCALL9_BUFSIZE];
 
-	ehca_gen_dbg("kernel PAGE_SIZE=%x access_ctrl=%016x "
-		     "vaddr=%lx length=%lx",
-		     (u32)PAGE_SIZE, access_ctrl, vaddr, length);
 	ret = ehca_plpar_hcall9(H_ALLOC_RESOURCE, outs,
 				adapter_handle.handle,            /* r4 */
 				5,                                /* r5 */
@@ -758,7 +759,7 @@ u64 hipz_h_register_rpage_mr(const struct ipz_adapter_handle adapter_handle,
 {
 	u64 ret;
 
-	if (unlikely(ehca_debug_level >= 2)) {
+	if (unlikely(ehca_debug_level >= 3)) {
 		if (count > 1) {
 			u64 *kpage;
 			int i;

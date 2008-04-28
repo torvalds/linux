@@ -7,7 +7,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <asm/unaligned.h>
 #include "mesh.h"
 
 #define TEST_FRAME_LEN	8192

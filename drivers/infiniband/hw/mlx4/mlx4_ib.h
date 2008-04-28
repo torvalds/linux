@@ -43,24 +43,6 @@
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
 
-enum {
-	MLX4_IB_DB_PER_PAGE	= PAGE_SIZE / 4
-};
-
-struct mlx4_ib_db_pgdir;
-struct mlx4_ib_user_db_page;
-
-struct mlx4_ib_db {
-	__be32		       *db;
-	union {
-		struct mlx4_ib_db_pgdir	       *pgdir;
-		struct mlx4_ib_user_db_page    *user_page;
-	}			u;
-	dma_addr_t		dma;
-	int			index;
-	int			order;
-};
-
 struct mlx4_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct mlx4_uar		uar;
@@ -88,7 +70,7 @@ struct mlx4_ib_cq {
 	struct mlx4_cq		mcq;
 	struct mlx4_ib_cq_buf	buf;
 	struct mlx4_ib_cq_resize *resize_buf;
-	struct mlx4_ib_db	db;
+	struct mlx4_db		db;
 	spinlock_t		lock;
 	struct mutex		resize_mutex;
 	struct ib_umem	       *umem;
@@ -127,7 +109,7 @@ struct mlx4_ib_qp {
 	struct mlx4_qp		mqp;
 	struct mlx4_buf		buf;
 
-	struct mlx4_ib_db	db;
+	struct mlx4_db		db;
 	struct mlx4_ib_wq	rq;
 
 	u32			doorbell_qpn;
@@ -154,7 +136,7 @@ struct mlx4_ib_srq {
 	struct ib_srq		ibsrq;
 	struct mlx4_srq		msrq;
 	struct mlx4_buf		buf;
-	struct mlx4_ib_db	db;
+	struct mlx4_db		db;
 	u64		       *wrid;
 	spinlock_t		lock;
 	int			head;
@@ -174,9 +156,6 @@ struct mlx4_ib_dev {
 	struct ib_device	ib_dev;
 	struct mlx4_dev	       *dev;
 	void __iomem	       *uar_map;
-
-	struct list_head	pgdir_list;
-	struct mutex		pgdir_mutex;
 
 	struct mlx4_uar		priv_uar;
 	u32			priv_pdn;
@@ -248,11 +227,9 @@ static inline struct mlx4_ib_ah *to_mah(struct ib_ah *ibah)
 	return container_of(ibah, struct mlx4_ib_ah, ibah);
 }
 
-int mlx4_ib_db_alloc(struct mlx4_ib_dev *dev, struct mlx4_ib_db *db, int order);
-void mlx4_ib_db_free(struct mlx4_ib_dev *dev, struct mlx4_ib_db *db);
 int mlx4_ib_db_map_user(struct mlx4_ib_ucontext *context, unsigned long virt,
-			struct mlx4_ib_db *db);
-void mlx4_ib_db_unmap_user(struct mlx4_ib_ucontext *context, struct mlx4_ib_db *db);
+			struct mlx4_db *db);
+void mlx4_ib_db_unmap_user(struct mlx4_ib_ucontext *context, struct mlx4_db *db);
 
 struct ib_mr *mlx4_ib_get_dma_mr(struct ib_pd *pd, int acc);
 int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,

@@ -96,7 +96,7 @@ static int i830_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 	drm_i830_buf_priv_t *buf_priv;
 
 	lock_kernel();
-	dev = priv->head->dev;
+	dev = priv->minor->dev;
 	dev_priv = dev->dev_private;
 	buf = dev_priv->mmap_buffer;
 	buf_priv = buf->dev_private;
@@ -124,7 +124,7 @@ static const struct file_operations i830_buffer_fops = {
 
 static int i830_map_buffer(struct drm_buf * buf, struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->head->dev;
+	struct drm_device *dev = file_priv->minor->dev;
 	drm_i830_buf_priv_t *buf_priv = buf->dev_private;
 	drm_i830_private_t *dev_priv = dev->dev_private;
 	const struct file_operations *old_fops;

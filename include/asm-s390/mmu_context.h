@@ -20,7 +20,13 @@ static inline int init_new_context(struct task_struct *tsk,
 #ifdef CONFIG_64BIT
 	mm->context.asce_bits |= _ASCE_TYPE_REGION3;
 #endif
-	mm->context.noexec = s390_noexec;
+	if (current->mm->context.pgstes) {
+		mm->context.noexec = 0;
+		mm->context.pgstes = 1;
+	} else {
+		mm->context.noexec = s390_noexec;
+		mm->context.pgstes = 0;
+	}
 	mm->context.asce_limit = STACK_TOP_MAX;
 	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
 	return 0;

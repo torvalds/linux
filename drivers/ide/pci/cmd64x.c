@@ -68,8 +68,8 @@ static u8 quantize_timing(int timing, int quant)
  */
 static void program_cycle_times (ide_drive_t *drive, int cycle_time, int active_time)
 {
-	struct pci_dev *dev	= to_pci_dev(drive->hwif->dev);
-	int clock_time		= 1000 / system_bus_clock();
+	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
+	int clock_time = 1000 / (ide_pci_clk ? ide_pci_clk : system_bus_clock());
 	u8  cycle_count, active_count, recovery_count, drwtim;
 	static const u8 recovery_values[] =
 		{15, 15, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0};
@@ -128,7 +128,7 @@ static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 			    ide_pio_timings[pio].active_time);
 
 	setup_count = quantize_timing(ide_pio_timings[pio].setup_time,
-				      1000 / system_bus_clock());
+			1000 / (ide_pci_clk ? ide_pci_clk : system_bus_clock()));
 
 	/*
 	 * The primary channel has individual address setup timing registers
@@ -223,7 +223,7 @@ static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		(void) pci_write_config_byte(dev, pciU, regU);
 }
 
-static int cmd648_ide_dma_end (ide_drive_t *drive)
+static int cmd648_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long base	= hwif->dma_base - (hwif->channel * 8);
@@ -239,7 +239,7 @@ static int cmd648_ide_dma_end (ide_drive_t *drive)
 	return err;
 }
 
-static int cmd64x_ide_dma_end (ide_drive_t *drive)
+static int cmd64x_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
@@ -256,7 +256,7 @@ static int cmd64x_ide_dma_end (ide_drive_t *drive)
 	return err;
 }
 
-static int cmd648_ide_dma_test_irq (ide_drive_t *drive)
+static int cmd648_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long base	= hwif->dma_base - (hwif->channel * 8);
@@ -279,7 +279,7 @@ static int cmd648_ide_dma_test_irq (ide_drive_t *drive)
 	return 0;
 }
 
-static int cmd64x_ide_dma_test_irq (ide_drive_t *drive)
+static int cmd64x_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
@@ -310,7 +310,7 @@ static int cmd64x_ide_dma_test_irq (ide_drive_t *drive)
  * event order for DMA transfers.
  */
 
-static int cmd646_1_ide_dma_end (ide_drive_t *drive)
+static int cmd646_1_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	u8 dma_stat = 0, dma_cmd = 0;
@@ -370,7 +370,7 @@ static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev, const cha
 	return 0;
 }
 
-static u8 __devinit ata66_cmd64x(ide_hwif_t *hwif)
+static u8 __devinit cmd64x_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev  *dev	= to_pci_dev(hwif->dev);
 	u8 bmidecsr = 0, mask	= hwif->channel ? 0x02 : 0x01;
@@ -385,91 +385,85 @@ static u8 __devinit ata66_cmd64x(ide_hwif_t *hwif)
 	}
 }
 
-static void __devinit init_hwif_cmd64x(ide_hwif_t *hwif)
-{
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
+static const struct ide_port_ops cmd64x_port_ops = {
+	.set_pio_mode		= cmd64x_set_pio_mode,
+	.set_dma_mode		= cmd64x_set_dma_mode,
+	.cable_detect		= cmd64x_cable_detect,
+};
 
-	hwif->set_pio_mode = &cmd64x_set_pio_mode;
-	hwif->set_dma_mode = &cmd64x_set_dma_mode;
+static const struct ide_dma_ops cmd64x_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
+	.dma_end		= cmd64x_dma_end,
+	.dma_test_irq		= cmd64x_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
+};
 
-	hwif->cable_detect = ata66_cmd64x;
+static const struct ide_dma_ops cmd646_rev1_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
+	.dma_end		= cmd646_1_dma_end,
+	.dma_test_irq		= ide_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
+};
 
-	if (!hwif->dma_base)
-		return;
-
-	/*
-	 * UltraDMA only supported on PCI646U and PCI646U2, which
-	 * correspond to revisions 0x03, 0x05 and 0x07 respectively.
-	 * Actually, although the CMD tech support people won't
-	 * tell me the details, the 0x03 revision cannot support
-	 * UDMA correctly without hardware modifications, and even
-	 * then it only works with Quantum disks due to some
-	 * hold time assumptions in the 646U part which are fixed
-	 * in the 646U2.
-	 *
-	 * So we only do UltraDMA on revision 0x05 and 0x07 chipsets.
-	 */
-	if (dev->device == PCI_DEVICE_ID_CMD_646 && dev->revision < 5)
-		hwif->ultra_mask = 0x00;
-
-	switch (dev->device) {
-	case PCI_DEVICE_ID_CMD_648:
-	case PCI_DEVICE_ID_CMD_649:
-	alt_irq_bits:
-		hwif->ide_dma_end	= &cmd648_ide_dma_end;
-		hwif->ide_dma_test_irq	= &cmd648_ide_dma_test_irq;
-		break;
-	case PCI_DEVICE_ID_CMD_646:
-		if (dev->revision == 0x01) {
-			hwif->ide_dma_end = &cmd646_1_ide_dma_end;
-			break;
-		} else if (dev->revision >= 0x03)
-			goto alt_irq_bits;
-		/* fall thru */
-	default:
-		hwif->ide_dma_end	= &cmd64x_ide_dma_end;
-		hwif->ide_dma_test_irq	= &cmd64x_ide_dma_test_irq;
-		break;
-	}
-}
+static const struct ide_dma_ops cmd648_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
+	.dma_end		= cmd648_dma_end,
+	.dma_test_irq		= cmd648_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
+};
 
 static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 	{	/* 0 */
 		.name		= "CMD643",
 		.init_chipset	= init_chipset_cmd64x,
-		.init_hwif	= init_hwif_cmd64x,
 		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x08,0x08}},
+		.port_ops	= &cmd64x_port_ops,
+		.dma_ops	= &cmd64x_dma_ops,
 		.host_flags	= IDE_HFLAG_CLEAR_SIMPLEX |
-				  IDE_HFLAG_ABUSE_PREFETCH |
-				  IDE_HFLAG_BOOTABLE,
+				  IDE_HFLAG_ABUSE_PREFETCH,
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= 0x00, /* no udma */
 	},{	/* 1 */
 		.name		= "CMD646",
 		.init_chipset	= init_chipset_cmd64x,
-		.init_hwif	= init_hwif_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.chipset	= ide_cmd646,
-		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH | IDE_HFLAG_BOOTABLE,
+		.port_ops	= &cmd64x_port_ops,
+		.dma_ops	= &cmd648_dma_ops,
+		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH,
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA2,
 	},{	/* 2 */
 		.name		= "CMD648",
 		.init_chipset	= init_chipset_cmd64x,
-		.init_hwif	= init_hwif_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
-		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH | IDE_HFLAG_BOOTABLE,
+		.port_ops	= &cmd64x_port_ops,
+		.dma_ops	= &cmd648_dma_ops,
+		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH,
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA4,
 	},{	/* 3 */
 		.name		= "CMD649",
 		.init_chipset	= init_chipset_cmd64x,
-		.init_hwif	= init_hwif_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
-		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH | IDE_HFLAG_BOOTABLE,
+		.port_ops	= &cmd64x_port_ops,
+		.dma_ops	= &cmd648_dma_ops,
+		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH,
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -483,12 +477,35 @@ static int __devinit cmd64x_init_one(struct pci_dev *dev, const struct pci_devic
 
 	d = cmd64x_chipsets[idx];
 
-	/*
-	 * The original PCI0646 didn't have the primary channel enable bit,
-	 * it appeared starting with PCI0646U (i.e. revision ID 3).
-	 */
-	if (idx == 1 && dev->revision < 3)
-		d.enablebits[0].reg = 0;
+	if (idx == 1) {
+		/*
+		 * UltraDMA only supported on PCI646U and PCI646U2, which
+		 * correspond to revisions 0x03, 0x05 and 0x07 respectively.
+		 * Actually, although the CMD tech support people won't
+		 * tell me the details, the 0x03 revision cannot support
+		 * UDMA correctly without hardware modifications, and even
+		 * then it only works with Quantum disks due to some
+		 * hold time assumptions in the 646U part which are fixed
+		 * in the 646U2.
+		 *
+		 * So we only do UltraDMA on revision 0x05 and 0x07 chipsets.
+		 */
+		if (dev->revision < 5) {
+			d.udma_mask = 0x00;
+			/*
+			 * The original PCI0646 didn't have the primary
+			 * channel enable bit, it appeared starting with
+			 * PCI0646U (i.e. revision ID 3).
+			 */
+			if (dev->revision < 3) {
+				d.enablebits[0].reg = 0;
+				if (dev->revision == 1)
+					d.dma_ops = &cmd646_rev1_dma_ops;
+				else
+					d.dma_ops = &cmd64x_dma_ops;
+			}
+		}
+	}
 
 	return ide_setup_pci_device(dev, &d);
 }

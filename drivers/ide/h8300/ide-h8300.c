@@ -63,9 +63,9 @@ static inline void hw_setup(hw_regs_t *hw)
 	int i;
 
 	memset(hw, 0, sizeof(hw_regs_t));
-	for (i = 0; i <= IDE_STATUS_OFFSET; i++)
-		hw->io_ports[i] = CONFIG_H8300_IDE_BASE + H8300_IDE_GAP*i;
-	hw->io_ports[IDE_CONTROL_OFFSET] = CONFIG_H8300_IDE_ALT;
+	for (i = 0; i <= 7; i++)
+		hw->io_ports_array[i] = CONFIG_H8300_IDE_BASE + H8300_IDE_GAP*i;
+	hw->io_ports.ctl_addr = CONFIG_H8300_IDE_ALT;
 	hw->irq = EXT_IRQ0 + CONFIG_H8300_IDE_IRQ;
 	hw->chipset = ide_generic;
 }
@@ -74,7 +74,6 @@ static inline void hwif_setup(ide_hwif_t *hwif)
 {
 	default_hwif_iops(hwif);
 
-	hwif->mmio  = 1;
 	hwif->OUTW  = mm_outw;
 	hwif->OUTSW = mm_outsw;
 	hwif->INW   = mm_inw;
@@ -99,8 +98,7 @@ static int __init h8300_ide_init(void)
 
 	hw_setup(&hw);
 
-	/* register if */
-	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif == NULL) {
 		printk(KERN_ERR "ide-h8300: IDE I/F register failed\n");
 		return -ENOENT;

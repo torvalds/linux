@@ -396,7 +396,7 @@ static void idefloppy_retry_pc(ide_drive_t *drive)
 }
 
 /* The usual interrupt handler called during a packet command. */
-static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
+static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
@@ -411,7 +411,7 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	debug_log("Reached %s interrupt handler\n", __func__);
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
-		dma_error = hwif->ide_dma_end(drive);
+		dma_error = hwif->dma_ops->dma_end(drive);
 		if (dma_error) {
 			printk(KERN_ERR "%s: DMA %s error\n", drive->name,
 					rq_data_dir(rq) ? "write" : "read");
@@ -465,10 +465,10 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	}
 
 	/* Get the number of bytes to transfer */
-	bcount = (hwif->INB(hwif->io_ports[IDE_BCOUNTH_OFFSET]) << 8) |
-		  hwif->INB(hwif->io_ports[IDE_BCOUNTL_OFFSET]);
+	bcount = (hwif->INB(hwif->io_ports.lbah_addr) << 8) |
+		  hwif->INB(hwif->io_ports.lbam_addr);
 	/* on this interrupt */
-	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]);
+	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 
 	if (ireason & CD) {
 		printk(KERN_ERR "ide-floppy: CoD != 0 in %s\n", __func__);
@@ -539,7 +539,7 @@ static ide_startstop_t idefloppy_transfer_pc(ide_drive_t *drive)
 				"initiated yet DRQ isn't asserted\n");
 		return startstop;
 	}
-	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]);
+	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 	if ((ireason & CD) == 0 || (ireason & IO)) {
 		printk(KERN_ERR "ide-floppy: (IO,CoD) != (0,1) while "
 				"issuing a packet command\n");
@@ -586,7 +586,7 @@ static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 				"initiated yet DRQ isn't asserted\n");
 		return startstop;
 	}
-	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]);
+	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 	if ((ireason & CD) == 0 || (ireason & IO)) {
 		printk(KERN_ERR "ide-floppy: (IO,CoD) != (0,1) "
 				"while issuing a packet command\n");
@@ -663,7 +663,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 	dma = 0;
 
 	if ((pc->flags & PC_FLAG_DMA_RECOMMENDED) && drive->using_dma)
-		dma = !hwif->dma_setup(drive);
+		dma = !hwif->dma_ops->dma_setup(drive);
 
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_NO_SELECT_MASK |
 			   IDE_TFLAG_OUT_DEVICE, bcount, dma);
@@ -671,7 +671,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 	if (dma) {
 		/* Begin DMA, if necessary */
 		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
-		hwif->dma_start(drive);
+		hwif->dma_ops->dma_start(drive);
 	}
 
 	/* Can we transfer the packet when we get the interrupt or wait? */
@@ -692,7 +692,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		return ide_started;
 	} else {
 		/* Issue the packet command */
-		hwif->OUTB(WIN_PACKETCMD, hwif->io_ports[IDE_COMMAND_OFFSET]);
+		hwif->OUTB(WIN_PACKETCMD, hwif->io_ports.command_addr);
 		return (*pkt_xfer_routine) (drive);
 	}
 }
@@ -1596,13 +1596,13 @@ static int idefloppy_revalidate_disk(struct gendisk *disk)
 }
 
 static struct block_device_operations idefloppy_ops = {
-	.owner		= THIS_MODULE,
-	.open		= idefloppy_open,
-	.release	= idefloppy_release,
-	.ioctl		= idefloppy_ioctl,
-	.getgeo		= idefloppy_getgeo,
-	.media_changed	= idefloppy_media_changed,
-	.revalidate_disk= idefloppy_revalidate_disk
+	.owner			= THIS_MODULE,
+	.open			= idefloppy_open,
+	.release		= idefloppy_release,
+	.ioctl			= idefloppy_ioctl,
+	.getgeo			= idefloppy_getgeo,
+	.media_changed		= idefloppy_media_changed,
+	.revalidate_disk	= idefloppy_revalidate_disk
 };
 
 static int ide_floppy_probe(ide_drive_t *drive)

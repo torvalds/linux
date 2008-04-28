@@ -238,6 +238,7 @@ register SXFRCTL2 {
 register OPTIONMODE {
 	address			0x008
 	access_mode RW
+	count		2
 	field	AUTORATEEN		0x80
 	field	AUTOACKEN		0x40
 	field	ATNMGMNTEN		0x20
@@ -254,6 +255,7 @@ register TARGCRCCNT {
 	address			0x00a
 	size	2
 	access_mode RW
+	count		2
 }
 
 /*
@@ -344,6 +346,7 @@ register SSTAT2 {
 register SSTAT3 {
 	address			0x00e
 	access_mode RO
+	count		2
 	mask	SCSICNT		0xf0
 	mask	OFFCNT		0x0f
 	mask	U2OFFCNT	0x7f
@@ -367,6 +370,7 @@ register SCSIID_ULTRA2 {
 register SIMODE0 {
 	address			0x010
 	access_mode RW
+	count		2
 	field	ENSELDO		0x40
 	field	ENSELDI		0x20
 	field	ENSELINGO	0x10
@@ -429,6 +433,7 @@ register SHADDR {
 register SELTIMER {
 	address			0x018
 	access_mode RW
+	count		1
 	field	STAGE6		0x20
 	field	STAGE5		0x10
 	field	STAGE4		0x08
@@ -467,6 +472,7 @@ register TARGID {
 	address			0x01b
 	size			2
 	access_mode RW
+	count		14
 }
 
 /*
@@ -480,6 +486,7 @@ register TARGID {
 register SPIOCAP {
 	address			0x01b
 	access_mode RW
+	count		10
 	field	SOFT1		0x80
 	field	SOFT0		0x40
 	field	SOFTCMDEN	0x20	
@@ -492,6 +499,7 @@ register SPIOCAP {
 
 register BRDCTL	{
 	address			0x01d
+	count		11
 	field	BRDDAT7		0x80
 	field	BRDDAT6		0x40
 	field	BRDDAT5		0x20
@@ -534,6 +542,7 @@ register BRDCTL	{
  */
 register SEECTL {
 	address			0x01e
+	count		11
 	field	EXTARBACK	0x80
 	field	EXTARBREQ	0x40
 	field	SEEMS		0x20
@@ -570,6 +579,7 @@ register SBLKCTL {
 register SEQCTL {
 	address			0x060
 	access_mode RW
+	count		15
 	field	PERRORDIS	0x80
 	field	PAUSEDIS	0x40
 	field	FAILDIS		0x20
@@ -590,6 +600,7 @@ register SEQCTL {
 register SEQRAM {
 	address			0x061
 	access_mode RW
+	count		2
 }
 
 /*
@@ -604,6 +615,7 @@ register SEQADDR0 {
 register SEQADDR1 {
 	address			0x063
 	access_mode RW
+	count		8
 	mask	SEQADDR1_MASK	0x01
 }
 
@@ -649,6 +661,7 @@ register NONE {
 register FLAGS {
 	address			0x06b
 	access_mode RO
+	count		18
 	field	ZERO		0x02
 	field	CARRY		0x01
 }
@@ -671,6 +684,7 @@ register FUNCTION1 {
 register STACK {
 	address			0x06f
 	access_mode RO
+	count		5
 }
 
 const	STACK_SIZE	4
@@ -692,6 +706,7 @@ register BCTL {
 register DSCOMMAND0 {
 	address			0x084
 	access_mode RW
+	count		7
 	field	CACHETHEN	0x80	/* Cache Threshold enable */
 	field	DPARCKEN	0x40	/* Data Parity Check Enable */
 	field	MPARCKEN	0x20	/* Memory Parity Check Enable */
@@ -717,6 +732,7 @@ register DSCOMMAND1 {
 register BUSTIME {
 	address			0x085
 	access_mode RW
+	count		2
 	mask	BOFF		0xf0
 	mask	BON		0x0f
 }
@@ -727,6 +743,7 @@ register BUSTIME {
 register BUSSPD {
 	address			0x086
 	access_mode RW
+	count		2
 	mask	DFTHRSH		0xc0
 	mask	STBOFF		0x38
 	mask	STBON		0x07
@@ -737,6 +754,7 @@ register BUSSPD {
 /* aic7850/55/60/70/80/95 only */
 register DSPCISTATUS {
 	address			0x086
+	count		4
 	mask	DFTHRSH_100	0xc0
 }
 
@@ -758,6 +776,7 @@ const	SEQ_MAILBOX_SHIFT	0
 register HCNTRL {
 	address			0x087
 	access_mode RW
+	count		14
 	field	POWRDN		0x40
 	field	SWINT		0x10
 	field	IRQMS		0x08
@@ -869,6 +888,7 @@ register INTSTAT {
 register ERROR {
 	address			0x092
 	access_mode RO
+	count		26
 	field	CIOPARERR	0x80	/* Ultra2 only */
 	field	PCIERRSTAT	0x40	/* PCI only */
 	field	MPARERR		0x20	/* PCI only */
@@ -885,6 +905,7 @@ register ERROR {
 register CLRINT {
 	address			0x092
 	access_mode WO
+	count		24
 	field	CLRPARERR	0x10	/* PCI only */
 	field	CLRBRKADRINT	0x08
 	field	CLRSCSIINT      0x04
@@ -943,6 +964,7 @@ register DFDAT {
 register SCBCNT {
 	address			0x09a
 	access_mode RW
+	count		1
 	field	SCBAUTO		0x80
 	mask	SCBCNT_MASK	0x1f
 }
@@ -954,6 +976,7 @@ register SCBCNT {
 register QINFIFO {
 	address			0x09b
 	access_mode RW
+	count		12
 }
 
 /*
@@ -972,11 +995,13 @@ register QINCNT	{
 register QOUTFIFO {
 	address			0x09d
 	access_mode WO
+	count		7
 }
 
 register CRCCONTROL1 {
 	address			0x09d
 	access_mode RW
+	count		3
 	field	CRCONSEEN		0x80
 	field	CRCVALCHKEN		0x40
 	field	CRCENDCHKEN		0x20
@@ -1013,6 +1038,7 @@ register SCSIPHASE {
 register SFUNCT {
 	address			0x09f
 	access_mode RW
+	count	    4
 	field	ALT_MODE	0x80
 }
 
@@ -1095,6 +1121,7 @@ scb {
 	}
 	SCB_SCSIOFFSET {
 		size	1
+		count	1
 	}
 	SCB_NEXT {
 		size	1
@@ -1118,6 +1145,7 @@ const	SG_SIZEOF	0x08		/* sizeof(struct ahc_dma) */
 register SEECTL_2840 {
 	address			0x0c0
 	access_mode RW
+	count		2
 	field	CS_2840		0x04
 	field	CK_2840		0x02
 	field	DO_2840		0x01
@@ -1126,6 +1154,7 @@ register SEECTL_2840 {
 register STATUS_2840 {
 	address			0x0c1
 	access_mode RW
+	count		4
 	field	EEPROM_TF	0x80
 	mask	BIOS_SEL	0x60
 	mask	ADSEL		0x1e
@@ -1161,6 +1190,7 @@ register CCSGCTL {
 
 register CCSCBCNT {
 	address			0xEF
+	count		1
 }
 
 register CCSCBCTL {
@@ -1187,6 +1217,7 @@ register CCSCBRAM {
 register SCBBADDR {
 	address			0x0F0
 	access_mode RW
+	count		3
 }
 
 register CCSCBPTR {
@@ -1195,6 +1226,7 @@ register CCSCBPTR {
 
 register HNSCB_QOFF {
 	address			0x0F4
+	count		4
 }
 
 register SNSCB_QOFF {
@@ -1234,6 +1266,7 @@ register DFF_THRSH {
 	mask	WR_DFTHRSH_85	0x50
 	mask	WR_DFTHRSH_90	0x60
 	mask	WR_DFTHRSH_MAX	0x70
+	count	4
 }
 
 register SG_CACHE_PRE {
@@ -1287,6 +1320,7 @@ scratch_ram {
 	ULTRA_ENB {
 		alias		CMDSIZE_TABLE
 		size		2
+		count		2
 	}
 	/*
 	 * Bit vector of targets that have disconnection disabled as set by
@@ -1296,6 +1330,7 @@ scratch_ram {
 	 */
 	DISC_DSB {
 		size		2
+		count		6
 	}
 	CMDSIZE_TABLE_TAIL {
 		size		4
@@ -1323,6 +1358,7 @@ scratch_ram {
 	/* Parameters for DMA Logic */
 	DMAPARAMS {
 		size		1
+		count		12
 		field	PRELOADEN	0x80
 		field	WIDEODD		0x40
 		field	SCSIEN		0x20
@@ -1436,11 +1472,12 @@ scratch_ram {
 	KERNEL_TQINPOS {
 		size		1
 	}
-	TQINPOS {                
+	TQINPOS {
 		size		1
 	}
 	ARG_1 {
 		size		1
+		count		1
 		mask	SEND_MSG		0x80
 		mask	SEND_SENSE		0x40
 		mask	SEND_REJ		0x20
@@ -1495,6 +1532,7 @@ scratch_ram {
 		size	1
 		field	HA_274_EXTENDED_TRANS	0x01
 		alias	INITIATOR_TAG
+		count		1
 	}
 
 	SEQ_FLAGS2 {
@@ -1518,6 +1556,7 @@ scratch_ram {
 	 */
 	SCSICONF {
 		size		1
+		count		12
 		field	TERM_ENB	0x80
 		field	RESET_SCSI	0x40
 		field	ENSPCHK		0x20
@@ -1527,16 +1566,19 @@ scratch_ram {
 	INTDEF {
 		address		0x05c
 		size		1
+		count		1
 		field	EDGE_TRIG	0x80
 		mask	VECTOR		0x0f
 	}
 	HOSTCONF {
 		address		0x05d
 		size		1
+		count		1
 	}
 	HA_274_BIOSCTRL	{
 		address		0x05f
 		size		1
+		count		1
 		mask	BIOSMODE		0x30
 		mask	BIOSDISABLED		0x30	
 		field	CHANNEL_B_PRIMARY	0x08
@@ -1552,6 +1594,7 @@ scratch_ram {
 	 */
 	TARG_OFFSET {
 		size		16
+		count		1
 	}
 }
 

@@ -142,6 +142,9 @@ config AUDIT_ARCH
 config ARCH_SUPPORTS_AOUT
 	def_bool y
 
+config ARCH_SUPPORTS_OPTIMIZED_INLINING
+	def_bool y
+
 # Use the generic interrupt handling code in kernel/irq/:
 config GENERIC_HARDIRQS
 	bool
@@ -369,6 +372,25 @@ config VMI
 	  (it could be used by other hypervisors in theory too, but is not
 	  at the moment), by linking the kernel to a GPL-ed ROM module
 	  provided by the hypervisor.
+
+config KVM_CLOCK
+	bool "KVM paravirtualized clock"
+	select PARAVIRT
+	depends on !(X86_VISWS || X86_VOYAGER)
+	help
+	  Turning on this option will allow you to run a paravirtualized clock
+	  when running over the KVM hypervisor. Instead of relying on a PIT
+	  (or probably other) emulation by the underlying device model, the host
+	  provides the guest with timing infrastructure such as time of day, and
+	  system time
+
+config KVM_GUEST
+	bool "KVM Guest support"
+	select PARAVIRT
+	depends on !(X86_VISWS || X86_VOYAGER)
+	help
+	 This option enables various optimizations for running under the KVM
+	 hypervisor.
 
 source "arch/x86/lguest/Kconfig"
 
@@ -1049,9 +1071,9 @@ config MTRR
 	  See <file:Documentation/mtrr.txt> for more information.
 
 config X86_PAT
-	def_bool y
+	bool
 	prompt "x86 PAT support"
-	depends on MTRR && NONPROMISC_DEVMEM
+	depends on MTRR
 	help
 	  Use PAT attributes to setup page level cache control.
 

@@ -329,8 +329,6 @@ sgi-visws.txt
 	- short blurb on the SGI Visual Workstations.
 sh/
 	- directory with info on porting Linux to a new architecture.
-smart-config.txt
-	- description of the Smart Config makefile feature.
 sound/
 	- directory with info on sound card support.
 sparc/

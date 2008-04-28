@@ -18,20 +18,20 @@ static void tc86c001_set_mode(ide_drive_t *drive, const u8 speed)
 	u16 mode, scr		= inw(scr_port);
 
 	switch (speed) {
-		case XFER_UDMA_4:	mode = 0x00c0; break;
-		case XFER_UDMA_3:	mode = 0x00b0; break;
-		case XFER_UDMA_2:	mode = 0x00a0; break;
-		case XFER_UDMA_1:	mode = 0x0090; break;
-		case XFER_UDMA_0:	mode = 0x0080; break;
-		case XFER_MW_DMA_2:	mode = 0x0070; break;
-		case XFER_MW_DMA_1:	mode = 0x0060; break;
-		case XFER_MW_DMA_0:	mode = 0x0050; break;
-		case XFER_PIO_4:	mode = 0x0400; break;
-		case XFER_PIO_3:	mode = 0x0300; break;
-		case XFER_PIO_2:	mode = 0x0200; break;
-		case XFER_PIO_1:	mode = 0x0100; break;
-		case XFER_PIO_0:
-		default:		mode = 0x0000; break;
+	case XFER_UDMA_4:	mode = 0x00c0; break;
+	case XFER_UDMA_3:	mode = 0x00b0; break;
+	case XFER_UDMA_2:	mode = 0x00a0; break;
+	case XFER_UDMA_1:	mode = 0x0090; break;
+	case XFER_UDMA_0:	mode = 0x0080; break;
+	case XFER_MW_DMA_2:	mode = 0x0070; break;
+	case XFER_MW_DMA_1:	mode = 0x0060; break;
+	case XFER_MW_DMA_0:	mode = 0x0050; break;
+	case XFER_PIO_4:	mode = 0x0400; break;
+	case XFER_PIO_3:	mode = 0x0300; break;
+	case XFER_PIO_2:	mode = 0x0200; break;
+	case XFER_PIO_1:	mode = 0x0100; break;
+	case XFER_PIO_0:
+	default:		mode = 0x0000; break;
 	}
 
 	scr &= (speed < XFER_MW_DMA_0) ? 0xf8ff : 0xff0f;
@@ -157,11 +157,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 	/* Store the system control register base for convenience... */
 	hwif->config_data = sc_base;
 
-	hwif->set_pio_mode = &tc86c001_set_pio_mode;
-	hwif->set_dma_mode = &tc86c001_set_mode;
-
-	hwif->cable_detect = tc86c001_cable_detect;
-
 	if (!hwif->dma_base)
 		return;
 
@@ -173,8 +168,6 @@ static void __devinit init_hwif_tc86c001(ide_hwif_t *hwif)
 
 	/* Sector Count Register limit */
 	hwif->rqsize	 = 0xffff;
-
-	hwif->dma_start 	= &tc86c001_dma_start;
 }
 
 static unsigned int __devinit init_chipset_tc86c001(struct pci_dev *dev,
@@ -187,10 +180,29 @@ static unsigned int __devinit init_chipset_tc86c001(struct pci_dev *dev,
 	return err;
 }
 
+static const struct ide_port_ops tc86c001_port_ops = {
+	.set_pio_mode		= tc86c001_set_pio_mode,
+	.set_dma_mode		= tc86c001_set_mode,
+	.cable_detect		= tc86c001_cable_detect,
+};
+
+static const struct ide_dma_ops tc86c001_dma_ops = {
+	.dma_host_set		= ide_dma_host_set,
+	.dma_setup		= ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= tc86c001_dma_start,
+	.dma_end		= __ide_dma_end,
+	.dma_test_irq		= ide_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
+};
+
 static const struct ide_port_info tc86c001_chipset __devinitdata = {
 	.name		= "TC86C001",
 	.init_chipset	= init_chipset_tc86c001,
 	.init_hwif	= init_hwif_tc86c001,
+	.port_ops	= &tc86c001_port_ops,
+	.dma_ops	= &tc86c001_dma_ops,
 	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_OFF_BOARD |
 			  IDE_HFLAG_ABUSE_SET_DMA_MODE,
 	.pio_mask	= ATA_PIO4,

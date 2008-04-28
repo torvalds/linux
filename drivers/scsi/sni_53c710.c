@@ -53,6 +53,7 @@
 MODULE_AUTHOR("Thomas Bogendörfer");
 MODULE_DESCRIPTION("SNI RM 53c710 SCSI Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:snirm_53c710");
 
 #define SNIRM710_CLOCK	32
 
@@ -136,6 +137,7 @@ static struct platform_driver snirm710_driver = {
 	.remove	= __devexit_p(snirm710_driver_remove),
 	.driver	= {
 		.name	= "snirm_53c710",
+		.owner	= THIS_MODULE,
 	},
 };
 

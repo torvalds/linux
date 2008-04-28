@@ -198,7 +198,7 @@ static match_table_t nfs_secflavor_tokens = {
 };
 
 
-static void nfs_umount_begin(struct vfsmount *, int);
+static void nfs_umount_begin(struct super_block *);
 static int  nfs_statfs(struct dentry *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
 static int  nfs_show_stats(struct seq_file *, struct vfsmount *);
@@ -647,13 +647,11 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
  * Begin unmount by attempting to remove all automounted mountpoints we added
  * in response to xdev traversals and referrals
  */
-static void nfs_umount_begin(struct vfsmount *vfsmnt, int flags)
+static void nfs_umount_begin(struct super_block *sb)
 {
-	struct nfs_server *server = NFS_SB(vfsmnt->mnt_sb);
+	struct nfs_server *server = NFS_SB(sb);
 	struct rpc_clnt *rpc;
 
-	if (!(flags & MNT_FORCE))
-		return;
 	/* -EIO all pending I/O */
 	rpc = server->client_acl;
 	if (!IS_ERR(rpc))

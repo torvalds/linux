@@ -1,3 +1,10 @@
+
+menu "Host processor type and features"
+
+source "arch/x86/Kconfig.cpu"
+
+endmenu
+
 config UML_X86
 	bool
 	default y

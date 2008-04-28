@@ -191,7 +191,7 @@ static struct tda18271_config hauppauge_hvr1200_tuner_config = {
 	.gate    = TDA18271_GATE_ANALOG,
 };
 
-struct dibx000_agc_config xc3028_agc_config = {
+static struct dibx000_agc_config xc3028_agc_config = {
 	BAND_VHF | BAND_UHF,	/* band_caps */
 
 	/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=0,
@@ -237,7 +237,7 @@ struct dibx000_agc_config xc3028_agc_config = {
 
 /* PLL Configuration for COFDM BW_MHz = 8.000000
  * With external clock = 30.000000 */
-struct dibx000_bandwidth_config xc3028_bw_config = {
+static struct dibx000_bandwidth_config xc3028_bw_config = {
 	60000,	/* internal */
 	30000,	/* sampling */
 	1,	/* pll_cfg: prediv */

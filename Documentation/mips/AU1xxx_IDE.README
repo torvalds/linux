@@ -46,8 +46,6 @@ Two files are introduced:
 
   a) 'include/asm-mips/mach-au1x00/au1xxx_ide.h'
      containes : struct _auide_hwif
-                 struct drive_list_entry dma_white_list
-                 struct drive_list_entry dma_black_list
                  timing parameters for PIO mode 0/1/2/3/4
                  timing parameters for MWDMA 0/1/2
 
@@ -62,12 +60,6 @@ Four configs variables are introduced:
                                            controller
   CONFIG_BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ - maximum transfer size
                                            per descriptor
-
-If MWDMA is enabled and the connected hard disc is not on the white list, the
-kernel switches to a "safe mwdma mode" at boot time. In this mode the IDE
-performance is substantial slower then in full speed mwdma. In this case
-please add your hard disc to the white list (follow instruction from 'ADD NEW
-HARD DISC TO WHITE OR BLACK LIST' section).
 
 
 SUPPORTED IDE MODES
@@ -119,44 +111,6 @@ CONFIG_IDEDMA_AUTO=y
 
 Also undefine 'IDE_AU1XXX_BURSTMODE' in 'drivers/ide/mips/au1xxx-ide.c' to
 disable the burst support on DBDMA controller.
-
-ADD NEW HARD DISC TO WHITE OR BLACK LIST
-----------------------------------------
-
-Step 1 : detect the model name of your hard disc
-
-  a) connect your hard disc to the AU1XXX
-
-  b) boot your kernel and get the hard disc model.
-
-     Example boot log:
-
-     --snipped--
-     Uniform Multi-Platform E-IDE driver Revision: 7.00alpha2
-     ide: Assuming 50MHz system bus speed for PIO modes; override with idebus=xx
-     Au1xxx IDE(builtin) configured for MWDMA2
-     Probing IDE interface ide0...
-     hda: Maxtor 6E040L0, ATA DISK drive
-     ide0 at 0xac800000-0xac800007,0xac8001c0 on irq 64
-     hda: max request size: 64KiB
-     hda: 80293248 sectors (41110 MB) w/2048KiB Cache, CHS=65535/16/63, (U)DMA
-     --snipped--
-
-     In this example 'Maxtor 6E040L0'.
-
-Step  2 : edit 'include/asm-mips/mach-au1x00/au1xxx_ide.h'
-
-  Add your hard disc to the dma_white_list or dma_black_list structur.
-
-Step 3 : Recompile the kernel
-
-  Enable MWDMA support in the kernel configuration. Recompile the kernel and
-  reboot.
-
-Step 4 : Tests
-
-  If you have add a hard disc to the white list, please run some stress tests
-  for verification.
 
 
 ACKNOWLEDGMENTS

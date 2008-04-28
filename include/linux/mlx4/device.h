@@ -208,6 +208,38 @@ struct mlx4_mtt {
 	int			page_shift;
 };
 
+enum {
+	MLX4_DB_PER_PAGE = PAGE_SIZE / 4
+};
+
+struct mlx4_db_pgdir {
+	struct list_head	list;
+	DECLARE_BITMAP(order0, MLX4_DB_PER_PAGE);
+	DECLARE_BITMAP(order1, MLX4_DB_PER_PAGE / 2);
+	unsigned long	       *bits[2];
+	__be32		       *db_page;
+	dma_addr_t		db_dma;
+};
+
+struct mlx4_ib_user_db_page;
+
+struct mlx4_db {
+	__be32			*db;
+	union {
+		struct mlx4_db_pgdir		*pgdir;
+		struct mlx4_ib_user_db_page	*user_page;
+	}			u;
+	dma_addr_t		dma;
+	int			index;
+	int			order;
+};
+
+struct mlx4_hwq_resources {
+	struct mlx4_db		db;
+	struct mlx4_mtt		mtt;
+	struct mlx4_buf		buf;
+};
+
 struct mlx4_mr {
 	struct mlx4_mtt		mtt;
 	u64			iova;
@@ -340,6 +372,14 @@ int mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		   int start_index, int npages, u64 *page_list);
 int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		       struct mlx4_buf *buf);
+
+int mlx4_db_alloc(struct mlx4_dev *dev, struct mlx4_db *db, int order);
+void mlx4_db_free(struct mlx4_dev *dev, struct mlx4_db *db);
+
+int mlx4_alloc_hwq_res(struct mlx4_dev *dev, struct mlx4_hwq_resources *wqres,
+		       int size, int max_direct);
+void mlx4_free_hwq_res(struct mlx4_dev *mdev, struct mlx4_hwq_resources *wqres,
+		       int size);
 
 int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
 		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq);

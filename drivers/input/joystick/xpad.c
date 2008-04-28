@@ -444,6 +444,23 @@ exit:
 		     __FUNCTION__, retval);
 }
 
+static void xpad_bulk_out(struct urb *urb)
+{
+	switch (urb->status) {
+	case 0:
+		/* success */
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		/* this urb is terminated, clean up */
+		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		break;
+	default:
+		dbg("%s - nonzero urb status received: %d", __FUNCTION__, urb->status);
+	}
+}
+
 #if defined(CONFIG_JOYSTICK_XPAD_FF) || defined(CONFIG_JOYSTICK_XPAD_LEDS)
 static void xpad_irq_out(struct urb *urb)
 {
@@ -473,23 +490,6 @@ exit:
 	if (retval)
 		err("%s - usb_submit_urb failed with result %d",
 		    __FUNCTION__, retval);
-}
-
-static void xpad_bulk_out(struct urb *urb)
-{
-	switch (urb->status) {
-	case 0:
-		/* success */
-		break;
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
-		break;
-	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__, urb->status);
-	}
 }
 
 static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad)

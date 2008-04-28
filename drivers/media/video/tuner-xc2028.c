@@ -432,7 +432,7 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 
 	type &= type_mask;
 
-	if (!type & SCODE)
+	if (!(type & SCODE))
 		type_mask = ~0;
 
 	/* Seek for exact match */

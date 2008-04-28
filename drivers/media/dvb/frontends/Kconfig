@@ -307,6 +307,14 @@ config DVB_AU8522
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
+config DVB_S5H1411
+	tristate "Samsung S5H1411 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
+	  to support this frontend.
+
 comment "Tuners/PLL support"
 	depends on DVB_CORE
 

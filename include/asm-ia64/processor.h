@@ -119,6 +119,69 @@ struct ia64_psr {
 	__u64 reserved4 : 19;
 };
 
+union ia64_isr {
+	__u64  val;
+	struct {
+		__u64 code : 16;
+		__u64 vector : 8;
+		__u64 reserved1 : 8;
+		__u64 x : 1;
+		__u64 w : 1;
+		__u64 r : 1;
+		__u64 na : 1;
+		__u64 sp : 1;
+		__u64 rs : 1;
+		__u64 ir : 1;
+		__u64 ni : 1;
+		__u64 so : 1;
+		__u64 ei : 2;
+		__u64 ed : 1;
+		__u64 reserved2 : 20;
+	};
+};
+
+union ia64_lid {
+	__u64 val;
+	struct {
+		__u64  rv  : 16;
+		__u64  eid : 8;
+		__u64  id  : 8;
+		__u64  ig  : 32;
+	};
+};
+
+union ia64_tpr {
+	__u64 val;
+	struct {
+		__u64 ig0 : 4;
+		__u64 mic : 4;
+		__u64 rsv : 8;
+		__u64 mmi : 1;
+		__u64 ig1 : 47;
+	};
+};
+
+union ia64_itir {
+	__u64 val;
+	struct {
+		__u64 rv3  :  2; /* 0-1 */
+		__u64 ps   :  6; /* 2-7 */
+		__u64 key  : 24; /* 8-31 */
+		__u64 rv4  : 32; /* 32-63 */
+	};
+};
+
+union  ia64_rr {
+	__u64 val;
+	struct {
+		__u64  ve	:  1;  /* enable hw walker */
+		__u64  reserved0:  1;  /* reserved */
+		__u64  ps	:  6;  /* log page size */
+		__u64  rid	: 24;  /* region id */
+		__u64  reserved1: 32;  /* reserved */
+	};
+};
+
 /*
  * CPU type, hardware bug flags, and per-CPU state.  Frequently used
  * state comes earlier:

@@ -231,6 +231,8 @@ extern int do_get_thread_area(struct task_struct *p, int idx,
 extern int do_set_thread_area(struct task_struct *p, int idx,
 			      struct user_desc __user *info, int can_allocate);
 
+#define __ARCH_WANT_COMPAT_SYS_PTRACE
+
 #endif /* __KERNEL__ */
 
 #endif /* !__ASSEMBLY__ */

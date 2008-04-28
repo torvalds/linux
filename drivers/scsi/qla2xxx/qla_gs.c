@@ -1583,8 +1583,8 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 	eiter->type = __constant_cpu_to_be16(FDMI_PORT_MAX_FRAME_SIZE);
 	eiter->len = __constant_cpu_to_be16(4 + 4);
 	max_frame_size = IS_FWI2_CAPABLE(ha) ?
-		(uint32_t) icb24->frame_payload_size:
-		(uint32_t) ha->init_cb->frame_payload_size;
+	    le16_to_cpu(icb24->frame_payload_size):
+	    le16_to_cpu(ha->init_cb->frame_payload_size);
 	eiter->a.max_frame_size = cpu_to_be32(max_frame_size);
 	size += 4 + 4;
 

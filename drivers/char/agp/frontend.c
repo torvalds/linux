@@ -967,7 +967,7 @@ int agpioc_chipset_flush_wrap(struct agp_file_private *priv)
 	return 0;
 }
 
-static int agp_ioctl(struct inode *inode, struct file *file,
+static long agp_ioctl(struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct agp_file_private *curr_priv = file->private_data;
@@ -1058,7 +1058,7 @@ static const struct file_operations agp_fops =
 	.llseek		= no_llseek,
 	.read		= agp_read,
 	.write		= agp_write,
-	.ioctl		= agp_ioctl,
+	.unlocked_ioctl	= agp_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= compat_agp_ioctl,
 #endif

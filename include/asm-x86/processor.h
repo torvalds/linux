@@ -118,7 +118,6 @@ struct cpuinfo_x86 {
 #define X86_VENDOR_CYRIX	1
 #define X86_VENDOR_AMD		2
 #define X86_VENDOR_UMC		3
-#define X86_VENDOR_NEXGEN	4
 #define X86_VENDOR_CENTAUR	5
 #define X86_VENDOR_TRANSMETA	7
 #define X86_VENDOR_NSC		8
@@ -723,6 +722,7 @@ static inline void __mwait(unsigned long eax, unsigned long ecx)
 
 static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
 {
+	trace_hardirqs_on();
 	/* "mwait %eax, %ecx;" */
 	asm volatile("sti; .byte 0x0f, 0x01, 0xc9;"
 		     :: "a" (eax), "c" (ecx));

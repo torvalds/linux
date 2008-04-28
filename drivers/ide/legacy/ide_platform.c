@@ -30,14 +30,14 @@ static void __devinit plat_ide_setup_ports(hw_regs_t *hw,
 	unsigned long port = (unsigned long)base;
 	int i;
 
-	hw->io_ports[IDE_DATA_OFFSET] = port;
+	hw->io_ports.data_addr = port;
 
 	port += (1 << pdata->ioport_shift);
-	for (i = IDE_ERROR_OFFSET; i <= IDE_STATUS_OFFSET;
+	for (i = 1; i <= 7;
 	     i++, port += (1 << pdata->ioport_shift))
-		hw->io_ports[i] = port;
+		hw->io_ports_array[i] = port;
 
-	hw->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
+	hw->io_ports.ctl_addr = (unsigned long)ctrl;
 
 	hw->irq = irq;
 
@@ -89,7 +89,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 			res_alt->start, res_alt->end - res_alt->start + 1);
 	}
 
-	hwif = ide_find_port((unsigned long)base);
+	hwif = ide_find_port();
 	if (!hwif) {
 		ret = -ENODEV;
 		goto out;
@@ -101,10 +101,8 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 
 	ide_init_port_hw(hwif, &hw);
 
-	if (mmio) {
-		hwif->mmio = 1;
+	if (mmio)
 		default_hwif_mmiops(hwif);
-	}
 
 	idx[0] = hwif->index;
 
@@ -122,7 +120,7 @@ static int __devexit plat_ide_remove(struct platform_device *pdev)
 {
 	ide_hwif_t *hwif = pdev->dev.driver_data;
 
-	ide_unregister(hwif->index);
+	ide_unregister(hwif);
 
 	return 0;
 }

@@ -196,6 +196,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	unsigned long bootmap_start, nodedata_phys;
 	void *bootmap;
 	const int pgdat_size = round_up(sizeof(pg_data_t), PAGE_SIZE);
+	int nid;
 
 	start = round_up(start, ZONE_ALIGN);
 
@@ -218,9 +219,19 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	NODE_DATA(nodeid)->node_start_pfn = start_pfn;
 	NODE_DATA(nodeid)->node_spanned_pages = end_pfn - start_pfn;
 
-	/* Find a place for the bootmem map */
+	/*
+	 * Find a place for the bootmem map
+	 * nodedata_phys could be on other nodes by alloc_bootmem,
+	 * so need to sure bootmap_start not to be small, otherwise
+	 * early_node_mem will get that with find_e820_area instead
+	 * of alloc_bootmem, that could clash with reserved range
+	 */
 	bootmap_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
-	bootmap_start = round_up(nodedata_phys + pgdat_size, PAGE_SIZE);
+	nid = phys_to_nid(nodedata_phys);
+	if (nid == nodeid)
+		bootmap_start = round_up(nodedata_phys + pgdat_size, PAGE_SIZE);
+	else
+		bootmap_start = round_up(start, PAGE_SIZE);
 	/*
 	 * SMP_CAHCE_BYTES could be enough, but init_bootmem_node like
 	 * to use that to align to PAGE_SIZE
@@ -245,10 +256,29 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 
 	free_bootmem_with_active_regions(nodeid, end);
 
-	reserve_bootmem_node(NODE_DATA(nodeid), nodedata_phys, pgdat_size,
-			BOOTMEM_DEFAULT);
-	reserve_bootmem_node(NODE_DATA(nodeid), bootmap_start,
-			bootmap_pages<<PAGE_SHIFT, BOOTMEM_DEFAULT);
+	/*
+	 * convert early reserve to bootmem reserve earlier
+	 * otherwise early_node_mem could use early reserved mem
+	 * on previous node
+	 */
+	early_res_to_bootmem(start, end);
+
+	/*
+	 * in some case early_node_mem could use alloc_bootmem
+	 * to get range on other node, don't reserve that again
+	 */
+	if (nid != nodeid)
+		printk(KERN_INFO "    NODE_DATA(%d) on node %d\n", nodeid, nid);
+	else
+		reserve_bootmem_node(NODE_DATA(nodeid), nodedata_phys,
+					pgdat_size, BOOTMEM_DEFAULT);
+	nid = phys_to_nid(bootmap_start);
+	if (nid != nodeid)
+		printk(KERN_INFO "    bootmap(%d) on node %d\n", nodeid, nid);
+	else
+		reserve_bootmem_node(NODE_DATA(nodeid), bootmap_start,
+				 bootmap_pages<<PAGE_SHIFT, BOOTMEM_DEFAULT);
+
 #ifdef CONFIG_ACPI_NUMA
 	srat_reserve_add_area(nodeid);
 #endif

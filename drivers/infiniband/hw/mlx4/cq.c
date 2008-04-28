@@ -204,7 +204,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector
 
 		uar = &to_mucontext(context)->uar;
 	} else {
-		err = mlx4_ib_db_alloc(dev, &cq->db, 1);
+		err = mlx4_db_alloc(dev->dev, &cq->db, 1);
 		if (err)
 			goto err_cq;
 
@@ -250,7 +250,7 @@ err_mtt:
 
 err_db:
 	if (!context)
-		mlx4_ib_db_free(dev, &cq->db);
+		mlx4_db_free(dev->dev, &cq->db);
 
 err_cq:
 	kfree(cq);
@@ -435,7 +435,7 @@ int mlx4_ib_destroy_cq(struct ib_cq *cq)
 		ib_umem_release(mcq->umem);
 	} else {
 		mlx4_ib_free_cq_buf(dev, &mcq->buf, cq->cqe + 1);
-		mlx4_ib_db_free(dev, &mcq->db);
+		mlx4_db_free(dev->dev, &mcq->db);
 	}
 
 	kfree(mcq);

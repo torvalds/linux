@@ -218,7 +218,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		 * we could be smarter and check for current xfer_speed
 		 * in struct drive etc...
 		 */
-		if (drive->hwif->dma_host_set == NULL)
+		if (drive->hwif->dma_ops == NULL)
 			break;
 		/*
 		 * TODO: respect ->using_dma setting
@@ -298,48 +298,43 @@ static void ide_complete_pm_request (ide_drive_t *drive, struct request *rq)
 void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_io_ports *io_ports = &hwif->io_ports;
 	struct ide_taskfile *tf = &task->tf;
 
 	if (task->tf_flags & IDE_TFLAG_IN_DATA) {
-		u16 data = hwif->INW(hwif->io_ports[IDE_DATA_OFFSET]);
+		u16 data = hwif->INW(io_ports->data_addr);
 
 		tf->data = data & 0xff;
 		tf->hob_data = (data >> 8) & 0xff;
 	}
 
 	/* be sure we're looking at the low order bits */
-	hwif->OUTB(drive->ctl & ~0x80, hwif->io_ports[IDE_CONTROL_OFFSET]);
+	hwif->OUTB(drive->ctl & ~0x80, io_ports->ctl_addr);
 
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
-		tf->nsect  = hwif->INB(hwif->io_ports[IDE_NSECTOR_OFFSET]);
+		tf->nsect  = hwif->INB(io_ports->nsect_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAL)
-		tf->lbal   = hwif->INB(hwif->io_ports[IDE_SECTOR_OFFSET]);
+		tf->lbal   = hwif->INB(io_ports->lbal_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAM)
-		tf->lbam   = hwif->INB(hwif->io_ports[IDE_LCYL_OFFSET]);
+		tf->lbam   = hwif->INB(io_ports->lbam_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAH)
-		tf->lbah   = hwif->INB(hwif->io_ports[IDE_HCYL_OFFSET]);
+		tf->lbah   = hwif->INB(io_ports->lbah_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_DEVICE)
-		tf->device = hwif->INB(hwif->io_ports[IDE_SELECT_OFFSET]);
+		tf->device = hwif->INB(io_ports->device_addr);
 
 	if (task->tf_flags & IDE_TFLAG_LBA48) {
-		hwif->OUTB(drive->ctl | 0x80,
-			   hwif->io_ports[IDE_CONTROL_OFFSET]);
+		hwif->OUTB(drive->ctl | 0x80, io_ports->ctl_addr);
 
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
-			tf->hob_feature =
-				hwif->INB(hwif->io_ports[IDE_FEATURE_OFFSET]);
+			tf->hob_feature = hwif->INB(io_ports->feature_addr);
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
-			tf->hob_nsect   =
-				hwif->INB(hwif->io_ports[IDE_NSECTOR_OFFSET]);
+			tf->hob_nsect   = hwif->INB(io_ports->nsect_addr);
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
-			tf->hob_lbal    =
-				hwif->INB(hwif->io_ports[IDE_SECTOR_OFFSET]);
+			tf->hob_lbal    = hwif->INB(io_ports->lbal_addr);
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
-			tf->hob_lbam    =
-				hwif->INB(hwif->io_ports[IDE_LCYL_OFFSET]);
+			tf->hob_lbam    = hwif->INB(io_ports->lbam_addr);
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
-			tf->hob_lbah    =
-				hwif->INB(hwif->io_ports[IDE_HCYL_OFFSET]);
+			tf->hob_lbah    = hwif->INB(io_ports->lbah_addr);
 	}
 }
 
@@ -454,7 +449,7 @@ static ide_startstop_t ide_ata_error(ide_drive_t *drive, struct request *rq, u8 
 		if (err == ABRT_ERR) {
 			if (drive->select.b.lba &&
 			    /* some newer drives don't support WIN_SPECIFY */
-			    hwif->INB(hwif->io_ports[IDE_COMMAND_OFFSET]) ==
+			    hwif->INB(hwif->io_ports.command_addr) ==
 				WIN_SPECIFY)
 				return ide_stopped;
 		} else if ((err & BAD_CRC) == BAD_CRC) {
@@ -507,8 +502,7 @@ static ide_startstop_t ide_atapi_error(ide_drive_t *drive, struct request *rq, u
 
 	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
 		/* force an abort */
-		hwif->OUTB(WIN_IDLEIMMEDIATE,
-			   hwif->io_ports[IDE_COMMAND_OFFSET]);
+		hwif->OUTB(WIN_IDLEIMMEDIATE, hwif->io_ports.command_addr);
 
 	if (rq->errors >= ERROR_MAX) {
 		ide_kill_rq(drive, rq);
@@ -721,15 +715,12 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 #endif
 	if (s->b.set_tune) {
 		ide_hwif_t *hwif = drive->hwif;
+		const struct ide_port_ops *port_ops = hwif->port_ops;
 		u8 req_pio = drive->tune_req;
 
 		s->b.set_tune = 0;
 
 		if (set_pio_mode_abuse(drive->hwif, req_pio)) {
-
-			if (hwif->set_pio_mode == NULL)
-				return ide_stopped;
-
 			/*
 			 * take ide_lock for drive->[no_]unmask/[no_]io_32bit
 			 */
@@ -737,10 +728,10 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 				unsigned long flags;
 
 				spin_lock_irqsave(&ide_lock, flags);
-				hwif->set_pio_mode(drive, req_pio);
+				port_ops->set_pio_mode(drive, req_pio);
 				spin_unlock_irqrestore(&ide_lock, flags);
 			} else
-				hwif->set_pio_mode(drive, req_pio);
+				port_ops->set_pio_mode(drive, req_pio);
 		} else {
 			int keep_dma = drive->using_dma;
 
@@ -1241,12 +1232,12 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 
 	if (error < 0) {
 		printk(KERN_WARNING "%s: DMA timeout error\n", drive->name);
-		(void)HWIF(drive)->ide_dma_end(drive);
+		(void)hwif->dma_ops->dma_end(drive);
 		ret = ide_error(drive, "dma timeout error",
 				ide_read_status(drive));
 	} else {
 		printk(KERN_WARNING "%s: DMA timeout retry\n", drive->name);
-		hwif->dma_timeout(drive);
+		hwif->dma_ops->dma_timeout(drive);
 	}
 
 	/*
@@ -1358,7 +1349,7 @@ void ide_timer_expiry (unsigned long data)
 				startstop = handler(drive);
 			} else if (drive_is_ready(drive)) {
 				if (drive->waiting_for_dma)
-					hwgroup->hwif->dma_lost_irq(drive);
+					hwif->dma_ops->dma_lost_irq(drive);
 				(void)ide_ack_intr(hwif);
 				printk(KERN_WARNING "%s: lost interrupt\n", drive->name);
 				startstop = handler(drive);
@@ -1424,7 +1415,7 @@ static void unexpected_intr (int irq, ide_hwgroup_t *hwgroup)
 	 */
 	do {
 		if (hwif->irq == irq) {
-			stat = hwif->INB(hwif->io_ports[IDE_STATUS_OFFSET]);
+			stat = hwif->INB(hwif->io_ports.status_addr);
 			if (!OK_STAT(stat, READY_STAT, BAD_STAT)) {
 				/* Try to not flood the console with msgs */
 				static unsigned long last_msgtime, count;
@@ -1514,7 +1505,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 			 * Whack the status register, just in case
 			 * we have a leftover pending IRQ.
 			 */
-			(void) hwif->INB(hwif->io_ports[IDE_STATUS_OFFSET]);
+			(void) hwif->INB(hwif->io_ports.status_addr);
 #endif /* CONFIG_BLK_DEV_IDEPCI */
 		}
 		spin_unlock_irqrestore(&ide_lock, flags);

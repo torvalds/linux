@@ -33,7 +33,7 @@ static ssize_t store_add(struct class *cls, const char *buf, size_t n)
 	if (sscanf(buf, "%x:%x:%d", &base, &ctl, &irq) != 3)
 		return -EINVAL;
 
-	hwif = ide_find_port(base);
+	hwif = ide_find_port();
 	if (hwif == NULL)
 		return -ENOENT;
 
@@ -90,19 +90,45 @@ static int __init ide_generic_init(void)
 	int i;
 
 	for (i = 0; i < MAX_HWIFS; i++) {
-		ide_hwif_t *hwif = &ide_hwifs[i];
+		ide_hwif_t *hwif;
 		unsigned long io_addr = ide_default_io_base(i);
 		hw_regs_t hw;
 
-		if (hwif->chipset == ide_unknown && io_addr) {
+		idx[i] = 0xff;
+
+		if (io_addr) {
+			if (!request_region(io_addr, 8, DRV_NAME)) {
+				printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX "
+						"not free.\n",
+						DRV_NAME, io_addr, io_addr + 7);
+				continue;
+			}
+
+			if (!request_region(io_addr + 0x206, 1, DRV_NAME)) {
+				printk(KERN_ERR "%s: I/O resource 0x%lX "
+						"not free.\n",
+						DRV_NAME, io_addr + 0x206);
+				release_region(io_addr, 8);
+				continue;
+			}
+
+			/*
+			 * Skip probing if the corresponding
+			 * slot is already occupied.
+			 */
+			hwif = ide_find_port();
+			if (hwif == NULL || hwif->index != i) {
+				idx[i] = 0xff;
+				continue;
+			}
+
 			memset(&hw, 0, sizeof(hw));
 			ide_std_init_ports(&hw, io_addr, io_addr + 0x206);
 			hw.irq = ide_default_irq(io_addr);
 			ide_init_port_hw(hwif, &hw);
 
 			idx[i] = i;
-		} else
-			idx[i] = 0xff;
+		}
 	}
 
 	ide_device_add_all(idx, NULL);

@@ -772,10 +772,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: ide=nodma or ide=doubler
 			See Documentation/ide/ide.txt.
 
-	ide?=		[HW] (E)IDE subsystem
-			Format: ide?=ata66 or chipset specific parameters.
-			See Documentation/ide/ide.txt.
-
 	idebus=		[HW] (E)IDE subsystem - VLB/PCI bus speed
 			See Documentation/ide/ide.txt.
 

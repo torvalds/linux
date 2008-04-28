@@ -101,11 +101,12 @@ static void format_3_instr(int opcode, symbol_ref_t *src,
 			   expression_t *immed, symbol_ref_t *address);
 static void test_readable_symbol(symbol_t *symbol);
 static void test_writable_symbol(symbol_t *symbol);
-static void type_check(symbol_t *symbol, expression_t *expression, int and_op);
+static void type_check(symbol_ref_t *sym, expression_t *expression, int and_op);
 static void make_expression(expression_t *immed, int value);
 static void add_conditional(symbol_t *symbol);
 static void add_version(const char *verstring);
 static int  is_download_const(expression_t *immed);
+static int  is_location_address(symbol_t *symbol);
 void yyerror(const char *string);
 
 #define SRAM_SYMNAME "SRAM_BASE"
@@ -141,6 +142,8 @@ void yyerror(const char *string);
 %token T_EXPR_RSHIFT
 
 %token <value> T_ADDRESS
+
+%token T_COUNT
 
 %token T_ACCESS_MODE
 
@@ -192,10 +195,10 @@ void yyerror(const char *string);
 
 %token <value> T_OR
 
-/* 16 bit extensions */
-%token <value> T_OR16 T_AND16 T_XOR16 T_ADD16
-%token <value> T_ADC16 T_MVI16 T_TEST16 T_CMP16 T_CMPXCHG
-
+/* 16 bit extensions, not implemented
+ * %token <value> T_OR16 T_AND16 T_XOR16 T_ADD16
+ * %token <value> T_ADC16 T_MVI16 T_TEST16 T_CMP16 T_CMPXCHG
+ */
 %token T_RET
 
 %token T_NOP
@@ -214,7 +217,7 @@ void yyerror(const char *string);
 
 %type <expression> expression immediate immediate_or_a
 
-%type <value> export ret f1_opcode f2_opcode f4_opcode jmp_jc_jnc_call jz_jnz je_jne
+%type <value> export ret f1_opcode f2_opcode jmp_jc_jnc_call jz_jnz je_jne
 
 %type <value> mode_value mode_list macro_arglist
 
@@ -313,13 +316,13 @@ reg_definition:
 				stop("Register multiply defined", EX_DATAERR);
 				/* NOTREACHED */
 			}
-			cur_symbol = $1; 
+			cur_symbol = $1;
 			cur_symbol->type = cur_symtype;
 			initialize_symbol(cur_symbol);
 		}
 		reg_attribute_list
 	'}'
-		{                    
+		{
 			/*
 			 * Default to allowing everything in for registers
 			 * with no bit or mask definitions.
@@ -349,9 +352,10 @@ reg_attribute_list:
 |	reg_attribute_list reg_attribute
 ;
 
-reg_attribute:		
+reg_attribute:
 	reg_address
 |	size
+|	count
 |	access_mode
 |	modes
 |	field_defn
@@ -389,6 +393,13 @@ size:
 			if (sym_max_addr > max_addr)
 				stop("SCB or SRAM space exhausted", EX_DATAERR);
 		}
+	}
+;
+
+count:
+	T_COUNT T_NUMBER
+	{
+		cur_symbol->count += $2;
 	}
 ;
 
@@ -641,14 +652,14 @@ expression:
 			       &($1.referenced_syms),
 			       &($3.referenced_syms));
 	}
-| 	expression T_EXPR_LSHIFT expression
+|	expression T_EXPR_LSHIFT expression
 	{
 		$$.value = $1.value << $3.value;
 		symlist_merge(&$$.referenced_syms,
 			       &$1.referenced_syms,
 			       &$3.referenced_syms);
 	}
-| 	expression T_EXPR_RSHIFT expression
+|	expression T_EXPR_RSHIFT expression
 	{
 		$$.value = $1.value >> $3.value;
 		symlist_merge(&$$.referenced_syms,
@@ -714,7 +725,7 @@ expression:
 ;
 
 constant:
-	T_CONST T_SYMBOL expression 
+	T_CONST T_SYMBOL expression
 	{
 		if ($2->type != UNINITIALIZED) {
 			stop("Re-definition of symbol as a constant",
@@ -800,6 +811,7 @@ scratch_ram:
 			cur_symtype = SRAMLOC;
 			cur_symbol->type = SRAMLOC;
 			initialize_symbol(cur_symbol);
+			cur_symbol->count += 1;
 		}
 		reg_address
 		{
@@ -831,6 +843,7 @@ scb:
 			initialize_symbol(cur_symbol);
 			/* 64 bytes of SCB space */
 			cur_symbol->info.rinfo->size = 64;
+			cur_symbol->count += 1;
 		}
 		reg_address
 		{
@@ -1311,14 +1324,18 @@ f2_opcode:
 |	T_ROR { $$ = AIC_OP_ROR; }
 ;
 
-f4_opcode:
-	T_OR16	{ $$ = AIC_OP_OR16; }
-|	T_AND16 { $$ = AIC_OP_AND16; }
-|	T_XOR16 { $$ = AIC_OP_XOR16; }
-|	T_ADD16 { $$ = AIC_OP_ADD16; }
-|	T_ADC16 { $$ = AIC_OP_ADC16; }
-|	T_MVI16 { $$ = AIC_OP_MVI16; }
-;
+/*
+ * 16bit opcodes, not used
+ *
+ *f4_opcode:
+ *	T_OR16	{ $$ = AIC_OP_OR16; }
+ *|	T_AND16 { $$ = AIC_OP_AND16; }
+ *|	T_XOR16 { $$ = AIC_OP_XOR16; }
+ *|	T_ADD16 { $$ = AIC_OP_ADD16; }
+ *|	T_ADC16 { $$ = AIC_OP_ADC16; }
+ *|	T_MVI16 { $$ = AIC_OP_MVI16; }
+ *;
+ */
 
 code:
 	f2_opcode destination ',' expression opt_source ret ';'
@@ -1357,6 +1374,7 @@ code:
 code:
 	T_OR reg_symbol ',' immediate jmp_jc_jnc_call address ';'
 	{
+		type_check(&$2, &$4, AIC_OP_OR);
 		format_3_instr($5, &$2, &$4, &$6);
 	}
 ;
@@ -1528,7 +1546,7 @@ initialize_symbol(symbol_t *symbol)
 		       sizeof(struct cond_info));
 		break;
 	case MACRO:
-		symbol->info.macroinfo = 
+		symbol->info.macroinfo =
 		    (struct macro_info *)malloc(sizeof(struct macro_info));
 		if (symbol->info.macroinfo == NULL) {
 			stop("Can't create macro info", EX_SOFTWARE);
@@ -1552,7 +1570,6 @@ add_macro_arg(const char *argtext, int argnum)
 	struct macro_arg *marg;
 	int i;
 	int retval;
-		
 
 	if (cur_symbol == NULL || cur_symbol->type != MACRO) {
 		stop("Invalid current symbol for adding macro arg",
@@ -1633,8 +1650,10 @@ format_1_instr(int opcode, symbol_ref_t *dest, expression_t *immed,
 	test_writable_symbol(dest->symbol);
 	test_readable_symbol(src->symbol);
 
-	/* Ensure that immediate makes sense for this destination */
-	type_check(dest->symbol, immed, opcode);
+	if (!is_location_address(dest->symbol)) {
+		/* Ensure that immediate makes sense for this destination */
+		type_check(dest, immed, opcode);
+	}
 
 	/* Allocate sequencer space for the instruction and fill it out */
 	instr = seq_alloc();
@@ -1766,9 +1785,6 @@ format_3_instr(int opcode, symbol_ref_t *src,
 	/* Test register permissions */
 	test_readable_symbol(src->symbol);
 
-	/* Ensure that immediate makes sense for this source */
-	type_check(src->symbol, immed, opcode);
-
 	/* Allocate sequencer space for the instruction and fill it out */
 	instr = seq_alloc();
 	f3_instr = &instr->format.format3;
@@ -1797,7 +1813,6 @@ format_3_instr(int opcode, symbol_ref_t *src,
 static void
 test_readable_symbol(symbol_t *symbol)
 {
-	
 	if ((symbol->info.rinfo->modes & (0x1 << src_mode)) == 0) {
 		snprintf(errbuf, sizeof(errbuf),
 			"Register %s unavailable in source reg mode %d",
@@ -1815,7 +1830,6 @@ test_readable_symbol(symbol_t *symbol)
 static void
 test_writable_symbol(symbol_t *symbol)
 {
-	
 	if ((symbol->info.rinfo->modes & (0x1 << dst_mode)) == 0) {
 		snprintf(errbuf, sizeof(errbuf),
 			"Register %s unavailable in destination reg mode %d",
@@ -1831,25 +1845,34 @@ test_writable_symbol(symbol_t *symbol)
 }
 
 static void
-type_check(symbol_t *symbol, expression_t *expression, int opcode)
+type_check(symbol_ref_t *sym, expression_t *expression, int opcode)
 {
+	symbol_t *symbol = sym->symbol;
 	symbol_node_t *node;
 	int and_op;
+	int8_t value, mask;
 
 	and_op = FALSE;
-	if (opcode == AIC_OP_AND || opcode == AIC_OP_JNZ || opcode == AIC_OP_JZ)
-		and_op = TRUE;
-
 	/*
 	 * Make sure that we aren't attempting to write something
 	 * that hasn't been defined.  If this is an and operation,
 	 * this is a mask, so "undefined" bits are okay.
 	 */
-	if (and_op == FALSE
-	 && (expression->value & ~symbol->info.rinfo->valid_bitmask) != 0) {
+	if (opcode == AIC_OP_AND || opcode == AIC_OP_JNZ ||
+	    opcode == AIC_OP_JZ  || opcode == AIC_OP_JNE ||
+	    opcode == AIC_OP_BMOV)
+		and_op = TRUE;
+
+	/*
+	 * Defaulting to 8 bit logic
+	 */
+	mask = (int8_t)~symbol->info.rinfo->valid_bitmask;
+	value = (int8_t)expression->value;
+
+	if (and_op == FALSE && (mask & value) != 0 ) {
 		snprintf(errbuf, sizeof(errbuf),
 			 "Invalid bit(s) 0x%x in immediate written to %s",
-			 expression->value & ~symbol->info.rinfo->valid_bitmask,
+			 (mask & value),
 			 symbol->name);
 		stop(errbuf, EX_DATAERR);
 		/* NOTREACHED */
@@ -1959,3 +1982,13 @@ is_download_const(expression_t *immed)
 
 	return (FALSE);
 }
+
+static int
+is_location_address(symbol_t *sym)
+{
+	if (sym->type == SCBLOC ||
+	    sym->type == SRAMLOC)
+		return (TRUE);
+	return (FALSE);
+}
+

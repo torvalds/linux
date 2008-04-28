@@ -888,7 +888,7 @@ static int vivi_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
 	struct vivi_dev *dev;
-	struct vivi_fh *fh;
+	struct vivi_fh *fh = NULL;
 	int i;
 	int retval = 0;
 

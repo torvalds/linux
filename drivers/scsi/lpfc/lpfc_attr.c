@@ -182,8 +182,8 @@ lpfc_option_rom_version_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%s\n", phba->OptionROMVersion);
 }
 static ssize_t
-lpfc_state_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
+lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
 {
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
@@ -936,7 +936,7 @@ static DEVICE_ATTR(programtype, S_IRUGO, lpfc_programtype_show, NULL);
 static DEVICE_ATTR(portnum, S_IRUGO, lpfc_vportnum_show, NULL);
 static DEVICE_ATTR(fwrev, S_IRUGO, lpfc_fwrev_show, NULL);
 static DEVICE_ATTR(hdw, S_IRUGO, lpfc_hdw_show, NULL);
-static DEVICE_ATTR(state, S_IRUGO, lpfc_state_show, NULL);
+static DEVICE_ATTR(link_state, S_IRUGO, lpfc_link_state_show, NULL);
 static DEVICE_ATTR(option_rom_version, S_IRUGO,
 		   lpfc_option_rom_version_show, NULL);
 static DEVICE_ATTR(num_discovered_ports, S_IRUGO,
@@ -1666,7 +1666,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_fwrev,
 	&dev_attr_hdw,
 	&dev_attr_option_rom_version,
-	&dev_attr_state,
+	&dev_attr_link_state,
 	&dev_attr_num_discovered_ports,
 	&dev_attr_lpfc_drvr_version,
 	&dev_attr_lpfc_temp_sensor,
@@ -1714,7 +1714,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 
 struct device_attribute *lpfc_vport_attrs[] = {
 	&dev_attr_info,
-	&dev_attr_state,
+	&dev_attr_link_state,
 	&dev_attr_num_discovered_ports,
 	&dev_attr_lpfc_drvr_version,
 	&dev_attr_lpfc_log_verbose,

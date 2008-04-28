@@ -636,6 +636,15 @@ static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_
 			nes_debug(NES_DBG_INIT, "Did not see full soft reset done.\n");
 			return 0;
 		}
+
+		i = 0;
+		while ((nes_read_indexed(nesdev, NES_IDX_INT_CPU_STATUS) != 0x80) && i++ < 10000)
+			mdelay(1);
+		if (i >= 10000) {
+			printk(KERN_ERR PFX "Internal CPU not ready, status = %02X\n",
+			       nes_read_indexed(nesdev, NES_IDX_INT_CPU_STATUS));
+			return 0;
+		}
 	}
 
 	/* port reset */
@@ -682,17 +691,6 @@ static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_
 			nes_debug(NES_DBG_INIT, "Serdes 1 not ready, status=%x\n", u32temp);
 			return 0;
 		}
-	}
-
-
-
-	i = 0;
-	while ((nes_read_indexed(nesdev, NES_IDX_INT_CPU_STATUS) != 0x80) && i++ < 10000)
-		mdelay(1);
-	if (i >= 10000) {
-		printk(KERN_ERR PFX "Internal CPU not ready, status = %02X\n",
-				nes_read_indexed(nesdev, NES_IDX_INT_CPU_STATUS));
-		return 0;
 	}
 
 	return port_count;

@@ -1,6 +1,8 @@
 #ifndef _MACH_BIOS_EBDA_H
 #define _MACH_BIOS_EBDA_H
 
+#include <asm/io.h>
+
 /*
  * there is a real-mode segmented pointer pointing to the
  * 4K EBDA area at 0x40E.

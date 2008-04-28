@@ -80,10 +80,10 @@ void q40_ide_setup_ports ( hw_regs_t *hw,
 	for (i = 0; i < IDE_NR_PORTS; i++) {
 		/* BIG FAT WARNING: 
 		   assumption: only DATA port is ever used in 16 bit mode */
-		if ( i==0 )
-			hw->io_ports[i] = Q40_ISA_IO_W(base + offsets[i]);
+		if (i == 0)
+			hw->io_ports_array[i] = Q40_ISA_IO_W(base + offsets[i]);
 		else
-			hw->io_ports[i] = Q40_ISA_IO_B(base + offsets[i]);
+			hw->io_ports_array[i] = Q40_ISA_IO_B(base + offsets[i]);
 	}
 
 	hw->irq = irq;
@@ -137,11 +137,10 @@ static int __init q40ide_init(void)
 //			m68kide_iops,
 			q40ide_default_irq(pcide_bases[i]));
 
-	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif) {
 		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
-		hwif->mmio = 1;
 
 		idx[i] = hwif->index;
 	}

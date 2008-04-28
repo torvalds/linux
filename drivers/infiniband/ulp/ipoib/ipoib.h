@@ -56,10 +56,10 @@
 /* constants */
 
 enum {
-	IPOIB_PACKET_SIZE	  = 2048,
-	IPOIB_BUF_SIZE		  = IPOIB_PACKET_SIZE + IB_GRH_BYTES,
-
 	IPOIB_ENCAP_LEN		  = 4,
+
+	IPOIB_UD_HEAD_SIZE	  = IB_GRH_BYTES + IPOIB_ENCAP_LEN,
+	IPOIB_UD_RX_SG		  = 2, /* max buffer needed for 4K mtu */
 
 	IPOIB_CM_MTU		  = 0x10000 - 0x10, /* padding to align header to 16 */
 	IPOIB_CM_BUF_SIZE	  = IPOIB_CM_MTU  + IPOIB_ENCAP_LEN,
@@ -139,7 +139,7 @@ struct ipoib_mcast {
 
 struct ipoib_rx_buf {
 	struct sk_buff *skb;
-	u64		mapping;
+	u64		mapping[IPOIB_UD_RX_SG];
 };
 
 struct ipoib_tx_buf {
@@ -294,6 +294,7 @@ struct ipoib_dev_priv {
 
 	unsigned int admin_mtu;
 	unsigned int mcast_mtu;
+	unsigned int max_ib_mtu;
 
 	struct ipoib_rx_buf *rx_ring;
 
@@ -304,6 +305,9 @@ struct ipoib_dev_priv {
 	struct ib_sge	     tx_sge[MAX_SKB_FRAGS + 1];
 	struct ib_send_wr    tx_wr;
 	unsigned	     tx_outstanding;
+
+	struct ib_recv_wr    rx_wr;
+	struct ib_sge	     rx_sge[IPOIB_UD_RX_SG];
 
 	struct ib_wc ibwc[IPOIB_NUM_WC];
 
@@ -365,6 +369,14 @@ struct ipoib_neigh {
 
 	struct list_head    list;
 };
+
+#define IPOIB_UD_MTU(ib_mtu)		(ib_mtu - IPOIB_ENCAP_LEN)
+#define IPOIB_UD_BUF_SIZE(ib_mtu)	(ib_mtu + IB_GRH_BYTES)
+
+static inline int ipoib_ud_need_sg(unsigned int ib_mtu)
+{
+	return IPOIB_UD_BUF_SIZE(ib_mtu) > PAGE_SIZE;
+}
 
 /*
  * We stash a pointer to our private neighbour information after our

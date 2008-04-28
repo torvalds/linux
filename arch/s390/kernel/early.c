@@ -144,6 +144,10 @@ static noinline __init void detect_machine_type(void)
 	/* Running on a P/390 ? */
 	if (cpuinfo->cpu_id.machine == 0x7490)
 		machine_flags |= 4;
+
+	/* Running under KVM ? */
+	if (cpuinfo->cpu_id.version == 0xfe)
+		machine_flags |= 64;
 }
 
 #ifdef CONFIG_64BIT

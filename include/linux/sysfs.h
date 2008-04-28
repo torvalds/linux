@@ -32,7 +32,7 @@ struct attribute {
 
 struct attribute_group {
 	const char		*name;
-	int			(*is_visible)(struct kobject *,
+	mode_t			(*is_visible)(struct kobject *,
 					      struct attribute *, int);
 	struct attribute	**attrs;
 };
@@ -105,6 +105,8 @@ void sysfs_remove_link(struct kobject *kobj, const char *name);
 
 int __must_check sysfs_create_group(struct kobject *kobj,
 				    const struct attribute_group *grp);
+int sysfs_update_group(struct kobject *kobj,
+		       const struct attribute_group *grp);
 void sysfs_remove_group(struct kobject *kobj,
 			const struct attribute_group *grp);
 int sysfs_add_file_to_group(struct kobject *kobj,

@@ -198,6 +198,7 @@ register SEQINTCODE {
 register CLRINT {
 	address			0x003
 	access_mode	WO
+	count		19
 	field	CLRHWERRINT	0x80 /* Rev B or greater */
 	field	CLRBRKADRINT	0x40
 	field	CLRSWTMINT	0x20
@@ -245,6 +246,7 @@ register CLRERR {
 register HCNTRL {
 	address			0x005
 	access_mode	RW
+	count		12
 	field	SEQ_RESET	0x80 /* Rev B or greater */
 	field	POWRDN		0x40
 	field	SWINT		0x10
@@ -262,6 +264,7 @@ register HNSCB_QOFF {
 	address			0x006
 	access_mode	RW
 	size		2
+	count		2
 }
 
 /*
@@ -270,6 +273,7 @@ register HNSCB_QOFF {
 register HESCB_QOFF {
 	address			0x008
 	access_mode	RW
+	count		2
 }
 
 /*
@@ -287,6 +291,7 @@ register HS_MAILBOX {
  */
 register SEQINTSTAT {
 	address			0x00C
+	count		1
 	access_mode	RO
 	field	SEQ_SWTMRTO	0x10
 	field	SEQ_SEQINT	0x08
@@ -332,6 +337,7 @@ register SNSCB_QOFF {
  */
 register SESCB_QOFF {
 	address			0x012
+	count		2
 	access_mode	RW
 	modes		M_CCHAN
 }
@@ -397,6 +403,7 @@ register DFCNTRL {
 	address			0x019
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
+	count		11
 	field	PRELOADEN	0x80
 	field	SCSIENWRDIS	0x40	/* Rev B only. */
 	field	SCSIEN		0x20
@@ -415,6 +422,7 @@ register DFCNTRL {
  */
 register DSCOMMAND0 {
 	address			0x019
+	count		1
 	access_mode	RW
 	modes		M_CFG
 	field	CACHETHEN	0x80	/* Cache Threshold enable */
@@ -580,6 +588,7 @@ register DFF_THRSH {
 	address			0x088
 	access_mode	RW
 	modes		M_CFG
+	count		1
 	field	WR_DFTHRSH	0x70 {
 		WR_DFTHRSH_MIN,
 		WR_DFTHRSH_25,
@@ -800,6 +809,7 @@ register PCIXCTL {
 	address			0x093
 	access_mode	RW
 	modes		M_CFG
+	count		1
 	field	SERRPULSE	0x80
 	field	UNEXPSCIEN	0x20
 	field	SPLTSMADIS	0x10
@@ -844,6 +854,7 @@ register DCHSPLTSTAT0 {
 	address			0x096
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
+	count		2
 	field	STAETERM	0x80
 	field	SCBCERR		0x40
 	field	SCADERR		0x20
@@ -895,6 +906,7 @@ register DCHSPLTSTAT1 {
 	address			0x097
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
+	count		2
 	field	RXDATABUCKET	0x01
 }
 
@@ -1048,6 +1060,7 @@ register SGSPLTSTAT0 {
 	address			0x09E
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
+	count		2
 	field	STAETERM	0x80
 	field	SCBCERR		0x40
 	field	SCADERR		0x20
@@ -1065,6 +1078,7 @@ register SGSPLTSTAT1 {
 	address			0x09F
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
+	count		2
 	field	RXDATABUCKET	0x01
 }
 
@@ -1086,6 +1100,7 @@ register DF0PCISTAT {
 	address			0x0A0
 	access_mode	RW
 	modes		M_CFG
+	count		1
 	field	DPE		0x80
 	field	SSE		0x40
 	field	RMA		0x20
@@ -1184,6 +1199,7 @@ register TARGPCISTAT {
 	address			0x0A7
 	access_mode	RW
 	modes		M_CFG
+	count		5
 	field	DPE		0x80
 	field	SSE		0x40
 	field	STA		0x08
@@ -1198,6 +1214,7 @@ register LQIN {
 	address			0x020
 	access_mode	RW
 	size		20
+	count		2
 	modes		M_DFF0, M_DFF1, M_SCSI
 }
 
@@ -1229,6 +1246,7 @@ register LUNPTR {
 	address			0x022
 	access_mode	RW
 	modes		M_CFG
+	count		2
 }
 
 /*
@@ -1259,6 +1277,7 @@ register CMDLENPTR {
 	address			0x025
 	access_mode	RW
 	modes		M_CFG
+	count		1
 }
 
 /*
@@ -1270,6 +1289,7 @@ register ATTRPTR {
 	address			0x026
 	access_mode	RW
 	modes		M_CFG
+	count		1
 }
 
 /*
@@ -1281,6 +1301,7 @@ register FLAGPTR {
 	address			0x027
 	access_mode	RW
 	modes		M_CFG
+	count		1
 }
 
 /*
@@ -1291,6 +1312,7 @@ register CMDPTR {
 	address			0x028
 	access_mode	RW
 	modes		M_CFG
+	count		1
 }
 
 /*
@@ -1301,6 +1323,7 @@ register QNEXTPTR {
 	address			0x029
 	access_mode	RW
 	modes		M_CFG
+	count		1
 }
 
 /*
@@ -1323,6 +1346,7 @@ register ABRTBYTEPTR {
 	address			0x02B
 	access_mode	RW
 	modes		M_CFG
+	count		1
 }
 
 /*
@@ -1333,6 +1357,7 @@ register ABRTBITPTR {
 	address			0x02C
 	access_mode	RW
 	modes		M_CFG
+	count		1
 }
 
 /*
@@ -1370,6 +1395,7 @@ register LUNLEN {
 	address			0x030
 	access_mode	RW
 	modes		M_CFG
+	count		2
 	mask		ILUNLEN	0x0F
 	mask		TLUNLEN	0xF0
 }
@@ -1383,6 +1409,7 @@ register CDBLIMIT {
 	address			0x031
 	access_mode	RW
 	modes		M_CFG
+	count		1
 }
 
 /*
@@ -1394,6 +1421,7 @@ register MAXCMD {
 	address			0x032
 	access_mode	RW
 	modes		M_CFG
+	count		9
 }
 
 /*
@@ -1458,6 +1486,7 @@ register LQCTL1 {
 	address			0x038
 	access_mode	RW
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		2
 	field	PCI2PCI		0x04
 	field	SINGLECMD	0x02
 	field	ABORTPENDING	0x01
@@ -1470,6 +1499,7 @@ register LQCTL2 {
 	address			0x039
 	access_mode	RW
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		5
 	field	LQIRETRY	0x80
 	field	LQICONTINUE	0x40
 	field	LQITOIDLE	0x20
@@ -1528,6 +1558,7 @@ register SCSISEQ1 {
 	address			0x03B
 	access_mode	RW
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		8
 	field	MANUALCTL	0x40
 	field	ENSELI		0x20
 	field	ENRSELI		0x10
@@ -1667,6 +1698,9 @@ register SCSISIGO {
 	}
 }
 
+/*
+ * SCSI Control Signal In
+ */
 register SCSISIGI {
 	address			0x041
 	access_mode	RO
@@ -1703,6 +1737,7 @@ register MULTARGID {
 	access_mode	RW
 	modes		M_CFG
 	size		2
+	count		2
 }
 
 /*
@@ -1758,6 +1793,7 @@ register TARGIDIN {
 	address			0x048
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		2
 	field	CLKOUT		0x80
 	field	TARGID		0x0F
 }
@@ -1798,6 +1834,7 @@ register OPTIONMODE {
 	address			0x04A
 	access_mode	RW
 	modes		M_CFG
+	count		4
 	field	BIOSCANCTL		0x80
 	field	AUTOACKEN		0x40
 	field	BIASCANCTL		0x20
@@ -1850,6 +1887,7 @@ register SIMODE0 {
 	address			0x04B
 	access_mode	RW
 	modes		M_CFG
+	count		8
 	field	ENSELDO		0x40
 	field	ENSELDI		0x20
 	field	ENSELINGO	0x10
@@ -1945,6 +1983,7 @@ register PERRDIAG {
 	address			0x04E
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		3
 	field	HIZERO		0x80
 	field	HIPERR		0x40
 	field	PREVPHASE	0x20
@@ -1962,6 +2001,7 @@ register LQISTATE {
 	address			0x04E
 	access_mode	RO
 	modes		M_CFG
+	count		6
 }
 
 /*
@@ -1971,6 +2011,7 @@ register SOFFCNT {
 	address			0x04F
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		1
 }
 
 /*
@@ -1980,6 +2021,7 @@ register LQOSTATE {
 	address			0x04F
 	access_mode	RO
 	modes		M_CFG
+	count		2
 }
 
 /*
@@ -1989,6 +2031,7 @@ register LQISTAT0 {
 	address			0x050
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		2
 	field	LQIATNQAS	0x20
 	field	LQICRCT1	0x10
 	field	LQICRCT2	0x08
@@ -2004,6 +2047,7 @@ register CLRLQIINT0 {
 	address			0x050
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		1
 	field	CLRLQIATNQAS	0x20
 	field	CLRLQICRCT1	0x10
 	field	CLRLQICRCT2	0x08
@@ -2019,6 +2063,7 @@ register LQIMODE0 {
 	address			0x050
 	access_mode	RW
 	modes		M_CFG
+	count		3
 	field	ENLQIATNQASK	0x20
 	field	ENLQICRCT1	0x10
 	field	ENLQICRCT2	0x08
@@ -2034,6 +2079,7 @@ register LQISTAT1 {
 	address			0x051
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		3
 	field	LQIPHASE_LQ	0x80
 	field	LQIPHASE_NLQ	0x40
 	field	LQIABORT	0x20
@@ -2051,6 +2097,7 @@ register CLRLQIINT1 {
 	address			0x051
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		4
 	field	CLRLQIPHASE_LQ	0x80
 	field	CLRLQIPHASE_NLQ	0x40
 	field	CLRLIQABORT	0x20
@@ -2068,6 +2115,7 @@ register LQIMODE1 {
 	address			0x051
 	access_mode	RW
 	modes		M_CFG
+	count		4
 	field	ENLQIPHASE_LQ	0x80	/* LQIPHASE1 */
 	field	ENLQIPHASE_NLQ	0x40	/* LQIPHASE2 */
 	field	ENLIQABORT	0x20
@@ -2102,6 +2150,7 @@ register SSTAT3 {
 	address			0x053
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		3
 	field	NTRAMPERR	0x02
 	field	OSRAMPERR	0x01
 }
@@ -2113,6 +2162,7 @@ register CLRSINT3 {
 	address			0x053
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		3
 	field	CLRNTRAMPERR	0x02
 	field	CLROSRAMPERR	0x01
 }
@@ -2124,6 +2174,7 @@ register SIMODE3 {
 	address			0x053
 	access_mode	RW
 	modes		M_CFG
+	count		4
 	field	ENNTRAMPERR	0x02
 	field	ENOSRAMPERR	0x01
 }
@@ -2135,6 +2186,7 @@ register LQOSTAT0 {
 	address			0x054
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		2
 	field	LQOTARGSCBPERR	0x10
 	field	LQOSTOPT2	0x08
 	field	LQOATNLQ	0x04
@@ -2149,6 +2201,7 @@ register CLRLQOINT0 {
 	address			0x054
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		3
 	field	CLRLQOTARGSCBPERR	0x10
 	field	CLRLQOSTOPT2		0x08
 	field	CLRLQOATNLQ		0x04
@@ -2163,6 +2216,7 @@ register LQOMODE0 {
 	address			0x054
 	access_mode	RW
 	modes		M_CFG
+	count		4
 	field	ENLQOTARGSCBPERR	0x10
 	field	ENLQOSTOPT2		0x08
 	field	ENLQOATNLQ		0x04
@@ -2191,6 +2245,7 @@ register CLRLQOINT1 {
 	address			0x055
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
+	count		7
 	field	CLRLQOINITSCBPERR	0x10
 	field	CLRLQOSTOPI2		0x08
 	field	CLRLQOBADQAS		0x04
@@ -2205,6 +2260,7 @@ register LQOMODE1 {
 	address			0x055
 	access_mode	RW
 	modes		M_CFG
+	count		4
 	field	ENLQOINITSCBPERR	0x10
 	field	ENLQOSTOPI2		0x08
 	field	ENLQOBADQAS		0x04
@@ -2232,6 +2288,7 @@ register OS_SPACE_CNT {
 	address			0x056
 	access_mode	RO
 	modes		M_CFG
+	count		2
 }
 
 /*
@@ -2286,13 +2343,19 @@ register NEXTSCB {
 	modes		M_SCSI
 }
 
-/* Rev B only. */
+/*
+ * LQO SCSI Control
+ * (Rev B only.)
+ */
 register LQOSCSCTL {
 	address			0x05A
 	access_mode	RW
 	size		1
 	modes		M_CFG
+	count		1
 	field		LQOH2A_VERSION	0x80
+	field		LQOBUSETDLY	0x40
+	field		LQONOHOLDLACK	0x02
 	field		LQONOCHKOVER	0x01
 }
 
@@ -2459,6 +2522,7 @@ register NEGPERIOD {
 	address			0x061
 	access_mode	RW
 	modes		M_SCSI
+	count		1
 }
 
 /*
@@ -2478,6 +2542,7 @@ register NEGOFFSET {
 	address			0x062
 	access_mode	RW
 	modes		M_SCSI
+	count		1
 }
 
 /*
@@ -2487,6 +2552,7 @@ register NEGPPROPTS {
 	address			0x063
 	access_mode	RW
 	modes		M_SCSI
+	count		1
 	field	PPROPT_PACE	0x08
 	field	PPROPT_QAS	0x04
 	field	PPROPT_DT	0x02
@@ -2516,12 +2582,19 @@ register ANNEXCOL {
 	address			0x065
 	access_mode	RW
 	modes		M_SCSI
+	count		7
 }
 
+/*
+ * SCSI Check
+ * (Rev. B only)
+ */
 register SCSCHKN {
 	address			0x066
 	access_mode	RW
 	modes		M_CFG
+	count		1
+	field	BIDICHKDIS	0x80
 	field	STSELSKIDDIS	0x40
 	field	CURRFIFODEF	0x20
 	field	WIDERESEN	0x10
@@ -2561,6 +2634,7 @@ register ANNEXDAT {
 	address			0x066
 	access_mode	RW
 	modes		M_SCSI
+	count		3
 }
 
 /*
@@ -2596,6 +2670,7 @@ register TOWNID {
 	address			0x069
 	access_mode	RW
 	modes		M_SCSI
+	count		2
 }
 
 /*
@@ -2737,6 +2812,7 @@ register SCBAUTOPTR {
 	address			0x0AB
 	access_mode	RW
 	modes		M_CFG
+	count		1
 	field	AUSCBPTR_EN	0x80
 	field	SCBPTR_ADDR	0x38
 	field	SCBPTR_OFF	0x07
@@ -2881,6 +2957,7 @@ register BRDDAT {
 	address			0x0B8
 	access_mode	RW
 	modes		M_SCSI
+	count		2
 }
 
 /*
@@ -2890,6 +2967,7 @@ register BRDCTL {
 	address			0x0B9
 	access_mode	RW
 	modes		M_SCSI
+	count		7
 	field	FLXARBACK	0x80
 	field	FLXARBREQ	0x40
 	field	BRDADDR		0x38
@@ -2905,6 +2983,7 @@ register SEEADR {
 	address			0x0BA
 	access_mode	RW
 	modes		M_SCSI
+	count		4
 }
 
 /*
@@ -2915,6 +2994,7 @@ register SEEDAT {
 	access_mode	RW
 	size		2
 	modes		M_SCSI
+	count		4
 }
 
 /*
@@ -2924,6 +3004,7 @@ register SEESTAT {
 	address			0x0BE
 	access_mode	RO
 	modes		M_SCSI
+	count		1
 	field	INIT_DONE	0x80
 	field	SEEOPCODE	0x70
 	field	LDALTID_L	0x08
@@ -2939,6 +3020,7 @@ register SEECTL {
 	address			0x0BE
 	access_mode	RW
 	modes		M_SCSI
+	count		4
 	field	SEEOPCODE	0x70 {
 		SEEOP_ERASE	0x70,
 		SEEOP_READ	0x60,
@@ -3000,6 +3082,7 @@ register DSPDATACTL {
 	address			0x0C1
 	access_mode	RW
 	modes		M_CFG
+	count		3
 	field	BYPASSENAB	0x80
 	field	DESQDIS		0x10
 	field	RCVROFFSTDIS	0x04
@@ -3058,6 +3141,7 @@ register DSPSELECT {
 	address			0x0C4
 	access_mode	RW
 	modes		M_CFG
+	count		1
 	field	AUTOINCEN	0x80
 	field	DSPSEL		0x1F
 }
@@ -3071,6 +3155,7 @@ register WRTBIASCTL {
 	address			0x0C5
 	access_mode	WO
 	modes		M_CFG
+	count		3
 	field	AUTOXBCDIS	0x80
 	field	XMITMANVAL	0x3F
 }
@@ -3196,7 +3281,8 @@ register OVLYADDR {
  */
 register SEQCTL0 {
 	address			0x0D6
-	access_mode RW
+	access_mode	RW
+	count		11
 	field	PERRORDIS	0x80
 	field	PAUSEDIS	0x40
 	field	FAILDIS		0x20
@@ -3226,7 +3312,8 @@ register SEQCTL1 {
  */
 register FLAGS {
 	address			0x0D8
-	access_mode RO
+	access_mode 	RO
+	count		23
 	field	ZERO		0x02
 	field	CARRY		0x01
 }
@@ -3255,7 +3342,8 @@ register SEQINTCTL {
  */
 register SEQRAM {
 	address			0x0DA
-	access_mode RW
+	access_mode 	RW
+	count		2
 }
 
 /*
@@ -3266,6 +3354,7 @@ register PRGMCNT {
 	address			0x0DE
 	access_mode	RW
 	size		2
+	count		5
 }
 
 /*
@@ -3273,7 +3362,7 @@ register PRGMCNT {
  */
 register ACCUM {
 	address			0x0E0
-	access_mode RW
+	access_mode 	RW
 	accumulator
 }
 
@@ -3401,6 +3490,7 @@ register INTVEC1_ADDR {
 	access_mode	RW
 	size		2
 	modes		M_CFG
+	count		1
 }
 
 /*
@@ -3412,6 +3502,7 @@ register CURADDR {
 	access_mode	RW
 	size		2
 	modes		M_SCSI
+	count		2
 }
 
 /*
@@ -3423,6 +3514,7 @@ register INTVEC2_ADDR {
 	access_mode	RW
 	size		2
 	modes		M_CFG
+	count		1
 }
 
 /*
@@ -3579,6 +3671,7 @@ scratch_ram {
 	/* Parameters for DMA Logic */
 	DMAPARAMS {
 		size		1
+		count		8
 		field	PRELOADEN	0x80
 		field	WIDEODD		0x40
 		field	SCSIEN		0x20
@@ -3648,9 +3741,11 @@ scratch_ram {
 	 */
 	KERNEL_TQINPOS {
 		size		1
+		count		1
 	}
-	TQINPOS {                
+	TQINPOS {
 		size		1
+		count		8
 	}
 	/*
 	 * Base address of our shared data with the kernel driver in host
@@ -3681,6 +3776,7 @@ scratch_ram {
 	}
 	ARG_2 {
 		size		1
+		count		1
 		alias	RETURN_2
 	}
 
@@ -3698,6 +3794,7 @@ scratch_ram {
 	 */
 	SCSISEQ_TEMPLATE {
 		size		1
+		count		7
 		field	MANUALCTL	0x40
 		field	ENSELI		0x20
 		field	ENRSELI		0x10
@@ -3711,6 +3808,7 @@ scratch_ram {
 	 */
 	INITIATOR_TAG {
 		size		1
+		count		1
 	}
 
 	SEQ_FLAGS2 {
@@ -3777,6 +3875,7 @@ scratch_ram {
 	 */
 	CMDSIZE_TABLE {
 		size		8
+		count		8
 	}
 	/*
 	 * When an SCB with the MK_MESSAGE flag is
@@ -3803,8 +3902,8 @@ scratch_ram {
 /************************* Hardware SCB Definition ****************************/
 scb {
 	address			0x180
-	size	64
-	modes	0, 1, 2, 3
+	size		64
+	modes		0, 1, 2, 3
 	SCB_RESIDUAL_DATACNT {
 		size	4
 		alias	SCB_CDB_STORE

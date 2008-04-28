@@ -166,27 +166,17 @@ static u8 __devinit cs5535_cable_detect(ide_hwif_t *hwif)
 	return (bit & 1) ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 }
 
-/****
- *	init_hwif_cs5535        -       Initialize one ide cannel
- *	@hwif: Channel descriptor
- *
- *	This gets invoked by the IDE driver once for each channel. It
- *	performs channel-specific pre-initialization before drive probing.
- *
- */
-static void __devinit init_hwif_cs5535(ide_hwif_t *hwif)
-{
-	hwif->set_pio_mode = &cs5535_set_pio_mode;
-	hwif->set_dma_mode = &cs5535_set_dma_mode;
-
-	hwif->cable_detect = cs5535_cable_detect;
-}
+static const struct ide_port_ops cs5535_port_ops = {
+	.set_pio_mode		= cs5535_set_pio_mode,
+	.set_dma_mode		= cs5535_set_dma_mode,
+	.cable_detect		= cs5535_cable_detect,
+};
 
 static const struct ide_port_info cs5535_chipset __devinitdata = {
 	.name		= "CS5535",
-	.init_hwif	= init_hwif_cs5535,
+	.port_ops	= &cs5535_port_ops,
 	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_POST_SET_MODE |
-			  IDE_HFLAG_ABUSE_SET_DMA_MODE | IDE_HFLAG_BOOTABLE,
+			  IDE_HFLAG_ABUSE_SET_DMA_MODE,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
 	.udma_mask	= ATA_UDMA4,

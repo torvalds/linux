@@ -413,9 +413,6 @@ int page_referenced(struct page *page, int is_locked,
 {
 	int referenced = 0;
 
-	if (page_test_and_clear_young(page))
-		referenced++;
-
 	if (TestClearPageReferenced(page))
 		referenced++;
 
@@ -433,6 +430,10 @@ int page_referenced(struct page *page, int is_locked,
 			unlock_page(page);
 		}
 	}
+
+	if (page_test_and_clear_young(page))
+		referenced++;
+
 	return referenced;
 }
 

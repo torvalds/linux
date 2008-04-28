@@ -29,11 +29,7 @@
 
 #include <media/v4l2-common.h>
 
-unsigned int i2c_debug;
-module_param(i2c_debug, int, 0444);
-MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
-
-unsigned int i2c_scan;
+static int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 

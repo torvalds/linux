@@ -82,27 +82,26 @@ Drives are normally found by auto-probing and/or examining the CMOS/BIOS data.
 For really weird situations, the apparent (fdisk) geometry can also be specified
 on the kernel "command line" using LILO.  The format of such lines is:
 
-	hdx=cyls,heads,sects
-or	hdx=cdrom
+	ide_core.chs=[interface_number.device_number]:cyls,heads,sects
+or	ide_core.cdrom=[interface_number.device_number]
 
-where hdx can be any of hda through hdh, Three values are required
-(cyls,heads,sects).  For example:
+For example:
 
-	hdc=1050,32,64  hdd=cdrom
+	ide_core.chs=1.0:1050,32,64  ide_core.cdrom=1.1
 
-either {hda,hdb} or {hdc,hdd}.  The results of successful auto-probing may
-override the physical geometry/irq specified, though the "original" geometry
-may be retained as the "logical" geometry for partitioning purposes (fdisk).
+The results of successful auto-probing may override the physical geometry/irq
+specified, though the "original" geometry may be retained as the "logical"
+geometry for partitioning purposes (fdisk).
 
 If the auto-probing during boot time confuses a drive (ie. the drive works
 with hd.c but not with ide.c), then an command line option may be specified
 for each drive for which you'd like the drive to skip the hardware
 probe/identification sequence.  For example:
 
-	hdb=noprobe
+	ide_core.noprobe=0.1
 or
-	hdc=768,16,32
-	hdc=noprobe
+	ide_core.chs=1.0:768,16,32
+	ide_core.noprobe=1.0
 
 Note that when only one IDE device is attached to an interface, it should be
 jumpered as "single" or "master", *not* "slave".  Many folks have had
@@ -118,9 +117,9 @@ If for some reason your cdrom drive is *not* found at boot time, you can force
 the probe to look harder by supplying a kernel command line parameter
 via LILO, such as:
 
-	hdc=cdrom	/* hdc = "master" on second interface */
+	ide_core.cdrom=1.0	/* "master" on second interface (hdc) */
 or
-	hdd=cdrom	/* hdd = "slave" on second interface */
+	ide_core.cdrom=1.1	/* "slave" on second interface (hdd) */
 
 For example, a GW2000 system might have a hard drive on the primary
 interface (/dev/hda) and an IDE cdrom drive on the secondary interface
@@ -174,66 +173,13 @@ to /etc/modprobe.conf.
 
 When ide.c is used as a module, you can pass command line parameters to the
 driver using the "options=" keyword to insmod, while replacing any ',' with
-';'.  For example:
-
-	insmod ide.o options="hda=nodma hdb=nodma"
+';'.
 
 
 ================================================================================
 
 Summary of ide driver parameters for kernel command line
 --------------------------------------------------------
-
- "hdx="  is recognized for all "x" from "a" to "u", such as "hdc".
-
- "idex=" is recognized for all "x" from "0" to "9", such as "ide1".
-
- "hdx=noprobe"		: drive may be present, but do not probe for it
-
- "hdx=none"		: drive is NOT present, ignore cmos and do not probe
-
- "hdx=nowerr"		: ignore the WRERR_STAT bit on this drive
-
- "hdx=cdrom"		: drive is present, and is a cdrom drive
-
- "hdx=cyl,head,sect"	: disk drive is present, with specified geometry
-
- "hdx=autotune"		: driver will attempt to tune interface speed
-			  to the fastest PIO mode supported,
-			  if possible for this drive only.
-			  Not fully supported by all chipset types,
-			  and quite likely to cause trouble with
-			  older/odd IDE drives.
-
- "hdx=nodma"		: disallow DMA
-
- "idebus=xx"		: inform IDE driver of VESA/PCI bus speed in MHz,
-			  where "xx" is between 20 and 66 inclusive,
-			  used when tuning chipset PIO modes.
-			  For PCI bus, 25 is correct for a P75 system,
-			  30 is correct for P90,P120,P180 systems,
-			  and 33 is used for P100,P133,P166 systems.
-			  If in doubt, use idebus=33 for PCI.
-			  As for VLB, it is safest to not specify it.
-			  Bigger values are safer than smaller ones.
-
- "idex=serialize"	: do not overlap operations on idex. Please note
-			  that you will have to specify this option for
-			  both the respective primary and secondary channel
-			  to take effect.
-
- "idex=reset"		: reset interface after probe
-
- "idex=ata66"		: informs the interface that it has an 80c cable
-			  for chipsets that are ATA-66 capable, but the
-			  ability to bit test for detection is currently
-			  unknown.
-
- "ide=doubler"		: probe/support IDE doublers on Amiga
-
-There may be more options than shown -- use the source, Luke!
-
-Everything else is rejected with a "BAD OPTION" message.
 
 For legacy IDE VLB host drivers (ali14xx/dtc2278/ht6560b/qd65xx/umc8672)
 you need to explicitly enable probing by using "probe" kernel parameter,
@@ -250,6 +196,33 @@ are detected automatically).
 
 You also need to use "probe" kernel parameter for ide-4drives driver
 (support for IDE generic chipset with four drives on one port).
+
+To enable support for IDE doublers on Amiga use "doubler" kernel parameter
+for gayle host driver (i.e. "gayle.doubler" if the driver is built-in).
+
+To force ignoring cable detection (this should be needed only if you're using
+short 40-wires cable which cannot be automatically detected - if this is not
+a case please report it as a bug instead) use "ignore_cable" kernel parameter:
+
+* "ide_core.ignore_cable=[interface_number]" boot option if IDE is built-in
+  (i.e. "ide_core.ignore_cable=1" to force ignoring cable for "ide1")
+
+* "ignore_cable=[interface_number]" module parameter (for ide_core module)
+  if IDE is compiled as module
+
+Other kernel parameters for ide_core are:
+
+* "nodma=[interface_number.device_number]" to disallow DMA for a device
+
+* "noflush=[interface_number.device_number]" to disable flush requests
+
+* "noprobe=[interface_number.device_number]" to skip probing
+
+* "nowerr=[interface_number.device_number]" to ignore the WRERR_STAT bit
+
+* "cdrom=[interface_number.device_number]" to force device as a CD-ROM
+
+* "chs=[interface_number.device_number]" to force device as a disk (using CHS)
 
 ================================================================================
 

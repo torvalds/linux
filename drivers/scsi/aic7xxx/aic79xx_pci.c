@@ -97,7 +97,7 @@ static ahd_device_setup_t ahd_aic7901A_setup;
 static ahd_device_setup_t ahd_aic7902_setup;
 static ahd_device_setup_t ahd_aic790X_setup;
 
-static struct ahd_pci_identity ahd_pci_ident_table [] =
+static const struct ahd_pci_identity ahd_pci_ident_table[] =
 {
 	/* aic7901 based controllers */
 	{
@@ -253,7 +253,7 @@ static void	ahd_configure_termination(struct ahd_softc *ahd,
 static void	ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat);
 static void	ahd_pci_intr(struct ahd_softc *ahd);
 
-struct ahd_pci_identity *
+const struct ahd_pci_identity *
 ahd_find_pci_device(ahd_dev_softc_t pci)
 {
 	uint64_t  full_id;
@@ -261,7 +261,7 @@ ahd_find_pci_device(ahd_dev_softc_t pci)
 	uint16_t  vendor;
 	uint16_t  subdevice;
 	uint16_t  subvendor;
-	struct	  ahd_pci_identity *entry;
+	const struct ahd_pci_identity *entry;
 	u_int	  i;
 
 	vendor = ahd_pci_read_config(pci, PCIR_DEVVENDOR, /*bytes*/2);
@@ -292,7 +292,7 @@ ahd_find_pci_device(ahd_dev_softc_t pci)
 }
 
 int
-ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
+ahd_pci_config(struct ahd_softc *ahd, const struct ahd_pci_identity *entry)
 {
 	struct scb_data *shared_scb_data;
 	u_int		 command;

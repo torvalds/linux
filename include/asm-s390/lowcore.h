@@ -381,27 +381,32 @@ struct _lowcore
         /* whether the kernel died with panic() or not */
         __u32        panic_magic;              /* 0xe00 */
 
-	__u8         pad13[0x1200-0xe04];      /* 0xe04 */
+	__u8         pad13[0x11b8-0xe04];      /* 0xe04 */
+
+	/* 64 bit extparam used for pfault, diag 250 etc  */
+	__u64        ext_params2;               /* 0x11B8 */
+
+	__u8         pad14[0x1200-0x11C0];      /* 0x11C0 */
 
         /* System info area */ 
 
 	__u64        floating_pt_save_area[16]; /* 0x1200 */
 	__u64        gpregs_save_area[16];      /* 0x1280 */
 	__u32        st_status_fixed_logout[4]; /* 0x1300 */
-	__u8         pad14[0x1318-0x1310];      /* 0x1310 */
+	__u8         pad15[0x1318-0x1310];      /* 0x1310 */
 	__u32        prefixreg_save_area;       /* 0x1318 */
 	__u32        fpt_creg_save_area;        /* 0x131c */
-	__u8         pad15[0x1324-0x1320];      /* 0x1320 */
+	__u8         pad16[0x1324-0x1320];      /* 0x1320 */
 	__u32        tod_progreg_save_area;     /* 0x1324 */
 	__u32        cpu_timer_save_area[2];    /* 0x1328 */
 	__u32        clock_comp_save_area[2];   /* 0x1330 */
-	__u8         pad16[0x1340-0x1338];      /* 0x1338 */ 
+	__u8         pad17[0x1340-0x1338];      /* 0x1338 */
 	__u32        access_regs_save_area[16]; /* 0x1340 */ 
 	__u64        cregs_save_area[16];       /* 0x1380 */
 
 	/* align to the top of the prefix area */
 
-	__u8         pad17[0x2000-0x1400];      /* 0x1400 */
+	__u8         pad18[0x2000-0x1400];      /* 0x1400 */
 #endif /* !__s390x__ */
 } __attribute__((packed)); /* End structure*/
 

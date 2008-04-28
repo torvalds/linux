@@ -369,19 +369,13 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	}
 	case TUNER_TEA5767:
-		if (tea5767_attach(&t->fe, t->i2c->adapter, t->i2c->addr) == NULL) {
-			t->type = TUNER_ABSENT;
-			t->mode_mask = T_UNINITIALIZED;
-			return;
-		}
+		if (!tea5767_attach(&t->fe, t->i2c->adapter, t->i2c->addr))
+			goto attach_failed;
 		t->mode_mask = T_RADIO;
 		break;
 	case TUNER_TEA5761:
-		if (tea5761_attach(&t->fe, t->i2c->adapter, t->i2c->addr) == NULL) {
-			t->type = TUNER_ABSENT;
-			t->mode_mask = T_UNINITIALIZED;
-			return;
-		}
+		if (!tea5761_attach(&t->fe, t->i2c->adapter, t->i2c->addr))
+			goto attach_failed;
 		t->mode_mask = T_RADIO;
 		break;
 	case TUNER_PHILIPS_FMD1216ME_MK3:
@@ -394,12 +388,9 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[2] = 0x86;
 		buffer[3] = 0x54;
 		i2c_master_send(c, buffer, 4);
-		if (simple_tuner_attach(&t->fe, t->i2c->adapter, t->i2c->addr,
-					t->type) == NULL) {
-			t->type = TUNER_ABSENT;
-			t->mode_mask = T_UNINITIALIZED;
-			return;
-		}
+		if (!simple_tuner_attach(&t->fe, t->i2c->adapter, t->i2c->addr,
+					t->type))
+			goto attach_failed;
 		break;
 	case TUNER_PHILIPS_TD1316:
 		buffer[0] = 0x0b;
@@ -407,12 +398,9 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[2] = 0x86;
 		buffer[3] = 0xa4;
 		i2c_master_send(c,buffer,4);
-		if (simple_tuner_attach(&t->fe, t->i2c->adapter,
-					t->i2c->addr, t->type) == NULL) {
-			t->type = TUNER_ABSENT;
-			t->mode_mask = T_UNINITIALIZED;
-			return;
-		}
+		if (!simple_tuner_attach(&t->fe, t->i2c->adapter,
+					t->i2c->addr, t->type))
+			goto attach_failed;
 		break;
 	case TUNER_XC2028:
 	{
@@ -421,40 +409,34 @@ static void set_type(struct i2c_client *c, unsigned int type,
 			.i2c_addr  = t->i2c->addr,
 			.callback  = t->tuner_callback,
 		};
-		if (!xc2028_attach(&t->fe, &cfg)) {
-			t->type = TUNER_ABSENT;
-			t->mode_mask = T_UNINITIALIZED;
-			return;
-		}
+		if (!xc2028_attach(&t->fe, &cfg))
+			goto attach_failed;
 		break;
 	}
 	case TUNER_TDA9887:
 		tda9887_attach(&t->fe, t->i2c->adapter, t->i2c->addr);
 		break;
 	case TUNER_XC5000:
+	{
+		struct dvb_tuner_ops *xc_tuner_ops;
+
 		xc5000_cfg.i2c_address	  = t->i2c->addr;
 		xc5000_cfg.if_khz	  = 5380;
 		xc5000_cfg.priv           = c->adapter->algo_data;
 		xc5000_cfg.tuner_callback = t->tuner_callback;
-		if (!xc5000_attach(&t->fe, t->i2c->adapter, &xc5000_cfg)) {
-			t->type = TUNER_ABSENT;
-			t->mode_mask = T_UNINITIALIZED;
-			return;
-		}
-		{
-		struct dvb_tuner_ops *xc_tuner_ops;
+		if (!xc5000_attach(&t->fe, t->i2c->adapter, &xc5000_cfg))
+			goto attach_failed;
+
 		xc_tuner_ops = &t->fe.ops.tuner_ops;
-		if(xc_tuner_ops->init != NULL)
+		if (xc_tuner_ops->init)
 			xc_tuner_ops->init(&t->fe);
-		}
 		break;
+	}
 	default:
-		if (simple_tuner_attach(&t->fe, t->i2c->adapter,
-					t->i2c->addr, t->type) == NULL) {
-			t->type = TUNER_ABSENT;
-			t->mode_mask = T_UNINITIALIZED;
-			return;
-		}
+		if (!simple_tuner_attach(&t->fe, t->i2c->adapter,
+					t->i2c->addr, t->type))
+			goto attach_failed;
+
 		break;
 	}
 
@@ -476,11 +458,27 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	if (t->mode_mask == T_UNINITIALIZED)
 		t->mode_mask = new_mode_mask;
 
-	set_freq(c, (V4L2_TUNER_RADIO == t->mode) ? t->radio_freq : t->tv_freq);
+	/* xc2028/3028 and xc5000 requires a firmware to be set-up later
+	   trying to set a frequency here will just fail
+	   FIXME: better to move set_freq to the tuner code. This is needed
+	   on analog tuners for PLL to properly work
+	 */
+	if (t->type != TUNER_XC2028 && t->type != TUNER_XC5000)
+		set_freq(c, (V4L2_TUNER_RADIO == t->mode) ?
+			    t->radio_freq : t->tv_freq);
+
 	tuner_dbg("%s %s I2C addr 0x%02x with type %d used for 0x%02x\n",
 		  c->adapter->name, c->driver->driver.name, c->addr << 1, type,
 		  t->mode_mask);
 	tuner_i2c_address_check(t);
+	return;
+
+attach_failed:
+	tuner_dbg("Tuner attach for type = %d failed.\n", t->type);
+	t->type = TUNER_ABSENT;
+	t->mode_mask = T_UNINITIALIZED;
+
+	return;
 }
 
 /*
@@ -495,14 +493,16 @@ static void set_addr(struct i2c_client *c, struct tuner_setup *tun_setup)
 {
 	struct tuner *t = i2c_get_clientdata(c);
 
-	tuner_dbg("set addr for type %i\n", t->type);
-
 	if ( (t->type == UNSET && ((tun_setup->addr == ADDR_UNSET) &&
 		(t->mode_mask & tun_setup->mode_mask))) ||
 		(tun_setup->addr == c->addr)) {
 			set_type(c, tun_setup->type, tun_setup->mode_mask,
 				 tun_setup->config, tun_setup->tuner_callback);
-	}
+	} else
+		tuner_dbg("set addr discarded for type %i, mask %x. "
+			  "Asked to change tuner at addr 0x%02x, with mask %x\n",
+			  t->type, t->mode_mask,
+			  tun_setup->addr, tun_setup->mode_mask);
 }
 
 static inline int check_mode(struct tuner *t, char *cmd)

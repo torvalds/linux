@@ -88,8 +88,8 @@ enum /* Transfer types */
 int
 cris_ide_ack_intr(ide_hwif_t* hwif)
 {
-	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2,
-	                         int, hwif->io_ports[0]);
+	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2, int,
+					       hwif->io_ports.data_addr);
 	REG_WR_INT(ata, regi_ata, rw_ack_intr, 1 << ctrl2.sel);
 	return 1;
 }
@@ -231,7 +231,7 @@ cris_ide_start_dma(ide_drive_t *drive, cris_dma_descr_type *d, int dir,int type,
 	ide_hwif_t *hwif = drive->hwif;
 
 	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2, int,
-					       hwif->io_ports[IDE_DATA_OFFSET]);
+					       hwif->io_ports.data_addr);
 	reg_ata_rw_trf_cnt trf_cnt = {0};
 
 	mycontext.saved_data = (dma_descr_data*)virt_to_phys(d);
@@ -271,7 +271,7 @@ static int cris_dma_test_irq(ide_drive_t *drive)
 	int intr = REG_RD_INT(ata, regi_ata, r_intr);
 
 	reg_ata_rw_ctrl2 ctrl2 = REG_TYPE_CONV(reg_ata_rw_ctrl2, int,
-					       hwif->io_ports[IDE_DATA_OFFSET]);
+					       hwif->io_ports.data_addr);
 
 	return intr & (1 << ctrl2.sel) ? 1 : 0;
 }
@@ -531,7 +531,7 @@ static void cris_ide_start_dma(ide_drive_t *drive, cris_dma_descr_type *d, int d
 	*R_ATA_CTRL_DATA =
 		cmd |
 		IO_FIELD(R_ATA_CTRL_DATA, data,
-			 drive->hwif->io_ports[IDE_DATA_OFFSET]) |
+			 drive->hwif->io_ports.data_addr) |
 		IO_STATE(R_ATA_CTRL_DATA, src_dst,  dma)  |
 		IO_STATE(R_ATA_CTRL_DATA, multi,    on)   |
 		IO_STATE(R_ATA_CTRL_DATA, dma_size, word);
@@ -550,7 +550,7 @@ static int cris_dma_test_irq(ide_drive_t *drive)
 {
 	int intr = *R_IRQ_MASK0_RD;
 	int bus = IO_EXTRACT(R_ATA_CTRL_DATA, sel,
-			     drive->hwif->io_ports[IDE_DATA_OFFSET]);
+			     drive->hwif->io_ports.data_addr);
 
 	return intr & (1 << (bus + IO_BITNR(R_IRQ_MASK0_RD, ata_irq0))) ? 1 : 0;
 }
@@ -644,7 +644,7 @@ cris_ide_inw(unsigned long reg) {
 		 * call will also timeout on busy, but as long as the
 		 * write is still performed, everything will be fine.
 		 */
-		if (cris_ide_get_reg(reg) == IDE_STATUS_OFFSET)
+		if (cris_ide_get_reg(reg) == 7)
 			return BUSY_STAT;
 		else
 			/* For other rare cases we assume 0 is good enough.  */
@@ -673,11 +673,6 @@ cris_ide_inb(unsigned long reg)
 	return (unsigned char)cris_ide_inw(reg);
 }
 
-static int cris_dma_end (ide_drive_t *drive);
-static int cris_dma_setup (ide_drive_t *drive);
-static void cris_dma_exec_cmd (ide_drive_t *drive, u8 command);
-static int cris_dma_test_irq(ide_drive_t *drive);
-static void cris_dma_start(ide_drive_t *drive);
 static void cris_ide_input_data (ide_drive_t *drive, void *, unsigned int);
 static void cris_ide_output_data (ide_drive_t *drive, void *, unsigned int);
 static void cris_atapi_input_bytes(ide_drive_t *drive, void *, unsigned int);
@@ -770,20 +765,29 @@ static void __init cris_setup_ports(hw_regs_t *hw, unsigned long base)
 	memset(hw, 0, sizeof(*hw));
 
 	for (i = 0; i <= 7; i++)
-		hw->io_ports[i] = base + cris_ide_reg_addr(i, 0, 1);
+		hw->io_ports_array[i] = base + cris_ide_reg_addr(i, 0, 1);
 
 	/*
 	 * the IDE control register is at ATA address 6,
 	 * with CS1 active instead of CS0
 	 */
-	hw->io_ports[IDE_CONTROL_OFFSET] = base + cris_ide_reg_addr(6, 1, 0);
+	hw->io_ports.ctl_addr = base + cris_ide_reg_addr(6, 1, 0);
 
 	hw->irq = ide_default_irq(0);
 	hw->ack_intr = cris_ide_ack_intr;
 }
 
+static const struct ide_port_ops cris_port_ops = {
+	.set_pio_mode		= cris_set_pio_mode,
+	.set_dma_mode		= cris_set_dma_mode,
+};
+
+static const struct ide_dma_ops cris_dma_ops;
+
 static const struct ide_port_info cris_port_info __initdata = {
 	.chipset		= ide_etrax100,
+	.port_ops		= &cris_port_ops,
+	.dma_ops		= &cris_dma_ops,
 	.host_flags		= IDE_HFLAG_NO_ATAPI_DMA |
 				  IDE_HFLAG_NO_DMA, /* no SFF-style DMA */
 	.pio_mask		= ATA_PIO4,
@@ -804,24 +808,16 @@ static int __init init_e100_ide(void)
 
 		cris_setup_ports(&hw, cris_ide_base_address(h));
 
-		hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+		hwif = ide_find_port();
 		if (hwif == NULL)
 			continue;
 		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
-		hwif->mmio = 1;
-		hwif->set_pio_mode = &cris_set_pio_mode;
-		hwif->set_dma_mode = &cris_set_dma_mode;
+
 		hwif->ata_input_data = &cris_ide_input_data;
 		hwif->ata_output_data = &cris_ide_output_data;
 		hwif->atapi_input_bytes = &cris_atapi_input_bytes;
 		hwif->atapi_output_bytes = &cris_atapi_output_bytes;
-		hwif->dma_host_set = &cris_dma_host_set;
-		hwif->ide_dma_end = &cris_dma_end;
-		hwif->dma_setup = &cris_dma_setup;
-		hwif->dma_exec_cmd = &cris_dma_exec_cmd;
-		hwif->ide_dma_test_irq = &cris_dma_test_irq;
-		hwif->dma_start = &cris_dma_start;
 		hwif->OUTB = &cris_ide_outb;
 		hwif->OUTW = &cris_ide_outw;
 		hwif->OUTBSYNC = &cris_ide_outbsync;
@@ -1075,6 +1071,15 @@ static void cris_dma_start(ide_drive_t *drive)
 		LED_DISK_READ(1);
 	}
 }
+
+static const struct ide_dma_ops cris_dma_ops = {
+	.dma_host_set		= cris_dma_host_set,
+	.dma_setup		= cris_dma_setup,
+	.dma_exec_cmd		= cris_dma_exec_cmd,
+	.dma_start		= cris_dma_start,
+	.dma_end		= cris_dma_end,
+	.dma_test_irq		= cris_dma_test_irq,
+};
 
 module_init(init_e100_ide);
 

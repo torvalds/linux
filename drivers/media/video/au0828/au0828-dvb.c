@@ -204,7 +204,7 @@ static int au0828_dvb_stop_feed(struct dvb_demux_feed *feed)
 	return ret;
 }
 
-int dvb_register(struct au0828_dev *dev)
+static int dvb_register(struct au0828_dev *dev)
 {
 	struct au0828_dvb *dvb = &dev->dvb;
 	int result;
