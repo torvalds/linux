@@ -428,6 +428,45 @@ static struct fb_info * __init lxfb_init_fbinfo(struct device *dev)
 	return info;
 }
 
+#ifdef CONFIG_PM
+static int lxfb_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct fb_info *info = pci_get_drvdata(pdev);
+
+	if (state.event == PM_EVENT_SUSPEND) {
+		acquire_console_sem();
+		lx_powerdown(info);
+		fb_set_suspend(info, 1);
+		release_console_sem();
+	}
+
+	/* there's no point in setting PCI states; we emulate PCI, so
+	 * we don't end up getting power savings anyways */
+
+	return 0;
+}
+
+static int lxfb_resume(struct pci_dev *pdev)
+{
+	struct fb_info *info = pci_get_drvdata(pdev);
+	int ret;
+
+	acquire_console_sem();
+	ret = lx_powerup(info);
+	if (ret) {
+		printk(KERN_ERR "lxfb:  power up failed!\n");
+		return ret;
+	}
+
+	fb_set_suspend(info, 0);
+	release_console_sem();
+	return 0;
+}
+#else
+#define lxfb_suspend NULL
+#define lxfb_resume NULL
+#endif
+
 static int __init lxfb_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *id)
 {
@@ -553,6 +592,8 @@ static struct pci_driver lxfb_driver = {
 	.id_table	= lxfb_id_table,
 	.probe		= lxfb_probe,
 	.remove		= lxfb_remove,
+	.suspend	= lxfb_suspend,
+	.resume		= lxfb_resume,
 };
 
 #ifndef MODULE

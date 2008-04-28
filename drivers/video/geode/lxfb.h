@@ -3,6 +3,16 @@
 
 #include <linux/fb.h>
 
+#define GP_REG_COUNT	(0x7c / 4)
+#define DC_REG_COUNT	(0xf0 / 4)
+#define VP_REG_COUNT	(0x158 / 8)
+#define FP_REG_COUNT	(0x60 / 8)
+
+#define DC_PAL_COUNT	0x104
+#define DC_HFILT_COUNT	0x100
+#define DC_VFILT_COUNT	0x100
+#define VP_COEFF_SIZE	0x1000
+
 #define OUTPUT_CRT   0x01
 #define OUTPUT_PANEL 0x02
 
@@ -12,6 +22,27 @@ struct lxfb_par {
 	void __iomem *gp_regs;
 	void __iomem *dc_regs;
 	void __iomem *vp_regs;
+#ifdef CONFIG_PM
+	int powered_down;
+
+	/* register state, for power mgmt functionality */
+	struct {
+		uint64_t padsel;
+		uint64_t dotpll;
+		uint64_t dfglcfg;
+		uint64_t dcspare;
+	} msr;
+
+	uint32_t gp[GP_REG_COUNT];
+	uint32_t dc[DC_REG_COUNT];
+	uint64_t vp[VP_REG_COUNT];
+	uint64_t fp[FP_REG_COUNT];
+
+	uint32_t pal[DC_PAL_COUNT];
+	uint32_t hcoeff[DC_HFILT_COUNT * 2];
+	uint32_t vcoeff[DC_VFILT_COUNT];
+	uint32_t vp_coeff[VP_COEFF_SIZE / 4];
+#endif
 };
 
 static inline unsigned int lx_get_pitch(unsigned int xres, int bpp)
@@ -26,6 +57,11 @@ unsigned int lx_framebuffer_size(void);
 int lx_blank_display(struct fb_info *, int);
 void lx_set_palette_reg(struct fb_info *, unsigned int, unsigned int,
 			unsigned int, unsigned int);
+
+#ifdef CONFIG_PM
+int lx_powerdown(struct fb_info *info);
+int lx_powerup(struct fb_info *info);
+#endif
 
 
 /* Graphics Processor registers (table 6-29 from the data book) */
@@ -182,6 +218,9 @@ enum dc_registers {
 #define DC_DV_CTL_DV_LINE_SIZE_2K	(1 << 10)
 #define DC_DV_CTL_DV_LINE_SIZE_4K	(1 << 11)
 #define DC_DV_CTL_DV_LINE_SIZE_8K	((1 << 10) | (1 << 11))
+#define DC_DV_CTL_CLEAR_DV_RAM		(1 << 0)
+
+#define DC_IRQ_FILT_CTL_H_FILT_SEL	(1 << 10)
 
 #define DC_CLR_KEY_CLR_KEY_EN		(1 << 24)
 
@@ -267,6 +306,8 @@ enum vp_registers {
 	VP_A2YE,
 
 	VP_A3YE,	/* 0x150 */
+
+	VP_VCR = 0x1000, /* 0x1000 - 0x1fff */
 };
 
 #define VP_VCFG_VID_EN			(1 << 0)
@@ -319,6 +360,10 @@ enum fp_registers {
 #define FP_PT2_SCRC			(1 << 27)	/* shfclk free */
 
 #define FP_PM_P				(1 << 24)	/* panel power ctl */
+#define FP_PM_PANEL_PWR_UP		(1 << 3)	/* r/o */
+#define FP_PM_PANEL_PWR_DOWN		(1 << 2)	/* r/o */
+#define FP_PM_PANEL_OFF			(1 << 1)	/* r/o */
+#define FP_PM_PANEL_ON			(1 << 0)	/* r/o */
 
 #define FP_DFC_BC			((1 << 4) | (1 << 5) | (1 << 6))
 
