@@ -673,8 +673,10 @@ cris_ide_inb(unsigned long reg)
 	return (unsigned char)cris_ide_inw(reg);
 }
 
-static void cris_ide_input_data (ide_drive_t *drive, void *, unsigned int);
-static void cris_ide_output_data (ide_drive_t *drive, void *, unsigned int);
+static void cris_ide_input_data(ide_drive_t *, struct request *,
+				void *, unsigned int);
+static void cris_ide_output_data(ide_drive_t *, struct request *,
+				 void *, unsigned int);
 static void cris_atapi_input_bytes(ide_drive_t *drive, void *, unsigned int);
 static void cris_atapi_output_bytes(ide_drive_t *drive, void *, unsigned int);
 
@@ -900,8 +902,8 @@ cris_atapi_output_bytes (ide_drive_t *drive, void *buffer, unsigned int bytecoun
 /*
  * This is used for most PIO data transfers *from* the IDE interface
  */
-static void
-cris_ide_input_data (ide_drive_t *drive, void *buffer, unsigned int wcount)
+static void cris_ide_input_data(ide_drive_t *drive, struct request *rq,
+				void *buffer, unsigned int wcount)
 {
 	cris_atapi_input_bytes(drive, buffer, wcount << 2);
 }
@@ -909,8 +911,8 @@ cris_ide_input_data (ide_drive_t *drive, void *buffer, unsigned int wcount)
 /*
  * This is used for most PIO data transfers *to* the IDE interface
  */
-static void
-cris_ide_output_data (ide_drive_t *drive, void *buffer, unsigned int wcount)
+static void cris_ide_output_data(ide_drive_t *drive, struct request *,
+				 void *buffer, unsigned int wcount)
 {
 	cris_atapi_output_bytes(drive, buffer, wcount << 2);
 }

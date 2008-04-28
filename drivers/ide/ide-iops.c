@@ -192,7 +192,8 @@ static void ata_vlb_sync(ide_drive_t *drive, unsigned long port)
 /*
  * This is used for most PIO data transfers *from* the IDE interface
  */
-static void ata_input_data(ide_drive_t *drive, void *buffer, u32 wcount)
+static void ata_input_data(ide_drive_t *drive, struct request *rq,
+			   void *buffer, u32 wcount)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -215,7 +216,8 @@ static void ata_input_data(ide_drive_t *drive, void *buffer, u32 wcount)
 /*
  * This is used for most PIO data transfers *to* the IDE interface
  */
-static void ata_output_data(ide_drive_t *drive, void *buffer, u32 wcount)
+static void ata_output_data(ide_drive_t *drive, struct request *rq,
+			    void *buffer, u32 wcount)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -248,14 +250,7 @@ static void atapi_input_bytes(ide_drive_t *drive, void *buffer, u32 bytecount)
 	ide_hwif_t *hwif = HWIF(drive);
 
 	++bytecount;
-#if defined(CONFIG_ATARI) || defined(CONFIG_Q40)
-	if (MACH_IS_ATARI || MACH_IS_Q40) {
-		/* Atari has a byte-swapped IDE interface */
-		insw_swapw(hwif->io_ports.data_addr, buffer, bytecount / 2);
-		return;
-	}
-#endif /* CONFIG_ATARI || CONFIG_Q40 */
-	hwif->ata_input_data(drive, buffer, bytecount / 4);
+	hwif->ata_input_data(drive, NULL, buffer, bytecount / 4);
 	if ((bytecount & 0x03) >= 2)
 		hwif->INSW(hwif->io_ports.data_addr,
 			   (u8 *)buffer + (bytecount & ~0x03), 1);
@@ -266,14 +261,7 @@ static void atapi_output_bytes(ide_drive_t *drive, void *buffer, u32 bytecount)
 	ide_hwif_t *hwif = HWIF(drive);
 
 	++bytecount;
-#if defined(CONFIG_ATARI) || defined(CONFIG_Q40)
-	if (MACH_IS_ATARI || MACH_IS_Q40) {
-		/* Atari has a byte-swapped IDE interface */
-		outsw_swapw(hwif->io_ports.data_addr, buffer, bytecount / 2);
-		return;
-	}
-#endif /* CONFIG_ATARI || CONFIG_Q40 */
-	hwif->ata_output_data(drive, buffer, bytecount / 4);
+	hwif->ata_output_data(drive, NULL, buffer, bytecount / 4);
 	if ((bytecount & 0x03) >= 2)
 		hwif->OUTSW(hwif->io_ports.data_addr,
 			    (u8 *)buffer + (bytecount & ~0x03), 1);
@@ -668,7 +656,7 @@ int ide_driveid_update(ide_drive_t *drive)
 		local_irq_restore(flags);
 		return 0;
 	}
-	hwif->ata_input_data(drive, id, SECTOR_WORDS);
+	hwif->ata_input_data(drive, NULL, id, SECTOR_WORDS);
 	(void)ide_read_status(drive);	/* clear drive IRQ */
 	local_irq_enable();
 	local_irq_restore(flags);

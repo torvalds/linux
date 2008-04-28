@@ -124,7 +124,7 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 
 	id = drive->id;
 	/* read 512 bytes of id info */
-	hwif->ata_input_data(drive, id, SECTOR_WORDS);
+	hwif->ata_input_data(drive, NULL, id, SECTOR_WORDS);
 
 	drive->id_read = 1;
 	local_irq_enable();

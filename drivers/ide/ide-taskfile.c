@@ -283,7 +283,8 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	return stat;
 }
 
-static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
+static void ide_pio_sector(ide_drive_t *drive, struct request *rq,
+			   unsigned int write)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
@@ -323,9 +324,9 @@ static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
 
 	/* do the actual data transfer */
 	if (write)
-		hwif->ata_output_data(drive, buf, SECTOR_WORDS);
+		hwif->ata_output_data(drive, rq, buf, SECTOR_WORDS);
 	else
-		hwif->ata_input_data(drive, buf, SECTOR_WORDS);
+		hwif->ata_input_data(drive, rq, buf, SECTOR_WORDS);
 
 	kunmap_atomic(buf, KM_BIO_SRC_IRQ);
 #ifdef CONFIG_HIGHMEM
@@ -333,13 +334,14 @@ static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
 #endif
 }
 
-static void ide_pio_multi(ide_drive_t *drive, unsigned int write)
+static void ide_pio_multi(ide_drive_t *drive, struct request *rq,
+			  unsigned int write)
 {
 	unsigned int nsect;
 
 	nsect = min_t(unsigned int, drive->hwif->nleft, drive->mult_count);
 	while (nsect--)
-		ide_pio_sector(drive, write);
+		ide_pio_sector(drive, rq, write);
 }
 
 static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
@@ -362,10 +364,10 @@ static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
 	switch (drive->hwif->data_phase) {
 	case TASKFILE_MULTI_IN:
 	case TASKFILE_MULTI_OUT:
-		ide_pio_multi(drive, write);
+		ide_pio_multi(drive, rq, write);
 		break;
 	default:
-		ide_pio_sector(drive, write);
+		ide_pio_sector(drive, rq, write);
 		break;
 	}
 
