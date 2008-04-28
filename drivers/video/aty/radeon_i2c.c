@@ -78,7 +78,7 @@ static int radeon_setup_i2c_bus(struct radeon_i2c_chan *chan, const char *name)
 	chan->algo.setscl		= radeon_gpio_setscl;
 	chan->algo.getsda		= radeon_gpio_getsda;
 	chan->algo.getscl		= radeon_gpio_getscl;
-	chan->algo.udelay		= 40;
+	chan->algo.udelay		= 10;
 	chan->algo.timeout		= 20;
 	chan->algo.data 		= chan;	
 	
