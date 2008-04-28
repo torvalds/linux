@@ -66,3 +66,19 @@ static int __init  init_cf_dt_clocksource(void)
 }
 
 arch_initcall(init_cf_dt_clocksource);
+
+#define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
+#define CYC2NS_SCALE	((1000000 << CYC2NS_SCALE_FACTOR) / (DMA_FREQ / 1000))
+
+static unsigned long long cycles2ns(unsigned long cycl)
+{
+	return (unsigned long long) ((unsigned long long)cycl *
+			CYC2NS_SCALE) >> CYC2NS_SCALE_FACTOR;
+}
+
+unsigned long long sched_clock(void)
+{
+	unsigned long cycl = __raw_readl(DTCN0);
+
+	return cycles2ns(cycl);
+}
