@@ -281,8 +281,9 @@ void pnp_init_resources(struct pnp_dev *dev)
  * pnp_clean_resources - clears resources that were not manually set
  * @res: the resources to clean
  */
-static void pnp_clean_resource_table(struct pnp_resource_table *res)
+static void pnp_clean_resource_table(struct pnp_dev *dev)
 {
+	struct pnp_resource_table *res = &dev->res;
 	int idx;
 
 	for (idx = 0; idx < PNP_MAX_IRQ; idx++) {
@@ -339,7 +340,7 @@ static int pnp_assign_resources(struct pnp_dev *dev, int depnum)
 
 	dbg_pnp_show_resources(dev, "before pnp_assign_resources");
 	mutex_lock(&pnp_res_mutex);
-	pnp_clean_resource_table(&dev->res);	/* start with a fresh slate */
+	pnp_clean_resource_table(dev);
 	if (dev->independent) {
 		dev_dbg(&dev->dev, "assigning independent options\n");
 		port = dev->independent->port;
@@ -415,7 +416,7 @@ static int pnp_assign_resources(struct pnp_dev *dev, int depnum)
 	return 1;
 
 fail:
-	pnp_clean_resource_table(&dev->res);
+	pnp_clean_resource_table(dev);
 	mutex_unlock(&pnp_res_mutex);
 	dbg_pnp_show_resources(dev, "after pnp_assign_resources (failed)");
 	return 0;
@@ -595,7 +596,7 @@ int pnp_disable_dev(struct pnp_dev *dev)
 
 	/* release the resources so that other devices can use them */
 	mutex_lock(&pnp_res_mutex);
-	pnp_clean_resource_table(&dev->res);
+	pnp_clean_resource_table(dev);
 	mutex_unlock(&pnp_res_mutex);
 
 	return 0;
