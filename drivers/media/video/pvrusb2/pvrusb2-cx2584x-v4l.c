@@ -123,7 +123,7 @@ static void set_input(struct pvr2_v4l_cx2584x *ctxt)
 	memset(&route,0,sizeof(route));
 
 	if ((sid < ARRAY_SIZE(routing_schemes)) &&
-	    ((sp = routing_schemes + sid) != 0) &&
+	    ((sp = routing_schemes + sid) != NULL) &&
 	    (hdw->input_val >= 0) &&
 	    (hdw->input_val < sp->cnt)) {
 		vid_input = sp->def[hdw->input_val].vid;

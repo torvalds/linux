@@ -130,7 +130,7 @@ static void pvr2_dvb_stream_end(struct pvr2_dvb_adapter *adap)
 		for (idx = 0; idx < PVR2_DVB_BUFFER_COUNT; idx++) {
 			if (!(adap->buffer_storage[idx])) continue;
 			kfree(adap->buffer_storage[idx]);
-			adap->buffer_storage[idx] = 0;
+			adap->buffer_storage[idx] = NULL;
 		}
 		adap->stream_run = 0;
 	}
@@ -142,7 +142,7 @@ static int pvr2_dvb_stream_do_start(struct pvr2_dvb_adapter *adap)
 	unsigned int idx;
 	int ret;
 	struct pvr2_buffer *bp;
-	struct pvr2_stream *stream = 0;
+	struct pvr2_stream *stream = NULL;
 
 	if (adap->stream_run) return -EIO;
 
@@ -174,7 +174,7 @@ static int pvr2_dvb_stream_do_start(struct pvr2_dvb_adapter *adap)
 	ret = pvr2_hdw_set_streaming(adap->channel.hdw, 1);
 	if (ret < 0) return ret;
 
-	while ((bp = pvr2_stream_get_idle_buffer(stream)) != 0) {
+	while ((bp = pvr2_stream_get_idle_buffer(stream)) != NULL) {
 		ret = pvr2_buffer_queue(bp);
 		if (ret < 0) return ret;
 	}

@@ -1098,8 +1098,8 @@ void ivtv_yuv_setup_stream_frame(struct ivtv *itv)
 	ivtv_yuv_next_free(itv);
 
 	/* Copy V4L2 parameters to an ivtv_dma_frame struct... */
-	dma_args.y_source = 0L;
-	dma_args.uv_source = 0L;
+	dma_args.y_source = NULL;
+	dma_args.uv_source = NULL;
 	dma_args.src.left = 0;
 	dma_args.src.top = 0;
 	dma_args.src.width = yi->v4l2_src_w;

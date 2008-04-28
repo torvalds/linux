@@ -81,7 +81,7 @@ static void set_input(struct pvr2_v4l_decoder *ctxt)
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 set_input(%d)",hdw->input_val);
 
 	if ((sid < ARRAY_SIZE(routing_schemes)) &&
-	    ((sp = routing_schemes + sid) != 0) &&
+	    ((sp = routing_schemes + sid) != NULL) &&
 	    (hdw->input_val >= 0) &&
 	    (hdw->input_val < sp->cnt)) {
 		route.input = sp->def[hdw->input_val];
