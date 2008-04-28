@@ -10,7 +10,7 @@
  *
  */
 
-#define CONFIG_AVMB1_COMPAT
+#define AVMB1_COMPAT
 
 #include "kcapi.h"
 #include <linux/module.h>
@@ -29,7 +29,7 @@
 #include <asm/uaccess.h>
 #include <linux/isdn/capicmd.h>
 #include <linux/isdn/capiutil.h>
-#ifdef CONFIG_AVMB1_COMPAT
+#ifdef AVMB1_COMPAT
 #include <linux/b1lli.h>
 #endif
 #include <linux/mutex.h>
@@ -740,7 +740,7 @@ u16 capi20_get_profile(u32 contr, struct capi_profile *profp)
 
 EXPORT_SYMBOL(capi20_get_profile);
 
-#ifdef CONFIG_AVMB1_COMPAT
+#ifdef AVMB1_COMPAT
 static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 {
 	avmb1_loadandconfigdef ldef;
@@ -904,7 +904,7 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
         struct capi_ctr *card;
 
 	switch (cmd) {
-#ifdef CONFIG_AVMB1_COMPAT
+#ifdef AVMB1_COMPAT
 	case AVMB1_LOAD:
 	case AVMB1_LOAD_AND_CONFIG:
 	case AVMB1_RESETCARD:
