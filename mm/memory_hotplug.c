@@ -198,6 +198,16 @@ static int __add_section(struct zone *zone, unsigned long phys_start_pfn)
 	return register_new_memory(__pfn_to_section(phys_start_pfn));
 }
 
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+static int __remove_section(struct zone *zone, struct mem_section *ms)
+{
+	/*
+	 * XXX: Freeing memmap with vmemmap is not implement yet.
+	 *      This should be removed later.
+	 */
+	return -EBUSY;
+}
+#else
 static int __remove_section(struct zone *zone, struct mem_section *ms)
 {
 	unsigned long flags;
@@ -216,6 +226,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms)
 	pgdat_resize_unlock(pgdat, &flags);
 	return 0;
 }
+#endif
 
 /*
  * Reasonably generic function for adding memory.  It is
