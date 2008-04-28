@@ -260,6 +260,20 @@ static void scc_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	out_be32((void __iomem *)udenvt_port, reg);
 }
 
+static void scc_dma_host_set(ide_drive_t *drive, int on)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	u8 unit = (drive->select.b.unit & 0x01);
+	u8 dma_stat = scc_ide_inb(hwif->dma_status);
+
+	if (on)
+		dma_stat |= (1 << (5 + unit));
+	else
+		dma_stat &= ~(1 << (5 + unit));
+
+	scc_ide_outb(dma_stat, hwif->dma_status);
+}
+
 /**
  *	scc_ide_dma_setup	-	begin a DMA phase
  *	@drive: target device
@@ -304,13 +318,45 @@ static int scc_dma_setup(ide_drive_t *drive)
 	return 0;
 }
 
+static void scc_dma_start(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	u8 dma_cmd = scc_ide_inb(hwif->dma_command);
+
+	/* start DMA */
+	scc_ide_outb(dma_cmd | 1, hwif->dma_command);
+	hwif->dma = 1;
+	wmb();
+}
+
+static int __scc_dma_end(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	u8 dma_stat, dma_cmd;
+
+	drive->waiting_for_dma = 0;
+	/* get DMA command mode */
+	dma_cmd = scc_ide_inb(hwif->dma_command);
+	/* stop DMA */
+	scc_ide_outb(dma_cmd & ~1, hwif->dma_command);
+	/* get DMA status */
+	dma_stat = scc_ide_inb(hwif->dma_status);
+	/* clear the INTR & ERROR bits */
+	scc_ide_outb(dma_stat | 6, hwif->dma_status);
+	/* purge DMA mappings */
+	ide_destroy_dmatable(drive);
+	/* verify good DMA status */
+	hwif->dma = 0;
+	wmb();
+	return (dma_stat & 7) != 4 ? (0x10 | dma_stat) : 0;
+}
 
 /**
  *	scc_dma_end	-	Stop DMA
  *	@drive: IDE drive
  *
  *	Check and clear INT Status register.
- *      Then call __ide_dma_end().
+ *	Then call __scc_dma_end().
  */
 
 static int scc_dma_end(ide_drive_t *drive)
@@ -414,7 +460,7 @@ static int scc_dma_end(ide_drive_t *drive)
 		break;
 	}
 
-	dma_stat = __ide_dma_end(drive);
+	dma_stat = __scc_dma_end(drive);
 	if (data_loss)
 		dma_stat |= 2; /* emulate DMA error (to retry command) */
 	return dma_stat;
@@ -811,10 +857,10 @@ static const struct ide_port_ops scc_port_ops = {
 };
 
 static const struct ide_dma_ops scc_dma_ops = {
-	.dma_host_set		= ide_dma_host_set,
+	.dma_host_set		= scc_dma_host_set,
 	.dma_setup		= scc_dma_setup,
 	.dma_exec_cmd		= ide_dma_exec_cmd,
-	.dma_start		= ide_dma_start,
+	.dma_start		= scc_dma_start,
 	.dma_end		= scc_dma_end,
 	.dma_test_irq		= scc_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
