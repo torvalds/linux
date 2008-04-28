@@ -538,6 +538,44 @@ struct resource *pnp_get_resource(struct pnp_dev *dev,
 }
 EXPORT_SYMBOL(pnp_get_resource);
 
+static struct pnp_resource *pnp_new_resource(struct pnp_dev *dev, int type)
+{
+	struct pnp_resource *pnp_res;
+	int i;
+
+	switch (type) {
+	case IORESOURCE_IO:
+		for (i = 0; i < PNP_MAX_PORT; i++) {
+			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_IO, i);
+			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
+				return pnp_res;
+		}
+		break;
+	case IORESOURCE_MEM:
+		for (i = 0; i < PNP_MAX_MEM; i++) {
+			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_MEM, i);
+			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
+				return pnp_res;
+		}
+		break;
+	case IORESOURCE_IRQ:
+		for (i = 0; i < PNP_MAX_IRQ; i++) {
+			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_IRQ, i);
+			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
+				return pnp_res;
+		}
+		break;
+	case IORESOURCE_DMA:
+		for (i = 0; i < PNP_MAX_DMA; i++) {
+			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_DMA, i);
+			if (pnp_res && !pnp_resource_valid(&pnp_res->res))
+				return pnp_res;
+		}
+		break;
+	}
+	return NULL;
+}
+
 /* format is: pnp_reserve_irq=irq1[,irq2] .... */
 static int __init pnp_setup_reserve_irq(char *str)
 {
