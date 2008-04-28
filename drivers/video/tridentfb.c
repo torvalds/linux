@@ -75,6 +75,8 @@ static int nativex;
 
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Initial video mode e.g. '648x480-8@60'");
+module_param_named(mode, mode_option, charp, 0);
+MODULE_PARM_DESC(mode, "Initial video mode e.g. '648x480-8@60' (deprecated)");
 module_param(bpp, int, 0);
 module_param(center, int, 0);
 module_param(stretch, int, 0);

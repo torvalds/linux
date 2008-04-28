@@ -1837,6 +1837,8 @@ module_exit(pm2fb_exit);
 
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Initial video mode e.g. '648x480-8@60'");
+module_param_named(mode, mode_option, charp, 0);
+MODULE_PARM_DESC(mode, "Initial video mode e.g. '648x480-8@60' (deprecated)");
 module_param(lowhsync, bool, 0);
 MODULE_PARM_DESC(lowhsync, "Force horizontal sync low regardless of mode");
 module_param(lowvsync, bool, 0);

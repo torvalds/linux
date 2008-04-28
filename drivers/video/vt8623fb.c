@@ -112,6 +112,8 @@ MODULE_DESCRIPTION("fbdev driver for integrated graphics core in VIA VT8623 [CLE
 
 module_param(mode_option, charp, 0644);
 MODULE_PARM_DESC(mode_option, "Default video mode ('640x480-8@60', etc)");
+module_param_named(mode, mode_option, charp, 0);
+MODULE_PARM_DESC(mode, "Default video mode e.g. '648x480-8@60' (deprecated)");
 
 #ifdef CONFIG_MTRR
 module_param(mtrr, int, 0444);
