@@ -152,7 +152,6 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 {
 	acpi_handle temp = NULL;
 	acpi_status status;
-	struct pnp_id *dev_id;
 	struct pnp_dev *dev;
 
 	status = acpi_get_handle(device->handle, "_CRS", &temp);
@@ -160,11 +159,10 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	    is_exclusive_device(device))
 		return 0;
 
-	dev = kzalloc(sizeof(struct pnp_dev), GFP_KERNEL);
-	if (!dev) {
-		pnp_err("Out of memory");
+	dev = pnp_alloc_dev(&pnpacpi_protocol, num, acpi_device_hid(device));
+	if (!dev)
 		return -ENOMEM;
-	}
+
 	dev->data = device->handle;
 	/* .enabled means the device can decode the resources */
 	dev->active = device->status.enabled;
@@ -180,18 +178,10 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	if (ACPI_SUCCESS(status))
 		dev->capabilities |= PNP_DISABLE;
 
-	dev->protocol = &pnpacpi_protocol;
-
 	if (strlen(acpi_device_name(device)))
 		strncpy(dev->name, acpi_device_name(device), sizeof(dev->name));
 	else
 		strncpy(dev->name, acpi_device_bid(device), sizeof(dev->name));
-
-	dev->number = num;
-
-	dev_id = pnp_add_id(dev, acpi_device_hid(device));
-	if (!dev_id)
-		goto err;
 
 	if (dev->active) {
 		/* parse allocated resource */
@@ -230,9 +220,6 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	num++;
 
 	return AE_OK;
-err:
-	kfree(dev);
-	return -EINVAL;
 }
 
 static acpi_status __init pnpacpi_add_device_handler(acpi_handle handle,
