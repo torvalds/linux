@@ -12,6 +12,8 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  *
+ * Support added for SMSC LAN8187 and LAN8700 by steve.glendinning@smsc.com
+ *
  */
 
 #include <linux/kernel.h>
@@ -82,13 +84,78 @@ static struct phy_driver lan83c185_driver = {
 	.driver		= { .owner = THIS_MODULE, }
 };
 
+static struct phy_driver lan8187_driver = {
+	.phy_id		= 0x0007c0b0, /* OUI=0x00800f, Model#=0x0b */
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "SMSC LAN8187",
+
+	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
+				| SUPPORTED_Asym_Pause),
+	.flags		= PHY_HAS_INTERRUPT | PHY_HAS_MAGICANEG,
+
+	/* basic functions */
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
+	.config_init	= smsc_phy_config_init,
+
+	/* IRQ related */
+	.ack_interrupt	= smsc_phy_ack_interrupt,
+	.config_intr	= smsc_phy_config_intr,
+
+	.driver		= { .owner = THIS_MODULE, }
+};
+
+static struct phy_driver lan8700_driver = {
+	.phy_id		= 0x0007c0c0, /* OUI=0x00800f, Model#=0x0c */
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "SMSC LAN8700",
+
+	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
+				| SUPPORTED_Asym_Pause),
+	.flags		= PHY_HAS_INTERRUPT | PHY_HAS_MAGICANEG,
+
+	/* basic functions */
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
+	.config_init	= smsc_phy_config_init,
+
+	/* IRQ related */
+	.ack_interrupt	= smsc_phy_ack_interrupt,
+	.config_intr	= smsc_phy_config_intr,
+
+	.driver		= { .owner = THIS_MODULE, }
+};
+
 static int __init smsc_init(void)
 {
-	return phy_driver_register (&lan83c185_driver);
+	int ret;
+
+	ret = phy_driver_register (&lan83c185_driver);
+	if (ret)
+		goto err1;
+
+	ret = phy_driver_register (&lan8187_driver);
+	if (ret)
+		goto err2;
+
+	ret = phy_driver_register (&lan8700_driver);
+	if (ret)
+		goto err3;
+
+	return 0;
+
+err3:
+	phy_driver_unregister (&lan8187_driver);
+err2:
+	phy_driver_unregister (&lan83c185_driver);
+err1:
+	return ret;
 }
 
 static void __exit smsc_exit(void)
 {
+	phy_driver_unregister (&lan8700_driver);
+	phy_driver_unregister (&lan8187_driver);
 	phy_driver_unregister (&lan83c185_driver);
 }
 
