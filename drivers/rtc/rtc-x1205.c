@@ -99,14 +99,14 @@ static int x1205_get_datetime(struct i2c_client *client, struct rtc_time *tm,
 
 	/* read date registers */
 	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __FUNCTION__);
+		dev_err(&client->dev, "%s: read error\n", __func__);
 		return -EIO;
 	}
 
 	dev_dbg(&client->dev,
 		"%s: raw read data - sec=%02x, min=%02x, hr=%02x, "
 		"mday=%02x, mon=%02x, year=%02x, wday=%02x, y2k=%02x\n",
-		__FUNCTION__,
+		__func__,
 		buf[0], buf[1], buf[2], buf[3],
 		buf[4], buf[5], buf[6], buf[7]);
 
@@ -121,7 +121,7 @@ static int x1205_get_datetime(struct i2c_client *client, struct rtc_time *tm,
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
-		__FUNCTION__,
+		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
@@ -139,7 +139,7 @@ static int x1205_get_status(struct i2c_client *client, unsigned char *sr)
 
 	/* read status register */
 	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __FUNCTION__);
+		dev_err(&client->dev, "%s: read error\n", __func__);
 		return -EIO;
 	}
 
@@ -162,7 +162,7 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 
 	dev_dbg(&client->dev,
 		"%s: secs=%d, mins=%d, hours=%d\n",
-		__FUNCTION__,
+		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour);
 
 	buf[CCR_SEC] = BIN2BCD(tm->tm_sec);
@@ -175,7 +175,7 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 	if (datetoo) {
 		dev_dbg(&client->dev,
 			"%s: mday=%d, mon=%d, year=%d, wday=%d\n",
-			__FUNCTION__,
+			__func__,
 			tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
 		buf[CCR_MDAY] = BIN2BCD(tm->tm_mday);
@@ -191,12 +191,12 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 
 	/* this sequence is required to unlock the chip */
 	if ((xfer = i2c_master_send(client, wel, 3)) != 3) {
-		dev_err(&client->dev, "%s: wel - %d\n", __FUNCTION__, xfer);
+		dev_err(&client->dev, "%s: wel - %d\n", __func__, xfer);
 		return -EIO;
 	}
 
 	if ((xfer = i2c_master_send(client, rwel, 3)) != 3) {
-		dev_err(&client->dev, "%s: rwel - %d\n", __FUNCTION__, xfer);
+		dev_err(&client->dev, "%s: rwel - %d\n", __func__, xfer);
 		return -EIO;
 	}
 
@@ -208,7 +208,7 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 		if (xfer != 3) {
 			dev_err(&client->dev,
 				"%s: xfer=%d addr=%02x, data=%02x\n",
-				__FUNCTION__,
+				__func__,
 				 xfer, rdata[1], rdata[2]);
 			return -EIO;
 		}
@@ -216,7 +216,7 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 
 	/* disable further writes */
 	if ((xfer = i2c_master_send(client, diswe, 3)) != 3) {
-		dev_err(&client->dev, "%s: diswe - %d\n", __FUNCTION__, xfer);
+		dev_err(&client->dev, "%s: diswe - %d\n", __func__, xfer);
 		return -EIO;
 	}
 
@@ -249,11 +249,11 @@ static int x1205_get_dtrim(struct i2c_client *client, int *trim)
 
 	/* read dtr register */
 	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __FUNCTION__);
+		dev_err(&client->dev, "%s: read error\n", __func__);
 		return -EIO;
 	}
 
-	dev_dbg(&client->dev, "%s: raw dtr=%x\n", __FUNCTION__, dtr);
+	dev_dbg(&client->dev, "%s: raw dtr=%x\n", __func__, dtr);
 
 	*trim = 0;
 
@@ -281,11 +281,11 @@ static int x1205_get_atrim(struct i2c_client *client, int *trim)
 
 	/* read atr register */
 	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __FUNCTION__);
+		dev_err(&client->dev, "%s: read error\n", __func__);
 		return -EIO;
 	}
 
-	dev_dbg(&client->dev, "%s: raw atr=%x\n", __FUNCTION__, atr);
+	dev_dbg(&client->dev, "%s: raw atr=%x\n", __func__, atr);
 
 	/* atr is a two's complement value on 6 bits,
 	 * perform sign extension. The formula is
@@ -294,11 +294,11 @@ static int x1205_get_atrim(struct i2c_client *client, int *trim)
 	if (atr & 0x20)
 		atr |= 0xC0;
 
-	dev_dbg(&client->dev, "%s: raw atr=%x (%d)\n", __FUNCTION__, atr, atr);
+	dev_dbg(&client->dev, "%s: raw atr=%x (%d)\n", __func__, atr, atr);
 
 	*trim = (atr * 250) + 11000;
 
-	dev_dbg(&client->dev, "%s: real=%d\n", __FUNCTION__, *trim);
+	dev_dbg(&client->dev, "%s: real=%d\n", __func__, *trim);
 
 	return 0;
 }
@@ -352,7 +352,7 @@ static int x1205_validate_client(struct i2c_client *client)
 		if ((xfer = i2c_transfer(client->adapter, msgs, 2)) != 2) {
 			dev_err(&client->dev,
 				"%s: could not read register %x\n",
-				__FUNCTION__, probe_zero_pattern[i]);
+				__func__, probe_zero_pattern[i]);
 
 			return -EIO;
 		}
@@ -360,7 +360,7 @@ static int x1205_validate_client(struct i2c_client *client)
 		if ((buf & probe_zero_pattern[i+1]) != 0) {
 			dev_err(&client->dev,
 				"%s: register=%02x, zero pattern=%d, value=%x\n",
-				__FUNCTION__, probe_zero_pattern[i], i, buf);
+				__func__, probe_zero_pattern[i], i, buf);
 
 			return -ENODEV;
 		}
@@ -380,7 +380,7 @@ static int x1205_validate_client(struct i2c_client *client)
 		if ((xfer = i2c_transfer(client->adapter, msgs, 2)) != 2) {
 			dev_err(&client->dev,
 				"%s: could not read register %x\n",
-				__FUNCTION__, probe_limits_pattern[i].reg);
+				__func__, probe_limits_pattern[i].reg);
 
 			return -EIO;
 		}
@@ -391,7 +391,7 @@ static int x1205_validate_client(struct i2c_client *client)
 			value < probe_limits_pattern[i].min) {
 			dev_dbg(&client->dev,
 				"%s: register=%x, lim pattern=%d, value=%d\n",
-				__FUNCTION__, probe_limits_pattern[i].reg,
+				__func__, probe_limits_pattern[i].reg,
 				i, value);
 
 			return -ENODEV;

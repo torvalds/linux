@@ -80,7 +80,7 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	/* read registers */
 	if ((i2c_transfer(client->adapter, msgs, 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __FUNCTION__);
+		dev_err(&client->dev, "%s: read error\n", __func__);
 		return -EIO;
 	}
 
@@ -91,7 +91,7 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	dev_dbg(&client->dev,
 		"%s: raw data is st1=%02x, st2=%02x, sec=%02x, min=%02x, hr=%02x, "
 		"mday=%02x, wday=%02x, mon=%02x, year=%02x\n",
-		__FUNCTION__,
+		__func__,
 		buf[0], buf[1], buf[2], buf[3],
 		buf[4], buf[5], buf[6], buf[7],
 		buf[8]);
@@ -112,7 +112,7 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
-		__FUNCTION__,
+		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
@@ -133,7 +133,7 @@ static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	dev_dbg(&client->dev, "%s: secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
-		__FUNCTION__,
+		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
@@ -163,7 +163,7 @@ static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 		if (err != sizeof(data)) {
 			dev_err(&client->dev,
 				"%s: err=%d addr=%02x, data=%02x\n",
-				__FUNCTION__, err, data[0], data[1]);
+				__func__, err, data[0], data[1]);
 			return -EIO;
 		}
 	};
@@ -208,7 +208,7 @@ static int pcf8563_validate_client(struct i2c_client *client)
 		if (xfer != ARRAY_SIZE(msgs)) {
 			dev_err(&client->dev,
 				"%s: could not read register 0x%02X\n",
-				__FUNCTION__, pattern[i].reg);
+				__func__, pattern[i].reg);
 
 			return -EIO;
 		}
@@ -220,7 +220,7 @@ static int pcf8563_validate_client(struct i2c_client *client)
 			dev_dbg(&client->dev,
 				"%s: pattern=%d, reg=%x, mask=0x%02x, min=%d, "
 				"max=%d, value=%d, raw=0x%02X\n",
-				__FUNCTION__, i, pattern[i].reg, pattern[i].mask,
+				__func__, i, pattern[i].reg, pattern[i].mask,
 				pattern[i].min, pattern[i].max,
 				value, buf);
 
