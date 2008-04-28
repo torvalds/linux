@@ -58,6 +58,10 @@ config GENERIC_TIME
 	bool
 	default y
 
+config GENERIC_CMOS_UPDATE
+	bool
+	default y
+
 config TIME_LOW_RES
 	bool
 	default y

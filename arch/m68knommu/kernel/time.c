@@ -33,27 +33,6 @@ static inline int set_rtc_mmss(unsigned long nowtime)
 	return -1;
 }
 
-static inline void do_set_rtc(void)
-{
-	/* last time the cmos clock got updated */
-	static long last_rtc_update=0;
-
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 */
-	if (ntp_synced() &&
-	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
-	    (xtime.tv_nsec  / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-	  if (set_rtc_mmss(xtime.tv_sec) == 0)
-	    last_rtc_update = xtime.tv_sec;
-	  else
-	    last_rtc_update = xtime.tv_sec - 600; /* do it again in 60 s */
-	}
-}
-
 /*
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
@@ -67,8 +46,6 @@ irqreturn_t arch_timer_interrupt(int irq, void *dummy)
 	write_seqlock(&xtime_lock);
 
 	do_timer(1);
-
-	do_set_rtc();
 
 	write_sequnlock(&xtime_lock);
 
@@ -93,12 +70,17 @@ static unsigned long read_rtc_mmss(void)
 	return  mktime(year, mon, day, hour, min, sec);;
 }
 
-void time_init(void)
+unsigned long read_persistent_clock(void)
 {
-	xtime.tv_sec = read_rtc_mmss();
-	xtime.tv_nsec = 0;
-	wall_to_monotonic.tv_sec = -xtime.tv_sec;
-
-	hw_timer_init();
+	return read_rtc_mmss();
 }
 
+int update_persistent_clock(struct timespec now)
+{
+	return set_rtc_mmss(now.tv_sec);
+}
+
+void time_init(void)
+{
+	hw_timer_init();
+}
