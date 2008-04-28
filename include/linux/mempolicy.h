@@ -24,11 +24,13 @@ enum {
 };
 
 /* Flags for set_mempolicy */
+#define MPOL_F_STATIC_NODES	(1 << 15)
+
 /*
  * MPOL_MODE_FLAGS is the union of all possible optional mode flags passed to
  * either set_mempolicy() or mbind().
  */
-#define MPOL_MODE_FLAGS	(0)
+#define MPOL_MODE_FLAGS	(MPOL_F_STATIC_NODES)
 
 /* Flags for get_mempolicy */
 #define MPOL_F_NODE	(1<<0)	/* return next IL mode instead of node mask */
@@ -85,7 +87,10 @@ struct mempolicy {
 		nodemask_t	 nodes;		/* interleave/bind */
 		/* undefined for default */
 	} v;
-	nodemask_t cpuset_mems_allowed;	/* mempolicy relative to these nodes */
+	union {
+		nodemask_t cpuset_mems_allowed;	/* relative to these nodes */
+		nodemask_t user_nodemask;	/* nodemask passed by user */
+	} w;
 };
 
 /*
@@ -124,7 +129,6 @@ static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
 		return 1;
 	return __mpol_equal(a, b);
 }
-#define vma_mpol_equal(a,b) mpol_equal(vma_policy(a), vma_policy(b))
 
 /* Could later add inheritance of the process policy here. */
 
@@ -190,7 +194,6 @@ static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
 {
 	return 1;
 }
-#define vma_mpol_equal(a,b) 1
 
 #define mpol_set_vma_default(vma) do {} while(0)
 

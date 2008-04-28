@@ -1126,6 +1126,8 @@ static int shmem_parse_mpol(char *value, unsigned short *policy,
 		err = 0;
 	}
 	if (flags) {
+		if (!strcmp(flags, "static"))
+			*mode_flags |= MPOL_F_STATIC_NODES;
 	}
 out:
 	/* Restore string for error message */
