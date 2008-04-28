@@ -54,28 +54,6 @@ inline void pcibios_penalize_isa_irq(int irq, int active)
  * Allocated Resources
  */
 
-static void pnpbios_parse_allocated_irqresource(struct pnp_dev *dev, int irq)
-{
-	struct resource *res;
-	int i;
-
-	for (i = 0; i < PNP_MAX_IRQ; i++) {
-		res = pnp_get_resource(dev, IORESOURCE_IRQ, i);
-		if (!pnp_resource_valid(res))
-			break;
-	}
-
-	if (i < PNP_MAX_IRQ) {
-		res->flags = IORESOURCE_IRQ;	// Also clears _UNSET flag
-		if (irq == -1) {
-			res->flags |= IORESOURCE_DISABLED;
-			return;
-		}
-		res->start = res->end = (unsigned long)irq;
-		pcibios_penalize_isa_irq(irq, 1);
-	}
-}
-
 static void pnpbios_parse_allocated_dmaresource(struct pnp_dev *dev, int dma)
 {
 	struct resource *res;
@@ -148,7 +126,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(struct pnp_dev *dev,
 							    unsigned char *end)
 {
 	unsigned int len, tag;
-	int io, size, mask, i;
+	int io, size, mask, i, flags;
 
 	if (!p)
 		return NULL;
@@ -205,12 +183,17 @@ static unsigned char *pnpbios_parse_allocated_resource_data(struct pnp_dev *dev,
 		case SMALL_TAG_IRQ:
 			if (len < 2 || len > 3)
 				goto len_err;
+			flags = 0;
 			io = -1;
 			mask = p[1] + p[2] * 256;
 			for (i = 0; i < 16; i++, mask = mask >> 1)
 				if (mask & 0x01)
 					io = i;
-			pnpbios_parse_allocated_irqresource(dev, io);
+			if (io != -1)
+				pcibios_penalize_isa_irq(io, 1);
+			else
+				flags = IORESOURCE_DISABLED;
+			pnp_add_irq_resource(dev, io, flags);
 			break;
 
 		case SMALL_TAG_DMA:

@@ -965,12 +965,9 @@ static int isapnp_read_resources(struct pnp_dev *dev)
 			     8);
 			if (!ret)
 				continue;
-			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_IRQ,
-						       tmp);
-			pnp_res->index = tmp;
-			res = &pnp_res->res;
-			res->start = res->end = ret;
-			res->flags = IORESOURCE_IRQ;
+			pnp_res = pnp_add_irq_resource(dev, ret, 0);
+			if (pnp_res)
+				pnp_res->index = tmp;
 		}
 		for (tmp = 0; tmp < ISAPNP_MAX_DMA; tmp++) {
 			ret = isapnp_read_byte(ISAPNP_CFG_DMA + tmp);

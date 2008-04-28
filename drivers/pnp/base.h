@@ -40,3 +40,6 @@ struct pnp_resource_table {
 	struct pnp_resource dma[PNP_MAX_DMA];
 	struct pnp_resource irq[PNP_MAX_IRQ];
 };
+
+struct pnp_resource *pnp_add_irq_resource(struct pnp_dev *dev, int irq,
+					  int flags);
