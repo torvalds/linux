@@ -3070,6 +3070,27 @@ static int btrfs_ioctl_defrag(struct file *file)
 	return 0;
 }
 
+long btrfs_ioctl_add_dev(struct btrfs_root *root, void __user *arg)
+{
+	struct btrfs_ioctl_vol_args *vol_args;
+	int ret;
+
+	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
+
+	if (!vol_args)
+		return -ENOMEM;
+
+	if (copy_from_user(vol_args, arg, sizeof(*vol_args))) {
+		ret = -EFAULT;
+		goto out;
+	}
+	ret = btrfs_init_new_device(root, vol_args->name);
+
+out:
+	kfree(vol_args);
+	return ret;
+}
+
 long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
@@ -3082,6 +3103,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_defrag(file);
 	case BTRFS_IOC_RESIZE:
 		return btrfs_ioctl_resize(root, (void __user *)arg);
+	case BTRFS_IOC_ADD_DEV:
+		return btrfs_ioctl_add_dev(root, (void __user *)arg);
 	}
 
 	return -ENOTTY;

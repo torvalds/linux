@@ -388,6 +388,7 @@ int btrfs_get_sb_bdev(struct file_system_type *fs_type,
 			goto error;
 		}
 
+		btrfs_sb(s)->fs_info->bdev_holder = fs_type;
 		s->s_flags |= MS_ACTIVE;
 	}
 

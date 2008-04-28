@@ -19,6 +19,7 @@
 #include <linux/bio.h>
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
+#include <linux/random.h>
 #include <asm/div64.h>
 #include "ctree.h"
 #include "extent_map.h"
@@ -590,6 +591,80 @@ int btrfs_add_device(struct btrfs_trans_handle *trans,
 out:
 	btrfs_free_path(path);
 	return ret;
+}
+
+int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_device *device;
+	struct block_device *bdev;
+	struct list_head *cur;
+	struct list_head *devices;
+	u64 total_bytes;
+	int ret = 0;
+
+
+	bdev = open_bdev_excl(device_path, 0, root->fs_info->bdev_holder);
+	if (!bdev) {
+		return -EIO;
+	}
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	devices = &root->fs_info->fs_devices->devices;
+	list_for_each(cur, devices) {
+		device = list_entry(cur, struct btrfs_device, dev_list);
+		if (device->bdev == bdev) {
+			ret = -EEXIST;
+			goto out;
+		}
+	}
+
+	device = kzalloc(sizeof(*device), GFP_NOFS);
+	if (!device) {
+		/* we can safely leave the fs_devices entry around */
+		ret = -ENOMEM;
+		goto out_close_bdev;
+	}
+
+	device->barriers = 1;
+	generate_random_uuid(device->uuid);
+	spin_lock_init(&device->io_lock);
+	device->name = kstrdup(device_path, GFP_NOFS);
+	if (!device->name) {
+		kfree(device);
+		goto out_close_bdev;
+	}
+	device->io_width = root->sectorsize;
+	device->io_align = root->sectorsize;
+	device->sector_size = root->sectorsize;
+	device->total_bytes = i_size_read(bdev->bd_inode);
+	device->dev_root = root->fs_info->dev_root;
+	device->bdev = bdev;
+
+	ret = btrfs_add_device(trans, root, device);
+	if (ret)
+		goto out_close_bdev;
+
+	total_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
+	btrfs_set_super_total_bytes(&root->fs_info->super_copy,
+				    total_bytes + device->total_bytes);
+
+	total_bytes = btrfs_super_num_devices(&root->fs_info->super_copy);
+	btrfs_set_super_num_devices(&root->fs_info->super_copy,
+				    total_bytes + 1);
+
+	list_add(&device->dev_list, &root->fs_info->fs_devices->devices);
+	list_add(&device->dev_alloc_list,
+		 &root->fs_info->fs_devices->alloc_list);
+	root->fs_info->fs_devices->num_devices++;
+out:
+	btrfs_end_transaction(trans, root);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return ret;
+
+out_close_bdev:
+	close_bdev_excl(bdev);
+	goto out;
 }
 
 int btrfs_update_device(struct btrfs_trans_handle *trans,

@@ -551,6 +551,8 @@ struct btrfs_fs_info {
 	u64 data_alloc_profile;
 	u64 metadata_alloc_profile;
 	u64 system_alloc_profile;
+
+	void *bdev_holder;
 };
 
 /*
