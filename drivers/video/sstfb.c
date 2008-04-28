@@ -1006,7 +1006,7 @@ static int sst_set_pll_att_ti(struct fb_info *info,
 		break;
 	default:
 		dprintk("%s: wrong clock code '%d'\n",
-		        __FUNCTION__, clock);
+		        __func__, clock);
 		return 0;
 		}
 	udelay(300);
@@ -1048,7 +1048,7 @@ static int sst_set_pll_ics(struct fb_info *info,
 		break;
 	default:
 		dprintk("%s: wrong clock code '%d'\n",
-		        __FUNCTION__, clock);
+		        __func__, clock);
 		return 0;
 		}
 	udelay(300);
@@ -1079,7 +1079,7 @@ static void sst_set_vidmod_att_ti(struct fb_info *info, const int bpp)
 		sst_dac_write(DACREG_RMR, (cr0 & 0x0f) | DACREG_CR0_16BPP);
 		break;
 	default:
-		dprintk("%s: bad depth '%u'\n", __FUNCTION__, bpp);
+		dprintk("%s: bad depth '%u'\n", __func__, bpp);
 		break;
 	}
 }
@@ -1093,7 +1093,7 @@ static void sst_set_vidmod_ics(struct fb_info *info, const int bpp)
 		sst_dac_write(DACREG_ICS_CMD, DACREG_ICS_CMD_16BPP);
 		break;
 	default:
-		dprintk("%s: bad depth '%u'\n", __FUNCTION__, bpp);
+		dprintk("%s: bad depth '%u'\n", __func__, bpp);
 		break;
 	}
 }
@@ -1133,7 +1133,7 @@ static int __devinit sst_detect_dactype(struct fb_info *info, struct sstfb_par *
 	}
 	if (!ret)
 		return 0;
-	f_dprintk("%s found %s\n", __FUNCTION__, dacs[i].name);
+	f_dprintk("%s found %s\n", __func__, dacs[i].name);
 	par->dac_sw = dacs[i];
 	return 1;
 }

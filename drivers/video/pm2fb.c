@@ -56,7 +56,7 @@
 #undef PM2FB_MASTER_DEBUG
 #ifdef PM2FB_MASTER_DEBUG
 #define DPRINTK(a, b...)	\
-	printk(KERN_DEBUG "pm2fb: %s: " a, __FUNCTION__ , ## b)
+	printk(KERN_DEBUG "pm2fb: %s: " a, __func__ , ## b)
 #else
 #define DPRINTK(a, b...)
 #endif

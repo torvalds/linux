@@ -430,9 +430,9 @@ static void s3c2410fb_activate_var(struct fb_info *info)
 	struct fb_var_screeninfo *var = &info->var;
 	int clkdiv = s3c2410fb_calc_pixclk(fbi, var->pixclock) / 2;
 
-	dprintk("%s: var->xres  = %d\n", __FUNCTION__, var->xres);
-	dprintk("%s: var->yres  = %d\n", __FUNCTION__, var->yres);
-	dprintk("%s: var->bpp   = %d\n", __FUNCTION__, var->bits_per_pixel);
+	dprintk("%s: var->xres  = %d\n", __func__, var->xres);
+	dprintk("%s: var->yres  = %d\n", __func__, var->yres);
+	dprintk("%s: var->bpp   = %d\n", __func__, var->bits_per_pixel);
 
 	if (type == S3C2410_LCDCON1_TFT) {
 		s3c2410fb_calculate_tft_lcd_regs(info, &fbi->regs);

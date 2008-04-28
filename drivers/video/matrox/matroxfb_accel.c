@@ -113,7 +113,7 @@ void matrox_cfbX_init(WPMINFO2) {
 	u_int32_t mopmode;
 	int accel;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	mpitch = ACCESS_FBINFO(fbcon).var.xres_virtual;
 
@@ -199,7 +199,7 @@ static void matrox_accel_bmove(WPMINFO int vxres, int sy, int sx, int dy, int dx
 	int start, end;
 	CRITFLAGS
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	CRITBEGIN
 
@@ -235,7 +235,7 @@ static void matrox_accel_bmove_lin(WPMINFO int vxres, int sy, int sx, int dy, in
 	int start, end;
 	CRITFLAGS
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	CRITBEGIN
 
@@ -287,7 +287,7 @@ static void matroxfb_accel_clear(WPMINFO u_int32_t color, int sy, int sx, int he
 		int width) {
 	CRITFLAGS
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	CRITBEGIN
 
@@ -315,7 +315,7 @@ static void matroxfb_cfb4_clear(WPMINFO u_int32_t bgx, int sy, int sx, int heigh
 	int whattodo;
 	CRITFLAGS
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	CRITBEGIN
 
@@ -388,7 +388,7 @@ static void matroxfb_1bpp_imageblit(WPMINFO u_int32_t fgx, u_int32_t bgx,
 	int easy;
 	CRITFLAGS
 
-	DBG_HEAVY(__FUNCTION__);
+	DBG_HEAVY(__func__);
 
 	step = (width + 7) >> 3;
 	charcell = height * step;
@@ -469,7 +469,7 @@ static void matroxfb_1bpp_imageblit(WPMINFO u_int32_t fgx, u_int32_t bgx,
 static void matroxfb_imageblit(struct fb_info* info, const struct fb_image* image) {
 	MINFO_FROM_INFO(info);
 
-	DBG_HEAVY(__FUNCTION__);
+	DBG_HEAVY(__func__);
 
 	if (image->depth == 1) {
 		u_int32_t fgx, bgx;

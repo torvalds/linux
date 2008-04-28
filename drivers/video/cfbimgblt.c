@@ -38,7 +38,7 @@
 #define DEBUG
 
 #ifdef DEBUG
-#define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt,__FUNCTION__,## args)
+#define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt,__func__,## args)
 #else
 #define DPRINTK(fmt, args...)
 #endif

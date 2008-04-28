@@ -45,7 +45,7 @@
 #undef PM3FB_MASTER_DEBUG
 #ifdef PM3FB_MASTER_DEBUG
 #define DPRINTK(a, b...)	\
-	printk(KERN_DEBUG "pm3fb: %s: " a, __FUNCTION__ , ## b)
+	printk(KERN_DEBUG "pm3fb: %s: " a, __func__ , ## b)
 #else
 #define DPRINTK(a, b...)
 #endif
