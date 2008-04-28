@@ -817,7 +817,7 @@ static struct drm_buf *r128_freelist_get(struct drm_device * dev)
 	for (i = 0; i < dma->buf_count; i++) {
 		buf = dma->buflist[i];
 		buf_priv = buf->dev_private;
-		if (buf->file_priv == 0)
+		if (!buf->file_priv)
 			return buf;
 	}
 

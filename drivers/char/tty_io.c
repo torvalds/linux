@@ -1180,7 +1180,7 @@ struct tty_driver *tty_find_polling_driver(char *name, int *line)
 		if (*str == ',')
 			str++;
 		if (*str == '\0')
-			str = 0;
+			str = NULL;
 
 		if (tty_line >= 0 && tty_line <= p->num && p->poll_init &&
 				!p->poll_init(p, tty_line, str)) {
