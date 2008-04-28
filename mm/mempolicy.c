@@ -1183,7 +1183,7 @@ static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
 		nd = 0;
 		BUG();
 	}
-	return NODE_DATA(nd)->node_zonelists + gfp_zone(gfp);
+	return node_zonelist(nd, gfp);
 }
 
 /* Do dynamic interleaving for a process */
@@ -1299,7 +1299,7 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
 		if (unlikely(pol != &default_policy &&
 				pol != current->mempolicy))
 			__mpol_free(pol);	/* finished with pol */
-		return NODE_DATA(nid)->node_zonelists + gfp_zone(gfp_flags);
+		return node_zonelist(nid, gfp_flags);
 	}
 
 	zl = zonelist_policy(GFP_HIGHUSER, pol);
@@ -1321,7 +1321,7 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
 	struct zonelist *zl;
 	struct page *page;
 
-	zl = NODE_DATA(nid)->node_zonelists + gfp_zone(gfp);
+	zl = node_zonelist(nid, gfp);
 	page = __alloc_pages(gfp, order, zl);
 	if (page && page_zone(page) == zl->zones[0])
 		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
