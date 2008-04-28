@@ -16,11 +16,13 @@
 
 static inline int
 __inode_direct_access(struct inode *inode, sector_t sector,
-		      unsigned long *data)
+		      void **kaddr, unsigned long *pfn)
 {
-	BUG_ON(!inode->i_sb->s_bdev->bd_disk->fops->direct_access);
-	return inode->i_sb->s_bdev->bd_disk->fops
-		->direct_access(inode->i_sb->s_bdev,sector,data);
+	struct block_device *bdev = inode->i_sb->s_bdev;
+	struct block_device_operations *ops = bdev->bd_disk->fops;
+
+	BUG_ON(!ops->direct_access);
+	return ops->direct_access(bdev, sector, kaddr, pfn);
 }
 
 static inline int
@@ -48,12 +50,13 @@ int
 ext2_clear_xip_target(struct inode *inode, int block)
 {
 	sector_t sector = block * (PAGE_SIZE/512);
-	unsigned long data;
+	void *kaddr;
+	unsigned long pfn;
 	int rc;
 
-	rc = __inode_direct_access(inode, sector, &data);
+	rc = __inode_direct_access(inode, sector, &kaddr, &pfn);
 	if (!rc)
-		clear_page((void*)data);
+		clear_page(kaddr);
 	return rc;
 }
 
@@ -74,7 +77,8 @@ ext2_get_xip_page(struct address_space *mapping, sector_t offset,
 		   int create)
 {
 	int rc;
-	unsigned long data;
+	void *kaddr;
+	unsigned long pfn;
 	sector_t sector;
 
 	/* first, retrieve the sector number */
@@ -84,9 +88,9 @@ ext2_get_xip_page(struct address_space *mapping, sector_t offset,
 
 	/* retrieve address of the target data */
 	rc = __inode_direct_access
-		(mapping->host, sector * (PAGE_SIZE/512), &data);
+		(mapping->host, sector * (PAGE_SIZE/512), &kaddr, &pfn);
 	if (!rc)
-		return virt_to_page(data);
+		return pfn_to_page(pfn);
 
  error:
 	return ERR_PTR(rc);
