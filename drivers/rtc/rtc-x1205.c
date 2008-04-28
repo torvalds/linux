@@ -22,20 +22,7 @@
 #include <linux/rtc.h>
 #include <linux/delay.h>
 
-#define DRV_VERSION "1.0.7"
-
-/* Addresses to scan: none. This chip is located at
- * 0x6f and uses a two bytes register addressing.
- * Two bytes need to be written to read a single register,
- * while most other chips just require one and take the second
- * one as the data to be written. To prevent corrupting
- * unknown chips, the user must explicitly set the probe parameter.
- */
-
-static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
-
-/* Insmod parameters */
-I2C_CLIENT_INSMOD;
+#define DRV_VERSION "1.0.8"
 
 /* offsets into CCR area */
 
@@ -91,19 +78,7 @@ I2C_CLIENT_INSMOD;
 
 #define X1205_HR_MIL		0x80	/* Set in ccr.hour for 24 hr mode */
 
-/* Prototypes */
-static int x1205_attach(struct i2c_adapter *adapter);
-static int x1205_detach(struct i2c_client *client);
-static int x1205_probe(struct i2c_adapter *adapter, int address, int kind);
-
-static struct i2c_driver x1205_driver = {
-	.driver		= {
-		.name	= "x1205",
-	},
-	.id		= I2C_DRIVERID_X1205,
-	.attach_adapter = &x1205_attach,
-	.detach_client	= &x1205_detach,
-};
+static struct i2c_driver x1205_driver;
 
 /*
  * In the routines that deal directly with the x1205 hardware, we use
@@ -497,58 +472,49 @@ static ssize_t x1205_sysfs_show_dtrim(struct device *dev,
 }
 static DEVICE_ATTR(dtrim, S_IRUGO, x1205_sysfs_show_dtrim, NULL);
 
-static int x1205_attach(struct i2c_adapter *adapter)
+static int x1205_sysfs_register(struct device *dev)
 {
-	return i2c_probe(adapter, &addr_data, x1205_probe);
+	int err;
+
+	err = device_create_file(dev, &dev_attr_atrim);
+	if (err)
+		return err;
+
+	err = device_create_file(dev, &dev_attr_dtrim);
+	if (err)
+		device_remove_file(dev, &dev_attr_atrim);
+
+	return err;
 }
 
-static int x1205_probe(struct i2c_adapter *adapter, int address, int kind)
+static void x1205_sysfs_unregister(struct device *dev)
+{
+	device_remove_file(dev, &dev_attr_atrim);
+	device_remove_file(dev, &dev_attr_dtrim);
+}
+
+
+static int x1205_probe(struct i2c_client *client)
 {
 	int err = 0;
 	unsigned char sr;
-	struct i2c_client *client;
 	struct rtc_device *rtc;
 
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
+	dev_dbg(&client->dev, "%s\n", __func__);
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
-		err = -ENODEV;
-		goto exit;
-	}
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return -ENODEV;
 
-	if (!(client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	/* I2C client */
-	client->addr = address;
-	client->driver = &x1205_driver;
-	client->adapter	= adapter;
-
-	strlcpy(client->name, x1205_driver.driver.name, I2C_NAME_SIZE);
-
-	/* Verify the chip is really an X1205 */
-	if (kind < 0) {
-		if (x1205_validate_client(client) < 0) {
-			err = -ENODEV;
-			goto exit_kfree;
-		}
-	}
-
-	/* Inform the i2c layer */
-	if ((err = i2c_attach_client(client)))
-		goto exit_kfree;
+	if (x1205_validate_client(client) < 0)
+		return -ENODEV;
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
 	rtc = rtc_device_register(x1205_driver.driver.name, &client->dev,
 				&x1205_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(rtc)) {
-		err = PTR_ERR(rtc);
-		goto exit_detach;
-	}
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
 
 	i2c_set_clientdata(client, rtc);
 
@@ -565,44 +531,34 @@ static int x1205_probe(struct i2c_adapter *adapter, int address, int kind)
 	else
 		dev_err(&client->dev, "couldn't read status\n");
 
-	err = device_create_file(&client->dev, &dev_attr_atrim);
-	if (err) goto exit_devreg;
-	err = device_create_file(&client->dev, &dev_attr_dtrim);
-	if (err) goto exit_atrim;
+	err = x1205_sysfs_register(&client->dev);
+	if (err)
+		goto exit_devreg;
 
 	return 0;
-
-exit_atrim:
-	device_remove_file(&client->dev, &dev_attr_atrim);
 
 exit_devreg:
 	rtc_device_unregister(rtc);
 
-exit_detach:
-	i2c_detach_client(client);
-
-exit_kfree:
-	kfree(client);
-
-exit:
 	return err;
 }
 
-static int x1205_detach(struct i2c_client *client)
+static int x1205_remove(struct i2c_client *client)
 {
-	int err;
 	struct rtc_device *rtc = i2c_get_clientdata(client);
 
- 	if (rtc)
-		rtc_device_unregister(rtc);
-
-	if ((err = i2c_detach_client(client)))
-		return err;
-
-	kfree(client);
-
+	rtc_device_unregister(rtc);
+	x1205_sysfs_unregister(&client->dev);
 	return 0;
 }
+
+static struct i2c_driver x1205_driver = {
+	.driver		= {
+		.name	= "rtc-x1205",
+	},
+	.probe		= x1205_probe,
+	.remove		= x1205_remove,
+};
 
 static int __init x1205_init(void)
 {
