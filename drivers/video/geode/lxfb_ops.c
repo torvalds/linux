@@ -154,12 +154,12 @@ static void lx_set_dotpll(u32 pllval)
 
 	rdmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
 
-	if ((dotpll_lo & GLCP_DOTPLL_LOCK) && (dotpll_hi == pllval))
+	if ((dotpll_lo & MSR_GLCP_DOTPLL_LOCK) && (dotpll_hi == pllval))
 		return;
 
 	dotpll_hi = pllval;
-	dotpll_lo &= ~(GLCP_DOTPLL_BYPASS | GLCP_DOTPLL_HALFPIX);
-	dotpll_lo |= GLCP_DOTPLL_RESET;
+	dotpll_lo &= ~(MSR_GLCP_DOTPLL_BYPASS | MSR_GLCP_DOTPLL_HALFPIX);
+	dotpll_lo |= MSR_GLCP_DOTPLL_DOTRESET;
 
 	wrmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
 
@@ -171,13 +171,13 @@ static void lx_set_dotpll(u32 pllval)
 
 	for (i = 0; i < 1000; i++) {
 		rdmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
-		if (dotpll_lo & GLCP_DOTPLL_LOCK)
+		if (dotpll_lo & MSR_GLCP_DOTPLL_LOCK)
 			break;
 	}
 
 	/* Clear the reset bit */
 
-	dotpll_lo &= ~GLCP_DOTPLL_RESET;
+	dotpll_lo &= ~MSR_GLCP_DOTPLL_DOTRESET;
 	wrmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
 }
 
@@ -299,8 +299,8 @@ static void lx_graphics_enable(struct fb_info *info)
 		write_fp(par, FP_PT2, FP_PT2_SCRC);
 		write_fp(par, FP_DFC, FP_DFC_BC);
 
-		msrlo = DF_DEFAULT_TFT_PAD_SEL_LOW;
-		msrhi = DF_DEFAULT_TFT_PAD_SEL_HIGH;
+		msrlo = MSR_LX_MSR_PADSEL_TFT_SEL_LOW;
+		msrhi = MSR_LX_MSR_PADSEL_TFT_SEL_HIGH;
 
 		wrmsr(MSR_LX_MSR_PADSEL, msrlo, msrhi);
 	}
@@ -366,18 +366,17 @@ void lx_set_mode(struct fb_info *info)
 	/* Set output mode */
 
 	rdmsrl(MSR_LX_GLD_MSR_CONFIG, msrval);
-	msrval &= ~DF_CONFIG_OUTPUT_MASK;
+	msrval &= ~MSR_LX_GLD_MSR_CONFIG_FMT;
 
 	if (par->output & OUTPUT_PANEL) {
-		msrval |= DF_OUTPUT_PANEL;
+		msrval |= MSR_LX_GLD_MSR_CONFIG_FMT_FP;
 
 		if (par->output & OUTPUT_CRT)
-			msrval |= DF_SIMULTANEOUS_CRT_AND_FP;
+			msrval |= MSR_LX_GLD_MSR_CONFIG_FPC;
 		else
-			msrval &= ~DF_SIMULTANEOUS_CRT_AND_FP;
-	} else {
-		msrval |= DF_OUTPUT_CRT;
-	}
+			msrval &= ~MSR_LX_GLD_MSR_CONFIG_FPC;
+	} else
+		msrval |= MSR_LX_GLD_MSR_CONFIG_FMT_CRT;
 
 	wrmsrl(MSR_LX_GLD_MSR_CONFIG, msrval);
 
@@ -429,10 +428,12 @@ void lx_set_mode(struct fb_info *info)
 
 	rdmsrl(MSR_LX_SPARE_MSR, msrval);
 
-	msrval &= ~(DC_SPARE_DISABLE_CFIFO_HGO | DC_SPARE_VFIFO_ARB_SELECT |
-		    DC_SPARE_LOAD_WM_LPEN_MASK | DC_SPARE_WM_LPEN_OVRD |
-		    DC_SPARE_DISABLE_INIT_VID_PRI | DC_SPARE_DISABLE_VFIFO_WM);
-	msrval |= DC_SPARE_DISABLE_VFIFO_WM | DC_SPARE_DISABLE_INIT_VID_PRI;
+	msrval &= ~(MSR_LX_SPARE_MSR_DIS_CFIFO_HGO
+			| MSR_LX_SPARE_MSR_VFIFO_ARB_SEL
+			| MSR_LX_SPARE_MSR_LOAD_WM_LPEN_M
+			| MSR_LX_SPARE_MSR_WM_LPEN_OVRD);
+	msrval |= MSR_LX_SPARE_MSR_DIS_VIFO_WM |
+			MSR_LX_SPARE_MSR_DIS_INIT_V_PRI;
 	wrmsrl(MSR_LX_SPARE_MSR, msrval);
 
 	gcfg = DC_GENERAL_CFG_DFLE;   /* Display fifo enable */
