@@ -40,7 +40,7 @@ cpu_to_fs64(struct super_block *sbp, u64 n)
 		return (__force __fs64)cpu_to_be64(n);
 }
 
-static __inline u32
+static inline u32
 fs32_to_cpu(struct super_block *sbp, __fs32 n)
 {
 	if (UFS_SB(sbp)->s_bytesex == BYTESEX_LE)
