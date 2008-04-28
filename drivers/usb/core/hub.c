@@ -2673,9 +2673,10 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 	struct usb_device *hdev = hub->hdev;
 	struct device *hub_dev = hub->intfdev;
 	struct usb_hcd *hcd = bus_to_hcd(hdev->bus);
-	u16 wHubCharacteristics = le16_to_cpu(hub->descriptor->wHubCharacteristics);
+	unsigned wHubCharacteristics =
+			le16_to_cpu(hub->descriptor->wHubCharacteristics);
 	int status, i;
- 
+
 	dev_dbg (hub_dev,
 		"port %d, status %04x, change %04x, %s\n",
 		port1, portstatus, portchange, portspeed (portstatus));
@@ -2684,30 +2685,36 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		set_port_led(hub, port1, HUB_LED_AUTO);
 		hub->indicator[port1-1] = INDICATOR_AUTO;
 	}
- 
-	/* Disconnect any existing devices under this port */
-	if (hdev->children[port1-1])
-		usb_disconnect(&hdev->children[port1-1]);
-	clear_bit(port1, hub->change_bits);
 
 #ifdef	CONFIG_USB_OTG
 	/* during HNP, don't repeat the debounce */
 	if (hdev->bus->is_b_host)
-		portchange &= ~USB_PORT_STAT_C_CONNECTION;
+		portchange &= ~(USB_PORT_STAT_C_CONNECTION |
+				USB_PORT_STAT_C_ENABLE);
 #endif
 
-	if (portchange & USB_PORT_STAT_C_CONNECTION) {
+	/* Try to use the debounce delay for protection against
+	 * port-enable changes caused, for example, by EMI.
+	 */
+	if (portchange & (USB_PORT_STAT_C_CONNECTION |
+				USB_PORT_STAT_C_ENABLE)) {
 		status = hub_port_debounce(hub, port1);
 		if (status < 0) {
 			if (printk_ratelimit())
 				dev_err (hub_dev, "connect-debounce failed, "
 						"port %d disabled\n", port1);
-			goto done;
+			portstatus &= ~USB_PORT_STAT_CONNECTION;
+		} else {
+			portstatus = status;
 		}
-		portstatus = status;
 	}
 
-	/* Return now if nothing is connected */
+	/* Disconnect any existing devices under this port */
+	if (hdev->children[port1-1])
+		usb_disconnect(&hdev->children[port1-1]);
+	clear_bit(port1, hub->change_bits);
+
+	/* Return now if debouncing failed or nothing is connected */
 	if (!(portstatus & USB_PORT_STAT_CONNECTION)) {
 
 		/* maybe switch power back on (e.g. root hub was reset) */
