@@ -19,14 +19,17 @@ DEFINE_MUTEX(pnp_res_mutex);
 
 static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 {
+	struct pnp_resource *pnp_res;
 	struct resource *res;
 
-	res = pnp_get_resource(dev, IORESOURCE_IO, idx);
-	if (!res) {
+	pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_IO, idx);
+	if (!pnp_res) {
 		dev_err(&dev->dev, "too many I/O port resources\n");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
+
+	res = &pnp_res->res;
 
 	/* check if this resource has been manually set, if so skip */
 	if (!(res->flags & IORESOURCE_AUTO)) {
@@ -37,6 +40,7 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 	}
 
 	/* set the initial values */
+	pnp_res->index = idx;
 	res->flags |= rule->flags | IORESOURCE_IO;
 	res->flags &= ~IORESOURCE_UNSET;
 
@@ -65,14 +69,17 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 
 static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 {
+	struct pnp_resource *pnp_res;
 	struct resource *res;
 
-	res = pnp_get_resource(dev, IORESOURCE_MEM, idx);
-	if (!res) {
+	pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_MEM, idx);
+	if (!pnp_res) {
 		dev_err(&dev->dev, "too many memory resources\n");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
+
+	res = &pnp_res->res;
 
 	/* check if this resource has been manually set, if so skip */
 	if (!(res->flags & IORESOURCE_AUTO)) {
@@ -83,6 +90,7 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 	}
 
 	/* set the initial values */
+	pnp_res->index = idx;
 	res->flags |= rule->flags | IORESOURCE_MEM;
 	res->flags &= ~IORESOURCE_UNSET;
 
@@ -121,6 +129,7 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 
 static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 {
+	struct pnp_resource *pnp_res;
 	struct resource *res;
 	int i;
 
@@ -129,12 +138,14 @@ static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 		5, 10, 11, 12, 9, 14, 15, 7, 3, 4, 13, 0, 1, 6, 8, 2
 	};
 
-	res = pnp_get_resource(dev, IORESOURCE_IRQ, idx);
-	if (!res) {
+	pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_IRQ, idx);
+	if (!pnp_res) {
 		dev_err(&dev->dev, "too many IRQ resources\n");
 		/* pretend we were successful so at least the manager won't try again */
 		return 1;
 	}
+
+	res = &pnp_res->res;
 
 	/* check if this resource has been manually set, if so skip */
 	if (!(res->flags & IORESOURCE_AUTO)) {
@@ -144,6 +155,7 @@ static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 	}
 
 	/* set the initial values */
+	pnp_res->index = idx;
 	res->flags |= rule->flags | IORESOURCE_IRQ;
 	res->flags &= ~IORESOURCE_UNSET;
 
@@ -177,6 +189,7 @@ static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 
 static void pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 {
+	struct pnp_resource *pnp_res;
 	struct resource *res;
 	int i;
 
@@ -185,11 +198,13 @@ static void pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 		1, 3, 5, 6, 7, 0, 2, 4
 	};
 
-	res = pnp_get_resource(dev, IORESOURCE_DMA, idx);
-	if (!res) {
+	pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_DMA, idx);
+	if (!pnp_res) {
 		dev_err(&dev->dev, "too many DMA resources\n");
 		return;
 	}
+
+	res = &pnp_res->res;
 
 	/* check if this resource has been manually set, if so skip */
 	if (!(res->flags & IORESOURCE_AUTO)) {
@@ -199,6 +214,7 @@ static void pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 	}
 
 	/* set the initial values */
+	pnp_res->index = idx;
 	res->flags |= rule->flags | IORESOURCE_DMA;
 	res->flags &= ~IORESOURCE_UNSET;
 

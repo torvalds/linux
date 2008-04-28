@@ -320,6 +320,7 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 			  const char *ubuf, size_t count)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
+	struct pnp_resource *pnp_res;
 	struct resource *res;
 	char *buf = (void *)ubuf;
 	int retval = 0;
@@ -380,10 +381,12 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 				buf += 2;
 				while (isspace(*buf))
 					++buf;
-				res = pnp_get_resource(dev, IORESOURCE_IO,
-						       nport);
-				if (!res)
+				pnp_res = pnp_get_pnp_resource(dev,
+						IORESOURCE_IO, nport);
+				if (!pnp_res)
 					break;
+				pnp_res->index = nport;
+				res = &pnp_res->res;
 				res->start = simple_strtoul(buf, &buf, 0);
 				while (isspace(*buf))
 					++buf;
@@ -402,10 +405,12 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 				buf += 3;
 				while (isspace(*buf))
 					++buf;
-				res = pnp_get_resource(dev, IORESOURCE_MEM,
-						       nmem);
-				if (!res)
+				pnp_res = pnp_get_pnp_resource(dev,
+						IORESOURCE_MEM, nmem);
+				if (!pnp_res)
 					break;
+				pnp_res->index = nmem;
+				res = &pnp_res->res;
 				res->start = simple_strtoul(buf, &buf, 0);
 				while (isspace(*buf))
 					++buf;
@@ -424,10 +429,12 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 				buf += 3;
 				while (isspace(*buf))
 					++buf;
-				res = pnp_get_resource(dev, IORESOURCE_IRQ,
-						       nirq);
-				if (!res)
+				pnp_res = pnp_get_pnp_resource(dev,
+						IORESOURCE_IRQ, nirq);
+				if (!pnp_res)
 					break;
+				pnp_res->index = nirq;
+				res = &pnp_res->res;
 				res->start = res->end =
 				    simple_strtoul(buf, &buf, 0);
 				res->flags = IORESOURCE_IRQ;
@@ -438,10 +445,12 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 				buf += 3;
 				while (isspace(*buf))
 					++buf;
-				res = pnp_get_resource(dev, IORESOURCE_DMA,
-						       ndma);
-				if (!res)
+				pnp_res = pnp_get_pnp_resource(dev,
+						IORESOURCE_DMA, ndma);
+				if (!pnp_res)
 					break;
+				pnp_res->index = ndma;
+				res = &pnp_res->res;
 				res->start = res->end =
 				    simple_strtoul(buf, &buf, 0);
 				res->flags = IORESOURCE_DMA;

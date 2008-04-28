@@ -31,6 +31,7 @@ struct pnp_resource *pnp_get_pnp_resource(struct pnp_dev *dev,
 
 struct pnp_resource {
 	struct resource res;
+	unsigned int index;		/* ISAPNP config register index */
 };
 
 struct pnp_resource_table {
