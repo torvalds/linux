@@ -193,16 +193,16 @@ gx_configure_tft(struct fb_info *info)
 
 	/* Turn off the panel */
 
-	fp = read_fp(par, GX_FP_PM);
-	fp &= ~GX_FP_PM_P;
-	write_fp(par, GX_FP_PM, fp);
+	fp = read_fp(par, FP_PM);
+	fp &= ~FP_PM_P;
+	write_fp(par, FP_PM, fp);
 
 	/* Set timing 1 */
 
-	fp = read_fp(par, GX_FP_PT1);
-	fp &= GX_FP_PT1_VSIZE_MASK;
-	fp |= info->var.yres << GX_FP_PT1_VSIZE_SHIFT;
-	write_fp(par, GX_FP_PT1, fp);
+	fp = read_fp(par, FP_PT1);
+	fp &= FP_PT1_VSIZE_MASK;
+	fp |= info->var.yres << FP_PT1_VSIZE_SHIFT;
+	write_fp(par, FP_PT1, fp);
 
 	/* Timing 2 */
 	/* Set bits that are always on for TFT */
@@ -212,27 +212,27 @@ gx_configure_tft(struct fb_info *info)
 	/* Configure sync polarity */
 
 	if (!(info->var.sync & FB_SYNC_VERT_HIGH_ACT))
-		fp |= GX_FP_PT2_VSP;
+		fp |= FP_PT2_VSP;
 
 	if (!(info->var.sync & FB_SYNC_HOR_HIGH_ACT))
-		fp |= GX_FP_PT2_HSP;
+		fp |= FP_PT2_HSP;
 
-	write_fp(par, GX_FP_PT2, fp);
+	write_fp(par, FP_PT2, fp);
 
 	/*  Set the dither control */
-	write_fp(par, GX_FP_DFC, 0x70);
+	write_fp(par, FP_DFC, FP_DFC_NFI);
 
 	/* Enable the FP data and power (in case the BIOS didn't) */
 
-	fp = read_vp(par, GX_DCFG);
-	fp |= GX_DCFG_FP_PWR_EN | GX_DCFG_FP_DATA_EN;
-	write_vp(par, GX_DCFG, fp);
+	fp = read_vp(par, VP_DCFG);
+	fp |= VP_DCFG_FP_PWR_EN | VP_DCFG_FP_DATA_EN;
+	write_vp(par, VP_DCFG, fp);
 
 	/* Unblank the panel */
 
-	fp = read_fp(par, GX_FP_PM);
-	fp |= GX_FP_PM_P;
-	write_fp(par, GX_FP_PM, fp);
+	fp = read_fp(par, FP_PM);
+	fp |= FP_PM_P;
+	write_fp(par, FP_PM, fp);
 }
 
 static void gx_configure_display(struct fb_info *info)
@@ -241,55 +241,55 @@ static void gx_configure_display(struct fb_info *info)
 	u32 dcfg, misc;
 
 	/* Write the display configuration */
-	dcfg = read_vp(par, GX_DCFG);
+	dcfg = read_vp(par, VP_DCFG);
 
 	/* Disable hsync and vsync */
-	dcfg &= ~(GX_DCFG_VSYNC_EN | GX_DCFG_HSYNC_EN);
-	write_vp(par, GX_DCFG, dcfg);
+	dcfg &= ~(VP_DCFG_VSYNC_EN | VP_DCFG_HSYNC_EN);
+	write_vp(par, VP_DCFG, dcfg);
 
 	/* Clear bits from existing mode. */
-	dcfg &= ~(GX_DCFG_CRT_SYNC_SKW_MASK
-		  | GX_DCFG_CRT_HSYNC_POL   | GX_DCFG_CRT_VSYNC_POL
-		  | GX_DCFG_VSYNC_EN        | GX_DCFG_HSYNC_EN);
+	dcfg &= ~(VP_DCFG_CRT_SYNC_SKW
+		  | VP_DCFG_CRT_HSYNC_POL   | VP_DCFG_CRT_VSYNC_POL
+		  | VP_DCFG_VSYNC_EN        | VP_DCFG_HSYNC_EN);
 
 	/* Set default sync skew.  */
-	dcfg |= GX_DCFG_CRT_SYNC_SKW_DFLT;
+	dcfg |= VP_DCFG_CRT_SYNC_SKW_DEFAULT;
 
 	/* Enable hsync and vsync. */
-	dcfg |= GX_DCFG_HSYNC_EN | GX_DCFG_VSYNC_EN;
+	dcfg |= VP_DCFG_HSYNC_EN | VP_DCFG_VSYNC_EN;
 
-	misc = read_vp(par, GX_MISC);
+	misc = read_vp(par, VP_MISC);
 
 	/* Disable gamma correction */
-	misc |= GX_MISC_GAM_EN;
+	misc |= VP_MISC_GAM_EN;
 
 	if (par->enable_crt) {
 
 		/* Power up the CRT DACs */
-		misc &= ~(GX_MISC_A_PWRDN | GX_MISC_DAC_PWRDN);
-		write_vp(par, GX_MISC, misc);
+		misc &= ~(VP_MISC_APWRDN | VP_MISC_DACPWRDN);
+		write_vp(par, VP_MISC, misc);
 
 		/* Only change the sync polarities if we are running
 		 * in CRT mode.  The FP polarities will be handled in
 		 * gxfb_configure_tft */
 		if (!(info->var.sync & FB_SYNC_HOR_HIGH_ACT))
-			dcfg |= GX_DCFG_CRT_HSYNC_POL;
+			dcfg |= VP_DCFG_CRT_HSYNC_POL;
 		if (!(info->var.sync & FB_SYNC_VERT_HIGH_ACT))
-			dcfg |= GX_DCFG_CRT_VSYNC_POL;
+			dcfg |= VP_DCFG_CRT_VSYNC_POL;
 	} else {
 		/* Power down the CRT DACs if in FP mode */
-		misc |= (GX_MISC_A_PWRDN | GX_MISC_DAC_PWRDN);
-		write_vp(par, GX_MISC, misc);
+		misc |= (VP_MISC_APWRDN | VP_MISC_DACPWRDN);
+		write_vp(par, VP_MISC, misc);
 	}
 
 	/* Enable the display logic */
 	/* Set up the DACS to blank normally */
 
-	dcfg |= GX_DCFG_CRT_EN | GX_DCFG_DAC_BL_EN;
+	dcfg |= VP_DCFG_CRT_EN | VP_DCFG_DAC_BL_EN;
 
 	/* Enable the external DAC VREF? */
 
-	write_vp(par, GX_DCFG, dcfg);
+	write_vp(par, VP_DCFG, dcfg);
 
 	/* Set up the flat panel (if it is enabled) */
 
@@ -323,26 +323,26 @@ static int gx_blank_display(struct fb_info *info, int blank_mode)
 	default:
 		return -EINVAL;
 	}
-	dcfg = read_vp(par, GX_DCFG);
-	dcfg &= ~(GX_DCFG_DAC_BL_EN
-		  | GX_DCFG_HSYNC_EN | GX_DCFG_VSYNC_EN);
+	dcfg = read_vp(par, VP_DCFG);
+	dcfg &= ~(VP_DCFG_DAC_BL_EN
+		  | VP_DCFG_HSYNC_EN | VP_DCFG_VSYNC_EN);
 	if (!blank)
-		dcfg |= GX_DCFG_DAC_BL_EN;
+		dcfg |= VP_DCFG_DAC_BL_EN;
 	if (hsync)
-		dcfg |= GX_DCFG_HSYNC_EN;
+		dcfg |= VP_DCFG_HSYNC_EN;
 	if (vsync)
-		dcfg |= GX_DCFG_VSYNC_EN;
-	write_vp(par, GX_DCFG, dcfg);
+		dcfg |= VP_DCFG_VSYNC_EN;
+	write_vp(par, VP_DCFG, dcfg);
 
 	/* Power on/off flat panel. */
 
 	if (par->enable_crt == 0) {
-		fp_pm = read_fp(par, GX_FP_PM);
+		fp_pm = read_fp(par, FP_PM);
 		if (blank_mode == FB_BLANK_POWERDOWN)
-			fp_pm &= ~GX_FP_PM_P;
+			fp_pm &= ~FP_PM_P;
 		else
-			fp_pm |= GX_FP_PM_P;
-		write_fp(par, GX_FP_PM, fp_pm);
+			fp_pm |= FP_PM_P;
+		write_fp(par, FP_PM, fp_pm);
 	}
 
 	return 0;
