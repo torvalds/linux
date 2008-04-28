@@ -26,9 +26,13 @@ void pnp_init_resource(struct resource *res);
 #define PNP_MAX_IRQ		 2
 #define PNP_MAX_DMA		 2
 
+struct pnp_resource {
+	struct resource res;
+};
+
 struct pnp_resource_table {
-	struct resource port_resource[PNP_MAX_PORT];
-	struct resource mem_resource[PNP_MAX_MEM];
-	struct resource dma_resource[PNP_MAX_DMA];
-	struct resource irq_resource[PNP_MAX_IRQ];
+	struct pnp_resource port[PNP_MAX_PORT];
+	struct pnp_resource mem[PNP_MAX_MEM];
+	struct pnp_resource dma[PNP_MAX_DMA];
+	struct pnp_resource irq[PNP_MAX_IRQ];
 };

@@ -508,19 +508,19 @@ struct resource *pnp_get_resource(struct pnp_dev *dev,
 	case IORESOURCE_IO:
 		if (num >= PNP_MAX_PORT)
 			return NULL;
-		return &res->port_resource[num];
+		return &res->port[num].res;
 	case IORESOURCE_MEM:
 		if (num >= PNP_MAX_MEM)
 			return NULL;
-		return &res->mem_resource[num];
+		return &res->mem[num].res;
 	case IORESOURCE_IRQ:
 		if (num >= PNP_MAX_IRQ)
 			return NULL;
-		return &res->irq_resource[num];
+		return &res->irq[num].res;
 	case IORESOURCE_DMA:
 		if (num >= PNP_MAX_DMA)
 			return NULL;
-		return &res->dma_resource[num];
+		return &res->dma[num].res;
 	}
 	return NULL;
 }

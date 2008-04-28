@@ -247,22 +247,22 @@ void pnp_init_resources(struct pnp_dev *dev)
 	int idx;
 
 	for (idx = 0; idx < PNP_MAX_IRQ; idx++) {
-		res = &dev->res->irq_resource[idx];
+		res = &dev->res->irq[idx].res;
 		res->flags = IORESOURCE_IRQ;
 		pnp_init_resource(res);
 	}
 	for (idx = 0; idx < PNP_MAX_DMA; idx++) {
-		res = &dev->res->dma_resource[idx];
+		res = &dev->res->dma[idx].res;
 		res->flags = IORESOURCE_DMA;
 		pnp_init_resource(res);
 	}
 	for (idx = 0; idx < PNP_MAX_PORT; idx++) {
-		res = &dev->res->port_resource[idx];
+		res = &dev->res->port[idx].res;
 		res->flags = IORESOURCE_IO;
 		pnp_init_resource(res);
 	}
 	for (idx = 0; idx < PNP_MAX_MEM; idx++) {
-		res = &dev->res->mem_resource[idx];
+		res = &dev->res->mem[idx].res;
 		res->flags = IORESOURCE_MEM;
 		pnp_init_resource(res);
 	}
@@ -278,28 +278,28 @@ static void pnp_clean_resource_table(struct pnp_dev *dev)
 	int idx;
 
 	for (idx = 0; idx < PNP_MAX_IRQ; idx++) {
-		res = &dev->res->irq_resource[idx];
+		res = &dev->res->irq[idx].res;
 		if (res->flags & IORESOURCE_AUTO) {
 			res->flags = IORESOURCE_IRQ;
 			pnp_init_resource(res);
 		}
 	}
 	for (idx = 0; idx < PNP_MAX_DMA; idx++) {
-		res = &dev->res->dma_resource[idx];
+		res = &dev->res->dma[idx].res;
 		if (res->flags & IORESOURCE_AUTO) {
 			res->flags = IORESOURCE_DMA;
 			pnp_init_resource(res);
 		}
 	}
 	for (idx = 0; idx < PNP_MAX_PORT; idx++) {
-		res = &dev->res->port_resource[idx];
+		res = &dev->res->port[idx].res;
 		if (res->flags & IORESOURCE_AUTO) {
 			res->flags = IORESOURCE_IO;
 			pnp_init_resource(res);
 		}
 	}
 	for (idx = 0; idx < PNP_MAX_MEM; idx++) {
-		res = &dev->res->mem_resource[idx];
+		res = &dev->res->mem[idx].res;
 		if (res->flags & IORESOURCE_AUTO) {
 			res->flags = IORESOURCE_MEM;
 			pnp_init_resource(res);
