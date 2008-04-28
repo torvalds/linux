@@ -20,8 +20,6 @@
 /* Include the pci register defines */
 #include <linux/pci_regs.h>
 
-struct pci_vpd;
-
 /*
  * The PCI interface treats multi-function devices as independent
  * devices.  The slot/function address of each device is encoded
@@ -131,6 +129,8 @@ struct pci_cap_saved_state {
 };
 
 struct pcie_link_state;
+struct pci_vpd;
+
 /*
  * The pci_dev structure is used to describe PCI devices.
  */
