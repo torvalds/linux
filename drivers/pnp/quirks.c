@@ -49,8 +49,11 @@ static void quirk_awe32_resources(struct pnp_dev *dev)
 		port2->max += 0x400;
 		port3->min += 0x800;
 		port3->max += 0x800;
+		dev_info(&dev->dev,
+			"AWE32 quirk - added ioports 0x%lx and 0x%lx\n",
+			(unsigned long)port2->min,
+			(unsigned long)port3->min);
 	}
-	printk(KERN_INFO "pnp: AWE32 quirk - adding two ports\n");
 }
 
 static void quirk_cmi8330_resources(struct pnp_dev *dev)
@@ -73,7 +76,8 @@ static void quirk_cmi8330_resources(struct pnp_dev *dev)
 			    IORESOURCE_DMA_8BIT)
 				dma->map = 0x000A;
 	}
-	printk(KERN_INFO "pnp: CMI8330 quirk - fixing interrupts and dma\n");
+	dev_info(&dev->dev, "CMI8330 quirk - forced possible IRQs to 5, 7, 10 "
+		"and DMA channels to 1, 3\n");
 }
 
 static void quirk_sb16audio_resources(struct pnp_dev *dev)
@@ -104,8 +108,7 @@ static void quirk_sb16audio_resources(struct pnp_dev *dev)
 		changed = 1;
 	}
 	if (changed)
-		printk(KERN_INFO
-		       "pnp: SB audio device quirk - increasing port range\n");
+		dev_info(&dev->dev, "SB audio device quirk - increased port range\n");
 }
 
 
