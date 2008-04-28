@@ -1750,6 +1750,7 @@ static struct sp_node *sp_alloc(unsigned long start, unsigned long end,
 	n->start = start;
 	n->end = end;
 	mpol_get(pol);
+	pol->flags |= MPOL_F_SHARED;	/* for unref */
 	n->policy = pol;
 	return n;
 }
