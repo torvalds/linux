@@ -339,16 +339,24 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	return AE_OK;
 }
 
-acpi_status pnpacpi_parse_allocated_resource(struct pnp_dev *dev)
+int pnpacpi_parse_allocated_resource(struct pnp_dev *dev)
 {
 	acpi_handle handle = dev->data;
+	acpi_status status;
 
 	dev_dbg(&dev->dev, "parse allocated resources\n");
 
 	pnp_init_resources(dev);
 
-	return acpi_walk_resources(handle, METHOD_NAME__CRS,
-				   pnpacpi_allocated_resource, dev);
+	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
+				     pnpacpi_allocated_resource, dev);
+
+	if (ACPI_FAILURE(status)) {
+		if (status != AE_NOT_FOUND)
+			dev_err(&dev->dev, "can't evaluate _CRS: %d", status);
+		return -EPERM;
+	}
+	return 0;
 }
 
 static __init void pnpacpi_parse_dma_option(struct pnp_dev *dev,
@@ -670,7 +678,7 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 	return AE_OK;
 }
 
-acpi_status __init pnpacpi_parse_resource_option_data(struct pnp_dev *dev)
+int __init pnpacpi_parse_resource_option_data(struct pnp_dev *dev)
 {
 	acpi_handle handle = dev->data;
 	acpi_status status;
@@ -680,13 +688,19 @@ acpi_status __init pnpacpi_parse_resource_option_data(struct pnp_dev *dev)
 
 	parse_data.option = pnp_register_independent_option(dev);
 	if (!parse_data.option)
-		return AE_ERROR;
+		return -ENOMEM;
+
 	parse_data.option_independent = parse_data.option;
 	parse_data.dev = dev;
 	status = acpi_walk_resources(handle, METHOD_NAME__PRS,
 				     pnpacpi_option_resource, &parse_data);
 
-	return status;
+	if (ACPI_FAILURE(status)) {
+		if (status != AE_NOT_FOUND)
+			dev_err(&dev->dev, "can't evaluate _PRS: %d", status);
+		return -EPERM;
+	}
+	return 0;
 }
 
 static int pnpacpi_supported_resource(struct acpi_resource *res)
@@ -745,7 +759,7 @@ int pnpacpi_build_resource_template(struct pnp_dev *dev,
 	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
 				     pnpacpi_count_resources, &res_cnt);
 	if (ACPI_FAILURE(status)) {
-		dev_err(&dev->dev, "can't evaluate _CRS\n");
+		dev_err(&dev->dev, "can't evaluate _CRS: %d\n", status);
 		return -EINVAL;
 	}
 	if (!res_cnt)
@@ -760,7 +774,7 @@ int pnpacpi_build_resource_template(struct pnp_dev *dev,
 				     pnpacpi_type_resources, &resource);
 	if (ACPI_FAILURE(status)) {
 		kfree(buffer->pointer);
-		dev_err(&dev->dev, "can't evaluate _CRS\n");
+		dev_err(&dev->dev, "can't evaluate _CRS: %d\n", status);
 		return -EINVAL;
 	}
 	/* resource will pointer the end resource now */
