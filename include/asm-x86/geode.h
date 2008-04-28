@@ -103,6 +103,14 @@ extern int geode_get_dev_base(unsigned int dev);
 #define PM_AWKD			0x50
 #define PM_SSC			0x54
 
+/* VSA2 magic values */
+
+#define VSA_VRC_INDEX		0xAC1C
+#define VSA_VRC_DATA		0xAC1E
+#define VSA_VR_UNLOCK		0xFC53	/* unlock virtual register */
+#define VSA_VR_SIGNATURE	0x0003
+#define VSA_SIG			0x4132	/* signature is ascii 'VSA2' */
+
 /* GPIO */
 
 #define GPIO_OUTPUT_VAL		0x00
@@ -172,6 +180,17 @@ static inline int is_geode_lx(void)
 static inline int is_geode(void)
 {
 	return (is_geode_gx() || is_geode_lx());
+}
+
+/*
+ * The VSA has virtual registers that we can query for a signature.
+ */
+static inline int geode_has_vsa2(void)
+{
+	outw(VSA_VR_UNLOCK, VSA_VRC_INDEX);
+	outw(VSA_VR_SIGNATURE, VSA_VRC_INDEX);
+
+	return (inw(VSA_VRC_DATA) == VSA_SIG);
 }
 
 /* MFGPTs */
