@@ -841,7 +841,10 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
 
 #if !defined(CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID) && \
 	!defined(CONFIG_ARCH_POPULATES_NODE_MAP)
-#define early_pfn_to_nid(nid)  (0UL)
+static inline unsigned long early_pfn_to_nid(unsigned long pfn)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_FLATMEM
