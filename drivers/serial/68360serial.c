@@ -51,6 +51,7 @@ extern int  kgdb_output_string (const char* s, unsigned int count);
 
 /* #ifdef CONFIG_SERIAL_CONSOLE */ /* This seems to be a post 2.0 thing - mles */
 #include <linux/console.h>
+#include <linux/jiffies.h>
 
 /* this defines the index into rs_table for the port to use
  */
@@ -1729,7 +1730,7 @@ static void rs_360_wait_until_sent(struct tty_struct *tty, int timeout)
 		msleep_interruptible(jiffies_to_msecs(char_time));
 		if (signal_pending(current))
 			break;
-		if (timeout && ((orig_jiffies + timeout) < jiffies))
+		if (timeout && (time_after(jiffies, orig_jiffies + timeout)))
 			break;
 		/* The 'tx_cur' is really the next buffer to send.  We
 		 * have to back up to the previous BD and wait for it
