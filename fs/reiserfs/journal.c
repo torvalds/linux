@@ -4316,5 +4316,5 @@ static void __reiserfs_journal_abort_soft(struct super_block *sb, int errno)
 
 void reiserfs_journal_abort(struct super_block *sb, int errno)
 {
-	return __reiserfs_journal_abort_soft(sb, errno);
+	__reiserfs_journal_abort_soft(sb, errno);
 }
