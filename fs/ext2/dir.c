@@ -41,8 +41,8 @@ static inline __le16 ext2_rec_len_to_disk(unsigned len)
 {
 	if (len == (1 << 16))
 		return cpu_to_le16(EXT2_MAX_REC_LEN);
-	else if (len > (1 << 16))
-		BUG();
+	else
+		BUG_ON(len > (1 << 16));
 	return cpu_to_le16(len);
 }
 
