@@ -450,7 +450,8 @@ int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
 	BUG_ON(nr_cluster > (MAX_BUF_PER_PAGE / 2));	/* fixed limit */
 
 	lock_fat(sbi);
-	if (sbi->free_clusters != -1 && sbi->free_clusters < nr_cluster) {
+	if (sbi->free_clusters != -1 && sbi->free_clus_valid &&
+	    sbi->free_clusters < nr_cluster) {
 		unlock_fat(sbi);
 		return -ENOSPC;
 	}
@@ -504,6 +505,7 @@ int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
 
 	/* Couldn't allocate the free entries */
 	sbi->free_clusters = 0;
+	sbi->free_clus_valid = 1;
 	sb->s_dirt = 1;
 	err = -ENOSPC;
 
@@ -615,7 +617,7 @@ int fat_count_free_clusters(struct super_block *sb)
 	int err = 0, free;
 
 	lock_fat(sbi);
-	if (sbi->free_clusters != -1)
+	if (sbi->free_clusters != -1 && sbi->free_clus_valid)
 		goto out;
 
 	reada_blocks = FAT_READA_SIZE >> sb->s_blocksize_bits;
@@ -643,6 +645,7 @@ int fat_count_free_clusters(struct super_block *sb)
 		} while (fat_ent_next(sbi, &fatent));
 	}
 	sbi->free_clusters = free;
+	sbi->free_clus_valid = 1;
 	sb->s_dirt = 1;
 	fatent_brelse(&fatent);
 out:
