@@ -80,6 +80,33 @@ static inline struct gpio_chip *gpio_to_chip(unsigned gpio)
 	return gpio_desc[gpio].chip;
 }
 
+/* dynamic allocation of GPIOs, e.g. on a hotplugged device */
+static int gpiochip_find_base(int ngpio)
+{
+	int i;
+	int spare = 0;
+	int base = -ENOSPC;
+
+	for (i = ARCH_NR_GPIOS - 1; i >= 0 ; i--) {
+		struct gpio_chip *chip = gpio_desc[i].chip;
+
+		if (!chip) {
+			spare++;
+			if (spare == ngpio) {
+				base = i;
+				break;
+			}
+		} else {
+			spare = 0;
+			i -= chip->ngpio - 1;
+		}
+	}
+
+	if (gpio_is_valid(base))
+		pr_debug("%s: found new base at %d\n", __func__, base);
+	return base;
+}
+
 /**
  * gpiochip_add() - register a gpio_chip
  * @chip: the chip to register, with chip->base initialized
@@ -88,38 +115,49 @@ static inline struct gpio_chip *gpio_to_chip(unsigned gpio)
  * Returns a negative errno if the chip can't be registered, such as
  * because the chip->base is invalid or already associated with a
  * different chip.  Otherwise it returns zero as a success code.
+ *
+ * If chip->base is negative, this requests dynamic assignment of
+ * a range of valid GPIOs.
  */
 int gpiochip_add(struct gpio_chip *chip)
 {
 	unsigned long	flags;
 	int		status = 0;
 	unsigned	id;
+	int		base = chip->base;
 
-	/* NOTE chip->base negative is reserved to mean a request for
-	 * dynamic allocation.  We don't currently support that.
-	 */
-
-	if (chip->base < 0 || !gpio_is_valid(chip->base  + chip->ngpio)) {
+	if ((!gpio_is_valid(base) || !gpio_is_valid(base + chip->ngpio))
+			&& base >= 0) {
 		status = -EINVAL;
 		goto fail;
 	}
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
+	if (base < 0) {
+		base = gpiochip_find_base(chip->ngpio);
+		if (base < 0) {
+			status = base;
+			goto fail_unlock;
+		}
+		chip->base = base;
+	}
+
 	/* these GPIO numbers must not be managed by another gpio_chip */
-	for (id = chip->base; id < chip->base + chip->ngpio; id++) {
+	for (id = base; id < base + chip->ngpio; id++) {
 		if (gpio_desc[id].chip != NULL) {
 			status = -EBUSY;
 			break;
 		}
 	}
 	if (status == 0) {
-		for (id = chip->base; id < chip->base + chip->ngpio; id++) {
+		for (id = base; id < base + chip->ngpio; id++) {
 			gpio_desc[id].chip = chip;
 			gpio_desc[id].flags = 0;
 		}
 	}
 
+fail_unlock:
 	spin_unlock_irqrestore(&gpio_lock, flags);
 fail:
 	/* failures here can mean systems won't boot... */
