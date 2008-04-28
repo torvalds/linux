@@ -9,6 +9,7 @@
 #include <linux/ipc.h>
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
+#include <linux/securebits.h>
 #include <net/net_namespace.h>
 
 #define INIT_FDTABLE \
@@ -172,7 +173,7 @@ extern struct group_info init_groups;
 	.cap_inheritable = CAP_INIT_INH_SET,				\
 	.cap_permitted	= CAP_FULL_SET,					\
 	.cap_bset 	= CAP_INIT_BSET,				\
-	.keep_capabilities = 0,						\
+	.securebits     = SECUREBITS_DEFAULT,				\
 	.user		= INIT_USER,					\
 	.comm		= "swapper",					\
 	.thread		= INIT_THREAD,					\

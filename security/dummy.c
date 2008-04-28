@@ -604,7 +604,7 @@ static int dummy_task_kill (struct task_struct *p, struct siginfo *info,
 }
 
 static int dummy_task_prctl (int option, unsigned long arg2, unsigned long arg3,
-			     unsigned long arg4, unsigned long arg5)
+			     unsigned long arg4, unsigned long arg5, long *rc_p)
 {
 	return 0;
 }

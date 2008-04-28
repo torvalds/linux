@@ -44,6 +44,7 @@ static struct security_operations capability_ops = {
 	.task_setioprio =		cap_task_setioprio,
 	.task_setnice =			cap_task_setnice,
 	.task_post_setuid =		cap_task_post_setuid,
+	.task_prctl =                   cap_task_prctl,
 	.task_reparent_to_init =	cap_task_reparent_to_init,
 
 	.syslog =                       cap_syslog,
