@@ -1003,7 +1003,7 @@ static const struct inode_operations vfat_dir_inode_operations = {
 	.mkdir		= vfat_mkdir,
 	.rmdir		= vfat_rmdir,
 	.rename		= vfat_rename,
-	.setattr	= fat_notify_change,
+	.setattr	= fat_setattr,
 	.getattr	= fat_getattr,
 };
 
