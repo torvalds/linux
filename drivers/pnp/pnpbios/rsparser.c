@@ -263,7 +263,8 @@ len_err:
  * Resource Configuration Options
  */
 
-static __init void pnpbios_parse_mem_option(unsigned char *p, int size,
+static __init void pnpbios_parse_mem_option(struct pnp_dev *dev,
+					    unsigned char *p, int size,
 					    struct pnp_option *option)
 {
 	struct pnp_mem *mem;
@@ -276,10 +277,11 @@ static __init void pnpbios_parse_mem_option(unsigned char *p, int size,
 	mem->align = (p[9] << 8) | p[8];
 	mem->size = ((p[11] << 8) | p[10]) << 8;
 	mem->flags = p[3];
-	pnp_register_mem_resource(option, mem);
+	pnp_register_mem_resource(dev, option, mem);
 }
 
-static __init void pnpbios_parse_mem32_option(unsigned char *p, int size,
+static __init void pnpbios_parse_mem32_option(struct pnp_dev *dev,
+					      unsigned char *p, int size,
 					      struct pnp_option *option)
 {
 	struct pnp_mem *mem;
@@ -292,10 +294,11 @@ static __init void pnpbios_parse_mem32_option(unsigned char *p, int size,
 	mem->align = (p[15] << 24) | (p[14] << 16) | (p[13] << 8) | p[12];
 	mem->size = (p[19] << 24) | (p[18] << 16) | (p[17] << 8) | p[16];
 	mem->flags = p[3];
-	pnp_register_mem_resource(option, mem);
+	pnp_register_mem_resource(dev, option, mem);
 }
 
-static __init void pnpbios_parse_fixed_mem32_option(unsigned char *p, int size,
+static __init void pnpbios_parse_fixed_mem32_option(struct pnp_dev *dev,
+						    unsigned char *p, int size,
 						    struct pnp_option *option)
 {
 	struct pnp_mem *mem;
@@ -307,11 +310,12 @@ static __init void pnpbios_parse_fixed_mem32_option(unsigned char *p, int size,
 	mem->size = (p[11] << 24) | (p[10] << 16) | (p[9] << 8) | p[8];
 	mem->align = 0;
 	mem->flags = p[3];
-	pnp_register_mem_resource(option, mem);
+	pnp_register_mem_resource(dev, option, mem);
 }
 
-static __init void pnpbios_parse_irq_option(unsigned char *p, int size,
-				     struct pnp_option *option)
+static __init void pnpbios_parse_irq_option(struct pnp_dev *dev,
+					    unsigned char *p, int size,
+					    struct pnp_option *option)
 {
 	struct pnp_irq *irq;
 	unsigned long bits;
@@ -325,11 +329,12 @@ static __init void pnpbios_parse_irq_option(unsigned char *p, int size,
 		irq->flags = p[3];
 	else
 		irq->flags = IORESOURCE_IRQ_HIGHEDGE;
-	pnp_register_irq_resource(option, irq);
+	pnp_register_irq_resource(dev, option, irq);
 }
 
-static __init void pnpbios_parse_dma_option(unsigned char *p, int size,
-				     struct pnp_option *option)
+static __init void pnpbios_parse_dma_option(struct pnp_dev *dev,
+					    unsigned char *p, int size,
+					    struct pnp_option *option)
 {
 	struct pnp_dma *dma;
 
@@ -338,10 +343,11 @@ static __init void pnpbios_parse_dma_option(unsigned char *p, int size,
 		return;
 	dma->map = p[1];
 	dma->flags = p[2];
-	pnp_register_dma_resource(option, dma);
+	pnp_register_dma_resource(dev, option, dma);
 }
 
-static __init void pnpbios_parse_port_option(unsigned char *p, int size,
+static __init void pnpbios_parse_port_option(struct pnp_dev *dev,
+					     unsigned char *p, int size,
 					     struct pnp_option *option)
 {
 	struct pnp_port *port;
@@ -354,10 +360,11 @@ static __init void pnpbios_parse_port_option(unsigned char *p, int size,
 	port->align = p[6];
 	port->size = p[7];
 	port->flags = p[1] ? PNP_PORT_FLAG_16BITADDR : 0;
-	pnp_register_port_resource(option, port);
+	pnp_register_port_resource(dev, option, port);
 }
 
-static __init void pnpbios_parse_fixed_port_option(unsigned char *p, int size,
+static __init void pnpbios_parse_fixed_port_option(struct pnp_dev *dev,
+						   unsigned char *p, int size,
 						   struct pnp_option *option)
 {
 	struct pnp_port *port;
@@ -369,7 +376,7 @@ static __init void pnpbios_parse_fixed_port_option(unsigned char *p, int size,
 	port->size = p[3];
 	port->align = 0;
 	port->flags = PNP_PORT_FLAG_FIXED;
-	pnp_register_port_resource(option, port);
+	pnp_register_port_resource(dev, option, port);
 }
 
 static __init unsigned char *
@@ -403,37 +410,37 @@ pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
 		case LARGE_TAG_MEM:
 			if (len != 9)
 				goto len_err;
-			pnpbios_parse_mem_option(p, len, option);
+			pnpbios_parse_mem_option(dev, p, len, option);
 			break;
 
 		case LARGE_TAG_MEM32:
 			if (len != 17)
 				goto len_err;
-			pnpbios_parse_mem32_option(p, len, option);
+			pnpbios_parse_mem32_option(dev, p, len, option);
 			break;
 
 		case LARGE_TAG_FIXEDMEM32:
 			if (len != 9)
 				goto len_err;
-			pnpbios_parse_fixed_mem32_option(p, len, option);
+			pnpbios_parse_fixed_mem32_option(dev, p, len, option);
 			break;
 
 		case SMALL_TAG_IRQ:
 			if (len < 2 || len > 3)
 				goto len_err;
-			pnpbios_parse_irq_option(p, len, option);
+			pnpbios_parse_irq_option(dev, p, len, option);
 			break;
 
 		case SMALL_TAG_DMA:
 			if (len != 2)
 				goto len_err;
-			pnpbios_parse_dma_option(p, len, option);
+			pnpbios_parse_dma_option(dev, p, len, option);
 			break;
 
 		case SMALL_TAG_PORT:
 			if (len != 7)
 				goto len_err;
-			pnpbios_parse_port_option(p, len, option);
+			pnpbios_parse_port_option(dev, p, len, option);
 			break;
 
 		case SMALL_TAG_VENDOR:
@@ -443,7 +450,7 @@ pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
 		case SMALL_TAG_FIXEDPORT:
 			if (len != 3)
 				goto len_err;
-			pnpbios_parse_fixed_port_option(p, len, option);
+			pnpbios_parse_fixed_port_option(dev, p, len, option);
 			break;
 
 		case SMALL_TAG_STARTDEP:
@@ -464,6 +471,7 @@ pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
 				printk(KERN_WARNING
 				       "PnPBIOS: Missing SMALL_TAG_STARTDEP tag\n");
 			option = option_independent;
+			dev_dbg(&dev->dev, "end dependent options\n");
 			break;
 
 		case SMALL_TAG_END:

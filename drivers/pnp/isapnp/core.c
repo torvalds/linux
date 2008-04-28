@@ -431,7 +431,8 @@ static struct pnp_dev *__init isapnp_parse_device(struct pnp_card *card,
 /*
  *  Add IRQ resource to resources list.
  */
-static void __init isapnp_parse_irq_resource(struct pnp_option *option,
+static void __init isapnp_parse_irq_resource(struct pnp_dev *dev,
+					     struct pnp_option *option,
 					     int size)
 {
 	unsigned char tmp[3];
@@ -448,13 +449,14 @@ static void __init isapnp_parse_irq_resource(struct pnp_option *option,
 		irq->flags = tmp[2];
 	else
 		irq->flags = IORESOURCE_IRQ_HIGHEDGE;
-	pnp_register_irq_resource(option, irq);
+	pnp_register_irq_resource(dev, option, irq);
 }
 
 /*
  *  Add DMA resource to resources list.
  */
-static void __init isapnp_parse_dma_resource(struct pnp_option *option,
+static void __init isapnp_parse_dma_resource(struct pnp_dev *dev,
+					     struct pnp_option *option,
 					     int size)
 {
 	unsigned char tmp[2];
@@ -466,13 +468,14 @@ static void __init isapnp_parse_dma_resource(struct pnp_option *option,
 		return;
 	dma->map = tmp[0];
 	dma->flags = tmp[1];
-	pnp_register_dma_resource(option, dma);
+	pnp_register_dma_resource(dev, option, dma);
 }
 
 /*
  *  Add port resource to resources list.
  */
-static void __init isapnp_parse_port_resource(struct pnp_option *option,
+static void __init isapnp_parse_port_resource(struct pnp_dev *dev,
+					      struct pnp_option *option,
 					      int size)
 {
 	unsigned char tmp[7];
@@ -487,13 +490,14 @@ static void __init isapnp_parse_port_resource(struct pnp_option *option,
 	port->align = tmp[5];
 	port->size = tmp[6];
 	port->flags = tmp[0] ? PNP_PORT_FLAG_16BITADDR : 0;
-	pnp_register_port_resource(option, port);
+	pnp_register_port_resource(dev, option, port);
 }
 
 /*
  *  Add fixed port resource to resources list.
  */
-static void __init isapnp_parse_fixed_port_resource(struct pnp_option *option,
+static void __init isapnp_parse_fixed_port_resource(struct pnp_dev *dev,
+						    struct pnp_option *option,
 						    int size)
 {
 	unsigned char tmp[3];
@@ -507,13 +511,14 @@ static void __init isapnp_parse_fixed_port_resource(struct pnp_option *option,
 	port->size = tmp[2];
 	port->align = 0;
 	port->flags = PNP_PORT_FLAG_FIXED;
-	pnp_register_port_resource(option, port);
+	pnp_register_port_resource(dev, option, port);
 }
 
 /*
  *  Add memory resource to resources list.
  */
-static void __init isapnp_parse_mem_resource(struct pnp_option *option,
+static void __init isapnp_parse_mem_resource(struct pnp_dev *dev,
+					     struct pnp_option *option,
 					     int size)
 {
 	unsigned char tmp[9];
@@ -528,13 +533,14 @@ static void __init isapnp_parse_mem_resource(struct pnp_option *option,
 	mem->align = (tmp[6] << 8) | tmp[5];
 	mem->size = ((tmp[8] << 8) | tmp[7]) << 8;
 	mem->flags = tmp[0];
-	pnp_register_mem_resource(option, mem);
+	pnp_register_mem_resource(dev, option, mem);
 }
 
 /*
  *  Add 32-bit memory resource to resources list.
  */
-static void __init isapnp_parse_mem32_resource(struct pnp_option *option,
+static void __init isapnp_parse_mem32_resource(struct pnp_dev *dev,
+					       struct pnp_option *option,
 					       int size)
 {
 	unsigned char tmp[17];
@@ -551,13 +557,14 @@ static void __init isapnp_parse_mem32_resource(struct pnp_option *option,
 	mem->size =
 	    (tmp[16] << 24) | (tmp[15] << 16) | (tmp[14] << 8) | tmp[13];
 	mem->flags = tmp[0];
-	pnp_register_mem_resource(option, mem);
+	pnp_register_mem_resource(dev, option, mem);
 }
 
 /*
  *  Add 32-bit fixed memory resource to resources list.
  */
-static void __init isapnp_parse_fixed_mem32_resource(struct pnp_option *option,
+static void __init isapnp_parse_fixed_mem32_resource(struct pnp_dev *dev,
+						     struct pnp_option *option,
 						     int size)
 {
 	unsigned char tmp[9];
@@ -572,7 +579,7 @@ static void __init isapnp_parse_fixed_mem32_resource(struct pnp_option *option,
 	mem->size = (tmp[8] << 24) | (tmp[7] << 16) | (tmp[6] << 8) | tmp[5];
 	mem->align = 0;
 	mem->flags = tmp[0];
-	pnp_register_mem_resource(option, mem);
+	pnp_register_mem_resource(dev, option, mem);
 }
 
 /*
@@ -656,13 +663,13 @@ static int __init isapnp_create_device(struct pnp_card *card,
 		case _STAG_IRQ:
 			if (size < 2 || size > 3)
 				goto __skip;
-			isapnp_parse_irq_resource(option, size);
+			isapnp_parse_irq_resource(dev, option, size);
 			size = 0;
 			break;
 		case _STAG_DMA:
 			if (size != 2)
 				goto __skip;
-			isapnp_parse_dma_resource(option, size);
+			isapnp_parse_dma_resource(dev, option, size);
 			size = 0;
 			break;
 		case _STAG_STARTDEP:
@@ -682,17 +689,18 @@ static int __init isapnp_create_device(struct pnp_card *card,
 			if (size != 0)
 				goto __skip;
 			priority = 0;
+			dev_dbg(&dev->dev, "end dependent options\n");
 			break;
 		case _STAG_IOPORT:
 			if (size != 7)
 				goto __skip;
-			isapnp_parse_port_resource(option, size);
+			isapnp_parse_port_resource(dev, option, size);
 			size = 0;
 			break;
 		case _STAG_FIXEDIO:
 			if (size != 3)
 				goto __skip;
-			isapnp_parse_fixed_port_resource(option, size);
+			isapnp_parse_fixed_port_resource(dev, option, size);
 			size = 0;
 			break;
 		case _STAG_VENDOR:
@@ -700,7 +708,7 @@ static int __init isapnp_create_device(struct pnp_card *card,
 		case _LTAG_MEMRANGE:
 			if (size != 9)
 				goto __skip;
-			isapnp_parse_mem_resource(option, size);
+			isapnp_parse_mem_resource(dev, option, size);
 			size = 0;
 			break;
 		case _LTAG_ANSISTR:
@@ -715,13 +723,13 @@ static int __init isapnp_create_device(struct pnp_card *card,
 		case _LTAG_MEM32RANGE:
 			if (size != 17)
 				goto __skip;
-			isapnp_parse_mem32_resource(option, size);
+			isapnp_parse_mem32_resource(dev, option, size);
 			size = 0;
 			break;
 		case _LTAG_FIXEDMEM32RANGE:
 			if (size != 9)
 				goto __skip;
-			isapnp_parse_fixed_mem32_resource(option, size);
+			isapnp_parse_fixed_mem32_resource(dev, option, size);
 			size = 0;
 			break;
 		case _STAG_END:

@@ -53,6 +53,8 @@ struct pnp_option *pnp_register_independent_option(struct pnp_dev *dev)
 	if (dev->independent)
 		dev_err(&dev->dev, "independent resource already registered\n");
 	dev->independent = option;
+
+	dev_dbg(&dev->dev, "new independent option\n");
 	return option;
 }
 
@@ -70,12 +72,18 @@ struct pnp_option *pnp_register_dependent_option(struct pnp_dev *dev,
 		parent->next = option;
 	} else
 		dev->dependent = option;
+
+	dev_dbg(&dev->dev, "new dependent option (priority %#x)\n", priority);
 	return option;
 }
 
-int pnp_register_irq_resource(struct pnp_option *option, struct pnp_irq *data)
+int pnp_register_irq_resource(struct pnp_dev *dev, struct pnp_option *option,
+			      struct pnp_irq *data)
 {
 	struct pnp_irq *ptr;
+#ifdef DEBUG
+	char buf[PNP_IRQ_NR];   /* hex-encoded, so this is overkill but safe */
+#endif
 
 	ptr = option->irq;
 	while (ptr && ptr->next)
@@ -94,10 +102,17 @@ int pnp_register_irq_resource(struct pnp_option *option, struct pnp_irq *data)
 				pcibios_penalize_isa_irq(i, 0);
 	}
 #endif
+
+#ifdef DEBUG
+	bitmap_scnprintf(buf, sizeof(buf), data->map, PNP_IRQ_NR);
+	dev_dbg(&dev->dev, "  irq bitmask %s flags %#x\n", buf,
+		data->flags);
+#endif
 	return 0;
 }
 
-int pnp_register_dma_resource(struct pnp_option *option, struct pnp_dma *data)
+int pnp_register_dma_resource(struct pnp_dev *dev, struct pnp_option *option,
+			      struct pnp_dma *data)
 {
 	struct pnp_dma *ptr;
 
@@ -109,10 +124,13 @@ int pnp_register_dma_resource(struct pnp_option *option, struct pnp_dma *data)
 	else
 		option->dma = data;
 
+	dev_dbg(&dev->dev, "  dma bitmask %#x flags %#x\n", data->map,
+		data->flags);
 	return 0;
 }
 
-int pnp_register_port_resource(struct pnp_option *option, struct pnp_port *data)
+int pnp_register_port_resource(struct pnp_dev *dev, struct pnp_option *option,
+			       struct pnp_port *data)
 {
 	struct pnp_port *ptr;
 
@@ -124,10 +142,14 @@ int pnp_register_port_resource(struct pnp_option *option, struct pnp_port *data)
 	else
 		option->port = data;
 
+	dev_dbg(&dev->dev, "  io  "
+		"min %#x max %#x align %d size %d flags %#x\n",
+		data->min, data->max, data->align, data->size, data->flags);
 	return 0;
 }
 
-int pnp_register_mem_resource(struct pnp_option *option, struct pnp_mem *data)
+int pnp_register_mem_resource(struct pnp_dev *dev, struct pnp_option *option,
+			      struct pnp_mem *data)
 {
 	struct pnp_mem *ptr;
 
@@ -138,6 +160,10 @@ int pnp_register_mem_resource(struct pnp_option *option, struct pnp_mem *data)
 		ptr->next = data;
 	else
 		option->mem = data;
+
+	dev_dbg(&dev->dev, "  mem "
+		"min %#x max %#x align %d size %d flags %#x\n",
+		data->min, data->max, data->align, data->size, data->flags);
 	return 0;
 }
 
