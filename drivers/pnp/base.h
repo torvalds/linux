@@ -12,10 +12,10 @@ void pnp_free_option(struct pnp_option *option);
 int __pnp_add_device(struct pnp_dev *dev);
 void __pnp_remove_device(struct pnp_dev *dev);
 
-int pnp_check_port(struct pnp_dev * dev, int idx);
-int pnp_check_mem(struct pnp_dev * dev, int idx);
-int pnp_check_irq(struct pnp_dev * dev, int idx);
-int pnp_check_dma(struct pnp_dev * dev, int idx);
+int pnp_check_port(struct pnp_dev *dev, struct resource *res);
+int pnp_check_mem(struct pnp_dev *dev, struct resource *res);
+int pnp_check_irq(struct pnp_dev *dev, struct resource *res);
+int pnp_check_dma(struct pnp_dev *dev, struct resource *res);
 
 void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc);
 

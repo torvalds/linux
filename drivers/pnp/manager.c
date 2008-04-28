@@ -51,7 +51,7 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 	res->end = res->start + rule->size - 1;
 
 	/* run through until pnp_check_port is happy */
-	while (!pnp_check_port(dev, idx)) {
+	while (!pnp_check_port(dev, res)) {
 		res->start += rule->align;
 		res->end = res->start + rule->size - 1;
 		if (res->start > rule->max || !rule->align) {
@@ -108,7 +108,7 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 	res->end = res->start + rule->size - 1;
 
 	/* run through until pnp_check_mem is happy */
-	while (!pnp_check_mem(dev, idx)) {
+	while (!pnp_check_mem(dev, res)) {
 		res->start += rule->align;
 		res->end = res->start + rule->size - 1;
 		if (res->start > rule->max || !rule->align) {
@@ -167,7 +167,7 @@ static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 	for (i = 0; i < 16; i++) {
 		if (test_bit(xtab[i], rule->map)) {
 			res->start = res->end = xtab[i];
-			if (pnp_check_irq(dev, idx)) {
+			if (pnp_check_irq(dev, res)) {
 				dev_dbg(&dev->dev, "  assign irq %d %d\n", idx,
 					(int) res->start);
 				return 1;
@@ -209,7 +209,7 @@ static void pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 	for (i = 0; i < 8; i++) {
 		if (rule->map & (1 << xtab[i])) {
 			res->start = res->end = xtab[i];
-			if (pnp_check_dma(dev, idx)) {
+			if (pnp_check_dma(dev, res)) {
 				dev_dbg(&dev->dev, "  assign dma %d %d\n", idx,
 					(int) res->start);
 				return;

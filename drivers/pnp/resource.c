@@ -239,14 +239,13 @@ void pnp_free_option(struct pnp_option *option)
 #define cannot_compare(flags) \
 ((flags) & (IORESOURCE_UNSET | IORESOURCE_DISABLED))
 
-int pnp_check_port(struct pnp_dev *dev, int idx)
+int pnp_check_port(struct pnp_dev *dev, struct resource *res)
 {
 	int i;
 	struct pnp_dev *tdev;
-	struct resource *res, *tres;
+	struct resource *tres;
 	resource_size_t *port, *end, *tport, *tend;
 
-	res = &dev->res.port_resource[idx];
 	port = &res->start;
 	end = &res->end;
 
@@ -300,14 +299,13 @@ int pnp_check_port(struct pnp_dev *dev, int idx)
 	return 1;
 }
 
-int pnp_check_mem(struct pnp_dev *dev, int idx)
+int pnp_check_mem(struct pnp_dev *dev, struct resource *res)
 {
 	int i;
 	struct pnp_dev *tdev;
-	struct resource *res, *tres;
+	struct resource *tres;
 	resource_size_t *addr, *end, *taddr, *tend;
 
-	res = &dev->res.mem_resource[idx];
 	addr = &res->start;
 	end = &res->end;
 
@@ -366,14 +364,13 @@ static irqreturn_t pnp_test_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int pnp_check_irq(struct pnp_dev *dev, int idx)
+int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 {
 	int i;
 	struct pnp_dev *tdev;
-	struct resource *res, *tres;
+	struct resource *tres;
 	resource_size_t *irq;
 
-	res = &dev->res.irq_resource[idx];
 	irq = &res->start;
 
 	/* if the resource doesn't exist, don't complain about it */
@@ -439,15 +436,14 @@ int pnp_check_irq(struct pnp_dev *dev, int idx)
 	return 1;
 }
 
-int pnp_check_dma(struct pnp_dev *dev, int idx)
+int pnp_check_dma(struct pnp_dev *dev, struct resource *res)
 {
 #ifndef CONFIG_IA64
 	int i;
 	struct pnp_dev *tdev;
-	struct resource *res, *tres;
+	struct resource *tres;
 	resource_size_t *dma;
 
-	res = &dev->res.dma_resource[idx];
 	dma = &res->start;
 
 	/* if the resource doesn't exist, don't complain about it */
