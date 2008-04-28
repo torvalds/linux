@@ -755,24 +755,69 @@ unsigned long __weak arch_deref_entry_point(void *entry)
 	return (unsigned long)entry;
 }
 
+static int __register_jprobes(struct jprobe **jps, int num,
+	unsigned long called_from)
+{
+	struct jprobe *jp;
+	int ret = 0, i;
+
+	if (num <= 0)
+		return -EINVAL;
+	for (i = 0; i < num; i++) {
+		unsigned long addr;
+		jp = jps[i];
+		addr = arch_deref_entry_point(jp->entry);
+
+		if (!kernel_text_address(addr))
+			ret = -EINVAL;
+		else {
+			/* Todo: Verify probepoint is a function entry point */
+			jp->kp.pre_handler = setjmp_pre_handler;
+			jp->kp.break_handler = longjmp_break_handler;
+			ret = __register_kprobe(&jp->kp, called_from);
+		}
+		if (ret < 0 && i > 0) {
+			unregister_jprobes(jps, i);
+			break;
+		}
+	}
+	return ret;
+}
+
 int __kprobes register_jprobe(struct jprobe *jp)
 {
-	unsigned long addr = arch_deref_entry_point(jp->entry);
-
-	if (!kernel_text_address(addr))
-		return -EINVAL;
-
-	/* Todo: Verify probepoint is a function entry point */
-	jp->kp.pre_handler = setjmp_pre_handler;
-	jp->kp.break_handler = longjmp_break_handler;
-
-	return __register_kprobe(&jp->kp,
+	return __register_jprobes(&jp, 1,
 		(unsigned long)__builtin_return_address(0));
 }
 
 void __kprobes unregister_jprobe(struct jprobe *jp)
 {
-	unregister_kprobe(&jp->kp);
+	unregister_jprobes(&jp, 1);
+}
+
+int __kprobes register_jprobes(struct jprobe **jps, int num)
+{
+	return __register_jprobes(jps, num,
+		(unsigned long)__builtin_return_address(0));
+}
+
+void __kprobes unregister_jprobes(struct jprobe **jps, int num)
+{
+	int i;
+
+	if (num <= 0)
+		return;
+	mutex_lock(&kprobe_mutex);
+	for (i = 0; i < num; i++)
+		if (__unregister_kprobe_top(&jps[i]->kp) < 0)
+			jps[i]->kp.addr = NULL;
+	mutex_unlock(&kprobe_mutex);
+
+	synchronize_sched();
+	for (i = 0; i < num; i++) {
+		if (jps[i]->kp.addr)
+			__unregister_kprobe_bottom(&jps[i]->kp);
+	}
 }
 
 #ifdef CONFIG_KRETPROBES
@@ -1236,6 +1281,8 @@ EXPORT_SYMBOL_GPL(register_kprobes);
 EXPORT_SYMBOL_GPL(unregister_kprobes);
 EXPORT_SYMBOL_GPL(register_jprobe);
 EXPORT_SYMBOL_GPL(unregister_jprobe);
+EXPORT_SYMBOL_GPL(register_jprobes);
+EXPORT_SYMBOL_GPL(unregister_jprobes);
 #ifdef CONFIG_KPROBES
 EXPORT_SYMBOL_GPL(jprobe_return);
 #endif
