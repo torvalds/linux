@@ -1151,8 +1151,10 @@ imsttfb_load_cursor_image(struct imstt_par *par, int width, int height, __u8 fgc
 				par->cmap_regs[TVPCRDAT] = 0xff;		eieio();
 			}
 		par->cmap_regs[TVPCADRW] = 0x00;	eieio();
-		for (x = 0; x < 12; x++)
-			par->cmap_regs[TVPCDATA] = fgc;	eieio();
+		for (x = 0; x < 12; x++) {
+			par->cmap_regs[TVPCDATA] = fgc;
+			eieio();
+		}
 	}
 	return 1;
 }
