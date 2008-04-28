@@ -646,8 +646,7 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 					unlock_buffer(new_bh);
 					goto cleanup;
 				}
-				HDR(new_bh)->h_refcount = cpu_to_le32(1 +
-					le32_to_cpu(HDR(new_bh)->h_refcount));
+				le32_add_cpu(&HDR(new_bh)->h_refcount, 1);
 				ea_bdebug(new_bh, "refcount now=%d",
 					le32_to_cpu(HDR(new_bh)->h_refcount));
 			}
@@ -731,8 +730,7 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 			bforget(old_bh);
 		} else {
 			/* Decrement the refcount only. */
-			HDR(old_bh)->h_refcount = cpu_to_le32(
-				le32_to_cpu(HDR(old_bh)->h_refcount) - 1);
+			le32_add_cpu(&HDR(old_bh)->h_refcount, -1);
 			if (ce)
 				mb_cache_entry_release(ce);
 			DQUOT_FREE_BLOCK(inode, 1);
@@ -789,8 +787,7 @@ ext2_xattr_delete_inode(struct inode *inode)
 		bforget(bh);
 		unlock_buffer(bh);
 	} else {
-		HDR(bh)->h_refcount = cpu_to_le32(
-			le32_to_cpu(HDR(bh)->h_refcount) - 1);
+		le32_add_cpu(&HDR(bh)->h_refcount, -1);
 		if (ce)
 			mb_cache_entry_release(ce);
 		ea_bdebug(bh, "refcount now=%d",
