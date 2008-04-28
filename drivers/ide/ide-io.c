@@ -330,7 +330,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 			tf->error = err;
 			tf->status = stat;
 
-			ide_tf_read(drive, task);
+			drive->hwif->tf_read(drive, task);
 
 			if (task->tf_flags & IDE_TFLAG_DYN)
 				kfree(task);
@@ -1638,7 +1638,7 @@ void ide_pktcmd_tf_load(ide_drive_t *drive, u32 tf_flags, u16 bcount, u8 dma)
 	task.tf.lbah    = (bcount >> 8) & 0xff;
 
 	ide_tf_dump(drive->name, &task.tf);
-	ide_tf_load(drive, &task);
+	drive->hwif->tf_load(drive, &task);
 }
 
 EXPORT_SYMBOL_GPL(ide_pktcmd_tf_load);

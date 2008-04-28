@@ -427,6 +427,8 @@ struct ide_dma_ops {
 	void	(*dma_timeout)(struct ide_drive_s *);
 };
 
+struct ide_task_s;
+
 typedef struct hwif_s {
 	struct hwif_s *next;		/* for linked-list in ide_hwgroup_t */
 	struct hwif_s *mate;		/* other hwif from same PCI chip */
@@ -466,6 +468,9 @@ typedef struct hwif_s {
 
 	const struct ide_port_ops	*port_ops;
 	const struct ide_dma_ops	*dma_ops;
+
+	void (*tf_load)(ide_drive_t *, struct ide_task_s *);
+	void (*tf_read)(ide_drive_t *, struct ide_task_s *);
 
 	void (*input_data)(ide_drive_t *, struct request *, void *, unsigned);
 	void (*output_data)(ide_drive_t *, struct request *, void *, unsigned);
@@ -961,9 +966,6 @@ typedef struct ide_task_s {
 } ide_task_t;
 
 void ide_tf_dump(const char *, struct ide_taskfile *);
-
-void ide_tf_load(ide_drive_t *, ide_task_t *);
-void ide_tf_read(ide_drive_t *, ide_task_t *);
 
 extern void SELECT_DRIVE(ide_drive_t *);
 extern void SELECT_MASK(ide_drive_t *, int);

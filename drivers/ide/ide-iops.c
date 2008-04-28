@@ -127,7 +127,7 @@ void SELECT_MASK (ide_drive_t *drive, int mask)
 		port_ops->maskproc(drive, mask);
 }
 
-void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
+static void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -172,7 +172,7 @@ void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 			   io_ports->device_addr);
 }
 
-void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
+static void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -323,6 +323,9 @@ static void ata_output_data(ide_drive_t *drive, struct request *rq,
 
 void default_hwif_transport(ide_hwif_t *hwif)
 {
+	hwif->tf_load	  = ide_tf_load;
+	hwif->tf_read	  = ide_tf_read;
+
 	hwif->input_data  = ata_input_data;
 	hwif->output_data = ata_output_data;
 }

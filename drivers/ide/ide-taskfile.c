@@ -109,7 +109,7 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 
 	if ((task->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0) {
 		ide_tf_dump(drive->name, tf);
-		ide_tf_load(drive, task);
+		hwif->tf_load(drive, task);
 	}
 
 	switch (task->data_phase) {

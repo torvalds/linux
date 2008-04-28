@@ -487,7 +487,7 @@ static void ide_dump_sector(ide_drive_t *drive)
 	else
 		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_DEVICE;
 
-	ide_tf_read(drive, &task);
+	drive->hwif->tf_read(drive, &task);
 
 	if (lba48 || (tf->device & ATA_LBA))
 		printk(", LBAsect=%llu",
