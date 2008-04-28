@@ -72,7 +72,6 @@ struct usb_hub {
 
 	unsigned		limited_power:1;
 	unsigned		quiescing:1;
-	unsigned		activating:1;
 	unsigned		disconnected:1;
 
 	unsigned		has_indicators:1;
@@ -539,7 +538,6 @@ static void hub_quiesce(struct usb_hub *hub)
 {
 	/* (nonblocking) khubd and related activity won't re-trigger */
 	hub->quiescing = 1;
-	hub->activating = 0;
 
 	/* (blocking) stop khubd and related activity */
 	usb_kill_urb(hub->urb);
@@ -554,7 +552,6 @@ static void hub_activate(struct usb_hub *hub)
 	int	status;
 
 	hub->quiescing = 0;
-	hub->activating = 1;
 
 	status = usb_submit_urb(hub->urb, GFP_NOIO);
 	if (status < 0)
@@ -638,80 +635,82 @@ static void hub_stop(struct usb_hub *hub)
 	hub_quiesce(hub);
 }
 
-#define HUB_RESET		1
-#define HUB_RESUME		2
-#define HUB_RESET_RESUME	3
+enum hub_activation_type {
+	HUB_INIT, HUB_POST_RESET, HUB_RESUME, HUB_RESET_RESUME
+};
 
-#ifdef CONFIG_PM
-
-static void hub_restart(struct usb_hub *hub, int type)
+static void hub_restart(struct usb_hub *hub, enum hub_activation_type type)
 {
 	struct usb_device *hdev = hub->hdev;
 	int port1;
 
-	/* Check each of the children to see if they require
-	 * USB-PERSIST handling or disconnection.  Also check
-	 * each unoccupied port to make sure it is still disabled.
+	/* Check each port and set hub->change_bits to let khubd know
+	 * which ports need attention.
 	 */
 	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
 		struct usb_device *udev = hdev->children[port1-1];
-		int status = 0;
+		int status;
 		u16 portstatus, portchange;
 
-		if (!udev || udev->state == USB_STATE_NOTATTACHED) {
-			if (type != HUB_RESET) {
-				status = hub_port_status(hub, port1,
-						&portstatus, &portchange);
-				if (status == 0 && (portstatus &
-						USB_PORT_STAT_ENABLE))
-					clear_port_feature(hdev, port1,
-							USB_PORT_FEAT_ENABLE);
-			}
-			continue;
-		}
+		portstatus = portchange = 0;
+		status = hub_port_status(hub, port1, &portstatus, &portchange);
+		if (udev || (portstatus & USB_PORT_STAT_CONNECTION))
+			dev_dbg(hub->intfdev,
+					"port %d: status %04x change %04x\n",
+					port1, portstatus, portchange);
 
-		/* Was the power session lost while we were suspended? */
-		switch (type) {
-		case HUB_RESET_RESUME:
-			portstatus = 0;
-			portchange = USB_PORT_STAT_C_CONNECTION;
-			break;
-
-		case HUB_RESET:
-		case HUB_RESUME:
-			status = hub_port_status(hub, port1,
-					&portstatus, &portchange);
-			break;
-		}
-
-		/* For "USB_PERSIST"-enabled children we must
-		 * mark the child device for reset-resume and
-		 * turn off the various status changes to prevent
-		 * khubd from disconnecting it later.
+		/* After anything other than HUB_RESUME (i.e., initialization
+		 * or any sort of reset), every port should be disabled.
+		 * Unconnected ports should likewise be disabled (paranoia),
+		 * and so should ports for which we have no usb_device.
 		 */
-		if (udev->persist_enabled && status == 0 &&
-				!(portstatus & USB_PORT_STAT_ENABLE)) {
+		if ((portstatus & USB_PORT_STAT_ENABLE) && (
+				type != HUB_RESUME ||
+				!(portstatus & USB_PORT_STAT_CONNECTION) ||
+				!udev ||
+				udev->state == USB_STATE_NOTATTACHED)) {
+			clear_port_feature(hdev, port1, USB_PORT_FEAT_ENABLE);
+			portstatus &= ~USB_PORT_STAT_ENABLE;
+		}
+
+		if (!udev || udev->state == USB_STATE_NOTATTACHED) {
+			/* Tell khubd to disconnect the device or
+			 * check for a new connection
+			 */
+			if (udev || (portstatus & USB_PORT_STAT_CONNECTION))
+				set_bit(port1, hub->change_bits);
+
+		} else if (portstatus & USB_PORT_STAT_ENABLE) {
+			/* The power session apparently survived the resume.
+			 * If there was an overcurrent or suspend change
+			 * (i.e., remote wakeup request), have khubd
+			 * take care of it.
+			 */
+			if (portchange)
+				set_bit(port1, hub->change_bits);
+
+		} else if (udev->persist_enabled) {
+			/* Turn off the status changes to prevent khubd
+			 * from disconnecting the device.
+			 */
 			if (portchange & USB_PORT_STAT_C_ENABLE)
 				clear_port_feature(hub->hdev, port1,
 						USB_PORT_FEAT_C_ENABLE);
 			if (portchange & USB_PORT_STAT_C_CONNECTION)
 				clear_port_feature(hub->hdev, port1,
 						USB_PORT_FEAT_C_CONNECTION);
+#ifdef CONFIG_PM
 			udev->reset_resume = 1;
+#endif
+		} else {
+			/* The power session is gone; tell khubd */
+			usb_set_device_state(udev, USB_STATE_NOTATTACHED);
+			set_bit(port1, hub->change_bits);
 		}
-
-		/* Otherwise for a reset_resume we must disconnect the child,
-		 * but as we may not lock the child device here
-		 * we have to do a "logical" disconnect.
-		 */
-		else if (type == HUB_RESET_RESUME)
-			hub_port_logical_disconnect(hub, port1);
 	}
 
 	hub_activate(hub);
 }
-
-#endif	/* CONFIG_PM */
 
 /* caller has locked the hub device */
 static int hub_pre_reset(struct usb_interface *intf)
@@ -728,7 +727,7 @@ static int hub_post_reset(struct usb_interface *intf)
 	struct usb_hub *hub = usb_get_intfdata(intf);
 
 	hub_power_on(hub);
-	hub_activate(hub);
+	hub_restart(hub, HUB_POST_RESET);
 	return 0;
 }
 
@@ -2903,18 +2902,13 @@ static void hub_events(void)
 				continue;
 			connect_change = test_bit(i, hub->change_bits);
 			if (!test_and_clear_bit(i, hub->event_bits) &&
-					!connect_change && !hub->activating)
+					!connect_change)
 				continue;
 
 			ret = hub_port_status(hub, i,
 					&portstatus, &portchange);
 			if (ret < 0)
 				continue;
-
-			if (hub->activating && !hdev->children[i-1] &&
-					(portstatus &
-						USB_PORT_STAT_CONNECTION))
-				connect_change = 1;
 
 			if (portchange & USB_PORT_STAT_C_CONNECTION) {
 				clear_port_feature(hdev, i,
@@ -3010,8 +3004,6 @@ static void hub_events(void)
                         	hub_power_on(hub);
 			}
 		}
-
-		hub->activating = 0;
 
 		/* If this is a root hub, tell the HCD it's okay to
 		 * re-enable port-change interrupts now. */

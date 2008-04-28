@@ -805,8 +805,6 @@ static int usb_resume_device(struct usb_device *udev)
 
 	if (udev->state == USB_STATE_NOTATTACHED)
 		goto done;
-	if (udev->state != USB_STATE_SUSPENDED && !udev->reset_resume)
-		goto done;
 
 	/* Can't resume it if it doesn't have a driver. */
 	if (udev->dev.driver == NULL) {
@@ -1173,11 +1171,8 @@ static int usb_resume_both(struct usb_device *udev)
 			 * then we're stuck. */
 			status = usb_resume_device(udev);
 		}
-	} else {
-
-		/* Needed for reset-resume */
+	} else if (udev->reset_resume)
 		status = usb_resume_device(udev);
-	}
 
 	if (status == 0 && udev->actconfig) {
 		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
