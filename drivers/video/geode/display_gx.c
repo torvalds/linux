@@ -17,6 +17,7 @@
 #include <asm/io.h>
 #include <asm/div64.h>
 #include <asm/delay.h>
+#include <asm/geode.h>
 
 #include "gxfb.h"
 
@@ -28,10 +29,10 @@ unsigned int gx_frame_buffer_size(void)
 	/* Virtual register class = 0x02 */
 	/* VG_MEM_SIZE(512Kb units) = 0x00 */
 
-	outw(0xFC53, 0xAC1C);
-	outw(0x0200, 0xAC1C);
+	outw(VSA_VR_UNLOCK, VSA_VRC_INDEX);
+	outw(VSA_VR_MEM_SIZE, VSA_VRC_INDEX);
 
-	val = (unsigned int)(inw(0xAC1E)) & 0xFFl;
+	val = (unsigned int)(inw(VSA_VRC_DATA)) & 0xFFl;
 	return (val << 19);
 }
 

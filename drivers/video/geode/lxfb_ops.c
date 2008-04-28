@@ -333,10 +333,10 @@ unsigned int lx_framebuffer_size(void)
 	/* Virtual Register Class    = 0x02                     */
 	/* VG_MEM_SIZE (1MB units)   = 0x00                     */
 
-	outw(0xFC53, 0xAC1C);
-	outw(0x0200, 0xAC1C);
+	outw(VSA_VR_UNLOCK, VSA_VRC_INDEX);
+	outw(VSA_VR_MEM_SIZE, VSA_VRC_INDEX);
 
-	val = (unsigned int)(inw(0xAC1E)) & 0xFE;
+	val = (unsigned int)(inw(VSA_VRC_DATA)) & 0xFE;
 	return (val << 20);
 }
 
