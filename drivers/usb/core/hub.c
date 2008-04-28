@@ -690,18 +690,11 @@ static void hub_restart(struct usb_hub *hub, enum hub_activation_type type)
 				set_bit(port1, hub->change_bits);
 
 		} else if (udev->persist_enabled) {
-			/* Turn off the status changes to prevent khubd
-			 * from disconnecting the device.
-			 */
-			if (portchange & USB_PORT_STAT_C_ENABLE)
-				clear_port_feature(hub->hdev, port1,
-						USB_PORT_FEAT_C_ENABLE);
-			if (portchange & USB_PORT_STAT_C_CONNECTION)
-				clear_port_feature(hub->hdev, port1,
-						USB_PORT_FEAT_C_CONNECTION);
 #ifdef CONFIG_PM
 			udev->reset_resume = 1;
 #endif
+			set_bit(port1, hub->change_bits);
+
 		} else {
 			/* The power session is gone; tell khubd */
 			usb_set_device_state(udev, USB_STATE_NOTATTACHED);
@@ -2075,17 +2068,16 @@ int usb_port_resume(struct usb_device *udev)
 	return status;
 }
 
+/* caller has locked udev */
 static int remote_wakeup(struct usb_device *udev)
 {
 	int	status = 0;
 
-	usb_lock_device(udev);
 	if (udev->state == USB_STATE_SUSPENDED) {
 		dev_dbg(&udev->dev, "usb %sresume\n", "wakeup-");
 		usb_mark_last_busy(udev);
 		status = usb_external_resume_device(udev);
 	}
-	usb_unlock_device(udev);
 	return status;
 }
 
@@ -2632,6 +2624,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 	struct usb_hcd *hcd = bus_to_hcd(hdev->bus);
 	unsigned wHubCharacteristics =
 			le16_to_cpu(hub->descriptor->wHubCharacteristics);
+	struct usb_device *udev;
 	int status, i;
 
 	dev_dbg (hub_dev,
@@ -2666,8 +2659,45 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		}
 	}
 
+	/* Try to resuscitate an existing device */
+	udev = hdev->children[port1-1];
+	if ((portstatus & USB_PORT_STAT_CONNECTION) && udev &&
+			udev->state != USB_STATE_NOTATTACHED) {
+
+		usb_lock_device(udev);
+		if (portstatus & USB_PORT_STAT_ENABLE) {
+			status = 0;		/* Nothing to do */
+		} else if (!udev->persist_enabled) {
+			status = -ENODEV;	/* Mustn't resuscitate */
+
+#ifdef CONFIG_USB_SUSPEND
+		} else if (udev->state == USB_STATE_SUSPENDED) {
+			/* For a suspended device, treat this as a
+			 * remote wakeup event.
+			 */
+			if (udev->do_remote_wakeup)
+				status = remote_wakeup(udev);
+
+			/* Otherwise leave it be; devices can't tell the
+			 * difference between suspended and disabled.
+			 */
+			else
+				status = 0;
+#endif
+
+		} else {
+			status = usb_reset_composite_device(udev, NULL);
+		}
+		usb_unlock_device(udev);
+
+		if (status == 0) {
+			clear_bit(port1, hub->change_bits);
+			return;
+		}
+	}
+
 	/* Disconnect any existing devices under this port */
-	if (hdev->children[port1-1])
+	if (udev)
 		usb_disconnect(&hdev->children[port1-1]);
 	clear_bit(port1, hub->change_bits);
 
@@ -2685,7 +2715,6 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 	}
 
 	for (i = 0; i < SET_CONFIG_TRIES; i++) {
-		struct usb_device *udev;
 
 		/* reallocate for each attempt, since references
 		 * to the previous one can escape in various ways
@@ -2944,11 +2973,16 @@ static void hub_events(void)
 			}
 
 			if (portchange & USB_PORT_STAT_C_SUSPEND) {
+				struct usb_device *udev;
+
 				clear_port_feature(hdev, i,
 					USB_PORT_FEAT_C_SUSPEND);
-				if (hdev->children[i-1]) {
+				udev = hdev->children[i-1];
+				if (udev) {
+					usb_lock_device(udev);
 					ret = remote_wakeup(hdev->
 							children[i-1]);
+					usb_unlock_device(udev);
 					if (ret < 0)
 						connect_change = 1;
 				} else {

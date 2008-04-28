@@ -1537,14 +1537,11 @@ static int usb_resume(struct device *dev)
 	udev = to_usb_device(dev);
 
 	/* If udev->skip_sys_resume is set then udev was already suspended
-	 * when the system suspend started, so we don't want to resume
-	 * udev during this system wakeup.  However a reset-resume counts
-	 * as a wakeup event, so allow a reset-resume to occur if remote
-	 * wakeup is enabled. */
-	if (udev->skip_sys_resume) {
-		if (!(udev->reset_resume && udev->do_remote_wakeup))
-			return -EHOSTUNREACH;
-	}
+	 * when the system sleep started, so we don't want to resume it
+	 * during this system wakeup.
+	 */
+	if (udev->skip_sys_resume)
+		return 0;
 	return usb_external_resume_device(udev);
 }
 
