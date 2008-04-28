@@ -429,6 +429,21 @@ static inline void free_rp_inst(struct kretprobe *rp)
 	}
 }
 
+static void __kprobes cleanup_rp_inst(struct kretprobe *rp)
+{
+	unsigned long flags;
+	struct kretprobe_instance *ri;
+	struct hlist_node *pos, *next;
+	/* No race here */
+	spin_lock_irqsave(&kretprobe_lock, flags);
+	hlist_for_each_entry_safe(ri, pos, next, &rp->used_instances, uflist) {
+		ri->rp = NULL;
+		hlist_del(&ri->uflist);
+	}
+	spin_unlock_irqrestore(&kretprobe_lock, flags);
+	free_rp_inst(rp);
+}
+
 /*
  * Keep all fields in the kprobe consistent
  */
@@ -798,7 +813,8 @@ static int __kprobes pre_handler_kretprobe(struct kprobe *p,
 	return 0;
 }
 
-int __kprobes register_kretprobe(struct kretprobe *rp)
+static int __kprobes __register_kretprobe(struct kretprobe *rp,
+					  unsigned long called_from)
 {
 	int ret = 0;
 	struct kretprobe_instance *inst;
@@ -844,10 +860,65 @@ int __kprobes register_kretprobe(struct kretprobe *rp)
 
 	rp->nmissed = 0;
 	/* Establish function entry probe point */
-	if ((ret = __register_kprobe(&rp->kp,
-		(unsigned long)__builtin_return_address(0))) != 0)
+	ret = __register_kprobe(&rp->kp, called_from);
+	if (ret != 0)
 		free_rp_inst(rp);
 	return ret;
+}
+
+static int __register_kretprobes(struct kretprobe **rps, int num,
+	unsigned long called_from)
+{
+	int ret = 0, i;
+
+	if (num <= 0)
+		return -EINVAL;
+	for (i = 0; i < num; i++) {
+		ret = __register_kretprobe(rps[i], called_from);
+		if (ret < 0 && i > 0) {
+			unregister_kretprobes(rps, i);
+			break;
+		}
+	}
+	return ret;
+}
+
+int __kprobes register_kretprobe(struct kretprobe *rp)
+{
+	return __register_kretprobes(&rp, 1,
+			(unsigned long)__builtin_return_address(0));
+}
+
+void __kprobes unregister_kretprobe(struct kretprobe *rp)
+{
+	unregister_kretprobes(&rp, 1);
+}
+
+int __kprobes register_kretprobes(struct kretprobe **rps, int num)
+{
+	return __register_kretprobes(rps, num,
+			(unsigned long)__builtin_return_address(0));
+}
+
+void __kprobes unregister_kretprobes(struct kretprobe **rps, int num)
+{
+	int i;
+
+	if (num <= 0)
+		return;
+	mutex_lock(&kprobe_mutex);
+	for (i = 0; i < num; i++)
+		if (__unregister_kprobe_top(&rps[i]->kp) < 0)
+			rps[i]->kp.addr = NULL;
+	mutex_unlock(&kprobe_mutex);
+
+	synchronize_sched();
+	for (i = 0; i < num; i++) {
+		if (rps[i]->kp.addr) {
+			__unregister_kprobe_bottom(&rps[i]->kp);
+			cleanup_rp_inst(rps[i]);
+		}
+	}
 }
 
 #else /* CONFIG_KRETPROBES */
@@ -856,30 +927,25 @@ int __kprobes register_kretprobe(struct kretprobe *rp)
 	return -ENOSYS;
 }
 
+int __kprobes register_kretprobes(struct kretprobe **rps, int num)
+{
+	return -ENOSYS;
+}
+void __kprobes unregister_kretprobe(struct kretprobe *rp)
+{
+}
+
+void __kprobes unregister_kretprobes(struct kretprobe **rps, int num)
+{
+}
+
 static int __kprobes pre_handler_kretprobe(struct kprobe *p,
 					   struct pt_regs *regs)
 {
 	return 0;
 }
+
 #endif /* CONFIG_KRETPROBES */
-
-void __kprobes unregister_kretprobe(struct kretprobe *rp)
-{
-	unsigned long flags;
-	struct kretprobe_instance *ri;
-	struct hlist_node *pos, *next;
-
-	unregister_kprobe(&rp->kp);
-
-	/* No race here */
-	spin_lock_irqsave(&kretprobe_lock, flags);
-	hlist_for_each_entry_safe(ri, pos, next, &rp->used_instances, uflist) {
-		ri->rp = NULL;
-		hlist_del(&ri->uflist);
-	}
-	spin_unlock_irqrestore(&kretprobe_lock, flags);
-	free_rp_inst(rp);
-}
 
 static int __init init_kprobes(void)
 {
@@ -1177,4 +1243,6 @@ EXPORT_SYMBOL_GPL(jprobe_return);
 #ifdef CONFIG_KPROBES
 EXPORT_SYMBOL_GPL(register_kretprobe);
 EXPORT_SYMBOL_GPL(unregister_kretprobe);
+EXPORT_SYMBOL_GPL(register_kretprobes);
+EXPORT_SYMBOL_GPL(unregister_kretprobes);
 #endif

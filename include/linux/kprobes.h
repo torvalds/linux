@@ -245,6 +245,8 @@ unsigned long arch_deref_entry_point(void *);
 
 int register_kretprobe(struct kretprobe *rp);
 void unregister_kretprobe(struct kretprobe *rp);
+int register_kretprobes(struct kretprobe **rps, int num);
+void unregister_kretprobes(struct kretprobe **rps, int num);
 
 void kprobe_flush_task(struct task_struct *tk);
 void recycle_rp_inst(struct kretprobe_instance *ri, struct hlist_head *head);
@@ -287,7 +289,14 @@ static inline int register_kretprobe(struct kretprobe *rp)
 {
 	return -ENOSYS;
 }
+static inline int register_kretprobes(struct kretprobe **rps, int num)
+{
+	return -ENOSYS;
+}
 static inline void unregister_kretprobe(struct kretprobe *rp)
+{
+}
+static inline void unregister_kretprobes(struct kretprobe **rps, int num)
 {
 }
 static inline void kprobe_flush_task(struct task_struct *tk)
