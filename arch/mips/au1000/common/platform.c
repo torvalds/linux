@@ -233,19 +233,6 @@ static struct resource au1200_lcd_resources[] = {
 	}
 };
 
-static struct resource au1200_ide0_resources[] = {
-	[0] = {
-		.start		= AU1XXX_ATA_PHYS_ADDR,
-		.end 		= AU1XXX_ATA_PHYS_ADDR + AU1XXX_ATA_PHYS_LEN - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= AU1XXX_ATA_INT,
-		.end		= AU1XXX_ATA_INT,
-		.flags		= IORESOURCE_IRQ,
-	}
-};
-
 static u64 au1200_lcd_dmamask = ~(u32)0;
 
 static struct platform_device au1200_lcd_device = {
@@ -257,20 +244,6 @@ static struct platform_device au1200_lcd_device = {
 	},
 	.num_resources  = ARRAY_SIZE(au1200_lcd_resources),
 	.resource       = au1200_lcd_resources,
-};
-
-
-static u64 ide0_dmamask = ~(u32)0;
-
-static struct platform_device au1200_ide0_device = {
-	.name		= "au1200-ide",
-	.id		= 0,
-	.dev = {
-		.dma_mask 		= &ide0_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
-	},
-	.num_resources = ARRAY_SIZE(au1200_ide0_resources),
-	.resource	= au1200_ide0_resources,
 };
 
 static u64 au1xxx_mmc_dmamask =  ~(u32)0;
@@ -291,29 +264,6 @@ static struct platform_device au1x00_pcmcia_device = {
 	.name 		= "au1x00-pcmcia",
 	.id 		= 0,
 };
-
-#if defined(CONFIG_MIPS_DB1200) || defined(CONFIG_MIPS_PB1200)
-static struct resource smc91x_resources[] = {
-	[0] = {
-		.name	= "smc91x-regs",
-		.start	= AU1XXX_SMC91111_PHYS_ADDR,
-		.end	= AU1XXX_SMC91111_PHYS_ADDR + 0xf,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= AU1XXX_SMC91111_IRQ,
-		.end	= AU1XXX_SMC91111_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device smc91x_device = {
-	.name		= "smc91x",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(smc91x_resources),
-	.resource	= smc91x_resources,
-};
-#endif /* defined(CONFIG_MIPS_DB1200) || defined(CONFIG_MIPS_PB1200) */
 
 /* All Alchemy demoboards with I2C have this #define in their headers */
 #ifdef SMBUS_PSC_BASE
@@ -345,11 +295,7 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1xxx_usb_gdt_device,
 	&au1xxx_usb_otg_device,
 	&au1200_lcd_device,
-	&au1200_ide0_device,
 	&au1xxx_mmc_device,
-#endif
-#if defined(CONFIG_MIPS_DB1200) || defined(CONFIG_MIPS_PB1200)
-	&smc91x_device,
 #endif
 #ifdef SMBUS_PSC_BASE
 	&pbdb_smbus_device,
