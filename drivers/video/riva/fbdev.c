@@ -2213,14 +2213,12 @@ static int __devinit rivafb_init(void)
 
 module_init(rivafb_init);
 
-#ifdef MODULE
 static void __exit rivafb_exit(void)
 {
 	pci_unregister_driver(&rivafb_driver);
 }
 
 module_exit(rivafb_exit);
-#endif /* MODULE */
 
 module_param(noaccel, bool, 0);
 MODULE_PARM_DESC(noaccel, "bool: disable acceleration");

@@ -1559,7 +1559,6 @@ static int __devinit nvidiafb_init(void)
 
 module_init(nvidiafb_init);
 
-#ifdef MODULE
 static void __exit nvidiafb_exit(void)
 {
 	pci_unregister_driver(&nvidiafb_driver);
@@ -1615,5 +1614,3 @@ MODULE_PARM_DESC(nomtrr, "Disables MTRR support (0 or 1=disabled) "
 MODULE_AUTHOR("Antonino Daplas");
 MODULE_DESCRIPTION("Framebuffer driver for nVidia graphics chipset");
 MODULE_LICENSE("GPL");
-#endif				/* MODULE */
-
