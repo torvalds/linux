@@ -13,10 +13,34 @@
 
 #include <linux/io.h>
 
+#define GP_REG_COUNT   (0x50 / 4)
+#define DC_REG_COUNT   (0x90 / 4)
+#define VP_REG_COUNT   (0x138 / 8)
+#define FP_REG_COUNT   (0x68 / 8)
+
+#define DC_PAL_COUNT   0x104
+
 struct gxfb_par {
 	int enable_crt;
 	void __iomem *dc_regs;
 	void __iomem *vid_regs;
+	void __iomem *gp_regs;
+#ifdef CONFIG_PM
+	int powered_down;
+
+	/* register state, for power management functionality */
+	struct {
+		uint64_t padsel;
+		uint64_t dotpll;
+	} msr;
+
+	uint32_t gp[GP_REG_COUNT];
+	uint32_t dc[DC_REG_COUNT];
+	uint64_t vp[VP_REG_COUNT];
+	uint64_t fp[FP_REG_COUNT];
+
+	uint32_t pal[DC_PAL_COUNT];
+#endif
 };
 
 unsigned int gx_frame_buffer_size(void);
@@ -28,6 +52,43 @@ void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
 void gx_set_dclk_frequency(struct fb_info *info);
 void gx_configure_display(struct fb_info *info);
 int gx_blank_display(struct fb_info *info, int blank_mode);
+
+#ifdef CONFIG_PM
+int gx_powerdown(struct fb_info *info);
+int gx_powerup(struct fb_info *info);
+#endif
+
+
+/* Graphics Processor registers (table 6-23 from the data book) */
+enum gp_registers {
+	GP_DST_OFFSET = 0,
+	GP_SRC_OFFSET,
+	GP_STRIDE,
+	GP_WID_HEIGHT,
+
+	GP_SRC_COLOR_FG,
+	GP_SRC_COLOR_BG,
+	GP_PAT_COLOR_0,
+	GP_PAT_COLOR_1,
+
+	GP_PAT_COLOR_2,
+	GP_PAT_COLOR_3,
+	GP_PAT_COLOR_4,
+	GP_PAT_COLOR_5,
+
+	GP_PAT_DATA_0,
+	GP_PAT_DATA_1,
+	GP_RASTER_MODE,
+	GP_VECTOR_MODE,
+
+	GP_BLT_MODE,
+	GP_BLT_STATUS,
+	GP_HST_SRC,
+	GP_BASE_OFFSET, /* 0x4c */
+};
+
+#define GP_BLT_STATUS_BLT_PENDING	(1 << 2)
+#define GP_BLT_STATUS_BLT_BUSY		(1 << 0)
 
 
 /* Display Controller registers (table 6-38 from the data book) */
@@ -238,6 +299,16 @@ enum fp_registers {
 
 /* register access functions */
 
+static inline uint32_t read_gp(struct gxfb_par *par, int reg)
+{
+	return readl(par->gp_regs + 4*reg);
+}
+
+static inline void write_gp(struct gxfb_par *par, int reg, uint32_t val)
+{
+	writel(val, par->gp_regs + 4*reg);
+}
+
 static inline uint32_t read_dc(struct gxfb_par *par, int reg)
 {
 	return readl(par->dc_regs + 4*reg);
@@ -247,7 +318,6 @@ static inline void write_dc(struct gxfb_par *par, int reg, uint32_t val)
 {
 	writel(val, par->dc_regs + 4*reg);
 }
-
 
 static inline uint32_t read_vp(struct gxfb_par *par, int reg)
 {

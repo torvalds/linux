@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
+#include <linux/console.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <asm/geode.h>
@@ -222,6 +223,15 @@ static int __init gxfb_map_video_memory(struct fb_info *info, struct pci_dev *de
 	if (!par->dc_regs)
 		return -ENOMEM;
 
+	ret = pci_request_region(dev, 1, "gxfb (graphics processor)");
+	if (ret < 0)
+		return ret;
+	par->gp_regs = ioremap(pci_resource_start(dev, 1),
+	pci_resource_len(dev, 1));
+
+	if (!par->gp_regs)
+		return -ENOMEM;
+
 	ret = pci_request_region(dev, 0, "gxfb (framebuffer)");
 	if (ret < 0)
 		return ret;
@@ -295,6 +305,42 @@ static struct fb_info * __init gxfb_init_fbinfo(struct device *dev)
 	return info;
 }
 
+#ifdef CONFIG_PM
+static int gxfb_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct fb_info *info = pci_get_drvdata(pdev);
+
+	if (state.event == PM_EVENT_SUSPEND) {
+		acquire_console_sem();
+		gx_powerdown(info);
+		fb_set_suspend(info, 1);
+		release_console_sem();
+	}
+
+	/* there's no point in setting PCI states; we emulate PCI, so
+	 * we don't end up getting power savings anyways */
+
+	return 0;
+}
+
+static int gxfb_resume(struct pci_dev *pdev)
+{
+	struct fb_info *info = pci_get_drvdata(pdev);
+	int ret;
+
+	acquire_console_sem();
+	ret = gx_powerup(info);
+	if (ret) {
+		printk(KERN_ERR "gxfb:  power up failed!\n");
+		return ret;
+	}
+
+	fb_set_suspend(info, 0);
+	release_console_sem();
+	return 0;
+}
+#endif
+
 static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct gxfb_par *par;
@@ -357,6 +403,10 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		iounmap(par->dc_regs);
 		pci_release_region(pdev, 2);
 	}
+	if (par->gp_regs) {
+		iounmap(par->gp_regs);
+		pci_release_region(pdev, 1);
+	}
 
 	if (info)
 		framebuffer_release(info);
@@ -379,6 +429,9 @@ static void gxfb_remove(struct pci_dev *pdev)
 	iounmap(par->dc_regs);
 	pci_release_region(pdev, 2);
 
+	iounmap(par->gp_regs);
+	pci_release_region(pdev, 1);
+
 	pci_set_drvdata(pdev, NULL);
 
 	framebuffer_release(info);
@@ -396,6 +449,10 @@ static struct pci_driver gxfb_driver = {
 	.id_table	= gxfb_id_table,
 	.probe		= gxfb_probe,
 	.remove		= gxfb_remove,
+#ifdef CONFIG_PM
+	.suspend	= gxfb_suspend,
+	.resume		= gxfb_resume,
+#endif
 };
 
 #ifndef MODULE
