@@ -566,11 +566,11 @@ config PATA_RADISYS
 
 	  If unsure, say N.
 
-config PATA_RB500
-	tristate "RouterBoard 500 PATA CompactFlash support"
-	depends on MIKROTIK_RB500
+config PATA_RB532
+	tristate "RouterBoard 532 PATA CompactFlash support"
+	depends on MIKROTIK_RB532
 	help
-	  This option enables support for the RouterBoard 500
+	  This option enables support for the RouterBoard 532
 	  PATA CompactFlash controller.
 
 	  If unsure, say N.
