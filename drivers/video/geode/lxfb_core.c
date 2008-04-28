@@ -17,6 +17,7 @@
 #include <linux/console.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/init.h>
@@ -28,6 +29,7 @@
 static char *mode_option;
 static int noclear, nopanel, nocrt;
 static int vram;
+static int vt_switch;
 
 /* Most of these modes are sorted in ascending order, but
  * since the first entry in this table is the "default" mode,
@@ -523,6 +525,8 @@ static int __init lxfb_probe(struct pci_dev *pdev,
 	lxfb_check_var(&info->var, info);
 	lxfb_set_par(info);
 
+	pm_set_vt_switch(vt_switch);
+
 	if (register_framebuffer(info) < 0) {
 		ret = -EINVAL;
 		goto err;
@@ -647,6 +651,9 @@ MODULE_PARM_DESC(mode_option, "video mode (<x>x<y>[-<bpp>][@<refr>])");
 
 module_param(vram, int, 0);
 MODULE_PARM_DESC(vram, "video memory size");
+
+module_param(vt_switch, int, 0);
+MODULE_PARM_DESC(vt_switch, "enable VT switch during suspend/resume");
 
 MODULE_DESCRIPTION("Framebuffer driver for the AMD Geode LX");
 MODULE_LICENSE("GPL");
