@@ -1950,6 +1950,11 @@ sub process_file($) {
 		    $section = $section_default;
 		    $contents = "";
 		}
+		# look for doc_com + <text> + doc_end:
+		if ($_ =~ m'\s*\*\s*[a-zA-Z_0-9:\.]+\*/') {
+		    print STDERR "Warning(${file}:$.): suspicious ending line: $_";
+		    ++$warnings;
+		}
 
 		$prototype = "";
 		$state = 3;
