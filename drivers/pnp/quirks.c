@@ -214,8 +214,8 @@ void pnp_fixup_device(struct pnp_dev *dev)
 			quirk = pnp_fixups[i].quirk_function;
 
 #ifdef DEBUG
-			dev_dbg(&dev->dev, "calling quirk 0x%p", quirk);
-			print_fn_descriptor_symbol(": %s()\n",
+			dev_dbg(&dev->dev, "calling ");
+			print_fn_descriptor_symbol("%s()\n",
 				(unsigned long) *quirk);
 #endif
 			(*quirk)(dev);
