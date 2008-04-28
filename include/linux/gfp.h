@@ -144,12 +144,6 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 	return base + ZONE_NORMAL;
 }
 
-static inline gfp_t set_migrateflags(gfp_t gfp, gfp_t migrate_flags)
-{
-	BUG_ON((gfp & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
-	return (gfp & ~(GFP_MOVABLE_MASK)) | migrate_flags;
-}
-
 /*
  * There is only one page-allocator function, and two main namespaces to
  * it. The alloc_page*() variants return 'struct page *' and as such
