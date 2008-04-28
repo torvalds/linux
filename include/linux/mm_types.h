@@ -42,7 +42,10 @@ struct page {
 					 * to show when page is mapped
 					 * & limit reverse map searches.
 					 */
-		unsigned int inuse;	/* SLUB: Nr of objects */
+		struct {		/* SLUB */
+			u16 inuse;
+			u16 objects;
+		};
 	};
 	union {
 	    struct {
