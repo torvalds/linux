@@ -909,10 +909,42 @@ static int __exit atmel_lcdfb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+
+static int atmel_lcdfb_suspend(struct platform_device *pdev, pm_message_t mesg)
+{
+	struct fb_info *info = platform_get_drvdata(pdev);
+	struct atmel_lcdfb_info *sinfo = info->par;
+
+	sinfo->saved_lcdcon = lcdc_readl(sinfo, ATMEL_LCDC_CONTRAST_VAL);
+	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, 0);
+	if (sinfo->atmel_lcdfb_power_control)
+		sinfo->atmel_lcdfb_power_control(0);
+	atmel_lcdfb_stop_clock(sinfo);
+	return 0;
+}
+
+static int atmel_lcdfb_resume(struct platform_device *pdev)
+{
+	struct fb_info *info = platform_get_drvdata(pdev);
+	struct atmel_lcdfb_info *sinfo = info->par;
+
+	atmel_lcdfb_start_clock(sinfo);
+	if (sinfo->atmel_lcdfb_power_control)
+		sinfo->atmel_lcdfb_power_control(1);
+	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, sinfo->saved_lcdcon);
+	return 0;
+}
+
+#else
+#define atmel_lcdfb_suspend	NULL
+#define atmel_lcdfb_resume	NULL
+#endif
+
 static struct platform_driver atmel_lcdfb_driver = {
 	.remove		= __exit_p(atmel_lcdfb_remove),
-
-// FIXME need suspend, resume
+	.suspend	= atmel_lcdfb_suspend,
+	.resume		= atmel_lcdfb_resume,
 
 	.driver		= {
 		.name	= "atmel_lcdfb",
