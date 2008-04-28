@@ -2025,6 +2025,7 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 {
 	int err;
 	struct nameidata nd;
+	struct inode *inode;
 
 	if (!(REISERFS_SB(sb)->s_mount_opt & (1 << REISERFS_QUOTA)))
 		return -EINVAL;
@@ -2039,12 +2040,18 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 		path_put(&nd.path);
 		return -EXDEV;
 	}
+	inode = nd.path.dentry->d_inode;
 	/* We must not pack tails for quota files on reiserfs for quota IO to work */
-	if (!(REISERFS_I(nd.path.dentry->d_inode)->i_flags & i_nopack_mask)) {
-		reiserfs_warning(sb,
-				 "reiserfs: Quota file must have tail packing disabled.");
-		path_put(&nd.path);
-		return -EINVAL;
+	if (!(REISERFS_I(inode)->i_flags & i_nopack_mask)) {
+		err = reiserfs_unpack(inode, NULL);
+		if (err) {
+			reiserfs_warning(sb,
+				"reiserfs: Unpacking tail of quota file failed"
+				" (%d). Cannot turn on quotas.", err);
+			path_put(&nd.path);
+			return -EINVAL;
+		}
+		mark_inode_dirty(inode);
 	}
 	/* Not journalling quota? No more tests needed... */
 	if (!REISERFS_SB(sb)->s_qf_names[USRQUOTA] &&
