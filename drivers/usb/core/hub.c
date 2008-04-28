@@ -551,22 +551,6 @@ static void hub_quiesce(struct usb_hub *hub)
 		cancel_work_sync(&hub->tt.kevent);
 }
 
-static void hub_activate(struct usb_hub *hub)
-{
-	int	status;
-
-	hub->quiescing = 0;
-
-	status = usb_submit_urb(hub->urb, GFP_NOIO);
-	if (status < 0)
-		dev_err(hub->intfdev, "activate --> %d\n", status);
-	if (hub->has_indicators && blinkenlights)
-		schedule_delayed_work(&hub->leds, LED_CYCLE_PERIOD);
-
-	/* scan all ports ASAP */
-	kick_khubd(hub);
-}
-
 static int hub_hub_status(struct usb_hub *hub,
 		u16 *status, u16 *change)
 {
@@ -643,18 +627,24 @@ enum hub_activation_type {
 	HUB_INIT, HUB_POST_RESET, HUB_RESUME, HUB_RESET_RESUME
 };
 
-static void hub_restart(struct usb_hub *hub, enum hub_activation_type type)
+static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 {
 	struct usb_device *hdev = hub->hdev;
 	int port1;
+	int status;
 	bool need_debounce_delay = false;
+
+	/* After a resume, port power should still be on.
+	 * For any other type of activation, turn it on.
+	 */
+	if (type != HUB_RESUME)
+		hub_power_on(hub);
 
 	/* Check each port and set hub->change_bits to let khubd know
 	 * which ports need attention.
 	 */
 	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
 		struct usb_device *udev = hdev->children[port1-1];
-		int status;
 		u16 portstatus, portchange;
 
 		portstatus = portchange = 0;
@@ -729,7 +719,17 @@ static void hub_restart(struct usb_hub *hub, enum hub_activation_type type)
 	 */
 	if (need_debounce_delay)
 		msleep(HUB_DEBOUNCE_STABLE);
-	hub_activate(hub);
+
+	hub->quiescing = 0;
+
+	status = usb_submit_urb(hub->urb, GFP_NOIO);
+	if (status < 0)
+		dev_err(hub->intfdev, "activate --> %d\n", status);
+	if (hub->has_indicators && blinkenlights)
+		schedule_delayed_work(&hub->leds, LED_CYCLE_PERIOD);
+
+	/* Scan all ports that need attention */
+	kick_khubd(hub);
 }
 
 /* caller has locked the hub device */
@@ -746,8 +746,7 @@ static int hub_post_reset(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata(intf);
 
-	hub_power_on(hub);
-	hub_restart(hub, HUB_POST_RESET);
+	hub_activate(hub, HUB_POST_RESET);
 	return 0;
 }
 
@@ -993,8 +992,7 @@ static int hub_configure(struct usb_hub *hub,
 	if (hub->has_indicators && blinkenlights)
 		hub->indicator [0] = INDICATOR_CYCLE;
 
-	hub_power_on(hub);
-	hub_activate(hub);
+	hub_activate(hub, HUB_INIT);
 	return 0;
 
 fail:
@@ -2178,7 +2176,7 @@ static int hub_resume(struct usb_interface *intf)
 	struct usb_hub *hub = usb_get_intfdata(intf);
 
 	dev_dbg(&intf->dev, "%s\n", __func__);
-	hub_restart(hub, HUB_RESUME);
+	hub_activate(hub, HUB_RESUME);
 	return 0;
 }
 
@@ -2187,8 +2185,7 @@ static int hub_reset_resume(struct usb_interface *intf)
 	struct usb_hub *hub = usb_get_intfdata(intf);
 
 	dev_dbg(&intf->dev, "%s\n", __func__);
-	hub_power_on(hub);
-	hub_restart(hub, HUB_RESET_RESUME);
+	hub_activate(hub, HUB_RESET_RESUME);
 	return 0;
 }
 
