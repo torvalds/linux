@@ -68,7 +68,7 @@ static struct pci_device_id fcpci_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, fcpci_ids);
 
-#ifdef __ISAPNP__
+#ifdef CONFIG_PNP
 static struct pnp_device_id fcpnp_ids[] __devinitdata = {
 	{ 
 		.id		= "AVM0900",
@@ -914,7 +914,7 @@ static int __devinit fcpci_probe(struct pci_dev *pdev,
 	return retval;
 }
 
-#ifdef __ISAPNP__
+#ifdef CONFIG_PNP
 static int __devinit fcpnp_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 {
 	struct fritz_adapter *adapter;
@@ -974,6 +974,8 @@ static struct pnp_driver fcpnp_driver = {
 	.remove		= __devexit_p(fcpnp_remove),
 	.id_table	= fcpnp_ids,
 };
+#else
+static struct pnp_driver fcpnp_driver;
 #endif
 
 static void __devexit fcpci_remove(struct pci_dev *pdev)
@@ -1001,7 +1003,7 @@ static int __init hisax_fcpcipnp_init(void)
 	retval = pci_register_driver(&fcpci_driver);
 	if (retval)
 		return retval;
-#ifdef __ISAPNP__
+#ifdef CONFIG_PNP
 	retval = pnp_register_driver(&fcpnp_driver);
 	if (retval < 0) {
 		pci_unregister_driver(&fcpci_driver);
@@ -1013,7 +1015,7 @@ static int __init hisax_fcpcipnp_init(void)
 
 static void __exit hisax_fcpcipnp_exit(void)
 {
-#ifdef __ISAPNP__
+#ifdef CONFIG_PNP
 	pnp_unregister_driver(&fcpnp_driver);
 #endif
 	pci_unregister_driver(&fcpci_driver);
