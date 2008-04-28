@@ -33,21 +33,10 @@ static inline int set_rtc_mmss(unsigned long nowtime)
 	return -1;
 }
 
-/*
- * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "do_timer()" routine every clocktick
- */
-irqreturn_t arch_timer_interrupt(int irq, void *dummy)
+static inline void do_set_rtc(void)
 {
 	/* last time the cmos clock got updated */
 	static long last_rtc_update=0;
-
-	if (current->pid)
-		profile_tick(CPU_PROFILING);
-
-	write_seqlock(&xtime_lock);
-
-	do_timer(1);
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update
@@ -63,6 +52,23 @@ irqreturn_t arch_timer_interrupt(int irq, void *dummy)
 	  else
 	    last_rtc_update = xtime.tv_sec - 600; /* do it again in 60 s */
 	}
+}
+
+/*
+ * timer_interrupt() needs to keep up the real-time clock,
+ * as well as call the "do_timer()" routine every clocktick
+ */
+irqreturn_t arch_timer_interrupt(int irq, void *dummy)
+{
+
+	if (current->pid)
+		profile_tick(CPU_PROFILING);
+
+	write_seqlock(&xtime_lock);
+
+	do_timer(1);
+
+	do_set_rtc();
 
 	write_sequnlock(&xtime_lock);
 
@@ -72,7 +78,7 @@ irqreturn_t arch_timer_interrupt(int irq, void *dummy)
 	return(IRQ_HANDLED);
 }
 
-void time_init(void)
+static unsigned long read_rtc_mmss(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
 
@@ -83,7 +89,13 @@ void time_init(void)
 
 	if ((year += 1900) < 1970)
 		year += 100;
-	xtime.tv_sec = mktime(year, mon, day, hour, min, sec);
+
+	return  mktime(year, mon, day, hour, min, sec);;
+}
+
+void time_init(void)
+{
+	xtime.tv_sec = read_rtc_mmss();
 	xtime.tv_nsec = 0;
 	wall_to_monotonic.tv_sec = -xtime.tv_sec;
 
