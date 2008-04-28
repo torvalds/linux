@@ -1080,8 +1080,19 @@ static void run_hrtimer_pending(struct hrtimer_cpu_base *cpu_base)
 			 * If the timer was rearmed on another CPU, reprogram
 			 * the event device.
 			 */
-			if (timer->base->first == &timer->node)
-				hrtimer_reprogram(timer, timer->base);
+			struct hrtimer_clock_base *base = timer->base;
+
+			if (base->first == &timer->node &&
+			    hrtimer_reprogram(timer, base)) {
+				/*
+				 * Timer is expired. Thus move it from tree to
+				 * pending list again.
+				 */
+				__remove_hrtimer(timer, base,
+						 HRTIMER_STATE_PENDING, 0);
+				list_add_tail(&timer->cb_entry,
+					      &base->cpu_base->cb_pending);
+			}
 		}
 	}
 	spin_unlock_irq(&cpu_base->lock);
