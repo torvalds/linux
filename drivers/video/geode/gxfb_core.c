@@ -37,6 +37,7 @@
 #include "video_gx.h"
 
 static char *mode_option;
+static int vram;
 
 /* Modes relevant to the GX (taken from modedb.c) */
 static const struct fb_videomode gx_modedb[] __initdata = {
@@ -208,7 +209,6 @@ static int gxfb_blank(int blank_mode, struct fb_info *info)
 static int __init gxfb_map_video_memory(struct fb_info *info, struct pci_dev *dev)
 {
 	struct geodefb_par *par = info->par;
-	int fb_len;
 	int ret;
 
 	ret = pci_enable_device(dev);
@@ -233,21 +233,20 @@ static int __init gxfb_map_video_memory(struct fb_info *info, struct pci_dev *de
 	ret = pci_request_region(dev, 0, "gxfb (framebuffer)");
 	if (ret < 0)
 		return ret;
-	if ((fb_len = gx_frame_buffer_size()) < 0)
-		return -ENOMEM;
+
 	info->fix.smem_start = pci_resource_start(dev, 0);
-	info->fix.smem_len = fb_len;
+	info->fix.smem_len = vram ? vram : gx_frame_buffer_size();
 	info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
 	if (!info->screen_base)
 		return -ENOMEM;
 
-	/* Set the 16MB aligned base address of the graphics memory region
+	/* Set the 16MiB aligned base address of the graphics memory region
 	 * in the display controller */
 
 	writel(info->fix.smem_start & 0xFF000000,
 			par->dc_regs + DC_GLIU0_MEM_OFFSET);
 
-	dev_info(&dev->dev, "%d Kibyte of video memory at 0x%lx\n",
+	dev_info(&dev->dev, "%d KiB of video memory at 0x%lx\n",
 		 info->fix.smem_len / 1024, info->fix.smem_start);
 
 	return 0;
@@ -454,6 +453,9 @@ module_exit(gxfb_cleanup);
 
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "video mode (<x>x<y>[-<bpp>][@<refr>])");
+
+module_param(vram, int, 0);
+MODULE_PARM_DESC(vram, "video memory size");
 
 MODULE_DESCRIPTION("Framebuffer driver for the AMD Geode GX");
 MODULE_LICENSE("GPL");

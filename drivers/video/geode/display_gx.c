@@ -21,12 +21,6 @@
 #include "geodefb.h"
 #include "display_gx.h"
 
-#ifdef CONFIG_FB_GEODE_GX_SET_FBSIZE
-unsigned int gx_frame_buffer_size(void)
-{
-	return CONFIG_FB_GEODE_GX_FBSIZE;
-}
-#else
 unsigned int gx_frame_buffer_size(void)
 {
 	unsigned int val;
@@ -41,7 +35,6 @@ unsigned int gx_frame_buffer_size(void)
 	val = (unsigned int)(inw(0xAC1E)) & 0xFFl;
 	return (val << 19);
 }
-#endif
 
 int gx_line_delta(int xres, int bpp)
 {
