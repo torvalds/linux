@@ -612,7 +612,7 @@ int generic_ptrace_pokedata(struct task_struct *tsk, long addr, long data)
 	return (copied == sizeof(data)) ? 0 : -EIO;
 }
 
-#ifdef CONFIG_COMPAT
+#if defined CONFIG_COMPAT && defined __ARCH_WANT_COMPAT_SYS_PTRACE
 #include <linux/compat.h>
 
 int compat_ptrace_request(struct task_struct *child, compat_long_t request,
@@ -667,7 +667,6 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 	return ret;
 }
 
-#ifdef __ARCH_WANT_COMPAT_SYS_PTRACE
 asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
 				  compat_long_t addr, compat_long_t data)
 {
@@ -710,6 +709,4 @@ asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
 	unlock_kernel();
 	return ret;
 }
-#endif /* __ARCH_WANT_COMPAT_SYS_PTRACE */
-
-#endif	/* CONFIG_COMPAT */
+#endif	/* CONFIG_COMPAT && __ARCH_WANT_COMPAT_SYS_PTRACE */
