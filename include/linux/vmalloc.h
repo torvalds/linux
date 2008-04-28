@@ -87,4 +87,6 @@ extern void free_vm_area(struct vm_struct *area);
 extern rwlock_t vmlist_lock;
 extern struct vm_struct *vmlist;
 
+extern const struct seq_operations vmalloc_op;
+
 #endif /* _LINUX_VMALLOC_H */
