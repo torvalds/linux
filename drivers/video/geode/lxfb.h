@@ -188,4 +188,47 @@ void lx_set_palette_reg(struct fb_info *, unsigned int, unsigned int,
 #define  GP_BS_BLT_BUSY    (1 << 0)
 #define  GP_BS_CB_EMPTY    (1 << 4)
 
+
+/* register access functions */
+
+static inline uint32_t read_gp(struct lxfb_par *par, int reg)
+{
+	return readl(par->gp_regs + reg);
+}
+
+static inline void write_gp(struct lxfb_par *par, int reg, uint32_t val)
+{
+	writel(val, par->gp_regs + reg);
+}
+
+static inline uint32_t read_dc(struct lxfb_par *par, int reg)
+{
+	return readl(par->dc_regs + reg);
+}
+
+static inline void write_dc(struct lxfb_par *par, int reg, uint32_t val)
+{
+	writel(val, par->dc_regs + reg);
+}
+
+static inline uint32_t read_vp(struct lxfb_par *par, int reg)
+{
+	return readl(par->df_regs + reg);
+}
+
+static inline void write_vp(struct lxfb_par *par, int reg, uint32_t val)
+{
+	writel(val, par->df_regs + reg);
+}
+
+static inline uint32_t read_fp(struct lxfb_par *par, int reg)
+{
+	return readl(par->df_regs + reg);
+}
+
+static inline void write_fp(struct lxfb_par *par, int reg, uint32_t val)
+{
+	writel(val, par->df_regs + reg);
+}
+
 #endif
