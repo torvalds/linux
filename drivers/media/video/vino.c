@@ -13,7 +13,7 @@
 /*
  * TODO:
  * - remove "mark pages reserved-hacks" from memory allocation code
- *   and implement nopage()
+ *   and implement fault()
  * - check decimation, calculating and reporting image size when
  *   using decimation
  * - implement read(), user mode buffers and overlay (?)

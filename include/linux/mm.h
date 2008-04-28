@@ -164,8 +164,6 @@ struct vm_operations_struct {
 	void (*open)(struct vm_area_struct * area);
 	void (*close)(struct vm_area_struct * area);
 	int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
-	struct page *(*nopage)(struct vm_area_struct *area,
-			unsigned long address, int *type);
 	unsigned long (*nopfn)(struct vm_area_struct *area,
 			unsigned long address);
 
@@ -647,12 +645,6 @@ static inline int page_mapped(struct page *page)
 {
 	return atomic_read(&(page)->_mapcount) >= 0;
 }
-
-/*
- * Error return values for the *_nopage functions
- */
-#define NOPAGE_SIGBUS	(NULL)
-#define NOPAGE_OOM	((struct page *) (-1))
 
 /*
  * Error return values for the *_nopfn functions

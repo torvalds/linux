@@ -1057,8 +1057,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		if (pages)
 			foll_flags |= FOLL_GET;
 		if (!write && !(vma->vm_flags & VM_LOCKED) &&
-		    (!vma->vm_ops || (!vma->vm_ops->nopage &&
-					!vma->vm_ops->fault)))
+		    (!vma->vm_ops || !vma->vm_ops->fault))
 			foll_flags |= FOLL_ANON;
 
 		do {
@@ -2199,20 +2198,9 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	BUG_ON(vma->vm_flags & VM_PFNMAP);
 
-	if (likely(vma->vm_ops->fault)) {
-		ret = vma->vm_ops->fault(vma, &vmf);
-		if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
-			return ret;
-	} else {
-		/* Legacy ->nopage path */
-		ret = 0;
-		vmf.page = vma->vm_ops->nopage(vma, address & PAGE_MASK, &ret);
-		/* no page was available -- either SIGBUS or OOM */
-		if (unlikely(vmf.page == NOPAGE_SIGBUS))
-			return VM_FAULT_SIGBUS;
-		else if (unlikely(vmf.page == NOPAGE_OOM))
-			return VM_FAULT_OOM;
-	}
+	ret = vma->vm_ops->fault(vma, &vmf);
+	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
+		return ret;
 
 	/*
 	 * For consistency in subsequent calls, make the faulted page always
@@ -2458,7 +2446,7 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 	if (!pte_present(entry)) {
 		if (pte_none(entry)) {
 			if (vma->vm_ops) {
-				if (vma->vm_ops->fault || vma->vm_ops->nopage)
+				if (likely(vma->vm_ops->fault))
 					return do_linear_fault(mm, vma, address,
 						pte, pmd, write_access, entry);
 				if (unlikely(vma->vm_ops->nopfn))
