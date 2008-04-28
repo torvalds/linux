@@ -2246,6 +2246,8 @@ int cont_expand_zero(struct file *file, struct address_space *mapping,
 			goto out;
 		BUG_ON(err != len);
 		err = 0;
+
+		balance_dirty_pages_ratelimited(mapping);
 	}
 
 	/* page covers the boundary, find the boundary offset */
