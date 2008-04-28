@@ -18,17 +18,7 @@
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 
-#define DRV_VERSION "0.4.2"
-
-/* Addresses to scan: none
- * This chip cannot be reliably autodetected. An empty eeprom
- * located at 0x51 will pass the validation routine due to
- * the way the registers are implemented.
- */
-static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
-
-/* Module parameters */
-I2C_CLIENT_INSMOD;
+#define DRV_VERSION "0.4.3"
 
 #define PCF8563_REG_ST1		0x00 /* status */
 #define PCF8563_REG_ST2		0x01
@@ -53,8 +43,10 @@ I2C_CLIENT_INSMOD;
 #define PCF8563_SC_LV		0x80 /* low voltage */
 #define PCF8563_MO_C		0x80 /* century */
 
+static struct i2c_driver pcf8563_driver;
+
 struct pcf8563 {
-	struct i2c_client client;
+	struct rtc_device *rtc;
 	/*
 	 * The meaning of MO_C bit varies by the chip type.
 	 * From PCF8563 datasheet: this bit is toggled when the years
@@ -72,16 +64,13 @@ struct pcf8563 {
 	int c_polarity;	/* 0: MO_C=1 means 19xx, otherwise MO_C=1 means 20xx */
 };
 
-static int pcf8563_probe(struct i2c_adapter *adapter, int address, int kind);
-static int pcf8563_detach(struct i2c_client *client);
-
 /*
  * In the routines that deal directly with the pcf8563 hardware, we use
  * rtc_time -- month 0-11, hour 0-23, yr = calendar year-epoch.
  */
 static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
-	struct pcf8563 *pcf8563 = container_of(client, struct pcf8563, client);
+	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
 	unsigned char buf[13] = { PCF8563_REG_ST1 };
 
 	struct i2c_msg msgs[] = {
@@ -138,7 +127,7 @@ static int pcf8563_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 static int pcf8563_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
-	struct pcf8563 *pcf8563 = container_of(client, struct pcf8563, client);
+	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
 	int i, err;
 	unsigned char buf[9];
 
@@ -257,99 +246,66 @@ static const struct rtc_class_ops pcf8563_rtc_ops = {
 	.set_time	= pcf8563_rtc_set_time,
 };
 
-static int pcf8563_attach(struct i2c_adapter *adapter)
-{
-	return i2c_probe(adapter, &addr_data, pcf8563_probe);
-}
-
-static struct i2c_driver pcf8563_driver = {
-	.driver		= {
-		.name	= "pcf8563",
-	},
-	.id		= I2C_DRIVERID_PCF8563,
-	.attach_adapter = &pcf8563_attach,
-	.detach_client	= &pcf8563_detach,
-};
-
-static int pcf8563_probe(struct i2c_adapter *adapter, int address, int kind)
+static int pcf8563_probe(struct i2c_client *client)
 {
 	struct pcf8563 *pcf8563;
-	struct i2c_client *client;
-	struct rtc_device *rtc;
 
 	int err = 0;
 
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
+	dev_dbg(&client->dev, "%s\n", __func__);
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
-		err = -ENODEV;
-		goto exit;
-	}
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return -ENODEV;
 
-	if (!(pcf8563 = kzalloc(sizeof(struct pcf8563), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	client = &pcf8563->client;
-	client->addr = address;
-	client->driver = &pcf8563_driver;
-	client->adapter	= adapter;
-
-	strlcpy(client->name, pcf8563_driver.driver.name, I2C_NAME_SIZE);
+	pcf8563 = kzalloc(sizeof(struct pcf8563), GFP_KERNEL);
+	if (!pcf8563)
+		return -ENOMEM;
 
 	/* Verify the chip is really an PCF8563 */
-	if (kind < 0) {
-		if (pcf8563_validate_client(client) < 0) {
-			err = -ENODEV;
-			goto exit_kfree;
-		}
-	}
-
-	/* Inform the i2c layer */
-	if ((err = i2c_attach_client(client)))
+	if (pcf8563_validate_client(client) < 0) {
+		err = -ENODEV;
 		goto exit_kfree;
+	}
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
-	rtc = rtc_device_register(pcf8563_driver.driver.name, &client->dev,
-				&pcf8563_rtc_ops, THIS_MODULE);
+	pcf8563->rtc = rtc_device_register(pcf8563_driver.driver.name,
+				&client->dev, &pcf8563_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(rtc)) {
-		err = PTR_ERR(rtc);
-		goto exit_detach;
+	if (IS_ERR(pcf8563->rtc)) {
+		err = PTR_ERR(pcf8563->rtc);
+		goto exit_kfree;
 	}
 
-	i2c_set_clientdata(client, rtc);
+	i2c_set_clientdata(client, pcf8563);
 
 	return 0;
-
-exit_detach:
-	i2c_detach_client(client);
 
 exit_kfree:
 	kfree(pcf8563);
 
-exit:
 	return err;
 }
 
-static int pcf8563_detach(struct i2c_client *client)
+static int pcf8563_remove(struct i2c_client *client)
 {
-	struct pcf8563 *pcf8563 = container_of(client, struct pcf8563, client);
-	int err;
-	struct rtc_device *rtc = i2c_get_clientdata(client);
+	struct pcf8563 *pcf8563 = i2c_get_clientdata(client);
 
-	if (rtc)
-		rtc_device_unregister(rtc);
-
-	if ((err = i2c_detach_client(client)))
-		return err;
+	if (pcf8563->rtc)
+		rtc_device_unregister(pcf8563->rtc);
 
 	kfree(pcf8563);
 
 	return 0;
 }
+
+static struct i2c_driver pcf8563_driver = {
+	.driver		= {
+		.name	= "rtc-pcf8563",
+	},
+	.probe		= pcf8563_probe,
+	.remove		= pcf8563_remove,
+};
 
 static int __init pcf8563_init(void)
 {
