@@ -332,7 +332,7 @@ static int __init insert_device(struct pnp_bios_node *node)
 	if (!dev)
 		return -1;
 
-	pnpid32_to_pnpid(node->eisa_id, id);
+	pnp_eisa_id_to_string(node->eisa_id & PNP_EISA_ID_MASK, id);
 	dev_id = pnp_add_id(dev, id);
 	if (!dev_id) {
 		kfree(dev);

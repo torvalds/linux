@@ -25,3 +25,29 @@ int pnp_is_active(struct pnp_dev *dev)
 }
 
 EXPORT_SYMBOL(pnp_is_active);
+
+/*
+ * Functionally similar to acpi_ex_eisa_id_to_string(), but that's
+ * buried in the ACPI CA, and we can't depend on it being present.
+ */
+void pnp_eisa_id_to_string(u32 id, char *str)
+{
+	id = be32_to_cpu(id);
+
+	/*
+	 * According to the specs, the first three characters are five-bit
+	 * compressed ASCII, and the left-over high order bit should be zero.
+	 * However, the Linux ISAPNP code historically used six bits for the
+	 * first character, and there seem to be IDs that depend on that,
+	 * e.g., "nEC8241" in the Linux 8250_pnp serial driver and the
+	 * FreeBSD sys/pc98/cbus/sio_cbus.c driver.
+	 */
+	str[0] = 'A' + ((id >> 26) & 0x3f) - 1;
+	str[1] = 'A' + ((id >> 21) & 0x1f) - 1;
+	str[2] = 'A' + ((id >> 16) & 0x1f) - 1;
+	str[3] = hex_asc((id >> 12) & 0xf);
+	str[4] = hex_asc((id >>  8) & 0xf);
+	str[5] = hex_asc((id >>  4) & 0xf);
+	str[6] = hex_asc((id >>  0) & 0xf);
+	str[7] = '\0';
+}

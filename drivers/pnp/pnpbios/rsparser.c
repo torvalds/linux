@@ -494,32 +494,12 @@ len_err:
  * Compatible Device IDs
  */
 
-#define HEX(id,a) hex[((id)>>a) & 15]
-#define CHAR(id,a) (0x40 + (((id)>>a) & 31))
-
-void pnpid32_to_pnpid(u32 id, char *str)
-{
-	const char *hex = "0123456789abcdef";
-
-	id = be32_to_cpu(id);
-	str[0] = CHAR(id, 26);
-	str[1] = CHAR(id, 21);
-	str[2] = CHAR(id, 16);
-	str[3] = HEX(id, 12);
-	str[4] = HEX(id, 8);
-	str[5] = HEX(id, 4);
-	str[6] = HEX(id, 0);
-	str[7] = '\0';
-}
-
-#undef CHAR
-#undef HEX
-
 static unsigned char *pnpbios_parse_compatible_ids(unsigned char *p,
 						   unsigned char *end,
 						   struct pnp_dev *dev)
 {
 	int len, tag;
+	u32 eisa_id;
 	char id[8];
 	struct pnp_id *dev_id;
 
@@ -549,8 +529,8 @@ static unsigned char *pnpbios_parse_compatible_ids(unsigned char *p,
 		case SMALL_TAG_COMPATDEVID:	/* compatible ID */
 			if (len != 4)
 				goto len_err;
-			pnpid32_to_pnpid(p[1] | p[2] << 8 | p[3] << 16 | p[4] <<
-					 24, id);
+			eisa_id = p[1] | p[2] << 8 | p[3] << 16 | p[4] << 24;
+			pnp_eisa_id_to_string(eisa_id & PNP_EISA_ID_MASK, id);
 			dev_id = pnp_add_id(dev, id);
 			if (!dev_id)
 				return NULL;
