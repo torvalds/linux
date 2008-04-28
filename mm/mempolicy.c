@@ -645,11 +645,9 @@ static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
 		*nodes = p->v.nodes;
 		break;
 	case MPOL_PREFERRED:
-		/* or use current node instead of memory_map? */
-		if (p->v.preferred_node < 0)
-			*nodes = node_states[N_HIGH_MEMORY];
-		else
+		if (p->v.preferred_node >= 0)
 			node_set(p->v.preferred_node, *nodes);
+		/* else return empty node mask for local allocation */
 		break;
 	default:
 		BUG();
@@ -804,7 +802,7 @@ int do_migrate_pages(struct mm_struct *mm,
 	int err = 0;
 	nodemask_t tmp;
 
-  	down_read(&mm->mmap_sem);
+	down_read(&mm->mmap_sem);
 
 	err = migrate_vmas(mm, from_nodes, to_nodes, flags);
 	if (err)
@@ -1948,10 +1946,12 @@ void numa_default_policy(void)
 }
 
 /*
- * Display pages allocated per node and memory policy via /proc.
+ * "local" is pseudo-policy:  MPOL_PREFERRED with preferred_node == -1
+ * Used only for mpol_to_str()
  */
+#define MPOL_LOCAL (MPOL_INTERLEAVE + 1)
 static const char * const policy_types[] =
-	{ "default", "prefer", "bind", "interleave" };
+	{ "default", "prefer", "bind", "interleave", "local" };
 
 /*
  * Convert a mempolicy into a string.
@@ -1962,6 +1962,7 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 {
 	char *p = buffer;
 	int l;
+	int nid;
 	nodemask_t nodes;
 	unsigned short mode;
 	unsigned short flags = pol ? pol->flags : 0;
@@ -1978,7 +1979,11 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 
 	case MPOL_PREFERRED:
 		nodes_clear(nodes);
-		node_set(pol->v.preferred_node, nodes);
+		nid = pol->v.preferred_node;
+		if (nid < 0)
+			mode = MPOL_LOCAL;	/* pseudo-policy */
+		else
+			node_set(nid, nodes);
 		break;
 
 	case MPOL_BIND:
@@ -1993,8 +1998,8 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 	}
 
 	l = strlen(policy_types[mode]);
- 	if (buffer + maxlen < p + l + 1)
- 		return -ENOSPC;
+	if (buffer + maxlen < p + l + 1)
+		return -ENOSPC;
 
 	strcpy(p, policy_types[mode]);
 	p += l;
@@ -2093,6 +2098,9 @@ static inline void check_huge_range(struct vm_area_struct *vma,
 }
 #endif
 
+/*
+ * Display pages allocated per node and memory policy via /proc.
+ */
 int show_numa_map(struct seq_file *m, void *v)
 {
 	struct proc_maps_private *priv = m->private;
