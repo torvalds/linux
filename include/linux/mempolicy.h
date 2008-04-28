@@ -8,6 +8,12 @@
  * Copyright 2003,2004 Andi Kleen SuSE Labs
  */
 
+/*
+ * Both the MPOL_* mempolicy mode and the MPOL_F_* optional mode flags are
+ * passed by the user to either set_mempolicy() or mbind() in an 'int' actual.
+ * The MPOL_MODE_FLAGS macro determines the legal set of optional mode flags.
+ */
+
 /* Policies */
 enum {
 	MPOL_DEFAULT,
@@ -17,7 +23,14 @@ enum {
 	MPOL_MAX,	/* always last member of enum */
 };
 
-/* Flags for get_mem_policy */
+/* Flags for set_mempolicy */
+/*
+ * MPOL_MODE_FLAGS is the union of all possible optional mode flags passed to
+ * either set_mempolicy() or mbind().
+ */
+#define MPOL_MODE_FLAGS	(0)
+
+/* Flags for get_mempolicy */
 #define MPOL_F_NODE	(1<<0)	/* return next IL mode instead of node mask */
 #define MPOL_F_ADDR	(1<<1)	/* look up vma using address */
 #define MPOL_F_MEMS_ALLOWED (1<<2) /* return allowed memories */
@@ -66,6 +79,7 @@ struct mm_struct;
 struct mempolicy {
 	atomic_t refcnt;
 	unsigned short policy; 	/* See MPOL_* above */
+	unsigned short flags;	/* See set_mempolicy() MPOL_F_* above */
 	union {
 		short 		 preferred_node; /* preferred */
 		nodemask_t	 nodes;		/* interleave/bind */
@@ -136,7 +150,7 @@ struct shared_policy {
 };
 
 void mpol_shared_policy_init(struct shared_policy *info, unsigned short policy,
-				nodemask_t *nodes);
+				unsigned short flags, nodemask_t *nodes);
 int mpol_set_shared_policy(struct shared_policy *info,
 				struct vm_area_struct *vma,
 				struct mempolicy *new);
@@ -203,7 +217,7 @@ static inline int mpol_set_shared_policy(struct shared_policy *info,
 }
 
 static inline void mpol_shared_policy_init(struct shared_policy *info,
-				unsigned short policy, nodemask_t *nodes)
+		unsigned short policy, unsigned short flags, nodemask_t *nodes)
 {
 }
 

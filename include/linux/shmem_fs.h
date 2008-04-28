@@ -35,6 +35,7 @@ struct shmem_sb_info {
 	gid_t gid;		    /* Mount gid for root directory */
 	mode_t mode;		    /* Mount mode for root directory */
 	unsigned short policy;	    /* Default NUMA memory alloc policy */
+	unsigned short flags;	    /* Optional mempolicy flags */
 	nodemask_t policy_nodes;    /* nodemask for preferred and bind */
 };
 

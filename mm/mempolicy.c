@@ -187,12 +187,13 @@ static int is_valid_nodemask(nodemask_t *nodemask)
 }
 
 /* Create a new policy */
-static struct mempolicy *mpol_new(unsigned short mode, nodemask_t *nodes)
+static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
+				  nodemask_t *nodes)
 {
 	struct mempolicy *policy;
 
-	pr_debug("setting mode %d nodes[0] %lx\n",
-		 mode, nodes ? nodes_addr(*nodes)[0] : -1);
+	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
+		 mode, flags, nodes ? nodes_addr(*nodes)[0] : -1);
 
 	if (mode == MPOL_DEFAULT)
 		return NULL;
@@ -224,6 +225,7 @@ static struct mempolicy *mpol_new(unsigned short mode, nodemask_t *nodes)
 		BUG();
 	}
 	policy->policy = mode;
+	policy->flags = flags;
 	policy->cpuset_mems_allowed = cpuset_mems_allowed(current);
 	return policy;
 }
@@ -466,13 +468,14 @@ static void mpol_set_task_struct_flag(void)
 }
 
 /* Set the process memory policy */
-static long do_set_mempolicy(unsigned short mode, nodemask_t *nodes)
+static long do_set_mempolicy(unsigned short mode, unsigned short flags,
+			     nodemask_t *nodes)
 {
 	struct mempolicy *new;
 
 	if (mpol_check_policy(mode, nodes))
 		return -EINVAL;
-	new = mpol_new(mode, nodes);
+	new = mpol_new(mode, flags, nodes);
 	if (IS_ERR(new))
 		return PTR_ERR(new);
 	mpol_free(current->mempolicy);
@@ -573,7 +576,7 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 			goto out;
 		}
 	} else
-		*policy = pol->policy;
+		*policy = pol->policy | pol->flags;
 
 	if (vma) {
 		up_read(&current->mm->mmap_sem);
@@ -763,8 +766,8 @@ static struct page *new_vma_page(struct page *page, unsigned long private, int *
 #endif
 
 static long do_mbind(unsigned long start, unsigned long len,
-		     unsigned short mode, nodemask_t *nmask,
-		     unsigned long flags)
+		     unsigned short mode, unsigned short mode_flags,
+		     nodemask_t *nmask, unsigned long flags)
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
@@ -796,7 +799,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 	if (mpol_check_policy(mode, nmask))
 		return -EINVAL;
 
-	new = mpol_new(mode, nmask);
+	new = mpol_new(mode, mode_flags, nmask);
 	if (IS_ERR(new))
 		return PTR_ERR(new);
 
@@ -807,8 +810,9 @@ static long do_mbind(unsigned long start, unsigned long len,
 	if (!new)
 		flags |= MPOL_MF_DISCONTIG_OK;
 
-	pr_debug("mbind %lx-%lx mode:%d nodes:%lx\n", start, start + len,
-		 mode, nmask ? nodes_addr(*nmask)[0] : -1);
+	pr_debug("mbind %lx-%lx mode:%d flags:%d nodes:%lx\n",
+		 start, start + len, mode, mode_flags,
+		 nmask ? nodes_addr(*nmask)[0] : -1);
 
 	down_write(&mm->mmap_sem);
 	vma = check_range(mm, start, end, nmask,
@@ -907,13 +911,16 @@ asmlinkage long sys_mbind(unsigned long start, unsigned long len,
 {
 	nodemask_t nodes;
 	int err;
+	unsigned short mode_flags;
 
+	mode_flags = mode & MPOL_MODE_FLAGS;
+	mode &= ~MPOL_MODE_FLAGS;
 	if (mode >= MPOL_MAX)
 		return -EINVAL;
 	err = get_nodes(&nodes, nmask, maxnode);
 	if (err)
 		return err;
-	return do_mbind(start, len, mode, &nodes, flags);
+	return do_mbind(start, len, mode, mode_flags, &nodes, flags);
 }
 
 /* Set the process memory policy */
@@ -922,13 +929,16 @@ asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
 {
 	int err;
 	nodemask_t nodes;
+	unsigned short flags;
 
-	if (mode < 0 || mode >= MPOL_MAX)
+	flags = mode & MPOL_MODE_FLAGS;
+	mode &= ~MPOL_MODE_FLAGS;
+	if ((unsigned int)mode >= MPOL_MAX)
 		return -EINVAL;
 	err = get_nodes(&nodes, nmask, maxnode);
 	if (err)
 		return err;
-	return do_set_mempolicy(mode, &nodes);
+	return do_set_mempolicy(mode, flags, &nodes);
 }
 
 asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
@@ -1641,7 +1651,7 @@ restart:
 }
 
 void mpol_shared_policy_init(struct shared_policy *info, unsigned short policy,
-				nodemask_t *policy_nodes)
+			unsigned short flags, nodemask_t *policy_nodes)
 {
 	info->root = RB_ROOT;
 	spin_lock_init(&info->lock);
@@ -1650,7 +1660,7 @@ void mpol_shared_policy_init(struct shared_policy *info, unsigned short policy,
 		struct mempolicy *newpol;
 
 		/* Falls back to MPOL_DEFAULT on any error */
-		newpol = mpol_new(policy, policy_nodes);
+		newpol = mpol_new(policy, flags, policy_nodes);
 		if (!IS_ERR(newpol)) {
 			/* Create pseudo-vma that contains just the policy */
 			struct vm_area_struct pvma;
@@ -1671,9 +1681,10 @@ int mpol_set_shared_policy(struct shared_policy *info,
 	struct sp_node *new = NULL;
 	unsigned long sz = vma_pages(vma);
 
-	pr_debug("set_shared_policy %lx sz %lu %d %lx\n",
+	pr_debug("set_shared_policy %lx sz %lu %d %d %lx\n",
 		 vma->vm_pgoff,
-		 sz, npol? npol->policy : -1,
+		 sz, npol ? npol->policy : -1,
+		 npol ? npol->flags : -1,
 		 npol ? nodes_addr(npol->v.nodes)[0] : -1);
 
 	if (npol) {
@@ -1746,14 +1757,14 @@ void __init numa_policy_init(void)
 	if (unlikely(nodes_empty(interleave_nodes)))
 		node_set(prefer, interleave_nodes);
 
-	if (do_set_mempolicy(MPOL_INTERLEAVE, &interleave_nodes))
+	if (do_set_mempolicy(MPOL_INTERLEAVE, 0, &interleave_nodes))
 		printk("numa_policy_init: interleaving failed\n");
 }
 
 /* Reset policy of current process to default */
 void numa_default_policy(void)
 {
-	do_set_mempolicy(MPOL_DEFAULT, NULL);
+	do_set_mempolicy(MPOL_DEFAULT, 0, NULL);
 }
 
 /* Migrate a policy to a different set of nodes */

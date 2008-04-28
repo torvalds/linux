@@ -1080,9 +1080,10 @@ redirty:
 #ifdef CONFIG_NUMA
 #ifdef CONFIG_TMPFS
 static int shmem_parse_mpol(char *value, unsigned short *policy,
-			    nodemask_t *policy_nodes)
+			unsigned short *mode_flags, nodemask_t *policy_nodes)
 {
 	char *nodelist = strchr(value, ':');
+	char *flags = strchr(value, '=');
 	int err = 1;
 
 	if (nodelist) {
@@ -1093,6 +1094,8 @@ static int shmem_parse_mpol(char *value, unsigned short *policy,
 		if (!nodes_subset(*policy_nodes, node_states[N_HIGH_MEMORY]))
 			goto out;
 	}
+	if (flags)
+		*flags++ = '\0';
 	if (!strcmp(value, "default")) {
 		*policy = MPOL_DEFAULT;
 		/* Don't allow a nodelist */
@@ -1122,6 +1125,8 @@ static int shmem_parse_mpol(char *value, unsigned short *policy,
 			*policy_nodes = node_states[N_HIGH_MEMORY];
 		err = 0;
 	}
+	if (flags) {
+	}
 out:
 	/* Restore string for error message */
 	if (nodelist)
@@ -1130,7 +1135,7 @@ out:
 }
 
 static void shmem_show_mpol(struct seq_file *seq, unsigned short policy,
-			    const nodemask_t policy_nodes)
+			unsigned short flags, const nodemask_t policy_nodes)
 {
 	char *policy_string;
 
@@ -1199,13 +1204,13 @@ static struct page *shmem_alloc_page(gfp_t gfp,
 #else /* !CONFIG_NUMA */
 #ifdef CONFIG_TMPFS
 static inline int shmem_parse_mpol(char *value, unsigned short *policy,
-						nodemask_t *policy_nodes)
+			unsigned short *mode_flags, nodemask_t *policy_nodes)
 {
 	return 1;
 }
 
 static inline void shmem_show_mpol(struct seq_file *seq, unsigned short policy,
-			    const nodemask_t policy_nodes)
+			unsigned short flags, const nodemask_t policy_nodes)
 {
 }
 #endif /* CONFIG_TMPFS */
@@ -1578,7 +1583,7 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
 			inode->i_op = &shmem_inode_operations;
 			inode->i_fop = &shmem_file_operations;
 			mpol_shared_policy_init(&info->policy, sbinfo->policy,
-							&sbinfo->policy_nodes);
+					sbinfo->flags, &sbinfo->policy_nodes);
 			break;
 		case S_IFDIR:
 			inc_nlink(inode);
@@ -1592,7 +1597,7 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
 			 * Must not load anything in the rbtree,
 			 * mpol_free_shared_policy will not be called.
 			 */
-			mpol_shared_policy_init(&info->policy, MPOL_DEFAULT,
+			mpol_shared_policy_init(&info->policy, MPOL_DEFAULT, 0,
 						NULL);
 			break;
 		}
@@ -2209,7 +2214,7 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
 				goto bad_val;
 		} else if (!strcmp(this_char,"mpol")) {
 			if (shmem_parse_mpol(value, &sbinfo->policy,
-					     &sbinfo->policy_nodes))
+				&sbinfo->flags, &sbinfo->policy_nodes))
 				goto bad_val;
 		} else {
 			printk(KERN_ERR "tmpfs: Bad mount option %s\n",
@@ -2261,6 +2266,7 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
 	sbinfo->max_inodes  = config.max_inodes;
 	sbinfo->free_inodes = config.max_inodes - inodes;
 	sbinfo->policy      = config.policy;
+	sbinfo->flags	    = config.flags;
 	sbinfo->policy_nodes = config.policy_nodes;
 out:
 	spin_unlock(&sbinfo->stat_lock);
@@ -2282,7 +2288,8 @@ static int shmem_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_printf(seq, ",uid=%u", sbinfo->uid);
 	if (sbinfo->gid != 0)
 		seq_printf(seq, ",gid=%u", sbinfo->gid);
-	shmem_show_mpol(seq, sbinfo->policy, sbinfo->policy_nodes);
+	shmem_show_mpol(seq, sbinfo->policy, sbinfo->flags,
+			sbinfo->policy_nodes);
 	return 0;
 }
 #endif /* CONFIG_TMPFS */
@@ -2313,6 +2320,7 @@ static int shmem_fill_super(struct super_block *sb,
 	sbinfo->uid = current->fsuid;
 	sbinfo->gid = current->fsgid;
 	sbinfo->policy = MPOL_DEFAULT;
+	sbinfo->flags = 0;
 	sbinfo->policy_nodes = node_states[N_HIGH_MEMORY];
 	sb->s_fs_info = sbinfo;
 
