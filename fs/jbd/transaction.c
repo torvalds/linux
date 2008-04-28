@@ -1235,6 +1235,7 @@ int journal_forget (handle_t *handle, struct buffer_head *bh)
 	struct journal_head *jh;
 	int drop_reserve = 0;
 	int err = 0;
+	int was_modified = 0;
 
 	BUFFER_TRACE(bh, "entry");
 
@@ -1253,6 +1254,9 @@ int journal_forget (handle_t *handle, struct buffer_head *bh)
 		goto not_jbd;
 	}
 
+	/* keep track of wether or not this transaction modified us */
+	was_modified = jh->b_modified;
+
 	/*
 	 * The buffer's going from the transaction, we must drop
 	 * all references -bzzz
@@ -1270,7 +1274,12 @@ int journal_forget (handle_t *handle, struct buffer_head *bh)
 
 		JBUFFER_TRACE(jh, "belongs to current transaction: unfile");
 
-		drop_reserve = 1;
+		/*
+		 * we only want to drop a reference if this transaction
+		 * modified the buffer
+		 */
+		if (was_modified)
+			drop_reserve = 1;
 
 		/*
 		 * We are no longer going to journal this buffer.
@@ -1310,7 +1319,13 @@ int journal_forget (handle_t *handle, struct buffer_head *bh)
 		if (jh->b_next_transaction) {
 			J_ASSERT(jh->b_next_transaction == transaction);
 			jh->b_next_transaction = NULL;
-			drop_reserve = 1;
+
+			/*
+			 * only drop a reference if this transaction modified
+			 * the buffer
+			 */
+			if (was_modified)
+				drop_reserve = 1;
 		}
 	}
 
@@ -2082,7 +2097,7 @@ void __journal_refile_buffer(struct journal_head *jh)
 	jh->b_transaction = jh->b_next_transaction;
 	jh->b_next_transaction = NULL;
 	__journal_file_buffer(jh, jh->b_transaction,
-				was_dirty ? BJ_Metadata : BJ_Reserved);
+				jh->b_modified ? BJ_Metadata : BJ_Reserved);
 	J_ASSERT_JH(jh, jh->b_transaction->t_state == T_RUNNING);
 
 	if (was_dirty)

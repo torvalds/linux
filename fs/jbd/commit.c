@@ -472,6 +472,9 @@ void journal_commit_transaction(journal_t *journal)
 	 */
 	commit_transaction->t_state = T_COMMIT;
 
+	J_ASSERT(commit_transaction->t_nr_buffers <=
+		 commit_transaction->t_outstanding_credits);
+
 	descriptor = NULL;
 	bufs = 0;
 	while (commit_transaction->t_buffers) {
