@@ -7,7 +7,7 @@
  * Copyright (C) 2001, 2002 Paul Mundt
  * Copyright (C) 2002 MontaVista Software, Inc.
  * Copyright (C) 2002 TimeSys Corp.
- * Copyright (C) 2003-2005 Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ * Copyright (C) 2003-2008 Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -142,5 +142,11 @@ extern void vr41xx_disable_csiint(uint16_t mask);
 
 extern void vr41xx_enable_bcuint(void);
 extern void vr41xx_disable_bcuint(void);
+
+#ifdef CONFIG_SERIAL_VR41XX_CONSOLE
+extern void vr41xx_siu_setup(void);
+#else
+static inline void vr41xx_siu_setup(void) {}
+#endif
 
 #endif /* __NEC_VR41XX_H */

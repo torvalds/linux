@@ -1,7 +1,7 @@
 /*
  *  NEC VR4100 series SIU platform device.
  *
- *  Copyright (C) 2007  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2007-2008  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -118,3 +118,37 @@ err_free_device:
 	return retval;
 }
 device_initcall(vr41xx_siu_add);
+
+void __init vr41xx_siu_setup(void)
+{
+	struct uart_port port;
+	struct resource *res;
+	unsigned int *type;
+	int i;
+
+	switch (current_cpu_type()) {
+	case CPU_VR4111:
+	case CPU_VR4121:
+		type = siu_type1_ports;
+		res = siu_type1_resource;
+		break;
+	case CPU_VR4122:
+	case CPU_VR4131:
+	case CPU_VR4133:
+		type = siu_type2_ports;
+		res = siu_type2_resource;
+		break;
+	default:
+		return;
+	}
+
+	for (i = 0; i < SIU_PORTS_MAX; i++) {
+		port.line = i;
+		port.type = type[i];
+		if (port.type == PORT_UNKNOWN)
+			break;
+		port.mapbase = res[i].start;
+		port.membase = (unsigned char __iomem *)KSEG1ADDR(res[i].start);
+		vr41xx_siu_early_setup(&port);
+	}
+}
