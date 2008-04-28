@@ -905,7 +905,7 @@ rx_int_complete(struct urb *urb)
 	if (status) {
 		printk(KERN_INFO
 		       "HFC-S USB: %s error resubmitting URB fifo(%d)\n",
-		       __FUNCTION__, fifon);
+		       __func__, fifon);
 	}
 }
 
@@ -1543,14 +1543,14 @@ hfc_usb_disconnect(struct usb_interface *intf)
 				stop_isoc_chain(&context->fifos[i]);
 				DBG(HFCUSB_DBG_INIT,
 				    "HFC-S USB: %s stopping ISOC chain Fifo(%i)",
-				    __FUNCTION__, i);
+				    __func__, i);
 			}
 		} else {
 			if (context->fifos[i].active > 0) {
 				context->fifos[i].active = 0;
 				DBG(HFCUSB_DBG_INIT,
 				    "HFC-S USB: %s unlinking URB for Fifo(%i)",
-				    __FUNCTION__, i);
+				    __func__, i);
 			}
 			usb_kill_urb(context->fifos[i].urb);
 			usb_free_urb(context->fifos[i].urb);

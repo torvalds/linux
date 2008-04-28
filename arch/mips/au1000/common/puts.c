@@ -28,7 +28,6 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/types.h>
 #include <asm/mach-au1x00/au1000.h>
 
 #define SERIAL_BASE   UART_BASE

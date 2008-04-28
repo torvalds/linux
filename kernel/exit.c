@@ -967,7 +967,7 @@ NORET_TYPE void do_exit(long code)
 	proc_exit_connector(tsk);
 	exit_notify(tsk, group_dead);
 #ifdef CONFIG_NUMA
-	mpol_free(tsk->mempolicy);
+	mpol_put(tsk->mempolicy);
 	tsk->mempolicy = NULL;
 #endif
 #ifdef CONFIG_FUTEX

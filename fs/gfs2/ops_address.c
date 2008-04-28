@@ -438,7 +438,7 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	int error;
 
 	/*
-	 * Due to the order of unstuffing files and ->nopage(), we can be
+	 * Due to the order of unstuffing files and ->fault(), we can be
 	 * asked for a zero page in the case of a stuffed file being extended,
 	 * so we need to supply one here. It doesn't happen often.
 	 */

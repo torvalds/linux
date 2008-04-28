@@ -310,7 +310,7 @@ static int __devinit p9100_probe(struct of_device *op, const struct of_device_id
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk("%s: p9100 at %lx:%lx\n",
+	printk(KERN_INFO "%s: p9100 at %lx:%lx\n",
 	       dp->full_name,
 	       par->which_io, par->physbase);
 

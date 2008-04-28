@@ -63,6 +63,7 @@
 #define STRIPE_SHIFT		(PAGE_SHIFT - 9)
 #define STRIPE_SECTORS		(STRIPE_SIZE>>9)
 #define	IO_THRESHOLD		1
+#define BYPASS_THRESHOLD	1
 #define NR_HASH			(PAGE_SIZE / sizeof(struct hlist_head))
 #define HASH_MASK		(NR_HASH - 1)
 
@@ -398,6 +399,7 @@ static void ops_run_io(struct stripe_head *sh)
 
 	might_sleep();
 
+	set_bit(STRIPE_IO_STARTED, &sh->state);
 	for (i = disks; i--; ) {
 		int rw;
 		struct bio *bi;
@@ -433,7 +435,7 @@ static void ops_run_io(struct stripe_head *sh)
 
 			bi->bi_bdev = rdev->bdev;
 			pr_debug("%s: for %llu schedule op %ld on disc %d\n",
-				__FUNCTION__, (unsigned long long)sh->sector,
+				__func__, (unsigned long long)sh->sector,
 				bi->bi_rw, i);
 			atomic_inc(&sh->count);
 			bi->bi_sector = sh->sector + rdev->data_offset;
@@ -520,7 +522,7 @@ static void ops_complete_biofill(void *stripe_head_ref)
 	raid5_conf_t *conf = sh->raid_conf;
 	int i;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	/* clear completed biofills */
@@ -569,7 +571,7 @@ static void ops_run_biofill(struct stripe_head *sh)
 	raid5_conf_t *conf = sh->raid_conf;
 	int i;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	for (i = sh->disks; i--; ) {
@@ -600,7 +602,7 @@ static void ops_complete_compute5(void *stripe_head_ref)
 	int target = sh->ops.target;
 	struct r5dev *tgt = &sh->dev[target];
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	set_bit(R5_UPTODATE, &tgt->flags);
@@ -625,7 +627,7 @@ ops_run_compute5(struct stripe_head *sh, unsigned long pending)
 	int i;
 
 	pr_debug("%s: stripe %llu block: %d\n",
-		__FUNCTION__, (unsigned long long)sh->sector, target);
+		__func__, (unsigned long long)sh->sector, target);
 	BUG_ON(!test_bit(R5_Wantcompute, &tgt->flags));
 
 	for (i = disks; i--; )
@@ -653,7 +655,7 @@ static void ops_complete_prexor(void *stripe_head_ref)
 {
 	struct stripe_head *sh = stripe_head_ref;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	set_bit(STRIPE_OP_PREXOR, &sh->ops.complete);
@@ -670,7 +672,7 @@ ops_run_prexor(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 	/* existing parity data subtracted */
 	struct page *xor_dest = xor_srcs[count++] = sh->dev[pd_idx].page;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	for (i = disks; i--; ) {
@@ -699,7 +701,7 @@ ops_run_biodrain(struct stripe_head *sh, struct dma_async_tx_descriptor *tx,
 	 */
 	int prexor = test_bit(STRIPE_OP_PREXOR, &pending);
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	for (i = disks; i--; ) {
@@ -744,7 +746,7 @@ static void ops_complete_postxor(void *stripe_head_ref)
 {
 	struct stripe_head *sh = stripe_head_ref;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	set_bit(STRIPE_OP_POSTXOR, &sh->ops.complete);
@@ -757,7 +759,7 @@ static void ops_complete_write(void *stripe_head_ref)
 	struct stripe_head *sh = stripe_head_ref;
 	int disks = sh->disks, i, pd_idx = sh->pd_idx;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	for (i = disks; i--; ) {
@@ -787,7 +789,7 @@ ops_run_postxor(struct stripe_head *sh, struct dma_async_tx_descriptor *tx,
 	unsigned long flags;
 	dma_async_tx_callback callback;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	/* check if prexor is active which means only process blocks
@@ -837,7 +839,7 @@ static void ops_complete_check(void *stripe_head_ref)
 	struct stripe_head *sh = stripe_head_ref;
 	int pd_idx = sh->pd_idx;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	if (test_and_clear_bit(STRIPE_OP_MOD_DMA_CHECK, &sh->ops.pending) &&
@@ -859,7 +861,7 @@ static void ops_run_check(struct stripe_head *sh)
 	int count = 0, pd_idx = sh->pd_idx, i;
 	struct page *xor_dest = xor_srcs[count++] = sh->dev[pd_idx].page;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	for (i = disks; i--; ) {
@@ -1260,8 +1262,8 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		}
 		set_bit(Faulty, &rdev->flags);
 		printk (KERN_ALERT
-			"raid5: Disk failure on %s, disabling device."
-			" Operation continuing on %d devices\n",
+			"raid5: Disk failure on %s, disabling device.\n"
+			"raid5: Operation continuing on %d devices.\n",
 			bdevname(rdev->bdev,b), conf->raid_disks - mddev->degraded);
 	}
 }
@@ -1720,6 +1722,9 @@ handle_write_operations5(struct stripe_head *sh, int rcw, int expand)
 				locked++;
 			}
 		}
+		if (locked + 1 == disks)
+			if (!test_and_set_bit(STRIPE_FULL_WRITE, &sh->state))
+				atomic_inc(&sh->raid_conf->pending_full_writes);
 	} else {
 		BUG_ON(!(test_bit(R5_UPTODATE, &sh->dev[pd_idx].flags) ||
 			test_bit(R5_Wantcompute, &sh->dev[pd_idx].flags)));
@@ -1759,7 +1764,7 @@ handle_write_operations5(struct stripe_head *sh, int rcw, int expand)
 	locked++;
 
 	pr_debug("%s: stripe %llu locked: %d pending: %lx\n",
-		__FUNCTION__, (unsigned long long)sh->sector,
+		__func__, (unsigned long long)sh->sector,
 		locked, sh->ops.pending);
 
 	return locked;
@@ -1947,6 +1952,9 @@ handle_requests_to_failed_array(raid5_conf_t *conf, struct stripe_head *sh,
 					STRIPE_SECTORS, 0, 0);
 	}
 
+	if (test_and_clear_bit(STRIPE_FULL_WRITE, &sh->state))
+		if (atomic_dec_and_test(&conf->pending_full_writes))
+			md_wakeup_thread(conf->mddev->thread);
 }
 
 /* __handle_issuing_new_read_requests5 - returns 0 if there are no more disks
@@ -2149,6 +2157,10 @@ static void handle_completed_write_requests(raid5_conf_t *conf,
 							0);
 			}
 		}
+
+	if (test_and_clear_bit(STRIPE_FULL_WRITE, &sh->state))
+		if (atomic_dec_and_test(&conf->pending_full_writes))
+			md_wakeup_thread(conf->mddev->thread);
 }
 
 static void handle_issuing_new_write_requests5(raid5_conf_t *conf,
@@ -2333,6 +2345,9 @@ static void handle_issuing_new_write_requests6(raid5_conf_t *conf,
 				s->locked++;
 				set_bit(R5_Wantwrite, &sh->dev[i].flags);
 			}
+		if (s->locked == disks)
+			if (!test_and_set_bit(STRIPE_FULL_WRITE, &sh->state))
+				atomic_inc(&conf->pending_full_writes);
 		/* after a RECONSTRUCT_WRITE, the stripe MUST be in-sync */
 		set_bit(STRIPE_INSYNC, &sh->state);
 
@@ -3094,6 +3109,8 @@ static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 		else
 			continue;
 
+		set_bit(STRIPE_IO_STARTED, &sh->state);
+
 		bi = &sh->dev[i].req;
 
 		bi->bi_rw = rw;
@@ -3164,7 +3181,7 @@ static void raid5_activate_delayed(raid5_conf_t *conf)
 			clear_bit(STRIPE_DELAYED, &sh->state);
 			if (!test_and_set_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
 				atomic_inc(&conf->preread_active_stripes);
-			list_add_tail(&sh->lru, &conf->handle_list);
+			list_add_tail(&sh->lru, &conf->hold_list);
 		}
 	} else
 		blk_plug_device(conf->mddev->queue);
@@ -3442,6 +3459,58 @@ static int chunk_aligned_read(struct request_queue *q, struct bio * raid_bio)
 	}
 }
 
+/* __get_priority_stripe - get the next stripe to process
+ *
+ * Full stripe writes are allowed to pass preread active stripes up until
+ * the bypass_threshold is exceeded.  In general the bypass_count
+ * increments when the handle_list is handled before the hold_list; however, it
+ * will not be incremented when STRIPE_IO_STARTED is sampled set signifying a
+ * stripe with in flight i/o.  The bypass_count will be reset when the
+ * head of the hold_list has changed, i.e. the head was promoted to the
+ * handle_list.
+ */
+static struct stripe_head *__get_priority_stripe(raid5_conf_t *conf)
+{
+	struct stripe_head *sh;
+
+	pr_debug("%s: handle: %s hold: %s full_writes: %d bypass_count: %d\n",
+		  __func__,
+		  list_empty(&conf->handle_list) ? "empty" : "busy",
+		  list_empty(&conf->hold_list) ? "empty" : "busy",
+		  atomic_read(&conf->pending_full_writes), conf->bypass_count);
+
+	if (!list_empty(&conf->handle_list)) {
+		sh = list_entry(conf->handle_list.next, typeof(*sh), lru);
+
+		if (list_empty(&conf->hold_list))
+			conf->bypass_count = 0;
+		else if (!test_bit(STRIPE_IO_STARTED, &sh->state)) {
+			if (conf->hold_list.next == conf->last_hold)
+				conf->bypass_count++;
+			else {
+				conf->last_hold = conf->hold_list.next;
+				conf->bypass_count -= conf->bypass_threshold;
+				if (conf->bypass_count < 0)
+					conf->bypass_count = 0;
+			}
+		}
+	} else if (!list_empty(&conf->hold_list) &&
+		   ((conf->bypass_threshold &&
+		     conf->bypass_count > conf->bypass_threshold) ||
+		    atomic_read(&conf->pending_full_writes) == 0)) {
+		sh = list_entry(conf->hold_list.next,
+				typeof(*sh), lru);
+		conf->bypass_count -= conf->bypass_threshold;
+		if (conf->bypass_count < 0)
+			conf->bypass_count = 0;
+	} else
+		return NULL;
+
+	list_del_init(&sh->lru);
+	atomic_inc(&sh->count);
+	BUG_ON(atomic_read(&sh->count) != 1);
+	return sh;
+}
 
 static int make_request(struct request_queue *q, struct bio * bi)
 {
@@ -3914,7 +3983,6 @@ static void raid5d(mddev_t *mddev)
 	handled = 0;
 	spin_lock_irq(&conf->device_lock);
 	while (1) {
-		struct list_head *first;
 		struct bio *bio;
 
 		if (conf->seq_flush != conf->seq_write) {
@@ -3936,17 +4004,12 @@ static void raid5d(mddev_t *mddev)
 			handled++;
 		}
 
-		if (list_empty(&conf->handle_list)) {
+		sh = __get_priority_stripe(conf);
+
+		if (!sh) {
 			async_tx_issue_pending_all();
 			break;
 		}
-
-		first = conf->handle_list.next;
-		sh = list_entry(first, struct stripe_head, lru);
-
-		list_del_init(first);
-		atomic_inc(&sh->count);
-		BUG_ON(atomic_read(&sh->count)!= 1);
 		spin_unlock_irq(&conf->device_lock);
 		
 		handled++;
@@ -3978,15 +4041,13 @@ static ssize_t
 raid5_store_stripe_cache_size(mddev_t *mddev, const char *page, size_t len)
 {
 	raid5_conf_t *conf = mddev_to_conf(mddev);
-	char *end;
-	int new;
+	unsigned long new;
 	if (len >= PAGE_SIZE)
 		return -EINVAL;
 	if (!conf)
 		return -ENODEV;
 
-	new = simple_strtoul(page, &end, 10);
-	if (!*page || (*end && *end != '\n') )
+	if (strict_strtoul(page, 10, &new))
 		return -EINVAL;
 	if (new <= 16 || new > 32768)
 		return -EINVAL;
@@ -4011,6 +4072,40 @@ raid5_stripecache_size = __ATTR(stripe_cache_size, S_IRUGO | S_IWUSR,
 				raid5_store_stripe_cache_size);
 
 static ssize_t
+raid5_show_preread_threshold(mddev_t *mddev, char *page)
+{
+	raid5_conf_t *conf = mddev_to_conf(mddev);
+	if (conf)
+		return sprintf(page, "%d\n", conf->bypass_threshold);
+	else
+		return 0;
+}
+
+static ssize_t
+raid5_store_preread_threshold(mddev_t *mddev, const char *page, size_t len)
+{
+	raid5_conf_t *conf = mddev_to_conf(mddev);
+	unsigned long new;
+	if (len >= PAGE_SIZE)
+		return -EINVAL;
+	if (!conf)
+		return -ENODEV;
+
+	if (strict_strtoul(page, 10, &new))
+		return -EINVAL;
+	if (new > conf->max_nr_stripes)
+		return -EINVAL;
+	conf->bypass_threshold = new;
+	return len;
+}
+
+static struct md_sysfs_entry
+raid5_preread_bypass_threshold = __ATTR(preread_bypass_threshold,
+					S_IRUGO | S_IWUSR,
+					raid5_show_preread_threshold,
+					raid5_store_preread_threshold);
+
+static ssize_t
 stripe_cache_active_show(mddev_t *mddev, char *page)
 {
 	raid5_conf_t *conf = mddev_to_conf(mddev);
@@ -4026,6 +4121,7 @@ raid5_stripecache_active = __ATTR_RO(stripe_cache_active);
 static struct attribute *raid5_attrs[] =  {
 	&raid5_stripecache_size.attr,
 	&raid5_stripecache_active.attr,
+	&raid5_preread_bypass_threshold.attr,
 	NULL,
 };
 static struct attribute_group raid5_attrs_group = {
@@ -4130,12 +4226,14 @@ static int run(mddev_t *mddev)
 	init_waitqueue_head(&conf->wait_for_stripe);
 	init_waitqueue_head(&conf->wait_for_overlap);
 	INIT_LIST_HEAD(&conf->handle_list);
+	INIT_LIST_HEAD(&conf->hold_list);
 	INIT_LIST_HEAD(&conf->delayed_list);
 	INIT_LIST_HEAD(&conf->bitmap_list);
 	INIT_LIST_HEAD(&conf->inactive_list);
 	atomic_set(&conf->active_stripes, 0);
 	atomic_set(&conf->preread_active_stripes, 0);
 	atomic_set(&conf->active_aligned_reads, 0);
+	conf->bypass_threshold = BYPASS_THRESHOLD;
 
 	pr_debug("raid5: run(%s) called.\n", mdname(mddev));
 

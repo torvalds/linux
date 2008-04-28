@@ -1,9 +1,5 @@
-# $Id: config.in,v 1.158 2002/01/24 22:14:44 davem Exp $
-# For a description of the syntax of this configuration file,
-# see the Configure script.
-#
-
-mainmenu "Linux/UltraSPARC Kernel Configuration"
+# sparc64 configuration
+mainmenu "Linux Kernel Configuration for 64-bit SPARC"
 
 config SPARC
 	bool
@@ -17,12 +13,6 @@ config SPARC64
 	default y
 	select HAVE_IDE
 	select HAVE_LMB
-	help
-	  SPARC is a family of RISC microprocessors designed and marketed by
-	  Sun Microsystems, incorporated.  This port covers the newer 64-bit
-	  UltraSPARC.  The UltraLinux project maintains both the SPARC32 and
-	  SPARC64 ports; its web page is available at
-	  <http://www.ultralinux.org/>.
 
 config GENERIC_TIME
 	bool
@@ -97,7 +87,7 @@ config SPARC64_PAGE_SIZE_8KB
 	help
 	  This lets you select the page size of the kernel.
 
-	  8KB and 64KB work quite well, since Sparc ELF sections
+	  8KB and 64KB work quite well, since SPARC ELF sections
 	  provide for up to 64KB alignment.
 
 	  Therefore, 512KB and 4MB are for expert hackers only.
@@ -138,7 +128,7 @@ config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
 	depends on SMP
 	select HOTPLUG
-	---help---
+	help
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
@@ -155,23 +145,16 @@ source "kernel/time/Kconfig"
 
 config SMP
 	bool "Symmetric multi-processing support"
-	---help---
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more than
 	  one CPU, say Y.
 
 	  If you say N here, the kernel will run on single and multiprocessor
 	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
-	  singleprocessor machines. On a singleprocessor machine, the kernel
-	  will run faster if you say N here.
-
-	  People using multiprocessor machines who say Y here should also say
-	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
-	  Management" code will be disabled if you say Y here.
-
-	  See also <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO
-	  available at <http://www.tldp.org/docs.html#howto>.
+	  you say Y here, the kernel will run on single-processor machines.
+	  On a single-processor machine, the kernel will run faster if you say
+	  N here.
 
 	  If you don't know what to do here, say N.
 
@@ -284,50 +267,19 @@ source "mm/Kconfig"
 
 config ISA
 	bool
-	help
-	  Find out whether you have ISA slots on your motherboard.  ISA is the
-	  name of a bus system, i.e. the way the CPU talks to the other stuff
-	  inside your box.  Other bus systems are PCI, EISA, MicroChannel
-	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
-	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
 
 config ISAPNP
 	bool
-	help
-	  Say Y here if you would like support for ISA Plug and Play devices.
-	  Some information is in <file:Documentation/isapnp.txt>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called isapnp.
-
-	  If unsure, say Y.
 
 config EISA
 	bool
-	---help---
-	  The Extended Industry Standard Architecture (EISA) bus was
-	  developed as an open alternative to the IBM MicroChannel bus.
-
-	  The EISA bus provided some of the features of the IBM MicroChannel
-	  bus while maintaining backward compatibility with cards made for
-	  the older ISA bus.  The EISA bus saw limited use between 1988 and
-	  1995 when it was made obsolete by the PCI bus.
-
-	  Say Y here if you are building a kernel for an EISA-based machine.
-
-	  Otherwise, say N.
 
 config MCA
 	bool
-	help
-	  MicroChannel Architecture is found in some IBM PS/2 machines and
-	  laptops.  It is a bus system similar to PCI or ISA. See
-	  <file:Documentation/mca.txt> (and especially the web page given
-	  there) before attempting to build an MCA bus kernel.
 
 config PCMCIA
 	tristate
-	---help---
+	help
 	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
 	  computer.  These are credit-card size devices such as network cards,
 	  modems or hard drives often used with laptops computers.  There are
@@ -369,10 +321,10 @@ config PCI
 	bool "PCI support"
 	select ARCH_SUPPORTS_MSI
 	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
+	  Find out whether your system includes a PCI bus. PCI is the name of
+	  a bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box.  If you say Y here, the kernel will include drivers and
+	  infrastructure code to support PCI bus devices.
 
 config PCI_DOMAINS
 	def_bool PCI
@@ -396,15 +348,8 @@ menu "Executable file formats"
 
 source "fs/Kconfig.binfmt"
 
-config SPARC32_COMPAT
-	bool "Kernel support for Linux/Sparc 32bit binary compatibility"
-	help
-	  This allows you to run 32-bit binaries on your Ultra.
-	  Everybody wants this; say Y.
-
 config COMPAT
 	bool
-	depends on SPARC32_COMPAT
 	default y
 	select COMPAT_BINFMT_ELF
 
@@ -421,8 +366,8 @@ config SCHED_SMT
 	default y
 	help
 	  SMT scheduler support improves the CPU scheduler's decision making
-	  when dealing with UltraSPARC cpus at a cost of slightly increased
-	  overhead in some places. If unsure say N here.
+	  when dealing with SPARC cpus at a cost of slightly increased overhead
+	  in some places. If unsure say N here.
 
 config SCHED_MC
 	bool "Multi-core scheduler support"

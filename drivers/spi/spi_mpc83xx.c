@@ -310,7 +310,7 @@ static int mpc83xx_spi_setup(struct spi_device *spi)
 		return retval;
 
 	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u nsec\n",
-		__FUNCTION__, spi->mode & (SPI_CPOL | SPI_CPHA),
+		__func__, spi->mode & (SPI_CPOL | SPI_CPHA),
 		spi->bits_per_word, 2 * mpc83xx_spi->nsecs);
 
 	/* NOTE we _need_ to call chipselect() early, ideally with adapter

@@ -678,7 +678,7 @@ static unsigned int sata_fsl_dev_classify(struct ata_port *ap)
 	return ata_dev_classify(&tf);
 }
 
-static int sata_fsl_prereset(struct ata_linke *link, unsigned long deadline)
+static int sata_fsl_prereset(struct ata_link *link, unsigned long deadline)
 {
 	/* FIXME: Never skip softreset, sata_fsl_softreset() is
 	 * combination of soft and hard resets.  sata_fsl_softreset()

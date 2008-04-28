@@ -454,7 +454,7 @@ sable_lynx_enable_irq(unsigned int irq)
 	spin_unlock(&sable_lynx_irq_lock);
 #if 0
 	printk("%s: mask 0x%lx bit 0x%x irq 0x%x\n",
-	       __FUNCTION__, mask, bit, irq);
+	       __func__, mask, bit, irq);
 #endif
 }
 
@@ -470,7 +470,7 @@ sable_lynx_disable_irq(unsigned int irq)
 	spin_unlock(&sable_lynx_irq_lock);
 #if 0
 	printk("%s: mask 0x%lx bit 0x%x irq 0x%x\n",
-	       __FUNCTION__, mask, bit, irq);
+	       __func__, mask, bit, irq);
 #endif
 }
 
@@ -524,7 +524,7 @@ sable_lynx_srm_device_interrupt(unsigned long vector)
 	irq = sable_lynx_irq_swizzle->mask_to_irq[bit];
 #if 0
 	printk("%s: vector 0x%lx bit 0x%x irq 0x%x\n",
-	       __FUNCTION__, vector, bit, irq);
+	       __func__, vector, bit, irq);
 #endif
 	handle_irq(irq);
 }

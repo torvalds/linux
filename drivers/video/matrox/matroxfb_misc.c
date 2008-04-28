@@ -90,13 +90,13 @@
 #include <linux/matroxfb.h>
 
 void matroxfb_DAC_out(CPMINFO int reg, int val) {
-	DBG_REG(__FUNCTION__)
+	DBG_REG(__func__)
 	mga_outb(M_RAMDAC_BASE+M_X_INDEX, reg);
 	mga_outb(M_RAMDAC_BASE+M_X_DATAREG, val);
 }
 
 int matroxfb_DAC_in(CPMINFO int reg) {
-	DBG_REG(__FUNCTION__)
+	DBG_REG(__func__)
 	mga_outb(M_RAMDAC_BASE+M_X_INDEX, reg);
 	return mga_inb(M_RAMDAC_BASE+M_X_DATAREG);
 }
@@ -104,7 +104,7 @@ int matroxfb_DAC_in(CPMINFO int reg) {
 void matroxfb_var2my(struct fb_var_screeninfo* var, struct my_timming* mt) {
 	unsigned int pixclock = var->pixclock;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (!pixclock) pixclock = 10000;	/* 10ns = 100MHz */
 	mt->pixclock = 1000000000 / pixclock;
@@ -131,7 +131,7 @@ int matroxfb_PLL_calcclock(const struct matrox_pll_features* pll, unsigned int f
 	unsigned int fwant;
 	unsigned int p;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	fwant = freq;
 
@@ -192,7 +192,7 @@ int matroxfb_vgaHWinit(WPMINFO struct my_timming* m) {
 	int i;
 	struct matrox_hw_state * const hw = &ACCESS_FBINFO(hw);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	hw->SEQ[0] = 0x00;
 	hw->SEQ[1] = 0x01;	/* or 0x09 */
@@ -336,7 +336,7 @@ void matroxfb_vgaHWrestore(WPMINFO2) {
 	struct matrox_hw_state * const hw = &ACCESS_FBINFO(hw);
 	CRITFLAGS
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	dprintk(KERN_INFO "MiscOutReg: %02X\n", hw->MiscOutReg);
 	dprintk(KERN_INFO "SEQ regs:   ");

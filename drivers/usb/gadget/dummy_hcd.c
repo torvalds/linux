@@ -1555,8 +1555,7 @@ hub_descriptor (struct usb_hub_descriptor *desc)
 	memset (desc, 0, sizeof *desc);
 	desc->bDescriptorType = 0x29;
 	desc->bDescLength = 9;
-	desc->wHubCharacteristics = (__force __u16)
-			(__constant_cpu_to_le16 (0x0001));
+	desc->wHubCharacteristics = cpu_to_le16(0x0001);
 	desc->bNbrPorts = 1;
 	desc->bitmap [0] = 0xff;
 	desc->bitmap [1] = 0xff;

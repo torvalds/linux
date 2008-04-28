@@ -1242,7 +1242,7 @@ static void smack_set_catset(char *catset, struct netlbl_lsm_secattr *sap)
 	int rc;
 	int byte;
 
-	if (catset == 0)
+	if (!catset)
 		return;
 
 	sap->flags |= NETLBL_SECATTR_MLS_CAT;
@@ -2495,6 +2495,7 @@ struct security_operations smack_ops = {
 	.task_wait = 			smack_task_wait,
 	.task_reparent_to_init =	cap_task_reparent_to_init,
 	.task_to_inode = 		smack_task_to_inode,
+	.task_prctl =			cap_task_prctl,
 
 	.ipc_permission = 		smack_ipc_permission,
 

@@ -190,7 +190,7 @@ void oss_irq_enable(int irq) {
 			break;
 #ifdef DEBUG_IRQUSE
 		default:
-			printk("%s unknown irq %d\n",__FUNCTION__, irq);
+			printk("%s unknown irq %d\n", __func__, irq);
 			break;
 #endif
 	}
@@ -230,7 +230,7 @@ void oss_irq_disable(int irq) {
 			break;
 #ifdef DEBUG_IRQUSE
 		default:
-			printk("%s unknown irq %d\n", __FUNCTION__, irq);
+			printk("%s unknown irq %d\n", __func__, irq);
 			break;
 #endif
 	}

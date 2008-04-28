@@ -117,8 +117,8 @@ int ioremap_change_attr(unsigned long vaddr, unsigned long size,
  * have to convert them into an offset in a page-aligned mapping, but the
  * caller shouldn't need to know that small detail.
  */
-static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
-			       unsigned long prot_val)
+static void __iomem *__ioremap_caller(resource_size_t phys_addr,
+		unsigned long size, unsigned long prot_val, void *caller)
 {
 	unsigned long pfn, offset, vaddr;
 	resource_size_t last_addr;
@@ -212,7 +212,7 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	/*
 	 * Ok, go for it..
 	 */
-	area = get_vm_area(size, VM_IOREMAP);
+	area = get_vm_area_caller(size, VM_IOREMAP, caller);
 	if (!area)
 		return NULL;
 	area->phys_addr = phys_addr;
@@ -255,7 +255,8 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
  */
 void __iomem *ioremap_nocache(resource_size_t phys_addr, unsigned long size)
 {
-	return __ioremap(phys_addr, size, _PAGE_CACHE_UC);
+	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_UC,
+				__builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_nocache);
 
@@ -272,7 +273,8 @@ EXPORT_SYMBOL(ioremap_nocache);
 void __iomem *ioremap_wc(unsigned long phys_addr, unsigned long size)
 {
 	if (pat_wc_enabled)
-		return __ioremap(phys_addr, size, _PAGE_CACHE_WC);
+		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_WC,
+					__builtin_return_address(0));
 	else
 		return ioremap_nocache(phys_addr, size);
 }
@@ -280,7 +282,8 @@ EXPORT_SYMBOL(ioremap_wc);
 
 void __iomem *ioremap_cache(resource_size_t phys_addr, unsigned long size)
 {
-	return __ioremap(phys_addr, size, _PAGE_CACHE_WB);
+	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_WB,
+				__builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_cache);
 

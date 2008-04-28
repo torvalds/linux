@@ -92,6 +92,18 @@ NodeList format is a comma-separated list of decimal numbers and ranges,
 a range being two hyphen-separated decimal numbers, the smallest and
 largest node numbers in the range.  For example, mpol=bind:0-3,5,7,9-15
 
+NUMA memory allocation policies have optional flags that can be used in
+conjunction with their modes.  These optional flags can be specified
+when tmpfs is mounted by appending them to the mode before the NodeList.
+See Documentation/vm/numa_memory_policy.txt for a list of all available
+memory allocation policy mode flags.
+
+	=static		is equivalent to	MPOL_F_STATIC_NODES
+	=relative	is equivalent to	MPOL_F_RELATIVE_NODES
+
+For example, mpol=bind=static:NodeList, is the equivalent of an
+allocation policy of MPOL_BIND | MPOL_F_STATIC_NODES.
+
 Note that trying to mount a tmpfs with an mpol option will fail if the
 running kernel does not support NUMA; and will fail if its nodelist
 specifies a node which is not online.  If your system relies on that

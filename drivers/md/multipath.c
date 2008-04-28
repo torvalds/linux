@@ -244,7 +244,8 @@ static void multipath_error (mddev_t *mddev, mdk_rdev_t *rdev)
 			conf->working_disks--;
 			mddev->degraded++;
 			printk(KERN_ALERT "multipath: IO failure on %s,"
-				" disabling IO path. \n	Operation continuing"
+				" disabling IO path.\n"
+				"multipath: Operation continuing"
 				" on %d IO paths.\n",
 				bdevname (rdev->bdev,b),
 				conf->working_disks);

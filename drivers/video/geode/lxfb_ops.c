@@ -13,6 +13,7 @@
 #include <linux/fb.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <asm/geode.h>
 
 #include "lxfb.h"
 
@@ -34,35 +35,85 @@ static const struct {
   unsigned int pllval;
   unsigned int freq;
 } pll_table[] = {
-  { 0x000031AC, 24923 },
-  { 0x0000215D, 25175 },
-  { 0x00001087, 27000 },
-  { 0x0000216C, 28322 },
-  { 0x0000218D, 28560 },
-  { 0x000010C9, 31200 },
-  { 0x00003147, 31500 },
-  { 0x000010A7, 33032 },
-  { 0x00002159, 35112 },
-  { 0x00004249, 35500 },
-  { 0x00000057, 36000 },
-  { 0x0000219A, 37889 },
-  { 0x00002158, 39168 },
-  { 0x00000045, 40000 },
-  { 0x00000089, 43163 },
-  { 0x000010E7, 44900 },
-  { 0x00002136, 45720 },
-  { 0x00003207, 49500 },
-  { 0x00002187, 50000 },
-  { 0x00004286, 56250 },
-  { 0x000010E5, 60065 },
-  { 0x00004214, 65000 },
-  { 0x00001105, 68179 },
-  { 0x000031E4, 74250 },
-  { 0x00003183, 75000 },
-  { 0x00004284, 78750 },
-  { 0x00001104, 81600 },
-  { 0x00006363, 94500 },
-  { 0x00005303, 97520 },
+  { 0x000131AC,   6231 },
+  { 0x0001215D,   6294 },
+  { 0x00011087,   6750 },
+  { 0x0001216C,   7081 },
+  { 0x0001218D,   7140 },
+  { 0x000110C9,   7800 },
+  { 0x00013147,   7875 },
+  { 0x000110A7,   8258 },
+  { 0x00012159,   8778 },
+  { 0x00014249,   8875 },
+  { 0x00010057,   9000 },
+  { 0x0001219A,   9472 },
+  { 0x00012158,   9792 },
+  { 0x00010045,  10000 },
+  { 0x00010089,  10791 },
+  { 0x000110E7,  11225 },
+  { 0x00012136,  11430 },
+  { 0x00013207,  12375 },
+  { 0x00012187,  12500 },
+  { 0x00014286,  14063 },
+  { 0x000110E5,  15016 },
+  { 0x00014214,  16250 },
+  { 0x00011105,  17045 },
+  { 0x000131E4,  18563 },
+  { 0x00013183,  18750 },
+  { 0x00014284,  19688 },
+  { 0x00011104,  20400 },
+  { 0x00016363,  23625 },
+  { 0x00015303,  24380 },
+  { 0x000031AC,  24923 },
+  { 0x0000215D,  25175 },
+  { 0x00001087,  27000 },
+  { 0x0000216C,  28322 },
+  { 0x0000218D,  28560 },
+  { 0x00010041,  29913 },
+  { 0x000010C9,  31200 },
+  { 0x00003147,  31500 },
+  { 0x000141A1,  32400 },
+  { 0x000010A7,  33032 },
+  { 0x00012182,  33375 },
+  { 0x000141B1,  33750 },
+  { 0x00002159,  35112 },
+  { 0x00004249,  35500 },
+  { 0x00000057,  36000 },
+  { 0x000141E1,  37125 },
+  { 0x0000219A,  37889 },
+  { 0x00002158,  39168 },
+  { 0x00000045,  40000 },
+  { 0x000131A1,  40500 },
+  { 0x00010061,  42301 },
+  { 0x00000089,  43163 },
+  { 0x00012151,  43875 },
+  { 0x000010E7,  44900 },
+  { 0x00002136,  45720 },
+  { 0x000152E1,  47250 },
+  { 0x00010071,  48000 },
+  { 0x00003207,  49500 },
+  { 0x00002187,  50000 },
+  { 0x00014291,  50625 },
+  { 0x00011101,  51188 },
+  { 0x00017481,  54563 },
+  { 0x00004286,  56250 },
+  { 0x00014170,  57375 },
+  { 0x00016210,  58500 },
+  { 0x000010E5,  60065 },
+  { 0x00013140,  62796 },
+  { 0x00004214,  65000 },
+  { 0x00016250,  65250 },
+  { 0x00001105,  68179 },
+  { 0x000141C0,  69600 },
+  { 0x00015220,  70160 },
+  { 0x00010050,  72000 },
+  { 0x000031E4,  74250 },
+  { 0x00003183,  75000 },
+  { 0x00004284,  78750 },
+  { 0x00012130,  80052 },
+  { 0x00001104,  81600 },
+  { 0x00006363,  94500 },
+  { 0x00005303,  97520 },
   { 0x00002183, 100187 },
   { 0x00002122, 101420 },
   { 0x00001081, 108000 },
@@ -101,16 +152,16 @@ static void lx_set_dotpll(u32 pllval)
 	u32 dotpll_lo, dotpll_hi;
 	int i;
 
-	rdmsr(MSR_LX_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
+	rdmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
 
-	if ((dotpll_lo & GLCP_DOTPLL_LOCK) && (dotpll_hi == pllval))
+	if ((dotpll_lo & MSR_GLCP_DOTPLL_LOCK) && (dotpll_hi == pllval))
 		return;
 
 	dotpll_hi = pllval;
-	dotpll_lo &= ~(GLCP_DOTPLL_BYPASS | GLCP_DOTPLL_HALFPIX);
-	dotpll_lo |= GLCP_DOTPLL_RESET;
+	dotpll_lo &= ~(MSR_GLCP_DOTPLL_BYPASS | MSR_GLCP_DOTPLL_HALFPIX);
+	dotpll_lo |= MSR_GLCP_DOTPLL_DOTRESET;
 
-	wrmsr(MSR_LX_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
+	wrmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
 
 	/* Wait 100us for the PLL to lock */
 
@@ -119,15 +170,15 @@ static void lx_set_dotpll(u32 pllval)
 	/* Now, loop for the lock bit */
 
 	for (i = 0; i < 1000; i++) {
-		rdmsr(MSR_LX_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
-		if (dotpll_lo & GLCP_DOTPLL_LOCK)
+		rdmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
+		if (dotpll_lo & MSR_GLCP_DOTPLL_LOCK)
 			break;
 	}
 
 	/* Clear the reset bit */
 
-	dotpll_lo &= ~GLCP_DOTPLL_RESET;
-	wrmsr(MSR_LX_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
+	dotpll_lo &= ~MSR_GLCP_DOTPLL_DOTRESET;
+	wrmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
 }
 
 /* Set the clock based on the frequency specified by the current mode */
@@ -137,7 +188,7 @@ static void lx_set_clock(struct fb_info *info)
 	unsigned int diff, min, best = 0;
 	unsigned int freq, i;
 
-	freq = (unsigned int) (0x3b9aca00 / info->var.pixclock);
+	freq = (unsigned int) (1000000000 / info->var.pixclock);
 
 	min = abs(pll_table[0].freq - freq);
 
@@ -149,7 +200,7 @@ static void lx_set_clock(struct fb_info *info)
 		}
 	}
 
-	lx_set_dotpll(pll_table[best].pllval & 0x7FFF);
+	lx_set_dotpll(pll_table[best].pllval & 0x00017FFF);
 }
 
 static void lx_graphics_disable(struct fb_info *info)
@@ -159,63 +210,62 @@ static void lx_graphics_disable(struct fb_info *info)
 
 	/* Note:  This assumes that the video is in a quitet state */
 
-	writel(0, par->df_regs + DF_ALPHA_CONTROL_1);
-	writel(0, par->df_regs + DF_ALPHA_CONTROL_1 + 32);
-	writel(0, par->df_regs + DF_ALPHA_CONTROL_1 + 64);
+	write_vp(par, VP_A1T, 0);
+	write_vp(par, VP_A2T, 0);
+	write_vp(par, VP_A3T, 0);
 
 	/* Turn off the VGA and video enable */
-	val = readl (par->dc_regs + DC_GENERAL_CFG) &
-		~(DC_GCFG_VGAE | DC_GCFG_VIDE);
+	val = read_dc(par, DC_GENERAL_CFG) & ~(DC_GENERAL_CFG_VGAE |
+			DC_GENERAL_CFG_VIDE);
 
-	writel(val, par->dc_regs + DC_GENERAL_CFG);
+	write_dc(par, DC_GENERAL_CFG, val);
 
-	val = readl(par->df_regs + DF_VIDEO_CFG) & ~DF_VCFG_VID_EN;
-	writel(val, par->df_regs + DF_VIDEO_CFG);
+	val = read_vp(par, VP_VCFG) & ~VP_VCFG_VID_EN;
+	write_vp(par, VP_VCFG, val);
 
-	writel( DC_IRQ_MASK | DC_VSYNC_IRQ_MASK |
-		DC_IRQ_STATUS | DC_VSYNC_IRQ_STATUS,
-		par->dc_regs + DC_IRQ);
+	write_dc(par, DC_IRQ, DC_IRQ_MASK | DC_IRQ_VIP_VSYNC_LOSS_IRQ_MASK |
+			DC_IRQ_STATUS | DC_IRQ_VIP_VSYNC_IRQ_STATUS);
 
-	val = readl(par->dc_regs + DC_GENLCK_CTRL) & ~DC_GENLCK_ENABLE;
-	writel(val, par->dc_regs + DC_GENLCK_CTRL);
+	val = read_dc(par, DC_GENLK_CTL) & ~DC_GENLK_CTL_GENLK_EN;
+	write_dc(par, DC_GENLK_CTL, val);
 
-	val = readl(par->dc_regs + DC_COLOR_KEY) & ~DC_CLR_KEY_ENABLE;
-	writel(val & ~DC_CLR_KEY_ENABLE, par->dc_regs + DC_COLOR_KEY);
+	val = read_dc(par, DC_CLR_KEY);
+	write_dc(par, DC_CLR_KEY, val & ~DC_CLR_KEY_CLR_KEY_EN);
 
-	/* We don't actually blank the panel, due to the long latency
-	   involved with bringing it back */
+	/* turn off the panel */
+	write_fp(par, FP_PM, read_fp(par, FP_PM) & ~FP_PM_P);
 
-	val = readl(par->df_regs + DF_MISC) | DF_MISC_DAC_PWRDN;
-	writel(val, par->df_regs + DF_MISC);
+	val = read_vp(par, VP_MISC) | VP_MISC_DACPWRDN;
+	write_vp(par, VP_MISC, val);
 
 	/* Turn off the display */
 
-	val = readl(par->df_regs + DF_DISPLAY_CFG);
-	writel(val & ~(DF_DCFG_CRT_EN | DF_DCFG_HSYNC_EN | DF_DCFG_VSYNC_EN |
-		       DF_DCFG_DAC_BL_EN), par->df_regs + DF_DISPLAY_CFG);
+	val = read_vp(par, VP_DCFG);
+	write_vp(par, VP_DCFG, val & ~(VP_DCFG_CRT_EN | VP_DCFG_HSYNC_EN |
+			VP_DCFG_VSYNC_EN | VP_DCFG_DAC_BL_EN));
 
-	gcfg = readl(par->dc_regs + DC_GENERAL_CFG);
-	gcfg &= ~(DC_GCFG_CMPE | DC_GCFG_DECE);
-	writel(gcfg, par->dc_regs + DC_GENERAL_CFG);
+	gcfg = read_dc(par, DC_GENERAL_CFG);
+	gcfg &= ~(DC_GENERAL_CFG_CMPE | DC_GENERAL_CFG_DECE);
+	write_dc(par, DC_GENERAL_CFG, gcfg);
 
 	/* Turn off the TGEN */
-	val = readl(par->dc_regs + DC_DISPLAY_CFG);
-	val &= ~DC_DCFG_TGEN;
-	writel(val, par->dc_regs + DC_DISPLAY_CFG);
+	val = read_dc(par, DC_DISPLAY_CFG);
+	val &= ~DC_DISPLAY_CFG_TGEN;
+	write_dc(par, DC_DISPLAY_CFG, val);
 
 	/* Wait 1000 usecs to ensure that the TGEN is clear */
 	udelay(1000);
 
 	/* Turn off the FIFO loader */
 
-	gcfg &= ~DC_GCFG_DFLE;
-	writel(gcfg, par->dc_regs + DC_GENERAL_CFG);
+	gcfg &= ~DC_GENERAL_CFG_DFLE;
+	write_dc(par, DC_GENERAL_CFG, gcfg);
 
 	/* Lastly, wait for the GP to go idle */
 
 	do {
-		val = readl(par->gp_regs + GP_BLT_STATUS);
-	} while ((val & GP_BS_BLT_BUSY) || !(val & GP_BS_CB_EMPTY));
+		val = read_gp(par, GP_BLT_STATUS);
+	} while ((val & GP_BLT_STATUS_PB) || !(val & GP_BLT_STATUS_CE));
 }
 
 static void lx_graphics_enable(struct fb_info *info)
@@ -224,80 +274,85 @@ static void lx_graphics_enable(struct fb_info *info)
 	u32 temp, config;
 
 	/* Set the video request register */
-	writel(0, par->df_regs + DF_VIDEO_REQUEST);
+	write_vp(par, VP_VRR, 0);
 
 	/* Set up the polarities */
 
-	config = readl(par->df_regs + DF_DISPLAY_CFG);
+	config = read_vp(par, VP_DCFG);
 
-	config &= ~(DF_DCFG_CRT_SYNC_SKW_MASK | DF_DCFG_PWR_SEQ_DLY_MASK |
-		  DF_DCFG_CRT_HSYNC_POL     | DF_DCFG_CRT_VSYNC_POL);
+	config &= ~(VP_DCFG_CRT_SYNC_SKW | VP_DCFG_PWR_SEQ_DELAY |
+			VP_DCFG_CRT_HSYNC_POL | VP_DCFG_CRT_VSYNC_POL);
 
-	config |= (DF_DCFG_CRT_SYNC_SKW_INIT | DF_DCFG_PWR_SEQ_DLY_INIT  |
-		   DF_DCFG_GV_PAL_BYP);
+	config |= (VP_DCFG_CRT_SYNC_SKW_DEFAULT | VP_DCFG_PWR_SEQ_DELAY_DEFAULT
+			| VP_DCFG_GV_GAM);
 
 	if (info->var.sync & FB_SYNC_HOR_HIGH_ACT)
-		config |= DF_DCFG_CRT_HSYNC_POL;
+		config |= VP_DCFG_CRT_HSYNC_POL;
 
 	if (info->var.sync & FB_SYNC_VERT_HIGH_ACT)
-		config |= DF_DCFG_CRT_VSYNC_POL;
+		config |= VP_DCFG_CRT_VSYNC_POL;
 
 	if (par->output & OUTPUT_PANEL) {
 		u32 msrlo, msrhi;
 
-		writel(DF_DEFAULT_TFT_PMTIM1,
-		       par->df_regs + DF_PANEL_TIM1);
-		writel(DF_DEFAULT_TFT_PMTIM2,
-		       par->df_regs + DF_PANEL_TIM2);
-		writel(DF_DEFAULT_TFT_DITHCTL,
-		       par->df_regs + DF_DITHER_CONTROL);
+		write_fp(par, FP_PT1, 0);
+		write_fp(par, FP_PT2, FP_PT2_SCRC);
+		write_fp(par, FP_DFC, FP_DFC_BC);
 
-		msrlo = DF_DEFAULT_TFT_PAD_SEL_LOW;
-		msrhi = DF_DEFAULT_TFT_PAD_SEL_HIGH;
+		msrlo = MSR_LX_MSR_PADSEL_TFT_SEL_LOW;
+		msrhi = MSR_LX_MSR_PADSEL_TFT_SEL_HIGH;
 
-		wrmsr(MSR_LX_DF_PADSEL, msrlo, msrhi);
+		wrmsr(MSR_LX_MSR_PADSEL, msrlo, msrhi);
 	}
 
 	if (par->output & OUTPUT_CRT) {
-		config |= DF_DCFG_CRT_EN   | DF_DCFG_HSYNC_EN |
-			DF_DCFG_VSYNC_EN | DF_DCFG_DAC_BL_EN;
+		config |= VP_DCFG_CRT_EN | VP_DCFG_HSYNC_EN |
+				VP_DCFG_VSYNC_EN | VP_DCFG_DAC_BL_EN;
 	}
 
-	writel(config, par->df_regs + DF_DISPLAY_CFG);
+	write_vp(par, VP_DCFG, config);
 
 	/* Turn the CRT dacs back on */
 
 	if (par->output & OUTPUT_CRT) {
-		temp = readl(par->df_regs + DF_MISC);
-		temp &= ~(DF_MISC_DAC_PWRDN  | DF_MISC_A_PWRDN);
-		writel(temp, par->df_regs + DF_MISC);
+		temp = read_vp(par, VP_MISC);
+		temp &= ~(VP_MISC_DACPWRDN | VP_MISC_APWRDN);
+		write_vp(par, VP_MISC, temp);
 	}
 
 	/* Turn the panel on (if it isn't already) */
-
-	if (par->output & OUTPUT_PANEL) {
-		temp = readl(par->df_regs + DF_FP_PM);
-
-		if (!(temp & 0x09))
-			writel(temp | DF_FP_PM_P, par->df_regs + DF_FP_PM);
-	}
-
-	temp = readl(par->df_regs + DF_MISC);
-	temp = readl(par->df_regs + DF_DISPLAY_CFG);
+	if (par->output & OUTPUT_PANEL)
+		write_fp(par, FP_PM, read_fp(par, FP_PM) | FP_PM_P);
 }
 
 unsigned int lx_framebuffer_size(void)
 {
 	unsigned int val;
 
+	if (!geode_has_vsa2()) {
+		uint32_t hi, lo;
+
+		/* The number of pages is (PMAX - PMIN)+1 */
+		rdmsr(MSR_GLIU_P2D_RO0, lo, hi);
+
+		/* PMAX */
+		val = ((hi & 0xff) << 12) | ((lo & 0xfff00000) >> 20);
+		/* PMIN */
+		val -= (lo & 0x000fffff);
+		val += 1;
+
+		/* The page size is 4k */
+		return (val << 12);
+	}
+
 	/* The frame buffer size is reported by a VSM in VSA II */
 	/* Virtual Register Class    = 0x02                     */
 	/* VG_MEM_SIZE (1MB units)   = 0x00                     */
 
-	outw(0xFC53, 0xAC1C);
-	outw(0x0200, 0xAC1C);
+	outw(VSA_VR_UNLOCK, VSA_VRC_INDEX);
+	outw(VSA_VR_MEM_SIZE, VSA_VRC_INDEX);
 
-	val = (unsigned int)(inw(0xAC1E)) & 0xFE;
+	val = (unsigned int)(inw(VSA_VRC_DATA)) & 0xFE;
 	return (val << 20);
 }
 
@@ -313,7 +368,7 @@ void lx_set_mode(struct fb_info *info)
 	int vactive, vblankstart, vsyncstart, vsyncend, vblankend, vtotal;
 
 	/* Unlock the DC registers */
-	writel(DC_UNLOCK_CODE, par->dc_regs + DC_UNLOCK);
+	write_dc(par, DC_UNLOCK, DC_UNLOCK_UNLOCK);
 
 	lx_graphics_disable(info);
 
@@ -321,102 +376,104 @@ void lx_set_mode(struct fb_info *info)
 
 	/* Set output mode */
 
-	rdmsrl(MSR_LX_DF_GLCONFIG, msrval);
-	msrval &= ~DF_CONFIG_OUTPUT_MASK;
+	rdmsrl(MSR_LX_GLD_MSR_CONFIG, msrval);
+	msrval &= ~MSR_LX_GLD_MSR_CONFIG_FMT;
 
 	if (par->output & OUTPUT_PANEL) {
-		msrval |= DF_OUTPUT_PANEL;
+		msrval |= MSR_LX_GLD_MSR_CONFIG_FMT_FP;
 
 		if (par->output & OUTPUT_CRT)
-			msrval |= DF_SIMULTANEOUS_CRT_AND_FP;
+			msrval |= MSR_LX_GLD_MSR_CONFIG_FPC;
 		else
-			msrval &= ~DF_SIMULTANEOUS_CRT_AND_FP;
-	} else {
-		msrval |= DF_OUTPUT_CRT;
-	}
+			msrval &= ~MSR_LX_GLD_MSR_CONFIG_FPC;
+	} else
+		msrval |= MSR_LX_GLD_MSR_CONFIG_FMT_CRT;
 
-	wrmsrl(MSR_LX_DF_GLCONFIG, msrval);
+	wrmsrl(MSR_LX_GLD_MSR_CONFIG, msrval);
 
 	/* Clear the various buffers */
 	/* FIXME:  Adjust for panning here */
 
-	writel(0, par->dc_regs + DC_FB_START);
-	writel(0, par->dc_regs + DC_CB_START);
-	writel(0, par->dc_regs + DC_CURSOR_START);
+	write_dc(par, DC_FB_ST_OFFSET, 0);
+	write_dc(par, DC_CB_ST_OFFSET, 0);
+	write_dc(par, DC_CURS_ST_OFFSET, 0);
 
 	/* FIXME: Add support for interlacing */
 	/* FIXME: Add support for scaling */
 
-	val = readl(par->dc_regs + DC_GENLCK_CTRL);
-	val &= ~(DC_GC_ALPHA_FLICK_ENABLE |
-		 DC_GC_FLICKER_FILTER_ENABLE | DC_GC_FLICKER_FILTER_MASK);
+	val = read_dc(par, DC_GENLK_CTL);
+	val &= ~(DC_GENLK_CTL_ALPHA_FLICK_EN | DC_GENLK_CTL_FLICK_EN |
+			DC_GENLK_CTL_FLICK_SEL_MASK);
 
 	/* Default scaling params */
 
-	writel((0x4000 << 16) | 0x4000, par->dc_regs + DC_GFX_SCALE);
-	writel(0, par->dc_regs + DC_IRQ_FILT_CTL);
-	writel(val, par->dc_regs + DC_GENLCK_CTRL);
+	write_dc(par, DC_GFX_SCALE, (0x4000 << 16) | 0x4000);
+	write_dc(par, DC_IRQ_FILT_CTL, 0);
+	write_dc(par, DC_GENLK_CTL, val);
 
 	/* FIXME:  Support compression */
 
 	if (info->fix.line_length > 4096)
-		dv = DC_DV_LINE_SIZE_8192;
+		dv = DC_DV_CTL_DV_LINE_SIZE_8K;
 	else if (info->fix.line_length > 2048)
-		dv = DC_DV_LINE_SIZE_4096;
+		dv = DC_DV_CTL_DV_LINE_SIZE_4K;
 	else if (info->fix.line_length > 1024)
-		dv = DC_DV_LINE_SIZE_2048;
+		dv = DC_DV_CTL_DV_LINE_SIZE_2K;
 	else
-		dv = DC_DV_LINE_SIZE_1024;
+		dv = DC_DV_CTL_DV_LINE_SIZE_1K;
 
 	max = info->fix.line_length * info->var.yres;
 	max = (max + 0x3FF) & 0xFFFFFC00;
 
-	writel(max | DC_DV_TOP_ENABLE, par->dc_regs + DC_DV_TOP);
+	write_dc(par, DC_DV_TOP, max | DC_DV_TOP_DV_TOP_EN);
 
-	val = readl(par->dc_regs + DC_DV_CTL) & ~DC_DV_LINE_SIZE_MASK;
-	writel(val | dv, par->dc_regs + DC_DV_CTL);
+	val = read_dc(par, DC_DV_CTL) & ~DC_DV_CTL_DV_LINE_SIZE;
+	write_dc(par, DC_DV_CTL, val | dv);
 
 	size = info->var.xres * (info->var.bits_per_pixel >> 3);
 
-	writel(info->fix.line_length >> 3, par->dc_regs + DC_GRAPHICS_PITCH);
-	writel((size + 7) >> 3, par->dc_regs + DC_LINE_SIZE);
+	write_dc(par, DC_GFX_PITCH, info->fix.line_length >> 3);
+	write_dc(par, DC_LINE_SIZE, (size + 7) >> 3);
 
 	/* Set default watermark values */
 
-	rdmsrl(MSR_LX_DC_SPARE, msrval);
+	rdmsrl(MSR_LX_SPARE_MSR, msrval);
 
-	msrval &= ~(DC_SPARE_DISABLE_CFIFO_HGO | DC_SPARE_VFIFO_ARB_SELECT |
-		    DC_SPARE_LOAD_WM_LPEN_MASK | DC_SPARE_WM_LPEN_OVRD |
-		    DC_SPARE_DISABLE_INIT_VID_PRI | DC_SPARE_DISABLE_VFIFO_WM);
-	msrval |= DC_SPARE_DISABLE_VFIFO_WM | DC_SPARE_DISABLE_INIT_VID_PRI;
-	wrmsrl(MSR_LX_DC_SPARE, msrval);
+	msrval &= ~(MSR_LX_SPARE_MSR_DIS_CFIFO_HGO
+			| MSR_LX_SPARE_MSR_VFIFO_ARB_SEL
+			| MSR_LX_SPARE_MSR_LOAD_WM_LPEN_M
+			| MSR_LX_SPARE_MSR_WM_LPEN_OVRD);
+	msrval |= MSR_LX_SPARE_MSR_DIS_VIFO_WM |
+			MSR_LX_SPARE_MSR_DIS_INIT_V_PRI;
+	wrmsrl(MSR_LX_SPARE_MSR, msrval);
 
-	gcfg = DC_GCFG_DFLE;   /* Display fifo enable */
-	gcfg |= 0xB600;         /* Set default priority */
-	gcfg |= DC_GCFG_FDTY;  /* Set the frame dirty mode */
+	gcfg = DC_GENERAL_CFG_DFLE;   /* Display fifo enable */
+	gcfg |= (0x6 << DC_GENERAL_CFG_DFHPSL_SHIFT) | /* default priority */
+			(0xb << DC_GENERAL_CFG_DFHPEL_SHIFT);
+	gcfg |= DC_GENERAL_CFG_FDTY;  /* Set the frame dirty mode */
 
-	dcfg  = DC_DCFG_VDEN;  /* Enable video data */
-	dcfg |= DC_DCFG_GDEN;  /* Enable graphics */
-	dcfg |= DC_DCFG_TGEN;  /* Turn on the timing generator */
-	dcfg |= DC_DCFG_TRUP;  /* Update timings immediately */
-	dcfg |= DC_DCFG_PALB;  /* Palette bypass in > 8 bpp modes */
-	dcfg |= DC_DCFG_VISL;
-	dcfg |= DC_DCFG_DCEN;  /* Always center the display */
+	dcfg  = DC_DISPLAY_CFG_VDEN;  /* Enable video data */
+	dcfg |= DC_DISPLAY_CFG_GDEN;  /* Enable graphics */
+	dcfg |= DC_DISPLAY_CFG_TGEN;  /* Turn on the timing generator */
+	dcfg |= DC_DISPLAY_CFG_TRUP;  /* Update timings immediately */
+	dcfg |= DC_DISPLAY_CFG_PALB;  /* Palette bypass in > 8 bpp modes */
+	dcfg |= DC_DISPLAY_CFG_VISL;
+	dcfg |= DC_DISPLAY_CFG_DCEN;  /* Always center the display */
 
 	/* Set the current BPP mode */
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
-		dcfg |= DC_DCFG_DISP_MODE_8BPP;
+		dcfg |= DC_DISPLAY_CFG_DISP_MODE_8BPP;
 		break;
 
 	case 16:
-		dcfg |= DC_DCFG_DISP_MODE_16BPP | DC_DCFG_16BPP;
+		dcfg |= DC_DISPLAY_CFG_DISP_MODE_16BPP;
 		break;
 
 	case 32:
 	case 24:
-		dcfg |= DC_DCFG_DISP_MODE_24BPP;
+		dcfg |= DC_DISPLAY_CFG_DISP_MODE_24BPP;
 		break;
 	}
 
@@ -436,35 +493,31 @@ void lx_set_mode(struct fb_info *info)
 	vblankend = vsyncend + info->var.upper_margin;
 	vtotal = vblankend;
 
-	writel((hactive - 1) | ((htotal - 1) << 16),
-	       par->dc_regs + DC_H_ACTIVE_TIMING);
-	writel((hblankstart - 1) | ((hblankend - 1) << 16),
-	       par->dc_regs + DC_H_BLANK_TIMING);
-	writel((hsyncstart - 1) | ((hsyncend - 1) << 16),
-	       par->dc_regs + DC_H_SYNC_TIMING);
+	write_dc(par, DC_H_ACTIVE_TIMING, (hactive - 1) | ((htotal - 1) << 16));
+	write_dc(par, DC_H_BLANK_TIMING,
+			(hblankstart - 1) | ((hblankend - 1) << 16));
+	write_dc(par, DC_H_SYNC_TIMING,
+			(hsyncstart - 1) | ((hsyncend - 1) << 16));
 
-	writel((vactive - 1) | ((vtotal - 1) << 16),
-	       par->dc_regs + DC_V_ACTIVE_TIMING);
+	write_dc(par, DC_V_ACTIVE_TIMING, (vactive - 1) | ((vtotal - 1) << 16));
+	write_dc(par, DC_V_BLANK_TIMING,
+			(vblankstart - 1) | ((vblankend - 1) << 16));
+	write_dc(par, DC_V_SYNC_TIMING,
+			(vsyncstart - 1) | ((vsyncend - 1) << 16));
 
-	writel((vblankstart - 1) | ((vblankend - 1) << 16),
-	       par->dc_regs + DC_V_BLANK_TIMING);
-
-	writel((vsyncstart - 1)  | ((vsyncend - 1) << 16),
-	       par->dc_regs + DC_V_SYNC_TIMING);
-
-	writel( (info->var.xres - 1) << 16 | (info->var.yres - 1),
-		par->dc_regs + DC_FB_ACTIVE);
+	write_dc(par, DC_FB_ACTIVE,
+			(info->var.xres - 1) << 16 | (info->var.yres - 1));
 
 	/* And re-enable the graphics output */
 	lx_graphics_enable(info);
 
 	/* Write the two main configuration registers */
-	writel(dcfg, par->dc_regs + DC_DISPLAY_CFG);
-	writel(0, par->dc_regs + DC_ARB_CFG);
-	writel(gcfg, par->dc_regs + DC_GENERAL_CFG);
+	write_dc(par, DC_DISPLAY_CFG, dcfg);
+	write_dc(par, DC_ARB_CFG, 0);
+	write_dc(par, DC_GENERAL_CFG, gcfg);
 
 	/* Lock the DC registers */
-	writel(0, par->dc_regs + DC_UNLOCK);
+	write_dc(par, DC_UNLOCK, DC_UNLOCK_LOCK);
 }
 
 void lx_set_palette_reg(struct fb_info *info, unsigned regno,
@@ -479,58 +532,310 @@ void lx_set_palette_reg(struct fb_info *info, unsigned regno,
 	val |= (green)      & 0x00ff00;
 	val |= (blue  >> 8) & 0x0000ff;
 
-	writel(regno, par->dc_regs + DC_PAL_ADDRESS);
-	writel(val, par->dc_regs + DC_PAL_DATA);
+	write_dc(par, DC_PAL_ADDRESS, regno);
+	write_dc(par, DC_PAL_DATA, val);
 }
 
 int lx_blank_display(struct fb_info *info, int blank_mode)
 {
 	struct lxfb_par *par = info->par;
 	u32 dcfg, fp_pm;
-	int blank, hsync, vsync;
+	int blank, hsync, vsync, crt;
 
 	/* CRT power saving modes. */
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
-		blank = 0; hsync = 1; vsync = 1;
+		blank = 0; hsync = 1; vsync = 1; crt = 1;
 		break;
 	case FB_BLANK_NORMAL:
-		blank = 1; hsync = 1; vsync = 1;
+		blank = 1; hsync = 1; vsync = 1; crt = 1;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
-		blank = 1; hsync = 1; vsync = 0;
+		blank = 1; hsync = 1; vsync = 0; crt = 1;
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
-		blank = 1; hsync = 0; vsync = 1;
+		blank = 1; hsync = 0; vsync = 1; crt = 1;
 		break;
 	case FB_BLANK_POWERDOWN:
-		blank = 1; hsync = 0; vsync = 0;
+		blank = 1; hsync = 0; vsync = 0; crt = 0;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	dcfg = readl(par->df_regs + DF_DISPLAY_CFG);
-	dcfg &= ~(DF_DCFG_DAC_BL_EN
-		  | DF_DCFG_HSYNC_EN | DF_DCFG_VSYNC_EN);
+	dcfg = read_vp(par, VP_DCFG);
+	dcfg &= ~(VP_DCFG_DAC_BL_EN | VP_DCFG_HSYNC_EN | VP_DCFG_VSYNC_EN |
+			VP_DCFG_CRT_EN);
 	if (!blank)
-		dcfg |= DF_DCFG_DAC_BL_EN;
+		dcfg |= VP_DCFG_DAC_BL_EN;
 	if (hsync)
-		dcfg |= DF_DCFG_HSYNC_EN;
+		dcfg |= VP_DCFG_HSYNC_EN;
 	if (vsync)
-		dcfg |= DF_DCFG_VSYNC_EN;
-	writel(dcfg, par->df_regs + DF_DISPLAY_CFG);
+		dcfg |= VP_DCFG_VSYNC_EN;
+	if (crt)
+		dcfg |= VP_DCFG_CRT_EN;
+	write_vp(par, VP_DCFG, dcfg);
 
 	/* Power on/off flat panel */
 
 	if (par->output & OUTPUT_PANEL) {
-		fp_pm = readl(par->df_regs + DF_FP_PM);
+		fp_pm = read_fp(par, FP_PM);
 		if (blank_mode == FB_BLANK_POWERDOWN)
-			fp_pm &= ~DF_FP_PM_P;
+			fp_pm &= ~FP_PM_P;
 		else
-			fp_pm |= DF_FP_PM_P;
-		writel(fp_pm, par->df_regs + DF_FP_PM);
+			fp_pm |= FP_PM_P;
+		write_fp(par, FP_PM, fp_pm);
 	}
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+
+static void lx_save_regs(struct lxfb_par *par)
+{
+	uint32_t filt;
+	int i;
+
+	/* wait for the BLT engine to stop being busy */
+	do {
+		i = read_gp(par, GP_BLT_STATUS);
+	} while ((i & GP_BLT_STATUS_PB) || !(i & GP_BLT_STATUS_CE));
+
+	/* save MSRs */
+	rdmsrl(MSR_LX_MSR_PADSEL, par->msr.padsel);
+	rdmsrl(MSR_GLCP_DOTPLL, par->msr.dotpll);
+	rdmsrl(MSR_LX_GLD_MSR_CONFIG, par->msr.dfglcfg);
+	rdmsrl(MSR_LX_SPARE_MSR, par->msr.dcspare);
+
+	write_dc(par, DC_UNLOCK, DC_UNLOCK_UNLOCK);
+
+	/* save registers */
+	memcpy(par->gp, par->gp_regs, sizeof(par->gp));
+	memcpy(par->dc, par->dc_regs, sizeof(par->dc));
+	memcpy(par->vp, par->vp_regs, sizeof(par->vp));
+	memcpy(par->fp, par->vp_regs + VP_FP_START, sizeof(par->fp));
+
+	/* save the palette */
+	write_dc(par, DC_PAL_ADDRESS, 0);
+	for (i = 0; i < ARRAY_SIZE(par->pal); i++)
+		par->pal[i] = read_dc(par, DC_PAL_DATA);
+
+	/* save the horizontal filter coefficients */
+	filt = par->dc[DC_IRQ_FILT_CTL] | DC_IRQ_FILT_CTL_H_FILT_SEL;
+	for (i = 0; i < ARRAY_SIZE(par->hcoeff); i += 2) {
+		write_dc(par, DC_IRQ_FILT_CTL, (filt & 0xffffff00) | i);
+		par->hcoeff[i] = read_dc(par, DC_FILT_COEFF1);
+		par->hcoeff[i + 1] = read_dc(par, DC_FILT_COEFF2);
+	}
+
+	/* save the vertical filter coefficients */
+	filt &= ~DC_IRQ_FILT_CTL_H_FILT_SEL;
+	for (i = 0; i < ARRAY_SIZE(par->vcoeff); i++) {
+		write_dc(par, DC_IRQ_FILT_CTL, (filt & 0xffffff00) | i);
+		par->vcoeff[i] = read_dc(par, DC_FILT_COEFF1);
+	}
+
+	/* save video coeff ram */
+	memcpy(par->vp_coeff, par->vp_regs + VP_VCR, sizeof(par->vp_coeff));
+}
+
+static void lx_restore_gfx_proc(struct lxfb_par *par)
+{
+	int i;
+
+	/* a bunch of registers require GP_RASTER_MODE to be set first */
+	write_gp(par, GP_RASTER_MODE, par->gp[GP_RASTER_MODE]);
+
+	for (i = 0; i < ARRAY_SIZE(par->gp); i++) {
+		switch (i) {
+		case GP_RASTER_MODE:
+		case GP_VECTOR_MODE:
+		case GP_BLT_MODE:
+		case GP_BLT_STATUS:
+		case GP_HST_SRC:
+			/* FIXME: restore LUT data */
+		case GP_LUT_INDEX:
+		case GP_LUT_DATA:
+			/* don't restore these registers */
+			break;
+
+		default:
+			write_gp(par, i, par->gp[i]);
+		}
+	}
+}
+
+static void lx_restore_display_ctlr(struct lxfb_par *par)
+{
+	uint32_t filt;
+	int i;
+
+	wrmsrl(MSR_LX_SPARE_MSR, par->msr.dcspare);
+
+	for (i = 0; i < ARRAY_SIZE(par->dc); i++) {
+		switch (i) {
+		case DC_UNLOCK:
+			/* unlock the DC; runs first */
+			write_dc(par, DC_UNLOCK, DC_UNLOCK_UNLOCK);
+			break;
+
+		case DC_GENERAL_CFG:
+		case DC_DISPLAY_CFG:
+			/* disable all while restoring */
+			write_dc(par, i, 0);
+			break;
+
+		case DC_DV_CTL:
+			/* set all ram to dirty */
+			write_dc(par, i, par->dc[i] | DC_DV_CTL_CLEAR_DV_RAM);
+
+		case DC_RSVD_1:
+		case DC_RSVD_2:
+		case DC_RSVD_3:
+		case DC_LINE_CNT:
+		case DC_PAL_ADDRESS:
+		case DC_PAL_DATA:
+		case DC_DFIFO_DIAG:
+		case DC_CFIFO_DIAG:
+		case DC_FILT_COEFF1:
+		case DC_FILT_COEFF2:
+		case DC_RSVD_4:
+		case DC_RSVD_5:
+			/* don't restore these registers */
+			break;
+
+		default:
+			write_dc(par, i, par->dc[i]);
+		}
+	}
+
+	/* restore the palette */
+	write_dc(par, DC_PAL_ADDRESS, 0);
+	for (i = 0; i < ARRAY_SIZE(par->pal); i++)
+		write_dc(par, DC_PAL_DATA, par->pal[i]);
+
+	/* restore the horizontal filter coefficients */
+	filt = par->dc[DC_IRQ_FILT_CTL] | DC_IRQ_FILT_CTL_H_FILT_SEL;
+	for (i = 0; i < ARRAY_SIZE(par->hcoeff); i += 2) {
+		write_dc(par, DC_IRQ_FILT_CTL, (filt & 0xffffff00) | i);
+		write_dc(par, DC_FILT_COEFF1, par->hcoeff[i]);
+		write_dc(par, DC_FILT_COEFF2, par->hcoeff[i + 1]);
+	}
+
+	/* restore the vertical filter coefficients */
+	filt &= ~DC_IRQ_FILT_CTL_H_FILT_SEL;
+	for (i = 0; i < ARRAY_SIZE(par->vcoeff); i++) {
+		write_dc(par, DC_IRQ_FILT_CTL, (filt & 0xffffff00) | i);
+		write_dc(par, DC_FILT_COEFF1, par->vcoeff[i]);
+	}
+}
+
+static void lx_restore_video_proc(struct lxfb_par *par)
+{
+	int i;
+
+	wrmsrl(MSR_LX_GLD_MSR_CONFIG, par->msr.dfglcfg);
+	wrmsrl(MSR_LX_MSR_PADSEL, par->msr.padsel);
+
+	for (i = 0; i < ARRAY_SIZE(par->vp); i++) {
+		switch (i) {
+		case VP_VCFG:
+		case VP_DCFG:
+		case VP_PAR:
+		case VP_PDR:
+		case VP_CCS:
+		case VP_RSVD_0:
+		/* case VP_VDC: */ /* why should this not be restored? */
+		case VP_RSVD_1:
+		case VP_CRC32:
+			/* don't restore these registers */
+			break;
+
+		default:
+			write_vp(par, i, par->vp[i]);
+		}
+	}
+
+	/* restore video coeff ram */
+	memcpy(par->vp_regs + VP_VCR, par->vp_coeff, sizeof(par->vp_coeff));
+}
+
+static void lx_restore_regs(struct lxfb_par *par)
+{
+	int i;
+
+	lx_set_dotpll((u32) (par->msr.dotpll >> 32));
+	lx_restore_gfx_proc(par);
+	lx_restore_display_ctlr(par);
+	lx_restore_video_proc(par);
+
+	/* Flat Panel */
+	for (i = 0; i < ARRAY_SIZE(par->fp); i++) {
+		switch (i) {
+		case FP_PM:
+		case FP_RSVD_0:
+		case FP_RSVD_1:
+		case FP_RSVD_2:
+		case FP_RSVD_3:
+		case FP_RSVD_4:
+			/* don't restore these registers */
+			break;
+
+		default:
+			write_fp(par, i, par->fp[i]);
+		}
+	}
+
+	/* control the panel */
+	if (par->fp[FP_PM] & FP_PM_P) {
+		/* power on the panel if not already power{ed,ing} on */
+		if (!(read_fp(par, FP_PM) &
+				(FP_PM_PANEL_ON|FP_PM_PANEL_PWR_UP)))
+			write_fp(par, FP_PM, par->fp[FP_PM]);
+	} else {
+		/* power down the panel if not already power{ed,ing} down */
+		if (!(read_fp(par, FP_PM) &
+				(FP_PM_PANEL_OFF|FP_PM_PANEL_PWR_DOWN)))
+			write_fp(par, FP_PM, par->fp[FP_PM]);
+	}
+
+	/* turn everything on */
+	write_vp(par, VP_VCFG, par->vp[VP_VCFG]);
+	write_vp(par, VP_DCFG, par->vp[VP_DCFG]);
+	write_dc(par, DC_DISPLAY_CFG, par->dc[DC_DISPLAY_CFG]);
+	/* do this last; it will enable the FIFO load */
+	write_dc(par, DC_GENERAL_CFG, par->dc[DC_GENERAL_CFG]);
+
+	/* lock the door behind us */
+	write_dc(par, DC_UNLOCK, DC_UNLOCK_LOCK);
+}
+
+int lx_powerdown(struct fb_info *info)
+{
+	struct lxfb_par *par = info->par;
+
+	if (par->powered_down)
+		return 0;
+
+	lx_save_regs(par);
+	lx_graphics_disable(info);
+
+	par->powered_down = 1;
+	return 0;
+}
+
+int lx_powerup(struct fb_info *info)
+{
+	struct lxfb_par *par = info->par;
+
+	if (!par->powered_down)
+		return 0;
+
+	lx_restore_regs(par);
+
+	par->powered_down = 0;
+	return 0;
+}
+
+#endif

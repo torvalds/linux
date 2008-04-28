@@ -319,7 +319,7 @@ out:
 
 #ifdef CONFIG_BLK_DEV_XIP
 static int brd_direct_access (struct block_device *bdev, sector_t sector,
-			unsigned long *data)
+			void **kaddr, unsigned long *pfn)
 {
 	struct brd_device *brd = bdev->bd_disk->private_data;
 	struct page *page;
@@ -333,7 +333,8 @@ static int brd_direct_access (struct block_device *bdev, sector_t sector,
 	page = brd_insert_page(brd, sector);
 	if (!page)
 		return -ENOMEM;
-	*data = (unsigned long)page_address(page);
+	*kaddr = page_address(page);
+	*pfn = page_to_pfn(page);
 
 	return 0;
 }

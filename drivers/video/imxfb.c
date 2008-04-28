@@ -415,7 +415,7 @@ static void imxfb_setup_gpio(struct imxfb_info *fbi)
 static int imxfb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct imxfb_info *fbi = platform_get_drvdata(dev);
-	pr_debug("%s\n",__FUNCTION__);
+	pr_debug("%s\n",__func__);
 
 	imxfb_disable_controller(fbi);
 	return 0;
@@ -424,7 +424,7 @@ static int imxfb_suspend(struct platform_device *dev, pm_message_t state)
 static int imxfb_resume(struct platform_device *dev)
 {
 	struct imxfb_info *fbi = platform_get_drvdata(dev);
-	pr_debug("%s\n",__FUNCTION__);
+	pr_debug("%s\n",__func__);
 
 	imxfb_enable_controller(fbi);
 	return 0;
@@ -440,7 +440,7 @@ static int __init imxfb_init_fbinfo(struct device *dev)
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct imxfb_info *fbi = info->par;
 
-	pr_debug("%s\n",__FUNCTION__);
+	pr_debug("%s\n",__func__);
 
 	info->pseudo_palette = kmalloc( sizeof(u32) * 16, GFP_KERNEL);
 	if (!info->pseudo_palette)

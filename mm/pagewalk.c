@@ -9,11 +9,15 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	int err = 0;
 
 	pte = pte_offset_map(pmd, addr);
-	do {
+	for (;;) {
 		err = walk->pte_entry(pte, addr, addr + PAGE_SIZE, private);
 		if (err)
 		       break;
-	} while (pte++, addr += PAGE_SIZE, addr != end);
+		addr += PAGE_SIZE;
+		if (addr == end)
+			break;
+		pte++;
+	}
 
 	pte_unmap(pte);
 	return err;

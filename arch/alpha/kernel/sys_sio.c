@@ -89,7 +89,7 @@ sio_pci_route(void)
 	/* First, ALWAYS read and print the original setting. */
 	pci_bus_read_config_dword(pci_isa_hose->bus, PCI_DEVFN(7, 0), 0x60,
 				  &orig_route_tab);
-	printk("%s: PIRQ original 0x%x new 0x%x\n", __FUNCTION__,
+	printk("%s: PIRQ original 0x%x new 0x%x\n", __func__,
 	       orig_route_tab, alpha_mv.sys.sio.route_tab);
 
 #if defined(ALPHA_RESTORE_SRM_SETUP)

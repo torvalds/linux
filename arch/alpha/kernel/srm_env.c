@@ -199,7 +199,7 @@ srm_env_init(void)
 		printk(KERN_INFO "%s: This Alpha system doesn't "
 				"know about SRM (or you've booted "
 				"SRM->MILO->Linux, which gets "
-				"misdetected)...\n", __FUNCTION__);
+				"misdetected)...\n", __func__);
 		return -ENODEV;
 	}
 

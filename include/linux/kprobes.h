@@ -173,6 +173,13 @@ struct kretprobe_blackpoint {
 	const char *name;
 	void *addr;
 };
+
+struct kprobe_blackpoint {
+	const char *name;
+	unsigned long start_addr;
+	unsigned long range;
+};
+
 extern struct kretprobe_blackpoint kretprobe_blacklist[];
 
 static inline void kretprobe_assert(struct kretprobe_instance *ri,
@@ -227,15 +234,21 @@ static inline struct kprobe_ctlblk *get_kprobe_ctlblk(void)
 
 int register_kprobe(struct kprobe *p);
 void unregister_kprobe(struct kprobe *p);
+int register_kprobes(struct kprobe **kps, int num);
+void unregister_kprobes(struct kprobe **kps, int num);
 int setjmp_pre_handler(struct kprobe *, struct pt_regs *);
 int longjmp_break_handler(struct kprobe *, struct pt_regs *);
 int register_jprobe(struct jprobe *p);
 void unregister_jprobe(struct jprobe *p);
+int register_jprobes(struct jprobe **jps, int num);
+void unregister_jprobes(struct jprobe **jps, int num);
 void jprobe_return(void);
 unsigned long arch_deref_entry_point(void *);
 
 int register_kretprobe(struct kretprobe *rp);
 void unregister_kretprobe(struct kretprobe *rp);
+int register_kretprobes(struct kretprobe **rps, int num);
+void unregister_kretprobes(struct kretprobe **rps, int num);
 
 void kprobe_flush_task(struct task_struct *tk);
 void recycle_rp_inst(struct kretprobe_instance *ri, struct hlist_head *head);
@@ -254,14 +267,28 @@ static inline int register_kprobe(struct kprobe *p)
 {
 	return -ENOSYS;
 }
+static inline int register_kprobes(struct kprobe **kps, int num)
+{
+	return -ENOSYS;
+}
 static inline void unregister_kprobe(struct kprobe *p)
+{
+}
+static inline void unregister_kprobes(struct kprobe **kps, int num)
 {
 }
 static inline int register_jprobe(struct jprobe *p)
 {
 	return -ENOSYS;
 }
+static inline int register_jprobes(struct jprobe **jps, int num)
+{
+	return -ENOSYS;
+}
 static inline void unregister_jprobe(struct jprobe *p)
+{
+}
+static inline void unregister_jprobes(struct jprobe **jps, int num)
 {
 }
 static inline void jprobe_return(void)
@@ -271,7 +298,14 @@ static inline int register_kretprobe(struct kretprobe *rp)
 {
 	return -ENOSYS;
 }
+static inline int register_kretprobes(struct kretprobe **rps, int num)
+{
+	return -ENOSYS;
+}
 static inline void unregister_kretprobe(struct kretprobe *rp)
+{
+}
+static inline void unregister_kretprobes(struct kretprobe **rps, int num)
 {
 }
 static inline void kprobe_flush_task(struct task_struct *tk)

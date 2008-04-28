@@ -31,18 +31,12 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/string.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
-#include <asm/system.h>
-
 
 #if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
 

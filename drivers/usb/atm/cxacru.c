@@ -38,6 +38,7 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/mutex.h>
+#include <asm/unaligned.h>
 
 #include "usbatm.h"
 
@@ -573,7 +574,7 @@ static int cxacru_cm_get_array(struct cxacru_data *instance, enum cxacru_cm_requ
 			       u32 *data, int size)
 {
 	int ret, len;
-	u32 *buf;
+	__le32 *buf;
 	int offb, offd;
 	const int stride = CMD_PACKET_SIZE / (4 * 2) - 1;
 	int buflen =  ((size - 1) / stride + 1 + size * 2) * 4;
@@ -837,7 +838,7 @@ static int cxacru_fw(struct usb_device *usb_dev, enum cxacru_fw_request fw,
 		buf[offb++] = l;
 		buf[offb++] = code1;
 		buf[offb++] = code2;
-		*((u32 *) (buf + offb)) = cpu_to_le32(addr);
+		put_unaligned(cpu_to_le32(addr), (__le32 *)(buf + offb));
 		offb += 4;
 		addr += l;
 		if(l)
@@ -874,8 +875,9 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 	int off;
 	struct usbatm_data *usbatm = instance->usbatm;
 	struct usb_device *usb_dev = usbatm->usb_dev;
-	u16 signature[] = { usb_dev->descriptor.idVendor, usb_dev->descriptor.idProduct };
-	u32 val;
+	__le16 signature[] = { usb_dev->descriptor.idVendor,
+			       usb_dev->descriptor.idProduct };
+	__le32 val;
 
 	dbg("cxacru_upload_firmware");
 
@@ -955,7 +957,7 @@ static void cxacru_upload_firmware(struct cxacru_data *instance,
 	/* Load config data (le32), doing one packet at a time */
 	if (cf)
 		for (off = 0; off < cf->size / 4; ) {
-			u32 buf[CMD_PACKET_SIZE / 4 - 1];
+			__le32 buf[CMD_PACKET_SIZE / 4 - 1];
 			int i, len = min_t(int, cf->size / 4 - off, CMD_PACKET_SIZE / 4 / 2 - 1);
 			buf[0] = cpu_to_le32(len);
 			for (i = 0; i < len; i++, off++) {

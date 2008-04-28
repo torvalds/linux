@@ -10,7 +10,7 @@
  *
  */
 
-#define CONFIG_AVMB1_COMPAT
+#define AVMB1_COMPAT
 
 #include "kcapi.h"
 #include <linux/module.h>
@@ -29,7 +29,7 @@
 #include <asm/uaccess.h>
 #include <linux/isdn/capicmd.h>
 #include <linux/isdn/capiutil.h>
-#ifdef CONFIG_AVMB1_COMPAT
+#ifdef AVMB1_COMPAT
 #include <linux/b1lli.h>
 #endif
 #include <linux/mutex.h>
@@ -154,7 +154,7 @@ static void register_appl(struct capi_ctr *card, u16 applid, capi_register_param
 	if (card)
 		card->register_appl(card, applid, rparam);
 	else
-		printk(KERN_WARNING "%s: cannot get card resources\n", __FUNCTION__);
+		printk(KERN_WARNING "%s: cannot get card resources\n", __func__);
 }
 
 
@@ -178,7 +178,7 @@ static void notify_up(u32 contr)
 	        printk(KERN_DEBUG "kcapi: notify up contr %d\n", contr);
 	}
 	if (!card) {
-		printk(KERN_WARNING "%s: invalid contr %d\n", __FUNCTION__, contr);
+		printk(KERN_WARNING "%s: invalid contr %d\n", __func__, contr);
 		return;
 	}
 	for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
@@ -740,7 +740,7 @@ u16 capi20_get_profile(u32 contr, struct capi_profile *profp)
 
 EXPORT_SYMBOL(capi20_get_profile);
 
-#ifdef CONFIG_AVMB1_COMPAT
+#ifdef AVMB1_COMPAT
 static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 {
 	avmb1_loadandconfigdef ldef;
@@ -826,7 +826,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 		card = capi_ctr_get(card);
 		if (!card)
 			return -ESRCH;
-		if (card->load_firmware == 0) {
+		if (card->load_firmware == NULL) {
 			printk(KERN_DEBUG "kcapi: load: no load function\n");
 			return -ESRCH;
 		}
@@ -835,7 +835,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 			printk(KERN_DEBUG "kcapi: load: invalid parameter: length of t4file is %d ?\n", ldef.t4file.len);
 			return -EINVAL;
 		}
-		if (ldef.t4file.data == 0) {
+		if (ldef.t4file.data == NULL) {
 			printk(KERN_DEBUG "kcapi: load: invalid parameter: dataptr is 0\n");
 			return -EINVAL;
 		}
@@ -904,7 +904,7 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
         struct capi_ctr *card;
 
 	switch (cmd) {
-#ifdef CONFIG_AVMB1_COMPAT
+#ifdef AVMB1_COMPAT
 	case AVMB1_LOAD:
 	case AVMB1_LOAD_AND_CONFIG:
 	case AVMB1_RESETCARD:
@@ -951,7 +951,7 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
 			if (strcmp(driver->name, cdef.driver) == 0)
 				break;
 		}
-		if (driver == 0) {
+		if (driver == NULL) {
 			printk(KERN_ERR "kcapi: driver \"%s\" not loaded.\n",
 					cdef.driver);
 			return -ESRCH;
@@ -1004,9 +1004,9 @@ static int __init kcapi_init(void)
 		return ret;
         kcapi_proc_init();
 
-	if ((p = strchr(revision, ':')) != 0 && p[1]) {
+	if ((p = strchr(revision, ':')) != NULL && p[1]) {
 		strlcpy(rev, p + 2, sizeof(rev));
-		if ((p = strchr(rev, '$')) != 0 && p > rev)
+		if ((p = strchr(rev, '$')) != NULL && p > rev)
 		   *(p-1) = 0;
 	} else
 		strcpy(rev, "1.0");

@@ -54,4 +54,6 @@ extern unsigned char __node_distances[MAX_COMPACT_NODES][MAX_COMPACT_NODES];
 	.nr_balance_failed	= 0,			\
 }
 
+#include <asm-generic/topology.h>
+
 #endif /* _ASM_MACH_TOPOLOGY_H */

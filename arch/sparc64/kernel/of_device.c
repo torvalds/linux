@@ -412,12 +412,6 @@ static int __init build_one_resource(struct device_node *parent,
 
 static int __init use_1to1_mapping(struct device_node *pp)
 {
-	/* If this is on the PMU bus, don't try to translate it even
-	 * if a ranges property exists.
-	 */
-	if (!strcmp(pp->name, "pmu"))
-		return 1;
-
 	/* If we have a ranges property in the parent, use it.  */
 	if (of_find_property(pp, "ranges", NULL) != NULL)
 		return 0;

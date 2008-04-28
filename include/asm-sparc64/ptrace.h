@@ -1,4 +1,3 @@
-/* $Id: ptrace.h,v 1.14 2002/02/09 19:49:32 davem Exp $ */
 #ifndef _SPARC64_PTRACE_H
 #define _SPARC64_PTRACE_H
 
@@ -8,9 +7,14 @@
  * stack during a system call and basically all traps.
  */
 
+/* This magic value must have the low 9 bits clear,
+ * as that is where we encode the %tt value, see below.
+ */
 #define PT_REGS_MAGIC 0x57ac6c00
 
 #ifndef __ASSEMBLY__
+
+#include <linux/types.h>
 
 struct pt_regs {
 	unsigned long u_regs[16]; /* globals and ins */
@@ -32,6 +36,23 @@ struct pt_regs {
 	 */
 	unsigned int magic;
 };
+
+static inline int pt_regs_trap_type(struct pt_regs *regs)
+{
+	return regs->magic & 0x1ff;
+}
+
+static inline int pt_regs_clear_trap_type(struct pt_regs *regs)
+{
+	return regs->magic &= ~0x1ff;
+}
+
+static inline bool pt_regs_is_syscall(struct pt_regs *regs)
+{
+	int tt = pt_regs_trap_type(regs);
+
+	return (tt == 0x110 || tt == 0x111 || tt == 0x16d);
+}
 
 struct pt_regs32 {
 	unsigned int psr;

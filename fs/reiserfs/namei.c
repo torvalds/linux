@@ -301,7 +301,7 @@ static int reiserfs_find_entry(struct inode *dir, const char *name, int namelen,
 					path_to_entry, de);
 		if (retval == IO_ERROR) {
 			reiserfs_warning(dir->i_sb, "zam-7001: io error in %s",
-					 __FUNCTION__);
+					 __func__);
 			return IO_ERROR;
 		}
 
@@ -496,7 +496,7 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 			reiserfs_warning(dir->i_sb,
 					 "zam-7002:%s: \"reiserfs_find_entry\" "
 					 "has returned unexpected value (%d)",
-					 __FUNCTION__, retval);
+					 __func__, retval);
 		}
 
 		return -EEXIST;
@@ -907,7 +907,7 @@ static int reiserfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	if (inode->i_nlink != 2 && inode->i_nlink != 1)
 		reiserfs_warning(inode->i_sb, "%s: empty directory has nlink "
-				 "!= 2 (%d)", __FUNCTION__, inode->i_nlink);
+				 "!= 2 (%d)", __func__, inode->i_nlink);
 
 	clear_nlink(inode);
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
@@ -984,7 +984,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	if (!inode->i_nlink) {
 		reiserfs_warning(inode->i_sb, "%s: deleting nonexistent file "
-				 "(%s:%lu), %d", __FUNCTION__,
+				 "(%s:%lu), %d", __func__,
 				 reiserfs_bdevname(inode->i_sb), inode->i_ino,
 				 inode->i_nlink);
 		inode->i_nlink = 1;

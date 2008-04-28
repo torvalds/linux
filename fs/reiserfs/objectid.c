@@ -61,7 +61,7 @@ __u32 reiserfs_get_unused_objectid(struct reiserfs_transaction_handle *th)
 	/* comment needed -Hans */
 	unused_objectid = le32_to_cpu(map[1]);
 	if (unused_objectid == U32_MAX) {
-		reiserfs_warning(s, "%s: no more object ids", __FUNCTION__);
+		reiserfs_warning(s, "%s: no more object ids", __func__);
 		reiserfs_restore_prepared_buffer(s, SB_BUFFER_WITH_SB(s));
 		return 0;
 	}
@@ -114,7 +114,7 @@ void reiserfs_release_objectid(struct reiserfs_transaction_handle *th,
 		if (objectid_to_release == le32_to_cpu(map[i])) {
 			/* This incrementation unallocates the objectid. */
 			//map[i]++;
-			map[i] = cpu_to_le32(le32_to_cpu(map[i]) + 1);
+			le32_add_cpu(&map[i], 1);
 
 			/* Did we unallocate the last member of an odd sequence, and can shrink oids? */
 			if (map[i] == map[i + 1]) {
@@ -138,8 +138,7 @@ void reiserfs_release_objectid(struct reiserfs_transaction_handle *th,
 			/* size of objectid map is not changed */
 			if (objectid_to_release + 1 == le32_to_cpu(map[i + 1])) {
 				//objectid_map[i+1]--;
-				map[i + 1] =
-				    cpu_to_le32(le32_to_cpu(map[i + 1]) - 1);
+				le32_add_cpu(&map[i + 1], -1);
 				return;
 			}
 

@@ -310,17 +310,18 @@ static int spcp8x5_startup(struct usb_serial *serial)
 	struct spcp8x5_private *priv;
 	int i;
 	enum spcp8x5_type type = SPCP825_007_TYPE;
+	u16 product = le16_to_cpu(serial->dev->descriptor.idProduct);
 
-	if (serial->dev->descriptor.idProduct == 0x0201)
+	if (product == 0x0201)
 		type = SPCP825_007_TYPE;
-	else if (serial->dev->descriptor.idProduct == 0x0231)
+	else if (product == 0x0231)
 		type = SPCP835_TYPE;
-	else if (serial->dev->descriptor.idProduct == 0x0235)
+	else if (product == 0x0235)
 		type = SPCP825_008_TYPE;
-	else if (serial->dev->descriptor.idProduct == 0x0204)
+	else if (product == 0x0204)
 		type = SPCP825_INTERMATIC_TYPE;
-	else if (serial->dev->descriptor.idProduct == 0x0471 &&
-		 serial->dev->descriptor.idVendor == 0x081e)
+	else if (product == 0x0471 &&
+		 serial->dev->descriptor.idVendor == cpu_to_le16(0x081e))
 		type = SPCP825_PHILIP_TYPE;
 	dev_dbg(&serial->dev->dev, "device type = %d\n", (int)type);
 

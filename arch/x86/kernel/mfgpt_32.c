@@ -63,7 +63,7 @@ static int __init mfgpt_fix(char *s)
 
 	/* The following udocumented bit resets the MFGPT timers */
 	val = 0xFF; dummy = 0;
-	wrmsr(0x5140002B, val, dummy);
+	wrmsr(MSR_MFGPT_SETUP, val, dummy);
 	return 1;
 }
 __setup("mfgptfix", mfgpt_fix);
@@ -127,17 +127,17 @@ int geode_mfgpt_toggle_event(int timer, int cmp, int event, int enable)
 		 * 6; that is, resets for 7 and 8 will be ignored.  Is this
 		 * a problem?   -dilinger
 		 */
-		msr = MFGPT_NR_MSR;
+		msr = MSR_MFGPT_NR;
 		mask = 1 << (timer + 24);
 		break;
 
 	case MFGPT_EVENT_NMI:
-		msr = MFGPT_NR_MSR;
+		msr = MSR_MFGPT_NR;
 		mask = 1 << (timer + shift);
 		break;
 
 	case MFGPT_EVENT_IRQ:
-		msr = MFGPT_IRQ_MSR;
+		msr = MSR_MFGPT_IRQ;
 		mask = 1 << (timer + shift);
 		break;
 

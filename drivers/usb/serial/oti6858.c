@@ -98,7 +98,7 @@ struct oti6858_buf {
 
 /* format of the control packet */
 struct oti6858_control_pkt {
-	u16	divisor;	/* baud rate = 96000000 / (16 * divisor), LE */
+	__le16	divisor;	/* baud rate = 96000000 / (16 * divisor), LE */
 #define OTI6858_MAX_BAUD_RATE	3000000
 	u8	frame_fmt;
 #define FMT_STOP_BITS_MASK	0xc0
@@ -211,7 +211,7 @@ struct oti6858_private {
 	struct delayed_work delayed_write_work;
 
 	struct {
-		u16 divisor;
+		__le16 divisor;
 		u8 frame_fmt;
 		u8 control;
 	} pending_setup;
@@ -450,7 +450,7 @@ static void oti6858_set_termios(struct usb_serial_port *port,
 	unsigned long flags;
 	unsigned int cflag;
 	u8 frame_fmt, control;
-	u16 divisor;
+	__le16 divisor;
 	int br;
 
 	dbg("%s(port = %d)", __func__, port->number);
@@ -505,11 +505,12 @@ static void oti6858_set_termios(struct usb_serial_port *port,
 		divisor = 0;
 	} else {
 		int real_br;
+		int new_divisor;
 		br = min(br, OTI6858_MAX_BAUD_RATE);
 
-		divisor = (96000000 + 8 * br) / (16 * br);
-		real_br = 96000000 / (16 * divisor);
-		divisor = cpu_to_le16(divisor);
+		new_divisor = (96000000 + 8 * br) / (16 * br);
+		real_br = 96000000 / (16 * new_divisor);
+		divisor = cpu_to_le16(new_divisor);
 		tty_encode_baud_rate(port->tty, real_br, real_br);
 	}
 

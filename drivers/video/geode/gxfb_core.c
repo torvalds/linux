@@ -28,17 +28,20 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
+#include <linux/console.h>
+#include <linux/suspend.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <asm/geode.h>
 
-#include "geodefb.h"
-#include "display_gx.h"
-#include "video_gx.h"
+#include "gxfb.h"
 
 static char *mode_option;
+static int vram;
+static int vt_switch;
 
 /* Modes relevant to the GX (taken from modedb.c) */
-static const struct fb_videomode gx_modedb[] __initdata = {
+static struct fb_videomode gx_modedb[] __initdata = {
 	/* 640x480-60 VESA */
 	{ NULL, 60, 640, 480, 39682,  48, 16, 33, 10, 96, 2,
 	  0, FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
@@ -105,6 +108,35 @@ static const struct fb_videomode gx_modedb[] __initdata = {
 	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
 };
 
+#ifdef CONFIG_OLPC
+#include <asm/olpc.h>
+
+static struct fb_videomode gx_dcon_modedb[] __initdata = {
+	/* The only mode the DCON has is 1200x900 */
+	{ NULL, 50, 1200, 900, 17460, 24, 8, 4, 5, 8, 3,
+	  FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+	  FB_VMODE_NONINTERLACED, 0 }
+};
+
+static void __init get_modedb(struct fb_videomode **modedb, unsigned int *size)
+{
+	if (olpc_has_dcon()) {
+		*modedb = (struct fb_videomode *) gx_dcon_modedb;
+		*size = ARRAY_SIZE(gx_dcon_modedb);
+	} else {
+		*modedb = (struct fb_videomode *) gx_modedb;
+		*size = ARRAY_SIZE(gx_modedb);
+	}
+}
+
+#else
+static void __init get_modedb(struct fb_videomode **modedb, unsigned int *size)
+{
+	*modedb = (struct fb_videomode *) gx_modedb;
+	*size = ARRAY_SIZE(gx_modedb);
+}
+#endif
+
 static int gxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	if (var->xres > 1600 || var->yres > 1200)
@@ -139,8 +171,6 @@ static int gxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 static int gxfb_set_par(struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
-
 	if (info->var.bits_per_pixel > 8) {
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		fb_dealloc_cmap(&info->cmap);
@@ -151,7 +181,7 @@ static int gxfb_set_par(struct fb_info *info)
 
 	info->fix.line_length = gx_line_delta(info->var.xres, info->var.bits_per_pixel);
 
-	par->dc_ops->set_mode(info);
+	gx_set_mode(info);
 
 	return 0;
 }
@@ -167,8 +197,6 @@ static int gxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
-
 	if (info->var.grayscale) {
 		/* grayscale = 0.30*R + 0.59*G + 0.11*B */
 		red = green = blue = (red * 77 + green * 151 + blue * 28) >> 8;
@@ -191,7 +219,7 @@ static int gxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		if (regno >= 256)
 			return -EINVAL;
 
-		par->dc_ops->set_palette_reg(info, regno, red, green, blue);
+		gx_set_hw_palette_reg(info, regno, red, green, blue);
 	}
 
 	return 0;
@@ -199,15 +227,12 @@ static int gxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 static int gxfb_blank(int blank_mode, struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
-
-	return par->vid_ops->blank_display(info, blank_mode);
+	return gx_blank_display(info, blank_mode);
 }
 
 static int __init gxfb_map_video_memory(struct fb_info *info, struct pci_dev *dev)
 {
-	struct geodefb_par *par = info->par;
-	int fb_len;
+	struct gxfb_par *par = info->par;
 	int ret;
 
 	ret = pci_enable_device(dev);
@@ -229,24 +254,31 @@ static int __init gxfb_map_video_memory(struct fb_info *info, struct pci_dev *de
 	if (!par->dc_regs)
 		return -ENOMEM;
 
+	ret = pci_request_region(dev, 1, "gxfb (graphics processor)");
+	if (ret < 0)
+		return ret;
+	par->gp_regs = ioremap(pci_resource_start(dev, 1),
+	pci_resource_len(dev, 1));
+
+	if (!par->gp_regs)
+		return -ENOMEM;
+
 	ret = pci_request_region(dev, 0, "gxfb (framebuffer)");
 	if (ret < 0)
 		return ret;
-	if ((fb_len = gx_frame_buffer_size()) < 0)
-		return -ENOMEM;
+
 	info->fix.smem_start = pci_resource_start(dev, 0);
-	info->fix.smem_len = fb_len;
+	info->fix.smem_len = vram ? vram : gx_frame_buffer_size();
 	info->screen_base = ioremap(info->fix.smem_start, info->fix.smem_len);
 	if (!info->screen_base)
 		return -ENOMEM;
 
-	/* Set the 16MB aligned base address of the graphics memory region
+	/* Set the 16MiB aligned base address of the graphics memory region
 	 * in the display controller */
 
-	writel(info->fix.smem_start & 0xFF000000,
-			par->dc_regs + DC_GLIU0_MEM_OFFSET);
+	write_dc(par, DC_GLIU0_MEM_OFFSET, info->fix.smem_start & 0xFF000000);
 
-	dev_info(&dev->dev, "%d Kibyte of video memory at 0x%lx\n",
+	dev_info(&dev->dev, "%d KiB of video memory at 0x%lx\n",
 		 info->fix.smem_len / 1024, info->fix.smem_start);
 
 	return 0;
@@ -266,11 +298,12 @@ static struct fb_ops gxfb_ops = {
 
 static struct fb_info * __init gxfb_init_fbinfo(struct device *dev)
 {
-	struct geodefb_par *par;
+	struct gxfb_par *par;
 	struct fb_info *info;
 
 	/* Alloc enough space for the pseudo palette. */
-	info = framebuffer_alloc(sizeof(struct geodefb_par) + sizeof(u32) * 16, dev);
+	info = framebuffer_alloc(sizeof(struct gxfb_par) + sizeof(u32) * 16,
+			dev);
 	if (!info)
 		return NULL;
 
@@ -296,28 +329,63 @@ static struct fb_info * __init gxfb_init_fbinfo(struct device *dev)
 	info->flags		= FBINFO_DEFAULT;
 	info->node		= -1;
 
-	info->pseudo_palette	= (void *)par + sizeof(struct geodefb_par);
+	info->pseudo_palette	= (void *)par + sizeof(struct gxfb_par);
 
 	info->var.grayscale	= 0;
 
 	return info;
 }
 
+#ifdef CONFIG_PM
+static int gxfb_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct fb_info *info = pci_get_drvdata(pdev);
+
+	if (state.event == PM_EVENT_SUSPEND) {
+		acquire_console_sem();
+		gx_powerdown(info);
+		fb_set_suspend(info, 1);
+		release_console_sem();
+	}
+
+	/* there's no point in setting PCI states; we emulate PCI, so
+	 * we don't end up getting power savings anyways */
+
+	return 0;
+}
+
+static int gxfb_resume(struct pci_dev *pdev)
+{
+	struct fb_info *info = pci_get_drvdata(pdev);
+	int ret;
+
+	acquire_console_sem();
+	ret = gx_powerup(info);
+	if (ret) {
+		printk(KERN_ERR "gxfb:  power up failed!\n");
+		return ret;
+	}
+
+	fb_set_suspend(info, 0);
+	release_console_sem();
+	return 0;
+}
+#endif
+
 static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct geodefb_par *par;
+	struct gxfb_par *par;
 	struct fb_info *info;
 	int ret;
 	unsigned long val;
+
+	struct fb_videomode *modedb_ptr;
+	unsigned int modedb_size;
 
 	info = gxfb_init_fbinfo(&pdev->dev);
 	if (!info)
 		return -ENOMEM;
 	par = info->par;
-
-	/* GX display controller and GX video device. */
-	par->dc_ops  = &gx_dc_ops;
-	par->vid_ops = &gx_vid_ops;
 
 	if ((ret = gxfb_map_video_memory(info, pdev)) < 0) {
 		dev_err(&pdev->dev, "failed to map frame buffer or controller registers\n");
@@ -326,15 +394,16 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	/* Figure out if this is a TFT or CRT part */
 
-	rdmsrl(GLD_MSR_CONFIG, val);
+	rdmsrl(MSR_GX_GLD_MSR_CONFIG, val);
 
-	if ((val & GLD_MSR_CONFIG_DM_FP) == GLD_MSR_CONFIG_DM_FP)
+	if ((val & MSR_GX_GLD_MSR_CONFIG_FP) == MSR_GX_GLD_MSR_CONFIG_FP)
 		par->enable_crt = 0;
 	else
 		par->enable_crt = 1;
 
+	get_modedb(&modedb_ptr, &modedb_size);
 	ret = fb_find_mode(&info->var, info, mode_option,
-			   gx_modedb, ARRAY_SIZE(gx_modedb), NULL, 16);
+			   modedb_ptr, modedb_size, NULL, 16);
 	if (ret == 0 || ret == 4) {
 		dev_err(&pdev->dev, "could not find valid video mode\n");
 		ret = -EINVAL;
@@ -347,6 +416,8 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	gxfb_check_var(&info->var, info);
 	gxfb_set_par(info);
+
+	pm_set_vt_switch(vt_switch);
 
 	if (register_framebuffer(info) < 0) {
 		ret = -EINVAL;
@@ -369,6 +440,10 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		iounmap(par->dc_regs);
 		pci_release_region(pdev, 2);
 	}
+	if (par->gp_regs) {
+		iounmap(par->gp_regs);
+		pci_release_region(pdev, 1);
+	}
 
 	if (info)
 		framebuffer_release(info);
@@ -378,7 +453,7 @@ static int __init gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *i
 static void gxfb_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 
 	unregister_framebuffer(info);
 
@@ -391,15 +466,16 @@ static void gxfb_remove(struct pci_dev *pdev)
 	iounmap(par->dc_regs);
 	pci_release_region(pdev, 2);
 
+	iounmap(par->gp_regs);
+	pci_release_region(pdev, 1);
+
 	pci_set_drvdata(pdev, NULL);
 
 	framebuffer_release(info);
 }
 
 static struct pci_device_id gxfb_id_table[] = {
-	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_GX_VIDEO,
-	  PCI_ANY_ID, PCI_ANY_ID, PCI_BASE_CLASS_DISPLAY << 16,
-	  0xff0000, 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_GX_VIDEO) },
 	{ 0, }
 };
 
@@ -410,6 +486,10 @@ static struct pci_driver gxfb_driver = {
 	.id_table	= gxfb_id_table,
 	.probe		= gxfb_probe,
 	.remove		= gxfb_remove,
+#ifdef CONFIG_PM
+	.suspend	= gxfb_suspend,
+	.resume		= gxfb_resume,
+#endif
 };
 
 #ifndef MODULE
@@ -455,6 +535,12 @@ module_exit(gxfb_cleanup);
 
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "video mode (<x>x<y>[-<bpp>][@<refr>])");
+
+module_param(vram, int, 0);
+MODULE_PARM_DESC(vram, "video memory size");
+
+module_param(vt_switch, int, 0);
+MODULE_PARM_DESC(vt_switch, "enable VT switch during suspend/resume");
 
 MODULE_DESCRIPTION("Framebuffer driver for the AMD Geode GX");
 MODULE_LICENSE("GPL");

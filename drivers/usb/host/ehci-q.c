@@ -285,7 +285,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	int			stopped;
 	unsigned		count = 0;
 	u8			state;
-	u32			halt = HALT_BIT(ehci);
+	__le32			halt = HALT_BIT(ehci);
 
 	if (unlikely (list_empty (&qh->qtd_list)))
 		return count;
@@ -883,7 +883,7 @@ static struct ehci_qh *qh_append_tds (
 )
 {
 	struct ehci_qh		*qh = NULL;
-	u32			qh_addr_mask = cpu_to_hc32(ehci, 0x7f);
+	__hc32			qh_addr_mask = cpu_to_hc32(ehci, 0x7f);
 
 	qh = (struct ehci_qh *) *ptr;
 	if (unlikely (qh == NULL)) {

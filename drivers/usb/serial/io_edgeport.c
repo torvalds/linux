@@ -2993,7 +2993,7 @@ static int edge_startup (struct usb_serial *serial)
 				usb_fill_bulk_urb(edge_serial->read_urb, dev,
 						  usb_rcvbulkpipe(dev, endpoint->bEndpointAddress),
 						  edge_serial->bulk_in_buffer,
-						  endpoint->wMaxPacketSize,
+						  le16_to_cpu(endpoint->wMaxPacketSize),
 						  edge_bulk_in_callback,
 						  edge_serial);
 				bulk_in_found = true;

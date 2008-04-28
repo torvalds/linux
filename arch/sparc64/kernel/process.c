@@ -1,5 +1,4 @@
-/*  $Id: process.c,v 1.131 2002/02/09 19:49:30 davem Exp $
- *  arch/sparc64/kernel/process.c
+/*  arch/sparc64/kernel/process.c
  *
  *  Copyright (C) 1995, 1996 David S. Miller (davem@caip.rutgers.edu)
  *  Copyright (C) 1996       Eddie C. Dost   (ecd@skynet.be)
@@ -368,9 +367,6 @@ void flush_thread(void)
 	
 	if (get_thread_current_ds() != ASI_AIUS)
 		set_fs(USER_DS);
-
-	/* Init new signal delivery disposition. */
-	clear_thread_flag(TIF_NEWSIGNALS);
 }
 
 /* It's a bit more tricky when 64-bit tasks are involved... */
@@ -594,6 +590,12 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 
 	if (clone_flags & CLONE_SETTLS)
 		t->kregs->u_regs[UREG_G7] = regs->u_regs[UREG_I3];
+
+	/* We do not want to accidently trigger system call restart
+	 * handling in the new thread.  Therefore, clear out the trap
+	 * type, which will make pt_regs_regs_is_syscall() return false.
+	 */
+	pt_regs_clear_trap_type(t->kregs);
 
 	return 0;
 }

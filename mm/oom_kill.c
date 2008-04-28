@@ -53,8 +53,7 @@ static DEFINE_SPINLOCK(zone_scan_mutex);
  *    of least surprise ... (be careful when you change it)
  */
 
-unsigned long badness(struct task_struct *p, unsigned long uptime,
-			struct mem_cgroup *mem)
+unsigned long badness(struct task_struct *p, unsigned long uptime)
 {
 	unsigned long points, cpu_time, run_time, s;
 	struct mm_struct *mm;
@@ -175,12 +174,14 @@ static inline enum oom_constraint constrained_alloc(struct zonelist *zonelist,
 						    gfp_t gfp_mask)
 {
 #ifdef CONFIG_NUMA
-	struct zone **z;
+	struct zone *zone;
+	struct zoneref *z;
+	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
 	nodemask_t nodes = node_states[N_HIGH_MEMORY];
 
-	for (z = zonelist->zones; *z; z++)
-		if (cpuset_zone_allowed_softwall(*z, gfp_mask))
-			node_clear(zone_to_nid(*z), nodes);
+	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+		if (cpuset_zone_allowed_softwall(zone, gfp_mask))
+			node_clear(zone_to_nid(zone), nodes);
 		else
 			return CONSTRAINT_CPUSET;
 
@@ -254,7 +255,7 @@ static struct task_struct *select_bad_process(unsigned long *ppoints,
 		if (p->oomkilladj == OOM_DISABLE)
 			continue;
 
-		points = badness(p, uptime.tv_sec, mem);
+		points = badness(p, uptime.tv_sec);
 		if (points > *ppoints || !chosen) {
 			chosen = p;
 			*ppoints = points;
@@ -460,29 +461,29 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
  * if a parallel OOM killing is already taking place that includes a zone in
  * the zonelist.  Otherwise, locks all zones in the zonelist and returns 1.
  */
-int try_set_zone_oom(struct zonelist *zonelist)
+int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_mask)
 {
-	struct zone **z;
+	struct zoneref *z;
+	struct zone *zone;
 	int ret = 1;
 
-	z = zonelist->zones;
-
 	spin_lock(&zone_scan_mutex);
-	do {
-		if (zone_is_oom_locked(*z)) {
+	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask)) {
+		if (zone_is_oom_locked(zone)) {
 			ret = 0;
 			goto out;
 		}
-	} while (*(++z) != NULL);
+	}
 
-	/*
-	 * Lock each zone in the zonelist under zone_scan_mutex so a parallel
-	 * invocation of try_set_zone_oom() doesn't succeed when it shouldn't.
-	 */
-	z = zonelist->zones;
-	do {
-		zone_set_flag(*z, ZONE_OOM_LOCKED);
-	} while (*(++z) != NULL);
+	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask)) {
+		/*
+		 * Lock each zone in the zonelist under zone_scan_mutex so a
+		 * parallel invocation of try_set_zone_oom() doesn't succeed
+		 * when it shouldn't.
+		 */
+		zone_set_flag(zone, ZONE_OOM_LOCKED);
+	}
+
 out:
 	spin_unlock(&zone_scan_mutex);
 	return ret;
@@ -493,16 +494,15 @@ out:
  * allocation attempts with zonelists containing them may now recall the OOM
  * killer, if necessary.
  */
-void clear_zonelist_oom(struct zonelist *zonelist)
+void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
 {
-	struct zone **z;
-
-	z = zonelist->zones;
+	struct zoneref *z;
+	struct zone *zone;
 
 	spin_lock(&zone_scan_mutex);
-	do {
-		zone_clear_flag(*z, ZONE_OOM_LOCKED);
-	} while (*(++z) != NULL);
+	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask)) {
+		zone_clear_flag(zone, ZONE_OOM_LOCKED);
+	}
 	spin_unlock(&zone_scan_mutex);
 }
 

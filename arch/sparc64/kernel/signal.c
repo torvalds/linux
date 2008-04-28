@@ -8,7 +8,7 @@
  *  Copyright (C) 1997,1998 Jakub Jelinek   (jj@sunsite.mff.cuni.cz)
  */
 
-#ifdef CONFIG_SPARC32_COMPAT
+#ifdef CONFIG_COMPAT
 #include <linux/compat.h>	/* for compat_old_sigset_t */
 #endif
 #include <linux/sched.h>
@@ -236,9 +236,6 @@ struct rt_signal_frame {
 	__siginfo_fpu_t		fpu_state;
 };
 
-/* Align macros */
-#define RT_ALIGNEDSZ  (((sizeof(struct rt_signal_frame) + 7) & (~7)))
-
 static long _sigpause_common(old_sigset_t set)
 {
 	set &= _BLOCKABLE;
@@ -400,7 +397,7 @@ setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	synchronize_user_stack();
 	save_and_clear_fpu();
 	
-	sigframe_size = RT_ALIGNEDSZ;
+	sigframe_size = sizeof(struct rt_signal_frame);
 	if (!(current_thread_info()->fpsaved[0] & FPRS_FEF))
 		sigframe_size -= sizeof(__siginfo_fpu_t);
 
@@ -516,11 +513,10 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	struct k_sigaction ka;
 	sigset_t *oldset;
 	siginfo_t info;
-	int signr, tt;
+	int signr;
 	
-	tt = regs->magic & 0x1ff;
-	if (tt == 0x110 || tt == 0x111 || tt == 0x16d) {
-		regs->magic &= ~0x1ff;
+	if (pt_regs_is_syscall(regs)) {
+		pt_regs_clear_trap_type(regs);
 		cookie.restart_syscall = 1;
 	} else
 		cookie.restart_syscall = 0;
@@ -531,7 +527,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	else
 		oldset = &current->blocked;
 
-#ifdef CONFIG_SPARC32_COMPAT
+#ifdef CONFIG_COMPAT
 	if (test_thread_flag(TIF_32BIT)) {
 		extern void do_signal32(sigset_t *, struct pt_regs *,
 					struct signal_deliver_cookie *);

@@ -54,6 +54,7 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <asm/uaccess.h>
+#include <asm/unaligned.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include "kl5kusb105.h"
@@ -235,7 +236,7 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	if (rc < 0)
 		err("Reading line status failed (error = %d)", rc);
 	else {
-		status = le16_to_cpu(*(u16 *)status_buf);
+		status = le16_to_cpu(get_unaligned((__le16 *)status_buf));
 
 		info("%s - read status %x %x", __func__,
 		     status_buf[0], status_buf[1]);

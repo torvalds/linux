@@ -186,7 +186,7 @@ int setup_irq(unsigned int irq, struct irq_node *node)
 
 	if (irq >= NR_IRQS || !(contr = irq_controller[irq])) {
 		printk("%s: Incorrect IRQ %d from %s\n",
-		       __FUNCTION__, irq, node->devname);
+		       __func__, irq, node->devname);
 		return -ENXIO;
 	}
 
@@ -249,7 +249,7 @@ void free_irq(unsigned int irq, void *dev_id)
 	unsigned long flags;
 
 	if (irq >= NR_IRQS || !(contr = irq_controller[irq])) {
-		printk("%s: Incorrect IRQ %d\n", __FUNCTION__, irq);
+		printk("%s: Incorrect IRQ %d\n", __func__, irq);
 		return;
 	}
 
@@ -267,7 +267,7 @@ void free_irq(unsigned int irq, void *dev_id)
 		node->handler = NULL;
 	} else
 		printk("%s: Removing probably wrong IRQ %d\n",
-		       __FUNCTION__, irq);
+		       __func__, irq);
 
 	if (!irq_list[irq]) {
 		if (contr->shutdown)
@@ -288,7 +288,7 @@ void enable_irq(unsigned int irq)
 
 	if (irq >= NR_IRQS || !(contr = irq_controller[irq])) {
 		printk("%s: Incorrect IRQ %d\n",
-		       __FUNCTION__, irq);
+		       __func__, irq);
 		return;
 	}
 
@@ -312,7 +312,7 @@ void disable_irq(unsigned int irq)
 
 	if (irq >= NR_IRQS || !(contr = irq_controller[irq])) {
 		printk("%s: Incorrect IRQ %d\n",
-		       __FUNCTION__, irq);
+		       __func__, irq);
 		return;
 	}
 

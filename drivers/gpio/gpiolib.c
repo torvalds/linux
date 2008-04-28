@@ -43,6 +43,7 @@ struct gpio_desc {
 /* flag symbols are bit numbers */
 #define FLAG_REQUESTED	0
 #define FLAG_IS_OUT	1
+#define FLAG_RESERVED	2
 
 #ifdef CONFIG_DEBUG_FS
 	const char		*label;
@@ -68,6 +69,9 @@ static void gpio_ensure_requested(struct gpio_desc *desc)
 	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0) {
 		pr_warning("GPIO-%d autorequested\n", (int)(desc - gpio_desc));
 		desc_set_label(desc, "[auto]");
+		if (!try_module_get(desc->chip->owner))
+			pr_err("GPIO-%d: module can't be gotten \n",
+					(int)(desc - gpio_desc));
 	}
 }
 
@@ -75,6 +79,76 @@ static void gpio_ensure_requested(struct gpio_desc *desc)
 static inline struct gpio_chip *gpio_to_chip(unsigned gpio)
 {
 	return gpio_desc[gpio].chip;
+}
+
+/* dynamic allocation of GPIOs, e.g. on a hotplugged device */
+static int gpiochip_find_base(int ngpio)
+{
+	int i;
+	int spare = 0;
+	int base = -ENOSPC;
+
+	for (i = ARCH_NR_GPIOS - 1; i >= 0 ; i--) {
+		struct gpio_desc *desc = &gpio_desc[i];
+		struct gpio_chip *chip = desc->chip;
+
+		if (!chip && !test_bit(FLAG_RESERVED, &desc->flags)) {
+			spare++;
+			if (spare == ngpio) {
+				base = i;
+				break;
+			}
+		} else {
+			spare = 0;
+			if (chip)
+				i -= chip->ngpio - 1;
+		}
+	}
+
+	if (gpio_is_valid(base))
+		pr_debug("%s: found new base at %d\n", __func__, base);
+	return base;
+}
+
+/**
+ * gpiochip_reserve() - reserve range of gpios to use with platform code only
+ * @start: starting gpio number
+ * @ngpio: number of gpios to reserve
+ * Context: platform init, potentially before irqs or kmalloc will work
+ *
+ * Returns a negative errno if any gpio within the range is already reserved
+ * or registered, else returns zero as a success code.  Use this function
+ * to mark a range of gpios as unavailable for dynamic gpio number allocation,
+ * for example because its driver support is not yet loaded.
+ */
+int __init gpiochip_reserve(int start, int ngpio)
+{
+	int ret = 0;
+	unsigned long flags;
+	int i;
+
+	if (!gpio_is_valid(start) || !gpio_is_valid(start + ngpio))
+		return -EINVAL;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	for (i = start; i < start + ngpio; i++) {
+		struct gpio_desc *desc = &gpio_desc[i];
+
+		if (desc->chip || test_bit(FLAG_RESERVED, &desc->flags)) {
+			ret = -EBUSY;
+			goto err;
+		}
+
+		set_bit(FLAG_RESERVED, &desc->flags);
+	}
+
+	pr_debug("%s: reserved gpios from %d to %d\n",
+		 __func__, start, start + ngpio - 1);
+err:
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	return ret;
 }
 
 /**
@@ -85,38 +159,49 @@ static inline struct gpio_chip *gpio_to_chip(unsigned gpio)
  * Returns a negative errno if the chip can't be registered, such as
  * because the chip->base is invalid or already associated with a
  * different chip.  Otherwise it returns zero as a success code.
+ *
+ * If chip->base is negative, this requests dynamic assignment of
+ * a range of valid GPIOs.
  */
 int gpiochip_add(struct gpio_chip *chip)
 {
 	unsigned long	flags;
 	int		status = 0;
 	unsigned	id;
+	int		base = chip->base;
 
-	/* NOTE chip->base negative is reserved to mean a request for
-	 * dynamic allocation.  We don't currently support that.
-	 */
-
-	if (chip->base < 0 || (chip->base  + chip->ngpio) >= ARCH_NR_GPIOS) {
+	if ((!gpio_is_valid(base) || !gpio_is_valid(base + chip->ngpio))
+			&& base >= 0) {
 		status = -EINVAL;
 		goto fail;
 	}
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
+	if (base < 0) {
+		base = gpiochip_find_base(chip->ngpio);
+		if (base < 0) {
+			status = base;
+			goto fail_unlock;
+		}
+		chip->base = base;
+	}
+
 	/* these GPIO numbers must not be managed by another gpio_chip */
-	for (id = chip->base; id < chip->base + chip->ngpio; id++) {
+	for (id = base; id < base + chip->ngpio; id++) {
 		if (gpio_desc[id].chip != NULL) {
 			status = -EBUSY;
 			break;
 		}
 	}
 	if (status == 0) {
-		for (id = chip->base; id < chip->base + chip->ngpio; id++) {
+		for (id = base; id < base + chip->ngpio; id++) {
 			gpio_desc[id].chip = chip;
 			gpio_desc[id].flags = 0;
 		}
 	}
 
+fail_unlock:
 	spin_unlock_irqrestore(&gpio_lock, flags);
 fail:
 	/* failures here can mean systems won't boot... */
@@ -171,10 +256,13 @@ int gpio_request(unsigned gpio, const char *label)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	if (gpio >= ARCH_NR_GPIOS)
+	if (!gpio_is_valid(gpio))
 		goto done;
 	desc = &gpio_desc[gpio];
 	if (desc->chip == NULL)
+		goto done;
+
+	if (!try_module_get(desc->chip->owner))
 		goto done;
 
 	/* NOTE:  gpio_request() can be called in early boot,
@@ -184,8 +272,10 @@ int gpio_request(unsigned gpio, const char *label)
 	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0) {
 		desc_set_label(desc, label ? : "?");
 		status = 0;
-	} else
+	} else {
 		status = -EBUSY;
+		module_put(desc->chip->owner);
+	}
 
 done:
 	if (status)
@@ -201,7 +291,7 @@ void gpio_free(unsigned gpio)
 	unsigned long		flags;
 	struct gpio_desc	*desc;
 
-	if (gpio >= ARCH_NR_GPIOS) {
+	if (!gpio_is_valid(gpio)) {
 		WARN_ON(extra_checks);
 		return;
 	}
@@ -209,9 +299,10 @@ void gpio_free(unsigned gpio)
 	spin_lock_irqsave(&gpio_lock, flags);
 
 	desc = &gpio_desc[gpio];
-	if (desc->chip && test_and_clear_bit(FLAG_REQUESTED, &desc->flags))
+	if (desc->chip && test_and_clear_bit(FLAG_REQUESTED, &desc->flags)) {
 		desc_set_label(desc, NULL);
-	else
+		module_put(desc->chip->owner);
+	} else
 		WARN_ON(extra_checks);
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
@@ -236,7 +327,7 @@ const char *gpiochip_is_requested(struct gpio_chip *chip, unsigned offset)
 {
 	unsigned gpio = chip->base + offset;
 
-	if (gpio >= ARCH_NR_GPIOS || gpio_desc[gpio].chip != chip)
+	if (!gpio_is_valid(gpio) || gpio_desc[gpio].chip != chip)
 		return NULL;
 	if (test_bit(FLAG_REQUESTED, &gpio_desc[gpio].flags) == 0)
 		return NULL;
@@ -267,7 +358,7 @@ int gpio_direction_input(unsigned gpio)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	if (gpio >= ARCH_NR_GPIOS)
+	if (!gpio_is_valid(gpio))
 		goto fail;
 	chip = desc->chip;
 	if (!chip || !chip->get || !chip->direction_input)
@@ -305,7 +396,7 @@ int gpio_direction_output(unsigned gpio, int value)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	if (gpio >= ARCH_NR_GPIOS)
+	if (!gpio_is_valid(gpio))
 		goto fail;
 	chip = desc->chip;
 	if (!chip || !chip->set || !chip->direction_output)
@@ -522,7 +613,7 @@ static int gpiolib_show(struct seq_file *s, void *unused)
 
 	/* REVISIT this isn't locked against gpio_chip removal ... */
 
-	for (gpio = 0; gpio < ARCH_NR_GPIOS; gpio++) {
+	for (gpio = 0; gpio_is_valid(gpio); gpio++) {
 		if (chip == gpio_desc[gpio].chip)
 			continue;
 		chip = gpio_desc[gpio].chip;

@@ -1,6 +1,6 @@
 /* irq.c: UltraSparc IRQ handling/init/registry.
  *
- * Copyright (C) 1997, 2007  David S. Miller  (davem@davemloft.net)
+ * Copyright (C) 1997, 2007, 2008 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1998  Eddie C. Dost    (ecd@skynet.be)
  * Copyright (C) 1998  Jakub Jelinek    (jj@ultra.linux.cz)
  */
@@ -308,6 +308,7 @@ static void sun4u_irq_enable(unsigned int virt_irq)
 			 IMAP_AID_SAFARI | IMAP_NID_SAFARI);
 		val |= tid | IMAP_VALID;
 		upa_writeq(val, imap);
+		upa_writeq(ICLR_IDLE, data->iclr);
 	}
 }
 

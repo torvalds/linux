@@ -3303,12 +3303,13 @@ static int selinux_task_prctl(int option,
 			      unsigned long arg2,
 			      unsigned long arg3,
 			      unsigned long arg4,
-			      unsigned long arg5)
+			      unsigned long arg5,
+			      long *rc_p)
 {
 	/* The current prctl operations do not appear to require
 	   any SELinux controls since they merely observe or modify
 	   the state of the current process. */
-	return 0;
+	return secondary_ops->task_prctl(option, arg2, arg3, arg4, arg5, rc_p);
 }
 
 static int selinux_task_wait(struct task_struct *p)

@@ -58,7 +58,7 @@ static const struct net_kern_info mcast_kern_info = {
 	.write			= mcast_write,
 };
 
-int mcast_setup(char *str, char **mac_out, void *data)
+static int mcast_setup(char *str, char **mac_out, void *data)
 {
 	struct mcast_init *init = data;
 	char *port_str = NULL, *ttl_str = NULL, *remain;

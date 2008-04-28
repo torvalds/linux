@@ -189,6 +189,7 @@ static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 	gc->base = chip->gpio_start;
 	gc->ngpio = gpios;
 	gc->label = chip->client->name;
+	gc->owner = THIS_MODULE;
 }
 
 static int __devinit pca953x_probe(struct i2c_client *client)

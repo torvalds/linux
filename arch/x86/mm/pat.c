@@ -387,8 +387,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				break;
 			}
 
-			printk(KERN_INFO "Overlap at 0x%Lx-0x%Lx\n",
-			       saved_ptr->start, saved_ptr->end);
+			pr_debug(KERN_INFO "Overlap at 0x%Lx-0x%Lx\n",
+				 saved_ptr->start, saved_ptr->end);
 			/* No conflict. Go ahead and add this new entry */
 			list_add(&new_entry->nd, &saved_ptr->nd);
 			new_entry = NULL;
@@ -510,7 +510,6 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 {
 	u64 offset = ((u64) pfn) << PAGE_SHIFT;
 	unsigned long flags = _PAGE_CACHE_UC_MINUS;
-	unsigned long ret_flags;
 	int retval;
 
 	if (!range_is_allowed(pfn, size))
@@ -549,13 +548,11 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	if (flags != _PAGE_CACHE_UC_MINUS) {
 		retval = reserve_memtype(offset, offset + size, flags, NULL);
 	} else {
-		retval = reserve_memtype(offset, offset + size, -1, &ret_flags);
+		retval = reserve_memtype(offset, offset + size, -1, &flags);
 	}
 
 	if (retval < 0)
 		return 0;
-
-	flags = ret_flags;
 
 	if (pfn <= max_pfn_mapped &&
             ioremap_change_attr((unsigned long)__va(offset), size, flags) < 0) {

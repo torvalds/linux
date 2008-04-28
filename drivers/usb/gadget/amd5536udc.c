@@ -328,6 +328,7 @@ udc_ep_enable(struct usb_ep *usbep, const struct usb_endpoint_descriptor *desc)
 	u32			tmp;
 	unsigned long		iflags;
 	u8 udc_csr_epix;
+	unsigned		maxpacket;
 
 	if (!usbep
 			|| usbep->name == ep0_string
@@ -354,9 +355,10 @@ udc_ep_enable(struct usb_ep *usbep, const struct usb_endpoint_descriptor *desc)
 	writel(tmp, &dev->ep[ep->num].regs->ctl);
 
 	/* set max packet size */
+	maxpacket = le16_to_cpu(desc->wMaxPacketSize);
 	tmp = readl(&dev->ep[ep->num].regs->bufout_maxpkt);
-	tmp = AMD_ADDBITS(tmp, desc->wMaxPacketSize, UDC_EP_MAX_PKT_SIZE);
-	ep->ep.maxpacket = desc->wMaxPacketSize;
+	tmp = AMD_ADDBITS(tmp, maxpacket, UDC_EP_MAX_PKT_SIZE);
+	ep->ep.maxpacket = maxpacket;
 	writel(tmp, &dev->ep[ep->num].regs->bufout_maxpkt);
 
 	/* IN ep */
@@ -370,8 +372,8 @@ udc_ep_enable(struct usb_ep *usbep, const struct usb_endpoint_descriptor *desc)
 		/* double buffering: fifo size = 2 x max packet size */
 		tmp = AMD_ADDBITS(
 				tmp,
-				desc->wMaxPacketSize * UDC_EPIN_BUFF_SIZE_MULT
-						/ UDC_DWORD_BYTES,
+				maxpacket * UDC_EPIN_BUFF_SIZE_MULT
+					  / UDC_DWORD_BYTES,
 				UDC_EPIN_BUFF_SIZE);
 		writel(tmp, &dev->ep[ep->num].regs->bufin_framenum);
 
@@ -390,7 +392,7 @@ udc_ep_enable(struct usb_ep *usbep, const struct usb_endpoint_descriptor *desc)
 
 		/* set max packet size UDC CSR	*/
 		tmp = readl(&dev->csr->ne[ep->num - UDC_CSR_EP_OUT_IX_OFS]);
-		tmp = AMD_ADDBITS(tmp, desc->wMaxPacketSize,
+		tmp = AMD_ADDBITS(tmp, maxpacket,
 					UDC_CSR_NE_MAX_PKT);
 		writel(tmp, &dev->csr->ne[ep->num - UDC_CSR_EP_OUT_IX_OFS]);
 
@@ -407,7 +409,7 @@ udc_ep_enable(struct usb_ep *usbep, const struct usb_endpoint_descriptor *desc)
 	/* set ep values */
 	tmp = readl(&dev->csr->ne[udc_csr_epix]);
 	/* max packet */
-	tmp = AMD_ADDBITS(tmp, desc->wMaxPacketSize, UDC_CSR_NE_MAX_PKT);
+	tmp = AMD_ADDBITS(tmp, maxpacket, UDC_CSR_NE_MAX_PKT);
 	/* ep number */
 	tmp = AMD_ADDBITS(tmp, desc->bEndpointAddress, UDC_CSR_NE_NUM);
 	/* ep direction */
@@ -2832,7 +2834,7 @@ __acquires(dev->lock)
 		/* make usb request for gadget driver */
 		memset(&setup_data, 0 , sizeof(union udc_setup_data));
 		setup_data.request.bRequest = USB_REQ_SET_CONFIGURATION;
-		setup_data.request.wValue = dev->cur_config;
+		setup_data.request.wValue = cpu_to_le16(dev->cur_config);
 
 		/* programm the NE registers */
 		for (i = 0; i < UDC_EP_NUM; i++) {
@@ -2881,8 +2883,8 @@ __acquires(dev->lock)
 		memset(&setup_data, 0 , sizeof(union udc_setup_data));
 		setup_data.request.bRequest = USB_REQ_SET_INTERFACE;
 		setup_data.request.bRequestType = USB_RECIP_INTERFACE;
-		setup_data.request.wValue = dev->cur_alt;
-		setup_data.request.wIndex = dev->cur_intf;
+		setup_data.request.wValue = cpu_to_le16(dev->cur_alt);
+		setup_data.request.wIndex = cpu_to_le16(dev->cur_intf);
 
 		DBG(dev, "SET_INTERFACE interrupt: alt=%d intf=%d\n",
 				dev->cur_alt, dev->cur_intf);

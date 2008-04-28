@@ -55,16 +55,36 @@
 unsigned long cpu_khz;
 
 static int mips_cpu_timer_irq;
+static int mips_cpu_perf_irq;
 extern int cp0_perfcount_irq;
+
+DEFINE_PER_CPU(unsigned int, tickcount);
+#define tickcount_this_cpu __get_cpu_var(tickcount)
+static unsigned long ledbitmask;
 
 static void mips_timer_dispatch(void)
 {
+#if defined(CONFIG_MIPS_MALTA) || defined(CONFIG_MIPS_ATLAS)
+	/*
+	 * Yes, this is very tacky, won't work as expected with SMTC and
+	 * dyntick will break it,
+	 * but it gives me a nice warm feeling during debug
+	 */
+#define LEDBAR 0xbf000408
+	if (tickcount_this_cpu++ >= HZ) {
+		tickcount_this_cpu = 0;
+		change_bit(smp_processor_id(), &ledbitmask);
+		smp_wmb(); /* Make sure every one else sees the change */
+		/* This will pick up any recent changes made by other CPU's */
+		*(unsigned int *)LEDBAR = ledbitmask;
+	}
+#endif
 	do_IRQ(mips_cpu_timer_irq);
 }
 
 static void mips_perf_dispatch(void)
 {
-	do_IRQ(cp0_perfcount_irq);
+	do_IRQ(mips_cpu_perf_irq);
 }
 
 /*
@@ -127,21 +147,20 @@ unsigned long read_persistent_clock(void)
 	return mc146818_get_cmos_time();
 }
 
-void __init plat_perf_setup(void)
+static void __init plat_perf_setup(void)
 {
-	cp0_perfcount_irq = -1;
-
 #ifdef MSC01E_INT_BASE
 	if (cpu_has_veic) {
 		set_vi_handler(MSC01E_INT_PERFCTR, mips_perf_dispatch);
-		cp0_perfcount_irq = MSC01E_INT_BASE + MSC01E_INT_PERFCTR;
+		mips_cpu_perf_irq = MSC01E_INT_BASE + MSC01E_INT_PERFCTR;
 	} else
 #endif
 	if (cp0_perfcount_irq >= 0) {
 		if (cpu_has_vint)
 			set_vi_handler(cp0_perfcount_irq, mips_perf_dispatch);
+		mips_cpu_perf_irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
 #ifdef CONFIG_SMP
-		set_irq_handler(cp0_perfcount_irq, handle_percpu_irq);
+		set_irq_handler(mips_cpu_perf_irq, handle_percpu_irq);
 #endif
 	}
 }

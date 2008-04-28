@@ -357,8 +357,6 @@ void flush_thread(void)
 {
 	current_thread_info()->w_saved = 0;
 
-	/* No new signal delivery by default */
-	current->thread.new_signal = 0;
 #ifndef CONFIG_SMP
 	if(last_task_used_math == current) {
 #else

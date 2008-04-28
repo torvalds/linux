@@ -274,6 +274,8 @@ static int __init early_parse_fbmem(char *p)
 			printk(KERN_WARNING
 			       "Failed to allocate framebuffer memory\n");
 			fbmem_size = 0;
+		} else {
+			memset(__va(fbmem_start), 0, fbmem_size);
 		}
 	}
 

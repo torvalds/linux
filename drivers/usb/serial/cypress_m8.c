@@ -541,7 +541,7 @@ static int cypress_earthmate_startup (struct usb_serial *serial)
 	/* All Earthmate devices use the separated-count packet
 	   format!  Idiotic. */
 	priv->pkt_fmt = packet_format_1;
-	if (serial->dev->descriptor.idProduct != PRODUCT_ID_EARTHMATEUSB) {
+	if (serial->dev->descriptor.idProduct != cpu_to_le16(PRODUCT_ID_EARTHMATEUSB)) {
 		/* The old original USB Earthmate seemed able to
 		   handle GET_CONFIG requests; everything they've
 		   produced since that time crashes if this command is

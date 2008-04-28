@@ -326,6 +326,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 #define pte_dirty(pte)		((pte).pte_low & _PAGE_DIRTY)
 #define pte_young(pte)		((pte).pte_low & _PAGE_ACCESSED)
 #define pte_file(pte)		((pte).pte_low & _PAGE_FILE)
+#define pte_special(pte)	(0)
 
 #ifdef CONFIG_X2TLB
 #define pte_write(pte)		((pte).pte_high & _PAGE_EXT_USER_WRITE)
@@ -355,6 +356,8 @@ PTE_BIT_FUNC(low, mkclean, &= ~_PAGE_DIRTY);
 PTE_BIT_FUNC(low, mkdirty, |= _PAGE_DIRTY);
 PTE_BIT_FUNC(low, mkold, &= ~_PAGE_ACCESSED);
 PTE_BIT_FUNC(low, mkyoung, |= _PAGE_ACCESSED);
+
+static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 
 /*
  * Macro and implementation to make a page protection as uncachable.

@@ -2836,6 +2836,39 @@ platforms are moved over to use the flattened-device-tree model.
 		   big-endian;
 	   };
 
+    r) Freescale Display Interface Unit
+
+    The Freescale DIU is a LCD controller, with proper hardware, it can also
+    drive DVI monitors.
+
+    Required properties:
+    - compatible : should be "fsl-diu".
+    - reg : should contain at least address and length of the DIU register
+      set.
+    - Interrupts : one DIU interrupt should be describe here.
+
+    Example (MPC8610HPCD)
+	display@2c000 {
+		compatible = "fsl,diu";
+		reg = <0x2c000 100>;
+		interrupts = <72 2>;
+		interrupt-parent = <&mpic>;
+	};
+
+    s) Freescale on board FPGA
+
+    This is the memory-mapped registers for on board FPGA.
+
+    Required properities:
+    - compatible : should be "fsl,fpga-pixis".
+    - reg : should contain the address and the lenght of the FPPGA register
+      set.
+
+    Example (MPC8610HPCD)
+	board-control@e8000000 {
+		compatible = "fsl,fpga-pixis";
+		reg = <0xe8000000 32>;
+	};
 
 VII - Marvell Discovery mv64[345]6x System Controller chips
 ===========================================================

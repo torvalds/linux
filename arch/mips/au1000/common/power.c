@@ -29,17 +29,14 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/pm_legacy.h>
-#include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/jiffies.h>
 
-#include <asm/string.h>
 #include <asm/uaccess.h>
-#include <asm/io.h>
-#include <asm/system.h>
 #include <asm/cacheflush.h>
 #include <asm/mach-au1x00/au1000.h>
 
@@ -47,17 +44,13 @@
 
 #define DEBUG 1
 #ifdef DEBUG
-#  define DPRINTK(fmt, args...)	printk("%s: " fmt, __FUNCTION__ , ## args)
+#  define DPRINTK(fmt, args...)	printk("%s: " fmt, __func__, ## args)
 #else
 #  define DPRINTK(fmt, args...)
 #endif
 
 static void au1000_calibrate_delay(void);
 
-extern void set_au1x00_speed(unsigned int new_freq);
-extern unsigned int get_au1x00_speed(void);
-extern unsigned long get_au1x00_uart_baud_base(void);
-extern void set_au1x00_uart_baud_base(unsigned long new_baud_base);
 extern unsigned long save_local_and_disable(int controller);
 extern void restore_local_and_enable(int controller, unsigned long mask);
 extern void local_enable_irq(unsigned int irq_nr);

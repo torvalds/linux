@@ -17,31 +17,40 @@
 #include <asm/io.h>
 #include <asm/div64.h>
 #include <asm/delay.h>
+#include <asm/geode.h>
 
-#include "geodefb.h"
-#include "display_gx.h"
+#include "gxfb.h"
 
-#ifdef CONFIG_FB_GEODE_GX_SET_FBSIZE
-unsigned int gx_frame_buffer_size(void)
-{
-	return CONFIG_FB_GEODE_GX_FBSIZE;
-}
-#else
 unsigned int gx_frame_buffer_size(void)
 {
 	unsigned int val;
 
-	/* FB size is reported by a virtual register */
+	if (!geode_has_vsa2()) {
+		uint32_t hi, lo;
+
+		/* The number of pages is (PMAX - PMIN)+1 */
+		rdmsr(MSR_GLIU_P2D_RO0, lo, hi);
+
+		/* PMAX */
+		val = ((hi & 0xff) << 12) | ((lo & 0xfff00000) >> 20);
+		/* PMIN */
+		val -= (lo & 0x000fffff);
+		val += 1;
+
+		/* The page size is 4k */
+		return (val << 12);
+	}
+
+	/* FB size can be obtained from the VSA II */
 	/* Virtual register class = 0x02 */
 	/* VG_MEM_SIZE(512Kb units) = 0x00 */
 
-	outw(0xFC53, 0xAC1C);
-	outw(0x0200, 0xAC1C);
+	outw(VSA_VR_UNLOCK, VSA_VRC_INDEX);
+	outw(VSA_VR_MEM_SIZE, VSA_VRC_INDEX);
 
-	val = (unsigned int)(inw(0xAC1E)) & 0xFFl;
+	val = (unsigned int)(inw(VSA_VRC_DATA)) & 0xFFl;
 	return (val << 19);
 }
-#endif
 
 int gx_line_delta(int xres, int bpp)
 {
@@ -49,75 +58,76 @@ int gx_line_delta(int xres, int bpp)
 	return (xres * (bpp >> 3) + 7) & ~0x7;
 }
 
-static void gx_set_mode(struct fb_info *info)
+void gx_set_mode(struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 	u32 gcfg, dcfg;
 	int hactive, hblankstart, hsyncstart, hsyncend, hblankend, htotal;
 	int vactive, vblankstart, vsyncstart, vsyncend, vblankend, vtotal;
 
 	/* Unlock the display controller registers. */
-	readl(par->dc_regs + DC_UNLOCK);
-	writel(DC_UNLOCK_CODE, par->dc_regs + DC_UNLOCK);
+	write_dc(par, DC_UNLOCK, DC_UNLOCK_UNLOCK);
 
-	gcfg = readl(par->dc_regs + DC_GENERAL_CFG);
-	dcfg = readl(par->dc_regs + DC_DISPLAY_CFG);
+	gcfg = read_dc(par, DC_GENERAL_CFG);
+	dcfg = read_dc(par, DC_DISPLAY_CFG);
 
 	/* Disable the timing generator. */
-	dcfg &= ~(DC_DCFG_TGEN);
-	writel(dcfg, par->dc_regs + DC_DISPLAY_CFG);
+	dcfg &= ~DC_DISPLAY_CFG_TGEN;
+	write_dc(par, DC_DISPLAY_CFG, dcfg);
 
 	/* Wait for pending memory requests before disabling the FIFO load. */
 	udelay(100);
 
 	/* Disable FIFO load and compression. */
-	gcfg &= ~(DC_GCFG_DFLE | DC_GCFG_CMPE | DC_GCFG_DECE);
-	writel(gcfg, par->dc_regs + DC_GENERAL_CFG);
+	gcfg &= ~(DC_GENERAL_CFG_DFLE | DC_GENERAL_CFG_CMPE |
+			DC_GENERAL_CFG_DECE);
+	write_dc(par, DC_GENERAL_CFG, gcfg);
 
 	/* Setup DCLK and its divisor. */
-	par->vid_ops->set_dclk(info);
+	gx_set_dclk_frequency(info);
 
 	/*
 	 * Setup new mode.
 	 */
 
 	/* Clear all unused feature bits. */
-	gcfg &= DC_GCFG_YUVM | DC_GCFG_VDSE;
+	gcfg &= DC_GENERAL_CFG_YUVM | DC_GENERAL_CFG_VDSE;
 	dcfg = 0;
 
 	/* Set FIFO priority (default 6/5) and enable. */
 	/* FIXME: increase fifo priority for 1280x1024 and higher modes? */
-	gcfg |= (6 << DC_GCFG_DFHPEL_POS) | (5 << DC_GCFG_DFHPSL_POS) | DC_GCFG_DFLE;
+	gcfg |= (6 << DC_GENERAL_CFG_DFHPEL_SHIFT) |
+		(5 << DC_GENERAL_CFG_DFHPSL_SHIFT) | DC_GENERAL_CFG_DFLE;
 
 	/* Framebuffer start offset. */
-	writel(0, par->dc_regs + DC_FB_ST_OFFSET);
+	write_dc(par, DC_FB_ST_OFFSET, 0);
 
 	/* Line delta and line buffer length. */
-	writel(info->fix.line_length >> 3, par->dc_regs + DC_GFX_PITCH);
-	writel(((info->var.xres * info->var.bits_per_pixel/8) >> 3) + 2,
-	       par->dc_regs + DC_LINE_SIZE);
+	write_dc(par, DC_GFX_PITCH, info->fix.line_length >> 3);
+	write_dc(par, DC_LINE_SIZE,
+		((info->var.xres * info->var.bits_per_pixel/8) >> 3) + 2);
 
 
 	/* Enable graphics and video data and unmask address lines. */
-	dcfg |= DC_DCFG_GDEN | DC_DCFG_VDEN | DC_DCFG_A20M | DC_DCFG_A18M;
+	dcfg |= DC_DISPLAY_CFG_GDEN | DC_DISPLAY_CFG_VDEN |
+		DC_DISPLAY_CFG_A20M | DC_DISPLAY_CFG_A18M;
 
 	/* Set pixel format. */
 	switch (info->var.bits_per_pixel) {
 	case 8:
-		dcfg |= DC_DCFG_DISP_MODE_8BPP;
+		dcfg |= DC_DISPLAY_CFG_DISP_MODE_8BPP;
 		break;
 	case 16:
-		dcfg |= DC_DCFG_DISP_MODE_16BPP;
-		dcfg |= DC_DCFG_16BPP_MODE_565;
+		dcfg |= DC_DISPLAY_CFG_DISP_MODE_16BPP;
 		break;
 	case 32:
-		dcfg |= DC_DCFG_DISP_MODE_24BPP;
-		dcfg |= DC_DCFG_PALB;
+		dcfg |= DC_DISPLAY_CFG_DISP_MODE_24BPP;
+		dcfg |= DC_DISPLAY_CFG_PALB;
 		break;
 	}
 
 	/* Enable timing generator. */
-	dcfg |= DC_DCFG_TGEN;
+	dcfg |= DC_DISPLAY_CFG_TGEN;
 
 	/* Horizontal and vertical timings. */
 	hactive = info->var.xres;
@@ -134,28 +144,34 @@ static void gx_set_mode(struct fb_info *info)
 	vblankend = vsyncend + info->var.upper_margin;
 	vtotal = vblankend;
 
-	writel((hactive - 1)     | ((htotal - 1) << 16),    par->dc_regs + DC_H_ACTIVE_TIMING);
-	writel((hblankstart - 1) | ((hblankend - 1) << 16), par->dc_regs + DC_H_BLANK_TIMING);
-	writel((hsyncstart - 1)  | ((hsyncend - 1) << 16),  par->dc_regs + DC_H_SYNC_TIMING);
+	write_dc(par, DC_H_ACTIVE_TIMING, (hactive - 1)    |
+			((htotal - 1) << 16));
+	write_dc(par, DC_H_BLANK_TIMING, (hblankstart - 1) |
+			((hblankend - 1) << 16));
+	write_dc(par, DC_H_SYNC_TIMING, (hsyncstart - 1)   |
+			((hsyncend - 1) << 16));
 
-	writel((vactive - 1)     | ((vtotal - 1) << 16),    par->dc_regs + DC_V_ACTIVE_TIMING);
-	writel((vblankstart - 1) | ((vblankend - 1) << 16), par->dc_regs + DC_V_BLANK_TIMING);
-	writel((vsyncstart - 1)  | ((vsyncend - 1) << 16),  par->dc_regs + DC_V_SYNC_TIMING);
+	write_dc(par, DC_V_ACTIVE_TIMING, (vactive - 1)    |
+			((vtotal - 1) << 16));
+	write_dc(par, DC_V_BLANK_TIMING, (vblankstart - 1) |
+			((vblankend - 1) << 16));
+	write_dc(par, DC_V_SYNC_TIMING, (vsyncstart - 1)   |
+			((vsyncend - 1) << 16));
 
 	/* Write final register values. */
-	writel(dcfg, par->dc_regs + DC_DISPLAY_CFG);
-	writel(gcfg, par->dc_regs + DC_GENERAL_CFG);
+	write_dc(par, DC_DISPLAY_CFG, dcfg);
+	write_dc(par, DC_GENERAL_CFG, gcfg);
 
-	par->vid_ops->configure_display(info);
+	gx_configure_display(info);
 
 	/* Relock display controller registers */
-	writel(0, par->dc_regs + DC_UNLOCK);
+	write_dc(par, DC_UNLOCK, DC_UNLOCK_LOCK);
 }
 
-static void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
-				   unsigned red, unsigned green, unsigned blue)
+void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
+		unsigned red, unsigned green, unsigned blue)
 {
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 	int val;
 
 	/* Hardware palette is in RGB 8-8-8 format. */
@@ -163,11 +179,6 @@ static void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
 	val |= (green)      & 0x00ff00;
 	val |= (blue  >> 8) & 0x0000ff;
 
-	writel(regno, par->dc_regs + DC_PAL_ADDRESS);
-	writel(val, par->dc_regs + DC_PAL_DATA);
+	write_dc(par, DC_PAL_ADDRESS, regno);
+	write_dc(par, DC_PAL_DATA, val);
 }
-
-struct geode_dc_ops gx_dc_ops = {
-	.set_mode	 = gx_set_mode,
-	.set_palette_reg = gx_set_hw_palette_reg,
-};

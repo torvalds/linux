@@ -1,5 +1,5 @@
 /*
- * linux/drivers/video/hecubafb.c -- FB driver for Hecuba controller
+ * linux/drivers/video/hecubafb.c -- FB driver for Hecuba/Apollo controller
  *
  * Copyright (C) 2006, Jaya Kumar
  * This work was sponsored by CIS(M) Sdn Bhd
@@ -17,18 +17,13 @@
  * values. There are other commands that the display is capable of,
  * beyond the 5 used here but they are more complex.
  *
- * This driver is written to be used with the Hecuba display controller
- * board, and tested with the EInk 800x600 display in 1 bit mode.
- * The interface between Hecuba and the host is TTL based GPIO. The
- * GPIO requirements are 8 writable data lines and 6 lines for control.
- * Only 4 of the controls are actually used here but 6 for future use.
- * The driver requires the IO addresses for data and control GPIO at
- * load time. It is also possible to use this display with a standard
- * PC parallel port.
+ * This driver is written to be used with the Hecuba display architecture.
+ * The actual display chip is called Apollo and the interface electronics
+ * it needs is called Hecuba.
  *
- * General notes:
- * - User must set hecubafb_enable=1 to enable it
- * - User must set dio_addr=0xIOADDR cio_addr=0xIOADDR c2io_addr=0xIOADDR
+ * It is intended to be architecture independent. A board specific driver
+ * must be used to perform all the physical IO interactions. An example
+ * is provided as n411.c
  *
  */
 
@@ -47,33 +42,11 @@
 #include <linux/list.h>
 #include <linux/uaccess.h>
 
-/* Apollo controller specific defines */
-#define APOLLO_START_NEW_IMG	0xA0
-#define APOLLO_STOP_IMG_DATA	0xA1
-#define APOLLO_DISPLAY_IMG	0xA2
-#define APOLLO_ERASE_DISPLAY	0xA3
-#define APOLLO_INIT_DISPLAY	0xA4
-
-/* Hecuba interface specific defines */
-/* WUP is inverted, CD is inverted, DS is inverted */
-#define HCB_NWUP_BIT	0x01
-#define HCB_NDS_BIT 	0x02
-#define HCB_RW_BIT 	0x04
-#define HCB_NCD_BIT 	0x08
-#define HCB_ACK_BIT 	0x80
+#include <video/hecubafb.h>
 
 /* Display specific information */
 #define DPY_W 600
 #define DPY_H 800
-
-struct hecubafb_par {
-	unsigned long dio_addr;
-	unsigned long cio_addr;
-	unsigned long c2io_addr;
-	unsigned char ctl;
-	struct fb_info *info;
-	unsigned int irq;
-};
 
 static struct fb_fix_screeninfo hecubafb_fix __devinitdata = {
 	.id =		"hecubafb",
@@ -82,6 +55,7 @@ static struct fb_fix_screeninfo hecubafb_fix __devinitdata = {
 	.xpanstep =	0,
 	.ypanstep =	0,
 	.ywrapstep =	0,
+	.line_length =	DPY_W,
 	.accel =	FB_ACCEL_NONE,
 };
 
@@ -94,136 +68,51 @@ static struct fb_var_screeninfo hecubafb_var __devinitdata = {
 	.nonstd		= 1,
 };
 
-static unsigned long dio_addr;
-static unsigned long cio_addr;
-static unsigned long c2io_addr;
-static unsigned long splashval;
-static unsigned int nosplash;
-static unsigned int hecubafb_enable;
-static unsigned int irq;
-
-static DECLARE_WAIT_QUEUE_HEAD(hecubafb_waitq);
-
-static void hcb_set_ctl(struct hecubafb_par *par)
-{
-	outb(par->ctl, par->cio_addr);
-}
-
-static unsigned char hcb_get_ctl(struct hecubafb_par *par)
-{
-	return inb(par->c2io_addr);
-}
-
-static void hcb_set_data(struct hecubafb_par *par, unsigned char value)
-{
-	outb(value, par->dio_addr);
-}
-
-static int __devinit apollo_init_control(struct hecubafb_par *par)
-{
-	unsigned char ctl;
-	/* for init, we want the following setup to be set:
-	WUP = lo
-	ACK = hi
-	DS = hi
-	RW = hi
-	CD = lo
-	*/
-
-	/* write WUP to lo, DS to hi, RW to hi, CD to lo */
-	par->ctl = HCB_NWUP_BIT | HCB_RW_BIT | HCB_NCD_BIT ;
-	par->ctl &= ~HCB_NDS_BIT;
-	hcb_set_ctl(par);
-
-	/* check ACK is not lo */
-	ctl = hcb_get_ctl(par);
-	if ((ctl & HCB_ACK_BIT)) {
-		printk(KERN_ERR "Fail because ACK is already low\n");
-		return -ENXIO;
-	}
-
-	return 0;
-}
-
-static void hcb_wait_for_ack(struct hecubafb_par *par)
-{
-
-	int timeout;
-	unsigned char ctl;
-
-	timeout=500;
-	do {
-		ctl = hcb_get_ctl(par);
-		if ((ctl & HCB_ACK_BIT))
-			return;
-		udelay(1);
-	} while (timeout--);
-	printk(KERN_ERR "timed out waiting for ack\n");
-}
-
-static void hcb_wait_for_ack_clear(struct hecubafb_par *par)
-{
-
-	int timeout;
-	unsigned char ctl;
-
-	timeout=500;
-	do {
-		ctl = hcb_get_ctl(par);
-		if (!(ctl & HCB_ACK_BIT))
-			return;
-		udelay(1);
-	} while (timeout--);
-	printk(KERN_ERR "timed out waiting for clear\n");
-}
+/* main hecubafb functions */
 
 static void apollo_send_data(struct hecubafb_par *par, unsigned char data)
 {
 	/* set data */
-	hcb_set_data(par, data);
+	par->board->set_data(par, data);
 
 	/* set DS low */
-	par->ctl |= HCB_NDS_BIT;
-	hcb_set_ctl(par);
+	par->board->set_ctl(par, HCB_DS_BIT, 0);
 
-	hcb_wait_for_ack(par);
+	/* wait for ack */
+	par->board->wait_for_ack(par, 0);
 
 	/* set DS hi */
-	par->ctl &= ~(HCB_NDS_BIT);
-	hcb_set_ctl(par);
+	par->board->set_ctl(par, HCB_DS_BIT, 1);
 
-	hcb_wait_for_ack_clear(par);
+	/* wait for ack to clear */
+	par->board->wait_for_ack(par, 1);
 }
 
 static void apollo_send_command(struct hecubafb_par *par, unsigned char data)
 {
 	/* command so set CD to high */
-	par->ctl &= ~(HCB_NCD_BIT);
-	hcb_set_ctl(par);
+	par->board->set_ctl(par, HCB_CD_BIT, 1);
 
 	/* actually strobe with command */
 	apollo_send_data(par, data);
 
 	/* clear CD back to low */
-	par->ctl |= (HCB_NCD_BIT);
-	hcb_set_ctl(par);
+	par->board->set_ctl(par, HCB_CD_BIT, 0);
 }
-
-/* main hecubafb functions */
 
 static void hecubafb_dpy_update(struct hecubafb_par *par)
 {
 	int i;
 	unsigned char *buf = (unsigned char __force *)par->info->screen_base;
 
-	apollo_send_command(par, 0xA0);
+	apollo_send_command(par, APOLLO_START_NEW_IMG);
 
 	for (i=0; i < (DPY_W*DPY_H/8); i++) {
 		apollo_send_data(par, *(buf++));
 	}
 
-	apollo_send_command(par, 0xA1);
-	apollo_send_command(par, 0xA2);
+	apollo_send_command(par, APOLLO_STOP_IMG_DATA);
+	apollo_send_command(par, APOLLO_DISPLAY_IMG);
 }
 
 /* this is called back from the deferred io workqueue */
@@ -270,41 +159,43 @@ static void hecubafb_imageblit(struct fb_info *info,
 static ssize_t hecubafb_write(struct fb_info *info, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	unsigned long p;
-	int err=-EINVAL;
-	struct hecubafb_par *par;
-	unsigned int xres;
-	unsigned int fbmemlength;
+	struct hecubafb_par *par = info->par;
+	unsigned long p = *ppos;
+	void *dst;
+	int err = 0;
+	unsigned long total_size;
 
-	p = *ppos;
-	par = info->par;
-	xres = info->var.xres;
-	fbmemlength = (xres * info->var.yres)/8;
+	if (info->state != FBINFO_STATE_RUNNING)
+		return -EPERM;
 
-	if (p > fbmemlength)
-		return -ENOSPC;
+	total_size = info->fix.smem_len;
 
-	err = 0;
-	if ((count + p) > fbmemlength) {
-		count = fbmemlength - p;
-		err = -ENOSPC;
+	if (p > total_size)
+		return -EFBIG;
+
+	if (count > total_size) {
+		err = -EFBIG;
+		count = total_size;
 	}
 
-	if (count) {
-		char *base_addr;
+	if (count + p > total_size) {
+		if (!err)
+			err = -ENOSPC;
 
-		base_addr = (char __force *)info->screen_base;
-		count -= copy_from_user(base_addr + p, buf, count);
-		*ppos += count;
+		count = total_size - p;
+	}
+
+	dst = (void __force *) (info->screen_base + p);
+
+	if (copy_from_user(dst, buf, count))
 		err = -EFAULT;
-	}
+
+	if  (!err)
+		*ppos += count;
 
 	hecubafb_dpy_update(par);
 
-	if (count)
-		return count;
-
-	return err;
+	return (err) ? err : count;
 }
 
 static struct fb_ops hecubafb_ops = {
@@ -324,10 +215,20 @@ static struct fb_deferred_io hecubafb_defio = {
 static int __devinit hecubafb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
+	struct hecuba_board *board;
 	int retval = -ENOMEM;
 	int videomemorysize;
 	unsigned char *videomemory;
 	struct hecubafb_par *par;
+
+	/* pick up board specific routines */
+	board = dev->dev.platform_data;
+	if (!board)
+		return -EINVAL;
+
+	/* try to count device specific driver, if can't, platform recalls */
+	if (!try_module_get(board->owner))
+		return -ENODEV;
 
 	videomemorysize = (DPY_W*DPY_H)/8;
 
@@ -338,9 +239,9 @@ static int __devinit hecubafb_probe(struct platform_device *dev)
 
 	info = framebuffer_alloc(sizeof(struct hecubafb_par), &dev->dev);
 	if (!info)
-		goto err;
+		goto err_fballoc;
 
-	info->screen_base = (char __iomem *) videomemory;
+	info->screen_base = (char __force __iomem *)videomemory;
 	info->fbops = &hecubafb_ops;
 
 	info->var = hecubafb_var;
@@ -348,14 +249,10 @@ static int __devinit hecubafb_probe(struct platform_device *dev)
 	info->fix.smem_len = videomemorysize;
 	par = info->par;
 	par->info = info;
+	par->board = board;
+	par->send_command = apollo_send_command;
+	par->send_data = apollo_send_data;
 
-	if (!dio_addr || !cio_addr || !c2io_addr) {
-		printk(KERN_WARNING "no IO addresses supplied\n");
-		goto err1;
-	}
-	par->dio_addr = dio_addr;
-	par->cio_addr = cio_addr;
-	par->c2io_addr = c2io_addr;
 	info->flags = FBINFO_FLAG_DEFAULT;
 
 	info->fbdefio = &hecubafb_defio;
@@ -363,7 +260,7 @@ static int __devinit hecubafb_probe(struct platform_device *dev)
 
 	retval = register_framebuffer(info);
 	if (retval < 0)
-		goto err1;
+		goto err_fbreg;
 	platform_set_drvdata(dev, info);
 
 	printk(KERN_INFO
@@ -371,25 +268,16 @@ static int __devinit hecubafb_probe(struct platform_device *dev)
 	       info->node, videomemorysize >> 10);
 
 	/* this inits the dpy */
-	apollo_init_control(par);
-
-	apollo_send_command(par, APOLLO_INIT_DISPLAY);
-	apollo_send_data(par, 0x81);
-
-	/* have to wait while display resets */
-	udelay(1000);
-
-	/* if we were told to splash the screen, we just clear it */
-	if (!nosplash) {
-		apollo_send_command(par, APOLLO_ERASE_DISPLAY);
-		apollo_send_data(par, splashval);
-	}
+	retval = par->board->init(par);
+	if (retval < 0)
+		goto err_fbreg;
 
 	return 0;
-err1:
+err_fbreg:
 	framebuffer_release(info);
-err:
+err_fballoc:
 	vfree(videomemory);
+	module_put(board->owner);
 	return retval;
 }
 
@@ -398,9 +286,13 @@ static int __devexit hecubafb_remove(struct platform_device *dev)
 	struct fb_info *info = platform_get_drvdata(dev);
 
 	if (info) {
+		struct hecubafb_par *par = info->par;
 		fb_deferred_io_cleanup(info);
 		unregister_framebuffer(info);
 		vfree((void __force *)info->screen_base);
+		if (par->board->remove)
+			par->board->remove(par);
+		module_put(par->board->owner);
 		framebuffer_release(info);
 	}
 	return 0;
@@ -410,62 +302,24 @@ static struct platform_driver hecubafb_driver = {
 	.probe	= hecubafb_probe,
 	.remove = hecubafb_remove,
 	.driver	= {
+		.owner	= THIS_MODULE,
 		.name	= "hecubafb",
 	},
 };
 
-static struct platform_device *hecubafb_device;
-
 static int __init hecubafb_init(void)
 {
-	int ret;
-
-	if (!hecubafb_enable) {
-		printk(KERN_ERR "Use hecubafb_enable to enable the device\n");
-		return -ENXIO;
-	}
-
-	ret = platform_driver_register(&hecubafb_driver);
-	if (!ret) {
-		hecubafb_device = platform_device_alloc("hecubafb", 0);
-		if (hecubafb_device)
-			ret = platform_device_add(hecubafb_device);
-		else
-			ret = -ENOMEM;
-
-		if (ret) {
-			platform_device_put(hecubafb_device);
-			platform_driver_unregister(&hecubafb_driver);
-		}
-	}
-	return ret;
-
+	return platform_driver_register(&hecubafb_driver);
 }
 
 static void __exit hecubafb_exit(void)
 {
-	platform_device_unregister(hecubafb_device);
 	platform_driver_unregister(&hecubafb_driver);
 }
-
-module_param(nosplash, uint, 0);
-MODULE_PARM_DESC(nosplash, "Disable doing the splash screen");
-module_param(hecubafb_enable, uint, 0);
-MODULE_PARM_DESC(hecubafb_enable, "Enable communication with Hecuba board");
-module_param(dio_addr, ulong, 0);
-MODULE_PARM_DESC(dio_addr, "IO address for data, eg: 0x480");
-module_param(cio_addr, ulong, 0);
-MODULE_PARM_DESC(cio_addr, "IO address for control, eg: 0x400");
-module_param(c2io_addr, ulong, 0);
-MODULE_PARM_DESC(c2io_addr, "IO address for secondary control, eg: 0x408");
-module_param(splashval, ulong, 0);
-MODULE_PARM_DESC(splashval, "Splash pattern: 0x00 is black, 0x01 is white");
-module_param(irq, uint, 0);
-MODULE_PARM_DESC(irq, "IRQ for the Hecuba board");
 
 module_init(hecubafb_init);
 module_exit(hecubafb_exit);
 
-MODULE_DESCRIPTION("fbdev driver for Hecuba board");
+MODULE_DESCRIPTION("fbdev driver for Hecuba/Apollo controller");
 MODULE_AUTHOR("Jaya Kumar");
 MODULE_LICENSE("GPL");

@@ -1270,7 +1270,7 @@ again:
 
 	gstart = (prescale / 2 + plen * left_margin) / prescale;
 	/* gend1 is for hde (gend-gstart multiple of align), shifter's xres */
-	gend1 = gstart + ((xres + align - 1) / align) * align * plen / prescale;
+	gend1 = gstart + roundup(xres, align) * plen / prescale;
 	/* gend2 is for hbb, visible xres (rest to gend1 is cut off by hblank) */
 	gend2 = gstart + xres * plen / prescale;
 	par->HHT = plen * (left_margin + xres + right_margin) /

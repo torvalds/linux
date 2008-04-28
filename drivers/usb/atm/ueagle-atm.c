@@ -996,7 +996,7 @@ static void __uea_load_page_e4(struct uea_softc *sc, u8 pageno, int boot)
 		blockoffset = sc->dsp_firm->data + le32_to_cpu(blockidx->PageOffset);
 
 		bi.dwSize = cpu_to_be32(blocksize);
-		bi.dwAddress = swab32(blockidx->PageAddress);
+		bi.dwAddress = cpu_to_be32(le32_to_cpu(blockidx->PageAddress));
 
 		uea_dbg(INS_TO_USBDEV(sc),
 		       "sending block %u for DSP page %u size %u address %x\n",
@@ -1040,7 +1040,7 @@ static void uea_load_page_e4(struct work_struct *work)
 		return;
 
 	p = (struct l1_code *) sc->dsp_firm->data;
-	if (pageno >= p->page_header[0].PageNumber) {
+	if (pageno >= le16_to_cpu(p->page_header[0].PageNumber)) {
 		uea_err(INS_TO_USBDEV(sc), "invalid DSP page %u requested\n", pageno);
 		return;
 	}
@@ -1065,7 +1065,7 @@ static void uea_load_page_e4(struct work_struct *work)
 	bi.bPageNumber = 0xff;
 	bi.wReserved = cpu_to_be16(UEA_RESERVED);
 	bi.dwSize = cpu_to_be32(E4_PAGE_BYTES(p->page_header[0].PageSize));
-	bi.dwAddress = swab32(p->page_header[0].PageAddress);
+	bi.dwAddress = cpu_to_be32(le32_to_cpu(p->page_header[0].PageAddress));
 
 	/* send block info through the IDMA pipe */
 	if (uea_idma_write(sc, &bi, E4_BLOCK_INFO_SIZE))

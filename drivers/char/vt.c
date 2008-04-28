@@ -2054,6 +2054,7 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	unsigned long draw_from = 0, draw_to = 0;
 	struct vc_data *vc;
 	unsigned char vc_attr;
+	struct vt_notifier_param param;
 	uint8_t rescan;
 	uint8_t inverse;
 	uint8_t width;
@@ -2112,6 +2113,8 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	/* undraw cursor first */
 	if (IS_FG(vc))
 		hide_cursor(vc);
+
+	param.vc = vc;
 
 	while (!tty->stopped && count) {
 		int orig = *buf;
@@ -2200,6 +2203,11 @@ rescan_last_byte:
 		} else {	/* no utf or alternate charset mode */
 		    tc = vc->vc_translate[vc->vc_toggle_meta ? (c | 0x80) : c];
 		}
+
+		param.c = tc;
+		if (atomic_notifier_call_chain(&vt_notifier_list, VT_PREWRITE,
+					&param) == NOTIFY_STOP)
+			continue;
 
                 /* If the original code was a control character we
                  * only allow a glyph to be displayed if the code is

@@ -99,7 +99,7 @@ static int rs5c_get_regs(struct rs5c372 *rs5c)
 	 * least 80219 chips; this works around that bug.
 	 */
 	if ((i2c_transfer(client->adapter, msgs, 1)) != 1) {
-		pr_debug("%s: can't read registers\n", rs5c->rtc->name);
+		dev_warn(&client->dev, "can't read registers\n");
 		return -EIO;
 	}
 
@@ -166,7 +166,7 @@ static int rs5c372_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
-		__FUNCTION__,
+		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
@@ -181,7 +181,7 @@ static int rs5c372_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
-		__FUNCTION__,
+		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
@@ -195,7 +195,7 @@ static int rs5c372_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	buf[7] = BIN2BCD(tm->tm_year - 100);
 
 	if ((i2c_master_send(client, buf, 8)) != 8) {
-		dev_err(&client->dev, "%s: write error\n", __FUNCTION__);
+		dev_err(&client->dev, "%s: write error\n", __func__);
 		return -EIO;
 	}
 
@@ -220,7 +220,7 @@ static int rs5c372_get_trim(struct i2c_client *client, int *osc, int *trim)
 		*osc = (tmp & RS5C372_TRIM_XSL) ? 32000 : 32768;
 
 	if (trim) {
-		dev_dbg(&client->dev, "%s: raw trim=%x\n", __FUNCTION__, tmp);
+		dev_dbg(&client->dev, "%s: raw trim=%x\n", __func__, tmp);
 		tmp &= RS5C372_TRIM_MASK;
 		if (tmp & 0x3e) {
 			int t = tmp & 0x3f;
@@ -500,7 +500,7 @@ static int rs5c372_probe(struct i2c_client *client)
 	struct rs5c372 *rs5c372;
 	struct rtc_time tm;
 
-	dev_dbg(&client->dev, "%s\n", __FUNCTION__);
+	dev_dbg(&client->dev, "%s\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
@@ -512,11 +512,11 @@ static int rs5c372_probe(struct i2c_client *client)
 		goto exit;
 	}
 
-	/* we read registers 0x0f then 0x00-0x0f; skip the first one */
-	rs5c372->regs=&rs5c372->buf[1];
-
 	rs5c372->client = client;
 	i2c_set_clientdata(client, rs5c372);
+
+	/* we read registers 0x0f then 0x00-0x0f; skip the first one */
+	rs5c372->regs = &rs5c372->buf[1];
 
 	err = rs5c_get_regs(rs5c372);
 	if (err < 0)

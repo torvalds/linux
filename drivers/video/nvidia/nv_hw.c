@@ -129,7 +129,7 @@ typedef struct {
 	int nvclk_khz;
 	char mem_page_miss;
 	char mem_latency;
-	int memory_type;
+	u32 memory_type;
 	int memory_width;
 	char enable_video;
 	char gr_during_vid;
@@ -719,7 +719,7 @@ static void nForceUpdateArbitrationSettings(unsigned VClk,
 	memctrl >>= 16;
 
 	if ((memctrl == 0x1A9) || (memctrl == 0x1AB) || (memctrl == 0x1ED)) {
-		int dimm[3];
+		u32 dimm[3];
 
 		dev = pci_get_bus_and_slot(0, 2);
 		pci_read_config_dword(dev, 0x40, &dimm[0]);

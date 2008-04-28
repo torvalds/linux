@@ -16,9 +16,9 @@
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/msr.h>
+#include <asm/geode.h>
 
-#include "geodefb.h"
-#include "video_gx.h"
+#include "gxfb.h"
 
 
 /*
@@ -117,7 +117,7 @@ static const struct gx_pll_entry gx_pll_table_14MHz[] = {
 	{  4357, 0, 0x0000057D },	/* 229.5000 */
 };
 
-static void gx_set_dclk_frequency(struct fb_info *info)
+void gx_set_dclk_frequency(struct fb_info *info)
 {
 	const struct gx_pll_entry *pll_table;
 	int pll_table_len;
@@ -178,110 +178,116 @@ static void gx_set_dclk_frequency(struct fb_info *info)
 static void
 gx_configure_tft(struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 	unsigned long val;
 	unsigned long fp;
 
 	/* Set up the DF pad select MSR */
 
-	rdmsrl(GX_VP_MSR_PAD_SELECT, val);
-	val &= ~GX_VP_PAD_SELECT_MASK;
-	val |= GX_VP_PAD_SELECT_TFT;
-	wrmsrl(GX_VP_MSR_PAD_SELECT, val);
+	rdmsrl(MSR_GX_MSR_PADSEL, val);
+	val &= ~MSR_GX_MSR_PADSEL_MASK;
+	val |= MSR_GX_MSR_PADSEL_TFT;
+	wrmsrl(MSR_GX_MSR_PADSEL, val);
 
 	/* Turn off the panel */
 
-	fp = readl(par->vid_regs + GX_FP_PM);
-	fp &= ~GX_FP_PM_P;
-	writel(fp, par->vid_regs + GX_FP_PM);
+	fp = read_fp(par, FP_PM);
+	fp &= ~FP_PM_P;
+	write_fp(par, FP_PM, fp);
 
 	/* Set timing 1 */
 
-	fp = readl(par->vid_regs + GX_FP_PT1);
-	fp &= GX_FP_PT1_VSIZE_MASK;
-	fp |= info->var.yres << GX_FP_PT1_VSIZE_SHIFT;
-	writel(fp, par->vid_regs + GX_FP_PT1);
+	fp = read_fp(par, FP_PT1);
+	fp &= FP_PT1_VSIZE_MASK;
+	fp |= info->var.yres << FP_PT1_VSIZE_SHIFT;
+	write_fp(par, FP_PT1, fp);
 
 	/* Timing 2 */
 	/* Set bits that are always on for TFT */
 
 	fp = 0x0F100000;
 
-	/* Add sync polarity */
+	/* Configure sync polarity */
 
 	if (!(info->var.sync & FB_SYNC_VERT_HIGH_ACT))
-		fp |= GX_FP_PT2_VSP;
+		fp |= FP_PT2_VSP;
 
 	if (!(info->var.sync & FB_SYNC_HOR_HIGH_ACT))
-		fp |= GX_FP_PT2_HSP;
+		fp |= FP_PT2_HSP;
 
-	writel(fp, par->vid_regs + GX_FP_PT2);
+	write_fp(par, FP_PT2, fp);
 
 	/*  Set the dither control */
-	writel(0x70, par->vid_regs + GX_FP_DFC);
+	write_fp(par, FP_DFC, FP_DFC_NFI);
 
 	/* Enable the FP data and power (in case the BIOS didn't) */
 
-	fp = readl(par->vid_regs + GX_DCFG);
-	fp |= GX_DCFG_FP_PWR_EN | GX_DCFG_FP_DATA_EN;
-	writel(fp, par->vid_regs + GX_DCFG);
+	fp = read_vp(par, VP_DCFG);
+	fp |= VP_DCFG_FP_PWR_EN | VP_DCFG_FP_DATA_EN;
+	write_vp(par, VP_DCFG, fp);
 
 	/* Unblank the panel */
 
-	fp = readl(par->vid_regs + GX_FP_PM);
-	fp |= GX_FP_PM_P;
-	writel(fp, par->vid_regs + GX_FP_PM);
+	fp = read_fp(par, FP_PM);
+	fp |= FP_PM_P;
+	write_fp(par, FP_PM, fp);
 }
 
-static void gx_configure_display(struct fb_info *info)
+void gx_configure_display(struct fb_info *info)
 {
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 	u32 dcfg, misc;
 
-	/* Set up the MISC register */
-
-	misc = readl(par->vid_regs + GX_MISC);
-
-	/* Power up the DAC */
-	misc &= ~(GX_MISC_A_PWRDN | GX_MISC_DAC_PWRDN);
-
-	/* Disable gamma correction */
-	misc |= GX_MISC_GAM_EN;
-
-	writel(misc, par->vid_regs + GX_MISC);
-
 	/* Write the display configuration */
-	dcfg = readl(par->vid_regs + GX_DCFG);
+	dcfg = read_vp(par, VP_DCFG);
 
 	/* Disable hsync and vsync */
-	dcfg &= ~(GX_DCFG_VSYNC_EN | GX_DCFG_HSYNC_EN);
-	writel(dcfg, par->vid_regs + GX_DCFG);
+	dcfg &= ~(VP_DCFG_VSYNC_EN | VP_DCFG_HSYNC_EN);
+	write_vp(par, VP_DCFG, dcfg);
 
 	/* Clear bits from existing mode. */
-	dcfg &= ~(GX_DCFG_CRT_SYNC_SKW_MASK
-		  | GX_DCFG_CRT_HSYNC_POL   | GX_DCFG_CRT_VSYNC_POL
-		  | GX_DCFG_VSYNC_EN        | GX_DCFG_HSYNC_EN);
+	dcfg &= ~(VP_DCFG_CRT_SYNC_SKW
+		  | VP_DCFG_CRT_HSYNC_POL   | VP_DCFG_CRT_VSYNC_POL
+		  | VP_DCFG_VSYNC_EN        | VP_DCFG_HSYNC_EN);
 
 	/* Set default sync skew.  */
-	dcfg |= GX_DCFG_CRT_SYNC_SKW_DFLT;
+	dcfg |= VP_DCFG_CRT_SYNC_SKW_DEFAULT;
 
 	/* Enable hsync and vsync. */
-	dcfg |= GX_DCFG_HSYNC_EN | GX_DCFG_VSYNC_EN;
+	dcfg |= VP_DCFG_HSYNC_EN | VP_DCFG_VSYNC_EN;
 
-	/* Sync polarities. */
-	if (info->var.sync & FB_SYNC_HOR_HIGH_ACT)
-		dcfg |= GX_DCFG_CRT_HSYNC_POL;
-	if (info->var.sync & FB_SYNC_VERT_HIGH_ACT)
-		dcfg |= GX_DCFG_CRT_VSYNC_POL;
+	misc = read_vp(par, VP_MISC);
+
+	/* Disable gamma correction */
+	misc |= VP_MISC_GAM_EN;
+
+	if (par->enable_crt) {
+
+		/* Power up the CRT DACs */
+		misc &= ~(VP_MISC_APWRDN | VP_MISC_DACPWRDN);
+		write_vp(par, VP_MISC, misc);
+
+		/* Only change the sync polarities if we are running
+		 * in CRT mode.  The FP polarities will be handled in
+		 * gxfb_configure_tft */
+		if (!(info->var.sync & FB_SYNC_HOR_HIGH_ACT))
+			dcfg |= VP_DCFG_CRT_HSYNC_POL;
+		if (!(info->var.sync & FB_SYNC_VERT_HIGH_ACT))
+			dcfg |= VP_DCFG_CRT_VSYNC_POL;
+	} else {
+		/* Power down the CRT DACs if in FP mode */
+		misc |= (VP_MISC_APWRDN | VP_MISC_DACPWRDN);
+		write_vp(par, VP_MISC, misc);
+	}
 
 	/* Enable the display logic */
 	/* Set up the DACS to blank normally */
 
-	dcfg |= GX_DCFG_CRT_EN | GX_DCFG_DAC_BL_EN;
+	dcfg |= VP_DCFG_CRT_EN | VP_DCFG_DAC_BL_EN;
 
 	/* Enable the external DAC VREF? */
 
-	writel(dcfg, par->vid_regs + GX_DCFG);
+	write_vp(par, VP_DCFG, dcfg);
 
 	/* Set up the flat panel (if it is enabled) */
 
@@ -289,59 +295,55 @@ static void gx_configure_display(struct fb_info *info)
 		gx_configure_tft(info);
 }
 
-static int gx_blank_display(struct fb_info *info, int blank_mode)
+int gx_blank_display(struct fb_info *info, int blank_mode)
 {
-	struct geodefb_par *par = info->par;
+	struct gxfb_par *par = info->par;
 	u32 dcfg, fp_pm;
-	int blank, hsync, vsync;
+	int blank, hsync, vsync, crt;
 
 	/* CRT power saving modes. */
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
-		blank = 0; hsync = 1; vsync = 1;
+		blank = 0; hsync = 1; vsync = 1; crt = 1;
 		break;
 	case FB_BLANK_NORMAL:
-		blank = 1; hsync = 1; vsync = 1;
+		blank = 1; hsync = 1; vsync = 1; crt = 1;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
-		blank = 1; hsync = 1; vsync = 0;
+		blank = 1; hsync = 1; vsync = 0; crt = 1;
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
-		blank = 1; hsync = 0; vsync = 1;
+		blank = 1; hsync = 0; vsync = 1; crt = 1;
 		break;
 	case FB_BLANK_POWERDOWN:
-		blank = 1; hsync = 0; vsync = 0;
+		blank = 1; hsync = 0; vsync = 0; crt = 0;
 		break;
 	default:
 		return -EINVAL;
 	}
-	dcfg = readl(par->vid_regs + GX_DCFG);
-	dcfg &= ~(GX_DCFG_DAC_BL_EN
-		  | GX_DCFG_HSYNC_EN | GX_DCFG_VSYNC_EN);
+	dcfg = read_vp(par, VP_DCFG);
+	dcfg &= ~(VP_DCFG_DAC_BL_EN | VP_DCFG_HSYNC_EN | VP_DCFG_VSYNC_EN |
+			VP_DCFG_CRT_EN);
 	if (!blank)
-		dcfg |= GX_DCFG_DAC_BL_EN;
+		dcfg |= VP_DCFG_DAC_BL_EN;
 	if (hsync)
-		dcfg |= GX_DCFG_HSYNC_EN;
+		dcfg |= VP_DCFG_HSYNC_EN;
 	if (vsync)
-		dcfg |= GX_DCFG_VSYNC_EN;
-	writel(dcfg, par->vid_regs + GX_DCFG);
+		dcfg |= VP_DCFG_VSYNC_EN;
+	if (crt)
+		dcfg |= VP_DCFG_CRT_EN;
+	write_vp(par, VP_DCFG, dcfg);
 
 	/* Power on/off flat panel. */
 
 	if (par->enable_crt == 0) {
-		fp_pm = readl(par->vid_regs + GX_FP_PM);
+		fp_pm = read_fp(par, FP_PM);
 		if (blank_mode == FB_BLANK_POWERDOWN)
-			fp_pm &= ~GX_FP_PM_P;
+			fp_pm &= ~FP_PM_P;
 		else
-			fp_pm |= GX_FP_PM_P;
-		writel(fp_pm, par->vid_regs + GX_FP_PM);
+			fp_pm |= FP_PM_P;
+		write_fp(par, FP_PM, fp_pm);
 	}
 
 	return 0;
 }
-
-struct geode_vid_ops gx_vid_ops = {
-	.set_dclk	   = gx_set_dclk_frequency,
-	.configure_display = gx_configure_display,
-	.blank_display	   = gx_blank_display,
-};

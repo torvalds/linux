@@ -23,7 +23,6 @@
 #include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/ebus.h>
-#include <asm/isa.h>
 #include <asm/prom.h>
 #include <asm/apb.h>
 
@@ -885,7 +884,6 @@ static int __init pcibios_init(void)
 
 	pci_scan_each_controller_bus();
 
-	isa_init();
 	ebus_init();
 	power_init();
 

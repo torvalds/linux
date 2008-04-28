@@ -304,7 +304,7 @@ int line_ioctl(struct tty_struct *tty, struct file * file,
 				break;
 		if (i == ARRAY_SIZE(tty_ioctls)) {
 			printk(KERN_ERR "%s: %s: unknown ioctl: 0x%x\n",
-			       __FUNCTION__, tty->name, cmd);
+			       __func__, tty->name, cmd);
 		}
 		ret = -ENOIOCTLCMD;
 		break;

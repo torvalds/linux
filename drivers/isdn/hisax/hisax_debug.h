@@ -27,14 +27,14 @@
 
 #define DBG(level, format, arg...) do { \
 if (level & __debug_variable) \
-printk(KERN_DEBUG "%s: " format "\n" , __FUNCTION__ , ## arg); \
+printk(KERN_DEBUG "%s: " format "\n" , __func__ , ## arg); \
 } while (0)
 
 #define DBG_PACKET(level,data,count) \
-  if (level & __debug_variable) dump_packet(__FUNCTION__,data,count)
+  if (level & __debug_variable) dump_packet(__func__,data,count)
 
 #define DBG_SKB(level,skb) \
-  if ((level & __debug_variable) && skb) dump_packet(__FUNCTION__,skb->data,skb->len)
+  if ((level & __debug_variable) && skb) dump_packet(__func__,skb->data,skb->len)
 
 
 static void __attribute__((unused))

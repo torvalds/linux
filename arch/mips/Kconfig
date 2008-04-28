@@ -81,7 +81,9 @@ config MIPS_COBALT
 config MACH_DECSTATION
 	bool "DECstations"
 	select BOOT_ELF32
+	select CEVT_DS1287
 	select CEVT_R4K
+	select CSRC_IOASIC
 	select CSRC_R4K
 	select CPU_DADDI_WORKAROUNDS if 64BIT
 	select CPU_R4000_WORKAROUNDS if 64BIT
@@ -221,6 +223,7 @@ config MIPS_MALTA
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
 	select IRQ_CPU
+	select IRQ_GIC
 	select HW_HAS_PCI
 	select I8253
 	select I8259
@@ -309,12 +312,12 @@ config MACH_VR41XX
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config PNX8550_JBS
-	bool "Philips PNX8550 based JBS board"
+	bool "NXP PNX8550 based JBS board"
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config PNX8550_STB810
-	bool "Philips PNX8550 based STB810 board"
+	bool "NXP PNX8550 based STB810 board"
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
@@ -612,6 +615,7 @@ config TOSHIBA_JMR3927
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select GENERIC_HARDIRQS_NO__DO_IRQ
+	select GPIO_TXX9
 
 config TOSHIBA_RBTX4927
 	bool "Toshiba RBTX49[23]7 board"
@@ -653,7 +657,7 @@ config TOSHIBA_RBTX4938
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_KGDB
 	select GENERIC_HARDIRQS_NO__DO_IRQ
-	select GENERIC_GPIO
+	select GPIO_TXX9
 	help
 	  This Toshiba board is based on the TX4938 processor. Say Y here to
 	  support this machine type
@@ -767,6 +771,9 @@ config BOOT_RAW
 config CEVT_BCM1480
 	bool
 
+config CEVT_DS1287
+	bool
+
 config CEVT_GT641XX
 	bool
 
@@ -782,10 +789,18 @@ config CEVT_TXX9
 config CSRC_BCM1480
 	bool
 
+config CSRC_IOASIC
+	bool
+
 config CSRC_R4K
 	bool
 
 config CSRC_SB1250
+	bool
+
+config GPIO_TXX9
+	select GENERIC_GPIO
+	select HAVE_GPIO_LIB
 	bool
 
 config CFE
@@ -838,6 +853,9 @@ config MIPS_NILE4
 	bool
 
 config MIPS_DISABLE_OBSOLETE_IDE
+	bool
+
+config SYNC_R4K
 	bool
 
 config NO_IOPORT
@@ -907,6 +925,9 @@ config IRQ_TXX9
 	bool
 
 config IRQ_GT641XX
+	bool
+
+config IRQ_GIC
 	bool
 
 config MIPS_BOARDS_GEN
@@ -1810,6 +1831,17 @@ config NR_CPUS
 	  approximately eight kilobytes to the kernel image.  For best
 	  performance should round up your number of processors to the next
 	  power of two.
+
+config MIPS_CMP
+	bool "MIPS CMP framework support"
+	depends on SMP
+	select SYNC_R4K
+	select SYS_SUPPORTS_SCHED_SMT
+	select WEAK_ORDERING
+	default n
+	help
+	  This is a placeholder option for the GCMP work. It will need to
+	  be handled differently...
 
 source "kernel/time/Kconfig"
 

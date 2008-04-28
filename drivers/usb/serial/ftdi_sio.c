@@ -1104,7 +1104,7 @@ static int ftdi_mtxorb_hack_setup(struct usb_serial *serial)
 	struct usb_endpoint_descriptor *ep_desc = &ep->desc;
 
 	if (ep->enabled && ep_desc->wMaxPacketSize == 0) {
-		ep_desc->wMaxPacketSize = 0x40;
+		ep_desc->wMaxPacketSize = cpu_to_le16(0x40);
 		info("Fixing invalid wMaxPacketSize on read pipe");
 	}
 

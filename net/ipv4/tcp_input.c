@@ -4925,8 +4925,7 @@ step5:
 	tcp_data_snd_check(sk);
 	tcp_ack_snd_check(sk);
 
-	if (tcp_defer_accept_check(sk))
-		return -1;
+	tcp_defer_accept_check(sk);
 	return 0;
 
 csum_error:

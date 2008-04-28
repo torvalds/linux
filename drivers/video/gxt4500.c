@@ -238,7 +238,7 @@ static int calc_pll(int period_ps, struct gxt4500_par *par)
 	for (pdiv1 = 1; pdiv1 <= 8; ++pdiv1) {
 		for (pdiv2 = 1; pdiv2 <= pdiv1; ++pdiv2) {
 			postdiv = pdiv1 * pdiv2;
-			pll_period = (period_ps + postdiv - 1) / postdiv;
+			pll_period = DIV_ROUND_UP(period_ps, postdiv);
 			/* keep pll in range 350..600 MHz */
 			if (pll_period < 1666 || pll_period > 2857)
 				continue;

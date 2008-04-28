@@ -100,7 +100,7 @@ static struct svga_timing_regs vt8623_timing_regs     = {
 
 /* Module parameters */
 
-static char *mode = "640x480-8@60";
+static char *mode_option = "640x480-8@60";
 
 #ifdef CONFIG_MTRR
 static int mtrr = 1;
@@ -110,8 +110,10 @@ MODULE_AUTHOR("(c) 2006 Ondrej Zajicek <santiago@crfreenet.org>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("fbdev driver for integrated graphics core in VIA VT8623 [CLE266]");
 
-module_param(mode, charp, 0644);
-MODULE_PARM_DESC(mode, "Default video mode ('640x480-8@60', etc)");
+module_param(mode_option, charp, 0644);
+MODULE_PARM_DESC(mode_option, "Default video mode ('640x480-8@60', etc)");
+module_param_named(mode, mode_option, charp, 0);
+MODULE_PARM_DESC(mode, "Default video mode e.g. '648x480-8@60' (deprecated)");
 
 #ifdef CONFIG_MTRR
 module_param(mtrr, int, 0444);
@@ -434,6 +436,10 @@ static int vt8623fb_set_par(struct fb_info *info)
 	svga_wcrt_multi(vt8623_offset_regs, offset_value);
 	svga_wseq_multi(vt8623_fetch_count_regs, fetch_value);
 
+	/* Clear H/V Skew */
+	svga_wcrt_mask(0x03, 0x00, 0x60);
+	svga_wcrt_mask(0x05, 0x00, 0x60);
+
 	if (info->var.vmode & FB_VMODE_DOUBLE)
 		svga_wcrt_mask(0x09, 0x80, 0x80);
 	else
@@ -655,7 +661,7 @@ static int __devinit vt8623_pci_probe(struct pci_dev *dev, const struct pci_devi
 	}
 
 	/* Allocate and fill driver data structure */
-	info = framebuffer_alloc(sizeof(struct vt8623fb_info), NULL);
+	info = framebuffer_alloc(sizeof(struct vt8623fb_info), &(dev->dev));
 	if (! info) {
 		dev_err(&(dev->dev), "cannot allocate memory\n");
 		return -ENOMEM;
@@ -671,13 +677,13 @@ static int __devinit vt8623_pci_probe(struct pci_dev *dev, const struct pci_devi
 
 	rc = pci_enable_device(dev);
 	if (rc < 0) {
-		dev_err(&(dev->dev), "cannot enable PCI device\n");
+		dev_err(info->dev, "cannot enable PCI device\n");
 		goto err_enable_device;
 	}
 
 	rc = pci_request_regions(dev, "vt8623fb");
 	if (rc < 0) {
-		dev_err(&(dev->dev), "cannot reserve framebuffer region\n");
+		dev_err(info->dev, "cannot reserve framebuffer region\n");
 		goto err_request_regions;
 	}
 
@@ -690,14 +696,14 @@ static int __devinit vt8623_pci_probe(struct pci_dev *dev, const struct pci_devi
 	info->screen_base = pci_iomap(dev, 0, 0);
 	if (! info->screen_base) {
 		rc = -ENOMEM;
-		dev_err(&(dev->dev), "iomap for framebuffer failed\n");
+		dev_err(info->dev, "iomap for framebuffer failed\n");
 		goto err_iomap_1;
 	}
 
 	par->mmio_base = pci_iomap(dev, 1, 0);
 	if (! par->mmio_base) {
 		rc = -ENOMEM;
-		dev_err(&(dev->dev), "iomap for MMIO failed\n");
+		dev_err(info->dev, "iomap for MMIO failed\n");
 		goto err_iomap_2;
 	}
 
@@ -708,7 +714,7 @@ static int __devinit vt8623_pci_probe(struct pci_dev *dev, const struct pci_devi
 	if ((16 <= memsize1) && (memsize1 <= 64) && (memsize1 == memsize2))
 		info->screen_size = memsize1 << 20;
 	else {
-		dev_err(&(dev->dev), "memory size detection failed (%x %x), suppose 16 MB\n", memsize1, memsize2);
+		dev_err(info->dev, "memory size detection failed (%x %x), suppose 16 MB\n", memsize1, memsize2);
 		info->screen_size = 16 << 20;
 	}
 
@@ -722,22 +728,22 @@ static int __devinit vt8623_pci_probe(struct pci_dev *dev, const struct pci_devi
 
 	/* Prepare startup mode */
 
-	rc = fb_find_mode(&(info->var), info, mode, NULL, 0, NULL, 8);
+	rc = fb_find_mode(&(info->var), info, mode_option, NULL, 0, NULL, 8);
 	if (! ((rc == 1) || (rc == 2))) {
 		rc = -EINVAL;
-		dev_err(&(dev->dev), "mode %s not found\n", mode);
+		dev_err(info->dev, "mode %s not found\n", mode_option);
 		goto err_find_mode;
 	}
 
 	rc = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (rc < 0) {
-		dev_err(&(dev->dev), "cannot allocate colormap\n");
+		dev_err(info->dev, "cannot allocate colormap\n");
 		goto err_alloc_cmap;
 	}
 
 	rc = register_framebuffer(info);
 	if (rc < 0) {
-		dev_err(&(dev->dev), "cannot register framebugger\n");
+		dev_err(info->dev, "cannot register framebugger\n");
 		goto err_reg_fb;
 	}
 
@@ -811,7 +817,7 @@ static int vt8623_pci_suspend(struct pci_dev* dev, pm_message_t state)
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct vt8623fb_info *par = info->par;
 
-	dev_info(&(dev->dev), "suspend\n");
+	dev_info(info->dev, "suspend\n");
 
 	acquire_console_sem();
 	mutex_lock(&(par->open_lock));
@@ -842,7 +848,7 @@ static int vt8623_pci_resume(struct pci_dev* dev)
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct vt8623fb_info *par = info->par;
 
-	dev_info(&(dev->dev), "resume\n");
+	dev_info(info->dev, "resume\n");
 
 	acquire_console_sem();
 	mutex_lock(&(par->open_lock));
@@ -913,7 +919,7 @@ static int __init vt8623fb_init(void)
 		return -ENODEV;
 
 	if (option && *option)
-		mode = option;
+		mode_option = option;
 #endif
 
 	pr_debug("vt8623fb: initializing\n");
