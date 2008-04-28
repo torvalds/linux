@@ -478,6 +478,10 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 			if (f->val & ~15)
 				goto exit_free;
 			break;
+		case AUDIT_FILETYPE:
+			if ((f->val & ~S_IFMT) > S_IFMT)
+				goto exit_free;
+			break;
 		case AUDIT_INODE:
 			err = audit_to_inode(&entry->rule, f);
 			if (err)
@@ -647,6 +651,10 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 			break;
 		case AUDIT_PERM:
 			if (f->val & ~15)
+				goto exit_free;
+			break;
+		case AUDIT_FILETYPE:
+			if ((f->val & ~S_IFMT) > S_IFMT)
 				goto exit_free;
 			break;
 		default:

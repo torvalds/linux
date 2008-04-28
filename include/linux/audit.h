@@ -209,6 +209,7 @@
 #define AUDIT_WATCH	105
 #define AUDIT_PERM	106
 #define AUDIT_DIR	107
+#define AUDIT_FILETYPE	108
 
 #define AUDIT_ARG0      200
 #define AUDIT_ARG1      (AUDIT_ARG0+1)

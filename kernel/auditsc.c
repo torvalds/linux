@@ -280,6 +280,19 @@ static int audit_match_perm(struct audit_context *ctx, int mask)
 	}
 }
 
+static int audit_match_filetype(struct audit_context *ctx, int which)
+{
+	unsigned index = which & ~S_IFMT;
+	mode_t mode = which & S_IFMT;
+	if (index >= ctx->name_count)
+		return 0;
+	if (ctx->names[index].ino == -1)
+		return 0;
+	if ((ctx->names[index].mode ^ mode) & S_IFMT)
+		return 0;
+	return 1;
+}
+
 /*
  * We keep a linked list of fixed-sized (31 pointer) arrays of audit_chunk *;
  * ->first_trees points to its beginning, ->trees - to the current end of data.
@@ -588,6 +601,9 @@ static int audit_filter_rules(struct task_struct *tsk,
 			break;
 		case AUDIT_PERM:
 			result = audit_match_perm(ctx, f->val);
+			break;
+		case AUDIT_FILETYPE:
+			result = audit_match_filetype(ctx, f->val);
 			break;
 		}
 
