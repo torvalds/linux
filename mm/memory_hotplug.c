@@ -219,6 +219,25 @@ static void grow_pgdat_span(struct pglist_data *pgdat,
 					pgdat->node_start_pfn;
 }
 
+void online_page(struct page *page)
+{
+	totalram_pages++;
+	num_physpages++;
+
+#ifdef CONFIG_HIGHMEM
+	if (PageHighMem(page))
+		totalhigh_pages++;
+#endif
+
+#ifdef CONFIG_FLATMEM
+	max_mapnr = max(page_to_pfn(page), max_mapnr);
+#endif
+
+	ClearPageReserved(page);
+	init_page_count(page);
+	__free_page(page);
+}
+
 static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
 			void *arg)
 {

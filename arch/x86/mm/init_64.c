@@ -620,15 +620,6 @@ void __init paging_init(void)
 /*
  * Memory hotplug specific functions
  */
-void online_page(struct page *page)
-{
-	ClearPageReserved(page);
-	init_page_count(page);
-	__free_page(page);
-	totalram_pages++;
-	num_physpages++;
-}
-
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
  * Memory is added always to NORMAL zone. This means you will never get

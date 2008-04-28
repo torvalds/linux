@@ -287,45 +287,15 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 	pkmap_page_table = pte;
 }
 
-static void __meminit free_new_highpage(struct page *page)
-{
-	init_page_count(page);
-	__free_page(page);
-	totalhigh_pages++;
-}
-
 void __init add_one_highpage_init(struct page *page, int pfn, int bad_ppro)
 {
 	if (page_is_ram(pfn) && !(bad_ppro && page_kills_ppro(pfn))) {
 		ClearPageReserved(page);
-		free_new_highpage(page);
+		init_page_count(page);
+		__free_page(page);
+		totalhigh_pages++;
 	} else
 		SetPageReserved(page);
-}
-
-static int __meminit
-add_one_highpage_hotplug(struct page *page, unsigned long pfn)
-{
-	free_new_highpage(page);
-	totalram_pages++;
-#ifdef CONFIG_FLATMEM
-	max_mapnr = max(pfn, max_mapnr);
-#endif
-	num_physpages++;
-
-	return 0;
-}
-
-/*
- * Not currently handling the NUMA case.
- * Assuming single node and all memory that
- * has been added dynamically that would be
- * onlined here is in HIGHMEM.
- */
-void __meminit online_page(struct page *page)
-{
-	ClearPageReserved(page);
-	add_one_highpage_hotplug(page, page_to_pfn(page));
 }
 
 #ifndef CONFIG_NUMA

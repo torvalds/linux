@@ -110,15 +110,6 @@ EXPORT_SYMBOL(phys_mem_access_prot);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 
-void online_page(struct page *page)
-{
-	ClearPageReserved(page);
-	init_page_count(page);
-	__free_page(page);
-	totalram_pages++;
-	num_physpages++;
-}
-
 #ifdef CONFIG_NUMA
 int memory_add_physaddr_to_nid(u64 start)
 {
