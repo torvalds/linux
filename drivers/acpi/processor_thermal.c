@@ -97,7 +97,7 @@ static int acpi_processor_apply_limit(struct acpi_processor *pr)
 #define CPUFREQ_THERMAL_MIN_STEP 0
 #define CPUFREQ_THERMAL_MAX_STEP 3
 
-static unsigned int cpufreq_thermal_reduction_pctg[NR_CPUS];
+static DEFINE_PER_CPU(unsigned int, cpufreq_thermal_reduction_pctg);
 static unsigned int acpi_thermal_cpufreq_is_init = 0;
 
 static int cpu_has_cpufreq(unsigned int cpu)
@@ -113,9 +113,9 @@ static int acpi_thermal_cpufreq_increase(unsigned int cpu)
 	if (!cpu_has_cpufreq(cpu))
 		return -ENODEV;
 
-	if (cpufreq_thermal_reduction_pctg[cpu] <
+	if (per_cpu(cpufreq_thermal_reduction_pctg, cpu) <
 		CPUFREQ_THERMAL_MAX_STEP) {
-		cpufreq_thermal_reduction_pctg[cpu]++;
+		per_cpu(cpufreq_thermal_reduction_pctg, cpu)++;
 		cpufreq_update_policy(cpu);
 		return 0;
 	}
@@ -128,14 +128,14 @@ static int acpi_thermal_cpufreq_decrease(unsigned int cpu)
 	if (!cpu_has_cpufreq(cpu))
 		return -ENODEV;
 
-	if (cpufreq_thermal_reduction_pctg[cpu] >
+	if (per_cpu(cpufreq_thermal_reduction_pctg, cpu) >
 		(CPUFREQ_THERMAL_MIN_STEP + 1))
-		cpufreq_thermal_reduction_pctg[cpu]--;
+		per_cpu(cpufreq_thermal_reduction_pctg, cpu)--;
 	else
-		cpufreq_thermal_reduction_pctg[cpu] = 0;
+		per_cpu(cpufreq_thermal_reduction_pctg, cpu) = 0;
 	cpufreq_update_policy(cpu);
 	/* We reached max freq again and can leave passive mode */
-	return !cpufreq_thermal_reduction_pctg[cpu];
+	return !per_cpu(cpufreq_thermal_reduction_pctg, cpu);
 }
 
 static int acpi_thermal_cpufreq_notifier(struct notifier_block *nb,
@@ -147,9 +147,10 @@ static int acpi_thermal_cpufreq_notifier(struct notifier_block *nb,
 	if (event != CPUFREQ_ADJUST)
 		goto out;
 
-	max_freq =
-	    (policy->cpuinfo.max_freq *
-	     (100 - cpufreq_thermal_reduction_pctg[policy->cpu] * 20)) / 100;
+	max_freq = (
+	    policy->cpuinfo.max_freq *
+	    (100 - per_cpu(cpufreq_thermal_reduction_pctg, policy->cpu) * 20)
+	) / 100;
 
 	cpufreq_verify_within_limits(policy, 0, max_freq);
 
@@ -174,7 +175,7 @@ static int cpufreq_get_cur_state(unsigned int cpu)
 	if (!cpu_has_cpufreq(cpu))
 		return 0;
 
-	return cpufreq_thermal_reduction_pctg[cpu];
+	return per_cpu(cpufreq_thermal_reduction_pctg, cpu);
 }
 
 static int cpufreq_set_cur_state(unsigned int cpu, int state)
@@ -182,7 +183,7 @@ static int cpufreq_set_cur_state(unsigned int cpu, int state)
 	if (!cpu_has_cpufreq(cpu))
 		return 0;
 
-	cpufreq_thermal_reduction_pctg[cpu] = state;
+	per_cpu(cpufreq_thermal_reduction_pctg, cpu) = state;
 	cpufreq_update_policy(cpu);
 	return 0;
 }
@@ -191,8 +192,9 @@ void acpi_thermal_cpufreq_init(void)
 {
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++)
-		cpufreq_thermal_reduction_pctg[i] = 0;
+	for (i = 0; i < nr_cpu_ids; i++)
+		if (cpu_present(i))
+			per_cpu(cpufreq_thermal_reduction_pctg, i) = 0;
 
 	i = cpufreq_register_notifier(&acpi_thermal_cpufreq_notifier_block,
 				      CPUFREQ_POLICY_NOTIFIER);
