@@ -408,6 +408,8 @@ acpi_status pnpacpi_parse_allocated_resource(struct pnp_dev *dev)
 {
 	acpi_handle handle = dev->data;
 
+	dev_dbg(&dev->dev, "parse allocated resources\n");
+
 	/* Blank the resource table values */
 	pnp_init_resource_table(&dev->res);
 
@@ -738,6 +740,8 @@ acpi_status __init pnpacpi_parse_resource_option_data(struct pnp_dev *dev)
 	acpi_status status;
 	struct acpipnp_parse_option_s parse_data;
 
+	dev_dbg(&dev->dev, "parse resource options\n");
+
 	parse_data.option = pnp_register_independent_option(dev);
 	if (!parse_data.option)
 		return AE_ERROR;
@@ -814,7 +818,7 @@ int pnpacpi_build_resource_template(struct pnp_dev *dev,
 	buffer->pointer = kzalloc(buffer->length - 1, GFP_KERNEL);
 	if (!buffer->pointer)
 		return -ENOMEM;
-	pnp_dbg("Res cnt %d", res_cnt);
+
 	resource = (struct acpi_resource *)buffer->pointer;
 	status = acpi_walk_resources(handle, METHOD_NAME__CRS,
 				     pnpacpi_type_resources, &resource);
@@ -829,7 +833,8 @@ int pnpacpi_build_resource_template(struct pnp_dev *dev,
 	return 0;
 }
 
-static void pnpacpi_encode_irq(struct acpi_resource *resource,
+static void pnpacpi_encode_irq(struct pnp_dev *dev,
+			       struct acpi_resource *resource,
 			       struct resource *p)
 {
 	struct acpi_resource_irq *irq = &resource->data.irq;
@@ -844,9 +849,15 @@ static void pnpacpi_encode_irq(struct acpi_resource *resource,
 		irq->sharable = ACPI_SHARED;
 	irq->interrupt_count = 1;
 	irq->interrupts[0] = p->start;
+
+	dev_dbg(&dev->dev, "  encode irq %d %s %s %s\n", (int) p->start,
+		triggering == ACPI_LEVEL_SENSITIVE ? "level" : "edge",
+		polarity == ACPI_ACTIVE_LOW ? "low" : "high",
+		irq->sharable == ACPI_SHARED ? "shared" : "exclusive");
 }
 
-static void pnpacpi_encode_ext_irq(struct acpi_resource *resource,
+static void pnpacpi_encode_ext_irq(struct pnp_dev *dev,
+				   struct acpi_resource *resource,
 				   struct resource *p)
 {
 	struct acpi_resource_extended_irq *extended_irq = &resource->data.extended_irq;
@@ -862,9 +873,15 @@ static void pnpacpi_encode_ext_irq(struct acpi_resource *resource,
 		extended_irq->sharable = ACPI_SHARED;
 	extended_irq->interrupt_count = 1;
 	extended_irq->interrupts[0] = p->start;
+
+	dev_dbg(&dev->dev, "  encode irq %d %s %s %s\n", (int) p->start,
+		triggering == ACPI_LEVEL_SENSITIVE ? "level" : "edge",
+		polarity == ACPI_ACTIVE_LOW ? "low" : "high",
+		extended_irq->sharable == ACPI_SHARED ? "shared" : "exclusive");
 }
 
-static void pnpacpi_encode_dma(struct acpi_resource *resource,
+static void pnpacpi_encode_dma(struct pnp_dev *dev,
+			       struct acpi_resource *resource,
 			       struct resource *p)
 {
 	struct acpi_resource_dma *dma = &resource->data.dma;
@@ -898,9 +915,14 @@ static void pnpacpi_encode_dma(struct acpi_resource *resource,
 	dma->bus_master = !!(p->flags & IORESOURCE_DMA_MASTER);
 	dma->channel_count = 1;
 	dma->channels[0] = p->start;
+
+	dev_dbg(&dev->dev, "  encode dma %d "
+		"type %#x transfer %#x master %d\n",
+		(int) p->start, dma->type, dma->transfer, dma->bus_master);
 }
 
-static void pnpacpi_encode_io(struct acpi_resource *resource,
+static void pnpacpi_encode_io(struct pnp_dev *dev,
+			      struct acpi_resource *resource,
 			      struct resource *p)
 {
 	struct acpi_resource_io *io = &resource->data.io;
@@ -912,18 +934,27 @@ static void pnpacpi_encode_io(struct acpi_resource *resource,
 	io->maximum = p->end;
 	io->alignment = 0;	/* Correct? */
 	io->address_length = p->end - p->start + 1;
+
+	dev_dbg(&dev->dev, "  encode io %#llx-%#llx decode %#x\n",
+		(unsigned long long) p->start, (unsigned long long) p->end,
+		io->io_decode);
 }
 
-static void pnpacpi_encode_fixed_io(struct acpi_resource *resource,
+static void pnpacpi_encode_fixed_io(struct pnp_dev *dev,
+				    struct acpi_resource *resource,
 				    struct resource *p)
 {
 	struct acpi_resource_fixed_io *fixed_io = &resource->data.fixed_io;
 
 	fixed_io->address = p->start;
 	fixed_io->address_length = p->end - p->start + 1;
+
+	dev_dbg(&dev->dev, "  encode fixed_io %#llx-%#llx\n",
+		(unsigned long long) p->start, (unsigned long long) p->end);
 }
 
-static void pnpacpi_encode_mem24(struct acpi_resource *resource,
+static void pnpacpi_encode_mem24(struct pnp_dev *dev,
+				 struct acpi_resource *resource,
 				 struct resource *p)
 {
 	struct acpi_resource_memory24 *memory24 = &resource->data.memory24;
@@ -936,9 +967,14 @@ static void pnpacpi_encode_mem24(struct acpi_resource *resource,
 	memory24->maximum = p->end;
 	memory24->alignment = 0;
 	memory24->address_length = p->end - p->start + 1;
+
+	dev_dbg(&dev->dev, "  encode mem24 %#llx-%#llx write_protect %#x\n",
+		(unsigned long long) p->start, (unsigned long long) p->end,
+		memory24->write_protect);
 }
 
-static void pnpacpi_encode_mem32(struct acpi_resource *resource,
+static void pnpacpi_encode_mem32(struct pnp_dev *dev,
+				 struct acpi_resource *resource,
 				 struct resource *p)
 {
 	struct acpi_resource_memory32 *memory32 = &resource->data.memory32;
@@ -950,9 +986,14 @@ static void pnpacpi_encode_mem32(struct acpi_resource *resource,
 	memory32->maximum = p->end;
 	memory32->alignment = 0;
 	memory32->address_length = p->end - p->start + 1;
+
+	dev_dbg(&dev->dev, "  encode mem32 %#llx-%#llx write_protect %#x\n",
+		(unsigned long long) p->start, (unsigned long long) p->end,
+		memory32->write_protect);
 }
 
-static void pnpacpi_encode_fixed_mem32(struct acpi_resource *resource,
+static void pnpacpi_encode_fixed_mem32(struct pnp_dev *dev,
+				       struct acpi_resource *resource,
 				       struct resource *p)
 {
 	struct acpi_resource_fixed_memory32 *fixed_memory32 = &resource->data.fixed_memory32;
@@ -962,6 +1003,11 @@ static void pnpacpi_encode_fixed_mem32(struct acpi_resource *resource,
 	    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
 	fixed_memory32->address = p->start;
 	fixed_memory32->address_length = p->end - p->start + 1;
+
+	dev_dbg(&dev->dev, "  encode fixed_mem32 %#llx-%#llx "
+		"write_protect %#x\n",
+		(unsigned long long) p->start, (unsigned long long) p->end,
+		fixed_memory32->write_protect);
 }
 
 int pnpacpi_encode_resources(struct pnp_dev *dev, struct acpi_buffer *buffer)
@@ -973,57 +1019,49 @@ int pnpacpi_encode_resources(struct pnp_dev *dev, struct acpi_buffer *buffer)
 	struct acpi_resource *resource = buffer->pointer;
 	int port = 0, irq = 0, dma = 0, mem = 0;
 
-	pnp_dbg("res cnt %d", res_cnt);
+	dev_dbg(&dev->dev, "encode %d resources\n", res_cnt);
 	while (i < res_cnt) {
 		switch (resource->type) {
 		case ACPI_RESOURCE_TYPE_IRQ:
-			pnp_dbg("Encode irq");
-			pnpacpi_encode_irq(resource,
+			pnpacpi_encode_irq(dev, resource,
 					   &res_table->irq_resource[irq]);
 			irq++;
 			break;
 
 		case ACPI_RESOURCE_TYPE_DMA:
-			pnp_dbg("Encode dma");
-			pnpacpi_encode_dma(resource,
+			pnpacpi_encode_dma(dev, resource,
 					   &res_table->dma_resource[dma]);
 			dma++;
 			break;
 		case ACPI_RESOURCE_TYPE_IO:
-			pnp_dbg("Encode io");
-			pnpacpi_encode_io(resource,
+			pnpacpi_encode_io(dev, resource,
 					  &res_table->port_resource[port]);
 			port++;
 			break;
 		case ACPI_RESOURCE_TYPE_FIXED_IO:
-			pnp_dbg("Encode fixed io");
-			pnpacpi_encode_fixed_io(resource,
+			pnpacpi_encode_fixed_io(dev, resource,
 						&res_table->
 						port_resource[port]);
 			port++;
 			break;
 		case ACPI_RESOURCE_TYPE_MEMORY24:
-			pnp_dbg("Encode mem24");
-			pnpacpi_encode_mem24(resource,
+			pnpacpi_encode_mem24(dev, resource,
 					     &res_table->mem_resource[mem]);
 			mem++;
 			break;
 		case ACPI_RESOURCE_TYPE_MEMORY32:
-			pnp_dbg("Encode mem32");
-			pnpacpi_encode_mem32(resource,
+			pnpacpi_encode_mem32(dev, resource,
 					     &res_table->mem_resource[mem]);
 			mem++;
 			break;
 		case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
-			pnp_dbg("Encode fixed mem32");
-			pnpacpi_encode_fixed_mem32(resource,
+			pnpacpi_encode_fixed_mem32(dev, resource,
 						   &res_table->
 						   mem_resource[mem]);
 			mem++;
 			break;
 		case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
-			pnp_dbg("Encode ext irq");
-			pnpacpi_encode_ext_irq(resource,
+			pnpacpi_encode_ext_irq(dev, resource,
 					       &res_table->irq_resource[irq]);
 			irq++;
 			break;

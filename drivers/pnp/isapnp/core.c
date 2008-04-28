@@ -980,6 +980,7 @@ static int isapnp_get_resources(struct pnp_dev *dev)
 {
 	int ret;
 
+	dev_dbg(&dev->dev, "get resources\n");
 	pnp_init_resource_table(&dev->res);
 	isapnp_cfg_begin(dev->card->number, dev->number);
 	ret = isapnp_read_resources(dev);
@@ -992,15 +993,19 @@ static int isapnp_set_resources(struct pnp_dev *dev)
 	struct pnp_resource_table *res = &dev->res;
 	int tmp;
 
+	dev_dbg(&dev->dev, "set resources\n");
 	isapnp_cfg_begin(dev->card->number, dev->number);
 	dev->active = 1;
 	for (tmp = 0;
 	     tmp < ISAPNP_MAX_PORT
 	     && (res->port_resource[tmp].
 		 flags & (IORESOURCE_IO | IORESOURCE_UNSET)) == IORESOURCE_IO;
-	     tmp++)
+	     tmp++) {
+		dev_dbg(&dev->dev, "  set io  %d to %#llx\n",
+			tmp, (unsigned long long) res->port_resource[tmp].start);
 		isapnp_write_word(ISAPNP_CFG_PORT + (tmp << 1),
 				  res->port_resource[tmp].start);
+	}
 	for (tmp = 0;
 	     tmp < ISAPNP_MAX_IRQ
 	     && (res->irq_resource[tmp].
@@ -1009,22 +1014,29 @@ static int isapnp_set_resources(struct pnp_dev *dev)
 		int irq = res->irq_resource[tmp].start;
 		if (irq == 2)
 			irq = 9;
+		dev_dbg(&dev->dev, "  set irq %d to %d\n", tmp, irq);
 		isapnp_write_byte(ISAPNP_CFG_IRQ + (tmp << 1), irq);
 	}
 	for (tmp = 0;
 	     tmp < ISAPNP_MAX_DMA
 	     && (res->dma_resource[tmp].
 		 flags & (IORESOURCE_DMA | IORESOURCE_UNSET)) == IORESOURCE_DMA;
-	     tmp++)
+	     tmp++) {
+		dev_dbg(&dev->dev, "  set dma %d to %lld\n",
+			tmp, (unsigned long long) res->dma_resource[tmp].start);
 		isapnp_write_byte(ISAPNP_CFG_DMA + tmp,
 				  res->dma_resource[tmp].start);
+	}
 	for (tmp = 0;
 	     tmp < ISAPNP_MAX_MEM
 	     && (res->mem_resource[tmp].
 		 flags & (IORESOURCE_MEM | IORESOURCE_UNSET)) == IORESOURCE_MEM;
-	     tmp++)
+	     tmp++) {
+		dev_dbg(&dev->dev, "  set mem %d to %#llx\n",
+			tmp, (unsigned long long) res->mem_resource[tmp].start);
 		isapnp_write_word(ISAPNP_CFG_MEM + (tmp << 3),
 				  (res->mem_resource[tmp].start >> 8) & 0xffff);
+	}
 	/* FIXME: We aren't handling 32bit mems properly here */
 	isapnp_activate(dev->number);
 	isapnp_cfg_end();

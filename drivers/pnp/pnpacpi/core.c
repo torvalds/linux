@@ -77,6 +77,7 @@ static int pnpacpi_get_resources(struct pnp_dev *dev)
 {
 	acpi_status status;
 
+	dev_dbg(&dev->dev, "get resources\n");
 	status = pnpacpi_parse_allocated_resource(dev);
 	return ACPI_FAILURE(status) ? -ENODEV : 0;
 }
@@ -88,6 +89,7 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 	int ret;
 	acpi_status status;
 
+	dev_dbg(&dev->dev, "set resources\n");
 	ret = pnpacpi_build_resource_template(dev, &buffer);
 	if (ret)
 		return ret;

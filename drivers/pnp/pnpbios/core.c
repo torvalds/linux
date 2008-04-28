@@ -212,6 +212,7 @@ static int pnpbios_get_resources(struct pnp_dev *dev)
 	if (!pnpbios_is_dynamic(dev))
 		return -EPERM;
 
+	dev_dbg(&dev->dev, "get resources\n");
 	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node)
 		return -1;
@@ -234,6 +235,7 @@ static int pnpbios_set_resources(struct pnp_dev *dev)
 	if (!pnpbios_is_dynamic(dev))
 		return -EPERM;
 
+	dev_dbg(&dev->dev, "set resources\n");
 	node = kzalloc(node_info.max_node_size, GFP_KERNEL);
 	if (!node)
 		return -1;
