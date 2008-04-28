@@ -136,7 +136,15 @@ static int is_valid_nodemask(nodemask_t *nodemask)
 
 static inline int mpol_store_user_nodemask(const struct mempolicy *pol)
 {
-	return pol->flags & MPOL_F_STATIC_NODES;
+	return pol->flags & (MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES);
+}
+
+static void mpol_relative_nodemask(nodemask_t *ret, const nodemask_t *orig,
+				   const nodemask_t *rel)
+{
+	nodemask_t tmp;
+	nodes_fold(tmp, *orig, nodes_weight(*rel));
+	nodes_onto(*ret, tmp, *rel);
 }
 
 /* Create a new policy */
@@ -157,7 +165,12 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 		return ERR_PTR(-ENOMEM);
 	atomic_set(&policy->refcnt, 1);
 	cpuset_update_task_memory_state();
-	nodes_and(cpuset_context_nmask, *nodes, cpuset_current_mems_allowed);
+	if (flags & MPOL_F_RELATIVE_NODES)
+		mpol_relative_nodemask(&cpuset_context_nmask, nodes,
+				       &cpuset_current_mems_allowed);
+	else
+		nodes_and(cpuset_context_nmask, *nodes,
+			  cpuset_current_mems_allowed);
 	switch (mode) {
 	case MPOL_INTERLEAVE:
 		if (nodes_empty(*nodes) || nodes_empty(cpuset_context_nmask))
@@ -873,6 +886,9 @@ asmlinkage long sys_mbind(unsigned long start, unsigned long len,
 	mode &= ~MPOL_MODE_FLAGS;
 	if (mode >= MPOL_MAX)
 		return -EINVAL;
+	if ((mode_flags & MPOL_F_STATIC_NODES) &&
+	    (mode_flags & MPOL_F_RELATIVE_NODES))
+		return -EINVAL;
 	err = get_nodes(&nodes, nmask, maxnode);
 	if (err)
 		return err;
@@ -890,6 +906,8 @@ asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
 	flags = mode & MPOL_MODE_FLAGS;
 	mode &= ~MPOL_MODE_FLAGS;
 	if ((unsigned int)mode >= MPOL_MAX)
+		return -EINVAL;
+	if ((flags & MPOL_F_STATIC_NODES) && (flags & MPOL_F_RELATIVE_NODES))
 		return -EINVAL;
 	err = get_nodes(&nodes, nmask, maxnode);
 	if (err)
@@ -1745,10 +1763,12 @@ static void mpol_rebind_policy(struct mempolicy *pol,
 {
 	nodemask_t tmp;
 	int static_nodes;
+	int relative_nodes;
 
 	if (!pol)
 		return;
 	static_nodes = pol->flags & MPOL_F_STATIC_NODES;
+	relative_nodes = pol->flags & MPOL_F_RELATIVE_NODES;
 	if (!mpol_store_user_nodemask(pol) &&
 	    nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
 		return;
@@ -1761,6 +1781,9 @@ static void mpol_rebind_policy(struct mempolicy *pol,
 	case MPOL_INTERLEAVE:
 		if (static_nodes)
 			nodes_and(tmp, pol->w.user_nodemask, *newmask);
+		else if (relative_nodes)
+			mpol_relative_nodemask(&tmp, &pol->w.user_nodemask,
+					       newmask);
 		else {
 			nodes_remap(tmp, pol->v.nodes,
 				    pol->w.cpuset_mems_allowed, *newmask);
@@ -1783,6 +1806,10 @@ static void mpol_rebind_policy(struct mempolicy *pol,
 				pol->v.preferred_node = node;
 			else
 				pol->v.preferred_node = -1;
+		} else if (relative_nodes) {
+			mpol_relative_nodemask(&tmp, &pol->w.user_nodemask,
+					       newmask);
+			pol->v.preferred_node = first_node(tmp);
 		} else {
 			pol->v.preferred_node = node_remap(pol->v.preferred_node,
 					pol->w.cpuset_mems_allowed, *newmask);
@@ -1878,6 +1905,8 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 
 		if (flags & MPOL_F_STATIC_NODES)
 			p += sprintf(p, "%sstatic", need_bar++ ? "|" : "");
+		if (flags & MPOL_F_RELATIVE_NODES)
+			p += sprintf(p, "%srelative", need_bar++ ? "|" : "");
 	}
 
 	if (!nodes_empty(nodes)) {
