@@ -433,7 +433,7 @@ static void ops_run_io(struct stripe_head *sh)
 
 			bi->bi_bdev = rdev->bdev;
 			pr_debug("%s: for %llu schedule op %ld on disc %d\n",
-				__FUNCTION__, (unsigned long long)sh->sector,
+				__func__, (unsigned long long)sh->sector,
 				bi->bi_rw, i);
 			atomic_inc(&sh->count);
 			bi->bi_sector = sh->sector + rdev->data_offset;
@@ -520,7 +520,7 @@ static void ops_complete_biofill(void *stripe_head_ref)
 	raid5_conf_t *conf = sh->raid_conf;
 	int i;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	/* clear completed biofills */
@@ -569,7 +569,7 @@ static void ops_run_biofill(struct stripe_head *sh)
 	raid5_conf_t *conf = sh->raid_conf;
 	int i;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	for (i = sh->disks; i--; ) {
@@ -600,7 +600,7 @@ static void ops_complete_compute5(void *stripe_head_ref)
 	int target = sh->ops.target;
 	struct r5dev *tgt = &sh->dev[target];
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	set_bit(R5_UPTODATE, &tgt->flags);
@@ -625,7 +625,7 @@ ops_run_compute5(struct stripe_head *sh, unsigned long pending)
 	int i;
 
 	pr_debug("%s: stripe %llu block: %d\n",
-		__FUNCTION__, (unsigned long long)sh->sector, target);
+		__func__, (unsigned long long)sh->sector, target);
 	BUG_ON(!test_bit(R5_Wantcompute, &tgt->flags));
 
 	for (i = disks; i--; )
@@ -653,7 +653,7 @@ static void ops_complete_prexor(void *stripe_head_ref)
 {
 	struct stripe_head *sh = stripe_head_ref;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	set_bit(STRIPE_OP_PREXOR, &sh->ops.complete);
@@ -670,7 +670,7 @@ ops_run_prexor(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 	/* existing parity data subtracted */
 	struct page *xor_dest = xor_srcs[count++] = sh->dev[pd_idx].page;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	for (i = disks; i--; ) {
@@ -699,7 +699,7 @@ ops_run_biodrain(struct stripe_head *sh, struct dma_async_tx_descriptor *tx,
 	 */
 	int prexor = test_bit(STRIPE_OP_PREXOR, &pending);
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	for (i = disks; i--; ) {
@@ -744,7 +744,7 @@ static void ops_complete_postxor(void *stripe_head_ref)
 {
 	struct stripe_head *sh = stripe_head_ref;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	set_bit(STRIPE_OP_POSTXOR, &sh->ops.complete);
@@ -757,7 +757,7 @@ static void ops_complete_write(void *stripe_head_ref)
 	struct stripe_head *sh = stripe_head_ref;
 	int disks = sh->disks, i, pd_idx = sh->pd_idx;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	for (i = disks; i--; ) {
@@ -787,7 +787,7 @@ ops_run_postxor(struct stripe_head *sh, struct dma_async_tx_descriptor *tx,
 	unsigned long flags;
 	dma_async_tx_callback callback;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	/* check if prexor is active which means only process blocks
@@ -837,7 +837,7 @@ static void ops_complete_check(void *stripe_head_ref)
 	struct stripe_head *sh = stripe_head_ref;
 	int pd_idx = sh->pd_idx;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	if (test_and_clear_bit(STRIPE_OP_MOD_DMA_CHECK, &sh->ops.pending) &&
@@ -859,7 +859,7 @@ static void ops_run_check(struct stripe_head *sh)
 	int count = 0, pd_idx = sh->pd_idx, i;
 	struct page *xor_dest = xor_srcs[count++] = sh->dev[pd_idx].page;
 
-	pr_debug("%s: stripe %llu\n", __FUNCTION__,
+	pr_debug("%s: stripe %llu\n", __func__,
 		(unsigned long long)sh->sector);
 
 	for (i = disks; i--; ) {
@@ -1759,7 +1759,7 @@ handle_write_operations5(struct stripe_head *sh, int rcw, int expand)
 	locked++;
 
 	pr_debug("%s: stripe %llu locked: %d pending: %lx\n",
-		__FUNCTION__, (unsigned long long)sh->sector,
+		__func__, (unsigned long long)sh->sector,
 		locked, sh->ops.pending);
 
 	return locked;
