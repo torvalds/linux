@@ -31,7 +31,7 @@ int aer_osc_setup(struct pcie_device *pciedev)
 {
 	acpi_status status = AE_NOT_FOUND;
 	struct pci_dev *pdev = pciedev->port;
-	acpi_handle handle = 0;
+	acpi_handle handle = NULL;
 
 	if (acpi_pci_disabled)
 		return -1;

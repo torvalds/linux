@@ -209,7 +209,7 @@ static int platram_probe(struct platform_device *pdev)
 	/* probe for the right mtd map driver
 	 * supplied by the platform_data struct */
 
-	if (pdata->map_probes != 0) {
+	if (pdata->map_probes) {
 		const char **map_probes = pdata->map_probes;
 
 		for ( ; !info->mtd && *map_probes; map_probes++)

@@ -58,7 +58,7 @@ void __init reserve_ibft_region(void)
 	unsigned int len = 0;
 	void *virt;
 
-	ibft_addr = 0;
+	ibft_addr = NULL;
 
 	for (pos = IBFT_START; pos < IBFT_END; pos += 16) {
 		/* The table can't be inside the VGA BIOS reserved space,

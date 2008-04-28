@@ -501,7 +501,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 			__FILE__,__LINE__, count);
 		
 	/* This can happen if stuff comes in on the backup tty */
-	if (n_hdlc == 0 || tty != n_hdlc->tty)
+	if (!n_hdlc || tty != n_hdlc->tty)
 		return;
 		
 	/* verify line is using HDLC discipline */
