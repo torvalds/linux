@@ -1125,20 +1125,26 @@ static int shmem_parse_mpol(char *value, unsigned short *policy,
 			*policy_nodes = node_states[N_HIGH_MEMORY];
 		err = 0;
 	}
+
+	*mode_flags = 0;
 	if (flags) {
+		/*
+		 * Currently, we only support two mutually exclusive
+		 * mode flags.
+		 */
 		if (!strcmp(flags, "static"))
 			*mode_flags |= MPOL_F_STATIC_NODES;
-		if (!strcmp(flags, "relative"))
+		else if (!strcmp(flags, "relative"))
 			*mode_flags |= MPOL_F_RELATIVE_NODES;
-
-		if ((*mode_flags & MPOL_F_STATIC_NODES) &&
-		    (*mode_flags & MPOL_F_RELATIVE_NODES))
-			err = 1;
+		else
+			err = 1;	/* unrecognized flag */
 	}
 out:
 	/* Restore string for error message */
 	if (nodelist)
 		*--nodelist = ':';
+	if (flags)
+		*--flags = '=';
 	return err;
 }
 
