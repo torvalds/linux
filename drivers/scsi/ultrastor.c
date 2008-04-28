@@ -951,7 +951,7 @@ static int ultrastor_abort(struct scsi_cmnd *SCpnt)
 	printk("abort: command mismatch, %p != %p\n",
 	       config.mscp[mscp_index].SCint, SCpnt);
 #endif
-    if (config.mscp[mscp_index].SCint == 0)
+    if (config.mscp[mscp_index].SCint == NULL)
 	return FAILED;
 
     if (config.mscp[mscp_index].SCint != SCpnt) panic("Bad abort");
@@ -1101,7 +1101,7 @@ static void ultrastor_interrupt(void *dev_id)
     SCtmp = mscp->SCint;
     mscp->SCint = NULL;
 
-    if (SCtmp == 0)
+    if (!SCtmp)
       {
 #if ULTRASTOR_DEBUG & (UD_ABORT|UD_INTERRUPT)
 	printk("MSCP %d (%x): no command\n", mscp_index, (unsigned int) mscp);

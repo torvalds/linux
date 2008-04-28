@@ -1647,7 +1647,7 @@ static void sym_flush_comp_queue(struct sym_hcb *np, int cam_status)
 	SYM_QUEHEAD *qp;
 	struct sym_ccb *cp;
 
-	while ((qp = sym_remque_head(&np->comp_ccbq)) != 0) {
+	while ((qp = sym_remque_head(&np->comp_ccbq)) != NULL) {
 		struct scsi_cmnd *cmd;
 		cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		sym_insque_tail(&cp->link_ccbq, &np->busy_ccbq);
@@ -3168,7 +3168,7 @@ int sym_clear_tasks(struct sym_hcb *np, int cam_status, int target, int lun, int
 	 *  the COMP queue and put back other ones into 
 	 *  the BUSY queue.
 	 */
-	while ((qp = sym_remque_head(&qtmp)) != 0) {
+	while ((qp = sym_remque_head(&qtmp)) != NULL) {
 		struct scsi_cmnd *cmd;
 		cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		cmd = cp->cmd;
@@ -5729,7 +5729,7 @@ void sym_hcb_free(struct sym_hcb *np)
 		sym_mfree_dma(np->dqueue, sizeof(u32)*(MAX_QUEUE*2), "DQUEUE");
 
 	if (np->actccbs) {
-		while ((qp = sym_remque_head(&np->free_ccbq)) != 0) {
+		while ((qp = sym_remque_head(&np->free_ccbq)) != NULL) {
 			cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 			sym_mfree_dma(cp, sizeof(*cp), "CCB");
 		}

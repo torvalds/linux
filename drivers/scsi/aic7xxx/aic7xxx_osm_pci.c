@@ -352,7 +352,7 @@ ahc_linux_pci_reserve_io_region(struct ahc_softc *ahc, resource_size_t *base)
 	*base = pci_resource_start(ahc->dev_softc, 0);
 	if (*base == 0)
 		return (ENOMEM);
-	if (request_region(*base, 256, "aic7xxx") == 0)
+	if (!request_region(*base, 256, "aic7xxx"))
 		return (ENOMEM);
 	return (0);
 }
@@ -369,7 +369,7 @@ ahc_linux_pci_reserve_mem_region(struct ahc_softc *ahc,
 	start = pci_resource_start(ahc->dev_softc, 1);
 	if (start != 0) {
 		*bus_addr = start;
-		if (request_mem_region(start, 0x1000, "aic7xxx") == 0)
+		if (!request_mem_region(start, 0x1000, "aic7xxx"))
 			error = ENOMEM;
 		if (error == 0) {
 			*maddr = ioremap_nocache(start, 256);
