@@ -1262,8 +1262,8 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		}
 		set_bit(Faulty, &rdev->flags);
 		printk (KERN_ALERT
-			"raid5: Disk failure on %s, disabling device."
-			" Operation continuing on %d devices\n",
+			"raid5: Disk failure on %s, disabling device.\n"
+			"raid5: Operation continuing on %d devices.\n",
 			bdevname(rdev->bdev,b), conf->raid_disks - mddev->degraded);
 	}
 }
