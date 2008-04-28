@@ -106,7 +106,7 @@ enum zone_type policy_zone = 0;
 
 struct mempolicy default_policy = {
 	.refcnt = ATOMIC_INIT(1), /* never free it */
-	.policy = MPOL_DEFAULT,
+	.mode   = MPOL_DEFAULT,
 };
 
 static const struct mempolicy_operations {
@@ -211,7 +211,7 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 	if (!policy)
 		return ERR_PTR(-ENOMEM);
 	atomic_set(&policy->refcnt, 1);
-	policy->policy = mode;
+	policy->mode = mode;
 	policy->flags = flags;
 
 	if (nodes) {
@@ -302,7 +302,7 @@ static void mpol_rebind_policy(struct mempolicy *pol,
 	if (!mpol_store_user_nodemask(pol) &&
 	    nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
 		return;
-	mpol_ops[pol->policy].rebind(pol, newmask);
+	mpol_ops[pol->mode].rebind(pol, newmask);
 }
 
 /*
@@ -608,7 +608,7 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 	mpol_put(current->mempolicy);
 	current->mempolicy = new;
 	mpol_set_task_struct_flag();
-	if (new && new->policy == MPOL_INTERLEAVE &&
+	if (new && new->mode == MPOL_INTERLEAVE &&
 	    nodes_weight(new->v.nodes))
 		current->il_next = first_node(new->v.nodes);
 	if (mm)
@@ -621,7 +621,7 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 static void get_zonemask(struct mempolicy *p, nodemask_t *nodes)
 {
 	nodes_clear(*nodes);
-	switch (p->policy) {
+	switch (p->mode) {
 	case MPOL_DEFAULT:
 		break;
 	case MPOL_BIND:
@@ -700,14 +700,14 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 				goto out;
 			*policy = err;
 		} else if (pol == current->mempolicy &&
-				pol->policy == MPOL_INTERLEAVE) {
+				pol->mode == MPOL_INTERLEAVE) {
 			*policy = current->il_next;
 		} else {
 			err = -EINVAL;
 			goto out;
 		}
 	} else
-		*policy = pol->policy | pol->flags;
+		*policy = pol->mode | pol->flags;
 
 	if (vma) {
 		up_read(&current->mm->mmap_sem);
@@ -1276,7 +1276,7 @@ static struct mempolicy *get_vma_policy(struct task_struct *task,
 				pol = vpol;
 			shared_pol = 1;	/* if pol non-NULL, add ref below */
 		} else if (vma->vm_policy &&
-				vma->vm_policy->policy != MPOL_DEFAULT)
+				vma->vm_policy->mode != MPOL_DEFAULT)
 			pol = vma->vm_policy;
 	}
 	if (!pol)
@@ -1290,7 +1290,7 @@ static struct mempolicy *get_vma_policy(struct task_struct *task,
 static nodemask_t *nodemask_policy(gfp_t gfp, struct mempolicy *policy)
 {
 	/* Lower zones don't get a nodemask applied for MPOL_BIND */
-	if (unlikely(policy->policy == MPOL_BIND) &&
+	if (unlikely(policy->mode == MPOL_BIND) &&
 			gfp_zone(gfp) >= policy_zone &&
 			cpuset_nodemask_valid_mems_allowed(&policy->v.nodes))
 		return &policy->v.nodes;
@@ -1303,7 +1303,7 @@ static struct zonelist *zonelist_policy(gfp_t gfp, struct mempolicy *policy)
 {
 	int nd;
 
-	switch (policy->policy) {
+	switch (policy->mode) {
 	case MPOL_PREFERRED:
 		nd = policy->v.preferred_node;
 		if (nd < 0)
@@ -1353,7 +1353,7 @@ static unsigned interleave_nodes(struct mempolicy *policy)
  */
 unsigned slab_node(struct mempolicy *policy)
 {
-	unsigned short pol = policy ? policy->policy : MPOL_DEFAULT;
+	unsigned short pol = policy ? policy->mode : MPOL_DEFAULT;
 
 	switch (pol) {
 	case MPOL_INTERLEAVE:
@@ -1454,9 +1454,9 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
 
 	*mpol = NULL;		/* probably no unref needed */
 	*nodemask = NULL;	/* assume !MPOL_BIND */
-	if (pol->policy == MPOL_BIND) {
+	if (pol->mode == MPOL_BIND) {
 			*nodemask = &pol->v.nodes;
-	} else if (pol->policy == MPOL_INTERLEAVE) {
+	} else if (pol->mode == MPOL_INTERLEAVE) {
 		unsigned nid;
 
 		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
@@ -1468,7 +1468,7 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
 
 	zl = zonelist_policy(GFP_HIGHUSER, pol);
 	if (unlikely(pol != &default_policy && pol != current->mempolicy)) {
-		if (pol->policy != MPOL_BIND)
+		if (pol->mode != MPOL_BIND)
 			__mpol_put(pol);	/* finished with pol */
 		else
 			*mpol = pol;	/* unref needed after allocation */
@@ -1522,7 +1522,7 @@ alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
 
 	cpuset_update_task_memory_state();
 
-	if (unlikely(pol->policy == MPOL_INTERLEAVE)) {
+	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
 		unsigned nid;
 
 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
@@ -1574,7 +1574,7 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 		cpuset_update_task_memory_state();
 	if (!pol || in_interrupt() || (gfp & __GFP_THISNODE))
 		pol = &default_policy;
-	if (pol->policy == MPOL_INTERLEAVE)
+	if (pol->mode == MPOL_INTERLEAVE)
 		return alloc_page_interleave(gfp, order, interleave_nodes(pol));
 	return __alloc_pages_nodemask(gfp, order,
 			zonelist_policy(gfp, pol), nodemask_policy(gfp, pol));
@@ -1620,11 +1620,11 @@ int __mpol_equal(struct mempolicy *a, struct mempolicy *b)
 {
 	if (!a || !b)
 		return 0;
-	if (a->policy != b->policy)
+	if (a->mode != b->mode)
 		return 0;
-	if (a->policy != MPOL_DEFAULT && !mpol_match_intent(a, b))
+	if (a->mode != MPOL_DEFAULT && !mpol_match_intent(a, b))
 		return 0;
-	switch (a->policy) {
+	switch (a->mode) {
 	case MPOL_DEFAULT:
 		return 1;
 	case MPOL_BIND:
@@ -1644,7 +1644,7 @@ void __mpol_put(struct mempolicy *p)
 {
 	if (!atomic_dec_and_test(&p->refcnt))
 		return;
-	p->policy = MPOL_DEFAULT;
+	p->mode = MPOL_DEFAULT;
 	kmem_cache_free(policy_cache, p);
 }
 
@@ -1710,7 +1710,7 @@ static void sp_insert(struct shared_policy *sp, struct sp_node *new)
 	rb_link_node(&new->nd, parent, p);
 	rb_insert_color(&new->nd, &sp->root);
 	pr_debug("inserting %lx-%lx: %d\n", new->start, new->end,
-		 new->policy ? new->policy->policy : 0);
+		 new->policy ? new->policy->mode : 0);
 }
 
 /* Find shared policy intersecting idx */
@@ -1835,7 +1835,7 @@ int mpol_set_shared_policy(struct shared_policy *info,
 
 	pr_debug("set_shared_policy %lx sz %lu %d %d %lx\n",
 		 vma->vm_pgoff,
-		 sz, npol ? npol->policy : -1,
+		 sz, npol ? npol->mode : -1,
 		 npol ? npol->flags : -1,
 		 npol ? nodes_addr(npol->v.nodes)[0] : -1);
 
@@ -1935,7 +1935,7 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 	char *p = buffer;
 	int l;
 	nodemask_t nodes;
-	unsigned short mode = pol ? pol->policy : MPOL_DEFAULT;
+	unsigned short mode = pol ? pol->mode : MPOL_DEFAULT;
 	unsigned short flags = pol ? pol->flags : 0;
 
 	switch (mode) {

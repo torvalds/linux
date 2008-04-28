@@ -145,10 +145,6 @@ Components of Memory Policies
    structure, struct mempolicy.  Details of this structure will be discussed
    in context, below, as required to explain the behavior.
 
-	Note:  in some functions AND in the struct mempolicy itself, the mode
-	is called "policy".  However, to avoid confusion with the policy tuple,
-	this document will continue to use the term "mode".
-
    Linux memory policy supports the following 4 behavioral modes:
 
 	Default Mode--MPOL_DEFAULT:  The behavior specified by this mode is

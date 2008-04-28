@@ -80,7 +80,7 @@ struct mm_struct;
  */
 struct mempolicy {
 	atomic_t refcnt;
-	unsigned short policy; 	/* See MPOL_* above */
+	unsigned short mode; 	/* See MPOL_* above */
 	unsigned short flags;	/* See set_mempolicy() MPOL_F_* above */
 	union {
 		short 		 preferred_node; /* preferred */
@@ -149,7 +149,7 @@ struct shared_policy {
 	spinlock_t lock;
 };
 
-void mpol_shared_policy_init(struct shared_policy *info, unsigned short policy,
+void mpol_shared_policy_init(struct shared_policy *info, unsigned short mode,
 				unsigned short flags, nodemask_t *nodes);
 int mpol_set_shared_policy(struct shared_policy *info,
 				struct vm_area_struct *vma,
@@ -213,7 +213,7 @@ static inline int mpol_set_shared_policy(struct shared_policy *info,
 }
 
 static inline void mpol_shared_policy_init(struct shared_policy *info,
-		unsigned short policy, unsigned short flags, nodemask_t *nodes)
+		unsigned short mode, unsigned short flags, nodemask_t *nodes)
 {
 }
 
