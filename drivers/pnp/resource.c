@@ -269,9 +269,8 @@ int pnp_check_port(struct pnp_dev *dev, struct resource *res)
 	}
 
 	/* check for internal conflicts */
-	for (i = 0; i < PNP_MAX_PORT; i++) {
-		tres = pnp_get_resource(dev, IORESOURCE_IO, i);
-		if (tres && tres != res && tres->flags & IORESOURCE_IO) {
+	for (i = 0; (tres = pnp_get_resource(dev, IORESOURCE_IO, i)); i++) {
+		if (tres != res && tres->flags & IORESOURCE_IO) {
 			tport = &tres->start;
 			tend = &tres->end;
 			if (ranged_conflict(port, end, tport, tend))
@@ -283,9 +282,10 @@ int pnp_check_port(struct pnp_dev *dev, struct resource *res)
 	pnp_for_each_dev(tdev) {
 		if (tdev == dev)
 			continue;
-		for (i = 0; i < PNP_MAX_PORT; i++) {
-			tres = pnp_get_resource(tdev, IORESOURCE_IO, i);
-			if (tres && tres->flags & IORESOURCE_IO) {
+		for (i = 0;
+		     (tres = pnp_get_resource(tdev, IORESOURCE_IO, i));
+		     i++) {
+			if (tres->flags & IORESOURCE_IO) {
 				if (cannot_compare(tres->flags))
 					continue;
 				tport = &tres->start;
@@ -329,9 +329,8 @@ int pnp_check_mem(struct pnp_dev *dev, struct resource *res)
 	}
 
 	/* check for internal conflicts */
-	for (i = 0; i < PNP_MAX_MEM; i++) {
-		tres = pnp_get_resource(dev, IORESOURCE_MEM, i);
-		if (tres && tres != res && tres->flags & IORESOURCE_MEM) {
+	for (i = 0; (tres = pnp_get_resource(dev, IORESOURCE_MEM, i)); i++) {
+		if (tres != res && tres->flags & IORESOURCE_MEM) {
 			taddr = &tres->start;
 			tend = &tres->end;
 			if (ranged_conflict(addr, end, taddr, tend))
@@ -343,9 +342,10 @@ int pnp_check_mem(struct pnp_dev *dev, struct resource *res)
 	pnp_for_each_dev(tdev) {
 		if (tdev == dev)
 			continue;
-		for (i = 0; i < PNP_MAX_MEM; i++) {
-			tres = pnp_get_resource(tdev, IORESOURCE_MEM, i);
-			if (tres && tres->flags & IORESOURCE_MEM) {
+		for (i = 0;
+		     (tres = pnp_get_resource(tdev, IORESOURCE_MEM, i));
+		     i++) {
+			if (tres->flags & IORESOURCE_MEM) {
 				if (cannot_compare(tres->flags))
 					continue;
 				taddr = &tres->start;
@@ -388,9 +388,8 @@ int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 	}
 
 	/* check for internal conflicts */
-	for (i = 0; i < PNP_MAX_IRQ; i++) {
-		tres = pnp_get_resource(dev, IORESOURCE_IRQ, i);
-		if (tres && tres != res && tres->flags & IORESOURCE_IRQ) {
+	for (i = 0; (tres = pnp_get_resource(dev, IORESOURCE_IRQ, i)); i++) {
+		if (tres != res && tres->flags & IORESOURCE_IRQ) {
 			if (tres->start == *irq)
 				return 0;
 		}
@@ -422,9 +421,10 @@ int pnp_check_irq(struct pnp_dev *dev, struct resource *res)
 	pnp_for_each_dev(tdev) {
 		if (tdev == dev)
 			continue;
-		for (i = 0; i < PNP_MAX_IRQ; i++) {
-			tres = pnp_get_resource(tdev, IORESOURCE_IRQ, i);
-			if (tres && tres->flags & IORESOURCE_IRQ) {
+		for (i = 0;
+		     (tres = pnp_get_resource(tdev, IORESOURCE_IRQ, i));
+		     i++) {
+			if (tres->flags & IORESOURCE_IRQ) {
 				if (cannot_compare(tres->flags))
 					continue;
 				if (tres->start == *irq)
@@ -461,9 +461,8 @@ int pnp_check_dma(struct pnp_dev *dev, struct resource *res)
 	}
 
 	/* check for internal conflicts */
-	for (i = 0; i < PNP_MAX_DMA; i++) {
-		tres = pnp_get_resource(dev, IORESOURCE_DMA, i);
-		if (tres && tres != res && tres->flags & IORESOURCE_DMA) {
+	for (i = 0; (tres = pnp_get_resource(dev, IORESOURCE_DMA, i)); i++) {
+		if (tres != res && tres->flags & IORESOURCE_DMA) {
 			if (tres->start == *dma)
 				return 0;
 		}
@@ -481,9 +480,10 @@ int pnp_check_dma(struct pnp_dev *dev, struct resource *res)
 	pnp_for_each_dev(tdev) {
 		if (tdev == dev)
 			continue;
-		for (i = 0; i < PNP_MAX_DMA; i++) {
-			tres = pnp_get_resource(tdev, IORESOURCE_DMA, i);
-			if (tres && tres->flags & IORESOURCE_DMA) {
+		for (i = 0;
+		     (tres = pnp_get_resource(tdev, IORESOURCE_DMA, i));
+		     i++) {
+			if (tres->flags & IORESOURCE_DMA) {
 				if (cannot_compare(tres->flags))
 					continue;
 				if (tres->start == *dma)
