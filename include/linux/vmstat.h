@@ -174,7 +174,7 @@ static inline unsigned long node_page_state(int node,
 		zone_page_state(&zones[ZONE_MOVABLE], item);
 }
 
-extern void zone_statistics(struct zonelist *, struct zone *);
+extern void zone_statistics(struct zone *, struct zone *);
 
 #else
 

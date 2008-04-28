@@ -1050,7 +1050,7 @@ void split_page(struct page *page, unsigned int order)
  * we cheat by calling it from here, in the order > 0 path.  Saves a branch
  * or two.
  */
-static struct page *buffered_rmqueue(struct zonelist *zonelist,
+static struct page *buffered_rmqueue(struct zone *preferred_zone,
 			struct zone *zone, int order, gfp_t gfp_flags)
 {
 	unsigned long flags;
@@ -1102,7 +1102,7 @@ again:
 	}
 
 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
-	zone_statistics(zonelist, zone);
+	zone_statistics(preferred_zone, zone);
 	local_irq_restore(flags);
 	put_cpu();
 
@@ -1383,7 +1383,7 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 	struct zone **z;
 	struct page *page = NULL;
 	int classzone_idx = zone_idx(zonelist->zones[0]);
-	struct zone *zone;
+	struct zone *zone, *preferred_zone;
 	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
 	int zlc_active = 0;		/* set if using zonelist_cache */
 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
@@ -1395,6 +1395,7 @@ zonelist_scan:
 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
 	 */
 	z = zonelist->zones;
+	preferred_zone = *z;
 
 	do {
 		/*
@@ -1433,7 +1434,7 @@ zonelist_scan:
 			}
 		}
 
-		page = buffered_rmqueue(zonelist, zone, order, gfp_mask);
+		page = buffered_rmqueue(preferred_zone, zone, order, gfp_mask);
 		if (page)
 			break;
 this_zone_full:
