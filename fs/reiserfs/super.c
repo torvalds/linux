@@ -1890,8 +1890,14 @@ static int reiserfs_dquot_drop(struct inode *inode)
 	ret =
 	    journal_begin(&th, inode->i_sb,
 			  2 * REISERFS_QUOTA_DEL_BLOCKS(inode->i_sb));
-	if (ret)
+	if (ret) {
+		/*
+		 * We call dquot_drop() anyway to at least release references
+		 * to quota structures so that umount does not hang.
+		 */
+		dquot_drop(inode);
 		goto out;
+	}
 	ret = dquot_drop(inode);
 	err =
 	    journal_end(&th, inode->i_sb,
