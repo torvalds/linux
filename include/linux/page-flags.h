@@ -83,7 +83,12 @@ enum pageflags {
 	PG_reserved,
 	PG_private,		/* If pagecache, has fs-private data */
 	PG_writeback,		/* Page is under writeback */
+#ifdef CONFIG_PAGEFLAGS_EXTENDED
+	PG_head,		/* A head page */
+	PG_tail,		/* A tail page */
+#else
 	PG_compound,		/* A compound page */
+#endif
 	PG_swapcache,		/* Swap page: swp_entry_t in private */
 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
 	PG_reclaim,		/* To be reclaimed asap */
@@ -248,6 +253,28 @@ static inline void set_page_writeback(struct page *page)
 	test_set_page_writeback(page);
 }
 
+#ifdef CONFIG_PAGEFLAGS_EXTENDED
+/*
+ * System with lots of page flags available. This allows separate
+ * flags for PageHead() and PageTail() checks of compound pages so that bit
+ * tests can be used in performance sensitive paths. PageCompound is
+ * generally not used in hot code paths.
+ */
+__PAGEFLAG(Head, head)
+__PAGEFLAG(Tail, tail)
+
+static inline int PageCompound(struct page *page)
+{
+	return page->flags & ((1L << PG_head) | (1L << PG_tail));
+
+}
+#else
+/*
+ * Reduce page flag use as much as possible by overlapping
+ * compound page flags with the flags used for page cache pages. Possible
+ * because PageCompound is always set for compound pages and not for
+ * pages on the LRU and/or pagecache.
+ */
 TESTPAGEFLAG(Compound, compound)
 __PAGEFLAG(Head, compound)
 
@@ -278,5 +305,6 @@ static inline void __ClearPageTail(struct page *page)
 	page->flags &= ~PG_head_tail_mask;
 }
 
+#endif /* !PAGEFLAGS_EXTENDED */
 #endif /* !__GENERATING_BOUNDS_H */
 #endif	/* PAGE_FLAGS_H */
