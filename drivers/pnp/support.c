@@ -51,3 +51,40 @@ void pnp_eisa_id_to_string(u32 id, char *str)
 	str[6] = hex_asc((id >>  0) & 0xf);
 	str[7] = '\0';
 }
+
+void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
+{
+#ifdef DEBUG
+	struct resource *res;
+	int i;
+
+	dev_dbg(&dev->dev, "current resources: %s\n", desc);
+
+	for (i = 0; i < PNP_MAX_IRQ; i++) {
+		res = &dev->res.irq_resource[i];
+		if (!(res->flags & IORESOURCE_UNSET))
+			dev_dbg(&dev->dev, "  irq %lld flags %#lx\n",
+				(unsigned long long) res->start, res->flags);
+	}
+	for (i = 0; i < PNP_MAX_DMA; i++) {
+		res = &dev->res.dma_resource[i];
+		if (!(res->flags & IORESOURCE_UNSET))
+			dev_dbg(&dev->dev, "  dma %lld flags %#lx\n",
+				(unsigned long long) res->start, res->flags);
+	}
+	for (i = 0; i < PNP_MAX_PORT; i++) {
+		res = &dev->res.port_resource[i];
+		if (!(res->flags & IORESOURCE_UNSET))
+			dev_dbg(&dev->dev, "  io  %#llx-%#llx flags %#lx\n",
+				(unsigned long long) res->start,
+				(unsigned long long) res->end, res->flags);
+	}
+	for (i = 0; i < PNP_MAX_MEM; i++) {
+		res = &dev->res.mem_resource[i];
+		if (!(res->flags & IORESOURCE_UNSET))
+			dev_dbg(&dev->dev, "  mem %#llx-%#llx flags %#lx\n",
+				(unsigned long long) res->start,
+				(unsigned long long) res->end, res->flags);
+	}
+#endif
+}
