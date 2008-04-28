@@ -11,6 +11,15 @@ struct pglist_data;
 struct mem_section;
 
 #ifdef CONFIG_MEMORY_HOTPLUG
+
+/*
+ * Magic number for free bootmem.
+ * The normal smallest mapcount is -1. Here is smaller value than it.
+ */
+#define SECTION_INFO		0xfffffffe
+#define MIX_INFO		0xfffffffd
+#define NODE_INFO		0xfffffffc
+
 /*
  * pgdat resizing functions
  */
@@ -145,6 +154,18 @@ static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
 #endif /* CONFIG_NUMA */
 #endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
 
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
+{
+}
+static inline void put_page_bootmem(struct page *page)
+{
+}
+#else
+extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
+extern void put_page_bootmem(struct page *page);
+#endif
+
 #else /* ! CONFIG_MEMORY_HOTPLUG */
 /*
  * Stub functions for when hotplug is off
@@ -172,6 +193,10 @@ static inline int mhp_notimplemented(const char *func)
 	return -ENOSYS;
 }
 
+static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
+{
+}
+
 #endif /* ! CONFIG_MEMORY_HOTPLUG */
 
 extern int add_memory(int nid, u64 start, u64 size);
@@ -180,5 +205,7 @@ extern int remove_memory(u64 start, u64 size);
 extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 								int nr_pages);
 extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
+extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
+					  unsigned long pnum);
 
 #endif /* __LINUX_MEMORY_HOTPLUG_H */

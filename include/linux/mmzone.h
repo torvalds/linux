@@ -896,6 +896,7 @@ static inline struct mem_section *__nr_to_section(unsigned long nr)
 	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
 }
 extern int __section_nr(struct mem_section* ms);
+extern unsigned long usemap_size(void);
 
 /*
  * We use the lower bits of the mem_map pointer to store

@@ -210,7 +210,6 @@ static unsigned long sparse_encode_mem_map(struct page *mem_map, unsigned long p
 /*
  * Decode mem_map from the coded memmap
  */
-static
 struct page *sparse_decode_mem_map(unsigned long coded_mem_map, unsigned long pnum)
 {
 	/* mask off the extra low bits of information */
@@ -233,7 +232,7 @@ static int __meminit sparse_init_one_section(struct mem_section *ms,
 	return 1;
 }
 
-static unsigned long usemap_size(void)
+unsigned long usemap_size(void)
 {
 	unsigned long size_bytes;
 	size_bytes = roundup(SECTION_BLOCKFLAGS_BITS, 8) / 8;

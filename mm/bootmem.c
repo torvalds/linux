@@ -461,6 +461,7 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 
 unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
 {
+	register_page_bootmem_info_node(pgdat);
 	return free_all_bootmem_core(pgdat);
 }
 
