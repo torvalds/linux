@@ -688,7 +688,6 @@ static unsigned char *pnpbios_encode_allocated_resource_data(struct pnp_dev
 							     unsigned char *p,
 							     unsigned char *end)
 {
-	struct pnp_resource_table *res = &dev->res;
 	unsigned int len, tag;
 	int port = 0, irq = 0, dma = 0, mem = 0;
 
@@ -711,42 +710,48 @@ static unsigned char *pnpbios_encode_allocated_resource_data(struct pnp_dev
 		case LARGE_TAG_MEM:
 			if (len != 9)
 				goto len_err;
-			pnpbios_encode_mem(dev, p, &res->mem_resource[mem]);
+			pnpbios_encode_mem(dev, p,
+				pnp_get_resource(dev, IORESOURCE_MEM, mem));
 			mem++;
 			break;
 
 		case LARGE_TAG_MEM32:
 			if (len != 17)
 				goto len_err;
-			pnpbios_encode_mem32(dev, p, &res->mem_resource[mem]);
+			pnpbios_encode_mem32(dev, p,
+				pnp_get_resource(dev, IORESOURCE_MEM, mem));
 			mem++;
 			break;
 
 		case LARGE_TAG_FIXEDMEM32:
 			if (len != 9)
 				goto len_err;
-			pnpbios_encode_fixed_mem32(dev, p, &res->mem_resource[mem]);
+			pnpbios_encode_fixed_mem32(dev, p,
+				pnp_get_resource(dev, IORESOURCE_MEM, mem));
 			mem++;
 			break;
 
 		case SMALL_TAG_IRQ:
 			if (len < 2 || len > 3)
 				goto len_err;
-			pnpbios_encode_irq(dev, p, &res->irq_resource[irq]);
+			pnpbios_encode_irq(dev, p,
+				pnp_get_resource(dev, IORESOURCE_IRQ, irq));
 			irq++;
 			break;
 
 		case SMALL_TAG_DMA:
 			if (len != 2)
 				goto len_err;
-			pnpbios_encode_dma(dev, p, &res->dma_resource[dma]);
+			pnpbios_encode_dma(dev, p,
+				pnp_get_resource(dev, IORESOURCE_DMA, dma));
 			dma++;
 			break;
 
 		case SMALL_TAG_PORT:
 			if (len != 7)
 				goto len_err;
-			pnpbios_encode_port(dev, p, &res->port_resource[port]);
+			pnpbios_encode_port(dev, p,
+				pnp_get_resource(dev, IORESOURCE_IO, port));
 			port++;
 			break;
 
@@ -757,7 +762,8 @@ static unsigned char *pnpbios_encode_allocated_resource_data(struct pnp_dev
 		case SMALL_TAG_FIXEDPORT:
 			if (len != 3)
 				goto len_err;
-			pnpbios_encode_fixed_port(dev, p, &res->port_resource[port]);
+			pnpbios_encode_fixed_port(dev, p,
+				pnp_get_resource(dev, IORESOURCE_IO, port));
 			port++;
 			break;
 
