@@ -69,6 +69,7 @@ static int capifs_remount(struct super_block *s, int *flags, char *data)
 		} else if (sscanf(this_char, "mode=%o%c", &n, &dummy) == 1)
 			mode = n & ~S_IFMT;
 		else {
+			kfree(new_opt);
 			printk("capifs: called with bogus options\n");
 			return -EINVAL;
 		}
