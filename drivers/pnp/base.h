@@ -45,3 +45,6 @@ struct pnp_resource *pnp_add_irq_resource(struct pnp_dev *dev, int irq,
 					  int flags);
 struct pnp_resource *pnp_add_dma_resource(struct pnp_dev *dev, int dma,
 					  int flags);
+struct pnp_resource *pnp_add_io_resource(struct pnp_dev *dev,
+					 resource_size_t start,
+					 resource_size_t end, int flags);

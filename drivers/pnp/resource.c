@@ -628,6 +628,35 @@ struct pnp_resource *pnp_add_dma_resource(struct pnp_dev *dev, int dma,
 	return pnp_res;
 }
 
+struct pnp_resource *pnp_add_io_resource(struct pnp_dev *dev,
+					 resource_size_t start,
+					 resource_size_t end, int flags)
+{
+	struct pnp_resource *pnp_res;
+	struct resource *res;
+	static unsigned char warned;
+
+	pnp_res = pnp_new_resource(dev, IORESOURCE_IO);
+	if (!pnp_res) {
+		if (!warned) {
+			dev_err(&dev->dev, "can't add resource for IO "
+				"%#llx-%#llx\n",(unsigned long long) start,
+				(unsigned long long) end);
+			warned = 1;
+		}
+		return NULL;
+	}
+
+	res = &pnp_res->res;
+	res->flags = IORESOURCE_IO | flags;
+	res->start = start;
+	res->end = end;
+
+	dev_dbg(&dev->dev, "  add io  %#llx-%#llx flags %#x\n",
+		(unsigned long long) start, (unsigned long long) end, flags);
+	return pnp_res;
+}
+
 /* format is: pnp_reserve_irq=irq1[,irq2] .... */
 static int __init pnp_setup_reserve_irq(char *str)
 {

@@ -941,11 +941,9 @@ static int isapnp_read_resources(struct pnp_dev *dev)
 			ret = isapnp_read_word(ISAPNP_CFG_PORT + (tmp << 1));
 			if (!ret)
 				continue;
-			pnp_res = pnp_get_pnp_resource(dev, IORESOURCE_IO, tmp);
-			pnp_res->index = tmp;
-			res = &pnp_res->res;
-			res->start = ret;
-			res->flags = IORESOURCE_IO;
+			pnp_res = pnp_add_io_resource(dev, ret, ret, 0);
+			if (pnp_res)
+				pnp_res->index = tmp;
 		}
 		for (tmp = 0; tmp < ISAPNP_MAX_MEM; tmp++) {
 			ret =

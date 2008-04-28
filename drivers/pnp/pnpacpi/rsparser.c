@@ -158,33 +158,18 @@ static int dma_flags(int type, int bus_master, int transfer)
 	return flags;
 }
 
-static void pnpacpi_parse_allocated_ioresource(struct pnp_dev *dev,
-					       u64 io, u64 len, int io_decode)
+static void pnpacpi_parse_allocated_ioresource(struct pnp_dev *dev, u64 start,
+					       u64 len, int io_decode)
 {
-	struct resource *res;
-	int i;
-	static unsigned char warned;
+	int flags = 0;
+	u64 end = start + len - 1;
 
-	for (i = 0; i < PNP_MAX_PORT; i++) {
-		res = pnp_get_resource(dev, IORESOURCE_IO, i);
-		if (!pnp_resource_valid(res))
-			break;
-	}
-	if (i < PNP_MAX_PORT) {
-		res->flags = IORESOURCE_IO;	// Also clears _UNSET flag
-		if (io_decode == ACPI_DECODE_16)
-			res->flags |= PNP_PORT_FLAG_16BITADDR;
-		if (len <= 0 || (io + len - 1) >= 0x10003) {
-			res->flags |= IORESOURCE_DISABLED;
-			return;
-		}
-		res->start = io;
-		res->end = io + len - 1;
-	} else if (!warned) {
-		printk(KERN_WARNING "pnpacpi: exceeded the max number of IO "
-				"resources: %d \n", PNP_MAX_PORT);
-		warned = 1;
-	}
+	if (io_decode == ACPI_DECODE_16)
+		flags |= PNP_PORT_FLAG_16BITADDR;
+	if (len == 0 || end >= 0x10003)
+		flags |= IORESOURCE_DISABLED;
+
+	pnp_add_io_resource(dev, start, end, flags);
 }
 
 static void pnpacpi_parse_allocated_memresource(struct pnp_dev *dev,

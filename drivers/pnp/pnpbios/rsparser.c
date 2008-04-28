@@ -55,26 +55,15 @@ inline void pcibios_penalize_isa_irq(int irq, int active)
  */
 
 static void pnpbios_parse_allocated_ioresource(struct pnp_dev *dev,
-					       int io, int len)
+					       int start, int len)
 {
-	struct resource *res;
-	int i;
+	int flags = 0;
+	int end = start + len - 1;
 
-	for (i = 0; i < PNP_MAX_PORT; i++) {
-		res = pnp_get_resource(dev, IORESOURCE_IO, i);
-		if (!pnp_resource_valid(res))
-			break;
-	}
+	if (len <= 0 || end >= 0x10003)
+		flags |= IORESOURCE_DISABLED;
 
-	if (i < PNP_MAX_PORT) {
-		res->flags = IORESOURCE_IO;	// Also clears _UNSET flag
-		if (len <= 0 || (io + len - 1) >= 0x10003) {
-			res->flags |= IORESOURCE_DISABLED;
-			return;
-		}
-		res->start = (unsigned long)io;
-		res->end = (unsigned long)(io + len - 1);
-	}
+	pnp_add_io_resource(dev, start, end, flags);
 }
 
 static void pnpbios_parse_allocated_memresource(struct pnp_dev *dev,
