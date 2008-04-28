@@ -138,6 +138,8 @@ typedef struct {
 
 struct thread_struct {
 	unsigned long	ksp;		/* Kernel stack pointer */
+	unsigned long	ksp_limit;	/* if ksp <= ksp_limit stack overflow */
+
 #ifdef CONFIG_PPC64
 	unsigned long	ksp_vsid;
 #endif
@@ -182,11 +184,14 @@ struct thread_struct {
 #define ARCH_MIN_TASKALIGN 16
 
 #define INIT_SP		(sizeof(init_stack) + (unsigned long) &init_stack)
+#define INIT_SP_LIMIT \
+	(_ALIGN_UP(sizeof(init_thread_info), 16) + (unsigned long) &init_stack)
 
 
 #ifdef CONFIG_PPC32
 #define INIT_THREAD { \
 	.ksp = INIT_SP, \
+	.ksp_limit = INIT_SP_LIMIT, \
 	.fs = KERNEL_DS, \
 	.pgdir = swapper_pg_dir, \
 	.fpexc_mode = MSR_FE0 | MSR_FE1, \
@@ -194,6 +199,7 @@ struct thread_struct {
 #else
 #define INIT_THREAD  { \
 	.ksp = INIT_SP, \
+	.ksp_limit = INIT_SP_LIMIT, \
 	.regs = (struct pt_regs *)INIT_SP - 1, /* XXX bogus, I think */ \
 	.fs = KERNEL_DS, \
 	.fpr = {0}, \

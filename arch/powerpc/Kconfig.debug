@@ -118,7 +118,6 @@ config XMON_DISASSEMBLY
 
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"
-	depends on PPC64
 	help
 	  If you say Y here the kernel will use separate kernel stacks
 	  for handling hard and soft interrupts.  This can help avoid

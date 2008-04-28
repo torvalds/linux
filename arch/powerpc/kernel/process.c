@@ -589,6 +589,8 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	kregs = (struct pt_regs *) sp;
 	sp -= STACK_FRAME_OVERHEAD;
 	p->thread.ksp = sp;
+	p->thread.ksp_limit = (unsigned long)task_stack_page(p) +
+				_ALIGN_UP(sizeof(struct thread_info), 16);
 
 #ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_SLB)) {
