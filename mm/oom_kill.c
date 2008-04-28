@@ -175,12 +175,14 @@ static inline enum oom_constraint constrained_alloc(struct zonelist *zonelist,
 						    gfp_t gfp_mask)
 {
 #ifdef CONFIG_NUMA
+	struct zone *zone;
 	struct zone **z;
+	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
 	nodemask_t nodes = node_states[N_HIGH_MEMORY];
 
-	for (z = zonelist->zones; *z; z++)
-		if (cpuset_zone_allowed_softwall(*z, gfp_mask))
-			node_clear(zone_to_nid(*z), nodes);
+	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+		if (cpuset_zone_allowed_softwall(zone, gfp_mask))
+			node_clear(zone_to_nid(zone), nodes);
 		else
 			return CONSTRAINT_CPUSET;
 

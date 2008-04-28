@@ -1285,6 +1285,8 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
 #ifdef CONFIG_NUMA
 	struct zonelist *zonelist;
 	struct zone **z;
+	struct zone *zone;
+	enum zone_type high_zoneidx = gfp_zone(flags);
 	struct page *page;
 
 	/*
@@ -1310,12 +1312,12 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
 		return NULL;
 
 	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
-	for (z = zonelist->zones; *z; z++) {
+	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
 		struct kmem_cache_node *n;
 
-		n = get_node(s, zone_to_nid(*z));
+		n = get_node(s, zone_to_nid(zone));
 
-		if (n && cpuset_zone_allowed_hardwall(*z, flags) &&
+		if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
 				n->nr_partial > MIN_PARTIAL) {
 			page = get_partial_node(n);
 			if (page)

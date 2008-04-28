@@ -151,17 +151,26 @@ static inline enum zone_type gfp_zone(gfp_t flags)
  * virtual kernel addresses to the allocated page(s).
  */
 
+static inline int gfp_zonelist(gfp_t flags)
+{
+	if (NUMA_BUILD && unlikely(flags & __GFP_THISNODE))
+		return 1;
+
+	return 0;
+}
+
 /*
  * We get the zone list from the current node and the gfp_mask.
  * This zone list contains a maximum of MAXNODES*MAX_NR_ZONES zones.
- * There are many zonelists per node, two for each active zone.
+ * There are two zonelists per node, one for all zones with memory and
+ * one containing just zones from the node the zonelist belongs to.
  *
  * For the normal case of non-DISCONTIGMEM systems the NODE_DATA() gets
  * optimized to &contig_page_data at compile-time.
  */
 static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
 {
-	return NODE_DATA(nid)->node_zonelists + gfp_zone(flags);
+	return NODE_DATA(nid)->node_zonelists + gfp_zonelist(flags);
 }
 
 #ifndef HAVE_ARCH_FREE_PAGE
