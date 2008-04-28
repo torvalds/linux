@@ -191,13 +191,20 @@ static void ata_vlb_sync(ide_drive_t *drive, unsigned long port)
 
 /*
  * This is used for most PIO data transfers *from* the IDE interface
+ *
+ * These routines will round up any request for an odd number of bytes,
+ * so if an odd len is specified, be sure that there's at least one
+ * extra byte allocated for the buffer.
  */
 static void ata_input_data(ide_drive_t *drive, struct request *rq,
-			   void *buffer, u32 wcount)
+			   void *buf, unsigned int len)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
+	unsigned long data_addr = io_ports->data_addr;
 	u8 io_32bit = drive->io_32bit;
+
+	len++;
 
 	if (io_32bit) {
 		if (io_32bit & 2) {
@@ -205,22 +212,26 @@ static void ata_input_data(ide_drive_t *drive, struct request *rq,
 
 			local_irq_save(flags);
 			ata_vlb_sync(drive, io_ports->nsect_addr);
-			hwif->INSL(io_ports->data_addr, buffer, wcount);
+			hwif->INSL(data_addr, buf, len / 4);
 			local_irq_restore(flags);
 		} else
-			hwif->INSL(io_ports->data_addr, buffer, wcount);
+			hwif->INSL(data_addr, buf, len / 4);
+
+		if ((len & 3) >= 2)
+			hwif->INSW(data_addr, (u8 *)buf + (len & ~3), 1);
 	} else
-		hwif->INSW(io_ports->data_addr, buffer, wcount << 1);
+		hwif->INSW(data_addr, buf, len / 2);
 }
 
 /*
  * This is used for most PIO data transfers *to* the IDE interface
  */
 static void ata_output_data(ide_drive_t *drive, struct request *rq,
-			    void *buffer, u32 wcount)
+			    void *buf, unsigned int len)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
+	unsigned long data_addr = io_ports->data_addr;
 	u8 io_32bit = drive->io_32bit;
 
 	if (io_32bit) {
@@ -229,50 +240,21 @@ static void ata_output_data(ide_drive_t *drive, struct request *rq,
 
 			local_irq_save(flags);
 			ata_vlb_sync(drive, io_ports->nsect_addr);
-			hwif->OUTSL(io_ports->data_addr, buffer, wcount);
+			hwif->OUTSL(data_addr, buf, len / 4);
 			local_irq_restore(flags);
 		} else
-			hwif->OUTSL(io_ports->data_addr, buffer, wcount);
+			hwif->OUTSL(data_addr, buf, len / 4);
+
+		if ((len & 3) >= 2)
+			hwif->OUTSW(data_addr, (u8 *)buf + (len & ~3), 1);
 	} else
-		hwif->OUTSW(io_ports->data_addr, buffer, wcount << 1);
-}
-
-/*
- * The following routines are mainly used by the ATAPI drivers.
- *
- * These routines will round up any request for an odd number of bytes,
- * so if an odd bytecount is specified, be sure that there's at least one
- * extra byte allocated for the buffer.
- */
-
-static void atapi_input_bytes(ide_drive_t *drive, void *buffer, u32 bytecount)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-
-	++bytecount;
-	hwif->ata_input_data(drive, NULL, buffer, bytecount / 4);
-	if ((bytecount & 0x03) >= 2)
-		hwif->INSW(hwif->io_ports.data_addr,
-			   (u8 *)buffer + (bytecount & ~0x03), 1);
-}
-
-static void atapi_output_bytes(ide_drive_t *drive, void *buffer, u32 bytecount)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-
-	++bytecount;
-	hwif->ata_output_data(drive, NULL, buffer, bytecount / 4);
-	if ((bytecount & 0x03) >= 2)
-		hwif->OUTSW(hwif->io_ports.data_addr,
-			    (u8 *)buffer + (bytecount & ~0x03), 1);
+		hwif->OUTSW(data_addr, buf, len / 2);
 }
 
 void default_hwif_transport(ide_hwif_t *hwif)
 {
-	hwif->ata_input_data		= ata_input_data;
-	hwif->ata_output_data		= ata_output_data;
-	hwif->atapi_input_bytes		= atapi_input_bytes;
-	hwif->atapi_output_bytes	= atapi_output_bytes;
+	hwif->input_data  = ata_input_data;
+	hwif->output_data = ata_output_data;
 }
 
 void ide_fix_driveid (struct hd_driveid *id)
@@ -656,7 +638,7 @@ int ide_driveid_update(ide_drive_t *drive)
 		local_irq_restore(flags);
 		return 0;
 	}
-	hwif->ata_input_data(drive, NULL, id, SECTOR_WORDS);
+	hwif->input_data(drive, NULL, id, SECTOR_SIZE);
 	(void)ide_read_status(drive);	/* clear drive IRQ */
 	local_irq_enable();
 	local_irq_restore(flags);

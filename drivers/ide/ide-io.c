@@ -422,7 +422,7 @@ static void try_to_flush_leftover_data (ide_drive_t *drive)
 		u32 wcount = (i > 16) ? 16 : i;
 
 		i -= wcount;
-		drive->hwif->ata_input_data(drive, NULL, buffer, wcount);
+		drive->hwif->input_data(drive, NULL, buffer, wcount * 4);
 	}
 }
 

@@ -673,12 +673,8 @@ cris_ide_inb(unsigned long reg)
 	return (unsigned char)cris_ide_inw(reg);
 }
 
-static void cris_ide_input_data(ide_drive_t *, struct request *,
-				void *, unsigned int);
-static void cris_ide_output_data(ide_drive_t *, struct request *,
-				 void *, unsigned int);
-static void cris_atapi_input_bytes(ide_drive_t *drive, void *, unsigned int);
-static void cris_atapi_output_bytes(ide_drive_t *drive, void *, unsigned int);
+static void cris_input_data(ide_drive_t *, struct request *, void *, unsigned);
+static void cris_output_data(ide_drive_t *, struct request *, void *, unsigned);
 
 static void cris_dma_host_set(ide_drive_t *drive, int on)
 {
@@ -816,10 +812,9 @@ static int __init init_e100_ide(void)
 		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
 
-		hwif->ata_input_data = &cris_ide_input_data;
-		hwif->ata_output_data = &cris_ide_output_data;
-		hwif->atapi_input_bytes = &cris_atapi_input_bytes;
-		hwif->atapi_output_bytes = &cris_atapi_output_bytes;
+		hwif->input_data  = cris_input_data;
+		hwif->output_data = cris_output_data;
+
 		hwif->OUTB = &cris_ide_outb;
 		hwif->OUTW = &cris_ide_outw;
 		hwif->OUTBSYNC = &cris_ide_outbsync;
@@ -849,17 +844,16 @@ static int __init init_e100_ide(void)
 static cris_dma_descr_type mydescr __attribute__ ((__aligned__(16)));
 
 /*
- * The following routines are mainly used by the ATAPI drivers.
+ * This is used for most PIO data transfers *from* the IDE interface
  *
  * These routines will round up any request for an odd number of bytes,
  * so if an odd bytecount is specified, be sure that there's at least one
  * extra byte allocated for the buffer.
  */
-static void
-cris_atapi_input_bytes (ide_drive_t *drive, void *buffer, unsigned int bytecount)
+static void cris_input_data(ide_drive_t *drive, struct request *rq,
+			    void *buffer, unsigned int bytecount)
 {
-	D(printk("atapi_input_bytes, buffer 0x%x, count %d\n",
-	         buffer, bytecount));
+	D(printk("input_data, buffer 0x%x, count %d\n", buffer, bytecount));
 
 	if(bytecount & 1) {
 		printk("warning, odd bytecount in cdrom_in_bytes = %d.\n", bytecount);
@@ -877,11 +871,13 @@ cris_atapi_input_bytes (ide_drive_t *drive, void *buffer, unsigned int bytecount
 	LED_DISK_READ(0);
 }
 
-static void
-cris_atapi_output_bytes (ide_drive_t *drive, void *buffer, unsigned int bytecount)
+/*
+ * This is used for most PIO data transfers *to* the IDE interface
+ */
+static void cris_output_data(ide_drive_t *drive,  struct request *rq,
+			     void *buffer, unsigned int bytecount)
 {
-	D(printk("atapi_output_bytes, buffer 0x%x, count %d\n",
-	         buffer, bytecount));
+	D(printk("output_data, buffer 0x%x, count %d\n", buffer, bytecount));
 
 	if(bytecount & 1) {
 		printk("odd bytecount %d in atapi_out_bytes!\n", bytecount);
@@ -897,24 +893,6 @@ cris_atapi_output_bytes (ide_drive_t *drive, void *buffer, unsigned int bytecoun
 	LED_DISK_READ(1);
 	cris_ide_wait_dma(0);
 	LED_DISK_WRITE(0);
-}
-
-/*
- * This is used for most PIO data transfers *from* the IDE interface
- */
-static void cris_ide_input_data(ide_drive_t *drive, struct request *rq,
-				void *buffer, unsigned int wcount)
-{
-	cris_atapi_input_bytes(drive, buffer, wcount << 2);
-}
-
-/*
- * This is used for most PIO data transfers *to* the IDE interface
- */
-static void cris_ide_output_data(ide_drive_t *drive, struct request *,
-				 void *buffer, unsigned int wcount)
-{
-	cris_atapi_output_bytes(drive, buffer, wcount << 2);
 }
 
 /* we only have one DMA channel on the chip for ATA, so we can keep these statically */

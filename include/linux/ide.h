@@ -467,11 +467,8 @@ typedef struct hwif_s {
 	const struct ide_port_ops	*port_ops;
 	const struct ide_dma_ops	*dma_ops;
 
-	void (*ata_input_data)(ide_drive_t *, struct request *, void *, u32);
-	void (*ata_output_data)(ide_drive_t *, struct request *, void *, u32);
-
-	void (*atapi_input_bytes)(ide_drive_t *, void *, u32);
-	void (*atapi_output_bytes)(ide_drive_t *, void *, u32);
+	void (*input_data)(ide_drive_t *, struct request *, void *, unsigned);
+	void (*output_data)(ide_drive_t *, struct request *, void *, unsigned);
 
 	void (*ide_dma_clear_irq)(ide_drive_t *drive);
 
@@ -547,7 +544,7 @@ typedef ide_startstop_t (ide_handler_t)(ide_drive_t *);
 typedef int (ide_expiry_t)(ide_drive_t *);
 
 /* used by ide-cd, ide-floppy, etc. */
-typedef void (xfer_func_t)(ide_drive_t *, void *, u32);
+typedef void (xfer_func_t)(ide_drive_t *, struct request *rq, void *, unsigned);
 
 typedef struct hwgroup_s {
 		/* irq handler, if active */
@@ -1369,7 +1366,7 @@ static inline void ide_atapi_discard_data(ide_drive_t *drive, unsigned bcount)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	/* FIXME: use ->atapi_input_bytes */
+	/* FIXME: use ->input_data */
 	while (bcount--)
 		(void)hwif->INB(hwif->io_ports.data_addr);
 }
@@ -1378,7 +1375,7 @@ static inline void ide_atapi_write_zeros(ide_drive_t *drive, unsigned bcount)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	/* FIXME: use ->atapi_output_bytes */
+	/* FIXME: use ->output_data */
 	while (bcount--)
 		hwif->OUTB(0, hwif->io_ports.data_addr);
 }

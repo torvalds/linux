@@ -324,9 +324,9 @@ static void ide_pio_sector(ide_drive_t *drive, struct request *rq,
 
 	/* do the actual data transfer */
 	if (write)
-		hwif->ata_output_data(drive, rq, buf, SECTOR_WORDS);
+		hwif->output_data(drive, rq, buf, SECTOR_SIZE);
 	else
-		hwif->ata_input_data(drive, rq, buf, SECTOR_WORDS);
+		hwif->input_data(drive, rq, buf, SECTOR_SIZE);
 
 	kunmap_atomic(buf, KM_BIO_SRC_IRQ);
 #ifdef CONFIG_HIGHMEM

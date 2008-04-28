@@ -44,34 +44,26 @@
 int falconide_intr_lock;
 EXPORT_SYMBOL(falconide_intr_lock);
 
-static void falconide_atapi_input_bytes(ide_drive_t *drive, void *buf,
-					unsigned int len)
+static void falconide_input_data(ide_drive_t *drive, struct request *rq,
+				 void *buf, unsigned int len)
 {
-	insw_swapw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
-}
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
 
-static void falconide_atapi_output_bytes(ide_drive_t *drive, void *buf,
-					 unsigned int len)
-{
-	outsw_swapw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
-}
-
-static void falconide_ata_input_data(ide_drive_t *drive, struct request *rq,
-				     void *buf, unsigned int wcount)
-{
 	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
-		return insw(drive->hwif->io_ports.data_addr, buf, wcount * 2);
+		return insw(data_addr, buf, (len + 1) / 2);
 
-	falconide_atapi_input_bytes(drive, buf, wcount * 4);
+	insw_swapw(data_addr, buf, (len + 1) / 2);
 }
 
-static void falconide_ata_output_data(ide_drive_t *drive, struct request *rq,
-				      void *buf, unsigned int wcount)
+static void falconide_output_data(ide_drive_t *drive, struct request *rq,
+				  void *buf, unsigned int len)
 {
-	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
-		return outsw(drive->hwif->io_ports.data_addr, buf, wcount * 2);
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
 
-	falconide_atapi_output_bytes(drive, buf, wcount * 4);
+	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
+		return outsw(data_adr, buf, (len + 1) / 2);
+
+	outsw_swapw(data_addr, buf, (len + 1) / 2);
 }
 
 static void __init falconide_setup_ports(hw_regs_t *hw)
@@ -121,10 +113,8 @@ static int __init falconide_init(void)
 		ide_init_port_hw(hwif, &hw);
 
 		/* Atari has a byte-swapped IDE interface */
-		hwif->atapi_input_bytes  = falconide_atapi_input_bytes;
-		hwif->atapi_output_bytes = falconide_atapi_output_bytes;
-		hwif->ata_input_data	 = falconide_ata_input_data;
-		hwif->ata_output_data	 = falconide_ata_output_data;
+		hwif->input_data  = falconide_input_data;
+		hwif->output_data = falconide_output_data;
 
 		ide_get_lock(NULL, NULL);
 		ide_device_add(idx, NULL);

@@ -613,7 +613,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 		cmd_len = ATAPI_MIN_CDB_BYTES;
 
 	/* send the command to the device */
-	HWIF(drive)->atapi_output_bytes(drive, rq->cmd, cmd_len);
+	hwif->output_data(drive, NULL, rq->cmd, cmd_len);
 
 	/* start the DMA if need be */
 	if (info->dma)
@@ -629,7 +629,7 @@ static void ide_cd_pad_transfer(ide_drive_t *drive, xfer_func_t *xf, int len)
 {
 	while (len > 0) {
 		int dum = 0;
-		xf(drive, &dum, sizeof(dum));
+		xf(drive, NULL, &dum, sizeof(dum));
 		len -= sizeof(dum);
 	}
 }
@@ -639,7 +639,7 @@ static void ide_cd_drain_data(ide_drive_t *drive, int nsects)
 	while (nsects > 0) {
 		static char dum[SECTOR_SIZE];
 
-		drive->hwif->atapi_input_bytes(drive, dum, sizeof(dum));
+		drive->hwif->input_data(drive, NULL, dum, sizeof(dum));
 		nsects--;
 	}
 }
@@ -666,7 +666,7 @@ static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
 		printk(KERN_ERR "%s: %s: wrong transfer direction!\n",
 				drive->name, __func__);
 
-		xf = rw ? hwif->atapi_output_bytes : hwif->atapi_input_bytes;
+		xf = rw ? hwif->output_data : hwif->input_data;
 		ide_cd_pad_transfer(drive, xf, len);
 	} else  if (rw == 0 && ireason == 1) {
 		/*
@@ -1019,10 +1019,10 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 	if (ireason == 0) {
 		write = 1;
-		xferfunc = HWIF(drive)->atapi_output_bytes;
+		xferfunc = hwif->output_data;
 	} else {
 		write = 0;
-		xferfunc = HWIF(drive)->atapi_input_bytes;
+		xferfunc = hwif->input_data;
 	}
 
 	/* transfer data */
@@ -1061,7 +1061,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		if (blen > thislen)
 			blen = thislen;
 
-		xferfunc(drive, ptr, blen);
+		xferfunc(drive, NULL, ptr, blen);
 
 		thislen -= blen;
 		len -= blen;

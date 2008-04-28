@@ -72,34 +72,26 @@ static void q40_ide_setup_ports(hw_regs_t *hw, unsigned long base,
 	hw->ack_intr = ack_intr;
 }
 
-static void q40ide_atapi_input_bytes(ide_drive_t *drive, void *buf,
-				     unsigned int len)
+static void q40ide_input_data(ide_drive_t *drive, struct request *rq,
+			      void *buf, unsigned int len)
 {
-	insw_swapw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
-}
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
 
-static void q40ide_atapi_output_bytes(ide_drive_t *drive, void *buf,
-				      unsigned int len)
-{
-	outsw_swapw(drive->hwif->io_ports.data_addr, buf, (len + 1) / 2);
-}
-
-static void q40ide_ata_input_data(ide_drive_t *drive, struct request *rq,
-				  void *buf, unsigned int wcount)
-{
 	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
-		return insw(drive->hwif->io_ports.data_addr, buf, wcount * 2);
+		return insw(data_addr, buf, (len + 1) / 2);
 
-	q40ide_atapi_input_bytes(drive, buf, wcount * 4);
+	insw_swapw(data_addr, buf, (len + 1) / 2);
 }
 
-static void q40ide_ata_output_data(ide_drive_t *drive, struct request *rq,
-				   void *buf, unsigned int wcount)
+static void q40ide_output_data(ide_drive_t *drive, struct request *rq,
+			       void *buf, unsigned int len)
 {
-	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
-		return outsw(drive->hwif->io_ports.data_addr, buf, wcount * 2);
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
 
-	q40ide_atapi_output_bytes(drive, buf, wcount * 4);
+	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
+		return outsw(data_addr, buf, (len + 1) / 2);
+
+	outsw_swapw(data_addr, buf, (len + 1) / 2);
 }
 
 /* 
@@ -152,10 +144,8 @@ static int __init q40ide_init(void)
 		ide_init_port_hw(hwif, &hw);
 
 		/* Q40 has a byte-swapped IDE interface */
-		hwif->atapi_input_bytes  = q40ide_atapi_input_bytes;
-		hwif->atapi_output_bytes = q40ide_atapi_output_bytes;
-		hwif->ata_input_data	 = q40ide_ata_input_data;
-		hwif->ata_output_data	 = q40ide_ata_output_data;
+		hwif->input_data  = q40ide_input_data;
+		hwif->output_data = q40ide_output_data;
 
 		idx[i] = hwif->index;
 	}

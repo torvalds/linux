@@ -134,6 +134,7 @@ static inline idescsi_scsi_t *drive_to_idescsi(ide_drive_t *ide_drive)
 static void idescsi_input_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 		unsigned int bcount)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	int count;
 	char *buf;
 
@@ -145,14 +146,12 @@ static void idescsi_input_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 			local_irq_save(flags);
 			buf = kmap_atomic(sg_page(pc->sg), KM_IRQ0) +
 					pc->sg->offset;
-			drive->hwif->atapi_input_bytes(drive,
-						buf + pc->b_count, count);
+			hwif->input_data(drive, NULL, buf + pc->b_count, count);
 			kunmap_atomic(buf - pc->sg->offset, KM_IRQ0);
 			local_irq_restore(flags);
 		} else {
 			buf = sg_virt(pc->sg);
-			drive->hwif->atapi_input_bytes(drive,
-						buf + pc->b_count, count);
+			hwif->input_data(drive, NULL, buf + pc->b_count, count);
 		}
 		bcount -= count; pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
@@ -172,6 +171,7 @@ static void idescsi_input_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 static void idescsi_output_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 		unsigned int bcount)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	int count;
 	char *buf;
 
@@ -183,14 +183,12 @@ static void idescsi_output_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 			local_irq_save(flags);
 			buf = kmap_atomic(sg_page(pc->sg), KM_IRQ0) +
 						pc->sg->offset;
-			drive->hwif->atapi_output_bytes(drive,
-						buf + pc->b_count, count);
+			hwif->output_data(drive, NULL, buf + pc->b_count, count);
 			kunmap_atomic(buf - pc->sg->offset, KM_IRQ0);
 			local_irq_restore(flags);
 		} else {
 			buf = sg_virt(pc->sg);
-			drive->hwif->atapi_output_bytes(drive,
-						buf + pc->b_count, count);
+			hwif->output_data(drive, NULL, buf + pc->b_count, count);
 		}
 		bcount -= count; pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
@@ -431,7 +429,8 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 						idescsi_input_buffers(drive, pc,
 									temp);
 					else
-						drive->hwif->atapi_input_bytes(drive, pc->cur_pos, temp);
+						hwif->input_data(drive, NULL,
+							pc->cur_pos, temp);
 					printk(KERN_ERR "ide-scsi: transferred"
 							" %d of %d bytes\n",
 							temp, bcount);
@@ -452,15 +451,13 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		if (pc->sg)
 			idescsi_input_buffers(drive, pc, bcount);
 		else
-			hwif->atapi_input_bytes(drive, pc->cur_pos,
-						bcount);
+			hwif->input_data(drive, NULL, pc->cur_pos, bcount);
 	} else {
 		pc->flags |= PC_FLAG_WRITING;
 		if (pc->sg)
 			idescsi_output_buffers(drive, pc, bcount);
 		else
-			hwif->atapi_output_bytes(drive, pc->cur_pos,
-						 bcount);
+			hwif->output_data(drive, NULL, pc->cur_pos, bcount);
 	}
 	/* Update the current position */
 	pc->xferred += bcount;
@@ -493,8 +490,10 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 	BUG_ON(HWGROUP(drive)->handler != NULL);
 	/* Set the interrupt routine */
 	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
+
 	/* Send the actual packet */
-	drive->hwif->atapi_output_bytes(drive, scsi->pc->c, 12);
+	hwif->output_data(drive, NULL, scsi->pc->c, 12);
+
 	if (pc->flags & PC_FLAG_DMA_OK) {
 		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
 		hwif->dma_ops->dma_start(drive);

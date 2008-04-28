@@ -401,7 +401,7 @@ static void idetape_input_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 		count = min(
 			(unsigned int)(bh->b_size - atomic_read(&bh->b_count)),
 			bcount);
-		HWIF(drive)->atapi_input_bytes(drive, bh->b_data +
+		drive->hwif->input_data(drive, NULL, bh->b_data +
 					atomic_read(&bh->b_count), count);
 		bcount -= count;
 		atomic_add(count, &bh->b_count);
@@ -427,7 +427,7 @@ static void idetape_output_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 			return;
 		}
 		count = min((unsigned int)pc->b_count, (unsigned int)bcount);
-		HWIF(drive)->atapi_output_bytes(drive, pc->b_data, count);
+		drive->hwif->output_data(drive, NULL, pc->b_data, count);
 		bcount -= count;
 		pc->b_data += count;
 		pc->b_count -= count;
@@ -880,16 +880,16 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 				"data than expected - allowing transfer\n");
 		}
 		iobuf = &idetape_input_buffers;
-		xferfunc = hwif->atapi_input_bytes;
+		xferfunc = hwif->input_data;
 	} else {
 		iobuf = &idetape_output_buffers;
-		xferfunc = hwif->atapi_output_bytes;
+		xferfunc = hwif->output_data;
 	}
 
 	if (pc->bh)
 		iobuf(drive, pc, bcount);
 	else
-		xferfunc(drive, pc->cur_pos, bcount);
+		xferfunc(drive, NULL, pc->cur_pos, bcount);
 
 	/* Update the current position */
 	pc->xferred += bcount;
@@ -979,7 +979,8 @@ static ide_startstop_t idetape_transfer_pc(ide_drive_t *drive)
 		hwif->dma_ops->dma_start(drive);
 #endif
 	/* Send the actual packet */
-	HWIF(drive)->atapi_output_bytes(drive, pc->c, 12);
+	hwif->output_data(drive, NULL, pc->c, 12);
+
 	return ide_started;
 }
 
