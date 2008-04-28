@@ -180,7 +180,7 @@ config X86_HT
 
 config X86_BIOS_REBOOT
 	bool
-	depends on X86_32 && !(X86_VISWS || X86_VOYAGER)
+	depends on !X86_VISWS && !X86_VOYAGER
 	default y
 
 config X86_TRAMPOLINE
@@ -1161,7 +1161,7 @@ source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call"
-	depends on X86_64 || X86_BIOS_REBOOT
+	depends on X86_BIOS_REBOOT
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
