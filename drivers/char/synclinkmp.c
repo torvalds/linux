@@ -188,9 +188,9 @@ typedef struct _synclinkmp_info {
 
 	u32 pending_bh;
 
-	int bh_running;				/* Protection from multiple */
+	bool bh_running;				/* Protection from multiple */
 	int isr_overflow;
-	int bh_requested;
+	bool bh_requested;
 
 	int dcd_chkcount;			/* check counts to prevent */
 	int cts_chkcount;			/* too many IRQs if a signal */
@@ -213,11 +213,11 @@ typedef struct _synclinkmp_info {
 	unsigned char *tmp_rx_buf;
 	unsigned int tmp_rx_buf_count;
 
-	int rx_enabled;
-	int rx_overflow;
+	bool rx_enabled;
+	bool rx_overflow;
 
-	int tx_enabled;
-	int tx_active;
+	bool tx_enabled;
+	bool tx_active;
 	u32 idle_mode;
 
 	unsigned char ie0_value;
@@ -238,13 +238,13 @@ typedef struct _synclinkmp_info {
 
 	unsigned int irq_level;			/* interrupt level */
 	unsigned long irq_flags;
-	int irq_requested;			/* nonzero if IRQ requested */
+	bool irq_requested;			/* true if IRQ requested */
 
 	MGSL_PARAMS params;			/* communications parameters */
 
 	unsigned char serial_signals;		/* current serial signal states */
 
-	int irq_occurred;			/* for diagnostics use */
+	bool irq_occurred;			/* for diagnostics use */
 	unsigned int init_error;		/* Initialization startup error */
 
 	u32 last_mem_alloc;
@@ -255,7 +255,7 @@ typedef struct _synclinkmp_info {
 	unsigned char* sca_base;		/* HD64570 SCA Memory address */
 	u32 phys_sca_base;
 	u32 sca_offset;
-	int sca_base_requested;
+	bool sca_base_requested;
 
 	unsigned char* lcr_base;		/* local config registers (PCI only) */
 	u32 phys_lcr_base;
@@ -265,12 +265,12 @@ typedef struct _synclinkmp_info {
 	unsigned char* statctrl_base;		/* status/control register memory */
 	u32 phys_statctrl_base;
 	u32 statctrl_offset;
-	int sca_statctrl_requested;
+	bool sca_statctrl_requested;
 
 	u32 misc_ctrl_value;
 	char flag_buf[MAX_ASYNC_BUFFER_SIZE];
 	char char_buf[MAX_ASYNC_BUFFER_SIZE];
-	BOOLEAN drop_rts_on_tx_done;
+	bool drop_rts_on_tx_done;
 
 	struct	_input_signal_events	input_signal_events;
 
@@ -571,12 +571,12 @@ static void shutdown(SLMP_INFO *info);
 static void program_hw(SLMP_INFO *info);
 static void change_params(SLMP_INFO *info);
 
-static int  init_adapter(SLMP_INFO *info);
-static int  register_test(SLMP_INFO *info);
-static int  irq_test(SLMP_INFO *info);
-static int  loopback_test(SLMP_INFO *info);
+static bool init_adapter(SLMP_INFO *info);
+static bool register_test(SLMP_INFO *info);
+static bool irq_test(SLMP_INFO *info);
+static bool loopback_test(SLMP_INFO *info);
 static int  adapter_test(SLMP_INFO *info);
-static int  memory_test(SLMP_INFO *info);
+static bool memory_test(SLMP_INFO *info);
 
 static void reset_adapter(SLMP_INFO *info);
 static void reset_port(SLMP_INFO *info);
@@ -587,7 +587,7 @@ static void rx_stop(SLMP_INFO *info);
 static void rx_start(SLMP_INFO *info);
 static void rx_reset_buffers(SLMP_INFO *info);
 static void rx_free_frame_buffers(SLMP_INFO *info, unsigned int first, unsigned int last);
-static int  rx_get_frame(SLMP_INFO *info);
+static bool rx_get_frame(SLMP_INFO *info);
 
 static void tx_start(SLMP_INFO *info);
 static void tx_stop(SLMP_INFO *info);
@@ -2044,8 +2044,8 @@ int bh_action(SLMP_INFO *info)
 
 	if (!rc) {
 		/* Mark BH routine as complete */
-		info->bh_running   = 0;
-		info->bh_requested = 0;
+		info->bh_running = false;
+		info->bh_requested = false;
 	}
 
 	spin_unlock_irqrestore(&info->lock,flags);
@@ -2067,7 +2067,7 @@ void bh_handler(struct work_struct *work)
 		printk( "%s(%d):%s bh_handler() entry\n",
 			__FILE__,__LINE__,info->device_name);
 
-	info->bh_running = 1;
+	info->bh_running = true;
 
 	while((action = bh_action(info)) != 0) {
 
@@ -2152,7 +2152,7 @@ void isr_timer(SLMP_INFO * info)
 	 */
 	write_reg(info, (unsigned char)(timer + TMCS), 0);
 
-	info->irq_occurred = TRUE;
+	info->irq_occurred = true;
 
 	if ( debug_level >= DEBUG_LEVEL_ISR )
 		printk("%s(%d):%s isr_timer()\n",
@@ -2232,7 +2232,7 @@ void isr_rxrdy(SLMP_INFO * info)
 	while((status = read_reg(info,CST0)) & BIT0)
 	{
 		int flag = 0;
-		int over = 0;
+		bool over = false;
 		DataByte = read_reg(info,TRB);
 
 		icount->rx++;
@@ -2265,7 +2265,7 @@ void isr_rxrdy(SLMP_INFO * info)
 					 * reported immediately, and doesn't
 					 * affect the current character
 					 */
-					over = 1;
+					over = true;
 				}
 			}
 		}	/* end of if (error) */
@@ -2318,14 +2318,14 @@ static void isr_txeom(SLMP_INFO * info, unsigned char status)
 				info->icount.txok++;
 		}
 
-		info->tx_active = 0;
+		info->tx_active = false;
 		info->tx_count = info->tx_put = info->tx_get = 0;
 
 		del_timer(&info->tx_timer);
 
 		if (info->params.mode != MGSL_MODE_ASYNC && info->drop_rts_on_tx_done ) {
 			info->serial_signals &= ~SerialSignal_RTS;
-			info->drop_rts_on_tx_done = 0;
+			info->drop_rts_on_tx_done = false;
 			set_signals(info);
 		}
 
@@ -2398,7 +2398,7 @@ void isr_txrdy(SLMP_INFO * info)
 	if ( info->tx_count )
 		tx_load_fifo( info );
 	else {
-		info->tx_active = 0;
+		info->tx_active = false;
 		info->ie0_value &= ~TXRDYE;
 		write_reg(info, IE0, info->ie0_value);
 	}
@@ -2438,7 +2438,7 @@ void isr_rxdmaerror(SLMP_INFO * info)
 		printk("%s(%d):%s isr_rxdmaerror(), status=%02x\n",
 			__FILE__,__LINE__,info->device_name,status);
 
-	info->rx_overflow = TRUE;
+	info->rx_overflow = true;
 	info->pending_bh |= BH_RECEIVE;
 }
 
@@ -2691,7 +2691,7 @@ static irqreturn_t synclinkmp_interrupt(int dummy, void *dev_id)
 				printk("%s(%d):%s queueing bh task.\n",
 					__FILE__,__LINE__,port->device_name);
 			schedule_work(&port->task);
-			port->bh_requested = 1;
+			port->bh_requested = true;
 		}
 	}
 
@@ -3320,7 +3320,8 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 {
 	DECLARE_WAITQUEUE(wait, current);
 	int		retval;
-	int		do_clocal = 0, extra_count = 0;
+	bool		do_clocal = false;
+	bool		extra_count = false;
 	unsigned long	flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -3335,7 +3336,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	}
 
 	if (tty->termios->c_cflag & CLOCAL)
-		do_clocal = 1;
+		do_clocal = true;
 
 	/* Wait for carrier detect and the line to become
 	 * free (i.e., not in use by the callout).  While we are in
@@ -3353,7 +3354,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 
 	spin_lock_irqsave(&info->lock, flags);
 	if (!tty_hung_up_p(filp)) {
-		extra_count = 1;
+		extra_count = true;
 		info->count--;
 	}
 	spin_unlock_irqrestore(&info->lock, flags);
@@ -3596,7 +3597,7 @@ int claim_resources(SLMP_INFO *info)
 		goto errout;
 	}
 	else
-		info->shared_mem_requested = 1;
+		info->shared_mem_requested = true;
 
 	if (request_mem_region(info->phys_lcr_base + info->lcr_offset,128,"synclinkmp") == NULL) {
 		printk( "%s(%d):%s lcr mem addr conflict, Addr=%08X\n",
@@ -3605,7 +3606,7 @@ int claim_resources(SLMP_INFO *info)
 		goto errout;
 	}
 	else
-		info->lcr_mem_requested = 1;
+		info->lcr_mem_requested = true;
 
 	if (request_mem_region(info->phys_sca_base + info->sca_offset,SCA_BASE_SIZE,"synclinkmp") == NULL) {
 		printk( "%s(%d):%s sca mem addr conflict, Addr=%08X\n",
@@ -3614,7 +3615,7 @@ int claim_resources(SLMP_INFO *info)
 		goto errout;
 	}
 	else
-		info->sca_base_requested = 1;
+		info->sca_base_requested = true;
 
 	if (request_mem_region(info->phys_statctrl_base + info->statctrl_offset,SCA_REG_SIZE,"synclinkmp") == NULL) {
 		printk( "%s(%d):%s stat/ctrl mem addr conflict, Addr=%08X\n",
@@ -3623,7 +3624,7 @@ int claim_resources(SLMP_INFO *info)
 		goto errout;
 	}
 	else
-		info->sca_statctrl_requested = 1;
+		info->sca_statctrl_requested = true;
 
 	info->memory_base = ioremap(info->phys_memory_base,SCA_MEM_SIZE);
 	if (!info->memory_base) {
@@ -3682,24 +3683,24 @@ void release_resources(SLMP_INFO *info)
 
 	if ( info->irq_requested ) {
 		free_irq(info->irq_level, info);
-		info->irq_requested = 0;
+		info->irq_requested = false;
 	}
 
 	if ( info->shared_mem_requested ) {
 		release_mem_region(info->phys_memory_base,SCA_MEM_SIZE);
-		info->shared_mem_requested = 0;
+		info->shared_mem_requested = false;
 	}
 	if ( info->lcr_mem_requested ) {
 		release_mem_region(info->phys_lcr_base + info->lcr_offset,128);
-		info->lcr_mem_requested = 0;
+		info->lcr_mem_requested = false;
 	}
 	if ( info->sca_base_requested ) {
 		release_mem_region(info->phys_sca_base + info->sca_offset,SCA_BASE_SIZE);
-		info->sca_base_requested = 0;
+		info->sca_base_requested = false;
 	}
 	if ( info->sca_statctrl_requested ) {
 		release_mem_region(info->phys_statctrl_base + info->statctrl_offset,SCA_REG_SIZE);
-		info->sca_statctrl_requested = 0;
+		info->sca_statctrl_requested = false;
 	}
 
 	if (info->memory_base){
@@ -3902,7 +3903,7 @@ void device_init(int adapter_num, struct pci_dev *pdev)
 				port_array[0]->irq_level );
 		}
 		else {
-			port_array[0]->irq_requested = 1;
+			port_array[0]->irq_requested = true;
 			adapter_test(port_array[0]);
 		}
 	}
@@ -4155,8 +4156,8 @@ void rx_stop(SLMP_INFO *info)
 	write_reg(info, RXDMA + DCMD, SWABORT);	/* reset/init Rx DMA */
 	write_reg(info, RXDMA + DIR, 0);	/* disable Rx DMA interrupts */
 
-	info->rx_enabled = 0;
-	info->rx_overflow = 0;
+	info->rx_enabled = false;
+	info->rx_overflow = false;
 }
 
 /* enable the receiver
@@ -4211,8 +4212,8 @@ void rx_start(SLMP_INFO *info)
 
 	write_reg(info, CMD, RXENABLE);
 
-	info->rx_overflow = FALSE;
-	info->rx_enabled = 1;
+	info->rx_overflow = false;
+	info->rx_enabled = true;
 }
 
 /* Enable the transmitter and send a transmit frame if
@@ -4227,7 +4228,7 @@ void tx_start(SLMP_INFO *info)
 	if (!info->tx_enabled ) {
 		write_reg(info, CMD, TXRESET);
 		write_reg(info, CMD, TXENABLE);
-		info->tx_enabled = TRUE;
+		info->tx_enabled = true;
 	}
 
 	if ( info->tx_count ) {
@@ -4236,7 +4237,7 @@ void tx_start(SLMP_INFO *info)
 		/* RTS and set a flag indicating that the driver should */
 		/* negate RTS when the transmission completes. */
 
-		info->drop_rts_on_tx_done = 0;
+		info->drop_rts_on_tx_done = false;
 
 		if (info->params.mode != MGSL_MODE_ASYNC) {
 
@@ -4245,7 +4246,7 @@ void tx_start(SLMP_INFO *info)
 				if ( !(info->serial_signals & SerialSignal_RTS) ) {
 					info->serial_signals |= SerialSignal_RTS;
 					set_signals( info );
-					info->drop_rts_on_tx_done = 1;
+					info->drop_rts_on_tx_done = true;
 				}
 			}
 
@@ -4282,7 +4283,7 @@ void tx_start(SLMP_INFO *info)
 			write_reg(info, IE0, info->ie0_value);
 		}
 
-		info->tx_active = 1;
+		info->tx_active = true;
 	}
 }
 
@@ -4308,8 +4309,8 @@ void tx_stop( SLMP_INFO *info )
 	info->ie0_value &= ~TXRDYE;
 	write_reg(info, IE0, info->ie0_value);	/* disable tx data interrupts */
 
-	info->tx_enabled = 0;
-	info->tx_active  = 0;
+	info->tx_enabled = false;
+	info->tx_active = false;
 }
 
 /* Fill the transmit FIFO until the FIFO is full or
@@ -4832,14 +4833,14 @@ void rx_reset_buffers(SLMP_INFO *info)
  */
 void rx_free_frame_buffers(SLMP_INFO *info, unsigned int first, unsigned int last)
 {
-	int done = 0;
+	bool done = false;
 
 	while(!done) {
 	        /* reset current buffer for reuse */
 		info->rx_buf_list[first].status = 0xff;
 
 	        if (first == last) {
-	                done = 1;
+	                done = true;
 	                /* set new last rx descriptor address */
 			write_reg16(info, RXDMA + EDA, info->rx_buf_list_ex[first].phys_entry);
 	        }
@@ -4856,14 +4857,14 @@ void rx_free_frame_buffers(SLMP_INFO *info, unsigned int first, unsigned int las
 /* Return a received frame from the receive DMA buffers.
  * Only frames received without errors are returned.
  *
- * Return Value:	1 if frame returned, otherwise 0
+ * Return Value:	true if frame returned, otherwise false
  */
-int rx_get_frame(SLMP_INFO *info)
+bool rx_get_frame(SLMP_INFO *info)
 {
 	unsigned int StartIndex, EndIndex;	/* index of 1st and last buffers of Rx frame */
 	unsigned short status;
 	unsigned int framesize = 0;
-	int ReturnCode = 0;
+	bool ReturnCode = false;
 	unsigned long flags;
 	struct tty_struct *tty = info->tty;
 	unsigned char addr_field = 0xff;
@@ -5014,7 +5015,7 @@ CheckAgain:
 	/* Free the buffers used by this frame. */
 	rx_free_frame_buffers( info, StartIndex, EndIndex );
 
-	ReturnCode = 1;
+	ReturnCode = true;
 
 Cleanup:
 	if ( info->rx_enabled && info->rx_overflow ) {
@@ -5073,12 +5074,12 @@ void tx_load_dma_buffer(SLMP_INFO *info, const char *buf, unsigned int count)
 	info->last_tx_buf = ++i;
 }
 
-int register_test(SLMP_INFO *info)
+bool register_test(SLMP_INFO *info)
 {
 	static unsigned char testval[] = {0x00, 0xff, 0xaa, 0x55, 0x69, 0x96};
 	static unsigned int count = ARRAY_SIZE(testval);
 	unsigned int i;
-	int rc = TRUE;
+	bool rc = true;
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->lock,flags);
@@ -5101,7 +5102,7 @@ int register_test(SLMP_INFO *info)
 			  (read_reg(info, SA0) != testval[(i+2)%count]) ||
 			  (read_reg(info, SA1) != testval[(i+3)%count]) )
 		{
-			rc = FALSE;
+			rc = false;
 			break;
 		}
 	}
@@ -5112,7 +5113,7 @@ int register_test(SLMP_INFO *info)
 	return rc;
 }
 
-int irq_test(SLMP_INFO *info)
+bool irq_test(SLMP_INFO *info)
 {
 	unsigned long timeout;
 	unsigned long flags;
@@ -5124,7 +5125,7 @@ int irq_test(SLMP_INFO *info)
 
 	/* assume failure */
 	info->init_error = DiagStatus_IrqFailure;
-	info->irq_occurred = FALSE;
+	info->irq_occurred = false;
 
 	/* setup timer0 on SCA0 to interrupt */
 
@@ -5163,7 +5164,7 @@ int irq_test(SLMP_INFO *info)
 
 /* initialize individual SCA device (2 ports)
  */
-static int sca_init(SLMP_INFO *info)
+static bool sca_init(SLMP_INFO *info)
 {
 	/* set wait controller to single mem partition (low), no wait states */
 	write_reg(info, PABR0, 0);	/* wait controller addr boundary 0 */
@@ -5199,12 +5200,12 @@ static int sca_init(SLMP_INFO *info)
 	 */
 	write_reg(info, ITCR, 0);
 
-	return TRUE;
+	return true;
 }
 
 /* initialize adapter hardware
  */
-int init_adapter(SLMP_INFO *info)
+bool init_adapter(SLMP_INFO *info)
 {
 	int i;
 
@@ -5257,20 +5258,20 @@ int init_adapter(SLMP_INFO *info)
 	sca_init(info->port_array[0]);
 	sca_init(info->port_array[2]);
 
-	return TRUE;
+	return true;
 }
 
 /* Loopback an HDLC frame to test the hardware
  * interrupt and DMA functions.
  */
-int loopback_test(SLMP_INFO *info)
+bool loopback_test(SLMP_INFO *info)
 {
 #define TESTFRAMESIZE 20
 
 	unsigned long timeout;
 	u16 count = TESTFRAMESIZE;
 	unsigned char buf[TESTFRAMESIZE];
-	int rc = FALSE;
+	bool rc = false;
 	unsigned long flags;
 
 	struct tty_struct *oldtty = info->tty;
@@ -5304,16 +5305,16 @@ int loopback_test(SLMP_INFO *info)
 		msleep_interruptible(10);
 
 		if (rx_get_frame(info)) {
-			rc = TRUE;
+			rc = true;
 			break;
 		}
 	}
 
 	/* verify received frame length and contents */
-	if (rc == TRUE &&
-		( info->tmp_rx_buf_count != count ||
-		  memcmp(buf, info->tmp_rx_buf,count))) {
-		rc = FALSE;
+	if (rc &&
+	    ( info->tmp_rx_buf_count != count ||
+	      memcmp(buf, info->tmp_rx_buf,count))) {
+		rc = false;
 	}
 
 	spin_lock_irqsave(&info->lock,flags);
@@ -5390,7 +5391,7 @@ int adapter_test( SLMP_INFO *info )
 
 /* Test the shared memory on a PCI adapter.
  */
-int memory_test(SLMP_INFO *info)
+bool memory_test(SLMP_INFO *info)
 {
 	static unsigned long testval[] = { 0x0, 0x55555555, 0xaaaaaaaa,
 		0x66666666, 0x99999999, 0xffffffff, 0x12345678 };
@@ -5404,7 +5405,7 @@ int memory_test(SLMP_INFO *info)
 	for ( i = 0 ; i < count ; i++ ) {
 		*addr = testval[i];
 		if ( *addr != testval[i] )
-			return FALSE;
+			return false;
 	}
 
 	/* Test address lines with incrementing pattern over */
@@ -5419,12 +5420,12 @@ int memory_test(SLMP_INFO *info)
 
 	for ( i = 0 ; i < limit ; i++ ) {
 		if ( *addr != i * 4 )
-			return FALSE;
+			return false;
 		addr++;
 	}
 
 	memset( info->memory_base, 0, SCA_MEM_SIZE );
-	return TRUE;
+	return true;
 }
 
 /* Load data into PCI adapter shared memory.
@@ -5508,7 +5509,7 @@ void tx_timeout(unsigned long context)
 		info->icount.txtimeout++;
 	}
 	spin_lock_irqsave(&info->lock,flags);
-	info->tx_active = 0;
+	info->tx_active = false;
 	info->tx_count = info->tx_put = info->tx_get = 0;
 
 	spin_unlock_irqrestore(&info->lock,flags);

@@ -13,10 +13,6 @@
 #define _SYNCLINK_H_
 #define SYNCLINK_H_VERSION 3.6
 
-#define BOOLEAN int
-#define TRUE 1
-#define FALSE 0
-
 #define BIT0	0x0001
 #define BIT1	0x0002
 #define BIT2	0x0004
