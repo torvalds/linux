@@ -130,6 +130,10 @@ MODULE_PARM_DESC(use_both_schemes,
 DECLARE_RWSEM(ehci_cf_port_reset_rwsem);
 EXPORT_SYMBOL_GPL(ehci_cf_port_reset_rwsem);
 
+#define HUB_DEBOUNCE_TIMEOUT	1500
+#define HUB_DEBOUNCE_STEP	  25
+#define HUB_DEBOUNCE_STABLE	 100
+
 
 static inline char *portspeed(int portstatus)
 {
@@ -643,6 +647,7 @@ static void hub_restart(struct usb_hub *hub, enum hub_activation_type type)
 {
 	struct usb_device *hdev = hub->hdev;
 	int port1;
+	bool need_debounce_delay = false;
 
 	/* Check each port and set hub->change_bits to let khubd know
 	 * which ports need attention.
@@ -671,6 +676,18 @@ static void hub_restart(struct usb_hub *hub, enum hub_activation_type type)
 				udev->state == USB_STATE_NOTATTACHED)) {
 			clear_port_feature(hdev, port1, USB_PORT_FEAT_ENABLE);
 			portstatus &= ~USB_PORT_STAT_ENABLE;
+		}
+
+		/* Clear status-change flags; we'll debounce later */
+		if (portchange & USB_PORT_STAT_C_CONNECTION) {
+			need_debounce_delay = true;
+			clear_port_feature(hub->hdev, port1,
+					USB_PORT_FEAT_C_CONNECTION);
+		}
+		if (portchange & USB_PORT_STAT_C_ENABLE) {
+			need_debounce_delay = true;
+			clear_port_feature(hub->hdev, port1,
+					USB_PORT_FEAT_C_ENABLE);
 		}
 
 		if (!udev || udev->state == USB_STATE_NOTATTACHED) {
@@ -702,6 +719,16 @@ static void hub_restart(struct usb_hub *hub, enum hub_activation_type type)
 		}
 	}
 
+	/* If no port-status-change flags were set, we don't need any
+	 * debouncing.  If flags were set we can try to debounce the
+	 * ports all at once right now, instead of letting khubd do them
+	 * one at a time later on.
+	 *
+	 * If any port-status changes do occur during this delay, khubd
+	 * will see them later and handle them normally.
+	 */
+	if (need_debounce_delay)
+		msleep(HUB_DEBOUNCE_STABLE);
 	hub_activate(hub);
 }
 
@@ -2211,11 +2238,6 @@ static inline int remote_wakeup(struct usb_device *udev)
  * every 25ms for transient disconnects.  When the port status has been
  * unchanged for 100ms it returns the port status.
  */
-
-#define HUB_DEBOUNCE_TIMEOUT	1500
-#define HUB_DEBOUNCE_STEP	  25
-#define HUB_DEBOUNCE_STABLE	 100
-
 static int hub_port_debounce(struct usb_hub *hub, int port1)
 {
 	int ret;
