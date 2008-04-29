@@ -34,22 +34,27 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/* This is defined by the state machines themselves, it is an opaque
-   data type for them to use. */
+/*
+ * This is defined by the state machines themselves, it is an opaque
+ * data type for them to use.
+ */
 struct si_sm_data;
 
-/* The structure for doing I/O in the state machine.  The state
-   machine doesn't have the actual I/O routines, they are done through
-   this interface. */
-struct si_sm_io
-{
+/*
+ * The structure for doing I/O in the state machine.  The state
+ * machine doesn't have the actual I/O routines, they are done through
+ * this interface.
+ */
+struct si_sm_io {
 	unsigned char (*inputb)(struct si_sm_io *io, unsigned int offset);
 	void (*outputb)(struct si_sm_io *io,
 			unsigned int  offset,
 			unsigned char b);
 
-	/* Generic info used by the actual handling routines, the
-           state machine shouldn't touch these. */
+	/*
+	 * Generic info used by the actual handling routines, the
+	 * state machine shouldn't touch these.
+	 */
 	void __iomem *addr;
 	int  regspacing;
 	int  regsize;
@@ -59,53 +64,67 @@ struct si_sm_io
 };
 
 /* Results of SMI events. */
-enum si_sm_result
-{
+enum si_sm_result {
 	SI_SM_CALL_WITHOUT_DELAY, /* Call the driver again immediately */
 	SI_SM_CALL_WITH_DELAY,	/* Delay some before calling again. */
-	SI_SM_CALL_WITH_TICK_DELAY,	/* Delay at least 1 tick before calling again. */
+	SI_SM_CALL_WITH_TICK_DELAY,/* Delay >=1 tick before calling again. */
 	SI_SM_TRANSACTION_COMPLETE, /* A transaction is finished. */
 	SI_SM_IDLE,		/* The SM is in idle state. */
 	SI_SM_HOSED,		/* The hardware violated the state machine. */
-	SI_SM_ATTN		/* The hardware is asserting attn and the
-				   state machine is idle. */
+
+	/*
+	 * The hardware is asserting attn and the state machine is
+	 * idle.
+	 */
+	SI_SM_ATTN
 };
 
 /* Handlers for the SMI state machine. */
-struct si_sm_handlers
-{
-	/* Put the version number of the state machine here so the
-           upper layer can print it. */
+struct si_sm_handlers {
+	/*
+	 * Put the version number of the state machine here so the
+	 * upper layer can print it.
+	 */
 	char *version;
 
-	/* Initialize the data and return the amount of I/O space to
-           reserve for the space. */
+	/*
+	 * Initialize the data and return the amount of I/O space to
+	 * reserve for the space.
+	 */
 	unsigned int (*init_data)(struct si_sm_data *smi,
 				  struct si_sm_io   *io);
 
-	/* Start a new transaction in the state machine.  This will
-	   return -2 if the state machine is not idle, -1 if the size
-	   is invalid (to large or too small), or 0 if the transaction
-	   is successfully completed. */
+	/*
+	 * Start a new transaction in the state machine.  This will
+	 * return -2 if the state machine is not idle, -1 if the size
+	 * is invalid (to large or too small), or 0 if the transaction
+	 * is successfully completed.
+	 */
 	int (*start_transaction)(struct si_sm_data *smi,
 				 unsigned char *data, unsigned int size);
 
-	/* Return the results after the transaction.  This will return
-	   -1 if the buffer is too small, zero if no transaction is
-	   present, or the actual length of the result data. */
+	/*
+	 * Return the results after the transaction.  This will return
+	 * -1 if the buffer is too small, zero if no transaction is
+	 * present, or the actual length of the result data.
+	 */
 	int (*get_result)(struct si_sm_data *smi,
 			  unsigned char *data, unsigned int length);
 
-	/* Call this periodically (for a polled interface) or upon
-	   receiving an interrupt (for a interrupt-driven interface).
-	   If interrupt driven, you should probably poll this
-	   periodically when not in idle state.  This should be called
-	   with the time that passed since the last call, if it is
-	   significant.  Time is in microseconds. */
+	/*
+	 * Call this periodically (for a polled interface) or upon
+	 * receiving an interrupt (for a interrupt-driven interface).
+	 * If interrupt driven, you should probably poll this
+	 * periodically when not in idle state.  This should be called
+	 * with the time that passed since the last call, if it is
+	 * significant.  Time is in microseconds.
+	 */
 	enum si_sm_result (*event)(struct si_sm_data *smi, long time);
 
-	/* Attempt to detect an SMI.  Returns 0 on success or nonzero
-           on failure. */
+	/*
+	 * Attempt to detect an SMI.  Returns 0 on success or nonzero
+	 * on failure.
+	 */
 	int (*detect)(struct si_sm_data *smi);
 
 	/* The interface is shutting down, so clean it up. */
