@@ -277,8 +277,11 @@ static int xlate_proc_name(const char *name,
 	int			len;
 	int 			rtn = 0;
 
+	de = *ret;
+	if (!de)
+		de = &proc_root;
+
 	spin_lock(&proc_subdir_lock);
-	de = &proc_root;
 	while (1) {
 		next = strchr(cp, '/');
 		if (!next)
@@ -582,7 +585,7 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	/* make sure name is valid */
 	if (!name || !strlen(name)) goto out;
 
-	if (!(*parent) && xlate_proc_name(name, parent, &fn) != 0)
+	if (xlate_proc_name(name, parent, &fn) != 0)
 		goto out;
 
 	/* At this point there must not be any '/' characters beyond *fn */
@@ -738,7 +741,7 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	const char *fn = name;
 	int len;
 
-	if (!parent && xlate_proc_name(name, &parent, &fn) != 0)
+	if (xlate_proc_name(name, &parent, &fn) != 0)
 		return;
 	len = strlen(fn);
 
