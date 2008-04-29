@@ -195,12 +195,32 @@ static int proc_root_link(struct inode *inode, struct path *path)
 	return result;
 }
 
-#define MAY_PTRACE(task) \
-	(task == current || \
-	(task->parent == current && \
-	(task->ptrace & PT_PTRACED) && \
-	 (task_is_stopped_or_traced(task)) && \
-	 security_ptrace(current,task) == 0))
+/*
+ * Return zero if current may access user memory in @task, -error if not.
+ */
+static int check_mem_permission(struct task_struct *task)
+{
+	/*
+	 * A task can always look at itself, in case it chooses
+	 * to use system calls instead of load instructions.
+	 */
+	if (task == current)
+		return 0;
+
+	/*
+	 * If current is actively ptrace'ing, and would also be
+	 * permitted to freshly attach with ptrace now, permit it.
+	 */
+	if (task->parent == current && (task->ptrace & PT_PTRACED) &&
+	    task_is_stopped_or_traced(task) &&
+	    ptrace_may_attach(task))
+		return 0;
+
+	/*
+	 * Noone else is allowed.
+	 */
+	return -EPERM;
+}
 
 struct mm_struct *mm_for_maps(struct task_struct *task)
 {
@@ -722,7 +742,7 @@ static ssize_t mem_read(struct file * file, char __user * buf,
 	if (!task)
 		goto out_no_task;
 
-	if (!MAY_PTRACE(task) || !ptrace_may_attach(task))
+	if (check_mem_permission(task))
 		goto out;
 
 	ret = -ENOMEM;
@@ -748,7 +768,7 @@ static ssize_t mem_read(struct file * file, char __user * buf,
 
 		this_len = (count > PAGE_SIZE) ? PAGE_SIZE : count;
 		retval = access_process_vm(task, src, page, this_len, 0);
-		if (!retval || !MAY_PTRACE(task) || !ptrace_may_attach(task)) {
+		if (!retval || check_mem_permission(task)) {
 			if (!ret)
 				ret = -EIO;
 			break;
@@ -792,7 +812,7 @@ static ssize_t mem_write(struct file * file, const char __user *buf,
 	if (!task)
 		goto out_no_task;
 
-	if (!MAY_PTRACE(task) || !ptrace_may_attach(task))
+	if (check_mem_permission(task))
 		goto out;
 
 	copied = -ENOMEM;
