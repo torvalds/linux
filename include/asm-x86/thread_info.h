@@ -177,21 +177,6 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_WORK_CTXSW_PREV _TIF_WORK_CTXSW
 #define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW | _TIF_DEBUG)
 
-
-/*
- * Thread-synchronous status.
- *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
- * have to worry about atomic accesses.
- */
-#define TS_USEDFPU		0x0001	/* FPU was used by this task
-					   this quantum (SMP) */
-#define TS_POLLING		0x0002	/* True if in idle loop
-					   and not sleeping */
-
-#define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
-
 #else /* X86_32 */
 
 #include <asm/pda.h>
@@ -349,6 +334,8 @@ static inline struct thread_info *stack_thread_info(void)
 
 #define PREEMPT_ACTIVE     0x10000000
 
+#endif /* !X86_32 */
+
 /*
  * Thread-synchronous status.
  *
@@ -358,14 +345,11 @@ static inline struct thread_info *stack_thread_info(void)
  */
 #define TS_USEDFPU		0x0001	/* FPU was used by this task
 					   this quantum (SMP) */
-#define TS_COMPAT		0x0002	/* 32bit syscall active */
+#define TS_COMPAT		0x0002	/* 32bit syscall active (64BIT)*/
 #define TS_POLLING		0x0004	/* true if in idle loop
 					   and not sleeping */
 
 #define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
-
-#endif /* !X86_32 */
-
 
 #ifndef __ASSEMBLY__
 extern void arch_task_cache_init(void);
