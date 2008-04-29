@@ -1550,8 +1550,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 
 void ide_init_drive_cmd (struct request *rq)
 {
-	memset(rq, 0, sizeof(*rq));
-	rq->ref_count = 1;
+	blk_rq_init(NULL, rq);
 }
 
 EXPORT_SYMBOL(ide_init_drive_cmd);
