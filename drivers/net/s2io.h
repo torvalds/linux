@@ -678,10 +678,52 @@ struct rx_block_info {
 	struct rxd_info *rxds;
 };
 
+/* Data structure to represent a LRO session */
+struct lro {
+	struct sk_buff	*parent;
+	struct sk_buff  *last_frag;
+	u8		*l2h;
+	struct iphdr	*iph;
+	struct tcphdr	*tcph;
+	u32		tcp_next_seq;
+	__be32		tcp_ack;
+	int		total_len;
+	int		frags_len;
+	int		sg_num;
+	int		in_use;
+	__be16		window;
+	u16             vlan_tag;
+	u32		cur_tsval;
+	__be32		cur_tsecr;
+	u8		saw_ts;
+} ____cacheline_aligned;
+
 /* Ring specific structure */
 struct ring_info {
 	/* The ring number */
 	int ring_no;
+
+	/* per-ring buffer counter */
+	u32 rx_bufs_left;
+
+	#define MAX_LRO_SESSIONS	32
+	struct lro lro0_n[MAX_LRO_SESSIONS];
+	u8		lro;
+
+	/* copy of sp->rxd_mode flag */
+	int rxd_mode;
+
+	/* Number of rxds per block for the rxd_mode */
+	int rxd_count;
+
+	/* copy of sp pointer */
+	struct s2io_nic *nic;
+
+	/* copy of sp->dev pointer */
+	struct net_device *dev;
+
+	/* copy of sp->pdev pointer */
+	struct pci_dev *pdev;
 
 	/*
 	 *  Place holders for the virtual and physical addresses of
@@ -703,10 +745,16 @@ struct ring_info {
 	 */
 	struct rx_curr_get_info rx_curr_get_info;
 
+	/* interface MTU value */
+        unsigned mtu;
+    
 	/* Buffer Address store. */
 	struct buffAdd **ba;
-	struct s2io_nic *nic;
-};
+
+	/* per-Ring statistics */
+	unsigned long rx_packets;
+	unsigned long rx_bytes;
+} ____cacheline_aligned;
 
 /* Fifo specific structure */
 struct fifo_info {
@@ -813,26 +861,6 @@ struct msix_info_st {
 	u64 data;
 };
 
-/* Data structure to represent a LRO session */
-struct lro {
-	struct sk_buff	*parent;
-	struct sk_buff  *last_frag;
-	u8		*l2h;
-	struct iphdr	*iph;
-	struct tcphdr	*tcph;
-	u32		tcp_next_seq;
-	__be32		tcp_ack;
-	int		total_len;
-	int		frags_len;
-	int		sg_num;
-	int		in_use;
-	__be16		window;
-	u16             vlan_tag;
-	u32		cur_tsval;
-	__be32		cur_tsecr;
-	u8		saw_ts;
-} ____cacheline_aligned;
-
 /* These flags represent the devices temporary state */
 enum s2io_device_state_t
 {
@@ -871,8 +899,6 @@ struct s2io_nic {
 
 	/* Space to back up the PCI config space */
 	u32 config_space[256 / sizeof(u32)];
-
-	atomic_t rx_bufs_left[MAX_RX_RINGS];
 
 #define PROMISC     1
 #define ALL_MULTI   2
@@ -950,8 +976,6 @@ struct s2io_nic {
 #define XFRAME_II_DEVICE	2
 	u8 device_type;
 
-#define MAX_LRO_SESSIONS	32
-	struct lro lro0_n[MAX_LRO_SESSIONS];
 	unsigned long	clubbed_frms_cnt;
 	unsigned long	sending_both;
 	u8		lro;
@@ -1118,9 +1142,9 @@ static int do_s2io_add_mc(struct s2io_nic *sp, u8 *addr);
 static int do_s2io_add_mac(struct s2io_nic *sp, u64 addr, int offset);
 static int do_s2io_delete_unicast_mc(struct s2io_nic *sp, u64 addr);
 
-static int
-s2io_club_tcp_session(u8 *buffer, u8 **tcp, u32 *tcp_len, struct lro **lro,
-		      struct RxD_t *rxdp, struct s2io_nic *sp);
+static int s2io_club_tcp_session(struct ring_info *ring_data, u8 *buffer,
+	u8 **tcp, u32 *tcp_len, struct lro **lro, struct RxD_t *rxdp,
+	struct s2io_nic *sp);
 static void clear_lro_session(struct lro *lro);
 static void queue_rx_frame(struct sk_buff *skb, u16 vlan_tag);
 static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro);
