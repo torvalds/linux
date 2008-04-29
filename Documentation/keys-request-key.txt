@@ -11,26 +11,29 @@ request_key*():
 
 	struct key *request_key(const struct key_type *type,
 				const char *description,
-				const char *callout_string);
+				const char *callout_info);
 
 or:
 
 	struct key *request_key_with_auxdata(const struct key_type *type,
 					     const char *description,
-					     const char *callout_string,
+					     const char *callout_info,
+					     size_t callout_len,
 					     void *aux);
 
 or:
 
 	struct key *request_key_async(const struct key_type *type,
 				      const char *description,
-				      const char *callout_string);
+				      const char *callout_info,
+				      size_t callout_len);
 
 or:
 
 	struct key *request_key_async_with_auxdata(const struct key_type *type,
 						   const char *description,
-						   const char *callout_string,
+						   const char *callout_info,
+					     	   size_t callout_len,
 						   void *aux);
 
 Or by userspace invoking the request_key system call:

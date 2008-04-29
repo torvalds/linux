@@ -771,7 +771,7 @@ payload contents" for more information.
 
 	struct key *request_key(const struct key_type *type,
 				const char *description,
-				const char *callout_string);
+				const char *callout_info);
 
     This is used to request a key or keyring with a description that matches
     the description specified according to the key type's match function. This
@@ -793,24 +793,28 @@ payload contents" for more information.
 
 	struct key *request_key_with_auxdata(const struct key_type *type,
 					     const char *description,
-					     const char *callout_string,
+					     const void *callout_info,
+					     size_t callout_len,
 					     void *aux);
 
     This is identical to request_key(), except that the auxiliary data is
-    passed to the key_type->request_key() op if it exists.
+    passed to the key_type->request_key() op if it exists, and the callout_info
+    is a blob of length callout_len, if given (the length may be 0).
 
 
 (*) A key can be requested asynchronously by calling one of:
 
 	struct key *request_key_async(const struct key_type *type,
 				      const char *description,
-				      const char *callout_string);
+				      const void *callout_info,
+				      size_t callout_len);
 
     or:
 
 	struct key *request_key_async_with_auxdata(const struct key_type *type,
 						   const char *description,
-						   const char *callout_string,
+						   const char *callout_info,
+					     	   size_t callout_len,
 					     	   void *aux);
 
     which are asynchronous equivalents of request_key() and

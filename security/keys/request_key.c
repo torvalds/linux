@@ -161,21 +161,22 @@ error_alloc:
  * call out to userspace for key construction
  * - we ignore program failure and go on key status instead
  */
-static int construct_key(struct key *key, const char *callout_info, void *aux)
+static int construct_key(struct key *key, const void *callout_info,
+			 size_t callout_len, void *aux)
 {
 	struct key_construction *cons;
 	request_key_actor_t actor;
 	struct key *authkey;
 	int ret;
 
-	kenter("%d,%s,%p", key->serial, callout_info, aux);
+	kenter("%d,%p,%zu,%p", key->serial, callout_info, callout_len, aux);
 
 	cons = kmalloc(sizeof(*cons), GFP_KERNEL);
 	if (!cons)
 		return -ENOMEM;
 
 	/* allocate an authorisation key */
-	authkey = request_key_auth_new(key, callout_info);
+	authkey = request_key_auth_new(key, callout_info, callout_len);
 	if (IS_ERR(authkey)) {
 		kfree(cons);
 		ret = PTR_ERR(authkey);
@@ -331,6 +332,7 @@ alloc_failed:
 static struct key *construct_key_and_link(struct key_type *type,
 					  const char *description,
 					  const char *callout_info,
+					  size_t callout_len,
 					  void *aux,
 					  struct key *dest_keyring,
 					  unsigned long flags)
@@ -348,7 +350,7 @@ static struct key *construct_key_and_link(struct key_type *type,
 	key_user_put(user);
 
 	if (ret == 0) {
-		ret = construct_key(key, callout_info, aux);
+		ret = construct_key(key, callout_info, callout_len, aux);
 		if (ret < 0)
 			goto construction_failed;
 	}
@@ -370,7 +372,8 @@ construction_failed:
  */
 struct key *request_key_and_link(struct key_type *type,
 				 const char *description,
-				 const char *callout_info,
+				 const void *callout_info,
+				 size_t callout_len,
 				 void *aux,
 				 struct key *dest_keyring,
 				 unsigned long flags)
@@ -378,8 +381,8 @@ struct key *request_key_and_link(struct key_type *type,
 	struct key *key;
 	key_ref_t key_ref;
 
-	kenter("%s,%s,%s,%p,%p,%lx",
-	       type->name, description, callout_info, aux,
+	kenter("%s,%s,%p,%zu,%p,%p,%lx",
+	       type->name, description, callout_info, callout_len, aux,
 	       dest_keyring, flags);
 
 	/* search all the process keyrings for a key */
@@ -398,7 +401,8 @@ struct key *request_key_and_link(struct key_type *type,
 			goto error;
 
 		key = construct_key_and_link(type, description, callout_info,
-					     aux, dest_keyring, flags);
+					     callout_len, aux, dest_keyring,
+					     flags);
 	}
 
 error:
@@ -434,10 +438,13 @@ struct key *request_key(struct key_type *type,
 			const char *callout_info)
 {
 	struct key *key;
+	size_t callout_len = 0;
 	int ret;
 
-	key = request_key_and_link(type, description, callout_info, NULL,
-				   NULL, KEY_ALLOC_IN_QUOTA);
+	if (callout_info)
+		callout_len = strlen(callout_info);
+	key = request_key_and_link(type, description, callout_info, callout_len,
+				   NULL, NULL, KEY_ALLOC_IN_QUOTA);
 	if (!IS_ERR(key)) {
 		ret = wait_for_key_construction(key, false);
 		if (ret < 0) {
@@ -458,14 +465,15 @@ EXPORT_SYMBOL(request_key);
  */
 struct key *request_key_with_auxdata(struct key_type *type,
 				     const char *description,
-				     const char *callout_info,
+				     const void *callout_info,
+				     size_t callout_len,
 				     void *aux)
 {
 	struct key *key;
 	int ret;
 
-	key = request_key_and_link(type, description, callout_info, aux,
-				   NULL, KEY_ALLOC_IN_QUOTA);
+	key = request_key_and_link(type, description, callout_info, callout_len,
+				   aux, NULL, KEY_ALLOC_IN_QUOTA);
 	if (!IS_ERR(key)) {
 		ret = wait_for_key_construction(key, false);
 		if (ret < 0) {
@@ -485,10 +493,12 @@ EXPORT_SYMBOL(request_key_with_auxdata);
  */
 struct key *request_key_async(struct key_type *type,
 			      const char *description,
-			      const char *callout_info)
+			      const void *callout_info,
+			      size_t callout_len)
 {
-	return request_key_and_link(type, description, callout_info, NULL,
-				    NULL, KEY_ALLOC_IN_QUOTA);
+	return request_key_and_link(type, description, callout_info,
+				    callout_len, NULL, NULL,
+				    KEY_ALLOC_IN_QUOTA);
 }
 EXPORT_SYMBOL(request_key_async);
 
@@ -500,10 +510,11 @@ EXPORT_SYMBOL(request_key_async);
  */
 struct key *request_key_async_with_auxdata(struct key_type *type,
 					   const char *description,
-					   const char *callout_info,
+					   const void *callout_info,
+					   size_t callout_len,
 					   void *aux)
 {
-	return request_key_and_link(type, description, callout_info, aux,
-				    NULL, KEY_ALLOC_IN_QUOTA);
+	return request_key_and_link(type, description, callout_info,
+				    callout_len, aux, NULL, KEY_ALLOC_IN_QUOTA);
 }
 EXPORT_SYMBOL(request_key_async_with_auxdata);

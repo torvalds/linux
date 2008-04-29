@@ -61,7 +61,7 @@ static void request_key_auth_describe(const struct key *key,
 
 	seq_puts(m, "key:");
 	seq_puts(m, key->description);
-	seq_printf(m, " pid:%d ci:%zu", rka->pid, strlen(rka->callout_info));
+	seq_printf(m, " pid:%d ci:%zu", rka->pid, rka->callout_len);
 
 } /* end request_key_auth_describe() */
 
@@ -77,7 +77,7 @@ static long request_key_auth_read(const struct key *key,
 	size_t datalen;
 	long ret;
 
-	datalen = strlen(rka->callout_info);
+	datalen = rka->callout_len;
 	ret = datalen;
 
 	/* we can return the data as is */
@@ -137,7 +137,8 @@ static void request_key_auth_destroy(struct key *key)
  * create an authorisation token for /sbin/request-key or whoever to gain
  * access to the caller's security data
  */
-struct key *request_key_auth_new(struct key *target, const char *callout_info)
+struct key *request_key_auth_new(struct key *target, const void *callout_info,
+				 size_t callout_len)
 {
 	struct request_key_auth *rka, *irka;
 	struct key *authkey = NULL;
@@ -152,7 +153,7 @@ struct key *request_key_auth_new(struct key *target, const char *callout_info)
 		kleave(" = -ENOMEM");
 		return ERR_PTR(-ENOMEM);
 	}
-	rka->callout_info = kmalloc(strlen(callout_info) + 1, GFP_KERNEL);
+	rka->callout_info = kmalloc(callout_len, GFP_KERNEL);
 	if (!rka->callout_info) {
 		kleave(" = -ENOMEM");
 		kfree(rka);
@@ -186,7 +187,8 @@ struct key *request_key_auth_new(struct key *target, const char *callout_info)
 	}
 
 	rka->target_key = key_get(target);
-	strcpy(rka->callout_info, callout_info);
+	memcpy(rka->callout_info, callout_info, callout_len);
+	rka->callout_len = callout_len;
 
 	/* allocate the auth key */
 	sprintf(desc, "%x", target->serial);

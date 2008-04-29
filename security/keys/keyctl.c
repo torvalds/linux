@@ -152,6 +152,7 @@ asmlinkage long sys_request_key(const char __user *_type,
 	struct key_type *ktype;
 	struct key *key;
 	key_ref_t dest_ref;
+	size_t callout_len;
 	char type[32], *description, *callout_info;
 	long ret;
 
@@ -169,12 +170,14 @@ asmlinkage long sys_request_key(const char __user *_type,
 
 	/* pull the callout info into kernel space */
 	callout_info = NULL;
+	callout_len = 0;
 	if (_callout_info) {
 		callout_info = strndup_user(_callout_info, PAGE_SIZE);
 		if (IS_ERR(callout_info)) {
 			ret = PTR_ERR(callout_info);
 			goto error2;
 		}
+		callout_len = strlen(callout_info);
 	}
 
 	/* get the destination keyring if specified */
@@ -195,8 +198,8 @@ asmlinkage long sys_request_key(const char __user *_type,
 	}
 
 	/* do the search */
-	key = request_key_and_link(ktype, description, callout_info, NULL,
-				   key_ref_to_ptr(dest_ref),
+	key = request_key_and_link(ktype, description, callout_info,
+				   callout_len, NULL, key_ref_to_ptr(dest_ref),
 				   KEY_ALLOC_IN_QUOTA);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);

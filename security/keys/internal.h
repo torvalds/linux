@@ -109,7 +109,8 @@ extern int install_process_keyring(struct task_struct *tsk);
 
 extern struct key *request_key_and_link(struct key_type *type,
 					const char *description,
-					const char *callout_info,
+					const void *callout_info,
+					size_t callout_len,
 					void *aux,
 					struct key *dest_keyring,
 					unsigned long flags);
@@ -120,13 +121,15 @@ extern struct key *request_key_and_link(struct key_type *type,
 struct request_key_auth {
 	struct key		*target_key;
 	struct task_struct	*context;
-	char			*callout_info;
+	void			*callout_info;
+	size_t			callout_len;
 	pid_t			pid;
 };
 
 extern struct key_type key_type_request_key_auth;
 extern struct key *request_key_auth_new(struct key *target,
-					const char *callout_info);
+					const void *callout_info,
+					size_t callout_len);
 
 extern struct key *key_get_instantiation_authkey(key_serial_t target_id);
 
