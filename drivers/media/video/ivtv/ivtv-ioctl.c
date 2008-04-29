@@ -243,20 +243,31 @@ static int ivtv_validate_speed(int cur_speed, int new_speed)
 	int fact = new_speed < 0 ? -1 : 1;
 	int s;
 
-	if (new_speed < 0) new_speed = -new_speed;
-	if (cur_speed < 0) cur_speed = -cur_speed;
+	if (cur_speed == 0)
+		cur_speed = 1000;
+	if (new_speed < 0)
+		new_speed = -new_speed;
+	if (cur_speed < 0)
+		cur_speed = -cur_speed;
 
 	if (cur_speed <= new_speed) {
-		if (new_speed > 1500) return fact * 2000;
-		if (new_speed > 1000) return fact * 1500;
+		if (new_speed > 1500)
+			return fact * 2000;
+		if (new_speed > 1000)
+			return fact * 1500;
 	}
 	else {
-		if (new_speed >= 2000) return fact * 2000;
-		if (new_speed >= 1500) return fact * 1500;
-		if (new_speed >= 1000) return fact * 1000;
+		if (new_speed >= 2000)
+			return fact * 2000;
+		if (new_speed >= 1500)
+			return fact * 1500;
+		if (new_speed >= 1000)
+			return fact * 1000;
 	}
-	if (new_speed == 0) return 1000;
-	if (new_speed == 1 || new_speed == 1000) return fact * new_speed;
+	if (new_speed == 0)
+		return 1000;
+	if (new_speed == 1 || new_speed == 1000)
+		return fact * new_speed;
 
 	s = new_speed;
 	new_speed = 1000 / new_speed;
@@ -741,10 +752,9 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		struct v4l2_capability *vcap = arg;
 
 		memset(vcap, 0, sizeof(*vcap));
-		strcpy(vcap->driver, IVTV_DRIVER_NAME);     /* driver name */
-		strncpy(vcap->card, itv->card_name,
-				sizeof(vcap->card)-1); 	    /* card type */
-		strcpy(vcap->bus_info, pci_name(itv->dev)); /* bus info... */
+		strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
+		strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
+		strlcpy(vcap->bus_info, pci_name(itv->dev), sizeof(vcap->bus_info));
 		vcap->version = IVTV_DRIVER_VERSION; 	    /* version */
 		vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
 
@@ -1018,7 +1028,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 				ivtv_std_60hz : ivtv_std_50hz;
 		vs->index = idx;
 		vs->id = enum_stds[idx].std;
-		strcpy(vs->name, enum_stds[idx].name);
+		strlcpy(vs->name, enum_stds[idx].name, sizeof(vs->name));
 		break;
 	}
 
@@ -1102,10 +1112,10 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		ivtv_call_i2c_clients(itv, VIDIOC_G_TUNER, vt);
 
 		if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags)) {
-			strcpy(vt->name, "ivtv Radio Tuner");
+			strlcpy(vt->name, "ivtv Radio Tuner", sizeof(vt->name));
 			vt->type = V4L2_TUNER_RADIO;
 		} else {
-			strcpy(vt->name, "ivtv TV Tuner");
+			strlcpy(vt->name, "ivtv TV Tuner", sizeof(vt->name));
 			vt->type = V4L2_TUNER_ANALOG_TV;
 		}
 		break;

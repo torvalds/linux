@@ -190,6 +190,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t22 = ASUS Falcon2\n"
 		 "\t\t\t23 = AverMedia PVR-150 Plus\n"
 		 "\t\t\t24 = AverMedia EZMaker PCI Deluxe\n"
+		 "\t\t\t25 = AverMedia M104 (not yet working)\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: BGH, DK, I, M, N, Nc, 60");
@@ -871,7 +872,7 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	unsigned i;
 
 	/* load modules */
-#ifndef CONFIG_VIDEO_TUNER
+#ifndef CONFIG_MEDIA_TUNER
 	hw = ivtv_request_module(itv, hw, "tuner", IVTV_HW_TUNER);
 #endif
 #ifndef CONFIG_VIDEO_CX25840
@@ -1097,6 +1098,13 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		   The PCI IDs are not always reliable. */
 		ivtv_process_eeprom(itv);
 	}
+	if (itv->card->comment)
+		IVTV_INFO("%s", itv->card->comment);
+	if (itv->card->v4l2_capabilities == 0) {
+		/* card was detected but is not supported */
+		retval = -ENODEV;
+		goto free_i2c;
+	}
 
 	if (itv->std == 0) {
 		itv->std = V4L2_STD_NTSC_M;
@@ -1195,13 +1203,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		ivtv_call_i2c_clients(itv, VIDIOC_INT_S_STD_OUTPUT, &itv->std);
 	}
 
-	retval = ivtv_streams_setup(itv);
-	if (retval) {
-		IVTV_ERR("Error %d setting up streams\n", retval);
-		goto free_i2c;
-	}
-
-	IVTV_DEBUG_IRQ("Masking interrupts\n");
 	/* clear interrupt mask, effectively disabling interrupts */
 	ivtv_set_irq_mask(itv, 0xffffffff);
 
@@ -1210,32 +1211,38 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 			     IRQF_SHARED | IRQF_DISABLED, itv->name, (void *)itv);
 	if (retval) {
 		IVTV_ERR("Failed to register irq %d\n", retval);
-		goto free_streams;
+		goto free_i2c;
+	}
+
+	retval = ivtv_streams_setup(itv);
+	if (retval) {
+		IVTV_ERR("Error %d setting up streams\n", retval);
+		goto free_irq;
 	}
 	retval = ivtv_streams_register(itv);
 	if (retval) {
 		IVTV_ERR("Error %d registering devices\n", retval);
-		goto free_irq;
+		goto free_streams;
 	}
 	IVTV_INFO("Initialized card #%d: %s\n", itv->num, itv->card_name);
 	return 0;
 
-      free_irq:
-	free_irq(itv->dev->irq, (void *)itv);
-      free_streams:
+free_streams:
 	ivtv_streams_cleanup(itv);
-      free_i2c:
+free_irq:
+	free_irq(itv->dev->irq, (void *)itv);
+free_i2c:
 	exit_ivtv_i2c(itv);
-      free_io:
+free_io:
 	ivtv_iounmap(itv);
-      free_mem:
+free_mem:
 	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
 	release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (itv->has_cx23415)
 		release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
-      free_workqueue:
+free_workqueue:
 	destroy_workqueue(itv->irq_work_queues);
-      err:
+err:
 	if (retval == 0)
 		retval = -ENODEV;
 	IVTV_ERR("Error %d on initialization\n", retval);

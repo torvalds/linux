@@ -1714,7 +1714,7 @@ static void dst_release(struct dvb_frontend *fe)
 	struct dst_state *state = fe->demodulator_priv;
 	if (state->dst_ca) {
 		dvb_unregister_device(state->dst_ca);
-#ifdef CONFIG_DVB_CORE_ATTACH
+#ifdef CONFIG_MEDIA_ATTACH
 		symbol_put(dst_ca_attach);
 #endif
 	}

@@ -167,7 +167,8 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 		return -1;
 	id = hw_driverids[idx];
 	memset(&info, 0, sizeof(info));
-	strcpy(info.driver_name, hw_drivernames[idx]);
+	strlcpy(info.driver_name, hw_drivernames[idx],
+			sizeof(info.driver_name));
 	info.addr = hw_addrs[idx];
 	for (i = 0; itv->i2c_clients[i] && i < I2C_CLIENTS_MAX; i++) {}
 

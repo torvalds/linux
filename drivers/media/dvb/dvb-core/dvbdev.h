@@ -115,7 +115,7 @@ extern int dvb_usercopy(struct inode *inode, struct file *file,
 			    unsigned int cmd, void *arg));
 
 /** generic DVB attach function. */
-#ifdef CONFIG_DVB_CORE_ATTACH
+#ifdef CONFIG_MEDIA_ATTACH
 #define dvb_attach(FUNCTION, ARGS...) ({ \
 	void *__r = NULL; \
 	typeof(&FUNCTION) __a = symbol_request(FUNCTION); \

@@ -33,6 +33,46 @@
 
 #define PREFIX t->i2c->driver->driver.name
 
+/** This macro allows us to probe dynamically, avoiding static links */
+#ifdef CONFIG_DVB_CORE_ATTACH
+#define tuner_symbol_probe(FUNCTION, ARGS...) ({ \
+	int __r = -EINVAL; \
+	typeof(&FUNCTION) __a = symbol_request(FUNCTION); \
+	if (__a) { \
+		__r = (int) __a(ARGS); \
+	} else { \
+		printk(KERN_ERR "TUNER: Unable to find " \
+				"symbol "#FUNCTION"()\n"); \
+	} \
+	symbol_put(FUNCTION); \
+	__r; \
+})
+
+static void tuner_detach(struct dvb_frontend *fe)
+{
+	if (fe->ops.tuner_ops.release) {
+		fe->ops.tuner_ops.release(fe);
+		symbol_put_addr(fe->ops.tuner_ops.release);
+	}
+	if (fe->ops.analog_ops.release) {
+		fe->ops.analog_ops.release(fe);
+		symbol_put_addr(fe->ops.analog_ops.release);
+	}
+}
+#else
+#define tuner_symbol_probe(FUNCTION, ARGS...) ({ \
+	FUNCTION(ARGS); \
+})
+
+static void tuner_detach(struct dvb_frontend *fe)
+{
+	if (fe->ops.tuner_ops.release)
+		fe->ops.tuner_ops.release(fe);
+	if (fe->ops.analog_ops.release)
+		fe->ops.analog_ops.release(fe);
+}
+#endif
+
 struct tuner {
 	/* device */
 	struct dvb_frontend fe;
@@ -56,7 +96,7 @@ struct tuner {
 
 /* standard i2c insmod options */
 static unsigned short normal_i2c[] = {
-#if defined(CONFIG_TUNER_TEA5761) || (defined(CONFIG_TUNER_TEA5761_MODULE) && defined(MODULE))
+#if defined(CONFIG_MEDIA_TUNER_TEA5761) || (defined(CONFIG_MEDIA_TUNER_TEA5761_MODULE) && defined(MODULE))
 	0x10,
 #endif
 	0x42, 0x43, 0x4a, 0x4b,			/* tda8290 */
@@ -139,22 +179,6 @@ static void fe_set_params(struct dvb_frontend *fe,
 	fe_tuner_ops->set_analog_params(fe, params);
 }
 
-static void fe_release(struct dvb_frontend *fe)
-{
-	if (fe->ops.tuner_ops.release)
-		fe->ops.tuner_ops.release(fe);
-
-	/* DO NOT kfree(fe->analog_demod_priv)
-	 *
-	 * If we are in this function, analog_demod_priv contains a pointer
-	 * to struct tuner *t.  This will be kfree'd in tuner_detach().
-	 *
-	 * Otherwise, fe->ops.analog_demod_ops->release will
-	 * handle the cleanup for analog demodulator modules.
-	 */
-	fe->analog_demod_priv = NULL;
-}
-
 static void fe_standby(struct dvb_frontend *fe)
 {
 	struct dvb_tuner_ops *fe_tuner_ops = &fe->ops.tuner_ops;
@@ -191,7 +215,6 @@ static void tuner_status(struct dvb_frontend *fe);
 static struct analog_demod_ops tuner_core_ops = {
 	.set_params     = fe_set_params,
 	.standby        = fe_standby,
-	.release        = fe_release,
 	.has_signal     = fe_has_signal,
 	.set_config     = fe_set_config,
 	.tuner_status   = tuner_status
@@ -323,7 +346,8 @@ static void attach_tda829x(struct tuner *t)
 		.lna_cfg        = t->config,
 		.tuner_callback = t->tuner_callback,
 	};
-	tda829x_attach(&t->fe, t->i2c->adapter, t->i2c->addr, &cfg);
+	dvb_attach(tda829x_attach,
+		   &t->fe, t->i2c->adapter, t->i2c->addr, &cfg);
 }
 
 static struct xc5000_config xc5000_cfg;
@@ -356,12 +380,13 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	}
 
 	/* discard private data, in case set_type() was previously called */
-	if (analog_ops->release)
-		analog_ops->release(&t->fe);
+	tuner_detach(&t->fe);
+	t->fe.analog_demod_priv = NULL;
 
 	switch (t->type) {
 	case TUNER_MT2032:
-		microtune_attach(&t->fe, t->i2c->adapter, t->i2c->addr);
+		dvb_attach(microtune_attach,
+			   &t->fe, t->i2c->adapter, t->i2c->addr);
 		break;
 	case TUNER_PHILIPS_TDA8290:
 	{
@@ -369,12 +394,14 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	}
 	case TUNER_TEA5767:
-		if (!tea5767_attach(&t->fe, t->i2c->adapter, t->i2c->addr))
+		if (!dvb_attach(tea5767_attach, &t->fe,
+				t->i2c->adapter, t->i2c->addr))
 			goto attach_failed;
 		t->mode_mask = T_RADIO;
 		break;
 	case TUNER_TEA5761:
-		if (!tea5761_attach(&t->fe, t->i2c->adapter, t->i2c->addr))
+		if (!dvb_attach(tea5761_attach, &t->fe,
+				t->i2c->adapter, t->i2c->addr))
 			goto attach_failed;
 		t->mode_mask = T_RADIO;
 		break;
@@ -388,8 +415,8 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[2] = 0x86;
 		buffer[3] = 0x54;
 		i2c_master_send(c, buffer, 4);
-		if (!simple_tuner_attach(&t->fe, t->i2c->adapter, t->i2c->addr,
-					t->type))
+		if (!dvb_attach(simple_tuner_attach, &t->fe,
+				t->i2c->adapter, t->i2c->addr, t->type))
 			goto attach_failed;
 		break;
 	case TUNER_PHILIPS_TD1316:
@@ -397,9 +424,9 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[1] = 0xdc;
 		buffer[2] = 0x86;
 		buffer[3] = 0xa4;
-		i2c_master_send(c,buffer,4);
-		if (!simple_tuner_attach(&t->fe, t->i2c->adapter,
-					t->i2c->addr, t->type))
+		i2c_master_send(c, buffer, 4);
+		if (!dvb_attach(simple_tuner_attach, &t->fe,
+				t->i2c->adapter, t->i2c->addr, t->type))
 			goto attach_failed;
 		break;
 	case TUNER_XC2028:
@@ -409,12 +436,13 @@ static void set_type(struct i2c_client *c, unsigned int type,
 			.i2c_addr  = t->i2c->addr,
 			.callback  = t->tuner_callback,
 		};
-		if (!xc2028_attach(&t->fe, &cfg))
+		if (!dvb_attach(xc2028_attach, &t->fe, &cfg))
 			goto attach_failed;
 		break;
 	}
 	case TUNER_TDA9887:
-		tda9887_attach(&t->fe, t->i2c->adapter, t->i2c->addr);
+		dvb_attach(tda9887_attach,
+			   &t->fe, t->i2c->adapter, t->i2c->addr);
 		break;
 	case TUNER_XC5000:
 	{
@@ -424,7 +452,8 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		xc5000_cfg.if_khz	  = 5380;
 		xc5000_cfg.priv           = c->adapter->algo_data;
 		xc5000_cfg.tuner_callback = t->tuner_callback;
-		if (!xc5000_attach(&t->fe, t->i2c->adapter, &xc5000_cfg))
+		if (!dvb_attach(xc5000_attach,
+				&t->fe, t->i2c->adapter, &xc5000_cfg))
 			goto attach_failed;
 
 		xc_tuner_ops = &t->fe.ops.tuner_ops;
@@ -433,8 +462,8 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	}
 	default:
-		if (!simple_tuner_attach(&t->fe, t->i2c->adapter,
-					t->i2c->addr, t->type))
+		if (!dvb_attach(simple_tuner_attach, &t->fe,
+				t->i2c->adapter, t->i2c->addr, t->type))
 			goto attach_failed;
 
 		break;
@@ -442,12 +471,14 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 	if ((NULL == analog_ops->set_params) &&
 	    (fe_tuner_ops->set_analog_params)) {
+
 		strlcpy(t->i2c->name, fe_tuner_ops->info.name,
 			sizeof(t->i2c->name));
 
 		t->fe.analog_demod_priv = t;
 		memcpy(analog_ops, &tuner_core_ops,
 		       sizeof(struct analog_demod_ops));
+
 	} else {
 		strlcpy(t->i2c->name, analog_ops->info.name,
 			sizeof(t->i2c->name));
@@ -645,8 +676,8 @@ static void tuner_status(struct dvb_frontend *fe)
 {
 	struct tuner *t = fe->analog_demod_priv;
 	unsigned long freq, freq_fraction;
-	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
-	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
+	struct dvb_tuner_ops *fe_tuner_ops = &fe->ops.tuner_ops;
+	struct analog_demod_ops *analog_ops = &fe->ops.analog_ops;
 	const char *p;
 
 	switch (t->mode) {
@@ -730,8 +761,10 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 
-	if (tuner_debug>1)
+	if (tuner_debug > 1) {
 		v4l_i2c_print_ioctl(client,cmd);
+		printk("\n");
+	}
 
 	switch (cmd) {
 	/* --- configuration --- */
@@ -1112,8 +1145,9 @@ static int tuner_probe(struct i2c_client *client,
 	if (!no_autodetect) {
 		switch (client->addr) {
 		case 0x10:
-			if (tea5761_autodetection(t->i2c->adapter,
-						  t->i2c->addr) >= 0) {
+			if (tuner_symbol_probe(tea5761_autodetection,
+					       t->i2c->adapter,
+					       t->i2c->addr) >= 0) {
 				t->type = TUNER_TEA5761;
 				t->mode_mask = T_RADIO;
 				t->mode = T_STANDBY;
@@ -1132,8 +1166,8 @@ static int tuner_probe(struct i2c_client *client,
 		case 0x4b:
 			/* If chip is not tda8290, don't register.
 			   since it can be tda9887*/
-			if (tda829x_probe(t->i2c->adapter,
-					  t->i2c->addr) == 0) {
+			if (tuner_symbol_probe(tda829x_probe, t->i2c->adapter,
+					       t->i2c->addr) == 0) {
 				tuner_dbg("tda829x detected\n");
 			} else {
 				/* Default is being tda9887 */
@@ -1145,7 +1179,8 @@ static int tuner_probe(struct i2c_client *client,
 			}
 			break;
 		case 0x60:
-			if (tea5767_autodetection(t->i2c->adapter, t->i2c->addr)
+			if (tuner_symbol_probe(tea5767_autodetection,
+					       t->i2c->adapter, t->i2c->addr)
 					!= EINVAL) {
 				t->type = TUNER_TEA5767;
 				t->mode_mask = T_RADIO;
@@ -1234,10 +1269,9 @@ static int tuner_legacy_probe(struct i2c_adapter *adap)
 static int tuner_remove(struct i2c_client *client)
 {
 	struct tuner *t = i2c_get_clientdata(client);
-	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 
-	if (analog_ops->release)
-		analog_ops->release(&t->fe);
+	tuner_detach(&t->fe);
+	t->fe.analog_demod_priv = NULL;
 
 	list_del(&t->list);
 	kfree(t);

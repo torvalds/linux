@@ -1,4 +1,50 @@
 #
+# Generic video config states
+#
+
+config VIDEO_V4L2
+	tristate
+	depends on VIDEO_DEV && VIDEO_V4L2_COMMON
+	default VIDEO_DEV && VIDEO_V4L2_COMMON
+
+config VIDEO_V4L1
+	tristate
+	depends on VIDEO_DEV && VIDEO_V4L2_COMMON && VIDEO_ALLOW_V4L1
+	default VIDEO_DEV && VIDEO_V4L2_COMMON && VIDEO_ALLOW_V4L1
+
+config VIDEOBUF_GEN
+	tristate
+
+config VIDEOBUF_DMA_SG
+	depends on HAS_DMA
+	select VIDEOBUF_GEN
+	tristate
+
+config VIDEOBUF_VMALLOC
+	select VIDEOBUF_GEN
+	tristate
+
+config VIDEOBUF_DVB
+	tristate
+	select VIDEOBUF_GEN
+	select VIDEOBUF_DMA_SG
+
+config VIDEO_BTCX
+	tristate
+
+config VIDEO_IR_I2C
+	tristate
+
+config VIDEO_IR
+	tristate
+	depends on INPUT
+	select VIDEO_IR_I2C if I2C
+
+config VIDEO_TVEEPROM
+	tristate
+	depends on I2C
+
+#
 # Multimedia Video device configuration
 #
 
@@ -644,7 +690,7 @@ config VIDEO_MXB
 	tristate "Siemens-Nixdorf 'Multimedia eXtension Board'"
 	depends on PCI && VIDEO_V4L1 && I2C
 	select VIDEO_SAA7146_VV
-	select VIDEO_TUNER
+	select MEDIA_TUNER
 	select VIDEO_SAA7111 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TDA9840 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TEA6415C if VIDEO_HELPER_CHIPS_AUTO
@@ -701,6 +747,8 @@ source "drivers/media/video/cx23885/Kconfig"
 source "drivers/media/video/au0828/Kconfig"
 
 source "drivers/media/video/ivtv/Kconfig"
+
+source "drivers/media/video/cx18/Kconfig"
 
 config VIDEO_M32R_AR
 	tristate "AR devices"

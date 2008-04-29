@@ -452,7 +452,7 @@ static int mt9v022_set_register(struct soc_camera_device *icd,
 }
 #endif
 
-const struct v4l2_queryctrl mt9v022_controls[] = {
+static const struct v4l2_queryctrl mt9v022_controls[] = {
 	{
 		.id		= V4L2_CID_VFLIP,
 		.type		= V4L2_CTRL_TYPE_BOOLEAN,

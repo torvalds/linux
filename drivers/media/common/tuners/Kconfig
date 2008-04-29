@@ -1,0 +1,146 @@
+config MEDIA_ATTACH
+	bool "Load and attach frontend driver modules as needed"
+	depends on DVB_CORE
+	depends on MODULES
+	help
+	  Remove the static dependency of DVB card drivers on all
+	  frontend modules for all possible card variants. Instead,
+	  allow the card drivers to only load the frontend modules
+	  they require. This saves several KBytes of memory.
+
+	  Note: You will need module-init-tools v3.2 or later for this feature.
+
+	  If unsure say Y.
+
+config MEDIA_TUNER
+	tristate
+	default DVB_CORE || VIDEO_DEV
+	depends on DVB_CORE || VIDEO_DEV
+	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_XC5000 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_MT20XX if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_TDA8290 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_TEA5761 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_TEA5767 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_SIMPLE if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_TDA9887 if !MEDIA_TUNER_CUSTOMIZE
+
+menuconfig MEDIA_TUNER_CUSTOMIZE
+	bool "Customize analog and hybrid tuner modules to build"
+	depends on MEDIA_TUNER
+	help
+	  This allows the user to deselect tuner drivers unnecessary
+	  for their hardware from the build. Use this option with care
+	  as deselecting tuner drivers which are in fact necessary will
+	  result in V4L/DVB devices which cannot be tuned due to lack of
+	  driver support
+
+	  If unsure say N.
+
+if MEDIA_TUNER_CUSTOMIZE
+
+config MEDIA_TUNER_SIMPLE
+	tristate "Simple tuner support"
+	depends on I2C
+	select MEDIA_TUNER_TDA9887
+	default m if MEDIA_TUNER_CUSTOMIZE
+	help
+	  Say Y here to include support for various simple tuners.
+
+config MEDIA_TUNER_TDA8290
+	tristate "TDA 8290/8295 + 8275(a)/18271 tuner combo"
+	depends on I2C
+	select MEDIA_TUNER_TDA827X
+	select MEDIA_TUNER_TDA18271
+	default m if MEDIA_TUNER_CUSTOMIZE
+	help
+	  Say Y here to include support for Philips TDA8290+8275(a) tuner.
+
+config MEDIA_TUNER_TDA827X
+	tristate "Philips TDA827X silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-T silicon tuner module. Say Y when you want to support this tuner.
+
+config MEDIA_TUNER_TDA18271
+	tristate "NXP TDA18271 silicon tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A silicon tuner module. Say Y when you want to support this tuner.
+
+config MEDIA_TUNER_TDA9887
+	tristate "TDA 9885/6/7 analog IF demodulator"
+	depends on I2C
+	default m if MEDIA_TUNER_CUSTOMIZE
+	help
+	  Say Y here to include support for Philips TDA9885/6/7
+	  analog IF demodulator.
+
+config MEDIA_TUNER_TEA5761
+	tristate "TEA 5761 radio tuner (EXPERIMENTAL)"
+	depends on I2C && EXPERIMENTAL
+	default m if MEDIA_TUNER_CUSTOMIZE
+	help
+	  Say Y here to include support for the Philips TEA5761 radio tuner.
+
+config MEDIA_TUNER_TEA5767
+	tristate "TEA 5767 radio tuner"
+	depends on I2C
+	default m if MEDIA_TUNER_CUSTOMIZE
+	help
+	  Say Y here to include support for the Philips TEA5767 radio tuner.
+
+config MEDIA_TUNER_MT20XX
+	tristate "Microtune 2032 / 2050 tuners"
+	depends on I2C
+	default m if MEDIA_TUNER_CUSTOMIZE
+	help
+	  Say Y here to include support for the MT2032 / MT2050 tuner.
+
+config MEDIA_TUNER_MT2060
+	tristate "Microtune MT2060 silicon IF tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon IF tuner MT2060 from Microtune.
+
+config MEDIA_TUNER_MT2266
+	tristate "Microtune MT2266 silicon tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon baseband tuner MT2266 from Microtune.
+
+config MEDIA_TUNER_MT2131
+	tristate "Microtune MT2131 silicon tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon baseband tuner MT2131 from Microtune.
+
+config MEDIA_TUNER_QT1010
+	tristate "Quantek QT1010 silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon tuner QT1010 from Quantek.
+
+config MEDIA_TUNER_XC2028
+	tristate "XCeive xc2028/xc3028 tuners"
+	depends on I2C && FW_LOADER
+	default m if MEDIA_TUNER_CUSTOMIZE
+	help
+	  Say Y here to include support for the xc2028/xc3028 tuners.
+
+config MEDIA_TUNER_XC5000
+	tristate "Xceive XC5000 silicon tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon tuner XC5000 from Xceive.
+	  This device is only used inside a SiP called togther with a
+	  demodulator for now.
+
+endif # MEDIA_TUNER_CUSTOMIZE
