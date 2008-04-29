@@ -117,13 +117,13 @@ struct ieee80211_tx_queue_params {
 };
 
 /**
- * struct ieee80211_tx_queue_stats_data - transmit queue statistics
+ * struct ieee80211_tx_queue_stats - transmit queue statistics
  *
  * @len: number of packets in queue
  * @limit: queue length limit
  * @count: number of frames sent
  */
-struct ieee80211_tx_queue_stats_data {
+struct ieee80211_tx_queue_stats {
 	unsigned int len;
 	unsigned int limit;
 	unsigned int count;
@@ -163,10 +163,6 @@ enum ieee80211_tx_queue {
 	IEEE80211_TX_QUEUE_AFTER_BEACON = 6,
 	IEEE80211_TX_QUEUE_BEACON = 7,
 	NUM_TX_DATA_QUEUES_AMPDU = 16
-};
-
-struct ieee80211_tx_queue_stats {
-	struct ieee80211_tx_queue_stats_data data[NUM_TX_DATA_QUEUES_AMPDU];
 };
 
 struct ieee80211_low_level_stats {
@@ -1083,9 +1079,8 @@ enum ieee80211_ampdu_mlme_action {
  * @get_tx_stats: Get statistics of the current TX queue status. This is used
  *	to get number of currently queued packets (queue length), maximum queue
  *	size (limit), and total number of packets sent using each TX queue
- *	(count). This information is used for WMM to find out which TX
- *	queues have room for more packets and by hostapd to provide
- *	statistics about the current queueing state to external programs.
+ *	(count). The 'stats' pointer points to an array that has hw->queues +
+ *	hw->ampdu_queues items.
  *
  * @get_tsf: Get the current TSF timer value from firmware/hardware. Currently,
  *	this is only used for IBSS mode debugging and, as such, is not a

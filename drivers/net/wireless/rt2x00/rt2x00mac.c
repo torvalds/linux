@@ -457,9 +457,9 @@ int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,
 	unsigned int i;
 
 	for (i = 0; i < hw->queues; i++) {
-		stats->data[i].len = rt2x00dev->tx[i].length;
-		stats->data[i].limit = rt2x00dev->tx[i].limit;
-		stats->data[i].count = rt2x00dev->tx[i].count;
+		stats[i].len = rt2x00dev->tx[i].length;
+		stats[i].limit = rt2x00dev->tx[i].limit;
+		stats[i].count = rt2x00dev->tx[i].count;
 	}
 
 	return 0;

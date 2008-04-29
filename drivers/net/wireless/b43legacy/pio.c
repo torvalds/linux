@@ -525,13 +525,11 @@ void b43legacy_pio_get_tx_stats(struct b43legacy_wldev *dev,
 {
 	struct b43legacy_pio *pio = &dev->pio;
 	struct b43legacy_pioqueue *queue;
-	struct ieee80211_tx_queue_stats_data *data;
 
 	queue = pio->queue1;
-	data = &(stats->data[0]);
-	data->len = B43legacy_PIO_MAXTXPACKETS - queue->nr_txfree;
-	data->limit = B43legacy_PIO_MAXTXPACKETS;
-	data->count = queue->nr_tx_packets;
+	stats[0].len = B43legacy_PIO_MAXTXPACKETS - queue->nr_txfree;
+	stats[0].limit = B43legacy_PIO_MAXTXPACKETS;
+	stats[0].count = queue->nr_tx_packets;
 }
 
 static void pio_rx_error(struct b43legacy_pioqueue *queue,

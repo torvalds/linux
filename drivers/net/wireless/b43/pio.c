@@ -611,18 +611,16 @@ void b43_pio_get_tx_stats(struct b43_wldev *dev,
 {
 	const int nr_queues = dev->wl->hw->queues;
 	struct b43_pio_txqueue *q;
-	struct ieee80211_tx_queue_stats_data *data;
 	unsigned long flags;
 	int i;
 
 	for (i = 0; i < nr_queues; i++) {
-		data = &(stats->data[i]);
 		q = select_queue_by_priority(dev, i);
 
 		spin_lock_irqsave(&q->lock, flags);
-		data->len = B43_PIO_MAX_NR_TXPACKETS - q->free_packet_slots;
-		data->limit = B43_PIO_MAX_NR_TXPACKETS;
-		data->count = q->nr_tx_packets;
+		stats[i].len = B43_PIO_MAX_NR_TXPACKETS - q->free_packet_slots;
+		stats[i].limit = B43_PIO_MAX_NR_TXPACKETS;
+		stats[i].count = q->nr_tx_packets;
 		spin_unlock_irqrestore(&q->lock, flags);
 	}
 }
