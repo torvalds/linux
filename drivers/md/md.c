@@ -5947,13 +5947,9 @@ static struct notifier_block md_notifier = {
 
 static void md_geninit(void)
 {
-	struct proc_dir_entry *p;
-
 	dprintk("md: sizeof(mdp_super_t) = %d\n", (int)sizeof(mdp_super_t));
 
-	p = create_proc_entry("mdstat", S_IRUGO, NULL);
-	if (p)
-		p->proc_fops = &md_seq_fops;
+	proc_create("mdstat", S_IRUGO, NULL, &md_seq_fops);
 }
 
 static int __init md_init(void)

@@ -210,13 +210,10 @@ static int hdpu_cpustate_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	proc_de = create_proc_entry("sky_cpustate", 0666, NULL);
+	proc_de = proc_create("sky_cpustate", 0666, NULL, &proc_cpustate);
 	if (!proc_de) {
 		printk(KERN_WARNING "sky_cpustate: "
 		       "Unable to create proc entry\n");
-	} else {
-		proc_de->proc_fops = &proc_cpustate;
-		proc_de->owner = THIS_MODULE;
 	}
 
 	printk(KERN_INFO "Sky CPU State Driver v" SKY_CPUSTATE_VERSION "\n");

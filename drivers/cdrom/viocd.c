@@ -144,6 +144,7 @@ static int proc_viocd_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations proc_viocd_operations = {
+	.owner		= THIS_MODULE,
 	.open		= proc_viocd_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -679,7 +680,6 @@ static struct vio_driver viocd_driver = {
 
 static int __init viocd_init(void)
 {
-	struct proc_dir_entry *e;
 	int ret = 0;
 
 	if (!firmware_has_feature(FW_FEATURE_ISERIES))
@@ -719,12 +719,8 @@ static int __init viocd_init(void)
 	if (ret)
 		goto out_free_info;
 
-	e = create_proc_entry("iSeries/viocd", S_IFREG|S_IRUGO, NULL);
-	if (e) {
-		e->owner = THIS_MODULE;
-		e->proc_fops = &proc_viocd_operations;
-	}
-
+	proc_create("iSeries/viocd", S_IFREG|S_IRUGO, NULL,
+		    &proc_viocd_operations);
 	return 0;
 
 out_free_info:

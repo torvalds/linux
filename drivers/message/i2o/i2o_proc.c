@@ -1893,12 +1893,10 @@ static int i2o_proc_create_entries(struct proc_dir_entry *dir,
 	struct proc_dir_entry *tmp;
 
 	while (i2o_pe->name) {
-		tmp = create_proc_entry(i2o_pe->name, i2o_pe->mode, dir);
+		tmp = proc_create_data(i2o_pe->name, i2o_pe->mode, dir,
+				       i2o_pe->fops, data);
 		if (!tmp)
 			return -1;
-
-		tmp->data = data;
-		tmp->proc_fops = i2o_pe->fops;
 
 		i2o_pe++;
 	}

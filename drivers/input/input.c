@@ -904,19 +904,15 @@ static int __init input_proc_init(void)
 
 	proc_bus_input_dir->owner = THIS_MODULE;
 
-	entry = create_proc_entry("devices", 0, proc_bus_input_dir);
+	entry = proc_create("devices", 0, proc_bus_input_dir,
+			    &input_devices_fileops);
 	if (!entry)
 		goto fail1;
 
-	entry->owner = THIS_MODULE;
-	entry->proc_fops = &input_devices_fileops;
-
-	entry = create_proc_entry("handlers", 0, proc_bus_input_dir);
+	entry = proc_create("handlers", 0, proc_bus_input_dir,
+			    &input_handlers_fileops);
 	if (!entry)
 		goto fail2;
-
-	entry->owner = THIS_MODULE;
-	entry->proc_fops = &input_handlers_fileops;
 
 	return 0;
 
