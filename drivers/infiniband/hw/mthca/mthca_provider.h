@@ -67,6 +67,7 @@ struct mthca_ucontext {
 	struct ib_ucontext          ibucontext;
 	struct mthca_uar            uar;
 	struct mthca_user_db_table *db_tab;
+	int			    reg_mr_warned;
 };
 
 struct mthca_mtt;
