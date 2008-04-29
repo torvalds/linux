@@ -38,6 +38,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
+#include <linux/inet_lro.h>
 
 #include "nes.h"
 
@@ -1375,6 +1376,25 @@ static void nes_rq_wqes_timeout(unsigned long parm)
 }
 
 
+static int nes_lro_get_skb_hdr(struct sk_buff *skb, void **iphdr,
+			       void **tcph, u64 *hdr_flags, void *priv)
+{
+	unsigned int ip_len;
+	struct iphdr *iph;
+	skb_reset_network_header(skb);
+	iph = ip_hdr(skb);
+	if (iph->protocol != IPPROTO_TCP)
+		return -1;
+	ip_len = ip_hdrlen(skb);
+	skb_set_transport_header(skb, ip_len);
+	*tcph = tcp_hdr(skb);
+
+	*hdr_flags = LRO_IPV4 | LRO_TCP;
+	*iphdr = iph;
+	return 0;
+}
+
+
 /**
  * nes_init_nic_qp
  */
@@ -1592,15 +1612,21 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 	nesvnic->rq_wqes_timer.function = nes_rq_wqes_timeout;
 	nesvnic->rq_wqes_timer.data = (unsigned long)nesvnic;
 	nes_debug(NES_DBG_INIT, "NAPI support Enabled\n");
-
 	if (nesdev->nesadapter->et_use_adaptive_rx_coalesce)
 	{
 		nes_nic_init_timer(nesdev);
 		if (netdev->mtu > 1500)
 			jumbomode = 1;
-                nes_nic_init_timer_defaults(nesdev, jumbomode);
+		nes_nic_init_timer_defaults(nesdev, jumbomode);
 	}
-
+	nesvnic->lro_mgr.max_aggr = NES_LRO_MAX_AGGR;
+	nesvnic->lro_mgr.max_desc = NES_MAX_LRO_DESCRIPTORS;
+	nesvnic->lro_mgr.lro_arr = nesvnic->lro_desc;
+	nesvnic->lro_mgr.get_skb_header = nes_lro_get_skb_hdr;
+	nesvnic->lro_mgr.features = LRO_F_NAPI | LRO_F_EXTRACT_VLAN_ID;
+	nesvnic->lro_mgr.dev = netdev;
+	nesvnic->lro_mgr.ip_summed = CHECKSUM_UNNECESSARY;
+	nesvnic->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
 	return 0;
 }
 
@@ -2254,10 +2280,13 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 	u16 pkt_type;
 	u16 rqes_processed = 0;
 	u8 sq_cqes = 0;
+	u8 nes_use_lro = 0;
 
 	head = cq->cq_head;
 	cq_size = cq->cq_size;
 	cq->cqes_pending = 1;
+	if (nesvnic->netdev->features & NETIF_F_LRO)
+		nes_use_lro = 1;
 	do {
 		if (le32_to_cpu(cq->cq_vbase[head].cqe_words[NES_NIC_CQE_MISC_IDX]) &
 				NES_NIC_CQE_VALID) {
@@ -2379,9 +2408,16 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 								>> 16);
 						nes_debug(NES_DBG_CQ, "%s: Reporting stripped VLAN packet. Tag = 0x%04X\n",
 								nesvnic->netdev->name, vlan_tag);
-						nes_vlan_rx(rx_skb, nesvnic->vlan_grp, vlan_tag);
+						if (nes_use_lro)
+							lro_vlan_hwaccel_receive_skb(&nesvnic->lro_mgr, rx_skb,
+									nesvnic->vlan_grp, vlan_tag, NULL);
+						else
+							nes_vlan_rx(rx_skb, nesvnic->vlan_grp, vlan_tag);
 					} else {
-						nes_netif_rx(rx_skb);
+						if (nes_use_lro)
+							lro_receive_skb(&nesvnic->lro_mgr, rx_skb, NULL);
+						else
+							nes_netif_rx(rx_skb);
 					}
 				}
 
@@ -2413,13 +2449,14 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 
 	} while (1);
 
+	if (nes_use_lro)
+		lro_flush_all(&nesvnic->lro_mgr);
 	if (sq_cqes) {
 		barrier();
 		/* restart the queue if it had been stopped */
 		if (netif_queue_stopped(nesvnic->netdev))
 			netif_wake_queue(nesvnic->netdev);
 	}
-
 	cq->cq_head = head;
 	/* nes_debug(NES_DBG_CQ, "CQ%u Processed = %u cqes, new head = %u.\n",
 			cq->cq_number, cqe_count, cq->cq_head); */
@@ -2432,7 +2469,7 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 	}
 	if (atomic_read(&nesvnic->rx_skbs_needed))
 		nes_replenish_nic_rq(nesvnic);
-	}
+}
 
 
 /**

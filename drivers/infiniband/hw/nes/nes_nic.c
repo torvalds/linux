@@ -936,8 +936,7 @@ static int nes_netdev_change_mtu(struct	net_device *netdev,	int	new_mtu)
 	return ret;
 }
 
-#define NES_ETHTOOL_STAT_COUNT 55
-static const char nes_ethtool_stringset[NES_ETHTOOL_STAT_COUNT][ETH_GSTRING_LEN] = {
+static const char nes_ethtool_stringset[][ETH_GSTRING_LEN] = {
 	"Link Change Interrupts",
 	"Linearized SKBs",
 	"T/GSO Requests",
@@ -993,8 +992,12 @@ static const char nes_ethtool_stringset[NES_ETHTOOL_STAT_COUNT][ETH_GSTRING_LEN]
 	"CQ Depth 32",
 	"CQ Depth 128",
 	"CQ Depth 256",
+	"LRO aggregated",
+	"LRO flushed",
+	"LRO no_desc",
 };
 
+#define NES_ETHTOOL_STAT_COUNT  ARRAY_SIZE(nes_ethtool_stringset)
 
 /**
  * nes_netdev_get_rx_csum
@@ -1189,6 +1192,9 @@ static void nes_netdev_get_ethtool_stats(struct net_device *netdev,
 	target_stat_values[52] = int_mod_cq_depth_32;
 	target_stat_values[53] = int_mod_cq_depth_128;
 	target_stat_values[54] = int_mod_cq_depth_256;
+	target_stat_values[55] = nesvnic->lro_mgr.stats.aggregated;
+	target_stat_values[56] = nesvnic->lro_mgr.stats.flushed;
+	target_stat_values[57] = nesvnic->lro_mgr.stats.no_desc;
 
 }
 
@@ -1454,6 +1460,8 @@ static struct ethtool_ops nes_ethtool_ops = {
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
+	.get_flags = ethtool_op_get_flags,
+	.set_flags = ethtool_op_set_flags,
 };
 
 
