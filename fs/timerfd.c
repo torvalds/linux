@@ -20,6 +20,7 @@
 #include <linux/hrtimer.h>
 #include <linux/anon_inodes.h>
 #include <linux/timerfd.h>
+#include <linux/syscalls.h>
 
 struct timerfd_ctx {
 	struct hrtimer tmr;
