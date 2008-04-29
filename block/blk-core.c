@@ -173,7 +173,7 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 
 	if (blk_pc_request(rq)) {
 		printk(KERN_INFO "  cdb: ");
-		for (bit = 0; bit < sizeof(rq->cmd); bit++)
+		for (bit = 0; bit < BLK_MAX_CDB; bit++)
 			printk("%02x ", rq->cmd[bit]);
 		printk("\n");
 	}
