@@ -364,7 +364,6 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	unsigned int wr_id = wc->wr_id;
 	struct ipoib_tx_buf *tx_req;
-	unsigned long flags;
 
 	ipoib_dbg_data(priv, "send completion: id %d, status: %d\n",
 		       wr_id, wc->status);
@@ -384,19 +383,28 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 
 	dev_kfree_skb_any(tx_req->skb);
 
-	spin_lock_irqsave(&priv->tx_lock, flags);
 	++priv->tx_tail;
 	if (unlikely(--priv->tx_outstanding == ipoib_sendq_size >> 1) &&
 	    netif_queue_stopped(dev) &&
 	    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
 		netif_wake_queue(dev);
-	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	if (wc->status != IB_WC_SUCCESS &&
 	    wc->status != IB_WC_WR_FLUSH_ERR)
 		ipoib_warn(priv, "failed send event "
 			   "(status=%d, wrid=%d vend_err %x)\n",
 			   wc->status, wr_id, wc->vendor_err);
+}
+
+static int poll_tx(struct ipoib_dev_priv *priv)
+{
+	int n, i;
+
+	n = ib_poll_cq(priv->send_cq, MAX_SEND_CQE, priv->send_wc);
+	for (i = 0; i < n; ++i)
+		ipoib_ib_handle_tx_wc(priv->dev, priv->send_wc + i);
+
+	return n == MAX_SEND_CQE;
 }
 
 int ipoib_poll(struct napi_struct *napi, int budget)
@@ -414,7 +422,7 @@ poll_more:
 		int max = (budget - done);
 
 		t = min(IPOIB_NUM_WC, max);
-		n = ib_poll_cq(priv->cq, t, priv->ibwc);
+		n = ib_poll_cq(priv->recv_cq, t, priv->ibwc);
 
 		for (i = 0; i < n; i++) {
 			struct ib_wc *wc = priv->ibwc + i;
@@ -425,12 +433,8 @@ poll_more:
 					ipoib_cm_handle_rx_wc(dev, wc);
 				else
 					ipoib_ib_handle_rx_wc(dev, wc);
-			} else {
-				if (wc->wr_id & IPOIB_OP_CM)
-					ipoib_cm_handle_tx_wc(dev, wc);
-				else
-					ipoib_ib_handle_tx_wc(dev, wc);
-			}
+			} else
+				ipoib_cm_handle_tx_wc(priv->dev, wc);
 		}
 
 		if (n != t)
@@ -439,7 +443,7 @@ poll_more:
 
 	if (done < budget) {
 		netif_rx_complete(dev, napi);
-		if (unlikely(ib_req_notify_cq(priv->cq,
+		if (unlikely(ib_req_notify_cq(priv->recv_cq,
 					      IB_CQ_NEXT_COMP |
 					      IB_CQ_REPORT_MISSED_EVENTS)) &&
 		    netif_rx_reschedule(dev, napi))
@@ -562,12 +566,16 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 
 		address->last_send = priv->tx_head;
 		++priv->tx_head;
+		skb_orphan(skb);
 
 		if (++priv->tx_outstanding == ipoib_sendq_size) {
 			ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");
 			netif_stop_queue(dev);
 		}
 	}
+
+	if (unlikely(priv->tx_outstanding > MAX_SEND_CQE))
+		poll_tx(priv);
 }
 
 static void __ipoib_reap_ah(struct net_device *dev)
@@ -714,7 +722,7 @@ void ipoib_drain_cq(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int i, n;
 	do {
-		n = ib_poll_cq(priv->cq, IPOIB_NUM_WC, priv->ibwc);
+		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
 		for (i = 0; i < n; ++i) {
 			/*
 			 * Convert any successful completions to flush
@@ -729,14 +737,13 @@ void ipoib_drain_cq(struct net_device *dev)
 					ipoib_cm_handle_rx_wc(dev, priv->ibwc + i);
 				else
 					ipoib_ib_handle_rx_wc(dev, priv->ibwc + i);
-			} else {
-				if (priv->ibwc[i].wr_id & IPOIB_OP_CM)
-					ipoib_cm_handle_tx_wc(dev, priv->ibwc + i);
-				else
-					ipoib_ib_handle_tx_wc(dev, priv->ibwc + i);
-			}
+			} else
+				ipoib_cm_handle_tx_wc(dev, priv->ibwc + i);
 		}
 	} while (n == IPOIB_NUM_WC);
+
+	while (poll_tx(priv))
+		; /* nothing */
 }
 
 int ipoib_ib_dev_stop(struct net_device *dev, int flush)
@@ -826,7 +833,7 @@ timeout:
 		msleep(1);
 	}
 
-	ib_req_notify_cq(priv->cq, IB_CQ_NEXT_COMP);
+	ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP);
 
 	return 0;
 }
