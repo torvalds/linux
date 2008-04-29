@@ -127,6 +127,7 @@ struct cpuset_hotplug_scanner {
 typedef enum {
 	CS_CPU_EXCLUSIVE,
 	CS_MEM_EXCLUSIVE,
+	CS_MEM_HARDWALL,
 	CS_MEMORY_MIGRATE,
 	CS_SCHED_LOAD_BALANCE,
 	CS_SPREAD_PAGE,
@@ -142,6 +143,11 @@ static inline int is_cpu_exclusive(const struct cpuset *cs)
 static inline int is_mem_exclusive(const struct cpuset *cs)
 {
 	return test_bit(CS_MEM_EXCLUSIVE, &cs->flags);
+}
+
+static inline int is_mem_hardwall(const struct cpuset *cs)
+{
+	return test_bit(CS_MEM_HARDWALL, &cs->flags);
 }
 
 static inline int is_sched_load_balance(const struct cpuset *cs)
@@ -1042,12 +1048,9 @@ static int update_relax_domain_level(struct cpuset *cs, char *buf)
 
 /*
  * update_flag - read a 0 or a 1 in a file and update associated flag
- * bit:	the bit to update (CS_CPU_EXCLUSIVE, CS_MEM_EXCLUSIVE,
- *				CS_SCHED_LOAD_BALANCE,
- *				CS_NOTIFY_ON_RELEASE, CS_MEMORY_MIGRATE,
- *				CS_SPREAD_PAGE, CS_SPREAD_SLAB)
- * cs:	the cpuset to update
- * buf:	the buffer where we read the 0 or 1
+ * bit:		the bit to update (see cpuset_flagbits_t)
+ * cs:		the cpuset to update
+ * turning_on: 	whether the flag is being set or cleared
  *
  * Call with cgroup_mutex held.
  */
@@ -1228,6 +1231,7 @@ typedef enum {
 	FILE_MEMLIST,
 	FILE_CPU_EXCLUSIVE,
 	FILE_MEM_EXCLUSIVE,
+	FILE_MEM_HARDWALL,
 	FILE_SCHED_LOAD_BALANCE,
 	FILE_SCHED_RELAX_DOMAIN_LEVEL,
 	FILE_MEMORY_PRESSURE_ENABLED,
@@ -1312,6 +1316,9 @@ static int cpuset_write_u64(struct cgroup *cgrp, struct cftype *cft, u64 val)
 		break;
 	case FILE_MEM_EXCLUSIVE:
 		retval = update_flag(CS_MEM_EXCLUSIVE, cs, val);
+		break;
+	case FILE_MEM_HARDWALL:
+		retval = update_flag(CS_MEM_HARDWALL, cs, val);
 		break;
 	case FILE_SCHED_LOAD_BALANCE:
 		retval = update_flag(CS_SCHED_LOAD_BALANCE, cs, val);
@@ -1423,6 +1430,8 @@ static u64 cpuset_read_u64(struct cgroup *cont, struct cftype *cft)
 		return is_cpu_exclusive(cs);
 	case FILE_MEM_EXCLUSIVE:
 		return is_mem_exclusive(cs);
+	case FILE_MEM_HARDWALL:
+		return is_mem_hardwall(cs);
 	case FILE_SCHED_LOAD_BALANCE:
 		return is_sched_load_balance(cs);
 	case FILE_MEMORY_MIGRATE:
@@ -1472,6 +1481,13 @@ static struct cftype files[] = {
 		.read_u64 = cpuset_read_u64,
 		.write_u64 = cpuset_write_u64,
 		.private = FILE_MEM_EXCLUSIVE,
+	},
+
+	{
+		.name = "mem_hardwall",
+		.read_u64 = cpuset_read_u64,
+		.write_u64 = cpuset_write_u64,
+		.private = FILE_MEM_HARDWALL,
 	},
 
 	{
@@ -1963,14 +1979,14 @@ int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
 }
 
 /*
- * nearest_exclusive_ancestor() - Returns the nearest mem_exclusive
- * ancestor to the specified cpuset.  Call holding callback_mutex.
- * If no ancestor is mem_exclusive (an unusual configuration), then
- * returns the root cpuset.
+ * nearest_hardwall_ancestor() - Returns the nearest mem_exclusive or
+ * mem_hardwall ancestor to the specified cpuset.  Call holding
+ * callback_mutex.  If no ancestor is mem_exclusive or mem_hardwall
+ * (an unusual configuration), then returns the root cpuset.
  */
-static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
+static const struct cpuset *nearest_hardwall_ancestor(const struct cpuset *cs)
 {
-	while (!is_mem_exclusive(cs) && cs->parent)
+	while (!(is_mem_exclusive(cs) || is_mem_hardwall(cs)) && cs->parent)
 		cs = cs->parent;
 	return cs;
 }
@@ -1984,7 +2000,7 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
  * __GFP_THISNODE is set, yes, we can always allocate.  If zone
  * z's node is in our tasks mems_allowed, yes.  If it's not a
  * __GFP_HARDWALL request and this zone's nodes is in the nearest
- * mem_exclusive cpuset ancestor to this tasks cpuset, yes.
+ * hardwalled cpuset ancestor to this tasks cpuset, yes.
  * If the task has been OOM killed and has access to memory reserves
  * as specified by the TIF_MEMDIE flag, yes.
  * Otherwise, no.
@@ -2007,7 +2023,7 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
  * and do not allow allocations outside the current tasks cpuset
  * unless the task has been OOM killed as is marked TIF_MEMDIE.
  * GFP_KERNEL allocations are not so marked, so can escape to the
- * nearest enclosing mem_exclusive ancestor cpuset.
+ * nearest enclosing hardwalled ancestor cpuset.
  *
  * Scanning up parent cpusets requires callback_mutex.  The
  * __alloc_pages() routine only calls here with __GFP_HARDWALL bit
@@ -2030,7 +2046,7 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
  *	in_interrupt - any node ok (current task context irrelevant)
  *	GFP_ATOMIC   - any node ok
  *	TIF_MEMDIE   - any node ok
- *	GFP_KERNEL   - any node in enclosing mem_exclusive cpuset ok
+ *	GFP_KERNEL   - any node in enclosing hardwalled cpuset ok
  *	GFP_USER     - only nodes in current tasks mems allowed ok.
  *
  * Rule:
@@ -2067,7 +2083,7 @@ int __cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask)
 	mutex_lock(&callback_mutex);
 
 	task_lock(current);
-	cs = nearest_exclusive_ancestor(task_cs(current));
+	cs = nearest_hardwall_ancestor(task_cs(current));
 	task_unlock(current);
 
 	allowed = node_isset(node, cs->mems_allowed);

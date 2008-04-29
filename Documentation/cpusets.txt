@@ -171,6 +171,7 @@ files describing that cpuset:
  - memory_migrate flag: if set, move pages to cpusets nodes
  - cpu_exclusive flag: is cpu placement exclusive?
  - mem_exclusive flag: is memory placement exclusive?
+ - mem_hardwall flag:  is memory allocation hardwalled
  - memory_pressure: measure of how much paging pressure in cpuset
 
 In addition, the root cpuset only has the following file:
@@ -222,17 +223,18 @@ If a cpuset is cpu or mem exclusive, no other cpuset, other than
 a direct ancestor or descendent, may share any of the same CPUs or
 Memory Nodes.
 
-A cpuset that is mem_exclusive restricts kernel allocations for
-page, buffer and other data commonly shared by the kernel across
-multiple users.  All cpusets, whether mem_exclusive or not, restrict
-allocations of memory for user space.  This enables configuring a
-system so that several independent jobs can share common kernel data,
-such as file system pages, while isolating each jobs user allocation in
-its own cpuset.  To do this, construct a large mem_exclusive cpuset to
-hold all the jobs, and construct child, non-mem_exclusive cpusets for
-each individual job.  Only a small amount of typical kernel memory,
-such as requests from interrupt handlers, is allowed to be taken
-outside even a mem_exclusive cpuset.
+A cpuset that is mem_exclusive *or* mem_hardwall is "hardwalled",
+i.e. it restricts kernel allocations for page, buffer and other data
+commonly shared by the kernel across multiple users.  All cpusets,
+whether hardwalled or not, restrict allocations of memory for user
+space.  This enables configuring a system so that several independent
+jobs can share common kernel data, such as file system pages, while
+isolating each job's user allocation in its own cpuset.  To do this,
+construct a large mem_exclusive cpuset to hold all the jobs, and
+construct child, non-mem_exclusive cpusets for each individual job.
+Only a small amount of typical kernel memory, such as requests from
+interrupt handlers, is allowed to be taken outside even a
+mem_exclusive cpuset.
 
 
 1.5 What is memory_pressure ?
@@ -707,7 +709,7 @@ Now you want to do something with this cpuset.
 
 In this directory you can find several files:
 # ls
-cpus  cpu_exclusive  mems  mem_exclusive  tasks
+cpus  cpu_exclusive  mems  mem_exclusive mem_hardwall  tasks
 
 Reading them will give you information about the state of this cpuset:
 the CPUs and Memory Nodes it can use, the processes that are using
