@@ -1024,8 +1024,6 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 
 	res_counter_init(&mem->res);
 
-	memset(&mem->info, 0, sizeof(mem->info));
-
 	for_each_node_state(node, N_POSSIBLE)
 		if (alloc_mem_cgroup_per_zone_info(mem, node))
 			goto free_out;
