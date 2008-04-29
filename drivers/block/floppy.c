@@ -4526,14 +4526,15 @@ static void __init parse_floppy_cfg_string(char *cfg)
 	}
 }
 
-int __init init_module(void)
+static int __init floppy_module_init(void)
 {
 	if (floppy)
 		parse_floppy_cfg_string(floppy);
 	return floppy_init();
 }
+module_init(floppy_module_init);
 
-void cleanup_module(void)
+static void __exit floppy_module_exit(void)
 {
 	int drive;
 
@@ -4562,6 +4563,7 @@ void cleanup_module(void)
 	/* eject disk, if any */
 	fd_eject(0);
 }
+module_exit(floppy_module_exit);
 
 module_param(floppy, charp, 0);
 module_param(FLOPPY_IRQ, int, 0);
