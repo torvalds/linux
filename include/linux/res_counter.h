@@ -25,6 +25,10 @@ struct res_counter {
 	 */
 	unsigned long long usage;
 	/*
+	 * the maximal value of the usage from the counter creation
+	 */
+	unsigned long long max_usage;
+	/*
 	 * the limit that usage cannot exceed
 	 */
 	unsigned long long limit;
@@ -67,6 +71,7 @@ ssize_t res_counter_write(struct res_counter *counter, int member,
 
 enum {
 	RES_USAGE,
+	RES_MAX_USAGE,
 	RES_LIMIT,
 	RES_FAILCNT,
 };
@@ -125,6 +130,15 @@ static inline bool res_counter_check_under_limit(struct res_counter *cnt)
 	ret = res_counter_limit_check_locked(cnt);
 	spin_unlock_irqrestore(&cnt->lock, flags);
 	return ret;
+}
+
+static inline void res_counter_reset_max(struct res_counter *cnt)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&cnt->lock, flags);
+	cnt->max_usage = cnt->usage;
+	spin_unlock_irqrestore(&cnt->lock, flags);
 }
 
 #endif

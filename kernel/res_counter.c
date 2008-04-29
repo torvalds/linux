@@ -28,6 +28,8 @@ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
 	}
 
 	counter->usage += val;
+	if (counter->usage > counter->max_usage)
+		counter->max_usage = counter->usage;
 	return 0;
 }
 
@@ -66,6 +68,8 @@ res_counter_member(struct res_counter *counter, int member)
 	switch (member) {
 	case RES_USAGE:
 		return &counter->usage;
+	case RES_MAX_USAGE:
+		return &counter->max_usage;
 	case RES_LIMIT:
 		return &counter->limit;
 	case RES_FAILCNT:
