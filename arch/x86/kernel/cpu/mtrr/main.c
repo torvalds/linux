@@ -1095,6 +1095,17 @@ int __init amd_special_default_mtrr(void)
 	return 0;
 }
 
+static u64 __init real_trim_memory(unsigned long start_pfn, unsigned long limit_pfn)
+{
+	u64 trim_start, trim_size;
+	trim_start =  start_pfn;
+	trim_start <<= PAGE_SHIFT;
+	trim_size = limit_pfn;
+	trim_size <<= PAGE_SHIFT;
+	trim_size -= trim_start;
+	return update_memory_range(trim_start, trim_size, E820_RAM,
+				E820_RESERVED);
+}
 /**
  * mtrr_trim_uncached_memory - trim RAM not covered by MTRRs
  * @end_pfn: ending page frame number
@@ -1110,8 +1121,13 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 {
 	unsigned long i, base, size, highest_pfn = 0, def, dummy;
 	mtrr_type type;
-	u64 trim_start, trim_size;
+	struct res_range range[RANGE_NUM];
+	int nr_range;
+	u64 total_real_trim_size;
+	int changed;
 
+	/* extra one for all 0 */
+	int num[MTRR_NUM_TYPES + 1];
 	/*
 	 * Make sure we only trim uncachable memory on machines that
 	 * support the Intel MTRR architecture:
@@ -1121,9 +1137,6 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 	rdmsr(MTRRdefType_MSR, def, dummy);
 	def &= 0xff;
 	if (def != MTRR_TYPE_UNCACHABLE)
-		return 0;
-
-	if (amd_special_default_mtrr())
 		return 0;
 
 	/* Find highest cached pfn */
@@ -1145,26 +1158,80 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 		return 0;
 	}
 
-	if (highest_pfn < end_pfn) {
+	/* check entries number */
+	memset(num, 0, sizeof(num));
+	for (i = 0; i < num_var_ranges; i++) {
+		mtrr_if->get(i, &base, &size, &type);
+		if (type >= MTRR_NUM_TYPES)
+			continue;
+		if (!size)
+			type = MTRR_NUM_TYPES;
+		num[type]++;
+	}
+
+	/* no entry for WB? */
+	if (!num[MTRR_TYPE_WRBACK])
+		return 0;
+
+	/* check if we only had WB and UC */
+	if (num[MTRR_TYPE_WRBACK] + num[MTRR_TYPE_UNCACHABLE] !=
+		num_var_ranges - num[MTRR_NUM_TYPES])
+		return 0;
+
+	memset(range, 0, sizeof(range));
+	nr_range = 0;
+	if (mtrr_tom2) {
+		range[nr_range].start = (1ULL<<(32 - PAGE_SHIFT));
+		range[nr_range].end = (mtrr_tom2 >> PAGE_SHIFT) - 1;
+		if (highest_pfn < range[nr_range].end + 1)
+			highest_pfn = range[nr_range].end + 1;
+		nr_range++;
+	}
+	nr_range = x86_get_mtrr_mem_range(range, nr_range, 0, 0);
+
+	changed = 0;
+	total_real_trim_size = 0;
+
+	/* check the top at first */
+	i = nr_range - 1;
+	if (range[i].end + 1 < end_pfn) {
+			total_real_trim_size += real_trim_memory(range[i].end + 1, end_pfn);
+	}
+
+	if (total_real_trim_size) {
 		printk(KERN_WARNING "WARNING: BIOS bug: CPU MTRRs don't cover"
-			" all of memory, losing %luMB of RAM.\n",
-			(end_pfn - highest_pfn) >> (20 - PAGE_SHIFT));
+			" all of memory, losing %lluMB of RAM.\n",
+			total_real_trim_size >> 20);
 
 		WARN_ON(1);
 
-		printk(KERN_INFO "update e820 for mtrr\n");
-		trim_start = highest_pfn;
-		trim_start <<= PAGE_SHIFT;
-		trim_size = end_pfn;
-		trim_size <<= PAGE_SHIFT;
-		trim_size -= trim_start;
-		update_memory_range(trim_start, trim_size, E820_RAM,
-					E820_RESERVED);
+		printk(KERN_INFO "update e820 for mtrr -- end_pfn\n");
 		update_e820();
-		return 1;
+		changed = 1;
 	}
 
-	return 0;
+	total_real_trim_size = 0;
+	if (range[0].start)
+		total_real_trim_size += real_trim_memory(0, range[0].start);
+
+	for (i = 0; i < nr_range - 1; i--) {
+		if (range[i].end + 1 < range[i+1].start)
+			total_real_trim_size += real_trim_memory(range[i].end + 1, range[i+1].start);
+	}
+
+	if (total_real_trim_size) {
+		printk(KERN_WARNING "WARNING: BIOS bug: CPU MTRRs don't cover"
+			" all of memory, losing %lluMB of RAM.\n",
+			total_real_trim_size >> 20);
+
+		WARN_ON(1);
+
+		printk(KERN_INFO "update e820 for mtrr -- holes\n");
+		update_e820();
+		changed = 1;
+	}
+
+	return changed;
 }
 
 /**

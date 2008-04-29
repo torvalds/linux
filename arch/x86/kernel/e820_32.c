@@ -783,10 +783,11 @@ static int __init parse_memmap(char *arg)
 	return 0;
 }
 early_param("memmap", parse_memmap);
-void __init update_memory_range(u64 start, u64 size, unsigned old_type,
+u64 __init update_memory_range(u64 start, u64 size, unsigned old_type,
 				unsigned new_type)
 {
 	int i;
+	u64 real_updated_size = 0;
 
 	BUG_ON(old_type == new_type);
 
@@ -798,6 +799,7 @@ void __init update_memory_range(u64 start, u64 size, unsigned old_type,
 		/* totally covered? */
 		if (ei->addr >= start && ei->size <= size) {
 			ei->type = new_type;
+			real_updated_size += ei->size;
 			continue;
 		}
 		/* partially covered */
@@ -807,7 +809,10 @@ void __init update_memory_range(u64 start, u64 size, unsigned old_type,
 			continue;
 		add_memory_region(final_start, final_end - final_start,
 					 new_type);
+		real_updated_size += final_end - final_start;
 	}
+
+	return real_updated_size;
 }
 
 void __init finish_e820_parsing(void)
