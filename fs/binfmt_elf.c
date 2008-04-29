@@ -1722,26 +1722,25 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 
 	info->thread_status_size = 0;
 	if (signr) {
-		struct elf_thread_status *tmp;
+		struct elf_thread_status *ets;
 		rcu_read_lock();
 		do_each_thread(g, p)
 			if (current->mm == p->mm && current != p) {
-				tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
-				if (!tmp) {
+				ets = kzalloc(sizeof(*ets), GFP_ATOMIC);
+				if (!ets) {
 					rcu_read_unlock();
 					return 0;
 				}
-				tmp->thread = p;
-				list_add(&tmp->list, &info->thread_list);
+				ets->thread = p;
+				list_add(&ets->list, &info->thread_list);
 			}
 		while_each_thread(g, p);
 		rcu_read_unlock();
 		list_for_each(t, &info->thread_list) {
-			struct elf_thread_status *tmp;
 			int sz;
 
-			tmp = list_entry(t, struct elf_thread_status, list);
-			sz = elf_dump_thread_status(signr, tmp);
+			ets = list_entry(t, struct elf_thread_status, list);
+			sz = elf_dump_thread_status(signr, ets);
 			info->thread_status_size += sz;
 		}
 	}
@@ -1997,10 +1996,10 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file, un
 
 		for (addr = vma->vm_start; addr < end; addr += PAGE_SIZE) {
 			struct page *page;
-			struct vm_area_struct *vma;
+			struct vm_area_struct *tmp_vma;
 
 			if (get_user_pages(current, current->mm, addr, 1, 0, 1,
-						&page, &vma) <= 0) {
+						&page, &tmp_vma) <= 0) {
 				DUMP_SEEK(PAGE_SIZE);
 			} else {
 				if (page == ZERO_PAGE(0)) {
@@ -2010,7 +2009,7 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file, un
 					}
 				} else {
 					void *kaddr;
-					flush_cache_page(vma, addr,
+					flush_cache_page(tmp_vma, addr,
 							 page_to_pfn(page));
 					kaddr = kmap(page);
 					if ((size += PAGE_SIZE) > limit ||
