@@ -969,7 +969,7 @@ struct nes_arp_entry {
 #define NES_NIC_CQ_DOWNWARD_TREND   16
 
 struct nes_hw_tune_timer {
-    //u16 cq_count;
+    /* u16 cq_count; */
     u16 threshold_low;
     u16 threshold_target;
     u16 threshold_high;
