@@ -1592,9 +1592,13 @@ static void sysctl_set_parent(struct ctl_table *parent, struct ctl_table *table)
 
 static __init int sysctl_init(void)
 {
-	int err;
 	sysctl_set_parent(NULL, root_table);
-	err = sysctl_check_table(current->nsproxy, root_table);
+#ifdef CONFIG_SYSCTL_SYSCALL_CHECK
+	{
+		int err;
+		err = sysctl_check_table(current->nsproxy, root_table);
+	}
+#endif
 	return 0;
 }
 
@@ -1721,10 +1725,12 @@ struct ctl_table_header *__register_sysctl_paths(
 	header->unregistering = NULL;
 	header->root = root;
 	sysctl_set_parent(NULL, header->ctl_table);
+#ifdef CONFIG_SYSCTL_SYSCALL_CHECK
 	if (sysctl_check_table(namespaces, header->ctl_table)) {
 		kfree(header);
 		return NULL;
 	}
+#endif
 	spin_lock(&sysctl_lock);
 	header_list = lookup_header_list(root, namespaces);
 	list_add_tail(&header->ctl_entry, header_list);
