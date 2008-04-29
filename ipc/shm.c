@@ -511,28 +511,14 @@ static inline unsigned long copy_shmid_to_user(void __user *buf, struct shmid64_
 	}
 }
 
-struct shm_setbuf {
-	uid_t	uid;
-	gid_t	gid;
-	mode_t	mode;
-};	
-
-static inline unsigned long copy_shmid_from_user(struct shm_setbuf *out, void __user *buf, int version)
+static inline unsigned long
+copy_shmid_from_user(struct shmid64_ds *out, void __user *buf, int version)
 {
 	switch(version) {
 	case IPC_64:
-	    {
-		struct shmid64_ds tbuf;
-
-		if (copy_from_user(&tbuf, buf, sizeof(tbuf)))
+		if (copy_from_user(out, buf, sizeof(*out)))
 			return -EFAULT;
-
-		out->uid	= tbuf.shm_perm.uid;
-		out->gid	= tbuf.shm_perm.gid;
-		out->mode	= tbuf.shm_perm.mode;
-
 		return 0;
-	    }
 	case IPC_OLD:
 	    {
 		struct shmid_ds tbuf_old;
@@ -540,9 +526,9 @@ static inline unsigned long copy_shmid_from_user(struct shm_setbuf *out, void __
 		if (copy_from_user(&tbuf_old, buf, sizeof(tbuf_old)))
 			return -EFAULT;
 
-		out->uid	= tbuf_old.shm_perm.uid;
-		out->gid	= tbuf_old.shm_perm.gid;
-		out->mode	= tbuf_old.shm_perm.mode;
+		out->shm_perm.uid	= tbuf_old.shm_perm.uid;
+		out->shm_perm.gid	= tbuf_old.shm_perm.gid;
+		out->shm_perm.mode	= tbuf_old.shm_perm.mode;
 
 		return 0;
 	    }
@@ -625,12 +611,12 @@ static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
 		       struct shmid_ds __user *buf, int version)
 {
 	struct kern_ipc_perm *ipcp;
-	struct shm_setbuf setbuf;
+	struct shmid64_ds shmid64;
 	struct shmid_kernel *shp;
 	int err;
 
 	if (cmd == IPC_SET) {
-		if (copy_shmid_from_user(&setbuf, buf, version))
+		if (copy_shmid_from_user(&shmid64, buf, version))
 			return -EFAULT;
 	}
 
@@ -648,8 +634,9 @@ static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
 		goto out_unlock;
 
 	if (cmd == IPC_SET) {
-		err = audit_ipc_set_perm(0, setbuf.uid,
-					 setbuf.gid, setbuf.mode);
+		err = audit_ipc_set_perm(0, shmid64.shm_perm.uid,
+					 shmid64.shm_perm.gid,
+					 shmid64.shm_perm.mode);
 		if (err)
 			goto out_unlock;
 	}
@@ -669,10 +656,10 @@ static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
 		do_shm_rmid(ns, ipcp);
 		goto out_up;
 	case IPC_SET:
-		ipcp->uid = setbuf.uid;
-		ipcp->gid = setbuf.gid;
+		ipcp->uid = shmid64.shm_perm.uid;
+		ipcp->gid = shmid64.shm_perm.gid;
 		ipcp->mode = (ipcp->mode & ~S_IRWXUGO)
-			| (setbuf.mode & S_IRWXUGO);
+			| (shmid64.shm_perm.mode & S_IRWXUGO);
 		shp->shm_ctim = get_seconds();
 		break;
 	default:
