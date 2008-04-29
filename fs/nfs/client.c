@@ -1500,7 +1500,7 @@ int __init nfs_fs_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-	proc_fs_nfs = proc_mkdir("nfsfs", proc_root_fs);
+	proc_fs_nfs = proc_mkdir("fs/nfsfs", NULL);
 	if (!proc_fs_nfs)
 		goto error_0;
 
@@ -1526,7 +1526,7 @@ int __init nfs_fs_proc_init(void)
 error_2:
 	remove_proc_entry("servers", proc_fs_nfs);
 error_1:
-	remove_proc_entry("nfsfs", proc_root_fs);
+	remove_proc_entry("fs/nfsfs", NULL);
 error_0:
 	return -ENOMEM;
 }
@@ -1538,7 +1538,7 @@ void nfs_fs_proc_exit(void)
 {
 	remove_proc_entry("volumes", proc_fs_nfs);
 	remove_proc_entry("servers", proc_fs_nfs);
-	remove_proc_entry("nfsfs", proc_root_fs);
+	remove_proc_entry("fs/nfsfs", NULL);
 }
 
 #endif /* CONFIG_PROC_FS */
