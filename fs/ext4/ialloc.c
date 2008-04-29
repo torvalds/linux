@@ -750,8 +750,8 @@ got:
 		goto fail_free_drop;
 	}
 	if (test_opt(sb, EXTENTS)) {
-		/* set extent flag only for directory and file */
-		if (S_ISDIR(mode) || S_ISREG(mode)) {
+		/* set extent flag only for diretory, file and normal symlink*/
+		if (S_ISDIR(mode) || S_ISREG(mode) || S_ISLNK(mode)) {
 			EXT4_I(inode)->i_flags |= EXT4_EXTENTS_FL;
 			ext4_ext_tree_init(handle, inode);
 			err = ext4_update_incompat_feature(handle, sb,

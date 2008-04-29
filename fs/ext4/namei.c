@@ -2217,6 +2217,8 @@ retry:
 			goto out_stop;
 		}
 	} else {
+		/* clear the extent format for fast symlink */
+		EXT4_I(inode)->i_flags &= ~EXT4_EXTENTS_FL;
 		inode->i_op = &ext4_fast_symlink_inode_operations;
 		memcpy((char*)&EXT4_I(inode)->i_data,symname,l);
 		inode->i_size = l-1;
