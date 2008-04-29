@@ -469,6 +469,7 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 	cmd = scsi_pool_alloc_command(shost->cmd_pool, gfp_mask);
 	if (!cmd) {
 		scsi_put_host_cmd_pool(gfp_mask);
+		shost->cmd_pool = NULL;
 		return -ENOMEM;
 	}
 	list_add(&cmd->list, &shost->free_list);
@@ -481,6 +482,13 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
  */
 void scsi_destroy_command_freelist(struct Scsi_Host *shost)
 {
+	/*
+	 * If cmd_pool is NULL the free list was not initialized, so
+	 * do not attempt to release resources.
+	 */
+	if (!shost->cmd_pool)
+		return;
+
 	while (!list_empty(&shost->free_list)) {
 		struct scsi_cmnd *cmd;
 
