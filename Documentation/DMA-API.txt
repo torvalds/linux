@@ -145,7 +145,7 @@ Part Ic - DMA addressing limitations
 int
 dma_supported(struct device *dev, u64 mask)
 int
-pci_dma_supported(struct device *dev, u64 mask)
+pci_dma_supported(struct pci_dev *hwdev, u64 mask)
 
 Checks to see if the device can support DMA to the memory described by
 mask.
@@ -189,7 +189,7 @@ dma_addr_t
 dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 		      enum dma_data_direction direction)
 dma_addr_t
-pci_map_single(struct device *dev, void *cpu_addr, size_t size,
+pci_map_single(struct pci_dev *hwdev, void *cpu_addr, size_t size,
 		      int direction)
 
 Maps a piece of processor virtual memory so it can be accessed by the
