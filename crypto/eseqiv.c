@@ -136,7 +136,8 @@ static int eseqiv_givencrypt(struct skcipher_givcrypt_request *req)
 	}
 
 	ablkcipher_request_set_crypt(subreq, reqctx->src, dst,
-				     req->creq.nbytes, req->creq.info);
+				     req->creq.nbytes + ivsize,
+				     req->creq.info);
 
 	memcpy(req->creq.info, ctx->salt, ivsize);
 
