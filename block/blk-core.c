@@ -107,7 +107,7 @@ struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev)
 }
 EXPORT_SYMBOL(blk_get_backing_dev_info);
 
-void rq_init(struct request_queue *q, struct request *rq)
+void blk_rq_init(struct request_queue *q, struct request *rq)
 {
 	memset(rq, 0, sizeof(*rq));
 
@@ -120,6 +120,7 @@ void rq_init(struct request_queue *q, struct request *rq)
 	rq->tag = -1;
 	rq->ref_count = 1;
 }
+EXPORT_SYMBOL(blk_rq_init);
 
 static void req_bio_endio(struct request *rq, struct bio *bio,
 			  unsigned int nbytes, int error)
@@ -598,7 +599,7 @@ blk_alloc_request(struct request_queue *q, int rw, int priv, gfp_t gfp_mask)
 	if (!rq)
 		return NULL;
 
-	rq_init(q, rq);
+	blk_rq_init(q, rq);
 
 	/*
 	 * first three bits are identical in rq->cmd_flags and bio->bi_rw,
