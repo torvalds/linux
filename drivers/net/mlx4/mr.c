@@ -607,14 +607,8 @@ EXPORT_SYMBOL_GPL(mlx4_fmr_enable);
 void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 		    u32 *lkey, u32 *rkey)
 {
-	u32 key;
-
 	if (!fmr->maps)
 		return;
-
-	key = key_to_hw_index(fmr->mr.key);
-	key &= dev->caps.num_mpts - 1;
-	*lkey = *rkey = fmr->mr.key = hw_index_to_key(key);
 
 	fmr->maps = 0;
 
