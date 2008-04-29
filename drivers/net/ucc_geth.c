@@ -3922,7 +3922,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 			return -EINVAL;
 		}
 	} else {
-		prop = of_get_property(np, "rx-clock", NULL);
+		prop = of_get_property(np, "tx-clock", NULL);
 		if (!prop) {
 			printk(KERN_ERR
 				"ucc_geth: mising tx-clock-name property\n");
