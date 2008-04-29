@@ -214,7 +214,6 @@ void proc_tty_unregister_driver(struct tty_driver *driver)
  */
 void __init proc_tty_init(void)
 {
-	struct proc_dir_entry *entry;
 	if (!proc_mkdir("tty", NULL))
 		return;
 	proc_tty_ldisc = proc_mkdir("tty/ldisc", NULL);
@@ -227,7 +226,5 @@ void __init proc_tty_init(void)
 	proc_tty_driver = proc_mkdir_mode("tty/driver", S_IRUSR | S_IXUSR, NULL);
 
 	create_proc_read_entry("tty/ldiscs", 0, NULL, tty_ldiscs_read_proc, NULL);
-	entry = create_proc_entry("tty/drivers", 0, NULL);
-	if (entry)
-		entry->proc_fops = &proc_tty_drivers_operations;
+	proc_create("tty/drivers", 0, NULL, &proc_tty_drivers_operations);
 }

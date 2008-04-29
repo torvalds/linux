@@ -137,7 +137,7 @@ static const struct file_operations proc_nommu_vma_list_operations = {
 
 static int __init proc_nommu_init(void)
 {
-	create_seq_entry("maps", S_IRUGO, &proc_nommu_vma_list_operations);
+	proc_create("maps", S_IRUGO, NULL, &proc_nommu_vma_list_operations);
 	return 0;
 }
 

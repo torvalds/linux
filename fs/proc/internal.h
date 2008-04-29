@@ -46,8 +46,6 @@ extern int nommu_vma_show(struct seq_file *, struct vm_area_struct *);
 
 extern int maps_protect;
 
-extern void create_seq_entry(char *name, mode_t mode,
-				const struct file_operations *f);
 extern int proc_tid_stat(struct seq_file *m, struct pid_namespace *ns,
 				struct pid *pid, struct task_struct *task);
 extern int proc_tgid_stat(struct seq_file *m, struct pid_namespace *ns,
