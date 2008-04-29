@@ -7,9 +7,11 @@
 #ifndef _ASM_X86_THREAD_INFO_H
 #define _ASM_X86_THREAD_INFO_H
 
-#ifdef CONFIG_X86_32
 #include <linux/compiler.h>
 #include <asm/page.h>
+#include <asm/types.h>
+
+#ifdef CONFIG_X86_32
 
 #ifndef __ASSEMBLY__
 #include <asm/processor.h>
@@ -192,8 +194,6 @@ static inline struct thread_info *current_thread_info(void)
 
 #else /* X86_32 */
 
-#include <asm/page.h>
-#include <asm/types.h>
 #include <asm/pda.h>
 
 /*
