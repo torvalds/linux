@@ -37,6 +37,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
@@ -723,17 +724,14 @@ unsigned int __ecard_address(ecard_t *ec, card_type_t type, card_speed_t speed)
 	return address;
 }
 
-static int ecard_prints(char *buffer, ecard_t *ec)
+static int ecard_prints(struct seq_file *m, ecard_t *ec)
 {
-	char *start = buffer;
-
-	buffer += sprintf(buffer, "  %d: %s ", ec->slot_no,
-			  ec->easi ? "EASI" : "    ");
+	seq_printf(m, "  %d: %s ", ec->slot_no, ec->easi ? "EASI" : "    ");
 
 	if (ec->cid.id == 0) {
 		struct in_chunk_dir incd;
 
-		buffer += sprintf(buffer, "[%04X:%04X] ",
+		seq_printf(m, "[%04X:%04X] ",
 			ec->cid.manufacturer, ec->cid.product);
 
 		if (!ec->card_desc && ec->cid.cd &&
@@ -744,43 +742,43 @@ static int ecard_prints(char *buffer, ecard_t *ec)
 				strcpy((char *)ec->card_desc, incd.d.string);
 		}
 
-		buffer += sprintf(buffer, "%s\n", ec->card_desc ? ec->card_desc : "*unknown*");
+		seq_printf(m, "%s\n", ec->card_desc ? ec->card_desc : "*unknown*");
 	} else
-		buffer += sprintf(buffer, "Simple card %d\n", ec->cid.id);
+		seq_printf(m, "Simple card %d\n", ec->cid.id);
 
-	return buffer - start;
+	return 0;
 }
 
-static int get_ecard_dev_info(char *buf, char **start, off_t pos, int count)
+static int ecard_devices_proc_show(struct seq_file *m, void *v)
 {
 	ecard_t *ec = cards;
-	off_t at = 0;
-	int len, cnt;
 
-	cnt = 0;
-	while (ec && count > cnt) {
-		len = ecard_prints(buf, ec);
-		at += len;
-		if (at >= pos) {
-			if (!*start) {
-				*start = buf + (pos - (at - len));
-				cnt = at - pos;
-			} else
-				cnt += len;
-			buf += len;
-		}
+	while (ec) {
+		ecard_prints(m, ec);
 		ec = ec->next;
 	}
-	return (count > cnt) ? cnt : count;
+	return 0;
 }
+
+static int ecard_devices_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ecard_devices_proc_show, NULL);
+}
+
+static const struct file_operations bus_ecard_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= ecard_devices_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static struct proc_dir_entry *proc_bus_ecard_dir = NULL;
 
 static void ecard_proc_init(void)
 {
 	proc_bus_ecard_dir = proc_mkdir("bus/ecard", NULL);
-	create_proc_info_entry("devices", 0, proc_bus_ecard_dir,
-		get_ecard_dev_info);
+	proc_create("devices", 0, proc_bus_ecard_dir, &bus_ecard_proc_fops);
 }
 
 #define ec_set_resource(ec,nr,st,sz)				\
