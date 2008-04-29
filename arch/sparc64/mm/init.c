@@ -160,6 +160,7 @@ extern unsigned int sparc_ramdisk_image;
 extern unsigned int sparc_ramdisk_size;
 
 struct page *mem_map_zero __read_mostly;
+EXPORT_SYMBOL(mem_map_zero);
 
 unsigned int sparc64_highest_unlocked_tlb_ent __read_mostly;
 
