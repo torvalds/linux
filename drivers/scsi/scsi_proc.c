@@ -413,6 +413,7 @@ static int proc_scsi_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations proc_scsi_operations = {
+	.owner		= THIS_MODULE,
 	.open		= proc_scsi_open,
 	.read		= seq_read,
 	.write		= proc_scsi_write,
@@ -431,10 +432,9 @@ int __init scsi_init_procfs(void)
 	if (!proc_scsi)
 		goto err1;
 
-	pde = create_proc_entry("scsi/scsi", 0, NULL);
+	pde = proc_create("scsi/scsi", 0, NULL, &proc_scsi_operations);
 	if (!pde)
 		goto err2;
-	pde->proc_fops = &proc_scsi_operations;
 
 	return 0;
 
