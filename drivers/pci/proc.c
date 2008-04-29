@@ -472,7 +472,7 @@ static int __init pci_proc_init(void)
 {
 	struct proc_dir_entry *entry;
 	struct pci_dev *dev = NULL;
-	proc_bus_pci_dir = proc_mkdir("pci", proc_bus);
+	proc_bus_pci_dir = proc_mkdir("bus/pci", NULL);
 	entry = create_proc_entry("devices", 0, proc_bus_pci_dir);
 	if (entry)
 		entry->proc_fops = &proc_bus_pci_dev_operations;

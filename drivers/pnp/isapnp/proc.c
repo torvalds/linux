@@ -116,7 +116,7 @@ int __init isapnp_proc_init(void)
 {
 	struct pnp_dev *dev;
 
-	isapnp_proc_bus_dir = proc_mkdir("isapnp", proc_bus);
+	isapnp_proc_bus_dir = proc_mkdir("bus/isapnp", NULL);
 	protocol_for_each_dev(&isapnp_protocol, dev) {
 		isapnp_proc_attach_device(dev);
 	}

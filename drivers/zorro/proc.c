@@ -128,7 +128,7 @@ static int __init zorro_proc_init(void)
 	u_int slot;
 
 	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(ZORRO)) {
-		proc_bus_zorro_dir = proc_mkdir("zorro", proc_bus);
+		proc_bus_zorro_dir = proc_mkdir("bus/zorro", NULL);
 		create_proc_info_entry("devices", 0, proc_bus_zorro_dir,
 				       get_zorro_dev_info);
 		for (slot = 0; slot < zorro_num_autocon; slot++)

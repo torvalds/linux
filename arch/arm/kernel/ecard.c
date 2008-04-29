@@ -778,7 +778,7 @@ static struct proc_dir_entry *proc_bus_ecard_dir = NULL;
 
 static void ecard_proc_init(void)
 {
-	proc_bus_ecard_dir = proc_mkdir("ecard", proc_bus);
+	proc_bus_ecard_dir = proc_mkdir("bus/ecard", NULL);
 	create_proc_info_entry("devices", 0, proc_bus_ecard_dir,
 		get_ecard_dev_info);
 }

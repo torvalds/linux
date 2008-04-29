@@ -22,7 +22,7 @@
 
 #include "internal.h"
 
-struct proc_dir_entry *proc_bus, *proc_root_fs, *proc_root_driver;
+struct proc_dir_entry *proc_root_fs, *proc_root_driver;
 
 static int proc_test_super(struct super_block *sb, void *data)
 {
@@ -137,7 +137,7 @@ void __init proc_root_init(void)
 #ifdef CONFIG_PROC_DEVICETREE
 	proc_device_tree_init();
 #endif
-	proc_bus = proc_mkdir("bus", NULL);
+	proc_mkdir("bus", NULL);
 	proc_sys_init();
 }
 
@@ -236,5 +236,4 @@ EXPORT_SYMBOL(proc_create);
 EXPORT_SYMBOL(remove_proc_entry);
 EXPORT_SYMBOL(proc_root);
 EXPORT_SYMBOL(proc_root_fs);
-EXPORT_SYMBOL(proc_bus);
 EXPORT_SYMBOL(proc_root_driver);

@@ -171,7 +171,7 @@ void __init nubus_proc_init(void)
 {
 	if (!MACH_IS_MAC)
 		return;
-	proc_bus_nubus_dir = proc_mkdir("nubus", proc_bus);
+	proc_bus_nubus_dir = proc_mkdir("bus/nubus", NULL);
 	create_proc_info_entry("devices", 0, proc_bus_nubus_dir,
 				get_nubus_dev_info);
 	proc_bus_nubus_add_devices();

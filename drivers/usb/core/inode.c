@@ -773,7 +773,7 @@ int __init usbfs_init(void)
 	usb_register_notify(&usbfs_nb);
 
 	/* create mount point for usbfs */
-	usbdir = proc_mkdir("usb", proc_bus);
+	usbdir = proc_mkdir("bus/usb", NULL);
 
 	return 0;
 }
@@ -783,6 +783,6 @@ void usbfs_cleanup(void)
 	usb_unregister_notify(&usbfs_nb);
 	unregister_filesystem(&usb_fs_type);
 	if (usbdir)
-		remove_proc_entry("usb", proc_bus);
+		remove_proc_entry("bus/usb", NULL);
 }
 
