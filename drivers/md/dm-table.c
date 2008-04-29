@@ -873,13 +873,11 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q)
 	q->max_hw_sectors = t->limits.max_hw_sectors;
 	q->seg_boundary_mask = t->limits.seg_boundary_mask;
 	q->bounce_pfn = t->limits.bounce_pfn;
-	/* XXX: the below will probably go bug. must ensure there can be no
-	 * concurrency on queue_flags, and use the unlocked versions...
-	 */
+
 	if (t->limits.no_cluster)
-		queue_flag_clear(QUEUE_FLAG_CLUSTER, q);
+		queue_flag_clear_unlocked(QUEUE_FLAG_CLUSTER, q);
 	else
-		queue_flag_set(QUEUE_FLAG_CLUSTER, q);
+		queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, q);
 
 }
 
