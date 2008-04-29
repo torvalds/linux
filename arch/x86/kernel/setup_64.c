@@ -29,6 +29,7 @@
 #include <linux/crash_dump.h>
 #include <linux/root_dev.h>
 #include <linux/pci.h>
+#include <asm/pci-direct.h>
 #include <linux/efi.h>
 #include <linux/acpi.h>
 #include <linux/kallsyms.h>
@@ -40,6 +41,7 @@
 #include <linux/dmi.h>
 #include <linux/dma-mapping.h>
 #include <linux/ctype.h>
+#include <linux/sort.h>
 #include <linux/uaccess.h>
 #include <linux/init_ohci1394_dma.h>
 #include <linux/kvm_para.h>
@@ -288,6 +290,18 @@ static void __init parse_setup_data(void)
 	}
 }
 
+#ifdef CONFIG_PCI_MMCONFIG
+extern void __cpuinit fam10h_check_enable_mmcfg(void);
+extern void __init check_enable_amd_mmconf_dmi(void);
+#else
+void __cpuinit fam10h_check_enable_mmcfg(void)
+{
+}
+void __init check_enable_amd_mmconf_dmi(void)
+{
+}
+#endif
+
 /*
  * setup_arch - architecture-specific boot-time initializations
  *
@@ -515,6 +529,9 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 #endif
+
+	/* do this before identify_cpu for boot cpu */
+	check_enable_amd_mmconf_dmi();
 }
 
 static int __cpuinit get_model_name(struct cpuinfo_x86 *c)
@@ -766,6 +783,9 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	/* MFENCE stops RDTSC speculation */
 	set_cpu_cap(c, X86_FEATURE_MFENCE_RDTSC);
+
+	if (c->x86 == 0x10)
+		fam10h_check_enable_mmcfg();
 
 	if (amd_apic_timer_broken())
 		disable_apic_timer = 1;

@@ -26,6 +26,7 @@
 #define PCI_ASSIGN_ALL_BUSSES	0x4000
 #define PCI_CAN_SKIP_ISA_ALIGN	0x8000
 #define PCI_USE__CRS		0x10000
+#define PCI_CHECK_ENABLE_AMD_MMCONF	0x20000
 
 extern unsigned int pci_probe;
 extern unsigned long pirq_table_addr;
@@ -97,12 +98,12 @@ extern struct pci_raw_ops pci_direct_conf1;
 extern int pci_direct_probe(void);
 extern void pci_direct_init(int type);
 extern void pci_pcbios_init(void);
-extern void pci_mmcfg_init(int type);
 extern void pci_olpc_init(void);
 
 /* pci-mmconfig.c */
 
 extern int __init pci_mmcfg_arch_init(void);
+extern void __init pci_mmcfg_arch_free(void);
 
 /*
  * AMD Fam10h CPUs are buggy, and cannot access MMIO config space

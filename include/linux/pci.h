@@ -254,7 +254,7 @@ static inline void pci_add_saved_cap(struct pci_dev *pci_dev,
 #define PCI_NUM_RESOURCES	11
 
 #ifndef PCI_BUS_NUM_RESOURCES
-#define PCI_BUS_NUM_RESOURCES	8
+#define PCI_BUS_NUM_RESOURCES	16
 #endif
 
 #define PCI_REGION_FLAG_MASK	0x0fU	/* These bits of resource flags tell us the PCI region flags */
@@ -666,6 +666,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 
 void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
 		  void *userdata);
+int pci_cfg_space_size_ext(struct pci_dev *dev, unsigned check_exp_pcix);
 int pci_cfg_space_size(struct pci_dev *dev);
 unsigned char pci_bus_max_busnr(struct pci_bus *bus);
 
@@ -1052,6 +1053,14 @@ extern unsigned long pci_cardbus_io_size;
 extern unsigned long pci_cardbus_mem_size;
 
 extern int pcibios_add_platform_entries(struct pci_dev *dev);
+
+#ifdef CONFIG_PCI_MMCONFIG
+extern void __init pci_mmcfg_early_init(void);
+extern void __init pci_mmcfg_late_init(void);
+#else
+static inline void pci_mmcfg_early_init(void) { }
+static inline void pci_mmcfg_late_init(void) { }
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */
