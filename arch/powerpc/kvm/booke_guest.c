@@ -339,6 +339,11 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		}
 		break;
 
+	case BOOKE_INTERRUPT_FP_UNAVAIL:
+		kvmppc_queue_exception(vcpu, exit_nr);
+		r = RESUME_GUEST;
+		break;
+
 	case BOOKE_INTERRUPT_DATA_STORAGE:
 		vcpu->arch.dear = vcpu->arch.fault_dear;
 		vcpu->arch.esr = vcpu->arch.fault_esr;
