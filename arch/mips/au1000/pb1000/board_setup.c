@@ -145,13 +145,6 @@ void __init board_setup(void)
 	au_writel(0x280E3D07, MEM_STTIME3); /* 250ns cycle time */
 	au_writel(0x10000000, MEM_STADDR3); /* any PCMCIA select */
 
-#ifdef CONFIG_PCI
-	au_writel(0, PCI_BRIDGE_CONFIG); // set extend byte to 0
-	au_writel(0, SDRAM_MBAR);        // set mbar to 0
-	au_writel(0x2, SDRAM_CMD);       // enable memory accesses
-	au_sync_delay(1);
-#endif
-
 	/*
 	 * Enable Au1000 BCLK switching - note: sed1356 must not use
 	 * its BCLK (Au1000 LCLK) for any timings
