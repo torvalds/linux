@@ -26,6 +26,7 @@
 #include <linux/pipe_fs_i.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
+#include <linux/audit.h>
 
 #include "smack.h"
 
@@ -750,6 +751,18 @@ static int smack_inode_listsecurity(struct inode *inode, char *buffer,
 		return len;
 	}
 	return -EINVAL;
+}
+
+/**
+ * smack_inode_getsecid - Extract inode's security id
+ * @inode: inode to extract the info from
+ * @secid: where result will be saved
+ */
+static void smack_inode_getsecid(const struct inode *inode, u32 *secid)
+{
+	struct inode_smack *isp = inode->i_security;
+
+	*secid = smack_to_secid(isp->smk_inode);
 }
 
 /*
@@ -1805,6 +1818,18 @@ static int smack_ipc_permission(struct kern_ipc_perm *ipp, short flag)
 	return smk_curacc(isp, may);
 }
 
+/**
+ * smack_ipc_getsecid - Extract smack security id
+ * @ipcp: the object permissions
+ * @secid: where result will be saved
+ */
+static void smack_ipc_getsecid(struct kern_ipc_perm *ipp, u32 *secid)
+{
+	char *smack = ipp->security;
+
+	*secid = smack_to_secid(smack);
+}
+
 /* module stacking operations */
 
 /**
@@ -2382,6 +2407,124 @@ static int smack_key_permission(key_ref_t key_ref,
 #endif /* CONFIG_KEYS */
 
 /*
+ * Smack Audit hooks
+ *
+ * Audit requires a unique representation of each Smack specific
+ * rule. This unique representation is used to distinguish the
+ * object to be audited from remaining kernel objects and also
+ * works as a glue between the audit hooks.
+ *
+ * Since repository entries are added but never deleted, we'll use
+ * the smack_known label address related to the given audit rule as
+ * the needed unique representation. This also better fits the smack
+ * model where nearly everything is a label.
+ */
+#ifdef CONFIG_AUDIT
+
+/**
+ * smack_audit_rule_init - Initialize a smack audit rule
+ * @field: audit rule fields given from user-space (audit.h)
+ * @op: required testing operator (=, !=, >, <, ...)
+ * @rulestr: smack label to be audited
+ * @vrule: pointer to save our own audit rule representation
+ *
+ * Prepare to audit cases where (@field @op @rulestr) is true.
+ * The label to be audited is created if necessay.
+ */
+static int smack_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
+{
+	char **rule = (char **)vrule;
+	*rule = NULL;
+
+	if (field != AUDIT_SUBJ_USER && field != AUDIT_OBJ_USER)
+		return -EINVAL;
+
+	if (op != AUDIT_EQUAL && op != AUDIT_NOT_EQUAL)
+		return -EINVAL;
+
+	*rule = smk_import(rulestr, 0);
+
+	return 0;
+}
+
+/**
+ * smack_audit_rule_known - Distinguish Smack audit rules
+ * @krule: rule of interest, in Audit kernel representation format
+ *
+ * This is used to filter Smack rules from remaining Audit ones.
+ * If it's proved that this rule belongs to us, the
+ * audit_rule_match hook will be called to do the final judgement.
+ */
+static int smack_audit_rule_known(struct audit_krule *krule)
+{
+	struct audit_field *f;
+	int i;
+
+	for (i = 0; i < krule->field_count; i++) {
+		f = &krule->fields[i];
+
+		if (f->type == AUDIT_SUBJ_USER || f->type == AUDIT_OBJ_USER)
+			return 1;
+	}
+
+	return 0;
+}
+
+/**
+ * smack_audit_rule_match - Audit given object ?
+ * @secid: security id for identifying the object to test
+ * @field: audit rule flags given from user-space
+ * @op: required testing operator
+ * @vrule: smack internal rule presentation
+ * @actx: audit context associated with the check
+ *
+ * The core Audit hook. It's used to take the decision of
+ * whether to audit or not to audit a given object.
+ */
+static int smack_audit_rule_match(u32 secid, u32 field, u32 op, void *vrule,
+				  struct audit_context *actx)
+{
+	char *smack;
+	char *rule = vrule;
+
+	if (!rule) {
+		audit_log(actx, GFP_KERNEL, AUDIT_SELINUX_ERR,
+			  "Smack: missing rule\n");
+		return -ENOENT;
+	}
+
+	if (field != AUDIT_SUBJ_USER && field != AUDIT_OBJ_USER)
+		return 0;
+
+	smack = smack_from_secid(secid);
+
+	/*
+	 * No need to do string comparisons. If a match occurs,
+	 * both pointers will point to the same smack_known
+	 * label.
+	 */
+	if (op == AUDIT_EQUAL)
+		return (rule == smack);
+	if (op == AUDIT_NOT_EQUAL)
+		return (rule != smack);
+
+	return 0;
+}
+
+/**
+ * smack_audit_rule_free - free smack rule representation
+ * @vrule: rule to be freed.
+ *
+ * No memory was allocated.
+ */
+static void smack_audit_rule_free(void *vrule)
+{
+	/* No-op */
+}
+
+#endif /* CONFIG_AUDIT */
+
+/*
  * smack_secid_to_secctx - return the smack label for a secid
  * @secid: incoming integer
  * @secdata: destination
@@ -2467,6 +2610,7 @@ struct security_operations smack_ops = {
 	.inode_getsecurity = 		smack_inode_getsecurity,
 	.inode_setsecurity = 		smack_inode_setsecurity,
 	.inode_listsecurity = 		smack_inode_listsecurity,
+	.inode_getsecid =		smack_inode_getsecid,
 
 	.file_permission = 		smack_file_permission,
 	.file_alloc_security = 		smack_file_alloc_security,
@@ -2498,6 +2642,7 @@ struct security_operations smack_ops = {
 	.task_prctl =			cap_task_prctl,
 
 	.ipc_permission = 		smack_ipc_permission,
+	.ipc_getsecid =			smack_ipc_getsecid,
 
 	.msg_msg_alloc_security = 	smack_msg_msg_alloc_security,
 	.msg_msg_free_security = 	smack_msg_msg_free_security,
@@ -2542,12 +2687,22 @@ struct security_operations smack_ops = {
 	.sk_free_security = 		smack_sk_free_security,
 	.sock_graft = 			smack_sock_graft,
 	.inet_conn_request = 		smack_inet_conn_request,
+
  /* key management security hooks */
 #ifdef CONFIG_KEYS
 	.key_alloc = 			smack_key_alloc,
 	.key_free = 			smack_key_free,
 	.key_permission = 		smack_key_permission,
 #endif /* CONFIG_KEYS */
+
+ /* Audit hooks */
+#ifdef CONFIG_AUDIT
+	.audit_rule_init =		smack_audit_rule_init,
+	.audit_rule_known =		smack_audit_rule_known,
+	.audit_rule_match =		smack_audit_rule_match,
+	.audit_rule_free =		smack_audit_rule_free,
+#endif /* CONFIG_AUDIT */
+
 	.secid_to_secctx = 		smack_secid_to_secctx,
 	.secctx_to_secid = 		smack_secctx_to_secid,
 	.release_secctx = 		smack_release_secctx,
