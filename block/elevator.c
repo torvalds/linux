@@ -488,6 +488,9 @@ int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 		}
 	}
 
+	if (blk_queue_nomerges(q))
+		return ELEVATOR_NO_MERGE;
+
 	/*
 	 * See if our hash lookup can find a potential backmerge.
 	 */
