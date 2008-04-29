@@ -4,7 +4,6 @@
 #include <linux/preempt.h>
 #include <linux/slab.h> /* For kmalloc() */
 #include <linux/smp.h>
-#include <linux/string.h> /* For memset() */
 #include <linux/cpumask.h>
 
 #include <asm/percpu.h>
