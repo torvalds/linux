@@ -2785,6 +2785,28 @@ int ext4_ext_writepage_trans_blocks(struct inode *inode, int num)
 	return needed;
 }
 
+static void ext4_falloc_update_inode(struct inode *inode,
+				int mode, loff_t new_size, int update_ctime)
+{
+	struct timespec now;
+
+	if (update_ctime) {
+		now = current_fs_time(inode->i_sb);
+		if (!timespec_equal(&inode->i_ctime, &now))
+			inode->i_ctime = now;
+	}
+	/*
+	 * Update only when preallocation was requested beyond
+	 * the file size.
+	 */
+	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
+				new_size > i_size_read(inode)) {
+		i_size_write(inode, new_size);
+		EXT4_I(inode)->i_disksize = new_size;
+	}
+
+}
+
 /*
  * preallocate space for a file. This implements ext4's fallocate inode
  * operation, which gets called from sys_fallocate system call.
@@ -2796,8 +2818,8 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 {
 	handle_t *handle;
 	ext4_lblk_t block;
+	loff_t new_size;
 	unsigned long max_blocks;
-	ext4_fsblk_t nblocks = 0;
 	int ret = 0;
 	int ret2 = 0;
 	int retries = 0;
@@ -2816,9 +2838,12 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 		return -ENODEV;
 
 	block = offset >> blkbits;
+	/*
+	 * We can't just convert len to max_blocks because
+	 * If blocksize = 4096 offset = 3072 and len = 2048
+	 */
 	max_blocks = (EXT4_BLOCK_ALIGN(len + offset, blkbits) >> blkbits)
-			- block;
-
+							- block;
 	/*
 	 * credits to insert 1 extent into extent tree + buffers to be able to
 	 * modify 1 super block, 1 block bitmap and 1 group descriptor.
@@ -2834,7 +2859,6 @@ retry:
 			ret = PTR_ERR(handle);
 			break;
 		}
-
 		ret = ext4_get_blocks_wrap(handle, inode, block,
 					  max_blocks, &map_bh,
 					  EXT4_CREATE_UNINITIALIZED_EXT, 0);
@@ -2850,61 +2874,24 @@ retry:
 			ret2 = ext4_journal_stop(handle);
 			break;
 		}
-		if (ret > 0) {
-			/* check wrap through sign-bit/zero here */
-			if ((block + ret) < 0 || (block + ret) < block) {
-				ret = -EIO;
-				ext4_mark_inode_dirty(handle, inode);
-				ret2 = ext4_journal_stop(handle);
-				break;
-			}
-			if (buffer_new(&map_bh) && ((block + ret) >
-			    (EXT4_BLOCK_ALIGN(i_size_read(inode), blkbits)
-			    >> blkbits)))
-					nblocks = nblocks + ret;
-		}
+		if ((block + ret) >= (EXT4_BLOCK_ALIGN(offset + len,
+						blkbits) >> blkbits))
+			new_size = offset + len;
+		else
+			new_size = (block + ret) << blkbits;
 
-		/* Update ctime if new blocks get allocated */
-		if (nblocks) {
-			struct timespec now;
-
-			now = current_fs_time(inode->i_sb);
-			if (!timespec_equal(&inode->i_ctime, &now))
-				inode->i_ctime = now;
-		}
-
+		ext4_falloc_update_inode(inode, mode, new_size,
+						buffer_new(&map_bh));
 		ext4_mark_inode_dirty(handle, inode);
 		ret2 = ext4_journal_stop(handle);
 		if (ret2)
 			break;
 	}
-
-	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
+	if (ret == -ENOSPC &&
+			ext4_should_retry_alloc(inode->i_sb, &retries)) {
+		ret = 0;
 		goto retry;
-
-	/*
-	 * Time to update the file size.
-	 * Update only when preallocation was requested beyond the file size.
-	 */
-	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-	    (offset + len) > i_size_read(inode)) {
-		if (ret > 0) {
-			/*
-			 * if no error, we assume preallocation succeeded
-			 * completely
-			 */
-			i_size_write(inode, offset + len);
-			EXT4_I(inode)->i_disksize = i_size_read(inode);
-		} else if (ret < 0 && nblocks) {
-			/* Handle partial allocation scenario */
-			loff_t newsize;
-
-			newsize  = (nblocks << blkbits) + i_size_read(inode);
-			i_size_write(inode, EXT4_BLOCK_ALIGN(newsize, blkbits));
-			EXT4_I(inode)->i_disksize = i_size_read(inode);
-		}
 	}
-
 	mutex_unlock(&inode->i_mutex);
 	return ret > 0 ? ret2 : ret;
 }
