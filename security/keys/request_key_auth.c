@@ -15,6 +15,7 @@
 #include <linux/sched.h>
 #include <linux/err.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 

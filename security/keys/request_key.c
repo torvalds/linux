@@ -16,6 +16,7 @@
 #include <linux/kmod.h>
 #include <linux/err.h>
 #include <linux/keyctl.h>
+#include <linux/slab.h>
 #include "internal.h"
 
 /*
