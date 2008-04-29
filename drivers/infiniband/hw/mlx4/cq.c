@@ -137,7 +137,7 @@ static int mlx4_ib_get_cq_umem(struct mlx4_ib_dev *dev, struct ib_ucontext *cont
 	int err;
 
 	*umem = ib_umem_get(context, buf_addr, cqe * sizeof (struct mlx4_cqe),
-			    IB_ACCESS_LOCAL_WRITE);
+			    IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(*umem))
 		return PTR_ERR(*umem);
 

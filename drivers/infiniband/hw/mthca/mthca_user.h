@@ -41,7 +41,7 @@
  * Increment this value if any changes that break userspace ABI
  * compatibility are made.
  */
-#define MTHCA_UVERBS_ABI_VERSION	1
+#define MTHCA_UVERBS_ABI_VERSION	2
 
 /*
  * Make sure that all structs defined in this file remain laid out so
@@ -58,6 +58,14 @@ struct mthca_alloc_ucontext_resp {
 
 struct mthca_alloc_pd_resp {
 	__u32 pdn;
+	__u32 reserved;
+};
+
+struct mthca_reg_mr {
+	__u32 mr_attrs;
+#define MTHCA_MR_DMASYNC 0x1
+/* mark the memory region with a DMA attribute that causes
+ * in-flight DMA to be flushed when the region is written to */
 	__u32 reserved;
 };
 
