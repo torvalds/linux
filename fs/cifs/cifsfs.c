@@ -306,8 +306,8 @@ cifs_alloc_inode(struct super_block *sb)
 	/* Until the file is open and we have gotten oplock
 	info back from the server, can not assume caching of
 	file data or metadata */
-	cifs_inode->clientCanCacheRead = FALSE;
-	cifs_inode->clientCanCacheAll = FALSE;
+	cifs_inode->clientCanCacheRead = false;
+	cifs_inode->clientCanCacheAll = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 
 	/* Can not set i_flags here - they get immediately overwritten
@@ -940,7 +940,7 @@ static int cifs_oplock_thread(void *dummyarg)
 				    rc = CIFSSMBLock(0, pTcon, netfid,
 					    0 /* len */ , 0 /* offset */, 0,
 					    0, LOCKING_ANDX_OPLOCK_RELEASE,
-					    0 /* wait flag */);
+					    false /* wait flag */);
 					cFYI(1, ("Oplock release rc = %d", rc));
 				}
 			} else

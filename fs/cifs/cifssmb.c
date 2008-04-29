@@ -95,7 +95,7 @@ static void mark_open_files_invalid(struct cifsTconInfo *pTcon)
 	list_for_each_safe(tmp, tmp1, &pTcon->openFileList) {
 		open_file = list_entry(tmp, struct cifsFileInfo, tlist);
 		if (open_file)
-			open_file->invalidHandle = TRUE;
+			open_file->invalidHandle = true;
 	}
 	write_unlock(&GlobalSMBSeslock);
 	/* BB Add call to invalidate_inodes(sb) for all superblocks mounted
@@ -141,7 +141,7 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 				if (tcon->ses->server->tcpStatus ==
 							CifsNeedReconnect) {
 					/* on "soft" mounts we wait once */
-					if ((tcon->retry == FALSE) ||
+					if (!tcon->retry ||
 					   (tcon->ses->status == CifsExiting)) {
 						cFYI(1, ("gave up waiting on "
 						      "reconnect in smb_init"));
@@ -289,7 +289,7 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 				if (tcon->ses->server->tcpStatus ==
 						CifsNeedReconnect) {
 					/* on "soft" mounts we wait once */
-					if ((tcon->retry == FALSE) ||
+					if (!tcon->retry ||
 					   (tcon->ses->status == CifsExiting)) {
 						cFYI(1, ("gave up waiting on "
 						      "reconnect in smb_init"));
@@ -1686,7 +1686,7 @@ int
 CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 	    const __u16 smb_file_id, const __u64 len,
 	    const __u64 offset, const __u32 numUnlock,
-	    const __u32 numLock, const __u8 lockType, const int waitFlag)
+	    const __u32 numLock, const __u8 lockType, const bool waitFlag)
 {
 	int rc = 0;
 	LOCK_REQ *pSMB = NULL;
@@ -1695,7 +1695,7 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 	int timeout = 0;
 	__u16 count;
 
-	cFYI(1, ("CIFSSMBLock timeout %d numLock %d", waitFlag, numLock));
+	cFYI(1, ("CIFSSMBLock timeout %d numLock %d", (int)waitFlag, numLock));
 	rc = small_smb_init(SMB_COM_LOCKING_ANDX, 8, tcon, (void **) &pSMB);
 
 	if (rc)
@@ -1706,7 +1706,7 @@ CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 	if (lockType == LOCKING_ANDX_OPLOCK_RELEASE) {
 		timeout = CIFS_ASYNC_OP; /* no response expected */
 		pSMB->Timeout = 0;
-	} else if (waitFlag == TRUE) {
+	} else if (waitFlag) {
 		timeout = CIFS_BLOCKING_OP; /* blocking operation, no timeout */
 		pSMB->Timeout = cpu_to_le32(-1);/* blocking - do not time out */
 	} else {
@@ -1756,7 +1756,7 @@ int
 CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 		const __u16 smb_file_id, const int get_flag, const __u64 len,
 		struct file_lock *pLockData, const __u16 lock_type,
-		const int waitFlag)
+		const bool waitFlag)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
 	struct smb_com_transaction2_sfi_rsp *pSMBr = NULL;
@@ -3581,9 +3581,9 @@ findFirstRetry:
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 		if (rc == 0) {
 			if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
-				psrch_inf->unicode = TRUE;
+				psrch_inf->unicode = true;
 			else
-				psrch_inf->unicode = FALSE;
+				psrch_inf->unicode = false;
 
 			psrch_inf->ntwrk_buf_start = (char *)pSMBr;
 			psrch_inf->smallBuf = 0;
@@ -3594,9 +3594,9 @@ findFirstRetry:
 			       le16_to_cpu(pSMBr->t2.ParameterOffset));
 
 			if (parms->EndofSearch)
-				psrch_inf->endOfSearch = TRUE;
+				psrch_inf->endOfSearch = true;
 			else
-				psrch_inf->endOfSearch = FALSE;
+				psrch_inf->endOfSearch = false;
 
 			psrch_inf->entries_in_buffer =
 					le16_to_cpu(parms->SearchCount);
@@ -3624,7 +3624,7 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 
 	cFYI(1, ("In FindNext"));
 
-	if (psrch_inf->endOfSearch == TRUE)
+	if (psrch_inf->endOfSearch)
 		return -ENOENT;
 
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
@@ -3682,7 +3682,7 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 	cifs_stats_inc(&tcon->num_fnext);
 	if (rc) {
 		if (rc == -EBADF) {
-			psrch_inf->endOfSearch = TRUE;
+			psrch_inf->endOfSearch = true;
 			rc = 0; /* search probably was closed at end of search*/
 		} else
 			cFYI(1, ("FindNext returned = %d", rc));
@@ -3692,9 +3692,9 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 		if (rc == 0) {
 			/* BB fixme add lock for file (srch_info) struct here */
 			if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
-				psrch_inf->unicode = TRUE;
+				psrch_inf->unicode = true;
 			else
-				psrch_inf->unicode = FALSE;
+				psrch_inf->unicode = false;
 			response_data = (char *) &pSMBr->hdr.Protocol +
 			       le16_to_cpu(pSMBr->t2.ParameterOffset);
 			parms = (T2_FNEXT_RSP_PARMS *)response_data;
@@ -3709,9 +3709,9 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 			psrch_inf->ntwrk_buf_start = (char *)pSMB;
 			psrch_inf->smallBuf = 0;
 			if (parms->EndofSearch)
-				psrch_inf->endOfSearch = TRUE;
+				psrch_inf->endOfSearch = true;
 			else
-				psrch_inf->endOfSearch = FALSE;
+				psrch_inf->endOfSearch = false;
 			psrch_inf->entries_in_buffer =
 						le16_to_cpu(parms->SearchCount);
 			psrch_inf->index_of_last_entry +=
@@ -4586,7 +4586,7 @@ QFSPosixRetry:
 
 int
 CIFSSMBSetEOF(const int xid, struct cifsTconInfo *tcon, const char *fileName,
-	      __u64 size, int SetAllocation,
+	      __u64 size, bool SetAllocation,
 	      const struct nls_table *nls_codepage, int remap)
 {
 	struct smb_com_transaction2_spi_req *pSMB = NULL;
@@ -4675,7 +4675,7 @@ SetEOFRetry:
 
 int
 CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon, __u64 size,
-		   __u16 fid, __u32 pid_of_opener, int SetAllocation)
+		   __u16 fid, __u32 pid_of_opener, bool SetAllocation)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
 	char *data_offset;

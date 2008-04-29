@@ -264,7 +264,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 		else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
 			__u16 fid;
-			int oplock = FALSE;
+			int oplock = 0;
 			struct cifs_ntsd *pacl = NULL;
 			__u32 buflen = 0;
 			if (experimEnabled)
