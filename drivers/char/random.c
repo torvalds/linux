@@ -439,7 +439,7 @@ static struct entropy_store nonblocking_pool = {
 };
 
 /*
- * This function adds a byte into the entropy "pool".  It does not
+ * This function adds bytes into the entropy "pool".  It does not
  * update the entropy estimate.  The caller should call
  * credit_entropy_store if this is appropriate.
  *
@@ -448,8 +448,8 @@ static struct entropy_store nonblocking_pool = {
  * it's cheap to do so and helps slightly in the expected case where
  * the entropy is concentrated in the low-order bits.
  */
-static void __add_entropy_words(struct entropy_store *r, const __u32 *in,
-				int nwords, __u32 out[16])
+static void mix_pool_bytes_extract(struct entropy_store *r, const void *in,
+				   int nbytes, __u8 out[64])
 {
 	static __u32 const twist_table[8] = {
 		0x00000000, 0x3b6e20c8, 0x76dc4190, 0x4db26158,
@@ -457,6 +457,7 @@ static void __add_entropy_words(struct entropy_store *r, const __u32 *in,
 	unsigned long i, j, tap1, tap2, tap3, tap4, tap5;
 	int input_rotate;
 	int wordmask = r->poolinfo->poolwords - 1;
+	const char *bytes = in;
 	__u32 w;
 	unsigned long flags;
 
@@ -471,8 +472,9 @@ static void __add_entropy_words(struct entropy_store *r, const __u32 *in,
 	input_rotate = r->input_rotate;
 	i = r->add_ptr;
 
-	while (nwords--) {
-		w = rol32(*in++, input_rotate & 31);
+	/* mix one byte at a time to simplify size handling and churn faster */
+	while (nbytes--) {
+		w = rol32(*bytes++, input_rotate & 31);
 		i = (i - 1) & wordmask;
 
 		/* XOR in the various taps */
@@ -500,15 +502,14 @@ static void __add_entropy_words(struct entropy_store *r, const __u32 *in,
 
 	if (out)
 		for (j = 0; j < 16; j++)
-			out[j] = r->pool[(i - j) & wordmask];
+			((__u32 *)out)[j] = r->pool[(i - j) & wordmask];
 
 	spin_unlock_irqrestore(&r->lock, flags);
 }
 
-static inline void add_entropy_words(struct entropy_store *r, const __u32 *in,
-				     int nwords)
+static void mix_pool_bytes(struct entropy_store *r, const void *in, int bytes)
 {
-	__add_entropy_words(r, in, nwords, NULL);
+       mix_pool_bytes_extract(r, in, bytes, NULL);
 }
 
 /*
@@ -584,7 +585,7 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned num)
 	sample.jiffies = jiffies;
 	sample.cycles = get_cycles();
 	sample.num = num;
-	add_entropy_words(&input_pool, (u32 *)&sample, sizeof(sample)/4);
+	mix_pool_bytes(&input_pool, &sample, sizeof(sample));
 
 	/*
 	 * Calculate number of bits of randomness we probably added.
@@ -700,7 +701,7 @@ static void xfer_secondary_pool(struct entropy_store *r, size_t nbytes)
 
 		bytes = extract_entropy(r->pull, tmp, bytes,
 					random_read_wakeup_thresh / 8, rsvd);
-		add_entropy_words(r, tmp, (bytes + 3) / 4);
+		mix_pool_bytes(r, tmp, bytes);
 		credit_entropy_store(r, bytes*8);
 	}
 }
@@ -758,7 +759,8 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 static void extract_buf(struct entropy_store *r, __u8 *out)
 {
 	int i;
-	__u32 extract[16], hash[5], workspace[SHA_WORKSPACE_WORDS];
+	__u32 hash[5], workspace[SHA_WORKSPACE_WORDS];
+	__u8 extract[64];
 
 	/* Generate a hash across the pool, 16 words (512 bits) at a time */
 	sha_init(hash);
@@ -774,13 +776,13 @@ static void extract_buf(struct entropy_store *r, __u8 *out)
 	 * brute-forcing the feedback as hard as brute-forcing the
 	 * hash.
 	 */
-	__add_entropy_words(r, hash, 5, extract);
+	mix_pool_bytes_extract(r, hash, sizeof(hash), extract);
 
 	/*
 	 * To avoid duplicates, we atomically extract a portion of the
 	 * pool while mixing, and hash one final time.
 	 */
-	sha_transform(hash, (__u8 *)extract, workspace);
+	sha_transform(hash, extract, workspace);
 	memset(extract, 0, sizeof(extract));
 	memset(workspace, 0, sizeof(workspace));
 
@@ -887,9 +889,8 @@ static void init_std_data(struct entropy_store *r)
 	spin_unlock_irqrestore(&r->lock, flags);
 
 	now = ktime_get_real();
-	add_entropy_words(r, (__u32 *)&now, sizeof(now)/4);
-	add_entropy_words(r, (__u32 *)utsname(),
-			  sizeof(*(utsname()))/4);
+	mix_pool_bytes(r, &now, sizeof(now));
+	mix_pool_bytes(r, utsname(), sizeof(*(utsname())));
 }
 
 static int rand_initialize(void)
@@ -1030,7 +1031,7 @@ write_pool(struct entropy_store *r, const char __user *buffer, size_t count)
 		count -= bytes;
 		p += bytes;
 
-		add_entropy_words(r, buf, (bytes + 3) / 4);
+		mix_pool_bytes(r, buf, bytes);
 		cond_resched();
 	}
 
