@@ -2570,8 +2570,18 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			}
 			if (create == EXT4_CREATE_UNINITIALIZED_EXT)
 				goto out;
-			if (!create)
+			if (!create) {
+				/*
+				 * We have blocks reserved already.  We
+				 * return allocated blocks so that delalloc
+				 * won't do block reservation for us.  But
+				 * the buffer head will be unmapped so that
+				 * a read from the block returns 0s.
+				 */
+				if (allocated > max_blocks)
+					allocated = max_blocks;
 				goto out2;
+			}
 
 			ret = ext4_ext_convert_to_initialized(handle, inode,
 								path, iblock,
