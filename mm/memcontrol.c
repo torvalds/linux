@@ -880,17 +880,6 @@ static ssize_t mem_force_empty_write(struct cgroup *cont,
 	return ret;
 }
 
-/*
- * Note: This should be removed if cgroup supports write-only file.
- */
-static ssize_t mem_force_empty_read(struct cgroup *cont,
-				struct cftype *cft,
-				struct file *file, char __user *userbuf,
-				size_t nbytes, loff_t *ppos)
-{
-	return -EINVAL;
-}
-
 static const struct mem_cgroup_stat_desc {
 	const char *msg;
 	u64 unit;
@@ -947,7 +936,6 @@ static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "force_empty",
 		.write = mem_force_empty_write,
-		.read = mem_force_empty_read,
 	},
 	{
 		.name = "stat",
