@@ -63,16 +63,13 @@ static int
 scdrv_parse_event(char *event, int *src, int *code, int *esp_code, char *desc)
 {
 	char *desc_end;
-	__be32 from_buf;
 
 	/* record event source address */
-	from_buf = get_unaligned((__be32 *)event);
-	*src = be32_to_cpup(&from_buf);
+	*src = get_unaligned_be32(event);
 	event += 4; 			/* move on to event code */
 
 	/* record the system controller's event code */
-	from_buf = get_unaligned((__be32 *)event);
-	*code = be32_to_cpup(&from_buf);
+	*code = get_unaligned_be32(event);
 	event += 4;			/* move on to event arguments */
 
 	/* how many arguments are in the packet? */
@@ -86,8 +83,7 @@ scdrv_parse_event(char *event, int *src, int *code, int *esp_code, char *desc)
 		/* not an integer argument, so give up */
 		return -1;
 	}
-	from_buf = get_unaligned((__be32 *)event);
-	*esp_code = be32_to_cpup(&from_buf);
+	*esp_code = get_unaligned_be32(event);
 	event += 4;
 
 	/* parse out the event description */
