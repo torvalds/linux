@@ -3932,7 +3932,7 @@ static void free_recv_msg(struct ipmi_recv_msg *msg)
 	kfree(msg);
 }
 
-struct ipmi_recv_msg *ipmi_alloc_recv_msg(void)
+static struct ipmi_recv_msg *ipmi_alloc_recv_msg(void)
 {
 	struct ipmi_recv_msg *rv;
 
