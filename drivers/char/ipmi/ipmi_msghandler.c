@@ -253,7 +253,8 @@ struct ipmi_smi
 	spinlock_t       events_lock; /* For dealing with event stuff. */
 	struct list_head waiting_events;
 	unsigned int     waiting_events_count; /* How many events in queue? */
-	int              delivering_events;
+	char             delivering_events;
+	char             event_msg_printed;
 
 	/* The event receiver for my BMC, only really used at panic
 	   shutdown as a place to store this. */
@@ -1083,6 +1084,11 @@ int ipmi_set_gets_events(ipmi_user_t user, int val)
 		list_for_each_entry_safe(msg, msg2, &intf->waiting_events, link)
 			list_move_tail(&msg->link, &msgs);
 		intf->waiting_events_count = 0;
+		if (intf->event_msg_printed) {
+			printk(KERN_WARNING PFX "Event queue no longer"
+			       " full\n");
+			intf->event_msg_printed = 0;
+		}
 
 		intf->delivering_events = 1;
 		spin_unlock_irqrestore(&intf->events_lock, flags);
@@ -3261,11 +3267,12 @@ static int handle_read_event_rsp(ipmi_smi_t          intf,
 		copy_event_into_recv_msg(recv_msg, msg);
 		list_add_tail(&(recv_msg->link), &(intf->waiting_events));
 		intf->waiting_events_count++;
-	} else {
+	} else if (!intf->event_msg_printed) {
 		/* There's too many things in the queue, discard this
 		   message. */
-		printk(KERN_WARNING PFX "Event queue full, discarding an"
-		       " incoming event\n");
+		printk(KERN_WARNING PFX "Event queue full, discarding"
+		       " incoming events\n");
+		intf->event_msg_printed = 1;
 	}
 
  out:
