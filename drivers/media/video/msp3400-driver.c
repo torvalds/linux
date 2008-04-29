@@ -805,7 +805,7 @@ static int msp_resume(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-static int msp_probe(struct i2c_client *client)
+static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct msp_state *state;
 	int (*thread_func)(void *data) = NULL;

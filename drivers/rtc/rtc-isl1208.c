@@ -490,7 +490,7 @@ isl1208_sysfs_unregister(struct device *dev)
 }
 
 static int
-isl1208_probe(struct i2c_client *client)
+isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int rc = 0;
 	struct rtc_device *rtc;

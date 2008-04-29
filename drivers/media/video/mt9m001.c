@@ -620,7 +620,8 @@ static void mt9m001_video_remove(struct soc_camera_device *icd)
 	soc_camera_video_stop(&mt9m001->icd);
 }
 
-static int mt9m001_probe(struct i2c_client *client)
+static int mt9m001_probe(struct i2c_client *client,
+			 const struct i2c_device_id *did)
 {
 	struct mt9m001 *mt9m001;
 	struct soc_camera_device *icd;

@@ -355,7 +355,8 @@ static const struct rtc_class_ops ds1374_rtc_ops = {
 	.ioctl = ds1374_ioctl,
 };
 
-static int ds1374_probe(struct i2c_client *client)
+static int ds1374_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct ds1374 *ds1374;
 	int ret;

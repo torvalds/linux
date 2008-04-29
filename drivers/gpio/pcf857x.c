@@ -142,7 +142,8 @@ static void pcf857x_set16(struct gpio_chip *chip, unsigned offset, int value)
 
 /*-------------------------------------------------------------------------*/
 
-static int pcf857x_probe(struct i2c_client *client)
+static int pcf857x_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct pcf857x_platform_data	*pdata;
 	struct pcf857x			*gpio;

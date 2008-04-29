@@ -1073,7 +1073,8 @@ static void tuner_lookup(struct i2c_adapter *adap,
 /* During client attach, set_type is called by adapter's attach_inform callback.
    set_type must then be completed by tuner_probe.
  */
-static int tuner_probe(struct i2c_client *client)
+static int tuner_probe(struct i2c_client *client,
+		       const struct i2c_device_id *id)
 {
 	struct tuner *t;
 	struct tuner *radio;

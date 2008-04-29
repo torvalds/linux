@@ -195,7 +195,8 @@ static const struct rtc_class_ops s35390a_rtc_ops = {
 
 static struct i2c_driver s35390a_driver;
 
-static int s35390a_probe(struct i2c_client *client)
+static int s35390a_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	int err;
 	unsigned int i;

@@ -246,7 +246,8 @@ static const struct rtc_class_ops pcf8563_rtc_ops = {
 	.set_time	= pcf8563_rtc_set_time,
 };
 
-static int pcf8563_probe(struct i2c_client *client)
+static int pcf8563_probe(struct i2c_client *client,
+				const struct i2c_device_id *id)
 {
 	struct pcf8563 *pcf8563;
 

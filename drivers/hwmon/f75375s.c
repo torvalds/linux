@@ -117,7 +117,8 @@ struct f75375_data {
 static int f75375_attach_adapter(struct i2c_adapter *adapter);
 static int f75375_detect(struct i2c_adapter *adapter, int address, int kind);
 static int f75375_detach_client(struct i2c_client *client);
-static int f75375_probe(struct i2c_client *client);
+static int f75375_probe(struct i2c_client *client,
+			const struct i2c_device_id *id);
 static int f75375_remove(struct i2c_client *client);
 
 static struct i2c_driver f75375_legacy_driver = {
@@ -628,7 +629,8 @@ static void f75375_init(struct i2c_client *client, struct f75375_data *data,
 
 }
 
-static int f75375_probe(struct i2c_client *client)
+static int f75375_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
 {
 	struct f75375_data *data = i2c_get_clientdata(client);
 	struct f75375s_platform_data *f75375s_pdata = client->dev.platform_data;
@@ -748,7 +750,7 @@ static int f75375_detect(struct i2c_adapter *adapter, int address, int kind)
 	if ((err = i2c_attach_client(client)))
 		goto exit_free;
 
-	if ((err = f75375_probe(client)) < 0)
+	if ((err = f75375_probe(client, NULL)) < 0)
 		goto exit_detach;
 
 	return 0;

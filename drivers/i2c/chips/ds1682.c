@@ -200,7 +200,8 @@ static struct bin_attribute ds1682_eeprom_attr = {
 /*
  * Called when a ds1682 device is matched with this driver
  */
-static int ds1682_probe(struct i2c_client *client)
+static int ds1682_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	int rc;
 

@@ -30,7 +30,7 @@ struct v4l2_i2c_driver_data {
 	const char * const name;
 	int driverid;
 	int (*command)(struct i2c_client *client, unsigned int cmd, void *arg);
-	int (*probe)(struct i2c_client *client);
+	int (*probe)(struct i2c_client *client, const struct i2c_device_id *id);
 	int (*remove)(struct i2c_client *client);
 	int (*suspend)(struct i2c_client *client, pm_message_t state);
 	int (*resume)(struct i2c_client *client);
