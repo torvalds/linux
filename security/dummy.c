@@ -365,8 +365,8 @@ static void dummy_inode_delete (struct inode *ino)
 	return;
 }
 
-static int dummy_inode_setxattr (struct dentry *dentry, char *name, void *value,
-				size_t size, int flags)
+static int dummy_inode_setxattr (struct dentry *dentry, const char *name,
+				 const void *value, size_t size, int flags)
 {
 	if (!strncmp(name, XATTR_SECURITY_PREFIX,
 		     sizeof(XATTR_SECURITY_PREFIX) - 1) &&
@@ -375,12 +375,13 @@ static int dummy_inode_setxattr (struct dentry *dentry, char *name, void *value,
 	return 0;
 }
 
-static void dummy_inode_post_setxattr (struct dentry *dentry, char *name, void *value,
-				       size_t size, int flags)
+static void dummy_inode_post_setxattr (struct dentry *dentry, const char *name,
+				       const void *value, size_t size,
+				       int flags)
 {
 }
 
-static int dummy_inode_getxattr (struct dentry *dentry, char *name)
+static int dummy_inode_getxattr (struct dentry *dentry, const char *name)
 {
 	return 0;
 }
@@ -390,7 +391,7 @@ static int dummy_inode_listxattr (struct dentry *dentry)
 	return 0;
 }
 
-static int dummy_inode_removexattr (struct dentry *dentry, char *name)
+static int dummy_inode_removexattr (struct dentry *dentry, const char *name)
 {
 	if (!strncmp(name, XATTR_SECURITY_PREFIX,
 		     sizeof(XATTR_SECURITY_PREFIX) - 1) &&

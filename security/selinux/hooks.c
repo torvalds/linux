@@ -2619,7 +2619,7 @@ static int selinux_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 	return dentry_has_perm(current, mnt, dentry, FILE__GETATTR);
 }
 
-static int selinux_inode_setotherxattr(struct dentry *dentry, char *name)
+static int selinux_inode_setotherxattr(struct dentry *dentry, const char *name)
 {
 	if (!strncmp(name, XATTR_SECURITY_PREFIX,
 		     sizeof XATTR_SECURITY_PREFIX - 1)) {
@@ -2638,7 +2638,8 @@ static int selinux_inode_setotherxattr(struct dentry *dentry, char *name)
 	return dentry_has_perm(current, NULL, dentry, FILE__SETATTR);
 }
 
-static int selinux_inode_setxattr(struct dentry *dentry, char *name, void *value, size_t size, int flags)
+static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
+				  const void *value, size_t size, int flags)
 {
 	struct task_security_struct *tsec = current->security;
 	struct inode *inode = dentry->d_inode;
@@ -2687,8 +2688,9 @@ static int selinux_inode_setxattr(struct dentry *dentry, char *name, void *value
 			    &ad);
 }
 
-static void selinux_inode_post_setxattr(struct dentry *dentry, char *name,
-					void *value, size_t size, int flags)
+static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
+                                        const void *value, size_t size,
+					int flags)
 {
 	struct inode *inode = dentry->d_inode;
 	struct inode_security_struct *isec = inode->i_security;
@@ -2711,7 +2713,7 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, char *name,
 	return;
 }
 
-static int selinux_inode_getxattr(struct dentry *dentry, char *name)
+static int selinux_inode_getxattr(struct dentry *dentry, const char *name)
 {
 	return dentry_has_perm(current, NULL, dentry, FILE__GETATTR);
 }
@@ -2721,7 +2723,7 @@ static int selinux_inode_listxattr(struct dentry *dentry)
 	return dentry_has_perm(current, NULL, dentry, FILE__GETATTR);
 }
 
-static int selinux_inode_removexattr(struct dentry *dentry, char *name)
+static int selinux_inode_removexattr(struct dentry *dentry, const char *name)
 {
 	if (strcmp(name, XATTR_NAME_SELINUX))
 		return selinux_inode_setotherxattr(dentry, name);
