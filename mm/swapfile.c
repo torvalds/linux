@@ -1426,11 +1426,7 @@ static const struct file_operations proc_swaps_operations = {
 
 static int __init procswaps_init(void)
 {
-	struct proc_dir_entry *entry;
-
-	entry = create_proc_entry("swaps", 0, NULL);
-	if (entry)
-		entry->proc_fops = &proc_swaps_operations;
+	proc_create("swaps", 0, NULL, &proc_swaps_operations);
 	return 0;
 }
 __initcall(procswaps_init);
