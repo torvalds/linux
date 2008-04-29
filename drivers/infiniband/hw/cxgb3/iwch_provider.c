@@ -998,7 +998,7 @@ static int iwch_query_device(struct ib_device *ibdev,
 	props->device_cap_flags = dev->device_cap_flags;
 	props->vendor_id = (u32)dev->rdev.rnic_info.pdev->vendor;
 	props->vendor_part_id = (u32)dev->rdev.rnic_info.pdev->device;
-	props->max_mr_size = ~0ull;
+	props->max_mr_size = dev->attr.max_mr_size;
 	props->max_qp = dev->attr.max_qps;
 	props->max_qp_wr = dev->attr.max_wrs;
 	props->max_sge = dev->attr.max_sge_per_wr;

@@ -53,6 +53,7 @@
 #define T3_MAX_PBL_SIZE 256
 #define T3_MAX_RQ_SIZE 1024
 #define T3_MAX_NUM_STAG (1<<15)
+#define T3_MAX_MR_SIZE 0x100000000ULL
 
 #define T3_STAG_UNSET 0xffffffff
 
