@@ -88,6 +88,17 @@ static inline void css_put(struct cgroup_subsys_state *css)
 		__css_put(css);
 }
 
+/* bits in struct cgroup flags field */
+enum {
+	/* Control Group is dead */
+	CGRP_REMOVED,
+	/* Control Group has previously had a child cgroup or a task,
+	 * but no longer (only if CGRP_NOTIFY_ON_RELEASE is set) */
+	CGRP_RELEASABLE,
+	/* Control Group requires release notifications to userspace */
+	CGRP_NOTIFY_ON_RELEASE,
+};
+
 struct cgroup {
 	unsigned long flags;		/* "unsigned long" so bitops work */
 

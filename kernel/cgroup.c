@@ -119,17 +119,6 @@ static int root_count;
  */
 static int need_forkexit_callback;
 
-/* bits in struct cgroup flags field */
-enum {
-	/* Control Group is dead */
-	CGRP_REMOVED,
-	/* Control Group has previously had a child cgroup or a task,
-	 * but no longer (only if CGRP_NOTIFY_ON_RELEASE is set) */
-	CGRP_RELEASABLE,
-	/* Control Group requires release notifications to userspace */
-	CGRP_NOTIFY_ON_RELEASE,
-};
-
 /* convenient tests for these bits */
 inline int cgroup_is_removed(const struct cgroup *cgrp)
 {
@@ -1307,7 +1296,6 @@ enum cgroup_filetype {
 	FILE_DIR,
 	FILE_TASKLIST,
 	FILE_NOTIFY_ON_RELEASE,
-	FILE_RELEASABLE,
 	FILE_RELEASE_AGENT,
 };
 
@@ -2186,11 +2174,6 @@ static u64 cgroup_read_notify_on_release(struct cgroup *cgrp,
 	return notify_on_release(cgrp);
 }
 
-static u64 cgroup_read_releasable(struct cgroup *cgrp, struct cftype *cft)
-{
-	return test_bit(CGRP_RELEASABLE, &cgrp->flags);
-}
-
 /*
  * for the common functions, 'private' gives the type of file
  */
@@ -2210,12 +2193,6 @@ static struct cftype files[] = {
 		.write = cgroup_common_file_write,
 		.private = FILE_NOTIFY_ON_RELEASE,
 	},
-
-	{
-		.name = "releasable",
-		.read_u64 = cgroup_read_releasable,
-		.private = FILE_RELEASABLE,
-	}
 };
 
 static struct cftype cft_release_agent = {
