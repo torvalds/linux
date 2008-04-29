@@ -1321,6 +1321,7 @@ static const struct file_operations nfs_server_list_fops = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
+	.owner		= THIS_MODULE,
 };
 
 static int nfs_volume_list_open(struct inode *inode, struct file *file);
@@ -1341,6 +1342,7 @@ static const struct file_operations nfs_volume_list_fops = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
+	.owner		= THIS_MODULE,
 };
 
 /*
@@ -1507,20 +1509,16 @@ int __init nfs_fs_proc_init(void)
 	proc_fs_nfs->owner = THIS_MODULE;
 
 	/* a file of servers with which we're dealing */
-	p = create_proc_entry("servers", S_IFREG|S_IRUGO, proc_fs_nfs);
+	p = proc_create("servers", S_IFREG|S_IRUGO,
+			proc_fs_nfs, &nfs_server_list_fops);
 	if (!p)
 		goto error_1;
 
-	p->proc_fops = &nfs_server_list_fops;
-	p->owner = THIS_MODULE;
-
 	/* a file of volumes that we have mounted */
-	p = create_proc_entry("volumes", S_IFREG|S_IRUGO, proc_fs_nfs);
+	p = proc_create("volumes", S_IFREG|S_IRUGO,
+			proc_fs_nfs, &nfs_volume_list_fops);
 	if (!p)
 		goto error_2;
-
-	p->proc_fops = &nfs_volume_list_fops;
-	p->owner = THIS_MODULE;
 	return 0;
 
 error_2:
