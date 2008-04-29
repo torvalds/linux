@@ -11,46 +11,41 @@
 #include <asm/page.h>
 #include <asm/types.h>
 
-#ifdef CONFIG_X86_32
-
-#ifndef __ASSEMBLY__
-#include <asm/processor.h>
-#endif
-
 /*
  * low level task data that entry.S needs immediate access to
  * - this struct should fit entirely inside of one cache line
  * - this struct shares the supervisor stack pages
- * - if the contents of this structure are changed,
- *   the assembly constants must also be changed
  */
 #ifndef __ASSEMBLY__
+struct task_struct;
+struct exec_domain;
+#include <asm/processor.h>
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
 	struct exec_domain	*exec_domain;	/* execution domain */
-	unsigned long		flags;		/* low level flags */
-	unsigned long		status;		/* thread-synchronous flags */
+	__u32			flags;		/* low level flags */
+	__u32			status;		/* thread synchronous flags */
 	__u32			cpu;		/* current CPU */
-	int			preempt_count;	/* 0 => preemptable,
+	int 			preempt_count;	/* 0 => preemptable,
 						   <0 => BUG */
-	mm_segment_t		addr_limit;	/* thread address space:
-						   0-0xBFFFFFFF user-thread
-						   0-0xFFFFFFFF kernel-thread
-						*/
-	void			*sysenter_return;
+	mm_segment_t		addr_limit;
 	struct restart_block    restart_block;
+	void __user		*sysenter_return;
+#ifdef CONFIG_X86_32
 	unsigned long           previous_esp;   /* ESP of the previous stack in
 						   case of nested (IRQ) stacks
 						*/
 	__u8			supervisor_stack[0];
+#endif
 };
-
 #else /* !__ASSEMBLY__ */
 
 #include <asm/asm-offsets.h>
 
 #endif
+
+#ifdef CONFIG_X86_32
 
 #define PREEMPT_ACTIVE		0x10000000
 #ifdef CONFIG_4KSTACKS
@@ -180,32 +175,6 @@ static inline struct thread_info *current_thread_info(void)
 #else /* X86_32 */
 
 #include <asm/pda.h>
-
-/*
- * low level task data that entry.S needs immediate access to
- * - this struct should fit entirely inside of one cache line
- * - this struct shares the supervisor stack pages
- */
-#ifndef __ASSEMBLY__
-struct task_struct;
-struct exec_domain;
-#include <asm/processor.h>
-
-struct thread_info {
-	struct task_struct	*task;		/* main task structure */
-	struct exec_domain	*exec_domain;	/* execution domain */
-	__u32			flags;		/* low level flags */
-	__u32			status;		/* thread synchronous flags */
-	__u32			cpu;		/* current CPU */
-	int 			preempt_count;	/* 0 => preemptable,
-						   <0 => BUG */
-	mm_segment_t		addr_limit;
-	struct restart_block    restart_block;
-#ifdef CONFIG_IA32_EMULATION
-	void __user		*sysenter_return;
-#endif
-};
-#endif
 
 /*
  * macros/functions for gaining access to the thread information structure
