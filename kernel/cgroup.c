@@ -2444,7 +2444,7 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	return 0;
 }
 
-static void cgroup_init_subsys(struct cgroup_subsys *ss)
+static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 {
 	struct cgroup_subsys_state *css;
 	struct list_head *l;
