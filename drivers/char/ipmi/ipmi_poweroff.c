@@ -99,11 +99,14 @@ static unsigned char ipmi_version;
    allocate them, since we may be in a panic situation.  The whole
    thing is single-threaded, anyway, so multiple messages are not
    required. */
+static atomic_t dummy_count = ATOMIC_INIT(0);
 static void dummy_smi_free(struct ipmi_smi_msg *msg)
 {
+	atomic_dec(&dummy_count);
 }
 static void dummy_recv_free(struct ipmi_recv_msg *msg)
 {
+	atomic_dec(&dummy_count);
 }
 static struct ipmi_smi_msg halt_smi_msg =
 {
@@ -152,17 +155,28 @@ static int ipmi_request_wait_for_response(ipmi_user_t            user,
 	return halt_recv_msg.msg.data[0];
 }
 
-/* We are in run-to-completion mode, no completion is desired. */
+/* Wait for message to complete, spinning. */
 static int ipmi_request_in_rc_mode(ipmi_user_t            user,
 				   struct ipmi_addr       *addr,
 				   struct kernel_ipmi_msg *send_msg)
 {
 	int rv;
 
+	atomic_set(&dummy_count, 2);
 	rv = ipmi_request_supply_msgs(user, addr, 0, send_msg, NULL,
 				      &halt_smi_msg, &halt_recv_msg, 0);
-	if (rv)
+	if (rv) {
+		atomic_set(&dummy_count, 0);
 		return rv;
+	}
+
+	/*
+	 * Spin until our message is done.
+	 */
+	while (atomic_read(&dummy_count) > 0) {
+		ipmi_poll_interface(user);
+		cpu_relax();
+	}
 
 	return halt_recv_msg.msg.data[0];
 }
@@ -531,9 +545,7 @@ static void ipmi_poweroff_function (void)
 		return;
 
 	/* Use run-to-completion mode, since interrupts may be off. */
-	ipmi_user_set_run_to_completion(ipmi_user, 1);
 	specific_poweroff_func(ipmi_user);
-	ipmi_user_set_run_to_completion(ipmi_user, 0);
 }
 
 /* Wait for an IPMI interface to be installed, the first one installed

@@ -1197,13 +1197,6 @@ int ipmi_unregister_for_cmd(ipmi_user_t   user,
 	return rv;
 }
 
-void ipmi_user_set_run_to_completion(ipmi_user_t user, int val)
-{
-	ipmi_smi_t intf = user->intf;
-	if (intf->handlers)
-		intf->handlers->set_run_to_completion(intf->send_info, val);
-}
-
 static unsigned char
 ipmb_checksum(unsigned char *data, int size)
 {
@@ -4190,5 +4183,4 @@ EXPORT_SYMBOL(ipmi_get_my_address);
 EXPORT_SYMBOL(ipmi_set_my_LUN);
 EXPORT_SYMBOL(ipmi_get_my_LUN);
 EXPORT_SYMBOL(ipmi_smi_add_proc_entry);
-EXPORT_SYMBOL(ipmi_user_set_run_to_completion);
 EXPORT_SYMBOL(ipmi_free_recv_msg);

@@ -368,9 +368,8 @@ int ipmi_request_supply_msgs(ipmi_user_t          user,
  * Poll the IPMI interface for the user.  This causes the IPMI code to
  * do an immediate check for information from the driver and handle
  * anything that is immediately pending.  This will not block in any
- * way.  This is useful if you need to implement polling from the user
- * for things like modifying the watchdog timeout when a panic occurs
- * or disabling the watchdog timer on a reboot.
+ * way.  This is useful if you need to spin waiting for something to
+ * happen in the IPMI driver.
  */
 void ipmi_poll_interface(ipmi_user_t user);
 
@@ -420,12 +419,6 @@ int ipmi_unregister_for_cmd(ipmi_user_t   user,
  */
 int ipmi_get_maintenance_mode(ipmi_user_t user);
 int ipmi_set_maintenance_mode(ipmi_user_t user, int mode);
-
-/*
- * Allow run-to-completion mode to be set for the interface of
- * a specific user.
- */
-void ipmi_user_set_run_to_completion(ipmi_user_t user, int val);
 
 /*
  * When the user is created, it will not receive IPMI events by

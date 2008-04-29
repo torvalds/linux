@@ -806,56 +806,53 @@ static void sender(void                *send_info,
 		return;
 	}
 
-	spin_lock_irqsave(&(smi_info->msg_lock), flags);
 #ifdef DEBUG_TIMING
 	do_gettimeofday(&t);
 	printk("**Enqueue: %d.%9.9d\n", t.tv_sec, t.tv_usec);
 #endif
 
 	if (smi_info->run_to_completion) {
-		/* If we are running to completion, then throw it in
-		   the list and run transactions until everything is
-		   clear.  Priority doesn't matter here. */
+		/*
+		 * If we are running to completion, then throw it in
+		 * the list and run transactions until everything is
+		 * clear.  Priority doesn't matter here.
+		 */
+
+		/*
+		 * Run to completion means we are single-threaded, no
+		 * need for locks.
+		 */
 		list_add_tail(&(msg->link), &(smi_info->xmit_msgs));
 
-		/* We have to release the msg lock and claim the smi
-		   lock in this case, because of race conditions. */
-		spin_unlock_irqrestore(&(smi_info->msg_lock), flags);
-
-		spin_lock_irqsave(&(smi_info->si_lock), flags);
 		result = smi_event_handler(smi_info, 0);
 		while (result != SI_SM_IDLE) {
 			udelay(SI_SHORT_TIMEOUT_USEC);
 			result = smi_event_handler(smi_info,
 						   SI_SHORT_TIMEOUT_USEC);
 		}
-		spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 		return;
-	} else {
-		if (priority > 0) {
-			list_add_tail(&(msg->link), &(smi_info->hp_xmit_msgs));
-		} else {
-			list_add_tail(&(msg->link), &(smi_info->xmit_msgs));
-		}
 	}
-	spin_unlock_irqrestore(&(smi_info->msg_lock), flags);
 
-	spin_lock_irqsave(&(smi_info->si_lock), flags);
+	spin_lock_irqsave(&smi_info->msg_lock, flags);
+	if (priority > 0)
+		list_add_tail(&msg->link, &smi_info->hp_xmit_msgs);
+	else
+		list_add_tail(&msg->link, &smi_info->xmit_msgs);
+	spin_unlock_irqrestore(&smi_info->msg_lock, flags);
+
+	spin_lock_irqsave(&smi_info->si_lock, flags);
 	if ((smi_info->si_state == SI_NORMAL)
 	    && (smi_info->curr_msg == NULL))
 	{
 		start_next_msg(smi_info);
 	}
-	spin_unlock_irqrestore(&(smi_info->si_lock), flags);
+	spin_unlock_irqrestore(&smi_info->si_lock, flags);
 }
 
 static void set_run_to_completion(void *send_info, int i_run_to_completion)
 {
 	struct smi_info   *smi_info = send_info;
 	enum si_sm_result result;
-	unsigned long     flags;
-
-	spin_lock_irqsave(&(smi_info->si_lock), flags);
 
 	smi_info->run_to_completion = i_run_to_completion;
 	if (i_run_to_completion) {
@@ -866,8 +863,6 @@ static void set_run_to_completion(void *send_info, int i_run_to_completion)
 						   SI_SHORT_TIMEOUT_USEC);
 		}
 	}
-
-	spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 }
 
 static int ipmi_thread(void *data)
