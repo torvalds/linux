@@ -2406,7 +2406,7 @@ static int smack_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
  *
  * Exists for audit and networking code.
  */
-static int smack_secctx_to_secid(char *secdata, u32 seclen, u32 *secid)
+static int smack_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 {
 	*secid = smack_to_secid(secdata);
 	return 0;

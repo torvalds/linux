@@ -858,8 +858,8 @@ int security_context_to_sid(const char *scontext, u32 scontext_len, u32 *sid)
  * Returns -%EINVAL if the context is invalid, -%ENOMEM if insufficient
  * memory is available, or 0 on success.
  */
-int security_context_to_sid_default(char *scontext, u32 scontext_len, u32 *sid,
-				    u32 def_sid, gfp_t gfp_flags)
+int security_context_to_sid_default(const char *scontext, u32 scontext_len,
+				    u32 *sid, u32 def_sid, gfp_t gfp_flags)
 {
 	return security_context_to_sid_core(scontext, scontext_len,
 					    sid, def_sid, gfp_flags);
