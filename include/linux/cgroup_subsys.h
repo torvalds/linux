@@ -42,3 +42,9 @@ SUBSYS(mem_cgroup)
 #endif
 
 /* */
+
+#ifdef CONFIG_CGROUP_DEVICE
+SUBSYS(devices)
+#endif
+
+/* */
