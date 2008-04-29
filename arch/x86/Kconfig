@@ -537,9 +537,6 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
 	  If unsure, say Y.
 
-config IOMMU_HELPER
-	def_bool (CALGARY_IOMMU || GART_IOMMU)
-
 # need this always selected by IOMMU for the VIA workaround
 config SWIOTLB
 	bool
@@ -550,6 +547,8 @@ config SWIOTLB
 	  access 32-bits of memory can be used on systems with more than
 	  3 GB of memory. If unsure, say Y.
 
+config IOMMU_HELPER
+	def_bool (CALGARY_IOMMU || GART_IOMMU || SWIOTLB)
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-255)"

@@ -47,6 +47,9 @@ config MMU
 config SWIOTLB
        bool
 
+config IOMMU_HELPER
+       bool
+
 config GENERIC_LOCKBREAK
 	bool
 	default y
@@ -615,7 +618,7 @@ config IRQ_PER_CPU
 	default y
 
 config IOMMU_HELPER
-	def_bool (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC)
+	def_bool (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC || SWIOTLB)
 
 source "arch/ia64/hp/sim/Kconfig"
 

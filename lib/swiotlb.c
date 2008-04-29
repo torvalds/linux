@@ -31,6 +31,7 @@
 
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/iommu-helper.h>
 
 #define OFFSET(val,align) ((unsigned long)	\
 	                   ( (val) & ( (align) - 1)))
@@ -282,15 +283,6 @@ address_needs_mapping(struct device *hwdev, dma_addr_t addr)
 	return (addr & ~mask) != 0;
 }
 
-static inline unsigned int is_span_boundary(unsigned int index,
-					    unsigned int nslots,
-					    unsigned long offset_slots,
-					    unsigned long max_slots)
-{
-	unsigned long offset = (offset_slots + index) & (max_slots - 1);
-	return offset + nslots > max_slots;
-}
-
 /*
  * Allocates bounce buffer and returns its kernel virtual address.
  */
@@ -337,8 +329,8 @@ map_single(struct device *hwdev, char *buffer, size_t size, int dir)
 	wrap = index;
 
 	do {
-		while (is_span_boundary(index, nslots, offset_slots,
-				max_slots)) {
+		while (iommu_is_span_boundary(index, nslots, offset_slots,
+					      max_slots)) {
 			index += stride;
 			if (index >= io_tlb_nslabs)
 				index = 0;
