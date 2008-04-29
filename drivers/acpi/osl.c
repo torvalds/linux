@@ -742,6 +742,7 @@ EXPORT_SYMBOL(acpi_os_execute);
 void acpi_os_wait_events_complete(void *context)
 {
 	flush_workqueue(kacpid_wq);
+	flush_workqueue(kacpi_notify_wq);
 }
 
 EXPORT_SYMBOL(acpi_os_wait_events_complete);
