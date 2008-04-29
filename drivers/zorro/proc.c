@@ -77,6 +77,7 @@ proc_bus_zorro_read(struct file *file, char __user *buf, size_t nbytes, loff_t *
 }
 
 static const struct file_operations proc_bus_zorro_operations = {
+	.owner		= THIS_MODULE,
 	.llseek		= proc_bus_zorro_lseek,
 	.read		= proc_bus_zorro_read,
 };
@@ -136,11 +137,11 @@ static int __init zorro_proc_attach_device(u_int slot)
 	char name[4];
 
 	sprintf(name, "%02x", slot);
-	entry = create_proc_entry(name, 0, proc_bus_zorro_dir);
+	entry = proc_create_data(name, 0, proc_bus_zorro_dir,
+				 &proc_bus_zorro_operations,
+				 &zorro_autocon[slot]);
 	if (!entry)
 		return -ENOMEM;
-	entry->proc_fops = &proc_bus_zorro_operations;
-	entry->data = &zorro_autocon[slot];
 	entry->size = sizeof(struct zorro_dev);
 	return 0;
 }
