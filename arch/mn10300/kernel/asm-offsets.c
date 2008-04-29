@@ -7,20 +7,13 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
+#include <linux/kbuild.h>
 #include <asm/ucontext.h>
 #include <asm/processor.h>
 #include <asm/thread_info.h>
 #include <asm/ptrace.h>
 #include "sigframe.h"
 #include "mn10300-serial.h"
-
-#define DEFINE(sym, val) \
-	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->")
-
-#define OFFSET(sym, str, mem) \
-	DEFINE(sym, offsetof(struct str, mem));
 
 void foo(void)
 {
