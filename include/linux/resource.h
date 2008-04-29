@@ -19,6 +19,7 @@ struct task_struct;
 #define	RUSAGE_SELF	0
 #define	RUSAGE_CHILDREN	(-1)
 #define RUSAGE_BOTH	(-2)		/* sys_wait4() uses this */
+#define	RUSAGE_THREAD	1		/* only the calling thread */
 
 struct	rusage {
 	struct timeval ru_utime;	/* user time used */
