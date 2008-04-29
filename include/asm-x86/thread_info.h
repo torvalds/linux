@@ -62,9 +62,10 @@ struct thread_info {
 
 #endif
 
+#define PREEMPT_ACTIVE		0x10000000
+
 #ifdef CONFIG_X86_32
 
-#define PREEMPT_ACTIVE		0x10000000
 #ifdef CONFIG_4KSTACKS
 #define THREAD_SIZE            (4096)
 #else
@@ -285,8 +286,6 @@ static inline struct thread_info *stack_thread_info(void)
 	(_TIF_IO_BITMAP|_TIF_DEBUGCTLMSR|_TIF_DS_AREA_MSR|_TIF_BTS_TRACE_TS|_TIF_NOTSC)
 #define _TIF_WORK_CTXSW_PREV _TIF_WORK_CTXSW
 #define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW|_TIF_DEBUG)
-
-#define PREEMPT_ACTIVE     0x10000000
 
 #endif /* !X86_32 */
 
