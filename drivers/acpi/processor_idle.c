@@ -1282,6 +1282,7 @@ static int acpi_processor_power_open_fs(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations acpi_processor_power_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_processor_power_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -1822,16 +1823,12 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	}
 
 	/* 'power' [R] */
-	entry = create_proc_entry(ACPI_PROCESSOR_FILE_POWER,
-				  S_IRUGO, acpi_device_dir(device));
+	entry = proc_create_data(ACPI_PROCESSOR_FILE_POWER,
+				 S_IRUGO, acpi_device_dir(device),
+				 &acpi_processor_power_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -EIO;
-	else {
-		entry->proc_fops = &acpi_processor_power_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
-
 	return 0;
 }
 

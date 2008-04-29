@@ -192,6 +192,7 @@ struct acpi_video_device {
 /* bus */
 static int acpi_video_bus_info_open_fs(struct inode *inode, struct file *file);
 static struct file_operations acpi_video_bus_info_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_video_bus_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -200,6 +201,7 @@ static struct file_operations acpi_video_bus_info_fops = {
 
 static int acpi_video_bus_ROM_open_fs(struct inode *inode, struct file *file);
 static struct file_operations acpi_video_bus_ROM_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_video_bus_ROM_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -209,6 +211,7 @@ static struct file_operations acpi_video_bus_ROM_fops = {
 static int acpi_video_bus_POST_info_open_fs(struct inode *inode,
 					    struct file *file);
 static struct file_operations acpi_video_bus_POST_info_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_video_bus_POST_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -217,6 +220,7 @@ static struct file_operations acpi_video_bus_POST_info_fops = {
 
 static int acpi_video_bus_POST_open_fs(struct inode *inode, struct file *file);
 static struct file_operations acpi_video_bus_POST_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_video_bus_POST_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -225,6 +229,7 @@ static struct file_operations acpi_video_bus_POST_fops = {
 
 static int acpi_video_bus_DOS_open_fs(struct inode *inode, struct file *file);
 static struct file_operations acpi_video_bus_DOS_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_video_bus_DOS_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -235,6 +240,7 @@ static struct file_operations acpi_video_bus_DOS_fops = {
 static int acpi_video_device_info_open_fs(struct inode *inode,
 					  struct file *file);
 static struct file_operations acpi_video_device_info_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_video_device_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -244,6 +250,7 @@ static struct file_operations acpi_video_device_info_fops = {
 static int acpi_video_device_state_open_fs(struct inode *inode,
 					   struct file *file);
 static struct file_operations acpi_video_device_state_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_video_device_state_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -253,6 +260,7 @@ static struct file_operations acpi_video_device_state_fops = {
 static int acpi_video_device_brightness_open_fs(struct inode *inode,
 						struct file *file);
 static struct file_operations acpi_video_device_brightness_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_video_device_brightness_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -262,6 +270,7 @@ static struct file_operations acpi_video_device_brightness_fops = {
 static int acpi_video_device_EDID_open_fs(struct inode *inode,
 					  struct file *file);
 static struct file_operations acpi_video_device_EDID_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_video_device_EDID_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -1070,51 +1079,36 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 	}
 
 	/* 'info' [R] */
-	entry = create_proc_entry("info", S_IRUGO, acpi_device_dir(device));
+	entry = proc_create_data("info", S_IRUGO, acpi_device_dir(device),
+			&acpi_video_device_info_fops, acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_video_device_info_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'state' [R/W] */
-	entry =
-	    create_proc_entry("state", S_IFREG | S_IRUGO | S_IWUSR,
-			      acpi_device_dir(device));
+	acpi_video_device_state_fops.write = acpi_video_device_write_state;
+	entry = proc_create_data("state", S_IFREG | S_IRUGO | S_IWUSR,
+				 acpi_device_dir(device),
+				 &acpi_video_device_state_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		acpi_video_device_state_fops.write = acpi_video_device_write_state;
-		entry->proc_fops = &acpi_video_device_state_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'brightness' [R/W] */
-	entry =
-	    create_proc_entry("brightness", S_IFREG | S_IRUGO | S_IWUSR,
-			      acpi_device_dir(device));
+	acpi_video_device_brightness_fops.write =
+		acpi_video_device_write_brightness;
+	entry = proc_create_data("brightness", S_IFREG | S_IRUGO | S_IWUSR,
+				 acpi_device_dir(device),
+				 &acpi_video_device_brightness_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		acpi_video_device_brightness_fops.write = acpi_video_device_write_brightness;
-		entry->proc_fops = &acpi_video_device_brightness_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'EDID' [R] */
-	entry = create_proc_entry("EDID", S_IRUGO, acpi_device_dir(device));
+	entry = proc_create_data("EDID", S_IRUGO, acpi_device_dir(device),
+				 &acpi_video_device_EDID_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_video_device_EDID_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
-
 	return 0;
 }
 
@@ -1353,61 +1347,43 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	}
 
 	/* 'info' [R] */
-	entry = create_proc_entry("info", S_IRUGO, acpi_device_dir(device));
+	entry = proc_create_data("info", S_IRUGO, acpi_device_dir(device),
+				 &acpi_video_bus_info_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_video_bus_info_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'ROM' [R] */
-	entry = create_proc_entry("ROM", S_IRUGO, acpi_device_dir(device));
+	entry = proc_create_data("ROM", S_IRUGO, acpi_device_dir(device),
+				 &acpi_video_bus_ROM_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_video_bus_ROM_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'POST_info' [R] */
-	entry =
-	    create_proc_entry("POST_info", S_IRUGO, acpi_device_dir(device));
+	entry = proc_create_data("POST_info", S_IRUGO, acpi_device_dir(device),
+				 &acpi_video_bus_POST_info_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_video_bus_POST_info_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'POST' [R/W] */
-	entry =
-	    create_proc_entry("POST", S_IFREG | S_IRUGO | S_IRUSR,
-			      acpi_device_dir(device));
+	acpi_video_bus_POST_fops.write = acpi_video_bus_write_POST;
+	entry = proc_create_data("POST", S_IFREG | S_IRUGO | S_IRUSR,
+				 acpi_device_dir(device),
+				 &acpi_video_bus_POST_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		acpi_video_bus_POST_fops.write = acpi_video_bus_write_POST;
-		entry->proc_fops = &acpi_video_bus_POST_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'DOS' [R/W] */
-	entry =
-	    create_proc_entry("DOS", S_IFREG | S_IRUGO | S_IRUSR,
-			      acpi_device_dir(device));
+	acpi_video_bus_DOS_fops.write = acpi_video_bus_write_DOS;
+	entry = proc_create_data("DOS", S_IFREG | S_IRUGO | S_IRUSR,
+				 acpi_device_dir(device),
+				 &acpi_video_bus_DOS_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		acpi_video_bus_DOS_fops.write = acpi_video_bus_write_DOS;
-		entry->proc_fops = &acpi_video_bus_DOS_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	return 0;
 }

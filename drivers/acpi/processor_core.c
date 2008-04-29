@@ -112,6 +112,7 @@ static struct acpi_driver acpi_processor_driver = {
 #define UNINSTALL_NOTIFY_HANDLER	2
 
 static const struct file_operations acpi_processor_info_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_processor_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -326,40 +327,30 @@ static int acpi_processor_add_fs(struct acpi_device *device)
 	acpi_device_dir(device)->owner = THIS_MODULE;
 
 	/* 'info' [R] */
-	entry = create_proc_entry(ACPI_PROCESSOR_FILE_INFO,
-				  S_IRUGO, acpi_device_dir(device));
+	entry = proc_create_data(ACPI_PROCESSOR_FILE_INFO,
+				 S_IRUGO, acpi_device_dir(device),
+				 &acpi_processor_info_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -EIO;
-	else {
-		entry->proc_fops = &acpi_processor_info_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'throttling' [R/W] */
-	entry = create_proc_entry(ACPI_PROCESSOR_FILE_THROTTLING,
-				  S_IFREG | S_IRUGO | S_IWUSR,
-				  acpi_device_dir(device));
+	entry = proc_create_data(ACPI_PROCESSOR_FILE_THROTTLING,
+				 S_IFREG | S_IRUGO | S_IWUSR,
+				 acpi_device_dir(device),
+				 &acpi_processor_throttling_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -EIO;
-	else {
-		entry->proc_fops = &acpi_processor_throttling_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'limit' [R/W] */
-	entry = create_proc_entry(ACPI_PROCESSOR_FILE_LIMIT,
-				  S_IFREG | S_IRUGO | S_IWUSR,
-				  acpi_device_dir(device));
+	entry = proc_create_data(ACPI_PROCESSOR_FILE_LIMIT,
+				 S_IFREG | S_IRUGO | S_IWUSR,
+				 acpi_device_dir(device),
+				 &acpi_processor_limit_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -EIO;
-	else {
-		entry->proc_fops = &acpi_processor_limit_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
-
 	return 0;
 }
 

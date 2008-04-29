@@ -669,16 +669,11 @@ static int acpi_ec_add_fs(struct acpi_device *device)
 			return -ENODEV;
 	}
 
-	entry = create_proc_entry(ACPI_EC_FILE_INFO, S_IRUGO,
-				  acpi_device_dir(device));
+	entry = proc_create_data(ACPI_EC_FILE_INFO, S_IRUGO,
+				 acpi_device_dir(device),
+				 &acpi_ec_info_ops, acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_ec_info_ops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
-
 	return 0;
 }
 

@@ -198,6 +198,7 @@ struct acpi_thermal {
 };
 
 static const struct file_operations acpi_thermal_state_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_thermal_state_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -205,6 +206,7 @@ static const struct file_operations acpi_thermal_state_fops = {
 };
 
 static const struct file_operations acpi_thermal_temp_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_thermal_temp_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -212,6 +214,7 @@ static const struct file_operations acpi_thermal_temp_fops = {
 };
 
 static const struct file_operations acpi_thermal_trip_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_thermal_trip_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -219,6 +222,7 @@ static const struct file_operations acpi_thermal_trip_fops = {
 };
 
 static const struct file_operations acpi_thermal_cooling_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_thermal_cooling_open_fs,
 	.read = seq_read,
 	.write = acpi_thermal_write_cooling_mode,
@@ -227,6 +231,7 @@ static const struct file_operations acpi_thermal_cooling_fops = {
 };
 
 static const struct file_operations acpi_thermal_polling_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_thermal_polling_open_fs,
 	.read = seq_read,
 	.write = acpi_thermal_write_polling,
@@ -1419,63 +1424,47 @@ static int acpi_thermal_add_fs(struct acpi_device *device)
 	}
 
 	/* 'state' [R] */
-	entry = create_proc_entry(ACPI_THERMAL_FILE_STATE,
-				  S_IRUGO, acpi_device_dir(device));
+	entry = proc_create_data(ACPI_THERMAL_FILE_STATE,
+				 S_IRUGO, acpi_device_dir(device),
+				 &acpi_thermal_state_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_thermal_state_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'temperature' [R] */
-	entry = create_proc_entry(ACPI_THERMAL_FILE_TEMPERATURE,
-				  S_IRUGO, acpi_device_dir(device));
+	entry = proc_create_data(ACPI_THERMAL_FILE_TEMPERATURE,
+				 S_IRUGO, acpi_device_dir(device),
+				 &acpi_thermal_temp_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_thermal_temp_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'trip_points' [R] */
-	entry = create_proc_entry(ACPI_THERMAL_FILE_TRIP_POINTS,
-				  S_IRUGO,
-				  acpi_device_dir(device));
+	entry = proc_create_data(ACPI_THERMAL_FILE_TRIP_POINTS,
+				 S_IRUGO,
+				 acpi_device_dir(device),
+				 &acpi_thermal_trip_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_thermal_trip_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'cooling_mode' [R/W] */
-	entry = create_proc_entry(ACPI_THERMAL_FILE_COOLING_MODE,
-				  S_IFREG | S_IRUGO | S_IWUSR,
-				  acpi_device_dir(device));
+	entry = proc_create_data(ACPI_THERMAL_FILE_COOLING_MODE,
+				 S_IFREG | S_IRUGO | S_IWUSR,
+				 acpi_device_dir(device),
+				 &acpi_thermal_cooling_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_thermal_cooling_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
 
 	/* 'polling_frequency' [R/W] */
-	entry = create_proc_entry(ACPI_THERMAL_FILE_POLLING_FREQ,
-				  S_IFREG | S_IRUGO | S_IWUSR,
-				  acpi_device_dir(device));
+	entry = proc_create_data(ACPI_THERMAL_FILE_POLLING_FREQ,
+				 S_IFREG | S_IRUGO | S_IWUSR,
+				 acpi_device_dir(device),
+				 &acpi_thermal_polling_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_thermal_polling_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
-
 	return 0;
 }
 

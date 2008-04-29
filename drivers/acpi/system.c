@@ -396,6 +396,7 @@ static int acpi_system_info_open_fs(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations acpi_system_info_ops = {
+	.owner = THIS_MODULE,
 	.open = acpi_system_info_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -406,6 +407,7 @@ static ssize_t acpi_system_read_dsdt(struct file *, char __user *, size_t,
 				     loff_t *);
 
 static const struct file_operations acpi_system_dsdt_ops = {
+	.owner = THIS_MODULE,
 	.read = acpi_system_read_dsdt,
 };
 
@@ -430,6 +432,7 @@ static ssize_t acpi_system_read_fadt(struct file *, char __user *, size_t,
 				     loff_t *);
 
 static const struct file_operations acpi_system_fadt_ops = {
+	.owner = THIS_MODULE,
 	.read = acpi_system_read_fadt,
 };
 
@@ -454,31 +457,23 @@ static int acpi_system_procfs_init(void)
 {
 	struct proc_dir_entry *entry;
 	int error = 0;
-	char *name;
 
 	/* 'info' [R] */
-	name = ACPI_SYSTEM_FILE_INFO;
-	entry = create_proc_entry(name, S_IRUGO, acpi_root_dir);
+	entry = proc_create(ACPI_SYSTEM_FILE_INFO, S_IRUGO, acpi_root_dir,
+			    &acpi_system_info_ops);
 	if (!entry)
 		goto Error;
-	else {
-		entry->proc_fops = &acpi_system_info_ops;
-	}
 
 	/* 'dsdt' [R] */
-	name = ACPI_SYSTEM_FILE_DSDT;
-	entry = create_proc_entry(name, S_IRUSR, acpi_root_dir);
-	if (entry)
-		entry->proc_fops = &acpi_system_dsdt_ops;
-	else
+	entry = proc_create(ACPI_SYSTEM_FILE_DSDT, S_IRUSR, acpi_root_dir,
+			    &acpi_system_dsdt_ops);
+	if (!entry)
 		goto Error;
 
 	/* 'fadt' [R] */
-	name = ACPI_SYSTEM_FILE_FADT;
-	entry = create_proc_entry(name, S_IRUSR, acpi_root_dir);
-	if (entry)
-		entry->proc_fops = &acpi_system_fadt_ops;
-	else
+	entry = proc_create(ACPI_SYSTEM_FILE_FADT, S_IRUSR, acpi_root_dir,
+			    &acpi_system_fadt_ops);
+	if (!entry)
 		goto Error;
 
       Done:

@@ -192,17 +192,13 @@ static int acpi_fan_add_fs(struct acpi_device *device)
 	}
 
 	/* 'status' [R/W] */
-	entry = create_proc_entry(ACPI_FAN_FILE_STATE,
-				  S_IFREG | S_IRUGO | S_IWUSR,
-				  acpi_device_dir(device));
+	entry = proc_create_data(ACPI_FAN_FILE_STATE,
+				 S_IFREG | S_IRUGO | S_IWUSR,
+				 acpi_device_dir(device),
+				 &acpi_fan_state_ops,
+				 device);
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_fan_state_ops;
-		entry->data = device;
-		entry->owner = THIS_MODULE;
-	}
-
 	return 0;
 }
 
