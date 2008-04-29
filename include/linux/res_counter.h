@@ -39,8 +39,9 @@ struct res_counter {
 	spinlock_t lock;
 };
 
-/*
+/**
  * Helpers to interact with userspace
+ * res_counter_read_u64() - returns the value of the specified member.
  * res_counter_read/_write - put/get the specified fields from the
  * res_counter struct to/from the user
  *
@@ -50,6 +51,8 @@ struct res_counter {
  * @nbytes:  its size...
  * @pos:     and the offset.
  */
+
+u64 res_counter_read_u64(struct res_counter *counter, int member);
 
 ssize_t res_counter_read(struct res_counter *counter, int member,
 		const char __user *buf, size_t nbytes, loff_t *pos,

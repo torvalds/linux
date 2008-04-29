@@ -93,6 +93,11 @@ ssize_t res_counter_read(struct res_counter *counter, int member,
 			pos, buf, s - buf);
 }
 
+u64 res_counter_read_u64(struct res_counter *counter, int member)
+{
+	return *res_counter_member(counter, member);
+}
+
 ssize_t res_counter_write(struct res_counter *counter, int member,
 		const char __user *userbuf, size_t nbytes, loff_t *pos,
 		int (*write_strategy)(char *st_buf, unsigned long long *val))
