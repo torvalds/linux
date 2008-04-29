@@ -37,17 +37,17 @@ int edac_pci_get_check_errors(void)
 	return check_pci_errors;
 }
 
-int edac_pci_get_log_pe(void)
+static int edac_pci_get_log_pe(void)
 {
 	return edac_pci_log_pe;
 }
 
-int edac_pci_get_log_npe(void)
+static int edac_pci_get_log_npe(void)
 {
 	return edac_pci_log_npe;
 }
 
-int edac_pci_get_panic_on_pe(void)
+static int edac_pci_get_panic_on_pe(void)
 {
 	return edac_pci_panic_on_pe;
 }
@@ -197,7 +197,8 @@ error_out:
  *
  *	unregister the kobj for the EDAC PCI instance
  */
-void edac_pci_unregister_sysfs_instance_kobj(struct edac_pci_ctl_info *pci)
+static void edac_pci_unregister_sysfs_instance_kobj(
+			struct edac_pci_ctl_info *pci)
 {
 	debugf0("%s()\n", __func__);
 
@@ -337,7 +338,7 @@ static struct kobj_type ktype_edac_pci_main_kobj = {
  *	setup the sysfs for EDAC PCI attributes
  *	assumes edac_class has already been initialized
  */
-int edac_pci_main_kobj_setup(void)
+static int edac_pci_main_kobj_setup(void)
 {
 	int err;
 	struct sysdev_class *edac_class;

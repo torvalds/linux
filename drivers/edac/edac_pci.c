@@ -189,6 +189,9 @@ static void del_edac_pci_from_global_list(struct edac_pci_ctl_info *pci)
 	wait_for_completion(&pci->complete);
 }
 
+#if 0
+/* Older code, but might use in the future */
+
 /*
  * edac_pci_find()
  * 	Search for an edac_pci_ctl_info structure whose index is 'idx'
@@ -219,6 +222,7 @@ struct edac_pci_ctl_info *edac_pci_find(int idx)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(edac_pci_find);
+#endif
 
 /*
  * edac_pci_workq_function()
@@ -422,7 +426,7 @@ EXPORT_SYMBOL_GPL(edac_pci_del_device);
  *
  *	a Generic parity check API
  */
-void edac_pci_generic_check(struct edac_pci_ctl_info *pci)
+static void edac_pci_generic_check(struct edac_pci_ctl_info *pci)
 {
 	debugf4("%s()\n", __func__);
 	edac_pci_do_parity_check();
