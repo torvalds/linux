@@ -88,6 +88,7 @@ void destroy_spu_context(struct kref *kref)
 		kref_put(ctx->prof_priv_kref, ctx->prof_priv_release);
 	BUG_ON(!list_empty(&ctx->rq));
 	atomic_dec(&nr_spu_contexts);
+	kfree(ctx->switch_log);
 	kfree(ctx);
 }
 
