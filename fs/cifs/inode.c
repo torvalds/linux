@@ -1581,10 +1581,6 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			if (time_buf.Attributes == 0)
 				time_buf.Attributes |= cpu_to_le32(ATTR_NORMAL);
 		}
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
-			mode_to_acl(direntry->d_inode, full_path, mode);
-#endif
 	}
 
 	if (attrs->ia_valid & ATTR_ATIME) {
