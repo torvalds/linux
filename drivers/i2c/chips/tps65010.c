@@ -527,6 +527,7 @@ static int __exit tps65010_remove(struct i2c_client *client)
 	flush_scheduled_work();
 	debugfs_remove(tps->file);
 	kfree(tps);
+	i2c_set_clientdata(client, NULL);
 	the_tps = NULL;
 	return 0;
 }
@@ -615,6 +616,7 @@ static int tps65010_probe(struct i2c_client *client)
 		i2c_smbus_read_byte_data(client, TPS_DEFGPIO),
 		i2c_smbus_read_byte_data(client, TPS_MASK3));
 
+	i2c_set_clientdata(client, tps);
 	the_tps = tps;
 
 #if	defined(CONFIG_USB_GADGET) && !defined(CONFIG_USB_OTG)
