@@ -1524,7 +1524,7 @@ static int dev_gso_segment(struct sk_buff *skb)
 	if (!segs)
 		return 0;
 
-	if (unlikely(IS_ERR(segs)))
+	if (IS_ERR(segs))
 		return PTR_ERR(segs);
 
 	skb->next = segs;

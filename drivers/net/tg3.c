@@ -4361,7 +4361,7 @@ static int tg3_tso_bug(struct tg3 *tp, struct sk_buff *skb)
 	}
 
 	segs = skb_gso_segment(skb, tp->dev->features & ~NETIF_F_TSO);
-	if (unlikely(IS_ERR(segs)))
+	if (IS_ERR(segs))
 		goto tg3_tso_bug_end;
 
 	do {

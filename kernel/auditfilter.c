@@ -272,7 +272,7 @@ static int audit_to_watch(struct audit_krule *krule, char *path, int len,
 		return -EINVAL;
 
 	watch = audit_init_watch(path);
-	if (unlikely(IS_ERR(watch)))
+	if (IS_ERR(watch))
 		return PTR_ERR(watch);
 
 	audit_get_watch(watch);
@@ -848,7 +848,7 @@ static struct audit_watch *audit_dupe_watch(struct audit_watch *old)
 		return ERR_PTR(-ENOMEM);
 
 	new = audit_init_watch(path);
-	if (unlikely(IS_ERR(new))) {
+	if (IS_ERR(new)) {
 		kfree(path);
 		goto out;
 	}
@@ -989,7 +989,7 @@ static void audit_update_watch(struct audit_parent *parent,
 			audit_set_auditable(current->audit_context);
 
 		nwatch = audit_dupe_watch(owatch);
-		if (unlikely(IS_ERR(nwatch))) {
+		if (IS_ERR(nwatch)) {
 			mutex_unlock(&audit_filter_mutex);
 			audit_panic("error updating watch, skipping");
 			return;
@@ -1004,7 +1004,7 @@ static void audit_update_watch(struct audit_parent *parent,
 			list_del_rcu(&oentry->list);
 
 			nentry = audit_dupe_rule(&oentry->rule, nwatch);
-			if (unlikely(IS_ERR(nentry)))
+			if (IS_ERR(nentry))
 				audit_panic("error updating watch, removing");
 			else {
 				int h = audit_hash_ino((u32)ino);
@@ -1785,7 +1785,7 @@ int audit_update_lsm_rules(void)
 			watch = entry->rule.watch;
 			tree = entry->rule.tree;
 			nentry = audit_dupe_rule(&entry->rule, watch);
-			if (unlikely(IS_ERR(nentry))) {
+			if (IS_ERR(nentry)) {
 				/* save the first error encountered for the
 				 * return value */
 				if (!err)

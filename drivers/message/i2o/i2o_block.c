@@ -371,7 +371,7 @@ static int i2o_block_prep_req_fn(struct request_queue *q, struct request *req)
 	/* connect the i2o_block_request to the request */
 	if (!req->special) {
 		ireq = i2o_block_request_alloc();
-		if (unlikely(IS_ERR(ireq))) {
+		if (IS_ERR(ireq)) {
 			osm_debug("unable to allocate i2o_block_request!\n");
 			return BLKPREP_DEFER;
 		}

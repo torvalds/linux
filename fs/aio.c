@@ -1604,7 +1604,7 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		 * event using the eventfd_signal() function.
 		 */
 		req->ki_eventfd = eventfd_fget((int) iocb->aio_resfd);
-		if (unlikely(IS_ERR(req->ki_eventfd))) {
+		if (IS_ERR(req->ki_eventfd)) {
 			ret = PTR_ERR(req->ki_eventfd);
 			goto out_put_req;
 		}
