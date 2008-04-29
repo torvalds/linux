@@ -104,14 +104,15 @@ applicable everywhere (see syntax).
   Reverse dependencies can only be used with boolean or tristate
   symbols.
   Note:
-	select is evil.... select will by brute force set a symbol
-	equal to 'y' without visiting the dependencies. So abusing
-	select you are able to select a symbol FOO even if FOO depends
-	on BAR that is not set. In general use select only for
-	non-visible symbols (no prompts anywhere) and for symbols with
-	no dependencies. That will limit the usefulness but on the
-	other hand avoid the illegal configurations all over. kconfig
-	should one day warn about such things.
+	select should be used with care. select will force
+	a symbol to a value without visiting the dependencies.
+	By abusing select you are able to select a symbol FOO even
+	if FOO depends on BAR that is not set.
+	In general use select only for non-visible symbols
+	(no prompts anywhere) and for symbols with no dependencies.
+	That will limit the usefulness but on the other hand avoid
+	the illegal configurations all over.
+	kconfig should one day warn about such things.
 
 - numerical ranges: "range" <symbol> <symbol> ["if" <expr>]
   This allows to limit the range of possible input values for int

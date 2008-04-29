@@ -235,17 +235,21 @@ void menu_finalize(struct menu *parent)
 	sym = parent->sym;
 	if (parent->list) {
 		if (sym && sym_is_choice(sym)) {
-			/* find the first choice value and find out choice type */
-			for (menu = parent->list; menu; menu = menu->next) {
-				if (menu->sym) {
-					current_entry = parent;
-					if (sym->type == S_UNKNOWN)
+			if (sym->type == S_UNKNOWN) {
+				/* find the first choice value to find out choice type */
+				current_entry = parent;
+				for (menu = parent->list; menu; menu = menu->next) {
+					if (menu->sym && menu->sym->type != S_UNKNOWN) {
 						menu_set_type(menu->sym->type);
-					current_entry = menu;
-					if (menu->sym->type == S_UNKNOWN)
-						menu_set_type(sym->type);
-					break;
+						break;
+					}
 				}
+			}
+			/* set the type of the remaining choice values */
+			for (menu = parent->list; menu; menu = menu->next) {
+				current_entry = menu;
+				if (menu->sym && menu->sym->type == S_UNKNOWN)
+					menu_set_type(sym->type);
 			}
 			parentdep = expr_alloc_symbol(sym);
 		} else if (parent->prompt)
@@ -313,50 +317,36 @@ void menu_finalize(struct menu *parent)
 		}
 	}
 	for (menu = parent->list; menu; menu = menu->next) {
-		if (sym && sym_is_choice(sym) && menu->sym) {
+		if (sym && sym_is_choice(sym) &&
+		    menu->sym && !sym_is_choice_value(menu->sym)) {
+			current_entry = menu;
 			menu->sym->flags |= SYMBOL_CHOICEVAL;
 			if (!menu->prompt)
 				menu_warn(menu, "choice value must have a prompt");
 			for (prop = menu->sym->prop; prop; prop = prop->next) {
-				if (prop->type == P_PROMPT && prop->menu != menu) {
-					prop_warn(prop, "choice values "
-					    "currently only support a "
-					    "single prompt");
-				}
 				if (prop->type == P_DEFAULT)
 					prop_warn(prop, "defaults for choice "
-					    "values not supported");
+						  "values not supported");
+				if (prop->menu == menu)
+					continue;
+				if (prop->type == P_PROMPT &&
+				    prop->menu->parent->sym != sym)
+					prop_warn(prop, "choice value used outside its choice group");
 			}
-			current_entry = menu;
-			if (menu->sym->type == S_UNKNOWN)
-				menu_set_type(sym->type);
 			/* Non-tristate choice values of tristate choices must
 			 * depend on the choice being set to Y. The choice
 			 * values' dependencies were propagated to their
 			 * properties above, so the change here must be re-
-			 * propagated. */
+			 * propagated.
+			 */
 			if (sym->type == S_TRISTATE && menu->sym->type != S_TRISTATE) {
 				basedep = expr_alloc_comp(E_EQUAL, sym, &symbol_yes);
-				basedep = expr_alloc_and(basedep, menu->dep);
-				basedep = expr_eliminate_dups(basedep);
-				menu->dep = basedep;
+				menu->dep = expr_alloc_and(basedep, menu->dep);
 				for (prop = menu->sym->prop; prop; prop = prop->next) {
 					if (prop->menu != menu)
 						continue;
-					dep = expr_alloc_and(expr_copy(basedep),
-							     prop->visible.expr);
-					dep = expr_eliminate_dups(dep);
-					dep = expr_trans_bool(dep);
-					prop->visible.expr = dep;
-					if (prop->type == P_SELECT) {
-						struct symbol *es = prop_get_symbol(prop);
-						dep2 = expr_alloc_symbol(menu->sym);
-						dep = expr_alloc_and(dep2,
-								     expr_copy(dep));
-						dep = expr_alloc_or(es->rev_dep.expr, dep);
-						dep = expr_eliminate_dups(dep);
-						es->rev_dep.expr = dep;
-					}
+					prop->visible.expr = expr_alloc_and(expr_copy(basedep),
+									    prop->visible.expr);
 				}
 			}
 			menu_add_symbol(P_CHOICE, sym, NULL);
