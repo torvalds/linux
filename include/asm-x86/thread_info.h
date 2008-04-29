@@ -39,6 +39,23 @@ struct thread_info {
 	__u8			supervisor_stack[0];
 #endif
 };
+
+#define INIT_THREAD_INFO(tsk)			\
+{						\
+	.task		= &tsk,			\
+	.exec_domain	= &default_exec_domain,	\
+	.flags		= 0,			\
+	.cpu		= 0,			\
+	.preempt_count	= 1,			\
+	.addr_limit	= KERNEL_DS,		\
+	.restart_block = {			\
+		.fn = do_no_restart_syscall,	\
+	},					\
+}
+
+#define init_thread_info	(init_thread_union.thread_info)
+#define init_stack		(init_thread_union.stack)
+
 #else /* !__ASSEMBLY__ */
 
 #include <asm/asm-offsets.h>
@@ -61,22 +78,6 @@ struct thread_info {
  * preempt_count needs to be 1 initially, until the scheduler is functional.
  */
 #ifndef __ASSEMBLY__
-
-#define INIT_THREAD_INFO(tsk)			\
-{						\
-	.task		= &tsk,			\
-	.exec_domain	= &default_exec_domain,	\
-	.flags		= 0,			\
-	.cpu		= 0,			\
-	.preempt_count	= 1,			\
-	.addr_limit	= KERNEL_DS,		\
-	.restart_block = {			\
-		.fn = do_no_restart_syscall,	\
-	},					\
-}
-
-#define init_thread_info	(init_thread_union.thread_info)
-#define init_stack		(init_thread_union.stack)
 
 
 /* how to get the current stack pointer from C */
@@ -181,22 +182,6 @@ static inline struct thread_info *current_thread_info(void)
  * preempt_count needs to be 1 initially, until the scheduler is functional.
  */
 #ifndef __ASSEMBLY__
-#define INIT_THREAD_INFO(tsk)			\
-{						\
-	.task	       = &tsk,			\
-	.exec_domain   = &default_exec_domain,	\
-	.flags	       = 0,			\
-	.cpu	       = 0,			\
-	.preempt_count = 1,			\
-	.addr_limit     = KERNEL_DS,		\
-	.restart_block = {			\
-		.fn = do_no_restart_syscall,	\
-	},					\
-}
-
-#define init_thread_info	(init_thread_union.thread_info)
-#define init_stack		(init_thread_union.stack)
-
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
