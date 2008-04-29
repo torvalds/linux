@@ -1299,6 +1299,9 @@ static unsigned long shrink_zones(int priority, struct zonelist *zonelist,
  * hope that some of these pages can be written.  But if the allocating task
  * holds filesystem locks which prevent writeout this might not work, and the
  * allocation attempt will fail.
+ *
+ * returns:	0, if no pages reclaimed
+ * 		else, the number of pages reclaimed
  */
 static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 					struct scan_control *sc)
@@ -1347,7 +1350,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 		}
 		total_scanned += sc->nr_scanned;
 		if (nr_reclaimed >= sc->swap_cluster_max) {
-			ret = 1;
+			ret = nr_reclaimed;
 			goto out;
 		}
 
@@ -1370,7 +1373,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 	}
 	/* top priority shrink_caches still had more to do? don't OOM, then */
 	if (!sc->all_unreclaimable && scan_global_lru(sc))
-		ret = 1;
+		ret = nr_reclaimed;
 out:
 	/*
 	 * Now that we've scanned all the zones at this priority level, note

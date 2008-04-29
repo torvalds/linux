@@ -1461,7 +1461,8 @@ __alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
 	struct task_struct *p = current;
 	int do_retry;
 	int alloc_flags;
-	int did_some_progress;
+	unsigned long did_some_progress;
+	unsigned long pages_reclaimed = 0;
 
 	might_sleep_if(wait);
 
@@ -1611,15 +1612,26 @@ nofail_alloc:
 	 * Don't let big-order allocations loop unless the caller explicitly
 	 * requests that.  Wait for some write requests to complete then retry.
 	 *
-	 * In this implementation, either order <= PAGE_ALLOC_COSTLY_ORDER or
-	 * __GFP_REPEAT mean __GFP_NOFAIL, but that may not be true in other
+	 * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
+	 * means __GFP_NOFAIL, but that may not be true in other
 	 * implementations.
+	 *
+	 * For order > PAGE_ALLOC_COSTLY_ORDER, if __GFP_REPEAT is
+	 * specified, then we retry until we no longer reclaim any pages
+	 * (above), or we've reclaimed an order of pages at least as
+	 * large as the allocation's order. In both cases, if the
+	 * allocation still fails, we stop retrying.
 	 */
+	pages_reclaimed += did_some_progress;
 	do_retry = 0;
 	if (!(gfp_mask & __GFP_NORETRY)) {
-		if ((order <= PAGE_ALLOC_COSTLY_ORDER) ||
-						(gfp_mask & __GFP_REPEAT))
+		if (order <= PAGE_ALLOC_COSTLY_ORDER) {
 			do_retry = 1;
+		} else {
+			if (gfp_mask & __GFP_REPEAT &&
+				pages_reclaimed < (1 << order))
+					do_retry = 1;
+		}
 		if (gfp_mask & __GFP_NOFAIL)
 			do_retry = 1;
 	}
