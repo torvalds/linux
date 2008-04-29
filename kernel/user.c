@@ -53,10 +53,6 @@ struct user_struct root_user = {
 	.files		= ATOMIC_INIT(0),
 	.sigpending	= ATOMIC_INIT(0),
 	.locked_shm     = 0,
-#ifdef CONFIG_KEYS
-	.uid_keyring	= &root_user_keyring,
-	.session_keyring = &root_session_keyring,
-#endif
 #ifdef CONFIG_USER_SCHED
 	.tg		= &init_task_group,
 #endif
@@ -420,12 +416,12 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 		new->mq_bytes = 0;
 #endif
 		new->locked_shm = 0;
-
-		if (alloc_uid_keyring(new, current) < 0)
-			goto out_free_user;
+#ifdef CONFIG_KEYS
+		new->uid_keyring = new->session_keyring = NULL;
+#endif
 
 		if (sched_create_user(new) < 0)
-			goto out_put_keys;
+			goto out_free_user;
 
 		if (uids_user_create(new))
 			goto out_destoy_sched;
@@ -459,9 +455,6 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 
 out_destoy_sched:
 	sched_destroy_user(new);
-out_put_keys:
-	key_put(new->uid_keyring);
-	key_put(new->session_keyring);
 out_free_user:
 	kmem_cache_free(uid_cachep, new);
 out_unlock:

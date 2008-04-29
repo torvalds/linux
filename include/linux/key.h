@@ -268,9 +268,6 @@ extern struct key *key_lookup(key_serial_t id);
 /*
  * the userspace interface
  */
-extern struct key root_user_keyring, root_session_keyring;
-extern int alloc_uid_keyring(struct user_struct *user,
-			     struct task_struct *ctx);
 extern void switch_uid_keyring(struct user_struct *new_user);
 extern int copy_keys(unsigned long clone_flags, struct task_struct *tsk);
 extern int copy_thread_group_keys(struct task_struct *tsk);
@@ -299,7 +296,6 @@ extern void key_init(void);
 #define make_key_ref(k, p)			({ NULL; })
 #define key_ref_to_ptr(k)		({ NULL; })
 #define is_key_possessed(k)		0
-#define alloc_uid_keyring(u,c)		0
 #define switch_uid_keyring(u)		do { } while(0)
 #define __install_session_keyring(t, k)	({ NULL; })
 #define copy_keys(f,t)			0
@@ -311,10 +307,6 @@ extern void key_init(void);
 #define key_fsuid_changed(t)		do { } while(0)
 #define key_fsgid_changed(t)		do { } while(0)
 #define key_init()			do { } while(0)
-
-/* Initial keyrings */
-extern struct key root_user_keyring;
-extern struct key root_session_keyring;
 
 #endif /* CONFIG_KEYS */
 #endif /* __KERNEL__ */

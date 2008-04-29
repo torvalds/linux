@@ -1,6 +1,6 @@
 /* Basic authentication token and access key management
  *
- * Copyright (C) 2004-2007 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -136,36 +136,6 @@ void key_user_put(struct key_user *user)
 	}
 
 } /* end key_user_put() */
-
-/*****************************************************************************/
-/*
- * insert a key with a fixed serial number
- */
-static void __init __key_insert_serial(struct key *key)
-{
-	struct rb_node *parent, **p;
-	struct key *xkey;
-
-	parent = NULL;
-	p = &key_serial_tree.rb_node;
-
-	while (*p) {
-		parent = *p;
-		xkey = rb_entry(parent, struct key, serial_node);
-
-		if (key->serial < xkey->serial)
-			p = &(*p)->rb_left;
-		else if (key->serial > xkey->serial)
-			p = &(*p)->rb_right;
-		else
-			BUG();
-	}
-
-	/* we've found a suitable hole - arrange for this key to occupy it */
-	rb_link_node(&key->serial_node, parent, p);
-	rb_insert_color(&key->serial_node, &key_serial_tree);
-
-} /* end __key_insert_serial() */
 
 /*****************************************************************************/
 /*
@@ -1019,18 +989,5 @@ void __init key_init(void)
 
 	rb_insert_color(&root_key_user.node,
 			&key_user_tree);
-
-	/* record root's user standard keyrings */
-	key_check(&root_user_keyring);
-	key_check(&root_session_keyring);
-
-	__key_insert_serial(&root_user_keyring);
-	__key_insert_serial(&root_session_keyring);
-
-	keyring_publish_name(&root_user_keyring);
-	keyring_publish_name(&root_session_keyring);
-
-	/* link the two root keyrings together */
-	key_link(&root_session_keyring, &root_user_keyring);
 
 } /* end key_init() */

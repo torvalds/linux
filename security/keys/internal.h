@@ -77,8 +77,6 @@ extern struct mutex key_construction_mutex;
 extern wait_queue_head_t request_key_conswq;
 
 
-extern void keyring_publish_name(struct key *keyring);
-
 extern int __key_link(struct key *keyring, struct key *key);
 
 extern key_ref_t __keyring_search_one(key_ref_t keyring_ref,
@@ -102,7 +100,7 @@ extern key_ref_t search_process_keyrings(struct key_type *type,
 					 key_match_func_t match,
 					 struct task_struct *tsk);
 
-extern struct key *find_keyring_by_name(const char *name, key_serial_t bound);
+extern struct key *find_keyring_by_name(const char *name, bool skip_perm_check);
 
 extern int install_thread_keyring(struct task_struct *tsk);
 extern int install_process_keyring(struct task_struct *tsk);

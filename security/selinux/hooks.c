@@ -5551,14 +5551,6 @@ static __init int selinux_init(void)
 	else
 		printk(KERN_DEBUG "SELinux:  Starting in permissive mode\n");
 
-#ifdef CONFIG_KEYS
-	/* Add security information to initial keyrings */
-	selinux_key_alloc(&root_user_keyring, current,
-			  KEY_ALLOC_NOT_IN_QUOTA);
-	selinux_key_alloc(&root_session_keyring, current,
-			  KEY_ALLOC_NOT_IN_QUOTA);
-#endif
-
 	return 0;
 }
 

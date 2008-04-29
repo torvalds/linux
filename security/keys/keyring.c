@@ -1,6 +1,6 @@
-/* keyring.c: keyring handling
+/* Keyring handling
  *
- * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-2005, 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -79,7 +79,7 @@ static DECLARE_RWSEM(keyring_serialise_link_sem);
  * publish the name of a keyring so that it can be found by name (if it has
  * one)
  */
-void keyring_publish_name(struct key *keyring)
+static void keyring_publish_name(struct key *keyring)
 {
 	int bucket;
 
@@ -516,10 +516,9 @@ key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 /*
  * find a keyring with the specified name
  * - all named keyrings are searched
- * - only find keyrings with search permission for the process
- * - only find keyrings with a serial number greater than the one specified
+ * - normally only finds keyrings with search permission for the current process
  */
-struct key *find_keyring_by_name(const char *name, key_serial_t bound)
+struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 {
 	struct key *keyring;
 	int bucket;
@@ -545,13 +544,9 @@ struct key *find_keyring_by_name(const char *name, key_serial_t bound)
 			if (strcmp(keyring->description, name) != 0)
 				continue;
 
-			if (key_permission(make_key_ref(keyring, 0),
+			if (!skip_perm_check &&
+			    key_permission(make_key_ref(keyring, 0),
 					   KEY_SEARCH) < 0)
-				continue;
-
-			/* found a potential candidate, but we still need to
-			 * check the serial number */
-			if (keyring->serial <= bound)
 				continue;
 
 			/* we've got a match */
