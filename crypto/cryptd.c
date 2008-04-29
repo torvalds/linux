@@ -190,8 +190,10 @@ static struct crypto_instance *cryptd_alloc_instance(struct crypto_alg *alg,
 	int err;
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
-	if (IS_ERR(inst))
+	if (!inst) {
+		inst = ERR_PTR(-ENOMEM);
 		goto out;
+	}
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
