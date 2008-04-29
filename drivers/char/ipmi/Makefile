@@ -9,7 +9,3 @@ obj-$(CONFIG_IPMI_DEVICE_INTERFACE) += ipmi_devintf.o
 obj-$(CONFIG_IPMI_SI) += ipmi_si.o
 obj-$(CONFIG_IPMI_WATCHDOG) += ipmi_watchdog.o
 obj-$(CONFIG_IPMI_POWEROFF) += ipmi_poweroff.o
-
-ipmi_si.o:	$(ipmi_si-objs)
-	$(LD) -r -o $@ $(ipmi_si-objs)
-
