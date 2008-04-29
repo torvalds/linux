@@ -275,10 +275,10 @@ static void unlock_page_cgroup(struct page *page)
 	bit_spin_unlock(PAGE_CGROUP_LOCK_BIT, &page->page_cgroup);
 }
 
-static void __mem_cgroup_remove_list(struct page_cgroup *pc)
+static void __mem_cgroup_remove_list(struct mem_cgroup_per_zone *mz,
+			struct page_cgroup *pc)
 {
 	int from = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
-	struct mem_cgroup_per_zone *mz = page_cgroup_zoneinfo(pc);
 
 	if (from)
 		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_ACTIVE) -= 1;
@@ -289,10 +289,10 @@ static void __mem_cgroup_remove_list(struct page_cgroup *pc)
 	list_del_init(&pc->lru);
 }
 
-static void __mem_cgroup_add_list(struct page_cgroup *pc)
+static void __mem_cgroup_add_list(struct mem_cgroup_per_zone *mz,
+				struct page_cgroup *pc)
 {
 	int to = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
-	struct mem_cgroup_per_zone *mz = page_cgroup_zoneinfo(pc);
 
 	if (!to) {
 		MEM_CGROUP_ZSTAT(mz, MEM_CGROUP_ZSTAT_INACTIVE) += 1;
@@ -618,7 +618,7 @@ retry:
 
 	mz = page_cgroup_zoneinfo(pc);
 	spin_lock_irqsave(&mz->lru_lock, flags);
-	__mem_cgroup_add_list(pc);
+	__mem_cgroup_add_list(mz, pc);
 	spin_unlock_irqrestore(&mz->lru_lock, flags);
 
 	unlock_page_cgroup(page);
@@ -674,7 +674,7 @@ void mem_cgroup_uncharge_page(struct page *page)
 	if (--(pc->ref_cnt) == 0) {
 		mz = page_cgroup_zoneinfo(pc);
 		spin_lock_irqsave(&mz->lru_lock, flags);
-		__mem_cgroup_remove_list(pc);
+		__mem_cgroup_remove_list(mz, pc);
 		spin_unlock_irqrestore(&mz->lru_lock, flags);
 
 		page_assign_page_cgroup(page, NULL);
@@ -736,7 +736,7 @@ void mem_cgroup_page_migration(struct page *page, struct page *newpage)
 
 	mz = page_cgroup_zoneinfo(pc);
 	spin_lock_irqsave(&mz->lru_lock, flags);
-	__mem_cgroup_remove_list(pc);
+	__mem_cgroup_remove_list(mz, pc);
 	spin_unlock_irqrestore(&mz->lru_lock, flags);
 
 	page_assign_page_cgroup(page, NULL);
@@ -748,7 +748,7 @@ void mem_cgroup_page_migration(struct page *page, struct page *newpage)
 
 	mz = page_cgroup_zoneinfo(pc);
 	spin_lock_irqsave(&mz->lru_lock, flags);
-	__mem_cgroup_add_list(pc);
+	__mem_cgroup_add_list(mz, pc);
 	spin_unlock_irqrestore(&mz->lru_lock, flags);
 
 	unlock_page_cgroup(newpage);
