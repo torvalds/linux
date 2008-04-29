@@ -156,6 +156,12 @@ struct css_set {
 	struct list_head list;
 
 	/*
+	 * List running through all cgroup groups in the same hash
+	 * slot. Protected by css_set_lock
+	 */
+	struct hlist_node hlist;
+
+	/*
 	 * List running through all tasks using this cgroup
 	 * group. Protected by css_set_lock
 	 */
@@ -174,7 +180,6 @@ struct css_set {
 	 * during subsystem registration (at boot time).
 	 */
 	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
-
 };
 
 /*
