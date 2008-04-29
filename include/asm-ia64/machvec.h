@@ -22,6 +22,7 @@ struct pci_bus;
 struct task_struct;
 struct pci_dev;
 struct msi_desc;
+struct dma_attrs;
 
 typedef void ia64_mv_setup_t (char **);
 typedef void ia64_mv_cpu_init_t (void);
@@ -55,6 +56,11 @@ typedef void ia64_mv_dma_sync_single_for_device (struct device *, dma_addr_t, si
 typedef void ia64_mv_dma_sync_sg_for_device (struct device *, struct scatterlist *, int, int);
 typedef int ia64_mv_dma_mapping_error (dma_addr_t dma_addr);
 typedef int ia64_mv_dma_supported (struct device *, u64);
+
+typedef dma_addr_t ia64_mv_dma_map_single_attrs (struct device *, void *, size_t, int, struct dma_attrs *);
+typedef void ia64_mv_dma_unmap_single_attrs (struct device *, dma_addr_t, size_t, int, struct dma_attrs *);
+typedef int ia64_mv_dma_map_sg_attrs (struct device *, struct scatterlist *, int, int, struct dma_attrs *);
+typedef void ia64_mv_dma_unmap_sg_attrs (struct device *, struct scatterlist *, int, int, struct dma_attrs *);
 
 /*
  * WARNING: The legacy I/O space is _architected_.  Platforms are
@@ -136,10 +142,10 @@ extern void machvec_tlb_migrate_finish (struct mm_struct *);
 #  define platform_dma_init		ia64_mv.dma_init
 #  define platform_dma_alloc_coherent	ia64_mv.dma_alloc_coherent
 #  define platform_dma_free_coherent	ia64_mv.dma_free_coherent
-#  define platform_dma_map_single	ia64_mv.dma_map_single
-#  define platform_dma_unmap_single	ia64_mv.dma_unmap_single
-#  define platform_dma_map_sg		ia64_mv.dma_map_sg
-#  define platform_dma_unmap_sg		ia64_mv.dma_unmap_sg
+#  define platform_dma_map_single_attrs	ia64_mv.dma_map_single_attrs
+#  define platform_dma_unmap_single_attrs	ia64_mv.dma_unmap_single_attrs
+#  define platform_dma_map_sg_attrs	ia64_mv.dma_map_sg_attrs
+#  define platform_dma_unmap_sg_attrs	ia64_mv.dma_unmap_sg_attrs
 #  define platform_dma_sync_single_for_cpu ia64_mv.dma_sync_single_for_cpu
 #  define platform_dma_sync_sg_for_cpu	ia64_mv.dma_sync_sg_for_cpu
 #  define platform_dma_sync_single_for_device ia64_mv.dma_sync_single_for_device
@@ -190,10 +196,10 @@ struct ia64_machine_vector {
 	ia64_mv_dma_init *dma_init;
 	ia64_mv_dma_alloc_coherent *dma_alloc_coherent;
 	ia64_mv_dma_free_coherent *dma_free_coherent;
-	ia64_mv_dma_map_single *dma_map_single;
-	ia64_mv_dma_unmap_single *dma_unmap_single;
-	ia64_mv_dma_map_sg *dma_map_sg;
-	ia64_mv_dma_unmap_sg *dma_unmap_sg;
+	ia64_mv_dma_map_single_attrs *dma_map_single_attrs;
+	ia64_mv_dma_unmap_single_attrs *dma_unmap_single_attrs;
+	ia64_mv_dma_map_sg_attrs *dma_map_sg_attrs;
+	ia64_mv_dma_unmap_sg_attrs *dma_unmap_sg_attrs;
 	ia64_mv_dma_sync_single_for_cpu *dma_sync_single_for_cpu;
 	ia64_mv_dma_sync_sg_for_cpu *dma_sync_sg_for_cpu;
 	ia64_mv_dma_sync_single_for_device *dma_sync_single_for_device;
@@ -240,10 +246,10 @@ struct ia64_machine_vector {
 	platform_dma_init,			\
 	platform_dma_alloc_coherent,		\
 	platform_dma_free_coherent,		\
-	platform_dma_map_single,		\
-	platform_dma_unmap_single,		\
-	platform_dma_map_sg,			\
-	platform_dma_unmap_sg,			\
+	platform_dma_map_single_attrs,		\
+	platform_dma_unmap_single_attrs,	\
+	platform_dma_map_sg_attrs,		\
+	platform_dma_unmap_sg_attrs,		\
 	platform_dma_sync_single_for_cpu,	\
 	platform_dma_sync_sg_for_cpu,		\
 	platform_dma_sync_single_for_device,	\
@@ -292,9 +298,13 @@ extern ia64_mv_dma_init			swiotlb_init;
 extern ia64_mv_dma_alloc_coherent	swiotlb_alloc_coherent;
 extern ia64_mv_dma_free_coherent	swiotlb_free_coherent;
 extern ia64_mv_dma_map_single		swiotlb_map_single;
+extern ia64_mv_dma_map_single_attrs	swiotlb_map_single_attrs;
 extern ia64_mv_dma_unmap_single		swiotlb_unmap_single;
+extern ia64_mv_dma_unmap_single_attrs	swiotlb_unmap_single_attrs;
 extern ia64_mv_dma_map_sg		swiotlb_map_sg;
+extern ia64_mv_dma_map_sg_attrs		swiotlb_map_sg_attrs;
 extern ia64_mv_dma_unmap_sg		swiotlb_unmap_sg;
+extern ia64_mv_dma_unmap_sg_attrs	swiotlb_unmap_sg_attrs;
 extern ia64_mv_dma_sync_single_for_cpu	swiotlb_sync_single_for_cpu;
 extern ia64_mv_dma_sync_sg_for_cpu	swiotlb_sync_sg_for_cpu;
 extern ia64_mv_dma_sync_single_for_device swiotlb_sync_single_for_device;
@@ -340,17 +350,17 @@ extern ia64_mv_dma_supported		swiotlb_dma_supported;
 #ifndef platform_dma_free_coherent
 # define platform_dma_free_coherent	swiotlb_free_coherent
 #endif
-#ifndef platform_dma_map_single
-# define platform_dma_map_single	swiotlb_map_single
+#ifndef platform_dma_map_single_attrs
+# define platform_dma_map_single_attrs	swiotlb_map_single_attrs
 #endif
-#ifndef platform_dma_unmap_single
-# define platform_dma_unmap_single	swiotlb_unmap_single
+#ifndef platform_dma_unmap_single_attrs
+# define platform_dma_unmap_single_attrs	swiotlb_unmap_single_attrs
 #endif
-#ifndef platform_dma_map_sg
-# define platform_dma_map_sg		swiotlb_map_sg
+#ifndef platform_dma_map_sg_attrs
+# define platform_dma_map_sg_attrs	swiotlb_map_sg_attrs
 #endif
-#ifndef platform_dma_unmap_sg
-# define platform_dma_unmap_sg		swiotlb_unmap_sg
+#ifndef platform_dma_unmap_sg_attrs
+# define platform_dma_unmap_sg_attrs	swiotlb_unmap_sg_attrs
 #endif
 #ifndef platform_dma_sync_single_for_cpu
 # define platform_dma_sync_single_for_cpu	swiotlb_sync_single_for_cpu
