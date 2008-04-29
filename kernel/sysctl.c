@@ -38,6 +38,7 @@
 #include <linux/writeback.h>
 #include <linux/hugetlb.h>
 #include <linux/initrd.h>
+#include <linux/key.h>
 #include <linux/times.h>
 #include <linux/limits.h>
 #include <linux/dcache.h>
@@ -809,6 +810,14 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= &proc_dostring,
 		.strategy	= &sysctl_string,
 	},
+#ifdef CONFIG_KEYS
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "keys",
+		.mode		= 0555,
+		.child		= key_sysctls,
+	},
+#endif
 /*
  * NOTE: do not add new entries to this table unless you have read
  * Documentation/sysctl/ctl_unnumbered.txt

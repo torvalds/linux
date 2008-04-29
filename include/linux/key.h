@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <linux/rcupdate.h>
+#include <linux/sysctl.h>
 #include <asm/atomic.h>
 
 #ifdef __KERNEL__
@@ -264,6 +265,10 @@ extern int keyring_add_key(struct key *keyring,
 extern struct key *key_lookup(key_serial_t id);
 
 #define key_serial(key) ((key) ? (key)->serial : 0)
+
+#ifdef CONFIG_SYSCTL
+extern ctl_table key_sysctls[];
+#endif
 
 /*
  * the userspace interface
