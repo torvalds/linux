@@ -142,7 +142,6 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 {
 	unsigned long sector;
 	unsigned long bio_sectors;
-	unsigned long valid;
 	struct cdrom_info *info = drive->driver_data;
 
 	if (!cdrom_log_sense(drive, failed_command, sense))
@@ -173,17 +172,13 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 				 (sense->information[2] <<  8) |
 				 (sense->information[3]);
 
-			bio_sectors = bio_sectors(failed_command->bio);
-			if (bio_sectors < 4)
-				bio_sectors = 4;
 			if (drive->queue->hardsect_size == 2048)
 				/* device sector size is 2K */
 				sector <<= 2;
-			sector &= ~(bio_sectors - 1);
-			valid = (sector - failed_command->sector) << 9;
 
-			if (valid < 0)
-				valid = 0;
+			bio_sectors = max(bio_sectors(failed_command->bio), 4U);
+			sector &= ~(bio_sectors - 1);
+
 			if (sector < get_capacity(info->disk) &&
 			    drive->probed_capacity - sector < 4 * 75)
 				set_capacity(info->disk, sector);
@@ -555,14 +550,7 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 				    ATAPI_WAIT_PC, cdrom_timer_expiry);
 		return ide_started;
 	} else {
-		unsigned long flags;
-
-		/* packet command */
-		spin_lock_irqsave(&ide_lock, flags);
-		hwif->OUTBSYNC(drive, WIN_PACKETCMD,
-			       hwif->io_ports.command_addr);
-		ndelay(400);
-		spin_unlock_irqrestore(&ide_lock, flags);
+		ide_execute_pkt_cmd(drive);
 
 		return (*handler) (drive);
 	}
@@ -613,7 +601,7 @@ static ide_startstop_t cdrom_transfer_packet_command(ide_drive_t *drive,
 		cmd_len = ATAPI_MIN_CDB_BYTES;
 
 	/* send the command to the device */
-	HWIF(drive)->atapi_output_bytes(drive, rq->cmd, cmd_len);
+	hwif->output_data(drive, NULL, rq->cmd, cmd_len);
 
 	/* start the DMA if need be */
 	if (info->dma)
@@ -629,7 +617,7 @@ static void ide_cd_pad_transfer(ide_drive_t *drive, xfer_func_t *xf, int len)
 {
 	while (len > 0) {
 		int dum = 0;
-		xf(drive, &dum, sizeof(dum));
+		xf(drive, NULL, &dum, sizeof(dum));
 		len -= sizeof(dum);
 	}
 }
@@ -639,7 +627,7 @@ static void ide_cd_drain_data(ide_drive_t *drive, int nsects)
 	while (nsects > 0) {
 		static char dum[SECTOR_SIZE];
 
-		drive->hwif->atapi_input_bytes(drive, dum, sizeof(dum));
+		drive->hwif->input_data(drive, NULL, dum, sizeof(dum));
 		nsects--;
 	}
 }
@@ -666,7 +654,7 @@ static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
 		printk(KERN_ERR "%s: %s: wrong transfer direction!\n",
 				drive->name, __func__);
 
-		xf = rw ? hwif->atapi_output_bytes : hwif->atapi_input_bytes;
+		xf = rw ? hwif->output_data : hwif->input_data;
 		ide_cd_pad_transfer(drive, xf, len);
 	} else  if (rw == 0 && ireason == 1) {
 		/*
@@ -1019,10 +1007,10 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 	if (ireason == 0) {
 		write = 1;
-		xferfunc = HWIF(drive)->atapi_output_bytes;
+		xferfunc = hwif->output_data;
 	} else {
 		write = 0;
-		xferfunc = HWIF(drive)->atapi_input_bytes;
+		xferfunc = hwif->input_data;
 	}
 
 	/* transfer data */
@@ -1061,7 +1049,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		if (blen > thislen)
 			blen = thislen;
 
-		xferfunc(drive, ptr, blen);
+		xferfunc(drive, NULL, ptr, blen);
 
 		thislen -= blen;
 		len -= blen;

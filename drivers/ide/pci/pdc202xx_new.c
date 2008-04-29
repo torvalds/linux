@@ -83,8 +83,8 @@ static u8 get_indexed_reg(ide_hwif_t *hwif, u8 index)
 {
 	u8 value;
 
-	outb(index, hwif->dma_vendor1);
-	value = inb(hwif->dma_vendor3);
+	outb(index, hwif->dma_base + 1);
+	value = inb(hwif->dma_base + 3);
 
 	DBG("index[%02X] value[%02X]\n", index, value);
 	return value;
@@ -97,8 +97,8 @@ static u8 get_indexed_reg(ide_hwif_t *hwif, u8 index)
  */
 static void set_indexed_reg(ide_hwif_t *hwif, u8 index, u8 value)
 {
-	outb(index, hwif->dma_vendor1);
-	outb(value, hwif->dma_vendor3);
+	outb(index, hwif->dma_base + 1);
+	outb(value, hwif->dma_base + 3);
 	DBG("index[%02X] value[%02X]\n", index, value);
 }
 

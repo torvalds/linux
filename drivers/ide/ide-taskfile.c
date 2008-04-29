@@ -33,60 +33,18 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
+void ide_tf_dump(const char *s, struct ide_taskfile *tf)
 {
-	ide_hwif_t *hwif = drive->hwif;
-	struct ide_io_ports *io_ports = &hwif->io_ports;
-	struct ide_taskfile *tf = &task->tf;
-	u8 HIHI = (task->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
-
-	if (task->tf_flags & IDE_TFLAG_FLAGGED)
-		HIHI = 0xFF;
-
 #ifdef DEBUG
 	printk("%s: tf: feat 0x%02x nsect 0x%02x lbal 0x%02x "
 		"lbam 0x%02x lbah 0x%02x dev 0x%02x cmd 0x%02x\n",
-		drive->name, tf->feature, tf->nsect, tf->lbal,
+		s, tf->feature, tf->nsect, tf->lbal,
 		tf->lbam, tf->lbah, tf->device, tf->command);
 	printk("%s: hob: nsect 0x%02x lbal 0x%02x "
 		"lbam 0x%02x lbah 0x%02x\n",
-		drive->name, tf->hob_nsect, tf->hob_lbal,
+		s, tf->hob_nsect, tf->hob_lbal,
 		tf->hob_lbam, tf->hob_lbah);
 #endif
-
-	ide_set_irq(drive, 1);
-
-	if ((task->tf_flags & IDE_TFLAG_NO_SELECT_MASK) == 0)
-		SELECT_MASK(drive, 0);
-
-	if (task->tf_flags & IDE_TFLAG_OUT_DATA)
-		hwif->OUTW((tf->hob_data << 8) | tf->data, io_ports->data_addr);
-
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_FEATURE)
-		hwif->OUTB(tf->hob_feature, io_ports->feature_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_NSECT)
-		hwif->OUTB(tf->hob_nsect, io_ports->nsect_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAL)
-		hwif->OUTB(tf->hob_lbal, io_ports->lbal_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAM)
-		hwif->OUTB(tf->hob_lbam, io_ports->lbam_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_HOB_LBAH)
-		hwif->OUTB(tf->hob_lbah, io_ports->lbah_addr);
-
-	if (task->tf_flags & IDE_TFLAG_OUT_FEATURE)
-		hwif->OUTB(tf->feature, io_ports->feature_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_NSECT)
-		hwif->OUTB(tf->nsect, io_ports->nsect_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_LBAL)
-		hwif->OUTB(tf->lbal, io_ports->lbal_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_LBAM)
-		hwif->OUTB(tf->lbam, io_ports->lbam_addr);
-	if (task->tf_flags & IDE_TFLAG_OUT_LBAH)
-		hwif->OUTB(tf->lbah, io_ports->lbah_addr);
-
-	if (task->tf_flags & IDE_TFLAG_OUT_DEVICE)
-		hwif->OUTB((tf->device & HIHI) | drive->select.all,
-			   io_ports->device_addr);
 }
 
 int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
@@ -149,8 +107,10 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	if (task->tf_flags & IDE_TFLAG_FLAGGED)
 		task->tf_flags |= IDE_TFLAG_FLAGGED_SET_IN_FLAGS;
 
-	if ((task->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0)
-		ide_tf_load(drive, task);
+	if ((task->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0) {
+		ide_tf_dump(drive->name, tf);
+		hwif->tf_load(drive, task);
+	}
 
 	switch (task->data_phase) {
 	case TASKFILE_MULTI_OUT:
@@ -283,7 +243,8 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	return stat;
 }
 
-static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
+static void ide_pio_sector(ide_drive_t *drive, struct request *rq,
+			   unsigned int write)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
@@ -323,9 +284,9 @@ static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
 
 	/* do the actual data transfer */
 	if (write)
-		hwif->ata_output_data(drive, buf, SECTOR_WORDS);
+		hwif->output_data(drive, rq, buf, SECTOR_SIZE);
 	else
-		hwif->ata_input_data(drive, buf, SECTOR_WORDS);
+		hwif->input_data(drive, rq, buf, SECTOR_SIZE);
 
 	kunmap_atomic(buf, KM_BIO_SRC_IRQ);
 #ifdef CONFIG_HIGHMEM
@@ -333,13 +294,14 @@ static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
 #endif
 }
 
-static void ide_pio_multi(ide_drive_t *drive, unsigned int write)
+static void ide_pio_multi(ide_drive_t *drive, struct request *rq,
+			  unsigned int write)
 {
 	unsigned int nsect;
 
 	nsect = min_t(unsigned int, drive->hwif->nleft, drive->mult_count);
 	while (nsect--)
-		ide_pio_sector(drive, write);
+		ide_pio_sector(drive, rq, write);
 }
 
 static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
@@ -362,10 +324,10 @@ static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
 	switch (drive->hwif->data_phase) {
 	case TASKFILE_MULTI_IN:
 	case TASKFILE_MULTI_OUT:
-		ide_pio_multi(drive, write);
+		ide_pio_multi(drive, rq, write);
 		break;
 	default:
-		ide_pio_sector(drive, write);
+		ide_pio_sector(drive, rq, write);
 		break;
 	}
 

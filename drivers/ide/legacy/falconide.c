@@ -44,6 +44,28 @@
 int falconide_intr_lock;
 EXPORT_SYMBOL(falconide_intr_lock);
 
+static void falconide_input_data(ide_drive_t *drive, struct request *rq,
+				 void *buf, unsigned int len)
+{
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
+
+	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
+		return insw(data_addr, buf, (len + 1) / 2);
+
+	insw_swapw(data_addr, buf, (len + 1) / 2);
+}
+
+static void falconide_output_data(ide_drive_t *drive, struct request *rq,
+				  void *buf, unsigned int len)
+{
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
+
+	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
+		return outsw(data_adr, buf, (len + 1) / 2);
+
+	outsw_swapw(data_addr, buf, (len + 1) / 2);
+}
+
 static void __init falconide_setup_ports(hw_regs_t *hw)
 {
 	int i;
@@ -89,6 +111,10 @@ static int __init falconide_init(void)
 
 		ide_init_port_data(hwif, index);
 		ide_init_port_hw(hwif, &hw);
+
+		/* Atari has a byte-swapped IDE interface */
+		hwif->input_data  = falconide_input_data;
+		hwif->output_data = falconide_output_data;
 
 		ide_get_lock(NULL, NULL);
 		ide_device_add(idx, NULL);
