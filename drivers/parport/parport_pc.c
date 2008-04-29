@@ -3082,6 +3082,7 @@ static struct pci_driver parport_pc_pci_driver;
 static int __init parport_pc_init_superio(int autoirq, int autodma) {return 0;}
 #endif /* CONFIG_PCI */
 
+#ifdef CONFIG_PNP
 
 static const struct pnp_device_id parport_pc_pnp_tbl[] = {
 	/* Standard LPT Printer Port */
@@ -3148,6 +3149,9 @@ static struct pnp_driver parport_pc_pnp_driver = {
 	.remove		= parport_pc_pnp_remove,
 };
 
+#else
+static struct pnp_driver parport_pc_pnp_driver;
+#endif /* CONFIG_PNP */
 
 static int __devinit parport_pc_platform_probe(struct platform_device *pdev)
 {
