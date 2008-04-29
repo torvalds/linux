@@ -56,9 +56,11 @@ struct nbd_device {
 	int magic;
 
 	spinlock_t queue_lock;
-	struct list_head queue_head;/* Requests are added here...	*/
+	struct list_head queue_head;	/* Requests waiting result */
 	struct request *active_req;
 	wait_queue_head_t active_wq;
+	struct list_head waiting_queue;	/* Requests to be sent */
+	wait_queue_head_t waiting_wq;
 
 	struct mutex tx_lock;
 	struct gendisk *disk;
