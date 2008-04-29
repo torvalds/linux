@@ -1014,9 +1014,9 @@ static acpi_status acpi_processor_hotadd_init(acpi_handle handle, int *p_cpu)
 
 static int acpi_processor_handle_eject(struct acpi_processor *pr)
 {
-	if (cpu_online(pr->id)) {
-		return (-EINVAL);
-	}
+	if (cpu_online(pr->id))
+		cpu_down(pr->id);
+
 	arch_unregister_cpu(pr->id);
 	acpi_unmap_lsapic(pr->id);
 	return (0);
