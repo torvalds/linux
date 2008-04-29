@@ -494,8 +494,12 @@ static int e1000_get_eeprom(struct net_device *netdev,
 		for (i = 0; i < last_word - first_word + 1; i++) {
 			ret_val = e1000_read_nvm(hw, first_word + i, 1,
 						      &eeprom_buff[i]);
-			if (ret_val)
+			if (ret_val) {
+				/* a read error occurred, throw away the
+				 * result */
+				memset(eeprom_buff, 0xff, sizeof(eeprom_buff));
 				break;
+			}
 		}
 	}
 
