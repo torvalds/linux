@@ -132,8 +132,9 @@ static struct ds1wm_platform_data ds1wm_pdata = {
 	.disable   = ds1wm_disable,
 };
 
-static int ds1wm_device_add(struct device *pasic3_dev, int bus_shift)
+static int ds1wm_device_add(struct platform_device *pasic3_pdev, int bus_shift)
 {
+	struct device *pasic3_dev = &pasic3_pdev->dev;
 	struct pasic3_data *asic = pasic3_dev->driver_data;
 	struct platform_device *pdev;
 	int ret;
@@ -144,8 +145,8 @@ static int ds1wm_device_add(struct device *pasic3_dev, int bus_shift)
 		return -ENOMEM;
 	}
 
-	ret = platform_device_add_resources(pdev, pdev->resource,
-						pdev->num_resources);
+	ret = platform_device_add_resources(pdev, pasic3_pdev->resource,
+						pasic3_pdev->num_resources);
 	if (ret < 0) {
 		dev_dbg(pasic3_dev, "failed to add DS1WM resources\n");
 		goto exit_pdev_put;
@@ -207,7 +208,7 @@ static int __init pasic3_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ret = ds1wm_device_add(dev, asic->bus_shift);
+	ret = ds1wm_device_add(pdev, asic->bus_shift);
 	if (ret < 0)
 		dev_warn(dev, "failed to register DS1WM\n");
 

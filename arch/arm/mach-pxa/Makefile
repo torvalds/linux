@@ -5,9 +5,9 @@
 # Common support (must be linked before board specific support)
 obj-y				+= clock.o devices.o generic.o irq.o dma.o \
 				   time.o gpio.o
-obj-$(CONFIG_PXA25x)		+= pxa25x.o mfp-pxa2xx.o
-obj-$(CONFIG_PXA27x)		+= pxa27x.o mfp-pxa2xx.o
-obj-$(CONFIG_PXA3xx)		+= pxa3xx.o mfp-pxa3xx.o smemc.o
+obj-$(CONFIG_PXA25x)		+= mfp-pxa2xx.o pxa25x.o
+obj-$(CONFIG_PXA27x)		+= mfp-pxa2xx.o pxa27x.o
+obj-$(CONFIG_PXA3xx)		+= mfp-pxa3xx.o pxa3xx.o smemc.o
 obj-$(CONFIG_CPU_PXA300)	+= pxa300.o
 obj-$(CONFIG_CPU_PXA320)	+= pxa320.o
 
