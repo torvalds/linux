@@ -1017,7 +1017,7 @@ static int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 			break;
 	}
 
-	err("Cannot get control of hotplug hardware for pci %s\n",
+	dbg("Cannot get control of hotplug hardware for pci %s\n",
 			pci_name(dev));
 
 	kfree(string.pointer);
