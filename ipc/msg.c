@@ -142,21 +142,6 @@ void __init msg_init(void)
 }
 
 /*
- * This routine is called in the paths where the rw_mutex is held to protect
- * access to the idr tree.
- */
-static inline struct msg_queue *msg_lock_check_down(struct ipc_namespace *ns,
-						int id)
-{
-	struct kern_ipc_perm *ipcp = ipc_lock_check_down(&msg_ids(ns), id);
-
-	if (IS_ERR(ipcp))
-		return (struct msg_queue *)ipcp;
-
-	return container_of(ipcp, struct msg_queue, q_perm);
-}
-
-/*
  * msg_lock_(check_) routines are called in the paths where the rw_mutex
  * is not held.
  */
@@ -437,35 +422,12 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 			return -EFAULT;
 	}
 
-	down_write(&msg_ids(ns).rw_mutex);
-	msq = msg_lock_check_down(ns, msqid);
-	if (IS_ERR(msq)) {
-		err = PTR_ERR(msq);
-		goto out_up;
-	}
+	ipcp = ipcctl_pre_down(&msg_ids(ns), msqid, cmd,
+			       &msqid64.msg_perm, msqid64.msg_qbytes);
+	if (IS_ERR(ipcp))
+		return PTR_ERR(ipcp);
 
-	ipcp = &msq->q_perm;
-
-	err = audit_ipc_obj(ipcp);
-	if (err)
-		goto out_unlock;
-
-	if (cmd == IPC_SET) {
-		err = audit_ipc_set_perm(msqid64.msg_qbytes,
-					 msqid64.msg_perm.uid,
-					 msqid64.msg_perm.gid,
-					 msqid64.msg_perm.mode);
-		if (err)
-			goto out_unlock;
-	}
-
-	if (current->euid != ipcp->cuid &&
-	    current->euid != ipcp->uid &&
-	    !capable(CAP_SYS_ADMIN)) {
-		/* We _could_ check for CAP_CHOWN above, but we don't */
-		err = -EPERM;
-		goto out_unlock;
-	}
+	msq = container_of(ipcp, struct msg_queue, q_perm);
 
 	err = security_msg_queue_msgctl(msq, cmd);
 	if (err)

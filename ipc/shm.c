@@ -126,18 +126,6 @@ static inline struct shmid_kernel *shm_lock_down(struct ipc_namespace *ns,
 	return container_of(ipcp, struct shmid_kernel, shm_perm);
 }
 
-static inline struct shmid_kernel *shm_lock_check_down(
-						struct ipc_namespace *ns,
-						int id)
-{
-	struct kern_ipc_perm *ipcp = ipc_lock_check_down(&shm_ids(ns), id);
-
-	if (IS_ERR(ipcp))
-		return (struct shmid_kernel *)ipcp;
-
-	return container_of(ipcp, struct shmid_kernel, shm_perm);
-}
-
 /*
  * shm_lock_(check_) routines are called in the paths where the rw_mutex
  * is not held.
@@ -620,33 +608,11 @@ static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
 			return -EFAULT;
 	}
 
-	down_write(&shm_ids(ns).rw_mutex);
-	shp = shm_lock_check_down(ns, shmid);
-	if (IS_ERR(shp)) {
-		err = PTR_ERR(shp);
-		goto out_up;
-	}
+	ipcp = ipcctl_pre_down(&shm_ids(ns), shmid, cmd, &shmid64.shm_perm, 0);
+	if (IS_ERR(ipcp))
+		return PTR_ERR(ipcp);
 
-	ipcp = &shp->shm_perm;
-
-	err = audit_ipc_obj(ipcp);
-	if (err)
-		goto out_unlock;
-
-	if (cmd == IPC_SET) {
-		err = audit_ipc_set_perm(0, shmid64.shm_perm.uid,
-					 shmid64.shm_perm.gid,
-					 shmid64.shm_perm.mode);
-		if (err)
-			goto out_unlock;
-	}
-
-	if (current->euid != ipcp->uid &&
-	    current->euid != ipcp->cuid &&
-	    !capable(CAP_SYS_ADMIN)) {
-		err = -EPERM;
-		goto out_unlock;
-	}
+	shp = container_of(ipcp, struct shmid_kernel, shm_perm);
 
 	err = security_shm_shmctl(shp, cmd);
 	if (err)

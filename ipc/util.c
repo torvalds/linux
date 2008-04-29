@@ -824,6 +824,57 @@ void ipc_update_perm(struct ipc64_perm *in, struct kern_ipc_perm *out)
 		| (in->mode & S_IRWXUGO);
 }
 
+/**
+ * ipcctl_pre_down - retrieve an ipc and check permissions for some IPC_XXX cmd
+ * @ids:  the table of ids where to look for the ipc
+ * @id:   the id of the ipc to retrieve
+ * @cmd:  the cmd to check
+ * @perm: the permission to set
+ * @extra_perm: one extra permission parameter used by msq
+ *
+ * This function does some common audit and permissions check for some IPC_XXX
+ * cmd and is called from semctl_down, shmctl_down and msgctl_down.
+ * It must be called without any lock held and
+ *  - retrieves the ipc with the given id in the given table.
+ *  - performs some audit and permission check, depending on the given cmd
+ *  - returns the ipc with both ipc and rw_mutex locks held in case of success
+ *    or an err-code without any lock held otherwise.
+ */
+struct kern_ipc_perm *ipcctl_pre_down(struct ipc_ids *ids, int id, int cmd,
+				      struct ipc64_perm *perm, int extra_perm)
+{
+	struct kern_ipc_perm *ipcp;
+	int err;
+
+	down_write(&ids->rw_mutex);
+	ipcp = ipc_lock_check_down(ids, id);
+	if (IS_ERR(ipcp)) {
+		err = PTR_ERR(ipcp);
+		goto out_up;
+	}
+
+	err = audit_ipc_obj(ipcp);
+	if (err)
+		goto out_unlock;
+
+	if (cmd == IPC_SET) {
+		err = audit_ipc_set_perm(extra_perm, perm->uid,
+					 perm->gid, perm->mode);
+		if (err)
+			goto out_unlock;
+	}
+	if (current->euid == ipcp->cuid ||
+	    current->euid == ipcp->uid || capable(CAP_SYS_ADMIN))
+		return ipcp;
+
+	err = -EPERM;
+out_unlock:
+	ipc_unlock(ipcp);
+out_up:
+	up_write(&ids->rw_mutex);
+	return ERR_PTR(err);
+}
+
 #ifdef __ARCH_WANT_IPC_PARSE_VERSION
 
 

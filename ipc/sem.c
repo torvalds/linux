@@ -141,21 +141,6 @@ void __init sem_init (void)
 }
 
 /*
- * This routine is called in the paths where the rw_mutex is held to protect
- * access to the idr tree.
- */
-static inline struct sem_array *sem_lock_check_down(struct ipc_namespace *ns,
-						int id)
-{
-	struct kern_ipc_perm *ipcp = ipc_lock_check_down(&sem_ids(ns), id);
-
-	if (IS_ERR(ipcp))
-		return (struct sem_array *)ipcp;
-
-	return container_of(ipcp, struct sem_array, sem_perm);
-}
-
-/*
  * sem_lock_(check_) routines are called in the paths where the rw_mutex
  * is not held.
  */
@@ -878,31 +863,12 @@ static int semctl_down(struct ipc_namespace *ns, int semid,
 		if (copy_semid_from_user(&semid64, arg.buf, version))
 			return -EFAULT;
 	}
-	down_write(&sem_ids(ns).rw_mutex);
-	sma = sem_lock_check_down(ns, semid);
-	if (IS_ERR(sma)) {
-		err = PTR_ERR(sma);
-		goto out_up;
-	}
 
-	ipcp = &sma->sem_perm;
+	ipcp = ipcctl_pre_down(&sem_ids(ns), semid, cmd, &semid64.sem_perm, 0);
+	if (IS_ERR(ipcp))
+		return PTR_ERR(ipcp);
 
-	err = audit_ipc_obj(ipcp);
-	if (err)
-		goto out_unlock;
-
-	if (cmd == IPC_SET) {
-		err = audit_ipc_set_perm(0, semid64.sem_perm.uid,
-					 semid64.sem_perm.gid,
-					 semid64.sem_perm.mode);
-		if (err)
-			goto out_unlock;
-	}
-	if (current->euid != ipcp->cuid && 
-	    current->euid != ipcp->uid && !capable(CAP_SYS_ADMIN)) {
-	    	err=-EPERM;
-		goto out_unlock;
-	}
+	sma = container_of(ipcp, struct sem_array, sem_perm);
 
 	err = security_sem_semctl(sma, cmd);
 	if (err)
