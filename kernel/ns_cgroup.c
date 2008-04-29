@@ -8,6 +8,7 @@
 #include <linux/cgroup.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/nsproxy.h>
 
 struct ns_cgroup {
 	struct cgroup_subsys_state css;
