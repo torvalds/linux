@@ -117,7 +117,6 @@ header-y += nfs2.h
 header-y += nfs4_mount.h
 header-y += nfs_mount.h
 header-y += nl80211.h
-header-y += oom.h
 header-y += param.h
 header-y += pci_regs.h
 header-y += pfkeyv2.h
