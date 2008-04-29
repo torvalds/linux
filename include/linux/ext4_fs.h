@@ -19,7 +19,6 @@
 #include <linux/types.h>
 #include <linux/blkdev.h>
 #include <linux/magic.h>
-
 #include <linux/ext4_fs_i.h>
 
 /*
@@ -176,7 +175,6 @@ struct ext4_group_desc
 #define EXT4_BG_INODE_ZEROED	0x0004 /* On-disk itable initialized to zero */
 
 #ifdef __KERNEL__
-#include <linux/ext4_fs_i.h>
 #include <linux/ext4_fs_sb.h>
 #endif
 /*
