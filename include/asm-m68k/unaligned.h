@@ -1,16 +1,13 @@
-#ifndef __M68K_UNALIGNED_H
-#define __M68K_UNALIGNED_H
+#ifndef _ASM_M68K_UNALIGNED_H
+#define _ASM_M68K_UNALIGNED_H
 
 /*
  * The m68k can do unaligned accesses itself.
- *
- * The strange macros are there to make sure these can't
- * be misused in a way that makes them not work on other
- * architectures where unaligned accesses aren't as simple.
  */
+#include <linux/unaligned/access_ok.h>
+#include <linux/unaligned/generic.h>
 
-#define get_unaligned(ptr) (*(ptr))
+#define get_unaligned	__get_unaligned_be
+#define put_unaligned	__put_unaligned_be
 
-#define put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
-
-#endif
+#endif /* _ASM_M68K_UNALIGNED_H */
