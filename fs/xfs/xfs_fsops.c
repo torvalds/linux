@@ -552,11 +552,8 @@ retry:
 			mp->m_resblks += free;
 			mp->m_resblks_avail += free;
 			fdblks_delta = -free;
-			mp->m_sb.sb_fdblocks = XFS_ALLOC_SET_ASIDE(mp);
 		} else {
 			fdblks_delta = -delta;
-			mp->m_sb.sb_fdblocks =
-				lcounter + XFS_ALLOC_SET_ASIDE(mp);
 			mp->m_resblks = request;
 			mp->m_resblks_avail += delta;
 		}
@@ -587,7 +584,6 @@ out:
 		if (error == ENOSPC)
 			goto retry;
 	}
-
 	return 0;
 }
 
