@@ -23,13 +23,7 @@
 #define PCA953X_INVERT         2
 #define PCA953X_DIRECTION      3
 
-/* This is temporary - in 2.6.26 i2c_driver_data should replace it. */
-struct pca953x_desc {
-	char		name[I2C_NAME_SIZE];
-	unsigned long	driver_data;
-};
-
-static const struct pca953x_desc pca953x_descs[] = {
+static const struct i2c_device_id pca953x_id[] = {
 	{ "pca9534", 8, },
 	{ "pca9535", 16, },
 	{ "pca9536", 4, },
@@ -37,7 +31,9 @@ static const struct pca953x_desc pca953x_descs[] = {
 	{ "pca9538", 8, },
 	{ "pca9539", 16, },
 	/* REVISIT several pca955x parts should work here too */
+	{ }
 };
+MODULE_DEVICE_TABLE(i2c, pca953x_id);
 
 struct pca953x_chip {
 	unsigned gpio_start;
@@ -192,24 +188,15 @@ static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 	gc->owner = THIS_MODULE;
 }
 
-static int __devinit pca953x_probe(struct i2c_client *client)
+static int __devinit pca953x_probe(struct i2c_client *client,
+				   const struct i2c_device_id *id)
 {
 	struct pca953x_platform_data *pdata;
 	struct pca953x_chip *chip;
 	int ret, i;
-	const struct pca953x_desc *id = NULL;
 
 	pdata = client->dev.platform_data;
 	if (pdata == NULL)
-		return -ENODEV;
-
-	/* this loop vanishes when we get i2c_device_id */
-	for (i = 0; i < ARRAY_SIZE(pca953x_descs); i++)
-		if (!strcmp(pca953x_descs[i].name, client->name)) {
-			id = pca953x_descs + i;
-			break;
-		}
-	if (!id)
 		return -ENODEV;
 
 	chip = kzalloc(sizeof(struct pca953x_chip), GFP_KERNEL);
@@ -291,6 +278,7 @@ static struct i2c_driver pca953x_driver = {
 	},
 	.probe		= pca953x_probe,
 	.remove		= pca953x_remove,
+	.id_table	= pca953x_id,
 };
 
 static int __init pca953x_init(void)

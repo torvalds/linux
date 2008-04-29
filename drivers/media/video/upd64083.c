@@ -172,7 +172,8 @@ static int upd64083_command(struct i2c_client *client, unsigned cmd, void *arg)
 
 /* i2c implementation */
 
-static int upd64083_probe(struct i2c_client *client)
+static int upd64083_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
 {
 	struct upd64083_state *state;
 	int i;

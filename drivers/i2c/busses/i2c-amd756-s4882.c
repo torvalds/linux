@@ -1,7 +1,7 @@
 /*
  * i2c-amd756-s4882.c - i2c-amd756 extras for the Tyan S4882 motherboard
  *
- * Copyright (C) 2004 Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2004, 2008 Jean Delvare <khali@linux-fr.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -231,7 +231,8 @@ ERROR2:
 	kfree(s4882_adapter);
 	s4882_adapter = NULL;
 ERROR1:
-	i2c_del_adapter(&amd756_smbus);
+	/* Restore physical bus */
+	i2c_add_adapter(&amd756_smbus);
 ERROR0:
 	return error;
 }

@@ -69,6 +69,15 @@ enum rtc_type {
 	rtc_rv5c387a,
 };
 
+static const struct i2c_device_id rs5c372_id[] = {
+	{ "rs5c372a", rtc_rs5c372a },
+	{ "rs5c372b", rtc_rs5c372b },
+	{ "rv5c386", rtc_rv5c386 },
+	{ "rv5c387a", rtc_rv5c387a },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, rs5c372_id);
+
 /* REVISIT:  this assumes that:
  *  - we're in the 21st century, so it's safe to ignore the century
  *    bit for rv5c38[67] (REG_MONTH bit 7);
@@ -494,7 +503,8 @@ static void rs5c_sysfs_unregister(struct device *dev)
 
 static struct i2c_driver rs5c372_driver;
 
-static int rs5c372_probe(struct i2c_client *client)
+static int rs5c372_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	int err = 0;
 	struct rs5c372 *rs5c372;
@@ -514,6 +524,7 @@ static int rs5c372_probe(struct i2c_client *client)
 
 	rs5c372->client = client;
 	i2c_set_clientdata(client, rs5c372);
+	rs5c372->type = id->driver_data;
 
 	/* we read registers 0x0f then 0x00-0x0f; skip the first one */
 	rs5c372->regs = &rs5c372->buf[1];
@@ -521,19 +532,6 @@ static int rs5c372_probe(struct i2c_client *client)
 	err = rs5c_get_regs(rs5c372);
 	if (err < 0)
 		goto exit_kfree;
-
-	if (strcmp(client->name, "rs5c372a") == 0)
-		rs5c372->type = rtc_rs5c372a;
-	else if (strcmp(client->name, "rs5c372b") == 0)
-		rs5c372->type = rtc_rs5c372b;
-	else if (strcmp(client->name, "rv5c386") == 0)
-		rs5c372->type = rtc_rv5c386;
-	else if (strcmp(client->name, "rv5c387a") == 0)
-		rs5c372->type = rtc_rv5c387a;
-	else {
-		rs5c372->type = rtc_rs5c372b;
-		dev_warn(&client->dev, "assuming rs5c372b\n");
-	}
 
 	/* clock may be set for am/pm or 24 hr time */
 	switch (rs5c372->type) {
@@ -651,6 +649,7 @@ static struct i2c_driver rs5c372_driver = {
 	},
 	.probe		= rs5c372_probe,
 	.remove		= rs5c372_remove,
+	.id_table	= rs5c372_id,
 };
 
 static __init int rs5c372_init(void)

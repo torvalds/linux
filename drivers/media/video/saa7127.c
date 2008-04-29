@@ -661,7 +661,8 @@ static int saa7127_command(struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
-static int saa7127_probe(struct i2c_client *client)
+static int saa7127_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct saa7127_state *state;
 	struct v4l2_sliced_vbi_data vbi = { 0, 0, 0, 0 };  /* set to disabled */

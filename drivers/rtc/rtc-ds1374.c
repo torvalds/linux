@@ -41,6 +41,12 @@
 #define DS1374_REG_SR_AF	0x01 /* Alarm Flag */
 #define DS1374_REG_TCR		0x09 /* Trickle Charge */
 
+static const struct i2c_device_id ds1374_id[] = {
+	{ "rtc-ds1374", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ds1374_id);
+
 struct ds1374 {
 	struct i2c_client *client;
 	struct rtc_device *rtc;
@@ -355,7 +361,8 @@ static const struct rtc_class_ops ds1374_rtc_ops = {
 	.ioctl = ds1374_ioctl,
 };
 
-static int ds1374_probe(struct i2c_client *client)
+static int ds1374_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct ds1374 *ds1374;
 	int ret;
@@ -429,6 +436,7 @@ static struct i2c_driver ds1374_driver = {
 	},
 	.probe = ds1374_probe,
 	.remove = __devexit_p(ds1374_remove),
+	.id_table = ds1374_id,
 };
 
 static int __init ds1374_init(void)

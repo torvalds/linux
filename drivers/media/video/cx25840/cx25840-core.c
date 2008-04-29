@@ -1209,7 +1209,8 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 
 /* ----------------------------------------------------------------------- */
 
-static int cx25840_probe(struct i2c_client *client)
+static int cx25840_probe(struct i2c_client *client,
+			 const struct i2c_device_id *did)
 {
 	struct cx25840_state *state;
 	u32 id;

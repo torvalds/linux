@@ -840,7 +840,8 @@ static struct v4l2_int_device tcm825x_int_device = {
 	},
 };
 
-static int tcm825x_probe(struct i2c_client *client)
+static int tcm825x_probe(struct i2c_client *client,
+			 const struct i2c_device_id *did)
 {
 	struct tcm825x_sensor *sensor = &tcm825x;
 	int rval;

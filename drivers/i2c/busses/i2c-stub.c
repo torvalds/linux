@@ -33,7 +33,7 @@
 static unsigned short chip_addr[MAX_CHIPS];
 module_param_array(chip_addr, ushort, NULL, S_IRUGO);
 MODULE_PARM_DESC(chip_addr,
-		 "Chip addresses (up to 10, between 0x03 and 0x77)\n");
+		 "Chip addresses (up to 10, between 0x03 and 0x77)");
 
 struct stub_chip {
 	u8 pointer;

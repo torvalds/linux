@@ -745,7 +745,8 @@ static void mt9v022_video_remove(struct soc_camera_device *icd)
 	soc_camera_video_stop(&mt9v022->icd);
 }
 
-static int mt9v022_probe(struct i2c_client *client)
+static int mt9v022_probe(struct i2c_client *client,
+			 const struct i2c_device_id *did)
 {
 	struct mt9v022 *mt9v022;
 	struct soc_camera_device *icd;
@@ -818,12 +819,19 @@ static int mt9v022_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id mt9v022_id[] = {
+	{ "mt9v022", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, mt9v022_id);
+
 static struct i2c_driver mt9v022_i2c_driver = {
 	.driver = {
 		.name = "mt9v022",
 	},
 	.probe		= mt9v022_probe,
 	.remove		= mt9v022_remove,
+	.id_table	= mt9v022_id,
 };
 
 static int __init mt9v022_mod_init(void)

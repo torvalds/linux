@@ -1450,7 +1450,8 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 
 /* ----------------------------------------------------------------------- */
 
-static int saa7115_probe(struct i2c_client *client)
+static int saa7115_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct saa711x_state *state;
 	int	i;

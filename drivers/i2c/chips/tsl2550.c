@@ -364,7 +364,8 @@ static int tsl2550_init_client(struct i2c_client *client)
  */
 
 static struct i2c_driver tsl2550_driver;
-static int __devinit tsl2550_probe(struct i2c_client *client)
+static int __devinit tsl2550_probe(struct i2c_client *client,
+				   const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct tsl2550_data *data;
@@ -451,6 +452,12 @@ static int tsl2550_resume(struct i2c_client *client)
 
 #endif /* CONFIG_PM */
 
+static const struct i2c_device_id tsl2550_id[] = {
+	{ "tsl2550", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, tsl2550_id);
+
 static struct i2c_driver tsl2550_driver = {
 	.driver = {
 		.name	= TSL2550_DRV_NAME,
@@ -460,6 +467,7 @@ static struct i2c_driver tsl2550_driver = {
 	.resume	= tsl2550_resume,
 	.probe	= tsl2550_probe,
 	.remove	= __devexit_p(tsl2550_remove),
+	.id_table = tsl2550_id,
 };
 
 static int __init tsl2550_init(void)
