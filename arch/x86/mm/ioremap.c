@@ -148,8 +148,8 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
 	 */
-	for (pfn = phys_addr >> PAGE_SHIFT;
-				(pfn << PAGE_SHIFT) < last_addr; pfn++) {
+	for (pfn = phys_addr >> PAGE_SHIFT; pfn < max_pfn_mapped &&
+		(pfn << PAGE_SHIFT) < last_addr; pfn++) {
 
 		int is_ram = page_is_ram(pfn);
 
