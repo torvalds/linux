@@ -765,9 +765,9 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 static void extract_buf(struct entropy_store *r, __u8 *out)
 {
 	int i;
-	__u32 data[16], buf[5 + SHA_WORKSPACE_WORDS];
+	__u32 extract[16], hash[5], workspace[SHA_WORKSPACE_WORDS];
 
-	sha_init(buf);
+	sha_init(hash);
 	/*
 	 * As we hash the pool, we mix intermediate values of
 	 * the hash back into the pool.  This eliminates
@@ -778,9 +778,9 @@ static void extract_buf(struct entropy_store *r, __u8 *out)
 	 */
 	for (i = 0; i < r->poolinfo->poolwords; i += 16) {
 		/* hash blocks of 16 words = 512 bits */
-		sha_transform(buf, (__u8 *)(r->pool + i), buf + 5);
+		sha_transform(hash, (__u8 *)(r->pool + i), workspace);
 		/* feed back portion of the resulting hash */
-		add_entropy_words(r, &buf[i % 5], 1);
+		add_entropy_words(r, &hash[i % 5], 1);
 	}
 
 	/*
@@ -788,19 +788,21 @@ static void extract_buf(struct entropy_store *r, __u8 *out)
 	 * portion of the pool while mixing, and hash one
 	 * final time.
 	 */
-	__add_entropy_words(r, &buf[i % 5], 1, data);
-	sha_transform(buf, (__u8 *)data, buf + 5);
+	__add_entropy_words(r, &hash[i % 5], 1, extract);
+	sha_transform(hash, (__u8 *)extract, workspace);
+	memset(extract, 0, sizeof(extract));
+	memset(workspace, 0, sizeof(workspace));
 
 	/*
 	 * In case the hash function has some recognizable
 	 * output pattern, we fold it in half.
 	 */
 
-	buf[0] ^= buf[3];
-	buf[1] ^= buf[4];
-	buf[2] ^= rol32(buf[2], 16);
-	memcpy(out, buf, EXTRACT_SIZE);
-	memset(buf, 0, sizeof(buf));
+	hash[0] ^= hash[3];
+	hash[1] ^= hash[4];
+	hash[2] ^= rol32(hash[2], 16);
+	memcpy(out, hash, EXTRACT_SIZE);
+	memset(hash, 0, sizeof(hash));
 }
 
 static ssize_t extract_entropy(struct entropy_store *r, void *buf,
