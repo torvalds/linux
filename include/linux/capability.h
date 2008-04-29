@@ -365,12 +365,12 @@ typedef struct kernel_cap_struct {
 # error Fix up hand-coded capability macro initializers
 #else /* HAND-CODED capability initializers */
 
-# define CAP_EMPTY_SET    {{ 0, 0 }}
-# define CAP_FULL_SET     {{ ~0, ~0 }}
-# define CAP_INIT_EFF_SET {{ ~CAP_TO_MASK(CAP_SETPCAP), ~0 }}
-# define CAP_FS_SET       {{ CAP_FS_MASK_B0, CAP_FS_MASK_B1 } }
-# define CAP_NFSD_SET     {{ CAP_FS_MASK_B0|CAP_TO_MASK(CAP_SYS_RESOURCE), \
-			     CAP_FS_MASK_B1 } }
+# define CAP_EMPTY_SET    ((kernel_cap_t){{ 0, 0 }})
+# define CAP_FULL_SET     ((kernel_cap_t){{ ~0, ~0 }})
+# define CAP_INIT_EFF_SET ((kernel_cap_t){{ ~CAP_TO_MASK(CAP_SETPCAP), ~0 }})
+# define CAP_FS_SET       ((kernel_cap_t){{ CAP_FS_MASK_B0, CAP_FS_MASK_B1 } })
+# define CAP_NFSD_SET     ((kernel_cap_t){{ CAP_FS_MASK_B0|CAP_TO_MASK(CAP_SYS_RESOURCE), \
+					CAP_FS_MASK_B1 } })
 
 #endif /* _LINUX_CAPABILITY_U32S != 2 */
 
