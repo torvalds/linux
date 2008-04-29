@@ -236,24 +236,10 @@ static struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
 				css);
 }
 
-static struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
 {
 	return container_of(task_subsys_state(p, mem_cgroup_subsys_id),
 				struct mem_cgroup, css);
-}
-
-void mm_init_cgroup(struct mm_struct *mm, struct task_struct *p)
-{
-	struct mem_cgroup *mem;
-
-	mem = mem_cgroup_from_task(p);
-	css_get(&mem->css);
-	mm->mem_cgroup = mem;
-}
-
-void mm_free_cgroup(struct mm_struct *mm)
-{
-	css_put(&mm->mem_cgroup->css);
 }
 
 static inline int page_cgroup_locked(struct page *page)
@@ -476,6 +462,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 	int zid = zone_idx(z);
 	struct mem_cgroup_per_zone *mz;
 
+	BUG_ON(!mem_cont);
 	mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
 	if (active)
 		src = &mz->active_list;
@@ -574,7 +561,7 @@ retry:
 		mm = &init_mm;
 
 	rcu_read_lock();
-	mem = rcu_dereference(mm->mem_cgroup);
+	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
 	/*
 	 * For every charge from the cgroup, increment reference count
 	 */
@@ -985,10 +972,9 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	struct mem_cgroup *mem;
 	int node;
 
-	if (unlikely((cont->parent) == NULL)) {
+	if (unlikely((cont->parent) == NULL))
 		mem = &init_mem_cgroup;
-		init_mm.mem_cgroup = mem;
-	} else
+	else
 		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
 
 	if (mem == NULL)
@@ -1066,10 +1052,6 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 	 */
 	if (!thread_group_leader(p))
 		goto out;
-
-	css_get(&mem->css);
-	rcu_assign_pointer(mm->mem_cgroup, mem);
-	css_put(&old_mem->css);
 
 out:
 	mmput(mm);

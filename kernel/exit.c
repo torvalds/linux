@@ -557,6 +557,88 @@ void exit_fs(struct task_struct *tsk)
 
 EXPORT_SYMBOL_GPL(exit_fs);
 
+#ifdef CONFIG_MM_OWNER
+/*
+ * Task p is exiting and it owned mm, lets find a new owner for it
+ */
+static inline int
+mm_need_new_owner(struct mm_struct *mm, struct task_struct *p)
+{
+	/*
+	 * If there are other users of the mm and the owner (us) is exiting
+	 * we need to find a new owner to take on the responsibility.
+	 */
+	if (!mm)
+		return 0;
+	if (atomic_read(&mm->mm_users) <= 1)
+		return 0;
+	if (mm->owner != p)
+		return 0;
+	return 1;
+}
+
+void mm_update_next_owner(struct mm_struct *mm)
+{
+	struct task_struct *c, *g, *p = current;
+
+retry:
+	if (!mm_need_new_owner(mm, p))
+		return;
+
+	read_lock(&tasklist_lock);
+	/*
+	 * Search in the children
+	 */
+	list_for_each_entry(c, &p->children, sibling) {
+		if (c->mm == mm)
+			goto assign_new_owner;
+	}
+
+	/*
+	 * Search in the siblings
+	 */
+	list_for_each_entry(c, &p->parent->children, sibling) {
+		if (c->mm == mm)
+			goto assign_new_owner;
+	}
+
+	/*
+	 * Search through everything else. We should not get
+	 * here often
+	 */
+	do_each_thread(g, c) {
+		if (c->mm == mm)
+			goto assign_new_owner;
+	} while_each_thread(g, c);
+
+	read_unlock(&tasklist_lock);
+	return;
+
+assign_new_owner:
+	BUG_ON(c == p);
+	get_task_struct(c);
+	/*
+	 * The task_lock protects c->mm from changing.
+	 * We always want mm->owner->mm == mm
+	 */
+	task_lock(c);
+	/*
+	 * Delay read_unlock() till we have the task_lock()
+	 * to ensure that c does not slip away underneath us
+	 */
+	read_unlock(&tasklist_lock);
+	if (c->mm != mm) {
+		task_unlock(c);
+		put_task_struct(c);
+		goto retry;
+	}
+	cgroup_mm_owner_callbacks(mm->owner, c);
+	mm->owner = c;
+	task_unlock(c);
+	put_task_struct(c);
+}
+#endif /* CONFIG_MM_OWNER */
+
 /*
  * Turn us into a lazy TLB process if we
  * aren't already..
@@ -596,6 +678,7 @@ static void exit_mm(struct task_struct * tsk)
 	/* We don't want this task to be frozen prematurely */
 	clear_freeze_flag(tsk);
 	task_unlock(tsk);
+	mm_update_next_owner(mm);
 	mmput(mm);
 }
 

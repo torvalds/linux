@@ -381,14 +381,13 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
 	mm->ioctx_list = NULL;
 	mm->free_area_cache = TASK_UNMAPPED_BASE;
 	mm->cached_hole_size = ~0UL;
-	mm_init_cgroup(mm, p);
+	mm_init_owner(mm, p);
 
 	if (likely(!mm_alloc_pgd(mm))) {
 		mm->def_flags = 0;
 		return mm;
 	}
 
-	mm_free_cgroup(mm);
 	free_mm(mm);
 	return NULL;
 }
@@ -438,7 +437,6 @@ void mmput(struct mm_struct *mm)
 			spin_unlock(&mmlist_lock);
 		}
 		put_swap_token(mm);
-		mm_free_cgroup(mm);
 		mmdrop(mm);
 	}
 }
@@ -981,6 +979,13 @@ static void rt_mutex_init_task(struct task_struct *p)
 	p->pi_blocked_on = NULL;
 #endif
 }
+
+#ifdef CONFIG_MM_OWNER
+void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
+{
+	mm->owner = p;
+}
+#endif /* CONFIG_MM_OWNER */
 
 /*
  * This creates a new process as a copy of the old one,

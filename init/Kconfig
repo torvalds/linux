@@ -378,9 +378,13 @@ config RESOURCE_COUNTERS
           infrastructure that works with cgroups
 	depends on CGROUPS
 
+config MM_OWNER
+	bool
+
 config CGROUP_MEM_RES_CTLR
 	bool "Memory Resource Controller for Control Groups"
 	depends on CGROUPS && RESOURCE_COUNTERS
+	select MM_OWNER
 	help
 	  Provides a memory resource controller that manages both page cache and
 	  RSS memory.
@@ -392,6 +396,9 @@ config CGROUP_MEM_RES_CTLR
 
 	  Only enable when you're ok with these trade offs and really
 	  sure you need the memory resource controller.
+
+	  This config option also selects MM_OWNER config option, which
+	  could in turn add some fork/exit overhead.
 
 config SYSFS_DEPRECATED
 	bool

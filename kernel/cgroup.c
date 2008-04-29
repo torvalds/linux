@@ -119,6 +119,7 @@ static int root_count;
  * be called.
  */
 static int need_forkexit_callback;
+static int need_mm_owner_callback __read_mostly;
 
 /* convenient tests for these bits */
 inline int cgroup_is_removed(const struct cgroup *cgrp)
@@ -2498,6 +2499,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	init_css_set.subsys[ss->subsys_id] = dummytop->subsys[ss->subsys_id];
 
 	need_forkexit_callback |= ss->fork || ss->exit;
+	need_mm_owner_callback |= !!ss->mm_owner_changed;
 
 	/* At system boot, before all subsystems have been
 	 * registered, no tasks have been forked, so we don't
@@ -2747,6 +2749,34 @@ void cgroup_fork_callbacks(struct task_struct *child)
 		}
 	}
 }
+
+#ifdef CONFIG_MM_OWNER
+/**
+ * cgroup_mm_owner_callbacks - run callbacks when the mm->owner changes
+ * @p: the new owner
+ *
+ * Called on every change to mm->owner. mm_init_owner() does not
+ * invoke this routine, since it assigns the mm->owner the first time
+ * and does not change it.
+ */
+void cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
+{
+	struct cgroup *oldcgrp, *newcgrp;
+
+	if (need_mm_owner_callback) {
+		int i;
+		for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
+			struct cgroup_subsys *ss = subsys[i];
+			oldcgrp = task_cgroup(old, ss->subsys_id);
+			newcgrp = task_cgroup(new, ss->subsys_id);
+			if (oldcgrp == newcgrp)
+				continue;
+			if (ss->mm_owner_changed)
+				ss->mm_owner_changed(ss, oldcgrp, newcgrp);
+		}
+	}
+}
+#endif /* CONFIG_MM_OWNER */
 
 /**
  * cgroup_post_fork - called on a new task after adding it to the task list

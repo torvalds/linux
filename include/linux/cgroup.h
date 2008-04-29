@@ -305,6 +305,12 @@ struct cgroup_subsys {
 			struct cgroup *cgrp);
 	void (*post_clone)(struct cgroup_subsys *ss, struct cgroup *cgrp);
 	void (*bind)(struct cgroup_subsys *ss, struct cgroup *root);
+	/*
+	 * This routine is called with the task_lock of mm->owner held
+	 */
+	void (*mm_owner_changed)(struct cgroup_subsys *ss,
+					struct cgroup *old,
+					struct cgroup *new);
 	int subsys_id;
 	int active;
 	int disabled;
@@ -390,4 +396,13 @@ static inline int cgroupstats_build(struct cgroupstats *stats,
 
 #endif /* !CONFIG_CGROUPS */
 
+#ifdef CONFIG_MM_OWNER
+extern void
+cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new);
+#else /* !CONFIG_MM_OWNER */
+static inline void
+cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
+{
+}
+#endif /* CONFIG_MM_OWNER */
 #endif /* _LINUX_CGROUP_H */
