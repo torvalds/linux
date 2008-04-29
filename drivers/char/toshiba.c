@@ -520,12 +520,11 @@ static int __init toshiba_init(void)
 	{
 		struct proc_dir_entry *pde;
 
-		pde = create_proc_entry("toshiba", 0, NULL);
+		pde = proc_create("toshiba", 0, NULL, &proc_toshiba_fops);
 		if (!pde) {
 			misc_deregister(&tosh_device);
 			return -ENOMEM;
 		}
-		pde->proc_fops = &proc_toshiba_fops;
 	}
 #endif
 

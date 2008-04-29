@@ -82,6 +82,7 @@ static int i8k_ioctl(struct inode *, struct file *, unsigned int,
 		     unsigned long);
 
 static const struct file_operations i8k_fops = {
+	.owner		= THIS_MODULE,
 	.open		= i8k_open_fs,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -554,12 +555,9 @@ static int __init i8k_init(void)
 		return -ENODEV;
 
 	/* Register the proc entry */
-	proc_i8k = create_proc_entry("i8k", 0, NULL);
+	proc_i8k = proc_create("i8k", 0, NULL, &i8k_fops);
 	if (!proc_i8k)
 		return -ENOENT;
-
-	proc_i8k->proc_fops = &i8k_fops;
-	proc_i8k->owner = THIS_MODULE;
 
 	printk(KERN_INFO
 	       "Dell laptop SMM driver v%s Massimo Dal Zotto (dz@debian.org)\n",
