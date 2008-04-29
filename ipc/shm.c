@@ -60,7 +60,6 @@ static struct vm_operations_struct shm_vm_ops;
 
 #define shm_unlock(shp)			\
 	ipc_unlock(&(shp)->shm_perm)
-#define shm_buildid(id, seq)	ipc_buildid(id, seq)
 
 static int newseg(struct ipc_namespace *, struct ipc_params *);
 static void shm_open(struct vm_area_struct *vma);
@@ -168,12 +167,6 @@ static inline void shm_rmid(struct ipc_namespace *ns, struct shmid_kernel *s)
 {
 	ipc_rmid(&shm_ids(ns), &s->shm_perm);
 }
-
-static inline int shm_addid(struct ipc_namespace *ns, struct shmid_kernel *shp)
-{
-	return ipc_addid(&shm_ids(ns), &shp->shm_perm, ns->shm_ctlmni);
-}
-
 
 
 /* This is called by fork, once for every shm attach. */
@@ -416,7 +409,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	if (IS_ERR(file))
 		goto no_file;
 
-	id = shm_addid(ns, shp);
+	id = ipc_addid(&shm_ids(ns), &shp->shm_perm, ns->shm_ctlmni);
 	if (id < 0) {
 		error = id;
 		goto no_id;
@@ -428,7 +421,6 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	shp->shm_ctim = get_seconds();
 	shp->shm_segsz = size;
 	shp->shm_nattch = 0;
-	shp->shm_perm.id = shm_buildid(id, shp->shm_perm.seq);
 	shp->shm_file = file;
 	/*
 	 * shmid gets reported as "inode#" in /proc/pid/maps.
