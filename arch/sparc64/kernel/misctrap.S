@@ -1,3 +1,13 @@
+#ifdef CONFIG_KGDB
+	.globl		arch_kgdb_breakpoint
+	.type		arch_kgdb_breakpoint,#function
+arch_kgdb_breakpoint:
+	ta		0x72
+	retl
+	 nop
+	.size		arch_kgdb_breakpoint,.-arch_kgdb_breakpoint
+#endif
+
 	.type		__do_privact,#function
 __do_privact:
 	mov		TLB_SFSR, %g3

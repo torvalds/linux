@@ -175,6 +175,12 @@
 #define KPROBES_TRAP(lvl) TRAP_ARG(bad_trap, lvl)
 #endif
 
+#ifdef CONFIG_KGDB
+#define KGDB_TRAP(lvl) TRAP_IRQ(kgdb_trap, lvl)
+#else
+#define KGDB_TRAP(lvl) TRAP_ARG(bad_trap, lvl)
+#endif
+
 #define SUN4V_ITSB_MISS					\
 	ldxa	[%g0] ASI_SCRATCHPAD, %g2;		\
 	ldx	[%g2 + HV_FAULT_I_ADDR_OFFSET], %g4;	\
