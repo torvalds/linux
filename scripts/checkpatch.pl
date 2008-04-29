@@ -9,7 +9,7 @@ use strict;
 my $P = $0;
 $P =~ s@.*/@@g;
 
-my $V = '0.16';
+my $V = '0.17';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -130,6 +130,17 @@ our $Operators	= qr{
 our $NonptrType;
 our $Type;
 our $Declare;
+
+our $UTF8	= qr {
+	[\x09\x0A\x0D\x20-\x7E]              # ASCII
+	| [\xC2-\xDF][\x80-\xBF]             # non-overlong 2-byte
+	|  \xE0[\xA0-\xBF][\x80-\xBF]        # excluding overlongs
+	| [\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}  # straight 3-byte
+	|  \xED[\x80-\x9F][\x80-\xBF]        # excluding surrogates
+	|  \xF0[\x90-\xBF][\x80-\xBF]{2}     # planes 1-3
+	| [\xF1-\xF3][\x80-\xBF]{3}          # planes 4-15
+	|  \xF4[\x80-\x8F][\x80-\xBF]{2}     # plane 16
+}x;
 
 our @typeList = (
 	qr{void},
@@ -692,7 +703,7 @@ sub annotate_values {
 	while (length($cur)) {
 		@av_paren_type = ('E') if ($#av_paren_type < 0);
 		print " <" . join('', @av_paren_type) .
-					"> <$type> " if ($dbg_values > 1);
+				"> <$type> <$av_pending>" if ($dbg_values > 1);
 		if ($cur =~ /^(\s+)/o) {
 			print "WS($1)\n" if ($dbg_values > 1);
 			if ($1 =~ /\n/ && $av_preprocessor) {
@@ -705,9 +716,18 @@ sub annotate_values {
 			$type = 'T';
 
 		} elsif ($cur =~ /^(#\s*define\s*$Ident)(\(?)/o) {
-			print "DEFINE($1)\n" if ($dbg_values > 1);
+			print "DEFINE($1,$2)\n" if ($dbg_values > 1);
 			$av_preprocessor = 1;
-			$av_pending = 'N';
+			push(@av_paren_type, $type);
+			if ($2 ne '') {
+				$av_pending = 'N';
+			}
+			$type = 'E';
+
+		} elsif ($cur =~ /^(#\s*undef\s*$Ident)/o) {
+			print "UNDEF($1)\n" if ($dbg_values > 1);
+			$av_preprocessor = 1;
+			push(@av_paren_type, $type);
 
 		} elsif ($cur =~ /^(#\s*(?:ifdef|ifndef|if))/o) {
 			print "PRE_START($1)\n" if ($dbg_values > 1);
@@ -715,7 +735,7 @@ sub annotate_values {
 
 			push(@av_paren_type, $type);
 			push(@av_paren_type, $type);
-			$type = 'N';
+			$type = 'E';
 
 		} elsif ($cur =~ /^(#\s*(?:else|elif))/o) {
 			print "PRE_RESTART($1)\n" if ($dbg_values > 1);
@@ -723,7 +743,7 @@ sub annotate_values {
 
 			push(@av_paren_type, $av_paren_type[$#av_paren_type]);
 
-			$type = 'N';
+			$type = 'E';
 
 		} elsif ($cur =~ /^(#\s*(?:endif))/o) {
 			print "PRE_END($1)\n" if ($dbg_values > 1);
@@ -734,10 +754,15 @@ sub annotate_values {
 			# one does, and continue as if the #endif was not here.
 			pop(@av_paren_type);
 			push(@av_paren_type, $type);
-			$type = 'N';
+			$type = 'E';
 
 		} elsif ($cur =~ /^(\\\n)/o) {
 			print "PRECONT($1)\n" if ($dbg_values > 1);
+
+		} elsif ($cur =~ /^(__attribute__)\s*\(?/o) {
+			print "ATTR($1)\n" if ($dbg_values > 1);
+			$av_pending = $type;
+			$type = 'N';
 
 		} elsif ($cur =~ /^(sizeof)\s*(\()?/o) {
 			print "SIZEOF($1)\n" if ($dbg_values > 1);
@@ -930,7 +955,7 @@ sub process {
 			# edge is a close comment then we must be in a comment
 			# at context start.
 			my $edge;
-			for (my $ln = $linenr; $ln < ($linenr + $realcnt); $ln++) {
+			for (my $ln = $linenr + 1; $ln < ($linenr + $realcnt); $ln++) {
 				next if ($line =~ /^-/);
 				($edge) = ($rawlines[$ln - 1] =~ m@(/\*|\*/)@);
 				last if (defined $edge);
@@ -951,9 +976,9 @@ sub process {
 			##print "COMMENT:$in_comment edge<$edge> $rawline\n";
 			sanitise_line_reset($in_comment);
 
-		} elsif ($realcnt) {
+		} elsif ($realcnt && $rawline =~ /^(?:\+| |$)/) {
 			# Standardise the strings and chars within the input to
-			# simplify matching.
+			# simplify matching -- only bother with positive lines.
 			$line = sanitise_line($rawline);
 		}
 		push(@lines, $line);
@@ -1066,17 +1091,14 @@ sub process {
 
 # UTF-8 regex found at http://www.w3.org/International/questions/qa-forms-utf-8.en.php
 		if (($realfile =~ /^$/ || $line =~ /^\+/) &&
-		     !($rawline =~ m/^(
-				[\x09\x0A\x0D\x20-\x7E]              # ASCII
-				| [\xC2-\xDF][\x80-\xBF]             # non-overlong 2-byte
-				|  \xE0[\xA0-\xBF][\x80-\xBF]        # excluding overlongs
-				| [\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}  # straight 3-byte
-				|  \xED[\x80-\x9F][\x80-\xBF]        # excluding surrogates
-				|  \xF0[\x90-\xBF][\x80-\xBF]{2}     # planes 1-3
-				| [\xF1-\xF3][\x80-\xBF]{3}          # planes 4-15
-				|  \xF4[\x80-\x8F][\x80-\xBF]{2}     # plane 16
-				)*$/x )) {
-			ERROR("Invalid UTF-8, patch and commit message should be encoded in UTF-8\n" . $herecurr);
+		    $rawline !~ m/^$UTF8*$/) {
+			my ($utf8_prefix) = ($rawline =~ /^($UTF8*)/);
+
+			my $blank = copy_spacing($rawline);
+			my $ptr = substr($blank, 0, length($utf8_prefix)) . "^";
+			my $hereptr = "$hereline$ptr\n";
+
+			ERROR("Invalid UTF-8, patch and commit message should be encoded in UTF-8\n" . $hereptr);
 		}
 
 #ignore lines being removed
@@ -1112,7 +1134,7 @@ sub process {
 		if ($rawline =~ /^\+\s* \t\s*\S/ ||
 		    $rawline =~ /^\+\s*        \s*/) {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
-			ERROR("use tabs not spaces\n" . $herevet);
+			ERROR("code indent should use tabs where possible\n" . $herevet);
 		}
 
 # check for RCS/CVS revision markers
@@ -1121,35 +1143,40 @@ sub process {
 		}
 
 # Check for potential 'bare' types
+		my ($stat, $cond);
 		if ($realcnt) {
-			my ($s, $c) = ctx_statement_block($linenr, $realcnt, 0);
-			$s =~ s/\n./ /g;
-			$s =~ s/{.*$//;
+			($stat, $cond) = ctx_statement_block($linenr,
+								$realcnt, 0);
+			$stat =~ s/\n./\n /g;
+			$cond =~ s/\n./\n /g;
+
+			my $s = $stat;
+			$s =~ s/{.*$//s;
 
 			# Ignore goto labels.
-			if ($s =~ /$Ident:\*$/) {
+			if ($s =~ /$Ident:\*$/s) {
 
 			# Ignore functions being called
-			} elsif ($s =~ /^.\s*$Ident\s*\(/) {
+			} elsif ($s =~ /^.\s*$Ident\s*\(/s) {
 
 			# definitions in global scope can only start with types
-			} elsif ($s =~ /^.(?:$Storage\s+)?(?:$Inline\s+)?(?:const\s+)?($Ident)\b/) {
+			} elsif ($s =~ /^.(?:$Storage\s+)?(?:$Inline\s+)?(?:const\s+)?($Ident)\b/s) {
 				possible($1, $s);
 
 			# declarations always start with types
-			} elsif ($prev_values eq 'E' && $s =~ /^.\s*(?:$Storage\s+)?(?:const\s+)?($Ident)\b(:?\s+$Sparse)?\s*\**\s*$Ident\s*(?:;|=|,)/) {
+			} elsif ($prev_values eq 'E' && $s =~ /^.\s*(?:$Storage\s+)?(?:const\s+)?($Ident)\b(:?\s+$Sparse)?\s*\**\s*$Ident\s*(?:;|=|,)/s) {
 				possible($1, $s);
 			}
 
 			# any (foo ... *) is a pointer cast, and foo is a type
-			while ($s =~ /\(($Ident)(?:\s+$Sparse)*\s*\*+\s*\)/g) {
+			while ($s =~ /\(($Ident)(?:\s+$Sparse)*\s*\*+\s*\)/sg) {
 				possible($1, $s);
 			}
 
 			# Check for any sort of function declaration.
 			# int foo(something bar, other baz);
 			# void (*store_gdt)(x86_descr_ptr *);
-			if ($prev_values eq 'E' && $s =~ /^(.(?:typedef\s*)?(?:(?:$Storage|$Inline)\s*)*\s*$Type\s*(?:\b$Ident|\(\*\s*$Ident\))\s*)\(/) {
+			if ($prev_values eq 'E' && $s =~ /^(.(?:typedef\s*)?(?:(?:$Storage|$Inline)\s*)*\s*$Type\s*(?:\b$Ident|\(\*\s*$Ident\))\s*)\(/s) {
 				my ($name_len) = length($1);
 
 				my $ctx = $s;
@@ -1282,6 +1309,7 @@ sub process {
 			   ($prevline !~ /^ }/) &&
 			   ($prevline !~ /^.DECLARE_$Ident\(\Q$name\E\)/) &&
 			   ($prevline !~ /^.LIST_HEAD\(\Q$name\E\)/) &&
+			   ($prevline !~ /^.$Type\s*\(\s*\*\s*\Q$name\E\s*\)\s*\(/) &&
 			   ($prevline !~ /\b\Q$name\E(?:\s+$Attribute)?\s*(?:;|=|\[)/)) {
 				WARN("EXPORT_SYMBOL(foo); should immediately follow its function/variable\n" . $herecurr);
 			}
@@ -1512,7 +1540,10 @@ sub process {
 					if ($ctx !~ /[WEBC]x./ && $ca !~ /(?:\)|!|~|\*|-|\&|\||\+\+|\-\-|\{)$/) {
 						ERROR("space required before that '$op' $at\n" . $hereptr);
 					}
-					if ($ctx =~ /.xW/) {
+					if ($op  eq '*' && $cc =~/\s*const\b/) {
+						# A unary '*' may be const
+
+					} elsif ($ctx =~ /.xW/) {
 						ERROR("space prohibited after that '$op' $at\n" . $hereptr);
 					}
 
@@ -1617,7 +1648,7 @@ sub process {
 
 # Check for illegal assignment in if conditional.
 		if ($line =~ /\bif\s*\(/) {
-			my ($s, $c) = ctx_statement_block($linenr, $realcnt, 0);
+			my ($s, $c) = ($stat, $cond);
 
 			if ($c =~ /\bif\s*\(.*[^<>!=]=[^=].*/) {
 				ERROR("do not use assignment in if condition\n" . $herecurr);
@@ -1695,7 +1726,7 @@ sub process {
 #warn if <asm/foo.h> is #included and <linux/foo.h> is available (uses RAW line)
 		if ($tree && $rawline =~ m{^.\#\s*include\s*\<asm\/(.*)\.h\>}) {
 			my $checkfile = "$root/include/linux/$1.h";
-			if (-f $checkfile && $1 ne 'irq.h') {
+			if (-f $checkfile && $1 ne 'irq') {
 				WARN("Use #include <linux/$1.h> instead of <asm/$1.h>\n" .
 					$herecurr);
 			}
@@ -1910,7 +1941,8 @@ sub process {
 		}
 
 # check for spinlock_t definitions without a comment.
-		if ($line =~ /^.\s*(struct\s+mutex|spinlock_t)\s+\S+;/) {
+		if ($line =~ /^.\s*(struct\s+mutex|spinlock_t)\s+\S+;/ ||
+		    $line =~ /^.\s*(DEFINE_MUTEX)\s*\(/) {
 			my $which = $1;
 			if (!ctx_has_comment($first_line, $linenr)) {
 				CHK("$1 definition without comment\n" . $herecurr);
@@ -1940,8 +1972,22 @@ sub process {
 		}
 
 # check for new externs in .c files.
-		if ($line =~ /^.\s*extern\s/ && ($realfile =~ /\.c$/)) {
-			WARN("externs should be avoided in .c files\n" .  $herecurr);
+		if ($realfile =~ /\.c$/ && defined $stat &&
+		    $stat =~ /^.(?:extern\s+)?$Type\s+$Ident(\s*)\(/s)
+		{
+			my $paren_space = $1;
+
+			my $s = $stat;
+			if (defined $cond) {
+				substr($s, 0, length($cond), '');
+			}
+			if ($s =~ /^\s*;/) {
+				WARN("externs should be avoided in .c files\n" .  $herecurr);
+			}
+
+			if ($paren_space =~ /\n/) {
+				WARN("arguments for function declarations should follow identifier\n" . $herecurr);
+			}
 		}
 
 # checks for new __setup's
@@ -1964,11 +2010,11 @@ sub process {
 		}
 
 # check for semaphores used as mutexes
-		if ($line =~ /\b(DECLARE_MUTEX|init_MUTEX)\s*\(/) {
+		if ($line =~ /^.\s*(DECLARE_MUTEX|init_MUTEX)\s*\(/) {
 			WARN("mutexes are preferred for single holder semaphores\n" . $herecurr);
 		}
 # check for semaphores used as mutexes
-		if ($line =~ /\binit_MUTEX_LOCKED\s*\(/) {
+		if ($line =~ /^.\s*init_MUTEX_LOCKED\s*\(/) {
 			WARN("consider using a completion\n" . $herecurr);
 		}
 # recommend strict_strto* over simple_strto*
@@ -1979,8 +2025,11 @@ sub process {
 # use of NR_CPUS is usually wrong
 # ignore definitions of NR_CPUS and usage to define arrays as likely right
 		if ($line =~ /\bNR_CPUS\b/ &&
-		    $line !~ /^.#\s*define\s+NR_CPUS\s+/ &&
-		    $line !~ /^.\s*$Declare\s.*\[[^\]]*NR_CPUS[^\]]*\]/)
+		    $line !~ /^.#\s*if\b.*\bNR_CPUS\b/ &&
+		    $line !~ /^.#\s*define\b.*\bNR_CPUS\b/ &&
+		    $line !~ /^.\s*$Declare\s.*\[[^\]]*NR_CPUS[^\]]*\]/ &&
+		    $line !~ /\[[^\]]*\.\.\.[^\]]*NR_CPUS[^\]]*\]/ &&
+		    $line !~ /\[[^\]]*NR_CPUS[^\]]*\.\.\.[^\]]*\]/)
 		{
 			WARN("usage of NR_CPUS is often wrong - consider using cpu_possible(), num_possible_cpus(), for_each_possible_cpu(), etc\n" . $herecurr);
 		}
