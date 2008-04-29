@@ -38,7 +38,6 @@
 #include <asm/pgtable.h>
 #include <asm/oplib.h>
 #include <asm/uaccess.h>
-#include <asm/timer.h>
 #include <asm/starfire.h>
 #include <asm/tlb.h>
 #include <asm/sections.h>
