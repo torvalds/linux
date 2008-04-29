@@ -441,7 +441,7 @@ static struct entropy_store nonblocking_pool = {
 /*
  * This function adds bytes into the entropy "pool".  It does not
  * update the entropy estimate.  The caller should call
- * credit_entropy_store if this is appropriate.
+ * credit_entropy_bits if this is appropriate.
  *
  * The pool is stirred with a primitive polynomial of the appropriate
  * degree, and then twisted.  We twist by three bits at a time because
@@ -515,24 +515,22 @@ static void mix_pool_bytes(struct entropy_store *r, const void *in, int bytes)
 /*
  * Credit (or debit) the entropy store with n bits of entropy
  */
-static void credit_entropy_store(struct entropy_store *r, int nbits)
+static void credit_entropy_bits(struct entropy_store *r, int nbits)
 {
 	unsigned long flags;
 
+	if (!nbits)
+		return;
+
 	spin_lock_irqsave(&r->lock, flags);
 
-	if (r->entropy_count + nbits < 0) {
-		DEBUG_ENT("negative entropy/overflow (%d+%d)\n",
-			  r->entropy_count, nbits);
+	DEBUG_ENT("added %d entropy credits to %s\n", nbits, r->name);
+	r->entropy_count += nbits;
+	if (r->entropy_count < 0) {
+		DEBUG_ENT("negative entropy/overflow\n");
 		r->entropy_count = 0;
-	} else if (r->entropy_count + nbits > r->poolinfo->POOLBITS) {
+	} else if (r->entropy_count > r->poolinfo->POOLBITS)
 		r->entropy_count = r->poolinfo->POOLBITS;
-	} else {
-		r->entropy_count += nbits;
-		if (nbits)
-			DEBUG_ENT("added %d entropy credits to %s\n",
-				  nbits, r->name);
-	}
 
 	/* should we wake readers? */
 	if (r == &input_pool && r->entropy_count >= random_read_wakeup_thresh)
@@ -619,8 +617,8 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned num)
 		 * Round down by 1 bit on general principles,
 		 * and limit entropy entimate to 12 bits.
 		 */
-		credit_entropy_store(&input_pool,
-				     min_t(int, fls(delta>>1), 11));
+		credit_entropy_bits(&input_pool,
+				    min_t(int, fls(delta>>1), 11));
 	}
 out:
 	preempt_enable();
@@ -702,7 +700,7 @@ static void xfer_secondary_pool(struct entropy_store *r, size_t nbytes)
 		bytes = extract_entropy(r->pull, tmp, bytes,
 					random_read_wakeup_thresh / 8, rsvd);
 		mix_pool_bytes(r, tmp, bytes);
-		credit_entropy_store(r, bytes*8);
+		credit_entropy_bits(r, bytes*8);
 	}
 }
 
@@ -1073,7 +1071,7 @@ static long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 			return -EPERM;
 		if (get_user(ent_count, p))
 			return -EFAULT;
-		credit_entropy_store(&input_pool, ent_count);
+		credit_entropy_bits(&input_pool, ent_count);
 		return 0;
 	case RNDADDENTROPY:
 		if (!capable(CAP_SYS_ADMIN))
@@ -1088,7 +1086,7 @@ static long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 				    size);
 		if (retval < 0)
 			return retval;
-		credit_entropy_store(&input_pool, ent_count);
+		credit_entropy_bits(&input_pool, ent_count);
 		return 0;
 	case RNDZAPENTCNT:
 	case RNDCLEARPOOL:
