@@ -9,6 +9,7 @@
 #include <linux/ctype.h>
 #include <linux/list.h>
 #include <linux/uaccess.h>
+#include <linux/seq_file.h>
 
 #define ACC_MKNOD 1
 #define ACC_READ  2
@@ -201,11 +202,15 @@ static void devcgroup_destroy(struct cgroup_subsys *ss,
 
 #define DEVCG_ALLOW 1
 #define DEVCG_DENY 2
+#define DEVCG_LIST 3
+
+#define MAJMINLEN 10
+#define ACCLEN 4
 
 static void set_access(char *acc, short access)
 {
 	int idx = 0;
-	memset(acc, 0, 4);
+	memset(acc, 0, ACCLEN);
 	if (access & ACC_READ)
 		acc[idx++] = 'r';
 	if (access & ACC_WRITE)
@@ -225,70 +230,33 @@ static char type_to_char(short type)
 	return 'X';
 }
 
-static void set_majmin(char *str, int len, unsigned m)
+static void set_majmin(char *str, unsigned m)
 {
-	memset(str, 0, len);
+	memset(str, 0, MAJMINLEN);
 	if (m == ~0)
 		sprintf(str, "*");
 	else
-		snprintf(str, len, "%d", m);
+		snprintf(str, MAJMINLEN, "%d", m);
 }
 
-static char *print_whitelist(struct dev_cgroup *devcgroup, int *len)
+static int devcgroup_seq_read(struct cgroup *cgroup, struct cftype *cft,
+				struct seq_file *m)
 {
-	char *buf, *s, acc[4];
+	struct dev_cgroup *devcgroup = cgroup_to_devcgroup(cgroup);
 	struct dev_whitelist_item *wh;
-	int ret;
-	int count = 0;
-	char maj[10], min[10];
-
-	buf = kmalloc(4096, GFP_KERNEL);
-	if (!buf)
-		return ERR_PTR(-ENOMEM);
-	s = buf;
-	*s = '\0';
-	*len = 0;
+	char maj[MAJMINLEN], min[MAJMINLEN], acc[ACCLEN];
 
 	spin_lock(&devcgroup->lock);
 	list_for_each_entry(wh, &devcgroup->whitelist, list) {
 		set_access(acc, wh->access);
-		set_majmin(maj, 10, wh->major);
-		set_majmin(min, 10, wh->minor);
-		ret = snprintf(s, 4095-(s-buf), "%c %s:%s %s\n",
-			type_to_char(wh->type), maj, min, acc);
-		if (s+ret >= buf+4095) {
-			kfree(buf);
-			buf = ERR_PTR(-ENOMEM);
-			break;
-		}
-		s += ret;
-		*len += ret;
-		count++;
+		set_majmin(maj, wh->major);
+		set_majmin(min, wh->minor);
+		seq_printf(m, "%c %s:%s %s\n", type_to_char(wh->type),
+			   maj, min, acc);
 	}
 	spin_unlock(&devcgroup->lock);
 
-	return buf;
-}
-
-static ssize_t devcgroup_access_read(struct cgroup *cgroup,
-			struct cftype *cft, struct file *file,
-			char __user *userbuf, size_t nbytes, loff_t *ppos)
-{
-	struct dev_cgroup *devcgroup = cgroup_to_devcgroup(cgroup);
-	int filetype = cft->private;
-	char *buffer;
-	int uninitialized_var(len);
-	int retval;
-
-	if (filetype != DEVCG_ALLOW)
-		return -EINVAL;
-	buffer = print_whitelist(devcgroup, &len);
-	if (IS_ERR(buffer))
-		return PTR_ERR(buffer);
-
-	retval = simple_read_from_buffer(userbuf, nbytes, ppos, buffer, len);
-	kfree(buffer);
-	return retval;
+	return 0;
 }
 
 /*
@@ -501,7 +469,6 @@ out1:
 static struct cftype dev_cgroup_files[] = {
 	{
 		.name = "allow",
-		.read = devcgroup_access_read,
 		.write  = devcgroup_access_write,
 		.private = DEVCG_ALLOW,
 	},
@@ -509,6 +476,11 @@ static struct cftype dev_cgroup_files[] = {
 		.name = "deny",
 		.write = devcgroup_access_write,
 		.private = DEVCG_DENY,
+	},
+	{
+		.name = "list",
+		.read_seq_string = devcgroup_seq_read,
+		.private = DEVCG_LIST,
 	},
 };
 

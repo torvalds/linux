@@ -226,6 +226,12 @@ struct cftype {
 	 */
 	int (*read_map) (struct cgroup *cont, struct cftype *cft,
 			 struct cgroup_map_cb *cb);
+	/*
+	 * read_seq_string() is used for outputting a simple sequence
+	 * using seqfile.
+	 */
+	int (*read_seq_string) (struct cgroup *cont, struct cftype *cft,
+			 struct seq_file *m);
 
 	ssize_t (*write) (struct cgroup *cgrp, struct cftype *cft,
 			  struct file *file,

@@ -1549,11 +1549,14 @@ static int cgroup_seqfile_show(struct seq_file *m, void *arg)
 {
 	struct cgroup_seqfile_state *state = m->private;
 	struct cftype *cft = state->cft;
-	struct cgroup_map_cb cb = {
-		.fill = cgroup_map_add,
-		.state = m,
-	};
-	return cft->read_map(state->cgroup, cft, &cb);
+	if (cft->read_map) {
+		struct cgroup_map_cb cb = {
+			.fill = cgroup_map_add,
+			.state = m,
+		};
+		return cft->read_map(state->cgroup, cft, &cb);
+	}
+	return cft->read_seq_string(state->cgroup, cft, m);
 }
 
 int cgroup_seqfile_release(struct inode *inode, struct file *file)
@@ -1581,7 +1584,7 @@ static int cgroup_file_open(struct inode *inode, struct file *file)
 	cft = __d_cft(file->f_dentry);
 	if (!cft)
 		return -ENODEV;
-	if (cft->read_map) {
+	if (cft->read_map || cft->read_seq_string) {
 		struct cgroup_seqfile_state *state =
 			kzalloc(sizeof(*state), GFP_USER);
 		if (!state)
