@@ -522,8 +522,6 @@ static void parse_bios(unsigned char __iomem* vbios, struct matrox_bios* bd) {
 #endif
 }
 
-#define get_u16(x) (le16_to_cpu(get_unaligned((__u16*)(x))))
-#define get_u32(x) (le32_to_cpu(get_unaligned((__u32*)(x))))
 static int parse_pins1(WPMINFO const struct matrox_bios* bd) {
 	unsigned int maxdac;
 
@@ -532,11 +530,12 @@ static int parse_pins1(WPMINFO const struct matrox_bios* bd) {
 		case 1:		maxdac = 220000; break;
 		default:	maxdac = 240000; break;
 	}
-	if (get_u16(bd->pins + 24)) {
-		maxdac = get_u16(bd->pins + 24) * 10;
+	if (get_unaligned_le16(bd->pins + 24)) {
+		maxdac = get_unaligned_le16(bd->pins + 24) * 10;
 	}
 	MINFO->limits.pixel.vcomax = maxdac;
-	MINFO->values.pll.system = get_u16(bd->pins + 28) ? get_u16(bd->pins + 28) * 10 : 50000;
+	MINFO->values.pll.system = get_unaligned_le16(bd->pins + 28) ?
+		get_unaligned_le16(bd->pins + 28) * 10 : 50000;
 	/* ignore 4MB, 8MB, module clocks */
 	MINFO->features.pll.ref_freq = 14318;
 	MINFO->values.reg.mctlwtst	= 0x00030101;
@@ -575,7 +574,8 @@ static void default_pins2(WPMINFO2) {
 static int parse_pins3(WPMINFO const struct matrox_bios* bd) {
 	MINFO->limits.pixel.vcomax	=
 	MINFO->limits.system.vcomax	= (bd->pins[36] == 0xFF) ? 230000			: ((bd->pins[36] + 100) * 1000);
-	MINFO->values.reg.mctlwtst	= get_u32(bd->pins + 48) == 0xFFFFFFFF ? 0x01250A21	: get_u32(bd->pins + 48);
+	MINFO->values.reg.mctlwtst	= get_unaligned_le32(bd->pins + 48) == 0xFFFFFFFF ?
+		0x01250A21 : get_unaligned_le32(bd->pins + 48);
 	/* memory config */
 	MINFO->values.reg.memrdbk	= ((bd->pins[57] << 21) & 0x1E000000) |
 					  ((bd->pins[57] << 22) & 0x00C00000) |
@@ -601,7 +601,7 @@ static void default_pins3(WPMINFO2) {
 static int parse_pins4(WPMINFO const struct matrox_bios* bd) {
 	MINFO->limits.pixel.vcomax	= (bd->pins[ 39] == 0xFF) ? 230000			: bd->pins[ 39] * 4000;
 	MINFO->limits.system.vcomax	= (bd->pins[ 38] == 0xFF) ? MINFO->limits.pixel.vcomax	: bd->pins[ 38] * 4000;
-	MINFO->values.reg.mctlwtst	= get_u32(bd->pins + 71);
+	MINFO->values.reg.mctlwtst	= get_unaligned_le32(bd->pins + 71);
 	MINFO->values.reg.memrdbk	= ((bd->pins[87] << 21) & 0x1E000000) |
 					  ((bd->pins[87] << 22) & 0x00C00000) |
 					  ((bd->pins[86] <<  1) & 0x000001E0) |
@@ -609,7 +609,7 @@ static int parse_pins4(WPMINFO const struct matrox_bios* bd) {
 	MINFO->values.reg.opt		= ((bd->pins[53] << 15) & 0x00400000) |
 					  ((bd->pins[53] << 22) & 0x10000000) |
 					  ((bd->pins[53] <<  7) & 0x00001C00);
-	MINFO->values.reg.opt3		= get_u32(bd->pins + 67);
+	MINFO->values.reg.opt3		= get_unaligned_le32(bd->pins + 67);
 	MINFO->values.pll.system	= (bd->pins[ 65] == 0xFF) ? 200000 			: bd->pins[ 65] * 4000;
 	MINFO->features.pll.ref_freq	= (bd->pins[ 92] & 0x01) ? 14318 : 27000;
 	return 0;
@@ -640,12 +640,12 @@ static int parse_pins5(WPMINFO const struct matrox_bios* bd) {
 	MINFO->limits.video.vcomin	= (bd->pins[122] == 0xFF) ? MINFO->limits.system.vcomin	: bd->pins[122] * mult;
 	MINFO->values.pll.system	=
 	MINFO->values.pll.video		= (bd->pins[ 92] == 0xFF) ? 284000			: bd->pins[ 92] * 4000;
-	MINFO->values.reg.opt		= get_u32(bd->pins+ 48);
-	MINFO->values.reg.opt2		= get_u32(bd->pins+ 52);
-	MINFO->values.reg.opt3		= get_u32(bd->pins+ 94);
-	MINFO->values.reg.mctlwtst	= get_u32(bd->pins+ 98);
-	MINFO->values.reg.memmisc	= get_u32(bd->pins+102);
-	MINFO->values.reg.memrdbk	= get_u32(bd->pins+106);
+	MINFO->values.reg.opt		= get_unaligned_le32(bd->pins + 48);
+	MINFO->values.reg.opt2		= get_unaligned_le32(bd->pins + 52);
+	MINFO->values.reg.opt3		= get_unaligned_le32(bd->pins + 94);
+	MINFO->values.reg.mctlwtst	= get_unaligned_le32(bd->pins + 98);
+	MINFO->values.reg.memmisc	= get_unaligned_le32(bd->pins + 102);
+	MINFO->values.reg.memrdbk	= get_unaligned_le32(bd->pins + 106);
 	MINFO->features.pll.ref_freq	= (bd->pins[110] & 0x01) ? 14318 : 27000;
 	MINFO->values.memory.ddr	= (bd->pins[114] & 0x60) == 0x20;
 	MINFO->values.memory.dll	= (bd->pins[115] & 0x02) != 0;
