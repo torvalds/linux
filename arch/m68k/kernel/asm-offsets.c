@@ -11,13 +11,11 @@
 #include <linux/stddef.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
+#include <linux/kbuild.h>
 #include <asm/bootinfo.h>
 #include <asm/irq.h>
 #include <asm/amigahw.h>
 #include <linux/font.h>
-
-#define DEFINE(sym, val) \
-	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
 
 int main(void)
 {
