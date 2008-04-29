@@ -69,7 +69,7 @@ static int elv_iosched_allow_merge(struct request *rq, struct bio *bio)
 /*
  * can we safely merge with this request?
  */
-inline int elv_rq_merge_ok(struct request *rq, struct bio *bio)
+int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 {
 	if (!rq_mergeable(rq))
 		return 0;
