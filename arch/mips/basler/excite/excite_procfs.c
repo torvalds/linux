@@ -18,8 +18,9 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
+#include <linux/module.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/stat.h>
 #include <asm/page.h>
 #include <asm/io.h>
@@ -28,13 +29,24 @@
 
 #include <excite.h>
 
-static int excite_get_unit_id(char *buf, char **addr, off_t offs, int size)
+static int excite_unit_id_proc_show(struct seq_file *m, void *v)
 {
-	const int len = snprintf(buf, PAGE_SIZE, "%06x", unit_id);
-	const int w = len - offs;
-	*addr = buf + offs;
-	return w < size ? w : size;
+	seq_printf(m, "%06x", unit_id);
+	return 0;
 }
+
+static int excite_unit_id_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, excite_unit_id_proc_show, NULL);
+}
+
+static const struct file_operations excite_unit_id_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= excite_unit_id_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static int
 excite_bootrom_read(char *page, char **start, off_t off, int count,
@@ -69,8 +81,8 @@ void excite_procfs_init(void)
 	if (pdir) {
 		struct proc_dir_entry * e;
 
-		e = create_proc_info_entry("unit_id", S_IRUGO, pdir,
-					   excite_get_unit_id);
+		e = proc_create("unit_id", S_IRUGO, pdir,
+				&excite_unit_id_proc_fops);
 		if (e) e->size = 6;
 
 		e = create_proc_read_entry("bootrom", S_IRUGO, pdir,
