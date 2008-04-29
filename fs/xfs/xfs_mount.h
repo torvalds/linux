@@ -217,6 +217,7 @@ extern void	xfs_icsb_sync_counters_locked(struct xfs_mount *, int);
 #define xfs_icsb_init_counters(mp)	(0)
 #define xfs_icsb_reinit_counters(mp)	do { } while (0)
 #define xfs_icsb_sync_counters(mp, flags)	do { } while (0)
+#define xfs_icsb_sync_counters_locked(mp, flags) do { } while (0)
 #endif
 
 typedef struct xfs_ail {
