@@ -63,6 +63,10 @@ static char *states[] = {
 	NULL,
 };
 
+int peer2peer = 0;
+module_param(peer2peer, int, 0644);
+MODULE_PARM_DESC(peer2peer, "Support peer2peer ULPs (default=0)");
+
 static int ep_timeout_secs = 10;
 module_param(ep_timeout_secs, int, 0644);
 MODULE_PARM_DESC(ep_timeout_secs, "CM Endpoint operation timeout "
@@ -514,7 +518,7 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 	skb_reset_transport_header(skb);
 	len = skb->len;
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
-	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
+	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA)|F_WR_COMPL);
 	req->wr_lo = htonl(V_WR_TID(ep->hwtid));
 	req->len = htonl(len);
 	req->param = htonl(V_TX_PORT(ep->l2t->smt_idx) |
@@ -565,7 +569,7 @@ static int send_mpa_reject(struct iwch_ep *ep, const void *pdata, u8 plen)
 	set_arp_failure_handler(skb, arp_failure_discard);
 	skb_reset_transport_header(skb);
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
-	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
+	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA)|F_WR_COMPL);
 	req->wr_lo = htonl(V_WR_TID(ep->hwtid));
 	req->len = htonl(mpalen);
 	req->param = htonl(V_TX_PORT(ep->l2t->smt_idx) |
@@ -617,7 +621,7 @@ static int send_mpa_reply(struct iwch_ep *ep, const void *pdata, u8 plen)
 	skb_reset_transport_header(skb);
 	len = skb->len;
 	req = (struct tx_data_wr *) skb_push(skb, sizeof(*req));
-	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
+	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA)|F_WR_COMPL);
 	req->wr_lo = htonl(V_WR_TID(ep->hwtid));
 	req->len = htonl(len);
 	req->param = htonl(V_TX_PORT(ep->l2t->smt_idx) |
@@ -885,6 +889,7 @@ static void process_mpa_reply(struct iwch_ep *ep, struct sk_buff *skb)
 	 * the MPA header is valid.
 	 */
 	state_set(&ep->com, FPDU_MODE);
+	ep->mpa_attr.initiator = 1;
 	ep->mpa_attr.crc_enabled = (mpa->flags & MPA_CRC) | crc_enabled ? 1 : 0;
 	ep->mpa_attr.recv_marker_enabled = markers_enabled;
 	ep->mpa_attr.xmit_marker_enabled = mpa->flags & MPA_MARKERS ? 1 : 0;
@@ -907,8 +912,14 @@ static void process_mpa_reply(struct iwch_ep *ep, struct sk_buff *skb)
 	/* bind QP and TID with INIT_WR */
 	err = iwch_modify_qp(ep->com.qp->rhp,
 			     ep->com.qp, mask, &attrs, 1);
-	if (!err)
-		goto out;
+	if (err)
+		goto err;
+
+	if (peer2peer && iwch_rqes_posted(ep->com.qp) == 0) {
+		iwch_post_zb_read(ep->com.qp);
+	}
+
+	goto out;
 err:
 	abort_connection(ep, skb, GFP_KERNEL);
 out:
@@ -1001,6 +1012,7 @@ static void process_mpa_request(struct iwch_ep *ep, struct sk_buff *skb)
 	 * If we get here we have accumulated the entire mpa
 	 * start reply message including private data.
 	 */
+	ep->mpa_attr.initiator = 0;
 	ep->mpa_attr.crc_enabled = (mpa->flags & MPA_CRC) | crc_enabled ? 1 : 0;
 	ep->mpa_attr.recv_marker_enabled = markers_enabled;
 	ep->mpa_attr.xmit_marker_enabled = mpa->flags & MPA_MARKERS ? 1 : 0;
@@ -1071,17 +1083,33 @@ static int tx_ack(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 
 	PDBG("%s ep %p credits %u\n", __func__, ep, credits);
 
-	if (credits == 0)
+	if (credits == 0) {
+		PDBG(KERN_ERR "%s 0 credit ack  ep %p state %u\n",
+			__func__, ep, state_read(&ep->com));
 		return CPL_RET_BUF_DONE;
+	}
+
 	BUG_ON(credits != 1);
-	BUG_ON(ep->mpa_skb == NULL);
-	kfree_skb(ep->mpa_skb);
-	ep->mpa_skb = NULL;
 	dst_confirm(ep->dst);
-	if (state_read(&ep->com) == MPA_REP_SENT) {
-		ep->com.rpl_done = 1;
-		PDBG("waking up ep %p\n", ep);
-		wake_up(&ep->com.waitq);
+	if (!ep->mpa_skb) {
+		PDBG("%s rdma_init wr_ack ep %p state %u\n",
+			__func__, ep, state_read(&ep->com));
+		if (ep->mpa_attr.initiator) {
+			PDBG("%s initiator ep %p state %u\n",
+				__func__, ep, state_read(&ep->com));
+			if (peer2peer)
+				iwch_post_zb_read(ep->com.qp);
+		} else {
+			PDBG("%s responder ep %p state %u\n",
+				__func__, ep, state_read(&ep->com));
+			ep->com.rpl_done = 1;
+			wake_up(&ep->com.waitq);
+		}
+	} else {
+		PDBG("%s lsm ack ep %p state %u freeing skb\n",
+			__func__, ep, state_read(&ep->com));
+		kfree_skb(ep->mpa_skb);
+		ep->mpa_skb = NULL;
 	}
 	return CPL_RET_BUF_DONE;
 }
@@ -1795,16 +1823,19 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (err)
 		goto err;
 
+	/* if needed, wait for wr_ack */
+	if (iwch_rqes_posted(qp)) {
+		wait_event(ep->com.waitq, ep->com.rpl_done);
+		err = ep->com.rpl_err;
+		if (err)
+			goto err;
+	}
+
 	err = send_mpa_reply(ep, conn_param->private_data,
 			     conn_param->private_data_len);
 	if (err)
 		goto err;
 
-	/* wait for wr_ack */
-	wait_event(ep->com.waitq, ep->com.rpl_done);
-	err = ep->com.rpl_err;
-	if (err)
-		goto err;
 
 	state_set(&ep->com, FPDU_MODE);
 	established_upcall(ep);
