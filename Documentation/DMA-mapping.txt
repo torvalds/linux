@@ -332,7 +332,7 @@ __get_free_pages (but takes size instead of a page order).  If your
 driver needs regions sized smaller than a page, you may prefer using
 the pci_pool interface, described below.
 
-The consistent DMA mapping interfaces, for non-NULL dev, will by
+The consistent DMA mapping interfaces, for non-NULL pdev, will by
 default return a DMA address which is SAC (Single Address Cycle)
 addressable.  Even if the device indicates (via PCI dma mask) that it
 may address the upper 32-bits and thus perform DAC cycles, consistent
