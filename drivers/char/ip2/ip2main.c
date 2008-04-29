@@ -133,8 +133,9 @@
  *****************/
 
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
-static int ip2_read_procmem(char *, char **, off_t, int);
+static const struct file_operations ip2mem_proc_fops;
 static int ip2_read_proc(char *, char **, off_t, int, int *, void * );
 
 /********************/
@@ -695,7 +696,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 		}
 	}
 	/* Register the read_procmem thing */
-	if (!create_proc_info_entry("ip2mem",0,NULL,ip2_read_procmem)) {
+	if (!proc_create("ip2mem",0,NULL,&ip2mem_proc_fops)) {
 		printk(KERN_ERR "IP2: failed to register read_procmem\n");
 	} else {
 
@@ -2967,64 +2968,60 @@ ip2_ipl_open( struct inode *pInode, struct file *pFile )
 	}
 	return 0;
 }
-/******************************************************************************/
-/* Function:   ip2_read_procmem                                               */
-/* Parameters:                                                                */
-/*                                                                            */
-/* Returns: Length of output                                                  */
-/*                                                                            */
-/* Description:                                                               */
-/*   Supplies some driver operating parameters                                */
-/*	Not real useful unless your debugging the fifo							  */
-/*                                                                            */
-/******************************************************************************/
-
-#define LIMIT  (PAGE_SIZE - 120)
 
 static int
-ip2_read_procmem(char *buf, char **start, off_t offset, int len)
+proc_ip2mem_show(struct seq_file *m, void *v)
 {
 	i2eBordStrPtr  pB;
 	i2ChanStrPtr  pCh;
 	PTTY tty;
 	int i;
 
-	len = 0;
-
 #define FMTLINE	"%3d: 0x%08x 0x%08x 0%011o 0%011o\n"
 #define FMTLIN2	"     0x%04x 0x%04x tx flow 0x%x\n"
 #define FMTLIN3	"     0x%04x 0x%04x rc flow\n"
 
-	len += sprintf(buf+len,"\n");
+	seq_printf(m,"\n");
 
 	for( i = 0; i < IP2_MAX_BOARDS; ++i ) {
 		pB = i2BoardPtrTable[i];
 		if ( pB ) {
-			len += sprintf(buf+len,"board %d:\n",i);
-			len += sprintf(buf+len,"\tFifo rem: %d mty: %x outM %x\n",
+			seq_printf(m,"board %d:\n",i);
+			seq_printf(m,"\tFifo rem: %d mty: %x outM %x\n",
 				pB->i2eFifoRemains,pB->i2eWaitingForEmptyFifo,pB->i2eOutMailWaiting);
 		}
 	}
 
-	len += sprintf(buf+len,"#: tty flags, port flags,     cflags,     iflags\n");
+	seq_printf(m,"#: tty flags, port flags,     cflags,     iflags\n");
 	for (i=0; i < IP2_MAX_PORTS; i++) {
-		if (len > LIMIT)
-			break;
 		pCh = DevTable[i];
 		if (pCh) {
 			tty = pCh->pTTY;
 			if (tty && tty->count) {
-				len += sprintf(buf+len,FMTLINE,i,(int)tty->flags,pCh->flags,
+				seq_printf(m,FMTLINE,i,(int)tty->flags,pCh->flags,
 									tty->termios->c_cflag,tty->termios->c_iflag);
 
-				len += sprintf(buf+len,FMTLIN2,
+				seq_printf(m,FMTLIN2,
 						pCh->outfl.asof,pCh->outfl.room,pCh->channelNeeds);
-				len += sprintf(buf+len,FMTLIN3,pCh->infl.asof,pCh->infl.room);
+				seq_printf(m,FMTLIN3,pCh->infl.asof,pCh->infl.room);
 			}
 		}
 	}
-	return len;
+	return 0;
 }
+
+static int proc_ip2mem_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_ip2mem_show, NULL);
+}
+
+static const struct file_operations ip2mem_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= proc_ip2mem_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /*
  * This is the handler for /proc/tty/driver/ip2
