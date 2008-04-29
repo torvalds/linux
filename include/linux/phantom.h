@@ -34,7 +34,10 @@ struct phm_regs {
  * use improved registers update (no more phantom switchoffs when using
  * libphantom) */
 #define PHN_NOT_OH		_IO  (PH_IOC_MAGIC, 4)
-#define PH_IOC_MAXNR		4
+#define PHN_GETREG		_IOWR(PH_IOC_MAGIC, 5, struct phm_reg)
+#define PHN_SETREG		_IOW(PH_IOC_MAGIC, 6, struct phm_reg)
+#define PHN_GETREGS		_IOWR(PH_IOC_MAGIC, 7, struct phm_regs)
+#define PHN_SETREGS		_IOW(PH_IOC_MAGIC, 8, struct phm_regs)
 
 #define PHN_CONTROL		0x6     /* control byte in iaddr space */
 #define PHN_CTL_AMP		0x1     /*   switch after torques change */
