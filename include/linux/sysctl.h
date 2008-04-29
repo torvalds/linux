@@ -1085,8 +1085,6 @@ struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
 void unregister_sysctl_table(struct ctl_table_header * table);
 int sysctl_check_table(struct nsproxy *namespaces, struct ctl_table *table);
 
-#else /* __KERNEL__ */
-
 #endif /* __KERNEL__ */
 
 #endif /* _LINUX_SYSCTL_H */
