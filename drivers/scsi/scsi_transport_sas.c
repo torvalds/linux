@@ -248,8 +248,7 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 	else
 		q->queuedata = shost;
 
-	set_bit(QUEUE_FLAG_BIDI, &q->queue_flags);
-
+	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, q);
 	return 0;
 }
 

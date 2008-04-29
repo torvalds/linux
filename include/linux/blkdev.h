@@ -408,6 +408,30 @@ struct request_queue
 #define QUEUE_FLAG_ELVSWITCH	8	/* don't use elevator, just do FIFO */
 #define QUEUE_FLAG_BIDI		9	/* queue supports bidi requests */
 
+static inline void queue_flag_set_unlocked(unsigned int flag,
+					   struct request_queue *q)
+{
+	__set_bit(flag, &q->queue_flags);
+}
+
+static inline void queue_flag_set(unsigned int flag, struct request_queue *q)
+{
+	WARN_ON_ONCE(!spin_is_locked(q->queue_lock));
+	__set_bit(flag, &q->queue_flags);
+}
+
+static inline void queue_flag_clear_unlocked(unsigned int flag,
+					     struct request_queue *q)
+{
+	__clear_bit(flag, &q->queue_flags);
+}
+
+static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
+{
+	WARN_ON_ONCE(!spin_is_locked(q->queue_lock));
+	__clear_bit(flag, &q->queue_flags);
+}
+
 enum {
 	/*
 	 * Hardbarrier is supported with one of the following methods.
@@ -496,17 +520,17 @@ static inline int blk_queue_full(struct request_queue *q, int rw)
 static inline void blk_set_queue_full(struct request_queue *q, int rw)
 {
 	if (rw == READ)
-		set_bit(QUEUE_FLAG_READFULL, &q->queue_flags);
+		queue_flag_set(QUEUE_FLAG_READFULL, q);
 	else
-		set_bit(QUEUE_FLAG_WRITEFULL, &q->queue_flags);
+		queue_flag_set(QUEUE_FLAG_WRITEFULL, q);
 }
 
 static inline void blk_clear_queue_full(struct request_queue *q, int rw)
 {
 	if (rw == READ)
-		clear_bit(QUEUE_FLAG_READFULL, &q->queue_flags);
+		queue_flag_clear(QUEUE_FLAG_READFULL, q);
 	else
-		clear_bit(QUEUE_FLAG_WRITEFULL, &q->queue_flags);
+		queue_flag_clear(QUEUE_FLAG_WRITEFULL, q);
 }
 
 
@@ -626,6 +650,7 @@ extern void blk_start_queue(struct request_queue *q);
 extern void blk_stop_queue(struct request_queue *q);
 extern void blk_sync_queue(struct request_queue *q);
 extern void __blk_stop_queue(struct request_queue *q);
+extern void __blk_run_queue(struct request_queue *);
 extern void blk_run_queue(struct request_queue *);
 extern void blk_start_queueing(struct request_queue *);
 extern int blk_rq_map_user(struct request_queue *, struct request *, void __user *, unsigned long);

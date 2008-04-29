@@ -198,7 +198,8 @@ void blk_plug_device(struct request_queue *q)
 	if (blk_queue_stopped(q))
 		return;
 
-	if (!test_and_set_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags)) {
+	if (!test_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags)) {
+		__set_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags);
 		mod_timer(&q->unplug_timer, jiffies + q->unplug_delay);
 		blk_add_trace_generic(q, NULL, 0, BLK_TA_PLUG);
 	}
@@ -213,9 +214,10 @@ int blk_remove_plug(struct request_queue *q)
 {
 	WARN_ON(!irqs_disabled());
 
-	if (!test_and_clear_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags))
+	if (!test_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags))
 		return 0;
 
+	queue_flag_clear(QUEUE_FLAG_PLUGGED, q);
 	del_timer(&q->unplug_timer);
 	return 1;
 }
@@ -311,15 +313,16 @@ void blk_start_queue(struct request_queue *q)
 {
 	WARN_ON(!irqs_disabled());
 
-	clear_bit(QUEUE_FLAG_STOPPED, &q->queue_flags);
+	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
 
 	/*
 	 * one level of recursion is ok and is much faster than kicking
 	 * the unplug handling
 	 */
-	if (!test_and_set_bit(QUEUE_FLAG_REENTER, &q->queue_flags)) {
+	if (!test_bit(QUEUE_FLAG_REENTER, &q->queue_flags)) {
+		queue_flag_set(QUEUE_FLAG_REENTER, q);
 		q->request_fn(q);
-		clear_bit(QUEUE_FLAG_REENTER, &q->queue_flags);
+		queue_flag_clear(QUEUE_FLAG_REENTER, q);
 	} else {
 		blk_plug_device(q);
 		kblockd_schedule_work(&q->unplug_work);
@@ -344,7 +347,7 @@ EXPORT_SYMBOL(blk_start_queue);
 void blk_stop_queue(struct request_queue *q)
 {
 	blk_remove_plug(q);
-	set_bit(QUEUE_FLAG_STOPPED, &q->queue_flags);
+	queue_flag_set(QUEUE_FLAG_STOPPED, q);
 }
 EXPORT_SYMBOL(blk_stop_queue);
 
@@ -373,11 +376,8 @@ EXPORT_SYMBOL(blk_sync_queue);
  * blk_run_queue - run a single device queue
  * @q:	The queue to run
  */
-void blk_run_queue(struct request_queue *q)
+void __blk_run_queue(struct request_queue *q)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
 	blk_remove_plug(q);
 
 	/*
@@ -385,15 +385,28 @@ void blk_run_queue(struct request_queue *q)
 	 * handling reinvoke the handler shortly if we already got there.
 	 */
 	if (!elv_queue_empty(q)) {
-		if (!test_and_set_bit(QUEUE_FLAG_REENTER, &q->queue_flags)) {
+		if (!test_bit(QUEUE_FLAG_REENTER, &q->queue_flags)) {
+			queue_flag_set(QUEUE_FLAG_REENTER, q);
 			q->request_fn(q);
-			clear_bit(QUEUE_FLAG_REENTER, &q->queue_flags);
+			queue_flag_clear(QUEUE_FLAG_REENTER, q);
 		} else {
 			blk_plug_device(q);
 			kblockd_schedule_work(&q->unplug_work);
 		}
 	}
+}
+EXPORT_SYMBOL(__blk_run_queue);
 
+/**
+ * blk_run_queue - run a single device queue
+ * @q: The queue to run
+ */
+void blk_run_queue(struct request_queue *q)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(q->queue_lock, flags);
+	__blk_run_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_run_queue);
@@ -406,7 +419,7 @@ void blk_put_queue(struct request_queue *q)
 void blk_cleanup_queue(struct request_queue *q)
 {
 	mutex_lock(&q->sysfs_lock);
-	set_bit(QUEUE_FLAG_DEAD, &q->queue_flags);
+	queue_flag_set_unlocked(QUEUE_FLAG_DEAD, q);
 	mutex_unlock(&q->sysfs_lock);
 
 	if (q->elevator)
