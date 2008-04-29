@@ -444,15 +444,13 @@ void nes_read_1G_phy_reg(struct nes_device *nesdev, u8 phy_reg, u8 phy_addr, u16
 /**
  * nes_write_10G_phy_reg
  */
-void nes_write_10G_phy_reg(struct nes_device *nesdev, u16 phy_reg,
-		u8 phy_addr, u16 data)
+void nes_write_10G_phy_reg(struct nes_device *nesdev, u16 phy_addr, u8 dev_addr, u16 phy_reg,
+		u16 data)
 {
-	u32 dev_addr;
 	u32 port_addr;
 	u32 u32temp;
 	u32 counter;
 
-	dev_addr = 1;
 	port_addr = phy_addr;
 
 	/* set address */
@@ -492,14 +490,12 @@ void nes_write_10G_phy_reg(struct nes_device *nesdev, u16 phy_reg,
  * This routine only issues the read, the data must be read
  * separately.
  */
-void nes_read_10G_phy_reg(struct nes_device *nesdev, u16 phy_reg, u8 phy_addr)
+void nes_read_10G_phy_reg(struct nes_device *nesdev, u8 phy_addr, u8 dev_addr, u16 phy_reg)
 {
-	u32 dev_addr;
 	u32 port_addr;
 	u32 u32temp;
 	u32 counter;
 
-	dev_addr = 1;
 	port_addr = phy_addr;
 
 	/* set address */

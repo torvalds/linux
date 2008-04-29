@@ -1208,11 +1208,16 @@ int nes_init_phy(struct nes_device *nesdev)
 {
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	u32 counter = 0;
+	u32 sds_common_control0;
 	u32 mac_index = nesdev->mac_index;
-	u32 tx_config;
+	u32 tx_config = 0;
 	u16 phy_data;
+	u32 temp_phy_data = 0;
+	u32 temp_phy_data2 = 0;
+	u32 i = 0;
 
-	if (nesadapter->OneG_Mode) {
+	if ((nesadapter->OneG_Mode) &&
+	    (nesadapter->phy_type[mac_index] != NES_PHY_TYPE_PUMA_1G)) {
 		nes_debug(NES_DBG_PHY, "1G PHY, mac_index = %d.\n", mac_index);
 		if (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_1G) {
 			printk(PFX "%s: Programming mdc config for 1G\n", __func__);
@@ -1278,11 +1283,125 @@ int nes_init_phy(struct nes_device *nesdev)
 		nes_read_1G_phy_reg(nesdev, 0, nesadapter->phy_index[mac_index], &phy_data);
 		nes_write_1G_phy_reg(nesdev, 0, nesadapter->phy_index[mac_index], phy_data | 0x0300);
 	} else {
-		if (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_IRIS) {
+		if ((nesadapter->phy_type[mac_index] == NES_PHY_TYPE_IRIS) ||
+		    (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_ARGUS)) {
 			/* setup 10G MDIO operation */
 			tx_config = nes_read_indexed(nesdev, NES_IDX_MAC_TX_CONFIG);
 			tx_config |= 0x14;
 			nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONFIG, tx_config);
+		}
+		if ((nesadapter->phy_type[mac_index] == NES_PHY_TYPE_ARGUS)) {
+			nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0xd7ee);
+
+			temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+			mdelay(10);
+			nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0xd7ee);
+			temp_phy_data2 = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+
+			/*
+			 * if firmware is already running (like from a
+			 * driver un-load/load, don't do anything.
+			 */
+			if (temp_phy_data == temp_phy_data2) {
+				/* configure QT2505 AMCC PHY */
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0x0000, 0x8000);
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc300, 0x0000);
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc302, 0x0044);
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc318, 0x0052);
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc319, 0x0008);
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc31a, 0x0098);
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0x0026, 0x0E00);
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0x0027, 0x0000);
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0x0028, 0xA528);
+
+				/*
+				 * remove micro from reset; chip boots from ROM,
+				 * uploads EEPROM f/w image, uC executes f/w
+				 */
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc300, 0x0002);
+
+				/*
+				 * wait for heart beat to start to
+				 * know loading is done
+				 */
+				counter = 0;
+				do {
+					nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0xd7ee);
+					temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+					if (counter++ > 1000) {
+						nes_debug(NES_DBG_PHY, "AMCC PHY- breaking from heartbeat check <this is bad!!!> \n");
+						break;
+					}
+					mdelay(100);
+					nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0xd7ee);
+					temp_phy_data2 = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+				} while ((temp_phy_data2 == temp_phy_data));
+
+				/*
+				 * wait for tracking to start to know
+				 * f/w is good to go
+				 */
+				counter = 0;
+				do {
+					nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x3, 0xd7fd);
+					temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+					if (counter++ > 1000) {
+						nes_debug(NES_DBG_PHY, "AMCC PHY- breaking from status check <this is bad!!!> \n");
+						break;
+					}
+					mdelay(1000);
+					/*
+					 * nes_debug(NES_DBG_PHY, "AMCC PHY- phy_status not ready yet = 0x%02X\n",
+					 *			temp_phy_data);
+					 */
+				} while (((temp_phy_data & 0xff) != 0x50) && ((temp_phy_data & 0xff) != 0x70));
+
+				/* set LOS Control invert RXLOSB_I_PADINV */
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xd003, 0x0000);
+				/* set LOS Control to mask of RXLOSB_I */
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xc314, 0x0042);
+				/* set LED1 to input mode (LED1 and LED2 share same LED) */
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xd006, 0x0007);
+				/* set LED2 to RX link_status and activity */
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xd007, 0x000A);
+				/* set LED3 to RX link_status */
+				nes_write_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 0x1, 0xd008, 0x0009);
+
+				/*
+				 * reset the res-calibration on t2
+				 * serdes; ensures it is stable after
+				 * the amcc phy is stable
+				 */
+
+				sds_common_control0 = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0);
+				sds_common_control0 |= 0x1;
+				nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0, sds_common_control0);
+
+				/* release the res-calibration reset */
+				sds_common_control0 &= 0xfffffffe;
+				nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0, sds_common_control0);
+
+				i = 0;
+				while (((nes_read32(nesdev->regs+NES_SOFTWARE_RESET) & 0x00000040) != 0x00000040)
+						&& (i++ < 5000)) {
+					/* mdelay(1); */
+				}
+
+				/*
+				 * wait for link train done before moving on,
+				 * or will get an interupt storm
+				 */
+				counter = 0;
+				do {
+					temp_phy_data = nes_read_indexed(nesdev, NES_IDX_PHY_PCS_CONTROL_STATUS0 +
+								(0x200 * (nesdev->mac_index & 1)));
+					if (counter++ > 1000) {
+						nes_debug(NES_DBG_PHY, "AMCC PHY- breaking from link train wait <this is bad, link didnt train!!!>\n");
+						break;
+					}
+					mdelay(1);
+				} while (((temp_phy_data & 0x0f1f0000) != 0x0f0f0000));
+			}
 		}
 	}
 	return 0;
@@ -2107,6 +2226,8 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 	u32 u32temp;
 	u16 phy_data;
 	u16 temp_phy_data;
+	u32 pcs_val  = 0x0f0f0000;
+	u32 pcs_mask = 0x0f1f0000;
 
 	spin_lock_irqsave(&nesadapter->phy_lock, flags);
 	if (nesadapter->mac_sw_state[mac_number] != NES_MAC_SW_IDLE) {
@@ -2170,13 +2291,30 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 		nes_debug(NES_DBG_PHY, "Eth SERDES Common Status: 0=0x%08X, 1=0x%08X\n",
 				nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS0),
 				nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_STATUS0+0x200));
-		pcs_control_status = nes_read_indexed(nesdev,
-				NES_IDX_PHY_PCS_CONTROL_STATUS0 + ((mac_index&1)*0x200));
-		pcs_control_status = nes_read_indexed(nesdev,
-				NES_IDX_PHY_PCS_CONTROL_STATUS0 + ((mac_index&1)*0x200));
+
+		if (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_PUMA_1G) {
+			switch (mac_index) {
+			case 1:
+			case 3:
+				pcs_control_status = nes_read_indexed(nesdev,
+						NES_IDX_PHY_PCS_CONTROL_STATUS0 + 0x200);
+				break;
+			default:
+				pcs_control_status = nes_read_indexed(nesdev,
+						NES_IDX_PHY_PCS_CONTROL_STATUS0);
+				break;
+			}
+		} else {
+			pcs_control_status = nes_read_indexed(nesdev,
+					NES_IDX_PHY_PCS_CONTROL_STATUS0 + ((mac_index & 1) * 0x200));
+			pcs_control_status = nes_read_indexed(nesdev,
+					NES_IDX_PHY_PCS_CONTROL_STATUS0 + ((mac_index & 1) * 0x200));
+		}
+
 		nes_debug(NES_DBG_PHY, "PCS PHY Control/Status%u: 0x%08X\n",
 				mac_index, pcs_control_status);
-		if (nesadapter->OneG_Mode) {
+		if ((nesadapter->OneG_Mode) &&
+				(nesadapter->phy_type[mac_index] != NES_PHY_TYPE_PUMA_1G)) {
 			u32temp = 0x01010000;
 			if (nesadapter->port_count > 2) {
 				u32temp |= 0x02020000;
@@ -2185,24 +2323,59 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 				phy_data = 0;
 				nes_debug(NES_DBG_PHY, "PCS says the link is down\n");
 			}
-		} else if (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_IRIS) {
-			nes_read_10G_phy_reg(nesdev, 1, nesadapter->phy_index[mac_index]);
-			temp_phy_data = (u16)nes_read_indexed(nesdev,
-								NES_IDX_MAC_MDIO_CONTROL);
-			u32temp = 20;
-			do {
-				nes_read_10G_phy_reg(nesdev, 1, nesadapter->phy_index[mac_index]);
-				phy_data = (u16)nes_read_indexed(nesdev,
-								NES_IDX_MAC_MDIO_CONTROL);
-				if ((phy_data == temp_phy_data) || (!(--u32temp)))
-					break;
-				temp_phy_data = phy_data;
-			} while (1);
-			nes_debug(NES_DBG_PHY, "%s: Phy data = 0x%04X, link was %s.\n",
-				__func__, phy_data, nesadapter->mac_link_down ? "DOWN" : "UP");
-
 		} else {
-			phy_data = (0x0f0f0000 == (pcs_control_status & 0x0f1f0000)) ? 4 : 0;
+			switch (nesadapter->phy_type[mac_index]) {
+			case NES_PHY_TYPE_IRIS:
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 1);
+				temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+				u32temp = 20;
+				do {
+					nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 1);
+					phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+					if ((phy_data == temp_phy_data) || (!(--u32temp)))
+						break;
+					temp_phy_data = phy_data;
+				} while (1);
+				nes_debug(NES_DBG_PHY, "%s: Phy data = 0x%04X, link was %s.\n",
+					__func__, phy_data, nesadapter->mac_link_down[mac_index] ? "DOWN" : "UP");
+				break;
+
+			case NES_PHY_TYPE_ARGUS:
+				/* clear the alarms */
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 4, 0x0008);
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 4, 0xc001);
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 4, 0xc002);
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 4, 0xc005);
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 4, 0xc006);
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 0x9003);
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 0x9004);
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 0x9005);
+				/* check link status */
+				nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 1);
+				temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+				u32temp = 100;
+				do {
+					nes_read_10G_phy_reg(nesdev, nesadapter->phy_index[mac_index], 1, 1);
+
+					phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+					if ((phy_data == temp_phy_data) || (!(--u32temp)))
+						break;
+					temp_phy_data = phy_data;
+				} while (1);
+				nes_debug(NES_DBG_PHY, "%s: Phy data = 0x%04X, link was %s.\n",
+					__func__, phy_data, nesadapter->mac_link_down ? "DOWN" : "UP");
+				break;
+
+			case NES_PHY_TYPE_PUMA_1G:
+				if (mac_index < 2)
+					pcs_val = pcs_mask = 0x01010000;
+				else
+					pcs_val = pcs_mask = 0x02020000;
+				/* fall through */
+			default:
+				phy_data = (pcs_val == (pcs_control_status & pcs_mask)) ? 0x4 : 0x0;
+				break;
+			}
 		}
 
 		if (phy_data & 0x0004) {
@@ -2211,8 +2384,8 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 				nes_debug(NES_DBG_PHY, "The Link is UP!!.  linkup was %d\n",
 						nesvnic->linkup);
 				if (nesvnic->linkup == 0) {
-					printk(PFX "The Link is now up for port %u, netdev %p.\n",
-							mac_index, nesvnic->netdev);
+					printk(PFX "The Link is now up for port %s, netdev %p.\n",
+							nesvnic->netdev->name, nesvnic->netdev);
 					if (netif_queue_stopped(nesvnic->netdev))
 						netif_start_queue(nesvnic->netdev);
 					nesvnic->linkup = 1;
@@ -2225,8 +2398,8 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 				nes_debug(NES_DBG_PHY, "The Link is Down!!. linkup was %d\n",
 						nesvnic->linkup);
 				if (nesvnic->linkup == 1) {
-					printk(PFX "The Link is now down for port %u, netdev %p.\n",
-							mac_index, nesvnic->netdev);
+					printk(PFX "The Link is now down for port %s, netdev %p.\n",
+							nesvnic->netdev->name, nesvnic->netdev);
 					if (!(netif_queue_stopped(nesvnic->netdev)))
 						netif_stop_queue(nesvnic->netdev);
 					nesvnic->linkup = 0;

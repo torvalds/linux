@@ -1377,21 +1377,29 @@ static int nes_netdev_get_settings(struct net_device *netdev, struct ethtool_cmd
 
 	et_cmd->duplex = DUPLEX_FULL;
 	et_cmd->port = PORT_MII;
+
 	if (nesadapter->OneG_Mode) {
-		et_cmd->supported = SUPPORTED_1000baseT_Full|SUPPORTED_Autoneg;
-		et_cmd->advertising = ADVERTISED_1000baseT_Full|ADVERTISED_Autoneg;
 		et_cmd->speed = SPEED_1000;
-		nes_read_1G_phy_reg(nesdev, 0, nesadapter->phy_index[nesdev->mac_index],
-				&phy_data);
-		if (phy_data&0x1000) {
-			et_cmd->autoneg = AUTONEG_ENABLE;
+		if (nesadapter->phy_type[nesdev->mac_index] == NES_PHY_TYPE_PUMA_1G) {
+			et_cmd->supported   = SUPPORTED_1000baseT_Full;
+			et_cmd->advertising = ADVERTISED_1000baseT_Full;
+			et_cmd->autoneg     = AUTONEG_DISABLE;
+			et_cmd->transceiver = XCVR_INTERNAL;
+			et_cmd->phy_address = nesdev->mac_index;
 		} else {
-			et_cmd->autoneg = AUTONEG_DISABLE;
+			et_cmd->supported   = SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg;
+			et_cmd->advertising = ADVERTISED_1000baseT_Full | ADVERTISED_Autoneg;
+			nes_read_1G_phy_reg(nesdev, 0, nesadapter->phy_index[nesdev->mac_index], &phy_data);
+			if (phy_data & 0x1000)
+				et_cmd->autoneg = AUTONEG_ENABLE;
+			else
+				et_cmd->autoneg = AUTONEG_DISABLE;
+			et_cmd->transceiver = XCVR_EXTERNAL;
+			et_cmd->phy_address = nesadapter->phy_index[nesdev->mac_index];
 		}
-		et_cmd->transceiver = XCVR_EXTERNAL;
-		et_cmd->phy_address = nesadapter->phy_index[nesdev->mac_index];
 	} else {
-		if (nesadapter->phy_type[nesvnic->logical_port] == NES_PHY_TYPE_IRIS) {
+		if ((nesadapter->phy_type[nesdev->mac_index] == NES_PHY_TYPE_IRIS) ||
+		    (nesadapter->phy_type[nesdev->mac_index] == NES_PHY_TYPE_ARGUS)) {
 			et_cmd->transceiver = XCVR_EXTERNAL;
 			et_cmd->port = PORT_FIBRE;
 			et_cmd->supported = SUPPORTED_FIBRE;
@@ -1422,7 +1430,8 @@ static int nes_netdev_set_settings(struct net_device *netdev, struct ethtool_cmd
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	u16 phy_data;
 
-	if (nesadapter->OneG_Mode) {
+	if ((nesadapter->OneG_Mode) &&
+	    (nesadapter->phy_type[nesdev->mac_index] != NES_PHY_TYPE_PUMA_1G)) {
 		nes_read_1G_phy_reg(nesdev, 0, nesadapter->phy_index[nesdev->mac_index],
 				&phy_data);
 		if (et_cmd->autoneg) {
@@ -1615,27 +1624,34 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	list_add_tail(&nesvnic->list, &nesdev->nesadapter->nesvnic_list[nesdev->mac_index]);
 
 	if ((nesdev->netdev_count == 0) &&
-	    (PCI_FUNC(nesdev->pcidev->devfn) == nesdev->mac_index)) {
-		nes_debug(NES_DBG_INIT, "Setting up PHY interrupt mask. Using register index 0x%04X\n",
-				NES_IDX_PHY_PCS_CONTROL_STATUS0+(0x200*(nesvnic->logical_port&1)));
+	    ((PCI_FUNC(nesdev->pcidev->devfn) == nesdev->mac_index) ||
+	     ((nesdev->nesadapter->phy_type[nesdev->mac_index] == NES_PHY_TYPE_PUMA_1G) &&
+	      (((PCI_FUNC(nesdev->pcidev->devfn) == 1) && (nesdev->mac_index == 2)) ||
+	       ((PCI_FUNC(nesdev->pcidev->devfn) == 2) && (nesdev->mac_index == 1)))))) {
+		/*
+		 * nes_debug(NES_DBG_INIT, "Setting up PHY interrupt mask. Using register index 0x%04X\n",
+		 *		NES_IDX_PHY_PCS_CONTROL_STATUS0 + (0x200 * (nesvnic->logical_port & 1)));
+		 */
 		u32temp = nes_read_indexed(nesdev, NES_IDX_PHY_PCS_CONTROL_STATUS0 +
-				(0x200*(nesvnic->logical_port&1)));
-		u32temp |= 0x00200000;
-		nes_write_indexed(nesdev, NES_IDX_PHY_PCS_CONTROL_STATUS0 +
-				(0x200*(nesvnic->logical_port&1)), u32temp);
+				(0x200 * (nesdev->mac_index & 1)));
+		if (nesdev->nesadapter->phy_type[nesdev->mac_index] != NES_PHY_TYPE_PUMA_1G) {
+			u32temp |= 0x00200000;
+			nes_write_indexed(nesdev, NES_IDX_PHY_PCS_CONTROL_STATUS0 +
+				(0x200 * (nesdev->mac_index & 1)), u32temp);
+		}
+
 		u32temp = nes_read_indexed(nesdev, NES_IDX_PHY_PCS_CONTROL_STATUS0 +
-				(0x200*(nesvnic->logical_port&1)) );
+				(0x200 * (nesdev->mac_index & 1)));
+
 		if ((u32temp&0x0f1f0000) == 0x0f0f0000) {
-			if (nesdev->nesadapter->phy_type[nesvnic->logical_port] == NES_PHY_TYPE_IRIS) {
+			if (nesdev->nesadapter->phy_type[nesdev->mac_index] == NES_PHY_TYPE_IRIS) {
 				nes_init_phy(nesdev);
-				nes_read_10G_phy_reg(nesdev, 1,
-						nesdev->nesadapter->phy_index[nesvnic->logical_port]);
+				nes_read_10G_phy_reg(nesdev, nesdev->nesadapter->phy_index[nesdev->mac_index], 1, 1);
 				temp_phy_data = (u16)nes_read_indexed(nesdev,
 									NES_IDX_MAC_MDIO_CONTROL);
 				u32temp = 20;
 				do {
-					nes_read_10G_phy_reg(nesdev, 1,
-							nesdev->nesadapter->phy_index[nesvnic->logical_port]);
+					nes_read_10G_phy_reg(nesdev, nesdev->nesadapter->phy_index[nesdev->mac_index], 1, 1);
 					phy_data = (u16)nes_read_indexed(nesdev,
 									NES_IDX_MAC_MDIO_CONTROL);
 					if ((phy_data == temp_phy_data) || (!(--u32temp)))
@@ -1649,6 +1665,14 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 					nes_debug(NES_DBG_INIT, "The Link is DOWN!!.\n");
 				}
 			} else {
+				nes_debug(NES_DBG_INIT, "The Link is UP!!.\n");
+				nesvnic->linkup = 1;
+			}
+		} else if (nesdev->nesadapter->phy_type[nesdev->mac_index] == NES_PHY_TYPE_PUMA_1G) {
+			nes_debug(NES_DBG_INIT, "mac_index=%d, logical_port=%d, u32temp=0x%04X, PCI_FUNC=%d\n",
+				nesdev->mac_index, nesvnic->logical_port, u32temp, PCI_FUNC(nesdev->pcidev->devfn));
+			if (((nesdev->mac_index < 2) && ((u32temp&0x01010000) == 0x01010000)) ||
+			    ((nesdev->mac_index > 1) && ((u32temp&0x02020000) == 0x02020000)))  {
 				nes_debug(NES_DBG_INIT, "The Link is UP!!.\n");
 				nesvnic->linkup = 1;
 			}
