@@ -434,10 +434,6 @@ static int uli526x_open(struct net_device *dev)
 
 	ULI526X_DBUG(0, "uli526x_open", 0);
 
-	ret = request_irq(dev->irq, &uli526x_interrupt, IRQF_SHARED, dev->name, dev);
-	if (ret)
-		return ret;
-
 	/* system variable init */
 	db->cr6_data = CR6_DEFAULT | uli526x_cr6_user_set;
 	db->tx_packet_cnt = 0;
@@ -455,6 +451,10 @@ static int uli526x_open(struct net_device *dev)
 
 	/* Initialize ULI526X board */
 	uli526x_init(dev);
+
+	ret = request_irq(dev->irq, &uli526x_interrupt, IRQF_SHARED, dev->name, dev);
+	if (ret)
+		return ret;
 
 	/* Active System Interface */
 	netif_wake_queue(dev);
