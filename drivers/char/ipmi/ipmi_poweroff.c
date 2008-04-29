@@ -308,7 +308,7 @@ static void ipmi_poweroff_atca(ipmi_user_t user)
 	}
 
 	if (atca_oem_poweroff_hook)
-		return atca_oem_poweroff_hook(user);
+		atca_oem_poweroff_hook(user);
  out:
 	return;
 }
