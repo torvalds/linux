@@ -1,11 +1,7 @@
 #ifndef _LINUX_SYSV_FS_H
 #define _LINUX_SYSV_FS_H
 
-#if defined(__GNUC__)
-# define __packed2__	__attribute__((packed, aligned(2)))
-#else
->> I want to scream! <<
-#endif
+#define __packed2__	__attribute__((packed, aligned(2)))
 
 
 #ifndef __KERNEL__
