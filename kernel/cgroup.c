@@ -1715,7 +1715,7 @@ static void cgroup_advance_iter(struct cgroup *cgrp,
  * The tasklist_lock is not held here, as do_each_thread() and
  * while_each_thread() are protected by RCU.
  */
-void cgroup_enable_task_cg_lists(void)
+static void cgroup_enable_task_cg_lists(void)
 {
 	struct task_struct *p, *g;
 	write_lock(&css_set_lock);
