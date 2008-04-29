@@ -423,6 +423,7 @@ void iser_dma_unmap_task_data(struct iscsi_iser_cmd_task *iser_ctask)
 int iser_reg_rdma_mem(struct iscsi_iser_cmd_task *iser_ctask,
 		      enum   iser_data_dir        cmd_dir)
 {
+	struct iscsi_conn    *iscsi_conn = iser_ctask->iser_conn->iscsi_conn;
 	struct iser_conn     *ib_conn = iser_ctask->iser_conn->ib_conn;
 	struct iser_device   *device = ib_conn->device;
 	struct ib_device     *ibdev = device->ib_device;
@@ -437,6 +438,7 @@ int iser_reg_rdma_mem(struct iscsi_iser_cmd_task *iser_ctask,
 
 	aligned_len = iser_data_buf_aligned_len(mem, ibdev);
 	if (aligned_len != mem->dma_nents) {
+		iscsi_conn->fmr_unalign_cnt++;
 		iser_warn("rdma alignment violation %d/%d aligned\n",
 			 aligned_len, mem->size);
 		iser_data_buf_dump(mem, ibdev);

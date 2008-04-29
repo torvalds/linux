@@ -225,6 +225,7 @@ struct iscsi_conn {
 
 	/* custom statistics */
 	uint32_t		eh_abort_cnt;
+	uint32_t		fmr_unalign_cnt;
 };
 
 struct iscsi_pool {
