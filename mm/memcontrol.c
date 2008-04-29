@@ -857,12 +857,19 @@ static ssize_t mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
 				mem_cgroup_write_strategy);
 }
 
-static int mem_cgroup_max_reset(struct cgroup *cont, unsigned int event)
+static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
 {
 	struct mem_cgroup *mem;
 
 	mem = mem_cgroup_from_cont(cont);
-	res_counter_reset_max(&mem->res);
+	switch (event) {
+	case RES_MAX_USAGE:
+		res_counter_reset_max(&mem->res);
+		break;
+	case RES_FAILCNT:
+		res_counter_reset_failcnt(&mem->res);
+		break;
+	}
 	return 0;
 }
 
@@ -916,7 +923,7 @@ static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "max_usage_in_bytes",
 		.private = RES_MAX_USAGE,
-		.trigger = mem_cgroup_max_reset,
+		.trigger = mem_cgroup_reset,
 		.read_u64 = mem_cgroup_read,
 	},
 	{
@@ -928,6 +935,7 @@ static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "failcnt",
 		.private = RES_FAILCNT,
+		.trigger = mem_cgroup_reset,
 		.read_u64 = mem_cgroup_read,
 	},
 	{
