@@ -548,6 +548,9 @@ struct compat_group_filter {
 		__attribute__ ((aligned(4)));
 } __attribute__ ((packed));
 
+#define __COMPAT_GF0_SIZE (sizeof(struct compat_group_filter) - \
+			sizeof(struct __kernel_sockaddr_storage))
+
 
 int compat_mc_setsockopt(struct sock *sock, int level, int optname,
 	char __user *optval, int optlen,
@@ -582,7 +585,7 @@ int compat_mc_setsockopt(struct sock *sock, int level, int optname,
 	case MCAST_UNBLOCK_SOURCE:
 	{
 		struct compat_group_source_req __user *gsr32 = (void *)optval;
-		struct group_source_req *kgsr = compat_alloc_user_space(
+		struct group_source_req __user *kgsr = compat_alloc_user_space(
 			sizeof(struct group_source_req));
 		u32 interface;
 
@@ -603,10 +606,10 @@ int compat_mc_setsockopt(struct sock *sock, int level, int optname,
 	case MCAST_MSFILTER:
 	{
 		struct compat_group_filter __user *gf32 = (void *)optval;
-		struct group_filter *kgf;
+		struct group_filter __user *kgf;
 		u32 interface, fmode, numsrc;
 
-		if (!access_ok(VERIFY_READ, gf32, sizeof(*gf32)) ||
+		if (!access_ok(VERIFY_READ, gf32, __COMPAT_GF0_SIZE) ||
 		    __get_user(interface, &gf32->gf_interface) ||
 		    __get_user(fmode, &gf32->gf_fmode) ||
 		    __get_user(numsrc, &gf32->gf_numsrc))
@@ -622,7 +625,7 @@ int compat_mc_setsockopt(struct sock *sock, int level, int optname,
 		    __put_user(numsrc, &kgf->gf_numsrc) ||
 		    copy_in_user(&kgf->gf_group, &gf32->gf_group,
 				sizeof(kgf->gf_group)) ||
-		    (numsrc && copy_in_user(&kgf->gf_slist, &gf32->gf_slist,
+		    (numsrc && copy_in_user(kgf->gf_slist, gf32->gf_slist,
 				numsrc * sizeof(kgf->gf_slist[0]))))
 			return -EFAULT;
 		koptval = (char __user *)kgf;
