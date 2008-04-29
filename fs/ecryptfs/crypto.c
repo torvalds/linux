@@ -1246,7 +1246,6 @@ ecryptfs_write_header_metadata(char *virt,
 	(*written) = 6;
 }
 
-struct kmem_cache *ecryptfs_header_cache_0;
 struct kmem_cache *ecryptfs_header_cache_1;
 struct kmem_cache *ecryptfs_header_cache_2;
 
