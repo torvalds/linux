@@ -388,20 +388,18 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 
 	lock_kernel();
 	spin_lock(&proc_subdir_lock);
-	if (de) {
-		for (de = de->subdir; de ; de = de->next) {
-			if (de->namelen != dentry->d_name.len)
-				continue;
-			if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
-				unsigned int ino;
+	for (de = de->subdir; de ; de = de->next) {
+		if (de->namelen != dentry->d_name.len)
+			continue;
+		if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
+			unsigned int ino;
 
-				ino = de->low_ino;
-				de_get(de);
-				spin_unlock(&proc_subdir_lock);
-				error = -EINVAL;
-				inode = proc_get_inode(dir->i_sb, ino, de);
-				goto out_unlock;
-			}
+			ino = de->low_ino;
+			de_get(de);
+			spin_unlock(&proc_subdir_lock);
+			error = -EINVAL;
+			inode = proc_get_inode(dir->i_sb, ino, de);
+			goto out_unlock;
 		}
 	}
 	spin_unlock(&proc_subdir_lock);
@@ -413,7 +411,8 @@ out_unlock:
 		d_add(dentry, inode);
 		return NULL;
 	}
-	de_put(de);
+	if (de)
+		de_put(de);
 	return ERR_PTR(error);
 }
 
@@ -443,10 +442,6 @@ int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
 	lock_kernel();
 
 	ino = inode->i_ino;
-	if (!de) {
-		ret = -EINVAL;
-		goto out;
-	}
 	i = filp->f_pos;
 	switch (i) {
 		case 0:
