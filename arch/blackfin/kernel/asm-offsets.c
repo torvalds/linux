@@ -34,8 +34,7 @@
 #include <linux/hardirq.h>
 #include <linux/irq.h>
 #include <linux/thread_info.h>
-
-#define DEFINE(sym, val) asm volatile("\n->" #sym " %0 " #val : : "i" (val))
+#include <linux/kbuild.h>
 
 int main(void)
 {
