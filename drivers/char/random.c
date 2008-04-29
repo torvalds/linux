@@ -370,6 +370,7 @@ static struct poolinfo {
  */
 static DECLARE_WAIT_QUEUE_HEAD(random_read_wait);
 static DECLARE_WAIT_QUEUE_HEAD(random_write_wait);
+static struct fasync_struct *fasync;
 
 #if 0
 static int debug;
@@ -533,8 +534,11 @@ static void credit_entropy_bits(struct entropy_store *r, int nbits)
 		r->entropy_count = r->poolinfo->POOLBITS;
 
 	/* should we wake readers? */
-	if (r == &input_pool && r->entropy_count >= random_read_wakeup_thresh)
+	if (r == &input_pool &&
+	    r->entropy_count >= random_read_wakeup_thresh) {
 		wake_up_interruptible(&random_read_wait);
+		kill_fasync(&fasync, SIGIO, POLL_IN);
+	}
 
 	spin_unlock_irqrestore(&r->lock, flags);
 }
@@ -742,8 +746,10 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 		else
 			r->entropy_count = reserved;
 
-		if (r->entropy_count < random_write_wakeup_thresh)
+		if (r->entropy_count < random_write_wakeup_thresh) {
 			wake_up_interruptible(&random_write_wait);
+			kill_fasync(&fasync, SIGIO, POLL_OUT);
+		}
 	}
 
 	DEBUG_ENT("debiting %d entropy credits from %s%s\n",
@@ -1100,17 +1106,31 @@ static long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	}
 }
 
+static int random_fasync(int fd, struct file *filp, int on)
+{
+	return fasync_helper(fd, filp, on, &fasync);
+}
+
+static int random_release(struct inode *inode, struct file *filp)
+{
+	return fasync_helper(-1, filp, 0, &fasync);
+}
+
 const struct file_operations random_fops = {
 	.read  = random_read,
 	.write = random_write,
 	.poll  = random_poll,
 	.unlocked_ioctl = random_ioctl,
+	.fasync = random_fasync,
+	.release = random_release,
 };
 
 const struct file_operations urandom_fops = {
 	.read  = urandom_read,
 	.write = random_write,
 	.unlocked_ioctl = random_ioctl,
+	.fasync = random_fasync,
+	.release = random_release,
 };
 
 /***************************************************************
