@@ -132,6 +132,7 @@ struct thread_info {
 /* work to do on any return to user space */
 #define _TIF_ALLWORK_MASK (0x0000FFFF & ~_TIF_SECCOMP)
 
+/* Only used for 64 bit */
 #define _TIF_DO_NOTIFY_MASK						\
 	(_TIF_SIGPENDING|_TIF_SINGLESTEP|_TIF_MCE_NOTIFY|_TIF_HRTICK_RESCHED)
 
@@ -143,18 +144,21 @@ struct thread_info {
 #define _TIF_WORK_CTXSW_PREV _TIF_WORK_CTXSW
 #define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW|_TIF_DEBUG)
 
-
 #define PREEMPT_ACTIVE		0x10000000
+
+/* thread information allocation */
+#ifdef CONFIG_DEBUG_STACK_USAGE
+#define THREAD_FLAGS (GFP_KERNEL | __GFP_ZERO)
+#else
+#define THREAD_FLAGS GFP_KERNEL
+#endif
+
+#define alloc_thread_info(tsk)						\
+	((struct thread_info *)__get_free_pages(THREAD_FLAGS, THREAD_ORDER))
 
 #ifdef CONFIG_X86_32
 
-#ifdef CONFIG_4KSTACKS
-#define THREAD_SIZE            (4096)
-#else
-#define THREAD_SIZE		(8192)
-#endif
-
-#define STACK_WARN             (THREAD_SIZE/8)
+#define STACK_WARN	(THREAD_SIZE/8)
 /*
  * macros/functions for gaining access to the thread information structure
  *
@@ -172,15 +176,6 @@ static inline struct thread_info *current_thread_info(void)
 	return (struct thread_info *)
 		(current_stack_pointer & ~(THREAD_SIZE - 1));
 }
-
-/* thread information allocation */
-#ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info(tsk) ((struct thread_info *)			\
-	__get_free_pages(GFP_KERNEL | __GFP_ZERO, get_order(THREAD_SIZE)))
-#else
-#define alloc_thread_info(tsk) ((struct thread_info *)			\
-	__get_free_pages(GFP_KERNEL, get_order(THREAD_SIZE)))
-#endif
 
 #else /* !__ASSEMBLY__ */
 
@@ -218,16 +213,6 @@ static inline struct thread_info *stack_thread_info(void)
 	asm("andq %%rsp,%0; " : "=r" (ti) : "0" (~(THREAD_SIZE - 1)));
 	return ti;
 }
-
-/* thread information allocation */
-#ifdef CONFIG_DEBUG_STACK_USAGE
-#define THREAD_FLAGS (GFP_KERNEL | __GFP_ZERO)
-#else
-#define THREAD_FLAGS GFP_KERNEL
-#endif
-
-#define alloc_thread_info(tsk)						\
-	((struct thread_info *)__get_free_pages(THREAD_FLAGS, THREAD_ORDER))
 
 #else /* !__ASSEMBLY__ */
 
