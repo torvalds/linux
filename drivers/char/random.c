@@ -899,7 +899,7 @@ static void init_std_data(struct entropy_store *r)
 			  sizeof(*(utsname()))/4);
 }
 
-static int __init rand_initialize(void)
+static int rand_initialize(void)
 {
 	init_std_data(&input_pool);
 	init_std_data(&blocking_pool);
@@ -1101,9 +1101,7 @@ static long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		/* Clear the entropy pool counters. */
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		init_std_data(&input_pool);
-		init_std_data(&blocking_pool);
-		init_std_data(&nonblocking_pool);
+		rand_initialize();
 		return 0;
 	default:
 		return -EINVAL;
