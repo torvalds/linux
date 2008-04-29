@@ -64,7 +64,7 @@
  * applications and another for userland applications.  The
  * capabilities are basically the same for both interface, although
  * the interfaces are somewhat different.  The stuff in the
- * #ifdef KERNEL below is the in-kernel interface.  The userland
+ * #ifdef __KERNEL__ below is the in-kernel interface.  The userland
  * interface is defined later in the file.  */
 
 
