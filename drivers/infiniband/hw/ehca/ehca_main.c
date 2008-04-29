@@ -68,6 +68,8 @@ int ehca_port_act_time = 30;
 int ehca_static_rate   = -1;
 int ehca_scaling_code  = 0;
 int ehca_lock_hcalls   = -1;
+int ehca_max_cq        = -1;
+int ehca_max_qp        = -1;
 
 module_param_named(open_aqp1,     ehca_open_aqp1,     bool, S_IRUGO);
 module_param_named(debug_level,   ehca_debug_level,   int,  S_IRUGO);
@@ -79,6 +81,8 @@ module_param_named(poll_all_eqs,  ehca_poll_all_eqs,  bool, S_IRUGO);
 module_param_named(static_rate,   ehca_static_rate,   int,  S_IRUGO);
 module_param_named(scaling_code,  ehca_scaling_code,  bool, S_IRUGO);
 module_param_named(lock_hcalls,   ehca_lock_hcalls,   bool, S_IRUGO);
+module_param_named(number_of_cqs, ehca_max_cq,        int,  S_IRUGO);
+module_param_named(number_of_qps, ehca_max_qp,        int,  S_IRUGO);
 
 MODULE_PARM_DESC(open_aqp1,
 		 "Open AQP1 on startup (default: no)");
@@ -104,6 +108,12 @@ MODULE_PARM_DESC(scaling_code,
 MODULE_PARM_DESC(lock_hcalls,
 		 "Serialize all hCalls made by the driver "
 		 "(default: autodetect)");
+MODULE_PARM_DESC(number_of_cqs,
+		"Max number of CQs which can be allocated "
+		"(default: autodetect)");
+MODULE_PARM_DESC(number_of_qps,
+		"Max number of QPs which can be allocated "
+		"(default: autodetect)");
 
 DEFINE_RWLOCK(ehca_qp_idr_lock);
 DEFINE_RWLOCK(ehca_cq_idr_lock);
@@ -354,6 +364,25 @@ static int ehca_sense_attributes(struct ehca_shca *shca)
 	for (i = 0; i < ARRAY_SIZE(pgsize_map); i += 2)
 		if (rblock->memory_page_size_supported & pgsize_map[i])
 			shca->hca_cap_mr_pgsize |= pgsize_map[i + 1];
+
+	/* Set maximum number of CQs and QPs to calculate EQ size */
+	if (ehca_max_qp == -1)
+		ehca_max_qp = min_t(int, rblock->max_qp, EHCA_MAX_NUM_QUEUES);
+	else if (ehca_max_qp < 1 || ehca_max_qp > rblock->max_qp) {
+		ehca_gen_err("Requested number of QPs is out of range (1 - %i) "
+			"specified by HW", rblock->max_qp);
+		ret = -EINVAL;
+		goto sense_attributes1;
+	}
+
+	if (ehca_max_cq == -1)
+		ehca_max_cq = min_t(int, rblock->max_cq, EHCA_MAX_NUM_QUEUES);
+	else if (ehca_max_cq < 1 || ehca_max_cq > rblock->max_cq) {
+		ehca_gen_err("Requested number of CQs is out of range (1 - %i) "
+			"specified by HW", rblock->max_cq);
+		ret = -EINVAL;
+		goto sense_attributes1;
+	}
 
 	/* query max MTU from first port -- it's the same for all ports */
 	port = (struct hipz_query_port *)rblock;
@@ -684,7 +713,7 @@ static int __devinit ehca_probe(struct of_device *dev,
 	struct ehca_shca *shca;
 	const u64 *handle;
 	struct ib_pd *ibpd;
-	int ret, i;
+	int ret, i, eq_size;
 
 	handle = of_get_property(dev->node, "ibm,hca-handle", NULL);
 	if (!handle) {
@@ -705,6 +734,8 @@ static int __devinit ehca_probe(struct of_device *dev,
 		return -ENOMEM;
 	}
 	mutex_init(&shca->modify_mutex);
+	atomic_set(&shca->num_cqs, 0);
+	atomic_set(&shca->num_qps, 0);
 	for (i = 0; i < ARRAY_SIZE(shca->sport); i++)
 		spin_lock_init(&shca->sport[i].mod_sqp_lock);
 
@@ -724,8 +755,9 @@ static int __devinit ehca_probe(struct of_device *dev,
 		goto probe1;
 	}
 
+	eq_size = 2 * ehca_max_cq + 4 * ehca_max_qp;
 	/* create event queues */
-	ret = ehca_create_eq(shca, &shca->eq, EHCA_EQ, 2048);
+	ret = ehca_create_eq(shca, &shca->eq, EHCA_EQ, eq_size);
 	if (ret) {
 		ehca_err(&shca->ib_device, "Cannot create EQ.");
 		goto probe1;
