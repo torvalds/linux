@@ -159,14 +159,6 @@ static void
 				DISCOVERY_MODE,
 				void *);
 #endif
-/* -------------------------- PROC ENTRY -------------------------- */
-#ifdef CONFIG_PROC_FS
-static int
-	irnet_proc_read(char *,
-			char **,
-			off_t,
-			int);
-#endif /* CONFIG_PROC_FS */
 
 /**************************** VARIABLES ****************************/
 
