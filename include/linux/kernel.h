@@ -188,6 +188,7 @@ extern int log_buf_copy(char *dest, int idx, int len);
 extern int printk_ratelimit_jiffies;
 extern int printk_ratelimit_burst;
 extern int printk_ratelimit(void);
+extern int __ratelimit(int ratelimit_jiffies, int ratelimit_burst);
 extern int __printk_ratelimit(int ratelimit_jiffies, int ratelimit_burst);
 extern bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 				   unsigned int interval_msec);

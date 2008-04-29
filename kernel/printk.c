@@ -1287,31 +1287,7 @@ void tty_write_message(struct tty_struct *tty, char *msg)
  */
 int __printk_ratelimit(int ratelimit_jiffies, int ratelimit_burst)
 {
-	static DEFINE_SPINLOCK(ratelimit_lock);
-	static unsigned toks = 10 * 5 * HZ;
-	static unsigned long last_msg;
-	static int missed;
-	unsigned long flags;
-	unsigned long now = jiffies;
-
-	spin_lock_irqsave(&ratelimit_lock, flags);
-	toks += now - last_msg;
-	last_msg = now;
-	if (toks > (ratelimit_burst * ratelimit_jiffies))
-		toks = ratelimit_burst * ratelimit_jiffies;
-	if (toks >= ratelimit_jiffies) {
-		int lost = missed;
-
-		missed = 0;
-		toks -= ratelimit_jiffies;
-		spin_unlock_irqrestore(&ratelimit_lock, flags);
-		if (lost)
-			printk(KERN_WARNING "printk: %d messages suppressed.\n", lost);
-		return 1;
-	}
-	missed++;
-	spin_unlock_irqrestore(&ratelimit_lock, flags);
-	return 0;
+	return __ratelimit(ratelimit_jiffies, ratelimit_burst);
 }
 EXPORT_SYMBOL(__printk_ratelimit);
 
