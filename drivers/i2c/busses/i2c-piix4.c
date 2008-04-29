@@ -223,7 +223,7 @@ static int piix4_transaction(void)
 			dev_err(&piix4_adapter.dev, "Failed! (%02x)\n", temp);
 			return -1;
 		} else {
-			dev_dbg(&piix4_adapter.dev, "Successfull!\n");
+			dev_dbg(&piix4_adapter.dev, "Successful!\n");
 		}
 	}
 

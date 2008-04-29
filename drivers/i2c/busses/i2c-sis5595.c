@@ -238,7 +238,7 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 			dev_dbg(&adap->dev, "Failed! (%02x)\n", temp);
 			return -1;
 		} else {
-			dev_dbg(&adap->dev, "Successfull!\n");
+			dev_dbg(&adap->dev, "Successful!\n");
 		}
 	}
 
