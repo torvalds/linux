@@ -20,8 +20,6 @@
 /* Include the pci register defines */
 #include <linux/pci_regs.h>
 
-struct pci_vpd;
-
 /*
  * The PCI interface treats multi-function devices as independent
  * devices.  The slot/function address of each device is encoded
@@ -131,6 +129,8 @@ struct pci_cap_saved_state {
 };
 
 struct pcie_link_state;
+struct pci_vpd;
+
 /*
  * The pci_dev structure is used to describe PCI devices.
  */
@@ -702,6 +702,8 @@ static inline int pci_enable_msi(struct pci_dev *dev)
 	return -1;
 }
 
+static inline void pci_msi_shutdown(struct pci_dev *dev)
+{ }
 static inline void pci_disable_msi(struct pci_dev *dev)
 { }
 
@@ -711,6 +713,8 @@ static inline int pci_enable_msix(struct pci_dev *dev,
 	return -1;
 }
 
+static inline void pci_msix_shutdown(struct pci_dev *dev)
+{ }
 static inline void pci_disable_msix(struct pci_dev *dev)
 { }
 
@@ -721,9 +725,11 @@ static inline void pci_restore_msi_state(struct pci_dev *dev)
 { }
 #else
 extern int pci_enable_msi(struct pci_dev *dev);
+extern void pci_msi_shutdown(struct pci_dev *dev);
 extern void pci_disable_msi(struct pci_dev *dev);
 extern int pci_enable_msix(struct pci_dev *dev,
 	struct msix_entry *entries, int nvec);
+extern void pci_msix_shutdown(struct pci_dev *dev);
 extern void pci_disable_msix(struct pci_dev *dev);
 extern void msi_remove_pci_irq_vectors(struct pci_dev *dev);
 extern void pci_restore_msi_state(struct pci_dev *dev);

@@ -93,11 +93,10 @@ struct controller {
 	u8 slot_device_offset;
 	u32 first_slot;		/* First physical slot number */  /* PCIE only has 1 slot */
 	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
-	u8 ctrlcap;
+	u32 slot_cap;
 	u8 cap_base;
 	struct timer_list poll_timer;
 	volatile int cmd_busy;
-	spinlock_t lock;
 };
 
 #define INT_BUTTON_IGNORE		0
@@ -137,13 +136,13 @@ struct controller {
 #define HP_SUPR_RM_SUP	0x00000020
 #define EMI_PRSN	0x00020000
 
-#define ATTN_BUTTN(cap)		(cap & ATTN_BUTTN_PRSN)
-#define POWER_CTRL(cap)		(cap & PWR_CTRL_PRSN)
-#define MRL_SENS(cap)		(cap & MRL_SENS_PRSN)
-#define ATTN_LED(cap)		(cap & ATTN_LED_PRSN)
-#define PWR_LED(cap)		(cap & PWR_LED_PRSN) 
-#define HP_SUPR_RM(cap)		(cap & HP_SUPR_RM_SUP)
-#define EMI(cap)		(cap & EMI_PRSN)
+#define ATTN_BUTTN(ctrl)	((ctrl)->slot_cap & ATTN_BUTTN_PRSN)
+#define POWER_CTRL(ctrl)	((ctrl)->slot_cap & PWR_CTRL_PRSN)
+#define MRL_SENS(ctrl)		((ctrl)->slot_cap & MRL_SENS_PRSN)
+#define ATTN_LED(ctrl)		((ctrl)->slot_cap & ATTN_LED_PRSN)
+#define PWR_LED(ctrl)		((ctrl)->slot_cap & PWR_LED_PRSN)
+#define HP_SUPR_RM(ctrl)	((ctrl)->slot_cap & HP_SUPR_RM_SUP)
+#define EMI(ctrl)		((ctrl)->slot_cap & EMI_PRSN)
 
 extern int pciehp_sysfs_enable_slot(struct slot *slot);
 extern int pciehp_sysfs_disable_slot(struct slot *slot);
