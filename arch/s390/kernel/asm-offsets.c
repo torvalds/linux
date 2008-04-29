@@ -5,13 +5,12 @@
  */
 
 #include <linux/sched.h>
+#include <linux/kbuild.h>
 
 /* Use marker if you need to separate the values later */
-
+#undef DEFINE
 #define DEFINE(sym, val, marker) \
 	asm volatile("\n->" #sym " %0 " #val " " #marker : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
 
 int main(void)
 {
