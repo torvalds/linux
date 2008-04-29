@@ -1168,8 +1168,9 @@ out:
 	return err;
 }
 
-static int ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
-		struct ext4_buddy *e4b)
+static noinline_for_stack int
+ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
+					struct ext4_buddy *e4b)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct inode *inode = sbi->s_buddy_cache;
@@ -1965,7 +1966,8 @@ static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 	return 0;
 }
 
-static int ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
+static noinline_for_stack int
+ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 {
 	ext4_group_t group;
 	ext4_group_t i;
@@ -2465,7 +2467,8 @@ static void ext4_mb_history_init(struct super_block *sb)
 	/* if we can't allocate history, then we simple won't use it */
 }
 
-static void ext4_mb_store_history(struct ext4_allocation_context *ac)
+static noinline_for_stack void
+ext4_mb_store_history(struct ext4_allocation_context *ac)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
 	struct ext4_mb_history h;
@@ -2801,7 +2804,8 @@ int ext4_mb_release(struct super_block *sb)
 	return 0;
 }
 
-static void ext4_mb_free_committed_blocks(struct super_block *sb)
+static noinline_for_stack void
+ext4_mb_free_committed_blocks(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int err;
@@ -3021,7 +3025,8 @@ void exit_ext4_mballoc(void)
  * Check quota and mark choosed space (ac->ac_b_ex) non-free in bitmaps
  * Returns 0 if success or error code
  */
-static int ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
+static noinline_for_stack int
+ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 				handle_t *handle)
 {
 	struct buffer_head *bitmap_bh = NULL;
@@ -3138,7 +3143,8 @@ static void ext4_mb_normalize_group_request(struct ext4_allocation_context *ac)
  * Normalization means making request better in terms of
  * size and alignment
  */
-static void ext4_mb_normalize_request(struct ext4_allocation_context *ac,
+static noinline_for_stack void
+ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 				struct ext4_allocation_request *ar)
 {
 	int bsbits, max;
@@ -3404,7 +3410,8 @@ static void ext4_mb_use_group_pa(struct ext4_allocation_context *ac,
 /*
  * search goal blocks in preallocated space
  */
-static int ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
+static noinline_for_stack int
+ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 {
 	struct ext4_inode_info *ei = EXT4_I(ac->ac_inode);
 	struct ext4_locality_group *lg;
@@ -3571,7 +3578,8 @@ static void ext4_mb_put_pa(struct ext4_allocation_context *ac,
 /*
  * creates new preallocated space for given inode
  */
-static int ext4_mb_new_inode_pa(struct ext4_allocation_context *ac)
+static noinline_for_stack int
+ext4_mb_new_inode_pa(struct ext4_allocation_context *ac)
 {
 	struct super_block *sb = ac->ac_sb;
 	struct ext4_prealloc_space *pa;
@@ -3658,7 +3666,8 @@ static int ext4_mb_new_inode_pa(struct ext4_allocation_context *ac)
 /*
  * creates new preallocated space for locality group inodes belongs to
  */
-static int ext4_mb_new_group_pa(struct ext4_allocation_context *ac)
+static noinline_for_stack int
+ext4_mb_new_group_pa(struct ext4_allocation_context *ac)
 {
 	struct super_block *sb = ac->ac_sb;
 	struct ext4_locality_group *lg;
@@ -3731,8 +3740,8 @@ static int ext4_mb_new_preallocation(struct ext4_allocation_context *ac)
  * the caller MUST hold group/inode locks.
  * TODO: optimize the case when there are no in-core structures yet
  */
-static int ext4_mb_release_inode_pa(struct ext4_buddy *e4b,
-				struct buffer_head *bitmap_bh,
+static noinline_for_stack int
+ext4_mb_release_inode_pa(struct ext4_buddy *e4b, struct buffer_head *bitmap_bh,
 				struct ext4_prealloc_space *pa)
 {
 	struct ext4_allocation_context *ac;
@@ -3803,7 +3812,8 @@ static int ext4_mb_release_inode_pa(struct ext4_buddy *e4b,
 	return err;
 }
 
-static int ext4_mb_release_group_pa(struct ext4_buddy *e4b,
+static noinline_for_stack int
+ext4_mb_release_group_pa(struct ext4_buddy *e4b,
 				struct ext4_prealloc_space *pa)
 {
 	struct ext4_allocation_context *ac;
@@ -3845,7 +3855,8 @@ static int ext4_mb_release_group_pa(struct ext4_buddy *e4b,
  * - how many do we discard
  *   1) how many requested
  */
-static int ext4_mb_discard_group_preallocations(struct super_block *sb,
+static noinline_for_stack int
+ext4_mb_discard_group_preallocations(struct super_block *sb,
 					ext4_group_t group, int needed)
 {
 	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
@@ -4167,7 +4178,8 @@ static void ext4_mb_group_or_file(struct ext4_allocation_context *ac)
 	mutex_lock(&ac->ac_lg->lg_mutex);
 }
 
-static int ext4_mb_initialize_context(struct ext4_allocation_context *ac,
+static noinline_for_stack int
+ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 				struct ext4_allocation_request *ar)
 {
 	struct super_block *sb = ar->inode->i_sb;
@@ -4398,7 +4410,8 @@ static void ext4_mb_poll_new_transaction(struct super_block *sb,
 	ext4_mb_free_committed_blocks(sb);
 }
 
-static int ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
+static noinline_for_stack int
+ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
 			  ext4_group_t group, ext4_grpblk_t block, int count)
 {
 	struct ext4_group_info *db = e4b->bd_info;
