@@ -375,7 +375,7 @@ cio_ignore_proc_init (void)
 	struct proc_dir_entry *entry;
 
 	entry = create_proc_entry ("cio_ignore", S_IFREG | S_IRUGO | S_IWUSR,
-				   &proc_root);
+				   NULL);
 	if (!entry)
 		return -ENOENT;
 

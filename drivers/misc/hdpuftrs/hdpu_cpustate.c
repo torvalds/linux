@@ -210,7 +210,7 @@ static int hdpu_cpustate_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	proc_de = create_proc_entry("sky_cpustate", 0666, &proc_root);
+	proc_de = create_proc_entry("sky_cpustate", 0666, NULL);
 	if (!proc_de) {
 		printk(KERN_WARNING "sky_cpustate: "
 		       "Unable to create proc entry\n");

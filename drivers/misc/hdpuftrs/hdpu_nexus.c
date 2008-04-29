@@ -102,8 +102,8 @@ static int hdpu_nexus_probe(struct platform_device *pdev)
 		printk(KERN_ERR "sky_nexus: Could not map slot id\n");
 	}
 
-	hdpu_slot_id = create_proc_entry("sky_slot_id", 0666, &proc_root);
-	if (!hdpu_slot_id) {
+	hdpu_slot_id = create_proc_entry("sky_slot_id", 0666, NULL);
+	if (!hdpu_slot_id)
 		printk(KERN_WARNING "sky_nexus: "
 		       "Unable to create proc dir entry: sky_slot_id\n");
 	} else {
@@ -111,8 +111,8 @@ static int hdpu_nexus_probe(struct platform_device *pdev)
 		hdpu_slot_id->owner = THIS_MODULE;
 	}
 
-	hdpu_chassis_id = create_proc_entry("sky_chassis_id", 0666, &proc_root);
-	if (!hdpu_chassis_id) {
+	hdpu_chassis_id = create_proc_entry("sky_chassis_id", 0666, NULL);
+	if (!hdpu_chassis_id)
 		printk(KERN_WARNING "sky_nexus: "
 		       "Unable to create proc dir entry: sky_chassis_id\n");
 	} else {
@@ -128,8 +128,8 @@ static int hdpu_nexus_remove(struct platform_device *pdev)
 	slot_id = -1;
 	chassis_id = -1;
 
-	remove_proc_entry("sky_slot_id", &proc_root);
-	remove_proc_entry("sky_chassis_id", &proc_root);
+	remove_proc_entry("sky_slot_id", NULL);
+	remove_proc_entry("sky_chassis_id", NULL);
 
 	hdpu_slot_id = 0;
 	hdpu_chassis_id = 0;

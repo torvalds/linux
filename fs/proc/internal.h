@@ -11,6 +11,7 @@
 
 #include <linux/proc_fs.h>
 
+extern struct proc_dir_entry proc_root;
 #ifdef CONFIG_PROC_SYSCTL
 extern int proc_sys_init(void);
 #else

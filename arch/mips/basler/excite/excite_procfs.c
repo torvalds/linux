@@ -65,7 +65,7 @@ excite_bootrom_read(char *page, char **start, off_t off, int count,
 void excite_procfs_init(void)
 {
 	/* Create & populate /proc/excite */
-	struct proc_dir_entry * const pdir = proc_mkdir("excite", &proc_root);
+	struct proc_dir_entry * const pdir = proc_mkdir("excite", NULL);
 	if (pdir) {
 		struct proc_dir_entry * e;
 

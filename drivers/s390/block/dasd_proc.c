@@ -311,7 +311,7 @@ out_error:
 int
 dasd_proc_init(void)
 {
-	dasd_proc_root_entry = proc_mkdir("dasd", &proc_root);
+	dasd_proc_root_entry = proc_mkdir("dasd", NULL);
 	if (!dasd_proc_root_entry)
 		goto out_nodasd;
 	dasd_proc_root_entry->owner = THIS_MODULE;
@@ -335,7 +335,7 @@ dasd_proc_init(void)
  out_nostatistics:
 	remove_proc_entry("devices", dasd_proc_root_entry);
  out_nodevices:
-	remove_proc_entry("dasd", &proc_root);
+	remove_proc_entry("dasd", NULL);
  out_nodasd:
 	return -ENOENT;
 }
@@ -345,5 +345,5 @@ dasd_proc_exit(void)
 {
 	remove_proc_entry("devices", dasd_proc_root_entry);
 	remove_proc_entry("statistics", dasd_proc_root_entry);
-	remove_proc_entry("dasd", &proc_root);
+	remove_proc_entry("dasd", NULL);
 }

@@ -302,7 +302,7 @@ void __init iop_init(void)
 
 #if 0	/* Crashing in 2.4 now, not yet sure why.   --jmt */
 #ifdef CONFIG_PROC_FS
-	create_proc_info_entry("mac_iop", 0, &proc_root, iop_get_proc_info);
+	create_proc_info_entry("mac_iop", 0, NULL, iop_get_proc_info);
 #endif
 #endif
 }

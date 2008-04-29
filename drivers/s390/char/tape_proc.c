@@ -125,7 +125,7 @@ tape_proc_init(void)
 {
 	tape_proc_devices =
 		create_proc_entry ("tapedevices", S_IFREG | S_IRUGO | S_IWUSR,
-				   &proc_root);
+				   NULL);
 	if (tape_proc_devices == NULL) {
 		PRINT_WARN("tape: Cannot register procfs entry tapedevices\n");
 		return;
@@ -141,5 +141,5 @@ void
 tape_proc_cleanup(void)
 {
 	if (tape_proc_devices != NULL)
-		remove_proc_entry ("tapedevices", &proc_root);
+		remove_proc_entry ("tapedevices", NULL);
 }

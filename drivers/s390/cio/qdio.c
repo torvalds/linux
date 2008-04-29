@@ -3632,7 +3632,7 @@ qdio_add_procfs_entry(void)
 {
         proc_perf_file_registration=0;
 	qdio_perf_proc_file=create_proc_entry(QDIO_PERF,
-					      S_IFREG|0444,&proc_root);
+					      S_IFREG|0444,NULL);
 	if (qdio_perf_proc_file) {
 		qdio_perf_proc_file->read_proc=&qdio_perf_procfile_read;
 	} else proc_perf_file_registration=-1;
@@ -3647,7 +3647,7 @@ static void
 qdio_remove_procfs_entry(void)
 {
         if (!proc_perf_file_registration) /* means if it went ok earlier */
-		remove_proc_entry(QDIO_PERF,&proc_root);
+		remove_proc_entry(QDIO_PERF,NULL);
 }
 
 /**

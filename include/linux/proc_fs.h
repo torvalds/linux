@@ -96,7 +96,6 @@ struct vmcore {
 
 #ifdef CONFIG_PROC_FS
 
-extern struct proc_dir_entry proc_root;
 extern struct proc_dir_entry *proc_root_kcore;
 
 extern spinlock_t proc_subdir_lock;
@@ -242,8 +241,6 @@ static inline struct proc_dir_entry *create_proc_info_entry(const char *name,
 struct tty_driver;
 static inline void proc_tty_register_driver(struct tty_driver *driver) {};
 static inline void proc_tty_unregister_driver(struct tty_driver *driver) {};
-
-extern struct proc_dir_entry proc_root;
 
 static inline int pid_ns_prepare_proc(struct pid_namespace *ns)
 {

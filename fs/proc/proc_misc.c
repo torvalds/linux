@@ -854,7 +854,7 @@ void __init proc_misc_init(void)
 
 	/* And now for trickier ones */
 #ifdef CONFIG_PRINTK
-	proc_create("kmsg", S_IRUSR, &proc_root, &proc_kmsg_operations);
+	proc_create("kmsg", S_IRUSR, NULL, &proc_kmsg_operations);
 #endif
 	proc_create("locks", 0, NULL, &proc_locks_operations);
 	proc_create("devices", 0, NULL, &proc_devinfo_operations);

@@ -423,7 +423,7 @@ cleanup_module(void)
 	}
 	put_tty_driver(ip2_tty_driver);
 	unregister_chrdev(IP2_IPL_MAJOR, pcIpl);
-	remove_proc_entry("ip2mem", &proc_root);
+	remove_proc_entry("ip2mem", NULL);
 
 	// free memory
 	for (i = 0; i < IP2_MAX_BOARDS; i++) {
@@ -695,7 +695,7 @@ ip2_loadmain(int *iop, int *irqp, unsigned char *firmware, int firmsize)
 		}
 	}
 	/* Register the read_procmem thing */
-	if (!create_proc_info_entry("ip2mem",0,&proc_root,ip2_read_procmem)) {
+	if (!create_proc_info_entry("ip2mem",0,NULL,ip2_read_procmem)) {
 		printk(KERN_ERR "IP2: failed to register read_procmem\n");
 	} else {
 
