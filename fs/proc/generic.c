@@ -675,9 +675,10 @@ struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 	return ent;
 }
 
-struct proc_dir_entry *proc_create(const char *name, mode_t mode,
-				   struct proc_dir_entry *parent,
-				   const struct file_operations *proc_fops)
+struct proc_dir_entry *proc_create_data(const char *name, mode_t mode,
+					struct proc_dir_entry *parent,
+					const struct file_operations *proc_fops,
+					void *data)
 {
 	struct proc_dir_entry *pde;
 	nlink_t nlink;
@@ -698,6 +699,7 @@ struct proc_dir_entry *proc_create(const char *name, mode_t mode,
 	if (!pde)
 		goto out;
 	pde->proc_fops = proc_fops;
+	pde->data = data;
 	if (proc_register(parent, pde) < 0)
 		goto out_free;
 	return pde;

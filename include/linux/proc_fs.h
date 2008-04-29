@@ -116,9 +116,10 @@ void de_put(struct proc_dir_entry *de);
 
 extern struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 						struct proc_dir_entry *parent);
-struct proc_dir_entry *proc_create(const char *name, mode_t mode,
+struct proc_dir_entry *proc_create_data(const char *name, mode_t mode,
 				struct proc_dir_entry *parent,
-				const struct file_operations *proc_fops);
+				const struct file_operations *proc_fops,
+				void *data);
 extern void remove_proc_entry(const char *name, struct proc_dir_entry *parent);
 
 extern struct vfsmount *proc_mnt;
@@ -173,6 +174,12 @@ extern struct proc_dir_entry *proc_mkdir(const char *,struct proc_dir_entry *);
 extern struct proc_dir_entry *proc_mkdir_mode(const char *name, mode_t mode,
 			struct proc_dir_entry *parent);
 
+static inline struct proc_dir_entry *proc_create(const char *name, mode_t mode,
+	struct proc_dir_entry *parent, const struct file_operations *proc_fops)
+{
+	return proc_create_data(name, mode, parent, proc_fops, NULL);
+}
+
 static inline struct proc_dir_entry *create_proc_read_entry(const char *name,
 	mode_t mode, struct proc_dir_entry *base, 
 	read_proc_t *read_proc, void * data)
@@ -211,6 +218,12 @@ static inline struct proc_dir_entry *create_proc_entry(const char *name,
 static inline struct proc_dir_entry *proc_create(const char *name,
 	mode_t mode, struct proc_dir_entry *parent,
 	const struct file_operations *proc_fops)
+{
+	return NULL;
+}
+static inline struct proc_dir_entry *proc_create_data(const char *name,
+	mode_t mode, struct proc_dir_entry *parent,
+	const struct file_operations *proc_fops, void *data)
 {
 	return NULL;
 }
