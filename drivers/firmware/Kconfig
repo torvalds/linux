@@ -17,6 +17,15 @@ config EDD
           obscure configurations. Most disk controller BIOS vendors do
           not yet implement this feature.
 
+config EDD_OFF
+	bool "Sets default behavior for EDD detection to off"
+	depends on EDD
+	default n
+	help
+	  Say Y if you want EDD disabled by default, even though it is compiled into the
+	  kernel. Say N if you want EDD enabled by default. EDD can be dynamically set
+	  using the kernel parameter 'edd={on|skipmbr|off}'.
+
 config EFI_VARS
 	tristate "EFI Variable Support via sysfs"
 	depends on EFI

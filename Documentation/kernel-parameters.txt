@@ -627,8 +627,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	eata=		[HW,SCSI]
 
 	edd=		[EDD]
-			Format: {"of[f]" | "sk[ipmbr]"}
-			See comment in arch/i386/boot/edd.S
+			Format: {"off" | "on" | "skip[mbr]"}
 
 	eisa_irq_edge=	[PARISC,HW]
 			See header of drivers/parisc/eisa.c.
