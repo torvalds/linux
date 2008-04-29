@@ -257,25 +257,6 @@ static inline int ep_cmp_ffd(struct epoll_filefd *p1,
 	        (p1->file < p2->file ? -1 : p1->fd - p2->fd));
 }
 
-/* Special initialization for the RB tree node to detect linkage */
-static inline void ep_rb_initnode(struct rb_node *n)
-{
-	rb_set_parent(n, n);
-}
-
-/* Removes a node from the RB tree and marks it for a fast is-linked check */
-static inline void ep_rb_erase(struct rb_node *n, struct rb_root *r)
-{
-	rb_erase(n, r);
-	rb_set_parent(n, n);
-}
-
-/* Fast check to verify that the item is linked to the main RB tree */
-static inline int ep_rb_linked(struct rb_node *n)
-{
-	return rb_parent(n) != n;
-}
-
 /* Tells us if the item is currently linked */
 static inline int ep_is_linked(struct list_head *p)
 {
@@ -283,13 +264,13 @@ static inline int ep_is_linked(struct list_head *p)
 }
 
 /* Get the "struct epitem" from a wait queue pointer */
-static inline struct epitem * ep_item_from_wait(wait_queue_t *p)
+static inline struct epitem *ep_item_from_wait(wait_queue_t *p)
 {
 	return container_of(p, struct eppoll_entry, wait)->base;
 }
 
 /* Get the "struct epitem" from an epoll queue wrapper */
-static inline struct epitem * ep_item_from_epqueue(poll_table *p)
+static inline struct epitem *ep_item_from_epqueue(poll_table *p)
 {
 	return container_of(p, struct ep_pqueue, pt)->epi;
 }
@@ -411,8 +392,7 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 		list_del_init(&epi->fllink);
 	spin_unlock(&file->f_ep_lock);
 
-	if (ep_rb_linked(&epi->rbn))
-		ep_rb_erase(&epi->rbn, &ep->rbr);
+	rb_erase(&epi->rbn, &ep->rbr);
 
 	spin_lock_irqsave(&ep->lock, flags);
 	if (ep_is_linked(&epi->rdllink))
@@ -728,7 +708,6 @@ static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
 		goto error_return;
 
 	/* Item initialization follow here ... */
-	ep_rb_initnode(&epi->rbn);
 	INIT_LIST_HEAD(&epi->rdllink);
 	INIT_LIST_HEAD(&epi->fllink);
 	INIT_LIST_HEAD(&epi->pwqlist);
