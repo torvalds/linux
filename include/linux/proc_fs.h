@@ -97,7 +97,6 @@ struct vmcore {
 #ifdef CONFIG_PROC_FS
 
 extern struct proc_dir_entry proc_root;
-extern struct proc_dir_entry *proc_root_driver;
 extern struct proc_dir_entry *proc_root_kcore;
 
 extern spinlock_t proc_subdir_lock;
@@ -210,8 +209,6 @@ extern struct file *get_mm_exe_file(struct mm_struct *mm);
 extern void dup_mm_exe_file(struct mm_struct *oldmm, struct mm_struct *newmm);
 
 #else
-
-#define proc_root_driver NULL
 
 #define proc_net_fops_create(net, name, mode, fops)  ({ (void)(mode), NULL; })
 static inline void proc_net_remove(struct net *net, const char *name) {}

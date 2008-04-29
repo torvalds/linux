@@ -5625,9 +5625,9 @@ static int __init airo_init_module( void )
 	int have_isa_dev = 0;
 #endif
 
-	airo_entry = create_proc_entry("aironet",
+	airo_entry = create_proc_entry("driver/aironet",
 				       S_IFDIR | airo_perm,
-				       proc_root_driver);
+				       NULL);
 
 	if (airo_entry) {
 		airo_entry->uid = proc_uid;
@@ -5651,7 +5651,7 @@ static int __init airo_init_module( void )
 	airo_print_info("", "Finished probing for PCI adapters");
 
 	if (i) {
-		remove_proc_entry("aironet", proc_root_driver);
+		remove_proc_entry("driver/aironet", NULL);
 		return i;
 	}
 #endif
@@ -5673,7 +5673,7 @@ static void __exit airo_cleanup_module( void )
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&airo_driver);
 #endif
-	remove_proc_entry("aironet", proc_root_driver);
+	remove_proc_entry("driver/aironet", NULL);
 }
 
 /*
