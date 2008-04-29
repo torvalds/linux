@@ -904,19 +904,10 @@ static void jbd2_stats_proc_init(journal_t *journal)
 	snprintf(name, sizeof(name) - 1, "%s", bdevname(journal->j_dev, name));
 	journal->j_proc_entry = proc_mkdir(name, proc_jbd2_stats);
 	if (journal->j_proc_entry) {
-		struct proc_dir_entry *p;
-		p = create_proc_entry("history", S_IRUGO,
-				journal->j_proc_entry);
-		if (p) {
-			p->proc_fops = &jbd2_seq_history_fops;
-			p->data = journal;
-			p = create_proc_entry("info", S_IRUGO,
-						journal->j_proc_entry);
-			if (p) {
-				p->proc_fops = &jbd2_seq_info_fops;
-				p->data = journal;
-			}
-		}
+		proc_create_data("history", S_IRUGO, journal->j_proc_entry,
+				 &jbd2_seq_history_fops, journal);
+		proc_create_data("info", S_IRUGO, journal->j_proc_entry,
+				 &jbd2_seq_info_fops, journal);
 	}
 }
 
