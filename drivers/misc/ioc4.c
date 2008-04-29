@@ -75,7 +75,7 @@ ioc4_register_submodule(struct ioc4_submodule *is)
 			printk(KERN_WARNING
 			       "%s: IOC4 submodule %s probe failed "
 			       "for pci_dev %s",
-			       __FUNCTION__, module_name(is->is_owner),
+			       __func__, module_name(is->is_owner),
 			       pci_name(idd->idd_pdev));
 		}
 	}
@@ -102,7 +102,7 @@ ioc4_unregister_submodule(struct ioc4_submodule *is)
 			printk(KERN_WARNING
 			       "%s: IOC4 submodule %s remove failed "
 			       "for pci_dev %s.\n",
-			       __FUNCTION__, module_name(is->is_owner),
+			       __func__, module_name(is->is_owner),
 			       pci_name(idd->idd_pdev));
 		}
 	}
@@ -282,7 +282,7 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	if ((ret = pci_enable_device(pdev))) {
 		printk(KERN_WARNING
 		       "%s: Failed to enable IOC4 device for pci_dev %s.\n",
-		       __FUNCTION__, pci_name(pdev));
+		       __func__, pci_name(pdev));
 		goto out;
 	}
 	pci_set_master(pdev);
@@ -292,7 +292,7 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	if (!idd) {
 		printk(KERN_WARNING
 		       "%s: Failed to allocate IOC4 data for pci_dev %s.\n",
-		       __FUNCTION__, pci_name(pdev));
+		       __func__, pci_name(pdev));
 		ret = -ENODEV;
 		goto out_idd;
 	}
@@ -307,7 +307,7 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		printk(KERN_WARNING
 		       "%s: Unable to find IOC4 misc resource "
 		       "for pci_dev %s.\n",
-		       __FUNCTION__, pci_name(idd->idd_pdev));
+		       __func__, pci_name(idd->idd_pdev));
 		ret = -ENODEV;
 		goto out_pci;
 	}
@@ -316,7 +316,7 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		printk(KERN_WARNING
 		       "%s: Unable to request IOC4 misc region "
 		       "for pci_dev %s.\n",
-		       __FUNCTION__, pci_name(idd->idd_pdev));
+		       __func__, pci_name(idd->idd_pdev));
 		ret = -ENODEV;
 		goto out_pci;
 	}
@@ -326,7 +326,7 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		printk(KERN_WARNING
 		       "%s: Unable to remap IOC4 misc region "
 		       "for pci_dev %s.\n",
-		       __FUNCTION__, pci_name(idd->idd_pdev));
+		       __func__, pci_name(idd->idd_pdev));
 		ret = -ENODEV;
 		goto out_misc_region;
 	}
@@ -372,7 +372,7 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 			printk(KERN_WARNING
 			       "%s: IOC4 submodule 0x%s probe failed "
 			       "for pci_dev %s.\n",
-			       __FUNCTION__, module_name(is->is_owner),
+			       __func__, module_name(is->is_owner),
 			       pci_name(idd->idd_pdev));
 		}
 	}
@@ -406,7 +406,7 @@ ioc4_remove(struct pci_dev *pdev)
 			printk(KERN_WARNING
 			       "%s: IOC4 submodule 0x%s remove failed "
 			       "for pci_dev %s.\n",
-			       __FUNCTION__, module_name(is->is_owner),
+			       __func__, module_name(is->is_owner),
 			       pci_name(idd->idd_pdev));
 		}
 	}
@@ -418,7 +418,7 @@ ioc4_remove(struct pci_dev *pdev)
 		printk(KERN_WARNING
 		       "%s: Unable to get IOC4 misc mapping for pci_dev %s. "
 		       "Device removal may be incomplete.\n",
-		       __FUNCTION__, pci_name(idd->idd_pdev));
+		       __func__, pci_name(idd->idd_pdev));
 	}
 	release_mem_region(idd->idd_bar0, sizeof(struct ioc4_misc_regs));
 
