@@ -29,6 +29,7 @@
 #define EDAC_MOD_STR	"e752x_edac"
 
 static int force_function_unhide;
+static int sysbus_parity = -1;
 
 static struct edac_pci_ctl_info *e752x_pci;
 
@@ -1049,6 +1050,37 @@ fail:
 	return 1;
 }
 
+/* Setup system bus parity mask register.
+ * Sysbus parity supported on:
+ *   e7320/e7520/e7525 + Xeon
+ *   i3100 + Xeon/Celeron
+ * Sysbus parity not supported on:
+ *   i3100 + Pentium M/Celeron M/Core Duo/Core2 Duo
+ */
+static void e752x_init_sysbus_parity_mask(struct e752x_pvt *pvt)
+{
+	char *cpu_id = cpu_data(0).x86_model_id;
+	struct pci_dev *dev = pvt->dev_d0f1;
+	int enable = 1;
+
+	/* Allow module paramter override, else see if CPU supports parity */
+	if (sysbus_parity != -1) {
+		enable = sysbus_parity;
+	} else if (cpu_id[0] &&
+		   ((strstr(cpu_id, "Pentium") && strstr(cpu_id, " M ")) ||
+		    (strstr(cpu_id, "Celeron") && strstr(cpu_id, " M ")) ||
+		    (strstr(cpu_id, "Core") && strstr(cpu_id, "Duo")))) {
+		e752x_printk(KERN_INFO, "System Bus Parity not "
+			     "supported by CPU, disabling\n");
+		enable = 0;
+	}
+
+	if (enable)
+		pci_write_config_word(dev, E752X_SYSBUS_ERRMASK, 0x0000);
+	else
+		pci_write_config_word(dev, E752X_SYSBUS_ERRMASK, 0x0309);
+}
+
 static void e752x_init_error_reporting_regs(struct e752x_pvt *pvt)
 {
 	struct pci_dev *dev;
@@ -1062,7 +1094,9 @@ static void e752x_init_error_reporting_regs(struct e752x_pvt *pvt)
 		pci_write_config_byte(dev, E752X_HI_ERRMASK, 0x00);
 		pci_write_config_byte(dev, E752X_HI_SMICMD, 0x00);
 	}
-	pci_write_config_word(dev, E752X_SYSBUS_ERRMASK, 0x00);
+
+	e752x_init_sysbus_parity_mask(pvt);
+
 	pci_write_config_word(dev, E752X_SYSBUS_SMICMD, 0x00);
 	pci_write_config_byte(dev, E752X_BUF_ERRMASK, 0x00);
 	pci_write_config_byte(dev, E752X_BUF_SMICMD, 0x00);
@@ -1291,3 +1325,7 @@ MODULE_PARM_DESC(force_function_unhide, "if BIOS sets Dev0:Fun1 up as hidden:"
 		 " 1=force unhide and hope BIOS doesn't fight driver for Dev0:Fun1 access");
 module_param(edac_op_state, int, 0444);
 MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");
+
+module_param(sysbus_parity, int, 0444);
+MODULE_PARM_DESC(sysbus_parity, "0=disable system bus parity checking,"
+		" 1=enable system bus parity checking, default=auto-detect");
