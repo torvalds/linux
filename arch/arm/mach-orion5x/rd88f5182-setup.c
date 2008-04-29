@@ -224,9 +224,7 @@ static struct mv643xx_eth_platform_data rd88f5182_eth_data = {
  * RTC DS1338 on I2C bus
  ****************************************************************************/
 static struct i2c_board_info __initdata rd88f5182_i2c_rtc = {
-	.driver_name	= "rtc-ds1307",
-	.type		= "ds1338",
-	.addr		= 0x68,
+	I2C_BOARD_INFO("ds1338", 0x68),
 };
 
 /*****************************************************************************

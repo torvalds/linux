@@ -57,7 +57,7 @@ static struct i2c_gpio_platform_data nslu2_i2c_gpio_data = {
 
 static struct i2c_board_info __initdata nslu2_i2c_board_info [] = {
 	{
-		I2C_BOARD_INFO("rtc-x1205", 0x6f),
+		I2C_BOARD_INFO("x1205", 0x6f),
 	},
 };
 

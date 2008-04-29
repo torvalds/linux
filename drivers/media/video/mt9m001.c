@@ -697,12 +697,19 @@ static int mt9m001_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id mt9m001_id[] = {
+	{ "mt9m001", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, mt9m001_id);
+
 static struct i2c_driver mt9m001_i2c_driver = {
 	.driver = {
 		.name = "mt9m001",
 	},
 	.probe		= mt9m001_probe,
 	.remove		= mt9m001_remove,
+	.id_table	= mt9m001_id,
 };
 
 static int __init mt9m001_mod_init(void)

@@ -132,8 +132,7 @@ static struct i2c_board_info __initdata dk_i2c_devices[] = {
 		I2C_BOARD_INFO("x9429", 0x28),
 	},
 	{
-		I2C_BOARD_INFO("at24c", 0x50),
-		.type	= "24c1024",
+		I2C_BOARD_INFO("24c1024", 0x50),
 	}
 };
 

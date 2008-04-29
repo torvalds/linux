@@ -176,12 +176,10 @@ static struct f75375s_platform_data glantank_f75375s = {
 
 static struct i2c_board_info __initdata glantank_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("rtc-rs5c372", 0x32),
-		.type = "rs5c372a",
+		I2C_BOARD_INFO("rs5c372a", 0x32),
 	},
 	{
 		I2C_BOARD_INFO("f75375", 0x2e),
-		.type = "f75375",
 		.platform_data = &glantank_f75375s,
 	},
 };

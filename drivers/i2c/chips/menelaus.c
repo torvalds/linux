@@ -1243,12 +1243,19 @@ static int __exit menelaus_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id menelaus_id[] = {
+	{ "menelaus", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, menelaus_id);
+
 static struct i2c_driver menelaus_i2c_driver = {
 	.driver = {
 		.name		= DRIVER_NAME,
 	},
 	.probe		= menelaus_probe,
 	.remove		= __exit_p(menelaus_remove),
+	.id_table	= menelaus_id,
 };
 
 static int __init menelaus_init(void)

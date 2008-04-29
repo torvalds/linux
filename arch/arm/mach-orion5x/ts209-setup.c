@@ -276,8 +276,7 @@ static void __init ts209_find_mac_addr(void)
 #define TS209_RTC_GPIO	3
 
 static struct i2c_board_info __initdata qnap_ts209_i2c_rtc = {
-       .driver_name = "rtc-s35390a",
-       .addr        = 0x30,
+	I2C_BOARD_INFO("s35390a", 0x30),
        .irq         = 0,
 };
 

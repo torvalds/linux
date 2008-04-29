@@ -229,17 +229,17 @@ struct i2c_board_info {
 };
 
 /**
- * I2C_BOARD_INFO - macro used to list an i2c device and its driver
- * @driver: identifies the driver to use with the device
+ * I2C_BOARD_INFO - macro used to list an i2c device and its address
+ * @dev_type: identifies the device type
  * @dev_addr: the device's address on the bus.
  *
  * This macro initializes essential fields of a struct i2c_board_info,
  * declaring what has been provided on a particular board.  Optional
- * fields (such as the chip type, its associated irq, or device-specific
- * platform_data) are provided using conventional syntax.
+ * fields (such as associated irq, or device-specific platform_data)
+ * are provided using conventional syntax.
  */
-#define I2C_BOARD_INFO(driver,dev_addr) \
-	.driver_name = (driver), .addr = (dev_addr)
+#define I2C_BOARD_INFO(dev_type,dev_addr) \
+	.type = (dev_type), .addr = (dev_addr)
 
 
 /* Add-on boards should register/unregister their devices; e.g. a board

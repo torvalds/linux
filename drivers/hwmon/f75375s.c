@@ -129,12 +129,20 @@ static struct i2c_driver f75375_legacy_driver = {
 	.detach_client = f75375_detach_client,
 };
 
+static const struct i2c_device_id f75375_id[] = {
+	{ "f75373", f75373 },
+	{ "f75375", f75375 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, f75375_id);
+
 static struct i2c_driver f75375_driver = {
 	.driver = {
 		.name = "f75375",
 	},
 	.probe = f75375_probe,
 	.remove = f75375_remove,
+	.id_table = f75375_id,
 };
 
 static inline int f75375_read8(struct i2c_client *client, u8 reg)
@@ -645,15 +653,7 @@ static int f75375_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, data);
 	data->client = client;
 	mutex_init(&data->update_lock);
-
-	if (strcmp(client->name, "f75375") == 0)
-		data->kind = f75375;
-	else if (strcmp(client->name, "f75373") == 0)
-		data->kind = f75373;
-	else {
-		dev_err(&client->dev, "Unsupported device: %s\n", client->name);
-		return -ENODEV;
-	}
+	data->kind = id->driver_data;
 
 	if ((err = sysfs_create_group(&client->dev.kobj, &f75375_group)))
 		goto exit_free;
@@ -714,6 +714,7 @@ static int f75375_detect(struct i2c_adapter *adapter, int address, int kind)
 	u8 version = 0;
 	int err = 0;
 	const char *name = "";
+	struct i2c_device_id id;
 
 	if (!(client = kzalloc(sizeof(*client), GFP_KERNEL))) {
 		err = -ENOMEM;
@@ -750,7 +751,9 @@ static int f75375_detect(struct i2c_adapter *adapter, int address, int kind)
 	if ((err = i2c_attach_client(client)))
 		goto exit_free;
 
-	if ((err = f75375_probe(client, NULL)) < 0)
+	strlcpy(id.name, name, I2C_NAME_SIZE);
+	id.driver_data = kind;
+	if ((err = f75375_probe(client, &id)) < 0)
 		goto exit_detach;
 
 	return 0;

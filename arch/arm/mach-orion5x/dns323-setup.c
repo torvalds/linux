@@ -220,19 +220,16 @@ static struct platform_device *dns323_plat_devices[] __initdata = {
 static struct i2c_board_info __initdata dns323_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("g760a", 0x3e),
-		.type = "g760a",
 	},
 #if 0
 	/* this entry requires the new-style driver model lm75 driver,
 	 * for the meantime "insmod lm75.ko force_lm75=0,0x48" is needed */
 	{
-		I2C_BOARD_INFO("lm75", 0x48),
-		.type = "g751",
+		I2C_BOARD_INFO("g751", 0x48),
 	},
 #endif
 	{
-		I2C_BOARD_INFO("rtc-m41t80", 0x68),
-		.type = "m41t80",
+		I2C_BOARD_INFO("m41t80", 0x68),
 	}
 };
 

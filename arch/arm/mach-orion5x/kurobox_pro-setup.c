@@ -162,9 +162,7 @@ static struct mv643xx_eth_platform_data kurobox_pro_eth_data = {
  * RTC 5C372a on I2C bus
  ****************************************************************************/
 static struct i2c_board_info __initdata kurobox_pro_i2c_rtc = {
-       .driver_name    = "rtc-rs5c372",
-       .type           = "rs5c372a",
-       .addr           = 0x32,
+	I2C_BOARD_INFO("rs5c372a", 0x32),
 };
 
 /*****************************************************************************

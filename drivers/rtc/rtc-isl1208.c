@@ -545,12 +545,19 @@ isl1208_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id isl1208_id[] = {
+	{ "isl1208", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, isl1208_id);
+
 static struct i2c_driver isl1208_driver = {
 	.driver = {
 		   .name = "rtc-isl1208",
 		   },
 	.probe = isl1208_probe,
 	.remove = isl1208_remove,
+	.id_table = isl1208_id,
 };
 
 static int __init

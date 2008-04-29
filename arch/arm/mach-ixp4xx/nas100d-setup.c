@@ -54,7 +54,7 @@ static struct platform_device nas100d_flash = {
 
 static struct i2c_board_info __initdata nas100d_i2c_board_info [] = {
 	{
-		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
+		I2C_BOARD_INFO("pcf8563", 0x51),
 	},
 };
 
