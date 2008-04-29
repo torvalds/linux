@@ -1009,6 +1009,17 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@perm describes the combination of permissions required of this key.
  *	Return 1 if permission granted, 0 if permission denied and -ve it the
  *	normal permissions model should be effected.
+ * @key_getsecurity:
+ *	Get a textual representation of the security context attached to a key
+ *	for the purposes of honouring KEYCTL_GETSECURITY.  This function
+ *	allocates the storage for the NUL-terminated string and the caller
+ *	should free it.
+ *	@key points to the key to be queried.
+ *	@_buffer points to a pointer that should be set to point to the
+ *	 resulting string (if no label or an error occurs).
+ *	Return the length of the string (including terminating NUL) or -ve if
+ *      an error.
+ *	May also return 0 (and a NULL buffer pointer) if there is no label.
  *
  * Security hooks affecting all System V IPC operations.
  *
@@ -1538,7 +1549,7 @@ struct security_operations {
 	int (*key_permission) (key_ref_t key_ref,
 			       struct task_struct *context,
 			       key_perm_t perm);
-
+	int (*key_getsecurity)(struct key *key, char **_buffer);
 #endif	/* CONFIG_KEYS */
 
 #ifdef CONFIG_AUDIT
@@ -2732,6 +2743,7 @@ int security_key_alloc(struct key *key, struct task_struct *tsk, unsigned long f
 void security_key_free(struct key *key);
 int security_key_permission(key_ref_t key_ref,
 			    struct task_struct *context, key_perm_t perm);
+int security_key_getsecurity(struct key *key, char **_buffer);
 
 #else
 
@@ -2750,6 +2762,12 @@ static inline int security_key_permission(key_ref_t key_ref,
 					  struct task_struct *context,
 					  key_perm_t perm)
 {
+	return 0;
+}
+
+static inline int security_key_getsecurity(struct key *key, char **_buffer)
+{
+	*_buffer = NULL;
 	return 0;
 }
 

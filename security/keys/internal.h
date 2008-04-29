@@ -155,7 +155,8 @@ extern long keyctl_negate_key(key_serial_t, unsigned, key_serial_t);
 extern long keyctl_set_reqkey_keyring(int);
 extern long keyctl_set_timeout(key_serial_t, unsigned);
 extern long keyctl_assume_authority(key_serial_t);
-
+extern long keyctl_get_security(key_serial_t keyid, char __user *buffer,
+				size_t buflen);
 
 /*
  * debugging key validation

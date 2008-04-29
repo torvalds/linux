@@ -994,6 +994,13 @@ static inline int dummy_key_permission(key_ref_t key_ref,
 {
 	return 0;
 }
+
+static int dummy_key_getsecurity(struct key *key, char **_buffer)
+{
+	*_buffer = NULL;
+	return 0;
+}
+
 #endif /* CONFIG_KEYS */
 
 #ifdef CONFIG_AUDIT
@@ -1210,6 +1217,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, key_alloc);
 	set_to_dummy_if_null(ops, key_free);
 	set_to_dummy_if_null(ops, key_permission);
+	set_to_dummy_if_null(ops, key_getsecurity);
 #endif	/* CONFIG_KEYS */
 #ifdef CONFIG_AUDIT
 	set_to_dummy_if_null(ops, audit_rule_init);

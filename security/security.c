@@ -1156,6 +1156,11 @@ int security_key_permission(key_ref_t key_ref,
 	return security_ops->key_permission(key_ref, context, perm);
 }
 
+int security_key_getsecurity(struct key *key, char **_buffer)
+{
+	return security_ops->key_getsecurity(key, _buffer);
+}
+
 #endif	/* CONFIG_KEYS */
 
 #ifdef CONFIG_AUDIT

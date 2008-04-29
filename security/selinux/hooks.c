@@ -5300,6 +5300,20 @@ static int selinux_key_permission(key_ref_t key_ref,
 			    SECCLASS_KEY, perm, NULL);
 }
 
+static int selinux_key_getsecurity(struct key *key, char **_buffer)
+{
+	struct key_security_struct *ksec = key->security;
+	char *context = NULL;
+	unsigned len;
+	int rc;
+
+	rc = security_sid_to_context(ksec->sid, &context, &len);
+	if (!rc)
+		rc = len;
+	*_buffer = context;
+	return rc;
+}
+
 #endif
 
 static struct security_operations selinux_ops = {
@@ -5488,6 +5502,7 @@ static struct security_operations selinux_ops = {
 	.key_alloc =			selinux_key_alloc,
 	.key_free =			selinux_key_free,
 	.key_permission =		selinux_key_permission,
+	.key_getsecurity =		selinux_key_getsecurity,
 #endif
 
 #ifdef CONFIG_AUDIT
