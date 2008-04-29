@@ -1913,14 +1913,14 @@ int cgroup_scan_tasks(struct cgroup_scanner *scan)
 
 	if (heap->size) {
 		for (i = 0; i < heap->size; i++) {
-			struct task_struct *p = heap->ptrs[i];
+			struct task_struct *q = heap->ptrs[i];
 			if (i == 0) {
-				latest_time = p->start_time;
-				latest_task = p;
+				latest_time = q->start_time;
+				latest_task = q;
 			}
 			/* Process the task per the caller's callback */
-			scan->process_task(p, scan);
-			put_task_struct(p);
+			scan->process_task(q, scan);
+			put_task_struct(q);
 		}
 		/*
 		 * If we had to process any tasks at all, scan again
