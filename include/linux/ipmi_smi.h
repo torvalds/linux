@@ -60,8 +60,7 @@ typedef struct ipmi_smi *ipmi_smi_t;
  * asynchronous data and messages and request them from the
  * interface.
  */
-struct ipmi_smi_msg
-{
+struct ipmi_smi_msg {
 	struct list_head link;
 
 	long    msgid;
@@ -74,12 +73,11 @@ struct ipmi_smi_msg
 	unsigned char rsp[IPMI_MAX_MSG_LENGTH];
 
 	/* Will be called when the system is done with the message
-           (presumably to free it). */
+	   (presumably to free it). */
 	void (*done)(struct ipmi_smi_msg *msg);
 };
 
-struct ipmi_smi_handlers
-{
+struct ipmi_smi_handlers {
 	struct module *owner;
 
 	/* The low-level interface cannot start sending messages to
