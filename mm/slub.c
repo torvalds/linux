@@ -217,7 +217,7 @@ struct track {
 
 enum track_item { TRACK_ALLOC, TRACK_FREE };
 
-#if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
+#ifdef CONFIG_SLUB_DEBUG
 static int sysfs_slab_add(struct kmem_cache *);
 static int sysfs_slab_alias(struct kmem_cache *, const char *);
 static void sysfs_slab_remove(struct kmem_cache *);
@@ -3247,7 +3247,7 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 	return slab_alloc(s, gfpflags, node, caller);
 }
 
-#if (defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)) || defined(CONFIG_SLABINFO)
+#ifdef CONFIG_SLUB_DEBUG
 static unsigned long count_partial(struct kmem_cache_node *n,
 					int (*get_count)(struct page *))
 {
@@ -3276,9 +3276,7 @@ static int count_free(struct page *page)
 {
 	return page->objects - page->inuse;
 }
-#endif
 
-#if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
 static int validate_slab(struct kmem_cache *s, struct page *page,
 						unsigned long *map)
 {
