@@ -14,7 +14,6 @@ unsigned long blk_max_low_pfn;
 EXPORT_SYMBOL(blk_max_low_pfn);
 
 unsigned long blk_max_pfn;
-EXPORT_SYMBOL(blk_max_pfn);
 
 /**
  * blk_queue_prep_rq - set a prepare_request function for queue
@@ -288,7 +287,7 @@ void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 	t->max_segment_size = min(t->max_segment_size, b->max_segment_size);
 	t->hardsect_size = max(t->hardsect_size, b->hardsect_size);
 	if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags))
-		clear_bit(QUEUE_FLAG_CLUSTER, &t->queue_flags);
+		queue_flag_clear(QUEUE_FLAG_CLUSTER, t);
 }
 EXPORT_SYMBOL(blk_queue_stack_limits);
 

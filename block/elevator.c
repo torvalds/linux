@@ -69,7 +69,7 @@ static int elv_iosched_allow_merge(struct request *rq, struct bio *bio)
 /*
  * can we safely merge with this request?
  */
-inline int elv_rq_merge_ok(struct request *rq, struct bio *bio)
+int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 {
 	if (!rq_mergeable(rq))
 		return 0;
@@ -487,6 +487,9 @@ int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 			return ret;
 		}
 	}
+
+	if (blk_queue_nomerges(q))
+		return ELEVATOR_NO_MERGE;
 
 	/*
 	 * See if our hash lookup can find a potential backmerge.
@@ -1070,7 +1073,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	 */
 	spin_lock_irq(q->queue_lock);
 
-	set_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
+	queue_flag_set(QUEUE_FLAG_ELVSWITCH, q);
 
 	elv_drain_elevator(q);
 
@@ -1104,7 +1107,10 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	 * finally exit old elevator and turn off BYPASS.
 	 */
 	elevator_exit(old_elevator);
-	clear_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
+	spin_lock_irq(q->queue_lock);
+	queue_flag_clear(QUEUE_FLAG_ELVSWITCH, q);
+	spin_unlock_irq(q->queue_lock);
+
 	return 1;
 
 fail_register:
@@ -1115,7 +1121,11 @@ fail_register:
 	elevator_exit(e);
 	q->elevator = old_elevator;
 	elv_register_queue(q);
-	clear_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
+
+	spin_lock_irq(q->queue_lock);
+	queue_flag_clear(QUEUE_FLAG_ELVSWITCH, q);
+	spin_unlock_irq(q->queue_lock);
+
 	return 0;
 }
 

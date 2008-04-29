@@ -282,7 +282,8 @@ static mddev_t * mddev_find(dev_t unit)
 		kfree(new);
 		return NULL;
 	}
-	set_bit(QUEUE_FLAG_CLUSTER, &new->queue->queue_flags);
+	/* Can be unlocked because the queue is new: no concurrency */
+	queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, new->queue);
 
 	blk_queue_make_request(new->queue, md_fail_request);
 

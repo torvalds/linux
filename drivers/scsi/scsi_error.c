@@ -1771,6 +1771,7 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	unsigned long flags;
 	int rtn;
 
+	blk_rq_init(NULL, &req);
 	scmd->request = &req;
 	memset(&scmd->eh_timeout, 0, sizeof(scmd->eh_timeout));
 
