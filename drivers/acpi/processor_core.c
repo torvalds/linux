@@ -603,6 +603,15 @@ static int acpi_processor_get_info(struct acpi_processor *pr, unsigned has_uid)
 		request_region(pr->throttling.address, 6, "ACPI CPU throttle");
 	}
 
+	/*
+	 * If ACPI describes a slot number for this CPU, we can use it
+	 * ensure we get the right value in the "physical id" field
+	 * of /proc/cpuinfo
+	 */
+	status = acpi_evaluate_object(pr->handle, "_SUN", NULL, &buffer);
+	if (ACPI_SUCCESS(status))
+		arch_fix_phys_package_id(pr->id, object.integer.value);
+
 	return 0;
 }
 

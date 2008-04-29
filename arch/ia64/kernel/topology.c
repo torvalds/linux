@@ -27,6 +27,15 @@
 
 static struct ia64_cpu *sysfs_cpus;
 
+void arch_fix_phys_package_id(int num, u32 slot)
+{
+#ifdef CONFIG_SMP
+	if (cpu_data(num)->socket_id == -1)
+		cpu_data(num)->socket_id = slot;
+#endif
+}
+EXPORT_SYMBOL_GPL(arch_fix_phys_package_id);
+
 int arch_register_cpu(int num)
 {
 #if defined (CONFIG_ACPI) && defined (CONFIG_HOTPLUG_CPU)
