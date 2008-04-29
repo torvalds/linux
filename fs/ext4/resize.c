@@ -11,11 +11,10 @@
 
 #define EXT4FS_DEBUG
 
-#include <linux/ext4_jbd2.h>
-
 #include <linux/errno.h>
 #include <linux/slab.h>
 
+#include "ext4_jbd2.h"
 #include "group.h"
 
 #define outside(b, first, last)	((b) < (first) || (b) >= (last))

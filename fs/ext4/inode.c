@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/time.h>
-#include <linux/ext4_jbd2.h>
 #include <linux/jbd2.h>
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
@@ -36,6 +35,7 @@
 #include <linux/mpage.h>
 #include <linux/uio.h>
 #include <linux/bio.h>
+#include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
 

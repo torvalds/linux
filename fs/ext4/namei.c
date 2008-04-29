@@ -28,14 +28,14 @@
 #include <linux/pagemap.h>
 #include <linux/jbd2.h>
 #include <linux/time.h>
-#include <linux/ext4_fs.h>
-#include <linux/ext4_jbd2.h>
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/bio.h>
+#include "ext4.h"
+#include "ext4_jbd2.h"
 
 #include "namei.h"
 #include "xattr.h"

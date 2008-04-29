@@ -2,7 +2,7 @@
  * Interface between ext4 and JBD
  */
 
-#include <linux/ext4_jbd2.h>
+#include "ext4_jbd2.h"
 
 int __ext4_journal_get_undo_access(const char *where, handle_t *handle,
 				struct buffer_head *bh)

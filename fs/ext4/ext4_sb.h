@@ -1,5 +1,5 @@
 /*
- *  linux/include/linux/ext4_fs_sb.h
+ *  ext4_sb.h
  *
  * Copyright (C) 1992, 1993, 1994, 1995
  * Remy Card (card@masi.ibp.fr)
@@ -13,8 +13,8 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#ifndef _LINUX_EXT4_FS_SB
-#define _LINUX_EXT4_FS_SB
+#ifndef _EXT4_SB
+#define _EXT4_SB
 
 #ifdef __KERNEL__
 #include <linux/timer.h>
@@ -145,4 +145,4 @@ struct ext4_sb_info {
 	struct ext4_locality_group *s_locality_groups;
 };
 
-#endif	/* _LINUX_EXT4_FS_SB */
+#endif	/* _EXT4_SB */

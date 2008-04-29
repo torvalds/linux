@@ -1,5 +1,5 @@
 /*
- *  linux/include/linux/ext4_fs.h
+ *  ext4.h
  *
  * Copyright (C) 1992, 1993, 1994, 1995
  * Remy Card (card@masi.ibp.fr)
@@ -13,13 +13,13 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#ifndef _LINUX_EXT4_FS_H
-#define _LINUX_EXT4_FS_H
+#ifndef _EXT4_H
+#define _EXT4_H
 
 #include <linux/types.h>
 #include <linux/blkdev.h>
 #include <linux/magic.h>
-#include <linux/ext4_fs_i.h>
+#include "ext4_i.h"
 
 /*
  * The second extended filesystem constants/structures
@@ -175,7 +175,7 @@ struct ext4_group_desc
 #define EXT4_BG_INODE_ZEROED	0x0004 /* On-disk itable initialized to zero */
 
 #ifdef __KERNEL__
-#include <linux/ext4_fs_sb.h>
+#include "ext4_sb.h"
 #endif
 /*
  * Macro-instructions used to manage group descriptors
@@ -1202,4 +1202,4 @@ extern int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode,
 			int extend_disksize);
 #endif	/* __KERNEL__ */
 
-#endif	/* _LINUX_EXT4_FS_H */
+#endif	/* _EXT4_H */

@@ -15,8 +15,6 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/ext4_fs.h>
-#include <linux/ext4_jbd2.h>
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/quotaops.h>
@@ -25,7 +23,8 @@
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
 #include <asm/byteorder.h>
-
+#include "ext4.h"
+#include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
 #include "group.h"

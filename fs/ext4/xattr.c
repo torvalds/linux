@@ -53,11 +53,11 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <linux/ext4_jbd2.h>
-#include <linux/ext4_fs.h>
 #include <linux/mbcache.h>
 #include <linux/quotaops.h>
 #include <linux/rwsem.h>
+#include "ext4_jbd2.h"
+#include "ext4.h"
 #include "xattr.h"
 #include "acl.h"
 

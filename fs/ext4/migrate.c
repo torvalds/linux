@@ -13,8 +13,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/ext4_jbd2.h>
-#include <linux/ext4_fs_extents.h>
+#include "ext4_jbd2.h"
+#include "ext4_extents.h"
 
 /*
  * The contiguous blocks details which can be

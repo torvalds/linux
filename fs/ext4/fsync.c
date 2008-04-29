@@ -27,8 +27,8 @@
 #include <linux/sched.h>
 #include <linux/writeback.h>
 #include <linux/jbd2.h>
-#include <linux/ext4_fs.h>
-#include <linux/ext4_jbd2.h>
+#include "ext4.h"
+#include "ext4_jbd2.h"
 
 /*
  * akpm: A new design for ext4_sync_file().

@@ -24,8 +24,6 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
-#include <linux/ext4_jbd2.h>
-#include <linux/ext4_fs.h>
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/module.h>
@@ -34,6 +32,8 @@
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
 #include <linux/version.h>
+#include "ext4_jbd2.h"
+#include "ext4.h"
 #include "group.h"
 
 /*

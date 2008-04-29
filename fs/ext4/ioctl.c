@@ -10,13 +10,13 @@
 #include <linux/fs.h>
 #include <linux/jbd2.h>
 #include <linux/capability.h>
-#include <linux/ext4_fs.h>
-#include <linux/ext4_jbd2.h>
 #include <linux/time.h>
 #include <linux/compat.h>
 #include <linux/smp_lock.h>
 #include <linux/mount.h>
 #include <asm/uaccess.h>
+#include "ext4_jbd2.h"
+#include "ext4.h"
 
 long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {

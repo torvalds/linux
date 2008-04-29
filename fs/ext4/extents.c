@@ -32,7 +32,6 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/time.h>
-#include <linux/ext4_jbd2.h>
 #include <linux/jbd2.h>
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
@@ -40,8 +39,9 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/falloc.h>
-#include <linux/ext4_fs_extents.h>
 #include <asm/uaccess.h>
+#include "ext4_jbd2.h"
+#include "ext4_extents.h"
 
 
 /*

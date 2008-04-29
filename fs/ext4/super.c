@@ -21,8 +21,6 @@
 #include <linux/fs.h>
 #include <linux/time.h>
 #include <linux/jbd2.h>
-#include <linux/ext4_fs.h>
-#include <linux/ext4_jbd2.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
@@ -38,9 +36,10 @@
 #include <linux/seq_file.h>
 #include <linux/log2.h>
 #include <linux/crc16.h>
-
 #include <asm/uaccess.h>
 
+#include "ext4.h"
+#include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
 #include "namei.h"
