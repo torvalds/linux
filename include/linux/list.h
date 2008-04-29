@@ -328,7 +328,7 @@ static inline int list_is_singular(const struct list_head *head)
 	return !list_empty(head) && (head->next == head->prev);
 }
 
-static inline void __list_splice(struct list_head *list,
+static inline void __list_splice(const struct list_head *list,
 				 struct list_head *head)
 {
 	struct list_head *first = list->next;
@@ -347,7 +347,8 @@ static inline void __list_splice(struct list_head *list,
  * @list: the new list to add.
  * @head: the place to add it in the first list.
  */
-static inline void list_splice(struct list_head *list, struct list_head *head)
+static inline void list_splice(const struct list_head *list,
+				struct list_head *head)
 {
 	if (!list_empty(list))
 		__list_splice(list, head);
