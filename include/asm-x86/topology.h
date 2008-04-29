@@ -193,6 +193,10 @@ extern cpumask_t cpu_coregroup_map(int cpu);
 #define topology_thread_siblings(cpu)		(per_cpu(cpu_sibling_map, cpu))
 #endif
 
+static inline void arch_fix_phys_package_id(int num, u32 slot)
+{
+}
+
 struct pci_bus;
 void set_pci_bus_resources_arch_default(struct pci_bus *b);
 

@@ -168,7 +168,10 @@ setup_ptcg_sem(int max_purges, int nptcg_from)
 	static int firstcpu = 1;
 
 	if (toolatetochangeptcgsem) {
-		BUG_ON(max_purges < nptcg);
+		if (nptcg_from == NPTCG_FROM_PAL && max_purges == 0)
+			BUG_ON(1 < nptcg);
+		else
+			BUG_ON(max_purges < nptcg);
 		return;
 	}
 
