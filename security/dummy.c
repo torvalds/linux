@@ -968,7 +968,7 @@ static int dummy_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	return -EOPNOTSUPP;
 }
 
-static int dummy_secctx_to_secid(char *secdata, u32 seclen, u32 *secid)
+static int dummy_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 {
 	return -EOPNOTSUPP;
 }

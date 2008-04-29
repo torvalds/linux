@@ -5238,7 +5238,7 @@ static int selinux_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	return security_sid_to_context(secid, secdata, seclen);
 }
 
-static int selinux_secctx_to_secid(char *secdata, u32 seclen, u32 *secid)
+static int selinux_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 {
 	return security_context_to_sid(secdata, seclen, secid);
 }
