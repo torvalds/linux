@@ -32,7 +32,7 @@
 
 #include <asm/gpio.h>
 
-#define DRV_NAME	"pata-rb500-cf"
+#define DRV_NAME	"pata-rb532-cf"
 #define DRV_VERSION	"0.1.0"
 #define DRV_DESC	"PATA driver for RouterBOARD 532 Compact Flash"
 
@@ -43,7 +43,7 @@
 #define RB500_CF_REG_CTRL	0x080E
 #define RB500_CF_REG_DATA	0x0C00
 
-struct rb500_cf_info {
+struct rb532_cf_info {
 	void __iomem	*iobase;
 	unsigned int	gpio_line;
 	int		frozen;
@@ -52,10 +52,10 @@ struct rb500_cf_info {
 
 /* ------------------------------------------------------------------------ */
 
-static inline void rb500_pata_finish_io(struct ata_port *ap)
+static inline void rb532_pata_finish_io(struct ata_port *ap)
 {
 	struct ata_host *ah = ap->host;
-	struct rb500_cf_info *info = ah->private_data;
+	struct rb532_cf_info *info = ah->private_data;
 
 	ata_sff_altstatus(ap);
 	ndelay(RB500_CF_IO_DELAY);
@@ -63,14 +63,14 @@ static inline void rb500_pata_finish_io(struct ata_port *ap)
 	set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);
 }
 
-static void rb500_pata_exec_command(struct ata_port *ap,
+static void rb532_pata_exec_command(struct ata_port *ap,
 				const struct ata_taskfile *tf)
 {
 	writeb(tf->command, ap->ioaddr.command_addr);
-	rb500_pata_finish_io(ap);
+	rb532_pata_finish_io(ap);
 }
 
-static void rb500_pata_data_xfer(struct ata_device *adev, unsigned char *buf,
+static void rb532_pata_data_xfer(struct ata_device *adev, unsigned char *buf,
 				unsigned int buflen, int write_data)
 {
 	struct ata_port *ap = adev->link->ap;
@@ -84,27 +84,27 @@ static void rb500_pata_data_xfer(struct ata_device *adev, unsigned char *buf,
 			*buf = readb(ioaddr);
 	}
 
-	rb500_pata_finish_io(adev->link->ap);
+	rb532_pata_finish_io(adev->link->ap);
 }
 
-static void rb500_pata_freeze(struct ata_port *ap)
+static void rb532_pata_freeze(struct ata_port *ap)
 {
-	struct rb500_cf_info *info = ap->host->private_data;
+	struct rb532_cf_info *info = ap->host->private_data;
 
 	info->frozen = 1;
 }
 
-static void rb500_pata_thaw(struct ata_port *ap)
+static void rb532_pata_thaw(struct ata_port *ap)
 {
-	struct rb500_cf_info *info = ap->host->private_data;
+	struct rb532_cf_info *info = ap->host->private_data;
 
 	info->frozen = 0;
 }
 
-static irqreturn_t rb500_pata_irq_handler(int irq, void *dev_instance)
+static irqreturn_t rb532_pata_irq_handler(int irq, void *dev_instance)
 {
 	struct ata_host *ah = dev_instance;
-	struct rb500_cf_info *info = ah->private_data;
+	struct rb532_cf_info *info = ah->private_data;
 
 	if (gpio_get_value(info->gpio_line)) {
 		set_irq_type(info->irq, IRQ_TYPE_LEVEL_LOW);
@@ -117,30 +117,30 @@ static irqreturn_t rb500_pata_irq_handler(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-static struct ata_port_operations rb500_pata_port_ops = {
+static struct ata_port_operations rb532_pata_port_ops = {
 	.inherits		= &ata_sff_port_ops,
-	.sff_exec_command	= rb500_pata_exec_command,
-	.sff_data_xfer		= rb500_pata_data_xfer,
-	.freeze			= rb500_pata_freeze,
-	.thaw			= rb500_pata_thaw,
+	.sff_exec_command	= rb532_pata_exec_command,
+	.sff_data_xfer		= rb532_pata_data_xfer,
+	.freeze			= rb532_pata_freeze,
+	.thaw			= rb532_pata_thaw,
 };
 
 /* ------------------------------------------------------------------------ */
 
-static struct scsi_host_template rb500_pata_sht = {
+static struct scsi_host_template rb532_pata_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 
 /* ------------------------------------------------------------------------ */
 
-static void rb500_pata_setup_ports(struct ata_host *ah)
+static void rb532_pata_setup_ports(struct ata_host *ah)
 {
-	struct rb500_cf_info *info = ah->private_data;
+	struct rb532_cf_info *info = ah->private_data;
 	struct ata_port *ap;
 
 	ap = ah->ports[0];
 
-	ap->ops		= &rb500_pata_port_ops;
+	ap->ops		= &rb532_pata_port_ops;
 	ap->pio_mask	= 0x1f; /* PIO4 */
 	ap->flags	= ATA_FLAG_NO_LEGACY | ATA_FLAG_MMIO;
 
@@ -153,13 +153,13 @@ static void rb500_pata_setup_ports(struct ata_host *ah)
 	ap->ioaddr.data_addr	= info->iobase + RB500_CF_REG_DATA;
 }
 
-static __devinit int rb500_pata_driver_probe(struct platform_device *pdev)
+static __devinit int rb532_pata_driver_probe(struct platform_device *pdev)
 {
 	unsigned int irq;
 	int gpio;
 	struct resource *res;
 	struct ata_host *ah;
-	struct rb500_cf_info *info;
+	struct rb532_cf_info *info;
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -213,10 +213,10 @@ static __devinit int rb500_pata_driver_probe(struct platform_device *pdev)
 		goto err_free_gpio;
 	}
 
-	rb500_pata_setup_ports(ah);
+	rb532_pata_setup_ports(ah);
 
-	ret = ata_host_activate(ah, irq, rb500_pata_irq_handler,
-				IRQF_TRIGGER_LOW, &rb500_pata_sht);
+	ret = ata_host_activate(ah, irq, rb532_pata_irq_handler,
+				IRQF_TRIGGER_LOW, &rb532_pata_sht);
 	if (ret)
 		goto err_free_gpio;
 
@@ -228,10 +228,10 @@ err_free_gpio:
 	return ret;
 }
 
-static __devexit int rb500_pata_driver_remove(struct platform_device *pdev)
+static __devexit int rb532_pata_driver_remove(struct platform_device *pdev)
 {
 	struct ata_host *ah = platform_get_drvdata(pdev);
-	struct rb500_cf_info *info = ah->private_data;
+	struct rb532_cf_info *info = ah->private_data;
 
 	ata_host_detach(ah);
 	gpio_free(info->gpio_line);
@@ -242,9 +242,9 @@ static __devexit int rb500_pata_driver_remove(struct platform_device *pdev)
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:" DRV_NAME);
 
-static struct platform_driver rb500_pata_platform_driver = {
-	.probe		= rb500_pata_driver_probe,
-	.remove		= __devexit_p(rb500_pata_driver_remove),
+static struct platform_driver rb532_pata_platform_driver = {
+	.probe		= rb532_pata_driver_probe,
+	.remove		= __devexit_p(rb532_pata_driver_remove),
 	.driver	 = {
 		.name   = DRV_NAME,
 		.owner  = THIS_MODULE,
@@ -255,16 +255,16 @@ static struct platform_driver rb500_pata_platform_driver = {
 
 #define DRV_INFO DRV_DESC " version " DRV_VERSION
 
-static int __init rb500_pata_module_init(void)
+static int __init rb532_pata_module_init(void)
 {
 	printk(KERN_INFO DRV_INFO "\n");
 
-	return platform_driver_register(&rb500_pata_platform_driver);
+	return platform_driver_register(&rb532_pata_platform_driver);
 }
 
-static void __exit rb500_pata_module_exit(void)
+static void __exit rb532_pata_module_exit(void)
 {
-	platform_driver_unregister(&rb500_pata_platform_driver);
+	platform_driver_unregister(&rb532_pata_platform_driver);
 }
 
 MODULE_AUTHOR("Gabor Juhos <juhosg at openwrt.org>");
@@ -273,5 +273,5 @@ MODULE_DESCRIPTION(DRV_DESC);
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 
-module_init(rb500_pata_module_init);
-module_exit(rb500_pata_module_exit);
+module_init(rb532_pata_module_init);
+module_exit(rb532_pata_module_exit);
