@@ -165,13 +165,12 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 	iface->ids	= ids;
 	iface->show	= show;
 
-	pde = create_proc_entry(path,
-				S_IRUGO,        /* world readable */
-				NULL            /* parent dir */);
-	if (pde) {
-		pde->data = iface;
-		pde->proc_fops = &sysvipc_proc_fops;
-	} else {
+	pde = proc_create_data(path,
+			       S_IRUGO,        /* world readable */
+			       NULL,           /* parent dir */
+			       &sysvipc_proc_fops,
+			       iface);
+	if (!pde) {
 		kfree(iface);
 	}
 }
