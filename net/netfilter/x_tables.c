@@ -787,7 +787,7 @@ static const struct file_operations xt_table_ops = {
 	.open	 = xt_table_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_net,
 };
 
 static void *xt_match_seq_start(struct seq_file *seq, loff_t *pos)
