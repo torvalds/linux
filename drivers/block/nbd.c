@@ -56,6 +56,7 @@ static unsigned int debugflags;
 
 static unsigned int nbds_max = 16;
 static struct nbd_device *nbd_dev;
+static int max_part;
 
 /*
  * Use just one lock (or at most 1 per NIC). Two arguments for this:
@@ -610,10 +611,13 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		error = -EINVAL;
 		file = fget(arg);
 		if (file) {
+			struct block_device *bdev = inode->i_bdev;
 			inode = file->f_path.dentry->d_inode;
 			if (S_ISSOCK(inode->i_mode)) {
 				lo->file = file;
 				lo->sock = SOCKET_I(inode);
+				if (max_part > 0)
+					bdev->bd_invalidated = 1;
 				error = 0;
 			} else {
 				fput(file);
@@ -663,6 +667,8 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		lo->bytesize = 0;
 		inode->i_bdev->bd_inode->i_size = 0;
 		set_capacity(lo->disk, 0);
+		if (max_part > 0)
+			ioctl_by_bdev(inode->i_bdev, BLKRRPART, 0);
 		return lo->harderror;
 	case NBD_CLEAR_QUE:
 		/*
@@ -696,6 +702,7 @@ static int __init nbd_init(void)
 {
 	int err = -ENOMEM;
 	int i;
+	int part_shift;
 
 	BUILD_BUG_ON(sizeof(struct nbd_request) != 28);
 
@@ -703,8 +710,17 @@ static int __init nbd_init(void)
 	if (!nbd_dev)
 		return -ENOMEM;
 
+	if (max_part < 0) {
+		printk(KERN_CRIT "nbd: max_part must be >= 0\n");
+		return -EINVAL;
+	}
+
+	part_shift = 0;
+	if (max_part > 0)
+		part_shift = fls(max_part);
+
 	for (i = 0; i < nbds_max; i++) {
-		struct gendisk *disk = alloc_disk(1);
+		struct gendisk *disk = alloc_disk(1 << part_shift);
 		elevator_t *old_e;
 		if (!disk)
 			goto out;
@@ -748,10 +764,9 @@ static int __init nbd_init(void)
 		nbd_dev[i].blksize = 1024;
 		nbd_dev[i].bytesize = 0;
 		disk->major = NBD_MAJOR;
-		disk->first_minor = i;
+		disk->first_minor = i << part_shift;
 		disk->fops = &nbd_fops;
 		disk->private_data = &nbd_dev[i];
-		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
 		sprintf(disk->disk_name, "nbd%d", i);
 		set_capacity(disk, 0);
 		add_disk(disk);
@@ -789,7 +804,9 @@ MODULE_DESCRIPTION("Network Block Device");
 MODULE_LICENSE("GPL");
 
 module_param(nbds_max, int, 0444);
-MODULE_PARM_DESC(nbds_max, "How many network block devices to initialize.");
+MODULE_PARM_DESC(nbds_max, "number of network block devices to initialize (default: 16)");
+module_param(max_part, int, 0444);
+MODULE_PARM_DESC(max_part, "number of partitions per device (default: 0)");
 #ifndef NDEBUG
 module_param(debugflags, int, 0644);
 MODULE_PARM_DESC(debugflags, "flags for controlling debug output");
