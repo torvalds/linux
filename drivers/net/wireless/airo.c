@@ -4347,24 +4347,28 @@ static int proc_config_open( struct inode *inode, struct file *file );
 static int proc_wepkey_open( struct inode *inode, struct file *file );
 
 static const struct file_operations proc_statsdelta_ops = {
+	.owner		= THIS_MODULE,
 	.read		= proc_read,
 	.open		= proc_statsdelta_open,
 	.release	= proc_close
 };
 
 static const struct file_operations proc_stats_ops = {
+	.owner		= THIS_MODULE,
 	.read		= proc_read,
 	.open		= proc_stats_open,
 	.release	= proc_close
 };
 
 static const struct file_operations proc_status_ops = {
+	.owner		= THIS_MODULE,
 	.read		= proc_read,
 	.open		= proc_status_open,
 	.release	= proc_close
 };
 
 static const struct file_operations proc_SSID_ops = {
+	.owner		= THIS_MODULE,
 	.read		= proc_read,
 	.write		= proc_write,
 	.open		= proc_SSID_open,
@@ -4372,6 +4376,7 @@ static const struct file_operations proc_SSID_ops = {
 };
 
 static const struct file_operations proc_BSSList_ops = {
+	.owner		= THIS_MODULE,
 	.read		= proc_read,
 	.write		= proc_write,
 	.open		= proc_BSSList_open,
@@ -4379,6 +4384,7 @@ static const struct file_operations proc_BSSList_ops = {
 };
 
 static const struct file_operations proc_APList_ops = {
+	.owner		= THIS_MODULE,
 	.read		= proc_read,
 	.write		= proc_write,
 	.open		= proc_APList_open,
@@ -4386,6 +4392,7 @@ static const struct file_operations proc_APList_ops = {
 };
 
 static const struct file_operations proc_config_ops = {
+	.owner		= THIS_MODULE,
 	.read		= proc_read,
 	.write		= proc_write,
 	.open		= proc_config_open,
@@ -4393,6 +4400,7 @@ static const struct file_operations proc_config_ops = {
 };
 
 static const struct file_operations proc_wepkey_ops = {
+	.owner		= THIS_MODULE,
 	.read		= proc_read,
 	.write		= proc_write,
 	.open		= proc_wepkey_open,
@@ -4411,10 +4419,6 @@ struct proc_data {
 	void (*on_close) (struct inode *, struct file *);
 };
 
-#ifndef SETPROC_OPS
-#define SETPROC_OPS(entry, ops) (entry)->proc_fops = &(ops)
-#endif
-
 static int setup_proc_entry( struct net_device *dev,
 			     struct airo_info *apriv ) {
 	struct proc_dir_entry *entry;
@@ -4430,100 +4434,76 @@ static int setup_proc_entry( struct net_device *dev,
 	apriv->proc_entry->owner = THIS_MODULE;
 
 	/* Setup the StatsDelta */
-	entry = create_proc_entry("StatsDelta",
-				  S_IFREG | (S_IRUGO&proc_perm),
-				  apriv->proc_entry);
+	entry = proc_create_data("StatsDelta",
+				 S_IFREG | (S_IRUGO&proc_perm),
+				 apriv->proc_entry, &proc_statsdelta_ops, dev);
 	if (!entry)
 		goto fail_stats_delta;
 	entry->uid = proc_uid;
 	entry->gid = proc_gid;
-	entry->data = dev;
-	entry->owner = THIS_MODULE;
-	SETPROC_OPS(entry, proc_statsdelta_ops);
 
 	/* Setup the Stats */
-	entry = create_proc_entry("Stats",
-				  S_IFREG | (S_IRUGO&proc_perm),
-				  apriv->proc_entry);
+	entry = proc_create_data("Stats",
+				 S_IFREG | (S_IRUGO&proc_perm),
+				 apriv->proc_entry, &proc_stats_ops, dev);
 	if (!entry)
 		goto fail_stats;
 	entry->uid = proc_uid;
 	entry->gid = proc_gid;
-	entry->data = dev;
-	entry->owner = THIS_MODULE;
-	SETPROC_OPS(entry, proc_stats_ops);
 
 	/* Setup the Status */
-	entry = create_proc_entry("Status",
-				  S_IFREG | (S_IRUGO&proc_perm),
-				  apriv->proc_entry);
+	entry = proc_create_data("Status",
+				 S_IFREG | (S_IRUGO&proc_perm),
+				 apriv->proc_entry, &proc_status_ops, dev);
 	if (!entry)
 		goto fail_status;
 	entry->uid = proc_uid;
 	entry->gid = proc_gid;
-	entry->data = dev;
-	entry->owner = THIS_MODULE;
-	SETPROC_OPS(entry, proc_status_ops);
 
 	/* Setup the Config */
-	entry = create_proc_entry("Config",
-				  S_IFREG | proc_perm,
-				  apriv->proc_entry);
+	entry = proc_create_data("Config",
+				 S_IFREG | proc_perm,
+				 apriv->proc_entry, &proc_config_ops, dev);
 	if (!entry)
 		goto fail_config;
 	entry->uid = proc_uid;
 	entry->gid = proc_gid;
-	entry->data = dev;
-	entry->owner = THIS_MODULE;
-	SETPROC_OPS(entry, proc_config_ops);
 
 	/* Setup the SSID */
-	entry = create_proc_entry("SSID",
-				  S_IFREG | proc_perm,
-				  apriv->proc_entry);
+	entry = proc_create_data("SSID",
+				 S_IFREG | proc_perm,
+				 apriv->proc_entry, &proc_SSID_ops, dev);
 	if (!entry)
 		goto fail_ssid;
 	entry->uid = proc_uid;
 	entry->gid = proc_gid;
-	entry->data = dev;
-	entry->owner = THIS_MODULE;
-	SETPROC_OPS(entry, proc_SSID_ops);
 
 	/* Setup the APList */
-	entry = create_proc_entry("APList",
-				  S_IFREG | proc_perm,
-				  apriv->proc_entry);
+	entry = proc_create_data("APList",
+				 S_IFREG | proc_perm,
+				 apriv->proc_entry, &proc_APList_ops, dev);
 	if (!entry)
 		goto fail_aplist;
 	entry->uid = proc_uid;
 	entry->gid = proc_gid;
-	entry->data = dev;
-	entry->owner = THIS_MODULE;
-	SETPROC_OPS(entry, proc_APList_ops);
 
 	/* Setup the BSSList */
-	entry = create_proc_entry("BSSList",
-				  S_IFREG | proc_perm,
-				  apriv->proc_entry);
+	entry = proc_create_data("BSSList",
+				 S_IFREG | proc_perm,
+				 apriv->proc_entry, &proc_BSSList_ops, dev);
 	if (!entry)
 		goto fail_bsslist;
 	entry->uid = proc_uid;
 	entry->gid = proc_gid;
-	entry->data = dev;
-	entry->owner = THIS_MODULE;
-	SETPROC_OPS(entry, proc_BSSList_ops);
 
 	/* Setup the WepKey */
-	entry = create_proc_entry("WepKey",
-				  S_IFREG | proc_perm,
-				  apriv->proc_entry);
+	entry = proc_create_data("WepKey",
+				 S_IFREG | proc_perm,
+				 apriv->proc_entry, &proc_wepkey_ops, dev);
 	if (!entry)
 		goto fail_wepkey;
 	entry->uid = proc_uid;
 	entry->gid = proc_gid;
-	entry->data = dev;
-	entry->owner = THIS_MODULE;
-	SETPROC_OPS(entry, proc_wepkey_ops);
 
 	return 0;
 

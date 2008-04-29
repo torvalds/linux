@@ -3282,17 +3282,14 @@ static int bond_create_proc_entry(struct bonding *bond)
 	struct net_device *bond_dev = bond->dev;
 
 	if (bond_proc_dir) {
-		bond->proc_entry = create_proc_entry(bond_dev->name,
-						     S_IRUGO,
-						     bond_proc_dir);
+		bond->proc_entry = proc_create_data(bond_dev->name,
+						    S_IRUGO, bond_proc_dir,
+						    &bond_info_fops, bond);
 		if (bond->proc_entry == NULL) {
 			printk(KERN_WARNING DRV_NAME
 			       ": Warning: Cannot create /proc/net/%s/%s\n",
 			       DRV_NAME, bond_dev->name);
 		} else {
-			bond->proc_entry->data = bond;
-			bond->proc_entry->proc_fops = &bond_info_fops;
-			bond->proc_entry->owner = THIS_MODULE;
 			memcpy(bond->proc_file_name, bond_dev->name, IFNAMSIZ);
 		}
 	}
