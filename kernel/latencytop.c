@@ -233,14 +233,7 @@ static struct file_operations lstats_fops = {
 
 static int __init init_lstats_procfs(void)
 {
-	struct proc_dir_entry *pe;
-
-	pe = create_proc_entry("latency_stats", 0644, NULL);
-	if (!pe)
-		return -ENOMEM;
-
-	pe->proc_fops = &lstats_fops;
-
+	proc_create("latency_stats", 0644, NULL, &lstats_fops);
 	return 0;
 }
 __initcall(init_lstats_procfs);
