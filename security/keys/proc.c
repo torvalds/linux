@@ -70,18 +70,14 @@ static int __init key_proc_init(void)
 	struct proc_dir_entry *p;
 
 #ifdef CONFIG_KEYS_DEBUG_PROC_KEYS
-	p = create_proc_entry("keys", 0, NULL);
+	p = proc_create("keys", 0, NULL, &proc_keys_fops);
 	if (!p)
 		panic("Cannot create /proc/keys\n");
-
-	p->proc_fops = &proc_keys_fops;
 #endif
 
-	p = create_proc_entry("key-users", 0, NULL);
+	p = proc_create("key-users", 0, NULL, &proc_key_users_fops);
 	if (!p)
 		panic("Cannot create /proc/key-users\n");
-
-	p->proc_fops = &proc_key_users_fops;
 
 	return 0;
 
