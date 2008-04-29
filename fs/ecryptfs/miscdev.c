@@ -46,7 +46,8 @@ ecryptfs_miscdev_poll(struct file *file, poll_table *pt)
 
 	mutex_lock(&ecryptfs_daemon_hash_mux);
 	/* TODO: Just use file->private_data? */
-	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid);
+	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid,
+					  current->nsproxy->user_ns);
 	BUG_ON(rc || !daemon);
 	mutex_lock(&daemon->mux);
 	mutex_unlock(&ecryptfs_daemon_hash_mux);
@@ -92,10 +93,12 @@ ecryptfs_miscdev_open(struct inode *inode, struct file *file)
 		       "count; rc = [%d]\n", __func__, rc);
 		goto out_unlock_daemon_list;
 	}
-	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid);
+	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid,
+					  current->nsproxy->user_ns);
 	if (rc || !daemon) {
 		rc = ecryptfs_spawn_daemon(&daemon, current->euid,
-					   current->pid);
+					   current->nsproxy->user_ns,
+					   task_pid(current));
 		if (rc) {
 			printk(KERN_ERR "%s: Error attempting to spawn daemon; "
 			       "rc = [%d]\n", __func__, rc);
@@ -103,18 +106,18 @@ ecryptfs_miscdev_open(struct inode *inode, struct file *file)
 		}
 	}
 	mutex_lock(&daemon->mux);
-	if (daemon->pid != current->pid) {
+	if (daemon->pid != task_pid(current)) {
 		rc = -EINVAL;
-		printk(KERN_ERR "%s: pid [%d] has registered with euid [%d], "
-		       "but pid [%d] has attempted to open the handle "
+		printk(KERN_ERR "%s: pid [0x%p] has registered with euid [%d], "
+		       "but pid [0x%p] has attempted to open the handle "
 		       "instead\n", __func__, daemon->pid, daemon->euid,
-		       current->pid);
+		       task_pid(current));
 		goto out_unlock_daemon;
 	}
 	if (daemon->flags & ECRYPTFS_DAEMON_MISCDEV_OPEN) {
 		rc = -EBUSY;
 		printk(KERN_ERR "%s: Miscellaneous device handle may only be "
-		       "opened once per daemon; pid [%d] already has this "
+		       "opened once per daemon; pid [0x%p] already has this "
 		       "handle open\n", __func__, daemon->pid);
 		goto out_unlock_daemon;
 	}
@@ -147,10 +150,11 @@ ecryptfs_miscdev_release(struct inode *inode, struct file *file)
 	int rc;
 
 	mutex_lock(&ecryptfs_daemon_hash_mux);
-	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid);
+	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid,
+					  current->nsproxy->user_ns);
 	BUG_ON(rc || !daemon);
 	mutex_lock(&daemon->mux);
-	BUG_ON(daemon->pid != current->pid);
+	BUG_ON(daemon->pid != task_pid(current));
 	BUG_ON(!(daemon->flags & ECRYPTFS_DAEMON_MISCDEV_OPEN));
 	daemon->flags &= ~ECRYPTFS_DAEMON_MISCDEV_OPEN;
 	atomic_dec(&ecryptfs_num_miscdev_opens);
@@ -247,7 +251,8 @@ ecryptfs_miscdev_read(struct file *file, char __user *buf, size_t count,
 
 	mutex_lock(&ecryptfs_daemon_hash_mux);
 	/* TODO: Just use file->private_data? */
-	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid);
+	rc = ecryptfs_find_daemon_by_euid(&daemon, current->euid,
+					  current->nsproxy->user_ns);
 	BUG_ON(rc || !daemon);
 	mutex_lock(&daemon->mux);
 	if (daemon->flags & ECRYPTFS_DAEMON_ZOMBIE) {
@@ -285,7 +290,8 @@ check_list:
 		goto check_list;
 	}
 	BUG_ON(current->euid != daemon->euid);
-	BUG_ON(current->pid != daemon->pid);
+	BUG_ON(current->nsproxy->user_ns != daemon->user_ns);
+	BUG_ON(task_pid(current) != daemon->pid);
 	msg_ctx = list_first_entry(&daemon->msg_ctx_out_queue,
 				   struct ecryptfs_msg_ctx, daemon_out_list);
 	BUG_ON(!msg_ctx);
@@ -355,15 +361,18 @@ out_unlock_daemon:
 /**
  * ecryptfs_miscdev_helo
  * @euid: effective user id of miscdevess sending helo packet
+ * @user_ns: The namespace in which @euid applies
  * @pid: miscdevess id of miscdevess sending helo packet
  *
  * Returns zero on success; non-zero otherwise
  */
-static int ecryptfs_miscdev_helo(uid_t uid, pid_t pid)
+static int ecryptfs_miscdev_helo(uid_t euid, struct user_namespace *user_ns,
+				 struct pid *pid)
 {
 	int rc;
 
-	rc = ecryptfs_process_helo(ECRYPTFS_TRANSPORT_MISCDEV, uid, pid);
+	rc = ecryptfs_process_helo(ECRYPTFS_TRANSPORT_MISCDEV, euid, user_ns,
+				   pid);
 	if (rc)
 		printk(KERN_WARNING "Error processing HELO; rc = [%d]\n", rc);
 	return rc;
@@ -372,15 +381,17 @@ static int ecryptfs_miscdev_helo(uid_t uid, pid_t pid)
 /**
  * ecryptfs_miscdev_quit
  * @euid: effective user id of miscdevess sending quit packet
+ * @user_ns: The namespace in which @euid applies
  * @pid: miscdevess id of miscdevess sending quit packet
  *
  * Returns zero on success; non-zero otherwise
  */
-static int ecryptfs_miscdev_quit(uid_t euid, pid_t pid)
+static int ecryptfs_miscdev_quit(uid_t euid, struct user_namespace *user_ns,
+				 struct pid *pid)
 {
 	int rc;
 
-	rc = ecryptfs_process_quit(euid, pid);
+	rc = ecryptfs_process_quit(euid, user_ns, pid);
 	if (rc)
 		printk(KERN_WARNING
 		       "Error processing QUIT message; rc = [%d]\n", rc);
@@ -392,13 +403,15 @@ static int ecryptfs_miscdev_quit(uid_t euid, pid_t pid)
  * @data: Bytes comprising struct ecryptfs_message
  * @data_size: sizeof(struct ecryptfs_message) + data len
  * @euid: Effective user id of miscdevess sending the miscdev response
+ * @user_ns: The namespace in which @euid applies
  * @pid: Miscdevess id of miscdevess sending the miscdev response
  * @seq: Sequence number for miscdev response packet
  *
  * Returns zero on success; non-zero otherwise
  */
 static int ecryptfs_miscdev_response(char *data, size_t data_size,
-					  uid_t euid, pid_t pid, u32 seq)
+				     uid_t euid, struct user_namespace *user_ns,
+				     struct pid *pid, u32 seq)
 {
 	struct ecryptfs_message *msg = (struct ecryptfs_message *)data;
 	int rc;
@@ -410,7 +423,7 @@ static int ecryptfs_miscdev_response(char *data, size_t data_size,
 		rc = -EINVAL;
 		goto out;
 	}
-	rc = ecryptfs_process_response(msg, euid, pid, seq);
+	rc = ecryptfs_process_response(msg, euid, user_ns, pid, seq);
 	if (rc)
 		printk(KERN_ERR
 		       "Error processing response message; rc = [%d]\n", rc);
@@ -491,27 +504,32 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 		}
 		rc = ecryptfs_miscdev_response(&data[i], packet_size,
 					       current->euid,
-					       current->pid, seq);
+					       current->nsproxy->user_ns,
+					       task_pid(current), seq);
 		if (rc)
 			printk(KERN_WARNING "%s: Failed to deliver miscdev "
 			       "response to requesting operation; rc = [%d]\n",
 			       __func__, rc);
 		break;
 	case ECRYPTFS_MSG_HELO:
-		rc = ecryptfs_miscdev_helo(current->euid, current->pid);
+		rc = ecryptfs_miscdev_helo(current->euid,
+					   current->nsproxy->user_ns,
+					   task_pid(current));
 		if (rc) {
 			printk(KERN_ERR "%s: Error attempting to process "
-			       "helo from pid [%d]; rc = [%d]\n", __func__,
-			       current->pid, rc);
+			       "helo from pid [0x%p]; rc = [%d]\n", __func__,
+			       task_pid(current), rc);
 			goto out_free;
 		}
 		break;
 	case ECRYPTFS_MSG_QUIT:
-		rc = ecryptfs_miscdev_quit(current->euid, current->pid);
+		rc = ecryptfs_miscdev_quit(current->euid,
+					   current->nsproxy->user_ns,
+					   task_pid(current));
 		if (rc) {
 			printk(KERN_ERR "%s: Error attempting to process "
-			       "quit from pid [%d]; rc = [%d]\n", __func__,
-			       current->pid, rc);
+			       "quit from pid [0x%p]; rc = [%d]\n", __func__,
+			       task_pid(current), rc);
 			goto out_free;
 		}
 		break;

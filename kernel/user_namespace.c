@@ -74,3 +74,4 @@ void free_user_ns(struct kref *kref)
 	release_uids(ns);
 	kfree(ns);
 }
+EXPORT_SYMBOL(free_user_ns);

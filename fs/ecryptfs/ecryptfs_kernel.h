@@ -34,6 +34,7 @@
 #include <linux/namei.h>
 #include <linux/scatterlist.h>
 #include <linux/hash.h>
+#include <linux/nsproxy.h>
 
 /* Version verification for shared data structures w/ userspace */
 #define ECRYPTFS_VERSION_MAJOR 0x00
@@ -410,8 +411,9 @@ struct ecryptfs_daemon {
 #define ECRYPTFS_DAEMON_MISCDEV_OPEN 0x00000008
 	u32 flags;
 	u32 num_queued_msg_ctx;
-	pid_t pid;
+	struct pid *pid;
 	uid_t euid;
+	struct user_namespace *user_ns;
 	struct task_struct *task;
 	struct mutex mux;
 	struct list_head msg_ctx_out_queue;
@@ -610,10 +612,13 @@ int
 ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags);
 int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode);
-int ecryptfs_process_helo(unsigned int transport, uid_t uid, pid_t pid);
-int ecryptfs_process_quit(uid_t uid, pid_t pid);
-int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t uid,
-			      pid_t pid, u32 seq);
+int ecryptfs_process_helo(unsigned int transport, uid_t euid,
+			  struct user_namespace *user_ns, struct pid *pid);
+int ecryptfs_process_quit(uid_t euid, struct user_namespace *user_ns,
+			  struct pid *pid);
+int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t euid,
+			      struct user_namespace *user_ns, struct pid *pid,
+			      u32 seq);
 int ecryptfs_send_message(unsigned int transport, char *data, int data_len,
 			  struct ecryptfs_msg_ctx **msg_ctx);
 int ecryptfs_wait_for_response(struct ecryptfs_msg_ctx *msg_ctx,
@@ -623,13 +628,13 @@ void ecryptfs_release_messaging(unsigned int transport);
 
 int ecryptfs_send_netlink(char *data, int data_len,
 			  struct ecryptfs_msg_ctx *msg_ctx, u8 msg_type,
-			  u16 msg_flags, pid_t daemon_pid);
+			  u16 msg_flags, struct pid *daemon_pid);
 int ecryptfs_init_netlink(void);
 void ecryptfs_release_netlink(void);
 
 int ecryptfs_send_connector(char *data, int data_len,
 			    struct ecryptfs_msg_ctx *msg_ctx, u8 msg_type,
-			    u16 msg_flags, pid_t daemon_pid);
+			    u16 msg_flags, struct pid *daemon_pid);
 int ecryptfs_init_connector(void);
 void ecryptfs_release_connector(void);
 void
@@ -672,7 +677,8 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 				     struct inode *ecryptfs_inode);
 struct page *ecryptfs_get_locked_page(struct file *file, loff_t index);
 int ecryptfs_exorcise_daemon(struct ecryptfs_daemon *daemon);
-int ecryptfs_find_daemon_by_euid(struct ecryptfs_daemon **daemon, uid_t euid);
+int ecryptfs_find_daemon_by_euid(struct ecryptfs_daemon **daemon, uid_t euid,
+				 struct user_namespace *user_ns);
 int ecryptfs_parse_packet_length(unsigned char *data, size_t *size,
 				 size_t *length_size);
 int ecryptfs_write_packet_length(char *dest, size_t size,
@@ -684,6 +690,7 @@ int ecryptfs_send_miscdev(char *data, size_t data_size,
 			  u16 msg_flags, struct ecryptfs_daemon *daemon);
 void ecryptfs_msg_ctx_alloc_to_free(struct ecryptfs_msg_ctx *msg_ctx);
 int
-ecryptfs_spawn_daemon(struct ecryptfs_daemon **daemon, uid_t euid, pid_t pid);
+ecryptfs_spawn_daemon(struct ecryptfs_daemon **daemon, uid_t euid,
+		      struct user_namespace *user_ns, struct pid *pid);
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */
