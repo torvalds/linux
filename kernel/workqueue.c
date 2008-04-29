@@ -158,8 +158,8 @@ static void __queue_work(struct cpu_workqueue_struct *cwq,
  *
  * Returns 0 if @work was already on a queue, non-zero otherwise.
  *
- * We queue the work to the CPU it was submitted, but there is no
- * guarantee that it will be processed by that CPU.
+ * We queue the work to the CPU on which it was submitted, but if the CPU dies
+ * it can be processed by another CPU.
  */
 int queue_work(struct workqueue_struct *wq, struct work_struct *work)
 {
@@ -815,12 +815,12 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	spin_lock(&workqueue_lock);
 	list_del(&wq->list);
 	spin_unlock(&workqueue_lock);
-	put_online_cpus();
 
 	for_each_cpu_mask(cpu, *cpu_map) {
 		cwq = per_cpu_ptr(wq->cpu_wq, cpu);
 		cleanup_workqueue_thread(cwq, cpu);
 	}
+	put_online_cpus();
 
 	free_percpu(wq->cpu_wq);
 	kfree(wq);
@@ -838,7 +838,6 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 	action &= ~CPU_TASKS_FROZEN;
 
 	switch (action) {
-
 	case CPU_UP_PREPARE:
 		cpu_set(cpu, cpu_populated_map);
 	}
@@ -864,6 +863,12 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 			cleanup_workqueue_thread(cwq, cpu);
 			break;
 		}
+	}
+
+	switch (action) {
+	case CPU_UP_CANCELED:
+	case CPU_DEAD:
+		cpu_clear(cpu, cpu_populated_map);
 	}
 
 	return NOTIFY_OK;
