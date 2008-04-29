@@ -187,11 +187,6 @@ static int intel_menlow_memory_add(struct acpi_device *device)
 
  end:
 	return result;
-
- unregister:
-	thermal_cooling_device_unregister(cdev);
-	return result;
-
 }
 
 static int intel_menlow_memory_remove(struct acpi_device *device, int type)
