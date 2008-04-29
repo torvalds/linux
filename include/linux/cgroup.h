@@ -216,6 +216,10 @@ struct cftype {
 	 */
 	u64 (*read_u64) (struct cgroup *cgrp, struct cftype *cft);
 	/*
+	 * read_s64() is a signed version of read_u64()
+	 */
+	s64 (*read_s64) (struct cgroup *cgrp, struct cftype *cft);
+	/*
 	 * read_map() is used for defining a map of key/value
 	 * pairs. It should call cb->fill(cb, key, value) for each
 	 * entry. The key/value pairs (and their ordering) should not
@@ -234,6 +238,10 @@ struct cftype {
 	 * userspace. Use in place of write(); return 0 or error.
 	 */
 	int (*write_u64) (struct cgroup *cgrp, struct cftype *cft, u64 val);
+	/*
+	 * write_s64() is a signed version of write_u64()
+	 */
+	int (*write_s64) (struct cgroup *cgrp, struct cftype *cft, s64 val);
 
 	int (*release) (struct inode *inode, struct file *file);
 };
