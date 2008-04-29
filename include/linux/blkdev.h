@@ -410,6 +410,12 @@ struct request_queue
 #define QUEUE_FLAG_BIDI		9	/* queue supports bidi requests */
 #define QUEUE_FLAG_NOMERGES    10	/* disable merge attempts */
 
+static inline int queue_is_locked(struct request_queue *q)
+{
+	spinlock_t *lock = q->queue_lock;
+	return lock && spin_is_locked(lock);
+}
+
 static inline void queue_flag_set_unlocked(unsigned int flag,
 					   struct request_queue *q)
 {
@@ -418,7 +424,7 @@ static inline void queue_flag_set_unlocked(unsigned int flag,
 
 static inline void queue_flag_set(unsigned int flag, struct request_queue *q)
 {
-	WARN_ON_ONCE(!spin_is_locked(q->queue_lock));
+	WARN_ON_ONCE(!queue_is_locked(q));
 	__set_bit(flag, &q->queue_flags);
 }
 
@@ -430,7 +436,7 @@ static inline void queue_flag_clear_unlocked(unsigned int flag,
 
 static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 {
-	WARN_ON_ONCE(!spin_is_locked(q->queue_lock));
+	WARN_ON_ONCE(!queue_is_locked(q));
 	__clear_bit(flag, &q->queue_flags);
 }
 
