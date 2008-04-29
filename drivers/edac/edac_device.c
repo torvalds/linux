@@ -36,7 +36,7 @@
  * is protected by the 'device_ctls_mutex' lock
  */
 static DEFINE_MUTEX(device_ctls_mutex);
-static struct list_head edac_device_list = LIST_HEAD_INIT(edac_device_list);
+static LIST_HEAD(edac_device_list);
 
 #ifdef CONFIG_EDAC_DEBUG
 static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
