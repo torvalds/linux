@@ -65,21 +65,21 @@ static u64 current_css_set_refcount_read(struct cgroup *cont,
 static struct cftype files[] =  {
 	{
 		.name = "cgroup_refcount",
-		.read_uint = cgroup_refcount_read,
+		.read_u64 = cgroup_refcount_read,
 	},
 	{
 		.name = "taskcount",
-		.read_uint = taskcount_read,
+		.read_u64 = taskcount_read,
 	},
 
 	{
 		.name = "current_css_set",
-		.read_uint = current_css_set_read,
+		.read_u64 = current_css_set_read,
 	},
 
 	{
 		.name = "current_css_set_refcount",
-		.read_uint = current_css_set_refcount_read,
+		.read_u64 = current_css_set_refcount_read,
 	},
 };
 
