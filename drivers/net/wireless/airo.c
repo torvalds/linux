@@ -3657,7 +3657,7 @@ void mpi_receive_802_11 (struct airo_info *ai)
 	ptr += hdrlen;
 	if (hdrlen == 24)
 		ptr += 6;
-	gap = le16_to_cpu(get_unaligned((__le16 *)ptr));
+	gap = get_unaligned_le16(ptr);
 	ptr += sizeof(__le16);
 	if (gap) {
 		if (gap <= 8)
