@@ -457,7 +457,7 @@ static void __add_entropy_words(struct entropy_store *r, const __u32 *in,
 	unsigned long i, add_ptr, tap1, tap2, tap3, tap4, tap5;
 	int input_rotate;
 	int wordmask = r->poolinfo->poolwords - 1;
-	__u32 w, next_w;
+	__u32 w;
 	unsigned long flags;
 
 	/* Taps are constant, so we can load them without holding r->lock.  */
@@ -466,17 +466,13 @@ static void __add_entropy_words(struct entropy_store *r, const __u32 *in,
 	tap3 = r->poolinfo->tap3;
 	tap4 = r->poolinfo->tap4;
 	tap5 = r->poolinfo->tap5;
-	next_w = *in++;
 
 	spin_lock_irqsave(&r->lock, flags);
-	prefetch_range(r->pool, wordmask);
 	input_rotate = r->input_rotate;
 	add_ptr = r->add_ptr;
 
 	while (nwords--) {
-		w = rol32(next_w, input_rotate & 31);
-		if (nwords > 0)
-			next_w = *in++;
+		w = rol32(*in++, input_rotate & 31);
 		i = add_ptr = (add_ptr - 1) & wordmask;
 
 		/* XOR in the various taps */
