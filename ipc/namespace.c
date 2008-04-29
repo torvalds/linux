@@ -26,6 +26,8 @@ static struct ipc_namespace *clone_ipc_ns(struct ipc_namespace *old_ns)
 	msg_init_ns(ns);
 	shm_init_ns(ns);
 
+	register_ipcns_notifier(ns);
+
 	kref_init(&ns->kref);
 	return ns;
 }
@@ -81,6 +83,15 @@ void free_ipc_ns(struct kref *kref)
 	struct ipc_namespace *ns;
 
 	ns = container_of(kref, struct ipc_namespace, kref);
+	/*
+	 * Unregistering the hotplug notifier at the beginning guarantees
+	 * that the ipc namespace won't be freed while we are inside the
+	 * callback routine. Since the blocking_notifier_chain_XXX routines
+	 * hold a rw lock on the notifier list, unregister_ipcns_notifier()
+	 * won't take the rw lock before blocking_notifier_call_chain() has
+	 * released the rd lock.
+	 */
+	unregister_ipcns_notifier(ns);
 	sem_exit_ns(ns);
 	msg_exit_ns(ns);
 	shm_exit_ns(ns);

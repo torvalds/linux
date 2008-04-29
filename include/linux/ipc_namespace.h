@@ -4,6 +4,17 @@
 #include <linux/err.h>
 #include <linux/idr.h>
 #include <linux/rwsem.h>
+#ifdef CONFIG_MEMORY_HOTPLUG
+#include <linux/notifier.h>
+#endif /* CONFIG_MEMORY_HOTPLUG */
+
+/*
+ * ipc namespace events
+ */
+#define IPCNS_MEMCHANGED   0x00000001   /* Notify lowmem size changed */
+
+#define IPCNS_CALLBACK_PRI 0
+
 
 struct ipc_ids {
 	int in_use;
@@ -30,6 +41,10 @@ struct ipc_namespace {
 	size_t		shm_ctlall;
 	int		shm_ctlmni;
 	int		shm_tot;
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+	struct notifier_block ipcns_nb;
+#endif
 };
 
 extern struct ipc_namespace init_ipc_ns;
@@ -37,9 +52,33 @@ extern atomic_t nr_ipc_ns;
 
 #ifdef CONFIG_SYSVIPC
 #define INIT_IPC_NS(ns)		.ns		= &init_ipc_ns,
-#else
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+
+extern int register_ipcns_notifier(struct ipc_namespace *);
+extern int unregister_ipcns_notifier(struct ipc_namespace *);
+extern int ipcns_notify(unsigned long);
+
+#else /* CONFIG_MEMORY_HOTPLUG */
+
+static inline int register_ipcns_notifier(struct ipc_namespace *ipcns)
+{
+	return 0;
+}
+static inline int unregister_ipcns_notifier(struct ipc_namespace *ipcns)
+{
+	return 0;
+}
+static inline int ipcns_notify(unsigned long ev)
+{
+	return 0;
+}
+
+#endif /* CONFIG_MEMORY_HOTPLUG */
+
+#else /* CONFIG_SYSVIPC */
 #define INIT_IPC_NS(ns)
-#endif
+#endif /* CONFIG_SYSVIPC */
 
 #if defined(CONFIG_SYSVIPC) && defined(CONFIG_IPC_NS)
 extern void free_ipc_ns(struct kref *kref);
