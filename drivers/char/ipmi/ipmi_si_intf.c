@@ -2892,7 +2892,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	}
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "type",
-				     type_file_read_proc, NULL,
+				     type_file_read_proc,
 				     new_smi, THIS_MODULE);
 	if (rv) {
 		printk(KERN_ERR
@@ -2902,7 +2902,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	}
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "si_stats",
-				     stat_file_read_proc, NULL,
+				     stat_file_read_proc,
 				     new_smi, THIS_MODULE);
 	if (rv) {
 		printk(KERN_ERR
@@ -2912,7 +2912,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	}
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "params",
-				     param_read_proc, NULL,
+				     param_read_proc,
 				     new_smi, THIS_MODULE);
 	if (rv) {
 		printk(KERN_ERR

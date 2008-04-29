@@ -1941,7 +1941,7 @@ static int stat_file_read_proc(char *page, char **start, off_t off,
 #endif /* CONFIG_PROC_FS */
 
 int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
-			    read_proc_t *read_proc, write_proc_t *write_proc,
+			    read_proc_t *read_proc,
 			    void *data, struct module *owner)
 {
 	int                    rv = 0;
@@ -1968,7 +1968,6 @@ int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
 	} else {
 		file->data = data;
 		file->read_proc = read_proc;
-		file->write_proc = write_proc;
 		file->owner = owner;
 
 		mutex_lock(&smi->proc_entry_lock);
@@ -1997,17 +1996,17 @@ static int add_proc_entries(ipmi_smi_t smi, int num)
 
 	if (rv == 0)
 		rv = ipmi_smi_add_proc_entry(smi, "stats",
-					     stat_file_read_proc, NULL,
+					     stat_file_read_proc,
 					     smi, THIS_MODULE);
 
 	if (rv == 0)
 		rv = ipmi_smi_add_proc_entry(smi, "ipmb",
-					     ipmb_file_read_proc, NULL,
+					     ipmb_file_read_proc,
 					     smi, THIS_MODULE);
 
 	if (rv == 0)
 		rv = ipmi_smi_add_proc_entry(smi, "version",
-					     version_file_read_proc, NULL,
+					     version_file_read_proc,
 					     smi, THIS_MODULE);
 #endif /* CONFIG_PROC_FS */
 

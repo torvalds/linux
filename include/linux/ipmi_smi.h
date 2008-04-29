@@ -229,7 +229,7 @@ static inline void ipmi_free_smi_msg(struct ipmi_smi_msg *msg)
    directory for this interface.  Note that the entry will
    automatically be dstroyed when the interface is destroyed. */
 int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
-			    read_proc_t *read_proc, write_proc_t *write_proc,
+			    read_proc_t *read_proc,
 			    void *data, struct module *owner);
 
 #endif /* __LINUX_IPMI_SMI_H */
