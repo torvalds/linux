@@ -412,8 +412,12 @@ struct request_queue
 
 static inline int queue_is_locked(struct request_queue *q)
 {
+#ifdef CONFIG_SMP
 	spinlock_t *lock = q->queue_lock;
 	return lock && spin_is_locked(lock);
+#else
+	return 1;
+#endif
 }
 
 static inline void queue_flag_set_unlocked(unsigned int flag,
