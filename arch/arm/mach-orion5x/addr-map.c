@@ -19,14 +19,14 @@
 
 /*
  * The Orion has fully programable address map. There's a separate address
- * map for each of the device _master_ interfaces, e.g. CPU, PCI, PCIE, USB,
+ * map for each of the device _master_ interfaces, e.g. CPU, PCI, PCIe, USB,
  * Gigabit Ethernet, DMA/XOR engines, etc. Each interface has its own
  * address decode windows that allow it to access any of the Orion resources.
  *
  * CPU address decoding --
  * Linux assumes that it is the boot loader that already setup the access to
  * DDR and internal registers.
- * Setup access to PCI and PCI-E IO/MEM space is issued by this file.
+ * Setup access to PCI and PCIe IO/MEM space is issued by this file.
  * Setup access to various devices located on the device bus interface (e.g.
  * flashes, RTC, etc) should be issued by machine-setup.c according to
  * specific board population (by using orion5x_setup_*_win()).

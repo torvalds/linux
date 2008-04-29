@@ -51,7 +51,7 @@
 /*
  * MPCore SCU event monitor support
  */
-#define SCU_EVENTMONITORS_VA_BASE __io_address(REALVIEW_MPCORE_SCU_BASE + 0x10)
+#define SCU_EVENTMONITORS_VA_BASE __io_address(REALVIEW_EB11MP_SCU_BASE + 0x10)
 
 /*
  * Bitmask of used SCU counters
@@ -80,7 +80,7 @@ static irqreturn_t scu_em_interrupt(int irq, void *arg)
 	struct eventmonitor __iomem *emc = SCU_EVENTMONITORS_VA_BASE;
 	unsigned int cnt;
 
-	cnt = irq - IRQ_PMU_SCU0;
+	cnt = irq - IRQ_EB11MP_PMU_SCU0;
 	oprofile_add_sample(get_irq_regs(), SCU_COUNTER(cnt));
 	scu_reset_counter(emc, cnt);
 
@@ -119,10 +119,10 @@ static int scu_start(void)
 	 */
 	for (i = 0; i < NUM_SCU_COUNTERS; i++) {
 		if (scu_em_used & (1 << i)) {
-			ret = request_irq(IRQ_PMU_SCU0 + i, scu_em_interrupt, IRQF_DISABLED, "SCU PMU", NULL);
+			ret = request_irq(IRQ_EB11MP_PMU_SCU0 + i, scu_em_interrupt, IRQF_DISABLED, "SCU PMU", NULL);
 			if (ret) {
 				printk(KERN_ERR "oprofile: unable to request IRQ%u for SCU Event Monitor\n",
-				       IRQ_PMU_SCU0 + i);
+				       IRQ_EB11MP_PMU_SCU0 + i);
 				goto err_free_scu;
 			}
 		}
@@ -153,7 +153,7 @@ static int scu_start(void)
 
  err_free_scu:
 	while (i--)
-		free_irq(IRQ_PMU_SCU0 + i, NULL);
+		free_irq(IRQ_EB11MP_PMU_SCU0 + i, NULL);
 	return ret;
 }
 
@@ -175,7 +175,7 @@ static void scu_stop(void)
 	for (i = 0; i < NUM_SCU_COUNTERS; i++) {
 		if (scu_em_used & (1 << i)) {
 			scu_reset_counter(emc, i);
-			free_irq(IRQ_PMU_SCU0 + i, NULL);
+			free_irq(IRQ_EB11MP_PMU_SCU0 + i, NULL);
 		}
 	}
 }
@@ -225,10 +225,10 @@ static int em_setup_ctrs(void)
 }
 
 static int arm11_irqs[] = {
-	[0]	= IRQ_PMU_CPU0,
-	[1]	= IRQ_PMU_CPU1,
-	[2]	= IRQ_PMU_CPU2,
-	[3]	= IRQ_PMU_CPU3
+	[0]	= IRQ_EB11MP_PMU_CPU0,
+	[1]	= IRQ_EB11MP_PMU_CPU1,
+	[2]	= IRQ_EB11MP_PMU_CPU2,
+	[3]	= IRQ_EB11MP_PMU_CPU3
 };
 
 static int em_start(void)
@@ -273,22 +273,22 @@ static int em_setup(void)
 	/*
 	 * Send SCU PMU interrupts to the "owner" CPU.
 	 */
-	em_route_irq(IRQ_PMU_SCU0, 0);
-	em_route_irq(IRQ_PMU_SCU1, 0);
-	em_route_irq(IRQ_PMU_SCU2, 1);
-	em_route_irq(IRQ_PMU_SCU3, 1);
-	em_route_irq(IRQ_PMU_SCU4, 2);
-	em_route_irq(IRQ_PMU_SCU5, 2);
-	em_route_irq(IRQ_PMU_SCU6, 3);
-	em_route_irq(IRQ_PMU_SCU7, 3);
+	em_route_irq(IRQ_EB11MP_PMU_SCU0, 0);
+	em_route_irq(IRQ_EB11MP_PMU_SCU1, 0);
+	em_route_irq(IRQ_EB11MP_PMU_SCU2, 1);
+	em_route_irq(IRQ_EB11MP_PMU_SCU3, 1);
+	em_route_irq(IRQ_EB11MP_PMU_SCU4, 2);
+	em_route_irq(IRQ_EB11MP_PMU_SCU5, 2);
+	em_route_irq(IRQ_EB11MP_PMU_SCU6, 3);
+	em_route_irq(IRQ_EB11MP_PMU_SCU7, 3);
 
 	/*
 	 * Send CP15 PMU interrupts to the owner CPU.
 	 */
-	em_route_irq(IRQ_PMU_CPU0, 0);
-	em_route_irq(IRQ_PMU_CPU1, 1);
-	em_route_irq(IRQ_PMU_CPU2, 2);
-	em_route_irq(IRQ_PMU_CPU3, 3);
+	em_route_irq(IRQ_EB11MP_PMU_CPU0, 0);
+	em_route_irq(IRQ_EB11MP_PMU_CPU1, 1);
+	em_route_irq(IRQ_EB11MP_PMU_CPU2, 2);
+	em_route_irq(IRQ_EB11MP_PMU_CPU3, 3);
 
 	return 0;
 }
