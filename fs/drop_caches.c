@@ -25,7 +25,7 @@ static void drop_pagecache_sb(struct super_block *sb)
 	spin_unlock(&inode_lock);
 }
 
-void drop_pagecache(void)
+static void drop_pagecache(void)
 {
 	struct super_block *sb;
 
@@ -45,7 +45,7 @@ restart:
 	spin_unlock(&sb_lock);
 }
 
-void drop_slab(void)
+static void drop_slab(void)
 {
 	int nr_objects;
 
