@@ -147,7 +147,7 @@ static void serial_buf_free(struct circ_buf *cb)
  */
 static int serial_buf_data_avail(struct circ_buf *cb)
 {
-	return CIRC_CNT(cb->head,cb->tail,AIRCABLE_BUF_SIZE);
+	return CIRC_CNT(cb->head, cb->tail, AIRCABLE_BUF_SIZE);
 }
 
 /*
@@ -171,7 +171,7 @@ static int serial_buf_put(struct circ_buf *cb, const char *buf, int count)
 		cb->head = (cb->head + c) & (AIRCABLE_BUF_SIZE-1);
 		buf += c;
 		count -= c;
-		ret= c;
+		ret = c;
 	}
 	return ret;
 }
@@ -197,7 +197,7 @@ static int serial_buf_get(struct circ_buf *cb, char *buf, int count)
 		cb->tail = (cb->tail + c) & (AIRCABLE_BUF_SIZE-1);
 		buf += c;
 		count -= c;
-		ret= c;
+		ret = c;
 	}
 	return ret;
 }
@@ -208,7 +208,7 @@ static void aircable_send(struct usb_serial_port *port)
 {
 	int count, result;
 	struct aircable_private *priv = usb_get_serial_port_data(port);
-	unsigned char* buf;
+	unsigned char *buf;
 	__le16 *dbuf;
 	dbg("%s - port %d", __func__, port->number);
 	if (port->write_urb_busy)
@@ -229,7 +229,8 @@ static void aircable_send(struct usb_serial_port *port)
 	buf[1] = TX_HEADER_1;
 	dbuf = (__le16 *)&buf[2];
 	*dbuf = cpu_to_le16((u16)count);
-	serial_buf_get(priv->tx_buf,buf + HCI_HEADER_LENGTH, MAX_HCI_FRAMESIZE);
+	serial_buf_get(priv->tx_buf, buf + HCI_HEADER_LENGTH,
+							MAX_HCI_FRAMESIZE);
 
 	memcpy(port->write_urb->transfer_buffer, buf,
 	       count + HCI_HEADER_LENGTH);
@@ -261,7 +262,7 @@ static void aircable_read(struct work_struct *work)
 	struct tty_struct *tty;
 	unsigned char *data;
 	int count;
-	if (priv->rx_flags & THROTTLED){
+	if (priv->rx_flags & THROTTLED) {
 		if (priv->rx_flags & ACTUALLY_THROTTLED)
 			schedule_work(&priv->rx_work);
 		return;
@@ -282,10 +283,10 @@ static void aircable_read(struct work_struct *work)
 	count = min(64, serial_buf_data_avail(priv->rx_buf));
 
 	if (count <= 0)
-		return; //We have finished sending everything.
+		return; /* We have finished sending everything. */
 
 	tty_prepare_flip_string(tty, &data, count);
-	if (!data){
+	if (!data) {
 		err("%s- kzalloc(%d) failed.", __func__, count);
 		return;
 	}
@@ -304,9 +305,10 @@ static void aircable_read(struct work_struct *work)
 static int aircable_probe(struct usb_serial *serial,
 			  const struct usb_device_id *id)
 {
-	struct usb_host_interface *iface_desc = serial->interface->cur_altsetting;
+	struct usb_host_interface *iface_desc = serial->interface->
+								cur_altsetting;
 	struct usb_endpoint_descriptor *endpoint;
-	int num_bulk_out=0;
+	int num_bulk_out = 0;
 	int i;
 
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
@@ -325,13 +327,13 @@ static int aircable_probe(struct usb_serial *serial,
 	return 0;
 }
 
-static int aircable_attach (struct usb_serial *serial)
+static int aircable_attach(struct usb_serial *serial)
 {
 	struct usb_serial_port *port = serial->port[0];
 	struct aircable_private *priv;
 
 	priv = kzalloc(sizeof(struct aircable_private), GFP_KERNEL);
-	if (!priv){
+	if (!priv) {
 		err("%s- kmalloc(%Zd) failed.", __func__,
 			sizeof(struct aircable_private));
 		return -ENOMEM;
@@ -392,7 +394,7 @@ static int aircable_write(struct usb_serial_port *port,
 
 	usb_serial_debug_data(debug, &port->dev, __func__, count, source);
 
-	if (!count){
+	if (!count) {
 		dbg("%s - write request of 0 bytes", __func__);
 		return count;
 	}
@@ -418,31 +420,31 @@ static void aircable_write_bulk_callback(struct urb *urb)
 
 	/* This has been taken from cypress_m8.c cypress_write_int_callback */
 	switch (status) {
-		case 0:
-			/* success */
-			break;
-		case -ECONNRESET:
-		case -ENOENT:
-		case -ESHUTDOWN:
-			/* this urb is terminated, clean up */
-			dbg("%s - urb shutting down with status: %d",
-			    __func__, status);
-			port->write_urb_busy = 0;
+	case 0:
+		/* success */
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		/* this urb is terminated, clean up */
+		dbg("%s - urb shutting down with status: %d",
+		    __func__, status);
+		port->write_urb_busy = 0;
+		return;
+	default:
+		/* error in the urb, so we have to resubmit it */
+		dbg("%s - Overflow in write", __func__);
+		dbg("%s - nonzero write bulk status received: %d",
+		    __func__, status);
+		port->write_urb->transfer_buffer_length = 1;
+		port->write_urb->dev = port->serial->dev;
+		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
+		if (result)
+			dev_err(&urb->dev->dev,
+			    "%s - failed resubmitting write urb, error %d\n",
+							__func__, result);
+		else
 			return;
-		default:
-			/* error in the urb, so we have to resubmit it */
-			dbg("%s - Overflow in write", __func__);
-			dbg("%s - nonzero write bulk status received: %d",
-			    __func__, status);
-			port->write_urb->transfer_buffer_length = 1;
-			port->write_urb->dev = port->serial->dev;
-			result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-			if (result)
-				dev_err(&urb->dev->dev,
-					"%s - failed resubmitting write urb, error %d\n",
-					__func__, result);
-			else
-				return;
 	}
 
 	port->write_urb_busy = 0;
@@ -472,11 +474,11 @@ static void aircable_read_bulk_callback(struct urb *urb)
 			dbg("%s - caught -EPROTO, resubmitting the urb",
 			    __func__);
 			usb_fill_bulk_urb(port->read_urb, port->serial->dev,
-					  usb_rcvbulkpipe(port->serial->dev,
-					  		  port->bulk_in_endpointAddress),
-					  port->read_urb->transfer_buffer,
-					  port->read_urb->transfer_buffer_length,
-					  aircable_read_bulk_callback, port);
+				usb_rcvbulkpipe(port->serial->dev,
+					port->bulk_in_endpointAddress),
+				port->read_urb->transfer_buffer,
+				port->read_urb->transfer_buffer_length,
+				aircable_read_bulk_callback, port);
 
 			result = usb_submit_urb(urb, GFP_ATOMIC);
 			if (result)
@@ -490,7 +492,7 @@ static void aircable_read_bulk_callback(struct urb *urb)
 	}
 
 	usb_serial_debug_data(debug, &port->dev, __func__,
-				urb->actual_length,urb->transfer_buffer);
+				urb->actual_length, urb->transfer_buffer);
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
@@ -507,9 +509,9 @@ static void aircable_read_bulk_callback(struct urb *urb)
 			no_packages = urb->actual_length / (HCI_COMPLETE_FRAME);
 
 			if (urb->actual_length % HCI_COMPLETE_FRAME != 0)
-				no_packages+=1;
+				no_packages++;
 
-			for (i = 0; i < no_packages ;i++) {
+			for (i = 0; i < no_packages; i++) {
 				if (remaining > (HCI_COMPLETE_FRAME))
 					package_length = HCI_COMPLETE_FRAME;
 				else
@@ -529,7 +531,7 @@ static void aircable_read_bulk_callback(struct urb *urb)
 	if (port->open_count) {
 		usb_fill_bulk_urb(port->read_urb, port->serial->dev,
 				  usb_rcvbulkpipe(port->serial->dev,
-				  		  port->bulk_in_endpointAddress),
+					  port->bulk_in_endpointAddress),
 				  port->read_urb->transfer_buffer,
 				  port->read_urb->transfer_buffer_length,
 				  aircable_read_bulk_callback, port);
@@ -602,7 +604,7 @@ static struct usb_serial_driver aircable_device = {
 	.unthrottle =		aircable_unthrottle,
 };
 
-static int __init aircable_init (void)
+static int __init aircable_init(void)
 {
 	int retval;
 	retval = usb_serial_register(&aircable_device);
@@ -619,7 +621,7 @@ failed_usb_register:
 	return retval;
 }
 
-static void __exit aircable_exit (void)
+static void __exit aircable_exit(void)
 {
 	usb_deregister(&aircable_driver);
 	usb_serial_deregister(&aircable_device);
