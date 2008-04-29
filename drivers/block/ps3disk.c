@@ -405,7 +405,6 @@ static void ps3disk_prepare_flush(struct request_queue *q, struct request *req)
 
 	dev_dbg(&dev->sbd.core, "%s:%u\n", __func__, __LINE__);
 
-	memset(req->cmd, 0, sizeof(req->cmd));
 	req->cmd_type = REQ_TYPE_FLUSH;
 }
 
