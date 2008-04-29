@@ -107,7 +107,9 @@ struct audit_buffer *netlbl_audit_start_common(int type,
 	if (audit_buf == NULL)
 		return NULL;
 
-	audit_log_format(audit_buf, "netlabel: auid=%u", audit_info->loginuid);
+	audit_log_format(audit_buf, "netlabel: auid=%u ses=%u",
+			 audit_info->loginuid,
+			 audit_info->sessionid);
 
 	if (audit_info->secid != 0 &&
 	    security_secid_to_secctx(audit_info->secid,

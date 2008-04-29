@@ -752,11 +752,13 @@ W:	http://atmelwlandriver.sourceforge.net/
 S:	Maintained
 
 AUDIT SUBSYSTEM
-P:	David Woodhouse
-M:	dwmw2@infradead.org
+P:	Al Viro
+M:	viro@zeniv.linux.org.uk
+P:	Eric Paris
+M:	eparis@redhat.com
 L:	linux-audit@redhat.com (subscribers-only)
 W:	http://people.redhat.com/sgrubb/audit/
-T:	git kernel.org:/pub/scm/linux/kernel/git/dwmw2/audit-2.6.git
+T:	git git.kernel.org/pub/scm/linux/kernel/git/viro/audit-current.git
 S:	Maintained
 
 AUXILIARY DISPLAY DRIVERS

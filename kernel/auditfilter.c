@@ -89,13 +89,8 @@ struct list_head audit_filter_list[AUDIT_NR_FILTERS] = {
 
 DEFINE_MUTEX(audit_filter_mutex);
 
-/* Inotify handle */
-extern struct inotify_handle *audit_ih;
-
 /* Inotify events we care about. */
 #define AUDIT_IN_WATCH IN_MOVE|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_MOVE_SELF
-
-extern int audit_enabled;
 
 void audit_free_parent(struct inotify_watch *i_watch)
 {
@@ -422,7 +417,7 @@ exit_err:
 static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 {
 	struct audit_entry *entry;
-	struct audit_field *f;
+	struct audit_field *ino_f;
 	int err = 0;
 	int i;
 
@@ -483,6 +478,10 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 			if (f->val & ~15)
 				goto exit_free;
 			break;
+		case AUDIT_FILETYPE:
+			if ((f->val & ~S_IFMT) > S_IFMT)
+				goto exit_free;
+			break;
 		case AUDIT_INODE:
 			err = audit_to_inode(&entry->rule, f);
 			if (err)
@@ -504,9 +503,9 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		}
 	}
 
-	f = entry->rule.inode_f;
-	if (f) {
-		switch(f->op) {
+	ino_f = entry->rule.inode_f;
+	if (ino_f) {
+		switch(ino_f->op) {
 		case AUDIT_NOT_EQUAL:
 			entry->rule.inode_f = NULL;
 		case AUDIT_EQUAL:
@@ -531,7 +530,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 {
 	int err = 0;
 	struct audit_entry *entry;
-	struct audit_field *f;
+	struct audit_field *ino_f;
 	void *bufp;
 	size_t remain = datasz - sizeof(struct audit_rule_data);
 	int i;
@@ -654,14 +653,18 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 			if (f->val & ~15)
 				goto exit_free;
 			break;
+		case AUDIT_FILETYPE:
+			if ((f->val & ~S_IFMT) > S_IFMT)
+				goto exit_free;
+			break;
 		default:
 			goto exit_free;
 		}
 	}
 
-	f = entry->rule.inode_f;
-	if (f) {
-		switch(f->op) {
+	ino_f = entry->rule.inode_f;
+	if (ino_f) {
+		switch(ino_f->op) {
 		case AUDIT_NOT_EQUAL:
 			entry->rule.inode_f = NULL;
 		case AUDIT_EQUAL:
@@ -1500,8 +1503,9 @@ static void audit_list_rules(int pid, int seq, struct sk_buff_head *q)
 }
 
 /* Log rule additions and removals */
-static void audit_log_rule_change(uid_t loginuid, u32 sid, char *action,
-				  struct audit_krule *rule, int res)
+static void audit_log_rule_change(uid_t loginuid, u32 sessionid, u32 sid,
+				  char *action, struct audit_krule *rule,
+				  int res)
 {
 	struct audit_buffer *ab;
 
@@ -1511,7 +1515,7 @@ static void audit_log_rule_change(uid_t loginuid, u32 sid, char *action,
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
 	if (!ab)
 		return;
-	audit_log_format(ab, "auid=%u", loginuid);
+	audit_log_format(ab, "auid=%u ses=%u", loginuid, sessionid);
 	if (sid) {
 		char *ctx = NULL;
 		u32 len;
@@ -1543,7 +1547,7 @@ static void audit_log_rule_change(uid_t loginuid, u32 sid, char *action,
  * @sid: SE Linux Security ID of sender
  */
 int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
-			 size_t datasz, uid_t loginuid, u32 sid)
+			 size_t datasz, uid_t loginuid, u32 sessionid, u32 sid)
 {
 	struct task_struct *tsk;
 	struct audit_netlink_list *dest;
@@ -1590,7 +1594,8 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_add_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-		audit_log_rule_change(loginuid, sid, "add", &entry->rule, !err);
+		audit_log_rule_change(loginuid, sessionid, sid, "add",
+				      &entry->rule, !err);
 
 		if (err)
 			audit_free_rule(entry);
@@ -1606,8 +1611,8 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_del_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-		audit_log_rule_change(loginuid, sid, "remove", &entry->rule,
-				      !err);
+		audit_log_rule_change(loginuid, sessionid, sid, "remove",
+				      &entry->rule, !err);
 
 		audit_free_rule(entry);
 		break;
