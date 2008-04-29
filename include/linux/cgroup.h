@@ -243,6 +243,14 @@ struct cftype {
 	 */
 	int (*write_s64) (struct cgroup *cgrp, struct cftype *cft, s64 val);
 
+	/*
+	 * trigger() callback can be used to get some kick from the
+	 * userspace, when the actual string written is not important
+	 * at all. The private field can be used to determine the
+	 * kick type for multiplexing.
+	 */
+	int (*trigger)(struct cgroup *cgrp, unsigned int event);
+
 	int (*release) (struct inode *inode, struct file *file);
 };
 
