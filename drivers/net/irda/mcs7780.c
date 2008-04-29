@@ -464,7 +464,7 @@ static void mcs_unwrap_fir(struct mcs_cb *mcs, __u8 *buf, int len)
 	}
 
 	fcs = ~(crc32_le(~0, buf, new_len));
-	if(fcs != le32_to_cpu(get_unaligned((__le32 *)(buf+new_len)))) {
+	if(fcs != get_unaligned_le32(buf + new_len)) {
 		IRDA_ERROR("crc error calc 0x%x len %d\n", fcs, new_len);
 		mcs->stats.rx_errors++;
 		mcs->stats.rx_crc_errors++;

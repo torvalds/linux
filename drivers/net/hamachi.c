@@ -1508,7 +1508,7 @@ static int hamachi_rx(struct net_device *dev)
 					    hmp->rx_buf_sz,
 					    PCI_DMA_FROMDEVICE);
 		buf_addr = (u8 *) hmp->rx_skbuff[entry]->data;
-		frame_status = le32_to_cpu(get_unaligned((__le32*)&(buf_addr[data_size - 12])));
+		frame_status = get_unaligned_le32(&(buf_addr[data_size - 12]));
 		if (hamachi_debug > 4)
 			printk(KERN_DEBUG "  hamachi_rx() status was %8.8x.\n",
 				frame_status);
