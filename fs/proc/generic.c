@@ -69,12 +69,7 @@ proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 		count = min_t(size_t, PROC_BLOCK_SIZE, nbytes);
 
 		start = NULL;
-		if (dp->get_info) {
-			/* Handle old net routines */
-			n = dp->get_info(page, &start, *ppos, count);
-			if (n < count)
-				eof = 1;
-		} else if (dp->read_proc) {
+		if (dp->read_proc) {
 			/*
 			 * How to be a proc read function
 			 * ------------------------------
