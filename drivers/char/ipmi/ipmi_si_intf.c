@@ -723,8 +723,11 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 		si_sm_result = smi_info->handlers->event(smi_info->si_sm, 0);
 	}
 
-	/* We prefer handling attn over new messages. */
-	if (si_sm_result == SI_SM_ATTN)
+	/*
+	 * We prefer handling attn over new messages.  But don't do
+	 * this if there is not yet an upper layer to handle anything.
+	 */
+	if (likely(smi_info->intf) && si_sm_result == SI_SM_ATTN)
 	{
 		unsigned char msg[2];
 
