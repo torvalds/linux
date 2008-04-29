@@ -93,7 +93,7 @@ ENTRY(cpu_feroceon_reset)
  *
  * Called with IRQs disabled
  */
-	.align	10
+	.align	5
 ENTRY(cpu_feroceon_do_idle)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain write buffer
@@ -106,6 +106,7 @@ ENTRY(cpu_feroceon_do_idle)
  *	Clean and invalidate all cache entries in a particular
  *	address space.
  */
+	.align	5
 ENTRY(feroceon_flush_user_cache_all)
 	/* FALLTHROUGH */
 
@@ -135,6 +136,7 @@ __flush_whole_cache:
  *	- end	- end address (exclusive)
  *	- flags	- vm_flags describing address space
  */
+	.align	5
 ENTRY(feroceon_flush_user_cache_range)
 	mov	ip, #0
 	sub	r3, r1, r0			@ calculate total size
@@ -163,6 +165,7 @@ ENTRY(feroceon_flush_user_cache_range)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
+	.align	5
 ENTRY(feroceon_coherent_kern_range)
 	/* FALLTHROUGH */
 
@@ -194,6 +197,7 @@ ENTRY(feroceon_coherent_user_range)
  *
  *	- addr	- page aligned address
  */
+	.align	5
 ENTRY(feroceon_flush_kern_dcache_page)
 	add	r1, r0, #PAGE_SZ
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean+invalidate D entry
@@ -218,6 +222,7 @@ ENTRY(feroceon_flush_kern_dcache_page)
  *
  * (same as v4wb)
  */
+	.align	5
 ENTRY(feroceon_dma_inv_range)
 	tst	r0, #CACHE_DLINESIZE - 1
 	mcrne	p15, 0, r0, c7, c10, 1		@ clean D entry
@@ -241,6 +246,7 @@ ENTRY(feroceon_dma_inv_range)
  *
  * (same as v4wb)
  */
+	.align	5
 ENTRY(feroceon_dma_clean_range)
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
@@ -258,10 +264,10 @@ ENTRY(feroceon_dma_clean_range)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
+	.align	5
 ENTRY(feroceon_dma_flush_range)
 	bic	r0, r0, #CACHE_DLINESIZE - 1
-1:
-	mcr	p15, 0, r0, c7, c14, 1		@ clean+invalidate D entry
+1:	mcr	p15, 0, r0, c7, c14, 1		@ clean+invalidate D entry
 	add	r0, r0, #CACHE_DLINESIZE
 	cmp	r0, r1
 	blo	1b
@@ -279,6 +285,7 @@ ENTRY(feroceon_cache_fns)
 	.long	feroceon_dma_clean_range
 	.long	feroceon_dma_flush_range
 
+	.align	5
 ENTRY(cpu_feroceon_dcache_clean_area)
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -433,7 +440,7 @@ __feroceon_old_id_proc_info:
 	.long	cpu_feroceon_name
 	.long	feroceon_processor_functions
 	.long	v4wbi_tlb_fns
-	.long	v4wb_user_fns
+	.long	feroceon_user_fns
 	.long	feroceon_cache_fns
 	.size	__feroceon_old_id_proc_info, . - __feroceon_old_id_proc_info
 #endif
@@ -459,6 +466,6 @@ __feroceon_proc_info:
 	.long	cpu_feroceon_name
 	.long	feroceon_processor_functions
 	.long	v4wbi_tlb_fns
-	.long	v4wb_user_fns
+	.long	feroceon_user_fns
 	.long	feroceon_cache_fns
 	.size	__feroceon_proc_info, . - __feroceon_proc_info
