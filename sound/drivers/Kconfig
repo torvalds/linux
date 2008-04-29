@@ -8,6 +8,8 @@ config SND_PCSP
 	tristate "Internal PC speaker support"
 	depends on X86_PC && HIGH_RES_TIMERS
 	depends on INPUT
+	depends on SND
+	select SND_PCM
 	help
 	  If you don't have a sound card in your computer, you can include a
 	  driver for the PC speaker which allows it to act like a primitive

@@ -243,7 +243,7 @@ static int snd_mpu401_uart_cmd(struct snd_mpu401 * mpu, unsigned char cmd,
 #endif
 	}
 	mpu->write(mpu, cmd, MPU401C(mpu));
-	if (ack) {
+	if (ack && !(mpu->info_flags & MPU401_INFO_NO_ACK)) {
 		ok = 0;
 		timeout = 10000;
 		while (!ok && timeout-- > 0) {
