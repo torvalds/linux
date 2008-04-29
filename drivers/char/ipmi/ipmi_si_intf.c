@@ -289,7 +289,8 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 
 	/* No need to save flags, we aleady have interrupts off and we
 	   already hold the SMI lock. */
-	spin_lock(&(smi_info->msg_lock));
+	if (!smi_info->run_to_completion)
+		spin_lock(&(smi_info->msg_lock));
 
 	/* Pick the high priority queue first. */
 	if (!list_empty(&(smi_info->hp_xmit_msgs))) {
@@ -329,7 +330,8 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 		rv = SI_SM_CALL_WITHOUT_DELAY;
 	}
 	out:
-	spin_unlock(&(smi_info->msg_lock));
+	if (!smi_info->run_to_completion)
+		spin_unlock(&(smi_info->msg_lock));
 
 	return rv;
 }

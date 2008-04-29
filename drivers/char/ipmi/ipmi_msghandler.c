@@ -351,8 +351,16 @@ struct ipmi_smi
 
 	/* Invalid data in an event. */
 	unsigned int invalid_events;
+
 	/* Events that were received with the proper format. */
 	unsigned int events;
+
+	/*
+	 * run_to_completion duplicate of smb_info, smi_info
+	 * and ipmi_serial_info structures. Used to decrease numbers of
+	 * parameters passed by "low" level IPMI code.
+	 */
+	int run_to_completion;
 };
 #define to_si_intf_from_dev(device) container_of(device, struct ipmi_smi, dev)
 
@@ -3451,8 +3459,9 @@ static int handle_new_recv_msg(ipmi_smi_t          intf,
 void ipmi_smi_msg_received(ipmi_smi_t          intf,
 			   struct ipmi_smi_msg *msg)
 {
-	unsigned long flags;
+	unsigned long flags = 0; /* keep us warning-free. */
 	int           rv;
+	int           run_to_completion;
 
 
 	if ((msg->data_size >= 2)
@@ -3501,21 +3510,28 @@ void ipmi_smi_msg_received(ipmi_smi_t          intf,
 
 	/* To preserve message order, if the list is not empty, we
            tack this message onto the end of the list. */
-	spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
+	run_to_completion = intf->run_to_completion;
+	if (!run_to_completion)
+		spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
 	if (!list_empty(&intf->waiting_msgs)) {
 		list_add_tail(&msg->link, &intf->waiting_msgs);
-		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
+		if (!run_to_completion)
+			spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
 		goto out;
 	}
-	spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
+	if (!run_to_completion)
+		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
 		
 	rv = handle_new_recv_msg(intf, msg);
 	if (rv > 0) {
 		/* Could not handle the message now, just add it to a
                    list to handle later. */
-		spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
+		run_to_completion = intf->run_to_completion;
+		if (!run_to_completion)
+			spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
 		list_add_tail(&msg->link, &intf->waiting_msgs);
-		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
+		if (!run_to_completion)
+			spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
 	} else if (rv == 0) {
 		ipmi_free_smi_msg(msg);
 	}
@@ -3884,6 +3900,7 @@ static void send_panic_events(char *str)
 			/* Interface is not ready. */
 			continue;
 
+		intf->run_to_completion = 1;
 		/* Send the event announcing the panic. */
 		intf->handlers->set_run_to_completion(intf->send_info, 1);
 		i_ipmi_request(NULL,
@@ -4059,6 +4076,7 @@ static int panic_event(struct notifier_block *this,
 			/* Interface is not ready. */
 			continue;
 
+		intf->run_to_completion = 1;
 		intf->handlers->set_run_to_completion(intf->send_info, 1);
 	}
 
