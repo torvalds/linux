@@ -10,20 +10,13 @@
 #include <linux/errno.h> 
 #include <linux/hardirq.h>
 #include <linux/suspend.h>
+#include <linux/kbuild.h>
 #include <asm/pda.h>
 #include <asm/processor.h>
 #include <asm/segment.h>
 #include <asm/thread_info.h>
 #include <asm/ia32.h>
 #include <asm/bootparam.h>
-
-#define DEFINE(sym, val) \
-        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
-
-#define OFFSET(sym, str, mem) \
-	DEFINE(sym, offsetof(struct str, mem))
 
 #define __NO_STUBS 1
 #undef __SYSCALL
