@@ -1509,17 +1509,17 @@ again:
 	if (map->type & BTRFS_BLOCK_GROUP_RAID1) {
 		if (unplug_page || (rw & (1 << BIO_RW)))
 			num_stripes = map->num_stripes;
-		else if (mirror_num) {
+		else if (mirror_num)
 			stripe_index = mirror_num - 1;
-		} else {
-			u64 orig_stripe_nr = stripe_nr;
-			stripe_index = do_div(orig_stripe_nr, num_stripes);
-		}
+		else
+			stripe_index = current->pid % map->num_stripes;
+
 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
 		if (rw & (1 << BIO_RW))
 			num_stripes = map->num_stripes;
 		else if (mirror_num)
 			stripe_index = mirror_num - 1;
+
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
 		int factor = map->num_stripes / map->sub_stripes;
 
@@ -1530,11 +1530,8 @@ again:
 			num_stripes = map->sub_stripes;
 		else if (mirror_num)
 			stripe_index += mirror_num - 1;
-		else {
-			u64 orig_stripe_nr = stripe_nr;
-			stripe_index += do_div(orig_stripe_nr,
-					       map->sub_stripes);
-		}
+		else
+			stripe_index += current->pid % map->sub_stripes;
 	} else {
 		/*
 		 * after this do_div call, stripe_nr is the number of stripes
