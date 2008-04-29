@@ -18,24 +18,6 @@ static void skbpoolfree(struct aoedev *d);
 static struct aoedev *devlist;
 static DEFINE_SPINLOCK(devlist_lock);
 
-int
-aoedev_isbusy(struct aoedev *d)
-{
-	struct aoetgt **t, **te;
-	struct frame *f, *e;
-
-	t = d->targets;
-	te = t + NTARGETS;
-	for (; t < te && *t; t++) {
-		f = (*t)->frames;
-		e = f + (*t)->nframes;
-		for (; f < e; f++)
-			if (f->tag != FREETAG)
-				return 1;
-	}
-	return 0;
-}
-
 struct aoedev *
 aoedev_by_aoeaddr(int maj, int min)
 {
