@@ -49,7 +49,4 @@ void ipwireless_ppp_close(struct ipw_network *net);
 int ipwireless_ppp_channel_index(struct ipw_network *net);
 int ipwireless_ppp_unit_number(struct ipw_network *net);
 
-int ipwireless_dump_network_state(char *p, size_t limit,
-				  struct ipw_network *net);
-
 #endif

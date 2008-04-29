@@ -354,32 +354,6 @@ struct ipw_rx_packet {
 	unsigned int channel_idx;
 };
 
-#ifdef IPWIRELESS_STATE_DEBUG
-int ipwireless_dump_hardware_state(char *p, size_t limit,
-				   struct ipw_hardware *hw)
-{
-	return snprintf(p, limit,
-			"debug: initializing=%d\n"
-			"debug: tx_ready=%d\n"
-			"debug: tx_queued=%d\n"
-			"debug: rx_ready=%d\n"
-			"debug: rx_bytes_queued=%d\n"
-			"debug: blocking_rx=%d\n"
-			"debug: removed=%d\n"
-			"debug: hardware.shutting_down=%d\n"
-			"debug: to_setup=%d\n",
-			hw->initializing,
-			hw->tx_ready,
-			hw->tx_queued,
-			hw->rx_ready,
-			hw->rx_bytes_queued,
-			hw->blocking_rx,
-			hw->removed,
-			hw->shutting_down,
-			hw->to_setup);
-}
-#endif
-
 static char *data_type(const unsigned char *buf, unsigned length)
 {
 	struct nl_packet_header *hdr = (struct nl_packet_header *) buf;
