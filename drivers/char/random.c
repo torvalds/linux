@@ -540,6 +540,10 @@ static void credit_entropy_store(struct entropy_store *r, int nbits)
 				  nbits, r->name);
 	}
 
+	/* should we wake readers? */
+	if (r == &input_pool && r->entropy_count >= random_read_wakeup_thresh)
+		wake_up_interruptible(&random_read_wait);
+
 	spin_unlock_irqrestore(&r->lock, flags);
 }
 
@@ -624,10 +628,6 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned num)
 		credit_entropy_store(&input_pool,
 				     min_t(int, fls(delta>>1), 11));
 	}
-
-	if (input_pool.entropy_count >= random_read_wakeup_thresh)
-		wake_up_interruptible(&random_read_wait);
-
 out:
 	preempt_enable();
 }
@@ -1081,12 +1081,6 @@ static int random_ioctl(struct inode *inode, struct file *file,
 		if (get_user(ent_count, p))
 			return -EFAULT;
 		credit_entropy_store(&input_pool, ent_count);
-		/*
-		 * Wake up waiting processes if we have enough
-		 * entropy.
-		 */
-		if (input_pool.entropy_count >= random_read_wakeup_thresh)
-			wake_up_interruptible(&random_read_wait);
 		return 0;
 	case RNDADDENTROPY:
 		if (!capable(CAP_SYS_ADMIN))
@@ -1102,12 +1096,6 @@ static int random_ioctl(struct inode *inode, struct file *file,
 		if (retval < 0)
 			return retval;
 		credit_entropy_store(&input_pool, ent_count);
-		/*
-		 * Wake up waiting processes if we have enough
-		 * entropy.
-		 */
-		if (input_pool.entropy_count >= random_read_wakeup_thresh)
-			wake_up_interruptible(&random_read_wait);
 		return 0;
 	case RNDZAPENTCNT:
 	case RNDCLEARPOOL:
