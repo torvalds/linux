@@ -53,7 +53,7 @@ EXPORT_SYMBOL(blk_queue_ordered);
 /*
  * Cache flushing for ordered writes handling
  */
-inline unsigned blk_ordered_cur_seq(struct request_queue *q)
+unsigned blk_ordered_cur_seq(struct request_queue *q)
 {
 	if (!q->ordseq)
 		return 0;
