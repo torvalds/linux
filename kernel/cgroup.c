@@ -1329,10 +1329,7 @@ static ssize_t cgroup_write_u64(struct cgroup *cgrp, struct cftype *cft,
 		return -EFAULT;
 
 	buffer[nbytes] = 0;     /* nul-terminate */
-
-	/* strip newline if necessary */
-	if (nbytes && (buffer[nbytes-1] == '\n'))
-		buffer[nbytes-1] = 0;
+	strstrip(buffer);
 	val = simple_strtoull(buffer, &end, 0);
 	if (*end)
 		return -EINVAL;
