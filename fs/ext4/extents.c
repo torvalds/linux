@@ -2580,6 +2580,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 				 */
 				if (allocated > max_blocks)
 					allocated = max_blocks;
+				/* mark the buffer unwritten */
+				__set_bit(BH_Unwritten, &bh_result->b_state);
 				goto out2;
 			}
 
