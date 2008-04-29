@@ -242,7 +242,6 @@ static void unlink_css_set(struct css_set *cg)
 {
 	write_lock(&css_set_lock);
 	hlist_del(&cg->hlist);
-	list_del(&cg->list);
 	css_set_count--;
 	while (!list_empty(&cg->cg_links)) {
 		struct cg_cgroup_link *link;
@@ -477,8 +476,6 @@ static struct css_set *find_css_set(
 
 	BUG_ON(!list_empty(&tmp_cg_links));
 
-	/* Link this cgroup group into the list */
-	list_add(&res->list, &init_css_set.list);
 	css_set_count++;
 
 	/* Add this cgroup group to the hash table */
@@ -963,7 +960,7 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 	int ret = 0;
 	struct super_block *sb;
 	struct cgroupfs_root *root;
-	struct list_head tmp_cg_links, *l;
+	struct list_head tmp_cg_links;
 	INIT_LIST_HEAD(&tmp_cg_links);
 
 	/* First find the desired set of subsystems */
@@ -1005,6 +1002,7 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 		/* New superblock */
 		struct cgroup *cgrp = &root->top_cgroup;
 		struct inode *inode;
+		int i;
 
 		BUG_ON(sb->s_root != NULL);
 
@@ -1049,22 +1047,25 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 		/* Link the top cgroup in this hierarchy into all
 		 * the css_set objects */
 		write_lock(&css_set_lock);
-		l = &init_css_set.list;
-		do {
+		for (i = 0; i < CSS_SET_TABLE_SIZE; i++) {
+			struct hlist_head *hhead = &css_set_table[i];
+			struct hlist_node *node;
 			struct css_set *cg;
-			struct cg_cgroup_link *link;
-			cg = list_entry(l, struct css_set, list);
-			BUG_ON(list_empty(&tmp_cg_links));
-			link = list_entry(tmp_cg_links.next,
-					  struct cg_cgroup_link,
-					  cgrp_link_list);
-			list_del(&link->cgrp_link_list);
-			link->cg = cg;
-			list_add(&link->cgrp_link_list,
-				 &root->top_cgroup.css_sets);
-			list_add(&link->cg_link_list, &cg->cg_links);
-			l = l->next;
-		} while (l != &init_css_set.list);
+
+			hlist_for_each_entry(cg, node, hhead, hlist) {
+				struct cg_cgroup_link *link;
+
+				BUG_ON(list_empty(&tmp_cg_links));
+				link = list_entry(tmp_cg_links.next,
+						  struct cg_cgroup_link,
+						  cgrp_link_list);
+				list_del(&link->cgrp_link_list);
+				link->cg = cg;
+				list_add(&link->cgrp_link_list,
+					 &root->top_cgroup.css_sets);
+				list_add(&link->cg_link_list, &cg->cg_links);
+			}
+		}
 		write_unlock(&css_set_lock);
 
 		free_cg_links(&tmp_cg_links);
@@ -2514,7 +2515,6 @@ int __init cgroup_init_early(void)
 	int i;
 	kref_init(&init_css_set.ref);
 	kref_get(&init_css_set.ref);
-	INIT_LIST_HEAD(&init_css_set.list);
 	INIT_LIST_HEAD(&init_css_set.cg_links);
 	INIT_LIST_HEAD(&init_css_set.tasks);
 	INIT_HLIST_NODE(&init_css_set.hlist);

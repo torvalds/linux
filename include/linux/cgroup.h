@@ -150,12 +150,6 @@ struct css_set {
 	struct kref ref;
 
 	/*
-	 * List running through all cgroup groups. Protected by
-	 * css_set_lock
-	 */
-	struct list_head list;
-
-	/*
 	 * List running through all cgroup groups in the same hash
 	 * slot. Protected by css_set_lock
 	 */
