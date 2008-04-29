@@ -26,6 +26,7 @@
 #include <linux/backing-dev.h>
 #include <linux/bit_spinlock.h>
 #include <linux/rcupdate.h>
+#include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/spinlock.h>
 #include <linux/fs.h>
@@ -35,6 +36,7 @@
 
 struct cgroup_subsys mem_cgroup_subsys;
 static const int MEM_CGROUP_RECLAIM_RETRIES = 5;
+static struct kmem_cache *page_cgroup_cache;
 
 /*
  * Statistics for memory cgroup.
@@ -547,7 +549,7 @@ retry:
 	}
 	unlock_page_cgroup(page);
 
-	pc = kzalloc(sizeof(struct page_cgroup), gfp_mask);
+	pc = kmem_cache_zalloc(page_cgroup_cache, gfp_mask);
 	if (pc == NULL)
 		goto err;
 
@@ -609,7 +611,7 @@ retry:
 		 */
 		res_counter_uncharge(&mem->res, PAGE_SIZE);
 		css_put(&mem->css);
-		kfree(pc);
+		kmem_cache_free(page_cgroup_cache, pc);
 		goto retry;
 	}
 	page_assign_page_cgroup(page, pc);
@@ -624,7 +626,7 @@ done:
 	return 0;
 out:
 	css_put(&mem->css);
-	kfree(pc);
+	kmem_cache_free(page_cgroup_cache, pc);
 err:
 	return -ENOMEM;
 }
@@ -682,7 +684,7 @@ void mem_cgroup_uncharge_page(struct page *page)
 		res_counter_uncharge(&mem->res, PAGE_SIZE);
 		css_put(&mem->css);
 
-		kfree(pc);
+		kmem_cache_free(page_cgroup_cache, pc);
 		return;
 	}
 
@@ -989,10 +991,12 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	struct mem_cgroup *mem;
 	int node;
 
-	if (unlikely((cont->parent) == NULL))
+	if (unlikely((cont->parent) == NULL)) {
 		mem = &init_mem_cgroup;
-	else
+		page_cgroup_cache = KMEM_CACHE(page_cgroup, SLAB_PANIC);
+	} else {
 		mem = kzalloc(sizeof(struct mem_cgroup), GFP_KERNEL);
+	}
 
 	if (mem == NULL)
 		return ERR_PTR(-ENOMEM);
