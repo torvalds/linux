@@ -56,6 +56,7 @@
 #define put_ep(ep) { \
 	PDBG("put_ep (via %s:%u) ep %p refcnt %d\n", __func__, __LINE__,  \
 	     ep, atomic_read(&((ep)->kref.refcount))); \
+	WARN_ON(atomic_read(&((ep)->kref.refcount)) < 1); \
 	kref_put(&((ep)->kref), __free_ep); \
 }
 
@@ -225,5 +226,6 @@ int iwch_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new, st
 
 int __init iwch_cm_init(void);
 void __exit iwch_cm_term(void);
+extern int peer2peer;
 
 #endif				/* _IWCH_CM_H_ */

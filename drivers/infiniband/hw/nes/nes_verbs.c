@@ -1266,7 +1266,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			sq_size = init_attr->cap.max_send_wr;
 			rq_size = init_attr->cap.max_recv_wr;
 
-			// check if the encoded sizes are OK or not...
+			/* check if the encoded sizes are OK or not... */
 			sq_encoded_size = nes_get_encoded_size(&sq_size);
 			rq_encoded_size = nes_get_encoded_size(&rq_size);
 

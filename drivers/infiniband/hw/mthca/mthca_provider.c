@@ -39,6 +39,8 @@
 #include <rdma/ib_smi.h>
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
+
+#include <linux/sched.h>
 #include <linux/mm.h>
 
 #include "mthca_dev.h"
@@ -366,6 +368,8 @@ static struct ib_ucontext *mthca_alloc_ucontext(struct ib_device *ibdev,
 		kfree(context);
 		return ERR_PTR(-EFAULT);
 	}
+
+	context->reg_mr_warned = 0;
 
 	return &context->ibucontext;
 }
@@ -1013,7 +1017,15 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	int err = 0;
 	int write_mtt_size;
 
-	if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
+	if (udata->inlen - sizeof (struct ib_uverbs_cmd_hdr) < sizeof ucmd) {
+		if (!to_mucontext(pd->uobject->context)->reg_mr_warned) {
+			mthca_warn(dev, "Process '%s' did not pass in MR attrs.\n",
+				   current->comm);
+			mthca_warn(dev, "  Update libmthca to fix this.\n");
+		}
+		++to_mucontext(pd->uobject->context)->reg_mr_warned;
+		ucmd.mr_attrs = 0;
+	} else if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
 		return ERR_PTR(-EFAULT);
 
 	mr = kmalloc(sizeof *mr, GFP_KERNEL);

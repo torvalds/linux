@@ -594,7 +594,7 @@ static void nes_cm_timer_tick(unsigned long pass)
 				continue;
 			}
 			/* this seems like the correct place, but leave send entry unprotected */
-			// spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
+			/* spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags); */
 			atomic_inc(&send_entry->skb->users);
 			cm_packets_retrans++;
 			nes_debug(NES_DBG_CM, "Retransmitting send_entry %p for node %p,"
@@ -1335,7 +1335,7 @@ static int process_packet(struct nes_cm_node *cm_node, struct sk_buff *skb,
 							cm_node->loc_addr, cm_node->loc_port,
 							cm_node->rem_addr, cm_node->rem_port,
 							cm_node->state, atomic_read(&cm_node->ref_count));
-				// create event
+				/* create event */
 				cm_node->state = NES_CM_STATE_CLOSED;
 
 				create_event(cm_node, NES_CM_EVENT_ABORTED);
@@ -1669,7 +1669,7 @@ static struct nes_cm_node *mini_cm_connect(struct nes_cm_core *cm_core,
 	if (!cm_node)
 		return NULL;
 
-	// set our node side to client (active) side
+	/* set our node side to client (active) side */
 	cm_node->tcp_cntxt.client = 1;
 	cm_node->tcp_cntxt.rcv_wscale = NES_CM_DEFAULT_RCV_WND_SCALE;
 
@@ -1694,7 +1694,7 @@ static struct nes_cm_node *mini_cm_connect(struct nes_cm_core *cm_core,
 			loopbackremotenode->mpa_frame_size = mpa_frame_size -
 					sizeof(struct ietf_mpa_frame);
 
-			// we are done handling this state, set node to a TSA state
+			/* we are done handling this state, set node to a TSA state */
 			cm_node->state = NES_CM_STATE_TSA;
 			cm_node->tcp_cntxt.rcv_nxt = loopbackremotenode->tcp_cntxt.loc_seq_num;
 			loopbackremotenode->tcp_cntxt.rcv_nxt = cm_node->tcp_cntxt.loc_seq_num;

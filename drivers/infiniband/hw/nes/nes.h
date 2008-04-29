@@ -173,6 +173,7 @@ extern int disable_mpa_crc;
 extern unsigned int send_first;
 extern unsigned int nes_drv_opt;
 extern unsigned int nes_debug_level;
+extern unsigned int nes_lro_max_aggr;
 
 extern struct list_head nes_adapter_list;
 
@@ -535,8 +536,8 @@ int nes_register_ofa_device(struct nes_ib_device *);
 int nes_read_eeprom_values(struct nes_device *, struct nes_adapter *);
 void nes_write_1G_phy_reg(struct nes_device *, u8, u8, u16);
 void nes_read_1G_phy_reg(struct nes_device *, u8, u8, u16 *);
-void nes_write_10G_phy_reg(struct nes_device *, u16, u8, u16);
-void nes_read_10G_phy_reg(struct nes_device *, u16, u8);
+void nes_write_10G_phy_reg(struct nes_device *, u16, u8, u16, u16);
+void nes_read_10G_phy_reg(struct nes_device *, u8, u8, u16);
 struct nes_cqp_request *nes_get_cqp_request(struct nes_device *);
 void nes_post_cqp_request(struct nes_device *, struct nes_cqp_request *, int);
 int nes_arp_table(struct nes_device *, u32, u8 *, u32);

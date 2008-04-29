@@ -221,7 +221,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector
 	}
 
 	err = mlx4_cq_alloc(dev->dev, entries, &cq->buf.mtt, uar,
-			    cq->db.dma, &cq->mcq);
+			    cq->db.dma, &cq->mcq, 0);
 	if (err)
 		goto err_dbmap;
 

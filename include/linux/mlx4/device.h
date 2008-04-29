@@ -382,7 +382,8 @@ void mlx4_free_hwq_res(struct mlx4_dev *mdev, struct mlx4_hwq_resources *wqres,
 		       int size);
 
 int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
-		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq);
+		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq,
+		  int collapsed);
 void mlx4_cq_free(struct mlx4_dev *dev, struct mlx4_cq *cq);
 
 int mlx4_qp_alloc(struct mlx4_dev *dev, int sqpn, struct mlx4_qp *qp);
