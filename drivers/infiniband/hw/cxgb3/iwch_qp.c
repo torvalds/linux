@@ -832,6 +832,7 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 				abort=0;
 				disconnect = 1;
 				ep = qhp->ep;
+				get_ep(&ep->com);
 			}
 			flush_qp(qhp, &flag);
 			break;
@@ -848,6 +849,7 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 				abort=1;
 				disconnect = 1;
 				ep = qhp->ep;
+				get_ep(&ep->com);
 			}
 			goto err;
 			break;
@@ -929,8 +931,10 @@ out:
 	 * on the EP.  This can be a normal close (RTS->CLOSING) or
 	 * an abnormal close (RTS/CLOSING->ERROR).
 	 */
-	if (disconnect)
+	if (disconnect) {
 		iwch_ep_disconnect(ep, abort, GFP_KERNEL);
+		put_ep(&ep->com);
+	}
 
 	/*
 	 * If free is 1, then we've disassociated the EP from the QP
