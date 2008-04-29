@@ -357,7 +357,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		printk(KERN_WARNING "hfs: Filesystem is marked locked, mounting read-only.\n");
 		sb->s_flags |= MS_RDONLY;
 	} else if (vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_JOURNALED)) {
-		printk(KERN_WARNING "hfs: write access to a jounaled filesystem is not supported, "
+		printk(KERN_WARNING "hfs: write access to a journaled filesystem is not supported, "
 		       "use the force option at your own risk, mounting read-only.\n");
 		sb->s_flags |= MS_RDONLY;
 	}
