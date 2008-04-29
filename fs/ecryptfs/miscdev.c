@@ -196,7 +196,7 @@ int ecryptfs_send_miscdev(char *data, size_t data_size,
 		if (!msg_ctx->msg) {
 			rc = -ENOMEM;
 			printk(KERN_ERR "%s: Out of memory whilst attempting "
-			       "to kmalloc(%d, GFP_KERNEL)\n", __func__,
+			       "to kmalloc(%Zd, GFP_KERNEL)\n", __func__,
 			       (sizeof(*msg_ctx->msg) + data_size));
 			goto out_unlock;
 		}
@@ -232,7 +232,7 @@ out_unlock:
  *
  * Returns the number of bytes copied into the user buffer
  */
-static int
+static ssize_t
 ecryptfs_miscdev_read(struct file *file, char __user *buf, size_t count,
 		      loff_t *ppos)
 {

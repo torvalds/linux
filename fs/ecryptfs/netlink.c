@@ -44,7 +44,7 @@ static struct sock *ecryptfs_nl_sock;
  * upon sending the message; non-zero upon error.
  */
 int ecryptfs_send_netlink(char *data, int data_len,
-			  struct ecryptfs_msg_ctx *msg_ctx, u16 msg_type,
+			  struct ecryptfs_msg_ctx *msg_ctx, u8 msg_type,
 			  u16 msg_flags, pid_t daemon_pid)
 {
 	struct sk_buff *skb;
@@ -176,20 +176,20 @@ static void ecryptfs_receive_nl_message(struct sk_buff *skb)
 		goto free;
 	}
 	switch (nlh->nlmsg_type) {
-		case ECRYPTFS_NLMSG_RESPONSE:
+		case ECRYPTFS_MSG_RESPONSE:
 			if (ecryptfs_process_nl_response(skb)) {
 				ecryptfs_printk(KERN_WARNING, "Failed to "
 						"deliver netlink response to "
 						"requesting operation\n");
 			}
 			break;
-		case ECRYPTFS_NLMSG_HELO:
+		case ECRYPTFS_MSG_HELO:
 			if (ecryptfs_process_nl_helo(skb)) {
 				ecryptfs_printk(KERN_WARNING, "Failed to "
 						"fulfill HELO request\n");
 			}
 			break;
-		case ECRYPTFS_NLMSG_QUIT:
+		case ECRYPTFS_MSG_QUIT:
 			if (ecryptfs_process_nl_quit(skb)) {
 				ecryptfs_printk(KERN_WARNING, "Failed to "
 						"fulfill QUIT request\n");
