@@ -1385,7 +1385,10 @@ int write_all_supers(struct btrfs_root *root)
 	struct buffer_head *bh;
 	int ret;
 	int do_barriers;
+	int max_errors;
+	int total_errors = 0;
 
+	max_errors = btrfs_super_num_devices(&root->fs_info->super_copy) - 1;
 	do_barriers = !btrfs_test_opt(root, NOBARRIER);
 
 	sb = root->fs_info->sb_buffer;
@@ -1433,8 +1436,14 @@ int write_all_supers(struct btrfs_root *root)
 		} else {
 			ret = submit_bh(WRITE, bh);
 		}
-		BUG_ON(ret);
+		if (ret)
+			total_errors++;
 	}
+	if (total_errors > max_errors) {
+		printk("btrfs: %d errors while writing supers\n", total_errors);
+		BUG();
+	}
+	total_errors = 0;
 
 	list_for_each(cur, head) {
 		dev = list_entry(cur, struct btrfs_device, dev_list);
@@ -1454,12 +1463,16 @@ int write_all_supers(struct btrfs_root *root)
 				wait_on_buffer(bh);
 				BUG_ON(!buffer_uptodate(bh));
 			} else {
-				BUG();
+				total_errors++;
 			}
 
 		}
 		dev->pending_io = NULL;
 		brelse(bh);
+	}
+	if (total_errors > max_errors) {
+		printk("btrfs: %d errors while writing supers\n", total_errors);
+		BUG();
 	}
 	return 0;
 }

@@ -315,8 +315,8 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 	block_group_cache = &info->block_group_cache;
 	total_fs_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
 
-	if (!owner)
-		factor = 10;
+	if (data & BTRFS_BLOCK_GROUP_METADATA)
+		factor = 9;
 
 	bit = block_group_state_bits(data);
 

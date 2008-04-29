@@ -1425,6 +1425,7 @@ static int __btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 	int stripe_index;
 	int i;
 	int num_stripes;
+	int max_errors = 0;
 	struct btrfs_multi_bio *multi = NULL;
 
 	if (multi_ret && !(rw & (1 << BIO_RW))) {
@@ -1436,6 +1437,8 @@ again:
 				GFP_NOFS);
 		if (!multi)
 			return -ENOMEM;
+
+		atomic_set(&multi->error, 0);
 	}
 
 	spin_lock(&em_tree->lock);
@@ -1462,8 +1465,10 @@ again:
 		if (map->type & (BTRFS_BLOCK_GROUP_RAID1 |
 				 BTRFS_BLOCK_GROUP_DUP)) {
 			stripes_required = map->num_stripes;
+			max_errors = 1;
 		} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
 			stripes_required = map->sub_stripes;
+			max_errors = 1;
 		}
 	}
 	if (multi_ret && rw == WRITE &&
@@ -1561,6 +1566,7 @@ again:
 	if (multi_ret) {
 		*multi_ret = multi;
 		multi->num_stripes = num_stripes;
+		multi->max_errors = max_errors;
 	}
 out:
 	free_extent_map(em);
@@ -1598,14 +1604,19 @@ static int end_bio_multi_stripe(struct bio *bio,
 		return 1;
 #endif
 	if (err)
-		multi->error = err;
+		atomic_inc(&multi->error);
 
 	if (atomic_dec_and_test(&multi->stripes_pending)) {
 		bio->bi_private = multi->private;
 		bio->bi_end_io = multi->end_io;
 
-		if (!err && multi->error)
-			err = multi->error;
+		/* only send an error to the higher layers if it is
+		 * beyond the tolerance of the multi-bio
+		 */
+		if (atomic_read(&multi->error) > multi->max_errors)
+			err = -EIO;
+		else
+			err = 0;
 		kfree(multi);
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
