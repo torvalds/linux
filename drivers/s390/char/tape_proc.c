@@ -111,6 +111,7 @@ static int tape_proc_open(struct inode *inode, struct file *file)
 
 static const struct file_operations tape_proc_ops =
 {
+	.owner		= THIS_MODULE,
 	.open		= tape_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -124,14 +125,12 @@ void
 tape_proc_init(void)
 {
 	tape_proc_devices =
-		create_proc_entry ("tapedevices", S_IFREG | S_IRUGO | S_IWUSR,
-				   NULL);
+		proc_create("tapedevices", S_IFREG | S_IRUGO | S_IWUSR, NULL,
+			    &tape_proc_ops);
 	if (tape_proc_devices == NULL) {
 		PRINT_WARN("tape: Cannot register procfs entry tapedevices\n");
 		return;
 	}
-	tape_proc_devices->proc_fops = &tape_proc_ops;
-	tape_proc_devices->owner = THIS_MODULE;
 }
 
 /*
