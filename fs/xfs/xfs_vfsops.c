@@ -186,6 +186,7 @@ xfs_cleanup(void)
 	kmem_zone_destroy(xfs_efi_zone);
 	kmem_zone_destroy(xfs_ifork_zone);
 	kmem_zone_destroy(xfs_ili_zone);
+	kmem_zone_destroy(xfs_log_ticket_zone);
 }
 
 /*
