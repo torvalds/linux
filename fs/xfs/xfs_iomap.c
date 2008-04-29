@@ -523,8 +523,7 @@ xfs_iomap_write_direct(
 		goto error_out;
 	}
 
-	if (unlikely(!imap.br_startblock &&
-		     !(XFS_IS_REALTIME_INODE(ip)))) {
+	if (!(imap.br_startblock || XFS_IS_REALTIME_INODE(ip))) {
 		error = xfs_cmn_err_fsblock_zero(ip, &imap);
 		goto error_out;
 	}
@@ -686,8 +685,7 @@ retry:
 		goto retry;
 	}
 
-	if (unlikely(!imap[0].br_startblock &&
-		     !(XFS_IS_REALTIME_INODE(ip))))
+	if (!(imap[0].br_startblock || XFS_IS_REALTIME_INODE(ip)))
 		return xfs_cmn_err_fsblock_zero(ip, &imap[0]);
 
 	*ret_imap = imap[0];
@@ -838,9 +836,9 @@ xfs_iomap_write_allocate(
 		 * See if we were able to allocate an extent that
 		 * covers at least part of the callers request
 		 */
-		if (unlikely(!imap.br_startblock &&
-			     XFS_IS_REALTIME_INODE(ip)))
+		if (!(imap.br_startblock || XFS_IS_REALTIME_INODE(ip)))
 			return xfs_cmn_err_fsblock_zero(ip, &imap);
+
 		if ((offset_fsb >= imap.br_startoff) &&
 		    (offset_fsb < (imap.br_startoff +
 				   imap.br_blockcount))) {
@@ -934,8 +932,7 @@ xfs_iomap_write_unwritten(
 		if (error)
 			return XFS_ERROR(error);
 
-		if (unlikely(!imap.br_startblock &&
-			     !(XFS_IS_REALTIME_INODE(ip))))
+		if (!(imap.br_startblock || XFS_IS_REALTIME_INODE(ip)))
 			return xfs_cmn_err_fsblock_zero(ip, &imap);
 
 		if ((numblks_fsb = imap.br_blockcount) == 0) {
