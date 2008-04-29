@@ -417,8 +417,6 @@ enum ieee80211_tx_status_flags {
  * @ampdu_ack_map: block ack bit map for the aggregation.
  * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
  * @ack_signal: signal strength of the ACK frame
- * @queue_length: ?? REMOVE
- * @queue_number: ?? REMOVE
  */
 struct ieee80211_tx_status {
 	struct ieee80211_tx_control control;
@@ -428,8 +426,6 @@ struct ieee80211_tx_status {
 	u8 ampdu_ack_len;
 	u64 ampdu_ack_map;
 	int ack_signal;
-	int queue_length;
-	int queue_number;
 };
 
 /**

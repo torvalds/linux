@@ -2522,8 +2522,6 @@ static void iwl4965_txstatus_to_ieee(struct iwl_priv *priv,
 
 	tx_sta->status.ack_signal = 0;
 	tx_sta->status.excessive_retries = 0;
-	tx_sta->status.queue_length = 0;
-	tx_sta->status.queue_number = 0;
 
 	if (in_interrupt())
 		ieee80211_tx_status_irqsafe(priv->hw,
@@ -2659,8 +2657,6 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 
 		tx_status = &(priv->txq[txq_id].txb[idx].status);
 		tx_status->retry_count = tx_resp->failure_frame;
-		tx_status->queue_number = status & 0xff;
-		tx_status->queue_length = tx_resp->failure_rts;
 		tx_status->control.flags &= ~IEEE80211_TXCTL_AMPDU;
 		tx_status->flags = iwl4965_is_tx_success(status)?
 			IEEE80211_TX_STATUS_ACK : 0;
@@ -2820,9 +2816,6 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	tx_status = &(txq->txb[txq->q.read_ptr].status);
 
 	tx_status->retry_count = tx_resp->failure_frame;
-	tx_status->queue_number = status;
-	tx_status->queue_length = tx_resp->bt_kill_count;
-	tx_status->queue_length |= tx_resp->failure_rts;
 	tx_status->flags =
 	    iwl4965_is_tx_success(status) ? IEEE80211_TX_STATUS_ACK : 0;
 	iwl4965_hwrate_to_tx_control(priv, le32_to_cpu(tx_resp->rate_n_flags),

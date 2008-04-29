@@ -525,9 +525,6 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 			rt2x00dev->low_level_stats.dot11ACKFailureCount++;
 	}
 
-	tx_status.queue_length = entry->queue->limit;
-	tx_status.queue_number = tx_status.control.queue;
-
 	if (tx_status.control.flags & IEEE80211_TXCTL_USE_RTS_CTS) {
 		if (success)
 			rt2x00dev->low_level_stats.dot11RTSSuccessCount++;
