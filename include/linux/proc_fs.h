@@ -9,7 +9,6 @@
 
 struct net;
 struct completion;
-
 /*
  * The proc filesystem constants/structures
  */
@@ -206,6 +205,12 @@ extern void proc_net_remove(struct net *net, const char *name);
 extern struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
 	struct proc_dir_entry *parent);
 
+/* While the {get|set|dup}_mm_exe_file functions are for mm_structs, they are
+ * only needed to implement /proc/<pid>|self/exe so we define them here. */
+extern void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file);
+extern struct file *get_mm_exe_file(struct mm_struct *mm);
+extern void dup_mm_exe_file(struct mm_struct *oldmm, struct mm_struct *newmm);
+
 #else
 
 #define proc_root_driver NULL
@@ -254,6 +259,19 @@ static inline int pid_ns_prepare_proc(struct pid_namespace *ns)
 static inline void pid_ns_release_proc(struct pid_namespace *ns)
 {
 }
+
+static inline void set_mm_exe_file(struct mm_struct *mm,
+				   struct file *new_exe_file)
+{}
+
+static inline struct file *get_mm_exe_file(struct mm_struct *mm)
+{
+	return NULL;
+}
+
+static inline void dup_mm_exe_file(struct mm_struct *oldmm,
+	       			   struct mm_struct *newmm)
+{}
 
 #endif /* CONFIG_PROC_FS */
 

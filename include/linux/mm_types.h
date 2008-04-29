@@ -229,6 +229,12 @@ struct mm_struct {
 	struct task_struct *owner;	/* The thread group leader that */
 					/* owns the mm_struct.		*/
 #endif
+
+#ifdef CONFIG_PROC_FS
+	/* store ref to file /proc/<pid>/exe symlink points to */
+	struct file *exe_file;
+	unsigned long num_exe_file_vmas;
+#endif
 };
 
 #endif /* _LINUX_MM_TYPES_H */
