@@ -370,6 +370,7 @@ hysdn_conf_close(struct inode *ino, struct file *filep)
 /******************************************************/
 static const struct file_operations conf_fops =
 {
+	.owner		= THIS_MODULE,
 	.llseek         = no_llseek,
 	.read           = hysdn_conf_read,
 	.write          = hysdn_conf_write,
@@ -402,11 +403,9 @@ hysdn_procconf_init(void)
 	while (card) {
 
 		sprintf(conf_name, "%s%d", PROC_CONF_BASENAME, card->myid);
-		if ((card->procconf = (void *) create_proc_entry(conf_name,
-					     S_IFREG | S_IRUGO | S_IWUSR,
-					    hysdn_proc_entry)) != NULL) {
-			((struct proc_dir_entry *) card->procconf)->proc_fops = &conf_fops;
-			((struct proc_dir_entry *) card->procconf)->owner = THIS_MODULE;
+		if ((card->procconf = (void *) proc_create(conf_name,
+						S_IFREG | S_IRUGO | S_IWUSR,
+						hysdn_proc_entry)) != NULL) {
 			hysdn_proclog_init(card);	/* init the log file entry */
 		}
 		card = card->next;	/* next entry */
