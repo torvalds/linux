@@ -77,17 +77,27 @@ static struct wf_sensor_ops wf_max6690_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static void wf_max6690_create(struct i2c_adapter *adapter, u8 addr)
+static void wf_max6690_create(struct i2c_adapter *adapter, u8 addr,
+			      const char *loc)
 {
 	struct wf_6690_sensor *max;
-	char *name = "backside-temp";
+	char *name;
 
 	max = kzalloc(sizeof(struct wf_6690_sensor), GFP_KERNEL);
 	if (max == NULL) {
 		printk(KERN_ERR "windfarm: Couldn't create MAX6690 sensor %s: "
-		       "no memory\n", name);
+		       "no memory\n", loc);
 		return;
 	}
+
+	if (!strcmp(loc, "BACKSIDE"))
+		name = "backside-temp";
+	else if (!strcmp(loc, "NB Ambient"))
+		name = "north-bridge-temp";
+	else if (!strcmp(loc, "GPU Ambient"))
+		name = "gpu-temp";
+	else
+		goto fail;
 
 	max->sens.ops = &wf_max6690_ops;
 	max->sens.name = name;
@@ -138,9 +148,7 @@ static int wf_max6690_attach(struct i2c_adapter *adapter)
 		if (loc == NULL || addr == 0)
 			continue;
 		printk("found max6690, loc=%s addr=0x%02x\n", loc, addr);
-		if (strcmp(loc, "BACKSIDE"))
-			continue;
-		wf_max6690_create(adapter, addr);
+		wf_max6690_create(adapter, addr, loc);
 	}
 
 	return 0;

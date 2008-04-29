@@ -127,6 +127,12 @@ static struct wf_lm75_sensor *wf_lm75_create(struct i2c_adapter *adapter,
 	 */
 	if (!strcmp(loc, "Hard drive") || !strcmp(loc, "DRIVE BAY"))
 		lm->sens.name = "hd-temp";
+	else if (!strcmp(loc, "Incoming Air Temp"))
+		lm->sens.name = "incoming-air-temp";
+	else if (!strcmp(loc, "ODD Temp"))
+		lm->sens.name = "optical-drive-temp";
+	else if (!strcmp(loc, "HD Temp"))
+		lm->sens.name = "hard-drive-temp";
 	else
 		goto fail;
 

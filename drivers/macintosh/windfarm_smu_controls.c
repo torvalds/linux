@@ -218,6 +218,10 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 		fct->ctrl.name = "cpu-fan";
 	else if (!strcmp(l, "Hard Drive") || !strcmp(l, "Hard drive"))
 		fct->ctrl.name = "drive-bay-fan";
+	else if (!strcmp(l, "HDD Fan")) /* seen on iMac G5 iSight */
+		fct->ctrl.name = "hard-drive-fan";
+	else if (!strcmp(l, "ODD Fan")) /* same */
+		fct->ctrl.name = "optical-drive-fan";
 
 	/* Unrecognized fan, bail out */
 	if (fct->ctrl.name == NULL)
