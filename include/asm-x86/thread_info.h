@@ -123,6 +123,27 @@ struct thread_info {
 #define _TIF_DS_AREA_MSR	(1 << TIF_DS_AREA_MSR)
 #define _TIF_BTS_TRACE_TS	(1 << TIF_BTS_TRACE_TS)
 
+/* work to do on interrupt/exception return */
+#define _TIF_WORK_MASK							\
+	(0x0000FFFF &							\
+	 ~(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP|	\
+	 _TIF_SECCOMP|_TIF_SYSCALL_EMU))
+
+/* work to do on any return to user space */
+#define _TIF_ALLWORK_MASK (0x0000FFFF & ~_TIF_SECCOMP)
+
+#define _TIF_DO_NOTIFY_MASK						\
+	(_TIF_SIGPENDING|_TIF_SINGLESTEP|_TIF_MCE_NOTIFY|_TIF_HRTICK_RESCHED)
+
+/* flags to check in __switch_to() */
+#define _TIF_WORK_CTXSW							\
+	(_TIF_IO_BITMAP|_TIF_DEBUGCTLMSR|_TIF_DS_AREA_MSR|_TIF_BTS_TRACE_TS| \
+								_TIF_NOTSC)
+
+#define _TIF_WORK_CTXSW_PREV _TIF_WORK_CTXSW
+#define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW|_TIF_DEBUG)
+
+
 #define PREEMPT_ACTIVE		0x10000000
 
 #ifdef CONFIG_X86_32
@@ -174,20 +195,6 @@ static inline struct thread_info *current_thread_info(void)
 
 #endif
 
-/* work to do on interrupt/exception return */
-#define _TIF_WORK_MASK							\
-	(0x0000FFFF & ~(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT |	\
-			_TIF_SECCOMP | _TIF_SYSCALL_EMU))
-/* work to do on any return to u-space */
-#define _TIF_ALLWORK_MASK	(0x0000FFFF & ~_TIF_SECCOMP)
-
-/* flags to check in __switch_to() */
-#define _TIF_WORK_CTXSW						\
-	(_TIF_IO_BITMAP | _TIF_NOTSC | _TIF_DEBUGCTLMSR |	\
-	 _TIF_DS_AREA_MSR | _TIF_BTS_TRACE_TS)
-#define _TIF_WORK_CTXSW_PREV _TIF_WORK_CTXSW
-#define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW | _TIF_DEBUG)
-
 #else /* X86_32 */
 
 #include <asm/pda.h>
@@ -230,22 +237,6 @@ static inline struct thread_info *stack_thread_info(void)
 	subq $(THREAD_SIZE-PDA_STACKOFFSET),reg
 
 #endif
-
-/* work to do on interrupt/exception return */
-#define _TIF_WORK_MASK							\
-	(0x0000FFFF &							\
-	 ~(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP|_TIF_SECCOMP))
-/* work to do on any return to user space */
-#define _TIF_ALLWORK_MASK (0x0000FFFF & ~_TIF_SECCOMP)
-
-#define _TIF_DO_NOTIFY_MASK						\
-	(_TIF_SIGPENDING|_TIF_SINGLESTEP|_TIF_MCE_NOTIFY|_TIF_HRTICK_RESCHED)
-
-/* flags to check in __switch_to() */
-#define _TIF_WORK_CTXSW							\
-	(_TIF_IO_BITMAP|_TIF_DEBUGCTLMSR|_TIF_DS_AREA_MSR|_TIF_BTS_TRACE_TS|_TIF_NOTSC)
-#define _TIF_WORK_CTXSW_PREV _TIF_WORK_CTXSW
-#define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW|_TIF_DEBUG)
 
 #endif /* !X86_32 */
 
