@@ -15,6 +15,8 @@
 #include <linux/sysctl.h>
 #include <linux/uaccess.h>
 #include <linux/ipc_namespace.h>
+#include <linux/msg.h>
+#include "util.h"
 
 static void *get_ipc(ctl_table *table)
 {
@@ -22,6 +24,27 @@ static void *get_ipc(ctl_table *table)
 	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
 	which = (which - (char *)&init_ipc_ns) + (char *)ipc_ns;
 	return which;
+}
+
+/*
+ * Routine that is called when a tunable has successfully been changed by
+ * hand and it has a callback routine registered on the ipc namespace notifier
+ * chain: we don't want such tunables to be recomputed anymore upon memory
+ * add/remove or ipc namespace creation/removal.
+ * They can come back to a recomputable state by being set to a <0 value.
+ */
+static void tunable_set_callback(int val)
+{
+	if (val >= 0)
+		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
+	else {
+		/*
+		 * Re-enable automatic recomputing only if not already
+		 * enabled.
+		 */
+		recompute_msgmni(current->nsproxy->ipc_ns);
+		cond_register_ipcns_notifier(current->nsproxy->ipc_ns);
+	}
 }
 
 #ifdef CONFIG_PROC_FS
@@ -38,17 +61,17 @@ static int proc_ipc_dointvec(ctl_table *table, int write, struct file *filp,
 static int proc_ipc_callback_dointvec(ctl_table *table, int write,
 	struct file *filp, void __user *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct ctl_table ipc_table;
 	size_t lenp_bef = *lenp;
 	int rc;
 
-	rc = proc_ipc_dointvec(table, write, filp, buffer, lenp, ppos);
+	memcpy(&ipc_table, table, sizeof(ipc_table));
+	ipc_table.data = get_ipc(table);
+
+	rc = proc_dointvec(&ipc_table, write, filp, buffer, lenp, ppos);
 
 	if (write && !rc && lenp_bef == *lenp)
-		/*
-		 * Tunable has successfully been changed from userland:
-		 * disable its automatic recomputing.
-		 */
-		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
+		tunable_set_callback(*((int *)(ipc_table.data)));
 
 	return rc;
 }
@@ -119,12 +142,14 @@ static int sysctl_ipc_registered_data(ctl_table *table, int __user *name,
 	rc = sysctl_ipc_data(table, name, nlen, oldval, oldlenp, newval,
 		newlen);
 
-	if (newval && newlen && rc > 0)
+	if (newval && newlen && rc > 0) {
 		/*
-		 * Tunable has successfully been changed from userland:
-		 * disable its automatic recomputing.
+		 * Tunable has successfully been changed from userland
 		 */
-		unregister_ipcns_notifier(current->nsproxy->ipc_ns);
+		int *data = get_ipc(table);
+
+		tunable_set_callback(*data);
+	}
 
 	return rc;
 }
