@@ -1063,10 +1063,9 @@ int __init spu_sched_init(void)
 
 	mod_timer(&spuloadavg_timer, 0);
 
-	entry = create_proc_entry("spu_loadavg", 0, NULL);
+	entry = proc_create("spu_loadavg", 0, NULL, &spu_loadavg_fops);
 	if (!entry)
 		goto out_stop_kthread;
-	entry->proc_fops = &spu_loadavg_fops;
 
 	pr_debug("spusched: tick: %d, min ticks: %d, default ticks: %d\n",
 			SPUSCHED_TICK, MIN_SPU_TIMESLICE, DEF_SPU_TIMESLICE);
