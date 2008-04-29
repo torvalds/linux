@@ -234,6 +234,14 @@ config WINDFARM_PM112
 	  which are the recent dual and quad G5 machines using the
 	  970MP dual-core processor.
 
+config WINDFARM_PM121
+	tristate "Support for thermal management on PowerMac12,1"
+	depends on WINDFARM && I2C && PMAC_SMU
+	select I2C_POWERMAC
+	help
+	  This driver provides thermal control for the PowerMac12,1
+	  which is the iMac G5 (iSight).
+
 config ANSLCD
 	tristate "Support for ANS LCD display"
 	depends on ADB_CUDA && PPC_PMAC

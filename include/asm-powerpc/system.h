@@ -204,7 +204,7 @@ extern int powersave_nap;	/* set if nap mode can be used in idle loop */
  * Changes the memory location '*ptr' to be val and returns
  * the previous value stored there.
  */
-static __inline__ unsigned long
+static __always_inline unsigned long
 __xchg_u32(volatile void *p, unsigned long val)
 {
 	unsigned long prev;
@@ -229,7 +229,7 @@ __xchg_u32(volatile void *p, unsigned long val)
  * Changes the memory location '*ptr' to be val and returns
  * the previous value stored there.
  */
-static __inline__ unsigned long
+static __always_inline unsigned long
 __xchg_u32_local(volatile void *p, unsigned long val)
 {
 	unsigned long prev;
@@ -247,7 +247,7 @@ __xchg_u32_local(volatile void *p, unsigned long val)
 }
 
 #ifdef CONFIG_PPC64
-static __inline__ unsigned long
+static __always_inline unsigned long
 __xchg_u64(volatile void *p, unsigned long val)
 {
 	unsigned long prev;
@@ -266,7 +266,7 @@ __xchg_u64(volatile void *p, unsigned long val)
 	return prev;
 }
 
-static __inline__ unsigned long
+static __always_inline unsigned long
 __xchg_u64_local(volatile void *p, unsigned long val)
 {
 	unsigned long prev;
@@ -290,7 +290,7 @@ __xchg_u64_local(volatile void *p, unsigned long val)
  */
 extern void __xchg_called_with_bad_pointer(void);
 
-static __inline__ unsigned long
+static __always_inline unsigned long
 __xchg(volatile void *ptr, unsigned long x, unsigned int size)
 {
 	switch (size) {
@@ -305,7 +305,7 @@ __xchg(volatile void *ptr, unsigned long x, unsigned int size)
 	return x;
 }
 
-static __inline__ unsigned long
+static __always_inline unsigned long
 __xchg_local(volatile void *ptr, unsigned long x, unsigned int size)
 {
 	switch (size) {
@@ -338,7 +338,7 @@ __xchg_local(volatile void *ptr, unsigned long x, unsigned int size)
  */
 #define __HAVE_ARCH_CMPXCHG	1
 
-static __inline__ unsigned long
+static __always_inline unsigned long
 __cmpxchg_u32(volatile unsigned int *p, unsigned long old, unsigned long new)
 {
 	unsigned int prev;
@@ -361,7 +361,7 @@ __cmpxchg_u32(volatile unsigned int *p, unsigned long old, unsigned long new)
 	return prev;
 }
 
-static __inline__ unsigned long
+static __always_inline unsigned long
 __cmpxchg_u32_local(volatile unsigned int *p, unsigned long old,
 			unsigned long new)
 {
@@ -384,7 +384,7 @@ __cmpxchg_u32_local(volatile unsigned int *p, unsigned long old,
 }
 
 #ifdef CONFIG_PPC64
-static __inline__ unsigned long
+static __always_inline unsigned long
 __cmpxchg_u64(volatile unsigned long *p, unsigned long old, unsigned long new)
 {
 	unsigned long prev;
@@ -406,7 +406,7 @@ __cmpxchg_u64(volatile unsigned long *p, unsigned long old, unsigned long new)
 	return prev;
 }
 
-static __inline__ unsigned long
+static __always_inline unsigned long
 __cmpxchg_u64_local(volatile unsigned long *p, unsigned long old,
 			unsigned long new)
 {
@@ -432,7 +432,7 @@ __cmpxchg_u64_local(volatile unsigned long *p, unsigned long old,
    if something tries to do an invalid cmpxchg().  */
 extern void __cmpxchg_called_with_bad_pointer(void);
 
-static __inline__ unsigned long
+static __always_inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
 	  unsigned int size)
 {
@@ -448,7 +448,7 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
 	return old;
 }
 
-static __inline__ unsigned long
+static __always_inline unsigned long
 __cmpxchg_local(volatile void *ptr, unsigned long old, unsigned long new,
 	  unsigned int size)
 {

@@ -23,7 +23,6 @@
 #include <linux/device.h>
 #include <linux/rio_regs.h>
 
-#define RIO_ANY_DESTID		0xff
 #define RIO_NO_HOPCOUNT		-1
 #define RIO_INVALID_DESTID	0xffff
 
@@ -39,11 +38,8 @@
 					   entry is invalid (no route
 					   exists for the device ID) */
 
-#ifdef CONFIG_RAPIDIO_8_BIT_TRANSPORT
-#define RIO_MAX_ROUTE_ENTRIES	(1 << 8)
-#else
-#define RIO_MAX_ROUTE_ENTRIES	(1 << 16)
-#endif
+#define RIO_MAX_ROUTE_ENTRIES(size)	(size ? (1 << 16) : (1 << 8))
+#define RIO_ANY_DESTID(size)		(size ? 0xffff : 0xff)
 
 #define RIO_MAX_MBOX		4
 #define RIO_MAX_MSG_SIZE	0x1000
@@ -149,6 +145,11 @@ struct rio_dbell {
 	void *dev_id;
 };
 
+enum rio_phy_type {
+	RIO_PHY_PARALLEL,
+	RIO_PHY_SERIAL,
+};
+
 /**
  * struct rio_mport - RIO master port info
  * @dbells: List of doorbell events
@@ -163,6 +164,7 @@ struct rio_dbell {
  * @id: Port ID, unique among all ports
  * @index: Port index, unique among all port interfaces of the same type
  * @name: Port name string
+ * @priv: Master port private data
  */
 struct rio_mport {
 	struct list_head dbells;	/* list of doorbell events */
@@ -177,7 +179,13 @@ struct rio_mport {
 	unsigned char id;	/* port ID, unique among all ports */
 	unsigned char index;	/* port index, unique among all port
 				   interfaces of the same type */
+	unsigned int sys_size;	/* RapidIO common transport system size.
+				 * 0 - Small size. 256 devices.
+				 * 1 - Large size, 65536 devices.
+				 */
+	enum rio_phy_type phy_type;	/* RapidIO phy type */
 	unsigned char name[40];
+	void *priv;		/* Master port private data */
 };
 
 /**
@@ -211,7 +219,7 @@ struct rio_switch {
 	u16 switchid;
 	u16 hopcount;
 	u16 destid;
-	u8 route_table[RIO_MAX_ROUTE_ENTRIES];
+	u8 *route_table;
 	int (*add_entry) (struct rio_mport * mport, u16 destid, u8 hopcount,
 			  u16 table, u16 route_destid, u8 route_port);
 	int (*get_entry) (struct rio_mport * mport, u16 destid, u8 hopcount,
@@ -229,13 +237,15 @@ struct rio_switch {
  * @dsend: Callback to send a doorbell message.
  */
 struct rio_ops {
-	int (*lcread) (int index, u32 offset, int len, u32 * data);
-	int (*lcwrite) (int index, u32 offset, int len, u32 data);
-	int (*cread) (int index, u16 destid, u8 hopcount, u32 offset, int len,
-		      u32 * data);
-	int (*cwrite) (int index, u16 destid, u8 hopcount, u32 offset, int len,
-		       u32 data);
-	int (*dsend) (int index, u16 destid, u16 data);
+	int (*lcread) (struct rio_mport *mport, int index, u32 offset, int len,
+			u32 *data);
+	int (*lcwrite) (struct rio_mport *mport, int index, u32 offset, int len,
+			u32 data);
+	int (*cread) (struct rio_mport *mport, int index, u16 destid,
+			u8 hopcount, u32 offset, int len, u32 *data);
+	int (*cwrite) (struct rio_mport *mport, int index, u16 destid,
+			u8 hopcount, u32 offset, int len, u32 data);
+	int (*dsend) (struct rio_mport *mport, int index, u16 destid, u16 data);
 };
 
 #define RIO_RESOURCE_MEM	0x00000100

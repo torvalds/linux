@@ -43,7 +43,7 @@ u16 rio_local_get_device_id(struct rio_mport *port)
 
 	rio_local_read_config_32(port, RIO_DID_CSR, &result);
 
-	return (RIO_GET_DID(result));
+	return (RIO_GET_DID(port->sys_size, result));
 }
 
 /**
