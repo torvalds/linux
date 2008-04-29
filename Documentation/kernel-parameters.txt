@@ -1389,6 +1389,13 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
+	olpc_ec_timeout= [OLPC] ms delay when issuing EC commands
+			Rather than timing out after 20 ms if an EC
+			command is not properly ACKed, override the length
+			of the timeout.  We have interrupts disabled while
+			waiting for the ACK, so if this is set too high
+			interrupts *may* be lost!
+
 	opl3=		[HW,OSS]
 			Format: <io>
 

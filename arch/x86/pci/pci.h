@@ -98,6 +98,7 @@ extern int pci_direct_probe(void);
 extern void pci_direct_init(int type);
 extern void pci_pcbios_init(void);
 extern void pci_mmcfg_init(int type);
+extern void pci_olpc_init(void);
 
 /* pci-mmconfig.c */
 

@@ -315,7 +315,6 @@ static int __init olpc_bat_init(void)
 	if (ret)
 		goto battery_failed;
 
-	olpc_register_battery_callback(&olpc_battery_trigger_uevent);
 	goto success;
 
 battery_failed:
@@ -328,7 +327,6 @@ success:
 
 static void __exit olpc_bat_exit(void)
 {
-	olpc_deregister_battery_callback();
 	power_supply_unregister(&olpc_bat);
 	power_supply_unregister(&olpc_ac);
 	platform_device_unregister(bat_pdev);

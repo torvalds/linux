@@ -14,6 +14,9 @@ static __init int pci_access_init(void)
 #ifdef CONFIG_PCI_MMCONFIG
 	pci_mmcfg_init(type);
 #endif
+#ifdef CONFIG_PCI_OLPC
+	pci_olpc_init();
+#endif
 	if (raw_pci_ops)
 		return 0;
 #ifdef CONFIG_PCI_BIOS

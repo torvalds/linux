@@ -91,6 +91,8 @@ endif
 obj-$(CONFIG_SCx200)		+= scx200.o
 scx200-y			+= scx200_32.o
 
+obj-$(CONFIG_OLPC)		+= olpc.o
+
 ###
 # 64 bit specific files
 ifeq ($(CONFIG_X86_64),y)
