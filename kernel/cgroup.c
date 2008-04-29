@@ -2545,7 +2545,6 @@ int __init cgroup_init(void)
 {
 	int err;
 	int i;
-	struct proc_dir_entry *entry;
 
 	err = bdi_init(&cgroup_backing_dev_info);
 	if (err)
@@ -2561,9 +2560,7 @@ int __init cgroup_init(void)
 	if (err < 0)
 		goto out;
 
-	entry = create_proc_entry("cgroups", 0, NULL);
-	if (entry)
-		entry->proc_fops = &proc_cgroupstats_operations;
+	proc_create("cgroups", 0, NULL, &proc_cgroupstats_operations);
 
 out:
 	if (err)
