@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/parser.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/res_counter.h>
 #include <linux/uaccess.h>
 

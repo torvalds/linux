@@ -23,6 +23,7 @@
 #include <linux/rcupdate.h>
 #include <linux/marker.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 extern struct marker __start___markers[];
 extern struct marker __stop___markers[];
