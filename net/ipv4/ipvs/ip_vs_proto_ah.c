@@ -160,6 +160,7 @@ static void ah_exit(struct ip_vs_protocol *pp)
 struct ip_vs_protocol ip_vs_protocol_ah = {
 	.name =			"AH",
 	.protocol =		IPPROTO_AH,
+	.num_states =		1,
 	.dont_defrag =		1,
 	.init =			ah_init,
 	.exit =			ah_exit,
