@@ -425,7 +425,6 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 	cutime = cstime = utime = stime = cputime_zero;
 	cgtime = gtime = cputime_zero;
 
-	rcu_read_lock();
 	if (lock_task_sighand(task, &flags)) {
 		struct signal_struct *sig = task->signal;
 
@@ -469,7 +468,6 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 
 		unlock_task_sighand(task, &flags);
 	}
-	rcu_read_unlock();
 
 	if (!whole || num_threads < 2)
 		wchan = get_wchan(task);
