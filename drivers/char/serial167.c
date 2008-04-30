@@ -1060,7 +1060,7 @@ static void config_setup(struct cyclades_port *info)
 
 }				/* config_setup */
 
-static void cy_put_char(struct tty_struct *tty, unsigned char ch)
+static int cy_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
 	unsigned long flags;
@@ -1070,7 +1070,7 @@ static void cy_put_char(struct tty_struct *tty, unsigned char ch)
 #endif
 
 	if (serial_paranoia_check(info, tty->name, "cy_put_char"))
-		return;
+		return 0;
 
 	if (!info->xmit_buf)
 		return;
@@ -1078,13 +1078,14 @@ static void cy_put_char(struct tty_struct *tty, unsigned char ch)
 	local_irq_save(flags);
 	if (info->xmit_cnt >= PAGE_SIZE - 1) {
 		local_irq_restore(flags);
-		return;
+		return 0;
 	}
 
 	info->xmit_buf[info->xmit_head++] = ch;
 	info->xmit_head &= PAGE_SIZE - 1;
 	info->xmit_cnt++;
 	local_irq_restore(flags);
+	return 1;
 }				/* cy_put_char */
 
 static void cy_flush_chars(struct tty_struct *tty)
