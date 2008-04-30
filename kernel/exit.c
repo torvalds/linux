@@ -698,7 +698,7 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 	if (unlikely(traced)) {
 		/* Preserve ptrace links if someone else is tracing this child.  */
 		list_del_init(&p->ptrace_list);
-		if (p->parent != p->real_parent)
+		if (ptrace_reparented(p))
 			list_add(&p->ptrace_list, &p->real_parent->ptrace_children);
 	} else {
 		/* If this child is being traced, then we're the one tracing it
@@ -865,8 +865,8 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	 * only has special meaning to our real parent.
 	 */
 	if (!task_detached(tsk) && thread_group_empty(tsk)) {
-		int signal = (tsk->parent == tsk->real_parent)
-				? tsk->exit_signal : SIGCHLD;
+		int signal = ptrace_reparented(tsk) ?
+				SIGCHLD : tsk->exit_signal;
 		do_notify_parent(tsk, signal);
 	} else if (tsk->ptrace) {
 		do_notify_parent(tsk, SIGCHLD);
@@ -1269,8 +1269,7 @@ static int wait_task_zombie(struct task_struct *p, int noreap,
 		return 0;
 	}
 
-	/* traced means p->ptrace, but not vice versa */
-	traced = (p->real_parent != p->parent);
+	traced = ptrace_reparented(p);
 
 	if (likely(!traced)) {
 		struct signal_struct *psig;
