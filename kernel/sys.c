@@ -1572,11 +1572,8 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 		goto out;
 	}
 
-	rcu_read_lock();
-	if (!lock_task_sighand(p, &flags)) {
-		rcu_read_unlock();
+	if (!lock_task_sighand(p, &flags))
 		return;
-	}
 
 	switch (who) {
 		case RUSAGE_BOTH:
@@ -1612,9 +1609,7 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 		default:
 			BUG();
 	}
-
 	unlock_task_sighand(p, &flags);
-	rcu_read_unlock();
 
 out:
 	cputime_to_timeval(utime, &r->ru_utime);
