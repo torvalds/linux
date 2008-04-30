@@ -1165,7 +1165,7 @@ static int tuner_probe(struct i2c_client *client,
 			/* If chip is not tda8290, don't register.
 			   since it can be tda9887*/
 			if (tuner_symbol_probe(tda829x_probe, t->i2c->adapter,
-					       t->i2c->addr) == 0) {
+					       t->i2c->addr) >= 0) {
 				tuner_dbg("tda829x detected\n");
 			} else {
 				/* Default is being tda9887 */
@@ -1179,7 +1179,7 @@ static int tuner_probe(struct i2c_client *client,
 		case 0x60:
 			if (tuner_symbol_probe(tea5767_autodetection,
 					       t->i2c->adapter, t->i2c->addr)
-					!= EINVAL) {
+					>= 0) {
 				t->type = TUNER_TEA5767;
 				t->mode_mask = T_RADIO;
 				t->mode = T_STANDBY;
