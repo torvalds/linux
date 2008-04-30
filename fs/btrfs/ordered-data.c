@@ -18,6 +18,7 @@
 
 #include <linux/gfp.h>
 #include <linux/slab.h>
+#include <linux/blkdev.h>
 #include "ctree.h"
 #include "transaction.h"
 #include "btrfs_inode.h"

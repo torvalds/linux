@@ -814,6 +814,9 @@ void btrfs_transaction_cleaner(struct work_struct *work)
 	int ret;
 
 	mutex_lock(&root->fs_info->fs_mutex);
+	if (root->fs_info->closing)
+		goto out;
+
 	mutex_lock(&root->fs_info->trans_mutex);
 	cur = root->fs_info->running_transaction;
 	if (!cur) {
@@ -838,12 +841,13 @@ out:
 
 void btrfs_transaction_queue_work(struct btrfs_root *root, int delay)
 {
-	queue_delayed_work(trans_wq, &root->fs_info->trans_work, delay);
+	if (!root->fs_info->closing)
+		queue_delayed_work(trans_wq, &root->fs_info->trans_work, delay);
 }
 
 void btrfs_transaction_flush_work(struct btrfs_root *root)
 {
-	cancel_rearming_delayed_workqueue(trans_wq, &root->fs_info->trans_work);
+	cancel_delayed_work(&root->fs_info->trans_work);
 	flush_workqueue(trans_wq);
 }
 

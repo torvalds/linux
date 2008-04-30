@@ -1548,6 +1548,7 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_commit_transaction(trans, root);
 	ret = btrfs_write_and_wait_transaction(NULL, root);
 	BUG_ON(ret);
+
 	write_ctree_super(NULL, root);
 	mutex_unlock(&fs_info->fs_mutex);
 
@@ -1583,16 +1584,16 @@ int close_ctree(struct btrfs_root *root)
 	extent_io_tree_empty_lru(&fs_info->extent_ins);
 	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
 
-	flush_workqueue(end_io_workqueue);
 	flush_workqueue(async_submit_workqueue);
+	flush_workqueue(end_io_workqueue);
 
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
 
-	flush_workqueue(end_io_workqueue);
-	destroy_workqueue(end_io_workqueue);
-
 	flush_workqueue(async_submit_workqueue);
 	destroy_workqueue(async_submit_workqueue);
+
+	flush_workqueue(end_io_workqueue);
+	destroy_workqueue(end_io_workqueue);
 
 	iput(fs_info->btree_inode);
 #if 0
@@ -1663,8 +1664,21 @@ void btrfs_throttle(struct btrfs_root *root)
 
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 {
-	balance_dirty_pages_ratelimited_nr(
+	struct extent_io_tree *tree;
+	u64 num_dirty;
+	u64 start = 0;
+	unsigned long thresh = 16 * 1024 * 1024;
+	tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
+
+	if (current_is_pdflush())
+		return;
+
+	num_dirty = count_range_bits(tree, &start, (u64)-1,
+				     thresh, EXTENT_DIRTY);
+	if (num_dirty > thresh) {
+		balance_dirty_pages_ratelimited_nr(
 				   root->fs_info->btree_inode->i_mapping, 1);
+	}
 }
 
 void btrfs_set_buffer_defrag(struct extent_buffer *buf)
