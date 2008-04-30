@@ -1303,7 +1303,7 @@ static void tx_release(struct tty_struct *tty)
  *
  * Return Value:	0 if success, otherwise error code
  */
-static int ioctl(struct tty_struct *tty, struct file *file,
+static int do_ioctl(struct tty_struct *tty, struct file *file,
 		 unsigned int cmd, unsigned long arg)
 {
 	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
@@ -1391,6 +1391,16 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 		return -ENOIOCTLCMD;
 	}
 	return 0;
+}
+
+static int ioctl(struct tty_struct *tty, struct file *file,
+		 unsigned int cmd, unsigned long arg)
+{
+	int ret;
+	lock_kernel();
+	ret = do_ioctl(tty, file, cmd, arg);
+	unlock_kernel();
+	return ret;
 }
 
 /*

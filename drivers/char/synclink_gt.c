@@ -1097,6 +1097,7 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 	struct serial_icounter_struct __user *p_cuser;	/* user space */
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
+	int ret;
 
 	if (sanity_check(info, tty->name, "ioctl"))
 		return -ENODEV;
@@ -1108,37 +1109,54 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 		    return -EIO;
 	}
 
+	lock_kernel();
+
 	switch (cmd) {
 	case MGSL_IOCGPARAMS:
-		return get_params(info, argp);
+		ret = get_params(info, argp);
+		break;
 	case MGSL_IOCSPARAMS:
-		return set_params(info, argp);
+		ret = set_params(info, argp);
+		break;
 	case MGSL_IOCGTXIDLE:
-		return get_txidle(info, argp);
+		ret = get_txidle(info, argp);
+		break;
 	case MGSL_IOCSTXIDLE:
-		return set_txidle(info, (int)arg);
+		ret = set_txidle(info, (int)arg);
+		break;
 	case MGSL_IOCTXENABLE:
-		return tx_enable(info, (int)arg);
+		ret = tx_enable(info, (int)arg);
+		break;
 	case MGSL_IOCRXENABLE:
-		return rx_enable(info, (int)arg);
+		ret = rx_enable(info, (int)arg);
+		break;
 	case MGSL_IOCTXABORT:
-		return tx_abort(info);
+		ret = tx_abort(info);
+		break;
 	case MGSL_IOCGSTATS:
-		return get_stats(info, argp);
+		ret = get_stats(info, argp);
+		break;
 	case MGSL_IOCWAITEVENT:
-		return wait_mgsl_event(info, argp);
+		ret = wait_mgsl_event(info, argp);
+		break;
 	case TIOCMIWAIT:
-		return modem_input_wait(info,(int)arg);
+		ret = modem_input_wait(info,(int)arg);
+		break;
 	case MGSL_IOCGIF:
-		return get_interface(info, argp);
+		ret = get_interface(info, argp);
+		break;
 	case MGSL_IOCSIF:
-		return set_interface(info,(int)arg);
+		ret = set_interface(info,(int)arg);
+		break;
 	case MGSL_IOCSGPIO:
-		return set_gpio(info, argp);
+		ret = set_gpio(info, argp);
+		break;
 	case MGSL_IOCGGPIO:
-		return get_gpio(info, argp);
+		ret = get_gpio(info, argp);
+		break;
 	case MGSL_IOCWAITGPIO:
-		return wait_gpio(info, argp);
+		ret = wait_gpio(info, argp);
+		break;
 	case TIOCGICOUNT:
 		spin_lock_irqsave(&info->lock,flags);
 		cnow = info->icount;
@@ -1155,12 +1173,14 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 		    put_user(cnow.parity, &p_cuser->parity) ||
 		    put_user(cnow.brk, &p_cuser->brk) ||
 		    put_user(cnow.buf_overrun, &p_cuser->buf_overrun))
-			return -EFAULT;
-		return 0;
+			ret = -EFAULT;
+		ret = 0;
+		break;
 	default:
-		return -ENOIOCTLCMD;
+		ret = -ENOIOCTLCMD;
 	}
-	return 0;
+	unlock_kernel();
+	return ret;
 }
 
 /*

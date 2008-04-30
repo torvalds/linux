@@ -2942,6 +2942,7 @@ static int mgsl_ioctl(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct mgsl_struct * info = (struct mgsl_struct *)tty->driver_data;
+	int ret;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):mgsl_ioctl %s cmd=%08X\n", __FILE__,__LINE__,
@@ -2956,7 +2957,10 @@ static int mgsl_ioctl(struct tty_struct *tty, struct file * file,
 		    return -EIO;
 	}
 
-	return mgsl_ioctl_common(info, cmd, arg);
+	lock_kernel();
+	ret = mgsl_ioctl_common(info, cmd, arg);
+	unlock_kernel();
+	return ret;
 }
 
 static int mgsl_ioctl_common(struct mgsl_struct *info, unsigned int cmd, unsigned long arg)
