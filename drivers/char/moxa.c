@@ -846,10 +846,11 @@ static int moxa_init_board(struct moxa_board_conf *brd, struct device *dev)
 	if (ret)
 		goto err_free;
 
+	spin_lock_bh(&moxa_lock);
 	brd->ready = 1;
-
 	if (!timer_pending(&moxaTimer))
 		mod_timer(&moxaTimer, jiffies + HZ / 50);
+	spin_unlock_bh(&moxa_lock);
 
 	return 0;
 err_free:
@@ -1041,13 +1042,6 @@ static void __exit moxa_exit(void)
 {
 	int i;
 
-	del_timer_sync(&moxaTimer);
-
-	if (tty_unregister_driver(moxaDriver))
-		printk(KERN_ERR "Couldn't unregister MOXA Intellio family "
-				"serial driver\n");
-	put_tty_driver(moxaDriver);
-
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&moxa_pci_driver);
 #endif
@@ -1055,6 +1049,13 @@ static void __exit moxa_exit(void)
 	for (i = 0; i < MAX_BOARDS; i++) /* ISA boards */
 		if (moxa_boards[i].ready)
 			moxa_board_deinit(&moxa_boards[i]);
+
+	del_timer_sync(&moxaTimer);
+
+	if (tty_unregister_driver(moxaDriver))
+		printk(KERN_ERR "Couldn't unregister MOXA Intellio family "
+				"serial driver\n");
+	put_tty_driver(moxaDriver);
 }
 
 module_init(moxa_init);
@@ -1432,13 +1433,15 @@ static void moxa_poll(unsigned long ignored)
 {
 	struct moxa_board_conf *brd;
 	u16 __iomem *ip;
-	unsigned int card, port;
+	unsigned int card, port, served = 0;
 
 	spin_lock(&moxa_lock);
 	for (card = 0; card < MAX_BOARDS; card++) {
 		brd = &moxa_boards[card];
 		if (!brd->ready)
 			continue;
+
+		served++;
 
 		ip = NULL;
 		if (readb(brd->intPend) == 0xff)
@@ -1460,9 +1463,10 @@ static void moxa_poll(unsigned long ignored)
 		}
 	}
 	moxaLowWaterChk = 0;
-	spin_unlock(&moxa_lock);
 
-	mod_timer(&moxaTimer, jiffies + HZ / 50);
+	if (served)
+		mod_timer(&moxaTimer, jiffies + HZ / 50);
+	spin_unlock(&moxa_lock);
 }
 
 /******************************************************************************/
