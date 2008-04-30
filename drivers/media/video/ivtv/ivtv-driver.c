@@ -1049,7 +1049,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 				       IVTV_ENCODER_SIZE);
 	if (!itv->enc_mem) {
 		IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-		IVTV_ERR("or disabling CONFIG_HIMEM4G into the kernel would help\n");
+		IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
 		retval = -ENOMEM;
 		goto free_mem;
 	}
@@ -1061,7 +1061,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 				IVTV_DECODER_SIZE);
 		if (!itv->dec_mem) {
 			IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-			IVTV_ERR("or disabling CONFIG_HIMEM4G into the kernel would help\n");
+			IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
 			retval = -ENOMEM;
 			goto free_mem;
 		}
@@ -1077,7 +1077,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	    ioremap_nocache(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (!itv->reg_mem) {
 		IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-		IVTV_ERR("or disabling CONFIG_HIMEM4G into the kernel would help\n");
+		IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
 		retval = -ENOMEM;
 		goto free_io;
 	}

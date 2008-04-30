@@ -1,12 +1,17 @@
 config MEDIA_ATTACH
-	bool "Load and attach frontend driver modules as needed"
+	bool "Load and attach frontend and tuner driver modules as needed"
 	depends on DVB_CORE
 	depends on MODULES
 	help
 	  Remove the static dependency of DVB card drivers on all
 	  frontend modules for all possible card variants. Instead,
 	  allow the card drivers to only load the frontend modules
-	  they require. This saves several KBytes of memory.
+	  they require.
+
+	  Also, tuner module will automatically load a tuner driver
+	  when needed, for analog mode.
+
+	  This saves several KBytes of memory.
 
 	  Note: You will need module-init-tools v3.2 or later for this feature.
 

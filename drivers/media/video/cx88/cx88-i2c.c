@@ -99,7 +99,6 @@ static int cx8800_bit_getsda(void *data)
 
 static int attach_inform(struct i2c_client *client)
 {
-	struct tuner_setup tun_setup;
 	struct cx88_core *core = i2c_get_adapdata(client->adapter);
 
 	dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",

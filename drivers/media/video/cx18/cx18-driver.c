@@ -567,7 +567,7 @@ static void cx18_load_and_init_modules(struct cx18 *cx)
 	int i;
 
 	/* load modules */
-#ifndef CONFIG_VIDEO_TUNER
+#ifndef CONFIG_MEDIA_TUNER
 	hw = cx18_request_module(cx, hw, "tuner", CX18_HW_TUNER);
 #endif
 #ifndef CONFIG_VIDEO_CS5345
