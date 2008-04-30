@@ -184,12 +184,12 @@ static int cx18_setup_vbi_fmt(struct cx18 *cx, enum v4l2_mpeg_stream_vbi_fmt fmt
 	if (cx->vbi.insert_mpeg == 0)
 		return 0;
 	/* Need sliced data for mpeg insertion */
-	if (get_service_set(cx->vbi.sliced_in) == 0) {
+	if (cx18_get_service_set(cx->vbi.sliced_in) == 0) {
 		if (cx->is_60hz)
 			cx->vbi.sliced_in->service_set = V4L2_SLICED_CAPTION_525;
 		else
 			cx->vbi.sliced_in->service_set = V4L2_SLICED_WSS_625;
-		expand_service_set(cx->vbi.sliced_in, cx->is_50hz);
+		cx18_expand_service_set(cx->vbi.sliced_in, cx->is_50hz);
 	}
 	return 0;
 }

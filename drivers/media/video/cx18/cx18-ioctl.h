@@ -21,9 +21,9 @@
  *  02111-1307  USA
  */
 
-u16 service2vbi(int type);
-void expand_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal);
-u16 get_service_set(struct v4l2_sliced_vbi_format *fmt);
+u16 cx18_service2vbi(int type);
+void cx18_expand_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal);
+u16 cx18_get_service_set(struct v4l2_sliced_vbi_format *fmt);
 int cx18_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		    unsigned long arg);
 int cx18_v4l2_ioctls(struct cx18 *cx, struct file *filp, unsigned cmd,

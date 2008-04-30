@@ -40,7 +40,7 @@
 #include <media/v4l2-chip-ident.h>
 #include <linux/i2c-id.h>
 
-u16 service2vbi(int type)
+u16 cx18_service2vbi(int type)
 {
 	switch (type) {
 	case V4L2_SLICED_TELETEXT_B:
@@ -88,7 +88,7 @@ static u16 select_service_from_set(int field, int line, u16 set, int is_pal)
 	return 0;
 }
 
-void expand_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
+void cx18_expand_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
 {
 	u16 set = fmt->service_set;
 	int f, l;
@@ -114,7 +114,7 @@ static int check_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
 	return set != 0;
 }
 
-u16 get_service_set(struct v4l2_sliced_vbi_format *fmt)
+u16 cx18_get_service_set(struct v4l2_sliced_vbi_format *fmt)
 {
 	int f, l;
 	u16 set = 0;
@@ -213,7 +213,7 @@ static int cx18_get_fmt(struct cx18 *cx, int streamtype, struct v4l2_format *fmt
 		memset(vbifmt->service_lines, 0, sizeof(vbifmt->service_lines));
 
 		cx18_av_cmd(cx, VIDIOC_G_FMT, fmt);
-		vbifmt->service_set = get_service_set(vbifmt);
+		vbifmt->service_set = cx18_get_service_set(vbifmt);
 		break;
 	}
 	default:
@@ -285,9 +285,9 @@ static int cx18_try_or_set_fmt(struct cx18 *cx, int streamtype,
 	memset(vbifmt->reserved, 0, sizeof(vbifmt->reserved));
 
 	if (vbifmt->service_set)
-		expand_service_set(vbifmt, cx->is_50hz);
+		cx18_expand_service_set(vbifmt, cx->is_50hz);
 	set = check_service_set(vbifmt, cx->is_50hz);
-	vbifmt->service_set = get_service_set(vbifmt);
+	vbifmt->service_set = cx18_get_service_set(vbifmt);
 
 	if (!set_fmt)
 		return 0;

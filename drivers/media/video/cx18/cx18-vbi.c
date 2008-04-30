@@ -58,7 +58,7 @@ static void copy_vbi_data(struct cx18 *cx, int lines, u32 pts_stamp)
 			linemask[0] |= (1 << l);
 		else
 			linemask[1] |= (1 << (l - 32));
-		dst[sd + 12 + line * 43] = service2vbi(sdata->id);
+		dst[sd + 12 + line * 43] = cx18_service2vbi(sdata->id);
 		memcpy(dst + sd + 12 + line * 43 + 1, sdata->data, 42);
 		line++;
 	}
