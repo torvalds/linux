@@ -170,7 +170,7 @@ static int gs_open(struct tty_struct *tty, struct file *file);
 static void gs_close(struct tty_struct *tty, struct file *file);
 static int gs_write(struct tty_struct *tty,
 	const unsigned char *buf, int count);
-static void gs_put_char(struct tty_struct *tty, unsigned char ch);
+static int gs_put_char(struct tty_struct *tty, unsigned char ch);
 static void gs_flush_chars(struct tty_struct *tty);
 static int gs_write_room(struct tty_struct *tty);
 static int gs_chars_in_buffer(struct tty_struct *tty);
@@ -883,14 +883,15 @@ exit:
 /*
  * gs_put_char
  */
-static void gs_put_char(struct tty_struct *tty, unsigned char ch)
+static int gs_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	unsigned long flags;
 	struct gs_port *port = tty->driver_data;
+	int ret = 0;
 
 	if (port == NULL) {
 		pr_err("gs_put_char: NULL port pointer\n");
-		return;
+		return 0;
 	}
 
 	gs_debug("gs_put_char: (%d,%p) char=0x%x, called from %p\n",
@@ -910,10 +911,11 @@ static void gs_put_char(struct tty_struct *tty, unsigned char ch)
 		goto exit;
 	}
 
-	gs_buf_put(port->port_write_buf, &ch, 1);
+	ret = gs_buf_put(port->port_write_buf, &ch, 1);
 
 exit:
 	spin_unlock_irqrestore(&port->port_lock, flags);
+	return ret;
 }
 
 /*
