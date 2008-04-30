@@ -4556,7 +4556,7 @@ static int __init cy_detect_isa(void)
 			return nboard;
 
 		/* probe for CD1400... */
-		cy_isa_address = ioremap(isa_address, CyISA_Ywin);
+		cy_isa_address = ioremap_nocache(isa_address, CyISA_Ywin);
 		if (cy_isa_address == NULL) {
 			printk(KERN_ERR "Cyclom-Y/ISA: can't remap base "
 					"address\n");
