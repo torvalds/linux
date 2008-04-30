@@ -2809,6 +2809,8 @@ out_stop:
 		ext4_orphan_del(handle, inode);
 
 	up_write(&EXT4_I(inode)->i_data_sem);
+	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
+	ext4_mark_inode_dirty(handle, inode);
 	ext4_journal_stop(handle);
 }
 
