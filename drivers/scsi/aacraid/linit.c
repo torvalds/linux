@@ -811,6 +811,12 @@ static ssize_t aac_show_flags(struct device *cdev,
 				"SAI_READ_CAPACITY_16\n");
 	if (dev->jbod)
 		len += snprintf(buf + len, PAGE_SIZE - len, "SUPPORTED_JBOD\n");
+	if (dev->supplement_adapter_info.SupportedOptions2 &
+		AAC_OPTION_POWER_MANAGEMENT)
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"SUPPORTED_POWER_MANAGEMENT\n");
+	if (dev->msi)
+		len += snprintf(buf + len, PAGE_SIZE - len, "PCI_HAS_MSI\n");
 	return len;
 }
 
