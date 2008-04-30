@@ -16,6 +16,10 @@ obj-$(CONFIG_TUNER_TDA9887) += tda9887.o
 obj-$(CONFIG_DVB_TDA827X) += tda827x.o
 obj-$(CONFIG_DVB_TDA18271) += tda18271.o
 obj-$(CONFIG_DVB_TUNER_XC5000) += xc5000.o
+obj-$(CONFIG_DVB_TUNER_MT2060) += mt2060.o
+obj-$(CONFIG_DVB_TUNER_MT2266) += mt2266.o
+obj-$(CONFIG_DVB_TUNER_QT1010) += qt1010.o
+obj-$(CONFIG_DVB_TUNER_MT2131) += mt2131.o
 
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends

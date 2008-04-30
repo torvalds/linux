@@ -336,7 +336,7 @@ config DVB_S5H1411
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
-comment "Tuners/PLL support"
+comment "Digital terrestrial only tuners/PLL"
 	depends on DVB_CORE
 
 config DVB_PLL
@@ -346,34 +346,6 @@ config DVB_PLL
 	help
 	  This module drives a number of tuners based on PLL chips with a
 	  common I2C interface. Say Y when you want to support these tuners.
-
-config DVB_TUNER_QT1010
-	tristate "Quantek QT1010 silicon tuner"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A driver for the silicon tuner QT1010 from Quantek.
-
-config DVB_TUNER_MT2060
-	tristate "Microtune MT2060 silicon IF tuner"
-	depends on I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A driver for the silicon IF tuner MT2060 from Microtune.
-
-config DVB_TUNER_MT2266
-	tristate "Microtune MT2266 silicon tuner"
-	depends on I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A driver for the silicon baseband tuner MT2266 from Microtune.
-
-config DVB_TUNER_MT2131
-	tristate "Microtune MT2131 silicon tuner"
-	depends on I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A driver for the silicon baseband tuner MT2131 from Microtune.
 
 config DVB_TUNER_DIB0070
 	tristate "DiBcom DiB0070 silicon base-band tuner"

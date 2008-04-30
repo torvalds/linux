@@ -99,6 +99,34 @@ config TUNER_MT20XX
 	help
 	  Say Y here to include support for the MT2032 / MT2050 tuner.
 
+config DVB_TUNER_MT2060
+	tristate "Microtune MT2060 silicon IF tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon IF tuner MT2060 from Microtune.
+
+config DVB_TUNER_MT2266
+	tristate "Microtune MT2266 silicon tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon baseband tuner MT2266 from Microtune.
+
+config DVB_TUNER_MT2131
+	tristate "Microtune MT2131 silicon tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon baseband tuner MT2131 from Microtune.
+
+config DVB_TUNER_QT1010
+	tristate "Quantek QT1010 silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon tuner QT1010 from Quantek.
+
 config TUNER_XC2028
 	tristate "XCeive xc2028/xc3028 tuners"
 	depends on I2C && FW_LOADER
