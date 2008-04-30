@@ -593,7 +593,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 	struct spu *spu;
 	int node, n;
 
-	spu_context_nospu_trace(spu_find_vitim__enter, ctx);
+	spu_context_nospu_trace(spu_find_victim__enter, ctx);
 
 	/*
 	 * Look for a possible preemption candidate on the local node first.
