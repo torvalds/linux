@@ -333,20 +333,6 @@ config DVB_TDA826X
 	help
 	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
 
-config DVB_TDA827X
-	tristate "Philips TDA827X silicon tuner"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A DVB-T silicon tuner module. Say Y when you want to support this tuner.
-
-config DVB_TDA18271
-	tristate "NXP TDA18271 silicon tuner"
-	depends on I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A silicon tuner module. Say Y when you want to support this tuner.
-
 config DVB_TUNER_QT1010
 	tristate "Quantek QT1010 silicon tuner"
 	depends on DVB_CORE && I2C
@@ -381,15 +367,6 @@ config DVB_TUNER_DIB0070
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A driver for the silicon baseband tuner DiB0070 from DiBcom.
-	  This device is only used inside a SiP called togther with a
-	  demodulator for now.
-
-config DVB_TUNER_XC5000
-	tristate "Xceive XC5000 silicon tuner"
-	depends on I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  A driver for the silicon tuner XC5000 from Xceive.
 	  This device is only used inside a SiP called togther with a
 	  demodulator for now.
 
