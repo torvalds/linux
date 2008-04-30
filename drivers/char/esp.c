@@ -1600,8 +1600,6 @@ static int set_esp_config(struct esp_struct * info,
 
 	if ((new_config.flow_off != info->config.flow_off) ||
 	    (new_config.flow_on != info->config.flow_on)) {
-		unsigned long flags;
-
 		info->config.flow_off = new_config.flow_off;
 		info->config.flow_on = new_config.flow_on;
 
@@ -1616,8 +1614,6 @@ static int set_esp_config(struct esp_struct * info,
 
 	if ((new_config.rx_trigger != info->config.rx_trigger) ||
 	    (new_config.tx_trigger != info->config.tx_trigger)) {
-		unsigned long flags;
-
 		info->config.rx_trigger = new_config.rx_trigger;
 		info->config.tx_trigger = new_config.tx_trigger;
 		spin_lock_irqsave(&info->lock, flags);
@@ -1632,8 +1628,6 @@ static int set_esp_config(struct esp_struct * info,
 	}
 
 	if (new_config.rx_timeout != info->config.rx_timeout) {
-		unsigned long flags;
-
 		info->config.rx_timeout = new_config.rx_timeout;
 		spin_lock_irqsave(&info->lock, flags);
 
