@@ -832,33 +832,34 @@ static void change_speed(struct async_struct *info,
 	local_irq_restore(flags);
 }
 
-static void rs_put_char(struct tty_struct *tty, unsigned char ch)
+static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct async_struct *info;
 	unsigned long flags;
 
 	if (!tty)
-		return;
+		return 0;
 
 	info = tty->driver_data;
 
 	if (serial_paranoia_check(info, tty->name, "rs_put_char"))
-		return;
+		return 0;
 
 	if (!info->xmit.buf)
-		return;
+		return 0;
 
 	local_irq_save(flags);
 	if (CIRC_SPACE(info->xmit.head,
 		       info->xmit.tail,
 		       SERIAL_XMIT_SIZE) == 0) {
 		local_irq_restore(flags);
-		return;
+		return 0;
 	}
 
 	info->xmit.buf[info->xmit.head++] = ch;
 	info->xmit.head &= SERIAL_XMIT_SIZE-1;
 	local_irq_restore(flags);
+	return 1;
 }
 
 static void rs_flush_chars(struct tty_struct *tty)
