@@ -1,8 +1,6 @@
 #ifndef _ASM_GENERIC_FUTEX_H
 #define _ASM_GENERIC_FUTEX_H
 
-#ifdef __KERNEL__
-
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 #include <asm/errno.h>
@@ -55,5 +53,4 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 	return -ENOSYS;
 }
 
-#endif
 #endif
