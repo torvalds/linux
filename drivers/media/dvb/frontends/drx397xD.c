@@ -1026,13 +1026,13 @@ static int drx_tune(struct drx397xD_state *s,
 
 	{
 		/* Configure bandwidth specific factor */
-		ebx = div64_64(((u64) (s->f_osc) << 21) + (ebx >> 1),
+		ebx = div64_u64(((u64) (s->f_osc) << 21) + (ebx >> 1),
 				     (u64)ebx) - 0x800000;
 		EXIT_RC(WR16(s, 0x0c50010, ebx & 0xffff));
 		EXIT_RC(WR16(s, 0x0c50011, ebx >> 16));
 
 		/* drx397xD oscillator calibration */
-		ebx = div64_64(((u64) (s->config.f_if + df_tuner) << 28) +
+		ebx = div64_u64(((u64) (s->config.f_if + df_tuner) << 28) +
 				     (s->f_osc >> 1), (u64)s->f_osc);
 	}
 	ebx &= 0xfffffff;
