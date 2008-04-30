@@ -1844,6 +1844,7 @@ static void sx_break(struct tty_struct *tty, int flag)
 	int rv;
 
 	func_enter();
+	lock_kernel();
 
 	if (flag)
 		rv = sx_send_command(port, HS_START, -1, HS_IDLE_BREAK);
@@ -1852,7 +1853,7 @@ static void sx_break(struct tty_struct *tty, int flag)
 	if (rv != 1)
 		printk(KERN_ERR "sx: couldn't send break (%x).\n",
 			read_sx_byte(port->board, CHAN_OFFSET(port, hi_hstat)));
-
+	unlock_kernel();
 	func_exit();
 }
 
@@ -1888,23 +1889,12 @@ static int sx_ioctl(struct tty_struct *tty, struct file *filp,
 	int rc;
 	struct sx_port *port = tty->driver_data;
 	void __user *argp = (void __user *)arg;
-	int ival;
 
 	/* func_enter2(); */
 
 	rc = 0;
+	lock_kernel();
 	switch (cmd) {
-	case TIOCGSOFTCAR:
-		rc = put_user(((tty->termios->c_cflag & CLOCAL) ? 1 : 0),
-				(unsigned __user *)argp);
-		break;
-	case TIOCSSOFTCAR:
-		if ((rc = get_user(ival, (unsigned __user *)argp)) == 0) {
-			tty->termios->c_cflag =
-				(tty->termios->c_cflag & ~CLOCAL) |
-				(ival ? CLOCAL : 0);
-		}
-		break;
 	case TIOCGSERIAL:
 		rc = gs_getserial(&port->gs, argp);
 		break;
@@ -1915,6 +1905,7 @@ static int sx_ioctl(struct tty_struct *tty, struct file *filp,
 		rc = -ENOIOCTLCMD;
 		break;
 	}
+	unlock_kernel();
 
 	/* func_exit(); */
 	return rc;
