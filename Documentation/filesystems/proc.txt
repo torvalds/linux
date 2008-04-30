@@ -463,11 +463,17 @@ SwapTotal:           0 kB
 SwapFree:            0 kB
 Dirty:             968 kB
 Writeback:           0 kB
+AnonPages:      861800 kB
 Mapped:         280372 kB
-Slab:           684068 kB
+Slab:           284364 kB
+SReclaimable:   159856 kB
+SUnreclaim:     124508 kB
+PageTables:      24448 kB
+NFS_Unstable:        0 kB
+Bounce:              0 kB
+WritebackTmp:        0 kB
 CommitLimit:   7669796 kB
 Committed_AS:   100056 kB
-PageTables:      24448 kB
 VmallocTotal:   112216 kB
 VmallocUsed:       428 kB
 VmallocChunk:   111088 kB
@@ -503,8 +509,17 @@ VmallocChunk:   111088 kB
               on the disk
        Dirty: Memory which is waiting to get written back to the disk
    Writeback: Memory which is actively being written back to the disk
+   AnonPages: Non-file backed pages mapped into userspace page tables
       Mapped: files which have been mmaped, such as libraries
         Slab: in-kernel data structures cache
+SReclaimable: Part of Slab, that might be reclaimed, such as caches
+  SUnreclaim: Part of Slab, that cannot be reclaimed on memory pressure
+  PageTables: amount of memory dedicated to the lowest level of page
+              tables.
+NFS_Unstable: NFS pages sent to the server, but not yet committed to stable
+	      storage
+      Bounce: Memory used for block device "bounce buffers"
+WritebackTmp: Memory used by FUSE for temporary writeback buffers
  CommitLimit: Based on the overcommit ratio ('vm.overcommit_ratio'),
               this is the total amount of  memory currently available to
               be allocated on the system. This limit is only adhered to
@@ -531,8 +546,6 @@ Committed_AS: The amount of memory presently allocated on the system.
               above) will not be permitted. This is useful if one needs
               to guarantee that processes will not fail due to lack of
               memory once that memory has been successfully allocated.
-  PageTables: amount of memory dedicated to the lowest level of page
-              tables.
 VmallocTotal: total size of vmalloc memory area
  VmallocUsed: amount of vmalloc area which is used
 VmallocChunk: largest contigious block of vmalloc area which is free
