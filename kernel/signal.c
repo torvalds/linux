@@ -1311,8 +1311,6 @@ int send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	 * We return -1, when the task is marked exiting, so
 	 * posix_timer_event can redirect it to the group leader
 	 */
-	rcu_read_lock();
-
 	if (!likely(lock_task_sighand(p, &flags)))
 		goto out_err;
 
@@ -1323,8 +1321,6 @@ int send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 
 	unlock_task_sighand(p, &flags);
 out_err:
-	rcu_read_unlock();
-
 	return ret;
 }
 
