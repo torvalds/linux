@@ -1776,7 +1776,7 @@ config FB_PXA
 
 config FB_PXA_SMARTPANEL
 	bool "PXA Smartpanel LCD support"
-	default y
+	default n
 	depends on FB_PXA
 
 config FB_PXA_PARAMETERS

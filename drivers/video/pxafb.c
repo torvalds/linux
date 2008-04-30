@@ -720,7 +720,7 @@ static void setup_smart_timing(struct pxafb_info *fbi,
 
 static int pxafb_smart_thread(void *arg)
 {
-	struct pxafb_info *fbi = (struct pxafb_info *) arg;
+	struct pxafb_info *fbi = arg;
 	struct pxafb_mach_info *inf = fbi->dev->platform_data;
 
 	if (!fbi || !inf->smart_update) {
