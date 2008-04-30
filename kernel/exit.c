@@ -877,6 +877,7 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 		state = EXIT_DEAD;
 	tsk->exit_state = state;
 
+	/* mt-exec, de_thread() is waiting for us */
 	if (thread_group_leader(tsk) &&
 	    tsk->signal->notify_count < 0 &&
 	    tsk->signal->group_exit_task)
