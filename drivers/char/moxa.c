@@ -290,10 +290,17 @@ static int __devinit moxa_pci_probe(struct pci_dev *pdev,
 	}
 
 	board = &moxa_boards[i];
-	board->basemem = pci_iomap(pdev, 2, 0x4000);
+
+	retval = pci_request_region(pdev, 2, "moxa-base");
+	if (retval) {
+		dev_err(&pdev->dev, "can't request pci region 2\n");
+		goto err;
+	}
+
+	board->basemem = ioremap(pci_resource_start(pdev, 2), 0x4000);
 	if (board->basemem == NULL) {
 		dev_err(&pdev->dev, "can't remap io space 2\n");
-		goto err;
+		goto err_reg;
 	}
 
 	board->boardType = board_type;
@@ -315,6 +322,8 @@ static int __devinit moxa_pci_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, board);
 
 	return (0);
+err_reg:
+	pci_release_region(pdev, 2);
 err:
 	return retval;
 }
@@ -323,8 +332,9 @@ static void __devexit moxa_pci_remove(struct pci_dev *pdev)
 {
 	struct moxa_board_conf *brd = pci_get_drvdata(pdev);
 
-	pci_iounmap(pdev, brd->basemem);
+	iounmap(brd->basemem);
 	brd->basemem = NULL;
+	pci_release_region(pdev, 2);
 }
 
 static struct pci_driver moxa_pci_driver = {
