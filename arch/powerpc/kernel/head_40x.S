@@ -148,14 +148,14 @@ _ENTRY(crit_r11)
 	mfcr	r10;			/* save CR in r10 for now	   */\
 	mfspr	r11,SPRN_SRR3;		/* check whether user or kernel    */\
 	andi.	r11,r11,MSR_PR;						     \
-	lis	r11,critical_stack_top@h;				     \
-	ori	r11,r11,critical_stack_top@l;				     \
+	lis	r11,critirq_ctx@ha;					     \
+	tophys(r11,r11);						     \
+	lwz	r11,critirq_ctx@l(r11);					     \
 	beq	1f;							     \
 	/* COMING FROM USER MODE */					     \
 	mfspr	r11,SPRN_SPRG3;		/* if from user, start at top of   */\
 	lwz	r11,THREAD_INFO-THREAD(r11); /* this thread's kernel stack */\
-	addi	r11,r11,THREAD_SIZE;					     \
-1:	subi	r11,r11,INT_FRAME_SIZE;	/* Allocate an exception frame     */\
+1:	addi	r11,r11,THREAD_SIZE-INT_FRAME_SIZE; /* Alloc an excpt frm  */\
 	tophys(r11,r11);						     \
 	stw	r10,_CCR(r11);          /* save various registers	   */\
 	stw	r12,GPR12(r11);						     \
@@ -995,16 +995,6 @@ empty_zero_page:
 	.globl	swapper_pg_dir
 swapper_pg_dir:
 	.space	PGD_TABLE_SIZE
-
-
-/* Stack for handling critical exceptions from kernel mode */
-	.section .bss
-        .align 12
-exception_stack_bottom:
-	.space	4096
-critical_stack_top:
-	.globl	exception_stack_top
-exception_stack_top:
 
 /* Room for two PTE pointers, usually the kernel and current user pointers
  * to their respective root page table.

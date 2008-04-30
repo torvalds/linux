@@ -1080,15 +1080,6 @@ empty_zero_page:
 swapper_pg_dir:
 	.space	PGD_TABLE_SIZE
 
-/* Reserved 4k for the critical exception stack & 4k for the machine
- * check stack per CPU for kernel mode exceptions */
-	.section .bss
-	.align 12
-exception_stack_bottom:
-	.space	BOOKE_EXCEPTION_STACK_SIZE * NR_CPUS
-	.globl	exception_stack_top
-exception_stack_top:
-
 /*
  * Room for two PTE pointers, usually the kernel and current user pointers
  * to their respective root page table.

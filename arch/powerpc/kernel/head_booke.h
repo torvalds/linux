@@ -43,9 +43,7 @@
 	SAVE_2GPRS(7, r11)
 
 /* To handle the additional exception priority levels on 40x and Book-E
- * processors we allocate a 4k stack per additional priority level. The various
- * head_xxx.S files allocate space (exception_stack_top) for each priority's
- * stack times the number of CPUs
+ * processors we allocate a stack per additional priority level.
  *
  * On 40x critical is the only additional level
  * On 44x/e500 we have critical and machine check
@@ -61,36 +59,31 @@
  * going to critical or their own debug level we aren't currently
  * providing configurations that micro-optimize space usage.
  */
-#ifdef CONFIG_44x
-#define NUM_EXCEPTION_LVLS	2
-#else
-#define NUM_EXCEPTION_LVLS	3
-#endif
-#define BOOKE_EXCEPTION_STACK_SIZE	(4096 * NUM_EXCEPTION_LVLS)
 
 /* CRIT_SPRG only used in critical exception handling */
 #define CRIT_SPRG	SPRN_SPRG2
 /* MCHECK_SPRG only used in machine check exception handling */
 #define MCHECK_SPRG	SPRN_SPRG6W
 
-#define MCHECK_STACK_TOP	(exception_stack_top - 4096)
-#define CRIT_STACK_TOP		(exception_stack_top)
+#define MCHECK_STACK_BASE	mcheckirq_ctx
+#define CRIT_STACK_BASE		critirq_ctx
 
 /* only on e200 for now */
-#define DEBUG_STACK_TOP		(exception_stack_top - 8192)
+#define DEBUG_STACK_BASE	dbgirq_ctx
 #define DEBUG_SPRG		SPRN_SPRG6W
 
 #ifdef CONFIG_SMP
 #define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
 	mfspr	r8,SPRN_PIR;				\
-	mulli	r8,r8,BOOKE_EXCEPTION_STACK_SIZE;	\
-	neg	r8,r8;					\
-	addis	r8,r8,level##_STACK_TOP@ha;		\
-	addi	r8,r8,level##_STACK_TOP@l
+	slwi	r8,r8,2;				\
+	addis	r8,r8,level##_STACK_BASE@ha;		\
+	lwz	r8,level##_STACK_BASE@l(r8);		\
+	addi	r8,r8,THREAD_SIZE;
 #else
 #define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
-	lis	r8,level##_STACK_TOP@h;			\
-	ori	r8,r8,level##_STACK_TOP@l
+	lis	r8,level##_STACK_BASE@ha;		\
+	lwz	r8,level##_STACK_BASE@l(r8);		\
+	addi	r8,r8,THREAD_SIZE;
 #endif
 
 /*
