@@ -28,17 +28,18 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/* Specifics for the Au1xxx Descriptor-Based DMA Controllers, first
- * seen in the AU1550 part.
+/*
+ * Specifics for the Au1xxx Descriptor-Based DMA Controller,
+ * first seen in the AU1550 part.
  */
 #ifndef _AU1000_DBDMA_H_
 #define _AU1000_DBDMA_H_
 
-
 #ifndef _LANGUAGE_ASSEMBLY
 
-/* The DMA base addresses.
- * The Channels are every 256 bytes (0x0100) from the channel 0 base.
+/*
+ * The DMA base addresses.
+ * The channels are every 256 bytes (0x0100) from the channel 0 base.
  * Interrupt status/enable is bits 15:0 for channels 15 to zero.
  */
 #define DDMA_GLOBAL_BASE	0xb4003000
@@ -51,16 +52,14 @@ typedef volatile struct dbdma_global {
 	u32	ddma_inten;
 } dbdma_global_t;
 
-/* General Configuration.
-*/
+/* General Configuration. */
 #define DDMA_CONFIG_AF		(1 << 2)
 #define DDMA_CONFIG_AH		(1 << 1)
 #define DDMA_CONFIG_AL		(1 << 0)
 
 #define DDMA_THROTTLE_EN	(1 << 31)
 
-/* The structure of a DMA Channel.
-*/
+/* The structure of a DMA Channel. */
 typedef volatile struct au1xxx_dma_channel {
 	u32	ddma_cfg;	/* See below */
 	u32	ddma_desptr;	/* 32-byte aligned pointer to descriptor */
@@ -69,8 +68,7 @@ typedef volatile struct au1xxx_dma_channel {
 	u32	ddma_irq;	/* If bit 0 set, interrupt pending */
 	u32	ddma_stat;	/* See below */
 	u32	ddma_bytecnt;	/* Byte count, valid only when chan idle */
-	/* Remainder, up to the 256 byte boundary, is reserved.
-	*/
+	/* Remainder, up to the 256 byte boundary, is reserved. */
 } au1x_dma_chan_t;
 
 #define DDMA_CFG_SED	(1 << 9)	/* source DMA level/edge detect */
@@ -84,7 +82,8 @@ typedef volatile struct au1xxx_dma_channel {
 #define DDMA_CFG_DBE	(1 << 1)	/* Destination big endian */
 #define DDMA_CFG_EN	(1 << 0)	/* Channel enable */
 
-/* Always set when descriptor processing done, regardless of
+/*
+ * Always set when descriptor processing done, regardless of
  * interrupt enable state.  Reflected in global intstat, don't
  * clear this until global intstat is read/used.
  */
@@ -94,7 +93,8 @@ typedef volatile struct au1xxx_dma_channel {
 #define DDMA_STAT_V	(1 << 1)	/* Descriptor valid */
 #define DDMA_STAT_H	(1 << 0)	/* Channel Halted */
 
-/* "Standard" DDMA Descriptor.
+/*
+ * "Standard" DDMA Descriptor.
  * Must be 32-byte aligned.
  */
 typedef volatile struct au1xxx_ddma_desc {
@@ -106,8 +106,9 @@ typedef volatile struct au1xxx_ddma_desc {
 	u32	dscr_dest1;		/* See below */
 	u32	dscr_stat;		/* completion status */
 	u32	dscr_nxtptr;		/* Next descriptor pointer (mostly) */
-	/* First 32bytes are HW specific!!!
-	   Lets have some SW data following.. make sure its 32bytes
+	/*
+	 * First 32 bytes are HW specific!!!
+	 * Lets have some SW data following -- make sure it's 32 bytes.
 	 */
 	u32	sw_status;
 	u32 	sw_context;
@@ -130,10 +131,9 @@ typedef volatile struct au1xxx_ddma_desc {
 #define DSCR_CMD0_CV		(0x1 << 2)	/* Clear Valid when done */
 #define DSCR_CMD0_ST_MASK	(0x3 << 0)	/* Status instruction */
 
-#define SW_STATUS_INUSE		(1<<0)
+#define SW_STATUS_INUSE 	(1 << 0)
 
-/* Command 0 device IDs.
-*/
+/* Command 0 device IDs. */
 #ifdef CONFIG_SOC_AU1550
 #define DSCR_CMD0_UART0_TX	0
 #define DSCR_CMD0_UART0_RX	1
@@ -198,16 +198,15 @@ typedef volatile struct au1xxx_ddma_desc {
 #define DSCR_CMD0_THROTTLE	30
 #define DSCR_CMD0_ALWAYS	31
 #define DSCR_NDEV_IDS		32
-/* THis macro is used to find/create custom device types */
-#define DSCR_DEV2CUSTOM_ID(x, d)	(((((x)&0xFFFF)<<8)|0x32000000)|((d)&0xFF))
-#define DSCR_CUSTOM2DEV_ID(x)	((x)&0xFF)
-
+/* This macro is used to find/create custom device types */
+#define DSCR_DEV2CUSTOM_ID(x, d) (((((x) & 0xFFFF) << 8) | 0x32000000) | \
+				  ((d) & 0xFF))
+#define DSCR_CUSTOM2DEV_ID(x)	((x) & 0xFF)
 
 #define DSCR_CMD0_SID(x)	(((x) & 0x1f) << 25)
 #define DSCR_CMD0_DID(x)	(((x) & 0x1f) << 20)
 
-/* Source/Destination transfer width.
-*/
+/* Source/Destination transfer width. */
 #define DSCR_CMD0_BYTE		0
 #define DSCR_CMD0_HALFWORD	1
 #define DSCR_CMD0_WORD		2
@@ -215,16 +214,14 @@ typedef volatile struct au1xxx_ddma_desc {
 #define DSCR_CMD0_SW(x)		(((x) & 0x3) << 18)
 #define DSCR_CMD0_DW(x)		(((x) & 0x3) << 16)
 
-/* DDMA Descriptor Type.
-*/
+/* DDMA Descriptor Type. */
 #define DSCR_CMD0_STANDARD	0
 #define DSCR_CMD0_LITERAL	1
 #define DSCR_CMD0_CMP_BRANCH	2
 
 #define DSCR_CMD0_DT(x)		(((x) & 0x3) << 13)
 
-/* Status Instruction.
-*/
+/* Status Instruction. */
 #define DSCR_CMD0_ST_NOCHANGE	0	/* Don't change */
 #define DSCR_CMD0_ST_CURRENT	1	/* Write current status */
 #define DSCR_CMD0_ST_CMD0	2	/* Write cmd0 with V cleared */
@@ -232,23 +229,20 @@ typedef volatile struct au1xxx_ddma_desc {
 
 #define DSCR_CMD0_ST(x)		(((x) & 0x3) << 0)
 
-/* Descriptor Command 1
-*/
+/* Descriptor Command 1. */
 #define DSCR_CMD1_SUPTR_MASK	(0xf << 28)	/* upper 4 bits of src addr */
 #define DSCR_CMD1_DUPTR_MASK	(0xf << 24)	/* upper 4 bits of dest addr */
 #define DSCR_CMD1_FL_MASK	(0x3 << 22)	/* Flag bits */
 #define DSCR_CMD1_BC_MASK	(0x3fffff)	/* Byte count */
 
-/* Flag description.
-*/
+/* Flag description. */
 #define DSCR_CMD1_FL_MEM_STRIDE0	0
 #define DSCR_CMD1_FL_MEM_STRIDE1	1
 #define DSCR_CMD1_FL_MEM_STRIDE2	2
 
 #define DSCR_CMD1_FL(x)		(((x) & 0x3) << 22)
 
-/* Source1, 1-dimensional stride.
-*/
+/* Source1, 1-dimensional stride. */
 #define DSCR_SRC1_STS_MASK	(3 << 30)	/* Src xfer size */
 #define DSCR_SRC1_SAM_MASK	(3 << 28)	/* Src xfer movement */
 #define DSCR_SRC1_SB_MASK	(0x3fff << 14)	/* Block size */
@@ -256,8 +250,7 @@ typedef volatile struct au1xxx_ddma_desc {
 #define DSCR_SRC1_SS_MASK	(0x3fff << 0)	/* Stride */
 #define DSCR_SRC1_SS(x)		(((x) & 0x3fff) << 0)
 
-/* Dest1, 1-dimensional stride.
-*/
+/* Dest1, 1-dimensional stride. */
 #define DSCR_DEST1_DTS_MASK	(3 << 30)	/* Dest xfer size */
 #define DSCR_DEST1_DAM_MASK	(3 << 28)	/* Dest xfer movement */
 #define DSCR_DEST1_DB_MASK	(0x3fff << 14)	/* Block size */
@@ -279,29 +272,27 @@ typedef volatile struct au1xxx_ddma_desc {
 #define DSCR_SRC1_SAM(x)	(((x) & 3) << 28)
 #define DSCR_DEST1_DAM(x)	(((x) & 3) << 28)
 
-/* The next descriptor pointer.
-*/
+/* The next descriptor pointer. */
 #define DSCR_NXTPTR_MASK	(0x07ffffff)
 #define DSCR_NXTPTR(x)		((x) >> 5)
 #define DSCR_GET_NXTPTR(x)	((x) << 5)
 #define DSCR_NXTPTR_MS		(1 << 27)
 
-/* The number of DBDMA channels.
-*/
+/* The number of DBDMA channels. */
 #define NUM_DBDMA_CHANS	16
 
 /*
- * Ddma API definitions
+ * DDMA API definitions
  * FIXME: may not fit to this header file
  */
 typedef struct dbdma_device_table {
-	u32		dev_id;
-	u32		dev_flags;
-	u32		dev_tsize;
-	u32		dev_devwidth;
-	u32		dev_physaddr;		/* If FIFO */
-	u32		dev_intlevel;
-	u32		dev_intpolarity;
+	u32	dev_id;
+	u32	dev_flags;
+	u32	dev_tsize;
+	u32	dev_devwidth;
+	u32	dev_physaddr;		/* If FIFO */
+	u32	dev_intlevel;
+	u32	dev_intpolarity;
 } dbdev_tab_t;
 
 
@@ -316,44 +307,41 @@ typedef struct dbdma_chan_config {
 	au1x_ddma_desc_t	*chan_desc_base;
 	au1x_ddma_desc_t	*get_ptr, *put_ptr, *cur_ptr;
 	void			*chan_callparam;
-	void (*chan_callback)(int, void *);
+	void			(*chan_callback)(int, void *);
 } chan_tab_t;
 
 #define DEV_FLAGS_INUSE		(1 << 0)
 #define DEV_FLAGS_ANYUSE	(1 << 1)
 #define DEV_FLAGS_OUT		(1 << 2)
 #define DEV_FLAGS_IN		(1 << 3)
-#define DEV_FLAGS_BURSTABLE (1 << 4)
+#define DEV_FLAGS_BURSTABLE	(1 << 4)
 #define DEV_FLAGS_SYNC		(1 << 5)
-/* end Ddma API definitions */
+/* end DDMA API definitions */
 
-/* External functions for drivers to use.
-*/
-/* Use this to allocate a dbdma channel.  The device ids are one of the
- * DSCR_CMD0 devices IDs, which is usually redefined to a more
- * meaningful name.  The 'callback' is called during dma completion
+/*
+ * External functions for drivers to use.
+ * Use this to allocate a DBDMA channel.  The device IDs are one of
+ * the DSCR_CMD0 devices IDs, which is usually redefined to a more
+ * meaningful name.  The 'callback' is called during DMA completion
  * interrupt.
  */
 extern u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
-	void (*callback)(int, void *), void *callparam);
+				   void (*callback)(int, void *),
+				   void *callparam);
 
 #define DBDMA_MEM_CHAN	DSCR_CMD0_ALWAYS
 
-/* Set the device width of a in/out fifo.
-*/
+/* Set the device width of an in/out FIFO. */
 u32 au1xxx_dbdma_set_devwidth(u32 chanid, int bits);
 
-/* Allocate a ring of descriptors for dbdma.
-*/
+/* Allocate a ring of descriptors for DBDMA. */
 u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries);
 
-/* Put buffers on source/destination descriptors.
-*/
+/* Put buffers on source/destination descriptors. */
 u32 _au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags);
 u32 _au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags);
 
-/* Get a buffer from the destination descriptor.
-*/
+/* Get a buffer from the destination descriptor. */
 u32 au1xxx_dbdma_get_dest(u32 chanid, void **buf, int *nbytes);
 
 void au1xxx_dbdma_stop(u32 chanid);
@@ -364,29 +352,34 @@ u32 au1xxx_get_dma_residue(u32 chanid);
 void au1xxx_dbdma_chan_free(u32 chanid);
 void au1xxx_dbdma_dump(u32 chanid);
 
-u32 au1xxx_dbdma_put_dscr(u32 chanid, au1x_ddma_desc_t *dscr );
+u32 au1xxx_dbdma_put_dscr(u32 chanid, au1x_ddma_desc_t *dscr);
 
-u32 au1xxx_ddma_add_device( dbdev_tab_t *dev );
-void * au1xxx_ddma_get_nextptr_virt(au1x_ddma_desc_t *dp);
+u32 au1xxx_ddma_add_device(dbdev_tab_t *dev);
+void *au1xxx_ddma_get_nextptr_virt(au1x_ddma_desc_t *dp);
 
 /*
- 	Some compatibilty macros --
-		Needed to make changes to API without breaking existing drivers
-*/
-#define	au1xxx_dbdma_put_source(chanid, buf, nbytes)_au1xxx_dbdma_put_source(chanid, buf, nbytes, DDMA_FLAGS_IE)
-#define	au1xxx_dbdma_put_source_flags(chanid, buf, nbytes, flags) _au1xxx_dbdma_put_source(chanid, buf, nbytes, flags)
-#define	put_source_flags(chanid, buf, nbytes, flags) au1xxx_dbdma_put_source_flags(chanid, buf, nbytes, flags)
+ * Some compatibilty macros -- needed to make changes to API
+ * without breaking existing drivers.
+ */
+#define au1xxx_dbdma_put_source(chanid, buf, nbytes)			\
+	_au1xxx_dbdma_put_source(chanid, buf, nbytes, DDMA_FLAGS_IE)
+#define au1xxx_dbdma_put_source_flags(chanid, buf, nbytes, flags)	\
+	_au1xxx_dbdma_put_source(chanid, buf, nbytes, flags)
+#define put_source_flags(chanid, buf, nbytes, flags)			\
+	au1xxx_dbdma_put_source_flags(chanid, buf, nbytes, flags)
 
-
-#define au1xxx_dbdma_put_dest(chanid, buf, nbytes) _au1xxx_dbdma_put_dest(chanid, buf, nbytes, DDMA_FLAGS_IE)
-#define	au1xxx_dbdma_put_dest_flags(chanid, buf, nbytes, flags) _au1xxx_dbdma_put_dest(chanid, buf, nbytes, flags)
-#define	put_dest_flags(chanid, buf, nbytes, flags) au1xxx_dbdma_put_dest_flags(chanid, buf, nbytes, flags)
+#define au1xxx_dbdma_put_dest(chanid, buf, nbytes)			\
+	_au1xxx_dbdma_put_dest(chanid, buf, nbytes, DDMA_FLAGS_IE)
+#define au1xxx_dbdma_put_dest_flags(chanid, buf, nbytes, flags) 	\
+	_au1xxx_dbdma_put_dest(chanid, buf, nbytes, flags)
+#define put_dest_flags(chanid, buf, nbytes, flags)			\
+	au1xxx_dbdma_put_dest_flags(chanid, buf, nbytes, flags)
 
 /*
  *	Flags for the put_source/put_dest functions.
  */
-#define DDMA_FLAGS_IE	(1<<0)
-#define DDMA_FLAGS_NOIE (1<<1)
+#define DDMA_FLAGS_IE	(1 << 0)
+#define DDMA_FLAGS_NOIE (1 << 1)
 
 #endif /* _LANGUAGE_ASSEMBLY */
 #endif /* _AU1000_DBDMA_H_ */
