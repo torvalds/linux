@@ -208,8 +208,7 @@ repeat:
 
 	__ptrace_link(task, current);
 
-	force_sig_specific(SIGSTOP, task);
-
+	send_sig_info(SIGSTOP, SEND_SIG_FORCED, task);
 bad:
 	write_unlock_irqrestore(&tasklist_lock, flags);
 	task_unlock(task);
