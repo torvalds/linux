@@ -1616,9 +1616,8 @@ ip2_close( PTTY tty, struct file *pFile )
 
 	serviceOutgoingFifo ( pCh->pMyBord );
 
-	if ( tty->driver->ops->flush_buffer )
-		tty->driver->ops->flush_buffer(tty);
 	tty_ldisc_flush(tty);
+	tty_driver_flush_buffer(tty);
 	tty->closing = 0;
 	
 	pCh->pTTY = NULL;
