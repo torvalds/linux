@@ -133,7 +133,8 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 		 */
 		tcp_reno_cong_avoid(sk, ack, in_flight);
 	} else {
-		u32 rtt, target_cwnd;
+		u64 target_cwnd;
+		u32 rtt;
 
 		/* We have enough rtt samples, so, using the Veno
 		 * algorithm, we determine the state of the network.
@@ -141,8 +142,9 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 
 		rtt = veno->minrtt;
 
-		target_cwnd = ((tp->snd_cwnd * veno->basertt)
-			       << V_PARAM_SHIFT) / rtt;
+		target_cwnd = (tp->snd_cwnd * veno->basertt);
+		target_cwnd <<= V_PARAM_SHIFT;
+		do_div(target_cwnd, rtt);
 
 		veno->diff = (tp->snd_cwnd << V_PARAM_SHIFT) - target_cwnd;
 

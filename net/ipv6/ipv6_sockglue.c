@@ -1089,6 +1089,10 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 	if(level != SOL_IPV6)
 		return -ENOPROTOOPT;
 
+	if (optname == MCAST_MSFILTER)
+		return compat_mc_getsockopt(sk, level, optname, optval, optlen,
+			ipv6_getsockopt);
+
 	err = do_ipv6_getsockopt(sk, level, optname, optval, optlen);
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */

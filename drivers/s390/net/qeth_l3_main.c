@@ -28,8 +28,6 @@
 #include "qeth_l3.h"
 #include "qeth_core_offl.h"
 
-DEFINE_PER_CPU(char[256], qeth_l3_dbf_txt_buf);
-
 static int qeth_l3_set_offline(struct ccwgroup_device *);
 static int qeth_l3_recover(void *);
 static int qeth_l3_stop(struct net_device *);
@@ -2093,6 +2091,11 @@ static int qeth_l3_stop_card(struct qeth_card *card, int recovery_mode)
 	    (card->state == CARD_STATE_UP)) {
 		if (recovery_mode)
 			qeth_l3_stop(card->dev);
+		else {
+			rtnl_lock();
+			dev_close(card->dev);
+			rtnl_unlock();
+		}
 		if (!card->use_hard_stop) {
 			rc = qeth_send_stoplan(card);
 			if (rc)
@@ -2559,8 +2562,6 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		struct sk_buff *skb, int ipv, int cast_type)
 {
-	QETH_DBF_TEXT(TRACE, 6, "fillhdr");
-
 	memset(hdr, 0, sizeof(struct qeth_hdr));
 	hdr->hdr.l3.id = QETH_HEADER_TYPE_LAYER3;
 	hdr->hdr.l3.ext_flags = 0;
@@ -2570,9 +2571,10 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	 * v6 uses passthrough, v4 sets the tag in the QDIO header.
 	 */
 	if (card->vlangrp && vlan_tx_tag_present(skb)) {
-		hdr->hdr.l3.ext_flags = (ipv == 4) ?
-			QETH_HDR_EXT_VLAN_FRAME :
-			QETH_HDR_EXT_INCLUDE_VLAN_TAG;
+		if ((ipv == 4) || (card->info.type == QETH_CARD_TYPE_IQD))
+			hdr->hdr.l3.ext_flags = QETH_HDR_EXT_VLAN_FRAME;
+		else
+			hdr->hdr.l3.ext_flags = QETH_HDR_EXT_INCLUDE_VLAN_TAG;
 		hdr->hdr.l3.vlan_id = vlan_tx_tag_get(skb);
 	}
 
@@ -2637,8 +2639,6 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int tx_bytes = skb->len;
 	enum qeth_large_send_types large_send = QETH_LARGE_SEND_NO;
 	struct qeth_eddp_context *ctx = NULL;
-
-	QETH_DBF_TEXT(TRACE, 6, "l3xmit");
 
 	if ((card->info.type == QETH_CARD_TYPE_IQD) &&
 	    (skb->protocol != htons(ETH_P_IPV6)) &&
@@ -2890,6 +2890,7 @@ static struct ethtool_ops qeth_l3_ethtool_ops = {
 	.get_ethtool_stats = qeth_core_get_ethtool_stats,
 	.get_stats_count = qeth_core_get_stats_count,
 	.get_drvinfo = qeth_core_get_drvinfo,
+	.get_settings = qeth_core_ethtool_get_settings,
 };
 
 /*
@@ -2982,7 +2983,6 @@ static void qeth_l3_qdio_input_handler(struct ccw_device *ccwdev,
 	int index;
 	int i;
 
-	QETH_DBF_TEXT(TRACE, 6, "qdinput");
 	card = (struct qeth_card *) card_ptr;
 	net_dev = card->dev;
 	if (card->options.performance_stats) {
@@ -3140,9 +3140,15 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	netif_carrier_on(card->dev);
 
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
-	if ((recover_flag == CARD_STATE_RECOVER) && recovery_mode) {
+	if (recover_flag == CARD_STATE_RECOVER) {
+		if (recovery_mode)
 			qeth_l3_open(card->dev);
-			qeth_l3_set_multicast_list(card->dev);
+		else {
+			rtnl_lock();
+			dev_open(card->dev);
+			rtnl_unlock();
+		}
+		qeth_l3_set_multicast_list(card->dev);
 	}
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);

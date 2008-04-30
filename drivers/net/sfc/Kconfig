@@ -1,0 +1,12 @@
+config SFC
+	tristate "Solarflare Solarstorm SFC4000 support"
+	depends on PCI && INET
+	select MII
+	select INET_LRO
+	select CRC32
+	help
+	  This driver supports 10-gigabit Ethernet cards based on
+	  the Solarflare Communications Solarstorm SFC4000 controller.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called sfc.

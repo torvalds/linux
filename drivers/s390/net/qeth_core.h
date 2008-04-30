@@ -72,22 +72,7 @@ struct qeth_dbf_info {
 	debug_sprintf_event(qeth_dbf[QETH_DBF_MSG].id, level, text)
 
 #define QETH_DBF_TEXT_(name, level, text...) \
-	do { \
-		if (qeth_dbf_passes(qeth_dbf[QETH_DBF_##name].id, level)) { \
-			char *dbf_txt_buf = \
-				get_cpu_var(QETH_DBF_TXT_BUF); \
-			sprintf(dbf_txt_buf, text); \
-			debug_text_event(qeth_dbf[QETH_DBF_##name].id, \
-					level, dbf_txt_buf); \
-			put_cpu_var(QETH_DBF_TXT_BUF); \
-		} \
-	} while (0)
-
-/* Allow to sort out low debug levels early to avoid wasted sprints */
-static inline int qeth_dbf_passes(debug_info_t *dbf_grp, int level)
-{
-	return (level <= dbf_grp->level);
-}
+	qeth_dbf_longtext(QETH_DBF_##name, level, text)
 
 /**
  * some more debug stuff
@@ -773,27 +758,6 @@ static inline int qeth_get_micros(void)
 	return (int) (get_clock() >> 12);
 }
 
-static inline void *qeth_push_skb(struct qeth_card *card, struct sk_buff *skb,
-		int size)
-{
-	void *hdr;
-
-	hdr = (void *) skb_push(skb, size);
-	/*
-	 * sanity check, the Linux memory allocation scheme should
-	 * never present us cases like this one (the qdio header size plus
-	 * the first 40 bytes of the paket cross a 4k boundary)
-	 */
-	if ((((unsigned long) hdr) & (~(PAGE_SIZE - 1))) !=
-	    (((unsigned long) hdr + size +
-	    QETH_IP_HEADER_SIZE) & (~(PAGE_SIZE - 1)))) {
-		PRINT_ERR("Misaligned packet on interface %s. Discarded.",
-			QETH_CARD_IFNAME(card));
-		return NULL;
-	}
-	return hdr;
-}
-
 static inline int qeth_get_ip_version(struct sk_buff *skb)
 {
 	switch (skb->protocol) {
@@ -804,6 +768,12 @@ static inline int qeth_get_ip_version(struct sk_buff *skb)
 	default:
 		return 0;
 	}
+}
+
+static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
+		struct qeth_buffer_pool_entry *entry)
+{
+	list_add_tail(&entry->list, &card->qdio.in_buf_pool.entry_list);
 }
 
 struct qeth_eddp_context;
@@ -843,8 +813,6 @@ struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *,
 int qeth_query_setadapterparms(struct qeth_card *);
 int qeth_check_qdio_errors(struct qdio_buffer *, unsigned int,
 		       unsigned int, const char *);
-void qeth_put_buffer_pool_entry(struct qeth_card *,
-			   struct qeth_buffer_pool_entry *);
 void qeth_queue_input_buffer(struct qeth_card *, int);
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
 		struct qdio_buffer *, struct qdio_buffer_element **, int *,
@@ -880,8 +848,6 @@ int qeth_send_control_data(struct qeth_card *, int, struct qeth_cmd_buffer *,
 	void *reply_param);
 int qeth_get_cast_type(struct qeth_card *, struct sk_buff *);
 int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
-struct sk_buff *qeth_prepare_skb(struct qeth_card *, struct sk_buff *,
-		 struct qeth_hdr **);
 int qeth_get_elements_no(struct qeth_card *, void *, struct sk_buff *, int);
 int qeth_do_send_packet_fast(struct qeth_card *, struct qeth_qdio_out_q *,
 			struct sk_buff *, struct qeth_hdr *, int,
@@ -894,6 +860,8 @@ void qeth_core_get_ethtool_stats(struct net_device *,
 				struct ethtool_stats *, u64 *);
 void qeth_core_get_strings(struct net_device *, u32, u8 *);
 void qeth_core_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
+void qeth_dbf_longtext(enum qeth_dbf_names dbf_nix, int level, char *text, ...);
+int qeth_core_ethtool_get_settings(struct net_device *, struct ethtool_cmd *);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

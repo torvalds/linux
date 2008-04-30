@@ -1039,7 +1039,7 @@ P:	Urs Thuermann
 M:	urs.thuermann@volkswagen.de
 P:	Oliver Hartkopp
 M:	oliver.hartkopp@volkswagen.de
-L:	socketcan-core@lists.berlios.de
+L:	socketcan-core@lists.berlios.de (subscribers-only)
 W:	http://developer.berlios.de/projects/socketcan/
 S:	Maintained
 
@@ -3575,6 +3575,13 @@ SGI SN-IA64 (Altix) SERIAL CONSOLE DRIVER
 P:	Pat Gefre
 M:	pfg@sgi.com
 L:	linux-ia64@vger.kernel.org
+S:	Supported
+
+SFC NETWORK DRIVER
+P:	Steve Hodgson
+P:	Ben Hutchings
+P:	Robert Stonehouse
+M:	linux-net-drivers@solarflare.com
 S:	Supported
 
 SGI VISUAL WORKSTATION 320 AND 540

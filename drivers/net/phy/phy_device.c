@@ -256,7 +256,7 @@ void phy_prepare_link(struct phy_device *phydev,
 /**
  * phy_connect - connect an ethernet device to a PHY device
  * @dev: the network device to connect
- * @phy_id: the PHY device to connect
+ * @bus_id: the id string of the PHY device to connect
  * @handler: callback function for state change notifications
  * @flags: PHY device's dev_flags
  * @interface: PHY device's interface

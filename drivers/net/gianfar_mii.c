@@ -78,7 +78,6 @@ int gfar_local_mdio_write(struct gfar_mii __iomem *regs, int mii_id,
  * same as system mdio bus, used for controlling the external PHYs, for eg.
  */
 int gfar_local_mdio_read(struct gfar_mii __iomem *regs, int mii_id, int regnum)
-
 {
 	u16 value;
 
@@ -122,7 +121,7 @@ int gfar_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 }
 
 /* Reset the MIIM registers, and wait for the bus to free */
-int gfar_mdio_reset(struct mii_bus *bus)
+static int gfar_mdio_reset(struct mii_bus *bus)
 {
 	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
 	unsigned int timeout = PHY_INIT_TIMEOUT;
@@ -152,14 +151,15 @@ int gfar_mdio_reset(struct mii_bus *bus)
 }
 
 
-int gfar_mdio_probe(struct device *dev)
+static int gfar_mdio_probe(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gianfar_mdio_data *pdata;
 	struct gfar_mii __iomem *regs;
+	struct gfar __iomem *enet_regs;
 	struct mii_bus *new_bus;
 	struct resource *r;
-	int err = 0;
+	int i, err = 0;
 
 	if (NULL == dev)
 		return -EINVAL;
@@ -199,6 +199,34 @@ int gfar_mdio_probe(struct device *dev)
 	new_bus->dev = dev;
 	dev_set_drvdata(dev, new_bus);
 
+	/*
+	 * This is mildly evil, but so is our hardware for doing this.
+	 * Also, we have to cast back to struct gfar_mii because of
+	 * definition weirdness done in gianfar.h.
+	 */
+	enet_regs = (struct gfar __iomem *)
+		((char *)regs - offsetof(struct gfar, gfar_mii_regs));
+
+	/* Scan the bus, looking for an empty spot for TBIPA */
+	gfar_write(&enet_regs->tbipa, 0);
+	for (i = PHY_MAX_ADDR; i > 0; i--) {
+		u32 phy_id;
+		int r;
+
+		r = get_phy_id(new_bus, i, &phy_id);
+		if (r)
+			return r;
+
+		if (phy_id == 0xffffffff)
+			break;
+	}
+
+	/* The bus is full.  We don't support using 31 PHYs, sorry */
+	if (i == 0)
+		return -EBUSY;
+
+	gfar_write(&enet_regs->tbipa, i);
+
 	err = mdiobus_register(new_bus);
 
 	if (0 != err) {
@@ -218,7 +246,7 @@ reg_map_fail:
 }
 
 
-int gfar_mdio_remove(struct device *dev)
+static int gfar_mdio_remove(struct device *dev)
 {
 	struct mii_bus *bus = dev_get_drvdata(dev);
 
