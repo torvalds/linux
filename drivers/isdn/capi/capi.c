@@ -1111,11 +1111,12 @@ static int capinc_tty_write(struct tty_struct * tty,
 	return count;
 }
 
-static void capinc_tty_put_char(struct tty_struct *tty, unsigned char ch)
+static int capinc_tty_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct capiminor *mp = (struct capiminor *)tty->driver_data;
 	struct sk_buff *skb;
 	unsigned long flags;
+	int ret = 1;
 
 #ifdef _DEBUG_TTYFUNCS
 	printk(KERN_DEBUG "capinc_put_char(%u)\n", ch);
@@ -1125,7 +1126,7 @@ static void capinc_tty_put_char(struct tty_struct *tty, unsigned char ch)
 #ifdef _DEBUG_TTYFUNCS
 		printk(KERN_DEBUG "capinc_tty_put_char: mp or mp->ncci NULL\n");
 #endif
-		return;
+		return 0;
 	}
 
 	spin_lock_irqsave(&workaround_lock, flags);
@@ -1134,7 +1135,7 @@ static void capinc_tty_put_char(struct tty_struct *tty, unsigned char ch)
 		if (skb_tailroom(skb) > 0) {
 			*(skb_put(skb, 1)) = ch;
 			spin_unlock_irqrestore(&workaround_lock, flags);
-			return;
+			return 1;
 		}
 		mp->ttyskb = NULL;
 		skb_queue_tail(&mp->outqueue, skb);
@@ -1148,8 +1149,10 @@ static void capinc_tty_put_char(struct tty_struct *tty, unsigned char ch)
 		mp->ttyskb = skb;
 	} else {
 		printk(KERN_ERR "capinc_put_char: char %u lost\n", ch);
+		ret = 0;
 	}
 	spin_unlock_irqrestore(&workaround_lock, flags);
+	return ret;
 }
 
 static void capinc_tty_flush_chars(struct tty_struct *tty)
