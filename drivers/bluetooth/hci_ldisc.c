@@ -370,9 +370,7 @@ static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data, char *f
 	hu->hdev->stat.byte_rx += count;
 	spin_unlock(&hu->rx_lock);
 
-	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags) &&
-					tty->ops->unthrottle)
-		tty->ops->unthrottle(tty);
+	tty_unthrottle(tty);
 }
 
 static int hci_uart_register_dev(struct hci_uart *hu)

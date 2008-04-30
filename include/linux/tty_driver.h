@@ -100,6 +100,8 @@
  * 	This routine notifies the tty driver that input buffers for
  * 	the line discipline are close to full, and it should somehow
  * 	signal that no more characters should be sent to the tty.
+ *
+ *	Optional: Always invoke via tty_throttle();
  * 
  * void (*unthrottle)(struct tty_struct * tty);
  *
@@ -107,6 +109,8 @@
  * 	that characters can now be sent to the tty without fear of
  * 	overrunning the input buffers of the line disciplines.
  * 
+ *	Optional: Always invoke via tty_unthrottle();
+ *
  * void (*stop)(struct tty_struct *tty);
  *
  * 	This routine notifies the tty driver that it should stop

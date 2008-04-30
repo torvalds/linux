@@ -936,9 +936,7 @@ static void mkiss_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	}
 
 	mkiss_put(ax);
-	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags)
-	    && tty->ops->unthrottle)
-		tty->ops->unthrottle(tty);
+	tty_unthrottle(tty);
 }
 
 /*

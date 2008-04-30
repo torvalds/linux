@@ -491,9 +491,7 @@ static void sixpack_receive_buf(struct tty_struct *tty,
 	sixpack_decode(sp, buf, count1);
 
 	sp_put(sp);
-	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags)
-	    && tty->ops->unthrottle)
-		tty->ops->unthrottle(tty);
+	tty_unthrottle(tty);
 }
 
 /*

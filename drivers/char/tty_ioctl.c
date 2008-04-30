@@ -67,6 +67,22 @@ void tty_driver_flush_buffer(struct tty_struct *tty)
 
 EXPORT_SYMBOL(tty_driver_flush_buffer);
 
+void tty_throttle(struct tty_struct *tty)
+{
+	/* check TTY_THROTTLED first so it indicates our state */
+	if (!test_and_set_bit(TTY_THROTTLED, &tty->flags) &&
+	    tty->ops->throttle)
+		tty->ops->throttle(tty);
+}
+EXPORT_SYMBOL(tty_throttle);
+
+void tty_unthrottle(struct tty_struct *tty)
+{
+	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags) &&
+	    tty->ops->unthrottle)
+		tty->ops->unthrottle(tty);
+}
+EXPORT_SYMBOL(tty_unthrottle);
 
 /**
  *	tty_wait_until_sent	-	wait for I/O to finish
