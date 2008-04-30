@@ -459,7 +459,7 @@ static void noinline __init_refok rest_init(void)
 	kernel_thread(kernel_init, NULL, CLONE_FS | CLONE_SIGHAND);
 	numa_default_policy();
 	pid = kernel_thread(kthreadd, NULL, CLONE_FS | CLONE_FILES);
-	kthreadd_task = find_task_by_pid(pid);
+	kthreadd_task = find_task_by_pid_ns(pid, &init_pid_ns);
 	unlock_kernel();
 
 	/*

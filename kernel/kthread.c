@@ -98,7 +98,7 @@ static void create_kthread(struct kthread_create_info *create)
 		struct sched_param param = { .sched_priority = 0 };
 		wait_for_completion(&create->started);
 		read_lock(&tasklist_lock);
-		create->result = find_task_by_pid(pid);
+		create->result = find_task_by_pid_ns(pid, &init_pid_ns);
 		read_unlock(&tasklist_lock);
 		/*
 		 * root may have changed our (kthreadd's) priority or CPU mask.
