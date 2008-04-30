@@ -284,6 +284,8 @@ xfs_start_flags(
 		mp->m_flags |= XFS_MOUNT_DIRSYNC;
 	if (ap->flags & XFSMNT_ATTR2)
 		mp->m_flags |= XFS_MOUNT_ATTR2;
+	if (ap->flags & XFSMNT_NOATTR2)
+		mp->m_flags |= XFS_MOUNT_NOATTR2;
 
 	if (ap->flags2 & XFSMNT2_COMPAT_IOSIZE)
 		mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
@@ -346,7 +348,12 @@ xfs_finish_flags(
 		}
 	}
 
-	if (xfs_sb_version_hasattr2(&mp->m_sb))
+	/*
+	 * mkfs'ed attr2 will turn on attr2 mount unless explicitly
+	 * told by noattr2 to turn it off
+	 */
+	if (xfs_sb_version_hasattr2(&mp->m_sb) &&
+	    !(ap->flags & XFSMNT_NOATTR2))
 		mp->m_flags |= XFS_MOUNT_ATTR2;
 
 	/*

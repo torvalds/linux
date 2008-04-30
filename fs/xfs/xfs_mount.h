@@ -378,6 +378,7 @@ typedef struct xfs_mount {
 						   counters */
 #define XFS_MOUNT_FILESTREAMS	(1ULL << 24)	/* enable the filestreams
 						   allocator */
+#define XFS_MOUNT_NOATTR2	(1ULL << 25)	/* disable use of attr2 format */
 
 
 /*

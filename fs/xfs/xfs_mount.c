@@ -994,9 +994,19 @@ xfs_mountfs(
 		 * Re-check for ATTR2 in case it was found in bad_features2
 		 * slot.
 		 */
-		if (xfs_sb_version_hasattr2(&mp->m_sb))
+		if (xfs_sb_version_hasattr2(&mp->m_sb) &&
+		   !(mp->m_flags & XFS_MOUNT_NOATTR2))
 			mp->m_flags |= XFS_MOUNT_ATTR2;
+	}
 
+	if (xfs_sb_version_hasattr2(&mp->m_sb) &&
+	   (mp->m_flags & XFS_MOUNT_NOATTR2)) {
+		xfs_sb_version_removeattr2(&mp->m_sb);
+		update_flags |= XFS_SB_FEATURES2;
+
+		/* update sb_versionnum for the clearing of the morebits */
+		if (!sbp->sb_features2)
+			update_flags |= XFS_SB_VERSIONNUM;
 	}
 
 	/*

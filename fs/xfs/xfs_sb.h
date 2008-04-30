@@ -473,6 +473,13 @@ static inline void xfs_sb_version_addattr2(xfs_sb_t *sbp)
 		((sbp)->sb_features2 | XFS_SB_VERSION2_ATTR2BIT)));
 }
 
+static inline void xfs_sb_version_removeattr2(xfs_sb_t *sbp)
+{
+	sbp->sb_features2 &= ~XFS_SB_VERSION2_ATTR2BIT;
+	if (!sbp->sb_features2)
+		sbp->sb_versionnum &= ~XFS_SB_VERSION_MOREBITSBIT;
+}
+
 /*
  * end of superblock version macros
  */
