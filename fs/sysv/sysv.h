@@ -217,9 +217,9 @@ static inline __fs32 fs32_add(struct sysv_sb_info *sbi, __fs32 *n, int d)
 	if (sbi->s_bytesex == BYTESEX_PDP)
 		*(__u32*)n = PDP_swab(PDP_swab(*(__u32*)n)+d);
 	else if (sbi->s_bytesex == BYTESEX_LE)
-		*(__le32*)n = cpu_to_le32(le32_to_cpu(*(__le32*)n)+d);
+		le32_add_cpu((__le32 *)n, d);
 	else
-		*(__be32*)n = cpu_to_be32(be32_to_cpu(*(__be32*)n)+d);
+		be32_add_cpu((__be32 *)n, d);
 	return *n;
 }
 
@@ -242,9 +242,9 @@ static inline __fs16 cpu_to_fs16(struct sysv_sb_info *sbi, __u16 n)
 static inline __fs16 fs16_add(struct sysv_sb_info *sbi, __fs16 *n, int d)
 {
 	if (sbi->s_bytesex != BYTESEX_BE)
-		*(__le16*)n = cpu_to_le16(le16_to_cpu(*(__le16 *)n)+d);
+		le16_add_cpu((__le16 *)n, d);
 	else
-		*(__be16*)n = cpu_to_be16(be16_to_cpu(*(__be16 *)n)+d);
+		be16_add_cpu((__be16 *)n, d);
 	return *n;
 }
 
