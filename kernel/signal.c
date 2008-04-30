@@ -533,6 +533,7 @@ static int rm_from_queue(unsigned long mask, struct sigpending *s)
 static int check_kill_permission(int sig, struct siginfo *info,
 				 struct task_struct *t)
 {
+	struct pid *sid;
 	int error;
 
 	if (!valid_signal(sig))
@@ -545,11 +546,24 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	if (error)
 		return error;
 
-	if (((sig != SIGCONT) || (task_session_nr(current) != task_session_nr(t)))
-	    && (current->euid ^ t->suid) && (current->euid ^ t->uid)
-	    && (current->uid ^ t->suid) && (current->uid ^ t->uid)
-	    && !capable(CAP_KILL))
-		return -EPERM;
+	if ((current->euid ^ t->suid) && (current->euid ^ t->uid) &&
+	    (current->uid  ^ t->suid) && (current->uid  ^ t->uid) &&
+	    !capable(CAP_KILL)) {
+		switch (sig) {
+		case SIGCONT:
+			read_lock(&tasklist_lock);
+			sid = task_session(t);
+			read_unlock(&tasklist_lock);
+			/*
+			 * We don't return the error if sid == NULL. The
+			 * task was unhashed, the caller must notice this.
+			 */
+			if (!sid || sid == task_session(current))
+				break;
+		default:
+			return -EPERM;
+		}
+	}
 
 	return security_task_kill(t, info, sig, 0);
 }
