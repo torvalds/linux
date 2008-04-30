@@ -449,7 +449,8 @@ static void rp_do_transmit(struct r_port *info)
 	while (1) {
 		if (tty->stopped || tty->hw_stopped)
 			break;
-		c = min(info->xmit_fifo_room, min(info->xmit_cnt, XMIT_BUF_SIZE - info->xmit_tail));
+		c = min(info->xmit_fifo_room, info->xmit_cnt);
+		c = min(c, XMIT_BUF_SIZE - info->xmit_tail);
 		if (c <= 0 || info->xmit_fifo_room <= 0)
 			break;
 		sOutStrW(sGetTxRxDataIO(cp), (unsigned short *) (info->xmit_buf + info->xmit_tail), c / 2);
@@ -1758,10 +1759,10 @@ static int rp_write(struct tty_struct *tty,
 
 	/*  Write remaining data into the port's xmit_buf */
 	while (1) {
-		if (!info->tty)	/*   Seemingly obligatory check... */
+		if (!info->tty)		/* Seemingly obligatory check... */
 			goto end;
-
-		c = min(count, min(XMIT_BUF_SIZE - info->xmit_cnt - 1, XMIT_BUF_SIZE - info->xmit_head));
+		c = min(count, XMIT_BUF_SIZE - info->xmit_cnt - 1);
+		c = min(c, XMIT_BUF_SIZE - info->xmit_head);
 		if (c <= 0)
 			break;
 
