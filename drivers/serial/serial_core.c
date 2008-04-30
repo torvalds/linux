@@ -914,14 +914,14 @@ static void uart_break_ctl(struct tty_struct *tty, int break_state)
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->port;
 
-	BUG_ON(!kernel_locked());
-
+	lock_kernel();
 	mutex_lock(&state->mutex);
 
 	if (port->type != PORT_UNKNOWN)
 		port->ops->break_ctl(port, break_state);
 
 	mutex_unlock(&state->mutex);
+	unlock_kernel();
 }
 
 static int uart_do_autoconfig(struct uart_state *state)
@@ -1059,7 +1059,7 @@ static int uart_get_count(struct uart_state *state,
 }
 
 /*
- * Called via sys_ioctl under the BKL.  We can use spin_lock_irq() here.
+ * Called via sys_ioctl.  We can use spin_lock_irq() here.
  */
 static int
 uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
@@ -1069,8 +1069,8 @@ uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
 	void __user *uarg = (void __user *)arg;
 	int ret = -ENOIOCTLCMD;
 
-	BUG_ON(!kernel_locked());
 
+	lock_kernel();
 	/*
 	 * These ioctls don't rely on the hardware to be present.
 	 */
@@ -1143,6 +1143,7 @@ uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
  out_up:
 	mutex_unlock(&state->mutex);
  out:
+	unlock_kernel();
 	return ret;
 }
 
@@ -1153,7 +1154,6 @@ static void uart_set_termios(struct tty_struct *tty,
 	unsigned long flags;
 	unsigned int cflag = tty->termios->c_cflag;
 
-	BUG_ON(!kernel_locked());
 
 	/*
 	 * These are the bits that are used to setup various
@@ -1165,9 +1165,11 @@ static void uart_set_termios(struct tty_struct *tty,
 	if ((cflag ^ old_termios->c_cflag) == 0 &&
 	    tty->termios->c_ospeed == old_termios->c_ospeed &&
 	    tty->termios->c_ispeed == old_termios->c_ispeed &&
-	    RELEVANT_IFLAG(tty->termios->c_iflag ^ old_termios->c_iflag) == 0)
+	    RELEVANT_IFLAG(tty->termios->c_iflag ^ old_termios->c_iflag) == 0) {
 		return;
+	}
 
+	lock_kernel();
 	uart_change_speed(state, old_termios);
 
 	/* Handle transition to B0 status */
@@ -1200,7 +1202,7 @@ static void uart_set_termios(struct tty_struct *tty,
 		}
 		spin_unlock_irqrestore(&state->port->lock, flags);
 	}
-
+	unlock_kernel();
 #if 0
 	/*
 	 * No need to wake up processes in open wait, since they
