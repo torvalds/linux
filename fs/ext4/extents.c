@@ -2266,7 +2266,8 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		ex->ee_len   = orig_ex.ee_len;
 		ext4_ext_store_pblock(ex, ext_pblock(&orig_ex));
 		ext4_ext_dirty(handle, inode, path + depth);
-		return le16_to_cpu(ex->ee_len);
+		/* zeroed the full extent */
+		return allocated;
 	}
 
 	/* ex1: ee_block to iblock - 1 : uninitialized */
@@ -2311,11 +2312,45 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 				ex->ee_len   = orig_ex.ee_len;
 				ext4_ext_store_pblock(ex, ext_pblock(&orig_ex));
 				ext4_ext_dirty(handle, inode, path + depth);
-				return le16_to_cpu(ex->ee_len);
+				/* zeroed the full extent */
+				return allocated;
 
 			} else if (err)
 				goto fix_extent_len;
 
+			/*
+			 * We need to zero out the second half because
+			 * an fallocate request can update file size and
+			 * converting the second half to initialized extent
+			 * implies that we can leak some junk data to user
+			 * space.
+			 */
+			err =  ext4_ext_zeroout(inode, ex3);
+			if (err) {
+				/*
+				 * We should actually mark the
+				 * second half as uninit and return error
+				 * Insert would have changed the extent
+				 */
+				depth = ext_depth(inode);
+				ext4_ext_drop_refs(path);
+				path = ext4_ext_find_extent(inode,
+								iblock, path);
+				if (IS_ERR(path)) {
+					err = PTR_ERR(path);
+					return err;
+				}
+				ex = path[depth].p_ext;
+				err = ext4_ext_get_access(handle, inode,
+								path + depth);
+				if (err)
+					return err;
+				ext4_ext_mark_uninitialized(ex);
+				ext4_ext_dirty(handle, inode, path + depth);
+				return err;
+			}
+
+			/* zeroed the second half */
 			return allocated;
 		}
 		ex3 = &newex;
@@ -2333,7 +2368,8 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 			ex->ee_len   = orig_ex.ee_len;
 			ext4_ext_store_pblock(ex, ext_pblock(&orig_ex));
 			ext4_ext_dirty(handle, inode, path + depth);
-			return le16_to_cpu(ex->ee_len);
+			/* zeroed the full extent */
+			return allocated;
 
 		} else if (err)
 			goto fix_extent_len;
@@ -2381,7 +2417,8 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 			ex->ee_len   = orig_ex.ee_len;
 			ext4_ext_store_pblock(ex, ext_pblock(&orig_ex));
 			ext4_ext_dirty(handle, inode, path + depth);
-			return le16_to_cpu(ex->ee_len);
+			/* zero out the first half */
+			return allocated;
 		}
 	}
 	/*
@@ -2448,7 +2485,8 @@ insert:
 		ex->ee_len   = orig_ex.ee_len;
 		ext4_ext_store_pblock(ex, ext_pblock(&orig_ex));
 		ext4_ext_dirty(handle, inode, path + depth);
-		return le16_to_cpu(ex->ee_len);
+		/* zero out the first half */
+		return allocated;
 	} else if (err)
 		goto fix_extent_len;
 out:
