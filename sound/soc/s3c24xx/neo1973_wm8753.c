@@ -667,6 +667,6 @@ module_init(neo1973_init);
 module_exit(neo1973_exit);
 
 /* Module information */
-MODULE_AUTHOR("Graeme Gregory, graeme.gregory@wolfsonmicro.com, www.wolfsonmicro.com");
+MODULE_AUTHOR("Graeme Gregory, graeme@openmoko.org, www.openmoko.org");
 MODULE_DESCRIPTION("ALSA SoC WM8753 Neo1973");
 MODULE_LICENSE("GPL");
