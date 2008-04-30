@@ -927,6 +927,27 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	return 0;
 }
 
+static void mxser_flush_buffer(struct tty_struct *tty)
+{
+	struct mxser_port *info = tty->driver_data;
+	char fcr;
+	unsigned long flags;
+
+
+	spin_lock_irqsave(&info->slock, flags);
+	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
+
+	fcr = inb(info->ioaddr + UART_FCR);
+	outb((fcr | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT),
+		info->ioaddr + UART_FCR);
+	outb(fcr, info->ioaddr + UART_FCR);
+
+	spin_unlock_irqrestore(&info->slock, flags);
+
+	tty_wakeup(tty);
+}
+
+
 /*
  * This routine is called when the serial port gets closed.  First, we
  * wait for the last remaining data to be sent.  Then, we unlink its
@@ -1013,9 +1034,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	}
 	mxser_shutdown(info);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
-
+	mxser_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 
 	tty->closing = 0;
@@ -1140,26 +1159,6 @@ static int mxser_chars_in_buffer(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
 	return info->xmit_cnt;
-}
-
-static void mxser_flush_buffer(struct tty_struct *tty)
-{
-	struct mxser_port *info = tty->driver_data;
-	char fcr;
-	unsigned long flags;
-
-
-	spin_lock_irqsave(&info->slock, flags);
-	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
-
-	fcr = inb(info->ioaddr + UART_FCR);
-	outb((fcr | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT),
-		info->ioaddr + UART_FCR);
-	outb(fcr, info->ioaddr + UART_FCR);
-
-	spin_unlock_irqrestore(&info->slock, flags);
-
-	tty_wakeup(tty);
 }
 
 /*
@@ -1992,6 +1991,7 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 		timeout, char_time);
 	printk("jiff=%lu...", jiffies);
 #endif
+	lock_kernel();
 	while (!((lsr = inb(info->ioaddr + UART_LSR)) & UART_LSR_TEMT)) {
 #ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 		printk("lsr = %d (jiff=%lu)...", lsr, jiffies);
@@ -2003,6 +2003,7 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 			break;
 	}
 	set_current_state(TASK_RUNNING);
+	unlock_kernel();
 
 #ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 	printk("lsr = %d (jiff=%lu)...done\n", lsr, jiffies);

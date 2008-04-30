@@ -1015,6 +1015,24 @@ static int rc_open(struct tty_struct * tty, struct file * filp)
 	return 0;
 }
 
+static void rc_flush_buffer(struct tty_struct *tty)
+{
+	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
+	unsigned long flags;
+
+	if (rc_paranoia_check(port, tty->name, "rc_flush_buffer"))
+		return;
+
+	spin_lock_irqsave(&riscom_lock, flags);
+
+	port->xmit_cnt = port->xmit_head = port->xmit_tail = 0;
+
+	spin_unlock_irqrestore(&riscom_lock, flags);
+
+	tty_wakeup(tty);
+}
+
+
 static void rc_close(struct tty_struct * tty, struct file * filp)
 {
 	struct riscom_port *port = (struct riscom_port *) tty->driver_data;
@@ -1078,8 +1096,7 @@ static void rc_close(struct tty_struct * tty, struct file * filp)
 		}
 	}
 	rc_shutdown_port(bp, port);
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	rc_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 
 	tty->closing = 0;
@@ -1211,23 +1228,6 @@ static int rc_chars_in_buffer(struct tty_struct *tty)
 		return 0;
 	
 	return port->xmit_cnt;
-}
-
-static void rc_flush_buffer(struct tty_struct *tty)
-{
-	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
-	unsigned long flags;
-				
-	if (rc_paranoia_check(port, tty->name, "rc_flush_buffer"))
-		return;
-
-	spin_lock_irqsave(&riscom_lock, flags);
-
-	port->xmit_cnt = port->xmit_head = port->xmit_tail = 0;
-
-	spin_unlock_irqrestore(&riscom_lock, flags);
-	
-	tty_wakeup(tty);
 }
 
 static int rc_tiocmget(struct tty_struct *tty, struct file *file)

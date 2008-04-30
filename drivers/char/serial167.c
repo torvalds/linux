@@ -1674,8 +1674,7 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
 	if (info->flags & ASYNC_INITIALIZED)
 		tty_wait_until_sent(tty, 3000);	/* 30 seconds timeout */
 	shutdown(info);
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	cy_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 	info->tty = NULL;
 	if (info->blocked_open) {

@@ -1708,9 +1708,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 	}
 	dev->modempoll--;
 	isdn_tty_shutdown(info);
-	
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	isdn_tty_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 	info->tty = NULL;
 	info->ncarrier = 0;

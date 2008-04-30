@@ -1504,6 +1504,27 @@ static int sx_open(struct tty_struct * tty, struct file * filp)
 	return 0;
 }
 
+static void sx_flush_buffer(struct tty_struct *tty)
+{
+	struct specialix_port *port = (struct specialix_port *)tty->driver_data;
+	unsigned long flags;
+	struct specialix_board  * bp;
+
+	func_enter();
+
+	if (sx_paranoia_check(port, tty->name, "sx_flush_buffer")) {
+		func_exit();
+		return;
+	}
+
+	bp = port_Board(port);
+	spin_lock_irqsave(&port->lock, flags);
+	port->xmit_cnt = port->xmit_head = port->xmit_tail = 0;
+	spin_unlock_irqrestore(&port->lock, flags);
+	tty_wakeup(tty);
+
+	func_exit();
+}
 
 static void sx_close(struct tty_struct * tty, struct file * filp)
 {
@@ -1597,8 +1618,7 @@ static void sx_close(struct tty_struct * tty, struct file * filp)
 	}
 
 	sx_shutdown_port(bp, port);
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	sx_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 	spin_lock_irqsave(&port->lock, flags);
 	tty->closing = 0;
@@ -1769,28 +1789,6 @@ static int sx_chars_in_buffer(struct tty_struct *tty)
 	return port->xmit_cnt;
 }
 
-
-static void sx_flush_buffer(struct tty_struct *tty)
-{
-	struct specialix_port *port = (struct specialix_port *)tty->driver_data;
-	unsigned long flags;
-	struct specialix_board  * bp;
-
-	func_enter();
-
-	if (sx_paranoia_check(port, tty->name, "sx_flush_buffer")) {
-		func_exit();
-		return;
-	}
-
-	bp = port_Board(port);
-	spin_lock_irqsave(&port->lock, flags);
-	port->xmit_cnt = port->xmit_head = port->xmit_tail = 0;
-	spin_unlock_irqrestore(&port->lock, flags);
-	tty_wakeup(tty);
-
-	func_exit();
-}
 
 
 static int sx_tiocmget(struct tty_struct *tty, struct file *file)

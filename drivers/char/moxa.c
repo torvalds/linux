@@ -1280,6 +1280,7 @@ static int moxa_chars_in_buffer(struct tty_struct *tty)
 	 */
 	if (ch == NULL)
 		return 0;
+	lock_kernel();
 	chars = MoxaPortTxQueue(ch);
 	if (chars) {
 		/*
@@ -1289,6 +1290,7 @@ static int moxa_chars_in_buffer(struct tty_struct *tty)
 		if (!(ch->statusflags & EMPTYWAIT))
 			moxa_setup_empty_event(tty);
 	}
+	unlock_kernel();
 	return chars;
 }
 

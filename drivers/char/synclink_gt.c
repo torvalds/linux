@@ -771,8 +771,7 @@ static void close(struct tty_struct *tty, struct file *filp)
 
  	if (info->flags & ASYNC_INITIALIZED)
  		wait_until_sent(tty, info->timeout);
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	flush_buffer(tty);
 	tty_ldisc_flush(tty);
 
 	shutdown(info);
@@ -967,6 +966,8 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Note: use tight timings here to satisfy the NIST-PCTS.
 	 */
 
+	lock_kernel();
+
 	if (info->params.data_rate) {
 	       	char_time = info->timeout/(32 * 5);
 		if (!char_time)
@@ -984,6 +985,7 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 		if (timeout && time_after(jiffies, orig_jiffies + timeout))
 			break;
 	}
+	unlock_kernel();
 
 exit:
 	DBGINFO(("%s wait_until_sent exit\n", info->device_name));

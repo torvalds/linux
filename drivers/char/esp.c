@@ -1994,8 +1994,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		rs_wait_until_sent(tty, info->timeout);
 	}
 	shutdown(info);
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	rs_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 	tty->closing = 0;
 	info->tty = NULL;

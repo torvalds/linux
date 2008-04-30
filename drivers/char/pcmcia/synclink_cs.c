@@ -503,19 +503,8 @@ static void* mgslpc_get_text_ptr(void)
  * The wrappers maintain line discipline references
  * while calling into the line discipline.
  *
- * ldisc_flush_buffer - flush line discipline receive buffers
  * ldisc_receive_buf  - pass receive data to line discipline
  */
-
-static void ldisc_flush_buffer(struct tty_struct *tty)
-{
-	struct tty_ldisc *ld = tty_ldisc_ref(tty);
-	if (ld) {
-		if (ld->flush_buffer)
-			ld->flush_buffer(tty);
-		tty_ldisc_deref(ld);
-	}
-}
 
 static void ldisc_receive_buf(struct tty_struct *tty,
 			      const __u8 *data, char *flags, int count)
@@ -2467,10 +2456,9 @@ static void mgslpc_close(struct tty_struct *tty, struct file * filp)
  	if (info->flags & ASYNC_INITIALIZED)
  		mgslpc_wait_until_sent(tty, info->timeout);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	mgslpc_flush_buffer(tty);
 
-	ldisc_flush_buffer(tty);
+	tty_ldisc_flush(tty);
 
 	shutdown(info);
 

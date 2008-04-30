@@ -1724,6 +1724,8 @@ static int ntty_tiocmget(struct tty_struct *tty, struct file *file)
 	const struct ctrl_dl *ctrl_dl = &port->ctrl_dl;
 	const struct ctrl_ul *ctrl_ul = &port->ctrl_ul;
 
+	/* Note: these could change under us but it is not clear this
+	   matters if so */
 	return	(ctrl_ul->RTS ? TIOCM_RTS : 0) |
 		(ctrl_ul->DTR ? TIOCM_DTR : 0) |
 		(ctrl_dl->DCD ? TIOCM_CAR : 0) |
@@ -1849,16 +1851,6 @@ static void ntty_throttle(struct tty_struct *tty)
 	spin_unlock_irqrestore(&dc->spin_mutex, flags);
 }
 
-/* just to discard single character writes */
-static void ntty_put_char(struct tty_struct *tty, unsigned char c)
-{
-	/*
-	 * card does not react correct when we write single chars
-	 * to the card, so we discard them
-	 */
-	DBG2("PUT CHAR Function: %c", c);
-}
-
 /* Returns number of chars in buffer, called by tty layer */
 static s32 ntty_chars_in_buffer(struct tty_struct *tty)
 {
@@ -1892,7 +1884,6 @@ static const struct tty_operations tty_ops = {
 	.unthrottle = ntty_unthrottle,
 	.throttle = ntty_throttle,
 	.chars_in_buffer = ntty_chars_in_buffer,
-	.put_char = ntty_put_char,
 	.tiocmget = ntty_tiocmget,
 	.tiocmset = ntty_tiocmset,
 };

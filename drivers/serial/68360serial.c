@@ -1436,18 +1436,6 @@ static int rs_360_ioctl(struct tty_struct *tty, struct file * file,
 				return retval;
 			end_break(info);
 			return 0;
-		case TIOCGSOFTCAR:
-			/* return put_user(C_CLOCAL(tty) ? 1 : 0, (int *) arg); */
-			put_user(C_CLOCAL(tty) ? 1 : 0, (int *) arg);
-			return 0;
-		case TIOCSSOFTCAR:
-			error = get_user(arg, (unsigned int *) arg); 
-			if (error)
-				return error;
-			tty->termios->c_cflag =
-				((tty->termios->c_cflag & ~CLOCAL) |
-				 (arg ? CLOCAL : 0));
-			return 0;
 #ifdef maybe
 		case TIOCSERGETLSR: /* Get line status register */
 			return get_lsr_info(info, (unsigned int *) arg);
@@ -1665,8 +1653,7 @@ static void rs_360_close(struct tty_struct *tty, struct file * filp)
 		rs_360_wait_until_sent(tty, info->timeout);
 	}
 	shutdown(info);
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	rs_360_flush_buffer(tty);
 	tty_ldisc_flush(tty);		
 	tty->closing = 0;
 	info->event = 0;
@@ -1717,6 +1704,7 @@ static void rs_360_wait_until_sent(struct tty_struct *tty, int timeout)
 	printk("jiff=%lu...", jiffies);
 #endif
 
+	lock_kernel();
 	/* We go through the loop at least once because we can't tell
 	 * exactly when the last character exits the shifter.  There can
 	 * be at least two characters waiting to be sent after the buffers
@@ -1745,6 +1733,7 @@ static void rs_360_wait_until_sent(struct tty_struct *tty, int timeout)
 			bdp--;
 	} while (bdp->status & BD_SC_READY);
 	current->state = TASK_RUNNING;
+	unlock_kernel();
 #ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 	printk("lsr = %d (jiff=%lu)...done\n", lsr, jiffies);
 #endif

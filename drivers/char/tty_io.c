@@ -1204,7 +1204,7 @@ EXPORT_SYMBOL_GPL(tty_find_polling_driver);
  *	not in the foreground, send a SIGTTOU.  If the signal is blocked or
  *	ignored, go ahead and perform the operation.  (POSIX 7.2)
  *
- *	Locking: ctrl_lock - FIXME: review this
+ *	Locking: ctrl_lock
  */
 
 int tty_check_change(struct tty_struct *tty)

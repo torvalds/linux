@@ -3157,8 +3157,7 @@ static void mgsl_close(struct tty_struct *tty, struct file * filp)
  	if (info->flags & ASYNC_INITIALIZED)
  		mgsl_wait_until_sent(tty, info->timeout);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	mgsl_flush_buffer(tty);
 
 	tty_ldisc_flush(tty);
 		
@@ -3221,7 +3220,8 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * interval should also be less than the timeout.
 	 * Note: use tight timings here to satisfy the NIST-PCTS.
 	 */ 
-       
+
+	lock_kernel();
 	if ( info->params.data_rate ) {
 	       	char_time = info->timeout/(32 * 5);
 		if (!char_time)
@@ -3251,6 +3251,7 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 				break;
 		}
 	}
+	unlock_kernel();
       
 exit:
 	if (debug_level >= DEBUG_LEVEL_INFO)

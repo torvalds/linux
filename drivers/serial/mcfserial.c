@@ -1072,18 +1072,6 @@ static int mcfrs_ioctl(struct tty_struct *tty, struct file * file,
 			tty_wait_until_sent(tty, 0);
 			send_break(info, arg ? arg*(HZ/10) : HZ/4);
 			return 0;
-		case TIOCGSOFTCAR:
-			error = put_user(C_CLOCAL(tty) ? 1 : 0,
-				    (unsigned long *) arg);
-			if (error)
-				return error;
-			return 0;
-		case TIOCSSOFTCAR:
-			get_user(arg, (unsigned long *) arg);
-			tty->termios->c_cflag =
-				((tty->termios->c_cflag & ~CLOCAL) |
-				 (arg ? CLOCAL : 0));
-			return 0;
 		case TIOCGSERIAL:
 			if (access_ok(VERIFY_WRITE, (void *) arg,
 						sizeof(struct serial_struct)))
@@ -1222,8 +1210,7 @@ static void mcfrs_close(struct tty_struct *tty, struct file * filp)
 	} else
 #endif
 	shutdown(info);
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	mcfrs_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 	
 	tty->closing = 0;
@@ -1276,6 +1263,8 @@ mcfrs_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Note: we have to use pretty tight timings here to satisfy
 	 * the NIST-PCTS.
 	 */
+	lock_kernel();
+
 	fifo_time = (MCF5272_FIFO_SIZE * HZ * 10) / info->baud;
 	char_time = fifo_time / 5;
 	if (char_time == 0)
@@ -1312,6 +1301,7 @@ mcfrs_wait_until_sent(struct tty_struct *tty, int timeout)
 		if (timeout && time_after(jiffies, orig_jiffies + timeout))
 			break;
 	}
+	unlock_kernel();
 #else
 	/*
 	 * For the other coldfire models, assume all data has been sent

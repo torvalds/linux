@@ -862,8 +862,7 @@ static void close(struct tty_struct *tty, struct file *filp)
  	if (info->flags & ASYNC_INITIALIZED)
  		wait_until_sent(tty, info->timeout);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	flush_buffer(tty);
 
 	tty_ldisc_flush(tty);
 
@@ -1119,6 +1118,8 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	if (sanity_check(info, tty->name, "wait_until_sent"))
 		return;
 
+	lock_kernel();
+
 	if (!(info->flags & ASYNC_INITIALIZED))
 		goto exit;
 
@@ -1161,6 +1162,7 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	}
 
 exit:
+	unlock_kernel();
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s wait_until_sent() exit\n",
 			 __FILE__,__LINE__, info->device_name );
@@ -1176,6 +1178,7 @@ static int write_room(struct tty_struct *tty)
 	if (sanity_check(info, tty->name, "write_room"))
 		return 0;
 
+	lock_kernel();
 	if (info->params.mode == MGSL_MODE_HDLC) {
 		ret = (info->tx_active) ? 0 : HDLC_MAX_FRAME_SIZE;
 	} else {
@@ -1183,6 +1186,7 @@ static int write_room(struct tty_struct *tty)
 		if (ret < 0)
 			ret = 0;
 	}
+	unlock_kernel();
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s write_room()=%d\n",

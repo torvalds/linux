@@ -157,7 +157,6 @@ static void epca_error(int, char *);
 static void pc_close(struct tty_struct *, struct file *);
 static void shutdown(struct channel *);
 static void pc_hangup(struct tty_struct *);
-static void pc_put_char(struct tty_struct *, unsigned char);
 static int pc_write_room(struct tty_struct *);
 static int pc_chars_in_buffer(struct tty_struct *);
 static void pc_flush_buffer(struct tty_struct *);
@@ -459,8 +458,7 @@ static void pc_close(struct tty_struct *tty, struct file *filp)
 			setup_empty_event(tty, ch);
 			tty_wait_until_sent(tty, 3000); /* 30 seconds timeout */
 		}
-		if (tty->driver->flush_buffer)
-			tty->driver->flush_buffer(tty);
+		pc_flush_buffer(tty);
 
 		tty_ldisc_flush(tty);
 		shutdown(ch);
@@ -532,8 +530,7 @@ static void pc_hangup(struct tty_struct *tty)
 	if ((ch = verifyChannel(tty)) != NULL) {
 		unsigned long flags;
 
-		if (tty->driver->flush_buffer)
-			tty->driver->flush_buffer(tty);
+		pc_flush_buffer(tty);
 		tty_ldisc_flush(tty);
 		shutdown(ch);
 
@@ -643,11 +640,6 @@ static int pc_write(struct tty_struct *tty,
 	memoff(ch);
 	spin_unlock_irqrestore(&epca_lock, flags);
 	return amountCopied;
-}
-
-static void pc_put_char(struct tty_struct *tty, unsigned char c)
-{
-	pc_write(tty, &c, 1);
 }
 
 static int pc_write_room(struct tty_struct *tty)
@@ -1035,7 +1027,6 @@ static const struct tty_operations pc_ops = {
 	.flush_buffer = pc_flush_buffer,
 	.chars_in_buffer = pc_chars_in_buffer,
 	.flush_chars = pc_flush_chars,
-	.put_char = pc_put_char,
 	.ioctl = pc_ioctl,
 	.set_termios = pc_set_termios,
 	.stop = pc_stop,

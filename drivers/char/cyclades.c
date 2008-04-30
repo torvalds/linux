@@ -2522,6 +2522,7 @@ static void cy_wait_until_sent(struct tty_struct *tty, int timeout)
 		return;		/* Just in case.... */
 
 	orig_jiffies = jiffies;
+	lock_kernel();
 	/*
 	 * Set the check interval to be 1/5 of the estimated time to
 	 * send a single character, and make it at least 1.  The check
@@ -2573,10 +2574,46 @@ static void cy_wait_until_sent(struct tty_struct *tty, int timeout)
 	}
 	/* Run one more char cycle */
 	msleep_interruptible(jiffies_to_msecs(char_time * 5));
+	unlock_kernel();
 #ifdef CY_DEBUG_WAIT_UNTIL_SENT
 	printk(KERN_DEBUG "Clean (jiff=%lu)...done\n", jiffies);
 #endif
 }
+
+static void cy_flush_buffer(struct tty_struct *tty)
+{
+	struct cyclades_port *info = tty->driver_data;
+	struct cyclades_card *card;
+	int channel, retval;
+	unsigned long flags;
+
+#ifdef CY_DEBUG_IO
+	printk(KERN_DEBUG "cyc:cy_flush_buffer ttyC%d\n", info->line);
+#endif
+
+	if (serial_paranoia_check(info, tty->name, "cy_flush_buffer"))
+		return;
+
+	card = info->card;
+	channel = info->line - card->first_line;
+
+	spin_lock_irqsave(&card->card_lock, flags);
+	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
+	spin_unlock_irqrestore(&card->card_lock, flags);
+
+	if (IS_CYC_Z(*card)) {	/* If it is a Z card, flush the on-board
+					   buffers as well */
+		spin_lock_irqsave(&card->card_lock, flags);
+		retval = cyz_issue_cmd(card, channel, C_CM_FLUSH_TX, 0L);
+		if (retval != 0) {
+			printk(KERN_ERR "cyc: flush_buffer retval on ttyC%d "
+				"was %x\n", info->line, retval);
+		}
+		spin_unlock_irqrestore(&card->card_lock, flags);
+	}
+	tty_wakeup(tty);
+}				/* cy_flush_buffer */
+
 
 /*
  * This routine is called when a particular tty device is closed.
@@ -2689,8 +2726,7 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
 
 	spin_unlock_irqrestore(&card->card_lock, flags);
 	shutdown(info);
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	cy_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 	spin_lock_irqsave(&card->card_lock, flags);
 
@@ -2881,6 +2917,7 @@ static int cy_chars_in_buffer(struct tty_struct *tty)
 		int char_count;
 		__u32 tx_put, tx_get, tx_bufsize;
 
+		lock_kernel();
 		firm_id = card->base_addr + ID_ADDRESS;
 		zfw_ctrl = card->base_addr +
 			(readl(&firm_id->zfwctrl_addr) & 0xfffff);
@@ -2898,6 +2935,7 @@ static int cy_chars_in_buffer(struct tty_struct *tty)
 		printk(KERN_DEBUG "cyc:cy_chars_in_buffer ttyC%d %d\n",
 			info->line, info->xmit_cnt + char_count);
 #endif
+		unlock_kernel();
 		return info->xmit_cnt + char_count;
 	}
 #endif				/* Z_EXT_CHARS_IN_BUFFER */
@@ -4270,40 +4308,6 @@ static void cy_start(struct tty_struct *tty)
 		spin_unlock_irqrestore(&cinfo->card_lock, flags);
 	}
 }				/* cy_start */
-
-static void cy_flush_buffer(struct tty_struct *tty)
-{
-	struct cyclades_port *info = tty->driver_data;
-	struct cyclades_card *card;
-	int channel, retval;
-	unsigned long flags;
-
-#ifdef CY_DEBUG_IO
-	printk(KERN_DEBUG "cyc:cy_flush_buffer ttyC%d\n", info->line);
-#endif
-
-	if (serial_paranoia_check(info, tty->name, "cy_flush_buffer"))
-		return;
-
-	card = info->card;
-	channel = info->line - card->first_line;
-
-	spin_lock_irqsave(&card->card_lock, flags);
-	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
-	spin_unlock_irqrestore(&card->card_lock, flags);
-
-	if (IS_CYC_Z(*card)) {	/* If it is a Z card, flush the on-board
-					   buffers as well */
-		spin_lock_irqsave(&card->card_lock, flags);
-		retval = cyz_issue_cmd(card, channel, C_CM_FLUSH_TX, 0L);
-		if (retval != 0) {
-			printk(KERN_ERR "cyc: flush_buffer retval on ttyC%d "
-				"was %x\n", info->line, retval);
-		}
-		spin_unlock_irqrestore(&card->card_lock, flags);
-	}
-	tty_wakeup(tty);
-}				/* cy_flush_buffer */
 
 /*
  * cy_hangup() --- called by tty_hangup() when a hangup is signaled.

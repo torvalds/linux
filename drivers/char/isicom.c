@@ -1012,6 +1012,22 @@ static void isicom_shutdown_port(struct isi_port *port)
 	}
 }
 
+static void isicom_flush_buffer(struct tty_struct *tty)
+{
+	struct isi_port *port = tty->driver_data;
+	struct isi_board *card = port->card;
+	unsigned long flags;
+
+	if (isicom_paranoia_check(port, tty->name, "isicom_flush_buffer"))
+		return;
+
+	spin_lock_irqsave(&card->card_lock, flags);
+	port->xmit_cnt = port->xmit_head = port->xmit_tail = 0;
+	spin_unlock_irqrestore(&card->card_lock, flags);
+
+	tty_wakeup(tty);
+}
+
 static void isicom_close(struct tty_struct *tty, struct file *filp)
 {
 	struct isi_port *port = tty->driver_data;
@@ -1065,8 +1081,7 @@ static void isicom_close(struct tty_struct *tty, struct file *filp)
 	isicom_shutdown_port(port);
 	spin_unlock_irqrestore(&card->card_lock, flags);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	isicom_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 
 	spin_lock_irqsave(&card->card_lock, flags);
@@ -1447,22 +1462,6 @@ static void isicom_hangup(struct tty_struct *tty)
 	wake_up_interruptible(&port->open_wait);
 }
 
-/* flush_buffer et all */
-static void isicom_flush_buffer(struct tty_struct *tty)
-{
-	struct isi_port *port = tty->driver_data;
-	struct isi_board *card = port->card;
-	unsigned long flags;
-
-	if (isicom_paranoia_check(port, tty->name, "isicom_flush_buffer"))
-		return;
-
-	spin_lock_irqsave(&card->card_lock, flags);
-	port->xmit_cnt = port->xmit_head = port->xmit_tail = 0;
-	spin_unlock_irqrestore(&card->card_lock, flags);
-
-	tty_wakeup(tty);
-}
 
 /*
  * Driver init and deinit functions
