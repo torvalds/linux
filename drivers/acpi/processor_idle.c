@@ -1299,6 +1299,8 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 {
 	int result = 0;
 
+	if (boot_option_idle_override)
+		return 0;
 
 	if (!pr)
 		return -EINVAL;
@@ -1738,6 +1740,9 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 {
 	int ret;
 
+	if (boot_option_idle_override)
+		return 0;
+
 	if (!pr)
 		return -EINVAL;
 
@@ -1768,6 +1773,8 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	struct proc_dir_entry *entry = NULL;
 	unsigned int i;
 
+	if (boot_option_idle_override)
+		return 0;
 
 	if (!first_run) {
 		dmi_check_system(processor_power_dmi_table);
@@ -1803,7 +1810,7 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	 * Note that we use previously set idle handler will be used on
 	 * platforms that only support C1.
 	 */
-	if ((pr->flags.power) && (!boot_option_idle_override)) {
+	if (pr->flags.power) {
 #ifdef CONFIG_CPU_IDLE
 		acpi_processor_setup_cpuidle(pr);
 		pr->power.dev.cpu = pr->id;
@@ -1843,8 +1850,11 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 int acpi_processor_power_exit(struct acpi_processor *pr,
 			      struct acpi_device *device)
 {
+	if (boot_option_idle_override)
+		return 0;
+
 #ifdef CONFIG_CPU_IDLE
-	if ((pr->flags.power) && (!boot_option_idle_override))
+	if (pr->flags.power)
 		cpuidle_unregister_device(&pr->power.dev);
 #endif
 	pr->flags.power_setup_done = 0;
