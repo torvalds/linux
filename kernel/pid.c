@@ -111,10 +111,11 @@ EXPORT_SYMBOL(is_container_init);
 
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
 
-static void free_pidmap(struct pid_namespace *pid_ns, int pid)
+static void free_pidmap(struct upid *upid)
 {
-	struct pidmap *map = pid_ns->pidmap + pid / BITS_PER_PAGE;
-	int offset = pid & BITS_PER_PAGE_MASK;
+	int nr = upid->nr;
+	struct pidmap *map = upid->ns->pidmap + nr / BITS_PER_PAGE;
+	int offset = nr & BITS_PER_PAGE_MASK;
 
 	clear_bit(offset, map->page);
 	atomic_inc(&map->nr_free);
@@ -232,7 +233,7 @@ void free_pid(struct pid *pid)
 	spin_unlock_irqrestore(&pidmap_lock, flags);
 
 	for (i = 0; i <= pid->level; i++)
-		free_pidmap(pid->numbers[i].ns, pid->numbers[i].nr);
+		free_pidmap(pid->numbers + i);
 
 	call_rcu(&pid->rcu, delayed_put_pid);
 }
@@ -278,8 +279,8 @@ out:
 	return pid;
 
 out_free:
-	for (i++; i <= ns->level; i++)
-		free_pidmap(pid->numbers[i].ns, pid->numbers[i].nr);
+	while (++i <= ns->level)
+		free_pidmap(pid->numbers + i);
 
 	kmem_cache_free(ns->pid_cachep, pid);
 	pid = NULL;
