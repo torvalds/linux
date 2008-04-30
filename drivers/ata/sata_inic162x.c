@@ -356,12 +356,12 @@ static void inic_host_intr(struct ata_port *ap)
 	if (unlikely((irq_stat & PIRQ_ERR) || (idma_stat & IDMA_STAT_ERR)))
 		inic_host_err_intr(ap, irq_stat, idma_stat);
 
-	if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
+	if (unlikely(!qc)) {
 		ap->ops->sff_check_status(ap); /* clear ATA interrupt */
 		goto spurious;
 	}
 
-	if (qc->tf.protocol == ATA_PROT_DMA) {
+	if (!ata_is_atapi(qc->tf.protocol)) {
 		if (likely(idma_stat & IDMA_STAT_DONE)) {
 			inic_stop_idma(ap);
 
@@ -425,10 +425,13 @@ static void inic_fill_sg(struct inic_prd *prd, struct ata_queued_cmd *qc)
 {
 	struct scatterlist *sg;
 	unsigned int si;
-	u8 flags = PRD_DMA;
+	u8 flags = 0;
 
 	if (qc->tf.flags & ATA_TFLAG_WRITE)
 		flags |= PRD_WRITE;
+
+	if (ata_is_dma(qc->tf.protocol))
+		flags |= PRD_DMA;
 
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		prd->mad = cpu_to_le32(sg_dma_address(sg));
@@ -447,16 +450,20 @@ static void inic_qc_prep(struct ata_queued_cmd *qc)
 	struct inic_pkt *pkt = pp->pkt;
 	struct inic_cpb *cpb = &pkt->cpb;
 	struct inic_prd *prd = pkt->prd;
+	bool is_atapi = ata_is_atapi(qc->tf.protocol);
+	bool is_data = ata_is_data(qc->tf.protocol);
 
 	VPRINTK("ENTER\n");
 
-	if (qc->tf.protocol != ATA_PROT_DMA)
+	if (is_atapi)
 		return;
 
 	/* prepare packet, based on initio driver */
 	memset(pkt, 0, sizeof(struct inic_pkt));
 
-	cpb->ctl_flags = CPB_CTL_VALID | CPB_CTL_IEN | CPB_CTL_DATA;
+	cpb->ctl_flags = CPB_CTL_VALID | CPB_CTL_IEN;
+	if (is_data)
+		cpb->ctl_flags |= CPB_CTL_DATA;
 
 	cpb->len = cpu_to_le32(qc->nbytes);
 	cpb->prd = cpu_to_le32(pp->pkt_dma + offsetof(struct inic_pkt, prd));
@@ -480,7 +487,8 @@ static void inic_qc_prep(struct ata_queued_cmd *qc)
 	/* don't load ctl - dunno why.  it's like that in the initio driver */
 
 	/* setup sg table */
-	inic_fill_sg(prd, qc);
+	if (is_data)
+		inic_fill_sg(prd, qc);
 
 	pp->cpb_tbl[0] = pp->pkt_dma;
 }
@@ -490,25 +498,13 @@ static unsigned int inic_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	void __iomem *port_base = inic_port_base(ap);
 
-	if (qc->tf.protocol == ATA_PROT_DMA) {
+	if (!ata_is_atapi(qc->tf.protocol)) {
 		/* fire up the ADMA engine */
 		writew(HCTL_FTHD0, port_base + HOST_CTL);
 		writew(IDMA_CTL_GO, port_base + PORT_IDMA_CTL);
 		writeb(0, port_base + PORT_CPB_PTQFIFO);
 
 		return 0;
-	}
-
-	/* Issuing a command to yet uninitialized port locks up the
-	 * controller.  Most of the time, this happens for the first
-	 * command after reset which are ATA and ATAPI IDENTIFYs.
-	 * Fast fail if stat is 0x7f or 0xff for those commands.
-	 */
-	if (unlikely(qc->tf.command == ATA_CMD_ID_ATA ||
-		     qc->tf.command == ATA_CMD_ID_ATAPI)) {
-		u8 stat = ap->ops->sff_check_status(ap);
-		if (stat == 0x7f || stat == 0xff)
-			return AC_ERR_HSM;
 	}
 
 	return ata_sff_qc_issue(qc);
@@ -647,20 +643,6 @@ static void inic_post_internal_cmd(struct ata_queued_cmd *qc)
 		inic_reset_port(inic_port_base(qc->ap));
 }
 
-static void inic_dev_config(struct ata_device *dev)
-{
-	/* inic can only handle upto LBA28 max sectors */
-	if (dev->max_sectors > ATA_MAX_SECTORS)
-		dev->max_sectors = ATA_MAX_SECTORS;
-
-	if (dev->n_sectors >= 1 << 28) {
-		ata_dev_printk(dev, KERN_ERR,
-	"ERROR: This driver doesn't support LBA48 yet and may cause\n"
-	"                data corruption on such devices.  Disabling.\n");
-		ata_dev_disable(dev);
-	}
-}
-
 static void init_port(struct ata_port *ap)
 {
 	void __iomem *port_base = inic_port_base(ap);
@@ -726,7 +708,6 @@ static struct ata_port_operations inic_port_ops = {
 	.hardreset		= inic_hardreset,
 	.error_handler		= inic_error_handler,
 	.post_internal_cmd	= inic_post_internal_cmd,
-	.dev_config		= inic_dev_config,
 
 	.scr_read		= inic_scr_read,
 	.scr_write		= inic_scr_write,
