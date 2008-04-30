@@ -46,7 +46,7 @@ void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	memcpy(save_cmnd, srb->cmnd, sizeof(save_cmnd));
-	memset(srb->cmnd, 0, sizeof(srb->cmnd));
+	memset(srb->cmnd, 0, MAX_COMMAND_SIZE);
 
 	/* check if we support the command */
 	if (save_cmnd[1] >> 5) /* MULTIPLE_COUNT */
