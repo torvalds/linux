@@ -842,6 +842,7 @@ static inline int wants_signal(int sig, struct task_struct *p)
 static void
 __group_complete_signal(int sig, struct task_struct *p)
 {
+	struct signal_struct *signal = p->signal;
 	struct task_struct *t;
 
 	/*
@@ -862,14 +863,14 @@ __group_complete_signal(int sig, struct task_struct *p)
 		/*
 		 * Otherwise try to find a suitable thread.
 		 */
-		t = p->signal->curr_target;
+		t = signal->curr_target;
 		if (t == NULL)
 			/* restart balancing at this thread */
-			t = p->signal->curr_target = p;
+			t = signal->curr_target = p;
 
 		while (!wants_signal(sig, t)) {
 			t = next_thread(t);
-			if (t == p->signal->curr_target)
+			if (t == signal->curr_target)
 				/*
 				 * No thread needs to be woken.
 				 * Any eligible threads will see
@@ -877,14 +878,14 @@ __group_complete_signal(int sig, struct task_struct *p)
 				 */
 				return;
 		}
-		p->signal->curr_target = t;
+		signal->curr_target = t;
 	}
 
 	/*
 	 * Found a killable thread.  If the signal will be fatal,
 	 * then start taking the whole group down immediately.
 	 */
-	if (sig_fatal(p, sig) && !(p->signal->flags & SIGNAL_GROUP_EXIT) &&
+	if (sig_fatal(p, sig) && !(signal->flags & SIGNAL_GROUP_EXIT) &&
 	    !sigismember(&t->real_blocked, sig) &&
 	    (sig == SIGKILL || !(t->ptrace & PT_PTRACED))) {
 		/*
@@ -897,9 +898,9 @@ __group_complete_signal(int sig, struct task_struct *p)
 			 * running and doing things after a slower
 			 * thread has the fatal signal pending.
 			 */
-			p->signal->flags = SIGNAL_GROUP_EXIT;
-			p->signal->group_exit_code = sig;
-			p->signal->group_stop_count = 0;
+			signal->flags = SIGNAL_GROUP_EXIT;
+			signal->group_exit_code = sig;
+			signal->group_stop_count = 0;
 			t = p;
 			do {
 				sigaddset(&t->pending.signal, SIGKILL);
