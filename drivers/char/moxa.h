@@ -165,11 +165,11 @@
 #define HostStat	0x08	/* IRQ flag and general flag      */
 #define FlagStat	0x0A
 #define FlowControl	0x0C	/* B7 B6 B5 B4 B3 B2 B1 B0              */
-					/*  x  x  x  x  |  |  |  |            */
-					/*              |  |  |  + CTS flow   */
-					/*              |  |  +--- RTS flow   */
-					/*              |  +------ TX Xon/Xoff */
-					/*              +--------- RX Xon/Xoff */
+				/*  x  x  x  x  |  |  |  |            */
+				/*              |  |  |  + CTS flow   */
+				/*              |  |  +--- RTS flow   */
+				/*              |  +------ TX Xon/Xoff */
+				/*              +--------- RX Xon/Xoff */
 #define Break_cnt	0x0E	/* received break count   */
 #define CD180TXirq	0x10	/* if non-0: enable TX irq        */
 #define RX_mask 	0x12
