@@ -47,6 +47,30 @@ enum {
 	SPU_SCHED_SPU_RUN,	/* context is within spu_run */
 };
 
+enum {
+	SWITCH_LOG_BUFSIZE = 4096,
+};
+
+enum {
+	SWITCH_LOG_START,
+	SWITCH_LOG_STOP,
+	SWITCH_LOG_EXIT,
+};
+
+struct switch_log {
+	spinlock_t		lock;
+	wait_queue_head_t	wait;
+	unsigned long		head;
+	unsigned long		tail;
+	struct switch_log_entry {
+		struct timespec	tstamp;
+		s32		spu_id;
+		u32		type;
+		u32		val;
+		u64		timebase;
+	} log[];
+};
+
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
 	struct spu_state csa;		  /* SPU context save area. */
@@ -115,6 +139,9 @@ struct spu_context {
 		unsigned long long class2_intr_base; /* # at last ctx switch */
 		unsigned long long libassist;
 	} stats;
+
+	/* context switch log */
+	struct switch_log *switch_log;
 
 	struct list_head aff_list;
 	int aff_head;
@@ -256,6 +283,8 @@ int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);
 void spu_switch_notify(struct spu *spu, struct spu_context *ctx);
+void spu_switch_log_notify(struct spu *spu, struct spu_context *ctx,
+		u32 type, u32 val);
 void spu_set_timeslice(struct spu_context *ctx);
 void spu_update_sched_info(struct spu_context *ctx);
 void __spu_update_sched_info(struct spu_context *ctx);
@@ -330,8 +359,8 @@ extern void spuctx_switch_state(struct spu_context *ctx,
 		enum spu_utilization_state new_state);
 
 #define spu_context_trace(name, ctx, spu) \
-	trace_mark(name, "%p %p", ctx, spu);
+	trace_mark(name, "ctx %p spu %p", ctx, spu);
 #define spu_context_nospu_trace(name, ctx) \
-	trace_mark(name, "%p", ctx);
+	trace_mark(name, "ctx %p", ctx);
 
 #endif

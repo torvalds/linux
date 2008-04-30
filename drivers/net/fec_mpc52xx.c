@@ -491,20 +491,23 @@ static irqreturn_t mpc52xx_fec_interrupt(int irq, void *dev_id)
 
 	out_be32(&fec->ievent, ievent);		/* clear pending events */
 
-	if (ievent & ~(FEC_IEVENT_RFIFO_ERROR | FEC_IEVENT_XFIFO_ERROR)) {
-		if (ievent & ~FEC_IEVENT_TFINT)
-			dev_dbg(&dev->dev, "ievent: %08x\n", ievent);
+	/* on fifo error, soft-reset fec */
+	if (ievent & (FEC_IEVENT_RFIFO_ERROR | FEC_IEVENT_XFIFO_ERROR)) {
+
+		if (net_ratelimit() && (ievent & FEC_IEVENT_RFIFO_ERROR))
+			dev_warn(&dev->dev, "FEC_IEVENT_RFIFO_ERROR\n");
+		if (net_ratelimit() && (ievent & FEC_IEVENT_XFIFO_ERROR))
+			dev_warn(&dev->dev, "FEC_IEVENT_XFIFO_ERROR\n");
+
+		mpc52xx_fec_reset(dev);
+
+		netif_wake_queue(dev);
 		return IRQ_HANDLED;
 	}
 
-	if (net_ratelimit() && (ievent & FEC_IEVENT_RFIFO_ERROR))
-		dev_warn(&dev->dev, "FEC_IEVENT_RFIFO_ERROR\n");
-	if (net_ratelimit() && (ievent & FEC_IEVENT_XFIFO_ERROR))
-		dev_warn(&dev->dev, "FEC_IEVENT_XFIFO_ERROR\n");
+	if (ievent & ~FEC_IEVENT_TFINT)
+		dev_dbg(&dev->dev, "ievent: %08x\n", ievent);
 
-	mpc52xx_fec_reset(dev);
-
-	netif_wake_queue(dev);
 	return IRQ_HANDLED;
 }
 
