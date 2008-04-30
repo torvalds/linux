@@ -42,6 +42,8 @@ struct pxafb_info {
 	struct device		*dev;
 	struct clk		*clk;
 
+	void __iomem		*mmio_base;
+
 	/*
 	 * These are the addresses we mapped
 	 * the framebuffer memory region to.

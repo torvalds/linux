@@ -687,7 +687,8 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 	fbi->reg_lccr1 = new_regs.lccr1;
 	fbi->reg_lccr2 = new_regs.lccr2;
 	fbi->reg_lccr3 = new_regs.lccr3;
-	fbi->reg_lccr4 = LCCR4 & (~LCCR4_PAL_FOR_MASK);
+	fbi->reg_lccr4 = __raw_readl(fbi->mmio_base + LCCR4) &
+				(~LCCR4_PAL_FOR_MASK);
 	fbi->reg_lccr4 |= (fbi->lccr4 & LCCR4_PAL_FOR_MASK);
 	set_hsync_time(fbi, pcd);
 	local_irq_restore(flags);
@@ -696,9 +697,12 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 	 * Only update the registers if the controller is enabled
 	 * and something has changed.
 	 */
-	if ((LCCR0  != fbi->reg_lccr0) || (LCCR1  != fbi->reg_lccr1) ||
-	    (LCCR2  != fbi->reg_lccr2) || (LCCR3  != fbi->reg_lccr3) ||
-	    (FDADR0 != fbi->fdadr0)    || (FDADR1 != fbi->fdadr1))
+	if ((__raw_readl(fbi->mmio_base + LCCR0) != fbi->reg_lccr0) ||
+	    (__raw_readl(fbi->mmio_base + LCCR1) != fbi->reg_lccr1) ||
+	    (__raw_readl(fbi->mmio_base + LCCR2) != fbi->reg_lccr2) ||
+	    (__raw_readl(fbi->mmio_base + LCCR3) != fbi->reg_lccr3) ||
+	    (__raw_readl(fbi->mmio_base + FDADR0) != fbi->fdadr0) ||
+	    (__raw_readl(fbi->mmio_base + FDADR1) != fbi->fdadr1))
 		pxafb_schedule_work(fbi, C_REENABLE);
 
 	return 0;
@@ -784,26 +788,31 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 	clk_enable(fbi->clk);
 
 	/* Sequence from 11.7.10 */
-	LCCR3 = fbi->reg_lccr3;
-	LCCR2 = fbi->reg_lccr2;
-	LCCR1 = fbi->reg_lccr1;
-	LCCR0 = fbi->reg_lccr0 & ~LCCR0_ENB;
+	__raw_writel(fbi->reg_lccr3, fbi->mmio_base + LCCR3);
+	__raw_writel(fbi->reg_lccr2, fbi->mmio_base + LCCR2);
+	__raw_writel(fbi->reg_lccr1, fbi->mmio_base + LCCR1);
+	__raw_writel(fbi->reg_lccr0 & ~LCCR0_ENB, fbi->mmio_base + LCCR0);
 
-	FDADR0 = fbi->fdadr0;
-	FDADR1 = fbi->fdadr1;
-	LCCR0 |= LCCR0_ENB;
+	__raw_writel(fbi->fdadr0, fbi->mmio_base + FDADR0);
+	__raw_writel(fbi->fdadr1, fbi->mmio_base + FDADR1);
+	__raw_writel(fbi->reg_lccr0 | LCCR0_ENB, fbi->mmio_base + LCCR0);
 }
 
 static void pxafb_disable_controller(struct pxafb_info *fbi)
 {
+	uint32_t lccr0;
+
 	DECLARE_WAITQUEUE(wait, current);
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	add_wait_queue(&fbi->ctrlr_wait, &wait);
 
-	LCSR = 0xffffffff;	/* Clear LCD Status Register */
-	LCCR0 &= ~LCCR0_LDM;	/* Enable LCD Disable Done Interrupt */
-	LCCR0 |= LCCR0_DIS;	/* Disable LCD Controller */
+	/* Clear LCD Status Register */
+	__raw_writel(0xffffffff, fbi->mmio_base + LCSR);
+
+	lccr0 = __raw_readl(fbi->mmio_base + LCCR0) & ~LCCR0_LDM;
+	__raw_writel(lccr0, fbi->mmio_base + LCCR0);
+	__raw_writel(lccr0 | LCCR0_DIS, fbi->mmio_base + LCCR0);
 
 	schedule_timeout(200 * HZ / 1000);
 	remove_wait_queue(&fbi->ctrlr_wait, &wait);
@@ -818,14 +827,15 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 static irqreturn_t pxafb_handle_irq(int irq, void *dev_id)
 {
 	struct pxafb_info *fbi = dev_id;
-	unsigned int lcsr = LCSR;
+	unsigned int lccr0, lcsr = __raw_readl(fbi->mmio_base + LCSR);
 
 	if (lcsr & LCSR_LDD) {
-		LCCR0 |= LCCR0_LDM;
+		lccr0 = __raw_readl(fbi->mmio_base + LCCR0) | LCCR0_LDM;
+		__raw_writel(lccr0, fbi->mmio_base + LCCR0);
 		wake_up(&fbi->ctrlr_wait);
 	}
 
-	LCSR = lcsr;
+	__raw_writel(lcsr, fbi->mmio_base + LCSR);
 	return IRQ_HANDLED;
 }
 
@@ -1343,7 +1353,8 @@ static int __init pxafb_probe(struct platform_device *dev)
 {
 	struct pxafb_info *fbi;
 	struct pxafb_mach_info *inf;
-	int ret;
+	struct resource *r;
+	int irq, ret;
 
 	dev_dbg(&dev->dev, "pxafb_probe\n");
 
@@ -1406,19 +1417,47 @@ static int __init pxafb_probe(struct platform_device *dev)
 		goto failed;
 	}
 
+	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	if (r == NULL) {
+		dev_err(&dev->dev, "no I/O memory resource defined\n");
+		ret = -ENODEV;
+		goto failed;
+	}
+
+	r = request_mem_region(r->start, r->end - r->start + 1, dev->name);
+	if (r == NULL) {
+		dev_err(&dev->dev, "failed to request I/O memory\n");
+		ret = -EBUSY;
+		goto failed;
+	}
+
+	fbi->mmio_base = ioremap(r->start, r->end - r->start + 1);
+	if (fbi->mmio_base == NULL) {
+		dev_err(&dev->dev, "failed to map I/O memory\n");
+		ret = -EBUSY;
+		goto failed_free_res;
+	}
+
 	/* Initialize video memory */
 	ret = pxafb_map_video_memory(fbi);
 	if (ret) {
 		dev_err(&dev->dev, "Failed to allocate video RAM: %d\n", ret);
 		ret = -ENOMEM;
-		goto failed;
+		goto failed_free_io;
 	}
 
-	ret = request_irq(IRQ_LCD, pxafb_handle_irq, IRQF_DISABLED, "LCD", fbi);
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0) {
+		dev_err(&dev->dev, "no IRQ defined\n");
+		ret = -ENODEV;
+		goto failed_free_mem;
+	}
+
+	ret = request_irq(irq, pxafb_handle_irq, IRQF_DISABLED, "LCD", fbi);
 	if (ret) {
 		dev_err(&dev->dev, "request_irq failed: %d\n", ret);
 		ret = -EBUSY;
-		goto failed;
+		goto failed_free_mem;
 	}
 
 	/*
@@ -1434,7 +1473,7 @@ static int __init pxafb_probe(struct platform_device *dev)
 	if (ret < 0) {
 		dev_err(&dev->dev,
 			"Failed to register framebuffer device: %d\n", ret);
-		goto failed;
+		goto failed_free_irq;
 	}
 
 #ifdef CONFIG_CPU_FREQ
@@ -1453,6 +1492,15 @@ static int __init pxafb_probe(struct platform_device *dev)
 
 	return 0;
 
+failed_free_irq:
+	free_irq(irq, fbi);
+failed_free_res:
+	release_mem_region(r->start, r->end - r->start + 1);
+failed_free_io:
+	iounmap(fbi->mmio_base);
+failed_free_mem:
+	dma_free_writecombine(&dev->dev, fbi->map_size,
+			fbi->map_cpu, fbi->map_dma);
 failed:
 	platform_set_drvdata(dev, NULL);
 	kfree(fbi);

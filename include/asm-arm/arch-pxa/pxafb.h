@@ -13,6 +13,7 @@
  */
 
 #include <linux/fb.h>
+#include <asm/arch/regs-lcd.h>
 
 /*
  * This structure describes the machine which we are running on.
