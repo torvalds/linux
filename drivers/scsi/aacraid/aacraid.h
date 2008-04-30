@@ -34,8 +34,8 @@
 #define CONTAINER_TO_ID(cont)		(cont)
 #define CONTAINER_TO_LUN(cont)		(0)
 
-#define aac_phys_to_logical(x)  (x+1)
-#define aac_logical_to_phys(x)  (x?x-1:0)
+#define aac_phys_to_logical(x)  ((x)+1)
+#define aac_logical_to_phys(x)  ((x)?(x)-1:0)
 
 /* #define AAC_DETAILED_STATUS_INFO */
 
