@@ -1335,7 +1335,6 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 
 	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
 
-	read_lock(&tasklist_lock);
 	/* Since it_lock is held, p->sighand cannot be NULL. */
 	spin_lock_irqsave(&p->sighand->siglock, flags);
 
@@ -1344,7 +1343,7 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	__group_complete_signal(sig, p);
 
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
-	read_unlock(&tasklist_lock);
+
 	return ret;
 }
 
