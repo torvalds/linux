@@ -949,7 +949,9 @@ static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *svm_data)
 
 static unsigned long svm_get_dr(struct kvm_vcpu *vcpu, int dr)
 {
-	return to_svm(vcpu)->db_regs[dr];
+	unsigned long val = to_svm(vcpu)->db_regs[dr];
+	KVMTRACE_2D(DR_READ, vcpu, (u32)dr, (u32)val, handler);
+	return val;
 }
 
 static void svm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long value,
@@ -1004,6 +1006,12 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 
 	fault_address  = svm->vmcb->control.exit_info_2;
 	error_code = svm->vmcb->control.exit_info_1;
+
+	if (!npt_enabled)
+		KVMTRACE_3D(PAGE_FAULT, &svm->vcpu, error_code,
+			    (u32)fault_address, (u32)(fault_address >> 32),
+			    handler);
+
 	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
 }
 
@@ -1083,12 +1091,14 @@ static int io_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 
 static int nmi_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
+	KVMTRACE_0D(NMI, &svm->vcpu, handler);
 	return 1;
 }
 
 static int intr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	++svm->vcpu.stat.irq_exits;
+	KVMTRACE_0D(INTR, &svm->vcpu, handler);
 	return 1;
 }
 
@@ -1230,6 +1240,9 @@ static int rdmsr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	if (svm_get_msr(&svm->vcpu, ecx, &data))
 		kvm_inject_gp(&svm->vcpu, 0);
 	else {
+		KVMTRACE_3D(MSR_READ, &svm->vcpu, ecx, (u32)data,
+			    (u32)(data >> 32), handler);
+
 		svm->vmcb->save.rax = data & 0xffffffff;
 		svm->vcpu.arch.regs[VCPU_REGS_RDX] = data >> 32;
 		svm->next_rip = svm->vmcb->save.rip + 2;
@@ -1315,6 +1328,10 @@ static int wrmsr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	u32 ecx = svm->vcpu.arch.regs[VCPU_REGS_RCX];
 	u64 data = (svm->vmcb->save.rax & -1u)
 		| ((u64)(svm->vcpu.arch.regs[VCPU_REGS_RDX] & -1u) << 32);
+
+	KVMTRACE_3D(MSR_WRITE, &svm->vcpu, ecx, (u32)data, (u32)(data >> 32),
+		    handler);
+
 	svm->next_rip = svm->vmcb->save.rip + 2;
 	if (svm_set_msr(&svm->vcpu, ecx, data))
 		kvm_inject_gp(&svm->vcpu, 0);
@@ -1334,6 +1351,8 @@ static int msr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 static int interrupt_window_interception(struct vcpu_svm *svm,
 				   struct kvm_run *kvm_run)
 {
+	KVMTRACE_0D(PEND_INTR, &svm->vcpu, handler);
+
 	svm->vmcb->control.intercept &= ~(1ULL << INTERCEPT_VINTR);
 	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
 	/*
@@ -1408,6 +1427,9 @@ static int handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u32 exit_code = svm->vmcb->control.exit_code;
 
+	KVMTRACE_3D(VMEXIT, vcpu, exit_code, (u32)svm->vmcb->save.rip,
+		    (u32)((u64)svm->vmcb->save.rip >> 32), entryexit);
+
 	if (npt_enabled) {
 		int mmu_reload = 0;
 		if ((vcpu->arch.cr0 ^ svm->vmcb->save.cr0) & X86_CR0_PG) {
@@ -1480,6 +1502,8 @@ static void pre_svm_run(struct vcpu_svm *svm)
 static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 {
 	struct vmcb_control_area *control;
+
+	KVMTRACE_1D(INJ_VIRQ, &svm->vcpu, (u32)irq, handler);
 
 	control = &svm->vmcb->control;
 	control->int_vector = irq;
