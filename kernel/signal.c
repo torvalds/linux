@@ -566,9 +566,10 @@ static void do_notify_parent_cldstop(struct task_struct *tsk, int why);
  */
 static void handle_stop_signal(int sig, struct task_struct *p)
 {
+	struct signal_struct *signal = p->signal;
 	struct task_struct *t;
 
-	if (p->signal->flags & SIGNAL_GROUP_EXIT)
+	if (signal->flags & SIGNAL_GROUP_EXIT)
 		/*
 		 * The process is in the middle of dying already.
 		 */
@@ -578,19 +579,18 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 		/*
 		 * This is a stop signal.  Remove SIGCONT from all queues.
 		 */
-		rm_from_queue(sigmask(SIGCONT), &p->signal->shared_pending);
+		rm_from_queue(sigmask(SIGCONT), &signal->shared_pending);
 		t = p;
 		do {
 			rm_from_queue(sigmask(SIGCONT), &t->pending);
-			t = next_thread(t);
-		} while (t != p);
+		} while_each_thread(p, t);
 	} else if (sig == SIGCONT) {
 		unsigned int why;
 		/*
 		 * Remove all stop signals from all queues,
 		 * and wake all threads.
 		 */
-		rm_from_queue(SIG_KERNEL_STOP_MASK, &p->signal->shared_pending);
+		rm_from_queue(SIG_KERNEL_STOP_MASK, &signal->shared_pending);
 		t = p;
 		do {
 			unsigned int state;
@@ -615,9 +615,7 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 				state |= TASK_INTERRUPTIBLE;
 			}
 			wake_up_state(t, state);
-
-			t = next_thread(t);
-		} while (t != p);
+		} while_each_thread(p, t);
 
 		/*
 		 * Notify the parent with CLD_CONTINUED if we were stopped.
@@ -628,29 +626,29 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 		 * CLD_CONTINUED was dropped.
 		 */
 		why = 0;
-		if (p->signal->flags & SIGNAL_STOP_STOPPED)
+		if (signal->flags & SIGNAL_STOP_STOPPED)
 			why |= SIGNAL_CLD_CONTINUED;
-		else if (p->signal->group_stop_count)
+		else if (signal->group_stop_count)
 			why |= SIGNAL_CLD_STOPPED;
 
 		if (why) {
-			p->signal->flags = why | SIGNAL_STOP_CONTINUED;
-			p->signal->group_stop_count = 0;
-			p->signal->group_exit_code = 0;
+			signal->flags = why | SIGNAL_STOP_CONTINUED;
+			signal->group_stop_count = 0;
+			signal->group_exit_code = 0;
 		} else {
 			/*
 			 * We are not stopped, but there could be a stop
 			 * signal in the middle of being processed after
 			 * being removed from the queue.  Clear that too.
 			 */
-			p->signal->flags &= ~SIGNAL_STOP_DEQUEUED;
+			signal->flags &= ~SIGNAL_STOP_DEQUEUED;
 		}
 	} else if (sig == SIGKILL) {
 		/*
 		 * Make sure that any pending stop signal already dequeued
 		 * is undone by the wakeup for SIGKILL.
 		 */
-		p->signal->flags &= ~SIGNAL_STOP_DEQUEUED;
+		signal->flags &= ~SIGNAL_STOP_DEQUEUED;
 	}
 }
 
