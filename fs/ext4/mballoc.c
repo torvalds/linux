@@ -896,10 +896,10 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 	list_for_each(cur, &grp->bb_prealloc_list) {
 		ext4_group_t groupnr;
 		struct ext4_prealloc_space *pa;
-		pa = list_entry(cur, struct ext4_prealloc_space, group_list);
-		ext4_get_group_no_and_offset(sb, pa->pstart, &groupnr, &k);
+		pa = list_entry(cur, struct ext4_prealloc_space, pa_group_list);
+		ext4_get_group_no_and_offset(sb, pa->pa_pstart, &groupnr, &k);
 		MB_CHECK_ASSERT(groupnr == e4b->bd_group);
-		for (i = 0; i < pa->len; i++)
+		for (i = 0; i < pa->pa_len; i++)
 			MB_CHECK_ASSERT(mb_test_bit(k + i, buddy));
 	}
 	return 0;
@@ -3131,7 +3131,7 @@ static void ext4_mb_normalize_group_request(struct ext4_allocation_context *ac)
 		ac->ac_g_ex.fe_len = EXT4_SB(sb)->s_stripe;
 	else
 		ac->ac_g_ex.fe_len = EXT4_SB(sb)->s_mb_group_prealloc;
-	mb_debug("#%u: goal %lu blocks for locality group\n",
+	mb_debug("#%u: goal %u blocks for locality group\n",
 		current->pid, ac->ac_g_ex.fe_len);
 }
 
@@ -3371,7 +3371,7 @@ static void ext4_mb_use_inode_pa(struct ext4_allocation_context *ac,
 	BUG_ON(pa->pa_free < len);
 	pa->pa_free -= len;
 
-	mb_debug("use %llu/%lu from inode pa %p\n", start, len, pa);
+	mb_debug("use %llu/%u from inode pa %p\n", start, len, pa);
 }
 
 /*
@@ -4108,7 +4108,7 @@ static void ext4_mb_show_ac(struct ext4_allocation_context *ac)
 			printk(KERN_ERR "PA:%lu:%d:%u \n", i,
 							start, pa->pa_len);
 		}
-		ext4_lock_group(sb, i);
+		ext4_unlock_group(sb, i);
 
 		if (grp->bb_free == 0)
 			continue;
