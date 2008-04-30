@@ -1091,16 +1091,16 @@ static int mxser_write(struct tty_struct *tty, const unsigned char *buf, int cou
 	return total;
 }
 
-static void mxser_put_char(struct tty_struct *tty, unsigned char ch)
+static int mxser_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned long flags;
 
 	if (!info->xmit_buf)
-		return;
+		return 0;
 
 	if (info->xmit_cnt >= SERIAL_XMIT_SIZE - 1)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&info->slock, flags);
 	info->xmit_buf[info->xmit_head++] = ch;
@@ -1118,6 +1118,7 @@ static void mxser_put_char(struct tty_struct *tty, unsigned char ch)
 			spin_unlock_irqrestore(&info->slock, flags);
 		}
 	}
+	return 1;
 }
 
 
