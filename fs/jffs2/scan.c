@@ -97,11 +97,12 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 	size_t pointlen;
 
 	if (c->mtd->point) {
-		ret = c->mtd->point (c->mtd, 0, c->mtd->size, &pointlen, &flashbuf);
+		ret = c->mtd->point(c->mtd, 0, c->mtd->size, &pointlen,
+				    (void **)&flashbuf, NULL);
 		if (!ret && pointlen < c->mtd->size) {
 			/* Don't muck about if it won't let us point to the whole flash */
 			D1(printk(KERN_DEBUG "MTD point returned len too short: 0x%zx\n", pointlen));
-			c->mtd->unpoint(c->mtd, flashbuf, 0, pointlen);
+			c->mtd->unpoint(c->mtd, 0, pointlen);
 			flashbuf = NULL;
 		}
 		if (ret)
@@ -267,7 +268,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 		kfree(flashbuf);
 #ifndef __ECOS
 	else
-		c->mtd->unpoint(c->mtd, flashbuf, 0, c->mtd->size);
+		c->mtd->unpoint(c->mtd, 0, c->mtd->size);
 #endif
 	if (s)
 		kfree(s);

@@ -82,9 +82,8 @@ static struct mtd_info *cfi_intelext_setup (struct mtd_info *);
 static int cfi_intelext_partition_fixup(struct mtd_info *, struct cfi_private **);
 
 static int cfi_intelext_point (struct mtd_info *mtd, loff_t from, size_t len,
-		     size_t *retlen, u_char **mtdbuf);
-static void cfi_intelext_unpoint (struct mtd_info *mtd, u_char *addr, loff_t from,
-			size_t len);
+		     size_t *retlen, void **virt, resource_size_t *phys);
+static void cfi_intelext_unpoint(struct mtd_info *mtd, loff_t from, size_t len);
 
 static int chip_ready (struct map_info *map, struct flchip *chip, unsigned long adr, int mode);
 static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr, int mode);
@@ -1240,7 +1239,8 @@ static int do_point_onechip (struct map_info *map, struct flchip *chip, loff_t a
 	return ret;
 }
 
-static int cfi_intelext_point (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char **mtdbuf)
+static int cfi_intelext_point(struct mtd_info *mtd, loff_t from, size_t len,
+		size_t *retlen, void **virt, resource_size_t *phys)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -1257,8 +1257,10 @@ static int cfi_intelext_point (struct mtd_info *mtd, loff_t from, size_t len, si
 	chipnum = (from >> cfi->chipshift);
 	ofs = from - (chipnum << cfi->chipshift);
 
-	*mtdbuf = (void *)map->virt + cfi->chips[chipnum].start + ofs;
+	*virt = map->virt + cfi->chips[chipnum].start + ofs;
 	*retlen = 0;
+	if (phys)
+		*phys = map->phys + cfi->chips[chipnum].start + ofs;
 
 	while (len) {
 		unsigned long thislen;
@@ -1291,7 +1293,7 @@ static int cfi_intelext_point (struct mtd_info *mtd, loff_t from, size_t len, si
 	return 0;
 }
 
-static void cfi_intelext_unpoint (struct mtd_info *mtd, u_char *addr, loff_t from, size_t len)
+static void cfi_intelext_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;

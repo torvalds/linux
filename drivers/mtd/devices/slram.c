@@ -76,8 +76,9 @@ static char *map;
 static slram_mtd_list_t *slram_mtdlist = NULL;
 
 static int slram_erase(struct mtd_info *, struct erase_info *);
-static int slram_point(struct mtd_info *, loff_t, size_t, size_t *, u_char **);
-static void slram_unpoint(struct mtd_info *, u_char *, loff_t,	size_t);
+static int slram_point(struct mtd_info *, loff_t, size_t, size_t *, void **,
+		resource_size_t *);
+static void slram_unpoint(struct mtd_info *, loff_t, size_t);
 static int slram_read(struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int slram_write(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
 
@@ -104,19 +105,23 @@ static int slram_erase(struct mtd_info *mtd, struct erase_info *instr)
 }
 
 static int slram_point(struct mtd_info *mtd, loff_t from, size_t len,
-		size_t *retlen, u_char **mtdbuf)
+		size_t *retlen, void **virt, resource_size_t *phys)
 {
 	slram_priv_t *priv = mtd->priv;
+
+	/* can we return a physical address with this driver? */
+	if (phys)
+		return -EINVAL;
 
 	if (from + len > mtd->size)
 		return -EINVAL;
 
-	*mtdbuf = priv->start + from;
+	*virt = priv->start + from;
 	*retlen = len;
 	return(0);
 }
 
-static void slram_unpoint(struct mtd_info *mtd, u_char *addr, loff_t from, size_t len)
+static void slram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 }
 

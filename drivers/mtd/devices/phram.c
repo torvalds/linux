@@ -57,20 +57,21 @@ static int phram_erase(struct mtd_info *mtd, struct erase_info *instr)
 }
 
 static int phram_point(struct mtd_info *mtd, loff_t from, size_t len,
-		size_t *retlen, u_char **mtdbuf)
+		size_t *retlen, void **virt, resource_size_t *phys)
 {
-	u_char *start = mtd->priv;
-
 	if (from + len > mtd->size)
 		return -EINVAL;
 
-	*mtdbuf = start + from;
+	/* can we return a physical address with this driver? */
+	if (phys)
+		return -EINVAL;
+
+	*virt = mtd->priv + from;
 	*retlen = len;
 	return 0;
 }
 
-static void phram_unpoint(struct mtd_info *mtd, u_char *addr, loff_t from,
-		size_t len)
+static void phram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 }
 
