@@ -1131,15 +1131,6 @@ static int smack_task_kill(struct task_struct *p, struct siginfo *info,
 			   int sig, u32 secid)
 {
 	/*
-	 * Special cases where signals really ought to go through
-	 * in spite of policy. Stephen Smalley suggests it may
-	 * make sense to change the caller so that it doesn't
-	 * bother with the LSM hook in these cases.
-	 */
-	if (info != SEND_SIG_NOINFO &&
-	    (is_si_special(info) || SI_FROMKERNEL(info)))
-		return 0;
-	/*
 	 * Sending a signal requires that the sender
 	 * can write the receiver.
 	 */

@@ -533,22 +533,23 @@ static int rm_from_queue(unsigned long mask, struct sigpending *s)
 static int check_kill_permission(int sig, struct siginfo *info,
 				 struct task_struct *t)
 {
-	int error = -EINVAL;
+	int error;
+
 	if (!valid_signal(sig))
+		return -EINVAL;
+
+	if (info != SEND_SIG_NOINFO && (is_si_special(info) || SI_FROMKERNEL(info)))
+		return 0;
+
+	error = audit_signal_info(sig, t); /* Let audit system see the signal */
+	if (error)
 		return error;
 
-	if (info == SEND_SIG_NOINFO || (!is_si_special(info) && SI_FROMUSER(info))) {
-		error = audit_signal_info(sig, t); /* Let audit system see the signal */
-		if (error)
-			return error;
-		error = -EPERM;
-		if (((sig != SIGCONT) ||
-			(task_session_nr(current) != task_session_nr(t)))
-		    && (current->euid ^ t->suid) && (current->euid ^ t->uid)
-		    && (current->uid ^ t->suid) && (current->uid ^ t->uid)
-		    && !capable(CAP_KILL))
-		return error;
-	}
+	if (((sig != SIGCONT) || (task_session_nr(current) != task_session_nr(t)))
+	    && (current->euid ^ t->suid) && (current->euid ^ t->uid)
+	    && (current->uid ^ t->suid) && (current->uid ^ t->uid)
+	    && !capable(CAP_KILL))
+		return -EPERM;
 
 	return security_task_kill(t, info, sig, 0);
 }

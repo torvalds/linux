@@ -3286,9 +3286,6 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info,
 	if (rc)
 		return rc;
 
-	if (info != SEND_SIG_NOINFO && (is_si_special(info) || SI_FROMKERNEL(info)))
-		return 0;
-
 	if (!sig)
 		perm = PROCESS__SIGNULL; /* null signal; existence test */
 	else
