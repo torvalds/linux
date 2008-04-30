@@ -200,7 +200,7 @@ static void rs_stop(struct tty_struct *tty)
 	local_irq_restore(flags);
 }
 
-static void rs_put_char(char ch)
+static int rs_put_char(char ch)
 {
         int flags, loops = 0;
 
@@ -214,6 +214,7 @@ static void rs_put_char(char ch)
 	UTX_TXDATA = ch;
         udelay(5);
         local_irq_restore(flags);
+        return 1;
 }
 
 static void rs_start(struct tty_struct *tty)

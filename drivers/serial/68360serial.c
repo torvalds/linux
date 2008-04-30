@@ -995,10 +995,10 @@ static void rs_360_put_char(struct tty_struct *tty, unsigned char ch)
 	volatile QUICC_BD	*bdp;
 
 	if (serial_paranoia_check(info, tty->name, "rs_put_char"))
-		return;
+		return 0;
 
 	if (!tty)
-		return;
+		return 0;
 
 	bdp = info->tx_cur;
 	while (bdp->status & BD_SC_READY);
@@ -1016,6 +1016,7 @@ static void rs_360_put_char(struct tty_struct *tty, unsigned char ch)
 		bdp++;
 
 	info->tx_cur = (QUICC_BD *)bdp;
+	return 1;
 
 }
 

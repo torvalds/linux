@@ -1897,7 +1897,7 @@ static struct tty_driver *mcfrs_console_device(struct console *c, int *index)
  *	This is used for console output.
  */
 
-void mcfrs_put_char(char ch)
+int mcfrs_put_char(char ch)
 {
 	volatile unsigned char	*uartp;
 	unsigned long		flags;
@@ -1921,7 +1921,7 @@ void mcfrs_put_char(char ch)
 		mcfrs_init_console(); /* try and get it back */
 	local_irq_restore(flags);
 
-	return;
+	return 1;
 }
 
 
