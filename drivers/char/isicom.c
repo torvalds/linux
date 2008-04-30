@@ -813,15 +813,13 @@ static int isicom_setup_port(struct isi_port *port)
 		return 0;
 	if (!port->xmit_buf) {
 		/* Relies on BKL */
-		void *xmit_buf = (void *)get_zeroed_page(GFP_KERNEL);
-
-		if (xmit_buf == NULL)
+		unsigned long page  = get_zeroed_page(GFP_KERNEL);
+		if (page == 0)
 			return -ENOMEM;
-		if (port->xmit_buf) {
-			free_page((unsigned long)xmit_buf);
-			return -ERESTARTSYS;
-		}
-		port->xmit_buf = xmit_buf;
+		if (port->xmit_buf)
+			free_page(page);
+		else
+			port->xmit_buf = (unsigned char *) page;
 	}
 
 	spin_lock_irqsave(&card->card_lock, flags);
