@@ -211,7 +211,8 @@ clip_bdi_dirty_limit(struct backing_dev_info *bdi, long dirty, long *pbdi_dirty)
 	avail_dirty = dirty -
 		(global_page_state(NR_FILE_DIRTY) +
 		 global_page_state(NR_WRITEBACK) +
-		 global_page_state(NR_UNSTABLE_NFS));
+		 global_page_state(NR_UNSTABLE_NFS) +
+		 global_page_state(NR_WRITEBACK_TEMP));
 
 	if (avail_dirty < 0)
 		avail_dirty = 0;
