@@ -34,7 +34,7 @@
 #define PREFIX t->i2c->driver->driver.name
 
 /** This macro allows us to probe dynamically, avoiding static links */
-#ifdef CONFIG_DVB_CORE_ATTACH
+#ifdef CONFIG_MEDIA_ATTACH
 #define tuner_symbol_probe(FUNCTION, ARGS...) ({ \
 	int __r = -EINVAL; \
 	typeof(&FUNCTION) __a = symbol_request(FUNCTION); \
