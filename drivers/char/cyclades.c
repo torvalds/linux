@@ -2747,8 +2747,8 @@ static int cy_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 	spin_lock_irqsave(&info->card->card_lock, flags);
 	while (1) {
-		c = min(count, min((int)(SERIAL_XMIT_SIZE - info->xmit_cnt - 1),
-				   (int)(SERIAL_XMIT_SIZE - info->xmit_head)));
+		c = min(count, (int)(SERIAL_XMIT_SIZE - info->xmit_cnt - 1));
+		c = min(c, (int)(SERIAL_XMIT_SIZE - info->xmit_head));
 
 		if (c <= 0)
 			break;
