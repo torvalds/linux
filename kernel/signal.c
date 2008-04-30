@@ -754,18 +754,21 @@ static inline int legacy_queue(struct sigpending *signals, int sig)
 }
 
 static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
-			struct sigpending *signals)
+			int group)
 {
+	struct sigpending *pending;
 	struct sigqueue *q;
 
 	assert_spin_locked(&t->sighand->siglock);
 	handle_stop_signal(sig, t);
+
+	pending = group ? &t->signal->shared_pending : &t->pending;
 	/*
 	 * Short-circuit ignored signals and support queuing
 	 * exactly one non-rt signal, so that we can get more
 	 * detailed information about the cause of the signal.
 	 */
-	if (sig_ignored(t, sig) || legacy_queue(signals, sig))
+	if (sig_ignored(t, sig) || legacy_queue(pending, sig))
 		return 0;
 
 	/*
@@ -793,7 +796,7 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 					     (is_si_special(info) ||
 					      info->si_code >= 0)));
 	if (q) {
-		list_add_tail(&q->list, &signals->list);
+		list_add_tail(&q->list, &pending->list);
 		switch ((unsigned long) info) {
 		case (unsigned long) SEND_SIG_NOINFO:
 			q->info.si_signo = sig;
@@ -823,7 +826,7 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	}
 
 out_set:
-	sigaddset(&signals->signal, sig);
+	sigaddset(&pending->signal, sig);
 	return 1;
 }
 
@@ -864,7 +867,7 @@ specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 {
 	int ret;
 
-	ret = send_signal(sig, info, t, &t->pending);
+	ret = send_signal(sig, info, t, 0);
 	if (ret <= 0)
 		return ret;
 
@@ -923,7 +926,7 @@ __group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	 * We always use the shared queue for process-wide signals,
 	 * to avoid several races.
 	 */
-	ret = send_signal(sig, info, p, &p->signal->shared_pending);
+	ret = send_signal(sig, info, p, 1);
 	if (ret <= 0)
 		return ret;
 
@@ -1258,8 +1261,10 @@ void sigqueue_free(struct sigqueue *q)
 }
 
 static int do_send_sigqueue(int sig, struct sigqueue *q, struct task_struct *t,
-				struct sigpending *pending)
+				int group)
 {
+	struct sigpending *pending;
+
 	handle_stop_signal(sig, t);
 
 	if (unlikely(!list_empty(&q->list))) {
@@ -1277,8 +1282,10 @@ static int do_send_sigqueue(int sig, struct sigqueue *q, struct task_struct *t,
 		return 1;
 
 	signalfd_notify(t, sig);
+	pending = group ? &t->signal->shared_pending : &t->pending;
 	list_add_tail(&q->list, &pending->list);
 	sigaddset(&pending->signal, sig);
+
 	return 0;
 }
 
@@ -1300,7 +1307,7 @@ int send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	if (!likely(lock_task_sighand(p, &flags)))
 		goto out_err;
 
-	ret = do_send_sigqueue(sig, q, p, &p->pending);
+	ret = do_send_sigqueue(sig, q, p, 0);
 
 	if (!sigismember(&p->blocked, sig))
 		signal_wake_up(p, sig == SIGKILL);
@@ -1321,7 +1328,7 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	/* Since it_lock is held, p->sighand cannot be NULL. */
 	spin_lock_irqsave(&p->sighand->siglock, flags);
 
-	ret = do_send_sigqueue(sig, q, p, &p->signal->shared_pending);
+	ret = do_send_sigqueue(sig, q, p, 1);
 
 	__group_complete_signal(sig, p);
 
