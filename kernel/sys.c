@@ -1022,23 +1022,30 @@ asmlinkage long sys_getpgrp(void)
 
 asmlinkage long sys_getsid(pid_t pid)
 {
-	if (!pid)
-		return task_session_vnr(current);
-	else {
-		int retval;
-		struct task_struct *p;
+	struct task_struct *p;
+	struct pid *sid;
+	int retval;
 
-		rcu_read_lock();
-		p = find_task_by_vpid(pid);
+	rcu_read_lock();
+	if (!pid)
+		sid = task_session(current);
+	else {
 		retval = -ESRCH;
-		if (p) {
-			retval = security_task_getsid(p);
-			if (!retval)
-				retval = task_session_vnr(p);
-		}
-		rcu_read_unlock();
-		return retval;
+		p = find_task_by_vpid(pid);
+		if (!p)
+			goto out;
+		sid = task_session(p);
+		if (!sid)
+			goto out;
+
+		retval = security_task_getsid(p);
+		if (retval)
+			goto out;
 	}
+	retval = pid_vnr(sid);
+out:
+	rcu_read_unlock();
+	return retval;
 }
 
 asmlinkage long sys_setsid(void)
