@@ -673,8 +673,7 @@ static inline int wants_signal(int sig, struct task_struct *p)
 	return task_curr(p) || !signal_pending(p);
 }
 
-static void
-__group_complete_signal(int sig, struct task_struct *p)
+static void complete_signal(int sig, struct task_struct *p, int group)
 {
 	struct signal_struct *signal = p->signal;
 	struct task_struct *t;
@@ -687,7 +686,7 @@ __group_complete_signal(int sig, struct task_struct *p)
 	 */
 	if (wants_signal(sig, p))
 		t = p;
-	else if (thread_group_empty(p))
+	else if (!group || thread_group_empty(p))
 		/*
 		 * There is just one thread and it does not need to be woken.
 		 * It will dequeue unblocked signals before it runs again.
@@ -871,8 +870,7 @@ specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 	if (ret <= 0)
 		return ret;
 
-	if (!sigismember(&t->blocked, sig))
-		signal_wake_up(t, sig == SIGKILL);
+	complete_signal(sig, t, 0);
 	return 0;
 }
 
@@ -930,7 +928,7 @@ __group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	if (ret <= 0)
 		return ret;
 
-	__group_complete_signal(sig, p);
+	complete_signal(sig, p, 1);
 	return 0;
 }
 
@@ -1309,8 +1307,7 @@ int send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 
 	ret = do_send_sigqueue(sig, q, p, 0);
 
-	if (!sigismember(&p->blocked, sig))
-		signal_wake_up(p, sig == SIGKILL);
+	complete_signal(sig, p, 0);
 
 	unlock_task_sighand(p, &flags);
 out_err:
@@ -1330,7 +1327,7 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 
 	ret = do_send_sigqueue(sig, q, p, 1);
 
-	__group_complete_signal(sig, p);
+	complete_signal(sig, p, 1);
 
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
 
