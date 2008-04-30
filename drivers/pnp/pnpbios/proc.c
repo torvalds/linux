@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
-#include <linux/pnpbios.h>
+#include <linux/pnp.h>
 #include <linux/init.h>
 
 #include <asm/uaccess.h>

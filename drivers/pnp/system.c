@@ -56,14 +56,15 @@ static void reserve_range(struct pnp_dev *dev, resource_size_t start,
 
 static void reserve_resources_of_dev(struct pnp_dev *dev)
 {
+	struct resource *res;
 	int i;
 
-	for (i = 0; i < PNP_MAX_PORT; i++) {
-		if (!pnp_port_valid(dev, i))
+	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_IO, i)); i++) {
+		if (res->flags & IORESOURCE_UNSET)
 			continue;
-		if (pnp_port_start(dev, i) == 0)
+		if (res->start == 0)
 			continue;	/* disabled */
-		if (pnp_port_start(dev, i) < 0x100)
+		if (res->start < 0x100)
 			/*
 			 * Below 0x100 is only standard PC hardware
 			 * (pics, kbd, timer, dma, ...)
@@ -73,19 +74,17 @@ static void reserve_resources_of_dev(struct pnp_dev *dev)
 			 * So, do nothing
 			 */
 			continue;
-		if (pnp_port_end(dev, i) < pnp_port_start(dev, i))
+		if (res->end < res->start)
 			continue;	/* invalid */
 
-		reserve_range(dev, pnp_port_start(dev, i),
-			      pnp_port_end(dev, i), 1);
+		reserve_range(dev, res->start, res->end, 1);
 	}
 
-	for (i = 0; i < PNP_MAX_MEM; i++) {
-		if (!pnp_mem_valid(dev, i))
+	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_MEM, i)); i++) {
+		if (res->flags & IORESOURCE_UNSET)
 			continue;
 
-		reserve_range(dev, pnp_mem_start(dev, i),
-			      pnp_mem_end(dev, i), 0);
+		reserve_range(dev, res->start, res->end, 0);
 	}
 }
 

@@ -5,6 +5,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/pnp.h>
 #include "base.h"
@@ -100,19 +101,33 @@ static int card_probe(struct pnp_card *card, struct pnp_card_driver *drv)
  * @id: pointer to a pnp_id structure
  * @card: pointer to the desired card
  */
-int pnp_add_card_id(struct pnp_id *id, struct pnp_card *card)
+struct pnp_id *pnp_add_card_id(struct pnp_card *card, char *id)
 {
-	struct pnp_id *ptr;
+	struct pnp_id *dev_id, *ptr;
 
-	id->next = NULL;
+	dev_id = kzalloc(sizeof(struct pnp_id), GFP_KERNEL);
+	if (!dev_id)
+		return NULL;
+
+	dev_id->id[0] = id[0];
+	dev_id->id[1] = id[1];
+	dev_id->id[2] = id[2];
+	dev_id->id[3] = tolower(id[3]);
+	dev_id->id[4] = tolower(id[4]);
+	dev_id->id[5] = tolower(id[5]);
+	dev_id->id[6] = tolower(id[6]);
+	dev_id->id[7] = '\0';
+
+	dev_id->next = NULL;
 	ptr = card->id;
 	while (ptr && ptr->next)
 		ptr = ptr->next;
 	if (ptr)
-		ptr->next = id;
+		ptr->next = dev_id;
 	else
-		card->id = id;
-	return 0;
+		card->id = dev_id;
+
+	return dev_id;
 }
 
 static void pnp_free_card_ids(struct pnp_card *card)
@@ -134,6 +149,31 @@ static void pnp_release_card(struct device *dmdev)
 
 	pnp_free_card_ids(card);
 	kfree(card);
+}
+
+struct pnp_card *pnp_alloc_card(struct pnp_protocol *protocol, int id, char *pnpid)
+{
+	struct pnp_card *card;
+	struct pnp_id *dev_id;
+
+	card = kzalloc(sizeof(struct pnp_card), GFP_KERNEL);
+	if (!card)
+		return NULL;
+
+	card->protocol = protocol;
+	card->number = id;
+
+	card->dev.parent = &card->protocol->dev;
+	sprintf(card->dev.bus_id, "%02x:%02x", card->protocol->number,
+		card->number);
+
+	dev_id = pnp_add_card_id(card, pnpid);
+	if (!dev_id) {
+		kfree(card);
+		return NULL;
+	}
+
+	return card;
 }
 
 static ssize_t pnp_show_card_name(struct device *dmdev,
@@ -191,9 +231,6 @@ int pnp_add_card(struct pnp_card *card)
 	int error;
 	struct list_head *pos, *temp;
 
-	sprintf(card->dev.bus_id, "%02x:%02x", card->protocol->number,
-		card->number);
-	card->dev.parent = &card->protocol->dev;
 	card->dev.bus = NULL;
 	card->dev.release = &pnp_release_card;
 	error = device_register(&card->dev);
