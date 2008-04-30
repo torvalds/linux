@@ -3257,7 +3257,7 @@ static int stli_initecp(struct stlibrd *brdp)
  */
 	EBRDINIT(brdp);
 
-	brdp->membase = ioremap(brdp->memaddr, brdp->memsize);
+	brdp->membase = ioremap_nocache(brdp->memaddr, brdp->memsize);
 	if (brdp->membase == NULL) {
 		retval = -ENOMEM;
 		goto err_reg;
@@ -3414,7 +3414,7 @@ static int stli_initonb(struct stlibrd *brdp)
  */
 	EBRDINIT(brdp);
 
-	brdp->membase = ioremap(brdp->memaddr, brdp->memsize);
+	brdp->membase = ioremap_nocache(brdp->memaddr, brdp->memsize);
 	if (brdp->membase == NULL) {
 		retval = -ENOMEM;
 		goto err_reg;
@@ -3665,7 +3665,7 @@ static int stli_eisamemprobe(struct stlibrd *brdp)
  */
 	for (i = 0; (i < stli_eisamempsize); i++) {
 		brdp->memaddr = stli_eisamemprobeaddrs[i];
-		brdp->membase = ioremap(brdp->memaddr, brdp->memsize);
+		brdp->membase = ioremap_nocache(brdp->memaddr, brdp->memsize);
 		if (brdp->membase == NULL)
 			continue;
 

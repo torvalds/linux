@@ -4150,7 +4150,8 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 		}
 		info->lcr_mem_requested = true;
 
-		info->memory_base = ioremap(info->phys_memory_base,0x40000);
+		info->memory_base = ioremap_nocache(info->phys_memory_base,
+								0x40000);
 		if (!info->memory_base) {
 			printk( "%s(%d):Cant map shared memory on device %s MemAddr=%08X\n",
 				__FILE__,__LINE__,info->device_name, info->phys_memory_base );
@@ -4163,12 +4164,14 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 			goto errout;
 		}
 		
-		info->lcr_base = ioremap(info->phys_lcr_base,PAGE_SIZE) + info->lcr_offset;
+		info->lcr_base = ioremap_nocache(info->phys_lcr_base,
+								PAGE_SIZE);
 		if (!info->lcr_base) {
 			printk( "%s(%d):Cant map LCR memory on device %s MemAddr=%08X\n",
 				__FILE__,__LINE__,info->device_name, info->phys_lcr_base );
 			goto errout;
 		}
+		info->lcr_base += info->lcr_offset;
 		
 	} else {
 		/* claim DMA channel */

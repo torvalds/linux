@@ -2540,7 +2540,7 @@ static int __devinit sx_eisa_probe(struct device *dev)
 		goto err_flag;
 	}
 	board->base2 =
-	board->base = ioremap(board->hw_base, SI2_EISA_WINDOW_LEN);
+	board->base = ioremap_nocache(board->hw_base, SI2_EISA_WINDOW_LEN);
 	if (!board->base) {
 		dev_err(dev, "can't remap memory\n");
 		goto err_reg;
@@ -2617,7 +2617,7 @@ static void __devinit fix_sx_pci(struct pci_dev *pdev, struct sx_board *board)
 
 	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &hwbase);
 	hwbase &= PCI_BASE_ADDRESS_MEM_MASK;
-	rebase = ioremap(hwbase, 0x80);
+	rebase = ioremap_nocache(hwbase, 0x80);
 	t = readl(rebase + CNTRL_REG_OFFSET);
 	if (t != CNTRL_REG_GOODVALUE) {
 		printk(KERN_DEBUG "sx: performing cntrl reg fix: %08x -> "
@@ -2761,7 +2761,7 @@ static int __init sx_init(void)
 		if (!request_region(board->hw_base, board->hw_len, "sx"))
 			continue;
 		board->base2 =
-		board->base = ioremap(board->hw_base, board->hw_len);
+		board->base = ioremap_nocache(board->hw_base, board->hw_len);
 		if (!board->base)
 			goto err_sx_reg;
 		board->flags &= ~SX_BOARD_TYPE;
@@ -2785,7 +2785,7 @@ err_sx_reg:
 		if (!request_region(board->hw_base, board->hw_len, "sx"))
 			continue;
 		board->base2 =
-		board->base = ioremap(board->hw_base, board->hw_len);
+		board->base = ioremap_nocache(board->hw_base, board->hw_len);
 		if (!board->base)
 			goto err_si_reg;
 		board->flags &= ~SX_BOARD_TYPE;
@@ -2808,7 +2808,7 @@ err_si_reg:
 		if (!request_region(board->hw_base, board->hw_len, "sx"))
 			continue;
 		board->base2 =
-		board->base = ioremap(board->hw_base, board->hw_len);
+		board->base = ioremap_nocache(board->hw_base, board->hw_len);
 		if (!board->base)
 			goto err_si1_reg;
 		board->flags &= ~SX_BOARD_TYPE;

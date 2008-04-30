@@ -937,7 +937,7 @@ static int __devinit moxa_pci_probe(struct pci_dev *pdev,
 		goto err;
 	}
 
-	board->basemem = ioremap(pci_resource_start(pdev, 2), 0x4000);
+	board->basemem = ioremap_nocache(pci_resource_start(pdev, 2), 0x4000);
 	if (board->basemem == NULL) {
 		dev_err(&pdev->dev, "can't remap io space 2\n");
 		goto err_reg;
@@ -1042,7 +1042,7 @@ static int __init moxa_init(void)
 			brd->numPorts = type[i] == MOXA_BOARD_C218_ISA ? 8 :
 					numports[i];
 			brd->busType = MOXA_BUS_TYPE_ISA;
-			brd->basemem = ioremap(baseaddr[i], 0x4000);
+			brd->basemem = ioremap_nocache(baseaddr[i], 0x4000);
 			if (!brd->basemem) {
 				printk(KERN_ERR "MOXA: can't remap %lx\n",
 						baseaddr[i]);

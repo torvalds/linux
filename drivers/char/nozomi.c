@@ -1407,7 +1407,7 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 	/* Find out what card type it is */
 	nozomi_get_card_type(dc);
 
-	dc->base_addr = ioremap(start, dc->card_type);
+	dc->base_addr = ioremap_nocache(start, dc->card_type);
 	if (!dc->base_addr) {
 		dev_err(&pdev->dev, "Unable to map card MMIO\n");
 		ret = -ENODEV;
