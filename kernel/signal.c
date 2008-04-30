@@ -668,6 +668,14 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	struct sigqueue * q = NULL;
 
 	/*
+	 * Short-circuit ignored signals and support queuing
+	 * exactly one non-rt signal, so that we can get more
+	 * detailed information about the cause of the signal.
+	 */
+	if (sig_ignored(t, sig) || legacy_queue(signals, sig))
+		return 0;
+
+	/*
 	 * Deliver the signal to listening signalfds. This must be called
 	 * with the sighand lock held.
 	 */
@@ -723,7 +731,7 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 
 out_set:
 	sigaddset(&signals->signal, sig);
-	return 0;
+	return 1;
 }
 
 int print_fatal_signals;
@@ -761,26 +769,18 @@ __setup("print-fatal-signals=", setup_print_fatal_signals);
 static int
 specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 {
-	int ret = 0;
+	int ret;
 
 	BUG_ON(!irqs_disabled());
 	assert_spin_locked(&t->sighand->siglock);
 
-	/* Short-circuit ignored signals.  */
-	if (sig_ignored(t, sig))
-		goto out;
-
-	/* Support queueing exactly one non-rt signal, so that we
-	   can get more detailed information about the cause of
-	   the signal. */
-	if (legacy_queue(&t->pending, sig))
-		goto out;
-
 	ret = send_signal(sig, info, t, &t->pending);
-	if (!ret && !sigismember(&t->blocked, sig))
+	if (ret <= 0)
+		return ret;
+
+	if (!sigismember(&t->blocked, sig))
 		signal_wake_up(t, sig == SIGKILL);
-out:
-	return ret;
+	return 0;
 }
 
 /*
@@ -925,18 +925,10 @@ __group_complete_signal(int sig, struct task_struct *p)
 int
 __group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 {
-	int ret = 0;
+	int ret;
 
 	assert_spin_locked(&p->sighand->siglock);
 	handle_stop_signal(sig, p);
-
-	/* Short-circuit ignored signals.  */
-	if (sig_ignored(p, sig))
-		return ret;
-
-	if (legacy_queue(&p->signal->shared_pending, sig))
-		/* This is a non-RT signal and we already have one queued.  */
-		return ret;
 
 	/*
 	 * Put this signal on the shared-pending queue, or fail with EAGAIN.
@@ -944,7 +936,7 @@ __group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	 * to avoid several races.
 	 */
 	ret = send_signal(sig, info, p, &p->signal->shared_pending);
-	if (unlikely(ret))
+	if (ret <= 0)
 		return ret;
 
 	__group_complete_signal(sig, p);
