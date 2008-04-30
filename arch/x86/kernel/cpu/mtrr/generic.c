@@ -213,12 +213,12 @@ void __init get_mtrr_state(void)
 	mtrr_state.enabled = (lo & 0xc00) >> 10;
 
 	if (amd_special_default_mtrr()) {
-		unsigned lo, hi;
+		unsigned low, high;
 		/* TOP_MEM2 */
-		rdmsr(MSR_K8_TOP_MEM2, lo, hi);
-		tom2 = hi;
+		rdmsr(MSR_K8_TOP_MEM2, low, high);
+		tom2 = high;
 		tom2 <<= 32;
-		tom2 |= lo;
+		tom2 |= low;
 		tom2 &= 0xffffff8000000ULL;
 	}
 	if (mtrr_show) {
