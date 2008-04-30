@@ -2642,11 +2642,11 @@ static int con_write(struct tty_struct *tty, const unsigned char *buf, int count
 	return retval;
 }
 
-static void con_put_char(struct tty_struct *tty, unsigned char ch)
+static int con_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	if (in_interrupt())
-		return;	/* n_r3964 calls put_char() from interrupt context */
-	do_con_write(tty, &ch, 1);
+		return 0;	/* n_r3964 calls put_char() from interrupt context */
+	return do_con_write(tty, &ch, 1);
 }
 
 static int con_write_room(struct tty_struct *tty)
