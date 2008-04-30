@@ -30,7 +30,7 @@ config DVB_CX24123
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_MT312
-	tristate "Zarlink VP310/MT312 based"
+	tristate "Zarlink VP310/MT312/ZL10313 based"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
