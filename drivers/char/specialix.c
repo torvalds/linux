@@ -1690,7 +1690,7 @@ static int sx_write(struct tty_struct * tty,
 }
 
 
-static void sx_put_char(struct tty_struct * tty, unsigned char ch)
+static int sx_put_char(struct tty_struct * tty, unsigned char ch)
 {
 	struct specialix_port *port = (struct specialix_port *)tty->driver_data;
 	unsigned long flags;
@@ -1700,12 +1700,12 @@ static void sx_put_char(struct tty_struct * tty, unsigned char ch)
 
 	if (sx_paranoia_check(port, tty->name, "sx_put_char")) {
 		func_exit();
-		return;
+		return 0;
 	}
 	dprintk (SX_DEBUG_TX, "check tty: %p %p\n", tty, port->xmit_buf);
 	if (!port->xmit_buf) {
 		func_exit();
-		return;
+		return 0;
 	}
 	bp = port_Board(port);
 	spin_lock_irqsave(&port->lock, flags);
@@ -1715,7 +1715,7 @@ static void sx_put_char(struct tty_struct * tty, unsigned char ch)
 		spin_unlock_irqrestore(&port->lock, flags);
 		dprintk (SX_DEBUG_TX, "Exit size\n");
 		func_exit();
-		return;
+		return 0;
 	}
 	dprintk (SX_DEBUG_TX, "Handle xmit: %p %p\n", port, port->xmit_buf);
 	port->xmit_buf[port->xmit_head++] = ch;
@@ -1724,6 +1724,7 @@ static void sx_put_char(struct tty_struct * tty, unsigned char ch)
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	func_exit();
+	return 1;
 }
 
 
