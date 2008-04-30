@@ -131,8 +131,8 @@ static int sx_rxfifo = SPECIALIX_RXFIFO;
 #define SX_DEBUG_FIFO    0x0800
 
 
-#define func_enter() dprintk (SX_DEBUG_FLOW, "io8: enter %s\n",__FUNCTION__)
-#define func_exit()  dprintk (SX_DEBUG_FLOW, "io8: exit  %s\n", __FUNCTION__)
+#define func_enter() dprintk (SX_DEBUG_FLOW, "io8: enter %s\n",__func__)
+#define func_exit()  dprintk (SX_DEBUG_FLOW, "io8: exit  %s\n", __func__)
 
 #define jiffies_from_ms(a) ((((a) * HZ)/1000)+1)
 
@@ -874,7 +874,7 @@ static irqreturn_t sx_interrupt(int dummy, void *dev_id)
 
 	spin_lock_irqsave(&bp->lock, flags);
 
-	dprintk (SX_DEBUG_FLOW, "enter %s port %d room: %ld\n", __FUNCTION__, port_No(sx_get_port(bp, "INT")), SERIAL_XMIT_SIZE - sx_get_port(bp, "ITN")->xmit_cnt - 1);
+	dprintk (SX_DEBUG_FLOW, "enter %s port %d room: %ld\n", __func__, port_No(sx_get_port(bp, "INT")), SERIAL_XMIT_SIZE - sx_get_port(bp, "ITN")->xmit_cnt - 1);
 	if (!(bp->flags & SX_BOARD_ACTIVE)) {
 		dprintk (SX_DEBUG_IRQ, "sx: False interrupt. irq %d.\n", bp->irq);
 		spin_unlock_irqrestore(&bp->lock, flags);
@@ -1802,7 +1802,7 @@ static int sx_tiocmget(struct tty_struct *tty, struct file *file)
 
 	func_enter();
 
-	if (sx_paranoia_check(port, tty->name, __FUNCTION__)) {
+	if (sx_paranoia_check(port, tty->name, __func__)) {
 		func_exit();
 		return -ENODEV;
 	}
@@ -1844,7 +1844,7 @@ static int sx_tiocmset(struct tty_struct *tty, struct file *file,
 
 	func_enter();
 
-	if (sx_paranoia_check(port, tty->name, __FUNCTION__)) {
+	if (sx_paranoia_check(port, tty->name, __func__)) {
 		func_exit();
 		return -ENODEV;
 	}

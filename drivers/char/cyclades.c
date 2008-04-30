@@ -3490,7 +3490,7 @@ static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 	struct BOARD_CTRL __iomem *board_ctrl;
 	struct CH_CTRL __iomem *ch_ctrl;
 
-	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
+	if (serial_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
 
 	lock_kernel();
@@ -3561,7 +3561,7 @@ cy_tiocmset(struct tty_struct *tty, struct file *file,
 	struct CH_CTRL __iomem *ch_ctrl;
 	int retval;
 
-	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
+	if (serial_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
 
 	card = info->card;

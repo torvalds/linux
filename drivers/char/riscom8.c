@@ -1222,7 +1222,7 @@ static int rc_tiocmget(struct tty_struct *tty, struct file *file)
 	unsigned int result;
 	unsigned long flags;
 
-	if (rc_paranoia_check(port, tty->name, __FUNCTION__))
+	if (rc_paranoia_check(port, tty->name, __func__))
 		return -ENODEV;
 
 	bp = port_Board(port);
@@ -1250,7 +1250,7 @@ static int rc_tiocmset(struct tty_struct *tty, struct file *file,
 	unsigned long flags;
 	struct riscom_board *bp;
 
-	if (rc_paranoia_check(port, tty->name, __FUNCTION__))
+	if (rc_paranoia_check(port, tty->name, __func__))
 		return -ENODEV;
 
 	bp = port_Board(port);

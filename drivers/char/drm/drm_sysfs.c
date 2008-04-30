@@ -34,7 +34,7 @@ static int drm_sysfs_suspend(struct device *dev, pm_message_t state)
 	struct drm_minor *drm_minor = to_drm_minor(dev);
 	struct drm_device *drm_dev = drm_minor->dev;
 
-	printk(KERN_ERR "%s\n", __FUNCTION__);
+	printk(KERN_ERR "%s\n", __func__);
 
 	if (drm_dev->driver->suspend)
 		return drm_dev->driver->suspend(drm_dev, state);

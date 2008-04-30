@@ -271,7 +271,7 @@ scdrv_event_init(struct sysctl_data_s *scd)
 	event_sd = kzalloc(sizeof (struct subch_data_s), GFP_KERNEL);
 	if (event_sd == NULL) {
 		printk(KERN_WARNING "%s: couldn't allocate subchannel info"
-		       " for event monitoring\n", __FUNCTION__);
+		       " for event monitoring\n", __func__);
 		return;
 	}
 
@@ -285,7 +285,7 @@ scdrv_event_init(struct sysctl_data_s *scd)
 	if (event_sd->sd_subch < 0) {
 		kfree(event_sd);
 		printk(KERN_WARNING "%s: couldn't open event subchannel\n",
-		       __FUNCTION__);
+		       __func__);
 		return;
 	}
 
@@ -295,7 +295,7 @@ scdrv_event_init(struct sysctl_data_s *scd)
 			 "system controller events", event_sd);
 	if (rv) {
 		printk(KERN_WARNING "%s: irq request failed (%d)\n",
-		       __FUNCTION__, rv);
+		       __func__, rv);
 		ia64_sn_irtr_close(event_sd->sd_nasid, event_sd->sd_subch);
 		kfree(event_sd);
 		return;

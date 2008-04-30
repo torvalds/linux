@@ -73,7 +73,7 @@ do {								\
 	char tmp[P_BUF_SIZE];					\
 	snprintf(tmp, sizeof(tmp), ##args);			\
 	printk(_err_flag_ "[%d] %s(): %s\n", __LINE__,		\
-		__FUNCTION__, tmp);				\
+		__func__, tmp);				\
 } while (0)
 
 #define DBG1(args...) D_(0x01, ##args)

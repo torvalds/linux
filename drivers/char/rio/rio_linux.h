@@ -186,9 +186,9 @@ static inline void *rio_memcpy_fromio(void *dest, void __iomem *source, int n)
 
 #ifdef DEBUG
 #define rio_dprintk(f, str...) do { if (rio_debug & f) printk (str);} while (0)
-#define func_enter() rio_dprintk (RIO_DEBUG_FLOW, "rio: enter %s\n", __FUNCTION__)
-#define func_exit()  rio_dprintk (RIO_DEBUG_FLOW, "rio: exit  %s\n", __FUNCTION__)
-#define func_enter2() rio_dprintk (RIO_DEBUG_FLOW, "rio: enter %s (port %d)\n",__FUNCTION__, port->line)
+#define func_enter() rio_dprintk (RIO_DEBUG_FLOW, "rio: enter %s\n", __func__)
+#define func_exit()  rio_dprintk (RIO_DEBUG_FLOW, "rio: exit  %s\n", __func__)
+#define func_enter2() rio_dprintk (RIO_DEBUG_FLOW, "rio: enter %s (port %d)\n",__func__, port->line)
 #else
 #define rio_dprintk(f, str...)	/* nothing */
 #define func_enter()

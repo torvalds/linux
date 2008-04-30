@@ -384,11 +384,11 @@ static struct real_driver sx_real_driver = {
 #define sx_dprintk(f, str...)	/* nothing */
 #endif
 
-#define func_enter()	sx_dprintk(SX_DEBUG_FLOW, "sx: enter %s\n",__FUNCTION__)
-#define func_exit()	sx_dprintk(SX_DEBUG_FLOW, "sx: exit  %s\n",__FUNCTION__)
+#define func_enter()	sx_dprintk(SX_DEBUG_FLOW, "sx: enter %s\n",__func__)
+#define func_exit()	sx_dprintk(SX_DEBUG_FLOW, "sx: exit  %s\n",__func__)
 
 #define func_enter2()	sx_dprintk(SX_DEBUG_FLOW, "sx: enter %s (port %d)\n", \
-				__FUNCTION__, port->line)
+				__func__, port->line)
 
 /* 
  *  Firmware loader driver specific routines
@@ -1574,7 +1574,7 @@ static void sx_close(void *ptr)
 		sx_dprintk(SX_DEBUG_CLOSE, "WARNING port count:%d\n",
 				port->gs.count);
 		/*printk("%s SETTING port count to zero: %p count: %d\n",
-				__FUNCTION__, port, port->gs.count);
+				__func__, port, port->gs.count);
 		port->gs.count = 0;*/
 	}
 
