@@ -99,13 +99,13 @@ enum {
 };
 
 struct inic_host_priv {
-	u16	cached_hctl;
+	u16		cached_hctl;
 };
 
 struct inic_port_priv {
-	u8	dfl_prdctl;
-	u8	cached_prdctl;
-	u8	cached_pirq_mask;
+	u8		dfl_prdctl;
+	u8		cached_prdctl;
+	u8		cached_pirq_mask;
 };
 
 static struct scsi_host_template inic_sht = {
@@ -185,12 +185,10 @@ static int inic_scr_read(struct ata_port *ap, unsigned sc_reg, u32 *val)
 static int inic_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val)
 {
 	void __iomem *scr_addr = ap->ioaddr.scr_addr;
-	void __iomem *addr;
 
 	if (unlikely(sc_reg >= ARRAY_SIZE(scr_map)))
 		return -EINVAL;
 
-	addr = scr_addr + scr_map[sc_reg] * 4;
 	writel(val, scr_addr + scr_map[sc_reg] * 4);
 	return 0;
 }
@@ -367,8 +365,6 @@ static void inic_freeze(struct ata_port *ap)
 
 	ap->ops->sff_check_status(ap);
 	writeb(0xff, port_base + PORT_IRQ_STAT);
-
-	readb(port_base + PORT_IRQ_STAT); /* flush */
 }
 
 static void inic_thaw(struct ata_port *ap)
@@ -379,8 +375,6 @@ static void inic_thaw(struct ata_port *ap)
 	writeb(0xff, port_base + PORT_IRQ_STAT);
 
 	__inic_set_pirq_mask(ap, PIRQ_MASK_OTHER);
-
-	readb(port_base + PORT_IRQ_STAT); /* flush */
 }
 
 /*
@@ -506,10 +500,8 @@ static int inic_port_start(struct ata_port *ap)
 
 	/* Alloc resources */
 	rc = ata_port_start(ap);
-	if (rc) {
-		kfree(pp);
+	if (rc)
 		return rc;
-	}
 
 	init_port(ap);
 
