@@ -355,14 +355,15 @@ have_requested_irq( char irq )
 /* the driver initialisation function and returns what it returns.            */
 /******************************************************************************/
 #ifdef MODULE
-int
-init_module(void)
+static int __init
+ip2_init_module(void)
 {
 #ifdef IP2DEBUG_INIT
 	printk (KERN_DEBUG "Loading module ...\n" );
 #endif
     return 0;
 }
+module_init(ip2_init_module);
 #endif /* MODULE */
 
 /******************************************************************************/
@@ -381,8 +382,8 @@ init_module(void)
 /* driver should be returned since it may be unloaded from memory.            */
 /******************************************************************************/
 #ifdef MODULE
-void
-cleanup_module(void)
+void __exit
+ip2_cleanup_module(void)
 {
 	int err;
 	int i;
@@ -452,6 +453,7 @@ cleanup_module(void)
 	printk (KERN_DEBUG "IP2 Unloaded\n" );
 #endif
 }
+module_exit(ip2_cleanup_module);
 #endif /* MODULE */
 
 static const struct tty_operations ip2_ops = {
