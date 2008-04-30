@@ -109,6 +109,7 @@
 #define LLOPM_CTRL			86
 #define RLOPM_CTRL			93
 /* Clock generation control register */
+#define AIC3X_GPIOB_REG			101
 #define AIC3X_CLKGEN_CTRL_REG		102
 
 /* Page select register bits */
@@ -128,12 +129,15 @@
 
 /* PLL registers bitfields */
 #define PLLP_SHIFT		0
+#define PLLQ_SHIFT		3
 #define PLLR_SHIFT		0
 #define PLLJ_SHIFT		2
 #define PLLD_MSB_SHIFT		0
 #define PLLD_LSB_SHIFT		2
 
 /* Clock generation register bits */
+#define CODEC_CLKIN_PLLDIV	0
+#define CODEC_CLKIN_CLKDIV	1
 #define PLL_CLKIN_SHIFT		4
 #define MCLK_SOURCE		0x0
 #define PLL_CLKDIV_SHIFT	0
