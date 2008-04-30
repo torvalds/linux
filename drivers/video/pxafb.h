@@ -21,14 +21,6 @@
  * for more details.
  */
 
-/* Shadows for LCD controller registers */
-struct pxafb_lcd_reg {
-	unsigned int lccr0;
-	unsigned int lccr1;
-	unsigned int lccr2;
-	unsigned int lccr3;
-};
-
 /* PXA LCD DMA descriptor */
 struct pxafb_dma_descriptor {
 	unsigned int fdadr;
