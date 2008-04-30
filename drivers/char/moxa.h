@@ -1,6 +1,14 @@
 #ifndef MOXA_H_FILE
 #define MOXA_H_FILE
 
+#define	MOXA		0x400
+#define MOXA_GET_IQUEUE 	(MOXA + 1)	/* get input buffered count */
+#define MOXA_GET_OQUEUE 	(MOXA + 2)	/* get output buffered count */
+#define MOXA_GETDATACOUNT       (MOXA + 23)
+#define MOXA_GET_IOQUEUE	(MOXA + 27)
+#define MOXA_FLUSH_QUEUE	(MOXA + 28)
+#define MOXA_GETMSTATUS         (MOXA + 65)
+
 /*
  *    System Configuration
  */
