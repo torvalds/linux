@@ -1110,13 +1110,12 @@ config MTRR_SANITIZER
 	  If unsure, say Y.
 
 config MTRR_SANITIZER_ENABLE_DEFAULT
-	def_bool y
-	prompt "Enable MTRR cleanup by default"
+	int "MTRR cleanup enable value (0-1)"
+	range 0 1
+	default "0"
 	depends on MTRR_SANITIZER
 	help
-	  Enable mtrr cleanup by default
-
-	  If unsure, say Y.
+	  Enable mtrr cleanup default value
 
 config X86_PAT
 	bool

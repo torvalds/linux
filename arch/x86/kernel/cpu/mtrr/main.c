@@ -611,17 +611,9 @@ static struct sysdev_driver mtrr_sysdev_driver = {
 };
 
 #ifdef CONFIG_MTRR_SANITIZER
-
-#ifdef CONFIG_MTRR_SANITIZER_ENABLE_DEFAULT
-static int enable_mtrr_cleanup __initdata = 1;
+static int enable_mtrr_cleanup __initdata = CONFIG_MTRR_SANITIZER_ENABLE_DEFAULT;
 #else
-static int enable_mtrr_cleanup __initdata;
-#endif
-
-#else
-
 static int enable_mtrr_cleanup __initdata = -1;
-
 #endif
 
 static int __init disable_mtrr_cleanup_setup(char *str)
@@ -640,6 +632,7 @@ static int __init enable_mtrr_cleanup_setup(char *str)
 }
 early_param("enble_mtrr_cleanup", enable_mtrr_cleanup_setup);
 
+/* should be related to MTRR_VAR_RANGES nums */
 #define RANGE_NUM 256
 
 struct res_range {
@@ -647,13 +640,27 @@ struct res_range {
 	unsigned long end;
 };
 
-static int __init add_range(struct res_range *range, int nr_range, unsigned long start,
-			      unsigned long end, int merge)
+static int __init
+add_range(struct res_range *range, int nr_range, unsigned long start,
+			      unsigned long end)
+{
+	/* out of slots */
+	if (nr_range >= RANGE_NUM)
+		return nr_range;
+
+	range[nr_range].start = start;
+	range[nr_range].end = end;
+
+	nr_range++;
+
+	return nr_range;
+}
+
+static int __init
+add_range_with_merge(struct res_range *range, int nr_range, unsigned long start,
+			      unsigned long end)
 {
 	int i;
-
-	if (!merge)
-		goto addit;
 
 	/* try to merge it with old one */
 	for (i = 0; i < nr_range; i++) {
@@ -676,24 +683,14 @@ static int __init add_range(struct res_range *range, int nr_range, unsigned long
 		return nr_range;
 	}
 
-addit:
 	/* need to add that */
-	if (nr_range >= RANGE_NUM)
-		return nr_range;
-
-	range[nr_range].start = start;
-	range[nr_range].end = end;
-
-	nr_range++;
-
-	return nr_range;
-
+	return add_range(range, nr_range, start, end);
 }
-static void __init subtract_range(struct res_range *range, unsigned long start,
-				unsigned long end)
+
+static void __init
+subtract_range(struct res_range *range, unsigned long start, unsigned long end)
 {
-	int i;
-	int j;
+	int i, j;
 
 	for (j = 0; j < RANGE_NUM; j++) {
 		if (!range[j].end)
@@ -747,46 +744,47 @@ static int __init cmp_range(const void *x1, const void *x2)
 }
 
 struct var_mtrr_state {
-	unsigned long range_startk, range_sizek;
-	unsigned long chunk_sizek;
-	unsigned long gran_sizek;
-	unsigned int reg;
-	unsigned address_bits;
+	unsigned long	range_startk;
+	unsigned long	range_sizek;
+	unsigned long	chunk_sizek;
+	unsigned long	gran_sizek;
+	unsigned int	reg;
+	unsigned int	address_bits;
 };
 
-static void __init set_var_mtrr(
-	unsigned int reg, unsigned long basek, unsigned long sizek,
-	unsigned char type, unsigned address_bits)
+static void __init
+set_var_mtrr(unsigned int reg, unsigned long basek, unsigned long sizek,
+		unsigned char type, unsigned address_bits)
 {
 	u32 base_lo, base_hi, mask_lo, mask_hi;
-	unsigned address_mask_high;
+	u64 base, mask;
 
 	if (!sizek) {
 		fill_mtrr_var_range(reg, 0, 0, 0, 0);
 		return;
 	}
 
-	address_mask_high = ((1u << (address_bits - 32u)) - 1u);
+	mask = (1ULL << address_bits) - 1;
+	mask &= ~((((u64)sizek) << 10) - 1);
 
-	base_hi = basek >> 22;
-	base_lo  = basek << 10;
+	base  = ((u64)basek) << 10;
 
-	if (sizek < 4*1024*1024) {
-		mask_hi = address_mask_high;
-		mask_lo = ~((sizek << 10) - 1);
-	} else {
-		mask_hi = address_mask_high & (~((sizek >> 22) - 1));
-		mask_lo = 0;
-	}
+	base |= type;
+	mask |= 0x800;
 
-	base_lo |= type;
-	mask_lo |= 0x800;
+	base_lo = base & ((1ULL<<32) - 1);
+	base_hi = base >> 32;
+
+	mask_lo = mask & ((1ULL<<32) - 1);
+	mask_hi = mask >> 32;
+
 	fill_mtrr_var_range(reg, base_lo, base_hi, mask_lo, mask_hi);
 }
 
-static unsigned int __init range_to_mtrr(unsigned int reg,
-	unsigned long range_startk, unsigned long range_sizek,
-	unsigned char type, unsigned address_bits)
+static unsigned int __init
+range_to_mtrr(unsigned int reg, unsigned long range_startk,
+	      unsigned long range_sizek, unsigned char type,
+	      unsigned address_bits)
 {
 	if (!range_sizek || (reg >= num_var_ranges))
 		return reg;
@@ -794,6 +792,7 @@ static unsigned int __init range_to_mtrr(unsigned int reg,
 	while (range_sizek) {
 		unsigned long max_align, align;
 		unsigned long sizek;
+
 		/* Compute the maximum size I can make a range */
 		if (range_startk)
 			max_align = ffs(range_startk) - 1;
@@ -818,7 +817,8 @@ static unsigned int __init range_to_mtrr(unsigned int reg,
 	return reg;
 }
 
-static void __init range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek)
+static void __init
+range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek)
 {
 	unsigned long hole_basek, hole_sizek;
 	unsigned long range0_basek, range0_sizek;
@@ -848,23 +848,31 @@ static void __init range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigne
 	/* try to append some small hole */
 	range0_basek = state->range_startk;
 	range0_sizek = ALIGN(state->range_sizek, chunk_sizek);
-	if ((range0_sizek == state->range_sizek) ||
-	    ((range0_basek + range0_sizek - chunk_sizek > basek) && basek)) {
+	if (range0_sizek == state->range_sizek) {
 			printk(KERN_INFO "rangeX: %016lx - %016lx\n", range0_basek<<10, (range0_basek + state->range_sizek)<<10);
 			state->reg = range_to_mtrr(state->reg, range0_basek,
 				state->range_sizek, MTRR_TYPE_WRBACK, state->address_bits);
 		return;
+	} else if (basek) {
+	    while (range0_basek + range0_sizek - chunk_sizek > basek) {
+		range0_sizek -= chunk_sizek;
+		if (!range0_sizek)
+			break;
+	    }
 	}
 
 
-	range0_sizek -= chunk_sizek;
+	if (range0_sizek > chunk_sizek)
+		range0_sizek -= chunk_sizek;
 	printk(KERN_INFO "range0: %016lx - %016lx\n", range0_basek<<10, (range0_basek + range0_sizek)<<10);
 	state->reg = range_to_mtrr(state->reg, range0_basek,
 			range0_sizek, MTRR_TYPE_WRBACK, state->address_bits);
 
 	range_basek = range0_basek + range0_sizek;
 	range_sizek = chunk_sizek;
-	if (range_sizek - (state->range_sizek - range0_sizek) < (chunk_sizek >> 1)) {
+
+	if ((range_sizek - (state->range_sizek - range0_sizek) < (chunk_sizek >> 1)) &&
+	    (range_basek + range_sizek <= basek)) {
 		hole_sizek = range_sizek - (state->range_sizek - range0_sizek);
 		hole_basek = range_basek + range_sizek - hole_sizek;
 	} else
@@ -880,7 +888,9 @@ static void __init range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigne
 	}
 }
 
-static void __init set_var_mtrr_range(struct var_mtrr_state *state, unsigned long base_pfn, unsigned long size_pfn)
+static void __init
+set_var_mtrr_range(struct var_mtrr_state *state, unsigned long base_pfn,
+		   unsigned long size_pfn)
 {
 	unsigned long basek, sizek;
 
@@ -921,7 +931,7 @@ static int __init parse_mtrr_chunk_size_opt(char *p)
 early_param("mtrr_chunk_size", parse_mtrr_chunk_size_opt);
 
 /* granity of mtrr of block */
-static u64 mtrr_gran_size __initdata = (64ULL<<20);
+static u64 mtrr_gran_size __initdata = (1ULL<<20);
 
 static int __init parse_mtrr_gran_size_opt(char *p)
 {
@@ -932,17 +942,19 @@ static int __init parse_mtrr_gran_size_opt(char *p)
 }
 early_param("mtrr_gran_size", parse_mtrr_gran_size_opt);
 
-static void __init x86_setup_var_mtrrs(struct res_range *range, int nr_range, unsigned address_bits)
+static void __init
+x86_setup_var_mtrrs(struct res_range *range, int nr_range,
+		    unsigned address_bits)
 {
 	struct var_mtrr_state var_state;
 	int i;
 
-	var_state.range_startk = 0;
-	var_state.range_sizek = 0;
-	var_state.reg = 0;
-	var_state.address_bits = address_bits;
-	var_state.chunk_sizek = mtrr_chunk_size >> 10;
-	var_state.gran_sizek = mtrr_gran_size >> 10;
+	var_state.range_startk	= 0;
+	var_state.range_sizek	= 0;
+	var_state.reg		= 0;
+	var_state.address_bits	= address_bits;
+	var_state.chunk_sizek	= mtrr_chunk_size >> 10;
+	var_state.gran_sizek	= mtrr_gran_size >> 10;
 
 	/* Write the range etc */
 	for (i = 0; i < nr_range; i++)
@@ -952,11 +964,16 @@ static void __init x86_setup_var_mtrrs(struct res_range *range, int nr_range, un
 	range_to_mtrr_with_hole(&var_state, 0);
 	printk(KERN_INFO "DONE variable MTRRs\n");
 	/* Clear out the extra MTRR's */
-	while (var_state.reg < num_var_ranges)
-		set_var_mtrr(var_state.reg++, 0, 0, 0, var_state.address_bits);
+	while (var_state.reg < num_var_ranges) {
+		set_var_mtrr(var_state.reg, 0, 0, 0, var_state.address_bits);
+		var_state.reg++;
+	}
 }
 
-static int __init x86_get_mtrr_mem_range(struct res_range *range, int nr_range, unsigned long extra_remove_base, unsigned long extra_remove_size)
+static int __init
+x86_get_mtrr_mem_range(struct res_range *range, int nr_range,
+		       unsigned long extra_remove_base,
+		       unsigned long extra_remove_size)
 {
 	unsigned long i, base, size;
 	mtrr_type type;
@@ -965,7 +982,7 @@ static int __init x86_get_mtrr_mem_range(struct res_range *range, int nr_range, 
 		mtrr_if->get(i, &base, &size, &type);
 		if (type != MTRR_TYPE_WRBACK)
 			continue;
-		nr_range = add_range(range, nr_range, base, base + size - 1, 1);
+		nr_range = add_range_with_merge(range, nr_range, base, base + size - 1);
 	}
 	printk(KERN_INFO "After WB checking\n");
 	for (i = 0; i < nr_range; i++)
@@ -1005,11 +1022,11 @@ static int __init x86_get_mtrr_mem_range(struct res_range *range, int nr_range, 
 
 static int __init mtrr_cleanup(unsigned address_bits)
 {
-	unsigned long i, base, size, def, dummy;
-	mtrr_type type;
-	struct res_range range[RANGE_NUM];
-	int nr_range;
 	unsigned long extra_remove_base, extra_remove_size;
+	unsigned long i, base, size, def, dummy;
+	struct res_range range[RANGE_NUM];
+	mtrr_type type;
+	int nr_range;
 
 	/* extra one for all 0 */
 	int num[MTRR_NUM_TYPES + 1];
@@ -1053,7 +1070,6 @@ static int __init mtrr_cleanup(unsigned address_bits)
 	x86_setup_var_mtrrs(range, nr_range, address_bits);
 
 	return 1;
-
 }
 
 static int disable_mtrr_trim;
