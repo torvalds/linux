@@ -660,8 +660,10 @@ static inline int legacy_queue(struct sigpending *signals, int sig)
 static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 			struct sigpending *signals)
 {
-	struct sigqueue * q = NULL;
+	struct sigqueue *q;
 
+	assert_spin_locked(&t->sighand->siglock);
+	handle_stop_signal(sig, t);
 	/*
 	 * Short-circuit ignored signals and support queuing
 	 * exactly one non-rt signal, so that we can get more
@@ -765,9 +767,6 @@ static int
 specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 {
 	int ret;
-
-	BUG_ON(!irqs_disabled());
-	assert_spin_locked(&t->sighand->siglock);
 
 	ret = send_signal(sig, info, t, &t->pending);
 	if (ret <= 0)
@@ -922,9 +921,6 @@ int
 __group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 {
 	int ret;
-
-	assert_spin_locked(&p->sighand->siglock);
-	handle_stop_signal(sig, p);
 
 	/*
 	 * Put this signal on the shared-pending queue, or fail with EAGAIN.
@@ -2241,7 +2237,6 @@ static int do_tkill(int tgid, int pid, int sig)
 		 */
 		if (!error && sig && p->sighand) {
 			spin_lock_irq(&p->sighand->siglock);
-			handle_stop_signal(sig, p);
 			error = specific_send_sig_info(sig, &info, p);
 			spin_unlock_irq(&p->sighand->siglock);
 		}
