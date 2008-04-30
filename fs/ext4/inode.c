@@ -1311,10 +1311,11 @@ static int ext4_ordered_write_end(struct file *file,
 		new_i_size = pos + copied;
 		if (new_i_size > EXT4_I(inode)->i_disksize)
 			EXT4_I(inode)->i_disksize = new_i_size;
-		copied = ext4_generic_write_end(file, mapping, pos, len, copied,
+		ret2 = ext4_generic_write_end(file, mapping, pos, len, copied,
 							page, fsdata);
-		if (copied < 0)
-			ret = copied;
+		copied = ret2;
+		if (ret2 < 0)
+			ret = ret2;
 	}
 	ret2 = ext4_journal_stop(handle);
 	if (!ret)
@@ -1339,10 +1340,11 @@ static int ext4_writeback_write_end(struct file *file,
 	if (new_i_size > EXT4_I(inode)->i_disksize)
 		EXT4_I(inode)->i_disksize = new_i_size;
 
-	copied = ext4_generic_write_end(file, mapping, pos, len, copied,
+	ret2 = ext4_generic_write_end(file, mapping, pos, len, copied,
 							page, fsdata);
-	if (copied < 0)
-		ret = copied;
+	copied = ret2;
+	if (ret2 < 0)
+		ret = ret2;
 
 	ret2 = ext4_journal_stop(handle);
 	if (!ret)
