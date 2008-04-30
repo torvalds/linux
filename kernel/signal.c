@@ -377,7 +377,7 @@ static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
  */
 int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 {
-	int signr = 0;
+	int signr;
 
 	/* We only dequeue private signals from ourselves, we don't let
 	 * signalfd steal them
@@ -410,8 +410,12 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 			}
 		}
 	}
+
 	recalc_sigpending();
-	if (signr && unlikely(sig_kernel_stop(signr))) {
+	if (!signr)
+		return 0;
+
+	if (unlikely(sig_kernel_stop(signr))) {
 		/*
 		 * Set a marker that we have dequeued a stop signal.  Our
 		 * caller might release the siglock and then the pending
@@ -427,9 +431,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 		if (!(tsk->signal->flags & SIGNAL_GROUP_EXIT))
 			tsk->signal->flags |= SIGNAL_STOP_DEQUEUED;
 	}
-	if (signr &&
-	     ((info->si_code & __SI_MASK) == __SI_TIMER) &&
-	     info->si_sys_private) {
+	if ((info->si_code & __SI_MASK) == __SI_TIMER && info->si_sys_private) {
 		/*
 		 * Release the siglock to ensure proper locking order
 		 * of timer locks outside of siglocks.  Note, we leave
