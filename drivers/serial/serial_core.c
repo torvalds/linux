@@ -422,6 +422,7 @@ uart_get_divisor(struct uart_port *port, unsigned int baud)
 
 EXPORT_SYMBOL(uart_get_divisor);
 
+/* FIXME: Consistent locking policy */
 static void
 uart_change_speed(struct uart_state *state, struct ktermios *old_termios)
 {
@@ -454,27 +455,30 @@ uart_change_speed(struct uart_state *state, struct ktermios *old_termios)
 	port->ops->set_termios(port, termios, old_termios);
 }
 
-static inline void
+static inline int
 __uart_put_char(struct uart_port *port, struct circ_buf *circ, unsigned char c)
 {
 	unsigned long flags;
+	int ret = 0;
 
 	if (!circ->buf)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&port->lock, flags);
 	if (uart_circ_chars_free(circ) != 0) {
 		circ->buf[circ->head] = c;
 		circ->head = (circ->head + 1) & (UART_XMIT_SIZE - 1);
+		ret = 1;
 	}
 	spin_unlock_irqrestore(&port->lock, flags);
+	return ret;
 }
 
-static void uart_put_char(struct tty_struct *tty, unsigned char ch)
+static int uart_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct uart_state *state = tty->driver_data;
 
-	__uart_put_char(state->port, &state->info->xmit, ch);
+	return __uart_put_char(state->port, &state->info->xmit, ch);
 }
 
 static void uart_flush_chars(struct tty_struct *tty)
