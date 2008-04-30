@@ -51,6 +51,9 @@ struct krb5_ctx {
 
 extern spinlock_t krb5_seq_lock;
 
+/* The length of the Kerberos GSS token header */
+#define GSS_KRB5_TOK_HDR_LEN	(16)
+
 #define KG_TOK_MIC_MSG    0x0101
 #define KG_TOK_WRAP_MSG   0x0201
 
