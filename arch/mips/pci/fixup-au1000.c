@@ -1,10 +1,9 @@
 /*
  * BRIEF MODULE DESCRIPTION
- *	Board specific pci fixups.
+ *	Board specific PCI fixups.
  *
- * Copyright 2001-2003 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	ppopov@mvista.com or source@mvista.com
+ * Copyright 2001-2003, 2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
