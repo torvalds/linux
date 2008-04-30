@@ -125,26 +125,6 @@ page_get_storage_key(unsigned long addr)
 	return skey;
 }
 
-extern unsigned long max_pfn;
-
-static inline int pfn_valid(unsigned long pfn)
-{
-	unsigned long dummy;
-	int ccode;
-
-	if (pfn >= max_pfn)
-		return 0;
-
-	asm volatile(
-		"	lra	%0,0(%2)\n"
-		"	ipm	%1\n"
-		"	srl	%1,28\n"
-		: "=d" (dummy), "=d" (ccode)
-		: "a" (pfn << PAGE_SHIFT)
-		: "cc");
-	return !ccode;
-}
-
 #endif /* !__ASSEMBLY__ */
 
 /* to align the pointer to the (next) page boundary */

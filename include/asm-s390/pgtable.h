@@ -129,7 +129,7 @@ extern char empty_zero_page[PAGE_SIZE];
 #define VMEM_MAX_PAGES	((VMEM_MAP_END - VMALLOC_END) / sizeof(struct page))
 #define VMEM_MAX_PFN	min(VMALLOC_START >> PAGE_SHIFT, VMEM_MAX_PAGES)
 #define VMEM_MAX_PHYS	((VMEM_MAX_PFN << PAGE_SHIFT) & ~((16 << 20) - 1))
-#define VMEM_MAP	((struct page *) VMALLOC_END)
+#define vmemmap		((struct page *) VMALLOC_END)
 
 /*
  * A 31 bit pagetable entry of S390 has following format:
@@ -1075,17 +1075,14 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 
 #define kern_addr_valid(addr)   (1)
 
-extern int add_shared_memory(unsigned long start, unsigned long size);
-extern int remove_shared_memory(unsigned long start, unsigned long size);
+extern int vmem_add_mapping(unsigned long start, unsigned long size);
+extern int vmem_remove_mapping(unsigned long start, unsigned long size);
 extern int s390_enable_sie(void);
 
 /*
  * No page table caches to initialise
  */
 #define pgtable_cache_init()	do { } while (0)
-
-#define __HAVE_ARCH_MEMMAP_INIT
-extern void memmap_init(unsigned long, int, unsigned long, unsigned long);
 
 #include <asm-generic/pgtable.h>
 

@@ -27,43 +27,6 @@ struct memory_segment {
 
 static LIST_HEAD(mem_segs);
 
-void __meminit memmap_init(unsigned long size, int nid, unsigned long zone,
-			   unsigned long start_pfn)
-{
-	struct page *start, *end;
-	struct page *map_start, *map_end;
-	int i;
-
-	start = pfn_to_page(start_pfn);
-	end = start + size;
-
-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
-		unsigned long cstart, cend;
-
-		cstart = PFN_DOWN(memory_chunk[i].addr);
-		cend = cstart + PFN_DOWN(memory_chunk[i].size);
-
-		map_start = mem_map + cstart;
-		map_end = mem_map + cend;
-
-		if (map_start < start)
-			map_start = start;
-		if (map_end > end)
-			map_end = end;
-
-		map_start -= ((unsigned long) map_start & (PAGE_SIZE - 1))
-			/ sizeof(struct page);
-		map_end += ((PFN_ALIGN((unsigned long) map_end)
-			     - (unsigned long) map_end)
-			    / sizeof(struct page));
-
-		if (map_start < map_end)
-			memmap_init_zone((unsigned long)(map_end - map_start),
-					 nid, zone, page_to_pfn(map_start),
-					 MEMMAP_EARLY);
-	}
-}
-
 static void __ref *vmem_alloc_pages(unsigned int order)
 {
 	if (slab_is_available())
@@ -115,7 +78,7 @@ static pte_t __init_refok *vmem_pte_alloc(void)
 /*
  * Add a physical memory range to the 1:1 mapping.
  */
-static int vmem_add_range(unsigned long start, unsigned long size, int ro)
+static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 {
 	unsigned long address;
 	pgd_t *pg_dir;
@@ -209,10 +172,9 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 /*
  * Add a backed mem_map array to the virtual mem_map array.
  */
-static int vmem_add_mem_map(unsigned long start, unsigned long size)
+int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
 {
 	unsigned long address, start_addr, end_addr;
-	struct page *map_start, *map_end;
 	pgd_t *pg_dir;
 	pud_t *pu_dir;
 	pmd_t *pm_dir;
@@ -220,11 +182,8 @@ static int vmem_add_mem_map(unsigned long start, unsigned long size)
 	pte_t  pte;
 	int ret = -ENOMEM;
 
-	map_start = VMEM_MAP + PFN_DOWN(start);
-	map_end	= VMEM_MAP + PFN_DOWN(start + size);
-
-	start_addr = (unsigned long) map_start & PAGE_MASK;
-	end_addr = PFN_ALIGN((unsigned long) map_end);
+	start_addr = (unsigned long) start;
+	end_addr = (unsigned long) (start + nr);
 
 	for (address = start_addr; address < end_addr; address += PAGE_SIZE) {
 		pg_dir = pgd_offset_k(address);
@@ -268,16 +227,6 @@ out:
 	return ret;
 }
 
-static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
-{
-	int ret;
-
-	ret = vmem_add_mem_map(start, size);
-	if (ret)
-		return ret;
-	return vmem_add_range(start, size, ro);
-}
-
 /*
  * Add memory segment to the segment list if it doesn't overlap with
  * an already present segment.
@@ -315,7 +264,7 @@ static void __remove_shared_memory(struct memory_segment *seg)
 	vmem_remove_range(seg->start, seg->size);
 }
 
-int remove_shared_memory(unsigned long start, unsigned long size)
+int vmem_remove_mapping(unsigned long start, unsigned long size)
 {
 	struct memory_segment *seg;
 	int ret;
@@ -339,11 +288,9 @@ out:
 	return ret;
 }
 
-int add_shared_memory(unsigned long start, unsigned long size)
+int vmem_add_mapping(unsigned long start, unsigned long size)
 {
 	struct memory_segment *seg;
-	struct page *page;
-	unsigned long pfn, num_pfn, end_pfn;
 	int ret;
 
 	mutex_lock(&vmem_mutex);
@@ -361,21 +308,6 @@ int add_shared_memory(unsigned long start, unsigned long size)
 	ret = vmem_add_mem(start, size, 0);
 	if (ret)
 		goto out_remove;
-
-	pfn = PFN_DOWN(start);
-	num_pfn = PFN_DOWN(size);
-	end_pfn = pfn + num_pfn;
-
-	page = pfn_to_page(pfn);
-	memset(page, 0, num_pfn * sizeof(struct page));
-
-	for (; pfn < end_pfn; pfn++) {
-		page = pfn_to_page(pfn);
-		init_page_count(page);
-		reset_page_mapcount(page);
-		SetPageReserved(page);
-		INIT_LIST_HEAD(&page->lru);
-	}
 	goto out;
 
 out_remove:
@@ -401,7 +333,6 @@ void __init vmem_map_init(void)
 	INIT_LIST_HEAD(&init_mm.context.crst_list);
 	INIT_LIST_HEAD(&init_mm.context.pgtable_list);
 	init_mm.context.noexec = 0;
-	NODE_DATA(0)->node_mem_map = VMEM_MAP;
 	ro_start = ((unsigned long)&_stext) & PAGE_MASK;
 	ro_end = PFN_ALIGN((unsigned long)&_eshared);
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
