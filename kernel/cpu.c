@@ -215,7 +215,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 		__raw_notifier_call_chain(&cpu_chain, CPU_DOWN_FAILED | mod,
 					  hcpu, nr_calls, NULL);
 		printk("%s: attempt to take down CPU %u failed\n",
-				__FUNCTION__, cpu);
+				__func__, cpu);
 		err = -EINVAL;
 		goto out_release;
 	}
@@ -295,7 +295,7 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 	if (ret == NOTIFY_BAD) {
 		nr_calls--;
 		printk("%s: attempt to bring up CPU %u failed\n",
-				__FUNCTION__, cpu);
+				__func__, cpu);
 		ret = -EINVAL;
 		goto out_notify;
 	}

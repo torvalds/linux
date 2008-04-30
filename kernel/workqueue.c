@@ -247,7 +247,7 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 	if (cwq->run_depth > 3) {
 		/* morton gets to eat his hat */
 		printk("%s: recursion depth exceeded: %d\n",
-			__FUNCTION__, cwq->run_depth);
+			__func__, cwq->run_depth);
 		dump_stack();
 	}
 	while (!list_empty(&cwq->worklist)) {
