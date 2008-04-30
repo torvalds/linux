@@ -340,16 +340,6 @@ static void tuner_i2c_address_check(struct tuner *t)
 	tuner_warn("====================== WARNING! ======================\n");
 }
 
-static void attach_tda829x(struct tuner *t)
-{
-	struct tda829x_config cfg = {
-		.lna_cfg        = t->config,
-		.tuner_callback = t->tuner_callback,
-	};
-	dvb_attach(tda829x_attach,
-		   &t->fe, t->i2c->adapter, t->i2c->addr, &cfg);
-}
-
 static struct xc5000_config xc5000_cfg;
 
 static void set_type(struct i2c_client *c, unsigned int type,
@@ -385,12 +375,19 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 	switch (t->type) {
 	case TUNER_MT2032:
-		dvb_attach(microtune_attach,
-			   &t->fe, t->i2c->adapter, t->i2c->addr);
+		if (!dvb_attach(microtune_attach,
+			   &t->fe, t->i2c->adapter, t->i2c->addr))
+			goto attach_failed;
 		break;
 	case TUNER_PHILIPS_TDA8290:
 	{
-		attach_tda829x(t);
+		struct tda829x_config cfg = {
+			.lna_cfg        = t->config,
+			.tuner_callback = t->tuner_callback,
+		};
+		if (!dvb_attach(tda829x_attach, &t->fe, t->i2c->adapter,
+				t->i2c->addr, &cfg))
+			goto attach_failed;
 		break;
 	}
 	case TUNER_TEA5767:
@@ -441,8 +438,9 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	}
 	case TUNER_TDA9887:
-		dvb_attach(tda9887_attach,
-			   &t->fe, t->i2c->adapter, t->i2c->addr);
+		if (!dvb_attach(tda9887_attach,
+			   &t->fe, t->i2c->adapter, t->i2c->addr))
+			goto attach_failed;
 		break;
 	case TUNER_XC5000:
 	{
