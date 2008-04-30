@@ -60,7 +60,7 @@ struct pid
 	/* lists of tasks that use this pid */
 	struct hlist_head tasks[PIDTYPE_MAX];
 	struct rcu_head rcu;
-	int level;
+	unsigned int level;
 	struct upid numbers[1];
 };
 
