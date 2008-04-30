@@ -92,7 +92,13 @@ static inline int test_ti_thread_flag(struct thread_info *ti, int flag)
 #define set_need_resched()	set_thread_flag(TIF_NEED_RESCHED)
 #define clear_need_resched()	clear_thread_flag(TIF_NEED_RESCHED)
 
-#ifdef TIF_RESTORE_SIGMASK
+#if defined TIF_RESTORE_SIGMASK && !defined HAVE_SET_RESTORE_SIGMASK
+/*
+ * An arch can define its own version of set_restore_sigmask() to get the
+ * job done however works, with or without TIF_RESTORE_SIGMASK.
+ */
+#define HAVE_SET_RESTORE_SIGMASK	1
+
 /**
  * set_restore_sigmask() - make sure saved_sigmask processing gets done
  *
@@ -109,7 +115,7 @@ static inline void set_restore_sigmask(void)
 	set_thread_flag(TIF_RESTORE_SIGMASK);
 	set_thread_flag(TIF_SIGPENDING);
 }
-#endif	/* TIF_RESTORE_SIGMASK */
+#endif	/* TIF_RESTORE_SIGMASK && !HAVE_SET_RESTORE_SIGMASK */
 
 #endif	/* __KERNEL__ */
 
