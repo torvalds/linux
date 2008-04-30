@@ -78,7 +78,7 @@ struct scsi_cmnd {
 	int allowed;
 	int timeout_per_command;
 
-	unsigned char cmd_len;
+	unsigned short cmd_len;
 	enum dma_data_direction sc_data_direction;
 
 	/* These elements define the operation we are about to perform */
