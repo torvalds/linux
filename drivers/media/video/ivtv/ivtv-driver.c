@@ -872,7 +872,7 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	unsigned i;
 
 	/* load modules */
-#ifndef CONFIG_VIDEO_TUNER
+#ifndef CONFIG_MEDIA_TUNER
 	hw = ivtv_request_module(itv, hw, "tuner", IVTV_HW_TUNER);
 #endif
 #ifndef CONFIG_VIDEO_CX25840

@@ -5,7 +5,7 @@ config VIDEO_CX88
 	select FW_LOADER
 	select VIDEO_BTCX
 	select VIDEOBUF_DMA_SG
-	select VIDEO_TUNER
+	select MEDIA_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
 	select VIDEO_WM8775 if VIDEO_HELPER_CHIPS_AUTO
@@ -57,7 +57,7 @@ config VIDEO_CX88_DVB
 	select DVB_NXT200X if !DVB_FE_CUSTOMISE
 	select DVB_CX24123 if !DVB_FE_CUSTOMISE
 	select DVB_ISL6421 if !DVB_FE_CUSTOMISE
-	select TUNER_SIMPLE if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_SIMPLE if !DVB_FE_CUSTOMISE
 	select DVB_S5H1411 if !DVB_FE_CUSTOMISE
 	---help---
 	  This adds support for DVB/ATSC cards based on the

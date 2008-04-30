@@ -81,7 +81,7 @@ struct tda18271_config {
 	unsigned int small_i2c:1;
 };
 
-#if defined(CONFIG_DVB_TDA18271) || (defined(CONFIG_DVB_TDA18271_MODULE) && defined(MODULE))
+#if defined(CONFIG_MEDIA_TUNER_TDA18271) || (defined(CONFIG_MEDIA_TUNER_TDA18271_MODULE) && defined(MODULE))
 extern struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 					    struct i2c_adapter *i2c,
 					    struct tda18271_config *cfg);

@@ -1189,7 +1189,7 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 }
 EXPORT_SYMBOL(dvb_unregister_frontend);
 
-#ifdef CONFIG_DVB_CORE_ATTACH
+#ifdef CONFIG_MEDIA_ATTACH
 void dvb_frontend_detach(struct dvb_frontend* fe)
 {
 	void *ptr;
