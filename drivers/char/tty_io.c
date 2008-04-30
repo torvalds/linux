@@ -1108,8 +1108,8 @@ restart:
 	   a reference to the old ldisc. If we ended up flipping back
 	   to the existing ldisc we have two references to it */
 
-	if (tty->ldisc.num != o_ldisc.num && tty->driver->set_ldisc)
-		tty->driver->set_ldisc(tty);
+	if (tty->ldisc.num != o_ldisc.num && tty->ops->set_ldisc)
+		tty->ops->set_ldisc(tty);
 
 	tty_ldisc_put(o_ldisc.num);
 
@@ -1181,9 +1181,8 @@ struct tty_driver *tty_find_polling_driver(char *name, int *line)
 		if (*str == '\0')
 			str = NULL;
 
-		if (tty_line >= 0 && tty_line <= p->num && p->poll_init &&
-				!p->poll_init(p, tty_line, str)) {
-
+		if (tty_line >= 0 && tty_line <= p->num && p->ops &&
+		    p->ops->poll_init && !p->ops->poll_init(p, tty_line, str)) {
 			res = p;
 			*line = tty_line;
 			break;
@@ -1452,8 +1451,7 @@ static void do_tty_hangup(struct work_struct *work)
 		/* We may have no line discipline at this point */
 		if (ld->flush_buffer)
 			ld->flush_buffer(tty);
-		if (tty->driver->flush_buffer)
-			tty->driver->flush_buffer(tty);
+		tty_driver_flush_buffer(tty);
 		if ((test_bit(TTY_DO_WRITE_WAKEUP, &tty->flags)) &&
 		    ld->write_wakeup)
 			ld->write_wakeup(tty);
@@ -1516,11 +1514,11 @@ static void do_tty_hangup(struct work_struct *work)
 	 * So we just call close() the right number of times.
 	 */
 	if (cons_filp) {
-		if (tty->driver->close)
+		if (tty->ops->close)
 			for (n = 0; n < closecount; n++)
-				tty->driver->close(tty, cons_filp);
-	} else if (tty->driver->hangup)
-		(tty->driver->hangup)(tty);
+				tty->ops->close(tty, cons_filp);
+	} else if (tty->ops->hangup)
+		(tty->ops->hangup)(tty);
 	/*
 	 * We don't want to have driver/ldisc interactions beyond
 	 * the ones we did here. The driver layer expects no
@@ -1752,8 +1750,8 @@ void stop_tty(struct tty_struct *tty)
 		wake_up_interruptible(&tty->link->read_wait);
 	}
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-	if (tty->driver->stop)
-		(tty->driver->stop)(tty);
+	if (tty->ops->stop)
+		(tty->ops->stop)(tty);
 }
 
 EXPORT_SYMBOL(stop_tty);
@@ -1786,8 +1784,8 @@ void start_tty(struct tty_struct *tty)
 		wake_up_interruptible(&tty->link->read_wait);
 	}
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-	if (tty->driver->start)
-		(tty->driver->start)(tty);
+	if (tty->ops->start)
+		(tty->ops->start)(tty);
 	/* If we have a running line discipline it may need kicking */
 	tty_wakeup(tty);
 }
@@ -1972,10 +1970,13 @@ static ssize_t tty_write(struct file *file, const char __user *buf,
 	tty = (struct tty_struct *)file->private_data;
 	if (tty_paranoia_check(tty, inode, "tty_write"))
 		return -EIO;
-	if (!tty || !tty->driver->write ||
+	if (!tty || !tty->ops->write ||
 		(test_bit(TTY_IO_ERROR, &tty->flags)))
 			return -EIO;
-
+	/* Short term debug to catch buggy drivers */
+	if (tty->ops->write_room == NULL)
+		printk(KERN_ERR "tty driver %s lacks a write_room method.\n",
+			tty->driver->name);
 	ld = tty_ldisc_ref_wait(tty);
 	if (!ld->write)
 		ret = -EIO;
@@ -2122,6 +2123,7 @@ static int init_dev(struct tty_driver *driver, int idx,
 		goto fail_no_mem;
 	initialize_tty_struct(tty);
 	tty->driver = driver;
+	tty->ops = driver->ops;
 	tty->index = idx;
 	tty_line_name(driver, idx, tty->name);
 
@@ -2152,6 +2154,7 @@ static int init_dev(struct tty_driver *driver, int idx,
 			goto free_mem_out;
 		initialize_tty_struct(o_tty);
 		o_tty->driver = driver->other;
+		o_tty->ops = driver->ops;
 		o_tty->index = idx;
 		tty_line_name(driver->other, idx, o_tty->name);
 
@@ -2456,8 +2459,8 @@ static void release_dev(struct file *filp)
 		}
 	}
 #endif
-	if (tty->driver->close)
-		tty->driver->close(tty, filp);
+	if (tty->ops->close)
+		tty->ops->close(tty, filp);
 
 	/*
 	 * Sanity check: if tty->count is going to zero, there shouldn't be
@@ -2740,8 +2743,8 @@ got_driver:
 	printk(KERN_DEBUG "opening %s...", tty->name);
 #endif
 	if (!retval) {
-		if (tty->driver->open)
-			retval = tty->driver->open(tty, filp);
+		if (tty->ops->open)
+			retval = tty->ops->open(tty, filp);
 		else
 			retval = -ENODEV;
 	}
@@ -2840,7 +2843,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 		goto out1;
 
 	check_tty_count(tty, "tty_open");
-	retval = ptm_driver->open(tty, filp);
+	retval = ptm_driver->ops->open(tty, filp);
 	if (!retval)
 		return 0;
 out1:
@@ -3336,25 +3339,20 @@ static int tiocsetd(struct tty_struct *tty, int __user *p)
 
 static int send_break(struct tty_struct *tty, unsigned int duration)
 {
-	int retval = -EINTR;
-
-	lock_kernel();
 	if (tty_write_lock(tty, 0) < 0)
-		goto out;
-	tty->driver->break_ctl(tty, -1);
+		return -EINTR;
+	tty->ops->break_ctl(tty, -1);
 	if (!signal_pending(current))
 		msleep_interruptible(duration);
-	tty->driver->break_ctl(tty, 0);
+	tty->ops->break_ctl(tty, 0);
 	tty_write_unlock(tty);
 	if (!signal_pending(current))
-		retval = 0;
-out:
-	unlock_kernel();
-	return retval;
+		return -EINTR;
+	return 0;
 }
 
 /**
- *	tiocmget		-	get modem status
+ *	tty_tiocmget		-	get modem status
  *	@tty: tty device
  *	@file: user file pointer
  *	@p: pointer to result
@@ -3369,10 +3367,8 @@ static int tty_tiocmget(struct tty_struct *tty, struct file *file, int __user *p
 {
 	int retval = -EINVAL;
 
-	if (tty->driver->tiocmget) {
-		lock_kernel();
-		retval = tty->driver->tiocmget(tty, file);
-		unlock_kernel();
+	if (tty->ops->tiocmget) {
+		retval = tty->ops->tiocmget(tty, file);
 
 		if (retval >= 0)
 			retval = put_user(retval, p);
@@ -3381,7 +3377,7 @@ static int tty_tiocmget(struct tty_struct *tty, struct file *file, int __user *p
 }
 
 /**
- *	tiocmset		-	set modem status
+ *	tty_tiocmset		-	set modem status
  *	@tty: tty device
  *	@file: user file pointer
  *	@cmd: command - clear bits, set bits or set all
@@ -3398,7 +3394,7 @@ static int tty_tiocmset(struct tty_struct *tty, struct file *file, unsigned int 
 {
 	int retval = -EINVAL;
 
-	if (tty->driver->tiocmset) {
+	if (tty->ops->tiocmset) {
 		unsigned int set, clear, val;
 
 		retval = get_user(val, p);
@@ -3422,9 +3418,7 @@ static int tty_tiocmset(struct tty_struct *tty, struct file *file, unsigned int 
 		set &= TIOCM_DTR|TIOCM_RTS|TIOCM_OUT1|TIOCM_OUT2|TIOCM_LOOP;
 		clear &= TIOCM_DTR|TIOCM_RTS|TIOCM_OUT1|TIOCM_OUT2|TIOCM_LOOP;
 
-		lock_kernel();
-		retval = tty->driver->tiocmset(tty, file, set, clear);
-		unlock_kernel();
+		retval = tty->ops->tiocmset(tty, file, set, clear);
 	}
 	return retval;
 }
@@ -3455,23 +3449,25 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	retval = -EINVAL;
 
-	if (!tty->driver->break_ctl) {
+	if (!tty->ops->break_ctl) {
 		switch (cmd) {
 		case TIOCSBRK:
 		case TIOCCBRK:
-			if (tty->driver->ioctl)
-				retval = tty->driver->ioctl(tty, file, cmd, arg);
+			if (tty->ops->ioctl)
+				retval = tty->ops->ioctl(tty, file, cmd, arg);
+			if (retval != -EINVAL && retval != -ENOIOCTLCMD)
+				printk(KERN_WARNING "tty: driver %s needs updating to use break_ctl\n", tty->driver->name);
 			return retval;
 
 		/* These two ioctl's always return success; even if */
 		/* the driver doesn't support them. */
 		case TCSBRK:
 		case TCSBRKP:
-			if (!tty->driver->ioctl)
+			if (!tty->ops->ioctl)
 				return 0;
-			lock_kernel();
-			retval = tty->driver->ioctl(tty, file, cmd, arg);
-			unlock_kernel();
+			retval = tty->ops->ioctl(tty, file, cmd, arg);
+			if (retval != -EINVAL && retval != -ENOIOCTLCMD)
+				printk(KERN_WARNING "tty: driver %s needs updating to use break_ctl\n", tty->driver->name);
 			if (retval == -ENOIOCTLCMD)
 				retval = 0;
 			return retval;
@@ -3491,9 +3487,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (retval)
 			return retval;
 		if (cmd != TIOCCBRK) {
-			lock_kernel();
 			tty_wait_until_sent(tty, 0);
-			unlock_kernel();
 			if (signal_pending(current))
 				return -EINTR;
 		}
@@ -3531,7 +3525,6 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case TIOCGSID:
 		return tiocgsid(tty, real_tty, p);
 	case TIOCGETD:
-		/* FIXME: check this is ok */
 		return put_user(tty->ldisc.num, (int __user *)p);
 	case TIOCSETD:
 		return tiocsetd(tty, p);
@@ -3543,15 +3536,13 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	 * Break handling
 	 */
 	case TIOCSBRK:	/* Turn break on, unconditionally */
-		lock_kernel();
-		tty->driver->break_ctl(tty, -1);
-		unlock_kernel();
+		if (tty->ops->break_ctl)
+			tty->ops->break_ctl(tty, -1);
 		return 0;
 
 	case TIOCCBRK:	/* Turn break off, unconditionally */
-		lock_kernel();
-		tty->driver->break_ctl(tty, 0);
-		unlock_kernel();
+		if (tty->ops->break_ctl)
+			tty->ops->break_ctl(tty, 0);
 		return 0;
 	case TCSBRK:   /* SVID version: non-zero arg --> no break */
 		/* non-zero arg means wait for all output data
@@ -3580,8 +3571,8 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	}
-	if (tty->driver->ioctl) {
-		retval = (tty->driver->ioctl)(tty, file, cmd, arg);
+	if (tty->ops->ioctl) {
+		retval = (tty->ops->ioctl)(tty, file, cmd, arg);
 		if (retval != -ENOIOCTLCMD)
 			return retval;
 	}
@@ -3608,8 +3599,8 @@ static long tty_compat_ioctl(struct file *file, unsigned int cmd,
 	if (tty_paranoia_check(tty, inode, "tty_ioctl"))
 		return -EINVAL;
 
-	if (tty->driver->compat_ioctl) {
-		retval = (tty->driver->compat_ioctl)(tty, file, cmd, arg);
+	if (tty->ops->compat_ioctl) {
+		retval = (tty->ops->compat_ioctl)(tty, file, cmd, arg);
 		if (retval != -ENOIOCTLCMD)
 			return retval;
 	}
@@ -3659,8 +3650,7 @@ void __do_SAK(struct tty_struct *tty)
 
 	tty_ldisc_flush(tty);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	tty_driver_flush_buffer(tty);
 
 	read_lock(&tasklist_lock);
 	/* Kill the entire session */
@@ -3871,14 +3861,26 @@ static void initialize_tty_struct(struct tty_struct *tty)
 	INIT_WORK(&tty->SAK_work, do_SAK_work);
 }
 
-/*
- * The default put_char routine if the driver did not define one.
+/**
+ *	tty_put_char	-	write one character to a tty
+ *	@tty: tty
+ *	@ch: character
+ *
+ *	Write one byte to the tty using the provided put_char method
+ *	if present. Returns the number of characters successfully output.
+ *
+ *	Note: the specific put_char operation in the driver layer may go
+ *	away soon. Don't call it directly, use this method
  */
 
-static void tty_default_put_char(struct tty_struct *tty, unsigned char ch)
+int tty_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	tty->driver->write(tty, &ch, 1);
+	if (tty->ops->put_char)
+		return tty->ops->put_char(tty, ch);
+	return tty->ops->write(tty, &ch, 1);
 }
+
+EXPORT_SYMBOL_GPL(tty_put_char);
 
 static struct class *tty_class;
 
@@ -3962,37 +3964,8 @@ void put_tty_driver(struct tty_driver *driver)
 void tty_set_operations(struct tty_driver *driver,
 			const struct tty_operations *op)
 {
-	driver->open = op->open;
-	driver->close = op->close;
-	driver->write = op->write;
-	driver->put_char = op->put_char;
-	driver->flush_chars = op->flush_chars;
-	driver->write_room = op->write_room;
-	driver->chars_in_buffer = op->chars_in_buffer;
-	driver->ioctl = op->ioctl;
-	driver->compat_ioctl = op->compat_ioctl;
-	driver->set_termios = op->set_termios;
-	driver->throttle = op->throttle;
-	driver->unthrottle = op->unthrottle;
-	driver->stop = op->stop;
-	driver->start = op->start;
-	driver->hangup = op->hangup;
-	driver->break_ctl = op->break_ctl;
-	driver->flush_buffer = op->flush_buffer;
-	driver->set_ldisc = op->set_ldisc;
-	driver->wait_until_sent = op->wait_until_sent;
-	driver->send_xchar = op->send_xchar;
-	driver->read_proc = op->read_proc;
-	driver->write_proc = op->write_proc;
-	driver->tiocmget = op->tiocmget;
-	driver->tiocmset = op->tiocmset;
-#ifdef CONFIG_CONSOLE_POLL
-	driver->poll_init = op->poll_init;
-	driver->poll_get_char = op->poll_get_char;
-	driver->poll_put_char = op->poll_put_char;
-#endif
-}
-
+	driver->ops = op;
+};
 
 EXPORT_SYMBOL(alloc_tty_driver);
 EXPORT_SYMBOL(put_tty_driver);
@@ -4054,9 +4027,6 @@ int tty_register_driver(struct tty_driver *driver)
 		kfree(p);
 		return error;
 	}
-
-	if (!driver->put_char)
-		driver->put_char = tty_default_put_char;
 
 	mutex_lock(&tty_mutex);
 	list_add(&driver->tty_drivers, &tty_drivers);

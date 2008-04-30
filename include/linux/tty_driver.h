@@ -12,10 +12,14 @@
  * 	This routine is called when a particular tty device is opened.
  * 	This routine is mandatory; if this routine is not filled in,
  * 	the attempted open will fail with ENODEV.
+ *
+ *	Required method.
  *     
  * void (*close)(struct tty_struct * tty, struct file * filp);
  *
  * 	This routine is called when a particular tty device is closed.
+ *
+ *	Required method.
  *
  * int (*write)(struct tty_struct * tty,
  * 		 const unsigned char *buf, int count);
@@ -26,7 +30,9 @@
  *	number of characters actually accepted for writing.  This
  *	routine is mandatory.
  *
- * void (*put_char)(struct tty_struct *tty, unsigned char ch);
+ *	Optional: Required for writable devices.
+ *
+ * int (*put_char)(struct tty_struct *tty, unsigned char ch);
  *
  * 	This routine is called by the kernel to write a single
  * 	character to the tty device.  If the kernel uses this routine,
@@ -34,10 +40,18 @@
  * 	done stuffing characters into the driver.  If there is no room
  * 	in the queue, the character is ignored.
  *
+ *	Optional: Kernel will use the write method if not provided.
+ *
+ *	Note: Do not call this function directly, call tty_put_char
+ *
  * void (*flush_chars)(struct tty_struct *tty);
  *
  * 	This routine is called by the kernel after it has written a
  * 	series of characters to the tty device using put_char().  
+ *
+ *	Optional:
+ *
+ *	Note: Do not call this function directly, call tty_driver_flush_chars
  * 
  * int  (*write_room)(struct tty_struct *tty);
  *
@@ -45,6 +59,10 @@
  * 	will accept for queuing to be written.  This number is subject
  * 	to change as output buffers get emptied, or if the output flow
  *	control is acted.
+ *
+ *	Required if write method is provided else not needed.
+ *
+ *	Note: Do not call this function directly, call tty_write_room
  * 
  * int  (*ioctl)(struct tty_struct *tty, struct file * file,
  * 	    unsigned int cmd, unsigned long arg);
@@ -53,22 +71,29 @@
  *	device-specific ioctl's.  If the ioctl number passed in cmd
  * 	is not recognized by the driver, it should return ENOIOCTLCMD.
  *
+ *	Optional
+ *
  * long (*compat_ioctl)(struct tty_struct *tty, struct file * file,
  * 	                unsigned int cmd, unsigned long arg);
  *
  * 	implement ioctl processing for 32 bit process on 64 bit system
+ *
+ *	Optional
  * 
  * void (*set_termios)(struct tty_struct *tty, struct ktermios * old);
  *
  * 	This routine allows the tty driver to be notified when
- * 	device's termios settings have changed.  Note that a
- * 	well-designed tty driver should be prepared to accept the case
- * 	where old == NULL, and try to do something rational.
+ * 	device's termios settings have changed.
+ *
+ *	Optional: Called under the termios lock
+ *
  *
  * void (*set_ldisc)(struct tty_struct *tty);
  *
  * 	This routine allows the tty driver to be notified when the
  * 	device's termios settings have changed.
+ *
+ *	Optional: Called under BKL (currently)
  * 
  * void (*throttle)(struct tty_struct * tty);
  *
@@ -86,16 +111,26 @@
  *
  * 	This routine notifies the tty driver that it should stop
  * 	outputting characters to the tty device.  
+ *
+ *	Optional:
+ *
+ *	Note: Call stop_tty not this method.
  * 
  * void (*start)(struct tty_struct *tty);
  *
  * 	This routine notifies the tty driver that it resume sending
  *	characters to the tty device.
+ *
+ *	Optional:
+ *
+ *	Note: Call start_tty not this method.
  * 
  * void (*hangup)(struct tty_struct *tty);
  *
  * 	This routine notifies the tty driver that it should hangup the
  * 	tty device.
+ *
+ *	Required:
  *
  * void (*break_ctl)(struct tty_stuct *tty, int state);
  *
@@ -106,18 +141,26 @@
  *
  * 	If this routine is implemented, the high-level tty driver will
  * 	handle the following ioctls: TCSBRK, TCSBRKP, TIOCSBRK,
- * 	TIOCCBRK.  Otherwise, these ioctls will be passed down to the
- * 	driver to handle.
+ * 	TIOCCBRK.
+ *
+ *	Optional: Required for TCSBRK/BRKP/etc handling.
  *
  * void (*wait_until_sent)(struct tty_struct *tty, int timeout);
  * 
  * 	This routine waits until the device has written out all of the
  * 	characters in its transmitter FIFO.
  *
+ *	Optional: If not provided the device is assumed to have no FIFO
+ *
+ *	Note: Usually correct to call tty_wait_until_sent
+ *
  * void (*send_xchar)(struct tty_struct *tty, char ch);
  *
  * 	This routine is used to send a high-priority XON/XOFF
  * 	character to the device.
+ *
+ *	Optional: If not provided then the write method is called under
+ *	the atomic write lock to keep it serialized with the ldisc.
  */
 
 #include <linux/fs.h>
@@ -132,7 +175,7 @@ struct tty_operations {
 	void (*close)(struct tty_struct * tty, struct file * filp);
 	int  (*write)(struct tty_struct * tty,
 		      const unsigned char *buf, int count);
-	void (*put_char)(struct tty_struct *tty, unsigned char ch);
+	int  (*put_char)(struct tty_struct *tty, unsigned char ch);
 	void (*flush_chars)(struct tty_struct *tty);
 	int  (*write_room)(struct tty_struct *tty);
 	int  (*chars_in_buffer)(struct tty_struct *tty);
@@ -153,8 +196,6 @@ struct tty_operations {
 	void (*send_xchar)(struct tty_struct *tty, char ch);
 	int (*read_proc)(char *page, char **start, off_t off,
 			  int count, int *eof, void *data);
-	int (*write_proc)(struct file *file, const char __user *buffer,
-			  unsigned long count, void *data);
 	int (*tiocmget)(struct tty_struct *tty, struct file *file);
 	int (*tiocmset)(struct tty_struct *tty, struct file *file,
 			unsigned int set, unsigned int clear);
@@ -190,48 +231,13 @@ struct tty_driver {
 	struct tty_struct **ttys;
 	struct ktermios **termios;
 	struct ktermios **termios_locked;
-	void *driver_state;	/* only used for the PTY driver */
-	
-	/*
-	 * Interface routines from the upper tty layer to the tty
-	 * driver.	Will be replaced with struct tty_operations.
-	 */
-	int  (*open)(struct tty_struct * tty, struct file * filp);
-	void (*close)(struct tty_struct * tty, struct file * filp);
-	int  (*write)(struct tty_struct * tty,
-		      const unsigned char *buf, int count);
-	void (*put_char)(struct tty_struct *tty, unsigned char ch);
-	void (*flush_chars)(struct tty_struct *tty);
-	int  (*write_room)(struct tty_struct *tty);
-	int  (*chars_in_buffer)(struct tty_struct *tty);
-	int  (*ioctl)(struct tty_struct *tty, struct file * file,
-		    unsigned int cmd, unsigned long arg);
-	long (*compat_ioctl)(struct tty_struct *tty, struct file * file,
-			     unsigned int cmd, unsigned long arg);
-	void (*set_termios)(struct tty_struct *tty, struct ktermios * old);
-	void (*throttle)(struct tty_struct * tty);
-	void (*unthrottle)(struct tty_struct * tty);
-	void (*stop)(struct tty_struct *tty);
-	void (*start)(struct tty_struct *tty);
-	void (*hangup)(struct tty_struct *tty);
-	void (*break_ctl)(struct tty_struct *tty, int state);
-	void (*flush_buffer)(struct tty_struct *tty);
-	void (*set_ldisc)(struct tty_struct *tty);
-	void (*wait_until_sent)(struct tty_struct *tty, int timeout);
-	void (*send_xchar)(struct tty_struct *tty, char ch);
-	int (*read_proc)(char *page, char **start, off_t off,
-			  int count, int *eof, void *data);
-	int (*write_proc)(struct file *file, const char __user *buffer,
-			  unsigned long count, void *data);
-	int (*tiocmget)(struct tty_struct *tty, struct file *file);
-	int (*tiocmset)(struct tty_struct *tty, struct file *file,
-			unsigned int set, unsigned int clear);
-#ifdef CONFIG_CONSOLE_POLL
-	int (*poll_init)(struct tty_driver *driver, int line, char *options);
-	int (*poll_get_char)(struct tty_driver *driver, int line);
-	void (*poll_put_char)(struct tty_driver *driver, int line, char ch);
-#endif
+	void *driver_state;
 
+	/*
+	 * Driver methods
+	 */
+
+	const struct tty_operations *ops;
 	struct list_head tty_drivers;
 };
 

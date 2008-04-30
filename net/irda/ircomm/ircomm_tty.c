@@ -555,10 +555,8 @@ static void ircomm_tty_close(struct tty_struct *tty, struct file *filp)
 
 	ircomm_tty_shutdown(self);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
-	if (tty->ldisc.flush_buffer)
-		tty->ldisc.flush_buffer(tty);
+	tty_driver_flush_buffer(tty);
+	tty_ldisc_flush(tty);
 
 	tty->closing = 0;
 	self->tty = NULL;

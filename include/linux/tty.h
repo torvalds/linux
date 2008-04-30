@@ -177,9 +177,13 @@ struct signal_struct;
  * size each time the window is created or resized anyway.
  * 						- TYT, 9/14/92
  */
+
+struct tty_operations;
+
 struct tty_struct {
 	int	magic;
 	struct tty_driver *driver;
+	const struct tty_operations *ops;
 	int index;
 	struct tty_ldisc ldisc;
 	struct mutex termios_mutex;
@@ -295,6 +299,10 @@ extern void tty_unregister_device(struct tty_driver *driver, unsigned index);
 extern int tty_read_raw_data(struct tty_struct *tty, unsigned char *bufp,
 			     int buflen);
 extern void tty_write_message(struct tty_struct *tty, char *msg);
+extern int tty_put_char(struct tty_struct *tty, unsigned char c);
+extern int tty_chars_in_buffer(struct tty_struct *tty);
+extern int tty_write_room(struct tty_struct *tty);
+extern void tty_driver_flush_buffer(struct tty_struct *tty);
 
 extern int is_current_pgrp_orphaned(void);
 extern struct pid *tty_get_pgrp(struct tty_struct *tty);

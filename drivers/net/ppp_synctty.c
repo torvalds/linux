@@ -207,6 +207,9 @@ ppp_sync_open(struct tty_struct *tty)
 	struct syncppp *ap;
 	int err;
 
+	if (tty->ops->write == NULL)
+		return -EOPNOTSUPP;
+
 	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
 	err = -ENOMEM;
 	if (!ap)
@@ -399,8 +402,8 @@ ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
 		tasklet_schedule(&ap->tsk);
 	sp_put(ap);
 	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags)
-	    && tty->driver->unthrottle)
-		tty->driver->unthrottle(tty);
+	    && tty->ops->unthrottle)
+		tty->ops->unthrottle(tty);
 }
 
 static void
@@ -653,7 +656,7 @@ ppp_sync_push(struct syncppp *ap)
 			tty_stuffed = 0;
 		if (!tty_stuffed && ap->tpkt) {
 			set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
-			sent = tty->driver->write(tty, ap->tpkt->data, ap->tpkt->len);
+			sent = tty->ops->write(tty, ap->tpkt->data, ap->tpkt->len);
 			if (sent < 0)
 				goto flush;	/* error, e.g. loss of CD */
 			if (sent < ap->tpkt->len) {

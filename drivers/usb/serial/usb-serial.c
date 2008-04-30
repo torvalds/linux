@@ -296,16 +296,14 @@ static int serial_write (struct tty_struct * tty, const unsigned char *buf, int 
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -ENODEV;
 
-	if (!port || port->serial->dev->state == USB_STATE_NOTATTACHED)
+	if (port->serial->dev->state == USB_STATE_NOTATTACHED)
 		goto exit;
 
 	dbg("%s - port %d, %d byte(s)", __func__, port->number, count);
 
-	if (!port->open_count) {
-		retval = -EINVAL;
-		dbg("%s - port not opened", __func__);
-		goto exit;
-	}
+	/* open_count is managed under the mutex lock for the tty so cannot
+           drop to zero until after the last close completes */
+	WARN_ON(!port->open_count);
 
 	/* pass on to the driver specific version of this function */
 	retval = port->serial->type->write(port, buf, count);
@@ -317,61 +315,28 @@ exit:
 static int serial_write_room (struct tty_struct *tty) 
 {
 	struct usb_serial_port *port = tty->driver_data;
-	int retval = -ENODEV;
-
-	if (!port)
-		goto exit;
-
 	dbg("%s - port %d", __func__, port->number);
-
-	if (!port->open_count) {
-		dbg("%s - port not open", __func__);
-		goto exit;
-	}
-
+	WARN_ON(!port->open_count);
 	/* pass on to the driver specific version of this function */
-	retval = port->serial->type->write_room(port);
-
-exit:
-	return retval;
+	return port->serial->type->write_room(port);
 }
 
 static int serial_chars_in_buffer (struct tty_struct *tty) 
 {
 	struct usb_serial_port *port = tty->driver_data;
-	int retval = -ENODEV;
-
-	if (!port)
-		goto exit;
-
 	dbg("%s = port %d", __func__, port->number);
 
-	if (!port->open_count) {
-		dbg("%s - port not open", __func__);
-		goto exit;
-	}
-
+	WARN_ON(!port->open_count);
 	/* pass on to the driver specific version of this function */
-	retval = port->serial->type->chars_in_buffer(port);
-
-exit:
-	return retval;
+	return port->serial->type->chars_in_buffer(port);
 }
 
 static void serial_throttle (struct tty_struct * tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-
-	if (!port)
-		return;
-
 	dbg("%s - port %d", __func__, port->number);
 
-	if (!port->open_count) {
-		dbg ("%s - port not open", __func__);
-		return;
-	}
-
+	WARN_ON(!port->open_count);
 	/* pass on to the driver specific version of this function */
 	if (port->serial->type->throttle)
 		port->serial->type->throttle(port);
@@ -380,17 +345,9 @@ static void serial_throttle (struct tty_struct * tty)
 static void serial_unthrottle (struct tty_struct * tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-
-	if (!port)
-		return;
-
 	dbg("%s - port %d", __func__, port->number);
 
-	if (!port->open_count) {
-		dbg("%s - port not open", __func__);
-		return;
-	}
-
+	WARN_ON(!port->open_count);
 	/* pass on to the driver specific version of this function */
 	if (port->serial->type->unthrottle)
 		port->serial->type->unthrottle(port);
@@ -401,42 +358,27 @@ static int serial_ioctl (struct tty_struct *tty, struct file * file, unsigned in
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -ENODEV;
 
-	lock_kernel();
-	if (!port)
-		goto exit;
-
 	dbg("%s - port %d, cmd 0x%.4x", __func__, port->number, cmd);
 
-	/* Caution - port->open_count is BKL protected */
-	if (!port->open_count) {
-		dbg ("%s - port not open", __func__);
-		goto exit;
-	}
+	WARN_ON(!port->open_count);
 
 	/* pass on to the driver specific version of this function if it is available */
-	if (port->serial->type->ioctl)
+	if (port->serial->type->ioctl) {
+		lock_kernel();
 		retval = port->serial->type->ioctl(port, file, cmd, arg);
+		unlock_kernel();
+	}
 	else
 		retval = -ENOIOCTLCMD;
-exit:
-	unlock_kernel();
 	return retval;
 }
 
 static void serial_set_termios (struct tty_struct *tty, struct ktermios * old)
 {
 	struct usb_serial_port *port = tty->driver_data;
-
-	if (!port)
-		return;
-
 	dbg("%s - port %d", __func__, port->number);
 
-	if (!port->open_count) {
-		dbg("%s - port not open", __func__);
-		return;
-	}
-
+	WARN_ON(!port->open_count);
 	/* pass on to the driver specific version of this function if it is available */
 	if (port->serial->type->set_termios)
 		port->serial->type->set_termios(port, old);
@@ -448,24 +390,15 @@ static void serial_break (struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	lock_kernel();
-	if (!port) {
-		unlock_kernel();
-		return;
-	}
-
 	dbg("%s - port %d", __func__, port->number);
 
-	if (!port->open_count) {
-		dbg("%s - port not open", __func__);
-		unlock_kernel();
-		return;
-	}
-
+	WARN_ON(!port->open_count);
 	/* pass on to the driver specific version of this function if it is available */
-	if (port->serial->type->break_ctl)
+	if (port->serial->type->break_ctl) {
+		lock_kernel();
 		port->serial->type->break_ctl(port, break_state);
-	unlock_kernel();
+		unlock_kernel();
+	}
 }
 
 static int serial_read_proc (char *page, char **start, off_t off, int count, int *eof, void *data)
@@ -519,19 +452,11 @@ static int serial_tiocmget (struct tty_struct *tty, struct file *file)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	if (!port)
-		return -ENODEV;
-
 	dbg("%s - port %d", __func__, port->number);
 
-	if (!port->open_count) {
-		dbg("%s - port not open", __func__);
-		return -ENODEV;
-	}
-
+	WARN_ON(!port->open_count);
 	if (port->serial->type->tiocmget)
 		return port->serial->type->tiocmget(port, file);
-
 	return -EINVAL;
 }
 
@@ -540,19 +465,11 @@ static int serial_tiocmset (struct tty_struct *tty, struct file *file,
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	if (!port)
-		return -ENODEV;
-
 	dbg("%s - port %d", __func__, port->number);
 
-	if (!port->open_count) {
-		dbg("%s - port not open", __func__);
-		return -ENODEV;
-	}
-
+	WARN_ON(!port->open_count);
 	if (port->serial->type->tiocmset)
 		return port->serial->type->tiocmset(port, file, set, clear);
-
 	return -EINVAL;
 }
 

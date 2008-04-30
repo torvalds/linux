@@ -342,12 +342,10 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
 #endif
 	
 	/* Flush any pending characters in the driver and discipline. */
-	
 	if (tty->ldisc.flush_buffer)
-		tty->ldisc.flush_buffer (tty);
+		tty->ldisc.flush_buffer(tty);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer (tty);
+	tty_driver_flush_buffer(tty);
 		
 	if (debuglevel >= DEBUG_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_tty_open() success\n",__FILE__,__LINE__);
@@ -399,7 +397,7 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 			
 		/* Send the next block of data to device */
 		tty->flags |= (1 << TTY_DO_WRITE_WAKEUP);
-		actual = tty->driver->write(tty, tbuf->buf, tbuf->count);
+		actual = tty->ops->write(tty, tbuf->buf, tbuf->count);
 
 		/* rollback was possible and has been done */
 		if (actual == -ERESTARTSYS) {
@@ -752,8 +750,7 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
 
 	case TIOCOUTQ:
 		/* get the pending tx byte count in the driver */
-		count = tty->driver->chars_in_buffer ?
-				tty->driver->chars_in_buffer(tty) : 0;
+		count = tty_chars_in_buffer(tty);
 		/* add size of next output frame in queue */
 		spin_lock_irqsave(&n_hdlc->tx_buf_list.spinlock,flags);
 		if (n_hdlc->tx_buf_list.head)

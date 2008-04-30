@@ -68,10 +68,10 @@ static int write_modem(struct cardstate *cs)
 	struct tty_struct *tty = cs->hw.ser->tty;
 	struct bc_state *bcs = &cs->bcs[0];	/* only one channel */
 	struct sk_buff *skb = bcs->tx_skb;
-	int sent;
+	int sent = -EOPNOTSUPP;
 
 	if (!tty || !tty->driver || !skb)
-		return -EFAULT;
+		return -EINVAL;
 
 	if (!skb->len) {
 		dev_kfree_skb_any(skb);
@@ -80,7 +80,8 @@ static int write_modem(struct cardstate *cs)
 	}
 
 	set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
-	sent = tty->driver->write(tty, skb->data, skb->len);
+	if (tty->ops->write)
+		sent = tty->ops->write(tty, skb->data, skb->len);
 	gig_dbg(DEBUG_OUTPUT, "write_modem: sent %d", sent);
 	if (sent < 0) {
 		/* error */
@@ -120,7 +121,7 @@ static int send_cb(struct cardstate *cs)
 
 	if (cb->len) {
 		set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
-		sent = tty->driver->write(tty, cb->buf + cb->offset, cb->len);
+		sent = tty->ops->write(tty, cb->buf + cb->offset, cb->len);
 		if (sent < 0) {
 			/* error */
 			gig_dbg(DEBUG_OUTPUT, "send_cb: write error %d", sent);
@@ -440,14 +441,14 @@ static int gigaset_set_modem_ctrl(struct cardstate *cs, unsigned old_state, unsi
 	struct tty_struct *tty = cs->hw.ser->tty;
 	unsigned int set, clear;
 
-	if (!tty || !tty->driver || !tty->driver->tiocmset)
-		return -EFAULT;
+	if (!tty || !tty->driver || !tty->ops->tiocmset)
+		return -EINVAL;
 	set = new_state & ~old_state;
 	clear = old_state & ~new_state;
 	if (!set && !clear)
 		return 0;
 	gig_dbg(DEBUG_IF, "tiocmset set %x clear %x", set, clear);
-	return tty->driver->tiocmset(tty, NULL, set, clear);
+	return tty->ops->tiocmset(tty, NULL, set, clear);
 }
 
 static int gigaset_baud_rate(struct cardstate *cs, unsigned cflag)

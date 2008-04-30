@@ -169,7 +169,7 @@ static int Fip_firmware_size;
 static int  ip2_open(PTTY, struct file *);
 static void ip2_close(PTTY, struct file *);
 static int  ip2_write(PTTY, const unsigned char *, int);
-static void ip2_putchar(PTTY, unsigned char);
+static int  ip2_putchar(PTTY, unsigned char);
 static void ip2_flush_chars(PTTY);
 static int  ip2_write_room(PTTY);
 static int  ip2_chars_in_buf(PTTY);
@@ -1616,10 +1616,9 @@ ip2_close( PTTY tty, struct file *pFile )
 
 	serviceOutgoingFifo ( pCh->pMyBord );
 
-	if ( tty->driver->flush_buffer ) 
-		tty->driver->flush_buffer(tty);
-	if ( tty->ldisc.flush_buffer )  
-		tty->ldisc.flush_buffer(tty);
+	if ( tty->driver->ops->flush_buffer )
+		tty->driver->ops->flush_buffer(tty);
+	tty_ldisc_flush(tty);
 	tty->closing = 0;
 	
 	pCh->pTTY = NULL;
@@ -1738,7 +1737,7 @@ ip2_write( PTTY tty, const unsigned char *pData, int count)
 /*                                                                            */
 /*                                                                            */
 /******************************************************************************/
-static void
+static int
 ip2_putchar( PTTY tty, unsigned char ch )
 {
 	i2ChanStrPtr  pCh = tty->driver_data;
@@ -1753,6 +1752,7 @@ ip2_putchar( PTTY tty, unsigned char ch )
 		ip2_flush_chars( tty );
 	} else
 		write_unlock_irqrestore(&pCh->Pbuf_spinlock, flags);
+	return 1;
 
 //	ip2trace (CHANN, ITRC_PUTC, ITRC_RETURN, 1, ch );
 }

@@ -40,6 +40,34 @@
 #define TERMIOS_OLD	8
 
 
+int tty_chars_in_buffer(struct tty_struct *tty)
+{
+	if (tty->ops->chars_in_buffer)
+		return tty->ops->chars_in_buffer(tty);
+	else
+		return 0;
+}
+
+EXPORT_SYMBOL(tty_chars_in_buffer);
+
+int tty_write_room(struct tty_struct *tty)
+{
+	if (tty->ops->write_room)
+		return tty->ops->write_room(tty);
+	return 2048;
+}
+
+EXPORT_SYMBOL(tty_write_room);
+
+void tty_driver_flush_buffer(struct tty_struct *tty)
+{
+	if (tty->ops->flush_buffer)
+		tty->ops->flush_buffer(tty);
+}
+
+EXPORT_SYMBOL(tty_driver_flush_buffer);
+
+
 /**
  *	tty_wait_until_sent	-	wait for I/O to finish
  *	@tty: tty we are waiting for
@@ -58,17 +86,13 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 
 	printk(KERN_DEBUG "%s wait until sent...\n", tty_name(tty, buf));
 #endif
-	if (!tty->driver->chars_in_buffer)
-		return;
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
-	lock_kernel();
 	if (wait_event_interruptible_timeout(tty->write_wait,
-			!tty->driver->chars_in_buffer(tty), timeout) >= 0) {
-		if (tty->driver->wait_until_sent)
-			tty->driver->wait_until_sent(tty, timeout);
+			!tty_chars_in_buffer(tty), timeout) >= 0) {
+		if (tty->ops->wait_until_sent)
+			tty->ops->wait_until_sent(tty, timeout);
 	}
-	unlock_kernel();
 }
 EXPORT_SYMBOL(tty_wait_until_sent);
 
@@ -444,8 +468,8 @@ static void change_termios(struct tty_struct *tty, struct ktermios *new_termios)
 		}
 	}
 
-	if (tty->driver->set_termios)
-		(*tty->driver->set_termios)(tty, &old_termios);
+	if (tty->ops->set_termios)
+		(*tty->ops->set_termios)(tty, &old_termios);
 	else
 		tty_termios_copy_hw(tty->termios, &old_termios);
 
@@ -748,8 +772,8 @@ static int send_prio_char(struct tty_struct *tty, char ch)
 {
 	int	was_stopped = tty->stopped;
 
-	if (tty->driver->send_xchar) {
-		tty->driver->send_xchar(tty, ch);
+	if (tty->ops->send_xchar) {
+		tty->ops->send_xchar(tty, ch);
 		return 0;
 	}
 
@@ -758,7 +782,7 @@ static int send_prio_char(struct tty_struct *tty, char ch)
 
 	if (was_stopped)
 		start_tty(tty);
-	tty->driver->write(tty, &ch, 1);
+	tty->ops->write(tty, &ch, 1);
 	if (was_stopped)
 		stop_tty(tty);
 	tty_write_unlock(tty);
@@ -778,13 +802,14 @@ static int tty_change_softcar(struct tty_struct *tty, int arg)
 {
 	int ret = 0;
 	int bit = arg ? CLOCAL : 0;
-	struct ktermios old = *tty->termios;
+	struct ktermios old;
 
 	mutex_lock(&tty->termios_mutex);
+	old = *tty->termios;
 	tty->termios->c_cflag &= ~CLOCAL;
 	tty->termios->c_cflag |= bit;
-	if (tty->driver->set_termios)
-		tty->driver->set_termios(tty, &old);
+	if (tty->ops->set_termios)
+		tty->ops->set_termios(tty, &old);
 	if ((tty->termios->c_cflag & CLOCAL) != bit)
 		ret = -EINVAL;
 	mutex_unlock(&tty->termios_mutex);
@@ -926,8 +951,7 @@ int tty_perform_flush(struct tty_struct *tty, unsigned long arg)
 			ld->flush_buffer(tty);
 		/* fall through */
 	case TCOFLUSH:
-		if (tty->driver->flush_buffer)
-			tty->driver->flush_buffer(tty);
+		tty_driver_flush_buffer(tty);
 		break;
 	default:
 		tty_ldisc_deref(ld);
@@ -984,9 +1008,7 @@ int n_tty_ioctl(struct tty_struct *tty, struct file *file,
 	case TCFLSH:
 		return tty_perform_flush(tty, arg);
 	case TIOCOUTQ:
-		return put_user(tty->driver->chars_in_buffer ?
-				tty->driver->chars_in_buffer(tty) : 0,
-				(int __user *) arg);
+		return put_user(tty_chars_in_buffer(tty), (int __user *) arg);
 	case TIOCINQ:
 		retval = tty->read_cnt;
 		if (L_ICANON(tty))

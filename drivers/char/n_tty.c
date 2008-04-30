@@ -149,8 +149,8 @@ static void check_unthrottle(struct tty_struct *tty)
 {
 	if (tty->count &&
 	    test_and_clear_bit(TTY_THROTTLED, &tty->flags) &&
-	    tty->driver->unthrottle)
-		tty->driver->unthrottle(tty);
+	    tty->ops->unthrottle)
+		tty->ops->unthrottle(tty);
 }
 
 /**
@@ -273,7 +273,7 @@ static int opost(unsigned char c, struct tty_struct *tty)
 {
 	int	space, spaces;
 
-	space = tty->driver->write_room(tty);
+	space = tty_write_room(tty);
 	if (!space)
 		return -1;
 
@@ -286,7 +286,7 @@ static int opost(unsigned char c, struct tty_struct *tty)
 			if (O_ONLCR(tty)) {
 				if (space < 2)
 					return -1;
-				tty->driver->put_char(tty, '\r');
+				tty_put_char(tty, '\r');
 				tty->column = 0;
 			}
 			tty->canon_column = tty->column;
@@ -308,7 +308,7 @@ static int opost(unsigned char c, struct tty_struct *tty)
 				if (space < spaces)
 					return -1;
 				tty->column += spaces;
-				tty->driver->write(tty, "        ", spaces);
+				tty->ops->write(tty, "        ", spaces);
 				return 0;
 			}
 			tty->column += spaces;
@@ -325,7 +325,7 @@ static int opost(unsigned char c, struct tty_struct *tty)
 			break;
 		}
 	}
-	tty->driver->put_char(tty, c);
+	tty_put_char(tty, c);
 	unlock_kernel();
 	return 0;
 }
@@ -352,7 +352,7 @@ static ssize_t opost_block(struct tty_struct *tty,
 	int 	i;
 	const unsigned char *cp;
 
-	space = tty->driver->write_room(tty);
+	space = tty_write_room(tty);
 	if (!space)
 		return 0;
 	if (nr > space)
@@ -390,26 +390,13 @@ static ssize_t opost_block(struct tty_struct *tty,
 		}
 	}
 break_out:
-	if (tty->driver->flush_chars)
-		tty->driver->flush_chars(tty);
-	i = tty->driver->write(tty, buf, i);
+	if (tty->ops->flush_chars)
+		tty->ops->flush_chars(tty);
+	i = tty->ops->write(tty, buf, i);
 	unlock_kernel();
 	return i;
 }
 
-
-/**
- *	put_char	-	write character to driver
- *	@c: character (or part of unicode symbol)
- *	@tty: terminal device
- *
- *	Queue a byte to the driver layer for output
- */
-
-static inline void put_char(unsigned char c, struct tty_struct *tty)
-{
-	tty->driver->put_char(tty, c);
-}
 
 /**
  *	echo_char	-	echo characters
@@ -423,8 +410,8 @@ static inline void put_char(unsigned char c, struct tty_struct *tty)
 static void echo_char(unsigned char c, struct tty_struct *tty)
 {
 	if (L_ECHOCTL(tty) && iscntrl(c) && c != '\t') {
-		put_char('^', tty);
-		put_char(c ^ 0100, tty);
+		tty_put_char(tty, '^');
+		tty_put_char(tty, c ^ 0100);
 		tty->column += 2;
 	} else
 		opost(c, tty);
@@ -433,7 +420,7 @@ static void echo_char(unsigned char c, struct tty_struct *tty)
 static inline void finish_erasing(struct tty_struct *tty)
 {
 	if (tty->erasing) {
-		put_char('/', tty);
+		tty_put_char(tty, '/');
 		tty->column++;
 		tty->erasing = 0;
 	}
@@ -517,7 +504,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 		if (L_ECHO(tty)) {
 			if (L_ECHOPRT(tty)) {
 				if (!tty->erasing) {
-					put_char('\\', tty);
+					tty_put_char(tty, '\\');
 					tty->column++;
 					tty->erasing = 1;
 				}
@@ -525,7 +512,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 				echo_char(c, tty);
 				while (--cnt > 0) {
 					head = (head+1) & (N_TTY_BUF_SIZE-1);
-					put_char(tty->read_buf[head], tty);
+					tty_put_char(tty, tty->read_buf[head]);
 				}
 			} else if (kill_type == ERASE && !L_ECHOE(tty)) {
 				echo_char(ERASE_CHAR(tty), tty);
@@ -553,22 +540,22 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 				/* Now backup to that column. */
 				while (tty->column > col) {
 					/* Can't use opost here. */
-					put_char('\b', tty);
+					tty_put_char(tty, '\b');
 					if (tty->column > 0)
 						tty->column--;
 				}
 			} else {
 				if (iscntrl(c) && L_ECHOCTL(tty)) {
-					put_char('\b', tty);
-					put_char(' ', tty);
-					put_char('\b', tty);
+					tty_put_char(tty, '\b');
+					tty_put_char(tty, ' ');
+					tty_put_char(tty, '\b');
 					if (tty->column > 0)
 						tty->column--;
 				}
 				if (!iscntrl(c) || L_ECHOCTL(tty)) {
-					put_char('\b', tty);
-					put_char(' ', tty);
-					put_char('\b', tty);
+					tty_put_char(tty, '\b');
+					tty_put_char(tty, ' ');
+					tty_put_char(tty, '\b');
 					if (tty->column > 0)
 						tty->column--;
 				}
@@ -599,8 +586,7 @@ static inline void isig(int sig, struct tty_struct *tty, int flush)
 		kill_pgrp(tty->pgrp, sig, 1);
 	if (flush || !L_NOFLSH(tty)) {
 		n_tty_flush_buffer(tty);
-		if (tty->driver->flush_buffer)
-			tty->driver->flush_buffer(tty);
+		tty_driver_flush_buffer(tty);
 	}
 }
 
@@ -732,7 +718,7 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 		tty->lnext = 0;
 		if (L_ECHO(tty)) {
 			if (tty->read_cnt >= N_TTY_BUF_SIZE-1) {
-				put_char('\a', tty); /* beep if no space */
+				tty_put_char(tty, '\a'); /* beep if no space */
 				return;
 			}
 			/* Record the column of first canon char. */
@@ -776,8 +762,7 @@ send_signal:
 			 */
 			if (!L_NOFLSH(tty)) {
 				n_tty_flush_buffer(tty);
-				if (tty->driver->flush_buffer)
-					tty->driver->flush_buffer(tty);
+				tty_driver_flush_buffer(tty);
 			}
 			if (L_ECHO(tty))
 				echo_char(c, tty);
@@ -806,8 +791,8 @@ send_signal:
 			if (L_ECHO(tty)) {
 				finish_erasing(tty);
 				if (L_ECHOCTL(tty)) {
-					put_char('^', tty);
-					put_char('\b', tty);
+					tty_put_char(tty, '^');
+					tty_put_char(tty, '\b');
 				}
 			}
 			return;
@@ -828,7 +813,7 @@ send_signal:
 		if (c == '\n') {
 			if (L_ECHO(tty) || L_ECHONL(tty)) {
 				if (tty->read_cnt >= N_TTY_BUF_SIZE-1)
-					put_char('\a', tty);
+					tty_put_char(tty, '\a');
 				opost('\n', tty);
 			}
 			goto handle_newline;
@@ -846,7 +831,7 @@ send_signal:
 			 */
 			if (L_ECHO(tty)) {
 				if (tty->read_cnt >= N_TTY_BUF_SIZE-1)
-					put_char('\a', tty);
+					tty_put_char(tty, '\a');
 				/* Record the column of first canon char. */
 				if (tty->canon_head == tty->read_head)
 					tty->canon_column = tty->column;
@@ -876,7 +861,7 @@ handle_newline:
 	finish_erasing(tty);
 	if (L_ECHO(tty)) {
 		if (tty->read_cnt >= N_TTY_BUF_SIZE-1) {
-			put_char('\a', tty); /* beep if no space */
+			tty_put_char(tty, '\a'); /* beep if no space */
 			return;
 		}
 		if (c == '\n')
@@ -980,8 +965,8 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 				break;
 			}
 		}
-		if (tty->driver->flush_chars)
-			tty->driver->flush_chars(tty);
+		if (tty->ops->flush_chars)
+			tty->ops->flush_chars(tty);
 	}
 
 	n_tty_set_room(tty);
@@ -1000,8 +985,8 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	if (tty->receive_room < TTY_THRESHOLD_THROTTLE) {
 		/* check TTY_THROTTLED first so it indicates our state */
 		if (!test_and_set_bit(TTY_THROTTLED, &tty->flags) &&
-		    tty->driver->throttle)
-			tty->driver->throttle(tty);
+		    tty->ops->throttle)
+			tty->ops->throttle(tty);
 	}
 }
 
@@ -1086,6 +1071,9 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 			tty->real_raw = 0;
 	}
 	n_tty_set_room(tty);
+	/* The termios change make the tty ready for I/O */
+	wake_up_interruptible(&tty->write_wait);
+	wake_up_interruptible(&tty->read_wait);
 }
 
 /**
@@ -1513,11 +1501,11 @@ static ssize_t write_chan(struct tty_struct *tty, struct file *file,
 					break;
 				b++; nr--;
 			}
-			if (tty->driver->flush_chars)
-				tty->driver->flush_chars(tty);
+			if (tty->ops->flush_chars)
+				tty->ops->flush_chars(tty);
 		} else {
 			while (nr > 0) {
-				c = tty->driver->write(tty, b, nr);
+				c = tty->ops->write(tty, b, nr);
 				if (c < 0) {
 					retval = c;
 					goto break_out;
@@ -1554,11 +1542,6 @@ break_out:
  *
  *	This code must be sure never to sleep through a hangup.
  *	Called without the kernel lock held - fine
- *
- *	FIXME: if someone changes the VMIN or discipline settings for the
- *	terminal while another process is in poll() the poll does not
- *	recompute the new limits. Possibly set_termios should issue
- *	a read wakeup to fix this bug.
  */
 
 static unsigned int normal_poll(struct tty_struct *tty, struct file *file,
@@ -1582,9 +1565,9 @@ static unsigned int normal_poll(struct tty_struct *tty, struct file *file,
 		else
 			tty->minimum_to_wake = 1;
 	}
-	if (!tty_is_writelocked(tty) &&
-			tty->driver->chars_in_buffer(tty) < WAKEUP_CHARS &&
-			tty->driver->write_room(tty) > 0)
+	if (tty->ops->write && !tty_is_writelocked(tty) &&
+			tty_chars_in_buffer(tty) < WAKEUP_CHARS &&
+			tty_write_room(tty) > 0)
 		mask |= POLLOUT | POLLWRNORM;
 	return mask;
 }

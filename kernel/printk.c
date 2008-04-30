@@ -1272,8 +1272,8 @@ late_initcall(disable_boot_consoles);
  */
 void tty_write_message(struct tty_struct *tty, char *msg)
 {
-	if (tty && tty->driver->write)
-		tty->driver->write(tty, msg, strlen(msg));
+	if (tty && tty->ops->write)
+		tty->ops->write(tty, msg, strlen(msg));
 	return;
 }
 

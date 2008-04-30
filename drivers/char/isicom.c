@@ -1140,28 +1140,29 @@ static int isicom_write(struct tty_struct *tty,	const unsigned char *buf,
 }
 
 /* put_char et all */
-static void isicom_put_char(struct tty_struct *tty, unsigned char ch)
+static int isicom_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct isi_port *port = tty->driver_data;
 	struct isi_board *card = port->card;
 	unsigned long flags;
 
 	if (isicom_paranoia_check(port, tty->name, "isicom_put_char"))
-		return;
+		return 0;
 
 	if (!port->xmit_buf)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&card->card_lock, flags);
-	if (port->xmit_cnt >= SERIAL_XMIT_SIZE - 1)
-		goto out;
+	if (port->xmit_cnt >= SERIAL_XMIT_SIZE - 1) {
+		spin_unlock_irqrestore(&card->card_lock, flags);
+		return 0;
+	}
 
 	port->xmit_buf[port->xmit_head++] = ch;
 	port->xmit_head &= (SERIAL_XMIT_SIZE - 1);
 	port->xmit_cnt++;
 	spin_unlock_irqrestore(&card->card_lock, flags);
-out:
-	return;
+	return 1;
 }
 
 /* flush_chars et all */

@@ -1230,7 +1230,7 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 
 	if (rep &&
 	    (!vc_kbd_mode(kbd, VC_REPEAT) ||
-	     (tty && !L_ECHO(tty) && tty->driver->chars_in_buffer(tty)))) {
+	     (tty && !L_ECHO(tty) && tty_chars_in_buffer(tty)))) {
 		/*
 		 * Don't repeat a key if the input buffers are not empty and the
 		 * characters get aren't echoed locally. This makes key repeat

@@ -376,8 +376,9 @@ static void put_char(struct r3964_info *pInfo, unsigned char ch)
 	if (tty == NULL)
 		return;
 
-	if (tty->driver->put_char) {
-		tty->driver->put_char(tty, ch);
+	/* FIXME: put_char should not be called from an IRQ */
+	if (tty->ops->put_char) {
+		tty->ops->put_char(tty, ch);
 	}
 	pInfo->bcc ^= ch;
 }
@@ -386,12 +387,9 @@ static void flush(struct r3964_info *pInfo)
 {
 	struct tty_struct *tty = pInfo->tty;
 
-	if (tty == NULL)
+	if (tty == NULL || tty->ops->flush_chars == NULL)
 		return;
-
-	if (tty->driver->flush_chars) {
-		tty->driver->flush_chars(tty);
-	}
+	tty->ops->flush_chars(tty);
 }
 
 static void trigger_transmit(struct r3964_info *pInfo)
@@ -449,12 +447,11 @@ static void transmit_block(struct r3964_info *pInfo)
 	struct r3964_block_header *pBlock = pInfo->tx_first;
 	int room = 0;
 
-	if ((tty == NULL) || (pBlock == NULL)) {
+	if (tty == NULL || pBlock == NULL) {
 		return;
 	}
 
-	if (tty->driver->write_room)
-		room = tty->driver->write_room(tty);
+	room = tty_write_room(tty);
 
 	TRACE_PS("transmit_block %p, room %d, length %d",
 		 pBlock, room, pBlock->length);

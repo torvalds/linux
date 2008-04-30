@@ -192,16 +192,14 @@ void proc_tty_register_driver(struct tty_driver *driver)
 {
 	struct proc_dir_entry *ent;
 		
-	if ((!driver->read_proc && !driver->write_proc) ||
-	    !driver->driver_name ||
+	if (!driver->ops->read_proc || !driver->driver_name ||
 	    driver->proc_entry)
 		return;
 
 	ent = create_proc_entry(driver->driver_name, 0, proc_tty_driver);
 	if (!ent)
 		return;
-	ent->read_proc = driver->read_proc;
-	ent->write_proc = driver->write_proc;
+	ent->read_proc = driver->ops->read_proc;
 	ent->owner = driver->owner;
 	ent->data = driver;
 
