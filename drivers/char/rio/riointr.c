@@ -401,9 +401,8 @@ void RIOServiceHost(struct rio_info *p, struct Host *HostP)
 					PortP->InUse = NOT_INUSE;
 
 					rio_spin_unlock(&PortP->portSem);
-					if (RIOParam(PortP, OPEN, ((PortP->Cor2Copy & (COR2_RTSFLOW | COR2_CTSFLOW)) == (COR2_RTSFLOW | COR2_CTSFLOW)) ? 1 : 0, DONT_SLEEP) == RIO_FAIL) {
+					if (RIOParam(PortP, RIOC_OPEN, ((PortP->Cor2Copy & (RIOC_COR2_RTSFLOW | RIOC_COR2_CTSFLOW)) == (RIOC_COR2_RTSFLOW | RIOC_COR2_CTSFLOW)) ? 1 : 0, DONT_SLEEP) == RIO_FAIL)
 						continue;	/* with next port */
-					}
 					rio_spin_lock(&PortP->portSem);
 					PortP->MagicFlags &= ~MAGIC_REBOOT;
 				}
@@ -429,7 +428,7 @@ void RIOServiceHost(struct rio_info *p, struct Host *HostP)
 					 */
 					PktCmdP = (struct PktCmd __iomem *) &PacketP->data[0];
 
-					writeb(WFLUSH, &PktCmdP->Command);
+					writeb(RIOC_WFLUSH, &PktCmdP->Command);
 
 					p = PortP->HostPort % (u16) PORTS_PER_RTA;
 
