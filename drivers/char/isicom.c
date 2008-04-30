@@ -1258,6 +1258,8 @@ static int isicom_set_serial_info(struct isi_port *port,
 	if (copy_from_user(&newinfo, info, sizeof(newinfo)))
 		return -EFAULT;
 
+	lock_kernel();
+
 	reconfig_port = ((port->flags & ASYNC_SPD_MASK) !=
 		(newinfo.flags & ASYNC_SPD_MASK));
 
@@ -1265,8 +1267,10 @@ static int isicom_set_serial_info(struct isi_port *port,
 		if ((newinfo.close_delay != port->close_delay) ||
 				(newinfo.closing_wait != port->closing_wait) ||
 				((newinfo.flags & ~ASYNC_USR_MASK) !=
-				(port->flags & ~ASYNC_USR_MASK)))
+				(port->flags & ~ASYNC_USR_MASK))) {
+			unlock_kernel();
 			return -EPERM;
+		}
 		port->flags = ((port->flags & ~ ASYNC_USR_MASK) |
 				(newinfo.flags & ASYNC_USR_MASK));
 	}
@@ -1282,6 +1286,7 @@ static int isicom_set_serial_info(struct isi_port *port,
 		isicom_config_port(port);
 		spin_unlock_irqrestore(&port->card->card_lock, flags);
 	}
+	unlock_kernel();
 	return 0;
 }
 
@@ -1290,6 +1295,7 @@ static int isicom_get_serial_info(struct isi_port *port,
 {
 	struct serial_struct out_info;
 
+	lock_kernel();
 	memset(&out_info, 0, sizeof(out_info));
 /*	out_info.type = ? */
 	out_info.line = port - isi_ports;
@@ -1299,6 +1305,7 @@ static int isicom_get_serial_info(struct isi_port *port,
 /*	out_info.baud_base = ? */
 	out_info.close_delay = port->close_delay;
 	out_info.closing_wait = port->closing_wait;
+	unlock_kernel();
 	if (copy_to_user(info, &out_info, sizeof(out_info)))
 		return -EFAULT;
 	return 0;
@@ -1331,19 +1338,6 @@ static int isicom_ioctl(struct tty_struct *tty, struct file *filp,
 		tty_wait_until_sent(tty, 0);
 		isicom_send_break(port, arg ? arg * (HZ/10) : HZ/4);
 		return 0;
-
-	case TIOCGSOFTCAR:
-		return put_user(C_CLOCAL(tty) ? 1 : 0,
-				(unsigned long __user *)argp);
-
-	case TIOCSSOFTCAR:
-		if (get_user(arg, (unsigned long __user *) argp))
-			return -EFAULT;
-		tty->termios->c_cflag =
-			((tty->termios->c_cflag & ~CLOCAL) |
-			(arg ? CLOCAL : 0));
-		return 0;
-
 	case TIOCGSERIAL:
 		return isicom_get_serial_info(port, argp);
 
