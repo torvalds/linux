@@ -2838,8 +2838,8 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	filp->private_data = tty;
 	file_move(filp, &tty->tty_files);
 
-	retval = -ENOMEM;
-	if (devpts_pty_new(tty->link))
+	retval = devpts_pty_new(tty->link);
+	if (retval)
 		goto out1;
 
 	check_tty_count(tty, "ptmx_open");
