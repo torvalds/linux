@@ -772,13 +772,6 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	 */
 	if (legacy_queue(pending, sig))
 		return 0;
-
-	/*
-	 * Deliver the signal to listening signalfds. This must be called
-	 * with the sighand lock held.
-	 */
-	signalfd_notify(t, sig);
-
 	/*
 	 * fast-pathed signals for kernel-internal things like SIGSTOP
 	 * or SIGKILL.
@@ -828,6 +821,7 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	}
 
 out_set:
+	signalfd_notify(t, sig);
 	sigaddset(&pending->signal, sig);
 	complete_signal(sig, t, group);
 	return 0;
