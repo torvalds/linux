@@ -1,5 +1,5 @@
 /*
- *  linux/include/linux/ext4_fs.h
+ *  ext4.h
  *
  * Copyright (C) 1992, 1993, 1994, 1995
  * Remy Card (card@masi.ibp.fr)
@@ -13,14 +13,13 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#ifndef _LINUX_EXT4_FS_H
-#define _LINUX_EXT4_FS_H
+#ifndef _EXT4_H
+#define _EXT4_H
 
 #include <linux/types.h>
 #include <linux/blkdev.h>
 #include <linux/magic.h>
-
-#include <linux/ext4_fs_i.h>
+#include "ext4_i.h"
 
 /*
  * The second extended filesystem constants/structures
@@ -176,8 +175,7 @@ struct ext4_group_desc
 #define EXT4_BG_INODE_ZEROED	0x0004 /* On-disk itable initialized to zero */
 
 #ifdef __KERNEL__
-#include <linux/ext4_fs_i.h>
-#include <linux/ext4_fs_sb.h>
+#include "ext4_sb.h"
 #endif
 /*
  * Macro-instructions used to manage group descriptors
@@ -231,6 +229,7 @@ struct ext4_group_desc
 #define EXT4_TOPDIR_FL			0x00020000 /* Top of directory hierarchies*/
 #define EXT4_HUGE_FILE_FL               0x00040000 /* Set to each huge file */
 #define EXT4_EXTENTS_FL			0x00080000 /* Inode uses extents */
+#define EXT4_EXT_MIGRATE		0x00100000 /* Inode is migrating */
 #define EXT4_RESERVED_FL		0x80000000 /* reserved for ext4 lib */
 
 #define EXT4_FL_USER_VISIBLE		0x000BDFFF /* User visible flags */
@@ -1049,8 +1048,7 @@ extern int ext4_block_truncate_page(handle_t *handle, struct page *page,
 		struct address_space *mapping, loff_t from);
 
 /* ioctl.c */
-extern int ext4_ioctl (struct inode *, struct file *, unsigned int,
-		       unsigned long);
+extern long ext4_ioctl(struct file *, unsigned int, unsigned long);
 extern long ext4_compat_ioctl (struct file *, unsigned int, unsigned long);
 
 /* migrate.c */
@@ -1204,4 +1202,4 @@ extern int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode,
 			int extend_disksize);
 #endif	/* __KERNEL__ */
 
-#endif	/* _LINUX_EXT4_FS_H */
+#endif	/* _EXT4_H */

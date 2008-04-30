@@ -13,8 +13,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/ext4_jbd2.h>
-#include <linux/ext4_fs_extents.h>
+#include "ext4_jbd2.h"
+#include "ext4_extents.h"
 
 /*
  * The contiguous blocks details which can be
@@ -327,7 +327,7 @@ static int free_ind_block(handle_t *handle, struct inode *inode, __le32 *i_data)
 }
 
 static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
-				struct inode *tmp_inode)
+						struct inode *tmp_inode)
 {
 	int retval;
 	__le32	i_data[3];
@@ -339,7 +339,7 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * i_data field of the original inode
 	 */
 	retval = ext4_journal_extend(handle, 1);
-	if (retval != 0) {
+	if (retval) {
 		retval = ext4_journal_restart(handle, 1);
 		if (retval)
 			goto err_out;
@@ -350,6 +350,18 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	i_data[2] = ei->i_data[EXT4_TIND_BLOCK];
 
 	down_write(&EXT4_I(inode)->i_data_sem);
+	/*
+	 * if EXT4_EXT_MIGRATE is cleared a block allocation
+	 * happened after we started the migrate. We need to
+	 * fail the migrate
+	 */
+	if (!(EXT4_I(inode)->i_flags & EXT4_EXT_MIGRATE)) {
+		retval = -EAGAIN;
+		up_write(&EXT4_I(inode)->i_data_sem);
+		goto err_out;
+	} else
+		EXT4_I(inode)->i_flags = EXT4_I(inode)->i_flags &
+							~EXT4_EXT_MIGRATE;
 	/*
 	 * We have the extent map build with the tmp inode.
 	 * Now copy the i_data across
@@ -508,6 +520,17 @@ int ext4_ext_migrate(struct inode *inode, struct file *filp,
 	 * switch the inode format to prevent read.
 	 */
 	mutex_lock(&(inode->i_mutex));
+	/*
+	 * Even though we take i_mutex we can still cause block allocation
+	 * via mmap write to holes. If we have allocated new blocks we fail
+	 * migrate.  New block allocation will clear EXT4_EXT_MIGRATE flag.
+	 * The flag is updated with i_data_sem held to prevent racing with
+	 * block allocation.
+	 */
+	down_read((&EXT4_I(inode)->i_data_sem));
+	EXT4_I(inode)->i_flags = EXT4_I(inode)->i_flags | EXT4_EXT_MIGRATE;
+	up_read((&EXT4_I(inode)->i_data_sem));
+
 	handle = ext4_journal_start(inode, 1);
 
 	ei = EXT4_I(inode);
@@ -559,9 +582,15 @@ err_out:
 		 * tmp_inode
 		 */
 		free_ext_block(handle, tmp_inode);
-	else
-		retval = ext4_ext_swap_inode_data(handle, inode,
-							tmp_inode);
+	else {
+		retval = ext4_ext_swap_inode_data(handle, inode, tmp_inode);
+		if (retval)
+			/*
+			 * if we fail to swap inode data free the extent
+			 * details of the tmp inode
+			 */
+			free_ext_block(handle, tmp_inode);
+	}
 
 	/* We mark the tmp_inode dirty via ext4_ext_tree_init. */
 	if (ext4_journal_extend(handle, 1) != 0)

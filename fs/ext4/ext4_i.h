@@ -1,5 +1,5 @@
 /*
- *  linux/include/linux/ext4_fs_i.h
+ *  ext4_i.h
  *
  * Copyright (C) 1992, 1993, 1994, 1995
  * Remy Card (card@masi.ibp.fr)
@@ -13,8 +13,8 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#ifndef _LINUX_EXT4_FS_I
-#define _LINUX_EXT4_FS_I
+#ifndef _EXT4_I
+#define _EXT4_I
 
 #include <linux/rwsem.h>
 #include <linux/rbtree.h>
@@ -164,4 +164,4 @@ struct ext4_inode_info {
 	spinlock_t i_prealloc_lock;
 };
 
-#endif	/* _LINUX_EXT4_FS_I */
+#endif	/* _EXT4_I */

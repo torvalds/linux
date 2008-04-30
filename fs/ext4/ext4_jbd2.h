@@ -1,5 +1,5 @@
 /*
- * linux/include/linux/ext4_jbd2.h
+ * ext4_jbd2.h
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1999
  *
@@ -12,12 +12,12 @@
  * Ext4-specific journaling extensions.
  */
 
-#ifndef _LINUX_EXT4_JBD2_H
-#define _LINUX_EXT4_JBD2_H
+#ifndef _EXT4_JBD2_H
+#define _EXT4_JBD2_H
 
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/ext4_fs.h>
+#include "ext4.h"
 
 #define EXT4_JOURNAL(inode)	(EXT4_SB((inode)->i_sb)->s_journal)
 
@@ -228,4 +228,4 @@ static inline int ext4_should_writeback_data(struct inode *inode)
 	return 0;
 }
 
-#endif	/* _LINUX_EXT4_JBD2_H */
+#endif	/* _EXT4_JBD2_H */

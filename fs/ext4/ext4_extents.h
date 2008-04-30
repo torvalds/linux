@@ -16,10 +16,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-
  */
 
-#ifndef _LINUX_EXT4_EXTENTS
-#define _LINUX_EXT4_EXTENTS
+#ifndef _EXT4_EXTENTS
+#define _EXT4_EXTENTS
 
-#include <linux/ext4_fs.h>
+#include "ext4.h"
 
 /*
  * With AGGRESSIVE_TEST defined, the capacity of index/leaf blocks
@@ -228,5 +228,5 @@ extern int ext4_ext_search_left(struct inode *, struct ext4_ext_path *,
 extern int ext4_ext_search_right(struct inode *, struct ext4_ext_path *,
 						ext4_lblk_t *, ext4_fsblk_t *);
 extern void ext4_ext_drop_refs(struct ext4_ext_path *);
-#endif /* _LINUX_EXT4_EXTENTS */
+#endif /* _EXT4_EXTENTS */
 

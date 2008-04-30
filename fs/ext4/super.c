@@ -21,8 +21,6 @@
 #include <linux/fs.h>
 #include <linux/time.h>
 #include <linux/jbd2.h>
-#include <linux/ext4_fs.h>
-#include <linux/ext4_jbd2.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
@@ -38,9 +36,10 @@
 #include <linux/seq_file.h>
 #include <linux/log2.h>
 #include <linux/crc16.h>
-
 #include <asm/uaccess.h>
 
+#include "ext4.h"
+#include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
 #include "namei.h"
@@ -135,7 +134,7 @@ handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 	 * take the FS itself readonly cleanly. */
 	journal = EXT4_SB(sb)->s_journal;
 	if (is_journal_aborted(journal)) {
-		ext4_abort(sb, __FUNCTION__,
+		ext4_abort(sb, __func__,
 			   "Detected aborted journal");
 		return ERR_PTR(-EROFS);
 	}
@@ -355,7 +354,7 @@ void ext4_update_dynamic_rev(struct super_block *sb)
 	if (le32_to_cpu(es->s_rev_level) > EXT4_GOOD_OLD_REV)
 		return;
 
-	ext4_warning(sb, __FUNCTION__,
+	ext4_warning(sb, __func__,
 		     "updating to rev %d because of new feature flag, "
 		     "running e2fsck is recommended",
 		     EXT4_DYNAMIC_REV);
@@ -945,8 +944,8 @@ static match_table_t tokens = {
 	{Opt_mballoc, "mballoc"},
 	{Opt_nomballoc, "nomballoc"},
 	{Opt_stripe, "stripe=%u"},
-	{Opt_err, NULL},
 	{Opt_resize, "resize"},
+	{Opt_err, NULL},
 };
 
 static ext4_fsblk_t get_sb_block(void **data)
@@ -1388,11 +1387,11 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 		 * a plain journaled filesystem we can keep it set as
 		 * valid forever! :)
 		 */
-	es->s_state = cpu_to_le16(le16_to_cpu(es->s_state) & ~EXT4_VALID_FS);
+	es->s_state &= cpu_to_le16(~EXT4_VALID_FS);
 #endif
 	if (!(__s16) le16_to_cpu(es->s_max_mnt_count))
 		es->s_max_mnt_count = cpu_to_le16(EXT4_DFL_MAX_MNT_COUNT);
-	es->s_mnt_count=cpu_to_le16(le16_to_cpu(es->s_mnt_count) + 1);
+	le16_add_cpu(&es->s_mnt_count, 1);
 	es->s_mtime = cpu_to_le32(get_seconds());
 	ext4_update_dynamic_rev(sb);
 	EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
@@ -1485,36 +1484,33 @@ static int ext4_check_descriptors(struct super_block *sb)
 		block_bitmap = ext4_block_bitmap(sb, gdp);
 		if (block_bitmap < first_block || block_bitmap > last_block)
 		{
-			ext4_error (sb, "ext4_check_descriptors",
-				    "Block bitmap for group %lu"
-				    " not in group (block %llu)!",
-				    i, block_bitmap);
+			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
+			       "Block bitmap for group %lu not in group "
+			       "(block %llu)!", i, block_bitmap);
 			return 0;
 		}
 		inode_bitmap = ext4_inode_bitmap(sb, gdp);
 		if (inode_bitmap < first_block || inode_bitmap > last_block)
 		{
-			ext4_error (sb, "ext4_check_descriptors",
-				    "Inode bitmap for group %lu"
-				    " not in group (block %llu)!",
-				    i, inode_bitmap);
+			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
+			       "Inode bitmap for group %lu not in group "
+			       "(block %llu)!", i, inode_bitmap);
 			return 0;
 		}
 		inode_table = ext4_inode_table(sb, gdp);
 		if (inode_table < first_block ||
 		    inode_table + sbi->s_itb_per_group - 1 > last_block)
 		{
-			ext4_error (sb, "ext4_check_descriptors",
-				    "Inode table for group %lu"
-				    " not in group (block %llu)!",
-				    i, inode_table);
+			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
+			       "Inode table for group %lu not in group "
+			       "(block %llu)!", i, inode_table);
 			return 0;
 		}
 		if (!ext4_group_desc_csum_verify(sbi, i, gdp)) {
-			ext4_error(sb, __FUNCTION__,
-				   "Checksum for group %lu failed (%u!=%u)\n",
-				    i, le16_to_cpu(ext4_group_desc_csum(sbi, i,
-				    gdp)), le16_to_cpu(gdp->bg_checksum));
+			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
+			       "Checksum for group %lu failed (%u!=%u)\n",
+			       i, le16_to_cpu(ext4_group_desc_csum(sbi, i,
+			       gdp)), le16_to_cpu(gdp->bg_checksum));
 			return 0;
 		}
 		if (!flexbg_flag)
@@ -1594,8 +1590,8 @@ static void ext4_orphan_cleanup (struct super_block * sb,
 	while (es->s_last_orphan) {
 		struct inode *inode;
 
-		if (!(inode =
-		      ext4_orphan_get(sb, le32_to_cpu(es->s_last_orphan)))) {
+		inode = ext4_orphan_get(sb, le32_to_cpu(es->s_last_orphan));
+		if (IS_ERR(inode)) {
 			es->s_last_orphan = 0;
 			break;
 		}
@@ -1605,7 +1601,7 @@ static void ext4_orphan_cleanup (struct super_block * sb,
 		if (inode->i_nlink) {
 			printk(KERN_DEBUG
 				"%s: truncating inode %lu to %Ld bytes\n",
-				__FUNCTION__, inode->i_ino, inode->i_size);
+				__func__, inode->i_ino, inode->i_size);
 			jbd_debug(2, "truncating inode %lu to %Ld bytes\n",
 				  inode->i_ino, inode->i_size);
 			ext4_truncate(inode);
@@ -1613,7 +1609,7 @@ static void ext4_orphan_cleanup (struct super_block * sb,
 		} else {
 			printk(KERN_DEBUG
 				"%s: deleting unreferenced inode %lu\n",
-				__FUNCTION__, inode->i_ino);
+				__func__, inode->i_ino);
 			jbd_debug(2, "deleting unreferenced inode %lu\n",
 				  inode->i_ino);
 			nr_orphans++;
@@ -2699,9 +2695,9 @@ static void ext4_clear_journal_err(struct super_block * sb,
 		char nbuf[16];
 
 		errstr = ext4_decode_error(sb, j_errno, nbuf);
-		ext4_warning(sb, __FUNCTION__, "Filesystem error recorded "
+		ext4_warning(sb, __func__, "Filesystem error recorded "
 			     "from previous mount: %s", errstr);
-		ext4_warning(sb, __FUNCTION__, "Marking fs in need of "
+		ext4_warning(sb, __func__, "Marking fs in need of "
 			     "filesystem check.");
 
 		EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
@@ -2828,7 +2824,7 @@ static int ext4_remount (struct super_block * sb, int * flags, char * data)
 	}
 
 	if (sbi->s_mount_opt & EXT4_MOUNT_ABORT)
-		ext4_abort(sb, __FUNCTION__, "Abort forced by user");
+		ext4_abort(sb, __func__, "Abort forced by user");
 
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
 		((sbi->s_mount_opt & EXT4_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
@@ -3040,8 +3036,14 @@ static int ext4_dquot_drop(struct inode *inode)
 
 	/* We may delete quota structure so we need to reserve enough blocks */
 	handle = ext4_journal_start(inode, 2*EXT4_QUOTA_DEL_BLOCKS(inode->i_sb));
-	if (IS_ERR(handle))
+	if (IS_ERR(handle)) {
+		/*
+		 * We call dquot_drop() anyway to at least release references
+		 * to quota structures so that umount does not hang.
+		 */
+		dquot_drop(inode);
 		return PTR_ERR(handle);
+	}
 	ret = dquot_drop(inode);
 	err = ext4_journal_stop(handle);
 	if (!ret)
