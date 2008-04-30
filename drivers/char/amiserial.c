@@ -1074,6 +1074,7 @@ static int get_serial_info(struct async_struct * info,
 	if (!retinfo)
 		return -EFAULT;
 	memset(&tmp, 0, sizeof(tmp));
+	lock_kernel();
 	tmp.type = state->type;
 	tmp.line = state->line;
 	tmp.port = state->port;
@@ -1084,6 +1085,7 @@ static int get_serial_info(struct async_struct * info,
 	tmp.close_delay = state->close_delay;
 	tmp.closing_wait = state->closing_wait;
 	tmp.custom_divisor = state->custom_divisor;
+	unlock_kernel();
 	if (copy_to_user(retinfo,&tmp,sizeof(*retinfo)))
 		return -EFAULT;
 	return 0;
@@ -1099,13 +1101,17 @@ static int set_serial_info(struct async_struct * info,
 
 	if (copy_from_user(&new_serial,new_info,sizeof(new_serial)))
 		return -EFAULT;
+
+	lock_kernel();
 	state = info->state;
 	old_state = *state;
   
 	change_irq = new_serial.irq != state->irq;
 	change_port = (new_serial.port != state->port);
-	if(change_irq || change_port || (new_serial.xmit_fifo_size != state->xmit_fifo_size))
+	if(change_irq || change_port || (new_serial.xmit_fifo_size != state->xmit_fifo_size)) {
+	  unlock_kernel();
 	  return -EINVAL;
+	}
   
 	if (!serial_isroot()) {
 		if ((new_serial.baud_base != state->baud_base) ||
@@ -1122,8 +1128,10 @@ static int set_serial_info(struct async_struct * info,
 		goto check_and_exit;
 	}
 
-	if (new_serial.baud_base < 9600)
+	if (new_serial.baud_base < 9600) {
+		unlock_kernel();
 		return -EINVAL;
+	}
 
 	/*
 	 * OK, past this point, all the error checking has been done.
@@ -1157,6 +1165,7 @@ check_and_exit:
 		}
 	} else
 		retval = startup(info);
+	unlock_kernel();
 	return retval;
 }
 
