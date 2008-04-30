@@ -756,6 +756,32 @@ static int send_prio_char(struct tty_struct *tty, char ch)
 }
 
 /**
+ *	tty_change_softcar	-	carrier change ioctl helper
+ *	@tty: tty to update
+ *	@arg: enable/disable CLOCAL
+ *
+ *	Perform a change to the CLOCAL state and call into the driver
+ *	layer to make it visible. All done with the termios mutex
+ */
+
+static int tty_change_softcar(struct tty_struct *tty, int arg)
+{
+	int ret = 0;
+	int bit = arg ? CLOCAL : 0;
+	struct ktermios old = *tty->termios;
+
+	mutex_lock(&tty->termios_mutex);
+	tty->termios->c_cflag &= ~CLOCAL;
+	tty->termios->c_cflag |= bit;
+	if (tty->driver->set_termios)
+		tty->driver->set_termios(tty, &old);
+	if ((tty->termios->c_cflag & CLOCAL) != bit)
+		ret = -EINVAL;
+	mutex_unlock(&tty->termios_mutex);
+	return ret;
+}
+
+/**
  *	tty_mode_ioctl		-	mode related ioctls
  *	@tty: tty for the ioctl
  *	@file: file pointer for the tty
@@ -865,12 +891,7 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 	case TIOCSSOFTCAR:
 		if (get_user(arg, (unsigned int __user *) arg))
 			return -EFAULT;
-		mutex_lock(&tty->termios_mutex);
-		tty->termios->c_cflag =
-			((tty->termios->c_cflag & ~CLOCAL) |
-			 (arg ? CLOCAL : 0));
-		mutex_unlock(&tty->termios_mutex);
-		return 0;
+		return tty_change_softcar(tty, arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
