@@ -16,6 +16,7 @@
 
 struct page;
 struct device;
+struct dentry;
 
 /*
  * Bits in backing_dev_info.state
@@ -55,6 +56,11 @@ struct backing_dev_info {
 	unsigned int max_ratio, max_prop_frac;
 
 	struct device *dev;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debug_dir;
+	struct dentry *debug_stats;
+#endif
 };
 
 int bdi_init(struct backing_dev_info *bdi);

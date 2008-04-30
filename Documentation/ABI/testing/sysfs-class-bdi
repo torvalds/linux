@@ -3,8 +3,8 @@ Date:		January 2008
 Contact:	Peter Zijlstra <a.p.zijlstra@chello.nl>
 Description:
 
-Provide a place in sysfs for the backing_dev_info object.
-This allows us to see and set the various BDI specific variables.
+Provide a place in sysfs for the backing_dev_info object.  This allows
+setting and retrieving various BDI specific variables.
 
 The <bdi> identifier can be either of the following:
 
@@ -26,34 +26,21 @@ read_ahead_kb (read-write)
 
 	Size of the read-ahead window in kilobytes
 
-reclaimable_kb (read-only)
-
-	Reclaimable (dirty or unstable) memory destined for writeback
-	to this device
-
-writeback_kb (read-only)
-
-	Memory currently under writeback to this device
-
-dirty_kb (read-only)
-
-	Global threshold for reclaimable + writeback memory
-
-bdi_dirty_kb (read-only)
-
-	Current threshold on this BDI for reclaimable + writeback
-	memory
-
 min_ratio (read-write)
 
-	Minimal percentage of global dirty threshold allocated to this
-	bdi.  If the value written to this file would make the the sum
-	of all min_ratio values exceed 100, then EINVAL is returned.
-	If min_ratio would become larger than the current max_ratio,
-	then also EINVAL is returned.  The default is zero
+	Under normal circumstances each device is given a part of the
+	total write-back cache that relates to its current average
+	writeout speed in relation to the other devices.
+
+	The 'min_ratio' parameter allows assigning a minimum
+	percentage of the write-back cache to a particular device.
+	For example, this is useful for providing a minimum QoS.
 
 max_ratio (read-write)
 
-	Maximal percentage of global dirty threshold allocated to this
-	bdi.  If max_ratio would become smaller than the current
-	min_ratio, then EINVAL is returned.  The default is 100
+	Allows limiting a particular device to use not more than the
+	given percentage of the write-back cache.  This is useful in
+	situations where we want to avoid one device taking all or
+	most of the write-back cache.  For example in case of an NFS
+	mount that is prone to get stuck, or a FUSE mount which cannot
+	be trusted to play fair.

@@ -10,6 +10,80 @@
 
 static struct class *bdi_class;
 
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+
+static struct dentry *bdi_debug_root;
+
+static void bdi_debug_init(void)
+{
+	bdi_debug_root = debugfs_create_dir("bdi", NULL);
+}
+
+static int bdi_debug_stats_show(struct seq_file *m, void *v)
+{
+	struct backing_dev_info *bdi = m->private;
+	long background_thresh;
+	long dirty_thresh;
+	long bdi_thresh;
+
+	get_dirty_limits(&background_thresh, &dirty_thresh, &bdi_thresh, bdi);
+
+#define K(x) ((x) << (PAGE_SHIFT - 10))
+	seq_printf(m,
+		   "BdiWriteback:     %8lu kB\n"
+		   "BdiReclaimable:   %8lu kB\n"
+		   "BdiDirtyThresh:   %8lu kB\n"
+		   "DirtyThresh:      %8lu kB\n"
+		   "BackgroundThresh: %8lu kB\n",
+		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
+		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
+		   K(bdi_thresh),
+		   K(dirty_thresh),
+		   K(background_thresh));
+#undef K
+
+	return 0;
+}
+
+static int bdi_debug_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, bdi_debug_stats_show, inode->i_private);
+}
+
+static const struct file_operations bdi_debug_stats_fops = {
+	.open		= bdi_debug_stats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void bdi_debug_register(struct backing_dev_info *bdi, const char *name)
+{
+	bdi->debug_dir = debugfs_create_dir(name, bdi_debug_root);
+	bdi->debug_stats = debugfs_create_file("stats", 0444, bdi->debug_dir,
+					       bdi, &bdi_debug_stats_fops);
+}
+
+static void bdi_debug_unregister(struct backing_dev_info *bdi)
+{
+	debugfs_remove(bdi->debug_stats);
+	debugfs_remove(bdi->debug_dir);
+}
+#else
+static inline void bdi_debug_init(void)
+{
+}
+static inline void bdi_debug_register(struct backing_dev_info *bdi,
+				      const char *name)
+{
+}
+static inline void bdi_debug_unregister(struct backing_dev_info *bdi)
+{
+}
+#endif
+
 static ssize_t read_ahead_kb_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
@@ -39,21 +113,6 @@ static ssize_t name##_show(struct device *dev,				\
 }
 
 BDI_SHOW(read_ahead_kb, K(bdi->ra_pages))
-
-BDI_SHOW(reclaimable_kb, K(bdi_stat(bdi, BDI_RECLAIMABLE)))
-BDI_SHOW(writeback_kb, K(bdi_stat(bdi, BDI_WRITEBACK)))
-
-static inline unsigned long get_dirty(struct backing_dev_info *bdi, int i)
-{
-	unsigned long thresh[3];
-
-	get_dirty_limits(&thresh[0], &thresh[1], &thresh[2], bdi);
-
-	return thresh[i];
-}
-
-BDI_SHOW(dirty_kb, K(get_dirty(bdi, 1)))
-BDI_SHOW(bdi_dirty_kb, K(get_dirty(bdi, 2)))
 
 static ssize_t min_ratio_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -95,10 +154,6 @@ BDI_SHOW(max_ratio, bdi->max_ratio)
 
 static struct device_attribute bdi_dev_attrs[] = {
 	__ATTR_RW(read_ahead_kb),
-	__ATTR_RO(reclaimable_kb),
-	__ATTR_RO(writeback_kb),
-	__ATTR_RO(dirty_kb),
-	__ATTR_RO(bdi_dirty_kb),
 	__ATTR_RW(min_ratio),
 	__ATTR_RW(max_ratio),
 	__ATTR_NULL,
@@ -108,10 +163,11 @@ static __init int bdi_class_init(void)
 {
 	bdi_class = class_create(THIS_MODULE, "bdi");
 	bdi_class->dev_attrs = bdi_dev_attrs;
+	bdi_debug_init();
 	return 0;
 }
 
-core_initcall(bdi_class_init);
+postcore_initcall(bdi_class_init);
 
 int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, ...)
@@ -136,6 +192,7 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 
 	bdi->dev = dev;
 	dev_set_drvdata(bdi->dev, bdi);
+	bdi_debug_register(bdi, name);
 
 exit:
 	kfree(name);
@@ -152,6 +209,7 @@ EXPORT_SYMBOL(bdi_register_dev);
 void bdi_unregister(struct backing_dev_info *bdi)
 {
 	if (bdi->dev) {
+		bdi_debug_unregister(bdi);
 		device_unregister(bdi->dev);
 		bdi->dev = NULL;
 	}
