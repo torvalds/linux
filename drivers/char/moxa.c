@@ -846,7 +846,10 @@ static int moxa_init_board(struct moxa_board_conf *brd, struct device *dev)
 
 	ret = request_firmware(&fw, file, dev);
 	if (ret) {
-		printk(KERN_ERR "request_firmware failed\n");
+		printk(KERN_ERR "MOXA: request_firmware failed. Make sure "
+				"you've placed '%s' file into your firmware "
+				"loader directory (e.g. /lib/firmware)\n",
+				file);
 		goto err_free;
 	}
 
