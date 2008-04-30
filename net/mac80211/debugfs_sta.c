@@ -123,36 +123,6 @@ static ssize_t sta_last_seq_ctrl_read(struct file *file, char __user *userbuf,
 }
 STA_OPS(last_seq_ctrl);
 
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-static ssize_t sta_wme_rx_queue_read(struct file *file, char __user *userbuf,
-				     size_t count, loff_t *ppos)
-{
-	char buf[15*NUM_RX_DATA_QUEUES], *p = buf;
-	int i;
-	struct sta_info *sta = file->private_data;
-	for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
-		p += scnprintf(p, sizeof(buf)+buf-p, "%u ",
-			       sta->wme_rx_queue[i]);
-	p += scnprintf(p, sizeof(buf)+buf-p, "\n");
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
-}
-STA_OPS(wme_rx_queue);
-
-static ssize_t sta_wme_tx_queue_read(struct file *file, char __user *userbuf,
-				     size_t count, loff_t *ppos)
-{
-	char buf[15*NUM_TX_DATA_QUEUES], *p = buf;
-	int i;
-	struct sta_info *sta = file->private_data;
-	for (i = 0; i < NUM_TX_DATA_QUEUES; i++)
-		p += scnprintf(p, sizeof(buf)+buf-p, "%u ",
-			       sta->wme_tx_queue[i]);
-	p += scnprintf(p, sizeof(buf)+buf-p, "\n");
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
-}
-STA_OPS(wme_tx_queue);
-#endif
-
 static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
 {
@@ -293,10 +263,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(num_ps_buf_frames);
 	DEBUGFS_ADD(inactive_ms);
 	DEBUGFS_ADD(last_seq_ctrl);
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	DEBUGFS_ADD(wme_rx_queue);
-	DEBUGFS_ADD(wme_tx_queue);
-#endif
 	DEBUGFS_ADD(agg_status);
 }
 
@@ -306,10 +272,6 @@ void ieee80211_sta_debugfs_remove(struct sta_info *sta)
 	DEBUGFS_DEL(num_ps_buf_frames);
 	DEBUGFS_DEL(inactive_ms);
 	DEBUGFS_DEL(last_seq_ctrl);
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	DEBUGFS_DEL(wme_rx_queue);
-	DEBUGFS_DEL(wme_tx_queue);
-#endif
 	DEBUGFS_DEL(agg_status);
 
 	debugfs_remove(sta->debugfs.dir);

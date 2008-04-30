@@ -935,7 +935,7 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 	}
 }
 
-static int p54_conf_tx(struct ieee80211_hw *dev, int queue,
+static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
 		       const struct ieee80211_tx_queue_params *params)
 {
 	struct p54_common *priv = dev->priv;

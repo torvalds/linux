@@ -197,45 +197,6 @@ DEBUGFS_STATS_FILE(rx_handlers_fragments, 20, "%u",
 DEBUGFS_STATS_FILE(tx_status_drop, 20, "%u",
 		   local->tx_status_drop);
 
-static ssize_t stats_wme_rx_queue_read(struct file *file,
-				       char __user *userbuf,
-				       size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	char buf[NUM_RX_DATA_QUEUES*15], *p = buf;
-	int i;
-
-	for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
-		p += scnprintf(p, sizeof(buf)+buf-p,
-			       "%u\n", local->wme_rx_queue[i]);
-
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p-buf);
-}
-
-static const struct file_operations stats_wme_rx_queue_ops = {
-	.read = stats_wme_rx_queue_read,
-	.open = mac80211_open_file_generic,
-};
-
-static ssize_t stats_wme_tx_queue_read(struct file *file,
-				       char __user *userbuf,
-				       size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	char buf[NUM_TX_DATA_QUEUES*15], *p = buf;
-	int i;
-
-	for (i = 0; i < NUM_TX_DATA_QUEUES; i++)
-		p += scnprintf(p, sizeof(buf)+buf-p,
-			       "%u\n", local->wme_tx_queue[i]);
-
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p-buf);
-}
-
-static const struct file_operations stats_wme_tx_queue_ops = {
-	.read = stats_wme_tx_queue_read,
-	.open = mac80211_open_file_generic,
-};
 #endif
 
 DEBUGFS_DEVSTATS_FILE(dot11ACKFailureCount);
@@ -303,8 +264,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_STATS_ADD(rx_expand_skb_head2);
 	DEBUGFS_STATS_ADD(rx_handlers_fragments);
 	DEBUGFS_STATS_ADD(tx_status_drop);
-	DEBUGFS_STATS_ADD(wme_tx_queue);
-	DEBUGFS_STATS_ADD(wme_rx_queue);
 #endif
 	DEBUGFS_STATS_ADD(dot11ACKFailureCount);
 	DEBUGFS_STATS_ADD(dot11RTSFailureCount);
@@ -356,8 +315,6 @@ void debugfs_hw_del(struct ieee80211_local *local)
 	DEBUGFS_STATS_DEL(rx_expand_skb_head2);
 	DEBUGFS_STATS_DEL(rx_handlers_fragments);
 	DEBUGFS_STATS_DEL(tx_status_drop);
-	DEBUGFS_STATS_DEL(wme_tx_queue);
-	DEBUGFS_STATS_DEL(wme_rx_queue);
 #endif
 	DEBUGFS_STATS_DEL(dot11ACKFailureCount);
 	DEBUGFS_STATS_DEL(dot11RTSFailureCount);

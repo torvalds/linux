@@ -2996,8 +2996,7 @@ static void b43_qos_update_work(struct work_struct *work)
 	mutex_unlock(&wl->mutex);
 }
 
-static int b43_op_conf_tx(struct ieee80211_hw *hw,
-			  int _queue,
+static int b43_op_conf_tx(struct ieee80211_hw *hw, u16 _queue,
 			  const struct ieee80211_tx_queue_params *params)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);

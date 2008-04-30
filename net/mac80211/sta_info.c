@@ -257,7 +257,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		 * sta_rx_agg_session_timer_expired for useage */
 		sta->timer_to_tid[i] = i;
 		/* tid to tx queue: initialize according to HW (0 is valid) */
-		sta->tid_to_tx_q[i] = local->hw.queues;
+		sta->tid_to_tx_q[i] = local->hw.queues + local->hw.ampdu_queues;
 		/* rx */
 		sta->ampdu_mlme.tid_state_rx[i] = HT_AGG_STATE_IDLE;
 		sta->ampdu_mlme.tid_rx[i] = NULL;

@@ -257,19 +257,8 @@ static void ieee80211_sta_def_wmm_params(struct net_device *dev,
 		qparam.cw_max = 1023;
 		qparam.txop = 0;
 
-		for (i = IEEE80211_TX_QUEUE_DATA0; i < NUM_TX_DATA_QUEUES; i++)
-			local->ops->conf_tx(local_to_hw(local),
-					   i + IEEE80211_TX_QUEUE_DATA0,
-					   &qparam);
-
-		if (ibss) {
-			/* IBSS uses different parameters for Beacon sending */
-			qparam.cw_min++;
-			qparam.cw_min *= 2;
-			qparam.cw_min--;
-			local->ops->conf_tx(local_to_hw(local),
-					   IEEE80211_TX_QUEUE_BEACON, &qparam);
-		}
+		for (i = 0; i < local_to_hw(local)->queues; i++)
+			local->ops->conf_tx(local_to_hw(local), i, &qparam);
 	}
 }
 
@@ -306,23 +295,23 @@ static void ieee80211_sta_wmm_params(struct net_device *dev,
 
 		switch (aci) {
 		case 1:
-			queue = IEEE80211_TX_QUEUE_DATA3;
+			queue = 3;
 			if (acm)
 				local->wmm_acm |= BIT(0) | BIT(3);
 			break;
 		case 2:
-			queue = IEEE80211_TX_QUEUE_DATA1;
+			queue = 1;
 			if (acm)
 				local->wmm_acm |= BIT(4) | BIT(5);
 			break;
 		case 3:
-			queue = IEEE80211_TX_QUEUE_DATA0;
+			queue = 0;
 			if (acm)
 				local->wmm_acm |= BIT(6) | BIT(7);
 			break;
 		case 0:
 		default:
-			queue = IEEE80211_TX_QUEUE_DATA2;
+			queue = 2;
 			if (acm)
 				local->wmm_acm |= BIT(1) | BIT(2);
 			break;

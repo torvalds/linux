@@ -568,7 +568,7 @@ static void iwlcore_init_hw(struct iwl_priv *priv)
 	hw->queues = 4;
 #ifdef CONFIG_IWL4965_HT
 	/* Enhanced value; more queues, to support 11n aggregation */
-	hw->queues = 16;
+	hw->ampdu_queues = 12;
 #endif /* CONFIG_IWL4965_HT */
 }
 

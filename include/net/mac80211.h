@@ -98,6 +98,18 @@ struct ieee80211_ht_bss_info {
 };
 
 /**
+ * enum ieee80211_max_queues - maximum number of queues
+ *
+ * @IEEE80211_MAX_QUEUES: Maximum number of regular device queues.
+ * @IEEE80211_MAX_AMPDU_QUEUES: Maximum number of queues usable
+ *	for A-MPDU operation.
+ */
+enum ieee80211_max_queues {
+	IEEE80211_MAX_QUEUES =		16,
+	IEEE80211_MAX_AMPDU_QUEUES =	16,
+};
+
+/**
  * struct ieee80211_tx_queue_params - transmit queue configuration
  *
  * The information provided in this structure is required for QoS
@@ -127,42 +139,6 @@ struct ieee80211_tx_queue_stats {
 	unsigned int len;
 	unsigned int limit;
 	unsigned int count;
-};
-
-/**
- * enum ieee80211_tx_queue - transmit queue number
- *
- * These constants are used with some callbacks that take a
- * queue number to set parameters for a queue.
- *
- * @IEEE80211_TX_QUEUE_DATA0: data queue 0
- * @IEEE80211_TX_QUEUE_DATA1: data queue 1
- * @IEEE80211_TX_QUEUE_DATA2: data queue 2
- * @IEEE80211_TX_QUEUE_DATA3: data queue 3
- * @IEEE80211_TX_QUEUE_DATA4: data queue 4
- * @IEEE80211_TX_QUEUE_SVP: ??
- * @NUM_TX_DATA_QUEUES: number of data queues
- * @IEEE80211_TX_QUEUE_AFTER_BEACON: transmit queue for frames to be
- *	sent after a beacon
- * @IEEE80211_TX_QUEUE_BEACON: transmit queue for beacon frames
- * @NUM_TX_DATA_QUEUES_AMPDU: adding more queues for A-MPDU
- */
-enum ieee80211_tx_queue {
-	IEEE80211_TX_QUEUE_DATA0,
-	IEEE80211_TX_QUEUE_DATA1,
-	IEEE80211_TX_QUEUE_DATA2,
-	IEEE80211_TX_QUEUE_DATA3,
-	IEEE80211_TX_QUEUE_DATA4,
-	IEEE80211_TX_QUEUE_SVP,
-
-	NUM_TX_DATA_QUEUES,
-
-/* due to stupidity in the sub-ioctl userspace interface, the items in
- * this struct need to have fixed values. As soon as it is removed, we can
- * fix these entries. */
-	IEEE80211_TX_QUEUE_AFTER_BEACON = 6,
-	IEEE80211_TX_QUEUE_BEACON = 7,
-	NUM_TX_DATA_QUEUES_AMPDU = 16
 };
 
 struct ieee80211_low_level_stats {
@@ -315,7 +291,7 @@ struct ieee80211_tx_control {
 				 * position represents antenna number used */
 	u8 icv_len;		/* length of the ICV/MIC field in octets */
 	u8 iv_len;		/* length of the IV field in octets */
-	u8 queue;		/* hardware queue to use for this frame;
+	u16 queue;		/* hardware queue to use for this frame;
 				 * 0 = highest, hw->queues-1 = lowest */
 	u16 aid;		/* Station AID */
 	int type;	/* internal */
@@ -772,7 +748,14 @@ enum ieee80211_hw_flags {
  * @max_noise: like @max_rssi, but for the noise value.
  *
  * @queues: number of available hardware transmit queues for
- *	data packets. WMM/QoS requires at least four.
+ *	data packets. WMM/QoS requires at least four, these
+ *	queues need to have configurable access parameters.
+ *
+ * @ampdu_queues: number of available hardware transmit queues
+ *	for A-MPDU packets, these have no access parameters
+ *	because they're used only for A-MPDU frames. Note that
+ *	mac80211 will not currently use any of the regular queues
+ *	for aggregation.
  *
  * @rate_control_algorithm: rate control algorithm for this hardware.
  *	If unset (NULL), the default algorithm will be used. Must be
@@ -791,7 +774,7 @@ struct ieee80211_hw {
 	unsigned int extra_tx_headroom;
 	int channel_change_time;
 	int vif_data_size;
-	u8 queues;
+	u16 queues, ampdu_queues;
 	s8 max_rssi;
 	s8 max_signal;
 	s8 max_noise;
@@ -1069,8 +1052,7 @@ enum ieee80211_ampdu_mlme_action {
  *	of assocaited station or AP.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
- *	bursting) for a hardware TX queue. The @queue parameter uses the
- *	%IEEE80211_TX_QUEUE_* constants. Must be atomic.
+ *	bursting) for a hardware TX queue. Must be atomic.
  *
  * @get_tx_stats: Get statistics of the current TX queue status. This is used
  *	to get number of currently queued packets (queue length), maximum queue
@@ -1150,7 +1132,7 @@ struct ieee80211_ops {
 			       u32 short_retry, u32 long_retr);
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, const u8 *addr);
-	int (*conf_tx)(struct ieee80211_hw *hw, int queue,
+	int (*conf_tx)(struct ieee80211_hw *hw, u16 queue,
 		       const struct ieee80211_tx_queue_params *params);
 	int (*get_tx_stats)(struct ieee80211_hw *hw,
 			    struct ieee80211_tx_queue_stats *stats);

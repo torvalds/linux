@@ -1442,8 +1442,7 @@ static int rt2400pci_set_retry_limit(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int rt2400pci_conf_tx(struct ieee80211_hw *hw,
-			     int queue,
+static int rt2400pci_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			     const struct ieee80211_tx_queue_params *params)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
@@ -1453,7 +1452,7 @@ static int rt2400pci_conf_tx(struct ieee80211_hw *hw,
 	 * per queue. So by default we only configure the TX queue,
 	 * and ignore all other configurations.
 	 */
-	if (queue != IEEE80211_TX_QUEUE_DATA0)
+	if (queue != 0)
 		return -EINVAL;
 
 	if (rt2x00mac_conf_tx(hw, queue, params))

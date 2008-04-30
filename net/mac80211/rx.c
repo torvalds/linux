@@ -275,11 +275,6 @@ static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
 		}
 	}
 
-	I802_DEBUG_INC(rx->local->wme_rx_queue[tid]);
-	/* only a debug counter, sta might not be assigned properly yet */
-	if (rx->sta)
-		I802_DEBUG_INC(rx->sta->wme_rx_queue[tid]);
-
 	rx->queue = tid;
 	/* Set skb->priority to 1d tag if highest order bit of TID is not set.
 	 * For now, set skb->priority to 0 for other cases. */
