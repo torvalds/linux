@@ -1922,29 +1922,13 @@ static inline int sx_set_serial_info(struct specialix_port * port,
 	int change_speed;
 
 	func_enter();
-	/*
-	if (!access_ok(VERIFY_READ, (void *) newinfo, sizeof(tmp))) {
-		func_exit();
-		return -EFAULT;
-	}
-	*/
+
 	if (copy_from_user(&tmp, newinfo, sizeof(tmp))) {
 		func_enter();
 		return -EFAULT;
 	}
 
-#if 0
-	if ((tmp.irq != bp->irq) ||
-	    (tmp.port != bp->base) ||
-	    (tmp.type != PORT_CIRRUS) ||
-	    (tmp.baud_base != (SX_OSCFREQ + CD186x_TPC/2) / CD186x_TPC) ||
-	    (tmp.custom_divisor != 0) ||
-	    (tmp.xmit_fifo_size != CD186x_NFIFO) ||
-	    (tmp.flags & ~SPECIALIX_LEGAL_FLAGS)) {
-		func_exit();
-		return -EINVAL;
-	}
-#endif
+	lock_kernel();
 
 	change_speed = ((port->flags & ASYNC_SPD_MASK) !=
 			(tmp.flags & ASYNC_SPD_MASK));
@@ -1956,6 +1940,7 @@ static inline int sx_set_serial_info(struct specialix_port * port,
 		    ((tmp.flags & ~ASYNC_USR_MASK) !=
 		     (port->flags & ~ASYNC_USR_MASK))) {
 			func_exit();
+			unlock_kernel();
 			return -EPERM;
 		}
 		port->flags = ((port->flags & ~ASYNC_USR_MASK) |
@@ -1972,6 +1957,7 @@ static inline int sx_set_serial_info(struct specialix_port * port,
 		sx_change_speed(bp, port);
 	}
 	func_exit();
+	unlock_kernel();
 	return 0;
 }
 
@@ -1984,12 +1970,8 @@ static inline int sx_get_serial_info(struct specialix_port * port,
 
 	func_enter();
 
-	/*
-	if (!access_ok(VERIFY_WRITE, (void *) retinfo, sizeof(tmp)))
-		return -EFAULT;
-	*/
-
 	memset(&tmp, 0, sizeof(tmp));
+	lock_kernel();
 	tmp.type = PORT_CIRRUS;
 	tmp.line = port - sx_port;
 	tmp.port = bp->base;
@@ -2000,6 +1982,7 @@ static inline int sx_get_serial_info(struct specialix_port * port,
 	tmp.closing_wait = port->closing_wait * HZ/100;
 	tmp.custom_divisor =  port->custom_divisor;
 	tmp.xmit_fifo_size = CD186x_NFIFO;
+	unlock_kernel();
 	if (copy_to_user(retinfo, &tmp, sizeof(tmp))) {
 		func_exit();
 		return -EFAULT;
@@ -2043,23 +2026,6 @@ static int sx_ioctl(struct tty_struct * tty, struct file * filp,
 		}
 		tty_wait_until_sent(tty, 0);
 		sx_send_break(port, arg ? arg*(HZ/10) : HZ/4);
-		func_exit();
-		return 0;
-	 case TIOCGSOFTCAR:
-		 if (put_user(C_CLOCAL(tty)?1:0, (unsigned long __user *)argp)) {
-			 func_exit();
-			 return -EFAULT;
-		 }
-		 func_exit();
-		return 0;
-	 case TIOCSSOFTCAR:
-		 if (get_user(arg, (unsigned long __user *) argp)) {
-			 func_exit();
-			 return -EFAULT;
-		 }
-		tty->termios->c_cflag =
-			((tty->termios->c_cflag & ~CLOCAL) |
-			(arg ? CLOCAL : 0));
 		func_exit();
 		return 0;
 	 case TIOCGSERIAL:
