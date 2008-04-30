@@ -661,7 +661,6 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 			struct sigpending *signals)
 {
 	struct sigqueue * q = NULL;
-	int ret = 0;
 
 	/*
 	 * Deliver the signal to listening signalfds. This must be called
@@ -719,7 +718,7 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 
 out_set:
 	sigaddset(&signals->signal, sig);
-	return ret;
+	return 0;
 }
 
 #define LEGACY_QUEUE(sigptr, sig) \
