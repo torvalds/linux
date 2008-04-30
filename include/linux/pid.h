@@ -89,9 +89,11 @@ extern struct pid *get_task_pid(struct task_struct *task, enum pid_type type);
  * attach_pid() and detach_pid() must be called with the tasklist_lock
  * write-held.
  */
-extern int attach_pid(struct task_struct *task, enum pid_type type,
-		      struct pid *pid);
+extern void attach_pid(struct task_struct *task, enum pid_type type,
+			struct pid *pid);
 extern void detach_pid(struct task_struct *task, enum pid_type);
+extern void change_pid(struct task_struct *task, enum pid_type,
+			struct pid *pid);
 extern void transfer_pid(struct task_struct *old, struct task_struct *new,
 			 enum pid_type);
 

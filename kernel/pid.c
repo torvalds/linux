@@ -317,7 +317,7 @@ EXPORT_SYMBOL_GPL(find_pid);
 /*
  * attach_pid() must be called with the tasklist_lock write-held.
  */
-int attach_pid(struct task_struct *task, enum pid_type type,
+void attach_pid(struct task_struct *task, enum pid_type type,
 		struct pid *pid)
 {
 	struct pid_link *link;
@@ -325,11 +325,10 @@ int attach_pid(struct task_struct *task, enum pid_type type,
 	link = &task->pids[type];
 	link->pid = pid;
 	hlist_add_head_rcu(&link->node, &pid->tasks[type]);
-
-	return 0;
 }
 
-void detach_pid(struct task_struct *task, enum pid_type type)
+static void __change_pid(struct task_struct *task, enum pid_type type,
+			struct pid *new)
 {
 	struct pid_link *link;
 	struct pid *pid;
@@ -339,13 +338,25 @@ void detach_pid(struct task_struct *task, enum pid_type type)
 	pid = link->pid;
 
 	hlist_del_rcu(&link->node);
-	link->pid = NULL;
+	link->pid = new;
 
 	for (tmp = PIDTYPE_MAX; --tmp >= 0; )
 		if (!hlist_empty(&pid->tasks[tmp]))
 			return;
 
 	free_pid(pid);
+}
+
+void detach_pid(struct task_struct *task, enum pid_type type)
+{
+	__change_pid(task, type, NULL);
+}
+
+void change_pid(struct task_struct *task, enum pid_type type,
+		struct pid *pid)
+{
+	__change_pid(task, type, pid);
+	attach_pid(task, type, pid);
 }
 
 /* transfer_pid is an optimization of attach_pid(new), detach_pid(old) */
