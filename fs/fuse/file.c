@@ -363,7 +363,7 @@ static int fuse_fsync(struct file *file, struct dentry *de, int datasync)
 void fuse_read_fill(struct fuse_req *req, struct file *file,
 		    struct inode *inode, loff_t pos, size_t count, int opcode)
 {
-	struct fuse_read_in *inarg = &req->misc.read_in;
+	struct fuse_read_in *inarg = &req->misc.read.in;
 	struct fuse_file *ff = file->private_data;
 
 	inarg->fh = ff->fh;
@@ -389,7 +389,7 @@ static size_t fuse_send_read(struct fuse_req *req, struct file *file,
 
 	fuse_read_fill(req, file, inode, pos, count, FUSE_READ);
 	if (owner != NULL) {
-		struct fuse_read_in *inarg = &req->misc.read_in;
+		struct fuse_read_in *inarg = &req->misc.read.in;
 
 		inarg->read_flags |= FUSE_READ_LOCKOWNER;
 		inarg->lock_owner = fuse_lock_owner_id(fc, owner);
@@ -398,11 +398,29 @@ static size_t fuse_send_read(struct fuse_req *req, struct file *file,
 	return req->out.args[0].size;
 }
 
+static void fuse_read_update_size(struct inode *inode, loff_t size,
+				  u64 attr_ver)
+{
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
+	spin_lock(&fc->lock);
+	if (attr_ver == fi->attr_version && size < inode->i_size) {
+		fi->attr_version = ++fc->attr_version;
+		i_size_write(inode, size);
+	}
+	spin_unlock(&fc->lock);
+}
+
 static int fuse_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_req *req;
+	size_t num_read;
+	loff_t pos = page_offset(page);
+	size_t count = PAGE_CACHE_SIZE;
+	u64 attr_ver;
 	int err;
 
 	err = -EIO;
@@ -421,15 +439,25 @@ static int fuse_readpage(struct file *file, struct page *page)
 	if (IS_ERR(req))
 		goto out;
 
+	attr_ver = fuse_get_attr_version(fc);
+
 	req->out.page_zeroing = 1;
 	req->num_pages = 1;
 	req->pages[0] = page;
-	fuse_send_read(req, file, inode, page_offset(page), PAGE_CACHE_SIZE,
-		       NULL);
+	num_read = fuse_send_read(req, file, inode, pos, count, NULL);
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
-	if (!err)
+
+	if (!err) {
+		/*
+		 * Short read means EOF.  If file size is larger, truncate it
+		 */
+		if (num_read < count)
+			fuse_read_update_size(inode, pos + num_read, attr_ver);
+
 		SetPageUptodate(page);
+	}
+
 	fuse_invalidate_attr(inode); /* atime changed */
  out:
 	unlock_page(page);
@@ -439,8 +467,19 @@ static int fuse_readpage(struct file *file, struct page *page)
 static void fuse_readpages_end(struct fuse_conn *fc, struct fuse_req *req)
 {
 	int i;
+	size_t count = req->misc.read.in.size;
+	size_t num_read = req->out.args[0].size;
+	struct inode *inode = req->pages[0]->mapping->host;
 
-	fuse_invalidate_attr(req->pages[0]->mapping->host); /* atime changed */
+	/*
+	 * Short read means EOF.  If file size is larger, truncate it
+	 */
+	if (!req->out.h.error && num_read < count) {
+		loff_t pos = page_offset(req->pages[0]) + num_read;
+		fuse_read_update_size(inode, pos, req->misc.read.attr_ver);
+	}
+
+	fuse_invalidate_attr(inode); /* atime changed */
 
 	for (i = 0; i < req->num_pages; i++) {
 		struct page *page = req->pages[i];
@@ -463,6 +502,7 @@ static void fuse_send_readpages(struct fuse_req *req, struct file *file,
 	size_t count = req->num_pages << PAGE_CACHE_SHIFT;
 	req->out.page_zeroing = 1;
 	fuse_read_fill(req, file, inode, pos, count, FUSE_READ);
+	req->misc.read.attr_ver = fuse_get_attr_version(fc);
 	if (fc->async_read) {
 		struct fuse_file *ff = file->private_data;
 		req->ff = fuse_file_get(ff);

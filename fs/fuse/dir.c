@@ -132,7 +132,7 @@ static void fuse_lookup_init(struct fuse_req *req, struct inode *dir,
 	req->out.args[0].value = outarg;
 }
 
-static u64 fuse_get_attr_version(struct fuse_conn *fc)
+u64 fuse_get_attr_version(struct fuse_conn *fc)
 {
 	u64 curr_version;
 

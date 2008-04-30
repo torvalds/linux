@@ -239,7 +239,10 @@ struct fuse_req {
 		} release;
 		struct fuse_init_in init_in;
 		struct fuse_init_out init_out;
-		struct fuse_read_in read_in;
+		struct {
+			struct fuse_read_in in;
+			u64 attr_ver;
+		} read;
 		struct {
 			struct fuse_write_in in;
 			struct fuse_write_out out;
@@ -637,3 +640,5 @@ void fuse_flush_writepages(struct inode *inode);
 
 void fuse_set_nowrite(struct inode *inode);
 void fuse_release_nowrite(struct inode *inode);
+
+u64 fuse_get_attr_version(struct fuse_conn *fc);
