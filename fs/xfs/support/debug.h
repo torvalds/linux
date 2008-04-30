@@ -49,8 +49,6 @@ extern void assfail(char *expr, char *f, int l);
 
 #else /* DEBUG */
 
-#include <linux/random.h>
-
 #define ASSERT(expr)	\
 	(unlikely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 
