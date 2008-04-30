@@ -129,7 +129,7 @@ startup_continue:
 					# virtual and never return ...
 	.align	16
 .Lentry:.quad	0x0000000180000000,_stext
-.Lctl:	.quad	0x04b50002		# cr0: various things
+.Lctl:	.quad	0x04350002		# cr0: various things
 	.quad	0			# cr1: primary space segment table
 	.quad	.Lduct			# cr2: dispatchable unit control table
 	.quad	0			# cr3: instruction authorization

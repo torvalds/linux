@@ -749,6 +749,9 @@ static void __init setup_hwcaps(void)
 			elf_hwcap |= 1UL << 6;
 	}
 
+	if (MACHINE_HAS_HPAGE)
+		elf_hwcap |= 1UL << 7;
+
 	switch (cpuinfo->cpu_id.machine) {
 	case 0x9672:
 #if !defined(CONFIG_64BIT)
@@ -872,8 +875,9 @@ void __cpuinit print_cpu_info(struct cpuinfo_S390 *cpuinfo)
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	static const char *hwcap_str[7] = {
-		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp"
+	static const char *hwcap_str[8] = {
+		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
+		"edat"
 	};
         struct cpuinfo_S390 *cpuinfo;
 	unsigned long n = (unsigned long) v - 1;
@@ -888,7 +892,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			       num_online_cpus(), loops_per_jiffy/(500000/HZ),
 			       (loops_per_jiffy/(5000/HZ))%100);
 		seq_puts(m, "features\t: ");
-		for (i = 0; i < 7; i++)
+		for (i = 0; i < 8; i++)
 			if (hwcap_str[i] && (elf_hwcap & (1UL << i)))
 				seq_printf(m, "%s ", hwcap_str[i]);
 		seq_puts(m, "\n");

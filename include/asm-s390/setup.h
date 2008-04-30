@@ -69,6 +69,8 @@ extern unsigned long machine_flags;
 #define MACHINE_FLAG_DIAG9C	(1UL << 7)
 #define MACHINE_FLAG_MVCOS	(1UL << 8)
 #define MACHINE_FLAG_KVM	(1UL << 9)
+#define MACHINE_FLAG_HPAGE	(1UL << 10)
+#define MACHINE_FLAG_PFMF	(1UL << 11)
 
 #define MACHINE_IS_VM		(machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(machine_flags & MACHINE_FLAG_KVM)
@@ -82,6 +84,8 @@ extern unsigned long machine_flags;
 #define MACHINE_HAS_DIAG44	(1)
 #define MACHINE_HAS_MVPG	(machine_flags & MACHINE_FLAG_MVPG)
 #define MACHINE_HAS_MVCOS	(0)
+#define MACHINE_HAS_HPAGE	(0)
+#define MACHINE_HAS_PFMF	(0)
 #else /* __s390x__ */
 #define MACHINE_HAS_IEEE	(1)
 #define MACHINE_HAS_CSP		(1)
@@ -89,6 +93,8 @@ extern unsigned long machine_flags;
 #define MACHINE_HAS_DIAG44	(machine_flags & MACHINE_FLAG_DIAG44)
 #define MACHINE_HAS_MVPG	(1)
 #define MACHINE_HAS_MVCOS	(machine_flags & MACHINE_FLAG_MVCOS)
+#define MACHINE_HAS_HPAGE	(machine_flags & MACHINE_FLAG_HPAGE)
+#define MACHINE_HAS_PFMF	(machine_flags & MACHINE_FLAG_PFMF)
 #endif /* __s390x__ */
 
 #define MACHINE_HAS_SCLP	(!MACHINE_IS_P390)

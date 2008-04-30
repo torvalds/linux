@@ -10,10 +10,12 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/list.h>
+#include <linux/hugetlb.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/tlbflush.h>
+#include <asm/sections.h>
 
 static DEFINE_MUTEX(vmem_mutex);
 
@@ -113,7 +115,7 @@ static pte_t __init_refok *vmem_pte_alloc(void)
 /*
  * Add a physical memory range to the 1:1 mapping.
  */
-static int vmem_add_range(unsigned long start, unsigned long size)
+static int vmem_add_range(unsigned long start, unsigned long size, int ro)
 {
 	unsigned long address;
 	pgd_t *pg_dir;
@@ -140,7 +142,19 @@ static int vmem_add_range(unsigned long start, unsigned long size)
 			pud_populate_kernel(&init_mm, pu_dir, pm_dir);
 		}
 
+		pte = mk_pte_phys(address, __pgprot(ro ? _PAGE_RO : 0));
 		pm_dir = pmd_offset(pu_dir, address);
+
+#ifdef __s390x__
+		if (MACHINE_HAS_HPAGE && !(address & ~HPAGE_MASK) &&
+		    (address + HPAGE_SIZE <= start + size) &&
+		    (address >= HPAGE_SIZE)) {
+			pte_val(pte) |= _SEGMENT_ENTRY_LARGE;
+			pmd_val(*pm_dir) = pte_val(pte);
+			address += HPAGE_SIZE - PAGE_SIZE;
+			continue;
+		}
+#endif
 		if (pmd_none(*pm_dir)) {
 			pt_dir = vmem_pte_alloc();
 			if (!pt_dir)
@@ -149,7 +163,6 @@ static int vmem_add_range(unsigned long start, unsigned long size)
 		}
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
-		pte = pfn_pte(address >> PAGE_SHIFT, PAGE_KERNEL);
 		*pt_dir = pte;
 	}
 	ret = 0;
@@ -180,6 +193,13 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 		pm_dir = pmd_offset(pu_dir, address);
 		if (pmd_none(*pm_dir))
 			continue;
+
+		if (pmd_huge(*pm_dir)) {
+			pmd_clear_kernel(pm_dir);
+			address += HPAGE_SIZE - PAGE_SIZE;
+			continue;
+		}
+
 		pt_dir = pte_offset_kernel(pm_dir, address);
 		*pt_dir = pte;
 	}
@@ -248,14 +268,14 @@ out:
 	return ret;
 }
 
-static int vmem_add_mem(unsigned long start, unsigned long size)
+static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 {
 	int ret;
 
 	ret = vmem_add_mem_map(start, size);
 	if (ret)
 		return ret;
-	return vmem_add_range(start, size);
+	return vmem_add_range(start, size, ro);
 }
 
 /*
@@ -338,7 +358,7 @@ int add_shared_memory(unsigned long start, unsigned long size)
 	if (ret)
 		goto out_free;
 
-	ret = vmem_add_mem(start, size);
+	ret = vmem_add_mem(start, size, 0);
 	if (ret)
 		goto out_remove;
 
@@ -374,14 +394,35 @@ out:
  */
 void __init vmem_map_init(void)
 {
+	unsigned long ro_start, ro_end;
+	unsigned long start, end;
 	int i;
 
 	INIT_LIST_HEAD(&init_mm.context.crst_list);
 	INIT_LIST_HEAD(&init_mm.context.pgtable_list);
 	init_mm.context.noexec = 0;
 	NODE_DATA(0)->node_mem_map = VMEM_MAP;
-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++)
-		vmem_add_mem(memory_chunk[i].addr, memory_chunk[i].size);
+	ro_start = ((unsigned long)&_stext) & PAGE_MASK;
+	ro_end = PFN_ALIGN((unsigned long)&_eshared);
+	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
+		start = memory_chunk[i].addr;
+		end = memory_chunk[i].addr + memory_chunk[i].size;
+		if (start >= ro_end || end <= ro_start)
+			vmem_add_mem(start, end - start, 0);
+		else if (start >= ro_start && end <= ro_end)
+			vmem_add_mem(start, end - start, 1);
+		else if (start >= ro_start) {
+			vmem_add_mem(start, ro_end - start, 1);
+			vmem_add_mem(ro_end, end - ro_end, 0);
+		} else if (end < ro_end) {
+			vmem_add_mem(start, ro_start - start, 0);
+			vmem_add_mem(ro_start, end - ro_start, 1);
+		} else {
+			vmem_add_mem(start, ro_start - start, 0);
+			vmem_add_mem(ro_start, ro_end - ro_start, 1);
+			vmem_add_mem(ro_end, end - ro_end, 0);
+		}
+	}
 }
 
 /*
