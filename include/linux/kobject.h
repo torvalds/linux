@@ -16,8 +16,6 @@
 #ifndef _KOBJECT_H_
 #define _KOBJECT_H_
 
-#ifdef __KERNEL__
-
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/sysfs.h>
@@ -224,5 +222,4 @@ static inline int kobject_action_type(const char *buf, size_t count,
 { return -EINVAL; }
 #endif
 
-#endif /* __KERNEL__ */
 #endif /* _KOBJECT_H_ */

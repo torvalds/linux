@@ -9,8 +9,6 @@
 #ifndef _LINUX_SLAB_H
 #define	_LINUX_SLAB_H
 
-#ifdef __KERNEL__
-
 #include <linux/gfp.h>
 #include <linux/types.h>
 
@@ -283,5 +281,4 @@ extern const struct seq_operations slabinfo_op;
 ssize_t slabinfo_write(struct file *, const char __user *, size_t, loff_t *);
 #endif
 
-#endif	/* __KERNEL__ */
 #endif	/* _LINUX_SLAB_H */

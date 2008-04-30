@@ -21,8 +21,6 @@
 #ifndef _LINUX_KFIFO_H
 #define _LINUX_KFIFO_H
 
-#ifdef __KERNEL__
-
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 
@@ -151,7 +149,4 @@ static inline unsigned int kfifo_len(struct kfifo *fifo)
 	return ret;
 }
 
-#else
-#warning "don't include kernel headers in userspace"
-#endif /* __KERNEL__ */
 #endif

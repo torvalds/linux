@@ -1,8 +1,6 @@
 #ifndef _LINUX_LIST_H
 #define _LINUX_LIST_H
 
-#ifdef __KERNEL__
-
 #include <linux/stddef.h>
 #include <linux/poison.h>
 #include <linux/prefetch.h>
@@ -983,7 +981,4 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1;}); \
 	     pos = rcu_dereference(pos->next))
 
-#else
-#warning "don't include kernel headers in userspace"
-#endif /* __KERNEL__ */
 #endif

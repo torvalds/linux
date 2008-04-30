@@ -13,8 +13,6 @@
 #ifndef LINUX_RIO_DRV_H
 #define LINUX_RIO_DRV_H
 
-#ifdef __KERNEL__
-
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
@@ -465,5 +463,4 @@ extern struct rio_dev *rio_get_device(u16 vid, u16 did, struct rio_dev *from);
 extern struct rio_dev *rio_get_asm(u16 vid, u16 did, u16 asm_vid, u16 asm_did,
 				   struct rio_dev *from);
 
-#endif				/* __KERNEL__ */
 #endif				/* LINUX_RIO_DRV_H */

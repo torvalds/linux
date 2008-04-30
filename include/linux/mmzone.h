@@ -1,7 +1,6 @@
 #ifndef _LINUX_MMZONE_H
 #define _LINUX_MMZONE_H
 
-#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 #ifndef __GENERATING_BOUNDS_H
 
@@ -1005,5 +1004,4 @@ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
 
 #endif /* !__GENERATING_BOUNDS.H */
 #endif /* !__ASSEMBLY__ */
-#endif /* __KERNEL__ */
 #endif /* _LINUX_MMZONE_H */

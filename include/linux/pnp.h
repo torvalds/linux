@@ -6,8 +6,6 @@
 #ifndef _LINUX_PNP_H
 #define _LINUX_PNP_H
 
-#ifdef __KERNEL__
-
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/errno.h>
@@ -465,7 +463,5 @@ static inline void pnp_unregister_driver(struct pnp_driver *drv) { }
 #else
 #define pnp_dbg(format, arg...) do {} while (0)
 #endif
-
-#endif /* __KERNEL__ */
 
 #endif /* _LINUX_PNP_H */

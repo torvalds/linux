@@ -14,8 +14,6 @@
 #ifndef LINUX_RIO_H
 #define LINUX_RIO_H
 
-#ifdef __KERNEL__
-
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
@@ -331,5 +329,4 @@ extern void rio_close_inb_mbox(struct rio_mport *, int);
 extern int rio_open_outb_mbox(struct rio_mport *, void *, int, int);
 extern void rio_close_outb_mbox(struct rio_mport *, int);
 
-#endif				/* __KERNEL__ */
 #endif				/* LINUX_RIO_H */

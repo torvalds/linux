@@ -33,8 +33,6 @@
 #ifndef __LINUX_RCUPDATE_H
 #define __LINUX_RCUPDATE_H
 
-#ifdef __KERNEL__
-
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
@@ -245,5 +243,4 @@ extern long rcu_batches_completed_bh(void);
 extern void rcu_init(void);
 extern int rcu_needs_cpu(int cpu);
 
-#endif /* __KERNEL__ */
 #endif /* __LINUX_RCUPDATE_H */

@@ -33,8 +33,6 @@
 #ifndef __LINUX_RCUPREEMPT_H
 #define __LINUX_RCUPREEMPT_H
 
-#ifdef __KERNEL__
-
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
@@ -104,5 +102,4 @@ static inline void rcu_exit_nohz(void)
 #define rcu_exit_nohz()		do { } while (0)
 #endif /* CONFIG_NO_HZ */
 
-#endif /* __KERNEL__ */
 #endif /* __LINUX_RCUPREEMPT_H */
