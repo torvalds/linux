@@ -151,18 +151,9 @@ static int handle_chsc(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static unsigned int kvm_stfl(void)
-{
-	asm volatile(
-		"	.insn	s,0xb2b10000,0(0)\n" /* stfl */
-		"0:\n"
-		EX_TABLE(0b, 0b));
-	return S390_lowcore.stfl_fac_list;
-}
-
 static int handle_stfl(struct kvm_vcpu *vcpu)
 {
-	unsigned int facility_list = kvm_stfl();
+	unsigned int facility_list = stfl();
 	int rc;
 
 	vcpu->stat.instruction_stfl++;
