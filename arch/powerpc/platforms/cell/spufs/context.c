@@ -78,6 +78,7 @@ void destroy_spu_context(struct kref *kref)
 {
 	struct spu_context *ctx;
 	ctx = container_of(kref, struct spu_context, kref);
+	spu_context_nospu_trace(destroy_spu_context__enter, ctx);
 	mutex_lock(&ctx->state_mutex);
 	spu_deactivate(ctx);
 	mutex_unlock(&ctx->state_mutex);
