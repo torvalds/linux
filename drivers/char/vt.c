@@ -2541,6 +2541,9 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	if (get_user(type, p))
 		return -EFAULT;
 	ret = 0;
+
+	lock_kernel();
+
 	switch (type)
 	{
 		case TIOCL_SETSEL:
@@ -2560,7 +2563,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			ret = sel_loadlut(p);
 			break;
 		case TIOCL_GETSHIFTSTATE:
-			
+
 	/*
 	 * Make it possible to react to Shift+Mousebutton.
 	 * Note that 'shift_state' is an undocumented
@@ -2615,6 +2618,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			ret = -EINVAL;
 			break;
 	}
+	unlock_kernel();
 	return ret;
 }
 
@@ -3829,7 +3833,7 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 		goto out;
 
 	c = (font.width+7)/8 * 32 * font.charcount;
-	
+
 	if (op->data && font.charcount > op->charcount)
 		rc = -ENOSPC;
 	if (!(op->flags & KD_FONT_FLAG_OLD)) {

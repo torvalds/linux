@@ -181,6 +181,7 @@ static int pty_set_lock(struct tty_struct *tty, int __user * arg)
 static void pty_flush_buffer(struct tty_struct *tty)
 {
 	struct tty_struct *to = tty->link;
+	unsigned long flags;
 	
 	if (!to)
 		return;
@@ -189,8 +190,10 @@ static void pty_flush_buffer(struct tty_struct *tty)
 		to->ldisc.flush_buffer(to);
 	
 	if (to->packet) {
+		spin_lock_irqsave(&tty->ctrl_lock, flags);
 		tty->ctrl_status |= TIOCPKT_FLUSHWRITE;
 		wake_up_interruptible(&to->read_wait);
+		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 	}
 }
 

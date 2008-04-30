@@ -183,6 +183,7 @@ struct tty_struct {
 	int index;
 	struct tty_ldisc ldisc;
 	struct mutex termios_mutex;
+	spinlock_t ctrl_lock;
 	struct ktermios *termios, *termios_locked;
 	char name[64];
 	struct pid *pgrp;
@@ -323,8 +324,7 @@ extern void tty_ldisc_put(int);
 extern void tty_wakeup(struct tty_struct *tty);
 extern void tty_ldisc_flush(struct tty_struct *tty);
 
-extern int tty_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg);
+extern long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 extern int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 			unsigned int cmd, unsigned long arg);
 extern int tty_perform_flush(struct tty_struct *tty, unsigned long arg);
