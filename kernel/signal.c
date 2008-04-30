@@ -1717,7 +1717,7 @@ static int do_signal_stop(int signr)
 		struct task_struct *t;
 
 		if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED) ||
-		    unlikely(sig->group_exit_task))
+		    unlikely(signal_group_exit(sig)))
 			return 0;
 		/*
 		 * There is no group stop already in progress.
