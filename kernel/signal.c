@@ -892,7 +892,8 @@ specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
  * since we do not want to have a signal handler that was blocked
  * be invoked when user space had explicitly blocked it.
  *
- * We don't want to have recursive SIGSEGV's etc, for example.
+ * We don't want to have recursive SIGSEGV's etc, for example,
+ * that is why we also clear SIGNAL_UNKILLABLE.
  */
 int
 force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
@@ -912,6 +913,8 @@ force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 			recalc_sigpending_and_wake(t);
 		}
 	}
+	if (action->sa.sa_handler == SIG_DFL)
+		t->signal->flags &= ~SIGNAL_UNKILLABLE;
 	ret = specific_send_sig_info(sig, info, t);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
 
