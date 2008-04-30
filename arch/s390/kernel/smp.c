@@ -890,8 +890,8 @@ static ssize_t cpu_configure_store(struct sys_device *dev, const char *buf,
 	if (val != 0 && val != 1)
 		return -EINVAL;
 
-	mutex_lock(&smp_cpu_state_mutex);
 	get_online_cpus();
+	mutex_lock(&smp_cpu_state_mutex);
 	rc = -EBUSY;
 	if (cpu_online(cpu))
 		goto out;
@@ -919,8 +919,8 @@ static ssize_t cpu_configure_store(struct sys_device *dev, const char *buf,
 		break;
 	}
 out:
-	put_online_cpus();
 	mutex_unlock(&smp_cpu_state_mutex);
+	put_online_cpus();
 	return rc ? rc : count;
 }
 static SYSDEV_ATTR(configure, 0644, cpu_configure_show, cpu_configure_store);
@@ -1095,8 +1095,8 @@ static ssize_t __ref rescan_store(struct sys_device *dev,
 	int cpu;
 	int rc;
 
-	mutex_lock(&smp_cpu_state_mutex);
 	get_online_cpus();
+	mutex_lock(&smp_cpu_state_mutex);
 	newcpus = cpu_present_map;
 	rc = smp_rescan_cpus();
 	if (rc)
@@ -1109,8 +1109,8 @@ static ssize_t __ref rescan_store(struct sys_device *dev,
 	}
 	rc = 0;
 out:
-	put_online_cpus();
 	mutex_unlock(&smp_cpu_state_mutex);
+	put_online_cpus();
 	if (!cpus_empty(newcpus))
 		topology_schedule_update();
 	return rc ? rc : count;
@@ -1139,16 +1139,16 @@ static ssize_t dispatching_store(struct sys_device *dev, const char *buf,
 	if (val != 0 && val != 1)
 		return -EINVAL;
 	rc = 0;
-	mutex_lock(&smp_cpu_state_mutex);
 	get_online_cpus();
+	mutex_lock(&smp_cpu_state_mutex);
 	if (cpu_management == val)
 		goto out;
 	rc = topology_set_cpu_management(val);
 	if (!rc)
 		cpu_management = val;
 out:
-	put_online_cpus();
 	mutex_unlock(&smp_cpu_state_mutex);
+	put_online_cpus();
 	return rc ? rc : count;
 }
 static SYSDEV_ATTR(dispatching, 0644, dispatching_show, dispatching_store);
