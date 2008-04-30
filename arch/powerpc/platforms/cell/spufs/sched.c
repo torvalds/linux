@@ -240,6 +240,7 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	spu->mfc_callback = spufs_mfc_callback;
 	mb();
 	spu_unmap_mappings(ctx);
+	spu_switch_log_notify(spu, ctx, SWITCH_LOG_START, 0);
 	spu_restore(&ctx->csa, spu);
 	spu->timestamp = jiffies;
 	spu_cpu_affinity_set(spu, raw_smp_processor_id());
@@ -419,6 +420,7 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu_switch_notify(spu, NULL);
 	spu_unmap_mappings(ctx);
 	spu_save(&ctx->csa, spu);
+	spu_switch_log_notify(spu, ctx, SWITCH_LOG_STOP, 0);
 	spu->timestamp = jiffies;
 	ctx->state = SPU_STATE_SAVED;
 	spu->ibox_callback = NULL;
@@ -591,7 +593,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 	struct spu *spu;
 	int node, n;
 
-	spu_context_nospu_trace(spu_find_vitim__enter, ctx);
+	spu_context_nospu_trace(spu_find_victim__enter, ctx);
 
 	/*
 	 * Look for a possible preemption candidate on the local node first.

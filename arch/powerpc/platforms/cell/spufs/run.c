@@ -405,6 +405,8 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 	ret = spu_run_fini(ctx, npc, &status);
 	spu_yield(ctx);
 
+	spu_switch_log_notify(NULL, ctx, SWITCH_LOG_EXIT, status);
+
 	if ((status & SPU_STATUS_STOPPED_BY_STOP) &&
 	    (((status >> SPU_STOP_STATUS_SHIFT) & 0x3f00) == 0x2100))
 		ctx->stats.libassist++;
