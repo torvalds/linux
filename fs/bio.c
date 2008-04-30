@@ -963,6 +963,7 @@ static void bio_copy_kern_endio(struct bio *bio, int err)
  *	@data: pointer to buffer to copy
  *	@len: length in bytes
  *	@gfp_mask: allocation flags for bio and page allocation
+ *	@reading: data direction is READ
  *
  *	copy the kernel address into a bio suitable for io to a block
  *	device. Returns an error pointer in case of error.
