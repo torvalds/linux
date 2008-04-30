@@ -3464,6 +3464,8 @@ static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
 		return -ENODEV;
 
+	lock_kernel();
+
 	card = info->card;
 	channel = info->line - card->first_line;
 	if (!IS_CYC_Z(*card)) {
@@ -3506,10 +3508,12 @@ static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 				((lstatus & C_RS_CTS) ? TIOCM_CTS : 0);
 		} else {
 			result = 0;
+			unlock_kernel();
 			return -ENODEV;
 		}
 
 	}
+	unlock_kernel();
 	return result;
 }				/* cy_tiomget */
 
@@ -3880,6 +3884,7 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 	printk(KERN_DEBUG "cyc:cy_ioctl ttyC%d, cmd = %x arg = %lx\n",
 		info->line, cmd, arg);
 #endif
+	lock_kernel();
 
 	switch (cmd) {
 	case CYGETMON:
@@ -3988,47 +3993,47 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 		p_cuser = argp;
 		ret_val = put_user(cnow.cts, &p_cuser->cts);
 		if (ret_val)
-			return ret_val;
+			break;
 		ret_val = put_user(cnow.dsr, &p_cuser->dsr);
 		if (ret_val)
-			return ret_val;
+			break;
 		ret_val = put_user(cnow.rng, &p_cuser->rng);
 		if (ret_val)
-			return ret_val;
+			break;
 		ret_val = put_user(cnow.dcd, &p_cuser->dcd);
 		if (ret_val)
-			return ret_val;
+			break;
 		ret_val = put_user(cnow.rx, &p_cuser->rx);
 		if (ret_val)
-			return ret_val;
+			break;
 		ret_val = put_user(cnow.tx, &p_cuser->tx);
 		if (ret_val)
-			return ret_val;
+			break;
 		ret_val = put_user(cnow.frame, &p_cuser->frame);
 		if (ret_val)
-			return ret_val;
+			break;
 		ret_val = put_user(cnow.overrun, &p_cuser->overrun);
 		if (ret_val)
-			return ret_val;
+			break;
 		ret_val = put_user(cnow.parity, &p_cuser->parity);
 		if (ret_val)
-			return ret_val;
+			break;
 		ret_val = put_user(cnow.brk, &p_cuser->brk);
 		if (ret_val)
-			return ret_val;
+			break;
 		ret_val = put_user(cnow.buf_overrun, &p_cuser->buf_overrun);
 		if (ret_val)
-			return ret_val;
+			break;
 		ret_val = 0;
 		break;
 	default:
 		ret_val = -ENOIOCTLCMD;
 	}
+	unlock_kernel();
 
 #ifdef CY_DEBUG_OTHER
 	printk(KERN_DEBUG "cyc:cy_ioctl done\n");
 #endif
-
 	return ret_val;
 }				/* cy_ioctl */
 
