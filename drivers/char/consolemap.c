@@ -277,6 +277,7 @@ u16 inverse_translate(struct vc_data *conp, int glyph, int use_unicode)
 			return p->inverse_translations[m][glyph];
 	}
 }
+EXPORT_SYMBOL_GPL(inverse_translate);
 
 static void update_user_maps(void)
 {

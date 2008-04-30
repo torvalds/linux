@@ -4004,6 +4004,7 @@ u16 screen_glyph(struct vc_data *vc, int offset)
 		c |= 0x100;
 	return c;
 }
+EXPORT_SYMBOL_GPL(screen_glyph);
 
 /* used by vcs - note the word offset */
 unsigned short *screen_pos(struct vc_data *vc, int w_offset, int viewed)
