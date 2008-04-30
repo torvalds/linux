@@ -184,21 +184,22 @@ struct tty_struct {
 	struct tty_ldisc ldisc;
 	struct mutex termios_mutex;
 	spinlock_t ctrl_lock;
+	/* Termios values are protected by the termios mutex */
 	struct ktermios *termios, *termios_locked;
 	char name[64];
-	struct pid *pgrp;
+	struct pid *pgrp;		/* Protected by ctrl lock */
 	struct pid *session;
 	unsigned long flags;
 	int count;
-	struct winsize winsize;
+	struct winsize winsize;		/* termios mutex */
 	unsigned char stopped:1, hw_stopped:1, flow_stopped:1, packet:1;
 	unsigned char low_latency:1, warned:1;
-	unsigned char ctrl_status;
+	unsigned char ctrl_status;	/* ctrl_lock */
 	unsigned int receive_room;	/* Bytes free for queue */
 
 	struct tty_struct *link;
 	struct fasync_struct *fasync;
-	struct tty_bufhead buf;
+	struct tty_bufhead buf;		/* Locked internally */
 	int alt_speed;		/* For magic substitution of 38400 bps */
 	wait_queue_head_t write_wait;
 	wait_queue_head_t read_wait;
@@ -212,6 +213,7 @@ struct tty_struct {
 	/*
 	 * The following is data for the N_TTY line discipline.  For
 	 * historical reasons, this is included in the tty structure.
+	 * Mostly locked by the BKL.
 	 */
 	unsigned int column;
 	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
