@@ -558,24 +558,25 @@ static int check_kill_permission(int sig, struct siginfo *info,
 static void do_notify_parent_cldstop(struct task_struct *tsk, int why);
 
 /*
- * Handle magic process-wide effects of stop/continue signals.
- * Unlike the signal actions, these happen immediately at signal-generation
+ * Handle magic process-wide effects of stop/continue signals. Unlike
+ * the signal actions, these happen immediately at signal-generation
  * time regardless of blocking, ignoring, or handling.  This does the
  * actual continuing for SIGCONT, but not the actual stopping for stop
- * signals.  The process stop is done as a signal action for SIG_DFL.
+ * signals. The process stop is done as a signal action for SIG_DFL.
+ *
+ * Returns true if the signal should be actually delivered, otherwise
+ * it should be dropped.
  */
-static void handle_stop_signal(int sig, struct task_struct *p)
+static int prepare_signal(int sig, struct task_struct *p)
 {
 	struct signal_struct *signal = p->signal;
 	struct task_struct *t;
 
-	if (signal->flags & SIGNAL_GROUP_EXIT)
+	if (unlikely(signal->flags & SIGNAL_GROUP_EXIT)) {
 		/*
-		 * The process is in the middle of dying already.
+		 * The process is in the middle of dying, nothing to do.
 		 */
-		return;
-
-	if (sig_kernel_stop(sig)) {
+	} else if (sig_kernel_stop(sig)) {
 		/*
 		 * This is a stop signal.  Remove SIGCONT from all queues.
 		 */
@@ -644,6 +645,8 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 			signal->flags &= ~SIGNAL_STOP_DEQUEUED;
 		}
 	}
+
+	return !sig_ignored(p, sig);
 }
 
 /*
@@ -753,7 +756,8 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	struct sigqueue *q;
 
 	assert_spin_locked(&t->sighand->siglock);
-	handle_stop_signal(sig, t);
+	if (!prepare_signal(sig, t))
+		return 0;
 
 	pending = group ? &t->signal->shared_pending : &t->pending;
 	/*
@@ -761,7 +765,7 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	 * exactly one non-rt signal, so that we can get more
 	 * detailed information about the cause of the signal.
 	 */
-	if (sig_ignored(t, sig) || legacy_queue(pending, sig))
+	if (legacy_queue(pending, sig))
 		return 0;
 
 	/*
@@ -1247,10 +1251,8 @@ int send_sigqueue(struct sigqueue *q, struct task_struct *t, int group)
 	if (!likely(lock_task_sighand(t, &flags)))
 		goto ret;
 
-	handle_stop_signal(sig, t);
-
-	ret = 1;
-	if (sig_ignored(t, sig))
+	ret = 1; /* the signal is ignored */
+	if (!prepare_signal(sig, t))
 		goto out;
 
 	ret = 0;
