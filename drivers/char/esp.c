@@ -2040,10 +2040,10 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 		msleep_interruptible(jiffies_to_msecs(char_time));
 
 		if (signal_pending(current))
-			break;
+			return;
 
 		if (timeout && time_after(jiffies, orig_jiffies + timeout))
-			break;
+			return;
 
 		spin_lock_irqsave(&info->lock, flags);
 		serial_out(info, UART_ESI_CMD1, ESI_NO_COMMAND);
