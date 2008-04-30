@@ -607,18 +607,8 @@ do_ptrace_emu31(struct task_struct *child, long request, long addr, long data)
 }
 #endif
 
-static int
-do_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	int ret;
-
-	if (request == PTRACE_ATTACH)
-		return ptrace_attach(child);
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		return ret;
-
 	switch (request) {
 	case PTRACE_SYSCALL:
 		/* continue and stop at next (return from) syscall */
@@ -671,31 +661,6 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 	}
 	/* Not reached.  */
 	return -EIO;
-}
-
-asmlinkage long
-sys_ptrace(long request, long pid, long addr, long data)
-{
-	struct task_struct *child;
-	int ret;
-
-	lock_kernel();
-	if (request == PTRACE_TRACEME) {
-		 ret = ptrace_traceme();
-		 goto out;
-	}
-
-	child = ptrace_get_task_struct(pid);
-	if (IS_ERR(child)) {
-		ret = PTR_ERR(child);
-		goto out;
-	}
-
-	ret = do_ptrace(child, request, addr, data);
-	put_task_struct(child);
-out:
-	unlock_kernel();
-	return ret;
 }
 
 asmlinkage void
