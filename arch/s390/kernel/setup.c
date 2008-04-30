@@ -73,7 +73,7 @@ EXPORT_SYMBOL(uaccess);
 unsigned int console_mode = 0;
 unsigned int console_devno = -1;
 unsigned int console_irq = -1;
-unsigned long machine_flags = 0;
+unsigned long machine_flags;
 unsigned long elf_hwcap = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
