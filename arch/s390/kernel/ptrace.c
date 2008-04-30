@@ -607,8 +607,6 @@ do_ptrace_emu31(struct task_struct *child, long request, long addr, long data)
 }
 #endif
 
-#define PT32_IEEE_IP 0x13c
-
 static int
 do_ptrace(struct task_struct *child, long request, long addr, long data)
 {
@@ -616,24 +614,6 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	if (request == PTRACE_ATTACH)
 		return ptrace_attach(child);
-
-	/*
-	 * Special cases to get/store the ieee instructions pointer.
-	 */
-	if (child == current) {
-		if (request == PTRACE_PEEKUSR && addr == PT_IEEE_IP)
-			return peek_user(child, addr, data);
-		if (request == PTRACE_POKEUSR && addr == PT_IEEE_IP)
-			return poke_user(child, addr, data);
-#ifdef CONFIG_COMPAT
-		if (request == PTRACE_PEEKUSR &&
-		    addr == PT32_IEEE_IP && test_thread_flag(TIF_31BIT))
-			return peek_user_emu31(child, addr, data);
-		if (request == PTRACE_POKEUSR &&
-		    addr == PT32_IEEE_IP && test_thread_flag(TIF_31BIT))
-			return poke_user_emu31(child, addr, data);
-#endif
-	}
 
 	ret = ptrace_check_attach(child, request == PTRACE_KILL);
 	if (ret < 0)
