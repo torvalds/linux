@@ -741,9 +741,9 @@ static int moxa_ioctl(struct tty_struct *tty, struct file *file,
 		MoxaPortSendBreak(ch->port, arg);
 		return (0);
 	case TIOCGSOFTCAR:
-		return put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned long __user *) argp);
+		return put_user(C_CLOCAL(tty) ? 1 : 0, (int __user *)argp);
 	case TIOCSSOFTCAR:
-		if(get_user(retval, (unsigned long __user *) argp))
+		if (get_user(retval, (int __user *)argp))
 			return -EFAULT;
 		arg = retval;
 		tty->termios->c_cflag = ((tty->termios->c_cflag & ~CLOCAL) |
