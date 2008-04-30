@@ -193,8 +193,6 @@ static int moxa_write(struct tty_struct *, const unsigned char *, int);
 static int moxa_write_room(struct tty_struct *);
 static void moxa_flush_buffer(struct tty_struct *);
 static int moxa_chars_in_buffer(struct tty_struct *);
-static void moxa_flush_chars(struct tty_struct *);
-static void moxa_put_char(struct tty_struct *, unsigned char);
 static void moxa_throttle(struct tty_struct *);
 static void moxa_unthrottle(struct tty_struct *);
 static void moxa_set_termios(struct tty_struct *, struct ktermios *);
@@ -391,8 +389,6 @@ static const struct tty_operations moxa_ops = {
 	.write_room = moxa_write_room,
 	.flush_buffer = moxa_flush_buffer,
 	.chars_in_buffer = moxa_chars_in_buffer,
-	.flush_chars = moxa_flush_chars,
-	.put_char = moxa_put_char,
 	.ioctl = moxa_ioctl,
 	.throttle = moxa_throttle,
 	.unthrottle = moxa_unthrottle,
@@ -1282,27 +1278,6 @@ static int moxa_chars_in_buffer(struct tty_struct *tty)
 			moxa_setup_empty_event(tty);
 	}
 	return chars;
-}
-
-static void moxa_flush_chars(struct tty_struct *tty)
-{
-	/*
-	 * Don't think I need this, because this is called to empty the TX
-	 * buffer for the 16450, 16550, etc.
-	 */
-}
-
-static void moxa_put_char(struct tty_struct *tty, unsigned char c)
-{
-	struct moxa_port *ch = tty->driver_data;
-
-	if (ch == NULL)
-		return;
-	spin_lock_bh(&moxa_lock);
-	MoxaPortWriteData(ch, &c, 1);
-	spin_unlock_bh(&moxa_lock);
-
-	ch->statusflags |= LOWWAIT;
 }
 
 static int moxa_tiocmget(struct tty_struct *tty, struct file *file)
