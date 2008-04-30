@@ -1291,7 +1291,7 @@ xfs_file_last_byte(
 	xfs_fileoff_t	size_last_block;
 	int		error;
 
-	ASSERT(ismrlocked(&(ip->i_iolock), MR_UPDATE | MR_ACCESS));
+	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL|XFS_IOLOCK_SHARED));
 
 	mp = ip->i_mount;
 	/*
@@ -1402,7 +1402,7 @@ xfs_itruncate_start(
 	bhv_vnode_t	*vp;
 	int		error = 0;
 
-	ASSERT(ismrlocked(&ip->i_iolock, MR_UPDATE) != 0);
+	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	ASSERT((new_size == 0) || (new_size <= ip->i_size));
 	ASSERT((flags == XFS_ITRUNC_DEFINITE) ||
 	       (flags == XFS_ITRUNC_MAYBE));
@@ -1528,8 +1528,7 @@ xfs_itruncate_finish(
 	xfs_bmap_free_t	free_list;
 	int		error;
 
-	ASSERT(ismrlocked(&ip->i_iolock, MR_UPDATE) != 0);
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE) != 0);
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_IOLOCK_EXCL));
 	ASSERT((new_size == 0) || (new_size <= ip->i_size));
 	ASSERT(*tp != NULL);
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
@@ -1780,8 +1779,7 @@ xfs_igrow_start(
 	xfs_fsize_t	new_size,
 	cred_t		*credp)
 {
-	ASSERT(ismrlocked(&(ip->i_lock), MR_UPDATE) != 0);
-	ASSERT(ismrlocked(&(ip->i_iolock), MR_UPDATE) != 0);
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_IOLOCK_EXCL));
 	ASSERT(new_size > ip->i_size);
 
 	/*
@@ -1809,8 +1807,7 @@ xfs_igrow_finish(
 	xfs_fsize_t	new_size,
 	int		change_flag)
 {
-	ASSERT(ismrlocked(&(ip->i_lock), MR_UPDATE) != 0);
-	ASSERT(ismrlocked(&(ip->i_iolock), MR_UPDATE) != 0);
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_IOLOCK_EXCL));
 	ASSERT(ip->i_transp == tp);
 	ASSERT(new_size > ip->i_size);
 
@@ -2287,7 +2284,7 @@ xfs_ifree(
 	xfs_dinode_t    	*dip;
 	xfs_buf_t       	*ibp;
 
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(ip->i_transp == tp);
 	ASSERT(ip->i_d.di_nlink == 0);
 	ASSERT(ip->i_d.di_nextents == 0);
@@ -2746,7 +2743,7 @@ void
 xfs_ipin(
 	xfs_inode_t	*ip)
 {
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	atomic_inc(&ip->i_pincount);
 }
@@ -2779,7 +2776,7 @@ __xfs_iunpin_wait(
 {
 	xfs_inode_log_item_t	*iip = ip->i_itemp;
 
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE | MR_ACCESS));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
 	if (atomic_read(&ip->i_pincount) == 0)
 		return;
 
@@ -2829,7 +2826,7 @@ xfs_iextents_copy(
 	xfs_fsblock_t		start_block;
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE|MR_ACCESS));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
 	ASSERT(ifp->if_bytes > 0);
 
 	nrecs = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
@@ -3132,7 +3129,7 @@ xfs_iflush(
 
 	XFS_STATS_INC(xs_iflush_count);
 
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE|MR_ACCESS));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
 	ASSERT(issemalocked(&(ip->i_flock)));
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
 	       ip->i_d.di_nextents > ip->i_df.if_ext_max);
@@ -3297,7 +3294,7 @@ xfs_iflush_int(
 	int			first;
 #endif
 
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE|MR_ACCESS));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
 	ASSERT(issemalocked(&(ip->i_flock)));
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
 	       ip->i_d.di_nextents > ip->i_df.if_ext_max);

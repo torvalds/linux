@@ -25,12 +25,6 @@ struct attrlist_cursor_kern;
 
 typedef struct inode	bhv_vnode_t;
 
-#define VN_ISLNK(vp)	S_ISLNK((vp)->i_mode)
-#define VN_ISREG(vp)	S_ISREG((vp)->i_mode)
-#define VN_ISDIR(vp)	S_ISDIR((vp)->i_mode)
-#define VN_ISCHR(vp)	S_ISCHR((vp)->i_mode)
-#define VN_ISBLK(vp)	S_ISBLK((vp)->i_mode)
-
 /*
  * Vnode to Linux inode mapping.
  */
@@ -150,24 +144,6 @@ typedef struct bhv_vattr {
 #define XFS_AT_NOSET	(XFS_AT_NLINK|XFS_AT_RDEV|XFS_AT_FSID|XFS_AT_NODEID|\
 		XFS_AT_TYPE|XFS_AT_BLKSIZE|XFS_AT_NBLOCKS|XFS_AT_VCODE|\
 		XFS_AT_NEXTENTS|XFS_AT_ANEXTENTS|XFS_AT_GENCOUNT)
-
-/*
- *  Modes.
- */
-#define VSUID	S_ISUID		/* set user id on execution */
-#define VSGID	S_ISGID		/* set group id on execution */
-#define VSVTX	S_ISVTX		/* save swapped text even after use */
-#define VREAD	S_IRUSR		/* read, write, execute permissions */
-#define VWRITE	S_IWUSR
-#define VEXEC	S_IXUSR
-
-#define MODEMASK S_IALLUGO	/* mode bits plus permission bits */
-
-/*
- * Check whether mandatory file locking is enabled.
- */
-#define MANDLOCK(vp, mode)	\
-	(VN_ISREG(vp) && ((mode) & (VSGID|(VEXEC>>3))) == VSGID)
 
 extern void	vn_init(void);
 extern int	vn_revalidate(bhv_vnode_t *);

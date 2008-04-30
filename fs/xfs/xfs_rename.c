@@ -55,85 +55,32 @@ xfs_rename_unlock4(
 
 	xfs_iunlock(i_tab[0], lock_mode);
 	for (i = 1; i < 4; i++) {
-		if (i_tab[i] == NULL) {
+		if (i_tab[i] == NULL)
 			break;
-		}
+
 		/*
 		 * Watch out for duplicate entries in the table.
 		 */
-		if (i_tab[i] != i_tab[i-1]) {
+		if (i_tab[i] != i_tab[i-1])
 			xfs_iunlock(i_tab[i], lock_mode);
-		}
 	}
 }
 
-#ifdef DEBUG
-int xfs_rename_skip, xfs_rename_nskip;
-#endif
-
 /*
- * The following routine will acquire the locks required for a rename
- * operation. The code understands the semantics of renames and will
- * validate that name1 exists under dp1 & that name2 may or may not
- * exist under dp2.
- *
- * We are renaming dp1/name1 to dp2/name2.
- *
- * Return ENOENT if dp1 does not exist, other lookup errors, or 0 for success.
+ * Enter all inodes for a rename transaction into a sorted array.
  */
-STATIC int
-xfs_lock_for_rename(
+STATIC void
+xfs_sort_for_rename(
 	xfs_inode_t	*dp1,	/* in: old (source) directory inode */
 	xfs_inode_t	*dp2,	/* in: new (target) directory inode */
 	xfs_inode_t	*ip1,	/* in: inode of old entry */
-	struct xfs_name	*name2,	/* in: new entry name */
-	xfs_inode_t	**ipp2,	/* out: inode of new entry, if it
+	xfs_inode_t	*ip2,	/* in: inode of new entry, if it
 				   already exists, NULL otherwise. */
 	xfs_inode_t	**i_tab,/* out: array of inode returned, sorted */
 	int		*num_inodes)  /* out: number of inodes in array */
 {
-	xfs_inode_t		*ip2 = NULL;
 	xfs_inode_t		*temp;
-	xfs_ino_t		inum1, inum2;
-	int			error;
 	int			i, j;
-	uint			lock_mode;
-	int			diff_dirs = (dp1 != dp2);
-
-	/*
-	 * First, find out the current inums of the entries so that we
-	 * can determine the initial locking order.  We'll have to
-	 * sanity check stuff after all the locks have been acquired
-	 * to see if we still have the right inodes, directories, etc.
-	 */
-	lock_mode = xfs_ilock_map_shared(dp1);
-	IHOLD(ip1);
-	xfs_itrace_ref(ip1);
-
-	inum1 = ip1->i_ino;
-
-	/*
-	 * Unlock dp1 and lock dp2 if they are different.
-	 */
-	if (diff_dirs) {
-		xfs_iunlock_map_shared(dp1, lock_mode);
-		lock_mode = xfs_ilock_map_shared(dp2);
-	}
-
-	error = xfs_dir_lookup_int(dp2, lock_mode, name2, &inum2, &ip2);
-	if (error == ENOENT) {		/* target does not need to exist. */
-		inum2 = 0;
-	} else if (error) {
-		/*
-		 * If dp2 and dp1 are the same, the next line unlocks dp1.
-		 * Got it?
-		 */
-		xfs_iunlock_map_shared(dp2, lock_mode);
-		IRELE (ip1);
-		return error;
-	} else {
-		xfs_itrace_ref(ip2);
-	}
 
 	/*
 	 * i_tab contains a list of pointers to inodes.  We initialize
@@ -145,21 +92,20 @@ xfs_lock_for_rename(
 	i_tab[0] = dp1;
 	i_tab[1] = dp2;
 	i_tab[2] = ip1;
-	if (inum2 == 0) {
-		*num_inodes = 3;
-		i_tab[3] = NULL;
-	} else {
+	if (ip2) {
 		*num_inodes = 4;
 		i_tab[3] = ip2;
+	} else {
+		*num_inodes = 3;
+		i_tab[3] = NULL;
 	}
-	*ipp2 = i_tab[3];
 
 	/*
 	 * Sort the elements via bubble sort.  (Remember, there are at
 	 * most 4 elements to sort, so this is adequate.)
 	 */
-	for (i=0; i < *num_inodes; i++) {
-		for (j=1; j < *num_inodes; j++) {
+	for (i = 0; i < *num_inodes; i++) {
+		for (j = 1; j < *num_inodes; j++) {
 			if (i_tab[j]->i_ino < i_tab[j-1]->i_ino) {
 				temp = i_tab[j];
 				i_tab[j] = i_tab[j-1];
@@ -167,30 +113,6 @@ xfs_lock_for_rename(
 			}
 		}
 	}
-
-	/*
-	 * We have dp2 locked. If it isn't first, unlock it.
-	 * If it is first, tell xfs_lock_inodes so it can skip it
-	 * when locking. if dp1 == dp2, xfs_lock_inodes will skip both
-	 * since they are equal. xfs_lock_inodes needs all these inodes
-	 * so that it can unlock and retry if there might be a dead-lock
-	 * potential with the log.
-	 */
-
-	if (i_tab[0] == dp2 && lock_mode == XFS_ILOCK_SHARED) {
-#ifdef DEBUG
-		xfs_rename_skip++;
-#endif
-		xfs_lock_inodes(i_tab, *num_inodes, 1, XFS_ILOCK_SHARED);
-	} else {
-#ifdef DEBUG
-		xfs_rename_nskip++;
-#endif
-		xfs_iunlock_map_shared(dp2, lock_mode);
-		xfs_lock_inodes(i_tab, *num_inodes, 0, XFS_ILOCK_SHARED);
-	}
-
-	return 0;
 }
 
 /*
@@ -202,10 +124,10 @@ xfs_rename(
 	struct xfs_name	*src_name,
 	xfs_inode_t	*src_ip,
 	xfs_inode_t	*target_dp,
-	struct xfs_name	*target_name)
+	struct xfs_name	*target_name,
+	xfs_inode_t	*target_ip)
 {
-	xfs_trans_t	*tp;
-	xfs_inode_t	*target_ip;
+	xfs_trans_t	*tp = NULL;
 	xfs_mount_t	*mp = src_dp->i_mount;
 	int		new_parent;		/* moving to a new dir */
 	int		src_is_directory;	/* src_name is a directory */
@@ -215,9 +137,7 @@ xfs_rename(
 	int		cancel_flags;
 	int		committed;
 	xfs_inode_t	*inodes[4];
-	int		target_ip_dropped = 0;	/* dropped target_ip link? */
 	int		spaceres;
-	int		target_link_zero = 0;
 	int		num_inodes;
 
 	xfs_itrace_entry(src_dp);
@@ -230,64 +150,27 @@ xfs_rename(
 					target_dp, DM_RIGHT_NULL,
 					src_name->name, target_name->name,
 					0, 0, 0);
-		if (error) {
+		if (error)
 			return error;
-		}
 	}
 	/* Return through std_return after this point. */
-
-	/*
-	 * Lock all the participating inodes. Depending upon whether
-	 * the target_name exists in the target directory, and
-	 * whether the target directory is the same as the source
-	 * directory, we can lock from 2 to 4 inodes.
-	 * xfs_lock_for_rename() will return ENOENT if src_name
-	 * does not exist in the source directory.
-	 */
-	tp = NULL;
-	error = xfs_lock_for_rename(src_dp, target_dp, src_ip, target_name,
-					&target_ip, inodes, &num_inodes);
-	if (error) {
-		/*
-		 * We have nothing locked, no inode references, and
-		 * no transaction, so just get out.
-		 */
-		goto std_return;
-	}
-
-	ASSERT(src_ip != NULL);
-
-	if ((src_ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
-		/*
-		 * Check for link count overflow on target_dp
-		 */
-		if (target_ip == NULL && (src_dp != target_dp) &&
-		    target_dp->i_d.di_nlink >= XFS_MAXLINK) {
-			error = XFS_ERROR(EMLINK);
-			xfs_rename_unlock4(inodes, XFS_ILOCK_SHARED);
-			goto rele_return;
-		}
-	}
-
-	/*
-	 * If we are using project inheritance, we only allow renames
-	 * into our tree when the project IDs are the same; else the
-	 * tree quota mechanism would be circumvented.
-	 */
-	if (unlikely((target_dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
-		     (target_dp->i_d.di_projid != src_ip->i_d.di_projid))) {
-		error = XFS_ERROR(EXDEV);
-		xfs_rename_unlock4(inodes, XFS_ILOCK_SHARED);
-		goto rele_return;
-	}
 
 	new_parent = (src_dp != target_dp);
 	src_is_directory = ((src_ip->i_d.di_mode & S_IFMT) == S_IFDIR);
 
-	/*
-	 * Drop the locks on our inodes so that we can start the transaction.
-	 */
-	xfs_rename_unlock4(inodes, XFS_ILOCK_SHARED);
+	if (src_is_directory) {
+		/*
+		 * Check for link count overflow on target_dp
+		 */
+		if (target_ip == NULL && new_parent &&
+		    target_dp->i_d.di_nlink >= XFS_MAXLINK) {
+			error = XFS_ERROR(EMLINK);
+			goto std_return;
+		}
+	}
+
+	xfs_sort_for_rename(src_dp, target_dp, src_ip, target_ip,
+				inodes, &num_inodes);
 
 	XFS_BMAP_INIT(&free_list, &first_block);
 	tp = xfs_trans_alloc(mp, XFS_TRANS_RENAME);
@@ -302,7 +185,7 @@ xfs_rename(
 	}
 	if (error) {
 		xfs_trans_cancel(tp, 0);
-		goto rele_return;
+		goto std_return;
 	}
 
 	/*
@@ -310,13 +193,29 @@ xfs_rename(
 	 */
 	if ((error = XFS_QM_DQVOPRENAME(mp, inodes))) {
 		xfs_trans_cancel(tp, cancel_flags);
-		goto rele_return;
+		goto std_return;
 	}
 
 	/*
-	 * Reacquire the inode locks we dropped above.
+	 * Lock all the participating inodes. Depending upon whether
+	 * the target_name exists in the target directory, and
+	 * whether the target directory is the same as the source
+	 * directory, we can lock from 2 to 4 inodes.
 	 */
-	xfs_lock_inodes(inodes, num_inodes, 0, XFS_ILOCK_EXCL);
+	xfs_lock_inodes(inodes, num_inodes, XFS_ILOCK_EXCL);
+
+	/*
+	 * If we are using project inheritance, we only allow renames
+	 * into our tree when the project IDs are the same; else the
+	 * tree quota mechanism would be circumvented.
+	 */
+	if (unlikely((target_dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
+		     (target_dp->i_d.di_projid != src_ip->i_d.di_projid))) {
+		error = XFS_ERROR(EXDEV);
+		xfs_rename_unlock4(inodes, XFS_ILOCK_SHARED);
+		xfs_trans_cancel(tp, cancel_flags);
+		goto std_return;
+	}
 
 	/*
 	 * Join all the inodes to the transaction. From this point on,
@@ -328,17 +227,17 @@ xfs_rename(
 	 */
 	IHOLD(src_dp);
 	xfs_trans_ijoin(tp, src_dp, XFS_ILOCK_EXCL);
+
 	if (new_parent) {
 		IHOLD(target_dp);
 		xfs_trans_ijoin(tp, target_dp, XFS_ILOCK_EXCL);
 	}
-	if ((src_ip != src_dp) && (src_ip != target_dp)) {
-		xfs_trans_ijoin(tp, src_ip, XFS_ILOCK_EXCL);
-	}
-	if ((target_ip != NULL) &&
-	    (target_ip != src_ip) &&
-	    (target_ip != src_dp) &&
-	    (target_ip != target_dp)) {
+
+	IHOLD(src_ip);
+	xfs_trans_ijoin(tp, src_ip, XFS_ILOCK_EXCL);
+
+	if (target_ip) {
+		IHOLD(target_ip);
 		xfs_trans_ijoin(tp, target_ip, XFS_ILOCK_EXCL);
 	}
 
@@ -412,7 +311,6 @@ xfs_rename(
 		error = xfs_droplink(tp, target_ip);
 		if (error)
 			goto abort_return;
-		target_ip_dropped = 1;
 
 		if (src_is_directory) {
 			/*
@@ -422,10 +320,6 @@ xfs_rename(
 			if (error)
 				goto abort_return;
 		}
-
-		/* Do this test while we still hold the locks */
-		target_link_zero = (target_ip)->i_d.di_nlink==0;
-
 	} /* target_ip != NULL */
 
 	/*
@@ -492,15 +386,6 @@ xfs_rename(
 	}
 
 	/*
-	 * If there was a target inode, take an extra reference on
-	 * it here so that it doesn't go to xfs_inactive() from
-	 * within the commit.
-	 */
-	if (target_ip != NULL) {
-		IHOLD(target_ip);
-	}
-
-	/*
 	 * If this is a synchronous mount, make sure that the
 	 * rename transaction goes to disk before returning to
 	 * the user.
@@ -509,30 +394,11 @@ xfs_rename(
 		xfs_trans_set_sync(tp);
 	}
 
-	/*
-	 * Take refs. for vop_link_removed calls below.  No need to worry
-	 * about directory refs. because the caller holds them.
-	 *
-	 * Do holds before the xfs_bmap_finish since it might rele them down
-	 * to zero.
-	 */
-
-	if (target_ip_dropped)
-		IHOLD(target_ip);
-	IHOLD(src_ip);
-
 	error = xfs_bmap_finish(&tp, &free_list, &committed);
 	if (error) {
 		xfs_bmap_cancel(&free_list);
 		xfs_trans_cancel(tp, (XFS_TRANS_RELEASE_LOG_RES |
 				 XFS_TRANS_ABORT));
-		if (target_ip != NULL) {
-			IRELE(target_ip);
-		}
-		if (target_ip_dropped) {
-			IRELE(target_ip);
-		}
-		IRELE(src_ip);
 		goto std_return;
 	}
 
@@ -541,15 +407,6 @@ xfs_rename(
 	 * the vnode references.
 	 */
 	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-	if (target_ip != NULL)
-		IRELE(target_ip);
-	/*
-	 * Let interposed file systems know about removed links.
-	 */
-	if (target_ip_dropped)
-		IRELE(target_ip);
-
-	IRELE(src_ip);
 
 	/* Fall through to std_return with error = 0 or errno from
 	 * xfs_trans_commit	 */
@@ -570,12 +427,5 @@ std_return:
  error_return:
 	xfs_bmap_cancel(&free_list);
 	xfs_trans_cancel(tp, cancel_flags);
-	goto std_return;
-
- rele_return:
-	IRELE(src_ip);
-	if (target_ip != NULL) {
-		IRELE(target_ip);
-	}
 	goto std_return;
 }
