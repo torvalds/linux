@@ -37,12 +37,46 @@ struct pxafb_dma_descriptor {
 	unsigned int ldcmd;
 };
 
+enum {
+	PAL_NONE	= -1,
+	PAL_BASE	= 0,
+	PAL_OV1		= 1,
+	PAL_OV2		= 2,
+	PAL_MAX,
+};
+
+enum {
+	DMA_BASE	= 0,
+	DMA_UPPER	= 0,
+	DMA_LOWER	= 1,
+	DMA_OV1		= 1,
+	DMA_OV2_Y	= 2,
+	DMA_OV2_Cb	= 3,
+	DMA_OV2_Cr	= 4,
+	DMA_CURSOR	= 5,
+	DMA_CMD		= 6,
+	DMA_MAX,
+};
+
+/* maximum palette size - 256 entries, each 4 bytes long */
+#define PALETTE_SIZE	(256 * 4)
+
+struct pxafb_dma_buff {
+	unsigned char palette[PAL_MAX * PALETTE_SIZE];
+	struct pxafb_dma_descriptor pal_desc[PAL_MAX];
+	struct pxafb_dma_descriptor dma_desc[DMA_MAX];
+};
+
 struct pxafb_info {
 	struct fb_info		fb;
 	struct device		*dev;
 	struct clk		*clk;
 
 	void __iomem		*mmio_base;
+
+	struct pxafb_dma_buff	*dma_buff;
+	dma_addr_t		dma_buff_phys;
+	dma_addr_t		fdadr[DMA_MAX];
 
 	/*
 	 * These are the addresses we mapped
@@ -57,19 +91,7 @@ struct pxafb_info {
 	u_char *		screen_cpu;	/* virtual address of frame buffer */
 	dma_addr_t		screen_dma;	/* physical address of frame buffer */
 	u16 *			palette_cpu;	/* virtual address of palette memory */
-	dma_addr_t		palette_dma;	/* physical address of palette memory */
 	u_int			palette_size;
-
-	/* DMA descriptors */
-	struct pxafb_dma_descriptor * 	dmadesc_fblow_cpu;
-	dma_addr_t		dmadesc_fblow_dma;
-	struct pxafb_dma_descriptor * 	dmadesc_fbhigh_cpu;
-	dma_addr_t		dmadesc_fbhigh_dma;
-	struct pxafb_dma_descriptor *	dmadesc_palette_cpu;
-	dma_addr_t		dmadesc_palette_dma;
-
-	dma_addr_t		fdadr0;
-	dma_addr_t		fdadr1;
 
 	u_int			lccr0;
 	u_int			lccr3;
