@@ -1050,8 +1050,7 @@ extern int ext4_block_truncate_page(handle_t *handle, struct page *page,
 		struct address_space *mapping, loff_t from);
 
 /* ioctl.c */
-extern int ext4_ioctl (struct inode *, struct file *, unsigned int,
-		       unsigned long);
+extern long ext4_ioctl(struct file *, unsigned int, unsigned long);
 extern long ext4_compat_ioctl (struct file *, unsigned int, unsigned long);
 
 /* migrate.c */
