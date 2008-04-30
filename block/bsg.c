@@ -174,7 +174,11 @@ unlock:
 static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
 				struct sg_io_v4 *hdr, int has_write_perm)
 {
-	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
+	if (hdr->request_len > BLK_MAX_CDB) {
+		rq->cmd = kzalloc(hdr->request_len, GFP_KERNEL);
+		if (!rq->cmd)
+			return -ENOMEM;
+	}
 
 	if (copy_from_user(rq->cmd, (void *)(unsigned long)hdr->request,
 			   hdr->request_len))
@@ -210,8 +214,6 @@ bsg_validate_sgv4_hdr(struct request_queue *q, struct sg_io_v4 *hdr, int *rw)
 	int ret = 0;
 
 	if (hdr->guard != 'Q')
-		return -EINVAL;
-	if (hdr->request_len > BLK_MAX_CDB)
 		return -EINVAL;
 	if (hdr->dout_xfer_len > (q->max_sectors << 9) ||
 	    hdr->din_xfer_len > (q->max_sectors << 9))
@@ -302,6 +304,8 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr)
 	}
 	return rq;
 out:
+	if (rq->cmd != rq->__cmd)
+		kfree(rq->cmd);
 	blk_put_request(rq);
 	if (next_rq) {
 		blk_rq_unmap_user(next_rq->bio);
@@ -455,6 +459,8 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 		ret = rq->errors;
 
 	blk_rq_unmap_user(bio);
+	if (rq->cmd != rq->__cmd)
+		kfree(rq->cmd);
 	blk_put_request(rq);
 
 	return ret;
