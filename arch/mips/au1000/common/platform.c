@@ -302,16 +302,17 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 #endif
 };
 
-int __init au1xxx_platform_init(void)
+static int __init au1xxx_platform_init(void)
 {
 	unsigned int uartclk = get_au1x00_uart_baud_base() * 16;
 	int i;
 
 	/* Fill up uartclk. */
-	for (i = 0; au1x00_uart_data[i].flags ; i++)
+	for (i = 0; au1x00_uart_data[i].flags; i++)
 		au1x00_uart_data[i].uartclk = uartclk;
 
-	return platform_add_devices(au1xxx_platform_devices, ARRAY_SIZE(au1xxx_platform_devices));
+	return platform_add_devices(au1xxx_platform_devices,
+				    ARRAY_SIZE(au1xxx_platform_devices));
 }
 
 arch_initcall(au1xxx_platform_init);
