@@ -379,11 +379,6 @@ static struct irqaction timer_irqaction = {
 	.name =		"timer"
 };
 
-void __devinit ia64_disable_timer(void)
-{
-	ia64_set_itv(1 << 16);
-}
-
 void __init
 time_init (void)
 {
