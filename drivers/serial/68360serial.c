@@ -1247,7 +1247,7 @@ static int rs_360_tiocmget(struct tty_struct *tty, struct file *file)
 #ifdef modem_control
 	unsigned char control, status;
 
-	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
+	if (serial_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
 
 	if (tty->flags & (1 << TTY_IO_ERROR))
@@ -1278,7 +1278,7 @@ static int rs_360_tiocmset(struct tty_struct *tty, struct file *file,
 	ser_info_t *info = (ser_info_t *)tty->driver_data;
  	unsigned int arg;
 
-	if (serial_paranoia_check(info, tty->name, __FUNCTION__))
+	if (serial_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
 
 	if (tty->flags & (1 << TTY_IO_ERROR))

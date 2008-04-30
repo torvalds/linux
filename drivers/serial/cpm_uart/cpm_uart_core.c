@@ -1117,7 +1117,7 @@ int cpm_uart_drv_get_platform_data(struct platform_device *pdev, int is_con)
 
 	line = cpm_uart_id2nr(idx);
 	if(line < 0) {
-		printk(KERN_ERR"%s(): port %d is not registered", __FUNCTION__, idx);
+		printk(KERN_ERR"%s(): port %d is not registered", __func__, idx);
 		return -EINVAL;
 	}
 

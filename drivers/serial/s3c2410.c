@@ -1096,13 +1096,13 @@ static int s3c24xx_serial_probe(struct platform_device *dev,
 	ourport = &s3c24xx_serial_ports[probe_index];
 	probe_index++;
 
-	dbg("%s: initialising port %p...\n", __FUNCTION__, ourport);
+	dbg("%s: initialising port %p...\n", __func__, ourport);
 
 	ret = s3c24xx_serial_init_port(ourport, info, dev);
 	if (ret < 0)
 		goto probe_err;
 
-	dbg("%s: adding port\n", __FUNCTION__);
+	dbg("%s: adding port\n", __func__);
 	uart_add_one_port(&s3c24xx_uart_drv, &ourport->port);
 	platform_set_drvdata(dev, &ourport->port);
 
@@ -1587,7 +1587,7 @@ static int s3c2412_serial_resetport(struct uart_port *port,
 	unsigned long ucon = rd_regl(port, S3C2410_UCON);
 
 	dbg("%s: port=%p (%08lx), cfg=%p\n",
-	    __FUNCTION__, port, port->mapbase, cfg);
+	    __func__, port, port->mapbase, cfg);
 
 	/* ensure we don't change the clock settings... */
 

@@ -762,7 +762,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 		break;
 	default:
 		printk(KERN_ERR "%s: word lengh not supported\n",
-			__FUNCTION__);
+			__func__);
 	}
 
 	if (termios->c_cflag & CSTOPB)
@@ -1029,7 +1029,7 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 
 		*baud = get_sclk() / (16*(dll | dlh << 8));
 	}
-	pr_debug("%s:baud = %d, parity = %c, bits= %d\n", __FUNCTION__, *baud, *parity, *bits);
+	pr_debug("%s:baud = %d, parity = %c, bits= %d\n", __func__, *baud, *parity, *bits);
 }
 #endif
 

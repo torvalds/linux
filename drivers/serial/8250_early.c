@@ -156,7 +156,7 @@ static int __init parse_options(struct early_serial8250_device *device,
 		port->membase = ioremap(port->mapbase, 64);
 		if (!port->membase) {
 			printk(KERN_ERR "%s: Couldn't ioremap 0x%llx\n",
-				__FUNCTION__,
+				__func__,
 			       (unsigned long long)port->mapbase);
 			return -ENOMEM;
 		}

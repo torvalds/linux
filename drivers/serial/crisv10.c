@@ -1788,7 +1788,7 @@ static unsigned int handle_descr_data(struct e100_serial *info,
 
 	if (info->recv_cnt + recvl > 65536) {
 		printk(KERN_CRIT
-		       "%s: Too much pending incoming serial data! Dropping %u bytes.\n", __FUNCTION__, recvl);
+		       "%s: Too much pending incoming serial data! Dropping %u bytes.\n", __func__, recvl);
 		return 0;
 	}
 
@@ -1801,7 +1801,7 @@ static unsigned int handle_descr_data(struct e100_serial *info,
 	append_recv_buffer(info, buffer);
 
 	if (!(buffer = alloc_recv_buffer(SERIAL_DESCR_BUF_SIZE)))
-		panic("%s: Failed to allocate memory for receive buffer!\n", __FUNCTION__);
+		panic("%s: Failed to allocate memory for receive buffer!\n", __func__);
 
 	descr->buf = virt_to_phys(buffer->buffer);
 
@@ -1925,7 +1925,7 @@ static int start_recv_dma(struct e100_serial *info)
 	/* Set up the receiving descriptors */
 	for (i = 0; i < SERIAL_RECV_DESCRIPTORS; i++) {
 		if (!(buffer = alloc_recv_buffer(SERIAL_DESCR_BUF_SIZE)))
-			panic("%s: Failed to allocate memory for receive buffer!\n", __FUNCTION__);
+			panic("%s: Failed to allocate memory for receive buffer!\n", __func__);
 
 		descr[i].ctrl = d_int;
 		descr[i].buf = virt_to_phys(buffer->buffer);
@@ -4519,7 +4519,7 @@ rs_init(void)
 
 	if (request_irq(SERIAL_IRQ_NBR, ser_interrupt,
 			IRQF_SHARED | IRQF_DISABLED, "serial ", driver))
-		panic("%s: Failed to request irq8", __FUNCTION__);
+		panic("%s: Failed to request irq8", __func__);
 
 #endif
 #endif /* CONFIG_SVINTO_SIM */
