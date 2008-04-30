@@ -1339,7 +1339,6 @@ static int dvb_init(struct saa7134_dev *dev)
 
 dettach_frontend:
 	dvb_frontend_detach(dev->dvb.frontend);
-	dvb_unregister_frontend(dev->dvb.frontend);
 	dev->dvb.frontend = NULL;
 
 	return -1;
