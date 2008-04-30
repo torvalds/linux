@@ -39,6 +39,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/completion.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -810,11 +811,6 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 {
 	uint32_t lccr0;
 
-	DECLARE_WAITQUEUE(wait, current);
-
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	add_wait_queue(&fbi->ctrlr_wait, &wait);
-
 	/* Clear LCD Status Register */
 	lcd_writel(fbi, LCSR, 0xffffffff);
 
@@ -822,8 +818,7 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 	lcd_writel(fbi, LCCR0, lccr0);
 	lcd_writel(fbi, LCCR0, lccr0 | LCCR0_DIS);
 
-	schedule_timeout(200 * HZ / 1000);
-	remove_wait_queue(&fbi->ctrlr_wait, &wait);
+	wait_for_completion_timeout(&fbi->disable_done, 200 * HZ / 1000);
 
 	/* disable LCD controller clock */
 	clk_disable(fbi->clk);
@@ -840,7 +835,7 @@ static irqreturn_t pxafb_handle_irq(int irq, void *dev_id)
 	if (lcsr & LCSR_LDD) {
 		lccr0 = lcd_readl(fbi, LCCR0);
 		lcd_writel(fbi, LCCR0, lccr0 | LCCR0_LDM);
-		wake_up(&fbi->ctrlr_wait);
+		complete(&fbi->disable_done);
 	}
 
 	lcd_writel(fbi, LCSR, lcsr);
@@ -1190,6 +1185,7 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 	init_waitqueue_head(&fbi->ctrlr_wait);
 	INIT_WORK(&fbi->task, pxafb_task);
 	init_MUTEX(&fbi->ctrlr_sem);
+	init_completion(&fbi->disable_done);
 
 	return fbi;
 }
