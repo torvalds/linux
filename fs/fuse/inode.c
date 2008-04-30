@@ -447,7 +447,7 @@ static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
 	return 0;
 }
 
-static struct fuse_conn *new_conn(void)
+static struct fuse_conn *new_conn(struct super_block *sb)
 {
 	struct fuse_conn *fc;
 	int err;
@@ -468,19 +468,26 @@ static struct fuse_conn *new_conn(void)
 		atomic_set(&fc->num_waiting, 0);
 		fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
+		fc->dev = sb->s_dev;
 		err = bdi_init(&fc->bdi);
-		if (err) {
-			kfree(fc);
-			fc = NULL;
-			goto out;
-		}
+		if (err)
+			goto error_kfree;
+		err = bdi_register_dev(&fc->bdi, fc->dev);
+		if (err)
+			goto error_bdi_destroy;
 		fc->reqctr = 0;
 		fc->blocked = 1;
 		fc->attr_version = 1;
 		get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
 	}
-out:
 	return fc;
+
+error_bdi_destroy:
+	bdi_destroy(&fc->bdi);
+error_kfree:
+	mutex_destroy(&fc->inst_mutex);
+	kfree(fc);
+	return NULL;
 }
 
 void fuse_conn_put(struct fuse_conn *fc)
@@ -578,12 +585,6 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 	request_send_background(fc, req);
 }
 
-static u64 conn_id(void)
-{
-	static u64 ctr = 1;
-	return ctr++;
-}
-
 static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct fuse_conn *fc;
@@ -621,7 +622,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (file->f_op != &fuse_dev_operations)
 		return -EINVAL;
 
-	fc = new_conn();
+	fc = new_conn(sb);
 	if (!fc)
 		return -ENOMEM;
 
@@ -659,7 +660,6 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (file->private_data)
 		goto err_unlock;
 
-	fc->id = conn_id();
 	err = fuse_ctl_add_conn(fc);
 	if (err)
 		goto err_unlock;

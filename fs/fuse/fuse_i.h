@@ -390,8 +390,8 @@ struct fuse_conn {
 	/** Entry on the fuse_conn_list */
 	struct list_head entry;
 
-	/** Unique ID */
-	u64 id;
+	/** Device ID from super block */
+	dev_t dev;
 
 	/** Dentries in the control filesystem */
 	struct dentry *ctl_dentry[FUSE_CTL_NUM_DENTRIES];
