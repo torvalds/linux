@@ -72,18 +72,20 @@
 #define DEBUG_STACK_BASE	dbgirq_ctx
 #define DEBUG_SPRG		SPRN_SPRG6W
 
+#define EXC_LVL_FRAME_OVERHEAD	(THREAD_SIZE - INT_FRAME_SIZE)
+
 #ifdef CONFIG_SMP
 #define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
 	mfspr	r8,SPRN_PIR;				\
 	slwi	r8,r8,2;				\
 	addis	r8,r8,level##_STACK_BASE@ha;		\
 	lwz	r8,level##_STACK_BASE@l(r8);		\
-	addi	r8,r8,THREAD_SIZE;
+	addi	r8,r8,EXC_LVL_FRAME_OVERHEAD;
 #else
 #define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
 	lis	r8,level##_STACK_BASE@ha;		\
 	lwz	r8,level##_STACK_BASE@l(r8);		\
-	addi	r8,r8,THREAD_SIZE;
+	addi	r8,r8,EXC_LVL_FRAME_OVERHEAD;
 #endif
 
 /*
@@ -97,22 +99,36 @@
 #define EXC_LEVEL_EXCEPTION_PROLOG(exc_level, exc_level_srr0, exc_level_srr1) \
 	mtspr	exc_level##_SPRG,r8;					     \
 	BOOKE_LOAD_EXC_LEVEL_STACK(exc_level);/* r8 points to the exc_level stack*/ \
-	stw	r10,GPR10-INT_FRAME_SIZE(r8);				     \
-	stw	r11,GPR11-INT_FRAME_SIZE(r8);				     \
-	mfcr	r10;			/* save CR in r10 for now	   */\
-	mfspr	r11,exc_level_srr1;	/* check whether user or kernel    */\
-	andi.	r11,r11,MSR_PR;						     \
-	mr	r11,r8;							     \
-	mfspr	r8,exc_level##_SPRG;					     \
-	beq	1f;							     \
-	/* COMING FROM USER MODE */					     \
+	stw	r9,GPR9(r8);		/* save various registers	   */\
+	mfcr	r9;			/* save CR in r9 for now	   */\
+	stw	r10,GPR10(r8);						     \
+	stw	r11,GPR11(r8);						     \
+	stw	r9,_CCR(r8);		/* save CR on stack		   */\
+	mfspr	r10,exc_level_srr1;	/* check whether user or kernel    */\
+	andi.	r10,r10,MSR_PR;						     \
 	mfspr	r11,SPRN_SPRG3;		/* if from user, start at top of   */\
 	lwz	r11,THREAD_INFO-THREAD(r11); /* this thread's kernel stack */\
-	addi	r11,r11,THREAD_SIZE;					     \
-1:	subi	r11,r11,INT_FRAME_SIZE;	/* Allocate an exception frame     */\
-	stw	r10,_CCR(r11);          /* save various registers	   */\
-	stw	r12,GPR12(r11);						     \
+	addi	r11,r11,EXC_LVL_FRAME_OVERHEAD;	/* allocate stack frame    */\
+	beq	1f;							     \
+	/* COMING FROM USER MODE */					     \
+	stw	r9,_CCR(r11);		/* save CR			   */\
+	lwz	r10,GPR10(r8);		/* copy regs from exception stack  */\
+	lwz	r9,GPR9(r8);						     \
+	stw	r10,GPR10(r11);						     \
+	lwz	r10,GPR11(r8);						     \
 	stw	r9,GPR9(r11);						     \
+	stw	r10,GPR11(r11);						     \
+	b	2f;							     \
+	/* COMING FROM PRIV MODE */					     \
+1:	lwz	r9,TI_FLAGS-EXC_LVL_FRAME_OVERHEAD(r11);		     \
+	lwz	r10,TI_PREEMPT-EXC_LVL_FRAME_OVERHEAD(r11);		     \
+	stw	r9,TI_FLAGS-EXC_LVL_FRAME_OVERHEAD(r8);			     \
+	stw	r10,TI_PREEMPT-EXC_LVL_FRAME_OVERHEAD(r8);		     \
+	lwz	r9,TI_TASK-EXC_LVL_FRAME_OVERHEAD(r11);			     \
+	stw	r9,TI_TASK-EXC_LVL_FRAME_OVERHEAD(r8);			     \
+	mr	r11,r8;							     \
+2:	mfspr	r8,exc_level##_SPRG;					     \
+	stw	r12,GPR12(r11);		/* save various registers	   */\
 	mflr	r10;							     \
 	stw	r10,_LINK(r11);						     \
 	mfspr	r12,SPRN_DEAR;		/* save DEAR and ESR in the frame  */\
@@ -255,8 +271,8 @@ label:
 	lwz	r12,GPR12(r11);						      \
 	mtspr	DEBUG_SPRG,r8;						      \
 	BOOKE_LOAD_EXC_LEVEL_STACK(DEBUG); /* r8 points to the debug stack */ \
-	lwz	r10,GPR10-INT_FRAME_SIZE(r8);				      \
-	lwz	r11,GPR11-INT_FRAME_SIZE(r8);				      \
+	lwz	r10,GPR10(r8);						      \
+	lwz	r11,GPR11(r8);						      \
 	mfspr	r8,DEBUG_SPRG;						      \
 									      \
 	RFDI;								      \
@@ -308,8 +324,8 @@ label:
 	lwz	r12,GPR12(r11);						      \
 	mtspr	CRIT_SPRG,r8;						      \
 	BOOKE_LOAD_EXC_LEVEL_STACK(CRIT); /* r8 points to the debug stack */  \
-	lwz	r10,GPR10-INT_FRAME_SIZE(r8);				      \
-	lwz	r11,GPR11-INT_FRAME_SIZE(r8);				      \
+	lwz	r10,GPR10(r8);						      \
+	lwz	r11,GPR11(r8);						      \
 	mfspr	r8,CRIT_SPRG;						      \
 									      \
 	rfci;								      \

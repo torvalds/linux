@@ -44,29 +44,16 @@
 #endif
 
 #ifdef CONFIG_BOOKE
-#include "head_booke.h"
-#define TRANSFER_TO_HANDLER_EXC_LEVEL(exc_level)	\
-	mtspr	exc_level##_SPRG,r8;			\
-	BOOKE_LOAD_EXC_LEVEL_STACK(exc_level);		\
-	lwz	r0,GPR10-INT_FRAME_SIZE(r8);		\
-	stw	r0,GPR10(r11);				\
-	lwz	r0,GPR11-INT_FRAME_SIZE(r8);		\
-	stw	r0,GPR11(r11);				\
-	mfspr	r8,exc_level##_SPRG
-
 	.globl	mcheck_transfer_to_handler
 mcheck_transfer_to_handler:
-	TRANSFER_TO_HANDLER_EXC_LEVEL(MCHECK)
 	b	transfer_to_handler_full
 
 	.globl	debug_transfer_to_handler
 debug_transfer_to_handler:
-	TRANSFER_TO_HANDLER_EXC_LEVEL(DEBUG)
 	b	transfer_to_handler_full
 
 	.globl	crit_transfer_to_handler
 crit_transfer_to_handler:
-	TRANSFER_TO_HANDLER_EXC_LEVEL(CRIT)
 	/* fall through */
 #endif
 
