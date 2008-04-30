@@ -31,7 +31,8 @@
 #define DRV_VERSION	"0.3"
 
 enum {
-	MMIO_BAR		= 5,
+	MMIO_BAR_PCI		= 5,
+	MMIO_BAR_CARDBUS	= 1,
 
 	NR_PORTS		= 2,
 
@@ -197,6 +198,7 @@ struct inic_pkt {
 } __packed;
 
 struct inic_host_priv {
+	void __iomem	*mmio_base;
 	u16		cached_hctl;
 };
 
@@ -221,7 +223,9 @@ static const int scr_map[] = {
 
 static void __iomem *inic_port_base(struct ata_port *ap)
 {
-	return ap->host->iomap[MMIO_BAR] + ap->port_no * PORT_SIZE;
+	struct inic_host_priv *hpriv = ap->host->private_data;
+
+	return hpriv->mmio_base + ap->port_no * PORT_SIZE;
 }
 
 static void inic_reset_port(void __iomem *port_base)
@@ -378,11 +382,11 @@ static void inic_host_intr(struct ata_port *ap)
 static irqreturn_t inic_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
-	void __iomem *mmio_base = host->iomap[MMIO_BAR];
+	struct inic_host_priv *hpriv = host->private_data;
 	u16 host_irq_stat;
 	int i, handled = 0;;
 
-	host_irq_stat = readw(mmio_base + HOST_IRQ_STAT);
+	host_irq_stat = readw(hpriv->mmio_base + HOST_IRQ_STAT);
 
 	if (unlikely(!(host_irq_stat & HIRQ_GLOBAL)))
 		goto out;
@@ -770,7 +774,6 @@ static int inic_pci_device_resume(struct pci_dev *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 	struct inic_host_priv *hpriv = host->private_data;
-	void __iomem *mmio_base = host->iomap[MMIO_BAR];
 	int rc;
 
 	rc = ata_pci_device_do_resume(pdev);
@@ -778,7 +781,7 @@ static int inic_pci_device_resume(struct pci_dev *pdev)
 		return rc;
 
 	if (pdev->dev.power.power_state.event == PM_EVENT_SUSPEND) {
-		rc = init_controller(mmio_base, hpriv->cached_hctl);
+		rc = init_controller(hpriv->mmio_base, hpriv->cached_hctl);
 		if (rc)
 			return rc;
 	}
@@ -796,6 +799,7 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_host *host;
 	struct inic_host_priv *hpriv;
 	void __iomem * const *iomap;
+	int mmio_bar;
 	int i, rc;
 
 	if (!printed_version++)
@@ -809,22 +813,30 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	host->private_data = hpriv;
 
-	/* acquire resources and fill host */
+	/* Acquire resources and fill host.  Note that PCI and cardbus
+	 * use different BARs.
+	 */
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
 
-	rc = pcim_iomap_regions(pdev, 1 << MMIO_BAR, DRV_NAME);
+	if (pci_resource_flags(pdev, MMIO_BAR_PCI) & IORESOURCE_MEM)
+		mmio_bar = MMIO_BAR_PCI;
+	else
+		mmio_bar = MMIO_BAR_CARDBUS;
+
+	rc = pcim_iomap_regions(pdev, 1 << mmio_bar, DRV_NAME);
 	if (rc)
 		return rc;
 	host->iomap = iomap = pcim_iomap_table(pdev);
-	hpriv->cached_hctl = readw(iomap[MMIO_BAR] + HOST_CTL);
+	hpriv->mmio_base = iomap[mmio_bar];
+	hpriv->cached_hctl = readw(hpriv->mmio_base + HOST_CTL);
 
 	for (i = 0; i < NR_PORTS; i++) {
 		struct ata_port *ap = host->ports[i];
 
-		ata_port_pbar_desc(ap, MMIO_BAR, -1, "mmio");
-		ata_port_pbar_desc(ap, MMIO_BAR, i * PORT_SIZE, "port");
+		ata_port_pbar_desc(ap, mmio_bar, -1, "mmio");
+		ata_port_pbar_desc(ap, mmio_bar, i * PORT_SIZE, "port");
 	}
 
 	/* Set dma_mask.  This devices doesn't support 64bit addressing. */
@@ -854,7 +866,7 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 	}
 
-	rc = init_controller(iomap[MMIO_BAR], hpriv->cached_hctl);
+	rc = init_controller(hpriv->mmio_base, hpriv->cached_hctl);
 	if (rc) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "failed to initialize controller\n");
