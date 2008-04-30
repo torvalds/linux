@@ -1115,12 +1115,13 @@ asmlinkage long sys_exit(int error_code)
 NORET_TYPE void
 do_group_exit(int exit_code)
 {
+	struct signal_struct *sig = current->signal;
+
 	BUG_ON(exit_code & 0x80); /* core dumps don't get here */
 
-	if (current->signal->flags & SIGNAL_GROUP_EXIT)
-		exit_code = current->signal->group_exit_code;
+	if (signal_group_exit(sig))
+		exit_code = sig->group_exit_code;
 	else if (!thread_group_empty(current)) {
-		struct signal_struct *const sig = current->signal;
 		struct sighand_struct *const sighand = current->sighand;
 		spin_lock_irq(&sighand->siglock);
 		if (signal_group_exit(sig))
