@@ -551,9 +551,7 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	    !capable(CAP_KILL)) {
 		switch (sig) {
 		case SIGCONT:
-			read_lock(&tasklist_lock);
 			sid = task_session(t);
-			read_unlock(&tasklist_lock);
 			/*
 			 * We don't return the error if sid == NULL. The
 			 * task was unhashed, the caller must notice this.
