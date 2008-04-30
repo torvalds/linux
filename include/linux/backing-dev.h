@@ -51,6 +51,8 @@ struct backing_dev_info {
 	struct prop_local_percpu completions;
 	int dirty_exceeded;
 
+	unsigned int min_ratio;
+
 	struct device *dev;
 };
 
@@ -136,6 +138,8 @@ static inline unsigned long bdi_stat_error(struct backing_dev_info *bdi)
 	return 1;
 #endif
 }
+
+int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio);
 
 /*
  * Flags in backing_dev_info::capability

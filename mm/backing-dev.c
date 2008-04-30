@@ -55,6 +55,24 @@ static inline unsigned long get_dirty(struct backing_dev_info *bdi, int i)
 BDI_SHOW(dirty_kb, K(get_dirty(bdi, 1)))
 BDI_SHOW(bdi_dirty_kb, K(get_dirty(bdi, 2)))
 
+static ssize_t min_ratio_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+	char *end;
+	unsigned int ratio;
+	ssize_t ret = -EINVAL;
+
+	ratio = simple_strtoul(buf, &end, 10);
+	if (*buf && (end[0] == '\0' || (end[0] == '\n' && end[1] == '\0'))) {
+		ret = bdi_set_min_ratio(bdi, ratio);
+		if (!ret)
+			ret = count;
+	}
+	return ret;
+}
+BDI_SHOW(min_ratio, bdi->min_ratio)
+
 #define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
 
 static struct device_attribute bdi_dev_attrs[] = {
@@ -63,6 +81,7 @@ static struct device_attribute bdi_dev_attrs[] = {
 	__ATTR_RO(writeback_kb),
 	__ATTR_RO(dirty_kb),
 	__ATTR_RO(bdi_dirty_kb),
+	__ATTR_RW(min_ratio),
 	__ATTR_NULL,
 };
 
@@ -126,6 +145,8 @@ int bdi_init(struct backing_dev_info *bdi)
 	int err;
 
 	bdi->dev = NULL;
+
+	bdi->min_ratio = 0;
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
 		err = percpu_counter_init_irq(&bdi->bdi_stat[i], 0);

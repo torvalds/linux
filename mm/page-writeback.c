@@ -243,6 +243,29 @@ static void task_dirty_limit(struct task_struct *tsk, long *pdirty)
 }
 
 /*
+ *
+ */
+static DEFINE_SPINLOCK(bdi_lock);
+static unsigned int bdi_min_ratio;
+
+int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
+{
+	int ret = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bdi_lock, flags);
+	min_ratio -= bdi->min_ratio;
+	if (bdi_min_ratio + min_ratio < 100) {
+		bdi_min_ratio += min_ratio;
+		bdi->min_ratio += min_ratio;
+	} else
+		ret = -EINVAL;
+	spin_unlock_irqrestore(&bdi_lock, flags);
+
+	return ret;
+}
+
+/*
  * Work out the current dirty-memory clamping and background writeout
  * thresholds.
  *
@@ -330,7 +353,7 @@ get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
 	*pdirty = dirty;
 
 	if (bdi) {
-		u64 bdi_dirty = dirty;
+		u64 bdi_dirty;
 		long numerator, denominator;
 
 		/*
@@ -338,8 +361,10 @@ get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
 		 */
 		bdi_writeout_fraction(bdi, &numerator, &denominator);
 
+		bdi_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
 		bdi_dirty *= numerator;
 		do_div(bdi_dirty, denominator);
+		bdi_dirty += (dirty * bdi->min_ratio) / 100;
 
 		*pbdi_dirty = bdi_dirty;
 		clip_bdi_dirty_limit(bdi, dirty, pbdi_dirty);
