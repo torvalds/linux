@@ -3174,6 +3174,27 @@ unlock:
 }
 
 /**
+ *	tty_get_pgrp	-	return a ref counted pgrp pid
+ *	@tty: tty to read
+ *
+ *	Returns a refcounted instance of the pid struct for the process
+ *	group controlling the tty.
+ */
+
+struct pid *tty_get_pgrp(struct tty_struct *tty)
+{
+	unsigned long flags;
+	struct pid *pgrp;
+
+	spin_lock_irqsave(&tty->ctrl_lock, flags);
+	pgrp = get_pid(tty->pgrp);
+	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+
+	return pgrp;
+}
+EXPORT_SYMBOL_GPL(tty_get_pgrp);
+
+/**
  *	tiocgpgrp		-	get process group
  *	@tty: tty passed by user
  *	@real_tty: tty side of the tty pased by the user if a pty else the tty
@@ -3187,13 +3208,18 @@ unlock:
 
 static int tiocgpgrp(struct tty_struct *tty, struct tty_struct *real_tty, pid_t __user *p)
 {
+	struct pid *pid;
+	int ret;
 	/*
 	 * (tty == real_tty) is a cheap way of
 	 * testing if the tty is NOT a master pty.
 	 */
 	if (tty == real_tty && current->signal->tty != real_tty)
 		return -ENOTTY;
-	return put_user(pid_vnr(real_tty->pgrp), p);
+	pid = tty_get_pgrp(real_tty);
+	ret =  put_user(pid_vnr(pid), p);
+	put_pid(pid);
+	return ret;
 }
 
 /**

@@ -429,7 +429,9 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 		struct signal_struct *sig = task->signal;
 
 		if (sig->tty) {
-			tty_pgrp = pid_nr_ns(sig->tty->pgrp, ns);
+			struct pid *pgrp = tty_get_pgrp(sig->tty);
+			tty_pgrp = pid_nr_ns(pgrp, ns);
+			put_pid(pgrp);
 			tty_nr = new_encode_dev(tty_devnum(sig->tty));
 		}
 
