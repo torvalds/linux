@@ -20,8 +20,8 @@ menuconfig USB_SERIAL
 if USB_SERIAL
 
 config USB_SERIAL_CONSOLE
-	bool "USB Serial Console device support (EXPERIMENTAL)"
-	depends on USB_SERIAL=y && EXPERIMENTAL
+	bool "USB Serial Console device support"
+	depends on USB_SERIAL=y
 	---help---
 	  If you say Y here, it will be possible to use a USB to serial
 	  converter port as the system console (the system console is the
@@ -44,13 +44,11 @@ config USB_SERIAL_CONSOLE
 
 config USB_EZUSB
 	bool "Functions for loading firmware on EZUSB chips"
-	depends on USB_SERIAL
 	help
 	    Say Y here if you need EZUSB device support.
 
 config USB_SERIAL_GENERIC
 	bool "USB Generic Serial Driver"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you want to use the generic USB serial driver.  Please
 	  read <file:Documentation/usb/usb-serial.txt> for more information on
@@ -59,8 +57,7 @@ config USB_SERIAL_GENERIC
 	  properly.
 
 config USB_SERIAL_AIRCABLE
-	tristate "USB AIRcable Bluetooth Dongle Driver (EXPERIMENTAL)"
-	depends on USB_SERIAL && EXPERIMENTAL
+	tristate "USB AIRcable Bluetooth Dongle Driver"
 	help
 	    Say Y here if you want to use USB AIRcable Bluetooth Dongle.
 
@@ -69,7 +66,6 @@ config USB_SERIAL_AIRCABLE
 
 config USB_SERIAL_AIRPRIME
 	tristate "USB AirPrime CDMA Wireless Driver"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you want to use a AirPrime CDMA Wireless PC card.
 
@@ -77,8 +73,7 @@ config USB_SERIAL_AIRPRIME
 	  module will be called airprime.
 
 config USB_SERIAL_ARK3116
-	tristate "USB ARK Micro 3116 USB Serial Driver (EXPERIMENTAL)"
-	depends on USB_SERIAL && EXPERIMENTAL
+	tristate "USB ARK Micro 3116 USB Serial Driver"
 	help
 	  Say Y here if you want to use a ARK Micro 3116 USB to Serial
 	  device.
@@ -88,7 +83,6 @@ config USB_SERIAL_ARK3116
 
 config USB_SERIAL_BELKIN
 	tristate "USB Belkin and Peracom Single Port Serial Driver"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you want to use a Belkin USB Serial single port
 	  adaptor (F5U103 is one of the model numbers) or the Peracom single
@@ -99,7 +93,6 @@ config USB_SERIAL_BELKIN
 
 config USB_SERIAL_CH341
 	tristate "USB Winchiphead CH341 Single Port Serial Driver"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you want to use a Winchiphead CH341 single port
 	  USB to serial adapter.
@@ -109,7 +102,6 @@ config USB_SERIAL_CH341
 
 config USB_SERIAL_WHITEHEAT
 	tristate "USB ConnectTech WhiteHEAT Serial Driver"
-	depends on USB_SERIAL
 	select USB_EZUSB
 	help
 	  Say Y here if you want to use a ConnectTech WhiteHEAT 4 port
@@ -120,7 +112,6 @@ config USB_SERIAL_WHITEHEAT
 
 config USB_SERIAL_DIGI_ACCELEPORT
 	tristate "USB Digi International AccelePort USB Serial Driver"
-	depends on USB_SERIAL
 	---help---
 	  Say Y here if you want to use Digi AccelePort USB 2 or 4 devices,
 	  2 port (plus parallel port) and 4 port USB serial converters.  The
@@ -135,7 +126,6 @@ config USB_SERIAL_DIGI_ACCELEPORT
 
 config USB_SERIAL_CP2101
 	tristate "USB CP2101 UART Bridge Controller"
-	depends on USB_SERIAL && EXPERIMENTAL
 	help
 	  Say Y here if you want to use a CP2101/CP2102 based USB to RS232
 	  converter.
@@ -145,7 +135,6 @@ config USB_SERIAL_CP2101
 
 config USB_SERIAL_CYPRESS_M8
 	tristate "USB Cypress M8 USB Serial Driver"
-	depends on USB_SERIAL && EXPERIMENTAL
 	help
 	  Say Y here if you want to use a device that contains the Cypress
 	  USB to Serial microcontroller, such as the DeLorme Earthmate GPS.
@@ -160,7 +149,6 @@ config USB_SERIAL_CYPRESS_M8
 
 config USB_SERIAL_EMPEG
 	tristate "USB Empeg empeg-car Mark I/II Driver"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you want to connect to your Empeg empeg-car Mark I/II
 	  mp3 player via USB.  The driver uses a single ttyUSB{0,1,2,...}
@@ -171,8 +159,7 @@ config USB_SERIAL_EMPEG
 	  module will be called empeg.
 
 config USB_SERIAL_FTDI_SIO
-	tristate "USB FTDI Single Port Serial Driver (EXPERIMENTAL)"
-	depends on USB_SERIAL && EXPERIMENTAL
+	tristate "USB FTDI Single Port Serial Driver"
 	---help---
 	  Say Y here if you want to use a FTDI SIO single port USB to serial
 	  converter device. The implementation I have is called the USC-1000.
@@ -186,7 +173,6 @@ config USB_SERIAL_FTDI_SIO
 
 config USB_SERIAL_FUNSOFT
 	tristate "USB Fundamental Software Dongle Driver"
-	depends on USB_SERIAL
 	---help---
 	  Say Y here if you want to use the Fundamental Software dongle.
 
@@ -195,7 +181,6 @@ config USB_SERIAL_FUNSOFT
 
 config USB_SERIAL_VISOR
 	tristate "USB Handspring Visor / Palm m50x / Sony Clie Driver"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you want to connect to your HandSpring Visor, Palm
 	  m500 or m505 through its USB docking station. See
@@ -207,7 +192,6 @@ config USB_SERIAL_VISOR
 
 config USB_SERIAL_IPAQ
 	tristate "USB PocketPC PDA Driver"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you want to connect to your Compaq iPAQ, HP Jornada
 	  or any other PDA running Windows CE 3.0 or PocketPC 2002
@@ -218,8 +202,7 @@ config USB_SERIAL_IPAQ
 	  module will be called ipaq.
 
 config USB_SERIAL_IR
-	tristate "USB IR Dongle Serial Driver (EXPERIMENTAL)"
-	depends on USB_SERIAL && EXPERIMENTAL
+	tristate "USB IR Dongle Serial Driver"
 	help
 	  Say Y here if you want to enable simple serial support for USB IrDA
 	  devices.  This is useful if you do not want to use the full IrDA
@@ -230,7 +213,6 @@ config USB_SERIAL_IR
 
 config USB_SERIAL_EDGEPORT
 	tristate "USB Inside Out Edgeport Serial Driver"
-	depends on USB_SERIAL
 	---help---
 	  Say Y here if you want to use any of the following devices from
 	  Inside Out Networks (Digi):
@@ -256,7 +238,6 @@ config USB_SERIAL_EDGEPORT
 
 config USB_SERIAL_EDGEPORT_TI
 	tristate "USB Inside Out Edgeport Serial Driver (TI devices)"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you want to use any of the devices from Inside Out
 	  Networks (Digi) that are not supported by the io_edgeport driver.
@@ -267,7 +248,6 @@ config USB_SERIAL_EDGEPORT_TI
 
 config USB_SERIAL_GARMIN
        tristate "USB Garmin GPS driver"
-       depends on USB_SERIAL
        help
          Say Y here if you want to connect to your Garmin GPS.
          Should work with most Garmin GPS devices which have a native USB port.
@@ -279,8 +259,7 @@ config USB_SERIAL_GARMIN
          module will be called garmin_gps.
 
 config USB_SERIAL_IPW
-        tristate "USB IPWireless (3G UMTS TDD) Driver (EXPERIMENTAL)"
-	depends on USB_SERIAL && EXPERIMENTAL
+        tristate "USB IPWireless (3G UMTS TDD) Driver"
 	help
 	  Say Y here if you want to use a IPWireless USB modem such as
 	  the ones supplied by Axity3G/Sentech South Africa.
@@ -289,8 +268,7 @@ config USB_SERIAL_IPW
 	  module will be called ipw.
 
 config USB_SERIAL_IUU
-	tristate "USB Infinity USB Unlimited Phoenix Driver (Experimental)"
-	depends on USB_SERIAL && EXPERIMENTAL
+	tristate "USB Infinity USB Unlimited Phoenix Driver"
 	help
 	  Say Y here if you want to use a IUU in phoenix mode and get
 	  an extra ttyUSBx device. More information available on
@@ -301,7 +279,6 @@ config USB_SERIAL_IUU
 
 config USB_SERIAL_KEYSPAN_PDA
 	tristate "USB Keyspan PDA Single Port Serial Driver"
-	depends on USB_SERIAL
 	select USB_EZUSB
 	help
 	  Say Y here if you want to use a Keyspan PDA single port USB to
@@ -313,7 +290,6 @@ config USB_SERIAL_KEYSPAN_PDA
 
 config USB_SERIAL_KEYSPAN
 	tristate "USB Keyspan USA-xxx Serial Driver"
-	depends on USB_SERIAL
 	select USB_EZUSB
 	---help---
 	  Say Y here if you want to use Keyspan USB to serial converter
@@ -405,8 +381,7 @@ config USB_SERIAL_KEYSPAN_USA49WLC
 	  Say Y here to include firmware for the USA-49WLC converter.
 
 config USB_SERIAL_KLSI
-	tristate "USB KL5KUSB105 (Palmconnect) Driver (EXPERIMENTAL)"
-	depends on USB_SERIAL && EXPERIMENTAL
+	tristate "USB KL5KUSB105 (Palmconnect) Driver"
 	---help---
 	  Say Y here if you want to use a KL5KUSB105 - based single port
 	  serial adapter. The most widely known -- and currently the only
@@ -422,7 +397,6 @@ config USB_SERIAL_KLSI
 
 config USB_SERIAL_KOBIL_SCT
         tristate "USB KOBIL chipcard reader"
-        depends on USB_SERIAL
         ---help---
           Say Y here if you want to use one of the following KOBIL USB chipcard
           readers:
@@ -440,7 +414,6 @@ config USB_SERIAL_KOBIL_SCT
 
 config USB_SERIAL_MCT_U232
 	tristate "USB MCT Single Port Serial Driver"
-	depends on USB_SERIAL
 	---help---
 	  Say Y here if you want to use a USB Serial single port adapter from
 	  Magic Control Technology Corp. (U232 is one of the model numbers).
@@ -453,7 +426,6 @@ config USB_SERIAL_MCT_U232
 
 config USB_SERIAL_MOS7720
 	tristate "USB Moschip 7720 Serial Driver"
-	depends on USB_SERIAL
 	---help---
 	  Say Y here if you want to use USB Serial single and double
 	  port adapters from Moschip Semiconductor Tech.
@@ -463,7 +435,6 @@ config USB_SERIAL_MOS7720
 
 config USB_SERIAL_MOS7840
 	tristate "USB Moschip 7840/7820 USB Serial Driver"
-	depends on USB_SERIAL
 	---help---
 	  Say Y here if you want to use a MCS7840 Quad-Serial or MCS7820
 	  Dual-Serial port device from MosChip Semiconductor.
@@ -478,14 +449,12 @@ config USB_SERIAL_MOS7840
 
 config USB_SERIAL_NAVMAN
 	tristate "USB Navman GPS device"
-	depends on USB_SERIAL
 	help
 	  To compile this driver as a module, choose M here: the
 	  module will be called navman.
 
 config USB_SERIAL_PL2303
 	tristate "USB Prolific 2303 Single Port Serial Driver"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you want to use the PL2303 USB Serial single port
 	  adapter from Prolific.
@@ -494,8 +463,7 @@ config USB_SERIAL_PL2303
 	  module will be called pl2303.
 
 config USB_SERIAL_OTI6858
-	tristate "USB Ours Technology Inc. OTi-6858 USB To RS232 Bridge Controller (EXPERIMENTAL)"
-	depends on USB_SERIAL
+	tristate "USB Ours Technology Inc. OTi-6858 USB To RS232 Bridge Controller"
 	help
 	  Say Y here if you want to use the OTi-6858 single port USB to serial
           converter device.
@@ -503,9 +471,17 @@ config USB_SERIAL_OTI6858
 	  To compile this driver as a module, choose M here: the
 	  module will be called oti6858.
 
+config USB_SERIAL_SPCP8X5
+	tristate "USB SPCP8x5 USB To Serial Driver"
+	help
+	  Say Y here if you want to use the spcp8x5 converter chip.  This is
+	  commonly found in some Z-Wave USB devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called spcp8x5.
+
 config USB_SERIAL_HP4X
         tristate "USB HP4x Calculators support"
-        depends on USB_SERIAL
         help
           Say Y here if you want to use an Hewlett-Packard 4x Calculator.
 
@@ -513,8 +489,7 @@ config USB_SERIAL_HP4X
           module will be called hp4x.
 
 config USB_SERIAL_SAFE
-	tristate "USB Safe Serial (Encapsulated) Driver (EXPERIMENTAL)"
-	depends on USB_SERIAL && EXPERIMENTAL
+	tristate "USB Safe Serial (Encapsulated) Driver"
 
 config USB_SERIAL_SAFE_PADDED
 	bool "USB Secure Encapsulated Driver - Padded"
@@ -522,7 +497,6 @@ config USB_SERIAL_SAFE_PADDED
 
 config USB_SERIAL_SIERRAWIRELESS
 	tristate "USB Sierra Wireless Driver"
-	depends on USB_SERIAL
 	help
 	  Say M here if you want to use a Sierra Wireless device (if
 	  using an PC 5220 or AC580 please use the Airprime driver
@@ -533,7 +507,6 @@ config USB_SERIAL_SIERRAWIRELESS
 
 config USB_SERIAL_TI
 	tristate "USB TI 3410/5052 Serial Driver"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you want to use the TI USB 3410 or 5052
 	  serial devices.
@@ -542,8 +515,7 @@ config USB_SERIAL_TI
 	  module will be called ti_usb_3410_5052.
 
 config USB_SERIAL_CYBERJACK
-	tristate "USB REINER SCT cyberJack pinpad/e-com chipcard reader (EXPERIMENTAL)"
-	depends on USB_SERIAL && EXPERIMENTAL
+	tristate "USB REINER SCT cyberJack pinpad/e-com chipcard reader"
 	---help---
 	  Say Y here if you want to use a cyberJack pinpad/e-com USB chipcard
 	  reader. This is an interface to ISO 7816 compatible contact-based
@@ -556,7 +528,6 @@ config USB_SERIAL_CYBERJACK
 
 config USB_SERIAL_XIRCOM
 	tristate "USB Xircom / Entregra Single Port Serial Driver"
-	depends on USB_SERIAL
 	select USB_EZUSB
 	help
 	  Say Y here if you want to use a Xircom or Entregra single port USB to
@@ -568,7 +539,6 @@ config USB_SERIAL_XIRCOM
 
 config USB_SERIAL_OPTION
 	tristate "USB driver for GSM and CDMA modems"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you have a GSM or CDMA modem that's connected to USB.
 
@@ -586,8 +556,7 @@ config USB_SERIAL_OPTION
 	  it might be accessible via the FTDI_SIO driver.
 
 config USB_SERIAL_OMNINET
-	tristate "USB ZyXEL omni.net LCD Plus Driver (EXPERIMENTAL)"
-	depends on USB_SERIAL && EXPERIMENTAL
+	tristate "USB ZyXEL omni.net LCD Plus Driver"
 	help
 	  Say Y here if you want to use a ZyXEL omni.net LCD ISDN TA.
 
@@ -596,7 +565,6 @@ config USB_SERIAL_OMNINET
 
 config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"
-	depends on USB_SERIAL
 	help
 	  Say Y here if you have a USB debugging device used to receive
 	  debugging data from another machine.  The most common of these

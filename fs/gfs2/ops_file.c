@@ -30,7 +30,6 @@
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
-#include "lm.h"
 #include "log.h"
 #include "meta_io.h"
 #include "quota.h"
@@ -39,6 +38,7 @@
 #include "util.h"
 #include "eaops.h"
 #include "ops_address.h"
+#include "ops_inode.h"
 
 /**
  * gfs2_llseek - seek to a location in a file
@@ -369,12 +369,9 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	if (al == NULL)
 		goto out_unlock;
 
-	ret = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+	ret = gfs2_quota_lock_check(ip);
 	if (ret)
 		goto out_alloc_put;
-	ret = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
-	if (ret)
-		goto out_quota_unlock;
 	al->al_requested = data_blocks + ind_blocks;
 	ret = gfs2_inplace_reserve(ip);
 	if (ret)
@@ -594,6 +591,36 @@ static int gfs2_setlease(struct file *file, long arg, struct file_lock **fl)
 	if (!sdp->sd_args.ar_localflocks)
 		return -EINVAL;
 	return generic_setlease(file, arg, fl);
+}
+
+static int gfs2_lm_plock_get(struct gfs2_sbd *sdp, struct lm_lockname *name,
+		      struct file *file, struct file_lock *fl)
+{
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		error = sdp->sd_lockstruct.ls_ops->lm_plock_get(
+				sdp->sd_lockstruct.ls_lockspace, name, file, fl);
+	return error;
+}
+
+static int gfs2_lm_plock(struct gfs2_sbd *sdp, struct lm_lockname *name,
+		  struct file *file, int cmd, struct file_lock *fl)
+{
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		error = sdp->sd_lockstruct.ls_ops->lm_plock(
+				sdp->sd_lockstruct.ls_lockspace, name, file, cmd, fl);
+	return error;
+}
+
+static int gfs2_lm_punlock(struct gfs2_sbd *sdp, struct lm_lockname *name,
+		    struct file *file, struct file_lock *fl)
+{
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		error = sdp->sd_lockstruct.ls_ops->lm_punlock(
+				sdp->sd_lockstruct.ls_lockspace, name, file, fl);
+	return error;
 }
 
 /**

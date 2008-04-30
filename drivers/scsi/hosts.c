@@ -43,14 +43,14 @@
 static int scsi_host_next_hn;		/* host_no for next new host */
 
 
-static void scsi_host_cls_release(struct class_device *class_dev)
+static void scsi_host_cls_release(struct device *dev)
 {
-	put_device(&class_to_shost(class_dev)->shost_gendev);
+	put_device(&class_to_shost(dev)->shost_gendev);
 }
 
 static struct class shost_class = {
 	.name		= "scsi_host",
-	.release	= scsi_host_cls_release,
+	.dev_release	= scsi_host_cls_release,
 };
 
 /**
@@ -174,7 +174,7 @@ void scsi_remove_host(struct Scsi_Host *shost)
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	transport_unregister_device(&shost->shost_gendev);
-	class_device_unregister(&shost->shost_classdev);
+	device_unregister(&shost->shost_dev);
 	device_del(&shost->shost_gendev);
 	scsi_proc_hostdir_rm(shost->hostt);
 }
@@ -199,8 +199,12 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 	if (!shost->can_queue) {
 		printk(KERN_ERR "%s: can_queue = 0 no longer supported\n",
 				sht->name);
-		goto out;
+		goto fail;
 	}
+
+	error = scsi_setup_command_freelist(shost);
+	if (error)
+		goto fail;
 
 	if (!shost->shost_gendev.parent)
 		shost->shost_gendev.parent = dev ? dev : &platform_bus;
@@ -212,7 +216,7 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 	scsi_host_set_state(shost, SHOST_RUNNING);
 	get_device(shost->shost_gendev.parent);
 
-	error = class_device_add(&shost->shost_classdev);
+	error = device_add(&shost->shost_dev);
 	if (error)
 		goto out_del_gendev;
 
@@ -223,7 +227,7 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 					 GFP_KERNEL);
 		if (shost->shost_data == NULL) {
 			error = -ENOMEM;
-			goto out_del_classdev;
+			goto out_del_dev;
 		}
 	}
 
@@ -250,11 +254,13 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 		destroy_workqueue(shost->work_q);
  out_free_shost_data:
 	kfree(shost->shost_data);
- out_del_classdev:
-	class_device_del(&shost->shost_classdev);
+ out_del_dev:
+	device_del(&shost->shost_dev);
  out_del_gendev:
 	device_del(&shost->shost_gendev);
  out:
+	scsi_destroy_command_freelist(shost);
+ fail:
 	return error;
 }
 EXPORT_SYMBOL(scsi_add_host);
@@ -283,6 +289,11 @@ static void scsi_host_dev_release(struct device *dev)
 		put_device(parent);
 	kfree(shost);
 }
+
+struct device_type scsi_host_type = {
+	.name =		"scsi_host",
+	.release =	scsi_host_dev_release,
+};
 
 /**
  * scsi_host_alloc - register a scsi host adapter instance.
@@ -347,7 +358,6 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->unchecked_isa_dma = sht->unchecked_isa_dma;
 	shost->use_clustering = sht->use_clustering;
 	shost->ordered_tag = sht->ordered_tag;
-	shost->active_mode = sht->supported_mode;
 
 	if (sht->supported_mode == MODE_UNKNOWN)
 		/* means we didn't set it ... default to INITIATOR */
@@ -377,33 +387,31 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	else
 		shost->dma_boundary = 0xffffffff;
 
-	rval = scsi_setup_command_freelist(shost);
-	if (rval)
-		goto fail_kfree;
-
 	device_initialize(&shost->shost_gendev);
 	snprintf(shost->shost_gendev.bus_id, BUS_ID_SIZE, "host%d",
 		shost->host_no);
-	shost->shost_gendev.release = scsi_host_dev_release;
+#ifndef CONFIG_SYSFS_DEPRECATED
+	shost->shost_gendev.bus = &scsi_bus_type;
+#endif
+	shost->shost_gendev.type = &scsi_host_type;
 
-	class_device_initialize(&shost->shost_classdev);
-	shost->shost_classdev.dev = &shost->shost_gendev;
-	shost->shost_classdev.class = &shost_class;
-	snprintf(shost->shost_classdev.class_id, BUS_ID_SIZE, "host%d",
-		  shost->host_no);
+	device_initialize(&shost->shost_dev);
+	shost->shost_dev.parent = &shost->shost_gendev;
+	shost->shost_dev.class = &shost_class;
+	snprintf(shost->shost_dev.bus_id, BUS_ID_SIZE, "host%d",
+		 shost->host_no);
+	shost->shost_dev.groups = scsi_sysfs_shost_attr_groups;
 
 	shost->ehandler = kthread_run(scsi_error_handler, shost,
 			"scsi_eh_%d", shost->host_no);
 	if (IS_ERR(shost->ehandler)) {
 		rval = PTR_ERR(shost->ehandler);
-		goto fail_destroy_freelist;
+		goto fail_kfree;
 	}
 
 	scsi_proc_hostdir_add(shost->hostt);
 	return shost;
 
- fail_destroy_freelist:
-	scsi_destroy_command_freelist(shost);
  fail_kfree:
 	kfree(shost);
 	return NULL;
@@ -433,12 +441,12 @@ void scsi_unregister(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(scsi_unregister);
 
-static int __scsi_host_match(struct class_device *cdev, void *data)
+static int __scsi_host_match(struct device *dev, void *data)
 {
 	struct Scsi_Host *p;
 	unsigned short *hostnum = (unsigned short *)data;
 
-	p = class_to_shost(cdev);
+	p = class_to_shost(dev);
 	return p->host_no == *hostnum;
 }
 
@@ -451,10 +459,10 @@ static int __scsi_host_match(struct class_device *cdev, void *data)
  **/
 struct Scsi_Host *scsi_host_lookup(unsigned short hostnum)
 {
-	struct class_device *cdev;
+	struct device *cdev;
 	struct Scsi_Host *shost = ERR_PTR(-ENXIO);
 
-	cdev = class_find_child(&shost_class, &hostnum, __scsi_host_match);
+	cdev = class_find_device(&shost_class, &hostnum, __scsi_host_match);
 	if (cdev)
 		shost = scsi_host_get(class_to_shost(cdev));
 
@@ -497,7 +505,7 @@ void scsi_exit_hosts(void)
 
 int scsi_is_host_device(const struct device *dev)
 {
-	return dev->release == scsi_host_dev_release;
+	return dev->type == &scsi_host_type;
 }
 EXPORT_SYMBOL(scsi_is_host_device);
 

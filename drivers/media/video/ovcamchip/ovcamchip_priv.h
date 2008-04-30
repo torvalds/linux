@@ -24,11 +24,11 @@ extern int ovcamchip_debug;
 
 #define PDEBUG(level, fmt, args...) \
 	if (ovcamchip_debug >= (level))	pr_debug("[%s:%d] " fmt "\n", \
-		__FUNCTION__, __LINE__ , ## args)
+		__func__, __LINE__ , ## args)
 
 #define DDEBUG(level, dev, fmt, args...) \
 	if (ovcamchip_debug >= (level))	dev_dbg(dev, "[%s:%d] " fmt "\n", \
-		__FUNCTION__, __LINE__ , ## args)
+		__func__, __LINE__ , ## args)
 
 /* Number of times to retry chip detection. Increase this if you are getting
  * "Failed to init camera chip" */

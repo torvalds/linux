@@ -23,7 +23,6 @@
 #include <linux/highmem.h>
 #include <linux/mutex.h>
 #include <asm/sections.h>
-#include <asm/semaphore.h>
 #include <asm/irq_regs.h>
 #include <asm/ptrace.h>
 

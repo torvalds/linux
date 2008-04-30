@@ -148,7 +148,7 @@ static void write_debugctlmsr(struct task_struct *child, unsigned long val)
 	if (child != current)
 		return;
 
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, val);
+	update_debugctlmsr(val);
 }
 
 /*

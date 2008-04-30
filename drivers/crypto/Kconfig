@@ -27,6 +27,7 @@ config CRYPTO_DEV_PADLOCK_AES
 	tristate "PadLock driver for AES algorithm"
 	depends on CRYPTO_DEV_PADLOCK
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_AES
 	help
 	  Use VIA PadLock for AES algorithm.
 
@@ -64,6 +65,7 @@ config ZCRYPT
 	tristate "Support for PCI-attached cryptographic adapters"
 	depends on S390
 	select ZCRYPT_MONOLITHIC if ZCRYPT="y"
+	select HW_RANDOM
 	help
 	  Select this option if you want to use a PCI-attached cryptographic
 	  adapter like:
@@ -99,6 +101,19 @@ config CRYPTO_SHA256_S390
 
 	  This version of SHA implements a 256 bit hash with 128 bits of
 	  security against collision attacks.
+
+config CRYPTO_SHA512_S390
+	tristate "SHA384 and SHA512 digest algorithm"
+	depends on S390
+	select CRYPTO_ALGAPI
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA512 secure hash standard.
+
+	  This version of SHA implements a 512 bit hash with 256 bits of
+	  security against collision attacks. The code also includes SHA-384,
+	  a 384 bit hash with 192 bits of security against collision attacks.
+
 
 config CRYPTO_DES_S390
 	tristate "DES and Triple DES cipher algorithms"

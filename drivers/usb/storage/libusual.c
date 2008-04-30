@@ -9,6 +9,7 @@
 #include <linux/usb_usual.h>
 #include <linux/vmalloc.h>
 #include <linux/kthread.h>
+#include <linux/mutex.h>
 
 /*
  */
@@ -30,7 +31,7 @@ static atomic_t usu_bias = ATOMIC_INIT(USB_US_DEFAULT_BIAS);
 #define BIAS_NAME_SIZE  (sizeof("usb-storage"))
 static const char *bias_names[3] = { "none", "usb-storage", "ub" };
 
-static struct semaphore usu_init_notify;
+static DEFINE_MUTEX(usu_probe_mutex);
 static DECLARE_COMPLETION(usu_end_notify);
 static atomic_t total_threads = ATOMIC_INIT(0);
 
@@ -178,10 +179,7 @@ static int usu_probe_thread(void *arg)
 	int rc;
 	unsigned long flags;
 
-	/* A completion does not work here because it's counted. */
-	down(&usu_init_notify);
-	up(&usu_init_notify);
-
+	mutex_lock(&usu_probe_mutex);
 	rc = request_module(bias_names[type]);
 	spin_lock_irqsave(&usu_lock, flags);
 	if (rc == 0 && (st->fls & USU_MOD_FL_PRESENT) == 0) {
@@ -194,6 +192,7 @@ static int usu_probe_thread(void *arg)
 	}
 	st->fls &= ~USU_MOD_FL_THREAD;
 	spin_unlock_irqrestore(&usu_lock, flags);
+	mutex_unlock(&usu_probe_mutex);
 
 	complete_and_exit(&usu_end_notify, 0);
 }
@@ -204,10 +203,9 @@ static int __init usb_usual_init(void)
 {
 	int rc;
 
-	sema_init(&usu_init_notify, 0);
-
+	mutex_lock(&usu_probe_mutex);
 	rc = usb_register(&usu_driver);
-	up(&usu_init_notify);
+	mutex_unlock(&usu_probe_mutex);
 	return rc;
 }
 

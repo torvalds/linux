@@ -661,7 +661,7 @@ static int lguest_clockevent_set_next_event(unsigned long delta,
 	if (delta < LG_CLOCK_MIN_DELTA) {
 		if (printk_ratelimit())
 			printk(KERN_DEBUG "%s: small delta %lu ns\n",
-			       __FUNCTION__, delta);
+			       __func__, delta);
 		return -ETIME;
 	}
 

@@ -44,7 +44,9 @@ struct resource_list {
 #define IORESOURCE_CACHEABLE	0x00004000
 #define IORESOURCE_RANGELENGTH	0x00008000
 #define IORESOURCE_SHADOWABLE	0x00010000
-#define IORESOURCE_BUS_HAS_VGA	0x00080000
+
+#define IORESOURCE_SIZEALIGN	0x00020000	/* size indicates alignment */
+#define IORESOURCE_STARTALIGN	0x00040000	/* start field is alignment */
 
 #define IORESOURCE_DISABLED	0x10000000
 #define IORESOURCE_UNSET	0x20000000
@@ -110,6 +112,7 @@ extern int allocate_resource(struct resource *root, struct resource *new,
 			     void *alignf_data);
 int adjust_resource(struct resource *res, resource_size_t start,
 		    resource_size_t size);
+resource_size_t resource_alignment(struct resource *res);
 
 /* Convenience shorthand with allocation */
 #define request_region(start,n,name)	__request_region(&ioport_resource, (start), (n), (name))

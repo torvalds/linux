@@ -45,11 +45,11 @@ struct mlx4_cqe {
 	u8			sl;
 	u8			reserved1;
 	__be16			rlid;
-	u32			reserved2;
+	__be32			ipoib_status;
 	__be32			byte_cnt;
 	__be16			wqe_index;
 	__be16			checksum;
-	u8			reserved3[3];
+	u8			reserved2[3];
 	u8			owner_sr_opcode;
 };
 
@@ -83,6 +83,16 @@ enum {
 	MLX4_CQE_SYNDROME_TRANSPORT_RETRY_EXC_ERR	= 0x15,
 	MLX4_CQE_SYNDROME_RNR_RETRY_EXC_ERR		= 0x16,
 	MLX4_CQE_SYNDROME_REMOTE_ABORTED_ERR		= 0x22,
+};
+
+enum {
+	MLX4_CQE_IPOIB_STATUS_IPV4			= 1 << 22,
+	MLX4_CQE_IPOIB_STATUS_IPV4F			= 1 << 23,
+	MLX4_CQE_IPOIB_STATUS_IPV6			= 1 << 24,
+	MLX4_CQE_IPOIB_STATUS_IPV4OPT			= 1 << 25,
+	MLX4_CQE_IPOIB_STATUS_TCP			= 1 << 26,
+	MLX4_CQE_IPOIB_STATUS_UDP			= 1 << 27,
+	MLX4_CQE_IPOIB_STATUS_IPOK			= 1 << 28,
 };
 
 static inline void mlx4_cq_arm(struct mlx4_cq *cq, u32 cmd,
@@ -119,5 +129,10 @@ enum {
 	MLX4_CQ_DB_REQ_NOT_SOL		= 1 << 24,
 	MLX4_CQ_DB_REQ_NOT		= 2 << 24
 };
+
+int mlx4_cq_modify(struct mlx4_dev *dev, struct mlx4_cq *cq,
+		   u16 count, u16 period);
+int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
+		   int entries, struct mlx4_mtt *mtt);
 
 #endif /* MLX4_CQ_H */

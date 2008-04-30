@@ -52,7 +52,7 @@ KEY_X, KEY_F, KEY_SPACE, KEY_APOSTROPHE, TOSA_KEY_MAIL, KEY_LEFT, KEY_DOWN, KEY_
 struct tosakbd {
 	unsigned int keycode[ARRAY_SIZE(tosakbd_keycode)];
 	struct input_dev *input;
-
+	int suspended;
 	spinlock_t lock; /* protect kbd scanning */
 	struct timer_list timer;
 };
@@ -133,6 +133,9 @@ static void tosakbd_scankeyboard(struct platform_device *dev)
 
 	spin_lock_irqsave(&tosakbd->lock, flags);
 
+	if (tosakbd->suspended)
+		goto out;
+
 	for (col = 0; col < TOSA_KEY_STROBE_NUM; col++) {
 		/*
 		 * Discharge the output driver capacitatance
@@ -174,6 +177,7 @@ static void tosakbd_scankeyboard(struct platform_device *dev)
 	if (num_pressed)
 		mod_timer(&tosakbd->timer, jiffies + SCAN_INTERVAL);
 
+ out:
 	spin_unlock_irqrestore(&tosakbd->lock, flags);
 }
 
@@ -200,6 +204,7 @@ static irqreturn_t tosakbd_interrupt(int irq, void *__dev)
 static void tosakbd_timer_callback(unsigned long __dev)
 {
 	struct platform_device *dev = (struct platform_device *)__dev;
+
 	tosakbd_scankeyboard(dev);
 }
 
@@ -207,6 +212,13 @@ static void tosakbd_timer_callback(unsigned long __dev)
 static int tosakbd_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct tosakbd *tosakbd = platform_get_drvdata(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&tosakbd->lock, flags);
+	PGSR1 = (PGSR1 & ~TOSA_GPIO_LOW_STROBE_BIT);
+	PGSR2 = (PGSR2 & ~TOSA_GPIO_HIGH_STROBE_BIT);
+	tosakbd->suspended = 1;
+	spin_unlock_irqrestore(&tosakbd->lock, flags);
 
 	del_timer_sync(&tosakbd->timer);
 
@@ -215,6 +227,9 @@ static int tosakbd_suspend(struct platform_device *dev, pm_message_t state)
 
 static int tosakbd_resume(struct platform_device *dev)
 {
+	struct tosakbd *tosakbd = platform_get_drvdata(dev);
+
+	tosakbd->suspended = 0;
 	tosakbd_scankeyboard(dev);
 
 	return 0;
@@ -365,8 +380,8 @@ fail:
 	return error;
 }
 
-static int __devexit tosakbd_remove(struct platform_device *dev) {
-
+static int __devexit tosakbd_remove(struct platform_device *dev)
+{
 	int i;
 	struct tosakbd *tosakbd = platform_get_drvdata(dev);
 
@@ -394,6 +409,7 @@ static struct platform_driver tosakbd_driver = {
 	.resume		= tosakbd_resume,
 	.driver		= {
 		.name	= "tosa-keyboard",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -413,3 +429,4 @@ module_exit(tosakbd_exit);
 MODULE_AUTHOR("Dirk Opfer <Dirk@Opfer-Online.de>");
 MODULE_DESCRIPTION("Tosa Keyboard Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:tosa-keyboard");

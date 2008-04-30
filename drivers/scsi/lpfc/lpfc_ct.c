@@ -63,7 +63,7 @@ lpfc_ct_ignore_hbq_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 {
 	if (!mp) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-				"0146 Ignoring unsolicted CT No HBQ "
+				"0146 Ignoring unsolicited CT No HBQ "
 				"status = x%x\n",
 				piocbq->iocb.ulpStatus);
 	}
@@ -438,7 +438,7 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 				    (!(vport->ct_flags & FC_CT_RFF_ID)) ||
 				    (!vport->cfg_restrict_login)) {
 					ndlp = lpfc_setup_disc_node(vport, Did);
-					if (ndlp) {
+					if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
 						lpfc_debugfs_disc_trc(vport,
 						LPFC_DISC_TRC_CT,
 						"Parse GID_FTrsp: "
@@ -543,7 +543,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *outp;
 	struct lpfc_sli_ct_request *CTrsp;
 	struct lpfc_nodelist *ndlp;
-	int rc, retry;
+	int rc;
 
 	/* First save ndlp, before we overwrite it */
 	ndlp = cmdiocb->context_un.ndlp;
@@ -563,45 +563,29 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if (vport->load_flag & FC_UNLOADING)
 		goto out;
 
-	if (lpfc_els_chk_latt(vport) || lpfc_error_lost_link(irsp)) {
+	if (lpfc_els_chk_latt(vport)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0216 Link event during NS query\n");
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto out;
 	}
-
+	if (lpfc_error_lost_link(irsp)) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "0226 NS query failed due to link event\n");
+		goto out;
+	}
 	if (irsp->ulpStatus) {
 		/* Check for retry */
 		if (vport->fc_ns_retry < LPFC_MAX_NS_RETRY) {
-			retry = 1;
-			if (irsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
-				switch (irsp->un.ulpWord[4]) {
-				case IOERR_NO_RESOURCES:
-					/* We don't increment the retry
-					 * count for this case.
-					 */
-					break;
-				case IOERR_LINK_DOWN:
-				case IOERR_SLI_ABORTED:
-				case IOERR_SLI_DOWN:
-					retry = 0;
-					break;
-				default:
-					vport->fc_ns_retry++;
-				}
-			}
-			else
+			if (irsp->ulpStatus != IOSTAT_LOCAL_REJECT ||
+			    irsp->un.ulpWord[4] != IOERR_NO_RESOURCES)
 				vport->fc_ns_retry++;
 
-			if (retry) {
-				/* CT command is being retried */
-				rc = lpfc_ns_cmd(vport, SLI_CTNS_GID_FT,
+			/* CT command is being retried */
+			rc = lpfc_ns_cmd(vport, SLI_CTNS_GID_FT,
 					 vport->fc_ns_retry, 0);
-				if (rc == 0) {
-					/* success */
-					goto out;
-				}
-			}
+			if (rc == 0)
+				goto out;
 		}
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
@@ -780,7 +764,7 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* This is a target port, unregistered port, or the GFF_ID failed */
 	ndlp = lpfc_setup_disc_node(vport, did);
-	if (ndlp) {
+	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0242 Process x%x GFF "
 				 "NameServer Rsp Data: x%x x%x x%x\n",

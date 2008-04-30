@@ -4,7 +4,7 @@
 
 zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
-tuner-objs	:=	tuner-core.o tuner-types.o
+tuner-objs	:=	tuner-core.o
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
@@ -38,6 +38,7 @@ obj-$(CONFIG_VIDEO_SAA7110) += saa7110.o
 obj-$(CONFIG_VIDEO_SAA7111) += saa7111.o
 obj-$(CONFIG_VIDEO_SAA7114) += saa7114.o
 obj-$(CONFIG_VIDEO_SAA711X) += saa7115.o
+obj-$(CONFIG_VIDEO_SAA717X) += saa717x.o
 obj-$(CONFIG_VIDEO_SAA7127) += saa7127.o
 obj-$(CONFIG_VIDEO_SAA7185) += saa7185.o
 obj-$(CONFIG_VIDEO_SAA7191) += saa7191.o
@@ -87,6 +88,8 @@ obj-$(CONFIG_VIDEO_TUNER) += tuner.o
 
 obj-$(CONFIG_TUNER_XC2028) += tuner-xc2028.o
 obj-$(CONFIG_TUNER_SIMPLE) += tuner-simple.o
+# tuner-types will be merged into tuner-simple, in the future
+obj-$(CONFIG_TUNER_SIMPLE) += tuner-types.o
 obj-$(CONFIG_TUNER_MT20XX) += mt20xx.o
 obj-$(CONFIG_TUNER_TDA8290) += tda8290.o
 obj-$(CONFIG_TUNER_TEA5767) += tea5767.o
@@ -134,6 +137,13 @@ obj-$(CONFIG_VIDEO_IVTV) += ivtv/
 
 obj-$(CONFIG_VIDEO_VIVI) += vivi.o
 obj-$(CONFIG_VIDEO_CX23885) += cx23885/
+
+obj-$(CONFIG_VIDEO_PXA27x)	+= pxa_camera.o
+obj-$(CONFIG_SOC_CAMERA)	+= soc_camera.o
+obj-$(CONFIG_SOC_CAMERA_MT9M001)	+= mt9m001.o
+obj-$(CONFIG_SOC_CAMERA_MT9V022)	+= mt9v022.o
+
+obj-$(CONFIG_VIDEO_AU0828) += au0828/
 
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends

@@ -11,11 +11,7 @@
  *
  * QDI QD6500/QD6580 EIDE controller fast support
  *
- * Please set local bus speed using kernel parameter idebus
- * 	for example, "idebus=33" stands for 33Mhz VLbus
  * To activate controller support, use "ide0=qd65xx"
- * To enable tuning, use "hda=autotune hdb=autotune"
- * To enable 2nd channel tuning (qd6580 only), use "hdc=autotune hdd=autotune"
  */
 
 /*
@@ -36,6 +32,8 @@
 #include <linux/init.h>
 #include <asm/system.h>
 #include <asm/io.h>
+
+#define DRV_NAME "qd65xx"
 
 #include "qd65xx.h"
 
@@ -88,12 +86,12 @@
 static int timings[4]={-1,-1,-1,-1}; /* stores current timing for each timer */
 
 /*
- * qd_select:
+ * qd65xx_select:
  *
- * This routine is invoked from ide.c to prepare for access to a given drive.
+ * This routine is invoked to prepare for access to a given drive.
  */
 
-static void qd_select (ide_drive_t *drive)
+static void qd65xx_select(ide_drive_t *drive)
 {
 	u8 index = ((	(QD_TIMREG(drive)) & 0x80 ) >> 7) |
 			(QD_TIMREG(drive) & 0x02);
@@ -112,17 +110,18 @@ static void qd_select (ide_drive_t *drive)
 
 static u8 qd6500_compute_timing (ide_hwif_t *hwif, int active_time, int recovery_time)
 {
-	u8 active_cycle,recovery_cycle;
+	int clk = ide_vlb_clk ? ide_vlb_clk : system_bus_clock();
+	u8 act_cyc, rec_cyc;
 
-	if (system_bus_clock()<=33) {
-		active_cycle =   9  - IDE_IN(active_time   * system_bus_clock() / 1000 + 1, 2, 9);
-		recovery_cycle = 15 - IDE_IN(recovery_time * system_bus_clock() / 1000 + 1, 0, 15);
+	if (clk <= 33) {
+		act_cyc =  9 - IDE_IN(active_time   * clk / 1000 + 1, 2,  9);
+		rec_cyc = 15 - IDE_IN(recovery_time * clk / 1000 + 1, 0, 15);
 	} else {
-		active_cycle =   8  - IDE_IN(active_time   * system_bus_clock() / 1000 + 1, 1, 8);
-		recovery_cycle = 18 - IDE_IN(recovery_time * system_bus_clock() / 1000 + 1, 3, 18);
+		act_cyc =  8 - IDE_IN(active_time   * clk / 1000 + 1, 1,  8);
+		rec_cyc = 18 - IDE_IN(recovery_time * clk / 1000 + 1, 3, 18);
 	}
 
-	return((recovery_cycle<<4) | 0x08 | active_cycle);
+	return (rec_cyc << 4) | 0x08 | act_cyc;
 }
 
 /*
@@ -133,10 +132,13 @@ static u8 qd6500_compute_timing (ide_hwif_t *hwif, int active_time, int recovery
 
 static u8 qd6580_compute_timing (int active_time, int recovery_time)
 {
-	u8 active_cycle   = 17 - IDE_IN(active_time   * system_bus_clock() / 1000 + 1, 2, 17);
-	u8 recovery_cycle = 15 - IDE_IN(recovery_time * system_bus_clock() / 1000 + 1, 2, 15);
+	int clk = ide_vlb_clk ? ide_vlb_clk : system_bus_clock();
+	u8 act_cyc, rec_cyc;
 
-	return((recovery_cycle<<4) | active_cycle);
+	act_cyc = 17 - IDE_IN(active_time   * clk / 1000 + 1, 2, 17);
+	rec_cyc = 15 - IDE_IN(recovery_time * clk / 1000 + 1, 2, 15);
+
+	return (rec_cyc << 4) | act_cyc;
 }
 
 /*
@@ -168,36 +170,15 @@ static int qd_find_disk_type (ide_drive_t *drive,
 }
 
 /*
- * qd_timing_ok:
- *
- * check whether timings don't conflict
- */
-
-static int qd_timing_ok (ide_drive_t drives[])
-{
-	return (IDE_IMPLY(drives[0].present && drives[1].present,
-			IDE_IMPLY(QD_TIMREG(drives) == QD_TIMREG(drives+1),
-			          QD_TIMING(drives) == QD_TIMING(drives+1))));
-	/* if same timing register, must be same timing */
-}
-
-/*
  * qd_set_timing:
  *
- * records the timing, and enables selectproc as needed
+ * records the timing
  */
 
 static void qd_set_timing (ide_drive_t *drive, u8 timing)
 {
-	ide_hwif_t *hwif = HWIF(drive);
-
 	drive->drive_data &= 0xff00;
 	drive->drive_data |= timing;
-	if (qd_timing_ok(hwif->drives)) {
-		qd_select(drive); /* selects once */
-		hwif->selectproc = NULL;
-	} else
-		hwif->selectproc = &qd_select;
 
 	printk(KERN_DEBUG "%s: %#x\n", drive->name, timing);
 }
@@ -225,10 +206,11 @@ static void qd6500_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static void qd6580_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	int base = HWIF(drive)->select_data;
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned int cycle_time;
 	int active_time   = 175;
 	int recovery_time = 415; /* worst case values from the dos driver */
+	u8 base = (hwif->config_data & 0xff00) >> 8;
 
 	if (drive->id && !qd_find_disk_type(drive, &active_time, &recovery_time)) {
 		cycle_time = ide_pio_cycle_time(drive, pio);
@@ -299,21 +281,10 @@ static int __init qd_testreg(int port)
 	return (readreg != QD_TESTVAL);
 }
 
-/*
- * qd_setup:
- *
- * called to setup an ata channel : adjusts attributes & links for tuning
- */
-
-static void __init qd_setup(ide_hwif_t *hwif, int base, int config)
-{
-	hwif->select_data = base;
-	hwif->config_data = config;
-}
-
 static void __init qd6500_port_init_devs(ide_hwif_t *hwif)
 {
-	u8 base = hwif->select_data, config = QD_CONFIG(hwif);
+	u8 base = (hwif->config_data & 0xff00) >> 8;
+	u8 config = QD_CONFIG(hwif);
 
 	hwif->drives[0].drive_data = QD6500_DEF_DATA;
 	hwif->drives[1].drive_data = QD6500_DEF_DATA;
@@ -322,9 +293,10 @@ static void __init qd6500_port_init_devs(ide_hwif_t *hwif)
 static void __init qd6580_port_init_devs(ide_hwif_t *hwif)
 {
 	u16 t1, t2;
-	u8 base = hwif->select_data, config = QD_CONFIG(hwif);
+	u8 base = (hwif->config_data & 0xff00) >> 8;
+	u8 config = QD_CONFIG(hwif);
 
-	if (QD_CONTROL(hwif) & QD_CONTR_SEC_DISABLED) {
+	if (hwif->host_flags & IDE_HFLAG_SINGLE) {
 		t1 = QD6580_DEF_DATA;
 		t2 = QD6580_DEF_DATA2;
 	} else
@@ -334,11 +306,23 @@ static void __init qd6580_port_init_devs(ide_hwif_t *hwif)
 	hwif->drives[1].drive_data = t2;
 }
 
+static const struct ide_port_ops qd6500_port_ops = {
+	.port_init_devs		= qd6500_port_init_devs,
+	.set_pio_mode		= qd6500_set_pio_mode,
+	.selectproc		= qd65xx_select,
+};
+
+static const struct ide_port_ops qd6580_port_ops = {
+	.port_init_devs		= qd6580_port_init_devs,
+	.set_pio_mode		= qd6580_set_pio_mode,
+	.selectproc		= qd65xx_select,
+};
+
 static const struct ide_port_info qd65xx_port_info __initdata = {
+	.name			= DRV_NAME,
 	.chipset		= ide_qd65xx,
 	.host_flags		= IDE_HFLAG_IO_32BIT |
-				  IDE_HFLAG_NO_DMA |
-				  IDE_HFLAG_NO_AUTOTUNE,
+				  IDE_HFLAG_NO_DMA,
 	.pio_mask		= ATA_PIO4,
 };
 
@@ -351,55 +335,41 @@ static const struct ide_port_info qd65xx_port_info __initdata = {
 
 static int __init qd_probe(int base)
 {
-	ide_hwif_t *hwif;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	u8 config;
-	u8 unit;
+	int rc;
+	u8 config, unit, control;
+	struct ide_port_info d = qd65xx_port_info;
 
 	config = inb(QD_CONFIG_PORT);
 
 	if (! ((config & QD_CONFIG_BASEPORT) >> 1 == (base == 0xb0)) )
-		return 1;
+		return -ENODEV;
 
 	unit = ! (config & QD_CONFIG_IDE_BASEPORT);
 
-	if ((config & 0xf0) == QD_CONFIG_QD6500) {
+	if (unit)
+		d.host_flags |= IDE_HFLAG_QD_2ND_PORT;
 
-		if (qd_testreg(base)) return 1;		/* bad register */
+	switch (config & 0xf0) {
+	case QD_CONFIG_QD6500:
+		if (qd_testreg(base))
+			 return -ENODEV;	/* bad register */
 
-		/* qd6500 found */
-
-		hwif = &ide_hwifs[unit];
-		printk(KERN_NOTICE "%s: qd6500 at %#x\n", hwif->name, base);
-		printk(KERN_DEBUG "qd6500: config=%#x, ID3=%u\n",
-			config, QD_ID3);
-		
 		if (config & QD_CONFIG_DISABLED) {
 			printk(KERN_WARNING "qd6500 is disabled !\n");
-			return 1;
+			return -ENODEV;
 		}
 
-		qd_setup(hwif, base, config);
+		printk(KERN_NOTICE "qd6500 at %#x\n", base);
+		printk(KERN_DEBUG "qd6500: config=%#x, ID3=%u\n",
+			config, QD_ID3);
 
-		hwif->port_init_devs = qd6500_port_init_devs;
-		hwif->set_pio_mode = &qd6500_set_pio_mode;
-
-		idx[unit] = unit;
-
-		ide_device_add(idx, &qd65xx_port_info);
-
-		return 1;
-	}
-
-	if (((config & 0xf0) == QD_CONFIG_QD6580_A) ||
-	    ((config & 0xf0) == QD_CONFIG_QD6580_B)) {
-
-		u8 control;
-
-		if (qd_testreg(base) || qd_testreg(base+0x02)) return 1;
-			/* bad registers */
-
-		/* qd6580 found */
+		d.port_ops = &qd6500_port_ops;
+		d.host_flags |= IDE_HFLAG_SINGLE;
+		break;
+	case QD_CONFIG_QD6580_A:
+	case QD_CONFIG_QD6580_B:
+		if (qd_testreg(base) || qd_testreg(base + 0x02))
+			return -ENODEV;	/* bad registers */
 
 		control = inb(QD_CONTROL_PORT);
 
@@ -409,69 +379,44 @@ static int __init qd_probe(int base)
 
 		outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
-		if (control & QD_CONTR_SEC_DISABLED) {
-			/* secondary disabled */
+		d.port_ops = &qd6580_port_ops;
+		if (control & QD_CONTR_SEC_DISABLED)
+			d.host_flags |= IDE_HFLAG_SINGLE;
 
-			hwif = &ide_hwifs[unit];
-			printk(KERN_INFO "%s: qd6580: single IDE board\n",
-					 hwif->name);
-
-			qd_setup(hwif, base, config | (control << 8));
-
-			hwif->port_init_devs = qd6580_port_init_devs;
-			hwif->set_pio_mode = &qd6580_set_pio_mode;
-
-			idx[unit] = unit;
-
-			ide_device_add(idx, &qd65xx_port_info);
-
-			return 1;
-		} else {
-			ide_hwif_t *mate;
-
-			hwif = &ide_hwifs[0];
-			mate = &ide_hwifs[1];
-			/* secondary enabled */
-			printk(KERN_INFO "%s&%s: qd6580: dual IDE board\n",
-					hwif->name, mate->name);
-
-			qd_setup(hwif, base, config | (control << 8));
-
-			hwif->port_init_devs = qd6580_port_init_devs;
-			hwif->set_pio_mode = &qd6580_set_pio_mode;
-
-			qd_setup(mate, base, config | (control << 8));
-
-			mate->port_init_devs = qd6580_port_init_devs;
-			mate->set_pio_mode = &qd6580_set_pio_mode;
-
-			idx[0] = 0;
-			idx[1] = 1;
-
-			ide_device_add(idx, &qd65xx_port_info);
-
-			return 0; /* no other qd65xx possible */
-		}
+		printk(KERN_INFO "qd6580: %s IDE board\n",
+			(control & QD_CONTR_SEC_DISABLED) ? "single" : "dual");
+		break;
+	default:
+		return -ENODEV;
 	}
-	/* no qd65xx found */
-	return 1;
+
+	rc = ide_legacy_device_add(&d, (base << 8) | config);
+
+	if (d.host_flags & IDE_HFLAG_SINGLE)
+		return (rc == 0) ? 1 : rc;
+
+	return rc;
 }
 
-int probe_qd65xx = 0;
+static int probe_qd65xx;
 
 module_param_named(probe, probe_qd65xx, bool, 0);
 MODULE_PARM_DESC(probe, "probe for QD65xx chipsets");
 
 static int __init qd65xx_init(void)
 {
+	int rc1, rc2 = -ENODEV;
+
 	if (probe_qd65xx == 0)
 		return -ENODEV;
 
-	if (qd_probe(0x30))
-		qd_probe(0xb0);
-	if (ide_hwifs[0].chipset != ide_qd65xx &&
-	    ide_hwifs[1].chipset != ide_qd65xx)
+	rc1 = qd_probe(0x30);
+	if (rc1)
+		rc2 = qd_probe(0xb0);
+
+	if (rc1 < 0 && rc2 < 0)
 		return -ENODEV;
+
 	return 0;
 }
 

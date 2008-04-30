@@ -101,6 +101,9 @@
 #ifdef CONFIG_USB_STORAGE_KARMA
 #include "karma.h"
 #endif
+#ifdef CONFIG_USB_STORAGE_CYPRESS_ATACB
+#include "cypress_atacb.h"
+#endif
 
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
@@ -187,7 +190,7 @@ static int storage_suspend(struct usb_interface *iface, pm_message_t message)
 	/* Wait until no command is running */
 	mutex_lock(&us->dev_mutex);
 
-	US_DEBUGP("%s\n", __FUNCTION__);
+	US_DEBUGP("%s\n", __func__);
 	if (us->suspend_resume_hook)
 		(us->suspend_resume_hook)(us, US_SUSPEND);
 
@@ -204,7 +207,7 @@ static int storage_resume(struct usb_interface *iface)
 
 	mutex_lock(&us->dev_mutex);
 
-	US_DEBUGP("%s\n", __FUNCTION__);
+	US_DEBUGP("%s\n", __func__);
 	if (us->suspend_resume_hook)
 		(us->suspend_resume_hook)(us, US_RESUME);
 
@@ -216,7 +219,7 @@ static int storage_reset_resume(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
-	US_DEBUGP("%s\n", __FUNCTION__);
+	US_DEBUGP("%s\n", __func__);
 
 	/* Report the reset to the SCSI core */
 	usb_stor_report_bus_reset(us);
@@ -237,7 +240,7 @@ static int storage_pre_reset(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
-	US_DEBUGP("%s\n", __FUNCTION__);
+	US_DEBUGP("%s\n", __func__);
 
 	/* Make sure no command runs during the reset */
 	mutex_lock(&us->dev_mutex);
@@ -248,7 +251,7 @@ static int storage_post_reset(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
-	US_DEBUGP("%s\n", __FUNCTION__);
+	US_DEBUGP("%s\n", __func__);
 
 	/* Report the reset to the SCSI core */
 	usb_stor_report_bus_reset(us);
@@ -434,7 +437,7 @@ SkipForAbort:
 /* Associate our private data with the USB device */
 static int associate_dev(struct us_data *us, struct usb_interface *intf)
 {
-	US_DEBUGP("-- %s\n", __FUNCTION__);
+	US_DEBUGP("-- %s\n", __func__);
 
 	/* Fill in the device-related fields */
 	us->pusb_dev = interface_to_usbdev(intf);
@@ -708,6 +711,13 @@ static int get_protocol(struct us_data *us)
 		break;
 #endif
 
+#ifdef CONFIG_USB_STORAGE_CYPRESS_ATACB
+	case US_SC_CYP_ATACB:
+		us->protocol_name = "Transparent SCSI with Cypress ATACB";
+		us->proto_handler = cypress_atacb_passthrough;
+		break;
+#endif
+
 	default:
 		return -EIO;
 	}
@@ -806,7 +816,7 @@ static int usb_stor_acquire_resources(struct us_data *us)
 /* Release all our dynamic resources */
 static void usb_stor_release_resources(struct us_data *us)
 {
-	US_DEBUGP("-- %s\n", __FUNCTION__);
+	US_DEBUGP("-- %s\n", __func__);
 
 	/* Tell the control thread to exit.  The SCSI host must
 	 * already have been removed so it won't try to queue
@@ -832,7 +842,7 @@ static void usb_stor_release_resources(struct us_data *us)
 /* Dissociate from the USB device */
 static void dissociate_dev(struct us_data *us)
 {
-	US_DEBUGP("-- %s\n", __FUNCTION__);
+	US_DEBUGP("-- %s\n", __func__);
 
 	kfree(us->sensebuf);
 

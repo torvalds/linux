@@ -20,8 +20,8 @@
 
 #include <linux/time.h>
 #include <linux/wait.h>
+#include <linux/semaphore.h>
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 
 /*
  * sema_t structure just maps to struct semaphore in Linux kernel.

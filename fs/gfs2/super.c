@@ -210,7 +210,7 @@ int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
 	struct page *page;
 	struct bio *bio;
 
-	page = alloc_page(GFP_KERNEL);
+	page = alloc_page(GFP_NOFS);
 	if (unlikely(!page))
 		return -ENOBUFS;
 
@@ -218,7 +218,7 @@ int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
 	ClearPageDirty(page);
 	lock_page(page);
 
-	bio = bio_alloc(GFP_KERNEL, 1);
+	bio = bio_alloc(GFP_NOFS, 1);
 	if (unlikely(!bio)) {
 		__free_page(page);
 		return -ENOBUFS;
@@ -316,6 +316,7 @@ int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
 		sdp->sd_heightsize[x] = space;
 	}
 	sdp->sd_max_height = x;
+	sdp->sd_heightsize[x] = ~0;
 	gfs2_assert(sdp, sdp->sd_max_height <= GFS2_MAX_META_HEIGHT);
 
 	sdp->sd_jheightsize[0] = sdp->sd_sb.sb_bsize -
@@ -334,6 +335,7 @@ int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
 		sdp->sd_jheightsize[x] = space;
 	}
 	sdp->sd_max_jheight = x;
+	sdp->sd_jheightsize[x] = ~0;
 	gfs2_assert(sdp, sdp->sd_max_jheight <= GFS2_MAX_META_HEIGHT);
 
 	return 0;

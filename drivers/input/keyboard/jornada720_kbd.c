@@ -162,9 +162,13 @@ static int __devexit jornada720_kbd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:jornada720_kbd");
+
 static struct platform_driver jornada720_kbd_driver = {
 	.driver  = {
 		.name    = "jornada720_kbd",
+		.owner	= THIS_MODULE,
 	 },
 	.probe   = jornada720_kbd_probe,
 	.remove  = __devexit_p(jornada720_kbd_remove),

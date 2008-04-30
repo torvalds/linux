@@ -208,9 +208,7 @@
 		enet0: ucc@3000 {
 			device_type = "network";
 			compatible = "ucc_geth";
-			model = "UCC";
 			cell-index = <2>;
-			device-id = <2>;
 			reg = <0x3000 0x200>;
 			interrupts = <33>;
 			interrupt-parent = <&qeic>;
@@ -224,9 +222,7 @@
 		enet1: ucc@2200 {
 			device_type = "network";
 			compatible = "ucc_geth";
-			model = "UCC";
 			cell-index = <3>;
-			device-id = <3>;
 			reg = <0x2200 0x200>;
 			interrupts = <34>;
 			interrupt-parent = <&qeic>;

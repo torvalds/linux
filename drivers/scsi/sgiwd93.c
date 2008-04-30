@@ -263,10 +263,11 @@ static int __init sgiwd93_probe(struct platform_device *pdev)
 	regs.SASR = wdregs + 3;
 	regs.SCMD = wdregs + 7;
 
-	wd33c93_init(host, regs, dma_setup, dma_stop, WD33C93_FS_MHZ(20));
+	hdata->wh.no_sync = 0;
+	hdata->wh.fast = 1;
+	hdata->wh.dma_mode = CTRL_BURST;
 
-	if (hdata->wh.no_sync == 0xff)
-		hdata->wh.no_sync = 0;
+	wd33c93_init(host, regs, dma_setup, dma_stop, WD33C93_FS_MHZ(20));
 
 	err = request_irq(irq, sgiwd93_intr, 0, "SGI WD93", host);
 	if (err) {
@@ -312,7 +313,8 @@ static struct platform_driver sgiwd93_driver = {
 	.probe  = sgiwd93_probe,
 	.remove = __devexit_p(sgiwd93_remove),
 	.driver = {
-		.name   = "sgiwd93"
+		.name   = "sgiwd93",
+		.owner	= THIS_MODULE,
 	}
 };
 
@@ -332,3 +334,4 @@ module_exit(sgiwd93_module_exit);
 MODULE_DESCRIPTION("SGI WD33C93 driver");
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:sgiwd93");

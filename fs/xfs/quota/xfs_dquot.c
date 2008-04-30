@@ -1291,7 +1291,7 @@ xfs_qm_dqflush(
 	if (flags & XFS_QMOPT_DELWRI) {
 		xfs_bdwrite(mp, bp);
 	} else if (flags & XFS_QMOPT_ASYNC) {
-		xfs_bawrite(mp, bp);
+		error = xfs_bawrite(mp, bp);
 	} else {
 		error = xfs_bwrite(mp, bp);
 	}
@@ -1439,9 +1439,7 @@ xfs_qm_dqpurge(
 	uint		flags)
 {
 	xfs_dqhash_t	*thishash;
-	xfs_mount_t	*mp;
-
-	mp = dqp->q_mount;
+	xfs_mount_t	*mp = dqp->q_mount;
 
 	ASSERT(XFS_QM_IS_MPLIST_LOCKED(mp));
 	ASSERT(XFS_DQ_IS_HASH_LOCKED(dqp->q_hash));
@@ -1485,6 +1483,7 @@ xfs_qm_dqpurge(
 	 * we're unmounting, we do care, so we flush it and wait.
 	 */
 	if (XFS_DQ_IS_DIRTY(dqp)) {
+		int	error;
 		xfs_dqtrace_entry(dqp, "DQPURGE ->DQFLUSH: DQDIRTY");
 		/* dqflush unlocks dqflock */
 		/*
@@ -1495,7 +1494,10 @@ xfs_qm_dqpurge(
 		 * We don't care about getting disk errors here. We need
 		 * to purge this dquot anyway, so we go ahead regardless.
 		 */
-		(void) xfs_qm_dqflush(dqp, XFS_QMOPT_SYNC);
+		error = xfs_qm_dqflush(dqp, XFS_QMOPT_SYNC);
+		if (error)
+			xfs_fs_cmn_err(CE_WARN, mp,
+				"xfs_qm_dqpurge: dquot %p flush failed", dqp);
 		xfs_dqflock(dqp);
 	}
 	ASSERT(dqp->q_pincount == 0);
@@ -1580,12 +1582,18 @@ xfs_qm_dqflock_pushbuf_wait(
 		    XFS_INCORE_TRYLOCK);
 	if (bp != NULL) {
 		if (XFS_BUF_ISDELAYWRITE(bp)) {
+			int	error;
 			if (XFS_BUF_ISPINNED(bp)) {
 				xfs_log_force(dqp->q_mount,
 					      (xfs_lsn_t)0,
 					      XFS_LOG_FORCE);
 			}
-			xfs_bawrite(dqp->q_mount, bp);
+			error = xfs_bawrite(dqp->q_mount, bp);
+			if (error)
+				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
+					"xfs_qm_dqflock_pushbuf_wait: "
+					"pushbuf error %d on dqp %p, bp %p",
+					error, dqp, bp);
 		} else {
 			xfs_buf_relse(bp);
 		}

@@ -39,8 +39,8 @@ struct scp_struct
 	u16 zero_dum0;	/* has to be zero */
 	u8 sysbus;	/* 0=16Bit,1=8Bit */
 	u8 zero_dum1;	/* has to be zero for 586 */
-	u8 zero_dum2;
-	u8 zero_dum3;
+	u16 zero_dum2;
+	u16 zero_dum3;
 	u32 iscp;		/* pointer to the iscp-block */
 };
 

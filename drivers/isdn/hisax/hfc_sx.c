@@ -18,8 +18,6 @@
 #include <linux/interrupt.h>
 #include <linux/isapnp.h>
 
-extern const char *CardType[];
-
 static const char *hfcsx_revision = "$Revision: 1.12.2.5 $";
 
 /***************************************/
@@ -1419,7 +1417,7 @@ setup_hfcsx(struct IsdnCard *card)
 					err = pnp_activate_dev(pnp_d);
 					if (err<0) {
 						printk(KERN_WARNING "%s: pnp_activate_dev ret(%d)\n",
-							__FUNCTION__, err);
+							__func__, err);
 						return(0);
 					}
 					card->para[1] = pnp_port_start(pnp_d, 0);

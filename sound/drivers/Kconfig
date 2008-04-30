@@ -4,6 +4,24 @@ menu "Generic devices"
 	depends on SND!=n
 
 
+config SND_PCSP
+	tristate "Internal PC speaker support"
+	depends on X86_PC && HIGH_RES_TIMERS
+	depends on INPUT
+	help
+	  If you don't have a sound card in your computer, you can include a
+	  driver for the PC speaker which allows it to act like a primitive
+	  sound card.
+	  This driver also replaces the pcspkr driver for beeps.
+
+	  You can compile this as a module which will be called snd-pcsp.
+
+	  You don't need this driver if you only want your pc-speaker to beep.
+	  You don't need this driver if you have a tablet piezo beeper
+	  in your PC instead of the real speaker.
+
+	  It should not hurt to say Y or M here in all other cases.
+
 config SND_MPU401_UART
         tristate
         select SND_RAWMIDI

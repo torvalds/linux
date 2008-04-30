@@ -22,7 +22,6 @@
 #include <linux/mutex.h>
 
 #include <asm/rtc.h>
-#include <asm/semaphore.h>
 
 static DECLARE_WAIT_QUEUE_HEAD(rtc_wait);
 static struct fasync_struct *rtc_async_queue;

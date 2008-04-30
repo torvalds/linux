@@ -99,8 +99,8 @@
 #define jmr3927_led_and_set(n/*0-16*/)	jmr3927_ioc_reg_out((~(n)) & jmr3927_ioc_reg_in(JMR3927_IOC_LED_ADDR), JMR3927_IOC_LED_ADDR)
 
 /* DIPSW4 macro */
-#define jmr3927_dipsw1()	((tx3927_pioptr->din & (1 << 11)) == 0)
-#define jmr3927_dipsw2()	((tx3927_pioptr->din & (1 << 10)) == 0)
+#define jmr3927_dipsw1()	(gpio_get_value(11) == 0)
+#define jmr3927_dipsw2()	(gpio_get_value(10) == 0)
 #define jmr3927_dipsw3()	((jmr3927_ioc_reg_in(JMR3927_IOC_DIPSW_ADDR) & 2) == 0)
 #define jmr3927_dipsw4()	((jmr3927_ioc_reg_in(JMR3927_IOC_DIPSW_ADDR) & 1) == 0)
 

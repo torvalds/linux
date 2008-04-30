@@ -132,7 +132,7 @@ struct exception_store {
 
 struct dm_snapshot {
 	struct rw_semaphore lock;
-	struct dm_table *table;
+	struct dm_target *ti;
 
 	struct dm_dev *origin;
 	struct dm_dev *cow;
@@ -169,7 +169,7 @@ struct dm_snapshot {
 	/* The on disk metadata handler */
 	struct exception_store store;
 
-	struct kcopyd_client *kcopyd_client;
+	struct dm_kcopyd_client *kcopyd_client;
 
 	/* Queue of snapshot writes for ksnapd to flush */
 	struct bio_list queued_bios;

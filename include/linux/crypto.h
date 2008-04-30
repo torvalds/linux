@@ -317,14 +317,7 @@ int crypto_unregister_alg(struct crypto_alg *alg);
 /*
  * Algorithm query interface.
  */
-#ifdef CONFIG_CRYPTO
 int crypto_has_alg(const char *name, u32 type, u32 mask);
-#else
-static inline int crypto_has_alg(const char *name, u32 type, u32 mask)
-{
-	return 0;
-}
-#endif
 
 /*
  * Transforms: user-instantiated objects which encapsulate algorithms

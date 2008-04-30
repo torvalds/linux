@@ -18,7 +18,6 @@
 #include "hscx.h"
 #include "isdnl1.h"
 
-extern const char *CardType[];
 static const char *sportster_revision = "$Revision: 1.16.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
@@ -192,9 +191,9 @@ get_io_range(struct IsdnCardState *cs)
 	for (i=0;i<64;i++) {
 		adr = cs->hw.spt.cfg_reg + i *1024;
 		if (!request_region(adr, 8, "sportster")) {
-			printk(KERN_WARNING
-				"HiSax: %s config port %x-%x already in use\n",
-				CardType[cs->typ], adr, adr + 8);
+			printk(KERN_WARNING "HiSax: USR Sportster config port "
+				"%x-%x already in use\n",
+				adr, adr + 8);
 			break;
 		} 
 	}
@@ -247,8 +246,8 @@ setup_sportster(struct IsdnCard *card)
 			printk(KERN_WARNING "Sportster: wrong IRQ\n");
 			return(0);
 	}
-	printk(KERN_INFO "HiSax: %s config irq:%d cfg:0x%X\n",
-		CardType[cs->typ], cs->irq, cs->hw.spt.cfg_reg);
+	printk(KERN_INFO "HiSax: USR Sportster config irq:%d cfg:0x%X\n",
+		cs->irq, cs->hw.spt.cfg_reg);
 	setup_isac(cs);
 	cs->readisac = &ReadISAC;
 	cs->writeisac = &WriteISAC;

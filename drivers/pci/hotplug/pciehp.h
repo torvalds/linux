@@ -168,7 +168,7 @@ static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 			return slot;
 	}
 
-	err("%s: slot (device=0x%x) not found\n", __FUNCTION__, device);
+	err("%s: slot (device=0x%x) not found\n", __func__, device);
 	return NULL;
 }
 

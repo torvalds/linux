@@ -11,11 +11,4 @@
 #ifndef __ASM_ARCH_MXC_DMA_H__
 #define __ASM_ARCH_MXC_DMA_H__
 
-/*!
- * @file dma.h
- * @brief This file contains Unified DMA API for all MXC platforms.
- * The API is platform independent.
- *
- * @ingroup SDMA
- */
 #endif

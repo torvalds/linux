@@ -165,7 +165,7 @@ prism54_update_stats(struct work_struct *work)
 	struct obj_bss bss, *bss2;
 	union oid_res_t r;
 
-	down(&priv->stats_sem);
+	mutex_lock(&priv->stats_lock);
 
 /* Noise floor.
  * I'm not sure if the unit is dBm.
@@ -207,7 +207,7 @@ prism54_update_stats(struct work_struct *work)
 	mgt_get_request(priv, DOT11_OID_MPDUTXFAILED, 0, NULL, &r);
 	priv->local_iwstatistics.discard.retries = r.u;
 
-	up(&priv->stats_sem);
+	mutex_unlock(&priv->stats_lock);
 
 	return;
 }
@@ -218,12 +218,12 @@ prism54_get_wireless_stats(struct net_device *ndev)
 	islpci_private *priv = netdev_priv(ndev);
 
 	/* If the stats are being updated return old data */
-	if (down_trylock(&priv->stats_sem) == 0) {
+	if (mutex_trylock(&priv->stats_lock)) {
 		memcpy(&priv->iwstatistics, &priv->local_iwstatistics,
 		       sizeof (struct iw_statistics));
 		/* They won't be marked updated for the next time */
 		priv->local_iwstatistics.qual.updated = 0;
-		up(&priv->stats_sem);
+		mutex_unlock(&priv->stats_lock);
 	} else
 		priv->iwstatistics.qual.updated = 0;
 
@@ -1186,7 +1186,7 @@ prism54_get_encode(struct net_device *ndev, struct iw_request_info *info,
 	rvalue |= mgt_get_request(priv, DOT11_OID_DEFKEYID, 0, NULL, &r);
 	devindex = r.u;
 	/* Now get the key, return it */
-	if ((index < 0) || (index > 3))
+	if (index == -1 || index > 3)
 		/* no index provided, use the current one */
 		index = devindex;
 	rvalue |= mgt_get_request(priv, DOT11_OID_DEFKEYX, index, NULL, &r);
@@ -1780,7 +1780,7 @@ prism54_set_raw(struct net_device *ndev, struct iw_request_info *info,
 void
 prism54_acl_init(struct islpci_acl *acl)
 {
-	sema_init(&acl->sem, 1);
+	mutex_init(&acl->lock);
 	INIT_LIST_HEAD(&acl->mac_list);
 	acl->size = 0;
 	acl->policy = MAC_POLICY_OPEN;
@@ -1792,10 +1792,10 @@ prism54_clear_mac(struct islpci_acl *acl)
 	struct list_head *ptr, *next;
 	struct mac_entry *entry;
 
-	down(&acl->sem);
+	mutex_lock(&acl->lock);
 
 	if (acl->size == 0) {
-		up(&acl->sem);
+		mutex_unlock(&acl->lock);
 		return;
 	}
 
@@ -1806,7 +1806,7 @@ prism54_clear_mac(struct islpci_acl *acl)
 		kfree(entry);
 	}
 	acl->size = 0;
-	up(&acl->sem);
+	mutex_unlock(&acl->lock);
 }
 
 void
@@ -1833,13 +1833,13 @@ prism54_add_mac(struct net_device *ndev, struct iw_request_info *info,
 
 	memcpy(entry->addr, addr->sa_data, ETH_ALEN);
 
-	if (down_interruptible(&acl->sem)) {
+	if (mutex_lock_interruptible(&acl->lock)) {
 		kfree(entry);
 		return -ERESTARTSYS;
 	}
 	list_add_tail(&entry->_list, &acl->mac_list);
 	acl->size++;
-	up(&acl->sem);
+	mutex_unlock(&acl->lock);
 
 	return 0;
 }
@@ -1856,18 +1856,18 @@ prism54_del_mac(struct net_device *ndev, struct iw_request_info *info,
 	if (addr->sa_family != ARPHRD_ETHER)
 		return -EOPNOTSUPP;
 
-	if (down_interruptible(&acl->sem))
+	if (mutex_lock_interruptible(&acl->lock))
 		return -ERESTARTSYS;
 	list_for_each_entry(entry, &acl->mac_list, _list) {
 		if (memcmp(entry->addr, addr->sa_data, ETH_ALEN) == 0) {
 			list_del(&entry->_list);
 			acl->size--;
 			kfree(entry);
-			up(&acl->sem);
+			mutex_unlock(&acl->lock);
 			return 0;
 		}
 	}
-	up(&acl->sem);
+	mutex_unlock(&acl->lock);
 	return -EINVAL;
 }
 
@@ -1882,7 +1882,7 @@ prism54_get_mac(struct net_device *ndev, struct iw_request_info *info,
 
 	dwrq->length = 0;
 
-	if (down_interruptible(&acl->sem))
+	if (mutex_lock_interruptible(&acl->lock))
 		return -ERESTARTSYS;
 
 	list_for_each_entry(entry, &acl->mac_list, _list) {
@@ -1891,7 +1891,7 @@ prism54_get_mac(struct net_device *ndev, struct iw_request_info *info,
 		dwrq->length++;
 		dst++;
 	}
-	up(&acl->sem);
+	mutex_unlock(&acl->lock);
 	return 0;
 }
 
@@ -1955,11 +1955,11 @@ prism54_mac_accept(struct islpci_acl *acl, char *mac)
 	struct mac_entry *entry;
 	int res = 0;
 
-	if (down_interruptible(&acl->sem))
+	if (mutex_lock_interruptible(&acl->lock))
 		return -ERESTARTSYS;
 
 	if (acl->policy == MAC_POLICY_OPEN) {
-		up(&acl->sem);
+		mutex_unlock(&acl->lock);
 		return 1;
 	}
 
@@ -1970,7 +1970,7 @@ prism54_mac_accept(struct islpci_acl *acl, char *mac)
 		}
 	}
 	res = (acl->policy == MAC_POLICY_ACCEPT) ? !res : res;
-	up(&acl->sem);
+	mutex_unlock(&acl->lock);
 
 	return res;
 }
@@ -2081,6 +2081,7 @@ link_changed(struct net_device *ndev, u32 bitrate)
 	islpci_private *priv = netdev_priv(ndev);
 
 	if (bitrate) {
+		netif_carrier_on(ndev);
 		if (priv->iw_mode == IW_MODE_INFRA) {
 			union iwreq_data uwrq;
 			prism54_get_wap(ndev, NULL, (struct sockaddr *) &uwrq,
@@ -2089,8 +2090,10 @@ link_changed(struct net_device *ndev, u32 bitrate)
 		} else
 			send_simple_event(netdev_priv(ndev),
 					  "Link established");
-	} else
+	} else {
+		netif_carrier_off(ndev);
 		send_simple_event(netdev_priv(ndev), "Link lost");
+	}
 }
 
 /* Beacon/ProbeResp payload header */
@@ -2114,7 +2117,7 @@ prism54_wpa_bss_ie_add(islpci_private *priv, u8 *bssid,
 	if (wpa_ie_len > MAX_WPA_IE_LEN)
 		wpa_ie_len = MAX_WPA_IE_LEN;
 
-	down(&priv->wpa_sem);
+	mutex_lock(&priv->wpa_lock);
 
 	/* try to use existing entry */
 	list_for_each(ptr, &priv->bss_wpa_list) {
@@ -2165,7 +2168,7 @@ prism54_wpa_bss_ie_add(islpci_private *priv, u8 *bssid,
 		kfree(bss);
 	}
 
-	up(&priv->wpa_sem);
+	mutex_unlock(&priv->wpa_lock);
 }
 
 static size_t
@@ -2175,7 +2178,7 @@ prism54_wpa_bss_ie_get(islpci_private *priv, u8 *bssid, u8 *wpa_ie)
 	struct islpci_bss_wpa_ie *bss = NULL;
 	size_t len = 0;
 
-	down(&priv->wpa_sem);
+	mutex_lock(&priv->wpa_lock);
 
 	list_for_each(ptr, &priv->bss_wpa_list) {
 		bss = list_entry(ptr, struct islpci_bss_wpa_ie, list);
@@ -2187,7 +2190,7 @@ prism54_wpa_bss_ie_get(islpci_private *priv, u8 *bssid, u8 *wpa_ie)
 		len = bss->wpa_ie_len;
 		memcpy(wpa_ie, bss->wpa_ie, len);
 	}
-	up(&priv->wpa_sem);
+	mutex_unlock(&priv->wpa_lock);
 
 	return len;
 }
@@ -2196,7 +2199,7 @@ void
 prism54_wpa_bss_ie_init(islpci_private *priv)
 {
 	INIT_LIST_HEAD(&priv->bss_wpa_list);
-	sema_init(&priv->wpa_sem, 1);
+	mutex_init(&priv->wpa_lock);
 }
 
 void

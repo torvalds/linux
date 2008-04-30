@@ -43,7 +43,7 @@ would execute while the cli()-ed section is executing.
 
 but from now on a more direct method of locking has to be used:
 
-	spinlock_t driver_lock = SPIN_LOCK_UNLOCKED;
+	DEFINE_SPINLOCK(driver_lock);
 	struct driver_data;
 
 	irq_handler (...)

@@ -164,6 +164,12 @@ HYPERVISOR_set_callbacks(unsigned long event_selector,
 }
 
 static inline int
+HYPERVISOR_callback_op(int cmd, void *arg)
+{
+	return _hypercall2(int, callback_op, cmd, arg);
+}
+
+static inline int
 HYPERVISOR_fpu_taskswitch(int set)
 {
 	return _hypercall1(int, fpu_taskswitch, set);

@@ -417,6 +417,7 @@ arm920_crval:
 	.type	arm920_processor_functions, #object
 arm920_processor_functions:
 	.word	v4t_early_abort
+	.word	pabort_noifar
 	.word	cpu_arm920_proc_init
 	.word	cpu_arm920_proc_fin
 	.word	cpu_arm920_reset

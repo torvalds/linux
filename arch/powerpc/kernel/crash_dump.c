@@ -13,8 +13,9 @@
 
 #include <linux/crash_dump.h>
 #include <linux/bootmem.h>
+#include <linux/lmb.h>
 #include <asm/kdump.h>
-#include <asm/lmb.h>
+#include <asm/prom.h>
 #include <asm/firmware.h>
 #include <asm/uaccess.h>
 

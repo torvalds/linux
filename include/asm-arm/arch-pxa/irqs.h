@@ -181,7 +181,8 @@
 #elif defined(CONFIG_ARCH_LUBBOCK) || \
       defined(CONFIG_MACH_LOGICPD_PXA270) || \
       defined(CONFIG_MACH_MAINSTONE) || \
-      defined(CONFIG_MACH_PCM027)
+      defined(CONFIG_MACH_PCM027) || \
+      defined(CONFIG_MACH_MAGICIAN)
 #define NR_IRQS			(IRQ_BOARD_END)
 #else
 #define NR_IRQS			(IRQ_BOARD_START)

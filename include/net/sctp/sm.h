@@ -385,14 +385,6 @@ static inline int ADDIP_SERIAL_gte(__u16 s, __u16 t)
 	return (((s) == (t)) || (((t) - (s)) & ADDIP_SERIAL_SIGN_BIT));
 }
 
-
-/* Run sctp_add_cmd() generating a BUG() if there is a failure.  */
-static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb, sctp_arg_t obj)
-{
-	if (unlikely(!sctp_add_cmd(seq, verb, obj)))
-		BUG();
-}
-
 /* Check VTAG of the packet matches the sender's own tag. */
 static inline int
 sctp_vtag_verify(const struct sctp_chunk *chunk,

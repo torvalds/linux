@@ -3,8 +3,7 @@
 
 struct pt_regs;
 
-struct machine_ops
-{
+struct machine_ops {
 	void (*restart)(char *cmd);
 	void (*halt)(void);
 	void (*power_off)(void);
@@ -16,5 +15,7 @@ struct machine_ops
 extern struct machine_ops machine_ops;
 
 void machine_real_restart(unsigned char *code, int length);
+void native_machine_crash_shutdown(struct pt_regs *regs);
+void native_machine_shutdown(void);
 
 #endif	/* _ASM_REBOOT_H */

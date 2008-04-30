@@ -60,13 +60,7 @@ static int sl82c105_pre_reset(struct ata_link *link, unsigned long deadline)
 
 	if (ap->port_no && !pci_test_config_bits(pdev, &sl82c105_enable_bits[ap->port_no]))
 		return -ENOENT;
-	return ata_std_prereset(link, deadline);
-}
-
-
-static void sl82c105_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, sl82c105_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
+	return ata_sff_prereset(link, deadline);
 }
 
 
@@ -235,55 +229,17 @@ static int sl82c105_qc_defer(struct ata_queued_cmd *qc)
 }
 
 static struct scsi_host_template sl82c105_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
+	ATA_BMDMA_SHT(DRV_NAME),
 };
 
 static struct ata_port_operations sl82c105_port_ops = {
-	.set_piomode	= sl82c105_set_piomode,
-	.mode_filter	= ata_pci_default_filter,
-
-	.tf_load	= ata_tf_load,
-	.tf_read	= ata_tf_read,
-	.check_status 	= ata_check_status,
-	.exec_command	= ata_exec_command,
-	.dev_select 	= ata_std_dev_select,
-
-	.freeze		= ata_bmdma_freeze,
-	.thaw		= ata_bmdma_thaw,
-	.error_handler	= sl82c105_error_handler,
-	.post_internal_cmd = ata_bmdma_post_internal_cmd,
-	.cable_detect	= ata_cable_40wire,
-
-	.bmdma_setup 	= ata_bmdma_setup,
+	.inherits	= &ata_bmdma_port_ops,
+	.qc_defer	= sl82c105_qc_defer,
 	.bmdma_start 	= sl82c105_bmdma_start,
 	.bmdma_stop	= sl82c105_bmdma_stop,
-	.bmdma_status 	= ata_bmdma_status,
-
-	.qc_defer	= sl82c105_qc_defer,
-	.qc_prep 	= ata_qc_prep,
-	.qc_issue	= ata_qc_issue_prot,
-
-	.data_xfer	= ata_data_xfer,
-
-	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
-	.irq_on		= ata_irq_on,
-
-	.port_start	= ata_sff_port_start,
+	.cable_detect	= ata_cable_40wire,
+	.set_piomode	= sl82c105_set_piomode,
+	.prereset	= sl82c105_pre_reset,
 };
 
 /**
@@ -327,14 +283,12 @@ static int sl82c105_bridge_revision(struct pci_dev *pdev)
 static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info_dma = {
-		.sht = &sl82c105_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.port_ops = &sl82c105_port_ops
 	};
 	static const struct ata_port_info info_early = {
-		.sht = &sl82c105_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.port_ops = &sl82c105_port_ops
@@ -344,6 +298,11 @@ static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id
 					       NULL };
 	u32 val;
 	int rev;
+	int rc;
+
+	rc = pcim_enable_device(dev);
+	if (rc)
+		return rc;
 
 	rev = sl82c105_bridge_revision(dev);
 
@@ -358,7 +317,7 @@ static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id
 	val |= CTRL_P0EN | CTRL_P0F16 | CTRL_P1F16;
 	pci_write_config_dword(dev, 0x40, val);
 
-	return ata_pci_init_one(dev, ppi);
+	return ata_pci_sff_init_one(dev, ppi, &sl82c105_sht, NULL);
 }
 
 static const struct pci_device_id sl82c105[] = {

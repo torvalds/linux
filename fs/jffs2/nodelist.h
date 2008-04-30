@@ -87,7 +87,7 @@ struct jffs2_raw_node_ref
 		xattr_ref or xattr_datum instead. The common part of those structures
 		has NULL in the first word. See jffs2_raw_ref_to_ic() below */
 	uint32_t flash_offset;
-#define TEST_TOTLEN
+#undef TEST_TOTLEN
 #ifdef TEST_TOTLEN
 	uint32_t __totlen; /* This may die; use ref_totlen(c, jeb, ) below */
 #endif

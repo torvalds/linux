@@ -1,45 +1,16 @@
 #
-# Character device configuration
+# I2C algorithm drivers configuration
 #
 
-menu "I2C Algorithms"
-
 config I2C_ALGOBIT
-	tristate "I2C bit-banging interfaces"
-	help
-	  This allows you to use a range of I2C adapters called bit-banging
-	  adapters.  Say Y if you own an I2C adapter belonging to this class
-	  and then say Y to the specific driver for you adapter below.
-
-	  This support is also available as a module.  If so, the module 
-	  will be called i2c-algo-bit.
+	tristate
 
 config I2C_ALGOPCF
-	tristate "I2C PCF 8584 interfaces"
-	help
-	  This allows you to use a range of I2C adapters called PCF adapters.
-	  Say Y if you own an I2C adapter belonging to this class and then say
-	  Y to the specific driver for you adapter below.
-
-	  This support is also available as a module.  If so, the module 
-	  will be called i2c-algo-pcf.
+	tristate
 
 config I2C_ALGOPCA
-	tristate "I2C PCA 9564 interfaces"
-	help
-	  This allows you to use a range of I2C adapters called PCA adapters.
-	  Say Y if you own an I2C adapter belonging to this class and then say
-	  Y to the specific driver for you adapter below.
-
-	  This support is also available as a module.  If so, the module 
-	  will be called i2c-algo-pca.
+	tristate
 
 config I2C_ALGO_SGI
-	tristate "I2C SGI interfaces"
+	tristate
 	depends on SGI_IP22 || SGI_IP32 || X86_VISWS
-	help
-	  Supports the SGI interfaces like the ones found on SGI Indy VINO
-	  or SGI O2 MACE.
-
-endmenu
-

@@ -588,18 +588,20 @@ config SCSI_BUSLOGIC
 	  <http://www.tldp.org/docs.html#howto>, and the files
 	  <file:Documentation/scsi/BusLogic.txt> and
 	  <file:Documentation/scsi/FlashPoint.txt> for more information.
+	  Note that support for FlashPoint is only available for 32-bit
+	  x86 configurations.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called BusLogic.
 
-config SCSI_OMIT_FLASHPOINT
-	bool "Omit FlashPoint support"
-	depends on SCSI_BUSLOGIC
+config SCSI_FLASHPOINT
+	bool "FlashPoint support"
+	depends on SCSI_BUSLOGIC && PCI && X86_32
 	help
-	  This option allows you to omit the FlashPoint support from the
+	  This option allows you to add FlashPoint support to the
 	  BusLogic SCSI driver. The FlashPoint SCCB Manager code is
-	  substantial, so users of MultiMaster Host Adapters may wish to omit
-	  it.
+	  substantial, so users of MultiMaster Host Adapters may not
+	  wish to include it.
 
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
@@ -1674,6 +1676,16 @@ config MAC_SCSI
 	  based Macintoshes.  If you have one of these say Y and read the
 	  SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
+
+config SCSI_MAC_ESP
+	tristate "Macintosh NCR53c9[46] SCSI"
+	depends on MAC && SCSI
+	help
+	  This is the NCR 53c9x SCSI controller found on most of the 68040
+	  based Macintoshes.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mac_esp.
 
 config MVME147_SCSI
 	bool "WD33C93 SCSI driver for MVME147"

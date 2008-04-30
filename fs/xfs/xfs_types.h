@@ -160,4 +160,9 @@ typedef enum {
 	XFS_BTNUM_MAX
 } xfs_btnum_t;
 
+struct xfs_name {
+	const char	*name;
+	int		len;
+};
+
 #endif	/* __XFS_TYPES_H__ */

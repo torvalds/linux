@@ -44,8 +44,8 @@
 #include <linux/smp.h>
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
+#include <linux/semaphore.h>
 
-#include <asm/semaphore.h>
 #include <asm/sal.h>
 #include <asm/uaccess.h>
 

@@ -85,6 +85,7 @@ extern int par_io_data_set(u8 port, u8 pin, u8 val);
 /* QE internal API */
 int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input);
 enum qe_clock qe_clock_source(const char *source);
+unsigned int qe_get_brg_clk(void);
 int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier);
 int qe_get_snum(void);
 void qe_put_snum(u8 snum);
@@ -92,7 +93,16 @@ unsigned long qe_muram_alloc(int size, int align);
 int qe_muram_free(unsigned long offset);
 unsigned long qe_muram_alloc_fixed(unsigned long offset, int size);
 void qe_muram_dump(void);
-void *qe_muram_addr(unsigned long offset);
+
+static inline void __iomem *qe_muram_addr(unsigned long offset)
+{
+	return (void __iomem *)&qe_immr->muram[offset];
+}
+
+static inline unsigned long qe_muram_offset(void __iomem *addr)
+{
+	return addr - (void __iomem *)qe_immr->muram;
+}
 
 /* Structure that defines QE firmware binary files.
  *

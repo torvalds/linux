@@ -84,10 +84,12 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_resource_table *res,
 	while (!(res->irq_resource[i].flags & IORESOURCE_UNSET) &&
 	       i < PNP_MAX_IRQ)
 		i++;
-	if (i >= PNP_MAX_IRQ && !warned) {
-		printk(KERN_WARNING "pnpacpi: exceeded the max number of IRQ "
-				"resources: %d \n", PNP_MAX_IRQ);
-		warned = 1;
+	if (i >= PNP_MAX_IRQ) {
+		if (!warned) {
+			printk(KERN_WARNING "pnpacpi: exceeded the max number"
+				" of IRQ resources: %d\n", PNP_MAX_IRQ);
+			warned = 1;
+		}
 		return;
 	}
 	/*

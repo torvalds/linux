@@ -39,7 +39,7 @@ MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
-static unsigned int debug = 0;
+static unsigned int debug;
 module_param(debug,int,0644);
 MODULE_PARM_DESC(debug,"enable debug messages [mpeg]");
 
@@ -146,7 +146,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		cx_write(TS_GEN_CNTRL, 0x06); /* punctured clock TS & posedge driven */
 		udelay(100);
 	} else {
-		printk( "%s() Failed. Unsupported value in .mpeg (0x%08x)\n", __FUNCTION__,
+		printk( "%s() Failed. Unsupported value in .mpeg (0x%08x)\n", __func__,
 			core->board.mpeg );
 		return -EINVAL;
 	}
@@ -247,7 +247,7 @@ int cx8802_buf_prepare(struct videobuf_queue *q, struct cx8802_dev *dev,
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	int rc;
 
-	dprintk(1, "%s: %p\n", __FUNCTION__, buf);
+	dprintk(1, "%s: %p\n", __func__, buf);
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < size)
 		return -EINVAL;
 
@@ -289,7 +289,7 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 		buf->count    = cx88q->count++;
 		mod_timer(&cx88q->timeout, jiffies+BUFFER_TIMEOUT);
 		dprintk(1,"[%p/%d] %s - first active\n",
-			buf, buf->vb.i, __FUNCTION__);
+			buf, buf->vb.i, __func__);
 
 	} else {
 		dprintk( 1, "queue is not empty - append to active\n" );
@@ -299,7 +299,7 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 		buf->count    = cx88q->count++;
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		dprintk( 1, "[%p/%d] %s - append to active\n",
-			buf, buf->vb.i, __FUNCTION__);
+			buf, buf->vb.i, __func__);
 	}
 }
 
@@ -342,7 +342,7 @@ static void cx8802_timeout(unsigned long data)
 {
 	struct cx8802_dev *dev = (struct cx8802_dev*)data;
 
-	dprintk(1, "%s\n",__FUNCTION__);
+	dprintk(1, "%s\n",__func__);
 
 	if (debug)
 		cx88_sram_channel_dump(dev->core, &cx88_sram_channels[SRAM_CH28]);
@@ -613,6 +613,8 @@ static int cx8802_request_acquire(struct cx8802_driver *drv)
 	    core->active_type_id != drv->type_id)
 		return -EBUSY;
 
+	core->input = CX88_VMUX_DVB;
+
 	if (drv->advise_acquire)
 	{
 		mutex_lock(&drv->core->lock);
@@ -623,7 +625,7 @@ static int cx8802_request_acquire(struct cx8802_driver *drv)
 		}
 		mutex_unlock(&drv->core->lock);
 
-		mpeg_dbg(1,"%s() Post acquire GPIO=%x\n", __FUNCTION__, cx_read(MO_GP0_IO));
+		mpeg_dbg(1,"%s() Post acquire GPIO=%x\n", __func__, cx_read(MO_GP0_IO));
 	}
 
 	return 0;
@@ -639,7 +641,7 @@ static int cx8802_request_release(struct cx8802_driver *drv)
 	{
 		drv->advise_release(drv);
 		core->active_type_id = CX88_BOARD_NONE;
-		mpeg_dbg(1,"%s() Post release GPIO=%x\n", __FUNCTION__, cx_read(MO_GP0_IO));
+		mpeg_dbg(1,"%s() Post release GPIO=%x\n", __func__, cx_read(MO_GP0_IO));
 	}
 	mutex_unlock(&drv->core->lock);
 
@@ -813,7 +815,7 @@ static void __devexit cx8802_remove(struct pci_dev *pci_dev)
 
 	dev = pci_get_drvdata(pci_dev);
 
-	dprintk( 1, "%s\n", __FUNCTION__);
+	dprintk( 1, "%s\n", __func__);
 
 	if (!list_empty(&dev->drvlist)) {
 		struct cx8802_driver *drv, *tmp;

@@ -10,6 +10,7 @@
  */
 
 #include <linux/fs.h>
+#include "nodelist.h"
 
 int jffs2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		unsigned long arg)

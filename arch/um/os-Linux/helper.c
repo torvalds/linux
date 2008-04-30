@@ -14,6 +14,7 @@
 #include "os.h"
 #include "um_malloc.h"
 #include "user.h"
+#include <linux/limits.h>
 
 struct helper_data {
 	void (*pre_exec)(void*);

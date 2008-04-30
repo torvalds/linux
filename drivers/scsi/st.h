@@ -12,6 +12,7 @@ struct st_cmdstatus {
 	int midlevel_result;
 	struct scsi_sense_hdr sense_hdr;
 	int have_sense;
+	int residual;
 	u64 uremainder64;
 	u8 flags;
 	u8 remainder_valid;
@@ -34,6 +35,7 @@ struct st_request {
 struct st_buffer {
 	unsigned char dma;	/* DMA-able buffer */
 	unsigned char do_dio;   /* direct i/o set up? */
+	unsigned char cleared;  /* internal buffer cleared after open? */
 	int buffer_size;
 	int buffer_blocks;
 	int buffer_bytes;
@@ -122,6 +124,7 @@ struct scsi_tape {
 	unsigned char try_dio_now;		/* try direct i/o before next close? */
 	unsigned char c_algo;			/* compression algorithm */
 	unsigned char pos_unknown;			/* after reset position unknown */
+	unsigned char sili;			/* use SILI when reading in variable b mode */
 	int tape_type;
 	int long_timeout;	/* timeout for commands known to take long time */
 

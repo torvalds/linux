@@ -33,7 +33,7 @@
 #define MAGIC_CHECK(is,should)	if (unlikely((is) != (should))) \
 	{ printk(KERN_ERR "magic mismatch: %x (expected %x)\n",is,should); BUG(); }
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 
 MODULE_DESCRIPTION("helper module to manage video4linux vmalloc buffers");
@@ -57,20 +57,26 @@ videobuf_vm_open(struct vm_area_struct *vma)
 	map->count++;
 }
 
-static void
-videobuf_vm_close(struct vm_area_struct *vma)
+static void videobuf_vm_close(struct vm_area_struct *vma)
 {
 	struct videobuf_mapping *map = vma->vm_private_data;
 	struct videobuf_queue *q = map->q;
 	int i;
 
-	dprintk(2,"vm_close %p [count=%u,vma=%08lx-%08lx]\n",map,
-		map->count,vma->vm_start,vma->vm_end);
+	dprintk(2,"vm_close %p [count=%u,vma=%08lx-%08lx]\n", map,
+		map->count, vma->vm_start, vma->vm_end);
 
 	map->count--;
 	if (0 == map->count) {
-		dprintk(1,"munmap %p q=%p\n",map,q);
+		struct videobuf_vmalloc_memory *mem;
+
+		dprintk(1, "munmap %p q=%p\n", map, q);
 		mutex_lock(&q->vb_lock);
+
+		/* We need first to cancel streams, before unmapping */
+		if (q->streaming)
+			videobuf_queue_cancel(q);
+
 		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 			if (NULL == q->bufs[i])
 				continue;
@@ -78,14 +84,35 @@ videobuf_vm_close(struct vm_area_struct *vma)
 			if (q->bufs[i]->map != map)
 				continue;
 
-			q->ops->buf_release(q,q->bufs[i]);
+			mem = q->bufs[i]->priv;
+			if (mem) {
+				/* This callback is called only if kernel has
+				   allocated memory and this memory is mmapped.
+				   In this case, memory should be freed,
+				   in order to do memory unmap.
+				 */
+
+				MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
+
+				/* vfree is not atomic - can't be
+				   called with IRQ's disabled
+				 */
+				dprintk(1, "%s: buf[%d] freeing (%p)\n",
+					__func__, i, mem->vmalloc);
+
+				vfree(mem->vmalloc);
+				mem->vmalloc = NULL;
+			}
 
 			q->bufs[i]->map   = NULL;
 			q->bufs[i]->baddr = 0;
 		}
-		mutex_unlock(&q->vb_lock);
+
 		kfree(map);
+
+		mutex_unlock(&q->vb_lock);
 	}
+
 	return;
 }
 
@@ -102,7 +129,7 @@ static struct vm_operations_struct videobuf_vm_ops =
 /* Allocated area consists on 3 parts:
 	struct video_buffer
 	struct <driver>_buffer (cx88_buffer, saa7134_buf, ...)
-	struct videobuf_pci_sg_memory
+	struct videobuf_dma_sg_memory
  */
 
 static void *__videobuf_alloc(size_t size)
@@ -116,7 +143,7 @@ static void *__videobuf_alloc(size_t size)
 	mem->magic=MAGIC_VMAL_MEM;
 
 	dprintk(1,"%s: allocated at %p(%ld+%ld) & %p(%ld)\n",
-		__FUNCTION__,vb,(long)sizeof(*vb),(long)size-sizeof(*vb),
+		__func__,vb,(long)sizeof(*vb),(long)size-sizeof(*vb),
 		mem,(long)sizeof(*mem));
 
 	return vb;
@@ -126,45 +153,74 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 			      struct videobuf_buffer *vb,
 			      struct v4l2_framebuffer *fbuf)
 {
+	struct videobuf_vmalloc_memory *mem = vb->priv;
 	int pages;
-	struct videobuf_vmalloc_memory *mem=vb->priv;
 
 	BUG_ON(!mem);
 
-	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
+	MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
 
-	pages = PAGE_ALIGN(vb->size) >> PAGE_SHIFT;
+	switch (vb->memory) {
+	case V4L2_MEMORY_MMAP:
+		dprintk(1, "%s memory method MMAP\n", __func__);
 
-	/* Currently, doesn't support V4L2_MEMORY_OVERLAY */
-	if ((vb->memory != V4L2_MEMORY_MMAP) &&
-				(vb->memory != V4L2_MEMORY_USERPTR) ) {
-		printk(KERN_ERR "Method currently unsupported.\n");
-		return -EINVAL;
-	}
-
-	/* FIXME: should be tested with kernel mmap mem */
-	mem->vmalloc=vmalloc_user (PAGE_ALIGN(vb->size));
-	if (NULL == mem->vmalloc) {
-		printk(KERN_ERR "vmalloc (%d pages) failed\n",pages);
-		return -ENOMEM;
-	}
-
-	dprintk(1,"vmalloc is at addr 0x%08lx, size=%d\n",
-				(unsigned long)mem->vmalloc,
-				pages << PAGE_SHIFT);
-
-	/* It seems that some kernel versions need to do remap *after*
-	   the mmap() call
-	 */
-	if (mem->vma) {
-		int retval=remap_vmalloc_range(mem->vma, mem->vmalloc,0);
-		kfree(mem->vma);
-		mem->vma=NULL;
-		if (retval<0) {
-			dprintk(1,"mmap app bug: remap_vmalloc_range area %p error %d\n",
-				mem->vmalloc,retval);
-			return retval;
+		/* All handling should be done by __videobuf_mmap_mapper() */
+		if (!mem->vmalloc) {
+			printk(KERN_ERR "memory is not alloced/mmapped.\n");
+			return -EINVAL;
 		}
+		break;
+	case V4L2_MEMORY_USERPTR:
+		pages = PAGE_ALIGN(vb->size);
+
+		dprintk(1, "%s memory method USERPTR\n", __func__);
+
+#if 1
+		if (vb->baddr) {
+			printk(KERN_ERR "USERPTR is currently not supported\n");
+			return -EINVAL;
+		}
+#endif
+
+		/* The only USERPTR currently supported is the one needed for
+		   read() method.
+		 */
+
+		mem->vmalloc = vmalloc_user(pages);
+		if (!mem->vmalloc) {
+			printk(KERN_ERR "vmalloc (%d pages) failed\n", pages);
+			return -ENOMEM;
+		}
+		dprintk(1, "vmalloc is at addr %p (%d pages)\n",
+			mem->vmalloc, pages);
+
+#if 0
+		int rc;
+		/* Kernel userptr is used also by read() method. In this case,
+		   there's no need to remap, since data will be copied to user
+		 */
+		if (!vb->baddr)
+			return 0;
+
+		/* FIXME: to properly support USERPTR, remap should occur.
+		   The code bellow won't work, since mem->vma = NULL
+		 */
+		/* Try to remap memory */
+		rc = remap_vmalloc_range(mem->vma, (void *)vb->baddr, 0);
+		if (rc < 0) {
+			printk(KERN_ERR "mmap: remap failed with error %d. ", rc);
+			return -ENOMEM;
+		}
+#endif
+
+		break;
+	case V4L2_MEMORY_OVERLAY:
+	default:
+		dprintk(1, "%s memory method OVERLAY/unknown\n", __func__);
+
+		/* Currently, doesn't support V4L2_MEMORY_OVERLAY */
+		printk(KERN_ERR "Memory method currently unsupported.\n");
+		return -EINVAL;
 	}
 
 	return 0;
@@ -180,6 +236,7 @@ static int __videobuf_mmap_free(struct videobuf_queue *q)
 {
 	unsigned int i;
 
+	dprintk(1, "%s\n", __func__);
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 		if (q->bufs[i]) {
 			if (q->bufs[i]->map)
@@ -196,10 +253,11 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	struct videobuf_vmalloc_memory *mem;
 	struct videobuf_mapping *map;
 	unsigned int first;
-	int retval;
+	int retval, pages;
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 
-	if (! (vma->vm_flags & VM_WRITE) || ! (vma->vm_flags & VM_SHARED))
+	dprintk(1, "%s\n", __func__);
+	if (!(vma->vm_flags & VM_WRITE) || !(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
 	/* look for first buffer to map */
@@ -219,46 +277,55 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	}
 
 	/* create mapping + update buffer list */
-	map = q->bufs[first]->map = kzalloc(sizeof(struct videobuf_mapping),GFP_KERNEL);
+	map = kzalloc(sizeof(struct videobuf_mapping), GFP_KERNEL);
 	if (NULL == map)
 		return -ENOMEM;
 
+	q->bufs[first]->map = map;
 	map->start = vma->vm_start;
 	map->end   = vma->vm_end;
 	map->q     = q;
 
 	q->bufs[first]->baddr = vma->vm_start;
 
+	mem = q->bufs[first]->priv;
+	BUG_ON(!mem);
+	MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
+
+	pages = PAGE_ALIGN(vma->vm_end - vma->vm_start);
+	mem->vmalloc = vmalloc_user(pages);
+	if (!mem->vmalloc) {
+		printk(KERN_ERR "vmalloc (%d pages) failed\n", pages);
+		goto error;
+	}
+	dprintk(1, "vmalloc is at addr %p (%d pages)\n",
+		mem->vmalloc, pages);
+
+	/* Try to remap memory */
+	retval = remap_vmalloc_range(vma, mem->vmalloc, 0);
+	if (retval < 0) {
+		printk(KERN_ERR "mmap: remap failed with error %d. ", retval);
+		vfree(mem->vmalloc);
+		goto error;
+	}
+
 	vma->vm_ops          = &videobuf_vm_ops;
 	vma->vm_flags       |= VM_DONTEXPAND | VM_RESERVED;
 	vma->vm_private_data = map;
 
-	mem=q->bufs[first]->priv;
-	BUG_ON (!mem);
-	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
-
-	/* Try to remap memory */
-	retval=remap_vmalloc_range(vma, mem->vmalloc,0);
-	if (retval<0) {
-		dprintk(1,"mmap: postponing remap_vmalloc_range\n");
-
-		mem->vma=kmalloc(sizeof(*vma),GFP_KERNEL);
-		if (!mem->vma) {
-			kfree(map);
-			q->bufs[first]->map=NULL;
-			return -ENOMEM;
-		}
-		memcpy(mem->vma,vma,sizeof(*vma));
-	}
-
 	dprintk(1,"mmap %p: q=%p %08lx-%08lx (%lx) pgoff %08lx buf %d\n",
-		map,q,vma->vm_start,vma->vm_end,
+		map, q, vma->vm_start, vma->vm_end,
 		(long int) q->bufs[first]->bsize,
-		vma->vm_pgoff,first);
+		vma->vm_pgoff, first);
 
 	videobuf_vm_open(vma);
 
-	return (0);
+	return 0;
+
+error:
+	mem = NULL;
+	kfree(map);
+	return -ENOMEM;
 }
 
 static int __videobuf_copy_to_user ( struct videobuf_queue *q,
@@ -320,6 +387,7 @@ static struct videobuf_qtype_ops qops = {
 	.mmap_mapper  = __videobuf_mmap_mapper,
 	.video_copy_to_user = __videobuf_copy_to_user,
 	.copy_stream  = __videobuf_copy_stream,
+	.vmalloc      = videobuf_to_vmalloc,
 };
 
 void videobuf_queue_vmalloc_init(struct videobuf_queue* q,
@@ -349,13 +417,24 @@ EXPORT_SYMBOL_GPL(videobuf_to_vmalloc);
 
 void videobuf_vmalloc_free (struct videobuf_buffer *buf)
 {
-	struct videobuf_vmalloc_memory *mem=buf->priv;
-	BUG_ON (!mem);
+	struct videobuf_vmalloc_memory *mem = buf->priv;
 
-	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
+	/* mmapped memory can't be freed here, otherwise mmapped region
+	   would be released, while still needed. In this case, the memory
+	   release should happen inside videobuf_vm_close().
+	   So, it should free memory only if the memory were allocated for
+	   read() operation.
+	 */
+	if ((buf->memory != V4L2_MEMORY_USERPTR) || (buf->baddr == 0))
+		return;
+
+	if (!mem)
+		return;
+
+	MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
 
 	vfree(mem->vmalloc);
-	mem->vmalloc=NULL;
+	mem->vmalloc = NULL;
 
 	return;
 }

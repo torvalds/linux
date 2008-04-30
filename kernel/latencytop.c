@@ -64,8 +64,8 @@ account_global_scheduler_latency(struct task_struct *tsk, struct latency_record 
 		return;
 
 	for (i = 0; i < MAXLR; i++) {
-		int q;
-		int same = 1;
+		int q, same = 1;
+
 		/* Nothing stored: */
 		if (!latency_record[i].backtrace[0]) {
 			if (firstnonnull > i)
@@ -73,12 +73,15 @@ account_global_scheduler_latency(struct task_struct *tsk, struct latency_record 
 			continue;
 		}
 		for (q = 0 ; q < LT_BACKTRACEDEPTH ; q++) {
-			if (latency_record[i].backtrace[q] !=
-				lat->backtrace[q])
+			unsigned long record = lat->backtrace[q];
+
+			if (latency_record[i].backtrace[q] != record) {
 				same = 0;
-			if (same && lat->backtrace[q] == 0)
 				break;
-			if (same && lat->backtrace[q] == ULONG_MAX)
+			}
+
+			/* 0 and ULONG_MAX entries mean end of backtrace: */
+			if (record == 0 || record == ULONG_MAX)
 				break;
 		}
 		if (same) {
@@ -143,14 +146,18 @@ account_scheduler_latency(struct task_struct *tsk, int usecs, int inter)
 	for (i = 0; i < LT_SAVECOUNT ; i++) {
 		struct latency_record *mylat;
 		int same = 1;
+
 		mylat = &tsk->latency_record[i];
 		for (q = 0 ; q < LT_BACKTRACEDEPTH ; q++) {
-			if (mylat->backtrace[q] !=
-				lat.backtrace[q])
+			unsigned long record = lat.backtrace[q];
+
+			if (mylat->backtrace[q] != record) {
 				same = 0;
-			if (same && lat.backtrace[q] == 0)
 				break;
-			if (same && lat.backtrace[q] == ULONG_MAX)
+			}
+
+			/* 0 and ULONG_MAX entries mean end of backtrace: */
+			if (record == 0 || record == ULONG_MAX)
 				break;
 		}
 		if (same) {

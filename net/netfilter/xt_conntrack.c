@@ -65,7 +65,7 @@ conntrack_mt_v0(const struct sk_buff *skb, const struct net_device *in,
 	}
 
 	if (sinfo->flags & XT_CONNTRACK_PROTO &&
-	    FWINV(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum !=
+	    FWINV(nf_ct_protonum(ct) !=
 		  sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum,
 		  XT_CONNTRACK_PROTO))
 		return false;
@@ -174,7 +174,7 @@ ct_proto_port_check(const struct xt_conntrack_mtinfo1 *info,
 
 	tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
 	if ((info->match_flags & XT_CONNTRACK_PROTO) &&
-	    (tuple->dst.protonum == info->l4proto) ^
+	    (nf_ct_protonum(ct) == info->l4proto) ^
 	    !(info->invert_flags & XT_CONNTRACK_PROTO))
 		return false;
 

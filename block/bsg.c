@@ -37,7 +37,6 @@ struct bsg_device {
 	struct list_head done_list;
 	struct hlist_node dev_list;
 	atomic_t ref_count;
-	int minor;
 	int queued_cmds;
 	int done_cmds;
 	wait_queue_head_t wq_done;
@@ -368,7 +367,7 @@ static struct bsg_command *bsg_next_done_cmd(struct bsg_device *bd)
 
 	spin_lock_irq(&bd->lock);
 	if (bd->done_cmds) {
-		bc = list_entry(bd->done_list.next, struct bsg_command, list);
+		bc = list_first_entry(&bd->done_list, struct bsg_command, list);
 		list_del(&bc->list);
 		bd->done_cmds--;
 	}
@@ -467,8 +466,6 @@ static int bsg_complete_all_commands(struct bsg_device *bd)
 	int ret, tret;
 
 	dprintk("%s: entered\n", bd->name);
-
-	set_bit(BSG_F_BLOCK, &bd->flags);
 
 	/*
 	 * wait for all commands to complete
@@ -702,13 +699,26 @@ static struct bsg_device *bsg_alloc_device(void)
 	return bd;
 }
 
+static void bsg_kref_release_function(struct kref *kref)
+{
+	struct bsg_class_device *bcd =
+		container_of(kref, struct bsg_class_device, ref);
+
+	if (bcd->release)
+		bcd->release(bcd->parent);
+
+	put_device(bcd->parent);
+}
+
 static int bsg_put_device(struct bsg_device *bd)
 {
-	int ret = 0;
+	int ret = 0, do_free;
+	struct request_queue *q = bd->queue;
 
 	mutex_lock(&bsg_mutex);
 
-	if (!atomic_dec_and_test(&bd->ref_count))
+	do_free = atomic_dec_and_test(&bd->ref_count);
+	if (!do_free)
 		goto out;
 
 	dprintk("%s: tearing down\n", bd->name);
@@ -725,11 +735,13 @@ static int bsg_put_device(struct bsg_device *bd)
 	 */
 	ret = bsg_complete_all_commands(bd);
 
-	blk_put_queue(bd->queue);
 	hlist_del(&bd->dev_list);
 	kfree(bd);
 out:
 	mutex_unlock(&bsg_mutex);
+	kref_put(&q->bsg_dev.ref, bsg_kref_release_function);
+	if (do_free)
+		blk_put_queue(q);
 	return ret;
 }
 
@@ -738,24 +750,28 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 					 struct file *file)
 {
 	struct bsg_device *bd;
+	int ret;
 #ifdef BSG_DEBUG
 	unsigned char buf[32];
 #endif
+	ret = blk_get_queue(rq);
+	if (ret)
+		return ERR_PTR(-ENXIO);
 
 	bd = bsg_alloc_device();
-	if (!bd)
+	if (!bd) {
+		blk_put_queue(rq);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	bd->queue = rq;
-	kobject_get(&rq->kobj);
 	bsg_set_block(bd, file);
 
 	atomic_set(&bd->ref_count, 1);
-	bd->minor = iminor(inode);
 	mutex_lock(&bsg_mutex);
-	hlist_add_head(&bd->dev_list, bsg_dev_idx_hash(bd->minor));
+	hlist_add_head(&bd->dev_list, bsg_dev_idx_hash(iminor(inode)));
 
-	strncpy(bd->name, rq->bsg_dev.class_dev->class_id, sizeof(bd->name) - 1);
+	strncpy(bd->name, rq->bsg_dev.class_dev->bus_id, sizeof(bd->name) - 1);
 	dprintk("bound to <%s>, max queue %d\n",
 		format_dev_t(buf, inode->i_rdev), bd->max_queue);
 
@@ -763,23 +779,21 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 	return bd;
 }
 
-static struct bsg_device *__bsg_get_device(int minor)
+static struct bsg_device *__bsg_get_device(int minor, struct request_queue *q)
 {
-	struct bsg_device *bd = NULL;
+	struct bsg_device *bd;
 	struct hlist_node *entry;
 
 	mutex_lock(&bsg_mutex);
 
-	hlist_for_each(entry, bsg_dev_idx_hash(minor)) {
-		bd = hlist_entry(entry, struct bsg_device, dev_list);
-		if (bd->minor == minor) {
+	hlist_for_each_entry(bd, entry, bsg_dev_idx_hash(minor), dev_list) {
+		if (bd->queue == q) {
 			atomic_inc(&bd->ref_count);
-			break;
+			goto found;
 		}
-
-		bd = NULL;
 	}
-
+	bd = NULL;
+found:
 	mutex_unlock(&bsg_mutex);
 	return bd;
 }
@@ -789,21 +803,27 @@ static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 	struct bsg_device *bd;
 	struct bsg_class_device *bcd;
 
-	bd = __bsg_get_device(iminor(inode));
-	if (bd)
-		return bd;
-
 	/*
 	 * find the class device
 	 */
 	mutex_lock(&bsg_mutex);
 	bcd = idr_find(&bsg_minor_idr, iminor(inode));
+	if (bcd)
+		kref_get(&bcd->ref);
 	mutex_unlock(&bsg_mutex);
 
 	if (!bcd)
 		return ERR_PTR(-ENODEV);
 
-	return bsg_add_device(inode, bcd->queue, file);
+	bd = __bsg_get_device(iminor(inode), bcd->queue);
+	if (bd)
+		return bd;
+
+	bd = bsg_add_device(inode, bcd->queue, file);
+	if (IS_ERR(bd))
+		kref_put(&bcd->ref, bsg_kref_release_function);
+
+	return bd;
 }
 
 static int bsg_open(struct inode *inode, struct file *file)
@@ -939,27 +959,26 @@ void bsg_unregister_queue(struct request_queue *q)
 	mutex_lock(&bsg_mutex);
 	idr_remove(&bsg_minor_idr, bcd->minor);
 	sysfs_remove_link(&q->kobj, "bsg");
-	class_device_unregister(bcd->class_dev);
-	put_device(bcd->dev);
+	device_unregister(bcd->class_dev);
 	bcd->class_dev = NULL;
-	bcd->dev = NULL;
+	kref_put(&bcd->ref, bsg_kref_release_function);
 	mutex_unlock(&bsg_mutex);
 }
 EXPORT_SYMBOL_GPL(bsg_unregister_queue);
 
-int bsg_register_queue(struct request_queue *q, struct device *gdev,
-		       const char *name)
+int bsg_register_queue(struct request_queue *q, struct device *parent,
+		       const char *name, void (*release)(struct device *))
 {
 	struct bsg_class_device *bcd;
 	dev_t dev;
 	int ret, minor;
-	struct class_device *class_dev = NULL;
+	struct device *class_dev = NULL;
 	const char *devname;
 
 	if (name)
 		devname = name;
 	else
-		devname = gdev->bus_id;
+		devname = parent->bus_id;
 
 	/*
 	 * we need a proper transport to send commands, not a stacked device
@@ -990,10 +1009,11 @@ int bsg_register_queue(struct request_queue *q, struct device *gdev,
 
 	bcd->minor = minor;
 	bcd->queue = q;
-	bcd->dev = get_device(gdev);
+	bcd->parent = get_device(parent);
+	bcd->release = release;
+	kref_init(&bcd->ref);
 	dev = MKDEV(bsg_major, bcd->minor);
-	class_dev = class_device_create(bsg_class, NULL, dev, gdev, "%s",
-					devname);
+	class_dev = device_create(bsg_class, parent, dev, "%s", devname);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
 		goto put_dev;
@@ -1010,9 +1030,9 @@ int bsg_register_queue(struct request_queue *q, struct device *gdev,
 	return 0;
 
 unregister_class_dev:
-	class_device_unregister(class_dev);
+	device_unregister(class_dev);
 put_dev:
-	put_device(gdev);
+	put_device(parent);
 remove_idr:
 	idr_remove(&bsg_minor_idr, minor);
 unlock:

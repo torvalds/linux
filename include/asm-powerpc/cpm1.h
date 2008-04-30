@@ -28,19 +28,6 @@
 #define CPM_CR_CHAN	((ushort)0x00f0)
 #define CPM_CR_FLG	((ushort)0x0001)
 
-/* Some commands (there are more...later)
-*/
-#define CPM_CR_INIT_TRX		((ushort)0x0000)
-#define CPM_CR_INIT_RX		((ushort)0x0001)
-#define CPM_CR_INIT_TX		((ushort)0x0002)
-#define CPM_CR_HUNT_MODE	((ushort)0x0003)
-#define CPM_CR_STOP_TX		((ushort)0x0004)
-#define CPM_CR_GRA_STOP_TX	((ushort)0x0005)
-#define CPM_CR_RESTART_TX	((ushort)0x0006)
-#define CPM_CR_CLOSE_RX_BD	((ushort)0x0007)
-#define CPM_CR_SET_GADDR	((ushort)0x0008)
-#define CPM_CR_SET_TIMER	CPM_CR_SET_GADDR
-
 /* Channel numbers.
 */
 #define CPM_CR_CH_SCC1		((ushort)0x0000)

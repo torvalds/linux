@@ -13,7 +13,6 @@
 #include <asm/pgalloc.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/semaphore.h>
 #include <asm/checksum.h>
 #include <asm/current.h>
 
@@ -38,11 +37,6 @@ EXPORT_SYMBOL(csum_partial_copy_nocheck);
    it's OK to leave it out of version control.  */
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
-
-EXPORT_SYMBOL(__down_failed);
-EXPORT_SYMBOL(__down_failed_interruptible);
-EXPORT_SYMBOL(__down_failed_trylock);
-EXPORT_SYMBOL(__up_wakeup);
 
 /*
  * libgcc functions - functions that are used internally by the

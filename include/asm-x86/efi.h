@@ -20,7 +20,7 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
  */
 
 #define efi_call_virt(f, args...) \
-     ((efi_##f##_t __attribute__((regparm(0)))*)efi.systab->runtime->f)(args)
+	((efi_##f##_t __attribute__((regparm(0)))*)efi.systab->runtime->f)(args)
 
 #define efi_call_virt0(f)		efi_call_virt(f)
 #define efi_call_virt1(f, a1)		efi_call_virt(f, a1)

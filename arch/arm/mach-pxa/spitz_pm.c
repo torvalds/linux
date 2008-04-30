@@ -26,6 +26,7 @@
 #include <asm/arch/sharpsl.h>
 #include <asm/arch/spitz.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include "sharpsl.h"
 
 #define SHARPSL_CHARGE_ON_VOLT         0x99  /* 2.9V */

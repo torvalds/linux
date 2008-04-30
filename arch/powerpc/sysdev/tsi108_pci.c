@@ -207,7 +207,7 @@ int __init tsi108_setup_pci(struct device_node *dev, u32 cfg_phys, int primary)
 	/* PCI Config mapping */
 	tsi108_pci_cfg_base = (u32)ioremap(cfg_phys, TSI108_PCI_CFG_SIZE);
 	tsi108_pci_cfg_phys = cfg_phys;
-	DBG("TSI_PCI: %s tsi108_pci_cfg_base=0x%x\n", __FUNCTION__,
+	DBG("TSI_PCI: %s tsi108_pci_cfg_base=0x%x\n", __func__,
 	    tsi108_pci_cfg_base);
 
 	/* Fetch host bridge registers address */
@@ -395,7 +395,7 @@ static int pci_irq_host_xlate(struct irq_host *h, struct device_node *ct,
 static int pci_irq_host_map(struct irq_host *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {	unsigned int irq;
-	DBG("%s(%d, 0x%lx)\n", __FUNCTION__, virq, hw);
+	DBG("%s(%d, 0x%lx)\n", __func__, virq, hw);
 	if ((virq >= 1) && (virq <= 4)){
 		irq = virq + IRQ_PCI_INTAD_BASE - 1;
 		get_irq_desc(irq)->status |= IRQ_LEVEL;

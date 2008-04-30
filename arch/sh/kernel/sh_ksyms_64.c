@@ -16,7 +16,6 @@
 #include <linux/in6.h>
 #include <linux/interrupt.h>
 #include <linux/screen_info.h>
-#include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
@@ -37,9 +36,6 @@ EXPORT_SYMBOL(csum_partial_copy_nocheck);
 EXPORT_SYMBOL(screen_info);
 #endif
 
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_trylock);
-EXPORT_SYMBOL(__up);
 EXPORT_SYMBOL(__put_user_asm_l);
 EXPORT_SYMBOL(__get_user_asm_l);
 EXPORT_SYMBOL(copy_page);

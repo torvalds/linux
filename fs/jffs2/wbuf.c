@@ -578,8 +578,8 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	if (!jffs2_is_writebuffered(c))
 		return 0;
 
-	if (!down_trylock(&c->alloc_sem)) {
-		up(&c->alloc_sem);
+	if (mutex_trylock(&c->alloc_sem)) {
+		mutex_unlock(&c->alloc_sem);
 		printk(KERN_CRIT "jffs2_flush_wbuf() called with alloc_sem not locked!\n");
 		BUG();
 	}
@@ -702,10 +702,10 @@ int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino)
 	if (!c->wbuf)
 		return 0;
 
-	down(&c->alloc_sem);
+	mutex_lock(&c->alloc_sem);
 	if (!jffs2_wbuf_pending_for_ino(c, ino)) {
 		D1(printk(KERN_DEBUG "Ino #%d not pending in wbuf. Returning\n", ino));
-		up(&c->alloc_sem);
+		mutex_unlock(&c->alloc_sem);
 		return 0;
 	}
 
@@ -725,14 +725,14 @@ int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino)
 	} else while (old_wbuf_len &&
 		      old_wbuf_ofs == c->wbuf_ofs) {
 
-		up(&c->alloc_sem);
+		mutex_unlock(&c->alloc_sem);
 
 		D1(printk(KERN_DEBUG "jffs2_flush_wbuf_gc() calls gc pass\n"));
 
 		ret = jffs2_garbage_collect_pass(c);
 		if (ret) {
 			/* GC failed. Flush it with padding instead */
-			down(&c->alloc_sem);
+			mutex_lock(&c->alloc_sem);
 			down_write(&c->wbuf_sem);
 			ret = __jffs2_flush_wbuf(c, PAD_ACCOUNTING);
 			/* retry flushing wbuf in case jffs2_wbuf_recover
@@ -742,12 +742,12 @@ int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino)
 			up_write(&c->wbuf_sem);
 			break;
 		}
-		down(&c->alloc_sem);
+		mutex_lock(&c->alloc_sem);
 	}
 
 	D1(printk(KERN_DEBUG "jffs2_flush_wbuf_gc() ends...\n"));
 
-	up(&c->alloc_sem);
+	mutex_unlock(&c->alloc_sem);
 	return ret;
 }
 
@@ -1236,12 +1236,24 @@ int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
 	if (!c->wbuf)
 		return -ENOMEM;
 
+#ifdef CONFIG_JFFS2_FS_WBUF_VERIFY
+	c->wbuf_verify = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
+	if (!c->wbuf_verify) {
+		kfree(c->oobbuf);
+		kfree(c->wbuf);
+		return -ENOMEM;
+	}
+#endif
+
 	printk(KERN_INFO "JFFS2 write-buffering enabled buffer (%d) erasesize (%d)\n", c->wbuf_pagesize, c->sector_size);
 
 	return 0;
 }
 
 void jffs2_dataflash_cleanup(struct jffs2_sb_info *c) {
+#ifdef CONFIG_JFFS2_FS_WBUF_VERIFY
+	kfree(c->wbuf_verify);
+#endif
 	kfree(c->wbuf);
 }
 

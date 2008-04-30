@@ -1,12 +1,13 @@
 /*
- * TCP CUBIC: Binary Increase Congestion control for TCP v2.1
- *
+ * TCP CUBIC: Binary Increase Congestion control for TCP v2.2
+ * Home page:
+ *      http://netsrv.csc.ncsu.edu/twiki/bin/view/Main/BIC
  * This is from the implementation of CUBIC TCP in
  * Injong Rhee, Lisong Xu.
  *  "CUBIC: A New TCP-Friendly High-Speed TCP Variant
  *  in PFLDnet 2005
  * Available from:
- *  http://www.csc.ncsu.edu/faculty/rhee/export/bitcp/cubic-paper.pdf
+ *  http://netsrv.csc.ncsu.edu/export/cubic-paper.pdf
  *
  * Unless CUBIC is enabled and congestion window is large
  * this behaves the same as the original Reno.
@@ -20,15 +21,10 @@
 #define BICTCP_BETA_SCALE    1024	/* Scale factor beta calculation
 					 * max_cwnd = snd_cwnd * beta
 					 */
-#define BICTCP_B		4	 /*
-					  * In binary search,
-					  * go to point (max+min)/N
-					  */
 #define	BICTCP_HZ		10	/* BIC HZ 2^10 = 1024 */
 
 static int fast_convergence __read_mostly = 1;
-static int max_increment __read_mostly = 16;
-static int beta __read_mostly = 819;	/* = 819/1024 (BICTCP_BETA_SCALE) */
+static int beta __read_mostly = 717;	/* = 717/1024 (BICTCP_BETA_SCALE) */
 static int initial_ssthresh __read_mostly;
 static int bic_scale __read_mostly = 41;
 static int tcp_friendliness __read_mostly = 1;
@@ -40,9 +36,7 @@ static u64 cube_factor __read_mostly;
 /* Note parameters that are used for precomputing scale factors are read-only */
 module_param(fast_convergence, int, 0644);
 MODULE_PARM_DESC(fast_convergence, "turn on/off fast convergence");
-module_param(max_increment, int, 0644);
-MODULE_PARM_DESC(max_increment, "Limit on increment allowed during binary search");
-module_param(beta, int, 0444);
+module_param(beta, int, 0644);
 MODULE_PARM_DESC(beta, "beta for multiplicative increase");
 module_param(initial_ssthresh, int, 0644);
 MODULE_PARM_DESC(initial_ssthresh, "initial value of slow start threshold");
@@ -145,7 +139,7 @@ static u32 cubic_root(u64 a)
 static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 {
 	u64 offs;
-	u32 delta, t, bic_target, min_cnt, max_cnt;
+	u32 delta, t, bic_target, max_cnt;
 
 	ca->ack_cnt++;	/* count the number of ACKs */
 
@@ -210,19 +204,6 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 	} else {
 		ca->cnt = 100 * cwnd;              /* very small increment*/
 	}
-
-	if (ca->delay_min > 0) {
-		/* max increment = Smax * rtt / 0.1  */
-		min_cnt = (cwnd * HZ * 8)/(10 * max_increment * ca->delay_min);
-
-		/* use concave growth when the target is above the origin */
-		if (ca->cnt < min_cnt && t >= ca->bic_K)
-			ca->cnt = min_cnt;
-	}
-
-	/* slow start and low utilization  */
-	if (ca->loss_cwnd == 0)		/* could be aggressive in slow start */
-		ca->cnt = 50;
 
 	/* TCP Friendly */
 	if (tcp_friendliness) {
@@ -391,4 +372,4 @@ module_exit(cubictcp_unregister);
 MODULE_AUTHOR("Sangtae Ha, Stephen Hemminger");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("CUBIC TCP");
-MODULE_VERSION("2.1");
+MODULE_VERSION("2.2");

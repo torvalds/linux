@@ -495,7 +495,7 @@ static int skfp_open(struct net_device *dev)
 
 	PRINTK(KERN_INFO "entering skfp_open\n");
 	/* Register IRQ - support shared interrupts by passing device ptr */
-	err = request_irq(dev->irq, (void *) skfp_interrupt, IRQF_SHARED,
+	err = request_irq(dev->irq, skfp_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (err)
 		return err;
@@ -1644,7 +1644,7 @@ void mac_drv_rx_complete(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 		// Get RIF length from Routing Control (RC) field.
 		cp = virt + FDDI_MAC_HDR_LEN;	// Point behind MAC header.
 
-		ri = ntohs(*((unsigned short *) cp));
+		ri = ntohs(*((__be16 *) cp));
 		RifLength = ri & FDDI_RCF_LEN_MASK;
 		if (len < (int) (FDDI_MAC_HDR_LEN + RifLength)) {
 			printk("fddi: Invalid RIF.\n");

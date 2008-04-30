@@ -486,6 +486,24 @@ int adjust_resource(struct resource *res, resource_size_t start, resource_size_t
 
 EXPORT_SYMBOL(adjust_resource);
 
+/**
+ * resource_alignment - calculate resource's alignment
+ * @res: resource pointer
+ *
+ * Returns alignment on success, 0 (invalid alignment) on failure.
+ */
+resource_size_t resource_alignment(struct resource *res)
+{
+	switch (res->flags & (IORESOURCE_SIZEALIGN | IORESOURCE_STARTALIGN)) {
+	case IORESOURCE_SIZEALIGN:
+		return res->end - res->start + 1;
+	case IORESOURCE_STARTALIGN:
+		return res->start;
+	default:
+		return 0;
+	}
+}
+
 /*
  * This is compatibility stuff for IO resources.
  *

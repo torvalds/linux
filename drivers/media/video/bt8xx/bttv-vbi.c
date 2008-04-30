@@ -54,7 +54,7 @@
 #define VBI_DEFLINES 16
 
 static unsigned int vbibufs = 4;
-static unsigned int vbi_debug = 0;
+static unsigned int vbi_debug;
 
 module_param(vbibufs,   int, 0444);
 module_param(vbi_debug, int, 0644);

@@ -1,6 +1,7 @@
 /*
  *  i2c-pca-isa.c driver for PCA9564 on ISA boards
  *    Copyright (C) 2004 Arcom Control Systems
+ *    Copyright (C) 2008 Pengutronix
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,11 +23,9 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
-
 #include <linux/isa.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-pca.h>
@@ -34,12 +33,8 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include "../algos/i2c-algo-pca.h"
-
+#define DRIVER "i2c-pca-isa"
 #define IO_SIZE 4
-
-#undef DEBUG_IO
-//#define DEBUG_IO
 
 static unsigned long base   = 0x330;
 static int irq 	  = 10;
@@ -48,22 +43,9 @@ static int irq 	  = 10;
  * in the actual clock rate */
 static int clock  = I2C_PCA_CON_59kHz;
 
-static int own    = 0x55;
-
 static wait_queue_head_t pca_wait;
 
-static int pca_isa_getown(struct i2c_algo_pca_data *adap)
-{
-	return (own);
-}
-
-static int pca_isa_getclock(struct i2c_algo_pca_data *adap)
-{
-	return (clock);
-}
-
-static void
-pca_isa_writebyte(struct i2c_algo_pca_data *adap, int reg, int val)
+static void pca_isa_writebyte(void *pd, int reg, int val)
 {
 #ifdef DEBUG_IO
 	static char *names[] = { "T/O", "DAT", "ADR", "CON" };
@@ -72,31 +54,36 @@ pca_isa_writebyte(struct i2c_algo_pca_data *adap, int reg, int val)
 	outb(val, base+reg);
 }
 
-static int
-pca_isa_readbyte(struct i2c_algo_pca_data *adap, int reg)
+static int pca_isa_readbyte(void *pd, int reg)
 {
 	int res = inb(base+reg);
 #ifdef DEBUG_IO
 	{
-		static char *names[] = { "STA", "DAT", "ADR", "CON" };	
+		static char *names[] = { "STA", "DAT", "ADR", "CON" };
 		printk("*** read  %s => %#04x\n", names[reg], res);
 	}
 #endif
 	return res;
 }
 
-static int pca_isa_waitforinterrupt(struct i2c_algo_pca_data *adap)
+static int pca_isa_waitforcompletion(void *pd)
 {
 	int ret = 0;
 
 	if (irq > -1) {
 		ret = wait_event_interruptible(pca_wait,
-					       pca_isa_readbyte(adap, I2C_PCA_CON) & I2C_PCA_CON_SI);
+					       pca_isa_readbyte(pd, I2C_PCA_CON) & I2C_PCA_CON_SI);
 	} else {
-		while ((pca_isa_readbyte(adap, I2C_PCA_CON) & I2C_PCA_CON_SI) == 0) 
+		while ((pca_isa_readbyte(pd, I2C_PCA_CON) & I2C_PCA_CON_SI) == 0)
 			udelay(100);
 	}
 	return ret;
+}
+
+static void pca_isa_resetchip(void *pd)
+{
+	/* apparently only an external reset will do it. not a lot can be done */
+	printk(KERN_WARNING DRIVER ": Haven't figured out how to do a reset yet\n");
 }
 
 static irqreturn_t pca_handler(int this_irq, void *dev_id) {
@@ -105,11 +92,11 @@ static irqreturn_t pca_handler(int this_irq, void *dev_id) {
 }
 
 static struct i2c_algo_pca_data pca_isa_data = {
-	.get_own		= pca_isa_getown,
-	.get_clock		= pca_isa_getclock,
+	/* .data intentionally left NULL, not needed with ISA */
 	.write_byte		= pca_isa_writebyte,
 	.read_byte		= pca_isa_readbyte,
-	.wait_for_interrupt	= pca_isa_waitforinterrupt,
+	.wait_for_completion	= pca_isa_waitforcompletion,
+	.reset_chip		= pca_isa_resetchip,
 };
 
 static struct i2c_adapter pca_isa_ops = {
@@ -117,6 +104,7 @@ static struct i2c_adapter pca_isa_ops = {
 	.id		= I2C_HW_A_ISA,
 	.algo_data	= &pca_isa_data,
 	.name		= "PCA9564 ISA Adapter",
+	.timeout	= 100,
 };
 
 static int __devinit pca_isa_probe(struct device *dev, unsigned int id)
@@ -144,6 +132,7 @@ static int __devinit pca_isa_probe(struct device *dev, unsigned int id)
 		}
 	}
 
+	pca_isa_data.i2c_clock = clock;
 	if (i2c_pca_add_bus(&pca_isa_ops) < 0) {
 		dev_err(dev, "Failed to add i2c bus\n");
 		goto out_irq;
@@ -178,7 +167,7 @@ static struct isa_driver pca_isa_driver = {
 	.remove		= __devexit_p(pca_isa_remove),
 	.driver = {
 		.owner	= THIS_MODULE,
-		.name	= "i2c-pca-isa",
+		.name	= DRIVER,
 	}
 };
 
@@ -203,8 +192,6 @@ module_param(irq, int, 0);
 MODULE_PARM_DESC(irq, "IRQ");
 module_param(clock, int, 0);
 MODULE_PARM_DESC(clock, "Clock rate as described in table 1 of PCA9564 datasheet");
-
-module_param(own, int, 0); /* the driver can't do slave mode, so there's no real point in this */
 
 module_init(pca_isa_init);
 module_exit(pca_isa_exit);

@@ -28,7 +28,7 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;					\
+	 nop;						\
 	nop;
 
 #define TRAP_7INSNS(routine)				\
@@ -38,7 +38,7 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;
+	 nop;
 
 #define TRAP_SAVEFPU(routine)				\
 	sethi	%hi(109f), %g7;				\
@@ -47,7 +47,7 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;					\
+	 nop;						\
 	nop;
 
 #define TRAP_NOSAVE(routine)				\
@@ -67,7 +67,7 @@
 	call	routine;				\
 	 add	%sp, PTREGS_OFF, %o0;			\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;					\
+	 nop;						\
 	nop;
 	
 #define TRAP_ARG(routine, arg)				\
@@ -78,7 +78,7 @@
 	call	routine;				\
 	 mov	arg, %o1;				\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;
+	 nop;
 	
 #define TRAPTL1_ARG(routine, arg)			\
 	sethi	%hi(109f), %g7;				\
@@ -88,7 +88,7 @@
 	call	routine;				\
 	 mov	arg, %o1;				\
 	ba,pt	%xcc, rtrap;				\
-	 clr	%l6;
+	 nop;
 	
 #define SYSCALL_TRAP(routine, systbl)			\
 	sethi	%hi(109f), %g7;				\
@@ -98,14 +98,6 @@
 	ba,pt	%xcc, routine;				\
 	 or	%l7, %lo(systbl), %l7;			\
 	nop; nop;
-	
-#define INDIRECT_SOLARIS_SYSCALL(num)			\
-	sethi	%hi(109f), %g7;				\
-	ba,pt	%xcc, etrap;				\
-109:	 or	%g7, %lo(109b), %g7;			\
-	ba,pt	%xcc, tl0_solaris + 0xc;		\
-	 mov	num, %g1;				\
-	nop;nop;nop;
 	
 #define TRAP_UTRAP(handler,lvl)				\
 	mov	handler, %g3;				\
@@ -117,11 +109,6 @@
 	nop;						\
 	nop;
 
-#ifdef CONFIG_SUNOS_EMUL
-#define SUNOS_SYSCALL_TRAP SYSCALL_TRAP(linux_sparc_syscall32, sunos_sys_table)
-#else
-#define SUNOS_SYSCALL_TRAP TRAP(sunos_syscall)
-#endif
 #ifdef CONFIG_COMPAT
 #define	LINUX_32BIT_SYSCALL_TRAP SYSCALL_TRAP(linux_sparc_syscall32, sys_call_table32)
 #else
@@ -130,11 +117,6 @@
 #define LINUX_64BIT_SYSCALL_TRAP SYSCALL_TRAP(linux_sparc_syscall, sys_call_table64)
 #define GETCC_TRAP TRAP(getcc)
 #define SETCC_TRAP TRAP(setcc)
-#ifdef CONFIG_SOLARIS_EMUL
-#define SOLARIS_SYSCALL_TRAP TRAP(solaris_sparc_syscall)
-#else
-#define SOLARIS_SYSCALL_TRAP TRAP(solaris_syscall)
-#endif
 #define BREAKPOINT_TRAP TRAP(breakpoint_trap)
 
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -184,7 +166,7 @@
 	ldx	[%sp + PTREGS_OFF + PT_V9_TNPC], %l1;			\
 	add	%l1, 4, %l2;						\
 	stx	%l1, [%sp + PTREGS_OFF + PT_V9_TPC];			\
-	ba,pt	%xcc, rtrap_clr_l6;					\
+	ba,pt	%xcc, rtrap;						\
 	 stx	%l2, [%sp + PTREGS_OFF + PT_V9_TNPC];
 	        
 #ifdef CONFIG_KPROBES

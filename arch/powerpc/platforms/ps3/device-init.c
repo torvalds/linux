@@ -499,41 +499,14 @@ static int __init ps3_register_graphics_devices(void)
 }
 
 /**
- * ps3_register_repository_device - Register a device from the repositiory info.
- *
+ * ps3_setup_dynamic_device - Setup a dynamic device from the repository
  */
 
-static int ps3_register_repository_device(
-	const struct ps3_repository_device *repo)
+static int ps3_setup_dynamic_device(const struct ps3_repository_device *repo)
 {
 	int result;
 
 	switch (repo->dev_type) {
-	case PS3_DEV_TYPE_SB_GELIC:
-		result = ps3_setup_gelic_device(repo);
-		if (result) {
-			pr_debug("%s:%d ps3_setup_gelic_device failed\n",
-				__func__, __LINE__);
-		}
-		break;
-	case PS3_DEV_TYPE_SB_USB:
-
-		/* Each USB device has both an EHCI and an OHCI HC */
-
-		result = ps3_setup_ehci_device(repo);
-
-		if (result) {
-			pr_debug("%s:%d ps3_setup_ehci_device failed\n",
-				__func__, __LINE__);
-		}
-
-		result = ps3_setup_ohci_device(repo);
-
-		if (result) {
-			pr_debug("%s:%d ps3_setup_ohci_device failed\n",
-				__func__, __LINE__);
-		}
-		break;
 	case PS3_DEV_TYPE_STOR_DISK:
 		result = ps3_setup_storage_dev(repo, PS3_MATCH_ID_STOR_DISK);
 
@@ -572,6 +545,48 @@ static int ps3_register_repository_device(
 	return result;
 }
 
+/**
+ * ps3_setup_static_device - Setup a static device from the repository
+ */
+
+static int __init ps3_setup_static_device(const struct ps3_repository_device *repo)
+{
+	int result;
+
+	switch (repo->dev_type) {
+	case PS3_DEV_TYPE_SB_GELIC:
+		result = ps3_setup_gelic_device(repo);
+		if (result) {
+			pr_debug("%s:%d ps3_setup_gelic_device failed\n",
+				__func__, __LINE__);
+		}
+		break;
+	case PS3_DEV_TYPE_SB_USB:
+
+		/* Each USB device has both an EHCI and an OHCI HC */
+
+		result = ps3_setup_ehci_device(repo);
+
+		if (result) {
+			pr_debug("%s:%d ps3_setup_ehci_device failed\n",
+				__func__, __LINE__);
+		}
+
+		result = ps3_setup_ohci_device(repo);
+
+		if (result) {
+			pr_debug("%s:%d ps3_setup_ohci_device failed\n",
+				__func__, __LINE__);
+		}
+		break;
+
+	default:
+		return ps3_setup_dynamic_device(repo);
+	}
+
+	return result;
+}
+
 static void ps3_find_and_add_device(u64 bus_id, u64 dev_id)
 {
 	struct ps3_repository_device repo;
@@ -601,7 +616,7 @@ found:
 		pr_debug("%s:%u: device %lu:%lu found after %u retries\n",
 			 __func__, __LINE__, bus_id, dev_id, retries);
 
-	ps3_register_repository_device(&repo);
+	ps3_setup_dynamic_device(&repo);
 	return;
 }
 
@@ -905,8 +920,7 @@ static int __init ps3_register_devices(void)
 
 	ps3_register_graphics_devices();
 
-	ps3_repository_find_devices(PS3_BUS_TYPE_SB,
-		ps3_register_repository_device);
+	ps3_repository_find_devices(PS3_BUS_TYPE_SB, ps3_setup_static_device);
 
 	ps3_register_sound_devices();
 

@@ -61,6 +61,7 @@ extern struct kmem_cache *filp_cachep;
 
 extern void __fput(struct file *);
 extern void fput(struct file *);
+extern void drop_file_write_access(struct file *file);
 
 struct file_operations;
 struct vfsmount;
@@ -116,7 +117,8 @@ struct task_struct;
 
 struct files_struct *get_files_struct(struct task_struct *);
 void put_files_struct(struct files_struct *fs);
-void reset_files_struct(struct task_struct *, struct files_struct *);
+void reset_files_struct(struct files_struct *);
+int unshare_files(struct files_struct **);
 
 extern struct kmem_cache *files_cachep;
 

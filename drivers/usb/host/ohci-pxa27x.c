@@ -298,7 +298,6 @@ static const struct hc_driver ohci_pxa27x_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef  CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,
@@ -339,7 +338,6 @@ static int ohci_hcd_pxa27x_drv_suspend(struct platform_device *pdev, pm_message_
 
 	pxa27x_stop_hc(&pdev->dev);
 	hcd->state = HC_STATE_SUSPENDED;
-	pdev->dev.power.power_state = PMSG_SUSPEND;
 
 	return 0;
 }
@@ -357,9 +355,7 @@ static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
 	if ((status = pxa27x_start_hc(&pdev->dev)) < 0)
 		return status;
 
-	pdev->dev.power.power_state = PMSG_ON;
-	usb_hcd_resume_root_hub(hcd);
-
+	ohci_finish_controller_resume(hcd);
 	return 0;
 }
 #endif

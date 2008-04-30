@@ -32,11 +32,10 @@
 #include "feat.h"
 
 /*
- * This is the global socket data structure used for responding to
+ * The per-net dccp.v4_ctl_sk socket is used for responding to
  * the Out-of-the-blue (OOTB) packets. A control sock will be created
  * for this socket at the initialization time.
  */
-static struct socket *dccp_v4_ctl_socket;
 
 int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
@@ -212,8 +211,9 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 		return;
 	}
 
-	sk = inet_lookup(&init_net, &dccp_hashinfo, iph->daddr, dh->dccph_dport,
-			 iph->saddr, dh->dccph_sport, inet_iif(skb));
+	sk = inet_lookup(dev_net(skb->dev), &dccp_hashinfo,
+			iph->daddr, dh->dccph_dport,
+			iph->saddr, dh->dccph_sport, inet_iif(skb));
 	if (sk == NULL) {
 		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
 		return;
@@ -430,7 +430,7 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	if (req != NULL)
 		return dccp_check_req(sk, skb, req, prev);
 
-	nsk = inet_lookup_established(&init_net, &dccp_hashinfo,
+	nsk = inet_lookup_established(sock_net(sk), &dccp_hashinfo,
 				      iph->saddr, dh->dccph_sport,
 				      iph->daddr, dh->dccph_dport,
 				      inet_iif(skb));
@@ -446,11 +446,11 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	return sk;
 }
 
-static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
+static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 					   struct sk_buff *skb)
 {
 	struct rtable *rt;
-	struct flowi fl = { .oif = ((struct rtable *)skb->dst)->rt_iif,
+	struct flowi fl = { .oif = skb->rtable->rt_iif,
 			    .nl_u = { .ip4_u =
 				      { .daddr = ip_hdr(skb)->saddr,
 					.saddr = ip_hdr(skb)->daddr,
@@ -463,7 +463,7 @@ static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
 			  };
 
 	security_skb_classify_flow(skb, &fl);
-	if (ip_route_output_flow(&init_net, &rt, &fl, sk, 0)) {
+	if (ip_route_output_flow(net, &rt, &fl, sk, 0)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
 	}
@@ -471,15 +471,14 @@ static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
 	return &rt->u.dst;
 }
 
-static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
-				 struct dst_entry *dst)
+static int dccp_v4_send_response(struct sock *sk, struct request_sock *req)
 {
 	int err = -1;
 	struct sk_buff *skb;
+	struct dst_entry *dst;
 
-	/* First, grab a route. */
-
-	if (dst == NULL && (dst = inet_csk_route_req(sk, req)) == NULL)
+	dst = inet_csk_route_req(sk, req);
+	if (dst == NULL)
 		goto out;
 
 	skb = dccp_make_response(sk, dst, req);
@@ -506,19 +505,21 @@ static void dccp_v4_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 	const struct iphdr *rxiph;
 	struct sk_buff *skb;
 	struct dst_entry *dst;
+	struct net *net = dev_net(rxskb->dst->dev);
+	struct sock *ctl_sk = net->dccp.v4_ctl_sk;
 
 	/* Never send a reset in response to a reset. */
 	if (dccp_hdr(rxskb)->dccph_type == DCCP_PKT_RESET)
 		return;
 
-	if (((struct rtable *)rxskb->dst)->rt_type != RTN_LOCAL)
+	if (rxskb->rtable->rt_type != RTN_LOCAL)
 		return;
 
-	dst = dccp_v4_route_skb(dccp_v4_ctl_socket->sk, rxskb);
+	dst = dccp_v4_route_skb(net, ctl_sk, rxskb);
 	if (dst == NULL)
 		return;
 
-	skb = dccp_ctl_make_reset(dccp_v4_ctl_socket, rxskb);
+	skb = dccp_ctl_make_reset(ctl_sk, rxskb);
 	if (skb == NULL)
 		goto out;
 
@@ -527,10 +528,10 @@ static void dccp_v4_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 								 rxiph->daddr);
 	skb->dst = dst_clone(dst);
 
-	bh_lock_sock(dccp_v4_ctl_socket->sk);
-	err = ip_build_and_send_pkt(skb, dccp_v4_ctl_socket->sk,
+	bh_lock_sock(ctl_sk);
+	err = ip_build_and_send_pkt(skb, ctl_sk,
 				    rxiph->daddr, rxiph->saddr, NULL);
-	bh_unlock_sock(dccp_v4_ctl_socket->sk);
+	bh_unlock_sock(ctl_sk);
 
 	if (net_xmit_eval(err) == 0) {
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
@@ -563,8 +564,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 
 	/* Never answer to DCCP_PKT_REQUESTs send to broadcast or multicast */
-	if (((struct rtable *)skb->dst)->rt_flags &
-	    (RTCF_BROADCAST | RTCF_MULTICAST))
+	if (skb->rtable->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
 		return 0;	/* discard, don't send a reset here */
 
 	if (dccp_bad_service_code(sk, service)) {
@@ -619,7 +619,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	dreq->dreq_iss	   = dccp_v4_init_sequence(skb);
 	dreq->dreq_service = service;
 
-	if (dccp_v4_send_response(sk, req, NULL))
+	if (dccp_v4_send_response(sk, req))
 		goto drop_and_free;
 
 	inet_csk_reqsk_queue_hash_add(sk, req, DCCP_TIMEOUT_INIT);
@@ -810,7 +810,7 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 
 	/* Step 2:
 	 *	Look up flow ID in table and get corresponding socket */
-	sk = __inet_lookup(&init_net, &dccp_hashinfo,
+	sk = __inet_lookup(dev_net(skb->dst->dev), &dccp_hashinfo,
 			   iph->saddr, dh->dccph_sport,
 			   iph->daddr, dh->dccph_dport, inet_iif(skb));
 	/*
@@ -916,8 +916,6 @@ static struct timewait_sock_ops dccp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct inet_timewait_sock),
 };
 
-DEFINE_PROTO_INUSE(dccp_v4)
-
 static struct proto dccp_v4_prot = {
 	.name			= "DCCP",
 	.owner			= THIS_MODULE,
@@ -942,18 +940,18 @@ static struct proto dccp_v4_prot = {
 	.obj_size		= sizeof(struct dccp_sock),
 	.rsk_prot		= &dccp_request_sock_ops,
 	.twsk_prot		= &dccp_timewait_sock_ops,
-	.hashinfo		= &dccp_hashinfo,
+	.h.hashinfo		= &dccp_hashinfo,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt	= compat_dccp_setsockopt,
 	.compat_getsockopt	= compat_dccp_getsockopt,
 #endif
-	REF_PROTO_INUSE(dccp_v4)
 };
 
 static struct net_protocol dccp_v4_protocol = {
 	.handler	= dccp_v4_rcv,
 	.err_handler	= dccp_v4_err,
 	.no_policy	= 1,
+	.netns_ok	= 1,
 };
 
 static const struct proto_ops inet_dccp_ops = {
@@ -993,6 +991,25 @@ static struct inet_protosw dccp_v4_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
+static int dccp_v4_init_net(struct net *net)
+{
+	int err;
+
+	err = inet_ctl_sock_create(&net->dccp.v4_ctl_sk, PF_INET,
+				   SOCK_DCCP, IPPROTO_DCCP, net);
+	return err;
+}
+
+static void dccp_v4_exit_net(struct net *net)
+{
+	inet_ctl_sock_destroy(net->dccp.v4_ctl_sk);
+}
+
+static struct pernet_operations dccp_v4_ops = {
+	.init	= dccp_v4_init_net,
+	.exit	= dccp_v4_exit_net,
+};
+
 static int __init dccp_v4_init(void)
 {
 	int err = proto_register(&dccp_v4_prot, 1);
@@ -1006,13 +1023,12 @@ static int __init dccp_v4_init(void)
 
 	inet_register_protosw(&dccp_v4_protosw);
 
-	err = inet_csk_ctl_sock_create(&dccp_v4_ctl_socket, PF_INET,
-				       SOCK_DCCP, IPPROTO_DCCP);
+	err = register_pernet_subsys(&dccp_v4_ops);
 	if (err)
-		goto out_unregister_protosw;
+		goto out_destroy_ctl_sock;
 out:
 	return err;
-out_unregister_protosw:
+out_destroy_ctl_sock:
 	inet_unregister_protosw(&dccp_v4_protosw);
 	inet_del_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
 out_proto_unregister:
@@ -1022,6 +1038,7 @@ out_proto_unregister:
 
 static void __exit dccp_v4_exit(void)
 {
+	unregister_pernet_subsys(&dccp_v4_ops);
 	inet_unregister_protosw(&dccp_v4_protosw);
 	inet_del_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
 	proto_unregister(&dccp_v4_prot);

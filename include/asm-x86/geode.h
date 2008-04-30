@@ -30,7 +30,13 @@ extern int geode_get_dev_base(unsigned int dev);
 
 /* MSRS */
 
-#define GX_GLCP_SYS_RSTPLL	0x4C000014
+#define MSR_GLIU_P2D_RO0	0x10000029
+
+#define MSR_LX_GLD_MSR_CONFIG	0x48002001
+#define MSR_LX_MSR_PADSEL	0x48002011	/* NOT 0x48000011; the data
+						 * sheet has the wrong value */
+#define MSR_GLCP_SYS_RSTPLL	0x4C000014
+#define MSR_GLCP_DOTPLL		0x4C000015
 
 #define MSR_LBAR_SMB		0x5140000B
 #define MSR_LBAR_GPIO		0x5140000C
@@ -45,8 +51,14 @@ extern int geode_get_dev_base(unsigned int dev);
 #define MSR_PIC_ZSEL_LOW	0x51400022
 #define MSR_PIC_ZSEL_HIGH	0x51400023
 
-#define MFGPT_IRQ_MSR		0x51400028
-#define MFGPT_NR_MSR		0x51400029
+#define MSR_MFGPT_IRQ		0x51400028
+#define MSR_MFGPT_NR		0x51400029
+#define MSR_MFGPT_SETUP		0x5140002B
+
+#define MSR_LX_SPARE_MSR	0x80000011	/* DC-specific */
+
+#define MSR_GX_GLD_MSR_CONFIG	0xC0002001
+#define MSR_GX_MSR_PADSEL	0xC0002011
 
 /* Resource Sizes */
 
@@ -92,6 +104,15 @@ extern int geode_get_dev_base(unsigned int dev);
 #define PM_NWKD			0x4C
 #define PM_AWKD			0x50
 #define PM_SSC			0x54
+
+/* VSA2 magic values */
+
+#define VSA_VRC_INDEX		0xAC1C
+#define VSA_VRC_DATA		0xAC1E
+#define VSA_VR_UNLOCK		0xFC53	/* unlock virtual register */
+#define VSA_VR_SIGNATURE	0x0003
+#define VSA_VR_MEM_SIZE		0x0200
+#define VSA_SIG			0x4132	/* signature is ascii 'VSA2' */
 
 /* GPIO */
 
@@ -164,10 +185,21 @@ static inline int is_geode(void)
 	return (is_geode_gx() || is_geode_lx());
 }
 
+/*
+ * The VSA has virtual registers that we can query for a signature.
+ */
+static inline int geode_has_vsa2(void)
+{
+	outw(VSA_VR_UNLOCK, VSA_VRC_INDEX);
+	outw(VSA_VR_SIGNATURE, VSA_VRC_INDEX);
+
+	return (inw(VSA_VRC_DATA) == VSA_SIG);
+}
+
 /* MFGPTs */
 
 #define MFGPT_MAX_TIMERS	8
-#define MFGPT_TIMER_ANY		-1
+#define MFGPT_TIMER_ANY		(-1)
 
 #define MFGPT_DOMAIN_WORKING	1
 #define MFGPT_DOMAIN_STANDBY	2

@@ -577,6 +577,90 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices) 
 
 
 /* --------------------------------------------------------------------
+ *  Timer/Counter blocks
+ * -------------------------------------------------------------------- */
+
+#ifdef CONFIG_ATMEL_TCLIB
+
+static struct resource tcb0_resources[] = {
+	[0] = {
+		.start	= AT91RM9200_BASE_TCB0,
+		.end	= AT91RM9200_BASE_TCB0 + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91RM9200_ID_TC0,
+		.end	= AT91RM9200_ID_TC0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= AT91RM9200_ID_TC1,
+		.end	= AT91RM9200_ID_TC1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= AT91RM9200_ID_TC2,
+		.end	= AT91RM9200_ID_TC2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91rm9200_tcb0_device = {
+	.name		= "atmel_tcb",
+	.id		= 0,
+	.resource	= tcb0_resources,
+	.num_resources	= ARRAY_SIZE(tcb0_resources),
+};
+
+static struct resource tcb1_resources[] = {
+	[0] = {
+		.start	= AT91RM9200_BASE_TCB1,
+		.end	= AT91RM9200_BASE_TCB1 + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91RM9200_ID_TC3,
+		.end	= AT91RM9200_ID_TC3,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= AT91RM9200_ID_TC4,
+		.end	= AT91RM9200_ID_TC4,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= AT91RM9200_ID_TC5,
+		.end	= AT91RM9200_ID_TC5,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91rm9200_tcb1_device = {
+	.name		= "atmel_tcb",
+	.id		= 1,
+	.resource	= tcb1_resources,
+	.num_resources	= ARRAY_SIZE(tcb1_resources),
+};
+
+static void __init at91_add_device_tc(void)
+{
+	/* this chip has a separate clock and irq for each TC channel */
+	at91_clock_associate("tc0_clk", &at91rm9200_tcb0_device.dev, "t0_clk");
+	at91_clock_associate("tc1_clk", &at91rm9200_tcb0_device.dev, "t1_clk");
+	at91_clock_associate("tc2_clk", &at91rm9200_tcb0_device.dev, "t2_clk");
+	platform_device_register(&at91rm9200_tcb0_device);
+
+	at91_clock_associate("tc3_clk", &at91rm9200_tcb1_device.dev, "t0_clk");
+	at91_clock_associate("tc4_clk", &at91rm9200_tcb1_device.dev, "t1_clk");
+	at91_clock_associate("tc5_clk", &at91rm9200_tcb1_device.dev, "t2_clk");
+	platform_device_register(&at91rm9200_tcb1_device);
+}
+#else
+static void __init at91_add_device_tc(void) { }
+#endif
+
+
+/* --------------------------------------------------------------------
  *  RTC
  * -------------------------------------------------------------------- */
 
@@ -1019,7 +1103,7 @@ static inline void configure_usart3_pins(unsigned pins)
 		at91_set_B_periph(AT91_PIN_PB0, 0);	/* RTS3 */
 }
 
-static struct platform_device *at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
+static struct platform_device *__initdata at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
 struct platform_device *atmel_default_console_device;	/* the serial console device */
 
 void __init __deprecated at91_init_serial(struct at91_uart_config *config)
@@ -1110,8 +1194,6 @@ void __init at91_set_serial_console(unsigned portnr)
 {
 	if (portnr < ATMEL_MAX_UART)
 		atmel_default_console_device = at91_uarts[portnr];
-	if (!atmel_default_console_device)
-		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 
 void __init at91_add_device_serial(void)
@@ -1122,6 +1204,9 @@ void __init at91_add_device_serial(void)
 		if (at91_uarts[i])
 			platform_device_register(at91_uarts[i]);
 	}
+
+	if (!atmel_default_console_device)
+		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 #else
 void __init __deprecated at91_init_serial(struct at91_uart_config *config) {}
@@ -1141,6 +1226,7 @@ static int __init at91_add_standard_devices(void)
 {
 	at91_add_device_rtc();
 	at91_add_device_watchdog();
+	at91_add_device_tc();
 	return 0;
 }
 

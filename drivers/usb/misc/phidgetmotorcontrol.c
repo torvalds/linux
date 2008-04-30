@@ -61,7 +61,7 @@ static int set_motor(struct motorcontrol *mc, int motor)
 
 	buffer = kzalloc(8, GFP_KERNEL);
 	if (!buffer) {
-		dev_err(&mc->intf->dev, "%s - out of memory\n", __FUNCTION__);
+		dev_err(&mc->intf->dev, "%s - out of memory\n", __func__);
 		return -ENOMEM;
 	}
 

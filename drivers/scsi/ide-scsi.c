@@ -60,31 +60,6 @@
 
 #define IDESCSI_DEBUG_LOG		0
 
-typedef struct idescsi_pc_s {
-	u8 c[12];				/* Actual packet bytes */
-	int request_transfer;			/* Bytes to transfer */
-	int actually_transferred;		/* Bytes actually transferred */
-	int buffer_size;			/* Size of our data buffer */
-	struct request *rq;			/* The corresponding request */
-	u8 *buffer;				/* Data buffer */
-	u8 *current_position;			/* Pointer into the above buffer */
-	struct scatterlist *sg;			/* Scatter gather table */
-	unsigned int sg_cnt;			/* Number of entries in sg */
-	int b_count;				/* Bytes transferred from current entry */
-	struct scsi_cmnd *scsi_cmd;		/* SCSI command */
-	void (*done)(struct scsi_cmnd *);	/* Scsi completion routine */
-	unsigned long flags;			/* Status/Action flags */
-	unsigned long timeout;			/* Command timeout */
-} idescsi_pc_t;
-
-/*
- *	Packet command status bits.
- */
-#define PC_DMA_IN_PROGRESS		0	/* 1 while DMA in progress */
-#define PC_WRITING			1	/* Data direction */
-#define PC_TIMEDOUT			3	/* command timed out */
-#define PC_DMA_OK			4	/* Use DMA */
-
 /*
  *	SCSI command transformation layer
  */
@@ -101,14 +76,15 @@ typedef struct ide_scsi_obj {
 	struct gendisk		*disk;
 	struct Scsi_Host	*host;
 
-	idescsi_pc_t *pc;			/* Current packet command */
+	struct ide_atapi_pc *pc;		/* Current packet command */
 	unsigned long flags;			/* Status/Action flags */
 	unsigned long transform;		/* SCSI cmd translation layer */
 	unsigned long log;			/* log flags */
 } idescsi_scsi_t;
 
 static DEFINE_MUTEX(idescsi_ref_mutex);
-static int idescsi_nocd;			/* Set by module param to skip cd */
+/* Set by module param to skip cd */
+static int idescsi_nocd;
 
 #define ide_scsi_g(disk) \
 	container_of((disk)->private_data, struct ide_scsi_obj, driver)
@@ -152,23 +128,13 @@ static inline idescsi_scsi_t *drive_to_idescsi(ide_drive_t *ide_drive)
  */
 #define IDESCSI_PC_RQ			90
 
-static void idescsi_discard_data (ide_drive_t *drive, unsigned int bcount)
-{
-	while (bcount--)
-		(void) HWIF(drive)->INB(IDE_DATA_REG);
-}
-
-static void idescsi_output_zeros (ide_drive_t *drive, unsigned int bcount)
-{
-	while (bcount--)
-		HWIF(drive)->OUTB(0, IDE_DATA_REG);
-}
-
 /*
  *	PIO data transfer routines using the scatter gather table.
  */
-static void idescsi_input_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsigned int bcount)
+static void idescsi_input_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
+		unsigned int bcount)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	int count;
 	char *buf;
 
@@ -180,14 +146,12 @@ static void idescsi_input_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsigne
 			local_irq_save(flags);
 			buf = kmap_atomic(sg_page(pc->sg), KM_IRQ0) +
 					pc->sg->offset;
-			drive->hwif->atapi_input_bytes(drive,
-						buf + pc->b_count, count);
+			hwif->input_data(drive, NULL, buf + pc->b_count, count);
 			kunmap_atomic(buf - pc->sg->offset, KM_IRQ0);
 			local_irq_restore(flags);
 		} else {
 			buf = sg_virt(pc->sg);
-			drive->hwif->atapi_input_bytes(drive,
-						buf + pc->b_count, count);
+			hwif->input_data(drive, NULL, buf + pc->b_count, count);
 		}
 		bcount -= count; pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
@@ -200,12 +164,14 @@ static void idescsi_input_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsigne
 
 	if (bcount) {
 		printk (KERN_ERR "ide-scsi: scatter gather table too small, discarding data\n");
-		idescsi_discard_data (drive, bcount);
+		ide_pad_transfer(drive, 0, bcount);
 	}
 }
 
-static void idescsi_output_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsigned int bcount)
+static void idescsi_output_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
+		unsigned int bcount)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	int count;
 	char *buf;
 
@@ -217,14 +183,12 @@ static void idescsi_output_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsign
 			local_irq_save(flags);
 			buf = kmap_atomic(sg_page(pc->sg), KM_IRQ0) +
 						pc->sg->offset;
-			drive->hwif->atapi_output_bytes(drive,
-						buf + pc->b_count, count);
+			hwif->output_data(drive, NULL, buf + pc->b_count, count);
 			kunmap_atomic(buf - pc->sg->offset, KM_IRQ0);
 			local_irq_restore(flags);
 		} else {
 			buf = sg_virt(pc->sg);
-			drive->hwif->atapi_output_bytes(drive,
-						buf + pc->b_count, count);
+			hwif->output_data(drive, NULL, buf + pc->b_count, count);
 		}
 		bcount -= count; pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
@@ -237,7 +201,7 @@ static void idescsi_output_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsign
 
 	if (bcount) {
 		printk (KERN_ERR "ide-scsi: scatter gather table too small, padding with zeros\n");
-		idescsi_output_zeros (drive, bcount);
+		ide_pad_transfer(drive, 1, bcount);
 	}
 }
 
@@ -246,15 +210,16 @@ static void ide_scsi_hex_dump(u8 *data, int len)
 	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_NONE, 16, 1, data, len, 0);
 }
 
-static int idescsi_check_condition(ide_drive_t *drive, struct request *failed_command)
+static int idescsi_check_condition(ide_drive_t *drive,
+		struct request *failed_cmd)
 {
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
-	idescsi_pc_t   *pc;
+	struct ide_atapi_pc   *pc;
 	struct request *rq;
 	u8             *buf;
 
 	/* stuff a sense request in front of our current request */
-	pc = kzalloc(sizeof(idescsi_pc_t), GFP_ATOMIC);
+	pc = kzalloc(sizeof(struct ide_atapi_pc), GFP_ATOMIC);
 	rq = kmalloc(sizeof(struct request), GFP_ATOMIC);
 	buf = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_ATOMIC);
 	if (!pc || !rq || !buf) {
@@ -266,14 +231,14 @@ static int idescsi_check_condition(ide_drive_t *drive, struct request *failed_co
 	ide_init_drive_cmd(rq);
 	rq->special = (char *) pc;
 	pc->rq = rq;
-	pc->buffer = buf;
+	pc->buf = buf;
 	pc->c[0] = REQUEST_SENSE;
-	pc->c[4] = pc->request_transfer = pc->buffer_size = SCSI_SENSE_BUFFERSIZE;
+	pc->c[4] = pc->req_xfer = pc->buf_size = SCSI_SENSE_BUFFERSIZE;
 	rq->cmd_type = REQ_TYPE_SENSE;
 	pc->timeout = jiffies + WAIT_READY;
 	/* NOTE! Save the failed packet command in "rq->buffer" */
-	rq->buffer = (void *) failed_command->special;
-	pc->scsi_cmd = ((idescsi_pc_t *) failed_command->special)->scsi_cmd;
+	rq->buffer = (void *) failed_cmd->special;
+	pc->scsi_cmd = ((struct ide_atapi_pc *) failed_cmd->special)->scsi_cmd;
 	if (test_bit(IDESCSI_LOG_CMD, &scsi->log)) {
 		printk ("ide-scsi: %s: queue cmd = ", drive->name);
 		ide_scsi_hex_dump(pc->c, 6);
@@ -287,9 +252,12 @@ static int idescsi_end_request(ide_drive_t *, int, int);
 static ide_startstop_t
 idescsi_atapi_error(ide_drive_t *drive, struct request *rq, u8 stat, u8 err)
 {
+	ide_hwif_t *hwif = drive->hwif;
+
 	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
 		/* force an abort */
-		HWIF(drive)->OUTB(WIN_IDLEIMMEDIATE,IDE_COMMAND_REG);
+		hwif->OUTBSYNC(drive, WIN_IDLEIMMEDIATE,
+			       hwif->io_ports.command_addr);
 
 	rq->errors++;
 
@@ -303,7 +271,7 @@ idescsi_atapi_abort(ide_drive_t *drive, struct request *rq)
 {
 #if IDESCSI_DEBUG_LOG
 	printk(KERN_WARNING "idescsi_atapi_abort called for %lu\n",
-			((idescsi_pc_t *) rq->special)->scsi_cmd->serial_number);
+		((struct ide_atapi_pc *) rq->special)->scsi_cmd->serial_number);
 #endif
 	rq->errors |= ERROR_MAX;
 
@@ -316,7 +284,7 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 {
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
 	struct request *rq = HWGROUP(drive)->rq;
-	idescsi_pc_t *pc = (idescsi_pc_t *) rq->special;
+	struct ide_atapi_pc *pc = (struct ide_atapi_pc *) rq->special;
 	int log = test_bit(IDESCSI_LOG_CMD, &scsi->log);
 	struct Scsi_Host *host;
 	int errors = rq->errors;
@@ -328,20 +296,23 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 	}
 	ide_end_drive_cmd (drive, 0, 0);
 	if (blk_sense_request(rq)) {
-		idescsi_pc_t *opc = (idescsi_pc_t *) rq->buffer;
+		struct ide_atapi_pc *opc = (struct ide_atapi_pc *) rq->buffer;
 		if (log) {
 			printk ("ide-scsi: %s: wrap up check %lu, rst = ", drive->name, opc->scsi_cmd->serial_number);
-			ide_scsi_hex_dump(pc->buffer, 16);
+			ide_scsi_hex_dump(pc->buf, 16);
 		}
-		memcpy((void *) opc->scsi_cmd->sense_buffer, pc->buffer, SCSI_SENSE_BUFFERSIZE);
-		kfree(pc->buffer);
+		memcpy((void *) opc->scsi_cmd->sense_buffer, pc->buf,
+			SCSI_SENSE_BUFFERSIZE);
+		kfree(pc->buf);
 		kfree(pc);
 		kfree(rq);
 		pc = opc;
 		rq = pc->rq;
 		pc->scsi_cmd->result = (CHECK_CONDITION << 1) |
-					((test_bit(PC_TIMEDOUT, &pc->flags)?DID_TIME_OUT:DID_OK) << 16);
-	} else if (test_bit(PC_TIMEDOUT, &pc->flags)) {
+				(((pc->flags & PC_FLAG_TIMEDOUT) ?
+				  DID_TIME_OUT :
+				  DID_OK) << 16);
+	} else if (pc->flags & PC_FLAG_TIMEDOUT) {
 		if (log)
 			printk (KERN_WARNING "ide-scsi: %s: timed out for %lu\n",
 					drive->name, pc->scsi_cmd->serial_number);
@@ -370,7 +341,7 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 	return 0;
 }
 
-static inline unsigned long get_timeout(idescsi_pc_t *pc)
+static inline unsigned long get_timeout(struct ide_atapi_pc *pc)
 {
 	return max_t(unsigned long, WAIT_CMD, pc->timeout - jiffies);
 }
@@ -378,12 +349,12 @@ static inline unsigned long get_timeout(idescsi_pc_t *pc)
 static int idescsi_expiry(ide_drive_t *drive)
 {
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
-	idescsi_pc_t   *pc   = scsi->pc;
+	struct ide_atapi_pc   *pc   = scsi->pc;
 
 #if IDESCSI_DEBUG_LOG
 	printk(KERN_WARNING "idescsi_expiry called for %lu at %lu\n", pc->scsi_cmd->serial_number, jiffies);
 #endif
-	set_bit(PC_TIMEDOUT, &pc->flags);
+	pc->flags |= PC_FLAG_TIMEDOUT;
 
 	return 0;					/* we do not want the ide subsystem to retry */
 }
@@ -395,7 +366,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 {
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
 	ide_hwif_t *hwif = drive->hwif;
-	idescsi_pc_t *pc = scsi->pc;
+	struct ide_atapi_pc *pc = scsi->pc;
 	struct request *rq = pc->rq;
 	unsigned int temp;
 	u16 bcount;
@@ -405,7 +376,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	printk (KERN_INFO "ide-scsi: Reached idescsi_pc_intr interrupt handler\n");
 #endif /* IDESCSI_DEBUG_LOG */
 
-	if (test_bit(PC_TIMEDOUT, &pc->flags)){
+	if (pc->flags & PC_FLAG_TIMEDOUT) {
 #if IDESCSI_DEBUG_LOG
 		printk(KERN_WARNING "idescsi_pc_intr: got timed out packet  %lu at %lu\n",
 				pc->scsi_cmd->serial_number, jiffies);
@@ -414,12 +385,13 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		idescsi_end_request (drive, 1, 0);
 		return ide_stopped;
 	}
-	if (test_and_clear_bit (PC_DMA_IN_PROGRESS, &pc->flags)) {
+	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
+		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
 #if IDESCSI_DEBUG_LOG
 		printk ("ide-scsi: %s: DMA complete\n", drive->name);
 #endif /* IDESCSI_DEBUG_LOG */
-		pc->actually_transferred=pc->request_transfer;
-		(void) HWIF(drive)->ide_dma_end(drive);
+		pc->xferred = pc->req_xfer;
+		(void)hwif->dma_ops->dma_end(drive);
 	}
 
 	/* Clear the interrupt */
@@ -428,42 +400,45 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	if ((stat & DRQ_STAT) == 0) {
 		/* No more interrupts */
 		if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
-			printk (KERN_INFO "Packet command completed, %d bytes transferred\n", pc->actually_transferred);
+			printk(KERN_INFO "Packet command completed, %d bytes"
+					" transferred\n", pc->xferred);
 		local_irq_enable_in_hardirq();
 		if (stat & ERR_STAT)
 			rq->errors++;
 		idescsi_end_request (drive, 1, 0);
 		return ide_stopped;
 	}
-	bcount = (hwif->INB(IDE_BCOUNTH_REG) << 8) |
-		  hwif->INB(IDE_BCOUNTL_REG);
-	ireason = hwif->INB(IDE_IREASON_REG);
+	bcount = (hwif->INB(hwif->io_ports.lbah_addr) << 8) |
+		  hwif->INB(hwif->io_ports.lbam_addr);
+	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 
 	if (ireason & CD) {
 		printk(KERN_ERR "ide-scsi: CoD != 0 in idescsi_pc_intr\n");
 		return ide_do_reset (drive);
 	}
 	if (ireason & IO) {
-		temp = pc->actually_transferred + bcount;
-		if (temp > pc->request_transfer) {
-			if (temp > pc->buffer_size) {
+		temp = pc->xferred + bcount;
+		if (temp > pc->req_xfer) {
+			if (temp > pc->buf_size) {
 				printk(KERN_ERR "ide-scsi: The scsi wants to "
 					"send us more data than expected "
 					"- discarding data\n");
-				temp = pc->buffer_size - pc->actually_transferred;
+				temp = pc->buf_size - pc->xferred;
 				if (temp) {
-					clear_bit(PC_WRITING, &pc->flags);
+					pc->flags &= ~PC_FLAG_WRITING;
 					if (pc->sg)
-						idescsi_input_buffers(drive, pc, temp);
+						idescsi_input_buffers(drive, pc,
+									temp);
 					else
-						drive->hwif->atapi_input_bytes(drive, pc->current_position, temp);
+						hwif->input_data(drive, NULL,
+							pc->cur_pos, temp);
 					printk(KERN_ERR "ide-scsi: transferred"
 							" %d of %d bytes\n",
 							temp, bcount);
 				}
-				pc->actually_transferred += temp;
-				pc->current_position += temp;
-				idescsi_discard_data(drive, bcount - temp);
+				pc->xferred += temp;
+				pc->cur_pos += temp;
+				ide_pad_transfer(drive, 0, bcount - temp);
 				ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
 				return ide_started;
 			}
@@ -473,23 +448,21 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		}
 	}
 	if (ireason & IO) {
-		clear_bit(PC_WRITING, &pc->flags);
+		pc->flags &= ~PC_FLAG_WRITING;
 		if (pc->sg)
 			idescsi_input_buffers(drive, pc, bcount);
 		else
-			hwif->atapi_input_bytes(drive, pc->current_position,
-						bcount);
+			hwif->input_data(drive, NULL, pc->cur_pos, bcount);
 	} else {
-		set_bit(PC_WRITING, &pc->flags);
+		pc->flags |= PC_FLAG_WRITING;
 		if (pc->sg)
 			idescsi_output_buffers(drive, pc, bcount);
 		else
-			hwif->atapi_output_bytes(drive, pc->current_position,
-						 bcount);
+			hwif->output_data(drive, NULL, pc->cur_pos, bcount);
 	}
 	/* Update the current position */
-	pc->actually_transferred += bcount;
-	pc->current_position += bcount;
+	pc->xferred += bcount;
+	pc->cur_pos += bcount;
 
 	/* And set the interrupt handler again */
 	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
@@ -500,7 +473,7 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
-	idescsi_pc_t *pc = scsi->pc;
+	struct ide_atapi_pc *pc = scsi->pc;
 	ide_startstop_t startstop;
 	u8 ireason;
 
@@ -509,7 +482,7 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 			"initiated yet DRQ isn't asserted\n");
 		return startstop;
 	}
-	ireason = hwif->INB(IDE_IREASON_REG);
+	ireason = hwif->INB(hwif->io_ports.nsect_addr);
 	if ((ireason & CD) == 0 || (ireason & IO)) {
 		printk(KERN_ERR "ide-scsi: (IO,CoD) != (0,1) while "
 				"issuing a packet command\n");
@@ -518,36 +491,38 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 	BUG_ON(HWGROUP(drive)->handler != NULL);
 	/* Set the interrupt routine */
 	ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
+
 	/* Send the actual packet */
-	drive->hwif->atapi_output_bytes(drive, scsi->pc->c, 12);
-	if (test_bit (PC_DMA_OK, &pc->flags)) {
-		set_bit (PC_DMA_IN_PROGRESS, &pc->flags);
-		hwif->dma_start(drive);
+	hwif->output_data(drive, NULL, scsi->pc->c, 12);
+
+	if (pc->flags & PC_FLAG_DMA_OK) {
+		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
+		hwif->dma_ops->dma_start(drive);
 	}
 	return ide_started;
 }
 
-static inline int idescsi_set_direction(idescsi_pc_t *pc)
+static inline int idescsi_set_direction(struct ide_atapi_pc *pc)
 {
 	switch (pc->c[0]) {
 		case READ_6: case READ_10: case READ_12:
-			clear_bit(PC_WRITING, &pc->flags);
+			pc->flags &= ~PC_FLAG_WRITING;
 			return 0;
 		case WRITE_6: case WRITE_10: case WRITE_12:
-			set_bit(PC_WRITING, &pc->flags);
+			pc->flags |= PC_FLAG_WRITING;
 			return 0;
 		default:
 			return 1;
 	}
 }
 
-static int idescsi_map_sg(ide_drive_t *drive, idescsi_pc_t *pc)
+static int idescsi_map_sg(ide_drive_t *drive, struct ide_atapi_pc *pc)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg, *scsi_sg;
 	int segments;
 
-	if (!pc->request_transfer || pc->request_transfer % 1024)
+	if (!pc->req_xfer || pc->req_xfer % 1024)
 		return 1;
 
 	if (idescsi_set_direction(pc))
@@ -566,32 +541,32 @@ static int idescsi_map_sg(ide_drive_t *drive, idescsi_pc_t *pc)
 	return 0;
 }
 
-/*
- *	Issue a packet command
- */
-static ide_startstop_t idescsi_issue_pc (ide_drive_t *drive, idescsi_pc_t *pc)
+static ide_startstop_t idescsi_issue_pc(ide_drive_t *drive,
+		struct ide_atapi_pc *pc)
 {
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
 	ide_hwif_t *hwif = drive->hwif;
 	u16 bcount;
 	u8 dma = 0;
 
-	scsi->pc=pc;							/* Set the current packet command */
-	pc->actually_transferred=0;					/* We haven't transferred any data yet */
-	pc->current_position=pc->buffer;
+	/* Set the current packet command */
+	scsi->pc = pc;
+	/* We haven't transferred any data yet */
+	pc->xferred = 0;
+	pc->cur_pos = pc->buf;
 	/* Request to transfer the entire buffer at once */
-	bcount = min(pc->request_transfer, 63 * 1024);
+	bcount = min(pc->req_xfer, 63 * 1024);
 
 	if (drive->using_dma && !idescsi_map_sg(drive, pc)) {
 		hwif->sg_mapped = 1;
-		dma = !hwif->dma_setup(drive);
+		dma = !hwif->dma_ops->dma_setup(drive);
 		hwif->sg_mapped = 0;
 	}
 
 	ide_pktcmd_tf_load(drive, IDE_TFLAG_NO_SELECT_MASK, bcount, dma);
 
 	if (dma)
-		set_bit(PC_DMA_OK, &pc->flags);
+		pc->flags |= PC_FLAG_DMA_OK;
 
 	if (test_bit(IDESCSI_DRQ_INTERRUPT, &scsi->flags)) {
 		ide_execute_command(drive, WIN_PACKETCMD, &idescsi_transfer_pc,
@@ -599,7 +574,7 @@ static ide_startstop_t idescsi_issue_pc (ide_drive_t *drive, idescsi_pc_t *pc)
 		return ide_started;
 	} else {
 		/* Issue the packet command */
-		HWIF(drive)->OUTB(WIN_PACKETCMD, IDE_COMMAND_REG);
+		ide_execute_pkt_cmd(drive);
 		return idescsi_transfer_pc(drive);
 	}
 }
@@ -615,7 +590,8 @@ static ide_startstop_t idescsi_do_request (ide_drive_t *drive, struct request *r
 #endif /* IDESCSI_DEBUG_LOG */
 
 	if (blk_sense_request(rq) || blk_special_request(rq)) {
-		return idescsi_issue_pc (drive, (idescsi_pc_t *) rq->special);
+		return idescsi_issue_pc(drive,
+				(struct ide_atapi_pc *) rq->special);
 	}
 	blk_dump_rq_flags(rq, "ide-scsi: unsup command");
 	idescsi_end_request (drive, 0, 0);
@@ -773,15 +749,15 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 	idescsi_scsi_t *scsi = scsihost_to_idescsi(host);
 	ide_drive_t *drive = scsi->drive;
 	struct request *rq = NULL;
-	idescsi_pc_t *pc = NULL;
+	struct ide_atapi_pc *pc = NULL;
 
 	if (!drive) {
 		scmd_printk (KERN_ERR, cmd, "drive not present\n");
 		goto abort;
 	}
 	scsi = drive_to_idescsi(drive);
-	pc = kmalloc (sizeof (idescsi_pc_t), GFP_ATOMIC);
-	rq = kmalloc (sizeof (struct request), GFP_ATOMIC);
+	pc = kmalloc(sizeof(struct ide_atapi_pc), GFP_ATOMIC);
+	rq = kmalloc(sizeof(struct request), GFP_ATOMIC);
 	if (rq == NULL || pc == NULL) {
 		printk (KERN_ERR "ide-scsi: %s: out of memory\n", drive->name);
 		goto abort;
@@ -791,11 +767,11 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 	pc->flags = 0;
 	pc->rq = rq;
 	memcpy (pc->c, cmd->cmnd, cmd->cmd_len);
-	pc->buffer = NULL;
+	pc->buf = NULL;
 	pc->sg = scsi_sglist(cmd);
 	pc->sg_cnt = scsi_sg_count(cmd);
 	pc->b_count = 0;
-	pc->request_transfer = pc->buffer_size = scsi_bufflen(cmd);
+	pc->req_xfer = pc->buf_size = scsi_bufflen(cmd);
 	pc->scsi_cmd = cmd;
 	pc->done = done;
 	pc->timeout = jiffies + cmd->timeout_per_command;
@@ -866,7 +842,7 @@ static int idescsi_eh_abort (struct scsi_cmnd *cmd)
 		printk (KERN_ERR "ide-scsi: cmd aborted!\n");
 
 		if (blk_sense_request(scsi->pc->rq))
-			kfree(scsi->pc->buffer);
+			kfree(scsi->pc->buf);
 		kfree(scsi->pc->rq);
 		kfree(scsi->pc);
 		scsi->pc = NULL;
@@ -916,7 +892,7 @@ static int idescsi_eh_reset (struct scsi_cmnd *cmd)
 	if (__blk_end_request(req, -EIO, 0))
 		BUG();
 	if (blk_sense_request(req))
-		kfree(scsi->pc->buffer);
+		kfree(scsi->pc->buf);
 	kfree(scsi->pc);
 	scsi->pc = NULL;
 	kfree(req);

@@ -36,7 +36,7 @@
  * cleanup after irq migration.
  */
 #define IRQ_MOVE_CLEANUP_VECTOR	FIRST_EXTERNAL_VECTOR
- 
+
 /*
  * Vectors 0x30-0x3f are used for ISA interrupts.
  */
@@ -159,13 +159,12 @@ extern atomic_t irq_mis_count;
  *	SMP has a few special interrupts for IPI messages
  */
 
-#define BUILD_IRQ(nr) \
-asmlinkage void IRQ_NAME(nr); \
-__asm__( \
-"\n.p2align\n" \
-"IRQ" #nr "_interrupt:\n\t" \
-	"push $~(" #nr ") ; " \
-	"jmp common_interrupt");
+#define BUILD_IRQ(nr)				\
+	asmlinkage void IRQ_NAME(nr);		\
+	asm("\n.p2align\n"			\
+	    "IRQ" #nr "_interrupt:\n\t"		\
+	    "push $~(" #nr ") ; "		\
+	    "jmp common_interrupt");
 
 #define platform_legacy_irq(irq)	((irq) < 16)
 

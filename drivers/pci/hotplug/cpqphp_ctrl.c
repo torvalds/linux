@@ -737,12 +737,12 @@ static struct pci_resource *get_resource(struct pci_resource **head, u32 size)
 
 	for (node = *head; node; node = node->next) {
 		dbg("%s: req_size =%x node=%p, base=%x, length=%x\n",
-		    __FUNCTION__, size, node, node->base, node->length);
+		    __func__, size, node, node->base, node->length);
 		if (node->length < size)
 			continue;
 
 		if (node->base & (size - 1)) {
-			dbg("%s: not aligned\n", __FUNCTION__);
+			dbg("%s: not aligned\n", __func__);
 			/* this one isn't base aligned properly
 			 * so we'll make a new entry and split it up */
 			temp_dword = (node->base | (size-1)) + 1;
@@ -767,7 +767,7 @@ static struct pci_resource *get_resource(struct pci_resource **head, u32 size)
 
 		/* Don't need to check if too small since we already did */
 		if (node->length > size) {
-			dbg("%s: too big\n", __FUNCTION__);
+			dbg("%s: too big\n", __func__);
 			/* this one is longer than we need
 			 * so we'll make a new entry and split it up */
 			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
@@ -784,7 +784,7 @@ static struct pci_resource *get_resource(struct pci_resource **head, u32 size)
 			node->next = split_node;
 		}  /* End of too big on top end */
 
-		dbg("%s: got one!!!\n", __FUNCTION__);
+		dbg("%s: got one!!!\n", __func__);
 		/* If we got here, then it is the right size
 		 * Now take it out of the list */
 		if (*head == node) {
@@ -819,7 +819,7 @@ int cpqhp_resource_sort_and_combine(struct pci_resource **head)
 	struct pci_resource *node2;
 	int out_of_order = 1;
 
-	dbg("%s: head = %p, *head = %p\n", __FUNCTION__, head, *head);
+	dbg("%s: head = %p, *head = %p\n", __func__, head, *head);
 
 	if (!(*head))
 		return 1;
@@ -907,7 +907,7 @@ irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data)
 		/* Read to clear posted writes */
 		misc = readw(ctrl->hpc_reg + MISC);
 
-		dbg ("%s - waking up\n", __FUNCTION__);
+		dbg ("%s - waking up\n", __func__);
 		wake_up_interruptible(&ctrl->queue);
 	}
 
@@ -1421,7 +1421,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 
 	hp_slot = func->device - ctrl->slot_device_offset;
 	dbg("%s: func->device, slot_offset, hp_slot = %d, %d ,%d\n",
-	    __FUNCTION__, func->device, ctrl->slot_device_offset, hp_slot);
+	    __func__, func->device, ctrl->slot_device_offset, hp_slot);
 
 	mutex_lock(&ctrl->crit_sect);
 
@@ -1466,55 +1466,55 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 
 	/* turn on board and blink green LED */
 
-	dbg("%s: before down\n", __FUNCTION__);
+	dbg("%s: before down\n", __func__);
 	mutex_lock(&ctrl->crit_sect);
-	dbg("%s: after down\n", __FUNCTION__);
+	dbg("%s: after down\n", __func__);
 
-	dbg("%s: before slot_enable\n", __FUNCTION__);
+	dbg("%s: before slot_enable\n", __func__);
 	slot_enable (ctrl, hp_slot);
 
-	dbg("%s: before green_LED_blink\n", __FUNCTION__);
+	dbg("%s: before green_LED_blink\n", __func__);
 	green_LED_blink (ctrl, hp_slot);
 
-	dbg("%s: before amber_LED_blink\n", __FUNCTION__);
+	dbg("%s: before amber_LED_blink\n", __func__);
 	amber_LED_off (ctrl, hp_slot);
 
-	dbg("%s: before set_SOGO\n", __FUNCTION__);
+	dbg("%s: before set_SOGO\n", __func__);
 	set_SOGO(ctrl);
 
 	/* Wait for SOBS to be unset */
-	dbg("%s: before wait_for_ctrl_irq\n", __FUNCTION__);
+	dbg("%s: before wait_for_ctrl_irq\n", __func__);
 	wait_for_ctrl_irq (ctrl);
-	dbg("%s: after wait_for_ctrl_irq\n", __FUNCTION__);
+	dbg("%s: after wait_for_ctrl_irq\n", __func__);
 
-	dbg("%s: before up\n", __FUNCTION__);
+	dbg("%s: before up\n", __func__);
 	mutex_unlock(&ctrl->crit_sect);
-	dbg("%s: after up\n", __FUNCTION__);
+	dbg("%s: after up\n", __func__);
 
 	/* Wait for ~1 second because of hot plug spec */
-	dbg("%s: before long_delay\n", __FUNCTION__);
+	dbg("%s: before long_delay\n", __func__);
 	long_delay(1*HZ);
-	dbg("%s: after long_delay\n", __FUNCTION__);
+	dbg("%s: after long_delay\n", __func__);
 
-	dbg("%s: func status = %x\n", __FUNCTION__, func->status);
+	dbg("%s: func status = %x\n", __func__, func->status);
 	/* Check for a power fault */
 	if (func->status == 0xFF) {
 		/* power fault occurred, but it was benign */
 		temp_register = 0xFFFFFFFF;
-		dbg("%s: temp register set to %x by power fault\n", __FUNCTION__, temp_register);
+		dbg("%s: temp register set to %x by power fault\n", __func__, temp_register);
 		rc = POWER_FAILURE;
 		func->status = 0;
 	} else {
 		/* Get vendor/device ID u32 */
 		ctrl->pci_bus->number = func->bus;
 		rc = pci_bus_read_config_dword (ctrl->pci_bus, PCI_DEVFN(func->device, func->function), PCI_VENDOR_ID, &temp_register);
-		dbg("%s: pci_read_config_dword returns %d\n", __FUNCTION__, rc);
-		dbg("%s: temp_register is %x\n", __FUNCTION__, temp_register);
+		dbg("%s: pci_read_config_dword returns %d\n", __func__, rc);
+		dbg("%s: temp_register is %x\n", __func__, temp_register);
 
 		if (rc != 0) {
 			/* Something's wrong here */
 			temp_register = 0xFFFFFFFF;
-			dbg("%s: temp register set to %x by error\n", __FUNCTION__, temp_register);
+			dbg("%s: temp register set to %x by error\n", __func__, temp_register);
 		}
 		/* Preset return code.  It will be changed later if things go okay. */
 		rc = NO_ADAPTER_PRESENT;
@@ -1530,7 +1530,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 
 		rc = configure_new_device(ctrl, func, 0, &res_lists);
 
-		dbg("%s: back from configure_new_device\n", __FUNCTION__);
+		dbg("%s: back from configure_new_device\n", __func__);
 		ctrl->io_head = res_lists.io_head;
 		ctrl->mem_head = res_lists.mem_head;
 		ctrl->p_mem_head = res_lists.p_mem_head;
@@ -1566,7 +1566,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 
 		/* next, we will instantiate the linux pci_dev structures (with
 		 * appropriate driver notification, if already present) */
-		dbg("%s: configure linux pci_dev structure\n", __FUNCTION__);
+		dbg("%s: configure linux pci_dev structure\n", __func__);
 		index = 0;
 		do {
 			new_slot = cpqhp_slot_find(ctrl->bus, func->device, index++);
@@ -1628,7 +1628,7 @@ static u32 remove_board(struct pci_func * func, u32 replace_flag, struct control
 	device = func->device;
 
 	hp_slot = func->device - ctrl->slot_device_offset;
-	dbg("In %s, hp_slot = %d\n", __FUNCTION__, hp_slot);
+	dbg("In %s, hp_slot = %d\n", __func__, hp_slot);
 
 	/* When we get here, it is safe to change base address registers.
 	 * We will attempt to save the base address register lengths */
@@ -1928,7 +1928,7 @@ void cpqhp_pushbutton_thread(unsigned long slot)
 		func = cpqhp_slot_find(p_slot->bus, p_slot->device, 0);
 		dbg("In power_down_board, func = %p, ctrl = %p\n", func, ctrl);
 		if (!func) {
-			dbg("Error! func NULL in %s\n", __FUNCTION__);
+			dbg("Error! func NULL in %s\n", __func__);
 			return ;
 		}
 
@@ -1950,7 +1950,7 @@ void cpqhp_pushbutton_thread(unsigned long slot)
 		func = cpqhp_slot_find(p_slot->bus, p_slot->device, 0);
 		dbg("In add_board, func = %p, ctrl = %p\n", func, ctrl);
 		if (!func) {
-			dbg("Error! func NULL in %s\n", __FUNCTION__);
+			dbg("Error! func NULL in %s\n", __func__);
 			return ;
 		}
 
@@ -2058,7 +2058,7 @@ int cpqhp_process_SI(struct controller *ctrl, struct pci_func *func)
 	}
 
 	if (rc) {
-		dbg("%s: rc = %d\n", __FUNCTION__, rc);
+		dbg("%s: rc = %d\n", __func__, rc);
 	}
 
 	if (p_slot)
@@ -2269,12 +2269,12 @@ static u32 configure_new_device(struct controller * ctrl, struct pci_func * func
 
 	new_slot = func;
 
-	dbg("%s\n", __FUNCTION__);
+	dbg("%s\n", __func__);
 	/* Check for Multi-function device */
 	ctrl->pci_bus->number = func->bus;
 	rc = pci_bus_read_config_byte (ctrl->pci_bus, PCI_DEVFN(func->device, func->function), 0x0E, &temp_byte);
 	if (rc) {
-		dbg("%s: rc = %d\n", __FUNCTION__, rc);
+		dbg("%s: rc = %d\n", __func__, rc);
 		return rc;
 	}
 

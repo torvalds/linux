@@ -70,19 +70,6 @@ typedef struct {
 	uint8_t		microseconds;
 } __attribute__ ((packed)) timestamp;
 
-typedef struct {
-	uint16_t	typeAndTimezone;
-	int16_t		year;
-	uint8_t		month;
-	uint8_t		day;
-	uint8_t		hour;
-	uint8_t		minute;
-	uint8_t		second;
-	uint8_t		centiseconds;
-	uint8_t		hundredsOfMicroseconds;
-	uint8_t		microseconds;
-} __attribute__ ((packed)) kernel_timestamp;
-
 /* Type and Time Zone (ECMA 167r3 1/7.3.1) */
 #define TIMESTAMP_TYPE_MASK		0xF000
 #define TIMESTAMP_TYPE_CUT		0x0000

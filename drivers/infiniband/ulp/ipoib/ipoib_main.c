@@ -195,7 +195,7 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 		return 0;
 	}
 
-	if (new_mtu > IPOIB_PACKET_SIZE - IPOIB_ENCAP_LEN)
+	if (new_mtu > IPOIB_UD_MTU(priv->max_ib_mtu))
 		return -EINVAL;
 
 	priv->admin_mtu = new_mtu;
@@ -359,8 +359,7 @@ void ipoib_flush_paths(struct net_device *dev)
 	spin_lock_irq(&priv->tx_lock);
 	spin_lock(&priv->lock);
 
-	list_splice(&priv->path_list, &remove_list);
-	INIT_LIST_HEAD(&priv->path_list);
+	list_splice_init(&priv->path_list, &remove_list);
 
 	list_for_each_entry(path, &remove_list, list)
 		rb_erase(&path->rb_node, &priv->path_tree);
@@ -952,6 +951,8 @@ static void ipoib_setup(struct net_device *dev)
 	dev->set_multicast_list	 = ipoib_set_mcast_list;
 	dev->neigh_setup	 = ipoib_neigh_setup_dev;
 
+	ipoib_set_ethtool_ops(dev);
+
 	netif_napi_add(dev, &priv->napi, ipoib_poll, 100);
 
 	dev->watchdog_timeo	 = HZ;
@@ -969,10 +970,6 @@ static void ipoib_setup(struct net_device *dev)
 	dev->features		 = (NETIF_F_VLAN_CHALLENGED	|
 				    NETIF_F_LLTX		|
 				    NETIF_F_HIGHDMA);
-
-	/* MTU will be reset when mcast join happens */
-	dev->mtu		 = IPOIB_PACKET_SIZE - IPOIB_ENCAP_LEN;
-	priv->mcast_mtu		 = priv->admin_mtu = dev->mtu;
 
 	memcpy(dev->broadcast, ipv4_bcast_addr, INFINIBAND_ALEN);
 
@@ -1105,6 +1102,8 @@ static struct net_device *ipoib_add_port(const char *format,
 					 struct ib_device *hca, u8 port)
 {
 	struct ipoib_dev_priv *priv;
+	struct ib_device_attr *device_attr;
+	struct ib_port_attr attr;
 	int result = -ENOMEM;
 
 	priv = ipoib_intf_alloc(format);
@@ -1113,11 +1112,46 @@ static struct net_device *ipoib_add_port(const char *format,
 
 	SET_NETDEV_DEV(priv->dev, hca->dma_device);
 
+	if (!ib_query_port(hca, port, &attr))
+		priv->max_ib_mtu = ib_mtu_enum_to_int(attr.max_mtu);
+	else {
+		printk(KERN_WARNING "%s: ib_query_port %d failed\n",
+		       hca->name, port);
+		goto device_init_failed;
+	}
+
+	/* MTU will be reset when mcast join happens */
+	priv->dev->mtu  = IPOIB_UD_MTU(priv->max_ib_mtu);
+	priv->mcast_mtu  = priv->admin_mtu = priv->dev->mtu;
+
 	result = ib_query_pkey(hca, port, 0, &priv->pkey);
 	if (result) {
 		printk(KERN_WARNING "%s: ib_query_pkey port %d failed (ret = %d)\n",
 		       hca->name, port, result);
 		goto device_init_failed;
+	}
+
+	device_attr = kmalloc(sizeof *device_attr, GFP_KERNEL);
+	if (!device_attr) {
+		printk(KERN_WARNING "%s: allocation of %zu bytes failed\n",
+		       hca->name, sizeof *device_attr);
+		goto device_init_failed;
+	}
+
+	result = ib_query_device(hca, device_attr);
+	if (result) {
+		printk(KERN_WARNING "%s: ib_query_device failed (ret = %d)\n",
+		       hca->name, result);
+		kfree(device_attr);
+		goto device_init_failed;
+	}
+	priv->hca_caps = device_attr->device_cap_flags;
+
+	kfree(device_attr);
+
+	if (priv->hca_caps & IB_DEVICE_UD_IP_CSUM) {
+		set_bit(IPOIB_FLAG_CSUM, &priv->flags);
+		priv->dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
 	}
 
 	/*
@@ -1137,7 +1171,6 @@ static struct net_device *ipoib_add_port(const char *format,
 	} else
 		memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw, sizeof (union ib_gid));
 
-
 	result = ipoib_dev_init(priv->dev, hca, port);
 	if (result < 0) {
 		printk(KERN_WARNING "%s: failed to initialize port %d (ret = %d)\n",
@@ -1154,6 +1187,9 @@ static struct net_device *ipoib_add_port(const char *format,
 		       hca->name, port, result);
 		goto event_failed;
 	}
+
+	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
+		priv->dev->features |= NETIF_F_TSO;
 
 	result = register_netdev(priv->dev);
 	if (result) {

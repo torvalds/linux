@@ -101,9 +101,9 @@ typedef enum {
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/irqreturn.h>
+#include <linux/semaphore.h>
 #include <asm/system.h>
 #include <asm/ptrace.h>
-#include <asm/semaphore.h>
 
 /* Define this later. */
 struct parport;

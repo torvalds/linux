@@ -36,7 +36,7 @@
 
 #define MY_NAME	"acpi_pcihp"
 
-#define dbg(fmt, arg...) do { if (debug_acpi) printk(KERN_DEBUG "%s: %s: " fmt , MY_NAME , __FUNCTION__ , ## arg); } while (0)
+#define dbg(fmt, arg...) do { if (debug_acpi) printk(KERN_DEBUG "%s: %s: " fmt , MY_NAME , __func__ , ## arg); } while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format , MY_NAME , ## arg)
 #define info(format, arg...) printk(KERN_INFO "%s: " format , MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format , MY_NAME , ## arg)
@@ -71,7 +71,7 @@ decode_type0_hpx_record(union acpi_object *record, struct hotplug_params *hpx)
 	default:
 		printk(KERN_WARNING
 		       "%s: Type 0 Revision %d record not supported\n",
-		       __FUNCTION__, revision);
+		       __func__, revision);
 		return AE_ERROR;
 	}
 	return AE_OK;
@@ -100,7 +100,7 @@ decode_type1_hpx_record(union acpi_object *record, struct hotplug_params *hpx)
 	default:
 		printk(KERN_WARNING
 		       "%s: Type 1 Revision %d record not supported\n",
-		       __FUNCTION__, revision);
+		       __func__, revision);
 		return AE_ERROR;
 	}
 	return AE_OK;
@@ -142,7 +142,7 @@ decode_type2_hpx_record(union acpi_object *record, struct hotplug_params *hpx)
 	default:
 		printk(KERN_WARNING
 		       "%s: Type 2 Revision %d record not supported\n",
-		       __FUNCTION__, revision);
+		       __func__, revision);
 		return AE_ERROR;
 	}
 	return AE_OK;
@@ -203,7 +203,7 @@ acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
 			break;
 		default:
 			printk(KERN_ERR "%s: Type %d record not supported\n",
-			       __FUNCTION__, type);
+			       __func__, type);
 			status = AE_ERROR;
 			goto exit;
 		}
@@ -235,7 +235,7 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 		ret_buf.pointer = kmalloc (ret_buf.length, GFP_KERNEL);
 		if (!ret_buf.pointer) {
 			printk(KERN_ERR "%s:%s alloc for _HPP fail\n",
-				__FUNCTION__, (char *)string.pointer);
+				__func__, (char *)string.pointer);
 			kfree(string.pointer);
 			return AE_NO_MEMORY;
 		}
@@ -245,7 +245,7 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 			break;
 	default:
 		if (ACPI_FAILURE(status)) {
-			pr_debug("%s:%s _HPP fail=0x%x\n", __FUNCTION__,
+			pr_debug("%s:%s _HPP fail=0x%x\n", __func__,
 				(char *)string.pointer, status);
 			kfree(string.pointer);
 			return status;
@@ -254,7 +254,7 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 
 	ext_obj = (union acpi_object *) ret_buf.pointer;
 	if (ext_obj->type != ACPI_TYPE_PACKAGE) {
-		printk(KERN_ERR "%s:%s _HPP obj not a package\n", __FUNCTION__,
+		printk(KERN_ERR "%s:%s _HPP obj not a package\n", __func__,
 				(char *)string.pointer);
 		status = AE_ERROR;
 		goto free_and_return;
@@ -270,7 +270,7 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 			break;
 		default:
 			printk(KERN_ERR "%s:%s _HPP obj type incorrect\n",
-				__FUNCTION__, (char *)string.pointer);
+				__func__, (char *)string.pointer);
 			status = AE_ERROR;
 			goto free_and_return;
 		}
@@ -311,12 +311,12 @@ acpi_status acpi_run_oshp(acpi_handle handle)
 	if (ACPI_FAILURE(status))
 		if (status != AE_NOT_FOUND)
 			printk(KERN_ERR "%s:%s OSHP fails=0x%x\n",
-			       __FUNCTION__, (char *)string.pointer, status);
+			       __func__, (char *)string.pointer, status);
 		else
 			dbg("%s:%s OSHP not found\n",
-			    __FUNCTION__, (char *)string.pointer);
+			    __func__, (char *)string.pointer);
 	else
-		pr_debug("%s:%s OSHP passes\n", __FUNCTION__,
+		pr_debug("%s:%s OSHP passes\n", __func__,
 			(char *)string.pointer);
 
 	kfree(string.pointer);

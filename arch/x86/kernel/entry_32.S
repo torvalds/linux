@@ -1,5 +1,4 @@
 /*
- *  linux/arch/i386/entry.S
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
@@ -51,6 +50,7 @@
 #include <asm/desc.h>
 #include <asm/percpu.h>
 #include <asm/dwarf2.h>
+#include <asm/processor-flags.h>
 #include "irq_vectors.h"
 
 /*
@@ -68,13 +68,6 @@
 
 #define nr_syscalls ((syscall_table_size)/4)
 
-CF_MASK		= 0x00000001
-TF_MASK		= 0x00000100
-IF_MASK		= 0x00000200
-DF_MASK		= 0x00000400 
-NT_MASK		= 0x00004000
-VM_MASK		= 0x00020000
-
 #ifdef CONFIG_PREEMPT
 #define preempt_stop(clobbers)	DISABLE_INTERRUPTS(clobbers); TRACE_IRQS_OFF
 #else
@@ -84,7 +77,7 @@ VM_MASK		= 0x00020000
 
 .macro TRACE_IRQS_IRET
 #ifdef CONFIG_TRACE_IRQFLAGS
-	testl $IF_MASK,PT_EFLAGS(%esp)     # interrupts off?
+	testl $X86_EFLAGS_IF,PT_EFLAGS(%esp)     # interrupts off?
 	jz 1f
 	TRACE_IRQS_ON
 1:
@@ -246,7 +239,7 @@ ret_from_intr:
 check_userspace:
 	movl PT_EFLAGS(%esp), %eax	# mix EFLAGS and CS
 	movb PT_CS(%esp), %al
-	andl $(VM_MASK | SEGMENT_RPL_MASK), %eax
+	andl $(X86_EFLAGS_VM | SEGMENT_RPL_MASK), %eax
 	cmpl $USER_RPL, %eax
 	jb resume_kernel		# not returning to v8086 or userspace
 
@@ -271,7 +264,7 @@ need_resched:
 	movl TI_flags(%ebp), %ecx	# need_resched set ?
 	testb $_TIF_NEED_RESCHED, %cl
 	jz restore_all
-	testl $IF_MASK,PT_EFLAGS(%esp)	# interrupts off (exception path) ?
+	testl $X86_EFLAGS_IF,PT_EFLAGS(%esp)	# interrupts off (exception path) ?
 	jz restore_all
 	call preempt_schedule_irq
 	jmp need_resched
@@ -291,10 +284,10 @@ ENTRY(ia32_sysenter_target)
 	movl TSS_sysenter_sp0(%esp),%esp
 sysenter_past_esp:
 	/*
-	 * No need to follow this irqs on/off section: the syscall
-	 * disabled irqs and here we enable it straight after entry:
+	 * Interrupts are disabled here, but we can't trace it until
+	 * enough kernel state to call TRACE_IRQS_OFF can be called - but
+	 * we immediately enable interrupts at that point anyway.
 	 */
-	ENABLE_INTERRUPTS(CLBR_NONE)
 	pushl $(__USER_DS)
 	CFI_ADJUST_CFA_OFFSET 4
 	/*CFI_REL_OFFSET ss, 0*/
@@ -302,6 +295,7 @@ sysenter_past_esp:
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET esp, 0
 	pushfl
+	orl $X86_EFLAGS_IF, (%esp)
 	CFI_ADJUST_CFA_OFFSET 4
 	pushl $(__USER_CS)
 	CFI_ADJUST_CFA_OFFSET 4
@@ -315,6 +309,11 @@ sysenter_past_esp:
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET eip, 0
 
+	pushl %eax
+	CFI_ADJUST_CFA_OFFSET 4
+	SAVE_ALL
+	ENABLE_INTERRUPTS(CLBR_NONE)
+
 /*
  * Load the potential sixth argument from user stack.
  * Careful about security.
@@ -322,14 +321,12 @@ sysenter_past_esp:
 	cmpl $__PAGE_OFFSET-3,%ebp
 	jae syscall_fault
 1:	movl (%ebp),%ebp
+	movl %ebp,PT_EBP(%esp)
 .section __ex_table,"a"
 	.align 4
 	.long 1b,syscall_fault
 .previous
 
-	pushl %eax
-	CFI_ADJUST_CFA_OFFSET 4
-	SAVE_ALL
 	GET_THREAD_INFO(%ebp)
 
 	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
@@ -384,7 +381,7 @@ syscall_exit:
 					# setting need_resched or sigpending
 					# between sampling and the iret
 	TRACE_IRQS_OFF
-	testl $TF_MASK,PT_EFLAGS(%esp)	# If tracing set singlestep flag on exit
+	testl $X86_EFLAGS_TF,PT_EFLAGS(%esp)	# If tracing set singlestep flag on exit
 	jz no_singlestep
 	orl $_TIF_SINGLESTEP,TI_flags(%ebp)
 no_singlestep:
@@ -399,7 +396,7 @@ restore_all:
 	# See comments in process.c:copy_thread() for details.
 	movb PT_OLDSS(%esp), %ah
 	movb PT_CS(%esp), %al
-	andl $(VM_MASK | (SEGMENT_TI_MASK << 8) | SEGMENT_RPL_MASK), %eax
+	andl $(X86_EFLAGS_VM | (SEGMENT_TI_MASK << 8) | SEGMENT_RPL_MASK), %eax
 	cmpl $((SEGMENT_LDT << 8) | USER_RPL), %eax
 	CFI_REMEMBER_STATE
 	je ldt_ss			# returning to user-space with LDT SS
@@ -412,7 +409,7 @@ restore_nocheck_notrace:
 irq_return:
 	INTERRUPT_RETURN
 .section .fixup,"ax"
-iret_exc:
+ENTRY(iret_exc)
 	pushl $0			# no error code
 	pushl $do_iret_error
 	jmp error_code
@@ -486,7 +483,7 @@ work_resched:
 work_notifysig:				# deal with pending signals and
 					# notify-resume requests
 #ifdef CONFIG_VM86
-	testl $VM_MASK, PT_EFLAGS(%esp)
+	testl $X86_EFLAGS_VM, PT_EFLAGS(%esp)
 	movl %esp, %eax
 	jne work_notifysig_v86		# returning to kernel-space or
 					# vm86-space
@@ -543,9 +540,6 @@ END(syscall_exit_work)
 
 	RING0_INT_FRAME			# can't unwind into user space anyway
 syscall_fault:
-	pushl %eax			# save orig_eax
-	CFI_ADJUST_CFA_OFFSET 4
-	SAVE_ALL
 	GET_THREAD_INFO(%ebp)
 	movl $-EFAULT,PT_EAX(%esp)
 	jmp resume_userspace
@@ -1023,6 +1017,13 @@ ENTRY(kernel_thread_helper)
 ENDPROC(kernel_thread_helper)
 
 #ifdef CONFIG_XEN
+/* Xen doesn't set %esp to be precisely what the normal sysenter
+   entrypoint expects, so fix it up before using the normal path. */
+ENTRY(xen_sysenter_target)
+	RING0_INT_FRAME
+	addl $5*4, %esp		/* remove xen-provided frame */
+	jmp sysenter_past_esp
+
 ENTRY(xen_hypervisor_callback)
 	CFI_STARTPROC
 	pushl $0
@@ -1041,8 +1042,9 @@ ENTRY(xen_hypervisor_callback)
 	cmpl $xen_iret_end_crit,%eax
 	jae  1f
 
-	call xen_iret_crit_fixup
+	jmp  xen_iret_crit_fixup
 
+ENTRY(xen_do_upcall)
 1:	mov %esp, %eax
 	call xen_evtchn_do_upcall
 	jmp  ret_from_intr

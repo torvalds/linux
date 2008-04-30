@@ -16,6 +16,7 @@
  */
 
 #include <linux/hid.h>
+#include <linux/types.h>
 
 struct hidraw_report_descriptor {
 	__u32 size;

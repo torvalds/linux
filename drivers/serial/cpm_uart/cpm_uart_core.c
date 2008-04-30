@@ -966,24 +966,23 @@ static int cpm_uart_init_port(struct device_node *np,
 	if (!mem)
 		return -ENOMEM;
 
-	pram = of_iomap(np, 1);
-	if (!pram) {
-		ret = -ENOMEM;
-		goto out_mem;
-	}
-
 	if (of_device_is_compatible(np, "fsl,cpm1-scc-uart") ||
 	    of_device_is_compatible(np, "fsl,cpm2-scc-uart")) {
 		pinfo->sccp = mem;
-		pinfo->sccup = pram;
+		pinfo->sccup = pram = cpm_uart_map_pram(pinfo, np);
 	} else if (of_device_is_compatible(np, "fsl,cpm1-smc-uart") ||
 	           of_device_is_compatible(np, "fsl,cpm2-smc-uart")) {
 		pinfo->flags |= FLAG_SMC;
 		pinfo->smcp = mem;
-		pinfo->smcup = pram;
+		pinfo->smcup = pram = cpm_uart_map_pram(pinfo, np);
 	} else {
 		ret = -ENODEV;
-		goto out_pram;
+		goto out_mem;
+	}
+
+	if (!pram) {
+		ret = -ENOMEM;
+		goto out_mem;
 	}
 
 	pinfo->tx_nrfifos = TX_NUM_FIFO;
@@ -1007,7 +1006,7 @@ static int cpm_uart_init_port(struct device_node *np,
 	return cpm_uart_request_port(&pinfo->port);
 
 out_pram:
-	iounmap(pram);
+	cpm_uart_unmap_pram(pinfo, pram);
 out_mem:
 	iounmap(mem);
 	return ret;

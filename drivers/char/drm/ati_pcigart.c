@@ -167,13 +167,6 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 			page_base += ATI_PCIGART_PAGE_SIZE;
 		}
 	}
-
-	if (gart_info->gart_table_location == DRM_ATI_GART_MAIN)
-		dma_sync_single_for_device(&dev->pdev->dev,
-					   bus_address,
-					   max_pages * sizeof(u32),
-					   PCI_DMA_TODEVICE);
-
 	ret = 1;
 
 #if defined(__i386__) || defined(__x86_64__)

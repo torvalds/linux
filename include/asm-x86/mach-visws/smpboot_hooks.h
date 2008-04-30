@@ -22,3 +22,7 @@ static inline void smpboot_restore_warm_reset_vector(void)
 static inline void smpboot_setup_io_apic(void)
 {
 }
+
+static inline void smpboot_clear_io_apic(void)
+{
+}

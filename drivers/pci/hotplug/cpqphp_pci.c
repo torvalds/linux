@@ -120,7 +120,7 @@ int cpqhp_unconfigure_device(struct pci_func* func)
 {
 	int j;
 	
-	dbg("%s: bus/dev/func = %x/%x/%x\n", __FUNCTION__, func->bus, func->device, func->function);
+	dbg("%s: bus/dev/func = %x/%x/%x\n", __func__, func->bus, func->device, func->function);
 
 	for (j=0; j<8 ; j++) {
 		struct pci_dev* temp = pci_find_slot(func->bus, PCI_DEVFN(func->device, j));
@@ -170,11 +170,11 @@ int cpqhp_set_irq (u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num)
 		fakedev->bus = fakebus;
 		fakebus->number = bus_num;
 		dbg("%s: dev %d, bus %d, pin %d, num %d\n",
-		    __FUNCTION__, dev_num, bus_num, int_pin, irq_num);
+		    __func__, dev_num, bus_num, int_pin, irq_num);
 		rc = pcibios_set_irq_routing(fakedev, int_pin - 0x0a, irq_num);
 		kfree(fakedev);
 		kfree(fakebus);
-		dbg("%s: rc %d\n", __FUNCTION__, rc);
+		dbg("%s: rc %d\n", __func__, rc);
 		if (!rc)
 			return !rc;
 
@@ -1423,7 +1423,7 @@ int cpqhp_return_board_resources(struct pci_func * func, struct resource_lists *
 	int rc = 0;
 	struct pci_resource *node;
 	struct pci_resource *t_node;
-	dbg("%s\n", __FUNCTION__);
+	dbg("%s\n", __func__);
 
 	if (!func)
 		return 1;

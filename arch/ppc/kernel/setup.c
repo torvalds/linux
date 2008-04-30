@@ -10,7 +10,6 @@
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/initrd.h>
-#include <linux/ide.h>
 #include <linux/screen_info.h>
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
@@ -57,7 +56,6 @@ extern void ppc6xx_idle(void);
 extern void power4_idle(void);
 
 extern boot_infos_t *boot_infos;
-struct ide_machdep_calls ppc_ide_md;
 
 /* Used with the BI_MEMSIZE bootinfo parameter to store the memory
    size value reported by the boot loader. */

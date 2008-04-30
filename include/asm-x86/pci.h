@@ -8,14 +8,13 @@
 #include <asm/scatterlist.h>
 #include <asm/io.h>
 
-
 #ifdef __KERNEL__
 
 struct pci_sysdata {
 	int		domain;		/* PCI domain */
 	int		node;		/* NUMA node */
 #ifdef CONFIG_X86_64
-	void*		iommu;		/* IOMMU private data */
+	void		*iommu;		/* IOMMU private data */
 #endif
 };
 
@@ -52,7 +51,7 @@ extern unsigned long pci_mem_start;
 #define PCIBIOS_MIN_CARDBUS_IO	0x4000
 
 void pcibios_config_init(void);
-struct pci_bus * pcibios_scan_root(int bus);
+struct pci_bus *pcibios_scan_root(int bus);
 
 void pcibios_set_master(struct pci_dev *dev);
 void pcibios_penalize_isa_irq(int irq, int active);
@@ -62,7 +61,8 @@ int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq);
 
 #define HAVE_PCI_MMAP
 extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			       enum pci_mmap_state mmap_state, int write_combine);
+			       enum pci_mmap_state mmap_state,
+			       int write_combine);
 
 
 #ifdef CONFIG_PCI

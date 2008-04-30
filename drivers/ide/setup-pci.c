@@ -20,84 +20,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-
-/**
- *	ide_match_hwif	-	match a PCI IDE against an ide_hwif
- *	@io_base: I/O base of device
- *	@bootable: set if its bootable
- *	@name: name of device
- *
- *	Match a PCI IDE port against an entry in ide_hwifs[],
- *	based on io_base port if possible. Return the matching hwif,
- *	or a new hwif. If we find an error (clashing, out of devices, etc)
- *	return NULL
- *
- *	FIXME: we need to handle mmio matches here too
- */
-
-static ide_hwif_t *ide_match_hwif(unsigned long io_base, u8 bootable, const char *name)
-{
-	int h;
-	ide_hwif_t *hwif;
-
-	/*
-	 * Look for a hwif with matching io_base specified using
-	 * parameters to ide_setup().
-	 */
-	for (h = 0; h < MAX_HWIFS; ++h) {
-		hwif = &ide_hwifs[h];
-		if (hwif->io_ports[IDE_DATA_OFFSET] == io_base) {
-			if (hwif->chipset == ide_forced)
-				return hwif; /* a perfect match */
-		}
-	}
-	/*
-	 * Look for a hwif with matching io_base default value.
-	 * If chipset is "ide_unknown", then claim that hwif slot.
-	 * Otherwise, some other chipset has already claimed it..  :(
-	 */
-	for (h = 0; h < MAX_HWIFS; ++h) {
-		hwif = &ide_hwifs[h];
-		if (hwif->io_ports[IDE_DATA_OFFSET] == io_base) {
-			if (hwif->chipset == ide_unknown)
-				return hwif; /* match */
-			printk(KERN_ERR "%s: port 0x%04lx already claimed by %s\n",
-				name, io_base, hwif->name);
-			return NULL;	/* already claimed */
-		}
-	}
-	/*
-	 * Okay, there is no hwif matching our io_base,
-	 * so we'll just claim an unassigned slot.
-	 * Give preference to claiming other slots before claiming ide0/ide1,
-	 * just in case there's another interface yet-to-be-scanned
-	 * which uses ports 1f0/170 (the ide0/ide1 defaults).
-	 *
-	 * Unless there is a bootable card that does not use the standard
-	 * ports 1f0/170 (the ide0/ide1 defaults). The (bootable) flag.
-	 */
-	if (bootable) {
-		for (h = 0; h < MAX_HWIFS; ++h) {
-			hwif = &ide_hwifs[h];
-			if (hwif->chipset == ide_unknown)
-				return hwif;	/* pick an unused entry */
-		}
-	} else {
-		for (h = 2; h < MAX_HWIFS; ++h) {
-			hwif = ide_hwifs + h;
-			if (hwif->chipset == ide_unknown)
-				return hwif;	/* pick an unused entry */
-		}
-	}
-	for (h = 0; h < 2 && h < MAX_HWIFS; ++h) {
-		hwif = ide_hwifs + h;
-		if (hwif->chipset == ide_unknown)
-			return hwif;	/* pick an unused entry */
-	}
-	printk(KERN_ERR "%s: too many IDE interfaces, no room in table\n", name);
-	return NULL;
-}
-
 /**
  *	ide_setup_pci_baseregs	-	place a PCI IDE controller native
  *	@dev: PCI device of interface to switch native
@@ -105,13 +27,13 @@ static ide_hwif_t *ide_match_hwif(unsigned long io_base, u8 bootable, const char
  *
  *	We attempt to place the PCI interface into PCI native mode. If
  *	we succeed the BARs are ok and the controller is in PCI mode.
- *	Returns 0 on success or an errno code. 
+ *	Returns 0 on success or an errno code.
  *
  *	FIXME: if we program the interface and then fail to set the BARS
  *	we don't switch it back to legacy mode. Do we actually care ??
  */
- 
-static int ide_setup_pci_baseregs (struct pci_dev *dev, const char *name)
+
+static int ide_setup_pci_baseregs(struct pci_dev *dev, const char *name)
 {
 	u8 progif = 0;
 
@@ -150,16 +72,16 @@ static void ide_pci_clear_simplex(unsigned long dma_base, const char *name)
 }
 
 /**
- *	ide_get_or_set_dma_base		-	setup BMIBA
- *	@d: IDE port info
+ *	ide_pci_dma_base	-	setup BMIBA
  *	@hwif: IDE interface
+ *	@d: IDE port info
  *
  *	Fetch the DMA Bus-Master-I/O-Base-Address (BMIBA) from PCI space.
  *	Where a device has a partner that is already in DMA mode we check
  *	and enforce IDE simplex rules.
  */
 
-static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_hwif_t *hwif)
+unsigned long ide_pci_dma_base(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long dma_base = 0;
@@ -210,6 +132,31 @@ static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_
 out:
 	return dma_base;
 }
+EXPORT_SYMBOL_GPL(ide_pci_dma_base);
+
+/*
+ * Set up BM-DMA capability (PnP BIOS should have done this)
+ */
+int ide_pci_set_master(struct pci_dev *dev, const char *name)
+{
+	u16 pcicmd;
+
+	pci_read_config_word(dev, PCI_COMMAND, &pcicmd);
+
+	if ((pcicmd & PCI_COMMAND_MASTER) == 0) {
+		pci_set_master(dev);
+
+		if (pci_read_config_word(dev, PCI_COMMAND, &pcicmd) ||
+		    (pcicmd & PCI_COMMAND_MASTER) == 0) {
+			printk(KERN_ERR "%s: error updating PCICMD on %s\n",
+					name, pci_name(dev));
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ide_pci_set_master);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 void ide_setup_pci_noise(struct pci_dev *dev, const struct ide_port_info *d)
@@ -218,7 +165,6 @@ void ide_setup_pci_noise(struct pci_dev *dev, const struct ide_port_info *d)
 			 " PCI slot %s\n", d->name, dev->vendor, dev->device,
 			 dev->revision, pci_name(dev));
 }
-
 EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
 
 
@@ -231,13 +177,13 @@ EXPORT_SYMBOL_GPL(ide_setup_pci_noise);
  *	but if that fails then we only need IO space. The PCI code should
  *	have setup the proper resources for us already for controllers in
  *	legacy mode.
- *	
+ *
  *	Returns zero on success or an error code
  */
 
 static int ide_pci_enable(struct pci_dev *dev, const struct ide_port_info *d)
 {
-	int ret;
+	int ret, bars;
 
 	if (pci_enable_device(dev)) {
 		ret = pci_enable_device_io(dev);
@@ -260,13 +206,21 @@ static int ide_pci_enable(struct pci_dev *dev, const struct ide_port_info *d)
 		goto out;
 	}
 
-	/* FIXME: Temporary - until we put in the hotplug interface logic
-	   Check that the bits we want are not in use by someone else. */
-	ret = pci_request_region(dev, 4, "ide_tmp");
-	if (ret < 0)
-		goto out;
+	if (d->host_flags & IDE_HFLAG_SINGLE)
+		bars = (1 << 2) - 1;
+	else
+		bars = (1 << 4) - 1;
 
-	pci_release_region(dev, 4);
+	if ((d->host_flags & IDE_HFLAG_NO_DMA) == 0) {
+		if (d->host_flags & IDE_HFLAG_CS5520)
+			bars |= (1 << 2);
+		else
+			bars |= (1 << 4);
+	}
+
+	ret = pci_request_selected_regions(dev, bars, d->name);
+	if (ret < 0)
+		printk(KERN_ERR "%s: can't reserve resources\n", d->name);
 out:
 	return ret;
 }
@@ -290,8 +244,8 @@ static int ide_pci_configure(struct pci_dev *dev, const struct ide_port_info *d)
 	 * Maybe the user deliberately *disabled* the device,
 	 * but we'll eventually ignore it again if no drives respond.
 	 */
-	if (ide_setup_pci_baseregs(dev, d->name) || pci_write_config_word(dev, PCI_COMMAND, pcicmd|PCI_COMMAND_IO)) 
-	{
+	if (ide_setup_pci_baseregs(dev, d->name) ||
+	    pci_write_config_word(dev, PCI_COMMAND, pcicmd | PCI_COMMAND_IO)) {
 		printk(KERN_INFO "%s: device disabled (BIOS)\n", d->name);
 		return -ENODEV;
 	}
@@ -312,26 +266,24 @@ static int ide_pci_configure(struct pci_dev *dev, const struct ide_port_info *d)
  *	@d: IDE port info
  *	@bar: BAR number
  *
- *	Checks if a BAR is configured and points to MMIO space. If so
- *	print an error and return an error code. Otherwise return 0
+ *	Checks if a BAR is configured and points to MMIO space. If so,
+ *	return an error code. Otherwise return 0
  */
 
-static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *d, int bar)
+static int ide_pci_check_iomem(struct pci_dev *dev, const struct ide_port_info *d,
+			       int bar)
 {
 	ulong flags = pci_resource_flags(dev, bar);
-	
+
 	/* Unconfigured ? */
 	if (!flags || pci_resource_len(dev, bar) == 0)
 		return 0;
 
-	/* I/O space */		
-	if(flags & PCI_BASE_ADDRESS_IO_MASK)
+	/* I/O space */
+	if (flags & IORESOURCE_IO)
 		return 0;
-		
+
 	/* Bad */
-	printk(KERN_ERR "%s: IO baseregs (BIOS) are reported "
-			"as MEM, report to "
-			"<andre@linux-ide.org>.\n", d->name);
 	return -EINVAL;
 }
 
@@ -355,15 +307,16 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 {
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
-	u8 bootable = (d->host_flags & IDE_HFLAG_BOOTABLE) ? 1 : 0;
-	u8 oldnoprobe = 0;
 	struct hw_regs_s hw;
 
 	if ((d->host_flags & IDE_HFLAG_ISA_PORTS) == 0) {
-		/*  Possibly we should fail if these checks report true */
-		ide_pci_check_iomem(dev, d, 2*port);
-		ide_pci_check_iomem(dev, d, 2*port+1);
- 
+		if (ide_pci_check_iomem(dev, d, 2 * port) ||
+		    ide_pci_check_iomem(dev, d, 2 * port + 1)) {
+			printk(KERN_ERR "%s: I/O baseregs (BIOS) are reported "
+					"as MEM for port %d!\n", d->name, port);
+			return NULL;
+		}
+
 		ctl  = pci_resource_start(dev, 2*port+1);
 		base = pci_resource_start(dev, 2*port);
 		if ((ctl && !base) || (base && !ctl)) {
@@ -372,31 +325,28 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 			return NULL;
 		}
 	}
-	if (!ctl)
-	{
+	if (!ctl) {
 		/* Use default values */
 		ctl = port ? 0x374 : 0x3f4;
 		base = port ? 0x170 : 0x1f0;
 	}
-	if ((hwif = ide_match_hwif(base, bootable, d->name)) == NULL)
-		return NULL;	/* no room in ide_hwifs[] */
+
+	hwif = ide_find_port_slot(d);
+	if (hwif == NULL) {
+		printk(KERN_ERR "%s: too many IDE interfaces, no room in "
+				"table\n", d->name);
+		return NULL;
+	}
 
 	memset(&hw, 0, sizeof(hw));
-	hw.irq = hwif->irq ? hwif->irq : irq;
+	hw.irq = irq;
 	hw.dev = &dev->dev;
 	hw.chipset = d->chipset ? d->chipset : ide_pci;
 	ide_std_init_ports(&hw, base, ctl | 2);
 
-	if (hwif->io_ports[IDE_DATA_OFFSET] == base &&
-	    hwif->io_ports[IDE_CONTROL_OFFSET] == (ctl | 2))
-		oldnoprobe = hwif->noprobe;
-
 	ide_init_port_hw(hwif, &hw);
 
-	hwif->noprobe = oldnoprobe;
-
 	hwif->dev = &dev->dev;
-	hwif->cds = d;
 
 	return hwif;
 }
@@ -412,40 +362,33 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
  *	state
  */
 
-void ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
+int ide_hwif_setup_dma(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	u16 pcicmd;
-
-	pci_read_config_word(dev, PCI_COMMAND, &pcicmd);
 
 	if ((d->host_flags & IDE_HFLAG_NO_AUTODMA) == 0 ||
 	    ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
 	     (dev->class & 0x80))) {
-		unsigned long dma_base = ide_get_or_set_dma_base(d, hwif);
-		if (dma_base && !(pcicmd & PCI_COMMAND_MASTER)) {
-			/*
- 			 * Set up BM-DMA capability
-			 * (PnP BIOS should have done this)
- 			 */
-			pci_set_master(dev);
-			if (pci_read_config_word(dev, PCI_COMMAND, &pcicmd) || !(pcicmd & PCI_COMMAND_MASTER)) {
-				printk(KERN_ERR "%s: %s error updating PCICMD\n",
-					hwif->name, d->name);
-				dma_base = 0;
-			}
-		}
-		if (dma_base) {
-			if (d->init_dma) {
-				d->init_dma(hwif, dma_base);
-			} else {
-				ide_setup_dma(hwif, dma_base);
-			}
-		} else {
-			printk(KERN_INFO "%s: %s Bus-Master DMA disabled "
-				"(BIOS)\n", hwif->name, d->name);
-		}
+		unsigned long base = ide_pci_dma_base(hwif, d);
+
+		if (base == 0 || ide_pci_set_master(dev, d->name) < 0)
+			return -1;
+
+		if (hwif->mmio)
+			printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
+		else
+			printk(KERN_INFO "    %s: BM-DMA at 0x%04lx-0x%04lx\n",
+					 hwif->name, base, base + 7);
+
+		hwif->extra_base = base + (hwif->channel ? 8 : 16);
+
+		if (ide_allocate_dma_engine(hwif))
+			return -1;
+
+		ide_setup_dma(hwif, base);
 	}
+
+	return 0;
 }
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
@@ -532,7 +475,6 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int
 		*(idx + port) = hwif->index;
 	}
 }
-
 EXPORT_SYMBOL_GPL(ide_pci_setup_ports);
 
 /*
@@ -615,7 +557,6 @@ int ide_setup_pci_device(struct pci_dev *dev, const struct ide_port_info *d)
 
 	return ret;
 }
-
 EXPORT_SYMBOL_GPL(ide_setup_pci_device);
 
 int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
@@ -639,5 +580,4 @@ int ide_setup_pci_devices(struct pci_dev *dev1, struct pci_dev *dev2,
 out:
 	return ret;
 }
-
 EXPORT_SYMBOL_GPL(ide_setup_pci_devices);

@@ -83,9 +83,9 @@ tapechar_setup_device(struct tape_device * device)
 void
 tapechar_cleanup_device(struct tape_device *device)
 {
-	unregister_tape_dev(device->rt);
+	unregister_tape_dev(&device->cdev->dev, device->rt);
 	device->rt = NULL;
-	unregister_tape_dev(device->nt);
+	unregister_tape_dev(&device->cdev->dev, device->nt);
 	device->nt = NULL;
 }
 

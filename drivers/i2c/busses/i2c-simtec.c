@@ -159,6 +159,9 @@ static int simtec_i2c_remove(struct platform_device *dev)
 
 /* device driver */
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:simtec-i2c");
+
 static struct platform_driver simtec_i2c_driver = {
 	.driver		= {
 		.name		= "simtec-i2c",

@@ -183,7 +183,6 @@ const char *escape_essid(const char *essid, u8 essid_len);
 #define IEEE80211_DEBUG_RX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_RX, f, ## a)
 #define IEEE80211_DEBUG_QOS(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_QOS, f, ## a)
 #include <linux/netdevice.h>
-#include <linux/wireless.h>
 #include <linux/if_arp.h>	/* ARPHRD_ETHER */
 
 #ifndef WIRELESS_SPY

@@ -1399,6 +1399,8 @@ spider_net_link_reset(struct net_device *netdev)
 	spider_net_write_reg(card, SPIDER_NET_GMACINTEN, 0);
 
 	/* reset phy and setup aneg */
+	card->aneg_count = 0;
+	card->medium = BCM54XX_COPPER;
 	spider_net_setup_aneg(card);
 	mod_timer(&card->aneg_timer, jiffies + SPIDER_NET_ANEG_TIMER);
 
@@ -1413,17 +1415,11 @@ spider_net_link_reset(struct net_device *netdev)
  * found when an interrupt is presented
  */
 static void
-spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg)
+spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg,
+			    u32 error_reg1, u32 error_reg2)
 {
-	u32 error_reg1, error_reg2;
 	u32 i;
 	int show_error = 1;
-
-	error_reg1 = spider_net_read_reg(card, SPIDER_NET_GHIINT1STS);
-	error_reg2 = spider_net_read_reg(card, SPIDER_NET_GHIINT2STS);
-
-	error_reg1 &= SPIDER_NET_INT1_MASK_VALUE;
-	error_reg2 &= SPIDER_NET_INT2_MASK_VALUE;
 
 	/* check GHIINT0STS ************************************/
 	if (status_reg)
@@ -1654,12 +1650,15 @@ spider_net_interrupt(int irq, void *ptr)
 {
 	struct net_device *netdev = ptr;
 	struct spider_net_card *card = netdev_priv(netdev);
-	u32 status_reg;
+	u32 status_reg, error_reg1, error_reg2;
 
 	status_reg = spider_net_read_reg(card, SPIDER_NET_GHIINT0STS);
-	status_reg &= SPIDER_NET_INT0_MASK_VALUE;
+	error_reg1 = spider_net_read_reg(card, SPIDER_NET_GHIINT1STS);
+	error_reg2 = spider_net_read_reg(card, SPIDER_NET_GHIINT2STS);
 
-	if (!status_reg)
+	if (!(status_reg & SPIDER_NET_INT0_MASK_VALUE) &&
+	    !(error_reg1 & SPIDER_NET_INT1_MASK_VALUE) &&
+	    !(error_reg2 & SPIDER_NET_INT2_MASK_VALUE))
 		return IRQ_NONE;
 
 	if (status_reg & SPIDER_NET_RXINT ) {
@@ -1674,7 +1673,8 @@ spider_net_interrupt(int irq, void *ptr)
 		spider_net_link_reset(netdev);
 
 	if (status_reg & SPIDER_NET_ERRINT )
-		spider_net_handle_error_irq(card, status_reg);
+		spider_net_handle_error_irq(card, status_reg,
+					    error_reg1, error_reg2);
 
 	/* clear interrupt sources */
 	spider_net_write_reg(card, SPIDER_NET_GHIINT0STS, status_reg);
@@ -1982,6 +1982,8 @@ spider_net_open(struct net_device *netdev)
 		goto init_firmware_failed;
 
 	/* start probing with copper */
+	card->aneg_count = 0;
+	card->medium = BCM54XX_COPPER;
 	spider_net_setup_aneg(card);
 	if (card->phy.def->phy_id)
 		mod_timer(&card->aneg_timer, jiffies + SPIDER_NET_ANEG_TIMER);
@@ -2043,7 +2045,8 @@ static void spider_net_link_phy(unsigned long data)
 	/* if link didn't come up after SPIDER_NET_ANEG_TIMEOUT tries, setup phy again */
 	if (card->aneg_count > SPIDER_NET_ANEG_TIMEOUT) {
 
-		pr_info("%s: link is down trying to bring it up\n", card->netdev->name);
+		pr_debug("%s: link is down trying to bring it up\n",
+			 card->netdev->name);
 
 		switch (card->medium) {
 		case BCM54XX_COPPER:
@@ -2094,9 +2097,10 @@ static void spider_net_link_phy(unsigned long data)
 
 	card->aneg_count = 0;
 
-	pr_debug("Found %s with %i Mbps, %s-duplex %sautoneg.\n",
-		phy->def->name, phy->speed, phy->duplex==1 ? "Full" : "Half",
-		phy->autoneg==1 ? "" : "no ");
+	pr_info("%s: link up, %i Mbps, %s-duplex %sautoneg.\n",
+		card->netdev->name, phy->speed,
+		phy->duplex == 1 ? "Full" : "Half",
+		phy->autoneg == 1 ? "" : "no ");
 
 	return;
 }

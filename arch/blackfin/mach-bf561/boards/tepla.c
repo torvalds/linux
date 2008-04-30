@@ -50,7 +50,7 @@ static struct platform_device *tepla_devices[] __initdata = {
 
 static int __init tepla_init(void)
 {
-	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
+	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	return platform_add_devices(tepla_devices, ARRAY_SIZE(tepla_devices));
 }
 

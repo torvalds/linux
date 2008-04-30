@@ -1285,7 +1285,6 @@ static int wait_for_codec(struct fm801 *chip, unsigned int codec_id,
 
 static int snd_fm801_chip_init(struct fm801 *chip, int resume)
 {
-	int id;
 	unsigned short cmdw;
 
 	if (chip->tea575x_tuner & 0x0010)
@@ -1310,13 +1309,14 @@ static int snd_fm801_chip_init(struct fm801 *chip, int resume)
 		} else {
 			/* my card has the secondary codec */
 			/* at address #3, so the loop is inverted */
-			for (id = 3; id > 0; id--) {
-				if (! wait_for_codec(chip, id, AC97_VENDOR_ID1,
+			int i;
+			for (i = 3; i > 0; i--) {
+				if (!wait_for_codec(chip, i, AC97_VENDOR_ID1,
 						     msecs_to_jiffies(50))) {
 					cmdw = inw(FM801_REG(chip, AC97_DATA));
 					if (cmdw != 0xffff && cmdw != 0) {
 						chip->secondary = 1;
-						chip->secondary_addr = id;
+						chip->secondary_addr = i;
 						break;
 					}
 				}

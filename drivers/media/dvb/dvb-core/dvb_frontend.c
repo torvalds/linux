@@ -135,7 +135,7 @@ static void dvb_frontend_add_event(struct dvb_frontend *fe, fe_status_t status)
 	struct dvb_frontend_event *e;
 	int wp;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (mutex_lock_interruptible (&events->mtx))
 		return;
@@ -171,7 +171,7 @@ static int dvb_frontend_get_event(struct dvb_frontend *fe,
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dvb_fe_events *events = &fepriv->events;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (events->overflow) {
 		events->overflow = 0;
@@ -237,7 +237,7 @@ static void dvb_frontend_swzigzag_update_delay(struct dvb_frontend_private *fepr
 {
 	int q2;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (locked)
 		(fepriv->quality) = (fepriv->quality * 220 + 36*256) / 256;
@@ -329,7 +329,7 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 
 	dprintk("%s: drift:%i inversion:%i auto_step:%i "
 		"auto_sub_step:%i started_auto_step:%i\n",
-		__FUNCTION__, fepriv->lnb_drift, fepriv->inversion,
+		__func__, fepriv->lnb_drift, fepriv->inversion,
 		fepriv->auto_step, fepriv->auto_sub_step, fepriv->started_auto_step);
 
 	/* set the frontend itself */
@@ -511,7 +511,7 @@ static int dvb_frontend_thread(void *data)
 	fe_status_t s;
 	struct dvb_frontend_parameters *params;
 
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	fepriv->check_wrapped = 0;
 	fepriv->quality = 0;
@@ -597,7 +597,7 @@ static void dvb_frontend_stop(struct dvb_frontend *fe)
 {
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	fepriv->exit = 1;
 	mb();
@@ -665,7 +665,7 @@ static int dvb_frontend_start(struct dvb_frontend *fe)
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct task_struct *fe_thread;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (fepriv->thread) {
 		if (!fepriv->exit)
@@ -763,7 +763,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	int err = -EOPNOTSUPP;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (fepriv->exit)
 		return -ENODEV;
@@ -895,7 +895,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			int i;
 			u8 last = 1;
 			if (dvb_frontend_debug)
-				printk("%s switch command: 0x%04lx\n", __FUNCTION__, cmd);
+				printk("%s switch command: 0x%04lx\n", __func__, cmd);
 			do_gettimeofday(&nexttime);
 			if (dvb_frontend_debug)
 				memcpy(&tv[0], &nexttime, sizeof(struct timeval));
@@ -919,7 +919,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			}
 			if (dvb_frontend_debug) {
 				printk("%s(%d): switch delay (should be 32k followed by all 8k\n",
-					__FUNCTION__, fe->dvb->num);
+					__func__, fe->dvb->num);
 				for (i = 1; i < 10; i++)
 					printk("%d: %d\n", i, timeval_usec_diff(tv[i-1] , tv[i]));
 			}
@@ -1037,7 +1037,7 @@ static unsigned int dvb_frontend_poll(struct file *file, struct poll_table_struc
 	struct dvb_frontend *fe = dvbdev->priv;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	poll_wait (file, &fepriv->events.wait_queue, wait);
 
@@ -1054,7 +1054,7 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	int ret;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (dvbdev->users == -1 && fe->ops.ts_bus_ctrl) {
 		if ((ret = fe->ops.ts_bus_ctrl(fe, 1)) < 0)
@@ -1095,7 +1095,7 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	int ret;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if ((file->f_flags & O_ACCMODE) != O_RDONLY)
 		fepriv->release_jiffies = jiffies;
@@ -1135,7 +1135,7 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 		.kernel_ioctl = dvb_frontend_ioctl
 	};
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (mutex_lock_interruptible(&frontend_mutex))
 		return -ERESTARTSYS;
@@ -1169,7 +1169,7 @@ EXPORT_SYMBOL(dvb_register_frontend);
 int dvb_unregister_frontend(struct dvb_frontend* fe)
 {
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	mutex_lock(&frontend_mutex);
 	dvb_frontend_stop (fe);

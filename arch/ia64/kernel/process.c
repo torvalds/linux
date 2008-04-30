@@ -625,40 +625,10 @@ do_dump_fpu (struct unw_frame_info *info, void *arg)
 	do_dump_task_fpu(current, info, arg);
 }
 
-int
-dump_task_regs(struct task_struct *task, elf_gregset_t *regs)
-{
-	struct unw_frame_info tcore_info;
-
-	if (current == task) {
-		unw_init_running(do_copy_regs, regs);
-	} else {
-		memset(&tcore_info, 0, sizeof(tcore_info));
-		unw_init_from_blocked_task(&tcore_info, task);
-		do_copy_task_regs(task, &tcore_info, regs);
-	}
-	return 1;
-}
-
 void
 ia64_elf_core_copy_regs (struct pt_regs *pt, elf_gregset_t dst)
 {
 	unw_init_running(do_copy_regs, dst);
-}
-
-int
-dump_task_fpu (struct task_struct *task, elf_fpregset_t *dst)
-{
-	struct unw_frame_info tcore_info;
-
-	if (current == task) {
-		unw_init_running(do_dump_fpu, dst);
-	} else {
-		memset(&tcore_info, 0, sizeof(tcore_info));
-		unw_init_from_blocked_task(&tcore_info, task);
-		do_dump_task_fpu(task, &tcore_info, dst);
-	}
-	return 1;
 }
 
 int

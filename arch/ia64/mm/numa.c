@@ -27,7 +27,9 @@
  */
 int num_node_memblks;
 struct node_memblk_s node_memblk[NR_NODE_MEMBLKS];
-struct node_cpuid_s node_cpuid[NR_CPUS];
+struct node_cpuid_s node_cpuid[NR_CPUS] =
+	{ [0 ... NR_CPUS-1] = { .phys_id = 0, .nid = NUMA_NO_NODE } };
+
 /*
  * This is a matrix with "distances" between nodes, they should be
  * proportional to the memory access latency ratios.

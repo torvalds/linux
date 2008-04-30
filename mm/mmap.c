@@ -232,7 +232,7 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
 		vma->vm_ops->close(vma);
 	if (vma->vm_file)
 		fput(vma->vm_file);
-	mpol_free(vma_policy(vma));
+	mpol_put(vma_policy(vma));
 	kmem_cache_free(vm_area_cachep, vma);
 	return next;
 }
@@ -626,7 +626,7 @@ again:			remove_next = 1 + (end > next->vm_end);
 		if (file)
 			fput(file);
 		mm->map_count--;
-		mpol_free(vma_policy(next));
+		mpol_put(vma_policy(next));
 		kmem_cache_free(vm_area_cachep, next);
 		/*
 		 * In mprotect's case 6 (see comments on vma_merge),
@@ -1068,7 +1068,6 @@ int vma_wants_writenotify(struct vm_area_struct *vma)
 		mapping_cap_account_dirty(vma->vm_file->f_mapping);
 }
 
-
 unsigned long mmap_region(struct file *file, unsigned long addr,
 			  unsigned long len, unsigned long flags,
 			  unsigned int vm_flags, unsigned long pgoff,
@@ -1181,22 +1180,20 @@ munmap_back:
 	if (vma_wants_writenotify(vma))
 		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
 
-	if (!file || !vma_merge(mm, prev, addr, vma->vm_end,
+	if (file && vma_merge(mm, prev, addr, vma->vm_end,
 			vma->vm_flags, NULL, file, pgoff, vma_policy(vma))) {
-		file = vma->vm_file;
-		vma_link(mm, vma, prev, rb_link, rb_parent);
-		if (correct_wcount)
-			atomic_inc(&inode->i_writecount);
-	} else {
-		if (file) {
-			if (correct_wcount)
-				atomic_inc(&inode->i_writecount);
-			fput(file);
-		}
-		mpol_free(vma_policy(vma));
+		mpol_put(vma_policy(vma));
 		kmem_cache_free(vm_area_cachep, vma);
+		fput(file);
+	} else {
+		vma_link(mm, vma, prev, rb_link, rb_parent);
+		file = vma->vm_file;
 	}
-out:	
+
+	/* Once vma denies write, undo our temporary denial count */
+	if (correct_wcount)
+		atomic_inc(&inode->i_writecount);
+out:
 	mm->total_vm += len >> PAGE_SHIFT;
 	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
 	if (vm_flags & VM_LOCKED) {
@@ -1813,7 +1810,7 @@ int split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 		new->vm_pgoff += ((addr - vma->vm_start) >> PAGE_SHIFT);
 	}
 
-	pol = mpol_copy(vma_policy(vma));
+	pol = mpol_dup(vma_policy(vma));
 	if (IS_ERR(pol)) {
 		kmem_cache_free(vm_area_cachep, new);
 		return PTR_ERR(pol);
@@ -2129,7 +2126,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 		new_vma = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 		if (new_vma) {
 			*new_vma = *vma;
-			pol = mpol_copy(vma_policy(vma));
+			pol = mpol_dup(vma_policy(vma));
 			if (IS_ERR(pol)) {
 				kmem_cache_free(vm_area_cachep, new_vma);
 				return NULL;

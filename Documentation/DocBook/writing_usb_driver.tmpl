@@ -100,8 +100,8 @@
       useful documents, at the USB home page (see Resources). An excellent
       introduction to the Linux USB subsystem can be found at the USB Working
       Devices List (see Resources). It explains how the Linux USB subsystem is
-      structured and introduces the reader to the concept of USB urbs, which
-      are essential to USB drivers.
+      structured and introduces the reader to the concept of USB urbs
+      (USB Request Blocks), which are essential to USB drivers.
   </para>
   <para>
       The first thing a Linux USB driver needs to do is register itself with
@@ -162,8 +162,8 @@ static int __init usb_skel_init(void)
 module_init(usb_skel_init);
   </programlisting>
   <para>
-      When the driver is unloaded from the system, it needs to unregister
-      itself with the USB subsystem. This is done with the usb_unregister
+      When the driver is unloaded from the system, it needs to deregister
+      itself with the USB subsystem. This is done with the usb_deregister
       function:
   </para>
   <programlisting>
@@ -232,7 +232,7 @@ static int skel_probe(struct usb_interface *interface,
      were passed to the USB subsystem will be called from a user program trying
      to talk to the device. The first function called will be open, as the
      program tries to open the device for I/O. We increment our private usage
-     count and save off a pointer to our internal structure in the file
+     count and save a pointer to our internal structure in the file
      structure. This is done so that future calls to file operations will
      enable the driver to determine which device the user is addressing.  All
      of this is done with the following code:
@@ -252,8 +252,8 @@ file->private_data = dev;
      send to the device based on the size of the write urb it has created (this
      size depends on the size of the bulk out end point that the device has).
      Then it copies the data from user space to kernel space, points the urb to
-     the data and submits the urb to the USB subsystem.  This can be shown in
-     he following code:
+     the data and submits the urb to the USB subsystem.  This can be seen in
+     the following code:
   </para>
   <programlisting>
 /* we can only write as much as 1 urb will hold */

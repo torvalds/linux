@@ -17,4 +17,12 @@
 				+ (CONFIG_PHYSICAL_ALIGN - 1)) \
 				& ~(CONFIG_PHYSICAL_ALIGN - 1))
 
+#ifdef CONFIG_X86_64
+#define BOOT_HEAP_SIZE	0x7000
+#define BOOT_STACK_SIZE	0x4000
+#else
+#define BOOT_HEAP_SIZE	0x4000
+#define BOOT_STACK_SIZE	0x1000
+#endif
+
 #endif /* _ASM_BOOT_H */

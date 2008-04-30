@@ -430,6 +430,7 @@ arm1026_crval:
 	.type	arm1026_processor_functions, #object
 arm1026_processor_functions:
 	.word	v5t_early_abort
+	.word	pabort_noifar
 	.word	cpu_arm1026_proc_init
 	.word	cpu_arm1026_proc_fin
 	.word	cpu_arm1026_reset

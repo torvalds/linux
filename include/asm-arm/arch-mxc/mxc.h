@@ -15,6 +15,11 @@
 #error "Do not include directly."
 #endif
 
+/* clean up all things that are not used */
+#ifndef CONFIG_ARCH_MX3
+# define cpu_is_mx31() (0)
+#endif
+
 /*
  *****************************************
  * GPT  Register definitions             *
@@ -31,9 +36,7 @@
 #define MXC_GPT_GPTICR2		IO_ADDRESS(GPT1_BASE_ADDR + 0x20)
 #define MXC_GPT_GPTCNT		IO_ADDRESS(GPT1_BASE_ADDR + 0x24)
 
-/*!
- * GPT Control register bit definitions
- */
+/* GPT Control register bit definitions */
 #define GPTCR_FO3			(1 << 31)
 #define GPTCR_FO2			(1 << 30)
 #define GPTCR_FO1			(1 << 29)
@@ -146,4 +149,4 @@
 #define IIM_PROD_REV_SH		3
 #define IIM_PROD_REV_LEN	5
 
-#endif				/*  __ASM_ARCH_MXC_H__ */
+#endif /*  __ASM_ARCH_MXC_H__ */

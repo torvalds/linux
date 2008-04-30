@@ -98,7 +98,8 @@ dccp_mt(const struct sk_buff *skb, const struct net_device *in,
         const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct xt_dccp_info *info = matchinfo;
-	struct dccp_hdr _dh, *dh;
+	const struct dccp_hdr *dh;
+	struct dccp_hdr _dh;
 
 	if (offset)
 		return false;

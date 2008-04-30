@@ -85,39 +85,38 @@ extern struct timezone sys_tz;
 #define SECS_PER_HOUR	(60 * 60)
 #define SECS_PER_DAY	(SECS_PER_HOUR * 24)
 
-time_t *udf_stamp_to_time(time_t *dest, long *dest_usec, kernel_timestamp src)
+struct timespec *udf_disk_stamp_to_time(struct timespec *dest, timestamp src)
 {
 	int yday;
-	uint8_t type = src.typeAndTimezone >> 12;
+	u16 typeAndTimezone = le16_to_cpu(src.typeAndTimezone);
+	u16 year = le16_to_cpu(src.year);
+	uint8_t type = typeAndTimezone >> 12;
 	int16_t offset;
 
 	if (type == 1) {
-		offset = src.typeAndTimezone << 4;
+		offset = typeAndTimezone << 4;
 		/* sign extent offset */
 		offset = (offset >> 4);
 		if (offset == -2047) /* unspecified offset */
 			offset = 0;
-	} else {
+	} else
 		offset = 0;
-	}
 
-	if ((src.year < EPOCH_YEAR) ||
-	    (src.year >= EPOCH_YEAR + MAX_YEAR_SECONDS)) {
-		*dest = -1;
-		*dest_usec = -1;
+	if ((year < EPOCH_YEAR) ||
+	    (year >= EPOCH_YEAR + MAX_YEAR_SECONDS)) {
 		return NULL;
 	}
-	*dest = year_seconds[src.year - EPOCH_YEAR];
-	*dest -= offset * 60;
+	dest->tv_sec = year_seconds[year - EPOCH_YEAR];
+	dest->tv_sec -= offset * 60;
 
-	yday = ((__mon_yday[__isleap(src.year)][src.month - 1]) + src.day - 1);
-	*dest += (((yday * 24) + src.hour) * 60 + src.minute) * 60 + src.second;
-	*dest_usec = src.centiseconds * 10000 +
-			src.hundredsOfMicroseconds * 100 + src.microseconds;
+	yday = ((__mon_yday[__isleap(year)][src.month - 1]) + src.day - 1);
+	dest->tv_sec += (((yday * 24) + src.hour) * 60 + src.minute) * 60 + src.second;
+	dest->tv_nsec = 1000 * (src.centiseconds * 10000 +
+			src.hundredsOfMicroseconds * 100 + src.microseconds);
 	return dest;
 }
 
-kernel_timestamp *udf_time_to_stamp(kernel_timestamp *dest, struct timespec ts)
+timestamp *udf_time_to_disk_stamp(timestamp *dest, struct timespec ts)
 {
 	long int days, rem, y;
 	const unsigned short int *ip;
@@ -128,7 +127,7 @@ kernel_timestamp *udf_time_to_stamp(kernel_timestamp *dest, struct timespec ts)
 	if (!dest)
 		return NULL;
 
-	dest->typeAndTimezone = 0x1000 | (offset & 0x0FFF);
+	dest->typeAndTimezone = cpu_to_le16(0x1000 | (offset & 0x0FFF));
 
 	ts.tv_sec += offset * 60;
 	days = ts.tv_sec / SECS_PER_DAY;
@@ -151,7 +150,7 @@ kernel_timestamp *udf_time_to_stamp(kernel_timestamp *dest, struct timespec ts)
 			 - LEAPS_THRU_END_OF(y - 1));
 		y = yg;
 	}
-	dest->year = y;
+	dest->year = cpu_to_le16(y);
 	ip = __mon_yday[__isleap(y)];
 	for (y = 11; days < (long int)ip[y]; --y)
 		continue;

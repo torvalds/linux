@@ -27,8 +27,6 @@ extern asmlinkage unsigned long sys64_mremap(unsigned long addr,
 					     unsigned long new_addr);
 extern asmlinkage unsigned long c_sys_nis_syscall(struct pt_regs *regs);
 extern asmlinkage long sys_getdomainname(char __user *name, int len);
-extern asmlinkage long solaris_syscall(struct pt_regs *regs);
-extern asmlinkage long sunos_syscall(struct pt_regs *regs);
 extern asmlinkage long sys_utrap_install(utrap_entry_t type,
 					 utrap_handler_t new_p,
 					 utrap_handler_t new_d,

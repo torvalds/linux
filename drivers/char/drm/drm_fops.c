@@ -129,16 +129,15 @@ static int drm_setup(struct drm_device * dev)
 int drm_open(struct inode *inode, struct file *filp)
 {
 	struct drm_device *dev = NULL;
-	int minor = iminor(inode);
+	int minor_id = iminor(inode);
+	struct drm_minor *minor;
 	int retcode = 0;
 
-	if (!((minor >= 0) && (minor < drm_cards_limit)))
+	minor = idr_find(&drm_minors_idr, minor_id);
+	if (!minor)
 		return -ENODEV;
 
-	if (!drm_heads[minor])
-		return -ENODEV;
-
-	if (!(dev = drm_heads[minor]->dev))
+	if (!(dev = minor->dev))
 		return -ENODEV;
 
 	retcode = drm_open_helper(inode, filp, dev);
@@ -168,19 +167,18 @@ EXPORT_SYMBOL(drm_open);
 int drm_stub_open(struct inode *inode, struct file *filp)
 {
 	struct drm_device *dev = NULL;
-	int minor = iminor(inode);
+	struct drm_minor *minor;
+	int minor_id = iminor(inode);
 	int err = -ENODEV;
 	const struct file_operations *old_fops;
 
 	DRM_DEBUG("\n");
 
-	if (!((minor >= 0) && (minor < drm_cards_limit)))
+	minor = idr_find(&drm_minors_idr, minor_id);
+	if (!minor)
 		return -ENODEV;
 
-	if (!drm_heads[minor])
-		return -ENODEV;
-
-	if (!(dev = drm_heads[minor]->dev))
+	if (!(dev = minor->dev))
 		return -ENODEV;
 
 	old_fops = filp->f_op;
@@ -225,7 +223,7 @@ static int drm_cpu_valid(void)
 static int drm_open_helper(struct inode *inode, struct file *filp,
 			   struct drm_device * dev)
 {
-	int minor = iminor(inode);
+	int minor_id = iminor(inode);
 	struct drm_file *priv;
 	int ret;
 
@@ -234,7 +232,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	if (!drm_cpu_valid())
 		return -EINVAL;
 
-	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor);
+	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor_id);
 
 	priv = drm_alloc(sizeof(*priv), DRM_MEM_FILES);
 	if (!priv)
@@ -245,8 +243,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	priv->filp = filp;
 	priv->uid = current->euid;
 	priv->pid = task_pid_nr(current);
-	priv->minor = minor;
-	priv->head = drm_heads[minor];
+	priv->minor = idr_find(&drm_minors_idr, minor_id);
 	priv->ioctl_count = 0;
 	/* for compatibility root is always authenticated */
 	priv->authenticated = capable(CAP_SYS_ADMIN);
@@ -297,11 +294,11 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 int drm_fasync(int fd, struct file *filp, int on)
 {
 	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = priv->minor->dev;
 	int retcode;
 
 	DRM_DEBUG("fd = %d, device = 0x%lx\n", fd,
-		  (long)old_encode_dev(priv->head->device));
+		  (long)old_encode_dev(priv->minor->device));
 	retcode = fasync_helper(fd, filp, on, &dev->buf_async);
 	if (retcode < 0)
 		return retcode;
@@ -324,7 +321,7 @@ EXPORT_SYMBOL(drm_fasync);
 int drm_release(struct inode *inode, struct file *filp)
 {
 	struct drm_file *file_priv = filp->private_data;
-	struct drm_device *dev = file_priv->head->dev;
+	struct drm_device *dev = file_priv->minor->dev;
 	int retcode = 0;
 	unsigned long irqflags;
 
@@ -341,14 +338,14 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	DRM_DEBUG("pid = %d, device = 0x%lx, open_count = %d\n",
 		  task_pid_nr(current),
-		  (long)old_encode_dev(file_priv->head->device),
+		  (long)old_encode_dev(file_priv->minor->device),
 		  dev->open_count);
 
 	if (dev->driver->reclaim_buffers_locked && dev->lock.hw_lock) {
 		if (drm_i_have_hw_lock(dev, file_priv)) {
 			dev->driver->reclaim_buffers_locked(dev, file_priv);
 		} else {
-			unsigned long _end=jiffies + 3*DRM_HZ;
+			unsigned long endtime = jiffies + 3 * DRM_HZ;
 			int locked = 0;
 
 			drm_idlelock_take(&dev->lock);
@@ -366,7 +363,7 @@ int drm_release(struct inode *inode, struct file *filp)
 				if (locked)
 					break;
 				schedule();
-			} while (!time_after_eq(jiffies, _end));
+			} while (!time_after_eq(jiffies, endtime));
 
 			if (!locked) {
 				DRM_ERROR("reclaim_buffers_locked() deadlock. Please rework this\n"

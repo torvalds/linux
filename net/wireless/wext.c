@@ -1157,7 +1157,7 @@ static void rtmsg_iwinfo(struct net_device *dev, char *event, int event_len)
 	struct sk_buff *skb;
 	int err;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return;
 
 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);

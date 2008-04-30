@@ -75,7 +75,6 @@ static const struct hc_driver ohci_sm501_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,
@@ -199,7 +198,8 @@ static int ohci_hcd_sm501_drv_remove(struct platform_device *pdev)
 	usb_put_hcd(hcd);
 	dma_release_declared_memory(&pdev->dev);
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	release_mem_region(mem->start, mem->end - mem->start + 1);
+	if (mem)
+		release_mem_region(mem->start, mem->end - mem->start + 1);
 
 	/* mask interrupts and disable power */
 
@@ -224,24 +224,26 @@ static int ohci_sm501_suspend(struct platform_device *pdev, pm_message_t msg)
 
 	sm501_unit_power(dev->parent, SM501_GATE_USB_HOST, 0);
 	ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
-	dev->power.power_state = PMSG_SUSPEND;
 	return 0;
 }
 
 static int ohci_sm501_resume(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct ohci_hcd	*ohci = hcd_to_ohci(platform_get_drvdata(pdev));
+	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
+	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
 	ohci->next_statechange = jiffies;
 
 	sm501_unit_power(dev->parent, SM501_GATE_USB_HOST, 1);
-	dev->power.power_state = PMSG_ON;
-	usb_hcd_resume_root_hub(platform_get_drvdata(pdev));
+	ohci_finish_controller_resume(hcd);
 	return 0;
 }
+#else
+#define ohci_sm501_suspend NULL
+#define ohci_sm501_resume NULL
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -253,10 +255,8 @@ static struct platform_driver ohci_hcd_sm501_driver = {
 	.probe		= ohci_hcd_sm501_drv_probe,
 	.remove		= ohci_hcd_sm501_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
-#ifdef	CONFIG_PM
 	.suspend	= ohci_sm501_suspend,
 	.resume		= ohci_sm501_resume,
-#endif
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "sm501-usb",

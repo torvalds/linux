@@ -179,6 +179,9 @@ int __init a2091_detect(struct scsi_host_template *tpnt)
 	DMA(instance)->DAWR = DAWR_A2091;
 	regs.SASR = &(DMA(instance)->SASR);
 	regs.SCMD = &(DMA(instance)->SCMD);
+	HDATA(instance)->no_sync = 0xff;
+	HDATA(instance)->fast = 0;
+	HDATA(instance)->dma_mode = CTRL_DMA;
 	wd33c93_init(instance, regs, dma_setup, dma_stop, WD33C93_FS_8_10);
 	request_irq(IRQ_AMIGA_PORTS, a2091_intr, IRQF_SHARED, "A2091 SCSI",
 		    instance);

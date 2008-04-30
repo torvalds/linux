@@ -1107,13 +1107,13 @@ scan:
 
 	switch (state) {
 	default:
-		DBG (dev, "fail %s, state %d\n", __FUNCTION__, state);
+		DBG (dev, "fail %s, state %d\n", __func__, state);
 		retval = -ESRCH;
 		break;
 	case STATE_DEV_UNCONNECTED:
 	case STATE_DEV_CONNECTED:
 		spin_unlock_irq (&dev->lock);
-		DBG (dev, "%s wait\n", __FUNCTION__);
+		DBG (dev, "%s wait\n", __func__);
 
 		/* wait for events */
 		retval = wait_event_interruptible (dev->wait,
@@ -1222,7 +1222,7 @@ ep0_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 			DBG(dev, "bogus ep0out stall!\n");
 		}
 	} else
-		DBG (dev, "fail %s, state %d\n", __FUNCTION__, dev->state);
+		DBG (dev, "fail %s, state %d\n", __func__, dev->state);
 
 	spin_unlock_irq (&dev->lock);
 	return retval;
@@ -1233,7 +1233,7 @@ ep0_fasync (int f, struct file *fd, int on)
 {
 	struct dev_data		*dev = fd->private_data;
 	// caller must F_SETOWN before signal delivery happens
-	VDEBUG (dev, "%s %s\n", __FUNCTION__, on ? "on" : "off");
+	VDEBUG (dev, "%s %s\n", __func__, on ? "on" : "off");
 	return fasync_helper (f, fd, on, &dev->fasync);
 }
 
@@ -1575,7 +1575,7 @@ static void destroy_ep_files (struct dev_data *dev)
 {
 	struct list_head	*entry, *tmp;
 
-	DBG (dev, "%s %d\n", __FUNCTION__, dev->state);
+	DBG (dev, "%s %d\n", __func__, dev->state);
 
 	/* dev->state must prevent interference */
 restart:
@@ -1662,7 +1662,7 @@ enomem1:
 	put_dev (dev);
 	kfree (data);
 enomem0:
-	DBG (dev, "%s enomem\n", __FUNCTION__);
+	DBG (dev, "%s enomem\n", __func__);
 	destroy_ep_files (dev);
 	return -ENOMEM;
 }
@@ -1672,7 +1672,7 @@ gadgetfs_unbind (struct usb_gadget *gadget)
 {
 	struct dev_data		*dev = get_gadget_data (gadget);
 
-	DBG (dev, "%s\n", __FUNCTION__);
+	DBG (dev, "%s\n", __func__);
 
 	spin_lock_irq (&dev->lock);
 	dev->state = STATE_DEV_UNBOUND;
@@ -1685,7 +1685,7 @@ gadgetfs_unbind (struct usb_gadget *gadget)
 	/* we've already been disconnected ... no i/o is active */
 	if (dev->req)
 		usb_ep_free_request (gadget->ep0, dev->req);
-	DBG (dev, "%s done\n", __FUNCTION__);
+	DBG (dev, "%s done\n", __func__);
 	put_dev (dev);
 }
 
@@ -1933,7 +1933,7 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 
 fail:
 	spin_unlock_irq (&dev->lock);
-	pr_debug ("%s: %s fail %Zd, %p\n", shortname, __FUNCTION__, value, dev);
+	pr_debug ("%s: %s fail %Zd, %p\n", shortname, __func__, value, dev);
 	kfree (dev->buf);
 	dev->buf = NULL;
 	return value;

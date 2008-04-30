@@ -32,4 +32,21 @@ int gfs2_quota_init(struct gfs2_sbd *sdp);
 void gfs2_quota_scan(struct gfs2_sbd *sdp);
 void gfs2_quota_cleanup(struct gfs2_sbd *sdp);
 
+static inline int gfs2_quota_lock_check(struct gfs2_inode *ip)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	int ret;
+	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
+		return 0;
+	ret = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+	if (ret)
+		return ret;
+	if (sdp->sd_args.ar_quota != GFS2_QUOTA_ON)
+		return 0;
+	ret = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
+	if (ret)
+		gfs2_quota_unlock(ip);
+	return ret;
+}
+
 #endif /* __QUOTA_DOT_H__ */

@@ -241,9 +241,25 @@ config NF_NAT_SNMP_BASIC
 #           <expr> '&&' <expr>                   (6)
 #
 # (6) Returns the result of min(/expr/, /expr/).
+config NF_NAT_PROTO_DCCP
+	tristate
+	depends on NF_NAT && NF_CT_PROTO_DCCP
+	default NF_NAT && NF_CT_PROTO_DCCP
+
 config NF_NAT_PROTO_GRE
 	tristate
 	depends on NF_NAT && NF_CT_PROTO_GRE
+
+config NF_NAT_PROTO_UDPLITE
+	tristate
+	depends on NF_NAT && NF_CT_PROTO_UDPLITE
+	default NF_NAT && NF_CT_PROTO_UDPLITE
+
+config NF_NAT_PROTO_SCTP
+	tristate
+	default NF_NAT && NF_CT_PROTO_SCTP
+	depends on NF_NAT && NF_CT_PROTO_SCTP
+	select LIBCRC32C
 
 config NF_NAT_FTP
 	tristate

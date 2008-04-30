@@ -239,6 +239,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 	mcp->chip.base = pdata->base;
 	mcp->chip.ngpio = 8;
 	mcp->chip.can_sleep = 1;
+	mcp->chip.owner = THIS_MODULE;
 
 	spi_set_drvdata(spi, mcp);
 

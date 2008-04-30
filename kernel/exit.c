@@ -507,10 +507,9 @@ void put_files_struct(struct files_struct *files)
 	}
 }
 
-EXPORT_SYMBOL(put_files_struct);
-
-void reset_files_struct(struct task_struct *tsk, struct files_struct *files)
+void reset_files_struct(struct files_struct *files)
 {
+	struct task_struct *tsk = current;
 	struct files_struct *old;
 
 	old = tsk->files;
@@ -519,9 +518,8 @@ void reset_files_struct(struct task_struct *tsk, struct files_struct *files)
 	task_unlock(tsk);
 	put_files_struct(old);
 }
-EXPORT_SYMBOL(reset_files_struct);
 
-static void __exit_files(struct task_struct *tsk)
+void exit_files(struct task_struct *tsk)
 {
 	struct files_struct * files = tsk->files;
 
@@ -533,12 +531,7 @@ static void __exit_files(struct task_struct *tsk)
 	}
 }
 
-void exit_files(struct task_struct *tsk)
-{
-	__exit_files(tsk);
-}
-
-static void __put_fs_struct(struct fs_struct *fs)
+void put_fs_struct(struct fs_struct *fs)
 {
 	/* No need to hold fs->lock if we are killing it */
 	if (atomic_dec_and_test(&fs->count)) {
@@ -550,12 +543,7 @@ static void __put_fs_struct(struct fs_struct *fs)
 	}
 }
 
-void put_fs_struct(struct fs_struct *fs)
-{
-	__put_fs_struct(fs);
-}
-
-static void __exit_fs(struct task_struct *tsk)
+void exit_fs(struct task_struct *tsk)
 {
 	struct fs_struct * fs = tsk->fs;
 
@@ -563,13 +551,8 @@ static void __exit_fs(struct task_struct *tsk)
 		task_lock(tsk);
 		tsk->fs = NULL;
 		task_unlock(tsk);
-		__put_fs_struct(fs);
+		put_fs_struct(fs);
 	}
-}
-
-void exit_fs(struct task_struct *tsk)
-{
-	__exit_fs(tsk);
 }
 
 EXPORT_SYMBOL_GPL(exit_fs);
@@ -967,8 +950,8 @@ NORET_TYPE void do_exit(long code)
 	if (group_dead)
 		acct_process();
 	exit_sem(tsk);
-	__exit_files(tsk);
-	__exit_fs(tsk);
+	exit_files(tsk);
+	exit_fs(tsk);
 	check_stack_usage();
 	exit_thread();
 	cgroup_exit(tsk, 1);
@@ -984,7 +967,7 @@ NORET_TYPE void do_exit(long code)
 	proc_exit_connector(tsk);
 	exit_notify(tsk, group_dead);
 #ifdef CONFIG_NUMA
-	mpol_free(tsk->mempolicy);
+	mpol_put(tsk->mempolicy);
 	tsk->mempolicy = NULL;
 #endif
 #ifdef CONFIG_FUTEX

@@ -1347,7 +1347,7 @@ isdn_tty_tiocmget(struct tty_struct *tty, struct file *file)
 	modem_info *info = (modem_info *) tty->driver_data;
 	u_char control, status;
 
-	if (isdn_tty_paranoia_check(info, tty->name, __FUNCTION__))
+	if (isdn_tty_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
 	if (tty->flags & (1 << TTY_IO_ERROR))
 		return -EIO;
@@ -1372,7 +1372,7 @@ isdn_tty_tiocmset(struct tty_struct *tty, struct file *file,
 {
 	modem_info *info = (modem_info *) tty->driver_data;
 
-	if (isdn_tty_paranoia_check(info, tty->name, __FUNCTION__))
+	if (isdn_tty_paranoia_check(info, tty->name, __func__))
 		return -ENODEV;
 	if (tty->flags & (1 << TTY_IO_ERROR))
 		return -EIO;
@@ -1608,7 +1608,7 @@ isdn_tty_open(struct tty_struct *tty, struct file *filp)
 	if (isdn_tty_paranoia_check(info, tty->name, "isdn_tty_open"))
 		return -ENODEV;
 	if (!try_module_get(info->owner)) {
-		printk(KERN_WARNING "%s: cannot reserve module\n", __FUNCTION__);
+		printk(KERN_WARNING "%s: cannot reserve module\n", __func__);
 		return -ENODEV;
 	}
 #ifdef ISDN_DEBUG_MODEM_OPEN

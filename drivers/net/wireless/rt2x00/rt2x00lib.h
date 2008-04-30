@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2007 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -34,6 +34,40 @@
 #define RFKILL_POLL_INTERVAL	( 1000 )
 
 /*
+ * rt2x00_rate: Per rate device information
+ */
+struct rt2x00_rate {
+	unsigned short flags;
+#define DEV_RATE_CCK			0x0001
+#define DEV_RATE_OFDM			0x0002
+#define DEV_RATE_SHORT_PREAMBLE		0x0004
+#define DEV_RATE_BASIC			0x0008
+
+	unsigned short bitrate; /* In 100kbit/s */
+	unsigned short ratemask;
+
+	unsigned short plcp;
+};
+
+extern const struct rt2x00_rate rt2x00_supported_rates[12];
+
+static inline u16 rt2x00_create_rate_hw_value(const u16 index,
+					      const u16 short_preamble)
+{
+	return (short_preamble << 8) | (index & 0xff);
+}
+
+static inline const struct rt2x00_rate *rt2x00_get_rate(const u16 hw_value)
+{
+	return &rt2x00_supported_rates[hw_value & 0xff];
+}
+
+static inline int rt2x00_get_rate_preamble(const u16 hw_value)
+{
+	return (hw_value & 0xff00);
+}
+
+/*
  * Radio control handlers.
  */
 int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev);
@@ -50,13 +84,27 @@ void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev);
 /*
  * Configuration handlers.
  */
-void rt2x00lib_config_mac_addr(struct rt2x00_dev *rt2x00dev, u8 *mac);
-void rt2x00lib_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid);
-void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, const int type);
+void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
+			   struct rt2x00_intf *intf,
+			   enum ieee80211_if_types type,
+			   u8 *mac, u8 *bssid);
+void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
+			  struct rt2x00_intf *intf,
+			  struct ieee80211_bss_conf *conf);
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 			      enum antenna rx, enum antenna tx);
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf, const int force_config);
+
+/*
+ * Queue handlers.
+ */
+void rt2x00queue_init_rx(struct rt2x00_dev *rt2x00dev);
+void rt2x00queue_init_tx(struct rt2x00_dev *rt2x00dev);
+int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev);
+void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev);
+int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev);
+void rt2x00queue_free(struct rt2x00_dev *rt2x00dev);
 
 /*
  * Firmware handlers.
@@ -131,5 +179,49 @@ static inline void rt2x00rfkill_resume(struct rt2x00_dev *rt2x00dev)
 {
 }
 #endif /* CONFIG_RT2X00_LIB_RFKILL */
+
+/*
+ * LED handlers
+ */
+#ifdef CONFIG_RT2X00_LIB_LEDS
+void rt2x00leds_led_quality(struct rt2x00_dev *rt2x00dev, int rssi);
+void rt2x00leds_led_assoc(struct rt2x00_dev *rt2x00dev, bool enabled);
+void rt2x00leds_led_radio(struct rt2x00_dev *rt2x00dev, bool enabled);
+void rt2x00leds_register(struct rt2x00_dev *rt2x00dev);
+void rt2x00leds_unregister(struct rt2x00_dev *rt2x00dev);
+void rt2x00leds_suspend(struct rt2x00_dev *rt2x00dev);
+void rt2x00leds_resume(struct rt2x00_dev *rt2x00dev);
+#else
+static inline void rt2x00leds_led_quality(struct rt2x00_dev *rt2x00dev,
+					  int rssi)
+{
+}
+
+static inline void rt2x00leds_led_assoc(struct rt2x00_dev *rt2x00dev,
+					bool enabled)
+{
+}
+
+static inline void rt2x00leds_led_radio(struct rt2x00_dev *rt2x00dev,
+					bool enabled)
+{
+}
+
+static inline void rt2x00leds_register(struct rt2x00_dev *rt2x00dev)
+{
+}
+
+static inline void rt2x00leds_unregister(struct rt2x00_dev *rt2x00dev)
+{
+}
+
+static inline void rt2x00leds_suspend(struct rt2x00_dev *rt2x00dev)
+{
+}
+
+static inline void rt2x00leds_resume(struct rt2x00_dev *rt2x00dev)
+{
+}
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 #endif /* RT2X00LIB_H */

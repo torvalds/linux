@@ -209,8 +209,8 @@ static void aircable_send(struct usb_serial_port *port)
 	int count, result;
 	struct aircable_private *priv = usb_get_serial_port_data(port);
 	unsigned char* buf;
-	u16 *dbuf;
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	__le16 *dbuf;
+	dbg("%s - port %d", __func__, port->number);
 	if (port->write_urb_busy)
 		return;
 
@@ -220,14 +220,14 @@ static void aircable_send(struct usb_serial_port *port)
 
 	buf = kzalloc(count + HCI_HEADER_LENGTH, GFP_ATOMIC);
 	if (!buf) {
-		err("%s- kzalloc(%d) failed.", __FUNCTION__,
+		err("%s- kzalloc(%d) failed.", __func__,
 		    count + HCI_HEADER_LENGTH);
 		return;
 	}
 
 	buf[0] = TX_HEADER_0;
 	buf[1] = TX_HEADER_1;
-	dbuf = (u16 *)&buf[2];
+	dbuf = (__le16 *)&buf[2];
 	*dbuf = cpu_to_le16((u16)count);
 	serial_buf_get(priv->tx_buf,buf + HCI_HEADER_LENGTH, MAX_HCI_FRAMESIZE);
 
@@ -236,7 +236,7 @@ static void aircable_send(struct usb_serial_port *port)
 
 	kfree(buf);
 	port->write_urb_busy = 1;
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__,
+	usb_serial_debug_data(debug, &port->dev, __func__,
 			      count + HCI_HEADER_LENGTH,
 			      port->write_urb->transfer_buffer);
 	port->write_urb->transfer_buffer_length = count + HCI_HEADER_LENGTH;
@@ -246,7 +246,7 @@ static void aircable_send(struct usb_serial_port *port)
 	if (result) {
 		dev_err(&port->dev,
 			"%s - failed submitting write urb, error %d\n",
-			__FUNCTION__, result);
+			__func__, result);
 		port->write_urb_busy = 0;
 	}
 
@@ -275,7 +275,7 @@ static void aircable_read(struct work_struct *work)
 
 	if (!tty) {
 		schedule_work(&priv->rx_work);
-		err("%s - No tty available", __FUNCTION__);
+		err("%s - No tty available", __func__);
 		return ;
 	}
 
@@ -286,7 +286,7 @@ static void aircable_read(struct work_struct *work)
 
 	tty_prepare_flip_string(tty, &data, count);
 	if (!data){
-		err("%s- kzalloc(%d) failed.", __FUNCTION__, count);
+		err("%s- kzalloc(%d) failed.", __func__, count);
 		return;
 	}
 
@@ -332,7 +332,7 @@ static int aircable_attach (struct usb_serial *serial)
 
 	priv = kzalloc(sizeof(struct aircable_private), GFP_KERNEL);
 	if (!priv){
-		err("%s- kmalloc(%Zd) failed.", __FUNCTION__,
+		err("%s- kmalloc(%Zd) failed.", __func__,
 			sizeof(struct aircable_private));
 		return -ENOMEM;
 	}
@@ -366,7 +366,7 @@ static void aircable_shutdown(struct usb_serial *serial)
 	struct usb_serial_port *port = serial->port[0];
 	struct aircable_private *priv = usb_get_serial_port_data(port);
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	if (priv) {
 		serial_buf_free(priv->tx_buf);
@@ -388,12 +388,12 @@ static int aircable_write(struct usb_serial_port *port,
 	struct aircable_private *priv = usb_get_serial_port_data(port);
 	int temp;
 
-	dbg("%s - port %d, %d bytes", __FUNCTION__, port->number, count);
+	dbg("%s - port %d, %d bytes", __func__, port->number, count);
 
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, count, source);
+	usb_serial_debug_data(debug, &port->dev, __func__, count, source);
 
 	if (!count){
-		dbg("%s - write request of 0 bytes", __FUNCTION__);
+		dbg("%s - write request of 0 bytes", __func__);
 		return count;
 	}
 
@@ -414,7 +414,7 @@ static void aircable_write_bulk_callback(struct urb *urb)
 	int status = urb->status;
 	int result;
 
-	dbg("%s - urb status: %d", __FUNCTION__ , status);
+	dbg("%s - urb status: %d", __func__ , status);
 
 	/* This has been taken from cypress_m8.c cypress_write_int_callback */
 	switch (status) {
@@ -426,21 +426,21 @@ static void aircable_write_bulk_callback(struct urb *urb)
 		case -ESHUTDOWN:
 			/* this urb is terminated, clean up */
 			dbg("%s - urb shutting down with status: %d",
-			    __FUNCTION__, status);
+			    __func__, status);
 			port->write_urb_busy = 0;
 			return;
 		default:
 			/* error in the urb, so we have to resubmit it */
-			dbg("%s - Overflow in write", __FUNCTION__);
+			dbg("%s - Overflow in write", __func__);
 			dbg("%s - nonzero write bulk status received: %d",
-			    __FUNCTION__, status);
+			    __func__, status);
 			port->write_urb->transfer_buffer_length = 1;
 			port->write_urb->dev = port->serial->dev;
 			result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 			if (result)
 				dev_err(&urb->dev->dev,
 					"%s - failed resubmitting write urb, error %d\n",
-					__FUNCTION__, result);
+					__func__, result);
 			else
 				return;
 	}
@@ -460,17 +460,17 @@ static void aircable_read_bulk_callback(struct urb *urb)
 	unsigned char *temp;
 	int status = urb->status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (status) {
-		dbg("%s - urb status = %d", __FUNCTION__, status);
+		dbg("%s - urb status = %d", __func__, status);
 		if (!port->open_count) {
-			dbg("%s - port is closed, exiting.", __FUNCTION__);
+			dbg("%s - port is closed, exiting.", __func__);
 			return;
 		}
 		if (status == -EPROTO) {
 			dbg("%s - caught -EPROTO, resubmitting the urb",
-			    __FUNCTION__);
+			    __func__);
 			usb_fill_bulk_urb(port->read_urb, port->serial->dev,
 					  usb_rcvbulkpipe(port->serial->dev,
 					  		  port->bulk_in_endpointAddress),
@@ -482,14 +482,14 @@ static void aircable_read_bulk_callback(struct urb *urb)
 			if (result)
 				dev_err(&urb->dev->dev,
 					"%s - failed resubmitting read urb, error %d\n",
-					__FUNCTION__, result);
+					__func__, result);
 			return;
 		}
-		dbg("%s - unable to handle the error, exiting.", __FUNCTION__);
+		dbg("%s - unable to handle the error, exiting.", __func__);
 		return;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__,
+	usb_serial_debug_data(debug, &port->dev, __func__,
 				urb->actual_length,urb->transfer_buffer);
 
 	tty = port->tty;
@@ -538,7 +538,7 @@ static void aircable_read_bulk_callback(struct urb *urb)
 		if (result)
 			dev_err(&urb->dev->dev,
 				"%s - failed resubmitting read urb, error %d\n",
-				__FUNCTION__, result);
+				__func__, result);
 	}
 
 	return;
@@ -550,7 +550,7 @@ static void aircable_throttle(struct usb_serial_port *port)
 	struct aircable_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->rx_lock, flags);
 	priv->rx_flags |= THROTTLED;
@@ -564,7 +564,7 @@ static void aircable_unthrottle(struct usb_serial_port *port)
 	int actually_throttled;
 	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->rx_lock, flags);
 	actually_throttled = priv->rx_flags & ACTUALLY_THROTTLED;

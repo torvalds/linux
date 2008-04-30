@@ -394,7 +394,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			return tape_34xx_erp_failed(request, -ENOSPC);
 		default:
 			PRINT_ERR("Invalid op in %s:%i\n",
-				  __FUNCTION__, __LINE__);
+				  __func__, __LINE__);
 			return tape_34xx_erp_failed(request, 0);
 		}
 	}

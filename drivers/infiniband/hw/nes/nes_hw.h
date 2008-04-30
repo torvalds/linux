@@ -905,7 +905,7 @@ struct nes_hw_qp {
 };
 
 struct nes_hw_cq {
-	struct nes_hw_cqe volatile *cq_vbase;	/* PCI memory for host rings */
+	struct nes_hw_cqe *cq_vbase;	/* PCI memory for host rings */
 	void (*ce_handler)(struct nes_device *nesdev, struct nes_hw_cq *cq);
 	dma_addr_t cq_pbase;	/* PCI memory for host rings */
 	u16 cq_head;

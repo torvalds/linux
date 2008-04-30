@@ -36,6 +36,7 @@
 #include <linux/mroute.h>
 #include <net/route.h>
 #include <net/xfrm.h>
+#include <net/compat.h>
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #include <net/transp_v6.h>
 #endif
@@ -57,7 +58,7 @@
 static void ip_cmsg_recv_pktinfo(struct msghdr *msg, struct sk_buff *skb)
 {
 	struct in_pktinfo info;
-	struct rtable *rt = (struct rtable *)skb->dst;
+	struct rtable *rt = skb->rtable;
 
 	info.ipi_addr.s_addr = ip_hdr(skb)->daddr;
 	if (rt) {
@@ -163,7 +164,7 @@ void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb)
 		ip_cmsg_recv_security(msg, skb);
 }
 
-int ip_cmsg_send(struct msghdr *msg, struct ipcm_cookie *ipc)
+int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc)
 {
 	int err;
 	struct cmsghdr *cmsg;
@@ -176,7 +177,7 @@ int ip_cmsg_send(struct msghdr *msg, struct ipcm_cookie *ipc)
 		switch (cmsg->cmsg_type) {
 		case IP_RETOPTS:
 			err = cmsg->cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr));
-			err = ip_options_get(&ipc->opt, CMSG_DATA(cmsg), err < 40 ? err : 40);
+			err = ip_options_get(net, &ipc->opt, CMSG_DATA(cmsg), err < 40 ? err : 40);
 			if (err)
 				return err;
 			break;
@@ -449,7 +450,8 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		struct ip_options * opt = NULL;
 		if (optlen > 40 || optlen < 0)
 			goto e_inval;
-		err = ip_options_get_from_user(&opt, optval, optlen);
+		err = ip_options_get_from_user(sock_net(sk), &opt,
+					       optval, optlen);
 		if (err)
 			break;
 		if (inet->is_icsk) {
@@ -589,13 +591,13 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 				err = 0;
 				break;
 			}
-			dev = ip_dev_find(&init_net, mreq.imr_address.s_addr);
+			dev = ip_dev_find(sock_net(sk), mreq.imr_address.s_addr);
 			if (dev) {
 				mreq.imr_ifindex = dev->ifindex;
 				dev_put(dev);
 			}
 		} else
-			dev = __dev_get_by_index(&init_net, mreq.imr_ifindex);
+			dev = __dev_get_by_index(sock_net(sk), mreq.imr_ifindex);
 
 
 		err = -EADDRNOTAVAIL;
@@ -921,6 +923,10 @@ int compat_ip_setsockopt(struct sock *sk, int level, int optname,
 
 	if (level != SOL_IP)
 		return -ENOPROTOOPT;
+
+	if (optname >= MCAST_JOIN_GROUP && optname <= MCAST_MSFILTER)
+		return compat_mc_setsockopt(sk, level, optname, optval, optlen,
+			ip_setsockopt);
 
 	err = do_ip_setsockopt(sk, level, optname, optval, optlen);
 #ifdef CONFIG_NETFILTER

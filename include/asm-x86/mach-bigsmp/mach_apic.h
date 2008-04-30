@@ -1,10 +1,7 @@
 #ifndef __ASM_MACH_APIC_H
 #define __ASM_MACH_APIC_H
 
-
-extern u8 bios_cpu_apicid[];
-
-#define xapic_phys_to_log_apicid(cpu) (bios_cpu_apicid[cpu])
+#define xapic_phys_to_log_apicid(cpu) (per_cpu(x86_bios_cpu_apicid, cpu))
 #define esr_disable (1)
 
 static inline int apic_id_registered(void)
@@ -90,7 +87,7 @@ static inline int apicid_to_node(int logical_apicid)
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < NR_CPUS)
-		return (int) bios_cpu_apicid[mps_cpu];
+		return (int) per_cpu(x86_bios_cpu_apicid, mps_cpu);
 
 	return BAD_APICID;
 }
@@ -107,17 +104,6 @@ static inline int cpu_to_logical_apicid(int cpu)
 	if (cpu >= NR_CPUS)
 		return BAD_APICID;
 	return cpu_physical_id(cpu);
-}
-
-static inline int mpc_apic_id(struct mpc_config_processor *m,
-			      struct mpc_config_translation *translation_record)
-{
-	printk("Processor #%d %u:%u APIC version %d\n",
-	       m->mpc_apicid,
-	       (m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
-	       (m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
-	       m->mpc_apicver);
-	return m->mpc_apicid;
 }
 
 static inline physid_mask_t ioapic_phys_id_map(physid_mask_t phys_map)

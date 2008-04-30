@@ -30,7 +30,6 @@
 #define QD_ID3			((config & QD_CONFIG_ID3)!=0)
 
 #define QD_CONFIG(hwif)		((hwif)->config_data & 0x00ff)
-#define QD_CONTROL(hwif)	(((hwif)->config_data & 0xff00) >> 8)
 
 #define QD_TIMING(drive)	(byte)(((drive)->drive_data) & 0x00ff)
 #define QD_TIMREG(drive)	(byte)((((drive)->drive_data) & 0xff00) >> 8)

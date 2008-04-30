@@ -1889,6 +1889,13 @@ sub process {
 				WARN("kfree(NULL) is safe this check is probabally not required\n" . $hereprev);
 			}
 		}
+# check for needless usb_free_urb() checks
+		if ($prevline =~ /\bif\s*\(([^\)]*)\)/) {
+			my $expr = $1;
+			if ($line =~ /\busb_free_urb\(\Q$expr\E\);/) {
+				WARN("usb_free_urb(NULL) is safe this check is probabally not required\n" . $hereprev);
+			}
+		}
 
 # warn about #ifdefs in C files
 #		if ($line =~ /^.#\s*if(|n)def/ && ($realfile =~ /\.c$/)) {

@@ -111,17 +111,12 @@ void __init mpc8xx_calibrate_decr(void)
 
 	/* Processor frequency is MHz.
 	 */
-	ppc_tb_freq = 50000000;
-	if (!get_freq("bus-frequency", &ppc_tb_freq)) {
-		printk(KERN_ERR "WARNING: Estimating decrementer frequency "
-		                "(not found)\n");
-	}
-	ppc_tb_freq /= 16;
 	ppc_proc_freq = 50000000;
 	if (!get_freq("clock-frequency", &ppc_proc_freq))
 		printk(KERN_ERR "WARNING: Estimating processor frequency "
 		                "(not found)\n");
 
+	ppc_tb_freq = ppc_proc_freq / 16;
 	printk("Decrementer Frequency = 0x%lx\n", ppc_tb_freq);
 
 	/* Perform some more timer/timebase initialization.  This used

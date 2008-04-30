@@ -46,6 +46,7 @@ obj-$(CONFIG_MVME147_SCSI)	+= mvme147.o	wd33c93.o
 obj-$(CONFIG_SGIWD93_SCSI)	+= sgiwd93.o	wd33c93.o
 obj-$(CONFIG_ATARI_SCSI)	+= atari_scsi.o
 obj-$(CONFIG_MAC_SCSI)		+= mac_scsi.o
+obj-$(CONFIG_SCSI_MAC_ESP)	+= esp_scsi.o	mac_esp.o
 obj-$(CONFIG_SUN3_SCSI)		+= sun3_scsi.o  sun3_scsi_vme.o
 obj-$(CONFIG_MVME16x_SCSI)	+= 53c700.o	mvme16x_scsi.o
 obj-$(CONFIG_BVME6000_SCSI)	+= 53c700.o	bvme6000_scsi.o

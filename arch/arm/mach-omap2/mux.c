@@ -1,11 +1,12 @@
 /*
  * linux/arch/arm/mach-omap2/mux.c
  *
- * OMAP1 pin multiplexing configurations
+ * OMAP2 pin multiplexing configurations
  *
- * Copyright (C) 2003 - 2005 Nokia Corporation
+ * Copyright (C) 2004 - 2008 Texas Instruments Inc.
+ * Copyright (C) 2003 - 2008 Nokia Corporation
  *
- * Written by Tony Lindgren <tony.lindgren@nokia.com>
+ * Written by Tony Lindgren
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,13 +29,17 @@
 #include <asm/io.h>
 #include <linux/spinlock.h>
 
+#include <asm/arch/control.h>
 #include <asm/arch/mux.h>
 
 #ifdef CONFIG_OMAP_MUX
 
+static struct omap_mux_cfg arch_mux_cfg;
+
 /* NOTE: See mux.h for the enumeration */
 
-struct pin_config __initdata_or_module omap24xx_pins[] = {
+#ifdef CONFIG_ARCH_OMAP24XX
+static struct pin_config __initdata_or_module omap24xx_pins[] = {
 /*
  *	description			mux	mux	pull	pull	debug
  *					offset	mode	ena	type
@@ -77,7 +82,12 @@ MUX_CFG_24XX("AA12_242X_GPIO17",	0x0e9,	3,	0,	0,	1)
 MUX_CFG_24XX("AA8_242X_GPIO58",		0x0ea,	3,	0,	0,	1)
 MUX_CFG_24XX("Y20_24XX_GPIO60",		0x12c,	3,	0,	0,	1)
 MUX_CFG_24XX("W4__24XX_GPIO74",		0x0f2,	3,	0,	0,	1)
+MUX_CFG_24XX("N15_24XX_GPIO85",		0x103,	3,	0,	0,	1)
 MUX_CFG_24XX("M15_24XX_GPIO92",		0x10a,	3,	0,	0,	1)
+MUX_CFG_24XX("P20_24XX_GPIO93",		0x10b,	3,	0,	0,	1)
+MUX_CFG_24XX("P18_24XX_GPIO95",		0x10d,	3,	0,	0,	1)
+MUX_CFG_24XX("M18_24XX_GPIO96",		0x10e,	3,	0,	0,	1)
+MUX_CFG_24XX("L14_24XX_GPIO97",		0x10f,	3,	0,	0,	1)
 MUX_CFG_24XX("J15_24XX_GPIO99",		0x113,	3,	1,	1,	1)
 MUX_CFG_24XX("V14_24XX_GPIO117",	0x128,	3,	1,	0,	1)
 MUX_CFG_24XX("P14_24XX_GPIO125",	0x140,	3,	1,	1,	1)
@@ -101,9 +111,6 @@ MUX_CFG_24XX("E4_242X_DMAREQ2",		0x074,	2,	0,	0,	1)
 MUX_CFG_24XX("G4_242X_DMAREQ3",		0x073,	2,	0,	0,	1)
 MUX_CFG_24XX("D3_242X_DMAREQ4",		0x072,	2,	0,	0,	1)
 MUX_CFG_24XX("E3_242X_DMAREQ5",		0x071,	2,	0,	0,	1)
-
-/* TSC IRQ */
-MUX_CFG_24XX("P20_24XX_TSC_IRQ",	0x108,	0,	0,	0,	1)
 
 /* UART3 */
 MUX_CFG_24XX("K15_24XX_UART3_TX",	0x118,	0,	0,	0,	1)
@@ -167,12 +174,108 @@ MUX_CFG_24XX("B3__24XX_KBR5",		0x30,	3,	1,	1,	1)
 MUX_CFG_24XX("AA4_24XX_KBC2",		0xe7,	3,	0,	0,	1)
 MUX_CFG_24XX("B13_24XX_KBC6",		0x110,	3,	0,	0,	1)
 
+/* 2430 USB */
+MUX_CFG_24XX("AD9_2430_USB0_PUEN",	0x133,	4,	0,	0,	1)
+MUX_CFG_24XX("Y11_2430_USB0_VP",	0x134,	4,	0,	0,	1)
+MUX_CFG_24XX("AD7_2430_USB0_VM",	0x135,	4,	0,	0,	1)
+MUX_CFG_24XX("AE7_2430_USB0_RCV",	0x136,	4,	0,	0,	1)
+MUX_CFG_24XX("AD4_2430_USB0_TXEN",	0x137,	4,	0,	0,	1)
+MUX_CFG_24XX("AF9_2430_USB0_SE0",	0x138,	4,	0,	0,	1)
+MUX_CFG_24XX("AE6_2430_USB0_DAT",	0x139,	4,	0,	0,	1)
+MUX_CFG_24XX("AD24_2430_USB1_SE0",	0x107,	2,	0,	0,	1)
+MUX_CFG_24XX("AB24_2430_USB1_RCV",	0x108,	2,	0,	0,	1)
+MUX_CFG_24XX("Y25_2430_USB1_TXEN",	0x109,	2,	0,	0,	1)
+MUX_CFG_24XX("AA26_2430_USB1_DAT",	0x10A,	2,	0,	0,	1)
+
+/* 2430 HS-USB */
+MUX_CFG_24XX("AD9_2430_USB0HS_DATA3",	0x133,	0,	0,	0,	1)
+MUX_CFG_24XX("Y11_2430_USB0HS_DATA4",	0x134,	0,	0,	0,	1)
+MUX_CFG_24XX("AD7_2430_USB0HS_DATA5",	0x135,	0,	0,	0,	1)
+MUX_CFG_24XX("AE7_2430_USB0HS_DATA6",	0x136,	0,	0,	0,	1)
+MUX_CFG_24XX("AD4_2430_USB0HS_DATA2",	0x137,	0,	0,	0,	1)
+MUX_CFG_24XX("AF9_2430_USB0HS_DATA0",	0x138,	0,	0,	0,	1)
+MUX_CFG_24XX("AE6_2430_USB0HS_DATA1",	0x139,	0,	0,	0,	1)
+MUX_CFG_24XX("AE8_2430_USB0HS_CLK",	0x13A,	0,	0,	0,	1)
+MUX_CFG_24XX("AD8_2430_USB0HS_DIR",	0x13B,	0,	0,	0,	1)
+MUX_CFG_24XX("AE5_2430_USB0HS_STP",	0x13c,	0,	1,	1,	1)
+MUX_CFG_24XX("AE9_2430_USB0HS_NXT",	0x13D,	0,	0,	0,	1)
+MUX_CFG_24XX("AC7_2430_USB0HS_DATA7",	0x13E,	0,	0,	0,	1)
+
+/* 2430 McBSP */
+MUX_CFG_24XX("AC10_2430_MCBSP2_FSX",	0x012E,	1,	0,	0,	1)
+MUX_CFG_24XX("AD16_2430_MCBSP2_CLX",	0x012F,	1,	0,	0,	1)
+MUX_CFG_24XX("AE13_2430_MCBSP2_DX",	0x0130,	1,	0,	0,	1)
+MUX_CFG_24XX("AD13_2430_MCBSP2_DR",	0x0131,	1,	0,	0,	1)
+MUX_CFG_24XX("AC10_2430_MCBSP2_FSX_OFF",0x012E,	0,	0,	0,	1)
+MUX_CFG_24XX("AD16_2430_MCBSP2_CLX_OFF",0x012F,	0,	0,	0,	1)
+MUX_CFG_24XX("AE13_2430_MCBSP2_DX_OFF",	0x0130,	0,	0,	0,	1)
+MUX_CFG_24XX("AD13_2430_MCBSP2_DR_OFF",	0x0131,	0,	0,	0,	1)
 };
+
+#define OMAP24XX_PINS_SZ	ARRAY_SIZE(omap24xx_pins)
+
+#else
+#define omap24xx_pins		NULL
+#define OMAP24XX_PINS_SZ	0
+#endif	/* CONFIG_ARCH_OMAP24XX */
+
+#define OMAP24XX_PULL_ENA	(1 << 3)
+#define OMAP24XX_PULL_UP	(1 << 4)
+
+#if defined(CONFIG_OMAP_MUX_DEBUG) || defined(CONFIG_OMAP_MUX_WARNINGS)
+void __init_or_module omap2_cfg_debug(const struct pin_config *cfg, u8 reg)
+{
+	u16 orig;
+	u8 warn = 0, debug = 0;
+
+	orig = omap_ctrl_readb(cfg->mux_reg);
+
+#ifdef	CONFIG_OMAP_MUX_DEBUG
+	debug = cfg->debug;
+#endif
+	warn = (orig != reg);
+	if (debug || warn)
+		printk(KERN_WARNING
+			"MUX: setup %s (0x%08x): 0x%02x -> 0x%02x\n",
+			cfg->name, omap_ctrl_base_get() + cfg->mux_reg,
+			orig, reg);
+}
+#else
+#define omap2_cfg_debug(x, y)	do {} while (0)
+#endif
+
+#ifdef CONFIG_ARCH_OMAP24XX
+int __init_or_module omap24xx_cfg_reg(const struct pin_config *cfg)
+{
+	static DEFINE_SPINLOCK(mux_spin_lock);
+	unsigned long flags;
+	u8 reg = 0;
+
+	spin_lock_irqsave(&mux_spin_lock, flags);
+	reg |= cfg->mask & 0x7;
+	if (cfg->pull_val)
+		reg |= OMAP24XX_PULL_ENA;
+	if (cfg->pu_pd_val)
+		reg |= OMAP24XX_PULL_UP;
+	omap2_cfg_debug(cfg, reg);
+	omap_ctrl_writeb(reg, cfg->mux_reg);
+	spin_unlock_irqrestore(&mux_spin_lock, flags);
+
+	return 0;
+}
+#else
+#define omap24xx_cfg_reg	0
+#endif
 
 int __init omap2_mux_init(void)
 {
-	omap_mux_register(omap24xx_pins, ARRAY_SIZE(omap24xx_pins));
-	return 0;
+	if (cpu_is_omap24xx()) {
+		arch_mux_cfg.pins	= omap24xx_pins;
+		arch_mux_cfg.size	= OMAP24XX_PINS_SZ;
+		arch_mux_cfg.cfg_reg	= omap24xx_cfg_reg;
+	}
+
+	return omap_mux_register(&arch_mux_cfg);
 }
 
 #endif

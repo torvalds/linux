@@ -655,7 +655,7 @@ static struct kobj_attribute reipl_type_attr =
 
 static struct kset *reipl_kset;
 
-void reipl_run(struct shutdown_trigger *trigger)
+static void reipl_run(struct shutdown_trigger *trigger)
 {
 	struct ccw_dev_id devid;
 	static char buf[100];

@@ -17,9 +17,6 @@
 #include <linux/mtd/onenand.h>
 #include <linux/mtd/compatmac.h>
 
-extern int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
-				struct mtd_oob_ops *ops);
-
 /**
  * check_short_pattern - [GENERIC] check if a pattern is in the buffer
  * @param buf		the buffer to search

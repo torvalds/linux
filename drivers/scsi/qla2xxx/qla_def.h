@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2005 QLogic Corporation
+ * Copyright (c)  2003-2008 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -24,7 +24,8 @@
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
 #include <linux/aer.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
+#include <linux/semaphore.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -191,9 +192,6 @@ typedef struct srb {
 	struct scsi_cmnd *cmd;		/* Linux SCSI command pkt */
 
 	uint16_t flags;
-
-	/* Single transfer DMA context */
-	dma_addr_t dma_handle;
 
 	uint32_t request_sense_length;
 	uint8_t *request_sense_ptr;
@@ -1542,8 +1540,6 @@ typedef struct fc_port {
 	atomic_t state;
 	uint32_t flags;
 
-	unsigned int os_target_id;
-
 	int port_login_retry_count;
 	int login_retry;
 	atomic_t port_down_timer;
@@ -1613,6 +1609,7 @@ typedef struct fc_port {
 #define CT_ACCEPT_RESPONSE	0x8002
 #define CT_REASON_INVALID_COMMAND_CODE	0x01
 #define CT_REASON_CANNOT_PERFORM	0x09
+#define CT_REASON_COMMAND_UNSUPPORTED	0x0b
 #define CT_EXPL_ALREADY_REGISTERED	0x10
 
 #define NS_N_PORT_TYPE	0x01
@@ -2063,7 +2060,8 @@ struct isp_operations {
 	void (*disable_intrs) (struct scsi_qla_host *);
 
 	int (*abort_command) (struct scsi_qla_host *, srb_t *);
-	int (*abort_target) (struct fc_port *);
+	int (*target_reset) (struct fc_port *, unsigned int);
+	int (*lun_reset) (struct fc_port *, unsigned int);
 	int (*fabric_login) (struct scsi_qla_host *, uint16_t, uint8_t,
 		uint8_t, uint8_t, uint16_t *, uint8_t);
 	int (*fabric_logout) (struct scsi_qla_host *, uint16_t, uint8_t,
@@ -2117,6 +2115,46 @@ struct qla_msix_entry {
 
 #define	WATCH_INTERVAL		1       /* number of seconds */
 
+/* Work events.  */
+enum qla_work_type {
+	QLA_EVT_AEN,
+	QLA_EVT_HWE_LOG,
+};
+
+
+struct qla_work_evt {
+	struct list_head	list;
+	enum qla_work_type	type;
+	u32			flags;
+#define QLA_EVT_FLAG_FREE	0x1
+
+	union {
+		struct {
+			enum fc_host_event_code code;
+			u32 data;
+		} aen;
+		struct {
+			uint16_t code;
+			uint16_t d1, d2, d3;
+		} hwe;
+	} u;
+};
+
+struct qla_chip_state_84xx {
+	struct list_head list;
+	struct kref kref;
+
+	void *bus;
+	spinlock_t access_lock;
+	struct mutex fw_update_mutex;
+	uint32_t fw_update;
+	uint32_t op_fw_version;
+	uint32_t op_fw_size;
+	uint32_t op_fw_seq_size;
+	uint32_t diag_fw_version;
+	uint32_t gold_fw_version;
+};
+
 /*
  * Linux Host Adapter structure
  */
@@ -2155,6 +2193,7 @@ typedef struct scsi_qla_host {
 		uint32_t        vsan_enabled            :1;
 		uint32_t	npiv_supported		:1;
 		uint32_t	fce_enabled		:1;
+		uint32_t	hw_event_marker_found	:1;
 	} flags;
 
 	atomic_t	loop_state;
@@ -2204,6 +2243,7 @@ typedef struct scsi_qla_host {
 #define	DFLG_NO_CABLE			BIT_4
 
 #define PCI_DEVICE_ID_QLOGIC_ISP2532	0x2532
+#define PCI_DEVICE_ID_QLOGIC_ISP8432	0x8432
 	uint32_t	device_type;
 #define DT_ISP2100			BIT_0
 #define DT_ISP2200			BIT_1
@@ -2217,7 +2257,8 @@ typedef struct scsi_qla_host {
 #define DT_ISP5422			BIT_9
 #define DT_ISP5432			BIT_10
 #define DT_ISP2532			BIT_11
-#define DT_ISP_LAST			(DT_ISP2532 << 1)
+#define DT_ISP8432			BIT_12
+#define DT_ISP_LAST			(DT_ISP8432 << 1)
 
 #define DT_IIDMA			BIT_26
 #define DT_FWI2				BIT_27
@@ -2239,12 +2280,16 @@ typedef struct scsi_qla_host {
 #define IS_QLA5422(ha)	(DT_MASK(ha) & DT_ISP5422)
 #define IS_QLA5432(ha)	(DT_MASK(ha) & DT_ISP5432)
 #define IS_QLA2532(ha)	(DT_MASK(ha) & DT_ISP2532)
+#define IS_QLA8432(ha)	(DT_MASK(ha) & DT_ISP8432)
 
 #define IS_QLA23XX(ha)	(IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
     			 IS_QLA6312(ha) || IS_QLA6322(ha))
 #define IS_QLA24XX(ha)	(IS_QLA2422(ha) || IS_QLA2432(ha))
 #define IS_QLA54XX(ha)	(IS_QLA5422(ha) || IS_QLA5432(ha))
 #define IS_QLA25XX(ha)	(IS_QLA2532(ha))
+#define IS_QLA84XX(ha)	(IS_QLA8432(ha))
+#define IS_QLA24XX_TYPE(ha)	(IS_QLA24XX(ha) || IS_QLA54XX(ha) || \
+			IS_QLA84XX(ha))
 
 #define IS_IIDMA_CAPABLE(ha)	((ha)->device_type & DT_IIDMA)
 #define IS_FWI2_CAPABLE(ha)	((ha)->device_type & DT_FWI2)
@@ -2356,6 +2401,8 @@ typedef struct scsi_qla_host {
         uint32_t	login_retry_count;
 	int		max_q_depth;
 
+	struct list_head	work_list;
+
 	/* Fibre Channel Device List. */
 	struct list_head	fcports;
 
@@ -2423,8 +2470,6 @@ typedef struct scsi_qla_host {
 #define  MBX_TIMEDOUT		BIT_5
 #define  MBX_ACCESS_TIMEDOUT	BIT_6
 
-	mbx_cmd_t 	mc;
-
 	/* Basic firmware related information. */
 	uint16_t	fw_major_version;
 	uint16_t	fw_minor_version;
@@ -2457,6 +2502,10 @@ typedef struct scsi_qla_host {
 	uint16_t	fce_mb[8];
 	uint64_t	fce_wr, fce_rd;
 	struct mutex	fce_mutex;
+
+	uint32_t	hw_event_start;
+	uint32_t	hw_event_ptr;
+	uint32_t	hw_event_pause_errors;
 
 	uint8_t		host_str[16];
 	uint32_t	pci_attr;
@@ -2492,6 +2541,13 @@ typedef struct scsi_qla_host {
 	uint8_t		efi_revision[2];
 	uint8_t		fcode_revision[16];
 	uint32_t	fw_revision[4];
+
+	uint16_t	fdt_odd_index;
+	uint32_t	fdt_wrt_disable;
+	uint32_t	fdt_erase_cmd;
+	uint32_t	fdt_block_size;
+	uint32_t	fdt_unprotect_sec_cmd;
+	uint32_t	fdt_protect_sec_cmd;
 
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;
@@ -2538,6 +2594,8 @@ typedef struct scsi_qla_host {
 #define VP_ERR_ADAP_NORESOURCES	5
 	uint16_t	max_npiv_vports;	/* 63 or 125 per topoloty */
 	int		cur_vport_count;
+
+	struct qla_chip_state_84xx *cs84xx;
 } scsi_qla_host_t;
 
 

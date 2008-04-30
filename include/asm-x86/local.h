@@ -18,32 +18,28 @@ typedef struct {
 
 static inline void local_inc(local_t *l)
 {
-	__asm__ __volatile__(
-		_ASM_INC "%0"
-		:"+m" (l->a.counter));
+	asm volatile(_ASM_INC "%0"
+		     : "+m" (l->a.counter));
 }
 
 static inline void local_dec(local_t *l)
 {
-	__asm__ __volatile__(
-		_ASM_DEC "%0"
-		:"+m" (l->a.counter));
+	asm volatile(_ASM_DEC "%0"
+		     : "+m" (l->a.counter));
 }
 
 static inline void local_add(long i, local_t *l)
 {
-	__asm__ __volatile__(
-		_ASM_ADD "%1,%0"
-		:"+m" (l->a.counter)
-		:"ir" (i));
+	asm volatile(_ASM_ADD "%1,%0"
+		     : "+m" (l->a.counter)
+		     : "ir" (i));
 }
 
 static inline void local_sub(long i, local_t *l)
 {
-	__asm__ __volatile__(
-		_ASM_SUB "%1,%0"
-		:"+m" (l->a.counter)
-		:"ir" (i));
+	asm volatile(_ASM_SUB "%1,%0"
+		     : "+m" (l->a.counter)
+		     : "ir" (i));
 }
 
 /**
@@ -59,10 +55,9 @@ static inline int local_sub_and_test(long i, local_t *l)
 {
 	unsigned char c;
 
-	__asm__ __volatile__(
-		_ASM_SUB "%2,%0; sete %1"
-		:"+m" (l->a.counter), "=qm" (c)
-		:"ir" (i) : "memory");
+	asm volatile(_ASM_SUB "%2,%0; sete %1"
+		     : "+m" (l->a.counter), "=qm" (c)
+		     : "ir" (i) : "memory");
 	return c;
 }
 
@@ -78,10 +73,9 @@ static inline int local_dec_and_test(local_t *l)
 {
 	unsigned char c;
 
-	__asm__ __volatile__(
-		_ASM_DEC "%0; sete %1"
-		:"+m" (l->a.counter), "=qm" (c)
-		: : "memory");
+	asm volatile(_ASM_DEC "%0; sete %1"
+		     : "+m" (l->a.counter), "=qm" (c)
+		     : : "memory");
 	return c != 0;
 }
 
@@ -97,10 +91,9 @@ static inline int local_inc_and_test(local_t *l)
 {
 	unsigned char c;
 
-	__asm__ __volatile__(
-		_ASM_INC "%0; sete %1"
-		:"+m" (l->a.counter), "=qm" (c)
-		: : "memory");
+	asm volatile(_ASM_INC "%0; sete %1"
+		     : "+m" (l->a.counter), "=qm" (c)
+		     : : "memory");
 	return c != 0;
 }
 
@@ -117,10 +110,9 @@ static inline int local_add_negative(long i, local_t *l)
 {
 	unsigned char c;
 
-	__asm__ __volatile__(
-		_ASM_ADD "%2,%0; sets %1"
-		:"+m" (l->a.counter), "=qm" (c)
-		:"ir" (i) : "memory");
+	asm volatile(_ASM_ADD "%2,%0; sets %1"
+		     : "+m" (l->a.counter), "=qm" (c)
+		     : "ir" (i) : "memory");
 	return c;
 }
 
@@ -141,10 +133,9 @@ static inline long local_add_return(long i, local_t *l)
 #endif
 	/* Modern 486+ processor */
 	__i = i;
-	__asm__ __volatile__(
-		_ASM_XADD "%0, %1;"
-		:"+r" (i), "+m" (l->a.counter)
-		: : "memory");
+	asm volatile(_ASM_XADD "%0, %1;"
+		     : "+r" (i), "+m" (l->a.counter)
+		     : : "memory");
 	return i + __i;
 
 #ifdef CONFIG_M386
@@ -182,11 +173,11 @@ static inline long local_sub_return(long i, local_t *l)
 #define local_add_unless(l, a, u)				\
 ({								\
 	long c, old;						\
-	c = local_read(l);					\
+	c = local_read((l));					\
 	for (;;) {						\
 		if (unlikely(c == (u)))				\
 			break;					\
-		old = local_cmpxchg((l), c, c + (a));	\
+		old = local_cmpxchg((l), c, c + (a));		\
 		if (likely(old == c))				\
 			break;					\
 		c = old;					\
@@ -214,26 +205,30 @@ static inline long local_sub_return(long i, local_t *l)
 
 /* Need to disable preemption for the cpu local counters otherwise we could
    still access a variable of a previous CPU in a non atomic way. */
-#define cpu_local_wrap_v(l)	 	\
-	({ local_t res__;		\
-	   preempt_disable(); 		\
-	   res__ = (l);			\
-	   preempt_enable();		\
-	   res__; })
+#define cpu_local_wrap_v(l)		\
+({					\
+	local_t res__;			\
+	preempt_disable(); 		\
+	res__ = (l);			\
+	preempt_enable();		\
+	res__;				\
+})
 #define cpu_local_wrap(l)		\
-	({ preempt_disable();		\
-	   l;				\
-	   preempt_enable(); })		\
+({					\
+	preempt_disable();		\
+	(l);				\
+	preempt_enable();		\
+})					\
 
-#define cpu_local_read(l)    cpu_local_wrap_v(local_read(&__get_cpu_var(l)))
-#define cpu_local_set(l, i)  cpu_local_wrap(local_set(&__get_cpu_var(l), (i)))
-#define cpu_local_inc(l)     cpu_local_wrap(local_inc(&__get_cpu_var(l)))
-#define cpu_local_dec(l)     cpu_local_wrap(local_dec(&__get_cpu_var(l)))
-#define cpu_local_add(i, l)  cpu_local_wrap(local_add((i), &__get_cpu_var(l)))
-#define cpu_local_sub(i, l)  cpu_local_wrap(local_sub((i), &__get_cpu_var(l)))
+#define cpu_local_read(l)    cpu_local_wrap_v(local_read(&__get_cpu_var((l))))
+#define cpu_local_set(l, i)  cpu_local_wrap(local_set(&__get_cpu_var((l)), (i)))
+#define cpu_local_inc(l)     cpu_local_wrap(local_inc(&__get_cpu_var((l))))
+#define cpu_local_dec(l)     cpu_local_wrap(local_dec(&__get_cpu_var((l))))
+#define cpu_local_add(i, l)  cpu_local_wrap(local_add((i), &__get_cpu_var((l))))
+#define cpu_local_sub(i, l)  cpu_local_wrap(local_sub((i), &__get_cpu_var((l))))
 
-#define __cpu_local_inc(l)	cpu_local_inc(l)
-#define __cpu_local_dec(l)	cpu_local_dec(l)
+#define __cpu_local_inc(l)	cpu_local_inc((l))
+#define __cpu_local_dec(l)	cpu_local_dec((l))
 #define __cpu_local_add(i, l)	cpu_local_add((i), (l))
 #define __cpu_local_sub(i, l)	cpu_local_sub((i), (l))
 

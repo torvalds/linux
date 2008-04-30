@@ -115,9 +115,9 @@ static int jffs2_readpage (struct file *filp, struct page *pg)
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(pg->mapping->host);
 	int ret;
 
-	down(&f->sem);
+	mutex_lock(&f->sem);
 	ret = jffs2_do_readpage_unlock(pg->mapping->host, pg);
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 	return ret;
 }
 
@@ -154,7 +154,7 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 		if (ret)
 			goto out_page;
 
-		down(&f->sem);
+		mutex_lock(&f->sem);
 		memset(&ri, 0, sizeof(ri));
 
 		ri.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
@@ -181,7 +181,7 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 		if (IS_ERR(fn)) {
 			ret = PTR_ERR(fn);
 			jffs2_complete_reservation(c);
-			up(&f->sem);
+			mutex_unlock(&f->sem);
 			goto out_page;
 		}
 		ret = jffs2_add_full_dnode_to_inode(c, f, fn);
@@ -195,12 +195,12 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 			jffs2_mark_node_obsolete(c, fn->raw);
 			jffs2_free_full_dnode(fn);
 			jffs2_complete_reservation(c);
-			up(&f->sem);
+			mutex_unlock(&f->sem);
 			goto out_page;
 		}
 		jffs2_complete_reservation(c);
 		inode->i_size = pageofs;
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 	}
 
 	/*
@@ -209,9 +209,9 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 	 * case of a short-copy.
 	 */
 	if (!PageUptodate(pg)) {
-		down(&f->sem);
+		mutex_lock(&f->sem);
 		ret = jffs2_do_readpage_nolock(inode, pg);
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		if (ret)
 			goto out_page;
 	}

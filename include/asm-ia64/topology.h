@@ -93,7 +93,7 @@ void build_cpu_to_node_map(void);
 	.cache_nice_tries	= 2,			\
 	.busy_idx		= 3,			\
 	.idle_idx		= 2,			\
-	.newidle_idx		= 0, /* unused */	\
+	.newidle_idx		= 2,			\
 	.wake_idx		= 1,			\
 	.forkexec_idx		= 1,			\
 	.flags			= SD_LOAD_BALANCE	\
@@ -115,6 +115,11 @@ void build_cpu_to_node_map(void);
 #define topology_thread_siblings(cpu)		(per_cpu(cpu_sibling_map, cpu))
 #define smt_capable() 				(smp_num_siblings > 1)
 #endif
+
+#define pcibus_to_cpumask(bus)	(pcibus_to_node(bus) == -1 ? \
+					CPU_MASK_ALL : \
+					node_to_cpumask(pcibus_to_node(bus)) \
+				)
 
 #include <asm-generic/topology.h>
 

@@ -22,8 +22,6 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
-extern const char *CardType[];
-
 static const char *hfcpci_revision = "$Revision: 1.48.2.4 $";
 
 /* table entry in the PCI devices list */

@@ -27,12 +27,7 @@
  * 	others have a second one : GPIO2
  */
 
-#include <linux/init.h>
-#include <linux/io.h>
-#include <linux/types.h>
 #include <linux/module.h>
-
-#include <asm/addrspace.h>
 
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/gpio.h>

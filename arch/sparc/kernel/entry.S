@@ -1186,36 +1186,6 @@ srmmu_fault:
 
 	RESTORE_ALL
 
-#ifdef CONFIG_SUNOS_EMUL
-	/* SunOS uses syscall zero as the 'indirect syscall' it looks
-	 * like indir_syscall(scall_num, arg0, arg1, arg2...);  etc.
-	 * This is complete brain damage.
-	 */
-	.globl	sunos_indir
-sunos_indir:
-	mov	%o7, %l4
-	cmp	%o0, NR_SYSCALLS
-	blu,a	1f
-	 sll	%o0, 0x2, %o0
-
-	sethi	%hi(sunos_nosys), %l6
-	b	2f
-	 or	%l6, %lo(sunos_nosys), %l6
-
-1:
-	set	sunos_sys_table, %l7
-	ld	[%l7 + %o0], %l6
-
-2:	
-	mov	%o1, %o0
-	mov	%o2, %o1
-	mov	%o3, %o2
-	mov	%o4, %o3
-	mov	%o5, %o4
-	call	%l6
-	 mov	%l4, %o7
-#endif
-
 	.align	4
 	.globl	sys_nis_syscall
 sys_nis_syscall:
@@ -1231,6 +1201,16 @@ sys_execve:
 	add	%sp, STACKFRAME_SZ, %o0		! pt_regs *regs arg
 	call	sparc_execve
 	 mov	%l5, %o7
+
+	.globl	sunos_execv
+sunos_execv:
+	st	%g0, [%sp + STACKFRAME_SZ + PT_I2]
+
+	call	sparc_execve
+	 add	%sp, STACKFRAME_SZ, %o0
+
+	b	ret_sys_call
+	 ld	[%sp + STACKFRAME_SZ + PT_I0], %o0
 
 	.align	4
 	.globl	sys_pipe
@@ -1394,7 +1374,7 @@ ret_from_fork:
 	b	ret_sys_call
 	 ld	[%sp + STACKFRAME_SZ + PT_I0], %o0
 
-	/* Linux native and SunOS system calls enter here... */
+	/* Linux native system calls enter here... */
 	.align	4
 	.globl	linux_sparc_syscall
 linux_sparc_syscall:
@@ -1429,7 +1409,6 @@ syscall_is_too_hard:
 
 	st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
 
-	.globl	ret_sys_call
 ret_sys_call:
 	ld	[%curptr + TI_FLAGS], %l6
 	cmp	%o0, -ERESTART_RESTARTBLOCK
@@ -1471,170 +1450,6 @@ linux_syscall_trace2:
 	b	ret_trap_entry
 	 st	%l2, [%sp + STACKFRAME_SZ + PT_NPC]
 
-
-	/*
-	 * Solaris system calls and indirect system calls enter here.
-         *
-	 * I have named the solaris indirect syscalls like that because
-	 * it seems like Solaris has some fast path syscalls that can
-	 * be handled as indirect system calls. - mig
-	 */
-
-linux_syscall_for_solaris:
-	sethi	%hi(sys_call_table), %l7
-	b	linux_sparc_syscall
-	 or	%l7, %lo(sys_call_table), %l7
-	
-	.align	4
-	.globl	solaris_syscall
-solaris_syscall:
-	cmp	%g1,59
-	be	linux_syscall_for_solaris
-	 cmp	%g1,2
-	be	linux_syscall_for_solaris
-	 cmp    %g1,42
-	be      linux_syscall_for_solaris
-	 cmp	%g1,119
-	be,a	linux_syscall_for_solaris
-	 mov	2, %g1
-1:	
-	SAVE_ALL_HEAD
-	 rd	%wim, %l3
-
-	wr	%l0, PSR_ET, %psr
-	nop
-	nop
-	mov	%i0, %l5
-
-	call	do_solaris_syscall
-	 add	%sp, STACKFRAME_SZ, %o0
-
-	st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
-	set	PSR_C, %g2
-	cmp	%o0, -ERESTART_RESTARTBLOCK
-	bgeu	1f
-	 ld	[%sp + STACKFRAME_SZ + PT_PSR], %g3
-
-	/* System call success, clear Carry condition code. */		
-	andn	%g3, %g2, %g3
-	clr	%l6
-	b	2f
-	 st	%g3, [%sp + STACKFRAME_SZ + PT_PSR]	
-
-1:
-	/* System call failure, set Carry condition code.
-	 * Also, get abs(errno) to return to the process.
-	 */
-	sub	%g0, %o0, %o0
-	mov	1, %l6
-	st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
-	or	%g3, %g2, %g3
-	st	%g3, [%sp + STACKFRAME_SZ + PT_PSR]
-
-	/* Advance the pc and npc over the trap instruction.
-	 * If the npc is unaligned (has a 1 in the lower byte), it means
-	 * the kernel does not want us to play magic (ie, skipping over
-	 * traps).  Mainly when the Solaris code wants to set some PC and
-	 * nPC (setcontext).
-	 */
-2:
-	ld	[%sp + STACKFRAME_SZ + PT_NPC], %l1	/* pc  = npc   */
-	andcc	%l1, 1, %g0
-	bne	1f
-	 add	%l1, 0x4, %l2			/* npc = npc+4 */
-	st	%l1, [%sp + STACKFRAME_SZ + PT_PC]
-	b	ret_trap_entry
-	 st	%l2, [%sp + STACKFRAME_SZ + PT_NPC]
-
-	/* kernel knows what it is doing, fixup npc and continue */
-1:
-	sub	%l1, 1, %l1
- 	b	ret_trap_entry	
-	 st	%l1, [%sp + STACKFRAME_SZ + PT_NPC]
-
-#ifndef CONFIG_SUNOS_EMUL
-	.align	4
-	.globl	sunos_syscall
-sunos_syscall:
-	SAVE_ALL_HEAD
-	 rd	%wim, %l3
-	wr	%l0, PSR_ET, %psr
-	nop
-	nop
-	mov	%i0, %l5
-	call	do_sunos_syscall
-	 add	%sp, STACKFRAME_SZ, %o0
-#endif
-
-	/* {net, open}bsd system calls enter here... */
-	.align	4
-	.globl	bsd_syscall
-bsd_syscall:
-	/* Direct access to user regs, must faster. */
-	cmp	%g1, NR_SYSCALLS
-	blu,a	1f
-	 sll	%g1, 2, %l4
-
-	set	sys_ni_syscall, %l7
-	b	bsd_is_too_hard
-	 nop
-
-1:
-	ld	[%l7 + %l4], %l7
-
-	.globl	bsd_is_too_hard
-bsd_is_too_hard:
-	rd	%wim, %l3
-	SAVE_ALL
-
-	wr	%l0, PSR_ET, %psr
-	WRITE_PAUSE
-
-2:
-	mov	%i0, %o0
-	mov	%i1, %o1
-	mov	%i2, %o2
-	mov	%i0, %l5
-	mov	%i3, %o3
-	mov	%i4, %o4
-	call	%l7
-	 mov	%i5, %o5
-
-	st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
-	set	PSR_C, %g2
-	cmp	%o0, -ERESTART_RESTARTBLOCK
-	bgeu	1f
-	 ld	[%sp + STACKFRAME_SZ + PT_PSR], %g3
-
-	/* System call success, clear Carry condition code. */		
-	andn	%g3, %g2, %g3
-	clr	%l6
-	b	2f
-	 st	%g3, [%sp + STACKFRAME_SZ + PT_PSR]	
-
-1:
-	/* System call failure, set Carry condition code.
-	 * Also, get abs(errno) to return to the process.
-	 */
-	sub	%g0, %o0, %o0
-#if 0 /* XXX todo XXX */
-	sethi	%hi(bsd_xlatb_rorl), %o3
-	or	%o3, %lo(bsd_xlatb_rorl), %o3
-	sll	%o0, 2, %o0
-	ld	[%o3 + %o0], %o0
-#endif
-	mov	1, %l6
-	st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
-	or	%g3, %g2, %g3
-	st	%g3, [%sp + STACKFRAME_SZ + PT_PSR]
-
-	/* Advance the pc and npc over the trap instruction. */
-2:
-	ld	[%sp + STACKFRAME_SZ + PT_NPC], %l1	/* pc  = npc   */
-	add	%l1, 0x4, %l2			/* npc = npc+4 */
-	st	%l1, [%sp + STACKFRAME_SZ + PT_PC]
-	b	ret_trap_entry
-	 st	%l2, [%sp + STACKFRAME_SZ + PT_NPC]
 
 /* Saving and restoring the FPU state is best done from lowlevel code.
  *

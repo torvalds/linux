@@ -581,22 +581,14 @@ static int wm9712_dapm_event(struct snd_soc_codec *codec, int event)
 
 	switch (event) {
 	case SNDRV_CTL_POWER_D0: /* full On */
-		/* liam - maybe enable thermal shutdown */
-		reg = ac97_read(codec, AC97_EXTENDED_MID) & 0xdfff;
-		ac97_write(codec, AC97_EXTENDED_MID, reg);
-		break;
 	case SNDRV_CTL_POWER_D1: /* partial On */
 	case SNDRV_CTL_POWER_D2: /* partial On */
 		break;
 	case SNDRV_CTL_POWER_D3hot: /* Off, with power */
-		/* enable master bias and vmid */
-		reg = ac97_read(codec, AC97_EXTENDED_MID) & 0xbbff;
-		ac97_write(codec, AC97_EXTENDED_MID, reg);
 		ac97_write(codec, AC97_POWERDOWN, 0x0000);
 		break;
 	case SNDRV_CTL_POWER_D3cold: /* Off, without power */
 		/* disable everything including AC link */
-		ac97_write(codec, AC97_EXTENDED_MID, 0xffff);
 		ac97_write(codec, AC97_EXTENDED_MSTATUS, 0xffff);
 		ac97_write(codec, AC97_POWERDOWN, 0xffff);
 		break;

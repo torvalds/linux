@@ -75,7 +75,7 @@
 
 /* EEPROM structure */
 struct ixgb_ee_map_type {
-	uint8_t mac_addr[IXGB_ETH_LENGTH_OF_ADDRESS];
+	u8 mac_addr[IXGB_ETH_LENGTH_OF_ADDRESS];
 	__le16 compatibility;
 	__le16 reserved1[4];
 	__le32 pba_number;
@@ -88,19 +88,19 @@ struct ixgb_ee_map_type {
 	__le16 oem_reserved[16];
 	__le16 swdpins_reg;
 	__le16 circuit_ctrl_reg;
-	uint8_t d3_power;
-	uint8_t d0_power;
+	u8 d3_power;
+	u8 d0_power;
 	__le16 reserved2[28];
 	__le16 checksum;
 };
 
 /* EEPROM Functions */
-uint16_t ixgb_read_eeprom(struct ixgb_hw *hw, uint16_t reg);
+u16 ixgb_read_eeprom(struct ixgb_hw *hw, u16 reg);
 
-boolean_t ixgb_validate_eeprom_checksum(struct ixgb_hw *hw);
+bool ixgb_validate_eeprom_checksum(struct ixgb_hw *hw);
 
 void ixgb_update_eeprom_checksum(struct ixgb_hw *hw);
 
-void ixgb_write_eeprom(struct ixgb_hw *hw, uint16_t reg, uint16_t data);
+void ixgb_write_eeprom(struct ixgb_hw *hw, u16 reg, u16 data);
 
 #endif				/* IXGB_EE_H */

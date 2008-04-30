@@ -1,7 +1,7 @@
 #
 # Makefile for the linux kernel.
 #
-obj-y			:= core.o clock.o
+obj-y			:= core.o clock.o gpio.o
 obj-m			:=
 obj-n			:=
 obj-			:=

@@ -26,6 +26,7 @@
 #include <asm/hardware.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/mfp-pxa25x.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/dma.h>
 
@@ -129,6 +130,8 @@ static struct clk pxa25x_clks[] = {
 	INIT_CKEN("SSPCLK", NSSP, 3686400, 0, &pxa25x_device_nssp.dev),
 	INIT_CKEN("SSPCLK", ASSP, 3686400, 0, &pxa25x_device_assp.dev),
 
+	INIT_CKEN("AC97CLK",     AC97,     24576000, 0, NULL),
+
 	/*
 	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
 	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
@@ -228,24 +231,10 @@ static inline void pxa25x_init_pm(void) {}
 static int pxa25x_set_wake(unsigned int irq, unsigned int on)
 {
 	int gpio = IRQ_TO_GPIO(irq);
-	uint32_t gpio_bit, mask = 0;
+	uint32_t mask = 0;
 
-	if (gpio >= 0 && gpio <= 15) {
-		gpio_bit = GPIO_bit(gpio);
-		mask = gpio_bit;
-		if (on) {
-			if (GRER(gpio) | gpio_bit)
-				PRER |= gpio_bit;
-			else
-				PRER &= ~gpio_bit;
-
-			if (GFER(gpio) | gpio_bit)
-				PFER |= gpio_bit;
-			else
-				PFER &= ~gpio_bit;
-		}
-		goto set_pwer;
-	}
+	if (gpio >= 0 && gpio < 85)
+		return gpio_set_wake(gpio, on);
 
 	if (irq == IRQ_RTCAlrm) {
 		mask = PWER_RTC;
@@ -265,9 +254,8 @@ set_pwer:
 
 void __init pxa25x_init_irq(void)
 {
-	pxa_init_irq_low();
-	pxa_init_irq_gpio(85);
-	pxa_init_irq_set_wake(pxa25x_set_wake);
+	pxa_init_irq(32, pxa25x_set_wake);
+	pxa_init_gpio(85, pxa25x_set_wake);
 }
 
 static struct platform_device *pxa25x_devices[] __initdata = {
@@ -325,4 +313,4 @@ static int __init pxa25x_init(void)
 	return ret;
 }
 
-subsys_initcall(pxa25x_init);
+postcore_initcall(pxa25x_init);

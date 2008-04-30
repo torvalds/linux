@@ -107,8 +107,6 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (2*HZ)
 
-#define PKT_BUF_SZ		1536			/* Size of each temporary Rx buffer.*/
-
 /* Include files, designed to support most kernel versions 2.0.0 and later. */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -136,6 +134,9 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 #include <asm/irq.h>
 
 #include "tulip.h"
+
+#undef PKT_BUF_SZ			/* tulip.h also defines this */
+#define PKT_BUF_SZ		1536	/* Size of each temporary Rx buffer.*/
 
 /* These identify the driver base version and may not be removed. */
 static char version[] =

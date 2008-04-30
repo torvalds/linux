@@ -172,6 +172,7 @@ void netxen_nic_gbe_handle_phy_intr(struct netxen_adapter *adapter)
 	netxen_nic_isr_other(adapter);
 }
 
+#if 0
 int netxen_nic_link_ok(struct netxen_adapter *adapter)
 {
 	switch (adapter->ahw.board_type) {
@@ -189,6 +190,7 @@ int netxen_nic_link_ok(struct netxen_adapter *adapter)
 
 	return 0;
 }
+#endif  /*  0  */
 
 void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)
 {

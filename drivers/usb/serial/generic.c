@@ -62,9 +62,6 @@ struct usb_serial_driver usb_serial_generic_device = {
 	},
 	.id_table =		generic_device_ids,
 	.usb_driver = 		&generic_driver,
-	.num_interrupt_in =	NUM_DONT_CARE,
-	.num_bulk_in =		NUM_DONT_CARE,
-	.num_bulk_out =		NUM_DONT_CARE,
 	.num_ports =		1,
 	.shutdown =		usb_serial_generic_shutdown,
 	.throttle =		usb_serial_generic_throttle,
@@ -121,7 +118,7 @@ int usb_serial_generic_open (struct usb_serial_port *port, struct file *filp)
 	int result = 0;
 	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	/* force low_latency on so that our tty_push actually forces the data through, 
 	   otherwise it is scheduled, and with high data rates (like with OHCI) data
@@ -148,7 +145,7 @@ int usb_serial_generic_open (struct usb_serial_port *port, struct file *filp)
 				   port);
 		result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 		if (result)
-			dev_err(&port->dev, "%s - failed resubmitting read urb, error %d\n", __FUNCTION__, result);
+			dev_err(&port->dev, "%s - failed resubmitting read urb, error %d\n", __func__, result);
 	}
 
 	return result;
@@ -159,7 +156,7 @@ static void generic_cleanup (struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (serial->dev) {
 		/* shutdown any bulk reads that might be going on */
@@ -197,7 +194,7 @@ int usb_serial_generic_resume(struct usb_serial *serial)
 
 void usb_serial_generic_close (struct usb_serial_port *port, struct file * filp)
 {
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 	generic_cleanup (port);
 }
 
@@ -207,10 +204,10 @@ int usb_serial_generic_write(struct usb_serial_port *port, const unsigned char *
 	int result;
 	unsigned char *data;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (count == 0) {
-		dbg("%s - write request of 0 bytes", __FUNCTION__);
+		dbg("%s - write request of 0 bytes", __func__);
 		return (0);
 	}
 
@@ -220,7 +217,7 @@ int usb_serial_generic_write(struct usb_serial_port *port, const unsigned char *
 		spin_lock_irqsave(&port->lock, flags);
 		if (port->write_urb_busy) {
 			spin_unlock_irqrestore(&port->lock, flags);
-			dbg("%s - already writing", __FUNCTION__);
+			dbg("%s - already writing", __func__);
 			return 0;
 		}
 		port->write_urb_busy = 1;
@@ -230,7 +227,7 @@ int usb_serial_generic_write(struct usb_serial_port *port, const unsigned char *
 
 		memcpy (port->write_urb->transfer_buffer, buf, count);
 		data = port->write_urb->transfer_buffer;
-		usb_serial_debug_data(debug, &port->dev, __FUNCTION__, count, data);
+		usb_serial_debug_data(debug, &port->dev, __func__, count, data);
 
 		/* set up our urb */
 		usb_fill_bulk_urb (port->write_urb, serial->dev,
@@ -245,7 +242,7 @@ int usb_serial_generic_write(struct usb_serial_port *port, const unsigned char *
 		port->write_urb_busy = 1;
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result) {
-			dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __FUNCTION__, result);
+			dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __func__, result);
 			/* don't have to grab the lock here, as we will retry if != 0 */
 			port->write_urb_busy = 0;
 		} else
@@ -263,15 +260,16 @@ int usb_serial_generic_write_room (struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	int room = 0;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
+	/* FIXME: Locking */
 	if (serial->num_bulk_out) {
 		if (!(port->write_urb_busy))
 			room = port->bulk_out_size;
 	}
 
-	dbg("%s - returns %d", __FUNCTION__, room);
-	return (room);
+	dbg("%s - returns %d", __func__, room);
+	return room;
 }
 
 int usb_serial_generic_chars_in_buffer (struct usb_serial_port *port)
@@ -279,14 +277,15 @@ int usb_serial_generic_chars_in_buffer (struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	int chars = 0;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
+	/* FIXME: Locking */
 	if (serial->num_bulk_out) {
 		if (port->write_urb_busy)
 			chars = port->write_urb->transfer_buffer_length;
 	}
 
-	dbg("%s - returns %d", __FUNCTION__, chars);
+	dbg("%s - returns %d", __func__, chars);
 	return (chars);
 }
 
@@ -308,7 +307,7 @@ static void resubmit_read_urb(struct usb_serial_port *port, gfp_t mem_flags)
 			     usb_serial_generic_read_bulk_callback), port);
 	result = usb_submit_urb(urb, mem_flags);
 	if (result)
-		dev_err(&port->dev, "%s - failed resubmitting read urb, error %d\n", __FUNCTION__, result);
+		dev_err(&port->dev, "%s - failed resubmitting read urb, error %d\n", __func__, result);
 }
 
 /* Push data to tty layer and resubmit the bulk read URB */
@@ -332,20 +331,20 @@ static void flush_and_resubmit_read_urb (struct usb_serial_port *port)
 
 void usb_serial_generic_read_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
 	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (unlikely(status != 0)) {
 		dbg("%s - nonzero read bulk status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
+	usb_serial_debug_data(debug, &port->dev, __func__, urb->actual_length, data);
 
 	/* Throttle the device if requested by tty */
 	spin_lock_irqsave(&port->lock, flags);
@@ -360,18 +359,17 @@ EXPORT_SYMBOL_GPL(usb_serial_generic_read_bulk_callback);
 
 void usb_serial_generic_write_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	int status = urb->status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	port->write_urb_busy = 0;
 	if (status) {
 		dbg("%s - nonzero write bulk status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	}
-
 	usb_serial_port_softint(port);
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_write_bulk_callback);
@@ -380,7 +378,7 @@ void usb_serial_generic_throttle (struct usb_serial_port *port)
 {
 	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	/* Set the throttle request flag. It will be picked up
 	 * by usb_serial_generic_read_bulk_callback(). */
@@ -394,7 +392,7 @@ void usb_serial_generic_unthrottle (struct usb_serial_port *port)
 	int was_throttled;
 	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	/* Clear the throttle flags */
 	spin_lock_irqsave(&port->lock, flags);
@@ -412,7 +410,7 @@ void usb_serial_generic_shutdown (struct usb_serial *serial)
 {
 	int i;
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	/* stop reads and writes on all ports */
 	for (i=0; i < serial->num_ports; ++i) {

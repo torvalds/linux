@@ -31,7 +31,7 @@ struct slabinfo {
 	int hwcache_align, object_size, objs_per_slab;
 	int sanity_checks, slab_size, store_user, trace;
 	int order, poison, reclaim_account, red_zone;
-	unsigned long partial, objects, slabs;
+	unsigned long partial, objects, slabs, objects_partial, objects_total;
 	unsigned long alloc_fastpath, alloc_slowpath;
 	unsigned long free_fastpath, free_slowpath;
 	unsigned long free_frozen, free_add_partial, free_remove_partial;
@@ -540,7 +540,8 @@ void slabcache(struct slabinfo *s)
 		return;
 
 	store_size(size_str, slab_size(s));
-	snprintf(dist_str, 40, "%lu/%lu/%d", s->slabs, s->partial, s->cpu_slabs);
+	snprintf(dist_str, 40, "%lu/%lu/%d", s->slabs - s->cpu_slabs,
+						s->partial, s->cpu_slabs);
 
 	if (!line++)
 		first_line();
@@ -776,7 +777,6 @@ void totals(void)
 		unsigned long used;
 		unsigned long long wasted;
 		unsigned long long objwaste;
-		long long objects_in_partial_slabs;
 		unsigned long percentage_partial_slabs;
 		unsigned long percentage_partial_objs;
 
@@ -790,18 +790,11 @@ void totals(void)
 		wasted = size - used;
 		objwaste = s->slab_size - s->object_size;
 
-		objects_in_partial_slabs = s->objects -
-			(s->slabs - s->partial - s ->cpu_slabs) *
-			s->objs_per_slab;
-
-		if (objects_in_partial_slabs < 0)
-			objects_in_partial_slabs = 0;
-
 		percentage_partial_slabs = s->partial * 100 / s->slabs;
 		if (percentage_partial_slabs > 100)
 			percentage_partial_slabs = 100;
 
-		percentage_partial_objs = objects_in_partial_slabs * 100
+		percentage_partial_objs = s->objects_partial * 100
 							/ s->objects;
 
 		if (percentage_partial_objs > 100)
@@ -823,8 +816,8 @@ void totals(void)
 			min_objects = s->objects;
 		if (used < min_used)
 			min_used = used;
-		if (objects_in_partial_slabs < min_partobj)
-			min_partobj = objects_in_partial_slabs;
+		if (s->objects_partial < min_partobj)
+			min_partobj = s->objects_partial;
 		if (percentage_partial_slabs < min_ppart)
 			min_ppart = percentage_partial_slabs;
 		if (percentage_partial_objs < min_ppartobj)
@@ -848,8 +841,8 @@ void totals(void)
 			max_objects = s->objects;
 		if (used > max_used)
 			max_used = used;
-		if (objects_in_partial_slabs > max_partobj)
-			max_partobj = objects_in_partial_slabs;
+		if (s->objects_partial > max_partobj)
+			max_partobj = s->objects_partial;
 		if (percentage_partial_slabs > max_ppart)
 			max_ppart = percentage_partial_slabs;
 		if (percentage_partial_objs > max_ppartobj)
@@ -864,7 +857,7 @@ void totals(void)
 
 		total_objects += s->objects;
 		total_used += used;
-		total_partobj += objects_in_partial_slabs;
+		total_partobj += s->objects_partial;
 		total_ppart += percentage_partial_slabs;
 		total_ppartobj += percentage_partial_objs;
 
@@ -1160,6 +1153,8 @@ void read_slab_dir(void)
 			slab->hwcache_align = get_obj("hwcache_align");
 			slab->object_size = get_obj("object_size");
 			slab->objects = get_obj("objects");
+			slab->objects_partial = get_obj("objects_partial");
+			slab->objects_total = get_obj("objects_total");
 			slab->objs_per_slab = get_obj("objs_per_slab");
 			slab->order = get_obj("order");
 			slab->partial = get_obj("partial");

@@ -11,7 +11,6 @@
 #include <asm/pgalloc.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/semaphore.h>
 #include <asm/checksum.h>
 #include <asm/current.h>
 
@@ -33,12 +32,6 @@ EXPORT_SYMBOL (ip_fast_csum);
 EXPORT_SYMBOL (memset);
 EXPORT_SYMBOL (memcpy);
 EXPORT_SYMBOL (memmove);
-
-/* semaphores */
-EXPORT_SYMBOL (__down);
-EXPORT_SYMBOL (__down_interruptible);
-EXPORT_SYMBOL (__down_trylock);
-EXPORT_SYMBOL (__up);
 
 /*
  * libgcc functions - functions that are used internally by the

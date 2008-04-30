@@ -8,6 +8,7 @@
 
 #include <linux/capability.h>
 #include <linux/module.h>
+#include <linux/mount.h>
 #include <linux/time.h>
 #include <linux/msdos_fs.h>
 #include <linux/smp_lock.h>
@@ -46,10 +47,9 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 
 		mutex_lock(&inode->i_mutex);
 
-		if (IS_RDONLY(inode)) {
-			err = -EROFS;
-			goto up;
-		}
+		err = mnt_want_write(filp->f_path.mnt);
+		if (err)
+			goto up_no_drop_write;
 
 		/*
 		 * ATTR_VOLUME and ATTR_DIR cannot be changed; this also
@@ -105,7 +105,9 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 
 		MSDOS_I(inode)->i_attrs = attr & ATTR_UNUSED;
 		mark_inode_dirty(inode);
-	up:
+up:
+		mnt_drop_write(filp->f_path.mnt);
+up_no_drop_write:
 		mutex_unlock(&inode->i_mutex);
 		return err;
 	}
@@ -154,104 +156,6 @@ static int fat_cont_expand(struct inode *inode, loff_t size)
 out:
 	return err;
 }
-
-static int check_mode(const struct msdos_sb_info *sbi, mode_t mode)
-{
-	mode_t req = mode & ~S_IFMT;
-
-	/*
-	 * Of the r and x bits, all (subject to umask) must be present. Of the
-	 * w bits, either all (subject to umask) or none must be present.
-	 */
-
-	if (S_ISREG(mode)) {
-		req &= ~sbi->options.fs_fmask;
-
-		if ((req & (S_IRUGO | S_IXUGO)) !=
-		    ((S_IRUGO | S_IXUGO) & ~sbi->options.fs_fmask))
-			return -EPERM;
-
-		if ((req & S_IWUGO) != 0 &&
-		    (req & S_IWUGO) != (S_IWUGO & ~sbi->options.fs_fmask))
-			return -EPERM;
-	} else if (S_ISDIR(mode)) {
-		req &= ~sbi->options.fs_dmask;
-
-		if ((req & (S_IRUGO | S_IXUGO)) !=
-		    ((S_IRUGO | S_IXUGO) & ~sbi->options.fs_dmask))
-			return -EPERM;
-
-		if ((req & S_IWUGO) != 0 &&
-		    (req & S_IWUGO) != (S_IWUGO & ~sbi->options.fs_dmask))
-			return -EPERM;
-	} else {
-		return -EPERM;
-	}
-
-	return 0;
-}
-
-int fat_notify_change(struct dentry *dentry, struct iattr *attr)
-{
-	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
-	struct inode *inode = dentry->d_inode;
-	int mask, error = 0;
-
-	lock_kernel();
-
-	/*
-	 * Expand the file. Since inode_setattr() updates ->i_size
-	 * before calling the ->truncate(), but FAT needs to fill the
-	 * hole before it.
-	 */
-	if (attr->ia_valid & ATTR_SIZE) {
-		if (attr->ia_size > inode->i_size) {
-			error = fat_cont_expand(inode, attr->ia_size);
-			if (error || attr->ia_valid == ATTR_SIZE)
-				goto out;
-			attr->ia_valid &= ~ATTR_SIZE;
-		}
-	}
-
-	error = inode_change_ok(inode, attr);
-	if (error) {
-		if (sbi->options.quiet)
-			error = 0;
-		goto out;
-	}
-	if (((attr->ia_valid & ATTR_UID) &&
-	     (attr->ia_uid != sbi->options.fs_uid)) ||
-	    ((attr->ia_valid & ATTR_GID) &&
-	     (attr->ia_gid != sbi->options.fs_gid)))
-		error = -EPERM;
-
-	if (error) {
-		if (sbi->options.quiet)
-			error = 0;
-		goto out;
-	}
-
-	if (attr->ia_valid & ATTR_MODE) {
-		error = check_mode(sbi, attr->ia_mode);
-		if (error != 0 && !sbi->options.quiet)
-			goto out;
-	}
-
-	error = inode_setattr(inode, attr);
-	if (error)
-		goto out;
-
-	if (S_ISDIR(inode->i_mode))
-		mask = sbi->options.fs_dmask;
-	else
-		mask = sbi->options.fs_fmask;
-	inode->i_mode &= S_IFMT | (S_IRWXUGO & ~mask);
-out:
-	unlock_kernel();
-	return error;
-}
-
-EXPORT_SYMBOL_GPL(fat_notify_change);
 
 /* Free all clusters after the skip'th cluster. */
 static int fat_free(struct inode *inode, int skip)
@@ -353,8 +257,112 @@ int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 }
 EXPORT_SYMBOL_GPL(fat_getattr);
 
+static int fat_check_mode(const struct msdos_sb_info *sbi, struct inode *inode,
+			  mode_t mode)
+{
+	mode_t mask, req = mode & ~S_IFMT;
+
+	if (S_ISREG(mode))
+		mask = sbi->options.fs_fmask;
+	else
+		mask = sbi->options.fs_dmask;
+
+	/*
+	 * Of the r and x bits, all (subject to umask) must be present. Of the
+	 * w bits, either all (subject to umask) or none must be present.
+	 */
+	req &= ~mask;
+	if ((req & (S_IRUGO | S_IXUGO)) != (inode->i_mode & (S_IRUGO|S_IXUGO)))
+		return -EPERM;
+	if ((req & S_IWUGO) && ((req & S_IWUGO) != (S_IWUGO & ~mask)))
+		return -EPERM;
+
+	return 0;
+}
+
+static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
+{
+	mode_t allow_utime = sbi->options.allow_utime;
+
+	if (current->fsuid != inode->i_uid) {
+		if (in_group_p(inode->i_gid))
+			allow_utime >>= 3;
+		if (allow_utime & MAY_WRITE)
+			return 1;
+	}
+
+	/* use a default check */
+	return 0;
+}
+
+int fat_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
+	struct inode *inode = dentry->d_inode;
+	int mask, error = 0;
+	unsigned int ia_valid;
+
+	lock_kernel();
+
+	/*
+	 * Expand the file. Since inode_setattr() updates ->i_size
+	 * before calling the ->truncate(), but FAT needs to fill the
+	 * hole before it.
+	 */
+	if (attr->ia_valid & ATTR_SIZE) {
+		if (attr->ia_size > inode->i_size) {
+			error = fat_cont_expand(inode, attr->ia_size);
+			if (error || attr->ia_valid == ATTR_SIZE)
+				goto out;
+			attr->ia_valid &= ~ATTR_SIZE;
+		}
+	}
+
+	/* Check for setting the inode time. */
+	ia_valid = attr->ia_valid;
+	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET)) {
+		if (fat_allow_set_time(sbi, inode))
+			attr->ia_valid &= ~(ATTR_MTIME_SET | ATTR_ATIME_SET);
+	}
+
+	error = inode_change_ok(inode, attr);
+	attr->ia_valid = ia_valid;
+	if (error) {
+		if (sbi->options.quiet)
+			error = 0;
+		goto out;
+	}
+	if (((attr->ia_valid & ATTR_UID) &&
+	     (attr->ia_uid != sbi->options.fs_uid)) ||
+	    ((attr->ia_valid & ATTR_GID) &&
+	     (attr->ia_gid != sbi->options.fs_gid)) ||
+	    ((attr->ia_valid & ATTR_MODE) &&
+	     fat_check_mode(sbi, inode, attr->ia_mode) < 0))
+		error = -EPERM;
+
+	if (error) {
+		if (sbi->options.quiet)
+			error = 0;
+		goto out;
+	}
+
+	error = inode_setattr(inode, attr);
+	if (error)
+		goto out;
+
+	if (S_ISDIR(inode->i_mode))
+		mask = sbi->options.fs_dmask;
+	else
+		mask = sbi->options.fs_fmask;
+	inode->i_mode &= S_IFMT | (S_IRWXUGO & ~mask);
+out:
+	unlock_kernel();
+	return error;
+}
+EXPORT_SYMBOL_GPL(fat_setattr);
+
 const struct inode_operations fat_file_inode_operations = {
 	.truncate	= fat_truncate,
-	.setattr	= fat_notify_change,
+	.setattr	= fat_setattr,
 	.getattr	= fat_getattr,
 };

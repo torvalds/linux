@@ -21,6 +21,7 @@
 #include <asm/setup.h>
 #include <asm/cpcmd.h>
 #include <asm/sclp.h>
+#include "entry.h"
 
 /*
  * Create a Kernel NSS if the SAVESYS= parameter is defined
@@ -143,6 +144,10 @@ static noinline __init void detect_machine_type(void)
 	/* Running on a P/390 ? */
 	if (cpuinfo->cpu_id.machine == 0x7490)
 		machine_flags |= 4;
+
+	/* Running under KVM ? */
+	if (cpuinfo->cpu_id.version == 0xfe)
+		machine_flags |= 64;
 }
 
 #ifdef CONFIG_64BIT

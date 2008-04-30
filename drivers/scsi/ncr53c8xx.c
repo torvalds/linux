@@ -8186,7 +8186,7 @@ static void insert_into_waiting_list(struct ncb *np, struct scsi_cmnd *cmd)
 	cmd->next_wcmd = NULL;
 	if (!(wcmd = np->waiting_list)) np->waiting_list = cmd;
 	else {
-		while ((wcmd->next_wcmd) != 0)
+		while (wcmd->next_wcmd)
 			wcmd = (struct scsi_cmnd *) wcmd->next_wcmd;
 		wcmd->next_wcmd = (char *) cmd;
 	}
@@ -8222,7 +8222,7 @@ static void process_waiting_list(struct ncb *np, int sts)
 #ifdef DEBUG_WAITING_LIST
 	if (waiting_list) printk("%s: waiting_list=%lx processing sts=%d\n", ncr_name(np), (u_long) waiting_list, sts);
 #endif
-	while ((wcmd = waiting_list) != 0) {
+	while (wcmd = waiting_list) {
 		waiting_list = (struct scsi_cmnd *) wcmd->next_wcmd;
 		wcmd->next_wcmd = NULL;
 		if (sts == DID_OK) {
@@ -8243,7 +8243,8 @@ static void process_waiting_list(struct ncb *np, int sts)
 
 #undef next_wcmd
 
-static ssize_t show_ncr53c8xx_revision(struct class_device *dev, char *buf)
+static ssize_t show_ncr53c8xx_revision(struct device *dev,
+				       struct device_attribute *attr, char *buf)
 {
 	struct Scsi_Host *host = class_to_shost(dev);
 	struct host_data *host_data = (struct host_data *)host->hostdata;
@@ -8251,12 +8252,12 @@ static ssize_t show_ncr53c8xx_revision(struct class_device *dev, char *buf)
 	return snprintf(buf, 20, "0x%x\n", host_data->ncb->revision_id);
 }
   
-static struct class_device_attribute ncr53c8xx_revision_attr = {
+static struct device_attribute ncr53c8xx_revision_attr = {
 	.attr	= { .name = "revision", .mode = S_IRUGO, },
 	.show	= show_ncr53c8xx_revision,
 };
   
-static struct class_device_attribute *ncr53c8xx_host_attrs[] = {
+static struct device_attribute *ncr53c8xx_host_attrs[] = {
 	&ncr53c8xx_revision_attr,
 	NULL
 };

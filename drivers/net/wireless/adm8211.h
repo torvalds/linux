@@ -534,61 +534,6 @@ struct adm8211_eeprom {
 	u8	cis_data[0];		/* 0x80, 384 bytes */
 } __attribute__ ((packed));
 
-static const struct ieee80211_rate adm8211_rates[] = {
-	{ .rate = 10,
-	  .val = 10,
-	  .val2 = -10,
-	  .flags = IEEE80211_RATE_CCK_2 },
-	{ .rate = 20,
-	  .val = 20,
-	  .val2 = -20,
-	  .flags = IEEE80211_RATE_CCK_2 },
-	{ .rate = 55,
-	  .val = 55,
-	  .val2 = -55,
-	  .flags = IEEE80211_RATE_CCK_2 },
-	{ .rate = 110,
-	  .val = 110,
-	  .val2 = -110,
-	  .flags = IEEE80211_RATE_CCK_2 }
-};
-
-struct ieee80211_chan_range {
-	u8 min;
-	u8 max;
-};
-
-static const struct ieee80211_channel adm8211_channels[] = {
-	{ .chan = 1,
-	  .freq = 2412},
-	{ .chan = 2,
-	  .freq = 2417},
-	{ .chan = 3,
-	  .freq = 2422},
-	{ .chan = 4,
-	  .freq = 2427},
-	{ .chan = 5,
-	  .freq = 2432},
-	{ .chan = 6,
-	  .freq = 2437},
-	{ .chan = 7,
-	  .freq = 2442},
-	{ .chan = 8,
-	  .freq = 2447},
-	{ .chan = 9,
-	  .freq = 2452},
-	{ .chan = 10,
-	  .freq = 2457},
-	{ .chan = 11,
-	  .freq = 2462},
-	{ .chan = 12,
-	  .freq = 2467},
-	{ .chan = 13,
-	  .freq = 2472},
-	{ .chan = 14,
-	  .freq = 2484},
-};
-
 struct adm8211_priv {
 	struct pci_dev *pdev;
 	spinlock_t lock;
@@ -603,9 +548,8 @@ struct adm8211_priv {
 	unsigned int cur_tx, dirty_tx, cur_rx;
 
 	struct ieee80211_low_level_stats stats;
-	struct ieee80211_hw_mode modes[1];
-	struct ieee80211_channel channels[ARRAY_SIZE(adm8211_channels)];
-	struct ieee80211_rate rates[ARRAY_SIZE(adm8211_rates)];
+	struct ieee80211_supported_band band;
+	struct ieee80211_channel channels[14];
 	int mode;
 
 	int channel;
@@ -641,6 +585,11 @@ struct adm8211_priv {
 		ADM8211_MAX2820 = 0x8,
 		ADM8211_AL2210L = 0xC,	/* Airoha */
 	} transceiver_type;
+};
+
+struct ieee80211_chan_range {
+	u8 min;
+	u8 max;
 };
 
 static const struct ieee80211_chan_range cranges[] = {

@@ -48,7 +48,6 @@ typedef struct kcapi_carddef {
 #include <linux/list.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
-#include <asm/semaphore.h>
 
 #define	KCI_CONTRUP	0	/* arg: struct capi_profile */
 #define	KCI_CONTRDOWN	1	/* arg: NULL */

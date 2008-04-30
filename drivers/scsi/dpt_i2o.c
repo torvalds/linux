@@ -153,7 +153,7 @@ static DEFINE_SPINLOCK(adpt_post_wait_lock);
 
 static u8 adpt_read_blink_led(adpt_hba* host)
 {
-	if(host->FwDebugBLEDflag_P != 0) {
+	if (host->FwDebugBLEDflag_P) {
 		if( readb(host->FwDebugBLEDflag_P) == 0xbc ){
 			return readb(host->FwDebugBLEDvalue_P);
 		}

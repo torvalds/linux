@@ -1443,7 +1443,7 @@ static int fdomain_16x0_queue(struct scsi_cmnd *SCpnt,
 	   current_SC->SCp.this_residual    = current_SC->SCp.buffer->length;
 	   current_SC->SCp.buffers_residual = scsi_sg_count(current_SC) - 1;
    } else {
-	   current_SC->SCp.ptr              = 0;
+	   current_SC->SCp.ptr              = NULL;
 	   current_SC->SCp.this_residual    = 0;
 	   current_SC->SCp.buffer           = NULL;
 	   current_SC->SCp.buffers_residual = 0;

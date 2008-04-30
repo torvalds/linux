@@ -57,6 +57,7 @@
 #include "interrupt.h"
 #include "pervasive.h"
 #include "ras.h"
+#include "io-workarounds.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -117,12 +118,49 @@ static void cell_fixup_pcie_rootcomplex(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, cell_fixup_pcie_rootcomplex);
 
+static int __devinit cell_setup_phb(struct pci_controller *phb)
+{
+	const char *model;
+	struct device_node *np;
+
+	int rc = rtas_setup_phb(phb);
+	if (rc)
+		return rc;
+
+	np = phb->dn;
+	model = of_get_property(np, "model", NULL);
+	if (model == NULL || strcmp(np->name, "pci"))
+		return 0;
+
+	/* Setup workarounds for spider */
+	if (strcmp(model, "Spider"))
+		return 0;
+
+	iowa_register_bus(phb, &spiderpci_ops, &spiderpci_iowa_init,
+				  (void *)SPIDER_PCI_REG_BASE);
+	io_workaround_init();
+
+	return 0;
+}
+
 static int __init cell_publish_devices(void)
 {
+	struct device_node *root = of_find_node_by_path("/");
+	struct device_node *np;
 	int node;
 
 	/* Publish OF platform devices for southbridge IOs */
 	of_platform_bus_probe(NULL, NULL, NULL);
+
+	/* On spider based blades, we need to manually create the OF
+	 * platform devices for the PCI host bridges
+	 */
+	for_each_child_of_node(root, np) {
+		if (np->type == NULL || (strcmp(np->type, "pci") != 0 &&
+					 strcmp(np->type, "pciex") != 0))
+			continue;
+		of_platform_device_create(np, NULL, NULL);
+	}
 
 	/* There is no device for the MIC memory controller, thus we create
 	 * a platform device for it to attach the EDAC driver to.
@@ -132,6 +170,7 @@ static int __init cell_publish_devices(void)
 			continue;
 		platform_device_register_simple("cbe-mic", node, NULL, 0);
 	}
+
 	return 0;
 }
 machine_subsys_initcall(cell, cell_publish_devices);
@@ -213,7 +252,7 @@ static void __init cell_setup_arch(void)
 
 	/* Find and initialize PCI host bridges */
 	init_pci_config_tokens();
-	find_and_init_phbs();
+
 	cbe_pervasive_init();
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -249,7 +288,7 @@ define_machine(cell) {
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= cell_progress,
 	.init_IRQ       	= cell_init_irq,
-	.pci_setup_phb		= rtas_setup_phb,
+	.pci_setup_phb		= cell_setup_phb,
 #ifdef CONFIG_KEXEC
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,

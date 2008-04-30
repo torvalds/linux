@@ -1,5 +1,12 @@
 /*
  * dabdata.h - dab usb firmware and bitstream data
+ *
+ * Copyright (C) 1999 BayCom GmbH
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that redistributions of source
+ * code retain the above copyright notice and this comment without
+ * modification.
  */
 
 static INTEL_HEX_RECORD firmware[] = {

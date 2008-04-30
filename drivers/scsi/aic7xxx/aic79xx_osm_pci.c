@@ -49,7 +49,7 @@
 	ID2C(x),         \
 	ID2C(IDIROC(x))
 
-static struct pci_device_id ahd_linux_pci_id_table[] = {
+static const struct pci_device_id ahd_linux_pci_id_table[] = {
 	/* aic7901 based controllers */
 	ID(ID_AHA_29320A),
 	ID(ID_AHA_29320ALP),
@@ -159,7 +159,7 @@ ahd_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	char		 buf[80];
 	struct		 ahd_softc *ahd;
 	ahd_dev_softc_t	 pci;
-	struct		 ahd_pci_identity *entry;
+	const struct ahd_pci_identity *entry;
 	char		*name;
 	int		 error;
 	struct device	*dev = &pdev->dev;
@@ -249,8 +249,8 @@ ahd_linux_pci_exit(void)
 }
 
 static int
-ahd_linux_pci_reserve_io_regions(struct ahd_softc *ahd, u_long *base,
-				 u_long *base2)
+ahd_linux_pci_reserve_io_regions(struct ahd_softc *ahd, resource_size_t *base,
+				 resource_size_t *base2)
 {
 	*base = pci_resource_start(ahd->dev_softc, 0);
 	/*
@@ -272,11 +272,11 @@ ahd_linux_pci_reserve_io_regions(struct ahd_softc *ahd, u_long *base,
 
 static int
 ahd_linux_pci_reserve_mem_region(struct ahd_softc *ahd,
-				 u_long *bus_addr,
+				 resource_size_t *bus_addr,
 				 uint8_t __iomem **maddr)
 {
-	u_long	start;
-	u_long	base_page;
+	resource_size_t	start;
+	resource_size_t	base_page;
 	u_long	base_offset;
 	int	error = 0;
 
@@ -310,7 +310,7 @@ int
 ahd_pci_map_registers(struct ahd_softc *ahd)
 {
 	uint32_t command;
-	u_long	 base;
+	resource_size_t base;
 	uint8_t	__iomem *maddr;
 	int	 error;
 
@@ -346,31 +346,32 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 		} else
 			command |= PCIM_CMD_MEMEN;
 	} else if (bootverbose) {
-		printf("aic79xx: PCI%d:%d:%d MEM region 0x%lx "
+		printf("aic79xx: PCI%d:%d:%d MEM region 0x%llx "
 		       "unavailable. Cannot memory map device.\n",
 		       ahd_get_pci_bus(ahd->dev_softc),
 		       ahd_get_pci_slot(ahd->dev_softc),
 		       ahd_get_pci_function(ahd->dev_softc),
-		       base);
+		       (unsigned long long)base);
 	}
 
 	if (maddr == NULL) {
-		u_long	 base2;
+		resource_size_t base2;
 
 		error = ahd_linux_pci_reserve_io_regions(ahd, &base, &base2);
 		if (error == 0) {
 			ahd->tags[0] = BUS_SPACE_PIO;
 			ahd->tags[1] = BUS_SPACE_PIO;
-			ahd->bshs[0].ioport = base;
-			ahd->bshs[1].ioport = base2;
+			ahd->bshs[0].ioport = (u_long)base;
+			ahd->bshs[1].ioport = (u_long)base2;
 			command |= PCIM_CMD_PORTEN;
 		} else {
-			printf("aic79xx: PCI%d:%d:%d IO regions 0x%lx and 0x%lx"
-			       "unavailable. Cannot map device.\n",
+			printf("aic79xx: PCI%d:%d:%d IO regions 0x%llx and "
+			       "0x%llx unavailable. Cannot map device.\n",
 			       ahd_get_pci_bus(ahd->dev_softc),
 			       ahd_get_pci_slot(ahd->dev_softc),
 			       ahd_get_pci_function(ahd->dev_softc),
-			       base, base2);
+			       (unsigned long long)base,
+			       (unsigned long long)base2);
 		}
 	}
 	ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND, command, 4);

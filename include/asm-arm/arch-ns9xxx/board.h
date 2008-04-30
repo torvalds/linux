@@ -1,7 +1,7 @@
 /*
  * include/asm-arm/arch-ns9xxx/board.h
  *
- * Copyright (C) 2006 by Digi International Inc.
+ * Copyright (C) 2006,2007 by Digi International Inc.
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -13,8 +13,30 @@
 
 #include <asm/mach-types.h>
 
-#define board_is_a9m9750dev()	(machine_is_cc9p9360dev())
+#define board_is_a9m9750dev()	(0			\
+		|| machine_is_cc9p9360dev()		\
+		|| machine_is_cc9p9750dev()		\
+		)
 
-#define board_is_jscc9p9360()	(machine_is_cc9p9360js())
+#define board_is_a9mvali()	(0			\
+		|| machine_is_cc9p9360val() 		\
+		|| machine_is_cc9p9750val()		\
+		)
+
+#define board_is_jscc9p9210()	(0			\
+		|| machine_is_cc9p9210js()		\
+		)
+
+#define board_is_jscc9p9215()	(0			\
+		|| machine_is_cc9p9215js()		\
+		)
+
+#define board_is_jscc9p9360()	(0			\
+		|| machine_is_cc9p9360js()		\
+		)
+
+#define board_is_uncbas()	(0			\
+		|| machine_is_cc7ucamry()		\
+		)
 
 #endif /* ifndef __ASM_ARCH_BOARD_H */

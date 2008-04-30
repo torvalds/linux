@@ -43,17 +43,17 @@
 #define DEV_NAME	"zcrypt"
 
 #define PRINTK(fmt, args...) \
-	printk(KERN_DEBUG DEV_NAME ": %s -> " fmt, __FUNCTION__ , ## args)
+	printk(KERN_DEBUG DEV_NAME ": %s -> " fmt, __func__ , ## args)
 #define PRINTKN(fmt, args...) \
 	printk(KERN_DEBUG DEV_NAME ": " fmt, ## args)
 #define PRINTKW(fmt, args...) \
-	printk(KERN_WARNING DEV_NAME ": %s -> " fmt, __FUNCTION__ , ## args)
+	printk(KERN_WARNING DEV_NAME ": %s -> " fmt, __func__ , ## args)
 #define PRINTKC(fmt, args...) \
-	printk(KERN_CRIT DEV_NAME ": %s -> " fmt, __FUNCTION__ , ## args)
+	printk(KERN_CRIT DEV_NAME ": %s -> " fmt, __func__ , ## args)
 
 #ifdef ZCRYPT_DEBUG
 #define PDEBUG(fmt, args...) \
-	printk(KERN_DEBUG DEV_NAME ": %s -> " fmt, __FUNCTION__ , ## args)
+	printk(KERN_DEBUG DEV_NAME ": %s -> " fmt, __func__ , ## args)
 #else
 #define PDEBUG(fmt, args...) do {} while (0)
 #endif
@@ -100,6 +100,13 @@ struct ica_z90_status {
 #define ZCRYPT_CEX2C		5
 #define ZCRYPT_CEX2A		6
 
+/**
+ * Large random numbers are pulled in 4096 byte chunks from the crypto cards
+ * and stored in a page. Be carefull when increasing this buffer due to size
+ * limitations for AP requests.
+ */
+#define ZCRYPT_RNG_BUFFER_SIZE	4096
+
 struct zcrypt_device;
 
 struct zcrypt_ops {
@@ -107,6 +114,7 @@ struct zcrypt_ops {
 	long (*rsa_modexpo_crt)(struct zcrypt_device *,
 				struct ica_rsa_modexpo_crt *);
 	long (*send_cprb)(struct zcrypt_device *, struct ica_xcRB *);
+	long (*rng)(struct zcrypt_device *, char *);
 };
 
 struct zcrypt_device {

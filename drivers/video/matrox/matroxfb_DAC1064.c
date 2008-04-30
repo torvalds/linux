@@ -37,7 +37,7 @@ static void DAC1064_calcclock(CPMINFO unsigned int freq, unsigned int fmax, unsi
 	unsigned int fvco;
 	unsigned int p;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 	
 	/* only for devices older than G450 */
 
@@ -83,7 +83,7 @@ static const unsigned char MGA1064_DAC[] = {
 static void DAC1064_setpclk(WPMINFO unsigned long fout) {
 	unsigned int m, n, p;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	DAC1064_calcclock(PMINFO fout, ACCESS_FBINFO(max_pixel_clock), &m, &n, &p);
 	ACCESS_FBINFO(hw).DACclk[0] = m;
@@ -95,7 +95,7 @@ static void DAC1064_setmclk(WPMINFO int oscinfo, unsigned long fmem) {
 	u_int32_t mx;
 	struct matrox_hw_state* hw = &ACCESS_FBINFO(hw);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (ACCESS_FBINFO(devflags.noinit)) {
 		/* read MCLK and give up... */
@@ -338,7 +338,7 @@ void DAC1064_global_restore(WPMINFO2) {
 static int DAC1064_init_1(WPMINFO struct my_timming* m) {
 	struct matrox_hw_state* hw = &ACCESS_FBINFO(hw);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	memcpy(hw->DACreg, MGA1064_DAC, sizeof(MGA1064_DAC_regs));
 	switch (ACCESS_FBINFO(fbcon).var.bits_per_pixel) {
@@ -374,7 +374,7 @@ static int DAC1064_init_1(WPMINFO struct my_timming* m) {
 static int DAC1064_init_2(WPMINFO struct my_timming* m) {
 	struct matrox_hw_state* hw = &ACCESS_FBINFO(hw);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (ACCESS_FBINFO(fbcon).var.bits_per_pixel > 16) {	/* 256 entries */
 		int i;
@@ -418,7 +418,7 @@ static void DAC1064_restore_1(WPMINFO2) {
 
 	CRITFLAGS
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	CRITBEGIN
 
@@ -448,7 +448,7 @@ static void DAC1064_restore_2(WPMINFO2) {
 	unsigned int i;
 #endif
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 #ifdef DEBUG
 	dprintk(KERN_DEBUG "DAC1064regs ");
@@ -521,7 +521,7 @@ static struct matrox_altout g450out = {
 static int MGA1064_init(WPMINFO struct my_timming* m) {
 	struct matrox_hw_state* hw = &ACCESS_FBINFO(hw);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (DAC1064_init_1(PMINFO m)) return 1;
 	if (matroxfb_vgaHWinit(PMINFO m)) return 1;
@@ -543,7 +543,7 @@ static int MGA1064_init(WPMINFO struct my_timming* m) {
 static int MGAG100_init(WPMINFO struct my_timming* m) {
 	struct matrox_hw_state* hw = &ACCESS_FBINFO(hw);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (DAC1064_init_1(PMINFO m)) return 1;
 	hw->MXoptionReg &= ~0x2000;
@@ -565,7 +565,7 @@ static int MGAG100_init(WPMINFO struct my_timming* m) {
 #ifdef CONFIG_FB_MATROX_MYSTIQUE
 static void MGA1064_ramdac_init(WPMINFO2) {
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	/* ACCESS_FBINFO(features.DAC1064.vco_freq_min) = 120000; */
 	ACCESS_FBINFO(features.pll.vco_freq_min) = 62000;
@@ -594,7 +594,7 @@ static void MGAG100_progPixClock(CPMINFO int flags, int m, int n, int p) {
 	int selClk;
 	int clk;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	outDAC1064(PMINFO M1064_XPIXCLKCTRL, inDAC1064(PMINFO M1064_XPIXCLKCTRL) | M1064_XPIXCLKCTRL_DIS |
 		   M1064_XPIXCLKCTRL_PLL_UP);
@@ -636,7 +636,7 @@ static void MGAG100_progPixClock(CPMINFO int flags, int m, int n, int p) {
 static void MGAG100_setPixClock(CPMINFO int flags, int freq) {
 	unsigned int m, n, p;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	DAC1064_calcclock(PMINFO freq, ACCESS_FBINFO(max_pixel_clock), &m, &n, &p);
 	MGAG100_progPixClock(PMINFO flags, m, n, p);
@@ -650,7 +650,7 @@ static int MGA1064_preinit(WPMINFO2) {
 					     2048,    0};
 	struct matrox_hw_state* hw = &ACCESS_FBINFO(hw);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	/* ACCESS_FBINFO(capable.cfb4) = 0; ... preinitialized by 0 */
 	ACCESS_FBINFO(capable.text) = 1;
@@ -683,7 +683,7 @@ static int MGA1064_preinit(WPMINFO2) {
 
 static void MGA1064_reset(WPMINFO2) {
 
-	DBG(__FUNCTION__);
+	DBG(__func__);
 
 	MGA1064_ramdac_init(PMINFO2);
 }
@@ -819,7 +819,7 @@ static int MGAG100_preinit(WPMINFO2) {
 	u_int32_t q;
 #endif
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	/* there are some instabilities if in_div > 19 && vco < 61000 */
 	if (ACCESS_FBINFO(devflags.g450dac)) {
@@ -956,7 +956,7 @@ static void MGAG100_reset(WPMINFO2) {
 	u_int8_t b;
 	struct matrox_hw_state* hw = &ACCESS_FBINFO(hw);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	{
 #ifdef G100_BROKEN_IBM_82351
@@ -1015,7 +1015,7 @@ static void MGA1064_restore(WPMINFO2) {
 
 	CRITFLAGS
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	CRITBEGIN
 
@@ -1041,7 +1041,7 @@ static void MGAG100_restore(WPMINFO2) {
 
 	CRITFLAGS
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	CRITBEGIN
 

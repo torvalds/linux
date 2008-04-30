@@ -50,7 +50,7 @@ aic7770_map_registers(struct ahc_softc *ahc, u_int port)
 	/*
 	 * Lock out other contenders for our i/o space.
 	 */
-	if (request_region(port, AHC_EISA_IOSIZE, "aic7xxx") == 0)
+	if (!request_region(port, AHC_EISA_IOSIZE, "aic7xxx"))
 		return (ENOMEM);
 	ahc->tag = BUS_SPACE_PIO;
 	ahc->bsh.ioport = port;

@@ -23,9 +23,9 @@
  * 	DCCP - specific warning and debugging macros.
  */
 #define DCCP_WARN(fmt, a...) LIMIT_NETDEBUG(KERN_WARNING "%s: " fmt,       \
-							__FUNCTION__, ##a)
+							__func__, ##a)
 #define DCCP_CRIT(fmt, a...) printk(KERN_CRIT fmt " at %s:%d/%s()\n", ##a, \
-					 __FILE__, __LINE__, __FUNCTION__)
+					 __FILE__, __LINE__, __func__)
 #define DCCP_BUG(a...)       do { DCCP_CRIT("BUG: " a); dump_stack(); } while(0)
 #define DCCP_BUG_ON(cond)    do { if (unlikely((cond) != 0))		   \
 				     DCCP_BUG("\"%s\" holds (exception!)", \
@@ -36,7 +36,7 @@
 							printk(fmt, ##args); \
 						} while(0)
 #define DCCP_PR_DEBUG(enable, fmt, a...)	DCCP_PRINTK(enable, KERN_DEBUG \
-						  "%s: " fmt, __FUNCTION__, ##a)
+						  "%s: " fmt, __func__, ##a)
 
 #ifdef CONFIG_IP_DCCP_DEBUG
 extern int dccp_debug;
@@ -296,7 +296,7 @@ extern unsigned int dccp_poll(struct file *file, struct socket *sock,
 extern int	   dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 				   int addr_len);
 
-extern struct sk_buff *dccp_ctl_make_reset(struct socket *ctl,
+extern struct sk_buff *dccp_ctl_make_reset(struct sock *sk,
 					   struct sk_buff *skb);
 extern int	   dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk, const int active);

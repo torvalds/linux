@@ -393,7 +393,7 @@ static int __init pmb_debugfs_init(void)
 	struct dentry *dentry;
 
 	dentry = debugfs_create_file("pmb", S_IFREG | S_IRUGO,
-				     NULL, NULL, &pmb_debugfs_fops);
+				     sh_debugfs_root, NULL, &pmb_debugfs_fops);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 

@@ -82,9 +82,10 @@ EXPORT_SYMBOL_GPL(percpu_populate);
 int __percpu_populate_mask(void *__pdata, size_t size, gfp_t gfp,
 			   cpumask_t *mask)
 {
-	cpumask_t populated = CPU_MASK_NONE;
+	cpumask_t populated;
 	int cpu;
 
+	cpus_clear(populated);
 	for_each_cpu_mask(cpu, *mask)
 		if (unlikely(!percpu_populate(__pdata, size, gfp, cpu))) {
 			__percpu_depopulate_mask(__pdata, &populated);

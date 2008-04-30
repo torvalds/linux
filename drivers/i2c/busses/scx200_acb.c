@@ -527,7 +527,7 @@ static int __init scx200_create_isa(const char *text, unsigned long base,
 	if (iface == NULL)
 		return -ENOMEM;
 
-	if (request_region(base, 8, iface->adapter.name) == 0) {
+	if (!request_region(base, 8, iface->adapter.name)) {
 		printk(KERN_ERR NAME ": can't allocate io 0x%lx-0x%lx\n",
 		       base, base + 8 - 1);
 		rc = -EBUSY;

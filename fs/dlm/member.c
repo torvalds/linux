@@ -210,6 +210,23 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 		}
 	}
 
+	/* Add an entry to ls_nodes_gone for members that were removed and
+	   then added again, so that previous state for these nodes will be
+	   cleared during recovery. */
+
+	for (i = 0; i < rv->new_count; i++) {
+		if (!dlm_is_member(ls, rv->new[i]))
+			continue;
+		log_debug(ls, "new nodeid %d is a re-added member", rv->new[i]);
+
+		memb = kzalloc(sizeof(struct dlm_member), GFP_KERNEL);
+		if (!memb)
+			return -ENOMEM;
+		memb->nodeid = rv->new[i];
+		list_add_tail(&memb->list, &ls->ls_nodes_gone);
+		neg++;
+	}
+
 	/* add new members to ls_nodes */
 
 	for (i = 0; i < rv->node_count; i++) {
@@ -314,15 +331,16 @@ int dlm_ls_stop(struct dlm_ls *ls)
 int dlm_ls_start(struct dlm_ls *ls)
 {
 	struct dlm_recover *rv = NULL, *rv_old;
-	int *ids = NULL;
-	int error, count;
+	int *ids = NULL, *new = NULL;
+	int error, ids_count = 0, new_count = 0;
 
 	rv = kzalloc(sizeof(struct dlm_recover), GFP_KERNEL);
 	if (!rv)
 		return -ENOMEM;
 
-	error = count = dlm_nodeid_list(ls->ls_name, &ids);
-	if (error <= 0)
+	error = dlm_nodeid_list(ls->ls_name, &ids, &ids_count,
+				&new, &new_count);
+	if (error < 0)
 		goto fail;
 
 	spin_lock(&ls->ls_recover_lock);
@@ -337,14 +355,19 @@ int dlm_ls_start(struct dlm_ls *ls)
 	}
 
 	rv->nodeids = ids;
-	rv->node_count = count;
+	rv->node_count = ids_count;
+	rv->new = new;
+	rv->new_count = new_count;
 	rv->seq = ++ls->ls_recover_seq;
 	rv_old = ls->ls_recover_args;
 	ls->ls_recover_args = rv;
 	spin_unlock(&ls->ls_recover_lock);
 
 	if (rv_old) {
+		log_error(ls, "unused recovery %llx %d",
+			  (unsigned long long)rv_old->seq, rv_old->node_count);
 		kfree(rv_old->nodeids);
+		kfree(rv_old->new);
 		kfree(rv_old);
 	}
 
@@ -354,6 +377,7 @@ int dlm_ls_start(struct dlm_ls *ls)
  fail:
 	kfree(rv);
 	kfree(ids);
+	kfree(new);
 	return error;
 }
 

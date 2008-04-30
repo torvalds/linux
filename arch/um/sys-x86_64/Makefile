@@ -10,7 +10,7 @@ obj-y = bug.o bugs.o delay.o fault.o ldt.o mem.o ptrace.o ptrace_user.o \
 
 obj-$(CONFIG_MODULES) += um_module.o
 
-subarch-obj-y = lib/bitops_64.o lib/csum-partial_64.o lib/memcpy_64.o lib/thunk_64.o
+subarch-obj-y = lib/csum-partial_64.o lib/memcpy_64.o lib/thunk_64.o
 subarch-obj-$(CONFIG_MODULES) += kernel/module_64.o
 
 ldt-y = ../sys-i386/ldt.o

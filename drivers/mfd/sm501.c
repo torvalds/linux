@@ -22,6 +22,7 @@
 
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>
+#include <linux/serial_8250.h>
 
 #include <asm/io.h>
 
@@ -723,13 +724,14 @@ static void sm501_device_release(struct device *dev)
 */
 
 static struct platform_device *
-sm501_create_subdev(struct sm501_devdata *sm,
-		    char *name, unsigned int res_count)
+sm501_create_subdev(struct sm501_devdata *sm, char *name,
+		    unsigned int res_count, unsigned int platform_data_size)
 {
 	struct sm501_device *smdev;
 
 	smdev = kzalloc(sizeof(struct sm501_device) +
-			sizeof(struct resource) * res_count, GFP_KERNEL);
+			(sizeof(struct resource) * res_count) +
+			platform_data_size, GFP_KERNEL);
 	if (!smdev)
 		return NULL;
 
@@ -737,10 +739,14 @@ sm501_create_subdev(struct sm501_devdata *sm,
 
 	smdev->pdev.name = name;
 	smdev->pdev.id = sm->pdev_id;
-	smdev->pdev.resource = (struct resource *)(smdev+1);
-	smdev->pdev.num_resources = res_count;
-
 	smdev->pdev.dev.parent = sm->dev;
+
+	if (res_count) {
+		smdev->pdev.resource = (struct resource *)(smdev+1);
+		smdev->pdev.num_resources = res_count;
+	}
+	if (platform_data_size)
+		smdev->pdev.dev.platform_data = (void *)(smdev+1);
 
 	return &smdev->pdev;
 }
@@ -829,7 +835,7 @@ static int sm501_register_usbhost(struct sm501_devdata *sm,
 {
 	struct platform_device *pdev;
 
-	pdev = sm501_create_subdev(sm, "sm501-usb", 3);
+	pdev = sm501_create_subdev(sm, "sm501-usb", 3, 0);
 	if (!pdev)
 		return -ENOMEM;
 
@@ -840,12 +846,55 @@ static int sm501_register_usbhost(struct sm501_devdata *sm,
 	return sm501_register_device(sm, pdev);
 }
 
+static void sm501_setup_uart_data(struct sm501_devdata *sm,
+				  struct plat_serial8250_port *uart_data,
+				  unsigned int offset)
+{
+	uart_data->membase = sm->regs + offset;
+	uart_data->mapbase = sm->io_res->start + offset;
+	uart_data->iotype = UPIO_MEM;
+	uart_data->irq = sm->irq;
+	uart_data->flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_SHARE_IRQ;
+	uart_data->regshift = 2;
+	uart_data->uartclk = (9600 * 16);
+}
+
+static int sm501_register_uart(struct sm501_devdata *sm, int devices)
+{
+	struct platform_device *pdev;
+	struct plat_serial8250_port *uart_data;
+
+	pdev = sm501_create_subdev(sm, "serial8250", 0,
+				   sizeof(struct plat_serial8250_port) * 3);
+	if (!pdev)
+		return -ENOMEM;
+
+	uart_data = pdev->dev.platform_data;
+
+	if (devices & SM501_USE_UART0) {
+		sm501_setup_uart_data(sm, uart_data++, 0x30000);
+		sm501_unit_power(sm->dev, SM501_GATE_UART0, 1);
+		sm501_modify_reg(sm->dev, SM501_IRQ_MASK, 1 << 12, 0);
+		sm501_modify_reg(sm->dev, SM501_GPIO63_32_CONTROL, 0x01e0, 0);
+	}
+	if (devices & SM501_USE_UART1) {
+		sm501_setup_uart_data(sm, uart_data++, 0x30020);
+		sm501_unit_power(sm->dev, SM501_GATE_UART1, 1);
+		sm501_modify_reg(sm->dev, SM501_IRQ_MASK, 1 << 13, 0);
+		sm501_modify_reg(sm->dev, SM501_GPIO63_32_CONTROL, 0x1e00, 0);
+	}
+
+	pdev->id = PLAT8250_DEV_SM501;
+
+	return sm501_register_device(sm, pdev);
+}
+
 static int sm501_register_display(struct sm501_devdata *sm,
 				  resource_size_t *mem_avail)
 {
 	struct platform_device *pdev;
 
-	pdev = sm501_create_subdev(sm, "sm501-fb", 4);
+	pdev = sm501_create_subdev(sm, "sm501-fb", 4, 0);
 	if (!pdev)
 		return -ENOMEM;
 
@@ -963,6 +1012,7 @@ static unsigned int sm501_mem_local[] = {
 
 static int sm501_init_dev(struct sm501_devdata *sm)
 {
+	struct sm501_initdata *idata;
 	resource_size_t mem_avail;
 	unsigned long dramctrl;
 	unsigned long devid;
@@ -979,6 +1029,9 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 		dev_err(sm->dev, "incorrect device id %08lx\n", devid);
 		return -EINVAL;
 	}
+
+	/* disable irqs */
+	writel(0, sm->regs + SM501_IRQ_MASK);
 
 	dramctrl = readl(sm->regs + SM501_DRAM_CONTROL);
 	mem_avail = sm501_mem_local[(dramctrl >> 13) & 0x7];
@@ -998,15 +1051,14 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 
 	/* check to see if we have some device initialisation */
 
-	if (sm->platdata) {
-		struct sm501_platdata *pdata = sm->platdata;
+	idata = sm->platdata ? sm->platdata->init : NULL;
+	if (idata) {
+		sm501_init_regs(sm, idata);
 
-		if (pdata->init) {
-			sm501_init_regs(sm, sm->platdata->init);
-
-			if (pdata->init->devices & SM501_USE_USB_HOST)
-				sm501_register_usbhost(sm, &mem_avail);
-		}
+		if (idata->devices & SM501_USE_USB_HOST)
+			sm501_register_usbhost(sm, &mem_avail);
+		if (idata->devices & (SM501_USE_UART0 | SM501_USE_UART1))
+			sm501_register_uart(sm, idata->devices);
 	}
 
 	ret = sm501_check_clocks(sm);

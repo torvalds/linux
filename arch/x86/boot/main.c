@@ -9,8 +9,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * arch/i386/boot/main.c
- *
  * Main module for the real-mode kernel code
  */
 

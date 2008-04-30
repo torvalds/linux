@@ -289,8 +289,8 @@ static int __init cpufreq_p4_init(void)
 	if (c->x86_vendor != X86_VENDOR_INTEL)
 		return -ENODEV;
 
-	if (!test_bit(X86_FEATURE_ACPI, c->x86_capability) ||
-		!test_bit(X86_FEATURE_ACC, c->x86_capability))
+	if (!test_cpu_cap(c, X86_FEATURE_ACPI) ||
+				!test_cpu_cap(c, X86_FEATURE_ACC))
 		return -ENODEV;
 
 	ret = cpufreq_register_driver(&p4clockmod_driver);

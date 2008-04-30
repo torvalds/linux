@@ -84,8 +84,6 @@ typedef struct {
 	unsigned long vdso_base;
 } mm_context_t;
 
-typedef unsigned long phys_addr_t;
-
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_MMU_HASH32_H_ */

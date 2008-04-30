@@ -117,7 +117,7 @@ struct pci_controller {
 
 #ifndef CONFIG_PPC64
 
-static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
+static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 {
 	return bus->sysdata;
 }
@@ -235,7 +235,7 @@ extern void pcibios_fixup_new_pci_devices(struct pci_bus *bus);
 
 extern int pcibios_remove_root_bus(struct pci_controller *phb);
 
-static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
+static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 {
 	struct device_node *busdn = bus->sysdata;
 

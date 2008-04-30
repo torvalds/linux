@@ -31,6 +31,8 @@ config ARCH_EDB7211
 	bool "EDB7211"
 	select ISA
 	select ARCH_DISCONTIGMEM_ENABLE
+	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_SELECT_MEMORY_MODEL
 	help
 	  Say Y here if you intend to run this kernel on a Cirrus Logic EDB-7211
 	  evaluation board.

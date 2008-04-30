@@ -30,12 +30,12 @@
 struct tda827x_config
 {
 	/* saa7134 - provided callbacks */
-	void (*lna_gain) (struct dvb_frontend *fe, int high);
 	int (*init) (struct dvb_frontend *fe);
 	int (*sleep) (struct dvb_frontend *fe);
 
 	/* interface to tda829x driver */
-	unsigned int *config;
+	unsigned int config;
+	int 	     switch_addr;
 	int (*tuner_callback) (void *dev, int command, int arg);
 
 	void (*agcf)(struct dvb_frontend *fe);
@@ -61,7 +61,7 @@ static inline struct dvb_frontend* tda827x_attach(struct dvb_frontend *fe,
 						  struct i2c_adapter *i2c,
 						  struct tda827x_config *cfg)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif // CONFIG_DVB_TDA827X

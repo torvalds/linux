@@ -2,7 +2,7 @@
  * net/tipc/ref.h: Include file for TIPC object registry code
  *
  * Copyright (c) 1991-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005-2006, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,95 +37,14 @@
 #ifndef _TIPC_REF_H
 #define _TIPC_REF_H
 
-/**
- * struct reference - TIPC object reference entry
- * @object: pointer to object associated with reference entry
- * @lock: spinlock controlling access to object
- * @data: reference value associated with object (or link to next unused entry)
- */
-
-struct reference {
-	void *object;
-	spinlock_t lock;
-	union {
-		u32 next_plus_upper;
-		u32 reference;
-	} data;
-};
-
-/**
- * struct tipc_ref_table - table of TIPC object reference entries
- * @entries: pointer to array of reference entries
- * @index_mask: bitmask for array index portion of reference values
- * @first_free: array index of first unused object reference entry
- * @last_free: array index of last unused object reference entry
- */
-
-struct ref_table {
-	struct reference *entries;
-	u32 index_mask;
-	u32 first_free;
-	u32 last_free;
-};
-
-extern struct ref_table tipc_ref_table;
-
 int tipc_ref_table_init(u32 requested_size, u32 start);
 void tipc_ref_table_stop(void);
 
 u32 tipc_ref_acquire(void *object, spinlock_t **lock);
 void tipc_ref_discard(u32 ref);
 
-
-/**
- * tipc_ref_lock - lock referenced object and return pointer to it
- */
-
-static inline void *tipc_ref_lock(u32 ref)
-{
-	if (likely(tipc_ref_table.entries)) {
-		struct reference *r =
-			&tipc_ref_table.entries[ref & tipc_ref_table.index_mask];
-
-		spin_lock_bh(&r->lock);
-		if (likely(r->data.reference == ref))
-			return r->object;
-		spin_unlock_bh(&r->lock);
-	}
-	return NULL;
-}
-
-/**
- * tipc_ref_unlock - unlock referenced object
- */
-
-static inline void tipc_ref_unlock(u32 ref)
-{
-	if (likely(tipc_ref_table.entries)) {
-		struct reference *r =
-			&tipc_ref_table.entries[ref & tipc_ref_table.index_mask];
-
-		if (likely(r->data.reference == ref))
-			spin_unlock_bh(&r->lock);
-		else
-			err("tipc_ref_unlock() invoked using obsolete reference\n");
-	}
-}
-
-/**
- * tipc_ref_deref - return pointer referenced object (without locking it)
- */
-
-static inline void *tipc_ref_deref(u32 ref)
-{
-	if (likely(tipc_ref_table.entries)) {
-		struct reference *r =
-			&tipc_ref_table.entries[ref & tipc_ref_table.index_mask];
-
-		if (likely(r->data.reference == ref))
-			return r->object;
-	}
-	return NULL;
-}
+void *tipc_ref_lock(u32 ref);
+void tipc_ref_unlock(u32 ref);
+void *tipc_ref_deref(u32 ref);
 
 #endif

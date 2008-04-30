@@ -3676,6 +3676,8 @@ static int snd_trident_free(struct snd_trident *trident)
 	else if (trident->device == TRIDENT_DEVICE_ID_SI7018) {
 		outl(0, TRID_REG(trident, SI_SERIAL_INTF_CTRL));
 	}
+	if (trident->irq >= 0)
+		free_irq(trident->irq, trident);
 	if (trident->tlb.buffer.area) {
 		outl(0, TRID_REG(trident, NX_TLBC));
 		if (trident->tlb.memhdr)
@@ -3685,8 +3687,6 @@ static int snd_trident_free(struct snd_trident *trident)
 		vfree(trident->tlb.shadow_entries);
 		snd_dma_free_pages(&trident->tlb.buffer);
 	}
-	if (trident->irq >= 0)
-		free_irq(trident->irq, trident);
 	pci_release_regions(trident->pci);
 	pci_disable_device(trident->pci);
 	kfree(trident);

@@ -282,6 +282,7 @@ struct v4l2_pix_format
 #define V4L2_PIX_FMT_BGR32   v4l2_fourcc('B','G','R','4') /* 32  BGR-8-8-8-8   */
 #define V4L2_PIX_FMT_RGB32   v4l2_fourcc('R','G','B','4') /* 32  RGB-8-8-8-8   */
 #define V4L2_PIX_FMT_GREY    v4l2_fourcc('G','R','E','Y') /*  8  Greyscale     */
+#define V4L2_PIX_FMT_Y16     v4l2_fourcc('Y','1','6',' ') /* 16  Greyscale     */
 #define V4L2_PIX_FMT_PAL8    v4l2_fourcc('P','A','L','8') /*  8  8-bit palette */
 #define V4L2_PIX_FMT_YVU410  v4l2_fourcc('Y','V','U','9') /*  9  YVU 4:1:0     */
 #define V4L2_PIX_FMT_YVU420  v4l2_fourcc('Y','V','1','2') /* 12  YVU 4:2:0     */
@@ -308,6 +309,7 @@ struct v4l2_pix_format
 
 /* see http://www.siliconimaging.com/RGB%20Bayer.htm */
 #define V4L2_PIX_FMT_SBGGR8  v4l2_fourcc('B','A','8','1') /*  8  BGBG.. GRGR.. */
+#define V4L2_PIX_FMT_SBGGR16 v4l2_fourcc('B','Y','R','2') /* 16  BGBG.. GRGR.. */
 
 /* compressed formats */
 #define V4L2_PIX_FMT_MJPEG    v4l2_fourcc('M','J','P','G') /* Motion-JPEG   */
@@ -793,6 +795,7 @@ struct v4l2_ext_controls
 /*  Values for ctrl_class field */
 #define V4L2_CTRL_CLASS_USER 0x00980000	/* Old-style 'user' controls */
 #define V4L2_CTRL_CLASS_MPEG 0x00990000	/* MPEG-compression controls */
+#define V4L2_CTRL_CLASS_CAMERA 0x009a0000	/* Camera class controls */
 
 #define V4L2_CTRL_ID_MASK      	  (0x0fffffff)
 #define V4L2_CTRL_ID2CLASS(id)    ((id) & 0x0fff0000UL)
@@ -849,21 +852,37 @@ struct v4l2_querymenu
 #define V4L2_CID_AUDIO_TREBLE		(V4L2_CID_BASE+8)
 #define V4L2_CID_AUDIO_MUTE		(V4L2_CID_BASE+9)
 #define V4L2_CID_AUDIO_LOUDNESS		(V4L2_CID_BASE+10)
-#define V4L2_CID_BLACK_LEVEL		(V4L2_CID_BASE+11)
+#define V4L2_CID_BLACK_LEVEL		(V4L2_CID_BASE+11) /* Deprecated */
 #define V4L2_CID_AUTO_WHITE_BALANCE	(V4L2_CID_BASE+12)
 #define V4L2_CID_DO_WHITE_BALANCE	(V4L2_CID_BASE+13)
 #define V4L2_CID_RED_BALANCE		(V4L2_CID_BASE+14)
 #define V4L2_CID_BLUE_BALANCE		(V4L2_CID_BASE+15)
 #define V4L2_CID_GAMMA			(V4L2_CID_BASE+16)
-#define V4L2_CID_WHITENESS		(V4L2_CID_GAMMA) /* ? Not sure */
+#define V4L2_CID_WHITENESS		(V4L2_CID_GAMMA) /* Deprecated */
 #define V4L2_CID_EXPOSURE		(V4L2_CID_BASE+17)
 #define V4L2_CID_AUTOGAIN		(V4L2_CID_BASE+18)
 #define V4L2_CID_GAIN			(V4L2_CID_BASE+19)
 #define V4L2_CID_HFLIP			(V4L2_CID_BASE+20)
 #define V4L2_CID_VFLIP			(V4L2_CID_BASE+21)
-#define V4L2_CID_HCENTER		(V4L2_CID_BASE+22)
-#define V4L2_CID_VCENTER		(V4L2_CID_BASE+23)
-#define V4L2_CID_LASTP1			(V4L2_CID_BASE+24) /* last CID + 1 */
+
+/* Deprecated, use V4L2_CID_PAN_RESET and V4L2_CID_TILT_RESET */
+#define V4L2_CID_HCENTER_DEPRECATED	(V4L2_CID_BASE+22)
+#define V4L2_CID_VCENTER_DEPRECATED	(V4L2_CID_BASE+23)
+
+#define V4L2_CID_POWER_LINE_FREQUENCY	(V4L2_CID_BASE+24)
+enum v4l2_power_line_frequency {
+	V4L2_CID_POWER_LINE_FREQUENCY_DISABLED	= 0,
+	V4L2_CID_POWER_LINE_FREQUENCY_50HZ	= 1,
+	V4L2_CID_POWER_LINE_FREQUENCY_60HZ	= 2,
+};
+#define V4L2_CID_HUE_AUTO			(V4L2_CID_BASE+25)
+#define V4L2_CID_WHITE_BALANCE_TEMPERATURE	(V4L2_CID_BASE+26)
+#define V4L2_CID_SHARPNESS			(V4L2_CID_BASE+27)
+#define V4L2_CID_BACKLIGHT_COMPENSATION 	(V4L2_CID_BASE+28)
+#define V4L2_CID_CHROMA_AGC                     (V4L2_CID_BASE+29)
+#define V4L2_CID_COLOR_KILLER                   (V4L2_CID_BASE+30)
+/* last CID + 1 */
+#define V4L2_CID_LASTP1                         (V4L2_CID_BASE+31)
 
 /*  MPEG-class control IDs defined by V4L2 */
 #define V4L2_CID_MPEG_BASE 			(V4L2_CTRL_CLASS_MPEG | 0x900)
@@ -1050,6 +1069,32 @@ enum v4l2_mpeg_cx2341x_video_median_filter_type {
 #define V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_BOTTOM	(V4L2_CID_MPEG_CX2341X_BASE+9)
 #define V4L2_CID_MPEG_CX2341X_VIDEO_CHROMA_MEDIAN_FILTER_TOP 	(V4L2_CID_MPEG_CX2341X_BASE+10)
 #define V4L2_CID_MPEG_CX2341X_STREAM_INSERT_NAV_PACKETS 	(V4L2_CID_MPEG_CX2341X_BASE+11)
+
+/*  Camera class control IDs */
+#define V4L2_CID_CAMERA_CLASS_BASE 	(V4L2_CTRL_CLASS_CAMERA | 0x900)
+#define V4L2_CID_CAMERA_CLASS 		(V4L2_CTRL_CLASS_CAMERA | 1)
+
+#define V4L2_CID_EXPOSURE_AUTO			(V4L2_CID_CAMERA_CLASS_BASE+1)
+enum  v4l2_exposure_auto_type {
+	V4L2_EXPOSURE_AUTO = 0,
+	V4L2_EXPOSURE_MANUAL = 1,
+	V4L2_EXPOSURE_SHUTTER_PRIORITY = 2,
+	V4L2_EXPOSURE_APERTURE_PRIORITY = 3
+};
+#define V4L2_CID_EXPOSURE_ABSOLUTE		(V4L2_CID_CAMERA_CLASS_BASE+2)
+#define V4L2_CID_EXPOSURE_AUTO_PRIORITY		(V4L2_CID_CAMERA_CLASS_BASE+3)
+
+#define V4L2_CID_PAN_RELATIVE			(V4L2_CID_CAMERA_CLASS_BASE+4)
+#define V4L2_CID_TILT_RELATIVE			(V4L2_CID_CAMERA_CLASS_BASE+5)
+#define V4L2_CID_PAN_RESET			(V4L2_CID_CAMERA_CLASS_BASE+6)
+#define V4L2_CID_TILT_RESET			(V4L2_CID_CAMERA_CLASS_BASE+7)
+
+#define V4L2_CID_PAN_ABSOLUTE			(V4L2_CID_CAMERA_CLASS_BASE+8)
+#define V4L2_CID_TILT_ABSOLUTE			(V4L2_CID_CAMERA_CLASS_BASE+9)
+
+#define V4L2_CID_FOCUS_ABSOLUTE			(V4L2_CID_CAMERA_CLASS_BASE+10)
+#define V4L2_CID_FOCUS_RELATIVE			(V4L2_CID_CAMERA_CLASS_BASE+11)
+#define V4L2_CID_FOCUS_AUTO			(V4L2_CID_CAMERA_CLASS_BASE+12)
 
 /*
  *	T U N I N G

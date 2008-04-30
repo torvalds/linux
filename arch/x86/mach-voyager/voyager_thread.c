@@ -4,8 +4,6 @@
  *
  * Author: J.E.J.Bottomley@HansenPartnership.com
  *
- * linux/arch/i386/kernel/voyager_thread.c
- *
  * This module provides the machine status monitor thread for the
  * voyager architecture.  This allows us to monitor the machine
  * environment (temp, voltage, fan function) and the front panel and

@@ -158,9 +158,8 @@ void tick_nohz_stop_idle(int cpu)
 	}
 }
 
-static ktime_t tick_nohz_start_idle(int cpu)
+static ktime_t tick_nohz_start_idle(struct tick_sched *ts)
 {
-	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
 	ktime_t now, delta;
 
 	now = ktime_get();
@@ -192,7 +191,6 @@ u64 get_cpu_idle_time_us(int cpu, u64 *last_update_time)
 void tick_nohz_stop_sched_tick(void)
 {
 	unsigned long seq, last_jiffies, next_jiffies, delta_jiffies, flags;
-	unsigned long rt_jiffies;
 	struct tick_sched *ts;
 	ktime_t last_update, expires, now;
 	struct clock_event_device *dev = __get_cpu_var(tick_cpu_device).evtdev;
@@ -201,8 +199,8 @@ void tick_nohz_stop_sched_tick(void)
 	local_irq_save(flags);
 
 	cpu = smp_processor_id();
-	now = tick_nohz_start_idle(cpu);
 	ts = &per_cpu(tick_cpu_sched, cpu);
+	now = tick_nohz_start_idle(ts);
 
 	/*
 	 * If this cpu is offline and it is the one which updates
@@ -222,7 +220,6 @@ void tick_nohz_stop_sched_tick(void)
 	if (need_resched())
 		goto end;
 
-	cpu = smp_processor_id();
 	if (unlikely(local_softirq_pending())) {
 		static int ratelimit;
 
@@ -244,10 +241,6 @@ void tick_nohz_stop_sched_tick(void)
 	/* Get the next timer wheel timer */
 	next_jiffies = get_next_timer_interrupt(last_jiffies);
 	delta_jiffies = next_jiffies - last_jiffies;
-
-	rt_jiffies = rt_needs_cpu(cpu);
-	if (rt_jiffies && rt_jiffies < delta_jiffies)
-		delta_jiffies = rt_jiffies;
 
 	if (rcu_needs_cpu(cpu))
 		delta_jiffies = 1;
@@ -400,6 +393,7 @@ void tick_nohz_restart_sched_tick(void)
 		sub_preempt_count(HARDIRQ_OFFSET);
 	}
 
+	touch_softlockup_watchdog();
 	/*
 	 * Cancel the scheduled timer and restore the tick
 	 */

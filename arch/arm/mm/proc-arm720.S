@@ -198,6 +198,7 @@ arm720_crval:
 		.type	arm720_processor_functions, #object
 ENTRY(arm720_processor_functions)
 		.word	v4t_late_abort
+		.word	pabort_noifar
 		.word	cpu_arm720_proc_init
 		.word	cpu_arm720_proc_fin
 		.word	cpu_arm720_reset

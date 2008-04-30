@@ -28,7 +28,7 @@ static ssize_t show_online(struct sys_device *dev, char *buf)
 	return sprintf(buf, "%u\n", !!cpu_online(cpu->sysdev.id));
 }
 
-static ssize_t store_online(struct sys_device *dev, const char *buf,
+static ssize_t __ref store_online(struct sys_device *dev, const char *buf,
 			    size_t count)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
@@ -55,7 +55,7 @@ static ssize_t store_online(struct sys_device *dev, const char *buf,
 }
 static SYSDEV_ATTR(online, 0644, show_online, store_online);
 
-static void __devinit register_cpu_control(struct cpu *cpu)
+static void __cpuinit register_cpu_control(struct cpu *cpu)
 {
 	sysdev_create_file(&cpu->sysdev, &attr_online);
 }
@@ -103,6 +103,51 @@ static SYSDEV_ATTR(crash_notes, 0400, show_crash_notes, NULL);
 #endif
 
 /*
+ * Print cpu online, possible, present, and system maps
+ */
+static ssize_t print_cpus_map(char *buf, cpumask_t *map)
+{
+	int n = cpulist_scnprintf(buf, PAGE_SIZE-2, *map);
+
+	buf[n++] = '\n';
+	buf[n] = '\0';
+	return n;
+}
+
+#define	print_cpus_func(type) \
+static ssize_t print_cpus_##type(struct sysdev_class *class, char *buf)	\
+{									\
+	return print_cpus_map(buf, &cpu_##type##_map);			\
+}									\
+struct sysdev_class_attribute attr_##type##_map = 			\
+	_SYSDEV_CLASS_ATTR(type, 0444, print_cpus_##type, NULL)
+
+print_cpus_func(online);
+print_cpus_func(possible);
+print_cpus_func(present);
+
+struct sysdev_class_attribute *cpu_state_attr[] = {
+	&attr_online_map,
+	&attr_possible_map,
+	&attr_present_map,
+};
+
+static int cpu_states_init(void)
+{
+	int i;
+	int err = 0;
+
+	for (i = 0;  i < ARRAY_SIZE(cpu_state_attr); i++) {
+		int ret;
+		ret = sysdev_class_create_file(&cpu_sysdev_class,
+						cpu_state_attr[i]);
+		if (!err)
+			err = ret;
+	}
+	return err;
+}
+
+/*
  * register_cpu - Setup a sysfs device for a CPU.
  * @cpu - cpu->hotpluggable field set to 1 will generate a control file in
  *	  sysfs for this CPU.
@@ -147,6 +192,9 @@ int __init cpu_dev_init(void)
 	int err;
 
 	err = sysdev_class_register(&cpu_sysdev_class);
+	if (!err)
+		err = cpu_states_init();
+
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
 	if (!err)
 		err = sched_create_sysfs_power_savings_entries(&cpu_sysdev_class);

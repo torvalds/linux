@@ -225,7 +225,6 @@ enum nes_cm_listener_state {
 
 struct nes_cm_listener {
 	struct list_head           list;
-	u64                        session_id;
 	struct nes_cm_core         *cm_core;
 	u8                         loc_mac[ETH_ALEN];
 	nes_addr_t                 loc_addr;
@@ -242,7 +241,6 @@ struct nes_cm_listener {
 
 /* per connection node and node state information */
 struct nes_cm_node {
-	u64                       session_id;
 	u32                       hashkey;
 
 	nes_addr_t                loc_addr, rem_addr;
@@ -327,7 +325,6 @@ struct nes_cm_event {
 
 struct nes_cm_core {
 	enum nes_cm_node_state  state;
-	atomic_t                session_id;
 
 	atomic_t                listen_node_cnt;
 	struct nes_cm_node      listen_list;
@@ -383,35 +380,10 @@ struct nes_cm_ops {
 	int (*set)(struct nes_cm_core *, u32, u32);
 };
 
-
-int send_mpa_request(struct nes_cm_node *);
-struct sk_buff *form_cm_frame(struct sk_buff *, struct nes_cm_node *,
-		void *, u32, void *, u32, u8);
 int schedule_nes_timer(struct nes_cm_node *, struct sk_buff *,
 		enum nes_timer_type, int, int);
-void nes_cm_timer_tick(unsigned long);
-int send_syn(struct nes_cm_node *, u32);
-int send_reset(struct nes_cm_node *);
-int send_ack(struct nes_cm_node *);
-int send_fin(struct nes_cm_node *, struct sk_buff *);
-struct sk_buff *get_free_pkt(struct nes_cm_node *);
-int process_packet(struct nes_cm_node *, struct sk_buff *, struct nes_cm_core *);
-
-struct nes_cm_node * mini_cm_connect(struct nes_cm_core *,
-		struct nes_vnic *, struct ietf_mpa_frame *, struct nes_cm_info *);
-int mini_cm_accept(struct nes_cm_core *, struct ietf_mpa_frame *, struct nes_cm_node *);
-int mini_cm_reject(struct nes_cm_core *, struct ietf_mpa_frame *, struct nes_cm_node *);
-int mini_cm_close(struct nes_cm_core *, struct nes_cm_node *);
-int mini_cm_recv_pkt(struct nes_cm_core *, struct nes_vnic *, struct sk_buff *);
-struct nes_cm_core *mini_cm_alloc_core(struct nes_cm_info *);
-int mini_cm_dealloc_core(struct nes_cm_core *);
-int mini_cm_get(struct nes_cm_core *);
-int mini_cm_set(struct nes_cm_core *, u32, u32);
 
 int nes_cm_disconn(struct nes_qp *);
-void nes_disconnect_worker(struct work_struct *);
-int nes_cm_disconn_true(struct nes_qp *);
-int nes_disconnect(struct nes_qp *, int);
 
 int nes_accept(struct iw_cm_id *, struct iw_cm_conn_param *);
 int nes_reject(struct iw_cm_id *, const void *, u8);
@@ -422,12 +394,5 @@ int nes_destroy_listen(struct iw_cm_id *);
 int nes_cm_recv(struct sk_buff *, struct net_device *);
 int nes_cm_start(void);
 int nes_cm_stop(void);
-
-/* CM event handler functions */
-void cm_event_connected(struct nes_cm_event *);
-void cm_event_connect_error(struct nes_cm_event *);
-void cm_event_reset(struct nes_cm_event *);
-void cm_event_mpa_req(struct nes_cm_event *);
-int nes_cm_post_event(struct nes_cm_event *);
 
 #endif			/* NES_CM_H */

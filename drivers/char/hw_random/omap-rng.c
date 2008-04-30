@@ -1,7 +1,5 @@
 /*
- * drivers/char/hw_random/omap-rng.c
- *
- * RNG driver for TI OMAP CPU family
+ * omap-rng.c - RNG driver for TI OMAP CPU family
  *
  * Author: Deepak Saxena <dsaxena@plexity.net>
  *
@@ -15,11 +13,6 @@
  * This file is licensed under  the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
- *
- * TODO:
- *
- * - Make status updated be interrupt driven so we don't poll
- *
  */
 
 #include <linux/module.h>
@@ -55,17 +48,16 @@ static void __iomem *rng_base;
 static struct clk *rng_ick;
 static struct platform_device *rng_dev;
 
-static u32 omap_rng_read_reg(int reg)
+static inline u32 omap_rng_read_reg(int reg)
 {
 	return __raw_readl(rng_base + reg);
 }
 
-static void omap_rng_write_reg(int reg, u32 val)
+static inline void omap_rng_write_reg(int reg, u32 val)
 {
 	__raw_writel(val, rng_base + reg);
 }
 
-/* REVISIT: Does the status bit really work on 16xx? */
 static int omap_rng_data_present(struct hwrng *rng, int wait)
 {
 	int data, i;
@@ -74,6 +66,11 @@ static int omap_rng_data_present(struct hwrng *rng, int wait)
 		data = omap_rng_read_reg(RNG_STAT_REG) ? 0 : 1;
 		if (data || !wait)
 			break;
+		/* RNG produces data fast enough (2+ MBit/sec, even
+		 * during "rngtest" loads, that these delays don't
+		 * seem to trigger.  We *could* use the RNG IRQ, but
+		 * that'd be higher overhead ... so why bother?
+		 */
 		udelay(10);
 	}
 	return data;
@@ -101,7 +98,8 @@ static int __init omap_rng_probe(struct platform_device *pdev)
 	 * A bit ugly, and it will never actually happen but there can
 	 * be only one RNG and this catches any bork
 	 */
-	BUG_ON(rng_dev);
+	if (rng_dev)
+		return -EBUSY;
 
 	if (cpu_is_omap24xx()) {
 		rng_ick = clk_get(NULL, "rng_ick");
@@ -124,7 +122,7 @@ static int __init omap_rng_probe(struct platform_device *pdev)
 		return -EBUSY;
 
 	dev_set_drvdata(&pdev->dev, mem);
-	rng_base = (u32 __iomem *)io_p2v(res->start);
+	rng_base = (u32 __force __iomem *)io_p2v(res->start);
 
 	ret = hwrng_register(&omap_rng_ops);
 	if (ret) {
@@ -182,6 +180,8 @@ static int omap_rng_resume(struct platform_device *pdev)
 
 #endif
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:omap_rng");
 
 static struct platform_driver omap_rng_driver = {
 	.driver = {

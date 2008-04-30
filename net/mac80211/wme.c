@@ -19,10 +19,13 @@
 #include "wme.h"
 
 /* maximum number of hardware queues we support. */
-#define TC_80211_MAX_QUEUES 8
+#define TC_80211_MAX_QUEUES 16
+
+const int ieee802_1d_to_ac[8] = { 2, 3, 3, 2, 1, 1, 0, 0 };
 
 struct ieee80211_sched_data
 {
+	unsigned long qdisc_pool[BITS_TO_LONGS(TC_80211_MAX_QUEUES)];
 	struct tcf_proto *filter_list;
 	struct Qdisc *queues[TC_80211_MAX_QUEUES];
 	struct sk_buff_head requeued[TC_80211_MAX_QUEUES];
@@ -98,7 +101,6 @@ static inline int classify80211(struct sk_buff *skb, struct Qdisc *qd)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	unsigned short fc = le16_to_cpu(hdr->frame_control);
 	int qos;
-	const int ieee802_1d_to_ac[8] = { 2, 3, 3, 2, 1, 1, 0, 0 };
 
 	/* see if frame is data or non data frame */
 	if (unlikely((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)) {
@@ -146,9 +148,26 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 	unsigned short fc = le16_to_cpu(hdr->frame_control);
 	struct Qdisc *qdisc;
 	int err, queue;
+	struct sta_info *sta;
+	u8 tid;
 
 	if (pkt_data->flags & IEEE80211_TXPD_REQUEUE) {
-		skb_queue_tail(&q->requeued[pkt_data->queue], skb);
+		queue = pkt_data->queue;
+		rcu_read_lock();
+		sta = sta_info_get(local, hdr->addr1);
+		tid = skb->priority & QOS_CONTROL_TAG1D_MASK;
+		if (sta) {
+			int ampdu_queue = sta->tid_to_tx_q[tid];
+			if ((ampdu_queue < local->hw.queues) &&
+			    test_bit(ampdu_queue, q->qdisc_pool)) {
+				queue = ampdu_queue;
+				pkt_data->flags |= IEEE80211_TXPD_AMPDU;
+			} else {
+				pkt_data->flags &= ~IEEE80211_TXPD_AMPDU;
+			}
+		}
+		rcu_read_unlock();
+		skb_queue_tail(&q->requeued[queue], skb);
 		qd->q.qlen++;
 		return 0;
 	}
@@ -159,14 +178,31 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 	 */
 	if (WLAN_FC_IS_QOS_DATA(fc)) {
 		u8 *p = skb->data + ieee80211_get_hdrlen(fc) - 2;
-		u8 qos_hdr = skb->priority & QOS_CONTROL_TAG1D_MASK;
+		u8 ack_policy = 0;
+		tid = skb->priority & QOS_CONTROL_TAG1D_MASK;
 		if (local->wifi_wme_noack_test)
-			qos_hdr |= QOS_CONTROL_ACK_POLICY_NOACK <<
+			ack_policy |= QOS_CONTROL_ACK_POLICY_NOACK <<
 					QOS_CONTROL_ACK_POLICY_SHIFT;
 		/* qos header is 2 bytes, second reserved */
-		*p = qos_hdr;
+		*p = ack_policy | tid;
 		p++;
 		*p = 0;
+
+		rcu_read_lock();
+
+		sta = sta_info_get(local, hdr->addr1);
+		if (sta) {
+			int ampdu_queue = sta->tid_to_tx_q[tid];
+			if ((ampdu_queue < local->hw.queues) &&
+				test_bit(ampdu_queue, q->qdisc_pool)) {
+				queue = ampdu_queue;
+				pkt_data->flags |= IEEE80211_TXPD_AMPDU;
+			} else {
+				pkt_data->flags &= ~IEEE80211_TXPD_AMPDU;
+			}
+		}
+
+		rcu_read_unlock();
 	}
 
 	if (unlikely(queue >= local->hw.queues)) {
@@ -184,6 +220,7 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 			kfree_skb(skb);
 			err = NET_XMIT_DROP;
 	} else {
+		tid = skb->priority & QOS_CONTROL_TAG1D_MASK;
 		pkt_data->queue = (unsigned int) queue;
 		qdisc = q->queues[queue];
 		err = qdisc->enqueue(skb, qdisc);
@@ -235,10 +272,11 @@ static struct sk_buff *wme_qdiscop_dequeue(struct Qdisc* qd)
 	/* check all the h/w queues in numeric/priority order */
 	for (queue = 0; queue < hw->queues; queue++) {
 		/* see if there is room in this hardware queue */
-		if (test_bit(IEEE80211_LINK_STATE_XOFF,
-			     &local->state[queue]) ||
-		    test_bit(IEEE80211_LINK_STATE_PENDING,
-			     &local->state[queue]))
+		if ((test_bit(IEEE80211_LINK_STATE_XOFF,
+				&local->state[queue])) ||
+		    (test_bit(IEEE80211_LINK_STATE_PENDING,
+				&local->state[queue])) ||
+			 (!test_bit(queue, q->qdisc_pool)))
 			continue;
 
 		/* there is space - try and get a frame */
@@ -359,6 +397,10 @@ static int wme_qdiscop_init(struct Qdisc *qd, struct nlattr *opt)
 			printk(KERN_ERR "%s child qdisc %i creation failed", dev->name, i);
 		}
 	}
+
+	/* reserve all legacy QoS queues */
+	for (i = 0; i < min(IEEE80211_TX_QUEUE_DATA4, queues); i++)
+		set_bit(i, q->qdisc_pool);
 
 	return err;
 }
@@ -604,4 +646,81 @@ int ieee80211_wme_register(void)
 void ieee80211_wme_unregister(void)
 {
 	unregister_qdisc(&wme_qdisc_ops);
+}
+
+int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
+			struct sta_info *sta, u16 tid)
+{
+	int i;
+	struct ieee80211_sched_data *q =
+			qdisc_priv(local->mdev->qdisc_sleeping);
+	DECLARE_MAC_BUF(mac);
+
+	/* prepare the filter and save it for the SW queue
+	 * matching the recieved HW queue */
+
+	/* try to get a Qdisc from the pool */
+	for (i = IEEE80211_TX_QUEUE_BEACON; i < local->hw.queues; i++)
+		if (!test_and_set_bit(i, q->qdisc_pool)) {
+			ieee80211_stop_queue(local_to_hw(local), i);
+			sta->tid_to_tx_q[tid] = i;
+
+			/* IF there are already pending packets
+			 * on this tid first we need to drain them
+			 * on the previous queue
+			 * since HT is strict in order */
+#ifdef CONFIG_MAC80211_HT_DEBUG
+			if (net_ratelimit())
+				printk(KERN_DEBUG "allocated aggregation queue"
+					" %d tid %d addr %s pool=0x%lX",
+					i, tid, print_mac(mac, sta->addr),
+					q->qdisc_pool[0]);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+			return 0;
+		}
+
+	return -EAGAIN;
+}
+
+/**
+ * the caller needs to hold local->mdev->queue_lock
+ */
+void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
+				   struct sta_info *sta, u16 tid,
+				   u8 requeue)
+{
+	struct ieee80211_sched_data *q =
+		qdisc_priv(local->mdev->qdisc_sleeping);
+	int agg_queue = sta->tid_to_tx_q[tid];
+
+	/* return the qdisc to the pool */
+	clear_bit(agg_queue, q->qdisc_pool);
+	sta->tid_to_tx_q[tid] = local->hw.queues;
+
+	if (requeue)
+		ieee80211_requeue(local, agg_queue);
+	else
+		q->queues[agg_queue]->ops->reset(q->queues[agg_queue]);
+}
+
+void ieee80211_requeue(struct ieee80211_local *local, int queue)
+{
+	struct Qdisc *root_qd = local->mdev->qdisc_sleeping;
+	struct ieee80211_sched_data *q = qdisc_priv(root_qd);
+	struct Qdisc *qdisc = q->queues[queue];
+	struct sk_buff *skb = NULL;
+	u32 len;
+
+	if (!qdisc || !qdisc->dequeue)
+		return;
+
+	printk(KERN_DEBUG "requeue: qlen = %d\n", qdisc->q.qlen);
+	for (len = qdisc->q.qlen; len > 0; len--) {
+		skb = qdisc->dequeue(qdisc);
+		root_qd->q.qlen--;
+		/* packet will be classified again and */
+		/* skb->packet_data->queue will be overridden if needed */
+		if (skb)
+			wme_qdiscop_enqueue(skb, root_qd);
+	}
 }

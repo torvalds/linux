@@ -396,6 +396,7 @@ static void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_de
 	sd->op = &dev->ofdev;
 	sd->iommu = dev->bus->ofdev.dev.parent->archdata.iommu;
 	sd->stc = dev->bus->ofdev.dev.parent->archdata.stc;
+	sd->numa_node = dev->bus->ofdev.dev.parent->archdata.numa_node;
 
 	dev->ofdev.node = dp;
 	dev->ofdev.dev.parent = &dev->bus->ofdev.dev;

@@ -591,6 +591,11 @@ static inline int __ilog2(unsigned long x)
 	return 63 - lz;
 }
 
+static inline unsigned long __fls(unsigned long x)
+{
+	return __ilog2(x);
+}
+
 #if defined(CONFIG_CPU_MIPS32) || defined(CONFIG_CPU_MIPS64)
 
 /*

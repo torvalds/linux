@@ -4,7 +4,7 @@
  * This file must not contain any executable code.
  */
 
-#include "asm/cpufeature.h"
+#include <asm/cpufeature.h>
 
 /*
  * These flag bits must match the definitions in <asm/cpufeature.h>.

@@ -43,6 +43,10 @@ static const u8 setup[] = {
 	0x00, 0x00, 0x00, 0x00, 0xa4, 0x83, 0x02, 0x13,
 };
 
+static const struct ide_port_ops delkin_cb_port_ops = {
+	.quirkproc		= ide_undecoded_slave,
+};
+
 static int __devinit
 delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 {
@@ -71,26 +75,21 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		if (setup[i])
 			outb(setup[i], base + i);
 	}
-	pci_release_regions(dev);	/* IDE layer handles regions itself */
 
 	memset(&hw, 0, sizeof(hw));
 	ide_std_init_ports(&hw, base + 0x10, base + 0x1e);
 	hw.irq = dev->irq;
 	hw.chipset = ide_pci;		/* this enables IRQ sharing */
 
-	hwif = ide_deprecated_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif == NULL)
 		goto out_disable;
 
 	i = hwif->index;
 
-	if (hwif->present)
-		ide_unregister(i, 0, 0);
-	else if (!hwif->hold)
-		ide_init_port_data(hwif, i);
-
+	ide_init_port_data(hwif, i);
 	ide_init_port_hw(hwif, &hw);
-	hwif->quirkproc = &ide_undecoded_slave;
+	hwif->port_ops = &delkin_cb_port_ops;
 
 	idx[0] = i;
 
@@ -110,6 +109,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 
 out_disable:
 	printk(KERN_ERR "delkin_cb: no IDE devices found\n");
+	pci_release_regions(dev);
 	pci_disable_device(dev);
 	return -ENODEV;
 }
@@ -119,9 +119,9 @@ delkin_cb_remove (struct pci_dev *dev)
 {
 	ide_hwif_t *hwif = pci_get_drvdata(dev);
 
-	if (hwif)
-		ide_unregister(hwif->index, 0, 0);
+	ide_unregister(hwif);
 
+	pci_release_regions(dev);
 	pci_disable_device(dev);
 }
 

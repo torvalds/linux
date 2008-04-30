@@ -23,6 +23,7 @@
 #include <asm/arch/corgi.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/hardware/scoop.h>
 
 #define KB_ROWS				8
@@ -392,6 +393,7 @@ static struct platform_driver corgikbd_driver = {
 	.resume		= corgikbd_resume,
 	.driver		= {
 		.name	= "corgi-keyboard",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -411,3 +413,4 @@ module_exit(corgikbd_exit);
 MODULE_AUTHOR("Richard Purdie <rpurdie@rpsys.net>");
 MODULE_DESCRIPTION("Corgi Keyboard Driver");
 MODULE_LICENSE("GPLv2");
+MODULE_ALIAS("platform:corgi-keyboard");

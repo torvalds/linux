@@ -4,7 +4,7 @@ menu "Freescale MXC Implementations"
 
 choice
 	prompt "MXC/iMX System Type"
-	default 0
+	default ARCH_MX3
 
 config ARCH_MX3
 	bool "MX3-based"

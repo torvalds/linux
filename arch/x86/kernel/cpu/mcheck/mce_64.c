@@ -49,7 +49,7 @@ static int banks;
 static unsigned long bank[NR_BANKS] = { [0 ... NR_BANKS-1] = ~0UL };
 static unsigned long notify_user;
 static int rip_msr;
-static int mce_bootlog = 1;
+static int mce_bootlog = -1;
 static atomic_t mce_events;
 
 static char trigger[128];
@@ -471,13 +471,15 @@ static void mce_init(void *dummy)
 static void __cpuinit mce_cpu_quirks(struct cpuinfo_x86 *c)
 {
 	/* This should be disabled by the BIOS, but isn't always */
-	if (c->x86_vendor == X86_VENDOR_AMD && c->x86 == 15) {
-		/* disable GART TBL walk error reporting, which trips off
-		   incorrectly with the IOMMU & 3ware & Cerberus. */
-		clear_bit(10, &bank[4]);
-		/* Lots of broken BIOS around that don't clear them
-		   by default and leave crap in there. Don't log. */
-		mce_bootlog = 0;
+	if (c->x86_vendor == X86_VENDOR_AMD) {
+		if(c->x86 == 15)
+			/* disable GART TBL walk error reporting, which trips off
+			   incorrectly with the IOMMU & 3ware & Cerberus. */
+			clear_bit(10, &bank[4]);
+		if(c->x86 <= 17 && mce_bootlog < 0)
+			/* Lots of broken BIOS around that don't clear them
+			   by default and leave crap in there. Don't log. */
+			mce_bootlog = 0;
 	}
 
 }

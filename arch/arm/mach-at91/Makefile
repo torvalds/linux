@@ -29,9 +29,12 @@ obj-$(CONFIG_MACH_KB9200)	+= board-kb9202.o
 obj-$(CONFIG_MACH_ATEB9200)	+= board-eb9200.o
 obj-$(CONFIG_MACH_KAFA)		+= board-kafa.o
 obj-$(CONFIG_MACH_PICOTUX2XX)	+= board-picotux200.o
+obj-$(CONFIG_MACH_ECBAT91)	+= board-ecbat91.o
 
 # AT91SAM9260 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9260EK) += board-sam9260ek.o
+obj-$(CONFIG_MACH_CAM60)	+= board-cam60.o
+obj-$(CONFIG_MACH_SAM9_L9260)	+= board-sam9-l9260.o
 
 # AT91SAM9261 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9261EK) += board-sam9261ek.o

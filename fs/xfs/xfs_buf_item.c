@@ -645,7 +645,12 @@ xfs_buf_item_push(
 	bp = bip->bli_buf;
 
 	if (XFS_BUF_ISDELAYWRITE(bp)) {
-		xfs_bawrite(bip->bli_item.li_mountp, bp);
+		int	error;
+		error = xfs_bawrite(bip->bli_item.li_mountp, bp);
+		if (error)
+			xfs_fs_cmn_err(CE_WARN, bip->bli_item.li_mountp,
+			"xfs_buf_item_push: pushbuf error %d on bip %p, bp %p",
+					error, bip, bp);
 	} else {
 		xfs_buf_relse(bp);
 	}

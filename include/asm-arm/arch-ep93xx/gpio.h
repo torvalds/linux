@@ -101,30 +101,17 @@
 
 /* new generic GPIO API - see Documentation/gpio.txt */
 
-static inline int gpio_request(unsigned gpio, const char *label)
-{
-	if (gpio > EP93XX_GPIO_LINE_MAX)
-		return -EINVAL;
-	return 0;
-}
+#include <asm-generic/gpio.h>
 
-static inline void gpio_free(unsigned gpio)
-{
-}
-
-int gpio_direction_input(unsigned gpio);
-int gpio_direction_output(unsigned gpio, int value);
-int gpio_get_value(unsigned gpio);
-void gpio_set_value(unsigned gpio, int value);
-
-#include <asm-generic/gpio.h> /* cansleep wrappers */
+#define gpio_get_value	__gpio_get_value
+#define gpio_set_value	__gpio_set_value
+#define gpio_cansleep	__gpio_cansleep
 
 /*
  * Map GPIO A0..A7  (0..7)  to irq 64..71,
  *          B0..B7  (7..15) to irq 72..79, and
  *          F0..F7 (16..24) to irq 80..87.
  */
-
 static inline int gpio_to_irq(unsigned gpio)
 {
 	if (gpio <= EP93XX_GPIO_LINE_MAX_IRQ)

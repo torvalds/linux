@@ -157,8 +157,8 @@ MODULE_SUPPORTED_DEVICE("{{Aztech,AZF3328}}");
 
 #if DEBUG_CALLS
 #define snd_azf3328_dbgcalls(format, args...) printk(format, ##args)
-#define snd_azf3328_dbgcallenter() printk(KERN_ERR "--> %s\n", __FUNCTION__)
-#define snd_azf3328_dbgcallleave() printk(KERN_ERR "<-- %s\n", __FUNCTION__)
+#define snd_azf3328_dbgcallenter() printk(KERN_ERR "--> %s\n", __func__)
+#define snd_azf3328_dbgcallleave() printk(KERN_ERR "<-- %s\n", __func__)
 #else
 #define snd_azf3328_dbgcalls(format, args...)
 #define snd_azf3328_dbgcallenter()
@@ -1514,7 +1514,8 @@ snd_azf3328_free(struct snd_azf3328 *chip)
 	/* well, at least we know how to disable the timer IRQ */
 	snd_azf3328_codec_outb(chip, IDX_IO_TIMER_VALUE + 3, 0x00);
 
-        synchronize_irq(chip->irq);
+	if (chip->irq >= 0)
+        	synchronize_irq(chip->irq);
 __end_hw:
 	snd_azf3328_free_joystick(chip);
         if (chip->irq >= 0)

@@ -67,14 +67,24 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 		(long long)(p->nvcsw + p->nivcsw),
 		p->prio);
 #ifdef CONFIG_SCHEDSTATS
-	SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld\n",
+	SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld",
 		SPLIT_NS(p->se.vruntime),
 		SPLIT_NS(p->se.sum_exec_runtime),
 		SPLIT_NS(p->se.sum_sleep_runtime));
 #else
-	SEQ_printf(m, "%15Ld %15Ld %15Ld.%06ld %15Ld.%06ld %15Ld.%06ld\n",
+	SEQ_printf(m, "%15Ld %15Ld %15Ld.%06ld %15Ld.%06ld %15Ld.%06ld",
 		0LL, 0LL, 0LL, 0L, 0LL, 0L, 0LL, 0L);
 #endif
+
+#ifdef CONFIG_CGROUP_SCHED
+	{
+		char path[64];
+
+		cgroup_path(task_group(p)->css.cgroup, path, sizeof(path));
+		SEQ_printf(m, " %s", path);
+	}
+#endif
+	SEQ_printf(m, "\n");
 }
 
 static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
@@ -109,7 +119,21 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	struct sched_entity *last;
 	unsigned long flags;
 
-	SEQ_printf(m, "\ncfs_rq\n");
+#if !defined(CONFIG_CGROUP_SCHED) || !defined(CONFIG_USER_SCHED)
+	SEQ_printf(m, "\ncfs_rq[%d]:\n", cpu);
+#else
+	char path[128] = "";
+	struct cgroup *cgroup = NULL;
+	struct task_group *tg = cfs_rq->tg;
+
+	if (tg)
+		cgroup = tg->css.cgroup;
+
+	if (cgroup)
+		cgroup_path(cgroup, path, sizeof(path));
+
+	SEQ_printf(m, "\ncfs_rq[%d]:%s\n", cpu, path);
+#endif
 
 	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "exec_clock",
 			SPLIT_NS(cfs_rq->exec_clock));
@@ -143,6 +167,11 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 #endif
 	SEQ_printf(m, "  .%-30s: %ld\n", "nr_spread_over",
 			cfs_rq->nr_spread_over);
+#ifdef CONFIG_FAIR_GROUP_SCHED
+#ifdef CONFIG_SMP
+	SEQ_printf(m, "  .%-30s: %lu\n", "shares", cfs_rq->shares);
+#endif
+#endif
 }
 
 static void print_cpu(struct seq_file *m, int cpu)
@@ -214,7 +243,6 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	PN(sysctl_sched_latency);
 	PN(sysctl_sched_min_granularity);
 	PN(sysctl_sched_wakeup_granularity);
-	PN(sysctl_sched_batch_wakeup_granularity);
 	PN(sysctl_sched_child_runs_first);
 	P(sysctl_sched_features);
 #undef PN

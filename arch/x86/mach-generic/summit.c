@@ -1,4 +1,4 @@
-/* 
+/*
  * APIC driver for the IBM "Summit" chipset.
  */
 #define APIC_DEFINITION 1
@@ -19,9 +19,9 @@
 #include <asm/mach-summit/mach_mpparse.h>
 
 static int probe_summit(void)
-{ 
+{
 	/* probed later in mptable/ACPI hooks */
 	return 0;
-} 
+}
 
-struct genapic apic_summit = APIC_INIT("summit", probe_summit); 
+struct genapic apic_summit = APIC_INIT("summit", probe_summit);

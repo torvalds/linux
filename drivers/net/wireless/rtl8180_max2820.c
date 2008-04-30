@@ -78,8 +78,9 @@ static void max2820_rf_set_channel(struct ieee80211_hw *dev,
 				   struct ieee80211_conf *conf)
 {
 	struct rtl8180_priv *priv = dev->priv;
-	unsigned int chan_idx = conf ? conf->channel - 1 : 0;
-	u32 txpw = priv->channels[chan_idx].val & 0xFF;
+	int channel = ieee80211_frequency_to_channel(conf->channel->center_freq);
+	unsigned int chan_idx = channel - 1;
+	u32 txpw = priv->channels[chan_idx].hw_value & 0xFF;
 	u32 chan = max2820_chan[chan_idx];
 
 	/* While philips SA2400 drive the PA bias from

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -26,7 +26,6 @@
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
-#include "lm.h"
 #include "mount.h"
 #include "ops_fstype.h"
 #include "ops_dentry.h"
@@ -363,6 +362,13 @@ static int map_journal_extents(struct gfs2_sbd *sdp)
 	return rc;
 }
 
+static void gfs2_lm_others_may_mount(struct gfs2_sbd *sdp)
+{
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		sdp->sd_lockstruct.ls_ops->lm_others_may_mount(
+					sdp->sd_lockstruct.ls_lockspace);
+}
+
 static int init_journal(struct gfs2_sbd *sdp, int undo)
 {
 	struct gfs2_holder ji_gh;
@@ -542,7 +548,7 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 	}
 	ip = GFS2_I(sdp->sd_rindex);
 	set_bit(GLF_STICKY, &ip->i_gl->gl_flags);
-	sdp->sd_rindex_vn = ip->i_gl->gl_vn - 1;
+	sdp->sd_rindex_uptodate = 0;
 
 	/* Read in the quota inode */
 	sdp->sd_quota_inode = gfs2_lookup_simple(sdp->sd_master_dir, "quota");
@@ -702,6 +708,69 @@ fail_quotad:
 fail:
 	kthread_stop(sdp->sd_logd_process);
 	return error;
+}
+
+/**
+ * gfs2_lm_mount - mount a locking protocol
+ * @sdp: the filesystem
+ * @args: mount arguements
+ * @silent: if 1, don't complain if the FS isn't a GFS2 fs
+ *
+ * Returns: errno
+ */
+
+static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
+{
+	char *proto = sdp->sd_proto_name;
+	char *table = sdp->sd_table_name;
+	int flags = LM_MFLAG_CONV_NODROP;
+	int error;
+
+	if (sdp->sd_args.ar_spectator)
+		flags |= LM_MFLAG_SPECTATOR;
+
+	fs_info(sdp, "Trying to join cluster \"%s\", \"%s\"\n", proto, table);
+
+	error = gfs2_mount_lockproto(proto, table, sdp->sd_args.ar_hostdata,
+				     gfs2_glock_cb, sdp,
+				     GFS2_MIN_LVB_SIZE, flags,
+				     &sdp->sd_lockstruct, &sdp->sd_kobj);
+	if (error) {
+		fs_info(sdp, "can't mount proto=%s, table=%s, hostdata=%s\n",
+			proto, table, sdp->sd_args.ar_hostdata);
+		goto out;
+	}
+
+	if (gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_lockspace) ||
+	    gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_ops) ||
+	    gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_lvb_size >=
+				  GFS2_MIN_LVB_SIZE)) {
+		gfs2_unmount_lockproto(&sdp->sd_lockstruct);
+		goto out;
+	}
+
+	if (sdp->sd_args.ar_spectator)
+		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.s", table);
+	else
+		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.%u", table,
+			 sdp->sd_lockstruct.ls_jid);
+
+	fs_info(sdp, "Joined cluster. Now mounting FS...\n");
+
+	if ((sdp->sd_lockstruct.ls_flags & LM_LSFLAG_LOCAL) &&
+	    !sdp->sd_args.ar_ignore_local_fs) {
+		sdp->sd_args.ar_localflocks = 1;
+		sdp->sd_args.ar_localcaching = 1;
+	}
+
+out:
+	return error;
+}
+
+void gfs2_lm_unmount(struct gfs2_sbd *sdp)
+{
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		gfs2_unmount_lockproto(&sdp->sd_lockstruct);
 }
 
 /**
@@ -874,7 +943,6 @@ static struct super_block* get_gfs2_sb(const char *dev_name)
 {
 	struct kstat stat;
 	struct nameidata nd;
-	struct file_system_type *fstype;
 	struct super_block *sb = NULL, *s;
 	int error;
 
@@ -886,8 +954,7 @@ static struct super_block* get_gfs2_sb(const char *dev_name)
 	}
 	error = vfs_getattr(nd.path.mnt, nd.path.dentry, &stat);
 
-	fstype = get_fs_type("gfs2");
-	list_for_each_entry(s, &fstype->fs_supers, s_instances) {
+	list_for_each_entry(s, &gfs2_fs_type.fs_supers, s_instances) {
 		if ((S_ISBLK(stat.mode) && s->s_dev == stat.rdev) ||
 		    (S_ISDIR(stat.mode) &&
 		     s == nd.path.dentry->d_inode->i_sb)) {
@@ -931,7 +998,6 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 		error = PTR_ERR(new);
 		goto error;
 	}
-	module_put(fs_type->owner);
 	new->s_flags = flags;
 	strlcpy(new->s_id, sb->s_id, sizeof(new->s_id));
 	sb_set_blocksize(new, sb->s_blocksize);

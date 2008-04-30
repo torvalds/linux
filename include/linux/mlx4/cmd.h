@@ -81,7 +81,7 @@ enum {
 	MLX4_CMD_SW2HW_CQ	 = 0x16,
 	MLX4_CMD_HW2SW_CQ	 = 0x17,
 	MLX4_CMD_QUERY_CQ	 = 0x18,
-	MLX4_CMD_RESIZE_CQ	 = 0x2c,
+	MLX4_CMD_MODIFY_CQ	 = 0x2c,
 
 	/* SRQ commands */
 	MLX4_CMD_SW2HW_SRQ	 = 0x35,

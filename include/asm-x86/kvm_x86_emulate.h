@@ -68,10 +68,10 @@ struct x86_emulate_ops {
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
 	 *  @bytes: [IN ] Number of bytes to read from memory.
 	 */
-	int (*read_emulated) (unsigned long addr,
-			      void *val,
-			      unsigned int bytes,
-			      struct kvm_vcpu *vcpu);
+	int (*read_emulated)(unsigned long addr,
+			     void *val,
+			     unsigned int bytes,
+			     struct kvm_vcpu *vcpu);
 
 	/*
 	 * write_emulated: Read bytes from emulated/special memory area.
@@ -80,10 +80,10 @@ struct x86_emulate_ops {
 	 *                required).
 	 *  @bytes: [IN ] Number of bytes to write to memory.
 	 */
-	int (*write_emulated) (unsigned long addr,
-			       const void *val,
-			       unsigned int bytes,
-			       struct kvm_vcpu *vcpu);
+	int (*write_emulated)(unsigned long addr,
+			      const void *val,
+			      unsigned int bytes,
+			      struct kvm_vcpu *vcpu);
 
 	/*
 	 * cmpxchg_emulated: Emulate an atomic (LOCKed) CMPXCHG operation on an
@@ -93,11 +93,11 @@ struct x86_emulate_ops {
 	 *  @new:   [IN ] Value to write to @addr.
 	 *  @bytes: [IN ] Number of bytes to access using CMPXCHG.
 	 */
-	int (*cmpxchg_emulated) (unsigned long addr,
-				 const void *old,
-				 const void *new,
-				 unsigned int bytes,
-				 struct kvm_vcpu *vcpu);
+	int (*cmpxchg_emulated)(unsigned long addr,
+				const void *old,
+				const void *new,
+				unsigned int bytes,
+				struct kvm_vcpu *vcpu);
 
 };
 
@@ -143,7 +143,7 @@ struct x86_emulate_ctxt {
 	/* Register state before/after emulation. */
 	struct kvm_vcpu *vcpu;
 
-	/* Linear faulting address (if emulating a page-faulting instruction). */
+	/* Linear faulting address (if emulating a page-faulting instruction) */
 	unsigned long eflags;
 
 	/* Emulated execution mode, represented by an X86EMUL_MODE value. */

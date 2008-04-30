@@ -741,26 +741,6 @@ irq_level\level:
 
 	.section .irq.text,"ax",@progbits
 
-.global cpu_idle_sleep
-cpu_idle_sleep:
-	mask_interrupts
-	get_thread_info r8
-	ld.w	r9, r8[TI_flags]
-	bld	r9, TIF_NEED_RESCHED
-	brcs	cpu_idle_enable_int_and_exit
-	sbr	r9, TIF_CPU_GOING_TO_SLEEP
-	st.w	r8[TI_flags], r9
-	unmask_interrupts
-	sleep 0
-cpu_idle_skip_sleep:
-	mask_interrupts
-	ld.w	r9, r8[TI_flags]
-	cbr	r9, TIF_CPU_GOING_TO_SLEEP
-	st.w	r8[TI_flags], r9
-cpu_idle_enable_int_and_exit:
-	unmask_interrupts
-	retal	r12
-
 	.global	irq_level0
 	.global	irq_level1
 	.global	irq_level2

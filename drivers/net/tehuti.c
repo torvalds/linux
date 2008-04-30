@@ -625,6 +625,12 @@ static void __init bdx_firmware_endianess(void)
 		s_firmLoad[i] = CPU_CHIP_SWAP32(s_firmLoad[i]);
 }
 
+static int bdx_range_check(struct bdx_priv *priv, u32 offset)
+{
+	return (offset > (u32) (BDX_REGS_SIZE / priv->nic->port_num)) ?
+		-EINVAL : 0;
+}
+
 static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 {
 	struct bdx_priv *priv = ndev->priv;
@@ -643,9 +649,15 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 		DBG("%d 0x%x 0x%x\n", data[0], data[1], data[2]);
 	}
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	switch (data[0]) {
 
 	case BDX_OP_READ:
+		error = bdx_range_check(priv, data[1]);
+		if (error < 0)
+			return error;
 		data[2] = READ_REG(priv, data[1]);
 		DBG("read_reg(0x%x)=0x%x (dec %d)\n", data[1], data[2],
 		    data[2]);
@@ -655,6 +667,9 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 		break;
 
 	case BDX_OP_WRITE:
+		error = bdx_range_check(priv, data[1]);
+		if (error < 0)
+			return error;
 		WRITE_REG(priv, data[1], data[2]);
 		DBG("write_reg(0x%x, 0x%x)\n", data[1], data[2]);
 		break;

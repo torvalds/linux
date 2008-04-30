@@ -61,11 +61,6 @@
 #ifndef _ATH5K_DEBUG_H
 #define _ATH5K_DEBUG_H
 
-/* set this to 1 for debugging output */
-#ifndef ATH5K_DEBUG
-#define ATH5K_DEBUG	0
-#endif
-
 struct ath5k_softc;
 struct ath5k_hw;
 struct ieee80211_hw_mode;
@@ -96,7 +91,7 @@ struct ath5k_dbg_info {
  * @ATH5K_DEBUG_LED: led management
  * @ATH5K_DEBUG_DUMP_RX: print received skb content
  * @ATH5K_DEBUG_DUMP_TX: print transmit skb content
- * @ATH5K_DEBUG_DUMPMODES: dump modes
+ * @ATH5K_DEBUG_DUMPBANDS: dump bands
  * @ATH5K_DEBUG_TRACE: trace function calls
  * @ATH5K_DEBUG_ANY: show at any debug level
  *
@@ -118,12 +113,12 @@ enum ath5k_debug_level {
 	ATH5K_DEBUG_LED		= 0x00000080,
 	ATH5K_DEBUG_DUMP_RX	= 0x00000100,
 	ATH5K_DEBUG_DUMP_TX	= 0x00000200,
-	ATH5K_DEBUG_DUMPMODES	= 0x00000400,
+	ATH5K_DEBUG_DUMPBANDS	= 0x00000400,
 	ATH5K_DEBUG_TRACE	= 0x00001000,
 	ATH5K_DEBUG_ANY		= 0xffffffff
 };
 
-#if ATH5K_DEBUG
+#ifdef CONFIG_ATH5K_DEBUG
 
 #define ATH5K_TRACE(_sc) do { \
 	if (unlikely((_sc)->debug.level & ATH5K_DEBUG_TRACE)) \
@@ -158,20 +153,20 @@ void
 ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah);
 
 void
-ath5k_debug_dump_modes(struct ath5k_softc *sc,
-			struct ieee80211_hw_mode *modes);
+ath5k_debug_dump_bands(struct ath5k_softc *sc);
 
 void
 ath5k_debug_dump_skb(struct ath5k_softc *sc,
 			struct sk_buff *skb, const char *prefix, int tx);
 
 void
-ath5k_debug_printtxbuf(struct ath5k_softc *sc,
-			struct ath5k_buf *bf, int done);
+ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf);
 
 #else /* no debugging */
 
-#define ATH5K_TRACE(_sc) /* empty */
+#include <linux/compiler.h>
+
+#define ATH5K_TRACE(_sc) typecheck(struct ath5k_softc *, (_sc))
 
 static inline void __attribute__ ((format (printf, 3, 4)))
 ATH5K_DBG(struct ath5k_softc *sc, unsigned int m, const char *fmt, ...) {}
@@ -196,17 +191,15 @@ static inline void
 ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah) {}
 
 static inline void
-ath5k_debug_dump_modes(struct ath5k_softc *sc,
-			struct ieee80211_hw_mode *modes) {}
+ath5k_debug_dump_bands(struct ath5k_softc *sc) {}
 
 static inline void
 ath5k_debug_dump_skb(struct ath5k_softc *sc,
 			struct sk_buff *skb, const char *prefix, int tx) {}
 
 static inline void
-ath5k_debug_printtxbuf(struct ath5k_softc *sc,
-			struct ath5k_buf *bf, int done) {}
+ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf) {}
 
-#endif /* if ATH5K_DEBUG */
+#endif /* ifdef CONFIG_ATH5K_DEBUG */
 
 #endif /* ifndef _ATH5K_DEBUG_H */

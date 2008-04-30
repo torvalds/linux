@@ -38,6 +38,7 @@
 
 #if CONFIG_JFFS2_FS_DEBUG > 1
 #define JFFS2_DBG_FRAGTREE2_MESSAGES
+#define JFFS2_DBG_READINODE2_MESSAGES
 #define JFFS2_DBG_MEMALLOC_MESSAGES
 #endif
 
@@ -114,6 +115,11 @@
 #define dbg_readinode(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
 #define dbg_readinode(fmt, ...)
+#endif
+#ifdef JFFS2_DBG_READINODE2_MESSAGES
+#define dbg_readinode2(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#else
+#define dbg_readinode2(fmt, ...)
 #endif
 
 /* Fragtree build debugging messages */

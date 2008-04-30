@@ -333,7 +333,7 @@ static int aarp_device_event(struct notifier_block *this, unsigned long event,
 	struct net_device *dev = ptr;
 	int ct;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	if (event == NETDEV_DOWN) {
@@ -716,7 +716,7 @@ static int aarp_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct atalk_addr sa, *ma, da;
 	struct atalk_iface *ifa;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		goto out0;
 
 	/* We only do Ethernet SNAP AARP. */
@@ -1033,25 +1033,8 @@ static const struct seq_operations aarp_seq_ops = {
 
 static int aarp_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct aarp_iter_state *s = kmalloc(sizeof(*s), GFP_KERNEL);
-
-	if (!s)
-		goto out;
-
-	rc = seq_open(file, &aarp_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq	     = file->private_data;
-	seq->private = s;
-	memset(s, 0, sizeof(*s));
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &aarp_seq_ops,
+			sizeof(struct aarp_iter_state));
 }
 
 const struct file_operations atalk_seq_arp_fops = {

@@ -12,7 +12,6 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -51,12 +50,6 @@
 #include "plpar_wrappers.h"
 #include "pseries.h"
 
-#ifdef DEBUG
-#include <asm/udbg.h>
-#define DBG(fmt...) udbg_printf(fmt)
-#else
-#define DBG(fmt...)
-#endif
 
 /*
  * The primary thread of each non-boot processor is recorded here before
@@ -231,7 +224,7 @@ static void __init smp_init_pseries(void)
 {
 	int i;
 
-	DBG(" -> smp_init_pSeries()\n");
+	pr_debug(" -> smp_init_pSeries()\n");
 
 	/* Mark threads which are still spinning in hold loops. */
 	if (cpu_has_feature(CPU_FTR_SMT)) {
@@ -255,7 +248,7 @@ static void __init smp_init_pseries(void)
 		smp_ops->take_timebase = pSeries_take_timebase;
 	}
 
-	DBG(" <- smp_init_pSeries()\n");
+	pr_debug(" <- smp_init_pSeries()\n");
 }
 
 #ifdef CONFIG_MPIC

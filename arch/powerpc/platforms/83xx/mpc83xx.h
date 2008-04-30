@@ -16,6 +16,7 @@
 #define MPC83XX_SCCR_USB_DRCM_10   0x00200000
 #define MPC8315_SCCR_USB_MASK      0x00c00000
 #define MPC8315_SCCR_USB_DRCM_11   0x00c00000
+#define MPC8315_SCCR_USB_DRCM_01   0x00400000
 #define MPC837X_SCCR_USB_DRCM_11   0x00c00000
 
 /* system i/o configuration register low */
@@ -37,6 +38,7 @@
 /* USB Control Register */
 #define FSL_USB2_CONTROL_OFFS      0x500
 #define CONTROL_UTMI_PHY_EN        0x00000200
+#define CONTROL_REFSEL_24MHZ       0x00000040
 #define CONTROL_REFSEL_48MHZ       0x00000080
 #define CONTROL_PHY_CLK_SEL_ULPI   0x00000400
 #define CONTROL_OTG_PORT           0x00000020

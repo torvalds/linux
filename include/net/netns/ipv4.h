@@ -17,6 +17,7 @@ struct netns_ipv4 {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
 	struct ctl_table_header	*frags_hdr;
+	struct ctl_table_header	*ipv4_hdr;
 #endif
 	struct ipv4_devconf	*devconf_all;
 	struct ipv4_devconf	*devconf_dflt;
@@ -26,6 +27,9 @@ struct netns_ipv4 {
 	struct hlist_head	*fib_table_hash;
 	struct sock		*fibnl;
 
+	struct sock		**icmp_sk;
+	struct sock		*tcp_sock;
+
 	struct netns_frags	frags;
 #ifdef CONFIG_NETFILTER
 	struct xt_table		*iptable_filter;
@@ -33,5 +37,12 @@ struct netns_ipv4 {
 	struct xt_table		*iptable_raw;
 	struct xt_table		*arptable_filter;
 #endif
+
+	int sysctl_icmp_echo_ignore_all;
+	int sysctl_icmp_echo_ignore_broadcasts;
+	int sysctl_icmp_ignore_bogus_error_responses;
+	int sysctl_icmp_ratelimit;
+	int sysctl_icmp_ratemask;
+	int sysctl_icmp_errors_use_inbound_ifaddr;
 };
 #endif

@@ -416,11 +416,10 @@ static const struct ivtv_card ivtv_card_avc2410 = {
 	   on the country/region setting of the user to decide which tuner
 	   is available. */
 	.tuners = {
-		/* This tuner has been verified for the AVC2410 */
 		{ .std = V4L2_STD_625_50, .tuner = TUNER_PHILIPS_FM1216ME_MK3 },
-		/* This is a good guess, but I'm not totally sure this is
-		   the correct tuner for NTSC. */
-		{ .std = V4L2_STD_ALL, .tuner = TUNER_PHILIPS_FM1236_MK3 },
+		{ .std = V4L2_STD_ALL - V4L2_STD_NTSC_M_JP,
+			.tuner = TUNER_PHILIPS_FM1236_MK3 },
+		{ .std = V4L2_STD_NTSC_M_JP, .tuner = TUNER_PHILIPS_FQ1286 },
 	},
 	.pci_list = ivtv_pci_avc2410,
 	.i2c = &ivtv_i2c_std,

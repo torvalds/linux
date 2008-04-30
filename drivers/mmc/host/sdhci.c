@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/mmc/host/sdhci.c - Secure Digital Host Controller Interface driver
  *
- *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.
+ *  Copyright (C) 2005-2008 Pierre Ossman, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 
+#include <linux/leds.h>
+
 #include <linux/mmc/host.h>
 
 #include "sdhci.h"
@@ -30,10 +32,6 @@
 
 static unsigned int debug_quirks = 0;
 
-/* For multi controllers in one platform case */
-static u16 chip_index = 0;
-static spinlock_t index_lock;
-
 /*
  * Different quirks to handle when the hardware deviates from a strict
  * interpretation of the SDHCI specification.
@@ -43,7 +41,7 @@ static spinlock_t index_lock;
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
 /* Controller has bad caps bits, but really supports DMA */
 #define SDHCI_QUIRK_FORCE_DMA				(1<<1)
-/* Controller doesn't like some resets when there is no card inserted. */
+/* Controller doesn't like to be reset when there is no card inserted. */
 #define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
 /* Controller doesn't like clearing the power reg before a change */
 #define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
@@ -71,10 +69,18 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
 		.vendor		= PCI_VENDOR_ID_RICOH,
 		.device		= PCI_DEVICE_ID_RICOH_R5C822,
-		.subvendor	= PCI_ANY_ID,
+		.subvendor	= PCI_VENDOR_ID_SAMSUNG,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= SDHCI_QUIRK_FORCE_DMA |
 				  SDHCI_QUIRK_NO_CARD_NO_RESET,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_RICOH,
+		.device		= PCI_DEVICE_ID_RICOH_R5C822,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
 	},
 
 	{
@@ -255,6 +261,24 @@ static void sdhci_deactivate_led(struct sdhci_host *host)
 	ctrl &= ~SDHCI_CTRL_LED;
 	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 }
+
+#ifdef CONFIG_LEDS_CLASS
+static void sdhci_led_control(struct led_classdev *led,
+	enum led_brightness brightness)
+{
+	struct sdhci_host *host = container_of(led, struct sdhci_host, led);
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (brightness == LED_OFF)
+		sdhci_deactivate_led(host);
+	else
+		sdhci_activate_led(host);
+
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+#endif
 
 /*****************************************************************************\
  *                                                                           *
@@ -773,7 +797,9 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	WARN_ON(host->mrq != NULL);
 
+#ifndef CONFIG_LEDS_CLASS
 	sdhci_activate_led(host);
+#endif
 
 	host->mrq = mrq;
 
@@ -965,7 +991,9 @@ static void sdhci_tasklet_finish(unsigned long param)
 	host->cmd = NULL;
 	host->data = NULL;
 
+#ifndef CONFIG_LEDS_CLASS
 	sdhci_deactivate_led(host);
+#endif
 
 	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
@@ -1105,7 +1133,8 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 		goto out;
 	}
 
-	DBG("*** %s got interrupt: 0x%08x\n", host->slot_descr, intmask);
+	DBG("*** %s got interrupt: 0x%08x\n",
+		mmc_hostname(host->mmc), intmask);
 
 	if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE)) {
 		writel(intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE),
@@ -1235,7 +1264,7 @@ static int sdhci_resume (struct pci_dev *pdev)
 		if (chip->hosts[i]->flags & SDHCI_USE_DMA)
 			pci_set_master(pdev);
 		ret = request_irq(chip->hosts[i]->irq, sdhci_irq,
-			IRQF_SHARED, chip->hosts[i]->slot_descr,
+			IRQF_SHARED, mmc_hostname(chip->hosts[i]->mmc),
 			chip->hosts[i]);
 		if (ret)
 			return ret;
@@ -1324,9 +1353,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	DBG("slot %d at 0x%08lx, irq %d\n", slot, host->addr, host->irq);
 
-	snprintf(host->slot_descr, 20, "sdhc%d:slot%d", chip->index, slot);
-
-	ret = pci_request_region(pdev, host->bar, host->slot_descr);
+	ret = pci_request_region(pdev, host->bar, mmc_hostname(mmc));
 	if (ret)
 		goto free;
 
@@ -1343,7 +1370,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	version = (version & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;
 	if (version > 1) {
 		printk(KERN_ERR "%s: Unknown controller version (%d). "
-			"You may experience problems.\n", host->slot_descr,
+			"You may experience problems.\n", mmc_hostname(mmc),
 			version);
 	}
 
@@ -1366,13 +1393,13 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		(host->flags & SDHCI_USE_DMA)) {
 		printk(KERN_WARNING "%s: Will use DMA "
 			"mode even though HW doesn't fully "
-			"claim to support it.\n", host->slot_descr);
+			"claim to support it.\n", mmc_hostname(mmc));
 	}
 
 	if (host->flags & SDHCI_USE_DMA) {
 		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
 			printk(KERN_WARNING "%s: No suitable DMA available. "
-				"Falling back to PIO.\n", host->slot_descr);
+				"Falling back to PIO.\n", mmc_hostname(mmc));
 			host->flags &= ~SDHCI_USE_DMA;
 		}
 	}
@@ -1386,7 +1413,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		(caps & SDHCI_CLOCK_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT;
 	if (host->max_clk == 0) {
 		printk(KERN_ERR "%s: Hardware doesn't specify base clock "
-			"frequency.\n", host->slot_descr);
+			"frequency.\n", mmc_hostname(mmc));
 		ret = -ENODEV;
 		goto unmap;
 	}
@@ -1396,7 +1423,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		(caps & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
 	if (host->timeout_clk == 0) {
 		printk(KERN_ERR "%s: Hardware doesn't specify timeout clock "
-			"frequency.\n", host->slot_descr);
+			"frequency.\n", mmc_hostname(mmc));
 		ret = -ENODEV;
 		goto unmap;
 	}
@@ -1424,7 +1451,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	if (mmc->ocr_avail == 0) {
 		printk(KERN_ERR "%s: Hardware doesn't report any "
-			"support voltages.\n", host->slot_descr);
+			"support voltages.\n", mmc_hostname(mmc));
 		ret = -ENODEV;
 		goto unmap;
 	}
@@ -1458,8 +1485,8 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	 */
 	mmc->max_blk_size = (caps & SDHCI_MAX_BLOCK_MASK) >> SDHCI_MAX_BLOCK_SHIFT;
 	if (mmc->max_blk_size >= 3) {
-		printk(KERN_WARNING "%s: Invalid maximum block size, assuming 512\n",
-			host->slot_descr);
+		printk(KERN_WARNING "%s: Invalid maximum block size, "
+			"assuming 512 bytes\n", mmc_hostname(mmc));
 		mmc->max_blk_size = 512;
 	} else
 		mmc->max_blk_size = 512 << mmc->max_blk_size;
@@ -1480,7 +1507,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	setup_timer(&host->timer, sdhci_timeout_timer, (unsigned long)host);
 
 	ret = request_irq(host->irq, sdhci_irq, IRQF_SHARED,
-		host->slot_descr, host);
+		mmc_hostname(mmc), host);
 	if (ret)
 		goto untasklet;
 
@@ -1490,16 +1517,32 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	sdhci_dumpregs(host);
 #endif
 
+#ifdef CONFIG_LEDS_CLASS
+	host->led.name = mmc_hostname(mmc);
+	host->led.brightness = LED_OFF;
+	host->led.default_trigger = mmc_hostname(mmc);
+	host->led.brightness_set = sdhci_led_control;
+
+	ret = led_classdev_register(&pdev->dev, &host->led);
+	if (ret)
+		goto reset;
+#endif
+
 	mmiowb();
 
 	mmc_add_host(mmc);
 
-	printk(KERN_INFO "%s: SDHCI at 0x%08lx irq %d %s\n", mmc_hostname(mmc),
-		host->addr, host->irq,
+	printk(KERN_INFO "%s: SDHCI at 0x%08lx irq %d %s\n",
+		mmc_hostname(mmc), host->addr, host->irq,
 		(host->flags & SDHCI_USE_DMA)?"DMA":"PIO");
 
 	return 0;
 
+#ifdef CONFIG_LEDS_CLASS
+reset:
+	sdhci_reset(host, SDHCI_RESET_ALL);
+	free_irq(host->irq, host);
+#endif
 untasklet:
 	tasklet_kill(&host->card_tasklet);
 	tasklet_kill(&host->finish_tasklet);
@@ -1526,6 +1569,10 @@ static void sdhci_remove_slot(struct pci_dev *pdev, int slot)
 	chip->hosts[slot] = NULL;
 
 	mmc_remove_host(mmc);
+
+#ifdef CONFIG_LEDS_CLASS
+	led_classdev_unregister(&host->led);
+#endif
 
 	sdhci_reset(host, SDHCI_RESET_ALL);
 
@@ -1589,11 +1636,6 @@ static int __devinit sdhci_probe(struct pci_dev *pdev,
 	chip->num_slots = slots;
 	pci_set_drvdata(pdev, chip);
 
-	/* Add for multi controller case */
-	spin_lock(&index_lock);
-	chip->index = chip_index++;
-	spin_unlock(&index_lock);
-
 	for (i = 0;i < slots;i++) {
 		ret = sdhci_probe_slot(pdev, i);
 		if (ret) {
@@ -1653,8 +1695,6 @@ static int __init sdhci_drv_init(void)
 	printk(KERN_INFO DRIVER_NAME
 		": Secure Digital Host Controller Interface driver\n");
 	printk(KERN_INFO DRIVER_NAME ": Copyright(c) Pierre Ossman\n");
-
-	spin_lock_init(&index_lock);
 
 	return pci_register_driver(&sdhci_driver);
 }

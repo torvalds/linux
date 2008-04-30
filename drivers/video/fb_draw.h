@@ -94,41 +94,44 @@ static inline unsigned long fb_rev_pixels_in_long(unsigned long val,
 	return val;
 }
 
-static inline u32 fb_shifted_pixels_mask_u32(u32 index, u32 bswapmask)
+static inline u32 fb_shifted_pixels_mask_u32(struct fb_info *p, u32 index,
+					     u32 bswapmask)
 {
 	u32 mask;
 
 	if (!bswapmask) {
-		mask = FB_SHIFT_HIGH(~(u32)0, index);
+		mask = FB_SHIFT_HIGH(p, ~(u32)0, index);
 	} else {
-		mask = 0xff << FB_LEFT_POS(8);
-		mask = FB_SHIFT_LOW(mask, index & (bswapmask)) & mask;
-		mask = FB_SHIFT_HIGH(mask, index & ~(bswapmask));
+		mask = 0xff << FB_LEFT_POS(p, 8);
+		mask = FB_SHIFT_LOW(p, mask, index & (bswapmask)) & mask;
+		mask = FB_SHIFT_HIGH(p, mask, index & ~(bswapmask));
 #if defined(__i386__) || defined(__x86_64__)
 		/* Shift argument is limited to 0 - 31 on x86 based CPU's */
 		if(index + bswapmask < 32)
 #endif
-			mask |= FB_SHIFT_HIGH(~(u32)0,
+			mask |= FB_SHIFT_HIGH(p, ~(u32)0,
 					(index + bswapmask) & ~(bswapmask));
 	}
 	return mask;
 }
 
-static inline unsigned long fb_shifted_pixels_mask_long(u32 index, u32 bswapmask)
+static inline unsigned long fb_shifted_pixels_mask_long(struct fb_info *p,
+							u32 index,
+							u32 bswapmask)
 {
 	unsigned long mask;
 
 	if (!bswapmask) {
-		mask = FB_SHIFT_HIGH(~0UL, index);
+		mask = FB_SHIFT_HIGH(p, ~0UL, index);
 	} else {
-		mask = 0xff << FB_LEFT_POS(8);
-		mask = FB_SHIFT_LOW(mask, index & (bswapmask)) & mask;
-		mask = FB_SHIFT_HIGH(mask, index & ~(bswapmask));
+		mask = 0xff << FB_LEFT_POS(p, 8);
+		mask = FB_SHIFT_LOW(p, mask, index & (bswapmask)) & mask;
+		mask = FB_SHIFT_HIGH(p, mask, index & ~(bswapmask));
 #if defined(__i386__) || defined(__x86_64__)
 		/* Shift argument is limited to 0 - 31 on x86 based CPU's */
 		if(index + bswapmask < BITS_PER_LONG)
 #endif
-			mask |= FB_SHIFT_HIGH(~0UL,
+			mask |= FB_SHIFT_HIGH(p, ~0UL,
 					(index + bswapmask) & ~(bswapmask));
 	}
 	return mask;
@@ -158,8 +161,8 @@ static inline unsigned long fb_rev_pixels_in_long(unsigned long val,
 	return val;
 }
 
-#define fb_shifted_pixels_mask_u32(i, b) FB_SHIFT_HIGH(~(u32)0, (i))
-#define fb_shifted_pixels_mask_long(i, b) FB_SHIFT_HIGH(~0UL, (i))
+#define fb_shifted_pixels_mask_u32(p, i, b) FB_SHIFT_HIGH((p), ~(u32)0, (i))
+#define fb_shifted_pixels_mask_long(p, i, b) FB_SHIFT_HIGH((p), ~0UL, (i))
 #define fb_compute_bswapmask(...) 0
 
 #endif  /* CONFIG_FB_CFB_REV_PIXELS_IN_BYTE */

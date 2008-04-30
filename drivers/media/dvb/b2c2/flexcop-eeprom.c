@@ -114,15 +114,18 @@ static int flexcop_eeprom_request(struct flexcop_device *fc, flexcop_access_op_t
 {
 	int i,ret = 0;
 	u8 chipaddr =  0x50 | ((addr >> 8) & 3);
-	for (i = 0; i < retries; i++)
-		if ((ret = fc->i2c_request(fc,op,FC_I2C_PORT_EEPROM,chipaddr,addr & 0xff,buf,len)) == 0)
+	for (i = 0; i < retries; i++) {
+		ret = fc->i2c_request(&fc->fc_i2c_adap[1], op, chipaddr,
+			addr & 0xff, buf, len);
+		if (ret == 0)
 			break;
+	}
 	return ret;
 }
 
 static int flexcop_eeprom_lrc_read(struct flexcop_device *fc, u16 addr, u8 *buf, u16 len, int retries)
 {
-	int ret = flexcop_eeprom_request(fc,FC_READ,addr,buf,len,retries);
+	int ret = flexcop_eeprom_request(fc, FC_READ, addr, buf, len, retries);
 	if (ret == 0)
 		if (calc_lrc(buf, len - 1) != buf[len - 1])
 			ret = -EINVAL;

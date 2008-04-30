@@ -17,11 +17,11 @@ static void rapide_setup_ports(hw_regs_t *hw, void __iomem *base,
 	unsigned long port = (unsigned long)base;
 	int i;
 
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-		hw->io_ports[i] = port;
+	for (i = 0; i <= 7; i++) {
+		hw->io_ports_array[i] = port;
 		port += sz;
 	}
-	hw->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
+	hw->io_ports.ctl_addr = (unsigned long)ctrl;
 	hw->irq = irq;
 }
 
@@ -44,7 +44,7 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto release;
 	}
 
-	hwif = ide_find_port((unsigned long)base);
+	hwif = ide_find_port();
 	if (hwif) {
 		memset(&hw, 0, sizeof(hw));
 		rapide_setup_ports(&hw, base, base + 0x818, 1 << 6, ec->irq);
@@ -53,7 +53,7 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 		ide_init_port_hw(hwif, &hw);
 
-		hwif->mmio = 1;
+		hwif->host_flags = IDE_HFLAG_MMIO;
 		default_hwif_mmiops(hwif);
 
 		idx[0] = hwif->index;
@@ -76,7 +76,7 @@ static void __devexit rapide_remove(struct expansion_card *ec)
 
 	ecard_set_drvdata(ec, NULL);
 
-	ide_unregister(hwif->index, 0, 0);
+	ide_unregister(hwif);
 
 	ecard_release_resources(ec);
 }

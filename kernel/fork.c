@@ -132,6 +132,14 @@ void __put_task_struct(struct task_struct *tsk)
 		free_task(tsk);
 }
 
+/*
+ * macro override instead of weak attribute alias, to workaround
+ * gcc 4.1.0 and 4.1.1 bugs with weak attribute and empty functions.
+ */
+#ifndef arch_task_cache_init
+#define arch_task_cache_init()
+#endif
+
 void __init fork_init(unsigned long mempages)
 {
 #ifndef __HAVE_ARCH_TASK_STRUCT_ALLOCATOR
@@ -143,6 +151,9 @@ void __init fork_init(unsigned long mempages)
 		kmem_cache_create("task_struct", sizeof(struct task_struct),
 			ARCH_MIN_TASKALIGN, SLAB_PANIC, NULL);
 #endif
+
+	/* do the arch specific task caches init */
+	arch_task_cache_init();
 
 	/*
 	 * The default maximum number of threads is set to a safe
@@ -163,6 +174,13 @@ void __init fork_init(unsigned long mempages)
 		init_task.signal->rlim[RLIMIT_NPROC];
 }
 
+int __attribute__((weak)) arch_dup_task_struct(struct task_struct *dst,
+					       struct task_struct *src)
+{
+	*dst = *src;
+	return 0;
+}
+
 static struct task_struct *dup_task_struct(struct task_struct *orig)
 {
 	struct task_struct *tsk;
@@ -181,15 +199,15 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 		return NULL;
 	}
 
-	*tsk = *orig;
+ 	err = arch_dup_task_struct(tsk, orig);
+	if (err)
+		goto out;
+
 	tsk->stack = ti;
 
 	err = prop_local_init_single(&tsk->dirties);
-	if (err) {
-		free_thread_info(ti);
-		free_task_struct(tsk);
-		return NULL;
-	}
+	if (err)
+		goto out;
 
 	setup_thread_stack(tsk, orig);
 
@@ -205,6 +223,11 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 #endif
 	tsk->splice_pipe = NULL;
 	return tsk;
+
+out:
+	free_thread_info(ti);
+	free_task_struct(tsk);
+	return NULL;
 }
 
 #ifdef CONFIG_MMU
@@ -256,7 +279,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		if (!tmp)
 			goto fail_nomem;
 		*tmp = *mpnt;
-		pol = mpol_copy(vma_policy(mpnt));
+		pol = mpol_dup(vma_policy(mpnt));
 		retval = PTR_ERR(pol);
 		if (IS_ERR(pol))
 			goto fail_nomem_policy;
@@ -498,7 +521,7 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
  * Allocate a new mm structure and copy contents from the
  * mm structure of the passed in task structure.
  */
-static struct mm_struct *dup_mm(struct task_struct *tsk)
+struct mm_struct *dup_mm(struct task_struct *tsk)
 {
 	struct mm_struct *mm, *oldmm = current->mm;
 	int err;
@@ -782,12 +805,6 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 		goto out;
 	}
 
-	/*
-	 * Note: we may be using current for both targets (See exec.c)
-	 * This works because we cache current->files (old) as oldf. Don't
-	 * break this.
-	 */
-	tsk->files = NULL;
 	newf = dup_fd(oldf, &error);
 	if (!newf)
 		goto out;
@@ -822,34 +839,6 @@ static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
 #endif
 	return 0;
 }
-
-/*
- *	Helper to unshare the files of the current task.
- *	We don't want to expose copy_files internals to
- *	the exec layer of the kernel.
- */
-
-int unshare_files(void)
-{
-	struct files_struct *files  = current->files;
-	int rc;
-
-	BUG_ON(!files);
-
-	/* This can race but the race causes us to copy when we don't
-	   need to and drop the copy */
-	if(atomic_read(&files->count) == 1)
-	{
-		atomic_inc(&files->count);
-		return 0;
-	}
-	rc = copy_files(0, current);
-	if(rc)
-		current->files = files;
-	return rc;
-}
-
-EXPORT_SYMBOL(unshare_files);
 
 static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
 {
@@ -1127,7 +1116,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->audit_context = NULL;
 	cgroup_fork(p);
 #ifdef CONFIG_NUMA
- 	p->mempolicy = mpol_copy(p->mempolicy);
+	p->mempolicy = mpol_dup(p->mempolicy);
  	if (IS_ERR(p->mempolicy)) {
  		retval = PTR_ERR(p->mempolicy);
  		p->mempolicy = NULL;
@@ -1385,7 +1374,7 @@ bad_fork_cleanup_security:
 	security_task_free(p);
 bad_fork_cleanup_policy:
 #ifdef CONFIG_NUMA
-	mpol_free(p->mempolicy);
+	mpol_put(p->mempolicy);
 bad_fork_cleanup_cgroup:
 #endif
 	cgroup_exit(p, cgroup_callbacks_done);
@@ -1787,4 +1776,28 @@ bad_unshare_cleanup_fs:
 bad_unshare_cleanup_thread:
 bad_unshare_out:
 	return err;
+}
+
+/*
+ *	Helper to unshare the files of the current task.
+ *	We don't want to expose copy_files internals to
+ *	the exec layer of the kernel.
+ */
+
+int unshare_files(struct files_struct **displaced)
+{
+	struct task_struct *task = current;
+	struct files_struct *copy = NULL;
+	int error;
+
+	error = unshare_fd(CLONE_FILES, &copy);
+	if (error || !copy) {
+		*displaced = NULL;
+		return error;
+	}
+	*displaced = task->files;
+	task_lock(task);
+	task->files = copy;
+	task_unlock(task);
+	return 0;
 }

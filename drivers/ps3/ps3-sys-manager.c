@@ -24,6 +24,7 @@
 #include <linux/reboot.h>
 
 #include <asm/firmware.h>
+#include <asm/lv1call.h>
 #include <asm/ps3.h>
 
 #include "vuart.h"
@@ -187,6 +188,7 @@ enum ps3_sys_manager_next_op {
  * controller, and bluetooth controller.
  * @PS3_SM_WAKE_RTC:
  * @PS3_SM_WAKE_RTC_ERROR:
+ * @PS3_SM_WAKE_W_O_L: Ether or wireless LAN.
  * @PS3_SM_WAKE_P_O_R: Power on reset.
  *
  * Additional wakeup sources when specifying PS3_SM_NEXT_OP_SYS_SHUTDOWN.
@@ -200,8 +202,17 @@ enum ps3_sys_manager_wake_source {
 	PS3_SM_WAKE_DEFAULT   = 0,
 	PS3_SM_WAKE_RTC       = 0x00000040,
 	PS3_SM_WAKE_RTC_ERROR = 0x00000080,
+	PS3_SM_WAKE_W_O_L     = 0x00000400,
 	PS3_SM_WAKE_P_O_R     = 0x80000000,
 };
+
+/**
+ * user_wake_sources - User specified wakeup sources.
+ *
+ * Logical OR of enum ps3_sys_manager_wake_source types.
+ */
+
+static u32 user_wake_sources = PS3_SM_WAKE_DEFAULT;
 
 /**
  * enum ps3_sys_manager_cmd - Command from system manager to guest.
@@ -581,6 +592,23 @@ fail_id:
 	return -EIO;
 }
 
+static void ps3_sys_manager_fin(struct ps3_system_bus_device *dev)
+{
+	ps3_sys_manager_send_request_shutdown(dev);
+
+	pr_emerg("System Halted, OK to turn off power\n");
+
+	while (ps3_sys_manager_handle_msg(dev)) {
+		/* pause until next DEC interrupt */
+		lv1_pause(0);
+	}
+
+	while (1) {
+		/* pause, ignoring DEC interrupt */
+		lv1_pause(1);
+	}
+}
+
 /**
  * ps3_sys_manager_final_power_off - The final platform machine_power_off routine.
  *
@@ -601,13 +629,9 @@ static void ps3_sys_manager_final_power_off(struct ps3_system_bus_device *dev)
 	ps3_vuart_cancel_async(dev);
 
 	ps3_sys_manager_send_next_op(dev, PS3_SM_NEXT_OP_SYS_SHUTDOWN,
-		PS3_SM_WAKE_DEFAULT);
-	ps3_sys_manager_send_request_shutdown(dev);
+		user_wake_sources);
 
-	pr_emerg("System Halted, OK to turn off power\n");
-
-	while (1)
-		ps3_sys_manager_handle_msg(dev);
+	ps3_sys_manager_fin(dev);
 }
 
 /**
@@ -638,14 +662,42 @@ static void ps3_sys_manager_final_restart(struct ps3_system_bus_device *dev)
 
 	ps3_sys_manager_send_attr(dev, 0);
 	ps3_sys_manager_send_next_op(dev, PS3_SM_NEXT_OP_SYS_REBOOT,
-		PS3_SM_WAKE_DEFAULT);
-	ps3_sys_manager_send_request_shutdown(dev);
+		user_wake_sources);
 
-	pr_emerg("System Halted, OK to turn off power\n");
-
-	while (1)
-		ps3_sys_manager_handle_msg(dev);
+	ps3_sys_manager_fin(dev);
 }
+
+/**
+ * ps3_sys_manager_get_wol - Get wake-on-lan setting.
+ */
+
+int ps3_sys_manager_get_wol(void)
+{
+	pr_debug("%s:%d\n", __func__, __LINE__);
+
+	return (user_wake_sources & PS3_SM_WAKE_W_O_L) != 0;
+}
+EXPORT_SYMBOL_GPL(ps3_sys_manager_get_wol);
+
+/**
+ * ps3_sys_manager_set_wol - Set wake-on-lan setting.
+ */
+
+void ps3_sys_manager_set_wol(int state)
+{
+	static DEFINE_MUTEX(mutex);
+
+	mutex_lock(&mutex);
+
+	pr_debug("%s:%d: %d\n", __func__, __LINE__, state);
+
+	if (state)
+		user_wake_sources |= PS3_SM_WAKE_W_O_L;
+	else
+		user_wake_sources &= ~PS3_SM_WAKE_W_O_L;
+	mutex_unlock(&mutex);
+}
+EXPORT_SYMBOL_GPL(ps3_sys_manager_set_wol);
 
 /**
  * ps3_sys_manager_work - Asynchronous read handler.

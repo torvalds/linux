@@ -99,11 +99,10 @@ fail_with_tcd:
 }
 EXPORT_SYMBOL(register_tape_dev);
 
-void unregister_tape_dev(struct tape_class_device *tcd)
+void unregister_tape_dev(struct device *device, struct tape_class_device *tcd)
 {
 	if (tcd != NULL && !IS_ERR(tcd)) {
-		sysfs_remove_link(&tcd->class_device->kobj,
-				  tcd->mode_name);
+		sysfs_remove_link(&device->kobj, tcd->mode_name);
 		device_destroy(tape_class, tcd->char_device->dev);
 		cdev_del(tcd->char_device);
 		kfree(tcd);

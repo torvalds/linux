@@ -115,6 +115,27 @@ Return Value: Handle for generated debug area
 Description:  Allocates memory for a debug log     
               Must not be called within an interrupt handler 
 
+----------------------------------------------------------------------------
+debug_info_t *debug_register_mode(char *name, int pages, int nr_areas,
+				  int buf_size, mode_t mode, uid_t uid,
+				  gid_t gid);
+
+Parameter:    name:	   Name of debug log (e.g. used for debugfs entry)
+	      pages:	   Number of pages, which will be allocated per area
+	      nr_areas:    Number of debug areas
+	      buf_size:    Size of data area in each debug entry
+	      mode:	   File mode for debugfs files. E.g. S_IRWXUGO
+	      uid:	   User ID for debugfs files. Currently only 0 is
+			   supported.
+	      gid:	   Group ID for debugfs files. Currently only 0 is
+			   supported.
+
+Return Value: Handle for generated debug area
+	      NULL if register failed
+
+Description:  Allocates memory for a debug log
+	      Must not be called within an interrupt handler
+
 ---------------------------------------------------------------------------
 void debug_unregister (debug_info_t * id);
 

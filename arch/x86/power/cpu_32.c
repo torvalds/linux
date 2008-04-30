@@ -27,17 +27,17 @@ static void __save_processor_state(struct saved_context *ctxt)
 	/*
 	 * descriptor tables
 	 */
- 	store_gdt(&ctxt->gdt);
- 	store_idt(&ctxt->idt);
- 	store_tr(ctxt->tr);
+	store_gdt(&ctxt->gdt);
+	store_idt(&ctxt->idt);
+	store_tr(ctxt->tr);
 
 	/*
 	 * segment registers
 	 */
- 	savesegment(es, ctxt->es);
- 	savesegment(fs, ctxt->fs);
- 	savesegment(gs, ctxt->gs);
- 	savesegment(ss, ctxt->ss);
+	savesegment(es, ctxt->es);
+	savesegment(fs, ctxt->fs);
+	savesegment(gs, ctxt->gs);
+	savesegment(ss, ctxt->ss);
 
 	/*
 	 * control registers
@@ -48,10 +48,12 @@ static void __save_processor_state(struct saved_context *ctxt)
 	ctxt->cr4 = read_cr4();
 }
 
+/* Needed by apm.c */
 void save_processor_state(void)
 {
 	__save_processor_state(&saved_context);
 }
+EXPORT_SYMBOL(save_processor_state);
 
 static void do_fpu_end(void)
 {
@@ -64,9 +66,14 @@ static void do_fpu_end(void)
 static void fix_processor_context(void)
 {
 	int cpu = smp_processor_id();
-	struct tss_struct * t = &per_cpu(init_tss, cpu);
+	struct tss_struct *t = &per_cpu(init_tss, cpu);
 
-	set_tss_desc(cpu,t);	/* This just modifies memory; should not be necessary. But... This is necessary, because 386 hardware has concept of busy TSS or some similar stupidity. */
+	set_tss_desc(cpu, t);	/*
+				 * This just modifies memory; should not be
+				 * necessary. But... This is necessary, because
+				 * 386 hardware has concept of busy TSS or some
+				 * similar stupidity.
+				 */
 
 	load_TR_desc();				/* This does ltr */
 	load_LDT(&current->active_mm->context);	/* This does lldt */
@@ -100,16 +107,16 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	 * now restore the descriptor tables to their proper values
 	 * ltr is done i fix_processor_context().
 	 */
- 	load_gdt(&ctxt->gdt);
- 	load_idt(&ctxt->idt);
+	load_gdt(&ctxt->gdt);
+	load_idt(&ctxt->idt);
 
 	/*
 	 * segment registers
 	 */
- 	loadsegment(es, ctxt->es);
- 	loadsegment(fs, ctxt->fs);
- 	loadsegment(gs, ctxt->gs);
- 	loadsegment(ss, ctxt->ss);
+	loadsegment(es, ctxt->es);
+	loadsegment(fs, ctxt->fs);
+	loadsegment(gs, ctxt->gs);
+	loadsegment(ss, ctxt->ss);
 
 	/*
 	 * sysenter MSRs
@@ -123,11 +130,9 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	mcheck_init(&boot_cpu_data);
 }
 
+/* Needed by apm.c */
 void restore_processor_state(void)
 {
 	__restore_processor_state(&saved_context);
 }
-
-/* Needed by apm.c */
-EXPORT_SYMBOL(save_processor_state);
 EXPORT_SYMBOL(restore_processor_state);

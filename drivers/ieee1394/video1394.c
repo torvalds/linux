@@ -1293,6 +1293,7 @@ static const struct file_operations video1394_fops=
 /*
  * Export information about protocols/devices supported by this driver.
  */
+#ifdef MODULE
 static struct ieee1394_device_id video1394_id_table[] = {
 	{
 		.match_flags	= IEEE1394_MATCH_SPECIFIER_ID | IEEE1394_MATCH_VERSION,
@@ -1313,10 +1314,10 @@ static struct ieee1394_device_id video1394_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(ieee1394, video1394_id_table);
+#endif /* MODULE */
 
 static struct hpsb_protocol_driver video1394_driver = {
-	.name		= VIDEO1394_DRIVER_NAME,
-	.id_table	= video1394_id_table,
+	.name = VIDEO1394_DRIVER_NAME,
 };
 
 
@@ -1504,7 +1505,6 @@ static int __init video1394_init_module (void)
 
 	cdev_init(&video1394_cdev, &video1394_fops);
 	video1394_cdev.owner = THIS_MODULE;
-	kobject_set_name(&video1394_cdev.kobj, VIDEO1394_DRIVER_NAME);
 	ret = cdev_add(&video1394_cdev, IEEE1394_VIDEO1394_DEV, 16);
 	if (ret) {
 		PRINT_G(KERN_ERR, "video1394: unable to get minor device block");

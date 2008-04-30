@@ -9,7 +9,6 @@
 #define _ASM_IA64_SN_NODEPDA_H
 
 
-#include <asm/semaphore.h>
 #include <asm/irq.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/intr.h>

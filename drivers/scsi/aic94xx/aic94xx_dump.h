@@ -29,24 +29,15 @@
 
 #ifdef ASD_DEBUG
 
-void asd_dump_ddb_0(struct asd_ha_struct *asd_ha);
-void asd_dump_target_ddb(struct asd_ha_struct *asd_ha, u16 site_no);
-void asd_dump_scb_sites(struct asd_ha_struct *asd_ha);
 void asd_dump_seq_state(struct asd_ha_struct *asd_ha, u8 lseq_mask);
 void asd_dump_frame_rcvd(struct asd_phy *phy,
 			 struct done_list_struct *dl);
-void asd_dump_scb_list(struct asd_ascb *ascb, int num);
 #else /* ASD_DEBUG */
 
-static inline void asd_dump_ddb_0(struct asd_ha_struct *asd_ha) { }
-static inline void asd_dump_target_ddb(struct asd_ha_struct *asd_ha,
-				     u16 site_no) { }
-static inline void asd_dump_scb_sites(struct asd_ha_struct *asd_ha) { }
 static inline void asd_dump_seq_state(struct asd_ha_struct *asd_ha,
 				      u8 lseq_mask) { }
 static inline void asd_dump_frame_rcvd(struct asd_phy *phy,
 				       struct done_list_struct *dl) { }
-static inline void asd_dump_scb_list(struct asd_ascb *ascb, int num) { }
 #endif /* ASD_DEBUG */
 
 #endif /* _AIC94XX_DUMP_H_ */

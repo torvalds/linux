@@ -33,7 +33,7 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
 	 * When tmpfs swaps out a page from a file, any process mapping that
 	 * file will not get a swp_entry_t in its pte, but rather it is like
 	 * any other file mapping (ie. marked !present and faulted in with
-	 * tmpfs's .nopage). So swapped out tmpfs mappings are tested here.
+	 * tmpfs's .fault). So swapped out tmpfs mappings are tested here.
 	 *
 	 * However when tmpfs moves the page from pagecache and into swapcache,
 	 * it is still in core, but the find_get_page below won't find it.

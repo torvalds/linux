@@ -105,14 +105,14 @@ void __init efi_reserve_bootmem(void)
 
 void __iomem * __init efi_ioremap(unsigned long phys_addr, unsigned long size)
 {
-	static unsigned pages_mapped;
+	static unsigned pages_mapped __initdata;
 	unsigned i, pages;
+	unsigned long offset;
 
-	/* phys_addr and size must be page aligned */
-	if ((phys_addr & ~PAGE_MASK) || (size & ~PAGE_MASK))
-		return NULL;
+	pages = PFN_UP(phys_addr + size) - PFN_DOWN(phys_addr);
+	offset = phys_addr & ~PAGE_MASK;
+	phys_addr &= PAGE_MASK;
 
-	pages = size >> PAGE_SHIFT;
 	if (pages_mapped + pages > MAX_EFI_IO_PAGES)
 		return NULL;
 
@@ -124,5 +124,5 @@ void __iomem * __init efi_ioremap(unsigned long phys_addr, unsigned long size)
 	}
 
 	return (void __iomem *)__fix_to_virt(FIX_EFI_IO_MAP_FIRST_PAGE - \
-					     (pages_mapped - pages));
+					     (pages_mapped - pages)) + offset;
 }

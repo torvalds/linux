@@ -472,6 +472,7 @@ i2c_au1550_exit(void)
 MODULE_AUTHOR("Dan Malek, Embedded Edge, LLC.");
 MODULE_DESCRIPTION("SMBus adapter Alchemy pb1550");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:au1xpsc_smbus");
 
 module_init (i2c_au1550_init);
 module_exit (i2c_au1550_exit);

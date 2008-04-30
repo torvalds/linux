@@ -159,7 +159,7 @@ static int iforce_usb_probe(struct usb_interface *intf,
 
 	iforce->cr.bRequestType = USB_TYPE_VENDOR | USB_DIR_IN | USB_RECIP_INTERFACE;
 	iforce->cr.wIndex = 0;
-	iforce->cr.wLength = 16;
+	iforce->cr.wLength = cpu_to_le16(16);
 
 	usb_fill_int_urb(iforce->irq, dev, usb_rcvintpipe(dev, epirq->bEndpointAddress),
 			iforce->data, 16, iforce_usb_irq, iforce, epirq->bInterval);

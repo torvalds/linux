@@ -56,10 +56,10 @@
 /* constants */
 
 enum {
-	IPOIB_PACKET_SIZE	  = 2048,
-	IPOIB_BUF_SIZE		  = IPOIB_PACKET_SIZE + IB_GRH_BYTES,
-
 	IPOIB_ENCAP_LEN		  = 4,
+
+	IPOIB_UD_HEAD_SIZE	  = IB_GRH_BYTES + IPOIB_ENCAP_LEN,
+	IPOIB_UD_RX_SG		  = 2, /* max buffer needed for 4K mtu */
 
 	IPOIB_CM_MTU		  = 0x10000 - 0x10, /* padding to align header to 16 */
 	IPOIB_CM_BUF_SIZE	  = IPOIB_CM_MTU  + IPOIB_ENCAP_LEN,
@@ -87,6 +87,7 @@ enum {
 	IPOIB_MCAST_STARTED	  = 8,
 	IPOIB_FLAG_ADMIN_CM	  = 9,
 	IPOIB_FLAG_UMCAST	  = 10,
+	IPOIB_FLAG_CSUM		  = 11,
 
 	IPOIB_MAX_BACKOFF_SECONDS = 16,
 
@@ -138,7 +139,7 @@ struct ipoib_mcast {
 
 struct ipoib_rx_buf {
 	struct sk_buff *skb;
-	u64		mapping;
+	u64		mapping[IPOIB_UD_RX_SG];
 };
 
 struct ipoib_tx_buf {
@@ -241,6 +242,11 @@ struct ipoib_cm_dev_priv {
 	int			num_frags;
 };
 
+struct ipoib_ethtool_st {
+	u16     coalesce_usecs;
+	u16     max_coalesced_frames;
+};
+
 /*
  * Device private locking: tx_lock protects members used in TX fast
  * path (and we use LLTX so upper layers don't do extra locking).
@@ -288,6 +294,7 @@ struct ipoib_dev_priv {
 
 	unsigned int admin_mtu;
 	unsigned int mcast_mtu;
+	unsigned int max_ib_mtu;
 
 	struct ipoib_rx_buf *rx_ring;
 
@@ -298,6 +305,9 @@ struct ipoib_dev_priv {
 	struct ib_sge	     tx_sge[MAX_SKB_FRAGS + 1];
 	struct ib_send_wr    tx_wr;
 	unsigned	     tx_outstanding;
+
+	struct ib_recv_wr    rx_wr;
+	struct ib_sge	     rx_sge[IPOIB_UD_RX_SG];
 
 	struct ib_wc ibwc[IPOIB_NUM_WC];
 
@@ -318,6 +328,8 @@ struct ipoib_dev_priv {
 	struct dentry *mcg_dentry;
 	struct dentry *path_dentry;
 #endif
+	int	hca_caps;
+	struct ipoib_ethtool_st ethtool;
 };
 
 struct ipoib_ah {
@@ -357,6 +369,14 @@ struct ipoib_neigh {
 
 	struct list_head    list;
 };
+
+#define IPOIB_UD_MTU(ib_mtu)		(ib_mtu - IPOIB_ENCAP_LEN)
+#define IPOIB_UD_BUF_SIZE(ib_mtu)	(ib_mtu + IB_GRH_BYTES)
+
+static inline int ipoib_ud_need_sg(unsigned int ib_mtu)
+{
+	return IPOIB_UD_BUF_SIZE(ib_mtu) > PAGE_SIZE;
+}
 
 /*
  * We stash a pointer to our private neighbour information after our
@@ -457,6 +477,8 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey);
 void ipoib_pkey_poll(struct work_struct *work);
 int ipoib_pkey_dev_delay_open(struct net_device *dev);
 void ipoib_drain_cq(struct net_device *dev);
+
+void ipoib_set_ethtool_ops(struct net_device *dev);
 
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 

@@ -62,7 +62,6 @@ struct file_control_block {
 struct urdev {
 	struct ccw_device *cdev;	/* Backpointer to ccw device */
 	struct mutex io_mutex;		/* Serialises device IO */
-	struct mutex open_mutex;	/* Serialises access to device */
 	struct completion *io_done;	/* do_ur_io waits; irq completes */
 	struct device *device;
 	struct cdev *char_device;
@@ -71,6 +70,9 @@ struct urdev {
 	int class;			/* VM device class */
 	int io_request_rc;		/* return code from I/O request */
 	atomic_t ref_count;		/* reference counter */
+	wait_queue_head_t wait;		/* wait queue to serialize open */
+	int open_flag;			/* "urdev is open" flag */
+	spinlock_t open_lock;		/* serialize critical sections */
 };
 
 /*

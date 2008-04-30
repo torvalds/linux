@@ -25,7 +25,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
-#include <linux/ide.h>
 #include <linux/root_dev.h>
 
 #include <asm/byteorder.h>

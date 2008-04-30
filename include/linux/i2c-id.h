@@ -125,6 +125,7 @@
 #define I2C_HW_B_CX2341X	0x010020 /* Conexant CX2341X MPEG encoder cards */
 #define I2C_HW_B_INTELFB	0x010021 /* intel framebuffer driver */
 #define I2C_HW_B_CX23885	0x010022 /* conexant 23885 based tv cards (bus1) */
+#define I2C_HW_B_AU0828		0x010023 /* auvitek au0828 usb bridge */
 
 /* --- PCF 8584 based algorithms					*/
 #define I2C_HW_P_ELEK		0x020002 /* Elektor ISA Bus inteface card */

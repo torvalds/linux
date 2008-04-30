@@ -125,16 +125,16 @@ int tda18271_read_regs(struct dvb_frontend *fe)
 	unsigned char buf = 0x00;
 	int ret;
 	struct i2c_msg msg[] = {
-		{ .addr = priv->i2c_addr, .flags = 0,
+		{ .addr = priv->i2c_props.addr, .flags = 0,
 		  .buf = &buf, .len = 1 },
-		{ .addr = priv->i2c_addr, .flags = I2C_M_RD,
+		{ .addr = priv->i2c_props.addr, .flags = I2C_M_RD,
 		  .buf = regs, .len = 16 }
 	};
 
 	tda18271_i2c_gate_ctrl(fe, 1);
 
 	/* read all registers */
-	ret = i2c_transfer(priv->i2c_adap, msg, 2);
+	ret = i2c_transfer(priv->i2c_props.adap, msg, 2);
 
 	tda18271_i2c_gate_ctrl(fe, 0);
 
@@ -155,16 +155,16 @@ int tda18271_read_extended(struct dvb_frontend *fe)
 	unsigned char buf = 0x00;
 	int ret, i;
 	struct i2c_msg msg[] = {
-		{ .addr = priv->i2c_addr, .flags = 0,
+		{ .addr = priv->i2c_props.addr, .flags = 0,
 		  .buf = &buf, .len = 1 },
-		{ .addr = priv->i2c_addr, .flags = I2C_M_RD,
+		{ .addr = priv->i2c_props.addr, .flags = I2C_M_RD,
 		  .buf = regdump, .len = TDA18271_NUM_REGS }
 	};
 
 	tda18271_i2c_gate_ctrl(fe, 1);
 
 	/* read all registers */
-	ret = i2c_transfer(priv->i2c_adap, msg, 2);
+	ret = i2c_transfer(priv->i2c_props.adap, msg, 2);
 
 	tda18271_i2c_gate_ctrl(fe, 0);
 
@@ -192,7 +192,7 @@ int tda18271_write_regs(struct dvb_frontend *fe, int idx, int len)
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	unsigned char buf[TDA18271_NUM_REGS + 1];
-	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
+	struct i2c_msg msg = { .addr = priv->i2c_props.addr, .flags = 0,
 			       .buf = buf, .len = len + 1 };
 	int i, ret;
 
@@ -205,7 +205,7 @@ int tda18271_write_regs(struct dvb_frontend *fe, int idx, int len)
 	tda18271_i2c_gate_ctrl(fe, 1);
 
 	/* write registers */
-	ret = i2c_transfer(priv->i2c_adap, &msg, 1);
+	ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
 
 	tda18271_i2c_gate_ctrl(fe, 0);
 
@@ -217,13 +217,29 @@ int tda18271_write_regs(struct dvb_frontend *fe, int idx, int len)
 
 /*---------------------------------------------------------------------*/
 
+int tda18271_charge_pump_source(struct dvb_frontend *fe,
+				enum tda18271_pll pll, int force)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	unsigned char *regs = priv->tda18271_regs;
+
+	int r_cp = (pll == TDA18271_CAL_PLL) ? R_EB7 : R_EB4;
+
+	regs[r_cp] &= ~0x20;
+	regs[r_cp] |= ((force & 1) << 5);
+	tda18271_write_regs(fe, r_cp, 1);
+
+	return 0;
+}
+
 int tda18271_init_regs(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 
 	tda_dbg("initializing registers for device @ %d-%04x\n",
-		i2c_adapter_id(priv->i2c_adap), priv->i2c_addr);
+		i2c_adapter_id(priv->i2c_props.adap),
+		priv->i2c_props.addr);
 
 	/* initialize registers */
 	switch (priv->id) {
@@ -310,7 +326,12 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	regs[R_EB22] = 0x48;
 	regs[R_EB23] = 0xb0;
 
-	tda18271_write_regs(fe, 0x00, TDA18271_NUM_REGS);
+	if (priv->small_i2c) {
+		tda18271_write_regs(fe, 0x00, 0x10);
+		tda18271_write_regs(fe, 0x10, 0x10);
+		tda18271_write_regs(fe, 0x20, 0x07);
+	} else
+		tda18271_write_regs(fe, 0x00, TDA18271_NUM_REGS);
 
 	/* setup agc1 gain */
 	regs[R_EB17] = 0x00;
@@ -349,24 +370,15 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	regs[R_MD2] = 0x08;
 	regs[R_MD3] = 0x00;
 
-	switch (priv->id) {
-	case TDA18271HDC1:
-		tda18271_write_regs(fe, R_EP3, 11);
-		break;
-	case TDA18271HDC2:
-		tda18271_write_regs(fe, R_EP3, 12);
-		break;
-	};
+	tda18271_write_regs(fe, R_EP3, 11);
 
 	if ((priv->id) == TDA18271HDC2) {
 		/* main pll cp source on */
-		regs[R_EB4] = 0x61;
-		tda18271_write_regs(fe, R_EB4, 1);
+		tda18271_charge_pump_source(fe, TDA18271_MAIN_PLL, 1);
 		msleep(1);
 
 		/* main pll cp source off */
-		regs[R_EB4] = 0x41;
-		tda18271_write_regs(fe, R_EB4, 1);
+		tda18271_charge_pump_source(fe, TDA18271_MAIN_PLL, 0);
 	}
 
 	msleep(5); /* pll locking */
@@ -398,6 +410,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	tda18271_write_regs(fe, R_EP3, 11);
 	msleep(5); /* pll locking */
 
+	/* launch detector */
 	tda18271_write_regs(fe, R_EP1, 1);
 	msleep(5); /* wanted mid measurement */
 

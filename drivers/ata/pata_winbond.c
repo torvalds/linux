@@ -116,53 +116,20 @@ static unsigned int winbond_data_xfer(struct ata_device *dev,
 			buflen += 4 - slop;
 		}
 	} else
-		buflen = ata_data_xfer(dev, buf, buflen, rw);
+		buflen = ata_sff_data_xfer(dev, buf, buflen, rw);
 
 	return buflen;
 }
 
 static struct scsi_host_template winbond_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
+	ATA_PIO_SHT(DRV_NAME),
 };
 
 static struct ata_port_operations winbond_port_ops = {
-	.set_piomode	= winbond_set_piomode,
-
-	.tf_load	= ata_tf_load,
-	.tf_read	= ata_tf_read,
-	.check_status 	= ata_check_status,
-	.exec_command	= ata_exec_command,
-	.dev_select 	= ata_std_dev_select,
-
-	.freeze		= ata_bmdma_freeze,
-	.thaw		= ata_bmdma_thaw,
-	.error_handler	= ata_bmdma_error_handler,
-	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.inherits	= &ata_sff_port_ops,
+	.sff_data_xfer	= winbond_data_xfer,
 	.cable_detect	= ata_cable_40wire,
-
-	.qc_prep 	= ata_qc_prep,
-	.qc_issue	= ata_qc_issue_prot,
-
-	.data_xfer	= winbond_data_xfer,
-
-	.irq_clear	= ata_bmdma_irq_clear,
-	.irq_on		= ata_irq_on,
-
-	.port_start	= ata_sff_port_start,
+	.set_piomode	= winbond_set_piomode,
 };
 
 /**
@@ -231,7 +198,7 @@ static __init int winbond_init_one(unsigned long port)
 		ap->ioaddr.cmd_addr = cmd_addr;
 		ap->ioaddr.altstatus_addr = ctl_addr;
 		ap->ioaddr.ctl_addr = ctl_addr;
-		ata_std_ports(&ap->ioaddr);
+		ata_sff_std_ports(&ap->ioaddr);
 
 		/* hook in a private data structure per channel */
 		host->private_data = &winbond_data[nr_winbond_host];
@@ -239,7 +206,7 @@ static __init int winbond_init_one(unsigned long port)
 		winbond_data[nr_winbond_host].platform_dev = pdev;
 
 		/* activate */
-		rc = ata_host_activate(host, 14 + i, ata_interrupt, 0,
+		rc = ata_host_activate(host, 14 + i, ata_sff_interrupt, 0,
 				       &winbond_sht);
 		if (rc)
 			goto err_unregister;

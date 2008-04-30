@@ -84,6 +84,7 @@ extern __u16 GetNextMid(struct TCP_Server_Info *server);
 extern struct oplock_q_entry *AllocOplockQEntry(struct inode *, u16,
 						 struct cifsTconInfo *);
 extern void DeleteOplockQEntry(struct oplock_q_entry *);
+extern void DeleteTconOplockQEntries(struct cifsTconInfo *);
 extern struct timespec cifs_NTtimeToUnix(u64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern __le64 cnvrtDosCifsTm(__u16 date, __u16 time);
@@ -103,13 +104,7 @@ extern int mode_to_acl(struct inode *inode, const char *path, __u64);
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
 			const char *);
 extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-extern void dfs_shrink_umount_helper(struct vfsmount *vfsmnt);
-#else
-static inline void dfs_shrink_umount_helper(struct vfsmount *vfsmnt)
-{
-}
-#endif /* DFS_UPCALL */
+extern void cifs_dfs_release_automount_timer(void);
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
 

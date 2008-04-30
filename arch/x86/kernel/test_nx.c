@@ -11,6 +11,8 @@
  */
 #include <linux/module.h>
 #include <linux/sort.h>
+#include <linux/slab.h>
+
 #include <asm/uaccess.h>
 #include <asm/asm.h>
 

@@ -471,6 +471,7 @@ arm1020_crval:
 	.type	arm1020_processor_functions, #object
 arm1020_processor_functions:
 	.word	v4t_early_abort
+	.word	pabort_noifar
 	.word	cpu_arm1020_proc_init
 	.word	cpu_arm1020_proc_fin
 	.word	cpu_arm1020_reset

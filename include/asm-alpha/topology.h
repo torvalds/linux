@@ -41,8 +41,7 @@ static inline cpumask_t node_to_cpumask(int node)
 
 #define pcibus_to_cpumask(bus)	(cpu_online_map)
 
-#else /* CONFIG_NUMA */
-# include <asm-generic/topology.h>
 #endif /* !CONFIG_NUMA */
+# include <asm-generic/topology.h>
 
 #endif /* _ASM_ALPHA_TOPOLOGY_H */

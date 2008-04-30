@@ -107,6 +107,16 @@ type of GPIO controller, and on one particular board 80-95 with an FPGA.
 The numbers need not be contiguous; either of those platforms could also
 use numbers 2000-2063 to identify GPIOs in a bank of I2C GPIO expanders.
 
+If you want to initialize a structure with an invalid GPIO number, use
+some negative number (perhaps "-EINVAL"); that will never be valid.  To
+test if a number could reference a GPIO, you may use this predicate:
+
+	int gpio_is_valid(int number);
+
+A number that's not valid will be rejected by calls which may request
+or free GPIOs (see below).  Other numbers may also be rejected; for
+example, a number might be valid but unused on a given board.
+
 Whether a platform supports multiple GPIO controllers is currently a
 platform-specific implementation issue.
 

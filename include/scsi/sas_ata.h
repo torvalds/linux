@@ -47,12 +47,12 @@ static inline int dev_is_sata(struct domain_device *dev)
 {
 	return 0;
 }
-int sas_ata_init_host_and_port(struct domain_device *found_dev,
+static inline int sas_ata_init_host_and_port(struct domain_device *found_dev,
 			       struct scsi_target *starget)
 {
 	return 0;
 }
-void sas_ata_task_abort(struct sas_task *task)
+static inline void sas_ata_task_abort(struct sas_task *task)
 {
 }
 #endif

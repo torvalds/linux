@@ -79,7 +79,7 @@ struct sigcontext {
 	unsigned long flags;
 	unsigned long sp_at_signal;
 	unsigned short ss, __ssh;
-	struct _fpstate __user * fpstate;
+	struct _fpstate __user *fpstate;
 	unsigned long oldmask;
 	unsigned long cr2;
 };
@@ -107,7 +107,7 @@ struct sigcontext {
 	unsigned long eflags;
 	unsigned long esp_at_signal;
 	unsigned short ss, __ssh;
-	struct _fpstate __user * fpstate;
+	struct _fpstate __user *fpstate;
 	unsigned long oldmask;
 	unsigned long cr2;
 };
@@ -121,7 +121,8 @@ struct sigcontext {
 struct _fpstate {
 	__u16	cwd;
 	__u16	swd;
-	__u16	twd;	/* Note this is not the same as the 32bit/x87/FSAVE twd */
+	__u16	twd;		/* Note this is not the same as the
+				   32bit/x87/FSAVE twd */
 	__u16	fop;
 	__u64	rip;
 	__u64	rdp;

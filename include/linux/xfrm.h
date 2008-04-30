@@ -97,10 +97,10 @@ struct xfrm_algo {
 };
 
 struct xfrm_algo_aead {
-	char	alg_name[64];
-	int	alg_key_len;	/* in bits */
-	int	alg_icv_len;	/* in bits */
-	char	alg_key[0];
+	char		alg_name[64];
+	unsigned int	alg_key_len;	/* in bits */
+	unsigned int	alg_icv_len;	/* in bits */
+	char		alg_key[0];
 };
 
 struct xfrm_stats {
@@ -113,7 +113,8 @@ enum
 {
 	XFRM_POLICY_TYPE_MAIN	= 0,
 	XFRM_POLICY_TYPE_SUB	= 1,
-	XFRM_POLICY_TYPE_MAX	= 2
+	XFRM_POLICY_TYPE_MAX	= 2,
+	XFRM_POLICY_TYPE_ANY	= 255
 };
 
 enum

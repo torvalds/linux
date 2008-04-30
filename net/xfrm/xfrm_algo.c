@@ -129,8 +129,7 @@ static struct xfrm_algo_desc aead_list[] = {
 
 static struct xfrm_algo_desc aalg_list[] = {
 {
-	.name = "hmac(digest_null)",
-	.compat = "digest_null",
+	.name = "digest_null",
 
 	.uinfo = {
 		.auth = {

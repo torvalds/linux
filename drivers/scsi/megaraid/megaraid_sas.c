@@ -68,6 +68,8 @@ static struct pci_device_id megasas_pci_table[] = {
 	/* xscale IOP */
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1078R)},
 	/* ppc IOP */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1078DE)},
+	/* ppc IOP */
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_VERDE_ZCR)},
 	/* xscale IOP, vega */
 	{PCI_DEVICE(PCI_VENDOR_ID_DELL, PCI_DEVICE_ID_DELL_PERC5)},
@@ -488,12 +490,13 @@ megasas_make_sgl64(struct megasas_instance *instance, struct scsi_cmnd *scp,
 
  /**
  * megasas_get_frame_count - Computes the number of frames
+ * @frame_type		: type of frame- io or pthru frame
  * @sge_count		: number of sg elements
  *
  * Returns the number of frames required for numnber of sge's (sge_count)
  */
 
-static u32 megasas_get_frame_count(u8 sge_count)
+static u32 megasas_get_frame_count(u8 sge_count, u8 frame_type)
 {
 	int num_cnt;
 	int sge_bytes;
@@ -504,13 +507,22 @@ static u32 megasas_get_frame_count(u8 sge_count)
 	    sizeof(struct megasas_sge32);
 
 	/*
-	* Main frame can contain 2 SGEs for 64-bit SGLs and
-	* 3 SGEs for 32-bit SGLs
-	*/
-	if (IS_DMA64)
-		num_cnt = sge_count - 2;
-	else
-		num_cnt = sge_count - 3;
+	 * Main frame can contain 2 SGEs for 64-bit SGLs and
+	 * 3 SGEs for 32-bit SGLs for ldio &
+	 * 1 SGEs for 64-bit SGLs and
+	 * 2 SGEs for 32-bit SGLs for pthru frame
+	 */
+	if (unlikely(frame_type == PTHRU_FRAME)) {
+		if (IS_DMA64)
+			num_cnt = sge_count - 1;
+		else
+			num_cnt = sge_count - 2;
+	} else {
+		if (IS_DMA64)
+			num_cnt = sge_count - 2;
+		else
+			num_cnt = sge_count - 3;
+	}
 
 	if(num_cnt>0){
 		sge_bytes = sge_sz * num_cnt;
@@ -592,7 +604,8 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	 * Compute the total number of frames this command consumes. FW uses
 	 * this number to pull sufficient number of frames from host memory.
 	 */
-	cmd->frame_count = megasas_get_frame_count(pthru->sge_count);
+	cmd->frame_count = megasas_get_frame_count(pthru->sge_count,
+							PTHRU_FRAME);
 
 	return cmd->frame_count;
 }
@@ -709,7 +722,7 @@ megasas_build_ldio(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	 * Compute the total number of frames this command consumes. FW uses
 	 * this number to pull sufficient number of frames from host memory.
 	 */
-	cmd->frame_count = megasas_get_frame_count(ldio->sge_count);
+	cmd->frame_count = megasas_get_frame_count(ldio->sge_count, IO_FRAME);
 
 	return cmd->frame_count;
 }
@@ -1460,7 +1473,7 @@ megasas_transition_to_ready(struct megasas_instance* instance)
 			instance->instancet->disable_intr(instance->reg_set);
 			writel(MFI_RESET_FLAGS, &instance->reg_set->inbound_doorbell);
 
-			max_wait = 10;
+			max_wait = 60;
 			cur_state = MFI_STATE_OPERATIONAL;
 			break;
 
@@ -1980,7 +1993,8 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 
 	switch(instance->pdev->device)
 	{
-		case PCI_DEVICE_ID_LSI_SAS1078R:	
+		case PCI_DEVICE_ID_LSI_SAS1078R:
+		case PCI_DEVICE_ID_LSI_SAS1078DE:
 			instance->instancet = &megasas_instance_template_ppc;
 			break;
 		case PCI_DEVICE_ID_LSI_SAS1064R:
@@ -2909,7 +2923,6 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	void *sense = NULL;
 	dma_addr_t sense_handle;
 	u32 *sense_ptr;
-	unsigned long *sense_buff;
 
 	memset(kbuff_arr, 0, sizeof(kbuff_arr));
 
@@ -3014,14 +3027,14 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	 */
 	if (ioc->sense_len) {
 		/*
-		 * sense_buff points to the location that has the user
+		 * sense_ptr points to the location that has the user
 		 * sense buffer address
 		 */
-		sense_buff = (unsigned long *) ((unsigned long)ioc->frame.raw +
-								ioc->sense_off);
+		sense_ptr = (u32 *) ((unsigned long)ioc->frame.raw +
+				     ioc->sense_off);
 
-		if (copy_to_user((void __user *)(unsigned long)(*sense_buff),
-				sense, ioc->sense_len)) {
+		if (copy_to_user((void __user *)((unsigned long)(*sense_ptr)),
+				 sense, ioc->sense_len)) {
 			printk(KERN_ERR "megasas: Failed to copy out to user "
 					"sense data\n");
 			error = -EFAULT;

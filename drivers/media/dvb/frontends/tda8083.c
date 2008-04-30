@@ -68,7 +68,7 @@ static int tda8083_writereg (struct tda8083_state* state, u8 reg, u8 data)
 
 	if (ret != 1)
 		dprintk ("%s: writereg error (reg %02x, ret == %i)\n",
-			__FUNCTION__, reg, ret);
+			__func__, reg, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -83,7 +83,7 @@ static int tda8083_readregs (struct tda8083_state* state, u8 reg1, u8 *b, u8 len
 
 	if (ret != 2)
 		dprintk ("%s: readreg error (reg %02x, ret == %i)\n",
-			__FUNCTION__, reg1, ret);
+			__func__, reg1, ret);
 
 	return ret == 2 ? 0 : -1;
 }

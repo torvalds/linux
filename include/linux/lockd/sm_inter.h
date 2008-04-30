@@ -19,6 +19,7 @@
 #define SM_NOTIFY	6
 
 #define SM_MAXSTRLEN	1024
+#define SM_PRIV_SIZE	16
 
 /*
  * Arguments for all calls to statd

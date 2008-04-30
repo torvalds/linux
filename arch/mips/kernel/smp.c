@@ -35,6 +35,7 @@
 #include <asm/atomic.h>
 #include <asm/cpu.h>
 #include <asm/processor.h>
+#include <asm/r4k-timer.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/time.h>
@@ -124,6 +125,8 @@ asmlinkage __cpuinit void start_secondary(void)
 	set_cpu_sibling_map(cpu);
 
 	cpu_set(cpu, cpu_callin_map);
+
+	synchronise_count_slave();
 
 	cpu_idle();
 }
@@ -287,6 +290,7 @@ void smp_send_stop(void)
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	mp_ops->cpus_done();
+	synchronise_count_master();
 }
 
 /* called from main before smp_init() */

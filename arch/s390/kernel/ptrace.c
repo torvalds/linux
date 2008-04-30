@@ -41,6 +41,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
+#include "entry.h"
 
 #ifdef CONFIG_COMPAT
 #include "compat_ptrace.h"

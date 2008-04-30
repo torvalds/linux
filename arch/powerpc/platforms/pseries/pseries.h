@@ -38,4 +38,6 @@ extern void pSeries_final_fixup(void);
 /* Poweron flag used for enabling auto ups restart */
 extern unsigned long rtas_poweron_auto;
 
+extern void find_udbg_vterm(void);
+
 #endif /* _PSERIES_PSERIES_H */

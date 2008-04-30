@@ -475,6 +475,7 @@ pgm_check_handler:
 pgm_no_vtime:
 #endif
 	lg	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
+	mvc	SP_ARGS(8,%r15),__LC_LAST_BREAK
 	TRACE_IRQS_OFF
 	lgf	%r3,__LC_PGM_ILC	# load program interruption code
 	lghi	%r8,0x7f
@@ -847,6 +848,7 @@ stack_overflow:
 	je	0f
 	la	%r1,__LC_SAVE_AREA+32
 0:	mvc	SP_R12(32,%r15),0(%r1)	# move %r12-%r15 to stack
+	mvc	SP_ARGS(8,%r15),__LC_LAST_BREAK
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15) # clear back chain
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	jg	kernel_stack_overflow

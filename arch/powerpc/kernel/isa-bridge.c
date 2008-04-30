@@ -80,13 +80,13 @@ static void __devinit pci_process_ISA_OF_ranges(struct device_node *isa_node,
 	 *			(size depending on dev->n_addr_cells)
 	 *   cell 5:		the size of the range
 	 */
-	if ((range->isa_addr.a_hi && ISA_SPACE_MASK) != ISA_SPACE_IO) {
+	if ((range->isa_addr.a_hi & ISA_SPACE_MASK) != ISA_SPACE_IO) {
 		range++;
 		rlen -= sizeof(struct isa_range);
 		if (rlen < sizeof(struct isa_range))
 			goto inval_range;
 	}
-	if ((range->isa_addr.a_hi && ISA_SPACE_MASK) != ISA_SPACE_IO)
+	if ((range->isa_addr.a_hi & ISA_SPACE_MASK) != ISA_SPACE_IO)
 		goto inval_range;
 
 	isa_addr = range->isa_addr.a_lo;
@@ -99,7 +99,7 @@ static void __devinit pci_process_ISA_OF_ranges(struct device_node *isa_node,
 	 */
 	if ((pci_addr != 0) || (isa_addr != 0)) {
 		printk(KERN_ERR "unexpected isa to pci mapping: %s\n",
-		       __FUNCTION__);
+		       __func__);
 		return;
 	}
 

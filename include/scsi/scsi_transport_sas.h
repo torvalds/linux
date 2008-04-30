@@ -80,8 +80,8 @@ struct sas_phy {
 
 #define dev_to_phy(d) \
 	container_of((d), struct sas_phy, dev)
-#define transport_class_to_phy(cdev) \
-	dev_to_phy((cdev)->dev)
+#define transport_class_to_phy(dev) \
+	dev_to_phy((dev)->parent)
 #define phy_to_shost(phy) \
 	dev_to_shost((phy)->dev.parent)
 
@@ -96,8 +96,8 @@ struct sas_rphy {
 
 #define dev_to_rphy(d) \
 	container_of((d), struct sas_rphy, dev)
-#define transport_class_to_rphy(cdev) \
-	dev_to_rphy((cdev)->dev)
+#define transport_class_to_rphy(dev) \
+	dev_to_rphy((dev)->parent)
 #define rphy_to_shost(rphy) \
 	dev_to_shost((rphy)->dev.parent)
 #define target_to_rphy(targ) \
@@ -152,8 +152,8 @@ struct sas_port {
 
 #define dev_to_sas_port(d) \
 	container_of((d), struct sas_port, dev)
-#define transport_class_to_sas_port(cdev) \
-	dev_to_sas_port((cdev)->dev)
+#define transport_class_to_sas_port(dev) \
+	dev_to_sas_port((dev)->parent)
 
 struct sas_phy_linkrates {
 	enum sas_linkrate maximum_linkrate;

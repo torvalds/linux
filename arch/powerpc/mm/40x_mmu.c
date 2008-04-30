@@ -97,7 +97,7 @@ unsigned long __init mmu_mapin_ram(void)
 	phys_addr_t p;
 
 	v = KERNELBASE;
-	p = PPC_MEMSTART;
+	p = 0;
 	s = total_lowmem;
 
 	if (__map_without_ltlbs)

@@ -115,7 +115,7 @@ static int tcf_simp_init(struct nlattr *nla, struct nlattr *est,
 		return -EINVAL;
 
 	datalen = nla_len(tb[TCA_DEF_DATA]);
-	if (datalen <= 0)
+	if (datalen == 0)
 		return -EINVAL;
 
 	pc = tcf_hash_check(parm->index, a, bind, &simp_hash_info);

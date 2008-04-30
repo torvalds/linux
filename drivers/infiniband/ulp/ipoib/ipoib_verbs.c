@@ -150,7 +150,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 			.max_send_wr  = ipoib_sendq_size,
 			.max_recv_wr  = ipoib_recvq_size,
 			.max_send_sge = 1,
-			.max_recv_sge = 1
+			.max_recv_sge = IPOIB_UD_RX_SG
 		},
 		.sq_sig_type = IB_SIGNAL_ALL_WR,
 		.qp_type     = IB_QPT_UD
@@ -192,6 +192,9 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	init_attr.send_cq = priv->cq;
 	init_attr.recv_cq = priv->cq;
 
+	if (priv->hca_caps & IB_DEVICE_UD_TSO)
+		init_attr.create_flags = IB_QP_CREATE_IPOIB_UD_LSO;
+
 	if (dev->features & NETIF_F_SG)
 		init_attr.cap.max_send_sge = MAX_SKB_FRAGS + 1;
 
@@ -211,6 +214,19 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	priv->tx_wr.opcode	= IB_WR_SEND;
 	priv->tx_wr.sg_list	= priv->tx_sge;
 	priv->tx_wr.send_flags	= IB_SEND_SIGNALED;
+
+	priv->rx_sge[0].lkey = priv->mr->lkey;
+	if (ipoib_ud_need_sg(priv->max_ib_mtu)) {
+		priv->rx_sge[0].length = IPOIB_UD_HEAD_SIZE;
+		priv->rx_sge[1].length = PAGE_SIZE;
+		priv->rx_sge[1].lkey = priv->mr->lkey;
+		priv->rx_wr.num_sge = IPOIB_UD_RX_SG;
+	} else {
+		priv->rx_sge[0].length = IPOIB_UD_BUF_SIZE(priv->max_ib_mtu);
+		priv->rx_wr.num_sge = 1;
+	}
+	priv->rx_wr.next = NULL;
+	priv->rx_wr.sg_list = priv->rx_sge;
 
 	return 0;
 

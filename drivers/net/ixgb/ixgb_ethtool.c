@@ -32,15 +32,6 @@
 
 #include <asm/uaccess.h>
 
-extern int ixgb_up(struct ixgb_adapter *adapter);
-extern void ixgb_down(struct ixgb_adapter *adapter, boolean_t kill_watchdog);
-extern void ixgb_reset(struct ixgb_adapter *adapter);
-extern int ixgb_setup_rx_resources(struct ixgb_adapter *adapter);
-extern int ixgb_setup_tx_resources(struct ixgb_adapter *adapter);
-extern void ixgb_free_rx_resources(struct ixgb_adapter *adapter);
-extern void ixgb_free_tx_resources(struct ixgb_adapter *adapter);
-extern void ixgb_update_stats(struct ixgb_adapter *adapter);
-
 #define IXGB_ALL_RAR_ENTRIES 16
 
 struct ixgb_stats {
@@ -136,7 +127,7 @@ ixgb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		return -EINVAL;
 	
 	if(netif_running(adapter->netdev)) {
-		ixgb_down(adapter, TRUE);
+		ixgb_down(adapter, true);
 		ixgb_reset(adapter);
 		ixgb_up(adapter);
 		ixgb_set_speed_duplex(netdev);
@@ -185,7 +176,7 @@ ixgb_set_pauseparam(struct net_device *netdev,
 		hw->fc.type = ixgb_fc_none;
 
 	if(netif_running(adapter->netdev)) {
-		ixgb_down(adapter, TRUE);
+		ixgb_down(adapter, true);
 		ixgb_up(adapter);
 		ixgb_set_speed_duplex(netdev);
 	} else
@@ -194,7 +185,7 @@ ixgb_set_pauseparam(struct net_device *netdev,
 	return 0;
 }
 
-static uint32_t
+static u32
 ixgb_get_rx_csum(struct net_device *netdev)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
@@ -203,14 +194,14 @@ ixgb_get_rx_csum(struct net_device *netdev)
 }
 
 static int
-ixgb_set_rx_csum(struct net_device *netdev, uint32_t data)
+ixgb_set_rx_csum(struct net_device *netdev, u32 data)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	adapter->rx_csum = data;
 
 	if(netif_running(netdev)) {
-		ixgb_down(adapter,TRUE);
+		ixgb_down(adapter, true);
 		ixgb_up(adapter);
 		ixgb_set_speed_duplex(netdev);
 	} else
@@ -218,14 +209,14 @@ ixgb_set_rx_csum(struct net_device *netdev, uint32_t data)
 	return 0;
 }
 	
-static uint32_t
+static u32
 ixgb_get_tx_csum(struct net_device *netdev)
 {
 	return (netdev->features & NETIF_F_HW_CSUM) != 0;
 }
 
 static int
-ixgb_set_tx_csum(struct net_device *netdev, uint32_t data)
+ixgb_set_tx_csum(struct net_device *netdev, u32 data)
 {
 	if (data)
 		netdev->features |= NETIF_F_HW_CSUM;
@@ -236,7 +227,7 @@ ixgb_set_tx_csum(struct net_device *netdev, uint32_t data)
 }
 
 static int
-ixgb_set_tso(struct net_device *netdev, uint32_t data)
+ixgb_set_tso(struct net_device *netdev, u32 data)
 {
 	if(data)
 		netdev->features |= NETIF_F_TSO;
@@ -245,7 +236,7 @@ ixgb_set_tso(struct net_device *netdev, uint32_t data)
 	return 0;
 } 
 
-static uint32_t
+static u32
 ixgb_get_msglevel(struct net_device *netdev)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
@@ -253,7 +244,7 @@ ixgb_get_msglevel(struct net_device *netdev)
 }
 
 static void
-ixgb_set_msglevel(struct net_device *netdev, uint32_t data)
+ixgb_set_msglevel(struct net_device *netdev, u32 data)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	adapter->msg_enable = data;
@@ -263,7 +254,7 @@ ixgb_set_msglevel(struct net_device *netdev, uint32_t data)
 static int 
 ixgb_get_regs_len(struct net_device *netdev)
 {
-#define IXGB_REG_DUMP_LEN  136*sizeof(uint32_t)
+#define IXGB_REG_DUMP_LEN  136*sizeof(u32)
 	return IXGB_REG_DUMP_LEN;
 }
 
@@ -273,9 +264,9 @@ ixgb_get_regs(struct net_device *netdev,
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
-	uint32_t *reg = p;
-	uint32_t *reg_start = reg;
-	uint8_t i;
+	u32 *reg = p;
+	u32 *reg_start = reg;
+	u8 i;
 
 	/* the 1 (one) below indicates an attempt at versioning, if the
 	 * interface in ethtool or the driver changes, this 1 should be
@@ -404,7 +395,7 @@ ixgb_get_regs(struct net_device *netdev,
 	*reg++ = IXGB_GET_STAT(adapter, xofftxc);	/* 134 */
 	*reg++ = IXGB_GET_STAT(adapter, rjc);	/* 135 */
 
-	regs->len = (reg - reg_start) * sizeof(uint32_t);
+	regs->len = (reg - reg_start) * sizeof(u32);
 }
 
 static int
@@ -416,7 +407,7 @@ ixgb_get_eeprom_len(struct net_device *netdev)
 
 static int
 ixgb_get_eeprom(struct net_device *netdev,
-		  struct ethtool_eeprom *eeprom, uint8_t *bytes)
+		  struct ethtool_eeprom *eeprom, u8 *bytes)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
@@ -454,7 +445,7 @@ ixgb_get_eeprom(struct net_device *netdev,
 		eeprom_buff[i] = ixgb_get_eeprom_word(hw, (first_word + i));
 	}
 
-	memcpy(bytes, (uint8_t *)eeprom_buff + (eeprom->offset & 1),
+	memcpy(bytes, (u8 *)eeprom_buff + (eeprom->offset & 1),
 			eeprom->len);
 	kfree(eeprom_buff);
 
@@ -464,14 +455,14 @@ geeprom_error:
 
 static int
 ixgb_set_eeprom(struct net_device *netdev,
-		  struct ethtool_eeprom *eeprom, uint8_t *bytes)
+		  struct ethtool_eeprom *eeprom, u8 *bytes)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
-	uint16_t *eeprom_buff;
+	u16 *eeprom_buff;
 	void *ptr;
 	int max_len, first_word, last_word;
-	uint16_t i;
+	u16 i;
 
 	if(eeprom->len == 0)
 		return -EINVAL;
@@ -570,14 +561,14 @@ ixgb_set_ringparam(struct net_device *netdev,
 		return -EINVAL;
 
 	if(netif_running(adapter->netdev))
-		ixgb_down(adapter,TRUE);
+		ixgb_down(adapter, true);
 
-	rxdr->count = max(ring->rx_pending,(uint32_t)MIN_RXD);
-	rxdr->count = min(rxdr->count,(uint32_t)MAX_RXD);
+	rxdr->count = max(ring->rx_pending,(u32)MIN_RXD);
+	rxdr->count = min(rxdr->count,(u32)MAX_RXD);
 	rxdr->count = ALIGN(rxdr->count, IXGB_REQ_RX_DESCRIPTOR_MULTIPLE);
 
-	txdr->count = max(ring->tx_pending,(uint32_t)MIN_TXD);
-	txdr->count = min(txdr->count,(uint32_t)MAX_TXD);
+	txdr->count = max(ring->tx_pending,(u32)MIN_TXD);
+	txdr->count = min(txdr->count,(u32)MAX_TXD);
 	txdr->count = ALIGN(txdr->count, IXGB_REQ_TX_DESCRIPTOR_MULTIPLE);
 
 	if(netif_running(adapter->netdev)) {
@@ -633,7 +624,7 @@ ixgb_led_blink_callback(unsigned long data)
 }
 
 static int
-ixgb_phys_id(struct net_device *netdev, uint32_t data)
+ixgb_phys_id(struct net_device *netdev, u32 data)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
@@ -669,7 +660,7 @@ ixgb_get_sset_count(struct net_device *netdev, int sset)
 
 static void 
 ixgb_get_ethtool_stats(struct net_device *netdev, 
-		struct ethtool_stats *stats, uint64_t *data)
+		struct ethtool_stats *stats, u64 *data)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	int i;
@@ -678,12 +669,12 @@ ixgb_get_ethtool_stats(struct net_device *netdev,
 	for(i = 0; i < IXGB_STATS_LEN; i++) {
 		char *p = (char *)adapter+ixgb_gstrings_stats[i].stat_offset;	
 		data[i] = (ixgb_gstrings_stats[i].sizeof_stat == 
-			sizeof(uint64_t)) ? *(uint64_t *)p : *(uint32_t *)p;
+			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 }
 
 static void 
-ixgb_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
+ixgb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	int i;
 

@@ -72,7 +72,6 @@ static int help(struct sk_buff *skb,
 	struct nf_conntrack_tuple *tuple;
 	struct sane_request *req;
 	struct sane_reply_net_start *reply;
-	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 
 	ct_sane_info = &nfct_help(ct)->help.ct_sane_info;
 	/* Until there's been traffic both ways, don't look in packets. */
@@ -143,11 +142,12 @@ static int help(struct sk_buff *skb,
 	}
 
 	tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-	nf_ct_expect_init(exp, family, &tuple->src.u3, &tuple->dst.u3,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
+			  &tuple->src.u3, &tuple->dst.u3,
 			  IPPROTO_TCP, NULL, &reply->port);
 
 	pr_debug("nf_ct_sane: expect: ");
-	NF_CT_DUMP_TUPLE(&exp->tuple);
+	nf_ct_dump_tuple(&exp->tuple);
 
 	/* Can't expect this?  Best to drop packet now. */
 	if (nf_ct_expect_related(exp) != 0)
@@ -162,6 +162,11 @@ out:
 
 static struct nf_conntrack_helper sane[MAX_PORTS][2] __read_mostly;
 static char sane_names[MAX_PORTS][2][sizeof("sane-65535")] __read_mostly;
+
+static const struct nf_conntrack_expect_policy sane_exp_policy = {
+	.max_expected	= 1,
+	.timeout	= 5 * 60,
+};
 
 /* don't make this __exit, since it's called from __init ! */
 static void nf_conntrack_sane_fini(void)
@@ -200,8 +205,7 @@ static int __init nf_conntrack_sane_init(void)
 		for (j = 0; j < 2; j++) {
 			sane[i][j].tuple.src.u.tcp.port = htons(ports[i]);
 			sane[i][j].tuple.dst.protonum = IPPROTO_TCP;
-			sane[i][j].max_expected = 1;
-			sane[i][j].timeout = 5 * 60;	/* 5 Minutes */
+			sane[i][j].expect_policy = &sane_exp_policy;
 			sane[i][j].me = THIS_MODULE;
 			sane[i][j].help = help;
 			tmpname = &sane_names[i][j][0];

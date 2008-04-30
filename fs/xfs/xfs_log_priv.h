@@ -242,7 +242,7 @@ typedef struct xlog_res {
 
 typedef struct xlog_ticket {
 	sv_t		   t_sema;	 /* sleep on this semaphore      : 20 */
- 	struct xlog_ticket *t_next;	 /*			         :4|8 */
+	struct xlog_ticket *t_next;	 /*			         :4|8 */
 	struct xlog_ticket *t_prev;	 /*				 :4|8 */
 	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4  */
 	int		   t_curr_res;	 /* current reservation in bytes : 4  */
@@ -324,6 +324,19 @@ typedef struct xlog_rec_ext_header {
  * - ic_offset is the current number of bytes written to in this iclog.
  * - ic_refcnt is bumped when someone is writing to the log.
  * - ic_state is the state of the iclog.
+ *
+ * Because of cacheline contention on large machines, we need to separate
+ * various resources onto different cachelines. To start with, make the
+ * structure cacheline aligned. The following fields can be contended on
+ * by independent processes:
+ *
+ *	- ic_callback_*
+ *	- ic_refcnt
+ *	- fields protected by the global l_icloglock
+ *
+ * so we need to ensure that these fields are located in separate cachelines.
+ * We'll put all the read-only and l_icloglock fields in the first cacheline,
+ * and move everything else out to subsequent cachelines.
  */
 typedef struct xlog_iclog_fields {
 	sv_t			ic_forcesema;
@@ -332,17 +345,22 @@ typedef struct xlog_iclog_fields {
 	struct xlog_in_core	*ic_prev;
 	struct xfs_buf		*ic_bp;
 	struct log		*ic_log;
-	xfs_log_callback_t	*ic_callback;
-	xfs_log_callback_t	**ic_callback_tail;
-#ifdef XFS_LOG_TRACE
-	struct ktrace		*ic_trace;
-#endif
 	int			ic_size;
 	int			ic_offset;
-	int			ic_refcnt;
 	int			ic_bwritecnt;
 	ushort_t		ic_state;
 	char			*ic_datap;	/* pointer to iclog data */
+#ifdef XFS_LOG_TRACE
+	struct ktrace		*ic_trace;
+#endif
+
+	/* Callback structures need their own cacheline */
+	spinlock_t		ic_callback_lock ____cacheline_aligned_in_smp;
+	xfs_log_callback_t	*ic_callback;
+	xfs_log_callback_t	**ic_callback_tail;
+
+	/* reference counts need their own cacheline */
+	atomic_t		ic_refcnt ____cacheline_aligned_in_smp;
 } xlog_iclog_fields_t;
 
 typedef union xlog_in_core2 {
@@ -366,6 +384,7 @@ typedef struct xlog_in_core {
 #define	ic_bp		hic_fields.ic_bp
 #define	ic_log		hic_fields.ic_log
 #define	ic_callback	hic_fields.ic_callback
+#define	ic_callback_lock hic_fields.ic_callback_lock
 #define	ic_callback_tail hic_fields.ic_callback_tail
 #define	ic_trace	hic_fields.ic_trace
 #define	ic_size		hic_fields.ic_size
@@ -383,55 +402,11 @@ typedef struct xlog_in_core {
  * that round off problems won't occur when releasing partial reservations.
  */
 typedef struct log {
-	/* The following block of fields are changed while holding icloglock */
-	sema_t			l_flushsema;    /* iclog flushing semaphore */
-	int			l_flushcnt;	/* # of procs waiting on this
-						 * sema */
-	int			l_ticket_cnt;	/* free ticket count */
-	int			l_ticket_tcnt;	/* total ticket count */
-	int			l_covered_state;/* state of "covering disk
-						 * log entries" */
-	xlog_ticket_t		*l_freelist;    /* free list of tickets */
-	xlog_ticket_t		*l_unmount_free;/* kmem_free these addresses */
-	xlog_ticket_t		*l_tail;        /* free list of tickets */
-	xlog_in_core_t		*l_iclog;       /* head log queue	*/
-	spinlock_t		l_icloglock;    /* grab to change iclog state */
-	xfs_lsn_t		l_tail_lsn;     /* lsn of 1st LR with unflushed
-						 * buffers */
-	xfs_lsn_t		l_last_sync_lsn;/* lsn of last LR on disk */
+	/* The following fields don't need locking */
 	struct xfs_mount	*l_mp;	        /* mount point */
 	struct xfs_buf		*l_xbuf;        /* extra buffer for log
 						 * wrapping */
 	struct xfs_buftarg	*l_targ;        /* buftarg of log */
-	xfs_daddr_t		l_logBBstart;   /* start block of log */
-	int			l_logsize;      /* size of log in bytes */
-	int			l_logBBsize;    /* size of log in BB chunks */
-	int			l_curr_cycle;   /* Cycle number of log writes */
-	int			l_prev_cycle;   /* Cycle number before last
-						 * block increment */
-	int			l_curr_block;   /* current logical log block */
-	int			l_prev_block;   /* previous logical log block */
-	int			l_iclog_size;	/* size of log in bytes */
-	int			l_iclog_size_log; /* log power size of log */
-	int			l_iclog_bufs;	/* number of iclog buffers */
-
-	/* The following field are used for debugging; need to hold icloglock */
-	char			*l_iclog_bak[XLOG_MAX_ICLOGS];
-
-	/* The following block of fields are changed while holding grant_lock */
-	spinlock_t		l_grant_lock;
-	xlog_ticket_t		*l_reserve_headq;
-	xlog_ticket_t		*l_write_headq;
-	int			l_grant_reserve_cycle;
-	int			l_grant_reserve_bytes;
-	int			l_grant_write_cycle;
-	int			l_grant_write_bytes;
-
-	/* The following fields don't need locking */
-#ifdef XFS_LOG_TRACE
-	struct ktrace		*l_trace;
-	struct ktrace		*l_grant_trace;
-#endif
 	uint			l_flags;
 	uint			l_quotaoffs_flag; /* XFS_DQ_*, for QUOTAOFFs */
 	struct xfs_buf_cancel	**l_buf_cancel_table;
@@ -440,6 +415,50 @@ typedef struct log {
 	uint			l_sectbb_log;   /* log2 of sector size in BBs */
 	uint			l_sectbb_mask;  /* sector size (in BBs)
 						 * alignment mask */
+	int			l_iclog_size;	/* size of log in bytes */
+	int			l_iclog_size_log; /* log power size of log */
+	int			l_iclog_bufs;	/* number of iclog buffers */
+	xfs_daddr_t		l_logBBstart;   /* start block of log */
+	int			l_logsize;      /* size of log in bytes */
+	int			l_logBBsize;    /* size of log in BB chunks */
+
+	/* The following block of fields are changed while holding icloglock */
+	sema_t			l_flushsema ____cacheline_aligned_in_smp;
+						/* iclog flushing semaphore */
+	int			l_flushcnt;	/* # of procs waiting on this
+						 * sema */
+	int			l_covered_state;/* state of "covering disk
+						 * log entries" */
+	xlog_in_core_t		*l_iclog;       /* head log queue	*/
+	spinlock_t		l_icloglock;    /* grab to change iclog state */
+	xfs_lsn_t		l_tail_lsn;     /* lsn of 1st LR with unflushed
+						 * buffers */
+	xfs_lsn_t		l_last_sync_lsn;/* lsn of last LR on disk */
+	int			l_curr_cycle;   /* Cycle number of log writes */
+	int			l_prev_cycle;   /* Cycle number before last
+						 * block increment */
+	int			l_curr_block;   /* current logical log block */
+	int			l_prev_block;   /* previous logical log block */
+
+	/* The following block of fields are changed while holding grant_lock */
+	spinlock_t		l_grant_lock ____cacheline_aligned_in_smp;
+	xlog_ticket_t		*l_reserve_headq;
+	xlog_ticket_t		*l_write_headq;
+	int			l_grant_reserve_cycle;
+	int			l_grant_reserve_bytes;
+	int			l_grant_write_cycle;
+	int			l_grant_write_bytes;
+
+#ifdef XFS_LOG_TRACE
+	struct ktrace		*l_trace;
+	struct ktrace		*l_grant_trace;
+#endif
+
+	/* The following field are used for debugging; need to hold icloglock */
+#ifdef DEBUG
+	char			*l_iclog_bak[XLOG_MAX_ICLOGS];
+#endif
+
 } xlog_t;
 
 #define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
@@ -458,6 +477,8 @@ extern void	 xlog_recover_process_iunlinks(xlog_t *log);
 extern struct xfs_buf *xlog_get_bp(xlog_t *, int);
 extern void	 xlog_put_bp(struct xfs_buf *);
 extern int	 xlog_bread(xlog_t *, xfs_daddr_t, int, struct xfs_buf *);
+
+extern kmem_zone_t	*xfs_log_ticket_zone;
 
 /* iclog tracing */
 #define XLOG_TRACE_GRAB_FLUSH  1

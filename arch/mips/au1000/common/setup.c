@@ -25,21 +25,14 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/ioport.h>
-#include <linux/mm.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 
-#include <asm/cpu.h>
-#include <asm/bootinfo.h>
-#include <asm/irq.h>
 #include <asm/mipsregs.h>
 #include <asm/reboot.h>
-#include <asm/pgtable.h>
 #include <asm/time.h>
 
 #include <au1000.h>
@@ -49,8 +42,6 @@ extern void __init board_setup(void);
 extern void au1000_restart(char *);
 extern void au1000_halt(void);
 extern void au1000_power_off(void);
-extern void au1x_time_init(void);
-extern void au1x_timer_setup(struct irqaction *irq);
 extern void set_cpuspec(void);
 
 void __init plat_mem_setup(void)

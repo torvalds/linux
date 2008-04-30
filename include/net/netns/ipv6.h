@@ -36,5 +36,23 @@ struct netns_ipv6 {
 	struct xt_table		*ip6table_mangle;
 	struct xt_table		*ip6table_raw;
 #endif
+	struct rt6_info         *ip6_null_entry;
+	struct rt6_statistics   *rt6_stats;
+	struct timer_list       *ip6_fib_timer;
+	struct hlist_head       *fib_table_hash;
+	struct fib6_table       *fib6_main_tbl;
+	struct dst_ops		*ip6_dst_ops;
+	unsigned int		 ip6_rt_gc_expire;
+	unsigned long		 ip6_rt_last_gc;
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	struct rt6_info         *ip6_prohibit_entry;
+	struct rt6_info         *ip6_blk_hole_entry;
+	struct fib6_table       *fib6_local_tbl;
+	struct fib_rules_ops    *fib6_rules_ops;
+#endif
+	struct sock		**icmp_sk;
+	struct sock             *ndisc_sk;
+	struct sock             *tcp_sk;
+	struct sock             *igmp_sk;
 };
 #endif

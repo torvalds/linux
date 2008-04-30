@@ -28,8 +28,6 @@
 
 /* Options ********************************************************************/
 
-#undef NS_DEBUG_SPINLOCKS
-
 #define NS_MAX_CARDS 4		/* Maximum number of NICStAR based cards
 				   controlled by the device driver. Must
                                    be <= 5 */
@@ -721,10 +719,6 @@ typedef struct scq_info
    wait_queue_head_t scqfull_waitq;
    volatile char full;			/* SCQ full indicator */
    spinlock_t lock;			/* SCQ spinlock */
-#ifdef NS_DEBUG_SPINLOCKS
-   volatile long has_lock;
-   volatile int cpu_lock;
-#endif /* NS_DEBUG_SPINLOCKS */
 } scq_info;
 
 
@@ -810,12 +804,6 @@ typedef struct ns_dev
    unsigned intcnt;			/* Interrupt counter */
    spinlock_t int_lock;		/* Interrupt lock */
    spinlock_t res_lock;		/* Card resource lock */
-#ifdef NS_DEBUG_SPINLOCKS
-   volatile long has_int_lock;
-   volatile int cpu_int;
-   volatile long has_res_lock;
-   volatile int cpu_res;
-#endif /* NS_DEBUG_SPINLOCKS */
 } ns_dev;
 
 

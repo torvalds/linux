@@ -686,11 +686,11 @@ sub main_firmware($$$$)
 	write_hunk(812664, 192);
 
 	#
-	# Firmware 58, type: SCODE FW  HAS IF (0x60000000), IF = 4.50 MHz id: NTSC/M Jp (0000000000002000), size: 192
+	# Firmware 58, type: SCODE FW  MTS LCD NOGD MONO IF HAS IF (0x6002b004), IF = 4.50 MHz id: NTSC PAL/M PAL/N (000000000000b700), size: 192
 	#
 
-	write_le32(0x60000000);			# Type
-	write_le64(0x00000000, 0x00002000);	# ID
+	write_le32(0x6002b004);			# Type
+	write_le64(0x00000000, 0x0000b700);	# ID
 	write_le16(4500);			# IF
 	write_le32(192);			# Size
 	write_hunk(807672, 192);
@@ -706,10 +706,10 @@ sub main_firmware($$$$)
 	write_hunk(807864, 192);
 
 	#
-	# Firmware 60, type: SCODE FW  DTV78 ZARLINK456 HAS IF (0x62000100), IF = 4.76 MHz id: (0000000000000000), size: 192
+	# Firmware 60, type: SCODE FW  DTV6 QAM DTV7 DTV78 DTV8 ZARLINK456 HAS IF (0x620003e0), IF = 4.76 MHz id: (0000000000000000), size: 192
 	#
 
-	write_le32(0x62000100);			# Type
+	write_le32(0x620003e0);			# Type
 	write_le64(0x00000000, 0x00000000);	# ID
 	write_le16(4760);			# IF
 	write_le32(192);			# Size
@@ -726,30 +726,30 @@ sub main_firmware($$$$)
 	write_hunk(811512, 192);
 
 	#
-	# Firmware 62, type: SCODE FW  DTV7 ZARLINK456 HAS IF (0x62000080), IF = 5.26 MHz id: (0000000000000000), size: 192
+	# Firmware 62, type: SCODE FW  HAS IF (0x60000000), IF = 5.26 MHz id: (0000000000000000), size: 192
 	#
 
-	write_le32(0x62000080);			# Type
+	write_le32(0x60000000);			# Type
 	write_le64(0x00000000, 0x00000000);	# ID
 	write_le16(5260);			# IF
 	write_le32(192);			# Size
 	write_hunk(810552, 192);
 
 	#
-	# Firmware 63, type: SCODE FW  MONO HAS IF (0x60008000), IF = 5.32 MHz id: PAL/BG NICAM/B (0000000800000007), size: 192
+	# Firmware 63, type: SCODE FW  MONO HAS IF (0x60008000), IF = 5.32 MHz id: PAL/BG A2 NICAM (0000000f00000007), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
-	write_le64(0x00000008, 0x00000007);	# ID
+	write_le64(0x0000000f, 0x00000007);	# ID
 	write_le16(5320);			# IF
 	write_le32(192);			# Size
 	write_hunk(810744, 192);
 
 	#
-	# Firmware 64, type: SCODE FW  DTV8 CHINA HAS IF (0x64000200), IF = 5.40 MHz id: (0000000000000000), size: 192
+	# Firmware 64, type: SCODE FW  DTV7 DTV78 DTV8 DIBCOM52 CHINA HAS IF (0x65000380), IF = 5.40 MHz id: (0000000000000000), size: 192
 	#
 
-	write_le32(0x64000200);			# Type
+	write_le32(0x65000380);			# Type
 	write_le64(0x00000000, 0x00000000);	# ID
 	write_le16(5400);			# IF
 	write_le32(192);			# Size
@@ -766,50 +766,50 @@ sub main_firmware($$$$)
 	write_hunk(809592, 192);
 
 	#
-	# Firmware 66, type: SCODE FW  HAS IF (0x60000000), IF = 5.64 MHz id: PAL/BG A2/B (0000000200000007), size: 192
+	# Firmware 66, type: SCODE FW  HAS IF (0x60000000), IF = 5.64 MHz id: PAL/BG A2 (0000000300000007), size: 192
 	#
 
 	write_le32(0x60000000);			# Type
-	write_le64(0x00000002, 0x00000007);	# ID
+	write_le64(0x00000003, 0x00000007);	# ID
 	write_le16(5640);			# IF
 	write_le32(192);			# Size
 	write_hunk(808440, 192);
 
 	#
-	# Firmware 67, type: SCODE FW  HAS IF (0x60000000), IF = 5.74 MHz id: PAL/BG NICAM/B (0000000800000007), size: 192
+	# Firmware 67, type: SCODE FW  HAS IF (0x60000000), IF = 5.74 MHz id: PAL/BG NICAM (0000000c00000007), size: 192
 	#
 
 	write_le32(0x60000000);			# Type
-	write_le64(0x00000008, 0x00000007);	# ID
+	write_le64(0x0000000c, 0x00000007);	# ID
 	write_le16(5740);			# IF
 	write_le32(192);			# Size
 	write_hunk(808632, 192);
 
 	#
-	# Firmware 68, type: SCODE FW  DTV7 DIBCOM52 HAS IF (0x61000080), IF = 5.90 MHz id: (0000000000000000), size: 192
+	# Firmware 68, type: SCODE FW  HAS IF (0x60000000), IF = 5.90 MHz id: (0000000000000000), size: 192
 	#
 
-	write_le32(0x61000080);			# Type
+	write_le32(0x60000000);			# Type
 	write_le64(0x00000000, 0x00000000);	# ID
 	write_le16(5900);			# IF
 	write_le32(192);			# Size
 	write_hunk(810360, 192);
 
 	#
-	# Firmware 69, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.00 MHz id: PAL/I (0000000000000010), size: 192
+	# Firmware 69, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.00 MHz id: PAL/DK PAL/I SECAM/K3 SECAM/L SECAM/Lc NICAM (0000000c04c000f0), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
-	write_le64(0x00000000, 0x00000010);	# ID
+	write_le64(0x0000000c, 0x04c000f0);	# ID
 	write_le16(6000);			# IF
 	write_le32(192);			# Size
 	write_hunk(808824, 192);
 
 	#
-	# Firmware 70, type: SCODE FW  DTV6 QAM F6MHZ HAS IF (0x68000060), IF = 6.20 MHz id: (0000000000000000), size: 192
+	# Firmware 70, type: SCODE FW  DTV6 QAM ATSC LG60 F6MHZ HAS IF (0x68050060), IF = 6.20 MHz id: (0000000000000000), size: 192
 	#
 
-	write_le32(0x68000060);			# Type
+	write_le32(0x68050060);			# Type
 	write_le64(0x00000000, 0x00000000);	# ID
 	write_le16(6200);			# IF
 	write_le32(192);			# Size
@@ -846,11 +846,11 @@ sub main_firmware($$$$)
 	write_hunk(809208, 192);
 
 	#
-	# Firmware 74, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.50 MHz id: SECAM/K3 (0000000004000000), size: 192
+	# Firmware 74, type: SCODE FW  MONO HAS IF (0x60008000), IF = 6.50 MHz id: PAL/DK SECAM/K3 SECAM/L NICAM (0000000c044000e0), size: 192
 	#
 
 	write_le32(0x60008000);			# Type
-	write_le64(0x00000000, 0x04000000);	# ID
+	write_le64(0x0000000c, 0x044000e0);	# ID
 	write_le16(6500);			# IF
 	write_le32(192);			# Size
 	write_hunk(811128, 192);

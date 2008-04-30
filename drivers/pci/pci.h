@@ -18,6 +18,25 @@ extern int pci_user_write_config_byte(struct pci_dev *dev, int where, u8 val);
 extern int pci_user_write_config_word(struct pci_dev *dev, int where, u16 val);
 extern int pci_user_write_config_dword(struct pci_dev *dev, int where, u32 val);
 
+struct pci_vpd_ops {
+	int (*read)(struct pci_dev *dev, int pos, int size, char *buf);
+	int (*write)(struct pci_dev *dev, int pos, int size, const char *buf);
+	int (*get_size)(struct pci_dev *dev);
+	void (*release)(struct pci_dev *dev);
+};
+
+struct pci_vpd {
+	struct pci_vpd_ops *ops;
+	struct bin_attribute *attr; /* descriptor for sysfs VPD entry */
+};
+
+extern int pci_vpd_pci22_init(struct pci_dev *dev);
+static inline void pci_vpd_release(struct pci_dev *dev)
+{
+	if (dev->vpd)
+		dev->vpd->ops->release(dev);
+}
+
 /* PCI /proc functions */
 #ifdef CONFIG_PROC_FS
 extern int pci_proc_attach_device(struct pci_dev *dev);

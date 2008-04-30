@@ -2744,12 +2744,13 @@ static int __devinit snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_devic
 	}
 
 	for (idx = 0; idx < CM_SAVED_MIXERS; idx++) {
-		struct snd_ctl_elem_id id;
+		struct snd_ctl_elem_id elem_id;
 		struct snd_kcontrol *ctl;
-		memset(&id, 0, sizeof(id));
-		id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		strcpy(id.name, cm_saved_mixer[idx].name);
-		if ((ctl = snd_ctl_find_id(cm->card, &id)) != NULL)
+		memset(&elem_id, 0, sizeof(elem_id));
+		elem_id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+		strcpy(elem_id.name, cm_saved_mixer[idx].name);
+		ctl = snd_ctl_find_id(cm->card, &elem_id);
+		if (ctl)
 			cm->mixer_res_ctl[idx] = ctl;
 	}
 
@@ -2931,8 +2932,6 @@ static int snd_cmipci_free(struct cmipci *cm)
 
 		/* reset mixer */
 		snd_cmipci_mixer_write(cm, 0, 0);
-
-		synchronize_irq(cm->irq);
 
 		free_irq(cm->irq, cm);
 	}

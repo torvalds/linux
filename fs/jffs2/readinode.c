@@ -825,8 +825,9 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 	else // normal case...
 		tn->fn->size = je32_to_cpu(rd->dsize);
 
-	dbg_readinode("dnode @%08x: ver %u, offset %#04x, dsize %#04x, csize %#04x\n",
-		  ref_offset(ref), je32_to_cpu(rd->version), je32_to_cpu(rd->offset), je32_to_cpu(rd->dsize), csize);
+	dbg_readinode2("dnode @%08x: ver %u, offset %#04x, dsize %#04x, csize %#04x\n",
+		       ref_offset(ref), je32_to_cpu(rd->version),
+		       je32_to_cpu(rd->offset), je32_to_cpu(rd->dsize), csize);
 
 	ret = jffs2_add_tn_to_tree(c, rii, tn);
 
@@ -836,13 +837,13 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 		jffs2_free_tmp_dnode_info(tn);
 		return ret;
 	}
-#ifdef JFFS2_DBG_READINODE_MESSAGES
-	dbg_readinode("After adding ver %d:\n", je32_to_cpu(rd->version));
+#ifdef JFFS2_DBG_READINODE2_MESSAGES
+	dbg_readinode2("After adding ver %d:\n", je32_to_cpu(rd->version));
 	tn = tn_first(&rii->tn_root);
 	while (tn) {
-		dbg_readinode("%p: v %d r 0x%x-0x%x ov %d\n",
-			     tn, tn->version, tn->fn->ofs,
-			     tn->fn->ofs+tn->fn->size, tn->overlapped);
+		dbg_readinode2("%p: v %d r 0x%x-0x%x ov %d\n",
+			       tn, tn->version, tn->fn->ofs,
+			       tn->fn->ofs+tn->fn->size, tn->overlapped);
 		tn = tn_next(tn);
 	}
 #endif
@@ -1193,7 +1194,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 		JFFS2_ERROR("failed to read from flash: error %d, %zd of %zd bytes read\n",
 			ret, retlen, sizeof(*latest_node));
 		/* FIXME: If this fails, there seems to be a memory leak. Find it. */
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		jffs2_do_clear_inode(c, f);
 		return ret?ret:-EIO;
 	}
@@ -1202,7 +1203,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 	if (crc != je32_to_cpu(latest_node->node_crc)) {
 		JFFS2_ERROR("CRC failed for read_inode of inode %u at physical location 0x%x\n",
 			f->inocache->ino, ref_offset(rii.latest_ref));
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		jffs2_do_clear_inode(c, f);
 		return -EIO;
 	}
@@ -1242,7 +1243,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 			f->target = kmalloc(je32_to_cpu(latest_node->csize) + 1, GFP_KERNEL);
 			if (!f->target) {
 				JFFS2_ERROR("can't allocate %d bytes of memory for the symlink target path cache\n", je32_to_cpu(latest_node->csize));
-				up(&f->sem);
+				mutex_unlock(&f->sem);
 				jffs2_do_clear_inode(c, f);
 				return -ENOMEM;
 			}
@@ -1255,7 +1256,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 					ret = -EIO;
 				kfree(f->target);
 				f->target = NULL;
-				up(&f->sem);
+				mutex_unlock(&f->sem);
 				jffs2_do_clear_inode(c, f);
 				return -ret;
 			}
@@ -1273,14 +1274,14 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 		if (f->metadata) {
 			JFFS2_ERROR("Argh. Special inode #%u with mode 0%o had metadata node\n",
 			       f->inocache->ino, jemode_to_cpu(latest_node->mode));
-			up(&f->sem);
+			mutex_unlock(&f->sem);
 			jffs2_do_clear_inode(c, f);
 			return -EIO;
 		}
 		if (!frag_first(&f->fragtree)) {
 			JFFS2_ERROR("Argh. Special inode #%u with mode 0%o has no fragments\n",
 			       f->inocache->ino, jemode_to_cpu(latest_node->mode));
-			up(&f->sem);
+			mutex_unlock(&f->sem);
 			jffs2_do_clear_inode(c, f);
 			return -EIO;
 		}
@@ -1289,7 +1290,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 			JFFS2_ERROR("Argh. Special inode #%u with mode 0x%x had more than one node\n",
 			       f->inocache->ino, jemode_to_cpu(latest_node->mode));
 			/* FIXME: Deal with it - check crc32, check for duplicate node, check times and discard the older one */
-			up(&f->sem);
+			mutex_unlock(&f->sem);
 			jffs2_do_clear_inode(c, f);
 			return -EIO;
 		}
@@ -1379,12 +1380,13 @@ int jffs2_do_crccheck_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *i
 	if (!f)
 		return -ENOMEM;
 
-	init_MUTEX_LOCKED(&f->sem);
+	mutex_init(&f->sem);
+	mutex_lock(&f->sem);
 	f->inocache = ic;
 
 	ret = jffs2_do_read_inode_internal(c, f, &n);
 	if (!ret) {
-		up(&f->sem);
+		mutex_unlock(&f->sem);
 		jffs2_do_clear_inode(c, f);
 	}
 	kfree (f);
@@ -1398,7 +1400,7 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 
 	jffs2_clear_acl(f);
 	jffs2_xattr_delete_inode(c, f->inocache);
-	down(&f->sem);
+	mutex_lock(&f->sem);
 	deleted = f->inocache && !f->inocache->nlink;
 
 	if (f->inocache && f->inocache->state != INO_STATE_CHECKING)
@@ -1430,5 +1432,5 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 			jffs2_del_ino_cache(c, f->inocache);
 	}
 
-	up(&f->sem);
+	mutex_unlock(&f->sem);
 }

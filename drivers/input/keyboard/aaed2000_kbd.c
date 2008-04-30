@@ -156,11 +156,15 @@ static int __devexit aaedkbd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:aaed2000-keyboard");
+
 static struct platform_driver aaedkbd_driver = {
 	.probe		= aaedkbd_probe,
 	.remove		= __devexit_p(aaedkbd_remove),
 	.driver		= {
 		.name	= "aaed2000-keyboard",
+		.owner	= THIS_MODULE,
 	},
 };
 

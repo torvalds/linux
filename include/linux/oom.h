@@ -23,8 +23,8 @@ enum oom_constraint {
 	CONSTRAINT_MEMORY_POLICY,
 };
 
-extern int try_set_zone_oom(struct zonelist *zonelist);
-extern void clear_zonelist_oom(struct zonelist *zonelist);
+extern int try_set_zone_oom(struct zonelist *zonelist, gfp_t gfp_flags);
+extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
 
 extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order);
 extern int register_oom_notifier(struct notifier_block *nb);

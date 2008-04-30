@@ -40,7 +40,8 @@ extern int dvb_usb_adapter_stream_exit(struct dvb_usb_adapter *adap);
 extern int dvb_usb_i2c_init(struct dvb_usb_device *);
 extern int dvb_usb_i2c_exit(struct dvb_usb_device *);
 
-extern int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap);
+extern int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap,
+				    short *adapter_nums);
 extern int dvb_usb_adapter_dvb_exit(struct dvb_usb_adapter *adap);
 extern int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap);
 extern int dvb_usb_adapter_frontend_exit(struct dvb_usb_adapter *adap);

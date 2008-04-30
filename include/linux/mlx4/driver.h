@@ -48,8 +48,7 @@ struct mlx4_interface {
 	void *			(*add)	 (struct mlx4_dev *dev);
 	void			(*remove)(struct mlx4_dev *dev, void *context);
 	void			(*event) (struct mlx4_dev *dev, void *context,
-					  enum mlx4_dev_event event, int subtype,
-					  int port);
+					  enum mlx4_dev_event event, int port);
 	struct list_head	list;
 };
 

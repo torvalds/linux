@@ -11,107 +11,77 @@
 #ifndef __ASM_ARCH_MXC_BOARD_MX31ADS_H__
 #define __ASM_ARCH_MXC_BOARD_MX31ADS_H__
 
-/*!
- * @name PBC Controller parameters
- */
-/*! @{ */
-/*!
- * Base address of PBC controller
- */
+/* Base address of PBC controller */
 #define PBC_BASE_ADDRESS        IO_ADDRESS(CS4_BASE_ADDR)
 /* Offsets for the PBC Controller register */
-/*!
- * PBC Board status register offset
- */
+
+/* PBC Board status register offset */
 #define PBC_BSTAT               0x000002
-/*!
- * PBC Board control register 1 set address.
- */
+
+/* PBC Board control register 1 set address */
 #define PBC_BCTRL1_SET          0x000004
-/*!
- * PBC Board control register 1 clear address.
- */
+
+/* PBC Board control register 1 clear address */
 #define PBC_BCTRL1_CLEAR        0x000006
-/*!
- * PBC Board control register 2 set address.
- */
+
+/* PBC Board control register 2 set address */
 #define PBC_BCTRL2_SET          0x000008
-/*!
- * PBC Board control register 2 clear address.
- */
+
+/* PBC Board control register 2 clear address */
 #define PBC_BCTRL2_CLEAR        0x00000A
-/*!
- * PBC Board control register 3 set address.
- */
+
+/* PBC Board control register 3 set address */
 #define PBC_BCTRL3_SET          0x00000C
-/*!
- * PBC Board control register 3 clear address.
- */
+
+/* PBC Board control register 3 clear address */
 #define PBC_BCTRL3_CLEAR        0x00000E
-/*!
- * PBC Board control register 4 set address.
- */
+
+/* PBC Board control register 4 set address */
 #define PBC_BCTRL4_SET          0x000010
-/*!
- * PBC Board control register 4 clear address.
- */
+
+/* PBC Board control register 4 clear address */
 #define PBC_BCTRL4_CLEAR        0x000012
-/*!
- * PBC Board status register 1.
- */
+
+/* PBC Board status register 1 */
 #define PBC_BSTAT1              0x000014
-/*!
- * PBC Board interrupt status register.
- */
+
+/* PBC Board interrupt status register */
 #define PBC_INTSTATUS           0x000016
-/*!
- * PBC Board interrupt current status register.
- */
+
+/* PBC Board interrupt current status register */
 #define PBC_INTCURR_STATUS      0x000018
-/*!
- * PBC Interrupt mask register set address.
- */
+
+/* PBC Interrupt mask register set address */
 #define PBC_INTMASK_SET         0x00001A
-/*!
- * PBC Interrupt mask register clear address.
- */
+
+/* PBC Interrupt mask register clear address */
 #define PBC_INTMASK_CLEAR       0x00001C
 
-/*!
- * External UART A.
- */
+/* External UART A */
 #define PBC_SC16C652_UARTA      0x010000
-/*!
- * External UART B.
- */
+
+/* External UART B */
 #define PBC_SC16C652_UARTB      0x010010
-/*!
- * Ethernet Controller IO base address.
- */
+
+/* Ethernet Controller IO base address */
 #define PBC_CS8900A_IOBASE      0x020000
-/*!
- * Ethernet Controller Memory base address.
- */
+
+/* Ethernet Controller Memory base address */
 #define PBC_CS8900A_MEMBASE     0x021000
-/*!
- * Ethernet Controller DMA base address.
- */
+
+/* Ethernet Controller DMA base address */
 #define PBC_CS8900A_DMABASE     0x022000
-/*!
- * External chip select 0.
- */
+
+/* External chip select 0 */
 #define PBC_XCS0                0x040000
-/*!
- * LCD Display enable.
- */
+
+/* LCD Display enable */
 #define PBC_LCD_EN_B            0x060000
-/*!
- * Code test debug enable.
- */
+
+/* Code test debug enable */
 #define PBC_CODE_B              0x070000
-/*!
- * PSRAM memory select.
- */
+
+/* PSRAM memory select */
 #define PBC_PSRAM_B             0x5000000
 
 #define PBC_INTSTATUS_REG	(PBC_INTSTATUS + PBC_BASE_ADDRESS)
@@ -139,4 +109,4 @@
 
 #define MXC_MAX_EXP_IO_LINES	16
 
-#endif				/* __ASM_ARCH_MXC_BOARD_MX31ADS_H__ */
+#endif /* __ASM_ARCH_MXC_BOARD_MX31ADS_H__ */

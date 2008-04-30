@@ -9,8 +9,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * arch/i386/boot/voyager.c
- *
  * Get the Voyager config information
  */
 

@@ -16,8 +16,6 @@
 #include "hscx.h"
 #include "isdnl1.h"
 
-extern const char *CardType[];
-
 static const char *mic_revision = "$Revision: 1.12.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
@@ -210,8 +208,7 @@ setup_mic(struct IsdnCard *card)
 
 	if (!request_region(cs->hw.mic.cfg_reg, bytecnt, "mic isdn")) {
 		printk(KERN_WARNING
-		       "HiSax: %s config port %x-%x already in use\n",
-		       CardType[card->typ],
+		       "HiSax: ith mic config port %x-%x already in use\n",
 		       cs->hw.mic.cfg_reg,
 		       cs->hw.mic.cfg_reg + bytecnt);
 		return (0);

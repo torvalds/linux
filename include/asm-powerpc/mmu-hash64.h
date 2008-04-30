@@ -469,9 +469,6 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 				 VSID_MODULUS_256M)
 #define KERNEL_VSID(ea)		VSID_SCRAMBLE(GET_ESID(ea))
 
-/* Physical address used by some IO functions */
-typedef unsigned long phys_addr_t;
-
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_MMU_HASH64_H_ */

@@ -577,7 +577,6 @@ static DEVICE_ATTR(devtype, 0444, devtype_show, NULL);
 static DEVICE_ATTR(cutype, 0444, cutype_show, NULL);
 static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
 static DEVICE_ATTR(online, 0644, online_show, online_store);
-extern struct device_attribute dev_attr_cmb_enable;
 static DEVICE_ATTR(availability, 0444, available_show, NULL);
 
 static struct attribute * subch_attrs[] = {

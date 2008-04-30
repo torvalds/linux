@@ -105,4 +105,8 @@ static inline int stcrw(struct crw *pcrw )
 #define ED_ETR_SYNC	12	/* External damage ETR sync check */
 #define ED_ETR_SWITCH	13	/* External damage ETR switch to local */
 
+struct pt_regs;
+
+void s390_handle_mcck(void);
+void s390_do_machine_check(struct pt_regs *regs);
 #endif /* __s390mach */

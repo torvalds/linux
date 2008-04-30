@@ -1,3 +1,10 @@
+
+menu "Host processor type and features"
+
+source "arch/x86/Kconfig.cpu"
+
+endmenu
+
 config UML_X86
 	bool
 	default y
@@ -8,10 +15,6 @@ config 64BIT
 
 #XXX: this is so in the underlying arch, but it's wrong!!!
 config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
-
-config SEMAPHORE_SLEEPERS
 	bool
 	default y
 

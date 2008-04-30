@@ -33,7 +33,7 @@ static inline void smpboot_restore_warm_reset_vector(void)
 	*((volatile long *) phys_to_virt(0x467)) = 0;
 }
 
-static inline void smpboot_setup_io_apic(void)
+static inline void __init smpboot_setup_io_apic(void)
 {
 	/*
 	 * Here we can be sure that there is an IO-APIC in the system. Let's
@@ -41,4 +41,11 @@ static inline void smpboot_setup_io_apic(void)
 	 */
 	if (!skip_ioapic_setup && nr_ioapics)
 		setup_IO_APIC();
+	else
+		nr_ioapics = 0;
+}
+
+static inline void smpboot_clear_io_apic(void)
+{
+	nr_ioapics = 0;
 }

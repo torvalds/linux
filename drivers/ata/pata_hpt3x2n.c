@@ -148,7 +148,7 @@ static int hpt3x2n_cable_detect(struct ata_port *ap)
  *	Reset the hardware and state machine,
  */
 
-static int hpt3xn_pre_reset(struct ata_link *link, unsigned long deadline)
+static int hpt3x2n_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -156,19 +156,7 @@ static int hpt3xn_pre_reset(struct ata_link *link, unsigned long deadline)
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 	udelay(100);
 
-	return ata_std_prereset(link, deadline);
-}
-
-/**
- *	hpt3x2n_error_handler	-	probe the hpt3x2n bus
- *	@ap: ATA port to reset
- *
- *	Perform the probe reset handling for the 3x2N
- */
-
-static void hpt3x2n_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, hpt3xn_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
+	return ata_sff_prereset(link, deadline);
 }
 
 /**
@@ -320,7 +308,7 @@ static int hpt3x2n_use_dpll(struct ata_port *ap, int writing)
 	return 0;
 }
 
-static unsigned int hpt3x2n_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int hpt3x2n_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_port *ap = qc->ap;
@@ -335,25 +323,11 @@ static unsigned int hpt3x2n_qc_issue_prot(struct ata_queued_cmd *qc)
 				hpt3x2n_set_clock(ap, 0x23);
 		}
 	}
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static struct scsi_host_template hpt3x2n_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
+	ATA_BMDMA_SHT(DRV_NAME),
 };
 
 /*
@@ -361,37 +335,15 @@ static struct scsi_host_template hpt3x2n_sht = {
  */
 
 static struct ata_port_operations hpt3x2n_port_ops = {
+	.inherits	= &ata_bmdma_port_ops,
+
+	.bmdma_stop	= hpt3x2n_bmdma_stop,
+	.qc_issue	= hpt3x2n_qc_issue,
+
+	.cable_detect	= hpt3x2n_cable_detect,
 	.set_piomode	= hpt3x2n_set_piomode,
 	.set_dmamode	= hpt3x2n_set_dmamode,
-	.mode_filter	= ata_pci_default_filter,
-
-	.tf_load	= ata_tf_load,
-	.tf_read	= ata_tf_read,
-	.check_status 	= ata_check_status,
-	.exec_command	= ata_exec_command,
-	.dev_select 	= ata_std_dev_select,
-
-	.freeze		= ata_bmdma_freeze,
-	.thaw		= ata_bmdma_thaw,
-	.error_handler	= hpt3x2n_error_handler,
-	.post_internal_cmd = ata_bmdma_post_internal_cmd,
-	.cable_detect	= hpt3x2n_cable_detect,
-
-	.bmdma_setup 	= ata_bmdma_setup,
-	.bmdma_start 	= ata_bmdma_start,
-	.bmdma_stop	= hpt3x2n_bmdma_stop,
-	.bmdma_status 	= ata_bmdma_status,
-
-	.qc_prep 	= ata_qc_prep,
-	.qc_issue	= hpt3x2n_qc_issue_prot,
-
-	.data_xfer	= ata_data_xfer,
-
-	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
-	.irq_on		= ata_irq_on,
-
-	.port_start	= ata_sff_port_start,
+	.prereset	= hpt3x2n_pre_reset,
 };
 
 /**
@@ -488,15 +440,13 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	/* HPT372N and friends - UDMA133 */
 	static const struct ata_port_info info = {
-		.sht = &hpt3x2n_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.udma_mask = ATA_UDMA6,
 		.port_ops = &hpt3x2n_port_ops
 	};
-	struct ata_port_info port = info;
-	const struct ata_port_info *ppi[] = { &port, NULL };
+	const struct ata_port_info *ppi[] = { &info, NULL };
 
 	u8 irqmask;
 	u32 class_rev;
@@ -505,6 +455,12 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	unsigned int f_low, f_high;
 	int adjust;
 	unsigned long iobase = pci_resource_start(dev, 4);
+	void *hpriv = NULL;
+	int rc;
+
+	rc = pcim_enable_device(dev);
+	if (rc)
+		return rc;
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xFF;
@@ -586,9 +542,8 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	       pci_mhz);
 	/* Set our private data up. We only need a few flags so we use
 	   it directly */
-	port.private_data = NULL;
 	if (pci_mhz > 60) {
-		port.private_data = (void *)PCI66;
+		hpriv = (void *)PCI66;
 		/*
 		 * On  HPT371N, if ATA clock is 66 MHz we must set bit 2 in
 		 * the MISC. register to stretch the UltraDMA Tss timing.
@@ -599,7 +554,7 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	/* Now kick off ATA set up */
-	return ata_pci_init_one(dev, ppi);
+	return ata_pci_sff_init_one(dev, ppi, &hpt3x2n_sht, hpriv);
 }
 
 static const struct pci_device_id hpt3x2n[] = {

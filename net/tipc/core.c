@@ -48,16 +48,8 @@
 #include "subscr.h"
 #include "config.h"
 
-int  tipc_eth_media_start(void);
-void tipc_eth_media_stop(void);
-int  tipc_handler_start(void);
-void tipc_handler_stop(void);
-int  tipc_socket_init(void);
-void tipc_socket_stop(void);
-int  tipc_netlink_start(void);
-void tipc_netlink_stop(void);
 
-#define TIPC_MOD_VER "1.6.2"
+#define TIPC_MOD_VER "1.6.3"
 
 #ifndef CONFIG_TIPC_ZONES
 #define CONFIG_TIPC_ZONES 3
@@ -277,7 +269,6 @@ EXPORT_SYMBOL(tipc_register_media);
 /* TIPC API for external APIs (see tipc_port.h) */
 
 EXPORT_SYMBOL(tipc_createport_raw);
-EXPORT_SYMBOL(tipc_set_msg_option);
 EXPORT_SYMBOL(tipc_reject_msg);
 EXPORT_SYMBOL(tipc_send_buf_fast);
 EXPORT_SYMBOL(tipc_acknowledge);

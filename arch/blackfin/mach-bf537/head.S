@@ -37,9 +37,6 @@
 #include <asm/mach/mem_init.h>
 #endif
 
-.global __rambase
-.global __ramstart
-.global __ramend
 .extern ___bss_stop
 .extern ___bss_start
 .extern _bf53x_relocate_l1_mem
@@ -180,40 +177,28 @@ ENTRY(__start)
 	SSYNC;
 #endif
 
-#ifdef CONFIG_BF537_PORT_H
-	p0.h = hi(PORTH_FER);
-	p0.l = lo(PORTH_FER);
-	R0.L = W[P0]; /* Read */
-	SSYNC;
-	R0 = 0x0000;
-	W[P0] = R0.L; /* Write */
-	SSYNC;
-	W[P0] = R0.L; /* Disable peripheral function of PORTH */
-	SSYNC;
-#endif
-
 	/* Initialise UART - when booting from u-boot, the UART is not disabled
 	 * so if we dont initalize here, our serial console gets hosed */
-	p0.h = hi(UART_LCR);
-	p0.l = lo(UART_LCR);
+	p0.h = hi(BFIN_UART_LCR);
+	p0.l = lo(BFIN_UART_LCR);
 	r0 = 0x0(Z);
 	w[p0] = r0.L;	/* To enable DLL writes */
 	ssync;
 
-	p0.h = hi(UART_DLL);
-	p0.l = lo(UART_DLL);
+	p0.h = hi(BFIN_UART_DLL);
+	p0.l = lo(BFIN_UART_DLL);
 	r0 = 0x0(Z);
 	w[p0] = r0.L;
 	ssync;
 
-	p0.h = hi(UART_DLH);
-	p0.l = lo(UART_DLH);
+	p0.h = hi(BFIN_UART_DLH);
+	p0.l = lo(BFIN_UART_DLH);
 	r0 = 0x00(Z);
 	w[p0] = r0.L;
 	ssync;
 
-	p0.h = hi(UART_GCTL);
-	p0.l = lo(UART_GCTL);
+	p0.h = hi(BFIN_UART_GCTL);
+	p0.l = lo(BFIN_UART_GCTL);
 	r0 = 0x0(Z);
 	w[p0] = r0.L;	/* To enable UART clock */
 	ssync;
@@ -483,18 +468,3 @@ ENTRY(_start_dma_code)
 	RTS;
 ENDPROC(_start_dma_code)
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */
-
-.data
-
-/*
- * Set up the usable of RAM stuff. Size of RAM is determined then
- * an initial stack set up at the end.
- */
-
-.align 4
-__rambase:
-.long   0
-__ramstart:
-.long   0
-__ramend:
-.long   0

@@ -33,7 +33,7 @@ MODULE_PARM_DESC(debug, "Set Debug Level 0=quiet, 5=noisy");
 #undef DEBUG
 #define DEBUG(n, format, arg...) \
 	if (n <= debug) {	 \
-		printk(KERN_DEBUG __FILE__ ":%s(): " format "\n", __FUNCTION__ , ## arg); \
+		printk(KERN_DEBUG __FILE__ ":%s(): " format "\n", __func__ , ## arg); \
 	}
 
 #else

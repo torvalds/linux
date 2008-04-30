@@ -605,7 +605,6 @@ static void __devinit velocity_get_options(struct velocity_opt *opts, int index,
 static void velocity_init_cam_filter(struct velocity_info *vptr)
 {
 	struct mac_regs __iomem * regs = vptr->mac_regs;
-	unsigned short vid;
 
 	/* Turn on MCFG_PQEN, turn off MCFG_RTGOPT */
 	WORD_REG_BITS_SET(MCFG_PQEN, MCFG_RTGOPT, &regs->MCFG);
@@ -617,27 +616,31 @@ static void velocity_init_cam_filter(struct velocity_info *vptr)
 	mac_set_vlan_cam_mask(regs, vptr->vCAMmask);
 	mac_set_cam_mask(regs, vptr->mCAMmask);
 
-	/* Enable first VCAM */
+	/* Enable VCAMs */
 	if (vptr->vlgrp) {
-		for (vid = 0; vid < VLAN_VID_MASK; vid++) {
-			if (vlan_group_get_device(vptr->vlgrp, vid)) {
-				/* If Tagging option is enabled and
-				   VLAN ID is not zero, then
-				   turn on MCFG_RTGOPT also */
-				if (vid != 0)
-					WORD_REG_BITS_ON(MCFG_RTGOPT, &regs->MCFG);
+		unsigned int vid, i = 0;
 
-				mac_set_vlan_cam(regs, 0, (u8 *) &vid);
+		if (!vlan_group_get_device(vptr->vlgrp, 0))
+			WORD_REG_BITS_ON(MCFG_RTGOPT, &regs->MCFG);
+
+		for (vid = 1; (vid < VLAN_VID_MASK); vid++) {
+			if (vlan_group_get_device(vptr->vlgrp, vid)) {
+				mac_set_vlan_cam(regs, i, (u8 *) &vid);
+				vptr->vCAMmask[i / 8] |= 0x1 << (i % 8);
+				if (++i >= VCAM_SIZE)
+					break;
 			}
 		}
-		vptr->vCAMmask[0] |= 1;
 		mac_set_vlan_cam_mask(regs, vptr->vCAMmask);
-	} else {
-		u16 temp = 0;
-		mac_set_vlan_cam(regs, 0, (u8 *) &temp);
-		temp = 1;
-		mac_set_vlan_cam_mask(regs, (u8 *) &temp);
 	}
+}
+
+static void velocity_vlan_rx_register(struct net_device *dev,
+				      struct vlan_group *grp)
+{
+	struct velocity_info *vptr = netdev_priv(dev);
+
+	vptr->vlgrp = grp;
 }
 
 static void velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
@@ -959,11 +962,13 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 
 	dev->vlan_rx_add_vid = velocity_vlan_rx_add_vid;
 	dev->vlan_rx_kill_vid = velocity_vlan_rx_kill_vid;
+	dev->vlan_rx_register = velocity_vlan_rx_register;
 
 #ifdef  VELOCITY_ZERO_COPY_SUPPORT
 	dev->features |= NETIF_F_SG;
 #endif
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER;
+	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER |
+		NETIF_F_HW_VLAN_RX;
 
 	if (vptr->flags & VELOCITY_FLAGS_TX_CSUM)
 		dev->features |= NETIF_F_IP_CSUM;
@@ -1597,8 +1602,13 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 	skb_put(skb, pkt_len - 4);
 	skb->protocol = eth_type_trans(skb, vptr->dev);
 
+	if (vptr->vlgrp && (rd->rdesc0.RSR & RSR_DETAG)) {
+		vlan_hwaccel_rx(skb, vptr->vlgrp,
+				swab16(le16_to_cpu(rd->rdesc1.PQTAG)));
+	} else
+		netif_rx(skb);
+
 	stats->rx_bytes += pkt_len;
-	netif_rx(skb);
 
 	return 0;
 }
@@ -3460,21 +3470,22 @@ static int velocity_resume(struct pci_dev *pdev)
 static int velocity_netdev_event(struct notifier_block *nb, unsigned long notification, void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *) ptr;
+	struct net_device *dev = ifa->ifa_dev->dev;
+	struct velocity_info *vptr;
+	unsigned long flags;
 
-	if (ifa) {
-		struct net_device *dev = ifa->ifa_dev->dev;
-		struct velocity_info *vptr;
-		unsigned long flags;
+	if (dev_net(dev) != &init_net)
+		return NOTIFY_DONE;
 
-		spin_lock_irqsave(&velocity_dev_list_lock, flags);
-		list_for_each_entry(vptr, &velocity_dev_list, list) {
-			if (vptr->dev == dev) {
-				velocity_get_ip(vptr);
-				break;
-			}
+	spin_lock_irqsave(&velocity_dev_list_lock, flags);
+	list_for_each_entry(vptr, &velocity_dev_list, list) {
+		if (vptr->dev == dev) {
+			velocity_get_ip(vptr);
+			break;
 		}
-		spin_unlock_irqrestore(&velocity_dev_list_lock, flags);
 	}
+	spin_unlock_irqrestore(&velocity_dev_list_lock, flags);
+
 	return NOTIFY_DONE;
 }
 

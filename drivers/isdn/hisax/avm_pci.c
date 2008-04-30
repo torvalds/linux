@@ -797,7 +797,7 @@ static int __devinit avm_pnp_setup(struct IsdnCardState *cs)
 			err = pnp_activate_dev(pnp_avm_d);
 			if (err<0) {
 				printk(KERN_WARNING "%s: pnp_activate_dev ret(%d)\n",
-					__FUNCTION__, err);
+					__func__, err);
 				return(0);
 			}
 			cs->hw.avm.cfg_reg =

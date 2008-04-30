@@ -2,7 +2,7 @@ This file contains brief information about the SCSI tape driver.
 The driver is currently maintained by Kai Mäkisara (email
 Kai.Makisara@kolumbus.fi)
 
-Last modified: Mon Mar  7 21:14:44 2005 by kai.makisara
+Last modified: Sun Feb 24 21:59:07 2008 by kai.makisara
 
 
 BASICS
@@ -132,6 +132,11 @@ if the mode is defined and zero if not defined. The files 'default_*' contain
 the defaults set by the user. The value -1 means the default is not set. The
 file 'dev' contains the device numbers corresponding to this device. The links
 'device' and 'driver' point to the SCSI device and driver entries.
+
+Each directory also contains the entry 'options' which shows the currently
+enabled driver and mode options. The value in the file is a bit mask where the
+bit definitions are the same as those used with MTSETDRVBUFFER in setting the
+options.
 
 A link named 'tape' is made from the SCSI device directory to the class
 directory corresponding to the mode 0 auto-rewind device (e.g., st0). 
@@ -372,6 +377,11 @@ MTSETDRVBUFFER
 	     MT_ST_SYSV sets the SYSV semantics (mode)
 	     MT_ST_NOWAIT enables immediate mode (i.e., don't wait for
 	        the command to finish) for some commands (e.g., rewind)
+	     MT_ST_SILI enables setting the SILI bit in SCSI commands when
+		reading in variable block mode to enhance performance when
+		reading blocks shorter than the byte count; set this only
+		if you are sure that the drive supports SILI and the HBA
+		correctly returns transfer residuals
 	     MT_ST_DEBUGGING debugging (global; debugging must be
 		compiled into the driver)
 	MT_ST_SETBOOLEANS

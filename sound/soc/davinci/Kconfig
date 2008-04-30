@@ -1,0 +1,19 @@
+config SND_DAVINCI_SOC
+	tristate "SoC Audio for the TI DAVINCI chip"
+	depends on ARCH_DAVINCI && SND_SOC
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the DAVINCI AC97 or I2S interface. You will also need
+	  to select the audio interfaces to support below.
+
+config SND_DAVINCI_SOC_I2S
+	tristate
+
+config SND_DAVINCI_SOC_EVM
+	tristate "SoC Audio support for DaVinci EVM"
+	depends on SND_DAVINCI_SOC && MACH_DAVINCI_EVM
+	select SND_DAVINCI_SOC_I2S
+	select SND_SOC_TLV320AIC3X
+	help
+	  Say Y if you want to add support for SoC audio on TI
+	  DaVinci EVM platform.

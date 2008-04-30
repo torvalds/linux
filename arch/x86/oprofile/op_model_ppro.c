@@ -1,4 +1,4 @@
-/**
+/*
  * @file op_model_ppro.h
  * pentium pro / P6 model-specific MSR operations
  *
@@ -15,45 +15,45 @@
 #include <asm/msr.h>
 #include <asm/apic.h>
 #include <asm/nmi.h>
- 
+
 #include "op_x86_model.h"
 #include "op_counter.h"
 
 #define NUM_COUNTERS 2
 #define NUM_CONTROLS 2
 
-#define CTR_IS_RESERVED(msrs,c) (msrs->counters[(c)].addr ? 1 : 0)
-#define CTR_READ(l,h,msrs,c) do {rdmsr(msrs->counters[(c)].addr, (l), (h));} while (0)
-#define CTR_32BIT_WRITE(l,msrs,c)	\
-	do {wrmsr(msrs->counters[(c)].addr, -(u32)(l), 0);} while (0)
+#define CTR_IS_RESERVED(msrs, c) (msrs->counters[(c)].addr ? 1 : 0)
+#define CTR_READ(l, h, msrs, c) do {rdmsr(msrs->counters[(c)].addr, (l), (h)); } while (0)
+#define CTR_32BIT_WRITE(l, msrs, c)	\
+	do {wrmsr(msrs->counters[(c)].addr, -(u32)(l), 0); } while (0)
 #define CTR_OVERFLOWED(n) (!((n) & (1U<<31)))
 
-#define CTRL_IS_RESERVED(msrs,c) (msrs->controls[(c)].addr ? 1 : 0)
-#define CTRL_READ(l,h,msrs,c) do {rdmsr((msrs->controls[(c)].addr), (l), (h));} while (0)
-#define CTRL_WRITE(l,h,msrs,c) do {wrmsr((msrs->controls[(c)].addr), (l), (h));} while (0)
+#define CTRL_IS_RESERVED(msrs, c) (msrs->controls[(c)].addr ? 1 : 0)
+#define CTRL_READ(l, h, msrs, c) do {rdmsr((msrs->controls[(c)].addr), (l), (h)); } while (0)
+#define CTRL_WRITE(l, h, msrs, c) do {wrmsr((msrs->controls[(c)].addr), (l), (h)); } while (0)
 #define CTRL_SET_ACTIVE(n) (n |= (1<<22))
 #define CTRL_SET_INACTIVE(n) (n &= ~(1<<22))
 #define CTRL_CLEAR(x) (x &= (1<<21))
 #define CTRL_SET_ENABLE(val) (val |= 1<<20)
-#define CTRL_SET_USR(val,u) (val |= ((u & 1) << 16))
-#define CTRL_SET_KERN(val,k) (val |= ((k & 1) << 17))
+#define CTRL_SET_USR(val, u) (val |= ((u & 1) << 16))
+#define CTRL_SET_KERN(val, k) (val |= ((k & 1) << 17))
 #define CTRL_SET_UM(val, m) (val |= (m << 8))
 #define CTRL_SET_EVENT(val, e) (val |= e)
 
 static unsigned long reset_value[NUM_COUNTERS];
- 
+
 static void ppro_fill_in_addresses(struct op_msrs * const msrs)
 {
 	int i;
 
-	for (i=0; i < NUM_COUNTERS; i++) {
+	for (i = 0; i < NUM_COUNTERS; i++) {
 		if (reserve_perfctr_nmi(MSR_P6_PERFCTR0 + i))
 			msrs->counters[i].addr = MSR_P6_PERFCTR0 + i;
 		else
 			msrs->counters[i].addr = 0;
 	}
-	
-	for (i=0; i < NUM_CONTROLS; i++) {
+
+	for (i = 0; i < NUM_CONTROLS; i++) {
 		if (reserve_evntsel_nmi(MSR_P6_EVNTSEL0 + i))
 			msrs->controls[i].addr = MSR_P6_EVNTSEL0 + i;
 		else
@@ -69,23 +69,23 @@ static void ppro_setup_ctrs(struct op_msrs const * const msrs)
 
 	/* clear all counters */
 	for (i = 0 ; i < NUM_CONTROLS; ++i) {
-		if (unlikely(!CTRL_IS_RESERVED(msrs,i)))
+		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
 			continue;
 		CTRL_READ(low, high, msrs, i);
 		CTRL_CLEAR(low);
 		CTRL_WRITE(low, high, msrs, i);
 	}
-	
+
 	/* avoid a false detection of ctr overflows in NMI handler */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (unlikely(!CTR_IS_RESERVED(msrs,i)))
+		if (unlikely(!CTR_IS_RESERVED(msrs, i)))
 			continue;
 		CTR_32BIT_WRITE(1, msrs, i);
 	}
 
 	/* enable active counters */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if ((counter_config[i].enabled) && (CTR_IS_RESERVED(msrs,i))) {
+		if ((counter_config[i].enabled) && (CTR_IS_RESERVED(msrs, i))) {
 			reset_value[i] = counter_config[i].count;
 
 			CTR_32BIT_WRITE(counter_config[i].count, msrs, i);
@@ -104,13 +104,13 @@ static void ppro_setup_ctrs(struct op_msrs const * const msrs)
 	}
 }
 
- 
+
 static int ppro_check_ctrs(struct pt_regs * const regs,
 			   struct op_msrs const * const msrs)
 {
 	unsigned int low, high;
 	int i;
- 
+
 	for (i = 0 ; i < NUM_COUNTERS; ++i) {
 		if (!reset_value[i])
 			continue;
@@ -135,10 +135,10 @@ static int ppro_check_ctrs(struct pt_regs * const regs,
 	return 1;
 }
 
- 
+
 static void ppro_start(struct op_msrs const * const msrs)
 {
-	unsigned int low,high;
+	unsigned int low, high;
 	int i;
 
 	for (i = 0; i < NUM_COUNTERS; ++i) {
@@ -153,7 +153,7 @@ static void ppro_start(struct op_msrs const * const msrs)
 
 static void ppro_stop(struct op_msrs const * const msrs)
 {
-	unsigned int low,high;
+	unsigned int low, high;
 	int i;
 
 	for (i = 0; i < NUM_COUNTERS; ++i) {
@@ -170,11 +170,11 @@ static void ppro_shutdown(struct op_msrs const * const msrs)
 	int i;
 
 	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
-		if (CTR_IS_RESERVED(msrs,i))
+		if (CTR_IS_RESERVED(msrs, i))
 			release_perfctr_nmi(MSR_P6_PERFCTR0 + i);
 	}
 	for (i = 0 ; i < NUM_CONTROLS ; ++i) {
-		if (CTRL_IS_RESERVED(msrs,i))
+		if (CTRL_IS_RESERVED(msrs, i))
 			release_evntsel_nmi(MSR_P6_EVNTSEL0 + i);
 	}
 }

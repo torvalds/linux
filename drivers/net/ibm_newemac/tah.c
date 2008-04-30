@@ -35,7 +35,7 @@ int __devinit tah_attach(struct of_device *ofdev, int channel)
 	return 0;
 }
 
-void __devexit tah_detach(struct of_device *ofdev, int channel)
+void tah_detach(struct of_device *ofdev, int channel)
 {
 	struct tah_instance *dev = dev_get_drvdata(&ofdev->dev);
 

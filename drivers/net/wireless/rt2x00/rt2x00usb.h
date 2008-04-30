@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2007 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -60,34 +60,47 @@
 #define USB_VENDOR_REQUEST_IN	( USB_DIR_IN | USB_VENDOR_REQUEST )
 #define USB_VENDOR_REQUEST_OUT	( USB_DIR_OUT | USB_VENDOR_REQUEST )
 
-/*
- * USB vendor commands.
+/**
+ * enum rt2x00usb_vendor_request: USB vendor commands.
  */
-#define USB_DEVICE_MODE		0x01
-#define USB_SINGLE_WRITE	0x02
-#define USB_SINGLE_READ		0x03
-#define USB_MULTI_WRITE		0x06
-#define USB_MULTI_READ		0x07
-#define USB_EEPROM_WRITE	0x08
-#define USB_EEPROM_READ		0x09
-#define USB_LED_CONTROL		0x0a	/* RT73USB */
-#define USB_RX_CONTROL		0x0c
+enum rt2x00usb_vendor_request {
+	USB_DEVICE_MODE = 1,
+	USB_SINGLE_WRITE = 2,
+	USB_SINGLE_READ = 3,
+	USB_MULTI_WRITE = 6,
+	USB_MULTI_READ = 7,
+	USB_EEPROM_WRITE = 8,
+	USB_EEPROM_READ = 9,
+	USB_LED_CONTROL = 10, /* RT73USB */
+	USB_RX_CONTROL = 12,
+};
 
-/*
- * Device modes offset
+/**
+ * enum rt2x00usb_mode_offset: Device modes offset.
  */
-#define USB_MODE_RESET		0x01
-#define USB_MODE_UNPLUG		0x02
-#define USB_MODE_FUNCTION	0x03
-#define USB_MODE_TEST		0x04
-#define USB_MODE_SLEEP		0x07	/* RT73USB */
-#define USB_MODE_FIRMWARE	0x08	/* RT73USB */
-#define USB_MODE_WAKEUP		0x09	/* RT73USB */
+enum rt2x00usb_mode_offset {
+	USB_MODE_RESET = 1,
+	USB_MODE_UNPLUG = 2,
+	USB_MODE_FUNCTION = 3,
+	USB_MODE_TEST = 4,
+	USB_MODE_SLEEP = 7,	/* RT73USB */
+	USB_MODE_FIRMWARE = 8,	/* RT73USB */
+	USB_MODE_WAKEUP = 9,	/* RT73USB */
+};
 
-/*
- * Used to read/write from/to the device.
+/**
+ * rt2x00usb_vendor_request - Send register command to device
+ * @rt2x00dev: Pointer to &struct rt2x00_dev
+ * @request: USB vendor command (See &enum rt2x00usb_vendor_request)
+ * @requesttype: Request type &USB_VENDOR_REQUEST_*
+ * @offset: Register offset to perform action on
+ * @value: Value to write to device
+ * @buffer: Buffer where information will be read/written to by device
+ * @buffer_length: Size of &buffer
+ * @timeout: Operation timeout
+ *
  * This is the main function to communicate with the device,
- * the buffer argument _must_ either be NULL or point to
+ * the &buffer argument _must_ either be NULL or point to
  * a buffer allocated by kmalloc. Failure to do so can lead
  * to unexpected behavior depending on the architecture.
  */
@@ -97,13 +110,21 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 			     void *buffer, const u16 buffer_length,
 			     const int timeout);
 
-/*
- * Used to read/write from/to the device.
+/**
+ * rt2x00usb_vendor_request_buff - Send register command to device (buffered)
+ * @rt2x00dev: Pointer to &struct rt2x00_dev
+ * @request: USB vendor command (See &enum rt2x00usb_vendor_request)
+ * @requesttype: Request type &USB_VENDOR_REQUEST_*
+ * @offset: Register offset to perform action on
+ * @buffer: Buffer where information will be read/written to by device
+ * @buffer_length: Size of &buffer
+ * @timeout: Operation timeout
+ *
  * This function will use a previously with kmalloc allocated cache
  * to communicate with the device. The contents of the buffer pointer
  * will be copied to this cache when writing, or read from the cache
  * when reading.
- * Buffers send to rt2x00usb_vendor_request _must_ be allocated with
+ * Buffers send to &rt2x00usb_vendor_request _must_ be allocated with
  * kmalloc. Hence the reason for using a previously allocated cache
  * which has been allocated properly.
  */
@@ -112,15 +133,32 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 				  const u16 offset, void *buffer,
 				  const u16 buffer_length, const int timeout);
 
-/*
- * A version of rt2x00usb_vendor_request_buff which must be called
- * if the usb_cache_mutex is already held. */
+/**
+ * rt2x00usb_vendor_request_buff - Send register command to device (buffered)
+ * @rt2x00dev: Pointer to &struct rt2x00_dev
+ * @request: USB vendor command (See &enum rt2x00usb_vendor_request)
+ * @requesttype: Request type &USB_VENDOR_REQUEST_*
+ * @offset: Register offset to perform action on
+ * @buffer: Buffer where information will be read/written to by device
+ * @buffer_length: Size of &buffer
+ * @timeout: Operation timeout
+ *
+ * A version of &rt2x00usb_vendor_request_buff which must be called
+ * if the usb_cache_mutex is already held.
+ */
 int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
 				   const u8 request, const u8 requesttype,
 				   const u16 offset, void *buffer,
 				   const u16 buffer_length, const int timeout);
 
-/*
+/**
+ * rt2x00usb_vendor_request_sw - Send single register command to device
+ * @rt2x00dev: Pointer to &struct rt2x00_dev
+ * @request: USB vendor command (See &enum rt2x00usb_vendor_request)
+ * @offset: Register offset to perform action on
+ * @value: Value to write to device
+ * @timeout: Operation timeout
+ *
  * Simple wrapper around rt2x00usb_vendor_request to write a single
  * command to the device. Since we don't use the buffer argument we
  * don't have to worry about kmalloc here.
@@ -136,7 +174,12 @@ static inline int rt2x00usb_vendor_request_sw(struct rt2x00_dev *rt2x00dev,
 					value, NULL, 0, timeout);
 }
 
-/*
+/**
+ * rt2x00usb_eeprom_read - Read eeprom from device
+ * @rt2x00dev: Pointer to &struct rt2x00_dev
+ * @eeprom: Pointer to eeprom array to store the information in
+ * @length: Number of bytes to read from the eeprom
+ *
  * Simple wrapper around rt2x00usb_vendor_request to read the eeprom
  * from the device. Note that the eeprom argument _must_ be allocated using
  * kmalloc for correct handling inside the kernel USB layer.
@@ -147,8 +190,8 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
 	int timeout = REGISTER_TIMEOUT * (lenght / sizeof(u16));
 
 	return rt2x00usb_vendor_request(rt2x00dev, USB_EEPROM_READ,
-					USB_VENDOR_REQUEST_IN, 0x0000,
-					0x0000, eeprom, lenght, timeout);
+					USB_VENDOR_REQUEST_IN, 0, 0,
+					eeprom, lenght, timeout);
 }
 
 /*
@@ -160,16 +203,58 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev);
  * TX data handlers.
  */
 int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
-			    struct data_ring *ring, struct sk_buff *skb,
+			    struct data_queue *queue, struct sk_buff *skb,
 			    struct ieee80211_tx_control *control);
+
+/**
+ * struct queue_entry_priv_usb_rx: Per RX entry USB specific information
+ *
+ * @urb: Urb structure used for device communication.
+ */
+struct queue_entry_priv_usb_rx {
+	struct urb *urb;
+};
+
+/**
+ * struct queue_entry_priv_usb_tx: Per TX entry USB specific information
+ *
+ * @urb: Urb structure used for device communication.
+ * @control: mac80211 control structure used to transmit data.
+ */
+struct queue_entry_priv_usb_tx {
+	struct urb *urb;
+
+	struct ieee80211_tx_control control;
+};
+
+/**
+ * struct queue_entry_priv_usb_tx: Per TX entry USB specific information
+ *
+ * The first section should match &struct queue_entry_priv_usb_tx exactly.
+ * rt2500usb can use this structure to send a guardian byte when working
+ * with beacons.
+ *
+ * @urb: Urb structure used for device communication.
+ * @control: mac80211 control structure used to transmit data.
+ * @guardian_data: Set to 0, used for sending the guardian data.
+ * @guardian_urb: Urb structure used to send the guardian data.
+ */
+struct queue_entry_priv_usb_bcn {
+	struct urb *urb;
+
+	struct ieee80211_tx_control control;
+
+	unsigned int guardian_data;
+	struct urb *guardian_urb;
+};
 
 /*
  * Device initialization handlers.
  */
 void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
-			    struct data_entry *entry);
+			    struct queue_entry *entry);
 void rt2x00usb_init_txentry(struct rt2x00_dev *rt2x00dev,
-			    struct data_entry *entry);
+			    struct queue_entry *entry);
 int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev);
 void rt2x00usb_uninitialize(struct rt2x00_dev *rt2x00dev);
 

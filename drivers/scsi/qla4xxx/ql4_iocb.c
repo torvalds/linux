@@ -66,8 +66,8 @@ static int qla4xxx_get_req_pkt(struct scsi_qla_host *ha,
  *
  * This routine issues a marker IOCB.
  **/
-static int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
-				    struct ddb_entry *ddb_entry, int lun)
+int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
+	struct ddb_entry *ddb_entry, int lun, uint16_t mrkr_mod)
 {
 	struct qla4_marker_entry *marker_entry;
 	unsigned long flags = 0;
@@ -87,7 +87,7 @@ static int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
 	marker_entry->hdr.entryType = ET_MARKER;
 	marker_entry->hdr.entryCount = 1;
 	marker_entry->target = cpu_to_le16(ddb_entry->fw_ddb_index);
-	marker_entry->modifier = cpu_to_le16(MM_LUN_RESET);
+	marker_entry->modifier = cpu_to_le16(mrkr_mod);
 	int_to_scsilun(lun, &marker_entry->lun);
 	wmb();
 
@@ -210,14 +210,6 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 	/* Get real lun and adapter */
 	ddb_entry = srb->ddb;
 
-	/* Send marker(s) if needed. */
-	if (ha->marker_needed == 1) {
-		if (qla4xxx_send_marker_iocb(ha, ddb_entry,
-					     cmd->device->lun) != QLA_SUCCESS)
-			return QLA_ERROR;
-
-		ha->marker_needed = 0;
-	}
 	tot_dsds = 0;
 
 	/* Acquire hardware specific lock */

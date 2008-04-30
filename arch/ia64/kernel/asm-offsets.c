@@ -7,6 +7,7 @@
 #define ASM_OFFSETS_C 1
 
 #include <linux/sched.h>
+#include <linux/pid.h>
 #include <linux/clocksource.h>
 
 #include <asm-ia64/processor.h>
@@ -34,17 +35,29 @@ void foo(void)
 	DEFINE(SIGFRAME_SIZE, sizeof (struct sigframe));
 	DEFINE(UNW_FRAME_INFO_SIZE, sizeof (struct unw_frame_info));
 
+	BUILD_BUG_ON(sizeof(struct upid) != 32);
+	DEFINE(IA64_UPID_SHIFT, 5);
+
 	BLANK();
 
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
 	DEFINE(TI_PRE_COUNT, offsetof(struct thread_info, preempt_count));
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	DEFINE(TI_AC_STAMP, offsetof(struct thread_info, ac_stamp));
+	DEFINE(TI_AC_LEAVE, offsetof(struct thread_info, ac_leave));
+	DEFINE(TI_AC_STIME, offsetof(struct thread_info, ac_stime));
+	DEFINE(TI_AC_UTIME, offsetof(struct thread_info, ac_utime));
+#endif
 
 	BLANK();
 
 	DEFINE(IA64_TASK_BLOCKED_OFFSET,offsetof (struct task_struct, blocked));
 	DEFINE(IA64_TASK_CLEAR_CHILD_TID_OFFSET,offsetof (struct task_struct, clear_child_tid));
 	DEFINE(IA64_TASK_GROUP_LEADER_OFFSET, offsetof (struct task_struct, group_leader));
+	DEFINE(IA64_TASK_TGIDLINK_OFFSET, offsetof (struct task_struct, pids[PIDTYPE_PID].pid));
+	DEFINE(IA64_PID_LEVEL_OFFSET, offsetof (struct pid, level));
+	DEFINE(IA64_PID_UPID_OFFSET, offsetof (struct pid, numbers[0]));
 	DEFINE(IA64_TASK_PENDING_OFFSET,offsetof (struct task_struct, pending));
 	DEFINE(IA64_TASK_PID_OFFSET, offsetof (struct task_struct, pid));
 	DEFINE(IA64_TASK_REAL_PARENT_OFFSET, offsetof (struct task_struct, real_parent));

@@ -53,4 +53,6 @@ struct pxa27x_keypad_platform_data {
 
 #define KEY(row, col, val)	(((row) << 28) | ((col) << 24) | (val))
 
+extern void pxa_set_keypad_info(struct pxa27x_keypad_platform_data *info);
+
 #endif /* __ASM_ARCH_PXA27x_KEYPAD_H */

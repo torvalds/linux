@@ -253,6 +253,7 @@ static struct platform_driver ixp2000_flash_driver = {
 	.remove		= ixp2000_flash_remove,
 	.driver		= {
 		.name	= "IXP2000-Flash",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -270,4 +271,4 @@ module_init(ixp2000_flash_init);
 module_exit(ixp2000_flash_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Deepak Saxena <dsaxena@plexity.net>");
-
+MODULE_ALIAS("platform:IXP2000-Flash");

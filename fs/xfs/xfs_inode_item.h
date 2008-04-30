@@ -168,6 +168,14 @@ static inline int xfs_ilog_fext(int w)
 	return (w == XFS_DATA_FORK ? XFS_ILOG_DEXT : XFS_ILOG_AEXT);
 }
 
+static inline int xfs_inode_clean(xfs_inode_t *ip)
+{
+	return (!ip->i_itemp ||
+		!(ip->i_itemp->ili_format.ilf_fields & XFS_ILOG_ALL)) &&
+	       !ip->i_update_core;
+}
+
+
 #ifdef __KERNEL__
 
 extern void xfs_inode_item_init(struct xfs_inode *, struct xfs_mount *);

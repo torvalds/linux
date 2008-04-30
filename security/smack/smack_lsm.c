@@ -315,10 +315,10 @@ static int smack_sb_statfs(struct dentry *dentry)
  * Returns 0 if current can write the floor of the filesystem
  * being mounted on, an error code otherwise.
  */
-static int smack_sb_mount(char *dev_name, struct nameidata *nd,
+static int smack_sb_mount(char *dev_name, struct path *path,
 			  char *type, unsigned long flags, void *data)
 {
-	struct superblock_smack *sbp = nd->path.mnt->mnt_sb->s_security;
+	struct superblock_smack *sbp = path->mnt->mnt_sb->s_security;
 
 	return smk_curacc(sbp->smk_floor, MAY_WRITE);
 }
@@ -1242,7 +1242,7 @@ static void smack_set_catset(char *catset, struct netlbl_lsm_secattr *sap)
 	int rc;
 	int byte;
 
-	if (catset == 0)
+	if (!catset)
 		return;
 
 	sap->flags |= NETLBL_SECATTR_MLS_CAT;
@@ -1275,7 +1275,7 @@ static void smack_to_secattr(char *smack, struct netlbl_lsm_secattr *nlsp)
 
 	switch (smack_net_nltype) {
 	case NETLBL_NLTYPE_CIPSOV4:
-		nlsp->domain = kstrdup(smack, GFP_ATOMIC);
+		nlsp->domain = smack;
 		nlsp->flags = NETLBL_SECATTR_DOMAIN | NETLBL_SECATTR_MLS_LVL;
 
 		rc = smack_to_cipso(smack, &cipso);
@@ -2424,7 +2424,9 @@ static void smack_release_secctx(char *secdata, u32 seclen)
 {
 }
 
-static struct security_operations smack_ops = {
+struct security_operations smack_ops = {
+	.name =				"smack",
+
 	.ptrace = 			smack_ptrace,
 	.capget = 			cap_capget,
 	.capset_check = 		cap_capset_check,
@@ -2493,6 +2495,7 @@ static struct security_operations smack_ops = {
 	.task_wait = 			smack_task_wait,
 	.task_reparent_to_init =	cap_task_reparent_to_init,
 	.task_to_inode = 		smack_task_to_inode,
+	.task_prctl =			cap_task_prctl,
 
 	.ipc_permission = 		smack_ipc_permission,
 
@@ -2557,6 +2560,9 @@ static struct security_operations smack_ops = {
  */
 static __init int smack_init(void)
 {
+	if (!security_module_enable(&smack_ops))
+		return 0;
+
 	printk(KERN_INFO "Smack:  Initializing.\n");
 
 	/*

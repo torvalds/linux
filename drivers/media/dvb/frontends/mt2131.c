@@ -110,7 +110,7 @@ static int mt2131_set_params(struct dvb_frontend *fe,
 		priv->bandwidth = 0;
 
 	freq = params->frequency / 1000;  // Hz -> kHz
-	dprintk(1, "%s() freq=%d\n", __FUNCTION__, freq);
+	dprintk(1, "%s() freq=%d\n", __func__, freq);
 
 	f_lo1 = freq + MT2131_IF1 * 1000;
 	f_lo1 = (f_lo1 / 250) * 250;
@@ -187,7 +187,7 @@ static int mt2131_set_params(struct dvb_frontend *fe,
 static int mt2131_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct mt2131_priv *priv = fe->tuner_priv;
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 	*frequency = priv->frequency;
 	return 0;
 }
@@ -195,7 +195,7 @@ static int mt2131_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 static int mt2131_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 {
 	struct mt2131_priv *priv = fe->tuner_priv;
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 	*bandwidth = priv->bandwidth;
 	return 0;
 }
@@ -214,7 +214,7 @@ static int mt2131_get_status(struct dvb_frontend *fe, u32 *status)
 
 	mt2131_readreg(priv, 0x09, &afc_status);
 	dprintk(1, "%s() - LO Status = 0x%x, AFC Status = 0x%x\n",
-		__FUNCTION__, lock_status, afc_status);
+		__func__, lock_status, afc_status);
 
 	return 0;
 }
@@ -223,7 +223,7 @@ static int mt2131_init(struct dvb_frontend *fe)
 {
 	struct mt2131_priv *priv = fe->tuner_priv;
 	int ret;
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	if ((ret = mt2131_writeregs(priv, mt2131_config1,
 				    sizeof(mt2131_config1))) < 0)
@@ -243,7 +243,7 @@ static int mt2131_init(struct dvb_frontend *fe)
 
 static int mt2131_release(struct dvb_frontend *fe)
 {
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
 	return 0;
@@ -273,7 +273,7 @@ struct dvb_frontend * mt2131_attach(struct dvb_frontend *fe,
 	struct mt2131_priv *priv = NULL;
 	u8 id = 0;
 
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	priv = kzalloc(sizeof(struct mt2131_priv), GFP_KERNEL);
 	if (priv == NULL)

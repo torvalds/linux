@@ -246,7 +246,7 @@ static int macb_mii_init(struct macb *bp)
 	bp->mii_bus.read = &macb_mdio_read;
 	bp->mii_bus.write = &macb_mdio_write;
 	bp->mii_bus.reset = &macb_mdio_reset;
-	bp->mii_bus.id = bp->pdev->id;
+	snprintf(bp->mii_bus.id, MII_BUS_ID_SIZE, "%x", bp->pdev->id);
 	bp->mii_bus.priv = bp;
 	bp->mii_bus.dev = &bp->dev->dev;
 	pdata = bp->pdev->dev.platform_data;
@@ -1281,6 +1281,7 @@ static struct platform_driver macb_driver = {
 	.remove		= __exit_p(macb_remove),
 	.driver		= {
 		.name		= "macb",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1300,3 +1301,4 @@ module_exit(macb_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Atmel MACB Ethernet driver");
 MODULE_AUTHOR("Haavard Skinnemoen <hskinnemoen@atmel.com>");
+MODULE_ALIAS("platform:macb");

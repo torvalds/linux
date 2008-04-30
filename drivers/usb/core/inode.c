@@ -463,13 +463,13 @@ static int usbfs_fill_super(struct super_block *sb, void *data, int silent)
 	inode = usbfs_get_inode(sb, S_IFDIR | 0755, 0);
 
 	if (!inode) {
-		dbg("%s: could not get inode!",__FUNCTION__);
+		dbg("%s: could not get inode!",__func__);
 		return -ENOMEM;
 	}
 
 	root = d_alloc_root(inode);
 	if (!root) {
-		dbg("%s: could not get root dentry!",__FUNCTION__);
+		dbg("%s: could not get root dentry!",__func__);
 		iput(inode);
 		return -ENOMEM;
 	}

@@ -133,8 +133,6 @@ static struct spu_context *coredump_next_context(int *fd)
 		if (ctx->flags & SPU_CREATE_NOSCHED)
 			continue;
 
-		/* start searching the next fd next time we're called */
-		(*fd)++;
 		break;
 	}
 
@@ -157,6 +155,9 @@ int spufs_coredump_extra_notes_size(void)
 			break;
 
 		size += rc;
+
+		/* start searching the next fd next time */
+		fd++;
 	}
 
 	return size;
@@ -239,6 +240,9 @@ int spufs_coredump_extra_notes_write(struct file *file, loff_t *foffset)
 		}
 
 		spu_release_saved(ctx);
+
+		/* start searching the next fd next time */
+		fd++;
 	}
 
 	return 0;

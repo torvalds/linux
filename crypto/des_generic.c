@@ -977,7 +977,7 @@ static struct crypto_alg des3_ede_alg = {
 
 MODULE_ALIAS("des3_ede");
 
-static int __init init(void)
+static int __init des_generic_mod_init(void)
 {
 	int ret = 0;
 
@@ -992,14 +992,14 @@ out:
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit des_generic_mod_fini(void)
 {
 	crypto_unregister_alg(&des3_ede_alg);
 	crypto_unregister_alg(&des_alg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(des_generic_mod_init);
+module_exit(des_generic_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("DES & Triple DES EDE Cipher Algorithms");

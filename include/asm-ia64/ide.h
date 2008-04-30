@@ -16,8 +16,6 @@
 
 #include <linux/irq.h>
 
-#define IDE_ARCH_OBSOLETE_DEFAULTS
-
 static inline int ide_default_irq(unsigned long base)
 {
 	switch (base) {
@@ -45,14 +43,6 @@ static inline unsigned long ide_default_io_base(int index)
 		return 0;
 	}
 }
-
-#define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
-
-#ifdef CONFIG_PCI
-#define ide_init_default_irq(base)	(0)
-#else
-#define ide_init_default_irq(base)	ide_default_irq(base)
-#endif
 
 #include <asm-generic/ide_iops.h>
 

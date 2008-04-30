@@ -18,35 +18,31 @@
 #define DEBUG
 
 #ifdef DEBUG
-#define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt,__FUNCTION__,## args)
+#define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt,__func__,## args)
 #else
 #define DPRINTK(fmt, args...)
 #endif
 
-static const u32 cfb_tab8[] = {
-#if defined(__BIG_ENDIAN)
+static const u32 cfb_tab8_be[] = {
     0x00000000,0x000000ff,0x0000ff00,0x0000ffff,
     0x00ff0000,0x00ff00ff,0x00ffff00,0x00ffffff,
     0xff000000,0xff0000ff,0xff00ff00,0xff00ffff,
     0xffff0000,0xffff00ff,0xffffff00,0xffffffff
-#elif defined(__LITTLE_ENDIAN)
+};
+
+static const u32 cfb_tab8_le[] = {
     0x00000000,0xff000000,0x00ff0000,0xffff0000,
     0x0000ff00,0xff00ff00,0x00ffff00,0xffffff00,
     0x000000ff,0xff0000ff,0x00ff00ff,0xffff00ff,
     0x0000ffff,0xff00ffff,0x00ffffff,0xffffffff
-#else
-#error FIXME: No endianness??
-#endif
 };
 
-static const u32 cfb_tab16[] = {
-#if defined(__BIG_ENDIAN)
+static const u32 cfb_tab16_be[] = {
     0x00000000, 0x0000ffff, 0xffff0000, 0xffffffff
-#elif defined(__LITTLE_ENDIAN)
+};
+
+static const u32 cfb_tab16_le[] = {
     0x00000000, 0xffff0000, 0x0000ffff, 0xffffffff
-#else
-#error FIXME: No endianness??
-#endif
 };
 
 static const u32 cfb_tab32[] = {
@@ -72,7 +68,7 @@ static void color_imageblit(const struct fb_image *image, struct fb_info *p,
 		val = 0;
 
 		if (start_index) {
-			u32 start_mask = ~(FB_SHIFT_HIGH(~(u32)0,
+			u32 start_mask = ~(FB_SHIFT_HIGH(p, ~(u32)0,
 							 start_index));
 			val = *dst & start_mask;
 			shift = start_index;
@@ -83,20 +79,20 @@ static void color_imageblit(const struct fb_image *image, struct fb_info *p,
 				color = palette[*src];
 			else
 				color = *src;
-			color <<= FB_LEFT_POS(bpp);
-			val |= FB_SHIFT_HIGH(color, shift);
+			color <<= FB_LEFT_POS(p, bpp);
+			val |= FB_SHIFT_HIGH(p, color, shift);
 			if (shift >= null_bits) {
 				*dst++ = val;
 
 				val = (shift == null_bits) ? 0 :
-					FB_SHIFT_LOW(color, 32 - shift);
+					FB_SHIFT_LOW(p, color, 32 - shift);
 			}
 			shift += bpp;
 			shift &= (32 - 1);
 			src++;
 		}
 		if (shift) {
-			u32 end_mask = FB_SHIFT_HIGH(~(u32)0, shift);
+			u32 end_mask = FB_SHIFT_HIGH(p, ~(u32)0, shift);
 
 			*dst &= end_mask;
 			*dst |= val;
@@ -125,8 +121,8 @@ static void slow_imageblit(const struct fb_image *image, struct fb_info *p,
 	u32 i, j, l;
 
 	dst2 = dst1;
-	fgcolor <<= FB_LEFT_POS(bpp);
-	bgcolor <<= FB_LEFT_POS(bpp);
+	fgcolor <<= FB_LEFT_POS(p, bpp);
+	bgcolor <<= FB_LEFT_POS(p, bpp);
 
 	for (i = image->height; i--; ) {
 		shift = val = 0;
@@ -137,7 +133,8 @@ static void slow_imageblit(const struct fb_image *image, struct fb_info *p,
 
 		/* write leading bits */
 		if (start_index) {
-			u32 start_mask = ~(FB_SHIFT_HIGH(~(u32)0,start_index));
+			u32 start_mask = ~(FB_SHIFT_HIGH(p, ~(u32)0,
+							 start_index));
 			val = *dst & start_mask;
 			shift = start_index;
 		}
@@ -145,13 +142,13 @@ static void slow_imageblit(const struct fb_image *image, struct fb_info *p,
 		while (j--) {
 			l--;
 			color = (*s & (1 << l)) ? fgcolor : bgcolor;
-			val |= FB_SHIFT_HIGH(color, shift);
+			val |= FB_SHIFT_HIGH(p, color, shift);
 
 			/* Did the bitshift spill bits to the next long? */
 			if (shift >= null_bits) {
 				*dst++ = val;
 				val = (shift == null_bits) ? 0 :
-					FB_SHIFT_LOW(color,32 - shift);
+					FB_SHIFT_LOW(p, color, 32 - shift);
 			}
 			shift += bpp;
 			shift &= (32 - 1);
@@ -160,7 +157,7 @@ static void slow_imageblit(const struct fb_image *image, struct fb_info *p,
 
 		/* write trailing bits */
  		if (shift) {
-			u32 end_mask = FB_SHIFT_HIGH(~(u32)0, shift);
+			u32 end_mask = FB_SHIFT_HIGH(p, ~(u32)0, shift);
 
 			*dst &= end_mask;
 			*dst |= val;
@@ -199,10 +196,10 @@ static void fast_imageblit(const struct fb_image *image, struct fb_info *p,
 
 	switch (bpp) {
 	case 8:
-		tab = cfb_tab8;
+		tab = fb_be_math(p) ? cfb_tab8_be : cfb_tab8_le;
 		break;
 	case 16:
-		tab = cfb_tab16;
+		tab = fb_be_math(p) ? cfb_tab16_be : cfb_tab16_le;
 		break;
 	case 32:
 	default:

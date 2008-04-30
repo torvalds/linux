@@ -16,8 +16,6 @@
  * bootup setup stuff..
  */
 
-#undef DEBUG
-
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -70,14 +68,6 @@
 #include "plpar_wrappers.h"
 #include "pseries.h"
 
-#ifdef DEBUG
-#define DBG(fmt...) udbg_printf(fmt)
-#else
-#define DBG(fmt...)
-#endif
-
-/* move those away to a .h */
-extern void find_udbg_vterm(void);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 
@@ -127,14 +117,60 @@ void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc)
 	desc->chip->eoi(irq);
 }
 
+static void __init pseries_setup_i8259_cascade(void)
+{
+	struct device_node *np, *old, *found = NULL;
+	unsigned int cascade;
+	const u32 *addrp;
+	unsigned long intack = 0;
+	int naddr;
+
+	for_each_node_by_type(np, "interrupt-controller") {
+		if (of_device_is_compatible(np, "chrp,iic")) {
+			found = np;
+			break;
+		}
+	}
+
+	if (found == NULL) {
+		printk(KERN_DEBUG "pic: no ISA interrupt controller\n");
+		return;
+	}
+
+	cascade = irq_of_parse_and_map(found, 0);
+	if (cascade == NO_IRQ) {
+		printk(KERN_ERR "pic: failed to map cascade interrupt");
+		return;
+	}
+	pr_debug("pic: cascade mapped to irq %d\n", cascade);
+
+	for (old = of_node_get(found); old != NULL ; old = np) {
+		np = of_get_parent(old);
+		of_node_put(old);
+		if (np == NULL)
+			break;
+		if (strcmp(np->name, "pci") != 0)
+			continue;
+		addrp = of_get_property(np, "8259-interrupt-acknowledge", NULL);
+		if (addrp == NULL)
+			continue;
+		naddr = of_n_addr_cells(np);
+		intack = addrp[naddr-1];
+		if (naddr > 1)
+			intack |= ((unsigned long)addrp[naddr-2]) << 32;
+	}
+	if (intack)
+		printk(KERN_DEBUG "pic: PCI 8259 intack at 0x%016lx\n", intack);
+	i8259_init(found, intack);
+	of_node_put(found);
+	set_irq_chained_handler(cascade, pseries_8259_cascade);
+}
+
 static void __init pseries_mpic_init_IRQ(void)
 {
-	struct device_node *np, *old, *cascade = NULL;
-        const unsigned int *addrp;
-	unsigned long intack = 0;
+	struct device_node *np;
 	const unsigned int *opprop;
 	unsigned long openpic_addr = 0;
-	unsigned int cascade_irq;
 	int naddr, n, i, opplen;
 	struct mpic *mpic;
 
@@ -167,43 +203,13 @@ static void __init pseries_mpic_init_IRQ(void)
 	mpic_init(mpic);
 
 	/* Look for cascade */
-	for_each_node_by_type(np, "interrupt-controller")
-		if (of_device_is_compatible(np, "chrp,iic")) {
-			cascade = np;
-			break;
-		}
-	if (cascade == NULL)
-		return;
+	pseries_setup_i8259_cascade();
+}
 
-	cascade_irq = irq_of_parse_and_map(cascade, 0);
-	if (cascade_irq == NO_IRQ) {
-		printk(KERN_ERR "mpic: failed to map cascade interrupt");
-		return;
-	}
-
-	/* Check ACK type */
-	for (old = of_node_get(cascade); old != NULL ; old = np) {
-		np = of_get_parent(old);
-		of_node_put(old);
-		if (np == NULL)
-			break;
-		if (strcmp(np->name, "pci") != 0)
-			continue;
-		addrp = of_get_property(np, "8259-interrupt-acknowledge",
-					    NULL);
-		if (addrp == NULL)
-			continue;
-		naddr = of_n_addr_cells(np);
-		intack = addrp[naddr-1];
-		if (naddr > 1)
-			intack |= ((unsigned long)addrp[naddr-2]) << 32;
-	}
-	if (intack)
-		printk(KERN_DEBUG "mpic: PCI 8259 intack at 0x%016lx\n",
-		       intack);
-	i8259_init(cascade, intack);
-	of_node_put(cascade);
-	set_irq_chained_handler(cascade_irq, pseries_8259_cascade);
+static void __init pseries_xics_init_IRQ(void)
+{
+	xics_init_IRQ();
+	pseries_setup_i8259_cascade();
 }
 
 static void pseries_lpar_enable_pmcs(void)
@@ -235,7 +241,7 @@ static void __init pseries_discover_pic(void)
 			smp_init_pseries_mpic();
 			return;
 		} else if (strstr(typep, "ppc-xicp")) {
-			ppc_md.init_IRQ       = xics_init_IRQ;
+			ppc_md.init_IRQ       = pseries_xics_init_IRQ;
 			setup_kexec_cpu_down_xics();
 			smp_init_pseries_xics();
 			return;
@@ -313,7 +319,7 @@ static int pseries_set_xdabr(unsigned long dabr)
  */
 static void __init pSeries_init_early(void)
 {
-	DBG(" -> pSeries_init_early()\n");
+	pr_debug(" -> pSeries_init_early()\n");
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		find_udbg_vterm();
@@ -325,7 +331,7 @@ static void __init pSeries_init_early(void)
 
 	iommu_init_early_pSeries();
 
-	DBG(" <- pSeries_init_early()\n");
+	pr_debug(" <- pSeries_init_early()\n");
 }
 
 /*
@@ -370,7 +376,7 @@ static int __init pSeries_probe(void)
 	    of_flat_dt_is_compatible(root, "IBM,CBEA"))
 		return 0;
 
-	DBG("pSeries detected, looking for LPAR capability...\n");
+	pr_debug("pSeries detected, looking for LPAR capability...\n");
 
 	/* Now try to figure out if we are running on LPAR */
 	of_scan_flat_dt(pSeries_probe_hypertas, NULL);
@@ -380,8 +386,8 @@ static int __init pSeries_probe(void)
 	else
 		hpte_init_native();
 
-	DBG("Machine is%s LPAR !\n",
-	    (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
+	pr_debug("Machine is%s LPAR !\n",
+	         (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
 
 	return 1;
 }
@@ -393,6 +399,7 @@ static void pseries_dedicated_idle_sleep(void)
 { 
 	unsigned int cpu = smp_processor_id();
 	unsigned long start_snooze;
+	unsigned long in_purr, out_purr;
 
 	/*
 	 * Indicate to the HV that we are idle. Now would be
@@ -400,6 +407,7 @@ static void pseries_dedicated_idle_sleep(void)
 	 */
 	get_lppaca()->idle = 1;
 	get_lppaca()->donate_dedicated_cpu = 1;
+	in_purr = mfspr(SPRN_PURR);
 
 	/*
 	 * We come in with interrupts disabled, and need_resched()
@@ -432,6 +440,8 @@ static void pseries_dedicated_idle_sleep(void)
 
 out:
 	HMT_medium();
+	out_purr = mfspr(SPRN_PURR);
+	get_lppaca()->wait_state_cycles += out_purr - in_purr;
 	get_lppaca()->donate_dedicated_cpu = 0;
 	get_lppaca()->idle = 0;
 }

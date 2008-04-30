@@ -3527,6 +3527,7 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 			FreeXid(xid);
 			return 0;
 		}
+		DeleteTconOplockQEntries(cifs_sb->tcon);
 		tconInfoFree(cifs_sb->tcon);
 		if ((ses) && (ses->server)) {
 			/* save off task so we do not refer to ses later */

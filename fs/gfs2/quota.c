@@ -94,7 +94,7 @@ static int qd_alloc(struct gfs2_sbd *sdp, int user, u32 id,
 	struct gfs2_quota_data *qd;
 	int error;
 
-	qd = kzalloc(sizeof(struct gfs2_quota_data), GFP_KERNEL);
+	qd = kzalloc(sizeof(struct gfs2_quota_data), GFP_NOFS);
 	if (!qd)
 		return -ENOMEM;
 
@@ -616,16 +616,9 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	s64 value;
 	int err = -EIO;
 
-	if (gfs2_is_stuffed(ip)) {
-		struct gfs2_alloc *al = NULL;
-		al = gfs2_alloc_get(ip);
-		/* just request 1 blk */
-		al->al_requested = 1;
-		gfs2_inplace_reserve(ip);
+	if (gfs2_is_stuffed(ip))
 		gfs2_unstuff_dinode(ip, NULL);
-		gfs2_inplace_release(ip);
-		gfs2_alloc_put(ip);
-	}
+	
 	page = grab_cache_page(mapping, index);
 	if (!page)
 		return -ENOMEM;
@@ -690,14 +683,14 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	unsigned int qx, x;
 	struct gfs2_quota_data *qd;
 	loff_t offset;
-	unsigned int nalloc = 0;
+	unsigned int nalloc = 0, blocks;
 	struct gfs2_alloc *al = NULL;
 	int error;
 
 	gfs2_write_calc_reserv(ip, sizeof(struct gfs2_quota),
 			      &data_blocks, &ind_blocks);
 
-	ghs = kcalloc(num_qd, sizeof(struct gfs2_holder), GFP_KERNEL);
+	ghs = kcalloc(num_qd, sizeof(struct gfs2_holder), GFP_NOFS);
 	if (!ghs)
 		return -ENOMEM;
 
@@ -727,30 +720,33 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 			nalloc++;
 	}
 
-	if (nalloc) {
-		al = gfs2_alloc_get(ip);
-
-		al->al_requested = nalloc * (data_blocks + ind_blocks);
-
-		error = gfs2_inplace_reserve(ip);
-		if (error)
-			goto out_alloc;
-
-		error = gfs2_trans_begin(sdp,
-					 al->al_rgd->rd_length +
-					 num_qd * data_blocks +
-					 nalloc * ind_blocks +
-					 RES_DINODE + num_qd +
-					 RES_STATFS, 0);
-		if (error)
-			goto out_ipres;
-	} else {
-		error = gfs2_trans_begin(sdp,
-					 num_qd * data_blocks +
-					 RES_DINODE + num_qd, 0);
-		if (error)
-			goto out_gunlock;
+	al = gfs2_alloc_get(ip);
+	if (!al) {
+		error = -ENOMEM;
+		goto out_gunlock;
 	}
+	/* 
+	 * 1 blk for unstuffing inode if stuffed. We add this extra
+	 * block to the reservation unconditionally. If the inode
+	 * doesn't need unstuffing, the block will be released to the 
+	 * rgrp since it won't be allocated during the transaction
+	 */
+	al->al_requested = 1;
+	/* +1 in the end for block requested above for unstuffing */
+	blocks = num_qd * data_blocks + RES_DINODE + num_qd + 1;
+
+	if (nalloc)
+		al->al_requested += nalloc * (data_blocks + ind_blocks);		
+	error = gfs2_inplace_reserve(ip);
+	if (error)
+		goto out_alloc;
+
+	if (nalloc)
+		blocks += al->al_rgd->rd_length + nalloc * ind_blocks + RES_STATFS;
+
+	error = gfs2_trans_begin(sdp, blocks, 0);
+	if (error)
+		goto out_ipres;
 
 	for (x = 0; x < num_qd; x++) {
 		qd = qda[x];
@@ -769,11 +765,9 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 out_end_trans:
 	gfs2_trans_end(sdp);
 out_ipres:
-	if (nalloc)
-		gfs2_inplace_release(ip);
+	gfs2_inplace_release(ip);
 out_alloc:
-	if (nalloc)
-		gfs2_alloc_put(ip);
+	gfs2_alloc_put(ip);
 out_gunlock:
 	gfs2_glock_dq_uninit(&i_gh);
 out:
@@ -1124,12 +1118,12 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 	error = -ENOMEM;
 
 	sdp->sd_quota_bitmap = kcalloc(sdp->sd_quota_chunks,
-				       sizeof(unsigned char *), GFP_KERNEL);
+				       sizeof(unsigned char *), GFP_NOFS);
 	if (!sdp->sd_quota_bitmap)
 		return error;
 
 	for (x = 0; x < sdp->sd_quota_chunks; x++) {
-		sdp->sd_quota_bitmap[x] = kzalloc(PAGE_SIZE, GFP_KERNEL);
+		sdp->sd_quota_bitmap[x] = kzalloc(PAGE_SIZE, GFP_NOFS);
 		if (!sdp->sd_quota_bitmap[x])
 			goto fail;
 	}

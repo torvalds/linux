@@ -75,7 +75,7 @@ struct c2_mq {
 	u16 hint_count;
 	u16 priv;
 	struct c2_mq_shared __iomem *peer;
-	u16 *shared;
+	__be16 *shared;
 	dma_addr_t shared_dma;
 	u32 q_size;
 	u32 msg_size;

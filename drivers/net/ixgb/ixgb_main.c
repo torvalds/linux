@@ -67,7 +67,7 @@ MODULE_DEVICE_TABLE(pci, ixgb_pci_tbl);
 /* Local Function Prototypes */
 
 int ixgb_up(struct ixgb_adapter *adapter);
-void ixgb_down(struct ixgb_adapter *adapter, boolean_t kill_watchdog);
+void ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog);
 void ixgb_reset(struct ixgb_adapter *adapter);
 int ixgb_setup_tx_resources(struct ixgb_adapter *adapter);
 int ixgb_setup_rx_resources(struct ixgb_adapter *adapter);
@@ -94,22 +94,22 @@ static struct net_device_stats *ixgb_get_stats(struct net_device *netdev);
 static int ixgb_change_mtu(struct net_device *netdev, int new_mtu);
 static int ixgb_set_mac(struct net_device *netdev, void *p);
 static irqreturn_t ixgb_intr(int irq, void *data);
-static boolean_t ixgb_clean_tx_irq(struct ixgb_adapter *adapter);
+static bool ixgb_clean_tx_irq(struct ixgb_adapter *adapter);
 
 #ifdef CONFIG_IXGB_NAPI
 static int ixgb_clean(struct napi_struct *napi, int budget);
-static boolean_t ixgb_clean_rx_irq(struct ixgb_adapter *adapter,
-				   int *work_done, int work_to_do);
+static bool ixgb_clean_rx_irq(struct ixgb_adapter *adapter,
+			      int *work_done, int work_to_do);
 #else
-static boolean_t ixgb_clean_rx_irq(struct ixgb_adapter *adapter);
+static bool ixgb_clean_rx_irq(struct ixgb_adapter *adapter);
 #endif
 static void ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter);
 static void ixgb_tx_timeout(struct net_device *dev);
 static void ixgb_tx_timeout_task(struct work_struct *work);
 static void ixgb_vlan_rx_register(struct net_device *netdev,
 				  struct vlan_group *grp);
-static void ixgb_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid);
-static void ixgb_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid);
+static void ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
+static void ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid);
 static void ixgb_restore_vlan(struct ixgb_adapter *adapter);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -197,7 +197,6 @@ module_exit(ixgb_exit_module);
 static void
 ixgb_irq_disable(struct ixgb_adapter *adapter)
 {
-	atomic_inc(&adapter->irq_sem);
 	IXGB_WRITE_REG(&adapter->hw, IMC, ~0);
 	IXGB_WRITE_FLUSH(&adapter->hw);
 	synchronize_irq(adapter->pdev->irq);
@@ -211,14 +210,12 @@ ixgb_irq_disable(struct ixgb_adapter *adapter)
 static void
 ixgb_irq_enable(struct ixgb_adapter *adapter)
 {
-	if(atomic_dec_and_test(&adapter->irq_sem)) {
-		u32 val = IXGB_INT_RXT0 | IXGB_INT_RXDMT0 |
-			  IXGB_INT_TXDW | IXGB_INT_LSC;
-		if (adapter->hw.subsystem_vendor_id == SUN_SUBVENDOR_ID)
-			val |= IXGB_INT_GPI0;
-		IXGB_WRITE_REG(&adapter->hw, IMS, val);
-		IXGB_WRITE_FLUSH(&adapter->hw);
-	}
+	u32 val = IXGB_INT_RXT0 | IXGB_INT_RXDMT0 |
+		  IXGB_INT_TXDW | IXGB_INT_LSC;
+	if (adapter->hw.subsystem_vendor_id == SUN_SUBVENDOR_ID)
+		val |= IXGB_INT_GPI0;
+	IXGB_WRITE_REG(&adapter->hw, IMS, val);
+	IXGB_WRITE_FLUSH(&adapter->hw);
 }
 
 int
@@ -274,7 +271,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 
 		if(hw->max_frame_size >
 		   IXGB_MAX_ENET_FRAME_SIZE_WITHOUT_FCS + ENET_FCS_LENGTH) {
-			uint32_t ctrl0 = IXGB_READ_REG(hw, CTRL0);
+			u32 ctrl0 = IXGB_READ_REG(hw, CTRL0);
 
 			if(!(ctrl0 & IXGB_CTRL0_JFE)) {
 				ctrl0 |= IXGB_CTRL0_JFE;
@@ -283,26 +280,30 @@ ixgb_up(struct ixgb_adapter *adapter)
 		}
 	}
 
-	mod_timer(&adapter->watchdog_timer, jiffies);
+	clear_bit(__IXGB_DOWN, &adapter->flags);
 
 #ifdef CONFIG_IXGB_NAPI
 	napi_enable(&adapter->napi);
 #endif
 	ixgb_irq_enable(adapter);
 
+	mod_timer(&adapter->watchdog_timer, jiffies);
+
 	return 0;
 }
 
 void
-ixgb_down(struct ixgb_adapter *adapter, boolean_t kill_watchdog)
+ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog)
 {
 	struct net_device *netdev = adapter->netdev;
 
+	/* prevent the interrupt handler from restarting watchdog */
+	set_bit(__IXGB_DOWN, &adapter->flags);
+
 #ifdef CONFIG_IXGB_NAPI
 	napi_disable(&adapter->napi);
-	atomic_set(&adapter->irq_sem, 0);
 #endif
-
+	/* waiting for NAPI to complete can re-enable interrupts */
 	ixgb_irq_disable(adapter);
 	free_irq(adapter->pdev->irq, netdev);
 
@@ -589,9 +590,9 @@ ixgb_sw_init(struct ixgb_adapter *adapter)
 	/* enable flow control to be programmed */
 	hw->fc.send_xon = 1;
 
-	atomic_set(&adapter->irq_sem, 1);
 	spin_lock_init(&adapter->tx_lock);
 
+	set_bit(__IXGB_DOWN, &adapter->flags);
 	return 0;
 }
 
@@ -656,7 +657,7 @@ ixgb_close(struct net_device *netdev)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
-	ixgb_down(adapter, TRUE);
+	ixgb_down(adapter, true);
 
 	ixgb_free_tx_resources(adapter);
 	ixgb_free_rx_resources(adapter);
@@ -717,9 +718,9 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 static void
 ixgb_configure_tx(struct ixgb_adapter *adapter)
 {
-	uint64_t tdba = adapter->tx_ring.dma;
-	uint32_t tdlen = adapter->tx_ring.count * sizeof(struct ixgb_tx_desc);
-	uint32_t tctl;
+	u64 tdba = adapter->tx_ring.dma;
+	u32 tdlen = adapter->tx_ring.count * sizeof(struct ixgb_tx_desc);
+	u32 tctl;
 	struct ixgb_hw *hw = &adapter->hw;
 
 	/* Setup the Base and Length of the Tx Descriptor Ring 
@@ -805,7 +806,7 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 static void
 ixgb_setup_rctl(struct ixgb_adapter *adapter)
 {
-	uint32_t rctl;
+	u32 rctl;
 
 	rctl = IXGB_READ_REG(&adapter->hw, RCTL);
 
@@ -840,12 +841,12 @@ ixgb_setup_rctl(struct ixgb_adapter *adapter)
 static void
 ixgb_configure_rx(struct ixgb_adapter *adapter)
 {
-	uint64_t rdba = adapter->rx_ring.dma;
-	uint32_t rdlen = adapter->rx_ring.count * sizeof(struct ixgb_rx_desc);
+	u64 rdba = adapter->rx_ring.dma;
+	u32 rdlen = adapter->rx_ring.count * sizeof(struct ixgb_rx_desc);
 	struct ixgb_hw *hw = &adapter->hw;
-	uint32_t rctl;
-	uint32_t rxcsum;
-	uint32_t rxdctl;
+	u32 rctl;
+	u32 rxcsum;
+	u32 rxdctl;
 
 	/* make sure receives are disabled while setting up the descriptors */
 
@@ -881,7 +882,7 @@ ixgb_configure_rx(struct ixgb_adapter *adapter)
 	IXGB_WRITE_REG(hw, RXDCTL, rxdctl);
 
 	/* Enable Receive Checksum Offload for TCP and UDP */
-	if(adapter->rx_csum == TRUE) {
+	if (adapter->rx_csum) {
 		rxcsum = IXGB_READ_REG(hw, RXCSUM);
 		rxcsum |= IXGB_RXCSUM_TUOFL;
 		IXGB_WRITE_REG(hw, RXCSUM, rxcsum);
@@ -1078,7 +1079,7 @@ ixgb_set_multi(struct net_device *netdev)
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
 	struct dev_mc_list *mc_ptr;
-	uint32_t rctl;
+	u32 rctl;
 	int i;
 
 	/* Check for Promiscuous and All Multicast modes */
@@ -1098,7 +1099,7 @@ ixgb_set_multi(struct net_device *netdev)
 		rctl |= IXGB_RCTL_MPE;
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 	} else {
-		uint8_t mta[IXGB_MAX_NUM_MULTICAST_ADDRESSES *
+		u8 mta[IXGB_MAX_NUM_MULTICAST_ADDRESSES *
 			    IXGB_ETH_LENGTH_OF_ADDRESS];
 
 		IXGB_WRITE_REG(hw, RCTL, rctl);
@@ -1164,7 +1165,7 @@ ixgb_watchdog(unsigned long data)
 	}
 
 	/* Force detection of hung controller every watchdog period */
-	adapter->detect_tx_hung = TRUE;
+	adapter->detect_tx_hung = true;
 
 	/* generate an interrupt to force clean up of any stragglers */
 	IXGB_WRITE_REG(&adapter->hw, ICS, IXGB_INT_TXDW);
@@ -1182,8 +1183,8 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 {
 	struct ixgb_context_desc *context_desc;
 	unsigned int i;
-	uint8_t ipcss, ipcso, tucss, tucso, hdr_len;
-	uint16_t ipcse, tucse, mss;
+	u8 ipcss, ipcso, tucss, tucso, hdr_len;
+	u16 ipcse, tucse, mss;
 	int err;
 
 	if (likely(skb_is_gso(skb))) {
@@ -1243,12 +1244,12 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	return 0;
 }
 
-static boolean_t
+static bool
 ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 {
 	struct ixgb_context_desc *context_desc;
 	unsigned int i;
-	uint8_t css, cso;
+	u8 css, cso;
 
 	if(likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		struct ixgb_buffer *buffer_info;
@@ -1264,7 +1265,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 		context_desc->tucso = cso;
 		context_desc->tucse = 0;
 		/* zero out any previously existing data in one instruction */
-		*(uint32_t *)&(context_desc->ipcss) = 0;
+		*(u32 *)&(context_desc->ipcss) = 0;
 		context_desc->status = 0;
 		context_desc->hdr_len = 0;
 		context_desc->mss = 0;
@@ -1275,10 +1276,10 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 		if(++i == adapter->tx_ring.count) i = 0;
 		adapter->tx_ring.next_to_use = i;
 
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 #define IXGB_MAX_TXD_PWR	14
@@ -1371,9 +1372,9 @@ ixgb_tx_queue(struct ixgb_adapter *adapter, int count, int vlan_id,int tx_flags)
 	struct ixgb_desc_ring *tx_ring = &adapter->tx_ring;
 	struct ixgb_tx_desc *tx_desc = NULL;
 	struct ixgb_buffer *buffer_info;
-	uint32_t cmd_type_len = adapter->tx_cmd_type;
-	uint8_t status = 0;
-	uint8_t popts = 0;
+	u32 cmd_type_len = adapter->tx_cmd_type;
+	u8 status = 0;
+	u8 popts = 0;
 	unsigned int i;
 
 	if(tx_flags & IXGB_TX_FLAGS_TSO) {
@@ -1464,14 +1465,18 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	int vlan_id = 0;
 	int tso;
 
+	if (test_bit(__IXGB_DOWN, &adapter->flags)) {
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
 	if(skb->len <= 0) {
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
 
 #ifdef NETIF_F_LLTX
-	local_irq_save(flags);
-	if (!spin_trylock(&adapter->tx_lock)) {
+	if (!spin_trylock_irqsave(&adapter->tx_lock, flags)) {
 		/* Collision - tell upper layer to requeue */
 		local_irq_restore(flags);
 		return NETDEV_TX_LOCKED;
@@ -1548,7 +1553,7 @@ ixgb_tx_timeout_task(struct work_struct *work)
 		container_of(work, struct ixgb_adapter, tx_timeout_task);
 
 	adapter->tx_timeout_count++;
-	ixgb_down(adapter, TRUE);
+	ixgb_down(adapter, true);
 	ixgb_up(adapter);
 }
 
@@ -1595,7 +1600,7 @@ ixgb_change_mtu(struct net_device *netdev, int new_mtu)
 	netdev->mtu = new_mtu;
 
 	if ((old_max_frame != max_frame) && netif_running(netdev)) {
-		ixgb_down(adapter, TRUE);
+		ixgb_down(adapter, true);
 		ixgb_up(adapter);
 	}
 
@@ -1745,7 +1750,7 @@ ixgb_intr(int irq, void *data)
 	struct net_device *netdev = data;
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
-	uint32_t icr = IXGB_READ_REG(hw, ICR);
+	u32 icr = IXGB_READ_REG(hw, ICR);
 #ifndef CONFIG_IXGB_NAPI
 	unsigned int i;
 #endif
@@ -1753,9 +1758,9 @@ ixgb_intr(int irq, void *data)
 	if(unlikely(!icr))
 		return IRQ_NONE;  /* Not our interrupt */
 
-	if(unlikely(icr & (IXGB_INT_RXSEQ | IXGB_INT_LSC))) {
-		mod_timer(&adapter->watchdog_timer, jiffies);
-	}
+	if (unlikely(icr & (IXGB_INT_RXSEQ | IXGB_INT_LSC)))
+		if (!test_bit(__IXGB_DOWN, &adapter->flags))
+			mod_timer(&adapter->watchdog_timer, jiffies);
 
 #ifdef CONFIG_IXGB_NAPI
 	if (netif_rx_schedule_prep(netdev, &adapter->napi)) {
@@ -1764,7 +1769,6 @@ ixgb_intr(int irq, void *data)
 		  of the posted write is intentionally left out.
 		*/
 
-		atomic_inc(&adapter->irq_sem);
 		IXGB_WRITE_REG(&adapter->hw, IMC, ~0);
 		__netif_rx_schedule(netdev, &adapter->napi);
 	}
@@ -1812,7 +1816,7 @@ ixgb_clean(struct napi_struct *napi, int budget)
  * @adapter: board private structure
  **/
 
-static boolean_t
+static bool
 ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 {
 	struct ixgb_desc_ring *tx_ring = &adapter->tx_ring;
@@ -1820,7 +1824,7 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 	struct ixgb_tx_desc *tx_desc, *eop_desc;
 	struct ixgb_buffer *buffer_info;
 	unsigned int i, eop;
-	boolean_t cleaned = FALSE;
+	bool cleaned = false;
 
 	i = tx_ring->next_to_clean;
 	eop = tx_ring->buffer_info[i].next_to_watch;
@@ -1828,7 +1832,7 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 
 	while(eop_desc->status & IXGB_TX_DESC_STATUS_DD) {
 
-		for(cleaned = FALSE; !cleaned; ) {
+		for (cleaned = false; !cleaned; ) {
 			tx_desc = IXGB_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
 
@@ -1839,7 +1843,7 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 
 			ixgb_unmap_and_free_tx_resource(adapter, buffer_info);
 
-			*(uint32_t *)&(tx_desc->status) = 0;
+			*(u32 *)&(tx_desc->status) = 0;
 
 			cleaned = (i == eop);
 			if(++i == tx_ring->count) i = 0;
@@ -1862,7 +1866,7 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 	if(adapter->detect_tx_hung) {
 		/* detect a transmit hang in hardware, this serializes the
 		 * check with the clearing of time_stamp and movement of i */
-		adapter->detect_tx_hung = FALSE;
+		adapter->detect_tx_hung = false;
 		if (tx_ring->buffer_info[eop].dma &&
 		   time_after(jiffies, tx_ring->buffer_info[eop].time_stamp + HZ)
 		   && !(IXGB_READ_REG(&adapter->hw, STATUS) &
@@ -1932,7 +1936,7 @@ ixgb_rx_checksum(struct ixgb_adapter *adapter,
  * @adapter: board private structure
  **/
 
-static boolean_t
+static bool
 #ifdef CONFIG_IXGB_NAPI
 ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 #else
@@ -1944,9 +1948,9 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	struct ixgb_rx_desc *rx_desc, *next_rxd;
 	struct ixgb_buffer *buffer_info, *next_buffer, *next2_buffer;
-	uint32_t length;
+	u32 length;
 	unsigned int i, j;
-	boolean_t cleaned = FALSE;
+	bool cleaned = false;
 
 	i = rx_ring->next_to_clean;
 	rx_desc = IXGB_RX_DESC(*rx_ring, i);
@@ -1980,7 +1984,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 		next_skb = next_buffer->skb;
 		prefetch(next_skb);
 
-		cleaned = TRUE;
+		cleaned = true;
 
 		pci_unmap_single(pdev,
 				 buffer_info->dma,
@@ -2162,7 +2166,7 @@ static void
 ixgb_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	uint32_t ctrl, rctl;
+	u32 ctrl, rctl;
 
 	ixgb_irq_disable(adapter);
 	adapter->vlgrp = grp;
@@ -2193,14 +2197,16 @@ ixgb_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 		IXGB_WRITE_REG(&adapter->hw, RCTL, rctl);
 	}
 
-	ixgb_irq_enable(adapter);
+	/* don't enable interrupts unless we are UP */
+	if (adapter->netdev->flags & IFF_UP)
+		ixgb_irq_enable(adapter);
 }
 
 static void
-ixgb_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid)
+ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	uint32_t vfta, index;
+	u32 vfta, index;
 
 	/* add VID to filter table */
 
@@ -2211,18 +2217,20 @@ ixgb_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid)
 }
 
 static void
-ixgb_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid)
+ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	uint32_t vfta, index;
+	u32 vfta, index;
 
 	ixgb_irq_disable(adapter);
 
 	vlan_group_set_device(adapter->vlgrp, vid, NULL);
 
-	ixgb_irq_enable(adapter);
+	/* don't enable interrupts unless we are UP */
+	if (adapter->netdev->flags & IFF_UP)
+		ixgb_irq_enable(adapter);
 
-	/* remove VID from filter table*/
+	/* remove VID from filter table */
 
 	index = (vid >> 5) & 0x7F;
 	vfta = IXGB_READ_REG_ARRAY(&adapter->hw, VFTA, index);
@@ -2236,7 +2244,7 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 	ixgb_vlan_rx_register(adapter->netdev, adapter->vlgrp);
 
 	if(adapter->vlgrp) {
-		uint16_t vid;
+		u16 vid;
 		for(vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
 			if(!vlan_group_get_device(adapter->vlgrp, vid))
 				continue;
@@ -2277,7 +2285,7 @@ static pci_ers_result_t ixgb_io_error_detected (struct pci_dev *pdev,
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	if(netif_running(netdev))
-		ixgb_down(adapter, TRUE);
+		ixgb_down(adapter, true);
 
 	pci_disable_device(pdev);
 

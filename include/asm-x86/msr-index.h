@@ -57,6 +57,8 @@
 #define MSR_MTRRfix4K_F8000		0x0000026f
 #define MSR_MTRRdefType			0x000002ff
 
+#define MSR_IA32_CR_PAT			0x00000277
+
 #define MSR_IA32_DEBUGCTLMSR		0x000001d9
 #define MSR_IA32_LASTBRANCHFROMIP	0x000001db
 #define MSR_IA32_LASTBRANCHTOIP		0x000001dc
@@ -83,6 +85,7 @@
 /* AMD64 MSRs. Not complete. See the architecture manual for a more
    complete list. */
 
+#define MSR_AMD64_NB_CFG		0xc001001f
 #define MSR_AMD64_IBSFETCHCTL		0xc0011030
 #define MSR_AMD64_IBSFETCHLINAD		0xc0011031
 #define MSR_AMD64_IBSFETCHPHYSAD	0xc0011032
@@ -109,6 +112,7 @@
 #define MSR_K8_SYSCFG			0xc0010010
 #define MSR_K8_HWCR			0xc0010015
 #define MSR_K8_ENABLE_C1E		0xc0010055
+#define MSR_K8_TSEG_ADDR		0xc0010112
 #define K8_MTRRFIXRANGE_DRAM_ENABLE	0x00040000 /* MtrrFixDramEn bit    */
 #define K8_MTRRFIXRANGE_DRAM_MODIFY	0x00080000 /* MtrrFixDramModEn bit */
 #define K8_MTRR_RDMEM_WRMEM_MASK	0x18181818 /* Mask: RdMem|WrMem    */

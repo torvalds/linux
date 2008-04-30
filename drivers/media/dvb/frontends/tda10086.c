@@ -43,7 +43,7 @@ struct tda10086_state {
 	bool has_lock;
 };
 
-static int debug = 0;
+static int debug;
 #define dprintk(args...) \
 	do { \
 		if (debug) printk(KERN_DEBUG "tda10086: " args); \
@@ -60,7 +60,7 @@ static int tda10086_write_byte(struct tda10086_state *state, int reg, int data)
 
 	if (ret != 1)
 		dprintk("%s: error reg=0x%x, data=0x%x, ret=%i\n",
-			__FUNCTION__, reg, data, ret);
+			__func__, reg, data, ret);
 
 	return (ret != 1) ? ret : 0;
 }
@@ -78,7 +78,7 @@ static int tda10086_read_byte(struct tda10086_state *state, int reg)
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2) {
-		dprintk("%s: error reg=0x%x, ret=%i\n", __FUNCTION__, reg,
+		dprintk("%s: error reg=0x%x, ret=%i\n", __func__, reg,
 			ret);
 		return ret;
 	}
@@ -90,16 +90,16 @@ static int tda10086_write_mask(struct tda10086_state *state, int reg, int mask, 
 {
 	int val;
 
-	// read a byte and check
+	/* read a byte and check */
 	val = tda10086_read_byte(state, reg);
 	if (val < 0)
 		return val;
 
-	// mask if off
+	/* mask if off */
 	val = val & ~mask;
 	val |= data & 0xff;
 
-	// write it out again
+	/* write it out again */
 	return tda10086_write_byte(state, reg, val);
 }
 
@@ -108,62 +108,67 @@ static int tda10086_init(struct dvb_frontend* fe)
 	struct tda10086_state* state = fe->demodulator_priv;
 	u8 t22k_off = 0x80;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (state->config->diseqc_tone)
 		t22k_off = 0;
-	// reset
+	/* reset */
 	tda10086_write_byte(state, 0x00, 0x00);
 	msleep(10);
 
-	// misc setup
+	/* misc setup */
 	tda10086_write_byte(state, 0x01, 0x94);
-	tda10086_write_byte(state, 0x02, 0x35); // NOTE: TT drivers appear to disable CSWP
+	tda10086_write_byte(state, 0x02, 0x35); /* NOTE: TT drivers appear to disable CSWP */
 	tda10086_write_byte(state, 0x03, 0xe4);
 	tda10086_write_byte(state, 0x04, 0x43);
 	tda10086_write_byte(state, 0x0c, 0x0c);
-	tda10086_write_byte(state, 0x1b, 0xb0); // noise threshold
-	tda10086_write_byte(state, 0x20, 0x89); // misc
-	tda10086_write_byte(state, 0x30, 0x04); // acquisition period length
-	tda10086_write_byte(state, 0x32, 0x00); // irq off
-	tda10086_write_byte(state, 0x31, 0x56); // setup AFC
+	tda10086_write_byte(state, 0x1b, 0xb0); /* noise threshold */
+	tda10086_write_byte(state, 0x20, 0x89); /* misc */
+	tda10086_write_byte(state, 0x30, 0x04); /* acquisition period length */
+	tda10086_write_byte(state, 0x32, 0x00); /* irq off */
+	tda10086_write_byte(state, 0x31, 0x56); /* setup AFC */
 
-	// setup PLL (assumes 16Mhz XIN)
-	tda10086_write_byte(state, 0x55, 0x2c); // misc PLL setup
-	tda10086_write_byte(state, 0x3a, 0x0b); // M=12
-	tda10086_write_byte(state, 0x3b, 0x01); // P=2
-	tda10086_write_mask(state, 0x55, 0x20, 0x00); // powerup PLL
+	/* setup PLL (this assumes SACLK = 96MHz) */
+	tda10086_write_byte(state, 0x55, 0x2c); /* misc PLL setup */
+	if (state->config->xtal_freq == TDA10086_XTAL_16M) {
+		tda10086_write_byte(state, 0x3a, 0x0b); /* M=12 */
+		tda10086_write_byte(state, 0x3b, 0x01); /* P=2 */
+	} else {
+		tda10086_write_byte(state, 0x3a, 0x17); /* M=24 */
+		tda10086_write_byte(state, 0x3b, 0x00); /* P=1 */
+	}
+	tda10086_write_mask(state, 0x55, 0x20, 0x00); /* powerup PLL */
 
-	// setup TS interface
+	/* setup TS interface */
 	tda10086_write_byte(state, 0x11, 0x81);
 	tda10086_write_byte(state, 0x12, 0x81);
-	tda10086_write_byte(state, 0x19, 0x40); // parallel mode A + MSBFIRST
-	tda10086_write_byte(state, 0x56, 0x80); // powerdown WPLL - unused in the mode we use
-	tda10086_write_byte(state, 0x57, 0x08); // bypass WPLL - unused in the mode we use
+	tda10086_write_byte(state, 0x19, 0x40); /* parallel mode A + MSBFIRST */
+	tda10086_write_byte(state, 0x56, 0x80); /* powerdown WPLL - unused in the mode we use */
+	tda10086_write_byte(state, 0x57, 0x08); /* bypass WPLL - unused in the mode we use */
 	tda10086_write_byte(state, 0x10, 0x2a);
 
-	// setup ADC
-	tda10086_write_byte(state, 0x58, 0x61); // ADC setup
-	tda10086_write_mask(state, 0x58, 0x01, 0x00); // powerup ADC
+	/* setup ADC */
+	tda10086_write_byte(state, 0x58, 0x61); /* ADC setup */
+	tda10086_write_mask(state, 0x58, 0x01, 0x00); /* powerup ADC */
 
-	// setup AGC
+	/* setup AGC */
 	tda10086_write_byte(state, 0x05, 0x0B);
 	tda10086_write_byte(state, 0x37, 0x63);
-	tda10086_write_byte(state, 0x3f, 0x0a); // NOTE: flydvb varies it
+	tda10086_write_byte(state, 0x3f, 0x0a); /* NOTE: flydvb varies it */
 	tda10086_write_byte(state, 0x40, 0x64);
 	tda10086_write_byte(state, 0x41, 0x4f);
 	tda10086_write_byte(state, 0x42, 0x43);
 
-	// setup viterbi
-	tda10086_write_byte(state, 0x1a, 0x11); // VBER 10^6, DVB, QPSK
+	/* setup viterbi */
+	tda10086_write_byte(state, 0x1a, 0x11); /* VBER 10^6, DVB, QPSK */
 
-	// setup carrier recovery
+	/* setup carrier recovery */
 	tda10086_write_byte(state, 0x3d, 0x80);
 
-	// setup SEC
-	tda10086_write_byte(state, 0x36, t22k_off); // all SEC off, 22k tone
-	tda10086_write_byte(state, 0x34, (((1<<19) * (22000/1000)) / (SACLK/1000)));      // } tone frequency
-	tda10086_write_byte(state, 0x35, (((1<<19) * (22000/1000)) / (SACLK/1000)) >> 8); // }
+	/* setup SEC */
+	tda10086_write_byte(state, 0x36, t22k_off); /* all SEC off, 22k tone */
+	tda10086_write_byte(state, 0x34, (((1<<19) * (22000/1000)) / (SACLK/1000)));
+	tda10086_write_byte(state, 0x35, (((1<<19) * (22000/1000)) / (SACLK/1000)) >> 8);
 
 	return 0;
 }
@@ -173,7 +178,7 @@ static void tda10086_diseqc_wait(struct tda10086_state *state)
 	unsigned long timeout = jiffies + msecs_to_jiffies(200);
 	while (!(tda10086_read_byte(state, 0x50) & 0x01)) {
 		if(time_after(jiffies, timeout)) {
-			printk("%s: diseqc queue not ready, command may be lost.\n", __FUNCTION__);
+			printk("%s: diseqc queue not ready, command may be lost.\n", __func__);
 			break;
 		}
 		msleep(10);
@@ -185,7 +190,7 @@ static int tda10086_set_tone (struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 	struct tda10086_state* state = fe->demodulator_priv;
 	u8 t22k_off = 0x80;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (state->config->diseqc_tone)
 		t22k_off = 0;
@@ -211,7 +216,7 @@ static int tda10086_send_master_cmd (struct dvb_frontend* fe,
 	u8 oldval;
 	u8 t22k_off = 0x80;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (state->config->diseqc_tone)
 		t22k_off = 0;
@@ -239,7 +244,7 @@ static int tda10086_send_burst (struct dvb_frontend* fe, fe_sec_mini_cmd_t minic
 	u8 oldval = tda10086_read_byte(state, 0x36);
 	u8 t22k_off = 0x80;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (state->config->diseqc_tone)
 		t22k_off = 0;
@@ -266,7 +271,7 @@ static int tda10086_set_inversion(struct tda10086_state *state,
 {
 	u8 invval = 0x80;
 
-	dprintk ("%s %i %i\n", __FUNCTION__, fe_params->inversion, state->config->invert);
+	dprintk ("%s %i %i\n", __func__, fe_params->inversion, state->config->invert);
 
 	switch(fe_params->inversion) {
 	case INVERSION_OFF:
@@ -300,9 +305,9 @@ static int tda10086_set_symbol_rate(struct tda10086_state *state,
 	u32 bdri;
 	u32 symbol_rate = fe_params->u.qpsk.symbol_rate;
 
-	dprintk ("%s %i\n", __FUNCTION__, symbol_rate);
+	dprintk ("%s %i\n", __func__, symbol_rate);
 
-	// setup the decimation and anti-aliasing filters..
+	/* setup the decimation and anti-aliasing filters.. */
 	if (symbol_rate < (u32) (SACLK * 0.0137)) {
 		dfn=4;
 		afs=1;
@@ -339,13 +344,13 @@ static int tda10086_set_symbol_rate(struct tda10086_state *state,
 		byp=1;
 	}
 
-	// calculate BDR
+	/* calculate BDR */
 	big = (1ULL<<21) * ((u64) symbol_rate/1000ULL) * (1ULL<<dfn);
 	big += ((SACLK/1000ULL)-1ULL);
 	do_div(big, (SACLK/1000ULL));
 	bdr = big & 0xfffff;
 
-	// calculate BDRI
+	/* calculate BDRI */
 	tmp = (1<<dfn)*(symbol_rate/1000);
 	bdri = ((32 * (SACLK/1000)) + (tmp-1)) / tmp;
 
@@ -366,7 +371,7 @@ static int tda10086_set_fec(struct tda10086_state *state,
 {
 	u8 fecval;
 
-	dprintk ("%s %i\n", __FUNCTION__, fe_params->u.qpsk.fec_inner);
+	dprintk ("%s %i\n", __func__, fe_params->u.qpsk.fec_inner);
 
 	switch(fe_params->u.qpsk.fec_inner) {
 	case FEC_1_2:
@@ -412,13 +417,13 @@ static int tda10086_set_frontend(struct dvb_frontend* fe,
 	u32 freq = 0;
 	int freqoff;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
-	// modify parameters for tuning
+	/* modify parameters for tuning */
 	tda10086_write_byte(state, 0x02, 0x35);
 	state->has_lock = false;
 
-	// set params
+	/* set params */
 	if (fe->ops.tuner_ops.set_params) {
 		fe->ops.tuner_ops.set_params(fe, fe_params);
 		if (fe->ops.i2c_gate_ctrl)
@@ -430,7 +435,7 @@ static int tda10086_set_frontend(struct dvb_frontend* fe,
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	// calcluate the frequency offset (in *Hz* not kHz)
+	/* calcluate the frequency offset (in *Hz* not kHz) */
 	freqoff = fe_params->frequency - freq;
 	freqoff = ((1<<16) * freqoff) / (SACLK/1000);
 	tda10086_write_byte(state, 0x3d, 0x80 | ((freqoff >> 8) & 0x7f));
@@ -443,7 +448,7 @@ static int tda10086_set_frontend(struct dvb_frontend* fe,
 	if ((ret = tda10086_set_fec(state, fe_params)) < 0)
 		return ret;
 
-	// soft reset + disable TS output until lock
+	/* soft reset + disable TS output until lock */
 	tda10086_write_mask(state, 0x10, 0x40, 0x40);
 	tda10086_write_mask(state, 0x00, 0x01, 0x00);
 
@@ -459,13 +464,13 @@ static int tda10086_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_pa
 	int tmp;
 	u64 tmp64;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
-	// check for invalid symbol rate
+	/* check for invalid symbol rate */
 	if (fe_params->u.qpsk.symbol_rate < 500000)
 		return -EINVAL;
 
-	// calculate the updated frequency (note: we convert from Hz->kHz)
+	/* calculate the updated frequency (note: we convert from Hz->kHz) */
 	tmp64 = tda10086_read_byte(state, 0x52);
 	tmp64 |= (tda10086_read_byte(state, 0x51) << 8);
 	if (tmp64 & 0x8000)
@@ -474,7 +479,7 @@ static int tda10086_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_pa
 	do_div(tmp64, (1ULL<<15) * (1ULL<<1));
 	fe_params->frequency = (int) state->frequency + (int) tmp64;
 
-	// the inversion
+	/* the inversion */
 	val = tda10086_read_byte(state, 0x0c);
 	if (val & 0x80) {
 		switch(val & 0x40) {
@@ -505,7 +510,7 @@ static int tda10086_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_pa
 		}
 	}
 
-	// calculate the updated symbol rate
+	/* calculate the updated symbol rate */
 	tmp = tda10086_read_byte(state, 0x1d);
 	if (tmp & 0x80)
 		tmp |= 0xffffff00;
@@ -513,7 +518,7 @@ static int tda10086_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_pa
 	tmp = ((state->symbol_rate/1000) * tmp) / (1000000/1000);
 	fe_params->u.qpsk.symbol_rate = state->symbol_rate + tmp;
 
-	// the FEC
+	/* the FEC */
 	val = (tda10086_read_byte(state, 0x0d) & 0x70) >> 4;
 	switch(val) {
 	case 0x00:
@@ -550,7 +555,7 @@ static int tda10086_read_status(struct dvb_frontend* fe, fe_status_t *fe_status)
 	struct tda10086_state* state = fe->demodulator_priv;
 	u8 val;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	val = tda10086_read_byte(state, 0x0e);
 	*fe_status = 0;
@@ -566,7 +571,7 @@ static int tda10086_read_status(struct dvb_frontend* fe, fe_status_t *fe_status)
 		*fe_status |= FE_HAS_LOCK;
 		if (!state->has_lock) {
 			state->has_lock = true;
-			// modify parameters for stable reception
+			/* modify parameters for stable reception */
 			tda10086_write_byte(state, 0x02, 0x00);
 		}
 	}
@@ -579,7 +584,7 @@ static int tda10086_read_signal_strength(struct dvb_frontend* fe, u16 * signal)
 	struct tda10086_state* state = fe->demodulator_priv;
 	u8 _str;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	_str = 0xff - tda10086_read_byte(state, 0x43);
 	*signal = (_str << 8) | _str;
@@ -592,7 +597,7 @@ static int tda10086_read_snr(struct dvb_frontend* fe, u16 * snr)
 	struct tda10086_state* state = fe->demodulator_priv;
 	u8 _snr;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	_snr = 0xff - tda10086_read_byte(state, 0x1c);
 	*snr = (_snr << 8) | _snr;
@@ -604,12 +609,12 @@ static int tda10086_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 {
 	struct tda10086_state* state = fe->demodulator_priv;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
-	// read it
+	/* read it */
 	*ucblocks = tda10086_read_byte(state, 0x18) & 0x7f;
 
-	// reset counter
+	/* reset counter */
 	tda10086_write_byte(state, 0x18, 0x00);
 	tda10086_write_byte(state, 0x18, 0x80);
 
@@ -620,9 +625,9 @@ static int tda10086_read_ber(struct dvb_frontend* fe, u32* ber)
 {
 	struct tda10086_state* state = fe->demodulator_priv;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
-	// read it
+	/* read it */
 	*ber = 0;
 	*ber |= tda10086_read_byte(state, 0x15);
 	*ber |= tda10086_read_byte(state, 0x16) << 8;
@@ -635,7 +640,7 @@ static int tda10086_sleep(struct dvb_frontend* fe)
 {
 	struct tda10086_state* state = fe->demodulator_priv;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	tda10086_write_mask(state, 0x00, 0x08, 0x08);
 
@@ -646,7 +651,7 @@ static int tda10086_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 {
 	struct tda10086_state* state = fe->demodulator_priv;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (enable) {
 		tda10086_write_mask(state, 0x00, 0x10, 0x10);
@@ -737,7 +742,7 @@ struct dvb_frontend* tda10086_attach(const struct tda10086_config* config,
 {
 	struct tda10086_state *state;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct tda10086_state), GFP_KERNEL);

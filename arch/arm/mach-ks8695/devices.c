@@ -176,6 +176,27 @@ static void __init ks8695_add_device_watchdog(void) {}
 #endif
 
 
+/* --------------------------------------------------------------------
+ *  LEDs
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_LEDS)
+short ks8695_leds_cpu = -1;
+short ks8695_leds_timer = -1;
+
+void __init ks8695_init_leds(u8 cpu_led, u8 timer_led)
+{
+	/* Enable GPIO to access the LEDs */
+	gpio_direction_output(cpu_led, 1);
+	gpio_direction_output(timer_led, 1);
+
+	ks8695_leds_cpu   = cpu_led;
+	ks8695_leds_timer = timer_led;
+}
+#else
+void __init ks8695_init_leds(u8 cpu_led, u8 timer_led) {}
+#endif
+
 /* -------------------------------------------------------------------- */
 
 /*

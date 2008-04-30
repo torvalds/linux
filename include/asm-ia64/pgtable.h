@@ -302,6 +302,8 @@ ia64_phys_addr_valid (unsigned long addr)
 #define pte_dirty(pte)		((pte_val(pte) & _PAGE_D) != 0)
 #define pte_young(pte)		((pte_val(pte) & _PAGE_A) != 0)
 #define pte_file(pte)		((pte_val(pte) & _PAGE_FILE) != 0)
+#define pte_special(pte)	0
+
 /*
  * Note: we convert AR_RWX to AR_RX and AR_RW to AR_R by clearing the 2nd bit in the
  * access rights:
@@ -313,6 +315,7 @@ ia64_phys_addr_valid (unsigned long addr)
 #define pte_mkclean(pte)	(__pte(pte_val(pte) & ~_PAGE_D))
 #define pte_mkdirty(pte)	(__pte(pte_val(pte) | _PAGE_D))
 #define pte_mkhuge(pte)		(__pte(pte_val(pte)))
+#define pte_mkspecial(pte)	(pte)
 
 /*
  * Because ia64's Icache and Dcache is not coherent (on a cpu), we need to
@@ -371,7 +374,7 @@ pgd_index (unsigned long address)
 /* The offset in the 1-level directory is given by the 3 region bits
    (61..63) and the level-1 bits.  */
 static inline pgd_t*
-pgd_offset (struct mm_struct *mm, unsigned long address)
+pgd_offset (const struct mm_struct *mm, unsigned long address)
 {
 	return mm->pgd + pgd_index(address);
 }

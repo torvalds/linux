@@ -16,7 +16,6 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 
-#include <asm/intc.h>
 #include <asm/sysreg.h>
 #include <asm/system.h>
 

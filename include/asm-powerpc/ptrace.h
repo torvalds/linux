@@ -58,6 +58,11 @@ struct pt_regs {
 #define __ARCH_WANT_COMPAT_SYS_PTRACE
 
 #define STACK_FRAME_OVERHEAD	112	/* size of minimum stack frame */
+#define STACK_FRAME_LR_SAVE	2	/* Location of LR in stack frame */
+#define STACK_FRAME_REGS_MARKER	ASM_CONST(0x7265677368657265)
+#define STACK_INT_FRAME_SIZE	(sizeof(struct pt_regs) + \
+					STACK_FRAME_OVERHEAD + 288)
+#define STACK_FRAME_MARKER	12
 
 /* Size of dummy stack frame allocated when calling signal handler. */
 #define __SIGNAL_FRAMESIZE	128
@@ -66,6 +71,10 @@ struct pt_regs {
 #else /* __powerpc64__ */
 
 #define STACK_FRAME_OVERHEAD	16	/* size of minimum stack frame */
+#define STACK_FRAME_LR_SAVE	1	/* Location of LR in stack frame */
+#define STACK_FRAME_REGS_MARKER	ASM_CONST(0x72656773)
+#define STACK_INT_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD)
+#define STACK_FRAME_MARKER	2
 
 /* Size of stack frame allocated when calling signal handler. */
 #define __SIGNAL_FRAMESIZE	64

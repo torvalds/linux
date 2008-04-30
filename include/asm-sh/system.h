@@ -146,6 +146,8 @@ extern unsigned int instruction_size(unsigned int insn);
 
 extern unsigned long cached_to_uncached;
 
+extern struct dentry *sh_debugfs_root;
+
 /* XXX
  * disable hlt during certain critical i/o operations
  */

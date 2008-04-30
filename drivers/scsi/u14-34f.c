@@ -1715,13 +1715,12 @@ static void flush_dev(struct scsi_device *dev, unsigned long cursec, unsigned in
 
 }
 
-static irqreturn_t ihdlr(int irq, unsigned int j) {
+static irqreturn_t ihdlr(unsigned int j)
+{
    struct scsi_cmnd *SCpnt;
    unsigned int i, k, c, status, tstatus, reg, ret;
    struct mscp *spp, *cpp;
-
-   if (sh[j]->irq != irq)
-       panic("%s: ihdlr, irq %d, sh[j]->irq %d.\n", BN(j), irq, sh[j]->irq);
+   int irq = sh[j]->irq;
 
    /* Check if this board need to be serviced */
    if (!((reg = inb(sh[j]->io_port + REG_SYS_INTR)) & IRQ_ASSERTED)) goto none;
@@ -1935,7 +1934,7 @@ static irqreturn_t do_interrupt_handler(int irq, void *shap) {
    if ((j = (unsigned int)((char *)shap - sha)) >= num_boards) return IRQ_NONE;
 
    spin_lock_irqsave(sh[j]->host_lock, spin_flags);
-   ret = ihdlr(irq, j);
+   ret = ihdlr(j);
    spin_unlock_irqrestore(sh[j]->host_lock, spin_flags);
    return ret;
 }

@@ -32,6 +32,7 @@
 #include <asm/mach/map.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/arch/idp.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/bitfield.h>

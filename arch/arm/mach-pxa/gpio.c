@@ -14,11 +14,14 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/irq.h>
+#include <linux/sysdev.h>
 
 #include <asm/gpio.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 
 #include "generic.h"
 
@@ -129,69 +132,283 @@ static void pxa_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 		__raw_writel(mask, pxa->regbase + GPCR_OFFSET);
 }
 
+#define GPIO_CHIP(_n)							\
+	[_n] = {							\
+		.regbase = GPIO##_n##_BASE,				\
+		.chip = {						\
+			.label		  = "gpio-" #_n,		\
+			.direction_input  = pxa_gpio_direction_input,	\
+			.direction_output = pxa_gpio_direction_output,	\
+			.get		  = pxa_gpio_get,		\
+			.set		  = pxa_gpio_set,		\
+			.base		  = (_n) * 32,			\
+			.ngpio		  = 32,				\
+		},							\
+	}
+
 static struct pxa_gpio_chip pxa_gpio_chip[] = {
-	[0] = {
-		.regbase = GPIO0_BASE,
-		.chip = {
-			.label            = "gpio-0",
-			.direction_input  = pxa_gpio_direction_input,
-			.direction_output = pxa_gpio_direction_output,
-			.get              = pxa_gpio_get,
-			.set              = pxa_gpio_set,
-			.base             = 0,
-			.ngpio            = 32,
-		},
-	},
-	[1] = {
-		.regbase = GPIO1_BASE,
-		.chip = {
-			.label            = "gpio-1",
-			.direction_input  = pxa_gpio_direction_input,
-			.direction_output = pxa_gpio_direction_output,
-			.get              = pxa_gpio_get,
-			.set              = pxa_gpio_set,
-			.base             = 32,
-			.ngpio            = 32,
-		},
-	},
-	[2] = {
-		.regbase = GPIO2_BASE,
-		.chip = {
-			.label            = "gpio-2",
-			.direction_input  = pxa_gpio_direction_input,
-			.direction_output = pxa_gpio_direction_output,
-			.get              = pxa_gpio_get,
-			.set              = pxa_gpio_set,
-			.base             = 64,
-			.ngpio            = 32, /* 21 for PXA25x */
-		},
-	},
+	GPIO_CHIP(0),
+	GPIO_CHIP(1),
+	GPIO_CHIP(2),
 #if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
-	[3] = {
-		.regbase = GPIO3_BASE,
-		.chip = {
-			.label            = "gpio-3",
-			.direction_input  = pxa_gpio_direction_input,
-			.direction_output = pxa_gpio_direction_output,
-			.get              = pxa_gpio_get,
-			.set              = pxa_gpio_set,
-			.base             = 96,
-			.ngpio            = 32,
-		},
-	},
+	GPIO_CHIP(3),
 #endif
 };
 
-void __init pxa_init_gpio(int gpio_nr)
+/*
+ * PXA GPIO edge detection for IRQs:
+ * IRQs are generated on Falling-Edge, Rising-Edge, or both.
+ * Use this instead of directly setting GRER/GFER.
+ */
+
+static unsigned long GPIO_IRQ_rising_edge[4];
+static unsigned long GPIO_IRQ_falling_edge[4];
+static unsigned long GPIO_IRQ_mask[4];
+
+/*
+ * On PXA25x and PXA27x, GAFRx and GPDRx together decide the alternate
+ * function of a GPIO, and GPDRx cannot be altered once configured. It
+ * is attributed as "occupied" here (I know this terminology isn't
+ * accurate, you are welcome to propose a better one :-)
+ */
+static int __gpio_is_occupied(unsigned gpio)
 {
-	int i;
+	if (cpu_is_pxa25x() || cpu_is_pxa27x())
+		return GAFR(gpio) & (0x3 << (((gpio) & 0xf) * 2));
+	else
+		return 0;
+}
+
+static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
+{
+	int gpio, idx;
+
+	gpio = IRQ_TO_GPIO(irq);
+	idx = gpio >> 5;
+
+	if (type == IRQ_TYPE_PROBE) {
+		/* Don't mess with enabled GPIOs using preconfigured edges or
+		 * GPIOs set to alternate function or to output during probe
+		 */
+		if ((GPIO_IRQ_rising_edge[idx] |
+		     GPIO_IRQ_falling_edge[idx] |
+		     GPDR(gpio)) & GPIO_bit(gpio))
+			return 0;
+
+		if (__gpio_is_occupied(gpio))
+			return 0;
+
+		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
+	}
+
+	GPDR(gpio) &= ~GPIO_bit(gpio);
+
+	if (type & IRQ_TYPE_EDGE_RISING)
+		__set_bit(gpio, GPIO_IRQ_rising_edge);
+	else
+		__clear_bit(gpio, GPIO_IRQ_rising_edge);
+
+	if (type & IRQ_TYPE_EDGE_FALLING)
+		__set_bit(gpio, GPIO_IRQ_falling_edge);
+	else
+		__clear_bit(gpio, GPIO_IRQ_falling_edge);
+
+	GRER(gpio) = GPIO_IRQ_rising_edge[idx] & GPIO_IRQ_mask[idx];
+	GFER(gpio) = GPIO_IRQ_falling_edge[idx] & GPIO_IRQ_mask[idx];
+
+	pr_debug("%s: IRQ%d (GPIO%d) - edge%s%s\n", __func__, irq, gpio,
+		((type & IRQ_TYPE_EDGE_RISING)  ? " rising"  : ""),
+		((type & IRQ_TYPE_EDGE_FALLING) ? " falling" : ""));
+	return 0;
+}
+
+/*
+ * GPIO IRQs must be acknowledged.  This is for GPIO 0 and 1.
+ */
+
+static void pxa_ack_low_gpio(unsigned int irq)
+{
+	GEDR0 = (1 << (irq - IRQ_GPIO0));
+}
+
+static void pxa_mask_low_gpio(unsigned int irq)
+{
+	ICMR &= ~(1 << (irq - PXA_IRQ(0)));
+}
+
+static void pxa_unmask_low_gpio(unsigned int irq)
+{
+	ICMR |= 1 << (irq - PXA_IRQ(0));
+}
+
+static struct irq_chip pxa_low_gpio_chip = {
+	.name		= "GPIO-l",
+	.ack		= pxa_ack_low_gpio,
+	.mask		= pxa_mask_low_gpio,
+	.unmask		= pxa_unmask_low_gpio,
+	.set_type	= pxa_gpio_irq_type,
+};
+
+/*
+ * Demux handler for GPIO>=2 edge detect interrupts
+ */
+
+#define GEDR_BITS	(sizeof(gedr) * BITS_PER_BYTE)
+
+static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
+{
+	int loop, bit, n;
+	unsigned long gedr[4];
+
+	do {
+		gedr[0] = GEDR0 & GPIO_IRQ_mask[0] & ~3;
+		gedr[1] = GEDR1 & GPIO_IRQ_mask[1];
+		gedr[2] = GEDR2 & GPIO_IRQ_mask[2];
+		gedr[3] = GEDR3 & GPIO_IRQ_mask[3];
+
+		GEDR0 = gedr[0]; GEDR1 = gedr[1];
+		GEDR2 = gedr[2]; GEDR3 = gedr[3];
+
+		loop = 0;
+		bit = find_first_bit(gedr, GEDR_BITS);
+		while (bit < GEDR_BITS) {
+			loop = 1;
+
+			n = PXA_GPIO_IRQ_BASE + bit;
+			desc_handle_irq(n, irq_desc + n);
+
+			bit = find_next_bit(gedr, GEDR_BITS, bit + 1);
+		}
+	} while (loop);
+}
+
+static void pxa_ack_muxed_gpio(unsigned int irq)
+{
+	int gpio = irq - IRQ_GPIO(2) + 2;
+	GEDR(gpio) = GPIO_bit(gpio);
+}
+
+static void pxa_mask_muxed_gpio(unsigned int irq)
+{
+	int gpio = irq - IRQ_GPIO(2) + 2;
+	__clear_bit(gpio, GPIO_IRQ_mask);
+	GRER(gpio) &= ~GPIO_bit(gpio);
+	GFER(gpio) &= ~GPIO_bit(gpio);
+}
+
+static void pxa_unmask_muxed_gpio(unsigned int irq)
+{
+	int gpio = irq - IRQ_GPIO(2) + 2;
+	int idx = gpio >> 5;
+	__set_bit(gpio, GPIO_IRQ_mask);
+	GRER(gpio) = GPIO_IRQ_rising_edge[idx] & GPIO_IRQ_mask[idx];
+	GFER(gpio) = GPIO_IRQ_falling_edge[idx] & GPIO_IRQ_mask[idx];
+}
+
+static struct irq_chip pxa_muxed_gpio_chip = {
+	.name		= "GPIO",
+	.ack		= pxa_ack_muxed_gpio,
+	.mask		= pxa_mask_muxed_gpio,
+	.unmask		= pxa_unmask_muxed_gpio,
+	.set_type	= pxa_gpio_irq_type,
+};
+
+void __init pxa_init_gpio(int gpio_nr, set_wake_t fn)
+{
+	int irq, i, gpio;
+
+	pxa_last_gpio = gpio_nr - 1;
+
+	/* clear all GPIO edge detects */
+	for (i = 0; i < gpio_nr; i += 32) {
+		GFER(i) = 0;
+		GRER(i) = 0;
+		GEDR(i) = GEDR(i);
+	}
+
+	/* GPIO 0 and 1 must have their mask bit always set */
+	GPIO_IRQ_mask[0] = 3;
+
+	for (irq = IRQ_GPIO0; irq <= IRQ_GPIO1; irq++) {
+		set_irq_chip(irq, &pxa_low_gpio_chip);
+		set_irq_handler(irq, handle_edge_irq);
+		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	}
+
+	for (irq = IRQ_GPIO(2); irq < IRQ_GPIO(gpio_nr); irq++) {
+		set_irq_chip(irq, &pxa_muxed_gpio_chip);
+		set_irq_handler(irq, handle_edge_irq);
+		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+	}
+
+	/* Install handler for GPIO>=2 edge detect interrupts */
+	set_irq_chained_handler(IRQ_GPIO_2_x, pxa_gpio_demux_handler);
+
+	pxa_low_gpio_chip.set_wake = fn;
+	pxa_muxed_gpio_chip.set_wake = fn;
 
 	/* add a GPIO chip for each register bank.
 	 * the last PXA25x register only contains 21 GPIOs
 	 */
-	for (i = 0; i < gpio_nr; i += 32) {
-		if (i+32 > gpio_nr)
-			pxa_gpio_chip[i/32].chip.ngpio = gpio_nr - i;
-		gpiochip_add(&pxa_gpio_chip[i/32].chip);
+	for (gpio = 0, i = 0; gpio < gpio_nr; gpio += 32, i++) {
+		if (gpio + 32 > gpio_nr)
+			pxa_gpio_chip[i].chip.ngpio = gpio_nr - gpio;
+		gpiochip_add(&pxa_gpio_chip[i].chip);
 	}
 }
+
+#ifdef CONFIG_PM
+
+static unsigned long saved_gplr[4];
+static unsigned long saved_gpdr[4];
+static unsigned long saved_grer[4];
+static unsigned long saved_gfer[4];
+
+static int pxa_gpio_suspend(struct sys_device *dev, pm_message_t state)
+{
+	int i, gpio;
+
+	for (gpio = 0, i = 0; gpio < pxa_last_gpio; gpio += 32, i++) {
+		saved_gplr[i] = GPLR(gpio);
+		saved_gpdr[i] = GPDR(gpio);
+		saved_grer[i] = GRER(gpio);
+		saved_gfer[i] = GFER(gpio);
+
+		/* Clear GPIO transition detect bits */
+		GEDR(gpio) = GEDR(gpio);
+	}
+	return 0;
+}
+
+static int pxa_gpio_resume(struct sys_device *dev)
+{
+	int i, gpio;
+
+	for (gpio = 0, i = 0; gpio < pxa_last_gpio; gpio += 32, i++) {
+		/* restore level with set/clear */
+		GPSR(gpio) = saved_gplr[i];
+		GPCR(gpio) = ~saved_gplr[i];
+
+		GRER(gpio) = saved_grer[i];
+		GFER(gpio) = saved_gfer[i];
+		GPDR(gpio) = saved_gpdr[i];
+	}
+	return 0;
+}
+#else
+#define pxa_gpio_suspend	NULL
+#define pxa_gpio_resume		NULL
+#endif
+
+struct sysdev_class pxa_gpio_sysclass = {
+	.name		= "gpio",
+	.suspend	= pxa_gpio_suspend,
+	.resume		= pxa_gpio_resume,
+};
+
+static int __init pxa_gpio_init(void)
+{
+	return sysdev_class_register(&pxa_gpio_sysclass);
+}
+
+core_initcall(pxa_gpio_init);

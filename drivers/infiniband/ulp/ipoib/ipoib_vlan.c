@@ -89,6 +89,7 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 		goto err;
 	}
 
+	priv->max_ib_mtu = ppriv->max_ib_mtu;
 	set_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags);
 
 	priv->pkey = pkey;

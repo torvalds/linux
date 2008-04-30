@@ -129,7 +129,7 @@ xfs_bulkstat_one_iget(
 	return error;
 }
 
-STATIC int
+STATIC void
 xfs_bulkstat_one_dinode(
 	xfs_mount_t	*mp,		/* mount point for filesystem */
 	xfs_ino_t	ino,		/* inode number to get data for */
@@ -198,8 +198,6 @@ xfs_bulkstat_one_dinode(
 		buf->bs_blocks = be64_to_cpu(dic->di_nblocks);
 		break;
 	}
-
-	return 0;
 }
 
 STATIC int
@@ -614,7 +612,8 @@ xfs_bulkstat(
 							xfs_buf_relse(bp);
 						error = xfs_itobp(mp, NULL, ip,
 								&dip, &bp, bno,
-								XFS_IMAP_BULKSTAT);
+								XFS_IMAP_BULKSTAT,
+								XFS_BUF_LOCK);
 						if (!error)
 							clustidx = ip->i_boffset / mp->m_sb.sb_inodesize;
 						kmem_zone_free(xfs_inode_zone, ip);

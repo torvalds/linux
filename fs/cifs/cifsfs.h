@@ -62,9 +62,7 @@ extern int cifs_setattr(struct dentry *, struct iattr *);
 
 extern const struct inode_operations cifs_file_inode_ops;
 extern const struct inode_operations cifs_symlink_inode_ops;
-extern struct list_head cifs_dfs_automount_list;
 extern struct inode_operations cifs_dfs_referral_inode_operations;
-
 
 
 /* Functions related to files and directories */

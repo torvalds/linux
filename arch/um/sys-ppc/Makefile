@@ -3,7 +3,7 @@ OBJ = built-in.o
 .S.o:
 	$(CC) $(KBUILD_AFLAGS) -D__ASSEMBLY__ -D__UM_PPC__ -c $< -o $*.o
 
-OBJS = ptrace.o sigcontext.o semaphore.o checksum.o miscthings.o misc.o \
+OBJS = ptrace.o sigcontext.o checksum.o miscthings.o misc.o \
 	ptrace_user.o sysrq.o
 
 EXTRA_AFLAGS := -DCONFIG_PPC32 -I. -I$(srctree)/arch/ppc/kernel
@@ -19,10 +19,6 @@ ptrace_user.o: ptrace_user.c
 
 sigcontext.o: sigcontext.c
 	$(CC) $(USER_CFLAGS) $(EXTRA_CFLAGS) -c -o $@ $<
-
-semaphore.c:
-	rm -f $@
-	ln -s $(srctree)/arch/ppc/kernel/$@ $@
 
 checksum.S:
 	rm -f $@
@@ -66,4 +62,4 @@ misc.o: misc.S ppc_defs.h
 	$(CC) $(EXTRA_AFLAGS) $(KBUILD_AFLAGS) -D__ASSEMBLY__ -D__UM_PPC__ -c $< -o $*.o
 	rm -f asm
 
-clean-files := $(OBJS) ppc_defs.h checksum.S semaphore.c mk_defs.c
+clean-files := $(OBJS) ppc_defs.h checksum.S mk_defs.c

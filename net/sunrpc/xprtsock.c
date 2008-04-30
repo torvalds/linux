@@ -136,12 +136,6 @@ static ctl_table sunrpc_table[] = {
 #endif
 
 /*
- * How many times to try sending a request on a socket before waiting
- * for the socket buffer to clear.
- */
-#define XS_SENDMSG_RETRY	(10U)
-
-/*
  * Time out for an RPC UDP socket connect.  UDP socket connects are
  * synchronous, but we set a timeout anyway in case of resource
  * exhaustion on the local host.
@@ -516,6 +510,14 @@ out:
 	return sent;
 }
 
+static void xs_nospace_callback(struct rpc_task *task)
+{
+	struct sock_xprt *transport = container_of(task->tk_rqstp->rq_xprt, struct sock_xprt, xprt);
+
+	transport->inet->sk_write_pending--;
+	clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
+}
+
 /**
  * xs_nospace - place task on wait queue if transmit was incomplete
  * @task: task to put to sleep
@@ -531,20 +533,27 @@ static void xs_nospace(struct rpc_task *task)
 			task->tk_pid, req->rq_slen - req->rq_bytes_sent,
 			req->rq_slen);
 
-	if (test_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags)) {
-		/* Protect against races with write_space */
-		spin_lock_bh(&xprt->transport_lock);
+	/* Protect against races with write_space */
+	spin_lock_bh(&xprt->transport_lock);
 
-		/* Don't race with disconnect */
-		if (!xprt_connected(xprt))
-			task->tk_status = -ENOTCONN;
-		else if (test_bit(SOCK_NOSPACE, &transport->sock->flags))
-			xprt_wait_for_buffer_space(task);
+	/* Don't race with disconnect */
+	if (xprt_connected(xprt)) {
+		if (test_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags)) {
+			/*
+			 * Notify TCP that we're limited by the application
+			 * window size
+			 */
+			set_bit(SOCK_NOSPACE, &transport->sock->flags);
+			transport->inet->sk_write_pending++;
+			/* ...and wait for more buffer space */
+			xprt_wait_for_buffer_space(task, xs_nospace_callback);
+		}
+	} else {
+		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
+		task->tk_status = -ENOTCONN;
+	}
 
-		spin_unlock_bh(&xprt->transport_lock);
-	} else
-		/* Keep holding the socket if it is blocked */
-		rpc_delay(task, HZ>>4);
+	spin_unlock_bh(&xprt->transport_lock);
 }
 
 /**
@@ -588,19 +597,20 @@ static int xs_udp_send_request(struct rpc_task *task)
 	}
 
 	switch (status) {
+	case -EAGAIN:
+		xs_nospace(task);
+		break;
 	case -ENETUNREACH:
 	case -EPIPE:
 	case -ECONNREFUSED:
 		/* When the server has died, an ICMP port unreachable message
 		 * prompts ECONNREFUSED. */
-		break;
-	case -EAGAIN:
-		xs_nospace(task);
+		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
 		break;
 	default:
+		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
 			-status);
-		break;
 	}
 
 	return status;
@@ -650,7 +660,6 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct xdr_buf *xdr = &req->rq_snd_buf;
 	int status;
-	unsigned int retry = 0;
 
 	xs_encode_tcp_record_marker(&req->rq_snd_buf);
 
@@ -681,9 +690,10 @@ static int xs_tcp_send_request(struct rpc_task *task)
 			return 0;
 		}
 
+		if (status != 0)
+			continue;
 		status = -EAGAIN;
-		if (retry++ > XS_SENDMSG_RETRY)
-			break;
+		break;
 	}
 
 	switch (status) {
@@ -695,12 +705,13 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	case -ENOTCONN:
 	case -EPIPE:
 		status = -ENOTCONN;
+		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
 		break;
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
 			-status);
+		clear_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags);
 		xs_tcp_shutdown(xprt);
-		break;
 	}
 
 	return status;
@@ -1073,6 +1084,7 @@ static void xs_tcp_data_ready(struct sock *sk, int bytes)
 {
 	struct rpc_xprt *xprt;
 	read_descriptor_t rd_desc;
+	int read;
 
 	dprintk("RPC:       xs_tcp_data_ready...\n");
 
@@ -1084,8 +1096,10 @@ static void xs_tcp_data_ready(struct sock *sk, int bytes)
 
 	/* We use rd_desc to pass struct xprt to xs_tcp_data_recv */
 	rd_desc.arg.data = xprt;
-	rd_desc.count = 65536;
-	tcp_read_sock(sk, &rd_desc, xs_tcp_data_recv);
+	do {
+		rd_desc.count = 65536;
+		read = tcp_read_sock(sk, &rd_desc, xs_tcp_data_recv);
+	} while (read > 0);
 out:
 	read_unlock(&sk->sk_callback_lock);
 }
@@ -1128,6 +1142,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		break;
 	case TCP_FIN_WAIT1:
 		/* The client initiated a shutdown of the socket */
+		xprt->connect_cookie++;
 		xprt->reestablish_timeout = 0;
 		set_bit(XPRT_CLOSING, &xprt->state);
 		smp_mb__before_clear_bit();
@@ -1140,6 +1155,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		set_bit(XPRT_CLOSING, &xprt->state);
 		xprt_force_disconnect(xprt);
 	case TCP_SYN_SENT:
+		xprt->connect_cookie++;
 	case TCP_CLOSING:
 		/*
 		 * If the server closed down the connection, make sure that
@@ -1186,9 +1202,11 @@ static void xs_udp_write_space(struct sock *sk)
 
 		if (unlikely(!(sock = sk->sk_socket)))
 			goto out;
+		clear_bit(SOCK_NOSPACE, &sock->flags);
+
 		if (unlikely(!(xprt = xprt_from_sock(sk))))
 			goto out;
-		if (unlikely(!test_and_clear_bit(SOCK_NOSPACE, &sock->flags)))
+		if (test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags) == 0)
 			goto out;
 
 		xprt_write_space(xprt);
@@ -1219,9 +1237,11 @@ static void xs_tcp_write_space(struct sock *sk)
 
 		if (unlikely(!(sock = sk->sk_socket)))
 			goto out;
+		clear_bit(SOCK_NOSPACE, &sock->flags);
+
 		if (unlikely(!(xprt = xprt_from_sock(sk))))
 			goto out;
-		if (unlikely(!test_and_clear_bit(SOCK_NOSPACE, &sock->flags)))
+		if (test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags) == 0)
 			goto out;
 
 		xprt_write_space(xprt);
@@ -1359,7 +1379,7 @@ static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 			nloop++;
 	} while (err == -EADDRINUSE && nloop != 2);
 	dprintk("RPC:       %s "NIPQUAD_FMT":%u: %s (%d)\n",
-			__FUNCTION__, NIPQUAD(myaddr.sin_addr),
+			__func__, NIPQUAD(myaddr.sin_addr),
 			port, err ? "failed" : "ok", err);
 	return err;
 }

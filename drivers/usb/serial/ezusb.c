@@ -27,13 +27,13 @@ int ezusb_writememory (struct usb_serial *serial, int address, unsigned char *da
 
 	/* dbg("ezusb_writememory %x, %d", address, length); */
 	if (!serial->dev) {
-		err("%s - no physical device present, failing.", __FUNCTION__);
+		err("%s - no physical device present, failing.", __func__);
 		return -ENODEV;
 	}
 
 	transfer_buffer = kmemdup(data, length, GFP_KERNEL);
 	if (!transfer_buffer) {
-		dev_err(&serial->dev->dev, "%s - kmalloc(%d) failed.\n", __FUNCTION__, length);
+		dev_err(&serial->dev->dev, "%s - kmalloc(%d) failed.\n", __func__, length);
 		return -ENOMEM;
 	}
 	result = usb_control_msg (serial->dev, usb_sndctrlpipe(serial->dev, 0), bRequest, 0x40, address, 0, transfer_buffer, length, 3000);
@@ -45,10 +45,10 @@ int ezusb_set_reset (struct usb_serial *serial, unsigned char reset_bit)
 {
 	int response;
 
-	/* dbg("%s - %d", __FUNCTION__, reset_bit); */
+	/* dbg("%s - %d", __func__, reset_bit); */
 	response = ezusb_writememory (serial, CPUCS_REG, &reset_bit, 1, 0xa0);
 	if (response < 0)
-		dev_err(&serial->dev->dev, "%s- %d failed\n", __FUNCTION__, reset_bit);
+		dev_err(&serial->dev->dev, "%s- %d failed\n", __func__, reset_bit);
 	return response;
 }
 

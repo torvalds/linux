@@ -133,7 +133,7 @@ static void av7110_emit_key(unsigned long parm)
 		break;
 
 	default:
-		printk("%s invalid protocol %x\n", __FUNCTION__, ir->protocol);
+		printk("%s invalid protocol %x\n", __func__, ir->protocol);
 		return;
 	}
 
@@ -143,7 +143,7 @@ static void av7110_emit_key(unsigned long parm)
 	keycode = ir->key_map[data];
 
 	dprintk(16, "%s: code %08x -> addr %i data 0x%02x -> keycode %i\n",
-		__FUNCTION__, ircom, addr, data, keycode);
+		__func__, ircom, addr, data, keycode);
 
 	/* check device address */
 	if (!(ir->device_mask & (1 << addr)))
@@ -151,7 +151,7 @@ static void av7110_emit_key(unsigned long parm)
 
 	if (!keycode) {
 		printk ("%s: code %08x -> addr %i data 0x%02x -> unknown key!\n",
-			__FUNCTION__, ircom, addr, data);
+			__func__, ircom, addr, data);
 		return;
 	}
 

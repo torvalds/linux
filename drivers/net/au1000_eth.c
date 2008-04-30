@@ -701,7 +701,7 @@ static struct net_device * au1000_probe(int port_num)
 	aup->mii_bus.write = mdiobus_write;
 	aup->mii_bus.reset = mdiobus_reset;
 	aup->mii_bus.name = "au1000_eth_mii";
-	aup->mii_bus.id = aup->mac_id;
+	snprintf(aup->mii_bus.id, MII_BUS_ID_SIZE, "%x", aup->mac_id);
 	aup->mii_bus.irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	for(i = 0; i < PHY_MAX_ADDR; ++i)
 		aup->mii_bus.irq[i] = PHY_POLL;
@@ -709,11 +709,11 @@ static struct net_device * au1000_probe(int port_num)
 	/* if known, set corresponding PHY IRQs */
 #if defined(AU1XXX_PHY_STATIC_CONFIG)
 # if defined(AU1XXX_PHY0_IRQ)
-	if (AU1XXX_PHY0_BUSID == aup->mii_bus.id)
+	if (AU1XXX_PHY0_BUSID == aup->mac_id)
 		aup->mii_bus.irq[AU1XXX_PHY0_ADDR] = AU1XXX_PHY0_IRQ;
 # endif
 # if defined(AU1XXX_PHY1_IRQ)
-	if (AU1XXX_PHY1_BUSID == aup->mii_bus.id)
+	if (AU1XXX_PHY1_BUSID == aup->mac_id)
 		aup->mii_bus.irq[AU1XXX_PHY1_ADDR] = AU1XXX_PHY1_IRQ;
 # endif
 #endif

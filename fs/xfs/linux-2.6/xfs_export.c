@@ -22,6 +22,7 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
+#include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_export.h"
@@ -29,8 +30,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 #include "xfs_vfsops.h"
-
-static struct dentry dotdot = { .d_name.name = "..", .d_name.len = 2, };
 
 /*
  * Note that we only accept fileids which are long enough rather than allow
@@ -66,7 +65,7 @@ xfs_fs_encode_fh(
 	int			len;
 
 	/* Directories don't need their parent encoded, they have ".." */
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(inode->i_mode) || !connectable)
 		fileid_type = FILEID_INO32_GEN;
 	else
 		fileid_type = FILEID_INO32_GEN_PARENT;
@@ -213,17 +212,16 @@ xfs_fs_get_parent(
 	struct dentry		*child)
 {
 	int			error;
-	bhv_vnode_t		*cvp;
+	struct xfs_inode	*cip;
 	struct dentry		*parent;
 
-	cvp = NULL;
-	error = xfs_lookup(XFS_I(child->d_inode), &dotdot, &cvp);
+	error = xfs_lookup(XFS_I(child->d_inode), &xfs_name_dotdot, &cip);
 	if (unlikely(error))
 		return ERR_PTR(-error);
 
-	parent = d_alloc_anon(vn_to_inode(cvp));
+	parent = d_alloc_anon(cip->i_vnode);
 	if (unlikely(!parent)) {
-		VN_RELE(cvp);
+		iput(cip->i_vnode);
 		return ERR_PTR(-ENOMEM);
 	}
 	return parent;

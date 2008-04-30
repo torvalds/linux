@@ -17,19 +17,27 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 
-#include "prcm-regs.h"
+#include <asm/io.h>
+
+#include "prm.h"
+#include "prm-regbits-24xx.h"
 
 extern void omap2_clk_prepare_for_reboot(void);
 
 u32 omap_prcm_get_reset_sources(void)
 {
-	return RM_RSTST_WKUP & 0x7f;
+	return prm_read_mod_reg(WKUP_MOD, RM_RSTST) & 0x7f;
 }
 EXPORT_SYMBOL(omap_prcm_get_reset_sources);
 
 /* Resets clock rates and reboots the system. Only called from system.h */
 void omap_prcm_arch_reset(char mode)
 {
+	u32 wkup;
 	omap2_clk_prepare_for_reboot();
-	RM_RSTCTRL_WKUP |= 2;
+
+	if (cpu_is_omap24xx()) {
+		wkup = prm_read_mod_reg(WKUP_MOD, RM_RSTCTRL) | OMAP_RST_DPLL3;
+		prm_write_mod_reg(wkup, WKUP_MOD, RM_RSTCTRL);
+	}
 }

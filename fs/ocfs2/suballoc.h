@@ -36,6 +36,7 @@ typedef int (group_search_t)(struct inode *,
 struct ocfs2_alloc_context {
 	struct inode *ac_inode;    /* which bitmap are we allocating from? */
 	struct buffer_head *ac_bh; /* file entry bh */
+	u32    ac_alloc_slot;   /* which slot are we allocating from? */
 	u32    ac_bits_wanted;
 	u32    ac_bits_given;
 #define OCFS2_AC_USE_LOCAL 1

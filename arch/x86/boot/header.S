@@ -22,6 +22,7 @@
 #include <asm/page.h>
 #include <asm/setup.h>
 #include "boot.h"
+#include "offsets.h"
 
 SETUPSECTS	= 4			/* default nr of setup-sectors */
 BOOTSEG		= 0x07C0		/* original address of boot-sector */
@@ -119,7 +120,7 @@ _start:
 	# Part 2 of the header, from the old setup.S
 
 		.ascii	"HdrS"		# header signature
-		.word	0x0207		# header version number (>= 0x0105)
+		.word	0x0209		# header version number (>= 0x0105)
 					# or else old loadlin-1.5 will fail)
 		.globl realmode_swtch
 realmode_swtch:	.word	0, 0		# default_switch, SETUPSEG
@@ -222,6 +223,13 @@ hardware_subarch:	.long 0			# subarchitecture, added with 2.07
 						# default to 0 for normal x86 PC
 
 hardware_subarch_data:	.quad 0
+
+payload_offset:		.long input_data
+payload_length:		.long input_data_end-input_data
+
+setup_data:		.quad 0			# 64-bit physical pointer to
+						# single linked list of
+						# struct setup_data
 
 # End of setup header #####################################################
 

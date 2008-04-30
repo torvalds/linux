@@ -360,7 +360,10 @@ struct stat_block {
 #define MAX_TX_FIFOS 8
 #define MAX_RX_RINGS 8
 
-#define FIFO_DEFAULT_NUM	1
+#define FIFO_DEFAULT_NUM	5
+#define FIFO_UDP_MAX_NUM			2 /* 0 - even, 1 -odd ports */
+#define FIFO_OTHER_MAX_NUM			1
+
 
 #define MAX_RX_DESC_1  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 127 )
 #define MAX_RX_DESC_2  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 85 )
@@ -378,6 +381,8 @@ static int fifo_map[][MAX_TX_FIFOS] = {
 	{0, 0, 1, 2, 3, 4, 5, 6},
 	{0, 1, 2, 3, 4, 5, 6, 7},
 };
+
+static u16 fifo_selector[MAX_TX_FIFOS] = {0, 1, 3, 3, 7, 7, 7, 7};
 
 /* Maintains Per FIFO related information. */
 struct tx_fifo_config {
@@ -431,6 +436,12 @@ struct config_param {
 /* Tx Side */
 	u32 tx_fifo_num;	/*Number of Tx FIFOs */
 
+	/* 0-No steering, 1-Priority steering, 2-Default fifo map */
+#define	NO_STEERING				0
+#define	TX_PRIORITY_STEERING			0x1
+#define TX_DEFAULT_STEERING 			0x2
+	u8 tx_steering_type;
+
 	u8 fifo_mapping[MAX_TX_FIFOS];
 	struct tx_fifo_config tx_cfg[MAX_TX_FIFOS];	/*Per-Tx FIFO config */
 	u32 max_txds;		/*Max no. of Tx buffer descriptor per TxDL */
@@ -464,6 +475,7 @@ struct config_param {
 	int max_mc_addr;	/* xena=64 herc=256 */
 	int max_mac_addr;	/* xena=16 herc=64 */
 	int mc_start_offset;	/* xena=16 herc=64 */
+	u8 multiq;
 };
 
 /* Structure representing MAC Addrs */
@@ -534,6 +546,7 @@ struct RxD_t {
 #define RXD_OWN_XENA            s2BIT(7)
 #define RXD_T_CODE              (s2BIT(12)|s2BIT(13)|s2BIT(14)|s2BIT(15))
 #define RXD_FRAME_PROTO         vBIT(0xFFFF,24,8)
+#define RXD_FRAME_VLAN_TAG      s2BIT(24)
 #define RXD_FRAME_PROTO_IPV4    s2BIT(27)
 #define RXD_FRAME_PROTO_IPV6    s2BIT(28)
 #define RXD_FRAME_IP_FRAG	s2BIT(29)
@@ -690,9 +703,6 @@ struct ring_info {
 	 */
 	struct rx_curr_get_info rx_curr_get_info;
 
-	/* Index to the absolute position of the put pointer of Rx ring */
-	int put_pos;
-
 	/* Buffer Address store. */
 	struct buffAdd **ba;
 	struct s2io_nic *nic;
@@ -720,6 +730,15 @@ struct fifo_info {
 	 * the buffers
 	 */
 	struct tx_curr_get_info tx_curr_get_info;
+#define FIFO_QUEUE_START 0
+#define FIFO_QUEUE_STOP 1
+	int queue_state;
+
+	/* copy of sp->dev pointer */
+	struct net_device *dev;
+
+	/* copy of multiq status */
+	u8 multiq;
 
 	/* Per fifo lock */
 	spinlock_t tx_lock;
@@ -808,10 +827,11 @@ struct lro {
 	int		sg_num;
 	int		in_use;
 	__be16		window;
+	u16             vlan_tag;
 	u32		cur_tsval;
 	__be32		cur_tsecr;
 	u8		saw_ts;
-};
+} ____cacheline_aligned;
 
 /* These flags represent the devices temporary state */
 enum s2io_device_state_t
@@ -845,8 +865,6 @@ struct s2io_nic {
 	int device_enabled_once;
 
 	char name[60];
-	struct tasklet_struct task;
-	volatile unsigned long tasklet_status;
 
 	/* Timer that handles I/O errors/exceptions */
 	struct timer_list alarm_timer;
@@ -855,8 +873,6 @@ struct s2io_nic {
 	u32 config_space[256 / sizeof(u32)];
 
 	atomic_t rx_bufs_left[MAX_RX_RINGS];
-
-	spinlock_t put_lock;
 
 #define PROMISC     1
 #define ALL_MULTI   2
@@ -884,6 +900,27 @@ struct s2io_nic {
 	 * offload feature.
 	 */
 	int rx_csum;
+
+	/* Below variables are used for fifo selection to transmit a packet */
+	u16 fifo_selector[MAX_TX_FIFOS];
+
+	/* Total fifos for tcp packets */
+	u8 total_tcp_fifos;
+
+	/*
+	* Beginning index of udp for udp packets
+	* Value will be equal to
+	* (tx_fifo_num - FIFO_UDP_MAX_NUM - FIFO_OTHER_MAX_NUM)
+	*/
+	u8 udp_fifo_idx;
+
+	u8 total_udp_fifos;
+
+	/*
+	 * Beginning index of fifo for all other packets
+	 * Value will be equal to (tx_fifo_num - FIFO_OTHER_MAX_NUM)
+	*/
+	u8 other_fifo_idx;
 
 	/*  after blink, the adapter must be restored with original
 	 *  values.
@@ -920,7 +957,6 @@ struct s2io_nic {
 	u8		lro;
 	u16		lro_max_aggr_per_sess;
 	volatile unsigned long state;
-	spinlock_t	rx_lock;
 	u64		general_int_mask;
 #define VPD_STRING_LEN 80
 	u8  product_name[VPD_STRING_LEN];
@@ -1050,7 +1086,6 @@ static void s2io_handle_errors(void * dev_id);
 static int s2io_starter(void);
 static void s2io_closer(void);
 static void s2io_tx_watchdog(struct net_device *dev);
-static void s2io_tasklet(unsigned long dev_addr);
 static void s2io_set_multicast(struct net_device *dev);
 static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp);
 static void s2io_link(struct s2io_nic * sp, int link);
@@ -1087,7 +1122,7 @@ static int
 s2io_club_tcp_session(u8 *buffer, u8 **tcp, u32 *tcp_len, struct lro **lro,
 		      struct RxD_t *rxdp, struct s2io_nic *sp);
 static void clear_lro_session(struct lro *lro);
-static void queue_rx_frame(struct sk_buff *skb);
+static void queue_rx_frame(struct sk_buff *skb, u16 vlan_tag);
 static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro);
 static void lro_append_pkt(struct s2io_nic *sp, struct lro *lro,
 			   struct sk_buff *skb, u32 tcp_len);

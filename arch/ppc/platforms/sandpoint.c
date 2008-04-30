@@ -71,7 +71,6 @@
 #include <linux/initrd.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/ide.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/serial.h>
@@ -559,93 +558,6 @@ sandpoint_show_cpuinfo(struct seq_file *m)
 	return 0;
 }
 
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-/*
- * IDE support.
- */
-static int		sandpoint_ide_ports_known = 0;
-static unsigned long	sandpoint_ide_regbase[MAX_HWIFS];
-static unsigned long	sandpoint_ide_ctl_regbase[MAX_HWIFS];
-static unsigned long	sandpoint_idedma_regbase;
-
-static void
-sandpoint_ide_probe(void)
-{
-	struct pci_dev *pdev = pci_get_device(PCI_VENDOR_ID_WINBOND,
-			PCI_DEVICE_ID_WINBOND_82C105, NULL);
-
-	if (pdev) {
-		sandpoint_ide_regbase[0]=pdev->resource[0].start;
-		sandpoint_ide_regbase[1]=pdev->resource[2].start;
-		sandpoint_ide_ctl_regbase[0]=pdev->resource[1].start;
-		sandpoint_ide_ctl_regbase[1]=pdev->resource[3].start;
-		sandpoint_idedma_regbase=pdev->resource[4].start;
-		pci_dev_put(pdev);
-	}
-
-	sandpoint_ide_ports_known = 1;
-}
-
-static int
-sandpoint_ide_default_irq(unsigned long base)
-{
-	if (sandpoint_ide_ports_known == 0)
-		sandpoint_ide_probe();
-
-	if (base == sandpoint_ide_regbase[0])
-		return SANDPOINT_IDE_INT0;
-	else if (base == sandpoint_ide_regbase[1])
-		return SANDPOINT_IDE_INT1;
-	else
-		return 0;
-}
-
-static unsigned long
-sandpoint_ide_default_io_base(int index)
-{
-	if (sandpoint_ide_ports_known == 0)
-		sandpoint_ide_probe();
-
-	return sandpoint_ide_regbase[index];
-}
-
-static void __init
-sandpoint_ide_init_hwif_ports(hw_regs_t *hw, unsigned long data_port,
-		unsigned long ctrl_port, int *irq)
-{
-	unsigned long reg = data_port;
-	uint	alt_status_base;
-	int	i;
-
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-		hw->io_ports[i] = reg++;
-	}
-
-	if (data_port == sandpoint_ide_regbase[0]) {
-		alt_status_base = sandpoint_ide_ctl_regbase[0] + 2;
-		hw->irq = 14;
-	}
-	else if (data_port == sandpoint_ide_regbase[1]) {
-		alt_status_base = sandpoint_ide_ctl_regbase[1] + 2;
-		hw->irq = 15;
-	}
-	else {
-		alt_status_base = 0;
-		hw->irq = 0;
-	}
-
-	if (ctrl_port) {
-		hw->io_ports[IDE_CONTROL_OFFSET] = ctrl_port;
-	} else {
-		hw->io_ports[IDE_CONTROL_OFFSET] = alt_status_base;
-	}
-
-	if (irq != NULL) {
-		*irq = hw->irq;
-	}
-}
-#endif
-
 /*
  * Set BAT 3 to map 0xf8000000 to end of physical memory space 1-to-1.
  */
@@ -735,11 +647,5 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #endif
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	ppc_md.progress = gen550_progress;
-#endif
-
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-	ppc_ide_md.default_irq = sandpoint_ide_default_irq;
-	ppc_ide_md.default_io_base = sandpoint_ide_default_io_base;
-	ppc_ide_md.ide_init_hwif = sandpoint_ide_init_hwif_ports;
 #endif
 }

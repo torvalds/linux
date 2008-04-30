@@ -110,7 +110,7 @@
  */
 static void usb_stor_blocking_completion(struct urb *urb)
 {
-	struct completion *urb_done_ptr = (struct completion *)urb->context;
+	struct completion *urb_done_ptr = urb->context;
 
 	complete(urb_done_ptr);
 }
@@ -198,7 +198,7 @@ int usb_stor_control_msg(struct us_data *us, unsigned int pipe,
 	int status;
 
 	US_DEBUGP("%s: rq=%02x rqtype=%02x value=%04x index=%02x len=%u\n",
-			__FUNCTION__, request, requesttype,
+			__func__, request, requesttype,
 			value, index, size);
 
 	/* fill in the devrequest structure */
@@ -250,7 +250,7 @@ int usb_stor_clear_halt(struct us_data *us, unsigned int pipe)
 		usb_settoggle(us->pusb_dev, usb_pipeendpoint(pipe),
 				usb_pipeout(pipe), 0);
 
-	US_DEBUGP("%s: result = %d\n", __FUNCTION__, result);
+	US_DEBUGP("%s: result = %d\n", __func__, result);
 	return result;
 }
 
@@ -332,7 +332,7 @@ int usb_stor_ctrl_transfer(struct us_data *us, unsigned int pipe,
 	int result;
 
 	US_DEBUGP("%s: rq=%02x rqtype=%02x value=%04x index=%02x len=%u\n",
-			__FUNCTION__, request, requesttype,
+			__func__, request, requesttype,
 			value, index, size);
 
 	/* fill in the devrequest structure */
@@ -366,7 +366,7 @@ static int usb_stor_intr_transfer(struct us_data *us, void *buf,
 	unsigned int pipe = us->recv_intr_pipe;
 	unsigned int maxp;
 
-	US_DEBUGP("%s: xfer %u bytes\n", __FUNCTION__, length);
+	US_DEBUGP("%s: xfer %u bytes\n", __func__, length);
 
 	/* calculate the max packet size */
 	maxp = usb_maxpacket(us->pusb_dev, pipe, usb_pipeout(pipe));
@@ -393,7 +393,7 @@ int usb_stor_bulk_transfer_buf(struct us_data *us, unsigned int pipe,
 {
 	int result;
 
-	US_DEBUGP("%s: xfer %u bytes\n", __FUNCTION__, length);
+	US_DEBUGP("%s: xfer %u bytes\n", __func__, length);
 
 	/* fill and submit the URB */
 	usb_fill_bulk_urb(us->current_urb, us->pusb_dev, pipe, buf, length,
@@ -424,7 +424,7 @@ static int usb_stor_bulk_transfer_sglist(struct us_data *us, unsigned int pipe,
 		return USB_STOR_XFER_ERROR;
 
 	/* initialize the scatter-gather request block */
-	US_DEBUGP("%s: xfer %u bytes, %d entries\n", __FUNCTION__,
+	US_DEBUGP("%s: xfer %u bytes, %d entries\n", __func__,
 			length, num_sg);
 	result = usb_sg_init(&us->current_sg, us->pusb_dev, pipe, 0,
 			sg, num_sg, length, GFP_NOIO);
@@ -603,7 +603,8 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, US_SENSE_SIZE);
 
 		/* FIXME: we must do the protocol translation here */
-		if (us->subclass == US_SC_RBC || us->subclass == US_SC_SCSI)
+		if (us->subclass == US_SC_RBC || us->subclass == US_SC_SCSI ||
+				us->subclass == US_SC_CYP_ATACB)
 			srb->cmd_len = 6;
 		else
 			srb->cmd_len = 12;
@@ -700,7 +701,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 /* Stop the current URB transfer */
 void usb_stor_stop_transport(struct us_data *us)
 {
-	US_DEBUGP("%s called\n", __FUNCTION__);
+	US_DEBUGP("%s called\n", __func__);
 
 	/* If the state machine is blocked waiting for an URB,
 	 * let's wake it up.  The test_and_clear_bit() call
@@ -1134,7 +1135,7 @@ static int usb_stor_reset_common(struct us_data *us,
 
 int usb_stor_CB_reset(struct us_data *us)
 {
-	US_DEBUGP("%s called\n", __FUNCTION__);
+	US_DEBUGP("%s called\n", __func__);
 
 	memset(us->iobuf, 0xFF, CB_RESET_CMD_SIZE);
 	us->iobuf[0] = SEND_DIAGNOSTIC;
@@ -1149,7 +1150,7 @@ int usb_stor_CB_reset(struct us_data *us)
  */
 int usb_stor_Bulk_reset(struct us_data *us)
 {
-	US_DEBUGP("%s called\n", __FUNCTION__);
+	US_DEBUGP("%s called\n", __func__);
 
 	return usb_stor_reset_common(us, US_BULK_RESET_REQUEST, 
 				 USB_TYPE_CLASS | USB_RECIP_INTERFACE,

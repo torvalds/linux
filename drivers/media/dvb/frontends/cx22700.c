@@ -73,13 +73,13 @@ static int cx22700_writereg (struct cx22700_state* state, u8 reg, u8 data)
 	u8 buf [] = { reg, data };
 	struct i2c_msg msg = { .addr = state->config->demod_address, .flags = 0, .buf = buf, .len = 2 };
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	ret = i2c_transfer (state->i2c, &msg, 1);
 
 	if (ret != 1)
 		printk("%s: writereg error (reg == 0x%02x, val == 0x%02x, ret == %i)\n",
-			__FUNCTION__, reg, data, ret);
+			__func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -92,7 +92,7 @@ static int cx22700_readreg (struct cx22700_state* state, u8 reg)
 	struct i2c_msg msg [] = { { .addr = state->config->demod_address, .flags = 0, .buf = b0, .len = 1 },
 			   { .addr = state->config->demod_address, .flags = I2C_M_RD, .buf = b1, .len = 1 } };
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	ret = i2c_transfer (state->i2c, msg, 2);
 
@@ -105,7 +105,7 @@ static int cx22700_set_inversion (struct cx22700_state* state, int inversion)
 {
 	u8 val;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	switch (inversion) {
 	case INVERSION_AUTO:
@@ -127,7 +127,7 @@ static int cx22700_set_tps (struct cx22700_state *state, struct dvb_ofdm_paramet
 	static const u8 fec_tab [6] = { 0, 1, 2, 0, 3, 4 };
 	u8 val;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (p->code_rate_HP < FEC_1_2 || p->code_rate_HP > FEC_7_8)
 		return -EINVAL;
@@ -191,7 +191,7 @@ static int cx22700_get_tps (struct cx22700_state* state, struct dvb_ofdm_paramet
 						    FEC_5_6, FEC_7_8 };
 	u8 val;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (!(cx22700_readreg(state, 0x07) & 0x20))  /*  tps valid? */
 		return -EAGAIN;

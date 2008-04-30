@@ -2,7 +2,6 @@
 #define __PMAC_H__
 
 #include <linux/pci.h>
-#include <linux/ide.h>
 #include <linux/irq.h>
 
 /*
@@ -34,10 +33,6 @@ extern void pmac_setup_pci_dma(void);
 extern void pmac_check_ht_link(void);
 
 extern void pmac_setup_smp(void);
-
-extern unsigned long pmac_ide_get_base(int index);
-extern void pmac_ide_init_hwif_ports(hw_regs_t *hw,
-	unsigned long data_port, unsigned long ctrl_port, int *irq);
 
 extern int pmac_nvram_init(void);
 extern void pmac_pic_init(void);

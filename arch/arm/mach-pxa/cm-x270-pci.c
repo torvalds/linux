@@ -23,6 +23,7 @@
 #include <asm/mach/pci.h>
 #include <asm/arch/cm-x270.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/mach-types.h>
 
 #include <asm/hardware/it8152.h>

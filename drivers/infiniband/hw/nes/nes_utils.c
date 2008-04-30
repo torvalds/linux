@@ -566,7 +566,7 @@ struct nes_cqp_request *nes_get_cqp_request(struct nes_device *nesdev)
 				cqp_request);
 	} else
 		printk(KERN_ERR PFX "%s: Could not allocated a CQP request.\n",
-			   __FUNCTION__);
+			   __func__);
 
 	return cqp_request;
 }
@@ -660,7 +660,9 @@ int nes_arp_table(struct nes_device *nesdev, u32 ip_addr, u8 *mac_addr, u32 acti
 
 	/* DELETE or RESOLVE */
 	if (arp_index == nesadapter->arp_table_size) {
-		nes_debug(NES_DBG_NETDEV, "mac address not in ARP table - cannot delete or resolve\n");
+		nes_debug(NES_DBG_NETDEV, "MAC for " NIPQUAD_FMT " not in ARP table - cannot %s\n",
+			  HIPQUAD(ip_addr),
+			  action == NES_ARP_RESOLVE ? "resolve" : "delete");
 		return -1;
 	}
 

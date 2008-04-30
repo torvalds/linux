@@ -145,9 +145,6 @@ static struct usb_serial_driver ir_device = {
 	.description =		"IR Dongle",
 	.usb_driver = 		&ir_driver,
 	.id_table =		id_table,
-	.num_interrupt_in =	1,
-	.num_bulk_in =		1,
-	.num_bulk_out =		1,
 	.num_ports =		1,
 	.set_termios =		ir_set_termios,
 	.attach =		ir_startup,
@@ -198,16 +195,16 @@ static struct irda_class_desc *irda_usb_find_class_desc(struct usb_device *dev, 
 			USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			0, ifnum, desc, sizeof(*desc), 1000);
 	
-	dbg("%s -  ret=%d", __FUNCTION__, ret);
+	dbg("%s -  ret=%d", __func__, ret);
 	if (ret < sizeof(*desc)) {
 		dbg("%s - class descriptor read %s (%d)",
-				__FUNCTION__, 
+				__func__,
 				(ret<0) ? "failed" : "too short",
 				ret);
 		goto error;
 	}
 	if (desc->bDescriptorType != USB_DT_IRDA) {
-		dbg("%s - bad class descriptor type", __FUNCTION__);
+		dbg("%s - bad class descriptor type", __func__);
 		goto error;
 	}
 	
@@ -251,7 +248,7 @@ static int ir_startup (struct usb_serial *serial)
 	}
 
 	dbg ("%s - Baud rates supported:%s%s%s%s%s%s%s%s%s",
-		__FUNCTION__,
+		__func__,
 		(irda_desc->wBaudRate & 0x0001) ? " 2400"    : "",
 		(irda_desc->wBaudRate & 0x0002) ? " 9600"    : "",
 		(irda_desc->wBaudRate & 0x0004) ? " 19200"   : "",
@@ -284,13 +281,13 @@ static int ir_open (struct usb_serial_port *port, struct file *filp)
 	char *buffer;
 	int result = 0;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (buffer_size) {
 		/* override the default buffer sizes */
 		buffer = kmalloc (buffer_size, GFP_KERNEL);
 		if (!buffer) {
-			dev_err (&port->dev, "%s - out of memory.\n", __FUNCTION__);
+			dev_err (&port->dev, "%s - out of memory.\n", __func__);
 			return -ENOMEM;
 		}
 		kfree (port->read_urb->transfer_buffer);
@@ -299,7 +296,7 @@ static int ir_open (struct usb_serial_port *port, struct file *filp)
 
 		buffer = kmalloc (buffer_size, GFP_KERNEL);
 		if (!buffer) {
-			dev_err (&port->dev, "%s - out of memory.\n", __FUNCTION__);
+			dev_err (&port->dev, "%s - out of memory.\n", __func__);
 			return -ENOMEM;
 		}
 		kfree (port->write_urb->transfer_buffer);
@@ -319,14 +316,14 @@ static int ir_open (struct usb_serial_port *port, struct file *filp)
 		port);
 	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (result)
-		dev_err(&port->dev, "%s - failed submitting read urb, error %d\n", __FUNCTION__, result);
+		dev_err(&port->dev, "%s - failed submitting read urb, error %d\n", __func__, result);
 
 	return result;
 }
 
 static void ir_close (struct usb_serial_port *port, struct file * filp)
 {
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 			 
 	/* shutdown our bulk read */
 	usb_kill_urb(port->read_urb);
@@ -338,10 +335,10 @@ static int ir_write (struct usb_serial_port *port, const unsigned char *buf, int
 	int result;
 	int transfer_size;
 
-	dbg("%s - port = %d, count = %d", __FUNCTION__, port->number, count);
+	dbg("%s - port = %d, count = %d", __func__, port->number, count);
 
 	if (!port->tty) {
-		dev_err (&port->dev, "%s - no tty???\n", __FUNCTION__);
+		dev_err (&port->dev, "%s - no tty???\n", __func__);
 		return 0;
 	}
 
@@ -351,7 +348,7 @@ static int ir_write (struct usb_serial_port *port, const unsigned char *buf, int
 	spin_lock_bh(&port->lock);
 	if (port->write_urb_busy) {
 		spin_unlock_bh(&port->lock);
-		dbg("%s - already writing", __FUNCTION__);
+		dbg("%s - already writing", __func__);
 		return 0;
 	}
 	port->write_urb_busy = 1;
@@ -387,7 +384,7 @@ static int ir_write (struct usb_serial_port *port, const unsigned char *buf, int
 	result = usb_submit_urb (port->write_urb, GFP_ATOMIC);
 	if (result) {
 		port->write_urb_busy = 0;
-		dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __FUNCTION__, result);
+		dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __func__, result);
 	} else
 		result = transfer_size;
 
@@ -396,22 +393,22 @@ static int ir_write (struct usb_serial_port *port, const unsigned char *buf, int
 
 static void ir_write_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	int status = urb->status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	port->write_urb_busy = 0;
 	if (status) {
 		dbg("%s - nonzero write bulk status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	}
 
 	usb_serial_debug_data (
 		debug,
 		&port->dev,
-		__FUNCTION__,
+		__func__,
 		urb->actual_length,
 		urb->transfer_buffer);
 
@@ -420,16 +417,16 @@ static void ir_write_bulk_callback (struct urb *urb)
 
 static void ir_read_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int result;
 	int status = urb->status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (!port->open_count) {
-		dbg("%s - port closed.", __FUNCTION__);
+		dbg("%s - port closed.", __func__);
 		return;
 	}
 
@@ -447,7 +444,7 @@ static void ir_read_bulk_callback (struct urb *urb)
 			usb_serial_debug_data (
 				debug,
 				&port->dev,
-				__FUNCTION__,
+				__func__,
 				urb->actual_length,
 				data);
 
@@ -480,13 +477,13 @@ static void ir_read_bulk_callback (struct urb *urb)
 			result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 			if (result)
 				dev_err(&port->dev, "%s - failed resubmitting read urb, error %d\n",
-					__FUNCTION__, result);
+					__func__, result);
 
 			break ;
 
 		default:
 			dbg("%s - nonzero read bulk status received: %d",
-				__FUNCTION__, 
+				__func__,
 				status);
 			break ;
 
@@ -502,7 +499,7 @@ static void ir_set_termios (struct usb_serial_port *port, struct ktermios *old_t
 	speed_t baud;
 	int ir_baud;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	baud = tty_get_baud_rate(port->tty);
 
@@ -554,7 +551,7 @@ static void ir_set_termios (struct usb_serial_port *port, struct ktermios *old_t
 
 	result = usb_submit_urb (port->write_urb, GFP_KERNEL);
 	if (result)
-		dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __FUNCTION__, result);
+		dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __func__, result);
 
 	/* Only speed changes are supported */
 	tty_termios_copy_hw(port->tty->termios, old_termios);

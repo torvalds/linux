@@ -36,11 +36,13 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/gpio.h>
 #ifdef CONFIG_SERIAL_TXX9
 #include <linux/serial_core.h>
 #endif
 
 #include <asm/txx9tmr.h>
+#include <asm/txx9pio.h>
 #include <asm/reboot.h>
 #include <asm/jmr3927/jmr3927.h>
 #include <asm/mipsregs.h>
@@ -340,9 +342,12 @@ static void __init tx3927_setup(void)
 
 	/* PIO */
 	/* PIO[15:12] connected to LEDs */
-	tx3927_pioptr->dir = 0x0000f000;
-	tx3927_pioptr->maskcpu = 0;
-	tx3927_pioptr->maskext = 0;
+	__raw_writel(0x0000f000, &tx3927_pioptr->dir);
+	__raw_writel(0, &tx3927_pioptr->maskcpu);
+	__raw_writel(0, &tx3927_pioptr->maskext);
+	txx9_gpio_init(TX3927_PIO_REG, 0, 16);
+	gpio_request(11, "dipsw1");
+	gpio_request(10, "dipsw2");
 	{
 		unsigned int conf;
 

@@ -46,7 +46,7 @@ static int debug;
 		if (debug) printk(KERN_DEBUG "zl10353: " args); \
 	} while (0)
 
-static int debug_regs = 0;
+static int debug_regs;
 
 static int zl10353_single_write(struct dvb_frontend *fe, u8 reg, u8 val)
 {
@@ -88,7 +88,7 @@ static int zl10353_read_register(struct zl10353_state *state, u8 reg)
 
 	if (ret != 2) {
 		printk("%s: readreg error (reg=%d, ret==%i)\n",
-		       __FUNCTION__, reg, ret);
+		       __func__, reg, ret);
 		return ret;
 	}
 
@@ -152,7 +152,7 @@ static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,
 	*nominal_rate = value;
 
 	dprintk("%s: bw %d, adc_clock %d => 0x%x\n",
-		__FUNCTION__, bw, adc_clock, *nominal_rate);
+		__func__, bw, adc_clock, *nominal_rate);
 }
 
 static void zl10353_calc_input_freq(struct dvb_frontend *fe,
@@ -181,7 +181,7 @@ static void zl10353_calc_input_freq(struct dvb_frontend *fe,
 	*input_freq = -value;
 
 	dprintk("%s: if2 %d, ife %d, adc_clock %d => %d / 0x%x\n",
-		__FUNCTION__, if2, ife, adc_clock, -(int)value, *input_freq);
+		__func__, if2, ife, adc_clock, -(int)value, *input_freq);
 }
 
 static int zl10353_sleep(struct dvb_frontend *fe)

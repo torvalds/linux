@@ -118,9 +118,6 @@ static struct usb_serial_driver empeg_device = {
 	},
 	.id_table =		id_table,
 	.usb_driver = 		&empeg_driver,
-	.num_interrupt_in =	0,
-	.num_bulk_in =		1,
-	.num_bulk_out =		1,
 	.num_ports =		1,
 	.open =			empeg_open,
 	.close =		empeg_close,
@@ -153,7 +150,7 @@ static int empeg_open (struct usb_serial_port *port, struct file *filp)
 	struct usb_serial *serial = port->serial;
 	int result = 0;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	/* Force default termio settings */
 	empeg_set_termios (port, NULL) ;
@@ -175,7 +172,7 @@ static int empeg_open (struct usb_serial_port *port, struct file *filp)
 	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 
 	if (result)
-		dev_err(&port->dev, "%s - failed submitting read urb, error %d\n", __FUNCTION__, result);
+		dev_err(&port->dev, "%s - failed submitting read urb, error %d\n", __func__, result);
 
 	return result;
 }
@@ -183,7 +180,7 @@ static int empeg_open (struct usb_serial_port *port, struct file *filp)
 
 static void empeg_close (struct usb_serial_port *port, struct file * filp)
 {
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	/* shutdown our bulk read */
 	usb_kill_urb(port->read_urb);
@@ -203,7 +200,7 @@ static int empeg_write (struct usb_serial_port *port, const unsigned char *buf, 
 	int bytes_sent = 0;
 	int transfer_size;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	while (count > 0) {
 
@@ -222,14 +219,14 @@ static int empeg_write (struct usb_serial_port *port, const unsigned char *buf, 
 		spin_unlock_irqrestore (&write_urb_pool_lock, flags);
 
 		if (urb == NULL) {
-			dbg("%s - no more free urbs", __FUNCTION__);
+			dbg("%s - no more free urbs", __func__);
 			goto exit;
 		}
 
 		if (urb->transfer_buffer == NULL) {
 			urb->transfer_buffer = kmalloc (URB_TRANSFER_BUFFER_SIZE, GFP_ATOMIC);
 			if (urb->transfer_buffer == NULL) {
-				dev_err(&port->dev, "%s no more kernel memory...\n", __FUNCTION__);
+				dev_err(&port->dev, "%s no more kernel memory...\n", __func__);
 				goto exit;
 			}
 		}
@@ -238,7 +235,7 @@ static int empeg_write (struct usb_serial_port *port, const unsigned char *buf, 
 
 		memcpy (urb->transfer_buffer, current_position, transfer_size);
 
-		usb_serial_debug_data(debug, &port->dev, __FUNCTION__, transfer_size, urb->transfer_buffer);
+		usb_serial_debug_data(debug, &port->dev, __func__, transfer_size, urb->transfer_buffer);
 
 		/* build up our urb */
 		usb_fill_bulk_urb (
@@ -254,7 +251,7 @@ static int empeg_write (struct usb_serial_port *port, const unsigned char *buf, 
 		/* send it down the pipe */
 		status = usb_submit_urb(urb, GFP_ATOMIC);
 		if (status) {
-			dev_err(&port->dev, "%s - usb_submit_urb(write bulk) failed with status = %d\n", __FUNCTION__, status);
+			dev_err(&port->dev, "%s - usb_submit_urb(write bulk) failed with status = %d\n", __func__, status);
 			bytes_sent = status;
 			break;
 		}
@@ -278,7 +275,7 @@ static int empeg_write_room (struct usb_serial_port *port)
 	int i;
 	int room = 0;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave (&write_urb_pool_lock, flags);
 
@@ -291,7 +288,7 @@ static int empeg_write_room (struct usb_serial_port *port)
 
 	spin_unlock_irqrestore (&write_urb_pool_lock, flags);
 
-	dbg("%s - returns %d", __FUNCTION__, room);
+	dbg("%s - returns %d", __func__, room);
 
 	return (room);
 
@@ -304,7 +301,7 @@ static int empeg_chars_in_buffer (struct usb_serial_port *port)
 	int i;
 	int chars = 0;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave (&write_urb_pool_lock, flags);
 
@@ -317,7 +314,7 @@ static int empeg_chars_in_buffer (struct usb_serial_port *port)
 
 	spin_unlock_irqrestore (&write_urb_pool_lock, flags);
 
-	dbg("%s - returns %d", __FUNCTION__, chars);
+	dbg("%s - returns %d", __func__, chars);
 
 	return (chars);
 
@@ -329,11 +326,11 @@ static void empeg_write_bulk_callback (struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	int status = urb->status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (status) {
 		dbg("%s - nonzero write bulk status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	}
 
@@ -343,21 +340,21 @@ static void empeg_write_bulk_callback (struct urb *urb)
 
 static void empeg_read_bulk_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int result;
 	int status = urb->status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (status) {
 		dbg("%s - nonzero read bulk status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
+	usb_serial_debug_data(debug, &port->dev, __func__, urb->actual_length, data);
 
 	tty = port->tty;
 
@@ -382,7 +379,7 @@ static void empeg_read_bulk_callback (struct urb *urb)
 	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 
 	if (result)
-		dev_err(&urb->dev->dev, "%s - failed resubmitting read urb, error %d\n", __FUNCTION__, result);
+		dev_err(&urb->dev->dev, "%s - failed resubmitting read urb, error %d\n", __func__, result);
 
 	return;
 
@@ -391,7 +388,7 @@ static void empeg_read_bulk_callback (struct urb *urb)
 
 static void empeg_throttle (struct usb_serial_port *port)
 {
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 	usb_kill_urb(port->read_urb);
 }
 
@@ -400,14 +397,14 @@ static void empeg_unthrottle (struct usb_serial_port *port)
 {
 	int result;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	port->read_urb->dev = port->serial->dev;
 
 	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 
 	if (result)
-		dev_err(&port->dev, "%s - failed submitting read urb, error %d\n", __FUNCTION__, result);
+		dev_err(&port->dev, "%s - failed submitting read urb, error %d\n", __func__, result);
 
 	return;
 }
@@ -417,14 +414,14 @@ static int  empeg_startup (struct usb_serial *serial)
 {
 	int r;
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	if (serial->dev->actconfig->desc.bConfigurationValue != 1) {
 		err("active config #%d != 1 ??",
 			serial->dev->actconfig->desc.bConfigurationValue);
 		return -ENODEV;
 	}
-	dbg("%s - reset config", __FUNCTION__);
+	dbg("%s - reset config", __func__);
 	r = usb_reset_configuration (serial->dev);
 
 	/* continue on with initialization */
@@ -435,13 +432,13 @@ static int  empeg_startup (struct usb_serial *serial)
 
 static void empeg_shutdown (struct usb_serial *serial)
 {
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 }
 
 
 static int empeg_ioctl (struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg)
 {
-	dbg("%s - port %d, cmd 0x%.4x", __FUNCTION__, port->number, cmd);
+	dbg("%s - port %d, cmd 0x%.4x", __func__, port->number, cmd);
 
 	return -ENOIOCTLCMD;
 }
@@ -450,7 +447,7 @@ static int empeg_ioctl (struct usb_serial_port *port, struct file * file, unsign
 static void empeg_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	struct ktermios *termios = port->tty->termios;
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	/*
          * The empeg-car player wants these particular tty settings.
@@ -517,7 +514,7 @@ static int __init empeg_init (void)
 		urb->transfer_buffer = kmalloc (URB_TRANSFER_BUFFER_SIZE, GFP_KERNEL);
 		if (!urb->transfer_buffer) {
 			err("%s - out of memory for urb buffers.", 
-			    __FUNCTION__);
+			    __func__);
 			continue;
 		}
 	}

@@ -857,7 +857,6 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	src_addr  = (rose_address *)(skb->data + 9);
 	dest_addr = (rose_address *)(skb->data + 4);
 
-	spin_lock_bh(&rose_node_list_lock);
 	spin_lock_bh(&rose_neigh_list_lock);
 	spin_lock_bh(&rose_route_list_lock);
 
@@ -1060,7 +1059,6 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 out:
 	spin_unlock_bh(&rose_route_list_lock);
 	spin_unlock_bh(&rose_neigh_list_lock);
-	spin_unlock_bh(&rose_node_list_lock);
 
 	return res;
 }

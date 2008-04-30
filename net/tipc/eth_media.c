@@ -101,7 +101,7 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 	struct eth_bearer *eb_ptr = (struct eth_bearer *)pt->af_packet_priv;
 	u32 size;
 
-	if (dev->nd_net != &init_net) {
+	if (dev_net(dev) != &init_net) {
 		kfree_skb(buf);
 		return 0;
 	}
@@ -198,7 +198,7 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 	struct eth_bearer *eb_ptr = &eth_bearers[0];
 	struct eth_bearer *stop = &eth_bearers[MAX_ETH_BEARERS];
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	while ((eb_ptr->dev != dev)) {

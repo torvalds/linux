@@ -574,7 +574,6 @@ int snd_ac97_pcm_open(struct ac97_pcm *pcm, unsigned int rate,
 	r = rate > 48000;
 	bus = pcm->bus;
 	if (cfg == AC97_PCM_CFG_SPDIF) {
-		int err;
 		for (cidx = 0; cidx < 4; cidx++)
 			if (bus->codec[cidx] && (bus->codec[cidx]->ext_id & AC97_EI_SPDIF)) {
 				err = set_spdif_rate(bus->codec[cidx], rate);

@@ -8,10 +8,17 @@
  */
 
 #include <asm/types.h>
+#include <linux/compiler.h>
 #include <linux/ioctl.h>
 #include <asm/kvm.h>
 
 #define KVM_API_VERSION 12
+
+/* for KVM_TRACE_ENABLE */
+struct kvm_user_trace_setup {
+	__u32 buf_size; /* sub_buffer size of each per-cpu */
+	__u32 buf_nr; /* the number of sub_buffers of each per-cpu */
+};
 
 /* for KVM_CREATE_MEMORY_REGION */
 struct kvm_memory_region {
@@ -73,6 +80,9 @@ struct kvm_irqchip {
 #define KVM_EXIT_INTR             10
 #define KVM_EXIT_SET_TPR          11
 #define KVM_EXIT_TPR_ACCESS       12
+#define KVM_EXIT_S390_SIEIC       13
+#define KVM_EXIT_S390_RESET       14
+#define KVM_EXIT_DCR              15
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
@@ -137,6 +147,27 @@ struct kvm_run {
 			__u32 is_write;
 			__u32 pad;
 		} tpr_access;
+		/* KVM_EXIT_S390_SIEIC */
+		struct {
+			__u8 icptcode;
+			__u64 mask; /* psw upper half */
+			__u64 addr; /* psw lower half */
+			__u16 ipa;
+			__u32 ipb;
+		} s390_sieic;
+		/* KVM_EXIT_S390_RESET */
+#define KVM_S390_RESET_POR       1
+#define KVM_S390_RESET_CLEAR     2
+#define KVM_S390_RESET_SUBSYSTEM 4
+#define KVM_S390_RESET_CPU_INIT  8
+#define KVM_S390_RESET_IPL       16
+		__u64 s390_reset_flags;
+		/* KVM_EXIT_DCR */
+		struct {
+			__u32 dcrn;
+			__u32 data;
+			__u8  is_write;
+		} dcr;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -204,6 +235,74 @@ struct kvm_vapic_addr {
 	__u64 vapic_addr;
 };
 
+/* for KVM_SET_MPSTATE */
+
+#define KVM_MP_STATE_RUNNABLE          0
+#define KVM_MP_STATE_UNINITIALIZED     1
+#define KVM_MP_STATE_INIT_RECEIVED     2
+#define KVM_MP_STATE_HALTED            3
+#define KVM_MP_STATE_SIPI_RECEIVED     4
+
+struct kvm_mp_state {
+	__u32 mp_state;
+};
+
+struct kvm_s390_psw {
+	__u64 mask;
+	__u64 addr;
+};
+
+/* valid values for type in kvm_s390_interrupt */
+#define KVM_S390_SIGP_STOP		0xfffe0000u
+#define KVM_S390_PROGRAM_INT		0xfffe0001u
+#define KVM_S390_SIGP_SET_PREFIX	0xfffe0002u
+#define KVM_S390_RESTART		0xfffe0003u
+#define KVM_S390_INT_VIRTIO		0xffff2603u
+#define KVM_S390_INT_SERVICE		0xffff2401u
+#define KVM_S390_INT_EMERGENCY		0xffff1201u
+
+struct kvm_s390_interrupt {
+	__u32 type;
+	__u32 parm;
+	__u64 parm64;
+};
+
+#define KVM_TRC_SHIFT           16
+/*
+ * kvm trace categories
+ */
+#define KVM_TRC_ENTRYEXIT       (1 << KVM_TRC_SHIFT)
+#define KVM_TRC_HANDLER         (1 << (KVM_TRC_SHIFT + 1)) /* only 12 bits */
+
+/*
+ * kvm trace action
+ */
+#define KVM_TRC_VMENTRY         (KVM_TRC_ENTRYEXIT + 0x01)
+#define KVM_TRC_VMEXIT          (KVM_TRC_ENTRYEXIT + 0x02)
+#define KVM_TRC_PAGE_FAULT      (KVM_TRC_HANDLER + 0x01)
+
+#define KVM_TRC_HEAD_SIZE       12
+#define KVM_TRC_CYCLE_SIZE      8
+#define KVM_TRC_EXTRA_MAX       7
+
+/* This structure represents a single trace buffer record. */
+struct kvm_trace_rec {
+	__u32 event:28;
+	__u32 extra_u32:3;
+	__u32 cycle_in:1;
+	__u32 pid;
+	__u32 vcpu_id;
+	union {
+		struct {
+			__u32 cycle_lo, cycle_hi;
+			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
+		} cycle;
+		struct {
+			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
+		} nocycle;
+	} u;
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -212,6 +311,8 @@ struct kvm_vapic_addr {
 #define KVM_GET_API_VERSION       _IO(KVMIO,   0x00)
 #define KVM_CREATE_VM             _IO(KVMIO,   0x01) /* returns a VM fd */
 #define KVM_GET_MSR_INDEX_LIST    _IOWR(KVMIO, 0x02, struct kvm_msr_list)
+
+#define KVM_S390_ENABLE_SIE       _IO(KVMIO,   0x06)
 /*
  * Check if a kvm extension is available.  Argument is extension number,
  * return is 1 (yes) or 0 (no, sorry).
@@ -222,7 +323,12 @@ struct kvm_vapic_addr {
  */
 #define KVM_GET_VCPU_MMAP_SIZE    _IO(KVMIO,   0x04) /* in bytes */
 #define KVM_GET_SUPPORTED_CPUID   _IOWR(KVMIO, 0x05, struct kvm_cpuid2)
-
+/*
+ * ioctls for kvm trace
+ */
+#define KVM_TRACE_ENABLE          _IOW(KVMIO, 0x06, struct kvm_user_trace_setup)
+#define KVM_TRACE_PAUSE           _IO(KVMIO,  0x07)
+#define KVM_TRACE_DISABLE         _IO(KVMIO,  0x08)
 /*
  * Extension capability list.
  */
@@ -233,6 +339,13 @@ struct kvm_vapic_addr {
 #define KVM_CAP_SET_TSS_ADDR 4
 #define KVM_CAP_VAPIC 6
 #define KVM_CAP_EXT_CPUID 7
+#define KVM_CAP_CLOCKSOURCE 8
+#define KVM_CAP_NR_VCPUS 9       /* returns max vcpus per vm */
+#define KVM_CAP_NR_MEMSLOTS 10   /* returns max memory slots per vm */
+#define KVM_CAP_PIT 11
+#define KVM_CAP_NOP_IO_DELAY 12
+#define KVM_CAP_PV_MMU 13
+#define KVM_CAP_MP_STATE 14
 
 /*
  * ioctls for VM fds
@@ -255,6 +368,9 @@ struct kvm_vapic_addr {
 #define KVM_IRQ_LINE		  _IOW(KVMIO, 0x61, struct kvm_irq_level)
 #define KVM_GET_IRQCHIP		  _IOWR(KVMIO, 0x62, struct kvm_irqchip)
 #define KVM_SET_IRQCHIP		  _IOR(KVMIO,  0x63, struct kvm_irqchip)
+#define KVM_CREATE_PIT		  _IO(KVMIO,  0x64)
+#define KVM_GET_PIT		  _IOWR(KVMIO, 0x65, struct kvm_pit_state)
+#define KVM_SET_PIT		  _IOR(KVMIO,  0x66, struct kvm_pit_state)
 
 /*
  * ioctls for vcpu fds
@@ -281,5 +397,17 @@ struct kvm_vapic_addr {
 #define KVM_TPR_ACCESS_REPORTING  _IOWR(KVMIO,  0x92, struct kvm_tpr_access_ctl)
 /* Available with KVM_CAP_VAPIC */
 #define KVM_SET_VAPIC_ADDR        _IOW(KVMIO,  0x93, struct kvm_vapic_addr)
+/* valid for virtual machine (for floating interrupt)_and_ vcpu */
+#define KVM_S390_INTERRUPT        _IOW(KVMIO,  0x94, struct kvm_s390_interrupt)
+/* store status for s390 */
+#define KVM_S390_STORE_STATUS_NOADDR    (-1ul)
+#define KVM_S390_STORE_STATUS_PREFIXED  (-2ul)
+#define KVM_S390_STORE_STATUS	  _IOW(KVMIO,  0x95, unsigned long)
+/* initial ipl psw for s390 */
+#define KVM_S390_SET_INITIAL_PSW  _IOW(KVMIO,  0x96, struct kvm_s390_psw)
+/* initial reset for s390 */
+#define KVM_S390_INITIAL_RESET    _IO(KVMIO,  0x97)
+#define KVM_GET_MP_STATE          _IOR(KVMIO,  0x98, struct kvm_mp_state)
+#define KVM_SET_MP_STATE          _IOW(KVMIO,  0x99, struct kvm_mp_state)
 
 #endif

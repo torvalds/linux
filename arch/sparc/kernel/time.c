@@ -105,7 +105,7 @@ __volatile__ unsigned int *master_l10_limit;
 
 #define TICK_SIZE (tick_nsec / 1000)
 
-irqreturn_t timer_interrupt(int irq, void *dev_id)
+static irqreturn_t timer_interrupt(int dummy, void *dev_id)
 {
 	/* last time the cmos clock got updated */
 	static long last_rtc_update;

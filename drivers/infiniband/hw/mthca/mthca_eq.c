@@ -232,9 +232,9 @@ static inline struct mthca_eqe *get_eqe(struct mthca_eq *eq, u32 entry)
 	return eq->page_list[off / PAGE_SIZE].buf + off % PAGE_SIZE;
 }
 
-static inline struct mthca_eqe* next_eqe_sw(struct mthca_eq *eq)
+static inline struct mthca_eqe *next_eqe_sw(struct mthca_eq *eq)
 {
-	struct mthca_eqe* eqe;
+	struct mthca_eqe *eqe;
 	eqe = get_eqe(eq, eq->cons_index);
 	return (MTHCA_EQ_ENTRY_OWNER_HW & eqe->owner) ? NULL : eqe;
 }

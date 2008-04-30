@@ -485,11 +485,11 @@ struct m66592 {
 	struct m66592_ep	*epaddr2ep[16];
 
 	struct usb_request	*ep0_req;	/* for internal request */
-	u16			ep0_data;	/* for internal request */
+	__le16			ep0_data;	/* for internal request */
+	u16			old_vbus;
 
 	struct timer_list	timer;
 
-	u16			old_vbus;
 	int			scount;
 
 	int			old_dvsq;

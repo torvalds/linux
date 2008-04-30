@@ -1144,28 +1144,6 @@ void __init pmac_pcibios_after_init(void)
 {
 	struct device_node* nd;
 
-#ifdef CONFIG_BLK_DEV_IDE
-	struct pci_dev *dev = NULL;
-
-	/* OF fails to initialize IDE controllers on macs
-	 * (and maybe other machines)
-	 *
-	 * Ideally, this should be moved to the IDE layer, but we need
-	 * to check specifically with Andre Hedrick how to do it cleanly
-	 * since the common IDE code seem to care about the fact that the
-	 * BIOS may have disabled a controller.
-	 *
-	 * -- BenH
-	 */
-	for_each_pci_dev(dev) {
-		if ((dev->class >> 16) != PCI_BASE_CLASS_STORAGE)
-			continue;
-		if (pci_enable_device(dev))
-			printk(KERN_WARNING
-			       "pci: Failed to enable %s\n", pci_name(dev));
-	}
-#endif /* CONFIG_BLK_DEV_IDE */
-
 	for_each_node_by_name(nd, "firewire") {
 		if (nd->parent && (of_device_is_compatible(nd, "pci106b,18") ||
 				   of_device_is_compatible(nd, "pci106b,30") ||

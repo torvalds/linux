@@ -125,7 +125,7 @@ int pm_overflow_handler(int irq, struct pt_regs *regs)
 	unsigned int pc, pfctl;
 	unsigned int count[2];
 
-	pr_debug("get interrupt in %s\n", __FUNCTION__);
+	pr_debug("get interrupt in %s\n", __func__);
 	if (oprofile_running == 0) {
 		pr_debug("error: entering interrupt when oprofile is stopped.\n\r");
 		return -1;

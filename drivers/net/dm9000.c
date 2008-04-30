@@ -1418,3 +1418,4 @@ module_exit(dm9000_cleanup);
 MODULE_AUTHOR("Sascha Hauer, Ben Dooks");
 MODULE_DESCRIPTION("Davicom DM9000 network driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:dm9000");

@@ -171,10 +171,14 @@ static int __devexit gpio_mouse_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:gpio_mouse");
+
 struct platform_driver gpio_mouse_device_driver = {
 	.remove		= __devexit_p(gpio_mouse_remove),
 	.driver		= {
 		.name	= "gpio_mouse",
+		.owner	= THIS_MODULE,
 	}
 };
 

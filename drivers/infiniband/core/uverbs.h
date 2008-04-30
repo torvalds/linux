@@ -73,21 +73,21 @@ struct ib_uverbs_device {
 	struct kref				ref;
 	struct completion			comp;
 	int					devnum;
-	struct cdev			       *dev;
-	struct class_device		       *class_dev;
+	struct cdev			       *cdev;
+	struct device			       *dev;
 	struct ib_device		       *ib_dev;
 	int					num_comp_vectors;
 };
 
 struct ib_uverbs_event_file {
 	struct kref				ref;
-	struct file			       *file;
 	struct ib_uverbs_file		       *uverbs_file;
 	spinlock_t				lock;
-	int					is_async;
 	wait_queue_head_t			poll_wait;
 	struct fasync_struct		       *async_queue;
 	struct list_head			event_list;
+	int					is_async;
+	int					is_closed;
 };
 
 struct ib_uverbs_file {

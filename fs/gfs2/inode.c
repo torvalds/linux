@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -149,7 +149,8 @@ void gfs2_set_iop(struct inode *inode)
 	} else if (S_ISLNK(mode)) {
 		inode->i_op = &gfs2_symlink_iops;
 	} else {
-		inode->i_op = &gfs2_dev_iops;
+		inode->i_op = &gfs2_file_iops;
+		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 	}
 
 	unlock_new_inode(inode);
@@ -248,12 +249,10 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 {
 	struct gfs2_dinode_host *di = &ip->i_di;
 	const struct gfs2_dinode *str = buf;
+	u16 height, depth;
 
-	if (ip->i_no_addr != be64_to_cpu(str->di_num.no_addr)) {
-		if (gfs2_consist_inode(ip))
-			gfs2_dinode_print(ip);
-		return -EIO;
-	}
+	if (unlikely(ip->i_no_addr != be64_to_cpu(str->di_num.no_addr)))
+		goto corrupt;
 	ip->i_no_formal_ino = be64_to_cpu(str->di_num.no_formal_ino);
 	ip->i_inode.i_mode = be32_to_cpu(str->di_mode);
 	ip->i_inode.i_rdev = 0;
@@ -275,8 +274,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	ip->i_inode.i_nlink = be32_to_cpu(str->di_nlink);
 	di->di_size = be64_to_cpu(str->di_size);
 	i_size_write(&ip->i_inode, di->di_size);
-	di->di_blocks = be64_to_cpu(str->di_blocks);
-	gfs2_set_inode_blocks(&ip->i_inode);
+	gfs2_set_inode_blocks(&ip->i_inode, be64_to_cpu(str->di_blocks));
 	ip->i_inode.i_atime.tv_sec = be64_to_cpu(str->di_atime);
 	ip->i_inode.i_atime.tv_nsec = be32_to_cpu(str->di_atime_nsec);
 	ip->i_inode.i_mtime.tv_sec = be64_to_cpu(str->di_mtime);
@@ -284,15 +282,20 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	ip->i_inode.i_ctime.tv_sec = be64_to_cpu(str->di_ctime);
 	ip->i_inode.i_ctime.tv_nsec = be32_to_cpu(str->di_ctime_nsec);
 
-	di->di_goal_meta = be64_to_cpu(str->di_goal_meta);
-	di->di_goal_data = be64_to_cpu(str->di_goal_data);
+	ip->i_goal = be64_to_cpu(str->di_goal_meta);
 	di->di_generation = be64_to_cpu(str->di_generation);
 
 	di->di_flags = be32_to_cpu(str->di_flags);
 	gfs2_set_inode_flags(&ip->i_inode);
-	di->di_height = be16_to_cpu(str->di_height);
+	height = be16_to_cpu(str->di_height);
+	if (unlikely(height > GFS2_MAX_META_HEIGHT))
+		goto corrupt;
+	ip->i_height = (u8)height;
 
-	di->di_depth = be16_to_cpu(str->di_depth);
+	depth = be16_to_cpu(str->di_depth);
+	if (unlikely(depth > GFS2_DIR_MAX_DEPTH))
+		goto corrupt;
+	ip->i_depth = (u8)depth;
 	di->di_entries = be32_to_cpu(str->di_entries);
 
 	di->di_eattr = be64_to_cpu(str->di_eattr);
@@ -300,6 +303,10 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 		gfs2_set_aops(&ip->i_inode);
 
 	return 0;
+corrupt:
+	if (gfs2_consist_inode(ip))
+		gfs2_dinode_print(ip);
+	return -EIO;
 }
 
 /**
@@ -337,13 +344,15 @@ int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	struct gfs2_rgrpd *rgd;
 	int error;
 
-	if (ip->i_di.di_blocks != 1) {
+	if (gfs2_get_inode_blocks(&ip->i_inode) != 1) {
 		if (gfs2_consist_inode(ip))
 			gfs2_dinode_print(ip);
 		return -EIO;
 	}
 
 	al = gfs2_alloc_get(ip);
+	if (!al)
+		return -ENOMEM;
 
 	error = gfs2_quota_hold(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
 	if (error)
@@ -487,7 +496,7 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 		return dir;
 	}
 
-	if (gfs2_glock_is_locked_by_me(dip->i_gl) == 0) {
+	if (gfs2_glock_is_locked_by_me(dip->i_gl) == NULL) {
 		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
 		if (error)
 			return ERR_PTR(error);
@@ -818,7 +827,8 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	int error;
 
 	munge_mode_uid_gid(dip, &mode, &uid, &gid);
-	gfs2_alloc_get(dip);
+	if (!gfs2_alloc_get(dip))
+		return -ENOMEM;
 
 	error = gfs2_quota_lock(dip, uid, gid);
 	if (error)
@@ -853,6 +863,8 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 	int error;
 
 	al = gfs2_alloc_get(dip);
+	if (!al)
+		return -ENOMEM;
 
 	error = gfs2_quota_lock(dip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
 	if (error)
@@ -1219,7 +1231,7 @@ int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len)
 
 	x = ip->i_di.di_size + 1;
 	if (x > *len) {
-		*buf = kmalloc(x, GFP_KERNEL);
+		*buf = kmalloc(x, GFP_NOFS);
 		if (!*buf) {
 			error = -ENOMEM;
 			goto out_brelse;
@@ -1391,21 +1403,21 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_gid = cpu_to_be32(ip->i_inode.i_gid);
 	str->di_nlink = cpu_to_be32(ip->i_inode.i_nlink);
 	str->di_size = cpu_to_be64(di->di_size);
-	str->di_blocks = cpu_to_be64(di->di_blocks);
+	str->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(&ip->i_inode));
 	str->di_atime = cpu_to_be64(ip->i_inode.i_atime.tv_sec);
 	str->di_mtime = cpu_to_be64(ip->i_inode.i_mtime.tv_sec);
 	str->di_ctime = cpu_to_be64(ip->i_inode.i_ctime.tv_sec);
 
-	str->di_goal_meta = cpu_to_be64(di->di_goal_meta);
-	str->di_goal_data = cpu_to_be64(di->di_goal_data);
+	str->di_goal_meta = cpu_to_be64(ip->i_goal);
+	str->di_goal_data = cpu_to_be64(ip->i_goal);
 	str->di_generation = cpu_to_be64(di->di_generation);
 
 	str->di_flags = cpu_to_be32(di->di_flags);
-	str->di_height = cpu_to_be16(di->di_height);
+	str->di_height = cpu_to_be16(ip->i_height);
 	str->di_payload_format = cpu_to_be32(S_ISDIR(ip->i_inode.i_mode) &&
 					     !(ip->i_di.di_flags & GFS2_DIF_EXHASH) ?
 					     GFS2_FORMAT_DE : 0);
-	str->di_depth = cpu_to_be16(di->di_depth);
+	str->di_depth = cpu_to_be16(ip->i_depth);
 	str->di_entries = cpu_to_be32(di->di_entries);
 
 	str->di_eattr = cpu_to_be64(di->di_eattr);
@@ -1423,15 +1435,13 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 	printk(KERN_INFO "  no_addr = %llu\n",
 	       (unsigned long long)ip->i_no_addr);
 	printk(KERN_INFO "  di_size = %llu\n", (unsigned long long)di->di_size);
-	printk(KERN_INFO "  di_blocks = %llu\n",
-	       (unsigned long long)di->di_blocks);
-	printk(KERN_INFO "  di_goal_meta = %llu\n",
-	       (unsigned long long)di->di_goal_meta);
-	printk(KERN_INFO "  di_goal_data = %llu\n",
-	       (unsigned long long)di->di_goal_data);
+	printk(KERN_INFO "  blocks = %llu\n",
+	       (unsigned long long)gfs2_get_inode_blocks(&ip->i_inode));
+	printk(KERN_INFO "  i_goal = %llu\n",
+	       (unsigned long long)ip->i_goal);
 	printk(KERN_INFO "  di_flags = 0x%.8X\n", di->di_flags);
-	printk(KERN_INFO "  di_height = %u\n", di->di_height);
-	printk(KERN_INFO "  di_depth = %u\n", di->di_depth);
+	printk(KERN_INFO "  i_height = %u\n", ip->i_height);
+	printk(KERN_INFO "  i_depth = %u\n", ip->i_depth);
 	printk(KERN_INFO "  di_entries = %u\n", di->di_entries);
 	printk(KERN_INFO "  di_eattr = %llu\n",
 	       (unsigned long long)di->di_eattr);

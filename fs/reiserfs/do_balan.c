@@ -1464,29 +1464,29 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 				} else
 					/* item falls wholly into S_new[i] */
 				{
-					int ret_val;
+					int leaf_mi;
 					struct item_head *pasted;
 
 #ifdef CONFIG_REISERFS_CHECK
-					struct item_head *ih =
+					struct item_head *ih_check =
 					    B_N_PITEM_HEAD(tbS0, item_pos);
 
-					if (!is_direntry_le_ih(ih)
-					    && (pos_in_item != ih_item_len(ih)
+					if (!is_direntry_le_ih(ih_check)
+					    && (pos_in_item != ih_item_len(ih_check)
 						|| tb->insert_size[0] <= 0))
 						reiserfs_panic(tb->tb_sb,
 							       "PAP-12235: balance_leaf: pos_in_item must be equal to ih_item_len");
 #endif				/* CONFIG_REISERFS_CHECK */
 
-					ret_val =
+					leaf_mi =
 					    leaf_move_items(LEAF_FROM_S_TO_SNEW,
 							    tb, snum[i],
 							    sbytes[i],
 							    S_new[i]);
 
-					RFALSE(ret_val,
+					RFALSE(leaf_mi,
 					       "PAP-12240: unexpected value returned by leaf_move_items (%d)",
-					       ret_val);
+					       leaf_mi);
 
 					/* paste into item */
 					bi.tb = tb;

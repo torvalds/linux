@@ -13,7 +13,7 @@
 #include <linux/skbuff.h>
 
 #include <net/mac80211.h>
-#include "ieee80211_rate.h"
+#include "rate.h"
 
 #include "rc80211_pid.h"
 

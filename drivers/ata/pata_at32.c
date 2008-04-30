@@ -166,52 +166,14 @@ static void pata_at32_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	}
 }
 
-static void pata_at32_irq_clear(struct ata_port *ap)
-{
-	/* No DMA controller yet */
-}
-
 static struct scsi_host_template at32_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
+	ATA_PIO_SHT(DRV_NAME),
 };
 
 static struct ata_port_operations at32_port_ops = {
-	.set_piomode		= pata_at32_set_piomode,
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.exec_command		= ata_exec_command,
-	.check_status		= ata_check_status,
-	.dev_select		= ata_std_dev_select,
-
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= ata_bmdma_error_handler,
-	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+	.inherits		= &ata_sff_port_ops,
 	.cable_detect		= ata_cable_40wire,
-
-	.qc_prep		= ata_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-
-	.data_xfer		= ata_data_xfer,
-
-	.irq_clear		= pata_at32_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.port_start		= ata_sff_port_start,
+	.set_piomode		= pata_at32_set_piomode,
 };
 
 static int __init pata_at32_init_one(struct device *dev,
@@ -261,7 +223,7 @@ static int __init pata_at32_init_one(struct device *dev,
 	host->private_data = info;
 
 	/* Register ATA device and return */
-	return ata_host_activate(host, info->irq, ata_interrupt,
+	return ata_host_activate(host, info->irq, ata_sff_interrupt,
 				 IRQF_SHARED | IRQF_TRIGGER_RISING,
 				 &at32_sht);
 }
@@ -418,6 +380,9 @@ static int __exit pata_at32_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:at32_ide");
 
 static struct platform_driver pata_at32_driver = {
 	.remove	       = __exit_p(pata_at32_remove),

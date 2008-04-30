@@ -46,6 +46,7 @@
 #include "xfs_trans_priv.h"
 #include "xfs_quota.h"
 #include "xfs_rw.h"
+#include "xfs_utils.h"
 
 STATIC int	xlog_find_zeroed(xlog_t *, xfs_daddr_t *);
 STATIC int	xlog_clear_stale_blocks(xlog_t *, xfs_lsn_t);
@@ -120,7 +121,8 @@ xlog_bread(
 	XFS_BUF_SET_TARGET(bp, log->l_mp->m_logdev_targp);
 
 	xfsbdstrat(log->l_mp, bp);
-	if ((error = xfs_iowait(bp)))
+	error = xfs_iowait(bp);
+	if (error)
 		xfs_ioerror_alert("xlog_bread", log->l_mp,
 				  bp, XFS_BUF_ADDR(bp));
 	return error;
@@ -191,7 +193,7 @@ xlog_header_check_dump(
 {
 	int			b;
 
-	cmn_err(CE_DEBUG, "%s:  SB : uuid = ", __FUNCTION__);
+	cmn_err(CE_DEBUG, "%s:  SB : uuid = ", __func__);
 	for (b = 0; b < 16; b++)
 		cmn_err(CE_DEBUG, "%02x", ((uchar_t *)&mp->m_sb.sb_uuid)[b]);
 	cmn_err(CE_DEBUG, ", fmt = %d\n", XLOG_FMT);
@@ -1160,10 +1162,14 @@ xlog_write_log_records(
 		if (j == 0 && (start_block + endcount > ealign)) {
 			offset = XFS_BUF_PTR(bp);
 			balign = BBTOB(ealign - start_block);
-			XFS_BUF_SET_PTR(bp, offset + balign, BBTOB(sectbb));
-			if ((error = xlog_bread(log, ealign, sectbb, bp)))
+			error = XFS_BUF_SET_PTR(bp, offset + balign,
+						BBTOB(sectbb));
+			if (!error)
+				error = xlog_bread(log, ealign, sectbb, bp);
+			if (!error)
+				error = XFS_BUF_SET_PTR(bp, offset, bufblks);
+			if (error)
 				break;
-			XFS_BUF_SET_PTR(bp, offset, bufblks);
 		}
 
 		offset = xlog_align(log, start_block, endcount, bp);
@@ -2280,7 +2286,9 @@ xlog_recover_do_inode_trans(
 		 * invalidate the buffer when we write it out below.
 		 */
 		imap.im_blkno = 0;
-		xfs_imap(log->l_mp, NULL, ino, &imap, 0);
+		error = xfs_imap(log->l_mp, NULL, ino, &imap, 0);
+		if (error)
+			goto error;
 	}
 
 	/*
@@ -2964,7 +2972,7 @@ xlog_recover_process_data(
  * Process an extent free intent item that was recovered from
  * the log.  We need to free the extents that it describes.
  */
-STATIC void
+STATIC int
 xlog_recover_process_efi(
 	xfs_mount_t		*mp,
 	xfs_efi_log_item_t	*efip)
@@ -2972,6 +2980,7 @@ xlog_recover_process_efi(
 	xfs_efd_log_item_t	*efdp;
 	xfs_trans_t		*tp;
 	int			i;
+	int			error = 0;
 	xfs_extent_t		*extp;
 	xfs_fsblock_t		startblock_fsb;
 
@@ -2995,23 +3004,32 @@ xlog_recover_process_efi(
 			 * free the memory associated with it.
 			 */
 			xfs_efi_release(efip, efip->efi_format.efi_nextents);
-			return;
+			return XFS_ERROR(EIO);
 		}
 	}
 
 	tp = xfs_trans_alloc(mp, 0);
-	xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0, 0, 0);
+	error = xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0, 0, 0);
+	if (error)
+		goto abort_error;
 	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
 
 	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
 		extp = &(efip->efi_format.efi_extents[i]);
-		xfs_free_extent(tp, extp->ext_start, extp->ext_len);
+		error = xfs_free_extent(tp, extp->ext_start, extp->ext_len);
+		if (error)
+			goto abort_error;
 		xfs_trans_log_efd_extent(tp, efdp, extp->ext_start,
 					 extp->ext_len);
 	}
 
 	efip->efi_flags |= XFS_EFI_RECOVERED;
-	xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp, 0);
+	return error;
+
+abort_error:
+	xfs_trans_cancel(tp, XFS_TRANS_ABORT);
+	return error;
 }
 
 /*
@@ -3059,7 +3077,7 @@ xlog_recover_check_ail(
  * everything already in the AIL, we stop processing as soon as
  * we see something other than an EFI in the AIL.
  */
-STATIC void
+STATIC int
 xlog_recover_process_efis(
 	xlog_t			*log)
 {
@@ -3067,6 +3085,7 @@ xlog_recover_process_efis(
 	xfs_efi_log_item_t	*efip;
 	int			gen;
 	xfs_mount_t		*mp;
+	int			error = 0;
 
 	mp = log->l_mp;
 	spin_lock(&mp->m_ail_lock);
@@ -3091,11 +3110,14 @@ xlog_recover_process_efis(
 		}
 
 		spin_unlock(&mp->m_ail_lock);
-		xlog_recover_process_efi(mp, efip);
+		error = xlog_recover_process_efi(mp, efip);
+		if (error)
+			return error;
 		spin_lock(&mp->m_ail_lock);
 		lip = xfs_trans_next_ail(mp, lip, &gen, NULL);
 	}
 	spin_unlock(&mp->m_ail_lock);
+	return error;
 }
 
 /*
@@ -3115,21 +3137,18 @@ xlog_recover_clear_agi_bucket(
 	int		error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_CLEAR_AGI_BUCKET);
-	xfs_trans_reserve(tp, 0, XFS_CLEAR_AGI_BUCKET_LOG_RES(mp), 0, 0, 0);
-
-	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
+	error = xfs_trans_reserve(tp, 0, XFS_CLEAR_AGI_BUCKET_LOG_RES(mp), 0, 0, 0);
+	if (!error)
+		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 				   XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
 				   XFS_FSS_TO_BB(mp, 1), 0, &agibp);
-	if (error) {
-		xfs_trans_cancel(tp, XFS_TRANS_ABORT);
-		return;
-	}
+	if (error)
+		goto out_abort;
 
+	error = EINVAL;
 	agi = XFS_BUF_TO_AGI(agibp);
-	if (be32_to_cpu(agi->agi_magicnum) != XFS_AGI_MAGIC) {
-		xfs_trans_cancel(tp, XFS_TRANS_ABORT);
-		return;
-	}
+	if (be32_to_cpu(agi->agi_magicnum) != XFS_AGI_MAGIC)
+		goto out_abort;
 
 	agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
@@ -3137,7 +3156,17 @@ xlog_recover_clear_agi_bucket(
 	xfs_trans_log_buf(tp, agibp, offset,
 			  (offset + sizeof(xfs_agino_t) - 1));
 
-	(void) xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp, 0);
+	if (error)
+		goto out_error;
+	return;
+
+out_abort:
+	xfs_trans_cancel(tp, XFS_TRANS_ABORT);
+out_error:
+	xfs_fs_cmn_err(CE_WARN, mp, "xlog_recover_clear_agi_bucket: "
+			"failed to clear agi %d. Continuing.", agno);
+	return;
 }
 
 /*
@@ -3214,7 +3243,8 @@ xlog_recover_process_iunlinks(
 					 * next inode in the bucket.
 					 */
 					error = xfs_itobp(mp, NULL, ip, &dip,
-							&ibp, 0, 0);
+							&ibp, 0, 0,
+							XFS_BUF_LOCK);
 					ASSERT(error || (dip != NULL));
 				}
 
@@ -3247,7 +3277,7 @@ xlog_recover_process_iunlinks(
 					if (ip->i_d.di_mode == 0)
 						xfs_iput_new(ip, 0);
 					else
-						VN_RELE(XFS_ITOV(ip));
+						IRELE(ip);
 				} else {
 					/*
 					 * We can't read in the inode
@@ -3445,7 +3475,7 @@ xlog_valid_rec_header(
 	    (!rhead->h_version ||
 	    (be32_to_cpu(rhead->h_version) & (~XLOG_VERSION_OKBITS))))) {
 		xlog_warn("XFS: %s: unrecognised log version (%d).",
-			__FUNCTION__, be32_to_cpu(rhead->h_version));
+			__func__, be32_to_cpu(rhead->h_version));
 		return XFS_ERROR(EIO);
 	}
 
@@ -3604,15 +3634,19 @@ xlog_do_recovery_pass(
 				 *   _first_, then the log start (LR header end)
 				 *   - order is important.
 				 */
+				wrapped_hblks = hblks - split_hblks;
 				bufaddr = XFS_BUF_PTR(hbp);
-				XFS_BUF_SET_PTR(hbp,
+				error = XFS_BUF_SET_PTR(hbp,
 						bufaddr + BBTOB(split_hblks),
 						BBTOB(hblks - split_hblks));
-				wrapped_hblks = hblks - split_hblks;
-				error = xlog_bread(log, 0, wrapped_hblks, hbp);
+				if (!error)
+					error = xlog_bread(log, 0,
+							wrapped_hblks, hbp);
+				if (!error)
+					error = XFS_BUF_SET_PTR(hbp, bufaddr,
+							BBTOB(hblks));
 				if (error)
 					goto bread_err2;
-				XFS_BUF_SET_PTR(hbp, bufaddr, BBTOB(hblks));
 				if (!offset)
 					offset = xlog_align(log, 0,
 							wrapped_hblks, hbp);
@@ -3664,13 +3698,18 @@ xlog_do_recovery_pass(
 				 *   - order is important.
 				 */
 				bufaddr = XFS_BUF_PTR(dbp);
-				XFS_BUF_SET_PTR(dbp,
+				error = XFS_BUF_SET_PTR(dbp,
 						bufaddr + BBTOB(split_bblks),
 						BBTOB(bblks - split_bblks));
-				if ((error = xlog_bread(log, wrapped_hblks,
-						bblks - split_bblks, dbp)))
+				if (!error)
+					error = xlog_bread(log, wrapped_hblks,
+							bblks - split_bblks,
+							dbp);
+				if (!error)
+					error = XFS_BUF_SET_PTR(dbp, bufaddr,
+							h_size);
+				if (error)
 					goto bread_err2;
-				XFS_BUF_SET_PTR(dbp, bufaddr, h_size);
 				if (!offset)
 					offset = xlog_align(log, wrapped_hblks,
 						bblks - split_bblks, dbp);
@@ -3826,7 +3865,8 @@ xlog_do_recover(
 	XFS_BUF_READ(bp);
 	XFS_BUF_UNASYNC(bp);
 	xfsbdstrat(log->l_mp, bp);
-	if ((error = xfs_iowait(bp))) {
+	error = xfs_iowait(bp);
+	if (error) {
 		xfs_ioerror_alert("xlog_do_recover",
 				  log->l_mp, bp, XFS_BUF_ADDR(bp));
 		ASSERT(0);
@@ -3917,7 +3957,14 @@ xlog_recover_finish(
 	 * rather than accepting new requests.
 	 */
 	if (log->l_flags & XLOG_RECOVERY_NEEDED) {
-		xlog_recover_process_efis(log);
+		int	error;
+		error = xlog_recover_process_efis(log);
+		if (error) {
+			cmn_err(CE_ALERT,
+				"Failed to recover EFIs on filesystem: %s",
+				log->l_mp->m_fsname);
+			return error;
+		}
 		/*
 		 * Sync the log to get all the EFIs out of the AIL.
 		 * This isn't absolutely necessary, but it helps in

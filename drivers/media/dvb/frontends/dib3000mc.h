@@ -44,7 +44,7 @@ extern struct dvb_frontend * dib3000mc_attach(struct i2c_adapter *i2c_adap, u8 i
 #else
 static inline struct dvb_frontend * dib3000mc_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib3000mc_config *cfg)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif // CONFIG_DVB_DIB3000MC

@@ -87,17 +87,15 @@ static void triflex_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	triflex_set_mode(drive, XFER_PIO_0 + pio);
 }
 
-static void __devinit init_hwif_triflex(ide_hwif_t *hwif)
-{
-	hwif->set_pio_mode = &triflex_set_pio_mode;
-	hwif->set_dma_mode = &triflex_set_mode;
-}
+static const struct ide_port_ops triflex_port_ops = {
+	.set_pio_mode		= triflex_set_pio_mode,
+	.set_dma_mode		= triflex_set_mode,
+};
 
 static const struct ide_port_info triflex_device __devinitdata = {
 	.name		= "TRIFLEX",
-	.init_hwif	= init_hwif_triflex,
 	.enablebits	= {{0x80, 0x01, 0x01}, {0x80, 0x02, 0x02}},
-	.host_flags	= IDE_HFLAG_BOOTABLE,
+	.port_ops	= &triflex_port_ops,
 	.pio_mask	= ATA_PIO4,
 	.swdma_mask	= ATA_SWDMA2,
 	.mwdma_mask	= ATA_MWDMA2,

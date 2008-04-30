@@ -142,7 +142,7 @@ MODULE_ALIAS("compress_null");
 MODULE_ALIAS("digest_null");
 MODULE_ALIAS("cipher_null");
 
-static int __init init(void)
+static int __init crypto_null_mod_init(void)
 {
 	int ret = 0;
 	
@@ -174,7 +174,7 @@ out_unregister_cipher:
 	goto out;
 }
 
-static void __exit fini(void)
+static void __exit crypto_null_mod_fini(void)
 {
 	crypto_unregister_alg(&compress_null);
 	crypto_unregister_alg(&digest_null);
@@ -182,8 +182,8 @@ static void __exit fini(void)
 	crypto_unregister_alg(&cipher_null);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(crypto_null_mod_init);
+module_exit(crypto_null_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Null Cryptographic Algorithms");

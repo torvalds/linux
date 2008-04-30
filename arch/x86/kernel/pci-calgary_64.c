@@ -43,6 +43,7 @@
 #include <asm/system.h>
 #include <asm/dma.h>
 #include <asm/rio.h>
+#include <asm/bios_ebda.h>
 
 #ifdef CONFIG_CALGARY_IOMMU_ENABLED_BY_DEFAULT
 int use_calgary __read_mostly = 1;
@@ -470,10 +471,11 @@ error:
 	return 0;
 }
 
-static dma_addr_t calgary_map_single(struct device *dev, void *vaddr,
+static dma_addr_t calgary_map_single(struct device *dev, phys_addr_t paddr,
 	size_t size, int direction)
 {
 	dma_addr_t dma_handle = bad_dma_address;
+	void *vaddr = phys_to_virt(paddr);
 	unsigned long uaddr;
 	unsigned int npages;
 	struct iommu_table *tbl = find_iommu_table(dev);
@@ -1232,8 +1234,7 @@ static int __init calgary_init(void)
 
 error:
 	do {
-		dev = pci_get_device_reverse(PCI_VENDOR_ID_IBM,
-					     PCI_ANY_ID, dev);
+		dev = pci_get_device(PCI_VENDOR_ID_IBM, PCI_ANY_ID, dev);
 		if (!dev)
 			break;
 		if (!is_cal_pci_dev(dev->device))

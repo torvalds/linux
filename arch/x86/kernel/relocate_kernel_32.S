@@ -9,18 +9,19 @@
 #include <linux/linkage.h>
 #include <asm/page.h>
 #include <asm/kexec.h>
+#include <asm/processor-flags.h>
+#include <asm/pgtable.h>
 
 /*
  * Must be relocatable PIC code callable as a C function
  */
 
 #define PTR(x) (x << 2)
-#define PAGE_ALIGNED (1 << PAGE_SHIFT)
-#define PAGE_ATTR 0x63 /* _PAGE_PRESENT|_PAGE_RW|_PAGE_ACCESSED|_PAGE_DIRTY */
-#define PAE_PGD_ATTR 0x01 /* _PAGE_PRESENT */
+#define PAGE_ATTR (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
+#define PAE_PGD_ATTR (_PAGE_PRESENT)
 
 	.text
-	.align PAGE_ALIGNED
+	.align PAGE_SIZE
 	.globl relocate_kernel
 relocate_kernel:
 	movl	8(%esp), %ebp /* list of pages */
@@ -155,7 +156,7 @@ relocate_new_kernel:
 	movl	%eax, %cr3
 
 	/* setup a new stack at the end of the physical control page */
-	lea	4096(%edi), %esp
+	lea	PAGE_SIZE(%edi), %esp
 
 	/* jump to identity mapped page */
 	movl    %edi, %eax
@@ -168,16 +169,16 @@ identity_mapped:
 	pushl   %edx
 
 	/* Set cr0 to a known state:
-	 * 31 0 == Paging disabled
-	 * 18 0 == Alignment check disabled
-	 * 16 0 == Write protect disabled
-	 * 3  0 == No task switch
-	 * 2  0 == Don't do FP software emulation.
-	 * 0  1 == Proctected mode enabled
+	 *  - Paging disabled
+	 *  - Alignment check disabled
+	 *  - Write protect disabled
+	 *  - No task switch
+	 *  - Don't do FP software emulation.
+	 *  - Proctected mode enabled
 	 */
 	movl	%cr0, %eax
-	andl	$~((1<<31)|(1<<18)|(1<<16)|(1<<3)|(1<<2)), %eax
-	orl	$(1<<0), %eax
+	andl	$~(X86_CR0_PG | X86_CR0_AM | X86_CR0_WP | X86_CR0_TS | X86_CR0_EM), %eax
+	orl	$(X86_CR0_PE), %eax
 	movl	%eax, %cr0
 
 	/* clear cr4 if applicable */
@@ -186,8 +187,7 @@ identity_mapped:
 	/* Set cr4 to a known state:
 	 * Setting everything to zero seems safe.
 	 */
-	movl	%cr4, %eax
-	andl	$0, %eax
+	xorl	%eax, %eax
 	movl	%eax, %cr4
 
 	jmp 1f

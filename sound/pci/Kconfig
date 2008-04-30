@@ -122,6 +122,21 @@ config SND_AU8830
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-au8830.
 
+config SND_AW2
+	tristate "Emagic Audiowerk 2"
+	depends on SND
+	help
+	  Say Y here to include support for Emagic Audiowerk 2 soundcards.
+
+	  Supported features: Analog and SPDIF output. Analog or SPDIF input.
+	  Note: Switch between analog and digital input does not always work.
+	  It can produce continuous noise. The workaround is to switch again
+	  (and again) between digital and analog input until it works.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-aw2.
+
+
 config SND_AZT3328
 	tristate "Aztech AZF3328 / PCI168 (EXPERIMENTAL)"
 	depends on SND && EXPERIMENTAL
@@ -162,6 +177,7 @@ config SND_CA0106
 	depends on SND
 	select SND_AC97_CODEC
 	select SND_RAWMIDI
+	select SND_VMASTER
 	help
 	  Say Y here to include support for the Sound Blaster Audigy LS
 	  and Live 24bit.
@@ -517,6 +533,7 @@ config SND_HDA_INTEL
 	tristate "Intel HD Audio"
 	depends on SND
 	select SND_PCM
+	select SND_VMASTER
 	help
 	  Say Y here to include support for Intel "High Definition
 	  Audio" (Azalia) motherboard devices.
@@ -680,6 +697,7 @@ config SND_ICE1724
 	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
+	select SND_VMASTER
 	help
 	  Say Y here to include support for soundcards based on
 	  ICE/VT1724/1720 (Envy24HT/PT) chips.
@@ -896,12 +914,12 @@ config SND_VIA82XX_MODEM
 	  will be called snd-via82xx-modem.
 
 config SND_VIRTUOSO
-	tristate "Asus Virtuoso 200 (Xonar)"
+	tristate "Asus Virtuoso 100/200 (Xonar)"
 	depends on SND
 	select SND_OXYGEN_LIB
 	help
 	  Say Y here to include support for sound cards based on the
-	  Asus AV200 chip, i.e., Xonar D2 and Xonar D2X.
+	  Asus AV100/AV200 chips, i.e., Xonar D2, DX and D2X.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-virtuoso.

@@ -226,7 +226,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport,
 
 	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, "
 			  "src:" NIP6_FMT " dst:" NIP6_FMT "\n",
-			  __FUNCTION__, skb, skb->len,
+			  __func__, skb, skb->len,
 			  NIP6(fl.fl6_src), NIP6(fl.fl6_dst));
 
 	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
@@ -251,7 +251,7 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 
 
 	SCTP_DEBUG_PRINTK("%s: DST=" NIP6_FMT " ",
-			  __FUNCTION__, NIP6(fl.fl6_dst));
+			  __func__, NIP6(fl.fl6_dst));
 
 	if (saddr) {
 		ipv6_addr_copy(&fl.fl6_src, &saddr->v6.sin6_addr);
@@ -260,7 +260,7 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 			NIP6(fl.fl6_src));
 	}
 
-	dst = ip6_route_output(NULL, &fl);
+	dst = ip6_route_output(&init_net, NULL, &fl);
 	if (!dst->error) {
 		struct rt6_info *rt;
 		rt = (struct rt6_info *)dst;
@@ -313,10 +313,13 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 
 	SCTP_DEBUG_PRINTK("%s: asoc:%p dst:%p "
 			  "daddr:" NIP6_FMT " ",
-			  __FUNCTION__, asoc, dst, NIP6(daddr->v6.sin6_addr));
+			  __func__, asoc, dst, NIP6(daddr->v6.sin6_addr));
 
 	if (!asoc) {
-		ipv6_get_saddr(dst, &daddr->v6.sin6_addr,&saddr->v6.sin6_addr);
+		ipv6_dev_get_saddr(dst ? ip6_dst_idev(dst)->dev : NULL,
+				   &daddr->v6.sin6_addr,
+				   inet6_sk(asoc->base.sk)->srcprefs,
+				   &saddr->v6.sin6_addr);
 		SCTP_DEBUG_PRINTK("saddr from ipv6_get_saddr: " NIP6_FMT "\n",
 				  NIP6(saddr->v6.sin6_addr));
 		return;
@@ -351,7 +354,7 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 	} else {
 		printk(KERN_ERR "%s: asoc:%p Could not find a valid source "
 		       "address for the dest:" NIP6_FMT "\n",
-		       __FUNCTION__, asoc, NIP6(daddr->v6.sin6_addr));
+		       __func__, asoc, NIP6(daddr->v6.sin6_addr));
 	}
 
 	rcu_read_unlock();
@@ -634,7 +637,7 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	struct ipv6_pinfo *newnp, *np = inet6_sk(sk);
 	struct sctp6_sock *newsctp6sk;
 
-	newsk = sk_alloc(sk->sk_net, PF_INET6, GFP_KERNEL, sk->sk_prot);
+	newsk = sk_alloc(sock_net(sk), PF_INET6, GFP_KERNEL, sk->sk_prot);
 	if (!newsk)
 		goto out;
 

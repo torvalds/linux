@@ -511,10 +511,10 @@ enum PhyCtrl_bits {
 /* Note that using only 32 bit fields simplifies conversion to big-endian
    architectures. */
 struct netdev_desc {
-	u32 next_desc;
-	s32 cmd_status;
-	u32 addr;
-	u32 software_use;
+	__le32 next_desc;
+	__le32 cmd_status;
+	__le32 addr;
+	__le32 software_use;
 };
 
 /* Bits in network_desc.status */
@@ -786,7 +786,8 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	struct netdev_private *np;
 	int i, option, irq, chip_idx = ent->driver_data;
 	static int find_cnt = -1;
-	unsigned long iostart, iosize;
+	resource_size_t iostart;
+	unsigned long iosize;
 	void __iomem *ioaddr;
 	const int pcibar = 1; /* PCI base address register */
 	int prev_eedata;
@@ -946,10 +947,11 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 		goto err_create_file;
 
 	if (netif_msg_drv(np)) {
-		printk(KERN_INFO "natsemi %s: %s at %#08lx "
+		printk(KERN_INFO "natsemi %s: %s at %#08llx "
 		       "(%s), %s, IRQ %d",
-		       dev->name, natsemi_pci_info[chip_idx].name, iostart,
-		       pci_name(np->pci_dev), print_mac(mac, dev->dev_addr), irq);
+		       dev->name, natsemi_pci_info[chip_idx].name,
+		       (unsigned long long)iostart, pci_name(np->pci_dev),
+		       print_mac(mac, dev->dev_addr), irq);
 		if (dev->if_port == PORT_TP)
 			printk(", port TP.\n");
 		else if (np->ignore_phy)
@@ -2018,7 +2020,7 @@ static void drain_rx(struct net_device *dev)
 	/* Free all the skbuffs in the Rx queue. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		np->rx_ring[i].cmd_status = 0;
-		np->rx_ring[i].addr = 0xBADF00D0; /* An invalid address. */
+		np->rx_ring[i].addr = cpu_to_le32(0xBADF00D0); /* An invalid address. */
 		if (np->rx_skbuff[i]) {
 			pci_unmap_single(np->pci_dev,
 				np->rx_dma[i], buflen,

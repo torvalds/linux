@@ -40,8 +40,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <asm/current.h>
-
 #include <rdma/ib_umem.h>
 
 #include "ehca_iverbs.h"
@@ -419,7 +417,6 @@ int ehca_rereg_phys_mr(struct ib_mr *mr,
 	struct ehca_shca *shca =
 		container_of(mr->device, struct ehca_shca, ib_device);
 	struct ehca_mr *e_mr = container_of(mr, struct ehca_mr, ib.ib_mr);
-	struct ehca_pd *my_pd = container_of(mr->pd, struct ehca_pd, ib_pd);
 	u64 new_size;
 	u64 *new_start;
 	u32 new_acl;
@@ -429,15 +426,6 @@ int ehca_rereg_phys_mr(struct ib_mr *mr,
 	u32 num_kpages = 0;
 	u32 num_hwpages = 0;
 	struct ehca_mr_pginfo pginfo;
-	u32 cur_pid = current->tgid;
-
-	if (my_pd->ib_pd.uobject && my_pd->ib_pd.uobject->context &&
-	    (my_pd->ownpid != cur_pid)) {
-		ehca_err(mr->device, "Invalid caller pid=%x ownpid=%x",
-			 cur_pid, my_pd->ownpid);
-		ret = -EINVAL;
-		goto rereg_phys_mr_exit0;
-	}
 
 	if (!(mr_rereg_mask & IB_MR_REREG_TRANS)) {
 		/* TODO not supported, because PHYP rereg hCall needs pages */
@@ -577,18 +565,8 @@ int ehca_query_mr(struct ib_mr *mr, struct ib_mr_attr *mr_attr)
 	struct ehca_shca *shca =
 		container_of(mr->device, struct ehca_shca, ib_device);
 	struct ehca_mr *e_mr = container_of(mr, struct ehca_mr, ib.ib_mr);
-	struct ehca_pd *my_pd = container_of(mr->pd, struct ehca_pd, ib_pd);
-	u32 cur_pid = current->tgid;
 	unsigned long sl_flags;
 	struct ehca_mr_hipzout_parms hipzout;
-
-	if (my_pd->ib_pd.uobject && my_pd->ib_pd.uobject->context &&
-	    (my_pd->ownpid != cur_pid)) {
-		ehca_err(mr->device, "Invalid caller pid=%x ownpid=%x",
-			 cur_pid, my_pd->ownpid);
-		ret = -EINVAL;
-		goto query_mr_exit0;
-	}
 
 	if ((e_mr->flags & EHCA_MR_FLAG_FMR)) {
 		ehca_err(mr->device, "not supported for FMR, mr=%p e_mr=%p "
@@ -634,16 +612,6 @@ int ehca_dereg_mr(struct ib_mr *mr)
 	struct ehca_shca *shca =
 		container_of(mr->device, struct ehca_shca, ib_device);
 	struct ehca_mr *e_mr = container_of(mr, struct ehca_mr, ib.ib_mr);
-	struct ehca_pd *my_pd = container_of(mr->pd, struct ehca_pd, ib_pd);
-	u32 cur_pid = current->tgid;
-
-	if (my_pd->ib_pd.uobject && my_pd->ib_pd.uobject->context &&
-	    (my_pd->ownpid != cur_pid)) {
-		ehca_err(mr->device, "Invalid caller pid=%x ownpid=%x",
-			 cur_pid, my_pd->ownpid);
-		ret = -EINVAL;
-		goto dereg_mr_exit0;
-	}
 
 	if ((e_mr->flags & EHCA_MR_FLAG_FMR)) {
 		ehca_err(mr->device, "not supported for FMR, mr=%p e_mr=%p "
@@ -1826,8 +1794,9 @@ static int ehca_check_kpages_per_ate(struct scatterlist *page_list,
 	int t;
 	for (t = start_idx; t <= end_idx; t++) {
 		u64 pgaddr = page_to_pfn(sg_page(&page_list[t])) << PAGE_SHIFT;
-		ehca_gen_dbg("chunk_page=%lx value=%016lx", pgaddr,
-			     *(u64 *)abs_to_virt(phys_to_abs(pgaddr)));
+		if (ehca_debug_level >= 3)
+			ehca_gen_dbg("chunk_page=%lx value=%016lx", pgaddr,
+				     *(u64 *)abs_to_virt(phys_to_abs(pgaddr)));
 		if (pgaddr - PAGE_SIZE != *prev_pgaddr) {
 			ehca_gen_err("uncontiguous page found pgaddr=%lx "
 				     "prev_pgaddr=%lx page_list_i=%x",
@@ -1894,10 +1863,13 @@ static int ehca_set_pagebuf_user2(struct ehca_mr_pginfo *pginfo,
 						pgaddr &
 						~(pginfo->hwpage_size - 1));
 				}
-				ehca_gen_dbg("kpage=%lx chunk_page=%lx "
-					     "value=%016lx", *kpage, pgaddr,
-					     *(u64 *)abs_to_virt(
-						     phys_to_abs(pgaddr)));
+				if (ehca_debug_level >= 3) {
+					u64 val = *(u64 *)abs_to_virt(
+						phys_to_abs(pgaddr));
+					ehca_gen_dbg("kpage=%lx chunk_page=%lx "
+						     "value=%016lx",
+						     *kpage, pgaddr, val);
+				}
 				prev_pgaddr = pgaddr;
 				i++;
 				pginfo->kpage_cnt++;
@@ -1952,9 +1924,8 @@ next_kpage:
 	return ret;
 }
 
-int ehca_set_pagebuf_phys(struct ehca_mr_pginfo *pginfo,
-			  u32 number,
-			  u64 *kpage)
+static int ehca_set_pagebuf_phys(struct ehca_mr_pginfo *pginfo,
+				 u32 number, u64 *kpage)
 {
 	int ret = 0;
 	struct ib_phys_buf *pbuf;
@@ -2012,9 +1983,8 @@ int ehca_set_pagebuf_phys(struct ehca_mr_pginfo *pginfo,
 	return ret;
 }
 
-int ehca_set_pagebuf_fmr(struct ehca_mr_pginfo *pginfo,
-			 u32 number,
-			 u64 *kpage)
+static int ehca_set_pagebuf_fmr(struct ehca_mr_pginfo *pginfo,
+				u32 number, u64 *kpage)
 {
 	int ret = 0;
 	u64 *fmrlist;

@@ -62,6 +62,14 @@ config B43_PCMCIA
 
 	  If unsure, say N.
 
+# Data transfers to the device via PIO
+# This is only needed on PCMCIA devices. All others can do DMA properly.
+config B43_PIO
+	bool
+	depends on B43 && (B43_PCMCIA || B43_FORCE_PIO)
+	select SSB_BLOCKIO
+	default y
+
 config B43_NPHY
 	bool "Pre IEEE 802.11n support (BROKEN)"
 	depends on B43 && EXPERIMENTAL && BROKEN
@@ -94,3 +102,13 @@ config B43_DEBUG
 
 	  Say Y, if you want to find out why the driver does not
 	  work for you.
+
+config B43_FORCE_PIO
+	bool "Force usage of PIO instead of DMA"
+	depends on B43 && B43_DEBUG
+	---help---
+	  This will disable DMA and always enable PIO instead.
+
+	  Say N!
+	  This is only for debugging the PIO engine code. You do
+	  _NOT_ want to enable this.

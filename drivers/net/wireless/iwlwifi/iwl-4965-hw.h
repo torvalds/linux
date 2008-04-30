@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -92,316 +92,6 @@
 /* RSSI to dBm */
 #define IWL_RSSI_OFFSET	44
 
-/*
- * EEPROM related constants, enums, and structures.
- */
-
-/*
- * EEPROM access time values:
- *
- * Driver initiates EEPROM read by writing byte address << 1 to CSR_EEPROM_REG,
- *   then clearing (with subsequent read/modify/write) CSR_EEPROM_REG bit
- *   CSR_EEPROM_REG_BIT_CMD (0x2).
- * Driver then polls CSR_EEPROM_REG for CSR_EEPROM_REG_READ_VALID_MSK (0x1).
- * When polling, wait 10 uSec between polling loops, up to a maximum 5000 uSec.
- * Driver reads 16-bit value from bits 31-16 of CSR_EEPROM_REG.
- */
-#define IWL_EEPROM_ACCESS_TIMEOUT	5000 /* uSec */
-#define IWL_EEPROM_ACCESS_DELAY		10   /* uSec */
-
-/*
- * Regulatory channel usage flags in EEPROM struct iwl4965_eeprom_channel.flags.
- *
- * IBSS and/or AP operation is allowed *only* on those channels with
- * (VALID && IBSS && ACTIVE && !RADAR).  This restriction is in place because
- * RADAR detection is not supported by the 4965 driver, but is a
- * requirement for establishing a new network for legal operation on channels
- * requiring RADAR detection or restricting ACTIVE scanning.
- *
- * NOTE:  "WIDE" flag does not indicate anything about "FAT" 40 MHz channels.
- *        It only indicates that 20 MHz channel use is supported; FAT channel
- *        usage is indicated by a separate set of regulatory flags for each
- *        FAT channel pair.
- *
- * NOTE:  Using a channel inappropriately will result in a uCode error!
- */
-enum {
-	EEPROM_CHANNEL_VALID = (1 << 0),	/* usable for this SKU/geo */
-	EEPROM_CHANNEL_IBSS = (1 << 1),		/* usable as an IBSS channel */
-	/* Bit 2 Reserved */
-	EEPROM_CHANNEL_ACTIVE = (1 << 3),	/* active scanning allowed */
-	EEPROM_CHANNEL_RADAR = (1 << 4),	/* radar detection required */
-	EEPROM_CHANNEL_WIDE = (1 << 5),		/* 20 MHz channel okay */
-	EEPROM_CHANNEL_NARROW = (1 << 6),	/* 10 MHz channel (not used) */
-	EEPROM_CHANNEL_DFS = (1 << 7),	/* dynamic freq selection candidate */
-};
-
-/* SKU Capabilities */
-#define EEPROM_SKU_CAP_SW_RF_KILL_ENABLE                (1 << 0)
-#define EEPROM_SKU_CAP_HW_RF_KILL_ENABLE                (1 << 1)
-
-/* *regulatory* channel data format in eeprom, one for each channel.
- * There are separate entries for FAT (40 MHz) vs. normal (20 MHz) channels. */
-struct iwl4965_eeprom_channel {
-	u8 flags;		/* EEPROM_CHANNEL_* flags copied from EEPROM */
-	s8 max_power_avg;	/* max power (dBm) on this chnl, limit 31 */
-} __attribute__ ((packed));
-
-/* 4965 has two radio transmitters (and 3 radio receivers) */
-#define EEPROM_TX_POWER_TX_CHAINS      (2)
-
-/* 4965 has room for up to 8 sets of txpower calibration data */
-#define EEPROM_TX_POWER_BANDS          (8)
-
-/* 4965 factory calibration measures txpower gain settings for
- * each of 3 target output levels */
-#define EEPROM_TX_POWER_MEASUREMENTS   (3)
-
-/* 4965 driver does not work with txpower calibration version < 5.
- * Look for this in calib_version member of struct iwl4965_eeprom. */
-#define EEPROM_TX_POWER_VERSION_NEW    (5)
-
-
-/*
- * 4965 factory calibration data for one txpower level, on one channel,
- * measured on one of the 2 tx chains (radio transmitter and associated
- * antenna).  EEPROM contains:
- *
- * 1)  Temperature (degrees Celsius) of device when measurement was made.
- *
- * 2)  Gain table index used to achieve the target measurement power.
- *     This refers to the "well-known" gain tables (see iwl-4965-hw.h).
- *
- * 3)  Actual measured output power, in half-dBm ("34" = 17 dBm).
- *
- * 4)  RF power amplifier detector level measurement (not used).
- */
-struct iwl4965_eeprom_calib_measure {
-	u8 temperature;		/* Device temperature (Celsius) */
-	u8 gain_idx;		/* Index into gain table */
-	u8 actual_pow;		/* Measured RF output power, half-dBm */
-	s8 pa_det;		/* Power amp detector level (not used) */
-} __attribute__ ((packed));
-
-
-/*
- * 4965 measurement set for one channel.  EEPROM contains:
- *
- * 1)  Channel number measured
- *
- * 2)  Measurements for each of 3 power levels for each of 2 radio transmitters
- *     (a.k.a. "tx chains") (6 measurements altogether)
- */
-struct iwl4965_eeprom_calib_ch_info {
-	u8 ch_num;
-	struct iwl4965_eeprom_calib_measure measurements[EEPROM_TX_POWER_TX_CHAINS]
-		[EEPROM_TX_POWER_MEASUREMENTS];
-} __attribute__ ((packed));
-
-/*
- * 4965 txpower subband info.
- *
- * For each frequency subband, EEPROM contains the following:
- *
- * 1)  First and last channels within range of the subband.  "0" values
- *     indicate that this sample set is not being used.
- *
- * 2)  Sample measurement sets for 2 channels close to the range endpoints.
- */
-struct iwl4965_eeprom_calib_subband_info {
-	u8 ch_from;	/* channel number of lowest channel in subband */
-	u8 ch_to;	/* channel number of highest channel in subband */
-	struct iwl4965_eeprom_calib_ch_info ch1;
-	struct iwl4965_eeprom_calib_ch_info ch2;
-} __attribute__ ((packed));
-
-
-/*
- * 4965 txpower calibration info.  EEPROM contains:
- *
- * 1)  Factory-measured saturation power levels (maximum levels at which
- *     tx power amplifier can output a signal without too much distortion).
- *     There is one level for 2.4 GHz band and one for 5 GHz band.  These
- *     values apply to all channels within each of the bands.
- *
- * 2)  Factory-measured power supply voltage level.  This is assumed to be
- *     constant (i.e. same value applies to all channels/bands) while the
- *     factory measurements are being made.
- *
- * 3)  Up to 8 sets of factory-measured txpower calibration values.
- *     These are for different frequency ranges, since txpower gain
- *     characteristics of the analog radio circuitry vary with frequency.
- *
- *     Not all sets need to be filled with data;
- *     struct iwl4965_eeprom_calib_subband_info contains range of channels
- *     (0 if unused) for each set of data.
- */
-struct iwl4965_eeprom_calib_info {
-	u8 saturation_power24;	/* half-dBm (e.g. "34" = 17 dBm) */
-	u8 saturation_power52;	/* half-dBm */
-	s16 voltage;		/* signed */
-	struct iwl4965_eeprom_calib_subband_info band_info[EEPROM_TX_POWER_BANDS];
-} __attribute__ ((packed));
-
-
-/*
- * 4965 EEPROM map
- */
-struct iwl4965_eeprom {
-	u8 reserved0[16];
-#define EEPROM_DEVICE_ID                    (2*0x08)	/* 2 bytes */
-	u16 device_id;		/* abs.ofs: 16 */
-	u8 reserved1[2];
-#define EEPROM_PMC                          (2*0x0A)	/* 2 bytes */
-	u16 pmc;		/* abs.ofs: 20 */
-	u8 reserved2[20];
-#define EEPROM_MAC_ADDRESS                  (2*0x15)	/* 6  bytes */
-	u8 mac_address[6];	/* abs.ofs: 42 */
-	u8 reserved3[58];
-#define EEPROM_BOARD_REVISION               (2*0x35)	/* 2  bytes */
-	u16 board_revision;	/* abs.ofs: 106 */
-	u8 reserved4[11];
-#define EEPROM_BOARD_PBA_NUMBER             (2*0x3B+1)	/* 9  bytes */
-	u8 board_pba_number[9];	/* abs.ofs: 119 */
-	u8 reserved5[8];
-#define EEPROM_VERSION                      (2*0x44)	/* 2  bytes */
-	u16 version;		/* abs.ofs: 136 */
-#define EEPROM_SKU_CAP                      (2*0x45)	/* 1  bytes */
-	u8 sku_cap;		/* abs.ofs: 138 */
-#define EEPROM_LEDS_MODE                    (2*0x45+1)	/* 1  bytes */
-	u8 leds_mode;		/* abs.ofs: 139 */
-#define EEPROM_OEM_MODE                     (2*0x46)	/* 2  bytes */
-	u16 oem_mode;
-#define EEPROM_WOWLAN_MODE                  (2*0x47)	/* 2  bytes */
-	u16 wowlan_mode;	/* abs.ofs: 142 */
-#define EEPROM_LEDS_TIME_INTERVAL           (2*0x48)	/* 2  bytes */
-	u16 leds_time_interval;	/* abs.ofs: 144 */
-#define EEPROM_LEDS_OFF_TIME                (2*0x49)	/* 1  bytes */
-	u8 leds_off_time;	/* abs.ofs: 146 */
-#define EEPROM_LEDS_ON_TIME                 (2*0x49+1)	/* 1  bytes */
-	u8 leds_on_time;	/* abs.ofs: 147 */
-#define EEPROM_ALMGOR_M_VERSION             (2*0x4A)	/* 1  bytes */
-	u8 almgor_m_version;	/* abs.ofs: 148 */
-#define EEPROM_ANTENNA_SWITCH_TYPE          (2*0x4A+1)	/* 1  bytes */
-	u8 antenna_switch_type;	/* abs.ofs: 149 */
-	u8 reserved6[8];
-#define EEPROM_4965_BOARD_REVISION          (2*0x4F)	/* 2 bytes */
-	u16 board_revision_4965;	/* abs.ofs: 158 */
-	u8 reserved7[13];
-#define EEPROM_4965_BOARD_PBA               (2*0x56+1)	/* 9 bytes */
-	u8 board_pba_number_4965[9];	/* abs.ofs: 173 */
-	u8 reserved8[10];
-#define EEPROM_REGULATORY_SKU_ID            (2*0x60)	/* 4  bytes */
-	u8 sku_id[4];		/* abs.ofs: 192 */
-
-/*
- * Per-channel regulatory data.
- *
- * Each channel that *might* be supported by 3945 or 4965 has a fixed location
- * in EEPROM containing EEPROM_CHANNEL_* usage flags (LSB) and max regulatory
- * txpower (MSB).
- *
- * Entries immediately below are for 20 MHz channel width.  FAT (40 MHz)
- * channels (only for 4965, not supported by 3945) appear later in the EEPROM.
- *
- * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
- */
-#define EEPROM_REGULATORY_BAND_1            (2*0x62)	/* 2  bytes */
-	u16 band_1_count;	/* abs.ofs: 196 */
-#define EEPROM_REGULATORY_BAND_1_CHANNELS   (2*0x63)	/* 28 bytes */
-	struct iwl4965_eeprom_channel band_1_channels[14]; /* abs.ofs: 196 */
-
-/*
- * 4.9 GHz channels 183, 184, 185, 187, 188, 189, 192, 196,
- * 5.0 GHz channels 7, 8, 11, 12, 16
- * (4915-5080MHz) (none of these is ever supported)
- */
-#define EEPROM_REGULATORY_BAND_2            (2*0x71)	/* 2  bytes */
-	u16 band_2_count;	/* abs.ofs: 226 */
-#define EEPROM_REGULATORY_BAND_2_CHANNELS   (2*0x72)	/* 26 bytes */
-	struct iwl4965_eeprom_channel band_2_channels[13]; /* abs.ofs: 228 */
-
-/*
- * 5.2 GHz channels 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64
- * (5170-5320MHz)
- */
-#define EEPROM_REGULATORY_BAND_3            (2*0x7F)	/* 2  bytes */
-	u16 band_3_count;	/* abs.ofs: 254 */
-#define EEPROM_REGULATORY_BAND_3_CHANNELS   (2*0x80)	/* 24 bytes */
-	struct iwl4965_eeprom_channel band_3_channels[12]; /* abs.ofs: 256 */
-
-/*
- * 5.5 GHz channels 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
- * (5500-5700MHz)
- */
-#define EEPROM_REGULATORY_BAND_4            (2*0x8C)	/* 2  bytes */
-	u16 band_4_count;	/* abs.ofs: 280 */
-#define EEPROM_REGULATORY_BAND_4_CHANNELS   (2*0x8D)	/* 22 bytes */
-	struct iwl4965_eeprom_channel band_4_channels[11]; /* abs.ofs: 282 */
-
-/*
- * 5.7 GHz channels 145, 149, 153, 157, 161, 165
- * (5725-5825MHz)
- */
-#define EEPROM_REGULATORY_BAND_5            (2*0x98)	/* 2  bytes */
-	u16 band_5_count;	/* abs.ofs: 304 */
-#define EEPROM_REGULATORY_BAND_5_CHANNELS   (2*0x99)	/* 12 bytes */
-	struct iwl4965_eeprom_channel band_5_channels[6]; /* abs.ofs: 306 */
-
-	u8 reserved10[2];
-
-
-/*
- * 2.4 GHz FAT channels 1 (5), 2 (6), 3 (7), 4 (8), 5 (9), 6 (10), 7 (11)
- *
- * The channel listed is the center of the lower 20 MHz half of the channel.
- * The overall center frequency is actually 2 channels (10 MHz) above that,
- * and the upper half of each FAT channel is centered 4 channels (20 MHz) away
- * from the lower half; e.g. the upper half of FAT channel 1 is channel 5,
- * and the overall FAT channel width centers on channel 3.
- *
- * NOTE:  The RXON command uses 20 MHz channel numbers to specify the
- *        control channel to which to tune.  RXON also specifies whether the
- *        control channel is the upper or lower half of a FAT channel.
- *
- * NOTE:  4965 does not support FAT channels on 2.4 GHz.
- */
-#define EEPROM_REGULATORY_BAND_24_FAT_CHANNELS (2*0xA0)	/* 14 bytes */
-	struct iwl4965_eeprom_channel band_24_channels[7]; /* abs.ofs: 320 */
-	u8 reserved11[2];
-
-/*
- * 5.2 GHz FAT channels 36 (40), 44 (48), 52 (56), 60 (64),
- * 100 (104), 108 (112), 116 (120), 124 (128), 132 (136), 149 (153), 157 (161)
- */
-#define EEPROM_REGULATORY_BAND_52_FAT_CHANNELS (2*0xA8)	/* 22 bytes */
-	struct iwl4965_eeprom_channel band_52_channels[11]; /* abs.ofs: 336 */
-	u8 reserved12[6];
-
-/*
- * 4965 driver requires txpower calibration format version 5 or greater.
- * Driver does not work with txpower calibration version < 5.
- * This value is simply a 16-bit number, no major/minor versions here.
- */
-#define EEPROM_CALIB_VERSION_OFFSET            (2*0xB6)	/* 2 bytes */
-	u16 calib_version;	/* abs.ofs: 364 */
-	u8 reserved13[2];
-	u8 reserved14[96];	/* abs.ofs: 368 */
-
-/*
- * 4965 Txpower calibration data.
- */
-#define EEPROM_IWL_CALIB_TXPOWER_OFFSET        (2*0xE8)	/* 48  bytes */
-	struct iwl4965_eeprom_calib_info calib_info;	/* abs.ofs: 464 */
-
-	u8 reserved16[140];	/* fill out to full 1024 byte block */
-
-
-} __attribute__ ((packed));
-
-#define IWL_EEPROM_IMAGE_SIZE 1024
-
-/* End of EEPROM */
 
 #include "iwl-4965-commands.h"
 
@@ -409,182 +99,6 @@ struct iwl4965_eeprom {
 #define PCI_POWER_SOURCE   0x0C8
 #define PCI_REG_WUM8       0x0E8
 #define PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT         (0x80000000)
-
-/*=== CSR (control and status registers) ===*/
-#define CSR_BASE    (0x000)
-
-#define CSR_SW_VER              (CSR_BASE+0x000)
-#define CSR_HW_IF_CONFIG_REG    (CSR_BASE+0x000) /* hardware interface config */
-#define CSR_INT_COALESCING      (CSR_BASE+0x004) /* accum ints, 32-usec units */
-#define CSR_INT                 (CSR_BASE+0x008) /* host interrupt status/ack */
-#define CSR_INT_MASK            (CSR_BASE+0x00c) /* host interrupt enable */
-#define CSR_FH_INT_STATUS       (CSR_BASE+0x010) /* busmaster int status/ack*/
-#define CSR_GPIO_IN             (CSR_BASE+0x018) /* read external chip pins */
-#define CSR_RESET               (CSR_BASE+0x020) /* busmaster enable, NMI, etc*/
-#define CSR_GP_CNTRL            (CSR_BASE+0x024)
-
-/*
- * Hardware revision info
- * Bit fields:
- * 31-8:  Reserved
- *  7-4:  Type of device:  0x0 = 4965, 0xd = 3945
- *  3-2:  Revision step:  0 = A, 1 = B, 2 = C, 3 = D
- *  1-0:  "Dash" value, as in A-1, etc.
- *
- * NOTE:  Revision step affects calculation of CCK txpower for 4965.
- */
-#define CSR_HW_REV              (CSR_BASE+0x028)
-
-/* EEPROM reads */
-#define CSR_EEPROM_REG          (CSR_BASE+0x02c)
-#define CSR_EEPROM_GP           (CSR_BASE+0x030)
-#define CSR_GP_UCODE		(CSR_BASE+0x044)
-#define CSR_UCODE_DRV_GP1       (CSR_BASE+0x054)
-#define CSR_UCODE_DRV_GP1_SET   (CSR_BASE+0x058)
-#define CSR_UCODE_DRV_GP1_CLR   (CSR_BASE+0x05c)
-#define CSR_UCODE_DRV_GP2       (CSR_BASE+0x060)
-#define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
-
-/*
- * Indicates hardware rev, to determine CCK backoff for txpower calculation.
- * Bit fields:
- *  3-2:  0 = A, 1 = B, 2 = C, 3 = D step
- */
-#define CSR_HW_REV_WA_REG	(CSR_BASE+0x22C)
-
-/* Hardware interface configuration bits */
-#define CSR_HW_IF_CONFIG_REG_BIT_KEDRON_R	(0x00000010)
-#define CSR_HW_IF_CONFIG_REG_MSK_BOARD_VER	(0x00000C00)
-#define CSR_HW_IF_CONFIG_REG_BIT_MAC_SI		(0x00000100)
-#define CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI	(0x00000200)
-#define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM (0x00200000)
-
-/* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
- * acknowledged (reset) by host writing "1" to flagged bits. */
-#define CSR_INT_BIT_FH_RX        (1 << 31) /* Rx DMA, cmd responses, FH_INT[17:16] */
-#define CSR_INT_BIT_HW_ERR       (1 << 29) /* DMA hardware error FH_INT[31] */
-#define CSR_INT_BIT_DNLD         (1 << 28) /* uCode Download */
-#define CSR_INT_BIT_FH_TX        (1 << 27) /* Tx DMA FH_INT[1:0] */
-#define CSR_INT_BIT_SCD          (1 << 26) /* TXQ pointer advanced */
-#define CSR_INT_BIT_SW_ERR       (1 << 25) /* uCode error */
-#define CSR_INT_BIT_RF_KILL      (1 << 7)  /* HW RFKILL switch GP_CNTRL[27] toggled */
-#define CSR_INT_BIT_CT_KILL      (1 << 6)  /* Critical temp (chip too hot) rfkill */
-#define CSR_INT_BIT_SW_RX        (1 << 3)  /* Rx, command responses, 3945 */
-#define CSR_INT_BIT_WAKEUP       (1 << 1)  /* NIC controller waking up (pwr mgmt) */
-#define CSR_INT_BIT_ALIVE        (1 << 0)  /* uCode interrupts once it initializes */
-
-#define CSR_INI_SET_MASK	(CSR_INT_BIT_FH_RX   | \
-				 CSR_INT_BIT_HW_ERR  | \
-				 CSR_INT_BIT_FH_TX   | \
-				 CSR_INT_BIT_SW_ERR  | \
-				 CSR_INT_BIT_RF_KILL | \
-				 CSR_INT_BIT_SW_RX   | \
-				 CSR_INT_BIT_WAKEUP  | \
-				 CSR_INT_BIT_ALIVE)
-
-/* interrupt flags in FH (flow handler) (PCI busmaster DMA) */
-#define CSR_FH_INT_BIT_ERR       (1 << 31) /* Error */
-#define CSR_FH_INT_BIT_HI_PRIOR  (1 << 30) /* High priority Rx, bypass coalescing */
-#define CSR_FH_INT_BIT_RX_CHNL1  (1 << 17) /* Rx channel 1 */
-#define CSR_FH_INT_BIT_RX_CHNL0  (1 << 16) /* Rx channel 0 */
-#define CSR_FH_INT_BIT_TX_CHNL1  (1 << 1)  /* Tx channel 1 */
-#define CSR_FH_INT_BIT_TX_CHNL0  (1 << 0)  /* Tx channel 0 */
-
-#define CSR_FH_INT_RX_MASK	(CSR_FH_INT_BIT_HI_PRIOR | \
-				 CSR_FH_INT_BIT_RX_CHNL1 | \
-				 CSR_FH_INT_BIT_RX_CHNL0)
-
-#define CSR_FH_INT_TX_MASK	(CSR_FH_INT_BIT_TX_CHNL1 | \
-				 CSR_FH_INT_BIT_TX_CHNL0)
-
-
-/* RESET */
-#define CSR_RESET_REG_FLAG_NEVO_RESET                (0x00000001)
-#define CSR_RESET_REG_FLAG_FORCE_NMI                 (0x00000002)
-#define CSR_RESET_REG_FLAG_SW_RESET                  (0x00000080)
-#define CSR_RESET_REG_FLAG_MASTER_DISABLED           (0x00000100)
-#define CSR_RESET_REG_FLAG_STOP_MASTER               (0x00000200)
-
-/* GP (general purpose) CONTROL */
-#define CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY        (0x00000001)
-#define CSR_GP_CNTRL_REG_FLAG_INIT_DONE              (0x00000004)
-#define CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ         (0x00000008)
-#define CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP         (0x00000010)
-
-#define CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN           (0x00000001)
-
-#define CSR_GP_CNTRL_REG_MSK_POWER_SAVE_TYPE         (0x07000000)
-#define CSR_GP_CNTRL_REG_FLAG_MAC_POWER_SAVE         (0x04000000)
-#define CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW          (0x08000000)
-
-
-/* EEPROM REG */
-#define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)
-#define CSR_EEPROM_REG_BIT_CMD		(0x00000002)
-
-/* EEPROM GP */
-#define CSR_EEPROM_GP_VALID_MSK		(0x00000006)
-#define CSR_EEPROM_GP_BAD_SIGNATURE	(0x00000000)
-#define CSR_EEPROM_GP_IF_OWNER_MSK	(0x00000180)
-
-/* UCODE DRV GP */
-#define CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP             (0x00000001)
-#define CSR_UCODE_SW_BIT_RFKILL                     (0x00000002)
-#define CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED           (0x00000004)
-#define CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT      (0x00000008)
-
-/* GPIO */
-#define CSR_GPIO_IN_BIT_AUX_POWER                   (0x00000200)
-#define CSR_GPIO_IN_VAL_VAUX_PWR_SRC                (0x00000000)
-#define CSR_GPIO_IN_VAL_VMAIN_PWR_SRC		CSR_GPIO_IN_BIT_AUX_POWER
-
-/* GI Chicken Bits */
-#define CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX  (0x00800000)
-#define CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER  (0x20000000)
-
-/*=== HBUS (Host-side Bus) ===*/
-#define HBUS_BASE	(0x400)
-
-/*
- * Registers for accessing device's internal SRAM memory (e.g. SCD SRAM
- * structures, error log, event log, verifying uCode load).
- * First write to address register, then read from or write to data register
- * to complete the job.  Once the address register is set up, accesses to
- * data registers auto-increment the address by one dword.
- * Bit usage for address registers (read or write):
- *  0-31:  memory address within device
- */
-#define HBUS_TARG_MEM_RADDR     (HBUS_BASE+0x00c)
-#define HBUS_TARG_MEM_WADDR     (HBUS_BASE+0x010)
-#define HBUS_TARG_MEM_WDAT      (HBUS_BASE+0x018)
-#define HBUS_TARG_MEM_RDAT      (HBUS_BASE+0x01c)
-
-/*
- * Registers for accessing device's internal peripheral registers
- * (e.g. SCD, BSM, etc.).  First write to address register,
- * then read from or write to data register to complete the job.
- * Bit usage for address registers (read or write):
- *  0-15:  register address (offset) within device
- * 24-25:  (# bytes - 1) to read or write (e.g. 3 for dword)
- */
-#define HBUS_TARG_PRPH_WADDR    (HBUS_BASE+0x044)
-#define HBUS_TARG_PRPH_RADDR    (HBUS_BASE+0x048)
-#define HBUS_TARG_PRPH_WDAT     (HBUS_BASE+0x04c)
-#define HBUS_TARG_PRPH_RDAT     (HBUS_BASE+0x050)
-
-/*
- * Per-Tx-queue write pointer (index, really!) (3945 and 4965).
- * Driver sets this to indicate index to next TFD that driver will fill
- * (1 past latest filled).
- * Bit usage:
- *  0-7:  queue write index (0-255)
- * 11-8:  queue selector (0-15)
- */
-#define HBUS_TARG_WRPTR         (HBUS_BASE+0x060)
-
-#define HBUS_TARG_MBX_C         (HBUS_BASE+0x030)
-
-#define HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED         (0x00000004)
 
 #define TFD_QUEUE_SIZE_MAX      (256)
 
@@ -599,9 +113,6 @@ struct iwl4965_eeprom {
 #define TFD_TX_CMD_SLOTS 256
 #define TFD_CMD_SLOTS 32
 
-#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl4965_cmd) - \
-			      sizeof(struct iwl4965_cmd_meta))
-
 /*
  * RX related structures and functions
  */
@@ -615,16 +126,18 @@ struct iwl4965_eeprom {
 /* Sizes and addresses for instruction and data memory (SRAM) in
  * 4965's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
 #define RTC_INST_LOWER_BOUND			(0x000000)
-#define KDR_RTC_INST_UPPER_BOUND		(0x018000)
+#define IWL49_RTC_INST_UPPER_BOUND		(0x018000)
 
 #define RTC_DATA_LOWER_BOUND			(0x800000)
-#define KDR_RTC_DATA_UPPER_BOUND		(0x80A000)
+#define IWL49_RTC_DATA_UPPER_BOUND		(0x80A000)
 
-#define KDR_RTC_INST_SIZE    (KDR_RTC_INST_UPPER_BOUND - RTC_INST_LOWER_BOUND)
-#define KDR_RTC_DATA_SIZE    (KDR_RTC_DATA_UPPER_BOUND - RTC_DATA_LOWER_BOUND)
+#define IWL49_RTC_INST_SIZE	\
+			(IWL49_RTC_INST_UPPER_BOUND - RTC_INST_LOWER_BOUND)
+#define IWL49_RTC_DATA_SIZE	\
+			(IWL49_RTC_DATA_UPPER_BOUND - RTC_DATA_LOWER_BOUND)
 
-#define IWL_MAX_INST_SIZE KDR_RTC_INST_SIZE
-#define IWL_MAX_DATA_SIZE KDR_RTC_DATA_SIZE
+#define IWL_MAX_INST_SIZE IWL49_RTC_INST_SIZE
+#define IWL_MAX_DATA_SIZE IWL49_RTC_DATA_SIZE
 
 /* Size of uCode instruction memory in bootstrap state machine */
 #define IWL_MAX_BSM_SIZE BSM_SRAM_SIZE
@@ -632,7 +145,7 @@ struct iwl4965_eeprom {
 static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
 {
 	return (addr >= RTC_DATA_LOWER_BOUND) &&
-	       (addr < KDR_RTC_DATA_UPPER_BOUND);
+	       (addr < IWL49_RTC_DATA_UPPER_BOUND);
 }
 
 /********************* START TEMPERATURE *************************************/
@@ -1872,10 +1385,10 @@ static inline __le32 iwl4965_hw_set_rate_n_flags(u8 rate, u16 flags)
  * up to 7 DMA channels (FIFOs).  Each Tx queue is supported by a circular array
  * in DRAM containing 256 Transmit Frame Descriptors (TFDs).
  */
-#define IWL4965_MAX_WIN_SIZE              64
-#define IWL4965_QUEUE_SIZE               256
-#define IWL4965_NUM_FIFOS                  7
-#define IWL_MAX_NUM_QUEUES                16
+#define IWL4965_MAX_WIN_SIZE	64
+#define IWL4965_QUEUE_SIZE	256
+#define IWL4965_NUM_FIFOS	7
+#define IWL4965_MAX_NUM_QUEUES	16
 
 
 /**
@@ -2040,30 +1553,30 @@ struct iwl4965_sched_queue_byte_cnt_tbl {
  */
 struct iwl4965_shared {
 	struct iwl4965_sched_queue_byte_cnt_tbl
-	 queues_byte_cnt_tbls[IWL_MAX_NUM_QUEUES];
-	__le32 val0;
+	 queues_byte_cnt_tbls[IWL4965_MAX_NUM_QUEUES];
+	__le32 rb_closed;
 
 	/* __le32 rb_closed_stts_rb_num:12; */
 #define IWL_rb_closed_stts_rb_num_POS 0
 #define IWL_rb_closed_stts_rb_num_LEN 12
-#define IWL_rb_closed_stts_rb_num_SYM val0
+#define IWL_rb_closed_stts_rb_num_SYM rb_closed
 	/* __le32 rsrv1:4; */
 	/* __le32 rb_closed_stts_rx_frame_num:12; */
 #define IWL_rb_closed_stts_rx_frame_num_POS 16
 #define IWL_rb_closed_stts_rx_frame_num_LEN 12
-#define IWL_rb_closed_stts_rx_frame_num_SYM val0
+#define IWL_rb_closed_stts_rx_frame_num_SYM rb_closed
 	/* __le32 rsrv2:4; */
 
-	__le32 val1;
+	__le32 frm_finished;
 	/* __le32 frame_finished_stts_rb_num:12; */
 #define IWL_frame_finished_stts_rb_num_POS 0
 #define IWL_frame_finished_stts_rb_num_LEN 12
-#define IWL_frame_finished_stts_rb_num_SYM val1
+#define IWL_frame_finished_stts_rb_num_SYM frm_finished
 	/* __le32 rsrv3:4; */
 	/* __le32 frame_finished_stts_rx_frame_num:12; */
 #define IWL_frame_finished_stts_rx_frame_num_POS 16
 #define IWL_frame_finished_stts_rx_frame_num_LEN 12
-#define IWL_frame_finished_stts_rx_frame_num_SYM val1
+#define IWL_frame_finished_stts_rx_frame_num_SYM frm_finished
 	/* __le32 rsrv4:4; */
 
 	__le32 padding1;  /* so that allocation will be aligned to 16B */

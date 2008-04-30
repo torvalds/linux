@@ -72,15 +72,18 @@
 #include "stv680.h"
 
 static int video_nr = -1;
-static int swapRGB = 0;   /* default for auto sleect */
-static int swapRGB_on = 0; /* default to allow auto select; -1=swap never, +1= swap always */
 
-static unsigned int debug = 0;
+static int swapRGB;	/* 0 = default for auto select */
+
+/* 0 = default to allow auto select; -1 = swap never, +1 = swap always */
+static int swapRGB_on;
+
+static unsigned int debug;
 
 #define PDEBUG(level, fmt, args...) \
 	do { \
 	if (debug >= level)	\
-		info("[%s:%d] " fmt, __FUNCTION__, __LINE__ , ## args);	\
+		info("[%s:%d] " fmt, __func__, __LINE__ , ## args);	\
 	} while (0)
 
 
@@ -1391,7 +1394,9 @@ static const struct file_operations stv680_fops = {
 	.read =		stv680_read,
 	.mmap =		stv680_mmap,
 	.ioctl =        stv680_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.llseek =       no_llseek,
 };
 static struct video_device stv680_template = {

@@ -78,11 +78,11 @@ static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 	return (((tmp >> 8) & 0xff) - (tmp & 0xff)) > 1;
 }
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	short inc = 0x0100;
 
-	__asm__ __volatile__ (
+	asm volatile (
 		LOCK_PREFIX "xaddw %w0, %1\n"
 		"1:\t"
 		"cmpb %h0, %b0\n\t"
@@ -92,42 +92,40 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		/* don't need lfence here, because loads are in-order */
 		"jmp 1b\n"
 		"2:"
-		:"+Q" (inc), "+m" (lock->slock)
+		: "+Q" (inc), "+m" (lock->slock)
 		:
-		:"memory", "cc");
+		: "memory", "cc");
 }
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	int tmp;
 	short new;
 
-	asm volatile(
-		"movw %2,%w0\n\t"
-		"cmpb %h0,%b0\n\t"
-		"jne 1f\n\t"
-		"movw %w0,%w1\n\t"
-		"incb %h1\n\t"
-		"lock ; cmpxchgw %w1,%2\n\t"
-		"1:"
-		"sete %b1\n\t"
-		"movzbl %b1,%0\n\t"
-		:"=&a" (tmp), "=Q" (new), "+m" (lock->slock)
-		:
-		: "memory", "cc");
+	asm volatile("movw %2,%w0\n\t"
+		     "cmpb %h0,%b0\n\t"
+		     "jne 1f\n\t"
+		     "movw %w0,%w1\n\t"
+		     "incb %h1\n\t"
+		     "lock ; cmpxchgw %w1,%2\n\t"
+		     "1:"
+		     "sete %b1\n\t"
+		     "movzbl %b1,%0\n\t"
+		     : "=&a" (tmp), "=Q" (new), "+m" (lock->slock)
+		     :
+		     : "memory", "cc");
 
 	return tmp;
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
-	__asm__ __volatile__(
-		UNLOCK_LOCK_PREFIX "incb %0"
-		:"+m" (lock->slock)
-		:
-		:"memory", "cc");
+	asm volatile(UNLOCK_LOCK_PREFIX "incb %0"
+		     : "+m" (lock->slock)
+		     :
+		     : "memory", "cc");
 }
 #else
 static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
@@ -144,60 +142,57 @@ static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 	return (((tmp >> 16) & 0xffff) - (tmp & 0xffff)) > 1;
 }
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	int inc = 0x00010000;
 	int tmp;
 
-	__asm__ __volatile__ (
-		"lock ; xaddl %0, %1\n"
-		"movzwl %w0, %2\n\t"
-		"shrl $16, %0\n\t"
-		"1:\t"
-		"cmpl %0, %2\n\t"
-		"je 2f\n\t"
-		"rep ; nop\n\t"
-		"movzwl %1, %2\n\t"
-		/* don't need lfence here, because loads are in-order */
-		"jmp 1b\n"
-		"2:"
-		:"+Q" (inc), "+m" (lock->slock), "=r" (tmp)
-		:
-		:"memory", "cc");
+	asm volatile("lock ; xaddl %0, %1\n"
+		     "movzwl %w0, %2\n\t"
+		     "shrl $16, %0\n\t"
+		     "1:\t"
+		     "cmpl %0, %2\n\t"
+		     "je 2f\n\t"
+		     "rep ; nop\n\t"
+		     "movzwl %1, %2\n\t"
+		     /* don't need lfence here, because loads are in-order */
+		     "jmp 1b\n"
+		     "2:"
+		     : "+Q" (inc), "+m" (lock->slock), "=r" (tmp)
+		     :
+		     : "memory", "cc");
 }
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	int tmp;
 	int new;
 
-	asm volatile(
-		"movl %2,%0\n\t"
-		"movl %0,%1\n\t"
-		"roll $16, %0\n\t"
-		"cmpl %0,%1\n\t"
-		"jne 1f\n\t"
-		"addl $0x00010000, %1\n\t"
-		"lock ; cmpxchgl %1,%2\n\t"
-		"1:"
-		"sete %b1\n\t"
-		"movzbl %b1,%0\n\t"
-		:"=&a" (tmp), "=r" (new), "+m" (lock->slock)
-		:
-		: "memory", "cc");
+	asm volatile("movl %2,%0\n\t"
+		     "movl %0,%1\n\t"
+		     "roll $16, %0\n\t"
+		     "cmpl %0,%1\n\t"
+		     "jne 1f\n\t"
+		     "addl $0x00010000, %1\n\t"
+		     "lock ; cmpxchgl %1,%2\n\t"
+		     "1:"
+		     "sete %b1\n\t"
+		     "movzbl %b1,%0\n\t"
+		     : "=&a" (tmp), "=r" (new), "+m" (lock->slock)
+		     :
+		     : "memory", "cc");
 
 	return tmp;
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
-	__asm__ __volatile__(
-		UNLOCK_LOCK_PREFIX "incw %0"
-		:"+m" (lock->slock)
-		:
-		:"memory", "cc");
+	asm volatile(UNLOCK_LOCK_PREFIX "incw %0"
+		     : "+m" (lock->slock)
+		     :
+		     : "memory", "cc");
 }
 #endif
 

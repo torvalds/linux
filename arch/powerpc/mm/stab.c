@@ -12,12 +12,14 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#include <linux/lmb.h>
+
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/paca.h>
 #include <asm/cputable.h>
-#include <asm/lmb.h>
+#include <asm/prom.h>
 #include <asm/abs_addr.h>
 #include <asm/firmware.h>
 #include <asm/iseries/hv_call.h>

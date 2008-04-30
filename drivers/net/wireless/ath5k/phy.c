@@ -666,6 +666,153 @@ static const struct ath5k_ini_rf rfregs_5413[] = {
 	    { 0x0000000e, 0x0000000e, 0x0000000e, 0x0000000e, 0x0000000e } },
 };
 
+/* RF2413/2414 mode-specific init registers */
+static const struct ath5k_ini_rf rfregs_2413[] = {
+	{ 1, AR5K_RF_BUFFER_CONTROL_4,
+	/* 	   mode b      mode g     mode gTurbo */
+		{ 0x00000020, 0x00000020, 0x00000020 } },
+	{ 2, AR5K_RF_BUFFER_CONTROL_3,
+		{ 0x02001408, 0x02001408, 0x02001408 } },
+	{ 3, AR5K_RF_BUFFER_CONTROL_6,
+		{ 0x00e020c0, 0x00e020c0, 0x00e020c0 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0xf0000000, 0xf0000000, 0xf0000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x03000000, 0x03000000, 0x03000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x40400000, 0x40400000, 0x40400000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x65050000, 0x65050000, 0x65050000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00420000, 0x00420000, 0x00420000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00b50000, 0x00b50000, 0x00b50000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00030000, 0x00030000, 0x00030000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00f70000, 0x00f70000, 0x00f70000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x009d0000, 0x009d0000, 0x009d0000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00220000, 0x00220000, 0x00220000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x04220000, 0x04220000, 0x04220000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00230018, 0x00230018, 0x00230018 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00280050, 0x00280050, 0x00280050 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x005000c3, 0x005000c3, 0x005000c3 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x0004007f, 0x0004007f, 0x0004007f } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000458, 0x00000458, 0x00000458 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x0000c000, 0x0000c000, 0x0000c000 } },
+	{ 6, AR5K_RF_BUFFER_CONTROL_5,
+		{ 0x00400230, 0x00400230, 0x00400230 } },
+	{ 7, AR5K_RF_BUFFER,
+		{ 0x00006400, 0x00006400, 0x00006400 } },
+	{ 7, AR5K_RF_BUFFER,
+		{ 0x00000800, 0x00000800, 0x00000800 } },
+	{ 7, AR5K_RF_BUFFER_CONTROL_2,
+		{ 0x0000000e, 0x0000000e, 0x0000000e } },
+};
+
+/* RF2425 mode-specific init registers */
+static const struct ath5k_ini_rf rfregs_2425[] = {
+	{ 1, AR5K_RF_BUFFER_CONTROL_4,
+	/* 	   mode g     mode gTurbo */
+		{ 0x00000020, 0x00000020 } },
+	{ 2, AR5K_RF_BUFFER_CONTROL_3,
+		{ 0x02001408, 0x02001408 } },
+	{ 3, AR5K_RF_BUFFER_CONTROL_6,
+		{ 0x00e020c0, 0x00e020c0 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x10000000, 0x10000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x002a0000, 0x002a0000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00100000, 0x00100000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00020000, 0x00020000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00730000, 0x00730000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00f80000, 0x00f80000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00e70000, 0x00e70000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00140000, 0x00140000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00910040, 0x00910040 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x0007001a, 0x0007001a } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00410000, 0x00410000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00810060, 0x00810060 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00020803, 0x00020803 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00001660, 0x00001660 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00001688, 0x00001688 } },
+	{ 6, AR5K_RF_BUFFER_CONTROL_1,
+		{ 0x00000001, 0x00000001 } },
+	{ 7, AR5K_RF_BUFFER,
+		{ 0x00006400, 0x00006400 } },
+	{ 7, AR5K_RF_BUFFER,
+		{ 0x00000800, 0x00000800 } },
+	{ 7, AR5K_RF_BUFFER_CONTROL_2,
+		{ 0x0000000e, 0x0000000e } },
+};
 
 /* Initial RF Gain settings for RF5112 */
 static const struct ath5k_ini_rfgain rfgain_5112[] = {
@@ -805,6 +952,74 @@ static const struct ath5k_ini_rfgain rfgain_5413[] = {
 	{ AR5K_RF_GAIN(63),	{ 0x000000f9, 0x000000f9 } },
 };
 
+/* Initial RF Gain settings for RF2413 */
+static const struct ath5k_ini_rfgain rfgain_2413[] = {
+	{ AR5K_RF_GAIN(0), { 0x00000000 } },
+	{ AR5K_RF_GAIN(1), { 0x00000040 } },
+	{ AR5K_RF_GAIN(2), { 0x00000080 } },
+	{ AR5K_RF_GAIN(3), { 0x00000181 } },
+	{ AR5K_RF_GAIN(4), { 0x000001c1 } },
+	{ AR5K_RF_GAIN(5), { 0x00000001 } },
+	{ AR5K_RF_GAIN(6), { 0x00000041 } },
+	{ AR5K_RF_GAIN(7), { 0x00000081 } },
+	{ AR5K_RF_GAIN(8), { 0x00000168 } },
+	{ AR5K_RF_GAIN(9), { 0x000001a8 } },
+	{ AR5K_RF_GAIN(10), { 0x000001e8 } },
+	{ AR5K_RF_GAIN(11), { 0x00000028 } },
+	{ AR5K_RF_GAIN(12), { 0x00000068 } },
+	{ AR5K_RF_GAIN(13), { 0x00000189 } },
+	{ AR5K_RF_GAIN(14), { 0x000001c9 } },
+	{ AR5K_RF_GAIN(15), { 0x00000009 } },
+	{ AR5K_RF_GAIN(16), { 0x00000049 } },
+	{ AR5K_RF_GAIN(17), { 0x00000089 } },
+	{ AR5K_RF_GAIN(18), { 0x00000190 } },
+	{ AR5K_RF_GAIN(19), { 0x000001d0 } },
+	{ AR5K_RF_GAIN(20), { 0x00000010 } },
+	{ AR5K_RF_GAIN(21), { 0x00000050 } },
+	{ AR5K_RF_GAIN(22), { 0x00000090 } },
+	{ AR5K_RF_GAIN(23), { 0x00000191 } },
+	{ AR5K_RF_GAIN(24), { 0x000001d1 } },
+	{ AR5K_RF_GAIN(25), { 0x00000011 } },
+	{ AR5K_RF_GAIN(26), { 0x00000051 } },
+	{ AR5K_RF_GAIN(27), { 0x00000091 } },
+	{ AR5K_RF_GAIN(28), { 0x00000178 } },
+	{ AR5K_RF_GAIN(29), { 0x000001b8 } },
+	{ AR5K_RF_GAIN(30), { 0x000001f8 } },
+	{ AR5K_RF_GAIN(31), { 0x00000038 } },
+	{ AR5K_RF_GAIN(32), { 0x00000078 } },
+	{ AR5K_RF_GAIN(33), { 0x00000199 } },
+	{ AR5K_RF_GAIN(34), { 0x000001d9 } },
+	{ AR5K_RF_GAIN(35), { 0x00000019 } },
+	{ AR5K_RF_GAIN(36), { 0x00000059 } },
+	{ AR5K_RF_GAIN(37), { 0x00000099 } },
+	{ AR5K_RF_GAIN(38), { 0x000000d9 } },
+	{ AR5K_RF_GAIN(39), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(40), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(41), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(42), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(43), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(44), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(45), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(46), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(47), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(48), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(49), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(50), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(51), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(52), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(53), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(54), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(55), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(56), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(57), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(58), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(59), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(60), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(61), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(62), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(63), { 0x000000f9 } },
+};
+
 static const struct ath5k_gain_opt rfgain_opt_5112 = {
 	1,
 	8,
@@ -844,14 +1059,14 @@ static unsigned int ath5k_hw_rfregs_op(u32 *rf, u32 offset, u32 reg, u32 bits,
 	entry = ((first - 1) / 8) + offset;
 	position = (first - 1) % 8;
 
-	if (set == true)
+	if (set)
 		data = ath5k_hw_bitswap(reg, bits);
 
 	for (i = shift = 0, left = bits; left > 0; position = 0, entry++, i++) {
 		last = (position + left > 8) ? 8 : position + left;
 		mask = (((1 << last) - 1) ^ ((1 << position) - 1)) << (col * 8);
 
-		if (set == true) {
+		if (set) {
 			rf[entry] &= ~mask;
 			rf[entry] |= ((data << position) << (col * 8)) & mask;
 			data >>= (8 - position);
@@ -864,7 +1079,7 @@ static unsigned int ath5k_hw_rfregs_op(u32 *rf, u32 offset, u32 reg, u32 bits,
 		left -= 8 - position;
 	}
 
-	data = set == true ? 1 : ath5k_hw_bitswap(data, bits);
+	data = set ? 1 : ath5k_hw_bitswap(data, bits);
 
 	return data;
 }
@@ -955,7 +1170,6 @@ static s32 ath5k_hw_rfregs_gain_adjust(struct ath5k_hw *ah)
 		go = &rfgain_opt_5111;
 		break;
 	case AR5K_RF5112:
-	case AR5K_RF5413: /* ??? */
 		go = &rfgain_opt_5112;
 		break;
 	default:
@@ -1018,7 +1232,7 @@ static int ath5k_hw_rf5111_rfregs(struct ath5k_hw *ah,
 	int obdb = -1, bank = -1;
 	u32 ee_mode;
 
-	AR5K_ASSERT_ENTRY(mode, AR5K_INI_VAL_MAX);
+	AR5K_ASSERT_ENTRY(mode, AR5K_MODE_MAX);
 
 	rf = ah->ah_rf_banks;
 
@@ -1038,8 +1252,8 @@ static int ath5k_hw_rf5111_rfregs(struct ath5k_hw *ah,
 	}
 
 	/* Modify bank 0 */
-	if (channel->val & CHANNEL_2GHZ) {
-		if (channel->val & CHANNEL_CCK)
+	if (channel->hw_value & CHANNEL_2GHZ) {
+		if (channel->hw_value & CHANNEL_CCK)
 			ee_mode = AR5K_EEPROM_MODE_11B;
 		else
 			ee_mode = AR5K_EEPROM_MODE_11G;
@@ -1058,10 +1272,10 @@ static int ath5k_hw_rf5111_rfregs(struct ath5k_hw *ah,
 	} else {
 		/* For 11a, Turbo and XR */
 		ee_mode = AR5K_EEPROM_MODE_11A;
-		obdb =	 channel->freq >= 5725 ? 3 :
-			(channel->freq >= 5500 ? 2 :
-			(channel->freq >= 5260 ? 1 :
-			 (channel->freq > 4000 ? 0 : -1)));
+		obdb =	 channel->center_freq >= 5725 ? 3 :
+			(channel->center_freq >= 5500 ? 2 :
+			(channel->center_freq >= 5260 ? 1 :
+			 (channel->center_freq > 4000 ? 0 : -1)));
 
 		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
 				ee->ee_pwd_84, 1, 51, 3, true))
@@ -1119,12 +1333,12 @@ static int ath5k_hw_rf5112_rfregs(struct ath5k_hw *ah,
 	int obdb = -1, bank = -1;
 	u32 ee_mode;
 
-	AR5K_ASSERT_ENTRY(mode, AR5K_INI_VAL_MAX);
+	AR5K_ASSERT_ENTRY(mode, AR5K_MODE_MAX);
 
 	rf = ah->ah_rf_banks;
 
 	if (ah->ah_radio_5ghz_revision >= AR5K_SREV_RAD_2112A
-		&& !test_bit(MODE_IEEE80211A, ah->ah_capabilities.cap_mode)){
+		&& !test_bit(AR5K_MODE_11A, ah->ah_capabilities.cap_mode)) {
 		rf_ini = rfregs_2112a;
 		rf_size = ARRAY_SIZE(rfregs_5112a);
 		if (mode < 2) {
@@ -1156,8 +1370,8 @@ static int ath5k_hw_rf5112_rfregs(struct ath5k_hw *ah,
 	}
 
 	/* Modify bank 6 */
-	if (channel->val & CHANNEL_2GHZ) {
-		if (channel->val & CHANNEL_OFDM)
+	if (channel->hw_value & CHANNEL_2GHZ) {
+		if (channel->hw_value & CHANNEL_OFDM)
 			ee_mode = AR5K_EEPROM_MODE_11G;
 		else
 			ee_mode = AR5K_EEPROM_MODE_11B;
@@ -1173,10 +1387,13 @@ static int ath5k_hw_rf5112_rfregs(struct ath5k_hw *ah,
 	} else {
 		/* For 11a, Turbo and XR */
 		ee_mode = AR5K_EEPROM_MODE_11A;
-		obdb = channel->freq >= 5725 ? 3 :
-		    (channel->freq >= 5500 ? 2 :
-			(channel->freq >= 5260 ? 1 :
-			    (channel->freq > 4000 ? 0 : -1)));
+		obdb = channel->center_freq >= 5725 ? 3 :
+		    (channel->center_freq >= 5500 ? 2 :
+			(channel->center_freq >= 5260 ? 1 :
+			    (channel->center_freq > 4000 ? 0 : -1)));
+
+		if (obdb == -1)
+			return -EINVAL;
 
 		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
 				ee->ee_ob[ee_mode][obdb], 3, 279, 0, true))
@@ -1209,7 +1426,8 @@ static int ath5k_hw_rf5112_rfregs(struct ath5k_hw *ah,
 }
 
 /*
- * Initialize RF5413/5414
+ * Initialize RF5413/5414 and future chips
+ * (until we come up with a better solution)
  */
 static int ath5k_hw_rf5413_rfregs(struct ath5k_hw *ah,
 		struct ieee80211_channel *channel, unsigned int mode)
@@ -1219,12 +1437,47 @@ static int ath5k_hw_rf5413_rfregs(struct ath5k_hw *ah,
 	unsigned int rf_size, i;
 	int bank = -1;
 
-	AR5K_ASSERT_ENTRY(mode, AR5K_INI_VAL_MAX);
+	AR5K_ASSERT_ENTRY(mode, AR5K_MODE_MAX);
 
 	rf = ah->ah_rf_banks;
 
-	rf_ini = rfregs_5413;
-	rf_size = ARRAY_SIZE(rfregs_5413);
+	switch (ah->ah_radio) {
+	case AR5K_RF5413:
+		rf_ini = rfregs_5413;
+		rf_size = ARRAY_SIZE(rfregs_5413);
+		break;
+	case AR5K_RF2413:
+		rf_ini = rfregs_2413;
+		rf_size = ARRAY_SIZE(rfregs_2413);
+
+		if (mode < 2) {
+			ATH5K_ERR(ah->ah_sc,
+				"invalid channel mode: %i\n", mode);
+			return -EINVAL;
+		}
+
+		mode = mode - 2;
+		break;
+	case AR5K_RF2425:
+		rf_ini = rfregs_2425;
+		rf_size = ARRAY_SIZE(rfregs_2425);
+
+		if (mode < 2) {
+			ATH5K_ERR(ah->ah_sc,
+				"invalid channel mode: %i\n", mode);
+			return -EINVAL;
+		}
+
+		/* Map b to g */
+		if (mode == 2)
+			mode = 0;
+		else
+			mode = mode - 3;
+
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* Copy values to modify them */
 	for (i = 0; i < rf_size; i++) {
@@ -1283,6 +1536,14 @@ int ath5k_hw_rfregs(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		ah->ah_rf_banks_size = sizeof(rfregs_5413);
 		func = ath5k_hw_rf5413_rfregs;
 		break;
+	case AR5K_RF2413:
+		ah->ah_rf_banks_size = sizeof(rfregs_2413);
+		func = ath5k_hw_rf5413_rfregs;
+		break;
+	case AR5K_RF2425:
+		ah->ah_rf_banks_size = sizeof(rfregs_2425);
+		func = ath5k_hw_rf5413_rfregs;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1320,6 +1581,16 @@ int ath5k_hw_rfgain(struct ath5k_hw *ah, unsigned int freq)
 	case AR5K_RF5413:
 		ath5k_rfg = rfgain_5413;
 		size = ARRAY_SIZE(rfgain_5413);
+		break;
+	case AR5K_RF2413:
+		ath5k_rfg = rfgain_2413;
+		size = ARRAY_SIZE(rfgain_2413);
+		freq = 0; /* only 2Ghz */
+		break;
+	case AR5K_RF2425:
+		ath5k_rfg = rfgain_2413;
+		size = ARRAY_SIZE(rfgain_2413);
+		freq = 0; /* only 2Ghz */
 		break;
 	default:
 		return -EINVAL;
@@ -1395,7 +1666,6 @@ int ath5k_hw_set_rfgain_opt(struct ath5k_hw *ah)
 		ah->ah_gain.g_active = 1;
 		break;
 	case AR5K_RF5112:
-	case AR5K_RF5413: /* ??? */
 		ah->ah_gain.g_step_idx = rfgain_opt_5112.go_default;
 		ah->ah_gain.g_step =
 		    &rfgain_opt_5112.go_step[ah->ah_gain.g_step_idx];
@@ -1445,9 +1715,10 @@ static u32 ath5k_hw_rf5110_chan2athchan(struct ieee80211_channel *channel)
 	 * newer chipsets like the AR5212A who have a completely
 	 * different RF/PHY part.
 	 */
-	athchan = (ath5k_hw_bitswap((channel->chan - 24) / 2, 5) << 1) |
-		(1 << 6) | 0x1;
-
+	athchan = (ath5k_hw_bitswap(
+			(ieee80211_frequency_to_channel(
+				channel->center_freq) - 24) / 2, 5)
+				<< 1) | (1 << 6) | 0x1;
 	return athchan;
 }
 
@@ -1506,7 +1777,8 @@ static int ath5k_hw_rf5111_channel(struct ath5k_hw *ah,
 		struct ieee80211_channel *channel)
 {
 	struct ath5k_athchan_2ghz ath5k_channel_2ghz;
-	unsigned int ath5k_channel = channel->chan;
+	unsigned int ath5k_channel =
+		ieee80211_frequency_to_channel(channel->center_freq);
 	u32 data0, data1, clock;
 	int ret;
 
@@ -1515,10 +1787,11 @@ static int ath5k_hw_rf5111_channel(struct ath5k_hw *ah,
 	 */
 	data0 = data1 = 0;
 
-	if (channel->val & CHANNEL_2GHZ) {
+	if (channel->hw_value & CHANNEL_2GHZ) {
 		/* Map 2GHz channel to 5GHz Atheros channel ID */
-		ret = ath5k_hw_rf5111_chan2athchan(channel->chan,
-				&ath5k_channel_2ghz);
+		ret = ath5k_hw_rf5111_chan2athchan(
+			ieee80211_frequency_to_channel(channel->center_freq),
+			&ath5k_channel_2ghz);
 		if (ret)
 			return ret;
 
@@ -1555,7 +1828,7 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 	u16 c;
 
 	data = data0 = data1 = data2 = 0;
-	c = channel->freq;
+	c = channel->center_freq;
 
 	/*
 	 * Set the channel on the RF5112 or newer
@@ -1599,19 +1872,17 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 {
 	int ret;
-
 	/*
-	 * Check bounds supported by the PHY
-	 * (don't care about regulation restrictions at this point)
-	 */
-	if ((channel->freq < ah->ah_capabilities.cap_range.range_2ghz_min ||
-	    channel->freq > ah->ah_capabilities.cap_range.range_2ghz_max) &&
-	    (channel->freq < ah->ah_capabilities.cap_range.range_5ghz_min ||
-	    channel->freq > ah->ah_capabilities.cap_range.range_5ghz_max)) {
+	 * Check bounds supported by the PHY (we don't care about regultory
+	 * restrictions at this point). Note: hw_value already has the band
+	 * (CHANNEL_2GHZ, or CHANNEL_5GHZ) so we inform ath5k_channel_ok()
+	 * of the band by that */
+	if (!ath5k_channel_ok(ah, channel->center_freq, channel->hw_value)) {
 		ATH5K_ERR(ah->ah_sc,
-			"channel out of supported range (%u MHz)\n",
-			channel->freq);
-		return -EINVAL;
+			"channel frequency (%u MHz) out of supported "
+			"band range\n",
+			channel->center_freq);
+			return -EINVAL;
 	}
 
 	/*
@@ -1632,9 +1903,9 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 	if (ret)
 		return ret;
 
-	ah->ah_current_channel.freq = channel->freq;
-	ah->ah_current_channel.val = channel->val;
-	ah->ah_turbo = channel->val == CHANNEL_T ? true : false;
+	ah->ah_current_channel.center_freq = channel->center_freq;
+	ah->ah_current_channel.hw_value = channel->hw_value;
+	ah->ah_turbo = channel->hw_value == CHANNEL_T ? true : false;
 
 	return 0;
 }
@@ -1797,11 +2068,11 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 
 	if (ret) {
 		ATH5K_ERR(ah->ah_sc, "calibration timeout (%uMHz)\n",
-				channel->freq);
+				channel->center_freq);
 		return ret;
 	}
 
-	ret = ath5k_hw_noise_floor_calibration(ah, channel->freq);
+	ret = ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
 	if (ret)
 		return ret;
 
@@ -1825,7 +2096,7 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 	s32 iq_corr, i_coff, i_coffd, q_coff, q_coffd;
 	ATH5K_TRACE(ah->ah_sc);
 
-	if (ah->ah_calibration == false ||
+	if (!ah->ah_calibration ||
 			ath5k_hw_reg_read(ah, AR5K_PHY_IQ) & AR5K_PHY_IQ_RUN)
 		goto done;
 
@@ -1848,10 +2119,10 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 		((u32)q_coff) | ((u32)i_coff << AR5K_PHY_IQ_CORR_Q_I_COFF_S));
 
 done:
-	ath5k_hw_noise_floor_calibration(ah, channel->freq);
+	ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
 
 	/* Request RF gain */
-	if (channel->val & CHANNEL_5GHZ) {
+	if (channel->hw_value & CHANNEL_5GHZ) {
 		ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txpower.txp_max,
 			AR5K_PHY_PAPD_PROBE_TXPOWER) |
 			AR5K_PHY_PAPD_PROBE_TX_NEXT, AR5K_PHY_PAPD_PROBE);
@@ -2015,6 +2286,18 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		return -EINVAL;
 	}
 
+	/*
+	 * RF2413 for some reason can't
+	 * transmit anything if we call
+	 * this funtion, so we skip it
+	 * until we fix txpower.
+	 *
+	 * XXX: Assume same for RF2425
+	 * to be safe.
+	 */
+	if ((ah->ah_radio == AR5K_RF2413) || (ah->ah_radio == AR5K_RF2425))
+		return 0;
+
 	/* Reset TX power values */
 	memset(&ah->ah_txpower, 0, sizeof(ah->ah_txpower));
 	ah->ah_txpower.txp_tpc = tpc;
@@ -2048,7 +2331,7 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		AR5K_TXPOWER_CCK(13, 16) | AR5K_TXPOWER_CCK(12, 8) |
 		AR5K_TXPOWER_CCK(11, 0), AR5K_PHY_TXPOWER_RATE4);
 
-	if (ah->ah_txpower.txp_tpc == true)
+	if (ah->ah_txpower.txp_tpc)
 		ath5k_hw_reg_write(ah, AR5K_PHY_TXPOWER_RATE_MAX_TPC_ENABLE |
 			AR5K_TUNE_MAX_TXPOWER, AR5K_PHY_TXPOWER_RATE_MAX);
 	else

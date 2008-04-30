@@ -156,12 +156,10 @@ void sidtab_map_remove_on_error(struct sidtab *s,
 		while (cur != NULL) {
 			ret = apply(cur->sid, &cur->context, args);
 			if (ret) {
-				if (last) {
+				if (last)
 					last->next = cur->next;
-				} else {
+				else
 					s->htable[i] = cur->next;
-				}
-
 				temp = cur;
 				cur = cur->next;
 				context_destroy(&temp->context);

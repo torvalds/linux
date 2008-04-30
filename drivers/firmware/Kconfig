@@ -93,4 +93,24 @@ config DMIID
 	  information from userspace through /sys/class/dmi/id/ or if you want
 	  DMI-based module auto-loading.
 
+config ISCSI_IBFT_FIND
+	bool "iSCSI Boot Firmware Table Attributes"
+	depends on X86
+	default n
+	help
+	  This option enables the kernel to find the region of memory
+	  in which the ISCSI Boot Firmware Table (iBFT) resides. This
+	  is necessary for iSCSI Boot Firmware Table Attributes module to work
+	  properly.
+
+config ISCSI_IBFT
+	tristate "iSCSI Boot Firmware Table Attributes module"
+	depends on ISCSI_IBFT_FIND
+	default	n
+	help
+	  This option enables support for detection and exposing of iSCSI
+	  Boot Firmware Table (iBFT) via sysfs to userspace. If you wish to
+	  detect iSCSI boot parameters dynamically during system boot, say Y.
+	  Otherwise, say N.
+
 endmenu

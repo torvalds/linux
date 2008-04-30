@@ -21,10 +21,7 @@
 
 /* Lock levels and flags are here */
 #include <linux/dlmconstants.h>
-
-
-#define DLM_RESNAME_MAXLEN	64
-
+#include <linux/types.h>
 
 typedef void dlm_lockspace_t;
 
@@ -63,7 +60,7 @@ typedef void dlm_lockspace_t;
 
 struct dlm_lksb {
 	int 	 sb_status;
-	uint32_t sb_lkid;
+	__u32	 sb_lkid;
 	char 	 sb_flags;
 	char *	 sb_lvbptr;
 };

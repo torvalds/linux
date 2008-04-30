@@ -17,7 +17,7 @@
 #include <net/mac80211.h>
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
-#include "ieee80211_rate.h"
+#include "rate.h"
 #include "debugfs.h"
 #include "debugfs_netdev.h"
 
@@ -31,13 +31,38 @@ static ssize_t ieee80211_if_read(
 	ssize_t ret = -EINVAL;
 
 	read_lock(&dev_base_lock);
-	if (sdata->dev->reg_state == NETREG_REGISTERED) {
+	if (sdata->dev->reg_state == NETREG_REGISTERED)
 		ret = (*format)(sdata, buf, sizeof(buf));
-		ret = simple_read_from_buffer(userbuf, count, ppos, buf, ret);
-	}
 	read_unlock(&dev_base_lock);
+
+	if (ret != -EINVAL)
+		ret = simple_read_from_buffer(userbuf, count, ppos, buf, ret);
+
 	return ret;
 }
+
+#ifdef CONFIG_MAC80211_MESH
+static ssize_t ieee80211_if_write(
+	struct ieee80211_sub_if_data *sdata,
+	char const __user *userbuf,
+	size_t count, loff_t *ppos,
+	int (*format)(struct ieee80211_sub_if_data *, char *))
+{
+	char buf[10];
+	int buf_size;
+
+	memset(buf, 0x00, sizeof(buf));
+	buf_size = min(count, (sizeof(buf)-1));
+	if (copy_from_user(buf, userbuf, buf_size))
+		return count;
+	read_lock(&dev_base_lock);
+	if (sdata->dev->reg_state == NETREG_REGISTERED)
+		(*format)(sdata, buf);
+	read_unlock(&dev_base_lock);
+
+	return count;
+}
+#endif
 
 #define IEEE80211_IF_FMT(name, field, format_string)			\
 static ssize_t ieee80211_if_fmt_##name(					\
@@ -45,6 +70,19 @@ static ssize_t ieee80211_if_fmt_##name(					\
 	int buflen)							\
 {									\
 	return scnprintf(buf, buflen, format_string, sdata->field);	\
+}
+#define IEEE80211_IF_WFMT(name, field, type)				\
+static int ieee80211_if_wfmt_##name(					\
+	struct ieee80211_sub_if_data *sdata, char *buf)			\
+{									\
+	unsigned long tmp;						\
+	char *endp;							\
+									\
+	tmp = simple_strtoul(buf, &endp, 0);				\
+	if ((endp == buf) || ((type)tmp != tmp))			\
+		return -EINVAL;						\
+	sdata->field = tmp;						\
+	return 0;							\
 }
 #define IEEE80211_IF_FMT_DEC(name, field)				\
 		IEEE80211_IF_FMT(name, field, "%d\n")
@@ -88,10 +126,37 @@ static const struct file_operations name##_ops = {			\
 		IEEE80211_IF_FMT_##format(name, field)			\
 		__IEEE80211_IF_FILE(name)
 
+#define __IEEE80211_IF_WFILE(name)					\
+static ssize_t ieee80211_if_read_##name(struct file *file,		\
+					char __user *userbuf,		\
+					size_t count, loff_t *ppos)	\
+{									\
+	return ieee80211_if_read(file->private_data,			\
+				 userbuf, count, ppos,			\
+				 ieee80211_if_fmt_##name);		\
+}									\
+static ssize_t ieee80211_if_write_##name(struct file *file,		\
+					const char __user *userbuf,	\
+					size_t count, loff_t *ppos)	\
+{									\
+	return ieee80211_if_write(file->private_data,			\
+				 userbuf, count, ppos,			\
+				 ieee80211_if_wfmt_##name);		\
+}									\
+static const struct file_operations name##_ops = {			\
+	.read = ieee80211_if_read_##name,				\
+	.write = ieee80211_if_write_##name,				\
+	.open = mac80211_open_file_generic,				\
+}
+
+#define IEEE80211_IF_WFILE(name, field, format, type)			\
+		IEEE80211_IF_FMT_##format(name, field)			\
+		IEEE80211_IF_WFMT(name, field, type)			\
+		__IEEE80211_IF_WFILE(name)
+
 /* common attributes */
 IEEE80211_IF_FILE(channel_use, channel_use, DEC);
 IEEE80211_IF_FILE(drop_unencrypted, drop_unencrypted, DEC);
-IEEE80211_IF_FILE(ieee802_1x_pac, ieee802_1x_pac, DEC);
 
 /* STA/IBSS attributes */
 IEEE80211_IF_FILE(state, u.sta.state, DEC);
@@ -107,6 +172,7 @@ IEEE80211_IF_FILE(assoc_tries, u.sta.assoc_tries, DEC);
 IEEE80211_IF_FILE(auth_algs, u.sta.auth_algs, HEX);
 IEEE80211_IF_FILE(auth_alg, u.sta.auth_alg, DEC);
 IEEE80211_IF_FILE(auth_transaction, u.sta.auth_transaction, DEC);
+IEEE80211_IF_FILE(num_beacons_sta, u.sta.num_beacons, DEC);
 
 static ssize_t ieee80211_if_fmt_flags(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -140,15 +206,50 @@ __IEEE80211_IF_FILE(num_buffered_multicast);
 /* WDS attributes */
 IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
 
+#ifdef CONFIG_MAC80211_MESH
+/* Mesh stats attributes */
+IEEE80211_IF_FILE(fwded_frames, u.sta.mshstats.fwded_frames, DEC);
+IEEE80211_IF_FILE(dropped_frames_ttl, u.sta.mshstats.dropped_frames_ttl, DEC);
+IEEE80211_IF_FILE(dropped_frames_no_route,
+		u.sta.mshstats.dropped_frames_no_route, DEC);
+IEEE80211_IF_FILE(estab_plinks, u.sta.mshstats.estab_plinks, ATOMIC);
+
+/* Mesh parameters */
+IEEE80211_IF_WFILE(dot11MeshMaxRetries,
+		u.sta.mshcfg.dot11MeshMaxRetries, DEC, u8);
+IEEE80211_IF_WFILE(dot11MeshRetryTimeout,
+		u.sta.mshcfg.dot11MeshRetryTimeout, DEC, u16);
+IEEE80211_IF_WFILE(dot11MeshConfirmTimeout,
+		u.sta.mshcfg.dot11MeshConfirmTimeout, DEC, u16);
+IEEE80211_IF_WFILE(dot11MeshHoldingTimeout,
+		u.sta.mshcfg.dot11MeshHoldingTimeout, DEC, u16);
+IEEE80211_IF_WFILE(dot11MeshTTL, u.sta.mshcfg.dot11MeshTTL, DEC, u8);
+IEEE80211_IF_WFILE(auto_open_plinks, u.sta.mshcfg.auto_open_plinks, DEC, u8);
+IEEE80211_IF_WFILE(dot11MeshMaxPeerLinks,
+		u.sta.mshcfg.dot11MeshMaxPeerLinks, DEC, u16);
+IEEE80211_IF_WFILE(dot11MeshHWMPactivePathTimeout,
+		u.sta.mshcfg.dot11MeshHWMPactivePathTimeout, DEC, u32);
+IEEE80211_IF_WFILE(dot11MeshHWMPpreqMinInterval,
+		u.sta.mshcfg.dot11MeshHWMPpreqMinInterval, DEC, u16);
+IEEE80211_IF_WFILE(dot11MeshHWMPnetDiameterTraversalTime,
+		u.sta.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC, u16);
+IEEE80211_IF_WFILE(dot11MeshHWMPmaxPREQretries,
+		u.sta.mshcfg.dot11MeshHWMPmaxPREQretries, DEC, u8);
+IEEE80211_IF_WFILE(path_refresh_time,
+		u.sta.mshcfg.path_refresh_time, DEC, u32);
+IEEE80211_IF_WFILE(min_discovery_timeout,
+		u.sta.mshcfg.min_discovery_timeout, DEC, u16);
+#endif
+
+
 #define DEBUGFS_ADD(name, type)\
-	sdata->debugfs.type.name = debugfs_create_file(#name, 0444,\
+	sdata->debugfs.type.name = debugfs_create_file(#name, 0400,\
 		sdata->debugfsdir, sdata, &name##_ops);
 
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(channel_use, sta);
 	DEBUGFS_ADD(drop_unencrypted, sta);
-	DEBUGFS_ADD(ieee802_1x_pac, sta);
 	DEBUGFS_ADD(state, sta);
 	DEBUGFS_ADD(bssid, sta);
 	DEBUGFS_ADD(prev_bssid, sta);
@@ -163,13 +264,13 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(auth_alg, sta);
 	DEBUGFS_ADD(auth_transaction, sta);
 	DEBUGFS_ADD(flags, sta);
+	DEBUGFS_ADD(num_beacons_sta, sta);
 }
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(channel_use, ap);
 	DEBUGFS_ADD(drop_unencrypted, ap);
-	DEBUGFS_ADD(ieee802_1x_pac, ap);
 	DEBUGFS_ADD(num_sta_ps, ap);
 	DEBUGFS_ADD(dtim_count, ap);
 	DEBUGFS_ADD(num_beacons, ap);
@@ -182,7 +283,6 @@ static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(channel_use, wds);
 	DEBUGFS_ADD(drop_unencrypted, wds);
-	DEBUGFS_ADD(ieee802_1x_pac, wds);
 	DEBUGFS_ADD(peer, wds);
 }
 
@@ -190,12 +290,50 @@ static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(channel_use, vlan);
 	DEBUGFS_ADD(drop_unencrypted, vlan);
-	DEBUGFS_ADD(ieee802_1x_pac, vlan);
 }
 
 static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
 {
 }
+
+#ifdef CONFIG_MAC80211_MESH
+#define MESHSTATS_ADD(name)\
+	sdata->mesh_stats.name = debugfs_create_file(#name, 0400,\
+		sdata->mesh_stats_dir, sdata, &name##_ops);
+
+static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
+{
+	sdata->mesh_stats_dir = debugfs_create_dir("mesh_stats",
+				sdata->debugfsdir);
+	MESHSTATS_ADD(fwded_frames);
+	MESHSTATS_ADD(dropped_frames_ttl);
+	MESHSTATS_ADD(dropped_frames_no_route);
+	MESHSTATS_ADD(estab_plinks);
+}
+
+#define MESHPARAMS_ADD(name)\
+	sdata->mesh_config.name = debugfs_create_file(#name, 0600,\
+		sdata->mesh_config_dir, sdata, &name##_ops);
+
+static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
+{
+	sdata->mesh_config_dir = debugfs_create_dir("mesh_config",
+				sdata->debugfsdir);
+	MESHPARAMS_ADD(dot11MeshMaxRetries);
+	MESHPARAMS_ADD(dot11MeshRetryTimeout);
+	MESHPARAMS_ADD(dot11MeshConfirmTimeout);
+	MESHPARAMS_ADD(dot11MeshHoldingTimeout);
+	MESHPARAMS_ADD(dot11MeshTTL);
+	MESHPARAMS_ADD(auto_open_plinks);
+	MESHPARAMS_ADD(dot11MeshMaxPeerLinks);
+	MESHPARAMS_ADD(dot11MeshHWMPactivePathTimeout);
+	MESHPARAMS_ADD(dot11MeshHWMPpreqMinInterval);
+	MESHPARAMS_ADD(dot11MeshHWMPnetDiameterTraversalTime);
+	MESHPARAMS_ADD(dot11MeshHWMPmaxPREQretries);
+	MESHPARAMS_ADD(path_refresh_time);
+	MESHPARAMS_ADD(min_discovery_timeout);
+}
+#endif
 
 static void add_files(struct ieee80211_sub_if_data *sdata)
 {
@@ -203,6 +341,12 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		return;
 
 	switch (sdata->vif.type) {
+	case IEEE80211_IF_TYPE_MESH_POINT:
+#ifdef CONFIG_MAC80211_MESH
+		add_mesh_stats(sdata);
+		add_mesh_config(sdata);
+#endif
+		/* fall through */
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		add_sta_files(sdata);
@@ -234,7 +378,6 @@ static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(channel_use, sta);
 	DEBUGFS_DEL(drop_unencrypted, sta);
-	DEBUGFS_DEL(ieee802_1x_pac, sta);
 	DEBUGFS_DEL(state, sta);
 	DEBUGFS_DEL(bssid, sta);
 	DEBUGFS_DEL(prev_bssid, sta);
@@ -249,13 +392,13 @@ static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_DEL(auth_alg, sta);
 	DEBUGFS_DEL(auth_transaction, sta);
 	DEBUGFS_DEL(flags, sta);
+	DEBUGFS_DEL(num_beacons_sta, sta);
 }
 
 static void del_ap_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(channel_use, ap);
 	DEBUGFS_DEL(drop_unencrypted, ap);
-	DEBUGFS_DEL(ieee802_1x_pac, ap);
 	DEBUGFS_DEL(num_sta_ps, ap);
 	DEBUGFS_DEL(dtim_count, ap);
 	DEBUGFS_DEL(num_beacons, ap);
@@ -268,7 +411,6 @@ static void del_wds_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(channel_use, wds);
 	DEBUGFS_DEL(drop_unencrypted, wds);
-	DEBUGFS_DEL(ieee802_1x_pac, wds);
 	DEBUGFS_DEL(peer, wds);
 }
 
@@ -276,12 +418,54 @@ static void del_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(channel_use, vlan);
 	DEBUGFS_DEL(drop_unencrypted, vlan);
-	DEBUGFS_DEL(ieee802_1x_pac, vlan);
 }
 
 static void del_monitor_files(struct ieee80211_sub_if_data *sdata)
 {
 }
+
+#ifdef CONFIG_MAC80211_MESH
+#define MESHSTATS_DEL(name)			\
+	do {						\
+		debugfs_remove(sdata->mesh_stats.name);	\
+		sdata->mesh_stats.name = NULL;		\
+	} while (0)
+
+static void del_mesh_stats(struct ieee80211_sub_if_data *sdata)
+{
+	MESHSTATS_DEL(fwded_frames);
+	MESHSTATS_DEL(dropped_frames_ttl);
+	MESHSTATS_DEL(dropped_frames_no_route);
+	MESHSTATS_DEL(estab_plinks);
+	debugfs_remove(sdata->mesh_stats_dir);
+	sdata->mesh_stats_dir = NULL;
+}
+
+#define MESHPARAMS_DEL(name)			\
+	do {						\
+		debugfs_remove(sdata->mesh_config.name);	\
+		sdata->mesh_config.name = NULL;		\
+	} while (0)
+
+static void del_mesh_config(struct ieee80211_sub_if_data *sdata)
+{
+	MESHPARAMS_DEL(dot11MeshMaxRetries);
+	MESHPARAMS_DEL(dot11MeshRetryTimeout);
+	MESHPARAMS_DEL(dot11MeshConfirmTimeout);
+	MESHPARAMS_DEL(dot11MeshHoldingTimeout);
+	MESHPARAMS_DEL(dot11MeshTTL);
+	MESHPARAMS_DEL(auto_open_plinks);
+	MESHPARAMS_DEL(dot11MeshMaxPeerLinks);
+	MESHPARAMS_DEL(dot11MeshHWMPactivePathTimeout);
+	MESHPARAMS_DEL(dot11MeshHWMPpreqMinInterval);
+	MESHPARAMS_DEL(dot11MeshHWMPnetDiameterTraversalTime);
+	MESHPARAMS_DEL(dot11MeshHWMPmaxPREQretries);
+	MESHPARAMS_DEL(path_refresh_time);
+	MESHPARAMS_DEL(min_discovery_timeout);
+	debugfs_remove(sdata->mesh_config_dir);
+	sdata->mesh_config_dir = NULL;
+}
+#endif
 
 static void del_files(struct ieee80211_sub_if_data *sdata, int type)
 {
@@ -289,6 +473,12 @@ static void del_files(struct ieee80211_sub_if_data *sdata, int type)
 		return;
 
 	switch (type) {
+	case IEEE80211_IF_TYPE_MESH_POINT:
+#ifdef CONFIG_MAC80211_MESH
+		del_mesh_stats(sdata);
+		del_mesh_config(sdata);
+#endif
+		/* fall through */
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		del_sta_files(sdata);

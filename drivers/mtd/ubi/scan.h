@@ -124,7 +124,7 @@ struct ubi_scan_info {
 	int max_ec;
 	unsigned long long max_sqnum;
 	int mean_ec;
-	int ec_sum;
+	uint64_t ec_sum;
 	int ec_count;
 };
 

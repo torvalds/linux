@@ -2537,6 +2537,7 @@ struct fcram_hash_ipv6 {
 
 #define NIU_PHY_ID_MASK			0xfffff0f0
 #define NIU_PHY_ID_BCM8704		0x00206030
+#define NIU_PHY_ID_BCM8706		0x00206035
 #define NIU_PHY_ID_BCM5464R		0x002060b0
 #define NIU_PHY_ID_MRVL88X2011		0x01410020
 
@@ -2937,6 +2938,15 @@ struct rx_ring_info {
 
 #define NIU_MAX_MTU		9216
 
+/* VPD strings */
+#define	NIU_QGC_LP_BM_STR	"501-7606"
+#define	NIU_2XGF_LP_BM_STR	"501-7283"
+#define	NIU_QGC_PEM_BM_STR	"501-7765"
+#define	NIU_2XGF_PEM_BM_STR	"501-7626"
+#define	NIU_ALONSO_BM_STR	"373-0202"
+#define	NIU_FOXXY_BM_STR	"501-7961"
+#define	NIU_2XGF_MRVL_BM_STR	"SK-6E82"
+
 #define NIU_VPD_MIN_MAJOR	3
 #define NIU_VPD_MIN_MINOR	4
 
@@ -3061,6 +3071,7 @@ struct niu_parent {
 #define PLAT_TYPE_NIU		0x02
 #define PLAT_TYPE_VF_P0		0x03
 #define PLAT_TYPE_VF_P1		0x04
+#define PLAT_TYPE_ATCA_CP3220	0x08
 
 	u8			num_ports;
 
@@ -3198,10 +3209,13 @@ struct niu {
 	struct niu_parent		*parent;
 
 	u32				flags;
+#define NIU_FLAGS_HOTPLUG_PHY_PRESENT	0x02000000 /* Removebale PHY detected*/
+#define NIU_FLAGS_HOTPLUG_PHY		0x01000000 /* Removebale PHY */
+#define NIU_FLAGS_VPD_VALID		0x00800000 /* VPD has valid version */
 #define NIU_FLAGS_MSIX			0x00400000 /* MSI-X in use */
 #define NIU_FLAGS_MCAST			0x00200000 /* multicast filter enabled */
 #define NIU_FLAGS_PROMISC		0x00100000 /* PROMISC enabled */
-#define NIU_FLAGS_VPD_VALID		0x00080000 /* VPD has valid version */
+#define NIU_FLAGS_XCVR_SERDES		0x00080000 /* 0=PHY 1=SERDES */
 #define NIU_FLAGS_10G			0x00040000 /* 0=1G 1=10G */
 #define NIU_FLAGS_FIBER			0x00020000 /* 0=COPPER 1=FIBER */
 #define NIU_FLAGS_XMAC			0x00010000 /* 0=BMAC 1=XMAC */

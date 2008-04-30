@@ -47,7 +47,7 @@ do_fpdis:
 	ba,pt		%xcc, etrap
 109:	 or		%g7, %lo(109b), %g7
 	add		%g0, %g0, %g0
-	ba,a,pt		%xcc, rtrap_clr_l6
+	ba,a,pt		%xcc, rtrap
 
 1:	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	ldub		[%g6 + TI_FPSAVED], %g5
@@ -226,7 +226,7 @@ fp_other_bounce:
 	call		do_fpother
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 	.globl		do_fpother_check_fitos
 	.align		32
@@ -489,7 +489,7 @@ utrap_trap:		/* %g3=handler,%g4=level */
         call		bad_trap
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 invoke_utrap:
 	sllx		%g3, 3, %g3
@@ -607,7 +607,7 @@ __spitfire_cee_trap_continue:
 	call		spitfire_access_error
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 	/* This is the trap handler entry point for ECC correctable
 	 * errors.  They are corrected, but we listen for the trap
@@ -686,7 +686,7 @@ __spitfire_data_access_exception_tl1:
 	call		spitfire_data_access_exception_tl1
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 __spitfire_data_access_exception:
 	rdpr		%pstate, %g4
@@ -705,7 +705,7 @@ __spitfire_data_access_exception:
 	call		spitfire_data_access_exception
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 	.globl		__spitfire_insn_access_exception
 	.globl		__spitfire_insn_access_exception_tl1
@@ -725,7 +725,7 @@ __spitfire_insn_access_exception_tl1:
 	call		spitfire_insn_access_exception_tl1
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 __spitfire_insn_access_exception:
 	rdpr		%pstate, %g4
@@ -743,7 +743,7 @@ __spitfire_insn_access_exception:
 	call		spitfire_insn_access_exception
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 	/* These get patched into the trap table at boot time
 	 * once we know we have a cheetah processor.
@@ -937,7 +937,7 @@ do_dcpe_tl1_fatal:
 	call		cheetah_plus_parity_error
 	 add		%sp, PTREGS_OFF, %o1
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 do_icpe_tl1:
 	rdpr		%tl, %g1		! Save original trap level
@@ -979,7 +979,7 @@ do_icpe_tl1_fatal:
 	call		cheetah_plus_parity_error
 	 add		%sp, PTREGS_OFF, %o1
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 	
 dcpe_icpe_tl1_common:
 	/* Flush D-cache, re-enable D/I caches in DCU and finally
@@ -1281,7 +1281,7 @@ __do_privact:
 	call		do_privact
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 	.globl		do_mna
 do_mna:
@@ -1308,7 +1308,7 @@ do_mna:
 	call		mem_address_unaligned
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 	.globl		do_lddfmna
 do_lddfmna:
@@ -1326,7 +1326,7 @@ do_lddfmna:
 	call		handle_lddfmna
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 	.globl		do_stdfmna
 do_stdfmna:
@@ -1344,7 +1344,7 @@ do_stdfmna:
 	call		handle_stdfmna
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 nop
 
 	.globl	breakpoint_trap
 breakpoint_trap:
@@ -1352,63 +1352,6 @@ breakpoint_trap:
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
 	 nop
-
-#if defined(CONFIG_SUNOS_EMUL) || defined(CONFIG_SOLARIS_EMUL) || \
-    defined(CONFIG_SOLARIS_EMUL_MODULE)
-	/* SunOS uses syscall zero as the 'indirect syscall' it looks
-	 * like indir_syscall(scall_num, arg0, arg1, arg2...);  etc.
-	 * This is complete brain damage.
-	 */
-	.globl	sunos_indir
-sunos_indir:
-	srl		%o0, 0, %o0
-	mov		%o7, %l4
-	cmp		%o0, NR_SYSCALLS
-	blu,a,pt	%icc, 1f
-	 sll		%o0, 0x2, %o0
-	sethi		%hi(sunos_nosys), %l6
-	b,pt		%xcc, 2f
-	 or		%l6, %lo(sunos_nosys), %l6
-1:	sethi		%hi(sunos_sys_table), %l7
-	or		%l7, %lo(sunos_sys_table), %l7
-	lduw		[%l7 + %o0], %l6
-2:	mov		%o1, %o0
-	mov		%o2, %o1
-	mov		%o3, %o2
-	mov		%o4, %o3
-	mov		%o5, %o4
-	call		%l6
-	 mov		%l4, %o7
-
-	.globl	sunos_getpid
-sunos_getpid:
-	call	sys_getppid
-	 nop
-	call	sys_getpid
-	 stx	%o0, [%sp + PTREGS_OFF + PT_V9_I1]
-	b,pt	%xcc, ret_sys_call
-	 stx	%o0, [%sp + PTREGS_OFF + PT_V9_I0]
-
-	/* SunOS getuid() returns uid in %o0 and euid in %o1 */
-	.globl	sunos_getuid
-sunos_getuid:
-	call	sys32_geteuid16
-	 nop
-	call	sys32_getuid16
-	 stx	%o0, [%sp + PTREGS_OFF + PT_V9_I1]
-	b,pt	%xcc, ret_sys_call
-	 stx	%o0, [%sp + PTREGS_OFF + PT_V9_I0]
-
-	/* SunOS getgid() returns gid in %o0 and egid in %o1 */
-	.globl	sunos_getgid
-sunos_getgid:
-	call	sys32_getegid16
-	 nop
-	call	sys32_getgid16
-	 stx	%o0, [%sp + PTREGS_OFF + PT_V9_I1]
-	b,pt	%xcc, ret_sys_call
-	 stx	%o0, [%sp + PTREGS_OFF + PT_V9_I0]
-#endif
 
 	/* SunOS's execv() call only specifies the argv argument, the
 	 * environment settings are the same as the calling processes.
@@ -1481,13 +1424,13 @@ sys32_rt_sigreturn:
 1:		ldx		[%curptr + TI_FLAGS], %l5
 		andcc		%l5, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT), %g0
 		be,pt		%icc, rtrap
-		 clr		%l6
+		 nop
 		add		%sp, PTREGS_OFF, %o0
 		call		syscall_trace
 		 mov		1, %o1
 
 		ba,pt		%xcc, rtrap
-		 clr		%l6
+		 nop
 
 	/* This is how fork() was meant to be done, 8 instruction entry.
 	 *
@@ -1591,7 +1534,7 @@ linux_syscall_trace:
 	 mov		%i4, %o4
 
 
-	/* Linux 32-bit and SunOS system calls enter here... */
+	/* Linux 32-bit system calls enter here... */
 	.align	32
 	.globl	linux_sparc_syscall32
 linux_sparc_syscall32:
@@ -1614,9 +1557,9 @@ linux_sparc_syscall32:
 	 srl		%i3, 0, %o3				! IEU0
 	ba,a,pt		%xcc, 3f
 
-	/* Linux native and SunOS system calls enter here... */
+	/* Linux native system calls enter here... */
 	.align	32
-	.globl	linux_sparc_syscall, ret_sys_call
+	.globl	linux_sparc_syscall
 linux_sparc_syscall:
 	/* Direct access to user regs, much faster. */
 	cmp		%g1, NR_SYSCALLS			! IEU1	Group
@@ -1662,7 +1605,7 @@ ret_sys_call:
 	bne,pn		%icc, linux_syscall_trace2
 	 add		%l1, 0x4, %l2			! npc = npc+4
 	stx		%l1, [%sp + PTREGS_OFF + PT_V9_TPC]
-	ba,pt		%xcc, rtrap_clr_l6
+	ba,pt		%xcc, rtrap
 	 stx		%l2, [%sp + PTREGS_OFF + PT_V9_TNPC]
 
 1:
@@ -1673,7 +1616,6 @@ ret_sys_call:
 	sub		%g0, %o0, %o0
 	or		%g3, %g2, %g3
 	stx		%o0, [%sp + PTREGS_OFF + PT_V9_I0]
-	mov		1, %l6
 	stx		%g3, [%sp + PTREGS_OFF + PT_V9_TSTATE]
 	bne,pn		%icc, linux_syscall_trace2
 	 add		%l1, 0x4, %l2			! npc = npc+4

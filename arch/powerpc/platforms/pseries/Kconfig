@@ -34,3 +34,8 @@ config LPARCFG
 	help
 	Provide system capacity information via human readable
 	<key word>=<value> pairs through a /proc/ppc64/lparcfg interface.
+
+config PPC_PSERIES_DEBUG
+	depends on PPC_PSERIES && PPC_EARLY_DEBUG
+	bool "Enable extra debug logging in platforms/pseries"
+	default y

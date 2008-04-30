@@ -27,7 +27,7 @@ static unsigned short normal_i2c[] = {
 
 I2C_CLIENT_INSMOD;
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 

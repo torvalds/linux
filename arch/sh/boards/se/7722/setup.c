@@ -13,10 +13,12 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
+#include <linux/input.h>
 #include <asm/machvec.h>
 #include <asm/se7722.h>
 #include <asm/io.h>
 #include <asm/heartbeat.h>
+#include <asm/sh_keysc.h>
 
 /* Heartbeat */
 static struct heartbeat_data heartbeat_data = {
@@ -92,10 +94,47 @@ static struct platform_device cf_ide_device  = {
 	.resource       = cf_ide_resources,
 };
 
+static struct sh_keysc_info sh_keysc_info = {
+	.mode = SH_KEYSC_MODE_1, /* KEYOUT0->5, KEYIN0->4 */
+	.scan_timing = 3,
+	.delay = 5,
+	.keycodes = { /* SW1 -> SW30 */
+		KEY_A, KEY_B, KEY_C, KEY_D, KEY_E,
+		KEY_F, KEY_G, KEY_H, KEY_I, KEY_J,
+		KEY_K, KEY_L, KEY_M, KEY_N, KEY_O,
+		KEY_P, KEY_Q, KEY_R, KEY_S, KEY_T,
+		KEY_U, KEY_V, KEY_W, KEY_X, KEY_Y,
+		KEY_Z,
+		KEY_HOME, KEY_SLEEP, KEY_WAKEUP, KEY_COFFEE, /* life */
+	},
+};
+
+static struct resource sh_keysc_resources[] = {
+	[0] = {
+		.start  = 0x044b0000,
+		.end    = 0x044b000f,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 79,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sh_keysc_device = {
+	.name           = "sh_keysc",
+	.num_resources  = ARRAY_SIZE(sh_keysc_resources),
+	.resource       = sh_keysc_resources,
+	.dev	= {
+		.platform_data	= &sh_keysc_info,
+	},
+};
+
 static struct platform_device *se7722_devices[] __initdata = {
 	&heartbeat_device,
 	&smc91x_eth_device,
 	&cf_ide_device,
+	&sh_keysc_device,
 };
 
 static int __init se7722_devices_setup(void)
@@ -136,6 +175,8 @@ static void __init se7722_setup(char **cmdline_p)
 	ctrl_outw(0x0A10, PORT_PSELA); /* BS,SHHID2 */
 	ctrl_outw(0x0000, PORT_PYCR);
 	ctrl_outw(0x0000, PORT_PZCR);
+	ctrl_outw(ctrl_inw(PORT_HIZCRA) & ~0x4000, PORT_HIZCRA);
+	ctrl_outw(ctrl_inw(PORT_HIZCRC) & ~0xc000, PORT_HIZCRC);
 }
 
 /*

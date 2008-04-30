@@ -1008,6 +1008,7 @@ static struct platform_driver sa1100ir_driver = {
 	.resume		= sa1100_irda_resume,
 	.driver		= {
 		.name	= "sa11x0-ir",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1041,3 +1042,4 @@ MODULE_LICENSE("GPL");
 MODULE_PARM_DESC(power_level, "IrDA power level, 1 (low) to 3 (high)");
 MODULE_PARM_DESC(tx_lpm, "Enable transmitter low power (1.6us) mode");
 MODULE_PARM_DESC(max_rate, "Maximum baud rate (4000000, 115200, 57600, 38400, 19200, 9600)");
+MODULE_ALIAS("platform:sa11x0-ir");

@@ -458,7 +458,7 @@ static int pcxhr_update_r_buffer(struct pcxhr_stream *stream)
 
 	snd_printdd("pcxhr_update_r_buffer(pcm%c%d) : addr(%p) bytes(%zx) subs(%d)\n",
 		    is_capture ? 'c' : 'p',
-		    chip->chip_idx, (void*)subs->runtime->dma_addr,
+		    chip->chip_idx, (void *)(long)subs->runtime->dma_addr,
 		    subs->runtime->dma_bytes, subs->number);
 
 	pcxhr_init_rmh(&rmh, CMD_UPDATE_R_BUFFERS);
@@ -626,7 +626,7 @@ static void pcxhr_trigger_tasklet(unsigned long arg)
 #ifdef CONFIG_SND_DEBUG_DETECT
 	do_gettimeofday(&my_tv2);
 	snd_printdd("***TRIGGER TASKLET*** TIME = %ld (err = %x)\n",
-		    my_tv2.tv_usec - my_tv1.tv_usec, err);
+		    (long)(my_tv2.tv_usec - my_tv1.tv_usec), err);
 #endif
 }
 
@@ -846,7 +846,6 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	struct pcxhr_mgr       *mgr = chip->mgr;
 	struct snd_pcm_runtime *runtime = subs->runtime;
 	struct pcxhr_stream    *stream;
-	int                 is_capture;
 
 	mutex_lock(&mgr->setup_mutex);
 
@@ -856,12 +855,10 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	if( subs->stream == SNDRV_PCM_STREAM_PLAYBACK ) {
 		snd_printdd("pcxhr_open playback chip%d subs%d\n",
 			    chip->chip_idx, subs->number);
-		is_capture = 0;
 		stream = &chip->playback_stream[subs->number];
 	} else {
 		snd_printdd("pcxhr_open capture chip%d subs%d\n",
 			    chip->chip_idx, subs->number);
-		is_capture = 1;
 		if (mgr->mono_capture)
 			runtime->hw.channels_max = 1;
 		else

@@ -129,7 +129,7 @@ struct _cpuid4_info {
 	union _cpuid4_leaf_ebx ebx;
 	union _cpuid4_leaf_ecx ecx;
 	unsigned long size;
-	cpumask_t shared_cpu_map;
+	cpumask_t shared_cpu_map;	/* future?: only cpus/node is needed */
 };
 
 unsigned short			num_cache_leaves;
@@ -451,8 +451,8 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 }
 
 /* pointer to _cpuid4_info array (for each cache leaf) */
-static struct _cpuid4_info *cpuid4_info[NR_CPUS];
-#define CPUID4_INFO_IDX(x,y)    (&((cpuid4_info[x])[y]))
+static DEFINE_PER_CPU(struct _cpuid4_info *, cpuid4_info);
+#define CPUID4_INFO_IDX(x, y)    (&((per_cpu(cpuid4_info, x))[y]))
 
 #ifdef CONFIG_SMP
 static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
@@ -474,7 +474,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 			if (cpu_data(i).apicid >> index_msb ==
 			    c->apicid >> index_msb) {
 				cpu_set(i, this_leaf->shared_cpu_map);
-				if (i != cpu && cpuid4_info[i])  {
+				if (i != cpu && per_cpu(cpuid4_info, i))  {
 					sibling_leaf = CPUID4_INFO_IDX(i, index);
 					cpu_set(cpu, sibling_leaf->shared_cpu_map);
 				}
@@ -505,8 +505,8 @@ static void __cpuinit free_cache_attributes(unsigned int cpu)
 	for (i = 0; i < num_cache_leaves; i++)
 		cache_remove_shared_cpu_map(cpu, i);
 
-	kfree(cpuid4_info[cpu]);
-	cpuid4_info[cpu] = NULL;
+	kfree(per_cpu(cpuid4_info, cpu));
+	per_cpu(cpuid4_info, cpu) = NULL;
 }
 
 static int __cpuinit detect_cache_attributes(unsigned int cpu)
@@ -519,13 +519,13 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 	if (num_cache_leaves == 0)
 		return -ENOENT;
 
-	cpuid4_info[cpu] = kzalloc(
+	per_cpu(cpuid4_info, cpu) = kzalloc(
 	    sizeof(struct _cpuid4_info) * num_cache_leaves, GFP_KERNEL);
-	if (cpuid4_info[cpu] == NULL)
+	if (per_cpu(cpuid4_info, cpu) == NULL)
 		return -ENOMEM;
 
 	oldmask = current->cpus_allowed;
-	retval = set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	retval = set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 	if (retval)
 		goto out;
 
@@ -542,12 +542,12 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 		}
 		cache_shared_cpu_map_setup(cpu, j);
 	}
-	set_cpus_allowed(current, oldmask);
+	set_cpus_allowed_ptr(current, &oldmask);
 
 out:
 	if (retval) {
-		kfree(cpuid4_info[cpu]);
-		cpuid4_info[cpu] = NULL;
+		kfree(per_cpu(cpuid4_info, cpu));
+		per_cpu(cpuid4_info, cpu) = NULL;
 	}
 
 	return retval;
@@ -561,7 +561,7 @@ out:
 extern struct sysdev_class cpu_sysdev_class; /* from drivers/base/cpu.c */
 
 /* pointer to kobject for cpuX/cache */
-static struct kobject * cache_kobject[NR_CPUS];
+static DEFINE_PER_CPU(struct kobject *, cache_kobject);
 
 struct _index_kobject {
 	struct kobject kobj;
@@ -570,8 +570,8 @@ struct _index_kobject {
 };
 
 /* pointer to array of kobjects for cpuX/cache/indexY */
-static struct _index_kobject *index_kobject[NR_CPUS];
-#define INDEX_KOBJECT_PTR(x,y)    (&((index_kobject[x])[y]))
+static DEFINE_PER_CPU(struct _index_kobject *, index_kobject);
+#define INDEX_KOBJECT_PTR(x, y)    (&((per_cpu(index_kobject, x))[y]))
 
 #define show_one_plus(file_name, object, val)				\
 static ssize_t show_##file_name						\
@@ -591,11 +591,32 @@ static ssize_t show_size(struct _cpuid4_info *this_leaf, char *buf)
 	return sprintf (buf, "%luK\n", this_leaf->size / 1024);
 }
 
-static ssize_t show_shared_cpu_map(struct _cpuid4_info *this_leaf, char *buf)
+static ssize_t show_shared_cpu_map_func(struct _cpuid4_info *this_leaf,
+					int type, char *buf)
 {
-	char mask_str[NR_CPUS];
-	cpumask_scnprintf(mask_str, NR_CPUS, this_leaf->shared_cpu_map);
-	return sprintf(buf, "%s\n", mask_str);
+	ptrdiff_t len = PTR_ALIGN(buf + PAGE_SIZE - 1, PAGE_SIZE) - buf;
+	int n = 0;
+
+	if (len > 1) {
+		cpumask_t *mask = &this_leaf->shared_cpu_map;
+
+		n = type?
+			cpulist_scnprintf(buf, len-2, *mask):
+			cpumask_scnprintf(buf, len-2, *mask);
+		buf[n++] = '\n';
+		buf[n] = '\0';
+	}
+	return n;
+}
+
+static inline ssize_t show_shared_cpu_map(struct _cpuid4_info *leaf, char *buf)
+{
+	return show_shared_cpu_map_func(leaf, 0, buf);
+}
+
+static inline ssize_t show_shared_cpu_list(struct _cpuid4_info *leaf, char *buf)
+{
+	return show_shared_cpu_map_func(leaf, 1, buf);
 }
 
 static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf) {
@@ -633,6 +654,7 @@ define_one_ro(ways_of_associativity);
 define_one_ro(number_of_sets);
 define_one_ro(size);
 define_one_ro(shared_cpu_map);
+define_one_ro(shared_cpu_list);
 
 static struct attribute * default_attrs[] = {
 	&type.attr,
@@ -643,6 +665,7 @@ static struct attribute * default_attrs[] = {
 	&number_of_sets.attr,
 	&size.attr,
 	&shared_cpu_map.attr,
+	&shared_cpu_list.attr,
 	NULL
 };
 
@@ -684,10 +707,10 @@ static struct kobj_type ktype_percpu_entry = {
 
 static void __cpuinit cpuid4_cache_sysfs_exit(unsigned int cpu)
 {
-	kfree(cache_kobject[cpu]);
-	kfree(index_kobject[cpu]);
-	cache_kobject[cpu] = NULL;
-	index_kobject[cpu] = NULL;
+	kfree(per_cpu(cache_kobject, cpu));
+	kfree(per_cpu(index_kobject, cpu));
+	per_cpu(cache_kobject, cpu) = NULL;
+	per_cpu(index_kobject, cpu) = NULL;
 	free_cache_attributes(cpu);
 }
 
@@ -703,13 +726,14 @@ static int __cpuinit cpuid4_cache_sysfs_init(unsigned int cpu)
 		return err;
 
 	/* Allocate all required memory */
-	cache_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
-	if (unlikely(cache_kobject[cpu] == NULL))
+	per_cpu(cache_kobject, cpu) =
+		kzalloc(sizeof(struct kobject), GFP_KERNEL);
+	if (unlikely(per_cpu(cache_kobject, cpu) == NULL))
 		goto err_out;
 
-	index_kobject[cpu] = kzalloc(
+	per_cpu(index_kobject, cpu) = kzalloc(
 	    sizeof(struct _index_kobject ) * num_cache_leaves, GFP_KERNEL);
-	if (unlikely(index_kobject[cpu] == NULL))
+	if (unlikely(per_cpu(index_kobject, cpu) == NULL))
 		goto err_out;
 
 	return 0;
@@ -733,7 +757,8 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 	if (unlikely(retval < 0))
 		return retval;
 
-	retval = kobject_init_and_add(cache_kobject[cpu], &ktype_percpu_entry,
+	retval = kobject_init_and_add(per_cpu(cache_kobject, cpu),
+				      &ktype_percpu_entry,
 				      &sys_dev->kobj, "%s", "cache");
 	if (retval < 0) {
 		cpuid4_cache_sysfs_exit(cpu);
@@ -745,13 +770,14 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 		this_object->cpu = cpu;
 		this_object->index = i;
 		retval = kobject_init_and_add(&(this_object->kobj),
-					      &ktype_cache, cache_kobject[cpu],
+					      &ktype_cache,
+					      per_cpu(cache_kobject, cpu),
 					      "index%1lu", i);
 		if (unlikely(retval)) {
 			for (j = 0; j < i; j++) {
 				kobject_put(&(INDEX_KOBJECT_PTR(cpu,j)->kobj));
 			}
-			kobject_put(cache_kobject[cpu]);
+			kobject_put(per_cpu(cache_kobject, cpu));
 			cpuid4_cache_sysfs_exit(cpu);
 			break;
 		}
@@ -760,7 +786,7 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 	if (!retval)
 		cpu_set(cpu, cache_dev_map);
 
-	kobject_uevent(cache_kobject[cpu], KOBJ_ADD);
+	kobject_uevent(per_cpu(cache_kobject, cpu), KOBJ_ADD);
 	return retval;
 }
 
@@ -769,7 +795,7 @@ static void __cpuinit cache_remove_dev(struct sys_device * sys_dev)
 	unsigned int cpu = sys_dev->id;
 	unsigned long i;
 
-	if (cpuid4_info[cpu] == NULL)
+	if (per_cpu(cpuid4_info, cpu) == NULL)
 		return;
 	if (!cpu_isset(cpu, cache_dev_map))
 		return;
@@ -777,7 +803,7 @@ static void __cpuinit cache_remove_dev(struct sys_device * sys_dev)
 
 	for (i = 0; i < num_cache_leaves; i++)
 		kobject_put(&(INDEX_KOBJECT_PTR(cpu,i)->kobj));
-	kobject_put(cache_kobject[cpu]);
+	kobject_put(per_cpu(cache_kobject, cpu));
 	cpuid4_cache_sysfs_exit(cpu);
 }
 

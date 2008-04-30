@@ -27,13 +27,6 @@ EXPORT_SYMBOL(_zb_findmap);
 EXPORT_SYMBOL(_sb_findmap);
 
 /*
- * semaphore ops
- */
-EXPORT_SYMBOL(__up);
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_interruptible);
-
-/*
  * binfmt_elf loader 
  */
 extern int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs);

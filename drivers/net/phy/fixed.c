@@ -213,7 +213,7 @@ static int __init fixed_mdio_bus_init(void)
 		goto err_pdev;
 	}
 
-	fmb->mii_bus.id = 0;
+	snprintf(fmb->mii_bus.id, MII_BUS_ID_SIZE, "0");
 	fmb->mii_bus.name = "Fixed MDIO Bus";
 	fmb->mii_bus.dev = &pdev->dev;
 	fmb->mii_bus.read = &fixed_mdio_read;

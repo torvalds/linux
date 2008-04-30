@@ -79,25 +79,21 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 
 #ifdef CONFIG_DISCONTIGMEM
 
-        if (!NODE_DATA(nid) ||
-            (NULL == (arena = alloc_bootmem_node(NODE_DATA(nid),
-                                                 sizeof(*arena))))) {
-                printk("%s: couldn't allocate arena from node %d\n"
-                       "    falling back to system-wide allocation\n",
-                       __FUNCTION__, nid);
-                arena = alloc_bootmem(sizeof(*arena));
-        }
+	arena = alloc_bootmem_node(NODE_DATA(nid), sizeof(*arena));
+	if (!NODE_DATA(nid) || !arena) {
+		printk("%s: couldn't allocate arena from node %d\n"
+		       "    falling back to system-wide allocation\n",
+		       __func__, nid);
+		arena = alloc_bootmem(sizeof(*arena));
+	}
 
-        if (!NODE_DATA(nid) ||
-            (NULL == (arena->ptes = __alloc_bootmem_node(NODE_DATA(nid),
-                                                         mem_size,
-                                                         align,
-                                                         0)))) {
-                printk("%s: couldn't allocate arena ptes from node %d\n"
-                       "    falling back to system-wide allocation\n",
-                       __FUNCTION__, nid);
-                arena->ptes = __alloc_bootmem(mem_size, align, 0);
-        }
+	arena->ptes = __alloc_bootmem_node(NODE_DATA(nid), mem_size, align, 0);
+	if (!NODE_DATA(nid) || !arena->ptes) {
+		printk("%s: couldn't allocate arena ptes from node %d\n"
+		       "    falling back to system-wide allocation\n",
+		       __func__, nid);
+		arena->ptes = __alloc_bootmem(mem_size, align, 0);
+	}
 
 #else /* CONFIG_DISCONTIGMEM */
 

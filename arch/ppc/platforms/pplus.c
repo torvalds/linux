@@ -19,7 +19,6 @@
 #include <linux/ioport.h>
 #include <linux/console.h>
 #include <linux/pci.h>
-#include <linux/ide.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 
@@ -668,57 +667,6 @@ static void __init pplus_init_IRQ(void)
 		ppc_md.progress("init_irq: exit", 0);
 }
 
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-/*
- * IDE stuff.
- */
-static int pplus_ide_default_irq(unsigned long base)
-{
-	switch (base) {
-	case 0x1f0:
-		return 14;
-	case 0x170:
-		return 15;
-	default:
-		return 0;
-	}
-}
-
-static unsigned long pplus_ide_default_io_base(int index)
-{
-	switch (index) {
-	case 0:
-		return 0x1f0;
-	case 1:
-		return 0x170;
-	default:
-		return 0;
-	}
-}
-
-static void __init
-pplus_ide_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
-			  unsigned long ctrl_port, int *irq)
-{
-	unsigned long reg = data_port;
-	int i;
-
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-		hw->io_ports[i] = reg;
-		reg += 1;
-	}
-
-	if (ctrl_port)
-		hw->io_ports[IDE_CONTROL_OFFSET] = ctrl_port;
-	else
-		hw->io_ports[IDE_CONTROL_OFFSET] =
-		    hw->io_ports[IDE_DATA_OFFSET] + 0x206;
-
-	if (irq != NULL)
-		*irq = pplus_ide_default_irq(data_port);
-}
-#endif
-
 #ifdef CONFIG_SMP
 /* PowerPlus (MTX) support */
 static int __init smp_pplus_probe(void)
@@ -883,12 +831,6 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 	ppc_md.find_end_of_memory = pplus_find_end_of_memory;
 	ppc_md.setup_io_mappings = pplus_map_io;
-
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-	ppc_ide_md.default_irq = pplus_ide_default_irq;
-	ppc_ide_md.default_io_base = pplus_ide_default_io_base;
-	ppc_ide_md.ide_init_hwif = pplus_ide_init_hwif_ports;
-#endif
 
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	ppc_md.progress = gen550_progress;

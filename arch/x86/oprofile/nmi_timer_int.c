@@ -17,14 +17,14 @@
 #include <asm/nmi.h>
 #include <asm/apic.h>
 #include <asm/ptrace.h>
- 
+
 static int profile_timer_exceptions_notify(struct notifier_block *self,
 					   unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
 
-	switch(val) {
+	switch (val) {
 	case DIE_NMI:
 		oprofile_add_sample(args->regs, 0);
 		ret = NOTIFY_STOP;
@@ -56,7 +56,7 @@ static void timer_stop(void)
 }
 
 
-int __init op_nmi_timer_init(struct oprofile_operations * ops)
+int __init op_nmi_timer_init(struct oprofile_operations *ops)
 {
 	if ((nmi_watchdog != NMI_IO_APIC) || (atomic_read(&nmi_active) <= 0))
 		return -ENODEV;

@@ -19,8 +19,8 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
 #include <linux/module.h>
+#include <linux/lmb.h>
 
 #include <asm/prom.h>
 #include <asm/of_device.h>
@@ -122,16 +122,20 @@ int of_find_in_proplist(const char *list, const char *match, int len)
 }
 EXPORT_SYMBOL(of_find_in_proplist);
 
-static unsigned int prom_early_allocated;
+static unsigned int prom_early_allocated __initdata;
 
 static void * __init prom_early_alloc(unsigned long size)
 {
+	unsigned long paddr = lmb_alloc(size, SMP_CACHE_BYTES);
 	void *ret;
 
-	ret = __alloc_bootmem(size, SMP_CACHE_BYTES, 0UL);
-	if (ret != NULL)
-		memset(ret, 0, size);
+	if (!paddr) {
+		prom_printf("prom_early_alloc(%lu) failed\n");
+		prom_halt();
+	}
 
+	ret = __va(paddr);
+	memset(ret, 0, size);
 	prom_early_allocated += size;
 
 	return ret;

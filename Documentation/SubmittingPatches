@@ -183,7 +183,7 @@ Even if the maintainer did not respond in step #4, make sure to ALWAYS
 copy the maintainer when you change their code.
 
 For small patches you may want to CC the Trivial Patch Monkey
-trivial@kernel.org managed by Adrian Bunk; which collects "trivial"
+trivial@kernel.org managed by Jesper Juhl; which collects "trivial"
 patches. Trivial patches must qualify for one of the following rules:
  Spelling fixes in documentation
  Spelling fixes which could break grep(1)
@@ -196,7 +196,7 @@ patches. Trivial patches must qualify for one of the following rules:
  since people copy, as long as it's trivial)
  Any fix by the author/maintainer of the file (ie. patch monkey
  in re-transmission mode)
-URL: <http://www.kernel.org/pub/linux/kernel/people/bunk/trivial/>
+URL: <http://www.kernel.org/pub/linux/kernel/people/juhl/trivial/>
 
 
 

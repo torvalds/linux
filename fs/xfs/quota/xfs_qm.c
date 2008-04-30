@@ -304,15 +304,17 @@ xfs_qm_unmount_quotadestroy(
  * necessary data structures like quotainfo.  This is also responsible for
  * running a quotacheck as necessary.  We are guaranteed that the superblock
  * is consistently read in at this point.
+ *
+ * If we fail here, the mount will continue with quota turned off. We don't
+ * need to inidicate success or failure at all.
  */
-int
+void
 xfs_qm_mount_quotas(
 	xfs_mount_t	*mp,
 	int		mfsi_flags)
 {
 	int		error = 0;
 	uint		sbf;
-
 
 	/*
 	 * If quotas on realtime volumes is not supported, we disable
@@ -332,7 +334,8 @@ xfs_qm_mount_quotas(
 	 * Allocate the quotainfo structure inside the mount struct, and
 	 * create quotainode(s), and change/rev superblock if necessary.
 	 */
-	if ((error = xfs_qm_init_quotainfo(mp))) {
+	error = xfs_qm_init_quotainfo(mp);
+	if (error) {
 		/*
 		 * We must turn off quotas.
 		 */
@@ -344,12 +347,11 @@ xfs_qm_mount_quotas(
 	 * If any of the quotas are not consistent, do a quotacheck.
 	 */
 	if (XFS_QM_NEED_QUOTACHECK(mp) &&
-		!(mfsi_flags & XFS_MFSI_NO_QUOTACHECK)) {
-		if ((error = xfs_qm_quotacheck(mp))) {
-			/* Quotacheck has failed and quotas have
-			 * been disabled.
-			 */
-			return XFS_ERROR(error);
+	    !(mfsi_flags & XFS_MFSI_NO_QUOTACHECK)) {
+		error = xfs_qm_quotacheck(mp);
+		if (error) {
+			/* Quotacheck failed and disabled quotas. */
+			return;
 		}
 	}
 	/* 
@@ -357,12 +359,10 @@ xfs_qm_mount_quotas(
 	 * quotachecked status, since we won't be doing accounting for
 	 * that type anymore.
 	 */
-	if (!XFS_IS_UQUOTA_ON(mp)) {
+	if (!XFS_IS_UQUOTA_ON(mp))
 		mp->m_qflags &= ~XFS_UQUOTA_CHKD;
-	}
-	if (!(XFS_IS_GQUOTA_ON(mp) || XFS_IS_PQUOTA_ON(mp))) {
+	if (!(XFS_IS_GQUOTA_ON(mp) || XFS_IS_PQUOTA_ON(mp)))
 		mp->m_qflags &= ~XFS_OQUOTA_CHKD;
-	}
 
  write_changes:
 	/*
@@ -392,7 +392,7 @@ xfs_qm_mount_quotas(
 		xfs_fs_cmn_err(CE_WARN, mp,
 			"Failed to initialize disk quotas.");
 	}
-	return XFS_ERROR(error);
+	return;
 }
 
 /*
@@ -1438,7 +1438,7 @@ xfs_qm_qino_alloc(
 }
 
 
-STATIC int
+STATIC void
 xfs_qm_reset_dqcounts(
 	xfs_mount_t	*mp,
 	xfs_buf_t	*bp,
@@ -1478,8 +1478,6 @@ xfs_qm_reset_dqcounts(
 		ddq->d_rtbwarns = 0;
 		ddq = (xfs_disk_dquot_t *) ((xfs_dqblk_t *)ddq + 1);
 	}
-
-	return 0;
 }
 
 STATIC int
@@ -1520,7 +1518,7 @@ xfs_qm_dqiter_bufs(
 		if (error)
 			break;
 
-		(void) xfs_qm_reset_dqcounts(mp, bp, firstid, type);
+		xfs_qm_reset_dqcounts(mp, bp, firstid, type);
 		xfs_bdwrite(mp, bp);
 		/*
 		 * goto the next block.
@@ -1810,7 +1808,7 @@ xfs_qm_dqusage_adjust(
 	 * Now release the inode. This will send it to 'inactive', and
 	 * possibly even free blocks.
 	 */
-	VN_RELE(XFS_ITOV(ip));
+	IRELE(ip);
 
 	/*
 	 * Goto next inode.
@@ -1880,6 +1878,14 @@ xfs_qm_quotacheck(
 	} while (! done);
 
 	/*
+	 * We've made all the changes that we need to make incore.
+	 * Flush them down to disk buffers if everything was updated
+	 * successfully.
+	 */
+	if (!error)
+		error = xfs_qm_dqflush_all(mp, XFS_QMOPT_DELWRI);
+
+	/*
 	 * We can get this error if we couldn't do a dquot allocation inside
 	 * xfs_qm_dqusage_adjust (via bulkstat). We don't care about the
 	 * dirty dquots that might be cached, we just want to get rid of them
@@ -1890,11 +1896,6 @@ xfs_qm_quotacheck(
 		xfs_qm_dqpurge_all(mp, XFS_QMOPT_QUOTALL | XFS_QMOPT_QUOTAOFF);
 		goto error_return;
 	}
-	/*
-	 * We've made all the changes that we need to make incore.
-	 * Now flush_them down to disk buffers.
-	 */
-	xfs_qm_dqflush_all(mp, XFS_QMOPT_DELWRI);
 
 	/*
 	 * We didn't log anything, because if we crashed, we'll have to
@@ -1926,7 +1927,10 @@ xfs_qm_quotacheck(
 		ASSERT(mp->m_quotainfo != NULL);
 		ASSERT(xfs_Gqm != NULL);
 		xfs_qm_destroy_quotainfo(mp);
-		(void)xfs_mount_reset_sbqflags(mp);
+		if (xfs_mount_reset_sbqflags(mp)) {
+			cmn_err(CE_WARN, "XFS quotacheck %s: "
+				"Failed to reset quota flags.", mp->m_fsname);
+		}
 	} else {
 		cmn_err(CE_NOTE, "XFS quotacheck %s: Done.", mp->m_fsname);
 	}
@@ -1968,7 +1972,7 @@ xfs_qm_init_quotainos(
 			if ((error = xfs_iget(mp, NULL, mp->m_sb.sb_gquotino,
 					     0, 0, &gip, 0))) {
 				if (uip)
-					VN_RELE(XFS_ITOV(uip));
+					IRELE(uip);
 				return XFS_ERROR(error);
 			}
 		}
@@ -1999,7 +2003,7 @@ xfs_qm_init_quotainos(
 					  sbflags | XFS_SB_GQUOTINO, flags);
 		if (error) {
 			if (uip)
-				VN_RELE(XFS_ITOV(uip));
+				IRELE(uip);
 
 			return XFS_ERROR(error);
 		}
@@ -2093,12 +2097,17 @@ xfs_qm_shake_freelist(
 		 * dirty dquots.
 		 */
 		if (XFS_DQ_IS_DIRTY(dqp)) {
+			int	error;
 			xfs_dqtrace_entry(dqp, "DQSHAKE: DQDIRTY");
 			/*
 			 * We flush it delayed write, so don't bother
 			 * releasing the mplock.
 			 */
-			(void) xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			error = xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			if (error) {
+				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
+			"xfs_qm_dqflush_all: dquot %p flush failed", dqp);
+			}
 			xfs_dqunlock(dqp); /* dqflush unlocks dqflock */
 			dqp = dqp->dq_flnext;
 			continue;
@@ -2265,12 +2274,17 @@ xfs_qm_dqreclaim_one(void)
 		 * dirty dquots.
 		 */
 		if (XFS_DQ_IS_DIRTY(dqp)) {
+			int	error;
 			xfs_dqtrace_entry(dqp, "DQRECLAIM: DQDIRTY");
 			/*
 			 * We flush it delayed write, so don't bother
 			 * releasing the freelist lock.
 			 */
-			(void) xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			error = xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			if (error) {
+				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
+			"xfs_qm_dqreclaim: dquot %p flush failed", dqp);
+			}
 			xfs_dqunlock(dqp); /* dqflush unlocks dqflock */
 			continue;
 		}
@@ -2378,9 +2392,9 @@ xfs_qm_write_sb_changes(
 	}
 
 	xfs_mod_sb(tp, flags);
-	(void) xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp, 0);
 
-	return 0;
+	return error;
 }
 
 

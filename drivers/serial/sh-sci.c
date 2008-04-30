@@ -333,7 +333,6 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 	}
 	sci_out(port, SCFCR, fcr_val);
 }
-
 #elif defined(CONFIG_CPU_SH3)
 /* For SH7705, SH7706, SH7707, SH7709, SH7709A, SH7729 */
 static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
@@ -383,6 +382,12 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 	}
 
 	sci_out(port, SCFCR, fcr_val);
+}
+#elif defined(CONFIG_CPU_SUBTYPE_SH7723)
+static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
+{
+	/* Nothing to do here.. */
+	sci_out(port, SCFCR, 0);
 }
 #else
 /* For SH7750 */

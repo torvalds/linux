@@ -333,7 +333,6 @@
 
 #include <linux/module.h>
 
-#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -365,10 +364,6 @@
 
 #if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_SGI_SN2)
 #include <asm/sn/io.h>
-#endif
-
-#if LINUX_VERSION_CODE < 0x020600
-#error "Kernels older than 2.6.0 are no longer supported"
 #endif
 
 

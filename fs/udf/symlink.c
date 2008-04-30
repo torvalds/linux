@@ -23,7 +23,6 @@
 #include <asm/uaccess.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/udf_fs.h>
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/stat.h>

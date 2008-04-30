@@ -67,6 +67,12 @@
 #ifndef SET_ENDIAN
 # define SET_ENDIAN(a,b)	(-EINVAL)
 #endif
+#ifndef GET_TSC_CTL
+# define GET_TSC_CTL(a)		(-EINVAL)
+#endif
+#ifndef SET_TSC_CTL
+# define SET_TSC_CTL(a)		(-EINVAL)
+#endif
 
 /*
  * this is where the system-wide overflow UID and GID are defined, for
@@ -1626,10 +1632,9 @@ asmlinkage long sys_umask(int mask)
 asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 			  unsigned long arg4, unsigned long arg5)
 {
-	long error;
+	long uninitialized_var(error);
 
-	error = security_task_prctl(option, arg2, arg3, arg4, arg5);
-	if (error)
+	if (security_task_prctl(option, arg2, arg3, arg4, arg5, &error))
 		return error;
 
 	switch (option) {
@@ -1682,17 +1687,6 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 				error = -EINVAL;
 			break;
 
-		case PR_GET_KEEPCAPS:
-			if (current->keep_capabilities)
-				error = 1;
-			break;
-		case PR_SET_KEEPCAPS:
-			if (arg2 != 0 && arg2 != 1) {
-				error = -EINVAL;
-				break;
-			}
-			current->keep_capabilities = arg2;
-			break;
 		case PR_SET_NAME: {
 			struct task_struct *me = current;
 			unsigned char ncomm[sizeof(me->comm)];
@@ -1726,18 +1720,12 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 		case PR_SET_SECCOMP:
 			error = prctl_set_seccomp(arg2);
 			break;
-
-		case PR_CAPBSET_READ:
-			if (!cap_valid(arg2))
-				return -EINVAL;
-			return !!cap_raised(current->cap_bset, arg2);
-		case PR_CAPBSET_DROP:
-#ifdef CONFIG_SECURITY_FILE_CAPABILITIES
-			return cap_prctl_drop(arg2);
-#else
-			return -EINVAL;
-#endif
-
+		case PR_GET_TSC:
+			error = GET_TSC_CTL(arg2);
+			break;
+		case PR_SET_TSC:
+			error = SET_TSC_CTL(arg2);
+			break;
 		default:
 			error = -EINVAL;
 			break;

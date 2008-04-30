@@ -1249,11 +1249,6 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 	if (emu->port) {	/* avoid access to already used hardware */
 	       	snd_emu10k1_fx8010_tram_setup(emu, 0);
 		snd_emu10k1_done(emu);
-		/* remove reserved page */
-		if (emu->reserved_page) {
-			snd_emu10k1_synth_free(emu, (struct snd_util_memblk *)emu->reserved_page);
-			emu->reserved_page = NULL;
-		}
 		snd_emu10k1_free_efx(emu);
        	}
 	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1010) {
@@ -1262,6 +1257,14 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 	}
 	if (emu->emu1010.firmware_thread)
 		kthread_stop(emu->emu1010.firmware_thread);
+	if (emu->irq >= 0)
+		free_irq(emu->irq, emu);
+	/* remove reserved page */
+	if (emu->reserved_page) {
+		snd_emu10k1_synth_free(emu,
+			(struct snd_util_memblk *)emu->reserved_page);
+		emu->reserved_page = NULL;
+	}
 	if (emu->memhdr)
 		snd_util_memhdr_free(emu->memhdr);
 	if (emu->silent_page.area)
@@ -1273,8 +1276,6 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 #ifdef CONFIG_PM
 	free_pm_buffer(emu);
 #endif
-	if (emu->irq >= 0)
-		free_irq(emu->irq, emu);
 	if (emu->port)
 		pci_release_regions(emu->pci);
 	if (emu->card_capabilities->ca0151_chip) /* P16V */	

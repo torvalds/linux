@@ -151,13 +151,13 @@ static int xilinx_spi_setup_transfer(struct spi_device *spi,
 	hz = (t) ? t->speed_hz : spi->max_speed_hz;
 	if (bits_per_word != 8) {
 		dev_err(&spi->dev, "%s, unsupported bits_per_word=%d\n",
-			__FUNCTION__, bits_per_word);
+			__func__, bits_per_word);
 		return -EINVAL;
 	}
 
 	if (hz && xspi->speed_hz > hz) {
 		dev_err(&spi->dev, "%s, unsupported clock rate %uHz\n",
-			__FUNCTION__, hz);
+			__func__, hz);
 		return -EINVAL;
 	}
 
@@ -181,7 +181,7 @@ static int xilinx_spi_setup(struct spi_device *spi)
 
 	if (spi->mode & ~MODEBITS) {
 		dev_err(&spi->dev, "%s, unsupported mode bits %x\n",
-			__FUNCTION__, spi->mode & ~MODEBITS);
+			__func__, spi->mode & ~MODEBITS);
 		return -EINVAL;
 	}
 
@@ -190,7 +190,7 @@ static int xilinx_spi_setup(struct spi_device *spi)
 		return retval;
 
 	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u nsec/bit\n",
-		__FUNCTION__, spi->mode & MODEBITS, spi->bits_per_word, 0);
+		__func__, spi->mode & MODEBITS, spi->bits_per_word, 0);
 
 	return 0;
 }

@@ -64,7 +64,7 @@ void c2_mq_produce(struct c2_mq *q)
 		q->priv = (q->priv + 1) % q->q_size;
 		q->hint_count++;
 		/* Update peer's offset. */
-		__raw_writew(cpu_to_be16(q->priv), &q->peer->shared);
+		__raw_writew((__force u16) cpu_to_be16(q->priv), &q->peer->shared);
 	}
 }
 
@@ -105,7 +105,7 @@ void c2_mq_free(struct c2_mq *q)
 #endif
 		q->priv = (q->priv + 1) % q->q_size;
 		/* Update peer's offset. */
-		__raw_writew(cpu_to_be16(q->priv), &q->peer->shared);
+		__raw_writew((__force u16) cpu_to_be16(q->priv), &q->peer->shared);
 	}
 }
 

@@ -129,8 +129,7 @@ static void mon_submit_error(struct usb_bus *ubus, struct urb *urb, int error)
 
 /*
  */
-static void mon_bus_complete(struct mon_bus *mbus, struct urb *urb,
-		int status)
+static void mon_bus_complete(struct mon_bus *mbus, struct urb *urb, int status)
 {
 	unsigned long flags;
 	struct list_head *pos;

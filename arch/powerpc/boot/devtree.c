@@ -350,3 +350,23 @@ int dt_is_compatible(void *node, const char *compat)
 
 	return 0;
 }
+
+int dt_get_virtual_reg(void *node, void **addr, int nres)
+{
+	unsigned long xaddr;
+	int n;
+
+	n = getprop(node, "virtual-reg", addr, nres * 4);
+	if (n > 0)
+		return n / 4;
+
+	for (n = 0; n < nres; n++) {
+		if (!dt_xlate_reg(node, n, &xaddr, NULL))
+			break;
+
+		addr[n] = (void *)xaddr;
+	}
+
+	return n;
+}
+

@@ -128,15 +128,6 @@ Who:	Arjan van de Ven <arjan@linux.intel.com>
 
 ---------------------------
 
-What:	vm_ops.nopage
-When:	Soon, provided in-kernel callers have been converted
-Why:	This interface is replaced by vm_ops.fault, but it has been around
-	forever, is used by a lot of drivers, and doesn't cost much to
-	maintain.
-Who:	Nick Piggin <npiggin@suse.de>
-
----------------------------
-
 What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
 When:	October 2008
 Why:	The stacking of class devices makes these values misleading and
@@ -203,16 +194,8 @@ Who:  linuxppc-dev@ozlabs.org
 
 ---------------------------
 
-What:   sk98lin network driver
-When:   Feburary 2008
-Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
-	replaced by the skge driver. 
-Who:    Stephen Hemminger <shemminger@linux-foundation.org>
-
----------------------------
-
 What:	i386/x86_64 bzImage symlinks
-When:	April 2008
+When:	April 2010
 
 Why:	The i386/x86_64 merge provides a symlink to the old bzImage
 	location so not yet updated user space tools, e.g. package
@@ -221,39 +204,10 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 
 ---------------------------
 
----------------------------
-
 What:	i2c-i810, i2c-prosavage and i2c-savage4
 When:	May 2008
 Why:	These drivers are superseded by i810fb, intelfb and savagefb.
 Who:	Jean Delvare <khali@linux-fr.org>
-
----------------------------
-
-What:	bcm43xx wireless network driver
-When:	2.6.26
-Files:	drivers/net/wireless/bcm43xx
-Why:	This driver's functionality has been replaced by the
-	mac80211-based b43 and b43legacy drivers.
-Who:	John W. Linville <linville@tuxdriver.com>
-
----------------------------
-
-What:	ieee80211 softmac wireless networking component
-When:	2.6.26 (or after removal of bcm43xx and port of zd1211rw to mac80211)
-Files:	net/ieee80211/softmac
-Why:	No in-kernel drivers will depend on it any longer.
-Who:	John W. Linville <linville@tuxdriver.com>
-
----------------------------
-
-What:	rc80211-simple rate control algorithm for mac80211
-When:	2.6.26
-Files:	net/mac80211/rc80211-simple.c
-Why:	This algorithm was provided for reference but always exhibited bad
-	responsiveness and performance and has some serious flaws. It has been
-	replaced by rc80211-pid.
-Who:	Stefano Brivio <stefano.brivio@polimi.it>
 
 ---------------------------
 
@@ -298,17 +252,6 @@ Who:	Michael Buesch <mb@bu3sch.de>
 
 ---------------------------
 
-What:	Solaris/SunOS syscall and binary support on Sparc
-When:	2.6.26
-Why:	Largely unmaintained and almost entirely unused.  File system
-	layering used to divert library and dynamic linker searches to
-	/usr/gnemul is extremely buggy and unfixable.  Making it work
-	is largely pointless as without a lot of work only the most
-	trivial of Solaris binaries can work with the emulation code.
-Who:	David S. Miller <davem@davemloft.net>
-
----------------------------
-
 What:	init_mm export
 When:	2.6.26
 Why:	Not used in-tree. The current out-of-tree users used it to
@@ -318,3 +261,28 @@ Why:	Not used in-tree. The current out-of-tree users used it to
 	code / infrastructure should be in the kernel and not in some
 	out-of-tree driver.
 Who:	Thomas Gleixner <tglx@linutronix.de>
+
+----------------------------
+
+What:	usedac i386 kernel parameter
+When:	2.6.27
+Why:	replaced by allowdac and no dac combination
+Who:	Glauber Costa <gcosta@redhat.com>
+
+---------------------------
+
+What:	/sys/o2cb symlink
+When:	January 2010
+Why:	/sys/fs/o2cb is the proper location for this information - /sys/o2cb
+	exists as a symlink for backwards compatibility for old versions of
+	ocfs2-tools. 2 years should be sufficient time to phase in new versions
+	which know to look in /sys/fs/o2cb.
+Who:	ocfs2-devel@oss.oracle.com
+
+---------------------------
+
+What:	asm/semaphore.h
+When:	2.6.26
+Why:	Implementation became generic; users should now include
+	linux/semaphore.h instead.
+Who:	Matthew Wilcox <willy@linux.intel.com>

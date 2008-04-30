@@ -40,10 +40,12 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 #define dprintk( args... ) \
-	do \
+	do { \
 		if (debug) printk(KERN_DEBUG args); \
-	while (0)
+	} while (0)
 
 #define IF_FREQUENCYx6 217    /* 6 * 36.16666666667MHz */
 
@@ -609,8 +611,9 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		lgdt330x_reset(card);
 		card->fe = dvb_attach(lgdt330x_attach, &tdvs_tua6034_config, card->i2c_adapter);
 		if (card->fe != NULL) {
-			dvb_attach(dvb_pll_attach, card->fe, 0x61,
-				   card->i2c_adapter, DVB_PLL_LG_TDVS_H06XF);
+			dvb_attach(simple_tuner_attach, card->fe,
+				   card->i2c_adapter, 0x61,
+				   TUNER_LG_TDVS_H06XF);
 			dprintk ("dvb_bt8xx: lgdt330x detected\n");
 		}
 		break;
@@ -670,7 +673,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		state->dst_ca = NULL;
 		/*	DST is not a frontend, attaching the ASIC	*/
 		if (dvb_attach(dst_attach, state, &card->dvb_adapter) == NULL) {
-			printk("%s: Could not find a Twinhan DST.\n", __FUNCTION__);
+			printk("%s: Could not find a Twinhan DST.\n", __func__);
 			break;
 		}
 		/*	Attach other DST peripherals if any		*/
@@ -692,8 +695,9 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	case BTTV_BOARD_PC_HDTV:
 		card->fe = dvb_attach(or51211_attach, &or51211_config, card->i2c_adapter);
 		if (card->fe != NULL)
-			dvb_attach(dvb_pll_attach, card->fe, 0x61,
-				   card->i2c_adapter, DVB_PLL_FCV1236D);
+			dvb_attach(simple_tuner_attach, card->fe,
+				   card->i2c_adapter, 0x61,
+				   TUNER_PHILIPS_FCV1236D);
 		break;
 	}
 
@@ -715,7 +719,10 @@ static int __devinit dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 {
 	int result;
 
-	if ((result = dvb_register_adapter(&card->dvb_adapter, card->card_name, THIS_MODULE, &card->bt->dev->dev)) < 0) {
+	result = dvb_register_adapter(&card->dvb_adapter, card->card_name,
+				      THIS_MODULE, &card->bt->dev->dev,
+				      adapter_nr);
+	if (result < 0) {
 		printk("dvb_bt8xx: dvb_register_adapter failed (errno = %d)\n", result);
 		return result;
 	}

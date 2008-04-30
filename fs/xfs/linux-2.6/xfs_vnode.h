@@ -23,8 +23,6 @@ struct bhv_vattr;
 struct xfs_iomap;
 struct attrlist_cursor_kern;
 
-typedef struct dentry	bhv_vname_t;
-typedef __u64		bhv_vnumber_t;
 typedef struct inode	bhv_vnode_t;
 
 #define VN_ISLNK(vp)	S_ISLNK((vp)->i_mode)
@@ -46,18 +44,6 @@ static inline struct inode *vn_to_inode(bhv_vnode_t *vnode)
 }
 
 /*
- * Values for the vop_rwlock/rwunlock flags parameter.
- */
-typedef enum bhv_vrwlock {
-	VRWLOCK_NONE,
-	VRWLOCK_READ,
-	VRWLOCK_WRITE,
-	VRWLOCK_WRITE_DIRECT,
-	VRWLOCK_TRY_READ,
-	VRWLOCK_TRY_WRITE
-} bhv_vrwlock_t;
-
-/*
  * Return values for xfs_inactive.  A return value of
  * VN_INACTIVE_NOCACHE implies that the file system behavior
  * has disassociated its state and bhv_desc_t from the vnode.
@@ -73,12 +59,9 @@ typedef enum bhv_vrwlock {
 #define IO_INVIS	0x00020		/* don't update inode timestamps */
 
 /*
- * Flags for vop_iflush call
+ * Flags for xfs_inode_flush
  */
 #define FLUSH_SYNC		1	/* wait for flush to complete	*/
-#define FLUSH_INODE		2	/* flush the inode itself	*/
-#define FLUSH_LOG		4	/* force the last log entry for
-					 * this inode out to disk	*/
 
 /*
  * Flush/Invalidate options for vop_toss/flush/flushinval_pages.
@@ -226,13 +209,6 @@ static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
 }
 
 /*
- * Vname handling macros.
- */
-#define VNAME(dentry)		((char *) (dentry)->d_name.name)
-#define VNAMELEN(dentry)	((dentry)->d_name.len)
-#define VNAME_TO_VNODE(dentry)	(vn_from_inode((dentry)->d_inode))
-
-/*
  * Dealing with bad inodes
  */
 static inline int VN_BAD(bhv_vnode_t *vp)
@@ -303,9 +279,9 @@ extern void xfs_itrace_hold(struct xfs_inode *, char *, int, inst_t *);
 extern void _xfs_itrace_ref(struct xfs_inode *, char *, int, inst_t *);
 extern void xfs_itrace_rele(struct xfs_inode *, char *, int, inst_t *);
 #define xfs_itrace_entry(ip)	\
-	_xfs_itrace_entry(ip, __FUNCTION__, (inst_t *)__return_address)
+	_xfs_itrace_entry(ip, __func__, (inst_t *)__return_address)
 #define xfs_itrace_exit(ip)	\
-	_xfs_itrace_exit(ip, __FUNCTION__, (inst_t *)__return_address)
+	_xfs_itrace_exit(ip, __func__, (inst_t *)__return_address)
 #define xfs_itrace_exit_tag(ip, tag)	\
 	_xfs_itrace_exit(ip, tag, (inst_t *)__return_address)
 #define xfs_itrace_ref(ip)	\

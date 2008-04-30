@@ -143,6 +143,18 @@ int intelfbhw_get_chipset(struct pci_dev *pdev, struct intelfb_info *dinfo)
 		dinfo->mobile = 1;
 		dinfo->pll_index = PLLS_I9xx;
 		return 0;
+	case PCI_DEVICE_ID_INTEL_965G:
+		dinfo->name = "Intel(R) 965G";
+		dinfo->chipset = INTEL_965G;
+		dinfo->mobile = 0;
+		dinfo->pll_index = PLLS_I9xx;
+		return 0;
+	case PCI_DEVICE_ID_INTEL_965GM:
+		dinfo->name = "Intel(R) 965GM";
+		dinfo->chipset = INTEL_965GM;
+		dinfo->mobile = 1;
+		dinfo->pll_index = PLLS_I9xx;
+		return 0;
 	default:
 		return 1;
 	}
@@ -174,7 +186,9 @@ int intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 	case PCI_DEVICE_ID_INTEL_915GM:
 	case PCI_DEVICE_ID_INTEL_945G:
 	case PCI_DEVICE_ID_INTEL_945GM:
-		/* 915 and 945 chipsets support a 256MB aperture.
+	case PCI_DEVICE_ID_INTEL_965G:
+	case PCI_DEVICE_ID_INTEL_965GM:
+		/* 915, 945 and 965 chipsets support a 256MB aperture.
 		   Aperture size is determined by inspected the
 		   base address of the aperture. */
 		if (pci_resource_start(pdev, 2) & 0x08000000)

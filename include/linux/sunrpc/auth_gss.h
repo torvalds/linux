@@ -84,6 +84,7 @@ struct gss_cred {
 	enum rpc_gss_svc	gc_service;
 	struct gss_cl_ctx	*gc_ctx;
 	struct gss_upcall_msg	*gc_upcall;
+	unsigned char		gc_machine_cred : 1;
 };
 
 #endif /* __KERNEL__ */

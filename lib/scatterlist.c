@@ -8,6 +8,7 @@
  */
 #include <linux/module.h>
 #include <linux/scatterlist.h>
+#include <linux/highmem.h>
 
 /**
  * sg_next - return the next scatterlist entry in a list
@@ -292,3 +293,104 @@ int sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
 	return ret;
 }
 EXPORT_SYMBOL(sg_alloc_table);
+
+/**
+ * sg_copy_buffer - Copy data between a linear buffer and an SG list
+ * @sgl:		 The SG list
+ * @nents:		 Number of SG entries
+ * @buf:		 Where to copy from
+ * @buflen:		 The number of bytes to copy
+ * @to_buffer: 		 transfer direction (non zero == from an sg list to a
+ * 			 buffer, 0 == from a buffer to an sg list
+ *
+ * Returns the number of copied bytes.
+ *
+ **/
+static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
+			     void *buf, size_t buflen, int to_buffer)
+{
+	struct scatterlist *sg;
+	size_t buf_off = 0;
+	int i;
+
+	WARN_ON(!irqs_disabled());
+
+	for_each_sg(sgl, sg, nents, i) {
+		struct page *page;
+		int n = 0;
+		unsigned int sg_off = sg->offset;
+		unsigned int sg_copy = sg->length;
+
+		if (sg_copy > buflen)
+			sg_copy = buflen;
+		buflen -= sg_copy;
+
+		while (sg_copy > 0) {
+			unsigned int page_copy;
+			void *p;
+
+			page_copy = PAGE_SIZE - sg_off;
+			if (page_copy > sg_copy)
+				page_copy = sg_copy;
+
+			page = nth_page(sg_page(sg), n);
+			p = kmap_atomic(page, KM_BIO_SRC_IRQ);
+
+			if (to_buffer)
+				memcpy(buf + buf_off, p + sg_off, page_copy);
+			else {
+				memcpy(p + sg_off, buf + buf_off, page_copy);
+				flush_kernel_dcache_page(page);
+			}
+
+			kunmap_atomic(p, KM_BIO_SRC_IRQ);
+
+			buf_off += page_copy;
+			sg_off += page_copy;
+			if (sg_off == PAGE_SIZE) {
+				sg_off = 0;
+				n++;
+			}
+			sg_copy -= page_copy;
+		}
+
+		if (!buflen)
+			break;
+	}
+
+	return buf_off;
+}
+
+/**
+ * sg_copy_from_buffer - Copy from a linear buffer to an SG list
+ * @sgl:		 The SG list
+ * @nents:		 Number of SG entries
+ * @buf:		 Where to copy from
+ * @buflen:		 The number of bytes to copy
+ *
+ * Returns the number of copied bytes.
+ *
+ **/
+size_t sg_copy_from_buffer(struct scatterlist *sgl, unsigned int nents,
+			   void *buf, size_t buflen)
+{
+	return sg_copy_buffer(sgl, nents, buf, buflen, 0);
+}
+EXPORT_SYMBOL(sg_copy_from_buffer);
+
+/**
+ * sg_copy_to_buffer - Copy from an SG list to a linear buffer
+ * @sgl:		 The SG list
+ * @nents:		 Number of SG entries
+ * @buf:		 Where to copy to
+ * @buflen:		 The number of bytes to copy
+ *
+ * Returns the number of copied bytes.
+ *
+ **/
+size_t sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
+			 void *buf, size_t buflen)
+{
+	return sg_copy_buffer(sgl, nents, buf, buflen, 1);
+}
+EXPORT_SYMBOL(sg_copy_to_buffer);

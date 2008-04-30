@@ -76,7 +76,7 @@ static int i2c_pnx_start(unsigned char slave_addr, struct i2c_adapter *adap)
 {
 	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
 
-	dev_dbg(&adap->dev, "%s(): addr 0x%x mode %d\n", __FUNCTION__,
+	dev_dbg(&adap->dev, "%s(): addr 0x%x mode %d\n", __func__,
 		slave_addr, alg_data->mif.mode);
 
 	/* Check for 7 bit slave addresses only */
@@ -110,14 +110,14 @@ static int i2c_pnx_start(unsigned char slave_addr, struct i2c_adapter *adap)
 	iowrite32(ioread32(I2C_REG_STS(alg_data)) | mstatus_tdi | mstatus_afi,
 		  I2C_REG_STS(alg_data));
 
-	dev_dbg(&adap->dev, "%s(): sending %#x\n", __FUNCTION__,
+	dev_dbg(&adap->dev, "%s(): sending %#x\n", __func__,
 		(slave_addr << 1) | start_bit | alg_data->mif.mode);
 
 	/* Write the slave address, START bit and R/W bit */
 	iowrite32((slave_addr << 1) | start_bit | alg_data->mif.mode,
 		  I2C_REG_TX(alg_data));
 
-	dev_dbg(&adap->dev, "%s(): exit\n", __FUNCTION__);
+	dev_dbg(&adap->dev, "%s(): exit\n", __func__);
 
 	return 0;
 }
@@ -135,7 +135,7 @@ static void i2c_pnx_stop(struct i2c_adapter *adap)
 	long timeout = 1000;
 
 	dev_dbg(&adap->dev, "%s(): entering: stat = %04x.\n",
-		__FUNCTION__, ioread32(I2C_REG_STS(alg_data)));
+		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	/* Write a STOP bit to TX FIFO */
 	iowrite32(0xff | stop_bit, I2C_REG_TX(alg_data));
@@ -149,7 +149,7 @@ static void i2c_pnx_stop(struct i2c_adapter *adap)
 	}
 
 	dev_dbg(&adap->dev, "%s(): exiting: stat = %04x.\n",
-		__FUNCTION__, ioread32(I2C_REG_STS(alg_data)));
+		__func__, ioread32(I2C_REG_STS(alg_data)));
 }
 
 /**
@@ -164,7 +164,7 @@ static int i2c_pnx_master_xmit(struct i2c_adapter *adap)
 	u32 val;
 
 	dev_dbg(&adap->dev, "%s(): entering: stat = %04x.\n",
-		__FUNCTION__, ioread32(I2C_REG_STS(alg_data)));
+		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	if (alg_data->mif.len > 0) {
 		/* We still have something to talk about... */
@@ -179,7 +179,7 @@ static int i2c_pnx_master_xmit(struct i2c_adapter *adap)
 		alg_data->mif.len--;
 		iowrite32(val, I2C_REG_TX(alg_data));
 
-		dev_dbg(&adap->dev, "%s(): xmit %#x [%d]\n", __FUNCTION__,
+		dev_dbg(&adap->dev, "%s(): xmit %#x [%d]\n", __func__,
 			val, alg_data->mif.len + 1);
 
 		if (alg_data->mif.len == 0) {
@@ -197,7 +197,7 @@ static int i2c_pnx_master_xmit(struct i2c_adapter *adap)
 			del_timer_sync(&alg_data->mif.timer);
 
 			dev_dbg(&adap->dev, "%s(): Waking up xfer routine.\n",
-				__FUNCTION__);
+				__func__);
 
 			complete(&alg_data->mif.complete);
 		}
@@ -213,13 +213,13 @@ static int i2c_pnx_master_xmit(struct i2c_adapter *adap)
 		/* Stop timer. */
 		del_timer_sync(&alg_data->mif.timer);
 		dev_dbg(&adap->dev, "%s(): Waking up xfer routine after "
-			"zero-xfer.\n", __FUNCTION__);
+			"zero-xfer.\n", __func__);
 
 		complete(&alg_data->mif.complete);
 	}
 
 	dev_dbg(&adap->dev, "%s(): exiting: stat = %04x.\n",
-		__FUNCTION__, ioread32(I2C_REG_STS(alg_data)));
+		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	return 0;
 }
@@ -237,14 +237,14 @@ static int i2c_pnx_master_rcv(struct i2c_adapter *adap)
 	u32 ctl = 0;
 
 	dev_dbg(&adap->dev, "%s(): entering: stat = %04x.\n",
-		__FUNCTION__, ioread32(I2C_REG_STS(alg_data)));
+		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	/* Check, whether there is already data,
 	 * or we didn't 'ask' for it yet.
 	 */
 	if (ioread32(I2C_REG_STS(alg_data)) & mstatus_rfe) {
 		dev_dbg(&adap->dev, "%s(): Write dummy data to fill "
-			"Rx-fifo...\n", __FUNCTION__);
+			"Rx-fifo...\n", __func__);
 
 		if (alg_data->mif.len == 1) {
 			/* Last byte, do not acknowledge next rcv. */
@@ -276,7 +276,7 @@ static int i2c_pnx_master_rcv(struct i2c_adapter *adap)
 	if (alg_data->mif.len > 0) {
 		val = ioread32(I2C_REG_RX(alg_data));
 		*alg_data->mif.buf++ = (u8) (val & 0xff);
-		dev_dbg(&adap->dev, "%s(): rcv 0x%x [%d]\n", __FUNCTION__, val,
+		dev_dbg(&adap->dev, "%s(): rcv 0x%x [%d]\n", __func__, val,
 			alg_data->mif.len);
 
 		alg_data->mif.len--;
@@ -300,7 +300,7 @@ static int i2c_pnx_master_rcv(struct i2c_adapter *adap)
 	}
 
 	dev_dbg(&adap->dev, "%s(): exiting: stat = %04x.\n",
-		__FUNCTION__, ioread32(I2C_REG_STS(alg_data)));
+		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	return 0;
 }
@@ -312,7 +312,7 @@ static irqreturn_t i2c_pnx_interrupt(int irq, void *dev_id)
 	struct i2c_pnx_algo_data *alg_data = adap->algo_data;
 
 	dev_dbg(&adap->dev, "%s(): mstat = %x mctrl = %x, mode = %d\n",
-		__FUNCTION__,
+		__func__,
 		ioread32(I2C_REG_STS(alg_data)),
 		ioread32(I2C_REG_CTL(alg_data)),
 		alg_data->mif.mode);
@@ -336,7 +336,7 @@ static irqreturn_t i2c_pnx_interrupt(int irq, void *dev_id)
 		/* Slave did not acknowledge, generate a STOP */
 		dev_dbg(&adap->dev, "%s(): "
 			"Slave did not acknowledge, generating a STOP.\n",
-			__FUNCTION__);
+			__func__);
 		i2c_pnx_stop(adap);
 
 		/* Disable master interrupts. */
@@ -375,7 +375,7 @@ static irqreturn_t i2c_pnx_interrupt(int irq, void *dev_id)
 	iowrite32(stat | mstatus_tdi | mstatus_afi, I2C_REG_STS(alg_data));
 
 	dev_dbg(&adap->dev, "%s(): exiting, stat = %x ctrl = %x.\n",
-		 __FUNCTION__, ioread32(I2C_REG_STS(alg_data)),
+		 __func__, ioread32(I2C_REG_STS(alg_data)),
 		 ioread32(I2C_REG_CTL(alg_data)));
 
 	return IRQ_HANDLED;
@@ -447,7 +447,7 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	u32 stat = ioread32(I2C_REG_STS(alg_data));
 
 	dev_dbg(&adap->dev, "%s(): entering: %d messages, stat = %04x.\n",
-		__FUNCTION__, num, ioread32(I2C_REG_STS(alg_data)));
+		__func__, num, ioread32(I2C_REG_STS(alg_data)));
 
 	bus_reset_if_active(adap);
 
@@ -473,7 +473,7 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		alg_data->mif.ret = 0;
 		alg_data->last = (i == num - 1);
 
-		dev_dbg(&adap->dev, "%s(): mode %d, %d bytes\n", __FUNCTION__,
+		dev_dbg(&adap->dev, "%s(): mode %d, %d bytes\n", __func__,
 			alg_data->mif.mode,
 			alg_data->mif.len);
 
@@ -498,7 +498,7 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		if (!(rc = alg_data->mif.ret))
 			completed++;
 		dev_dbg(&adap->dev, "%s(): Complete, return code = %d.\n",
-			__FUNCTION__, rc);
+			__func__, rc);
 
 		/* Clear TDI and AFI bits in case they are set. */
 		if ((stat = ioread32(I2C_REG_STS(alg_data))) & mstatus_tdi) {
@@ -522,7 +522,7 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	alg_data->mif.len = 0;
 
 	dev_dbg(&adap->dev, "%s(): exiting, stat = %x\n",
-		__FUNCTION__, ioread32(I2C_REG_STS(alg_data)));
+		__func__, ioread32(I2C_REG_STS(alg_data)));
 
 	if (completed != num)
 		return ((rc < 0) ? rc : -EREMOTEIO);
@@ -563,7 +563,7 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 
 	if (!i2c_pnx || !i2c_pnx->adapter) {
 		dev_err(&pdev->dev, "%s: no platform data supplied\n",
-		       __FUNCTION__);
+		       __func__);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -697,6 +697,7 @@ static void __exit i2c_adap_pnx_exit(void)
 MODULE_AUTHOR("Vitaly Wool, Dennis Kovalev <source@mvista.com>");
 MODULE_DESCRIPTION("I2C driver for Philips IP3204-based I2C busses");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pnx-i2c");
 
 /* We need to make sure I2C is initialized before USB */
 subsys_initcall(i2c_adap_pnx_init);

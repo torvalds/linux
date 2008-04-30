@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -243,44 +243,48 @@
  * 4965 Tx Scheduler registers.
  * Details are documented in iwl-4965-hw.h
  */
-#define KDR_SCD_BASE		(PRPH_BASE + 0xa02c00)
+#define IWL49_SCD_BASE		(PRPH_BASE + 0xa02c00)
 
-#define KDR_SCD_SRAM_BASE_ADDR         (KDR_SCD_BASE + 0x0)
-#define KDR_SCD_EMPTY_BITS             (KDR_SCD_BASE + 0x4)
-#define KDR_SCD_DRAM_BASE_ADDR         (KDR_SCD_BASE + 0x10)
-#define KDR_SCD_AIT                    (KDR_SCD_BASE + 0x18)
-#define KDR_SCD_TXFACT                 (KDR_SCD_BASE + 0x1c)
-#define KDR_SCD_QUEUE_WRPTR(x)         (KDR_SCD_BASE + 0x24 + (x) * 4)
-#define KDR_SCD_QUEUE_RDPTR(x)         (KDR_SCD_BASE + 0x64 + (x) * 4)
-#define KDR_SCD_SETQUEUENUM            (KDR_SCD_BASE + 0xa4)
-#define KDR_SCD_SET_TXSTAT_TXED        (KDR_SCD_BASE + 0xa8)
-#define KDR_SCD_SET_TXSTAT_DONE        (KDR_SCD_BASE + 0xac)
-#define KDR_SCD_SET_TXSTAT_NOT_SCHD    (KDR_SCD_BASE + 0xb0)
-#define KDR_SCD_DECREASE_CREDIT        (KDR_SCD_BASE + 0xb4)
-#define KDR_SCD_DECREASE_SCREDIT       (KDR_SCD_BASE + 0xb8)
-#define KDR_SCD_LOAD_CREDIT            (KDR_SCD_BASE + 0xbc)
-#define KDR_SCD_LOAD_SCREDIT           (KDR_SCD_BASE + 0xc0)
-#define KDR_SCD_BAR                    (KDR_SCD_BASE + 0xc4)
-#define KDR_SCD_BAR_DW0                (KDR_SCD_BASE + 0xc8)
-#define KDR_SCD_BAR_DW1                (KDR_SCD_BASE + 0xcc)
-#define KDR_SCD_QUEUECHAIN_SEL         (KDR_SCD_BASE + 0xd0)
-#define KDR_SCD_QUERY_REQ              (KDR_SCD_BASE + 0xd8)
-#define KDR_SCD_QUERY_RES              (KDR_SCD_BASE + 0xdc)
-#define KDR_SCD_PENDING_FRAMES         (KDR_SCD_BASE + 0xe0)
-#define KDR_SCD_INTERRUPT_MASK         (KDR_SCD_BASE + 0xe4)
-#define KDR_SCD_INTERRUPT_THRESHOLD    (KDR_SCD_BASE + 0xe8)
-#define KDR_SCD_QUERY_MIN_FRAME_SIZE   (KDR_SCD_BASE + 0x100)
-#define KDR_SCD_QUEUE_STATUS_BITS(x)   (KDR_SCD_BASE + 0x104 + (x) * 4)
+#define IWL49_SCD_SRAM_BASE_ADDR         (IWL49_SCD_BASE + 0x0)
+#define IWL49_SCD_EMPTY_BITS             (IWL49_SCD_BASE + 0x4)
+#define IWL49_SCD_DRAM_BASE_ADDR         (IWL49_SCD_BASE + 0x10)
+#define IWL49_SCD_AIT                    (IWL49_SCD_BASE + 0x18)
+#define IWL49_SCD_TXFACT                 (IWL49_SCD_BASE + 0x1c)
+#define IWL49_SCD_QUEUE_WRPTR(x)         (IWL49_SCD_BASE + 0x24 + (x) * 4)
+#define IWL49_SCD_QUEUE_RDPTR(x)         (IWL49_SCD_BASE + 0x64 + (x) * 4)
+#define IWL49_SCD_SETQUEUENUM            (IWL49_SCD_BASE + 0xa4)
+#define IWL49_SCD_SET_TXSTAT_TXED        (IWL49_SCD_BASE + 0xa8)
+#define IWL49_SCD_SET_TXSTAT_DONE        (IWL49_SCD_BASE + 0xac)
+#define IWL49_SCD_SET_TXSTAT_NOT_SCHD    (IWL49_SCD_BASE + 0xb0)
+#define IWL49_SCD_DECREASE_CREDIT        (IWL49_SCD_BASE + 0xb4)
+#define IWL49_SCD_DECREASE_SCREDIT       (IWL49_SCD_BASE + 0xb8)
+#define IWL49_SCD_LOAD_CREDIT            (IWL49_SCD_BASE + 0xbc)
+#define IWL49_SCD_LOAD_SCREDIT           (IWL49_SCD_BASE + 0xc0)
+#define IWL49_SCD_BAR                    (IWL49_SCD_BASE + 0xc4)
+#define IWL49_SCD_BAR_DW0                (IWL49_SCD_BASE + 0xc8)
+#define IWL49_SCD_BAR_DW1                (IWL49_SCD_BASE + 0xcc)
+#define IWL49_SCD_QUEUECHAIN_SEL         (IWL49_SCD_BASE + 0xd0)
+#define IWL49_SCD_QUERY_REQ              (IWL49_SCD_BASE + 0xd8)
+#define IWL49_SCD_QUERY_RES              (IWL49_SCD_BASE + 0xdc)
+#define IWL49_SCD_PENDING_FRAMES         (IWL49_SCD_BASE + 0xe0)
+#define IWL49_SCD_INTERRUPT_MASK         (IWL49_SCD_BASE + 0xe4)
+#define IWL49_SCD_INTERRUPT_THRESHOLD    (IWL49_SCD_BASE + 0xe8)
+#define IWL49_SCD_QUERY_MIN_FRAME_SIZE   (IWL49_SCD_BASE + 0x100)
+#define IWL49_SCD_QUEUE_STATUS_BITS(x)   (IWL49_SCD_BASE + 0x104 + (x) * 4)
 
 /* SP SCD */
-#define SHL_SCD_BASE			(PRPH_BASE + 0xa02c00)
+#define IWL50_SCD_BASE			(PRPH_BASE + 0xa02c00)
 
-#define SHL_SCD_AIT                    (SHL_SCD_BASE + 0x0c)
-#define SHL_SCD_TXFACT                 (SHL_SCD_BASE + 0x10)
-#define SHL_SCD_QUEUE_WRPTR(x)         (SHL_SCD_BASE + 0x18 + (x) * 4)
-#define SHL_SCD_QUEUE_RDPTR(x)         (SHL_SCD_BASE + 0x68 + (x) * 4)
-#define SHL_SCD_QUEUECHAIN_SEL         (SHL_SCD_BASE + 0xe8)
-#define SHL_SCD_AGGR_SEL	       (SHL_SCD_BASE + 0x248)
-#define SHL_SCD_INTERRUPT_MASK         (SHL_SCD_BASE + 0x108)
+#define IWL50_SCD_SRAM_BASE_ADDR         (IWL50_SCD_BASE + 0x0)
+#define IWL50_SCD_DRAM_BASE_ADDR	 (IWL50_SCD_BASE + 0x8)
+#define IWL50_SCD_AIT                    (IWL50_SCD_BASE + 0x0c)
+#define IWL50_SCD_TXFACT                 (IWL50_SCD_BASE + 0x10)
+#define IWL50_SCD_ACTIVE		 (IWL50_SCD_BASE + 0x14)
+#define IWL50_SCD_QUEUE_WRPTR(x)         (IWL50_SCD_BASE + 0x18 + (x) * 4)
+#define IWL50_SCD_QUEUE_RDPTR(x)         (IWL50_SCD_BASE + 0x68 + (x) * 4)
+#define IWL50_SCD_QUEUECHAIN_SEL         (IWL50_SCD_BASE + 0xe8)
+#define IWL50_SCD_AGGR_SEL	     	 (IWL50_SCD_BASE + 0x248)
+#define IWL50_SCD_INTERRUPT_MASK         (IWL50_SCD_BASE + 0x108)
+#define IWL50_SCD_QUEUE_STATUS_BITS(x)   (IWL50_SCD_BASE + 0x10c + (x) * 4)
 
 #endif				/* __iwl_prph_h__ */

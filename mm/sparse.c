@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
+#include "internal.h"
 #include <asm/dma.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -208,12 +209,12 @@ static unsigned long sparse_encode_mem_map(struct page *mem_map, unsigned long p
 }
 
 /*
- * We need this if we ever free the mem_maps.  While not implemented yet,
- * this function is included for parity with its sibling.
+ * Decode mem_map from the coded memmap
  */
-static __attribute((unused))
 struct page *sparse_decode_mem_map(unsigned long coded_mem_map, unsigned long pnum)
 {
+	/* mask off the extra low bits of information */
+	coded_mem_map &= SECTION_MAP_MASK;
 	return ((struct page *)coded_mem_map) + section_nr_to_pfn(pnum);
 }
 
@@ -232,7 +233,7 @@ static int __meminit sparse_init_one_section(struct mem_section *ms,
 	return 1;
 }
 
-static unsigned long usemap_size(void)
+unsigned long usemap_size(void)
 {
 	unsigned long size_bytes;
 	size_bytes = roundup(SECTION_BLOCKFLAGS_BITS, 8) / 8;
@@ -249,11 +250,22 @@ static unsigned long *__kmalloc_section_usemap(void)
 
 static unsigned long *__init sparse_early_usemap_alloc(unsigned long pnum)
 {
-	unsigned long *usemap;
+	unsigned long *usemap, section_nr;
 	struct mem_section *ms = __nr_to_section(pnum);
 	int nid = sparse_early_nid(ms);
+	struct pglist_data *pgdat = NODE_DATA(nid);
 
-	usemap = alloc_bootmem_node(NODE_DATA(nid), usemap_size());
+	/*
+	 * Usemap's page can't be freed until freeing other sections
+	 * which use it. And, Pgdat has same feature.
+	 * If section A has pgdat and section B has usemap for other
+	 * sections (includes section A), both sections can't be removed,
+	 * because there is the dependency each other.
+	 * To solve above issue, this collects all usemap on the same section
+	 * which has pgdat.
+	 */
+	section_nr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
+	usemap = alloc_bootmem_section(usemap_size(), section_nr);
 	if (usemap)
 		return usemap;
 
@@ -273,8 +285,8 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
 	if (map)
 		return map;
 
-	map = alloc_bootmem_node(NODE_DATA(nid),
-			sizeof(struct page) * PAGES_PER_SECTION);
+	map = alloc_bootmem_pages_node(NODE_DATA(nid),
+		       PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION));
 	return map;
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
@@ -295,6 +307,9 @@ struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
 	return NULL;
 }
 
+void __attribute__((weak)) __meminit vmemmap_populate_print_last(void)
+{
+}
 /*
  * Allocate the accumulated non-linear sections, allocate a mem_map
  * for each and record the physical to section mapping.
@@ -304,22 +319,50 @@ void __init sparse_init(void)
 	unsigned long pnum;
 	struct page *map;
 	unsigned long *usemap;
+	unsigned long **usemap_map;
+	int size;
+
+	/*
+	 * map is using big page (aka 2M in x86 64 bit)
+	 * usemap is less one page (aka 24 bytes)
+	 * so alloc 2M (with 2M align) and 24 bytes in turn will
+	 * make next 2M slip to one more 2M later.
+	 * then in big system, the memory will have a lot of holes...
+	 * here try to allocate 2M pages continously.
+	 *
+	 * powerpc need to call sparse_init_one_section right after each
+	 * sparse_early_mem_map_alloc, so allocate usemap_map at first.
+	 */
+	size = sizeof(unsigned long *) * NR_MEM_SECTIONS;
+	usemap_map = alloc_bootmem(size);
+	if (!usemap_map)
+		panic("can not allocate usemap_map\n");
 
 	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
 		if (!present_section_nr(pnum))
+			continue;
+		usemap_map[pnum] = sparse_early_usemap_alloc(pnum);
+	}
+
+	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+		if (!present_section_nr(pnum))
+			continue;
+
+		usemap = usemap_map[pnum];
+		if (!usemap)
 			continue;
 
 		map = sparse_early_mem_map_alloc(pnum);
 		if (!map)
 			continue;
 
-		usemap = sparse_early_usemap_alloc(pnum);
-		if (!usemap)
-			continue;
-
 		sparse_init_one_section(__nr_to_section(pnum), pnum, map,
 								usemap);
 	}
+
+	vmemmap_populate_print_last();
+
+	free_bootmem(__pa(usemap_map), size);
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -333,6 +376,9 @@ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
 static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 {
 	return; /* XXX: Not implemented yet */
+}
+static void free_map_bootmem(struct page *page, unsigned long nr_pages)
+{
 }
 #else
 static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
@@ -371,7 +417,68 @@ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 		free_pages((unsigned long)memmap,
 			   get_order(sizeof(struct page) * nr_pages));
 }
+
+static void free_map_bootmem(struct page *page, unsigned long nr_pages)
+{
+	unsigned long maps_section_nr, removing_section_nr, i;
+	int magic;
+
+	for (i = 0; i < nr_pages; i++, page++) {
+		magic = atomic_read(&page->_mapcount);
+
+		BUG_ON(magic == NODE_INFO);
+
+		maps_section_nr = pfn_to_section_nr(page_to_pfn(page));
+		removing_section_nr = page->private;
+
+		/*
+		 * When this function is called, the removing section is
+		 * logical offlined state. This means all pages are isolated
+		 * from page allocator. If removing section's memmap is placed
+		 * on the same section, it must not be freed.
+		 * If it is freed, page allocator may allocate it which will
+		 * be removed physically soon.
+		 */
+		if (maps_section_nr != removing_section_nr)
+			put_page_bootmem(page);
+	}
+}
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
+
+static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+{
+	struct page *usemap_page;
+	unsigned long nr_pages;
+
+	if (!usemap)
+		return;
+
+	usemap_page = virt_to_page(usemap);
+	/*
+	 * Check to see if allocation came from hot-plug-add
+	 */
+	if (PageSlab(usemap_page)) {
+		kfree(usemap);
+		if (memmap)
+			__kfree_section_memmap(memmap, PAGES_PER_SECTION);
+		return;
+	}
+
+	/*
+	 * The usemap came from bootmem. This is packed with other usemaps
+	 * on the section which has pgdat at boot time. Just keep it as is now.
+	 */
+
+	if (memmap) {
+		struct page *memmap_page;
+		memmap_page = virt_to_page(memmap);
+
+		nr_pages = PAGE_ALIGN(PAGES_PER_SECTION * sizeof(struct page))
+			>> PAGE_SHIFT;
+
+		free_map_bootmem(memmap_page, nr_pages);
+	}
+}
 
 /*
  * returns the number of sections whose mem_maps were properly
@@ -424,5 +531,21 @@ out:
 		__kfree_section_memmap(memmap, nr_pages);
 	}
 	return ret;
+}
+
+void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
+{
+	struct page *memmap = NULL;
+	unsigned long *usemap = NULL;
+
+	if (ms->section_mem_map) {
+		usemap = ms->pageblock_flags;
+		memmap = sparse_decode_mem_map(ms->section_mem_map,
+						__section_nr(ms));
+		ms->section_mem_map = 0;
+		ms->pageblock_flags = NULL;
+	}
+
+	free_section_usemap(memmap, usemap);
 }
 #endif

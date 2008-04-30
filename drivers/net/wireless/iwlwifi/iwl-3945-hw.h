@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -198,43 +198,27 @@ struct iwl3945_eeprom_temperature_corr {
  */
 struct iwl3945_eeprom {
 	u8 reserved0[16];
-#define EEPROM_DEVICE_ID                    (2*0x08)	/* 2 bytes */
 	u16 device_id;	/* abs.ofs: 16 */
 	u8 reserved1[2];
-#define EEPROM_PMC                          (2*0x0A)	/* 2 bytes */
 	u16 pmc;		/* abs.ofs: 20 */
 	u8 reserved2[20];
-#define EEPROM_MAC_ADDRESS                  (2*0x15)	/* 6  bytes */
 	u8 mac_address[6];	/* abs.ofs: 42 */
 	u8 reserved3[58];
-#define EEPROM_BOARD_REVISION               (2*0x35)	/* 2  bytes */
 	u16 board_revision;	/* abs.ofs: 106 */
 	u8 reserved4[11];
-#define EEPROM_BOARD_PBA_NUMBER             (2*0x3B+1)	/* 9  bytes */
 	u8 board_pba_number[9];	/* abs.ofs: 119 */
 	u8 reserved5[8];
-#define EEPROM_VERSION                      (2*0x44)	/* 2  bytes */
 	u16 version;		/* abs.ofs: 136 */
-#define EEPROM_SKU_CAP                      (2*0x45)	/* 1  bytes */
 	u8 sku_cap;		/* abs.ofs: 138 */
-#define EEPROM_LEDS_MODE                    (2*0x45+1)	/* 1  bytes */
 	u8 leds_mode;		/* abs.ofs: 139 */
-#define EEPROM_OEM_MODE                     (2*0x46)	/* 2  bytes */
 	u16 oem_mode;
-#define EEPROM_WOWLAN_MODE                  (2*0x47)	/* 2  bytes */
 	u16 wowlan_mode;	/* abs.ofs: 142 */
-#define EEPROM_LEDS_TIME_INTERVAL           (2*0x48)	/* 2  bytes */
 	u16 leds_time_interval;	/* abs.ofs: 144 */
-#define EEPROM_LEDS_OFF_TIME                (2*0x49)	/* 1  bytes */
 	u8 leds_off_time;	/* abs.ofs: 146 */
-#define EEPROM_LEDS_ON_TIME                 (2*0x49+1)	/* 1  bytes */
 	u8 leds_on_time;	/* abs.ofs: 147 */
-#define EEPROM_ALMGOR_M_VERSION             (2*0x4A)	/* 1  bytes */
 	u8 almgor_m_version;	/* abs.ofs: 148 */
-#define EEPROM_ANTENNA_SWITCH_TYPE          (2*0x4A+1)	/* 1  bytes */
 	u8 antenna_switch_type;	/* abs.ofs: 149 */
 	u8 reserved6[42];
-#define EEPROM_REGULATORY_SKU_ID            (2*0x60)	/* 4  bytes */
 	u8 sku_id[4];		/* abs.ofs: 192 */
 
 /*
@@ -249,9 +233,7 @@ struct iwl3945_eeprom {
  *
  * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
  */
-#define EEPROM_REGULATORY_BAND_1            (2*0x62)	/* 2  bytes */
 	u16 band_1_count;	/* abs.ofs: 196 */
-#define EEPROM_REGULATORY_BAND_1_CHANNELS   (2*0x63)	/* 28 bytes */
 	struct iwl3945_eeprom_channel band_1_channels[14];  /* abs.ofs: 196 */
 
 /*
@@ -259,36 +241,28 @@ struct iwl3945_eeprom {
  * 5.0 GHz channels 7, 8, 11, 12, 16
  * (4915-5080MHz) (none of these is ever supported)
  */
-#define EEPROM_REGULATORY_BAND_2            (2*0x71)	/* 2  bytes */
 	u16 band_2_count;	/* abs.ofs: 226 */
-#define EEPROM_REGULATORY_BAND_2_CHANNELS   (2*0x72)	/* 26 bytes */
 	struct iwl3945_eeprom_channel band_2_channels[13];  /* abs.ofs: 228 */
 
 /*
  * 5.2 GHz channels 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64
  * (5170-5320MHz)
  */
-#define EEPROM_REGULATORY_BAND_3            (2*0x7F)	/* 2  bytes */
 	u16 band_3_count;	/* abs.ofs: 254 */
-#define EEPROM_REGULATORY_BAND_3_CHANNELS   (2*0x80)	/* 24 bytes */
 	struct iwl3945_eeprom_channel band_3_channels[12];  /* abs.ofs: 256 */
 
 /*
  * 5.5 GHz channels 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
  * (5500-5700MHz)
  */
-#define EEPROM_REGULATORY_BAND_4            (2*0x8C)	/* 2  bytes */
 	u16 band_4_count;	/* abs.ofs: 280 */
-#define EEPROM_REGULATORY_BAND_4_CHANNELS   (2*0x8D)	/* 22 bytes */
 	struct iwl3945_eeprom_channel band_4_channels[11];  /* abs.ofs: 282 */
 
 /*
  * 5.7 GHz channels 145, 149, 153, 157, 161, 165
  * (5725-5825MHz)
  */
-#define EEPROM_REGULATORY_BAND_5            (2*0x98)	/* 2  bytes */
 	u16 band_5_count;	/* abs.ofs: 304 */
-#define EEPROM_REGULATORY_BAND_5_CHANNELS   (2*0x99)	/* 12 bytes */
 	struct iwl3945_eeprom_channel band_5_channels[6];  /* abs.ofs: 306 */
 
 	u8 reserved9[194];
@@ -296,15 +270,9 @@ struct iwl3945_eeprom {
 /*
  * 3945 Txpower calibration data.
  */
-#define EEPROM_TXPOWER_CALIB_GROUP0 0x200
-#define EEPROM_TXPOWER_CALIB_GROUP1 0x240
-#define EEPROM_TXPOWER_CALIB_GROUP2 0x280
-#define EEPROM_TXPOWER_CALIB_GROUP3 0x2c0
-#define EEPROM_TXPOWER_CALIB_GROUP4 0x300
 #define IWL_NUM_TX_CALIB_GROUPS 5
 	struct iwl3945_eeprom_txpower_group groups[IWL_NUM_TX_CALIB_GROUPS];
 /* abs.ofs: 512 */
-#define EEPROM_CALIB_TEMPERATURE_CORRECT 0x340
 	struct iwl3945_eeprom_temperature_corr corrections;  /* abs.ofs: 832 */
 	u8 reserved16[172];	/* fill out to full 1024 byte block */
 } __attribute__ ((packed));
@@ -320,181 +288,6 @@ struct iwl3945_eeprom {
 #define PCI_POWER_SOURCE   0x0C8
 #define PCI_REG_WUM8       0x0E8
 #define PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT         (0x80000000)
-
-/*=== CSR (control and status registers) ===*/
-#define CSR_BASE    (0x000)
-
-#define CSR_SW_VER              (CSR_BASE+0x000)
-#define CSR_HW_IF_CONFIG_REG    (CSR_BASE+0x000) /* hardware interface config */
-#define CSR_INT_COALESCING      (CSR_BASE+0x004) /* accum ints, 32-usec units */
-#define CSR_INT                 (CSR_BASE+0x008) /* host interrupt status/ack */
-#define CSR_INT_MASK            (CSR_BASE+0x00c) /* host interrupt enable */
-#define CSR_FH_INT_STATUS       (CSR_BASE+0x010) /* busmaster int status/ack*/
-#define CSR_GPIO_IN             (CSR_BASE+0x018) /* read external chip pins */
-#define CSR_RESET               (CSR_BASE+0x020) /* busmaster enable, NMI, etc*/
-#define CSR_GP_CNTRL            (CSR_BASE+0x024)
-
-/*
- * Hardware revision info
- * Bit fields:
- * 31-8:  Reserved
- *  7-4:  Type of device:  0x0 = 4965, 0xd = 3945
- *  3-2:  Revision step:  0 = A, 1 = B, 2 = C, 3 = D
- *  1-0:  "Dash" value, as in A-1, etc.
- */
-#define CSR_HW_REV              (CSR_BASE+0x028)
-
-/* EEPROM reads */
-#define CSR_EEPROM_REG          (CSR_BASE+0x02c)
-#define CSR_EEPROM_GP           (CSR_BASE+0x030)
-#define CSR_GP_UCODE		(CSR_BASE+0x044)
-#define CSR_UCODE_DRV_GP1       (CSR_BASE+0x054)
-#define CSR_UCODE_DRV_GP1_SET   (CSR_BASE+0x058)
-#define CSR_UCODE_DRV_GP1_CLR   (CSR_BASE+0x05c)
-#define CSR_UCODE_DRV_GP2       (CSR_BASE+0x060)
-#define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
-
-/* Analog phase-lock-loop configuration (3945 only)
- * Set bit 24. */
-#define CSR_ANA_PLL_CFG         (CSR_BASE+0x20c)
-
-/* Bits for CSR_HW_IF_CONFIG_REG */
-#define CSR_HW_IF_CONFIG_REG_BIT_ALMAGOR_MB         (0x00000100)
-#define CSR_HW_IF_CONFIG_REG_BIT_ALMAGOR_MM         (0x00000200)
-#define CSR_HW_IF_CONFIG_REG_BIT_SKU_MRC            (0x00000400)
-#define CSR_HW_IF_CONFIG_REG_BIT_BOARD_TYPE         (0x00000800)
-#define CSR_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_A    (0x00000000)
-#define CSR_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_B    (0x00001000)
-#define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM     (0x00200000)
-
-/* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
- * acknowledged (reset) by host writing "1" to flagged bits. */
-#define CSR_INT_BIT_FH_RX        (1 << 31) /* Rx DMA, cmd responses, FH_INT[17:16] */
-#define CSR_INT_BIT_HW_ERR       (1 << 29) /* DMA hardware error FH_INT[31] */
-#define CSR_INT_BIT_DNLD         (1 << 28) /* uCode Download */
-#define CSR_INT_BIT_FH_TX        (1 << 27) /* Tx DMA FH_INT[1:0] */
-#define CSR_INT_BIT_SCD          (1 << 26) /* TXQ pointer advanced */
-#define CSR_INT_BIT_SW_ERR       (1 << 25) /* uCode error */
-#define CSR_INT_BIT_RF_KILL      (1 << 7)  /* HW RFKILL switch GP_CNTRL[27] toggled */
-#define CSR_INT_BIT_CT_KILL      (1 << 6)  /* Critical temp (chip too hot) rfkill */
-#define CSR_INT_BIT_SW_RX        (1 << 3)  /* Rx, command responses, 3945 */
-#define CSR_INT_BIT_WAKEUP       (1 << 1)  /* NIC controller waking up (pwr mgmt) */
-#define CSR_INT_BIT_ALIVE        (1 << 0)  /* uCode interrupts once it initializes */
-
-#define CSR_INI_SET_MASK	(CSR_INT_BIT_FH_RX   | \
-				 CSR_INT_BIT_HW_ERR  | \
-				 CSR_INT_BIT_FH_TX   | \
-				 CSR_INT_BIT_SW_ERR  | \
-				 CSR_INT_BIT_RF_KILL | \
-				 CSR_INT_BIT_SW_RX   | \
-				 CSR_INT_BIT_WAKEUP  | \
-				 CSR_INT_BIT_ALIVE)
-
-/* interrupt flags in FH (flow handler) (PCI busmaster DMA) */
-#define CSR_FH_INT_BIT_ERR       (1 << 31) /* Error */
-#define CSR_FH_INT_BIT_HI_PRIOR  (1 << 30) /* High priority Rx, bypass coalescing */
-#define CSR_FH_INT_BIT_RX_CHNL2  (1 << 18) /* Rx channel 2 (3945 only) */
-#define CSR_FH_INT_BIT_RX_CHNL1  (1 << 17) /* Rx channel 1 */
-#define CSR_FH_INT_BIT_RX_CHNL0  (1 << 16) /* Rx channel 0 */
-#define CSR_FH_INT_BIT_TX_CHNL6  (1 << 6)  /* Tx channel 6 (3945 only) */
-#define CSR_FH_INT_BIT_TX_CHNL1  (1 << 1)  /* Tx channel 1 */
-#define CSR_FH_INT_BIT_TX_CHNL0  (1 << 0)  /* Tx channel 0 */
-
-#define CSR_FH_INT_RX_MASK	(CSR_FH_INT_BIT_HI_PRIOR | \
-				 CSR_FH_INT_BIT_RX_CHNL2 | \
-				 CSR_FH_INT_BIT_RX_CHNL1 | \
-				 CSR_FH_INT_BIT_RX_CHNL0)
-
-#define CSR_FH_INT_TX_MASK	(CSR_FH_INT_BIT_TX_CHNL6 | \
-				 CSR_FH_INT_BIT_TX_CHNL1 | \
-				 CSR_FH_INT_BIT_TX_CHNL0)
-
-
-/* RESET */
-#define CSR_RESET_REG_FLAG_NEVO_RESET                (0x00000001)
-#define CSR_RESET_REG_FLAG_FORCE_NMI                 (0x00000002)
-#define CSR_RESET_REG_FLAG_SW_RESET                  (0x00000080)
-#define CSR_RESET_REG_FLAG_MASTER_DISABLED           (0x00000100)
-#define CSR_RESET_REG_FLAG_STOP_MASTER               (0x00000200)
-
-/* GP (general purpose) CONTROL */
-#define CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY        (0x00000001)
-#define CSR_GP_CNTRL_REG_FLAG_INIT_DONE              (0x00000004)
-#define CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ         (0x00000008)
-#define CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP         (0x00000010)
-
-#define CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN           (0x00000001)
-
-#define CSR_GP_CNTRL_REG_MSK_POWER_SAVE_TYPE         (0x07000000)
-#define CSR_GP_CNTRL_REG_FLAG_MAC_POWER_SAVE         (0x04000000)
-#define CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW          (0x08000000)
-
-
-/* EEPROM REG */
-#define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)
-#define CSR_EEPROM_REG_BIT_CMD		(0x00000002)
-
-/* EEPROM GP */
-#define CSR_EEPROM_GP_VALID_MSK		(0x00000006)
-#define CSR_EEPROM_GP_BAD_SIGNATURE	(0x00000000)
-#define CSR_EEPROM_GP_IF_OWNER_MSK	(0x00000180)
-
-/* UCODE DRV GP */
-#define CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP             (0x00000001)
-#define CSR_UCODE_SW_BIT_RFKILL                     (0x00000002)
-#define CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED           (0x00000004)
-#define CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT      (0x00000008)
-
-/* GPIO */
-#define CSR_GPIO_IN_BIT_AUX_POWER                   (0x00000200)
-#define CSR_GPIO_IN_VAL_VAUX_PWR_SRC                (0x00000000)
-#define CSR_GPIO_IN_VAL_VMAIN_PWR_SRC		CSR_GPIO_IN_BIT_AUX_POWER
-
-/* GI Chicken Bits */
-#define CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX  (0x00800000)
-#define CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER  (0x20000000)
-
-/* CSR_ANA_PLL_CFG */
-#define CSR_ANA_PLL_CFG_SH		(0x00880300)
-
-/*=== HBUS (Host-side Bus) ===*/
-#define HBUS_BASE	(0x400)
-
-/*
- * Registers for accessing device's internal SRAM memory (e.g. SCD SRAM
- * structures, error log, event log, verifying uCode load).
- * First write to address register, then read from or write to data register
- * to complete the job.  Once the address register is set up, accesses to
- * data registers auto-increment the address by one dword.
- * Bit usage for address registers (read or write):
- *  0-31:  memory address within device
- */
-#define HBUS_TARG_MEM_RADDR     (HBUS_BASE+0x00c)
-#define HBUS_TARG_MEM_WADDR     (HBUS_BASE+0x010)
-#define HBUS_TARG_MEM_WDAT      (HBUS_BASE+0x018)
-#define HBUS_TARG_MEM_RDAT      (HBUS_BASE+0x01c)
-
-/*
- * Registers for accessing device's internal peripheral registers
- * (e.g. SCD, BSM, etc.).  First write to address register,
- * then read from or write to data register to complete the job.
- * Bit usage for address registers (read or write):
- *  0-15:  register address (offset) within device
- * 24-25:  (# bytes - 1) to read or write (e.g. 3 for dword)
- */
-#define HBUS_TARG_PRPH_WADDR    (HBUS_BASE+0x044)
-#define HBUS_TARG_PRPH_RADDR    (HBUS_BASE+0x048)
-#define HBUS_TARG_PRPH_WDAT     (HBUS_BASE+0x04c)
-#define HBUS_TARG_PRPH_RDAT     (HBUS_BASE+0x050)
-
-/*
- * Per-Tx-queue write pointer (index, really!) (3945 and 4965).
- * Indicates index to next TFD that driver will fill (1 past latest filled).
- * Bit usage:
- *  0-7:  queue write index
- * 11-8:  queue selector
- */
-#define HBUS_TARG_WRPTR         (HBUS_BASE+0x060)
 
 /* SCD (3945 Tx Frame Scheduler) */
 #define SCD_BASE                        (CSR_BASE + 0x2E00)
@@ -663,7 +456,7 @@ struct iwl3945_eeprom {
 /* Size of uCode instruction memory in bootstrap state machine */
 #define IWL_MAX_BSM_SIZE ALM_RTC_INST_SIZE
 
-#define IWL_MAX_NUM_QUEUES	8
+#define IWL39_MAX_NUM_QUEUES	8
 
 static inline int iwl3945_hw_valid_rtc_data_addr(u32 addr)
 {

@@ -12,10 +12,11 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/lmb.h>
+
 #include <asm/types.h>
 #include <asm/page.h>
 #include <asm/prom.h>
-#include <asm/lmb.h>
 #include <asm/firmware.h>
 
 struct mschunks_map {

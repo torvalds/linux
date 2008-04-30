@@ -79,9 +79,9 @@ MODULE_PARM_DESC(max_queue, "Maximum number of queued commands. (min==1, max==30
 
 /* note: prints function name for you */
 #ifdef CARM_DEBUG
-#define DPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __FUNCTION__, ## args)
+#define DPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 #ifdef CARM_VERBOSE_DEBUG
-#define VPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __FUNCTION__, ## args)
+#define VPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 #else
 #define VPRINTK(fmt, args...)
 #endif	/* CARM_VERBOSE_DEBUG */
@@ -96,7 +96,7 @@ MODULE_PARM_DESC(max_queue, "Maximum number of queued commands. (min==1, max==30
 #define assert(expr) \
         if(unlikely(!(expr))) {                                   \
         printk(KERN_ERR "Assertion failed! %s,%s,%s,line=%d\n", \
-        #expr,__FILE__,__FUNCTION__,__LINE__);          \
+	#expr, __FILE__, __func__, __LINE__);          \
         }
 #endif
 

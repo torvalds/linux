@@ -1289,7 +1289,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	new_cm_id = rdma_create_id(listen_id->id.event_handler,
 				   listen_id->id.context,
 				   RDMA_PS_TCP);
-	if (!new_cm_id) {
+	if (IS_ERR(new_cm_id)) {
 		ret = -ENOMEM;
 		goto out;
 	}

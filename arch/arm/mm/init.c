@@ -48,8 +48,6 @@ void show_mem(void)
 
 	printk("Mem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
-
 	for_each_online_node(node) {
 		pg_data_t *n = NODE_DATA(node);
 		struct page *map = n->node_mem_map - n->node_start_pfn;

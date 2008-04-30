@@ -19,21 +19,13 @@
 #include <asm/mach/irq.h>
 #include <asm/arch/common.h>
 
-/*!
- * Disable interrupt number "irq" in the AVIC
- *
- * @param  irq          interrupt source number
- */
+/* Disable interrupt number "irq" in the AVIC */
 static void mxc_mask_irq(unsigned int irq)
 {
 	__raw_writel(irq, AVIC_INTDISNUM);
 }
 
-/*!
- * Enable interrupt number "irq" in the AVIC
- *
- * @param  irq          interrupt source number
- */
+/* Enable interrupt number "irq" in the AVIC */
 static void mxc_unmask_irq(unsigned int irq)
 {
 	__raw_writel(irq, AVIC_INTENNUM);
@@ -45,7 +37,7 @@ static struct irq_chip mxc_avic_chip = {
 	.unmask = mxc_unmask_irq,
 };
 
-/*!
+/*
  * This function initializes the AVIC hardware and disables all the
  * interrupts. It registers the interrupt enable and disable functions
  * to the kernel for each interrupt source.

@@ -24,7 +24,7 @@ static void warp_fixups(void)
 	ibm440ep_fixup_clocks(sysclk, 11059200, 50000000);
 	ibm4xx_sdram_fixup_memsize();
 	ibm4xx_fixup_ebc_ranges("/plb/opb/ebc");
-	dt_fixup_mac_addresses(&bd.bi_enetaddr);
+	dt_fixup_mac_address_by_alias("ethernet0", bd.bi_enetaddr);
 }
 
 

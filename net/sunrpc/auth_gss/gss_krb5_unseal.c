@@ -82,7 +82,7 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	s32			now;
 	int			direction;
-	s32			seqnum;
+	u32			seqnum;
 	unsigned char		*ptr = (unsigned char *)read_token->data;
 	int			bodysize;
 

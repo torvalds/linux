@@ -20,7 +20,7 @@
 #include <linux/cache.h>
 #include <linux/jiffies.h>
 #include <linux/profile.h>
-#include <linux/bootmem.h>
+#include <linux/lmb.h>
 
 #include <asm/head.h>
 #include <asm/ptrace.h>
@@ -866,14 +866,21 @@ void smp_call_function_client(int irq, struct pt_regs *regs)
 	void *info = call_data->info;
 
 	clear_softint(1 << irq);
-	if (call_data->wait) {
-		/* let initiator proceed only after completion */
-		func(info);
-		atomic_inc(&call_data->finished);
-	} else {
+
+	irq_enter();
+
+	if (!call_data->wait) {
 		/* let initiator proceed after getting data */
 		atomic_inc(&call_data->finished);
-		func(info);
+	}
+
+	func(info);
+
+	irq_exit();
+
+	if (call_data->wait) {
+		/* let initiator proceed only after completion */
+		atomic_inc(&call_data->finished);
 	}
 }
 
@@ -1032,13 +1039,17 @@ void smp_receive_signal(int cpu)
 
 void smp_receive_signal_client(int irq, struct pt_regs *regs)
 {
+	irq_enter();
 	clear_softint(1 << irq);
+	irq_exit();
 }
 
 void smp_new_mmu_context_version_client(int irq, struct pt_regs *regs)
 {
 	struct mm_struct *mm;
 	unsigned long flags;
+
+	irq_enter();
 
 	clear_softint(1 << irq);
 
@@ -1059,6 +1070,8 @@ void smp_new_mmu_context_version_client(int irq, struct pt_regs *regs)
 	load_secondary_context(mm);
 	__flush_tlb_mm(CTX_HWBITS(mm->context),
 		       SECONDARY_CONTEXT);
+
+	irq_exit();
 }
 
 void smp_new_mmu_context_version(void)
@@ -1217,6 +1230,8 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 {
 	clear_softint(1 << irq);
 
+	irq_enter();
+
 	preempt_disable();
 
 	__asm__ __volatile__("flushw");
@@ -1229,6 +1244,8 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 	prom_world(0);
 
 	preempt_enable();
+
+	irq_exit();
 }
 
 /* /proc/profile writes can call this, don't __init it please. */
@@ -1431,7 +1448,7 @@ EXPORT_SYMBOL(__per_cpu_shift);
 
 void __init real_setup_per_cpu_areas(void)
 {
-	unsigned long goal, size, i;
+	unsigned long paddr, goal, size, i;
 	char *ptr;
 
 	/* Copy section for each CPU (we discard the original) */
@@ -1441,8 +1458,13 @@ void __init real_setup_per_cpu_areas(void)
 	for (size = PAGE_SIZE; size < goal; size <<= 1UL)
 		__per_cpu_shift++;
 
-	ptr = alloc_bootmem_pages(size * NR_CPUS);
+	paddr = lmb_alloc(size * NR_CPUS, PAGE_SIZE);
+	if (!paddr) {
+		prom_printf("Cannot allocate per-cpu memory.\n");
+		prom_halt();
+	}
 
+	ptr = __va(paddr);
 	__per_cpu_base = ptr - __per_cpu_start;
 
 	for (i = 0; i < NR_CPUS; i++, ptr += size)

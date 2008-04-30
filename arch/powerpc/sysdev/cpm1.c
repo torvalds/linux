@@ -44,9 +44,6 @@
 
 #define CPM_MAP_SIZE    (0x4000)
 
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-static void m8xx_cpm_dpinit(void);
-#endif
 cpm8xx_t __iomem *cpmp;  /* Pointer to comm processor space */
 immap_t __iomem *mpc8xx_immr;
 static cpic8xx_t __iomem *cpic_reg;
@@ -229,12 +226,7 @@ void __init cpm_reset(void)
 	out_be32(&siu_conf->sc_sdcr, 1);
 	immr_unmap(siu_conf);
 
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 	cpm_muram_init();
-#else
-	/* Reclaim the DP memory for our use. */
-	m8xx_cpm_dpinit();
-#endif
 }
 
 static DEFINE_SPINLOCK(cmd_lock);
@@ -257,7 +249,7 @@ int cpm_command(u32 command, u8 opcode)
 		if ((in_be16(&cpmp->cp_cpcr) & CPM_CR_FLG) == 0)
 			goto out;
 
-	printk(KERN_ERR "%s(): Not able to issue CPM command\n", __FUNCTION__);
+	printk(KERN_ERR "%s(): Not able to issue CPM command\n", __func__);
 	ret = -EIO;
 out:
 	spin_unlock_irqrestore(&cmd_lock, flags);
@@ -292,110 +284,6 @@ cpm_setbrg(uint brg, uint rate)
 		out_be32(bp, (((BRG_UART_CLK_DIV16 / rate) - 1) << 1) |
 			      CPM_BRG_EN | CPM_BRG_DIV16);
 }
-
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-/*
- * dpalloc / dpfree bits.
- */
-static spinlock_t cpm_dpmem_lock;
-/*
- * 16 blocks should be enough to satisfy all requests
- * until the memory subsystem goes up...
- */
-static rh_block_t cpm_boot_dpmem_rh_block[16];
-static rh_info_t cpm_dpmem_info;
-
-#define CPM_DPMEM_ALIGNMENT	8
-static u8 __iomem *dpram_vbase;
-static phys_addr_t dpram_pbase;
-
-static void m8xx_cpm_dpinit(void)
-{
-	spin_lock_init(&cpm_dpmem_lock);
-
-	dpram_vbase = cpmp->cp_dpmem;
-	dpram_pbase = get_immrbase() + offsetof(immap_t, im_cpm.cp_dpmem);
-
-	/* Initialize the info header */
-	rh_init(&cpm_dpmem_info, CPM_DPMEM_ALIGNMENT,
-			sizeof(cpm_boot_dpmem_rh_block) /
-			sizeof(cpm_boot_dpmem_rh_block[0]),
-			cpm_boot_dpmem_rh_block);
-
-	/*
-	 * Attach the usable dpmem area.
-	 * XXX: This is actually crap.  CPM_DATAONLY_BASE and
-	 * CPM_DATAONLY_SIZE are a subset of the available dparm.  It varies
-	 * with the processor and the microcode patches applied / activated.
-	 * But the following should be at least safe.
-	 */
-	rh_attach_region(&cpm_dpmem_info, CPM_DATAONLY_BASE, CPM_DATAONLY_SIZE);
-}
-
-/*
- * Allocate the requested size worth of DP memory.
- * This function returns an offset into the DPRAM area.
- * Use cpm_dpram_addr() to get the virtual address of the area.
- */
-unsigned long cpm_dpalloc(uint size, uint align)
-{
-	unsigned long start;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cpm_dpmem_lock, flags);
-	cpm_dpmem_info.alignment = align;
-	start = rh_alloc(&cpm_dpmem_info, size, "commproc");
-	spin_unlock_irqrestore(&cpm_dpmem_lock, flags);
-
-	return (uint)start;
-}
-EXPORT_SYMBOL(cpm_dpalloc);
-
-int cpm_dpfree(unsigned long offset)
-{
-	int ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cpm_dpmem_lock, flags);
-	ret = rh_free(&cpm_dpmem_info, offset);
-	spin_unlock_irqrestore(&cpm_dpmem_lock, flags);
-
-	return ret;
-}
-EXPORT_SYMBOL(cpm_dpfree);
-
-unsigned long cpm_dpalloc_fixed(unsigned long offset, uint size, uint align)
-{
-	unsigned long start;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cpm_dpmem_lock, flags);
-	cpm_dpmem_info.alignment = align;
-	start = rh_alloc_fixed(&cpm_dpmem_info, offset, size, "commproc");
-	spin_unlock_irqrestore(&cpm_dpmem_lock, flags);
-
-	return start;
-}
-EXPORT_SYMBOL(cpm_dpalloc_fixed);
-
-void cpm_dpdump(void)
-{
-	rh_dump(&cpm_dpmem_info);
-}
-EXPORT_SYMBOL(cpm_dpdump);
-
-void *cpm_dpram_addr(unsigned long offset)
-{
-	return (void *)(dpram_vbase + offset);
-}
-EXPORT_SYMBOL(cpm_dpram_addr);
-
-uint cpm_dpram_phys(u8 *addr)
-{
-	return (dpram_pbase + (uint)(addr - dpram_vbase));
-}
-EXPORT_SYMBOL(cpm_dpram_phys);
-#endif /* !CONFIG_PPC_CPM_NEW_BINDING */
 
 struct cpm_ioport16 {
 	__be16 dir, par, odr_sor, dat, intr;

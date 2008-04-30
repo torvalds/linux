@@ -590,11 +590,21 @@ struct hda_pcm_stream {
 	struct hda_pcm_ops ops;
 };
 
+/* PCM types */
+enum {
+	HDA_PCM_TYPE_AUDIO,
+	HDA_PCM_TYPE_SPDIF,
+	HDA_PCM_TYPE_HDMI,
+	HDA_PCM_TYPE_MODEM,
+	HDA_PCM_NTYPES
+};
+
 /* for PCM creation */
 struct hda_pcm {
 	char *name;
 	struct hda_pcm_stream stream[2];
-	unsigned int is_modem;	/* modem codec? */
+	unsigned int pcm_type;	/* HDA_PCM_TYPE_XXX */
+	int device;	/* assigned device number */
 };
 
 /* codec information */
@@ -712,6 +722,7 @@ int snd_hda_build_pcms(struct hda_bus *bus);
 void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 				u32 stream_tag,
 				int channel_id, int format);
+void snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid);
 unsigned int snd_hda_calc_stream_format(unsigned int rate,
 					unsigned int channels,
 					unsigned int format,

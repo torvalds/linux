@@ -255,9 +255,7 @@
 		enet0: ucc@2200 {
 			device_type = "network";
 			compatible = "ucc_geth";
-			model = "UCC";
 			cell-index = <3>;
-			device-id = <3>;
 			reg = <0x2200 0x200>;
 			interrupts = <34>;
 			interrupt-parent = <&qeic>;
@@ -271,9 +269,7 @@
 		enet1: ucc@3200 {
 			device_type = "network";
 			compatible = "ucc_geth";
-			model = "UCC";
 			cell-index = <4>;
-			device-id = <4>;
 			reg = <0x3200 0x200>;
 			interrupts = <35>;
 			interrupt-parent = <&qeic>;
@@ -287,8 +283,7 @@
 		ucc@2400 {
 			device_type = "serial";
 			compatible = "ucc_uart";
-			model = "UCC";
-			device-id = <5>;	/* The UCC number, 1-7*/
+			cell-index = <5>;	/* The UCC number, 1-7*/
 			port-number = <0>;	/* Which ttyQEx device */
 			soft-uart;		/* We need Soft-UART */
 			reg = <0x2400 0x200>;

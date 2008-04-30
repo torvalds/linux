@@ -34,9 +34,6 @@ struct page *empty_zero_page;
  */
 unsigned long mmu_context_cache = NO_CONTEXT;
 
-#define START_PFN	(NODE_DATA(0)->bdata->node_boot_start >> PAGE_SHIFT)
-#define MAX_LOW_PFN	(NODE_DATA(0)->bdata->node_low_pfn)
-
 void show_mem(void)
 {
 	int total = 0, reserved = 0, cached = 0;

@@ -9,7 +9,6 @@
 #include <linux/string.h>
 #include <linux/tty.h>
 
-#include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
@@ -48,12 +47,6 @@ EXPORT_SYMBOL(__negdi2);
 /* Memory functions */
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
-
-/* Semaphore functions */
-EXPORT_SYMBOL(__up);
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_interruptible);
-EXPORT_SYMBOL(__down_trylock);
 
 /* Userspace access functions */
 EXPORT_SYMBOL(__copy_user_zeroing);

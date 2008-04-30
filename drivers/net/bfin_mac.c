@@ -47,6 +47,7 @@
 MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRV_DESC);
+MODULE_ALIAS("platform:bfin_mac");
 
 #if defined(CONFIG_BFIN_MAC_USE_L1)
 # define bfin_mac_alloc(dma_handle, size)  l1_data_sram_zalloc(size)
@@ -969,7 +970,7 @@ static int __init bf537mac_probe(struct net_device *dev)
 	lp->mii_bus.write = mdiobus_write;
 	lp->mii_bus.reset = mdiobus_reset;
 	lp->mii_bus.name = "bfin_mac_mdio";
-	lp->mii_bus.id = 0;
+	snprintf(lp->mii_bus.id, MII_BUS_ID_SIZE, "0");
 	lp->mii_bus.irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	for (i = 0; i < PHY_MAX_ADDR; ++i)
 		lp->mii_bus.irq[i] = PHY_POLL;
@@ -1089,8 +1090,9 @@ static struct platform_driver bfin_mac_driver = {
 	.resume = bfin_mac_resume,
 	.suspend = bfin_mac_suspend,
 	.driver = {
-		   .name = DRV_NAME,
-		   },
+		.name = DRV_NAME,
+		.owner	= THIS_MODULE,
+	},
 };
 
 static int __init bfin_mac_init(void)
@@ -1106,3 +1108,4 @@ static void __exit bfin_mac_cleanup(void)
 }
 
 module_exit(bfin_mac_cleanup);
+

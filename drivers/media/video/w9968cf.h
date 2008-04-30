@@ -298,7 +298,7 @@ struct w9968cf_device {
 			dev_warn(&cam->dev, fmt "\n", ## args);               \
 		else if ((level) >= 5)                                        \
 			dev_info(&cam->dev, "[%s:%d] " fmt "\n",              \
-				 __FUNCTION__, __LINE__ , ## args);           \
+				 __func__, __LINE__ , ## args);           \
 	}                                                                     \
 }
 /* For generic kernel (not device specific) messages */
@@ -309,7 +309,7 @@ struct w9968cf_device {
 		if ((level) >= 1 && (level) <= 4)                             \
 			pr_info("w9968cf: " fmt "\n", ## args);               \
 		else if ((level) >= 5)                                        \
-			pr_debug("w9968cf: [%s:%d] " fmt "\n", __FUNCTION__,  \
+			pr_debug("w9968cf: [%s:%d] " fmt "\n", __func__,  \
 				 __LINE__ , ## args);                         \
 	}                                                                     \
 }
@@ -321,7 +321,7 @@ struct w9968cf_device {
 
 #undef PDBG
 #define PDBG(fmt, args...)                                                    \
-dev_info(&cam->dev, "[%s:%d] " fmt "\n", __FUNCTION__, __LINE__ , ## args);
+dev_info(&cam->dev, "[%s:%d] " fmt "\n", __func__, __LINE__ , ## args);
 
 #undef PDBGG
 #define PDBGG(fmt, args...) do {;} while(0); /* nothing: it's a placeholder */

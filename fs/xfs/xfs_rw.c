@@ -126,11 +126,11 @@ xfs_write_sync_logforce(
 		 * when we return.
 		 */
 		if (iip && iip->ili_last_lsn) {
-			xfs_log_force(mp, iip->ili_last_lsn,
-					XFS_LOG_FORCE | XFS_LOG_SYNC);
+			error = _xfs_log_force(mp, iip->ili_last_lsn,
+					XFS_LOG_FORCE | XFS_LOG_SYNC, NULL);
 		} else if (xfs_ipincount(ip) > 0) {
-			xfs_log_force(mp, (xfs_lsn_t)0,
-					XFS_LOG_FORCE | XFS_LOG_SYNC);
+			error = _xfs_log_force(mp, (xfs_lsn_t)0,
+					XFS_LOG_FORCE | XFS_LOG_SYNC, NULL);
 		}
 
 	} else {

@@ -40,6 +40,7 @@ struct scoop_config {
 	unsigned short io_dir;
 	unsigned short suspend_clr;
 	unsigned short suspend_set;
+	int gpio_base;
 };
 
 /* Structure for linking scoop devices to PCMCIA sockets */
@@ -62,7 +63,7 @@ struct scoop_pcmcia_config {
 extern struct scoop_pcmcia_config *platform_scoop_config;
 
 void reset_scoop(struct device *dev);
-unsigned short set_scoop_gpio(struct device *dev, unsigned short bit);
-unsigned short reset_scoop_gpio(struct device *dev, unsigned short bit);
+unsigned short __deprecated set_scoop_gpio(struct device *dev, unsigned short bit);
+unsigned short __deprecated reset_scoop_gpio(struct device *dev, unsigned short bit);
 unsigned short read_scoop_reg(struct device *dev, unsigned short reg);
 void write_scoop_reg(struct device *dev, unsigned short reg, unsigned short data);

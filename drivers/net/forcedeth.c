@@ -29,90 +29,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Changelog:
- * 	0.01: 05 Oct 2003: First release that compiles without warnings.
- * 	0.02: 05 Oct 2003: Fix bug for nv_drain_tx: do not try to free NULL skbs.
- * 			   Check all PCI BARs for the register window.
- * 			   udelay added to mii_rw.
- * 	0.03: 06 Oct 2003: Initialize dev->irq.
- * 	0.04: 07 Oct 2003: Initialize np->lock, reduce handled irqs, add printks.
- * 	0.05: 09 Oct 2003: printk removed again, irq status print tx_timeout.
- * 	0.06: 10 Oct 2003: MAC Address read updated, pff flag generation updated,
- * 			   irq mask updated
- * 	0.07: 14 Oct 2003: Further irq mask updates.
- * 	0.08: 20 Oct 2003: rx_desc.Length initialization added, nv_alloc_rx refill
- * 			   added into irq handler, NULL check for drain_ring.
- * 	0.09: 20 Oct 2003: Basic link speed irq implementation. Only handle the
- * 			   requested interrupt sources.
- * 	0.10: 20 Oct 2003: First cleanup for release.
- * 	0.11: 21 Oct 2003: hexdump for tx added, rx buffer sizes increased.
- * 			   MAC Address init fix, set_multicast cleanup.
- * 	0.12: 23 Oct 2003: Cleanups for release.
- * 	0.13: 25 Oct 2003: Limit for concurrent tx packets increased to 10.
- * 			   Set link speed correctly. start rx before starting
- * 			   tx (nv_start_rx sets the link speed).
- * 	0.14: 25 Oct 2003: Nic dependant irq mask.
- * 	0.15: 08 Nov 2003: fix smp deadlock with set_multicast_list during
- * 			   open.
- * 	0.16: 15 Nov 2003: include file cleanup for ppc64, rx buffer size
- * 			   increased to 1628 bytes.
- * 	0.17: 16 Nov 2003: undo rx buffer size increase. Substract 1 from
- * 			   the tx length.
- * 	0.18: 17 Nov 2003: fix oops due to late initialization of dev_stats
- * 	0.19: 29 Nov 2003: Handle RxNoBuf, detect & handle invalid mac
- * 			   addresses, really stop rx if already running
- * 			   in nv_start_rx, clean up a bit.
- * 	0.20: 07 Dec 2003: alloc fixes
- * 	0.21: 12 Jan 2004: additional alloc fix, nic polling fix.
- *	0.22: 19 Jan 2004: reprogram timer to a sane rate, avoid lockup
- *			   on close.
- *	0.23: 26 Jan 2004: various small cleanups
- *	0.24: 27 Feb 2004: make driver even less anonymous in backtraces
- *	0.25: 09 Mar 2004: wol support
- *	0.26: 03 Jun 2004: netdriver specific annotation, sparse-related fixes
- *	0.27: 19 Jun 2004: Gigabit support, new descriptor rings,
- *			   added CK804/MCP04 device IDs, code fixes
- *			   for registers, link status and other minor fixes.
- *	0.28: 21 Jun 2004: Big cleanup, making driver mostly endian safe
- *	0.29: 31 Aug 2004: Add backup timer for link change notification.
- *	0.30: 25 Sep 2004: rx checksum support for nf 250 Gb. Add rx reset
- *			   into nv_close, otherwise reenabling for wol can
- *			   cause DMA to kfree'd memory.
- *	0.31: 14 Nov 2004: ethtool support for getting/setting link
- *			   capabilities.
- *	0.32: 16 Apr 2005: RX_ERROR4 handling added.
- *	0.33: 16 May 2005: Support for MCP51 added.
- *	0.34: 18 Jun 2005: Add DEV_NEED_LINKTIMER to all nForce nics.
- *	0.35: 26 Jun 2005: Support for MCP55 added.
- *	0.36: 28 Jun 2005: Add jumbo frame support.
- *	0.37: 10 Jul 2005: Additional ethtool support, cleanup of pci id list
- *	0.38: 16 Jul 2005: tx irq rewrite: Use global flags instead of
- *			   per-packet flags.
- *	0.39: 18 Jul 2005: Add 64bit descriptor support.
- *	0.40: 19 Jul 2005: Add support for mac address change.
- *	0.41: 30 Jul 2005: Write back original MAC in nv_close instead
- *			   of nv_remove
- *	0.42: 06 Aug 2005: Fix lack of link speed initialization
- *			   in the second (and later) nv_open call
- *	0.43: 10 Aug 2005: Add support for tx checksum.
- *	0.44: 20 Aug 2005: Add support for scatter gather and segmentation.
- *	0.45: 18 Sep 2005: Remove nv_stop/start_rx from every link check
- *	0.46: 20 Oct 2005: Add irq optimization modes.
- *	0.47: 26 Oct 2005: Add phyaddr 0 in phy scan.
- *	0.48: 24 Dec 2005: Disable TSO, bugfix for pci_map_single
- *	0.49: 10 Dec 2005: Fix tso for large buffers.
- *	0.50: 20 Jan 2006: Add 8021pq tagging support.
- *	0.51: 20 Jan 2006: Add 64bit consistent memory allocation for rings.
- *	0.52: 20 Jan 2006: Add MSI/MSIX support.
- *	0.53: 19 Mar 2006: Fix init from low power mode and add hw reset.
- *	0.54: 21 Mar 2006: Fix spin locks for multi irqs and cleanup.
- *	0.55: 22 Mar 2006: Add flow control (pause frame).
- *	0.56: 22 Mar 2006: Additional ethtool config and moduleparam support.
- *	0.57: 14 May 2006: Mac address set in probe/remove and order corrections.
- *	0.58: 30 Oct 2006: Added support for sideband management unit.
- *	0.59: 30 Oct 2006: Added support for recoverable error.
- *	0.60: 20 Jan 2007: Code optimizations for rings, rx & tx data paths, and stats.
- *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
  * This means recovery from netif_stop_queue only happens if the hw timer
@@ -123,11 +39,6 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#ifdef CONFIG_FORCEDETH_NAPI
-#define DRIVERNAPI "-NAPI"
-#else
-#define DRIVERNAPI
-#endif
 #define FORCEDETH_VERSION		"0.61"
 #define DRV_NAME			"forcedeth"
 
@@ -185,6 +96,7 @@
 #define DEV_HAS_PAUSEFRAME_TX_V2   0x10000  /* device supports tx pause frames version 2 */
 #define DEV_HAS_PAUSEFRAME_TX_V3   0x20000  /* device supports tx pause frames version 3 */
 #define DEV_NEED_TX_LIMIT          0x40000  /* device needs to limit tx */
+#define DEV_HAS_GEAR_MODE          0x80000  /* device supports gear mode */
 
 enum {
 	NvRegIrqStatus = 0x000,
@@ -263,11 +175,13 @@ enum {
 	NvRegReceiverStatus = 0x98,
 #define NVREG_RCVSTAT_BUSY	0x01
 
-	NvRegRandomSeed = 0x9c,
-#define NVREG_RNDSEED_MASK	0x00ff
-#define NVREG_RNDSEED_FORCE	0x7f00
-#define NVREG_RNDSEED_FORCE2	0x2d00
-#define NVREG_RNDSEED_FORCE3	0x7400
+	NvRegSlotTime = 0x9c,
+#define NVREG_SLOTTIME_LEGBF_ENABLED	0x80000000
+#define NVREG_SLOTTIME_10_100_FULL	0x00007f00
+#define NVREG_SLOTTIME_1000_FULL 	0x0003ff00
+#define NVREG_SLOTTIME_HALF		0x0000ff00
+#define NVREG_SLOTTIME_DEFAULT	 	0x00007f00
+#define NVREG_SLOTTIME_MASK		0x000000ff
 
 	NvRegTxDeferral = 0xA0,
 #define NVREG_TX_DEFERRAL_DEFAULT		0x15050f
@@ -290,6 +204,11 @@ enum {
 
 	NvRegPhyInterface = 0xC0,
 #define PHY_RGMII		0x10000000
+	NvRegBackOffControl = 0xC4,
+#define NVREG_BKOFFCTRL_DEFAULT			0x70000000
+#define NVREG_BKOFFCTRL_SEED_MASK		0x000003ff
+#define NVREG_BKOFFCTRL_SELECT			24
+#define NVREG_BKOFFCTRL_GEAR			12
 
 	NvRegTxRingPhysAddr = 0x100,
 	NvRegRxRingPhysAddr = 0x104,
@@ -441,6 +360,7 @@ union ring_type {
 
 #define NV_TX_LASTPACKET	(1<<16)
 #define NV_TX_RETRYERROR	(1<<19)
+#define NV_TX_RETRYCOUNT_MASK	(0xF<<20)
 #define NV_TX_FORCED_INTERRUPT	(1<<24)
 #define NV_TX_DEFERRED		(1<<26)
 #define NV_TX_CARRIERLOST	(1<<27)
@@ -451,6 +371,7 @@ union ring_type {
 
 #define NV_TX2_LASTPACKET	(1<<29)
 #define NV_TX2_RETRYERROR	(1<<18)
+#define NV_TX2_RETRYCOUNT_MASK	(0xF<<19)
 #define NV_TX2_FORCED_INTERRUPT	(1<<30)
 #define NV_TX2_DEFERRED		(1<<25)
 #define NV_TX2_CARRIERLOST	(1<<26)
@@ -562,16 +483,22 @@ union ring_type {
 #define DESC_VER_3	3
 
 /* PHY defines */
-#define PHY_OUI_MARVELL	0x5043
-#define PHY_OUI_CICADA	0x03f1
-#define PHY_OUI_VITESSE	0x01c1
-#define PHY_OUI_REALTEK	0x0732
+#define PHY_OUI_MARVELL		0x5043
+#define PHY_OUI_CICADA		0x03f1
+#define PHY_OUI_VITESSE		0x01c1
+#define PHY_OUI_REALTEK		0x0732
+#define PHY_OUI_REALTEK2	0x0020
 #define PHYID1_OUI_MASK	0x03ff
 #define PHYID1_OUI_SHFT	6
 #define PHYID2_OUI_MASK	0xfc00
 #define PHYID2_OUI_SHFT	10
 #define PHYID2_MODEL_MASK		0x03f0
-#define PHY_MODEL_MARVELL_E3016		0x220
+#define PHY_MODEL_REALTEK_8211		0x0110
+#define PHY_REV_MASK			0x0001
+#define PHY_REV_REALTEK_8211B		0x0000
+#define PHY_REV_REALTEK_8211C		0x0001
+#define PHY_MODEL_REALTEK_8201		0x0200
+#define PHY_MODEL_MARVELL_E3016		0x0220
 #define PHY_MARVELL_E3016_INITMASK	0x0300
 #define PHY_CICADA_INIT1	0x0f000
 #define PHY_CICADA_INIT2	0x0e00
@@ -598,10 +525,18 @@ union ring_type {
 #define PHY_REALTEK_INIT_REG1	0x1f
 #define PHY_REALTEK_INIT_REG2	0x19
 #define PHY_REALTEK_INIT_REG3	0x13
+#define PHY_REALTEK_INIT_REG4	0x14
+#define PHY_REALTEK_INIT_REG5	0x18
+#define PHY_REALTEK_INIT_REG6	0x11
 #define PHY_REALTEK_INIT1	0x0000
 #define PHY_REALTEK_INIT2	0x8e00
 #define PHY_REALTEK_INIT3	0x0001
 #define PHY_REALTEK_INIT4	0xad17
+#define PHY_REALTEK_INIT5	0xfb54
+#define PHY_REALTEK_INIT6	0xf5c7
+#define PHY_REALTEK_INIT7	0x1000
+#define PHY_REALTEK_INIT8	0x0003
+#define PHY_REALTEK_INIT_MSK1	0x0003
 
 #define PHY_GIGABIT	0x0100
 
@@ -780,6 +715,7 @@ struct fe_priv {
 	int wolenabled;
 	unsigned int phy_oui;
 	unsigned int phy_model;
+	unsigned int phy_rev;
 	u16 gigabit;
 	int intr_test;
 	int recover_error;
@@ -793,6 +729,7 @@ struct fe_priv {
 	u32 txrxctl_bits;
 	u32 vlanctl_bits;
 	u32 driver_data;
+	u32 device_id;
 	u32 register_size;
 	int rx_csum;
 	u32 mac_in_use;
@@ -903,6 +840,16 @@ enum {
 };
 static int dma_64bit = NV_DMA_64BIT_ENABLED;
 
+/*
+ * Crossover Detection
+ * Realtek 8201 phy + some OEM boards do not work properly.
+ */
+enum {
+	NV_CROSSOVER_DETECTION_DISABLED,
+	NV_CROSSOVER_DETECTION_ENABLED
+};
+static int phy_cross = NV_CROSSOVER_DETECTION_DISABLED;
+
 static inline struct fe_priv *get_nvpriv(struct net_device *dev)
 {
 	return netdev_priv(dev);
@@ -928,6 +875,13 @@ static inline u32 nv_descr_getlength(struct ring_desc *prd, u32 v)
 static inline u32 nv_descr_getlength_ex(struct ring_desc_ex *prd, u32 v)
 {
 	return le32_to_cpu(prd->flaglen) & LEN_MASK_V2;
+}
+
+static bool nv_optimized(struct fe_priv *np)
+{
+	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+		return false;
+	return true;
 }
 
 static int reg_delay(struct net_device *dev, int offset, u32 mask, u32 target,
@@ -966,7 +920,7 @@ static void setup_hw_rings(struct net_device *dev, int rxtx_flags)
 	struct fe_priv *np = get_nvpriv(dev);
 	u8 __iomem *base = get_hwbase(dev);
 
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+	if (!nv_optimized(np)) {
 		if (rxtx_flags & NV_SETUP_RX_RING) {
 			writel(dma_low(np->ring_addr), base + NvRegRxRingPhysAddr);
 		}
@@ -989,7 +943,7 @@ static void free_rings(struct net_device *dev)
 {
 	struct fe_priv *np = get_nvpriv(dev);
 
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+	if (!nv_optimized(np)) {
 		if (np->rx_ring.orig)
 			pci_free_consistent(np->pci_dev, sizeof(struct ring_desc) * (np->rx_ring_size + np->tx_ring_size),
 					    np->rx_ring.orig, np->ring_addr);
@@ -1160,25 +1114,53 @@ static int phy_init(struct net_device *dev)
 		}
 	}
 	if (np->phy_oui == PHY_OUI_REALTEK) {
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
+		if (np->phy_model == PHY_MODEL_REALTEK_8211 &&
+		    np->phy_rev == PHY_REV_REALTEK_8211B) {
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, PHY_REALTEK_INIT2)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG3, PHY_REALTEK_INIT4)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG4, PHY_REALTEK_INIT5)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG5, PHY_REALTEK_INIT6)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
 		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, PHY_REALTEK_INIT2)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG3, PHY_REALTEK_INIT4)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
+		if (np->phy_model == PHY_MODEL_REALTEK_8201) {
+			if (np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_32 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_33 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_34 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_35 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_36 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_37 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_38 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_39) {
+				phy_reserved = mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG6, MII_READ);
+				phy_reserved |= PHY_REALTEK_INIT7;
+				if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG6, phy_reserved)) {
+					printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+					return PHY_ERROR;
+				}
+			}
 		}
 	}
 
@@ -1318,26 +1300,71 @@ static int phy_init(struct net_device *dev)
 		}
 	}
 	if (np->phy_oui == PHY_OUI_REALTEK) {
-		/* reset could have cleared these out, set them back */
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
+		if (np->phy_model == PHY_MODEL_REALTEK_8211 &&
+		    np->phy_rev == PHY_REV_REALTEK_8211B) {
+			/* reset could have cleared these out, set them back */
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, PHY_REALTEK_INIT2)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG3, PHY_REALTEK_INIT4)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG4, PHY_REALTEK_INIT5)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG5, PHY_REALTEK_INIT6)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
+			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
+				printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+				return PHY_ERROR;
+			}
 		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, PHY_REALTEK_INIT2)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG3, PHY_REALTEK_INIT4)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
-		}
-		if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
-			return PHY_ERROR;
+		if (np->phy_model == PHY_MODEL_REALTEK_8201) {
+			if (np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_32 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_33 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_34 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_35 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_36 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_37 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_38 ||
+			    np->device_id == PCI_DEVICE_ID_NVIDIA_NVENET_39) {
+				phy_reserved = mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG6, MII_READ);
+				phy_reserved |= PHY_REALTEK_INIT7;
+				if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG6, phy_reserved)) {
+					printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+					return PHY_ERROR;
+				}
+			}
+			if (phy_cross == NV_CROSSOVER_DETECTION_DISABLED) {
+				if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
+					printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+					return PHY_ERROR;
+				}
+				phy_reserved = mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, MII_READ);
+				phy_reserved &= ~PHY_REALTEK_INIT_MSK1;
+				phy_reserved |= PHY_REALTEK_INIT3;
+				if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, phy_reserved)) {
+					printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+					return PHY_ERROR;
+				}
+				if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
+					printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
+					return PHY_ERROR;
+				}
+			}
 		}
 	}
 
@@ -1433,6 +1460,18 @@ static void nv_stop_tx(struct net_device *dev)
 	if (!np->mac_in_use)
 		writel(readl(base + NvRegTransmitPoll) & NVREG_TRANSMITPOLL_MAC_ADDR_REV,
 		       base + NvRegTransmitPoll);
+}
+
+static void nv_start_rxtx(struct net_device *dev)
+{
+	nv_start_rx(dev);
+	nv_start_tx(dev);
+}
+
+static void nv_stop_rxtx(struct net_device *dev)
+{
+	nv_stop_rx(dev);
+	nv_stop_tx(dev);
 }
 
 static void nv_txrx_reset(struct net_device *dev)
@@ -1657,7 +1696,7 @@ static void nv_do_rx_refill(unsigned long data)
 	} else {
 		disable_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector);
 	}
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+	if (!nv_optimized(np))
 		retcode = nv_alloc_rx(dev);
 	else
 		retcode = nv_alloc_rx_optimized(dev);
@@ -1682,8 +1721,10 @@ static void nv_init_rx(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	int i;
+
 	np->get_rx = np->put_rx = np->first_rx = np->rx_ring;
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+
+	if (!nv_optimized(np))
 		np->last_rx.orig = &np->rx_ring.orig[np->rx_ring_size-1];
 	else
 		np->last_rx.ex = &np->rx_ring.ex[np->rx_ring_size-1];
@@ -1691,7 +1732,7 @@ static void nv_init_rx(struct net_device *dev)
 	np->last_rx_ctx = &np->rx_skb[np->rx_ring_size-1];
 
 	for (i = 0; i < np->rx_ring_size; i++) {
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+		if (!nv_optimized(np)) {
 			np->rx_ring.orig[i].flaglen = 0;
 			np->rx_ring.orig[i].buf = 0;
 		} else {
@@ -1709,8 +1750,10 @@ static void nv_init_tx(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	int i;
+
 	np->get_tx = np->put_tx = np->first_tx = np->tx_ring;
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+
+	if (!nv_optimized(np))
 		np->last_tx.orig = &np->tx_ring.orig[np->tx_ring_size-1];
 	else
 		np->last_tx.ex = &np->tx_ring.ex[np->tx_ring_size-1];
@@ -1721,7 +1764,7 @@ static void nv_init_tx(struct net_device *dev)
 	np->tx_end_flip = NULL;
 
 	for (i = 0; i < np->tx_ring_size; i++) {
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+		if (!nv_optimized(np)) {
 			np->tx_ring.orig[i].flaglen = 0;
 			np->tx_ring.orig[i].buf = 0;
 		} else {
@@ -1744,7 +1787,8 @@ static int nv_init_ring(struct net_device *dev)
 
 	nv_init_tx(dev);
 	nv_init_rx(dev);
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+
+	if (!nv_optimized(np))
 		return nv_alloc_rx(dev);
 	else
 		return nv_alloc_rx_optimized(dev);
@@ -1775,7 +1819,7 @@ static void nv_drain_tx(struct net_device *dev)
 	unsigned int i;
 
 	for (i = 0; i < np->tx_ring_size; i++) {
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+		if (!nv_optimized(np)) {
 			np->tx_ring.orig[i].flaglen = 0;
 			np->tx_ring.orig[i].buf = 0;
 		} else {
@@ -1802,7 +1846,7 @@ static void nv_drain_rx(struct net_device *dev)
 	int i;
 
 	for (i = 0; i < np->rx_ring_size; i++) {
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+		if (!nv_optimized(np)) {
 			np->rx_ring.orig[i].flaglen = 0;
 			np->rx_ring.orig[i].buf = 0;
 		} else {
@@ -1823,7 +1867,7 @@ static void nv_drain_rx(struct net_device *dev)
 	}
 }
 
-static void drain_ring(struct net_device *dev)
+static void nv_drain_rxtx(struct net_device *dev)
 {
 	nv_drain_tx(dev);
 	nv_drain_rx(dev);
@@ -1832,6 +1876,115 @@ static void drain_ring(struct net_device *dev)
 static inline u32 nv_get_empty_tx_slots(struct fe_priv *np)
 {
 	return (u32)(np->tx_ring_size - ((np->tx_ring_size + (np->put_tx_ctx - np->get_tx_ctx)) % np->tx_ring_size));
+}
+
+static void nv_legacybackoff_reseed(struct net_device *dev)
+{
+	u8 __iomem *base = get_hwbase(dev);
+	u32 reg;
+	u32 low;
+	int tx_status = 0;
+
+	reg = readl(base + NvRegSlotTime) & ~NVREG_SLOTTIME_MASK;
+	get_random_bytes(&low, sizeof(low));
+	reg |= low & NVREG_SLOTTIME_MASK;
+
+	/* Need to stop tx before change takes effect.
+	 * Caller has already gained np->lock.
+	 */
+	tx_status = readl(base + NvRegTransmitterControl) & NVREG_XMITCTL_START;
+	if (tx_status)
+		nv_stop_tx(dev);
+	nv_stop_rx(dev);
+	writel(reg, base + NvRegSlotTime);
+	if (tx_status)
+		nv_start_tx(dev);
+	nv_start_rx(dev);
+}
+
+/* Gear Backoff Seeds */
+#define BACKOFF_SEEDSET_ROWS	8
+#define BACKOFF_SEEDSET_LFSRS	15
+
+/* Known Good seed sets */
+static const u32 main_seedset[BACKOFF_SEEDSET_ROWS][BACKOFF_SEEDSET_LFSRS] = {
+    {145, 155, 165, 175, 185, 196, 235, 245, 255, 265, 275, 285, 660, 690, 874},
+    {245, 255, 265, 575, 385, 298, 335, 345, 355, 366, 375, 385, 761, 790, 974},
+    {145, 155, 165, 175, 185, 196, 235, 245, 255, 265, 275, 285, 660, 690, 874},
+    {245, 255, 265, 575, 385, 298, 335, 345, 355, 366, 375, 386, 761, 790, 974},
+    {266, 265, 276, 585, 397, 208, 345, 355, 365, 376, 385, 396, 771, 700, 984},
+    {266, 265, 276, 586, 397, 208, 346, 355, 365, 376, 285, 396, 771, 700, 984},
+    {366, 365, 376, 686, 497, 308, 447, 455, 466, 476, 485, 496, 871, 800,  84},
+    {466, 465, 476, 786, 597, 408, 547, 555, 566, 576, 585, 597, 971, 900, 184}};
+
+static const u32 gear_seedset[BACKOFF_SEEDSET_ROWS][BACKOFF_SEEDSET_LFSRS] = {
+    {251, 262, 273, 324, 319, 508, 375, 364, 341, 371, 398, 193, 375,  30, 295},
+    {351, 375, 373, 469, 551, 639, 477, 464, 441, 472, 498, 293, 476, 130, 395},
+    {351, 375, 373, 469, 551, 639, 477, 464, 441, 472, 498, 293, 476, 130, 397},
+    {251, 262, 273, 324, 319, 508, 375, 364, 341, 371, 398, 193, 375,  30, 295},
+    {251, 262, 273, 324, 319, 508, 375, 364, 341, 371, 398, 193, 375,  30, 295},
+    {351, 375, 373, 469, 551, 639, 477, 464, 441, 472, 498, 293, 476, 130, 395},
+    {351, 375, 373, 469, 551, 639, 477, 464, 441, 472, 498, 293, 476, 130, 395},
+    {351, 375, 373, 469, 551, 639, 477, 464, 441, 472, 498, 293, 476, 130, 395}};
+
+static void nv_gear_backoff_reseed(struct net_device *dev)
+{
+	u8 __iomem *base = get_hwbase(dev);
+	u32 miniseed1, miniseed2, miniseed2_reversed, miniseed3, miniseed3_reversed;
+	u32 temp, seedset, combinedSeed;
+	int i;
+
+	/* Setup seed for free running LFSR */
+	/* We are going to read the time stamp counter 3 times
+	   and swizzle bits around to increase randomness */
+	get_random_bytes(&miniseed1, sizeof(miniseed1));
+	miniseed1 &= 0x0fff;
+	if (miniseed1 == 0)
+		miniseed1 = 0xabc;
+
+	get_random_bytes(&miniseed2, sizeof(miniseed2));
+	miniseed2 &= 0x0fff;
+	if (miniseed2 == 0)
+		miniseed2 = 0xabc;
+	miniseed2_reversed =
+		((miniseed2 & 0xF00) >> 8) |
+		 (miniseed2 & 0x0F0) |
+		 ((miniseed2 & 0x00F) << 8);
+
+	get_random_bytes(&miniseed3, sizeof(miniseed3));
+	miniseed3 &= 0x0fff;
+	if (miniseed3 == 0)
+		miniseed3 = 0xabc;
+	miniseed3_reversed =
+		((miniseed3 & 0xF00) >> 8) |
+		 (miniseed3 & 0x0F0) |
+		 ((miniseed3 & 0x00F) << 8);
+
+	combinedSeed = ((miniseed1 ^ miniseed2_reversed) << 12) |
+		       (miniseed2 ^ miniseed3_reversed);
+
+	/* Seeds can not be zero */
+	if ((combinedSeed & NVREG_BKOFFCTRL_SEED_MASK) == 0)
+		combinedSeed |= 0x08;
+	if ((combinedSeed & (NVREG_BKOFFCTRL_SEED_MASK << NVREG_BKOFFCTRL_GEAR)) == 0)
+		combinedSeed |= 0x8000;
+
+	/* No need to disable tx here */
+	temp = NVREG_BKOFFCTRL_DEFAULT | (0 << NVREG_BKOFFCTRL_SELECT);
+	temp |= combinedSeed & NVREG_BKOFFCTRL_SEED_MASK;
+	temp |= combinedSeed >> NVREG_BKOFFCTRL_GEAR;
+	writel(temp,base + NvRegBackOffControl);
+
+    	/* Setup seeds for all gear LFSRs. */
+	get_random_bytes(&seedset, sizeof(seedset));
+	seedset = seedset % BACKOFF_SEEDSET_ROWS;
+	for (i = 1; i <= BACKOFF_SEEDSET_LFSRS; i++)
+	{
+		temp = NVREG_BKOFFCTRL_DEFAULT | (i << NVREG_BKOFFCTRL_SELECT);
+		temp |= main_seedset[seedset][i-1] & 0x3ff;
+		temp |= ((gear_seedset[seedset][i-1] & 0x3ff) << NVREG_BKOFFCTRL_GEAR);
+		writel(temp, base + NvRegBackOffControl);
+	}
 }
 
 /*
@@ -2153,6 +2306,8 @@ static void nv_tx_done(struct net_device *dev)
 						dev->stats.tx_fifo_errors++;
 					if (flags & NV_TX_CARRIERLOST)
 						dev->stats.tx_carrier_errors++;
+					if ((flags & NV_TX_RETRYERROR) && !(flags & NV_TX_RETRYCOUNT_MASK))
+						nv_legacybackoff_reseed(dev);
 					dev->stats.tx_errors++;
 				} else {
 					dev->stats.tx_packets++;
@@ -2168,6 +2323,8 @@ static void nv_tx_done(struct net_device *dev)
 						dev->stats.tx_fifo_errors++;
 					if (flags & NV_TX2_CARRIERLOST)
 						dev->stats.tx_carrier_errors++;
+					if ((flags & NV_TX2_RETRYERROR) && !(flags & NV_TX2_RETRYCOUNT_MASK))
+						nv_legacybackoff_reseed(dev);
 					dev->stats.tx_errors++;
 				} else {
 					dev->stats.tx_packets++;
@@ -2209,6 +2366,15 @@ static void nv_tx_done_optimized(struct net_device *dev, int limit)
 		if (flags & NV_TX2_LASTPACKET) {
 			if (!(flags & NV_TX2_ERROR))
 				dev->stats.tx_packets++;
+			else {
+				if ((flags & NV_TX2_RETRYERROR) && !(flags & NV_TX2_RETRYCOUNT_MASK)) {
+					if (np->driver_data & DEV_HAS_GEAR_MODE)
+						nv_gear_backoff_reseed(dev);
+					else
+						nv_legacybackoff_reseed(dev);
+				}
+			}
+
 			dev_kfree_skb_any(np->get_tx_ctx->skb);
 			np->get_tx_ctx->skb = NULL;
 
@@ -2260,7 +2426,7 @@ static void nv_tx_timeout(struct net_device *dev)
 		}
 		printk(KERN_INFO "%s: Dumping tx ring\n", dev->name);
 		for (i=0;i<np->tx_ring_size;i+= 4) {
-			if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+			if (!nv_optimized(np)) {
 				printk(KERN_INFO "%03x: %08x %08x // %08x %08x // %08x %08x // %08x %08x\n",
 				       i,
 				       le32_to_cpu(np->tx_ring.orig[i].buf),
@@ -2296,7 +2462,7 @@ static void nv_tx_timeout(struct net_device *dev)
 	nv_stop_tx(dev);
 
 	/* 2) check that the packets were not sent already: */
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+	if (!nv_optimized(np))
 		nv_tx_done(dev);
 	else
 		nv_tx_done_optimized(dev, np->tx_ring_size);
@@ -2663,12 +2829,10 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 		netif_tx_lock_bh(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
-		nv_stop_rx(dev);
-		nv_stop_tx(dev);
+		nv_stop_rxtx(dev);
 		nv_txrx_reset(dev);
 		/* drain rx queue */
-		nv_drain_rx(dev);
-		nv_drain_tx(dev);
+		nv_drain_rxtx(dev);
 		/* reinit driver view of the rx queue */
 		set_bufsize(dev);
 		if (nv_init_ring(dev)) {
@@ -2685,8 +2849,7 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 		pci_push(base);
 
 		/* restart rx engine */
-		nv_start_rx(dev);
-		nv_start_tx(dev);
+		nv_start_rxtx(dev);
 		spin_unlock(&np->lock);
 		netif_tx_unlock_bh(dev);
 		nv_enable_irq(dev);
@@ -2973,15 +3136,14 @@ set_speed:
 	}
 
 	if (np->gigabit == PHY_GIGABIT) {
-		phyreg = readl(base + NvRegRandomSeed);
+		phyreg = readl(base + NvRegSlotTime);
 		phyreg &= ~(0x3FF00);
-		if ((np->linkspeed & 0xFFF) == NVREG_LINKSPEED_10)
-			phyreg |= NVREG_RNDSEED_FORCE3;
-		else if ((np->linkspeed & 0xFFF) == NVREG_LINKSPEED_100)
-			phyreg |= NVREG_RNDSEED_FORCE2;
+		if (((np->linkspeed & 0xFFF) == NVREG_LINKSPEED_10) ||
+		    ((np->linkspeed & 0xFFF) == NVREG_LINKSPEED_100))
+			phyreg |= NVREG_SLOTTIME_10_100_FULL;
 		else if ((np->linkspeed & 0xFFF) == NVREG_LINKSPEED_1000)
-			phyreg |= NVREG_RNDSEED_FORCE;
-		writel(phyreg, base + NvRegRandomSeed);
+			phyreg |= NVREG_SLOTTIME_1000_FULL;
+		writel(phyreg, base + NvRegSlotTime);
 	}
 
 	phyreg = readl(base + NvRegPhyInterface);
@@ -3393,7 +3555,7 @@ static int nv_napi_poll(struct napi_struct *napi, int budget)
 	unsigned long flags;
 	int pkts, retcode;
 
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+	if (!nv_optimized(np)) {
 		pkts = nv_rx_process(dev, budget);
 		retcode = nv_alloc_rx(dev);
 	} else {
@@ -3634,7 +3796,7 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 	if (intr_test) {
 		handler = nv_nic_irq_test;
 	} else {
-		if (np->desc_ver == DESC_VER_3)
+		if (nv_optimized(np))
 			handler = nv_nic_irq_optimized;
 		else
 			handler = nv_nic_irq;
@@ -3787,12 +3949,10 @@ static void nv_do_nic_poll(unsigned long data)
 			netif_tx_lock_bh(dev);
 			spin_lock(&np->lock);
 			/* stop engines */
-			nv_stop_rx(dev);
-			nv_stop_tx(dev);
+			nv_stop_rxtx(dev);
 			nv_txrx_reset(dev);
 			/* drain rx queue */
-			nv_drain_rx(dev);
-			nv_drain_tx(dev);
+			nv_drain_rxtx(dev);
 			/* reinit driver view of the rx queue */
 			set_bufsize(dev);
 			if (nv_init_ring(dev)) {
@@ -3809,8 +3969,7 @@ static void nv_do_nic_poll(unsigned long data)
 			pci_push(base);
 
 			/* restart rx engine */
-			nv_start_rx(dev);
-			nv_start_tx(dev);
+			nv_start_rxtx(dev);
 			spin_unlock(&np->lock);
 			netif_tx_unlock_bh(dev);
 		}
@@ -3821,7 +3980,7 @@ static void nv_do_nic_poll(unsigned long data)
 	pci_push(base);
 
 	if (!using_multi_irqs(dev)) {
-		if (np->desc_ver == DESC_VER_3)
+		if (nv_optimized(np))
 			nv_nic_irq_optimized(0, dev);
 		else
 			nv_nic_irq(0, dev);
@@ -3860,7 +4019,8 @@ static void nv_do_stats_poll(unsigned long data)
 	nv_get_hw_stats(dev);
 
 	if (!np->in_shutdown)
-		mod_timer(&np->stats_poll, jiffies + STATS_INTERVAL);
+		mod_timer(&np->stats_poll,
+			round_jiffies(jiffies + STATS_INTERVAL));
 }
 
 static void nv_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
@@ -4018,8 +4178,7 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		netif_tx_lock_bh(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
-		nv_stop_rx(dev);
-		nv_stop_tx(dev);
+		nv_stop_rxtx(dev);
 		spin_unlock(&np->lock);
 		netif_tx_unlock_bh(dev);
 	}
@@ -4125,8 +4284,7 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	}
 
 	if (netif_running(dev)) {
-		nv_start_rx(dev);
-		nv_start_tx(dev);
+		nv_start_rxtx(dev);
 		nv_enable_irq(dev);
 	}
 
@@ -4169,8 +4327,7 @@ static int nv_nway_reset(struct net_device *dev)
 			netif_tx_lock_bh(dev);
 			spin_lock(&np->lock);
 			/* stop engines */
-			nv_stop_rx(dev);
-			nv_stop_tx(dev);
+			nv_stop_rxtx(dev);
 			spin_unlock(&np->lock);
 			netif_tx_unlock_bh(dev);
 			printk(KERN_INFO "%s: link down.\n", dev->name);
@@ -4190,8 +4347,7 @@ static int nv_nway_reset(struct net_device *dev)
 		}
 
 		if (netif_running(dev)) {
-			nv_start_rx(dev);
-			nv_start_tx(dev);
+			nv_start_rxtx(dev);
 			nv_enable_irq(dev);
 		}
 		ret = 0;
@@ -4248,7 +4404,7 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 	}
 
 	/* allocate new rings */
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+	if (!nv_optimized(np)) {
 		rxtx_ring = pci_alloc_consistent(np->pci_dev,
 					    sizeof(struct ring_desc) * (ring->rx_pending + ring->tx_pending),
 					    &ring_addr);
@@ -4261,7 +4417,7 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 	tx_skbuff = kmalloc(sizeof(struct nv_skb_map) * ring->tx_pending, GFP_KERNEL);
 	if (!rxtx_ring || !rx_skbuff || !tx_skbuff) {
 		/* fall back to old rings */
-		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+		if (!nv_optimized(np)) {
 			if (rxtx_ring)
 				pci_free_consistent(np->pci_dev, sizeof(struct ring_desc) * (ring->rx_pending + ring->tx_pending),
 						    rxtx_ring, ring_addr);
@@ -4282,12 +4438,10 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 		netif_tx_lock_bh(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
-		nv_stop_rx(dev);
-		nv_stop_tx(dev);
+		nv_stop_rxtx(dev);
 		nv_txrx_reset(dev);
 		/* drain queues */
-		nv_drain_rx(dev);
-		nv_drain_tx(dev);
+		nv_drain_rxtx(dev);
 		/* delete queues */
 		free_rings(dev);
 	}
@@ -4295,7 +4449,8 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 	/* set new values */
 	np->rx_ring_size = ring->rx_pending;
 	np->tx_ring_size = ring->tx_pending;
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+
+	if (!nv_optimized(np)) {
 		np->rx_ring.orig = (struct ring_desc*)rxtx_ring;
 		np->tx_ring.orig = &np->rx_ring.orig[np->rx_ring_size];
 	} else {
@@ -4327,8 +4482,7 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 		pci_push(base);
 
 		/* restart engines */
-		nv_start_rx(dev);
-		nv_start_tx(dev);
+		nv_start_rxtx(dev);
 		spin_unlock(&np->lock);
 		netif_tx_unlock_bh(dev);
 		nv_enable_irq(dev);
@@ -4369,8 +4523,7 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 		netif_tx_lock_bh(dev);
 		spin_lock(&np->lock);
 		/* stop engines */
-		nv_stop_rx(dev);
-		nv_stop_tx(dev);
+		nv_stop_rxtx(dev);
 		spin_unlock(&np->lock);
 		netif_tx_unlock_bh(dev);
 	}
@@ -4411,8 +4564,7 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 	}
 
 	if (netif_running(dev)) {
-		nv_start_rx(dev);
-		nv_start_tx(dev);
+		nv_start_rxtx(dev);
 		nv_enable_irq(dev);
 	}
 	return 0;
@@ -4648,8 +4800,7 @@ static int nv_loopback_test(struct net_device *dev)
 	pci_push(base);
 
 	/* restart rx engine */
-	nv_start_rx(dev);
-	nv_start_tx(dev);
+	nv_start_rxtx(dev);
 
 	/* setup packet for tx */
 	pkt_len = ETH_DATA_LEN;
@@ -4667,7 +4818,7 @@ static int nv_loopback_test(struct net_device *dev)
 	for (i = 0; i < pkt_len; i++)
 		pkt_data[i] = (u8)(i & 0xff);
 
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+	if (!nv_optimized(np)) {
 		np->tx_ring.orig[0].buf = cpu_to_le32(test_dma_addr);
 		np->tx_ring.orig[0].flaglen = cpu_to_le32((pkt_len-1) | np->tx_flags | tx_flags_extra);
 	} else {
@@ -4681,7 +4832,7 @@ static int nv_loopback_test(struct net_device *dev)
 	msleep(500);
 
 	/* check for rx of the packet */
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+	if (!nv_optimized(np)) {
 		flags = le32_to_cpu(np->rx_ring.orig[0].flaglen);
 		len = nv_descr_getlength(&np->rx_ring.orig[0], np->desc_ver);
 
@@ -4727,12 +4878,10 @@ static int nv_loopback_test(struct net_device *dev)
 	dev_kfree_skb_any(tx_skb);
  out:
 	/* stop engines */
-	nv_stop_rx(dev);
-	nv_stop_tx(dev);
+	nv_stop_rxtx(dev);
 	nv_txrx_reset(dev);
 	/* drain rx queue */
-	nv_drain_rx(dev);
-	nv_drain_tx(dev);
+	nv_drain_rxtx(dev);
 
 	if (netif_running(dev)) {
 		writel(misc1_flags, base + NvRegMisc1);
@@ -4770,12 +4919,10 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 				writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
 			}
 			/* stop engines */
-			nv_stop_rx(dev);
-			nv_stop_tx(dev);
+			nv_stop_rxtx(dev);
 			nv_txrx_reset(dev);
 			/* drain rx queue */
-			nv_drain_rx(dev);
-			nv_drain_tx(dev);
+			nv_drain_rxtx(dev);
 			spin_unlock_irq(&np->lock);
 			netif_tx_unlock_bh(dev);
 		}
@@ -4816,8 +4963,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 			writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
 			pci_push(base);
 			/* restart rx engine */
-			nv_start_rx(dev);
-			nv_start_tx(dev);
+			nv_start_rxtx(dev);
 			netif_start_queue(dev);
 #ifdef CONFIG_FORCEDETH_NAPI
 			napi_enable(&np->napi);
@@ -4927,6 +5073,7 @@ static int nv_open(struct net_device *dev)
 	u8 __iomem *base = get_hwbase(dev);
 	int ret = 1;
 	int oom, i;
+	u32 low;
 
 	dprintk(KERN_DEBUG "nv_open: begin\n");
 
@@ -4986,8 +5133,20 @@ static int nv_open(struct net_device *dev)
 	writel(np->rx_buf_sz, base + NvRegOffloadConfig);
 
 	writel(readl(base + NvRegReceiverStatus), base + NvRegReceiverStatus);
-	get_random_bytes(&i, sizeof(i));
-	writel(NVREG_RNDSEED_FORCE | (i&NVREG_RNDSEED_MASK), base + NvRegRandomSeed);
+
+	get_random_bytes(&low, sizeof(low));
+	low &= NVREG_SLOTTIME_MASK;
+	if (np->desc_ver == DESC_VER_1) {
+		writel(low|NVREG_SLOTTIME_DEFAULT, base + NvRegSlotTime);
+	} else {
+		if (!(np->driver_data & DEV_HAS_GEAR_MODE)) {
+			/* setup legacy backoff */
+			writel(NVREG_SLOTTIME_LEGBF_ENABLED|NVREG_SLOTTIME_10_100_FULL|low, base + NvRegSlotTime);
+		} else {
+			writel(NVREG_SLOTTIME_10_100_FULL, base + NvRegSlotTime);
+			nv_gear_backoff_reseed(dev);
+		}
+	}
 	writel(NVREG_TX_DEFERRAL_DEFAULT, base + NvRegTxDeferral);
 	writel(NVREG_RX_DEFERRAL_DEFAULT, base + NvRegRxDeferral);
 	if (poll_interval == -1) {
@@ -5046,8 +5205,7 @@ static int nv_open(struct net_device *dev)
 	 * to init hw */
 	np->linkspeed = 0;
 	ret = nv_update_linkspeed(dev);
-	nv_start_rx(dev);
-	nv_start_tx(dev);
+	nv_start_rxtx(dev);
 	netif_start_queue(dev);
 #ifdef CONFIG_FORCEDETH_NAPI
 	napi_enable(&np->napi);
@@ -5064,13 +5222,14 @@ static int nv_open(struct net_device *dev)
 
 	/* start statistics timer */
 	if (np->driver_data & (DEV_HAS_STATISTICS_V1|DEV_HAS_STATISTICS_V2))
-		mod_timer(&np->stats_poll, jiffies + STATS_INTERVAL);
+		mod_timer(&np->stats_poll,
+			round_jiffies(jiffies + STATS_INTERVAL));
 
 	spin_unlock_irq(&np->lock);
 
 	return 0;
 out_drain:
-	drain_ring(dev);
+	nv_drain_rxtx(dev);
 	return ret;
 }
 
@@ -5093,8 +5252,7 @@ static int nv_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 	spin_lock_irq(&np->lock);
-	nv_stop_tx(dev);
-	nv_stop_rx(dev);
+	nv_stop_rxtx(dev);
 	nv_txrx_reset(dev);
 
 	/* disable interrupts on the nic or we will lock up */
@@ -5107,7 +5265,7 @@ static int nv_close(struct net_device *dev)
 
 	nv_free_irq(dev);
 
-	drain_ring(dev);
+	nv_drain_rxtx(dev);
 
 	if (np->wolenabled) {
 		writel(NVREG_PFF_ALWAYS|NVREG_PFF_MYADDR, base + NvRegPacketFilterFlags);
@@ -5195,6 +5353,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 
 	/* copy of driver data */
 	np->driver_data = id->driver_data;
+	/* copy of device id */
+	np->device_id = id->device;
 
 	/* handle different descriptor versions */
 	if (id->driver_data & DEV_HAS_HIGH_DMA) {
@@ -5267,7 +5427,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	np->rx_ring_size = RX_RING_DEFAULT;
 	np->tx_ring_size = TX_RING_DEFAULT;
 
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
+	if (!nv_optimized(np)) {
 		np->rx_ring.orig = pci_alloc_consistent(pci_dev,
 					sizeof(struct ring_desc) * (np->rx_ring_size + np->tx_ring_size),
 					&np->ring_addr);
@@ -5289,7 +5449,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 
 	dev->open = nv_open;
 	dev->stop = nv_close;
-	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
+
+	if (!nv_optimized(np))
 		dev->hard_start_xmit = nv_start_xmit;
 	else
 		dev->hard_start_xmit = nv_start_xmit_optimized;
@@ -5483,6 +5644,14 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 			pci_name(pci_dev), id1, id2, phyaddr);
 		np->phyaddr = phyaddr;
 		np->phy_oui = id1 | id2;
+
+		/* Realtek hardcoded phy id1 to all zero's on certain phys */
+		if (np->phy_oui == PHY_OUI_REALTEK2)
+			np->phy_oui = PHY_OUI_REALTEK;
+		/* Setup phy revision for Realtek */
+		if (np->phy_oui == PHY_OUI_REALTEK && np->phy_model == PHY_MODEL_REALTEK_8211)
+			np->phy_rev = mii_rw(dev, phyaddr, MII_RESV1, MII_READ) & PHY_REV_MASK;
+
 		break;
 	}
 	if (i == 33) {
@@ -5561,6 +5730,28 @@ out:
 	return err;
 }
 
+static void nv_restore_phy(struct net_device *dev)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	u16 phy_reserved, mii_control;
+
+	if (np->phy_oui == PHY_OUI_REALTEK &&
+	    np->phy_model == PHY_MODEL_REALTEK_8201 &&
+	    phy_cross == NV_CROSSOVER_DETECTION_DISABLED) {
+		mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3);
+		phy_reserved = mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, MII_READ);
+		phy_reserved &= ~PHY_REALTEK_INIT_MSK1;
+		phy_reserved |= PHY_REALTEK_INIT8;
+		mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, phy_reserved);
+		mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1);
+
+		/* restart auto negotiation */
+		mii_control = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
+		mii_control |= (BMCR_ANRESTART | BMCR_ANENABLE);
+		mii_rw(dev, np->phyaddr, MII_BMCR, mii_control);
+	}
+}
+
 static void __devexit nv_remove(struct pci_dev *pci_dev)
 {
 	struct net_device *dev = pci_get_drvdata(pci_dev);
@@ -5576,6 +5767,9 @@ static void __devexit nv_remove(struct pci_dev *pci_dev)
 	writel(np->orig_mac[1], base + NvRegMacAddrB);
 	writel(readl(base + NvRegTransmitPoll) & ~NVREG_TRANSMITPOLL_MAC_ADDR_REV,
 	       base + NvRegTransmitPoll);
+
+	/* restore any phy related changes */
+	nv_restore_phy(dev);
 
 	/* free all structures */
 	free_rings(dev);
@@ -5716,83 +5910,83 @@ static struct pci_device_id pci_tbl[] = {
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_20),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_21),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_22),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP65 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_23),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_24),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_25),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_26),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP67 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_27),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP73 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_28),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP73 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_29),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP73 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_30),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP73 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_31),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL|DEV_HAS_MSI|DEV_HAS_PAUSEFRAME_TX_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP77 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_32),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP77 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_33),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP77 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_34),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP77 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_35),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V2|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP79 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_36),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP79 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_37),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP79 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_38),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{	/* MCP79 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_39),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_MSI|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX_V3|DEV_HAS_STATISTICS_V2|DEV_HAS_TEST_EXTENDED|DEV_HAS_MGMT_UNIT|DEV_HAS_CORRECT_MACADDR|DEV_HAS_COLLISION_FIX|DEV_NEED_TX_LIMIT|DEV_HAS_GEAR_MODE,
 	},
 	{0,},
 };
@@ -5828,6 +6022,8 @@ module_param(msix, int, 0);
 MODULE_PARM_DESC(msix, "MSIX interrupts are enabled by setting to 1 and disabled by setting to 0.");
 module_param(dma_64bit, int, 0);
 MODULE_PARM_DESC(dma_64bit, "High DMA is enabled by setting to 1 and disabled by setting to 0.");
+module_param(phy_cross, int, 0);
+MODULE_PARM_DESC(phy_cross, "Phy crossover detection for Realtek 8201 phy is enabled by setting to 1 and disabled by setting to 0.");
 
 MODULE_AUTHOR("Manfred Spraul <manfred@colorfullife.com>");
 MODULE_DESCRIPTION("Reverse Engineered nForce ethernet driver");

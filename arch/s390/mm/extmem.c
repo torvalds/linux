@@ -289,22 +289,8 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 
 	rc = add_shared_memory(seg->start_addr, seg->end - seg->start_addr + 1);
 
-	switch (rc) {
-	case 0:
-		break;
-	case -ENOSPC:
-		PRINT_WARN("segment_load: not loading segment %s - overlaps "
-			   "storage/segment\n", name);
+	if (rc)
 		goto out_free;
-	case -ERANGE:
-		PRINT_WARN("segment_load: not loading segment %s - exceeds "
-			   "kernel mapping range\n", name);
-		goto out_free;
-	default:
-		PRINT_WARN("segment_load: not loading segment %s (rc: %d)\n",
-			   name, rc);
-		goto out_free;
-	}
 
 	seg->res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	if (seg->res == NULL) {
@@ -582,8 +568,59 @@ out:
 	mutex_unlock(&dcss_lock);
 }
 
+/*
+ * print appropriate error message for segment_load()/segment_type()
+ * return code
+ */
+void segment_warning(int rc, char *seg_name)
+{
+	switch (rc) {
+	case -ENOENT:
+		PRINT_WARN("cannot load/query segment %s, "
+			   "does not exist\n", seg_name);
+		break;
+	case -ENOSYS:
+		PRINT_WARN("cannot load/query segment %s, "
+			   "not running on VM\n", seg_name);
+		break;
+	case -EIO:
+		PRINT_WARN("cannot load/query segment %s, "
+			   "hardware error\n", seg_name);
+		break;
+	case -ENOTSUPP:
+		PRINT_WARN("cannot load/query segment %s, "
+			   "is a multi-part segment\n", seg_name);
+		break;
+	case -ENOSPC:
+		PRINT_WARN("cannot load/query segment %s, "
+			   "overlaps with storage\n", seg_name);
+		break;
+	case -EBUSY:
+		PRINT_WARN("cannot load/query segment %s, "
+			   "overlaps with already loaded dcss\n", seg_name);
+		break;
+	case -EPERM:
+		PRINT_WARN("cannot load/query segment %s, "
+			   "already loaded in incompatible mode\n", seg_name);
+		break;
+	case -ENOMEM:
+		PRINT_WARN("cannot load/query segment %s, "
+			   "out of memory\n", seg_name);
+		break;
+	case -ERANGE:
+		PRINT_WARN("cannot load/query segment %s, "
+			   "exceeds kernel mapping range\n", seg_name);
+		break;
+	default:
+		PRINT_WARN("cannot load/query segment %s, "
+			   "return value %i\n", seg_name, rc);
+		break;
+	}
+}
+
 EXPORT_SYMBOL(segment_load);
 EXPORT_SYMBOL(segment_unload);
 EXPORT_SYMBOL(segment_save);
 EXPORT_SYMBOL(segment_type);
 EXPORT_SYMBOL(segment_modify_shared);
+EXPORT_SYMBOL(segment_warning);

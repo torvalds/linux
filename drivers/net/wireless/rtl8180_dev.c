@@ -49,6 +49,41 @@ static struct pci_device_id rtl8180_table[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, rtl8180_table);
 
+static const struct ieee80211_rate rtl818x_rates[] = {
+	{ .bitrate = 10, .hw_value = 0, },
+	{ .bitrate = 20, .hw_value = 1, },
+	{ .bitrate = 55, .hw_value = 2, },
+	{ .bitrate = 110, .hw_value = 3, },
+	{ .bitrate = 60, .hw_value = 4, },
+	{ .bitrate = 90, .hw_value = 5, },
+	{ .bitrate = 120, .hw_value = 6, },
+	{ .bitrate = 180, .hw_value = 7, },
+	{ .bitrate = 240, .hw_value = 8, },
+	{ .bitrate = 360, .hw_value = 9, },
+	{ .bitrate = 480, .hw_value = 10, },
+	{ .bitrate = 540, .hw_value = 11, },
+};
+
+static const struct ieee80211_channel rtl818x_channels[] = {
+	{ .center_freq = 2412 },
+	{ .center_freq = 2417 },
+	{ .center_freq = 2422 },
+	{ .center_freq = 2427 },
+	{ .center_freq = 2432 },
+	{ .center_freq = 2437 },
+	{ .center_freq = 2442 },
+	{ .center_freq = 2447 },
+	{ .center_freq = 2452 },
+	{ .center_freq = 2457 },
+	{ .center_freq = 2462 },
+	{ .center_freq = 2467 },
+	{ .center_freq = 2472 },
+	{ .center_freq = 2484 },
+};
+
+
+
+
 void rtl8180_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 {
 	struct rtl8180_priv *priv = dev->priv;
@@ -99,10 +134,10 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			/* TODO: improve signal/rssi reporting */
 			rx_status.signal = flags2 & 0xFF;
 			rx_status.ssi = (flags2 >> 8) & 0x7F;
-			rx_status.rate = (flags >> 20) & 0xF;
-			rx_status.freq = dev->conf.freq;
-			rx_status.channel = dev->conf.channel;
-			rx_status.phymode = dev->conf.phymode;
+			/* XXX: is this correct? */
+			rx_status.rate_idx = (flags >> 20) & 0xF;
+			rx_status.freq = dev->conf.channel->center_freq;
+			rx_status.band = dev->conf.channel->band;
 			rx_status.mactime = le64_to_cpu(entry->tsft);
 			rx_status.flag |= RX_FLAG_TSFT;
 			if (flags & RTL8180_RX_DESC_FLAG_CRC32_ERR)
@@ -222,18 +257,25 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	mapping = pci_map_single(priv->pdev, skb->data,
 				 skb->len, PCI_DMA_TODEVICE);
 
+	BUG_ON(!control->tx_rate);
+
 	tx_flags = RTL8180_TX_DESC_FLAG_OWN | RTL8180_TX_DESC_FLAG_FS |
-		   RTL8180_TX_DESC_FLAG_LS | (control->tx_rate << 24) |
-		   (control->rts_cts_rate << 19) | skb->len;
+		   RTL8180_TX_DESC_FLAG_LS |
+		   (control->tx_rate->hw_value << 24) | skb->len;
 
 	if (priv->r8185)
 		tx_flags |= RTL8180_TX_DESC_FLAG_DMA |
 			    RTL8180_TX_DESC_FLAG_NO_ENC;
 
-	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS)
+	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
+		BUG_ON(!control->rts_cts_rate);
 		tx_flags |= RTL8180_TX_DESC_FLAG_RTS;
-	else if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
+		tx_flags |= control->rts_cts_rate->hw_value << 19;
+	} else if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT) {
+		BUG_ON(!control->rts_cts_rate);
 		tx_flags |= RTL8180_TX_DESC_FLAG_CTS;
+		tx_flags |= control->rts_cts_rate->hw_value << 19;
+	}
 
 	*((struct ieee80211_tx_control **) skb->cb) =
 		kmemdup(control, sizeof(*control), GFP_ATOMIC);
@@ -246,9 +288,9 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 		unsigned int remainder;
 
 		plcp_len = DIV_ROUND_UP(16 * (skb->len + 4),
-					(control->rate->rate * 2) / 10);
+					(control->tx_rate->bitrate * 2) / 10);
 		remainder = (16 * (skb->len + 4)) %
-			    ((control->rate->rate * 2) / 10);
+			    ((control->tx_rate->bitrate * 2) / 10);
 		if (remainder > 0 && remainder <= 6)
 			plcp_len |= 1 << 15;
 	}
@@ -261,8 +303,8 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	entry->plcp_len = cpu_to_le16(plcp_len);
 	entry->tx_buf = cpu_to_le32(mapping);
 	entry->frame_len = cpu_to_le32(skb->len);
-	entry->flags2 = control->alt_retry_rate != -1 ?
-			control->alt_retry_rate << 4 : 0;
+	entry->flags2 = control->alt_retry_rate != NULL ?
+			control->alt_retry_rate->bitrate << 4 : 0;
 	entry->retry_limit = control->retry_limit;
 	entry->flags = cpu_to_le32(tx_flags);
 	__skb_queue_tail(&ring->queue, skb);
@@ -646,9 +688,9 @@ static int rtl8180_add_interface(struct ieee80211_hw *dev,
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	rtl818x_iowrite32(priv, (__le32 __iomem *)&priv->map->MAC[0],
-			  cpu_to_le32(*(u32 *)conf->mac_addr));
+			  le32_to_cpu(*(__le32 *)conf->mac_addr));
 	rtl818x_iowrite16(priv, (__le16 __iomem *)&priv->map->MAC[4],
-			  cpu_to_le16(*(u16 *)(conf->mac_addr + 4)));
+			  le16_to_cpu(*(__le16 *)(conf->mac_addr + 4)));
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 
 	return 0;
@@ -838,19 +880,19 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 		goto err_free_dev;
 	}
 
+	BUILD_BUG_ON(sizeof(priv->channels) != sizeof(rtl818x_channels));
+	BUILD_BUG_ON(sizeof(priv->rates) != sizeof(rtl818x_rates));
+
 	memcpy(priv->channels, rtl818x_channels, sizeof(rtl818x_channels));
 	memcpy(priv->rates, rtl818x_rates, sizeof(rtl818x_rates));
-	priv->modes[0].mode = MODE_IEEE80211G;
-	priv->modes[0].num_rates = ARRAY_SIZE(rtl818x_rates);
-	priv->modes[0].rates = priv->rates;
-	priv->modes[0].num_channels = ARRAY_SIZE(rtl818x_channels);
-	priv->modes[0].channels = priv->channels;
-	priv->modes[1].mode = MODE_IEEE80211B;
-	priv->modes[1].num_rates = 4;
-	priv->modes[1].rates = priv->rates;
-	priv->modes[1].num_channels = ARRAY_SIZE(rtl818x_channels);
-	priv->modes[1].channels = priv->channels;
-	priv->mode = IEEE80211_IF_TYPE_INVALID;
+
+	priv->band.band = IEEE80211_BAND_2GHZ;
+	priv->band.channels = priv->channels;
+	priv->band.n_channels = ARRAY_SIZE(rtl818x_channels);
+	priv->band.bitrates = priv->rates;
+	priv->band.n_bitrates = 4;
+	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
+
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		     IEEE80211_HW_RX_INCLUDES_FCS;
 	dev->queues = 1;
@@ -879,14 +921,9 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 
 	priv->r8185 = reg & RTL818X_TX_CONF_R8185_ABC;
 	if (priv->r8185) {
-		if ((err = ieee80211_register_hwmode(dev, &priv->modes[0])))
-			goto err_iounmap;
-
+		priv->band.n_bitrates = ARRAY_SIZE(rtl818x_rates);
 		pci_try_set_mwi(pdev);
 	}
-
-	if ((err = ieee80211_register_hwmode(dev, &priv->modes[1])))
-		goto err_iounmap;
 
 	eeprom.data = dev;
 	eeprom.register_read = rtl8180_eeprom_register_read;
@@ -950,8 +987,8 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	for (i = 0; i < 14; i += 2) {
 		u16 txpwr;
 		eeprom_93cx6_read(&eeprom, 0x10 + (i >> 1), &txpwr);
-		priv->channels[i].val = txpwr & 0xFF;
-		priv->channels[i + 1].val = txpwr >> 8;
+		priv->channels[i].hw_value = txpwr & 0xFF;
+		priv->channels[i + 1].hw_value = txpwr >> 8;
 	}
 
 	/* OFDM TX power */
@@ -959,8 +996,8 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 		for (i = 0; i < 14; i += 2) {
 			u16 txpwr;
 			eeprom_93cx6_read(&eeprom, 0x20 + (i >> 1), &txpwr);
-			priv->channels[i].val |= (txpwr & 0xFF) << 8;
-			priv->channels[i + 1].val |= txpwr & 0xFF00;
+			priv->channels[i].hw_value |= (txpwr & 0xFF) << 8;
+			priv->channels[i + 1].hw_value |= txpwr & 0xFF00;
 		}
 	}
 

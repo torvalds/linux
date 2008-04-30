@@ -155,6 +155,7 @@ typedef struct kernel_cap_struct {
  *   Add any capability from current's capability bounding set
  *       to the current process' inheritable set
  *   Allow taking bits out of capability bounding set
+ *   Allow modification of the securebits for a process
  */
 
 #define CAP_SETPCAP          8
@@ -489,8 +490,6 @@ extern const kernel_cap_t __cap_init_eff_set;
 
 int capable(int cap);
 int __capable(struct task_struct *t, int cap);
-
-extern long cap_prctl_drop(unsigned long cap);
 
 #endif /* __KERNEL__ */
 

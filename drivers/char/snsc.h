@@ -22,8 +22,8 @@
 #include <linux/kobject.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
+#include <linux/semaphore.h>
 #include <asm/sn/types.h>
-#include <asm/semaphore.h>
 
 #define CHUNKSIZE 127
 

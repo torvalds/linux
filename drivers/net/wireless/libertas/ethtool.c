@@ -6,7 +6,6 @@
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"
-#include "join.h"
 #include "wext.h"
 #include "cmd.h"
 
@@ -25,13 +24,14 @@ static void lbs_ethtool_get_drvinfo(struct net_device *dev,
 					 struct ethtool_drvinfo *info)
 {
 	struct lbs_private *priv = (struct lbs_private *) dev->priv;
-	char fwver[32];
 
-	lbs_get_fwversion(priv, fwver, sizeof(fwver) - 1);
-
+	snprintf(info->fw_version, 32, "%u.%u.%u.p%u",
+		priv->fwrelease >> 24 & 0xff,
+		priv->fwrelease >> 16 & 0xff,
+		priv->fwrelease >>  8 & 0xff,
+		priv->fwrelease       & 0xff);
 	strcpy(info->driver, "libertas");
 	strcpy(info->version, lbs_driver_version);
-	strcpy(info->fw_version, fwver);
 }
 
 /* All 8388 parts have 16KiB EEPROM size at the time of writing.
@@ -48,61 +48,28 @@ static int lbs_ethtool_get_eeprom(struct net_device *dev,
                                   struct ethtool_eeprom *eeprom, u8 * bytes)
 {
 	struct lbs_private *priv = (struct lbs_private *) dev->priv;
-	struct lbs_ioctl_regrdwr regctrl;
-	char *ptr;
+	struct cmd_ds_802_11_eeprom_access cmd;
 	int ret;
 
-	regctrl.action = 0;
-	regctrl.offset = eeprom->offset;
-	regctrl.NOB = eeprom->len;
+	lbs_deb_enter(LBS_DEB_ETHTOOL);
 
-	if (eeprom->offset + eeprom->len > LBS_EEPROM_LEN)
-		return -EINVAL;
-
-//      mutex_lock(&priv->mutex);
-
-	priv->prdeeprom = kmalloc(eeprom->len+sizeof(regctrl), GFP_KERNEL);
-	if (!priv->prdeeprom)
-		return -ENOMEM;
-	memcpy(priv->prdeeprom, &regctrl, sizeof(regctrl));
-
-	/* +14 is for action, offset, and NOB in
-	 * response */
-	lbs_deb_ethtool("action:%d offset: %x NOB: %02x\n",
-	       regctrl.action, regctrl.offset, regctrl.NOB);
-
-	ret = lbs_prepare_and_send_command(priv,
-				    CMD_802_11_EEPROM_ACCESS,
-				    regctrl.action,
-				    CMD_OPTION_WAITFORRSP, 0,
-				    &regctrl);
-
-	if (ret) {
-		if (priv->prdeeprom)
-			kfree(priv->prdeeprom);
-		goto done;
+	if (eeprom->offset + eeprom->len > LBS_EEPROM_LEN ||
+	    eeprom->len > LBS_EEPROM_READ_LEN) {
+		ret = -EINVAL;
+		goto out;
 	}
 
-	mdelay(10);
+	cmd.hdr.size = cpu_to_le16(sizeof(struct cmd_ds_802_11_eeprom_access) -
+		LBS_EEPROM_READ_LEN + eeprom->len);
+	cmd.action = cpu_to_le16(CMD_ACT_GET);
+	cmd.offset = cpu_to_le16(eeprom->offset);
+	cmd.len    = cpu_to_le16(eeprom->len);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_EEPROM_ACCESS, &cmd);
+	if (!ret)
+		memcpy(bytes, cmd.value, eeprom->len);
 
-	ptr = (char *)priv->prdeeprom;
-
-	/* skip the command header, but include the "value" u32 variable */
-	ptr = ptr + sizeof(struct lbs_ioctl_regrdwr) - 4;
-
-	/*
-	 * Return the result back to the user
-	 */
-	memcpy(bytes, ptr, eeprom->len);
-
-	if (priv->prdeeprom)
-		kfree(priv->prdeeprom);
-//	mutex_unlock(&priv->mutex);
-
-	ret = 0;
-
-done:
-	lbs_deb_enter_args(LBS_DEB_ETHTOOL, "ret %d", ret);
+out:
+	lbs_deb_leave_args(LBS_DEB_ETHTOOL, "ret %d", ret);
         return ret;
 }
 

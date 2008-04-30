@@ -25,15 +25,14 @@ struct nf_conntrack_l4proto
 
 	/* Try to fill in the third arg: dataoff is offset past network protocol
            hdr.  Return true if possible. */
-	int (*pkt_to_tuple)(const struct sk_buff *skb,
-			    unsigned int dataoff,
-			    struct nf_conntrack_tuple *tuple);
+	bool (*pkt_to_tuple)(const struct sk_buff *skb, unsigned int dataoff,
+			     struct nf_conntrack_tuple *tuple);
 
 	/* Invert the per-proto part of the tuple: ie. turn xmit into reply.
 	 * Some packets can't be inverted: return 0 in that case.
 	 */
-	int (*invert_tuple)(struct nf_conntrack_tuple *inverse,
-			    const struct nf_conntrack_tuple *orig);
+	bool (*invert_tuple)(struct nf_conntrack_tuple *inverse,
+			     const struct nf_conntrack_tuple *orig);
 
 	/* Returns verdict for packet, or -1 for invalid. */
 	int (*packet)(struct nf_conn *ct,
@@ -45,8 +44,8 @@ struct nf_conntrack_l4proto
 
 	/* Called when a new connection for this protocol found;
 	 * returns TRUE if it's OK.  If so, packet() called next. */
-	int (*new)(struct nf_conn *ct, const struct sk_buff *skb,
-		   unsigned int dataoff);
+	bool (*new)(struct nf_conn *ct, const struct sk_buff *skb,
+		    unsigned int dataoff);
 
 	/* Called when a conntrack entry is destroyed */
 	void (*destroy)(struct nf_conn *ct);

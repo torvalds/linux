@@ -18,7 +18,7 @@ extern struct pglist_data *node_data[];
 	#include <asm/srat.h>
 #endif
 
-extern int get_memcfg_numa_flat(void );
+extern int get_memcfg_numa_flat(void);
 /*
  * This allows any one NUMA architecture to be compiled
  * for, and still fall back to the flat function if it
@@ -129,7 +129,7 @@ static inline int pfn_valid(int pfn)
 	struct pglist_data  __maybe_unused			\
 				*__alloc_bootmem_node__pgdat = (pgdat);	\
 	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE,		\
-						__pa(MAX_DMA_ADDRESS))	\
+						__pa(MAX_DMA_ADDRESS));	\
 })
 #define alloc_bootmem_low_pages_node(pgdat, x)				\
 ({									\

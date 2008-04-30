@@ -26,7 +26,14 @@
 #include <linux/spinlock.h>
 #include <linux/phy.h>
 
+/* Must be a power of two */
+#define RX_RING_SIZE 2048
+#define TX_RING_SIZE 4096
+#define CS_RING_SIZE (TX_RING_SIZE*2)
+
+
 #define MAX_LRO_DESCRIPTORS 8
+#define MAX_CS	2
 
 struct pasemi_mac_txring {
 	struct pasemi_dmachan chan; /* Must be first */
@@ -51,6 +58,15 @@ struct pasemi_mac_rxring {
 	struct pasemi_mac *mac;	/* Needed in intr handler */
 };
 
+struct pasemi_mac_csring {
+	struct pasemi_dmachan chan;
+	unsigned int	size;
+	unsigned int	next_to_fill;
+	int		events[2];
+	int		last_event;
+	int		fun;
+};
+
 struct pasemi_mac {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
@@ -60,10 +76,12 @@ struct pasemi_mac {
 	struct napi_struct napi;
 
 	int		bufsz; /* RX ring buffer size */
+	int		last_cs;
+	int		num_cs;
+	u32		dma_if;
 	u8		type;
 #define MAC_TYPE_GMAC	1
 #define MAC_TYPE_XAUI	2
-	u32	dma_if;
 
 	u8		mac_addr[6];
 
@@ -74,6 +92,7 @@ struct pasemi_mac {
 
 	struct pasemi_mac_txring *tx;
 	struct pasemi_mac_rxring *rx;
+	struct pasemi_mac_csring *cs[MAX_CS];
 	char		tx_irq_name[10];		/* "eth%d tx" */
 	char		rx_irq_name[10];		/* "eth%d rx" */
 	int	link;
@@ -90,6 +109,16 @@ struct pasemi_mac_buffer {
 	dma_addr_t	dma;
 };
 
+#define TX_DESC(tx, num)	((tx)->chan.ring_virt[(num) & (TX_RING_SIZE-1)])
+#define TX_DESC_INFO(tx, num)	((tx)->ring_info[(num) & (TX_RING_SIZE-1)])
+#define RX_DESC(rx, num)	((rx)->chan.ring_virt[(num) & (RX_RING_SIZE-1)])
+#define RX_DESC_INFO(rx, num)	((rx)->ring_info[(num) & (RX_RING_SIZE-1)])
+#define RX_BUFF(rx, num)	((rx)->buffers[(num) & (RX_RING_SIZE-1)])
+#define CS_DESC(cs, num)	((cs)->chan.ring_virt[(num) & (CS_RING_SIZE-1)])
+
+#define RING_USED(ring)	(((ring)->next_to_fill - (ring)->next_to_clean) \
+				& ((ring)->size - 1))
+#define RING_AVAIL(ring)	((ring->size) - RING_USED(ring))
 
 /* PCI register offsets and formats */
 
@@ -101,6 +130,7 @@ enum {
 	PAS_MAC_CFG_ADR0 = 0x8c,
 	PAS_MAC_CFG_ADR1 = 0x90,
 	PAS_MAC_CFG_TXP = 0x98,
+	PAS_MAC_CFG_RMON = 0x100,
 	PAS_MAC_IPC_CHNL = 0x208,
 };
 
@@ -172,6 +202,8 @@ enum {
 #define PAS_MAC_CFG_TXP_TIFG(x)		(((x) << PAS_MAC_CFG_TXP_TIFG_S) & \
 					 PAS_MAC_CFG_TXP_TIFG_M)
 
+#define PAS_MAC_RMON(r)			(0x100+(r)*4)
+
 #define PAS_MAC_IPC_CHNL_DCHNO_M	0x003f0000
 #define PAS_MAC_IPC_CHNL_DCHNO_S	16
 #define PAS_MAC_IPC_CHNL_DCHNO(x)	(((x) << PAS_MAC_IPC_CHNL_DCHNO_S) & \
@@ -180,5 +212,6 @@ enum {
 #define PAS_MAC_IPC_CHNL_BCH_S		0
 #define PAS_MAC_IPC_CHNL_BCH(x)		(((x) << PAS_MAC_IPC_CHNL_BCH_S) & \
 					 PAS_MAC_IPC_CHNL_BCH_M)
+
 
 #endif /* PASEMI_MAC_H */

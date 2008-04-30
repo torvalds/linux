@@ -18,8 +18,6 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 
-#include <asm/semaphore.h>
-
 #include "clock.h"
 
 static LIST_HEAD(clocks);

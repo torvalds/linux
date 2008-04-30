@@ -20,9 +20,7 @@ struct nf_conntrack_helper
 
 	const char *name;		/* name of the module */
 	struct module *me;		/* pointer to self */
-	unsigned int max_expected;	/* Maximum number of concurrent 
-					 * expected connections */
-	unsigned int timeout;		/* timeout for expecteds */
+	const struct nf_conntrack_expect_policy *expect_policy;
 
 	/* Tuple of things we will help (compared against server response) */
 	struct nf_conntrack_tuple tuple;
@@ -37,6 +35,7 @@ struct nf_conntrack_helper
 	void (*destroy)(struct nf_conn *ct);
 
 	int (*to_nlattr)(struct sk_buff *skb, const struct nf_conn *ct);
+	unsigned int expect_class_max;
 };
 
 extern struct nf_conntrack_helper *

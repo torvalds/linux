@@ -29,6 +29,7 @@
 #include <asm/mach/arch.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxa2xx_spi.h>
 #include <asm/arch/pcm027.h>

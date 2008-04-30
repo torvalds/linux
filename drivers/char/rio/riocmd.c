@@ -41,7 +41,6 @@ static char *_riocmd_c_sccs_ = "@(#)riocmd.c	1.2";
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/string.h>
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include <linux/termios.h>

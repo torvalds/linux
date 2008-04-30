@@ -202,7 +202,10 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			break;
 
 		case MLX4_EVENT_TYPE_PORT_CHANGE:
-			mlx4_dispatch_event(dev, eqe->type, eqe->subtype,
+			mlx4_dispatch_event(dev,
+					    eqe->subtype == MLX4_PORT_CHANGE_SUBTYPE_ACTIVE ?
+					    MLX4_DEV_EVENT_PORT_UP :
+					    MLX4_DEV_EVENT_PORT_DOWN,
 					    be32_to_cpu(eqe->event.port_change.port) >> 28);
 			break;
 

@@ -1573,7 +1573,6 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 	send_wr.sg_list = req->rl_send_iov;
 	send_wr.num_sge = req->rl_niovs;
 	send_wr.opcode = IB_WR_SEND;
-	send_wr.imm_data = 0;
 	if (send_wr.num_sge == 4)	/* no need to sync any pad (constant) */
 		ib_dma_sync_single_for_device(ia->ri_id->device,
 			req->rl_send_iov[3].addr, req->rl_send_iov[3].length,

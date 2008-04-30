@@ -87,8 +87,8 @@ void c2_free_mqsp_pool(struct c2_dev *c2dev, struct sp_chunk *root)
 	}
 }
 
-u16 *c2_alloc_mqsp(struct c2_dev *c2dev, struct sp_chunk *head,
-		   dma_addr_t *dma_addr, gfp_t gfp_mask)
+__be16 *c2_alloc_mqsp(struct c2_dev *c2dev, struct sp_chunk *head,
+		      dma_addr_t *dma_addr, gfp_t gfp_mask)
 {
 	u16 mqsp;
 
@@ -113,14 +113,14 @@ u16 *c2_alloc_mqsp(struct c2_dev *c2dev, struct sp_chunk *head,
 		*dma_addr = head->dma_addr +
 			    ((unsigned long) &(head->shared_ptr[mqsp]) -
 			     (unsigned long) head);
-		pr_debug("%s addr %p dma_addr %llx\n", __FUNCTION__,
+		pr_debug("%s addr %p dma_addr %llx\n", __func__,
 			 &(head->shared_ptr[mqsp]), (unsigned long long) *dma_addr);
-		return &(head->shared_ptr[mqsp]);
+		return (__force __be16 *) &(head->shared_ptr[mqsp]);
 	}
 	return NULL;
 }
 
-void c2_free_mqsp(u16 * mqsp)
+void c2_free_mqsp(__be16 *mqsp)
 {
 	struct sp_chunk *head;
 	u16 idx;
@@ -129,7 +129,7 @@ void c2_free_mqsp(u16 * mqsp)
 	head = (struct sp_chunk *) ((unsigned long) mqsp & PAGE_MASK);
 
 	/* Link head to new mqsp */
-	*mqsp = head->head;
+	*mqsp = (__force __be16) head->head;
 
 	/* Compute the shared_ptr index */
 	idx = ((unsigned long) mqsp & ~PAGE_MASK) >> 1;

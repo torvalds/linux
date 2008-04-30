@@ -13,7 +13,7 @@ struct slip_init {
 	char *gate_addr;
 };
 
-void slip_init(struct net_device *dev, void *data)
+static void slip_init(struct net_device *dev, void *data)
 {
 	struct uml_net_private *private;
 	struct slip_data *spri;
@@ -57,7 +57,7 @@ static int slip_write(int fd, struct sk_buff *skb, struct uml_net_private *lp)
 			       (struct slip_data *) &lp->user);
 }
 
-const struct net_kern_info slip_kern_info = {
+static const struct net_kern_info slip_kern_info = {
 	.init			= slip_init,
 	.protocol		= slip_protocol,
 	.read			= slip_read,

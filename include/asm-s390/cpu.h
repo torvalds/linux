@@ -22,4 +22,12 @@ struct s390_idle_data {
 
 DECLARE_PER_CPU(struct s390_idle_data, s390_idle);
 
+void s390_idle_leave(void);
+
+static inline void s390_idle_check(void)
+{
+	if ((&__get_cpu_var(s390_idle))->in_idle)
+		s390_idle_leave();
+}
+
 #endif /* _ASM_S390_CPU_H_ */

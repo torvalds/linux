@@ -5,7 +5,7 @@
 extra-y	:= head_32.o init_task.o vmlinux.lds
 
 obj-y	:= debugtraps.o io.o io_generic.o irq.o machvec.o process_32.o \
-	   ptrace_32.o semaphore.o setup.o signal_32.o sys_sh.o sys_sh32.o \
+	   ptrace_32.o setup.o signal_32.o sys_sh.o sys_sh32.o \
 	   syscalls_32.o time_32.o topology.o traps.o traps_32.o
 
 obj-y				+= cpu/ timers/

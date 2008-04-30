@@ -185,7 +185,7 @@ static struct usb_driver mts_usb_driver = {
 	printk( KERN_DEBUG MTS_NAME x )
 
 #define MTS_DEBUG_GOT_HERE() \
-	MTS_DEBUG("got to %s:%d (%s)\n", __FILE__, (int)__LINE__, __PRETTY_FUNCTION__ )
+	MTS_DEBUG("got to %s:%d (%s)\n", __FILE__, (int)__LINE__, __func__ )
 #define MTS_DEBUG_INT() \
 	do { MTS_DEBUG_GOT_HERE(); \
 	     MTS_DEBUG("transfer = 0x%x context = 0x%x\n",(int)transfer,(int)context ); \
@@ -794,7 +794,6 @@ static int mts_usb_probe(struct usb_interface *intf,
 
 	new_desc->usb_dev = dev;
 	new_desc->usb_intf = intf;
-	init_MUTEX(&new_desc->lock);
 
 	/* endpoints */
 	new_desc->ep_out = ep_out;

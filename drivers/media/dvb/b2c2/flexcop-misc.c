@@ -52,6 +52,8 @@ static const char *flexcop_device_names[] = {
 	"Sky2PC/SkyStar 2 DVB-S (old version)",
 	"Cable2PC/CableStar 2 DVB-C",
 	"Air2PC/AirStar 2 ATSC 3rd generation (HD5000)",
+	"Sky2PC/SkyStar 2 DVB-S rev 2.7a/u",
+	"Sky2PC/SkyStar 2 DVB-S rev 2.8",
 };
 
 static const char *flexcop_bus_names[] = {

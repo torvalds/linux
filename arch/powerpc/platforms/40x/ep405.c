@@ -29,6 +29,7 @@
 #include <asm/time.h>
 #include <asm/uic.h>
 #include <asm/pci-bridge.h>
+#include <asm/ppc4xx.h>
 
 static struct device_node *bcsr_node;
 static void __iomem *bcsr_regs;
@@ -119,5 +120,6 @@ define_machine(ep405) {
 	.progress		= udbg_progress,
 	.init_IRQ		= uic_init_tree,
 	.get_irq		= uic_get_irq,
+	.restart		= ppc4xx_reset_system,
 	.calibrate_decr		= generic_calibrate_decr,
 };

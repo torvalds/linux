@@ -1,6 +1,10 @@
 #ifndef __RADEONFB_H__
 #define __RADEONFB_H__
 
+#ifdef CONFIG_FB_RADEON_DEBUG
+#define DEBUG		1
+#endif
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -362,22 +366,6 @@ struct radeonfb_info {
 
 
 #define PRIMARY_MONITOR(rinfo)	(rinfo->mon1_type)
-
-
-/*
- * Debugging stuffs
- */
-#ifdef CONFIG_FB_RADEON_DEBUG
-#define DEBUG		1
-#else
-#define DEBUG		0
-#endif
-
-#if DEBUG
-#define RTRACE		printk
-#else
-#define RTRACE		if(0) printk
-#endif
 
 
 /*

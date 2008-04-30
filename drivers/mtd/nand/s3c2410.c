@@ -119,8 +119,7 @@ struct s3c2410_nand_info {
 	void __iomem			*sel_reg;
 	int				sel_bit;
 	int				mtd_count;
-
-	unsigned long			save_nfconf;
+	unsigned long			save_sel;
 
 	enum s3c_cpu_type		cpu_type;
 };
@@ -358,6 +357,14 @@ static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	if (diff0 == 0 && diff1 == 0 && diff2 == 0)
 		return 0;		/* ECC is ok */
 
+	/* sometimes people do not think about using the ECC, so check
+	 * to see if we have an 0xff,0xff,0xff read ECC and then ignore
+	 * the error, on the assumption that this is an un-eccd page.
+	 */
+	if (read_ecc[0] == 0xff && read_ecc[1] == 0xff && read_ecc[2] == 0xff
+	    && info->platform->ignore_unset_ecc)
+		return 0;
+
 	/* Can we correct this ECC (ie, one row and column change).
 	 * Note, this is similar to the 256 error code on smartmedia */
 
@@ -473,7 +480,7 @@ static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 	ecc_code[1] = ecc >> 8;
 	ecc_code[2] = ecc >> 16;
 
-	pr_debug("%s: returning ecc %06lx\n", __func__, ecc);
+	pr_debug("%s: returning ecc %06lx\n", __func__, ecc & 0xffffff);
 
 	return 0;
 }
@@ -644,9 +651,6 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		chip->ecc.calculate = s3c2410_nand_calculate_ecc;
 		chip->ecc.correct   = s3c2410_nand_correct_data;
 		chip->ecc.mode	    = NAND_ECC_HW;
-		chip->ecc.size	    = 512;
-		chip->ecc.bytes	    = 3;
-		chip->ecc.layout    = &nand_hw_eccoob;
 
 		switch (info->cpu_type) {
 		case TYPE_S3C2410:
@@ -667,6 +671,40 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		}
 	} else {
 		chip->ecc.mode	    = NAND_ECC_SOFT;
+	}
+
+	if (set->ecc_layout != NULL)
+		chip->ecc.layout = set->ecc_layout;
+
+	if (set->disable_ecc)
+		chip->ecc.mode	= NAND_ECC_NONE;
+}
+
+/* s3c2410_nand_update_chip
+ *
+ * post-probe chip update, to change any items, such as the
+ * layout for large page nand
+ */
+
+static void s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
+				     struct s3c2410_nand_mtd *nmtd)
+{
+	struct nand_chip *chip = &nmtd->chip;
+
+	printk("%s: chip %p: %d\n", __func__, chip, chip->page_shift);
+
+	if (hardware_ecc) {
+		/* change the behaviour depending on wether we are using
+		 * the large or small page nand device */
+
+		if (chip->page_shift > 10) {
+			chip->ecc.size	    = 256;
+			chip->ecc.bytes	    = 3;
+		} else {
+			chip->ecc.size	    = 512;
+			chip->ecc.bytes	    = 3;
+			chip->ecc.layout    = &nand_hw_eccoob;
+		}
 	}
 }
 
@@ -776,9 +814,12 @@ static int s3c24xx_nand_probe(struct platform_device *pdev,
 
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
-		nmtd->scan_res = nand_scan(&nmtd->mtd, (sets) ? sets->nr_chips : 1);
+		nmtd->scan_res = nand_scan_ident(&nmtd->mtd,
+						 (sets) ? sets->nr_chips : 1);
 
 		if (nmtd->scan_res == 0) {
+			s3c2410_nand_update_chip(info, nmtd);
+			nand_scan_tail(&nmtd->mtd);
 			s3c2410_nand_add_partition(info, nmtd, sets);
 		}
 
@@ -810,15 +851,14 @@ static int s3c24xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
 	struct s3c2410_nand_info *info = platform_get_drvdata(dev);
 
 	if (info) {
-		info->save_nfconf = readl(info->regs + S3C2410_NFCONF);
+		info->save_sel = readl(info->sel_reg);
 
 		/* For the moment, we must ensure nFCE is high during
 		 * the time we are suspended. This really should be
 		 * handled by suspending the MTDs we are using, but
 		 * that is currently not the case. */
 
-		writel(info->save_nfconf | info->sel_bit,
-		       info->regs + S3C2410_NFCONF);
+		writel(info->save_sel | info->sel_bit, info->sel_reg);
 
 		if (!allow_clk_stop(info))
 			clk_disable(info->clk);
@@ -830,7 +870,7 @@ static int s3c24xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
 static int s3c24xx_nand_resume(struct platform_device *dev)
 {
 	struct s3c2410_nand_info *info = platform_get_drvdata(dev);
-	unsigned long nfconf;
+	unsigned long sel;
 
 	if (info) {
 		clk_enable(info->clk);
@@ -838,10 +878,10 @@ static int s3c24xx_nand_resume(struct platform_device *dev)
 
 		/* Restore the state of the nFCE line. */
 
-		nfconf = readl(info->regs + S3C2410_NFCONF);
-		nfconf &= ~info->sel_bit;
-		nfconf |= info->save_nfconf & info->sel_bit;
-		writel(nfconf, info->regs + S3C2410_NFCONF);
+		sel = readl(info->sel_reg);
+		sel &= ~info->sel_bit;
+		sel |= info->save_sel & info->sel_bit;
+		writel(sel, info->sel_reg);
 
 		if (allow_clk_stop(info))
 			clk_disable(info->clk);
@@ -927,3 +967,6 @@ module_exit(s3c2410_nand_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("S3C24XX MTD NAND driver");
+MODULE_ALIAS("platform:s3c2410-nand");
+MODULE_ALIAS("platform:s3c2412-nand");
+MODULE_ALIAS("platform:s3c2440-nand");

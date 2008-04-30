@@ -29,8 +29,8 @@
 #include <linux/personality.h>
 #include <linux/unistd.h>
 #include <linux/ipc.h>
-
 #include <asm/uaccess.h>
+#include "entry.h"
 
 /*
  * sys_pipe() is the normal C calling standard for creating

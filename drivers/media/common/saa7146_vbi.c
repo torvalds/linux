@@ -407,8 +407,8 @@ static int vbi_open(struct saa7146_dev *dev, struct file *file)
 	fh->vbi_fmt.start[1] = 312;
 	fh->vbi_fmt.count[1] = 16;
 
-	videobuf_queue_pci_init(&fh->vbi_q, &vbi_qops,
-			    dev->pci, &dev->slock,
+	videobuf_queue_sg_init(&fh->vbi_q, &vbi_qops,
+			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB, // FIXME: does this really work?
 			    sizeof(struct saa7146_buf),

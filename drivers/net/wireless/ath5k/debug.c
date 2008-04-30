@@ -65,7 +65,7 @@ static unsigned int ath5k_debug;
 module_param_named(debug, ath5k_debug, uint, 0);
 
 
-#if ATH5K_DEBUG
+#ifdef CONFIG_ATH5K_DEBUG
 
 #include <linux/seq_file.h>
 #include "reg.h"
@@ -200,7 +200,8 @@ static ssize_t read_file_tsf(struct file *file, char __user *user_buf,
 {
 	struct ath5k_softc *sc = file->private_data;
 	char buf[100];
-	snprintf(buf, sizeof(buf), "0x%016llx\n", ath5k_hw_get_tsf64(sc->ah));
+	snprintf(buf, sizeof(buf), "0x%016llx\n",
+		 (unsigned long long)ath5k_hw_get_tsf64(sc->ah));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 19);
 }
 
@@ -271,7 +272,8 @@ static ssize_t read_file_beacon(struct file *file, char __user *user_buf,
 
 	tsf = ath5k_hw_get_tsf64(sc->ah);
 	len += snprintf(buf+len, sizeof(buf)-len,
-		"TSF\t\t0x%016llx\tTU: %08x\n", tsf, TSF_TO_TU(tsf));
+		"TSF\t\t0x%016llx\tTU: %08x\n",
+		(unsigned long long)tsf, TSF_TO_TU(tsf));
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -340,7 +342,7 @@ static struct {
 	{ ATH5K_DEBUG_LED,	"led",		"LED mamagement" },
 	{ ATH5K_DEBUG_DUMP_RX,	"dumprx",	"print received skb content" },
 	{ ATH5K_DEBUG_DUMP_TX,	"dumptx",	"print transmit skb content" },
-	{ ATH5K_DEBUG_DUMPMODES, "dumpmodes",	"dump modes" },
+	{ ATH5K_DEBUG_DUMPBANDS, "dumpbands",	"dump bands" },
 	{ ATH5K_DEBUG_TRACE,	"trace",	"trace function calls" },
 	{ ATH5K_DEBUG_ANY,	"all",		"show all debug levels" },
 };
@@ -452,43 +454,63 @@ ath5k_debug_finish_device(struct ath5k_softc *sc)
 /* functions used in other places */
 
 void
-ath5k_debug_dump_modes(struct ath5k_softc *sc, struct ieee80211_hw_mode *modes)
+ath5k_debug_dump_bands(struct ath5k_softc *sc)
 {
-	unsigned int m, i;
+	unsigned int b, i;
 
-	if (likely(!(sc->debug.level & ATH5K_DEBUG_DUMPMODES)))
+	if (likely(!(sc->debug.level & ATH5K_DEBUG_DUMPBANDS)))
 		return;
 
-	for (m = 0; m < NUM_DRIVER_MODES; m++) {
-		printk(KERN_DEBUG "Mode %u: channels %d, rates %d\n", m,
-				modes[m].num_channels, modes[m].num_rates);
+	BUG_ON(!sc->sbands);
+
+	for (b = 0; b < IEEE80211_NUM_BANDS; b++) {
+		struct ieee80211_supported_band *band = &sc->sbands[b];
+		char bname[5];
+		switch (band->band) {
+		case IEEE80211_BAND_2GHZ:
+			strcpy(bname, "2 GHz");
+			break;
+		case IEEE80211_BAND_5GHZ:
+			strcpy(bname, "5 GHz");
+			break;
+		default:
+			printk(KERN_DEBUG "Band not supported: %d\n",
+				band->band);
+			return;
+		}
+		printk(KERN_DEBUG "Band %s: channels %d, rates %d\n", bname,
+				band->n_channels, band->n_bitrates);
 		printk(KERN_DEBUG " channels:\n");
-		for (i = 0; i < modes[m].num_channels; i++)
+		for (i = 0; i < band->n_channels; i++)
 			printk(KERN_DEBUG "  %3d %d %.4x %.4x\n",
-					modes[m].channels[i].chan,
-					modes[m].channels[i].freq,
-					modes[m].channels[i].val,
-					modes[m].channels[i].flag);
+					ieee80211_frequency_to_channel(
+						band->channels[i].center_freq),
+					band->channels[i].center_freq,
+					band->channels[i].hw_value,
+					band->channels[i].flags);
 		printk(KERN_DEBUG " rates:\n");
-		for (i = 0; i < modes[m].num_rates; i++)
+		for (i = 0; i < band->n_bitrates; i++)
 			printk(KERN_DEBUG "  %4d %.4x %.4x %.4x\n",
-					modes[m].rates[i].rate,
-					modes[m].rates[i].val,
-					modes[m].rates[i].flags,
-					modes[m].rates[i].val2);
+					band->bitrates[i].bitrate,
+					band->bitrates[i].hw_value,
+					band->bitrates[i].flags,
+					band->bitrates[i].hw_value_short);
 	}
 }
 
 static inline void
-ath5k_debug_printrxbuf(struct ath5k_buf *bf, int done)
+ath5k_debug_printrxbuf(struct ath5k_buf *bf, int done,
+		       struct ath5k_rx_status *rs)
 {
 	struct ath5k_desc *ds = bf->desc;
+	struct ath5k_hw_all_rx_desc *rd = &ds->ud.ds_rx;
 
 	printk(KERN_DEBUG "R (%p %llx) %08x %08x %08x %08x %08x %08x %c\n",
 		ds, (unsigned long long)bf->daddr,
-		ds->ds_link, ds->ds_data, ds->ds_ctl0, ds->ds_ctl1,
-		ds->ds_hw[0], ds->ds_hw[1],
-		!done ? ' ' : (ds->ds_rxstat.rs_status == 0) ? '*' : '!');
+		ds->ds_link, ds->ds_data,
+		rd->rx_ctl.rx_control_0, rd->rx_ctl.rx_control_1,
+		rd->u.rx_stat.rx_status_0, rd->u.rx_stat.rx_status_0,
+		!done ? ' ' : (rs->rs_status == 0) ? '*' : '!');
 }
 
 void
@@ -496,6 +518,7 @@ ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah)
 {
 	struct ath5k_desc *ds;
 	struct ath5k_buf *bf;
+	struct ath5k_rx_status rs = {};
 	int status;
 
 	if (likely(!(sc->debug.level & ATH5K_DEBUG_RESET)))
@@ -507,9 +530,9 @@ ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah)
 	spin_lock_bh(&sc->rxbuflock);
 	list_for_each_entry(bf, &sc->rxbuf, list) {
 		ds = bf->desc;
-		status = ah->ah_proc_rx_desc(ah, ds);
+		status = ah->ah_proc_rx_desc(ah, ds, &rs);
 		if (!status)
-			ath5k_debug_printrxbuf(bf, status == 0);
+			ath5k_debug_printrxbuf(bf, status == 0, &rs);
 	}
 	spin_unlock_bh(&sc->rxbuflock);
 }
@@ -533,19 +556,24 @@ ath5k_debug_dump_skb(struct ath5k_softc *sc,
 }
 
 void
-ath5k_debug_printtxbuf(struct ath5k_softc *sc,
-			struct ath5k_buf *bf, int done)
+ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf)
 {
 	struct ath5k_desc *ds = bf->desc;
+	struct ath5k_hw_5212_tx_desc *td = &ds->ud.ds_tx5212;
+	struct ath5k_tx_status ts = {};
+	int done;
 
 	if (likely(!(sc->debug.level & ATH5K_DEBUG_RESET)))
 		return;
 
+	done = sc->ah->ah_proc_tx_desc(sc->ah, bf->desc, &ts);
+
 	printk(KERN_DEBUG "T (%p %llx) %08x %08x %08x %08x %08x %08x %08x "
 		"%08x %c\n", ds, (unsigned long long)bf->daddr, ds->ds_link,
-		ds->ds_data, ds->ds_ctl0, ds->ds_ctl1,
-		ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3],
-		!done ? ' ' : (ds->ds_txstat.ts_status == 0) ? '*' : '!');
+		ds->ds_data, td->tx_ctl.tx_control_0, td->tx_ctl.tx_control_1,
+		td->tx_ctl.tx_control_2, td->tx_ctl.tx_control_3,
+		td->tx_stat.tx_status_0, td->tx_stat.tx_status_1,
+		done ? ' ' : (ts.ts_status == 0) ? '*' : '!');
 }
 
-#endif /* if ATH5K_DEBUG */
+#endif /* ifdef CONFIG_ATH5K_DEBUG */

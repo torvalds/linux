@@ -24,8 +24,10 @@
 #include <linux/fs.h>
 #include <linux/syscalls.h>
 #include <linux/ctype.h>
+#include <linux/lmb.h>
+#include <linux/of.h>
 
-#include <asm/lmb.h>
+#include <asm/prom.h>
 
 #include "platform.h"
 

@@ -174,17 +174,19 @@ struct fib6_table {
 #define RT6_TABLE_LOCAL		RT6_TABLE_MAIN
 #endif
 
-typedef struct rt6_info *(*pol_lookup_t)(struct fib6_table *,
+typedef struct rt6_info *(*pol_lookup_t)(struct net *,
+					 struct fib6_table *,
 					 struct flowi *, int);
 
 /*
  *	exported functions
  */
 
-extern struct fib6_table *	fib6_get_table(u32 id);
-extern struct fib6_table *	fib6_new_table(u32 id);
-extern struct dst_entry *	fib6_rule_lookup(struct flowi *fl, int flags,
-						 pol_lookup_t lookup);
+extern struct fib6_table        *fib6_get_table(struct net *net, u32 id);
+extern struct fib6_table        *fib6_new_table(struct net *net, u32 id);
+extern struct dst_entry         *fib6_rule_lookup(struct net *net,
+						  struct flowi *fl, int flags,
+						  pol_lookup_t lookup);
 
 extern struct fib6_node		*fib6_lookup(struct fib6_node *root,
 					     struct in6_addr *daddr,
@@ -194,7 +196,8 @@ struct fib6_node		*fib6_locate(struct fib6_node *root,
 					     struct in6_addr *daddr, int dst_len,
 					     struct in6_addr *saddr, int src_len);
 
-extern void			fib6_clean_all(int (*func)(struct rt6_info *, void *arg),
+extern void			fib6_clean_all(struct net *net,
+					       int (*func)(struct rt6_info *, void *arg),
 					       int prune, void *arg);
 
 extern int			fib6_add(struct fib6_node *root,
@@ -207,7 +210,8 @@ extern int			fib6_del(struct rt6_info *rt,
 extern void			inet6_rt_notify(int event, struct rt6_info *rt,
 						struct nl_info *info);
 
-extern void			fib6_run_gc(unsigned long dummy);
+extern void			fib6_run_gc(unsigned long expires,
+					    struct net *net);
 
 extern void			fib6_gc_cleanup(void);
 

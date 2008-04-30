@@ -133,7 +133,7 @@ static inline int bad_user_access_length(void)
 }
 
 #define __put_user_bad() (printk(KERN_INFO "put_user_bad %s:%d %s\n",\
-                           __FILE__, __LINE__, __FUNCTION__),\
+                           __FILE__, __LINE__, __func__),\
                            bad_user_access_length(), (-EFAULT))
 
 /*
@@ -177,7 +177,7 @@ static inline int bad_user_access_length(void)
 		default:						\
 			x = 0;						\
 			printk(KERN_INFO "get_user_bad: %s:%d %s\n",    \
-			       __FILE__, __LINE__, __FUNCTION__);	\
+			       __FILE__, __LINE__, __func__);	\
 			_err = __get_user_bad();			\
 			break;						\
 		}							\

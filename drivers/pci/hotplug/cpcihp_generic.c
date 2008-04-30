@@ -154,12 +154,18 @@ static int __init cpcihp_generic_init(void)
 	if(!r)
 		return -EBUSY;
 
-	dev = pci_find_slot(bridge_busnr, PCI_DEVFN(bridge_slot, 0));
+	bus = pci_find_bus(0, bridge_busnr);
+	if (!bus) {
+		err("Invalid bus number %d", bridge_busnr);
+		return -EINVAL;
+	}
+	dev = pci_get_slot(bus, PCI_DEVFN(bridge_slot, 0));
 	if(!dev || dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
 		err("Invalid bridge device %s", bridge);
 		return -EINVAL;
 	}
 	bus = dev->subordinate;
+	pci_dev_put(dev);
 
 	memset(&generic_hpc, 0, sizeof (struct cpci_hp_controller));
 	generic_hpc_ops.query_enum = query_enum;

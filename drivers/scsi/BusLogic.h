@@ -34,23 +34,6 @@
 #endif
 
 /*
-  FlashPoint support is only available for the Intel x86 Architecture with
-  CONFIG_PCI set.
-*/
-
-#ifndef __i386__
-#undef CONFIG_SCSI_OMIT_FLASHPOINT
-#define CONFIG_SCSI_OMIT_FLASHPOINT
-#endif
-
-#ifndef CONFIG_PCI
-#undef CONFIG_SCSI_OMIT_FLASHPOINT
-#define CONFIG_SCSI_OMIT_FLASHPOINT
-#define BusLogic_InitializeProbeInfoListISA BusLogic_InitializeProbeInfoList
-#endif
-
-
-/*
   Define the maximum number of BusLogic Host Adapters supported by this driver.
 */
 
@@ -178,7 +161,7 @@ static int BusLogic_HostAdapterAddressCount[3] = { 0, BusLogic_MultiMasterAddres
   Define macros for testing the Host Adapter Type.
 */
 
-#ifndef CONFIG_SCSI_OMIT_FLASHPOINT
+#ifdef CONFIG_SCSI_FLASHPOINT
 
 #define BusLogic_MultiMasterHostAdapterP(HostAdapter) \
   (HostAdapter->HostAdapterType == BusLogic_MultiMaster)
@@ -871,7 +854,7 @@ struct BusLogic_CCB {
 	void (*CallbackFunction) (struct BusLogic_CCB *);	/* Bytes 40-43 */
 	u32 BaseAddress;	/* Bytes 44-47 */
 	enum BusLogic_CompletionCode CompletionCode;	/* Byte 48 */
-#ifndef CONFIG_SCSI_OMIT_FLASHPOINT
+#ifdef CONFIG_SCSI_FLASHPOINT
 	unsigned char:8;	/* Byte 49 */
 	unsigned short OS_Flags;	/* Bytes 50-51 */
 	unsigned char Private[48];	/* Bytes 52-99 */

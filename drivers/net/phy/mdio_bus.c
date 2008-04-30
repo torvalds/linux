@@ -89,6 +89,9 @@ int mdiobus_register(struct mii_bus *bus)
 
 			phydev->bus = bus;
 
+			/* Run all of the fixups for this PHY */
+			phy_scan_fixups(phydev);
+
 			err = device_register(&phydev->dev);
 
 			if (err) {

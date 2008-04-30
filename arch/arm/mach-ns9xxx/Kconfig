@@ -2,9 +2,26 @@ if ARCH_NS9XXX
 
 menu "NS9xxx Implementations"
 
+config NS9XXX_HAVE_SERIAL8250
+	bool
+
+config PROCESSOR_NS9360
+	bool
+
+config MODULE_CC9P9360
+	bool
+	select PROCESSOR_NS9360
+
+config BOARD_A9M9750DEV
+	select NS9XXX_HAVE_SERIAL8250
+	bool
+
+config BOARD_JSCC9P9360
+	bool
+
 config MACH_CC9P9360DEV
 	bool "ConnectCore 9P 9360 on an A9M9750 Devboard"
-	select PROCESSOR_NS9360
+	select MODULE_CC9P9360
 	select BOARD_A9M9750DEV
 	help
 	  Say Y here if you are using the Digi ConnectCore 9P 9360
@@ -12,20 +29,11 @@ config MACH_CC9P9360DEV
 
 config MACH_CC9P9360JS
 	bool "ConnectCore 9P 9360 on a JSCC9P9360 Devboard"
-	select PROCESSOR_NS9360
+	select MODULE_CC9P9360
 	select BOARD_JSCC9P9360
 	help
 	  Say Y here if you are using the Digi ConnectCore 9P 9360
 	  on an JSCC9P9360 Development Board.
-
-config PROCESSOR_NS9360
-	bool
-
-config BOARD_A9M9750DEV
-	bool
-
-config BOARD_JSCC9P9360
-	bool
 
 endmenu
 

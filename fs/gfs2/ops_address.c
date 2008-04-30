@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -21,7 +21,6 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/lm_interface.h>
 #include <linux/backing-dev.h>
-#include <linux/pagevec.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -104,11 +103,9 @@ static int gfs2_writepage_common(struct page *page,
 	loff_t i_size = i_size_read(inode);
 	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
 	unsigned offset;
-	int ret = -EIO;
 
 	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(ip->i_gl)))
 		goto out;
-	ret = 0;
 	if (current->journal_info)
 		goto redirty;
 	/* Is the page fully outside i_size? (truncate in progress) */
@@ -280,7 +277,7 @@ static int gfs2_write_jdata_pagevec(struct address_space *mapping,
 	int i;
 	int ret;
 
-	ret = gfs2_trans_begin(sdp, nrblocks, 0);
+	ret = gfs2_trans_begin(sdp, nrblocks, nrblocks);
 	if (ret < 0)
 		return ret;
 
@@ -441,7 +438,7 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	int error;
 
 	/*
-	 * Due to the order of unstuffing files and ->nopage(), we can be
+	 * Due to the order of unstuffing files and ->fault(), we can be
 	 * asked for a zero page in the case of a stuffed file being extended,
 	 * so we need to supply one here. It doesn't happen often.
 	 */
@@ -510,23 +507,26 @@ static int __gfs2_readpage(void *file, struct page *page)
 static int gfs2_readpage(struct file *file, struct page *page)
 {
 	struct gfs2_inode *ip = GFS2_I(page->mapping->host);
-	struct gfs2_holder gh;
+	struct gfs2_holder *gh;
 	int error;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|LM_FLAG_TRY_1CB, &gh);
-	error = gfs2_glock_nq_atime(&gh);
-	if (unlikely(error)) {
+	gh = gfs2_glock_is_locked_by_me(ip->i_gl);
+	if (!gh) {
+		gh = kmalloc(sizeof(struct gfs2_holder), GFP_NOFS);
+		if (!gh)
+			return -ENOBUFS;
+		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, gh);
 		unlock_page(page);
-		goto out;
-	}
-	error = __gfs2_readpage(file, page);
-	gfs2_glock_dq(&gh);
-out:
-	gfs2_holder_uninit(&gh);
-	if (error == GLR_TRYFAILED) {
-		yield();
+		error = gfs2_glock_nq_atime(gh);
+		if (likely(error != 0))
+			goto out;
 		return AOP_TRUNCATED_PAGE;
 	}
+	error = __gfs2_readpage(file, page);
+	gfs2_glock_dq(gh);
+out:
+	gfs2_holder_uninit(gh);
+	kfree(gh);
 	return error;
 }
 
@@ -648,14 +648,14 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 
 	if (alloc_required) {
 		al = gfs2_alloc_get(ip);
+		if (!al) {
+			error = -ENOMEM;
+			goto out_unlock;
+		}
 
-		error = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+		error = gfs2_quota_lock_check(ip);
 		if (error)
 			goto out_alloc_put;
-
-		error = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
-		if (error)
-			goto out_qunlock;
 
 		al->al_requested = data_blocks + ind_blocks;
 		error = gfs2_inplace_reserve(ip);
@@ -828,7 +828,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	unsigned int to = from + len;
 	int ret;
 
-	BUG_ON(gfs2_glock_is_locked_by_me(ip->i_gl) == 0);
+	BUG_ON(gfs2_glock_is_locked_by_me(ip->i_gl) == NULL);
 
 	ret = gfs2_meta_inode_buffer(ip, &dibh);
 	if (unlikely(ret)) {

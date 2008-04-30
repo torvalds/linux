@@ -10,9 +10,11 @@
 #ifndef __INODE_DOT_H__
 #define __INODE_DOT_H__
 
+#include "util.h"
+
 static inline int gfs2_is_stuffed(const struct gfs2_inode *ip)
 {
-	return !ip->i_di.di_height;
+	return !ip->i_height;
 }
 
 static inline int gfs2_is_jdata(const struct gfs2_inode *ip)
@@ -37,11 +39,23 @@ static inline int gfs2_is_dir(const struct gfs2_inode *ip)
 	return S_ISDIR(ip->i_inode.i_mode);
 }
 
-static inline void gfs2_set_inode_blocks(struct inode *inode)
+static inline void gfs2_set_inode_blocks(struct inode *inode, u64 blocks)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
-	inode->i_blocks = ip->i_di.di_blocks <<
+	inode->i_blocks = blocks <<
 		(GFS2_SB(inode)->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT);
+}
+
+static inline u64 gfs2_get_inode_blocks(const struct inode *inode)
+{
+	return inode->i_blocks >>
+		(GFS2_SB(inode)->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT);
+}
+
+static inline void gfs2_add_inode_blocks(struct inode *inode, s64 change)
+{
+	gfs2_assert(GFS2_SB(inode), (change >= 0 || inode->i_blocks > -change));
+	change *= (GFS2_SB(inode)->sd_sb.sb_bsize/GFS2_BASIC_BLOCK);
+	inode->i_blocks += change;
 }
 
 static inline int gfs2_check_inum(const struct gfs2_inode *ip, u64 no_addr,

@@ -827,7 +827,9 @@ static int __devexit remove_gdrom(struct platform_device *devptr)
 	del_gendisk(gd.disk);
 	if (gdrom_major)
 		unregister_blkdev(gdrom_major, GDROM_DEV_NAME);
-	return unregister_cdrom(gd.cd_info);
+	unregister_cdrom(gd.cd_info);
+
+	return 0;
 }
 
 static struct platform_driver gdrom_driver = {

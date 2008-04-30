@@ -125,8 +125,8 @@ static unsigned char	yuv[MAX_AR_FRAME_BYTES];
 /* default frequency */
 #define DEFAULT_FREQ	50	/* 50 or 75 (MHz) is available as BCLK */
 static int freq = DEFAULT_FREQ;	/* BCLK: available 50 or 70 (MHz) */
-static int vga = 0;		/* default mode(0:QVGA mode, other:VGA mode) */
-static int vga_interlace = 0;	/* 0 is normal mode for, else interlace mode */
+static int vga;			/* default mode(0:QVGA mode, other:VGA mode) */
+static int vga_interlace;	/* 0 is normal mode for, else interlace mode */
 module_param(freq, int, 0);
 module_param(vga, int, 0);
 module_param(vga_interlace, int, 0);
@@ -747,7 +747,9 @@ static const struct file_operations ar_fops = {
 	.release	= video_exclusive_release,
 	.read		= ar_read,
 	.ioctl		= ar_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.llseek		= no_llseek,
 };
 

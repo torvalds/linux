@@ -43,7 +43,6 @@
 #include "xfs_error.h"
 #include "xfs_bmap.h"
 #include "xfs_rw.h"
-#include "xfs_refcache.h"
 #include "xfs_buf_item.h"
 #include "xfs_log_priv.h"
 #include "xfs_dir2_trace.h"
@@ -56,6 +55,7 @@
 #include "xfs_fsops.h"
 #include "xfs_vnodeops.h"
 #include "xfs_vfsops.h"
+#include "xfs_utils.h"
 
 
 int __init
@@ -69,15 +69,17 @@ xfs_init(void)
 	/*
 	 * Initialize all of the zone allocators we use.
 	 */
+	xfs_log_ticket_zone = kmem_zone_init(sizeof(xlog_ticket_t),
+						"xfs_log_ticket");
 	xfs_bmap_free_item_zone = kmem_zone_init(sizeof(xfs_bmap_free_item_t),
-						 "xfs_bmap_free_item");
+						"xfs_bmap_free_item");
 	xfs_btree_cur_zone = kmem_zone_init(sizeof(xfs_btree_cur_t),
-					    "xfs_btree_cur");
-	xfs_trans_zone = kmem_zone_init(sizeof(xfs_trans_t), "xfs_trans");
-	xfs_da_state_zone =
-		kmem_zone_init(sizeof(xfs_da_state_t), "xfs_da_state");
+						"xfs_btree_cur");
+	xfs_da_state_zone = kmem_zone_init(sizeof(xfs_da_state_t),
+						"xfs_da_state");
 	xfs_dabuf_zone = kmem_zone_init(sizeof(xfs_dabuf_t), "xfs_dabuf");
 	xfs_ifork_zone = kmem_zone_init(sizeof(xfs_ifork_t), "xfs_ifork");
+	xfs_trans_zone = kmem_zone_init(sizeof(xfs_trans_t), "xfs_trans");
 	xfs_acl_zone_init(xfs_acl_zone, "xfs_acl");
 	xfs_mru_cache_init();
 	xfs_filestream_init();
@@ -112,9 +114,6 @@ xfs_init(void)
 					KM_ZONE_SPREAD, NULL);
 	xfs_ili_zone =
 		kmem_zone_init_flags(sizeof(xfs_inode_log_item_t), "xfs_ili",
-					KM_ZONE_SPREAD, NULL);
-	xfs_icluster_zone =
-		kmem_zone_init_flags(sizeof(xfs_icluster_t), "xfs_icluster",
 					KM_ZONE_SPREAD, NULL);
 
 	/*
@@ -153,11 +152,9 @@ xfs_cleanup(void)
 	extern kmem_zone_t	*xfs_inode_zone;
 	extern kmem_zone_t	*xfs_efd_zone;
 	extern kmem_zone_t	*xfs_efi_zone;
-	extern kmem_zone_t	*xfs_icluster_zone;
 
 	xfs_cleanup_procfs();
 	xfs_sysctl_unregister();
-	xfs_refcache_destroy();
 	xfs_filestream_uninit();
 	xfs_mru_cache_uninit();
 	xfs_acl_zone_destroy(xfs_acl_zone);
@@ -189,7 +186,6 @@ xfs_cleanup(void)
 	kmem_zone_destroy(xfs_efi_zone);
 	kmem_zone_destroy(xfs_ifork_zone);
 	kmem_zone_destroy(xfs_ili_zone);
-	kmem_zone_destroy(xfs_icluster_zone);
 }
 
 /*
@@ -573,7 +569,7 @@ xfs_unmount(
 #ifdef HAVE_DMAPI
 	if (mp->m_flags & XFS_MOUNT_DMAPI) {
 		error = XFS_SEND_PREUNMOUNT(mp,
-				rvp, DM_RIGHT_NULL, rvp, DM_RIGHT_NULL,
+				rip, DM_RIGHT_NULL, rip, DM_RIGHT_NULL,
 				NULL, NULL, 0, 0,
 				(mp->m_dmevmask & (1<<DM_EVENT_PREUNMOUNT))?
 					0:DM_FLAGS_UNWANTED);
@@ -584,11 +580,6 @@ xfs_unmount(
 					0 : DM_FLAGS_UNWANTED;
 	}
 #endif
-	/*
-	 * First blow any referenced inode from this file system
-	 * out of the reference cache, and delete the timer.
-	 */
-	xfs_refcache_purge_mp(mp);
 
 	/*
 	 * Blow away any referenced inode in the filestreams cache.
@@ -607,7 +598,7 @@ xfs_unmount(
 	/*
 	 * Drop the reference count
 	 */
-	VN_RELE(rvp);
+	IRELE(rip);
 
 	/*
 	 * If we're forcing a shutdown, typically because of a media error,
@@ -629,7 +620,7 @@ out:
 		/* Note: mp structure must still exist for
 		 * XFS_SEND_UNMOUNT() call.
 		 */
-		XFS_SEND_UNMOUNT(mp, error == 0 ? rvp : NULL,
+		XFS_SEND_UNMOUNT(mp, error == 0 ? rip : NULL,
 			DM_RIGHT_NULL, 0, error, unmount_event_flags);
 	}
 	if (xfs_unmountfs_needed) {
@@ -646,13 +637,12 @@ out:
 	return XFS_ERROR(error);
 }
 
-STATIC int
+STATIC void
 xfs_quiesce_fs(
 	xfs_mount_t		*mp)
 {
 	int			count = 0, pincount;
 
-	xfs_refcache_purge_mp(mp);
 	xfs_flush_buftarg(mp->m_ddev_targp, 0);
 	xfs_finish_reclaim_all(mp, 0);
 
@@ -671,8 +661,6 @@ xfs_quiesce_fs(
 			count++;
 		}
 	} while (count < 2);
-
-	return 0;
 }
 
 /*
@@ -684,6 +672,8 @@ void
 xfs_attr_quiesce(
 	xfs_mount_t	*mp)
 {
+	int	error = 0;
+
 	/* wait for all modifications to complete */
 	while (atomic_read(&mp->m_active_trans) > 0)
 		delay(100);
@@ -694,7 +684,11 @@ xfs_attr_quiesce(
 	ASSERT_ALWAYS(atomic_read(&mp->m_active_trans) == 0);
 
 	/* Push the superblock and write an unmount record */
-	xfs_log_sbcount(mp, 1);
+	error = xfs_log_sbcount(mp, 1);
+	if (error)
+		xfs_fs_cmn_err(CE_WARN, mp,
+				"xfs_attr_quiesce: failed to log sb changes. "
+				"Frozen image may not be consistent.");
 	xfs_log_unmount_write(mp);
 	xfs_unmountfs_writesb(mp);
 }
@@ -790,8 +784,8 @@ xfs_unmount_flush(
 		goto fscorrupt_out2;
 
 	if (rbmip) {
-		VN_RELE(XFS_ITOV(rbmip));
-		VN_RELE(XFS_ITOV(rsumip));
+		IRELE(rbmip);
+		IRELE(rsumip);
 	}
 
 	xfs_iunlock(rip, XFS_ILOCK_EXCL);
@@ -1169,10 +1163,10 @@ xfs_sync_inodes(
 			 * above, then wait until after we've unlocked
 			 * the inode to release the reference.  This is
 			 * because we can be already holding the inode
-			 * lock when VN_RELE() calls xfs_inactive().
+			 * lock when IRELE() calls xfs_inactive().
 			 *
 			 * Make sure to drop the mount lock before calling
-			 * VN_RELE() so that we don't trip over ourselves if
+			 * IRELE() so that we don't trip over ourselves if
 			 * we have to go for the mount lock again in the
 			 * inactive code.
 			 */
@@ -1180,7 +1174,7 @@ xfs_sync_inodes(
 				IPOINTER_INSERT(ip, mp);
 			}
 
-			VN_RELE(vp);
+			IRELE(ip);
 
 			vnode_refed = B_FALSE;
 		}
@@ -1323,30 +1317,8 @@ xfs_syncsub(
 	}
 
 	/*
-	 * If this is the periodic sync, then kick some entries out of
-	 * the reference cache.  This ensures that idle entries are
-	 * eventually kicked out of the cache.
-	 */
-	if (flags & SYNC_REFCACHE) {
-		if (flags & SYNC_WAIT)
-			xfs_refcache_purge_mp(mp);
-		else
-			xfs_refcache_purge_some(mp);
-	}
-
-	/*
-	 * If asked, update the disk superblock with incore counter values if we
-	 * are using non-persistent counters so that they don't get too far out
-	 * of sync if we crash or get a forced shutdown. We don't want to force
-	 * this to disk, just get a transaction into the iclogs....
-	 */
-	if (flags & SYNC_SUPER)
-		xfs_log_sbcount(mp, 0);
-
-	/*
 	 * Now check to see if the log needs a "dummy" transaction.
 	 */
-
 	if (!(flags & SYNC_REMOUNT) && xfs_log_need_covered(mp)) {
 		xfs_trans_t *tp;
 		xfs_inode_t *ip;

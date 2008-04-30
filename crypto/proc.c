@@ -78,7 +78,7 @@ static int c_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static struct seq_operations crypto_seq_ops = {
+static const struct seq_operations crypto_seq_ops = {
 	.start		= c_start,
 	.next		= c_next,
 	.stop		= c_stop,
@@ -99,11 +99,7 @@ static const struct file_operations proc_crypto_ops = {
 
 void __init crypto_init_proc(void)
 {
-	struct proc_dir_entry *proc;
-	
-	proc = create_proc_entry("crypto", 0, NULL);
-	if (proc)
-		proc->proc_fops = &proc_crypto_ops;
+	proc_create("crypto", 0, NULL, &proc_crypto_ops);
 }
 
 void __exit crypto_exit_proc(void)

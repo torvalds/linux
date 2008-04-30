@@ -35,13 +35,6 @@ static struct inet6_protocol udplitev6_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
-static int udplite_v6_get_port(struct sock *sk, unsigned short snum)
-{
-	return udplite_get_port(sk, snum, ipv6_rcv_saddr_equal);
-}
-
-DEFINE_PROTO_INUSE(udplitev6)
-
 struct proto udplitev6_prot = {
 	.name		   = "UDPLITEv6",
 	.owner		   = THIS_MODULE,
@@ -58,13 +51,13 @@ struct proto udplitev6_prot = {
 	.backlog_rcv	   = udpv6_queue_rcv_skb,
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
-	.get_port	   = udplite_v6_get_port,
+	.get_port	   = udp_v6_get_port,
 	.obj_size	   = sizeof(struct udp6_sock),
+	.h.udp_hash	   = udplite_hash,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_udpv6_setsockopt,
 	.compat_getsockopt = compat_udpv6_getsockopt,
 #endif
-	REF_PROTO_INUSE(udplitev6)
 };
 
 static struct inet_protosw udplite6_protosw = {
@@ -103,23 +96,40 @@ void udplitev6_exit(void)
 }
 
 #ifdef CONFIG_PROC_FS
-static struct file_operations udplite6_seq_fops;
 static struct udp_seq_afinfo udplite6_seq_afinfo = {
-	.owner		= THIS_MODULE,
 	.name		= "udplite6",
 	.family		= AF_INET6,
 	.hashtable	= udplite_hash,
-	.seq_show	= udp6_seq_show,
-	.seq_fops	= &udplite6_seq_fops,
+	.seq_fops	= {
+		.owner	=	THIS_MODULE,
+	},
+	.seq_ops	= {
+		.show		= udp6_seq_show,
+	},
+};
+
+static int udplite6_proc_init_net(struct net *net)
+{
+	return udp_proc_register(net, &udplite6_seq_afinfo);
+}
+
+static void udplite6_proc_exit_net(struct net *net)
+{
+	udp_proc_unregister(net, &udplite6_seq_afinfo);
+}
+
+static struct pernet_operations udplite6_net_ops = {
+	.init = udplite6_proc_init_net,
+	.exit = udplite6_proc_exit_net,
 };
 
 int __init udplite6_proc_init(void)
 {
-	return udp_proc_register(&udplite6_seq_afinfo);
+	return register_pernet_subsys(&udplite6_net_ops);
 }
 
 void udplite6_proc_exit(void)
 {
-	udp_proc_unregister(&udplite6_seq_afinfo);
+	unregister_pernet_subsys(&udplite6_net_ops);
 }
 #endif

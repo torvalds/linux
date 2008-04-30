@@ -32,24 +32,23 @@
 #define GLR_TRYFAILED		13
 #define GLR_CANCELED		14
 
-static inline int gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
+static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
 {
 	struct gfs2_holder *gh;
-	int locked = 0;
 	struct pid *pid;
 
 	/* Look in glock's list of holders for one with current task as owner */
 	spin_lock(&gl->gl_spin);
 	pid = task_pid(current);
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
-		if (gh->gh_owner_pid == pid) {
-			locked = 1;
-			break;
-		}
+		if (gh->gh_owner_pid == pid)
+			goto out;
 	}
+	gh = NULL;
+out:
 	spin_unlock(&gl->gl_spin);
 
-	return locked;
+	return gh;
 }
 
 static inline int gfs2_glock_is_held_excl(struct gfs2_glock *gl)
@@ -79,7 +78,6 @@ static inline int gfs2_glock_is_blocking(struct gfs2_glock *gl)
 int gfs2_glock_get(struct gfs2_sbd *sdp,
 		   u64 number, const struct gfs2_glock_operations *glops,
 		   int create, struct gfs2_glock **glp);
-void gfs2_glock_hold(struct gfs2_glock *gl);
 int gfs2_glock_put(struct gfs2_glock *gl);
 void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 		      struct gfs2_holder *gh);

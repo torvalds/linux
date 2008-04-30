@@ -5,6 +5,8 @@
 
 /* generic versions from gas
    1: nop
+   the following instructions are NOT nops in 64-bit mode,
+   for 64-bit mode use K8 or P6 nops instead
    2: movl %esi,%esi
    3: leal 0x00(%esi),%esi
    4: leal 0x00(,%esi,1),%esi

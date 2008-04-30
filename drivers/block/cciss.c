@@ -1349,6 +1349,10 @@ static void cciss_update_drive_info(int ctlr, int drv_index)
 		spin_lock_irqsave(CCISS_LOCK(h->ctlr), flags);
 		h->drv[drv_index].busy_configuring = 1;
 		spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
+
+		/* deregister_disk sets h->drv[drv_index].queue = NULL */
+		/* which keeps the interrupt handler from starting */
+		/* the queue. */
 		ret = deregister_disk(h->gendisk[drv_index],
 				      &h->drv[drv_index], 0);
 		h->drv[drv_index].busy_configuring = 0;
@@ -1419,6 +1423,10 @@ geo_inq:
 		blk_queue_hardsect_size(disk->queue,
 					hba[ctlr]->drv[drv_index].block_size);
 
+		/* Make sure all queue data is written out before */
+		/* setting h->drv[drv_index].queue, as setting this */
+		/* allows the interrupt handler to start the queue */
+		wmb();
 		h->drv[drv_index].queue = disk->queue;
 		add_disk(disk);
 	}
@@ -3520,9 +3528,16 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 			continue;
 		blk_queue_hardsect_size(q, drv->block_size);
 		set_capacity(disk, drv->nr_blocks);
-		add_disk(disk);
 		j++;
 	} while (j <= hba[i]->highest_lun);
+
+	/* Make sure all queue data is written out before */
+	/* interrupt handler, triggered by add_disk,  */
+	/* is allowed to start them. */
+	wmb();
+
+	for (j = 0; j <= hba[i]->highest_lun; j++)
+		add_disk(hba[i]->gendisk[j]);
 
 	return 1;
 

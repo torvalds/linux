@@ -307,3 +307,8 @@ Debugging
 			stuck (default)
 
 Miscellaneous
+
+	nogbpages
+		Do not use GB pages for kernel direct mappings.
+	gbpages
+		Use GB pages for kernel direct mappings.

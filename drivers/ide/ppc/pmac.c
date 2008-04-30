@@ -79,9 +79,6 @@ typedef struct pmac_ide_hwif {
 	
 } pmac_ide_hwif_t;
 
-static pmac_ide_hwif_t pmac_ide[MAX_HWIFS];
-static int pmac_ide_count;
-
 enum {
 	controller_ohare,	/* OHare based */
 	controller_heathrow,	/* Heathrow/Paddington */
@@ -412,45 +409,15 @@ kauai_lookup_timing(struct kauai_timing* table, int cycle_time)
  */
 #define IDE_WAKEUP_DELAY	(1*HZ)
 
-static int pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif);
+static int pmac_ide_init_dma(ide_hwif_t *, const struct ide_port_info *);
 static int pmac_ide_build_dmatable(ide_drive_t *drive, struct request *rq);
 static void pmac_ide_selectproc(ide_drive_t *drive);
 static void pmac_ide_kauai_selectproc(ide_drive_t *drive);
 
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
 
-/*
- * N.B. this can't be an initfunc, because the media-bay task can
- * call ide_[un]register at any time.
- */
-void
-pmac_ide_init_hwif_ports(hw_regs_t *hw,
-			      unsigned long data_port, unsigned long ctrl_port,
-			      int *irq)
-{
-	int i, ix;
-
-	if (data_port == 0)
-		return;
-
-	for (ix = 0; ix < MAX_HWIFS; ++ix)
-		if (data_port == pmac_ide[ix].regbase)
-			break;
-
-	if (ix >= MAX_HWIFS)
-		return;		/* not an IDE PMAC interface */
-
-	for (i = 0; i < 8; ++i)
-		hw->io_ports[i] = data_port + i * 0x10;
-	hw->io_ports[8] = data_port + 0x160;
-
-	if (irq != NULL)
-		*irq = pmac_ide[ix].irq;
-
-	hw->dev = &pmac_ide[ix].mdev->ofdev.dev;
-}
-
-#define PMAC_IDE_REG(x) ((void __iomem *)(IDE_DATA_REG+(x)))
+#define PMAC_IDE_REG(x) \
+	((void __iomem *)((drive)->hwif->io_ports.data_addr + (x)))
 
 /*
  * Apply the timings of the proper unit (master/slave) to the shared
@@ -886,58 +853,6 @@ sanitize_timings(pmac_ide_hwif_t *pmif)
 	pmif->timings[2] = pmif->timings[3] = value2;
 }
 
-unsigned long
-pmac_ide_get_base(int index)
-{
-	return pmac_ide[index].regbase;
-}
-
-int
-pmac_ide_check_base(unsigned long base)
-{
-	int ix;
-	
- 	for (ix = 0; ix < MAX_HWIFS; ++ix)
-		if (base == pmac_ide[ix].regbase)
-			return ix;
-	return -1;
-}
-
-int
-pmac_ide_get_irq(unsigned long base)
-{
-	int ix;
-
-	for (ix = 0; ix < MAX_HWIFS; ++ix)
-		if (base == pmac_ide[ix].regbase)
-			return pmac_ide[ix].irq;
-	return 0;
-}
-
-static int ide_majors[] = { 3, 22, 33, 34, 56, 57 };
-
-dev_t __init
-pmac_find_ide_boot(char *bootdevice, int n)
-{
-	int i;
-	
-	/*
-	 * Look through the list of IDE interfaces for this one.
-	 */
-	for (i = 0; i < pmac_ide_count; ++i) {
-		char *name;
-		if (!pmac_ide[i].node || !pmac_ide[i].node->full_name)
-			continue;
-		name = pmac_ide[i].node->full_name;
-		if (memcmp(name, bootdevice, n) == 0 && name[n] == 0) {
-			/* XXX should cope with the 2nd drive as well... */
-			return MKDEV(ide_majors[i], 0);
-		}
-	}
-
-	return 0;
-}
-
 /* Suspend call back, should be called after the child devices
  * have actually been suspended
  */
@@ -1003,12 +918,30 @@ pmac_ide_do_resume(ide_hwif_t *hwif)
 	return 0;
 }
 
+static const struct ide_port_ops pmac_ide_ata6_port_ops = {
+	.set_pio_mode		= pmac_ide_set_pio_mode,
+	.set_dma_mode		= pmac_ide_set_dma_mode,
+	.selectproc		= pmac_ide_kauai_selectproc,
+};
+
+static const struct ide_port_ops pmac_ide_port_ops = {
+	.set_pio_mode		= pmac_ide_set_pio_mode,
+	.set_dma_mode		= pmac_ide_set_dma_mode,
+	.selectproc		= pmac_ide_selectproc,
+};
+
+static const struct ide_dma_ops pmac_dma_ops;
+
 static const struct ide_port_info pmac_port_info = {
+	.init_dma		= pmac_ide_init_dma,
 	.chipset		= ide_pmac,
+#ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
+	.dma_ops		= &pmac_dma_ops,
+#endif
+	.port_ops		= &pmac_ide_port_ops,
 	.host_flags		= IDE_HFLAG_SET_PIO_MODE_KEEP_DMA |
-				  IDE_HFLAG_PIO_NO_DOWNGRADE |
 				  IDE_HFLAG_POST_SET_MODE |
-				  IDE_HFLAG_NO_DMA | /* no SFF-style DMA */
+				  IDE_HFLAG_MMIO |
 				  IDE_HFLAG_UNMASK_IRQS,
 	.pio_mask		= ATA_PIO4,
 	.mwdma_mask		= ATA_MWDMA2,
@@ -1033,12 +966,15 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 	pmif->broken_dma = pmif->broken_dma_warn = 0;
 	if (of_device_is_compatible(np, "shasta-ata")) {
 		pmif->kind = controller_sh_ata6;
+		d.port_ops = &pmac_ide_ata6_port_ops;
 		d.udma_mask = ATA_UDMA6;
 	} else if (of_device_is_compatible(np, "kauai-ata")) {
 		pmif->kind = controller_un_ata6;
+		d.port_ops = &pmac_ide_ata6_port_ops;
 		d.udma_mask = ATA_UDMA5;
 	} else if (of_device_is_compatible(np, "K2-UATA")) {
 		pmif->kind = controller_k2_ata6;
+		d.port_ops = &pmac_ide_ata6_port_ops;
 		d.udma_mask = ATA_UDMA5;
 	} else if (of_device_is_compatible(np, "keylargo-ata")) {
 		if (strcmp(np->name, "ata-4") == 0) {
@@ -1088,7 +1024,8 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 	if (np->parent && np->parent->name
 	    && strcasecmp(np->parent->name, "media-bay") == 0) {
 #ifdef CONFIG_PMAC_MEDIABAY
-		media_bay_set_ide_infos(np->parent, pmif->regbase, pmif->irq, hwif->index);
+		media_bay_set_ide_infos(np->parent, pmif->regbase, pmif->irq,
+					hwif);
 #endif /* CONFIG_PMAC_MEDIABAY */
 		pmif->mediabay = 1;
 		if (!bidp)
@@ -1114,44 +1051,45 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 	default_hwif_mmiops(hwif);
        	hwif->OUTBSYNC = pmac_outbsync;
 
-	/* Tell common code _not_ to mess with resources */
-	hwif->mmio = 1;
 	hwif->hwif_data = pmif;
 	ide_init_port_hw(hwif, hw);
-	hwif->noprobe = pmif->mediabay;
-	hwif->hold = pmif->mediabay;
 	hwif->cbl = pmif->cable_80 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
-	hwif->set_pio_mode = pmac_ide_set_pio_mode;
-	if (pmif->kind == controller_un_ata6
-	    || pmif->kind == controller_k2_ata6
-	    || pmif->kind == controller_sh_ata6)
-		hwif->selectproc = pmac_ide_kauai_selectproc;
-	else
-		hwif->selectproc = pmac_ide_selectproc;
-	hwif->set_dma_mode = pmac_ide_set_dma_mode;
 
 	printk(KERN_INFO "ide%d: Found Apple %s controller, bus ID %d%s, irq %d\n",
 	       hwif->index, model_name[pmif->kind], pmif->aapl_bus_id,
 	       pmif->mediabay ? " (mediabay)" : "", hwif->irq);
-			
+
+	if (pmif->mediabay) {
 #ifdef CONFIG_PMAC_MEDIABAY
-	if (pmif->mediabay && check_media_bay_by_base(pmif->regbase, MB_CD) == 0)
-		hwif->noprobe = 0;
-#endif /* CONFIG_PMAC_MEDIABAY */
+		if (check_media_bay_by_base(pmif->regbase, MB_CD)) {
+#else
+		if (1) {
+#endif
+			hwif->drives[0].noprobe = 1;
+			hwif->drives[1].noprobe = 1;
+		}
+	}
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
 	if (pmif->cable_80 == 0)
 		d.udma_mask &= ATA_UDMA2;
-	/* has a DBDMA controller channel */
-	if (pmif->dma_regs == 0 || pmac_ide_setup_dma(pmif, hwif) < 0)
 #endif
-		d.udma_mask = d.mwdma_mask = 0;
 
 	idx[0] = hwif->index;
 
 	ide_device_add(idx, &d);
 
 	return 0;
+}
+
+static void __devinit pmac_ide_init_ports(hw_regs_t *hw, unsigned long base)
+{
+	int i;
+
+	for (i = 0; i < 8; ++i)
+		hw->io_ports_array[i] = base + i * 0x10;
+
+	hw->io_ports.ctl_addr = base + 0x160;
 }
 
 /*
@@ -1162,35 +1100,36 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	void __iomem *base;
 	unsigned long regbase;
-	int irq;
 	ide_hwif_t *hwif;
 	pmac_ide_hwif_t *pmif;
-	int i, rc;
+	int irq, rc;
 	hw_regs_t hw;
 
-	i = 0;
-	while (i < MAX_HWIFS && (ide_hwifs[i].io_ports[IDE_DATA_OFFSET] != 0
-	    || pmac_ide[i].node != NULL))
-		++i;
-	if (i >= MAX_HWIFS) {
+	pmif = kzalloc(sizeof(*pmif), GFP_KERNEL);
+	if (pmif == NULL)
+		return -ENOMEM;
+
+	hwif = ide_find_port();
+	if (hwif == NULL) {
 		printk(KERN_ERR "ide-pmac: MacIO interface attach with no slot\n");
 		printk(KERN_ERR "          %s\n", mdev->ofdev.node->full_name);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto out_free_pmif;
 	}
 
-	pmif = &pmac_ide[i];
-	hwif = &ide_hwifs[i];
-
 	if (macio_resource_count(mdev) == 0) {
-		printk(KERN_WARNING "ide%d: no address for %s\n",
-		       i, mdev->ofdev.node->full_name);
-		return -ENXIO;
+		printk(KERN_WARNING "ide-pmac: no address for %s\n",
+				    mdev->ofdev.node->full_name);
+		rc = -ENXIO;
+		goto out_free_pmif;
 	}
 
 	/* Request memory resource for IO ports */
 	if (macio_request_resource(mdev, 0, "ide-pmac (ports)")) {
-		printk(KERN_ERR "ide%d: can't request mmio resource !\n", i);
-		return -EBUSY;
+		printk(KERN_ERR "ide-pmac: can't request MMIO resource for "
+				"%s!\n", mdev->ofdev.node->full_name);
+		rc = -EBUSY;
+		goto out_free_pmif;
 	}
 			
 	/* XXX This is bogus. Should be fixed in the registry by checking
@@ -1199,8 +1138,8 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	 * where that happens though...
 	 */
 	if (macio_irq_count(mdev) == 0) {
-		printk(KERN_WARNING "ide%d: no intrs for device %s, using 13\n",
-			i, mdev->ofdev.node->full_name);
+		printk(KERN_WARNING "ide-pmac: no intrs for device %s, using "
+				    "13\n", mdev->ofdev.node->full_name);
 		irq = irq_create_mapping(NULL, 13);
 	} else
 		irq = macio_irq(mdev, 0);
@@ -1218,7 +1157,9 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
 	if (macio_resource_count(mdev) >= 2) {
 		if (macio_request_resource(mdev, 1, "ide-pmac (dma)"))
-			printk(KERN_WARNING "ide%d: can't request DMA resource !\n", i);
+			printk(KERN_WARNING "ide-pmac: can't request DMA "
+					    "resource for %s!\n",
+					    mdev->ofdev.node->full_name);
 		else
 			pmif->dma_regs = ioremap(macio_resource_start(mdev, 1), 0x1000);
 	} else
@@ -1227,7 +1168,7 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	dev_set_drvdata(&mdev->ofdev.dev, hwif);
 
 	memset(&hw, 0, sizeof(hw));
-	pmac_ide_init_hwif_ports(&hw, pmif->regbase, 0, NULL);
+	pmac_ide_init_ports(&hw, pmif->regbase);
 	hw.irq = irq;
 	hw.dev = &mdev->ofdev.dev;
 
@@ -1240,10 +1181,14 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 			iounmap(pmif->dma_regs);
 			macio_release_resource(mdev, 1);
 		}
-		memset(pmif, 0, sizeof(*pmif));
 		macio_release_resource(mdev, 0);
+		kfree(pmif);
 	}
 
+	return rc;
+
+out_free_pmif:
+	kfree(pmif);
 	return rc;
 }
 
@@ -1289,7 +1234,7 @@ pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	pmac_ide_hwif_t *pmif;
 	void __iomem *base;
 	unsigned long rbase, rlen;
-	int i, rc;
+	int rc;
 	hw_regs_t hw;
 
 	np = pci_device_to_OF_node(pdev);
@@ -1297,30 +1242,32 @@ pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(KERN_ERR "ide-pmac: cannot find MacIO node for Kauai ATA interface\n");
 		return -ENODEV;
 	}
-	i = 0;
-	while (i < MAX_HWIFS && (ide_hwifs[i].io_ports[IDE_DATA_OFFSET] != 0
-	    || pmac_ide[i].node != NULL))
-		++i;
-	if (i >= MAX_HWIFS) {
+
+	pmif = kzalloc(sizeof(*pmif), GFP_KERNEL);
+	if (pmif == NULL)
+		return -ENOMEM;
+
+	hwif = ide_find_port();
+	if (hwif == NULL) {
 		printk(KERN_ERR "ide-pmac: PCI interface attach with no slot\n");
 		printk(KERN_ERR "          %s\n", np->full_name);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto out_free_pmif;
 	}
 
-	pmif = &pmac_ide[i];
-	hwif = &ide_hwifs[i];
-
 	if (pci_enable_device(pdev)) {
-		printk(KERN_WARNING "ide%i: Can't enable PCI device for %s\n",
-			i, np->full_name);
-		return -ENXIO;
+		printk(KERN_WARNING "ide-pmac: Can't enable PCI device for "
+				    "%s\n", np->full_name);
+		rc = -ENXIO;
+		goto out_free_pmif;
 	}
 	pci_set_master(pdev);
 			
 	if (pci_request_regions(pdev, "Kauai ATA")) {
-		printk(KERN_ERR "ide%d: Cannot obtain PCI resources for %s\n",
-			i, np->full_name);
-		return -ENXIO;
+		printk(KERN_ERR "ide-pmac: Cannot obtain PCI resources for "
+				"%s\n", np->full_name);
+		rc = -ENXIO;
+		goto out_free_pmif;
 	}
 
 	hwif->dev = &pdev->dev;
@@ -1341,7 +1288,7 @@ pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, hwif);
 
 	memset(&hw, 0, sizeof(hw));
-	pmac_ide_init_hwif_ports(&hw, pmif->regbase, 0, NULL);
+	pmac_ide_init_ports(&hw, pmif->regbase);
 	hw.irq = pdev->irq;
 	hw.dev = &pdev->dev;
 
@@ -1350,10 +1297,14 @@ pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		/* The inteface is released to the common IDE layer */
 		pci_set_drvdata(pdev, NULL);
 		iounmap(base);
-		memset(pmif, 0, sizeof(*pmif));
 		pci_release_regions(pdev);
+		kfree(pmif);
 	}
 
+	return rc;
+
+out_free_pmif:
+	kfree(pmif);
 	return rc;
 }
 
@@ -1726,18 +1677,31 @@ pmac_ide_dma_lost_irq (ide_drive_t *drive)
 	printk(KERN_ERR "ide-pmac lost interrupt, dma status: %lx\n", status);
 }
 
+static const struct ide_dma_ops pmac_dma_ops = {
+	.dma_host_set		= pmac_ide_dma_host_set,
+	.dma_setup		= pmac_ide_dma_setup,
+	.dma_exec_cmd		= pmac_ide_dma_exec_cmd,
+	.dma_start		= pmac_ide_dma_start,
+	.dma_end		= pmac_ide_dma_end,
+	.dma_test_irq		= pmac_ide_dma_test_irq,
+	.dma_timeout		= ide_dma_timeout,
+	.dma_lost_irq		= pmac_ide_dma_lost_irq,
+};
+
 /*
  * Allocate the data structures needed for using DMA with an interface
  * and fill the proper list of functions pointers
  */
-static int __devinit pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
+static int __devinit pmac_ide_init_dma(ide_hwif_t *hwif,
+				       const struct ide_port_info *d)
 {
+	pmac_ide_hwif_t *pmif = (pmac_ide_hwif_t *)hwif->hwif_data;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
 	/* We won't need pci_dev if we switch to generic consistent
 	 * DMA routines ...
 	 */
-	if (dev == NULL)
+	if (dev == NULL || pmif->dma_regs == 0)
 		return -ENODEV;
 	/*
 	 * Allocate space for the DBDMA commands.
@@ -1756,18 +1720,14 @@ static int __devinit pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 
 	hwif->sg_max_nents = MAX_DCMDS;
 
-	hwif->dma_host_set = &pmac_ide_dma_host_set;
-	hwif->dma_setup = &pmac_ide_dma_setup;
-	hwif->dma_exec_cmd = &pmac_ide_dma_exec_cmd;
-	hwif->dma_start = &pmac_ide_dma_start;
-	hwif->ide_dma_end = &pmac_ide_dma_end;
-	hwif->ide_dma_test_irq = &pmac_ide_dma_test_irq;
-	hwif->dma_timeout = &ide_dma_timeout;
-	hwif->dma_lost_irq = &pmac_ide_dma_lost_irq;
-
 	return 0;
 }
-
+#else
+static int __devinit pmac_ide_init_dma(ide_hwif_t *hwif,
+				       const struct ide_port_info *d)
+{
+	return -EOPNOTSUPP;
+}
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
 
 module_init(pmac_ide_probe);

@@ -43,8 +43,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <asm/current.h>
-
 #include "ehca_iverbs.h"
 #include "ehca_classes.h"
 #include "ehca_irq.h"
@@ -148,7 +146,6 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 	spin_lock_init(&my_cq->task_lock);
 	atomic_set(&my_cq->nr_events, 0);
 	init_waitqueue_head(&my_cq->wait_completion);
-	my_cq->ownpid = current->tgid;
 
 	cq = &my_cq->ib_cq;
 
@@ -320,19 +317,12 @@ int ehca_destroy_cq(struct ib_cq *cq)
 	struct ehca_shca *shca = container_of(device, struct ehca_shca,
 					      ib_device);
 	struct ipz_adapter_handle adapter_handle = shca->ipz_hca_handle;
-	u32 cur_pid = current->tgid;
 	unsigned long flags;
 
 	if (cq->uobject) {
 		if (my_cq->mm_count_galpa || my_cq->mm_count_queue) {
 			ehca_err(device, "Resources still referenced in "
 				 "user space cq_num=%x", my_cq->cq_number);
-			return -EINVAL;
-		}
-		if (my_cq->ownpid != cur_pid) {
-			ehca_err(device, "Invalid caller pid=%x ownpid=%x "
-				 "cq_num=%x",
-				 cur_pid, my_cq->ownpid, my_cq->cq_number);
 			return -EINVAL;
 		}
 	}
@@ -374,15 +364,6 @@ int ehca_destroy_cq(struct ib_cq *cq)
 
 int ehca_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata)
 {
-	struct ehca_cq *my_cq = container_of(cq, struct ehca_cq, ib_cq);
-	u32 cur_pid = current->tgid;
-
-	if (cq->uobject && my_cq->ownpid != cur_pid) {
-		ehca_err(cq->device, "Invalid caller pid=%x ownpid=%x",
-			 cur_pid, my_cq->ownpid);
-		return -EINVAL;
-	}
-
 	/* TODO: proper resize needs to be done */
 	ehca_err(cq->device, "not implemented yet");
 

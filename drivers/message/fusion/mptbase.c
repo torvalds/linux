@@ -79,7 +79,7 @@ MODULE_VERSION(my_VERSION);
 /*
  *  cmd line parameters
  */
-static int mpt_msi_enable;
+static int mpt_msi_enable = -1;
 module_param(mpt_msi_enable, int, 0);
 MODULE_PARM_DESC(mpt_msi_enable, " MSI Support Enable (default=0)");
 
@@ -1686,6 +1686,11 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->bus_type = SAS;
 	}
 
+	if (ioc->bus_type == SAS && mpt_msi_enable == -1)
+		ioc->msi_enable = 1;
+	else
+		ioc->msi_enable = mpt_msi_enable;
+
 	if (ioc->errata_flag_1064)
 		pci_disable_io_access(pdev);
 
@@ -1831,7 +1836,7 @@ mpt_suspend(struct pci_dev *pdev, pm_message_t state)
 	CHIPREG_WRITE32(&ioc->chip->IntStatus, 0);
 
 	free_irq(ioc->pci_irq, ioc);
-	if (mpt_msi_enable)
+	if (ioc->msi_enable)
 		pci_disable_msi(ioc->pcidev);
 	ioc->pci_irq = -1;
 	pci_save_state(pdev);
@@ -2057,15 +2062,17 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 	if ((ret == 0) && (reason == MPT_HOSTEVENT_IOC_BRINGUP)) {
 		ioc->pci_irq = -1;
 		if (ioc->pcidev->irq) {
-			if (mpt_msi_enable && !pci_enable_msi(ioc->pcidev))
+			if (ioc->msi_enable && !pci_enable_msi(ioc->pcidev))
 				printk(MYIOC_s_INFO_FMT "PCI-MSI enabled\n",
 				    ioc->name);
+			else
+				ioc->msi_enable = 0;
 			rc = request_irq(ioc->pcidev->irq, mpt_interrupt,
 			    IRQF_SHARED, ioc->name, ioc);
 			if (rc < 0) {
 				printk(MYIOC_s_ERR_FMT "Unable to allocate "
 				    "interrupt %d!\n", ioc->name, ioc->pcidev->irq);
-				if (mpt_msi_enable)
+				if (ioc->msi_enable)
 					pci_disable_msi(ioc->pcidev);
 				return -EBUSY;
 			}
@@ -2173,7 +2180,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 		/*
 		 * Initalize link list for inactive raid volumes.
 		 */
-		init_MUTEX(&ioc->raid_data.inactive_list_mutex);
+		mutex_init(&ioc->raid_data.inactive_list_mutex);
 		INIT_LIST_HEAD(&ioc->raid_data.inactive_list);
 
 		if (ioc->bus_type == SAS) {
@@ -2261,7 +2268,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
  out:
 	if ((ret != 0) && irq_allocated) {
 		free_irq(ioc->pci_irq, ioc);
-		if (mpt_msi_enable)
+		if (ioc->msi_enable)
 			pci_disable_msi(ioc->pcidev);
 	}
 	return ret;
@@ -2443,7 +2450,7 @@ mpt_adapter_dispose(MPT_ADAPTER *ioc)
 
 	if (ioc->pci_irq != -1) {
 		free_irq(ioc->pci_irq, ioc);
-		if (mpt_msi_enable)
+		if (ioc->msi_enable)
 			pci_disable_msi(ioc->pcidev);
 		ioc->pci_irq = -1;
 	}
@@ -5159,13 +5166,13 @@ mpt_inactive_raid_list_free(MPT_ADAPTER *ioc)
 	if (list_empty(&ioc->raid_data.inactive_list))
 		return;
 
-	down(&ioc->raid_data.inactive_list_mutex);
+	mutex_lock(&ioc->raid_data.inactive_list_mutex);
 	list_for_each_entry_safe(component_info, pNext,
 	    &ioc->raid_data.inactive_list, list) {
 		list_del(&component_info->list);
 		kfree(component_info);
 	}
-	up(&ioc->raid_data.inactive_list_mutex);
+	mutex_unlock(&ioc->raid_data.inactive_list_mutex);
 }
 
 /**
@@ -5224,7 +5231,7 @@ mpt_inactive_raid_volumes(MPT_ADAPTER *ioc, u8 channel, u8 id)
 	if (!handle_inactive_volumes)
 		goto out;
 
-	down(&ioc->raid_data.inactive_list_mutex);
+	mutex_lock(&ioc->raid_data.inactive_list_mutex);
 	for (i = 0; i < buffer->NumPhysDisks; i++) {
 		if(mpt_raid_phys_disk_pg0(ioc,
 		    buffer->PhysDisk[i].PhysDiskNum, &phys_disk) != 0)
@@ -5244,7 +5251,7 @@ mpt_inactive_raid_volumes(MPT_ADAPTER *ioc, u8 channel, u8 id)
 		list_add_tail(&component_info->list,
 		    &ioc->raid_data.inactive_list);
 	}
-	up(&ioc->raid_data.inactive_list_mutex);
+	mutex_unlock(&ioc->raid_data.inactive_list_mutex);
 
  out:
 	if (buffer)

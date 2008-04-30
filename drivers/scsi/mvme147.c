@@ -82,6 +82,9 @@ int mvme147_detect(struct scsi_host_template *tpnt)
     mvme147_host->irq = MVME147_IRQ_SCSI_PORT;
     regs.SASR = (volatile unsigned char *)0xfffe4000;
     regs.SCMD = (volatile unsigned char *)0xfffe4001;
+    HDATA(mvme147_host)->no_sync = 0xff;
+    HDATA(mvme147_host)->fast = 0;
+    HDATA(mvme147_host)->dma_mode = CTRL_DMA;
     wd33c93_init(mvme147_host, regs, dma_setup, dma_stop, WD33C93_FS_8_10);
 
     if (request_irq(MVME147_IRQ_SCSI_PORT, mvme147_intr, 0, "MVME147 SCSI PORT", mvme147_intr))

@@ -21,7 +21,6 @@
 #include "udfdecl.h"
 #include <linux/fs.h>
 #include <linux/quotaops.h>
-#include <linux/udf_fs.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 
@@ -47,11 +46,9 @@ void udf_free_inode(struct inode *inode)
 		struct logicalVolIntegrityDescImpUse *lvidiu =
 							udf_sb_lvidiu(sbi);
 		if (S_ISDIR(inode->i_mode))
-			lvidiu->numDirs =
-				cpu_to_le32(le32_to_cpu(lvidiu->numDirs) - 1);
+			le32_add_cpu(&lvidiu->numDirs, -1);
 		else
-			lvidiu->numFiles =
-				cpu_to_le32(le32_to_cpu(lvidiu->numFiles) - 1);
+			le32_add_cpu(&lvidiu->numFiles, -1);
 
 		mark_buffer_dirty(sbi->s_lvid_bh);
 	}
@@ -105,11 +102,9 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		lvhd = (struct logicalVolHeaderDesc *)
 				(lvid->logicalVolContentsUse);
 		if (S_ISDIR(mode))
-			lvidiu->numDirs =
-				cpu_to_le32(le32_to_cpu(lvidiu->numDirs) + 1);
+			le32_add_cpu(&lvidiu->numDirs, 1);
 		else
-			lvidiu->numFiles =
-				cpu_to_le32(le32_to_cpu(lvidiu->numFiles) + 1);
+			le32_add_cpu(&lvidiu->numFiles, 1);
 		iinfo->i_unique = uniqueID = le64_to_cpu(lvhd->uniqueID);
 		if (!(++uniqueID & 0x00000000FFFFFFFFUL))
 			uniqueID += 16;

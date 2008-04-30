@@ -361,15 +361,15 @@ static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 	unsigned int data_len, cmd, t_val;
 
 	if (!(STATUS_HAS_MEDIA & readl(host->addr + STATUS))) {
-		dev_dbg(msh->cdev.dev, "no media status\n");
+		dev_dbg(&msh->dev, "no media status\n");
 		host->req->error = -ETIME;
 		return host->req->error;
 	}
 
-	dev_dbg(msh->cdev.dev, "control %08x\n",
+	dev_dbg(&msh->dev, "control %08x\n",
 		readl(host->addr + HOST_CONTROL));
-	dev_dbg(msh->cdev.dev, "status %08x\n", readl(host->addr + INT_STATUS));
-	dev_dbg(msh->cdev.dev, "hstatus %08x\n", readl(host->addr + STATUS));
+	dev_dbg(&msh->dev, "status %08x\n", readl(host->addr + INT_STATUS));
+	dev_dbg(&msh->dev, "hstatus %08x\n", readl(host->addr + STATUS));
 
 	host->cmd_flags = 0;
 	host->block_pos = 0;
@@ -448,7 +448,7 @@ static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 	host->req->error = 0;
 
 	writel(cmd, host->addr + TPC);
-	dev_dbg(msh->cdev.dev, "executing TPC %08x, len %x\n", cmd, data_len);
+	dev_dbg(&msh->dev, "executing TPC %08x, len %x\n", cmd, data_len);
 
 	return 0;
 }
@@ -461,11 +461,11 @@ static void jmb38x_ms_complete_cmd(struct memstick_host *msh, int last)
 
 	del_timer(&host->timer);
 
-	dev_dbg(msh->cdev.dev, "c control %08x\n",
+	dev_dbg(&msh->dev, "c control %08x\n",
 		readl(host->addr + HOST_CONTROL));
-	dev_dbg(msh->cdev.dev, "c status %08x\n",
+	dev_dbg(&msh->dev, "c status %08x\n",
 		readl(host->addr + INT_STATUS));
-	dev_dbg(msh->cdev.dev, "c hstatus %08x\n", readl(host->addr + STATUS));
+	dev_dbg(&msh->dev, "c hstatus %08x\n", readl(host->addr + STATUS));
 
 	host->req->int_reg = readl(host->addr + STATUS) & 0xff;
 

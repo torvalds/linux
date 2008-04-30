@@ -35,10 +35,6 @@
 #include "sd_ops.h"
 #include "sdio_ops.h"
 
-extern int mmc_attach_mmc(struct mmc_host *host, u32 ocr);
-extern int mmc_attach_sd(struct mmc_host *host, u32 ocr);
-extern int mmc_attach_sdio(struct mmc_host *host, u32 ocr);
-
 static struct workqueue_struct *workqueue;
 
 /*
@@ -516,7 +512,7 @@ static void mmc_power_off(struct mmc_host *host)
 /*
  * Cleanup when the last reference to the bus operator is dropped.
  */
-void __mmc_release_bus(struct mmc_host *host)
+static void __mmc_release_bus(struct mmc_host *host)
 {
 	BUG_ON(!host);
 	BUG_ON(host->bus_refs);

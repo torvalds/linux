@@ -122,7 +122,7 @@ EXPORT_SYMBOL(drm_agp_acquire);
 int drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
-	return drm_agp_acquire((struct drm_device *) file_priv->head->dev);
+	return drm_agp_acquire((struct drm_device *) file_priv->minor->dev);
 }
 
 /**

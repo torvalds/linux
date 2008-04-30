@@ -13,7 +13,6 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 
-#include <asm/intc.h>
 #include <asm/io.h>
 
 #include "intc.h"

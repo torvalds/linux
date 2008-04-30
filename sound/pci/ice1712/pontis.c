@@ -246,7 +246,7 @@ static int wm_adc_mux_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 		wm_put(ice, WM_ADC_MUX, nval);
 	}
 	mutex_unlock(&ice->gpio_mutex);
-	return 0;
+	return change;
 }
 
 /*
@@ -450,7 +450,7 @@ static int cs_source_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_valu
 		change = 1;
 	}
 	mutex_unlock(&ice->gpio_mutex);
-	return 0;
+	return change;
 }
 
 

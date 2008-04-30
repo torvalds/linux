@@ -44,6 +44,7 @@ static const char sni_82596_string[] = "snirm_82596";
 MODULE_AUTHOR("Thomas Bogendoerfer");
 MODULE_DESCRIPTION("i82596 driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:snirm_82596");
 module_param(i596_debug, int, 0);
 MODULE_PARM_DESC(i596_debug, "82596 debug mask");
 
@@ -166,6 +167,7 @@ static struct platform_driver sni_82596_driver = {
 	.remove	= __devexit_p(sni_82596_driver_remove),
 	.driver	= {
 		.name	= sni_82596_string,
+		.owner	= THIS_MODULE,
 	},
 };
 

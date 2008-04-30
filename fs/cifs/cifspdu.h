@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifspdu.h
  *
- *   Copyright (c) International Business Machines  Corp., 2002,2007
+ *   Copyright (c) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -163,7 +163,10 @@
 						   path names in response */
 #define SMBFLG2_KNOWS_EAS cpu_to_le16(2)
 #define SMBFLG2_SECURITY_SIGNATURE cpu_to_le16(4)
+#define SMBFLG2_COMPRESSED (8)
+#define SMBFLG2_SECURITY_SIGNATURE_REQUIRED (0x10)
 #define SMBFLG2_IS_LONG_NAME cpu_to_le16(0x40)
+#define SMBFLG2_REPARSE_PATH (0x400)
 #define SMBFLG2_EXT_SEC cpu_to_le16(0x800)
 #define SMBFLG2_DFS cpu_to_le16(0x1000)
 #define SMBFLG2_PAGING_IO cpu_to_le16(0x2000)
@@ -305,7 +308,7 @@
 #define FILE_SHARE_DELETE 0x00000004
 #define FILE_SHARE_ALL    0x00000007
 
-/* CreateDisposition flags */
+/* CreateDisposition flags, similar to CreateAction as well */
 #define FILE_SUPERSEDE    0x00000000
 #define FILE_OPEN         0x00000001
 #define FILE_CREATE       0x00000002
@@ -317,15 +320,25 @@
 #define CREATE_NOT_FILE		0x00000001	/* if set must not be file */
 #define CREATE_WRITE_THROUGH	0x00000002
 #define CREATE_SEQUENTIAL       0x00000004
-#define CREATE_SYNC_ALERT       0x00000010
-#define CREATE_ASYNC_ALERT      0x00000020
+#define CREATE_NO_BUFFER        0x00000008      /* should not buffer on srv */
+#define CREATE_SYNC_ALERT       0x00000010	/* MBZ */
+#define CREATE_ASYNC_ALERT      0x00000020	/* MBZ */
 #define CREATE_NOT_DIR		0x00000040    /* if set must not be directory */
+#define CREATE_TREE_CONNECTION  0x00000080	/* should be zero */
+#define CREATE_COMPLETE_IF_OPLK 0x00000100	/* should be zero */
 #define CREATE_NO_EA_KNOWLEDGE  0x00000200
-#define CREATE_EIGHT_DOT_THREE  0x00000400
+#define CREATE_EIGHT_DOT_THREE  0x00000400	/* doc says this is obsolete
+						 open for recovery flag - should
+						 be zero */
 #define CREATE_RANDOM_ACCESS	0x00000800
 #define CREATE_DELETE_ON_CLOSE	0x00001000
 #define CREATE_OPEN_BY_ID       0x00002000
+#define CREATE_OPEN_BACKUP_INTN 0x00004000
+#define CREATE_NO_COMPRESSION   0x00008000
+#define CREATE_RESERVE_OPFILTER 0x00100000	/* should be zero */
 #define OPEN_REPARSE_POINT	0x00200000
+#define OPEN_NO_RECALL          0x00400000
+#define OPEN_FREE_SPACE_QUERY   0x00800000	/* should be zero */
 #define CREATE_OPTIONS_MASK     0x007FFFFF
 #define CREATE_OPTION_SPECIAL   0x20000000   /* system. NB not sent over wire */
 
@@ -470,7 +483,7 @@ typedef struct lanman_neg_rsp {
 
 typedef struct negotiate_rsp {
 	struct smb_hdr hdr;	/* wct = 17 */
-	__le16 DialectIndex;
+	__le16 DialectIndex; /* 0xFFFF = no dialect acceptable */
 	__u8 SecurityMode;
 	__le16 MaxMpxCount;
 	__le16 MaxNumberVcs;
@@ -516,10 +529,11 @@ typedef struct negotiate_rsp {
 #define CAP_INFOLEVEL_PASSTHRU 0x00002000
 #define CAP_LARGE_READ_X       0x00004000
 #define CAP_LARGE_WRITE_X      0x00008000
+#define CAP_LWIO               0x00010000 /* support fctl_srv_req_resume_key */
 #define CAP_UNIX               0x00800000
-#define CAP_RESERVED           0x02000000
-#define CAP_BULK_TRANSFER      0x20000000
-#define CAP_COMPRESSED_DATA    0x40000000
+#define CAP_COMPRESSED_DATA    0x02000000
+#define CAP_DYNAMIC_REAUTH     0x20000000
+#define CAP_PERSISTENT_HANDLES 0x40000000
 #define CAP_EXTENDED_SECURITY  0x80000000
 
 typedef union smb_com_session_setup_andx {
@@ -668,9 +682,7 @@ typedef struct smb_com_tconx_req {
 } __attribute__((packed)) TCONX_REQ;
 
 typedef struct smb_com_tconx_rsp {
-	struct smb_hdr hdr;	/* wct = 3 note that Win2000 has sent wct = 7
-				 in some cases on responses. Four unspecified
-				 words followed OptionalSupport */
+	struct smb_hdr hdr;	/* wct = 3 , not extended response */
 	__u8 AndXCommand;
 	__u8 AndXReserved;
 	__le16 AndXOffset;
@@ -680,13 +692,48 @@ typedef struct smb_com_tconx_rsp {
 	/* STRING NativeFileSystem */
 } __attribute__((packed)) TCONX_RSP;
 
+typedef struct smb_com_tconx_rsp_ext {
+	struct smb_hdr hdr;	/* wct = 7, extended response */
+	__u8 AndXCommand;
+	__u8 AndXReserved;
+	__le16 AndXOffset;
+	__le16 OptionalSupport;	/* see below */
+	__le32 MaximalShareAccessRights;
+	__le32 GuestMaximalShareAccessRights;
+	__u16 ByteCount;
+	unsigned char Service[1];	/* always ASCII, not Unicode */
+	/* STRING NativeFileSystem */
+} __attribute__((packed)) TCONX_RSP_EXT;
+
+
 /* tree connect Flags */
 #define DISCONNECT_TID          0x0001
+#define TCON_EXTENDED_SIGNATURES 0x0004
 #define TCON_EXTENDED_SECINFO   0x0008
+
 /* OptionalSupport bits */
 #define SMB_SUPPORT_SEARCH_BITS 0x0001	/* "must have" directory search bits
 					 (exclusive searches supported) */
 #define SMB_SHARE_IS_IN_DFS     0x0002
+#define SMB_CSC_MASK               0x000C
+/* CSC flags defined as follows */
+#define SMB_CSC_CACHE_MANUAL_REINT 0x0000
+#define SMB_CSC_CACHE_AUTO_REINT   0x0004
+#define SMB_CSC_CACHE_VDO          0x0008
+#define SMB_CSC_NO_CACHING         0x000C
+
+#define SMB_UNIQUE_FILE_NAME    0x0010
+#define SMB_EXTENDED_SIGNATURES 0x0020
+
+/* services
+ *
+ * A:       ie disk
+ * LPT1:    ie printer
+ * IPC      ie named pipe
+ * COMM
+ * ?????    ie any type
+ *
+ */
 
 typedef struct smb_com_logoff_andx_req {
 	struct smb_hdr hdr;	/* wct = 2 */
@@ -750,6 +797,17 @@ typedef struct smb_com_findclose_req {
 #define COMM_DEV_TYPE		0x0004
 #define UNKNOWN_TYPE		0xFFFF
 
+/* Device Type or File Status Flags */
+#define NO_EAS			0x0001
+#define NO_SUBSTREAMS		0x0002
+#define NO_REPARSETAG		0x0004
+/* following flags can apply if pipe */
+#define ICOUNT_MASK		0x00FF
+#define PIPE_READ_MODE		0x0100
+#define NAMED_PIPE_TYPE		0x0400
+#define PIPE_END_POINT		0x0800
+#define BLOCKING_NAMED_PIPE	0x8000
+
 typedef struct smb_com_open_req {	/* also handles create */
 	struct smb_hdr hdr;	/* wct = 24 */
 	__u8 AndXCommand;
@@ -758,7 +816,7 @@ typedef struct smb_com_open_req {	/* also handles create */
 	__u8 Reserved;		/* Must Be Zero */
 	__le16 NameLength;
 	__le32 OpenFlags;
-	__le32 RootDirectoryFid;
+	__u32  RootDirectoryFid;
 	__le32 DesiredAccess;
 	__le64 AllocationSize;
 	__le32 FileAttributes;
@@ -800,6 +858,32 @@ typedef struct smb_com_open_rsp {
 	__u8 DirectoryFlag;
 	__u16 ByteCount;	/* bct = 0 */
 } __attribute__((packed)) OPEN_RSP;
+
+typedef struct smb_com_open_rsp_ext {
+	struct smb_hdr hdr;     /* wct = 42 but meaningless due to MS bug? */
+	__u8 AndXCommand;
+	__u8 AndXReserved;
+	__le16 AndXOffset;
+	__u8 OplockLevel;
+	__u16 Fid;
+	__le32 CreateAction;
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le32 FileAttributes;
+	__le64 AllocationSize;
+	__le64 EndOfFile;
+	__le16 FileType;
+	__le16 DeviceState;
+	__u8 DirectoryFlag;
+	__u8 VolumeGUID[16];
+	__u64 FileId; /* note no endian conversion - is opaque UniqueID */
+	__le32 MaximalAccessRights;
+	__le32 GuestMaximalAccessRights;
+	__u16 ByteCount;        /* bct = 0 */
+} __attribute__((packed)) OPEN_RSP_EXT;
+
 
 /* format of legacy open request */
 typedef struct smb_com_openx_req {
@@ -1703,6 +1787,12 @@ typedef struct smb_com_transaction2_fnext_rsp_parms {
 #define SMB_QUERY_CIFS_UNIX_INFO    0x200
 #define SMB_QUERY_POSIX_FS_INFO     0x201
 #define SMB_QUERY_POSIX_WHO_AM_I    0x202
+#define SMB_REQUEST_TRANSPORT_ENCRYPTION 0x203
+#define SMB_QUERY_FS_PROXY          0x204 /* WAFS enabled. Returns structure
+					    FILE_SYSTEM__UNIX_INFO to tell
+					    whether new NTIOCTL available
+					    (0xACE) for WAN friendly SMB
+					    operations to be carried */
 #define SMB_QUERY_LABEL_INFO        0x3ea
 #define SMB_QUERY_FS_QUOTA_INFO     0x3ee
 #define SMB_QUERY_FS_FULL_SIZE_INFO 0x3ef
@@ -1959,7 +2049,10 @@ typedef struct {
 #define CIFS_UNIX_LARGE_READ_CAP        0x00000040 /* support reads >128K (up
 						      to 0xFFFF00 */
 #define CIFS_UNIX_LARGE_WRITE_CAP       0x00000080
-
+#define CIFS_UNIX_TRANSPORT_ENCRYPTION_CAP 0x00000100 /* can do SPNEGO crypt */
+#define CIFS_UNIX_TRANPSORT_ENCRYPTION_MANDATORY_CAP  0x00000200 /* must do  */
+#define CIFS_UNIX_PROXY_CAP             0x00000400 /* Proxy cap: 0xACE ioctl and
+						      QFS PROXY call */
 #ifdef CONFIG_CIFS_POSIX
 /* Can not set pathnames cap yet until we send new posix create SMB since
    otherwise server can treat such handles opened with older ntcreatex

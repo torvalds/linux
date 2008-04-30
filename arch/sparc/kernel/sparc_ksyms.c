@@ -36,12 +36,10 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/idprom.h>
-#include <asm/svr4.h>
 #include <asm/head.h>
 #include <asm/smp.h>
 #include <asm/mostek.h>
 #include <asm/ptrace.h>
-#include <asm/user.h>
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
 #ifdef CONFIG_SBUS
@@ -62,8 +60,6 @@ struct poll {
 	short revents;
 };
 
-extern int svr4_getcontext (svr4_ucontext_t *, struct pt_regs *);
-extern int svr4_setcontext (svr4_ucontext_t *, struct pt_regs *);
 extern void (*__copy_1page)(void *, const void *);
 extern void __memmove(void *, const void *, __kernel_size_t);
 extern void (*bzero_1page)(void *);
@@ -107,11 +103,6 @@ EXPORT_SYMBOL(___rw_read_try);
 EXPORT_SYMBOL(___rw_read_exit);
 EXPORT_SYMBOL(___rw_write_enter);
 #endif
-/* semaphores */
-EXPORT_SYMBOL(__up);
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_trylock);
-EXPORT_SYMBOL(__down_interruptible);
 
 EXPORT_SYMBOL(sparc_valid_addr_bitmap);
 EXPORT_SYMBOL(phys_base);
@@ -208,10 +199,6 @@ EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(kmap_atomic);
 EXPORT_SYMBOL(kunmap_atomic);
 #endif
-
-/* Solaris/SunOS binary compatibility */
-EXPORT_SYMBOL(svr4_setcontext);
-EXPORT_SYMBOL(svr4_getcontext);
 
 /* prom symbols */
 EXPORT_SYMBOL(idprom);

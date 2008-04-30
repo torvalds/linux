@@ -21,8 +21,9 @@
 #define PLATRAM_RW (1)
 
 struct platdata_mtd_ram {
-	char			*mapname;
-	char		       **probes;
+	const char		*mapname;
+	const char		**map_probes;
+	const char		**probes;
 	struct mtd_partition	*partitions;
 	int			 nr_partitions;
 	int			 bankwidth;

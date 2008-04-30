@@ -107,10 +107,10 @@ void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
 	if (del_timer(&fq->timer))
 		atomic_dec(&fq->refcnt);
 
-	if (!(fq->last_in & COMPLETE)) {
+	if (!(fq->last_in & INET_FRAG_COMPLETE)) {
 		fq_unlink(fq, f);
 		atomic_dec(&fq->refcnt);
-		fq->last_in |= COMPLETE;
+		fq->last_in |= INET_FRAG_COMPLETE;
 	}
 }
 
@@ -134,7 +134,7 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 	struct sk_buff *fp;
 	struct netns_frags *nf;
 
-	BUG_TRAP(q->last_in & COMPLETE);
+	BUG_TRAP(q->last_in & INET_FRAG_COMPLETE);
 	BUG_TRAP(del_timer(&q->timer) == 0);
 
 	/* Release all fragment data. */
@@ -177,7 +177,7 @@ int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f)
 		read_unlock(&f->lock);
 
 		spin_lock(&q->lock);
-		if (!(q->last_in & COMPLETE))
+		if (!(q->last_in & INET_FRAG_COMPLETE))
 			inet_frag_kill(q, f);
 		spin_unlock(&q->lock);
 
@@ -209,7 +209,7 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 		if (qp->net == nf && f->match(qp, arg)) {
 			atomic_inc(&qp->refcnt);
 			write_unlock(&f->lock);
-			qp_in->last_in |= COMPLETE;
+			qp_in->last_in |= INET_FRAG_COMPLETE;
 			inet_frag_put(qp_in, f);
 			return qp;
 		}

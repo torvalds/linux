@@ -40,8 +40,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <asm/current.h>
-
 #include "ehca_classes.h"
 #include "ehca_iverbs.h"
 #include "ehca_mrmw.h"
@@ -213,8 +211,7 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 		break;
 
 	case 1: /* qp rqueue_addr */
-		ehca_dbg(qp->ib_qp.device, "qp_num=%x rqueue",
-			 qp->ib_qp.qp_num);
+		ehca_dbg(qp->ib_qp.device, "qp_num=%x rq", qp->ib_qp.qp_num);
 		ret = ehca_mmap_queue(vma, &qp->ipz_rqueue,
 				      &qp->mm_count_rqueue);
 		if (unlikely(ret)) {
@@ -226,8 +223,7 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 		break;
 
 	case 2: /* qp squeue_addr */
-		ehca_dbg(qp->ib_qp.device, "qp_num=%x squeue",
-			 qp->ib_qp.qp_num);
+		ehca_dbg(qp->ib_qp.device, "qp_num=%x sq", qp->ib_qp.qp_num);
 		ret = ehca_mmap_queue(vma, &qp->ipz_squeue,
 				      &qp->mm_count_squeue);
 		if (unlikely(ret)) {
@@ -253,11 +249,9 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	u32 idr_handle = fileoffset & 0x1FFFFFF;
 	u32 q_type = (fileoffset >> 27) & 0x1;	  /* CQ, QP,...        */
 	u32 rsrc_type = (fileoffset >> 25) & 0x3; /* sq,rq,cmnd_window */
-	u32 cur_pid = current->tgid;
 	u32 ret;
 	struct ehca_cq *cq;
 	struct ehca_qp *qp;
-	struct ehca_pd *pd;
 	struct ib_uobject *uobject;
 
 	switch (q_type) {
@@ -269,13 +263,6 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		/* make sure this mmap really belongs to the authorized user */
 		if (!cq)
 			return -EINVAL;
-
-		if (cq->ownpid != cur_pid) {
-			ehca_err(cq->ib_cq.device,
-				 "Invalid caller pid=%x ownpid=%x",
-				 cur_pid, cq->ownpid);
-			return -ENOMEM;
-		}
 
 		if (!cq->ib_cq.uobject || cq->ib_cq.uobject->context != context)
 			return -EINVAL;
@@ -297,14 +284,6 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		/* make sure this mmap really belongs to the authorized user */
 		if (!qp)
 			return -EINVAL;
-
-		pd = container_of(qp->ib_qp.pd, struct ehca_pd, ib_pd);
-		if (pd->ownpid != cur_pid) {
-			ehca_err(qp->ib_qp.device,
-				 "Invalid caller pid=%x ownpid=%x",
-				 cur_pid, pd->ownpid);
-			return -ENOMEM;
-		}
 
 		uobject = IS_SRQ(qp) ? qp->ib_srq.uobject : qp->ib_qp.uobject;
 		if (!uobject || uobject->context != context)

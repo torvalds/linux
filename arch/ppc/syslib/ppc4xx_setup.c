@@ -24,7 +24,6 @@
 #include <linux/pci.h>
 #include <linux/rtc.h>
 #include <linux/console.h>
-#include <linux/ide.h>
 #include <linux/serial_reg.h>
 #include <linux/seq_file.h>
 
@@ -189,24 +188,6 @@ ppc4xx_calibrate_decr(void)
 	mtspr(SPRN_PIT, tb_ticks_per_jiffy);
 }
 
-/*
- * IDE stuff.
- * should be generic for every IDE PCI chipset
- */
-#if defined(CONFIG_PCI) && defined(CONFIG_IDE)
-static void
-ppc4xx_ide_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
-			   unsigned long ctrl_port, int *irq)
-{
-	int i;
-
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; ++i)
-		hw->io_ports[i] = data_port + i - IDE_DATA_OFFSET;
-
-	hw->io_ports[IDE_CONTROL_OFFSET] = ctrl_port;
-}
-#endif /* defined(CONFIG_PCI) && defined(CONFIG_IDE) */
-
 TODC_ALLOC();
 
 /*
@@ -271,10 +252,6 @@ ppc4xx_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
 	ppc_md.progress = gen550_progress;
 #endif
-
-#if defined(CONFIG_PCI) && defined(CONFIG_IDE)
-	ppc_ide_md.ide_init_hwif = ppc4xx_ide_init_hwif_ports;
-#endif /* defined(CONFIG_PCI) && defined(CONFIG_IDE) */
 }
 
 /* Called from machine_check_exception */

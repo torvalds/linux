@@ -17,18 +17,7 @@
  */
 #include "xfs.h"
 #include "xfs_vnodeops.h"
-
-/*
- * The following six includes are needed so that we can include
- * xfs_inode.h.  What a mess..
- */
 #include "xfs_bmap_btree.h"
-#include "xfs_inum.h"
-#include "xfs_dir2.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
-#include "xfs_dinode.h"
-
 #include "xfs_inode.h"
 
 int  fs_noerr(void) { return 0; }
@@ -42,11 +31,10 @@ xfs_tosspages(
 	xfs_off_t	last,
 	int		fiopt)
 {
-	bhv_vnode_t	*vp = XFS_ITOV(ip);
-	struct inode	*inode = vn_to_inode(vp);
+	struct address_space *mapping = ip->i_vnode->i_mapping;
 
-	if (VN_CACHED(vp))
-		truncate_inode_pages(inode->i_mapping, first);
+	if (mapping->nrpages)
+		truncate_inode_pages(mapping, first);
 }
 
 int
@@ -56,15 +44,14 @@ xfs_flushinval_pages(
 	xfs_off_t	last,
 	int		fiopt)
 {
-	bhv_vnode_t	*vp = XFS_ITOV(ip);
-	struct inode	*inode = vn_to_inode(vp);
+	struct address_space *mapping = ip->i_vnode->i_mapping;
 	int		ret = 0;
 
-	if (VN_CACHED(vp)) {
+	if (mapping->nrpages) {
 		xfs_iflags_clear(ip, XFS_ITRUNCATED);
-		ret = filemap_write_and_wait(inode->i_mapping);
+		ret = filemap_write_and_wait(mapping);
 		if (!ret)
-			truncate_inode_pages(inode->i_mapping, first);
+			truncate_inode_pages(mapping, first);
 	}
 	return ret;
 }
@@ -77,17 +64,16 @@ xfs_flush_pages(
 	uint64_t	flags,
 	int		fiopt)
 {
-	bhv_vnode_t	*vp = XFS_ITOV(ip);
-	struct inode	*inode = vn_to_inode(vp);
+	struct address_space *mapping = ip->i_vnode->i_mapping;
 	int		ret = 0;
 	int		ret2;
 
-	if (VN_DIRTY(vp)) {
+	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
 		xfs_iflags_clear(ip, XFS_ITRUNCATED);
-		ret = filemap_fdatawrite(inode->i_mapping);
+		ret = filemap_fdatawrite(mapping);
 		if (flags & XFS_B_ASYNC)
 			return ret;
-		ret2 = filemap_fdatawait(inode->i_mapping);
+		ret2 = filemap_fdatawait(mapping);
 		if (!ret)
 			ret = ret2;
 	}

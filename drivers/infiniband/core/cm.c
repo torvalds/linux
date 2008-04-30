@@ -467,6 +467,31 @@ static int cm_compare_private_data(u8 *private_data,
 	return memcmp(src, dst_data->data, IB_CM_COMPARE_SIZE);
 }
 
+/*
+ * Trivial helpers to strip endian annotation and compare; the
+ * endianness doesn't actually matter since we just need a stable
+ * order for the RB tree.
+ */
+static int be32_lt(__be32 a, __be32 b)
+{
+	return (__force u32) a < (__force u32) b;
+}
+
+static int be32_gt(__be32 a, __be32 b)
+{
+	return (__force u32) a > (__force u32) b;
+}
+
+static int be64_lt(__be64 a, __be64 b)
+{
+	return (__force u64) a < (__force u64) b;
+}
+
+static int be64_gt(__be64 a, __be64 b)
+{
+	return (__force u64) a > (__force u64) b;
+}
+
 static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 {
 	struct rb_node **link = &cm.listen_service_table.rb_node;
@@ -492,9 +517,9 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 			link = &(*link)->rb_left;
 		else if (cm_id_priv->id.device > cur_cm_id_priv->id.device)
 			link = &(*link)->rb_right;
-		else if (service_id < cur_cm_id_priv->id.service_id)
+		else if (be64_lt(service_id, cur_cm_id_priv->id.service_id))
 			link = &(*link)->rb_left;
-		else if (service_id > cur_cm_id_priv->id.service_id)
+		else if (be64_gt(service_id, cur_cm_id_priv->id.service_id))
 			link = &(*link)->rb_right;
 		else if (data_cmp < 0)
 			link = &(*link)->rb_left;
@@ -527,9 +552,9 @@ static struct cm_id_private * cm_find_listen(struct ib_device *device,
 			node = node->rb_left;
 		else if (device > cm_id_priv->id.device)
 			node = node->rb_right;
-		else if (service_id < cm_id_priv->id.service_id)
+		else if (be64_lt(service_id, cm_id_priv->id.service_id))
 			node = node->rb_left;
-		else if (service_id > cm_id_priv->id.service_id)
+		else if (be64_gt(service_id, cm_id_priv->id.service_id))
 			node = node->rb_right;
 		else if (data_cmp < 0)
 			node = node->rb_left;
@@ -552,13 +577,13 @@ static struct cm_timewait_info * cm_insert_remote_id(struct cm_timewait_info
 		parent = *link;
 		cur_timewait_info = rb_entry(parent, struct cm_timewait_info,
 					     remote_id_node);
-		if (remote_id < cur_timewait_info->work.remote_id)
+		if (be32_lt(remote_id, cur_timewait_info->work.remote_id))
 			link = &(*link)->rb_left;
-		else if (remote_id > cur_timewait_info->work.remote_id)
+		else if (be32_gt(remote_id, cur_timewait_info->work.remote_id))
 			link = &(*link)->rb_right;
-		else if (remote_ca_guid < cur_timewait_info->remote_ca_guid)
+		else if (be64_lt(remote_ca_guid, cur_timewait_info->remote_ca_guid))
 			link = &(*link)->rb_left;
-		else if (remote_ca_guid > cur_timewait_info->remote_ca_guid)
+		else if (be64_gt(remote_ca_guid, cur_timewait_info->remote_ca_guid))
 			link = &(*link)->rb_right;
 		else
 			return cur_timewait_info;
@@ -578,13 +603,13 @@ static struct cm_timewait_info * cm_find_remote_id(__be64 remote_ca_guid,
 	while (node) {
 		timewait_info = rb_entry(node, struct cm_timewait_info,
 					 remote_id_node);
-		if (remote_id < timewait_info->work.remote_id)
+		if (be32_lt(remote_id, timewait_info->work.remote_id))
 			node = node->rb_left;
-		else if (remote_id > timewait_info->work.remote_id)
+		else if (be32_gt(remote_id, timewait_info->work.remote_id))
 			node = node->rb_right;
-		else if (remote_ca_guid < timewait_info->remote_ca_guid)
+		else if (be64_lt(remote_ca_guid, timewait_info->remote_ca_guid))
 			node = node->rb_left;
-		else if (remote_ca_guid > timewait_info->remote_ca_guid)
+		else if (be64_gt(remote_ca_guid, timewait_info->remote_ca_guid))
 			node = node->rb_right;
 		else
 			return timewait_info;
@@ -605,13 +630,13 @@ static struct cm_timewait_info * cm_insert_remote_qpn(struct cm_timewait_info
 		parent = *link;
 		cur_timewait_info = rb_entry(parent, struct cm_timewait_info,
 					     remote_qp_node);
-		if (remote_qpn < cur_timewait_info->remote_qpn)
+		if (be32_lt(remote_qpn, cur_timewait_info->remote_qpn))
 			link = &(*link)->rb_left;
-		else if (remote_qpn > cur_timewait_info->remote_qpn)
+		else if (be32_gt(remote_qpn, cur_timewait_info->remote_qpn))
 			link = &(*link)->rb_right;
-		else if (remote_ca_guid < cur_timewait_info->remote_ca_guid)
+		else if (be64_lt(remote_ca_guid, cur_timewait_info->remote_ca_guid))
 			link = &(*link)->rb_left;
-		else if (remote_ca_guid > cur_timewait_info->remote_ca_guid)
+		else if (be64_gt(remote_ca_guid, cur_timewait_info->remote_ca_guid))
 			link = &(*link)->rb_right;
 		else
 			return cur_timewait_info;
@@ -635,9 +660,9 @@ static struct cm_id_private * cm_insert_remote_sidr(struct cm_id_private
 		parent = *link;
 		cur_cm_id_priv = rb_entry(parent, struct cm_id_private,
 					  sidr_id_node);
-		if (remote_id < cur_cm_id_priv->id.remote_id)
+		if (be32_lt(remote_id, cur_cm_id_priv->id.remote_id))
 			link = &(*link)->rb_left;
-		else if (remote_id > cur_cm_id_priv->id.remote_id)
+		else if (be32_gt(remote_id, cur_cm_id_priv->id.remote_id))
 			link = &(*link)->rb_right;
 		else {
 			int cmp;
@@ -2848,7 +2873,7 @@ static void cm_format_sidr_req(struct cm_sidr_req_msg *sidr_req_msg,
 	cm_format_mad_hdr(&sidr_req_msg->hdr, CM_SIDR_REQ_ATTR_ID,
 			  cm_form_tid(cm_id_priv, CM_MSG_SEQUENCE_SIDR));
 	sidr_req_msg->request_id = cm_id_priv->id.local_id;
-	sidr_req_msg->pkey = cpu_to_be16(param->path->pkey);
+	sidr_req_msg->pkey = param->path->pkey;
 	sidr_req_msg->service_id = param->service_id;
 
 	if (param->private_data && param->private_data_len)

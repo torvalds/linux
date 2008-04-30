@@ -19,7 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#undef DEBUG_LOW
+/* Enables debugging of low-level hash table routines - careful! */
+#undef DEBUG
 
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
@@ -40,12 +41,8 @@
 #include <asm/smp.h>
 
 #include "plpar_wrappers.h"
+#include "pseries.h"
 
-#ifdef DEBUG_LOW
-#define DBG_LOW(fmt...) do { udbg_printf(fmt); } while(0)
-#else
-#define DBG_LOW(fmt...) do { } while(0)
-#endif
 
 /* in hvCall.S */
 EXPORT_SYMBOL(plpar_hcall);
@@ -195,6 +192,8 @@ void __init udbg_init_debug_lpar(void)
 	udbg_putc = udbg_putcLP;
 	udbg_getc = udbg_getcLP;
 	udbg_getc_poll = udbg_getc_pollLP;
+
+	register_early_udbg_console();
 }
 
 /* returns 0 if couldn't find or use /chosen/stdout as console */
@@ -203,7 +202,6 @@ void __init find_udbg_vterm(void)
 	struct device_node *stdout_node;
 	const u32 *termno;
 	const char *name;
-	int add_console;
 
 	/* find the boot console from /chosen/stdout */
 	if (!of_chosen)
@@ -219,8 +217,6 @@ void __init find_udbg_vterm(void)
 		printk(KERN_WARNING "stdout node missing 'name' property!\n");
 		goto out;
 	}
-	/* The user has requested a console so this is already set up. */
-	add_console = !strstr(cmd_line, "console=");
 
 	/* Check if it's a virtual terminal */
 	if (strncmp(name, "vty", 3) != 0)
@@ -234,15 +230,13 @@ void __init find_udbg_vterm(void)
 		udbg_putc = udbg_putcLP;
 		udbg_getc = udbg_getcLP;
 		udbg_getc_poll = udbg_getc_pollLP;
-		if (add_console)
-			add_preferred_console("hvc", termno[0] & 0xff, NULL);
+		add_preferred_console("hvc", termno[0] & 0xff, NULL);
 	} else if (of_device_is_compatible(stdout_node, "hvterm-protocol")) {
 		vtermno = termno[0];
 		udbg_putc = udbg_hvsi_putc;
 		udbg_getc = udbg_hvsi_getc;
 		udbg_getc_poll = udbg_hvsi_getc_poll;
-		if (add_console)
-			add_preferred_console("hvsi", termno[0] & 0xff, NULL);
+		add_preferred_console("hvsi", termno[0] & 0xff, NULL);
 	}
 out:
 	of_node_put(stdout_node);
@@ -292,15 +286,15 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	unsigned long hpte_v, hpte_r;
 
 	if (!(vflags & HPTE_V_BOLTED))
-		DBG_LOW("hpte_insert(group=%lx, va=%016lx, pa=%016lx, "
-			"rflags=%lx, vflags=%lx, psize=%d)\n",
-		hpte_group, va, pa, rflags, vflags, psize);
+		pr_debug("hpte_insert(group=%lx, va=%016lx, pa=%016lx, "
+			 "rflags=%lx, vflags=%lx, psize=%d)\n",
+			 hpte_group, va, pa, rflags, vflags, psize);
 
 	hpte_v = hpte_encode_v(va, psize, ssize) | vflags | HPTE_V_VALID;
 	hpte_r = hpte_encode_r(pa, psize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED))
-		DBG_LOW(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
+		pr_debug(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
 
 	/* Now fill in the actual HPTE */
 	/* Set CEC cookie to 0         */
@@ -317,7 +311,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	lpar_rc = plpar_pte_enter(flags, hpte_group, hpte_v, hpte_r, &slot);
 	if (unlikely(lpar_rc == H_PTEG_FULL)) {
 		if (!(vflags & HPTE_V_BOLTED))
-			DBG_LOW(" full\n");
+			pr_debug(" full\n");
 		return -1;
 	}
 
@@ -328,11 +322,11 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	 */
 	if (unlikely(lpar_rc != H_SUCCESS)) {
 		if (!(vflags & HPTE_V_BOLTED))
-			DBG_LOW(" lpar err %d\n", lpar_rc);
+			pr_debug(" lpar err %lu\n", lpar_rc);
 		return -2;
 	}
 	if (!(vflags & HPTE_V_BOLTED))
-		DBG_LOW(" -> slot: %d\n", slot & 7);
+		pr_debug(" -> slot: %lu\n", slot & 7);
 
 	/* Because of iSeries, we have to pass down the secondary
 	 * bucket bit here as well
@@ -424,17 +418,17 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 
 	want_v = hpte_encode_avpn(va, psize, ssize);
 
-	DBG_LOW("    update: avpnv=%016lx, hash=%016lx, f=%x, psize: %d ... ",
-		want_v, slot, flags, psize);
+	pr_debug("    update: avpnv=%016lx, hash=%016lx, f=%lx, psize: %d ...",
+		 want_v, slot, flags, psize);
 
 	lpar_rc = plpar_pte_protect(flags, slot, want_v);
 
 	if (lpar_rc == H_NOT_FOUND) {
-		DBG_LOW("not found !\n");
+		pr_debug("not found !\n");
 		return -1;
 	}
 
-	DBG_LOW("ok\n");
+	pr_debug("ok\n");
 
 	BUG_ON(lpar_rc != H_SUCCESS);
 
@@ -509,8 +503,8 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 	unsigned long lpar_rc;
 	unsigned long dummy1, dummy2;
 
-	DBG_LOW("    inval : slot=%lx, va=%016lx, psize: %d, local: %d",
-		slot, va, psize, local);
+	pr_debug("    inval : slot=%lx, va=%016lx, psize: %d, local: %d\n",
+		 slot, va, psize, local);
 
 	want_v = hpte_encode_avpn(va, psize, ssize);
 	lpar_rc = plpar_pte_remove(H_AVPN, slot, want_v, &dummy1, &dummy2);
@@ -518,6 +512,20 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 		return;
 
 	BUG_ON(lpar_rc != H_SUCCESS);
+}
+
+static void pSeries_lpar_hpte_removebolted(unsigned long ea,
+					   int psize, int ssize)
+{
+	unsigned long slot, vsid, va;
+
+	vsid = get_kernel_vsid(ea, ssize);
+	va = hpt_va(ea, vsid, ssize);
+
+	slot = pSeries_lpar_hpte_find(va, psize, ssize);
+	BUG_ON(slot == -1);
+
+	pSeries_lpar_hpte_invalidate(slot, va, psize, ssize, 0);
 }
 
 /* Flag bits for H_BULK_REMOVE */
@@ -597,6 +605,7 @@ void __init hpte_init_lpar(void)
 	ppc_md.hpte_updateboltedpp = pSeries_lpar_hpte_updateboltedpp;
 	ppc_md.hpte_insert	= pSeries_lpar_hpte_insert;
 	ppc_md.hpte_remove	= pSeries_lpar_hpte_remove;
+	ppc_md.hpte_removebolted = pSeries_lpar_hpte_removebolted;
 	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
 	ppc_md.hpte_clear_all   = pSeries_lpar_hptab_clear;
 }

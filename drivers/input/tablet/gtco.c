@@ -897,7 +897,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	dbg("Extra descriptor success: type:%d  len:%d",
 	    hid_desc->bDescriptorType,  hid_desc->wDescriptorLength);
 
-	report = kzalloc(hid_desc->wDescriptorLength, GFP_KERNEL);
+	report = kzalloc(le16_to_cpu(hid_desc->wDescriptorLength), GFP_KERNEL);
 	if (!report) {
 		err("No more memory for report");
 		error = -ENOMEM;
@@ -913,16 +913,16 @@ static int gtco_probe(struct usb_interface *usbinterface,
 					 REPORT_DEVICE_TYPE << 8,
 					 0, /* interface */
 					 report,
-					 hid_desc->wDescriptorLength,
+					 le16_to_cpu(hid_desc->wDescriptorLength),
 					 5000); /* 5 secs */
 
-		if (result == hid_desc->wDescriptorLength)
+		if (result == le16_to_cpu(hid_desc->wDescriptorLength))
 			break;
 	}
 
 	/* If we didn't get the report, fail */
 	dbg("usb_control_msg result: :%d", result);
-	if (result != hid_desc->wDescriptorLength) {
+	if (result != le16_to_cpu(hid_desc->wDescriptorLength)) {
 		err("Failed to get HID Report Descriptor of size: %d",
 		    hid_desc->wDescriptorLength);
 		error = -EIO;

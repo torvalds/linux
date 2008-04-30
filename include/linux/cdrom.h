@@ -910,6 +910,7 @@ struct mode_page_header {
 #ifdef __KERNEL__
 #include <linux/fs.h>		/* not really needed, later.. */
 #include <linux/device.h>
+#include <linux/list.h>
 
 struct packet_command
 {
@@ -934,7 +935,7 @@ struct packet_command
 /* Uniform cdrom data structures for cdrom.c */
 struct cdrom_device_info {
 	struct cdrom_device_ops  *ops;  /* link to device_ops */
-	struct cdrom_device_info *next; /* next device_info for this major */
+	struct list_head list;		/* linked list of all device_info */
 	struct gendisk *disk;		/* matching block layer disk */
 	void *handle;		        /* driver-dependent data */
 /* specifications */
@@ -994,7 +995,7 @@ extern int cdrom_ioctl(struct file *file, struct cdrom_device_info *cdi,
 extern int cdrom_media_changed(struct cdrom_device_info *);
 
 extern int register_cdrom(struct cdrom_device_info *cdi);
-extern int unregister_cdrom(struct cdrom_device_info *cdi);
+extern void unregister_cdrom(struct cdrom_device_info *cdi);
 
 typedef struct {
     int data;

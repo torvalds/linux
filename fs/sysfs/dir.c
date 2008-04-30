@@ -20,6 +20,7 @@
 #include <linux/idr.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include "sysfs.h"
 
 DEFINE_MUTEX(sysfs_mutex);

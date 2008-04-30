@@ -79,6 +79,7 @@ struct media_bay_info {
 	int				sleeping;
 	struct semaphore		lock;
 #ifdef CONFIG_BLK_DEV_IDE_PMAC
+	ide_hwif_t			*cd_port;
 	void __iomem			*cd_base;
 	int				cd_irq;
 	int				cd_retry;
@@ -448,7 +449,7 @@ int check_media_bay_by_base(unsigned long base, int what)
 }
 
 int media_bay_set_ide_infos(struct device_node* which_bay, unsigned long base,
-			    int irq, int index)
+			    int irq, ide_hwif_t *hwif)
 {
 	int	i;
 
@@ -456,10 +457,11 @@ int media_bay_set_ide_infos(struct device_node* which_bay, unsigned long base,
 		struct media_bay_info* bay = &media_bays[i];
 
 		if (bay->mdev && which_bay == bay->mdev->ofdev.node) {
-			int timeout = 5000;
+			int timeout = 5000, index = hwif->index;
 			
 			down(&bay->lock);
 
+			bay->cd_port	= hwif;
  			bay->cd_base	= (void __iomem *) base;
 			bay->cd_irq	= irq;
 
@@ -551,15 +553,10 @@ static void media_bay_step(int i)
 			bay->timer = 0;
 			bay->state = mb_up;
 			if (bay->cd_index < 0) {
-				hw_regs_t hw;
-
 				printk("mediabay %d, registering IDE...\n", i);
 				pmu_suspend();
-				ide_init_hwif_ports(&hw, (unsigned long) bay->cd_base, (unsigned long) 0, NULL);
-				hw.irq = bay->cd_irq;
-				hw.chipset = ide_pmac;
-				bay->cd_index =
-					ide_register_hw(&hw, NULL, NULL);
+				ide_port_scan(bay->cd_port);
+				bay->cd_index = bay->cd_port->index;
 				pmu_resume();
 			}
 			if (bay->cd_index == -1) {
@@ -589,7 +586,7 @@ static void media_bay_step(int i)
     	        if (bay->cd_index >= 0) {
 			printk(KERN_DEBUG "Unregistering mb %d ide, index:%d\n", i,
 			       bay->cd_index);
-			ide_unregister(bay->cd_index, 1, 1);
+			ide_port_unregister_devices(bay->cd_port);
 			bay->cd_index = -1;
 		}
 	    	if (bay->cd_retry) {

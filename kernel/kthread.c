@@ -13,7 +13,6 @@
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <asm/semaphore.h>
 
 #define KTHREAD_NICE_LEVEL (-5)
 
@@ -180,6 +179,7 @@ void kthread_bind(struct task_struct *k, unsigned int cpu)
 	wait_task_inactive(k);
 	set_task_cpu(k, cpu);
 	k->cpus_allowed = cpumask_of_cpu(cpu);
+	k->rt.nr_cpus_allowed = 1;
 }
 EXPORT_SYMBOL(kthread_bind);
 

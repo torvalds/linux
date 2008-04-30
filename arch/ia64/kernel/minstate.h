@@ -3,6 +3,18 @@
 
 #include "entry.h"
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+/* read ar.itc in advance, and use it before leaving bank 0 */
+#define ACCOUNT_GET_STAMP				\
+(pUStk) mov.m r20=ar.itc;
+#define ACCOUNT_SYS_ENTER				\
+(pUStk) br.call.spnt rp=account_sys_enter		\
+	;;
+#else
+#define ACCOUNT_GET_STAMP
+#define ACCOUNT_SYS_ENTER
+#endif
+
 /*
  * DO_SAVE_MIN switches to the kernel stacks (if necessary) and saves
  * the minimum state necessary that allows us to turn psr.ic back
@@ -122,11 +134,13 @@
 	;;											\
 .mem.offset 0,0; st8.spill [r16]=r2,16;								\
 .mem.offset 8,0; st8.spill [r17]=r3,16;								\
+	ACCOUNT_GET_STAMP									\
 	adds r2=IA64_PT_REGS_R16_OFFSET,r1;							\
 	;;											\
 	EXTRA;											\
 	movl r1=__gp;		/* establish kernel global pointer */				\
 	;;											\
+	ACCOUNT_SYS_ENTER									\
 	bsw.1;			/* switch back to bank 1 (must be last in insn group) */	\
 	;;
 

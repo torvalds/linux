@@ -28,9 +28,6 @@
  */
 #define SANDPOINT_IDE_INT0		23	/* EPIC 7 */
 #define SANDPOINT_IDE_INT1		24	/* EPIC 8 */
-#else
-#define SANDPOINT_IDE_INT0		14	/* 8259 Test */
-#define SANDPOINT_IDE_INT1		15	/* 8259 Test */
 #endif
 
 /*

@@ -76,7 +76,7 @@ void xen_mc_flush(void)
 		if (ret) {
 			printk(KERN_ERR "%d multicall(s) failed: cpu %d\n",
 			       ret, smp_processor_id());
-			for(i = 0; i < b->mcidx; i++) {
+			for (i = 0; i < b->mcidx; i++) {
 				printk("  call %2d/%d: op=%lu arg=[%lx] result=%ld\n",
 				       i+1, b->mcidx,
 				       b->debug[i].op,
@@ -93,7 +93,7 @@ void xen_mc_flush(void)
 
 	local_irq_restore(flags);
 
-	for(i = 0; i < b->cbidx; i++) {
+	for (i = 0; i < b->cbidx; i++) {
 		struct callback *cb = &b->callbacks[i];
 
 		(*cb->fn)(cb->data);

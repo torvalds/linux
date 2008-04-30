@@ -55,14 +55,22 @@ struct ide_acpi_hwif_link {
 /* note: adds function name and KERN_DEBUG */
 #ifdef DEBUGGING
 #define DEBPRINT(fmt, args...)	\
-		printk(KERN_DEBUG "%s: " fmt, __FUNCTION__, ## args)
+		printk(KERN_DEBUG "%s: " fmt, __func__, ## args)
 #else
 #define DEBPRINT(fmt, args...)	do {} while (0)
 #endif	/* DEBUGGING */
 
-extern int ide_noacpi;
-extern int ide_noacpitfs;
-extern int ide_noacpionboot;
+int ide_noacpi;
+module_param_named(noacpi, ide_noacpi, bool, 0);
+MODULE_PARM_DESC(noacpi, "disable IDE ACPI support");
+
+int ide_acpigtf;
+module_param_named(acpigtf, ide_acpigtf, bool, 0);
+MODULE_PARM_DESC(acpigtf, "enable IDE ACPI _GTF support");
+
+int ide_acpionboot;
+module_param_named(acpionboot, ide_acpionboot, bool, 0);
+MODULE_PARM_DESC(acpionboot, "call IDE ACPI methods on boot");
 
 static bool ide_noacpi_psx;
 static int no_acpi_psx(const struct dmi_system_id *id)
@@ -309,7 +317,7 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_DEBUG
 		       "%s: Run _GTF error: status = 0x%x\n",
-		       __FUNCTION__, status);
+		       __func__, status);
 		goto out;
 	}
 
@@ -335,7 +343,7 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	    out_obj->buffer.length % REGS_PER_GTF) {
 		printk(KERN_ERR
 		       "%s: unexpected GTF length (%d) or addr (0x%p)\n",
-		       __FUNCTION__, out_obj->buffer.length,
+		       __func__, out_obj->buffer.length,
 		       out_obj->buffer.pointer);
 		err = -ENOENT;
 		kfree(output.pointer);
@@ -376,7 +384,7 @@ static int taskfile_load_raw(ide_drive_t *drive,
 	memcpy(&args.tf_array[7], &gtf->tfa, 7);
 	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
-	if (ide_noacpitfs) {
+	if (!ide_acpigtf) {
 		DEBPRINT("_GTF execution disabled\n");
 		return err;
 	}
@@ -384,7 +392,7 @@ static int taskfile_load_raw(ide_drive_t *drive,
 	err = ide_no_data_taskfile(drive, &args);
 	if (err)
 		printk(KERN_ERR "%s: ide_no_data_taskfile failed: %u\n",
-		       __FUNCTION__, err);
+		       __func__, err);
 
 	return err;
 }
@@ -422,7 +430,7 @@ static int do_drive_set_taskfiles(ide_drive_t *drive,
 
 	if (gtf_length % REGS_PER_GTF) {
 		printk(KERN_ERR "%s: unexpected GTF length (%d)\n",
-		       __FUNCTION__, gtf_length);
+		       __func__, gtf_length);
 		goto out;
 	}
 
@@ -547,7 +555,7 @@ void ide_acpi_get_timing(ide_hwif_t *hwif)
 		printk(KERN_ERR
 			"%s: unexpected _GTM length (0x%x)[should be 0x%zx] or "
 			"addr (0x%p)\n",
-			__FUNCTION__, out_obj->buffer.length,
+			__func__, out_obj->buffer.length,
 			sizeof(struct GTM_buffer), out_obj->buffer.pointer);
 		return;
 	}
@@ -710,6 +718,8 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	for (i = 0; i < MAX_DRIVES; i++) {
 		drive = &hwif->drives[i];
 
+		memset(drive->acpidata, 0, sizeof(*drive->acpidata));
+
 		if (!drive->present)
 			continue;
 
@@ -719,7 +729,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 				 drive->name, err);
 	}
 
-	if (ide_noacpionboot) {
+	if (!ide_acpionboot) {
 		DEBPRINT("ACPI methods disabled on boot\n");
 		return;
 	}

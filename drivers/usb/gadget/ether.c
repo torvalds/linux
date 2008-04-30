@@ -1102,7 +1102,7 @@ static void eth_reset_config (struct eth_dev *dev)
 	if (dev->config == 0)
 		return;
 
-	DEBUG (dev, "%s\n", __FUNCTION__);
+	DEBUG (dev, "%s\n", __func__);
 
 	netif_stop_queue (dev->net);
 	netif_carrier_off (dev->net);
@@ -1263,7 +1263,7 @@ static void issue_start_status (struct eth_dev *dev)
 	struct usb_cdc_notification	*event;
 	int				value;
 
-	DEBUG (dev, "%s, flush old status first\n", __FUNCTION__);
+	DEBUG (dev, "%s, flush old status first\n", __func__);
 
 	/* flush old status
 	 *
@@ -1329,7 +1329,7 @@ static void rndis_command_complete (struct usb_ep *ep, struct usb_request *req)
 	spin_lock(&dev->lock);
 	status = rndis_msg_parser (dev->rndis_config, (u8 *) req->buf);
 	if (status < 0)
-		ERROR(dev, "%s: rndis parse error %d\n", __FUNCTION__, status);
+		ERROR(dev, "%s: rndis parse error %d\n", __func__, status);
 	spin_unlock(&dev->lock);
 }
 
@@ -2113,7 +2113,7 @@ static int rndis_control_ack (struct net_device *net)
 
 static void eth_start (struct eth_dev *dev, gfp_t gfp_flags)
 {
-	DEBUG (dev, "%s\n", __FUNCTION__);
+	DEBUG (dev, "%s\n", __func__);
 
 	/* fill the rx queue */
 	rx_fill (dev, gfp_flags);
@@ -2133,7 +2133,7 @@ static int eth_open (struct net_device *net)
 {
 	struct eth_dev		*dev = netdev_priv(net);
 
-	DEBUG (dev, "%s\n", __FUNCTION__);
+	DEBUG (dev, "%s\n", __func__);
 	if (netif_carrier_ok (dev->net))
 		eth_start (dev, GFP_KERNEL);
 	return 0;
@@ -2143,7 +2143,7 @@ static int eth_stop (struct net_device *net)
 {
 	struct eth_dev		*dev = netdev_priv(net);
 
-	VDEBUG (dev, "%s\n", __FUNCTION__);
+	VDEBUG (dev, "%s\n", __func__);
 	netif_stop_queue (net);
 
 	DEBUG (dev, "stop stats: rx/tx %ld/%ld, errs %ld/%ld\n",
@@ -2229,7 +2229,7 @@ eth_unbind (struct usb_gadget *gadget)
 	set_gadget_data (gadget, NULL);
 }
 
-static u8 __devinit nibble (unsigned char c)
+static u8 __init nibble (unsigned char c)
 {
 	if (likely (isdigit (c)))
 		return c - '0';
@@ -2239,7 +2239,7 @@ static u8 __devinit nibble (unsigned char c)
 	return 0;
 }
 
-static int __devinit get_ether_addr(const char *str, u8 *dev_addr)
+static int __init get_ether_addr(const char *str, u8 *dev_addr)
 {
 	if (str) {
 		unsigned	i;
@@ -2260,7 +2260,7 @@ static int __devinit get_ether_addr(const char *str, u8 *dev_addr)
 	return 1;
 }
 
-static int __devinit
+static int __init
 eth_bind (struct usb_gadget *gadget)
 {
 	struct eth_dev		*dev;

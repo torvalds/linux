@@ -94,7 +94,7 @@ int ipath_make_uc_req(struct ipath_qp *qp)
 				qp->s_state =
 					OP(SEND_ONLY_WITH_IMMEDIATE);
 				/* Immediate data comes after the BTH */
-				ohdr->u.imm_data = wqe->wr.imm_data;
+				ohdr->u.imm_data = wqe->wr.ex.imm_data;
 				hwords += 1;
 			}
 			if (wqe->wr.send_flags & IB_SEND_SOLICITED)
@@ -123,7 +123,7 @@ int ipath_make_uc_req(struct ipath_qp *qp)
 				qp->s_state =
 					OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE);
 				/* Immediate data comes after the RETH */
-				ohdr->u.rc.imm_data = wqe->wr.imm_data;
+				ohdr->u.rc.imm_data = wqe->wr.ex.imm_data;
 				hwords += 1;
 				if (wqe->wr.send_flags & IB_SEND_SOLICITED)
 					bth0 |= 1 << 23;
@@ -152,7 +152,7 @@ int ipath_make_uc_req(struct ipath_qp *qp)
 		else {
 			qp->s_state = OP(SEND_LAST_WITH_IMMEDIATE);
 			/* Immediate data comes after the BTH */
-			ohdr->u.imm_data = wqe->wr.imm_data;
+			ohdr->u.imm_data = wqe->wr.ex.imm_data;
 			hwords += 1;
 		}
 		if (wqe->wr.send_flags & IB_SEND_SOLICITED)
@@ -177,7 +177,7 @@ int ipath_make_uc_req(struct ipath_qp *qp)
 			qp->s_state =
 				OP(RDMA_WRITE_LAST_WITH_IMMEDIATE);
 			/* Immediate data comes after the BTH */
-			ohdr->u.imm_data = wqe->wr.imm_data;
+			ohdr->u.imm_data = wqe->wr.ex.imm_data;
 			hwords += 1;
 			if (wqe->wr.send_flags & IB_SEND_SOLICITED)
 				bth0 |= 1 << 23;

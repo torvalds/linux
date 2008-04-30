@@ -1,5 +1,4 @@
-/* $Id: processor.h,v 1.83 2001/10/08 09:32:13 davem Exp $
- * include/asm-sparc/processor.h
+/* include/asm-sparc/processor.h
  *
  * Copyright (C) 1994 David S. Miller (davem@caip.rutgers.edu)
  */
@@ -12,8 +11,6 @@
  * instruction pointer ("program counter").
  */
 #define current_text_addr() ({ void *pc; __asm__("sethi %%hi(1f), %0; or %0, %%lo(1f), %0;\n1:" : "=r" (pc)); pc; })
-
-#include <linux/a.out.h>
 
 #include <asm/psr.h>
 #include <asm/ptrace.h>
@@ -67,8 +64,6 @@ struct thread_struct {
 	struct fpq	fpqueue[16];
 	unsigned long flags;
 	mm_segment_t current_ds;
-	struct exec core_exec;     /* just what it says. */
-	int new_signal;
 };
 
 #define SPARC_FLAG_KTHREAD      0x1    /* task is a kernel thread */

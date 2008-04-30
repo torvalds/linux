@@ -8,11 +8,7 @@
 extern int  	__udp4_lib_rcv(struct sk_buff *, struct hlist_head [], int );
 extern void 	__udp4_lib_err(struct sk_buff *, u32, struct hlist_head []);
 
-extern int	__udp_lib_get_port(struct sock *sk, unsigned short snum,
-				   struct hlist_head udptable[],
-				   int (*)(const struct sock*,const struct sock*));
-extern int	ipv4_rcv_saddr_equal(const struct sock *, const struct sock *);
-
+extern int	udp_v4_get_port(struct sock *sk, unsigned short snum);
 
 extern int	udp_setsockopt(struct sock *sk, int level, int optname,
 			       char __user *optval, int optlen);

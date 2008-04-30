@@ -177,16 +177,16 @@ static struct bus_type memstick_bus_type = {
 	.resume         = memstick_device_resume
 };
 
-static void memstick_free(struct class_device *cdev)
+static void memstick_free(struct device *dev)
 {
-	struct memstick_host *host = container_of(cdev, struct memstick_host,
-						  cdev);
+	struct memstick_host *host = container_of(dev, struct memstick_host,
+						  dev);
 	kfree(host);
 }
 
 static struct class memstick_host_class = {
 	.name       = "memstick_host",
-	.release    = memstick_free
+	.dev_release = memstick_free
 };
 
 static void memstick_free_card(struct device *dev)
@@ -383,8 +383,8 @@ static struct memstick_dev *memstick_alloc_card(struct memstick_host *host)
 	if (card) {
 		card->host = host;
 		snprintf(card->dev.bus_id, sizeof(card->dev.bus_id),
-			 "%s", host->cdev.class_id);
-		card->dev.parent = host->cdev.dev;
+			 "%s", host->dev.bus_id);
+		card->dev.parent = &host->dev;
 		card->dev.bus = &memstick_bus_type;
 		card->dev.release = memstick_free_card;
 		card->check = memstick_dummy_check;
@@ -427,7 +427,7 @@ static void memstick_check(struct work_struct *work)
 						  media_checker);
 	struct memstick_dev *card;
 
-	dev_dbg(host->cdev.dev, "memstick_check started\n");
+	dev_dbg(&host->dev, "memstick_check started\n");
 	mutex_lock(&host->lock);
 	if (!host->card)
 		memstick_power_on(host);
@@ -440,7 +440,7 @@ static void memstick_check(struct work_struct *work)
 			host->card = NULL;
 		}
 	} else {
-		dev_dbg(host->cdev.dev, "new card %02x, %02x, %02x\n",
+		dev_dbg(&host->dev, "new card %02x, %02x, %02x\n",
 			card->id.type, card->id.category, card->id.class);
 		if (host->card) {
 			if (memstick_set_rw_addr(host->card)
@@ -465,7 +465,7 @@ static void memstick_check(struct work_struct *work)
 		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
 
 	mutex_unlock(&host->lock);
-	dev_dbg(host->cdev.dev, "memstick_check finished\n");
+	dev_dbg(&host->dev, "memstick_check finished\n");
 }
 
 /**
@@ -482,9 +482,9 @@ struct memstick_host *memstick_alloc_host(unsigned int extra,
 	if (host) {
 		mutex_init(&host->lock);
 		INIT_WORK(&host->media_checker, memstick_check);
-		host->cdev.class = &memstick_host_class;
-		host->cdev.dev = dev;
-		class_device_initialize(&host->cdev);
+		host->dev.class = &memstick_host_class;
+		host->dev.parent = dev;
+		device_initialize(&host->dev);
 	}
 	return host;
 }
@@ -507,10 +507,9 @@ int memstick_add_host(struct memstick_host *host)
 	if (rc)
 		return rc;
 
-	snprintf(host->cdev.class_id, BUS_ID_SIZE,
-		 "memstick%u", host->id);
+	snprintf(host->dev.bus_id, BUS_ID_SIZE, "memstick%u", host->id);
 
-	rc = class_device_add(&host->cdev);
+	rc = device_add(&host->dev);
 	if (rc) {
 		spin_lock(&memstick_host_lock);
 		idr_remove(&memstick_host_idr, host->id);
@@ -541,7 +540,7 @@ void memstick_remove_host(struct memstick_host *host)
 	spin_lock(&memstick_host_lock);
 	idr_remove(&memstick_host_idr, host->id);
 	spin_unlock(&memstick_host_lock);
-	class_device_del(&host->cdev);
+	device_del(&host->dev);
 }
 EXPORT_SYMBOL(memstick_remove_host);
 
@@ -552,7 +551,7 @@ EXPORT_SYMBOL(memstick_remove_host);
 void memstick_free_host(struct memstick_host *host)
 {
 	mutex_destroy(&host->lock);
-	class_device_put(&host->cdev);
+	put_device(&host->dev);
 }
 EXPORT_SYMBOL(memstick_free_host);
 

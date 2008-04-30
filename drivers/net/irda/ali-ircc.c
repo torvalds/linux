@@ -60,6 +60,7 @@ static struct platform_driver ali_ircc_driver = {
 	.resume		= ali_ircc_resume,
 	.driver		= {
 		.name	= ALI_IRCC_DRIVER_NAME,
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -2256,6 +2257,7 @@ static void FIR2SIR(int iobase)
 MODULE_AUTHOR("Benjamin Kong <benjamin_kong@ali.com.tw>");
 MODULE_DESCRIPTION("ALi FIR Controller Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" ALI_IRCC_DRIVER_NAME);
 
 
 module_param_array(io, int, NULL, 0);

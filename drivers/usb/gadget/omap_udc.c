@@ -163,7 +163,7 @@ static int omap_ep_enable(struct usb_ep *_ep,
 			|| ep->bEndpointAddress != desc->bEndpointAddress
 			|| ep->maxpacket < le16_to_cpu
 						(desc->wMaxPacketSize)) {
-		DBG("%s, bad ep or descriptor\n", __FUNCTION__);
+		DBG("%s, bad ep or descriptor\n", __func__);
 		return -EINVAL;
 	}
 	maxp = le16_to_cpu (desc->wMaxPacketSize);
@@ -171,7 +171,7 @@ static int omap_ep_enable(struct usb_ep *_ep,
 				&& maxp != ep->maxpacket)
 			|| le16_to_cpu(desc->wMaxPacketSize) > ep->maxpacket
 			|| !desc->wMaxPacketSize) {
-		DBG("%s, bad %s maxpacket\n", __FUNCTION__, _ep->name);
+		DBG("%s, bad %s maxpacket\n", __func__, _ep->name);
 		return -ERANGE;
 	}
 
@@ -194,13 +194,13 @@ static int omap_ep_enable(struct usb_ep *_ep,
 	if (ep->bmAttributes != desc->bmAttributes
 			&& ep->bmAttributes != USB_ENDPOINT_XFER_BULK
 			&& desc->bmAttributes != USB_ENDPOINT_XFER_INT) {
-		DBG("%s, %s type mismatch\n", __FUNCTION__, _ep->name);
+		DBG("%s, %s type mismatch\n", __func__, _ep->name);
 		return -EINVAL;
 	}
 
 	udc = ep->udc;
 	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN) {
-		DBG("%s, bogus device state\n", __FUNCTION__);
+		DBG("%s, bogus device state\n", __func__);
 		return -ESHUTDOWN;
 	}
 
@@ -249,7 +249,7 @@ static int omap_ep_disable(struct usb_ep *_ep)
 	unsigned long	flags;
 
 	if (!_ep || !ep->desc) {
-		DBG("%s, %s not enabled\n", __FUNCTION__,
+		DBG("%s, %s not enabled\n", __func__,
 			_ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
@@ -936,11 +936,11 @@ omap_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	/* catch various bogus parameters */
 	if (!_req || !req->req.complete || !req->req.buf
 			|| !list_empty(&req->queue)) {
-		DBG("%s, bad params\n", __FUNCTION__);
+		DBG("%s, bad params\n", __func__);
 		return -EINVAL;
 	}
 	if (!_ep || (!ep->desc && ep->bEndpointAddress)) {
-		DBG("%s, bad ep\n", __FUNCTION__);
+		DBG("%s, bad ep\n", __func__);
 		return -EINVAL;
 	}
 	if (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
@@ -959,7 +959,7 @@ omap_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 			&& (ep->bEndpointAddress & USB_DIR_IN) == 0
 			&& !cpu_class_is_omap2()
 			&& (req->req.length % ep->ep.maxpacket) != 0) {
-		DBG("%s, no partial packet OUT reads\n", __FUNCTION__);
+		DBG("%s, no partial packet OUT reads\n", __func__);
 		return -EMSGSIZE;
 	}
 
@@ -1265,8 +1265,6 @@ static int can_pullup(struct omap_udc *udc)
 
 static void pullup_enable(struct omap_udc *udc)
 {
-	udc->gadget.dev.parent->power.power_state = PMSG_ON;
-	udc->gadget.dev.power.power_state = PMSG_ON;
 	UDC_SYSCON1_REG |= UDC_PULLUP_EN;
 	if (!gadget_is_otg(&udc->gadget) && !cpu_is_omap15xx())
 		OTG_CTRL_REG |= OTG_BSESSVLD;
@@ -3061,8 +3059,6 @@ static int omap_udc_suspend(struct platform_device *dev, pm_message_t message)
 		omap_pullup(&udc->gadget, 0);
 	}
 
-	udc->gadget.dev.power.power_state = PMSG_SUSPEND;
-	udc->gadget.dev.parent->power.power_state = PMSG_SUSPEND;
 	return 0;
 }
 

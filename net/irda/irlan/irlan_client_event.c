@@ -92,7 +92,7 @@ void irlan_do_client_event(struct irlan_cb *self, IRLAN_EVENT event,
 static int irlan_client_state_idle(struct irlan_cb *self, IRLAN_EVENT event,
 				   struct sk_buff *skb)
 {
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(4, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return -1;);
@@ -101,7 +101,7 @@ static int irlan_client_state_idle(struct irlan_cb *self, IRLAN_EVENT event,
 	case IRLAN_DISCOVERY_INDICATION:
 		if (self->client.iriap) {
 			IRDA_WARNING("%s(), busy with a previous query\n",
-				     __FUNCTION__);
+				     __func__);
 			return -EBUSY;
 		}
 
@@ -114,10 +114,10 @@ static int irlan_client_state_idle(struct irlan_cb *self, IRLAN_EVENT event,
 					      "IrLAN", "IrDA:TinyTP:LsapSel");
 		break;
 	case IRLAN_WATCHDOG_TIMEOUT:
-		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __func__ );
 		break;
 	default:
-		IRDA_DEBUG(4, "%s(), Unknown event %d\n", __FUNCTION__ , event);
+		IRDA_DEBUG(4, "%s(), Unknown event %d\n", __func__ , event);
 		break;
 	}
 	if (skb)
@@ -136,7 +136,7 @@ static int irlan_client_state_idle(struct irlan_cb *self, IRLAN_EVENT event,
 static int irlan_client_state_query(struct irlan_cb *self, IRLAN_EVENT event,
 				    struct sk_buff *skb)
 {
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(4, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return -1;);
@@ -154,7 +154,7 @@ static int irlan_client_state_query(struct irlan_cb *self, IRLAN_EVENT event,
 		irlan_next_client_state(self, IRLAN_CONN);
 		break;
 	case IRLAN_IAS_PROVIDER_NOT_AVAIL:
-		IRDA_DEBUG(2, "%s(), IAS_PROVIDER_NOT_AVAIL\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), IAS_PROVIDER_NOT_AVAIL\n", __func__ );
 		irlan_next_client_state(self, IRLAN_IDLE);
 
 		/* Give the client a kick! */
@@ -167,10 +167,10 @@ static int irlan_client_state_query(struct irlan_cb *self, IRLAN_EVENT event,
 		irlan_next_client_state(self, IRLAN_IDLE);
 		break;
 	case IRLAN_WATCHDOG_TIMEOUT:
-		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __func__ );
 		break;
 	default:
-		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __FUNCTION__ , event);
+		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __func__ , event);
 		break;
 	}
 	if (skb)
@@ -189,7 +189,7 @@ static int irlan_client_state_query(struct irlan_cb *self, IRLAN_EVENT event,
 static int irlan_client_state_conn(struct irlan_cb *self, IRLAN_EVENT event,
 				   struct sk_buff *skb)
 {
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(4, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -204,10 +204,10 @@ static int irlan_client_state_conn(struct irlan_cb *self, IRLAN_EVENT event,
 		irlan_next_client_state(self, IRLAN_IDLE);
 		break;
 	case IRLAN_WATCHDOG_TIMEOUT:
-		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __func__ );
 		break;
 	default:
-		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __FUNCTION__ , event);
+		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __func__ , event);
 		break;
 	}
 	if (skb)
@@ -224,7 +224,7 @@ static int irlan_client_state_conn(struct irlan_cb *self, IRLAN_EVENT event,
 static int irlan_client_state_info(struct irlan_cb *self, IRLAN_EVENT event,
 				   struct sk_buff *skb)
 {
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(4, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -244,10 +244,10 @@ static int irlan_client_state_info(struct irlan_cb *self, IRLAN_EVENT event,
 		irlan_next_client_state(self, IRLAN_IDLE);
 		break;
 	case IRLAN_WATCHDOG_TIMEOUT:
-		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __func__ );
 		break;
 	default:
-		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __FUNCTION__ , event);
+		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __func__ , event);
 		break;
 	}
 	if (skb)
@@ -266,7 +266,7 @@ static int irlan_client_state_info(struct irlan_cb *self, IRLAN_EVENT event,
 static int irlan_client_state_media(struct irlan_cb *self, IRLAN_EVENT event,
 				    struct sk_buff *skb)
 {
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(4, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -281,10 +281,10 @@ static int irlan_client_state_media(struct irlan_cb *self, IRLAN_EVENT event,
 		irlan_next_client_state(self, IRLAN_IDLE);
 		break;
 	case IRLAN_WATCHDOG_TIMEOUT:
-		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __func__ );
 		break;
 	default:
-		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __FUNCTION__ , event);
+		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __func__ , event);
 		break;
 	}
 	if (skb)
@@ -305,7 +305,7 @@ static int irlan_client_state_open(struct irlan_cb *self, IRLAN_EVENT event,
 {
 	struct qos_info qos;
 
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(4, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -344,7 +344,7 @@ static int irlan_client_state_open(struct irlan_cb *self, IRLAN_EVENT event,
 			irlan_next_client_state(self, IRLAN_DATA);
 			break;
 		default:
-			IRDA_DEBUG(2, "%s(), unknown access type!\n", __FUNCTION__ );
+			IRDA_DEBUG(2, "%s(), unknown access type!\n", __func__ );
 			break;
 		}
 		break;
@@ -353,10 +353,10 @@ static int irlan_client_state_open(struct irlan_cb *self, IRLAN_EVENT event,
 		irlan_next_client_state(self, IRLAN_IDLE);
 		break;
 	case IRLAN_WATCHDOG_TIMEOUT:
-		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __func__ );
 		break;
 	default:
-		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __FUNCTION__ , event);
+		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __func__ , event);
 		break;
 	}
 
@@ -376,7 +376,7 @@ static int irlan_client_state_open(struct irlan_cb *self, IRLAN_EVENT event,
 static int irlan_client_state_wait(struct irlan_cb *self, IRLAN_EVENT event,
 				   struct sk_buff *skb)
 {
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(4, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -390,10 +390,10 @@ static int irlan_client_state_wait(struct irlan_cb *self, IRLAN_EVENT event,
 		irlan_next_client_state(self, IRLAN_IDLE);
 		break;
 	case IRLAN_WATCHDOG_TIMEOUT:
-		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __func__ );
 		break;
 	default:
-		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __FUNCTION__ , event);
+		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __func__ , event);
 		break;
 	}
 	if (skb)
@@ -407,7 +407,7 @@ static int irlan_client_state_arb(struct irlan_cb *self, IRLAN_EVENT event,
 {
 	struct qos_info qos;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
 
@@ -429,7 +429,7 @@ static int irlan_client_state_arb(struct irlan_cb *self, IRLAN_EVENT event,
 		} else if (self->client.recv_arb_val >
 			   self->provider.send_arb_val)
 		{
-			IRDA_DEBUG(2, "%s(), lost the battle :-(\n", __FUNCTION__ );
+			IRDA_DEBUG(2, "%s(), lost the battle :-(\n", __func__ );
 		}
 		break;
 	case IRLAN_DATA_CONNECT_INDICATION:
@@ -440,10 +440,10 @@ static int irlan_client_state_arb(struct irlan_cb *self, IRLAN_EVENT event,
 		irlan_next_client_state(self, IRLAN_IDLE);
 		break;
 	case IRLAN_WATCHDOG_TIMEOUT:
-		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), IRLAN_WATCHDOG_TIMEOUT\n", __func__ );
 		break;
 	default:
-		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __FUNCTION__ , event);
+		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __func__ , event);
 		break;
 	}
 	if (skb)
@@ -462,7 +462,7 @@ static int irlan_client_state_arb(struct irlan_cb *self, IRLAN_EVENT event,
 static int irlan_client_state_data(struct irlan_cb *self, IRLAN_EVENT event,
 				   struct sk_buff *skb)
 {
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(4, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return -1;);
@@ -476,7 +476,7 @@ static int irlan_client_state_data(struct irlan_cb *self, IRLAN_EVENT event,
 		irlan_next_client_state(self, IRLAN_IDLE);
 		break;
 	default:
-		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __FUNCTION__ , event);
+		IRDA_DEBUG(2, "%s(), Unknown event %d\n", __func__ , event);
 		break;
 	}
 	if (skb)
@@ -494,7 +494,7 @@ static int irlan_client_state_data(struct irlan_cb *self, IRLAN_EVENT event,
 static int irlan_client_state_close(struct irlan_cb *self, IRLAN_EVENT event,
 				    struct sk_buff *skb)
 {
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	if (skb)
 		dev_kfree_skb(skb);
@@ -511,7 +511,7 @@ static int irlan_client_state_close(struct irlan_cb *self, IRLAN_EVENT event,
 static int irlan_client_state_sync(struct irlan_cb *self, IRLAN_EVENT event,
 				   struct sk_buff *skb)
 {
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	if (skb)
 		dev_kfree_skb(skb);

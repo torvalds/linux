@@ -87,6 +87,7 @@ static ssize_t netdev_store(struct device *dev, struct device_attribute *attr,
 	return ret;
 }
 
+NETDEVICE_SHOW(dev_id, fmt_hex);
 NETDEVICE_SHOW(addr_len, fmt_dec);
 NETDEVICE_SHOW(iflink, fmt_dec);
 NETDEVICE_SHOW(ifindex, fmt_dec);
@@ -210,6 +211,7 @@ static ssize_t store_tx_queue_len(struct device *dev,
 
 static struct device_attribute net_class_attributes[] = {
 	__ATTR(addr_len, S_IRUGO, show_addr_len, NULL),
+	__ATTR(dev_id, S_IRUGO, show_dev_id, NULL),
 	__ATTR(iflink, S_IRUGO, show_iflink, NULL),
 	__ATTR(ifindex, S_IRUGO, show_ifindex, NULL),
 	__ATTR(features, S_IRUGO, show_features, NULL),

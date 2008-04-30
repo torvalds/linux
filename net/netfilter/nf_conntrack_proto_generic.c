@@ -14,23 +14,23 @@
 
 static unsigned int nf_ct_generic_timeout __read_mostly = 600*HZ;
 
-static int generic_pkt_to_tuple(const struct sk_buff *skb,
-				unsigned int dataoff,
-				struct nf_conntrack_tuple *tuple)
+static bool generic_pkt_to_tuple(const struct sk_buff *skb,
+				 unsigned int dataoff,
+				 struct nf_conntrack_tuple *tuple)
 {
 	tuple->src.u.all = 0;
 	tuple->dst.u.all = 0;
 
-	return 1;
+	return true;
 }
 
-static int generic_invert_tuple(struct nf_conntrack_tuple *tuple,
-				const struct nf_conntrack_tuple *orig)
+static bool generic_invert_tuple(struct nf_conntrack_tuple *tuple,
+				 const struct nf_conntrack_tuple *orig)
 {
 	tuple->src.u.all = 0;
 	tuple->dst.u.all = 0;
 
-	return 1;
+	return true;
 }
 
 /* Print out the per-protocol part of the tuple. */
@@ -53,10 +53,10 @@ static int packet(struct nf_conn *ct,
 }
 
 /* Called when a new connection for this protocol found. */
-static int new(struct nf_conn *ct, const struct sk_buff *skb,
-	       unsigned int dataoff)
+static bool new(struct nf_conn *ct, const struct sk_buff *skb,
+		unsigned int dataoff)
 {
-	return 1;
+	return true;
 }
 
 #ifdef CONFIG_SYSCTL

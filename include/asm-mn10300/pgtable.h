@@ -224,6 +224,7 @@ static inline int pte_read(pte_t pte)	{ return pte_val(pte) & __PAGE_PROT_USER; 
 static inline int pte_dirty(pte_t pte)	{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)	{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_write(pte_t pte)	{ return pte_val(pte) & __PAGE_PROT_WRITE; }
+static inline int pte_special(pte_t pte){ return 0; }
 
 /*
  * The following only works if pte_present() is not true.
@@ -264,6 +265,8 @@ static inline pte_t pte_mkwrite(pte_t pte)
 		pte_val(pte) |= __PAGE_PROT_UWAUX;
 	return pte;
 }
+
+static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 
 #define pte_ERROR(e) \
 	printk(KERN_ERR "%s:%d: bad pte %08lx.\n", \

@@ -14,7 +14,7 @@ lfs(void *frD, void *ea)
 	float f;
 
 #ifdef DEBUG
-	printk("%s: D %p, ea %p\n", __FUNCTION__, frD, ea);
+	printk("%s: D %p, ea %p\n", __func__, frD, ea);
 #endif
 
 	if (copy_from_user(&f, ea, sizeof(float)))

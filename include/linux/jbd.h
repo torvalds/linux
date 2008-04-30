@@ -32,8 +32,6 @@
 #include <linux/timer.h>
 #include <linux/lockdep.h>
 
-#include <asm/semaphore.h>
-
 #define journal_oom_retry 1
 
 /*

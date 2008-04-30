@@ -17,6 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/security.h>
 
+/* Boot-time LSM user choice */
+static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1];
 
 /* things that live in dummy.c */
 extern struct security_operations dummy_security_ops;
@@ -57,7 +59,7 @@ int __init security_init(void)
 
 	if (verify(&dummy_security_ops)) {
 		printk(KERN_ERR "%s could not verify "
-		       "dummy_security_ops structure.\n", __FUNCTION__);
+		       "dummy_security_ops structure.\n", __func__);
 		return -EIO;
 	}
 
@@ -67,13 +69,47 @@ int __init security_init(void)
 	return 0;
 }
 
+/* Save user chosen LSM */
+static int __init choose_lsm(char *str)
+{
+	strncpy(chosen_lsm, str, SECURITY_NAME_MAX);
+	return 1;
+}
+__setup("security=", choose_lsm);
+
+/**
+ * security_module_enable - Load given security module on boot ?
+ * @ops: a pointer to the struct security_operations that is to be checked.
+ *
+ * Each LSM must pass this method before registering its own operations
+ * to avoid security registration races. This method may also be used
+ * to check if your LSM is currently loaded during kernel initialization.
+ *
+ * Return true if:
+ *	-The passed LSM is the one chosen by user at boot time,
+ *	-or user didsn't specify a specific LSM and we're the first to ask
+ *	 for registeration permissoin,
+ *	-or the passed LSM is currently loaded.
+ * Otherwise, return false.
+ */
+int __init security_module_enable(struct security_operations *ops)
+{
+	if (!*chosen_lsm)
+		strncpy(chosen_lsm, ops->name, SECURITY_NAME_MAX);
+	else if (strncmp(ops->name, chosen_lsm, SECURITY_NAME_MAX))
+		return 0;
+
+	return 1;
+}
+
 /**
  * register_security - registers a security framework with the kernel
  * @ops: a pointer to the struct security_options that is to be registered
  *
  * This function is to allow a security module to register itself with the
  * kernel security subsystem.  Some rudimentary checking is done on the @ops
- * value passed to this function.
+ * value passed to this function. You'll need to check first if your LSM
+ * is allowed to register its @ops by calling security_module_enable(@ops).
  *
  * If there is already a security module registered with the kernel,
  * an error will be returned.  Otherwise 0 is returned on success.
@@ -82,7 +118,7 @@ int register_security(struct security_operations *ops)
 {
 	if (verify(ops)) {
 		printk(KERN_DEBUG "%s could not verify "
-		       "security_operations structure.\n", __FUNCTION__);
+		       "security_operations structure.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -110,13 +146,13 @@ int mod_reg_security(const char *name, struct security_operations *ops)
 {
 	if (verify(ops)) {
 		printk(KERN_INFO "%s could not verify "
-		       "security operations.\n", __FUNCTION__);
+		       "security operations.\n", __func__);
 		return -EINVAL;
 	}
 
 	if (ops == security_ops) {
 		printk(KERN_INFO "%s security operations "
-		       "already registered.\n", __FUNCTION__);
+		       "already registered.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -260,15 +296,15 @@ int security_sb_statfs(struct dentry *dentry)
 	return security_ops->sb_statfs(dentry);
 }
 
-int security_sb_mount(char *dev_name, struct nameidata *nd,
+int security_sb_mount(char *dev_name, struct path *path,
                        char *type, unsigned long flags, void *data)
 {
-	return security_ops->sb_mount(dev_name, nd, type, flags, data);
+	return security_ops->sb_mount(dev_name, path, type, flags, data);
 }
 
-int security_sb_check_sb(struct vfsmount *mnt, struct nameidata *nd)
+int security_sb_check_sb(struct vfsmount *mnt, struct path *path)
 {
-	return security_ops->sb_check_sb(mnt, nd);
+	return security_ops->sb_check_sb(mnt, path);
 }
 
 int security_sb_umount(struct vfsmount *mnt, int flags)
@@ -291,19 +327,19 @@ void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *d
 	security_ops->sb_post_remount(mnt, flags, data);
 }
 
-void security_sb_post_addmount(struct vfsmount *mnt, struct nameidata *mountpoint_nd)
+void security_sb_post_addmount(struct vfsmount *mnt, struct path *mountpoint)
 {
-	security_ops->sb_post_addmount(mnt, mountpoint_nd);
+	security_ops->sb_post_addmount(mnt, mountpoint);
 }
 
-int security_sb_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd)
+int security_sb_pivotroot(struct path *old_path, struct path *new_path)
 {
-	return security_ops->sb_pivotroot(old_nd, new_nd);
+	return security_ops->sb_pivotroot(old_path, new_path);
 }
 
-void security_sb_post_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd)
+void security_sb_post_pivotroot(struct path *old_path, struct path *new_path)
 {
-	security_ops->sb_post_pivotroot(old_nd, new_nd);
+	security_ops->sb_post_pivotroot(old_path, new_path);
 }
 
 int security_sb_get_mnt_opts(const struct super_block *sb,
@@ -523,6 +559,11 @@ int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer
 	return security_ops->inode_listsecurity(inode, buffer, buffer_size);
 }
 
+void security_inode_getsecid(const struct inode *inode, u32 *secid)
+{
+	security_ops->inode_getsecid(inode, secid);
+}
+
 int security_file_permission(struct file *file, int mask)
 {
 	return security_ops->file_permission(file, mask);
@@ -692,9 +733,9 @@ int security_task_wait(struct task_struct *p)
 }
 
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
-			 unsigned long arg4, unsigned long arg5)
+			 unsigned long arg4, unsigned long arg5, long *rc_p)
 {
-	return security_ops->task_prctl(option, arg2, arg3, arg4, arg5);
+	return security_ops->task_prctl(option, arg2, arg3, arg4, arg5, rc_p);
 }
 
 void security_task_reparent_to_init(struct task_struct *p)
@@ -710,6 +751,11 @@ void security_task_to_inode(struct task_struct *p, struct inode *inode)
 int security_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 {
 	return security_ops->ipc_permission(ipcp, flag);
+}
+
+void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
+{
+	security_ops->ipc_getsecid(ipcp, secid);
 }
 
 int security_msg_msg_alloc(struct msg_msg *msg)
@@ -1014,26 +1060,27 @@ void security_inet_conn_established(struct sock *sk,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 
-int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
+int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_user_sec_ctx *sec_ctx)
 {
-	return security_ops->xfrm_policy_alloc_security(xp, sec_ctx);
+	return security_ops->xfrm_policy_alloc_security(ctxp, sec_ctx);
 }
 EXPORT_SYMBOL(security_xfrm_policy_alloc);
 
-int security_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new)
+int security_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
+			      struct xfrm_sec_ctx **new_ctxp)
 {
-	return security_ops->xfrm_policy_clone_security(old, new);
+	return security_ops->xfrm_policy_clone_security(old_ctx, new_ctxp);
 }
 
-void security_xfrm_policy_free(struct xfrm_policy *xp)
+void security_xfrm_policy_free(struct xfrm_sec_ctx *ctx)
 {
-	security_ops->xfrm_policy_free_security(xp);
+	security_ops->xfrm_policy_free_security(ctx);
 }
 EXPORT_SYMBOL(security_xfrm_policy_free);
 
-int security_xfrm_policy_delete(struct xfrm_policy *xp)
+int security_xfrm_policy_delete(struct xfrm_sec_ctx *ctx)
 {
-	return security_ops->xfrm_policy_delete_security(xp);
+	return security_ops->xfrm_policy_delete_security(ctx);
 }
 
 int security_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
@@ -1065,9 +1112,9 @@ void security_xfrm_state_free(struct xfrm_state *x)
 	security_ops->xfrm_state_free_security(x);
 }
 
-int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir)
+int security_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir)
 {
-	return security_ops->xfrm_policy_lookup(xp, fl_secid, dir);
+	return security_ops->xfrm_policy_lookup(ctx, fl_secid, dir);
 }
 
 int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
@@ -1110,3 +1157,28 @@ int security_key_permission(key_ref_t key_ref,
 }
 
 #endif	/* CONFIG_KEYS */
+
+#ifdef CONFIG_AUDIT
+
+int security_audit_rule_init(u32 field, u32 op, char *rulestr, void **lsmrule)
+{
+	return security_ops->audit_rule_init(field, op, rulestr, lsmrule);
+}
+
+int security_audit_rule_known(struct audit_krule *krule)
+{
+	return security_ops->audit_rule_known(krule);
+}
+
+void security_audit_rule_free(void *lsmrule)
+{
+	security_ops->audit_rule_free(lsmrule);
+}
+
+int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule,
+			      struct audit_context *actx)
+{
+	return security_ops->audit_rule_match(secid, field, op, lsmrule, actx);
+}
+
+#endif /* CONFIG_AUDIT */

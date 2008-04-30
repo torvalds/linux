@@ -53,6 +53,8 @@
 #define MLOG_MASK_PREFIX ML_DLM
 #include "cluster/masklog.h"
 
+static struct kmem_cache *dlm_lock_cache = NULL;
+
 static DEFINE_SPINLOCK(dlm_cookie_lock);
 static u64 dlm_next_cookie = 1;
 
@@ -63,6 +65,22 @@ static void dlm_init_lock(struct dlm_lock *newlock, int type,
 			  u8 node, u64 cookie);
 static void dlm_lock_release(struct kref *kref);
 static void dlm_lock_detach_lockres(struct dlm_lock *lock);
+
+int dlm_init_lock_cache(void)
+{
+	dlm_lock_cache = kmem_cache_create("o2dlm_lock",
+					   sizeof(struct dlm_lock),
+					   0, SLAB_HWCACHE_ALIGN, NULL);
+	if (dlm_lock_cache == NULL)
+		return -ENOMEM;
+	return 0;
+}
+
+void dlm_destroy_lock_cache(void)
+{
+	if (dlm_lock_cache)
+		kmem_cache_destroy(dlm_lock_cache);
+}
 
 /* Tell us whether we can grant a new lock request.
  * locking:
@@ -353,7 +371,7 @@ static void dlm_lock_release(struct kref *kref)
 		mlog(0, "freeing kernel-allocated lksb\n");
 		kfree(lock->lksb);
 	}
-	kfree(lock);
+	kmem_cache_free(dlm_lock_cache, lock);
 }
 
 /* associate a lock with it's lockres, getting a ref on the lockres */
@@ -412,7 +430,7 @@ struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
 	struct dlm_lock *lock;
 	int kernel_allocated = 0;
 
-	lock = kzalloc(sizeof(*lock), GFP_NOFS);
+	lock = (struct dlm_lock *) kmem_cache_zalloc(dlm_lock_cache, GFP_NOFS);
 	if (!lock)
 		return NULL;
 

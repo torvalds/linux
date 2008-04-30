@@ -24,12 +24,13 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/types.h>
+#include <linux/lmb.h>
 
 #include <asm/processor.h>
 #include <asm/machdep.h>
 #include <asm/kexec.h>
 #include <asm/kdump.h>
-#include <asm/lmb.h>
+#include <asm/prom.h>
 #include <asm/firmware.h>
 #include <asm/smp.h>
 #include <asm/system.h>

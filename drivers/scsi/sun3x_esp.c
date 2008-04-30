@@ -294,6 +294,7 @@ static struct platform_driver esp_sun3x_driver = {
 	.remove         = __devexit_p(esp_sun3x_remove),
 	.driver = {
 		.name   = "sun3x_esp",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -314,3 +315,4 @@ MODULE_VERSION(DRV_VERSION);
 
 module_init(sun3x_esp_init);
 module_exit(sun3x_esp_exit);
+MODULE_ALIAS("platform:sun3x_esp");

@@ -329,13 +329,15 @@ EXPORT_SYMBOL(uart_update_timeout);
  *	If it's still invalid, we try 9600 baud.
  *
  *	Update the @termios structure to reflect the baud rate
- *	we're actually going to be using.
+ *	we're actually going to be using. Don't do this for the case
+ *	where B0 is requested ("hang up").
  */
 unsigned int
 uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		   struct ktermios *old, unsigned int min, unsigned int max)
 {
 	unsigned int try, baud, altbaud = 38400;
+	int hung_up = 0;
 	upf_t flags = port->flags & UPF_SPD_MASK;
 
 	if (flags == UPF_SPD_HI)
@@ -360,8 +362,10 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		/*
 		 * Special case: B0 rate.
 		 */
-		if (baud == 0)
+		if (baud == 0) {
+			hung_up = 1;
 			baud = 9600;
+		}
 
 		if (baud >= min && baud <= max)
 			return baud;
@@ -373,7 +377,9 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		termios->c_cflag &= ~CBAUD;
 		if (old) {
 			baud = tty_termios_baud_rate(old);
-			tty_termios_encode_baud_rate(termios, baud, baud);
+			if (!hung_up)
+				tty_termios_encode_baud_rate(termios,
+								baud, baud);
 			old = NULL;
 			continue;
 		}
@@ -382,7 +388,8 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		 * As a last resort, if the quotient is zero,
 		 * default to 9600 bps
 		 */
-		tty_termios_encode_baud_rate(termios, 9600, 9600);
+		if (!hung_up)
+			tty_termios_encode_baud_rate(termios, 9600, 9600);
 	}
 
 	return 0;
@@ -1771,7 +1778,7 @@ static int uart_read_proc(char *page, char **start, off_t off,
 }
 #endif
 
-#ifdef CONFIG_SERIAL_CORE_CONSOLE
+#if defined(CONFIG_SERIAL_CORE_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
 /*
  *	uart_console_write - write a console message to a serial port
  *	@port: the port to write the message
@@ -1827,7 +1834,7 @@ uart_get_console(struct uart_port *ports, int nr, struct console *co)
  *	options.  The format of the string is <baud><parity><bits><flow>,
  *	eg: 115200n8r
  */
-void __init
+void
 uart_parse_options(char *options, int *baud, int *parity, int *bits, int *flow)
 {
 	char *s = options;
@@ -1842,6 +1849,7 @@ uart_parse_options(char *options, int *baud, int *parity, int *bits, int *flow)
 	if (*s)
 		*flow = *s;
 }
+EXPORT_SYMBOL_GPL(uart_parse_options);
 
 struct baud_rates {
 	unsigned int rate;
@@ -1872,7 +1880,7 @@ static const struct baud_rates baud_rates[] = {
  *	@bits: number of data bits
  *	@flow: flow control character - 'r' (rts)
  */
-int __init
+int
 uart_set_options(struct uart_port *port, struct console *co,
 		 int baud, int parity, int bits, int flow)
 {
@@ -1924,10 +1932,16 @@ uart_set_options(struct uart_port *port, struct console *co,
 	port->mctrl |= TIOCM_DTR;
 
 	port->ops->set_termios(port, &termios, &dummy);
-	co->cflag = termios.c_cflag;
+	/*
+	 * Allow the setting of the UART parameters with a NULL console
+	 * too:
+	 */
+	if (co)
+		co->cflag = termios.c_cflag;
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(uart_set_options);
 #endif /* CONFIG_SERIAL_CORE_CONSOLE */
 
 static void uart_change_pm(struct uart_state *state, int pm_state)
@@ -2182,6 +2196,60 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 	}
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+
+static int uart_poll_init(struct tty_driver *driver, int line, char *options)
+{
+	struct uart_driver *drv = driver->driver_state;
+	struct uart_state *state = drv->state + line;
+	struct uart_port *port;
+	int baud = 9600;
+	int bits = 8;
+	int parity = 'n';
+	int flow = 'n';
+
+	if (!state || !state->port)
+		return -1;
+
+	port = state->port;
+	if (!(port->ops->poll_get_char && port->ops->poll_put_char))
+		return -1;
+
+	if (options) {
+		uart_parse_options(options, &baud, &parity, &bits, &flow);
+		return uart_set_options(port, NULL, baud, parity, bits, flow);
+	}
+
+	return 0;
+}
+
+static int uart_poll_get_char(struct tty_driver *driver, int line)
+{
+	struct uart_driver *drv = driver->driver_state;
+	struct uart_state *state = drv->state + line;
+	struct uart_port *port;
+
+	if (!state || !state->port)
+		return -1;
+
+	port = state->port;
+	return port->ops->poll_get_char(port);
+}
+
+static void uart_poll_put_char(struct tty_driver *driver, int line, char ch)
+{
+	struct uart_driver *drv = driver->driver_state;
+	struct uart_state *state = drv->state + line;
+	struct uart_port *port;
+
+	if (!state || !state->port)
+		return;
+
+	port = state->port;
+	port->ops->poll_put_char(port, ch);
+}
+#endif
+
 static const struct tty_operations uart_ops = {
 	.open		= uart_open,
 	.close		= uart_close,
@@ -2206,6 +2274,11 @@ static const struct tty_operations uart_ops = {
 #endif
 	.tiocmget	= uart_tiocmget,
 	.tiocmset	= uart_tiocmset,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_init	= uart_poll_init,
+	.poll_get_char	= uart_poll_get_char,
+	.poll_put_char	= uart_poll_put_char,
+#endif
 };
 
 /**
@@ -2356,7 +2429,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 	 */
 	tty_dev = tty_register_device(drv->tty_driver, port->line, port->dev);
 	if (likely(!IS_ERR(tty_dev))) {
-		device_can_wakeup(tty_dev) = 1;
+		device_init_wakeup(tty_dev, 1);
 		device_set_wakeup_enable(tty_dev, 0);
 	} else
 		printk(KERN_ERR "Cannot register tty device on line %d\n",

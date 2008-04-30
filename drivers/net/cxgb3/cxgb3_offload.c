@@ -833,10 +833,26 @@ static int do_trace(struct t3cdev *dev, struct sk_buff *skb)
 	return 0;
 }
 
+/*
+ * That skb would better have come from process_responses() where we abuse
+ * ->priority and ->csum to carry our data.  NB: if we get to per-arch
+ * ->csum, the things might get really interesting here.
+ */
+
+static inline u32 get_hwtid(struct sk_buff *skb)
+{
+	return ntohl((__force __be32)skb->priority) >> 8 & 0xfffff;
+}
+
+static inline u32 get_opcode(struct sk_buff *skb)
+{
+	return G_OPCODE(ntohl((__force __be32)skb->csum));
+}
+
 static int do_term(struct t3cdev *dev, struct sk_buff *skb)
 {
-	unsigned int hwtid = ntohl(skb->priority) >> 8 & 0xfffff;
-	unsigned int opcode = G_OPCODE(ntohl(skb->csum));
+	unsigned int hwtid = get_hwtid(skb);
+	unsigned int opcode = get_opcode(skb);
 	struct t3c_tid_entry *t3c_tid;
 
 	t3c_tid = lookup_tid(&(T3C_DATA(dev))->tid_maps, hwtid);
@@ -914,7 +930,7 @@ int process_rx(struct t3cdev *dev, struct sk_buff **skbs, int n)
 {
 	while (n--) {
 		struct sk_buff *skb = *skbs++;
-		unsigned int opcode = G_OPCODE(ntohl(skb->csum));
+		unsigned int opcode = get_opcode(skb);
 		int ret = cpl_handlers[opcode] (dev, skb);
 
 #if VALIDATE_TID

@@ -27,11 +27,11 @@ ENTRY(clear_page)
 	mov	#0,r0
 	!
 1:
-#if defined(CONFIG_CPU_SH3)
-	mov.l	r0,@r4
-#elif defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH4)
 	movca.l	r0,@r4
 	mov	r4,r1
+#else
+	mov.l	r0,@r4
 #endif
 	add	#32,r4
 	mov.l	r0,@-r4

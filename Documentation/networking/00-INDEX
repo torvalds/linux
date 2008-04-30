@@ -100,8 +100,6 @@ tuntap.txt
 	- TUN/TAP device driver, allowing user space Rx/Tx of packets.
 vortex.txt
 	- info on using 3Com Vortex (3c590, 3c592, 3c595, 3c597) Ethernet cards.
-wan-router.txt
-	- WAN router documentation
 wavelan.txt
 	- AT&T GIS (nee NCR) WaveLAN card: An Ethernet-like radio transceiver
 x25.txt

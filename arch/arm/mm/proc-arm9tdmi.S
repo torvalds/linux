@@ -64,6 +64,7 @@ __arm9tdmi_setup:
 		.type	arm9tdmi_processor_functions, #object
 ENTRY(arm9tdmi_processor_functions)
 		.word	nommu_early_abort
+		.word	pabort_noifar
 		.word	cpu_arm9tdmi_proc_init
 		.word	cpu_arm9tdmi_proc_fin
 		.word	cpu_arm9tdmi_reset

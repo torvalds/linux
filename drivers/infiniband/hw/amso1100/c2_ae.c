@@ -61,7 +61,7 @@ static int c2_convert_cm_status(u32 c2_status)
 	default:
 		printk(KERN_ERR PFX
 		       "%s - Unable to convert CM status: %d\n",
-		       __FUNCTION__, c2_status);
+		       __func__, c2_status);
 		return -EIO;
 	}
 }
@@ -193,9 +193,9 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 		pr_debug("%s: event = %s, user_context=%llx, "
 			"resource_type=%x, "
 			"resource=%x, qp_state=%s\n",
-			__FUNCTION__,
+			__func__,
 			to_event_str(event_id),
-			(unsigned long long) be64_to_cpu(wr->ae.ae_generic.user_context),
+			(unsigned long long) wr->ae.ae_generic.user_context,
 			be32_to_cpu(wr->ae.ae_generic.resource_type),
 			be32_to_cpu(wr->ae.ae_generic.resource),
 			to_qp_state_str(be32_to_cpu(wr->ae.ae_generic.qp_state)));
@@ -259,7 +259,7 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 			BUG_ON(1);
 			pr_debug("%s:%d Unexpected event_id=%d on QP=%p, "
 				"CM_ID=%p\n",
-				__FUNCTION__, __LINE__,
+				__func__, __LINE__,
 				event_id, qp, cm_id);
 			break;
 		}
@@ -276,7 +276,7 @@ void c2_ae_event(struct c2_dev *c2dev, u32 mq_index)
 		pr_debug("C2_RES_IND_EP event_id=%d\n", event_id);
 		if (event_id != CCAE_CONNECTION_REQUEST) {
 			pr_debug("%s: Invalid event_id: %d\n",
-				__FUNCTION__, event_id);
+				__func__, event_id);
 			break;
 		}
 		cm_event.event = IW_CM_EVENT_CONNECT_REQUEST;

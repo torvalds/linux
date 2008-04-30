@@ -21,7 +21,6 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 
-#include <asm/semaphore.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 

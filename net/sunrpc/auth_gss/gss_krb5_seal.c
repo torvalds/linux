@@ -87,10 +87,10 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 
 	now = get_seconds();
 
-	token->len = g_token_size(&ctx->mech_used, 22);
+	token->len = g_token_size(&ctx->mech_used, 24);
 
 	ptr = token->data;
-	g_make_token_header(&ctx->mech_used, 22, &ptr);
+	g_make_token_header(&ctx->mech_used, 24, &ptr);
 
 	*ptr++ = (unsigned char) ((KG_TOK_MIC_MSG>>8)&0xff);
 	*ptr++ = (unsigned char) (KG_TOK_MIC_MSG&0xff);
@@ -109,15 +109,14 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 			  md5cksum.data, md5cksum.len))
 		return GSS_S_FAILURE;
 
-	memcpy(krb5_hdr + 16, md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
-	       KRB5_CKSUM_LENGTH);
+	memcpy(krb5_hdr + 16, md5cksum.data + md5cksum.len - 8, 8);
 
 	spin_lock(&krb5_seq_lock);
 	seq_send = ctx->seq_send++;
 	spin_unlock(&krb5_seq_lock);
 
 	if (krb5_make_seq_num(ctx->seq, ctx->initiate ? 0 : 0xff,
-			       ctx->seq_send, krb5_hdr + 16, krb5_hdr + 8))
+			      seq_send, krb5_hdr + 16, krb5_hdr + 8))
 		return GSS_S_FAILURE;
 
 	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;

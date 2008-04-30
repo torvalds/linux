@@ -359,12 +359,14 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 					      int use_lowmem, int use_coherent)
 {
 	struct mthca_icm_table *table;
+	int obj_per_chunk;
 	int num_icm;
 	unsigned chunk_size;
 	int i;
 	u8 status;
 
-	num_icm = (obj_size * nobj + MTHCA_TABLE_CHUNK_SIZE - 1) / MTHCA_TABLE_CHUNK_SIZE;
+	obj_per_chunk = MTHCA_TABLE_CHUNK_SIZE / obj_size;
+	num_icm = DIV_ROUND_UP(nobj, obj_per_chunk);
 
 	table = kmalloc(sizeof *table + num_icm * sizeof *table->icm, GFP_KERNEL);
 	if (!table)
@@ -412,7 +414,7 @@ err:
 		if (table->icm[i]) {
 			mthca_UNMAP_ICM(dev, virt + i * MTHCA_TABLE_CHUNK_SIZE,
 					MTHCA_TABLE_CHUNK_SIZE / MTHCA_ICM_PAGE_SIZE,
-				        &status);
+					&status);
 			mthca_free_icm(dev, table->icm[i], table->coherent);
 		}
 

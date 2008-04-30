@@ -38,6 +38,8 @@ typedef unsigned long  hva_t;
 typedef u64            hpa_t;
 typedef unsigned long  hfn_t;
 
+typedef hfn_t pfn_t;
+
 struct kvm_pio_request {
 	unsigned long count;
 	int cur_count;

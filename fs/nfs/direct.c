@@ -229,14 +229,20 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq)
 static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 {
 	struct nfs_read_data *data = calldata;
-	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
 
-	if (nfs_readpage_result(task, data) != 0)
-		return;
+	nfs_readpage_result(task, data);
+}
+
+static void nfs_direct_read_release(void *calldata)
+{
+
+	struct nfs_read_data *data = calldata;
+	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
+	int status = data->task.tk_status;
 
 	spin_lock(&dreq->lock);
-	if (unlikely(task->tk_status < 0)) {
-		dreq->error = task->tk_status;
+	if (unlikely(status < 0)) {
+		dreq->error = status;
 		spin_unlock(&dreq->lock);
 	} else {
 		dreq->count += data->res.count;
@@ -249,11 +255,12 @@ static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 
 	if (put_dreq(dreq))
 		nfs_direct_complete(dreq);
+	nfs_readdata_release(calldata);
 }
 
 static const struct rpc_call_ops nfs_read_direct_ops = {
 	.rpc_call_done = nfs_direct_read_result,
-	.rpc_release = nfs_readdata_release,
+	.rpc_release = nfs_direct_read_release,
 };
 
 /*
@@ -280,6 +287,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		.rpc_client = NFS_CLIENT(inode),
 		.rpc_message = &msg,
 		.callback_ops = &nfs_read_direct_ops,
+		.workqueue = nfsiod_workqueue,
 		.flags = RPC_TASK_ASYNC,
 	};
 	unsigned int pgbase;
@@ -323,7 +331,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		data->inode = inode;
 		data->cred = msg.rpc_cred;
 		data->args.fh = NFS_FH(inode);
-		data->args.context = ctx;
+		data->args.context = get_nfs_open_context(ctx);
 		data->args.offset = pos;
 		data->args.pgbase = pgbase;
 		data->args.pages = data->pagevec;
@@ -339,8 +347,9 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		NFS_PROTO(inode)->read_setup(data, &msg);
 
 		task = rpc_run_task(&task_setup_data);
-		if (!IS_ERR(task))
-			rpc_put_task(task);
+		if (IS_ERR(task))
+			break;
+		rpc_put_task(task);
 
 		dprintk("NFS: %5u initiated direct read call "
 			"(req %s/%Ld, %zu bytes @ offset %Lu)\n",
@@ -446,6 +455,7 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = NFS_CLIENT(inode),
 		.callback_ops = &nfs_write_direct_ops,
+		.workqueue = nfsiod_workqueue,
 		.flags = RPC_TASK_ASYNC,
 	};
 
@@ -499,27 +509,34 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 static void nfs_direct_commit_result(struct rpc_task *task, void *calldata)
 {
 	struct nfs_write_data *data = calldata;
-	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
 
 	/* Call the NFS version-specific code */
-	if (NFS_PROTO(data->inode)->commit_done(task, data) != 0)
-		return;
-	if (unlikely(task->tk_status < 0)) {
+	NFS_PROTO(data->inode)->commit_done(task, data);
+}
+
+static void nfs_direct_commit_release(void *calldata)
+{
+	struct nfs_write_data *data = calldata;
+	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
+	int status = data->task.tk_status;
+
+	if (status < 0) {
 		dprintk("NFS: %5u commit failed with error %d.\n",
-				task->tk_pid, task->tk_status);
+				data->task.tk_pid, status);
 		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
 	} else if (memcmp(&dreq->verf, &data->verf, sizeof(data->verf))) {
-		dprintk("NFS: %5u commit verify failed\n", task->tk_pid);
+		dprintk("NFS: %5u commit verify failed\n", data->task.tk_pid);
 		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
 	}
 
-	dprintk("NFS: %5u commit returned %d\n", task->tk_pid, task->tk_status);
+	dprintk("NFS: %5u commit returned %d\n", data->task.tk_pid, status);
 	nfs_direct_write_complete(dreq, data->inode);
+	nfs_commitdata_release(calldata);
 }
 
 static const struct rpc_call_ops nfs_commit_direct_ops = {
 	.rpc_call_done = nfs_direct_commit_result,
-	.rpc_release = nfs_commit_release,
+	.rpc_release = nfs_direct_commit_release,
 };
 
 static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
@@ -537,6 +554,7 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 		.rpc_message = &msg,
 		.callback_ops = &nfs_commit_direct_ops,
 		.callback_data = data,
+		.workqueue = nfsiod_workqueue,
 		.flags = RPC_TASK_ASYNC,
 	};
 
@@ -546,6 +564,7 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 	data->args.fh = NFS_FH(data->inode);
 	data->args.offset = 0;
 	data->args.count = 0;
+	data->args.context = get_nfs_open_context(dreq->ctx);
 	data->res.count = 0;
 	data->res.fattr = &data->fattr;
 	data->res.verf = &data->verf;
@@ -585,7 +604,7 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 
 static void nfs_alloc_commit_data(struct nfs_direct_req *dreq)
 {
-	dreq->commit_data = nfs_commit_alloc();
+	dreq->commit_data = nfs_commitdata_alloc();
 	if (dreq->commit_data != NULL)
 		dreq->commit_data->req = (struct nfs_page *) dreq;
 }
@@ -606,11 +625,20 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 {
 	struct nfs_write_data *data = calldata;
-	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
-	int status = task->tk_status;
 
 	if (nfs_writeback_done(task, data) != 0)
 		return;
+}
+
+/*
+ * NB: Return the value of the first error return code.  Subsequent
+ *     errors after the first one are ignored.
+ */
+static void nfs_direct_write_release(void *calldata)
+{
+	struct nfs_write_data *data = calldata;
+	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
+	int status = data->task.tk_status;
 
 	spin_lock(&dreq->lock);
 
@@ -632,23 +660,13 @@ static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 				break;
 			case NFS_ODIRECT_DO_COMMIT:
 				if (memcmp(&dreq->verf, &data->verf, sizeof(dreq->verf))) {
-					dprintk("NFS: %5u write verify failed\n", task->tk_pid);
+					dprintk("NFS: %5u write verify failed\n", data->task.tk_pid);
 					dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
 				}
 		}
 	}
 out_unlock:
 	spin_unlock(&dreq->lock);
-}
-
-/*
- * NB: Return the value of the first error return code.  Subsequent
- *     errors after the first one are ignored.
- */
-static void nfs_direct_write_release(void *calldata)
-{
-	struct nfs_write_data *data = calldata;
-	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
 
 	if (put_dreq(dreq))
 		nfs_direct_write_complete(dreq, data->inode);
@@ -682,6 +700,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 		.rpc_client = NFS_CLIENT(inode),
 		.rpc_message = &msg,
 		.callback_ops = &nfs_write_direct_ops,
+		.workqueue = nfsiod_workqueue,
 		.flags = RPC_TASK_ASYNC,
 	};
 	size_t wsize = NFS_SERVER(inode)->wsize;
@@ -728,7 +747,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 		data->inode = inode;
 		data->cred = msg.rpc_cred;
 		data->args.fh = NFS_FH(inode);
-		data->args.context = ctx;
+		data->args.context = get_nfs_open_context(ctx);
 		data->args.offset = pos;
 		data->args.pgbase = pgbase;
 		data->args.pages = data->pagevec;
@@ -745,8 +764,9 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 		NFS_PROTO(inode)->write_setup(data, &msg);
 
 		task = rpc_run_task(&task_setup_data);
-		if (!IS_ERR(task))
-			rpc_put_task(task);
+		if (IS_ERR(task))
+			break;
+		rpc_put_task(task);
 
 		dprintk("NFS: %5u initiated direct write call "
 			"(req %s/%Ld, %zu bytes @ offset %Lu)\n",

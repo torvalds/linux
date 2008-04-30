@@ -32,6 +32,6 @@
  *
  * Note that unaligned accesses can be very expensive on some architectures.
  */
-#define put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
+#define put_unaligned(val, ptr) ((void)(*(ptr) = (val)))
 
 #endif /* _ASM_X86_UNALIGNED_H */

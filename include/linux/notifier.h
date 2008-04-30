@@ -247,6 +247,7 @@ extern struct blocking_notifier_head reboot_notifier_list;
 #define VT_DEALLOCATE		0x0002 /* Console will be deallocated */
 #define VT_WRITE		0x0003 /* A char got output */
 #define VT_UPDATE		0x0004 /* A bigger update occurred */
+#define VT_PREWRITE		0x0005 /* A char is about to be written to the console */
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_NOTIFIER_H */

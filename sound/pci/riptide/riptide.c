@@ -1630,14 +1630,14 @@ static int snd_riptide_playback_open(struct snd_pcm_substream *substream)
 	struct snd_riptide *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct pcmhw *data;
-	int index = substream->number;
+	int sub_num = substream->number;
 
-	chip->playback_substream[index] = substream;
+	chip->playback_substream[sub_num] = substream;
 	runtime->hw = snd_riptide_playback;
 	data = kzalloc(sizeof(struct pcmhw), GFP_KERNEL);
-	data->paths = lbus_play_paths[index];
-	data->id = play_ids[index];
-	data->source = play_sources[index];
+	data->paths = lbus_play_paths[sub_num];
+	data->id = play_ids[sub_num];
+	data->source = play_sources[sub_num];
 	data->intdec[0] = 0xff;
 	data->intdec[1] = 0xff;
 	data->state = ST_STOP;
@@ -1670,10 +1670,10 @@ static int snd_riptide_playback_close(struct snd_pcm_substream *substream)
 {
 	struct snd_riptide *chip = snd_pcm_substream_chip(substream);
 	struct pcmhw *data = get_pcmhwdev(substream);
-	int index = substream->number;
+	int sub_num = substream->number;
 
 	substream->runtime->private_data = NULL;
-	chip->playback_substream[index] = NULL;
+	chip->playback_substream[sub_num] = NULL;
 	kfree(data);
 	return 0;
 }

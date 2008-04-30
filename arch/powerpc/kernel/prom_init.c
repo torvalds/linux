@@ -2240,6 +2240,14 @@ static void __init fixup_device_tree_efika(void)
 	if (rv != PROM_ERROR && (strcmp(prop, "chrp") == 0))
 		prom_setprop(node, "/", "device_type", "efika", sizeof("efika"));
 
+	/* CODEGEN,description is exposed in /proc/cpuinfo so
+	   fix that too */
+	rv = prom_getprop(node, "CODEGEN,description", prop, sizeof(prop));
+	if (rv != PROM_ERROR && (strstr(prop, "CHRP")))
+		prom_setprop(node, "/", "CODEGEN,description",
+			     "Efika 5200B PowerPC System",
+			     sizeof("Efika 5200B PowerPC System"));
+
 	/* Fixup bestcomm interrupts property */
 	node = call_prom("finddevice", 1, 1, ADDR("/builtin/bestcomm"));
 	if (PHANDLE_VALID(node)) {

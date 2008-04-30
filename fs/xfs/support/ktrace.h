@@ -30,7 +30,8 @@ typedef struct ktrace_entry {
  */
 typedef struct ktrace {
 	int		kt_nentries;	/* number of entries in trace buf */
-	int		kt_index;	/* current index in entries */
+	atomic_t	kt_index;	/* current index in entries */
+	unsigned int	kt_index_mask;
 	int		kt_rollover;
 	ktrace_entry_t	*kt_entries;	/* buffer of entries */
 } ktrace_t;

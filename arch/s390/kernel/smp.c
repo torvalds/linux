@@ -44,6 +44,7 @@
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
 #include <asm/cpu.h>
+#include "entry.h"
 
 /*
  * An array with a pointer the lowcore of every CPU.
@@ -67,13 +68,12 @@ enum s390_cpu_state {
 	CPU_STATE_CONFIGURED,
 };
 
-#ifdef CONFIG_HOTPLUG_CPU
-static DEFINE_MUTEX(smp_cpu_state_mutex);
-#endif
+DEFINE_MUTEX(smp_cpu_state_mutex);
+int smp_cpu_polarization[NR_CPUS];
 static int smp_cpu_state[NR_CPUS];
+static int cpu_management;
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
-DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
 
 static void smp_ext_bitcall(int, ec_bit_sig);
 
@@ -298,7 +298,7 @@ static void smp_ext_bitcall(int cpu, ec_bit_sig sig)
 /*
  * this function sends a 'purge tlb' signal to another CPU.
  */
-void smp_ptlb_callback(void *info)
+static void smp_ptlb_callback(void *info)
 {
 	__tlb_flush_local();
 }
@@ -456,6 +456,7 @@ static int smp_rescan_cpus_sigp(cpumask_t avail)
 		if (cpu_known(cpu_id))
 			continue;
 		__cpu_logical_map[logical_cpu] = cpu_id;
+		smp_cpu_polarization[logical_cpu] = POLARIZATION_UNKNWN;
 		if (!cpu_stopped(logical_cpu))
 			continue;
 		cpu_set(logical_cpu, cpu_present_map);
@@ -489,6 +490,7 @@ static int smp_rescan_cpus_sclp(cpumask_t avail)
 		if (cpu_known(cpu_id))
 			continue;
 		__cpu_logical_map[logical_cpu] = cpu_id;
+		smp_cpu_polarization[logical_cpu] = POLARIZATION_UNKNWN;
 		cpu_set(logical_cpu, cpu_present_map);
 		if (cpu >= info->configured)
 			smp_cpu_state[logical_cpu] = CPU_STATE_STANDBY;
@@ -846,6 +848,7 @@ void __init smp_prepare_boot_cpu(void)
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	current_set[0] = current;
 	smp_cpu_state[0] = CPU_STATE_CONFIGURED;
+	smp_cpu_polarization[0] = POLARIZATION_UNKNWN;
 	spin_lock_init(&(&__get_cpu_var(s390_idle))->lock);
 }
 
@@ -897,15 +900,19 @@ static ssize_t cpu_configure_store(struct sys_device *dev, const char *buf,
 	case 0:
 		if (smp_cpu_state[cpu] == CPU_STATE_CONFIGURED) {
 			rc = sclp_cpu_deconfigure(__cpu_logical_map[cpu]);
-			if (!rc)
+			if (!rc) {
 				smp_cpu_state[cpu] = CPU_STATE_STANDBY;
+				smp_cpu_polarization[cpu] = POLARIZATION_UNKNWN;
+			}
 		}
 		break;
 	case 1:
 		if (smp_cpu_state[cpu] == CPU_STATE_STANDBY) {
 			rc = sclp_cpu_configure(__cpu_logical_map[cpu]);
-			if (!rc)
+			if (!rc) {
 				smp_cpu_state[cpu] = CPU_STATE_CONFIGURED;
+				smp_cpu_polarization[cpu] = POLARIZATION_UNKNWN;
+			}
 		}
 		break;
 	default:
@@ -919,6 +926,34 @@ out:
 static SYSDEV_ATTR(configure, 0644, cpu_configure_show, cpu_configure_store);
 #endif /* CONFIG_HOTPLUG_CPU */
 
+static ssize_t cpu_polarization_show(struct sys_device *dev, char *buf)
+{
+	int cpu = dev->id;
+	ssize_t count;
+
+	mutex_lock(&smp_cpu_state_mutex);
+	switch (smp_cpu_polarization[cpu]) {
+	case POLARIZATION_HRZ:
+		count = sprintf(buf, "horizontal\n");
+		break;
+	case POLARIZATION_VL:
+		count = sprintf(buf, "vertical:low\n");
+		break;
+	case POLARIZATION_VM:
+		count = sprintf(buf, "vertical:medium\n");
+		break;
+	case POLARIZATION_VH:
+		count = sprintf(buf, "vertical:high\n");
+		break;
+	default:
+		count = sprintf(buf, "unknown\n");
+		break;
+	}
+	mutex_unlock(&smp_cpu_state_mutex);
+	return count;
+}
+static SYSDEV_ATTR(polarization, 0444, cpu_polarization_show, NULL);
+
 static ssize_t show_cpu_address(struct sys_device *dev, char *buf)
 {
 	return sprintf(buf, "%d\n", __cpu_logical_map[dev->id]);
@@ -931,6 +966,7 @@ static struct attribute *cpu_common_attrs[] = {
 	&attr_configure.attr,
 #endif
 	&attr_address.attr,
+	&attr_polarization.attr,
 	NULL,
 };
 
@@ -1075,10 +1111,47 @@ static ssize_t __ref rescan_store(struct sys_device *dev,
 out:
 	put_online_cpus();
 	mutex_unlock(&smp_cpu_state_mutex);
+	if (!cpus_empty(newcpus))
+		topology_schedule_update();
 	return rc ? rc : count;
 }
 static SYSDEV_ATTR(rescan, 0200, NULL, rescan_store);
 #endif /* CONFIG_HOTPLUG_CPU */
+
+static ssize_t dispatching_show(struct sys_device *dev, char *buf)
+{
+	ssize_t count;
+
+	mutex_lock(&smp_cpu_state_mutex);
+	count = sprintf(buf, "%d\n", cpu_management);
+	mutex_unlock(&smp_cpu_state_mutex);
+	return count;
+}
+
+static ssize_t dispatching_store(struct sys_device *dev, const char *buf,
+				 size_t count)
+{
+	int val, rc;
+	char delim;
+
+	if (sscanf(buf, "%d %c", &val, &delim) != 1)
+		return -EINVAL;
+	if (val != 0 && val != 1)
+		return -EINVAL;
+	rc = 0;
+	mutex_lock(&smp_cpu_state_mutex);
+	get_online_cpus();
+	if (cpu_management == val)
+		goto out;
+	rc = topology_set_cpu_management(val);
+	if (!rc)
+		cpu_management = val;
+out:
+	put_online_cpus();
+	mutex_unlock(&smp_cpu_state_mutex);
+	return rc ? rc : count;
+}
+static SYSDEV_ATTR(dispatching, 0644, dispatching_show, dispatching_store);
 
 static int __init topology_init(void)
 {
@@ -1093,6 +1166,10 @@ static int __init topology_init(void)
 	if (rc)
 		return rc;
 #endif
+	rc = sysfs_create_file(&cpu_sysdev_class.kset.kobj,
+			       &attr_dispatching.attr);
+	if (rc)
+		return rc;
 	for_each_present_cpu(cpu) {
 		rc = smp_add_present_cpu(cpu);
 		if (rc)

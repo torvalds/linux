@@ -815,7 +815,7 @@ struct ahd_tmode_tstate {
 struct ahd_phase_table_entry {
         uint8_t phase;
         uint8_t mesg_out; /* Message response to parity errors */
-	char *phasemsg;
+	const char *phasemsg;
 };
 
 /************************** Serial EEPROM Format ******************************/
@@ -1314,7 +1314,7 @@ typedef int (ahd_device_setup_t)(struct ahd_softc *);
 struct ahd_pci_identity {
 	uint64_t		 full_id;
 	uint64_t		 id_mask;
-	char			*name;
+	const char		*name;
 	ahd_device_setup_t	*setup;
 };
 
@@ -1322,7 +1322,7 @@ struct ahd_pci_identity {
 struct aic7770_identity {
 	uint32_t		 full_id;
 	uint32_t		 id_mask;
-	char			*name;
+	const char		*name;
 	ahd_device_setup_t	*setup;
 };
 extern struct aic7770_identity aic7770_ident_table [];
@@ -1333,12 +1333,11 @@ extern const int ahd_num_aic7770_devs;
 
 /*************************** Function Declarations ****************************/
 /******************************************************************************/
-void			ahd_reset_cmds_pending(struct ahd_softc *ahd);
 
 /***************************** PCI Front End *********************************/
-struct	ahd_pci_identity *ahd_find_pci_device(ahd_dev_softc_t);
+const struct	ahd_pci_identity *ahd_find_pci_device(ahd_dev_softc_t);
 int			  ahd_pci_config(struct ahd_softc *,
-					 struct ahd_pci_identity *);
+					 const struct ahd_pci_identity *);
 int	ahd_pci_test_register_access(struct ahd_softc *);
 #ifdef CONFIG_PM
 void	ahd_pci_suspend(struct ahd_softc *);
@@ -1375,16 +1374,6 @@ int			 ahd_write_flexport(struct ahd_softc *ahd,
 					    u_int addr, u_int value);
 int			 ahd_read_flexport(struct ahd_softc *ahd, u_int addr,
 					   uint8_t *value);
-
-/*************************** Interrupt Services *******************************/
-void			ahd_run_qoutfifo(struct ahd_softc *ahd);
-#ifdef AHD_TARGET_MODE
-void			ahd_run_tqinfifo(struct ahd_softc *ahd, int paused);
-#endif
-void			ahd_handle_hwerrint(struct ahd_softc *ahd);
-void			ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat);
-void			ahd_handle_scsiint(struct ahd_softc *ahd,
-					   u_int intstat);
 
 /***************************** Error Recovery *********************************/
 typedef enum {
@@ -1479,7 +1468,7 @@ extern uint32_t ahd_debug;
 void			ahd_print_devinfo(struct ahd_softc *ahd,
 					  struct ahd_devinfo *devinfo);
 void			ahd_dump_card_state(struct ahd_softc *ahd);
-int			ahd_print_register(ahd_reg_parse_entry_t *table,
+int			ahd_print_register(const ahd_reg_parse_entry_t *table,
 					   u_int num_entries,
 					   const char *name,
 					   u_int address,

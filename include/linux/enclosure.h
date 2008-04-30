@@ -82,7 +82,8 @@ struct enclosure_component_callbacks {
 
 struct enclosure_component {
 	void *scratch;
-	struct class_device cdev;
+	struct device cdev;
+	struct device *dev;
 	enum enclosure_component_type type;
 	int number;
 	int fault;
@@ -94,20 +95,20 @@ struct enclosure_component {
 struct enclosure_device {
 	void *scratch;
 	struct list_head node;
-	struct class_device cdev;
+	struct device edev;
 	struct enclosure_component_callbacks *cb;
 	int components;
 	struct enclosure_component component[0];
 };
 
 static inline struct enclosure_device *
-to_enclosure_device(struct class_device *dev)
+to_enclosure_device(struct device *dev)
 {
-	return container_of(dev, struct enclosure_device, cdev);
+	return container_of(dev, struct enclosure_device, edev);
 }
 
 static inline struct enclosure_component *
-to_enclosure_component(struct class_device *dev)
+to_enclosure_component(struct device *dev)
 {
 	return container_of(dev, struct enclosure_component, cdev);
 }

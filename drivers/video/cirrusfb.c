@@ -81,7 +81,7 @@
 /* debug output */
 #ifdef CIRRUSFB_DEBUG
 #define DPRINTK(fmt, args...) \
-	printk(KERN_DEBUG "%s: " fmt, __FUNCTION__ , ## args)
+	printk(KERN_DEBUG "%s: " fmt, __func__ , ## args)
 #else
 #define DPRINTK(fmt, args...)
 #endif
@@ -91,7 +91,7 @@
 #define assert(expr) \
 	if (!(expr)) { \
 		printk("Assertion failed! %s,%s,%s,line=%d\n", \
-		#expr, __FILE__, __FUNCTION__, __LINE__); \
+		#expr, __FILE__, __func__, __LINE__); \
 	}
 #else
 #define assert(expr)
@@ -3117,7 +3117,7 @@ static void bestclock(long freq, long *best, long *nom,
 				}
 			}
 		}
-		d = ((143181 * n) + f - 1) / f;
+		d = DIV_ROUND_UP(143181 * n, f);
 		if ((d >= 7) && (d <= 63)) {
 			if (d > 31)
 				d = (d / 2) * 2;

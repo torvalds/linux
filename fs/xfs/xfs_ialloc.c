@@ -107,6 +107,16 @@ xfs_ialloc_log_di(
 /*
  * Allocation group level functions.
  */
+static inline int
+xfs_ialloc_cluster_alignment(
+	xfs_alloc_arg_t	*args)
+{
+	if (xfs_sb_version_hasalign(&args->mp->m_sb) &&
+	    args->mp->m_sb.sb_inoalignmt >=
+	     XFS_B_TO_FSBT(args->mp, XFS_INODE_CLUSTER_SIZE(args->mp)))
+		return args->mp->m_sb.sb_inoalignmt;
+	return 1;
+}
 
 /*
  * Allocate new inodes in the allocation group specified by agbp.
@@ -167,10 +177,24 @@ xfs_ialloc_ag_alloc(
 		args.mod = args.total = args.wasdel = args.isfl =
 			args.userdata = args.minalignslop = 0;
 		args.prod = 1;
-		args.alignment = 1;
+
 		/*
-		 * Allow space for the inode btree to split.
+		 * We need to take into account alignment here to ensure that
+		 * we don't modify the free list if we fail to have an exact
+		 * block. If we don't have an exact match, and every oher
+		 * attempt allocation attempt fails, we'll end up cancelling
+		 * a dirty transaction and shutting down.
+		 *
+		 * For an exact allocation, alignment must be 1,
+		 * however we need to take cluster alignment into account when
+		 * fixing up the freelist. Use the minalignslop field to
+		 * indicate that extra blocks might be required for alignment,
+		 * but not to use them in the actual exact allocation.
 		 */
+		args.alignment = 1;
+		args.minalignslop = xfs_ialloc_cluster_alignment(&args) - 1;
+
+		/* Allow space for the inode btree to split. */
 		args.minleft = XFS_IN_MAXLEVELS(args.mp) - 1;
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
@@ -191,13 +215,8 @@ xfs_ialloc_ag_alloc(
 			ASSERT(!(args.mp->m_flags & XFS_MOUNT_NOALIGN));
 			args.alignment = args.mp->m_dalign;
 			isaligned = 1;
-		} else if (xfs_sb_version_hasalign(&args.mp->m_sb) &&
-			   args.mp->m_sb.sb_inoalignmt >=
-			   XFS_B_TO_FSBT(args.mp,
-			  	XFS_INODE_CLUSTER_SIZE(args.mp)))
-				args.alignment = args.mp->m_sb.sb_inoalignmt;
-		else
-			args.alignment = 1;
+		} else
+			args.alignment = xfs_ialloc_cluster_alignment(&args);
 		/*
 		 * Need to figure out where to allocate the inode blocks.
 		 * Ideally they should be spaced out through the a.g.
@@ -230,12 +249,7 @@ xfs_ialloc_ag_alloc(
 		args.agbno = be32_to_cpu(agi->agi_root);
 		args.fsbno = XFS_AGB_TO_FSB(args.mp,
 				be32_to_cpu(agi->agi_seqno), args.agbno);
-		if (xfs_sb_version_hasalign(&args.mp->m_sb) &&
-			args.mp->m_sb.sb_inoalignmt >=
-			XFS_B_TO_FSBT(args.mp, XFS_INODE_CLUSTER_SIZE(args.mp)))
-				args.alignment = args.mp->m_sb.sb_inoalignmt;
-		else
-			args.alignment = 1;
+		args.alignment = xfs_ialloc_cluster_alignment(&args);
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
 	}

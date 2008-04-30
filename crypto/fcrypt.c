@@ -405,18 +405,18 @@ static struct crypto_alg fcrypt_alg = {
 	.cia_decrypt		=	fcrypt_decrypt } }
 };
 
-static int __init init(void)
+static int __init fcrypt_mod_init(void)
 {
 	return crypto_register_alg(&fcrypt_alg);
 }
 
-static void __exit fini(void)
+static void __exit fcrypt_mod_fini(void)
 {
 	crypto_unregister_alg(&fcrypt_alg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(fcrypt_mod_init);
+module_exit(fcrypt_mod_fini);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("FCrypt Cipher Algorithm");

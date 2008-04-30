@@ -467,7 +467,7 @@ static enum pmcmsptwi_xfer_result pmcmsptwi_xfer_cmd(
 	    (cmd->read_len == 0 || cmd->write_len == 0))) {
 		dev_err(&pmcmsptwi_adapter.dev,
 			"%s: Cannot transfer less than 1 byte\n",
-			__FUNCTION__);
+			__func__);
 		return -EINVAL;
 	}
 
@@ -475,7 +475,7 @@ static enum pmcmsptwi_xfer_result pmcmsptwi_xfer_cmd(
 	    cmd->write_len > MSP_MAX_BYTES_PER_RW) {
 		dev_err(&pmcmsptwi_adapter.dev,
 			"%s: Cannot transfer more than %d bytes\n",
-			__FUNCTION__, MSP_MAX_BYTES_PER_RW);
+			__func__, MSP_MAX_BYTES_PER_RW);
 		return -EINVAL;
 	}
 
@@ -626,6 +626,9 @@ static struct i2c_adapter pmcmsptwi_adapter = {
 	.algo		= &pmcmsptwi_algo,
 	.name		= DRV_NAME,
 };
+
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:" DRV_NAME);
 
 static struct platform_driver pmcmsptwi_driver = {
 	.probe  = pmcmsptwi_probe,

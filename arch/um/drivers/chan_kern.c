@@ -125,7 +125,7 @@ static int open_one_chan(struct chan *chan)
 	return 0;
 }
 
-int open_chan(struct list_head *chans)
+static int open_chan(struct list_head *chans)
 {
 	struct list_head *ele;
 	struct chan *chan;
@@ -581,19 +581,6 @@ int parse_chan_pair(char *str, struct line *line, int device,
 		new->output = 1;
 	}
 	return 0;
-}
-
-int chan_out_fd(struct list_head *chans)
-{
-	struct list_head *ele;
-	struct chan *chan;
-
-	list_for_each(ele, chans) {
-		chan = list_entry(ele, struct chan, list);
-		if (chan->primary && chan->output)
-			return chan->fd;
-	}
-	return -1;
 }
 
 void chan_interrupt(struct list_head *chans, struct delayed_work *task,

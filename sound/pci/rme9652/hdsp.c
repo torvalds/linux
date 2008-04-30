@@ -318,6 +318,10 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define HDSP_midi1IRQPending    (1<<31)
 
 #define HDSP_spdifFrequencyMask    (HDSP_spdifFrequency0|HDSP_spdifFrequency1|HDSP_spdifFrequency2)
+#define HDSP_spdifFrequencyMask_9632 (HDSP_spdifFrequency0|\
+				      HDSP_spdifFrequency1|\
+				      HDSP_spdifFrequency2|\
+				      HDSP_spdifFrequency3)
 
 #define HDSP_spdifFrequency32KHz   (HDSP_spdifFrequency0)
 #define HDSP_spdifFrequency44_1KHz (HDSP_spdifFrequency1)
@@ -328,7 +332,9 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define HDSP_spdifFrequency96KHz   (HDSP_spdifFrequency2|HDSP_spdifFrequency1)
 
 /* This is for H9632 cards */
-#define HDSP_spdifFrequency128KHz   HDSP_spdifFrequencyMask
+#define HDSP_spdifFrequency128KHz   (HDSP_spdifFrequency0|\
+				     HDSP_spdifFrequency1|\
+				     HDSP_spdifFrequency2)
 #define HDSP_spdifFrequency176_4KHz HDSP_spdifFrequency3
 #define HDSP_spdifFrequency192KHz   (HDSP_spdifFrequency3|HDSP_spdifFrequency0)
 
@@ -885,27 +891,14 @@ static int snd_hdsp_use_is_exclusive(struct hdsp *hdsp)
 	return ret;
 }
 
-static int hdsp_external_sample_rate (struct hdsp *hdsp)
-{
-	unsigned int status2 = hdsp_read(hdsp, HDSP_status2Register);
-	unsigned int rate_bits = status2 & HDSP_systemFrequencyMask;
-
-	switch (rate_bits) {
-	case HDSP_systemFrequency32:   return 32000;
-	case HDSP_systemFrequency44_1: return 44100;
-	case HDSP_systemFrequency48:   return 48000;
-	case HDSP_systemFrequency64:   return 64000;
-	case HDSP_systemFrequency88_2: return 88200;
-	case HDSP_systemFrequency96:   return 96000;
-	default:
-		return 0;
-	}
-}
-
 static int hdsp_spdif_sample_rate(struct hdsp *hdsp)
 {
 	unsigned int status = hdsp_read(hdsp, HDSP_statusRegister);
 	unsigned int rate_bits = (status & HDSP_spdifFrequencyMask);
+
+	/* For the 9632, the mask is different */
+	if (hdsp->io_type == H9632)
+		 rate_bits = (status & HDSP_spdifFrequencyMask_9632);
 
 	if (status & HDSP_SPDIFErrorFlag)
 		return 0;
@@ -931,6 +924,31 @@ static int hdsp_spdif_sample_rate(struct hdsp *hdsp)
 	}
 	snd_printk ("Hammerfall-DSP: unknown spdif frequency status; bits = 0x%x, status = 0x%x\n", rate_bits, status);
 	return 0;
+}
+
+static int hdsp_external_sample_rate(struct hdsp *hdsp)
+{
+	unsigned int status2 = hdsp_read(hdsp, HDSP_status2Register);
+	unsigned int rate_bits = status2 & HDSP_systemFrequencyMask;
+
+	/* For the 9632 card, there seems to be no bit for indicating external
+	 * sample rate greater than 96kHz. The card reports the corresponding
+	 * single speed. So the best means seems to get spdif rate when
+	 * autosync reference is spdif */
+	if (hdsp->io_type == H9632 &&
+	    hdsp_autosync_ref(hdsp) == HDSP_AUTOSYNC_FROM_SPDIF)
+		 return hdsp_spdif_sample_rate(hdsp);
+
+	switch (rate_bits) {
+	case HDSP_systemFrequency32:   return 32000;
+	case HDSP_systemFrequency44_1: return 44100;
+	case HDSP_systemFrequency48:   return 48000;
+	case HDSP_systemFrequency64:   return 64000;
+	case HDSP_systemFrequency88_2: return 88200;
+	case HDSP_systemFrequency96:   return 96000;
+	default:
+		return 0;
+	}
 }
 
 static void hdsp_compute_period_size(struct hdsp *hdsp)

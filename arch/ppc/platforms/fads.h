@@ -22,29 +22,6 @@
 
 #include <asm/ppcboot.h>
 
-#if defined(CONFIG_MPC86XADS)
-
-#define BOARD_CHIP_NAME "MPC86X"
-
-/* U-Boot maps BCSR to 0xff080000 */
-#define BCSR_ADDR		((uint)0xff080000)
-
-/* MPC86XADS has one more CPLD and an additional BCSR.
- */
-#define CFG_PHYDEV_ADDR		((uint)0xff0a0000)
-#define BCSR5			((uint)(CFG_PHYDEV_ADDR + 0x300))
-
-#define BCSR5_T1_RST		0x10
-#define BCSR5_ATM155_RST	0x08
-#define BCSR5_ATM25_RST		0x04
-#define BCSR5_MII1_EN		0x02
-#define BCSR5_MII1_RST		0x01
-
-/* There is no PHY link change interrupt */
-#define PHY_INTERRUPT	(-1)
-
-#else /* FADS */
-
 /* Memory map is configured by the PROM startup.
  * I tried to follow the FADS manual, although the startup PROM
  * dictates this and we simply have to move some of the physical
@@ -54,8 +31,6 @@
 
 /* PHY link change interrupt */
 #define PHY_INTERRUPT	SIU_IRQ2
-
-#endif /* CONFIG_MPC86XADS */
 
 #define BCSR_SIZE		((uint)(64 * 1024))
 #define BCSR0			((uint)(BCSR_ADDR + 0x00))

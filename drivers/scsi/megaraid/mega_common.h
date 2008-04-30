@@ -28,7 +28,6 @@
 #include <linux/list.h>
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
-#include <asm/semaphore.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>

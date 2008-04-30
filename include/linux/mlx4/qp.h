@@ -158,10 +158,12 @@ struct mlx4_qp_context {
 #define MLX4_FW_VER_WQE_CTRL_NEC mlx4_fw_ver(2, 2, 232)
 
 enum {
-	MLX4_WQE_CTRL_NEC	= 1 << 29,
-	MLX4_WQE_CTRL_FENCE	= 1 << 6,
-	MLX4_WQE_CTRL_CQ_UPDATE	= 3 << 2,
-	MLX4_WQE_CTRL_SOLICITED	= 1 << 1,
+	MLX4_WQE_CTRL_NEC		= 1 << 29,
+	MLX4_WQE_CTRL_FENCE		= 1 << 6,
+	MLX4_WQE_CTRL_CQ_UPDATE		= 3 << 2,
+	MLX4_WQE_CTRL_SOLICITED		= 1 << 1,
+	MLX4_WQE_CTRL_IP_CSUM		= 1 << 4,
+	MLX4_WQE_CTRL_TCP_UDP_CSUM	= 1 << 5,
 };
 
 struct mlx4_wqe_ctrl_seg {
@@ -215,6 +217,11 @@ struct mlx4_wqe_datagram_seg {
 	__be32			dqpn;
 	__be32			qkey;
 	__be32			reservd[2];
+};
+
+struct mlx4_lso_seg {
+	__be32			mss_hdr_size;
+	__be32			header[0];
 };
 
 struct mlx4_wqe_bind_seg {
@@ -288,6 +295,10 @@ int mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 
 int mlx4_qp_query(struct mlx4_dev *dev, struct mlx4_qp *qp,
 		  struct mlx4_qp_context *context);
+
+int mlx4_qp_to_ready(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
+		     struct mlx4_qp_context *context,
+		     struct mlx4_qp *qp, enum mlx4_qp_state *qp_state);
 
 static inline struct mlx4_qp *__mlx4_qp_lookup(struct mlx4_dev *dev, u32 qpn)
 {

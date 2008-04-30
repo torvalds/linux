@@ -42,6 +42,7 @@
 MODULE_AUTHOR("Eugene Konev <ejka@imfi.kspu.ru>");
 MODULE_DESCRIPTION("TI AR7 ethernet driver (CPMAC)");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:cpmac");
 
 static int debug_level = 8;
 static int dumb_switch;
@@ -987,7 +988,7 @@ static int external_switch;
 static int __devinit cpmac_probe(struct platform_device *pdev)
 {
 	int rc, phy_id, i;
-	int mdio_bus_id = cpmac_mii.id;
+	char *mdio_bus_id = "0";
 	struct resource *mem;
 	struct cpmac_priv *priv;
 	struct net_device *dev;
@@ -1007,8 +1008,6 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	if (phy_id == PHY_MAX_ADDR) {
 		if (external_switch || dumb_switch) {
 			struct fixed_phy_status status = {};
-
-			mdio_bus_id = 0;
 
 			/*
 			 * FIXME: this should be in the platform code!
@@ -1105,6 +1104,7 @@ static int __devexit cpmac_remove(struct platform_device *pdev)
 
 static struct platform_driver cpmac_driver = {
 	.driver.name = "cpmac",
+	.driver.owner = THIS_MODULE,
 	.probe = cpmac_probe,
 	.remove = __devexit_p(cpmac_remove),
 };
@@ -1143,6 +1143,7 @@ int __devinit cpmac_init(void)
 	}
 
 	cpmac_mii.phy_mask = ~(mask | 0x80000000);
+	snprintf(cpmac_mii.id, MII_BUS_ID_SIZE, "0");
 
 	res = mdiobus_register(&cpmac_mii);
 	if (res)

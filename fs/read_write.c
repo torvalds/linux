@@ -33,7 +33,7 @@ EXPORT_SYMBOL(generic_ro_fops);
 
 loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
 {
-	long long retval;
+	loff_t retval;
 	struct inode *inode = file->f_mapping->host;
 
 	mutex_lock(&inode->i_mutex);
@@ -60,7 +60,7 @@ EXPORT_SYMBOL(generic_file_llseek);
 
 loff_t remote_llseek(struct file *file, loff_t offset, int origin)
 {
-	long long retval;
+	loff_t retval;
 
 	lock_kernel();
 	switch (origin) {
@@ -91,7 +91,7 @@ EXPORT_SYMBOL(no_llseek);
 
 loff_t default_llseek(struct file *file, loff_t offset, int origin)
 {
-	long long retval;
+	loff_t retval;
 
 	lock_kernel();
 	switch (origin) {

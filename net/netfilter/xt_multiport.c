@@ -100,7 +100,8 @@ multiport_mt_v0(const struct sk_buff *skb, const struct net_device *in,
                 const void *matchinfo, int offset, unsigned int protoff,
                 bool *hotdrop)
 {
-	__be16 _ports[2], *pptr;
+	const __be16 *pptr;
+	__be16 _ports[2];
 	const struct xt_multiport *multiinfo = matchinfo;
 
 	if (offset)
@@ -126,7 +127,8 @@ multiport_mt(const struct sk_buff *skb, const struct net_device *in,
              const void *matchinfo, int offset, unsigned int protoff,
              bool *hotdrop)
 {
-	__be16 _ports[2], *pptr;
+	const __be16 *pptr;
+	__be16 _ports[2];
 	const struct xt_multiport_v1 *multiinfo = matchinfo;
 
 	if (offset)

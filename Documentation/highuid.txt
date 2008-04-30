@@ -28,8 +28,6 @@ What's left to be done for 32-bit UIDs on all Linux architectures:
   uses the 32-bit UID system calls properly otherwise.
 
   This affects at least:
-	SunOS emulation
-	Solaris emulation
 	iBCS on Intel
 
 	sparc32 emulation on sparc64

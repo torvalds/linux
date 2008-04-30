@@ -264,9 +264,9 @@ static dma_addr_t dma_map_area(struct device *dev, dma_addr_t phys_mem,
 }
 
 static dma_addr_t
-gart_map_simple(struct device *dev, char *buf, size_t size, int dir)
+gart_map_simple(struct device *dev, phys_addr_t paddr, size_t size, int dir)
 {
-	dma_addr_t map = dma_map_area(dev, virt_to_bus(buf), size, dir);
+	dma_addr_t map = dma_map_area(dev, paddr, size, dir);
 
 	flush_gart();
 
@@ -275,18 +275,17 @@ gart_map_simple(struct device *dev, char *buf, size_t size, int dir)
 
 /* Map a single area into the IOMMU */
 static dma_addr_t
-gart_map_single(struct device *dev, void *addr, size_t size, int dir)
+gart_map_single(struct device *dev, phys_addr_t paddr, size_t size, int dir)
 {
-	unsigned long phys_mem, bus;
+	unsigned long bus;
 
 	if (!dev)
 		dev = &fallback_dev;
 
-	phys_mem = virt_to_phys(addr);
-	if (!need_iommu(dev, phys_mem, size))
-		return phys_mem;
+	if (!need_iommu(dev, paddr, size))
+		return paddr;
 
-	bus = gart_map_simple(dev, addr, size, dir);
+	bus = gart_map_simple(dev, paddr, size, dir);
 
 	return bus;
 }

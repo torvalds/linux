@@ -21,17 +21,11 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
 
 #include <asm/firmware.h>
 #include <asm/prom.h>
 #include <asm/udbg.h>
 
-#ifdef DEBUG
-#define DBG(fmt...) udbg_printf(fmt)
-#else
-#define DBG(fmt...)
-#endif
 
 typedef struct {
     unsigned long val;
@@ -72,7 +66,7 @@ void __init fw_feature_init(const char *hypertas, unsigned long len)
 	const char *s;
 	int i;
 
-	DBG(" -> fw_feature_init()\n");
+	pr_debug(" -> fw_feature_init()\n");
 
 	for (s = hypertas; s < hypertas + len; s += strlen(s) + 1) {
 		for (i = 0; i < FIRMWARE_MAX_FEATURES; i++) {
@@ -88,5 +82,5 @@ void __init fw_feature_init(const char *hypertas, unsigned long len)
 		}
 	}
 
-	DBG(" <- fw_feature_init()\n");
+	pr_debug(" <- fw_feature_init()\n");
 }

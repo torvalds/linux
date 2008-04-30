@@ -304,6 +304,9 @@ typedef struct drm_radeon_private {
 
 	u32 scratch_ages[5];
 
+	unsigned int crtc_last_cnt;
+	unsigned int crtc2_last_cnt;
+
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */
 	unsigned long fb_aper_offset;
@@ -374,13 +377,13 @@ extern int radeon_irq_emit(struct drm_device *dev, void *data, struct drm_file *
 extern int radeon_irq_wait(struct drm_device *dev, void *data, struct drm_file *file_priv);
 
 extern void radeon_do_release(struct drm_device * dev);
-extern int radeon_driver_vblank_wait(struct drm_device * dev,
-				     unsigned int *sequence);
-extern int radeon_driver_vblank_wait2(struct drm_device * dev,
-				      unsigned int *sequence);
+extern u32 radeon_get_vblank_counter(struct drm_device *dev, int crtc);
+extern int radeon_enable_vblank(struct drm_device *dev, int crtc);
+extern void radeon_disable_vblank(struct drm_device *dev, int crtc);
+extern void radeon_do_release(struct drm_device * dev);
 extern irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS);
 extern void radeon_driver_irq_preinstall(struct drm_device * dev);
-extern void radeon_driver_irq_postinstall(struct drm_device * dev);
+extern int radeon_driver_irq_postinstall(struct drm_device * dev);
 extern void radeon_driver_irq_uninstall(struct drm_device * dev);
 extern int radeon_vblank_crtc_get(struct drm_device *dev);
 extern int radeon_vblank_crtc_set(struct drm_device *dev, int64_t value);
@@ -557,6 +560,12 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define GET_SCRATCH( x )	(dev_priv->writeback_works			\
 				? DRM_READ32( dev_priv->ring_rptr, RADEON_SCRATCHOFF(x) ) \
 				: RADEON_READ( RADEON_SCRATCH_REG0 + 4*(x) ) )
+
+#define RADEON_CRTC_CRNT_FRAME 0x0214
+#define RADEON_CRTC2_CRNT_FRAME 0x0314
+
+#define RADEON_CRTC_STATUS		0x005c
+#define RADEON_CRTC2_STATUS		0x03fc
 
 #define RADEON_GEN_INT_CNTL		0x0040
 #	define RADEON_CRTC_VBLANK_MASK		(1 << 0)

@@ -43,7 +43,6 @@
 #include <linux/mutex.h>
 #include <linux/unwind.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 #include <asm/cacheflush.h>
 #include <linux/license.h>
 #include <asm/sections.h>
@@ -664,7 +663,7 @@ static void free_module(struct module *mod);
 
 static void wait_for_zero_refcount(struct module *mod)
 {
-	/* Since we might sleep for some time, drop the semaphore first */
+	/* Since we might sleep for some time, release the mutex first */
 	mutex_unlock(&module_mutex);
 	for (;;) {
 		DEBUGP("Looking at refcount...\n");

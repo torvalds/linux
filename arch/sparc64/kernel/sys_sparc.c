@@ -454,8 +454,8 @@ asmlinkage long sys_ipc(unsigned int call, int first, unsigned long second,
 			err = sys_semget(first, (int)second, (int)third);
 			goto out;
 		case SEMCTL: {
-			err = sys_semctl(first, third,
-					 (int)second | IPC_64,
+			err = sys_semctl(first, second,
+					 (int)third | IPC_64,
 					 (union semun) ptr);
 			goto out;
 		}
@@ -719,44 +719,6 @@ out:
 	up_read(&uts_sem);
 	return err;
 }
-
-asmlinkage long solaris_syscall(struct pt_regs *regs)
-{
-	static int count;
-
-	regs->tpc = regs->tnpc;
-	regs->tnpc += 4;
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-	if (++count <= 5) {
-		printk ("For Solaris binary emulation you need solaris module loaded\n");
-		show_regs (regs);
-	}
-	send_sig(SIGSEGV, current, 1);
-
-	return -ENOSYS;
-}
-
-#ifndef CONFIG_SUNOS_EMUL
-asmlinkage long sunos_syscall(struct pt_regs *regs)
-{
-	static int count;
-
-	regs->tpc = regs->tnpc;
-	regs->tnpc += 4;
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-	if (++count <= 20)
-		printk ("SunOS binary emulation not compiled in\n");
-	force_sig(SIGSEGV, current);
-
-	return -ENOSYS;
-}
-#endif
 
 asmlinkage long sys_utrap_install(utrap_entry_t type,
 				  utrap_handler_t new_p,

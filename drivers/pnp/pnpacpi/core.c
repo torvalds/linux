@@ -44,7 +44,7 @@ static struct acpi_device_id excluded_id_list[] __initdata = {
 	{"", 0},
 };
 
-static inline int is_exclusive_device(struct acpi_device *dev)
+static inline int __init is_exclusive_device(struct acpi_device *dev)
 {
 	return (!acpi_match_device_ids(dev, excluded_id_list));
 }

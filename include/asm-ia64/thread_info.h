@@ -31,6 +31,12 @@ struct thread_info {
 	mm_segment_t addr_limit;	/* user-level address space limit */
 	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 	struct restart_block restart_block;
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	__u64 ac_stamp;
+	__u64 ac_leave;
+	__u64 ac_stime;
+	__u64 ac_utime;
+#endif
 };
 
 #define THREAD_SIZE			KERNEL_STACK_SIZE
@@ -62,9 +68,17 @@ struct thread_info {
 #define task_stack_page(tsk)	((void *)(tsk))
 
 #define __HAVE_THREAD_FUNCTIONS
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#define setup_thread_stack(p, org)			\
+	*task_thread_info(p) = *task_thread_info(org);	\
+	task_thread_info(p)->ac_stime = 0;		\
+	task_thread_info(p)->ac_utime = 0;		\
+	task_thread_info(p)->task = (p);
+#else
 #define setup_thread_stack(p, org) \
 	*task_thread_info(p) = *task_thread_info(org); \
 	task_thread_info(p)->task = (p);
+#endif
 #define end_of_stack(p) (unsigned long *)((void *)(p) + IA64_RBS_OFFSET)
 
 #define __HAVE_ARCH_TASK_STRUCT_ALLOCATOR

@@ -36,7 +36,7 @@
 #include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/blkdev.h>
-#include <asm/semaphore.h>
+#include <linux/semaphore.h>
 
 #include "aacraid.h"
 

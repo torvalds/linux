@@ -27,28 +27,28 @@
 static unsigned int nf_ct_udplite_timeout __read_mostly = 30*HZ;
 static unsigned int nf_ct_udplite_timeout_stream __read_mostly = 180*HZ;
 
-static int udplite_pkt_to_tuple(const struct sk_buff *skb,
-				unsigned int dataoff,
-				struct nf_conntrack_tuple *tuple)
+static bool udplite_pkt_to_tuple(const struct sk_buff *skb,
+				 unsigned int dataoff,
+				 struct nf_conntrack_tuple *tuple)
 {
 	const struct udphdr *hp;
 	struct udphdr _hdr;
 
 	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hp == NULL)
-		return 0;
+		return false;
 
 	tuple->src.u.udp.port = hp->source;
 	tuple->dst.u.udp.port = hp->dest;
-	return 1;
+	return true;
 }
 
-static int udplite_invert_tuple(struct nf_conntrack_tuple *tuple,
-				const struct nf_conntrack_tuple *orig)
+static bool udplite_invert_tuple(struct nf_conntrack_tuple *tuple,
+				 const struct nf_conntrack_tuple *orig)
 {
 	tuple->src.u.udp.port = orig->dst.u.udp.port;
 	tuple->dst.u.udp.port = orig->src.u.udp.port;
-	return 1;
+	return true;
 }
 
 /* Print out the per-protocol part of the tuple. */
@@ -83,10 +83,10 @@ static int udplite_packet(struct nf_conn *ct,
 }
 
 /* Called when a new connection for this protocol found. */
-static int udplite_new(struct nf_conn *ct, const struct sk_buff *skb,
-		       unsigned int dataoff)
+static bool udplite_new(struct nf_conn *ct, const struct sk_buff *skb,
+			unsigned int dataoff)
 {
-	return 1;
+	return true;
 }
 
 static int udplite_error(struct sk_buff *skb, unsigned int dataoff,
@@ -127,32 +127,13 @@ static int udplite_error(struct sk_buff *skb, unsigned int dataoff,
 	}
 
 	/* Checksum invalid? Ignore. */
-	if (nf_conntrack_checksum && !skb_csum_unnecessary(skb) &&
-	    hooknum == NF_INET_PRE_ROUTING) {
-		if (pf == PF_INET) {
-			struct iphdr *iph = ip_hdr(skb);
-
-			skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
-						       udplen, IPPROTO_UDPLITE, 0);
-		} else {
-			struct ipv6hdr *ipv6h = ipv6_hdr(skb);
-			__wsum hsum = skb_checksum(skb, 0, dataoff, 0);
-
-			skb->csum = ~csum_unfold(
-				csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
-						udplen, IPPROTO_UDPLITE,
-						csum_sub(0, hsum)));
-		}
-
-		skb->ip_summed = CHECKSUM_NONE;
-		if (__skb_checksum_complete_head(skb, dataoff + cscov)) {
-			if (LOG_INVALID(IPPROTO_UDPLITE))
-				nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
-					      "nf_ct_udplite: bad UDPLite "
-					      "checksum ");
-			return -NF_ACCEPT;
-		}
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	if (nf_conntrack_checksum && hooknum == NF_INET_PRE_ROUTING &&
+	    nf_checksum_partial(skb, hooknum, dataoff, cscov, IPPROTO_UDP,
+	    			pf)) {
+		if (LOG_INVALID(IPPROTO_UDPLITE))
+			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
+				      "nf_ct_udplite: bad UDPLite checksum ");
+		return -NF_ACCEPT;
 	}
 
 	return NF_ACCEPT;

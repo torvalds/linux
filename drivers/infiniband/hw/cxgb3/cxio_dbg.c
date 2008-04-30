@@ -45,16 +45,16 @@ void cxio_dump_tpt(struct cxio_rdev *rdev, u32 stag)
 
 	m = kmalloc(sizeof(*m) + size, GFP_ATOMIC);
 	if (!m) {
-		PDBG("%s couldn't allocate memory.\n", __FUNCTION__);
+		PDBG("%s couldn't allocate memory.\n", __func__);
 		return;
 	}
 	m->mem_id = MEM_PMRX;
 	m->addr = (stag>>8) * 32 + rdev->rnic_info.tpt_base;
 	m->len = size;
-	PDBG("%s TPT addr 0x%x len %d\n", __FUNCTION__, m->addr, m->len);
+	PDBG("%s TPT addr 0x%x len %d\n", __func__, m->addr, m->len);
 	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
 	if (rc) {
-		PDBG("%s toectl returned error %d\n", __FUNCTION__, rc);
+		PDBG("%s toectl returned error %d\n", __func__, rc);
 		kfree(m);
 		return;
 	}
@@ -82,17 +82,17 @@ void cxio_dump_pbl(struct cxio_rdev *rdev, u32 pbl_addr, uint len, u8 shift)
 
 	m = kmalloc(sizeof(*m) + size, GFP_ATOMIC);
 	if (!m) {
-		PDBG("%s couldn't allocate memory.\n", __FUNCTION__);
+		PDBG("%s couldn't allocate memory.\n", __func__);
 		return;
 	}
 	m->mem_id = MEM_PMRX;
 	m->addr = pbl_addr;
 	m->len = size;
 	PDBG("%s PBL addr 0x%x len %d depth %d\n",
-		__FUNCTION__, m->addr, m->len, npages);
+		__func__, m->addr, m->len, npages);
 	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
 	if (rc) {
-		PDBG("%s toectl returned error %d\n", __FUNCTION__, rc);
+		PDBG("%s toectl returned error %d\n", __func__, rc);
 		kfree(m);
 		return;
 	}
@@ -144,16 +144,16 @@ void cxio_dump_rqt(struct cxio_rdev *rdev, u32 hwtid, int nents)
 
 	m = kmalloc(sizeof(*m) + size, GFP_ATOMIC);
 	if (!m) {
-		PDBG("%s couldn't allocate memory.\n", __FUNCTION__);
+		PDBG("%s couldn't allocate memory.\n", __func__);
 		return;
 	}
 	m->mem_id = MEM_PMRX;
 	m->addr = ((hwtid)<<10) + rdev->rnic_info.rqt_base;
 	m->len = size;
-	PDBG("%s RQT addr 0x%x len %d\n", __FUNCTION__, m->addr, m->len);
+	PDBG("%s RQT addr 0x%x len %d\n", __func__, m->addr, m->len);
 	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
 	if (rc) {
-		PDBG("%s toectl returned error %d\n", __FUNCTION__, rc);
+		PDBG("%s toectl returned error %d\n", __func__, rc);
 		kfree(m);
 		return;
 	}
@@ -177,16 +177,16 @@ void cxio_dump_tcb(struct cxio_rdev *rdev, u32 hwtid)
 
 	m = kmalloc(sizeof(*m) + size, GFP_ATOMIC);
 	if (!m) {
-		PDBG("%s couldn't allocate memory.\n", __FUNCTION__);
+		PDBG("%s couldn't allocate memory.\n", __func__);
 		return;
 	}
 	m->mem_id = MEM_CM;
 	m->addr = hwtid * size;
 	m->len = size;
-	PDBG("%s TCB %d len %d\n", __FUNCTION__, m->addr, m->len);
+	PDBG("%s TCB %d len %d\n", __func__, m->addr, m->len);
 	rc = rdev->t3cdev_p->ctl(rdev->t3cdev_p, RDMA_GET_MEM, m);
 	if (rc) {
-		PDBG("%s toectl returned error %d\n", __FUNCTION__, rc);
+		PDBG("%s toectl returned error %d\n", __func__, rc);
 		kfree(m);
 		return;
 	}

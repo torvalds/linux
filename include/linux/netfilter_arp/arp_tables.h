@@ -23,8 +23,6 @@
 
 #define ARPT_FUNCTION_MAXNAMELEN XT_FUNCTION_MAXNAMELEN
 #define ARPT_TABLE_MAXNAMELEN XT_TABLE_MAXNAMELEN
-#define arpt_target xt_target
-#define arpt_table xt_table
 
 #define ARPT_DEV_ADDR_LEN_MAX 16
 
@@ -266,20 +264,15 @@ struct arpt_error
 	.target.errorname = "ERROR",					       \
 }
 
-#define arpt_register_target(tgt) 	\
-({	(tgt)->family = NF_ARP;		\
- 	xt_register_target(tgt); })
-#define arpt_unregister_target(tgt) xt_unregister_target(tgt)
-
-extern struct arpt_table *arpt_register_table(struct net *net,
-					      struct arpt_table *table,
-					      const struct arpt_replace *repl);
-extern void arpt_unregister_table(struct arpt_table *table);
+extern struct xt_table *arpt_register_table(struct net *net,
+					    struct xt_table *table,
+					    const struct arpt_replace *repl);
+extern void arpt_unregister_table(struct xt_table *table);
 extern unsigned int arpt_do_table(struct sk_buff *skb,
 				  unsigned int hook,
 				  const struct net_device *in,
 				  const struct net_device *out,
-				  struct arpt_table *table);
+				  struct xt_table *table);
 
 #define ARPT_ALIGN(s) XT_ALIGN(s)
 

@@ -904,6 +904,7 @@ recalc:
 			original_pm_idle();
 		else
 			default_idle();
+		local_irq_disable();
 		jiffies_since_last_check = jiffies - last_jiffies;
 		if (jiffies_since_last_check > idle_period)
 			goto recalc;
@@ -911,6 +912,8 @@ recalc:
 
 	if (apm_idle_done)
 		apm_do_busy();
+
+	local_irq_enable();
 }
 
 /**
@@ -1189,19 +1192,6 @@ static int suspend(int vetoable)
 	int err;
 	struct apm_user	*as;
 
-	if (pm_send_all(PM_SUSPEND, (void *)3)) {
-		/* Vetoed */
-		if (vetoable) {
-			if (apm_info.connection_version > 0x100)
-				set_system_power_state(APM_STATE_REJECT);
-			err = -EBUSY;
-			ignore_sys_suspend = 0;
-			printk(KERN_WARNING "apm: suspend was vetoed.\n");
-			goto out;
-		}
-		printk(KERN_CRIT "apm: suspend was vetoed, but suspending anyway.\n");
-	}
-
 	device_suspend(PMSG_SUSPEND);
 	local_irq_disable();
 	device_power_down(PMSG_SUSPEND);
@@ -1224,9 +1214,7 @@ static int suspend(int vetoable)
 	device_power_up();
 	local_irq_enable();
 	device_resume();
-	pm_send_all(PM_RESUME, (void *)0);
 	queue_event(APM_NORMAL_RESUME, NULL);
- out:
 	spin_lock(&user_list_lock);
 	for (as = user_list; as != NULL; as = as->next) {
 		as->suspend_wait = 0;
@@ -1337,7 +1325,6 @@ static void check_events(void)
 			if ((event != APM_NORMAL_RESUME)
 			    || (ignore_normal_resume == 0)) {
 				device_resume();
-				pm_send_all(PM_RESUME, (void *)0);
 				queue_event(event, NULL);
 			}
 			ignore_normal_resume = 0;
@@ -2217,7 +2204,6 @@ static struct dmi_system_id __initdata apm_dmi_table[] = {
  */
 static int __init apm_init(void)
 {
-	struct proc_dir_entry *apm_proc;
 	struct desc_struct *gdt;
 	int err;
 
@@ -2322,9 +2308,7 @@ static int __init apm_init(void)
 	set_base(gdt[APM_DS >> 3],
 		 __va((unsigned long)apm_info.bios.dseg << 4));
 
-	apm_proc = create_proc_entry("apm", 0, NULL);
-	if (apm_proc)
-		apm_proc->proc_fops = &apm_file_ops;
+	proc_create("apm", 0, NULL, &apm_file_ops);
 
 	kapmd_task = kthread_create(apm, NULL, "kapmd");
 	if (IS_ERR(kapmd_task)) {

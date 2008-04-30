@@ -90,7 +90,7 @@ static void leftover_dongle(void *arg)
 
 void irda_device_cleanup(void)
 {
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(4, "%s()\n", __func__);
 
 	hashbin_delete(tasks, (FREE_FUNC) __irda_task_delete);
 
@@ -107,7 +107,7 @@ void irda_device_set_media_busy(struct net_device *dev, int status)
 {
 	struct irlap_cb *self;
 
-	IRDA_DEBUG(4, "%s(%s)\n", __FUNCTION__, status ? "TRUE" : "FALSE");
+	IRDA_DEBUG(4, "%s(%s)\n", __func__, status ? "TRUE" : "FALSE");
 
 	self = (struct irlap_cb *) dev->atalk_ptr;
 
@@ -147,11 +147,11 @@ int irda_device_is_receiving(struct net_device *dev)
 	struct if_irda_req req;
 	int ret;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	if (!dev->do_ioctl) {
 		IRDA_ERROR("%s: do_ioctl not impl. by device driver\n",
-			   __FUNCTION__);
+			   __func__);
 		return -1;
 	}
 
@@ -191,7 +191,7 @@ static int irda_task_kick(struct irda_task *task)
 	int count = 0;
 	int timeout;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	IRDA_ASSERT(task != NULL, return -1;);
 	IRDA_ASSERT(task->magic == IRDA_TASK_MAGIC, return -1;);
@@ -201,14 +201,14 @@ static int irda_task_kick(struct irda_task *task)
 		timeout = task->function(task);
 		if (count++ > 100) {
 			IRDA_ERROR("%s: error in task handler!\n",
-				   __FUNCTION__);
+				   __func__);
 			irda_task_delete(task);
 			return TRUE;
 		}
 	} while ((timeout == 0) && (task->state != IRDA_TASK_DONE));
 
 	if (timeout < 0) {
-		IRDA_ERROR("%s: Error executing task!\n", __FUNCTION__);
+		IRDA_ERROR("%s: Error executing task!\n", __func__);
 		irda_task_delete(task);
 		return TRUE;
 	}
@@ -241,7 +241,7 @@ static int irda_task_kick(struct irda_task *task)
 		finished = FALSE;
 	} else {
 		IRDA_DEBUG(0, "%s(), not finished, and no timeout!\n",
-			   __FUNCTION__);
+			   __func__);
 		finished = FALSE;
 	}
 
@@ -258,7 +258,7 @@ static void irda_task_timer_expired(void *data)
 {
 	struct irda_task *task;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	task = (struct irda_task *) data;
 

@@ -140,51 +140,16 @@ static void cs5520_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 static struct scsi_host_template cs5520_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
+	ATA_BMDMA_SHT(DRV_NAME),
 	.sg_tablesize		= LIBATA_DUMB_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
 };
 
 static struct ata_port_operations cs5520_port_ops = {
+	.inherits		= &ata_bmdma_port_ops,
+	.qc_prep		= ata_sff_dumb_qc_prep,
+	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= cs5520_set_piomode,
 	.set_dmamode		= cs5520_set_dmamode,
-
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
-
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= ata_bmdma_error_handler,
-	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	.cable_detect		= ata_cable_40wire,
-
-	.bmdma_setup		= ata_bmdma_setup,
-	.bmdma_start		= ata_bmdma_start,
-	.bmdma_stop		= ata_bmdma_stop,
-	.bmdma_status		= ata_bmdma_status,
-	.qc_prep		= ata_dumb_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_data_xfer,
-
-	.irq_clear		= ata_bmdma_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.port_start		= ata_sff_port_start,
 };
 
 static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -202,6 +167,10 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 	struct ata_host *host;
 	struct ata_ioports *ioaddr;
 	int i, rc;
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
 
 	/* IDE port enable bits */
 	pci_read_config_byte(pdev, 0x60, &pcicfg);
@@ -258,7 +227,7 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 	ioaddr->ctl_addr = iomap[1];
 	ioaddr->altstatus_addr = iomap[1];
 	ioaddr->bmdma_addr = iomap[4];
-	ata_std_ports(ioaddr);
+	ata_sff_std_ports(ioaddr);
 
 	ata_port_desc(host->ports[0],
 		      "cmd 0x%x ctl 0x%x", cmd_port[0], ctl_port[0]);
@@ -269,7 +238,7 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 	ioaddr->ctl_addr = iomap[3];
 	ioaddr->altstatus_addr = iomap[3];
 	ioaddr->bmdma_addr = iomap[4] + 8;
-	ata_std_ports(ioaddr);
+	ata_sff_std_ports(ioaddr);
 
 	ata_port_desc(host->ports[1],
 		      "cmd 0x%x ctl 0x%x", cmd_port[1], ctl_port[1]);
@@ -289,7 +258,7 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 			continue;
 
 		rc = devm_request_irq(&pdev->dev, irq[ap->port_no],
-				      ata_interrupt, 0, DRV_NAME, host);
+				      ata_sff_interrupt, 0, DRV_NAME, host);
 		if (rc)
 			return rc;
 
@@ -310,11 +279,20 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 
 static int cs5520_reinit_one(struct pci_dev *pdev)
 {
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 	u8 pcicfg;
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
 	pci_read_config_byte(pdev, 0x60, &pcicfg);
 	if ((pcicfg & 0x40) == 0)
 		pci_write_config_byte(pdev, 0x60, pcicfg | 0x40);
-	return ata_pci_device_resume(pdev);
+
+	ata_host_resume(host);
+	return 0;
 }
 
 /**

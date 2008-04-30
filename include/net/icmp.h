@@ -48,7 +48,7 @@ struct sk_buff;
 extern void	icmp_send(struct sk_buff *skb_in,  int type, int code, __be32 info);
 extern int	icmp_rcv(struct sk_buff *skb);
 extern int	icmp_ioctl(struct sock *sk, int cmd, unsigned long arg);
-extern void	icmp_init(struct net_proto_family *ops);
+extern int	icmp_init(void);
 extern void	icmp_out_count(unsigned char type);
 
 /* Move into dst.h ? */
@@ -64,12 +64,5 @@ static inline struct raw_sock *raw_sk(const struct sock *sk)
 {
 	return (struct raw_sock *)sk;
 }
-
-extern int sysctl_icmp_echo_ignore_all;
-extern int sysctl_icmp_echo_ignore_broadcasts;
-extern int sysctl_icmp_ignore_bogus_error_responses;
-extern int sysctl_icmp_errors_use_inbound_ifaddr;
-extern int sysctl_icmp_ratelimit;
-extern int sysctl_icmp_ratemask;
 
 #endif	/* _ICMP_H */

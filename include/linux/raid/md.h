@@ -19,7 +19,6 @@
 #define _MD_H
 
 #include <linux/blkdev.h>
-#include <asm/semaphore.h>
 #include <linux/major.h>
 #include <linux/ioctl.h>
 #include <linux/types.h>

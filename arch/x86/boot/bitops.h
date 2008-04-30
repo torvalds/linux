@@ -9,8 +9,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * arch/i386/boot/bitops.h
- *
  * Very simple bitops for the boot code.
  */
 

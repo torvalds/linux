@@ -20,7 +20,6 @@
 #include "bmap.h"
 #include "glock.h"
 #include "glops.h"
-#include "lm.h"
 #include "lops.h"
 #include "meta_io.h"
 #include "recovery.h"
@@ -69,7 +68,7 @@ int gfs2_revoke_add(struct gfs2_sbd *sdp, u64 blkno, unsigned int where)
 		return 0;
 	}
 
-	rr = kmalloc(sizeof(struct gfs2_revoke_replay), GFP_KERNEL);
+	rr = kmalloc(sizeof(struct gfs2_revoke_replay), GFP_NOFS);
 	if (!rr)
 		return -ENOMEM;
 
@@ -150,7 +149,7 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 			  struct gfs2_log_header_host *head)
 {
 	struct buffer_head *bh;
-	struct gfs2_log_header_host lh;
+	struct gfs2_log_header_host uninitialized_var(lh);
 	const u32 nothing = 0;
 	u32 hash;
 	int error;
@@ -424,6 +423,16 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header_host *hea
 
 	return error;
 }
+
+
+static void gfs2_lm_recovery_done(struct gfs2_sbd *sdp, unsigned int jid,
+				  unsigned int message)
+{
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		sdp->sd_lockstruct.ls_ops->lm_recovery_done(
+			sdp->sd_lockstruct.ls_lockspace, jid, message);
+}
+
 
 /**
  * gfs2_recover_journal - recovery a given journal

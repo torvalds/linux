@@ -75,11 +75,9 @@ static void ext2_release_inode(struct super_block *sb, int group, int dir)
 	}
 
 	spin_lock(sb_bgl_lock(EXT2_SB(sb), group));
-	desc->bg_free_inodes_count =
-		cpu_to_le16(le16_to_cpu(desc->bg_free_inodes_count) + 1);
+	le16_add_cpu(&desc->bg_free_inodes_count, 1);
 	if (dir)
-		desc->bg_used_dirs_count =
-			cpu_to_le16(le16_to_cpu(desc->bg_used_dirs_count) - 1);
+		le16_add_cpu(&desc->bg_used_dirs_count, -1);
 	spin_unlock(sb_bgl_lock(EXT2_SB(sb), group));
 	if (dir)
 		percpu_counter_dec(&EXT2_SB(sb)->s_dirs_counter);
@@ -253,7 +251,7 @@ static int find_group_dir(struct super_block *sb, struct inode *parent)
  * it has too few free inodes left (min_inodes) or 
  * it has too few free blocks left (min_blocks) or 
  * it's already running too large debt (max_debt). 
- * Parent's group is prefered, if it doesn't satisfy these 
+ * Parent's group is preferred, if it doesn't satisfy these 
  * conditions we search cyclically through the rest. If none 
  * of the groups look good we just look for a group with more 
  * free inodes than average (starting at parent's group). 
@@ -539,13 +537,11 @@ got:
 		percpu_counter_inc(&sbi->s_dirs_counter);
 
 	spin_lock(sb_bgl_lock(sbi, group));
-	gdp->bg_free_inodes_count =
-                cpu_to_le16(le16_to_cpu(gdp->bg_free_inodes_count) - 1);
+	le16_add_cpu(&gdp->bg_free_inodes_count, -1);
 	if (S_ISDIR(mode)) {
 		if (sbi->s_debts[group] < 255)
 			sbi->s_debts[group]++;
-		gdp->bg_used_dirs_count =
-			cpu_to_le16(le16_to_cpu(gdp->bg_used_dirs_count) + 1);
+		le16_add_cpu(&gdp->bg_used_dirs_count, 1);
 	} else {
 		if (sbi->s_debts[group])
 			sbi->s_debts[group]--;

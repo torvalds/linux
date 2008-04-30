@@ -207,4 +207,22 @@ extern void inet_twsk_schedule(struct inet_timewait_sock *tw,
 			       const int timeo, const int timewait_len);
 extern void inet_twsk_deschedule(struct inet_timewait_sock *tw,
 				 struct inet_timewait_death_row *twdr);
+
+static inline
+struct net *twsk_net(const struct inet_timewait_sock *twsk)
+{
+#ifdef CONFIG_NET_NS
+	return twsk->tw_net;
+#else
+	return &init_net;
+#endif
+}
+
+static inline
+void twsk_net_set(struct inet_timewait_sock *twsk, struct net *net)
+{
+#ifdef CONFIG_NET_NS
+	twsk->tw_net = net;
+#endif
+}
 #endif	/* _INET_TIMEWAIT_SOCK_ */

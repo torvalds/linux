@@ -41,13 +41,6 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
-typedef enum {
-#undef FALSE
-    FALSE = 0,
-#undef TRUE
-    TRUE = 1
-} boolean_t;
-
 #ifdef DBG
 #define DEBUGOUT(S)		printk(KERN_DEBUG S "\n")
 #define DEBUGOUT1(S, A...)	printk(KERN_DEBUG S "\n", A)

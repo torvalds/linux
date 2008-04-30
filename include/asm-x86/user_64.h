@@ -45,12 +45,13 @@
  */
 
 /* This matches the 64bit FXSAVE format as defined by AMD. It is the same
-   as the 32bit format defined by Intel, except that the selector:offset pairs for
-   data and eip are replaced with flat 64bit pointers. */
+   as the 32bit format defined by Intel, except that the selector:offset pairs
+   for data and eip are replaced with flat 64bit pointers. */
 struct user_i387_struct {
 	unsigned short	cwd;
 	unsigned short	swd;
-	unsigned short	twd; /* Note this is not the same as the 32bit/x87/FSAVE twd */
+	unsigned short	twd;	/* Note this is not the same as
+				   the 32bit/x87/FSAVE twd */
 	unsigned short	fop;
 	__u64	rip;
 	__u64	rdp;
@@ -97,13 +98,14 @@ struct user_regs_struct {
 /* When the kernel dumps core, it starts by dumping the user struct -
    this will be used by gdb to figure out where the data and stack segments
    are within the file, and what virtual addresses to use. */
-struct user{
+
+struct user {
 /* We start with the registers, to mimic the way that "memory" is returned
    from the ptrace(3,...) function.  */
-  struct user_regs_struct regs;		/* Where the registers are actually stored */
+  struct user_regs_struct regs;	/* Where the registers are actually stored */
 /* ptrace does not yet supply these.  Someday.... */
   int u_fpvalid;		/* True if math co-processor being used. */
-                                /* for this mess. Not yet used. */
+				/* for this mess. Not yet used. */
   int pad0;
   struct user_i387_struct i387;	/* Math Co-processor registers. */
 /* The rest of this junk is to help gdb figure out what goes where */
@@ -120,7 +122,7 @@ struct user{
   int pad1;
   unsigned long u_ar0;		/* Used by gdb to help find the values for */
 				/* the registers. */
-  struct user_i387_struct* u_fpstate;	/* Math Co-processor pointer. */
+  struct user_i387_struct *u_fpstate;	/* Math Co-processor pointer. */
   unsigned long magic;		/* To uniquely identify a core file */
   char u_comm[32];		/* User command that was responsible */
   unsigned long u_debugreg[8];

@@ -769,14 +769,29 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	sdp->sd_log_commited_revoke += tr->tr_num_revoke - tr->tr_num_revoke_rm;
 	gfs2_assert_withdraw(sdp, ((int)sdp->sd_log_commited_revoke) >= 0);
 	reserved = calc_reserved(sdp);
+	gfs2_assert_withdraw(sdp, sdp->sd_log_blks_reserved + tr->tr_reserved >= reserved);
 	unused = sdp->sd_log_blks_reserved - reserved + tr->tr_reserved;
-	gfs2_assert_withdraw(sdp, unused >= 0);
 	atomic_add(unused, &sdp->sd_log_blks_free);
 	gfs2_assert_withdraw(sdp, atomic_read(&sdp->sd_log_blks_free) <=
 			     sdp->sd_jdesc->jd_blocks);
 	sdp->sd_log_blks_reserved = reserved;
 
 	gfs2_log_unlock(sdp);
+}
+
+static void buf_lo_incore_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
+{
+	struct list_head *head = &tr->tr_list_buf;
+	struct gfs2_bufdata *bd;
+
+	gfs2_log_lock(sdp);
+	while (!list_empty(head)) {
+		bd = list_entry(head->next, struct gfs2_bufdata, bd_list_tr);
+		list_del_init(&bd->bd_list_tr);
+		tr->tr_num_buf--;
+	}
+	gfs2_log_unlock(sdp);
+	gfs2_assert_warn(sdp, !tr->tr_num_buf);
 }
 
 /**
@@ -790,7 +805,7 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	log_refund(sdp, tr);
-	lops_incore_commit(sdp, tr);
+	buf_lo_incore_commit(sdp, tr);
 
 	sdp->sd_vfs->s_dirt = 1;
 	up_read(&sdp->sd_log_flush_lock);

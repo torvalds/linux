@@ -217,6 +217,8 @@ void chsc_chp_offline(struct chp_id chpid)
 
 	if (chp_get_status(chpid) <= 0)
 		return;
+	/* Wait until previous actions have settled. */
+	css_wait_for_slow_path();
 	for_each_subchannel_staged(s390_subchannel_remove_chpid, NULL, &chpid);
 }
 
@@ -303,7 +305,8 @@ static void s390_process_res_acc (struct res_acc_data *res_data)
 		sprintf(dbf_txt, "fla%x", res_data->fla);
 		CIO_TRACE_EVENT( 2, dbf_txt);
 	}
-
+	/* Wait until previous actions have settled. */
+	css_wait_for_slow_path();
 	/*
 	 * I/O resources may have become accessible.
 	 * Scan through all subchannels that may be concerned and
@@ -561,9 +564,12 @@ void chsc_chp_online(struct chp_id chpid)
 	sprintf(dbf_txt, "cadd%x.%02x", chpid.cssid, chpid.id);
 	CIO_TRACE_EVENT(2, dbf_txt);
 
-	if (chp_get_status(chpid) != 0)
+	if (chp_get_status(chpid) != 0) {
+		/* Wait until previous actions have settled. */
+		css_wait_for_slow_path();
 		for_each_subchannel_staged(__chp_add, __chp_add_new_sch,
 					   &chpid);
+	}
 }
 
 static void __s390_subchannel_vary_chpid(struct subchannel *sch,
@@ -650,6 +656,8 @@ __s390_vary_chpid_on(struct subchannel_id schid, void *data)
  */
 int chsc_chp_vary(struct chp_id chpid, int on)
 {
+	/* Wait until previous actions have settled. */
+	css_wait_for_slow_path();
 	/*
 	 * Redo PathVerification on the devices the chpid connects to
 	 */
@@ -758,7 +766,6 @@ chsc_secm(struct channel_subsystem *css, int enable)
 	if (!secm_area)
 		return -ENOMEM;
 
-	mutex_lock(&css->mutex);
 	if (enable && !css->cm_enabled) {
 		css->cub_addr1 = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		css->cub_addr2 = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
@@ -766,7 +773,6 @@ chsc_secm(struct channel_subsystem *css, int enable)
 			free_page((unsigned long)css->cub_addr1);
 			free_page((unsigned long)css->cub_addr2);
 			free_page((unsigned long)secm_area);
-			mutex_unlock(&css->mutex);
 			return -ENOMEM;
 		}
 	}
@@ -787,7 +793,6 @@ chsc_secm(struct channel_subsystem *css, int enable)
 		free_page((unsigned long)css->cub_addr1);
 		free_page((unsigned long)css->cub_addr2);
 	}
-	mutex_unlock(&css->mutex);
 	free_page((unsigned long)secm_area);
 	return ret;
 }

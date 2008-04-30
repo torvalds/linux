@@ -196,7 +196,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 	if (ret)
 		return ret;
 
-	new_bus->id = res.start;
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
 	fec->fecp = ioremap(res.start, res.end - res.start + 1);
 	if (!fec->fecp)
@@ -309,7 +309,7 @@ static int __devinit fs_enet_fec_mdio_probe(struct device *dev)
 	new_bus->read = &fs_enet_fec_mii_read,
 	new_bus->write = &fs_enet_fec_mii_write,
 	new_bus->reset = &fs_enet_fec_mii_reset,
-	new_bus->id = pdev->id;
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", pdev->id);
 
 	pdata = (struct fs_mii_fec_platform_info *)pdev->dev.platform_data;
 

@@ -67,7 +67,7 @@ unsigned long __init mmu_mapin_ram(void)
 
 	/* Pin in enough TLBs to cover any lowmem not covered by the
 	 * initial 256M mapping established in head_44x.S */
-	for (addr = PPC_PIN_SIZE; addr < total_lowmem;
+	for (addr = PPC_PIN_SIZE; addr < lowmem_end_addr;
 	     addr += PPC_PIN_SIZE)
 		ppc44x_pin_tlb(addr + PAGE_OFFSET, addr);
 

@@ -80,7 +80,7 @@ struct scsi_transport_template {
 };
 
 #define transport_class_to_shost(tc) \
-	dev_to_shost((tc)->dev)
+	dev_to_shost((tc)->parent)
 
 
 /* Private area maintenance. The driver requested allocations come

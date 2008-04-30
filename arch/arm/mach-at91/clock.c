@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 
-#include <asm/semaphore.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 

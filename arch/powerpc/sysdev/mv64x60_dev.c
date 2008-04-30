@@ -127,7 +127,7 @@ static int __init mv64x60_mpsc_device_setup(struct device_node *np, int id)
 	if (err)
 		return err;
 
-	prop = of_get_property(np, "block-index", NULL);
+	prop = of_get_property(np, "cell-index", NULL);
 	if (!prop)
 		return -ENODEV;
 	port_number = *(int *)prop;
@@ -136,6 +136,7 @@ static int __init mv64x60_mpsc_device_setup(struct device_node *np, int id)
 
 	pdata.cache_mgmt = 1; /* All current revs need this set */
 
+	pdata.max_idle = 40; /* default */
 	prop = of_get_property(np, "max_idle", NULL);
 	if (prop)
 		pdata.max_idle = *prop;
@@ -205,30 +206,24 @@ error:
 /*
  * Create mv64x60_eth platform devices
  */
-static int __init eth_register_shared_pdev(struct device_node *np)
+static struct platform_device * __init mv64x60_eth_register_shared_pdev(
+						struct device_node *np, int id)
 {
 	struct platform_device *pdev;
 	struct resource r[1];
 	int err;
 
-	np = of_get_parent(np);
-	if (!np)
-		return -ENODEV;
-
 	err = of_address_to_resource(np, 0, &r[0]);
-	of_node_put(np);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
-	pdev = platform_device_register_simple(MV643XX_ETH_SHARED_NAME, 0,
+	pdev = platform_device_register_simple(MV643XX_ETH_SHARED_NAME, id,
 					       r, 1);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	return 0;
+	return pdev;
 }
 
-static int __init mv64x60_eth_device_setup(struct device_node *np, int id)
+static int __init mv64x60_eth_device_setup(struct device_node *np, int id,
+					   struct platform_device *shared_pdev)
 {
 	struct resource r[1];
 	struct mv643xx_eth_platform_data pdata;
@@ -239,16 +234,12 @@ static int __init mv64x60_eth_device_setup(struct device_node *np, int id)
 	const phandle *ph;
 	int err;
 
-	/* only register the shared platform device the first time through */
-	if (id == 0 && (err = eth_register_shared_pdev(np)))
-		return err;
-
 	memset(r, 0, sizeof(r));
 	of_irq_to_resource(np, 0, &r[0]);
 
 	memset(&pdata, 0, sizeof(pdata));
 
-	prop = of_get_property(np, "block-index", NULL);
+	prop = of_get_property(np, "reg", NULL);
 	if (!prop)
 		return -ENODEV;
 	pdata.port_number = *prop;
@@ -301,7 +292,7 @@ static int __init mv64x60_eth_device_setup(struct device_node *np, int id)
 
 	of_node_put(phy);
 
-	pdev = platform_device_alloc(MV643XX_ETH_NAME, pdata.port_number);
+	pdev = platform_device_alloc(MV643XX_ETH_NAME, id);
 	if (!pdev)
 		return -ENOMEM;
 
@@ -345,21 +336,17 @@ static int __init mv64x60_i2c_device_setup(struct device_node *np, int id)
 
 	memset(&pdata, 0, sizeof(pdata));
 
+	pdata.freq_m = 8;	/* default */
 	prop = of_get_property(np, "freq_m", NULL);
-	if (!prop)
-		return -ENODEV;
-	pdata.freq_m = *prop;
-
-	prop = of_get_property(np, "freq_n", NULL);
-	if (!prop)
-		return -ENODEV;
-	pdata.freq_n = *prop;
-
-	prop = of_get_property(np, "timeout", NULL);
 	if (prop)
-		pdata.timeout = *prop;
-	else
-		pdata.timeout = 1000;	/* 1 second */
+		pdata.freq_m = *prop;
+
+	pdata.freq_m = 3;	/* default */
+	prop = of_get_property(np, "freq_n", NULL);
+	if (prop)
+		pdata.freq_n = *prop;
+
+	pdata.timeout = 1000;				/* default: 1 second */
 
 	pdev = platform_device_alloc(MV64XXX_I2C_CTLR_NAME, id);
 	if (!pdev)
@@ -401,10 +388,7 @@ static int __init mv64x60_wdt_device_setup(struct device_node *np, int id)
 
 	memset(&pdata, 0, sizeof(pdata));
 
-	prop = of_get_property(np, "timeout", NULL);
-	if (!prop)
-		return -ENODEV;
-	pdata.timeout = *prop;
+	pdata.timeout = 10;			/* Default: 10 seconds */
 
 	np = of_get_parent(np);
 	if (!np)
@@ -441,38 +425,64 @@ error:
 
 static int __init mv64x60_device_setup(void)
 {
-	struct device_node *np = NULL;
-	int id;
+	struct device_node *np, *np2;
+	struct platform_device *pdev;
+	int id, id2;
 	int err;
 
 	id = 0;
-	for_each_compatible_node(np, "serial", "marvell,mpsc")
-		if ((err = mv64x60_mpsc_device_setup(np, id++)))
-			goto error;
+	for_each_compatible_node(np, "serial", "marvell,mv64360-mpsc") {
+		err = mv64x60_mpsc_device_setup(np, id++);
+		if (err)
+			printk(KERN_ERR "Failed to initialize MV64x60 "
+					"serial device %s: error %d.\n",
+					np->full_name, err);
+	}
 
 	id = 0;
-	for_each_compatible_node(np, "network", "marvell,mv64x60-eth")
-		if ((err = mv64x60_eth_device_setup(np, id++)))
-			goto error;
+	id2 = 0;
+	for_each_compatible_node(np, NULL, "marvell,mv64360-eth-group") {
+		pdev = mv64x60_eth_register_shared_pdev(np, id++);
+		if (IS_ERR(pdev)) {
+			err = PTR_ERR(pdev);
+			printk(KERN_ERR "Failed to initialize MV64x60 "
+					"network block %s: error %d.\n",
+					np->full_name, err);
+			continue;
+		}
+		for_each_child_of_node(np, np2) {
+			if (!of_device_is_compatible(np2,
+					"marvell,mv64360-eth"))
+				continue;
+			err = mv64x60_eth_device_setup(np2, id2++, pdev);
+			if (err)
+				printk(KERN_ERR "Failed to initialize "
+						"MV64x60 network device %s: "
+						"error %d.\n",
+						np2->full_name, err);
+		}
+	}
 
 	id = 0;
-	for_each_compatible_node(np, "i2c", "marvell,mv64x60-i2c")
-		if ((err = mv64x60_i2c_device_setup(np, id++)))
-			goto error;
+	for_each_compatible_node(np, "i2c", "marvell,mv64360-i2c") {
+		err = mv64x60_i2c_device_setup(np, id++);
+		if (err)
+			printk(KERN_ERR "Failed to initialize MV64x60 I2C "
+					"bus %s: error %d.\n",
+					np->full_name, err);
+	}
 
 	/* support up to one watchdog timer */
-	np = of_find_compatible_node(np, NULL, "marvell,mv64x60-wdt");
+	np = of_find_compatible_node(np, NULL, "marvell,mv64360-wdt");
 	if (np) {
 		if ((err = mv64x60_wdt_device_setup(np, id)))
-			goto error;
+			printk(KERN_ERR "Failed to initialize MV64x60 "
+					"Watchdog %s: error %d.\n",
+					np->full_name, err);
 		of_node_put(np);
 	}
 
 	return 0;
-
-error:
-	of_node_put(np);
-	return err;
 }
 arch_initcall(mv64x60_device_setup);
 
@@ -489,10 +499,10 @@ static int __init mv64x60_add_mpsc_console(void)
 	if (!np)
 		goto not_mpsc;
 
-	if (!of_device_is_compatible(np, "marvell,mpsc"))
+	if (!of_device_is_compatible(np, "marvell,mv64360-mpsc"))
 		goto not_mpsc;
 
-	prop = of_get_property(np, "block-index", NULL);
+	prop = of_get_property(np, "cell-index", NULL);
 	if (!prop)
 		goto not_mpsc;
 

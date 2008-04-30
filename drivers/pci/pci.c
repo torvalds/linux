@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/log2.h>
+#include <linux/pci-aspm.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -424,7 +425,7 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 */
 	if (state != PCI_D0 && dev->current_state > state) {
 		printk(KERN_ERR "%s(): %s: state=%d, current state=%d\n",
-			__FUNCTION__, pci_name(dev), state, dev->current_state);
+			__func__, pci_name(dev), state, dev->current_state);
 		return -EINVAL;
 	} else if (dev->current_state == state)
 		return 0;        /* we're already there */
@@ -500,6 +501,9 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 */
 	if (need_restore)
 		pci_restore_bars(dev);
+
+	if (dev->bus->self)
+		pcie_aspm_pm_state_change(dev->bus->self);
 
 	return 0;
 }

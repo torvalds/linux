@@ -36,9 +36,6 @@
 #include <asm/mach/mem_init.h>
 #endif
 
-.global __rambase
-.global __ramstart
-.global __ramend
 .extern ___bss_stop
 .extern ___bss_start
 .extern _bf53x_relocate_l1_mem
@@ -456,18 +453,3 @@ ENTRY(_start_dma_code)
 	RTS;
 ENDPROC(_start_dma_code)
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */
-
-.data
-
-/*
- * Set up the usable of RAM stuff. Size of RAM is determined then
- * an initial stack set up at the end.
- */
-
-.align 4
-__rambase:
-.long   0
-__ramstart:
-.long   0
-__ramend:
-.long   0

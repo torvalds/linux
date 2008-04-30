@@ -4,8 +4,6 @@
  *
  * Author: J.E.J.Bottomley@HansenPartnership.com
  *
- * linux/arch/i386/kernel/voyager_smp.c
- *
  * This file provides all the same external entries as smp.c but uses
  * the voyager hal to provide the functionality
  */
@@ -27,6 +25,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/arch_hooks.h>
+#include <asm/trampoline.h>
 
 /* TLB state -- visible externally, indexed physically */
 DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = { &init_mm, 0 };
@@ -114,7 +113,7 @@ static inline void send_QIC_CPI(__u32 cpuset, __u8 cpi)
 	for_each_online_cpu(cpu) {
 		if (cpuset & (1 << cpu)) {
 #ifdef VOYAGER_DEBUG
-			if (!cpu_isset(cpu, cpu_online_map))
+			if (!cpu_online(cpu))
 				VDEBUG(("CPU%d sending cpi %d to CPU%d not in "
 					"cpu_online_map\n",
 					hard_smp_processor_id(), cpi, cpu));
@@ -206,11 +205,6 @@ static struct irq_chip vic_chip = {
 
 /* used to count up as CPUs are brought on line (starts at 0) */
 static int cpucount = 0;
-
-/* steal a page from the bottom of memory for the trampoline and
- * squirrel its address away here.  This will be in kernel virtual
- * space */
-static __u32 trampoline_base;
 
 /* The per cpu profile stuff - used in smp_local_timer_interrupt */
 static DEFINE_PER_CPU(int, prof_multiplier) = 1;
@@ -428,18 +422,6 @@ void __init smp_store_cpu_info(int id)
 	identify_secondary_cpu(c);
 }
 
-/* set up the trampoline and return the physical address of the code */
-static __u32 __init setup_trampoline(void)
-{
-	/* these two are global symbols in trampoline.S */
-	extern const __u8 trampoline_end[];
-	extern const __u8 trampoline_data[];
-
-	memcpy((__u8 *) trampoline_base, trampoline_data,
-	       trampoline_end - trampoline_data);
-	return virt_to_phys((__u8 *) trampoline_base);
-}
-
 /* Routine initially called when a non-boot CPU is brought online */
 static void __init start_secondary(void *unused)
 {
@@ -520,13 +502,6 @@ static void __init do_boot_cpu(__u8 cpu)
 	    & ~(voyager_extended_vic_processors
 		& voyager_allowed_boot_processors);
 
-	/* This is an area in head.S which was used to set up the
-	 * initial kernel stack.  We need to alter this to give the
-	 * booting CPU a new stack (taken from its idle process) */
-	extern struct {
-		__u8 *sp;
-		unsigned short ss;
-	} stack_start;
 	/* This is the format of the CPI IDT gate (in real mode) which
 	 * we're hijacking to boot the CPU */
 	union IDTFormat {
@@ -568,8 +543,8 @@ static void __init do_boot_cpu(__u8 cpu)
 		hijack_source.idt.Offset, stack_start.sp));
 
 	/* init lowmem identity mapping */
-	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
-			min_t(unsigned long, KERNEL_PGD_PTRS, USER_PGD_PTRS));
+	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + KERNEL_PGD_BOUNDARY,
+			min_t(unsigned long, KERNEL_PGD_PTRS, KERNEL_PGD_BOUNDARY));
 	flush_tlb_all();
 
 	if (quad_boot) {
@@ -708,9 +683,9 @@ void __init smp_boot_cpus(void)
 	 * Code added from smpboot.c */
 	{
 		unsigned long bogosum = 0;
-		for (i = 0; i < NR_CPUS; i++)
-			if (cpu_isset(i, cpu_online_map))
-				bogosum += cpu_data(i).loops_per_jiffy;
+
+		for_each_online_cpu(i)
+			bogosum += cpu_data(i).loops_per_jiffy;
 		printk(KERN_INFO "Total of %d processors activated "
 		       "(%lu.%02lu BogoMIPS).\n",
 		       cpucount + 1, bogosum / (500000 / HZ),
@@ -1166,7 +1141,7 @@ void flush_tlb_all(void)
  * is sorted out */
 void __init smp_alloc_memory(void)
 {
-	trampoline_base = (__u32) alloc_bootmem_low_pages(PAGE_SIZE);
+	trampoline_base = alloc_bootmem_low_pages(PAGE_SIZE);
 	if (__pa(trampoline_base) >= 0x93000)
 		BUG();
 }
@@ -1863,7 +1838,7 @@ static int __cpuinit voyager_cpu_up(unsigned int cpu)
 		return -EIO;
 	/* Unleash the CPU! */
 	cpu_set(cpu, smp_commenced_mask);
-	while (!cpu_isset(cpu, cpu_online_map))
+	while (!cpu_online(cpu))
 		mb();
 	return 0;
 }

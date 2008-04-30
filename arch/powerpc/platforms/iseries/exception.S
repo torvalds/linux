@@ -38,11 +38,19 @@
 
 	.globl system_reset_iSeries
 system_reset_iSeries:
-	mfspr	r13,SPRN_SPRG3		/* Get paca address */
+	mfspr	r13,SPRN_SPRG3		/* Get alpaca address */
+	LOAD_REG_IMMEDIATE(r23, alpaca)
+	li	r0,ALPACA_SIZE
+	sub	r23,r13,r23
+	divdu	r23,r23,r0		/* r23 has cpu number */
+	LOAD_REG_IMMEDIATE(r13, paca)
+	mulli	r0,r23,PACA_SIZE
+	add	r13,r13,r0
+	mtspr	SPRN_SPRG3,r13		/* Save it away for the future */
 	mfmsr	r24
 	ori	r24,r24,MSR_RI
 	mtmsrd	r24			/* RI on */
-	lhz	r24,PACAPACAINDEX(r13)	/* Get processor # */
+	mr	r24,r23
 	cmpwi	0,r24,0			/* Are we processor 0? */
 	bne	1f
 	b	.__start_initialization_iSeries	/* Start up the first processor */
@@ -51,7 +59,32 @@ system_reset_iSeries:
 	andc	r4,r4,r5
 	mtspr	SPRN_CTRLT,r4
 
+/* Spin on __secondary_hold_spinloop until it is updated by the boot cpu. */
+/* In the UP case we'll yeild() later, and we will not access the paca anyway */
+#ifdef CONFIG_SMP
 1:
+	HMT_LOW
+	LOAD_REG_IMMEDIATE(r23, __secondary_hold_spinloop)
+	ld	r23,0(r23)
+	sync
+	LOAD_REG_IMMEDIATE(r3,current_set)
+	sldi	r28,r24,3		/* get current_set[cpu#] */
+	ldx	r3,r3,r28
+	addi	r1,r3,THREAD_SIZE
+	subi	r1,r1,STACK_FRAME_OVERHEAD
+
+	cmpwi	0,r23,0			/* Keep poking the Hypervisor until */
+	bne	2f			/* we're released */
+	/* Let the Hypervisor know we are alive */
+	/* 8002 is a call to HvCallCfg::getLps, a harmless Hypervisor function */
+	lis	r3,0x8002
+	rldicr	r3,r3,32,15		/* r0 = (r3 << 32) & 0xffff000000000000 */
+	li	r0,-1			/* r0=-1 indicates a Hypervisor call */
+	sc				/* Invoke the hypervisor via a system call */
+	b	1b
+#endif
+
+2:
 	HMT_LOW
 #ifdef CONFIG_SMP
 	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor
@@ -83,7 +116,7 @@ iSeries_secondary_smp_loop:
 	li	r0,-1			/* r0=-1 indicates a Hypervisor call */
 	sc				/* Invoke the hypervisor via a system call */
 	mfspr	r13,SPRN_SPRG3		/* Put r13 back ???? */
-	b	1b			/* If SMP not configured, secondaries
+	b	2b			/* If SMP not configured, secondaries
 					 * loop forever */
 
 /***  ISeries-LPAR interrupt handlers ***/

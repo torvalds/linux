@@ -10,6 +10,7 @@ dlm-y :=			ast.o \
 				midcomms.o \
 				netlink.o \
 				lowcomms.o \
+				plock.o \
 				rcom.o \
 				recover.o \
 				recoverd.o \

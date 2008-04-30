@@ -11,7 +11,6 @@ config MPC8272_ADS
 	select 8260
 	select FSL_SOC
 	select PQ2_ADS_PCI_PIC if PCI
-	select PPC_CPM_NEW_BINDING
 	help
 	  This option enables support for the MPC8272 ADS board
 
@@ -22,7 +21,6 @@ config PQ2FADS
 	select 8260
 	select FSL_SOC
 	select PQ2_ADS_PCI_PIC if PCI
-	select PPC_CPM_NEW_BINDING
 	help
 	  This option enables support for the PQ2FADS board
 
@@ -31,7 +29,6 @@ config EP8248E
 	select 8272
 	select 8260
 	select FSL_SOC
-	select PPC_CPM_NEW_BINDING
 	select MDIO_BITBANG
 	help
 	  This enables support for the Embedded Planet EP8248E board.

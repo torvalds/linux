@@ -242,7 +242,7 @@ int hpsb_bus_reset(struct hpsb_host *host)
 {
 	if (host->in_bus_reset) {
 		HPSB_NOTICE("%s called while bus reset already in progress",
-			    __FUNCTION__);
+			    __func__);
 		return 1;
 	}
 
@@ -373,6 +373,8 @@ static void build_speed_map(struct hpsb_host *host, int nodecount)
 			if (sid->port2 == SELFID_PORT_CHILD) cldcnt[n]++;
 
 			speedcap[n] = sid->speed;
+			if (speedcap[n] > host->csr.lnk_spd)
+				speedcap[n] = host->csr.lnk_spd;
 			n--;
 		}
 	}

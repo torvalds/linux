@@ -276,8 +276,11 @@ int blk_register_queue(struct gendisk *disk)
 
 	struct request_queue *q = disk->queue;
 
-	if (!q || !q->request_fn)
+	if (WARN_ON(!q))
 		return -ENXIO;
+
+	if (!q->request_fn)
+		return 0;
 
 	ret = kobject_add(&q->kobj, kobject_get(&disk->dev.kobj),
 			  "%s", "queue");
@@ -300,7 +303,10 @@ void blk_unregister_queue(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
 
-	if (q && q->request_fn) {
+	if (WARN_ON(!q))
+		return;
+
+	if (q->request_fn) {
 		elv_unregister_queue(q);
 
 		kobject_uevent(&q->kobj, KOBJ_REMOVE);

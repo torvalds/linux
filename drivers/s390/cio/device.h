@@ -127,4 +127,5 @@ extern struct bus_type ccw_bus_type;
 void retry_set_schib(struct ccw_device *cdev);
 void cmf_retry_copy_block(struct ccw_device *);
 int cmf_reenable(struct ccw_device *);
+extern struct device_attribute dev_attr_cmb_enable;
 #endif

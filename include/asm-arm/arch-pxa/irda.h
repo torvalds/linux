@@ -10,6 +10,8 @@
 struct pxaficp_platform_data {
 	int transceiver_cap;
 	void (*transceiver_mode)(struct device *dev, int mode);
+	int (*startup)(struct device *dev);
+	void (*shutdown)(struct device *dev);
 };
 
 extern void pxa_set_ficp_info(struct pxaficp_platform_data *info);

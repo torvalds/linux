@@ -1,6 +1,4 @@
 /*
- *	linux/arch/i386/mach-visws/visws_apic.c
- *
  *	Copyright (C) 1999 Bent Hagemark, Ingo Molnar
  *
  *  SGI Visual Workstation interrupt controller

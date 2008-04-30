@@ -42,7 +42,6 @@
 
 #include <linux/device.h>
 #include <media/videobuf-dma-sg.h>
-#include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/ir-common.h>
 

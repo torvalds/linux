@@ -40,7 +40,6 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/idr.h>
-#include <asm/semaphore.h>
 
 #include "c2_provider.h"
 #include "c2_mq.h"
@@ -346,7 +345,7 @@ struct c2_dev {
 	//	spinlock_t aeq_lock;
 	//	spinlock_t rnic_lock;
 
-	u16 *hint_count;
+	__be16 *hint_count;
 	dma_addr_t hint_count_dma;
 	u16 hints_read;
 
@@ -425,10 +424,10 @@ static inline void __raw_writeq(u64 val, void __iomem * addr)
 #endif
 
 #define C2_SET_CUR_RX(c2dev, cur_rx) \
-	__raw_writel(cpu_to_be32(cur_rx), c2dev->mmio_txp_ring + 4092)
+	__raw_writel((__force u32) cpu_to_be32(cur_rx), c2dev->mmio_txp_ring + 4092)
 
 #define C2_GET_CUR_RX(c2dev) \
-	be32_to_cpu(readl(c2dev->mmio_txp_ring + 4092))
+	be32_to_cpu((__force __be32) readl(c2dev->mmio_txp_ring + 4092))
 
 static inline struct c2_dev *to_c2dev(struct ib_device *ibdev)
 {
@@ -485,8 +484,8 @@ extern void c2_unregister_device(struct c2_dev *c2dev);
 extern int c2_rnic_init(struct c2_dev *c2dev);
 extern void c2_rnic_term(struct c2_dev *c2dev);
 extern void c2_rnic_interrupt(struct c2_dev *c2dev);
-extern int c2_del_addr(struct c2_dev *c2dev, u32 inaddr, u32 inmask);
-extern int c2_add_addr(struct c2_dev *c2dev, u32 inaddr, u32 inmask);
+extern int c2_del_addr(struct c2_dev *c2dev, __be32 inaddr, __be32 inmask);
+extern int c2_add_addr(struct c2_dev *c2dev, __be32 inaddr, __be32 inmask);
 
 /* QPs */
 extern int c2_alloc_qp(struct c2_dev *c2dev, struct c2_pd *pd,
@@ -545,7 +544,7 @@ extern void c2_ae_event(struct c2_dev *c2dev, u32 mq_index);
 extern int c2_init_mqsp_pool(struct c2_dev *c2dev, gfp_t gfp_mask,
 			     struct sp_chunk **root);
 extern void c2_free_mqsp_pool(struct c2_dev *c2dev, struct sp_chunk *root);
-extern u16 *c2_alloc_mqsp(struct c2_dev *c2dev, struct sp_chunk *head,
-			  dma_addr_t *dma_addr, gfp_t gfp_mask);
-extern void c2_free_mqsp(u16 * mqsp);
+extern __be16 *c2_alloc_mqsp(struct c2_dev *c2dev, struct sp_chunk *head,
+			     dma_addr_t *dma_addr, gfp_t gfp_mask);
+extern void c2_free_mqsp(__be16* mqsp);
 #endif

@@ -21,15 +21,14 @@
 #define IRELE(ip)	VN_RELE(XFS_ITOV(ip))
 #define IHOLD(ip)	VN_HOLD(XFS_ITOV(ip))
 
-extern int xfs_get_dir_entry (bhv_vname_t *, xfs_inode_t **);
-extern int xfs_dir_lookup_int (xfs_inode_t *, uint, bhv_vname_t *, xfs_ino_t *,
-				xfs_inode_t **);
-extern int xfs_truncate_file (xfs_mount_t *, xfs_inode_t *);
-extern int xfs_dir_ialloc (xfs_trans_t **, xfs_inode_t *, mode_t, xfs_nlink_t,
+extern int xfs_dir_lookup_int(xfs_inode_t *, uint, struct xfs_name *,
+				xfs_ino_t *, xfs_inode_t **);
+extern int xfs_truncate_file(xfs_mount_t *, xfs_inode_t *);
+extern int xfs_dir_ialloc(xfs_trans_t **, xfs_inode_t *, mode_t, xfs_nlink_t,
 				xfs_dev_t, cred_t *, prid_t, int,
 				xfs_inode_t **, int *);
-extern int xfs_droplink (xfs_trans_t *, xfs_inode_t *);
-extern int xfs_bumplink (xfs_trans_t *, xfs_inode_t *);
-extern void xfs_bump_ino_vers2 (xfs_trans_t *, xfs_inode_t *);
+extern int xfs_droplink(xfs_trans_t *, xfs_inode_t *);
+extern int xfs_bumplink(xfs_trans_t *, xfs_inode_t *);
+extern void xfs_bump_ino_vers2(xfs_trans_t *, xfs_inode_t *);
 
 #endif	/* __XFS_UTILS_H__ */

@@ -51,7 +51,7 @@
 #define SPDNORMX	SPDNORMx(xm, xe)
 #define SPDNORMY	SPDNORMx(ym, ye)
 
-static __inline ieee754sp buildsp(int s, int bx, unsigned m)
+static inline ieee754sp buildsp(int s, int bx, unsigned m)
 {
 	ieee754sp r;
 

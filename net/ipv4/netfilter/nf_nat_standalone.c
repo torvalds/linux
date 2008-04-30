@@ -30,8 +30,8 @@
 #ifdef CONFIG_XFRM
 static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 {
-	struct nf_conn *ct;
-	struct nf_conntrack_tuple *t;
+	const struct nf_conn *ct;
+	const struct nf_conntrack_tuple *t;
 	enum ip_conntrack_info ctinfo;
 	enum ip_conntrack_dir dir;
 	unsigned long statusbit;
@@ -50,7 +50,10 @@ static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 	if (ct->status & statusbit) {
 		fl->fl4_dst = t->dst.u3.ip;
 		if (t->dst.protonum == IPPROTO_TCP ||
-		    t->dst.protonum == IPPROTO_UDP)
+		    t->dst.protonum == IPPROTO_UDP ||
+		    t->dst.protonum == IPPROTO_UDPLITE ||
+		    t->dst.protonum == IPPROTO_DCCP ||
+		    t->dst.protonum == IPPROTO_SCTP)
 			fl->fl_ip_dport = t->dst.u.tcp.port;
 	}
 
@@ -59,7 +62,10 @@ static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 	if (ct->status & statusbit) {
 		fl->fl4_src = t->src.u3.ip;
 		if (t->dst.protonum == IPPROTO_TCP ||
-		    t->dst.protonum == IPPROTO_UDP)
+		    t->dst.protonum == IPPROTO_UDP ||
+		    t->dst.protonum == IPPROTO_UDPLITE ||
+		    t->dst.protonum == IPPROTO_DCCP ||
+		    t->dst.protonum == IPPROTO_SCTP)
 			fl->fl_ip_sport = t->src.u.tcp.port;
 	}
 }
@@ -87,21 +93,8 @@ nf_nat_fn(unsigned int hooknum,
 	   have dropped it.  Hence it's the user's responsibilty to
 	   packet filter it out, or implement conntrack/NAT for that
 	   protocol. 8) --RR */
-	if (!ct) {
-		/* Exception: ICMP redirect to new connection (not in
-		   hash table yet).  We must not let this through, in
-		   case we're doing NAT to the same network. */
-		if (ip_hdr(skb)->protocol == IPPROTO_ICMP) {
-			struct icmphdr _hdr, *hp;
-
-			hp = skb_header_pointer(skb, ip_hdrlen(skb),
-						sizeof(_hdr), &_hdr);
-			if (hp != NULL &&
-			    hp->type == ICMP_REDIRECT)
-				return NF_DROP;
-		}
+	if (!ct)
 		return NF_ACCEPT;
-	}
 
 	/* Don't try to NAT if this packet is not conntracked */
 	if (ct == &nf_conntrack_untracked)
@@ -109,6 +102,9 @@ nf_nat_fn(unsigned int hooknum,
 
 	nat = nfct_nat(ct);
 	if (!nat) {
+		/* NAT module was loaded late. */
+		if (nf_ct_is_confirmed(ct))
+			return NF_ACCEPT;
 		nat = nf_ct_ext_add(ct, NF_CT_EXT_NAT, GFP_ATOMIC);
 		if (nat == NULL) {
 			pr_debug("failed to add NAT extension\n");
@@ -134,10 +130,7 @@ nf_nat_fn(unsigned int hooknum,
 		if (!nf_nat_initialized(ct, maniptype)) {
 			unsigned int ret;
 
-			if (unlikely(nf_ct_is_confirmed(ct)))
-				/* NAT module was loaded late */
-				ret = alloc_null_binding_confirmed(ct, hooknum);
-			else if (hooknum == NF_INET_LOCAL_IN)
+			if (hooknum == NF_INET_LOCAL_IN)
 				/* LOCAL_IN hook doesn't have a chain!  */
 				ret = alloc_null_binding(ct, hooknum);
 			else
@@ -189,7 +182,7 @@ nf_nat_out(unsigned int hooknum,
 	   int (*okfn)(struct sk_buff *))
 {
 #ifdef CONFIG_XFRM
-	struct nf_conn *ct;
+	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 #endif
 	unsigned int ret;
@@ -223,7 +216,7 @@ nf_nat_local_fn(unsigned int hooknum,
 		const struct net_device *out,
 		int (*okfn)(struct sk_buff *))
 {
-	struct nf_conn *ct;
+	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	unsigned int ret;
 
@@ -252,25 +245,6 @@ nf_nat_local_fn(unsigned int hooknum,
 	return ret;
 }
 
-static unsigned int
-nf_nat_adjust(unsigned int hooknum,
-	      struct sk_buff *skb,
-	      const struct net_device *in,
-	      const struct net_device *out,
-	      int (*okfn)(struct sk_buff *))
-{
-	struct nf_conn *ct;
-	enum ip_conntrack_info ctinfo;
-
-	ct = nf_ct_get(skb, &ctinfo);
-	if (ct && test_bit(IPS_SEQ_ADJUST_BIT, &ct->status)) {
-		pr_debug("nf_nat_standalone: adjusting sequence number\n");
-		if (!nf_nat_seq_adjust(skb, ct, ctinfo))
-			return NF_DROP;
-	}
-	return NF_ACCEPT;
-}
-
 /* We must be after connection tracking and before packet filtering. */
 
 static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
@@ -290,14 +264,6 @@ static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_NAT_SRC,
 	},
-	/* After conntrack, adjust sequence number */
-	{
-		.hook		= nf_nat_adjust,
-		.owner		= THIS_MODULE,
-		.pf		= PF_INET,
-		.hooknum	= NF_INET_POST_ROUTING,
-		.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
-	},
 	/* Before packet filtering, change destination */
 	{
 		.hook		= nf_nat_local_fn,
@@ -313,14 +279,6 @@ static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
 		.pf		= PF_INET,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_NAT_SRC,
-	},
-	/* After conntrack, adjust sequence number */
-	{
-		.hook		= nf_nat_adjust,
-		.owner		= THIS_MODULE,
-		.pf		= PF_INET,
-		.hooknum	= NF_INET_LOCAL_IN,
-		.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
 	},
 };
 

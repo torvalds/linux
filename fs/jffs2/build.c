@@ -345,6 +345,7 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 	INIT_LIST_HEAD(&c->dirty_list);
 	INIT_LIST_HEAD(&c->erasable_list);
 	INIT_LIST_HEAD(&c->erasing_list);
+	INIT_LIST_HEAD(&c->erase_checking_list);
 	INIT_LIST_HEAD(&c->erase_pending_list);
 	INIT_LIST_HEAD(&c->erasable_pending_wbuf_list);
 	INIT_LIST_HEAD(&c->erase_complete_list);

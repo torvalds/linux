@@ -51,7 +51,6 @@ struct iop_adma_device {
  * @common: common dmaengine channel object members
  * @last_used: place holder for allocation to continue from where it left off
  * @all_slots: complete domain of slots usable by the channel
- * @cleanup_watchdog: workaround missed interrupts on iop3xx
  * @slots_allocated: records the actual size of the descriptor slot pool
  * @irq_tasklet: bottom half where iop_adma_slot_cleanup runs
  */
@@ -65,7 +64,6 @@ struct iop_adma_chan {
 	struct dma_chan common;
 	struct iop_adma_desc_slot *last_used;
 	struct list_head all_slots;
-	struct timer_list cleanup_watchdog;
 	int slots_allocated;
 	struct tasklet_struct irq_tasklet;
 };

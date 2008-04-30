@@ -102,7 +102,7 @@ hacr_write(u_long	base,
  * Write to card's Host Adapter Command Register. Include a delay for
  * those times when it is needed.
  */
-static inline void
+static void
 hacr_write_slow(u_long	base,
 		u_char	hacr)
 {
@@ -255,7 +255,7 @@ update_psa_checksum(struct net_device *	dev)
 /*
  * Write 1 byte to the MMC.
  */
-static inline void
+static void
 mmc_out(u_long		base,
 	u_short		o,
 	u_char		d)
@@ -275,7 +275,7 @@ mmc_out(u_long		base,
  * Routine to write bytes to the Modem Management Controller.
  * We start by the end because it is the way it should be !
  */
-static inline void
+static void
 mmc_write(u_long	base,
 	  u_char	o,
 	  u_char *	b,
@@ -293,7 +293,7 @@ mmc_write(u_long	base,
  * Read 1 byte from the MMC.
  * Optimised version for 1 byte, avoid using memory...
  */
-static inline u_char
+static u_char
 mmc_in(u_long	base,
        u_short	o)
 {
@@ -318,7 +318,7 @@ mmc_in(u_long	base,
  * (code has just been moved in the above function)
  * We start by the end because it is the way it should be !
  */
-static inline void
+static void
 mmc_read(u_long		base,
 	 u_char		o,
 	 u_char *	b,
@@ -350,9 +350,8 @@ mmc_encr(u_long		base)	/* i/o port of the card */
 /*------------------------------------------------------------------*/
 /*
  * Wait for the frequency EEprom to complete a command...
- * I hope this one will be optimally inlined...
  */
-static inline void
+static void
 fee_wait(u_long		base,	/* i/o port of the card */
 	 int		delay,	/* Base delay to wait for */
 	 int		number)	/* Number of time to wait */
@@ -738,9 +737,9 @@ static void wv_roam_handover(wavepoint_history *wavepoint, net_local *lp)
 }
 
 /* Called when a WavePoint beacon is received */
-static inline void wl_roam_gather(struct net_device *  dev,
-				  u_char *  hdr,   /* Beacon header */
-				  u_char *  stats) /* SNR, Signal quality 
+static void wl_roam_gather(struct net_device *  dev,
+			   u_char *  hdr,   /* Beacon header */
+			   u_char *  stats) /* SNR, Signal quality
 						      of packet */
 {
   wavepoint_beacon *beacon= (wavepoint_beacon *)hdr; /* Rcvd. Beacon */
@@ -794,7 +793,7 @@ out:
 static inline int WAVELAN_BEACON(unsigned char *data)
 {
   wavepoint_beacon *beacon= (wavepoint_beacon *)data;
-  static wavepoint_beacon beacon_template={0xaa,0xaa,0x03,0x08,0x00,0x0e,0x20,0x03,0x00};
+  static const wavepoint_beacon beacon_template={0xaa,0xaa,0x03,0x08,0x00,0x0e,0x20,0x03,0x00};
   
   if(memcmp(beacon,&beacon_template,9)==0)
     return 1;
@@ -980,7 +979,7 @@ read_ringbuf(struct net_device *	dev,
  * wavelan_interrupt is not an option...), so you may experience
  * some delay sometime...
  */
-static inline void
+static void
 wv_82593_reconfig(struct net_device *	dev)
 {
   net_local *		lp = netdev_priv(dev);
@@ -1233,7 +1232,7 @@ wv_local_show(struct net_device *	dev)
 /*
  * Dump packet header (and content if necessary) on the screen
  */
-static inline void
+static void
 wv_packet_info(u_char *		p,		/* Packet to dump */
 	       int		length,		/* Length of the packet */
 	       char *		msg1,		/* Name of the device */
@@ -1272,7 +1271,7 @@ wv_packet_info(u_char *		p,		/* Packet to dump */
  * This is the information which is displayed by the driver at startup
  * There  is a lot of flag to configure it at your will...
  */
-static inline void
+static void
 wv_init_info(struct net_device *	dev)
 {
   unsigned int	base = dev->base_addr;
@@ -1509,7 +1508,7 @@ wavelan_set_mac_address(struct net_device *	dev,
  * Frequency setting (for hardware able of it)
  * It's a bit complicated and you don't really want to look into it...
  */
-static inline int
+static int
 wv_set_frequency(u_long		base,	/* i/o port of the card */
 		 iw_freq *	frequency)
 {
@@ -1706,7 +1705,7 @@ wv_set_frequency(u_long		base,	/* i/o port of the card */
 /*
  * Give the list of available frequencies
  */
-static inline int
+static int
 wv_frequency_list(u_long	base,	/* i/o port of the card */
 		  iw_freq *	list,	/* List of frequency to fill */
 		  int		max)	/* Maximum number of frequencies */
@@ -2759,7 +2758,7 @@ wavelan_get_wireless_stats(struct net_device *	dev)
  * frame pointer and verify that the frame seem correct
  * (called by wv_packet_rcv())
  */
-static inline int
+static int
 wv_start_of_frame(struct net_device *	dev,
 		  int		rfp,	/* end of frame */
 		  int		wrap)	/* start of buffer */
@@ -2821,7 +2820,7 @@ wv_start_of_frame(struct net_device *	dev,
  * Note: if any errors occur, the packet is "dropped on the floor"
  * (called by wv_packet_rcv())
  */
-static inline void
+static void
 wv_packet_read(struct net_device *		dev,
 	       int		fd_p,
 	       int		sksize)
@@ -2922,7 +2921,7 @@ wv_packet_read(struct net_device *		dev,
  * (called by wavelan_interrupt())
  * Note : the spinlock is already grabbed for us and irq are disabled.
  */
-static inline void
+static void
 wv_packet_rcv(struct net_device *	dev)
 {
   unsigned int	base = dev->base_addr;
@@ -3056,7 +3055,7 @@ wv_packet_rcv(struct net_device *	dev)
  * the transmit.
  * (called in wavelan_packet_xmit())
  */
-static inline void
+static void
 wv_packet_write(struct net_device *	dev,
 		void *		buf,
 		short		length)
@@ -3180,7 +3179,7 @@ wavelan_packet_xmit(struct sk_buff *	skb,
  * Routine to initialize the Modem Management Controller.
  * (called by wv_hw_config())
  */
-static inline int
+static int
 wv_mmc_init(struct net_device *	dev)
 {
   unsigned int	base = dev->base_addr;
@@ -3699,7 +3698,7 @@ wv_82593_config(struct net_device *	dev)
  * wavelan.
  * (called by wv_config())
  */
-static inline int
+static int
 wv_pcmcia_reset(struct net_device *	dev)
 {
   int		i;
@@ -3864,7 +3863,7 @@ wv_hw_config(struct net_device *	dev)
  *	2. Start the LAN controller's receive unit
  * (called by wavelan_event(), wavelan_watchdog() and wavelan_open())
  */
-static inline void
+static void
 wv_hw_reset(struct net_device *	dev)
 {
   net_local *	lp = netdev_priv(dev);
@@ -3895,7 +3894,7 @@ wv_hw_reset(struct net_device *	dev)
  * device available to the system.
  * (called by wavelan_event())
  */
-static inline int
+static int
 wv_pcmcia_config(struct pcmcia_device *	link)
 {
   struct net_device *	dev = (struct net_device *) link->priv;

@@ -32,13 +32,18 @@
 /* Mappings between logical cpu number and node number */
 #ifdef CONFIG_X86_32
 extern int cpu_to_node_map[];
-
 #else
-DECLARE_PER_CPU(int, x86_cpu_to_node_map);
-extern int x86_cpu_to_node_map_init[];
-extern void *x86_cpu_to_node_map_early_ptr;
 /* Returns the number of the current Node. */
 #define numa_node_id()		(early_cpu_to_node(raw_smp_processor_id()))
+#endif
+
+DECLARE_PER_CPU(int, x86_cpu_to_node_map);
+
+#ifdef CONFIG_SMP
+extern int x86_cpu_to_node_map_init[];
+extern void *x86_cpu_to_node_map_early_ptr;
+#else
+#define x86_cpu_to_node_map_early_ptr NULL
 #endif
 
 extern cpumask_t node_to_cpumask_map[];
@@ -54,6 +59,8 @@ static inline int cpu_to_node(int cpu)
 }
 
 #else /* CONFIG_X86_64 */
+
+#ifdef CONFIG_SMP
 static inline int early_cpu_to_node(int cpu)
 {
 	int *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
@@ -65,22 +72,33 @@ static inline int early_cpu_to_node(int cpu)
 	else
 		return NUMA_NO_NODE;
 }
+#else
+#define	early_cpu_to_node(cpu)	cpu_to_node(cpu)
+#endif
 
 static inline int cpu_to_node(int cpu)
 {
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 	if (x86_cpu_to_node_map_early_ptr) {
 		printk("KERN_NOTICE cpu_to_node(%d): usage too early!\n",
-			(int)cpu);
+		       (int)cpu);
 		dump_stack();
 		return ((int *)x86_cpu_to_node_map_early_ptr)[cpu];
 	}
 #endif
-	if (per_cpu_offset(cpu))
-		return per_cpu(x86_cpu_to_node_map, cpu);
-	else
-		return NUMA_NO_NODE;
+	return per_cpu(x86_cpu_to_node_map, cpu);
 }
+
+#ifdef	CONFIG_NUMA
+
+/* Returns a pointer to the cpumask of CPUs on Node 'node'. */
+#define node_to_cpumask_ptr(v, node)		\
+		cpumask_t *v = &(node_to_cpumask_map[node])
+
+#define node_to_cpumask_ptr_next(v, node)	\
+			   v = &(node_to_cpumask_map[node])
+#endif
+
 #endif /* CONFIG_X86_64 */
 
 /*
@@ -129,17 +147,13 @@ extern unsigned long node_remap_size[];
 
 # define SD_CACHE_NICE_TRIES	2
 # define SD_IDLE_IDX		2
-# define SD_NEWIDLE_IDX		0
+# define SD_NEWIDLE_IDX		2
 # define SD_FORKEXEC_IDX	1
 
 #endif
 
 /* sched_domains SD_NODE_INIT for NUMAQ machines */
 #define SD_NODE_INIT (struct sched_domain) {		\
-	.span			= CPU_MASK_NONE,	\
-	.parent			= NULL,			\
-	.child			= NULL,			\
-	.groups			= NULL,			\
 	.min_interval		= 8,			\
 	.max_interval		= 32,			\
 	.busy_factor		= 32,			\
@@ -157,7 +171,6 @@ extern unsigned long node_remap_size[];
 				| SD_WAKE_BALANCE,	\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
-	.nr_balance_failed	= 0,			\
 }
 
 #ifdef CONFIG_X86_64_ACPI_NUMA
@@ -167,9 +180,9 @@ extern int __node_distance(int, int);
 
 #else /* CONFIG_NUMA */
 
-#include <asm-generic/topology.h>
-
 #endif
+
+#include <asm-generic/topology.h>
 
 extern cpumask_t cpu_coregroup_map(int cpu);
 

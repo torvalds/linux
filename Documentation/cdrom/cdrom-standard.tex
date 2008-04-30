@@ -777,7 +777,7 @@ Note that a driver must have one static structure, $<device>_dops$, while
 it may have as many structures $<device>_info$ as there are minor devices
 active. $Register_cdrom()$ builds a linked list from these. 
 
-\subsection{$Int\ unregister_cdrom(struct\ cdrom_device_info * cdi)$}
+\subsection{$Void\ unregister_cdrom(struct\ cdrom_device_info * cdi)$}
 
 Unregistering device $cdi$ with minor number $MINOR(cdi\to dev)$ removes
 the minor device from the list. If it was the last registered minor for

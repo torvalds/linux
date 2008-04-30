@@ -27,10 +27,15 @@
 #include <asm/setup.h>
 
 #include <asm/arch/board.h>
+#include <asm/arch/control.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/fpga.h>
 
 #include <asm/arch/clock.h>
+
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+# include "../mach-omap2/sdrc.h"
+#endif
 
 #define NO_LENGTH_CHECK 0xffffffff
 
@@ -171,8 +176,8 @@ console_initcall(omap_add_serial_console);
 
 #if defined(CONFIG_ARCH_OMAP16XX)
 #define TIMER_32K_SYNCHRONIZED		0xfffbc410
-#elif defined(CONFIG_ARCH_OMAP24XX)
-#define TIMER_32K_SYNCHRONIZED		(OMAP24XX_32KSYNCT_BASE + 0x10)
+#elif defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#define TIMER_32K_SYNCHRONIZED		(OMAP2_32KSYNCT_BASE + 0x10)
 #endif
 
 #ifdef	TIMER_32K_SYNCHRONIZED
@@ -193,12 +198,35 @@ static struct clocksource clocksource_32k = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+/*
+ * Rounds down to nearest nsec.
+ */
+unsigned long long omap_32k_ticks_to_nsecs(unsigned long ticks_32k)
+{
+	return cyc2ns(&clocksource_32k, ticks_32k);
+}
+
+/*
+ * Returns current time from boot in nsecs. It's OK for this to wrap
+ * around for now, as it's just a relative time stamp.
+ */
+unsigned long long sched_clock(void)
+{
+	return omap_32k_ticks_to_nsecs(omap_32k_read());
+}
+
 static int __init omap_init_clocksource_32k(void)
 {
 	static char err[] __initdata = KERN_ERR
 			"%s: can't register clocksource!\n";
 
-	if (cpu_is_omap16xx() || cpu_is_omap24xx()) {
+	if (cpu_is_omap16xx() || cpu_class_is_omap2()) {
+		struct clk *sync_32k_ick;
+
+		sync_32k_ick = clk_get(NULL, "omap_32ksync_ick");
+		if (sync_32k_ick)
+			clk_enable(sync_32k_ick);
+
 		clocksource_32k.mult = clocksource_hz2mult(32768,
 					    clocksource_32k.shift);
 
@@ -210,3 +238,33 @@ static int __init omap_init_clocksource_32k(void)
 arch_initcall(omap_init_clocksource_32k);
 
 #endif	/* TIMER_32K_SYNCHRONIZED */
+
+/* Global address base setup code */
+
+#if defined(CONFIG_ARCH_OMAP2420)
+void __init omap2_set_globals_242x(void)
+{
+	omap2_sdrc_base = OMAP2420_SDRC_BASE;
+	omap2_sms_base = OMAP2420_SMS_BASE;
+	omap_ctrl_base_set(OMAP2420_CTRL_BASE);
+}
+#endif
+
+#if defined(CONFIG_ARCH_OMAP2430)
+void __init omap2_set_globals_243x(void)
+{
+	omap2_sdrc_base = OMAP243X_SDRC_BASE;
+	omap2_sms_base = OMAP243X_SMS_BASE;
+	omap_ctrl_base_set(OMAP243X_CTRL_BASE);
+}
+#endif
+
+#if defined(CONFIG_ARCH_OMAP3430)
+void __init omap2_set_globals_343x(void)
+{
+	omap2_sdrc_base = OMAP343X_SDRC_BASE;
+	omap2_sms_base = OMAP343X_SMS_BASE;
+	omap_ctrl_base_set(OMAP343X_CTRL_BASE);
+}
+#endif
+

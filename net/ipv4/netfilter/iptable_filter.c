@@ -56,12 +56,23 @@ static struct
 static struct xt_table packet_filter = {
 	.name		= "filter",
 	.valid_hooks	= FILTER_VALID_HOOKS,
-	.lock		= RW_LOCK_UNLOCKED,
+	.lock		= __RW_LOCK_UNLOCKED(packet_filter.lock),
 	.me		= THIS_MODULE,
 	.af		= AF_INET,
 };
 
 /* The work comes in here from netfilter.c. */
+static unsigned int
+ipt_local_in_hook(unsigned int hook,
+		  struct sk_buff *skb,
+		  const struct net_device *in,
+		  const struct net_device *out,
+		  int (*okfn)(struct sk_buff *))
+{
+	return ipt_do_table(skb, hook, in, out,
+			    nf_local_in_net(in, out)->ipv4.iptable_filter);
+}
+
 static unsigned int
 ipt_hook(unsigned int hook,
 	 struct sk_buff *skb,
@@ -69,7 +80,8 @@ ipt_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ipt_do_table(skb, hook, in, out, init_net.ipv4.iptable_filter);
+	return ipt_do_table(skb, hook, in, out,
+			    nf_forward_net(in, out)->ipv4.iptable_filter);
 }
 
 static unsigned int
@@ -88,12 +100,13 @@ ipt_local_out_hook(unsigned int hook,
 		return NF_ACCEPT;
 	}
 
-	return ipt_do_table(skb, hook, in, out, init_net.ipv4.iptable_filter);
+	return ipt_do_table(skb, hook, in, out,
+			    nf_local_out_net(in, out)->ipv4.iptable_filter);
 }
 
 static struct nf_hook_ops ipt_ops[] __read_mostly = {
 	{
-		.hook		= ipt_hook,
+		.hook		= ipt_local_in_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET,
 		.hooknum	= NF_INET_LOCAL_IN,

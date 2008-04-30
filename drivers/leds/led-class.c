@@ -24,6 +24,12 @@
 
 static struct class *leds_class;
 
+static void led_update_brightness(struct led_classdev *led_cdev)
+{
+	if (led_cdev->brightness_get)
+		led_cdev->brightness = led_cdev->brightness_get(led_cdev);
+}
+
 static ssize_t led_brightness_show(struct device *dev, 
 		struct device_attribute *attr, char *buf)
 {
@@ -31,6 +37,7 @@ static ssize_t led_brightness_show(struct device *dev,
 	ssize_t ret = 0;
 
 	/* no lock needed for this */
+	led_update_brightness(led_cdev);
 	sprintf(buf, "%u\n", led_cdev->brightness);
 	ret = strlen(buf) + 1;
 
@@ -51,6 +58,9 @@ static ssize_t led_brightness_store(struct device *dev,
 
 	if (count == size) {
 		ret = count;
+
+		if (state == LED_OFF)
+			led_trigger_remove(led_cdev);
 		led_set_brightness(led_cdev, state);
 	}
 
@@ -110,6 +120,8 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 	list_add_tail(&led_cdev->node, &leds_list);
 	up_write(&leds_list_lock);
 
+	led_update_brightness(led_cdev);
+
 #ifdef CONFIG_LEDS_TRIGGERS
 	init_rwsem(&led_cdev->trigger_lock);
 
@@ -139,12 +151,10 @@ EXPORT_SYMBOL_GPL(led_classdev_register);
 /**
  * __led_classdev_unregister - unregisters a object of led_properties class.
  * @led_cdev: the led device to unregister
- * @suspended: indicates whether system-wide suspend or resume is in progress
  *
  * Unregisters a previously registered via led_classdev_register object.
  */
-void __led_classdev_unregister(struct led_classdev *led_cdev,
-				      bool suspended)
+void led_classdev_unregister(struct led_classdev *led_cdev)
 {
 	device_remove_file(led_cdev->dev, &dev_attr_brightness);
 #ifdef CONFIG_LEDS_TRIGGERS
@@ -155,16 +165,13 @@ void __led_classdev_unregister(struct led_classdev *led_cdev,
 	up_write(&led_cdev->trigger_lock);
 #endif
 
-	if (suspended)
-		device_pm_schedule_removal(led_cdev->dev);
-	else
-		device_unregister(led_cdev->dev);
+	device_unregister(led_cdev->dev);
 
 	down_write(&leds_list_lock);
 	list_del(&led_cdev->node);
 	up_write(&leds_list_lock);
 }
-EXPORT_SYMBOL_GPL(__led_classdev_unregister);
+EXPORT_SYMBOL_GPL(led_classdev_unregister);
 
 static int __init leds_init(void)
 {

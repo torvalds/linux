@@ -28,9 +28,16 @@
 #define __must_be_array(a) \
   BUILD_BUG_ON_ZERO(__builtin_types_compatible_p(typeof(a), typeof(&a[0])))
 
-#define inline		inline		__attribute__((always_inline))
-#define __inline__	__inline__	__attribute__((always_inline))
-#define __inline	__inline	__attribute__((always_inline))
+/*
+ * Force always-inline if the user requests it so via the .config:
+ */
+#if !defined(CONFIG_ARCH_SUPPORTS_OPTIMIZED_INLINING) || \
+    !defined(CONFIG_OPTIMIZE_INLINING) && (__GNUC__ >= 4)
+# define inline		inline		__attribute__((always_inline))
+# define __inline__	__inline__	__attribute__((always_inline))
+# define __inline	__inline	__attribute__((always_inline))
+#endif
+
 #define __deprecated			__attribute__((deprecated))
 #define __packed			__attribute__((packed))
 #define __weak				__attribute__((weak))

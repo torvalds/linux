@@ -111,56 +111,6 @@ static void dcss_mkname(char *ascii_name, char *ebcdic_name)
 	ASCEBC(ebcdic_name, 8);
 }
 
-/*
- * print appropriate error message for segment_load()/segment_type()
- * return code
- */
-static void mon_segment_warn(int rc, char* seg_name)
-{
-	switch (rc) {
-	case -ENOENT:
-		P_WARNING("cannot load/query segment %s, does not exist\n",
-			  seg_name);
-		break;
-	case -ENOSYS:
-		P_WARNING("cannot load/query segment %s, not running on VM\n",
-			  seg_name);
-		break;
-	case -EIO:
-		P_WARNING("cannot load/query segment %s, hardware error\n",
-			  seg_name);
-		break;
-	case -ENOTSUPP:
-		P_WARNING("cannot load/query segment %s, is a multi-part "
-			  "segment\n", seg_name);
-		break;
-	case -ENOSPC:
-		P_WARNING("cannot load/query segment %s, overlaps with "
-			  "storage\n", seg_name);
-		break;
-	case -EBUSY:
-		P_WARNING("cannot load/query segment %s, overlaps with "
-			  "already loaded dcss\n", seg_name);
-		break;
-	case -EPERM:
-		P_WARNING("cannot load/query segment %s, already loaded in "
-			  "incompatible mode\n", seg_name);
-		break;
-	case -ENOMEM:
-		P_WARNING("cannot load/query segment %s, out of memory\n",
-			  seg_name);
-		break;
-	case -ERANGE:
-		P_WARNING("cannot load/query segment %s, exceeds kernel "
-			  "mapping range\n", seg_name);
-		break;
-	default:
-		P_WARNING("cannot load/query segment %s, return value %i\n",
-			  seg_name, rc);
-		break;
-	}
-}
-
 static inline unsigned long mon_mca_start(struct mon_msg *monmsg)
 {
 	return *(u32 *) &monmsg->msg.rmmsg;
@@ -585,7 +535,7 @@ static int __init mon_init(void)
 
 	rc = segment_type(mon_dcss_name);
 	if (rc < 0) {
-		mon_segment_warn(rc, mon_dcss_name);
+		segment_warning(rc, mon_dcss_name);
 		goto out_iucv;
 	}
 	if (rc != SEG_TYPE_SC) {
@@ -598,7 +548,7 @@ static int __init mon_init(void)
 	rc = segment_load(mon_dcss_name, SEGMENT_SHARED,
 			  &mon_dcss_start, &mon_dcss_end);
 	if (rc < 0) {
-		mon_segment_warn(rc, mon_dcss_name);
+		segment_warning(rc, mon_dcss_name);
 		rc = -EINVAL;
 		goto out_iucv;
 	}

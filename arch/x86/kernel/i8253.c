@@ -115,7 +115,8 @@ void __init setup_pit_timer(void)
 	 * IO_APIC has been initialized.
 	 */
 	pit_clockevent.cpumask = cpumask_of_cpu(smp_processor_id());
-	pit_clockevent.mult = div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC, 32);
+	pit_clockevent.mult = div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC,
+				     pit_clockevent.shift);
 	pit_clockevent.max_delta_ns =
 		clockevent_delta2ns(0x7FFF, &pit_clockevent);
 	pit_clockevent.min_delta_ns =
@@ -224,7 +225,8 @@ static int __init init_pit_clocksource(void)
 	    pit_clockevent.mode != CLOCK_EVT_MODE_PERIODIC)
 		return 0;
 
-	clocksource_pit.mult = clocksource_hz2mult(CLOCK_TICK_RATE, 20);
+	clocksource_pit.mult = clocksource_hz2mult(CLOCK_TICK_RATE,
+						   clocksource_pit.shift);
 	return clocksource_register(&clocksource_pit);
 }
 arch_initcall(init_pit_clocksource);

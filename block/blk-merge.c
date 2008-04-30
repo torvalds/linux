@@ -220,6 +220,15 @@ new_segment:
 		bvprv = bvec;
 	} /* segments in rq */
 
+
+	if (unlikely(rq->cmd_flags & REQ_COPY_USER) &&
+	    (rq->data_len & q->dma_pad_mask)) {
+		unsigned int pad_len = (q->dma_pad_mask & ~rq->data_len) + 1;
+
+		sg->length += pad_len;
+		rq->extra_len += pad_len;
+	}
+
 	if (q->dma_drain_size && q->dma_drain_needed(rq)) {
 		if (rq->cmd_flags & REQ_RW)
 			memset(q->dma_drain_buffer, 0, q->dma_drain_size);

@@ -142,7 +142,7 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 #endif
 	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
 	pte = mk_pte(page, PAGE_KERNEL);
-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32_R1)
+#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
 	entrylo = pte.pte_high;
 #else
 	entrylo = pte_val(pte) >> 6;
@@ -221,15 +221,13 @@ void copy_user_highpage(struct page *to, struct page *from,
 		copy_page(vto, vfrom);
 		kunmap_atomic(vfrom, KM_USER0);
 	}
-	if (((vma->vm_flags & VM_EXEC) && !cpu_has_ic_fills_f_dc) ||
+	if ((!cpu_has_ic_fills_f_dc) ||
 	    pages_do_alias((unsigned long)vto, vaddr & PAGE_MASK))
 		flush_data_cache_page((unsigned long)vto);
 	kunmap_atomic(vto, KM_USER1);
 	/* Make sure this page is cleared on other CPU's too before using it */
 	smp_wmb();
 }
-
-EXPORT_SYMBOL(copy_user_highpage);
 
 void copy_to_user_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vaddr, void *dst, const void *src,
@@ -249,8 +247,6 @@ void copy_to_user_page(struct vm_area_struct *vma,
 		flush_cache_page(vma, vaddr, page_to_pfn(page));
 }
 
-EXPORT_SYMBOL(copy_to_user_page);
-
 void copy_from_user_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vaddr, void *dst, const void *src,
 	unsigned long len)
@@ -266,9 +262,6 @@ void copy_from_user_page(struct vm_area_struct *vma,
 			SetPageDcacheDirty(page);
 	}
 }
-
-EXPORT_SYMBOL(copy_from_user_page);
-
 
 #ifdef CONFIG_HIGHMEM
 unsigned long highstart_pfn, highend_pfn;

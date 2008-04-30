@@ -3582,6 +3582,8 @@ rs_tiocmset(struct tty_struct *tty, struct file *file,
 {
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
 
+	lock_kernel();
+
 	if (clear & TIOCM_RTS)
 		e100_rts(info, 0);
 	if (clear & TIOCM_DTR)
@@ -3601,6 +3603,8 @@ rs_tiocmset(struct tty_struct *tty, struct file *file,
 		e100_ri_out(info, 1);
 	if (set & TIOCM_CD)
 		e100_cd_out(info, 1);
+
+	unlock_kernel();
 	return 0;
 }
 
@@ -3610,6 +3614,7 @@ rs_tiocmget(struct tty_struct *tty, struct file *file)
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
 	unsigned int result;
 
+	lock_kernel();
 	result =
 		(!E100_RTS_GET(info) ? TIOCM_RTS : 0)
 		| (!E100_DTR_GET(info) ? TIOCM_DTR : 0)
@@ -3617,6 +3622,8 @@ rs_tiocmget(struct tty_struct *tty, struct file *file)
 		| (!E100_DSR_GET(info) ? TIOCM_DSR : 0)
 		| (!E100_CD_GET(info) ? TIOCM_CAR : 0)
 		| (!E100_CTS_GET(info) ? TIOCM_CTS : 0);
+
+	unlock_kernel();
 
 #ifdef SERIAL_DEBUG_IO
 	printk(KERN_DEBUG "ser%i: modem state: %i 0x%08X\n",

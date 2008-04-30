@@ -37,11 +37,10 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/ssp.h>
+#include <asm/arch/pxa27x_keypad.h>
 #include <asm/arch/littleton.h>
 
 #include "generic.h"
-
-#define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
 
 /* Littleton MFP configurations */
 static mfp_cfg_t littleton_mfp_cfg[] __initdata = {
@@ -76,6 +75,21 @@ static mfp_cfg_t littleton_mfp_cfg[] __initdata = {
 
 	/* Debug Ethernet */
 	GPIO90_GPIO,
+
+	/* Keypad */
+	GPIO107_KP_DKIN_0,
+	GPIO108_KP_DKIN_1,
+	GPIO115_KP_MKIN_0,
+	GPIO116_KP_MKIN_1,
+	GPIO117_KP_MKIN_2,
+	GPIO118_KP_MKIN_3,
+	GPIO119_KP_MKIN_4,
+	GPIO120_KP_MKIN_5,
+	GPIO121_KP_MKOUT_0,
+	GPIO122_KP_MKOUT_1,
+	GPIO123_KP_MKOUT_2,
+	GPIO124_KP_MKOUT_3,
+	GPIO125_KP_MKOUT_4,
 };
 
 static struct resource smc91x_resources[] = {
@@ -300,6 +314,54 @@ static void littleton_init_lcd(void)
 static inline void littleton_init_lcd(void) {};
 #endif /* CONFIG_FB_PXA || CONFIG_FB_PXA_MODULES */
 
+#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULES)
+static unsigned int littleton_matrix_key_map[] = {
+	/* KEY(row, col, key_code) */
+	KEY(1, 3, KEY_0), KEY(0, 0, KEY_1), KEY(1, 0, KEY_2), KEY(2, 0, KEY_3),
+	KEY(0, 1, KEY_4), KEY(1, 1, KEY_5), KEY(2, 1, KEY_6), KEY(0, 2, KEY_7),
+	KEY(1, 2, KEY_8), KEY(2, 2, KEY_9),
+
+	KEY(0, 3, KEY_KPASTERISK), 	/* * */
+	KEY(2, 3, KEY_KPDOT), 		/* # */
+
+	KEY(5, 4, KEY_ENTER),
+
+	KEY(5, 0, KEY_UP),
+	KEY(5, 1, KEY_DOWN),
+	KEY(5, 2, KEY_LEFT),
+	KEY(5, 3, KEY_RIGHT),
+	KEY(3, 2, KEY_HOME),
+	KEY(4, 1, KEY_END),
+	KEY(3, 3, KEY_BACK),
+
+	KEY(4, 0, KEY_SEND),
+	KEY(4, 2, KEY_VOLUMEUP),
+	KEY(4, 3, KEY_VOLUMEDOWN),
+
+	KEY(3, 0, KEY_F22),	/* soft1 */
+	KEY(3, 1, KEY_F23),	/* soft2 */
+};
+
+static struct pxa27x_keypad_platform_data littleton_keypad_info = {
+	.matrix_key_rows	= 6,
+	.matrix_key_cols	= 5,
+	.matrix_key_map		= littleton_matrix_key_map,
+	.matrix_key_map_size	= ARRAY_SIZE(littleton_matrix_key_map),
+
+	.enable_rotary0		= 1,
+	.rotary0_up_key		= KEY_UP,
+	.rotary0_down_key	= KEY_DOWN,
+
+	.debounce_interval	= 30,
+};
+static void __init littleton_init_keypad(void)
+{
+	pxa_set_keypad_info(&littleton_keypad_info);
+}
+#else
+static inline void littleton_init_keypad(void) {}
+#endif
+
 static void __init littleton_init(void)
 {
 	/* initialize MFP configurations */
@@ -312,6 +374,7 @@ static void __init littleton_init(void)
 	platform_device_register(&smc91x_device);
 
 	littleton_init_lcd();
+	littleton_init_keypad();
 }
 
 MACHINE_START(LITTLETON, "Marvell Form Factor Development Platform (aka Littleton)")

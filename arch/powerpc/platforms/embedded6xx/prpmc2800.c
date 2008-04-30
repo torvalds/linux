@@ -49,13 +49,13 @@ static void __init prpmc2800_setup_arch(void)
 	 * ioremap mpp and gpp registers in case they are later
 	 * needed by prpmc2800_reset_board().
 	 */
-	np = of_find_compatible_node(NULL, NULL, "marvell,mv64x60-mpp");
+	np = of_find_compatible_node(NULL, NULL, "marvell,mv64360-mpp");
 	reg = of_get_property(np, "reg", NULL);
 	paddr = of_translate_address(np, reg);
 	of_node_put(np);
 	mv64x60_mpp_reg_base = ioremap(paddr, reg[1]);
 
-	np = of_find_compatible_node(NULL, NULL, "marvell,mv64x60-gpp");
+	np = of_find_compatible_node(NULL, NULL, "marvell,mv64360-gpp");
 	reg = of_get_property(np, "reg", NULL);
 	paddr = of_translate_address(np, reg);
 	of_node_put(np);

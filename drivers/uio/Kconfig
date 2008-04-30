@@ -1,8 +1,6 @@
-menu "Userspace I/O"
-	depends on !S390
-
-config UIO
+menuconfig UIO
 	tristate "Userspace I/O drivers"
+	depends on !S390
 	default n
 	help
 	  Enable this to allow the userspace driver core code to be
@@ -12,6 +10,8 @@ config UIO
 	  is also required for interrupt handling to work properly.
 
 	  If you don't know what to do here, say N.
+
+if UIO
 
 config UIO_CIF
 	tristate "generic Hilscher CIF Card driver"
@@ -26,4 +26,17 @@ config UIO_CIF
 	  To compile this driver as a module, choose M here: the module
 	  will be called uio_cif.
 
-endmenu
+config UIO_SMX
+	tristate "SMX cryptengine UIO interface"
+	depends on UIO
+	default n
+	help
+	  Userspace IO interface to the Cryptography engine found on the
+	  Nias Digital SMX boards.  These will be available from Q4 2008
+	  from http://www.niasdigital.com.  The userspace part of this
+	  driver will be released under the GPL at the same time as the
+	  hardware and will be able to be downloaded from the same site.
+
+	  If you compile this as a module, it will be called uio_smx.
+
+endif

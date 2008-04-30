@@ -353,7 +353,7 @@ static struct crypto_alg sha224 = {
 	.dia_final	= sha224_final } }
 };
 
-static int __init init(void)
+static int __init sha256_generic_mod_init(void)
 {
 	int ret = 0;
 
@@ -370,14 +370,14 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit sha256_generic_mod_fini(void)
 {
 	crypto_unregister_alg(&sha224);
 	crypto_unregister_alg(&sha256);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(sha256_generic_mod_init);
+module_exit(sha256_generic_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA-224 and SHA-256 Secure Hash Algorithm");

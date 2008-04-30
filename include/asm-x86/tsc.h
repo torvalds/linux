@@ -42,7 +42,7 @@ static inline cycles_t vget_cycles(void)
 	if (!cpu_has_tsc)
 		return 0;
 #endif
-	return (cycles_t) __native_read_tsc();
+	return (cycles_t)__native_read_tsc();
 }
 
 extern void tsc_init(void);

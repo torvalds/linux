@@ -250,6 +250,7 @@ static const struct ich_laptop ich_laptop[] = {
 	{ 0x27DF, 0x1043, 0x1267 },	/* ICH7 on Asus W5F */
 	{ 0x27DF, 0x103C, 0x30A1 },	/* ICH7 on HP Compaq nc2400 */
 	{ 0x24CA, 0x1025, 0x0061 },	/* ICH4 on Acer Aspire 2023WLMi */
+	{ 0x2653, 0x1043, 0x82D8 },	/* ICH6M on Asus Eee 701 */
 	/* end marker */
 	{ 0, }
 };
@@ -285,11 +286,6 @@ static u8 __devinit piix_cable_detect(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 {
-	hwif->set_pio_mode = &piix_set_pio_mode;
-	hwif->set_dma_mode = &piix_set_dma_mode;
-
-	hwif->cable_detect = piix_cable_detect;
-
 	if (!hwif->dma_base)
 		return;
 
@@ -306,10 +302,16 @@ static void __devinit init_hwif_ich(ide_hwif_t *hwif)
 		hwif->ide_dma_clear_irq = &piix_dma_clear_irq;
 }
 
+static const struct ide_port_ops piix_port_ops = {
+	.set_pio_mode		= piix_set_pio_mode,
+	.set_dma_mode		= piix_set_dma_mode,
+	.cable_detect		= piix_cable_detect,
+};
+
 #ifndef CONFIG_IA64
- #define IDE_HFLAGS_PIIX (IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE)
+ #define IDE_HFLAGS_PIIX IDE_HFLAG_LEGACY_IRQS
 #else
- #define IDE_HFLAGS_PIIX IDE_HFLAG_BOOTABLE
+ #define IDE_HFLAGS_PIIX 0
 #endif
 
 #define DECLARE_PIIX_DEV(name_str, udma) \
@@ -317,6 +319,7 @@ static void __devinit init_hwif_ich(ide_hwif_t *hwif)
 		.name		= name_str,		\
 		.init_hwif	= init_hwif_piix,	\
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
+		.port_ops	= &piix_port_ops,	\
 		.host_flags	= IDE_HFLAGS_PIIX,	\
 		.pio_mask	= ATA_PIO4,		\
 		.swdma_mask	= ATA_SWDMA2_ONLY,	\
@@ -330,6 +333,7 @@ static void __devinit init_hwif_ich(ide_hwif_t *hwif)
 		.init_chipset	= init_chipset_ich, \
 		.init_hwif	= init_hwif_ich, \
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
+		.port_ops	= &piix_port_ops, \
 		.host_flags	= IDE_HFLAGS_PIIX, \
 		.pio_mask	= ATA_PIO4, \
 		.swdma_mask	= ATA_SWDMA2_ONLY, \

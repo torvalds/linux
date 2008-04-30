@@ -26,9 +26,10 @@ static inline void wrusp(unsigned long usp)
 
 /*
  * User space process size: 1st byte beyond user address space.
+ * Fairly meaningless on nommu.  Parts of user programs can be scattered
+ * in a lot of places, so just disable this by setting it to 0xFFFFFFFF.
  */
-extern unsigned long memory_end;
-#define TASK_SIZE	(memory_end)
+#define TASK_SIZE	0xFFFFFFFF
 
 #ifdef __KERNEL__
 #define STACK_TOP	TASK_SIZE

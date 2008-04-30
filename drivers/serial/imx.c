@@ -166,15 +166,6 @@
 #define SERIAL_IMX_MAJOR	204
 #define MINOR_START		41
 
-#define NR_PORTS		2
-
-#define IMX_ISR_PASS_LIMIT	256
-
-/*
- * This is the size of our serial port register set.
- */
-#define UART_PORT_SIZE	0x100
-
 /*
  * This determines how often we check the modem status signals
  * for any change.  They generally aren't connected to an IRQ
@@ -358,66 +349,60 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 	struct tty_struct *tty = sport->port.info->tty;
 	unsigned long flags, temp;
 
-	rx = readl(sport->port.membase + URXD0);
 	spin_lock_irqsave(&sport->port.lock,flags);
 
-	do {
+	while (readl(sport->port.membase + USR2) & USR2_RDR) {
 		flg = TTY_NORMAL;
 		sport->port.icount.rx++;
 
+		rx = readl(sport->port.membase + URXD0);
+
 		temp = readl(sport->port.membase + USR2);
-		if( temp & USR2_BRCD ) {
+		if (temp & USR2_BRCD) {
 			writel(temp | USR2_BRCD, sport->port.membase + USR2);
-			if(uart_handle_break(&sport->port))
-				goto ignore_char;
+			if (uart_handle_break(&sport->port))
+				continue;
 		}
 
 		if (uart_handle_sysrq_char
 		            (&sport->port, (unsigned char)rx))
-			goto ignore_char;
+			continue;
 
-		if( rx & (URXD_PRERR | URXD_OVRRUN | URXD_FRMERR) )
-			goto handle_error;
+		if (rx & (URXD_PRERR | URXD_OVRRUN | URXD_FRMERR) ) {
+			if (rx & URXD_PRERR)
+				sport->port.icount.parity++;
+			else if (rx & URXD_FRMERR)
+				sport->port.icount.frame++;
+			if (rx & URXD_OVRRUN)
+				sport->port.icount.overrun++;
 
-	error_return:
+			if (rx & sport->port.ignore_status_mask) {
+				if (++ignored > 100)
+					goto out;
+				continue;
+			}
+
+			rx &= sport->port.read_status_mask;
+
+			if (rx & URXD_PRERR)
+				flg = TTY_PARITY;
+			else if (rx & URXD_FRMERR)
+				flg = TTY_FRAME;
+			if (rx & URXD_OVRRUN)
+				flg = TTY_OVERRUN;
+
+#ifdef SUPPORT_SYSRQ
+			sport->port.sysrq = 0;
+#endif
+		}
+
 		tty_insert_flip_char(tty, rx, flg);
-
-	ignore_char:
-		rx = readl(sport->port.membase + URXD0);
-	} while(rx & URXD_CHARRDY);
+	}
 
 out:
 	spin_unlock_irqrestore(&sport->port.lock,flags);
 	tty_flip_buffer_push(tty);
 	return IRQ_HANDLED;
-
-handle_error:
-	if (rx & URXD_PRERR)
-		sport->port.icount.parity++;
-	else if (rx & URXD_FRMERR)
-		sport->port.icount.frame++;
-	if (rx & URXD_OVRRUN)
-		sport->port.icount.overrun++;
-
-	if (rx & sport->port.ignore_status_mask) {
-		if (++ignored > 100)
-			goto out;
-		goto ignore_char;
-	}
-
-	rx &= sport->port.read_status_mask;
-
-	if (rx & URXD_PRERR)
-		flg = TTY_PARITY;
-	else if (rx & URXD_FRMERR)
-		flg = TTY_FRAME;
-	if (rx & URXD_OVRRUN)
-		flg = TTY_OVERRUN;
-
-#ifdef SUPPORT_SYSRQ
-	sport->port.sysrq = 0;
-#endif
-	goto error_return;
 }
 
 /*
@@ -546,7 +531,7 @@ static int imx_startup(struct uart_port *port)
 	writel(USR1_RTSD, sport->port.membase + USR1);
 
 	temp = readl(sport->port.membase + UCR1);
-	temp |= (UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN);
+	temp |= UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN;
 	writel(temp, sport->port.membase + UCR1);
 
 	temp = readl(sport->port.membase + UCR2);
@@ -731,9 +716,11 @@ static const char *imx_type(struct uart_port *port)
  */
 static void imx_release_port(struct uart_port *port)
 {
-	struct imx_port *sport = (struct imx_port *)port;
+	struct platform_device *pdev = to_platform_device(port->dev);
+	struct resource *mmres;
 
-	release_mem_region(sport->port.mapbase, UART_PORT_SIZE);
+	mmres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	release_mem_region(mmres->start, mmres->end - mmres->start + 1);
 }
 
 /*
@@ -741,10 +728,18 @@ static void imx_release_port(struct uart_port *port)
  */
 static int imx_request_port(struct uart_port *port)
 {
-	struct imx_port *sport = (struct imx_port *)port;
+	struct platform_device *pdev = to_platform_device(port->dev);
+	struct resource *mmres;
+	void *ret;
 
-	return request_mem_region(sport->port.mapbase, UART_PORT_SIZE,
-			"imx-uart") != NULL ? 0 : -EBUSY;
+	mmres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!mmres)
+		return -ENODEV;
+
+	ret = request_mem_region(mmres->start, mmres->end - mmres->start + 1,
+			"imx-uart");
+
+	return  ret ? 0 : -EBUSY;
 }
 
 /*
@@ -815,7 +810,7 @@ static struct imx_port imx_ports[] = {
 		.type		= PORT_IMX,
 		.iotype		= UPIO_MEM,
 		.membase	= (void *)IMX_UART1_BASE,
-		.mapbase	= IMX_UART1_BASE, /* FIXME */
+		.mapbase	= 0x00206000,
 		.irq		= UART1_MINT_RX,
 		.uartclk	= 16000000,
 		.fifosize	= 32,
@@ -831,7 +826,7 @@ static struct imx_port imx_ports[] = {
 		.type		= PORT_IMX,
 		.iotype		= UPIO_MEM,
 		.membase	= (void *)IMX_UART2_BASE,
-		.mapbase	= IMX_UART2_BASE, /* FIXME */
+		.mapbase	= 0x00207000,
 		.irq		= UART2_MINT_RX,
 		.uartclk	= 16000000,
 		.fifosize	= 32,

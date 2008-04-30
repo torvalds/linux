@@ -60,7 +60,6 @@ struct getcpu_cache;
 #include <linux/capability.h>
 #include <linux/list.h>
 #include <linux/sem.h>
-#include <asm/semaphore.h>
 #include <asm/siginfo.h>
 #include <asm/signal.h>
 #include <linux/quota.h>

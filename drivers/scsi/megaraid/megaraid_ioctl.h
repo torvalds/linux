@@ -18,7 +18,7 @@
 #define _MEGARAID_IOCTL_H_
 
 #include <linux/types.h>
-#include <asm/semaphore.h>
+#include <linux/semaphore.h>
 
 #include "mbox_defs.h"
 

@@ -538,8 +538,8 @@ struct ixgb_rx_desc {
 	__le64 buff_addr;
 	__le16 length;
 	__le16 reserved;
-	uint8_t status;
-	uint8_t errors;
+	u8 status;
+	u8 errors;
 	__le16 special;
 };
 
@@ -570,8 +570,8 @@ struct ixgb_rx_desc {
 struct ixgb_tx_desc {
 	__le64 buff_addr;
 	__le32 cmd_type_len;
-	uint8_t status;
-	uint8_t popts;
+	u8 status;
+	u8 popts;
 	__le16 vlan;
 };
 
@@ -595,15 +595,15 @@ struct ixgb_tx_desc {
 #define IXGB_TX_DESC_SPECIAL_PRI_SHIFT  IXGB_RX_DESC_SPECIAL_PRI_SHIFT	/* Priority is in upper 3 of 16 */
 
 struct ixgb_context_desc {
-	uint8_t ipcss;
-	uint8_t ipcso;
+	u8 ipcss;
+	u8 ipcso;
 	__le16 ipcse;
-	uint8_t tucss;
-	uint8_t tucso;
+	u8 tucss;
+	u8 tucso;
 	__le16 tucse;
 	__le32 cmd_type_len;
-	uint8_t status;
-	uint8_t hdr_len;
+	u8 status;
+	u8 hdr_len;
 	__le16 mss;
 };
 
@@ -637,33 +637,33 @@ struct ixgb_context_desc {
 
 /* This structure takes a 64k flash and maps it for identification commands */
 struct ixgb_flash_buffer {
-	uint8_t manufacturer_id;
-	uint8_t device_id;
-	uint8_t filler1[0x2AA8];
-	uint8_t cmd2;
-	uint8_t filler2[0x2AAA];
-	uint8_t cmd1;
-	uint8_t filler3[0xAAAA];
+	u8 manufacturer_id;
+	u8 device_id;
+	u8 filler1[0x2AA8];
+	u8 cmd2;
+	u8 filler2[0x2AAA];
+	u8 cmd1;
+	u8 filler3[0xAAAA];
 };
 
 /*
  * This is a little-endian specific check.
  */
 #define IS_MULTICAST(Address) \
-    (boolean_t)(((uint8_t *)(Address))[0] & ((uint8_t)0x01))
+    (bool)(((u8 *)(Address))[0] & ((u8)0x01))
 
 /*
  * Check whether an address is broadcast.
  */
 #define IS_BROADCAST(Address)               \
-    ((((uint8_t *)(Address))[0] == ((uint8_t)0xff)) && (((uint8_t *)(Address))[1] == ((uint8_t)0xff)))
+    ((((u8 *)(Address))[0] == ((u8)0xff)) && (((u8 *)(Address))[1] == ((u8)0xff)))
 
 /* Flow control parameters */
 struct ixgb_fc {
-	uint32_t high_water;	/* Flow Control High-water          */
-	uint32_t low_water;	/* Flow Control Low-water           */
-	uint16_t pause_time;	/* Flow Control Pause timer         */
-	boolean_t send_xon;	/* Flow control send XON            */
+	u32 high_water;	/* Flow Control High-water          */
+	u32 low_water;	/* Flow Control Low-water           */
+	u16 pause_time;	/* Flow Control Pause timer         */
+	bool send_xon;		/* Flow control send XON            */
 	ixgb_fc_type type;	/* Type of flow control             */
 };
 
@@ -685,139 +685,139 @@ struct ixgb_bus {
 };
 
 struct ixgb_hw {
-	uint8_t __iomem *hw_addr;/* Base Address of the hardware     */
+	u8 __iomem *hw_addr;/* Base Address of the hardware     */
 	void *back;		/* Pointer to OS-dependent struct   */
 	struct ixgb_fc fc;	/* Flow control parameters          */
 	struct ixgb_bus bus;	/* Bus parameters                   */
-	uint32_t phy_id;	/* Phy Identifier                   */
-	uint32_t phy_addr;	/* XGMII address of Phy             */
+	u32 phy_id;	/* Phy Identifier                   */
+	u32 phy_addr;	/* XGMII address of Phy             */
 	ixgb_mac_type mac_type;	/* Identifier for MAC controller    */
 	ixgb_phy_type phy_type;	/* Transceiver/phy identifier       */
-	uint32_t max_frame_size;	/* Maximum frame size supported     */
-	uint32_t mc_filter_type;	/* Multicast filter hash type       */
-	uint32_t num_mc_addrs;	/* Number of current Multicast addrs */
-	uint8_t curr_mac_addr[IXGB_ETH_LENGTH_OF_ADDRESS];	/* Individual address currently programmed in MAC */
-	uint32_t num_tx_desc;	/* Number of Transmit descriptors   */
-	uint32_t num_rx_desc;	/* Number of Receive descriptors    */
-	uint32_t rx_buffer_size;	/* Size of Receive buffer           */
-	boolean_t link_up;	/* TRUE if link is valid            */
-	boolean_t adapter_stopped;	/* State of adapter                 */
-	uint16_t device_id;	/* device id from PCI configuration space */
-	uint16_t vendor_id;	/* vendor id from PCI configuration space */
-	uint8_t revision_id;	/* revision id from PCI configuration space */
-	uint16_t subsystem_vendor_id;	/* subsystem vendor id from PCI configuration space */
-	uint16_t subsystem_id;	/* subsystem id from PCI configuration space */
-	uint32_t bar0;		/* Base Address registers           */
-	uint32_t bar1;
-	uint32_t bar2;
-	uint32_t bar3;
-	uint16_t pci_cmd_word;	/* PCI command register id from PCI configuration space */
+	u32 max_frame_size;	/* Maximum frame size supported     */
+	u32 mc_filter_type;	/* Multicast filter hash type       */
+	u32 num_mc_addrs;	/* Number of current Multicast addrs */
+	u8 curr_mac_addr[IXGB_ETH_LENGTH_OF_ADDRESS];	/* Individual address currently programmed in MAC */
+	u32 num_tx_desc;	/* Number of Transmit descriptors   */
+	u32 num_rx_desc;	/* Number of Receive descriptors    */
+	u32 rx_buffer_size;	/* Size of Receive buffer           */
+	bool link_up;		/* true if link is valid            */
+	bool adapter_stopped;	/* State of adapter                 */
+	u16 device_id;	/* device id from PCI configuration space */
+	u16 vendor_id;	/* vendor id from PCI configuration space */
+	u8 revision_id;	/* revision id from PCI configuration space */
+	u16 subsystem_vendor_id;	/* subsystem vendor id from PCI configuration space */
+	u16 subsystem_id;	/* subsystem id from PCI configuration space */
+	u32 bar0;		/* Base Address registers           */
+	u32 bar1;
+	u32 bar2;
+	u32 bar3;
+	u16 pci_cmd_word;	/* PCI command register id from PCI configuration space */
 	__le16 eeprom[IXGB_EEPROM_SIZE];	/* EEPROM contents read at init time  */
 	unsigned long io_base;	/* Our I/O mapped location */
-	uint32_t lastLFC;
-	uint32_t lastRFC;
+	u32 lastLFC;
+	u32 lastRFC;
 };
 
 /* Statistics reported by the hardware */
 struct ixgb_hw_stats {
-	uint64_t tprl;
-	uint64_t tprh;
-	uint64_t gprcl;
-	uint64_t gprch;
-	uint64_t bprcl;
-	uint64_t bprch;
-	uint64_t mprcl;
-	uint64_t mprch;
-	uint64_t uprcl;
-	uint64_t uprch;
-	uint64_t vprcl;
-	uint64_t vprch;
-	uint64_t jprcl;
-	uint64_t jprch;
-	uint64_t gorcl;
-	uint64_t gorch;
-	uint64_t torl;
-	uint64_t torh;
-	uint64_t rnbc;
-	uint64_t ruc;
-	uint64_t roc;
-	uint64_t rlec;
-	uint64_t crcerrs;
-	uint64_t icbc;
-	uint64_t ecbc;
-	uint64_t mpc;
-	uint64_t tptl;
-	uint64_t tpth;
-	uint64_t gptcl;
-	uint64_t gptch;
-	uint64_t bptcl;
-	uint64_t bptch;
-	uint64_t mptcl;
-	uint64_t mptch;
-	uint64_t uptcl;
-	uint64_t uptch;
-	uint64_t vptcl;
-	uint64_t vptch;
-	uint64_t jptcl;
-	uint64_t jptch;
-	uint64_t gotcl;
-	uint64_t gotch;
-	uint64_t totl;
-	uint64_t toth;
-	uint64_t dc;
-	uint64_t plt64c;
-	uint64_t tsctc;
-	uint64_t tsctfc;
-	uint64_t ibic;
-	uint64_t rfc;
-	uint64_t lfc;
-	uint64_t pfrc;
-	uint64_t pftc;
-	uint64_t mcfrc;
-	uint64_t mcftc;
-	uint64_t xonrxc;
-	uint64_t xontxc;
-	uint64_t xoffrxc;
-	uint64_t xofftxc;
-	uint64_t rjc;
+	u64 tprl;
+	u64 tprh;
+	u64 gprcl;
+	u64 gprch;
+	u64 bprcl;
+	u64 bprch;
+	u64 mprcl;
+	u64 mprch;
+	u64 uprcl;
+	u64 uprch;
+	u64 vprcl;
+	u64 vprch;
+	u64 jprcl;
+	u64 jprch;
+	u64 gorcl;
+	u64 gorch;
+	u64 torl;
+	u64 torh;
+	u64 rnbc;
+	u64 ruc;
+	u64 roc;
+	u64 rlec;
+	u64 crcerrs;
+	u64 icbc;
+	u64 ecbc;
+	u64 mpc;
+	u64 tptl;
+	u64 tpth;
+	u64 gptcl;
+	u64 gptch;
+	u64 bptcl;
+	u64 bptch;
+	u64 mptcl;
+	u64 mptch;
+	u64 uptcl;
+	u64 uptch;
+	u64 vptcl;
+	u64 vptch;
+	u64 jptcl;
+	u64 jptch;
+	u64 gotcl;
+	u64 gotch;
+	u64 totl;
+	u64 toth;
+	u64 dc;
+	u64 plt64c;
+	u64 tsctc;
+	u64 tsctfc;
+	u64 ibic;
+	u64 rfc;
+	u64 lfc;
+	u64 pfrc;
+	u64 pftc;
+	u64 mcfrc;
+	u64 mcftc;
+	u64 xonrxc;
+	u64 xontxc;
+	u64 xoffrxc;
+	u64 xofftxc;
+	u64 rjc;
 };
 
 /* Function Prototypes */
-extern boolean_t ixgb_adapter_stop(struct ixgb_hw *hw);
-extern boolean_t ixgb_init_hw(struct ixgb_hw *hw);
-extern boolean_t ixgb_adapter_start(struct ixgb_hw *hw);
+extern bool ixgb_adapter_stop(struct ixgb_hw *hw);
+extern bool ixgb_init_hw(struct ixgb_hw *hw);
+extern bool ixgb_adapter_start(struct ixgb_hw *hw);
 extern void ixgb_check_for_link(struct ixgb_hw *hw);
-extern boolean_t ixgb_check_for_bad_link(struct ixgb_hw *hw);
+extern bool ixgb_check_for_bad_link(struct ixgb_hw *hw);
 
 extern void ixgb_rar_set(struct ixgb_hw *hw,
-				uint8_t *addr,
-				uint32_t index);
+				u8 *addr,
+				u32 index);
 
 
 /* Filters (multicast, vlan, receive) */
 extern void ixgb_mc_addr_list_update(struct ixgb_hw *hw,
-				   uint8_t *mc_addr_list,
-				   uint32_t mc_addr_count,
-				   uint32_t pad);
+				   u8 *mc_addr_list,
+				   u32 mc_addr_count,
+				   u32 pad);
 
 /* Vfta functions */
 extern void ixgb_write_vfta(struct ixgb_hw *hw,
-				 uint32_t offset,
-				 uint32_t value);
+				 u32 offset,
+				 u32 value);
 
 /* Access functions to eeprom data */
-void ixgb_get_ee_mac_addr(struct ixgb_hw *hw, uint8_t *mac_addr);
-uint32_t ixgb_get_ee_pba_number(struct ixgb_hw *hw);
-uint16_t ixgb_get_ee_device_id(struct ixgb_hw *hw);
-boolean_t ixgb_get_eeprom_data(struct ixgb_hw *hw);
-__le16 ixgb_get_eeprom_word(struct ixgb_hw *hw, uint16_t index);
+void ixgb_get_ee_mac_addr(struct ixgb_hw *hw, u8 *mac_addr);
+u32 ixgb_get_ee_pba_number(struct ixgb_hw *hw);
+u16 ixgb_get_ee_device_id(struct ixgb_hw *hw);
+bool ixgb_get_eeprom_data(struct ixgb_hw *hw);
+__le16 ixgb_get_eeprom_word(struct ixgb_hw *hw, u16 index);
 
 /* Everything else */
 void ixgb_led_on(struct ixgb_hw *hw);
 void ixgb_led_off(struct ixgb_hw *hw);
 void ixgb_write_pci_cfg(struct ixgb_hw *hw,
-			 uint32_t reg,
-			 uint16_t * value);
+			 u32 reg,
+			 u16 * value);
 
 
 #endif /* _IXGB_HW_H_ */

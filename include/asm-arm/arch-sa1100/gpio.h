@@ -26,35 +26,28 @@
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
-
-static inline int gpio_request(unsigned gpio, const char *label)
-{
-	return 0;
-}
-
-static inline void gpio_free(unsigned gpio)
-{
-	return;
-}
-
-extern int gpio_direction_input(unsigned gpio);
-extern int gpio_direction_output(unsigned gpio, int value);
-
+#include <asm-generic/gpio.h>
 
 static inline int gpio_get_value(unsigned gpio)
 {
-	return GPLR & GPIO_GPIO(gpio);
+	if (__builtin_constant_p(gpio) && (gpio <= GPIO_MAX))
+		return GPLR & GPIO_GPIO(gpio);
+	else
+		return __gpio_get_value(gpio);
 }
 
 static inline void gpio_set_value(unsigned gpio, int value)
 {
-	if (value)
-		GPSR = GPIO_GPIO(gpio);
+	if (__builtin_constant_p(gpio) && (gpio <= GPIO_MAX))
+		if (value)
+			GPSR = GPIO_GPIO(gpio);
+		else
+			GPCR = GPIO_GPIO(gpio);
 	else
-		GPCR = GPIO_GPIO(gpio);
+		__gpio_set_value(gpio, value);
 }
 
-#include <asm-generic/gpio.h>			/* cansleep wrappers */
+#define gpio_cansleep	__gpio_cansleep
 
 static inline unsigned gpio_to_irq(unsigned gpio)
 {

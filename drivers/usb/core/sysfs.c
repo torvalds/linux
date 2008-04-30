@@ -180,11 +180,9 @@ show_urbnum(struct device *dev, struct device_attribute *attr, char *buf)
 static DEVICE_ATTR(urbnum, S_IRUGO, show_urbnum, NULL);
 
 
-#if defined(CONFIG_USB_PERSIST) || defined(CONFIG_USB_SUSPEND)
-static const char power_group[] = "power";
-#endif
+#ifdef	CONFIG_PM
 
-#ifdef	CONFIG_USB_PERSIST
+static const char power_group[] = "power";
 
 static ssize_t
 show_persist(struct device *dev, struct device_attribute *attr, char *buf)
@@ -222,12 +220,13 @@ static int add_persist_attributes(struct device *dev)
 	if (is_usb_device(dev)) {
 		struct usb_device *udev = to_usb_device(dev);
 
-		/* Hubs are automatically enabled for USB_PERSIST */
-		if (udev->descriptor.bDeviceClass == USB_CLASS_HUB)
-			udev->persist_enabled = 1;
-		rc = sysfs_add_file_to_group(&dev->kobj,
-				&dev_attr_persist.attr,
-				power_group);
+		/* Hubs are automatically enabled for USB_PERSIST,
+		 * no point in creating the attribute file.
+		 */
+		if (udev->descriptor.bDeviceClass != USB_CLASS_HUB)
+			rc = sysfs_add_file_to_group(&dev->kobj,
+					&dev_attr_persist.attr,
+					power_group);
 	}
 	return rc;
 }
@@ -238,13 +237,12 @@ static void remove_persist_attributes(struct device *dev)
 			&dev_attr_persist.attr,
 			power_group);
 }
-
 #else
 
 #define add_persist_attributes(dev)	0
 #define remove_persist_attributes(dev)	do {} while (0)
 
-#endif	/* CONFIG_USB_PERSIST */
+#endif	/* CONFIG_PM */
 
 #ifdef	CONFIG_USB_SUSPEND
 

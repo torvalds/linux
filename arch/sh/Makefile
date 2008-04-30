@@ -107,6 +107,7 @@ machdir-$(CONFIG_SH_7722_SOLUTION_ENGINE)	+= se/7722
 machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	+= se/7751
 machdir-$(CONFIG_SH_7780_SOLUTION_ENGINE)	+= se/7780
 machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	+= se/7343
+machdir-$(CONFIG_SH_7721_SOLUTION_ENGINE)	+= se/7721
 machdir-$(CONFIG_SH_HP6XX)			+= hp6xx
 machdir-$(CONFIG_SH_DREAMCAST)			+= dreamcast
 machdir-$(CONFIG_SH_MPC1211)			+= mpc1211

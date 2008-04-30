@@ -37,7 +37,9 @@
 #include <linux/idr.h>
 #include <linux/kobject.h>
 #include <linux/mutex.h>
+#include <linux/file.h>
 #include <asm/uaccess.h>
+#include "internal.h"
 
 
 LIST_HEAD(super_blocks);
@@ -177,7 +179,7 @@ void deactivate_super(struct super_block *s)
 	if (atomic_dec_and_lock(&s->s_active, &sb_lock)) {
 		s->s_count -= S_BIAS-1;
 		spin_unlock(&sb_lock);
-		DQUOT_OFF(s);
+		DQUOT_OFF(s, 0);
 		down_write(&s->s_umount);
 		fs->kill_sb(s);
 		put_filesystem(fs);
@@ -567,10 +569,29 @@ static void mark_files_ro(struct super_block *sb)
 {
 	struct file *f;
 
+retry:
 	file_list_lock();
 	list_for_each_entry(f, &sb->s_files, f_u.fu_list) {
-		if (S_ISREG(f->f_path.dentry->d_inode->i_mode) && file_count(f))
-			f->f_mode &= ~FMODE_WRITE;
+		struct vfsmount *mnt;
+		if (!S_ISREG(f->f_path.dentry->d_inode->i_mode))
+		       continue;
+		if (!file_count(f))
+			continue;
+		if (!(f->f_mode & FMODE_WRITE))
+			continue;
+		f->f_mode &= ~FMODE_WRITE;
+		if (file_check_writeable(f) != 0)
+			continue;
+		file_release_write(f);
+		mnt = mntget(f->f_path.mnt);
+		file_list_unlock();
+		/*
+		 * This can sleep, so we can't hold
+		 * the file_list_lock() spinlock.
+		 */
+		mnt_drop_write(mnt);
+		mntput(mnt);
+		goto retry;
 	}
 	file_list_unlock();
 }
@@ -587,6 +608,7 @@ static void mark_files_ro(struct super_block *sb)
 int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 {
 	int retval;
+	int remount_rw;
 	
 #ifdef CONFIG_BLOCK
 	if (!(flags & MS_RDONLY) && bdev_read_only(sb->s_bdev))
@@ -604,8 +626,11 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 			mark_files_ro(sb);
 		else if (!fs_may_remount_ro(sb))
 			return -EBUSY;
-		DQUOT_OFF(sb);
+		retval = DQUOT_OFF(sb, 1);
+		if (retval < 0 && retval != -ENOSYS)
+			return -EBUSY;
 	}
+	remount_rw = !(flags & MS_RDONLY) && (sb->s_flags & MS_RDONLY);
 
 	if (sb->s_op->remount_fs) {
 		lock_super(sb);
@@ -615,6 +640,8 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 			return retval;
 	}
 	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (flags & MS_RMT_MASK);
+	if (remount_rw)
+		DQUOT_ON_REMOUNT(sb);
 	return 0;
 }
 

@@ -7,6 +7,12 @@ menu "Library routines"
 config BITREVERSE
 	tristate
 
+config GENERIC_FIND_FIRST_BIT
+	def_bool n
+
+config GENERIC_FIND_NEXT_BIT
+	def_bool n
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -140,5 +146,8 @@ config HAS_DMA
 
 config CHECK_SIGNATURE
 	bool
+
+config HAVE_LMB
+	boolean
 
 endmenu

@@ -17,6 +17,7 @@
  * Now for some TLB flushing routines.  This is the kind of stuff that
  * can be very expensive, so try to avoid them whenever possible.
  */
+extern void setup_ptcg_sem(int max_purges, int from_palo);
 
 /*
  * Flush everything (kernel mapping may also have changed due to

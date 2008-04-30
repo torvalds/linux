@@ -257,6 +257,7 @@ static void do_ls_recovery(struct dlm_ls *ls)
 	if (rv) {
 		ls_recover(ls, rv);
 		kfree(rv->nodeids);
+		kfree(rv->new);
 		kfree(rv);
 	}
 }

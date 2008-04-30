@@ -48,6 +48,14 @@ extern const struct in6_addr in6addr_any;
 #define IN6ADDR_ANY_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } }
 extern const struct in6_addr in6addr_loopback;
 #define IN6ADDR_LOOPBACK_INIT { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } }
+#ifdef __KERNEL__
+extern const struct in6_addr in6addr_linklocal_allnodes;
+#define IN6ADDR_LINKLOCAL_ALLNODES_INIT	\
+		{ { { 0xff,2,0,0,0,0,0,0,0,0,0,0,0,0,0,1 } } }
+extern const struct in6_addr in6addr_linklocal_allrouters;
+#define IN6ADDR_LINKLOCAL_ALLROUTERS_INIT \
+		{ { { 0xff,2,0,0,0,0,0,0,0,0,0,0,0,0,0,2 } } }
+#endif
 
 struct sockaddr_in6 {
 	unsigned short int	sin6_family;    /* AF_INET6 */
@@ -249,4 +257,30 @@ struct in6_flowlabel_req
  * IP6T_SO_GET_REVISION_TARGET	69
  */
 
+/* RFC5014: Source address selection */
+#define IPV6_ADDR_PREFERENCES	72
+
+#define IPV6_PREFER_SRC_TMP		0x0001
+#define IPV6_PREFER_SRC_PUBLIC		0x0002
+#define IPV6_PREFER_SRC_PUBTMP_DEFAULT	0x0100
+#define IPV6_PREFER_SRC_COA		0x0004
+#define IPV6_PREFER_SRC_HOME		0x0400
+#define IPV6_PREFER_SRC_CGA		0x0008
+#define IPV6_PREFER_SRC_NONCGA		0x0800
+
+/*
+ * Multicast Routing:
+ * see include/linux/mroute6.h.
+ *
+ * MRT6_INIT			200
+ * MRT6_DONE			201
+ * MRT6_ADD_MIF			202
+ * MRT6_DEL_MIF			203
+ * MRT6_ADD_MFC			204
+ * MRT6_DEL_MFC			205
+ * MRT6_VERSION			206
+ * MRT6_ASSERT			207
+ * MRT6_PIM			208
+ * (reserved)			209
+ */
 #endif

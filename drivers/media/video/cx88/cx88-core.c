@@ -47,15 +47,15 @@ MODULE_LICENSE("GPL");
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int core_debug = 0;
+static unsigned int core_debug;
 module_param(core_debug,int,0644);
 MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 
-static unsigned int nicam = 0;
+static unsigned int nicam;
 module_param(nicam,int,0644);
 MODULE_PARM_DESC(nicam,"tv audio is nicam");
 
-static unsigned int nocomb = 0;
+static unsigned int nocomb;
 module_param(nocomb,int,0644);
 MODULE_PARM_DESC(nocomb,"disable comb filter");
 
@@ -219,7 +219,7 @@ cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf)
 	videobuf_waiton(&buf->vb,0,0);
 	videobuf_dma_unmap(q, dma);
 	videobuf_dma_free(dma);
-	btcx_riscmem_free((struct pci_dev *)q->dev, &buf->risc);
+	btcx_riscmem_free(to_pci_dev(q->dev), &buf->risc);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
@@ -548,7 +548,7 @@ void cx88_wakeup(struct cx88_core *core,
 		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 	}
 	if (bc != 1)
-		printk("%s: %d buffers handled (should be 1)\n",__FUNCTION__,bc);
+		printk("%s: %d buffers handled (should be 1)\n",__func__,bc);
 }
 
 void cx88_shutdown(struct cx88_core *core)
@@ -577,7 +577,7 @@ void cx88_shutdown(struct cx88_core *core)
 
 int cx88_reset(struct cx88_core *core)
 {
-	dprintk(1,"%s\n",__FUNCTION__);
+	dprintk(1,"%s\n",__func__);
 	cx88_shutdown(core);
 
 	/* clear irq status */
@@ -929,7 +929,10 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 
 	dprintk(1,"set_tvnorm: MO_INPUT_FORMAT  0x%08x [old=0x%08x]\n",
 		cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
-	cx_andor(MO_INPUT_FORMAT, 0xf, cxiformat);
+	/* Chroma AGC must be disabled if SECAM is used, we enable it
+	   by default on PAL and NTSC */
+	cx_andor(MO_INPUT_FORMAT, 0x40f,
+		 norm & V4L2_STD_SECAM ? cxiformat : cxiformat | 0x400);
 
 	// FIXME: as-is from DScaler
 	dprintk(1,"set_tvnorm: MO_OUTPUT_FORMAT 0x%08x [old=0x%08x]\n",

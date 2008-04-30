@@ -243,7 +243,7 @@ void sctp_generate_t3_rtx_event(unsigned long peer)
 
 	sctp_bh_lock_sock(asoc->base.sk);
 	if (sock_owned_by_user(asoc->base.sk)) {
-		SCTP_DEBUG_PRINTK("%s:Sock is busy.\n", __FUNCTION__);
+		SCTP_DEBUG_PRINTK("%s:Sock is busy.\n", __func__);
 
 		/* Try again later.  */
 		if (!mod_timer(&transport->T3_rtx_timer, jiffies + (HZ/20)))
@@ -283,7 +283,7 @@ static void sctp_generate_timeout_event(struct sctp_association *asoc,
 	sctp_bh_lock_sock(asoc->base.sk);
 	if (sock_owned_by_user(asoc->base.sk)) {
 		SCTP_DEBUG_PRINTK("%s:Sock is busy: timer %d\n",
-				  __FUNCTION__,
+				  __func__,
 				  timeout_type);
 
 		/* Try again later.  */
@@ -361,7 +361,7 @@ void sctp_generate_heartbeat_event(unsigned long data)
 
 	sctp_bh_lock_sock(asoc->base.sk);
 	if (sock_owned_by_user(asoc->base.sk)) {
-		SCTP_DEBUG_PRINTK("%s:Sock is busy.\n", __FUNCTION__);
+		SCTP_DEBUG_PRINTK("%s:Sock is busy.\n", __func__);
 
 		/* Try again later.  */
 		if (!mod_timer(&transport->hb_timer, jiffies + (HZ/20)))
@@ -545,14 +545,12 @@ static void sctp_cmd_hb_timers_start(sctp_cmd_seq_t *cmds,
 				     struct sctp_association *asoc)
 {
 	struct sctp_transport *t;
-	struct list_head *pos;
 
 	/* Start a heartbeat timer for each transport on the association.
 	 * hold a reference on the transport to make sure none of
 	 * the needed data structures go away.
 	 */
-	list_for_each(pos, &asoc->peer.transport_addr_list) {
-		t = list_entry(pos, struct sctp_transport, transports);
+	list_for_each_entry(t, &asoc->peer.transport_addr_list, transports) {
 
 		if (!mod_timer(&t->hb_timer, sctp_transport_timeout(t)))
 			sctp_transport_hold(t);
@@ -563,12 +561,11 @@ static void sctp_cmd_hb_timers_stop(sctp_cmd_seq_t *cmds,
 				    struct sctp_association *asoc)
 {
 	struct sctp_transport *t;
-	struct list_head *pos;
 
 	/* Stop all heartbeat timers. */
 
-	list_for_each(pos, &asoc->peer.transport_addr_list) {
-		t = list_entry(pos, struct sctp_transport, transports);
+	list_for_each_entry(t, &asoc->peer.transport_addr_list,
+			transports) {
 		if (del_timer(&t->hb_timer))
 			sctp_transport_put(t);
 	}
@@ -579,10 +576,9 @@ static void sctp_cmd_t3_rtx_timers_stop(sctp_cmd_seq_t *cmds,
 					struct sctp_association *asoc)
 {
 	struct sctp_transport *t;
-	struct list_head *pos;
 
-	list_for_each(pos, &asoc->peer.transport_addr_list) {
-		t = list_entry(pos, struct sctp_transport, transports);
+	list_for_each_entry(t, &asoc->peer.transport_addr_list,
+			transports) {
 		if (timer_pending(&t->T3_rtx_timer) &&
 		    del_timer(&t->T3_rtx_timer)) {
 			sctp_transport_put(t);
@@ -593,7 +589,6 @@ static void sctp_cmd_t3_rtx_timers_stop(sctp_cmd_seq_t *cmds,
 
 /* Helper function to update the heartbeat timer. */
 static void sctp_cmd_hb_timer_update(sctp_cmd_seq_t *cmds,
-				     struct sctp_association *asoc,
 				     struct sctp_transport *t)
 {
 	/* Update the heartbeat timer.  */
@@ -1065,7 +1060,6 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 	struct sctp_chunk *new_obj;
 	struct sctp_chunk *chunk = NULL;
 	struct sctp_packet *packet;
-	struct list_head *pos;
 	struct timer_list *timer;
 	unsigned long timeout;
 	struct sctp_transport *t;
@@ -1397,9 +1391,8 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			/* If we've sent any data bundled with
 			 * COOKIE-ECHO we need to resend.
 			 */
-			list_for_each(pos, &asoc->peer.transport_addr_list) {
-				t = list_entry(pos, struct sctp_transport,
-					       transports);
+			list_for_each_entry(t, &asoc->peer.transport_addr_list,
+					transports) {
 				sctp_retransmit_mark(&asoc->outqueue, t,
 					    SCTP_RTXR_T1_RTX);
 			}
@@ -1457,7 +1450,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 
 		case SCTP_CMD_HB_TIMER_UPDATE:
 			t = cmd->obj.transport;
-			sctp_cmd_hb_timer_update(commands, asoc, t);
+			sctp_cmd_hb_timer_update(commands, t);
 			break;
 
 		case SCTP_CMD_HB_TIMERS_STOP:

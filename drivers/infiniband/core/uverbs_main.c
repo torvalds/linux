@@ -352,7 +352,7 @@ static int ib_uverbs_event_close(struct inode *inode, struct file *filp)
 	struct ib_uverbs_event *entry, *tmp;
 
 	spin_lock_irq(&file->lock);
-	file->file = NULL;
+	file->is_closed = 1;
 	list_for_each_entry_safe(entry, tmp, &file->event_list, list) {
 		if (entry->counter)
 			list_del(&entry->obj_list);
@@ -390,7 +390,7 @@ void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
 		return;
 
 	spin_lock_irqsave(&file->lock, flags);
-	if (!file->file) {
+	if (file->is_closed) {
 		spin_unlock_irqrestore(&file->lock, flags);
 		return;
 	}
@@ -423,7 +423,7 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 	unsigned long flags;
 
 	spin_lock_irqsave(&file->async_file->lock, flags);
-	if (!file->async_file->file) {
+	if (!file->async_file->is_closed) {
 		spin_unlock_irqrestore(&file->async_file->lock, flags);
 		return;
 	}
@@ -509,6 +509,7 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	ev_file->uverbs_file = uverbs_file;
 	ev_file->async_queue = NULL;
 	ev_file->is_async    = is_async;
+	ev_file->is_closed   = 0;
 
 	*fd = get_unused_fd();
 	if (*fd < 0) {
@@ -516,25 +517,18 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 		goto err;
 	}
 
-	filp = get_empty_filp();
-	if (!filp) {
-		ret = -ENFILE;
-		goto err_fd;
-	}
-
-	ev_file->file      = filp;
-
 	/*
 	 * fops_get() can't fail here, because we're coming from a
 	 * system call on a uverbs file, which will already have a
 	 * module reference.
 	 */
-	filp->f_op 	   = fops_get(&uverbs_event_fops);
-	filp->f_path.mnt 	   = mntget(uverbs_event_mnt);
-	filp->f_path.dentry 	   = dget(uverbs_event_mnt->mnt_root);
-	filp->f_mapping    = filp->f_path.dentry->d_inode->i_mapping;
-	filp->f_flags      = O_RDONLY;
-	filp->f_mode       = FMODE_READ;
+	filp = alloc_file(uverbs_event_mnt, dget(uverbs_event_mnt->mnt_root),
+			  FMODE_READ, fops_get(&uverbs_event_fops));
+	if (!filp) {
+		ret = -ENFILE;
+		goto err_fd;
+	}
+
 	filp->private_data = ev_file;
 
 	return filp;
@@ -696,27 +690,29 @@ static struct ib_client uverbs_client = {
 	.remove = ib_uverbs_remove_one
 };
 
-static ssize_t show_ibdev(struct class_device *class_dev, char *buf)
+static ssize_t show_ibdev(struct device *device, struct device_attribute *attr,
+			  char *buf)
 {
-	struct ib_uverbs_device *dev = class_get_devdata(class_dev);
+	struct ib_uverbs_device *dev = dev_get_drvdata(device);
 
 	if (!dev)
 		return -ENODEV;
 
 	return sprintf(buf, "%s\n", dev->ib_dev->name);
 }
-static CLASS_DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
+static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
 
-static ssize_t show_dev_abi_version(struct class_device *class_dev, char *buf)
+static ssize_t show_dev_abi_version(struct device *device,
+				    struct device_attribute *attr, char *buf)
 {
-	struct ib_uverbs_device *dev = class_get_devdata(class_dev);
+	struct ib_uverbs_device *dev = dev_get_drvdata(device);
 
 	if (!dev)
 		return -ENODEV;
 
 	return sprintf(buf, "%d\n", dev->ib_dev->uverbs_abi_ver);
 }
-static CLASS_DEVICE_ATTR(abi_version, S_IRUGO, show_dev_abi_version, NULL);
+static DEVICE_ATTR(abi_version, S_IRUGO, show_dev_abi_version, NULL);
 
 static ssize_t show_abi_version(struct class *class, char *buf)
 {
@@ -750,27 +746,26 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	uverbs_dev->ib_dev           = device;
 	uverbs_dev->num_comp_vectors = device->num_comp_vectors;
 
-	uverbs_dev->dev = cdev_alloc();
-	if (!uverbs_dev->dev)
+	uverbs_dev->cdev = cdev_alloc();
+	if (!uverbs_dev->cdev)
 		goto err;
-	uverbs_dev->dev->owner = THIS_MODULE;
-	uverbs_dev->dev->ops = device->mmap ? &uverbs_mmap_fops : &uverbs_fops;
-	kobject_set_name(&uverbs_dev->dev->kobj, "uverbs%d", uverbs_dev->devnum);
-	if (cdev_add(uverbs_dev->dev, IB_UVERBS_BASE_DEV + uverbs_dev->devnum, 1))
+	uverbs_dev->cdev->owner = THIS_MODULE;
+	uverbs_dev->cdev->ops = device->mmap ? &uverbs_mmap_fops : &uverbs_fops;
+	kobject_set_name(&uverbs_dev->cdev->kobj, "uverbs%d", uverbs_dev->devnum);
+	if (cdev_add(uverbs_dev->cdev, IB_UVERBS_BASE_DEV + uverbs_dev->devnum, 1))
 		goto err_cdev;
 
-	uverbs_dev->class_dev = class_device_create(uverbs_class, NULL,
-						    uverbs_dev->dev->dev,
-						    device->dma_device,
-						    "uverbs%d", uverbs_dev->devnum);
-	if (IS_ERR(uverbs_dev->class_dev))
+	uverbs_dev->dev = device_create(uverbs_class, device->dma_device,
+					uverbs_dev->cdev->dev,
+					"uverbs%d", uverbs_dev->devnum);
+	if (IS_ERR(uverbs_dev->dev))
 		goto err_cdev;
 
-	class_set_devdata(uverbs_dev->class_dev, uverbs_dev);
+	dev_set_drvdata(uverbs_dev->dev, uverbs_dev);
 
-	if (class_device_create_file(uverbs_dev->class_dev, &class_device_attr_ibdev))
+	if (device_create_file(uverbs_dev->dev, &dev_attr_ibdev))
 		goto err_class;
-	if (class_device_create_file(uverbs_dev->class_dev, &class_device_attr_abi_version))
+	if (device_create_file(uverbs_dev->dev, &dev_attr_abi_version))
 		goto err_class;
 
 	spin_lock(&map_lock);
@@ -782,10 +777,10 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	return;
 
 err_class:
-	class_device_destroy(uverbs_class, uverbs_dev->dev->dev);
+	device_destroy(uverbs_class, uverbs_dev->cdev->dev);
 
 err_cdev:
-	cdev_del(uverbs_dev->dev);
+	cdev_del(uverbs_dev->cdev);
 	clear_bit(uverbs_dev->devnum, dev_map);
 
 err:
@@ -802,9 +797,9 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 	if (!uverbs_dev)
 		return;
 
-	class_set_devdata(uverbs_dev->class_dev, NULL);
-	class_device_destroy(uverbs_class, uverbs_dev->dev->dev);
-	cdev_del(uverbs_dev->dev);
+	dev_set_drvdata(uverbs_dev->dev, NULL);
+	device_destroy(uverbs_class, uverbs_dev->cdev->dev);
+	cdev_del(uverbs_dev->cdev);
 
 	spin_lock(&map_lock);
 	dev_table[uverbs_dev->devnum] = NULL;

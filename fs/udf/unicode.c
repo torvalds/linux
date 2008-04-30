@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>	/* for memset */
 #include <linux/nls.h>
-#include <linux/udf_fs.h>
+#include <linux/crc-itu-t.h>
 
 #include "udf_sb.h"
 
@@ -49,14 +49,16 @@ int udf_build_ustr(struct ustr *dest, dstring *ptr, int size)
 {
 	int usesize;
 
-	if ((!dest) || (!ptr) || (!size))
+	if (!dest || !ptr || !size)
 		return -1;
+	BUG_ON(size < 2);
 
-	memset(dest, 0, sizeof(struct ustr));
-	usesize = (size > UDF_NAME_LEN) ? UDF_NAME_LEN : size;
+	usesize = min_t(size_t, ptr[size - 1], sizeof(dest->u_name));
+	usesize = min(usesize, size - 2);
 	dest->u_cmpID = ptr[0];
-	dest->u_len = ptr[size - 1];
-	memcpy(dest->u_name, ptr + 1, usesize - 1);
+	dest->u_len = usesize;
+	memcpy(dest->u_name, ptr + 1, usesize);
+	memset(dest->u_name + usesize, 0, sizeof(dest->u_name) - usesize);
 
 	return 0;
 }
@@ -83,9 +85,6 @@ static int udf_build_ustr_exact(struct ustr *dest, dstring *ptr, int exactsize)
  * PURPOSE
  *	Convert OSTA Compressed Unicode to the UTF-8 equivalent.
  *
- * DESCRIPTION
- *	This routine is only called by udf_filldir().
- *
  * PRE-CONDITIONS
  *	utf			Pointer to UTF-8 output buffer.
  *	ocu			Pointer to OSTA Compressed Unicode input buffer
@@ -99,43 +98,39 @@ static int udf_build_ustr_exact(struct ustr *dest, dstring *ptr, int exactsize)
  *	November 12, 1997 - Andrew E. Mileski
  *	Written, tested, and released.
  */
-int udf_CS0toUTF8(struct ustr *utf_o, struct ustr *ocu_i)
+int udf_CS0toUTF8(struct ustr *utf_o, const struct ustr *ocu_i)
 {
-	uint8_t *ocu;
-	uint32_t c;
+	const uint8_t *ocu;
 	uint8_t cmp_id, ocu_len;
 	int i;
 
-	ocu = ocu_i->u_name;
-
 	ocu_len = ocu_i->u_len;
-	cmp_id = ocu_i->u_cmpID;
-	utf_o->u_len = 0;
-
 	if (ocu_len == 0) {
 		memset(utf_o, 0, sizeof(struct ustr));
-		utf_o->u_cmpID = 0;
-		utf_o->u_len = 0;
 		return 0;
 	}
 
-	if ((cmp_id != 8) && (cmp_id != 16)) {
+	cmp_id = ocu_i->u_cmpID;
+	if (cmp_id != 8 && cmp_id != 16) {
+		memset(utf_o, 0, sizeof(struct ustr));
 		printk(KERN_ERR "udf: unknown compression code (%d) stri=%s\n",
 		       cmp_id, ocu_i->u_name);
 		return 0;
 	}
 
+	ocu = ocu_i->u_name;
+	utf_o->u_len = 0;
 	for (i = 0; (i < ocu_len) && (utf_o->u_len <= (UDF_NAME_LEN - 3));) {
 
 		/* Expand OSTA compressed Unicode to Unicode */
-		c = ocu[i++];
+		uint32_t c = ocu[i++];
 		if (cmp_id == 16)
 			c = (c << 8) | ocu[i++];
 
 		/* Compress Unicode to UTF-8 */
-		if (c < 0x80U) {
+		if (c < 0x80U)
 			utf_o->u_name[utf_o->u_len++] = (uint8_t)c;
-		} else if (c < 0x800U) {
+		else if (c < 0x800U) {
 			utf_o->u_name[utf_o->u_len++] =
 						(uint8_t)(0xc0 | (c >> 6));
 			utf_o->u_name[utf_o->u_len++] =
@@ -255,35 +250,32 @@ error_out:
 }
 
 static int udf_CS0toNLS(struct nls_table *nls, struct ustr *utf_o,
-			struct ustr *ocu_i)
+			const struct ustr *ocu_i)
 {
-	uint8_t *ocu;
-	uint32_t c;
+	const uint8_t *ocu;
 	uint8_t cmp_id, ocu_len;
 	int i;
 
-	ocu = ocu_i->u_name;
 
 	ocu_len = ocu_i->u_len;
-	cmp_id = ocu_i->u_cmpID;
-	utf_o->u_len = 0;
-
 	if (ocu_len == 0) {
 		memset(utf_o, 0, sizeof(struct ustr));
-		utf_o->u_cmpID = 0;
-		utf_o->u_len = 0;
 		return 0;
 	}
 
-	if ((cmp_id != 8) && (cmp_id != 16)) {
+	cmp_id = ocu_i->u_cmpID;
+	if (cmp_id != 8 && cmp_id != 16) {
+		memset(utf_o, 0, sizeof(struct ustr));
 		printk(KERN_ERR "udf: unknown compression code (%d) stri=%s\n",
 		       cmp_id, ocu_i->u_name);
 		return 0;
 	}
 
+	ocu = ocu_i->u_name;
+	utf_o->u_len = 0;
 	for (i = 0; (i < ocu_len) && (utf_o->u_len <= (UDF_NAME_LEN - 3));) {
 		/* Expand OSTA compressed Unicode to Unicode */
-		c = ocu[i++];
+		uint32_t c = ocu[i++];
 		if (cmp_id == 16)
 			c = (c << 8) | ocu[i++];
 
@@ -463,7 +455,7 @@ static int udf_translate_to_linux(uint8_t *newName, uint8_t *udfName,
 		} else if (newIndex > 250)
 			newIndex = 250;
 		newName[newIndex++] = CRC_MARK;
-		valueCRC = udf_crc(fidName, fidNameLen, 0);
+		valueCRC = crc_itu_t(0, fidName, fidNameLen);
 		newName[newIndex++] = hexChar[(valueCRC & 0xf000) >> 12];
 		newName[newIndex++] = hexChar[(valueCRC & 0x0f00) >> 8];
 		newName[newIndex++] = hexChar[(valueCRC & 0x00f0) >> 4];

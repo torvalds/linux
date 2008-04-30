@@ -406,6 +406,8 @@ __set_psw_mask(unsigned long mask)
 #define local_mcck_enable()  __set_psw_mask(psw_kernel_bits)
 #define local_mcck_disable() __set_psw_mask(psw_kernel_bits & ~PSW_MASK_MCHECK)
 
+int stfle(unsigned long long *list, int doublewords);
+
 #ifdef CONFIG_SMP
 
 extern void smp_ctl_set_bit(int cr, int bit);

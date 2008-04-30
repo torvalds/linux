@@ -34,7 +34,7 @@ void __delay(unsigned long loops)
  */
 void __udelay(unsigned long usecs)
 {
-	u64 end, time, jiffy_timer = 0;
+	u64 end, time, old_cc = 0;
 	unsigned long flags, cr0, mask, dummy;
 	int irq_context;
 
@@ -43,8 +43,8 @@ void __udelay(unsigned long usecs)
 		local_bh_disable();
 	local_irq_save(flags);
 	if (raw_irqs_disabled_flags(flags)) {
-		jiffy_timer = S390_lowcore.jiffy_timer;
-		S390_lowcore.jiffy_timer = -1ULL - (4096 << 12);
+		old_cc = S390_lowcore.clock_comparator;
+		S390_lowcore.clock_comparator = -1ULL;
 		__ctl_store(cr0, 0, 0);
 		dummy = (cr0 & 0xffff00e0) | 0x00000800;
 		__ctl_load(dummy , 0, 0);
@@ -55,8 +55,8 @@ void __udelay(unsigned long usecs)
 
 	end = get_clock() + ((u64) usecs << 12);
 	do {
-		time = end < S390_lowcore.jiffy_timer ?
-			end : S390_lowcore.jiffy_timer;
+		time = end < S390_lowcore.clock_comparator ?
+			end : S390_lowcore.clock_comparator;
 		set_clock_comparator(time);
 		trace_hardirqs_on();
 		__load_psw_mask(mask);
@@ -65,10 +65,10 @@ void __udelay(unsigned long usecs)
 
 	if (raw_irqs_disabled_flags(flags)) {
 		__ctl_load(cr0, 0, 0);
-		S390_lowcore.jiffy_timer = jiffy_timer;
+		S390_lowcore.clock_comparator = old_cc;
 	}
 	if (!irq_context)
 		_local_bh_enable();
-	set_clock_comparator(S390_lowcore.jiffy_timer);
+	set_clock_comparator(S390_lowcore.clock_comparator);
 	local_irq_restore(flags);
 }

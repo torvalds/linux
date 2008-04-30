@@ -60,11 +60,6 @@ struct _urb {
 	struct urb        urb;
 };
 
-static inline void _urb_free(struct _urb *_urb)
-{
-	kfree(_urb);
-}
-
 static inline void _urb_queue_init(struct _urb_queue *q)
 {
 	INIT_LIST_HEAD(&q->head);

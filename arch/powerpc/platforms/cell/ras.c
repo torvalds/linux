@@ -132,7 +132,7 @@ static int __init cbe_ptcal_enable_on_node(int nid, int order)
 				(unsigned int)(addr >> 32),
 				(unsigned int)(addr & 0xffffffff))) {
 		printk(KERN_ERR "%s: error enabling PTCAL on node %d!\n",
-				__FUNCTION__, nid);
+				__func__, nid);
 		goto out_free_pages;
 	}
 
@@ -162,7 +162,7 @@ static int __init cbe_ptcal_enable(void)
 	if (!size)
 		return -ENODEV;
 
-	pr_debug("%s: enabling PTCAL, size = 0x%x\n", __FUNCTION__, *size);
+	pr_debug("%s: enabling PTCAL, size = 0x%x\n", __func__, *size);
 	order = get_order(*size);
 	of_node_put(np);
 
@@ -180,7 +180,7 @@ static int __init cbe_ptcal_enable(void)
 		const u32 *nid = of_get_property(np, "node-id", NULL);
 		if (!nid) {
 			printk(KERN_ERR "%s: node %s is missing node-id?\n",
-					__FUNCTION__, np->full_name);
+					__func__, np->full_name);
 			continue;
 		}
 		cbe_ptcal_enable_on_node(*nid, order);
@@ -195,13 +195,13 @@ static int cbe_ptcal_disable(void)
 	struct ptcal_area *area, *tmp;
 	int ret = 0;
 
-	pr_debug("%s: disabling PTCAL\n", __FUNCTION__);
+	pr_debug("%s: disabling PTCAL\n", __func__);
 
 	list_for_each_entry_safe(area, tmp, &ptcal_list, list) {
 		/* disable ptcal on this node */
 		if (rtas_call(ptcal_stop_tok, 1, 1, NULL, area->nid)) {
 			printk(KERN_ERR "%s: error disabling PTCAL "
-					"on node %d!\n", __FUNCTION__,
+					"on node %d!\n", __func__,
 					area->nid);
 			ret = -EIO;
 			continue;

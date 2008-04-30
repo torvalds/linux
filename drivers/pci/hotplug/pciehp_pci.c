@@ -40,7 +40,7 @@ static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
 
 	if (hpp->revision > 1) {
 		printk(KERN_WARNING "%s: Rev.%d type0 record not supported\n",
-		       __FUNCTION__, hpp->revision);
+		       __func__, hpp->revision);
 		return;
 	}
 
@@ -82,7 +82,7 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 
 	if (hpp->revision > 1) {
 		printk(KERN_WARNING "%s: Rev.%d type2 record not supported\n",
-		       __FUNCTION__, hpp->revision);
+		       __func__, hpp->revision);
 		return;
 	}
 
@@ -150,7 +150,7 @@ static void program_fw_provided_values(struct pci_dev *dev)
 
 	if (pciehp_get_hp_params_from_firmware(dev, &hpp)) {
 		printk(KERN_WARNING "%s: Could not get hotplug parameters\n",
-		       __FUNCTION__);
+		       __func__);
 		return;
 	}
 
@@ -245,7 +245,7 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
 	u16 command;
 
-	dbg("%s: bus/dev = %x/%x\n", __FUNCTION__, p_slot->bus,
+	dbg("%s: bus/dev = %x/%x\n", __func__, p_slot->bus,
 				p_slot->device);
 	ret = p_slot->hpc_ops->get_adapter_status(p_slot, &presence);
 	if (ret)

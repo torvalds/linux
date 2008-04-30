@@ -5,7 +5,7 @@
 
 #define THREAD_ORDER	1
 #define THREAD_SIZE  (PAGE_SIZE << THREAD_ORDER)
-#define CURRENT_MASK (~(THREAD_SIZE-1))
+#define CURRENT_MASK (~(THREAD_SIZE - 1))
 
 #define EXCEPTION_STACK_ORDER 0
 #define EXCEPTION_STKSZ (PAGE_SIZE << EXCEPTION_STACK_ORDER)
@@ -48,10 +48,10 @@
 #define __VIRTUAL_MASK_SHIFT	48
 
 /*
- * Kernel image size is limited to 128 MB (see level2_kernel_pgt in
+ * Kernel image size is limited to 512 MB (see level2_kernel_pgt in
  * arch/x86/kernel/head_64.S), and it is mapped here:
  */
-#define KERNEL_IMAGE_SIZE	(128*1024*1024)
+#define KERNEL_IMAGE_SIZE	(512 * 1024 * 1024)
 #define KERNEL_IMAGE_START	_AC(0xffffffff80000000, UL)
 
 #ifndef __ASSEMBLY__
@@ -59,7 +59,6 @@ void clear_page(void *page);
 void copy_page(void *to, void *from);
 
 extern unsigned long end_pfn;
-extern unsigned long end_pfn_map;
 extern unsigned long phys_base;
 
 extern unsigned long __phys_addr(unsigned long);
@@ -80,6 +79,9 @@ typedef struct page *pgtable_t;
 typedef struct { pteval_t pte; } pte_t;
 
 #define vmemmap ((struct page *)VMEMMAP_START)
+
+extern unsigned long init_memory_mapping(unsigned long start,
+					 unsigned long end);
 
 #endif	/* !__ASSEMBLY__ */
 

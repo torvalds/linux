@@ -47,7 +47,8 @@ esp_mt(const struct sk_buff *skb, const struct net_device *in,
        const struct net_device *out, const struct xt_match *match,
        const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
-	struct ip_esp_hdr _esp, *eh;
+	const struct ip_esp_hdr *eh;
+	struct ip_esp_hdr _esp;
 	const struct xt_esp *espinfo = matchinfo;
 
 	/* Must not be a fragment. */

@@ -216,7 +216,7 @@ vgetcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *tcache)
 	return 0;
 }
 
-long __vsyscall(3) venosys_1(void)
+static long __vsyscall(3) venosys_1(void)
 {
 	return -ENOSYS;
 }

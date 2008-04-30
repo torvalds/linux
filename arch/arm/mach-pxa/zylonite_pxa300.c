@@ -21,7 +21,7 @@
 #include <asm/arch/mfp-pxa300.h>
 #include <asm/arch/zylonite.h>
 
-#define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
+#include "generic.h"
 
 /* PXA300/PXA310 common configurations */
 static mfp_cfg_t common_mfp_cfg[] __initdata = {
@@ -68,6 +68,9 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	GPIO25_AC97_SDATA_IN_0,
 	GPIO27_AC97_SDATA_OUT,
 	GPIO28_AC97_SYNC,
+
+	/* WM9713 IRQ */
+	GPIO26_GPIO,
 
 	/* Keypad */
 	GPIO107_KP_DKIN_0 | MFP_LPM_EDGE_BOTH,
@@ -203,6 +206,9 @@ void __init zylonite_pxa300_init(void)
 		/* MMC card detect & write protect for controller 0 */
 		zylonite_mmc_slot[0].gpio_cd  = EXT_GPIO(0);
 		zylonite_mmc_slot[0].gpio_wp  = EXT_GPIO(2);
+
+		/* WM9713 IRQ */
+		wm9713_irq = mfp_to_gpio(MFP_PIN_GPIO26);
 	}
 
 	if (cpu_is_pxa300()) {

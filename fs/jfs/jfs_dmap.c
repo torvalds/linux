@@ -2172,7 +2172,7 @@ static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	}
 
 	/* update the free count for this dmap */
-	dp->nfree = cpu_to_le32(le32_to_cpu(dp->nfree) - nblocks);
+	le32_add_cpu(&dp->nfree, -nblocks);
 
 	BMAP_LOCK(bmp);
 
@@ -2316,7 +2316,7 @@ static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 
 	/* update the free count for this dmap.
 	 */
-	dp->nfree = cpu_to_le32(le32_to_cpu(dp->nfree) + nblocks);
+	le32_add_cpu(&dp->nfree, nblocks);
 
 	BMAP_LOCK(bmp);
 
@@ -3226,7 +3226,7 @@ static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	}
 
 	/* update the free count for this dmap */
-	dp->nfree = cpu_to_le32(le32_to_cpu(dp->nfree) - nblocks);
+	le32_add_cpu(&dp->nfree, -nblocks);
 
 	/* reconstruct summary tree */
 	dbInitDmapTree(dp);
@@ -3660,9 +3660,8 @@ static int dbInitDmap(struct dmap * dp, s64 Blkno, int nblocks)
 			goto initTree;
 		}
 	} else {
-		dp->nblocks =
-		    cpu_to_le32(le32_to_cpu(dp->nblocks) + nblocks);
-		dp->nfree = cpu_to_le32(le32_to_cpu(dp->nfree) + nblocks);
+		le32_add_cpu(&dp->nblocks, nblocks);
+		le32_add_cpu(&dp->nfree, nblocks);
 	}
 
 	/* word number containing start block number */

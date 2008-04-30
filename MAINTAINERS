@@ -486,6 +486,12 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/GUMSTIX MACHINE SUPPORT
+P:	Steve Sakoman
+M:	sakoman@gmail.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+
 ARM/HP JORNADA 7XX MACHINE SUPPORT
 P:      Kristoffer Ericson
 M:      kristoffer.ericson@gmail.com
@@ -678,6 +684,11 @@ L:	linux-wireless@vger.kernel.org
 L:	ath5k-devel@lists.ath5k.org
 S:	Maintained
 
+ATI_REMOTE2 DRIVER
+P:	Ville Syrjala
+M:	syrjala@sci.fi
+S:	Maintained
+
 ATL1 ETHERNET DRIVER
 P:	Jay Cliburn
 M:	jcliburn@gmail.com
@@ -839,15 +850,6 @@ M:	stefano.brivio@polimi.it
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/en/users/Drivers/b43
 S:	Maintained
-
-BCM43XX WIRELESS DRIVER (SOFTMAC BASED VERSION)
-P:	Larry Finger
-M:	Larry.Finger@lwfinger.net
-P:	Stefano Brivio
-M:	stefano.brivio@polimi.it
-L:	linux-wireless@vger.kernel.org
-W:	http://bcm43xx.berlios.de/
-S:	Obsolete
 
 BEFS FILE SYSTEM
 P:	Sergey S. Kostyliov
@@ -1103,6 +1105,12 @@ P:	Lennert Buytenhek
 M:	kernel@wantstofly.org
 L:	linux-usb@vger.kernel.org
 S:	Maintained
+
+CIRRUS LOGIC CS4270 SOUND DRIVER
+P:	Timur Tabi
+M:	timur@freescale.com
+L:	alsa-devel@alsa-project.org
+S:	Supported
 
 CIRRUS LOGIC CS4280/CS461x SOUNDDRIVER
 P:	Cirrus Logic Corporation (kernel 2.2 driver)
@@ -1523,6 +1531,13 @@ L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 
+EEEPC LAPTOP EXTRAS DRIVER
+P:	Corentin Chary
+M:	corentincj@iksaif.net
+L:	acpi4asus-user@lists.sourceforge.net
+W:	http://sourceforge.net/projects/acpi4asus
+S:	Maintained
+
 EEPRO100 NETWORK DRIVER
 P:	Andrey V. Savochkin
 M:	saw@saw.sw.com.sg
@@ -1626,6 +1641,12 @@ L:	linuxppc-dev@ozlabs.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+FREESCALE QUICC ENGINE LIBRARY
+P:	Timur Tabi
+M:	timur@freescale.com
+L:	linuxppc-dev@ozlabs.org
+S:	Supported
+
 FREESCALE HIGHSPEED USB DEVICE DRIVER
 P:	Li Yang
 M:	leoli@freescale.com
@@ -1639,6 +1660,19 @@ M:	leoli@freescale.com
 L:	netdev@vger.kernel.org
 L:	linuxppc-dev@ozlabs.org
 S:	Maintained
+
+FREESCALE QUICC ENGINE UCC UART DRIVER
+P:	Timur Tabi
+M:	timur@freescale.com
+L:	linuxppc-dev@ozlabs.org
+S:	Supported
+
+FREESCALE SOC SOUND DRIVERS
+P:	Timur Tabi
+M:	timur@freescale.com
+L:	alsa-devel@alsa-project.org
+L:	linuxppc-dev@ozlabs.org
+S:	Supported
 
 FILE LOCKING (flock() and fcntl()/lockf())
 P:	Matthew Wilcox
@@ -2302,6 +2336,13 @@ L:	kvm-devel@lists.sourceforge.net
 W:	kvm.sourceforge.net
 S:	Supported
 
+KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC
+P:	Hollis Blanchard
+M:	hollisb@us.ibm.com
+L:	kvm-ppc-devel@lists.sourceforge.net
+W:	kvm.sourceforge.net
+S:	Supported
+
 KERNEL VIRTUAL MACHINE For Itanium(KVM/IA64)
 P:	Anthony Xu
 M:	anthony.xu@intel.com
@@ -2311,12 +2352,28 @@ L:	kvm-ia64-devel@lists.sourceforge.net
 W:	kvm.sourceforge.net
 S:	Supported
 
+KERNEL VIRTUAL MACHINE for s390 (KVM/s390)
+P:	Carsten Otte
+M:	cotte@de.ibm.com
+P:	Christian Borntraeger
+M:	borntraeger@de.ibm.com
+M:	linux390@de.ibm.com
+L:	linux-s390@vger.kernel.org
+W:	http://www.ibm.com/developerworks/linux/linux390/
+S:	Supported
+
 KEXEC
 P:	Eric Biederman
 M:	ebiederm@xmission.com
 W:	http://ftp.kernel.org/pub/linux/kernel/people/horms/kexec-tools/
 L:	linux-kernel@vger.kernel.org
 L:	kexec@lists.infradead.org
+S:	Maintained
+
+KGDB
+P:	Jason Wessel
+M:	jason.wessel@windriver.com
+L:	kgdb-bugreport@lists.sourceforge.net
 S:	Maintained
 
 KPROBES
@@ -2550,12 +2607,10 @@ W:	http://www.tazenda.demon.co.uk/phil/linux-hp
 S:	Maintained
 
 MAC80211
-P:	Michael Wu
-M:	flamingice@sourmilk.net
 P:	Johannes Berg
 M:	johannes@sipsolutions.net
-P:	Jiri Benc
-M:	jbenc@suse.cz
+P:	Michael Wu
+M:	flamingice@sourmilk.net
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git
@@ -2944,8 +2999,9 @@ P:	Mark Fasheh
 M:	mfasheh@suse.com
 P:	Joel Becker
 M:	joel.becker@oracle.com
-L:	ocfs2-devel@oss.oracle.com
+L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://oss.oracle.com/projects/ocfs2/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfasheh/ocfs2.git
 S:	Supported
 
 OMNIKEY CARDMAN 4000 DRIVER
@@ -3061,11 +3117,10 @@ L:	linux-pci@atrey.karlin.mff.cuni.cz
 S:	Supported
 
 PCI SUBSYSTEM
-P:	Greg Kroah-Hartman
-M:	gregkh@suse.de
+P:	Jesse Barnes
+M:	jbarnes@virtuousgeek.org
 L:	linux-kernel@vger.kernel.org
 L:	linux-pci@atrey.karlin.mff.cuni.cz
-T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
 S:	Supported
 
 PCI HOTPLUG CORE
@@ -3472,7 +3527,7 @@ P:	Vlad Yasevich
 M:	vladislav.yasevich@hp.com
 P:	Sridhar Samudrala
 M:	sri@us.ibm.com
-L:	lksctp-developers@lists.sourceforge.net
+L:	linux-sctp@vger.kernel.org
 W:	http://lksctp.sourceforge.net
 S:	Supported
 
@@ -3606,11 +3661,10 @@ M:	mhoffman@lightlink.com
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
-SOFTMAC LAYER (IEEE 802.11)
-P:	Daniel Drake
-M:	dsd@gentoo.org
-L:	linux-wireless@vger.kernel.org
-S:	Obsolete
+SMX UIO Interface
+P:	Ben Nizette
+M:	bn@niasdigital.com
+S:	Maintained
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
 P:	Ingo Molnar
@@ -4350,6 +4404,16 @@ M:	acme@ghostprotocols.net
 L:	linux-wireless@vger.kernel.org
 W:	http://oops.ghostprotocols.net:81/blog
 S:	Maintained
+
+WM97XX TOUCHSCREEN DRIVERS
+P:	Mark Brown
+M:	broonie@opensource.wolfsonmicro.com
+P:	Liam Girdwood
+M:	liam.girdwood@wolfsonmicro.com
+L:	linux-input@vger.kernel.org
+T:	git git://opensource.wolfsonmicro.com/linux-2.6-touch
+W:	http://opensource.wolfsonmicro.com/node/7
+S:	Supported
 
 X.25 NETWORK LAYER
 P:	Henner Eisen

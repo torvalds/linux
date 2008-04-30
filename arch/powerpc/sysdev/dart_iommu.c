@@ -37,6 +37,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 #include <linux/suspend.h>
+#include <linux/lmb.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -44,7 +45,6 @@
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
 #include <asm/cacheflush.h>
-#include <asm/lmb.h>
 #include <asm/ppc-pci.h>
 
 #include "dart.h"

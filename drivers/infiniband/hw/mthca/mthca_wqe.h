@@ -38,14 +38,16 @@
 #include <linux/types.h>
 
 enum {
-	MTHCA_NEXT_DBD       = 1 << 7,
-	MTHCA_NEXT_FENCE     = 1 << 6,
-	MTHCA_NEXT_CQ_UPDATE = 1 << 3,
-	MTHCA_NEXT_EVENT_GEN = 1 << 2,
-	MTHCA_NEXT_SOLICIT   = 1 << 1,
+	MTHCA_NEXT_DBD		= 1 << 7,
+	MTHCA_NEXT_FENCE	= 1 << 6,
+	MTHCA_NEXT_CQ_UPDATE	= 1 << 3,
+	MTHCA_NEXT_EVENT_GEN	= 1 << 2,
+	MTHCA_NEXT_SOLICIT	= 1 << 1,
+	MTHCA_NEXT_IP_CSUM	= 1 << 4,
+	MTHCA_NEXT_TCP_UDP_CSUM = 1 << 5,
 
-	MTHCA_MLX_VL15       = 1 << 17,
-	MTHCA_MLX_SLR        = 1 << 16
+	MTHCA_MLX_VL15		= 1 << 17,
+	MTHCA_MLX_SLR		= 1 << 16
 };
 
 enum {

@@ -2242,7 +2242,7 @@ const struct file_operations ocfs2_fops = {
 	.open		= ocfs2_file_open,
 	.aio_read	= ocfs2_file_aio_read,
 	.aio_write	= ocfs2_file_aio_write,
-	.ioctl		= ocfs2_ioctl,
+	.unlocked_ioctl	= ocfs2_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = ocfs2_compat_ioctl,
 #endif
@@ -2258,7 +2258,7 @@ const struct file_operations ocfs2_dops = {
 	.fsync		= ocfs2_sync_file,
 	.release	= ocfs2_dir_release,
 	.open		= ocfs2_dir_open,
-	.ioctl		= ocfs2_ioctl,
+	.unlocked_ioctl	= ocfs2_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = ocfs2_compat_ioctl,
 #endif

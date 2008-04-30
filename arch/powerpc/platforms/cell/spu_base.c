@@ -165,7 +165,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 	struct spu_slb slb;
 	int psize;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 
 	slb.esid = (ea & ESID_MASK) | SLB_ESID_V;
 
@@ -215,7 +215,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap); //XXX
 static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 {
-	pr_debug("%s, %lx, %lx\n", __FUNCTION__, dsisr, ea);
+	pr_debug("%s, %lx, %lx\n", __func__, dsisr, ea);
 
 	/* Handle kernel space hash faults immediately.
 	   User hash faults need to be deferred to process context. */
@@ -351,7 +351,7 @@ spu_irq_class_1(int irq, void *data)
 		__spu_trap_data_seg(spu, dar);
 
 	spin_unlock(&spu->register_lock);
-	pr_debug("%s: %lx %lx %lx %lx\n", __FUNCTION__, mask, stat,
+	pr_debug("%s: %lx %lx %lx %lx\n", __func__, mask, stat,
 			dar, dsisr);
 
 	if (stat & CLASS1_STORAGE_FAULT_INTR)
@@ -726,7 +726,7 @@ static int __init init_spu_base(void)
 
 	if (ret < 0) {
 		printk(KERN_WARNING "%s: Error initializing spus\n",
-			__FUNCTION__);
+			__func__);
 		goto out_unregister_sysdev_class;
 	}
 

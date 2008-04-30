@@ -356,6 +356,55 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 }
 
 /**
+ * Prepare a type6 CPRB message for random number generation
+ *
+ * @ap_dev: AP device pointer
+ * @ap_msg: pointer to AP message
+ */
+static void rng_type6CPRB_msgX(struct ap_device *ap_dev,
+			       struct ap_message *ap_msg,
+			       unsigned random_number_length)
+{
+	struct {
+		struct type6_hdr hdr;
+		struct CPRBX cprbx;
+		char function_code[2];
+		short int rule_length;
+		char rule[8];
+		short int verb_length;
+		short int key_length;
+	} __attribute__((packed)) *msg = ap_msg->message;
+	static struct type6_hdr static_type6_hdrX = {
+		.type		= 0x06,
+		.offset1	= 0x00000058,
+		.agent_id	= {'C', 'A'},
+		.function_code	= {'R', 'L'},
+		.ToCardLen1	= sizeof *msg - sizeof(msg->hdr),
+		.FromCardLen1	= sizeof *msg - sizeof(msg->hdr),
+	};
+	static struct CPRBX static_cprbx = {
+		.cprb_len	= 0x00dc,
+		.cprb_ver_id	= 0x02,
+		.func_id	= {0x54, 0x32},
+		.req_parml	= sizeof *msg - sizeof(msg->hdr) -
+				  sizeof(msg->cprbx),
+		.rpl_msgbl	= sizeof *msg - sizeof(msg->hdr),
+	};
+
+	msg->hdr = static_type6_hdrX;
+	msg->hdr.FromCardLen2 = random_number_length,
+	msg->cprbx = static_cprbx;
+	msg->cprbx.rpl_datal = random_number_length,
+	msg->cprbx.domain = AP_QID_QUEUE(ap_dev->qid);
+	memcpy(msg->function_code, msg->hdr.function_code, 0x02);
+	msg->rule_length = 0x0a;
+	memcpy(msg->rule, "RANDOM  ", 8);
+	msg->verb_length = 0x02;
+	msg->key_length = 0x02;
+	ap_msg->length = sizeof *msg;
+}
+
+/**
  * Copy results from a type 86 ICA reply message back to user space.
  *
  * @zdev: crypto device pointer
@@ -452,7 +501,7 @@ static int convert_type86_ica(struct zcrypt_device *zdev,
 	reply_len = msg->length - 2;
 	if (reply_len > outputdatalength)
 		return -EINVAL;
-	/**
+	/*
 	 * For all encipher requests, the length of the ciphertext (reply_len)
 	 * will always equal the modulus length. For MEX decipher requests
 	 * the output needs to get padded. Minimum pad size is 10.
@@ -509,6 +558,26 @@ static int convert_type86_xcrb(struct zcrypt_device *zdev,
 	return 0;
 }
 
+static int convert_type86_rng(struct zcrypt_device *zdev,
+			  struct ap_message *reply,
+			  char *buffer)
+{
+	struct {
+		struct type86_hdr hdr;
+		struct type86_fmt2_ext fmt2;
+		struct CPRBX cprbx;
+	} __attribute__((packed)) *msg = reply->message;
+	char *data = reply->message;
+
+	if (msg->cprbx.ccp_rtcode != 0 || msg->cprbx.ccp_rscode != 0) {
+		PDEBUG("RNG response error on PCIXCC/CEX2C rc=%hu/rs=%hu\n",
+		       rc, rs);
+		return -EINVAL;
+	}
+	memcpy(buffer, data + msg->fmt2.offset2, msg->fmt2.count2);
+	return msg->fmt2.count2;
+}
+
 static int convert_response_ica(struct zcrypt_device *zdev,
 			    struct ap_message *reply,
 			    char __user *outputdata,
@@ -562,6 +631,31 @@ static int convert_response_xcrb(struct zcrypt_device *zdev,
 		       *(unsigned int *) reply->message,
 		       *(unsigned int *) (reply->message+4));
 		xcRB->status = 0x0008044DL; /* HDD_InvalidParm */
+		zdev->online = 0;
+		return -EAGAIN;	/* repeat the request on a different device. */
+	}
+}
+
+static int convert_response_rng(struct zcrypt_device *zdev,
+				 struct ap_message *reply,
+				 char *data)
+{
+	struct type86x_reply *msg = reply->message;
+
+	switch (msg->hdr.type) {
+	case TYPE82_RSP_CODE:
+	case TYPE88_RSP_CODE:
+		return -EINVAL;
+	case TYPE86_RSP_CODE:
+		if (msg->hdr.reply_code)
+			return -EINVAL;
+		if (msg->cprbx.cprb_ver_id == 0x02)
+			return convert_type86_rng(zdev, reply, data);
+		/* no break, incorrect cprb version is an unknown response */
+	default: /* Unknown response type, this should NEVER EVER happen */
+		PRINTK("Unrecognized Message Header: %08x%08x\n",
+		       *(unsigned int *) reply->message,
+		       *(unsigned int *) (reply->message+4));
 		zdev->online = 0;
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
@@ -736,12 +830,55 @@ out_free:
 }
 
 /**
+ * The request distributor calls this function if it picked the PCIXCC/CEX2C
+ * device to generate random data.
+ * @zdev: pointer to zcrypt_device structure that identifies the
+ *	  PCIXCC/CEX2C device to the request distributor
+ * @buffer: pointer to a memory page to return random data
+ */
+
+static long zcrypt_pcixcc_rng(struct zcrypt_device *zdev,
+				    char *buffer)
+{
+	struct ap_message ap_msg;
+	struct response_type resp_type = {
+		.type = PCIXCC_RESPONSE_TYPE_XCRB,
+	};
+	int rc;
+
+	ap_msg.message = kmalloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE, GFP_KERNEL);
+	if (!ap_msg.message)
+		return -ENOMEM;
+	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
+				atomic_inc_return(&zcrypt_step);
+	ap_msg.private = &resp_type;
+	rng_type6CPRB_msgX(zdev->ap_dev, &ap_msg, ZCRYPT_RNG_BUFFER_SIZE);
+	init_completion(&resp_type.work);
+	ap_queue_message(zdev->ap_dev, &ap_msg);
+	rc = wait_for_completion_interruptible(&resp_type.work);
+	if (rc == 0)
+		rc = convert_response_rng(zdev, &ap_msg, buffer);
+	else
+		/* Signal pending. */
+		ap_cancel_message(zdev->ap_dev, &ap_msg);
+	kfree(ap_msg.message);
+	return rc;
+}
+
+/**
  * The crypto operations for a PCIXCC/CEX2C card.
  */
 static struct zcrypt_ops zcrypt_pcixcc_ops = {
 	.rsa_modexpo = zcrypt_pcixcc_modexpo,
 	.rsa_modexpo_crt = zcrypt_pcixcc_modexpo_crt,
 	.send_cprb = zcrypt_pcixcc_send_cprb,
+};
+
+static struct zcrypt_ops zcrypt_pcixcc_with_rng_ops = {
+	.rsa_modexpo = zcrypt_pcixcc_modexpo,
+	.rsa_modexpo_crt = zcrypt_pcixcc_modexpo_crt,
+	.send_cprb = zcrypt_pcixcc_send_cprb,
+	.rng = zcrypt_pcixcc_rng,
 };
 
 /**
@@ -859,6 +996,58 @@ out_free:
 }
 
 /**
+ * Large random number detection function. Its sends a message to a pcixcc
+ * card to find out if large random numbers are supported.
+ * @ap_dev: pointer to the AP device.
+ *
+ * Returns 1 if large random numbers are supported, 0 if not and < 0 on error.
+ */
+static int zcrypt_pcixcc_rng_supported(struct ap_device *ap_dev)
+{
+	struct ap_message ap_msg;
+	unsigned long long psmid;
+	struct {
+		struct type86_hdr hdr;
+		struct type86_fmt2_ext fmt2;
+		struct CPRBX cprbx;
+	} __attribute__((packed)) *reply;
+	int rc, i;
+
+	ap_msg.message = (void *) get_zeroed_page(GFP_KERNEL);
+	if (!ap_msg.message)
+		return -ENOMEM;
+
+	rng_type6CPRB_msgX(ap_dev, &ap_msg, 4);
+	rc = ap_send(ap_dev->qid, 0x0102030405060708ULL, ap_msg.message,
+		     ap_msg.length);
+	if (rc)
+		goto out_free;
+
+	/* Wait for the test message to complete. */
+	for (i = 0; i < 2 * HZ; i++) {
+		msleep(1000 / HZ);
+		rc = ap_recv(ap_dev->qid, &psmid, ap_msg.message, 4096);
+		if (rc == 0 && psmid == 0x0102030405060708ULL)
+			break;
+	}
+
+	if (i >= 2 * HZ) {
+		/* Got no answer. */
+		rc = -ENODEV;
+		goto out_free;
+	}
+
+	reply = ap_msg.message;
+	if (reply->cprbx.ccp_rtcode == 0 && reply->cprbx.ccp_rscode == 0)
+		rc = 1;
+	else
+		rc = 0;
+out_free:
+	free_page((unsigned long) ap_msg.message);
+	return rc;
+}
+
+/**
  * Probe function for PCIXCC/CEX2C cards. It always accepts the AP device
  * since the bus_match already checked the hardware type. The PCIXCC
  * cards come in two flavours: micro code level 2 and micro code level 3.
@@ -874,7 +1063,6 @@ static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
 	if (!zdev)
 		return -ENOMEM;
 	zdev->ap_dev = ap_dev;
-	zdev->ops = &zcrypt_pcixcc_ops;
 	zdev->online = 1;
 	if (ap_dev->device_type == AP_DEVICE_TYPE_PCIXCC) {
 		rc = zcrypt_pcixcc_mcl(ap_dev);
@@ -901,6 +1089,15 @@ static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
 		zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE;
 		zdev->max_mod_size = PCIXCC_MAX_MOD_SIZE;
 	}
+	rc = zcrypt_pcixcc_rng_supported(ap_dev);
+	if (rc < 0) {
+		zcrypt_device_free(zdev);
+		return rc;
+	}
+	if (rc)
+		zdev->ops = &zcrypt_pcixcc_with_rng_ops;
+	else
+		zdev->ops = &zcrypt_pcixcc_ops;
 	ap_dev->reply = &zdev->reply;
 	ap_dev->private = zdev;
 	rc = zcrypt_device_register(zdev);

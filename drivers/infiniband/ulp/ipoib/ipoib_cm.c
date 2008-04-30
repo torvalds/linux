@@ -1007,9 +1007,9 @@ static int ipoib_cm_modify_tx_init(struct net_device *dev,
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_attr qp_attr;
 	int qp_attr_mask, ret;
-	ret = ib_find_cached_pkey(priv->ca, priv->port, priv->pkey, &qp_attr.pkey_index);
+	ret = ib_find_pkey(priv->ca, priv->port, priv->pkey, &qp_attr.pkey_index);
 	if (ret) {
-		ipoib_warn(priv, "pkey 0x%x not in cache: %d\n", priv->pkey, ret);
+		ipoib_warn(priv, "pkey 0x%x not found: %d\n", priv->pkey, ret);
 		return ret;
 	}
 
@@ -1383,6 +1383,10 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 		set_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 		ipoib_warn(priv, "enabling connected mode "
 			   "will cause multicast packet drops\n");
+
+		dev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO);
+		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
+
 		ipoib_flush_paths(dev);
 		return count;
 	}
@@ -1391,6 +1395,13 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 		clear_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 		dev->mtu = min(priv->mcast_mtu, dev->mtu);
 		ipoib_flush_paths(dev);
+
+		if (test_bit(IPOIB_FLAG_CSUM, &priv->flags)) {
+			dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+			if (priv->hca_caps & IB_DEVICE_UD_TSO)
+				dev->features |= NETIF_F_TSO;
+		}
+
 		return count;
 	}
 

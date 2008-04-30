@@ -22,6 +22,7 @@
 #include <asm/arch/sharpsl.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 
 
 #define PWR_MODE_ACTIVE		0
@@ -361,6 +362,7 @@ static struct platform_driver corgits_driver = {
 	.resume		= corgits_resume,
 	.driver		= {
 		.name	= "corgi-ts",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -380,3 +382,4 @@ module_exit(corgits_exit);
 MODULE_AUTHOR("Richard Purdie <rpurdie@rpsys.net>");
 MODULE_DESCRIPTION("Corgi TouchScreen Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:corgi-ts");

@@ -145,17 +145,17 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	struct net_device *dev = priv->dev;
 	struct rxpackethdr *p_rx_pkt;
 	struct rxpd *p_rx_pd;
-
 	int hdrchop;
 	struct ethhdr *p_ethhdr;
-
 	const u8 rfc1042_eth_hdr[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 
 	lbs_deb_enter(LBS_DEB_RX);
 
+	BUG_ON(!skb);
+
 	skb->ip_summed = CHECKSUM_NONE;
 
-	if (priv->monitormode != LBS_MONITOR_OFF)
+	if (priv->monitormode)
 		return process_rxed_802_11_packet(priv, skb);
 
 	p_rx_pkt = (struct rxpackethdr *) skb->data;

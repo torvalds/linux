@@ -9,21 +9,27 @@
  * the Free Software Foundation.
  */
 #include <linux/interrupt.h>
+#include <linux/kernel_stat.h>
 #include <asm/io.h>
 #include <asm/mach/irq.h>
 #include <asm/mach-types.h>
-#include <asm/arch-ns9xxx/regs-sys.h>
+#include <asm/arch-ns9xxx/regs-sys-common.h>
 #include <asm/arch-ns9xxx/irqs.h>
 #include <asm/arch-ns9xxx/board.h>
 
 #include "generic.h"
 
+/* simple interrupt prio table: prio(x) < prio(y) <=> x < y */
+#define irq2prio(i) (i)
+#define prio2irq(p) (p)
+
 static void ns9xxx_mask_irq(unsigned int irq)
 {
 	/* XXX: better use cpp symbols */
-	u32 ic = __raw_readl(SYS_IC(irq / 4));
-	ic &= ~(1 << (7 + 8 * (3 - (irq & 3))));
-	__raw_writel(ic, SYS_IC(irq / 4));
+	int prio = irq2prio(irq);
+	u32 ic = __raw_readl(SYS_IC(prio / 4));
+	ic &= ~(1 << (7 + 8 * (3 - (prio & 3))));
+	__raw_writel(ic, SYS_IC(prio / 4));
 }
 
 static void ns9xxx_ack_irq(unsigned int irq)
@@ -40,9 +46,10 @@ static void ns9xxx_maskack_irq(unsigned int irq)
 static void ns9xxx_unmask_irq(unsigned int irq)
 {
 	/* XXX: better use cpp symbols */
-	u32 ic = __raw_readl(SYS_IC(irq / 4));
-	ic |= 1 << (7 + 8 * (3 - (irq & 3)));
-	__raw_writel(ic, SYS_IC(irq / 4));
+	int prio = irq2prio(irq);
+	u32 ic = __raw_readl(SYS_IC(prio / 4));
+	ic |= 1 << (7 + 8 * (3 - (prio & 3)));
+	__raw_writel(ic, SYS_IC(prio / 4));
 }
 
 static struct irq_chip ns9xxx_chip = {
@@ -52,24 +59,61 @@ static struct irq_chip ns9xxx_chip = {
 	.unmask		= ns9xxx_unmask_irq,
 };
 
+#if 0
+#define handle_irq handle_level_irq
+#else
+void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
+{
+	unsigned int cpu = smp_processor_id();
+	struct irqaction *action;
+	irqreturn_t action_ret;
+
+	spin_lock(&desc->lock);
+
+	if (unlikely(desc->status & IRQ_INPROGRESS))
+		goto out_unlock;
+
+	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
+	kstat_cpu(cpu).irqs[irq]++;
+
+	action = desc->action;
+	if (unlikely(!action || (desc->status & IRQ_DISABLED)))
+		goto out_unlock;
+
+	desc->status |= IRQ_INPROGRESS;
+	spin_unlock(&desc->lock);
+
+	action_ret = handle_IRQ_event(irq, action);
+
+	spin_lock(&desc->lock);
+	desc->status &= ~IRQ_INPROGRESS;
+	if (!(desc->status & IRQ_DISABLED) && desc->chip->ack)
+		desc->chip->ack(irq);
+
+out_unlock:
+	spin_unlock(&desc->lock);
+}
+#define handle_irq handle_prio_irq
+#endif
+
 void __init ns9xxx_init_irq(void)
 {
 	int i;
 
 	/* disable all IRQs */
 	for (i = 0; i < 8; ++i)
-		__raw_writel((4 * i) << 24 | (4 * i + 1) << 16 |
-				(4 * i + 2) << 8 | (4 * i + 3), SYS_IC(i));
+		__raw_writel(prio2irq(4 * i) << 24 |
+				prio2irq(4 * i + 1) << 16 |
+				prio2irq(4 * i + 2) << 8 |
+				prio2irq(4 * i + 3),
+				SYS_IC(i));
 
-	/* simple interrupt prio table:
-	 * prio(x) < prio(y) <=> x < y
-	 */
 	for (i = 0; i < 32; ++i)
-		__raw_writel(i, SYS_IVA(i));
+		__raw_writel(prio2irq(i), SYS_IVA(i));
 
-	for (i = IRQ_WATCHDOG; i <= IRQ_EXT3; ++i) {
+	for (i = 0; i <= 31; ++i) {
 		set_irq_chip(i, &ns9xxx_chip);
-		set_irq_handler(i, handle_level_irq);
+		set_irq_handler(i, handle_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 }

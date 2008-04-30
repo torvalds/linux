@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2007 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,6 @@
 	Abstract: rt2x00 firmware loading routines.
  */
 
-#include <linux/crc-itu-t.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
@@ -37,7 +36,6 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 	char *fw_name;
 	int retval;
 	u16 crc;
-	u16 tmp;
 
 	/*
 	 * Read correct firmware from harddisk.
@@ -63,18 +61,9 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 		return -ENOENT;
 	}
 
-	/*
-	 * Validate the firmware using 16 bit CRC.
-	 * The last 2 bytes of the firmware are the CRC
-	 * so substract those 2 bytes from the CRC checksum,
-	 * and set those 2 bytes to 0 when calculating CRC.
-	 */
-	tmp = 0;
-	crc = crc_itu_t(0, fw->data, fw->size - 2);
-	crc = crc_itu_t(crc, (u8 *)&tmp, 2);
-
+	crc = rt2x00dev->ops->lib->get_firmware_crc(fw->data, fw->size);
 	if (crc != (fw->data[fw->size - 2] << 8 | fw->data[fw->size - 1])) {
-		ERROR(rt2x00dev, "Firmware CRC error.\n");
+		ERROR(rt2x00dev, "Firmware checksum error.\n");
 		retval = -ENOENT;
 		goto exit;
 	}
@@ -96,6 +85,9 @@ int rt2x00lib_load_firmware(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
 
+	if (!test_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags))
+		return 0;
+
 	if (!rt2x00dev->fw) {
 		retval = rt2x00lib_request_firmware(rt2x00dev);
 		if (retval)
@@ -116,4 +108,3 @@ void rt2x00lib_free_firmware(struct rt2x00_dev *rt2x00dev)
 	release_firmware(rt2x00dev->fw);
 	rt2x00dev->fw = NULL;
 }
-

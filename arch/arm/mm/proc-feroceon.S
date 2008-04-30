@@ -423,6 +423,7 @@ feroceon_crval:
 	.type	feroceon_processor_functions, #object
 feroceon_processor_functions:
 	.word	v5t_early_abort
+	.word	pabort_noifar
 	.word	cpu_feroceon_proc_init
 	.word	cpu_feroceon_proc_fin
 	.word	cpu_feroceon_reset

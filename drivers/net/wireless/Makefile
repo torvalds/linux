@@ -35,7 +35,6 @@ obj-$(CONFIG_PCMCIA_ATMEL)      += atmel_cs.o
 obj-$(CONFIG_PRISM54)		+= prism54/
 
 obj-$(CONFIG_HOSTAP)		+= hostap/
-obj-$(CONFIG_BCM43XX)		+= bcm43xx/
 obj-$(CONFIG_B43)		+= b43/
 obj-$(CONFIG_B43LEGACY)		+= b43legacy/
 obj-$(CONFIG_ZD1211RW)		+= zd1211rw/
@@ -57,12 +56,9 @@ obj-$(CONFIG_RTL8187)	+= rtl8187.o
 
 obj-$(CONFIG_ADM8211)	+= adm8211.o
 
-obj-$(CONFIG_IWL3945)	+= iwlwifi/
-obj-$(CONFIG_IWL4965)	+= iwlwifi/
+obj-$(CONFIG_IWLWIFI)	+= iwlwifi/
 obj-$(CONFIG_RT2X00)	+= rt2x00/
 
-obj-$(CONFIG_P54_COMMON)	+= p54common.o
-obj-$(CONFIG_P54_USB)		+= p54usb.o
-obj-$(CONFIG_P54_PCI)		+= p54pci.o
+obj-$(CONFIG_P54_COMMON)	+= p54/
 
 obj-$(CONFIG_ATH5K)	+= ath5k/

@@ -47,6 +47,7 @@
 #include <asm/qdio.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
+#include "zfcp_dbf.h"
 #include "zfcp_fsf.h"
 
 
@@ -262,167 +263,6 @@ struct fcp_logo {
 } __attribute__((packed));
 
 /*
- * DBF stuff
- */
-#define ZFCP_DBF_TAG_SIZE      4
-
-struct zfcp_dbf_dump {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u32 total_size;		/* size of total dump data */
-	u32 offset;		/* how much data has being already dumped */
-	u32 size;		/* how much data comes with this record */
-	u8 data[];		/* dump data */
-} __attribute__ ((packed));
-
-/* FIXME: to be inflated when reworking the erp dbf */
-struct zfcp_erp_dbf_record {
-	u8 dummy[16];
-} __attribute__ ((packed));
-
-struct zfcp_hba_dbf_record_response {
-	u32 fsf_command;
-	u64 fsf_reqid;
-	u32 fsf_seqno;
-	u64 fsf_issued;
-	u32 fsf_prot_status;
-	u32 fsf_status;
-	u8 fsf_prot_status_qual[FSF_PROT_STATUS_QUAL_SIZE];
-	u8 fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
-	u32 fsf_req_status;
-	u8 sbal_first;
-	u8 sbal_curr;
-	u8 sbal_last;
-	u8 pool;
-	u64 erp_action;
-	union {
-		struct {
-			u64 scsi_cmnd;
-			u64 scsi_serial;
-		} send_fcp;
-		struct {
-			u64 wwpn;
-			u32 d_id;
-			u32 port_handle;
-		} port;
-		struct {
-			u64 wwpn;
-			u64 fcp_lun;
-			u32 port_handle;
-			u32 lun_handle;
-		} unit;
-		struct {
-			u32 d_id;
-			u8 ls_code;
-		} send_els;
-	} data;
-} __attribute__ ((packed));
-
-struct zfcp_hba_dbf_record_status {
-	u8 failed;
-	u32 status_type;
-	u32 status_subtype;
-	struct fsf_queue_designator
-	 queue_designator;
-	u32 payload_size;
-#define ZFCP_DBF_UNSOL_PAYLOAD				80
-#define ZFCP_DBF_UNSOL_PAYLOAD_SENSE_DATA_AVAIL		32
-#define ZFCP_DBF_UNSOL_PAYLOAD_BIT_ERROR_THRESHOLD	56
-#define ZFCP_DBF_UNSOL_PAYLOAD_FEATURE_UPDATE_ALERT	2 * sizeof(u32)
-	u8 payload[ZFCP_DBF_UNSOL_PAYLOAD];
-} __attribute__ ((packed));
-
-struct zfcp_hba_dbf_record_qdio {
-	u32 status;
-	u32 qdio_error;
-	u32 siga_error;
-	u8 sbal_index;
-	u8 sbal_count;
-} __attribute__ ((packed));
-
-struct zfcp_hba_dbf_record {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u8 tag2[ZFCP_DBF_TAG_SIZE];
-	union {
-		struct zfcp_hba_dbf_record_response response;
-		struct zfcp_hba_dbf_record_status status;
-		struct zfcp_hba_dbf_record_qdio qdio;
-	} type;
-} __attribute__ ((packed));
-
-struct zfcp_san_dbf_record_ct {
-	union {
-		struct {
-			u16 cmd_req_code;
-			u8 revision;
-			u8 gs_type;
-			u8 gs_subtype;
-			u8 options;
-			u16 max_res_size;
-		} request;
-		struct {
-			u16 cmd_rsp_code;
-			u8 revision;
-			u8 reason_code;
-			u8 reason_code_expl;
-			u8 vendor_unique;
-		} response;
-	} type;
-	u32 payload_size;
-#define ZFCP_DBF_CT_PAYLOAD	24
-	u8 payload[ZFCP_DBF_CT_PAYLOAD];
-} __attribute__ ((packed));
-
-struct zfcp_san_dbf_record_els {
-	u8 ls_code;
-	u32 payload_size;
-#define ZFCP_DBF_ELS_PAYLOAD	32
-#define ZFCP_DBF_ELS_MAX_PAYLOAD 1024
-	u8 payload[ZFCP_DBF_ELS_PAYLOAD];
-} __attribute__ ((packed));
-
-struct zfcp_san_dbf_record {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u64 fsf_reqid;
-	u32 fsf_seqno;
-	u32 s_id;
-	u32 d_id;
-	union {
-		struct zfcp_san_dbf_record_ct ct;
-		struct zfcp_san_dbf_record_els els;
-	} type;
-} __attribute__ ((packed));
-
-struct zfcp_scsi_dbf_record {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u8 tag2[ZFCP_DBF_TAG_SIZE];
-	u32 scsi_id;
-	u32 scsi_lun;
-	u32 scsi_result;
-	u64 scsi_cmnd;
-	u64 scsi_serial;
-#define ZFCP_DBF_SCSI_OPCODE	16
-	u8 scsi_opcode[ZFCP_DBF_SCSI_OPCODE];
-	u8 scsi_retries;
-	u8 scsi_allowed;
-	u64 fsf_reqid;
-	u32 fsf_seqno;
-	u64 fsf_issued;
-	union {
-		u64 old_fsf_reqid;
-		struct {
-			u8 rsp_validity;
-			u8 rsp_scsi_status;
-			u32 rsp_resid;
-			u8 rsp_code;
-#define ZFCP_DBF_SCSI_FCP_SNS_INFO	16
-#define ZFCP_DBF_SCSI_MAX_FCP_SNS_INFO	256
-			u32 sns_info_len;
-			u8 sns_info[ZFCP_DBF_SCSI_FCP_SNS_INFO];
-		} fcp;
-	} type;
-} __attribute__ ((packed));
-
-/*
  * FC-FS stuff
  */
 #define R_A_TOV				10 /* seconds */
@@ -539,7 +379,7 @@ struct zfcp_rc_entry {
 
 /* logging routine for zfcp */
 #define _ZFCP_LOG(fmt, args...) \
-	printk(KERN_ERR ZFCP_NAME": %s(%d): " fmt, __FUNCTION__, \
+	printk(KERN_ERR ZFCP_NAME": %s(%d): " fmt, __func__, \
 	       __LINE__ , ##args)
 
 #define ZFCP_LOG(level, fmt, args...) \
@@ -634,7 +474,6 @@ do { \
 		 ZFCP_STATUS_PORT_NO_SCSI_ID)
 
 /* logical unit status */
-#define ZFCP_STATUS_UNIT_NOTSUPPUNITRESET	0x00000001
 #define ZFCP_STATUS_UNIT_TEMPORARY		0x00000002
 #define ZFCP_STATUS_UNIT_SHARED			0x00000004
 #define ZFCP_STATUS_UNIT_READONLY		0x00000008
@@ -917,15 +756,15 @@ struct zfcp_adapter {
 	u32			erp_low_mem_count; /* nr of erp actions waiting
 						      for memory */
 	struct zfcp_port	*nameserver_port;  /* adapter's nameserver */
-	debug_info_t		*erp_dbf;
+	debug_info_t		*rec_dbf;
 	debug_info_t		*hba_dbf;
 	debug_info_t		*san_dbf;          /* debug feature areas */
 	debug_info_t		*scsi_dbf;
-	spinlock_t		erp_dbf_lock;
+	spinlock_t		rec_dbf_lock;
 	spinlock_t		hba_dbf_lock;
 	spinlock_t		san_dbf_lock;
 	spinlock_t		scsi_dbf_lock;
-	struct zfcp_erp_dbf_record	erp_dbf_buf;
+	struct zfcp_rec_dbf_record	rec_dbf_buf;
 	struct zfcp_hba_dbf_record	hba_dbf_buf;
 	struct zfcp_san_dbf_record	san_dbf_buf;
 	struct zfcp_scsi_dbf_record	scsi_dbf_buf;

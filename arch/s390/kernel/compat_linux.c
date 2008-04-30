@@ -62,7 +62,6 @@
 
 #include <asm/types.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 
 #include <net/scm.h>
 #include <net/sock.h>

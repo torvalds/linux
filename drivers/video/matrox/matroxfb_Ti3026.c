@@ -283,7 +283,7 @@ static int Ti3026_calcclock(CPMINFO unsigned int freq, unsigned int fmax, int* i
 	unsigned int fvco;
 	unsigned int lin, lfeed, lpost;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	fvco = PLL_calcclock(PMINFO freq, fmax, &lin, &lfeed, &lpost);
 	fvco >>= (*post = lpost);
@@ -297,7 +297,7 @@ static int Ti3026_setpclk(WPMINFO int clk) {
 	unsigned int pixfeed, pixin, pixpost;
 	struct matrox_hw_state* hw = &ACCESS_FBINFO(hw);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	f_pll = Ti3026_calcclock(PMINFO clk, ACCESS_FBINFO(max_pixel_clock), &pixin, &pixfeed, &pixpost);
 
@@ -365,7 +365,7 @@ static int Ti3026_init(WPMINFO struct my_timming* m) {
 	u_int8_t muxctrl = isInterleave(MINFO) ? TVP3026_XMUXCTRL_MEMORY_64BIT : TVP3026_XMUXCTRL_MEMORY_32BIT;
 	struct matrox_hw_state* hw = &ACCESS_FBINFO(hw);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	memcpy(hw->DACreg, MGADACbpp32, sizeof(hw->DACreg));
 	switch (ACCESS_FBINFO(fbcon).var.bits_per_pixel) {
@@ -440,7 +440,7 @@ static void ti3026_setMCLK(WPMINFO int fout){
 	unsigned int rfhcnt, mclk_ctl;
 	int tmout;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	f_pll = Ti3026_calcclock(PMINFO fout, ACCESS_FBINFO(max_pixel_clock), &mclk_n, &mclk_m, &mclk_p);
 
@@ -534,7 +534,7 @@ static void ti3026_setMCLK(WPMINFO int fout){
 
 static void ti3026_ramdac_init(WPMINFO2) {
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	ACCESS_FBINFO(features.pll.vco_freq_min) = 110000;
 	ACCESS_FBINFO(features.pll.ref_freq)	 = 114545;
@@ -554,7 +554,7 @@ static void Ti3026_restore(WPMINFO2) {
 	struct matrox_hw_state* hw = &ACCESS_FBINFO(hw);
 	CRITFLAGS
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 #ifdef DEBUG
 	dprintk(KERN_INFO "EXTVGA regs: ");
@@ -662,7 +662,7 @@ static void Ti3026_restore(WPMINFO2) {
 
 static void Ti3026_reset(WPMINFO2) {
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	ti3026_ramdac_init(PMINFO2);
 }
@@ -680,7 +680,7 @@ static int Ti3026_preinit(WPMINFO2) {
 					  2048, 0};
 	struct matrox_hw_state* hw = &ACCESS_FBINFO(hw);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	ACCESS_FBINFO(millenium) = 1;
 	ACCESS_FBINFO(milleniumII) = (ACCESS_FBINFO(pcidev)->device != PCI_DEVICE_ID_MATROX_MIL);

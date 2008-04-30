@@ -39,6 +39,7 @@
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/arch/lpd270.h>
 #include <asm/arch/audio.h>
 #include <asm/arch/pxafb.h>

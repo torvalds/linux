@@ -650,10 +650,7 @@ static int viocd_remove(struct vio_dev *vdev)
 {
 	struct disk_info *d = &viocd_diskinfo[vdev->unit_address];
 
-	if (unregister_cdrom(&d->viocd_info) != 0)
-		printk(VIOCD_KERN_WARNING
-				"Cannot unregister viocd CD-ROM %s!\n",
-				d->viocd_info.name);
+	unregister_cdrom(&d->viocd_info);
 	del_gendisk(d->viocd_disk);
 	blk_cleanup_queue(d->viocd_disk->queue);
 	put_disk(d->viocd_disk);

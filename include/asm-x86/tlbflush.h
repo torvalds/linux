@@ -32,7 +32,7 @@ static inline void __native_flush_tlb_global(void)
 
 static inline void __native_flush_tlb_single(unsigned long addr)
 {
-	__asm__ __volatile__("invlpg (%0)" ::"r" (addr) : "memory");
+	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
 }
 
 static inline void __flush_tlb_all(void)
@@ -134,8 +134,7 @@ void native_flush_tlb_others(const cpumask_t *cpumask, struct mm_struct *mm,
 #define TLBSTATE_LAZY	2
 
 #ifdef CONFIG_X86_32
-struct tlb_state
-{
+struct tlb_state {
 	struct mm_struct *active_mm;
 	int state;
 	char __cacheline_padding[L1_CACHE_BYTES-8];

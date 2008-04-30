@@ -50,4 +50,6 @@ extern int zoran_check_jpg_settings(struct zoran *zr,
 extern void zoran_open_init_params(struct zoran *zr);
 extern void zoran_vdev_release(struct video_device *vdev);
 
+void zr36016_write(struct videocodec *codec, u16 reg, u32 val);
+
 #endif				/* __ZORAN_CARD_H__ */

@@ -41,6 +41,9 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/fs_pd.h>
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+#include <asm/prom.h>
+#endif
 
 #include <linux/serial_core.h>
 #include <linux/kernel.h>
@@ -54,6 +57,55 @@ void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
 {
 	cpm_command(port->command, cmd);
 }
+
+void __iomem *cpm_uart_map_pram(struct uart_cpm_port *port,
+				struct device_node *np)
+{
+	void __iomem *pram;
+	unsigned long offset;
+	struct resource res;
+	unsigned long len;
+
+	/* Don't remap parameter RAM if it has already been initialized
+	 * during console setup.
+	 */
+	if (IS_SMC(port) && port->smcup)
+		return port->smcup;
+	else if (!IS_SMC(port) && port->sccup)
+		return port->sccup;
+
+	if (of_address_to_resource(np, 1, &res))
+		return NULL;
+
+	len = 1 + res.end - res.start;
+	pram = ioremap(res.start, len);
+	if (!pram)
+		return NULL;
+
+	if (!IS_SMC(port))
+		return pram;
+
+	if (len != 2) {
+		printk(KERN_WARNING "cpm_uart[%d]: device tree references "
+			"SMC pram, using boot loader/wrapper pram mapping. "
+			"Please fix your device tree to reference the pram "
+			"base register instead.\n",
+			port->port.line);
+		return pram;
+	}
+
+	offset = cpm_dpalloc(PROFF_SMC_SIZE, 64);
+	out_be16(pram, offset);
+	iounmap(pram);
+	return cpm_muram_addr(offset);
+}
+
+void cpm_uart_unmap_pram(struct uart_cpm_port *port, void __iomem *pram)
+{
+	if (!IS_SMC(port))
+		iounmap(pram);
+}
+
 #else
 void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
 {

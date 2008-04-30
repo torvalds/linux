@@ -8,7 +8,6 @@
 #include <linux/init.h>
 
 #include <asm/page.h>
-#include <asm/semaphore.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/sn0/hub.h>
 #include <asm/sn/klconfig.h>

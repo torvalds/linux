@@ -1,4 +1,4 @@
-/* 
+/*
  * Default generic APIC driver. This handles up to 8 CPUs.
  */
 #define APIC_DEFINITION 1
@@ -19,8 +19,8 @@
 
 /* should be called last. */
 static int probe_default(void)
-{ 
+{
 	return 1;
-} 
+}
 
-struct genapic apic_default = APIC_INIT("default", probe_default); 
+struct genapic apic_default = APIC_INIT("default", probe_default);

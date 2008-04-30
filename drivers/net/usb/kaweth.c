@@ -58,7 +58,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/wait.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 #include <asm/byteorder.h>
 
 #undef DEBUG

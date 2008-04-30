@@ -6,11 +6,13 @@
  * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/spi/spi.h>
+#include <linux/usb/atmel_usba_udc.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -98,6 +100,9 @@ unsigned long at32ap7000_osc_rates[3] = {
 	[2] = 12000000,
 };
 
+static struct clk osc0;
+static struct clk osc1;
+
 static unsigned long osc_get_rate(struct clk *clk)
 {
 	return at32ap7000_osc_rates[clk->index];
@@ -106,9 +111,6 @@ static unsigned long osc_get_rate(struct clk *clk)
 static unsigned long pll_get_rate(struct clk *clk, unsigned long control)
 {
 	unsigned long div, mul, rate;
-
-	if (!(control & PM_BIT(PLLEN)))
-		return 0;
 
 	div = PM_BFEXT(PLLDIV, control) + 1;
 	mul = PM_BFEXT(PLLMUL, control) + 1;
@@ -120,6 +122,71 @@ static unsigned long pll_get_rate(struct clk *clk, unsigned long control)
 	return rate;
 }
 
+static long pll_set_rate(struct clk *clk, unsigned long rate,
+			 u32 *pll_ctrl)
+{
+	unsigned long mul;
+	unsigned long mul_best_fit = 0;
+	unsigned long div;
+	unsigned long div_min;
+	unsigned long div_max;
+	unsigned long div_best_fit = 0;
+	unsigned long base;
+	unsigned long pll_in;
+	unsigned long actual = 0;
+	unsigned long rate_error;
+	unsigned long rate_error_prev = ~0UL;
+	u32 ctrl;
+
+	/* Rate must be between 80 MHz and 200 Mhz. */
+	if (rate < 80000000UL || rate > 200000000UL)
+		return -EINVAL;
+
+	ctrl = PM_BF(PLLOPT, 4);
+	base = clk->parent->get_rate(clk->parent);
+
+	/* PLL input frequency must be between 6 MHz and 32 MHz. */
+	div_min = DIV_ROUND_UP(base, 32000000UL);
+	div_max = base / 6000000UL;
+
+	if (div_max < div_min)
+		return -EINVAL;
+
+	for (div = div_min; div <= div_max; div++) {
+		pll_in = (base + div / 2) / div;
+		mul = (rate + pll_in / 2) / pll_in;
+
+		if (mul == 0)
+			continue;
+
+		actual = pll_in * mul;
+		rate_error = abs(actual - rate);
+
+		if (rate_error < rate_error_prev) {
+			mul_best_fit = mul;
+			div_best_fit = div;
+			rate_error_prev = rate_error;
+		}
+
+		if (rate_error == 0)
+			break;
+	}
+
+	if (div_best_fit == 0)
+		return -EINVAL;
+
+	ctrl |= PM_BF(PLLMUL, mul_best_fit - 1);
+	ctrl |= PM_BF(PLLDIV, div_best_fit - 1);
+	ctrl |= PM_BF(PLLCOUNT, 16);
+
+	if (clk->parent == &osc1)
+		ctrl |= PM_BIT(PLLOSC);
+
+	*pll_ctrl = ctrl;
+
+	return actual;
+}
+
 static unsigned long pll0_get_rate(struct clk *clk)
 {
 	u32 control;
@@ -129,6 +196,41 @@ static unsigned long pll0_get_rate(struct clk *clk)
 	return pll_get_rate(clk, control);
 }
 
+static void pll1_mode(struct clk *clk, int enabled)
+{
+	unsigned long timeout;
+	u32 status;
+	u32 ctrl;
+
+	ctrl = pm_readl(PLL1);
+
+	if (enabled) {
+		if (!PM_BFEXT(PLLMUL, ctrl) && !PM_BFEXT(PLLDIV, ctrl)) {
+			pr_debug("clk %s: failed to enable, rate not set\n",
+					clk->name);
+			return;
+		}
+
+		ctrl |= PM_BIT(PLLEN);
+		pm_writel(PLL1, ctrl);
+
+		/* Wait for PLL lock. */
+		for (timeout = 10000; timeout; timeout--) {
+			status = pm_readl(ISR);
+			if (status & PM_BIT(LOCK1))
+				break;
+			udelay(10);
+		}
+
+		if (!(status & PM_BIT(LOCK1)))
+			printk(KERN_ERR "clk %s: timeout waiting for lock\n",
+					clk->name);
+	} else {
+		ctrl &= ~PM_BIT(PLLEN);
+		pm_writel(PLL1, ctrl);
+	}
+}
+
 static unsigned long pll1_get_rate(struct clk *clk)
 {
 	u32 control;
@@ -136,6 +238,49 @@ static unsigned long pll1_get_rate(struct clk *clk)
 	control = pm_readl(PLL1);
 
 	return pll_get_rate(clk, control);
+}
+
+static long pll1_set_rate(struct clk *clk, unsigned long rate, int apply)
+{
+	u32 ctrl = 0;
+	unsigned long actual_rate;
+
+	actual_rate = pll_set_rate(clk, rate, &ctrl);
+
+	if (apply) {
+		if (actual_rate != rate)
+			return -EINVAL;
+		if (clk->users > 0)
+			return -EBUSY;
+		pr_debug(KERN_INFO "clk %s: new rate %lu (actual rate %lu)\n",
+				clk->name, rate, actual_rate);
+		pm_writel(PLL1, ctrl);
+	}
+
+	return actual_rate;
+}
+
+static int pll1_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 ctrl;
+
+	if (clk->users > 0)
+		return -EBUSY;
+
+	ctrl = pm_readl(PLL1);
+	WARN_ON(ctrl & PM_BIT(PLLEN));
+
+	if (parent == &osc0)
+		ctrl &= ~PM_BIT(PLLOSC);
+	else if (parent == &osc1)
+		ctrl |= PM_BIT(PLLOSC);
+	else
+		return -EINVAL;
+
+	pm_writel(PLL1, ctrl);
+	clk->parent = parent;
+
+	return 0;
 }
 
 /*
@@ -166,7 +311,10 @@ static struct clk pll0 = {
 };
 static struct clk pll1 = {
 	.name		= "pll1",
+	.mode		= pll1_mode,
 	.get_rate	= pll1_get_rate,
+	.set_rate	= pll1_set_rate,
+	.set_parent	= pll1_set_parent,
 	.parent		= &osc0,
 };
 
@@ -605,19 +753,32 @@ static inline void set_ebi_sfr_bits(u32 mask)
 }
 
 /* --------------------------------------------------------------------
- *  System Timer/Counter (TC)
+ *  Timer/Counter (TC)
  * -------------------------------------------------------------------- */
-static struct resource at32_systc0_resource[] = {
+
+static struct resource at32_tcb0_resource[] = {
 	PBMEM(0xfff00c00),
 	IRQ(22),
 };
-struct platform_device at32_systc0_device = {
-	.name		= "systc",
+static struct platform_device at32_tcb0_device = {
+	.name		= "atmel_tcb",
 	.id		= 0,
-	.resource	= at32_systc0_resource,
-	.num_resources	= ARRAY_SIZE(at32_systc0_resource),
+	.resource	= at32_tcb0_resource,
+	.num_resources	= ARRAY_SIZE(at32_tcb0_resource),
 };
-DEV_CLK(pclk, at32_systc0, pbb, 3);
+DEV_CLK(t0_clk, at32_tcb0, pbb, 3);
+
+static struct resource at32_tcb1_resource[] = {
+	PBMEM(0xfff01000),
+	IRQ(23),
+};
+static struct platform_device at32_tcb1_device = {
+	.name		= "atmel_tcb",
+	.id		= 1,
+	.resource	= at32_tcb1_resource,
+	.num_resources	= ARRAY_SIZE(at32_tcb1_resource),
+};
+DEV_CLK(t0_clk, at32_tcb1, pbb, 4);
 
 /* --------------------------------------------------------------------
  *  PIO
@@ -669,7 +830,8 @@ void __init at32_add_system_devices(void)
 	platform_device_register(&pdc_device);
 	platform_device_register(&dmaca0_device);
 
-	platform_device_register(&at32_systc0_device);
+	platform_device_register(&at32_tcb0_device);
+	platform_device_register(&at32_tcb1_device);
 
 	platform_device_register(&pio0_device);
 	platform_device_register(&pio1_device);
@@ -989,7 +1151,9 @@ static struct clk atmel_twi0_pclk = {
 	.index		= 2,
 };
 
-struct platform_device *__init at32_add_device_twi(unsigned int id)
+struct platform_device *__init at32_add_device_twi(unsigned int id,
+						    struct i2c_board_info *b,
+						    unsigned int n)
 {
 	struct platform_device *pdev;
 
@@ -1008,6 +1172,9 @@ struct platform_device *__init at32_add_device_twi(unsigned int id)
 	select_peripheral(PA(7),  PERIPH_A, 0);	/* SDL	*/
 
 	atmel_twi0_pclk.dev = &pdev->dev;
+
+	if (b)
+		i2c_register_board_info(id, b, n);
 
 	platform_device_add(pdev);
 	return pdev;
@@ -1351,9 +1518,39 @@ static struct clk usba0_hclk = {
 	.index		= 6,
 };
 
+#define EP(nam, idx, maxpkt, maxbk, dma, isoc)			\
+	[idx] = {						\
+		.name		= nam,				\
+		.index		= idx,				\
+		.fifo_size	= maxpkt,			\
+		.nr_banks	= maxbk,			\
+		.can_dma	= dma,				\
+		.can_isoc	= isoc,				\
+	}
+
+static struct usba_ep_data at32_usba_ep[] __initdata = {
+	EP("ep0",     0,   64, 1, 0, 0),
+	EP("ep1",     1,  512, 2, 1, 1),
+	EP("ep2",     2,  512, 2, 1, 1),
+	EP("ep3-int", 3,   64, 3, 1, 0),
+	EP("ep4-int", 4,   64, 3, 1, 0),
+	EP("ep5",     5, 1024, 3, 1, 1),
+	EP("ep6",     6, 1024, 3, 1, 1),
+};
+
+#undef EP
+
 struct platform_device *__init
 at32_add_device_usba(unsigned int id, struct usba_platform_data *data)
 {
+	/*
+	 * pdata doesn't have room for any endpoints, so we need to
+	 * append room for the ones we need right after it.
+	 */
+	struct {
+		struct usba_platform_data pdata;
+		struct usba_ep_data ep[7];
+	} usba_data;
 	struct platform_device *pdev;
 
 	if (id != 0)
@@ -1367,13 +1564,20 @@ at32_add_device_usba(unsigned int id, struct usba_platform_data *data)
 					  ARRAY_SIZE(usba0_resource)))
 		goto out_free_pdev;
 
-	if (data) {
-		if (platform_device_add_data(pdev, data, sizeof(*data)))
-			goto out_free_pdev;
+	if (data)
+		usba_data.pdata.vbus_pin = data->vbus_pin;
+	else
+		usba_data.pdata.vbus_pin = -EINVAL;
 
-		if (data->vbus_pin != GPIO_PIN_NONE)
-			at32_select_gpio(data->vbus_pin, 0);
-	}
+	data = &usba_data.pdata;
+	data->num_ep = ARRAY_SIZE(at32_usba_ep);
+	memcpy(data->ep, at32_usba_ep, sizeof(at32_usba_ep));
+
+	if (platform_device_add_data(pdev, data, sizeof(usba_data)))
+		goto out_free_pdev;
+
+	if (data->vbus_pin >= 0)
+		at32_select_gpio(data->vbus_pin, 0);
 
 	usba0_pclk.dev = &pdev->dev;
 	usba0_hclk.dev = &pdev->dev;
@@ -1694,7 +1898,8 @@ struct clk *at32_clock_list[] = {
 	&pio2_mck,
 	&pio3_mck,
 	&pio4_mck,
-	&at32_systc0_pclk,
+	&at32_tcb0_t0_clk,
+	&at32_tcb1_t0_clk,
 	&atmel_usart0_usart,
 	&atmel_usart1_usart,
 	&atmel_usart2_usart,

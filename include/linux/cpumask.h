@@ -14,6 +14,8 @@
  * bitmap_scnlistprintf() and bitmap_parselist(), also in bitmap.c.
  * For details of cpu_remap(), see bitmap_bitremap in lib/bitmap.c
  * For details of cpus_remap(), see bitmap_remap in lib/bitmap.c.
+ * For details of cpus_onto(), see bitmap_onto in lib/bitmap.c.
+ * For details of cpus_fold(), see bitmap_fold in lib/bitmap.c.
  *
  * The available cpumask operations are:
  *
@@ -53,7 +55,9 @@
  * int cpulist_scnprintf(buf, len, mask) Format cpumask as list for printing
  * int cpulist_parse(buf, map)		Parse ascii string as cpulist
  * int cpu_remap(oldbit, old, new)	newbit = map(old, new)(oldbit)
- * int cpus_remap(dst, src, old, new)	*dst = map(old, new)(src)
+ * void cpus_remap(dst, src, old, new)	*dst = map(old, new)(src)
+ * void cpus_onto(dst, orig, relmap)	*dst = orig relative to relmap
+ * void cpus_fold(dst, orig, sz)	dst bits = orig bits mod sz
  *
  * for_each_cpu_mask(cpu, mask)		for-loop cpu over mask
  *
@@ -222,8 +226,13 @@ int __next_cpu(int n, const cpumask_t *srcp);
 #define next_cpu(n, src)	({ (void)(src); 1; })
 #endif
 
+#ifdef CONFIG_HAVE_CPUMASK_OF_CPU_MAP
+extern cpumask_t *cpumask_of_cpu_map;
+#define cpumask_of_cpu(cpu)    (cpumask_of_cpu_map[cpu])
+
+#else
 #define cpumask_of_cpu(cpu)						\
-({									\
+(*({									\
 	typeof(_unused_cpumask_arg_) m;					\
 	if (sizeof(m) == sizeof(unsigned long)) {			\
 		m.bits[0] = 1UL<<(cpu);					\
@@ -231,8 +240,9 @@ int __next_cpu(int n, const cpumask_t *srcp);
 		cpus_clear(m);						\
 		cpu_set((cpu), m);					\
 	}								\
-	m;								\
-})
+	&m;								\
+}))
+#endif
 
 #define CPU_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(NR_CPUS)
 
@@ -243,6 +253,8 @@ int __next_cpu(int n, const cpumask_t *srcp);
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
 } }
 
+#define CPU_MASK_ALL_PTR	(&CPU_MASK_ALL)
+
 #else
 
 #define CPU_MASK_ALL							\
@@ -250,6 +262,10 @@ int __next_cpu(int n, const cpumask_t *srcp);
 	[0 ... BITS_TO_LONGS(NR_CPUS)-2] = ~0UL,			\
 	[BITS_TO_LONGS(NR_CPUS)-1] = CPU_MASK_LAST_WORD			\
 } }
+
+/* cpu_mask_all is in init/main.c */
+extern cpumask_t cpu_mask_all;
+#define CPU_MASK_ALL_PTR	(&cpu_mask_all)
 
 #endif
 
@@ -271,6 +287,13 @@ static inline int __cpumask_scnprintf(char *buf, int len,
 					const cpumask_t *srcp, int nbits)
 {
 	return bitmap_scnprintf(buf, len, srcp->bits, nbits);
+}
+
+#define cpumask_scnprintf_len(len) \
+			__cpumask_scnprintf_len((len))
+static inline int __cpumask_scnprintf_len(int len)
+{
+	return bitmap_scnprintf_len(len);
 }
 
 #define cpumask_parse_user(ubuf, ulen, dst) \
@@ -309,6 +332,22 @@ static inline void __cpus_remap(cpumask_t *dstp, const cpumask_t *srcp,
 		const cpumask_t *oldp, const cpumask_t *newp, int nbits)
 {
 	bitmap_remap(dstp->bits, srcp->bits, oldp->bits, newp->bits, nbits);
+}
+
+#define cpus_onto(dst, orig, relmap) \
+		__cpus_onto(&(dst), &(orig), &(relmap), NR_CPUS)
+static inline void __cpus_onto(cpumask_t *dstp, const cpumask_t *origp,
+		const cpumask_t *relmapp, int nbits)
+{
+	bitmap_onto(dstp->bits, origp->bits, relmapp->bits, nbits);
+}
+
+#define cpus_fold(dst, orig, sz) \
+		__cpus_fold(&(dst), &(orig), sz, NR_CPUS)
+static inline void __cpus_fold(cpumask_t *dstp, const cpumask_t *origp,
+		int sz, int nbits)
+{
+	bitmap_fold(dstp->bits, origp->bits, sz, nbits);
 }
 
 #if NR_CPUS > 1

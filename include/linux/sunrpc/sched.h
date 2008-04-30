@@ -11,7 +11,6 @@
 
 #include <linux/timer.h>
 #include <linux/sunrpc/types.h>
-#include <linux/rcupdate.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
@@ -33,7 +32,8 @@ struct rpc_wait_queue;
 struct rpc_wait {
 	struct list_head	list;		/* wait queue links */
 	struct list_head	links;		/* Links to related tasks */
-	struct rpc_wait_queue *	rpc_waitq;	/* RPC wait queue we're on */
+	struct list_head	timer_list;	/* Timer list */
+	unsigned long		expires;
 };
 
 /*
@@ -57,33 +57,25 @@ struct rpc_task {
 	__u8			tk_cred_retry;
 
 	/*
-	 * timeout_fn   to be executed by timer bottom half
 	 * callback	to be executed after waking up
 	 * action	next procedure for async tasks
 	 * tk_ops	caller callbacks
 	 */
-	void			(*tk_timeout_fn)(struct rpc_task *);
 	void			(*tk_callback)(struct rpc_task *);
 	void			(*tk_action)(struct rpc_task *);
 	const struct rpc_call_ops *tk_ops;
 	void *			tk_calldata;
 
-	/*
-	 * tk_timer is used for async processing by the RPC scheduling
-	 * primitives. You should not access this directly unless
-	 * you have a pathological interest in kernel oopses.
-	 */
-	struct timer_list	tk_timer;	/* kernel timer */
 	unsigned long		tk_timeout;	/* timeout for rpc_sleep() */
 	unsigned short		tk_flags;	/* misc flags */
 	unsigned long		tk_runstate;	/* Task run status */
 	struct workqueue_struct	*tk_workqueue;	/* Normally rpciod, but could
 						 * be any workqueue
 						 */
+	struct rpc_wait_queue 	*tk_waitqueue;	/* RPC wait queue we're on */
 	union {
 		struct work_struct	tk_work;	/* Async task work queue */
 		struct rpc_wait		tk_wait;	/* RPC wait */
-		struct rcu_head		tk_rcu;		/* for task deletion */
 	} u;
 
 	unsigned short		tk_timeouts;	/* maj timeouts */
@@ -123,6 +115,7 @@ struct rpc_task_setup {
 	const struct rpc_message *rpc_message;
 	const struct rpc_call_ops *callback_ops;
 	void *callback_data;
+	struct workqueue_struct *workqueue;
 	unsigned short flags;
 	signed char priority;
 };
@@ -147,9 +140,7 @@ struct rpc_task_setup {
 
 #define RPC_TASK_RUNNING	0
 #define RPC_TASK_QUEUED		1
-#define RPC_TASK_WAKEUP		2
-#define RPC_TASK_HAS_TIMER	3
-#define RPC_TASK_ACTIVE		4
+#define RPC_TASK_ACTIVE		2
 
 #define RPC_IS_RUNNING(t)	test_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)
 #define rpc_set_running(t)	set_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)
@@ -171,15 +162,6 @@ struct rpc_task_setup {
 		smp_mb__after_clear_bit(); \
 	} while (0)
 
-#define rpc_start_wakeup(t) \
-	(test_and_set_bit(RPC_TASK_WAKEUP, &(t)->tk_runstate) == 0)
-#define rpc_finish_wakeup(t) \
-	do { \
-		smp_mb__before_clear_bit(); \
-		clear_bit(RPC_TASK_WAKEUP, &(t)->tk_runstate); \
-		smp_mb__after_clear_bit(); \
-	} while (0)
-
 #define RPC_IS_ACTIVATED(t)	test_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate)
 
 /*
@@ -191,6 +173,12 @@ struct rpc_task_setup {
 #define RPC_PRIORITY_NORMAL	(0)
 #define RPC_PRIORITY_HIGH	(1)
 #define RPC_NR_PRIORITY		(1 + RPC_PRIORITY_HIGH - RPC_PRIORITY_LOW)
+
+struct rpc_timer {
+	struct timer_list timer;
+	struct list_head list;
+	unsigned long expires;
+};
 
 /*
  * RPC synchronization objects
@@ -204,6 +192,7 @@ struct rpc_wait_queue {
 	unsigned char		count;			/* # task groups remaining serviced so far */
 	unsigned char		nr;			/* # tasks remaining for cookie */
 	unsigned short		qlen;			/* total # tasks waiting in queue */
+	struct rpc_timer	timer_list;
 #ifdef RPC_DEBUG
 	const char *		name;
 #endif
@@ -229,9 +218,11 @@ void		rpc_killall_tasks(struct rpc_clnt *);
 void		rpc_execute(struct rpc_task *);
 void		rpc_init_priority_wait_queue(struct rpc_wait_queue *, const char *);
 void		rpc_init_wait_queue(struct rpc_wait_queue *, const char *);
+void		rpc_destroy_wait_queue(struct rpc_wait_queue *);
 void		rpc_sleep_on(struct rpc_wait_queue *, struct rpc_task *,
-					rpc_action action, rpc_action timer);
-void		rpc_wake_up_task(struct rpc_task *);
+					rpc_action action);
+void		rpc_wake_up_queued_task(struct rpc_wait_queue *,
+					struct rpc_task *);
 void		rpc_wake_up(struct rpc_wait_queue *);
 struct rpc_task *rpc_wake_up_next(struct rpc_wait_queue *);
 void		rpc_wake_up_status(struct rpc_wait_queue *, int);

@@ -29,6 +29,8 @@
 
 #include <asm/tlbflush.h>
 
+#include "internal.h"
+
 /* add this memory to iomem resource */
 static struct resource *register_memory_resource(u64 start, u64 size)
 {
@@ -58,8 +60,105 @@ static void release_memory_resource(struct resource *res)
 	return;
 }
 
-
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+#ifndef CONFIG_SPARSEMEM_VMEMMAP
+static void get_page_bootmem(unsigned long info,  struct page *page, int magic)
+{
+	atomic_set(&page->_mapcount, magic);
+	SetPagePrivate(page);
+	set_page_private(page, info);
+	atomic_inc(&page->_count);
+}
+
+void put_page_bootmem(struct page *page)
+{
+	int magic;
+
+	magic = atomic_read(&page->_mapcount);
+	BUG_ON(magic >= -1);
+
+	if (atomic_dec_return(&page->_count) == 1) {
+		ClearPagePrivate(page);
+		set_page_private(page, 0);
+		reset_page_mapcount(page);
+		__free_pages_bootmem(page, 0);
+	}
+
+}
+
+void register_page_bootmem_info_section(unsigned long start_pfn)
+{
+	unsigned long *usemap, mapsize, section_nr, i;
+	struct mem_section *ms;
+	struct page *page, *memmap;
+
+	if (!pfn_valid(start_pfn))
+		return;
+
+	section_nr = pfn_to_section_nr(start_pfn);
+	ms = __nr_to_section(section_nr);
+
+	/* Get section's memmap address */
+	memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
+
+	/*
+	 * Get page for the memmap's phys address
+	 * XXX: need more consideration for sparse_vmemmap...
+	 */
+	page = virt_to_page(memmap);
+	mapsize = sizeof(struct page) * PAGES_PER_SECTION;
+	mapsize = PAGE_ALIGN(mapsize) >> PAGE_SHIFT;
+
+	/* remember memmap's page */
+	for (i = 0; i < mapsize; i++, page++)
+		get_page_bootmem(section_nr, page, SECTION_INFO);
+
+	usemap = __nr_to_section(section_nr)->pageblock_flags;
+	page = virt_to_page(usemap);
+
+	mapsize = PAGE_ALIGN(usemap_size()) >> PAGE_SHIFT;
+
+	for (i = 0; i < mapsize; i++, page++)
+		get_page_bootmem(section_nr, page, MIX_INFO);
+
+}
+
+void register_page_bootmem_info_node(struct pglist_data *pgdat)
+{
+	unsigned long i, pfn, end_pfn, nr_pages;
+	int node = pgdat->node_id;
+	struct page *page;
+	struct zone *zone;
+
+	nr_pages = PAGE_ALIGN(sizeof(struct pglist_data)) >> PAGE_SHIFT;
+	page = virt_to_page(pgdat);
+
+	for (i = 0; i < nr_pages; i++, page++)
+		get_page_bootmem(node, page, NODE_INFO);
+
+	zone = &pgdat->node_zones[0];
+	for (; zone < pgdat->node_zones + MAX_NR_ZONES - 1; zone++) {
+		if (zone->wait_table) {
+			nr_pages = zone->wait_table_hash_nr_entries
+				* sizeof(wait_queue_head_t);
+			nr_pages = PAGE_ALIGN(nr_pages) >> PAGE_SHIFT;
+			page = virt_to_page(zone->wait_table);
+
+			for (i = 0; i < nr_pages; i++, page++)
+				get_page_bootmem(node, page, NODE_INFO);
+		}
+	}
+
+	pfn = pgdat->node_start_pfn;
+	end_pfn = pfn + pgdat->node_spanned_pages;
+
+	/* register_section info */
+	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION)
+		register_page_bootmem_info_section(pfn);
+
+}
+#endif /* !CONFIG_SPARSEMEM_VMEMMAP */
+
 static int __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
@@ -101,6 +200,36 @@ static int __add_section(struct zone *zone, unsigned long phys_start_pfn)
 	return register_new_memory(__pfn_to_section(phys_start_pfn));
 }
 
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+static int __remove_section(struct zone *zone, struct mem_section *ms)
+{
+	/*
+	 * XXX: Freeing memmap with vmemmap is not implement yet.
+	 *      This should be removed later.
+	 */
+	return -EBUSY;
+}
+#else
+static int __remove_section(struct zone *zone, struct mem_section *ms)
+{
+	unsigned long flags;
+	struct pglist_data *pgdat = zone->zone_pgdat;
+	int ret = -EINVAL;
+
+	if (!valid_section(ms))
+		return ret;
+
+	ret = unregister_memory_section(ms);
+	if (ret)
+		return ret;
+
+	pgdat_resize_lock(pgdat, &flags);
+	sparse_remove_one_section(zone, ms);
+	pgdat_resize_unlock(pgdat, &flags);
+	return 0;
+}
+#endif
+
 /*
  * Reasonably generic function for adding memory.  It is
  * expected that archs that support memory hotplug will
@@ -134,6 +263,42 @@ int __add_pages(struct zone *zone, unsigned long phys_start_pfn,
 }
 EXPORT_SYMBOL_GPL(__add_pages);
 
+/**
+ * __remove_pages() - remove sections of pages from a zone
+ * @zone: zone from which pages need to be removed
+ * @phys_start_pfn: starting pageframe (must be aligned to start of a section)
+ * @nr_pages: number of pages to remove (must be multiple of section size)
+ *
+ * Generic helper function to remove section mappings and sysfs entries
+ * for the section of the memory we are removing. Caller needs to make
+ * sure that pages are marked reserved and zones are adjust properly by
+ * calling offline_pages().
+ */
+int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+		 unsigned long nr_pages)
+{
+	unsigned long i, ret = 0;
+	int sections_to_remove;
+
+	/*
+	 * We can only remove entire sections
+	 */
+	BUG_ON(phys_start_pfn & ~PAGE_SECTION_MASK);
+	BUG_ON(nr_pages % PAGES_PER_SECTION);
+
+	release_mem_region(phys_start_pfn << PAGE_SHIFT, nr_pages * PAGE_SIZE);
+
+	sections_to_remove = nr_pages / PAGES_PER_SECTION;
+	for (i = 0; i < sections_to_remove; i++) {
+		unsigned long pfn = phys_start_pfn + i*PAGES_PER_SECTION;
+		ret = __remove_section(zone, __pfn_to_section(pfn));
+		if (ret)
+			break;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(__remove_pages);
+
 static void grow_zone_span(struct zone *zone,
 		unsigned long start_pfn, unsigned long end_pfn)
 {
@@ -162,6 +327,25 @@ static void grow_pgdat_span(struct pglist_data *pgdat,
 
 	pgdat->node_spanned_pages = max(old_pgdat_end_pfn, end_pfn) -
 					pgdat->node_start_pfn;
+}
+
+void online_page(struct page *page)
+{
+	totalram_pages++;
+	num_physpages++;
+
+#ifdef CONFIG_HIGHMEM
+	if (PageHighMem(page))
+		totalhigh_pages++;
+#endif
+
+#ifdef CONFIG_FLATMEM
+	max_mapnr = max(page_to_pfn(page), max_mapnr);
+#endif
+
+	ClearPageReserved(page);
+	init_page_count(page);
+	__free_page(page);
 }
 
 static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
@@ -208,7 +392,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	/*
 	 * This doesn't need a lock to do pfn_to_page().
 	 * The section can't be removed here because of the
-	 * memory_block->state_sem.
+	 * memory_block->state_mutex.
 	 */
 	zone = page_zone(pfn_to_page(pfn));
 	pgdat_resize_lock(zone->zone_pgdat, &flags);

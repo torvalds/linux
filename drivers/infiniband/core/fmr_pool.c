@@ -158,8 +158,7 @@ static void ib_fmr_batch_release(struct ib_fmr_pool *pool)
 #endif
 	}
 
-	list_splice(&pool->dirty_list, &unmap_list);
-	INIT_LIST_HEAD(&pool->dirty_list);
+	list_splice_init(&pool->dirty_list, &unmap_list);
 	pool->dirty_len = 0;
 
 	spin_unlock_irq(&pool->pool_lock);

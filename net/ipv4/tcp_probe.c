@@ -153,7 +153,7 @@ static int tcpprobe_sprint(char *tbuf, int n)
 		= ktime_to_timespec(ktime_sub(p->tstamp, tcp_probe.start));
 
 	return snprintf(tbuf, n,
-			"%lu.%09lu %d.%d.%d.%d:%u %d.%d.%d.%d:%u"
+			"%lu.%09lu " NIPQUAD_FMT ":%u " NIPQUAD_FMT ":%u"
 			" %d %#x %#x %u %u %u %u\n",
 			(unsigned long) tv.tv_sec,
 			(unsigned long) tv.tv_nsec,
@@ -190,19 +190,18 @@ static ssize_t tcpprobe_read(struct file *file, char __user *buf,
 
 		width = tcpprobe_sprint(tbuf, sizeof(tbuf));
 
-		if (width < len)
+		if (cnt + width < len)
 			tcp_probe.tail = (tcp_probe.tail + 1) % bufsize;
 
 		spin_unlock_bh(&tcp_probe.lock);
 
 		/* if record greater than space available
 		   return partial buffer (so far) */
-		if (width >= len)
+		if (cnt + width >= len)
 			break;
 
-		error = copy_to_user(buf + cnt, tbuf, width);
-		if (error)
-			break;
+		if (copy_to_user(buf + cnt, tbuf, width))
+			return -EFAULT;
 		cnt += width;
 	}
 

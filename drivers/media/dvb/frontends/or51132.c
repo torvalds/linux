@@ -91,7 +91,7 @@ static int or51132_writebuf(struct or51132_state *state, const u8 *buf, int len)
    Less code and more efficient that loading a buffer on the stack with
    the bytes to send and then calling or51132_writebuf() on that. */
 #define or51132_writebytes(state, data...)  \
-	({ const static u8 _data[] = {data}; \
+	({ static const u8 _data[] = {data}; \
 	or51132_writebuf(state, _data, sizeof(_data)); })
 
 /* Read data from demod into buffer.  Returns 0 on success. */
@@ -132,7 +132,7 @@ static int or51132_readreg(struct or51132_state *state, u8 reg)
 static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware *fw)
 {
 	struct or51132_state* state = fe->demodulator_priv;
-	const static u8 run_buf[] = {0x7F,0x01};
+	static const u8 run_buf[] = {0x7F,0x01};
 	u8 rec_buf[8];
 	u32 firmwareAsize, firmwareBsize;
 	int i,ret;
@@ -419,7 +419,7 @@ static int or51132_read_status(struct dvb_frontend* fe, fe_status_t* status)
 		*status = 0;
 		return -EREMOTEIO;
 	}
-	dprintk("%s: read_status %04x\n", __FUNCTION__, reg);
+	dprintk("%s: read_status %04x\n", __func__, reg);
 
 	if (reg & 0x0100) /* Receiver Lock */
 		*status = FE_HAS_SIGNAL|FE_HAS_CARRIER|FE_HAS_VITERBI|
@@ -504,14 +504,14 @@ start:
 		if (retry--) goto start;
 		return -EREMOTEIO;
 	}
-	dprintk("%s: modulation %02x, NTSC rej O%s\n", __FUNCTION__,
+	dprintk("%s: modulation %02x, NTSC rej O%s\n", __func__,
 		reg&0xff, reg&0x1000?"n":"ff");
 
 	/* Calculate SNR using noise, c, and NTSC rejection correction */
 	state->snr = calculate_snr(noise, c) - usK;
 	*snr = (state->snr) >> 16;
 
-	dprintk("%s: noise = 0x%08x, snr = %d.%02d dB\n", __FUNCTION__, noise,
+	dprintk("%s: noise = 0x%08x, snr = %d.%02d dB\n", __func__, noise,
 		state->snr >> 24, (((state->snr>>8) & 0xffff) * 100) >> 16);
 
 	return 0;

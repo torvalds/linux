@@ -1973,10 +1973,7 @@ wd33c93_init(struct Scsi_Host *instance, const wd33c93_regs regs,
 	hostdata->incoming_ptr = 0;
 	hostdata->outgoing_len = 0;
 	hostdata->default_sx_per = DEFAULT_SX_PER;
-	hostdata->no_sync = 0xff;	/* sync defaults to off */
 	hostdata->no_dma = 0;	/* default is DMA enabled */
-	hostdata->fast = 0;	/* default is Fast SCSI transfers disabled */
-	hostdata->dma_mode = CTRL_DMA;	/* default is Single Byte DMA */
 
 #ifdef PROC_INTERFACE
 	hostdata->proc = PR_VERSION | PR_INFO | PR_STATISTICS |

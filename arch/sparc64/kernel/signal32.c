@@ -1,5 +1,4 @@
-/*  $Id: signal32.c,v 1.74 2002/02/09 19:49:30 davem Exp $
- *  arch/sparc64/kernel/signal32.c
+/*  arch/sparc64/kernel/signal32.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
@@ -23,7 +22,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
-#include <asm/svr4.h>
 #include <asm/pgtable.h>
 #include <asm/psrcompat.h>
 #include <asm/fpumacro.h>
@@ -31,30 +29,6 @@
 #include <asm/compat_signal.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
-/* Signal frames: the original one (compatible with SunOS):
- *
- * Set up a signal frame... Make the stack look the way SunOS
- * expects it to look which is basically:
- *
- * ---------------------------------- <-- %sp at signal time
- * Struct sigcontext
- * Signal address
- * Ptr to sigcontext area above
- * Signal code
- * The signal number itself
- * One register window
- * ---------------------------------- <-- New %sp
- */
-struct signal_sframe32 {
-	struct reg_window32 sig_window;
-	int sig_num;
-	int sig_code;
-	/* struct sigcontext32 * */ u32 sig_scptr;
-	int sig_address;
-	struct sigcontext32 sig_context;
-	unsigned int extramask[_COMPAT_NSIG_WORDS - 1];
-};
 
 /* This magic should be in g_upper[0] for all upper parts
  * to be valid.
@@ -66,12 +40,7 @@ typedef struct {
 	unsigned int asi;
 } siginfo_extra_v8plus_t;
 
-/* 
- * And the new one, intended to be used for Linux applications only
- * (we have enough in there to work with clone).
- * All the interesting bits are in the info field.
- */
-struct new_signal_frame32 {
+struct signal_frame32 {
 	struct sparc_stackf32	ss;
 	__siginfo32_t		info;
 	/* __siginfo_fpu32_t * */ u32 fpu_save;
@@ -150,8 +119,7 @@ struct rt_signal_frame32 {
 };
 
 /* Align macros */
-#define SF_ALIGNEDSZ  (((sizeof(struct signal_sframe32) + 7) & (~7)))
-#define NF_ALIGNEDSZ  (((sizeof(struct new_signal_frame32) + 7) & (~7)))
+#define SF_ALIGNEDSZ  (((sizeof(struct signal_frame32) + 7) & (~7)))
 #define RT_ALIGNEDSZ  (((sizeof(struct rt_signal_frame32) + 7) & (~7)))
 
 int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
@@ -242,17 +210,22 @@ static int restore_fpu_state32(struct pt_regs *regs, __siginfo_fpu_t __user *fpu
 	return err;
 }
 
-void do_new_sigreturn32(struct pt_regs *regs)
+void do_sigreturn32(struct pt_regs *regs)
 {
-	struct new_signal_frame32 __user *sf;
+	struct signal_frame32 __user *sf;
 	unsigned int psr;
 	unsigned pc, npc, fpu_save;
 	sigset_t set;
 	unsigned seta[_COMPAT_NSIG_WORDS];
 	int err, i;
 	
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
+	synchronize_user_stack();
+
 	regs->u_regs[UREG_FP] &= 0x00000000ffffffffUL;
-	sf = (struct new_signal_frame32 __user *) regs->u_regs[UREG_FP];
+	sf = (struct signal_frame32 __user *) regs->u_regs[UREG_FP];
 
 	/* 1. Make sure we are not getting garbage from the user */
 	if (!access_ok(VERIFY_READ, sf, sizeof(*sf)) ||
@@ -314,76 +287,6 @@ void do_new_sigreturn32(struct pt_regs *regs)
 	current->blocked = set;
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
-	return;
-
-segv:
-	force_sig(SIGSEGV, current);
-}
-
-asmlinkage void do_sigreturn32(struct pt_regs *regs)
-{
-	struct sigcontext32 __user *scptr;
-	unsigned int pc, npc, psr;
-	sigset_t set;
-	unsigned int seta[_COMPAT_NSIG_WORDS];
-	int err;
-
-	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
-
-	synchronize_user_stack();
-	if (test_thread_flag(TIF_NEWSIGNALS)) {
-		do_new_sigreturn32(regs);
-		return;
-	}
-
-	scptr = (struct sigcontext32 __user *)
-		(regs->u_regs[UREG_I0] & 0x00000000ffffffffUL);
-	/* Check sanity of the user arg. */
-	if (!access_ok(VERIFY_READ, scptr, sizeof(struct sigcontext32)) ||
-	    (((unsigned long) scptr) & 3))
-		goto segv;
-
-	err = __get_user(pc, &scptr->sigc_pc);
-	err |= __get_user(npc, &scptr->sigc_npc);
-
-	if ((pc | npc) & 3)
-		goto segv; /* Nice try. */
-
-	err |= __get_user(seta[0], &scptr->sigc_mask);
-	/* Note that scptr + 1 points to extramask */
-	err |= copy_from_user(seta+1, scptr + 1,
-			      (_COMPAT_NSIG_WORDS - 1) * sizeof(unsigned int));
-	if (err)
-	    	goto segv;
-	switch (_NSIG_WORDS) {
-		case 4: set.sig[3] = seta[6] + (((long)seta[7]) << 32);
-		case 3: set.sig[2] = seta[4] + (((long)seta[5]) << 32);
-		case 2: set.sig[1] = seta[2] + (((long)seta[3]) << 32);
-		case 1: set.sig[0] = seta[0] + (((long)seta[1]) << 32);
-	}
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	
-	if (test_thread_flag(TIF_32BIT)) {
-		pc &= 0xffffffff;
-		npc &= 0xffffffff;
-	}
-	regs->tpc = pc;
-	regs->tnpc = npc;
-	err = __get_user(regs->u_regs[UREG_FP], &scptr->sigc_sp);
-	err |= __get_user(regs->u_regs[UREG_I0], &scptr->sigc_o0);
-	err |= __get_user(regs->u_regs[UREG_G1], &scptr->sigc_g1);
-
-	/* User can only change condition codes in %tstate. */
-	err |= __get_user(psr, &scptr->sigc_psr);
-	if (err)
-		goto segv;
-	regs->tstate &= ~(TSTATE_ICC|TSTATE_XCC);
-	regs->tstate |= psr_to_tstate_icc(psr);
 	return;
 
 segv:
@@ -505,145 +408,6 @@ static void __user *get_sigframe(struct sigaction *sa, struct pt_regs *regs, uns
 	return (void __user *)(sp - framesize);
 }
 
-static void
-setup_frame32(struct sigaction *sa, struct pt_regs *regs, int signr, sigset_t *oldset, siginfo_t *info)
-{
-	struct signal_sframe32 __user *sframep;
-	struct sigcontext32 __user *sc;
-	unsigned int seta[_COMPAT_NSIG_WORDS];
-	int err = 0;
-	void __user *sig_address;
-	int sig_code;
-	unsigned long pc = regs->tpc;
-	unsigned long npc = regs->tnpc;
-	unsigned int psr;
-
-	if (test_thread_flag(TIF_32BIT)) {
-		pc &= 0xffffffff;
-		npc &= 0xffffffff;
-	}
-
-	synchronize_user_stack();
-	save_and_clear_fpu();
-
-	sframep = (struct signal_sframe32 __user *)
-		get_sigframe(sa, regs, SF_ALIGNEDSZ);
-	if (invalid_frame_pointer(sframep, sizeof(*sframep))){
-		/* Don't change signal code and address, so that
-		 * post mortem debuggers can have a look.
-		 */
-		do_exit(SIGILL);
-	}
-
-	sc = &sframep->sig_context;
-
-	/* We've already made sure frame pointer isn't in kernel space... */
-	err = __put_user((sas_ss_flags(regs->u_regs[UREG_FP]) == SS_ONSTACK),
-			 &sc->sigc_onstack);
-	
-	switch (_NSIG_WORDS) {
-	case 4: seta[7] = (oldset->sig[3] >> 32);
-	        seta[6] = oldset->sig[3];
-	case 3: seta[5] = (oldset->sig[2] >> 32);
-	        seta[4] = oldset->sig[2];
-	case 2: seta[3] = (oldset->sig[1] >> 32);
-	        seta[2] = oldset->sig[1];
-	case 1: seta[1] = (oldset->sig[0] >> 32);
-	        seta[0] = oldset->sig[0];
-	}
-	err |= __put_user(seta[0], &sc->sigc_mask);
-	err |= __copy_to_user(sframep->extramask, seta + 1,
-			      (_COMPAT_NSIG_WORDS - 1) * sizeof(unsigned int));
-	err |= __put_user(regs->u_regs[UREG_FP], &sc->sigc_sp);
-	err |= __put_user(pc, &sc->sigc_pc);
-	err |= __put_user(npc, &sc->sigc_npc);
-	psr = tstate_to_psr(regs->tstate);
-	if (current_thread_info()->fpsaved[0] & FPRS_FEF)
-		psr |= PSR_EF;
-	err |= __put_user(psr, &sc->sigc_psr);
-	err |= __put_user(regs->u_regs[UREG_G1], &sc->sigc_g1);
-	err |= __put_user(regs->u_regs[UREG_I0], &sc->sigc_o0);
-	err |= __put_user(get_thread_wsaved(), &sc->sigc_oswins);
-
-	err |= copy_in_user((u32 __user *)sframep,
-			    (u32 __user *)(regs->u_regs[UREG_FP]),
-			    sizeof(struct reg_window32));
-		       
-	set_thread_wsaved(0); /* So process is allowed to execute. */
-	err |= __put_user(signr, &sframep->sig_num);
-	sig_address = NULL;
-	sig_code = 0;
-	if (SI_FROMKERNEL (info) && (info->si_code & __SI_MASK) == __SI_FAULT) {
-		sig_address = info->si_addr;
-		switch (signr) {
-		case SIGSEGV:
-			switch (info->si_code) {
-			case SEGV_MAPERR: sig_code = SUBSIG_NOMAPPING; break;
-			default: sig_code = SUBSIG_PROTECTION; break;
-			}
-			break;
-		case SIGILL:
-			switch (info->si_code) {
-			case ILL_ILLOPC: sig_code = SUBSIG_ILLINST; break;
-			case ILL_PRVOPC: sig_code = SUBSIG_PRIVINST; break;
-			case ILL_ILLTRP: sig_code = SUBSIG_BADTRAP(info->si_trapno); break;
-			default: sig_code = SUBSIG_STACK; break;
-			}
-			break;
-		case SIGFPE:
-			switch (info->si_code) {
-			case FPE_INTDIV: sig_code = SUBSIG_IDIVZERO; break;
-			case FPE_INTOVF: sig_code = SUBSIG_FPINTOVFL; break;
-			case FPE_FLTDIV: sig_code = SUBSIG_FPDIVZERO; break;
-			case FPE_FLTOVF: sig_code = SUBSIG_FPOVFLOW; break;
-			case FPE_FLTUND: sig_code = SUBSIG_FPUNFLOW; break;
-			case FPE_FLTRES: sig_code = SUBSIG_FPINEXACT; break;
-			case FPE_FLTINV: sig_code = SUBSIG_FPOPERROR; break;
-			default: sig_code = SUBSIG_FPERROR; break;
-			}
-			break;
-		case SIGBUS:
-			switch (info->si_code) {
-			case BUS_ADRALN: sig_code = SUBSIG_ALIGNMENT; break;
-			case BUS_ADRERR: sig_code = SUBSIG_MISCERROR; break;
-			default: sig_code = SUBSIG_BUSTIMEOUT; break;
-			}
-			break;
-		case SIGEMT:
-			switch (info->si_code) {
-			case EMT_TAGOVF: sig_code = SUBSIG_TAG; break;
-			}
-			break;
-		case SIGSYS:
-			if (info->si_code == (__SI_FAULT|0x100)) {
-				/* See sys_sunos32.c */
-				sig_code = info->si_trapno;
-				break;
-			}
-		default:
-			sig_address = NULL;
-		}
-	}
-	err |= __put_user(ptr_to_compat(sig_address), &sframep->sig_address);
-	err |= __put_user(sig_code, &sframep->sig_code);
-	err |= __put_user(ptr_to_compat(sc), &sframep->sig_scptr);
-	if (err)
-		goto sigsegv;
-
-	regs->u_regs[UREG_FP] = (unsigned long) sframep;
-	regs->tpc = (unsigned long) sa->sa_handler;
-	regs->tnpc = (regs->tpc + 4);
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-	return;
-
-sigsegv:
-	force_sigsegv(signr, current);
-}
-
-
 static int save_fpu_state32(struct pt_regs *regs, __siginfo_fpu_t __user *fpu)
 {
 	unsigned long *fpregs = current_thread_info()->fpregs;
@@ -664,10 +428,10 @@ static int save_fpu_state32(struct pt_regs *regs, __siginfo_fpu_t __user *fpu)
 	return err;
 }
 
-static void new_setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
-			      int signo, sigset_t *oldset)
+static void setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
+			  int signo, sigset_t *oldset)
 {
-	struct new_signal_frame32 __user *sf;
+	struct signal_frame32 __user *sf;
 	int sigframe_size;
 	u32 psr;
 	int i, err;
@@ -677,11 +441,11 @@ static void new_setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 	synchronize_user_stack();
 	save_and_clear_fpu();
 	
-	sigframe_size = NF_ALIGNEDSZ;
+	sigframe_size = SF_ALIGNEDSZ;
 	if (!(current_thread_info()->fpsaved[0] & FPRS_FEF))
 		sigframe_size -= sizeof(__siginfo_fpu_t);
 
-	sf = (struct new_signal_frame32 __user *)
+	sf = (struct signal_frame32 __user *)
 		get_sigframe(&ka->sa, regs, sigframe_size);
 	
 	if (invalid_frame_pointer(sf, sigframe_size))
@@ -796,281 +560,6 @@ sigill:
 	do_exit(SIGILL);
 sigsegv:
 	force_sigsegv(signo, current);
-}
-
-/* Setup a Solaris stack frame */
-static void
-setup_svr4_frame32(struct sigaction *sa, unsigned long pc, unsigned long npc,
-		   struct pt_regs *regs, int signr, sigset_t *oldset)
-{
-	svr4_signal_frame_t __user *sfp;
-	svr4_gregset_t  __user *gr;
-	svr4_siginfo_t  __user *si;
-	svr4_mcontext_t __user *mc;
-	svr4_gwindows_t __user *gw;
-	svr4_ucontext_t __user *uc;
-	svr4_sigset_t setv;
-	unsigned int psr;
-	int i, err;
-
-	synchronize_user_stack();
-	save_and_clear_fpu();
-	
-	regs->u_regs[UREG_FP] &= 0x00000000ffffffffUL;
-	sfp = (svr4_signal_frame_t __user *)
-		get_sigframe(sa, regs,
-			     sizeof(struct reg_window32) + SVR4_SF_ALIGNED);
-
-	if (invalid_frame_pointer(sfp, sizeof(*sfp)))
-		do_exit(SIGILL);
-
-	/* Start with a clean frame pointer and fill it */
-	err = clear_user(sfp, sizeof(*sfp));
-
-	/* Setup convenience variables */
-	si = &sfp->si;
-	uc = &sfp->uc;
-	gw = &sfp->gw;
-	mc = &uc->mcontext;
-	gr = &mc->greg;
-	
-	/* FIXME: where am I supposed to put this?
-	 * sc->sigc_onstack = old_status;
-	 * anyways, it does not look like it is used for anything at all.
-	 */
-	setv.sigbits[0] = oldset->sig[0];
-	setv.sigbits[1] = (oldset->sig[0] >> 32);
-	if (_NSIG_WORDS >= 2) {
-		setv.sigbits[2] = oldset->sig[1];
-		setv.sigbits[3] = (oldset->sig[1] >> 32);
-		err |= __copy_to_user(&uc->sigmask, &setv, sizeof(svr4_sigset_t));
-	} else
-		err |= __copy_to_user(&uc->sigmask, &setv,
-				      2 * sizeof(unsigned int));
-	
-	/* Store registers */
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-	err |= __put_user(regs->tpc, &((*gr)[SVR4_PC]));
-	err |= __put_user(regs->tnpc, &((*gr)[SVR4_NPC]));
-	psr = tstate_to_psr(regs->tstate);
-	if (current_thread_info()->fpsaved[0] & FPRS_FEF)
-		psr |= PSR_EF;
-	err |= __put_user(psr, &((*gr)[SVR4_PSR]));
-	err |= __put_user(regs->y, &((*gr)[SVR4_Y]));
-	
-	/* Copy g[1..7] and o[0..7] registers */
-	for (i = 0; i < 7; i++)
-		err |= __put_user(regs->u_regs[UREG_G1+i], (&(*gr)[SVR4_G1])+i);
-	for (i = 0; i < 8; i++)
-		err |= __put_user(regs->u_regs[UREG_I0+i], (&(*gr)[SVR4_O0])+i);
-
-	/* Setup sigaltstack */
-	err |= __put_user(current->sas_ss_sp, &uc->stack.sp);
-	err |= __put_user(sas_ss_flags(regs->u_regs[UREG_FP]), &uc->stack.flags);
-	err |= __put_user(current->sas_ss_size, &uc->stack.size);
-
-	/* Save the currently window file: */
-
-	/* 1. Link sfp->uc->gwins to our windows */
-	err |= __put_user(ptr_to_compat(gw), &mc->gwin);
-	    
-	/* 2. Number of windows to restore at setcontext (): */
-	err |= __put_user(get_thread_wsaved(), &gw->count);
-
-	/* 3. We just pay attention to the gw->count field on setcontext */
-	set_thread_wsaved(0); /* So process is allowed to execute. */
-
-	/* Setup the signal information.  Solaris expects a bunch of
-	 * information to be passed to the signal handler, we don't provide
-	 * that much currently, should use siginfo.
-	 */
-	err |= __put_user(signr, &si->siginfo.signo);
-	err |= __put_user(SVR4_SINOINFO, &si->siginfo.code);
-	if (err)
-		goto sigsegv;
-
-	regs->u_regs[UREG_FP] = (unsigned long) sfp;
-	regs->tpc = (unsigned long) sa->sa_handler;
-	regs->tnpc = (regs->tpc + 4);
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-
-	/* Arguments passed to signal handler */
-	if (regs->u_regs[14]){
-		struct reg_window32 __user *rw = (struct reg_window32 __user *)
-			(regs->u_regs[14] & 0x00000000ffffffffUL);
-
-		err |= __put_user(signr, &rw->ins[0]);
-		err |= __put_user((u64)si, &rw->ins[1]);
-		err |= __put_user((u64)uc, &rw->ins[2]);
-		err |= __put_user((u64)sfp, &rw->ins[6]);	/* frame pointer */
-		if (err)
-			goto sigsegv;
-
-		regs->u_regs[UREG_I0] = signr;
-		regs->u_regs[UREG_I1] = (u32)(u64) si;
-		regs->u_regs[UREG_I2] = (u32)(u64) uc;
-	}
-	return;
-
-sigsegv:
-	force_sigsegv(signr, current);
-}
-
-asmlinkage int
-svr4_getcontext(svr4_ucontext_t __user *uc, struct pt_regs *regs)
-{
-	svr4_gregset_t  __user *gr;
-	svr4_mcontext_t __user *mc;
-	svr4_sigset_t setv;
-	int i, err;
-	u32 psr;
-
-	synchronize_user_stack();
-	save_and_clear_fpu();
-	
-	if (get_thread_wsaved())
-		do_exit(SIGSEGV);
-
-	err = clear_user(uc, sizeof(*uc));
-
-	/* Setup convenience variables */
-	mc = &uc->mcontext;
-	gr = &mc->greg;
-
-	setv.sigbits[0] = current->blocked.sig[0];
-	setv.sigbits[1] = (current->blocked.sig[0] >> 32);
-	if (_NSIG_WORDS >= 2) {
-		setv.sigbits[2] = current->blocked.sig[1];
-		setv.sigbits[3] = (current->blocked.sig[1] >> 32);
-		err |= __copy_to_user(&uc->sigmask, &setv, sizeof(svr4_sigset_t));
-	} else
-		err |= __copy_to_user(&uc->sigmask, &setv, 2 * sizeof(unsigned));
-
-	/* Store registers */
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-	err |= __put_user(regs->tpc, &uc->mcontext.greg[SVR4_PC]);
-	err |= __put_user(regs->tnpc, &uc->mcontext.greg[SVR4_NPC]);
-
-	psr = tstate_to_psr(regs->tstate) & ~PSR_EF;		   
-	if (current_thread_info()->fpsaved[0] & FPRS_FEF)
-		psr |= PSR_EF;
-	err |= __put_user(psr, &uc->mcontext.greg[SVR4_PSR]);
-
-	err |= __put_user(regs->y, &uc->mcontext.greg[SVR4_Y]);
-	
-	/* Copy g[1..7] and o[0..7] registers */
-	for (i = 0; i < 7; i++)
-		err |= __put_user(regs->u_regs[UREG_G1+i], (&(*gr)[SVR4_G1])+i);
-	for (i = 0; i < 8; i++)
-		err |= __put_user(regs->u_regs[UREG_I0+i], (&(*gr)[SVR4_O0])+i);
-
-	/* Setup sigaltstack */
-	err |= __put_user(current->sas_ss_sp, &uc->stack.sp);
-	err |= __put_user(sas_ss_flags(regs->u_regs[UREG_FP]), &uc->stack.flags);
-	err |= __put_user(current->sas_ss_size, &uc->stack.size);
-
-	/* The register file is not saved
-	 * we have already stuffed all of it with sync_user_stack
-	 */
-	return (err ? -EFAULT : 0);
-}
-
-
-/* Set the context for a svr4 application, this is Solaris way to sigreturn */
-asmlinkage int svr4_setcontext(svr4_ucontext_t __user *c, struct pt_regs *regs)
-{
-	svr4_gregset_t  __user *gr;
-	mm_segment_t old_fs;
-	u32 pc, npc, psr, u_ss_sp;
-	sigset_t set;
-	svr4_sigset_t setv;
-	int i, err;
-	stack_t st;
-	
-	/* Fixme: restore windows, or is this already taken care of in
-	 * svr4_setup_frame when sync_user_windows is done?
-	 */
-	flush_user_windows();
-	
-	if (get_thread_wsaved())
-		goto sigsegv;
-
-	if (((unsigned long) c) & 3){
-		printk("Unaligned structure passed\n");
-		goto sigsegv;
-	}
-
-	if (!__access_ok(c, sizeof(*c))) {
-		/* Miguel, add nice debugging msg _here_. ;-) */
-		goto sigsegv;
-	}
-
-	/* Check for valid PC and nPC */
-	gr = &c->mcontext.greg;
-	err = __get_user(pc, &((*gr)[SVR4_PC]));
-	err |= __get_user(npc, &((*gr)[SVR4_NPC]));
-	if ((pc | npc) & 3)
-		goto sigsegv;
-	
-	/* Retrieve information from passed ucontext */
-	/* note that nPC is ored a 1, this is used to inform entry.S */
-	/* that we don't want it to mess with our PC and nPC */
-	
-	err |= copy_from_user(&setv, &c->sigmask, sizeof(svr4_sigset_t));
-	set.sig[0] = setv.sigbits[0] | (((long)setv.sigbits[1]) << 32);
-	if (_NSIG_WORDS >= 2)
-		set.sig[1] = setv.sigbits[2] | (((long)setv.sigbits[3]) << 32);
-	
-	err |= __get_user(u_ss_sp, &c->stack.sp);
-	st.ss_sp = compat_ptr(u_ss_sp);
-	err |= __get_user(st.ss_flags, &c->stack.flags);
-	err |= __get_user(st.ss_size, &c->stack.size);
-	if (err)
-		goto sigsegv;
-		
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	do_sigaltstack((stack_t __user *) &st, NULL, regs->u_regs[UREG_I6]);
-	set_fs(old_fs);
-	
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-	regs->tpc = pc;
-	regs->tnpc = npc | 1;
-	if (test_thread_flag(TIF_32BIT)) {
-		regs->tpc &= 0xffffffff;
-		regs->tnpc &= 0xffffffff;
-	}
-	err |= __get_user(regs->y, &((*gr)[SVR4_Y]));
-	err |= __get_user(psr, &((*gr)[SVR4_PSR]));
-	regs->tstate &= ~(TSTATE_ICC|TSTATE_XCC);
-	regs->tstate |= psr_to_tstate_icc(psr);
-
-	/* Restore g[1..7] and o[0..7] registers */
-	for (i = 0; i < 7; i++)
-		err |= __get_user(regs->u_regs[UREG_G1+i], (&(*gr)[SVR4_G1])+i);
-	for (i = 0; i < 8; i++)
-		err |= __get_user(regs->u_regs[UREG_I0+i], (&(*gr)[SVR4_O0])+i);
-	if (err)
-		goto sigsegv;
-
-	return -EINTR;
-sigsegv:
-	return -EFAULT;
 }
 
 static void setup_rt_frame32(struct k_sigaction *ka, struct pt_regs *regs,
@@ -1216,20 +705,13 @@ sigsegv:
 
 static inline void handle_signal32(unsigned long signr, struct k_sigaction *ka,
 				   siginfo_t *info,
-				   sigset_t *oldset, struct pt_regs *regs,
-				   int svr4_signal)
+				   sigset_t *oldset, struct pt_regs *regs)
 {
-	if (svr4_signal)
-		setup_svr4_frame32(&ka->sa, regs->tpc, regs->tnpc,
-				   regs, signr, oldset);
-	else {
-		if (ka->sa.sa_flags & SA_SIGINFO)
-			setup_rt_frame32(ka, regs, signr, oldset, info);
-		else if (test_thread_flag(TIF_NEWSIGNALS))
-			new_setup_frame32(ka, regs, signr, oldset);
-		else
-			setup_frame32(&ka->sa, regs, signr, oldset, info);
-	}
+	if (ka->sa.sa_flags & SA_SIGINFO)
+		setup_rt_frame32(ka, regs, signr, oldset, info);
+	else
+		setup_frame32(ka, regs, signr, oldset);
+
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
 	if (!(ka->sa.sa_flags & SA_NOMASK))
@@ -1264,23 +746,17 @@ static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs
  * mistake.
  */
 void do_signal32(sigset_t *oldset, struct pt_regs * regs,
-		 unsigned long orig_i0, int restart_syscall)
+		 struct signal_deliver_cookie *cookie)
 {
-	siginfo_t info;
-	struct signal_deliver_cookie cookie;
 	struct k_sigaction ka;
+	siginfo_t info;
 	int signr;
-	int svr4_signal = current->personality == PER_SVR4;
 	
-	cookie.restart_syscall = restart_syscall;
-	cookie.orig_i0 = orig_i0;
-
-	signr = get_signal_to_deliver(&info, &ka, regs, &cookie);
+	signr = get_signal_to_deliver(&info, &ka, regs, cookie);
 	if (signr > 0) {
-		if (cookie.restart_syscall)
-			syscall_restart32(orig_i0, regs, &ka.sa);
-		handle_signal32(signr, &ka, &info, oldset,
-				regs, svr4_signal);
+		if (cookie->restart_syscall)
+			syscall_restart32(cookie->orig_i0, regs, &ka.sa);
+		handle_signal32(signr, &ka, &info, oldset, regs);
 
 		/* a signal was successfully delivered; the saved
 		 * sigmask will have been stored in the signal frame,
@@ -1291,16 +767,16 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs,
 			clear_thread_flag(TIF_RESTORE_SIGMASK);
 		return;
 	}
-	if (cookie.restart_syscall &&
+	if (cookie->restart_syscall &&
 	    (regs->u_regs[UREG_I0] == ERESTARTNOHAND ||
 	     regs->u_regs[UREG_I0] == ERESTARTSYS ||
 	     regs->u_regs[UREG_I0] == ERESTARTNOINTR)) {
 		/* replay the system call when we are done */
-		regs->u_regs[UREG_I0] = cookie.orig_i0;
+		regs->u_regs[UREG_I0] = cookie->orig_i0;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
 	}
-	if (cookie.restart_syscall &&
+	if (cookie->restart_syscall &&
 	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) {
 		regs->u_regs[UREG_G1] = __NR_restart_syscall;
 		regs->tpc -= 4;

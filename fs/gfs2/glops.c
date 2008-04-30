@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -126,7 +126,13 @@ static void meta_go_inval(struct gfs2_glock *gl, int flags)
 		return;
 
 	gfs2_meta_inval(gl);
-	gl->gl_vn++;
+	if (gl->gl_object == GFS2_I(gl->gl_sbd->sd_rindex))
+		gl->gl_sbd->sd_rindex_uptodate = 0;
+	else if (gl->gl_ops == &gfs2_rgrp_glops && gl->gl_object) {
+		struct gfs2_rgrpd *rgd = (struct gfs2_rgrpd *)gl->gl_object;
+
+		rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
+	}
 }
 
 /**

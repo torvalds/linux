@@ -103,7 +103,7 @@ const struct file_operations rxrpc_call_seq_fops = {
 	.open		= rxrpc_call_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release_private,
+	.release	= seq_release,
 };
 
 /*
@@ -188,5 +188,5 @@ const struct file_operations rxrpc_connection_seq_fops = {
 	.open		= rxrpc_connection_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release_private,
+	.release	= seq_release,
 };

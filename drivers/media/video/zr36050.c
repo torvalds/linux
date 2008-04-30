@@ -52,11 +52,10 @@
 #define MAX_CODECS 20
 
 /* amount of chips attached via this driver */
-static int zr36050_codecs = 0;
+static int zr36050_codecs;
 
 /* debugging is available via module parameter */
-
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-4)");
 

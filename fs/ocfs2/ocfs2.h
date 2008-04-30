@@ -36,11 +36,8 @@
 #include <linux/mutex.h>
 #include <linux/jbd.h>
 
-#include "cluster/nodemanager.h"
-#include "cluster/heartbeat.h"
-#include "cluster/tcp.h"
-
-#include "dlm/dlmapi.h"
+/* For union ocfs2_dlm_lksb */
+#include "stackglue.h"
 
 #include "ocfs2_fs.h"
 #include "ocfs2_lockid.h"
@@ -101,6 +98,9 @@ enum ocfs2_unlock_action {
 					       * dropped. */
 #define OCFS2_LOCK_QUEUED        (0x00000100) /* queued for downconvert */
 #define OCFS2_LOCK_NOCACHE       (0x00000200) /* don't use a holder count */
+#define OCFS2_LOCK_PENDING       (0x00000400) /* This lockres is pending a
+						 call to dlm_lock.  Only
+						 exists with BUSY set. */
 
 struct ocfs2_lock_res_ops;
 
@@ -120,13 +120,14 @@ struct ocfs2_lock_res {
 	int                      l_level;
 	unsigned int             l_ro_holders;
 	unsigned int             l_ex_holders;
-	struct dlm_lockstatus    l_lksb;
+	union ocfs2_dlm_lksb     l_lksb;
 
 	/* used from AST/BAST funcs. */
 	enum ocfs2_ast_action    l_action;
 	enum ocfs2_unlock_action l_unlock_action;
 	int                      l_requested;
 	int                      l_blocking;
+	unsigned int             l_pending_gen;
 
 	wait_queue_head_t        l_event;
 
@@ -179,6 +180,8 @@ enum ocfs2_mount_options
 #define OCFS2_DEFAULT_ATIME_QUANTUM	60
 
 struct ocfs2_journal;
+struct ocfs2_slot_info;
+struct ocfs2_recovery_map;
 struct ocfs2_super
 {
 	struct task_struct *commit_task;
@@ -190,7 +193,6 @@ struct ocfs2_super
 	struct ocfs2_slot_info *slot_info;
 
 	spinlock_t node_map_lock;
-	struct ocfs2_node_map recovery_map;
 
 	u64 root_blkno;
 	u64 system_dir_blkno;
@@ -206,25 +208,29 @@ struct ocfs2_super
 	u32 s_feature_incompat;
 	u32 s_feature_ro_compat;
 
-	/* Protects s_next_generaion, osb_flags. Could protect more on
-	 * osb as it's very short lived. */
+	/* Protects s_next_generation, osb_flags and s_inode_steal_slot.
+	 * Could protect more on osb as it's very short lived.
+	 */
 	spinlock_t osb_lock;
 	u32 s_next_generation;
 	unsigned long osb_flags;
+	s16 s_inode_steal_slot;
+	atomic_t s_num_inodes_stolen;
 
 	unsigned long s_mount_opt;
 	unsigned int s_atime_quantum;
 
-	u16 max_slots;
-	s16 node_num;
-	s16 slot_num;
-	s16 preferred_slot;
+	unsigned int max_slots;
+	unsigned int node_num;
+	int slot_num;
+	int preferred_slot;
 	int s_sectsize_bits;
 	int s_clustersize;
 	int s_clustersize_bits;
 
 	atomic_t vol_state;
 	struct mutex recovery_lock;
+	struct ocfs2_recovery_map *recovery_map;
 	struct task_struct *recovery_thread_task;
 	int disable_recovery;
 	wait_queue_head_t checkpoint_event;
@@ -245,12 +251,11 @@ struct ocfs2_super
 	struct ocfs2_alloc_stats alloc_stats;
 	char dev_str[20];		/* "major,minor" of the device */
 
-	struct dlm_ctxt *dlm;
+	char osb_cluster_stack[OCFS2_STACK_LABEL_LEN + 1];
+	struct ocfs2_cluster_connection *cconn;
 	struct ocfs2_lock_res osb_super_lockres;
 	struct ocfs2_lock_res osb_rename_lockres;
-	struct dlm_eviction_cb osb_eviction_cb;
 	struct ocfs2_dlm_debug *osb_dlm_debug;
-	struct dlm_protocol_version osb_locking_proto;
 
 	struct dentry *osb_debug_root;
 
@@ -367,10 +372,23 @@ static inline int ocfs2_is_soft_readonly(struct ocfs2_super *osb)
 	return ret;
 }
 
+static inline int ocfs2_userspace_stack(struct ocfs2_super *osb)
+{
+	return (osb->s_feature_incompat &
+		OCFS2_FEATURE_INCOMPAT_USERSPACE_STACK);
+}
+
 static inline int ocfs2_mount_local(struct ocfs2_super *osb)
 {
 	return (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_LOCAL_MOUNT);
 }
+
+static inline int ocfs2_uses_extended_slot_map(struct ocfs2_super *osb)
+{
+	return (osb->s_feature_incompat &
+		OCFS2_FEATURE_INCOMPAT_EXTENDED_SLOT_MAP);
+}
+
 
 #define OCFS2_IS_VALID_DINODE(ptr)					\
 	(!strcmp((ptr)->i_signature, OCFS2_INODE_SIGNATURE))
@@ -520,6 +538,33 @@ static inline unsigned int ocfs2_pages_per_cluster(struct super_block *sb)
 		pages_per_cluster = 1 << (cbits - PAGE_CACHE_SHIFT);
 
 	return pages_per_cluster;
+}
+
+static inline void ocfs2_init_inode_steal_slot(struct ocfs2_super *osb)
+{
+	spin_lock(&osb->osb_lock);
+	osb->s_inode_steal_slot = OCFS2_INVALID_SLOT;
+	spin_unlock(&osb->osb_lock);
+	atomic_set(&osb->s_num_inodes_stolen, 0);
+}
+
+static inline void ocfs2_set_inode_steal_slot(struct ocfs2_super *osb,
+					      s16 slot)
+{
+	spin_lock(&osb->osb_lock);
+	osb->s_inode_steal_slot = slot;
+	spin_unlock(&osb->osb_lock);
+}
+
+static inline s16 ocfs2_get_inode_steal_slot(struct ocfs2_super *osb)
+{
+	s16 slot;
+
+	spin_lock(&osb->osb_lock);
+	slot = osb->s_inode_steal_slot;
+	spin_unlock(&osb->osb_lock);
+
+	return slot;
 }
 
 #define ocfs2_set_bit ext2_set_bit

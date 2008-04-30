@@ -31,7 +31,6 @@
 
 #include <asm/mmu.h>
 #include <asm/ocp_ids.h>
-#include <asm/semaphore.h>
 
 #ifdef CONFIG_PPC_OCP
 

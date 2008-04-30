@@ -42,7 +42,7 @@ extern volatile unsigned long cmos_lock;
 static inline void lock_cmos(unsigned char reg)
 {
 	unsigned long new;
-	new = ((smp_processor_id()+1) << 8) | reg;
+	new = ((smp_processor_id() + 1) << 8) | reg;
 	for (;;) {
 		if (cmos_lock) {
 			cpu_relax();
@@ -57,22 +57,26 @@ static inline void unlock_cmos(void)
 {
 	cmos_lock = 0;
 }
+
 static inline int do_i_have_lock_cmos(void)
 {
-	return (cmos_lock >> 8) == (smp_processor_id()+1);
+	return (cmos_lock >> 8) == (smp_processor_id() + 1);
 }
+
 static inline unsigned char current_lock_cmos_reg(void)
 {
 	return cmos_lock & 0xff;
 }
-#define lock_cmos_prefix(reg) \
+
+#define lock_cmos_prefix(reg)			\
 	do {					\
 		unsigned long cmos_flags;	\
 		local_irq_save(cmos_flags);	\
 		lock_cmos(reg)
-#define lock_cmos_suffix(reg) \
-		unlock_cmos();			\
-		local_irq_restore(cmos_flags);	\
+
+#define lock_cmos_suffix(reg)			\
+	unlock_cmos();				\
+	local_irq_restore(cmos_flags);		\
 	} while (0)
 #else
 #define lock_cmos_prefix(reg) do {} while (0)

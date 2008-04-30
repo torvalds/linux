@@ -815,8 +815,6 @@ static int register_pio_HBA(long base, struct get_conf *gc, struct pci_dev *pdev
 	else
 		hd->primary = 1;
 
-	sh->unchecked_isa_dma = 0;	/* We can only do PIO */
-
 	hd->next = NULL;	/* build a linked list of all HBAs */
 	hd->prev = last_HBA;
 	if (hd->prev != NULL)

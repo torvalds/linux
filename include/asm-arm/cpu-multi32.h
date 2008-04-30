@@ -21,6 +21,10 @@ extern struct processor {
 	 */
 	void (*_data_abort)(unsigned long pc);
 	/*
+	 * Retrieve prefetch fault address
+	 */
+	unsigned long (*_prefetch_abort)(unsigned long lr);
+	/*
 	 * Set up any processor specifics
 	 */
 	void (*_proc_init)(void);

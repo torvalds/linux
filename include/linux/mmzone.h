@@ -3,6 +3,7 @@
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
+#ifndef __GENERATING_BOUNDS_H
 
 #include <linux/spinlock.h>
 #include <linux/list.h>
@@ -15,6 +16,7 @@
 #include <linux/seqlock.h>
 #include <linux/nodemask.h>
 #include <linux/pageblock-flags.h>
+#include <linux/bounds.h>
 #include <asm/atomic.h>
 #include <asm/page.h>
 
@@ -129,6 +131,8 @@ struct per_cpu_pageset {
 #define zone_pcp(__z, __cpu) (&(__z)->pageset[(__cpu)])
 #endif
 
+#endif /* !__GENERATING_BOUNDS.H */
+
 enum zone_type {
 #ifdef CONFIG_ZONE_DMA
 	/*
@@ -177,8 +181,10 @@ enum zone_type {
 	ZONE_HIGHMEM,
 #endif
 	ZONE_MOVABLE,
-	MAX_NR_ZONES
+	__MAX_NR_ZONES
 };
+
+#ifndef __GENERATING_BOUNDS_H
 
 /*
  * When a memory allocation must conform to specific limitations (such
@@ -188,28 +194,15 @@ enum zone_type {
  * match the requested limits. See gfp_zone() in include/linux/gfp.h
  */
 
-/*
- * Count the active zones.  Note that the use of defined(X) outside
- * #if and family is not necessarily defined so ensure we cannot use
- * it later.  Use __ZONE_COUNT to work out how many shift bits we need.
- */
-#define __ZONE_COUNT (			\
-	  defined(CONFIG_ZONE_DMA)	\
-	+ defined(CONFIG_ZONE_DMA32)	\
-	+ 1				\
-	+ defined(CONFIG_HIGHMEM)	\
-	+ 1				\
-)
-#if __ZONE_COUNT < 2
+#if MAX_NR_ZONES < 2
 #define ZONES_SHIFT 0
-#elif __ZONE_COUNT <= 2
+#elif MAX_NR_ZONES <= 2
 #define ZONES_SHIFT 1
-#elif __ZONE_COUNT <= 4
+#elif MAX_NR_ZONES <= 4
 #define ZONES_SHIFT 2
 #else
 #error ZONES_SHIFT -- too many zones configured adjust calculation
 #endif
-#undef __ZONE_COUNT
 
 struct zone {
 	/* Fields commonly accessed by the page allocator */
@@ -393,10 +386,10 @@ static inline int zone_is_oom_locked(const struct zone *zone)
  * The NUMA zonelists are doubled becausse we need zonelists that restrict the
  * allocations to a single node for GFP_THISNODE.
  *
- * [0 .. MAX_NR_ZONES -1] 		: Zonelists with fallback
- * [MAZ_NR_ZONES ... MAZ_ZONELISTS -1]  : No fallback (GFP_THISNODE)
+ * [0]	: Zonelist with fallback
+ * [1]	: No fallback (GFP_THISNODE)
  */
-#define MAX_ZONELISTS (2 * MAX_NR_ZONES)
+#define MAX_ZONELISTS 2
 
 
 /*
@@ -464,9 +457,18 @@ struct zonelist_cache {
 	unsigned long last_full_zap;		/* when last zap'd (jiffies) */
 };
 #else
-#define MAX_ZONELISTS MAX_NR_ZONES
+#define MAX_ZONELISTS 1
 struct zonelist_cache;
 #endif
+
+/*
+ * This struct contains information about a zone in a zonelist. It is stored
+ * here to avoid dereferences into large structures and lookups of tables
+ */
+struct zoneref {
+	struct zone *zone;	/* Pointer to actual zone */
+	int zone_idx;		/* zone_idx(zoneref->zone) */
+};
 
 /*
  * One allocation request operates on a zonelist. A zonelist
@@ -476,33 +478,22 @@ struct zonelist_cache;
  *
  * If zlcache_ptr is not NULL, then it is just the address of zlcache,
  * as explained above.  If zlcache_ptr is NULL, there is no zlcache.
+ * *
+ * To speed the reading of the zonelist, the zonerefs contain the zone index
+ * of the entry being read. Helper functions to access information given
+ * a struct zoneref are
+ *
+ * zonelist_zone()	- Return the struct zone * for an entry in _zonerefs
+ * zonelist_zone_idx()	- Return the index of the zone for an entry
+ * zonelist_node_idx()	- Return the index of the node for an entry
  */
-
 struct zonelist {
 	struct zonelist_cache *zlcache_ptr;		     // NULL or &zlcache
-	struct zone *zones[MAX_ZONES_PER_ZONELIST + 1];      // NULL delimited
+	struct zoneref _zonerefs[MAX_ZONES_PER_ZONELIST + 1];
 #ifdef CONFIG_NUMA
 	struct zonelist_cache zlcache;			     // optional ...
 #endif
 };
-
-#ifdef CONFIG_NUMA
-/*
- * Only custom zonelists like MPOL_BIND need to be filtered as part of
- * policies. As described in the comment for struct zonelist_cache, these
- * zonelists will not have a zlcache so zlcache_ptr will not be set. Use
- * that to determine if the zonelists needs to be filtered or not.
- */
-static inline int alloc_should_filter_zonelist(struct zonelist *zonelist)
-{
-	return !zonelist->zlcache_ptr;
-}
-#else
-static inline int alloc_should_filter_zonelist(struct zonelist *zonelist)
-{
-	return 0;
-}
-#endif /* CONFIG_NUMA */
 
 #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
 struct node_active_region {
@@ -637,9 +628,10 @@ static inline int is_normal_idx(enum zone_type idx)
 static inline int is_highmem(struct zone *zone)
 {
 #ifdef CONFIG_HIGHMEM
-	int zone_idx = zone - zone->zone_pgdat->node_zones;
-	return zone_idx == ZONE_HIGHMEM ||
-		(zone_idx == ZONE_MOVABLE && zone_movable_is_highmem());
+	int zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones;
+	return zone_off == ZONE_HIGHMEM * sizeof(*zone) ||
+	       (zone_off == ZONE_MOVABLE * sizeof(*zone) &&
+		zone_movable_is_highmem());
 #else
 	return 0;
 #endif
@@ -699,7 +691,6 @@ extern char numa_zonelist_order[];
 extern struct pglist_data contig_page_data;
 #define NODE_DATA(nid)		(&contig_page_data)
 #define NODE_MEM_MAP(nid)	mem_map
-#define MAX_NODES_SHIFT		1
 
 #else /* CONFIG_NEED_MULTIPLE_NODES */
 
@@ -731,32 +722,103 @@ extern struct zone *next_zone(struct zone *zone);
 	     zone;					\
 	     zone = next_zone(zone))
 
+static inline struct zone *zonelist_zone(struct zoneref *zoneref)
+{
+	return zoneref->zone;
+}
+
+static inline int zonelist_zone_idx(struct zoneref *zoneref)
+{
+	return zoneref->zone_idx;
+}
+
+static inline int zonelist_node_idx(struct zoneref *zoneref)
+{
+#ifdef CONFIG_NUMA
+	/* zone_to_nid not available in this context */
+	return zoneref->zone->node;
+#else
+	return 0;
+#endif /* CONFIG_NUMA */
+}
+
+/**
+ * next_zones_zonelist - Returns the next zone at or below highest_zoneidx within the allowed nodemask using a cursor within a zonelist as a starting point
+ * @z - The cursor used as a starting point for the search
+ * @highest_zoneidx - The zone index of the highest zone to return
+ * @nodes - An optional nodemask to filter the zonelist with
+ * @zone - The first suitable zone found is returned via this parameter
+ *
+ * This function returns the next zone at or below a given zone index that is
+ * within the allowed nodemask using a cursor as the starting point for the
+ * search. The zoneref returned is a cursor that is used as the next starting
+ * point for future calls to next_zones_zonelist().
+ */
+struct zoneref *next_zones_zonelist(struct zoneref *z,
+					enum zone_type highest_zoneidx,
+					nodemask_t *nodes,
+					struct zone **zone);
+
+/**
+ * first_zones_zonelist - Returns the first zone at or below highest_zoneidx within the allowed nodemask in a zonelist
+ * @zonelist - The zonelist to search for a suitable zone
+ * @highest_zoneidx - The zone index of the highest zone to return
+ * @nodes - An optional nodemask to filter the zonelist with
+ * @zone - The first suitable zone found is returned via this parameter
+ *
+ * This function returns the first zone at or below a given zone index that is
+ * within the allowed nodemask. The zoneref returned is a cursor that can be
+ * used to iterate the zonelist with next_zones_zonelist. The cursor should
+ * not be used by the caller as it does not match the value of the zone
+ * returned.
+ */
+static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
+					enum zone_type highest_zoneidx,
+					nodemask_t *nodes,
+					struct zone **zone)
+{
+	return next_zones_zonelist(zonelist->_zonerefs, highest_zoneidx, nodes,
+								zone);
+}
+
+/**
+ * for_each_zone_zonelist_nodemask - helper macro to iterate over valid zones in a zonelist at or below a given zone index and within a nodemask
+ * @zone - The current zone in the iterator
+ * @z - The current pointer within zonelist->zones being iterated
+ * @zlist - The zonelist being iterated
+ * @highidx - The zone index of the highest zone to return
+ * @nodemask - Nodemask allowed by the allocator
+ *
+ * This iterator iterates though all zones at or below a given zone index and
+ * within a given nodemask
+ */
+#define for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
+	for (z = first_zones_zonelist(zlist, highidx, nodemask, &zone);	\
+		zone;							\
+		z = next_zones_zonelist(z, highidx, nodemask, &zone))	\
+
+/**
+ * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
+ * @zone - The current zone in the iterator
+ * @z - The current pointer within zonelist->zones being iterated
+ * @zlist - The zonelist being iterated
+ * @highidx - The zone index of the highest zone to return
+ *
+ * This iterator iterates though all zones at or below a given zone index.
+ */
+#define for_each_zone_zonelist(zone, z, zlist, highidx) \
+	for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, NULL)
+
 #ifdef CONFIG_SPARSEMEM
 #include <asm/sparsemem.h>
 #endif
 
-#if BITS_PER_LONG == 32
-/*
- * with 32 bit page->flags field, we reserve 9 bits for node/zone info.
- * there are 4 zones (3 bits) and this leaves 9-3=6 bits for nodes.
- */
-#define FLAGS_RESERVED		9
-
-#elif BITS_PER_LONG == 64
-/*
- * with 64 bit flags field, there's plenty of room.
- */
-#define FLAGS_RESERVED		32
-
-#else
-
-#error BITS_PER_LONG not defined
-
-#endif
-
 #if !defined(CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID) && \
 	!defined(CONFIG_ARCH_POPULATES_NODE_MAP)
-#define early_pfn_to_nid(nid)  (0UL)
+static inline unsigned long early_pfn_to_nid(unsigned long pfn)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_FLATMEM
@@ -834,6 +896,7 @@ static inline struct mem_section *__nr_to_section(unsigned long nr)
 	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
 }
 extern int __section_nr(struct mem_section* ms);
+extern unsigned long usemap_size(void);
 
 /*
  * We use the lower bits of the mem_map pointer to store
@@ -939,6 +1002,7 @@ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
 #define pfn_valid_within(pfn) (1)
 #endif
 
+#endif /* !__GENERATING_BOUNDS.H */
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MMZONE_H */

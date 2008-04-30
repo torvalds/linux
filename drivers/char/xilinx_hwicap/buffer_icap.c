@@ -74,7 +74,7 @@
 
 /**
  * buffer_icap_get_status - Get the contents of the status register.
- * @base_address: is the base address of the device
+ * @drvdata: a pointer to the drvdata.
  *
  * The status register contains the ICAP status and the done bit.
  *
@@ -88,9 +88,9 @@
  * D1 - Always 1
  * D0 - Done bit
  **/
-static inline u32 buffer_icap_get_status(void __iomem *base_address)
+u32 buffer_icap_get_status(struct hwicap_drvdata *drvdata)
 {
-	return in_be32(base_address + XHI_STATUS_REG_OFFSET);
+	return in_be32(drvdata->base_address + XHI_STATUS_REG_OFFSET);
 }
 
 /**
@@ -117,20 +117,8 @@ static inline u32 buffer_icap_get_bram(void __iomem *base_address,
  **/
 static inline bool buffer_icap_busy(void __iomem *base_address)
 {
-	return (buffer_icap_get_status(base_address) & 1) == XHI_NOT_FINISHED;
-}
-
-/**
- * buffer_icap_busy - Return true if the icap device is not busy
- * @base_address: is the base address of the device
- *
- * The queries the low order bit of the status register, which
- * indicates whether the current configuration or readback operation
- * has completed.
- **/
-static inline bool buffer_icap_done(void __iomem *base_address)
-{
-	return (buffer_icap_get_status(base_address) & 1) == XHI_FINISHED;
+	u32 status = in_be32(base_address + XHI_STATUS_REG_OFFSET);
+	return (status & 1) == XHI_NOT_FINISHED;
 }
 
 /**

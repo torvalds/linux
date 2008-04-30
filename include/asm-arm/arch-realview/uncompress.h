@@ -18,28 +18,50 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <asm/hardware.h>
+#include <asm/mach-types.h>
 
-#include <asm/arch/platform.h>
+#include <asm/arch/board-eb.h>
+#include <asm/arch/board-pb11mp.h>
+#include <asm/arch/board-pb1176.h>
 
-#define AMBA_UART_DR	(*(volatile unsigned char *) (REALVIEW_UART0_BASE + 0x00))
-#define AMBA_UART_LCRH	(*(volatile unsigned char *) (REALVIEW_UART0_BASE + 0x2c))
-#define AMBA_UART_CR	(*(volatile unsigned char *) (REALVIEW_UART0_BASE + 0x30))
-#define AMBA_UART_FR	(*(volatile unsigned char *) (REALVIEW_UART0_BASE + 0x18))
+#define AMBA_UART_DR(base)	(*(volatile unsigned char *)((base) + 0x00))
+#define AMBA_UART_LCRH(base)	(*(volatile unsigned char *)((base) + 0x2c))
+#define AMBA_UART_CR(base)	(*(volatile unsigned char *)((base) + 0x30))
+#define AMBA_UART_FR(base)	(*(volatile unsigned char *)((base) + 0x18))
+
+/*
+ * Return the UART base address
+ */
+static inline unsigned long get_uart_base(void)
+{
+	if (machine_is_realview_eb())
+		return REALVIEW_EB_UART0_BASE;
+	else if (machine_is_realview_pb11mp())
+		return REALVIEW_PB11MP_UART0_BASE;
+	else if (machine_is_realview_pb1176())
+		return REALVIEW_PB1176_UART0_BASE;
+	else
+		return 0;
+}
 
 /*
  * This does not append a newline
  */
 static inline void putc(int c)
 {
-	while (AMBA_UART_FR & (1 << 5))
+	unsigned long base = get_uart_base();
+
+	while (AMBA_UART_FR(base) & (1 << 5))
 		barrier();
 
-	AMBA_UART_DR = c;
+	AMBA_UART_DR(base) = c;
 }
 
 static inline void flush(void)
 {
-	while (AMBA_UART_FR & (1 << 3))
+	unsigned long base = get_uart_base();
+
+	while (AMBA_UART_FR(base) & (1 << 3))
 		barrier();
 }
 

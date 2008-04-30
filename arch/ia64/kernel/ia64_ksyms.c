@@ -19,12 +19,6 @@ EXPORT_SYMBOL_GPL(empty_zero_page);
 EXPORT_SYMBOL(ip_fast_csum);		/* hand-coded assembly */
 EXPORT_SYMBOL(csum_ipv6_magic);
 
-#include <asm/semaphore.h>
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_interruptible);
-EXPORT_SYMBOL(__down_trylock);
-EXPORT_SYMBOL(__up);
-
 #include <asm/page.h>
 EXPORT_SYMBOL(clear_page);
 

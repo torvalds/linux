@@ -327,4 +327,10 @@ extern void ktime_get_ts(struct timespec *ts);
 /* Get the real (wall-) time in timespec format: */
 #define ktime_get_real_ts(ts)	getnstimeofday(ts)
 
+static inline ktime_t ns_to_ktime(u64 ns)
+{
+	static const ktime_t ktime_zero = { .tv64 = 0 };
+	return ktime_add_ns(ktime_zero, ns);
+}
+
 #endif

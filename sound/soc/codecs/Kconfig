@@ -18,6 +18,10 @@ config SND_SOC_WM9712
 	tristate
 	depends on SND_SOC
 
+config SND_SOC_WM9713
+	tristate
+	depends on SND_SOC
+
 # Cirrus Logic CS4270 Codec
 config SND_SOC_CS4270
 	tristate

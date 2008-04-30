@@ -862,7 +862,7 @@ static struct crypto_alg khazad_alg = {
 	.cia_decrypt		=	khazad_decrypt } }
 };
 
-static int __init init(void)
+static int __init khazad_mod_init(void)
 {
 	int ret = 0;
 	
@@ -870,14 +870,14 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit khazad_mod_fini(void)
 {
 	crypto_unregister_alg(&khazad_alg);
 }
 
 
-module_init(init);
-module_exit(fini);
+module_init(khazad_mod_init);
+module_exit(khazad_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Khazad Cryptographic Algorithm");

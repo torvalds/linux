@@ -33,7 +33,6 @@
 #include <linux/slab.h>
 #include <asm/irq.h>
 #include <asm/signal.h>
-#include <asm/semaphore.h>
 
 #include <linux/kernel.h>
 #include <asm/mach/dma.h>
@@ -191,5 +190,8 @@ void dma_enable_irq(unsigned int channel);
 void clear_dma_irqstat(unsigned int channel);
 void *dma_memcpy(void *dest, const void *src, size_t count);
 void *safe_dma_memcpy(void *dest, const void *src, size_t count);
+
+extern int channel2irq(unsigned int channel);
+extern struct dma_register *dma_io_base_addr[MAX_BLACKFIN_DMA_CHANNEL];
 
 #endif

@@ -392,6 +392,9 @@ static int fsl_i2c_remove(struct platform_device *pdev)
 	return 0;
 };
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:fsl-i2c");
+
 /* Structure for a device driver */
 static struct platform_driver fsl_i2c_driver = {
 	.probe = fsl_i2c_probe,

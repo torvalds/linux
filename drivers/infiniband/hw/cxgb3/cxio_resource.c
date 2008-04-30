@@ -206,13 +206,13 @@ void cxio_hal_put_stag(struct cxio_hal_resource *rscp, u32 stag)
 u32 cxio_hal_get_qpid(struct cxio_hal_resource *rscp)
 {
 	u32 qpid = cxio_hal_get_resource(rscp->qpid_fifo);
-	PDBG("%s qpid 0x%x\n", __FUNCTION__, qpid);
+	PDBG("%s qpid 0x%x\n", __func__, qpid);
 	return qpid;
 }
 
 void cxio_hal_put_qpid(struct cxio_hal_resource *rscp, u32 qpid)
 {
-	PDBG("%s qpid 0x%x\n", __FUNCTION__, qpid);
+	PDBG("%s qpid 0x%x\n", __func__, qpid);
 	cxio_hal_put_resource(rscp->qpid_fifo, qpid);
 }
 
@@ -255,13 +255,13 @@ void cxio_hal_destroy_resource(struct cxio_hal_resource *rscp)
 u32 cxio_hal_pblpool_alloc(struct cxio_rdev *rdev_p, int size)
 {
 	unsigned long addr = gen_pool_alloc(rdev_p->pbl_pool, size);
-	PDBG("%s addr 0x%x size %d\n", __FUNCTION__, (u32)addr, size);
+	PDBG("%s addr 0x%x size %d\n", __func__, (u32)addr, size);
 	return (u32)addr;
 }
 
 void cxio_hal_pblpool_free(struct cxio_rdev *rdev_p, u32 addr, int size)
 {
-	PDBG("%s addr 0x%x size %d\n", __FUNCTION__, addr, size);
+	PDBG("%s addr 0x%x size %d\n", __func__, addr, size);
 	gen_pool_free(rdev_p->pbl_pool, (unsigned long)addr, size);
 }
 
@@ -292,13 +292,13 @@ void cxio_hal_pblpool_destroy(struct cxio_rdev *rdev_p)
 u32 cxio_hal_rqtpool_alloc(struct cxio_rdev *rdev_p, int size)
 {
 	unsigned long addr = gen_pool_alloc(rdev_p->rqt_pool, size << 6);
-	PDBG("%s addr 0x%x size %d\n", __FUNCTION__, (u32)addr, size << 6);
+	PDBG("%s addr 0x%x size %d\n", __func__, (u32)addr, size << 6);
 	return (u32)addr;
 }
 
 void cxio_hal_rqtpool_free(struct cxio_rdev *rdev_p, u32 addr, int size)
 {
-	PDBG("%s addr 0x%x size %d\n", __FUNCTION__, addr, size << 6);
+	PDBG("%s addr 0x%x size %d\n", __func__, addr, size << 6);
 	gen_pool_free(rdev_p->rqt_pool, (unsigned long)addr, size << 6);
 }
 

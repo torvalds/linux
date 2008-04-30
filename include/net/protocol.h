@@ -39,7 +39,8 @@ struct net_protocol {
 	int			(*gso_send_check)(struct sk_buff *skb);
 	struct sk_buff	       *(*gso_segment)(struct sk_buff *skb,
 					       int features);
-	int			no_policy;
+	unsigned int		no_policy:1,
+				netns_ok:1;
 };
 
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)

@@ -212,7 +212,7 @@
 				mal-tx-channel = <0>;
 				mal-rx-channel = <0>;
 				cell-index = <0>;
-				max-frame-size = <5dc>;
+				max-frame-size = <2328>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "gmii";

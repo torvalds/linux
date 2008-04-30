@@ -314,6 +314,32 @@ static void pl011_break_ctl(struct uart_port *port, int break_state)
 	spin_unlock_irqrestore(&uap->port.lock, flags);
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+static int pl010_get_poll_char(struct uart_port *port)
+{
+	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	unsigned int status;
+
+	do {
+		status = readw(uap->port.membase + UART01x_FR);
+	} while (status & UART01x_FR_RXFE);
+
+	return readw(uap->port.membase + UART01x_DR);
+}
+
+static void pl010_put_poll_char(struct uart_port *port,
+			 unsigned char ch)
+{
+	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+
+	while (readw(uap->port.membase + UART01x_FR) & UART01x_FR_TXFF)
+		barrier();
+
+	writew(ch, uap->port.membase + UART01x_DR);
+}
+
+#endif /* CONFIG_CONSOLE_POLL */
+
 static int pl011_startup(struct uart_port *port)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
@@ -572,6 +598,10 @@ static struct uart_ops amba_pl011_pops = {
 	.request_port	= pl010_request_port,
 	.config_port	= pl010_config_port,
 	.verify_port	= pl010_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char = pl010_get_poll_char,
+	.poll_put_char = pl010_put_poll_char,
+#endif
 };
 
 static struct uart_amba_port *amba_ports[UART_NR];

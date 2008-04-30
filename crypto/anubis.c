@@ -687,7 +687,7 @@ static struct crypto_alg anubis_alg = {
 	.cia_decrypt		=	anubis_decrypt } }
 };
 
-static int __init init(void)
+static int __init anubis_mod_init(void)
 {
 	int ret = 0;
 	
@@ -695,13 +695,13 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit anubis_mod_fini(void)
 {
 	crypto_unregister_alg(&anubis_alg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(anubis_mod_init);
+module_exit(anubis_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Anubis Cryptographic Algorithm");

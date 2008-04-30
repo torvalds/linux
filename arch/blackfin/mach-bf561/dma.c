@@ -26,10 +26,12 @@
  * to the Free Software Foundation, Inc.,
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+#include <linux/module.h>
+
 #include <asm/blackfin.h>
 #include <asm/dma.h>
 
-struct dma_register *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
+struct dma_register *dma_io_base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
 	(struct dma_register *) DMA1_0_NEXT_DESC_PTR,
 	(struct dma_register *) DMA1_1_NEXT_DESC_PTR,
 	(struct dma_register *) DMA1_2_NEXT_DESC_PTR,
@@ -67,6 +69,7 @@ struct dma_register *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
 	(struct dma_register *) IMDMA_D1_NEXT_DESC_PTR,
 	(struct dma_register *) IMDMA_S1_NEXT_DESC_PTR,
 };
+EXPORT_SYMBOL(dma_io_base_addr);
 
 int channel2irq(unsigned int channel)
 {

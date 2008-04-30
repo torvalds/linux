@@ -58,7 +58,7 @@ static int stv0297_writereg(struct stv0297_state *state, u8 reg, u8 data)
 
 	if (ret != 1)
 		dprintk("%s: writereg error (reg == 0x%02x, val == 0x%02x, "
-			"ret == %i)\n", __FUNCTION__, reg, data, ret);
+			"ret == %i)\n", __func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -75,16 +75,16 @@ static int stv0297_readreg(struct stv0297_state *state, u8 reg)
 	// this device needs a STOP between the register and data
 	if (state->config->stop_during_read) {
 		if ((ret = i2c_transfer(state->i2c, &msg[0], 1)) != 1) {
-			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg, ret);
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __func__, reg, ret);
 			return -1;
 		}
 		if ((ret = i2c_transfer(state->i2c, &msg[1], 1)) != 1) {
-			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg, ret);
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __func__, reg, ret);
 			return -1;
 		}
 	} else {
 		if ((ret = i2c_transfer(state->i2c, msg, 2)) != 2) {
-			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg, ret);
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __func__, reg, ret);
 			return -1;
 		}
 	}
@@ -115,16 +115,16 @@ static int stv0297_readregs(struct stv0297_state *state, u8 reg1, u8 * b, u8 len
 	// this device needs a STOP between the register and data
 	if (state->config->stop_during_read) {
 		if ((ret = i2c_transfer(state->i2c, &msg[0], 1)) != 1) {
-			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg1, ret);
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __func__, reg1, ret);
 			return -1;
 		}
 		if ((ret = i2c_transfer(state->i2c, &msg[1], 1)) != 1) {
-			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg1, ret);
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __func__, reg1, ret);
 			return -1;
 		}
 	} else {
 		if ((ret = i2c_transfer(state->i2c, msg, 2)) != 2) {
-			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg1, ret);
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __func__, reg1, ret);
 			return -1;
 		}
 	}

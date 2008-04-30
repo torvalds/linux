@@ -22,6 +22,8 @@ static int dvb_usb_m920x_debug;
 module_param_named(debug,dvb_usb_m920x_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 static int m920x_set_filter(struct dvb_usb_device *d, int type, int idx, int pid);
 
 static inline int m920x_read(struct usb_device *udev, u8 request, u16 value,
@@ -477,7 +479,7 @@ static struct qt1010_config m920x_qt1010_config = {
 /* Callbacks for DVB USB */
 static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if ((adap->fe = dvb_attach(mt352_attach,
 				   &m920x_mt352_config,
@@ -489,7 +491,7 @@ static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda10046_08_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if ((adap->fe = dvb_attach(tda10046_attach,
 				   &m920x_tda10046_08_config,
@@ -501,7 +503,7 @@ static int m920x_tda10046_08_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda10046_0b_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if ((adap->fe = dvb_attach(tda10046_attach,
 				   &m920x_tda10046_0b_config,
@@ -513,7 +515,7 @@ static int m920x_tda10046_0b_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap, &m920x_qt1010_config) == NULL)
 		return -ENODEV;
@@ -523,7 +525,7 @@ static int m920x_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda8275_60_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if (dvb_attach(tda827x_attach, adap->fe, 0x60, &adap->dev->i2c_adap, NULL) == NULL)
 		return -ENODEV;
@@ -533,7 +535,7 @@ static int m920x_tda8275_60_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda8275_61_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if (dvb_attach(tda827x_attach, adap->fe, 0x61, &adap->dev->i2c_adap, NULL) == NULL)
 		return -ENODEV;
@@ -618,27 +620,31 @@ static int m920x_probe(struct usb_interface *intf,
 		 * multi-tuner device
 		 */
 
-		if ((ret = dvb_usb_device_init(intf, &megasky_properties,
-					       THIS_MODULE, &d)) == 0) {
+		ret = dvb_usb_device_init(intf, &megasky_properties,
+					  THIS_MODULE, &d, adapter_nr);
+		if (ret == 0) {
 			rc_init_seq = megasky_rc_init;
 			goto found;
 		}
 
-		if ((ret = dvb_usb_device_init(intf, &digivox_mini_ii_properties,
-					       THIS_MODULE, &d)) == 0) {
+		ret = dvb_usb_device_init(intf, &digivox_mini_ii_properties,
+					  THIS_MODULE, &d, adapter_nr);
+		if (ret == 0) {
 			/* No remote control, so no rc_init_seq */
 			goto found;
 		}
 
 		/* This configures both tuners on the TV Walker Twin */
-		if ((ret = dvb_usb_device_init(intf, &tvwalkertwin_properties,
-					       THIS_MODULE, &d)) == 0) {
+		ret = dvb_usb_device_init(intf, &tvwalkertwin_properties,
+					  THIS_MODULE, &d, adapter_nr);
+		if (ret == 0) {
 			rc_init_seq = tvwalkertwin_rc_init;
 			goto found;
 		}
 
-		if ((ret = dvb_usb_device_init(intf, &dposh_properties,
-					       THIS_MODULE, &d)) == 0) {
+		ret = dvb_usb_device_init(intf, &dposh_properties,
+					  THIS_MODULE, &d, adapter_nr);
+		if (ret == 0) {
 			/* Remote controller not supported yet. */
 			goto found;
 		}

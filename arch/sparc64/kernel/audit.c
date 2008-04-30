@@ -30,7 +30,7 @@ static unsigned signal_class[] = {
 
 int audit_classify_arch(int arch)
 {
-#ifdef CONFIG_SPARC32_COMPAT
+#ifdef CONFIG_COMPAT
 	if (arch == AUDIT_ARCH_SPARC)
 		return 1;
 #endif
@@ -39,7 +39,7 @@ int audit_classify_arch(int arch)
 
 int audit_classify_syscall(int abi, unsigned syscall)
 {
-#ifdef CONFIG_SPARC32_COMPAT
+#ifdef CONFIG_COMPAT
 	extern int sparc32_classify_syscall(unsigned);
 	if (abi == AUDIT_ARCH_SPARC)
 		return sparc32_classify_syscall(syscall);
@@ -60,7 +60,7 @@ int audit_classify_syscall(int abi, unsigned syscall)
 
 static int __init audit_classes_init(void)
 {
-#ifdef CONFIG_SPARC32_COMPAT
+#ifdef CONFIG_COMPAT
 	extern __u32 sparc32_dir_class[];
 	extern __u32 sparc32_write_class[];
 	extern __u32 sparc32_read_class[];

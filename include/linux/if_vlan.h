@@ -81,7 +81,9 @@ extern void vlan_ioctl_set(int (*hook)(struct net *, void __user *));
 #define VLAN_GROUP_ARRAY_PART_LEN     (VLAN_GROUP_ARRAY_LEN/VLAN_GROUP_ARRAY_SPLIT_PARTS)
 
 struct vlan_group {
-	int real_dev_ifindex; /* The ifindex of the ethernet(like) device the vlan is attached to. */
+	struct net_device	*real_dev; /* The ethernet(like) device
+					    * the vlan is attached to.
+					    */
 	unsigned int		nr_vlans;
 	struct hlist_node	hlist;	/* linked list */
 	struct net_device **vlan_devices_arrays[VLAN_GROUP_ARRAY_SPLIT_PARTS];
@@ -93,7 +95,7 @@ static inline struct net_device *vlan_group_get_device(struct vlan_group *vg,
 {
 	struct net_device **array;
 	array = vg->vlan_devices_arrays[vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
-	return array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN];
+	return array ? array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] : NULL;
 }
 
 static inline void vlan_group_set_device(struct vlan_group *vg,

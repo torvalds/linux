@@ -567,8 +567,7 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		return;
 	}
 
-	priv->mcast_mtu = ib_mtu_enum_to_int(priv->broadcast->mcmember.mtu) -
-		IPOIB_ENCAP_LEN;
+	priv->mcast_mtu = IPOIB_UD_MTU(ib_mtu_enum_to_int(priv->broadcast->mcmember.mtu));
 
 	if (!ipoib_cm_admin_enabled(dev))
 		dev->mtu = min(priv->mcast_mtu, priv->admin_mtu);

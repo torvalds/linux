@@ -33,7 +33,6 @@
 #include <linux/console.h>
 #include <linux/timex.h>
 #include <linux/pci.h>
-#include <linux/ide.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 
@@ -894,38 +893,6 @@ prep_init_IRQ(void)
 		i8259_init(MPC10X_MAPA_PCI_INTACK_ADDR, 0);
 }
 
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-/*
- * IDE stuff.
- */
-static int
-prep_ide_default_irq(unsigned long base)
-{
-	switch (base) {
-		case 0x1f0: return 13;
-		case 0x170: return 13;
-		case 0x1e8: return 11;
-		case 0x168: return 10;
-		case 0xfff0: return 14;		/* MCP(N)750 ide0 */
-		case 0xffe0: return 15;		/* MCP(N)750 ide1 */
-		default: return 0;
-	}
-}
-
-static unsigned long
-prep_ide_default_io_base(int index)
-{
-	switch (index) {
-		case 0: return 0x1f0;
-		case 1: return 0x170;
-		case 2: return 0x1e8;
-		case 3: return 0x168;
-		default:
-			return 0;
-	}
-}
-#endif
-
 #ifdef CONFIG_SMP
 /* PReP (MTX) support */
 static int __init
@@ -1069,11 +1036,6 @@ prep_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.get_rtc_time   = todc_get_rtc_time;
 
 	ppc_md.setup_io_mappings = prep_map_io;
-
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-	ppc_ide_md.default_irq = prep_ide_default_irq;
-	ppc_ide_md.default_io_base = prep_ide_default_io_base;
-#endif
 
 #ifdef CONFIG_SMP
 	smp_ops			 = &prep_smp_ops;

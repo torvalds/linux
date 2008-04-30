@@ -29,7 +29,6 @@
 #include <asm/atarihw.h>
 #include <asm/atari_stram.h>
 #include <asm/io.h>
-#include <asm/semaphore.h>
 
 #undef DEBUG
 

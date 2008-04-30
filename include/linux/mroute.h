@@ -2,7 +2,11 @@
 #define __LINUX_MROUTE_H
 
 #include <linux/sockios.h>
+#include <linux/types.h>
+#ifdef __KERNEL__
 #include <linux/in.h>
+#endif
+#include <linux/pim.h>
 
 /*
  *	Based on the MROUTING 3.5 defines primarily to keep
@@ -210,27 +214,6 @@ struct mfc_cache
 #define IGMPMSG_WHOLEPKT	3		/* For PIM Register processing */
 
 #ifdef __KERNEL__
-
-#define PIM_V1_VERSION		__constant_htonl(0x10000000)
-#define PIM_V1_REGISTER		1
-
-#define PIM_VERSION		2
-#define PIM_REGISTER		1
-
-#define PIM_NULL_REGISTER	__constant_htonl(0x40000000)
-
-/* PIMv2 register message header layout (ietf-draft-idmr-pimvsm-v2-00.ps */
-
-struct pimreghdr
-{
-	__u8	type;
-	__u8	reserved;
-	__be16	csum;
-	__be32	flags;
-};
-
-extern int pim_rcv_v1(struct sk_buff *);
-
 struct rtmsg;
 extern int ipmr_get_route(struct sk_buff *skb, struct rtmsg *rtm, int nowait);
 #endif

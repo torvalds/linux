@@ -456,6 +456,20 @@ static const struct file_operations proc_slabstats_operations = {
 #endif
 #endif
 
+#ifdef CONFIG_MMU
+static int vmalloc_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &vmalloc_op);
+}
+
+static const struct file_operations proc_vmalloc_operations = {
+	.open		= vmalloc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+#endif
+
 static int show_stat(struct seq_file *p, void *v)
 {
 	int i;
@@ -868,6 +882,9 @@ void __init proc_misc_init(void)
 #ifdef CONFIG_DEBUG_SLAB_LEAK
 	create_seq_entry("slab_allocators", 0 ,&proc_slabstats_operations);
 #endif
+#endif
+#ifdef CONFIG_MMU
+	proc_create("vmallocinfo", S_IRUSR, NULL, &proc_vmalloc_operations);
 #endif
 	create_seq_entry("buddyinfo",S_IRUGO, &fragmentation_file_operations);
 	create_seq_entry("pagetypeinfo", S_IRUGO, &pagetypeinfo_file_ops);

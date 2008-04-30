@@ -11,7 +11,7 @@
 
 typedef unsigned long elf_greg_t;
 
-#define ELF_NGREG (sizeof (struct user_regs_struct) / sizeof(elf_greg_t))
+#define ELF_NGREG (sizeof(struct user_regs_struct) / sizeof(elf_greg_t))
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 typedef struct user_i387_struct elf_fpregset_t;
@@ -82,8 +82,9 @@ extern unsigned int vdso_enabled;
 #define elf_check_arch_ia32(x) \
 	(((x)->e_machine == EM_386) || ((x)->e_machine == EM_486))
 
-#ifdef CONFIG_X86_32
 #include <asm/processor.h>
+
+#ifdef CONFIG_X86_32
 #include <asm/system.h>		/* for savesegment */
 #include <asm/desc.h>
 
@@ -99,10 +100,11 @@ extern unsigned int vdso_enabled;
    We might as well make sure everything else is cleared too (except for %esp),
    just to make things more deterministic.
  */
-#define ELF_PLAT_INIT(_r, load_addr)	do { \
-	_r->bx = 0; _r->cx = 0; _r->dx = 0; \
-	_r->si = 0; _r->di = 0; _r->bp = 0; \
-	_r->ax = 0; \
+#define ELF_PLAT_INIT(_r, load_addr)		\
+	do {					\
+	_r->bx = 0; _r->cx = 0; _r->dx = 0;	\
+	_r->si = 0; _r->di = 0; _r->bp = 0;	\
+	_r->ax = 0;				\
 } while (0)
 
 /*
@@ -110,24 +112,25 @@ extern unsigned int vdso_enabled;
  * now struct_user_regs, they are different)
  */
 
-#define ELF_CORE_COPY_REGS(pr_reg, regs) do {		\
-	pr_reg[0] = regs->bx;				\
-	pr_reg[1] = regs->cx;				\
-	pr_reg[2] = regs->dx;				\
-	pr_reg[3] = regs->si;				\
-	pr_reg[4] = regs->di;				\
-	pr_reg[5] = regs->bp;				\
-	pr_reg[6] = regs->ax;				\
-	pr_reg[7] = regs->ds & 0xffff;			\
-	pr_reg[8] = regs->es & 0xffff;			\
-	pr_reg[9] = regs->fs & 0xffff;			\
-	savesegment(gs, pr_reg[10]);			\
-	pr_reg[11] = regs->orig_ax;			\
-	pr_reg[12] = regs->ip;				\
-	pr_reg[13] = regs->cs & 0xffff;			\
-	pr_reg[14] = regs->flags;			\
-	pr_reg[15] = regs->sp;				\
-	pr_reg[16] = regs->ss & 0xffff;			\
+#define ELF_CORE_COPY_REGS(pr_reg, regs)	\
+do {						\
+	pr_reg[0] = regs->bx;			\
+	pr_reg[1] = regs->cx;			\
+	pr_reg[2] = regs->dx;			\
+	pr_reg[3] = regs->si;			\
+	pr_reg[4] = regs->di;			\
+	pr_reg[5] = regs->bp;			\
+	pr_reg[6] = regs->ax;			\
+	pr_reg[7] = regs->ds & 0xffff;		\
+	pr_reg[8] = regs->es & 0xffff;		\
+	pr_reg[9] = regs->fs & 0xffff;		\
+	savesegment(gs, pr_reg[10]);		\
+	pr_reg[11] = regs->orig_ax;		\
+	pr_reg[12] = regs->ip;			\
+	pr_reg[13] = regs->cs & 0xffff;		\
+	pr_reg[14] = regs->flags;		\
+	pr_reg[15] = regs->sp;			\
+	pr_reg[16] = regs->ss & 0xffff;		\
 } while (0);
 
 #define ELF_PLATFORM	(utsname()->machine)
@@ -135,12 +138,10 @@ extern unsigned int vdso_enabled;
 
 #else /* CONFIG_X86_32 */
 
-#include <asm/processor.h>
-
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(x) \
+#define elf_check_arch(x)			\
 	((x)->e_machine == EM_X86_64)
 
 #define compat_elf_check_arch(x)	elf_check_arch_ia32(x)
@@ -169,24 +170,30 @@ static inline void elf_common_init(struct thread_struct *t,
 	t->ds = t->es = ds;
 }
 
-#define ELF_PLAT_INIT(_r, load_addr)	do {		  \
-	elf_common_init(&current->thread, _r, 0);	  \
-	clear_thread_flag(TIF_IA32);			  \
+#define ELF_PLAT_INIT(_r, load_addr)			\
+do {							\
+	elf_common_init(&current->thread, _r, 0);	\
+	clear_thread_flag(TIF_IA32);			\
 } while (0)
 
-#define	COMPAT_ELF_PLAT_INIT(regs, load_addr)	\
+#define	COMPAT_ELF_PLAT_INIT(regs, load_addr)		\
 	elf_common_init(&current->thread, regs, __USER_DS)
-#define	compat_start_thread(regs, ip, sp)	do {		\
-		start_ia32_thread(regs, ip, sp);		\
-		set_fs(USER_DS);				\
-	} while (0)
-#define COMPAT_SET_PERSONALITY(ex, ibcs2)	do {		\
-		if (test_thread_flag(TIF_IA32))			\
-			clear_thread_flag(TIF_ABI_PENDING);	\
-		else						\
-			set_thread_flag(TIF_ABI_PENDING);	\
-		current->personality |= force_personality32;	\
-	} while (0)
+
+#define	compat_start_thread(regs, ip, sp)		\
+do {							\
+	start_ia32_thread(regs, ip, sp);		\
+	set_fs(USER_DS);				\
+} while (0)
+
+#define COMPAT_SET_PERSONALITY(ex, ibcs2)		\
+do {							\
+	if (test_thread_flag(TIF_IA32))			\
+		clear_thread_flag(TIF_ABI_PENDING);	\
+	else						\
+		set_thread_flag(TIF_ABI_PENDING);	\
+	current->personality |= force_personality32;	\
+} while (0)
+
 #define COMPAT_ELF_PLATFORM			("i686")
 
 /*
@@ -195,7 +202,8 @@ static inline void elf_common_init(struct thread_struct *t,
  * getting dumped.
  */
 
-#define ELF_CORE_COPY_REGS(pr_reg, regs)  do {			\
+#define ELF_CORE_COPY_REGS(pr_reg, regs)			\
+do {								\
 	unsigned v;						\
 	(pr_reg)[0] = (regs)->r15;				\
 	(pr_reg)[1] = (regs)->r14;				\
@@ -269,10 +277,12 @@ extern int force_personality32;
 
 struct task_struct;
 
-#define	ARCH_DLINFO_IA32(vdso_enabled) \
-do if (vdso_enabled) {							\
+#define	ARCH_DLINFO_IA32(vdso_enabled)					\
+do {									\
+	if (vdso_enabled) {						\
 		NEW_AUX_ENT(AT_SYSINFO,	VDSO_ENTRY);			\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_CURRENT_BASE);	\
+	}								\
 } while (0)
 
 #ifdef CONFIG_X86_32
@@ -290,9 +300,11 @@ do if (vdso_enabled) {							\
 /* 1GB for 64bit, 8MB for 32bit */
 #define STACK_RND_MASK (test_thread_flag(TIF_IA32) ? 0x7ff : 0x3fffff)
 
-#define ARCH_DLINFO						\
-do if (vdso_enabled) {						\
-	NEW_AUX_ENT(AT_SYSINFO_EHDR,(unsigned long)current->mm->context.vdso);\
+#define ARCH_DLINFO							\
+do {									\
+	if (vdso_enabled)						\
+		NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
+			    (unsigned long)current->mm->context.vdso);	\
 } while (0)
 
 #define AT_SYSINFO		32
@@ -305,8 +317,8 @@ do if (vdso_enabled) {						\
 
 #define VDSO_CURRENT_BASE	((unsigned long)current->mm->context.vdso)
 
-#define VDSO_ENTRY \
-	((unsigned long) VDSO32_SYMBOL(VDSO_CURRENT_BASE, vsyscall))
+#define VDSO_ENTRY							\
+	((unsigned long)VDSO32_SYMBOL(VDSO_CURRENT_BASE, vsyscall))
 
 struct linux_binprm;
 

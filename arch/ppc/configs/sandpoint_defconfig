@@ -189,7 +189,7 @@ CONFIG_IDE_TASKFILE_IO=y
 #
 # IDE chipset support/bugfixes
 #
-CONFIG_IDE_GENERIC=y
+CONFIG_BLK_DEV_SL82C105=y
 # CONFIG_BLK_DEV_IDEPCI is not set
 # CONFIG_BLK_DEV_IDEDMA is not set
 # CONFIG_IDEDMA_AUTO is not set

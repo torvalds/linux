@@ -62,16 +62,18 @@ static inline unsigned long long get_clock (void)
 	return clk;
 }
 
-static inline void get_clock_extended(void *dest)
+static inline unsigned long long get_clock_xt(void)
 {
-	typedef struct { unsigned long long clk[2]; } __clock_t;
+	unsigned char clk[16];
 
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
-	asm volatile("stcke %0" : "=Q" (*((__clock_t *)dest)) : : "cc");
+	asm volatile("stcke %0" : "=Q" (clk) : : "cc");
 #else /* __GNUC__ */
-	asm volatile("stcke 0(%1)" : "=m" (*((__clock_t *)dest))
-				   : "a" ((__clock_t *)dest) : "cc");
+	asm volatile("stcke 0(%1)" : "=m" (clk)
+				   : "a" (clk) : "cc");
 #endif /* __GNUC__ */
+
+	return *((unsigned long long *)&clk[1]);
 }
 
 static inline cycles_t get_cycles(void)
@@ -81,5 +83,6 @@ static inline cycles_t get_cycles(void)
 
 int get_sync_clock(unsigned long long *clock);
 void init_cpu_timer(void);
+unsigned long long monotonic_clock(void);
 
 #endif

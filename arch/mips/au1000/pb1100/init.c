@@ -27,14 +27,10 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/sched.h>
-#include <linux/bootmem.h>
-#include <linux/string.h>
 #include <linux/kernel.h>
 
-#include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 
 #include <prom.h>

@@ -16,7 +16,8 @@
 # define PR_UNALIGN_NOPRINT	1	/* silently fix up unaligned user accesses */
 # define PR_UNALIGN_SIGBUS	2	/* generate SIGBUS on unaligned user access */
 
-/* Get/set whether or not to drop capabilities on setuid() away from uid 0 */
+/* Get/set whether or not to drop capabilities on setuid() away from
+ * uid 0 (as per security/commoncap.c) */
 #define PR_GET_KEEPCAPS   7
 #define PR_SET_KEEPCAPS   8
 
@@ -63,8 +64,18 @@
 #define PR_GET_SECCOMP	21
 #define PR_SET_SECCOMP	22
 
-/* Get/set the capability bounding set */
+/* Get/set the capability bounding set (as per security/commoncap.c) */
 #define PR_CAPBSET_READ 23
 #define PR_CAPBSET_DROP 24
+
+/* Get/set the process' ability to use the timestamp counter instruction */
+#define PR_GET_TSC 25
+#define PR_SET_TSC 26
+# define PR_TSC_ENABLE		1	/* allow the use of the timestamp counter */
+# define PR_TSC_SIGSEGV		2	/* throw a SIGSEGV instead of reading the TSC */
+
+/* Get/set securebits (as per security/commoncap.c) */
+#define PR_GET_SECUREBITS 27
+#define PR_SET_SECUREBITS 28
 
 #endif /* _LINUX_PRCTL_H */

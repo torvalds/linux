@@ -16,7 +16,6 @@
 #include "hscx.h"
 #include "isdnl1.h"
 
-extern const char *CardType[];
 static const char *s0box_revision = "$Revision: 2.6.2.4 $";
 
 static inline void
@@ -231,19 +230,15 @@ setup_s0box(struct IsdnCard *card)
 	cs->hw.teles3.hscxfifo[1] = cs->hw.teles3.hscx[1] + 0x3e;
 	cs->irq = card->para[0];
 	if (!request_region(cs->hw.teles3.cfg_reg,8, "S0Box parallel I/O")) {
-		printk(KERN_WARNING
-		       "HiSax: %s ports %x-%x already in use\n",
-		       CardType[cs->typ],
+		printk(KERN_WARNING "HiSax: S0Box ports %x-%x already in use\n",
                        cs->hw.teles3.cfg_reg,
                        cs->hw.teles3.cfg_reg + 7);
 		return 0;
 	}
-	printk(KERN_INFO
-		"HiSax: %s config irq:%d isac:0x%x  cfg:0x%x\n",
-		CardType[cs->typ], cs->irq,
+	printk(KERN_INFO "HiSax: S0Box config irq:%d isac:0x%x  cfg:0x%x\n",
+		cs->irq,
 		cs->hw.teles3.isac, cs->hw.teles3.cfg_reg);
-	printk(KERN_INFO
-		"HiSax: hscx A:0x%x  hscx B:0x%x\n",
+	printk(KERN_INFO "HiSax: hscx A:0x%x  hscx B:0x%x\n",
 		cs->hw.teles3.hscx[0], cs->hw.teles3.hscx[1]);
 	setup_isac(cs);
 	cs->readisac = &ReadISAC;

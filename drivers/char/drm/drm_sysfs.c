@@ -19,7 +19,7 @@
 #include "drm_core.h"
 #include "drmP.h"
 
-#define to_drm_device(d) container_of(d, struct drm_device, dev)
+#define to_drm_minor(d) container_of(d, struct drm_minor, kdev)
 
 /**
  * drm_sysfs_suspend - DRM class suspend hook
@@ -31,7 +31,8 @@
  */
 static int drm_sysfs_suspend(struct device *dev, pm_message_t state)
 {
-	struct drm_device *drm_dev = to_drm_device(dev);
+	struct drm_minor *drm_minor = to_drm_minor(dev);
+	struct drm_device *drm_dev = drm_minor->dev;
 
 	printk(KERN_ERR "%s\n", __FUNCTION__);
 
@@ -50,7 +51,8 @@ static int drm_sysfs_suspend(struct device *dev, pm_message_t state)
  */
 static int drm_sysfs_resume(struct device *dev)
 {
-	struct drm_device *drm_dev = to_drm_device(dev);
+	struct drm_minor *drm_minor = to_drm_minor(dev);
+	struct drm_device *drm_dev = drm_minor->dev;
 
 	if (drm_dev->driver->resume)
 		return drm_dev->driver->resume(drm_dev);
@@ -120,10 +122,11 @@ void drm_sysfs_destroy(void)
 static ssize_t show_dri(struct device *device, struct device_attribute *attr,
 			char *buf)
 {
-	struct drm_device *dev = to_drm_device(device);
-	if (dev->driver->dri_library_name)
-		return dev->driver->dri_library_name(dev, buf);
-	return snprintf(buf, PAGE_SIZE, "%s\n", dev->driver->pci_driver.name);
+	struct drm_minor *drm_minor = to_drm_minor(device);
+	struct drm_device *drm_dev = drm_minor->dev;
+	if (drm_dev->driver->dri_library_name)
+		return drm_dev->driver->dri_library_name(drm_dev, buf);
+	return snprintf(buf, PAGE_SIZE, "%s\n", drm_dev->driver->pci_driver.name);
 }
 
 static struct device_attribute device_attrs[] = {
@@ -152,25 +155,28 @@ static void drm_sysfs_device_release(struct device *dev)
  * as the parent for the Linux device, and make sure it has a file containing
  * the driver we're using (for userspace compatibility).
  */
-int drm_sysfs_device_add(struct drm_device *dev, struct drm_head *head)
+int drm_sysfs_device_add(struct drm_minor *minor)
 {
 	int err;
 	int i, j;
+	char *minor_str;
 
-	dev->dev.parent = &dev->pdev->dev;
-	dev->dev.class = drm_class;
-	dev->dev.release = drm_sysfs_device_release;
-	dev->dev.devt = head->device;
-	snprintf(dev->dev.bus_id, BUS_ID_SIZE, "card%d", head->minor);
+	minor->kdev.parent = &minor->dev->pdev->dev;
+	minor->kdev.class = drm_class;
+	minor->kdev.release = drm_sysfs_device_release;
+	minor->kdev.devt = minor->device;
+	minor_str = "card%d";
 
-	err = device_register(&dev->dev);
+	snprintf(minor->kdev.bus_id, BUS_ID_SIZE, minor_str, minor->index);
+
+	err = device_register(&minor->kdev);
 	if (err) {
 		DRM_ERROR("device add failed: %d\n", err);
 		goto err_out;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(device_attrs); i++) {
-		err = device_create_file(&dev->dev, &device_attrs[i]);
+		err = device_create_file(&minor->kdev, &device_attrs[i]);
 		if (err)
 			goto err_out_files;
 	}
@@ -180,8 +186,8 @@ int drm_sysfs_device_add(struct drm_device *dev, struct drm_head *head)
 err_out_files:
 	if (i > 0)
 		for (j = 0; j < i; j++)
-			device_remove_file(&dev->dev, &device_attrs[i]);
-	device_unregister(&dev->dev);
+			device_remove_file(&minor->kdev, &device_attrs[i]);
+	device_unregister(&minor->kdev);
 err_out:
 
 	return err;
@@ -194,11 +200,11 @@ err_out:
  * This call unregisters and cleans up a class device that was created with a
  * call to drm_sysfs_device_add()
  */
-void drm_sysfs_device_remove(struct drm_device *dev)
+void drm_sysfs_device_remove(struct drm_minor *minor)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(device_attrs); i++)
-		device_remove_file(&dev->dev, &device_attrs[i]);
-	device_unregister(&dev->dev);
+		device_remove_file(&minor->kdev, &device_attrs[i]);
+	device_unregister(&minor->kdev);
 }

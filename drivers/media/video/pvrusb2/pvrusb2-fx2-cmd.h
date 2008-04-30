@@ -22,32 +22,41 @@
 #ifndef _PVRUSB2_FX2_CMD_H_
 #define _PVRUSB2_FX2_CMD_H_
 
-#define FX2CMD_MEM_WRITE_DWORD  0x01
-#define FX2CMD_MEM_READ_DWORD   0x02
+#define FX2CMD_MEM_WRITE_DWORD  0x01u
+#define FX2CMD_MEM_READ_DWORD   0x02u
 
-#define FX2CMD_MEM_READ_64BYTES 0x28
+#define FX2CMD_MEM_READ_64BYTES 0x28u
 
-#define FX2CMD_REG_WRITE        0x04
-#define FX2CMD_REG_READ         0x05
-#define FX2CMD_MEMSEL           0x06
+#define FX2CMD_REG_WRITE        0x04u
+#define FX2CMD_REG_READ         0x05u
+#define FX2CMD_MEMSEL           0x06u
 
-#define FX2CMD_I2C_WRITE        0x08
-#define FX2CMD_I2C_READ         0x09
+#define FX2CMD_I2C_WRITE        0x08u
+#define FX2CMD_I2C_READ         0x09u
 
-#define FX2CMD_GET_USB_SPEED    0x0b
+#define FX2CMD_GET_USB_SPEED    0x0bu
 
-#define FX2CMD_STREAMING_ON     0x36
-#define FX2CMD_STREAMING_OFF    0x37
+#define FX2CMD_STREAMING_ON     0x36u
+#define FX2CMD_STREAMING_OFF    0x37u
 
-#define FX2CMD_FWPOST1          0x52
+#define FX2CMD_FWPOST1          0x52u
 
-#define FX2CMD_POWER_OFF        0xdc
-#define FX2CMD_POWER_ON         0xde
+#define FX2CMD_POWER_OFF        0xdcu
+#define FX2CMD_POWER_ON         0xdeu
 
-#define FX2CMD_DEEP_RESET       0xdd
+#define FX2CMD_DEEP_RESET       0xddu
 
-#define FX2CMD_GET_EEPROM_ADDR  0xeb
-#define FX2CMD_GET_IR_CODE      0xec
+#define FX2CMD_GET_EEPROM_ADDR  0xebu
+#define FX2CMD_GET_IR_CODE      0xecu
+
+#define FX2CMD_HCW_DEMOD_RESETIN       0xf0u
+#define FX2CMD_HCW_DTV_STREAMING_ON    0xf1u
+#define FX2CMD_HCW_DTV_STREAMING_OFF   0xf2u
+
+#define FX2CMD_ONAIR_DTV_STREAMING_ON  0xa0u
+#define FX2CMD_ONAIR_DTV_STREAMING_OFF 0xa1u
+#define FX2CMD_ONAIR_DTV_POWER_ON      0xa2u
+#define FX2CMD_ONAIR_DTV_POWER_OFF     0xa3u
 
 #endif /* _PVRUSB2_FX2_CMD_H_ */
 

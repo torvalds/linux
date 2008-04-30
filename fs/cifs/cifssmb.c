@@ -165,17 +165,19 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 				rc = CIFSTCon(0, tcon->ses, tcon->treeName,
 					      tcon, nls_codepage);
 				up(&tcon->ses->sesSem);
-				/* tell server which Unix caps we support */
-				if (tcon->ses->capabilities & CAP_UNIX)
-					reset_cifs_unix_caps(0 /* no xid */,
-						tcon,
-						NULL /* we do not know sb */,
-						NULL /* no vol info */);
 				/* BB FIXME add code to check if wsize needs
 				   update due to negotiated smb buffer size
 				   shrinking */
-				if (rc == 0)
+				if (rc == 0) {
 					atomic_inc(&tconInfoReconnectCount);
+					/* tell server Unix caps we support */
+					if (tcon->ses->capabilities & CAP_UNIX)
+						reset_cifs_unix_caps(
+						0 /* no xid */,
+						tcon,
+						NULL /* we do not know sb */,
+						NULL /* no vol info */);
+				}
 
 				cFYI(1, ("reconnect tcon rc = %d", rc));
 				/* Removed call to reopen open files here.
@@ -310,17 +312,19 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 				rc = CIFSTCon(0, tcon->ses, tcon->treeName,
 					      tcon, nls_codepage);
 				up(&tcon->ses->sesSem);
-				/* tell server which Unix caps we support */
-				if (tcon->ses->capabilities & CAP_UNIX)
-					reset_cifs_unix_caps(0 /* no xid */,
-						tcon,
-						NULL /* do not know sb */,
-						NULL /* no vol info */);
 				/* BB FIXME add code to check if wsize needs
 				update due to negotiated smb buffer size
 				shrinking */
-				if (rc == 0)
+				if (rc == 0) {
 					atomic_inc(&tconInfoReconnectCount);
+					/* tell server Unix caps we support */
+					if (tcon->ses->capabilities & CAP_UNIX)
+						reset_cifs_unix_caps(
+						0 /* no xid */,
+						tcon,
+						NULL /* do not know sb */,
+						NULL /* no vol info */);
+				}
 
 				cFYI(1, ("reconnect tcon rc = %d", rc));
 				/* Removed call to reopen open files here.

@@ -177,6 +177,11 @@ SECTIONS
 	*(.con_initcall.init)
   }
   __con_initcall_end = .;
+  __x86cpuvendor_start = .;
+  .x86cpuvendor.init : AT(ADDR(.x86cpuvendor.init) - LOAD_OFFSET) {
+	*(.x86cpuvendor.init)
+  }
+  __x86cpuvendor_end = .;
   SECURITY_INIT
 
   . = ALIGN(8);
@@ -203,12 +208,6 @@ SECTIONS
   .exit.data : AT(ADDR(.exit.data) - LOAD_OFFSET) {
 	EXIT_DATA
   }
-
-/* vdso blob that is mapped into user space */
-  vdso_start = . ;
-  .vdso  : AT(ADDR(.vdso) - LOAD_OFFSET) { *(.vdso) }
-  . = ALIGN(PAGE_SIZE);
-  vdso_end = .;
 
 #ifdef CONFIG_BLK_DEV_INITRD
   . = ALIGN(PAGE_SIZE);
@@ -247,3 +246,9 @@ SECTIONS
 
   DWARF_DEBUG
 }
+
+/*
+ * Build-time check on the image size:
+ */
+ASSERT((_end - _text <= KERNEL_IMAGE_SIZE),
+	"kernel image bigger than KERNEL_IMAGE_SIZE")

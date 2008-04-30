@@ -906,7 +906,7 @@ static int __init tcm825x_init(void)
 	rval = i2c_add_driver(&tcm825x_i2c_driver);
 	if (rval)
 		printk(KERN_INFO "%s: failed registering " TCM825X_NAME "\n",
-		       __FUNCTION__);
+		       __func__);
 
 	return rval;
 }

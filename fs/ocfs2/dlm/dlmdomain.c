@@ -33,6 +33,7 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/debugfs.h>
 
 #include "cluster/heartbeat.h"
 #include "cluster/nodemanager.h"
@@ -40,8 +41,8 @@
 
 #include "dlmapi.h"
 #include "dlmcommon.h"
-
 #include "dlmdomain.h"
+#include "dlmdebug.h"
 
 #include "dlmver.h"
 
@@ -298,6 +299,8 @@ static int dlm_wait_on_domain_helper(const char *domain)
 
 static void dlm_free_ctxt_mem(struct dlm_ctxt *dlm)
 {
+	dlm_destroy_debugfs_subroot(dlm);
+
 	if (dlm->lockres_hash)
 		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
 
@@ -395,6 +398,7 @@ static void dlm_destroy_dlm_worker(struct dlm_ctxt *dlm)
 static void dlm_complete_dlm_shutdown(struct dlm_ctxt *dlm)
 {
 	dlm_unregister_domain_handlers(dlm);
+	dlm_debug_shutdown(dlm);
 	dlm_complete_thread(dlm);
 	dlm_complete_recovery_thread(dlm);
 	dlm_destroy_dlm_worker(dlm);
@@ -644,6 +648,7 @@ int dlm_shutting_down(struct dlm_ctxt *dlm)
 void dlm_unregister_domain(struct dlm_ctxt *dlm)
 {
 	int leave = 0;
+	struct dlm_lock_resource *res;
 
 	spin_lock(&dlm_domain_lock);
 	BUG_ON(dlm->dlm_state != DLM_CTXT_JOINED);
@@ -673,6 +678,15 @@ void dlm_unregister_domain(struct dlm_ctxt *dlm)
 			msleep(500);
 			mlog(0, "%s: more migration to do\n", dlm->name);
 		}
+
+		/* This list should be empty. If not, print remaining lockres */
+		if (!list_empty(&dlm->tracking_list)) {
+			mlog(ML_ERROR, "Following lockres' are still on the "
+			     "tracking list:\n");
+			list_for_each_entry(res, &dlm->tracking_list, tracking)
+				dlm_print_one_lock_resource(res);
+		}
+
 		dlm_mark_domain_leaving(dlm);
 		dlm_leave_domain(dlm);
 		dlm_complete_dlm_shutdown(dlm);
@@ -1405,6 +1419,12 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 		goto bail;
 	}
 
+	status = dlm_debug_init(dlm);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
 	status = dlm_launch_thread(dlm);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1472,6 +1492,7 @@ bail:
 
 	if (status) {
 		dlm_unregister_domain_handlers(dlm);
+		dlm_debug_shutdown(dlm);
 		dlm_complete_thread(dlm);
 		dlm_complete_recovery_thread(dlm);
 		dlm_destroy_dlm_worker(dlm);
@@ -1484,6 +1505,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 				u32 key)
 {
 	int i;
+	int ret;
 	struct dlm_ctxt *dlm = NULL;
 
 	dlm = kzalloc(sizeof(*dlm), GFP_KERNEL);
@@ -1516,6 +1538,15 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	dlm->key = key;
 	dlm->node_num = o2nm_this_node();
 
+	ret = dlm_create_debugfs_subroot(dlm);
+	if (ret < 0) {
+		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
+		kfree(dlm->name);
+		kfree(dlm);
+		dlm = NULL;
+		goto leave;
+	}
+
 	spin_lock_init(&dlm->spinlock);
 	spin_lock_init(&dlm->master_lock);
 	spin_lock_init(&dlm->ast_lock);
@@ -1526,6 +1557,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	INIT_LIST_HEAD(&dlm->reco.node_data);
 	INIT_LIST_HEAD(&dlm->purge_list);
 	INIT_LIST_HEAD(&dlm->dlm_domain_handlers);
+	INIT_LIST_HEAD(&dlm->tracking_list);
 	dlm->reco.state = 0;
 
 	INIT_LIST_HEAD(&dlm->pending_asts);
@@ -1816,21 +1848,49 @@ static int __init dlm_init(void)
 	dlm_print_version();
 
 	status = dlm_init_mle_cache();
-	if (status)
-		return -1;
+	if (status) {
+		mlog(ML_ERROR, "Could not create o2dlm_mle slabcache\n");
+		goto error;
+	}
+
+	status = dlm_init_master_caches();
+	if (status) {
+		mlog(ML_ERROR, "Could not create o2dlm_lockres and "
+		     "o2dlm_lockname slabcaches\n");
+		goto error;
+	}
+
+	status = dlm_init_lock_cache();
+	if (status) {
+		mlog(ML_ERROR, "Count not create o2dlm_lock slabcache\n");
+		goto error;
+	}
 
 	status = dlm_register_net_handlers();
 	if (status) {
-		dlm_destroy_mle_cache();
-		return -1;
+		mlog(ML_ERROR, "Unable to register network handlers\n");
+		goto error;
 	}
 
+	status = dlm_create_debugfs_root();
+	if (status)
+		goto error;
+
 	return 0;
+error:
+	dlm_unregister_net_handlers();
+	dlm_destroy_lock_cache();
+	dlm_destroy_master_caches();
+	dlm_destroy_mle_cache();
+	return -1;
 }
 
 static void __exit dlm_exit (void)
 {
+	dlm_destroy_debugfs_root();
 	dlm_unregister_net_handlers();
+	dlm_destroy_lock_cache();
+	dlm_destroy_master_caches();
 	dlm_destroy_mle_cache();
 }
 

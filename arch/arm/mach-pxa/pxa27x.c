@@ -23,6 +23,7 @@
 #include <asm/arch/irqs.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
+#include <asm/arch/mfp-pxa27x.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/dma.h>
@@ -151,11 +152,14 @@ static struct clk pxa27x_clks[] = {
 
 	INIT_CKEN("USBCLK", USBHOST, 48000000, 0, &pxa27x_device_ohci.dev),
 	INIT_CKEN("I2CCLK", PWRI2C, 13000000, 0, &pxa27x_device_i2c_power.dev),
-	INIT_CKEN("KBDCLK", KEYPAD, 32768, 0, NULL),
+	INIT_CKEN("KBDCLK", KEYPAD, 32768, 0, &pxa27x_device_keypad.dev),
 
 	INIT_CKEN("SSPCLK", SSP1, 13000000, 0, &pxa27x_device_ssp1.dev),
 	INIT_CKEN("SSPCLK", SSP2, 13000000, 0, &pxa27x_device_ssp2.dev),
 	INIT_CKEN("SSPCLK", SSP3, 13000000, 0, &pxa27x_device_ssp3.dev),
+
+	INIT_CKEN("AC97CLK",     AC97,     24576000, 0, NULL),
+	INIT_CKEN("AC97CONFCLK", AC97CONF, 24576000, 0, NULL),
 
 	/*
 	INIT_CKEN("PWMCLK",  PWM0, 13000000, 0, NULL),
@@ -283,37 +287,16 @@ static inline void pxa27x_init_pm(void) {}
 /* PXA27x:  Various gpios can issue wakeup events.  This logic only
  * handles the simple cases, not the WEMUX2 and WEMUX3 options
  */
-#define PXA27x_GPIO_NOWAKE_MASK \
-        ((1 << 8) | (1 << 7) | (1 << 6) | (1 << 5) | (1 << 2))
-#define WAKEMASK(gpio) \
-        (((gpio) <= 15) \
-                 ? ((1 << (gpio)) & ~PXA27x_GPIO_NOWAKE_MASK) \
-                 : ((gpio == 35) ? (1 << 24) : 0))
-
 static int pxa27x_set_wake(unsigned int irq, unsigned int on)
 {
 	int gpio = IRQ_TO_GPIO(irq);
 	uint32_t mask;
 
-	if ((gpio >= 0 && gpio <= 15) || (gpio == 35)) {
-		if (WAKEMASK(gpio) == 0)
-			return -EINVAL;
+	if (gpio >= 0 && gpio < 128)
+		return gpio_set_wake(gpio, on);
 
-		mask = WAKEMASK(gpio);
-
-		if (on) {
-			if (GRER(gpio) | GPIO_bit(gpio))
-				PRER |= mask;
-			else
-				PRER &= ~mask;
-
-			if (GFER(gpio) | GPIO_bit(gpio))
-				PFER |= mask;
-			else
-				PFER &= ~mask;
-		}
-		goto set_pwer;
-	}
+	if (irq == IRQ_KEYPAD)
+		return keypad_set_wake(on);
 
 	switch (irq) {
 	case IRQ_RTCAlrm:
@@ -326,7 +309,6 @@ static int pxa27x_set_wake(unsigned int irq, unsigned int on)
 		return -EINVAL;
 	}
 
-set_pwer:
 	if (on)
 		PWER |= mask;
 	else
@@ -337,10 +319,8 @@ set_pwer:
 
 void __init pxa27x_init_irq(void)
 {
-	pxa_init_irq_low();
-	pxa_init_irq_high();
-	pxa_init_irq_gpio(128);
-	pxa_init_irq_set_wake(pxa27x_set_wake);
+	pxa_init_irq(34, pxa27x_set_wake);
+	pxa_init_gpio(128, pxa27x_set_wake);
 }
 
 /*
@@ -386,10 +366,6 @@ static struct platform_device *devices[] __initdata = {
 
 static struct sys_device pxa27x_sysdev[] = {
 	{
-		.id	= 0,
-		.cls	= &pxa_irq_sysclass,
-	}, {
-		.id	= 1,
 		.cls	= &pxa_irq_sysclass,
 	}, {
 		.cls	= &pxa_gpio_sysclass,
@@ -420,4 +396,4 @@ static int __init pxa27x_init(void)
 	return ret;
 }
 
-subsys_initcall(pxa27x_init);
+postcore_initcall(pxa27x_init);

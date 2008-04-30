@@ -30,6 +30,7 @@
  */
 #ifndef __ASSEMBLY__
 #include <linux/mm_types.h>
+#include <asm/bitops.h>
 #include <asm/bug.h>
 #include <asm/processor.h>
 
@@ -219,6 +220,8 @@ extern char empty_zero_page[PAGE_SIZE];
 /* Software bits in the page table entry */
 #define _PAGE_SWT	0x001		/* SW pte type bit t */
 #define _PAGE_SWX	0x002		/* SW pte type bit x */
+#define _PAGE_SPECIAL	0x004		/* SW associated with special page */
+#define __HAVE_ARCH_PTE_SPECIAL
 
 /* Six different types of pages. */
 #define _PAGE_TYPE_EMPTY	0x400
@@ -257,6 +260,13 @@ extern char empty_zero_page[PAGE_SIZE];
  * pte_file is true for bits combinations 1101, 1111
  * swap pte is 1011 and 0001, 0011, 0101, 0111 are invalid.
  */
+
+/* Page status table bits for virtualization */
+#define RCP_PCL_BIT	55
+#define RCP_HR_BIT	54
+#define RCP_HC_BIT	53
+#define RCP_GR_BIT	50
+#define RCP_GC_BIT	49
 
 #ifndef __s390x__
 
@@ -510,8 +520,55 @@ static inline int pte_file(pte_t pte)
 	return (pte_val(pte) & mask) == _PAGE_TYPE_FILE;
 }
 
+static inline int pte_special(pte_t pte)
+{
+	return (pte_val(pte) & _PAGE_SPECIAL);
+}
+
 #define __HAVE_ARCH_PTE_SAME
 #define pte_same(a,b)  (pte_val(a) == pte_val(b))
+
+static inline void rcp_lock(pte_t *ptep)
+{
+#ifdef CONFIG_PGSTE
+	unsigned long *pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
+	preempt_disable();
+	while (test_and_set_bit(RCP_PCL_BIT, pgste))
+		;
+#endif
+}
+
+static inline void rcp_unlock(pte_t *ptep)
+{
+#ifdef CONFIG_PGSTE
+	unsigned long *pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
+	clear_bit(RCP_PCL_BIT, pgste);
+	preempt_enable();
+#endif
+}
+
+/* forward declaration for SetPageUptodate in page-flags.h*/
+static inline void page_clear_dirty(struct page *page);
+#include <linux/page-flags.h>
+
+static inline void ptep_rcp_copy(pte_t *ptep)
+{
+#ifdef CONFIG_PGSTE
+	struct page *page = virt_to_page(pte_val(*ptep));
+	unsigned int skey;
+	unsigned long *pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
+
+	skey = page_get_storage_key(page_to_phys(page));
+	if (skey & _PAGE_CHANGED)
+		set_bit_simple(RCP_GC_BIT, pgste);
+	if (skey & _PAGE_REFERENCED)
+		set_bit_simple(RCP_GR_BIT, pgste);
+	if (test_and_clear_bit_simple(RCP_HC_BIT, pgste))
+		SetPageDirty(page);
+	if (test_and_clear_bit_simple(RCP_HR_BIT, pgste))
+		SetPageReferenced(page);
+#endif
+}
 
 /*
  * query functions pte_write/pte_dirty/pte_young only work if
@@ -599,6 +656,8 @@ static inline void pmd_clear(pmd_t *pmd)
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
+	if (mm->context.pgstes)
+		ptep_rcp_copy(ptep);
 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
 	if (mm->context.noexec)
 		pte_val(ptep[PTRS_PER_PTE]) = _PAGE_TYPE_EMPTY;
@@ -663,10 +722,34 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return pte;
 }
 
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	pte_val(pte) |= _PAGE_SPECIAL;
+	return pte;
+}
+
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 					    unsigned long addr, pte_t *ptep)
 {
+#ifdef CONFIG_PGSTE
+	unsigned long physpage;
+	int young;
+	unsigned long *pgste;
+
+	if (!vma->vm_mm->context.pgstes)
+		return 0;
+	physpage = pte_val(*ptep) & PAGE_MASK;
+	pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
+
+	young = ((page_get_storage_key(physpage) & _PAGE_REFERENCED) != 0);
+	rcp_lock(ptep);
+	if (young)
+		set_bit_simple(RCP_GR_BIT, pgste);
+	young |= test_and_clear_bit_simple(RCP_HR_BIT, pgste);
+	rcp_unlock(ptep);
+	return young;
+#endif
 	return 0;
 }
 
@@ -674,7 +757,13 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 					 unsigned long address, pte_t *ptep)
 {
-	/* No need to flush TLB; bits are in storage key */
+	/* No need to flush TLB
+	 * On s390 reference bits are in storage key and never in TLB
+	 * With virtualization we handle the reference bit, without we
+	 * we can simply return */
+#ifdef CONFIG_PGSTE
+	return ptep_test_and_clear_young(vma, address, ptep);
+#endif
 	return 0;
 }
 
@@ -693,15 +782,25 @@ static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
 			: "=m" (*ptep) : "m" (*ptep),
 			  "a" (pto), "a" (address));
 	}
-	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
 }
 
 static inline void ptep_invalidate(struct mm_struct *mm,
 				   unsigned long address, pte_t *ptep)
 {
+	if (mm->context.pgstes) {
+		rcp_lock(ptep);
+		__ptep_ipte(address, ptep);
+		ptep_rcp_copy(ptep);
+		pte_val(*ptep) = _PAGE_TYPE_EMPTY;
+		rcp_unlock(ptep);
+		return;
+	}
 	__ptep_ipte(address, ptep);
-	if (mm->context.noexec)
+	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
+	if (mm->context.noexec) {
 		__ptep_ipte(address, ptep + PTRS_PER_PTE);
+		pte_val(*(ptep + PTRS_PER_PTE)) = _PAGE_TYPE_EMPTY;
+	}
 }
 
 /*
@@ -966,6 +1065,7 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 
 extern int add_shared_memory(unsigned long start, unsigned long size);
 extern int remove_shared_memory(unsigned long start, unsigned long size);
+extern int s390_enable_sie(void);
 
 /*
  * No page table caches to initialise

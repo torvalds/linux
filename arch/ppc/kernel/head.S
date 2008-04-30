@@ -701,23 +701,6 @@ load_up_altivec:
 	b	fast_exception_return
 
 /*
- * AltiVec unavailable trap from kernel - print a message, but let
- * the task use AltiVec in the kernel until it returns to user mode.
- */
-KernelAltiVec:
-	lwz	r3,_MSR(r1)
-	oris	r3,r3,MSR_VEC@h
-	stw	r3,_MSR(r1)	/* enable use of AltiVec after return */
-	lis	r3,87f@h
-	ori	r3,r3,87f@l
-	mr	r4,r2		/* current */
-	lwz	r5,_NIP(r1)
-	bl	printk
-	b	ret_from_except
-87:	.string	"AltiVec used in kernel  (task=%p, pc=%x)  \n"
-	.align	4,0
-
-/*
  * giveup_altivec(tsk)
  * Disable AltiVec for the task given as the argument,
  * and save the AltiVec registers in its thread_struct.

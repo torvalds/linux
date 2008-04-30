@@ -1,6 +1,6 @@
 /* tuner-xc2028
  *
- * Copyright (c) 2007 Mauro Carvalho Chehab (mchehab@infradead.org)
+ * Copyright (c) 2007-2008 Mauro Carvalho Chehab (mchehab@infradead.org)
  * This code is placed under the terms of the GNU General Public License v2
  */
 
@@ -12,7 +12,7 @@
 #define XC2028_DEFAULT_FIRMWARE "xc3028-v27.fw"
 
 /*      Dmoduler		IF (kHz) */
-#define	XC3028_FE_DEFAULT	0
+#define	XC3028_FE_DEFAULT	0		/* Don't load SCODE */
 #define XC3028_FE_LG60		6000
 #define	XC3028_FE_ATI638	6380
 #define	XC3028_FE_OREN538	5380
@@ -55,7 +55,7 @@ static inline struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 						 struct xc2028_config *cfg)
 {
 	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
-	       __FUNCTION__);
+	       __func__);
 	return NULL;
 }
 #endif

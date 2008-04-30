@@ -28,7 +28,7 @@
 #include <linux/netlink.h>
 #include <linux/sched.h>
 #include <linux/inotify.h>
-#include <linux/selinux.h>
+#include <linux/security.h>
 #include "audit.h"
 
 /*
@@ -38,7 +38,7 @@
  * 		Synchronizes writes and blocking reads of audit's filterlist
  * 		data.  Rcu is used to traverse the filterlist and access
  * 		contents of structs audit_entry, audit_watch and opaque
- * 		selinux rules during filtering.  If modified, these structures
+ * 		LSM rules during filtering.  If modified, these structures
  * 		must be copied and replace their counterparts in the filterlist.
  * 		An audit_parent struct is not accessed during filtering, so may
  * 		be written directly provided audit_filter_mutex is held.
@@ -139,8 +139,8 @@ static inline void audit_free_rule(struct audit_entry *e)
 	if (e->rule.fields)
 		for (i = 0; i < e->rule.field_count; i++) {
 			struct audit_field *f = &e->rule.fields[i];
-			kfree(f->se_str);
-			selinux_audit_rule_free(f->se_rule);
+			kfree(f->lsm_str);
+			security_audit_rule_free(f->lsm_rule);
 		}
 	kfree(e->rule.fields);
 	kfree(e->rule.filterkey);
@@ -554,8 +554,8 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		f->op = data->fieldflags[i] & AUDIT_OPERATORS;
 		f->type = data->fields[i];
 		f->val = data->values[i];
-		f->se_str = NULL;
-		f->se_rule = NULL;
+		f->lsm_str = NULL;
+		f->lsm_rule = NULL;
 		switch(f->type) {
 		case AUDIT_PID:
 		case AUDIT_UID:
@@ -597,12 +597,12 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 				goto exit_free;
 			entry->rule.buflen += f->val;
 
-			err = selinux_audit_rule_init(f->type, f->op, str,
-						      &f->se_rule);
+			err = security_audit_rule_init(f->type, f->op, str,
+						       (void **)&f->lsm_rule);
 			/* Keep currently invalid fields around in case they
 			 * become valid after a policy reload. */
 			if (err == -EINVAL) {
-				printk(KERN_WARNING "audit rule for selinux "
+				printk(KERN_WARNING "audit rule for LSM "
 				       "\'%s\' is invalid\n",  str);
 				err = 0;
 			}
@@ -610,7 +610,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 				kfree(str);
 				goto exit_free;
 			} else
-				f->se_str = str;
+				f->lsm_str = str;
 			break;
 		case AUDIT_WATCH:
 			str = audit_unpack_string(&bufp, &remain, f->val);
@@ -754,7 +754,7 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 		case AUDIT_OBJ_LEV_LOW:
 		case AUDIT_OBJ_LEV_HIGH:
 			data->buflen += data->values[i] =
-				audit_pack_string(&bufp, f->se_str);
+				audit_pack_string(&bufp, f->lsm_str);
 			break;
 		case AUDIT_WATCH:
 			data->buflen += data->values[i] =
@@ -806,7 +806,7 @@ static int audit_compare_rule(struct audit_krule *a, struct audit_krule *b)
 		case AUDIT_OBJ_TYPE:
 		case AUDIT_OBJ_LEV_LOW:
 		case AUDIT_OBJ_LEV_HIGH:
-			if (strcmp(a->fields[i].se_str, b->fields[i].se_str))
+			if (strcmp(a->fields[i].lsm_str, b->fields[i].lsm_str))
 				return 1;
 			break;
 		case AUDIT_WATCH:
@@ -862,28 +862,28 @@ out:
 	return new;
 }
 
-/* Duplicate selinux field information.  The se_rule is opaque, so must be
+/* Duplicate LSM field information.  The lsm_rule is opaque, so must be
  * re-initialized. */
-static inline int audit_dupe_selinux_field(struct audit_field *df,
+static inline int audit_dupe_lsm_field(struct audit_field *df,
 					   struct audit_field *sf)
 {
 	int ret = 0;
-	char *se_str;
+	char *lsm_str;
 
-	/* our own copy of se_str */
-	se_str = kstrdup(sf->se_str, GFP_KERNEL);
-	if (unlikely(!se_str))
+	/* our own copy of lsm_str */
+	lsm_str = kstrdup(sf->lsm_str, GFP_KERNEL);
+	if (unlikely(!lsm_str))
 		return -ENOMEM;
-	df->se_str = se_str;
+	df->lsm_str = lsm_str;
 
-	/* our own (refreshed) copy of se_rule */
-	ret = selinux_audit_rule_init(df->type, df->op, df->se_str,
-				      &df->se_rule);
+	/* our own (refreshed) copy of lsm_rule */
+	ret = security_audit_rule_init(df->type, df->op, df->lsm_str,
+				       (void **)&df->lsm_rule);
 	/* Keep currently invalid fields around in case they
 	 * become valid after a policy reload. */
 	if (ret == -EINVAL) {
-		printk(KERN_WARNING "audit rule for selinux \'%s\' is "
-		       "invalid\n", df->se_str);
+		printk(KERN_WARNING "audit rule for LSM \'%s\' is "
+		       "invalid\n", df->lsm_str);
 		ret = 0;
 	}
 
@@ -891,7 +891,7 @@ static inline int audit_dupe_selinux_field(struct audit_field *df,
 }
 
 /* Duplicate an audit rule.  This will be a deep copy with the exception
- * of the watch - that pointer is carried over.  The selinux specific fields
+ * of the watch - that pointer is carried over.  The LSM specific fields
  * will be updated in the copy.  The point is to be able to replace the old
  * rule with the new rule in the filterlist, then free the old rule.
  * The rlist element is undefined; list manipulations are handled apart from
@@ -930,7 +930,7 @@ static struct audit_entry *audit_dupe_rule(struct audit_krule *old,
 	new->tree = old->tree;
 	memcpy(new->fields, old->fields, sizeof(struct audit_field) * fcount);
 
-	/* deep copy this information, updating the se_rule fields, because
+	/* deep copy this information, updating the lsm_rule fields, because
 	 * the originals will all be freed when the old rule is freed. */
 	for (i = 0; i < fcount; i++) {
 		switch (new->fields[i].type) {
@@ -944,7 +944,7 @@ static struct audit_entry *audit_dupe_rule(struct audit_krule *old,
 		case AUDIT_OBJ_TYPE:
 		case AUDIT_OBJ_LEV_LOW:
 		case AUDIT_OBJ_LEV_HIGH:
-			err = audit_dupe_selinux_field(&new->fields[i],
+			err = audit_dupe_lsm_field(&new->fields[i],
 						       &old->fields[i]);
 			break;
 		case AUDIT_FILTERKEY:
@@ -1515,11 +1515,12 @@ static void audit_log_rule_change(uid_t loginuid, u32 sid, char *action,
 	if (sid) {
 		char *ctx = NULL;
 		u32 len;
-		if (selinux_sid_to_string(sid, &ctx, &len))
+		if (security_secid_to_secctx(sid, &ctx, &len))
 			audit_log_format(ab, " ssid=%u", sid);
-		else
+		else {
 			audit_log_format(ab, " subj=%s", ctx);
-		kfree(ctx);
+			security_release_secctx(ctx, len);
+		}
 	}
 	audit_log_format(ab, " op=%s rule key=", action);
 	if (rule->filterkey)
@@ -1761,38 +1762,12 @@ unlock_and_return:
 	return result;
 }
 
-/* Check to see if the rule contains any selinux fields.  Returns 1 if there
-   are selinux fields specified in the rule, 0 otherwise. */
-static inline int audit_rule_has_selinux(struct audit_krule *rule)
-{
-	int i;
-
-	for (i = 0; i < rule->field_count; i++) {
-		struct audit_field *f = &rule->fields[i];
-		switch (f->type) {
-		case AUDIT_SUBJ_USER:
-		case AUDIT_SUBJ_ROLE:
-		case AUDIT_SUBJ_TYPE:
-		case AUDIT_SUBJ_SEN:
-		case AUDIT_SUBJ_CLR:
-		case AUDIT_OBJ_USER:
-		case AUDIT_OBJ_ROLE:
-		case AUDIT_OBJ_TYPE:
-		case AUDIT_OBJ_LEV_LOW:
-		case AUDIT_OBJ_LEV_HIGH:
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-/* This function will re-initialize the se_rule field of all applicable rules.
- * It will traverse the filter lists serarching for rules that contain selinux
+/* This function will re-initialize the lsm_rule field of all applicable rules.
+ * It will traverse the filter lists serarching for rules that contain LSM
  * specific filter fields.  When such a rule is found, it is copied, the
- * selinux field is re-initialized, and the old rule is replaced with the
+ * LSM field is re-initialized, and the old rule is replaced with the
  * updated rule. */
-int selinux_audit_rule_update(void)
+int audit_update_lsm_rules(void)
 {
 	struct audit_entry *entry, *n, *nentry;
 	struct audit_watch *watch;
@@ -1804,7 +1779,7 @@ int selinux_audit_rule_update(void)
 
 	for (i = 0; i < AUDIT_NR_FILTERS; i++) {
 		list_for_each_entry_safe(entry, n, &audit_filter_list[i], list) {
-			if (!audit_rule_has_selinux(&entry->rule))
+			if (!security_audit_rule_known(&entry->rule))
 				continue;
 
 			watch = entry->rule.watch;
@@ -1815,7 +1790,7 @@ int selinux_audit_rule_update(void)
 				 * return value */
 				if (!err)
 					err = PTR_ERR(nentry);
-				audit_panic("error updating selinux filters");
+				audit_panic("error updating LSM filters");
 				if (watch)
 					list_del(&entry->rule.rlist);
 				list_del_rcu(&entry->list);

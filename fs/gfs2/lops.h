@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -55,15 +55,6 @@ static inline void lops_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 {
 	if (le->le_ops->lo_add)
 		le->le_ops->lo_add(sdp, le);
-}
-
-static inline void lops_incore_commit(struct gfs2_sbd *sdp,
-				      struct gfs2_trans *tr)
-{
-	int x;
-	for (x = 0; gfs2_log_ops[x]; x++)
-		if (gfs2_log_ops[x]->lo_incore_commit)
-			gfs2_log_ops[x]->lo_incore_commit(sdp, tr);
 }
 
 static inline void lops_before_commit(struct gfs2_sbd *sdp)

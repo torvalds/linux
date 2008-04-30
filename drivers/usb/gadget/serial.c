@@ -2163,8 +2163,7 @@ static void gs_free_ports(struct gs_dev *dev)
 				port->port_dev = NULL;
 				wake_up_interruptible(&port->port_write_wait);
 				if (port->port_tty) {
-					wake_up_interruptible(&port->port_tty->read_wait);
-					wake_up_interruptible(&port->port_tty->write_wait);
+					tty_hangup(port->port_tty);
 				}
 				spin_unlock_irqrestore(&port->port_lock, flags);
 			} else {

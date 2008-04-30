@@ -192,9 +192,9 @@ static void drv_read(struct drv_cmd *cmd)
 	cpumask_t saved_mask = current->cpus_allowed;
 	cmd->val = 0;
 
-	set_cpus_allowed(current, cmd->mask);
+	set_cpus_allowed_ptr(current, &cmd->mask);
 	do_drv_read(cmd);
-	set_cpus_allowed(current, saved_mask);
+	set_cpus_allowed_ptr(current, &saved_mask);
 }
 
 static void drv_write(struct drv_cmd *cmd)
@@ -203,30 +203,30 @@ static void drv_write(struct drv_cmd *cmd)
 	unsigned int i;
 
 	for_each_cpu_mask(i, cmd->mask) {
-		set_cpus_allowed(current, cpumask_of_cpu(i));
+		set_cpus_allowed_ptr(current, &cpumask_of_cpu(i));
 		do_drv_write(cmd);
 	}
 
-	set_cpus_allowed(current, saved_mask);
+	set_cpus_allowed_ptr(current, &saved_mask);
 	return;
 }
 
-static u32 get_cur_val(cpumask_t mask)
+static u32 get_cur_val(const cpumask_t *mask)
 {
 	struct acpi_processor_performance *perf;
 	struct drv_cmd cmd;
 
-	if (unlikely(cpus_empty(mask)))
+	if (unlikely(cpus_empty(*mask)))
 		return 0;
 
-	switch (per_cpu(drv_data, first_cpu(mask))->cpu_feature) {
+	switch (per_cpu(drv_data, first_cpu(*mask))->cpu_feature) {
 	case SYSTEM_INTEL_MSR_CAPABLE:
 		cmd.type = SYSTEM_INTEL_MSR_CAPABLE;
 		cmd.addr.msr.reg = MSR_IA32_PERF_STATUS;
 		break;
 	case SYSTEM_IO_CAPABLE:
 		cmd.type = SYSTEM_IO_CAPABLE;
-		perf = per_cpu(drv_data, first_cpu(mask))->acpi_data;
+		perf = per_cpu(drv_data, first_cpu(*mask))->acpi_data;
 		cmd.addr.io.port = perf->control_register.address;
 		cmd.addr.io.bit_width = perf->control_register.bit_width;
 		break;
@@ -234,7 +234,7 @@ static u32 get_cur_val(cpumask_t mask)
 		return 0;
 	}
 
-	cmd.mask = mask;
+	cmd.mask = *mask;
 
 	drv_read(&cmd);
 
@@ -271,7 +271,7 @@ static unsigned int get_measured_perf(unsigned int cpu)
 	unsigned int retval;
 
 	saved_mask = current->cpus_allowed;
-	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 	if (get_cpu() != cpu) {
 		/* We were not able to run on requested processor */
 		put_cpu();
@@ -329,7 +329,7 @@ static unsigned int get_measured_perf(unsigned int cpu)
 	retval = per_cpu(drv_data, cpu)->max_freq * perf_percent / 100;
 
 	put_cpu();
-	set_cpus_allowed(current, saved_mask);
+	set_cpus_allowed_ptr(current, &saved_mask);
 
 	dprintk("cpu %d: performance percent %d\n", cpu, perf_percent);
 	return retval;
@@ -339,6 +339,7 @@ static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 {
 	struct acpi_cpufreq_data *data = per_cpu(drv_data, cpu);
 	unsigned int freq;
+	unsigned int cached_freq;
 
 	dprintk("get_cur_freq_on_cpu (%d)\n", cpu);
 
@@ -347,13 +348,22 @@ static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 		return 0;
 	}
 
-	freq = extract_freq(get_cur_val(cpumask_of_cpu(cpu)), data);
+	cached_freq = data->freq_table[data->acpi_data->state].frequency;
+	freq = extract_freq(get_cur_val(&cpumask_of_cpu(cpu)), data);
+	if (freq != cached_freq) {
+		/*
+		 * The dreaded BIOS frequency change behind our back.
+		 * Force set the frequency on next target call.
+		 */
+		data->resume = 1;
+	}
+
 	dprintk("cur freq = %u\n", freq);
 
 	return freq;
 }
 
-static unsigned int check_freqs(cpumask_t mask, unsigned int freq,
+static unsigned int check_freqs(const cpumask_t *mask, unsigned int freq,
 				struct acpi_cpufreq_data *data)
 {
 	unsigned int cur_freq;
@@ -449,7 +459,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	drv_write(&cmd);
 
 	if (acpi_pstate_strict) {
-		if (!check_freqs(cmd.mask, freqs.new, data)) {
+		if (!check_freqs(&cmd.mask, freqs.new, data)) {
 			dprintk("acpi_cpufreq_target failed (%d)\n",
 				policy->cpu);
 			return -EAGAIN;

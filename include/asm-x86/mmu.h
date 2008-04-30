@@ -10,10 +10,10 @@
  *
  * cpu_vm_mask is used to optimize ldt flushing.
  */
-typedef struct { 
+typedef struct {
 	void *ldt;
 #ifdef CONFIG_X86_64
-	rwlock_t ldtlock; 
+	rwlock_t ldtlock;
 #endif
 	int size;
 	struct mutex lock;

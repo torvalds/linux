@@ -9,8 +9,8 @@
 #include "hashtab.h"
 
 struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *key),
-                               int (*keycmp)(struct hashtab *h, const void *key1, const void *key2),
-                               u32 size)
+			       int (*keycmp)(struct hashtab *h, const void *key1, const void *key2),
+			       u32 size)
 {
 	struct hashtab *p;
 	u32 i;

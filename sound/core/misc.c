@@ -39,7 +39,7 @@ void snd_verbose_printk(const char *file, int line, const char *format, ...)
 {
 	va_list args;
 	
-	if (format[0] == '<' && format[1] >= '0' && format[1] <= '9' && format[2] == '>') {
+	if (format[0] == '<' && format[1] >= '0' && format[1] <= '7' && format[2] == '>') {
 		char tmp[] = "<0>";
 		tmp[1] = format[1];
 		printk("%sALSA %s:%d: ", tmp, file, line);
@@ -60,7 +60,7 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 {
 	va_list args;
 	
-	if (format[0] == '<' && format[1] >= '0' && format[1] <= '9' && format[2] == '>') {
+	if (format[0] == '<' && format[1] >= '0' && format[1] <= '7' && format[2] == '>') {
 		char tmp[] = "<0>";
 		tmp[1] = format[1];
 		printk("%sALSA %s:%d: ", tmp, file, line);

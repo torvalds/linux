@@ -103,6 +103,7 @@ enum {
 	DEV_LIM_FLAG_RAW_IPV6           = 1 << 4,
 	DEV_LIM_FLAG_RAW_ETHER          = 1 << 5,
 	DEV_LIM_FLAG_SRQ                = 1 << 6,
+	DEV_LIM_FLAG_IPOIB_CSUM		= 1 << 7,
 	DEV_LIM_FLAG_BAD_PKEY_CNTR      = 1 << 8,
 	DEV_LIM_FLAG_BAD_QKEY_CNTR      = 1 << 9,
 	DEV_LIM_FLAG_MW                 = 1 << 16,

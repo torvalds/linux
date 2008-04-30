@@ -36,6 +36,9 @@
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
 
+#ifdef CONFIG_DCA
+#include <linux/dca.h>
+#endif
 
 #define IXGBE_ERR(args...) printk(KERN_ERR "ixgbe: " args)
 
@@ -120,7 +123,6 @@ struct ixgbe_queue_stats {
 };
 
 struct ixgbe_ring {
-	struct ixgbe_adapter *adapter;	/* backlink */
 	void *desc;			/* descriptor ring memory */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
 	unsigned int size;		/* length in bytes */
@@ -128,6 +130,7 @@ struct ixgbe_ring {
 	unsigned int next_to_use;
 	unsigned int next_to_clean;
 
+	int queue_index; /* needed for multiqueue queue management */
 	union {
 		struct ixgbe_tx_buffer *tx_buffer_info;
 		struct ixgbe_rx_buffer *rx_buffer_info;
@@ -136,14 +139,54 @@ struct ixgbe_ring {
 	u16 head;
 	u16 tail;
 
+	unsigned int total_bytes;
+	unsigned int total_packets;
 
+	u16 reg_idx; /* holds the special value that gets the hardware register
+		      * offset associated with this ring, which is different
+		      * for DCE and RSS modes */
+
+#ifdef CONFIG_DCA
+	/* cpu for tx queue */
+	int cpu;
+#endif
 	struct ixgbe_queue_stats stats;
+	u8 v_idx; /* maps directly to the index for this ring in the hardware
+		   * vector array, can also be used for finding the bit in EICR
+		   * and friends that represents the vector for this ring */
 
 	u32 eims_value;
 	u16 itr_register;
 
 	char name[IFNAMSIZ + 5];
 	u16 work_limit;                /* max work per interrupt */
+};
+
+#define RING_F_VMDQ 1
+#define RING_F_RSS  2
+#define IXGBE_MAX_RSS_INDICES  16
+#define IXGBE_MAX_VMDQ_INDICES 16
+struct ixgbe_ring_feature {
+	int indices;
+	int mask;
+};
+
+#define MAX_RX_QUEUES 64
+#define MAX_TX_QUEUES 32
+
+/* MAX_MSIX_Q_VECTORS of these are allocated,
+ * but we only use one per queue-specific vector.
+ */
+struct ixgbe_q_vector {
+	struct ixgbe_adapter *adapter;
+	struct napi_struct napi;
+	DECLARE_BITMAP(rxr_idx, MAX_RX_QUEUES); /* Rx ring indices */
+	DECLARE_BITMAP(txr_idx, MAX_TX_QUEUES); /* Tx ring indices */
+	u8 rxr_count;     /* Rx ring count assigned to this vector */
+	u8 txr_count;     /* Tx ring count assigned to this vector */
+	u8 tx_eitr;
+	u8 rx_eitr;
+	u32 eitr;
 };
 
 /* Helper macros to switch between ints/sec and what the register uses.
@@ -166,6 +209,14 @@ struct ixgbe_ring {
 
 #define IXGBE_MAX_JUMBO_FRAME_SIZE        16128
 
+#define OTHER_VECTOR 1
+#define NON_Q_VECTORS (OTHER_VECTOR)
+
+#define MAX_MSIX_Q_VECTORS 16
+#define MIN_MSIX_Q_VECTORS 2
+#define MAX_MSIX_COUNT (MAX_MSIX_Q_VECTORS + NON_Q_VECTORS)
+#define MIN_MSIX_COUNT (MIN_MSIX_Q_VECTORS + NON_Q_VECTORS)
+
 /* board specific private data structure */
 struct ixgbe_adapter {
 	struct timer_list watchdog_timer;
@@ -173,10 +224,16 @@ struct ixgbe_adapter {
 	u16 bd_number;
 	u16 rx_buf_len;
 	struct work_struct reset_task;
+	struct ixgbe_q_vector q_vector[MAX_MSIX_Q_VECTORS];
+	char name[MAX_MSIX_COUNT][IFNAMSIZ + 5];
+
+	/* Interrupt Throttle Rate */
+	u32 itr_setting;
+	u16 eitr_low;
+	u16 eitr_high;
 
 	/* TX */
 	struct ixgbe_ring *tx_ring;	/* One per active queue */
-	struct napi_struct napi;
 	u64 restart_queue;
 	u64 lsc_int;
 	u64 hw_tso_ctxt;
@@ -192,22 +249,27 @@ struct ixgbe_adapter {
 	u64 non_eop_descs;
 	int num_tx_queues;
 	int num_rx_queues;
+	int num_msix_vectors;
+	struct ixgbe_ring_feature ring_feature[3];
 	struct msix_entry *msix_entries;
 
 	u64 rx_hdr_split;
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
 
+	/* Some features need tri-state capability,
+	 * thus the additional *_CAPABLE flags.
+	 */
 	u32 flags;
-#define IXGBE_FLAG_RX_CSUM_ENABLED              (u32)(1)
+#define IXGBE_FLAG_RX_CSUM_ENABLED              (u32)(1 << 0)
 #define IXGBE_FLAG_MSI_ENABLED                  (u32)(1 << 1)
-#define IXGBE_FLAG_MSIX_ENABLED			(u32)(1 << 2)
-#define IXGBE_FLAG_RX_PS_ENABLED		(u32)(1 << 3)
-#define IXGBE_FLAG_IN_NETPOLL			(u32)(1 << 4)
-
-	/* Interrupt Throttle Rate */
-	u32 rx_eitr;
-	u32 tx_eitr;
+#define IXGBE_FLAG_MSIX_ENABLED                 (u32)(1 << 2)
+#define IXGBE_FLAG_RX_PS_ENABLED                (u32)(1 << 3)
+#define IXGBE_FLAG_IN_NETPOLL                   (u32)(1 << 4)
+#define IXGBE_FLAG_IMIR_ENABLED                 (u32)(1 << 5)
+#define IXGBE_FLAG_RSS_ENABLED                  (u32)(1 << 6)
+#define IXGBE_FLAG_VMDQ_ENABLED                 (u32)(1 << 7)
+#define IXGBE_FLAG_DCA_ENABLED                  (u32)(1 << 8)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -218,7 +280,10 @@ struct ixgbe_adapter {
 	struct ixgbe_hw hw;
 	u16 msg_enable;
 	struct ixgbe_hw_stats stats;
-	char lsc_name[IFNAMSIZ + 5];
+
+	/* Interrupt Throttle Rate */
+	u32 rx_eitr;
+	u32 tx_eitr;
 
 	unsigned long state;
 	u64 tx_busy;

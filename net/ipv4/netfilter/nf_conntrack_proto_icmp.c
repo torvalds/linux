@@ -22,22 +22,21 @@
 
 static unsigned long nf_ct_icmp_timeout __read_mostly = 30*HZ;
 
-static int icmp_pkt_to_tuple(const struct sk_buff *skb,
-			     unsigned int dataoff,
-			     struct nf_conntrack_tuple *tuple)
+static bool icmp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
+			      struct nf_conntrack_tuple *tuple)
 {
 	const struct icmphdr *hp;
 	struct icmphdr _hdr;
 
 	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hp == NULL)
-		return 0;
+		return false;
 
 	tuple->dst.u.icmp.type = hp->type;
 	tuple->src.u.icmp.id = hp->un.echo.id;
 	tuple->dst.u.icmp.code = hp->code;
 
-	return 1;
+	return true;
 }
 
 /* Add 1; spaces filled with 0. */
@@ -52,17 +51,17 @@ static const u_int8_t invmap[] = {
 	[ICMP_ADDRESSREPLY] = ICMP_ADDRESS + 1
 };
 
-static int icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
-			     const struct nf_conntrack_tuple *orig)
+static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
+			      const struct nf_conntrack_tuple *orig)
 {
 	if (orig->dst.u.icmp.type >= sizeof(invmap)
 	    || !invmap[orig->dst.u.icmp.type])
-		return 0;
+		return false;
 
 	tuple->src.u.icmp.id = orig->src.u.icmp.id;
 	tuple->dst.u.icmp.type = invmap[orig->dst.u.icmp.type] - 1;
 	tuple->dst.u.icmp.code = orig->dst.u.icmp.code;
-	return 1;
+	return true;
 }
 
 /* Print out the per-protocol part of the tuple. */
@@ -101,8 +100,8 @@ static int icmp_packet(struct nf_conn *ct,
 }
 
 /* Called when a new connection for this protocol found. */
-static int icmp_new(struct nf_conn *ct,
-		    const struct sk_buff *skb, unsigned int dataoff)
+static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
+		     unsigned int dataoff)
 {
 	static const u_int8_t valid_new[] = {
 		[ICMP_ECHO] = 1,
@@ -116,11 +115,11 @@ static int icmp_new(struct nf_conn *ct,
 		/* Can't create a new ICMP `conn' with this. */
 		pr_debug("icmp: can't create new conn with type %u\n",
 			 ct->tuplehash[0].tuple.dst.u.icmp.type);
-		NF_CT_DUMP_TUPLE(&ct->tuplehash[0].tuple);
-		return 0;
+		nf_ct_dump_tuple_ip(&ct->tuplehash[0].tuple);
+		return false;
 	}
 	atomic_set(&ct->proto.icmp.count, 0);
-	return 1;
+	return true;
 }
 
 /* Returns conntrack if it dealt with ICMP, and filled in skb fields */

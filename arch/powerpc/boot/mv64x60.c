@@ -535,7 +535,7 @@ u8 *mv64x60_get_bridge_pbase(void)
 	u32 v[2];
 	void *devp;
 
-	devp = finddevice("/mv64x60");
+	devp = find_node_by_compatible(NULL, "marvell,mv64360");
 	if (devp == NULL)
 		goto err_out;
 	if (getprop(devp, "reg", v, sizeof(v)) != sizeof(v))
@@ -553,7 +553,7 @@ u8 *mv64x60_get_bridge_base(void)
 	u32 v;
 	void *devp;
 
-	devp = finddevice("/mv64x60");
+	devp = find_node_by_compatible(NULL, "marvell,mv64360");
 	if (devp == NULL)
 		goto err_out;
 	if (getprop(devp, "virtual-reg", &v, sizeof(v)) != sizeof(v))

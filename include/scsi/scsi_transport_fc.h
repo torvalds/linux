@@ -163,8 +163,8 @@ enum fc_tgtid_binding_type  {
 
 
 /* Macro for use in defining Virtual Port attributes */
-#define FC_VPORT_ATTR(_name,_mode,_show,_store)				\
-struct class_device_attribute class_device_attr_vport_##_name = 	\
+#define FC_VPORT_ATTR(_name,_mode,_show,_store)		\
+struct device_attribute dev_attr_vport_##_name = 	\
 	__ATTR(_name,_mode,_show,_store)
 
 
@@ -234,8 +234,8 @@ struct fc_vport {
 
 #define	dev_to_vport(d)				\
 	container_of(d, struct fc_vport, dev)
-#define transport_class_to_vport(classdev)	\
-	dev_to_vport(classdev->dev)
+#define transport_class_to_vport(dev)		\
+	dev_to_vport(dev->parent)
 #define vport_to_shost(v)			\
 	(v->shost)
 #define vport_to_shost_channel(v)		\
@@ -271,7 +271,7 @@ struct fc_rport_identifiers {
 
 /* Macro for use in defining Remote Port attributes */
 #define FC_RPORT_ATTR(_name,_mode,_show,_store)				\
-struct class_device_attribute class_device_attr_rport_##_name = 	\
+struct device_attribute dev_attr_rport_##_name = 	\
 	__ATTR(_name,_mode,_show,_store)
 
 
@@ -341,8 +341,8 @@ struct fc_rport {	/* aka fc_starget_attrs */
 
 #define	dev_to_rport(d)				\
 	container_of(d, struct fc_rport, dev)
-#define transport_class_to_rport(classdev)	\
-	dev_to_rport(classdev->dev)
+#define transport_class_to_rport(dev)	\
+	dev_to_rport(dev->parent)
 #define rport_to_shost(r)			\
 	dev_to_shost(r->dev.parent)
 

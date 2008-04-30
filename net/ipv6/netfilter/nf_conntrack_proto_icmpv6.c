@@ -28,21 +28,21 @@
 
 static unsigned long nf_ct_icmpv6_timeout __read_mostly = 30*HZ;
 
-static int icmpv6_pkt_to_tuple(const struct sk_buff *skb,
-			       unsigned int dataoff,
-			       struct nf_conntrack_tuple *tuple)
+static bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
+				unsigned int dataoff,
+				struct nf_conntrack_tuple *tuple)
 {
 	const struct icmp6hdr *hp;
 	struct icmp6hdr _hdr;
 
 	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hp == NULL)
-		return 0;
+		return false;
 	tuple->dst.u.icmp.type = hp->icmp6_type;
 	tuple->src.u.icmp.id = hp->icmp6_identifier;
 	tuple->dst.u.icmp.code = hp->icmp6_code;
 
-	return 1;
+	return true;
 }
 
 /* Add 1; spaces filled with 0. */
@@ -53,17 +53,17 @@ static const u_int8_t invmap[] = {
 	[ICMPV6_NI_REPLY - 128]		= ICMPV6_NI_REPLY +1
 };
 
-static int icmpv6_invert_tuple(struct nf_conntrack_tuple *tuple,
-			       const struct nf_conntrack_tuple *orig)
+static bool icmpv6_invert_tuple(struct nf_conntrack_tuple *tuple,
+				const struct nf_conntrack_tuple *orig)
 {
 	int type = orig->dst.u.icmp.type - 128;
 	if (type < 0 || type >= sizeof(invmap) || !invmap[type])
-		return 0;
+		return false;
 
 	tuple->src.u.icmp.id   = orig->src.u.icmp.id;
 	tuple->dst.u.icmp.type = invmap[type] - 1;
 	tuple->dst.u.icmp.code = orig->dst.u.icmp.code;
-	return 1;
+	return true;
 }
 
 /* Print out the per-protocol part of the tuple. */
@@ -102,9 +102,8 @@ static int icmpv6_packet(struct nf_conn *ct,
 }
 
 /* Called when a new connection for this protocol found. */
-static int icmpv6_new(struct nf_conn *ct,
-		      const struct sk_buff *skb,
-		      unsigned int dataoff)
+static bool icmpv6_new(struct nf_conn *ct, const struct sk_buff *skb,
+		       unsigned int dataoff)
 {
 	static const u_int8_t valid_new[] = {
 		[ICMPV6_ECHO_REQUEST - 128] = 1,
@@ -116,11 +115,11 @@ static int icmpv6_new(struct nf_conn *ct,
 		/* Can't create a new ICMPv6 `conn' with this. */
 		pr_debug("icmpv6: can't create new conn with type %u\n",
 			 type + 128);
-		NF_CT_DUMP_TUPLE(&ct->tuplehash[0].tuple);
-		return 0;
+		nf_ct_dump_tuple_ipv6(&ct->tuplehash[0].tuple);
+		return false;
 	}
 	atomic_set(&ct->proto.icmp.count, 0);
-	return 1;
+	return true;
 }
 
 static int

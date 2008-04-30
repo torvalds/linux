@@ -202,7 +202,7 @@ static void ip6_frag_expire(unsigned long data)
 
 	spin_lock(&fq->q.lock);
 
-	if (fq->q.last_in & COMPLETE)
+	if (fq->q.last_in & INET_FRAG_COMPLETE)
 		goto out;
 
 	fq_kill(fq);
@@ -217,7 +217,7 @@ static void ip6_frag_expire(unsigned long data)
 	rcu_read_unlock();
 
 	/* Don't send error if the first segment did not arrive. */
-	if (!(fq->q.last_in&FIRST_IN) || !fq->q.fragments)
+	if (!(fq->q.last_in & INET_FRAG_FIRST_IN) || !fq->q.fragments)
 		goto out;
 
 	/*
@@ -265,7 +265,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	struct net_device *dev;
 	int offset, end;
 
-	if (fq->q.last_in & COMPLETE)
+	if (fq->q.last_in & INET_FRAG_COMPLETE)
 		goto err;
 
 	offset = ntohs(fhdr->frag_off) & ~0x7;
@@ -294,9 +294,9 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		 * or have different end, the segment is corrupted.
 		 */
 		if (end < fq->q.len ||
-		    ((fq->q.last_in & LAST_IN) && end != fq->q.len))
+		    ((fq->q.last_in & INET_FRAG_LAST_IN) && end != fq->q.len))
 			goto err;
-		fq->q.last_in |= LAST_IN;
+		fq->q.last_in |= INET_FRAG_LAST_IN;
 		fq->q.len = end;
 	} else {
 		/* Check if the fragment is rounded to 8 bytes.
@@ -314,7 +314,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		}
 		if (end > fq->q.len) {
 			/* Some bits beyond end -> corruption. */
-			if (fq->q.last_in & LAST_IN)
+			if (fq->q.last_in & INET_FRAG_LAST_IN)
 				goto err;
 			fq->q.len = end;
 		}
@@ -417,10 +417,11 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	 */
 	if (offset == 0) {
 		fq->nhoffset = nhoff;
-		fq->q.last_in |= FIRST_IN;
+		fq->q.last_in |= INET_FRAG_FIRST_IN;
 	}
 
-	if (fq->q.last_in == (FIRST_IN | LAST_IN) && fq->q.meat == fq->q.len)
+	if (fq->q.last_in == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
+	    fq->q.meat == fq->q.len)
 		return ip6_frag_reasm(fq, prev, dev);
 
 	write_lock(&ip6_frags.lock);
@@ -600,7 +601,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 		return 1;
 	}
 
-	net = skb->dev->nd_net;
+	net = dev_net(skb->dev);
 	if (atomic_read(&net->ipv6.frags.mem) > net->ipv6.frags.high_thresh)
 		ip6_evictor(net, ip6_dst_idev(skb->dst));
 

@@ -173,7 +173,10 @@ struct ath5k_eeprom_info {
  * (rX: reserved fields possibily used by future versions of the ar5k chipset)
  */
 
-struct ath5k_rx_desc {
+/*
+ * common hardware RX control descriptor
+ */
+struct ath5k_hw_rx_ctl {
 	u32	rx_control_0; /* RX control word 0 */
 
 #define AR5K_DESC_RX_CTL0			0x00000000
@@ -185,69 +188,63 @@ struct ath5k_rx_desc {
 } __packed;
 
 /*
- * 5210/5211 rx status descriptor
+ * common hardware RX status descriptor
+ * 5210/11 and 5212 differ only in the flags defined below
  */
-struct ath5k_hw_old_rx_status {
+struct ath5k_hw_rx_status {
 	u32	rx_status_0; /* RX status word 0 */
-
-#define AR5K_OLD_RX_DESC_STATUS0_DATA_LEN		0x00000fff
-#define AR5K_OLD_RX_DESC_STATUS0_MORE			0x00001000
-#define AR5K_OLD_RX_DESC_STATUS0_RECEIVE_RATE		0x00078000
-#define AR5K_OLD_RX_DESC_STATUS0_RECEIVE_RATE_S		15
-#define AR5K_OLD_RX_DESC_STATUS0_RECEIVE_SIGNAL		0x07f80000
-#define AR5K_OLD_RX_DESC_STATUS0_RECEIVE_SIGNAL_S	19
-#define AR5K_OLD_RX_DESC_STATUS0_RECEIVE_ANTENNA	0x38000000
-#define AR5K_OLD_RX_DESC_STATUS0_RECEIVE_ANTENNA_S	27
-
 	u32	rx_status_1; /* RX status word 1 */
-
-#define AR5K_OLD_RX_DESC_STATUS1_DONE			0x00000001
-#define AR5K_OLD_RX_DESC_STATUS1_FRAME_RECEIVE_OK	0x00000002
-#define AR5K_OLD_RX_DESC_STATUS1_CRC_ERROR		0x00000004
-#define AR5K_OLD_RX_DESC_STATUS1_FIFO_OVERRUN		0x00000008
-#define AR5K_OLD_RX_DESC_STATUS1_DECRYPT_CRC_ERROR	0x00000010
-#define AR5K_OLD_RX_DESC_STATUS1_PHY_ERROR		0x000000e0
-#define AR5K_OLD_RX_DESC_STATUS1_PHY_ERROR_S		5
-#define AR5K_OLD_RX_DESC_STATUS1_KEY_INDEX_VALID	0x00000100
-#define AR5K_OLD_RX_DESC_STATUS1_KEY_INDEX		0x00007e00
-#define AR5K_OLD_RX_DESC_STATUS1_KEY_INDEX_S		9
-#define AR5K_OLD_RX_DESC_STATUS1_RECEIVE_TIMESTAMP	0x0fff8000
-#define AR5K_OLD_RX_DESC_STATUS1_RECEIVE_TIMESTAMP_S	15
-#define AR5K_OLD_RX_DESC_STATUS1_KEY_CACHE_MISS		0x10000000
 } __packed;
+
+/* 5210/5211 */
+#define AR5K_5210_RX_DESC_STATUS0_DATA_LEN		0x00000fff
+#define AR5K_5210_RX_DESC_STATUS0_MORE			0x00001000
+#define AR5K_5210_RX_DESC_STATUS0_RECEIVE_RATE		0x00078000
+#define AR5K_5210_RX_DESC_STATUS0_RECEIVE_RATE_S	15
+#define AR5K_5210_RX_DESC_STATUS0_RECEIVE_SIGNAL	0x07f80000
+#define AR5K_5210_RX_DESC_STATUS0_RECEIVE_SIGNAL_S	19
+#define AR5K_5210_RX_DESC_STATUS0_RECEIVE_ANTENNA	0x38000000
+#define AR5K_5210_RX_DESC_STATUS0_RECEIVE_ANTENNA_S	27
+#define AR5K_5210_RX_DESC_STATUS1_DONE			0x00000001
+#define AR5K_5210_RX_DESC_STATUS1_FRAME_RECEIVE_OK	0x00000002
+#define AR5K_5210_RX_DESC_STATUS1_CRC_ERROR		0x00000004
+#define AR5K_5210_RX_DESC_STATUS1_FIFO_OVERRUN		0x00000008
+#define AR5K_5210_RX_DESC_STATUS1_DECRYPT_CRC_ERROR	0x00000010
+#define AR5K_5210_RX_DESC_STATUS1_PHY_ERROR		0x000000e0
+#define AR5K_5210_RX_DESC_STATUS1_PHY_ERROR_S		5
+#define AR5K_5210_RX_DESC_STATUS1_KEY_INDEX_VALID	0x00000100
+#define AR5K_5210_RX_DESC_STATUS1_KEY_INDEX		0x00007e00
+#define AR5K_5210_RX_DESC_STATUS1_KEY_INDEX_S		9
+#define AR5K_5210_RX_DESC_STATUS1_RECEIVE_TIMESTAMP	0x0fff8000
+#define AR5K_5210_RX_DESC_STATUS1_RECEIVE_TIMESTAMP_S	15
+#define AR5K_5210_RX_DESC_STATUS1_KEY_CACHE_MISS	0x10000000
+
+/* 5212 */
+#define AR5K_5212_RX_DESC_STATUS0_DATA_LEN		0x00000fff
+#define AR5K_5212_RX_DESC_STATUS0_MORE			0x00001000
+#define AR5K_5212_RX_DESC_STATUS0_DECOMP_CRC_ERROR	0x00002000
+#define AR5K_5212_RX_DESC_STATUS0_RECEIVE_RATE		0x000f8000
+#define AR5K_5212_RX_DESC_STATUS0_RECEIVE_RATE_S	15
+#define AR5K_5212_RX_DESC_STATUS0_RECEIVE_SIGNAL	0x0ff00000
+#define AR5K_5212_RX_DESC_STATUS0_RECEIVE_SIGNAL_S	20
+#define AR5K_5212_RX_DESC_STATUS0_RECEIVE_ANTENNA	0xf0000000
+#define AR5K_5212_RX_DESC_STATUS0_RECEIVE_ANTENNA_S	28
+#define AR5K_5212_RX_DESC_STATUS1_DONE			0x00000001
+#define AR5K_5212_RX_DESC_STATUS1_FRAME_RECEIVE_OK	0x00000002
+#define AR5K_5212_RX_DESC_STATUS1_CRC_ERROR		0x00000004
+#define AR5K_5212_RX_DESC_STATUS1_DECRYPT_CRC_ERROR	0x00000008
+#define AR5K_5212_RX_DESC_STATUS1_PHY_ERROR		0x00000010
+#define AR5K_5212_RX_DESC_STATUS1_MIC_ERROR		0x00000020
+#define AR5K_5212_RX_DESC_STATUS1_KEY_INDEX_VALID	0x00000100
+#define AR5K_5212_RX_DESC_STATUS1_KEY_INDEX		0x0000fe00
+#define AR5K_5212_RX_DESC_STATUS1_KEY_INDEX_S		9
+#define AR5K_5212_RX_DESC_STATUS1_RECEIVE_TIMESTAMP	0x7fff0000
+#define AR5K_5212_RX_DESC_STATUS1_RECEIVE_TIMESTAMP_S	16
+#define AR5K_5212_RX_DESC_STATUS1_KEY_CACHE_MISS	0x80000000
 
 /*
- * 5212 rx status descriptor
+ * common hardware RX error descriptor
  */
-struct ath5k_hw_new_rx_status {
-	u32	rx_status_0; /* RX status word 0 */
-
-#define AR5K_NEW_RX_DESC_STATUS0_DATA_LEN		0x00000fff
-#define AR5K_NEW_RX_DESC_STATUS0_MORE			0x00001000
-#define AR5K_NEW_RX_DESC_STATUS0_DECOMP_CRC_ERROR	0x00002000
-#define AR5K_NEW_RX_DESC_STATUS0_RECEIVE_RATE		0x000f8000
-#define AR5K_NEW_RX_DESC_STATUS0_RECEIVE_RATE_S		15
-#define AR5K_NEW_RX_DESC_STATUS0_RECEIVE_SIGNAL		0x0ff00000
-#define AR5K_NEW_RX_DESC_STATUS0_RECEIVE_SIGNAL_S	20
-#define AR5K_NEW_RX_DESC_STATUS0_RECEIVE_ANTENNA	0xf0000000
-#define AR5K_NEW_RX_DESC_STATUS0_RECEIVE_ANTENNA_S	28
-
-	u32	rx_status_1; /* RX status word 1 */
-
-#define AR5K_NEW_RX_DESC_STATUS1_DONE			0x00000001
-#define AR5K_NEW_RX_DESC_STATUS1_FRAME_RECEIVE_OK	0x00000002
-#define AR5K_NEW_RX_DESC_STATUS1_CRC_ERROR		0x00000004
-#define AR5K_NEW_RX_DESC_STATUS1_DECRYPT_CRC_ERROR	0x00000008
-#define AR5K_NEW_RX_DESC_STATUS1_PHY_ERROR		0x00000010
-#define AR5K_NEW_RX_DESC_STATUS1_MIC_ERROR		0x00000020
-#define AR5K_NEW_RX_DESC_STATUS1_KEY_INDEX_VALID	0x00000100
-#define AR5K_NEW_RX_DESC_STATUS1_KEY_INDEX		0x0000fe00
-#define AR5K_NEW_RX_DESC_STATUS1_KEY_INDEX_S		9
-#define AR5K_NEW_RX_DESC_STATUS1_RECEIVE_TIMESTAMP	0x7fff0000
-#define AR5K_NEW_RX_DESC_STATUS1_RECEIVE_TIMESTAMP_S	16
-#define AR5K_NEW_RX_DESC_STATUS1_KEY_CACHE_MISS		0x80000000
-} __packed;
-
 struct ath5k_hw_rx_error {
 	u32	rx_error_0; /* RX error word 0 */
 
@@ -268,7 +265,10 @@ struct ath5k_hw_rx_error {
 #define AR5K_DESC_RX_PHY_ERROR_SERVICE		0xc0
 #define AR5K_DESC_RX_PHY_ERROR_TRANSMITOVR	0xe0
 
-struct ath5k_hw_2w_tx_desc {
+/*
+ * 5210/5211 hardware 2-word TX control descriptor
+ */
+struct ath5k_hw_2w_tx_ctl {
 	u32	tx_control_0; /* TX control word 0 */
 
 #define AR5K_2W_TX_DESC_CTL0_FRAME_LEN		0x00000fff
@@ -314,9 +314,9 @@ struct ath5k_hw_2w_tx_desc {
 #define AR5K_AR5210_TX_DESC_FRAME_TYPE_PIFS     0x10
 
 /*
- * 5212 4-word tx control descriptor
+ * 5212 hardware 4-word TX control descriptor
  */
-struct ath5k_hw_4w_tx_desc {
+struct ath5k_hw_4w_tx_ctl {
 	u32	tx_control_0; /* TX control word 0 */
 
 #define AR5K_4W_TX_DESC_CTL0_FRAME_LEN		0x00000fff
@@ -374,7 +374,7 @@ struct ath5k_hw_4w_tx_desc {
 } __packed;
 
 /*
- * Common tx status descriptor
+ * Common TX status descriptor
  */
 struct ath5k_hw_tx_status {
 	u32	tx_status_0; /* TX status word 0 */
@@ -411,6 +411,34 @@ struct ath5k_hw_tx_status {
 #define AR5K_DESC_TX_STATUS1_FINAL_TS_INDEX_S	21
 #define AR5K_DESC_TX_STATUS1_COMP_SUCCESS	0x00800000
 #define AR5K_DESC_TX_STATUS1_XMIT_ANTENNA	0x01000000
+} __packed;
+
+
+/*
+ * 5210/5211 hardware TX descriptor
+ */
+struct ath5k_hw_5210_tx_desc {
+	struct ath5k_hw_2w_tx_ctl	tx_ctl;
+	struct ath5k_hw_tx_status	tx_stat;
+} __packed;
+
+/*
+ * 5212 hardware TX descriptor
+ */
+struct ath5k_hw_5212_tx_desc {
+	struct ath5k_hw_4w_tx_ctl	tx_ctl;
+	struct ath5k_hw_tx_status	tx_stat;
+} __packed;
+
+/*
+ * common hardware RX descriptor
+ */
+struct ath5k_hw_all_rx_desc {
+	struct ath5k_hw_rx_ctl			rx_ctl;
+	union {
+		struct ath5k_hw_rx_status	rx_stat;
+		struct ath5k_hw_rx_error	rx_err;
+	} u;
 } __packed;
 
 

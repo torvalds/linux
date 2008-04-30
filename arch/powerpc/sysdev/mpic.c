@@ -175,13 +175,16 @@ static inline void _mpic_write(enum mpic_reg_type type,
 	switch(type) {
 #ifdef CONFIG_PPC_DCR
 	case mpic_access_dcr:
-		return dcr_write(rb->dhost, reg, value);
+		dcr_write(rb->dhost, reg, value);
+		break;
 #endif
 	case mpic_access_mmio_be:
-		return out_be32(rb->base + (reg >> 2), value);
+		out_be32(rb->base + (reg >> 2), value);
+		break;
 	case mpic_access_mmio_le:
 	default:
-		return out_le32(rb->base + (reg >> 2), value);
+		out_le32(rb->base + (reg >> 2), value);
+		break;
 	}
 }
 
@@ -1000,7 +1003,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 				const char *name)
 {
 	struct mpic	*mpic;
-	u32		reg;
+	u32		greg_feature;
 	const char	*vers;
 	int		i;
 	int		intvec_top;
@@ -1064,7 +1067,8 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 
 	/* Look for protected sources */
 	if (node) {
-		unsigned int psize, bits, mapsize;
+		int psize;
+		unsigned int bits, mapsize;
 		const u32 *psrc =
 			of_get_property(node, "protected-sources", &psize);
 		if (psrc) {
@@ -1107,8 +1111,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	 * in, try to obtain one
 	 */
 	if (paddr == 0 && !(mpic->flags & MPIC_USES_DCR)) {
-		const u32 *reg;
-		reg = of_get_property(node, "reg", NULL);
+		const u32 *reg = of_get_property(node, "reg", NULL);
 		BUG_ON(reg == NULL);
 		paddr = of_translate_address(node, reg);
 		BUG_ON(paddr == OF_BAD_ADDR);
@@ -1137,12 +1140,13 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	 * MPICs, num sources as well. On ISU MPICs, sources are counted
 	 * as ISUs are added
 	 */
-	reg = mpic_read(mpic->gregs, MPIC_INFO(GREG_FEATURE_0));
-	mpic->num_cpus = ((reg & MPIC_GREG_FEATURE_LAST_CPU_MASK)
+	greg_feature = mpic_read(mpic->gregs, MPIC_INFO(GREG_FEATURE_0));
+	mpic->num_cpus = ((greg_feature & MPIC_GREG_FEATURE_LAST_CPU_MASK)
 			  >> MPIC_GREG_FEATURE_LAST_CPU_SHIFT) + 1;
 	if (isu_size == 0)
-		mpic->num_sources = ((reg & MPIC_GREG_FEATURE_LAST_SRC_MASK)
-				     >> MPIC_GREG_FEATURE_LAST_SRC_SHIFT) + 1;
+		mpic->num_sources =
+			((greg_feature & MPIC_GREG_FEATURE_LAST_SRC_MASK)
+			 >> MPIC_GREG_FEATURE_LAST_SRC_SHIFT) + 1;
 
 	/* Map the per-CPU registers */
 	for (i = 0; i < mpic->num_cpus; i++) {
@@ -1161,7 +1165,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->isu_mask = (1 << mpic->isu_shift) - 1;
 
 	/* Display version */
-	switch (reg & MPIC_GREG_FEATURE_VERSION_MASK) {
+	switch (greg_feature & MPIC_GREG_FEATURE_VERSION_MASK) {
 	case 1:
 		vers = "1.0";
 		break;
@@ -1321,7 +1325,7 @@ void __init mpic_set_serial_int(struct mpic *mpic, int enable)
 
 void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 {
-	int is_ipi;
+	unsigned int is_ipi;
 	struct mpic *mpic = mpic_find(irq, &is_ipi);
 	unsigned int src = mpic_irq_to_hw(irq);
 	unsigned long flags;
@@ -1344,7 +1348,7 @@ void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 
 unsigned int mpic_irq_get_priority(unsigned int irq)
 {
-	int is_ipi;
+	unsigned int is_ipi;
 	struct mpic *mpic = mpic_find(irq, &is_ipi);
 	unsigned int src = mpic_irq_to_hw(irq);
 	unsigned long flags;
@@ -1406,11 +1410,6 @@ void mpic_cpu_set_priority(int prio)
 	mpic_cpu_write(MPIC_INFO(CPU_CURRENT_TASK_PRI), prio);
 }
 
-/*
- * XXX: someone who knows mpic should check this.
- * do we need to eoi the ipi including for kexec cpu here (see xics comments)?
- * or can we reset the mpic in the new kernel?
- */
 void mpic_teardown_this_cpu(int secondary)
 {
 	struct mpic *mpic = mpic_primary;
@@ -1430,6 +1429,10 @@ void mpic_teardown_this_cpu(int secondary)
 
 	/* Set current processor priority to max */
 	mpic_cpu_write(MPIC_INFO(CPU_CURRENT_TASK_PRI), 0xf);
+	/* We need to EOI the IPI since not all platforms reset the MPIC
+	 * on boot and new interrupts wouldn't get delivered otherwise.
+	 */
+	mpic_eoi(mpic);
 
 	spin_unlock_irqrestore(&mpic_lock, flags);
 }

@@ -9,7 +9,7 @@
 #ifndef _ASM_MUTEX_H
 #define _ASM_MUTEX_H
 
-#include "asm/alternative.h"
+#include <asm/alternative.h>
 
 /**
  *  __mutex_fastpath_lock - try to take the lock by moving the count
@@ -21,22 +21,20 @@
  * wasn't 1 originally. This function MUST leave the value lower than 1
  * even when the "1" assertion wasn't true.
  */
-#define __mutex_fastpath_lock(count, fail_fn)				\
-do {									\
-	unsigned int dummy;						\
-									\
-	typecheck(atomic_t *, count);					\
+#define __mutex_fastpath_lock(count, fail_fn)			\
+do {								\
+	unsigned int dummy;					\
+								\
+	typecheck(atomic_t *, count);				\
 	typecheck_fn(void (*)(atomic_t *), fail_fn);		\
-									\
-	__asm__ __volatile__(						\
-		LOCK_PREFIX "   decl (%%eax)	\n"			\
-			"   jns 1f		\n"			\
-			"   call "#fail_fn"	\n"			\
-			"1:			\n"			\
-									\
-		:"=a" (dummy)						\
-		: "a" (count)						\
-		: "memory", "ecx", "edx");				\
+								\
+	asm volatile(LOCK_PREFIX "   decl (%%eax)\n"		\
+		     "   jns 1f	\n"				\
+		     "   call " #fail_fn "\n"			\
+		     "1:\n"					\
+		     : "=a" (dummy)				\
+		     : "a" (count)				\
+		     : "memory", "ecx", "edx");			\
 } while (0)
 
 
@@ -50,8 +48,8 @@ do {									\
  * wasn't 1 originally. This function returns 0 if the fastpath succeeds,
  * or anything the slow path function returns
  */
-static inline int
-__mutex_fastpath_lock_retval(atomic_t *count, int (*fail_fn)(atomic_t *))
+static inline int __mutex_fastpath_lock_retval(atomic_t *count,
+					       int (*fail_fn)(atomic_t *))
 {
 	if (unlikely(atomic_dec_return(count) < 0))
 		return fail_fn(count);
@@ -72,22 +70,20 @@ __mutex_fastpath_lock_retval(atomic_t *count, int (*fail_fn)(atomic_t *))
  * __mutex_slowpath_needs_to_unlock() macro needs to return 1, it needs
  * to return 0 otherwise.
  */
-#define __mutex_fastpath_unlock(count, fail_fn)				\
-do {									\
-	unsigned int dummy;						\
-									\
-	typecheck(atomic_t *, count);					\
+#define __mutex_fastpath_unlock(count, fail_fn)			\
+do {								\
+	unsigned int dummy;					\
+								\
+	typecheck(atomic_t *, count);				\
 	typecheck_fn(void (*)(atomic_t *), fail_fn);		\
-									\
-	__asm__ __volatile__(						\
-		LOCK_PREFIX "   incl (%%eax)	\n"			\
-			"   jg	1f		\n"			\
-			"   call "#fail_fn"	\n"			\
-			"1:			\n"			\
-									\
-		:"=a" (dummy)						\
-		: "a" (count)						\
-		: "memory", "ecx", "edx");				\
+								\
+	asm volatile(LOCK_PREFIX "   incl (%%eax)\n"		\
+		     "   jg	1f\n"				\
+		     "   call " #fail_fn "\n"			\
+		     "1:\n"					\
+		     : "=a" (dummy)				\
+		     : "a" (count)				\
+		     : "memory", "ecx", "edx");			\
 } while (0)
 
 #define __mutex_slowpath_needs_to_unlock()	1
@@ -104,8 +100,8 @@ do {									\
  * Additionally, if the value was < 0 originally, this function must not leave
  * it to 0 on failure.
  */
-static inline int
-__mutex_fastpath_trylock(atomic_t *count, int (*fail_fn)(atomic_t *))
+static inline int __mutex_fastpath_trylock(atomic_t *count,
+					   int (*fail_fn)(atomic_t *))
 {
 	/*
 	 * We have two variants here. The cmpxchg based one is the best one

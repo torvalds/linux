@@ -407,7 +407,7 @@ found:
 			} else if (neigh->nud_state & (NUD_CONNECTED|NUD_STALE))
 				setup_l2e_send_pending(dev, NULL, e);
 		} else {
-			e->state = neigh_is_connected(neigh) ?
+			e->state = neigh->nud_state & NUD_CONNECTED ?
 			    L2T_STATE_VALID : L2T_STATE_STALE;
 			if (memcmp(e->dmac, neigh->ha, 6))
 				setup_l2e_send_pending(dev, NULL, e);

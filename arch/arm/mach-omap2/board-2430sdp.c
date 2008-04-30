@@ -33,7 +33,6 @@
 #include <asm/arch/board.h>
 #include <asm/arch/common.h>
 #include <asm/arch/gpmc.h>
-#include "prcm-regs.h"
 
 #include <asm/io.h>
 
@@ -125,15 +124,18 @@ static inline void __init sdp2430_init_smc91x(void)
 	int eth_cs;
 	unsigned long cs_mem_base;
 	unsigned int rate;
-	struct clk *l3ck;
+	struct clk *gpmc_fck;
 
 	eth_cs = SDP2430_SMC91X_CS;
 
-	l3ck = clk_get(NULL, "core_l3_ck");
-	if (IS_ERR(l3ck))
-		rate = 100000000;
-	else
-		rate = clk_get_rate(l3ck);
+	gpmc_fck = clk_get(NULL, "gpmc_fck");	/* Always on ENABLE_ON_INIT */
+	if (IS_ERR(gpmc_fck)) {
+		WARN_ON(1);
+		return;
+	}
+
+	clk_enable(gpmc_fck);
+	rate = clk_get_rate(gpmc_fck);
 
 	/* Make sure CS1 timings are correct, for 2430 always muxed */
 	gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG1, 0x00011200);
@@ -160,7 +162,7 @@ static inline void __init sdp2430_init_smc91x(void)
 
 	if (gpmc_cs_request(eth_cs, SZ_16M, &cs_mem_base) < 0) {
 		printk(KERN_ERR "Failed to request GPMC mem for smc91x\n");
-		return;
+		goto out;
 	}
 
 	sdp2430_smc91x_resources[0].start = cs_mem_base + 0x300;
@@ -171,10 +173,13 @@ static inline void __init sdp2430_init_smc91x(void)
 		printk(KERN_ERR "Failed to request GPIO%d for smc91x IRQ\n",
 			OMAP24XX_ETHR_GPIO_IRQ);
 		gpmc_cs_free(eth_cs);
-		return;
+		goto out;
 	}
 	omap_set_gpio_direction(OMAP24XX_ETHR_GPIO_IRQ, 1);
 
+out:
+	clk_disable(gpmc_fck);
+	clk_put(gpmc_fck);
 }
 
 static void __init omap_2430sdp_init_irq(void)

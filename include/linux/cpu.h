@@ -23,7 +23,6 @@
 #include <linux/node.h>
 #include <linux/compiler.h>
 #include <linux/cpumask.h>
-#include <asm/semaphore.h>
 #include <linux/mutex.h>
 
 struct cpu {

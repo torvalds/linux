@@ -260,7 +260,7 @@ int do_select(int n, fd_set_bits *fds, s64 *timeout)
 		wait = NULL;
 		if (retval || !*timeout || signal_pending(current))
 			break;
-		if(table.error) {
+		if (table.error) {
 			retval = table.error;
 			break;
 		}

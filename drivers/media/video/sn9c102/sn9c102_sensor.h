@@ -85,9 +85,6 @@ sn9c102_attach_sensor(struct sn9c102_device* cam,
 */
 
 /* The "try" I2C I/O versions are used when probing the sensor */
-extern int sn9c102_i2c_try_write(struct sn9c102_device*,
-				 const struct sn9c102_sensor*, u8 address,
-				 u8 value);
 extern int sn9c102_i2c_try_read(struct sn9c102_device*,
 				const struct sn9c102_sensor*, u8 address);
 
@@ -126,7 +123,7 @@ extern int sn9c102_write_regs(struct sn9c102_device*, const u8 valreg[][2],
    Register adresses must be < 256.
 */
 #define sn9c102_write_const_regs(sn9c102_device, data...)                     \
-	({ const static u8 _valreg[][2] = {data};                             \
+	({ static const u8 _valreg[][2] = {data};                             \
 	sn9c102_write_regs(sn9c102_device, _valreg, ARRAY_SIZE(_valreg)); })
 
 /*****************************************************************************/

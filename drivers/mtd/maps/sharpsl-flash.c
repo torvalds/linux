@@ -92,7 +92,7 @@ int __init init_sharpsl(void)
 	parts = sharpsl_partitions;
 	nb_parts = ARRAY_SIZE(sharpsl_partitions);
 
-	printk(KERN_NOTICE "Using %s partision definition\n", part_type);
+	printk(KERN_NOTICE "Using %s partition definition\n", part_type);
 	add_mtd_partitions(mymtd, parts, nb_parts);
 
 	return 0;

@@ -11,7 +11,7 @@
 
 extra-y := head.o init_task.o vmlinux.lds
 
-obj-y += intv.o entry.o process.o syscalls.o time.o semaphore.o setup.o \
+obj-y += intv.o entry.o process.o syscalls.o time.o setup.o \
 	 signal.o irq.o mach.o ptrace.o bug.o
 obj-$(CONFIG_MODULES)		+= module.o v850_ksyms.o
 # chip-specific code

@@ -206,12 +206,11 @@ typedef struct {
 int sctp_init_cmd_seq(sctp_cmd_seq_t *seq);
 
 /* Add a command to an sctp_cmd_seq_t.
- * Return 0 if the command sequence is full.
  *
  * Use the SCTP_* constructors defined by SCTP_ARG_CONSTRUCTOR() above
  * to wrap data which goes in the obj argument.
  */
-int sctp_add_cmd(sctp_cmd_seq_t *seq, sctp_verb_t verb, sctp_arg_t obj);
+void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb, sctp_arg_t obj);
 
 /* Return the next command structure in an sctp_cmd_seq.
  * Return NULL at the end of the sequence.

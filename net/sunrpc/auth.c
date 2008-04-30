@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/hash.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/spinlock.h>
 
@@ -219,6 +220,9 @@ rpcauth_destroy_credcache(struct rpc_auth *auth)
 }
 EXPORT_SYMBOL_GPL(rpcauth_destroy_credcache);
 
+
+#define RPC_AUTH_EXPIRY_MORATORIUM (60 * HZ)
+
 /*
  * Remove stale credentials. Avoid sleeping inside the loop.
  */
@@ -227,12 +231,17 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 {
 	spinlock_t *cache_lock;
 	struct rpc_cred *cred;
+	unsigned long expired = jiffies - RPC_AUTH_EXPIRY_MORATORIUM;
 
 	while (!list_empty(&cred_unused)) {
 		cred = list_entry(cred_unused.next, struct rpc_cred, cr_lru);
 		list_del_init(&cred->cr_lru);
 		number_cred_unused--;
 		if (atomic_read(&cred->cr_count) != 0)
+			continue;
+		/* Enforce a 5 second garbage collection moratorium */
+		if (time_in_range(cred->cr_expire, expired, jiffies) &&
+		    test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0)
 			continue;
 		cache_lock = &cred->cr_auth->au_credcache->lock;
 		spin_lock(cache_lock);
@@ -280,10 +289,9 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 	struct hlist_node *pos;
 	struct rpc_cred	*cred = NULL,
 			*entry, *new;
-	int		nr = 0;
+	unsigned int nr;
 
-	if (!(flags & RPCAUTH_LOOKUP_ROOTCREDS))
-		nr = acred->uid & RPC_CREDCACHE_MASK;
+	nr = hash_long(acred->uid, RPC_CREDCACHE_HASHBITS);
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(entry, pos, &cache->hashtable[nr], cr_hash) {
@@ -356,7 +364,6 @@ rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 	put_group_info(acred.group_info);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(rpcauth_lookupcred);
 
 void
 rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
@@ -375,41 +382,58 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_cred);
 
-struct rpc_cred *
-rpcauth_bindcred(struct rpc_task *task)
+void
+rpcauth_generic_bind_cred(struct rpc_task *task, struct rpc_cred *cred)
+{
+	task->tk_msg.rpc_cred = get_rpccred(cred);
+	dprintk("RPC: %5u holding %s cred %p\n", task->tk_pid,
+			cred->cr_auth->au_ops->au_name, cred);
+}
+EXPORT_SYMBOL_GPL(rpcauth_generic_bind_cred);
+
+static void
+rpcauth_bind_root_cred(struct rpc_task *task)
 {
 	struct rpc_auth *auth = task->tk_client->cl_auth;
 	struct auth_cred acred = {
-		.uid = current->fsuid,
-		.gid = current->fsgid,
-		.group_info = current->group_info,
+		.uid = 0,
+		.gid = 0,
 	};
 	struct rpc_cred *ret;
-	int flags = 0;
 
 	dprintk("RPC: %5u looking up %s cred\n",
 		task->tk_pid, task->tk_client->cl_auth->au_ops->au_name);
-	get_group_info(acred.group_info);
-	if (task->tk_flags & RPC_TASK_ROOTCREDS)
-		flags |= RPCAUTH_LOOKUP_ROOTCREDS;
-	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
+	ret = auth->au_ops->lookup_cred(auth, &acred, 0);
 	if (!IS_ERR(ret))
 		task->tk_msg.rpc_cred = ret;
 	else
 		task->tk_status = PTR_ERR(ret);
-	put_group_info(acred.group_info);
-	return ret;
+}
+
+static void
+rpcauth_bind_new_cred(struct rpc_task *task)
+{
+	struct rpc_auth *auth = task->tk_client->cl_auth;
+	struct rpc_cred *ret;
+
+	dprintk("RPC: %5u looking up %s cred\n",
+		task->tk_pid, auth->au_ops->au_name);
+	ret = rpcauth_lookupcred(auth, 0);
+	if (!IS_ERR(ret))
+		task->tk_msg.rpc_cred = ret;
+	else
+		task->tk_status = PTR_ERR(ret);
 }
 
 void
-rpcauth_holdcred(struct rpc_task *task)
+rpcauth_bindcred(struct rpc_task *task, struct rpc_cred *cred, int flags)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
-	if (cred != NULL) {
-		get_rpccred(cred);
-		dprintk("RPC: %5u holding %s cred %p\n", task->tk_pid,
-				cred->cr_auth->au_ops->au_name, cred);
-	}
+	if (cred != NULL)
+		cred->cr_ops->crbind(task, cred);
+	else if (flags & RPC_TASK_ROOTCREDS)
+		rpcauth_bind_root_cred(task);
+	else
+		rpcauth_bind_new_cred(task);
 }
 
 void
@@ -550,6 +574,7 @@ static struct shrinker rpc_cred_shrinker = {
 void __init rpcauth_init_module(void)
 {
 	rpc_init_authunix();
+	rpc_init_generic_auth();
 	register_shrinker(&rpc_cred_shrinker);
 }
 

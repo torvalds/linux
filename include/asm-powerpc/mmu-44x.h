@@ -53,7 +53,7 @@
 
 #ifndef __ASSEMBLY__
 
-typedef unsigned long long phys_addr_t;
+extern unsigned int tlb_44x_hwater;
 
 typedef struct {
 	unsigned long id;

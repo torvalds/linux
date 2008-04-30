@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2002, IBM Corp.
  *
- * All rights reserved.          
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,8 @@ extern int get_memcfg_numaq(void);
 /*
  * SYS_CFG_DATA_PRIV_ADDR, struct eachquadmem, and struct sys_cfg_data are the
  */
-#define SYS_CFG_DATA_PRIV_ADDR		0x0009d000 /* place for scd in private quad space */
+#define SYS_CFG_DATA_PRIV_ADDR		0x0009d000 /* place for scd in private
+						      quad space */
 
 /*
  * Communication area for each processor on lynxer-processor tests.
@@ -139,7 +140,7 @@ struct sys_cfg_data {
 	unsigned int	low_shrd_mem_base; /* 0 or 512MB or 1GB */
 	unsigned int	low_shrd_mem_quad_offset; /* 0,128M,256M,512M,1G */
 					/* may not be totally populated */
-	unsigned int	split_mem_enbl; /* 0 for no low shared memory */ 
+	unsigned int	split_mem_enbl; /* 0 for no low shared memory */
 	unsigned int	mmio_sz; /* Size of total system memory mapped I/O */
 				 /* (in MB). */
 	unsigned int	quad_spin_lock; /* Spare location used for quad */
@@ -152,7 +153,7 @@ struct sys_cfg_data {
 	/*
 	 *	memory configuration area for each quad
 	 */
-        struct	eachquadmem eq[MAX_NUMNODES];	/* indexed by quad id */
+	struct		eachquadmem eq[MAX_NUMNODES];	/* indexed by quad id */
 };
 
 static inline unsigned long *get_zholes_size(int nid)

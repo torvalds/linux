@@ -87,6 +87,7 @@ static inline void fib_rule_get(struct fib_rule *rule)
 static inline void fib_rule_put_rcu(struct rcu_head *head)
 {
 	struct fib_rule *rule = container_of(head, struct fib_rule, rcu);
+	release_net(rule->fr_net);
 	kfree(rule);
 }
 

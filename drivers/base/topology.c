@@ -40,14 +40,37 @@ static ssize_t show_##name(struct sys_device *dev, char *buf)	\
 	return sprintf(buf, "%d\n", topology_##name(cpu));	\
 }
 
-#define define_siblings_show_func(name)					\
-static ssize_t show_##name(struct sys_device *dev, char *buf)		\
-{									\
-	ssize_t len = -1;						\
-	unsigned int cpu = dev->id;					\
-	len = cpumask_scnprintf(buf, NR_CPUS+1, topology_##name(cpu));	\
-	return (len + sprintf(buf + len, "\n"));			\
+static ssize_t show_cpumap(int type, cpumask_t *mask, char *buf)
+{
+	ptrdiff_t len = PTR_ALIGN(buf + PAGE_SIZE - 1, PAGE_SIZE) - buf;
+	int n = 0;
+
+	if (len > 1) {
+		n = type?
+			cpulist_scnprintf(buf, len-2, *mask):
+			cpumask_scnprintf(buf, len-2, *mask);
+		buf[n++] = '\n';
+		buf[n] = '\0';
+	}
+	return n;
 }
+
+#define define_siblings_show_map(name)					\
+static inline ssize_t show_##name(struct sys_device *dev, char *buf)	\
+{									\
+	unsigned int cpu = dev->id;					\
+	return show_cpumap(0, &(topology_##name(cpu)), buf);		\
+}
+
+#define define_siblings_show_list(name)					\
+static inline ssize_t show_##name##_list(struct sys_device *dev, char *buf) \
+{									\
+	unsigned int cpu = dev->id;					\
+	return show_cpumap(1, &(topology_##name(cpu)), buf);		\
+}
+
+#define define_siblings_show_func(name)		\
+	define_siblings_show_map(name); define_siblings_show_list(name)
 
 #ifdef	topology_physical_package_id
 define_id_show_func(physical_package_id);
@@ -68,7 +91,9 @@ define_one_ro(core_id);
 #ifdef topology_thread_siblings
 define_siblings_show_func(thread_siblings);
 define_one_ro(thread_siblings);
-#define ref_thread_siblings_attr	&attr_thread_siblings.attr,
+define_one_ro(thread_siblings_list);
+#define ref_thread_siblings_attr	\
+		&attr_thread_siblings.attr, &attr_thread_siblings_list.attr,
 #else
 #define ref_thread_siblings_attr
 #endif
@@ -76,7 +101,9 @@ define_one_ro(thread_siblings);
 #ifdef topology_core_siblings
 define_siblings_show_func(core_siblings);
 define_one_ro(core_siblings);
-#define ref_core_siblings_attr		&attr_core_siblings.attr,
+define_one_ro(core_siblings_list);
+#define ref_core_siblings_attr		\
+		&attr_core_siblings.attr, &attr_core_siblings_list.attr,
 #else
 #define ref_core_siblings_attr
 #endif

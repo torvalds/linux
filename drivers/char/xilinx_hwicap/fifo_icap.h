@@ -56,6 +56,7 @@ int fifo_icap_set_configuration(
 		u32 *FrameBuffer,
 		u32 NumWords);
 
+u32 fifo_icap_get_status(struct hwicap_drvdata *drvdata);
 void fifo_icap_reset(struct hwicap_drvdata *drvdata);
 void fifo_icap_flush_fifo(struct hwicap_drvdata *drvdata);
 

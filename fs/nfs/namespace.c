@@ -20,7 +20,7 @@
 
 static void nfs_expire_automounts(struct work_struct *work);
 
-LIST_HEAD(nfs_automount_list);
+static LIST_HEAD(nfs_automount_list);
 static DECLARE_DELAYED_WORK(nfs_automount_task, nfs_expire_automounts);
 int nfs_mountpoint_expiry_timeout = 500 * HZ;
 

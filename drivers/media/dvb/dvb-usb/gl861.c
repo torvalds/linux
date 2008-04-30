@@ -16,6 +16,8 @@ static int dvb_usb_gl861_debug;
 module_param_named(debug,dvb_usb_gl861_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 static int gl861_i2c_msg(struct dvb_usb_device *d, u8 addr,
 			 u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
 {
@@ -140,7 +142,9 @@ static int gl861_probe(struct usb_interface *intf,
 	if (intf->num_altsetting < 2)
 		return -ENODEV;
 
-	if ((ret = dvb_usb_device_init(intf, &gl861_properties, THIS_MODULE, &d)) == 0) {
+	ret = dvb_usb_device_init(intf, &gl861_properties, THIS_MODULE, &d,
+				  adapter_nr);
+	if (ret == 0) {
 		alt = usb_altnum_to_altsetting(intf, 0);
 
 		if (alt == NULL) {

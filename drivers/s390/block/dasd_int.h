@@ -72,6 +72,11 @@ struct dasd_block;
 #define DASD_SENSE_BIT_2 0x20
 #define DASD_SENSE_BIT_3 0x10
 
+/* BIT DEFINITIONS FOR SIM SENSE */
+#define DASD_SIM_SENSE 0x0F
+#define DASD_SIM_MSG_TO_OP 0x03
+#define DASD_SIM_LOG 0x0C
+
 /*
  * SECTION: MACROs for klogd and s390 debug feature (dbf)
  */
@@ -621,6 +626,7 @@ void dasd_log_sense(struct dasd_ccw_req *, struct irb *);
 
 /* externals in dasd_3990_erp.c */
 struct dasd_ccw_req *dasd_3990_erp_action(struct dasd_ccw_req *);
+void dasd_3990_erp_handle_sim(struct dasd_device *, char *);
 
 /* externals in dasd_eer.c */
 #ifdef CONFIG_DASD_EER

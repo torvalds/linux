@@ -35,6 +35,27 @@
  *	based on the video standard in use.
  */
 
+/* The following was taken from dvb-pll.c: */
+
+/* Set AGC TOP value to 103 dBuV:
+ *	0x80 = Control Byte
+ *	0x40 = 250 uA charge pump (irrelevant)
+ *	0x18 = Aux Byte to follow
+ *	0x06 = 64.5 kHz divider (irrelevant)
+ *	0x01 = Disable Vt (aka sleep)
+ *
+ *	0x00 = AGC Time constant 2s Iagc = 300 nA (vs 0x80 = 9 nA)
+ *	0x50 = AGC Take over point = 103 dBuV
+ */
+static u8 tua603x_agc103[] = { 2, 0x80|0x40|0x18|0x06|0x01, 0x00|0x50 };
+
+/*	0x04 = 166.67 kHz divider
+ *
+ *	0x80 = AGC Time constant 50ms Iagc = 9 uA
+ *	0x20 = AGC Take over point = 112 dBuV
+ */
+static u8 tua603x_agc112[] = { 2, 0x80|0x40|0x18|0x04|0x01, 0x80|0x20 };
+
 /* 0-9 */
 /* ------------ TUNER_TEMIC_PAL - TEMIC PAL ------------ */
 
@@ -594,19 +615,31 @@ static struct tuner_params tuner_philips_pal_mk_params[] = {
 	},
 };
 
-/* ---- TUNER_PHILIPS_ATSC - Philips FCV1236D (ATSC/NTSC) ---- */
+/* ---- TUNER_PHILIPS_FCV1236D - Philips FCV1236D (ATSC/NTSC) ---- */
 
-static struct tuner_range tuner_philips_fcv1236d_ranges[] = {
-	{ 16 * 157.25 /*MHz*/, 0x8e, 0xa0, },
-	{ 16 * 451.25 /*MHz*/, 0x8e, 0x90, },
+static struct tuner_range tuner_philips_fcv1236d_ntsc_ranges[] = {
+	{ 16 * 157.25 /*MHz*/, 0x8e, 0xa2, },
+	{ 16 * 451.25 /*MHz*/, 0x8e, 0x92, },
+	{ 16 * 999.99        , 0x8e, 0x32, },
+};
+
+static struct tuner_range tuner_philips_fcv1236d_atsc_ranges[] = {
+	{ 16 * 159.00 /*MHz*/, 0x8e, 0xa0, },
+	{ 16 * 453.00 /*MHz*/, 0x8e, 0x90, },
 	{ 16 * 999.99        , 0x8e, 0x30, },
 };
 
 static struct tuner_params tuner_philips_fcv1236d_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
-		.ranges = tuner_philips_fcv1236d_ranges,
-		.count  = ARRAY_SIZE(tuner_philips_fcv1236d_ranges),
+		.ranges = tuner_philips_fcv1236d_ntsc_ranges,
+		.count  = ARRAY_SIZE(tuner_philips_fcv1236d_ntsc_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_philips_fcv1236d_atsc_ranges,
+		.count  = ARRAY_SIZE(tuner_philips_fcv1236d_atsc_ranges),
+		.iffreq = 16 * 44.00,
 	},
 };
 
@@ -701,11 +734,23 @@ static struct tuner_range tuner_microtune_4042fi5_ntsc_ranges[] = {
 	{ 16 * 999.99        , 0x8e, 0x31, },
 };
 
+static struct tuner_range tuner_microtune_4042fi5_atsc_ranges[] = {
+	{ 16 * 162.00 /*MHz*/, 0x8e, 0xa1, },
+	{ 16 * 457.00 /*MHz*/, 0x8e, 0x91, },
+	{ 16 * 999.99        , 0x8e, 0x31, },
+};
+
 static struct tuner_params tuner_microtune_4042fi5_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_microtune_4042fi5_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_microtune_4042fi5_ntsc_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_microtune_4042fi5_atsc_ranges,
+		.count  = ARRAY_SIZE(tuner_microtune_4042fi5_atsc_ranges),
+		.iffreq = 16 * 44.00 /*MHz*/,
 	},
 };
 
@@ -740,6 +785,7 @@ static struct tuner_params tuner_philips_fm1256_ih3_params[] = {
 
 /* ------------ TUNER_THOMSON_DTT7610 - THOMSON ATSC ------------ */
 
+/* single range used for both ntsc and atsc */
 static struct tuner_range tuner_thomson_dtt7610_ntsc_ranges[] = {
 	{ 16 * 157.25 /*MHz*/, 0x8e, 0x39, },
 	{ 16 * 454.00 /*MHz*/, 0x8e, 0x3a, },
@@ -751,6 +797,12 @@ static struct tuner_params tuner_thomson_dtt7610_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_thomson_dtt7610_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_thomson_dtt7610_ntsc_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_thomson_dtt7610_ntsc_ranges,
+		.count  = ARRAY_SIZE(tuner_thomson_dtt7610_ntsc_ranges),
+		.iffreq = 16 * 44.00 /*MHz*/,
 	},
 };
 
@@ -855,6 +907,11 @@ static struct tuner_range tuner_thomson_dtt761x_ntsc_ranges[] = {
 	{ 16 * 999.99        , 0x8e, 0x3c, },
 };
 
+static struct tuner_range tuner_thomson_dtt761x_atsc_ranges[] = {
+	{ 16 * 147.00 /*MHz*/, 0x8e, 0x39, },
+	{ 16 * 417.00 /*MHz*/, 0x8e, 0x3a, },
+	{ 16 * 999.99        , 0x8e, 0x3c, },
+};
 
 static struct tuner_params tuner_thomson_dtt761x_params[] = {
 	{
@@ -864,6 +921,12 @@ static struct tuner_params tuner_thomson_dtt761x_params[] = {
 		.has_tda9887 = 1,
 		.fm_gain_normal = 1,
 		.radio_if = 2, /* 41.3 MHz */
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_thomson_dtt761x_atsc_ranges,
+		.count  = ARRAY_SIZE(tuner_thomson_dtt761x_atsc_ranges),
+		.iffreq = 16 * 44.00, /*MHz*/
 	},
 };
 
@@ -891,6 +954,15 @@ static struct tuner_range tuner_philips_fmd1216me_mk3_pal_ranges[] = {
 	{ 16 * 999.99        , 0x86, 0x54, },
 };
 
+static struct tuner_range tuner_philips_fmd1216me_mk3_dvb_ranges[] = {
+	{ 16 * 143.87 /*MHz*/, 0xbc, 0x41 },
+	{ 16 * 158.87 /*MHz*/, 0xf4, 0x41 },
+	{ 16 * 329.87 /*MHz*/, 0xbc, 0x42 },
+	{ 16 * 441.87 /*MHz*/, 0xf4, 0x42 },
+	{ 16 * 625.87 /*MHz*/, 0xbc, 0x44 },
+	{ 16 * 803.87 /*MHz*/, 0xf4, 0x44 },
+	{ 16 * 999.99        , 0xfc, 0x44 },
+};
 
 static struct tuner_params tuner_philips_fmd1216me_mk3_params[] = {
 	{
@@ -904,6 +976,12 @@ static struct tuner_params tuner_philips_fmd1216me_mk3_params[] = {
 		.port2_invert_for_secam_lc = 1,
 		.port1_set_for_fm_mono = 1,
 	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_philips_fmd1216me_mk3_dvb_ranges,
+		.count  = ARRAY_SIZE(tuner_philips_fmd1216me_mk3_dvb_ranges),
+		.iffreq = 16 * 36.125, /*MHz*/
+	},
 };
 
 
@@ -915,12 +993,23 @@ static struct tuner_range tuner_tua6034_ntsc_ranges[] = {
 	{ 16 * 999.99        , 0x8e, 0x04 },
 };
 
+static struct tuner_range tuner_tua6034_atsc_ranges[] = {
+	{ 16 * 165.00 /*MHz*/, 0xce, 0x01 },
+	{ 16 * 450.00 /*MHz*/, 0xce, 0x02 },
+	{ 16 * 999.99        , 0xce, 0x04 },
+};
 
 static struct tuner_params tuner_lg_tdvs_h06xf_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_tua6034_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_tua6034_ntsc_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_tua6034_atsc_ranges,
+		.count  = ARRAY_SIZE(tuner_tua6034_atsc_ranges),
+		.iffreq = 16 * 44.00,
 	},
 };
 
@@ -974,11 +1063,29 @@ static struct tuner_range tuner_philips_td1316_pal_ranges[] = {
 	{ 16 * 999.99        , 0xc8, 0xa4, },
 };
 
+static struct tuner_range tuner_philips_td1316_dvb_ranges[] = {
+	{ 16 *  93.834 /*MHz*/, 0xca, 0x60, },
+	{ 16 * 123.834 /*MHz*/, 0xca, 0xa0, },
+	{ 16 * 163.834 /*MHz*/, 0xca, 0xc0, },
+	{ 16 * 253.834 /*MHz*/, 0xca, 0x60, },
+	{ 16 * 383.834 /*MHz*/, 0xca, 0xa0, },
+	{ 16 * 443.834 /*MHz*/, 0xca, 0xc0, },
+	{ 16 * 583.834 /*MHz*/, 0xca, 0x60, },
+	{ 16 * 793.834 /*MHz*/, 0xca, 0xa0, },
+	{ 16 * 999.999        , 0xca, 0xe0, },
+};
+
 static struct tuner_params tuner_philips_td1316_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_PAL,
 		.ranges = tuner_philips_td1316_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_philips_td1316_pal_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_philips_td1316_dvb_ranges,
+		.count  = ARRAY_SIZE(tuner_philips_td1316_dvb_ranges),
+		.iffreq = 16 * 36.166667 /*MHz*/,
 	},
 };
 
@@ -990,12 +1097,23 @@ static struct tuner_range tuner_tuv1236d_ntsc_ranges[] = {
 	{ 16 * 999.99        , 0xce, 0x04, },
 };
 
+static struct tuner_range tuner_tuv1236d_atsc_ranges[] = {
+	{ 16 * 157.25 /*MHz*/, 0xc6, 0x41, },
+	{ 16 * 454.00 /*MHz*/, 0xc6, 0x42, },
+	{ 16 * 999.99        , 0xc6, 0x44, },
+};
 
 static struct tuner_params tuner_tuv1236d_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_tuv1236d_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_tuv1236d_ntsc_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_tuv1236d_atsc_ranges,
+		.count  = ARRAY_SIZE(tuner_tuv1236d_atsc_ranges),
+		.iffreq = 16 * 44.00,
 	},
 };
 
@@ -1050,17 +1168,30 @@ static struct tuner_params tuner_samsung_tcpn_2121p30a_params[] = {
 
 /* ------------ TUNER_THOMSON_FE6600 - DViCO Hybrid PAL ------------ */
 
-static struct tuner_range tuner_thomson_fe6600_ranges[] = {
+static struct tuner_range tuner_thomson_fe6600_pal_ranges[] = {
 	{ 16 * 160.00 /*MHz*/, 0xfe, 0x11, },
 	{ 16 * 442.00 /*MHz*/, 0xf6, 0x12, },
 	{ 16 * 999.99        , 0xf6, 0x18, },
 };
 
+static struct tuner_range tuner_thomson_fe6600_dvb_ranges[] = {
+	{ 16 * 250.00 /*MHz*/, 0xb4, 0x12, },
+	{ 16 * 455.00 /*MHz*/, 0xfe, 0x11, },
+	{ 16 * 775.50 /*MHz*/, 0xbc, 0x18, },
+	{ 16 * 999.99        , 0xf4, 0x18, },
+};
+
 static struct tuner_params tuner_thomson_fe6600_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_PAL,
-		.ranges = tuner_thomson_fe6600_ranges,
-		.count  = ARRAY_SIZE(tuner_thomson_fe6600_ranges),
+		.ranges = tuner_thomson_fe6600_pal_ranges,
+		.count  = ARRAY_SIZE(tuner_thomson_fe6600_pal_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_thomson_fe6600_dvb_ranges,
+		.count  = ARRAY_SIZE(tuner_thomson_fe6600_dvb_ranges),
+		.iffreq = 16 * 36.125 /*MHz*/,
 	},
 };
 
@@ -1303,10 +1434,13 @@ struct tunertype tuners[] = {
 		.params = tuner_philips_pal_mk_params,
 		.count  = ARRAY_SIZE(tuner_philips_pal_mk_params),
 	},
-	[TUNER_PHILIPS_ATSC] = { /* Philips ATSC */
+	[TUNER_PHILIPS_FCV1236D] = { /* Philips ATSC */
 		.name   = "Philips FCV1236D ATSC/NTSC dual in",
 		.params = tuner_philips_fcv1236d_params,
 		.count  = ARRAY_SIZE(tuner_philips_fcv1236d_params),
+		.min = 16 *  53.00,
+		.max = 16 * 803.00,
+		.stepsize = 62500,
 	},
 	[TUNER_PHILIPS_FM1236_MK3] = { /* Philips NTSC */
 		.name   = "Philips NTSC MK3 (FM1236MK3 or FM1236/F)",
@@ -1342,6 +1476,9 @@ struct tunertype tuners[] = {
 		.name   = "Microtune 4042 FI5 ATSC/NTSC dual in",
 		.params = tuner_microtune_4042fi5_params,
 		.count  = ARRAY_SIZE(tuner_microtune_4042fi5_params),
+		.min    = 16 *  57.00,
+		.max    = 16 * 858.00,
+		.stepsize = 62500,
 	},
 
 	/* 50-59 */
@@ -1359,6 +1496,9 @@ struct tunertype tuners[] = {
 		.name   = "Thomson DTT 7610 (ATSC/NTSC)",
 		.params = tuner_thomson_dtt7610_params,
 		.count  = ARRAY_SIZE(tuner_thomson_dtt7610_params),
+		.min    = 16 *  44.00,
+		.max    = 16 * 958.00,
+		.stepsize = 62500,
 	},
 	[TUNER_PHILIPS_FQ1286] = { /* Philips NTSC */
 		.name   = "Philips FQ1286",
@@ -1400,6 +1540,10 @@ struct tunertype tuners[] = {
 		.name   = "Thomson DTT 761X (ATSC/NTSC)",
 		.params = tuner_thomson_dtt761x_params,
 		.count  = ARRAY_SIZE(tuner_thomson_dtt761x_params),
+		.min    = 16 *  57.00,
+		.max    = 16 * 863.00,
+		.stepsize = 62500,
+		.initdata = tua603x_agc103,
 	},
 	[TUNER_TENA_9533_DI] = { /* Philips PAL */
 		.name   = "Tena TNF9533-D/IF/TNF9533-B/DF",
@@ -1414,11 +1558,20 @@ struct tunertype tuners[] = {
 		.name   = "Philips FMD1216ME MK3 Hybrid Tuner",
 		.params = tuner_philips_fmd1216me_mk3_params,
 		.count  = ARRAY_SIZE(tuner_philips_fmd1216me_mk3_params),
+		.min = 16 *  50.87,
+		.max = 16 * 858.00,
+		.stepsize = 166667,
+		.initdata = tua603x_agc112,
+		.sleepdata = (u8[]){ 4, 0x9c, 0x60, 0x85, 0x54 },
 	},
 	[TUNER_LG_TDVS_H06XF] = { /* LGINNOTEK ATSC */
 		.name   = "LG TDVS-H06xF", /* H061F, H062F & H064F */
 		.params = tuner_lg_tdvs_h06xf_params,
 		.count  = ARRAY_SIZE(tuner_lg_tdvs_h06xf_params),
+		.min    = 16 *  54.00,
+		.max    = 16 * 863.00,
+		.stepsize = 62500,
+		.initdata = tua603x_agc103,
 	},
 	[TUNER_YMEC_TVF66T5_B_DFF] = { /* Philips PAL */
 		.name   = "Ymec TVF66T5-B/DFF",
@@ -1434,11 +1587,17 @@ struct tunertype tuners[] = {
 		.name   = "Philips TD1316 Hybrid Tuner",
 		.params = tuner_philips_td1316_params,
 		.count  = ARRAY_SIZE(tuner_philips_td1316_params),
+		.min    = 16 *  87.00,
+		.max    = 16 * 895.00,
+		.stepsize = 166667,
 	},
 	[TUNER_PHILIPS_TUV1236D] = { /* Philips ATSC */
 		.name   = "Philips TUV1236D ATSC/NTSC dual in",
 		.params = tuner_tuv1236d_params,
 		.count  = ARRAY_SIZE(tuner_tuv1236d_params),
+		.min    = 16 *  54.00,
+		.max    = 16 * 864.00,
+		.stepsize = 62500,
 	},
 	[TUNER_TNF_5335MF] = { /* Tenna PAL/NTSC */
 		.name   = "Tena TNF 5335 and similar models",
@@ -1460,6 +1619,9 @@ struct tunertype tuners[] = {
 		.name   = "Thomson FE6600",
 		.params = tuner_thomson_fe6600_params,
 		.count  = ARRAY_SIZE(tuner_thomson_fe6600_params),
+		.min    = 16 *  44.25,
+		.max    = 16 * 858.00,
+		.stepsize = 166667,
 	},
 	[TUNER_SAMSUNG_TCPG_6121P30A] = { /* Samsung PAL */
 		.name   = "Samsung TCPG 6121P30A",
@@ -1480,5 +1642,11 @@ struct tunertype tuners[] = {
 		/* see xc5000.c for details */
 	},
 };
+EXPORT_SYMBOL(tuners);
 
 unsigned const int tuner_count = ARRAY_SIZE(tuners);
+EXPORT_SYMBOL(tuner_count);
+
+MODULE_DESCRIPTION("Simple tuner device type database");
+MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
+MODULE_LICENSE("GPL");

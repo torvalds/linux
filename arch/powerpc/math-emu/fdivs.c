@@ -15,7 +15,7 @@ fdivs(void *frD, void *frA, void *frB)
 	int ret = 0;
 
 #ifdef DEBUG
-	printk("%s: %p %p %p\n", __FUNCTION__, frD, frA, frB);
+	printk("%s: %p %p %p\n", __func__, frD, frA, frB);
 #endif
 
 	__FP_UNPACK_D(A, frA);
@@ -29,13 +29,13 @@ fdivs(void *frD, void *frA, void *frB)
 	if (A_c == FP_CLS_ZERO && B_c == FP_CLS_ZERO) {
 		ret |= EFLAG_VXZDZ;
 #ifdef DEBUG
-		printk("%s: FPSCR_VXZDZ raised\n", __FUNCTION__);
+		printk("%s: FPSCR_VXZDZ raised\n", __func__);
 #endif
 	}
 	if (A_c == FP_CLS_INF && B_c == FP_CLS_INF) {
 		ret |= EFLAG_VXIDI;
 #ifdef DEBUG
-		printk("%s: FPSCR_VXIDI raised\n", __FUNCTION__);
+		printk("%s: FPSCR_VXIDI raised\n", __func__);
 #endif
 	}
 

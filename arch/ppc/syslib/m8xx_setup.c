@@ -87,8 +87,6 @@ void m8xx_calibrate_decr(void);
 
 unsigned char __res[sizeof(bd_t)];
 
-extern void m8xx_ide_init(void);
-
 extern unsigned long find_available_memory(void);
 extern void m8xx_cpm_reset(void);
 extern void m8xx_wdt_handler_install(bd_t *bp);
@@ -141,16 +139,6 @@ m8xx_setup_arch(void)
 		}
 	}
 #endif
-#endif
-
-#if defined (CONFIG_MPC86XADS) || defined (CONFIG_MPC885ADS)
-#if defined(CONFIG_MTD_PHYSMAP)
-       physmap_configure(binfo->bi_flashstart, binfo->bi_flashsize,
-                                               MPC8xxADS_BANK_WIDTH, NULL);
-#ifdef CONFIG_MTD_PARTITIONS
-       physmap_set_partitions(mpc8xxads_partitions, mpc8xxads_part_num);
-#endif /* CONFIG_MTD_PARTITIONS */
-#endif /* CONFIG_MTD_PHYSMAP */
 #endif
 
 	board_init();
@@ -474,8 +462,4 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 	ppc_md.find_end_of_memory	= m8xx_find_end_of_memory;
 	ppc_md.setup_io_mappings	= m8xx_map_io;
-
-#if defined(CONFIG_BLK_DEV_MPC8xx_IDE)
-	m8xx_ide_init();
-#endif
 }

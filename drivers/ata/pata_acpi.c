@@ -47,7 +47,7 @@ static int pacpi_pre_reset(struct ata_link *link, unsigned long deadline)
 	if (ap->acpi_handle == NULL || ata_acpi_gtm(ap, &acpi->gtm) < 0)
 		return -ENODEV;
 
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 /**
@@ -65,20 +65,6 @@ static int pacpi_cable_detect(struct ata_port *ap)
 		return ATA_CBL_PATA80;
 	else
 		return ATA_CBL_PATA40;
-}
-
-/**
- *	pacpi_error_handler - Setup and error handler
- *	@ap: Port to handle
- *
- *	LOCKING:
- *	None (inherited from caller).
- */
-
-static void pacpi_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, pacpi_pre_reset, ata_std_softreset, NULL,
-			   ata_std_postreset);
 }
 
 /**
@@ -120,7 +106,7 @@ static unsigned long pacpi_discover_modes(struct ata_port *ap, struct ata_device
 static unsigned long pacpi_mode_filter(struct ata_device *adev, unsigned long mask)
 {
 	struct pata_acpi *acpi = adev->link->ap->private_data;
-	return ata_pci_default_filter(adev, mask & acpi->mask[adev->devno]);
+	return ata_bmdma_mode_filter(adev, mask & acpi->mask[adev->devno]);
 }
 
 /**
@@ -176,7 +162,7 @@ static void pacpi_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	pacpi_qc_issue_prot	-	command issue
+ *	pacpi_qc_issue	-	command issue
  *	@qc: command pending
  *
  *	Called when the libata layer is about to issue a command. We wrap
@@ -184,14 +170,14 @@ static void pacpi_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	neccessary.
  */
 
-static unsigned int pacpi_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int pacpi_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
 	struct pata_acpi *acpi = ap->private_data;
 
 	if (acpi->gtm.flags & 0x10)
-		return ata_qc_issue_prot(qc);
+		return ata_sff_qc_issue(qc);
 
 	if (adev != acpi->last) {
 		pacpi_set_piomode(ap, adev);
@@ -199,7 +185,7 @@ static unsigned int pacpi_qc_issue_prot(struct ata_queued_cmd *qc)
 			pacpi_set_dmamode(ap, adev);
 		acpi->last = adev;
 	}
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 /**
@@ -232,57 +218,17 @@ static int pacpi_port_start(struct ata_port *ap)
 }
 
 static struct scsi_host_template pacpi_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	/* Use standard CHS mapping rules */
-	.bios_param		= ata_std_bios_param,
+	ATA_BMDMA_SHT(DRV_NAME),
 };
 
-static const struct ata_port_operations pacpi_ops = {
+static struct ata_port_operations pacpi_ops = {
+	.inherits		= &ata_bmdma_port_ops,
+	.qc_issue		= pacpi_qc_issue,
+	.cable_detect		= pacpi_cable_detect,
+	.mode_filter		= pacpi_mode_filter,
 	.set_piomode		= pacpi_set_piomode,
 	.set_dmamode		= pacpi_set_dmamode,
-	.mode_filter		= pacpi_mode_filter,
-
-	/* Task file is PCI ATA format, use helpers */
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
-
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= pacpi_error_handler,
-	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	.cable_detect		= pacpi_cable_detect,
-
-	/* BMDMA handling is PCI ATA format, use helpers */
-	.bmdma_setup		= ata_bmdma_setup,
-	.bmdma_start		= ata_bmdma_start,
-	.bmdma_stop		= ata_bmdma_stop,
-	.bmdma_status		= ata_bmdma_status,
-	.qc_prep		= ata_qc_prep,
-	.qc_issue		= pacpi_qc_issue_prot,
-	.data_xfer		= ata_data_xfer,
-
-	/* Timeout handling */
-	.irq_handler		= ata_interrupt,
-	.irq_clear		= ata_bmdma_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	/* Generic PATA PCI ATA helpers */
+	.prereset		= pacpi_pre_reset,
 	.port_start		= pacpi_port_start,
 };
 
@@ -304,7 +250,6 @@ static const struct ata_port_operations pacpi_ops = {
 static int pacpi_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info = {
-		.sht		= &pacpi_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 
 		.pio_mask	= 0x1f,
@@ -314,7 +259,7 @@ static int pacpi_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops	= &pacpi_ops,
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
-	return ata_pci_init_one(pdev, ppi);
+	return ata_pci_sff_init_one(pdev, ppi, &pacpi_sht, NULL);
 }
 
 static const struct pci_device_id pacpi_pci_tbl[] = {

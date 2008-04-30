@@ -23,7 +23,6 @@
 #include <linux/mutex.h>
 #include <net/flow.h>
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 #include <linux/security.h>
 
 struct flow_cache_entry {

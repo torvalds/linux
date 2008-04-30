@@ -26,7 +26,8 @@ static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 	native_set_pte(ptep, pte);
 }
 
-static inline void native_set_pte_present(struct mm_struct *mm, unsigned long addr,
+static inline void native_set_pte_present(struct mm_struct *mm,
+					  unsigned long addr,
 					  pte_t *ptep, pte_t pte)
 {
 	native_set_pte(ptep, pte);
@@ -37,7 +38,8 @@ static inline void native_pmd_clear(pmd_t *pmdp)
 	native_set_pmd(pmdp, __pmd(0));
 }
 
-static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *xp)
+static inline void native_pte_clear(struct mm_struct *mm,
+				    unsigned long addr, pte_t *xp)
 {
 	*xp = native_make_pte(0);
 }
@@ -61,16 +63,18 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
  */
 #define PTE_FILE_MAX_BITS	29
 
-#define pte_to_pgoff(pte) \
-	((((pte).pte_low >> 1) & 0x1f ) + (((pte).pte_low >> 8) << 5 ))
+#define pte_to_pgoff(pte)						\
+	((((pte).pte_low >> 1) & 0x1f) + (((pte).pte_low >> 8) << 5))
 
-#define pgoff_to_pte(off) \
-	((pte_t) { .pte_low = (((off) & 0x1f) << 1) + (((off) >> 5) << 8) + _PAGE_FILE })
+#define pgoff_to_pte(off)						\
+	((pte_t) { .pte_low = (((off) & 0x1f) << 1) +			\
+			(((off) >> 5) << 8) + _PAGE_FILE })
 
 /* Encode and de-code a swap entry */
 #define __swp_type(x)			(((x).val >> 1) & 0x1f)
 #define __swp_offset(x)			((x).val >> 8)
-#define __swp_entry(type, offset)	((swp_entry_t) { ((type) << 1) | ((offset) << 8) })
+#define __swp_entry(type, offset)				\
+	((swp_entry_t) { ((type) << 1) | ((offset) << 8) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { (pte).pte_low })
 #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
 

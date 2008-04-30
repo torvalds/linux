@@ -846,4 +846,4 @@ extern struct usb_ep *usb_ep_autoconfig(struct usb_gadget *,
 
 extern void usb_ep_autoconfig_reset(struct usb_gadget *) __devinit;
 
-#endif	/* __LINUX_USB_GADGET_H */
+#endif /* __LINUX_USB_GADGET_H */

@@ -9,8 +9,7 @@
 #include <asm/desc.h>
 #include <asm/i387.h>
 
-static inline int
-arch_prepare_suspend(void)
+static inline int arch_prepare_suspend(void)
 {
 	return 0;
 }
@@ -25,7 +24,7 @@ arch_prepare_suspend(void)
  */
 struct saved_context {
 	struct pt_regs regs;
-  	u16 ds, es, fs, gs, ss;
+	u16 ds, es, fs, gs, ss;
 	unsigned long gs_base, gs_kernel_base, fs_base;
 	unsigned long cr0, cr2, cr3, cr4, cr8;
 	unsigned long efer;

@@ -133,19 +133,6 @@ typedef struct dm_attrs_s {
 } dm_attrs_t;
 
 /*
- * This is the xfs inode cluster structure.  This structure is used by
- * xfs_iflush to find inodes that share a cluster and can be flushed to disk at
- * the same time.
- */
-typedef struct xfs_icluster {
-	struct hlist_head	icl_inodes;	/* list of inodes on cluster */
-	xfs_daddr_t		icl_blkno;	/* starting block number of
-						 * the cluster */
-	struct xfs_buf		*icl_buf;	/* the inode buffer */
-	spinlock_t		icl_lock;	/* inode list lock */
-} xfs_icluster_t;
-
-/*
  * This is the xfs in-core inode structure.
  * Most of the on-disk inode is embedded in the i_d field.
  *
@@ -240,10 +227,6 @@ typedef struct xfs_inode {
 	atomic_t		i_pincount;	/* inode pin count */
 	wait_queue_head_t	i_ipin_wait;	/* inode pinning wait queue */
 	spinlock_t		i_flags_lock;	/* inode i_flags lock */
-#ifdef HAVE_REFCACHE
-	struct xfs_inode	**i_refcache;	/* ptr to entry in ref cache */
-	struct xfs_inode	*i_release;	/* inode to unref */
-#endif
 	/* Miscellaneous state. */
 	unsigned short		i_flags;	/* see defined flags below */
 	unsigned char		i_update_core;	/* timestamps/size is dirty */
@@ -252,8 +235,6 @@ typedef struct xfs_inode {
 	unsigned int		i_delayed_blks;	/* count of delay alloc blks */
 
 	xfs_icdinode_t		i_d;		/* most of ondisk inode */
-	xfs_icluster_t		*i_cluster;	/* cluster list header */
-	struct hlist_node	i_cnode;	/* cluster link node */
 
 	xfs_fsize_t		i_size;		/* in-memory size */
 	xfs_fsize_t		i_new_size;	/* size when write completes */
@@ -461,6 +442,7 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
 #define	XFS_IFLUSH_SYNC			3
 #define	XFS_IFLUSH_ASYNC		4
 #define	XFS_IFLUSH_DELWRI		5
+#define	XFS_IFLUSH_ASYNC_NOBLOCK	6
 
 /*
  * Flags for xfs_itruncate_start().
@@ -515,7 +497,7 @@ int		xfs_finish_reclaim_all(struct xfs_mount *, int);
  */
 int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
 			  xfs_inode_t *, struct xfs_dinode **, struct xfs_buf **,
-			  xfs_daddr_t, uint);
+			  xfs_daddr_t, uint, uint);
 int		xfs_iread(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
 			  xfs_inode_t **, xfs_daddr_t, uint);
 int		xfs_iread_extents(struct xfs_trans *, xfs_inode_t *, int);
@@ -597,7 +579,6 @@ void		xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);
 #define	xfs_inobp_check(mp, bp)
 #endif /* DEBUG */
 
-extern struct kmem_zone	*xfs_icluster_zone;
 extern struct kmem_zone	*xfs_ifork_zone;
 extern struct kmem_zone	*xfs_inode_zone;
 extern struct kmem_zone	*xfs_ili_zone;

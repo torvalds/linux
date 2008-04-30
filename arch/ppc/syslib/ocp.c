@@ -49,7 +49,6 @@
 #include <asm/io.h>
 #include <asm/ocp.h>
 #include <asm/errno.h>
-#include <asm/semaphore.h>
 
 //#define DBG(x)	printk x
 #define DBG(x)

@@ -124,6 +124,9 @@ static int rtc_probe(struct amba_device *dev, void *id)
 
 	xtime.tv_sec = __raw_readl(rtc_base + RTC_DR);
 
+	/* note that 'dev' is merely used for irq disambiguation;
+	 * it is not actually referenced in the irq handler
+	 */
 	ret = request_irq(dev->irq[0], arm_rtc_interrupt, IRQF_DISABLED,
 			  "rtc-pl030", dev);
 	if (ret)

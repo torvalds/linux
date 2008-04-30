@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2001 Sistina Software (UK) Limited.
- * Copyright (C) 2004 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the LGPL.
  */
@@ -9,6 +9,8 @@
 #define _LINUX_DEVICE_MAPPER_H
 
 #ifdef __KERNEL__
+
+#include <linux/bio.h>
 
 struct dm_target;
 struct dm_table;
@@ -250,11 +252,97 @@ void dm_table_event(struct dm_table *t);
  */
 int dm_swap_table(struct mapped_device *md, struct dm_table *t);
 
+/*-----------------------------------------------------------------
+ * Macros.
+ *---------------------------------------------------------------*/
+#define DM_NAME "device-mapper"
+
+#define DMERR(f, arg...) \
+	printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
+#define DMERR_LIMIT(f, arg...) \
+	do { \
+		if (printk_ratelimit())	\
+			printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " \
+			       f "\n", ## arg); \
+	} while (0)
+
+#define DMWARN(f, arg...) \
+	printk(KERN_WARNING DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
+#define DMWARN_LIMIT(f, arg...) \
+	do { \
+		if (printk_ratelimit())	\
+			printk(KERN_WARNING DM_NAME ": " DM_MSG_PREFIX ": " \
+			       f "\n", ## arg); \
+	} while (0)
+
+#define DMINFO(f, arg...) \
+	printk(KERN_INFO DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
+#define DMINFO_LIMIT(f, arg...) \
+	do { \
+		if (printk_ratelimit())	\
+			printk(KERN_INFO DM_NAME ": " DM_MSG_PREFIX ": " f \
+			       "\n", ## arg); \
+	} while (0)
+
+#ifdef CONFIG_DM_DEBUG
+#  define DMDEBUG(f, arg...) \
+	printk(KERN_DEBUG DM_NAME ": " DM_MSG_PREFIX " DEBUG: " f "\n", ## arg)
+#  define DMDEBUG_LIMIT(f, arg...) \
+	do { \
+		if (printk_ratelimit())	\
+			printk(KERN_DEBUG DM_NAME ": " DM_MSG_PREFIX ": " f \
+			       "\n", ## arg); \
+	} while (0)
+#else
+#  define DMDEBUG(f, arg...) do {} while (0)
+#  define DMDEBUG_LIMIT(f, arg...) do {} while (0)
+#endif
+
+#define DMEMIT(x...) sz += ((sz >= maxlen) ? \
+			  0 : scnprintf(result + sz, maxlen - sz, x))
+
+#define SECTOR_SHIFT 9
+
 /*
- * Prepare a table for a device that will error all I/O.
- * To make it active, call dm_suspend(), dm_swap_table() then dm_resume().
+ * Definitions of return values from target end_io function.
  */
-int dm_create_error_table(struct dm_table **result, struct mapped_device *md);
+#define DM_ENDIO_INCOMPLETE	1
+#define DM_ENDIO_REQUEUE	2
+
+/*
+ * Definitions of return values from target map function.
+ */
+#define DM_MAPIO_SUBMITTED	0
+#define DM_MAPIO_REMAPPED	1
+#define DM_MAPIO_REQUEUE	DM_ENDIO_REQUEUE
+
+/*
+ * Ceiling(n / sz)
+ */
+#define dm_div_up(n, sz) (((n) + (sz) - 1) / (sz))
+
+#define dm_sector_div_up(n, sz) ( \
+{ \
+	sector_t _r = ((n) + (sz) - 1); \
+	sector_div(_r, (sz)); \
+	_r; \
+} \
+)
+
+/*
+ * ceiling(n / size) * size
+ */
+#define dm_round_up(n, sz) (dm_div_up((n), (sz)) * (sz))
+
+static inline sector_t to_sector(unsigned long n)
+{
+	return (n >> SECTOR_SHIFT);
+}
+
+static inline unsigned long to_bytes(sector_t n)
+{
+	return (n << SECTOR_SHIFT);
+}
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_DEVICE_MAPPER_H */

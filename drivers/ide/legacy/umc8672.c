@@ -19,7 +19,7 @@
  */
 
 /*
- * VLB Controller Support from 
+ * VLB Controller Support from
  * Wolfram Podien
  * Rohoefe 3
  * D28832 Achim
@@ -32,7 +32,7 @@
  * #define UMC_DRIVE0 11
  * in the beginning of the driver, which sets the speed of drive 0 to 11 (there
  * are some lines present). 0 - 11 are allowed speed values. These values are
- * the results from the DOS speed test program supplied from UMC. 11 is the 
+ * the results from the DOS speed test program supplied from UMC. 11 is the
  * highest speed (about PIO mode 3)
  */
 #define REALLY_SLOW_IO		/* some systems can safely undef this */
@@ -51,6 +51,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "umc8672"
+
 /*
  * Default speeds.  These can be changed with "auto-tune" and/or hdparm.
  */
@@ -60,103 +62,103 @@
 #define UMC_DRIVE3      1              /* In case of crash reduce speed */
 
 static u8 current_speeds[4] = {UMC_DRIVE0, UMC_DRIVE1, UMC_DRIVE2, UMC_DRIVE3};
-static const u8 pio_to_umc [5] = {0,3,7,10,11};	/* rough guesses */
+static const u8 pio_to_umc [5] = {0, 3, 7, 10, 11};	/* rough guesses */
 
 /*       0    1    2    3    4    5    6    7    8    9    10   11      */
 static const u8 speedtab [3][12] = {
-	{0xf, 0xb, 0x2, 0x2, 0x2, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1 },
-	{0x3, 0x2, 0x2, 0x2, 0x2, 0x2, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1 },
-	{0xff,0xcb,0xc0,0x58,0x36,0x33,0x23,0x22,0x21,0x11,0x10,0x0}};
+	{0x0f, 0x0b, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1},
+	{0x03, 0x02, 0x02, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1},
+	{0xff, 0xcb, 0xc0, 0x58, 0x36, 0x33, 0x23, 0x22, 0x21, 0x11, 0x10, 0x0}
+};
 
-static void out_umc (char port,char wert)
+static void out_umc(char port, char wert)
 {
-	outb_p(port,0x108);
-	outb_p(wert,0x109);
+	outb_p(port, 0x108);
+	outb_p(wert, 0x109);
 }
 
-static inline u8 in_umc (char port)
+static inline u8 in_umc(char port)
 {
-	outb_p(port,0x108);
+	outb_p(port, 0x108);
 	return inb_p(0x109);
 }
 
-static void umc_set_speeds (u8 speeds[])
+static void umc_set_speeds(u8 speeds[])
 {
 	int i, tmp;
 
-	outb_p(0x5A,0x108); /* enable umc */
+	outb_p(0x5A, 0x108); /* enable umc */
 
-	out_umc (0xd7,(speedtab[0][speeds[2]] | (speedtab[0][speeds[3]]<<4)));
-	out_umc (0xd6,(speedtab[0][speeds[0]] | (speedtab[0][speeds[1]]<<4)));
+	out_umc(0xd7, (speedtab[0][speeds[2]] | (speedtab[0][speeds[3]]<<4)));
+	out_umc(0xd6, (speedtab[0][speeds[0]] | (speedtab[0][speeds[1]]<<4)));
 	tmp = 0;
-	for (i = 3; i >= 0; i--) {
+	for (i = 3; i >= 0; i--)
 		tmp = (tmp << 2) | speedtab[1][speeds[i]];
+	out_umc(0xdc, tmp);
+	for (i = 0; i < 4; i++) {
+		out_umc(0xd0 + i, speedtab[2][speeds[i]]);
+		out_umc(0xd8 + i, speedtab[2][speeds[i]]);
 	}
-	out_umc (0xdc,tmp);
-	for (i = 0;i < 4; i++) {
-		out_umc (0xd0+i,speedtab[2][speeds[i]]);
-		out_umc (0xd8+i,speedtab[2][speeds[i]]);
-	}
-	outb_p(0xa5,0x108); /* disable umc */
+	outb_p(0xa5, 0x108); /* disable umc */
 
-	printk ("umc8672: drive speeds [0 to 11]: %d %d %d %d\n",
+	printk("umc8672: drive speeds [0 to 11]: %d %d %d %d\n",
 		speeds[0], speeds[1], speeds[2], speeds[3]);
 }
 
 static void umc_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;
-	ide_hwgroup_t *hwgroup = ide_hwifs[HWIF(drive)->index^1].hwgroup;
 
 	printk("%s: setting umc8672 to PIO mode%d (speed %d)\n",
 		drive->name, pio, pio_to_umc[pio]);
 	spin_lock_irqsave(&ide_lock, flags);
-	if (hwgroup && hwgroup->handler != NULL) {
+	if (hwif->mate && hwif->mate->hwgroup->handler) {
 		printk(KERN_ERR "umc8672: other interface is busy: exiting tune_umc()\n");
 	} else {
 		current_speeds[drive->name[2] - 'a'] = pio_to_umc[pio];
-		umc_set_speeds (current_speeds);
+		umc_set_speeds(current_speeds);
 	}
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
+static const struct ide_port_ops umc8672_port_ops = {
+	.set_pio_mode		= umc_set_pio_mode,
+};
+
 static const struct ide_port_info umc8672_port_info __initdata = {
+	.name			= DRV_NAME,
 	.chipset		= ide_umc8672,
-	.host_flags		= IDE_HFLAG_NO_DMA | IDE_HFLAG_NO_AUTOTUNE,
+	.port_ops		= &umc8672_port_ops,
+	.host_flags		= IDE_HFLAG_NO_DMA,
 	.pio_mask		= ATA_PIO4,
 };
 
 static int __init umc8672_probe(void)
 {
 	unsigned long flags;
-	static u8 idx[4] = { 0, 1, 0xff, 0xff };
 
 	if (!request_region(0x108, 2, "umc8672")) {
 		printk(KERN_ERR "umc8672: ports 0x108-0x109 already in use.\n");
 		return 1;
 	}
 	local_irq_save(flags);
-	outb_p(0x5A,0x108); /* enable umc */
+	outb_p(0x5A, 0x108); /* enable umc */
 	if (in_umc (0xd5) != 0xa0) {
 		local_irq_restore(flags);
 		printk(KERN_ERR "umc8672: not found\n");
 		release_region(0x108, 2);
-		return 1;  
+		return 1;
 	}
-	outb_p(0xa5,0x108); /* disable umc */
+	outb_p(0xa5, 0x108); /* disable umc */
 
-	umc_set_speeds (current_speeds);
+	umc_set_speeds(current_speeds);
 	local_irq_restore(flags);
 
-	ide_hwifs[0].set_pio_mode = &umc_set_pio_mode;
-	ide_hwifs[1].set_pio_mode = &umc_set_pio_mode;
-
-	ide_device_add(idx, &umc8672_port_info);
-
-	return 0;
+	return ide_legacy_device_add(&umc8672_port_info, 0);
 }
 
-int probe_umc8672 = 0;
+static int probe_umc8672;
 
 module_param_named(probe, probe_umc8672, bool, 0);
 MODULE_PARM_DESC(probe, "probe for UMC8672 chipset");

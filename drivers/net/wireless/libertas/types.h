@@ -239,4 +239,17 @@ struct mrvlietypes_ledgpio {
 	struct led_pin ledpin[1];
 } __attribute__ ((packed));
 
+struct led_bhv {
+	uint8_t	firmwarestate;
+	uint8_t	led;
+	uint8_t	ledstate;
+	uint8_t	ledarg;
+} __attribute__ ((packed));
+
+
+struct mrvlietypes_ledbhv {
+	struct mrvlietypesheader header;
+	struct led_bhv ledbhv[1];
+} __attribute__ ((packed));
+
 #endif

@@ -312,6 +312,9 @@ static int __devexit ocores_i2c_remove(struct platform_device* pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:ocores-i2c");
+
 static struct platform_driver ocores_i2c_driver = {
 	.probe  = ocores_i2c_probe,
 	.remove = __devexit_p(ocores_i2c_remove),

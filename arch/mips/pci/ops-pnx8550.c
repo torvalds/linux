@@ -90,14 +90,14 @@ config_access(unsigned int pci_cmd, struct pci_bus *bus, unsigned int devfn, int
 
 		loops--;
 		if (loops == 0) {
-			printk("%s : Arbiter Locked.\n", __FUNCTION__);
+			printk("%s : Arbiter Locked.\n", __func__);
 		}
 	}
 
 	clear_status();
 	if ((pci_cmd == PCI_CMD_IOR) || (pci_cmd == PCI_CMD_IOW)) {
 		printk("%s timeout (GPPM_CTRL=%X) ioaddr %lX pci_cmd %X\n",
-		       __FUNCTION__, inl(PCI_BASE | PCI_GPPM_CTRL), ioaddr,
+		       __func__, inl(PCI_BASE | PCI_GPPM_CTRL), ioaddr,
 		       pci_cmd);
 	}
 

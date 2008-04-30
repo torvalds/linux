@@ -17,7 +17,7 @@
 
 #ifdef KCAPI_DEBUG
 #define DBG(format, arg...) do { \
-printk(KERN_DEBUG "%s: " format "\n" , __FUNCTION__ , ## arg); \
+printk(KERN_DEBUG "%s: " format "\n" , __func__ , ## arg); \
 } while (0)
 #else
 #define DBG(format, arg...) /* */

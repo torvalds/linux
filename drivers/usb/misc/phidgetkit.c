@@ -113,7 +113,7 @@ static int set_outputs(struct interfacekit *kit)
 
 	buffer = kzalloc(4, GFP_KERNEL);
 	if (!buffer) {
-		dev_err(&kit->udev->dev, "%s - out of memory\n", __FUNCTION__);
+		dev_err(&kit->udev->dev, "%s - out of memory\n", __func__);
 		return -ENOMEM;
 	}
 	buffer[0] = (u8)kit->outputs;
@@ -146,7 +146,7 @@ static int change_string(struct interfacekit *kit, const char *display, unsigned
 	buffer = kmalloc(8, GFP_KERNEL);
 	form_buffer = kmalloc(30, GFP_KERNEL);
 	if ((!buffer) || (!form_buffer)) {
-		dev_err(&kit->udev->dev, "%s - out of memory\n", __FUNCTION__);
+		dev_err(&kit->udev->dev, "%s - out of memory\n", __func__);
 		goto exit;
 	}
 
@@ -216,7 +216,7 @@ static ssize_t set_backlight(struct device *dev, struct device_attribute *attr, 
 	
 	buffer = kzalloc(8, GFP_KERNEL);
 	if (!buffer) {
-		dev_err(&kit->udev->dev, "%s - out of memory\n", __FUNCTION__);
+		dev_err(&kit->udev->dev, "%s - out of memory\n", __func__);
 		goto exit;
 	}
 

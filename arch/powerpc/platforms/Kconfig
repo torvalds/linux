@@ -45,7 +45,6 @@ source "arch/powerpc/platforms/powermac/Kconfig"
 source "arch/powerpc/platforms/prep/Kconfig"
 source "arch/powerpc/platforms/maple/Kconfig"
 source "arch/powerpc/platforms/pasemi/Kconfig"
-source "arch/powerpc/platforms/celleb/Kconfig"
 source "arch/powerpc/platforms/ps3/Kconfig"
 source "arch/powerpc/platforms/cell/Kconfig"
 source "arch/powerpc/platforms/8xx/Kconfig"
@@ -290,13 +289,7 @@ config CPM2
 config PPC_CPM_NEW_BINDING
 	bool
 	depends on CPM1 || CPM2
-	help
-	  Select this if your board has been converted to use the new
-	  device tree bindings for CPM, and no longer needs the
-	  ioport callbacks or the platform device glue code.
-
-	  The fs_enet and cpm_uart drivers will be built as
-	  of_platform devices.
+	default y
 
 config AXON_RAM
 	tristate "Axon DDR2 memory device driver"

@@ -20,17 +20,7 @@
 #ifndef __ASM_ARCH_MXC_VMALLOC_H__
 #define __ASM_ARCH_MXC_VMALLOC_H__
 
-/*!
- * @file vmalloc.h
- *
- * @brief This file contains platform specific macros for vmalloc.
- *
- * @ingroup System
- */
-
-/*!
- * vmalloc ending address
- */
+/* vmalloc ending address */
 #define VMALLOC_END       0xF4000000
 
-#endif				/* __ASM_ARCH_MXC_VMALLOC_H__ */
+#endif /* __ASM_ARCH_MXC_VMALLOC_H__ */

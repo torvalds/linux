@@ -544,6 +544,7 @@ static void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 
 	sbus->ofdev.dev.archdata.iommu = iommu;
 	sbus->ofdev.dev.archdata.stc = strbuf;
+	sbus->ofdev.dev.archdata.numa_node = -1;
 
 	reg_base = regs + SYSIO_IOMMUREG_BASE;
 	iommu->iommu_control = reg_base + IOMMU_CONTROL;
@@ -575,7 +576,7 @@ static void __init sbus_iommu_init(int __node, struct sbus_bus *sbus)
 	       sbus->portid, regs);
 
 	/* Setup for TSB_SIZE=7, TBW_SIZE=0, MMU_DE=1, MMU_EN=1 */
-	if (iommu_table_init(iommu, IO_TSB_SIZE, MAP_BASE, 0xffffffff))
+	if (iommu_table_init(iommu, IO_TSB_SIZE, MAP_BASE, 0xffffffff, -1))
 		goto fatal_memory_error;
 
 	control = upa_readq(iommu->iommu_control);

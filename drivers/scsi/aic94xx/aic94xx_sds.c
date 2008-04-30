@@ -590,8 +590,8 @@ static int asd_reset_flash(struct asd_ha_struct *asd_ha)
 	return err;
 }
 
-static inline int asd_read_flash_seg(struct asd_ha_struct *asd_ha,
-				     void *buffer, u32 offs, int size)
+static int asd_read_flash_seg(struct asd_ha_struct *asd_ha,
+			      void *buffer, u32 offs, int size)
 {
 	asd_read_reg_string(asd_ha, buffer, asd_ha->hw_prof.flash.bar+offs,
 			    size);

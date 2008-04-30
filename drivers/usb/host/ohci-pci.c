@@ -238,42 +238,6 @@ static int __devinit ohci_pci_start (struct usb_hcd *hcd)
 	return ret;
 }
 
-#if	defined(CONFIG_USB_PERSIST) && (defined(CONFIG_USB_EHCI_HCD) || \
-		defined(CONFIG_USB_EHCI_HCD_MODULE))
-
-/* Following a power loss, we must prepare to regain control of the ports
- * we used to own.  This means turning on the port power before ehci-hcd
- * tries to switch ownership.
- *
- * This isn't a 100% perfect solution.  On most systems the OHCI controllers
- * lie at lower PCI addresses than the EHCI controller, so they will be
- * discovered (and hence resumed) first.  But there is no guarantee things
- * will always work this way.  If the EHCI controller is resumed first and
- * the OHCI ports are unpowered, then the handover will fail.
- */
-static void prepare_for_handover(struct usb_hcd *hcd)
-{
-	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
-	int		port;
-
-	/* Here we "know" root ports should always stay powered */
-	ohci_dbg(ohci, "powerup ports\n");
-	for (port = 0; port < ohci->num_ports; port++)
-		ohci_writel(ohci, RH_PS_PPS,
-				&ohci->regs->roothub.portstatus[port]);
-
-	/* Flush those writes */
-	ohci_readl(ohci, &ohci->regs->control);
-	msleep(20);
-}
-
-#else
-
-static inline void prepare_for_handover(struct usb_hcd *hcd)
-{ }
-
-#endif	/* CONFIG_USB_PERSIST etc. */
-
 #ifdef	CONFIG_PM
 
 static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
@@ -313,10 +277,7 @@ static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 static int ohci_pci_resume (struct usb_hcd *hcd)
 {
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-
-	/* FIXME: we should try to detect loss of VBUS power here */
-	prepare_for_handover(hcd);
-
+	ohci_finish_controller_resume(hcd);
 	return 0;
 }
 
@@ -345,9 +306,8 @@ static const struct hc_driver ohci_pci_hc_driver = {
 	.shutdown =		ohci_shutdown,
 
 #ifdef	CONFIG_PM
-	/* these suspend/resume entries are for upstream PCI glue ONLY */
-	.suspend =		ohci_pci_suspend,
-	.resume =		ohci_pci_resume,
+	.pci_suspend =		ohci_pci_suspend,
+	.pci_resume =		ohci_pci_resume,
 #endif
 
 	/*
@@ -367,7 +327,6 @@ static const struct hc_driver ohci_pci_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,

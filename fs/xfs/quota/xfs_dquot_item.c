@@ -146,6 +146,7 @@ xfs_qm_dquot_logitem_push(
 	xfs_dq_logitem_t	*logitem)
 {
 	xfs_dquot_t	*dqp;
+	int		error;
 
 	dqp = logitem->qli_dquot;
 
@@ -161,7 +162,11 @@ xfs_qm_dquot_logitem_push(
 	 * lock without sleeping, then there must not have been
 	 * anyone in the process of flushing the dquot.
 	 */
-	xfs_qm_dqflush(dqp, XFS_B_DELWRI);
+	error = xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+	if (error)
+		xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
+			"xfs_qm_dquot_logitem_push: push error %d on dqp %p",
+			error, dqp);
 	xfs_dqunlock(dqp);
 }
 
@@ -262,11 +267,16 @@ xfs_qm_dquot_logitem_pushbuf(
 					      XFS_LOG_FORCE);
 			}
 			if (dopush) {
+				int	error;
 #ifdef XFSRACEDEBUG
 				delay_for_intr();
 				delay(300);
 #endif
-				xfs_bawrite(mp, bp);
+				error = xfs_bawrite(mp, bp);
+				if (error)
+					xfs_fs_cmn_err(CE_WARN, mp,
+	"xfs_qm_dquot_logitem_pushbuf: pushbuf error %d on qip %p, bp %p",
+							error, qip, bp);
 			} else {
 				xfs_buf_relse(bp);
 			}

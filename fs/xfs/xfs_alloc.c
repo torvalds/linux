@@ -45,7 +45,7 @@
 #define	XFSA_FIXUP_BNO_OK	1
 #define	XFSA_FIXUP_CNT_OK	2
 
-STATIC int
+STATIC void
 xfs_alloc_search_busy(xfs_trans_t *tp,
 		    xfs_agnumber_t agno,
 		    xfs_agblock_t bno,
@@ -55,24 +55,24 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 ktrace_t *xfs_alloc_trace_buf;
 
 #define	TRACE_ALLOC(s,a)	\
-	xfs_alloc_trace_alloc(__FUNCTION__, s, a, __LINE__)
+	xfs_alloc_trace_alloc(__func__, s, a, __LINE__)
 #define	TRACE_FREE(s,a,b,x,f)	\
-	xfs_alloc_trace_free(__FUNCTION__, s, mp, a, b, x, f, __LINE__)
+	xfs_alloc_trace_free(__func__, s, mp, a, b, x, f, __LINE__)
 #define	TRACE_MODAGF(s,a,f)	\
-	xfs_alloc_trace_modagf(__FUNCTION__, s, mp, a, f, __LINE__)
-#define	TRACE_BUSY(__FUNCTION__,s,ag,agb,l,sl,tp)	\
-	xfs_alloc_trace_busy(__FUNCTION__, s, mp, ag, agb, l, sl, tp, XFS_ALLOC_KTRACE_BUSY, __LINE__)
-#define	TRACE_UNBUSY(__FUNCTION__,s,ag,sl,tp)	\
-	xfs_alloc_trace_busy(__FUNCTION__, s, mp, ag, -1, -1, sl, tp, XFS_ALLOC_KTRACE_UNBUSY, __LINE__)
-#define	TRACE_BUSYSEARCH(__FUNCTION__,s,ag,agb,l,sl,tp)	\
-	xfs_alloc_trace_busy(__FUNCTION__, s, mp, ag, agb, l, sl, tp, XFS_ALLOC_KTRACE_BUSYSEARCH, __LINE__)
+	xfs_alloc_trace_modagf(__func__, s, mp, a, f, __LINE__)
+#define	TRACE_BUSY(__func__,s,ag,agb,l,sl,tp)	\
+	xfs_alloc_trace_busy(__func__, s, mp, ag, agb, l, sl, tp, XFS_ALLOC_KTRACE_BUSY, __LINE__)
+#define	TRACE_UNBUSY(__func__,s,ag,sl,tp)	\
+	xfs_alloc_trace_busy(__func__, s, mp, ag, -1, -1, sl, tp, XFS_ALLOC_KTRACE_UNBUSY, __LINE__)
+#define	TRACE_BUSYSEARCH(__func__,s,ag,agb,l,tp)	\
+	xfs_alloc_trace_busy(__func__, s, mp, ag, agb, l, 0, tp, XFS_ALLOC_KTRACE_BUSYSEARCH, __LINE__)
 #else
 #define	TRACE_ALLOC(s,a)
 #define	TRACE_FREE(s,a,b,x,f)
 #define	TRACE_MODAGF(s,a,f)
 #define	TRACE_BUSY(s,a,ag,agb,l,sl,tp)
 #define	TRACE_UNBUSY(fname,s,ag,sl,tp)
-#define	TRACE_BUSYSEARCH(fname,s,ag,agb,l,sl,tp)
+#define	TRACE_BUSYSEARCH(fname,s,ag,agb,l,tp)
 #endif	/* XFS_ALLOC_TRACE */
 
 /*
@@ -93,7 +93,7 @@ STATIC int xfs_alloc_ag_vextent_small(xfs_alloc_arg_t *,
  * Compute aligned version of the found extent.
  * Takes alignment and min length into account.
  */
-STATIC int				/* success (>= minlen) */
+STATIC void
 xfs_alloc_compute_aligned(
 	xfs_agblock_t	foundbno,	/* starting block in found extent */
 	xfs_extlen_t	foundlen,	/* length in found extent */
@@ -116,7 +116,6 @@ xfs_alloc_compute_aligned(
 	}
 	*resbno = bno;
 	*reslen = len;
-	return len >= minlen;
 }
 
 /*
@@ -837,9 +836,9 @@ xfs_alloc_ag_vextent_near(
 			if ((error = xfs_alloc_get_rec(cnt_cur, &ltbno, &ltlen, &i)))
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			if (!xfs_alloc_compute_aligned(ltbno, ltlen,
-					args->alignment, args->minlen,
-					&ltbnoa, &ltlena))
+			xfs_alloc_compute_aligned(ltbno, ltlen, args->alignment,
+					args->minlen, &ltbnoa, &ltlena);
+			if (ltlena < args->minlen)
 				continue;
 			args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
 			xfs_alloc_fix_len(args);
@@ -958,9 +957,9 @@ xfs_alloc_ag_vextent_near(
 			if ((error = xfs_alloc_get_rec(bno_cur_lt, &ltbno, &ltlen, &i)))
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			if (xfs_alloc_compute_aligned(ltbno, ltlen,
-					args->alignment, args->minlen,
-					&ltbnoa, &ltlena))
+			xfs_alloc_compute_aligned(ltbno, ltlen, args->alignment,
+					args->minlen, &ltbnoa, &ltlena);
+			if (ltlena >= args->minlen)
 				break;
 			if ((error = xfs_alloc_decrement(bno_cur_lt, 0, &i)))
 				goto error0;
@@ -974,9 +973,9 @@ xfs_alloc_ag_vextent_near(
 			if ((error = xfs_alloc_get_rec(bno_cur_gt, &gtbno, &gtlen, &i)))
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			if (xfs_alloc_compute_aligned(gtbno, gtlen,
-					args->alignment, args->minlen,
-					&gtbnoa, &gtlena))
+			xfs_alloc_compute_aligned(gtbno, gtlen, args->alignment,
+					args->minlen, &gtbnoa, &gtlena);
+			if (gtlena >= args->minlen)
 				break;
 			if ((error = xfs_alloc_increment(bno_cur_gt, 0, &i)))
 				goto error0;
@@ -2562,9 +2561,10 @@ xfs_alloc_clear_busy(xfs_trans_t *tp,
 
 
 /*
- * returns non-zero if any of (agno,bno):len is in a busy list
+ * If we find the extent in the busy list, force the log out to get the
+ * extent out of the busy list so the caller can use it straight away.
  */
-STATIC int
+STATIC void
 xfs_alloc_search_busy(xfs_trans_t *tp,
 		    xfs_agnumber_t agno,
 		    xfs_agblock_t bno,
@@ -2572,7 +2572,6 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 {
 	xfs_mount_t		*mp;
 	xfs_perag_busy_t	*bsy;
-	int			n;
 	xfs_agblock_t		uend, bend;
 	xfs_lsn_t		lsn;
 	int			cnt;
@@ -2585,21 +2584,18 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 	uend = bno + len - 1;
 
 	/* search pagb_list for this slot, skipping open slots */
-	for (bsy = mp->m_perag[agno].pagb_list, n = 0;
-	     cnt; bsy++, n++) {
+	for (bsy = mp->m_perag[agno].pagb_list; cnt; bsy++) {
 
 		/*
 		 * (start1,length1) within (start2, length2)
 		 */
 		if (bsy->busy_tp != NULL) {
 			bend = bsy->busy_start + bsy->busy_length - 1;
-			if ((bno > bend) ||
-			    (uend < bsy->busy_start)) {
+			if ((bno > bend) || (uend < bsy->busy_start)) {
 				cnt--;
 			} else {
 				TRACE_BUSYSEARCH("xfs_alloc_search_busy",
-						 "found1", agno, bno, len, n,
-						 tp);
+					 "found1", agno, bno, len, tp);
 				break;
 			}
 		}
@@ -2610,15 +2606,12 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 	 * transaction that freed the block
 	 */
 	if (cnt) {
-		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "found", agno, bno, len, n, tp);
+		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "found", agno, bno, len, tp);
 		lsn = bsy->busy_tp->t_commit_lsn;
 		spin_unlock(&mp->m_perag[agno].pagb_lock);
 		xfs_log_force(mp, lsn, XFS_LOG_FORCE|XFS_LOG_SYNC);
 	} else {
-		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "not-found", agno, bno, len, n, tp);
-		n = -1;
+		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "not-found", agno, bno, len, tp);
 		spin_unlock(&mp->m_perag[agno].pagb_lock);
 	}
-
-	return n;
 }

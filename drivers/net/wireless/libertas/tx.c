@@ -151,7 +151,7 @@ int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
-	if (priv->monitormode != LBS_MONITOR_OFF) {
+	if (priv->monitormode) {
 		/* Keep the skb to echo it back once Tx feedback is
 		   received from FW */
 		skb_orphan(skb);
@@ -179,32 +179,17 @@ int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
  *
  *  @returns void
  */
-void lbs_send_tx_feedback(struct lbs_private *priv)
+void lbs_send_tx_feedback(struct lbs_private *priv, u32 try_count)
 {
 	struct tx_radiotap_hdr *radiotap_hdr;
-	u32 status = priv->eventcause;
-	int txfail;
-	int try_count;
 
-	if (priv->monitormode == LBS_MONITOR_OFF ||
-	    priv->currenttxskb == NULL)
+	if (!priv->monitormode || priv->currenttxskb == NULL)
 		return;
 
 	radiotap_hdr = (struct tx_radiotap_hdr *)priv->currenttxskb->data;
 
-	txfail = (status >> 24);
-
-#if 0
-	/* The version of roofnet that we've tested does not use this yet
-	 * But it may be used in the future.
-	 */
-	if (txfail)
-		radiotap_hdr->flags &= IEEE80211_RADIOTAP_F_TX_FAIL;
-#endif
-	try_count = (status >> 16) & 0xff;
-	radiotap_hdr->data_retries = (try_count) ?
-	    (1 + priv->txretrycount - try_count) : 0;
-
+	radiotap_hdr->data_retries = try_count ?
+		(1 + priv->txretrycount - try_count) : 0;
 
 	priv->currenttxskb->protocol = eth_type_trans(priv->currenttxskb,
 						      priv->rtap_net_dev);

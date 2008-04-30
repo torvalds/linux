@@ -180,8 +180,8 @@ enum c2_wr_type {
 };
 
 struct c2_netaddr {
-	u32 ip_addr;
-	u32 netmask;
+	__be32 ip_addr;
+	__be32 netmask;
 	u32 mtu;
 };
 
@@ -199,9 +199,9 @@ struct c2_route {
  * A Scatter Gather Entry.
  */
 struct c2_data_addr {
-	u32 stag;
-	u32 length;
-	u64 to;
+	__be32 stag;
+	__be32 length;
+	__be64 to;
 };
 
 /*
@@ -274,7 +274,7 @@ struct c2wr_hdr {
 	 * from the host to adapter by libccil, but we copy it anyway
 	 * to make the memcpy to the adapter better aligned.
 	 */
-	u32 wqe_count;
+	__be32 wqe_count;
 
 	/* Put these fields next so that later 32- and 64-bit
 	 * quantities are naturally aligned.
@@ -316,8 +316,8 @@ enum c2_rnic_flags {
 struct c2wr_rnic_open_req {
 	struct c2wr_hdr hdr;
 	u64 user_context;
-	u16 flags;		/* See enum c2_rnic_flags */
-	u16 port_num;
+	__be16 flags;		/* See enum c2_rnic_flags */
+	__be16 port_num;
 } __attribute__((packed));
 
 struct c2wr_rnic_open_rep {
@@ -341,30 +341,30 @@ struct c2wr_rnic_query_req {
 struct c2wr_rnic_query_rep {
 	struct c2wr_hdr hdr;
 	u64 user_context;
-	u32 vendor_id;
-	u32 part_number;
-	u32 hw_version;
-	u32 fw_ver_major;
-	u32 fw_ver_minor;
-	u32 fw_ver_patch;
+	__be32 vendor_id;
+	__be32 part_number;
+	__be32 hw_version;
+	__be32 fw_ver_major;
+	__be32 fw_ver_minor;
+	__be32 fw_ver_patch;
 	char fw_ver_build_str[WR_BUILD_STR_LEN];
-	u32 max_qps;
-	u32 max_qp_depth;
+	__be32 max_qps;
+	__be32 max_qp_depth;
 	u32 max_srq_depth;
 	u32 max_send_sgl_depth;
 	u32 max_rdma_sgl_depth;
-	u32 max_cqs;
-	u32 max_cq_depth;
+	__be32 max_cqs;
+	__be32 max_cq_depth;
 	u32 max_cq_event_handlers;
-	u32 max_mrs;
+	__be32 max_mrs;
 	u32 max_pbl_depth;
-	u32 max_pds;
-	u32 max_global_ird;
+	__be32 max_pds;
+	__be32 max_global_ird;
 	u32 max_global_ord;
-	u32 max_qp_ird;
-	u32 max_qp_ord;
+	__be32 max_qp_ird;
+	__be32 max_qp_ord;
 	u32 flags;
-	u32 max_mws;
+	__be32 max_mws;
 	u32 pbe_range_low;
 	u32 pbe_range_high;
 	u32 max_srqs;
@@ -405,7 +405,7 @@ union c2wr_rnic_getconfig {
 struct c2wr_rnic_setconfig_req {
 	struct c2wr_hdr hdr;
 	u32 rnic_handle;
-	u32 option;		/* See c2_setconfig_cmd_t */
+	__be32 option;		/* See c2_setconfig_cmd_t */
 	/* variable data and pad. See c2_netaddr and c2_route */
 	u8 data[0];
 } __attribute__((packed)) ;
@@ -441,18 +441,18 @@ union c2wr_rnic_close {
  */
 struct c2wr_cq_create_req {
 	struct c2wr_hdr hdr;
-	u64 shared_ht;
+	__be64 shared_ht;
 	u64 user_context;
-	u64 msg_pool;
+	__be64 msg_pool;
 	u32 rnic_handle;
-	u32 msg_size;
-	u32 depth;
+	__be32 msg_size;
+	__be32 depth;
 } __attribute__((packed)) ;
 
 struct c2wr_cq_create_rep {
 	struct c2wr_hdr hdr;
-	u32 mq_index;
-	u32 adapter_shared;
+	__be32 mq_index;
+	__be32 adapter_shared;
 	u32 cq_handle;
 } __attribute__((packed)) ;
 
@@ -585,40 +585,40 @@ enum c2wr_qp_flags {
 
 struct c2wr_qp_create_req {
 	struct c2wr_hdr hdr;
-	u64 shared_sq_ht;
-	u64 shared_rq_ht;
+	__be64 shared_sq_ht;
+	__be64 shared_rq_ht;
 	u64 user_context;
 	u32 rnic_handle;
 	u32 sq_cq_handle;
 	u32 rq_cq_handle;
-	u32 sq_depth;
-	u32 rq_depth;
+	__be32 sq_depth;
+	__be32 rq_depth;
 	u32 srq_handle;
 	u32 srq_limit;
-	u32 flags;		/* see enum c2wr_qp_flags */
-	u32 send_sgl_depth;
-	u32 recv_sgl_depth;
-	u32 rdma_write_sgl_depth;
-	u32 ord;
-	u32 ird;
+	__be32 flags;		/* see enum c2wr_qp_flags */
+	__be32 send_sgl_depth;
+	__be32 recv_sgl_depth;
+	__be32 rdma_write_sgl_depth;
+	__be32 ord;
+	__be32 ird;
 	u32 pd_id;
 } __attribute__((packed)) ;
 
 struct c2wr_qp_create_rep {
 	struct c2wr_hdr hdr;
-	u32 sq_depth;
-	u32 rq_depth;
+	__be32 sq_depth;
+	__be32 rq_depth;
 	u32 send_sgl_depth;
 	u32 recv_sgl_depth;
 	u32 rdma_write_sgl_depth;
 	u32 ord;
 	u32 ird;
-	u32 sq_msg_size;
-	u32 sq_mq_index;
-	u32 sq_mq_start;
-	u32 rq_msg_size;
-	u32 rq_mq_index;
-	u32 rq_mq_start;
+	__be32 sq_msg_size;
+	__be32 sq_mq_index;
+	__be32 sq_mq_start;
+	__be32 rq_msg_size;
+	__be32 rq_mq_index;
+	__be32 rq_mq_start;
 	u32 qp_handle;
 } __attribute__((packed)) ;
 
@@ -667,11 +667,11 @@ struct c2wr_qp_modify_req {
 	u32 stream_msg_length;
 	u32 rnic_handle;
 	u32 qp_handle;
-	u32 next_qp_state;
-	u32 ord;
-	u32 ird;
-	u32 sq_depth;
-	u32 rq_depth;
+	__be32 next_qp_state;
+	__be32 ord;
+	__be32 ird;
+	__be32 sq_depth;
+	__be32 rq_depth;
 	u32 llp_ep_handle;
 } __attribute__((packed)) ;
 
@@ -721,10 +721,10 @@ struct c2wr_qp_connect_req {
 	struct c2wr_hdr hdr;
 	u32 rnic_handle;
 	u32 qp_handle;
-	u32 remote_addr;
-	u16 remote_port;
+	__be32 remote_addr;
+	__be16 remote_port;
 	u16 pad;
-	u32 private_data_length;
+	__be32 private_data_length;
 	u8 private_data[0];	/* Private data in-line. */
 } __attribute__((packed)) ;
 
@@ -759,25 +759,25 @@ union c2wr_nsmr_stag_alloc {
 
 struct c2wr_nsmr_register_req {
 	struct c2wr_hdr hdr;
-	u64 va;
+	__be64 va;
 	u32 rnic_handle;
-	u16 flags;
+	__be16 flags;
 	u8 stag_key;
 	u8 pad;
 	u32 pd_id;
-	u32 pbl_depth;
-	u32 pbe_size;
-	u32 fbo;
-	u32 length;
-	u32 addrs_length;
+	__be32 pbl_depth;
+	__be32 pbe_size;
+	__be32 fbo;
+	__be32 length;
+	__be32 addrs_length;
 	/* array of paddrs (must be aligned on a 64bit boundary) */
-	u64 paddrs[0];
+	__be64 paddrs[0];
 } __attribute__((packed)) ;
 
 struct c2wr_nsmr_register_rep {
 	struct c2wr_hdr hdr;
 	u32 pbl_depth;
-	u32 stag_index;
+	__be32 stag_index;
 } __attribute__((packed)) ;
 
 union c2wr_nsmr_register {
@@ -788,11 +788,11 @@ union c2wr_nsmr_register {
 struct c2wr_nsmr_pbl_req {
 	struct c2wr_hdr hdr;
 	u32 rnic_handle;
-	u32 flags;
-	u32 stag_index;
-	u32 addrs_length;
+	__be32 flags;
+	__be32 stag_index;
+	__be32 addrs_length;
 	/* array of paddrs (must be aligned on a 64bit boundary) */
-	u64 paddrs[0];
+	__be64 paddrs[0];
 } __attribute__((packed)) ;
 
 struct c2wr_nsmr_pbl_rep {
@@ -847,7 +847,7 @@ union c2wr_mw_query {
 struct c2wr_stag_dealloc_req {
 	struct c2wr_hdr hdr;
 	u32 rnic_handle;
-	u32 stag_index;
+	__be32 stag_index;
 } __attribute__((packed)) ;
 
 struct c2wr_stag_dealloc_rep {
@@ -949,7 +949,7 @@ struct c2wr_ce {
 	u64 qp_user_context;	/* c2_user_qp_t * */
 	u32 qp_state;		/* Current QP State */
 	u32 handle;		/* QPID or EP Handle */
-	u32 bytes_rcvd;		/* valid for RECV WCs */
+	__be32 bytes_rcvd;		/* valid for RECV WCs */
 	u32 stag;
 } __attribute__((packed)) ;
 
@@ -984,8 +984,8 @@ struct c2_rq_hdr {
  */
 struct c2wr_send_req {
 	struct c2_sq_hdr sq_hdr;
-	u32 sge_len;
-	u32 remote_stag;
+	__be32 sge_len;
+	__be32 remote_stag;
 	u8 data[0];		/* SGE array */
 } __attribute__((packed));
 
@@ -996,9 +996,9 @@ union c2wr_send {
 
 struct c2wr_rdma_write_req {
 	struct c2_sq_hdr sq_hdr;
-	u64 remote_to;
-	u32 remote_stag;
-	u32 sge_len;
+	__be64 remote_to;
+	__be32 remote_stag;
+	__be32 sge_len;
 	u8 data[0];		/* SGE array */
 } __attribute__((packed));
 
@@ -1009,11 +1009,11 @@ union c2wr_rdma_write {
 
 struct c2wr_rdma_read_req {
 	struct c2_sq_hdr sq_hdr;
-	u64 local_to;
-	u64 remote_to;
-	u32 local_stag;
-	u32 remote_stag;
-	u32 length;
+	__be64 local_to;
+	__be64 remote_to;
+	__be32 local_stag;
+	__be32 remote_stag;
+	__be32 length;
 } __attribute__((packed));
 
 union c2wr_rdma_read {
@@ -1113,9 +1113,9 @@ union c2wr_recv {
 struct c2wr_ae_hdr {
 	struct c2wr_hdr hdr;
 	u64 user_context;	/* user context for this res. */
-	u32 resource_type;	/* see enum c2_resource_indicator */
-	u32 resource;		/* handle for resource */
-	u32 qp_state;		/* current QP State */
+	__be32 resource_type;	/* see enum c2_resource_indicator */
+	__be32 resource;	/* handle for resource */
+	__be32 qp_state;	/* current QP State */
 } __attribute__((packed));
 
 /*
@@ -1124,11 +1124,11 @@ struct c2wr_ae_hdr {
  */
 struct c2wr_ae_active_connect_results {
 	struct c2wr_ae_hdr ae_hdr;
-	u32 laddr;
-	u32 raddr;
-	u16 lport;
-	u16 rport;
-	u32 private_data_length;
+	__be32 laddr;
+	__be32 raddr;
+	__be16 lport;
+	__be16 rport;
+	__be32 private_data_length;
 	u8 private_data[0];	/* data is in-line in the msg. */
 } __attribute__((packed));
 
@@ -1142,11 +1142,11 @@ struct c2wr_ae_active_connect_results {
 struct c2wr_ae_connection_request {
 	struct c2wr_ae_hdr ae_hdr;
 	u32 cr_handle;		/* connreq handle (sock ptr) */
-	u32 laddr;
-	u32 raddr;
-	u16 lport;
-	u16 rport;
-	u32 private_data_length;
+	__be32 laddr;
+	__be32 raddr;
+	__be16 lport;
+	__be16 rport;
+	__be32 private_data_length;
 	u8 private_data[0];	/* data is in-line in the msg. */
 } __attribute__((packed));
 
@@ -1158,12 +1158,12 @@ union c2wr_ae {
 
 struct c2wr_init_req {
 	struct c2wr_hdr hdr;
-	u64 hint_count;
-	u64 q0_host_shared;
-	u64 q1_host_shared;
-	u64 q1_host_msg_pool;
-	u64 q2_host_shared;
-	u64 q2_host_msg_pool;
+	__be64 hint_count;
+	__be64 q0_host_shared;
+	__be64 q1_host_shared;
+	__be64 q1_host_msg_pool;
+	__be64 q2_host_shared;
+	__be64 q2_host_msg_pool;
 } __attribute__((packed));
 
 struct c2wr_init_rep {
@@ -1276,10 +1276,10 @@ struct c2wr_ep_listen_create_req {
 	struct c2wr_hdr hdr;
 	u64 user_context;	/* returned in AEs. */
 	u32 rnic_handle;
-	u32 local_addr;		/* local addr, or 0  */
-	u16 local_port;		/* 0 means "pick one" */
+	__be32 local_addr;		/* local addr, or 0  */
+	__be16 local_port;		/* 0 means "pick one" */
 	u16 pad;
-	u32 backlog;		/* tradional tcp listen bl */
+	__be32 backlog;		/* tradional tcp listen bl */
 } __attribute__((packed));
 
 struct c2wr_ep_listen_create_rep {
@@ -1340,7 +1340,7 @@ struct c2wr_cr_accept_req {
 	u32 rnic_handle;
 	u32 qp_handle;		/* QP to bind to this LLP conn */
 	u32 ep_handle;		/* LLP  handle to accept */
-	u32 private_data_length;
+	__be32 private_data_length;
 	u8 private_data[0];	/* data in-line in msg. */
 } __attribute__((packed));
 
@@ -1508,7 +1508,7 @@ static __inline__ void c2_wr_set_sge_count(void *wr, u8 sge_count)
 {
 	((struct c2wr_hdr *) wr)->sge_count = sge_count;
 }
-static __inline__ u32 c2_wr_get_wqe_count(void *wr)
+static __inline__ __be32 c2_wr_get_wqe_count(void *wr)
 {
 	return ((struct c2wr_hdr *) wr)->wqe_count;
 }

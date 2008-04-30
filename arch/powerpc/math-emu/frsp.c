@@ -12,7 +12,7 @@ frsp(void *frD, void *frB)
 	FP_DECL_D(B);
 
 #ifdef DEBUG
-	printk("%s: D %p, B %p\n", __FUNCTION__, frD, frB);
+	printk("%s: D %p, B %p\n", __func__, frD, frB);
 #endif
 
 	__FP_UNPACK_D(B, frB);

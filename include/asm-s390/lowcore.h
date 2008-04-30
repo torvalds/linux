@@ -56,6 +56,8 @@
 #define __LC_IO_INT_WORD                0x0C0
 #define __LC_MCCK_CODE                  0x0E8
 
+#define __LC_LAST_BREAK 		0x110
+
 #define __LC_RETURN_PSW                 0x200
 
 #define __LC_SAVE_AREA                  0xC00
@@ -80,7 +82,6 @@
 #define __LC_CPUID                      0xC60
 #define __LC_CPUADDR                    0xC68
 #define __LC_IPLDEV                     0xC7C
-#define __LC_JIFFY_TIMER		0xC80
 #define __LC_CURRENT			0xC90
 #define __LC_INT_CLOCK			0xC98
 #else /* __s390x__ */
@@ -103,7 +104,6 @@
 #define __LC_CPUID			0xD80
 #define __LC_CPUADDR			0xD88
 #define __LC_IPLDEV                     0xDB8
-#define __LC_JIFFY_TIMER		0xDC0
 #define __LC_CURRENT			0xDD8
 #define __LC_INT_CLOCK			0xDE8
 #endif /* __s390x__ */
@@ -276,7 +276,7 @@ struct _lowcore
 	/* entry.S sensitive area end */
 
         /* SMP info area: defined by DJB */
-        __u64        jiffy_timer;              /* 0xc80 */
+	__u64	     clock_comparator;	       /* 0xc80 */
 	__u32        ext_call_fast;            /* 0xc88 */
 	__u32        percpu_offset;            /* 0xc8c */
 	__u32        current_task;	       /* 0xc90 */
@@ -368,11 +368,12 @@ struct _lowcore
 	/* entry.S sensitive area end */
 
         /* SMP info area: defined by DJB */
-        __u64        jiffy_timer;              /* 0xdc0 */
+	__u64	     clock_comparator;	       /* 0xdc0 */
 	__u64        ext_call_fast;            /* 0xdc8 */
 	__u64        percpu_offset;            /* 0xdd0 */
 	__u64        current_task;	       /* 0xdd8 */
-	__u64        softirq_pending;	       /* 0xde0 */
+	__u32	     softirq_pending;	       /* 0xde0 */
+	__u32	     pad_0x0de4;	       /* 0xde4 */
 	__u64        int_clock;                /* 0xde8 */
         __u8         pad12[0xe00-0xdf0];       /* 0xdf0 */
 
@@ -380,27 +381,32 @@ struct _lowcore
         /* whether the kernel died with panic() or not */
         __u32        panic_magic;              /* 0xe00 */
 
-	__u8         pad13[0x1200-0xe04];      /* 0xe04 */
+	__u8         pad13[0x11b8-0xe04];      /* 0xe04 */
+
+	/* 64 bit extparam used for pfault, diag 250 etc  */
+	__u64        ext_params2;               /* 0x11B8 */
+
+	__u8         pad14[0x1200-0x11C0];      /* 0x11C0 */
 
         /* System info area */ 
 
 	__u64        floating_pt_save_area[16]; /* 0x1200 */
 	__u64        gpregs_save_area[16];      /* 0x1280 */
 	__u32        st_status_fixed_logout[4]; /* 0x1300 */
-	__u8         pad14[0x1318-0x1310];      /* 0x1310 */
+	__u8         pad15[0x1318-0x1310];      /* 0x1310 */
 	__u32        prefixreg_save_area;       /* 0x1318 */
 	__u32        fpt_creg_save_area;        /* 0x131c */
-	__u8         pad15[0x1324-0x1320];      /* 0x1320 */
+	__u8         pad16[0x1324-0x1320];      /* 0x1320 */
 	__u32        tod_progreg_save_area;     /* 0x1324 */
 	__u32        cpu_timer_save_area[2];    /* 0x1328 */
 	__u32        clock_comp_save_area[2];   /* 0x1330 */
-	__u8         pad16[0x1340-0x1338];      /* 0x1338 */ 
+	__u8         pad17[0x1340-0x1338];      /* 0x1338 */
 	__u32        access_regs_save_area[16]; /* 0x1340 */ 
 	__u64        cregs_save_area[16];       /* 0x1380 */
 
 	/* align to the top of the prefix area */
 
-	__u8         pad17[0x2000-0x1400];      /* 0x1400 */
+	__u8         pad18[0x2000-0x1400];      /* 0x1400 */
 #endif /* !__s390x__ */
 } __attribute__((packed)); /* End structure*/
 

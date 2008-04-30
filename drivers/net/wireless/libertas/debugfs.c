@@ -19,7 +19,7 @@ static char *szStates[] = {
 };
 
 #ifdef PROC_DEBUG
-static void lbs_debug_init(struct lbs_private *priv, struct net_device *dev);
+static void lbs_debug_init(struct lbs_private *priv);
 #endif
 
 static int open_file_generic(struct inode *inode, struct file *file)
@@ -78,7 +78,7 @@ static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
 		u16 spectrum_mgmt = (iter_bss->capability & WLAN_CAPABILITY_SPECTRUM_MGMT);
 
 		pos += snprintf(buf+pos, len-pos,
-			"%02u| %03d | %04ld | %s |",
+			"%02u| %03d | %04d | %s |",
 			numscansdone, iter_bss->channel, iter_bss->rssi,
 			print_mac(mac, iter_bss->bssid));
 		pos += snprintf(buf+pos, len-pos, " %04x-", iter_bss->capability);
@@ -163,173 +163,6 @@ out_unlock:
 	free_page(addr);
 	return ret;
 }
-
-static ssize_t lbs_extscan(struct file *file, const char __user *userbuf,
-				  size_t count, loff_t *ppos)
-{
-	struct lbs_private *priv = file->private_data;
-	ssize_t res, buf_size;
-	union iwreq_data wrqu;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
-
-	buf_size = min(count, len - 1);
-	if (copy_from_user(buf, userbuf, buf_size)) {
-		res = -EFAULT;
-		goto out_unlock;
-	}
-
-	lbs_send_specific_ssid_scan(priv, buf, strlen(buf)-1, 0);
-
-	memset(&wrqu, 0, sizeof(union iwreq_data));
-	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
-
-out_unlock:
-	free_page(addr);
-	return count;
-}
-
-static void lbs_parse_bssid(char *buf, size_t count,
-	struct lbs_ioctl_user_scan_cfg *scan_cfg)
-{
-	char *hold;
-	unsigned int mac[ETH_ALEN];
-
-	hold = strstr(buf, "bssid=");
-	if (!hold)
-		return;
-	hold += 6;
-	sscanf(hold, "%02x:%02x:%02x:%02x:%02x:%02x",
-	       mac, mac+1, mac+2, mac+3, mac+4, mac+5);
-	memcpy(scan_cfg->bssid, mac, ETH_ALEN);
-}
-
-static void lbs_parse_ssid(char *buf, size_t count,
-	struct lbs_ioctl_user_scan_cfg *scan_cfg)
-{
-	char *hold, *end;
-	ssize_t size;
-
-	hold = strstr(buf, "ssid=");
-	if (!hold)
-		return;
-	hold += 5;
-	end = strchr(hold, ' ');
-	if (!end)
-		end = buf + count - 1;
-
-	size = min((size_t)IW_ESSID_MAX_SIZE, (size_t) (end - hold));
-	strncpy(scan_cfg->ssid, hold, size);
-
-	return;
-}
-
-static int lbs_parse_clear(char *buf, size_t count, const char *tag)
-{
-	char *hold;
-	int val;
-
-	hold = strstr(buf, tag);
-	if (!hold)
-		return 0;
-	hold += strlen(tag);
-	sscanf(hold, "%d", &val);
-
-	if (val != 0)
-		val = 1;
-
-	return val;
-}
-
-static int lbs_parse_dur(char *buf, size_t count,
-	struct lbs_ioctl_user_scan_cfg *scan_cfg)
-{
-	char *hold;
-	int val;
-
-	hold = strstr(buf, "dur=");
-	if (!hold)
-		return 0;
-	hold += 4;
-	sscanf(hold, "%d", &val);
-
-	return val;
-}
-
-static void lbs_parse_type(char *buf, size_t count,
-	struct lbs_ioctl_user_scan_cfg *scan_cfg)
-{
-	char *hold;
-	int val;
-
-	hold = strstr(buf, "type=");
-	if (!hold)
-		return;
-	hold += 5;
-	sscanf(hold, "%d", &val);
-
-	/* type=1,2 or 3 */
-	if (val < 1 || val > 3)
-		return;
-
-	scan_cfg->bsstype = val;
-
-	return;
-}
-
-static ssize_t lbs_setuserscan(struct file *file,
-				    const char __user *userbuf,
-				    size_t count, loff_t *ppos)
-{
-	struct lbs_private *priv = file->private_data;
-	ssize_t res, buf_size;
-	struct lbs_ioctl_user_scan_cfg *scan_cfg;
-	union iwreq_data wrqu;
-	int dur;
-	char *buf = (char *)get_zeroed_page(GFP_KERNEL);
-
-	if (!buf)
-		return -ENOMEM;
-
-	buf_size = min(count, len - 1);
-	if (copy_from_user(buf, userbuf, buf_size)) {
-		res = -EFAULT;
-		goto out_buf;
-	}
-
-	scan_cfg = kzalloc(sizeof(struct lbs_ioctl_user_scan_cfg), GFP_KERNEL);
-	if (!scan_cfg) {
-		res = -ENOMEM;
-		goto out_buf;
-	}
-	res = count;
-
-	scan_cfg->bsstype = LBS_SCAN_BSS_TYPE_ANY;
-
-	dur = lbs_parse_dur(buf, count, scan_cfg);
-	lbs_parse_bssid(buf, count, scan_cfg);
-	scan_cfg->clear_bssid = lbs_parse_clear(buf, count, "clear_bssid=");
-	lbs_parse_ssid(buf, count, scan_cfg);
-	scan_cfg->clear_ssid = lbs_parse_clear(buf, count, "clear_ssid=");
-	lbs_parse_type(buf, count, scan_cfg);
-
-	lbs_scan_networks(priv, scan_cfg, 1);
-	wait_event_interruptible(priv->cmd_pending,
-				 priv->surpriseremoved || !priv->last_scanned_channel);
-
-	if (priv->surpriseremoved)
-		goto out_scan_cfg;
-
-	memset(&wrqu, 0x00, sizeof(union iwreq_data));
-	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
-
- out_scan_cfg:
-	kfree(scan_cfg);
- out_buf:
-	free_page((unsigned long)buf);
-	return res;
-}
-
 
 /*
  * When calling CMD_802_11_SUBSCRIBE_EVENT with CMD_ACT_GET, me might
@@ -857,8 +690,6 @@ static struct lbs_debugfs_files debugfs_files[] = {
 					write_file_dummy), },
 	{ "sleepparams", 0644, FOPS(lbs_sleepparams_read,
 				lbs_sleepparams_write), },
-	{ "extscan", 0600, FOPS(NULL, lbs_extscan), },
-	{ "setuserscan", 0600, FOPS(NULL, lbs_setuserscan), },
 };
 
 static struct lbs_debugfs_files debugfs_events_files[] = {
@@ -947,7 +778,7 @@ void lbs_debugfs_init_one(struct lbs_private *priv, struct net_device *dev)
 	}
 
 #ifdef PROC_DEBUG
-	lbs_debug_init(priv, dev);
+	lbs_debug_init(priv);
 #endif
 exit:
 	return;
@@ -993,7 +824,6 @@ struct debug_data {
 /* To debug any member of struct lbs_private, simply add one line here.
  */
 static struct debug_data items[] = {
-	{"intcounter", item_size(intcounter), item_addr(intcounter)},
 	{"psmode", item_size(psmode), item_addr(psmode)},
 	{"psstate", item_size(psstate), item_addr(psstate)},
 };
@@ -1121,7 +951,7 @@ static struct file_operations lbs_debug_fops = {
  *  @param dev     pointer net_device
  *  @return 	   N/A
  */
-static void lbs_debug_init(struct lbs_private *priv, struct net_device *dev)
+static void lbs_debug_init(struct lbs_private *priv)
 {
 	int i;
 

@@ -498,7 +498,7 @@ void hid_dump_device(struct hid_device *device) {
 EXPORT_SYMBOL_GPL(hid_dump_device);
 
 void hid_dump_input(struct hid_usage *usage, __s32 value) {
-	if (!hid_debug)
+	if (hid_debug < 2)
 		return;
 
 	printk(KERN_DEBUG "hid-debug: input ");

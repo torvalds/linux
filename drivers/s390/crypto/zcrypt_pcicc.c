@@ -42,7 +42,7 @@
 #define PCICC_MAX_MOD_SIZE_OLD	128	/* 1024 bits */
 #define PCICC_MAX_MOD_SIZE	256	/* 2048 bits */
 
-/**
+/*
  * PCICC cards need a speed rating of 0. This keeps them at the end of
  * the zcrypt device list (see zcrypt_api.c). PCICC cards are only
  * used if no other cards are present because they are slow and can only
@@ -388,7 +388,7 @@ static int convert_type86(struct zcrypt_device *zdev,
 	reply_len = le16_to_cpu(msg->length) - 2;
 	if (reply_len > outputdatalength)
 		return -EINVAL;
-	/**
+	/*
 	 * For all encipher requests, the length of the ciphertext (reply_len)
 	 * will always equal the modulus length. For MEX decipher requests
 	 * the output needs to get padded. Minimum pad size is 10.

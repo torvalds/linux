@@ -46,14 +46,6 @@ config FSL_DMA
 	  MPC8560/40, MPC8555, MPC8548 and MPC8641 processors.
 	  The MPC8349, MPC8360 is also supported.
 
-config FSL_DMA_SELFTEST
-	bool "Enable the self test for each DMA channel"
-	depends on FSL_DMA
-	default y
-	---help---
-	  Enable the self test for each DMA channel. A self test will be
-	  performed after the channel probed to ensure the DMA works well.
-
 config DMA_ENGINE
 	bool
 

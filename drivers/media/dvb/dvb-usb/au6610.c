@@ -19,6 +19,8 @@ static int dvb_usb_au6610_debug;
 module_param_named(debug, dvb_usb_au6610_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 			  u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
 {
@@ -163,7 +165,9 @@ static int au6610_probe(struct usb_interface *intf,
 	if (intf->num_altsetting < AU6610_ALTSETTING_COUNT)
 		return -ENODEV;
 
-	if ((ret = dvb_usb_device_init(intf, &au6610_properties, THIS_MODULE, &d)) == 0) {
+	ret = dvb_usb_device_init(intf, &au6610_properties, THIS_MODULE, &d,
+				  adapter_nr);
+	if (ret == 0) {
 		alt = usb_altnum_to_altsetting(intf, AU6610_ALTSETTING);
 
 		if (alt == NULL) {

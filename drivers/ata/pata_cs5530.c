@@ -133,7 +133,7 @@ static void cs5530_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	cs5530_qc_issue_prot	-	command issue
+ *	cs5530_qc_issue		-	command issue
  *	@qc: command pending
  *
  *	Called when the libata layer is about to issue a command. We wrap
@@ -142,7 +142,7 @@ static void cs5530_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	one MWDMA/UDMA bit.
  */
 
-static unsigned int cs5530_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int cs5530_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
@@ -157,59 +157,23 @@ static unsigned int cs5530_qc_issue_prot(struct ata_queued_cmd *qc)
 		    	cs5530_set_dmamode(ap, adev);
 	}
 
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static struct scsi_host_template cs5530_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_DUMB_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
+	ATA_BMDMA_SHT(DRV_NAME),
+	.sg_tablesize	= LIBATA_DUMB_MAX_PRD,
 };
 
 static struct ata_port_operations cs5530_port_ops = {
+	.inherits	= &ata_bmdma_port_ops,
+
+	.qc_prep 	= ata_sff_dumb_qc_prep,
+	.qc_issue	= cs5530_qc_issue,
+
+	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= cs5530_set_piomode,
 	.set_dmamode	= cs5530_set_dmamode,
-	.mode_filter	= ata_pci_default_filter,
-
-	.tf_load	= ata_tf_load,
-	.tf_read	= ata_tf_read,
-	.check_status 	= ata_check_status,
-	.exec_command	= ata_exec_command,
-	.dev_select 	= ata_std_dev_select,
-
-	.bmdma_setup 	= ata_bmdma_setup,
-	.bmdma_start 	= ata_bmdma_start,
-	.bmdma_stop	= ata_bmdma_stop,
-	.bmdma_status 	= ata_bmdma_status,
-
-	.freeze		= ata_bmdma_freeze,
-	.thaw		= ata_bmdma_thaw,
-	.error_handler	= ata_bmdma_error_handler,
-	.post_internal_cmd = ata_bmdma_post_internal_cmd,
-	.cable_detect	= ata_cable_40wire,
-
-	.qc_prep 	= ata_dumb_qc_prep,
-	.qc_issue	= cs5530_qc_issue_prot,
-
-	.data_xfer	= ata_data_xfer,
-
-	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
-	.irq_on		= ata_irq_on,
-
-	.port_start	= ata_sff_port_start,
 };
 
 static const struct dmi_system_id palmax_dmi_table[] = {
@@ -334,7 +298,6 @@ fail_put:
 static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info = {
-		.sht = &cs5530_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -343,12 +306,16 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	/* The docking connector doesn't do UDMA, and it seems not MWDMA */
 	static const struct ata_port_info info_palmax_secondary = {
-		.sht = &cs5530_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.port_ops = &cs5530_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
+	int rc;
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
 
 	/* Chip initialisation */
 	if (cs5530_init_chip())
@@ -358,16 +325,25 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ppi[1] = &info_palmax_secondary;
 
 	/* Now kick off ATA set up */
-	return ata_pci_init_one(pdev, ppi);
+	return ata_pci_sff_init_one(pdev, ppi, &cs5530_sht, NULL);
 }
 
 #ifdef CONFIG_PM
 static int cs5530_reinit_one(struct pci_dev *pdev)
 {
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
 	/* If we fail on resume we are doomed */
 	if (cs5530_init_chip())
-		BUG();
-	return ata_pci_device_resume(pdev);
+		return -EIO;
+
+	ata_host_resume(host);
+	return 0;
 }
 #endif /* CONFIG_PM */
 

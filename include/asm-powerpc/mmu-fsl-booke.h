@@ -73,12 +73,6 @@
 
 #ifndef __ASSEMBLY__
 
-#ifndef CONFIG_PHYS_64BIT
-typedef unsigned long phys_addr_t;
-#else
-typedef unsigned long long phys_addr_t;
-#endif
-
 typedef struct {
 	unsigned long id;
 	unsigned long vdso_base;

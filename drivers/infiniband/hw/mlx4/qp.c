@@ -71,6 +71,7 @@ enum {
 
 static const __be32 mlx4_ib_opcode[] = {
 	[IB_WR_SEND]			= __constant_cpu_to_be32(MLX4_OPCODE_SEND),
+	[IB_WR_LSO]			= __constant_cpu_to_be32(MLX4_OPCODE_LSO),
 	[IB_WR_SEND_WITH_IMM]		= __constant_cpu_to_be32(MLX4_OPCODE_SEND_IMM),
 	[IB_WR_RDMA_WRITE]		= __constant_cpu_to_be32(MLX4_OPCODE_RDMA_WRITE),
 	[IB_WR_RDMA_WRITE_WITH_IMM]	= __constant_cpu_to_be32(MLX4_OPCODE_RDMA_WRITE_IMM),
@@ -122,7 +123,7 @@ static void *get_send_wqe(struct mlx4_ib_qp *qp, int n)
  */
 static void stamp_send_wqe(struct mlx4_ib_qp *qp, int n, int size)
 {
-	u32 *wqe;
+	__be32 *wqe;
 	int i;
 	int s;
 	int ind;
@@ -143,7 +144,7 @@ static void stamp_send_wqe(struct mlx4_ib_qp *qp, int n, int size)
 		buf = get_send_wqe(qp, n & (qp->sq.wqe_cnt - 1));
 		for (i = 64; i < s; i += 64) {
 			wqe = buf + i;
-			*wqe = 0xffffffff;
+			*wqe = cpu_to_be32(0xffffffff);
 		}
 	}
 }
@@ -242,7 +243,7 @@ static void mlx4_ib_qp_event(struct mlx4_qp *qp, enum mlx4_event type)
 	}
 }
 
-static int send_wqe_overhead(enum ib_qp_type type)
+static int send_wqe_overhead(enum ib_qp_type type, u32 flags)
 {
 	/*
 	 * UD WQEs must have a datagram segment.
@@ -253,7 +254,8 @@ static int send_wqe_overhead(enum ib_qp_type type)
 	switch (type) {
 	case IB_QPT_UD:
 		return sizeof (struct mlx4_wqe_ctrl_seg) +
-			sizeof (struct mlx4_wqe_datagram_seg);
+			sizeof (struct mlx4_wqe_datagram_seg) +
+			((flags & MLX4_IB_QP_LSO) ? 64 : 0);
 	case IB_QPT_UC:
 		return sizeof (struct mlx4_wqe_ctrl_seg) +
 			sizeof (struct mlx4_wqe_raddr_seg);
@@ -315,7 +317,7 @@ static int set_kernel_sq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 	/* Sanity check SQ size before proceeding */
 	if (cap->max_send_wr	 > dev->dev->caps.max_wqes  ||
 	    cap->max_send_sge	 > dev->dev->caps.max_sq_sg ||
-	    cap->max_inline_data + send_wqe_overhead(type) +
+	    cap->max_inline_data + send_wqe_overhead(type, qp->flags) +
 	    sizeof (struct mlx4_wqe_inline_seg) > dev->dev->caps.max_sq_desc_sz)
 		return -EINVAL;
 
@@ -329,7 +331,7 @@ static int set_kernel_sq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 
 	s = max(cap->max_send_sge * sizeof (struct mlx4_wqe_data_seg),
 		cap->max_inline_data + sizeof (struct mlx4_wqe_inline_seg)) +
-		send_wqe_overhead(type);
+		send_wqe_overhead(type, qp->flags);
 
 	/*
 	 * Hermon supports shrinking WQEs, such that a single work
@@ -394,7 +396,8 @@ static int set_kernel_sq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 	}
 
 	qp->sq.max_gs = ((qp->sq_max_wqes_per_wr << qp->sq.wqe_shift) -
-			 send_wqe_overhead(type)) / sizeof (struct mlx4_wqe_data_seg);
+			 send_wqe_overhead(type, qp->flags)) /
+		sizeof (struct mlx4_wqe_data_seg);
 
 	qp->buf_size = (qp->rq.wqe_cnt << qp->rq.wqe_shift) +
 		(qp->sq.wqe_cnt << qp->sq.wqe_shift);
@@ -503,12 +506,15 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	} else {
 		qp->sq_no_prefetch = 0;
 
+		if (init_attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO)
+			qp->flags |= MLX4_IB_QP_LSO;
+
 		err = set_kernel_sq_size(dev, &init_attr->cap, init_attr->qp_type, qp);
 		if (err)
 			goto err;
 
 		if (!init_attr->srq) {
-			err = mlx4_ib_db_alloc(dev, &qp->db, 0);
+			err = mlx4_db_alloc(dev->dev, &qp->db, 0);
 			if (err)
 				goto err;
 
@@ -574,7 +580,7 @@ err_buf:
 
 err_db:
 	if (!pd->uobject && !init_attr->srq)
-		mlx4_ib_db_free(dev, &qp->db);
+		mlx4_db_free(dev->dev, &qp->db);
 
 err:
 	return err;
@@ -660,7 +666,7 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 		kfree(qp->rq.wrid);
 		mlx4_buf_free(dev->dev, qp->buf_size, &qp->buf);
 		if (!qp->ibqp.srq)
-			mlx4_ib_db_free(dev, &qp->db);
+			mlx4_db_free(dev->dev, &qp->db);
 	}
 }
 
@@ -672,6 +678,13 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	struct mlx4_ib_sqp *sqp;
 	struct mlx4_ib_qp *qp;
 	int err;
+
+	/* We only support LSO, and only for kernel UD QPs. */
+	if (init_attr->create_flags & ~IB_QP_CREATE_IPOIB_UD_LSO)
+		return ERR_PTR(-EINVAL);
+	if (init_attr->create_flags & IB_QP_CREATE_IPOIB_UD_LSO &&
+	    (pd->uobject || init_attr->qp_type != IB_QPT_UD))
+		return ERR_PTR(-EINVAL);
 
 	switch (init_attr->qp_type) {
 	case IB_QPT_RC:
@@ -876,10 +889,15 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 		}
 	}
 
-	if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_SMI ||
-	    ibqp->qp_type == IB_QPT_UD)
+	if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_SMI)
 		context->mtu_msgmax = (IB_MTU_4096 << 5) | 11;
-	else if (attr_mask & IB_QP_PATH_MTU) {
+	else if (ibqp->qp_type == IB_QPT_UD) {
+		if (qp->flags & MLX4_IB_QP_LSO)
+			context->mtu_msgmax = (IB_MTU_4096 << 5) |
+					      ilog2(dev->dev->caps.max_gso_sz);
+		else
+			context->mtu_msgmax = (IB_MTU_4096 << 5) | 11;
+	} else if (attr_mask & IB_QP_PATH_MTU) {
 		if (attr->path_mtu < IB_MTU_256 || attr->path_mtu > IB_MTU_4096) {
 			printk(KERN_ERR "path MTU (%u) is invalid\n",
 			       attr->path_mtu);
@@ -1182,7 +1200,7 @@ out:
 }
 
 static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
-			    void *wqe)
+			    void *wqe, unsigned *mlx_seg_len)
 {
 	struct ib_device *ib_dev = &to_mdev(sqp->qp.ibqp.device)->ib_dev;
 	struct mlx4_wqe_mlx_seg *mlx = wqe;
@@ -1231,7 +1249,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	case IB_WR_SEND_WITH_IMM:
 		sqp->ud_header.bth.opcode	 = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE;
 		sqp->ud_header.immediate_present = 1;
-		sqp->ud_header.immediate_data    = wr->imm_data;
+		sqp->ud_header.immediate_data    = wr->ex.imm_data;
 		break;
 	default:
 		return -EINVAL;
@@ -1303,7 +1321,9 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 		i = 2;
 	}
 
-	return ALIGN(i * sizeof (struct mlx4_wqe_inline_seg) + header_size, 16);
+	*mlx_seg_len =
+		ALIGN(i * sizeof (struct mlx4_wqe_inline_seg) + header_size, 16);
+	return 0;
 }
 
 static int mlx4_wq_overflow(struct mlx4_ib_wq *wq, int nreq, struct ib_cq *ib_cq)
@@ -1396,6 +1416,34 @@ static void __set_data_seg(struct mlx4_wqe_data_seg *dseg, struct ib_sge *sg)
 	dseg->addr       = cpu_to_be64(sg->addr);
 }
 
+static int build_lso_seg(struct mlx4_lso_seg *wqe, struct ib_send_wr *wr,
+			 struct mlx4_ib_qp *qp, unsigned *lso_seg_len)
+{
+	unsigned halign = ALIGN(sizeof *wqe + wr->wr.ud.hlen, 16);
+
+	/*
+	 * This is a temporary limitation and will be removed in
+	 * a forthcoming FW release:
+	 */
+	if (unlikely(halign > 64))
+		return -EINVAL;
+
+	if (unlikely(!(qp->flags & MLX4_IB_QP_LSO) &&
+		     wr->num_sge > qp->sq.max_gs - (halign >> 4)))
+		return -EINVAL;
+
+	memcpy(wqe->header, wr->wr.ud.header, wr->wr.ud.hlen);
+
+	/* make sure LSO header is written before overwriting stamping */
+	wmb();
+
+	wqe->mss_hdr_size = cpu_to_be32((wr->wr.ud.mss - wr->wr.ud.hlen) << 16 |
+					wr->wr.ud.hlen);
+
+	*lso_seg_len = halign;
+	return 0;
+}
+
 int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		      struct ib_send_wr **bad_wr)
 {
@@ -1409,6 +1457,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	unsigned ind;
 	int uninitialized_var(stamp);
 	int uninitialized_var(size);
+	unsigned seglen;
 	int i;
 
 	spin_lock_irqsave(&qp->sq.lock, flags);
@@ -1436,11 +1485,14 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			 cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE) : 0) |
 			(wr->send_flags & IB_SEND_SOLICITED ?
 			 cpu_to_be32(MLX4_WQE_CTRL_SOLICITED) : 0) |
+			((wr->send_flags & IB_SEND_IP_CSUM) ?
+			 cpu_to_be32(MLX4_WQE_CTRL_IP_CSUM |
+				     MLX4_WQE_CTRL_TCP_UDP_CSUM) : 0) |
 			qp->sq_signal_bits;
 
 		if (wr->opcode == IB_WR_SEND_WITH_IMM ||
 		    wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM)
-			ctrl->imm = wr->imm_data;
+			ctrl->imm = wr->ex.imm_data;
 		else
 			ctrl->imm = 0;
 
@@ -1484,19 +1536,27 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			set_datagram_seg(wqe, wr);
 			wqe  += sizeof (struct mlx4_wqe_datagram_seg);
 			size += sizeof (struct mlx4_wqe_datagram_seg) / 16;
+
+			if (wr->opcode == IB_WR_LSO) {
+				err = build_lso_seg(wqe, wr, qp, &seglen);
+				if (unlikely(err)) {
+					*bad_wr = wr;
+					goto out;
+				}
+				wqe  += seglen;
+				size += seglen / 16;
+			}
 			break;
 
 		case IB_QPT_SMI:
 		case IB_QPT_GSI:
-			err = build_mlx_header(to_msqp(qp), wr, ctrl);
-			if (err < 0) {
+			err = build_mlx_header(to_msqp(qp), wr, ctrl, &seglen);
+			if (unlikely(err)) {
 				*bad_wr = wr;
 				goto out;
 			}
-			wqe  += err;
-			size += err / 16;
-
-			err = 0;
+			wqe  += seglen;
+			size += seglen / 16;
 			break;
 
 		default:
@@ -1725,7 +1785,9 @@ int mlx4_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	struct mlx4_qp_context context;
 	int mlx4_state;
-	int err;
+	int err = 0;
+
+	mutex_lock(&qp->mutex);
 
 	if (qp->state == IB_QPS_RESET) {
 		qp_attr->qp_state = IB_QPS_RESET;
@@ -1733,12 +1795,15 @@ int mlx4_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 	}
 
 	err = mlx4_qp_query(dev->dev, &qp->mqp, &context);
-	if (err)
-		return -EINVAL;
+	if (err) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	mlx4_state = be32_to_cpu(context.flags) >> 28;
 
-	qp_attr->qp_state	     = to_ib_qp_state(mlx4_state);
+	qp->state		     = to_ib_qp_state(mlx4_state);
+	qp_attr->qp_state	     = qp->state;
 	qp_attr->path_mtu	     = context.mtu_msgmax >> 5;
 	qp_attr->path_mig_state	     =
 		to_ib_mig_state((be32_to_cpu(context.flags) >> 11) & 0x3);
@@ -1797,6 +1862,8 @@ done:
 
 	qp_init_attr->cap	     = qp_attr->cap;
 
-	return 0;
+out:
+	mutex_unlock(&qp->mutex);
+	return err;
 }
 

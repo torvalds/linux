@@ -120,18 +120,18 @@ static struct crypto_alg alg = {
 	.dia_final  	=	sha1_final } }
 };
 
-static int __init init(void)
+static int __init sha1_generic_mod_init(void)
 {
 	return crypto_register_alg(&alg);
 }
 
-static void __exit fini(void)
+static void __exit sha1_generic_mod_fini(void)
 {
 	crypto_unregister_alg(&alg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(sha1_generic_mod_init);
+module_exit(sha1_generic_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA1 Secure Hash Algorithm");

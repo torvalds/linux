@@ -76,8 +76,8 @@ config USB_DEVICE_CLASS
 	    NAME="bus/usb/$env{BUSNUM}/$env{DEVNUM}", MODE="0644"
 
 config USB_DYNAMIC_MINORS
-	bool "Dynamic USB minor allocation (EXPERIMENTAL)"
-	depends on USB && EXPERIMENTAL
+	bool "Dynamic USB minor allocation"
+	depends on USB
 	help
 	  If you say Y here, the USB subsystem will use dynamic minor
 	  allocation for any device that uses the USB major number.
@@ -102,31 +102,6 @@ config USB_SUSPEND
 
 	  If you are unsure about this, say N here.
 
-config USB_PERSIST
-	bool "USB device persistence during system suspend (DANGEROUS)"
-	depends on USB && PM && EXPERIMENTAL
-	default n
-	help
-
-	  If you say Y here and enable the "power/persist" attribute
-	  for a USB device, the device's data structures will remain
-	  persistent across system suspend, even if the USB bus loses
-	  power.  (This includes hibernation, also known as swsusp or
-	  suspend-to-disk.)  The devices will reappear as if by magic
-	  when the system wakes up, with no need to unmount USB
-	  filesystems, rmmod host-controller drivers, or do anything
-	  else.
-
-	  	WARNING: This option can be dangerous!
-
-	  If a USB device is replaced by another of the same type while
-	  the system is asleep, there's a good chance the kernel won't
-	  detect the change.  Likewise if the media in a USB storage
-	  device is replaced.  When this happens it's almost certain to
-	  cause data corruption and maybe even crash your system.
-
-	  If you are unsure, say N here.
-
 config USB_OTG
 	bool
 	depends on USB && EXPERIMENTAL
@@ -136,14 +111,16 @@ config USB_OTG
 
 config USB_OTG_WHITELIST
 	bool "Rely on OTG Targeted Peripherals List"
-	depends on USB_OTG
-	default y
+	depends on USB_OTG || EMBEDDED
+	default y if USB_OTG
+	default n if EMBEDDED
 	help
 	  If you say Y here, the "otg_whitelist.h" file will be used as a
 	  product whitelist, so USB peripherals not listed there will be
 	  rejected during enumeration.  This behavior is required by the
 	  USB OTG specification for all devices not on your product's
-	  "Targeted Peripherals List".
+	  "Targeted Peripherals List".  "Embedded Hosts" are likewise
+	  allowed to support only a limited number of peripherals.
 
 	  Otherwise, peripherals not listed there will only generate a
 	  warning and enumeration will continue.  That's more like what
@@ -152,9 +129,10 @@ config USB_OTG_WHITELIST
 
 config USB_OTG_BLACKLIST_HUB
 	bool "Disable external hubs"
-	depends on USB_OTG
+	depends on USB_OTG || EMBEDDED
 	help
 	  If you say Y here, then Linux will refuse to enumerate
 	  external hubs.  OTG hosts are allowed to reduce hardware
-	  and software costs by not supporting external hubs.
+	  and software costs by not supporting external hubs.  So
+	  are "Emedded Hosts" that don't offer OTG support.
 

@@ -33,19 +33,29 @@
 
 /* ----------------------------------------------------------- */
 
-static unsigned int i2c_scan = 0;
+static unsigned int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
-static unsigned int i2c_debug = 0;
+static unsigned int i2c_debug;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
-#define dprintk1(lvl,fmt, args...) if (i2c_debug>=lvl) do {\
-			printk(fmt, ##args); } while (0)
-#define dprintk2(lvl,fmt, args...) if (i2c_debug>=lvl) do{ \
-			printk(KERN_DEBUG "%s at %s: " fmt, \
-			dev->name, __FUNCTION__ , ##args); } while (0)
+
+#define dprintk1(lvl, fmt, args...)			\
+do {							\
+	if (i2c_debug >= lvl) {				\
+	printk(fmt, ##args);				\
+      }							\
+} while (0)
+
+#define dprintk2(lvl, fmt, args...)			\
+do {							\
+	if (i2c_debug >= lvl) {				\
+		printk(KERN_DEBUG "%s at %s: " fmt,	\
+		       dev->name, __func__ , ##args);	\
+      } 						\
+} while (0)
 
 /*
  * em2800_i2c_send_max4()
@@ -235,16 +245,16 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 		return 0;
 	for (i = 0; i < num; i++) {
 		addr = msgs[i].addr << 1;
-		dprintk2(2,"%s %s addr=%x len=%d:",
+		dprintk2(2, "%s %s addr=%x len=%d:",
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
 			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
-		if (!msgs[i].len) {	/* no len: check only for device presence */
+		if (!msgs[i].len) { /* no len: check only for device presence */
 			if (dev->is_em2800)
 				rc = em2800_i2c_check_for_device(dev, addr);
 			else
 				rc = em28xx_i2c_check_for_device(dev, addr);
 			if (rc < 0) {
-				dprintk2(2," no device\n");
+				dprintk2(2, " no device\n");
 				return rc;
 			}
 
@@ -258,14 +268,13 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 				rc = em28xx_i2c_recv_bytes(dev, addr,
 							   msgs[i].buf,
 							   msgs[i].len);
-			if (i2c_debug>=2) {
-				for (byte = 0; byte < msgs[i].len; byte++) {
+			if (i2c_debug >= 2) {
+				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(" %02x", msgs[i].buf[byte]);
-				}
 			}
 		} else {
 			/* write bytes */
-			if (i2c_debug>=2) {
+			if (i2c_debug >= 2) {
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(" %02x", msgs[i].buf[byte]);
 			}
@@ -281,13 +290,13 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 		}
 		if (rc < 0)
 			goto err;
-		if (i2c_debug>=2)
+		if (i2c_debug >= 2)
 			printk("\n");
 	}
 
 	return num;
-      err:
-	dprintk2(2," ERROR: %i\n", rc);
+err:
+	dprintk2(2, " ERROR: %i\n", rc);
 	return rc;
 }
 
@@ -330,7 +339,9 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 		return -1;
 
 	buf = 0;
-	if (1 != (err = i2c_master_send(&dev->i2c_client, &buf, 1))) {
+
+	err = i2c_master_send(&dev->i2c_client, &buf, 1);
+	if (err != 1) {
 		printk(KERN_INFO "%s: Huh, no eeprom present (err=%d)?\n",
 		       dev->name, err);
 		return -1;
@@ -403,8 +414,10 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 		break;
 	}
 	printk(KERN_INFO "Table at 0x%02x, strings=0x%04x, 0x%04x, 0x%04x\n",
-				em_eeprom->string_idx_table,em_eeprom->string1,
-				em_eeprom->string2,em_eeprom->string3);
+				em_eeprom->string_idx_table,
+				em_eeprom->string1,
+				em_eeprom->string2,
+				em_eeprom->string3);
 
 	return 0;
 }
@@ -430,58 +443,61 @@ static int attach_inform(struct i2c_client *client)
 	struct em28xx *dev = client->adapter->algo_data;
 
 	switch (client->addr << 1) {
-		case 0x86:
-		case 0x84:
-		case 0x96:
-		case 0x94:
-		{
-			struct v4l2_priv_tun_config tda9887_cfg;
+	case 0x86:
+	case 0x84:
+	case 0x96:
+	case 0x94:
+	{
+		struct v4l2_priv_tun_config tda9887_cfg;
 
-			struct tuner_setup tun_setup;
+		struct tuner_setup tun_setup;
 
-			tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
-			tun_setup.type = TUNER_TDA9887;
-			tun_setup.addr = client->addr;
+		tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
+		tun_setup.type = TUNER_TDA9887;
+		tun_setup.addr = client->addr;
 
-			em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
+		em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR,
+			&tun_setup);
 
-			tda9887_cfg.tuner = TUNER_TDA9887;
-			tda9887_cfg.priv = &dev->tda9887_conf;
-			em28xx_i2c_call_clients(dev, TUNER_SET_CONFIG,
-						&tda9887_cfg);
-			break;
-		}
-		case 0x42:
-			dprintk1(1,"attach_inform: saa7114 detected.\n");
-			break;
-		case 0x4a:
-			dprintk1(1,"attach_inform: saa7113 detected.\n");
-			break;
-		case 0xa0:
-			dprintk1(1,"attach_inform: eeprom detected.\n");
-			break;
-		case 0x60:
-		case 0x8e:
-		{
-			struct IR_i2c *ir = i2c_get_clientdata(client);
-			dprintk1(1,"attach_inform: IR detected (%s).\n",ir->phys);
-			em28xx_set_ir(dev,ir);
-			break;
-		}
-		case 0x80:
-		case 0x88:
-			dprintk1(1,"attach_inform: msp34xx detected.\n");
-			break;
-		case 0xb8:
-		case 0xba:
-			dprintk1(1,"attach_inform: tvp5150 detected.\n");
-			break;
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv = &dev->tda9887_conf;
+		em28xx_i2c_call_clients(dev, TUNER_SET_CONFIG,
+					&tda9887_cfg);
+		break;
+	}
+	case 0x42:
+		dprintk1(1, "attach_inform: saa7114 detected.\n");
+		break;
+	case 0x4a:
+		dprintk1(1, "attach_inform: saa7113 detected.\n");
+		break;
+	case 0xa0:
+		dprintk1(1, "attach_inform: eeprom detected.\n");
+		break;
+	case 0x60:
+	case 0x8e:
+	{
+		struct IR_i2c *ir = i2c_get_clientdata(client);
+		dprintk1(1, "attach_inform: IR detected (%s).\n",
+			ir->phys);
+		em28xx_set_ir(dev, ir);
+		break;
+	}
+	case 0x80:
+	case 0x88:
+		dprintk1(1, "attach_inform: msp34xx detected.\n");
+		break;
+	case 0xb8:
+	case 0xba:
+		dprintk1(1, "attach_inform: tvp5150 detected.\n");
+		break;
 
-		default:
-			if (!dev->tuner_addr)
-				dev->tuner_addr = client->addr;
+	default:
+		if (!dev->tuner_addr)
+			dev->tuner_addr = client->addr;
 
-			dprintk1(1,"attach inform: detected I2C address %x\n", client->addr << 1);
+		dprintk1(1, "attach inform: detected I2C address %x\n",
+				client->addr << 1);
 
 	}
 

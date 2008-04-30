@@ -35,7 +35,6 @@
 #include <linux/parser.h>
 
 #include <asm/prom.h>
-#include <asm/semaphore.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
 #include <asm/uaccess.h>

@@ -8,6 +8,7 @@
 #include <linux/fs.h>
 #include <linux/ctype.h>
 #include <linux/capability.h>
+#include <linux/mount.h>
 #include <linux/time.h>
 #include <linux/sched.h>
 #include <asm/current.h>
@@ -65,23 +66,30 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return put_user(flags, (int __user *) arg);
 	case JFS_IOC_SETFLAGS: {
 		unsigned int oldflags;
+		int err;
 
-		if (IS_RDONLY(inode))
-			return -EROFS;
+		err = mnt_want_write(filp->f_path.mnt);
+		if (err)
+			return err;
 
-		if (!is_owner_or_cap(inode))
-			return -EACCES;
-
-		if (get_user(flags, (int __user *) arg))
-			return -EFAULT;
+		if (!is_owner_or_cap(inode)) {
+			err = -EACCES;
+			goto setflags_out;
+		}
+		if (get_user(flags, (int __user *) arg)) {
+			err = -EFAULT;
+			goto setflags_out;
+		}
 
 		flags = jfs_map_ext2(flags, 1);
 		if (!S_ISDIR(inode->i_mode))
 			flags &= ~JFS_DIRSYNC_FL;
 
 		/* Is it quota file? Do not allow user to mess with it */
-		if (IS_NOQUOTA(inode))
-			return -EPERM;
+		if (IS_NOQUOTA(inode)) {
+			err = -EPERM;
+			goto setflags_out;
+		}
 
 		/* Lock against other parallel changes of flags */
 		mutex_lock(&inode->i_mutex);
@@ -98,7 +106,8 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			(JFS_APPEND_FL | JFS_IMMUTABLE_FL))) {
 			if (!capable(CAP_LINUX_IMMUTABLE)) {
 				mutex_unlock(&inode->i_mutex);
-				return -EPERM;
+				err = -EPERM;
+				goto setflags_out;
 			}
 		}
 
@@ -110,7 +119,9 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		mutex_unlock(&inode->i_mutex);
 		inode->i_ctime = CURRENT_TIME_SEC;
 		mark_inode_dirty(inode);
-		return 0;
+setflags_out:
+		mnt_drop_write(filp->f_path.mnt);
+		return err;
 	}
 	default:
 		return -ENOTTY;

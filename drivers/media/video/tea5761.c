@@ -14,11 +14,9 @@
 #include "tuner-i2c.h"
 #include "tea5761.h"
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
-
-#define PREFIX "tea5761"
 
 struct tea5761_priv {
 	struct tuner_i2c_props i2c_props;
@@ -131,7 +129,7 @@ static void tea5761_status_dump(unsigned char *buffer)
 
 	frq = 1000 * (div * 32768 / 1000 + FREQ_OFFSET + 225) / 4;	/* Freq in KHz */
 
-	printk(PREFIX "Frequency %d.%03d KHz (divider = 0x%04x)\n",
+	printk(KERN_INFO "tea5761: Frequency %d.%03d KHz (divider = 0x%04x)\n",
 	       frq / 1000, frq % 1000, div);
 }
 
@@ -249,14 +247,19 @@ int tea5761_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 
 	if (16 != (rc = tuner_i2c_xfer_recv(&i2c, buffer, 16))) {
 		printk(KERN_WARNING "it is not a TEA5761. Received %i chars.\n", rc);
-		return EINVAL;
+		return -EINVAL;
 	}
 
-	if (!((buffer[13] != 0x2b) || (buffer[14] != 0x57) || (buffer[15] != 0x061))) {
-		printk(KERN_WARNING "Manufacturer ID= 0x%02x, Chip ID = %02x%02x. It is not a TEA5761\n",buffer[13],buffer[14],buffer[15]);
-		return EINVAL;
+	if ((buffer[13] != 0x2b) || (buffer[14] != 0x57) || (buffer[15] != 0x061)) {
+		printk(KERN_WARNING "Manufacturer ID= 0x%02x, Chip ID = %02x%02x."
+				    " It is not a TEA5761\n",
+				    buffer[13], buffer[14], buffer[15]);
+		return -EINVAL;
 	}
-	printk(KERN_WARNING "TEA5761 detected.\n");
+	printk(KERN_WARNING "tea5761: TEA%02x%02x detected. "
+			    "Manufacturer ID= 0x%02x\n",
+			    buffer[14], buffer[15], buffer[13]);
+
 	return 0;
 }
 
@@ -302,6 +305,7 @@ struct dvb_frontend *tea5761_attach(struct dvb_frontend *fe,
 
 	priv->i2c_props.addr = i2c_addr;
 	priv->i2c_props.adap = i2c_adap;
+	priv->i2c_props.name = "tea5761";
 
 	memcpy(&fe->ops.tuner_ops, &tea5761_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));

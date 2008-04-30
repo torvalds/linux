@@ -35,8 +35,8 @@
 #define SEG_EXPAND_DOWN(s)	(((s).b & ((1 << 11) | (1 << 10))) \
 				 == (1 << 10))
 
-#define I387			(current->thread.i387)
-#define FPU_info		(I387.soft.info)
+#define I387			(current->thread.xstate)
+#define FPU_info		(I387->soft.info)
 
 #define FPU_CS			(*(unsigned short *) &(FPU_info->___cs))
 #define FPU_SS			(*(unsigned short *) &(FPU_info->___ss))
@@ -46,25 +46,25 @@
 #define FPU_EIP			(FPU_info->___eip)
 #define FPU_ORIG_EIP		(FPU_info->___orig_eip)
 
-#define FPU_lookahead           (I387.soft.lookahead)
+#define FPU_lookahead           (I387->soft.lookahead)
 
 /* nz if ip_offset and cs_selector are not to be set for the current
    instruction. */
-#define no_ip_update		(*(u_char *)&(I387.soft.no_update))
-#define FPU_rm			(*(u_char *)&(I387.soft.rm))
+#define no_ip_update		(*(u_char *)&(I387->soft.no_update))
+#define FPU_rm			(*(u_char *)&(I387->soft.rm))
 
 /* Number of bytes of data which can be legally accessed by the current
    instruction. This only needs to hold a number <= 108, so a byte will do. */
-#define access_limit		(*(u_char *)&(I387.soft.alimit))
+#define access_limit		(*(u_char *)&(I387->soft.alimit))
 
-#define partial_status		(I387.soft.swd)
-#define control_word		(I387.soft.cwd)
-#define fpu_tag_word		(I387.soft.twd)
-#define registers		(I387.soft.st_space)
-#define top			(I387.soft.ftop)
+#define partial_status		(I387->soft.swd)
+#define control_word		(I387->soft.cwd)
+#define fpu_tag_word		(I387->soft.twd)
+#define registers		(I387->soft.st_space)
+#define top			(I387->soft.ftop)
 
-#define instruction_address	(*(struct address *)&I387.soft.fip)
-#define operand_address		(*(struct address *)&I387.soft.foo)
+#define instruction_address	(*(struct address *)&I387->soft.fip)
+#define operand_address		(*(struct address *)&I387->soft.foo)
 
 #define FPU_access_ok(x,y,z)	if ( !access_ok(x,y,z) ) \
 				math_abort(FPU_info,SIGSEGV)

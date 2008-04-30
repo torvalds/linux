@@ -72,7 +72,7 @@ vma_map_add(struct vma_to_fileoffset_map *map, unsigned int vma,
 		kzalloc(sizeof(struct vma_to_fileoffset_map), GFP_KERNEL);
 	if (!new) {
 		printk(KERN_ERR "SPU_PROF: %s, line %d: malloc failed\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		vma_map_free(map);
 		return NULL;
 	}
@@ -134,19 +134,19 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 	if (memcmp(ehdr.e_ident, expected, EI_PAD) != 0) {
 		printk(KERN_ERR "SPU_PROF: "
 		       "%s, line %d: Unexpected e_ident parsing SPU ELF\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		goto fail;
 	}
 	if (ehdr.e_machine != EM_SPU) {
 		printk(KERN_ERR "SPU_PROF: "
 		       "%s, line %d: Unexpected e_machine parsing SPU ELF\n",
-		       __FUNCTION__,  __LINE__);
+		       __func__,  __LINE__);
 		goto fail;
 	}
 	if (ehdr.e_type != ET_EXEC) {
 		printk(KERN_ERR "SPU_PROF: "
 		       "%s, line %d: Unexpected e_type parsing SPU ELF\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		goto fail;
 	}
 	phdr_start = spu_elf_start + ehdr.e_phoff;
@@ -232,7 +232,7 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 	if (overlay_tbl_offset < 0) {
 		printk(KERN_ERR "SPU_PROF: "
 		       "%s, line %d: Error finding SPU overlay table\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		goto fail;
 	}
 	ovly_table = spu_elf_start + overlay_tbl_offset;

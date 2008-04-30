@@ -46,8 +46,6 @@ struct if_usb_card {
 	struct lbs_private *priv;
 
 	struct sk_buff *rx_skb;
-	uint32_t usb_event_cause;
-	uint8_t usb_int_cause;
 
 	uint8_t ep_in;
 	uint8_t ep_out;

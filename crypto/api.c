@@ -445,3 +445,6 @@ int crypto_has_alg(const char *name, u32 type, u32 mask)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_has_alg);
+
+MODULE_DESCRIPTION("Cryptographic core API");
+MODULE_LICENSE("GPL");

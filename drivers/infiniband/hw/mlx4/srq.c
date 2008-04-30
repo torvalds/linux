@@ -129,7 +129,7 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 	} else {
-		err = mlx4_ib_db_alloc(dev, &srq->db, 0);
+		err = mlx4_db_alloc(dev->dev, &srq->db, 0);
 		if (err)
 			goto err_srq;
 
@@ -200,7 +200,7 @@ err_buf:
 
 err_db:
 	if (!pd->uobject)
-		mlx4_ib_db_free(dev, &srq->db);
+		mlx4_db_free(dev->dev, &srq->db);
 
 err_srq:
 	kfree(srq);
@@ -267,7 +267,7 @@ int mlx4_ib_destroy_srq(struct ib_srq *srq)
 		kfree(msrq->wrid);
 		mlx4_buf_free(dev->dev, msrq->msrq.max << msrq->msrq.wqe_shift,
 			      &msrq->buf);
-		mlx4_ib_db_free(dev, &msrq->db);
+		mlx4_db_free(dev->dev, &msrq->db);
 	}
 
 	kfree(msrq);

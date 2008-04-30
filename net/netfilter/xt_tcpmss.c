@@ -31,9 +31,11 @@ tcpmss_mt(const struct sk_buff *skb, const struct net_device *in,
           bool *hotdrop)
 {
 	const struct xt_tcpmss_match_info *info = matchinfo;
-	struct tcphdr _tcph, *th;
+	const struct tcphdr *th;
+	struct tcphdr _tcph;
 	/* tcp.doff is only 4 bits, ie. max 15 * 4 bytes */
-	u8 _opt[15 * 4 - sizeof(_tcph)], *op;
+	const u_int8_t *op;
+	u8 _opt[15 * 4 - sizeof(_tcph)];
 	unsigned int i, optlen;
 
 	/* If we don't have the whole header, drop packet. */

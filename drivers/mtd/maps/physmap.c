@@ -242,6 +242,7 @@ static struct platform_driver physmap_flash_driver = {
 	.shutdown	= physmap_flash_shutdown,
 	.driver		= {
 		.name	= "physmap-flash",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -319,3 +320,10 @@ module_exit(physmap_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
 MODULE_DESCRIPTION("Generic configurable MTD map driver");
+
+/* legacy platform drivers can't hotplug or coldplg */
+#ifndef PHYSMAP_COMPAT
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:physmap-flash");
+#endif
+

@@ -46,10 +46,16 @@ static int __init init_dlm(void)
 	if (error)
 		goto out_user;
 
+	error = dlm_plock_init();
+	if (error)
+		goto out_netlink;
+
 	printk("DLM (built %s %s) installed\n", __DATE__, __TIME__);
 
 	return 0;
 
+ out_netlink:
+	dlm_netlink_exit();
  out_user:
 	dlm_user_exit();
  out_debug:
@@ -66,6 +72,7 @@ static int __init init_dlm(void)
 
 static void __exit exit_dlm(void)
 {
+	dlm_plock_exit();
 	dlm_netlink_exit();
 	dlm_user_exit();
 	dlm_config_exit();

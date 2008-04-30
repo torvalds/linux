@@ -23,7 +23,6 @@
 #include <linux/cdrom.h>
 #include <asm/uaccess.h>
 
-#include <linux/udf_fs.h>
 #include "udf_sb.h"
 
 unsigned int udf_get_last_session(struct super_block *sb)

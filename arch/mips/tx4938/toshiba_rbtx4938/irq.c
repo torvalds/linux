@@ -67,24 +67,7 @@ IRQ  Device
 63 RBTX4938-IOC/07 SWINT
 */
 #include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/mm.h>
-#include <linux/swap.h>
-#include <linux/ioport.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
-#include <linux/timex.h>
-#include <asm/bootinfo.h>
-#include <asm/page.h>
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/processor.h>
-#include <asm/reboot.h>
-#include <asm/time.h>
-#include <asm/wbflush.h>
-#include <linux/bootmem.h>
 #include <asm/tx4938/rbtx4938.h>
 
 static void toshiba_rbtx4938_irq_ioc_enable(unsigned int irq);
@@ -99,21 +82,16 @@ static struct irq_chip toshiba_rbtx4938_irq_ioc_type = {
 	.unmask = toshiba_rbtx4938_irq_ioc_enable,
 };
 
-#define TOSHIBA_RBTX4938_IOC_INTR_ENAB 0xb7f02000
-#define TOSHIBA_RBTX4938_IOC_INTR_STAT 0xb7f0200a
-
 int
 toshiba_rbtx4938_irq_nested(int sw_irq)
 {
 	u8 level3;
 
-	level3 = reg_rd08(TOSHIBA_RBTX4938_IOC_INTR_STAT) & 0xff;
-	if (level3) {
+	level3 = readb(rbtx4938_imstat_addr);
+	if (level3)
 		/* must use fls so onboard ATA has priority */
 		sw_irq = TOSHIBA_RBTX4938_IRQ_IOC_BEG + fls(level3) - 1;
-	}
 
-	wbflush();
 	return sw_irq;
 }
 
@@ -144,25 +122,23 @@ toshiba_rbtx4938_irq_ioc_init(void)
 static void
 toshiba_rbtx4938_irq_ioc_enable(unsigned int irq)
 {
-	volatile unsigned char v;
+	unsigned char v;
 
-	v = TX4938_RD08(TOSHIBA_RBTX4938_IOC_INTR_ENAB);
+	v = readb(rbtx4938_imask_addr);
 	v |= (1 << (irq - TOSHIBA_RBTX4938_IRQ_IOC_BEG));
-	TX4938_WR08(TOSHIBA_RBTX4938_IOC_INTR_ENAB, v);
+	writeb(v, rbtx4938_imask_addr);
 	mmiowb();
-	TX4938_RD08(TOSHIBA_RBTX4938_IOC_INTR_ENAB);
 }
 
 static void
 toshiba_rbtx4938_irq_ioc_disable(unsigned int irq)
 {
-	volatile unsigned char v;
+	unsigned char v;
 
-	v = TX4938_RD08(TOSHIBA_RBTX4938_IOC_INTR_ENAB);
+	v = readb(rbtx4938_imask_addr);
 	v &= ~(1 << (irq - TOSHIBA_RBTX4938_IRQ_IOC_BEG));
-	TX4938_WR08(TOSHIBA_RBTX4938_IOC_INTR_ENAB, v);
+	writeb(v, rbtx4938_imask_addr);
 	mmiowb();
-	TX4938_RD08(TOSHIBA_RBTX4938_IOC_INTR_ENAB);
 }
 
 void __init arch_init_irq(void)
@@ -174,14 +150,12 @@ void __init arch_init_irq(void)
 	/* all IRC interrupt mode are Low Active. */
 
 	/* mask all IOC interrupts */
-	*rbtx4938_imask_ptr = 0;
+	writeb(0, rbtx4938_imask_addr);
 
 	/* clear SoftInt interrupts */
-	*rbtx4938_softint_ptr = 0;
+	writeb(0, rbtx4938_softint_addr);
 	tx4938_irq_init();
 	toshiba_rbtx4938_irq_ioc_init();
 	/* Onboard 10M Ether: High Active */
 	set_irq_type(RBTX4938_IRQ_ETHER, IRQF_TRIGGER_HIGH);
-
-	wbflush();
 }

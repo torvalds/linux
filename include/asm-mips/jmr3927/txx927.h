@@ -22,18 +22,6 @@ struct txx927_sio_reg {
 	volatile unsigned long rfifo;
 };
 
-struct txx927_pio_reg {
-	volatile unsigned long dout;
-	volatile unsigned long din;
-	volatile unsigned long dir;
-	volatile unsigned long od;
-	volatile unsigned long flag[2];
-	volatile unsigned long pol;
-	volatile unsigned long intc;
-	volatile unsigned long maskcpu;
-	volatile unsigned long maskext;
-};
-
 /*
  * SIO
  */

@@ -222,7 +222,6 @@ static struct scsi_host_template cumanascsi_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 2,
-	.unchecked_isa_dma	= 0,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.proc_name		= "CumanaSCSI-1",
 };

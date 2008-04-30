@@ -405,7 +405,7 @@ int iser_send_data_out(struct iscsi_conn     *conn,
 	struct iser_dto *send_dto = NULL;
 	unsigned long buf_offset;
 	unsigned long data_seg_len;
-	unsigned int itt;
+	uint32_t itt;
 	int err = 0;
 
 	if (!iser_conn_state_comp(iser_conn->ib_conn, ISER_CONN_UP)) {
@@ -416,7 +416,7 @@ int iser_send_data_out(struct iscsi_conn     *conn,
 	if (iser_check_xmit(conn, ctask))
 		return -ENOBUFS;
 
-	itt = ntohl(hdr->itt);
+	itt = (__force uint32_t)hdr->itt;
 	data_seg_len = ntoh24(hdr->dlength);
 	buf_offset   = ntohl(hdr->offset);
 

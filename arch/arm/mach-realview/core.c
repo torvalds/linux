@@ -109,21 +109,20 @@ static struct flash_platform_data realview_flash_data = {
 	.set_vpp		= realview_flash_set_vpp,
 };
 
-static struct resource realview_flash_resource = {
-	.start			= REALVIEW_FLASH_BASE,
-	.end			= REALVIEW_FLASH_BASE + REALVIEW_FLASH_SIZE,
-	.flags			= IORESOURCE_MEM,
-};
-
 struct platform_device realview_flash_device = {
 	.name			= "armflash",
 	.id			= 0,
 	.dev			= {
 		.platform_data	= &realview_flash_data,
 	},
-	.num_resources		= 1,
-	.resource		= &realview_flash_resource,
 };
+
+int realview_flash_register(struct resource *res, u32 num)
+{
+	realview_flash_device.resource = res;
+	realview_flash_device.num_resources = num;
+	return platform_device_register(&realview_flash_device);
+}
 
 static struct resource realview_i2c_resource = {
 	.start		= REALVIEW_I2C_BASE,
@@ -445,10 +444,10 @@ void realview_leds_event(led_event_t ledevt)
 /*
  * Where is the timer (VA)?
  */
-#define TIMER0_VA_BASE		 __io_address(REALVIEW_TIMER0_1_BASE)
-#define TIMER1_VA_BASE		(__io_address(REALVIEW_TIMER0_1_BASE) + 0x20)
-#define TIMER2_VA_BASE		 __io_address(REALVIEW_TIMER2_3_BASE)
-#define TIMER3_VA_BASE		(__io_address(REALVIEW_TIMER2_3_BASE) + 0x20)
+void __iomem *timer0_va_base;
+void __iomem *timer1_va_base;
+void __iomem *timer2_va_base;
+void __iomem *timer3_va_base;
 
 /*
  * How long is the timer interval?
@@ -475,7 +474,7 @@ static void timer_set_mode(enum clock_event_mode mode,
 
 	switch(mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		writel(TIMER_RELOAD, TIMER0_VA_BASE + TIMER_LOAD);
+		writel(TIMER_RELOAD, timer0_va_base + TIMER_LOAD);
 
 		ctrl = TIMER_CTRL_PERIODIC;
 		ctrl |= TIMER_CTRL_32BIT | TIMER_CTRL_IE | TIMER_CTRL_ENABLE;
@@ -491,16 +490,16 @@ static void timer_set_mode(enum clock_event_mode mode,
 		ctrl = 0;
 	}
 
-	writel(ctrl, TIMER0_VA_BASE + TIMER_CTRL);
+	writel(ctrl, timer0_va_base + TIMER_CTRL);
 }
 
 static int timer_set_next_event(unsigned long evt,
 				struct clock_event_device *unused)
 {
-	unsigned long ctrl = readl(TIMER0_VA_BASE + TIMER_CTRL);
+	unsigned long ctrl = readl(timer0_va_base + TIMER_CTRL);
 
-	writel(evt, TIMER0_VA_BASE + TIMER_LOAD);
-	writel(ctrl | TIMER_CTRL_ENABLE, TIMER0_VA_BASE + TIMER_CTRL);
+	writel(evt, timer0_va_base + TIMER_LOAD);
+	writel(ctrl | TIMER_CTRL_ENABLE, timer0_va_base + TIMER_CTRL);
 
 	return 0;
 }
@@ -536,7 +535,7 @@ static irqreturn_t realview_timer_interrupt(int irq, void *dev_id)
 	struct clock_event_device *evt = &timer0_clockevent;
 
 	/* clear the interrupt */
-	writel(1, TIMER0_VA_BASE + TIMER_INTCLR);
+	writel(1, timer0_va_base + TIMER_INTCLR);
 
 	evt->event_handler(evt);
 
@@ -551,7 +550,7 @@ static struct irqaction realview_timer_irq = {
 
 static cycle_t realview_get_cycles(void)
 {
-	return ~readl(TIMER3_VA_BASE + TIMER_VALUE);
+	return ~readl(timer3_va_base + TIMER_VALUE);
 }
 
 static struct clocksource clocksource_realview = {
@@ -566,11 +565,11 @@ static struct clocksource clocksource_realview = {
 static void __init realview_clocksource_init(void)
 {
 	/* setup timer 0 as free-running clocksource */
-	writel(0, TIMER3_VA_BASE + TIMER_CTRL);
-	writel(0xffffffff, TIMER3_VA_BASE + TIMER_LOAD);
-	writel(0xffffffff, TIMER3_VA_BASE + TIMER_VALUE);
+	writel(0, timer3_va_base + TIMER_CTRL);
+	writel(0xffffffff, timer3_va_base + TIMER_LOAD);
+	writel(0xffffffff, timer3_va_base + TIMER_VALUE);
 	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
-		TIMER3_VA_BASE + TIMER_CTRL);
+		timer3_va_base + TIMER_CTRL);
 
 	clocksource_realview.mult =
 		clocksource_khz2mult(1000, clocksource_realview.shift);
@@ -607,10 +606,10 @@ void __init realview_timer_init(unsigned int timer_irq)
 	/*
 	 * Initialise to a known state (all timers off)
 	 */
-	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
-	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
-	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
-	writel(0, TIMER3_VA_BASE + TIMER_CTRL);
+	writel(0, timer0_va_base + TIMER_CTRL);
+	writel(0, timer1_va_base + TIMER_CTRL);
+	writel(0, timer2_va_base + TIMER_CTRL);
+	writel(0, timer3_va_base + TIMER_CTRL);
 
 	/* 
 	 * Make irqs happen for the system timer

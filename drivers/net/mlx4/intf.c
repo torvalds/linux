@@ -30,8 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/mlx4/driver.h>
-
 #include "mlx4.h"
 
 struct mlx4_device_context {
@@ -113,8 +111,7 @@ void mlx4_unregister_interface(struct mlx4_interface *intf)
 }
 EXPORT_SYMBOL_GPL(mlx4_unregister_interface);
 
-void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_event type,
-			 int subtype, int port)
+void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type, int port)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_device_context *dev_ctx;
@@ -124,8 +121,7 @@ void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_event type,
 
 	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
 		if (dev_ctx->intf->event)
-			dev_ctx->intf->event(dev, dev_ctx->context, type,
-					     subtype, port);
+			dev_ctx->intf->event(dev, dev_ctx->context, type, port);
 
 	spin_unlock_irqrestore(&priv->ctx_lock, flags);
 }

@@ -29,6 +29,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/fixmap.h>
 #include <asm/io.h>
 
 #include "mmu_decl.h"
@@ -281,12 +282,13 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
  */
 void __init mapin_ram(void)
 {
-	unsigned long v, p, s, f;
+	unsigned long v, s, f;
+	phys_addr_t p;
 	int ktext;
 
 	s = mmu_mapin_ram();
 	v = KERNELBASE + s;
-	p = PPC_MEMSTART + s;
+	p = memstart_addr + s;
 	for (; s < total_lowmem; s += PAGE_SIZE) {
 		ktext = ((char *) v >= _stext && (char *) v < etext);
 		f = ktext ?_PAGE_RAM_TEXT : _PAGE_RAM;
@@ -386,3 +388,25 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
 }
 #endif /* CONFIG_DEBUG_PAGEALLOC */
+
+static int fixmaps;
+unsigned long FIXADDR_TOP = 0xfffff000;
+EXPORT_SYMBOL(FIXADDR_TOP);
+
+void __set_fixmap (enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
+{
+	unsigned long address = __fix_to_virt(idx);
+
+	if (idx >= __end_of_fixed_addresses) {
+		BUG();
+		return;
+	}
+
+	map_page(address, phys, flags);
+	fixmaps++;
+}
+
+void __this_fixmap_does_not_exist(void)
+{
+	WARN_ON(1);
+}

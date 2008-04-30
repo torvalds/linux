@@ -455,6 +455,7 @@
 #define IW_MODE_REPEAT	4	/* Wireless Repeater (forwarder) */
 #define IW_MODE_SECOND	5	/* Secondary master/repeater (backup) */
 #define IW_MODE_MONITOR	6	/* Passive monitor (listen only) */
+#define IW_MODE_MESH	7	/* Mesh (IEEE 802.11s) network */
 
 /* Statistics flags (bitmask in updated) */
 #define IW_QUAL_QUAL_UPDATED	0x01	/* Value was updated since last read */

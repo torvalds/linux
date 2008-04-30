@@ -2249,6 +2249,8 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 #ifdef CONFIG_PM
 	vfree(chip->saved_regs);
 #endif
+	if (chip->irq >= 0)
+		free_irq(chip->irq, chip);
 	release_and_free_resource(chip->mpu_res);
 	release_and_free_resource(chip->fm_res);
 	snd_ymfpci_free_gameport(chip);
@@ -2257,8 +2259,6 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 	if (chip->work_ptr.area)
 		snd_dma_free_pages(&chip->work_ptr);
 	
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
 	release_and_free_resource(chip->res_reg_area);
 
 	pci_write_config_word(chip->pci, 0x40, chip->old_legacy_ctrl);

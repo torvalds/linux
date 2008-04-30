@@ -156,8 +156,8 @@ struct scsi_device {
 
 	int timeout;
 
-	struct device		sdev_gendev;
-	struct class_device	sdev_classdev;
+	struct device		sdev_gendev,
+				sdev_dev;
 
 	struct execute_work	ew; /* used to get process context on put */
 
@@ -167,9 +167,9 @@ struct scsi_device {
 #define	to_scsi_device(d)	\
 	container_of(d, struct scsi_device, sdev_gendev)
 #define	class_to_sdev(d)	\
-	container_of(d, struct scsi_device, sdev_classdev)
+	container_of(d, struct scsi_device, sdev_dev)
 #define transport_class_to_sdev(class_dev) \
-	to_scsi_device(class_dev->dev)
+	to_scsi_device(class_dev->parent)
 
 #define sdev_printk(prefix, sdev, fmt, a...)	\
 	dev_printk(prefix, &(sdev)->sdev_gendev, fmt, ##a)
@@ -181,7 +181,8 @@ struct scsi_device {
 	sdev_printk(prefix, (scmd)->device, fmt, ##a)
 
 enum scsi_target_state {
-	STARGET_RUNNING = 1,
+	STARGET_CREATED = 1,
+	STARGET_RUNNING,
 	STARGET_DEL,
 };
 
@@ -220,7 +221,7 @@ static inline struct scsi_target *scsi_target(struct scsi_device *sdev)
 	return to_scsi_target(sdev->sdev_gendev.parent);
 }
 #define transport_class_to_starget(class_dev) \
-	to_scsi_target(class_dev->dev)
+	to_scsi_target(class_dev->parent)
 
 #define starget_printk(prefix, starget, fmt, a...)	\
 	dev_printk(prefix, &(starget)->dev, fmt, ##a)

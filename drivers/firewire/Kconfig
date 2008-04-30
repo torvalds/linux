@@ -54,6 +54,11 @@ config FIREWIRE_OHCI
 	  directive, use "install modulename /bin/true" for the modules to be
 	  blacklisted.
 
+config FIREWIRE_OHCI_DEBUG
+	bool
+	depends on FIREWIRE_OHCI
+	default y
+
 config FIREWIRE_SBP2
 	tristate "Support for storage devices (SBP-2 protocol driver)"
 	depends on FIREWIRE && SCSI

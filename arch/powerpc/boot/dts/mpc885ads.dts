@@ -2,7 +2,7 @@
  * MPC885 ADS Device Tree Source
  *
  * Copyright 2006 MontaVista Software, Inc.
- * Copyright 2007 Freescale Semiconductor, Inc.
+ * Copyright 2007,2008 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -10,6 +10,7 @@
  * option) any later version.
  */
 
+/dts-v1/;
 
 / {
 	model = "MPC885ADS";
@@ -23,45 +24,45 @@
 
 		PowerPC,885@0 {
 			device_type = "cpu";
-			reg = <0>;
-			d-cache-line-size = <d#16>;
-			i-cache-line-size = <d#16>;
-			d-cache-size = <d#8192>;
-			i-cache-size = <d#8192>;
+			reg = <0x0>;
+			d-cache-line-size = <16>;
+			i-cache-line-size = <16>;
+			d-cache-size = <8192>;
+			i-cache-size = <8192>;
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
-			interrupts = <f 2>;	// decrementer interrupt
+			interrupts = <15 2>;	// decrementer interrupt
 			interrupt-parent = <&PIC>;
 		};
 	};
 
 	memory {
 		device_type = "memory";
-		reg = <0 0>;
+		reg = <0x0 0x0>;
 	};
 
 	localbus@ff000100 {
 		compatible = "fsl,mpc885-localbus", "fsl,pq1-localbus";
 		#address-cells = <2>;
 		#size-cells = <1>;
-		reg = <ff000100 40>;
+		reg = <0xff000100 0x40>;
 
 		ranges = <
-			0 0 fe000000 00800000
-			1 0 ff080000 00008000
-			5 0 ff0a0000 00008000
+			0x0 0x0 0xfe000000 0x800000
+			0x1 0x0 0xff080000 0x8000
+			0x5 0x0 0xff0a0000 0x8000
 		>;
 
 		flash@0,0 {
 			compatible = "jedec-flash";
-			reg = <0 0 800000>;
+			reg = <0x0 0x0 0x800000>;
 			bank-width = <4>;
 			device-width = <1>;
 		};
 
 		board-control@1,0 {
-			reg = <1 0 20 5 300 4>;
+			reg = <0x1 0x0 0x20 0x5 0x300 0x4>;
 			compatible = "fsl,mpc885ads-bcsr";
 		};
 	};
@@ -71,30 +72,30 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
-		ranges = <0 ff000000 00004000>;
+		ranges = <0x0 0xff000000 0x4000>;
 		bus-frequency = <0>;
 
 		// Temporary -- will go away once kernel uses ranges for get_immrbase().
-		reg = <ff000000 4000>;
+		reg = <0xff000000 0x4000>;
 
 		mdio@e00 {
 			compatible = "fsl,mpc885-fec-mdio", "fsl,pq1-fec-mdio";
-			reg = <e00 188>;
+			reg = <0xe00 0x188>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			PHY0: ethernet-phy@0 {
-				reg = <0>;
+				reg = <0x0>;
 				device_type = "ethernet-phy";
 			};
 
 			PHY1: ethernet-phy@1 {
-				reg = <1>;
+				reg = <0x1>;
 				device_type = "ethernet-phy";
 			};
 
 			PHY2: ethernet-phy@2 {
-				reg = <2>;
+				reg = <0x2>;
 				device_type = "ethernet-phy";
 			};
 		};
@@ -103,7 +104,7 @@
 			device_type = "network";
 			compatible = "fsl,mpc885-fec-enet",
 			             "fsl,pq1-fec-enet";
-			reg = <e00 188>;
+			reg = <0xe00 0x188>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <3 1>;
 			interrupt-parent = <&PIC>;
@@ -115,7 +116,7 @@
 			device_type = "network";
 			compatible = "fsl,mpc885-fec-enet",
 			             "fsl,pq1-fec-enet";
-			reg = <1e00 188>;
+			reg = <0x1e00 0x188>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <7 1>;
 			interrupt-parent = <&PIC>;
@@ -126,7 +127,7 @@
 		PIC: interrupt-controller@0 {
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			reg = <0 24>;
+			reg = <0x0 0x24>;
 			compatible = "fsl,mpc885-pic", "fsl,pq1-pic";
 		};
 
@@ -136,29 +137,29 @@
 			#size-cells = <2>;
 			compatible = "fsl,pq-pcmcia";
 			device_type = "pcmcia";
-			reg = <80 80>;
+			reg = <0x80 0x80>;
 			interrupt-parent = <&PIC>;
-			interrupts = <d 1>;
+			interrupts = <13 1>;
 		};
 
 		cpm@9c0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "fsl,mpc885-cpm", "fsl,cpm1";
-			command-proc = <9c0>;
+			command-proc = <0x9c0>;
 			interrupts = <0>;	// cpm error interrupt
 			interrupt-parent = <&CPM_PIC>;
-			reg = <9c0 40>;
+			reg = <0x9c0 0x40>;
 			ranges;
 
 			muram@2000 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				ranges = <0 2000 2000>;
+				ranges = <0x0 0x2000 0x2000>;
 
 				data@0 {
 					compatible = "fsl,cpm-muram-data";
-					reg = <0 1c00>;
+					reg = <0x0 0x1c00>;
 				};
 			};
 
@@ -167,7 +168,7 @@
 				             "fsl,cpm1-brg",
 				             "fsl,cpm-brg";
 				clock-frequency = <0>;
-				reg = <9f0 10>;
+				reg = <0x9f0 0x10>;
 			};
 
 			CPM_PIC: interrupt-controller@930 {
@@ -175,7 +176,7 @@
 				#interrupt-cells = <1>;
 				interrupts = <5 2 0 2>;
 				interrupt-parent = <&PIC>;
-				reg = <930 20>;
+				reg = <0x930 0x20>;
 				compatible = "fsl,mpc885-cpm-pic",
 				             "fsl,cpm1-pic";
 			};
@@ -184,34 +185,34 @@
 				device_type = "serial";
 				compatible = "fsl,mpc885-smc-uart",
 				             "fsl,cpm1-smc-uart";
-				reg = <a80 10 3e80 40>;
+				reg = <0xa80 0x10 0x3e80 0x40>;
 				interrupts = <4>;
 				interrupt-parent = <&CPM_PIC>;
 				fsl,cpm-brg = <1>;
-				fsl,cpm-command = <0090>;
+				fsl,cpm-command = <0x90>;
 			};
 
 			serial@a90 {
 				device_type = "serial";
 				compatible = "fsl,mpc885-smc-uart",
 				             "fsl,cpm1-smc-uart";
-				reg = <a90 10 3f80 40>;
+				reg = <0xa90 0x10 0x3f80 0x40>;
 				interrupts = <3>;
 				interrupt-parent = <&CPM_PIC>;
 				fsl,cpm-brg = <2>;
-				fsl,cpm-command = <00d0>;
+				fsl,cpm-command = <0xd0>;
 			};
 
 			ethernet@a40 {
 				device_type = "network";
 				compatible = "fsl,mpc885-scc-enet",
 				             "fsl,cpm1-scc-enet";
-				reg = <a40 18 3e00 100>;
+				reg = <0xa40 0x18 0x3e00 0x100>;
 				local-mac-address = [ 00 00 00 00 00 00 ];
-				interrupts = <1c>;
+				interrupts = <28>;
 				interrupt-parent = <&CPM_PIC>;
 				phy-handle = <&PHY2>;
-				fsl,cpm-command = <0080>;
+				fsl,cpm-command = <0x80>;
 				linux,network-index = <2>;
 			};
 		};

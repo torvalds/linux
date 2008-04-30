@@ -146,23 +146,23 @@ do {						\
 
 # define local_irq_save(x)					\
 do {								\
-	unsigned long psr;					\
+	unsigned long __psr;					\
 								\
-	__local_irq_save(psr);					\
-	if (psr & IA64_PSR_I)					\
+	__local_irq_save(__psr);				\
+	if (__psr & IA64_PSR_I)					\
 		__save_ip();					\
-	(x) = psr;						\
+	(x) = __psr;						\
 } while (0)
 
-# define local_irq_disable()	do { unsigned long x; local_irq_save(x); } while (0)
+# define local_irq_disable()	do { unsigned long __x; local_irq_save(__x); } while (0)
 
 # define local_irq_restore(x)					\
 do {								\
-	unsigned long old_psr, psr = (x);			\
+	unsigned long __old_psr, __psr = (x);			\
 								\
-	local_save_flags(old_psr);				\
-	__local_irq_restore(psr);				\
-	if ((old_psr & IA64_PSR_I) && !(psr & IA64_PSR_I))	\
+	local_save_flags(__old_psr);				\
+	__local_irq_restore(__psr);				\
+	if ((__old_psr & IA64_PSR_I) && !(__psr & IA64_PSR_I))	\
 		__save_ip();					\
 } while (0)
 
@@ -210,6 +210,13 @@ struct task_struct;
 extern void ia64_save_extra (struct task_struct *task);
 extern void ia64_load_extra (struct task_struct *task);
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+extern void ia64_account_on_switch (struct task_struct *prev, struct task_struct *next);
+# define IA64_ACCOUNT_ON_SWITCH(p,n) ia64_account_on_switch(p,n)
+#else
+# define IA64_ACCOUNT_ON_SWITCH(p,n)
+#endif
+
 #ifdef CONFIG_PERFMON
   DECLARE_PER_CPU(unsigned long, pfm_syst_info);
 # define PERFMON_IS_SYSWIDE() (__get_cpu_var(pfm_syst_info) & 0x1)
@@ -222,6 +229,7 @@ extern void ia64_load_extra (struct task_struct *task);
 	 || IS_IA32_PROCESS(task_pt_regs(t)) || PERFMON_IS_SYSWIDE())
 
 #define __switch_to(prev,next,last) do {							 \
+	IA64_ACCOUNT_ON_SWITCH(prev, next);							 \
 	if (IA64_HAS_EXTRA_STATE(prev))								 \
 		ia64_save_extra(prev);								 \
 	if (IA64_HAS_EXTRA_STATE(next))								 \
@@ -265,6 +273,10 @@ void cpu_idle_wait(void);
 #define arch_align_stack(x) (x)
 
 void default_idle(void);
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+extern void account_system_vtime(struct task_struct *);
+#endif
 
 #endif /* __KERNEL__ */
 

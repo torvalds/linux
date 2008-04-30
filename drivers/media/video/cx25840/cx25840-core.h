@@ -38,6 +38,7 @@ struct cx25840_state {
 	struct i2c_client *c;
 	int pvr150_workaround;
 	int radio;
+	v4l2_std_id std;
 	enum cx25840_video_input vid_input;
 	enum cx25840_audio_input aud_input;
 	u32 audclk_freq;
@@ -60,7 +61,6 @@ int cx25840_write4(struct i2c_client *client, u16 addr, u32 value);
 u8 cx25840_read(struct i2c_client *client, u16 addr);
 u32 cx25840_read4(struct i2c_client *client, u16 addr);
 int cx25840_and_or(struct i2c_client *client, u16 addr, unsigned mask, u8 value);
-v4l2_std_id cx25840_get_v4lstd(struct i2c_client *client);
 
 /* ----------------------------------------------------------------------- */
 /* cx25850-firmware.c                                                      */

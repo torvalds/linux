@@ -25,14 +25,14 @@ config TABLET_USB_ACECAD
 	  module will be called acecad.
 
 config TABLET_USB_AIPTEK
-	tristate "Aiptek 6000U/8000U tablet support (USB)"
+	tristate "Aiptek 6000U/8000U and Genius G_PEN tablet support (USB)"
 	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
-	  Say Y here if you want to use the USB version of the Aiptek 6000U
-	  or Aiptek 8000U tablet.  Make sure to say Y to "Mouse support"
-	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
-	  (CONFIG_INPUT_EVDEV) as well.
+	  Say Y here if you want to use the USB version of the Aiptek 6000U,
+	  Aiptek 8000U or Genius G-PEN 560 tablet.  Make sure to say Y to
+	  "Mouse support" (CONFIG_INPUT_MOUSEDEV) and/or "Event interface
+	  support" (CONFIG_INPUT_EVDEV) as well.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called aiptek.

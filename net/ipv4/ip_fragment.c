@@ -194,7 +194,7 @@ static void ip_expire(unsigned long arg)
 
 	spin_lock(&qp->q.lock);
 
-	if (qp->q.last_in & COMPLETE)
+	if (qp->q.last_in & INET_FRAG_COMPLETE)
 		goto out;
 
 	ipq_kill(qp);
@@ -202,10 +202,13 @@ static void ip_expire(unsigned long arg)
 	IP_INC_STATS_BH(IPSTATS_MIB_REASMTIMEOUT);
 	IP_INC_STATS_BH(IPSTATS_MIB_REASMFAILS);
 
-	if ((qp->q.last_in&FIRST_IN) && qp->q.fragments != NULL) {
+	if ((qp->q.last_in & INET_FRAG_FIRST_IN) && qp->q.fragments != NULL) {
 		struct sk_buff *head = qp->q.fragments;
+		struct net *net;
+
+		net = container_of(qp->q.net, struct net, ipv4.frags);
 		/* Send an ICMP "Fragment Reassembly Timeout" message. */
-		if ((head->dev = dev_get_by_index(&init_net, qp->iif)) != NULL) {
+		if ((head->dev = dev_get_by_index(net, qp->iif)) != NULL) {
 			icmp_send(head, ICMP_TIME_EXCEEDED, ICMP_EXC_FRAGTIME, 0);
 			dev_put(head->dev);
 		}
@@ -298,7 +301,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	int ihl, end;
 	int err = -ENOENT;
 
-	if (qp->q.last_in & COMPLETE)
+	if (qp->q.last_in & INET_FRAG_COMPLETE)
 		goto err;
 
 	if (!(IPCB(skb)->flags & IPSKB_FRAG_COMPLETE) &&
@@ -324,9 +327,9 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		 * or have different end, the segment is corrrupted.
 		 */
 		if (end < qp->q.len ||
-		    ((qp->q.last_in & LAST_IN) && end != qp->q.len))
+		    ((qp->q.last_in & INET_FRAG_LAST_IN) && end != qp->q.len))
 			goto err;
-		qp->q.last_in |= LAST_IN;
+		qp->q.last_in |= INET_FRAG_LAST_IN;
 		qp->q.len = end;
 	} else {
 		if (end&7) {
@@ -336,7 +339,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		}
 		if (end > qp->q.len) {
 			/* Some bits beyond end -> corruption. */
-			if (qp->q.last_in & LAST_IN)
+			if (qp->q.last_in & INET_FRAG_LAST_IN)
 				goto err;
 			qp->q.len = end;
 		}
@@ -435,9 +438,10 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	qp->q.meat += skb->len;
 	atomic_add(skb->truesize, &qp->q.net->mem);
 	if (offset == 0)
-		qp->q.last_in |= FIRST_IN;
+		qp->q.last_in |= INET_FRAG_FIRST_IN;
 
-	if (qp->q.last_in == (FIRST_IN | LAST_IN) && qp->q.meat == qp->q.len)
+	if (qp->q.last_in == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
+	    qp->q.meat == qp->q.len)
 		return ip_frag_reasm(qp, prev, dev);
 
 	write_lock(&ip4_frags.lock);
@@ -553,7 +557,7 @@ out_nomem:
 out_oversize:
 	if (net_ratelimit())
 		printk(KERN_INFO
-			"Oversized IP packet from %d.%d.%d.%d.\n",
+			"Oversized IP packet from " NIPQUAD_FMT ".\n",
 			NIPQUAD(qp->saddr));
 out_fail:
 	IP_INC_STATS_BH(IPSTATS_MIB_REASMFAILS);
@@ -568,7 +572,7 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 
 	IP_INC_STATS_BH(IPSTATS_MIB_REASMREQDS);
 
-	net = skb->dev ? skb->dev->nd_net : skb->dst->dev->nd_net;
+	net = skb->dev ? dev_net(skb->dev) : dev_net(skb->dst->dev);
 	/* Start by cleaning up the memory. */
 	if (atomic_read(&net->ipv4.frags.mem) > net->ipv4.frags.high_thresh)
 		ip_evictor(net);

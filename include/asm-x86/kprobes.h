@@ -35,12 +35,12 @@ typedef u8 kprobe_opcode_t;
 #define RELATIVEJUMP_INSTRUCTION 0xe9
 #define MAX_INSN_SIZE 16
 #define MAX_STACK_SIZE 64
-#define MIN_STACK_SIZE(ADDR) (((MAX_STACK_SIZE) < \
-	(((unsigned long)current_thread_info()) + THREAD_SIZE \
-	 - (unsigned long)(ADDR))) \
-	? (MAX_STACK_SIZE) \
-	: (((unsigned long)current_thread_info()) + THREAD_SIZE \
-	   - (unsigned long)(ADDR)))
+#define MIN_STACK_SIZE(ADDR)					       \
+	(((MAX_STACK_SIZE) < (((unsigned long)current_thread_info()) + \
+			      THREAD_SIZE - (unsigned long)(ADDR)))    \
+	 ? (MAX_STACK_SIZE)					       \
+	 : (((unsigned long)current_thread_info()) +		       \
+	    THREAD_SIZE - (unsigned long)(ADDR)))
 
 #define flush_insn_slot(p)	do { } while (0)
 

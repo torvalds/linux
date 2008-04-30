@@ -299,7 +299,7 @@ elsa_interrupt(int intno, void *dev_id)
 		val = serial_inp(cs, UART_IIR);
 		if (!(val & UART_IIR_NO_INT)) {
 			debugl1(cs,"IIR %02x", val);
-			rs_interrupt_elsa(intno, cs);
+			rs_interrupt_elsa(cs);
 		}
 	}
 #endif
@@ -379,7 +379,7 @@ elsa_interrupt_ipac(int intno, void *dev_id)
 		val = serial_inp(cs, UART_IIR);
 		if (!(val & UART_IIR_NO_INT)) {
 			debugl1(cs,"IIR %02x", val);
-			rs_interrupt_elsa(intno, cs);
+			rs_interrupt_elsa(cs);
 		}
 	}
 #endif
@@ -937,7 +937,7 @@ setup_elsa_isapnp(struct IsdnCard *card)
 					err = pnp_activate_dev(pnp_d);
 					if (err<0) {
 						printk(KERN_WARNING "%s: pnp_activate_dev ret(%d)\n",
-							__FUNCTION__, err);
+							__func__, err);
 						return(0);
 					}
 					card->para[1] = pnp_port_start(pnp_d, 0);

@@ -26,7 +26,7 @@ struct _fpstate_ia32 {
 	__u32 	cw;
 	__u32	sw;
 	__u32	tag;	/* not compatible to 64bit twd */
-	__u32	ipoff;			
+	__u32	ipoff;
 	__u32	cssel;
 	__u32	dataoff;
 	__u32	datasel;
@@ -39,7 +39,7 @@ struct _fpstate_ia32 {
 	__u32	mxcsr;
 	__u32	reserved;
 	struct _fpxreg	_fxsr_st[8];
-	struct _xmmreg	_xmm[8];	/* It's actually 16 */ 
+	struct _xmmreg	_xmm[8];	/* It's actually 16 */
 	__u32	padding[56];
 };
 

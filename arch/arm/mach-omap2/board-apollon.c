@@ -26,6 +26,8 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/leds.h>
+#include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -39,7 +41,7 @@
 #include <asm/arch/board.h>
 #include <asm/arch/common.h>
 #include <asm/arch/gpmc.h>
-#include "prcm-regs.h"
+#include <asm/arch/control.h>
 
 /* LED & Switch macros */
 #define LED0_GPIO13		13
@@ -187,17 +189,47 @@ static inline void __init apollon_init_smc91x(void)
 {
 	unsigned long base;
 
+	unsigned int rate;
+	struct clk *gpmc_fck;
+	int eth_cs;
+
+	gpmc_fck = clk_get(NULL, "gpmc_fck");	/* Always on ENABLE_ON_INIT */
+	if (IS_ERR(gpmc_fck)) {
+		WARN_ON(1);
+		return;
+	}
+
+	clk_enable(gpmc_fck);
+	rate = clk_get_rate(gpmc_fck);
+
+	eth_cs = APOLLON_ETH_CS;
+
 	/* Make sure CS1 timings are correct */
-	GPMC_CONFIG1_1 = 0x00011203;
-	GPMC_CONFIG2_1 = 0x001f1f01;
-	GPMC_CONFIG3_1 = 0x00080803;
-	GPMC_CONFIG4_1 = 0x1c091c09;
-	GPMC_CONFIG5_1 = 0x041f1f1f;
-	GPMC_CONFIG6_1 = 0x000004c4;
+	gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG1, 0x00011200);
+
+	if (rate >= 160000000) {
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG2, 0x001f1f01);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG3, 0x00080803);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG4, 0x1c0b1c0a);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG5, 0x041f1F1F);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG6, 0x000004C4);
+	} else if (rate >= 130000000) {
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG2, 0x001f1f00);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG3, 0x00080802);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG4, 0x1C091C09);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG5, 0x041f1F1F);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG6, 0x000004C4);
+	} else {/* rate = 100000000 */
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG2, 0x001f1f00);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG3, 0x00080802);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG4, 0x1C091C09);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG5, 0x031A1F1F);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG6, 0x000003C2);
+	}
 
 	if (gpmc_cs_request(APOLLON_ETH_CS, SZ_16M, &base) < 0) {
 		printk(KERN_ERR "Failed to request GPMC CS for smc91x\n");
-		return;
+		goto out;
 	}
 	apollon_smc91x_resources[0].start = base + 0x300;
 	apollon_smc91x_resources[0].end   = base + 0x30f;
@@ -208,9 +240,13 @@ static inline void __init apollon_init_smc91x(void)
 		printk(KERN_ERR "Failed to request GPIO%d for smc91x IRQ\n",
 			APOLLON_ETHR_GPIO_IRQ);
 		gpmc_cs_free(APOLLON_ETH_CS);
-		return;
+		goto out;
 	}
 	omap_set_gpio_direction(APOLLON_ETHR_GPIO_IRQ, 1);
+
+out:
+	clk_disable(gpmc_fck);
+	clk_put(gpmc_fck);
 }
 
 static void __init omap_apollon_init_irq(void)
@@ -330,6 +366,8 @@ static void __init apollon_usb_init(void)
 
 static void __init omap_apollon_init(void)
 {
+	u32 v;
+
 	apollon_led_init();
 	apollon_sw_init();
 	apollon_flash_init();
@@ -339,7 +377,9 @@ static void __init omap_apollon_init(void)
 	omap_cfg_reg(W19_24XX_SYS_NIRQ);
 
 	/* Use Interal loop-back in MMC/SDIO Module Input Clock selection */
-	CONTROL_DEVCONF |= (1 << 24);
+	v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+	v |= (1 << 24);
+	omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
 
 	/*
  	 * Make sure the serial ports are muxed on at this point.

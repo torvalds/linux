@@ -136,8 +136,6 @@
 #define SPRN_M_TW	799
 
 #ifndef __ASSEMBLY__
-typedef unsigned long phys_addr_t;
-
 typedef struct {
 	unsigned long id;
 	unsigned long vdso_base;

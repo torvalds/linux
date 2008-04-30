@@ -42,6 +42,7 @@
 #include <linux/timer.h>
 
 #include <linux/mlx4/device.h>
+#include <linux/mlx4/driver.h>
 #include <linux/mlx4/doorbell.h>
 
 #define DRV_NAME	"mlx4_core"
@@ -256,6 +257,9 @@ struct mlx4_priv {
 	struct list_head	ctx_list;
 	spinlock_t		ctx_lock;
 
+	struct list_head        pgdir_list;
+	struct mutex            pgdir_mutex;
+
 	struct mlx4_fw		fw;
 	struct mlx4_cmd		cmd;
 
@@ -313,8 +317,7 @@ void mlx4_catas_cleanup(void);
 int mlx4_restart_one(struct pci_dev *pdev);
 int mlx4_register_device(struct mlx4_dev *dev);
 void mlx4_unregister_device(struct mlx4_dev *dev);
-void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_event type,
-			 int subtype, int port);
+void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type, int port);
 
 struct mlx4_dev_cap;
 struct mlx4_init_hca_param;

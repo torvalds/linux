@@ -9,30 +9,15 @@
  *
  */
 #include <linux/bcd.h>
-#include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/kernel.h>
 #include <linux/mc146818rtc.h>
-#include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/param.h>
-#include <linux/sched.h>
-#include <linux/string.h>
-#include <linux/time.h>
-#include <linux/types.h>
 
-#include <asm/bootinfo.h>
-#include <asm/cpu.h>
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/mipsregs.h>
-#include <asm/sections.h>
+#include <asm/cpu-features.h>
+#include <asm/ds1287.h>
 #include <asm/time.h>
-
 #include <asm/dec/interrupts.h>
 #include <asm/dec/ioasic.h>
-#include <asm/dec/ioasic_addrs.h>
 #include <asm/dec/machtype.h>
 
 unsigned long read_persistent_clock(void)
@@ -139,42 +124,32 @@ int rtc_mips_set_mmss(unsigned long nowtime)
 	return retval;
 }
 
-static int dec_timer_state(void)
-{
-	return (CMOS_READ(RTC_REG_C) & RTC_PF) != 0;
-}
-
-static void dec_timer_ack(void)
-{
-	CMOS_READ(RTC_REG_C);			/* Ack the RTC interrupt.  */
-}
-
-static cycle_t dec_ioasic_hpt_read(void)
-{
-	/*
-	 * The free-running counter is 32-bit which is good for about
-	 * 2 minutes, 50 seconds at possible count rates of up to 25MHz.
-	 */
-	return ioasic_read(IO_REG_FCTR);
-}
-
-
 void __init plat_time_init(void)
 {
-	mips_timer_ack = dec_timer_ack;
+	u32 start, end;
+	int i = HZ / 10;
 
-	if (!cpu_has_counter && IOASIC)
+	/* Set up the rate of periodic DS1287 interrupts. */
+	ds1287_set_base_clock(HZ);
+
+	if (cpu_has_counter) {
+		while (!ds1287_timer_state())
+			;
+
+		start = read_c0_count();
+
+		while (i--)
+			while (!ds1287_timer_state())
+				;
+
+		end = read_c0_count();
+
+		mips_hpt_frequency = (end - start) * 10;
+		printk(KERN_INFO "MIPS counter frequency %dHz\n",
+			mips_hpt_frequency);
+	} else if (IOASIC)
 		/* For pre-R4k systems we use the I/O ASIC's counter.  */
-		clocksource_mips.read = dec_ioasic_hpt_read;
+		dec_ioasic_clocksource_init();
 
-	/* Set up the rate of periodic DS1287 interrupts.  */
-	CMOS_WRITE(RTC_REF_CLCK_32KHZ | (16 - __ffs(HZ)), RTC_REG_A);
-}
-
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	setup_irq(dec_interrupt[DEC_IRQ_RTC], irq);
-
-	/* Enable periodic DS1287 interrupts.  */
-	CMOS_WRITE(CMOS_READ(RTC_REG_B) | RTC_PIE, RTC_REG_B);
+	ds1287_clockevent_init(dec_interrupt[DEC_IRQ_RTC]);
 }

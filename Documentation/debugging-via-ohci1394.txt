@@ -41,15 +41,19 @@ to a working state and enables physical DMA by default for all remote nodes.
 This can be turned off by ohci1394's module parameter phys_dma=0.
 
 The alternative firewire-ohci driver in drivers/firewire uses filtered physical
-DMA, hence is not yet suitable for remote debugging.
+DMA by default, which is more secure but not suitable for remote debugging.
+Compile the driver with CONFIG_FIREWIRE_OHCI_REMOTE_DMA (Kernel hacking menu:
+Remote debugging over FireWire with firewire-ohci) to get unfiltered physical
+DMA.
 
-Because ohci1394 depends on the PCI enumeration to be completed, an
-initialization routine which runs pretty early (long before console_init()
-which makes the printk buffer appear on the console can be called) was written.
+Because ohci1394 and firewire-ohci depend on the PCI enumeration to be
+completed, an initialization routine which runs pretty early has been
+implemented for x86.  This routine runs long before console_init() can be
+called, i.e. before the printk buffer appears on the console.
 
 To activate it, enable CONFIG_PROVIDE_OHCI1394_DMA_INIT (Kernel hacking menu:
-Provide code for enabling DMA over FireWire early on boot) and pass the
-parameter "ohci1394_dma=early" to the recompiled kernel on boot.
+Remote debugging over FireWire early on boot) and pass the parameter
+"ohci1394_dma=early" to the recompiled kernel on boot.
 
 Tools
 -----

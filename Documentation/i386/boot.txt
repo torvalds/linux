@@ -42,6 +42,8 @@ Protocol 2.05:	(Kernel 2.6.20) Make protected mode kernel relocatable.
 Protocol 2.06:	(Kernel 2.6.22) Added a field that contains the size of
 		the boot command line
 
+Protocol 2.09:	(kernel 2.6.26) Added a field of 64-bit physical
+		pointer to single linked list of struct	setup_data.
 
 **** MEMORY LAYOUT
 
@@ -170,6 +172,10 @@ Offset	Proto	Name		Meaning
 0238/4	2.06+	cmdline_size	Maximum size of the kernel command line
 023C/4	2.07+	hardware_subarch Hardware subarchitecture
 0240/8	2.07+	hardware_subarch_data Subarchitecture-specific data
+0248/4	2.08+	payload_offset	Offset of kernel payload
+024C/4	2.08+	payload_length	Length of kernel payload
+0250/8	2.09+	setup_data	64-bit physical pointer to linked list
+				of struct setup_data
 
 (1) For backwards compatibility, if the setup_sects field contains 0, the
     real value is 4.
@@ -512,6 +518,32 @@ Protocol:	2.07+
 
   A pointer to data that is specific to hardware subarch
 
+Field name:	payload_offset
+Type:		read
+Offset/size:	0x248/4
+Protocol:	2.08+
+
+  If non-zero then this field contains the offset from the end of the
+  real-mode code to the payload.
+
+  The payload may be compressed. The format of both the compressed and
+  uncompressed data should be determined using the standard magic
+  numbers. Currently only gzip compressed ELF is used.
+  
+Field name:	payload_length
+Type:		read
+Offset/size:	0x24c/4
+Protocol:	2.08+
+
+  The length of the payload.
+
+**** THE IMAGE CHECKSUM
+
+From boot protocol version 2.08 onwards the CRC-32 is calculated over
+the entire file using the characteristic polynomial 0x04C11DB7 and an
+initial remainder of 0xffffffff.  The checksum is appended to the
+file; therefore the CRC of the file up to the limit specified in the
+syssize field of the header is always 0.
 
 **** THE KERNEL COMMAND LINE
 
@@ -543,6 +575,28 @@ command line is entered using the following protocol:
 	The kernel command line *must* be within the memory region
 	covered by setup_move_size, so you may need to adjust this
 	field.
+
+Field name:	setup_data
+Type:		write (obligatory)
+Offset/size:	0x250/8
+Protocol:	2.09+
+
+  The 64-bit physical pointer to NULL terminated single linked list of
+  struct setup_data. This is used to define a more extensible boot
+  parameters passing mechanism. The definition of struct setup_data is
+  as follow:
+
+  struct setup_data {
+	  u64 next;
+	  u32 type;
+	  u32 len;
+	  u8  data[0];
+  };
+
+  Where, the next is a 64-bit physical pointer to the next node of
+  linked list, the next field of the last node is 0; the type is used
+  to identify the contents of data; the len is the length of data
+  field; the data holds the real payload.
 
 
 **** MEMORY LAYOUT OF THE REAL-MODE CODE

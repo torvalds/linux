@@ -92,7 +92,7 @@ static int __init spu_map_interrupts_old(struct spu *spu,
 
 	tmp = of_get_property(np->parent->parent, "node-id", NULL);
 	if (!tmp) {
-		printk(KERN_WARNING "%s: can't find node-id\n", __FUNCTION__);
+		printk(KERN_WARNING "%s: can't find node-id\n", __func__);
 		nid = spu->node;
 	} else
 		nid = tmp[0];
@@ -296,7 +296,7 @@ static int __init of_enumerate_spus(int (*fn)(void *data))
 		ret = fn(node);
 		if (ret) {
 			printk(KERN_WARNING "%s: Error initializing %s\n",
-				__FUNCTION__, node->name);
+				__func__, node->name);
 			break;
 		}
 		n++;
@@ -327,7 +327,7 @@ static int __init of_create_spu(struct spu *spu, void *data)
 		if (!legacy_map) {
 			legacy_map = 1;
 			printk(KERN_WARNING "%s: Legacy device tree found, "
-				"trying to map old style\n", __FUNCTION__);
+				"trying to map old style\n", __func__);
 		}
 		ret = spu_map_device_old(spu);
 		if (ret) {
@@ -342,7 +342,7 @@ static int __init of_create_spu(struct spu *spu, void *data)
 		if (!legacy_irq) {
 			legacy_irq = 1;
 			printk(KERN_WARNING "%s: Legacy device tree found, "
-				"trying old style irq\n", __FUNCTION__);
+				"trying old style irq\n", __func__);
 		}
 		ret = spu_map_interrupts_old(spu, spe);
 		if (ret) {

@@ -322,6 +322,9 @@ int __init gvp11_detect(struct scsi_host_template *tpnt)
 	 */
 	regs.SASR = &(DMA(instance)->SASR);
 	regs.SCMD = &(DMA(instance)->SCMD);
+	HDATA(instance)->no_sync = 0xff;
+	HDATA(instance)->fast = 0;
+	HDATA(instance)->dma_mode = CTRL_DMA;
 	wd33c93_init(instance, regs, dma_setup, dma_stop,
 		     (epc & GVP_SCSICLKMASK) ? WD33C93_FS_8_10
 					     : WD33C93_FS_12_15);

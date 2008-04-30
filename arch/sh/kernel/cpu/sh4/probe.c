@@ -53,7 +53,7 @@ int __init detect_cpu_and_cache_system(void)
 	/*
 	 * Setup some generic flags we can probe on SH-4A parts
 	 */
-	if (((pvr >> 16) & 0xff) == 0x10) {
+	if (((pvr >> 24) & 0xff) == 0x10) {
 		if ((cvr & 0x10000000) == 0)
 			boot_cpu_data.flags |= CPU_HAS_DSP;
 
@@ -126,17 +126,22 @@ int __init detect_cpu_and_cache_system(void)
 					  CPU_HAS_LLSC;
 		break;
 	case 0x3008:
-		if (prr == 0xa0 || prr == 0xa1) {
-			boot_cpu_data.type = CPU_SH7722;
-			boot_cpu_data.icache.ways = 4;
-			boot_cpu_data.dcache.ways = 4;
-			boot_cpu_data.flags |= CPU_HAS_LLSC;
-		}
-		else if (prr == 0x70) {
+		boot_cpu_data.icache.ways = 4;
+		boot_cpu_data.dcache.ways = 4;
+		boot_cpu_data.flags |= CPU_HAS_LLSC;
+
+		switch (prr) {
+		case 0x50:
+			boot_cpu_data.type = CPU_SH7723;
+			boot_cpu_data.flags |= CPU_HAS_FPU | CPU_HAS_L2_CACHE;
+			break;
+		case 0x70:
 			boot_cpu_data.type = CPU_SH7366;
-			boot_cpu_data.icache.ways = 4;
-			boot_cpu_data.dcache.ways = 4;
-			boot_cpu_data.flags |= CPU_HAS_LLSC;
+			break;
+		case 0xa0:
+		case 0xa1:
+			boot_cpu_data.type = CPU_SH7722;
+			break;
 		}
 		break;
 	case 0x4000:	/* 1st cut */
@@ -215,6 +220,12 @@ int __init detect_cpu_and_cache_system(void)
 	 * SH-4A's have an optional PIPT L2.
 	 */
 	if (boot_cpu_data.flags & CPU_HAS_L2_CACHE) {
+		/* Bug if we can't decode the L2 info */
+		BUG_ON(!(cvr & 0xf));
+
+		/* Silicon and specifications have clearly never met.. */
+		cvr ^= 0xf;
+
 		/*
 		 * Size calculation is much more sensible
 		 * than it is for the L1.

@@ -12,6 +12,15 @@
 #define NDISC_REDIRECT			137
 
 /*
+ * Router type: cross-layer information from link-layer to
+ * IPv6 layer reported by certain link types (e.g., RFC4214).
+ */
+#define NDISC_NODETYPE_UNSPEC		0	/* unspecified (default) */
+#define NDISC_NODETYPE_HOST		1	/* host or unauthorized router */
+#define NDISC_NODETYPE_NODEFAULT	2	/* non-default router */
+#define NDISC_NODETYPE_DEFAULT		3	/* default router */
+
+/*
  *	ndisc options
  */
 
@@ -77,7 +86,7 @@ struct nd_opt_hdr {
 } __attribute__((__packed__));
 
 
-extern int			ndisc_init(struct net_proto_family *ops);
+extern int			ndisc_init(void);
 
 extern void			ndisc_cleanup(void);
 
@@ -85,20 +94,17 @@ extern int			ndisc_rcv(struct sk_buff *skb);
 
 extern void			ndisc_send_ns(struct net_device *dev,
 					      struct neighbour *neigh,
-					      struct in6_addr *solicit,
-					      struct in6_addr *daddr,
-					      struct in6_addr *saddr);
+					      const struct in6_addr *solicit,
+					      const struct in6_addr *daddr,
+					      const struct in6_addr *saddr);
 
 extern void			ndisc_send_rs(struct net_device *dev,
-					      struct in6_addr *saddr,
-					      struct in6_addr *daddr);
-
-extern void			ndisc_forwarding_on(void);
-extern void			ndisc_forwarding_off(void);
+					      const struct in6_addr *saddr,
+					      const struct in6_addr *daddr);
 
 extern void			ndisc_send_redirect(struct sk_buff *skb,
 						    struct neighbour *neigh,
-						    struct in6_addr *target);
+						    const struct in6_addr *target);
 
 extern int			ndisc_mc_map(struct in6_addr *addr, char *buf, struct net_device *dev, int dir);
 
@@ -107,7 +113,7 @@ extern int			ndisc_mc_map(struct in6_addr *addr, char *buf, struct net_device *d
 /*
  *	IGMP
  */
-extern int			igmp6_init(struct net_proto_family *ops);
+extern int			igmp6_init(void);
 
 extern void			igmp6_cleanup(void);
 
@@ -115,7 +121,6 @@ extern int			igmp6_event_query(struct sk_buff *skb);
 
 extern int			igmp6_event_report(struct sk_buff *skb);
 
-extern void			igmp6_cleanup(void);
 
 #ifdef CONFIG_SYSCTL
 extern int 			ndisc_ifinfo_sysctl_change(struct ctl_table *ctl,
@@ -129,7 +134,7 @@ extern int 			ndisc_ifinfo_sysctl_change(struct ctl_table *ctl,
 extern void 			inet6_ifinfo_notify(int event,
 						    struct inet6_dev *idev);
 
-static inline struct neighbour * ndisc_get_neigh(struct net_device *dev, struct in6_addr *addr)
+static inline struct neighbour * ndisc_get_neigh(struct net_device *dev, const struct in6_addr *addr)
 {
 
 	if (dev)

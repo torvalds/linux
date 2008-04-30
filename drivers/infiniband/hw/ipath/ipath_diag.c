@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2006, 2007, 2008 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -79,7 +79,7 @@ static const struct file_operations diagpkt_file_ops = {
 
 static atomic_t diagpkt_count = ATOMIC_INIT(0);
 static struct cdev *diagpkt_cdev;
-static struct class_device *diagpkt_class_dev;
+static struct device *diagpkt_dev;
 
 int ipath_diag_add(struct ipath_devdata *dd)
 {
@@ -89,7 +89,7 @@ int ipath_diag_add(struct ipath_devdata *dd)
 	if (atomic_inc_return(&diagpkt_count) == 1) {
 		ret = ipath_cdev_init(IPATH_DIAGPKT_MINOR,
 				      "ipath_diagpkt", &diagpkt_file_ops,
-				      &diagpkt_cdev, &diagpkt_class_dev);
+				      &diagpkt_cdev, &diagpkt_dev);
 
 		if (ret) {
 			ipath_dev_err(dd, "Couldn't create ipath_diagpkt "
@@ -102,7 +102,7 @@ int ipath_diag_add(struct ipath_devdata *dd)
 
 	ret = ipath_cdev_init(IPATH_DIAG_MINOR_BASE + dd->ipath_unit, name,
 			      &diag_file_ops, &dd->diag_cdev,
-			      &dd->diag_class_dev);
+			      &dd->diag_dev);
 	if (ret)
 		ipath_dev_err(dd, "Couldn't create %s device: %d",
 			      name, ret);
@@ -114,9 +114,9 @@ done:
 void ipath_diag_remove(struct ipath_devdata *dd)
 {
 	if (atomic_dec_and_test(&diagpkt_count))
-		ipath_cdev_cleanup(&diagpkt_cdev, &diagpkt_class_dev);
+		ipath_cdev_cleanup(&diagpkt_cdev, &diagpkt_dev);
 
-	ipath_cdev_cleanup(&dd->diag_cdev, &dd->diag_class_dev);
+	ipath_cdev_cleanup(&dd->diag_cdev, &dd->diag_dev);
 }
 
 /**
@@ -330,13 +330,19 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 	struct ipath_devdata *dd;
 	ssize_t ret = 0;
 	u64 val;
+	u32 l_state, lt_state; /* LinkState, LinkTrainingState */
 
-	if (count != sizeof(dp)) {
+	if (count < sizeof(odp)) {
 		ret = -EINVAL;
 		goto bail;
 	}
 
-	if (copy_from_user(&dp, data, sizeof(dp))) {
+	if (count == sizeof(dp)) {
+		if (copy_from_user(&dp, data, sizeof(dp))) {
+			ret = -EFAULT;
+			goto bail;
+		}
+	} else if (copy_from_user(&odp, data, sizeof(odp))) {
 		ret = -EFAULT;
 		goto bail;
 	}
@@ -396,10 +402,17 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 		ret = -ENODEV;
 		goto bail;
 	}
-	/* Check link state, but not if we have custom PBC */
-	val = dd->ipath_lastibcstat & IPATH_IBSTATE_MASK;
-	if (!dp.pbc_wd && val != IPATH_IBSTATE_INIT &&
-		val != IPATH_IBSTATE_ARM && val != IPATH_IBSTATE_ACTIVE) {
+	/*
+	 * Want to skip check for l_state if using custom PBC,
+	 * because we might be trying to force an SM packet out.
+	 * first-cut, skip _all_ state checking in that case.
+	 */
+	val = ipath_ib_state(dd, dd->ipath_lastibcstat);
+	lt_state = ipath_ib_linktrstate(dd, dd->ipath_lastibcstat);
+	l_state = ipath_ib_linkstate(dd, dd->ipath_lastibcstat);
+	if (!dp.pbc_wd && (lt_state != INFINIPATH_IBCS_LT_STATE_LINKUP ||
+	    (val != dd->ib_init && val != dd->ib_arm &&
+	    val != dd->ib_active))) {
 		ipath_cdbg(VERBOSE, "unit %u not ready (state %llx)\n",
 			   dd->ipath_unit, (unsigned long long) val);
 		ret = -EINVAL;
@@ -431,15 +444,17 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 		goto bail;
 	}
 
-	piobuf = ipath_getpiobuf(dd, &pbufn);
+	plen >>= 2;		/* in dwords */
+
+	piobuf = ipath_getpiobuf(dd, plen, &pbufn);
 	if (!piobuf) {
 		ipath_cdbg(VERBOSE, "No PIO buffers avail unit for %u\n",
 			   dd->ipath_unit);
 		ret = -EBUSY;
 		goto bail;
 	}
-
-	plen >>= 2;		/* in dwords */
+	/* disarm it just to be extra sure */
+	ipath_disarm_piobufs(dd, pbufn, 1);
 
 	if (ipath_debug & __IPATH_PKTDBG)
 		ipath_cdbg(VERBOSE, "unit %u 0x%x+1w pio%d\n",

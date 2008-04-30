@@ -304,7 +304,8 @@ xfs_trans_read_buf(
 	if (tp == NULL) {
 		bp = xfs_buf_read_flags(target, blkno, len, flags | BUF_BUSY);
 		if (!bp)
-			return XFS_ERROR(ENOMEM);
+			return (flags & XFS_BUF_TRYLOCK) ?
+					EAGAIN : XFS_ERROR(ENOMEM);
 
 		if ((bp != NULL) && (XFS_BUF_GETERROR(bp) != 0)) {
 			xfs_ioerror_alert("xfs_trans_read_buf", mp,
@@ -353,17 +354,15 @@ xfs_trans_read_buf(
 			ASSERT(!XFS_BUF_ISASYNC(bp));
 			XFS_BUF_READ(bp);
 			xfsbdstrat(tp->t_mountp, bp);
-			xfs_iowait(bp);
-			if (XFS_BUF_GETERROR(bp) != 0) {
+			error = xfs_iowait(bp);
+			if (error) {
 				xfs_ioerror_alert("xfs_trans_read_buf", mp,
 						  bp, blkno);
-				error = XFS_BUF_GETERROR(bp);
 				xfs_buf_relse(bp);
 				/*
-				 * We can gracefully recover from most
-				 * read errors. Ones we can't are those
-				 * that happen after the transaction's
-				 * already dirty.
+				 * We can gracefully recover from most read
+				 * errors. Ones we can't are those that happen
+				 * after the transaction's already dirty.
 				 */
 				if (tp->t_flags & XFS_TRANS_DIRTY)
 					xfs_force_shutdown(tp->t_mountp,

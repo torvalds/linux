@@ -259,6 +259,16 @@ again:
 	return NULL;
 }
 
+void dst_release(struct dst_entry *dst)
+{
+	if (dst) {
+		WARN_ON(atomic_read(&dst->__refcnt) < 1);
+		smp_mb__before_atomic_dec();
+		atomic_dec(&dst->__refcnt);
+	}
+}
+EXPORT_SYMBOL(dst_release);
+
 /* Dirty hack. We did it in 2.2 (in __dst_free),
  * we have _very_ good reasons not to repeat
  * this mistake in 2.3, but we have no choice
@@ -279,7 +289,7 @@ static inline void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	if (!unregister) {
 		dst->input = dst->output = dst_discard;
 	} else {
-		dst->dev = dst->dev->nd_net->loopback_dev;
+		dst->dev = dev_net(dst->dev)->loopback_dev;
 		dev_hold(dst->dev);
 		dev_put(dev);
 		if (dst->neighbour && dst->neighbour->dev == dev) {
@@ -294,9 +304,6 @@ static int dst_dev_event(struct notifier_block *this, unsigned long event, void 
 {
 	struct net_device *dev = ptr;
 	struct dst_entry *dst, *last = NULL;
-
-	if (dev->nd_net != &init_net)
-		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:

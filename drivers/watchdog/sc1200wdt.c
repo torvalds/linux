@@ -38,8 +38,8 @@
 #include <linux/init.h>
 #include <linux/pnp.h>
 #include <linux/fs.h>
+#include <linux/semaphore.h>
 
-#include <asm/semaphore.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 

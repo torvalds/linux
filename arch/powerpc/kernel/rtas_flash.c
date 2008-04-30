@@ -807,7 +807,7 @@ int __init rtas_flash_init(void)
 				rtas_block_ctor);
 	if (!flash_block_cache) {
 		printk(KERN_ERR "%s: failed to create block cache\n",
-				__FUNCTION__);
+				__func__);
 		rc = -ENOMEM;
 		goto cleanup;
 	}

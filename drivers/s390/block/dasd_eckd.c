@@ -1415,6 +1415,13 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 		return;
 	}
 
+
+	/* service information message SIM */
+	if ((irb->ecw[6] & DASD_SIM_SENSE) == DASD_SIM_SENSE) {
+		dasd_3990_erp_handle_sim(device, irb->ecw);
+		return;
+	}
+
 	/* just report other unsolicited interrupts */
 	DEV_MESSAGE(KERN_DEBUG, device, "%s",
 		    "unsolicited interrupt received");

@@ -142,7 +142,7 @@ int br_stp_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct net_bridge *br;
 	const unsigned char *buf;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		goto err;
 
 	if (!p)

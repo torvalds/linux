@@ -65,6 +65,4 @@ struct ItIplParmsReal {
 	u64	xRsvd13;		// Reserved			x38-x3F
 };
 
-extern struct ItIplParmsReal	xItIplParmsReal;
-
 #endif /* _ISERIES_IPL_PARMS_H */

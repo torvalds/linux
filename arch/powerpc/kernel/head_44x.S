@@ -211,7 +211,7 @@ skpinv:	addi	r4,r4,1				/* Increment */
 	SET_IVOR(12, WatchdogTimer);
 	SET_IVOR(13, DataTLBError);
 	SET_IVOR(14, InstructionTLBError);
-	SET_IVOR(15, Debug);
+	SET_IVOR(15, DebugCrit);
 
 	/* Establish the interrupt vector base */
 	lis	r4,interrupt_base@h	/* IVPR only uses the high 16-bits */
@@ -578,7 +578,7 @@ interrupt_base:
 	b	InstructionStorage
 
 	/* Debug Interrupt */
-	DEBUG_EXCEPTION
+	DEBUG_CRIT_EXCEPTION
 
 /*
  * Local functions

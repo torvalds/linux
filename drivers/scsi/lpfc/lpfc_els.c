@@ -719,9 +719,9 @@ lpfc_els_abort_flogi(struct lpfc_hba *phba)
 		if (icmd->ulpCommand == CMD_ELS_REQUEST64_CR &&
 		    icmd->un.elsreq64.bdl.ulpIoTag32) {
 			ndlp = (struct lpfc_nodelist *)(iocb->context1);
-			if (ndlp && (ndlp->nlp_DID == Fabric_DID)) {
+			if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+			    (ndlp->nlp_DID == Fabric_DID))
 				lpfc_sli_issue_abort_iotag(phba, pring, iocb);
-			}
 		}
 	}
 	spin_unlock_irq(&phba->hbalock);
@@ -829,7 +829,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	struct fc_rport *rport;
 	struct serv_parm *sp;
 	uint8_t  name[sizeof(struct lpfc_name)];
-	uint32_t rc;
+	uint32_t rc, keepDID = 0;
 
 	/* Fabric nodes can have the same WWPN so we don't bother searching
 	 * by WWPN.  Just return the ndlp that was given to us.
@@ -858,11 +858,17 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			return ndlp;
 		lpfc_nlp_init(vport, new_ndlp, ndlp->nlp_DID);
 	} else if (!NLP_CHK_NODE_ACT(new_ndlp)) {
+		rc = memcmp(&ndlp->nlp_portname, name,
+			    sizeof(struct lpfc_name));
+		if (!rc)
+			return ndlp;
 		new_ndlp = lpfc_enable_node(vport, new_ndlp,
 						NLP_STE_UNUSED_NODE);
 		if (!new_ndlp)
 			return ndlp;
-	}
+		keepDID = new_ndlp->nlp_DID;
+	} else
+		keepDID = new_ndlp->nlp_DID;
 
 	lpfc_unreg_rpi(vport, new_ndlp);
 	new_ndlp->nlp_DID = ndlp->nlp_DID;
@@ -893,12 +899,24 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			}
 			new_ndlp->nlp_type = ndlp->nlp_type;
 		}
+		/* We shall actually free the ndlp with both nlp_DID and
+		 * nlp_portname fields equals 0 to avoid any ndlp on the
+		 * nodelist never to be used.
+		 */
+		if (ndlp->nlp_DID == 0) {
+			spin_lock_irq(&phba->ndlp_lock);
+			NLP_SET_FREE_REQ(ndlp);
+			spin_unlock_irq(&phba->ndlp_lock);
+		}
 
+		/* Two ndlps cannot have the same did on the nodelist */
+		ndlp->nlp_DID = keepDID;
 		lpfc_drop_node(vport, ndlp);
 	}
 	else {
 		lpfc_unreg_rpi(vport, ndlp);
-		ndlp->nlp_DID = 0; /* Two ndlps cannot have the same did */
+		/* Two ndlps cannot have the same did */
+		ndlp->nlp_DID = keepDID;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 	}
 	return new_ndlp;
@@ -2091,7 +2109,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		}
 
 		phba->fc_stat.elsXmitRetry++;
-		if (ndlp && delay) {
+		if (ndlp && NLP_CHK_NODE_ACT(ndlp) && delay) {
 			phba->fc_stat.elsDelayRetry++;
 			ndlp->nlp_retry = cmdiocb->retry;
 
@@ -2121,7 +2139,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_issue_els_fdisc(vport, ndlp, cmdiocb->retry);
 			return 1;
 		case ELS_CMD_PLOGI:
-			if (ndlp) {
+			if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
 				ndlp->nlp_prev_state = ndlp->nlp_state;
 				lpfc_nlp_set_state(vport, ndlp,
 						   NLP_STE_PLOGI_ISSUE);
@@ -2302,7 +2320,7 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	mempool_free(pmb, phba->mbox_mem_pool);
-	if (ndlp) {
+	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
 		lpfc_nlp_put(ndlp);
 		/* This is the end of the default RPI cleanup logic for this
 		 * ndlp. If no other discovery threads are using this ndlp.
@@ -2335,7 +2353,8 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	 * function can have cmdiocb->contest1 (ndlp) field set to NULL.
 	 */
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) cmdiocb->context2)->virt);
-	if (ndlp && (*((uint32_t *) (pcmd)) == ELS_CMD_LS_RJT)) {
+	if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+	    (*((uint32_t *) (pcmd)) == ELS_CMD_LS_RJT)) {
 		/* A LS_RJT associated with Default RPI cleanup has its own
 		 * seperate code path.
 		 */
@@ -2344,7 +2363,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 	/* Check to see if link went down during discovery */
-	if (!ndlp || lpfc_els_chk_latt(vport)) {
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) || lpfc_els_chk_latt(vport)) {
 		if (mbox) {
 			mp = (struct lpfc_dmabuf *) mbox->context1;
 			if (mp) {
@@ -2353,7 +2372,8 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			}
 			mempool_free(mbox, phba->mbox_mem_pool);
 		}
-		if (ndlp && (ndlp->nlp_flag & NLP_RM_DFLT_RPI))
+		if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+		    (ndlp->nlp_flag & NLP_RM_DFLT_RPI))
 			if (lpfc_nlp_not_used(ndlp)) {
 				ndlp = NULL;
 				/* Indicate the node has already released,
@@ -2443,7 +2463,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		mempool_free(mbox, phba->mbox_mem_pool);
 	}
 out:
-	if (ndlp) {
+	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag &= ~(NLP_ACC_REGLOGIN | NLP_RM_DFLT_RPI);
 		spin_unlock_irq(shost->host_lock);
@@ -3139,6 +3159,8 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		/* Another thread is walking fc_rscn_id_list on this vport */
 		spin_unlock_irq(shost->host_lock);
 		vport->fc_flag |= FC_RSCN_DISCOVERY;
+		/* Send back ACC */
+		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
 		return 0;
 	}
 	/* Indicate we are walking fc_rscn_id_list on this vport */
@@ -3928,7 +3950,7 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 		else {
 			struct lpfc_nodelist *ndlp;
 			ndlp = __lpfc_findnode_rpi(vport, cmd->ulpContext);
-			if (ndlp)
+			if (ndlp && NLP_CHK_NODE_ACT(ndlp))
 				remote_ID = ndlp->nlp_DID;
 		}
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
@@ -4097,21 +4119,22 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		newnode = 1;
 		if ((did & Fabric_DID_MASK) == Fabric_DID_MASK)
 			ndlp->nlp_type |= NLP_FABRIC;
-	} else {
-		if (!NLP_CHK_NODE_ACT(ndlp)) {
-			ndlp = lpfc_enable_node(vport, ndlp,
-						NLP_STE_UNUSED_NODE);
-			if (!ndlp)
-				goto dropit;
-		}
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
-			/* This is simular to the new node path */
-			ndlp = lpfc_nlp_get(ndlp);
-			if (!ndlp)
-				goto dropit;
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
-			newnode = 1;
-		}
+	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
+		ndlp = lpfc_enable_node(vport, ndlp,
+					NLP_STE_UNUSED_NODE);
+		if (!ndlp)
+			goto dropit;
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+		newnode = 1;
+		if ((did & Fabric_DID_MASK) == Fabric_DID_MASK)
+			ndlp->nlp_type |= NLP_FABRIC;
+	} else if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+		/* This is similar to the new node path */
+		ndlp = lpfc_nlp_get(ndlp);
+		if (!ndlp)
+			goto dropit;
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+		newnode = 1;
 	}
 
 	phba->fc_stat.elsRcvFrame++;
@@ -4451,7 +4474,6 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 			return;
 		}
 		lpfc_nlp_init(vport, ndlp, NameServer_DID);
-		ndlp->nlp_type |= NLP_FABRIC;
 	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
 		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_UNUSED_NODE);
 		if (!ndlp) {
@@ -4465,6 +4487,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 			return;
 		}
 	}
+	ndlp->nlp_type |= NLP_FABRIC;
 
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_PLOGI_ISSUE);
 
@@ -4481,8 +4504,8 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 		if (ndlp_fdmi) {
 			lpfc_nlp_init(vport, ndlp_fdmi, FDMI_DID);
 			ndlp_fdmi->nlp_type |= NLP_FABRIC;
-			ndlp_fdmi->nlp_state =
-				NLP_STE_PLOGI_ISSUE;
+			lpfc_nlp_set_state(vport, ndlp_fdmi,
+				NLP_STE_PLOGI_ISSUE);
 			lpfc_issue_els_plogi(vport, ndlp_fdmi->nlp_DID,
 					     0);
 		}
@@ -5074,39 +5097,3 @@ void lpfc_fabric_abort_hba(struct lpfc_hba *phba)
 		(piocb->iocb_cmpl) (phba, piocb, piocb);
 	}
 }
-
-
-#if 0
-void lpfc_fabric_abort_flogi(struct lpfc_hba *phba)
-{
-	LIST_HEAD(completions);
-	struct lpfc_iocbq *tmp_iocb, *piocb;
-	IOCB_t *cmd;
-	struct lpfc_nodelist *ndlp;
-
-	spin_lock_irq(&phba->hbalock);
-	list_for_each_entry_safe(piocb, tmp_iocb, &phba->fabric_iocb_list,
-				 list) {
-
-		cmd = &piocb->iocb;
-		ndlp = (struct lpfc_nodelist *) piocb->context1;
-		if (cmd->ulpCommand == CMD_ELS_REQUEST64_CR &&
-		    ndlp != NULL &&
-		    ndlp->nlp_DID == Fabric_DID)
-			list_move_tail(&piocb->list, &completions);
-	}
-	spin_unlock_irq(&phba->hbalock);
-
-	while (!list_empty(&completions)) {
-		piocb = list_get_first(&completions, struct lpfc_iocbq, list);
-		list_del_init(&piocb->list);
-
-		cmd = &piocb->iocb;
-		cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-		cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-		(piocb->iocb_cmpl) (phba, piocb, piocb);
-	}
-}
-#endif  /*  0  */
-
-

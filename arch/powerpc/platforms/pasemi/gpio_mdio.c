@@ -241,7 +241,7 @@ static int __devinit gpio_mdio_probe(struct of_device *ofdev,
 	new_bus->reset = &gpio_mdio_reset;
 
 	prop = of_get_property(np, "reg", NULL);
-	new_bus->id = *prop;
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", *prop);
 	new_bus->priv = priv;
 
 	new_bus->phy_mask = 0;

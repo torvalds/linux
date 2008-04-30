@@ -89,7 +89,7 @@ do_resize:
 	box_y = y + 2;
 	box_x = (width - box_width) / 2;
 	draw_box(dialog, y + 1, box_x - 1, 3, box_width + 2,
-		 dlg.border.atr, dlg.dialog.atr);
+		 dlg.dialog.atr, dlg.border.atr);
 
 	print_buttons(dialog, height, width, 0);
 

@@ -2356,13 +2356,16 @@ static void rawiso_activity_cb(struct hpsb_iso *iso)
 static void raw1394_iso_fill_status(struct hpsb_iso *iso,
 				    struct raw1394_iso_status *stat)
 {
+	int overflows = atomic_read(&iso->overflows);
+	int skips = atomic_read(&iso->skips);
+
 	stat->config.data_buf_size = iso->buf_size;
 	stat->config.buf_packets = iso->buf_packets;
 	stat->config.channel = iso->channel;
 	stat->config.speed = iso->speed;
 	stat->config.irq_interval = iso->irq_interval;
 	stat->n_packets = hpsb_iso_n_ready(iso);
-	stat->overflows = atomic_read(&iso->overflows);
+	stat->overflows = ((skips & 0xFFFF) << 16) | ((overflows & 0xFFFF));
 	stat->xmit_cycle = iso->xmit_cycle;
 }
 
@@ -2437,6 +2440,8 @@ static int raw1394_iso_get_status(struct file_info *fi, void __user * uaddr)
 
 	/* reset overflow counter */
 	atomic_set(&iso->overflows, 0);
+	/* reset skip counter */
+	atomic_set(&iso->skips, 0);
 
 	return 0;
 }
@@ -2935,6 +2940,7 @@ static int raw1394_release(struct inode *inode, struct file *file)
 /*
  * Export information about protocols/devices supported by this driver.
  */
+#ifdef MODULE
 static struct ieee1394_device_id raw1394_id_table[] = {
 	{
 	 .match_flags = IEEE1394_MATCH_SPECIFIER_ID | IEEE1394_MATCH_VERSION,
@@ -2956,10 +2962,10 @@ static struct ieee1394_device_id raw1394_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(ieee1394, raw1394_id_table);
+#endif /* MODULE */
 
 static struct hpsb_protocol_driver raw1394_driver = {
 	.name = "raw1394",
-	.id_table = raw1394_id_table,
 };
 
 /******************************************************************************/
@@ -3004,7 +3010,6 @@ static int __init init_raw1394(void)
 
 	cdev_init(&raw1394_cdev, &raw1394_fops);
 	raw1394_cdev.owner = THIS_MODULE;
-	kobject_set_name(&raw1394_cdev.kobj, RAW1394_DEVICE_NAME);
 	ret = cdev_add(&raw1394_cdev, IEEE1394_RAW1394_DEV, 1);
 	if (ret) {
 		HPSB_ERR("raw1394 failed to register minor device block");

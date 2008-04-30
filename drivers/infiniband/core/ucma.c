@@ -614,7 +614,7 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 	if (!ctx->cm_id->device)
 		goto out;
 
-	resp.node_guid = ctx->cm_id->device->node_guid;
+	resp.node_guid = (__force __u64) ctx->cm_id->device->node_guid;
 	resp.port_num = ctx->cm_id->port_num;
 	switch (rdma_node_get_transport(ctx->cm_id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:

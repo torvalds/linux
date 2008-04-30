@@ -21,8 +21,8 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/gpio.h>
 
-#include <asm/wbflush.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <asm/txx9tmr.h>
@@ -34,7 +34,7 @@
 #endif
 #include <linux/spi/spi.h>
 #include <asm/tx4938/spi.h>
-#include <asm/gpio.h>
+#include <asm/txx9pio.h>
 
 extern char * __init prom_getcmdline(void);
 static inline void tx4938_report_pcic_status1(struct tx4938_pcic_reg *pcicptr);
@@ -90,12 +90,11 @@ void rbtx4938_machine_restart(char *command)
 	local_irq_disable();
 
 	printk("Rebooting...");
-	*rbtx4938_softresetlock_ptr = 1;
-	*rbtx4938_sfvol_ptr = 1;
-	*rbtx4938_softreset_ptr = 1;
-	wbflush();
-
-	while(1);
+	writeb(1, rbtx4938_softresetlock_addr);
+	writeb(1, rbtx4938_sfvol_addr);
+	writeb(1, rbtx4938_softreset_addr);
+	while(1)
+		;
 }
 
 void __init
@@ -487,7 +486,7 @@ static int __init tx4938_pcibios_init(void)
 	}
 
 	/* Reset PCI Bus */
-	*rbtx4938_pcireset_ptr = 0;
+	writeb(0, rbtx4938_pcireset_addr);
 	/* Reset PCIC */
 	tx4938_ccfgptr->clkctr |= TX4938_CLKCTR_PCIRST;
 	if (txboard_pci66_mode > 0)
@@ -495,8 +494,8 @@ static int __init tx4938_pcibios_init(void)
 	mdelay(10);
 	/* clear PCIC reset */
 	tx4938_ccfgptr->clkctr &= ~TX4938_CLKCTR_PCIRST;
-	*rbtx4938_pcireset_ptr = 1;
-	wbflush();
+	writeb(1, rbtx4938_pcireset_addr);
+	mmiowb();
 	tx4938_report_pcic_status1(tx4938_pcicptr);
 
 	tx4938_report_pciclk();
@@ -504,15 +503,15 @@ static int __init tx4938_pcibios_init(void)
 	if (txboard_pci66_mode == 0 &&
 	    txboard_pci66_check(&tx4938_pci_controller[0], 0, 0)) {
 		/* Reset PCI Bus */
-		*rbtx4938_pcireset_ptr = 0;
+		writeb(0, rbtx4938_pcireset_addr);
 		/* Reset PCIC */
 		tx4938_ccfgptr->clkctr |= TX4938_CLKCTR_PCIRST;
 		tx4938_pciclk66_setup();
 		mdelay(10);
 		/* clear PCIC reset */
 		tx4938_ccfgptr->clkctr &= ~TX4938_CLKCTR_PCIRST;
-		*rbtx4938_pcireset_ptr = 1;
-		wbflush();
+		writeb(1, rbtx4938_pcireset_addr);
+		mmiowb();
 		/* Reinitialize PCIC */
 		tx4938_report_pciclk();
 		tx4938_pcic_setup(tx4938_pcicptr, &tx4938_pci_controller[0], io_base[0], extarb);
@@ -615,9 +614,6 @@ static void __init rbtx4938_spi_setup(void)
 {
 	/* set SPI_SEL */
 	tx4938_ccfgptr->pcfg |= TX4938_PCFG_SPI_SEL;
-	/* chip selects for SPI devices */
-	tx4938_pioptr->dout |= (1 << SEEPROM1_CS);
-	tx4938_pioptr->dir |= (1 << SEEPROM1_CS);
 }
 
 static struct resource rbtx4938_fpga_resource;
@@ -776,12 +772,13 @@ void __init tx4938_board_setup(void)
 		txx9_tmr_init(TX4938_TMR_REG(i) & 0xfffffffffULL);
 
 	/* enable DMA */
-	TX4938_WR64(0xff1fb150, TX4938_DMA_MCR_MSTEN);
-	TX4938_WR64(0xff1fb950, TX4938_DMA_MCR_MSTEN);
+	for (i = 0; i < 2; i++)
+		____raw_writeq(TX4938_DMA_MCR_MSTEN,
+			       (void __iomem *)(TX4938_DMA_REG(i) + 0x50));
 
 	/* PIO */
-	tx4938_pioptr->maskcpu = 0;
-	tx4938_pioptr->maskext = 0;
+	__raw_writel(0, &tx4938_pioptr->maskcpu);
+	__raw_writel(0, &tx4938_pioptr->maskext);
 
 	/* TX4938 internal registers */
 	if (request_resource(&iomem_resource, &tx4938_reg_resource))
@@ -863,10 +860,6 @@ void __init plat_mem_setup(void)
 	if (txx9_master_clock == 0)
 		txx9_master_clock = 25000000; /* 25MHz */
 	tx4938_board_setup();
-	/* setup serial stuff */
-	TX4938_WR(0xff1ff314, 0x00000000);	/* h/w flow control off */
-	TX4938_WR(0xff1ff414, 0x00000000);	/* h/w flow control off */
-
 #ifndef CONFIG_PCI
 	set_io_port_base(RBTX4938_ETHER_BASE);
 #endif
@@ -932,16 +925,16 @@ void __init plat_mem_setup(void)
 	pcfg = tx4938_ccfgptr->pcfg;	/* updated */
 	/* fixup piosel */
 	if ((pcfg & (TX4938_PCFG_ATA_SEL | TX4938_PCFG_NDF_SEL)) ==
-	    TX4938_PCFG_ATA_SEL) {
-		*rbtx4938_piosel_ptr = (*rbtx4938_piosel_ptr & 0x03) | 0x04;
-	}
+	    TX4938_PCFG_ATA_SEL)
+		writeb((readb(rbtx4938_piosel_addr) & 0x03) | 0x04,
+		       rbtx4938_piosel_addr);
 	else if ((pcfg & (TX4938_PCFG_ATA_SEL | TX4938_PCFG_NDF_SEL)) ==
-	    TX4938_PCFG_NDF_SEL) {
-		*rbtx4938_piosel_ptr = (*rbtx4938_piosel_ptr & 0x03) | 0x08;
-	}
-	else {
-		*rbtx4938_piosel_ptr &= ~(0x08 | 0x04);
-	}
+		 TX4938_PCFG_NDF_SEL)
+		writeb((readb(rbtx4938_piosel_addr) & 0x03) | 0x08,
+		       rbtx4938_piosel_addr);
+	else
+		writeb(readb(rbtx4938_piosel_addr) & ~(0x08 | 0x04),
+		       rbtx4938_piosel_addr);
 
 	rbtx4938_fpga_resource.name = "FPGA Registers";
 	rbtx4938_fpga_resource.start = CPHYSADDR(RBTX4938_FPGA_REG_ADDR);
@@ -950,17 +943,14 @@ void __init plat_mem_setup(void)
 	if (request_resource(&iomem_resource, &rbtx4938_fpga_resource))
 		printk("request resource for fpga failed\n");
 
-	/* disable all OnBoard I/O interrupts */
-	*rbtx4938_imask_ptr = 0;
-
 	_machine_restart = rbtx4938_machine_restart;
 	_machine_halt = rbtx4938_machine_halt;
 	pm_power_off = rbtx4938_machine_power_off;
 
-	*rbtx4938_led_ptr = 0xff;
-	printk("RBTX4938 --- FPGA(Rev %02x)", *rbtx4938_fpga_rev_ptr);
-	printk(" DIPSW:%02x,%02x\n",
-	       *rbtx4938_dipsw_ptr, *rbtx4938_bdipsw_ptr);
+	writeb(0xff, rbtx4938_led_addr);
+	printk(KERN_INFO "RBTX4938 --- FPGA(Rev %02x) DIPSW:%02x,%02x\n",
+	       readb(rbtx4938_fpga_rev_addr),
+	       readb(rbtx4938_dipsw_addr), readb(rbtx4938_bdipsw_addr));
 }
 
 static int __init rbtx4938_ne_init(void)
@@ -984,106 +974,48 @@ device_initcall(rbtx4938_ne_init);
 
 /* GPIO support */
 
+int gpio_to_irq(unsigned gpio)
+{
+	return -EINVAL;
+}
+
+int irq_to_gpio(unsigned irq)
+{
+	return -EINVAL;
+}
+
 static DEFINE_SPINLOCK(rbtx4938_spi_gpio_lock);
 
-static void rbtx4938_spi_gpio_set(unsigned gpio, int value)
+static void rbtx4938_spi_gpio_set(struct gpio_chip *chip, unsigned int offset,
+				  int value)
 {
 	u8 val;
 	unsigned long flags;
-	gpio -= 16;
 	spin_lock_irqsave(&rbtx4938_spi_gpio_lock, flags);
-	val = *rbtx4938_spics_ptr;
+	val = readb(rbtx4938_spics_addr);
 	if (value)
-		val |= 1 << gpio;
+		val |= 1 << offset;
 	else
-		val &= ~(1 << gpio);
-	*rbtx4938_spics_ptr = val;
+		val &= ~(1 << offset);
+	writeb(val, rbtx4938_spics_addr);
 	mmiowb();
 	spin_unlock_irqrestore(&rbtx4938_spi_gpio_lock, flags);
 }
 
-static int rbtx4938_spi_gpio_dir_out(unsigned gpio, int value)
+static int rbtx4938_spi_gpio_dir_out(struct gpio_chip *chip,
+				     unsigned int offset, int value)
 {
-	rbtx4938_spi_gpio_set(gpio, value);
+	rbtx4938_spi_gpio_set(chip, offset, value);
 	return 0;
 }
 
-static DEFINE_SPINLOCK(tx4938_gpio_lock);
-
-static int tx4938_gpio_get(unsigned gpio)
-{
-	return tx4938_pioptr->din & (1 << gpio);
-}
-
-static void tx4938_gpio_set_raw(unsigned gpio, int value)
-{
-	u32 val;
-	val = tx4938_pioptr->dout;
-	if (value)
-		val |= 1 << gpio;
-	else
-		val &= ~(1 << gpio);
-	tx4938_pioptr->dout = val;
-}
-
-static void tx4938_gpio_set(unsigned gpio, int value)
-{
-	unsigned long flags;
-	spin_lock_irqsave(&tx4938_gpio_lock, flags);
-	tx4938_gpio_set_raw(gpio, value);
-	mmiowb();
-	spin_unlock_irqrestore(&tx4938_gpio_lock, flags);
-}
-
-static int tx4938_gpio_dir_in(unsigned gpio)
-{
-	spin_lock_irq(&tx4938_gpio_lock);
-	tx4938_pioptr->dir &= ~(1 << gpio);
-	mmiowb();
-	spin_unlock_irq(&tx4938_gpio_lock);
-	return 0;
-}
-
-static int tx4938_gpio_dir_out(unsigned int gpio, int value)
-{
-	spin_lock_irq(&tx4938_gpio_lock);
-	tx4938_gpio_set_raw(gpio, value);
-	tx4938_pioptr->dir |= 1 << gpio;
-	mmiowb();
-	spin_unlock_irq(&tx4938_gpio_lock);
-	return 0;
-}
-
-int gpio_direction_input(unsigned gpio)
-{
-	if (gpio < 16)
-		return tx4938_gpio_dir_in(gpio);
-	return -EINVAL;
-}
-
-int gpio_direction_output(unsigned gpio, int value)
-{
-	if (gpio < 16)
-		return tx4938_gpio_dir_out(gpio, value);
-	if (gpio < 16 + 3)
-		return rbtx4938_spi_gpio_dir_out(gpio, value);
-	return -EINVAL;
-}
-
-int gpio_get_value(unsigned gpio)
-{
-	if (gpio < 16)
-		return tx4938_gpio_get(gpio);
-	return 0;
-}
-
-void gpio_set_value(unsigned gpio, int value)
-{
-	if (gpio < 16)
-		tx4938_gpio_set(gpio, value);
-	else
-		rbtx4938_spi_gpio_set(gpio, value);
-}
+static struct gpio_chip rbtx4938_spi_gpio_chip = {
+	.set = rbtx4938_spi_gpio_set,
+	.direction_output = rbtx4938_spi_gpio_dir_out,
+	.label = "RBTX4938-SPICS",
+	.base = 16,
+	.ngpio = 3,
+};
 
 /* SPI support */
 
@@ -1094,7 +1026,6 @@ static void __init txx9_spi_init(unsigned long base, int irq)
 			.start	= base,
 			.end	= base + 0x20 - 1,
 			.flags	= IORESOURCE_MEM,
-			.parent	= &tx4938_reg_resource,
 		}, {
 			.start	= irq,
 			.flags	= IORESOURCE_IRQ,
@@ -1118,10 +1049,25 @@ static int __init rbtx4938_spi_init(void)
 	spi_eeprom_register(SEEPROM1_CS);
 	spi_eeprom_register(16 + SEEPROM2_CS);
 	spi_eeprom_register(16 + SEEPROM3_CS);
+	gpio_request(16 + SRTC_CS, "rtc-rs5c348");
+	gpio_direction_output(16 + SRTC_CS, 0);
+	gpio_request(SEEPROM1_CS, "seeprom1");
+	gpio_direction_output(SEEPROM1_CS, 1);
+	gpio_request(16 + SEEPROM2_CS, "seeprom2");
+	gpio_direction_output(16 + SEEPROM2_CS, 1);
+	gpio_request(16 + SEEPROM3_CS, "seeprom3");
+	gpio_direction_output(16 + SEEPROM3_CS, 1);
 	txx9_spi_init(TX4938_SPI_REG & 0xfffffffffULL, RBTX4938_IRQ_IRC_SPI);
 	return 0;
 }
-arch_initcall(rbtx4938_spi_init);
+
+static int __init rbtx4938_arch_init(void)
+{
+	txx9_gpio_init(TX4938_PIO_REG & 0xfffffffffULL, 0, 16);
+	gpiochip_add(&rbtx4938_spi_gpio_chip);
+	return rbtx4938_spi_init();
+}
+arch_initcall(rbtx4938_arch_init);
 
 /* Watchdog support */
 
@@ -1131,7 +1077,6 @@ static int __init txx9_wdt_init(unsigned long base)
 		.start	= base,
 		.end	= base + 0x100 - 1,
 		.flags	= IORESOURCE_MEM,
-		.parent	= &tx4938_reg_resource,
 	};
 	struct platform_device *dev =
 		platform_device_register_simple("txx9wdt", -1, &res, 1);

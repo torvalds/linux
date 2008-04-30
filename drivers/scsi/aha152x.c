@@ -994,13 +994,13 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct completion *complete,
 	SCpnt->SCp.sent_command	= 0;
 
 	if(SCpnt->SCp.phase & (resetting|check_condition)) {
-		if(SCpnt->host_scribble==0 || SCSEM(SCpnt) || SCNEXT(SCpnt)) {
+		if (!SCpnt->host_scribble || SCSEM(SCpnt) || SCNEXT(SCpnt)) {
 			printk(ERR_LEAD "cannot reuse command\n", CMDINFO(SCpnt));
 			return FAILED;
 		}
 	} else {
 		SCpnt->host_scribble = kmalloc(sizeof(struct aha152x_scdata), GFP_ATOMIC);
-		if(SCpnt->host_scribble==0) {
+		if(!SCpnt->host_scribble) {
 			printk(ERR_LEAD "allocation failed\n", CMDINFO(SCpnt));
 			return FAILED;
 		}
@@ -1162,7 +1162,7 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	}
 
 	DO_LOCK(flags);
-	issued       = remove_SC(&ISSUE_SC, SCpnt)==0;
+	issued       = remove_SC(&ISSUE_SC, SCpnt) == NULL;
 	disconnected = issued && remove_SC(&DISCONNECTED_SC, SCpnt);
 	DO_UNLOCK(flags);
 
@@ -1432,14 +1432,9 @@ static void run(struct work_struct *work)
  */
 static irqreturn_t intr(int irqno, void *dev_id)
 {
-	struct Scsi_Host *shpnt = (struct Scsi_Host *)dev_id;
+	struct Scsi_Host *shpnt = dev_id;
 	unsigned long flags;
 	unsigned char rev, dmacntrl0;
-
-	if (!shpnt) {
-		printk(KERN_ERR "aha152x: catched interrupt %d for unknown controller.\n", irqno);
-		return IRQ_NONE;
-	}
 
 	/*
 	 * Read a couple of registers that are known to not be all 1's. If

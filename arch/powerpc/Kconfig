@@ -49,6 +49,19 @@ config IRQ_PER_CPU
 	bool
 	default y
 
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
+config TRACE_IRQFLAGS_SUPPORT
+	bool
+	depends on PPC64
+	default y
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 
@@ -81,6 +94,11 @@ config GENERIC_FIND_NEXT_BIT
 	bool
 	default y
 
+config GENERIC_GPIO
+	bool
+	help
+	  Generic GPIO API support
+
 config ARCH_NO_VIRT_TO_BUS
 	def_bool PPC64
 
@@ -91,6 +109,7 @@ config PPC
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_LMB
 
 config EARLY_PRINTK
 	bool
@@ -210,15 +229,6 @@ source kernel/Kconfig.hz
 source kernel/Kconfig.preempt
 source "fs/Kconfig.binfmt"
 
-# We optimistically allocate largepages from the VM, so make the limit
-# large enough (16MB). This badly named config option is actually
-# max order + 1
-config FORCE_MAX_ZONEORDER
-	int
-	depends on PPC64
-	default "9" if PPC_64K_PAGES
-	default "13"
-
 config HUGETLB_PAGE_SIZE_VARIABLE
 	bool
 	depends on HUGETLB_PAGE
@@ -307,6 +317,16 @@ config CRASH_DUMP
 
 	  Don't change this unless you know what you are doing.
 
+config PHYP_DUMP
+	bool "Hypervisor-assisted dump (EXPERIMENTAL)"
+	depends on PPC_PSERIES && EXPERIMENTAL
+	help
+	  Hypervisor-assisted dump is meant to be a kdump replacement
+	  offering robustness and speed not possible without system
+	  hypervisor assistence.
+
+	  If unsure, say "N"
+
 config PPCBUG_NVRAM
 	bool "Enable reading PPCBUG NVRAM during boot" if PPLUS || LOPEC
 	default y if PPC_PREP
@@ -380,6 +400,26 @@ config PPC_64K_PAGES
 	  them by loading each individual 4k page on demand transparently,
 	  while on hardware with such support, it will be used to map
 	  normal application pages.
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	default "9" if PPC_64K_PAGES
+	default "13" if PPC64 && !PPC_64K_PAGES
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
+	  The page size is not necessarily 4KB.  For example, on 64-bit
+	  systems, 64KB pages can be enabled via CONFIG_PPC_64K_PAGES.  Keep
+	  this in mind when choosing a value for this option.
 
 config PPC_SUBPAGE_PROT
 	bool "Support setting protections for 4k subpages"
@@ -490,6 +530,14 @@ config FSL_PCI
  	bool
 	select PPC_INDIRECT_PCI
 
+config 4xx_SOC
+	bool
+
+config FSL_LBC
+	bool
+	help
+	  Freescale Localbus support
+
 # Yes MCA RS/6000s exist but Linux-PPC does not currently support any
 config MCA
 	bool
@@ -578,20 +626,6 @@ config ADVANCED_OPTIONS
 comment "Default settings for advanced configuration options are used"
 	depends on !ADVANCED_OPTIONS
 
-config HIGHMEM_START_BOOL
-	bool "Set high memory pool address"
-	depends on ADVANCED_OPTIONS && HIGHMEM
-	help
-	  This option allows you to set the base address of the kernel virtual
-	  area used to map high memory pages.  This can be useful in
-	  optimizing the layout of kernel virtual memory.
-
-	  Say N here unless you know what you are doing.
-
-config HIGHMEM_START
-	hex "Virtual start address of high memory pool" if HIGHMEM_START_BOOL
-	default "0xfe000000"
-
 config LOWMEM_SIZE_BOOL
 	bool "Set maximum low memory"
 	depends on ADVANCED_OPTIONS
@@ -608,20 +642,75 @@ config LOWMEM_SIZE
 	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
 	default "0x30000000"
 
+config RELOCATABLE
+	bool "Build a relocatable kernel (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && ADVANCED_OPTIONS && FLATMEM && FSL_BOOKE
+	help
+	  This builds a kernel image that is capable of running at the
+	  location the kernel is loaded at (some alignment restrictions may
+	  exist).
+
+	  One use is for the kexec on panic case where the recovery kernel
+	  must live at a different physical address than the primary
+	  kernel.
+
+	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
+	  it has been loaded at and the compile time physical addresses
+	  CONFIG_PHYSICAL_START is ignored.  However CONFIG_PHYSICAL_START
+	  setting can still be useful to bootwrappers that need to know the
+	  load location of the kernel (eg. u-boot/mkimage).
+
+config PAGE_OFFSET_BOOL
+	bool "Set custom page offset address"
+	depends on ADVANCED_OPTIONS
+	help
+	  This option allows you to set the kernel virtual address at which
+	  the kernel will map low memory.  This can be useful in optimizing
+	  the virtual memory layout of the system.
+
+	  Say N here unless you know what you are doing.
+
+config PAGE_OFFSET
+	hex "Virtual address of memory base" if PAGE_OFFSET_BOOL
+	default "0xc0000000"
+
 config KERNEL_START_BOOL
 	bool "Set custom kernel base address"
 	depends on ADVANCED_OPTIONS
 	help
 	  This option allows you to set the kernel virtual address at which
-	  the kernel will map low memory (the kernel image will be linked at
-	  this address).  This can be useful in optimizing the virtual memory
-	  layout of the system.
+	  the kernel will be loaded.  Normally this should match PAGE_OFFSET
+	  however there are times (like kdump) that one might not want them
+	  to be the same.
 
 	  Say N here unless you know what you are doing.
 
 config KERNEL_START
 	hex "Virtual address of kernel base" if KERNEL_START_BOOL
+	default PAGE_OFFSET if PAGE_OFFSET_BOOL
+	default "0xc2000000" if CRASH_DUMP
 	default "0xc0000000"
+
+config PHYSICAL_START_BOOL
+	bool "Set physical address where the kernel is loaded"
+	depends on ADVANCED_OPTIONS && FLATMEM && FSL_BOOKE
+	help
+	  This gives the physical address where the kernel is loaded.
+
+	  Say N here unless you know what you are doing.
+
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded" if PHYSICAL_START_BOOL
+	default "0x02000000" if PPC_STD_MMU && CRASH_DUMP
+	default "0x00000000"
+
+config PHYSICAL_ALIGN
+	hex
+	default "0x10000000" if FSL_BOOKE
+	help
+	  This value puts the alignment restrictions on physical address
+	  where kernel is loaded and run from. Kernel is compiled for an
+	  address which meets above alignment restriction.
 
 config TASK_SIZE_BOOL
 	bool "Set custom user task size"
@@ -663,31 +752,23 @@ config CONSISTENT_SIZE
 	hex "Size of consistent memory pool" if CONSISTENT_SIZE_BOOL
 	default "0x00200000" if NOT_COHERENT_CACHE
 
-config BOOT_LOAD_BOOL
-	bool "Set the boot link/load address"
-	depends on ADVANCED_OPTIONS && !PPC_MULTIPLATFORM
-	help
-	  This option allows you to set the initial load address of the zImage
-	  or zImage.initrd file.  This can be useful if you are on a board
-	  which has a small amount of memory.
-
-	  Say N here unless you know what you are doing.
-
-config BOOT_LOAD
-	hex "Link/load address for booting" if BOOT_LOAD_BOOL
-	default "0x00400000" if 40x || 8xx || 8260
-	default "0x01000000" if 44x
-	default "0x00800000"
-
 config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"
 	depends on ADVANCED_OPTIONS && 8xx
 endmenu
 
 if PPC64
-config KERNEL_START
+config PAGE_OFFSET
 	hex
 	default "0xc000000000000000"
+config KERNEL_START
+	hex
+	default "0xc000000002000000" if CRASH_DUMP
+	default "0xc000000000000000"
+config PHYSICAL_START
+	hex
+	default "0x02000000" if CRASH_DUMP
+	default "0x00000000"
 endif
 
 source "net/Kconfig"
@@ -722,3 +803,4 @@ config PPC_CLOCK
 config PPC_LIB_RHEAP
 	bool
 
+source "arch/powerpc/kvm/Kconfig"

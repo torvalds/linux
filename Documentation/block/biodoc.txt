@@ -1097,7 +1097,7 @@ lock themselves, if required. Drivers that explicitly used the
 io_request_lock for serialization need to be modified accordingly.
 Usually it's as easy as adding a global lock:
 
-	static spinlock_t my_driver_lock = SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(my_driver_lock);
 
 and passing the address to that lock to blk_init_queue().
 

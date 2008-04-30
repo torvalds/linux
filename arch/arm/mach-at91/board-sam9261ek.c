@@ -26,6 +26,8 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/spi/at73c213.h>
+#include <linux/clk.h>
 #include <linux/dm9000.h>
 #include <linux/fb.h>
 #include <linux/gpio_keys.h>
@@ -44,21 +46,10 @@
 
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
-#include <asm/arch/at91sam926x_mc.h>
+#include <asm/arch/at91sam9_smc.h>
 
 #include "generic.h"
 
-
-/*
- * Serial port configuration.
- *    0 .. 2 = USART0 .. USART2
- *    3      = DBGU
- */
-static struct at91_uart_config __initdata ek_uart_config = {
-	.console_tty	= 0,				/* ttyS0 */
-	.nr_tty		= 1,
-	.tty_map	= { 3, -1, -1, -1 }		/* ttyS0, ..., ttyS3 */
-};
 
 static void __init ek_map_io(void)
 {
@@ -68,8 +59,11 @@ static void __init ek_map_io(void)
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PA13, AT91_PIN_PA14);
 
-	/* Setup the serial ports and console */
-	at91_init_serial(&ek_uart_config);
+	/* DGBU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* set serial console to ttyS0 (ie, DBGU) */
+	at91_set_serial_console(0);
 }
 
 static void __init ek_init_irq(void)
@@ -239,6 +233,35 @@ static void __init ek_add_device_ts(void) {}
 #endif
 
 /*
+ * Audio
+ */
+static struct at73c213_board_info at73c213_data = {
+	.ssc_id		= 1,
+	.shortname	= "AT91SAM9261-EK external DAC",
+};
+
+#if defined(CONFIG_SND_AT73C213) || defined(CONFIG_SND_AT73C213_MODULE)
+static void __init at73c213_set_clk(struct at73c213_board_info *info)
+{
+	struct clk *pck2;
+	struct clk *plla;
+
+	pck2 = clk_get(NULL, "pck2");
+	plla = clk_get(NULL, "plla");
+
+	/* AT73C213 MCK Clock */
+	at91_set_B_periph(AT91_PIN_PB31, 0);	/* PCK2 */
+
+	clk_set_parent(pck2, plla);
+	clk_put(plla);
+
+	info->dac_clk = pck2;
+}
+#else
+static void __init at73c213_set_clk(struct at73c213_board_info *info) {}
+#endif
+
+/*
  * SPI devices
  */
 static struct spi_board_info ek_spi_devices[] = {
@@ -256,6 +279,7 @@ static struct spi_board_info ek_spi_devices[] = {
 		.bus_num	= 0,
 		.platform_data	= &ads_info,
 		.irq		= AT91SAM9261_ID_IRQ0,
+		.controller_data = (void *) AT91_PIN_PA28,	/* CS pin */
 	},
 #endif
 #if defined(CONFIG_MTD_AT91_DATAFLASH_CARD)
@@ -271,6 +295,9 @@ static struct spi_board_info ek_spi_devices[] = {
 		.chip_select	= 3,
 		.max_speed_hz	= 10 * 1000 * 1000,
 		.bus_num	= 0,
+		.mode		= SPI_MODE_1,
+		.platform_data	= &at73c213_data,
+		.controller_data = (void*) AT91_PIN_PA29,	/* default for CS3 is PA6, but it must be PA29 */
 	},
 #endif
 };
@@ -460,6 +487,29 @@ static void __init ek_add_device_buttons(void)
 static void __init ek_add_device_buttons(void) {}
 #endif
 
+/*
+ * LEDs
+ */
+static struct gpio_led ek_leds[] = {
+	{	/* "bottom" led, green, userled1 to be defined */
+		.name			= "ds7",
+		.gpio			= AT91_PIN_PA14,
+		.active_low		= 1,
+		.default_trigger	= "none",
+	},
+	{	/* "top" led, green, userled2 to be defined */
+		.name			= "ds8",
+		.gpio			= AT91_PIN_PA13,
+		.active_low		= 1,
+		.default_trigger	= "none",
+	},
+	{	/* "power" led, yellow */
+		.name			= "ds1",
+		.gpio			= AT91_PIN_PA23,
+		.default_trigger	= "heartbeat",
+	}
+};
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -481,6 +531,9 @@ static void __init ek_board_init(void)
 	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
 	/* Touchscreen */
 	ek_add_device_ts();
+	/* SSC (to AT73C213) */
+	at73c213_set_clk(&at73c213_data);
+	at91_add_device_ssc(AT91SAM9261_ID_SSC1, ATMEL_SSC_TX);
 #else
 	/* MMC */
 	at91_add_device_mmc(0, &ek_mmc_data);
@@ -489,6 +542,8 @@ static void __init ek_board_init(void)
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* Push Buttons */
 	ek_add_device_buttons();
+	/* LEDs */
+	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 }
 
 MACHINE_START(AT91SAM9261EK, "Atmel AT91SAM9261-EK")

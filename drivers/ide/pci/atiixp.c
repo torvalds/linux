@@ -130,37 +130,26 @@ static u8 __devinit atiixp_cable_detect(ide_hwif_t *hwif)
 		return ATA_CBL_PATA40;
 }
 
-/**
- *	init_hwif_atiixp		-	fill in the hwif for the ATIIXP
- *	@hwif: IDE interface
- *
- *	Set up the ide_hwif_t for the ATIIXP interface according to the
- *	capabilities of the hardware.
- */
-
-static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
-{
-	hwif->set_pio_mode = &atiixp_set_pio_mode;
-	hwif->set_dma_mode = &atiixp_set_dma_mode;
-
-	hwif->cable_detect = atiixp_cable_detect;
-}
+static const struct ide_port_ops atiixp_port_ops = {
+	.set_pio_mode		= atiixp_set_pio_mode,
+	.set_dma_mode		= atiixp_set_dma_mode,
+	.cable_detect		= atiixp_cable_detect,
+};
 
 static const struct ide_port_info atiixp_pci_info[] __devinitdata = {
 	{	/* 0 */
 		.name		= "ATIIXP",
-		.init_hwif	= init_hwif_atiixp,
 		.enablebits	= {{0x48,0x01,0x00}, {0x48,0x08,0x00}},
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_BOOTABLE,
+		.port_ops	= &atiixp_port_ops,
+		.host_flags	= IDE_HFLAG_LEGACY_IRQS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
 	},{	/* 1 */
 		.name		= "SB600_PATA",
-		.init_hwif	= init_hwif_atiixp,
 		.enablebits	= {{0x48,0x01,0x00}, {0x00,0x00,0x00}},
- 		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_LEGACY_IRQS |
-				  IDE_HFLAG_BOOTABLE,
+		.port_ops	= &atiixp_port_ops,
+		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_LEGACY_IRQS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,

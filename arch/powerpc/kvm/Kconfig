@@ -1,0 +1,42 @@
+#
+# KVM configuration
+#
+
+menuconfig VIRTUALIZATION
+	bool "Virtualization"
+	---help---
+	  Say Y here to get to see options for using your Linux host to run
+	  other operating systems inside virtual machines (guests).
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and
+	  disabled.
+
+if VIRTUALIZATION
+
+config KVM
+	bool "Kernel-based Virtual Machine (KVM) support"
+	depends on 44x && EXPERIMENTAL
+	select PREEMPT_NOTIFIERS
+	select ANON_INODES
+	# We can only run on Book E hosts so far
+	select KVM_BOOKE_HOST
+	---help---
+	  Support hosting virtualized guest machines. You will also
+	  need to select one or more of the processor modules below.
+
+	  This module provides access to the hardware capabilities through
+	  a character device node named /dev/kvm.
+
+	  If unsure, say N.
+
+config KVM_BOOKE_HOST
+	bool "KVM host support for Book E PowerPC processors"
+	depends on KVM && 44x
+	---help---
+	  Provides host support for KVM on Book E PowerPC processors. Currently
+	  this works on 440 processors only.
+
+source drivers/virtio/Kconfig
+
+endif # VIRTUALIZATION

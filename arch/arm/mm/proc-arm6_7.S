@@ -293,6 +293,7 @@ __arm7_setup:	mov	r0, #0
 		.type	arm6_processor_functions, #object
 ENTRY(arm6_processor_functions)
 		.word	cpu_arm6_data_abort
+		.word	pabort_noifar
 		.word	cpu_arm6_proc_init
 		.word	cpu_arm6_proc_fin
 		.word	cpu_arm6_reset
@@ -309,6 +310,7 @@ ENTRY(arm6_processor_functions)
 		.type	arm7_processor_functions, #object
 ENTRY(arm7_processor_functions)
 		.word	cpu_arm7_data_abort
+		.word	pabort_noifar
 		.word	cpu_arm7_proc_init
 		.word	cpu_arm7_proc_fin
 		.word	cpu_arm7_reset

@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 
-#include <asm/semaphore.h>
 #include <asm/prom.h>
 #include <asm/pmac_pfunc.h>
 

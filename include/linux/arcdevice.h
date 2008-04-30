@@ -283,8 +283,8 @@ struct arcnet_local {
 	int next_buf, first_free_buf;
 
 	/* network "reconfiguration" handling */
-	time_t first_recon,	/* time of "first" RECON message to count */
-		last_recon;	/* time of most recent RECON */
+	unsigned long first_recon; /* time of "first" RECON message to count */
+	unsigned long last_recon;  /* time of most recent RECON */
 	int num_recons;		/* number of RECONs between first and last. */
 	bool network_down;	/* do we think the network is down? */
 

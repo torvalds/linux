@@ -19,6 +19,8 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/input.h>
+#include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -26,6 +28,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
+#include <asm/arch/control.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/gpioexpander.h>
 #include <asm/arch/mux.h>
@@ -36,9 +39,12 @@
 #include <asm/arch/keypad.h>
 #include <asm/arch/menelaus.h>
 #include <asm/arch/dma.h>
-#include "prcm-regs.h"
+#include <asm/arch/gpmc.h>
 
 #include <asm/io.h>
+
+#define H4_FLASH_CS	0
+#define H4_SMC91X_CS	1
 
 static unsigned int row_gpios[6] = { 88, 89, 124, 11, 6, 96 };
 static unsigned int col_gpios[7] = { 90, 91, 100, 36, 12, 97, 98 };
@@ -116,8 +122,6 @@ static struct flash_platform_data h4_flash_data = {
 };
 
 static struct resource h4_flash_resource = {
-	.start		= H4_CS0_BASE,
-	.end		= H4_CS0_BASE + SZ_64M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -253,21 +257,107 @@ static struct platform_device *h4_devices[] __initdata = {
 	&h4_lcd_device,
 };
 
+/* 2420 Sysboot setup (2430 is different) */
+static u32 get_sysboot_value(void)
+{
+	return (omap_ctrl_readl(OMAP24XX_CONTROL_STATUS) &
+		(OMAP2_SYSBOOT_5_MASK | OMAP2_SYSBOOT_4_MASK |
+		 OMAP2_SYSBOOT_3_MASK | OMAP2_SYSBOOT_2_MASK |
+		 OMAP2_SYSBOOT_1_MASK | OMAP2_SYSBOOT_0_MASK));
+}
+
+/* H4-2420's always used muxed mode, H4-2422's always use non-muxed
+ *
+ * Note: OMAP-GIT doesn't correctly do is_cpu_omap2422 and is_cpu_omap2423
+ *  correctly.  The macro needs to look at production_id not just hawkeye.
+ */
+static u32 is_gpmc_muxed(void)
+{
+	u32 mux;
+	mux = get_sysboot_value();
+	if ((mux & 0xF) == 0xd)
+		return 1;	/* NAND config (could be either) */
+	if (mux & 0x2)		/* if mux'ed */
+		return 1;
+	else
+		return 0;
+}
+
 static inline void __init h4_init_debug(void)
 {
+	int eth_cs;
+	unsigned long cs_mem_base;
+	unsigned int muxed, rate;
+	struct clk *gpmc_fck;
+
+	eth_cs	= H4_SMC91X_CS;
+
+	gpmc_fck = clk_get(NULL, "gpmc_fck");	/* Always on ENABLE_ON_INIT */
+	if (IS_ERR(gpmc_fck)) {
+		WARN_ON(1);
+		return;
+	}
+
+	clk_enable(gpmc_fck);
+	rate = clk_get_rate(gpmc_fck);
+	clk_disable(gpmc_fck);
+	clk_put(gpmc_fck);
+
+	if (is_gpmc_muxed())
+		muxed = 0x200;
+	else
+		muxed = 0;
+
 	/* Make sure CS1 timings are correct */
-	GPMC_CONFIG1_1 = 0x00011200;
-	GPMC_CONFIG2_1 = 0x001f1f01;
-	GPMC_CONFIG3_1 = 0x00080803;
-	GPMC_CONFIG4_1 = 0x1c091c09;
-	GPMC_CONFIG5_1 = 0x041f1f1f;
-	GPMC_CONFIG6_1 = 0x000004c4;
-	GPMC_CONFIG7_1 = 0x00000f40 | (0x08000000 >> 24);
+	gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG1,
+			  0x00011000 | muxed);
+
+	if (rate >= 160000000) {
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG2, 0x001f1f01);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG3, 0x00080803);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG4, 0x1c0b1c0a);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG5, 0x041f1F1F);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG6, 0x000004C4);
+	} else if (rate >= 130000000) {
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG2, 0x001f1f00);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG3, 0x00080802);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG4, 0x1C091C09);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG5, 0x041f1F1F);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG6, 0x000004C4);
+	} else {/* rate = 100000000 */
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG2, 0x001f1f00);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG3, 0x00080802);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG4, 0x1C091C09);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG5, 0x031A1F1F);
+		gpmc_cs_write_reg(eth_cs, GPMC_CS_CONFIG6, 0x000003C2);
+	}
+
+	if (gpmc_cs_request(eth_cs, SZ_16M, &cs_mem_base) < 0) {
+		printk(KERN_ERR "Failed to request GPMC mem for smc91x\n");
+		goto out;
+	}
+
 	udelay(100);
 
 	omap_cfg_reg(M15_24XX_GPIO92);
 	if (debug_card_init(cs_mem_base, OMAP24XX_ETHR_GPIO_IRQ) < 0)
 		gpmc_cs_free(eth_cs);
+
+out:
+	clk_disable(gpmc_fck);
+	clk_put(gpmc_fck);
+}
+
+static void __init h4_init_flash(void)
+{
+	unsigned long base;
+
+	if (gpmc_cs_request(H4_FLASH_CS, SZ_64M, &base) < 0) {
+		printk("Can't request GPMC CS for flash\n");
+		return;
+	}
+	h4_flash_resource.start	= base;
+	h4_flash_resource.end	= base + SZ_64M - 1;
 }
 
 static void __init omap_h4_init_irq(void)
@@ -275,6 +365,7 @@ static void __init omap_h4_init_irq(void)
 	omap2_init_common_hw();
 	omap_init_irq();
 	omap_gpio_init();
+	h4_init_flash();
 }
 
 static struct omap_uart_config h4_uart_config __initdata = {

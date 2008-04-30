@@ -29,7 +29,6 @@
 #include <linux/initrd.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/ide.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/serial.h>
@@ -512,7 +511,7 @@ static void __init ppc7d_init_irq(void)
 {
 	int irq;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s\n", __func__);
 	i8259_init(0, 0);
 	mv64360_init_irq();
 
@@ -569,7 +568,7 @@ static int __init ppc7d_map_irq(struct pci_dev *dev, unsigned char idsel,
 	};
 	const long min_idsel = 10, max_idsel = 14, irqs_per_slot = 4;
 
-	pr_debug("%s: %04x/%04x/%x: idsel=%hx pin=%hu\n", __FUNCTION__,
+	pr_debug("%s: %04x/%04x/%x: idsel=%hx pin=%hu\n", __func__,
 		 dev->vendor, dev->device, PCI_FUNC(dev->devfn), idsel, pin);
 
 	return PCI_IRQ_TABLE_LOOKUP;
@@ -1300,7 +1299,7 @@ static void ppc7d_init2(void)
 	u32 data;
 	u8 data8;
 
-	pr_debug("%s: enter\n", __FUNCTION__);
+	pr_debug("%s: enter\n", __func__);
 
 	/* Wait for debugger? */
 	if (ppc7d_wait_debugger) {
@@ -1333,7 +1332,7 @@ static void ppc7d_init2(void)
         ppc_md.set_rtc_time = ppc7d_set_rtc_time;
         ppc_md.get_rtc_time = ppc7d_get_rtc_time;
 
-	pr_debug("%s: exit\n", __FUNCTION__);
+	pr_debug("%s: exit\n", __func__);
 }
 
 /* Called from machine_init(), early, before any of the __init functions

@@ -55,7 +55,7 @@ MODULE_LICENSE("GPL");
 #define I2C_NAME(s) (s)->name
 
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 

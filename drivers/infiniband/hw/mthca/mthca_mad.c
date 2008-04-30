@@ -125,7 +125,7 @@ static void smp_snoop(struct ib_device *ibdev,
 			event.device           = ibdev;
 			event.element.port_num = port_num;
 
-			if(pinfo->clientrereg_resv_subnetto & 0x80)
+			if (pinfo->clientrereg_resv_subnetto & 0x80)
 				event.event    = IB_EVENT_CLIENT_REREGISTER;
 			else
 				event.event    = IB_EVENT_LID_CHANGE;

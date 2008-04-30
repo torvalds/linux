@@ -71,7 +71,7 @@ struct rtl8187_priv {
 	/* rtl8187 specific */
 	struct ieee80211_channel channels[14];
 	struct ieee80211_rate rates[12];
-	struct ieee80211_hw_mode modes[2];
+	struct ieee80211_supported_band band;
 	struct usb_device *udev;
 	u32 rx_conf;
 	u16 txpwr_base;

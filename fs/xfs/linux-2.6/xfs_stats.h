@@ -144,8 +144,8 @@ extern void xfs_cleanup_procfs(void);
 # define XFS_STATS_DEC(count)
 # define XFS_STATS_ADD(count, inc)
 
-static __inline void xfs_init_procfs(void) { };
-static __inline void xfs_cleanup_procfs(void) { };
+static inline void xfs_init_procfs(void) { };
+static inline void xfs_cleanup_procfs(void) { };
 
 #endif	/* !CONFIG_PROC_FS */
 

@@ -1,0 +1,12 @@
+00-INDEX
+	- this file
+PCI-DMA-mapping.txt
+	- info for PCI drivers using DMA portably across all platforms
+PCIEBUS-HOWTO.txt
+	- a guide describing the PCI Express Port Bus driver
+pci-error-recovery.txt
+	- info on PCI error recovery
+pci.txt
+	- info on the PCI subsystem for device driver authors
+pcieaer-howto.txt
+	- the PCI Express Advanced Error Reporting Driver Guide HOWTO

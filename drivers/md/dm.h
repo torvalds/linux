@@ -16,67 +16,6 @@
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
 
-#define DM_NAME "device-mapper"
-
-#define DMERR(f, arg...) \
-	printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
-#define DMERR_LIMIT(f, arg...) \
-	do { \
-		if (printk_ratelimit())	\
-			printk(KERN_ERR DM_NAME ": " DM_MSG_PREFIX ": " \
-			       f "\n", ## arg); \
-	} while (0)
-
-#define DMWARN(f, arg...) \
-	printk(KERN_WARNING DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
-#define DMWARN_LIMIT(f, arg...) \
-	do { \
-		if (printk_ratelimit())	\
-			printk(KERN_WARNING DM_NAME ": " DM_MSG_PREFIX ": " \
-			       f "\n", ## arg); \
-	} while (0)
-
-#define DMINFO(f, arg...) \
-	printk(KERN_INFO DM_NAME ": " DM_MSG_PREFIX ": " f "\n", ## arg)
-#define DMINFO_LIMIT(f, arg...) \
-	do { \
-		if (printk_ratelimit())	\
-			printk(KERN_INFO DM_NAME ": " DM_MSG_PREFIX ": " f \
-			       "\n", ## arg); \
-	} while (0)
-
-#ifdef CONFIG_DM_DEBUG
-#  define DMDEBUG(f, arg...) \
-	printk(KERN_DEBUG DM_NAME ": " DM_MSG_PREFIX " DEBUG: " f "\n", ## arg)
-#  define DMDEBUG_LIMIT(f, arg...) \
-	do { \
-		if (printk_ratelimit())	\
-			printk(KERN_DEBUG DM_NAME ": " DM_MSG_PREFIX ": " f \
-			       "\n", ## arg); \
-	} while (0)
-#else
-#  define DMDEBUG(f, arg...) do {} while (0)
-#  define DMDEBUG_LIMIT(f, arg...) do {} while (0)
-#endif
-
-#define DMEMIT(x...) sz += ((sz >= maxlen) ? \
-			  0 : scnprintf(result + sz, maxlen - sz, x))
-
-#define SECTOR_SHIFT 9
-
-/*
- * Definitions of return values from target end_io function.
- */
-#define DM_ENDIO_INCOMPLETE	1
-#define DM_ENDIO_REQUEUE	2
-
-/*
- * Definitions of return values from target map function.
- */
-#define DM_MAPIO_SUBMITTED	0
-#define DM_MAPIO_REMAPPED	1
-#define DM_MAPIO_REQUEUE	DM_ENDIO_REQUEUE
-
 /*
  * Suspend feature flags
  */
@@ -136,34 +75,6 @@ static inline int array_too_big(unsigned long fixed, unsigned long obj,
 	return (num > (ULONG_MAX - fixed) / obj);
 }
 
-/*
- * Ceiling(n / sz)
- */
-#define dm_div_up(n, sz) (((n) + (sz) - 1) / (sz))
-
-#define dm_sector_div_up(n, sz) ( \
-{ \
-	sector_t _r = ((n) + (sz) - 1); \
-	sector_div(_r, (sz)); \
-	_r; \
-} \
-)
-
-/*
- * ceiling(n / size) * size
- */
-#define dm_round_up(n, sz) (dm_div_up((n), (sz)) * (sz))
-
-static inline sector_t to_sector(unsigned long n)
-{
-	return (n >> 9);
-}
-
-static inline unsigned long to_bytes(sector_t n)
-{
-	return (n << 9);
-}
-
 int dm_split_args(int *argc, char ***argvp, char *input);
 
 /*
@@ -188,5 +99,14 @@ int dm_open_count(struct mapped_device *md);
 int dm_lock_for_deletion(struct mapped_device *md);
 
 void dm_kobject_uevent(struct mapped_device *md);
+
+/*
+ * Dirty log
+ */
+int dm_dirty_log_init(void);
+void dm_dirty_log_exit(void);
+
+int dm_kcopyd_init(void);
+void dm_kcopyd_exit(void);
 
 #endif

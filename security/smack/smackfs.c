@@ -317,7 +317,7 @@ static const struct file_operations smk_load_ops = {
 /**
  * smk_cipso_doi - initialize the CIPSO domain
  */
-void smk_cipso_doi(void)
+static void smk_cipso_doi(void)
 {
 	int rc;
 	struct cipso_v4_doi *doip;
@@ -350,7 +350,7 @@ void smk_cipso_doi(void)
 /**
  * smk_unlbl_ambient - initialize the unlabeled domain
  */
-void smk_unlbl_ambient(char *oldambient)
+static void smk_unlbl_ambient(char *oldambient)
 {
 	int rc;
 	struct netlbl_audit audit_info;
@@ -965,11 +965,20 @@ static struct vfsmount *smackfs_mount;
  *
  * register the smackfs
  *
- * Returns 0 unless the registration fails.
+ * Do not register smackfs if Smack wasn't enabled
+ * on boot. We can not put this method normally under the
+ * smack_init() code path since the security subsystem get
+ * initialized before the vfs caches.
+ *
+ * Returns true if we were not chosen on boot or if
+ * we were chosen and filesystem registration succeeded.
  */
 static int __init init_smk_fs(void)
 {
 	int err;
+
+	if (!security_module_enable(&smack_ops))
+		return 0;
 
 	err = register_filesystem(&smk_fs_type);
 	if (!err) {

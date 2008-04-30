@@ -131,7 +131,7 @@ int rpaphp_deregister_slot(struct slot *slot)
 	struct hotplug_slot *php_slot = slot->hotplug_slot;
 
 	 dbg("%s - Entry: deregistering slot=%s\n",
-		__FUNCTION__, slot->name);
+		__func__, slot->name);
 
 	list_del(&slot->rpaphp_slot_list);
 	
@@ -142,7 +142,7 @@ int rpaphp_deregister_slot(struct slot *slot)
 	if (retval)
 		err("Problem unregistering a slot %s\n", slot->name);
 
-	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
+	dbg("%s - Exit: rc[%d]\n", __func__, retval);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(rpaphp_deregister_slot);
@@ -153,7 +153,7 @@ int rpaphp_register_slot(struct slot *slot)
 	int retval;
 
 	dbg("%s registering slot:path[%s] index[%x], name[%s] pdomain[%x] type[%d]\n", 
-		__FUNCTION__, slot->dn->full_name, slot->index, slot->name, 
+		__func__, slot->dn->full_name, slot->index, slot->name,
 		slot->power_domain, slot->type);
 
 	/* should not try to register the same slot twice */

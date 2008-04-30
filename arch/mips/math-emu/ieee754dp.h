@@ -46,7 +46,7 @@
 #define DPDNORMX	DPDNORMx(xm, xe)
 #define DPDNORMY	DPDNORMx(ym, ye)
 
-static __inline ieee754dp builddp(int s, int bx, u64 m)
+static inline ieee754dp builddp(int s, int bx, u64 m)
 {
 	ieee754dp r;
 

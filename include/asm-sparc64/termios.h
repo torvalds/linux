@@ -33,11 +33,6 @@ struct ltchars {
 };
 #endif /* __KERNEL__ */
 
-struct sunos_ttysize {
-	int st_lines;   /* Lines on the terminal */
-	int st_columns; /* Columns on the terminal */
-};
-
 struct winsize {
 	unsigned short ws_row;
 	unsigned short ws_col;

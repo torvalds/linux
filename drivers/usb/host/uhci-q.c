@@ -1171,7 +1171,7 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 				/* Some debugging code */
 				dev_dbg(&urb->dev->dev,
 						"%s: failed with status %x\n",
-						__FUNCTION__, status);
+						__func__, status);
 
 				if (debug > 1 && errbuf) {
 					/* Print the chain for debugging */

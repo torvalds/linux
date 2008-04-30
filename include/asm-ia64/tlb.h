@@ -64,6 +64,32 @@ struct mmu_gather {
 	struct page 		*pages[FREE_PTE_NR];
 };
 
+struct ia64_tr_entry {
+	u64 ifa;
+	u64 itir;
+	u64 pte;
+	u64 rr;
+}; /*Record for tr entry!*/
+
+extern int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size);
+extern void ia64_ptr_entry(u64 target_mask, int slot);
+
+extern struct ia64_tr_entry __per_cpu_idtrs[NR_CPUS][2][IA64_TR_ALLOC_MAX];
+
+/*
+ region register macros
+*/
+#define RR_TO_VE(val)   (((val) >> 0) & 0x0000000000000001)
+#define RR_VE(val)	(((val) & 0x0000000000000001) << 0)
+#define RR_VE_MASK	0x0000000000000001L
+#define RR_VE_SHIFT	0
+#define RR_TO_PS(val)	(((val) >> 2) & 0x000000000000003f)
+#define RR_PS(val)	(((val) & 0x000000000000003f) << 2)
+#define RR_PS_MASK	0x00000000000000fcL
+#define RR_PS_SHIFT	2
+#define RR_RID_MASK	0x00000000ffffff00L
+#define RR_TO_RID(val) 	((val >> 8) & 0xffffff)
+
 /* Users of the generic TLB shootdown code must declare this storage space. */
 DECLARE_PER_CPU(struct mmu_gather, mmu_gathers);
 

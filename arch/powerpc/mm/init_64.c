@@ -38,11 +38,11 @@
 #include <linux/nodemask.h>
 #include <linux/module.h>
 #include <linux/poison.h>
+#include <linux/lmb.h>
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>
 #include <asm/prom.h>
-#include <asm/lmb.h>
 #include <asm/rtas.h>
 #include <asm/io.h>
 #include <asm/mmu_context.h>
@@ -72,8 +72,8 @@
 #warning TASK_SIZE is smaller than it needs to be.
 #endif
 
-/* max amount of RAM to use */
-unsigned long __max_memory;
+phys_addr_t memstart_addr = ~0;
+phys_addr_t kernstart_addr;
 
 void free_initmem(void)
 {
@@ -122,7 +122,7 @@ static int __init setup_kcore(void)
 		/* GFP_ATOMIC to avoid might_sleep warnings during boot */
 		kcore_mem = kmalloc(sizeof(struct kcore_list), GFP_ATOMIC);
 		if (!kcore_mem)
-			panic("%s: kmalloc failed\n", __FUNCTION__);
+			panic("%s: kmalloc failed\n", __func__);
 
 		kclist_add(kcore_mem, __va(base), size);
 	}

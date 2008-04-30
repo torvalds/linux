@@ -5,6 +5,7 @@
 #define _ASM_POWERPC_SYSTEM_H
 
 #include <linux/kernel.h>
+#include <linux/irqflags.h>
 
 #include <asm/hw_irq.h>
 

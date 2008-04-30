@@ -959,7 +959,10 @@ static int __init init_o2nm(void)
 	cluster_print_version();
 
 	o2hb_init();
-	o2net_init();
+
+	ret = o2net_init();
+	if (ret)
+		goto out;
 
 	ocfs2_table_header = register_sysctl_table(ocfs2_root_table);
 	if (!ocfs2_table_header) {

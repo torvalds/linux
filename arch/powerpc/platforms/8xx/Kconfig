@@ -18,7 +18,6 @@ config MPC8XXFADS
 config MPC86XADS
 	bool "MPC86XADS"
 	select CPM1
-	select PPC_CPM_NEW_BINDING
 	help
 	  MPC86x Application Development System by Freescale Semiconductor.
 	  The MPC86xADS is meant to serve as a platform for s/w and h/w
@@ -27,7 +26,6 @@ config MPC86XADS
 config MPC885ADS
 	bool "MPC885ADS"
 	select CPM1
-	select PPC_CPM_NEW_BINDING
 	help
 	  Freescale Semiconductor MPC885 Application Development System (ADS).
 	  Also known as DUET.
@@ -37,7 +35,6 @@ config MPC885ADS
 config PPC_EP88XC
 	bool "Embedded Planet EP88xC (a.k.a. CWH-PPC-885XN-VE)"
 	select CPM1
-	select PPC_CPM_NEW_BINDING
 	help
 	  This enables support for the Embedded Planet EP88xC board.
 
@@ -47,7 +44,6 @@ config PPC_EP88XC
 config PPC_ADDER875
 	bool "Analogue & Micro Adder 875"
 	select CPM1
-	select PPC_CPM_NEW_BINDING
 	select REDBOOT
 	help
 	  This enables support for the Analogue & Micro Adder 875

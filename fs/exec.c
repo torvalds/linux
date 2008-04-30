@@ -953,7 +953,6 @@ int flush_old_exec(struct linux_binprm * bprm)
 {
 	char * name;
 	int i, ch, retval;
-	struct files_struct *files;
 	char tcomm[sizeof(current->comm)];
 
 	/*
@@ -965,26 +964,15 @@ int flush_old_exec(struct linux_binprm * bprm)
 		goto out;
 
 	/*
-	 * Make sure we have private file handles. Ask the
-	 * fork helper to do the work for us and the exit
-	 * helper to do the cleanup of the old one.
-	 */
-	files = current->files;		/* refcounted so safe to hold */
-	retval = unshare_files();
-	if (retval)
-		goto out;
-	/*
 	 * Release all of the old mmap stuff
 	 */
 	retval = exec_mmap(bprm->mm);
 	if (retval)
-		goto mmap_failed;
+		goto out;
 
 	bprm->mm = NULL;		/* We're using it now */
 
 	/* This is the point of no return */
-	put_files_struct(files);
-
 	current->sas_ss_sp = current->sas_ss_size = 0;
 
 	if (current->euid == current->uid && current->egid == current->gid)
@@ -1034,8 +1022,6 @@ int flush_old_exec(struct linux_binprm * bprm)
 
 	return 0;
 
-mmap_failed:
-	reset_files_struct(current, files);
 out:
 	return retval;
 }
@@ -1283,12 +1269,17 @@ int do_execve(char * filename,
 	struct linux_binprm *bprm;
 	struct file *file;
 	unsigned long env_p;
+	struct files_struct *displaced;
 	int retval;
+
+	retval = unshare_files(&displaced);
+	if (retval)
+		goto out_ret;
 
 	retval = -ENOMEM;
 	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
 	if (!bprm)
-		goto out_ret;
+		goto out_files;
 
 	file = open_exec(filename);
 	retval = PTR_ERR(file);
@@ -1343,6 +1334,8 @@ int do_execve(char * filename,
 		security_bprm_free(bprm);
 		acct_update_integrals(current);
 		kfree(bprm);
+		if (displaced)
+			put_files_struct(displaced);
 		return retval;
 	}
 
@@ -1363,6 +1356,9 @@ out_file:
 out_kfree:
 	kfree(bprm);
 
+out_files:
+	if (displaced)
+		reset_files_struct(displaced);
 out_ret:
 	return retval;
 }

@@ -1,5 +1,4 @@
 /*
- *  linux/arch/i386/kernel/head.S -- the 32-bit startup code.
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -450,7 +449,7 @@ is386:	movl $2,%ecx		# set MP
 	jmp initialize_secondary # all other CPUs call initialize_secondary
 1:
 #endif /* CONFIG_SMP */
-	jmp start_kernel
+	jmp i386_start_kernel
 
 /*
  * We depend on ET to be correct. This checks for 287/387.

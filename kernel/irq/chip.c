@@ -47,7 +47,7 @@ void dynamic_irq_init(unsigned int irq)
 	desc->irq_count = 0;
 	desc->irqs_unhandled = 0;
 #ifdef CONFIG_SMP
-	desc->affinity = CPU_MASK_ALL;
+	cpus_setall(desc->affinity);
 #endif
 	spin_unlock_irqrestore(&desc->lock, flags);
 }

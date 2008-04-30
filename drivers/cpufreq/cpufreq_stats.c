@@ -114,7 +114,7 @@ show_trans_table(struct cpufreq_policy *policy, char *buf)
 				stat->freq_table[i]);
 	}
 	if (len >= PAGE_SIZE)
-		return len;
+		return PAGE_SIZE;
 
 	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
 
@@ -131,8 +131,12 @@ show_trans_table(struct cpufreq_policy *policy, char *buf)
 			len += snprintf(buf + len, PAGE_SIZE - len, "%9u ",
 					stat->trans_table[i*stat->max_state+j]);
 		}
+		if (len >= PAGE_SIZE)
+			break;
 		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
 	}
+	if (len >= PAGE_SIZE)
+		return PAGE_SIZE;
 	return len;
 }
 CPUFREQ_STATDEVICE_ATTR(trans_table,0444,show_trans_table);

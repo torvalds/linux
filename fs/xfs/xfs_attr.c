@@ -2647,14 +2647,6 @@ attr_trusted_capable(
 }
 
 STATIC int
-attr_secure_capable(
-	bhv_vnode_t	*vp,
-	cred_t		*cred)
-{
-	return -ENOSECURITY;
-}
-
-STATIC int
 attr_system_set(
 	bhv_vnode_t *vp, char *name, void *data, size_t size, int xflags)
 {
@@ -2724,7 +2716,7 @@ struct attrnames attr_secure = {
 	.attr_get	= attr_generic_get,
 	.attr_set	= attr_generic_set,
 	.attr_remove	= attr_generic_remove,
-	.attr_capable	= attr_secure_capable,
+	.attr_capable	= (attrcapable_t)fs_noerr,
 };
 
 struct attrnames attr_user = {

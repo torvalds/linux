@@ -100,10 +100,10 @@ struct user_regs_struct {
 struct user{
 /* We start with the registers, to mimic the way that "memory" is returned
    from the ptrace(3,...) function.  */
-  struct user_regs_struct regs;		/* Where the registers are actually stored */
+  struct user_regs_struct regs;	/* Where the registers are actually stored */
 /* ptrace does not yet supply these.  Someday.... */
   int u_fpvalid;		/* True if math co-processor being used. */
-                                /* for this mess. Not yet used. */
+				/* for this mess. Not yet used. */
   struct user_i387_struct i387;	/* Math Co-processor registers. */
 /* The rest of this junk is to help gdb figure out what goes where */
   unsigned long int u_tsize;	/* Text segment size (pages). */
@@ -118,7 +118,7 @@ struct user{
   int reserved;			/* No longer used */
   unsigned long u_ar0;		/* Used by gdb to help find the values for */
 				/* the registers. */
-  struct user_i387_struct* u_fpstate;	/* Math Co-processor pointer. */
+  struct user_i387_struct *u_fpstate;	/* Math Co-processor pointer. */
   unsigned long magic;		/* To uniquely identify a core file */
   char u_comm[32];		/* User command that was responsible */
   int u_debugreg[8];

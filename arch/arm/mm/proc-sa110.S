@@ -216,6 +216,7 @@ sa110_crval:
 	.type	sa110_processor_functions, #object
 ENTRY(sa110_processor_functions)
 	.word	v4_early_abort
+	.word	pabort_noifar
 	.word	cpu_sa110_proc_init
 	.word	cpu_sa110_proc_fin
 	.word	cpu_sa110_reset

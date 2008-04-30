@@ -38,9 +38,7 @@ struct platform_device *
 at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 		     unsigned long fbmem_start, unsigned long fbmem_len);
 
-struct usba_platform_data {
-	int vbus_pin;
-};
+struct usba_platform_data;
 struct platform_device *
 at32_add_device_usba(unsigned int id, struct usba_platform_data *data);
 
@@ -68,7 +66,10 @@ struct platform_device *at32_add_device_pwm(u32 mask);
 struct platform_device *
 at32_add_device_ssc(unsigned int id, unsigned int flags);
 
-struct platform_device *at32_add_device_twi(unsigned int id);
+struct i2c_board_info;
+struct platform_device *at32_add_device_twi(unsigned int id,
+					    struct i2c_board_info *b,
+					    unsigned int n);
 struct platform_device *at32_add_device_mci(unsigned int id);
 struct platform_device *at32_add_device_ac97c(unsigned int id);
 struct platform_device *at32_add_device_abdac(unsigned int id);

@@ -262,19 +262,11 @@ __acquires(uhci->lock)
 {
 	int auto_stop;
 	int int_enable, egsm_enable;
+	struct usb_device *rhdev = uhci_to_hcd(uhci)->self.root_hub;
 
 	auto_stop = (new_state == UHCI_RH_AUTO_STOPPED);
-	dev_dbg(&uhci_to_hcd(uhci)->self.root_hub->dev,
-			"%s%s\n", __FUNCTION__,
+	dev_dbg(&rhdev->dev, "%s%s\n", __func__,
 			(auto_stop ? " (auto-stop)" : ""));
-
-	/* If we get a suspend request when we're already auto-stopped
-	 * then there's nothing to do.
-	 */
-	if (uhci->rh_state == UHCI_RH_AUTO_STOPPED) {
-		uhci->rh_state = new_state;
-		return;
-	}
 
 	/* Enable resume-detect interrupts if they work.
 	 * Then enter Global Suspend mode if _it_ works, still configured.
@@ -285,8 +277,10 @@ __acquires(uhci->lock)
 	if (remote_wakeup_is_broken(uhci))
 		egsm_enable = 0;
 	if (resume_detect_interrupts_are_broken(uhci) || !egsm_enable ||
-			!device_may_wakeup(
-				&uhci_to_hcd(uhci)->self.root_hub->dev))
+#ifdef CONFIG_PM
+			(!auto_stop && !rhdev->do_remote_wakeup) ||
+#endif
+			(auto_stop && !device_may_wakeup(&rhdev->dev)))
 		uhci->working_RD = int_enable = 0;
 
 	outw(int_enable, uhci->io_addr + USBINTR);
@@ -308,8 +302,7 @@ __acquires(uhci->lock)
 			return;
 	}
 	if (!(inw(uhci->io_addr + USBSTS) & USBSTS_HCH))
-		dev_warn(&uhci_to_hcd(uhci)->self.root_hub->dev,
-			"Controller not stopped yet!\n");
+		dev_warn(uhci_dev(uhci), "Controller not stopped yet!\n");
 
 	uhci_get_current_frame_number(uhci);
 
@@ -342,7 +335,7 @@ __releases(uhci->lock)
 __acquires(uhci->lock)
 {
 	dev_dbg(&uhci_to_hcd(uhci)->self.root_hub->dev,
-			"%s%s\n", __FUNCTION__,
+			"%s%s\n", __func__,
 			uhci->rh_state == UHCI_RH_AUTO_STOPPED ?
 				" (auto-start)" : "");
 
@@ -737,12 +730,12 @@ static int uhci_rh_resume(struct usb_hcd *hcd)
 	return rc;
 }
 
-static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
+static int uhci_pci_suspend(struct usb_hcd *hcd, pm_message_t message)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	int rc = 0;
 
-	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
+	dev_dbg(uhci_dev(uhci), "%s\n", __func__);
 
 	spin_lock_irq(&uhci->lock);
 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) || uhci->dead)
@@ -774,11 +767,11 @@ done:
 	return rc;
 }
 
-static int uhci_resume(struct usb_hcd *hcd)
+static int uhci_pci_resume(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
-	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
+	dev_dbg(uhci_dev(uhci), "%s\n", __func__);
 
 	/* Since we aren't in D3 any more, it's safe to set this flag
 	 * even if the controller was dead.
@@ -872,8 +865,8 @@ static const struct hc_driver uhci_driver = {
 	.reset =		uhci_init,
 	.start =		uhci_start,
 #ifdef CONFIG_PM
-	.suspend =		uhci_suspend,
-	.resume =		uhci_resume,
+	.pci_suspend =		uhci_pci_suspend,
+	.pci_resume =		uhci_pci_resume,
 	.bus_suspend =		uhci_rh_suspend,
 	.bus_resume =		uhci_rh_resume,
 #endif

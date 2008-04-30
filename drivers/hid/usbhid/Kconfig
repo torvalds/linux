@@ -71,6 +71,14 @@ config LOGITECH_FF
 	  Note: if you say N here, this device will still be supported, but without
 	  force feedback.
 
+config LOGIRUMBLEPAD2_FF
+	bool "Logitech Rumblepad 2 support"
+	depends on HID_FF
+	select INPUT_FF_MEMLESS if USB_HID
+	help
+	  Say Y here if you want to enable force feedback support for Logitech
+	  Rumblepad 2 devices.
+
 config PANTHERLORD_FF
 	bool "PantherLord/GreenAsia based device support"
 	depends on HID_FF
@@ -80,8 +88,8 @@ config PANTHERLORD_FF
 	  or adapter and want to enable force feedback support for it.
 
 config THRUSTMASTER_FF
-	bool "ThrustMaster devices support (EXPERIMENTAL)"
-	depends on HID_FF && EXPERIMENTAL
+	bool "ThrustMaster devices support"
+	depends on HID_FF
 	select INPUT_FF_MEMLESS if USB_HID
 	help
 	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or

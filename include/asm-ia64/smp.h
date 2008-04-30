@@ -38,6 +38,9 @@ ia64_get_lid (void)
 	return lid.f.id << 8 | lid.f.eid;
 }
 
+extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
+				  void *info, int wait);
+
 #define hard_smp_processor_id()		ia64_get_lid()
 
 #ifdef CONFIG_SMP

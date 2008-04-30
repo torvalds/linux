@@ -22,6 +22,22 @@ config MFD_ASIC3
 	  This driver supports the ASIC3 multifunction chip found on many
 	  PDAs (mainly iPAQ and HTC based ones)
 
+config HTC_EGPIO
+	bool "HTC EGPIO support"
+	depends on GENERIC_HARDIRQS && HAVE_GPIO_LIB
+	help
+	    This driver supports the CPLD egpio chip present on
+	    several HTC phones.  It provides basic support for input
+	    pins, output pins, and irqs.
+
+config HTC_PASIC3
+	tristate "HTC PASIC3 LED/DS1WM chip support"
+	help
+	  This core driver provides register access for the LED/DS1WM
+	  chips labeled "AIC2" and "AIC3", found on HTC Blueangel and
+	  HTC Magician devices, respectively. Actual functionality is
+	  handled by the leds-pasic3 and ds1wm drivers.
+
 endmenu
 
 menu "Multimedia Capabilities Port drivers"

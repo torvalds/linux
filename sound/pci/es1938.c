@@ -1488,7 +1488,6 @@ static int es1938_suspend(struct pci_dev *pci, pm_message_t state)
 
 	outb(0x00, SLIO_REG(chip, IRQCONTROL)); /* disable irqs */
 	if (chip->irq >= 0) {
-		synchronize_irq(chip->irq);
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
 	}
@@ -1578,10 +1577,8 @@ static int snd_es1938_free(struct es1938 *chip)
 
 	snd_es1938_free_gameport(chip);
 
-	if (chip->irq >= 0) {
-		synchronize_irq(chip->irq);
+	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-	}
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 	kfree(chip);

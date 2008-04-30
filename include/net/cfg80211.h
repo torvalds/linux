@@ -12,6 +12,16 @@
  * Copyright 2006, 2007	Johannes Berg <johannes@sipsolutions.net>
  */
 
+/**
+ * struct vif_params - describes virtual interface parameters
+ * @mesh_id: mesh ID to use
+ * @mesh_id_len: length of the mesh ID
+ */
+struct vif_params {
+       u8 *mesh_id;
+       int mesh_id_len;
+};
+
 /* Radiotap header iteration
  *   implemented in net/wireless/radiotap.c
  *   docs in Documentation/networking/radiotap-headers.txt
@@ -109,6 +119,19 @@ enum station_flags {
 };
 
 /**
+ * enum plink_action - actions to perform in mesh peers
+ *
+ * @PLINK_ACTION_INVALID: action 0 is reserved
+ * @PLINK_ACTION_OPEN: start mesh peer link establishment
+ * @PLINK_ACTION_BLOCL: block traffic from this mesh peer
+ */
+enum plink_actions {
+	PLINK_ACTION_INVALID,
+	PLINK_ACTION_OPEN,
+	PLINK_ACTION_BLOCK,
+};
+
+/**
  * struct station_parameters - station parameters
  *
  * Used to change and create a new station.
@@ -128,40 +151,123 @@ struct station_parameters {
 	int listen_interval;
 	u16 aid;
 	u8 supported_rates_len;
+	u8 plink_action;
 };
 
 /**
- * enum station_stats_flags - station statistics flags
+ * enum station_info_flags - station information flags
  *
- * Used by the driver to indicate which info in &struct station_stats
- * it has filled in during get_station().
+ * Used by the driver to indicate which info in &struct station_info
+ * it has filled in during get_station() or dump_station().
  *
- * @STATION_STAT_INACTIVE_TIME: @inactive_time filled
- * @STATION_STAT_RX_BYTES: @rx_bytes filled
- * @STATION_STAT_TX_BYTES: @tx_bytes filled
+ * @STATION_INFO_INACTIVE_TIME: @inactive_time filled
+ * @STATION_INFO_RX_BYTES: @rx_bytes filled
+ * @STATION_INFO_TX_BYTES: @tx_bytes filled
+ * @STATION_INFO_LLID: @llid filled
+ * @STATION_INFO_PLID: @plid filled
+ * @STATION_INFO_PLINK_STATE: @plink_state filled
  */
-enum station_stats_flags {
-	STATION_STAT_INACTIVE_TIME	= 1<<0,
-	STATION_STAT_RX_BYTES		= 1<<1,
-	STATION_STAT_TX_BYTES		= 1<<2,
+enum station_info_flags {
+	STATION_INFO_INACTIVE_TIME	= 1<<0,
+	STATION_INFO_RX_BYTES		= 1<<1,
+	STATION_INFO_TX_BYTES		= 1<<2,
+	STATION_INFO_LLID		= 1<<3,
+	STATION_INFO_PLID		= 1<<4,
+	STATION_INFO_PLINK_STATE	= 1<<5,
 };
 
 /**
- * struct station_stats - station statistics
+ * struct station_info - station information
  *
- * Station information filled by driver for get_station().
+ * Station information filled by driver for get_station() and dump_station.
  *
- * @filled: bitflag of flags from &enum station_stats_flags
+ * @filled: bitflag of flags from &enum station_info_flags
  * @inactive_time: time since last station activity (tx/rx) in milliseconds
  * @rx_bytes: bytes received from this station
  * @tx_bytes: bytes transmitted to this station
+ * @llid: mesh local link id
+ * @plid: mesh peer link id
+ * @plink_state: mesh peer link state
  */
-struct station_stats {
+struct station_info {
 	u32 filled;
 	u32 inactive_time;
 	u32 rx_bytes;
 	u32 tx_bytes;
+	u16 llid;
+	u16 plid;
+	u8 plink_state;
 };
+
+/**
+ * enum monitor_flags - monitor flags
+ *
+ * Monitor interface configuration flags. Note that these must be the bits
+ * according to the nl80211 flags.
+ *
+ * @MONITOR_FLAG_FCSFAIL: pass frames with bad FCS
+ * @MONITOR_FLAG_PLCPFAIL: pass frames with bad PLCP
+ * @MONITOR_FLAG_CONTROL: pass control frames
+ * @MONITOR_FLAG_OTHER_BSS: disable BSSID filtering
+ * @MONITOR_FLAG_COOK_FRAMES: report frames after processing
+ */
+enum monitor_flags {
+	MONITOR_FLAG_FCSFAIL		= 1<<NL80211_MNTR_FLAG_FCSFAIL,
+	MONITOR_FLAG_PLCPFAIL		= 1<<NL80211_MNTR_FLAG_PLCPFAIL,
+	MONITOR_FLAG_CONTROL		= 1<<NL80211_MNTR_FLAG_CONTROL,
+	MONITOR_FLAG_OTHER_BSS		= 1<<NL80211_MNTR_FLAG_OTHER_BSS,
+	MONITOR_FLAG_COOK_FRAMES	= 1<<NL80211_MNTR_FLAG_COOK_FRAMES,
+};
+
+/**
+ * enum mpath_info_flags -  mesh path information flags
+ *
+ * Used by the driver to indicate which info in &struct mpath_info it has filled
+ * in during get_station() or dump_station().
+ *
+ * MPATH_INFO_FRAME_QLEN: @frame_qlen filled
+ * MPATH_INFO_DSN: @dsn filled
+ * MPATH_INFO_METRIC: @metric filled
+ * MPATH_INFO_EXPTIME: @exptime filled
+ * MPATH_INFO_DISCOVERY_TIMEOUT: @discovery_timeout filled
+ * MPATH_INFO_DISCOVERY_RETRIES: @discovery_retries filled
+ * MPATH_INFO_FLAGS: @flags filled
+ */
+enum mpath_info_flags {
+	MPATH_INFO_FRAME_QLEN		= BIT(0),
+	MPATH_INFO_DSN			= BIT(1),
+	MPATH_INFO_METRIC		= BIT(2),
+	MPATH_INFO_EXPTIME		= BIT(3),
+	MPATH_INFO_DISCOVERY_TIMEOUT	= BIT(4),
+	MPATH_INFO_DISCOVERY_RETRIES	= BIT(5),
+	MPATH_INFO_FLAGS		= BIT(6),
+};
+
+/**
+ * struct mpath_info - mesh path information
+ *
+ * Mesh path information filled by driver for get_mpath() and dump_mpath().
+ *
+ * @filled: bitfield of flags from &enum mpath_info_flags
+ * @frame_qlen: number of queued frames for this destination
+ * @dsn: destination sequence number
+ * @metric: metric (cost) of this mesh path
+ * @exptime: expiration time for the mesh path from now, in msecs
+ * @flags: mesh path flags
+ * @discovery_timeout: total mesh path discovery timeout, in msecs
+ * @discovery_retries: mesh path discovery retries
+ */
+struct mpath_info {
+	u32 filled;
+	u32 frame_qlen;
+	u32 dsn;
+	u32 metric;
+	u32 exptime;
+	u32 discovery_timeout;
+	u8 discovery_retries;
+	u8 flags;
+};
+
 
 /* from net/wireless.h */
 struct wiphy;
@@ -210,13 +316,17 @@ struct wiphy;
  * @del_station: Remove a station; @mac may be NULL to remove all stations.
  *
  * @change_station: Modify a given station.
+ *
+ * @set_mesh_cfg: set mesh parameters (by now, just mesh id)
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
-				    enum nl80211_iftype type);
+				    enum nl80211_iftype type, u32 *flags,
+				    struct vif_params *params);
 	int	(*del_virtual_intf)(struct wiphy *wiphy, int ifindex);
 	int	(*change_virtual_intf)(struct wiphy *wiphy, int ifindex,
-				       enum nl80211_iftype type);
+				       enum nl80211_iftype type, u32 *flags,
+				       struct vif_params *params);
 
 	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,
 			   u8 key_index, u8 *mac_addr,
@@ -244,7 +354,22 @@ struct cfg80211_ops {
 	int	(*change_station)(struct wiphy *wiphy, struct net_device *dev,
 				  u8 *mac, struct station_parameters *params);
 	int	(*get_station)(struct wiphy *wiphy, struct net_device *dev,
-			       u8 *mac, struct station_stats *stats);
+			       u8 *mac, struct station_info *sinfo);
+	int	(*dump_station)(struct wiphy *wiphy, struct net_device *dev,
+			       int idx, u8 *mac, struct station_info *sinfo);
+
+	int	(*add_mpath)(struct wiphy *wiphy, struct net_device *dev,
+			       u8 *dst, u8 *next_hop);
+	int	(*del_mpath)(struct wiphy *wiphy, struct net_device *dev,
+			       u8 *dst);
+	int	(*change_mpath)(struct wiphy *wiphy, struct net_device *dev,
+				  u8 *dst, u8 *next_hop);
+	int	(*get_mpath)(struct wiphy *wiphy, struct net_device *dev,
+			       u8 *dst, u8 *next_hop,
+			       struct mpath_info *pinfo);
+	int	(*dump_mpath)(struct wiphy *wiphy, struct net_device *dev,
+			       int idx, u8 *dst, u8 *next_hop,
+			       struct mpath_info *pinfo);
 };
 
 #endif /* __NET_CFG80211_H */

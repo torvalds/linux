@@ -73,7 +73,7 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 	 */
 	rc = llc_conn_service(skb->sk, skb);
 	if (unlikely(rc != 0)) {
-		printk(KERN_ERR "%s: llc_conn_service failed\n", __FUNCTION__);
+		printk(KERN_ERR "%s: llc_conn_service failed\n", __func__);
 		goto out_kfree_skb;
 	}
 
@@ -99,7 +99,7 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 			 * shouldn't happen
 			 */
 			printk(KERN_ERR "%s: sock_queue_rcv_skb failed!\n",
-			       __FUNCTION__);
+			       __func__);
 			kfree_skb(skb);
 		}
 		break;
@@ -132,13 +132,13 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 		 * FIXME:
 		 * RESET is not being notified to upper layers for now
 		 */
-		printk(KERN_INFO "%s: received a reset ind!\n", __FUNCTION__);
+		printk(KERN_INFO "%s: received a reset ind!\n", __func__);
 		kfree_skb(skb);
 		break;
 	default:
 		if (ev->ind_prim) {
 			printk(KERN_INFO "%s: received unknown %d prim!\n",
-				__FUNCTION__, ev->ind_prim);
+				__func__, ev->ind_prim);
 			kfree_skb(skb);
 		}
 		/* No indication */
@@ -179,12 +179,12 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 		 * FIXME:
 		 * RESET is not being notified to upper layers for now
 		 */
-		printk(KERN_INFO "%s: received a reset conf!\n", __FUNCTION__);
+		printk(KERN_INFO "%s: received a reset conf!\n", __func__);
 		break;
 	default:
 		if (ev->cfm_prim) {
 			printk(KERN_INFO "%s: received unknown %d prim!\n",
-					__FUNCTION__, ev->cfm_prim);
+					__func__, ev->cfm_prim);
 			break;
 		}
 		goto out_skb_put; /* No confirmation */
@@ -700,7 +700,7 @@ static struct sock *llc_create_incoming_sock(struct sock *sk,
 					     struct llc_addr *saddr,
 					     struct llc_addr *daddr)
 {
-	struct sock *newsk = llc_sk_alloc(sk->sk_net, sk->sk_family, GFP_ATOMIC,
+	struct sock *newsk = llc_sk_alloc(sock_net(sk), sk->sk_family, GFP_ATOMIC,
 					  sk->sk_prot);
 	struct llc_sock *newllc, *llc = llc_sk(sk);
 
@@ -759,7 +759,7 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 	if (!sock_owned_by_user(sk))
 		llc_conn_rcv(sk, skb);
 	else {
-		dprintk("%s: adding to backlog...\n", __FUNCTION__);
+		dprintk("%s: adding to backlog...\n", __func__);
 		llc_set_backlog_type(skb, LLC_PACKET);
 		sk_add_backlog(sk, skb);
 	}
@@ -807,7 +807,7 @@ static int llc_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 		else
 			goto out_kfree_skb;
 	} else {
-		printk(KERN_ERR "%s: invalid skb in backlog\n", __FUNCTION__);
+		printk(KERN_ERR "%s: invalid skb in backlog\n", __func__);
 		goto out_kfree_skb;
 	}
 out:
@@ -874,7 +874,7 @@ struct sock *llc_sk_alloc(struct net *net, int family, gfp_t priority, struct pr
 #ifdef LLC_REFCNT_DEBUG
 	atomic_inc(&llc_sock_nr);
 	printk(KERN_DEBUG "LLC socket %p created in %s, now we have %d alive\n", sk,
-		__FUNCTION__, atomic_read(&llc_sock_nr));
+		__func__, atomic_read(&llc_sock_nr));
 #endif
 out:
 	return sk;
@@ -894,7 +894,7 @@ void llc_sk_free(struct sock *sk)
 	/* Stop all (possibly) running timers */
 	llc_conn_ac_stop_all_timers(sk, NULL);
 #ifdef DEBUG_LLC_CONN_ALLOC
-	printk(KERN_INFO "%s: unackq=%d, txq=%d\n", __FUNCTION__,
+	printk(KERN_INFO "%s: unackq=%d, txq=%d\n", __func__,
 		skb_queue_len(&llc->pdu_unack_q),
 		skb_queue_len(&sk->sk_write_queue));
 #endif
@@ -904,13 +904,13 @@ void llc_sk_free(struct sock *sk)
 #ifdef LLC_REFCNT_DEBUG
 	if (atomic_read(&sk->sk_refcnt) != 1) {
 		printk(KERN_DEBUG "Destruction of LLC sock %p delayed in %s, cnt=%d\n",
-			sk, __FUNCTION__, atomic_read(&sk->sk_refcnt));
+			sk, __func__, atomic_read(&sk->sk_refcnt));
 		printk(KERN_DEBUG "%d LLC sockets are still alive\n",
 			atomic_read(&llc_sock_nr));
 	} else {
 		atomic_dec(&llc_sock_nr);
 		printk(KERN_DEBUG "LLC socket %p released in %s, %d are still alive\n", sk,
-			__FUNCTION__, atomic_read(&llc_sock_nr));
+			__func__, atomic_read(&llc_sock_nr));
 	}
 #endif
 	sock_put(sk);

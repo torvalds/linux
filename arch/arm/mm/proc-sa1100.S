@@ -231,6 +231,7 @@ sa1100_crval:
 	.type	sa1100_processor_functions, #object
 ENTRY(sa1100_processor_functions)
 	.word	v4_early_abort
+	.word	pabort_noifar
 	.word	cpu_sa1100_proc_init
 	.word	cpu_sa1100_proc_fin
 	.word	cpu_sa1100_reset

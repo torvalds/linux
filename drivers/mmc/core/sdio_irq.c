@@ -128,12 +128,12 @@ static int sdio_irq_thread(void *_host)
 			}
 		}
 
-		set_task_state(current, TASK_INTERRUPTIBLE);
+		set_current_state(TASK_INTERRUPTIBLE);
 		if (host->caps & MMC_CAP_SDIO_IRQ)
 			host->ops->enable_sdio_irq(host, 1);
 		if (!kthread_should_stop())
 			schedule_timeout(period);
-		set_task_state(current, TASK_RUNNING);
+		set_current_state(TASK_RUNNING);
 	} while (!kthread_should_stop());
 
 	if (host->caps & MMC_CAP_SDIO_IRQ)

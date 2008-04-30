@@ -251,7 +251,7 @@ void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 	calc_fast_powerup_delay(cc);
 }
 
-void ssb_chipco_suspend(struct ssb_chipcommon *cc, pm_message_t state)
+void ssb_chipco_suspend(struct ssb_chipcommon *cc)
 {
 	if (!cc->dev)
 		return;
@@ -351,6 +351,16 @@ void ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc, u32 ticks)
 {
 	/* instant NMI */
 	chipco_write32(cc, SSB_CHIPCO_WATCHDOG, ticks);
+}
+
+void ssb_chipco_irq_mask(struct ssb_chipcommon *cc, u32 mask, u32 value)
+{
+	chipco_write32_masked(cc, SSB_CHIPCO_IRQMASK, mask, value);
+}
+
+u32 ssb_chipco_irq_status(struct ssb_chipcommon *cc, u32 mask)
+{
+	return chipco_read32(cc, SSB_CHIPCO_IRQSTAT) & mask;
 }
 
 u32 ssb_chipco_gpio_in(struct ssb_chipcommon *cc, u32 mask)

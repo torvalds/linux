@@ -10,9 +10,64 @@
  * paravirtualization, the appropriate feature bit should be checked.
  */
 #define KVM_CPUID_FEATURES	0x40000001
+#define KVM_FEATURE_CLOCKSOURCE		0
+#define KVM_FEATURE_NOP_IO_DELAY	1
+#define KVM_FEATURE_MMU_OP		2
+
+#define MSR_KVM_WALL_CLOCK  0x11
+#define MSR_KVM_SYSTEM_TIME 0x12
+
+#define KVM_MAX_MMU_OP_BATCH           32
+
+/* Operations for KVM_HC_MMU_OP */
+#define KVM_MMU_OP_WRITE_PTE            1
+#define KVM_MMU_OP_FLUSH_TLB	        2
+#define KVM_MMU_OP_RELEASE_PT	        3
+
+/* Payload for KVM_HC_MMU_OP */
+struct kvm_mmu_op_header {
+	__u32 op;
+	__u32 pad;
+};
+
+struct kvm_mmu_op_write_pte {
+	struct kvm_mmu_op_header header;
+	__u64 pte_phys;
+	__u64 pte_val;
+};
+
+struct kvm_mmu_op_flush_tlb {
+	struct kvm_mmu_op_header header;
+};
+
+struct kvm_mmu_op_release_pt {
+	struct kvm_mmu_op_header header;
+	__u64 pt_phys;
+};
 
 #ifdef __KERNEL__
 #include <asm/processor.h>
+
+/* xen binary-compatible interface. See xen headers for details */
+struct kvm_vcpu_time_info {
+	uint32_t version;
+	uint32_t pad0;
+	uint64_t tsc_timestamp;
+	uint64_t system_time;
+	uint32_t tsc_to_system_mul;
+	int8_t   tsc_shift;
+	int8_t	 pad[3];
+} __attribute__((__packed__)); /* 32 bytes */
+
+struct kvm_wall_clock {
+	uint32_t wc_version;
+	uint32_t wc_sec;
+	uint32_t wc_nsec;
+} __attribute__((__packed__));
+
+
+extern void kvmclock_init(void);
+
 
 /* This instruction is vmcall.  On non-VT architectures, it will generate a
  * trap that we will then rewrite to the appropriate instruction.

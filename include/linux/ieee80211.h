@@ -97,6 +97,7 @@
 #define IEEE80211_MAX_FRAME_LEN		2352
 
 #define IEEE80211_MAX_SSID_LEN		32
+#define IEEE80211_MAX_MESH_ID_LEN	32
 
 struct ieee80211_hdr {
 	__le16 frame_control;
@@ -106,6 +107,16 @@ struct ieee80211_hdr {
 	u8 addr3[6];
 	__le16 seq_ctrl;
 	u8 addr4[6];
+} __attribute__ ((packed));
+
+
+struct ieee80211s_hdr {
+	u8 flags;
+	u8 ttl;
+	u8 seqnum[3];
+	u8 eaddr1[6];
+	u8 eaddr2[6];
+	u8 eaddr3[6];
 } __attribute__ ((packed));
 
 
@@ -206,6 +217,23 @@ struct ieee80211_mgmt {
 					__le16 params;
 					__le16 reason_code;
 				} __attribute__((packed)) delba;
+				struct{
+					u8 action_code;
+					/* capab_info for open and confirm,
+					 * reason for close
+					 */
+					__le16 aux;
+					/* Followed in plink_confirm by status
+					 * code, AID and supported rates,
+					 * and directly by supported rates in
+					 * plink_open and plink_close
+					 */
+					u8 variable[0];
+				} __attribute__((packed)) plink_action;
+				struct{
+					u8 action_code;
+					u8 variable[0];
+				} __attribute__((packed)) mesh_action;
 			} u;
 		} __attribute__ ((packed)) action;
 	} u;
@@ -437,6 +465,19 @@ enum ieee80211_eid {
 	WLAN_EID_TS_DELAY = 43,
 	WLAN_EID_TCLAS_PROCESSING = 44,
 	WLAN_EID_QOS_CAPA = 46,
+	/* 802.11s
+	 *
+	 * All mesh EID numbers are pending IEEE 802.11 ANA approval.
+	 * The numbers have been incremented from those suggested in
+	 * 802.11s/D2.0 so that MESH_CONFIG does not conflict with
+	 * EXT_SUPP_RATES.
+	 */
+	WLAN_EID_MESH_CONFIG = 51,
+	WLAN_EID_MESH_ID = 52,
+	WLAN_EID_PEER_LINK = 55,
+	WLAN_EID_PREQ = 68,
+	WLAN_EID_PREP = 69,
+	WLAN_EID_PERR = 70,
 	/* 802.11h */
 	WLAN_EID_PWR_CONSTRAINT = 32,
 	WLAN_EID_PWR_CAPABILITY = 33,

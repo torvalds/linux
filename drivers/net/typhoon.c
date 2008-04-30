@@ -2183,7 +2183,6 @@ typhoon_resume(struct pci_dev *pdev)
 	}
 
 	netif_device_attach(dev);
-	netif_start_queue(dev);
 	return 0;
 
 reset:

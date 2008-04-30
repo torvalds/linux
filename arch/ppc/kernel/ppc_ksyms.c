@@ -12,7 +12,6 @@
 #include <linux/irq.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/ide.h>
 #include <linux/pm.h>
 #include <linux/bitops.h>
 
@@ -89,6 +88,7 @@ EXPORT_SYMBOL(strncpy);
 EXPORT_SYMBOL(strcat);
 EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(strcmp);
+EXPORT_SYMBOL(strncmp);
 
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);
@@ -123,10 +123,6 @@ EXPORT_SYMBOL(ioremap64);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
-
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-EXPORT_SYMBOL(ppc_ide_md);
-#endif
 
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL(isa_io_base);

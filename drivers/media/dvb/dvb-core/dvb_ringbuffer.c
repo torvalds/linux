@@ -90,7 +90,11 @@ void dvb_ringbuffer_flush(struct dvb_ringbuffer *rbuf)
 	rbuf->error = 0;
 }
 
-
+void dvb_ringbuffer_reset(struct dvb_ringbuffer *rbuf)
+{
+	rbuf->pread = rbuf->pwrite = 0;
+	rbuf->error = 0;
+}
 
 void dvb_ringbuffer_flush_spinlock_wakeup(struct dvb_ringbuffer *rbuf)
 {

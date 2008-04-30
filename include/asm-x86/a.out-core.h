@@ -29,8 +29,9 @@ static inline void aout_dump_thread(struct pt_regs *regs, struct user *dump)
 	dump->magic = CMAGIC;
 	dump->start_code = 0;
 	dump->start_stack = regs->sp & ~(PAGE_SIZE - 1);
-	dump->u_tsize = ((unsigned long) current->mm->end_code) >> PAGE_SHIFT;
-	dump->u_dsize = ((unsigned long) (current->mm->brk + (PAGE_SIZE-1))) >> PAGE_SHIFT;
+	dump->u_tsize = ((unsigned long)current->mm->end_code) >> PAGE_SHIFT;
+	dump->u_dsize = ((unsigned long)(current->mm->brk + (PAGE_SIZE - 1)))
+			>> PAGE_SHIFT;
 	dump->u_dsize -= dump->u_tsize;
 	dump->u_ssize = 0;
 	dump->u_debugreg[0] = current->thread.debugreg0;
@@ -43,7 +44,8 @@ static inline void aout_dump_thread(struct pt_regs *regs, struct user *dump)
 	dump->u_debugreg[7] = current->thread.debugreg7;
 
 	if (dump->start_stack < TASK_SIZE)
-		dump->u_ssize = ((unsigned long) (TASK_SIZE - dump->start_stack)) >> PAGE_SHIFT;
+		dump->u_ssize = ((unsigned long)(TASK_SIZE - dump->start_stack))
+				>> PAGE_SHIFT;
 
 	dump->regs.bx = regs->bx;
 	dump->regs.cx = regs->cx;
@@ -55,7 +57,7 @@ static inline void aout_dump_thread(struct pt_regs *regs, struct user *dump)
 	dump->regs.ds = (u16)regs->ds;
 	dump->regs.es = (u16)regs->es;
 	dump->regs.fs = (u16)regs->fs;
-	savesegment(gs,gs);
+	savesegment(gs, gs);
 	dump->regs.orig_ax = regs->orig_ax;
 	dump->regs.ip = regs->ip;
 	dump->regs.cs = (u16)regs->cs;
@@ -63,7 +65,7 @@ static inline void aout_dump_thread(struct pt_regs *regs, struct user *dump)
 	dump->regs.sp = regs->sp;
 	dump->regs.ss = (u16)regs->ss;
 
-	dump->u_fpvalid = dump_fpu (regs, &dump->i387);
+	dump->u_fpvalid = dump_fpu(regs, &dump->i387);
 }
 
 #endif /* CONFIG_X86_32 */

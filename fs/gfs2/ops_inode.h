@@ -15,7 +15,6 @@
 extern const struct inode_operations gfs2_file_iops;
 extern const struct inode_operations gfs2_dir_iops;
 extern const struct inode_operations gfs2_symlink_iops;
-extern const struct inode_operations gfs2_dev_iops;
 extern const struct file_operations gfs2_file_fops;
 extern const struct file_operations gfs2_dir_fops;
 extern const struct file_operations gfs2_file_fops_nolock;

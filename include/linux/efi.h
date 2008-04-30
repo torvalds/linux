@@ -18,6 +18,7 @@
 #include <linux/proc_fs.h>
 #include <linux/rtc.h>
 #include <linux/ioport.h>
+#include <linux/pfn.h>
 
 #include <asm/page.h>
 #include <asm/system.h>
@@ -393,5 +394,11 @@ struct efi_generic_dev_path {
 	u8 sub_type;
 	u16 length;
 } __attribute ((packed));
+
+static inline void memrange_efi_to_native(u64 *addr, u64 *npages)
+{
+	*npages = PFN_UP(*addr + (*npages<<EFI_PAGE_SHIFT)) - PFN_DOWN(*addr);
+	*addr &= PAGE_MASK;
+}
 
 #endif /* _LINUX_EFI_H */

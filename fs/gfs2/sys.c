@@ -20,7 +20,6 @@
 
 #include "gfs2.h"
 #include "incore.h"
-#include "lm.h"
 #include "sys.h"
 #include "super.h"
 #include "glock.h"
@@ -328,15 +327,9 @@ static ssize_t name##_show(struct gfs2_sbd *sdp, char *buf)                 \
 }                                                                           \
 static struct counters_attr counters_attr_##name = __ATTR_RO(name)
 
-COUNTERS_ATTR(glock_count,      "%u\n");
-COUNTERS_ATTR(glock_held_count, "%u\n");
-COUNTERS_ATTR(inode_count,      "%u\n");
 COUNTERS_ATTR(reclaimed,        "%u\n");
 
 static struct attribute *counters_attrs[] = {
-	&counters_attr_glock_count.attr,
-	&counters_attr_glock_held_count.attr,
-	&counters_attr_inode_count.attr,
 	&counters_attr_reclaimed.attr,
 	NULL,
 };

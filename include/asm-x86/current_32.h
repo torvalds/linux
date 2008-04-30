@@ -11,7 +11,7 @@ static __always_inline struct task_struct *get_current(void)
 {
 	return x86_read_percpu(current_task);
 }
- 
+
 #define current get_current()
 
 #endif /* !(_I386_CURRENT_H) */

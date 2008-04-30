@@ -35,7 +35,6 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <asm/io.h>
-#include <asm/semaphore.h>
 
 #include "dcdbas.h"
 
@@ -265,7 +264,7 @@ static int smi_request(struct smi_cmd *smi_cmd)
 
 	/* SMI requires CPU 0 */
 	old_mask = current->cpus_allowed;
-	set_cpus_allowed(current, cpumask_of_cpu(0));
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(0));
 	if (smp_processor_id() != 0) {
 		dev_dbg(&dcdbas_pdev->dev, "%s: failed to get CPU 0\n",
 			__FUNCTION__);
@@ -285,7 +284,7 @@ static int smi_request(struct smi_cmd *smi_cmd)
 	);
 
 out:
-	set_cpus_allowed(current, old_mask);
+	set_cpus_allowed_ptr(current, &old_mask);
 	return ret;
 }
 

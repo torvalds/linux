@@ -78,7 +78,7 @@ static struct dm_uevent *dm_build_path_uevent(struct mapped_device *md,
 
 	event = dm_uevent_alloc(md);
 	if (!event) {
-		DMERR("%s: dm_uevent_alloc() failed", __FUNCTION__);
+		DMERR("%s: dm_uevent_alloc() failed", __func__);
 		goto err_nomem;
 	}
 
@@ -86,32 +86,32 @@ static struct dm_uevent *dm_build_path_uevent(struct mapped_device *md,
 
 	if (add_uevent_var(&event->ku_env, "DM_TARGET=%s", ti->type->name)) {
 		DMERR("%s: add_uevent_var() for DM_TARGET failed",
-		      __FUNCTION__);
+		      __func__);
 		goto err_add;
 	}
 
 	if (add_uevent_var(&event->ku_env, "DM_ACTION=%s", dm_action)) {
 		DMERR("%s: add_uevent_var() for DM_ACTION failed",
-		      __FUNCTION__);
+		      __func__);
 		goto err_add;
 	}
 
 	if (add_uevent_var(&event->ku_env, "DM_SEQNUM=%u",
 			   dm_next_uevent_seq(md))) {
 		DMERR("%s: add_uevent_var() for DM_SEQNUM failed",
-		      __FUNCTION__);
+		      __func__);
 		goto err_add;
 	}
 
 	if (add_uevent_var(&event->ku_env, "DM_PATH=%s", path)) {
-		DMERR("%s: add_uevent_var() for DM_PATH failed", __FUNCTION__);
+		DMERR("%s: add_uevent_var() for DM_PATH failed", __func__);
 		goto err_add;
 	}
 
 	if (add_uevent_var(&event->ku_env, "DM_NR_VALID_PATHS=%d",
 			   nr_valid_paths)) {
 		DMERR("%s: add_uevent_var() for DM_NR_VALID_PATHS failed",
-		      __FUNCTION__);
+		      __func__);
 		goto err_add;
 	}
 
@@ -146,25 +146,25 @@ void dm_send_uevents(struct list_head *events, struct kobject *kobj)
 		if (dm_copy_name_and_uuid(event->md, event->name,
 					  event->uuid)) {
 			DMERR("%s: dm_copy_name_and_uuid() failed",
-			      __FUNCTION__);
+			      __func__);
 			goto uevent_free;
 		}
 
 		if (add_uevent_var(&event->ku_env, "DM_NAME=%s", event->name)) {
 			DMERR("%s: add_uevent_var() for DM_NAME failed",
-			      __FUNCTION__);
+			      __func__);
 			goto uevent_free;
 		}
 
 		if (add_uevent_var(&event->ku_env, "DM_UUID=%s", event->uuid)) {
 			DMERR("%s: add_uevent_var() for DM_UUID failed",
-			      __FUNCTION__);
+			      __func__);
 			goto uevent_free;
 		}
 
 		r = kobject_uevent_env(kobj, event->action, event->ku_env.envp);
 		if (r)
-			DMERR("%s: kobject_uevent_env failed", __FUNCTION__);
+			DMERR("%s: kobject_uevent_env failed", __func__);
 uevent_free:
 		dm_uevent_free(event);
 	}
@@ -187,7 +187,7 @@ void dm_path_uevent(enum dm_uevent_type event_type, struct dm_target *ti,
 	struct dm_uevent *event;
 
 	if (event_type >= ARRAY_SIZE(_dm_uevent_type_names)) {
-		DMERR("%s: Invalid event_type %d", __FUNCTION__, event_type);
+		DMERR("%s: Invalid event_type %d", __func__, event_type);
 		goto out;
 	}
 

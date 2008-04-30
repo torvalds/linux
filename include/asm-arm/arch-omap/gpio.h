@@ -82,62 +82,35 @@ extern void omap_set_gpio_debounce_time(int gpio, int enable);
 
 /*-------------------------------------------------------------------------*/
 
-/* wrappers for "new style" GPIO calls. the old OMAP-specfic ones should
- * eventually be removed (along with this errno.h inclusion), and maybe
- * gpios should put MPUIOs last too.
+/* Wrappers for "new style" GPIO calls, using the new infrastructure
+ * which lets us plug in FPGA, I2C, and other implementations.
+ * *
+ * The original OMAP-specfic calls should eventually be removed.
  */
 
-#include <asm/errno.h>
-
-static inline int gpio_request(unsigned gpio, const char *label)
-{
-	return omap_request_gpio(gpio);
-}
-
-static inline void gpio_free(unsigned gpio)
-{
-	omap_free_gpio(gpio);
-}
-
-static inline int __gpio_set_direction(unsigned gpio, int is_input)
-{
-	if (cpu_class_is_omap2()) {
-		if (gpio > OMAP_MAX_GPIO_LINES)
-			return -EINVAL;
-	} else {
-		if (gpio > (OMAP_MAX_GPIO_LINES + 16 /* MPUIO */))
-			return -EINVAL;
-	}
-	omap_set_gpio_direction(gpio, is_input);
-	return 0;
-}
-
-static inline int gpio_direction_input(unsigned gpio)
-{
-	return __gpio_set_direction(gpio, 1);
-}
-
-static inline int gpio_direction_output(unsigned gpio, int value)
-{
-	omap_set_gpio_dataout(gpio, value);
-	return __gpio_set_direction(gpio, 0);
-}
+#include <linux/errno.h>
+#include <asm-generic/gpio.h>
 
 static inline int gpio_get_value(unsigned gpio)
 {
-	return omap_get_gpio_datain(gpio);
+	return __gpio_get_value(gpio);
 }
 
 static inline void gpio_set_value(unsigned gpio, int value)
 {
-	omap_set_gpio_dataout(gpio, value);
+	__gpio_set_value(gpio, value);
 }
 
-#include <asm-generic/gpio.h>		/* cansleep wrappers */
+static inline int gpio_cansleep(unsigned gpio)
+{
+	return __gpio_cansleep(gpio);
+}
 
 static inline int gpio_to_irq(unsigned gpio)
 {
-	return OMAP_GPIO_IRQ(gpio);
+	if (gpio < (OMAP_MAX_GPIO_LINES + 16))
+		return OMAP_GPIO_IRQ(gpio);
+	return -EINVAL;
 }
 
 static inline int irq_to_gpio(unsigned irq)

@@ -668,7 +668,7 @@ static struct platform_driver wf_pm112_driver = {
 	.remove = __devexit_p(wf_pm112_remove),
 	.driver = {
 		.name = "windfarm",
-		.bus = &platform_bus_type,
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -711,3 +711,4 @@ module_exit(wf_pm112_exit);
 MODULE_AUTHOR("Paul Mackerras <paulus@samba.org>");
 MODULE_DESCRIPTION("Thermal control for PowerMac11,2");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:windfarm");

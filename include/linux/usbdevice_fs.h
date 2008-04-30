@@ -77,8 +77,11 @@ struct usbdevfs_connectinfo {
 	unsigned char slow;
 };
 
-#define USBDEVFS_URB_SHORT_NOT_OK          1
-#define USBDEVFS_URB_ISO_ASAP              2
+#define USBDEVFS_URB_SHORT_NOT_OK	0x01
+#define USBDEVFS_URB_ISO_ASAP		0x02
+#define USBDEVFS_URB_NO_FSBR		0x20
+#define USBDEVFS_URB_ZERO_PACKET	0x40
+#define USBDEVFS_URB_NO_INTERRUPT	0x80
 
 #define USBDEVFS_URB_TYPE_ISO		   0
 #define USBDEVFS_URB_TYPE_INTERRUPT	   1

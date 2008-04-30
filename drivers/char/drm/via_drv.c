@@ -40,11 +40,13 @@ static struct pci_device_id pciidlist[] = {
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_HAVE_IRQ |
-	    DRIVER_IRQ_SHARED | DRIVER_IRQ_VBL,
+	    DRIVER_IRQ_SHARED,
 	.load = via_driver_load,
 	.unload = via_driver_unload,
 	.context_dtor = via_final_context,
-	.vblank_wait = via_driver_vblank_wait,
+	.get_vblank_counter = via_get_vblank_counter,
+	.enable_vblank = via_enable_vblank,
+	.disable_vblank = via_disable_vblank,
 	.irq_preinstall = via_driver_irq_preinstall,
 	.irq_postinstall = via_driver_irq_postinstall,
 	.irq_uninstall = via_driver_irq_uninstall,

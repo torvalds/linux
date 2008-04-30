@@ -219,6 +219,11 @@ static inline int pte_file(pte_t pte)
 	return pte_val(pte) & BTFIXUP_HALF(pte_filei);
 }
 
+static inline int pte_special(pte_t pte)
+{
+	return 0;
+}
+
 /*
  */
 BTFIXUPDEF_HALF(pte_wrprotecti)
@@ -250,6 +255,8 @@ BTFIXUPDEF_CALL_CONST(pte_t, pte_mkyoung, pte_t)
 #define pte_mkwrite(pte) BTFIXUP_CALL(pte_mkwrite)(pte)
 #define pte_mkdirty(pte) BTFIXUP_CALL(pte_mkdirty)(pte)
 #define pte_mkyoung(pte) BTFIXUP_CALL(pte_mkyoung)(pte)
+
+#define pte_mkspecial(pte)    (pte)
 
 #define pfn_pte(pfn, prot)		mk_pte(pfn_to_page(pfn), prot)
 

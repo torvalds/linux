@@ -47,6 +47,7 @@
 
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/blkif.h>
+#include <xen/interface/io/protocols.h>
 
 #include <asm/xen/hypervisor.h>
 
@@ -74,7 +75,6 @@ static struct block_device_operations xlvbd_block_fops;
 struct blkfront_info
 {
 	struct xenbus_device *xbdev;
-	dev_t dev;
 	struct gendisk *gd;
 	int vdevice;
 	blkif_vdev_t handle;
@@ -88,6 +88,7 @@ struct blkfront_info
 	struct blk_shadow shadow[BLK_RING_SIZE];
 	unsigned long shadow_free;
 	int feature_barrier;
+	int is_ready;
 
 	/**
 	 * The number of people holding this device open.  We won't allow a
@@ -614,6 +615,12 @@ again:
 		message = "writing event-channel";
 		goto abort_transaction;
 	}
+	err = xenbus_printf(xbt, dev->nodename, "protocol", "%s",
+			    XEN_IO_PROTO_ABI_NATIVE);
+	if (err) {
+		message = "writing protocol";
+		goto abort_transaction;
+	}
 
 	err = xenbus_transaction_end(xbt, 0);
 	if (err) {
@@ -833,6 +840,8 @@ static void blkfront_connect(struct blkfront_info *info)
 	spin_unlock_irq(&blkif_io_lock);
 
 	add_disk(info->gd);
+
+	info->is_ready = 1;
 }
 
 /**
@@ -896,7 +905,7 @@ static void backend_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateClosing:
-		bd = bdget(info->dev);
+		bd = bdget_disk(info->gd, 0);
 		if (bd == NULL)
 			xenbus_dev_fatal(dev, -ENODEV, "bdget failed");
 
@@ -923,6 +932,13 @@ static int blkfront_remove(struct xenbus_device *dev)
 	kfree(info);
 
 	return 0;
+}
+
+static int blkfront_is_ready(struct xenbus_device *dev)
+{
+	struct blkfront_info *info = dev->dev.driver_data;
+
+	return info->is_ready;
 }
 
 static int blkif_open(struct inode *inode, struct file *filep)
@@ -971,6 +987,7 @@ static struct xenbus_driver blkfront = {
 	.remove = blkfront_remove,
 	.resume = blkfront_resume,
 	.otherend_changed = backend_changed,
+	.is_ready = blkfront_is_ready,
 };
 
 static int __init xlblk_init(void)
@@ -998,3 +1015,5 @@ module_exit(xlblk_exit);
 MODULE_DESCRIPTION("Xen virtual block device frontend");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_BLOCKDEV_MAJOR(XENVBD_MAJOR);
+MODULE_ALIAS("xen:vbd");
+MODULE_ALIAS("xenblk");

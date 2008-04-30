@@ -39,7 +39,7 @@ static struct
 static struct xt_table packet_raw = {
 	.name = "raw",
 	.valid_hooks =  RAW_VALID_HOOKS,
-	.lock = RW_LOCK_UNLOCKED,
+	.lock = __RW_LOCK_UNLOCKED(packet_raw.lock),
 	.me = THIS_MODULE,
 	.af = AF_INET,
 };
@@ -52,7 +52,8 @@ ipt_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ipt_do_table(skb, hook, in, out, init_net.ipv4.iptable_raw);
+	return ipt_do_table(skb, hook, in, out,
+			    nf_pre_routing_net(in, out)->ipv4.iptable_raw);
 }
 
 static unsigned int
@@ -70,7 +71,8 @@ ipt_local_hook(unsigned int hook,
 			       "packet.\n");
 		return NF_ACCEPT;
 	}
-	return ipt_do_table(skb, hook, in, out, init_net.ipv4.iptable_raw);
+	return ipt_do_table(skb, hook, in, out,
+			    nf_local_out_net(in, out)->ipv4.iptable_raw);
 }
 
 /* 'raw' is the very first table. */

@@ -1156,7 +1156,7 @@ struct ucc_geth_info {
 	u16 pausePeriod;
 	u16 extensionField;
 	u8 phy_address;
-	u32 mdio_bus;
+	char mdio_bus[MII_BUS_ID_SIZE];
 	u8 weightfactor[NUM_TX_QUEUES];
 	u8 interruptcoalescingmaxvalue[NUM_RX_QUEUES];
 	u8 l2qt[UCC_GETH_VLAN_PRIORITY_MAX];

@@ -1444,7 +1444,7 @@ static void sppp_print_bytes (u_char *p, u16 len)
 
 static int sppp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *p, struct net_device *orig_dev)
 {
-	if (dev->nd_net != &init_net) {
+	if (dev_net(dev) != &init_net) {
 		kfree_skb(skb);
 		return 0;
 	}

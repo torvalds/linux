@@ -1,12 +1,10 @@
 #ifndef __x8664_PCI_H
 #define __x8664_PCI_H
 
-
 #ifdef __KERNEL__
 
-
 #ifdef CONFIG_CALGARY_IOMMU
-static inline void* pci_iommu(struct pci_bus *bus)
+static inline void *pci_iommu(struct pci_bus *bus)
 {
 	struct pci_sysdata *sd = bus->sysdata;
 	return sd->iommu;
@@ -19,12 +17,12 @@ static inline void set_pci_iommu(struct pci_bus *bus, void *val)
 }
 #endif /* CONFIG_CALGARY_IOMMU */
 
+extern int (*pci_config_read)(int seg, int bus, int dev, int fn,
+			      int reg, int len, u32 *value);
+extern int (*pci_config_write)(int seg, int bus, int dev, int fn,
+			       int reg, int len, u32 value);
 
-extern int (*pci_config_read)(int seg, int bus, int dev, int fn, int reg, int len, u32 *value);
-extern int (*pci_config_write)(int seg, int bus, int dev, int fn, int reg, int len, u32 value);
-
-
-
+extern void dma32_reserve_bootmem(void);
 extern void pci_iommu_alloc(void);
 
 /* The PCI address space does equal the physical memory
@@ -64,6 +62,5 @@ extern void pci_iommu_alloc(void);
 #endif
 
 #endif /* __KERNEL__ */
-
 
 #endif /* __x8664_PCI_H */
