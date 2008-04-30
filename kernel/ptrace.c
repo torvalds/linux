@@ -168,8 +168,6 @@ int ptrace_attach(struct task_struct *task)
 	audit_ptrace(task);
 
 	retval = -EPERM;
-	if (task->pid <= 1)
-		goto out;
 	if (same_thread_group(task, current))
 		goto out;
 
@@ -520,12 +518,6 @@ int ptrace_traceme(void)
 struct task_struct *ptrace_get_task_struct(pid_t pid)
 {
 	struct task_struct *child;
-
-	/*
-	 * Tracing init is not allowed.
-	 */
-	if (pid == 1)
-		return ERR_PTR(-EPERM);
 
 	read_lock(&tasklist_lock);
 	child = find_task_by_vpid(pid);
