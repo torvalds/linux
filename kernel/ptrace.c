@@ -73,7 +73,7 @@ void __ptrace_unlink(struct task_struct *child)
 	BUG_ON(!child->ptrace);
 
 	child->ptrace = 0;
-	if (!list_empty(&child->ptrace_list)) {
+	if (ptrace_reparented(child)) {
 		list_del_init(&child->ptrace_list);
 		remove_parent(child);
 		child->parent = child->real_parent;
