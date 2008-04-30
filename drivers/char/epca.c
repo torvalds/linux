@@ -923,7 +923,8 @@ static int pc_open(struct tty_struct *tty, struct file * filp)
 		return(-ENODEV);
 	}
 
-	if ((bc = ch->brdchan) == 0) {
+	bc = ch->brdchan;
+	if (bc == NULL) {
 		tty->driver_data = NULL;
 		return -ENODEV;
 	}
@@ -1838,7 +1839,7 @@ static void epcaparam(struct tty_struct *tty, struct channel *ch)
 	unsigned mval, hflow, cflag, iflag;
 
 	bc = ch->brdchan;
-	epcaassert(bc !=0, "bc out of range");
+	epcaassert(bc != NULL, "bc out of range");
 
 	assertgwinon(ch);
 	ts = tty->termios;
@@ -2477,7 +2478,7 @@ static void pc_unthrottle(struct tty_struct *tty)
 	}
 }
 
-void digi_send_break(struct channel *ch, int msec)
+static void digi_send_break(struct channel *ch, int msec)
 {
 	unsigned long flags;
 
@@ -2865,7 +2866,7 @@ static struct pci_device_id epca_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, epca_pci_tbl);
 
-int __init init_PCI (void)
+static int __init init_PCI(void)
 {
 	memset (&epca_driver, 0, sizeof (epca_driver));
 	epca_driver.name = "epca";
