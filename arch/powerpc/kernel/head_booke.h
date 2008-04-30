@@ -72,7 +72,7 @@
 #define DEBUG_STACK_BASE	dbgirq_ctx
 #define DEBUG_SPRG		SPRN_SPRG6W
 
-#define EXC_LVL_FRAME_OVERHEAD	(THREAD_SIZE - INT_FRAME_SIZE)
+#define EXC_LVL_FRAME_OVERHEAD	(THREAD_SIZE - INT_FRAME_SIZE - EXC_LVL_SIZE)
 
 #ifdef CONFIG_SMP
 #define BOOKE_LOAD_EXC_LEVEL_STACK(level)		\
@@ -376,4 +376,25 @@ label:
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
 	EXC_XFER_EE_LITE(0x800, kernel_fp_unavailable_exception)
 
+#ifndef __ASSEMBLY__
+struct exception_regs {
+	unsigned long mas0;
+	unsigned long mas1;
+	unsigned long mas2;
+	unsigned long mas3;
+	unsigned long mas6;
+	unsigned long mas7;
+	unsigned long srr0;
+	unsigned long srr1;
+	unsigned long csrr0;
+	unsigned long csrr1;
+	unsigned long dsrr0;
+	unsigned long dsrr1;
+	unsigned long saved_ksp_limit;
+};
+
+/* ensure this structure is always sized to a multiple of the stack alignment */
+#define STACK_EXC_LVL_FRAME_SIZE	_ALIGN_UP(sizeof (struct exception_regs), 16)
+
+#endif /* __ASSEMBLY__ */
 #endif /* __HEAD_BOOKE_H__ */

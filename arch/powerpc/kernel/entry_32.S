@@ -46,14 +46,52 @@
 #ifdef CONFIG_BOOKE
 	.globl	mcheck_transfer_to_handler
 mcheck_transfer_to_handler:
-	b	transfer_to_handler_full
+	mfspr	r0,SPRN_DSRR0
+	stw	r0,_DSRR0(r11)
+	mfspr	r0,SPRN_DSRR1
+	stw	r0,_DSRR1(r11)
+	/* fall through */
 
 	.globl	debug_transfer_to_handler
 debug_transfer_to_handler:
-	b	transfer_to_handler_full
+	mfspr	r0,SPRN_CSRR0
+	stw	r0,_CSRR0(r11)
+	mfspr	r0,SPRN_CSRR1
+	stw	r0,_CSRR1(r11)
+	/* fall through */
 
 	.globl	crit_transfer_to_handler
 crit_transfer_to_handler:
+#ifdef CONFIG_FSL_BOOKE
+	mfspr	r0,SPRN_MAS0
+	stw	r0,MAS0(r11)
+	mfspr	r0,SPRN_MAS1
+	stw	r0,MAS1(r11)
+	mfspr	r0,SPRN_MAS2
+	stw	r0,MAS2(r11)
+	mfspr	r0,SPRN_MAS3
+	stw	r0,MAS3(r11)
+	mfspr	r0,SPRN_MAS6
+	stw	r0,MAS6(r11)
+#ifdef CONFIG_PHYS_64BIT
+	mfspr	r0,SPRN_MAS7
+	stw	r0,MAS7(r11)
+#endif /* CONFIG_PHYS_64BIT */
+#endif /* CONFIG_FSL_BOOKE */
+#ifdef CONFIG_44x
+	mfspr	r0,SPRN_MMUCR
+	stw	r0,MMUCR(r11)
+#endif
+	mfspr	r0,SPRN_SRR0
+	stw	r0,_SRR0(r11)
+	mfspr	r0,SPRN_SRR1
+	stw	r0,_SRR1(r11)
+
+	mfspr	r8,SPRN_SPRG3
+	lwz	r0,KSP_LIMIT(r8)
+	stw	r0,SAVED_KSP_LIMIT(r11)
+	rlwimi	r0,r1,0,0,(31-THREAD_SHIFT)
+	stw	r0,KSP_LIMIT(r8)
 	/* fall through */
 #endif
 
@@ -64,6 +102,16 @@ crit_transfer_to_handler:
 	stw	r0,GPR10(r11)
 	lwz	r0,crit_r11@l(0)
 	stw	r0,GPR11(r11)
+	mfspr	r0,SPRN_SRR0
+	stw	r0,crit_srr0@l(0)
+	mfspr	r0,SPRN_SRR1
+	stw	r0,crit_srr1@l(0)
+
+	mfspr	r8,SPRN_SPRG3
+	lwz	r0,KSP_LIMIT(r8)
+	stw	r0,saved_ksp_limit@l(0)
+	rlwimi	r0,r1,0,0,(31-THREAD_SHIFT)
+	stw	r0,KSP_LIMIT(r8)
 	/* fall through */
 #endif
 
@@ -854,17 +902,90 @@ exc_exit_restart_end:
 	exc_lvl_rfi;							\
 	b	.;		/* prevent prefetch past exc_lvl_rfi */
 
+#define	RESTORE_xSRR(exc_lvl_srr0, exc_lvl_srr1)			\
+	lwz	r9,_##exc_lvl_srr0(r1);					\
+	lwz	r10,_##exc_lvl_srr1(r1);				\
+	mtspr	SPRN_##exc_lvl_srr0,r9;					\
+	mtspr	SPRN_##exc_lvl_srr1,r10;
+
+#if defined(CONFIG_FSL_BOOKE)
+#ifdef CONFIG_PHYS_64BIT
+#define	RESTORE_MAS7							\
+	lwz	r11,MAS7(r1);						\
+	mtspr	SPRN_MAS7,r11;
+#else
+#define	RESTORE_MAS7
+#endif /* CONFIG_PHYS_64BIT */
+#define RESTORE_MMU_REGS						\
+	lwz	r9,MAS0(r1);						\
+	lwz	r10,MAS1(r1);						\
+	lwz	r11,MAS2(r1);						\
+	mtspr	SPRN_MAS0,r9;						\
+	lwz	r9,MAS3(r1);						\
+	mtspr	SPRN_MAS1,r10;						\
+	lwz	r10,MAS6(r1);						\
+	mtspr	SPRN_MAS2,r11;						\
+	mtspr	SPRN_MAS3,r9;						\
+	mtspr	SPRN_MAS6,r10;						\
+	RESTORE_MAS7;
+#elif defined(CONFIG_44x)
+#define RESTORE_MMU_REGS						\
+	lwz	r9,MMUCR(r1);						\
+	mtspr	SPRN_MMUCR,r9;
+#else
+#define RESTORE_MMU_REGS
+#endif
+
+#ifdef CONFIG_40x
 	.globl	ret_from_crit_exc
 ret_from_crit_exc:
+	mfspr	r9,SPRN_SPRG3
+	lis	r10,saved_ksp_limit@ha;
+	lwz	r10,saved_ksp_limit@l(r10);
+	tovirt(r9,r9);
+	stw	r10,KSP_LIMIT(r9)
+	lis	r9,crit_srr0@ha;
+	lwz	r9,crit_srr0@l(r9);
+	lis	r10,crit_srr1@ha;
+	lwz	r10,crit_srr1@l(r10);
+	mtspr	SPRN_SRR0,r9;
+	mtspr	SPRN_SRR1,r10;
 	RET_FROM_EXC_LEVEL(SPRN_CSRR0, SPRN_CSRR1, RFCI)
+#endif /* CONFIG_40x */
 
 #ifdef CONFIG_BOOKE
+	.globl	ret_from_crit_exc
+ret_from_crit_exc:
+	mfspr	r9,SPRN_SPRG3
+	lwz	r10,SAVED_KSP_LIMIT(r1)
+	stw	r10,KSP_LIMIT(r9)
+	RESTORE_xSRR(SRR0,SRR1);
+	RESTORE_MMU_REGS;
+	RET_FROM_EXC_LEVEL(SPRN_CSRR0, SPRN_CSRR1, RFCI)
+
 	.globl	ret_from_debug_exc
 ret_from_debug_exc:
+	mfspr	r9,SPRN_SPRG3
+	lwz	r10,SAVED_KSP_LIMIT(r1)
+	stw	r10,KSP_LIMIT(r9)
+	lwz	r9,THREAD_INFO-THREAD(r9)
+	rlwinm	r10,r1,0,0,(31-THREAD_SHIFT)
+	lwz	r10,TI_PREEMPT(r10)
+	stw	r10,TI_PREEMPT(r9)
+	RESTORE_xSRR(SRR0,SRR1);
+	RESTORE_xSRR(CSRR0,CSRR1);
+	RESTORE_MMU_REGS;
 	RET_FROM_EXC_LEVEL(SPRN_DSRR0, SPRN_DSRR1, RFDI)
 
 	.globl	ret_from_mcheck_exc
 ret_from_mcheck_exc:
+	mfspr	r9,SPRN_SPRG3
+	lwz	r10,SAVED_KSP_LIMIT(r1)
+	stw	r10,KSP_LIMIT(r9)
+	RESTORE_xSRR(SRR0,SRR1);
+	RESTORE_xSRR(CSRR0,CSRR1);
+	RESTORE_xSRR(DSRR0,DSRR1);
+	RESTORE_MMU_REGS;
 	RET_FROM_EXC_LEVEL(SPRN_MCSRR0, SPRN_MCSRR1, RFMCI)
 #endif /* CONFIG_BOOKE */
 
