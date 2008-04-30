@@ -1282,7 +1282,7 @@ static int rs_360_tiocmset(struct tty_struct *tty, struct file *file,
 
 	if (tty->flags & (1 << TTY_IO_ERROR))
 		return -EIO;
-
+	/* FIXME: locking on info->mcr */
  	if (set & TIOCM_RTS)
  		info->mcr |= UART_MCR_RTS;
  	if (set & TIOCM_DTR)
