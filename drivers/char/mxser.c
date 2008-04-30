@@ -1460,6 +1460,7 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 	struct mxser_port *port;
 	int result, status;
 	unsigned int i, j;
+	int ret = 0;
 
 	switch (cmd) {
 	case MOXA_GET_MAJOR:
@@ -1467,18 +1468,21 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 
 	case MOXA_CHKPORTENABLE:
 		result = 0;
-
+		lock_kernel();
 		for (i = 0; i < MXSER_BOARDS; i++)
 			for (j = 0; j < MXSER_PORTS_PER_BOARD; j++)
 				if (mxser_boards[i].ports[j].ioaddr)
 					result |= (1 << i);
-
+		unlock_kernel();
 		return put_user(result, (unsigned long __user *)argp);
 	case MOXA_GETDATACOUNT:
+		lock_kernel();
 		if (copy_to_user(argp, &mxvar_log, sizeof(mxvar_log)))
-			return -EFAULT;
-		return 0;
+			ret = -EFAULT;
+		unlock_kernel();
+		return ret;
 	case MOXA_GETMSTATUS:
+		lock_kernel();
 		for (i = 0; i < MXSER_BOARDS; i++)
 			for (j = 0; j < MXSER_PORTS_PER_BOARD; j++) {
 				port = &mxser_boards[i].ports[j];
@@ -1515,6 +1519,7 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 				else
 					GMStatus[i].cts = 0;
 			}
+		unlock_kernel();
 		if (copy_to_user(argp, GMStatus,
 				sizeof(struct mxser_mstatus) * MXSER_PORTS))
 			return -EFAULT;
@@ -1524,7 +1529,8 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 		unsigned long opmode;
 		unsigned cflag, iflag;
 
-		for (i = 0; i < MXSER_BOARDS; i++)
+		lock_kernel();
+		for (i = 0; i < MXSER_BOARDS; i++) {
 			for (j = 0; j < MXSER_PORTS_PER_BOARD; j++) {
 				port = &mxser_boards[i].ports[j];
 				if (!port->ioaddr)
@@ -1589,13 +1595,14 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 				mon_data_ext.iftype[i] = opmode;
 
 			}
-			if (copy_to_user(argp, &mon_data_ext,
-						sizeof(mon_data_ext)))
-				return -EFAULT;
-
-			return 0;
-
-	} default:
+		}
+		unlock_kernel();
+		if (copy_to_user(argp, &mon_data_ext,
+					sizeof(mon_data_ext)))
+			return -EFAULT;
+		return 0;
+	}
+	default:
 		return -ENOIOCTLCMD;
 	}
 	return 0;
@@ -1651,16 +1658,20 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 					opmode != RS422_MODE &&
 					opmode != RS485_4WIRE_MODE)
 				return -EFAULT;
+			lock_kernel();
 			mask = ModeMask[p];
 			shiftbit = p * 2;
 			val = inb(info->opmode_ioaddr);
 			val &= mask;
 			val |= (opmode << shiftbit);
 			outb(val, info->opmode_ioaddr);
+			unlock_kernel();
 		} else {
+			lock_kernel();
 			shiftbit = p * 2;
 			opmode = inb(info->opmode_ioaddr) >> shiftbit;
 			opmode &= OP_MODE_MASK;
+			unlock_kernel();
 			if (put_user(opmode, (int __user *)argp))
 				return -EFAULT;
 		}
@@ -1687,19 +1698,18 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 		tty_wait_until_sent(tty, 0);
 		mxser_send_break(info, arg ? arg * (HZ / 10) : HZ / 4);
 		return 0;
-	case TIOCGSOFTCAR:
-		return put_user(!!C_CLOCAL(tty), (unsigned long __user *)argp);
-	case TIOCSSOFTCAR:
-		if (get_user(arg, (unsigned long __user *)argp))
-			return -EFAULT;
-		tty->termios->c_cflag = ((tty->termios->c_cflag & ~CLOCAL) | (arg ? CLOCAL : 0));
-		return 0;
 	case TIOCGSERIAL:
-		return mxser_get_serial_info(info, argp);
+		lock_kernel();
+		retval = mxser_get_serial_info(info, argp);
+		unlock_kernel();
+		return retval;
 	case TIOCSSERIAL:
-		return mxser_set_serial_info(info, argp);
+		lock_kernel();
+		retval = mxser_set_serial_info(info, argp);
+		unlock_kernel();
+		return retval;
 	case TIOCSERGETLSR:	/* Get line status register */
-		return mxser_get_lsr_info(info, argp);
+		return  mxser_get_lsr_info(info, argp);
 		/*
 		 * Wait for any of the 4 modem inputs (DCD,RI,DSR,CTS) to change
 		 * - mask passed in arg for lines of interest
@@ -1746,24 +1756,27 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 	case MOXA_HighSpeedOn:
 		return put_user(info->baud_base != 115200 ? 1 : 0, (int __user *)argp);
 	case MOXA_SDS_RSTICOUNTER:
+		lock_kernel();
 		info->mon_data.rxcnt = 0;
 		info->mon_data.txcnt = 0;
+		unlock_kernel();
 		return 0;
 
 	case MOXA_ASPP_OQUEUE:{
 		int len, lsr;
 
+		lock_kernel();
 		len = mxser_chars_in_buffer(tty);
-
 		lsr = inb(info->ioaddr + UART_LSR) & UART_LSR_TEMT;
-
 		len += (lsr ? 0 : 1);
+		unlock_kernel();
 
 		return put_user(len, (int __user *)argp);
 	}
 	case MOXA_ASPP_MON: {
 		int mcr, status;
 
+		lock_kernel();
 		status = mxser_get_msr(info->ioaddr, 1, tty->index);
 		mxser_check_modem_status(info, status);
 
@@ -1782,7 +1795,7 @@ static int mxser_ioctl(struct tty_struct *tty, struct file *file,
 			info->mon_data.hold_reason |= NPPI_NOTIFY_CTSHOLD;
 		else
 			info->mon_data.hold_reason &= ~NPPI_NOTIFY_CTSHOLD;
-
+		unlock_kernel();
 		if (copy_to_user(argp, &info->mon_data,
 				sizeof(struct mxser_mon)))
 			return -EFAULT;
