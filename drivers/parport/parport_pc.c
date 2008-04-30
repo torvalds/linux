@@ -1415,7 +1415,7 @@ static void __devinit winbond_check(int io, int key)
 {
 	int devid,devrev,oldid,x_devid,x_devrev,x_oldid;
 
-	if (!request_region(io, 3, __FUNCTION__))
+	if (!request_region(io, 3, __func__))
 		return;
 
 	/* First probe without key */
@@ -1449,7 +1449,7 @@ static void __devinit winbond_check2(int io,int key)
 {
         int devid,devrev,oldid,x_devid,x_devrev,x_oldid;
 
-	if (!request_region(io, 3, __FUNCTION__))
+	if (!request_region(io, 3, __func__))
 		return;
 
 	/* First probe without the key */
@@ -1482,7 +1482,7 @@ static void __devinit smsc_check(int io, int key)
 {
         int id,rev,oldid,oldrev,x_id,x_rev,x_oldid,x_oldrev;
 
-	if (!request_region(io, 3, __FUNCTION__))
+	if (!request_region(io, 3, __func__))
 		return;
 
 	/* First probe without the key */
@@ -1547,7 +1547,7 @@ static void __devinit detect_and_report_it87(void)
 	u8 r;
 	if (verbose_probing)
 		printk(KERN_DEBUG "IT8705 Super-IO detection, now testing port 2E ...\n");
-	if (!request_region(0x2e, 1, __FUNCTION__))
+	if (!request_region(0x2e, 1, __func__))
 		return;
 	outb(0x87, 0x2e);
 	outb(0x01, 0x2e);

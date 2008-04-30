@@ -224,7 +224,7 @@ static int ads7828_detect(struct i2c_adapter *adapter, int address, int kind)
 			if (in_data & 0xF000) {
 				printk(KERN_DEBUG
 				"%s : Doesn't look like an ads7828 device\n",
-				__FUNCTION__);
+				__func__);
 				goto exit_free;
 			}
 		}
