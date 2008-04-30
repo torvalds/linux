@@ -704,8 +704,11 @@ static int viotty_ioctl(struct tty_struct *tty, struct file *file,
 	case KDSKBLED:
 		return 0;
 	}
-
-	return n_tty_ioctl(tty, file, cmd, arg);
+	/* FIXME: WTF is this being called for ??? */
+	lock_kernel();
+	ret =  n_tty_ioctl(tty, file, cmd, arg);
+	unlock_kernel();
+	return ret;
 }
 
 /*
