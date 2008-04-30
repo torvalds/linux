@@ -59,7 +59,11 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	fi->nodeid = 0;
 	fi->nlookup = 0;
 	fi->attr_version = 0;
+	fi->writectr = 0;
 	INIT_LIST_HEAD(&fi->write_files);
+	INIT_LIST_HEAD(&fi->queued_writes);
+	INIT_LIST_HEAD(&fi->writepages);
+	init_waitqueue_head(&fi->page_waitq);
 	fi->forget_req = fuse_request_alloc();
 	if (!fi->forget_req) {
 		kmem_cache_free(fuse_inode_cachep, inode);
@@ -73,6 +77,7 @@ static void fuse_destroy_inode(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	BUG_ON(!list_empty(&fi->write_files));
+	BUG_ON(!list_empty(&fi->queued_writes));
 	if (fi->forget_req)
 		fuse_request_free(fi->forget_req);
 	kmem_cache_free(fuse_inode_cachep, inode);
@@ -109,7 +114,7 @@ static int fuse_remount_fs(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static void fuse_truncate(struct address_space *mapping, loff_t offset)
+void fuse_truncate(struct address_space *mapping, loff_t offset)
 {
 	/* See vmtruncate() */
 	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
@@ -117,19 +122,12 @@ static void fuse_truncate(struct address_space *mapping, loff_t offset)
 	unmap_mapping_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
 }
 
-
-void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
-			    u64 attr_valid, u64 attr_version)
+void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
+				   u64 attr_valid)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	loff_t oldsize;
 
-	spin_lock(&fc->lock);
-	if (attr_version != 0 && fi->attr_version > attr_version) {
-		spin_unlock(&fc->lock);
-		return;
-	}
 	fi->attr_version = ++fc->attr_version;
 	fi->i_time = attr_valid;
 
@@ -159,6 +157,22 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 	fi->orig_i_mode = inode->i_mode;
 	if (!(fc->flags & FUSE_DEFAULT_PERMISSIONS))
 		inode->i_mode &= ~S_ISVTX;
+}
+
+void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
+			    u64 attr_valid, u64 attr_version)
+{
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	loff_t oldsize;
+
+	spin_lock(&fc->lock);
+	if (attr_version != 0 && fi->attr_version > attr_version) {
+		spin_unlock(&fc->lock);
+		return;
+	}
+
+	fuse_change_attributes_common(inode, attr, attr_valid);
 
 	oldsize = inode->i_size;
 	i_size_write(inode, attr->size);
@@ -468,6 +482,8 @@ static struct fuse_conn *new_conn(struct super_block *sb)
 		atomic_set(&fc->num_waiting, 0);
 		fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
+		/* fuse does it's own writeback accounting */
+		fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
 		fc->dev = sb->s_dev;
 		err = bdi_init(&fc->bdi);
 		if (err)
@@ -475,6 +491,19 @@ static struct fuse_conn *new_conn(struct super_block *sb)
 		err = bdi_register_dev(&fc->bdi, fc->dev);
 		if (err)
 			goto error_bdi_destroy;
+		/*
+		 * For a single fuse filesystem use max 1% of dirty +
+		 * writeback threshold.
+		 *
+		 * This gives about 1M of write buffer for memory maps on a
+		 * machine with 1G and 10% dirty_ratio, which should be more
+		 * than enough.
+		 *
+		 * Privileged users can raise it by writing to
+		 *
+		 *    /sys/class/bdi/<bdi>/max_ratio
+		 */
+		bdi_set_max_ratio(&fc->bdi, 1);
 		fc->reqctr = 0;
 		fc->blocked = 1;
 		fc->attr_version = 1;

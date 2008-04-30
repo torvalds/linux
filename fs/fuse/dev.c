@@ -47,6 +47,14 @@ struct fuse_req *fuse_request_alloc(void)
 	return req;
 }
 
+struct fuse_req *fuse_request_alloc_nofs(void)
+{
+	struct fuse_req *req = kmem_cache_alloc(fuse_req_cachep, GFP_NOFS);
+	if (req)
+		fuse_request_init(req);
+	return req;
+}
+
 void fuse_request_free(struct fuse_req *req)
 {
 	kmem_cache_free(fuse_req_cachep, req);
@@ -427,6 +435,17 @@ void request_send_background(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->isreply = 1;
 	request_send_nowait(fc, req);
+}
+
+/*
+ * Called under fc->lock
+ *
+ * fc->connected must have been checked previously
+ */
+void request_send_background_locked(struct fuse_conn *fc, struct fuse_req *req)
+{
+	req->isreply = 1;
+	request_send_nowait_locked(fc, req);
 }
 
 /*
