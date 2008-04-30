@@ -3459,11 +3459,8 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		switch (cmd) {
 		case TIOCSBRK:
 		case TIOCCBRK:
-			if (tty->driver->ioctl) {
-				lock_kernel();
+			if (tty->driver->ioctl)
 				retval = tty->driver->ioctl(tty, file, cmd, arg);
-				unlock_kernel();
-			}
 			return retval;
 
 		/* These two ioctl's always return success; even if */
@@ -3584,18 +3581,14 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	if (tty->driver->ioctl) {
-		lock_kernel();
 		retval = (tty->driver->ioctl)(tty, file, cmd, arg);
-		unlock_kernel();
 		if (retval != -ENOIOCTLCMD)
 			return retval;
 	}
 	ld = tty_ldisc_ref_wait(tty);
 	retval = -EINVAL;
 	if (ld->ioctl) {
-		lock_kernel();
 		retval = ld->ioctl(tty, file, cmd, arg);
-		unlock_kernel();
 		if (retval == -ENOIOCTLCMD)
 			retval = -EINVAL;
 	}
