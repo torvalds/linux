@@ -610,13 +610,24 @@ static int fuse_write_begin(struct file *file, struct address_space *mapping,
 	return 0;
 }
 
+static void fuse_write_update_size(struct inode *inode, loff_t pos)
+{
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
+	spin_lock(&fc->lock);
+	fi->attr_version = ++fc->attr_version;
+	if (pos > inode->i_size)
+		i_size_write(inode, pos);
+	spin_unlock(&fc->lock);
+}
+
 static int fuse_buffered_write(struct file *file, struct inode *inode,
 			       loff_t pos, unsigned count, struct page *page)
 {
 	int err;
 	size_t nres;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_inode *fi = get_fuse_inode(inode);
 	unsigned offset = pos & (PAGE_CACHE_SIZE - 1);
 	struct fuse_req *req;
 
@@ -643,12 +654,7 @@ static int fuse_buffered_write(struct file *file, struct inode *inode,
 		err = -EIO;
 	if (!err) {
 		pos += nres;
-		spin_lock(&fc->lock);
-		fi->attr_version = ++fc->attr_version;
-		if (pos > inode->i_size)
-			i_size_write(inode, pos);
-		spin_unlock(&fc->lock);
-
+		fuse_write_update_size(inode, pos);
 		if (count == PAGE_CACHE_SIZE)
 			SetPageUptodate(page);
 	}
@@ -766,12 +772,8 @@ static ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 	}
 	fuse_put_request(fc, req);
 	if (res > 0) {
-		if (write) {
-			spin_lock(&fc->lock);
-			if (pos > inode->i_size)
-				i_size_write(inode, pos);
-			spin_unlock(&fc->lock);
-		}
+		if (write)
+			fuse_write_update_size(inode, pos);
 		*ppos = pos;
 	}
 	fuse_invalidate_attr(inode);
