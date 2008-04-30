@@ -1240,8 +1240,7 @@ void sigqueue_free(struct sigqueue *q)
 	__sigqueue_free(q);
 }
 
-static int do_send_sigqueue(struct sigqueue *q, struct task_struct *t,
-				int group)
+int send_sigqueue(struct sigqueue *q, struct task_struct *t, int group)
 {
 	int sig = q->info.si_signo;
 	struct sigpending *pending;
@@ -1266,7 +1265,6 @@ static int do_send_sigqueue(struct sigqueue *q, struct task_struct *t,
 		 * If an SI_TIMER entry is already queue just increment
 		 * the overrun count.
 		 */
-
 		BUG_ON(q->info.si_code != SI_TIMER);
 		q->info.si_overrun++;
 		goto out;
@@ -1281,17 +1279,6 @@ out:
 	unlock_task_sighand(t, &flags);
 ret:
 	return ret;
-}
-
-int send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
-{
-	return do_send_sigqueue(q, p, 0);
-}
-
-int
-send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
-{
-	return do_send_sigqueue(q, p, 1);
 }
 
 /*
