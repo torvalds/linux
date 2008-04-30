@@ -991,31 +991,37 @@ out:
 
 asmlinkage long sys_getpgid(pid_t pid)
 {
-	if (!pid)
-		return task_pgrp_vnr(current);
-	else {
-		int retval;
-		struct task_struct *p;
+	struct task_struct *p;
+	struct pid *grp;
+	int retval;
 
-		read_lock(&tasklist_lock);
-		p = find_task_by_vpid(pid);
+	rcu_read_lock();
+	if (!pid)
+		grp = task_pgrp(current);
+	else {
 		retval = -ESRCH;
-		if (p) {
-			retval = security_task_getpgid(p);
-			if (!retval)
-				retval = task_pgrp_vnr(p);
-		}
-		read_unlock(&tasklist_lock);
-		return retval;
+		p = find_task_by_vpid(pid);
+		if (!p)
+			goto out;
+		grp = task_pgrp(p);
+		if (!grp)
+			goto out;
+
+		retval = security_task_getpgid(p);
+		if (retval)
+			goto out;
 	}
+	retval = pid_vnr(grp);
+out:
+	rcu_read_unlock();
+	return retval;
 }
 
 #ifdef __ARCH_WANT_SYS_GETPGRP
 
 asmlinkage long sys_getpgrp(void)
 {
-	/* SMP - assuming writes are word atomic this is fine */
-	return task_pgrp_vnr(current);
+	return sys_getpgid(0);
 }
 
 #endif
