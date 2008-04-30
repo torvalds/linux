@@ -77,8 +77,7 @@ static inline pud_t *vmem_pud_alloc(void)
 	pud = vmem_alloc_pages(2);
 	if (!pud)
 		return NULL;
-	pud_val(*pud) = _REGION3_ENTRY_EMPTY;
-	memcpy(pud + 1, pud, (PTRS_PER_PUD - 1)*sizeof(pud_t));
+	clear_table((unsigned long *) pud, _REGION3_ENTRY_EMPTY, PAGE_SIZE * 4);
 #endif
 	return pud;
 }
@@ -91,7 +90,7 @@ static inline pmd_t *vmem_pmd_alloc(void)
 	pmd = vmem_alloc_pages(2);
 	if (!pmd)
 		return NULL;
-	clear_table((unsigned long *) pmd, _SEGMENT_ENTRY_EMPTY, PAGE_SIZE*4);
+	clear_table((unsigned long *) pmd, _SEGMENT_ENTRY_EMPTY, PAGE_SIZE * 4);
 #endif
 	return pmd;
 }
