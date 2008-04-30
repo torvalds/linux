@@ -1787,9 +1787,10 @@ relock:
 		 * Anything else is fatal, maybe with a core dump.
 		 */
 		current->flags |= PF_SIGNALED;
-		if ((signr != SIGKILL) && print_fatal_signals)
-			print_fatal_signal(regs, signr);
+
 		if (sig_kernel_coredump(signr)) {
+			if (print_fatal_signals)
+				print_fatal_signal(regs, signr);
 			/*
 			 * If it was able to dump core, this kills all
 			 * other threads in the group and synchronizes with
