@@ -77,28 +77,6 @@ void show_mem(void)
 	printk("%lu pages pagetables\n", global_page_state(NR_PAGETABLE));
 }
 
-static void __init setup_ro_region(void)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	pte_t new_pte;
-	unsigned long address, end;
-
-	address = ((unsigned long)&_stext) & PAGE_MASK;
-	end = PFN_ALIGN((unsigned long)&_eshared);
-
-	for (; address < end; address += PAGE_SIZE) {
-		pgd = pgd_offset_k(address);
-		pud = pud_offset(pgd, address);
-		pmd = pmd_offset(pud, address);
-		pte = pte_offset_kernel(pmd, address);
-		new_pte = mk_pte_phys(address, __pgprot(_PAGE_RO));
-		*pte = new_pte;
-	}
-}
-
 /*
  * paging_init() sets up the page tables
  */
@@ -121,7 +99,6 @@ void __init paging_init(void)
 	clear_table((unsigned long *) init_mm.pgd, pgd_type,
 		    sizeof(unsigned long)*2048);
 	vmem_map_init();
-	setup_ro_region();
 
         /* enable virtual mapping in kernel mode */
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
@@ -129,6 +106,8 @@ void __init paging_init(void)
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
 	__raw_local_irq_ssm(ssm_mask);
 
+	sparse_memory_present_with_active_regions(MAX_NUMNODES);
+	sparse_init();
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 #ifdef CONFIG_ZONE_DMA
 	max_zone_pfns[ZONE_DMA] = PFN_DOWN(MAX_DMA_ADDRESS);

@@ -10,6 +10,7 @@
 #include <linux/cpu.h>
 #include <linux/sysdev.h>
 #include <linux/workqueue.h>
+#include <asm/smp.h>
 #include "sclp.h"
 
 #define TAG	"sclp_config: "
@@ -19,9 +20,11 @@ struct conf_mgm_data {
 	u8 ev_qualifier;
 } __attribute__((packed));
 
+#define EV_QUAL_CPU_CHANGE	1
 #define EV_QUAL_CAP_CHANGE	3
 
 static struct work_struct sclp_cpu_capability_work;
+static struct work_struct sclp_cpu_change_work;
 
 static void sclp_cpu_capability_notify(struct work_struct *work)
 {
@@ -37,13 +40,24 @@ static void sclp_cpu_capability_notify(struct work_struct *work)
 	put_online_cpus();
 }
 
+static void sclp_cpu_change_notify(struct work_struct *work)
+{
+	smp_rescan_cpus();
+}
+
 static void sclp_conf_receiver_fn(struct evbuf_header *evbuf)
 {
 	struct conf_mgm_data *cdata;
 
 	cdata = (struct conf_mgm_data *)(evbuf + 1);
-	if (cdata->ev_qualifier == EV_QUAL_CAP_CHANGE)
+	switch (cdata->ev_qualifier) {
+	case EV_QUAL_CPU_CHANGE:
+		schedule_work(&sclp_cpu_change_work);
+		break;
+	case EV_QUAL_CAP_CHANGE:
 		schedule_work(&sclp_cpu_capability_work);
+		break;
+	}
 }
 
 static struct sclp_register sclp_conf_register =
@@ -57,6 +71,7 @@ static int __init sclp_conf_init(void)
 	int rc;
 
 	INIT_WORK(&sclp_cpu_capability_work, sclp_cpu_capability_notify);
+	INIT_WORK(&sclp_cpu_change_work, sclp_cpu_change_notify);
 
 	rc = sclp_register(&sclp_conf_register);
 	if (rc) {

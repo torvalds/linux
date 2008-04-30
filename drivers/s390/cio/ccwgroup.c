@@ -318,7 +318,7 @@ ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const 
 {
 	struct ccwgroup_device *gdev;
 	struct ccwgroup_driver *gdrv;
-	unsigned int value;
+	unsigned long value;
 	int ret;
 
 	gdev = to_ccwgroupdev(dev);
@@ -329,7 +329,9 @@ ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const 
 	if (!try_module_get(gdrv->owner))
 		return -EINVAL;
 
-	value = simple_strtoul(buf, NULL, 0);
+	ret = strict_strtoul(buf, 0, &value);
+	if (ret)
+		goto out;
 	ret = count;
 	if (value == 1)
 		ccwgroup_set_online(gdev);
@@ -337,6 +339,7 @@ ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const 
 		ccwgroup_set_offline(gdev);
 	else
 		ret = -EINVAL;
+out:
 	module_put(gdrv->owner);
 	return ret;
 }

@@ -3663,11 +3663,11 @@ qdio_performance_stats_show(struct bus_type *bus, char *buf)
 static ssize_t
 qdio_performance_stats_store(struct bus_type *bus, const char *buf, size_t count)
 {
-	char *tmp;
-	int i;
+	unsigned long i;
+	int ret;
 
-	i = simple_strtoul(buf, &tmp, 16);
-	if ((i == 0) || (i == 1)) {
+	ret = strict_strtoul(buf, 16, &i);
+	if (!ret && ((i == 0) || (i == 1))) {
 		if (i == qdio_performance_stats)
 			return count;
 		qdio_performance_stats = i;
