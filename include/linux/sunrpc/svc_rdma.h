@@ -85,7 +85,6 @@ struct svc_rdma_op_ctxt {
 	struct page *pages[RPCSVC_MAXPAGES];
 };
 
-#define RDMACTXT_F_READ_DONE	1
 #define RDMACTXT_F_LAST_CTXT	2
 
 struct svcxprt_rdma {

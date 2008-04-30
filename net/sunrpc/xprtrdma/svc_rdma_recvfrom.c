@@ -325,7 +325,6 @@ next_sge:
 		}
 		ctxt->next = NULL;
 		ctxt->direction = DMA_FROM_DEVICE;
-		clear_bit(RDMACTXT_F_READ_DONE, &ctxt->flags);
 		clear_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
 
 		/* Prepare READ WR */
