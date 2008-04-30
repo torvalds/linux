@@ -217,7 +217,7 @@
 #define C320p32rx_mask	(C320p32rx_size - 1)
 #define C320p32tx_mask	(C320p32tx_size - 1)
 
-#define Page_size	0x2000
+#define Page_size	0x2000U
 #define Page_mask	(Page_size - 1)
 #define C218rx_spage	3
 #define C218tx_spage	4
