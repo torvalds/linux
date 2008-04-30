@@ -2842,7 +2842,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	if (devpts_pty_new(tty->link))
 		goto out1;
 
-	check_tty_count(tty, "tty_open");
+	check_tty_count(tty, "ptmx_open");
 	retval = ptm_driver->ops->open(tty, filp);
 	if (!retval)
 		return 0;
