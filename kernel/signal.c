@@ -1138,8 +1138,7 @@ static int kill_something_info(int sig, struct siginfo *info, int pid)
  */
 
 /*
- * These two are the most common entry points.  They send a signal
- * just to the specific thread.
+ * The caller must ensure the task can't exit.
  */
 int
 send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
@@ -1154,17 +1153,9 @@ send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	if (!valid_signal(sig))
 		return -EINVAL;
 
-	/*
-	 * We need the tasklist lock even for the specific
-	 * thread case (when we don't need to follow the group
-	 * lists) in order to avoid races with "p->sighand"
-	 * going away or changing from under us.
-	 */
-	read_lock(&tasklist_lock);  
 	spin_lock_irqsave(&p->sighand->siglock, flags);
 	ret = specific_send_sig_info(sig, info, p);
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
-	read_unlock(&tasklist_lock);
 	return ret;
 }
 
