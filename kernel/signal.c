@@ -643,12 +643,6 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 			 */
 			signal->flags &= ~SIGNAL_STOP_DEQUEUED;
 		}
-	} else if (sig == SIGKILL) {
-		/*
-		 * Make sure that any pending stop signal already dequeued
-		 * is undone by the wakeup for SIGKILL.
-		 */
-		signal->flags &= ~SIGNAL_STOP_DEQUEUED;
 	}
 }
 
