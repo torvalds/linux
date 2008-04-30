@@ -584,6 +584,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->bdi.ra_pages = min(fc->bdi.ra_pages, ra_pages);
 		fc->minor = arg->minor;
 		fc->max_write = arg->minor < 5 ? 4096 : arg->max_write;
+		fc->max_write = min_t(unsigned, 4096, fc->max_write);
 		fc->conn_init = 1;
 	}
 	fuse_put_request(fc, req);
@@ -658,7 +659,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	fc->flags = d.flags;
 	fc->user_id = d.user_id;
 	fc->group_id = d.group_id;
-	fc->max_read = d.max_read;
+	fc->max_read = min_t(unsigned, 4096, d.max_read);
 
 	/* Used by get_root_inode() */
 	sb->s_fs_info = fc;

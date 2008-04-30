@@ -966,14 +966,15 @@ static ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 
 	while (count) {
 		size_t nres;
-		size_t nbytes = min(count, nmax);
-		int err = fuse_get_user_pages(req, buf, nbytes, !write);
+		size_t nbytes_limit = min(count, nmax);
+		size_t nbytes;
+		int err = fuse_get_user_pages(req, buf, nbytes_limit, !write);
 		if (err) {
 			res = err;
 			break;
 		}
 		nbytes = (req->num_pages << PAGE_SHIFT) - req->page_offset;
-		nbytes = min(count, nbytes);
+		nbytes = min(nbytes_limit, nbytes);
 		if (write)
 			nres = fuse_send_write(req, file, inode, pos, nbytes,
 					       current->files);
