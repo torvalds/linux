@@ -272,7 +272,7 @@ static unsigned long *__init sparse_early_usemap_alloc(unsigned long pnum)
 	/* Stupid: suppress gcc warning for SPARSEMEM && !NUMA */
 	nid = 0;
 
-	printk(KERN_WARNING "%s: allocation failed\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: allocation failed\n", __func__);
 	return NULL;
 }
 
@@ -302,7 +302,7 @@ struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
 		return map;
 
 	printk(KERN_ERR "%s: sparsemem memory map backing failed "
-			"some memory will not be available.\n", __FUNCTION__);
+			"some memory will not be available.\n", __func__);
 	ms->section_mem_map = 0;
 	return NULL;
 }
