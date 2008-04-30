@@ -1011,6 +1011,10 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 		KVMTRACE_3D(PAGE_FAULT, &svm->vcpu, error_code,
 			    (u32)fault_address, (u32)(fault_address >> 32),
 			    handler);
+	else
+		KVMTRACE_3D(TDP_FAULT, &svm->vcpu, error_code,
+			    (u32)fault_address, (u32)(fault_address >> 32),
+			    handler);
 
 	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
 }
