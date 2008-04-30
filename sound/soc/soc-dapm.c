@@ -1343,6 +1343,29 @@ int snd_soc_dapm_set_endpoint(struct snd_soc_codec *codec,
 EXPORT_SYMBOL_GPL(snd_soc_dapm_set_endpoint);
 
 /**
+ * snd_soc_dapm_get_endpoint_status - get audio endpoint status
+ * @codec: audio codec
+ * @endpoint: audio signal endpoint (or start point)
+ *
+ * Get audio endpoint status - connected or disconnected.
+ *
+ * Returns status
+ */
+int snd_soc_dapm_get_endpoint_status(struct snd_soc_codec *codec,
+	char *endpoint)
+{
+	struct snd_soc_dapm_widget *w;
+
+	list_for_each_entry(w, &codec->dapm_widgets, list) {
+		if (!strcmp(w->name, endpoint))
+			return w->connected;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_endpoint);
+
+/**
  * snd_soc_dapm_free - free dapm resources
  * @socdev: SoC device
  *
