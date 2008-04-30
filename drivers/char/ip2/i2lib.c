@@ -227,17 +227,17 @@ i2InitChannels ( i2eBordStrPtr pB, int nChannels, i2ChanStrPtr pCh)
 	i2ChanStrPtr *ppCh;
 	
 	if (pB->i2eValid != I2E_MAGIC) {
-		COMPLETE(pB, I2EE_BADMAGIC);
+		I2_COMPLETE(pB, I2EE_BADMAGIC);
 	}
 	if (pB->i2eState != II_STATE_STDLOADED) {
-		COMPLETE(pB, I2EE_BADSTATE);
+		I2_COMPLETE(pB, I2EE_BADSTATE);
 	}
 
-	LOCK_INIT(&pB->read_fifo_spinlock);
-	LOCK_INIT(&pB->write_fifo_spinlock);
-	LOCK_INIT(&pB->Dbuf_spinlock);
-	LOCK_INIT(&pB->Bbuf_spinlock);
-	LOCK_INIT(&pB->Fbuf_spinlock);
+	rwlock_init(&pB->read_fifo_spinlock);
+	rwlock_init(&pB->write_fifo_spinlock);
+	rwlock_init(&pB->Dbuf_spinlock);
+	rwlock_init(&pB->Bbuf_spinlock);
+	rwlock_init(&pB->Fbuf_spinlock);
 	
 	// NO LOCK needed yet - this is init
 
@@ -259,10 +259,10 @@ i2InitChannels ( i2eBordStrPtr pB, int nChannels, i2ChanStrPtr pCh)
 		if ( !(pB->i2eChannelMap[index >> 4] & (1 << (index & 0xf)) ) ) {
 			continue;
 		}
-		LOCK_INIT(&pCh->Ibuf_spinlock);
-		LOCK_INIT(&pCh->Obuf_spinlock);
-		LOCK_INIT(&pCh->Cbuf_spinlock);
-		LOCK_INIT(&pCh->Pbuf_spinlock);
+		rwlock_init(&pCh->Ibuf_spinlock);
+		rwlock_init(&pCh->Obuf_spinlock);
+		rwlock_init(&pCh->Cbuf_spinlock);
+		rwlock_init(&pCh->Pbuf_spinlock);
 		// NO LOCK needed yet - this is init
 		// Set up validity flag according to support level
 		if (pB->i2eGoodMap[index >> 4] & (1 << (index & 0xf)) ) {
@@ -347,7 +347,7 @@ i2InitChannels ( i2eBordStrPtr pB, int nChannels, i2ChanStrPtr pCh)
 	}
 	// No need to check for wrap here; this is initialization.
 	pB->i2Fbuf_stuff = stuffIndex;
-	COMPLETE(pB, I2EE_GOOD);
+	I2_COMPLETE(pB, I2EE_GOOD);
 
 }
 
@@ -374,7 +374,7 @@ i2DeQueueNeeds(i2eBordStrPtr pB, int type)
 
 	case  NEED_INLINE:
 
-		WRITE_LOCK_IRQSAVE(&pB->Dbuf_spinlock,flags);
+		write_lock_irqsave(&pB->Dbuf_spinlock, flags);
 		if ( pB->i2Dbuf_stuff != pB->i2Dbuf_strip)
 		{
 			queueIndex = pB->i2Dbuf_strip;
@@ -386,12 +386,12 @@ i2DeQueueNeeds(i2eBordStrPtr pB, int type)
 			pB->i2Dbuf_strip = queueIndex;
 			pCh->channelNeeds &= ~NEED_INLINE;
 		}
-		WRITE_UNLOCK_IRQRESTORE(&pB->Dbuf_spinlock,flags); 
+		write_unlock_irqrestore(&pB->Dbuf_spinlock, flags);
 		break;
 
 	case NEED_BYPASS:
 
-		WRITE_LOCK_IRQSAVE(&pB->Bbuf_spinlock,flags);
+		write_lock_irqsave(&pB->Bbuf_spinlock, flags);
 		if (pB->i2Bbuf_stuff != pB->i2Bbuf_strip)
 		{
 			queueIndex = pB->i2Bbuf_strip;
@@ -403,12 +403,12 @@ i2DeQueueNeeds(i2eBordStrPtr pB, int type)
 			pB->i2Bbuf_strip = queueIndex;
 			pCh->channelNeeds &= ~NEED_BYPASS;
 		}
-		WRITE_UNLOCK_IRQRESTORE(&pB->Bbuf_spinlock,flags); 
+		write_unlock_irqrestore(&pB->Bbuf_spinlock, flags);
 		break;
 	
 	case NEED_FLOW:
 
-		WRITE_LOCK_IRQSAVE(&pB->Fbuf_spinlock,flags);
+		write_lock_irqsave(&pB->Fbuf_spinlock, flags);
 		if (pB->i2Fbuf_stuff != pB->i2Fbuf_strip)
 		{
 			queueIndex = pB->i2Fbuf_strip;
@@ -420,7 +420,7 @@ i2DeQueueNeeds(i2eBordStrPtr pB, int type)
 			pB->i2Fbuf_strip = queueIndex;
 			pCh->channelNeeds &= ~NEED_FLOW;
 		}
-		WRITE_UNLOCK_IRQRESTORE(&pB->Fbuf_spinlock,flags); 
+		write_unlock_irqrestore(&pB->Fbuf_spinlock, flags);
 		break;
 	default:
 		printk(KERN_ERR "i2DeQueueNeeds called with bad type:%x\n",type);
@@ -453,7 +453,7 @@ i2QueueNeeds(i2eBordStrPtr pB, i2ChanStrPtr pCh, int type)
 
 	case NEED_INLINE:
 
-		WRITE_LOCK_IRQSAVE(&pB->Dbuf_spinlock,flags);
+		write_lock_irqsave(&pB->Dbuf_spinlock, flags);
 		if ( !(pCh->channelNeeds & NEED_INLINE) )
 		{
 			pCh->channelNeeds |= NEED_INLINE;
@@ -463,12 +463,12 @@ i2QueueNeeds(i2eBordStrPtr pB, i2ChanStrPtr pCh, int type)
 				queueIndex = 0;
 			pB->i2Dbuf_stuff = queueIndex;
 		}
-		WRITE_UNLOCK_IRQRESTORE(&pB->Dbuf_spinlock,flags); 
+		write_unlock_irqrestore(&pB->Dbuf_spinlock, flags);
 		break;
 
 	case NEED_BYPASS:
 
-		WRITE_LOCK_IRQSAVE(&pB->Bbuf_spinlock,flags);
+		write_lock_irqsave(&pB->Bbuf_spinlock, flags);
 		if ((type & NEED_BYPASS) && !(pCh->channelNeeds & NEED_BYPASS))
 		{
 			pCh->channelNeeds |= NEED_BYPASS;
@@ -478,12 +478,12 @@ i2QueueNeeds(i2eBordStrPtr pB, i2ChanStrPtr pCh, int type)
 				queueIndex = 0;
 			pB->i2Bbuf_stuff = queueIndex;
 		} 
-		WRITE_UNLOCK_IRQRESTORE(&pB->Bbuf_spinlock,flags); 
+		write_unlock_irqrestore(&pB->Bbuf_spinlock, flags);
 		break;
 
 	case NEED_FLOW:
 
-		WRITE_LOCK_IRQSAVE(&pB->Fbuf_spinlock,flags);
+		write_lock_irqsave(&pB->Fbuf_spinlock, flags);
 		if ((type & NEED_FLOW) && !(pCh->channelNeeds & NEED_FLOW))
 		{
 			pCh->channelNeeds |= NEED_FLOW;
@@ -493,7 +493,7 @@ i2QueueNeeds(i2eBordStrPtr pB, i2ChanStrPtr pCh, int type)
 				queueIndex = 0;
 			pB->i2Fbuf_stuff = queueIndex;
 		}
-		WRITE_UNLOCK_IRQRESTORE(&pB->Fbuf_spinlock,flags); 
+		write_unlock_irqrestore(&pB->Fbuf_spinlock, flags);
 		break;
 
 	case NEED_CREDIT:
@@ -562,9 +562,8 @@ i2QueueCommands(int type, i2ChanStrPtr pCh, int timeout, int nCommands,
 	pB = pCh->pMyBord;
 
 	// Board must also exist, and THE INTERRUPT COMMAND ALREADY SENT
-	if (pB->i2eValid != I2E_MAGIC || pB->i2eUsingIrq == IRQ_UNDEFINED) {
+	if (pB->i2eValid != I2E_MAGIC || pB->i2eUsingIrq == I2_IRQ_UNDEFINED)
 		return -2;
-	}
 	// If the board has gone fatal, return bad, and also hit the trap routine if
 	// it exists.
 	if (pB->i2eFatal) {
@@ -620,13 +619,13 @@ i2QueueCommands(int type, i2ChanStrPtr pCh, int timeout, int nCommands,
 			switch(type) {
 			case PTYPE_INLINE:
 				lock_var_p = &pCh->Obuf_spinlock;
-				WRITE_LOCK_IRQSAVE(lock_var_p,flags);
+				write_lock_irqsave(lock_var_p, flags);
 				stuffIndex = pCh->Obuf_stuff;
 				bufroom = pCh->Obuf_strip - stuffIndex;
 				break;
 			case PTYPE_BYPASS:
 				lock_var_p = &pCh->Cbuf_spinlock;
-				WRITE_LOCK_IRQSAVE(lock_var_p,flags);
+				write_lock_irqsave(lock_var_p, flags);
 				stuffIndex = pCh->Cbuf_stuff;
 				bufroom = pCh->Cbuf_strip - stuffIndex;
 				break;
@@ -645,7 +644,7 @@ i2QueueCommands(int type, i2ChanStrPtr pCh, int timeout, int nCommands,
 				break; /* from for()- Enough room: goto proceed */
 			}
 			ip2trace(CHANN, ITRC_QUEUE, 3, 1, totalsize);
-			WRITE_UNLOCK_IRQRESTORE(lock_var_p, flags);
+			write_unlock_irqrestore(lock_var_p, flags);
 		} else
 			ip2trace(CHANN, ITRC_QUEUE, 3, 1, totalsize);
 
@@ -747,7 +746,7 @@ i2QueueCommands(int type, i2ChanStrPtr pCh, int timeout, int nCommands,
 	{
 	case PTYPE_INLINE:
 		pCh->Obuf_stuff = stuffIndex;  // Store buffer pointer
-		WRITE_UNLOCK_IRQRESTORE(&pCh->Obuf_spinlock,flags); 
+		write_unlock_irqrestore(&pCh->Obuf_spinlock, flags);
 
 		pB->debugInlineQueued++;
 		// Add the channel pointer to list of channels needing service (first
@@ -757,7 +756,7 @@ i2QueueCommands(int type, i2ChanStrPtr pCh, int timeout, int nCommands,
 
 	case PTYPE_BYPASS:
 		pCh->Cbuf_stuff = stuffIndex;  // Store buffer pointer
-		WRITE_UNLOCK_IRQRESTORE(&pCh->Cbuf_spinlock,flags); 
+		write_unlock_irqrestore(&pCh->Cbuf_spinlock, flags);
 
 		pB->debugBypassQueued++;
 		// Add the channel pointer to list of channels needing service (first
@@ -840,7 +839,7 @@ i2Input(i2ChanStrPtr pCh)
 		count = -1;
 		goto i2Input_exit;
 	}
-	WRITE_LOCK_IRQSAVE(&pCh->Ibuf_spinlock,flags);
+	write_lock_irqsave(&pCh->Ibuf_spinlock, flags);
 
 	// initialize some accelerators and private copies
 	stripIndex = pCh->Ibuf_strip;
@@ -850,7 +849,7 @@ i2Input(i2ChanStrPtr pCh)
 	// If buffer is empty or requested data count was 0, (trivial case) return
 	// without any further thought.
 	if ( count == 0 ) {
-		WRITE_UNLOCK_IRQRESTORE(&pCh->Ibuf_spinlock,flags);
+		write_unlock_irqrestore(&pCh->Ibuf_spinlock, flags);
 		goto i2Input_exit;
 	}
 	// Adjust for buffer wrap
@@ -891,10 +890,10 @@ i2Input(i2ChanStrPtr pCh)
 
 	if ((pCh->sinceLastFlow += count) >= pCh->whenSendFlow) {
 		pCh->sinceLastFlow -= pCh->whenSendFlow;
-		WRITE_UNLOCK_IRQRESTORE(&pCh->Ibuf_spinlock,flags);
+		write_unlock_irqrestore(&pCh->Ibuf_spinlock, flags);
 		i2QueueNeeds(pCh->pMyBord, pCh, NEED_FLOW);
 	} else {
-		WRITE_UNLOCK_IRQRESTORE(&pCh->Ibuf_spinlock,flags);
+		write_unlock_irqrestore(&pCh->Ibuf_spinlock, flags);
 	}
 
 i2Input_exit:
@@ -926,7 +925,7 @@ i2InputFlush(i2ChanStrPtr pCh)
 
 	ip2trace (CHANN, ITRC_INPUT, 10, 0);
 
-	WRITE_LOCK_IRQSAVE(&pCh->Ibuf_spinlock,flags);
+	write_lock_irqsave(&pCh->Ibuf_spinlock, flags);
 	count = pCh->Ibuf_stuff - pCh->Ibuf_strip;
 
 	// Adjust for buffer wrap
@@ -947,10 +946,10 @@ i2InputFlush(i2ChanStrPtr pCh)
 	if ( (pCh->sinceLastFlow += count) >= pCh->whenSendFlow )
 	{
 		pCh->sinceLastFlow -= pCh->whenSendFlow;
-		WRITE_UNLOCK_IRQRESTORE(&pCh->Ibuf_spinlock,flags);
+		write_unlock_irqrestore(&pCh->Ibuf_spinlock, flags);
 		i2QueueNeeds(pCh->pMyBord, pCh, NEED_FLOW);
 	} else {
-		WRITE_UNLOCK_IRQRESTORE(&pCh->Ibuf_spinlock,flags);
+		write_unlock_irqrestore(&pCh->Ibuf_spinlock, flags);
 	}
 
 	ip2trace (CHANN, ITRC_INPUT, 19, 1, count);
@@ -979,9 +978,9 @@ i2InputAvailable(i2ChanStrPtr pCh)
 
 
 	// initialize some accelerators and private copies
-	READ_LOCK_IRQSAVE(&pCh->Ibuf_spinlock,flags);
+	read_lock_irqsave(&pCh->Ibuf_spinlock, flags);
 	count = pCh->Ibuf_stuff - pCh->Ibuf_strip;
-	READ_UNLOCK_IRQRESTORE(&pCh->Ibuf_spinlock,flags);
+	read_unlock_irqrestore(&pCh->Ibuf_spinlock, flags);
 
 	// Adjust for buffer wrap
 	if (count < 0)
@@ -1045,9 +1044,9 @@ i2Output(i2ChanStrPtr pCh, const char *pSource, int count)
 	while ( count > 0 ) {
 
 		// How much room in output buffer is there?
-		READ_LOCK_IRQSAVE(&pCh->Obuf_spinlock,flags);
+		read_lock_irqsave(&pCh->Obuf_spinlock, flags);
 		amountToMove = pCh->Obuf_strip - pCh->Obuf_stuff - 1;
-		READ_UNLOCK_IRQRESTORE(&pCh->Obuf_spinlock,flags);
+		read_unlock_irqrestore(&pCh->Obuf_spinlock, flags);
 		if (amountToMove < 0) {
 			amountToMove += OBUF_SIZE;
 		}
@@ -1075,7 +1074,7 @@ i2Output(i2ChanStrPtr pCh, const char *pSource, int count)
 		if ( !(pCh->flush_flags && i2RetryFlushOutput(pCh) ) 
 				&& amountToMove > 0 )
 		{
-			WRITE_LOCK_IRQSAVE(&pCh->Obuf_spinlock,flags);
+			write_lock_irqsave(&pCh->Obuf_spinlock, flags);
 			stuffIndex = pCh->Obuf_stuff;
       
 			// Had room to move some data: don't know whether the block size,
@@ -1102,7 +1101,7 @@ i2Output(i2ChanStrPtr pCh, const char *pSource, int count)
 			}
 			pCh->Obuf_stuff = stuffIndex;
 
-			WRITE_UNLOCK_IRQRESTORE(&pCh->Obuf_spinlock,flags);
+			write_unlock_irqrestore(&pCh->Obuf_spinlock, flags);
 
 			ip2trace (CHANN, ITRC_OUTPUT, 13, 1, stuffIndex );
 
@@ -1352,9 +1351,9 @@ i2OutputFree(i2ChanStrPtr pCh)
 	if ( !i2Validate ( pCh ) ) {
 		return -1;
 	}
-	READ_LOCK_IRQSAVE(&pCh->Obuf_spinlock,flags);
+	read_lock_irqsave(&pCh->Obuf_spinlock, flags);
 	amountToMove = pCh->Obuf_strip - pCh->Obuf_stuff - 1;
-	READ_UNLOCK_IRQRESTORE(&pCh->Obuf_spinlock,flags);
+	read_unlock_irqrestore(&pCh->Obuf_spinlock, flags);
 
 	if (amountToMove < 0) {
 		amountToMove += OBUF_SIZE;
@@ -1464,11 +1463,11 @@ i2StripFifo(i2eBordStrPtr pB)
 
 //	ip2trace (ITRC_NO_PORT, ITRC_SFIFO, ITRC_ENTER, 0 );
 
-	while (HAS_INPUT(pB)) {
+	while (I2_HAS_INPUT(pB)) {
 //		ip2trace (ITRC_NO_PORT, ITRC_SFIFO, 2, 0 );
 
 		// Process packet from fifo a one atomic unit
-		WRITE_LOCK_IRQSAVE(&pB->read_fifo_spinlock,bflags);
+		write_lock_irqsave(&pB->read_fifo_spinlock, bflags);
    
 		// The first word (or two bytes) will have channel number and type of
 		// packet, possibly other information
@@ -1490,7 +1489,8 @@ i2StripFifo(i2eBordStrPtr pB)
 // sick!
 			if ( ((unsigned int)count) > IBUF_SIZE ) {
 				pB->i2eFatal = 2;
-				WRITE_UNLOCK_IRQRESTORE(&pB->read_fifo_spinlock,bflags);
+				write_unlock_irqrestore(&pB->read_fifo_spinlock,
+						bflags);
 				return;     /* Bail out ASAP */
 			}
 			// Channel is illegally big ?
@@ -1498,7 +1498,8 @@ i2StripFifo(i2eBordStrPtr pB)
 				(NULL==(pCh = ((i2ChanStrPtr*)pB->i2eChannelPtr)[channel])))
 			{
 				iiReadBuf(pB, junkBuffer, count);
-				WRITE_UNLOCK_IRQRESTORE(&pB->read_fifo_spinlock,bflags);
+				write_unlock_irqrestore(&pB->read_fifo_spinlock,
+						bflags);
 				break;         /* From switch: ready for next packet */
 			}
 
@@ -1512,14 +1513,15 @@ i2StripFifo(i2eBordStrPtr pB)
 			if(ID_OF(pB->i2eLeadoffWord) == ID_HOT_KEY)
 			{
 				pCh->hotKeyIn = iiReadWord(pB) & 0xff;
-				WRITE_UNLOCK_IRQRESTORE(&pB->read_fifo_spinlock,bflags);
+				write_unlock_irqrestore(&pB->read_fifo_spinlock,
+						bflags);
 				i2QueueCommands(PTYPE_BYPASS, pCh, 0, 1, CMD_HOTACK);
 				break;   /* From the switch: ready for next packet */
 			}
 
 			// Normal data! We crudely assume there is room for the data in our
 			// buffer because the board wouldn't have exceeded his credit limit.
-			WRITE_LOCK_IRQSAVE(&pCh->Ibuf_spinlock,cflags);
+			write_lock_irqsave(&pCh->Ibuf_spinlock, cflags);
 													// We have 2 locks now
 			stuffIndex = pCh->Ibuf_stuff;
 			amountToRead = IBUF_SIZE - stuffIndex;
@@ -1562,8 +1564,9 @@ i2StripFifo(i2eBordStrPtr pB)
 
 			// Update stuff index
 			pCh->Ibuf_stuff = stuffIndex;
-			WRITE_UNLOCK_IRQRESTORE(&pCh->Ibuf_spinlock,cflags);
-			WRITE_UNLOCK_IRQRESTORE(&pB->read_fifo_spinlock,bflags);
+			write_unlock_irqrestore(&pCh->Ibuf_spinlock, cflags);
+			write_unlock_irqrestore(&pB->read_fifo_spinlock,
+					bflags);
 
 #ifdef USE_IQ
 			schedule_work(&pCh->tqueue_input);
@@ -1585,7 +1588,8 @@ i2StripFifo(i2eBordStrPtr pB)
 
 			iiReadBuf(pB, cmdBuffer, count);
 			// We can release early with buffer grab
-			WRITE_UNLOCK_IRQRESTORE(&pB->read_fifo_spinlock,bflags);
+			write_unlock_irqrestore(&pB->read_fifo_spinlock,
+					bflags);
 
 			pc = cmdBuffer;
 			pcLimit = &(cmdBuffer[count]);
@@ -1830,12 +1834,12 @@ i2StripFifo(i2eBordStrPtr pB)
 		default: // Neither packet? should be impossible
 			ip2trace (ITRC_NO_PORT, ITRC_SFIFO, 5, 1,
 				PTYPE_OF(pB->i2eLeadoffWord) );
-			WRITE_UNLOCK_IRQRESTORE(&pB->read_fifo_spinlock,
+			write_unlock_irqrestore(&pB->read_fifo_spinlock,
 					bflags);
 
 			break;
 		}  // End of switch on type of packets
-	}	//while(board HAS_INPUT)
+	}	/*while(board I2_HAS_INPUT)*/
 
 	ip2trace (ITRC_NO_PORT, ITRC_SFIFO, ITRC_RETURN, 0 );
 
@@ -1858,7 +1862,7 @@ i2Write2Fifo(i2eBordStrPtr pB, unsigned char *source, int count,int reserve)
 {
 	int rc = 0;
 	unsigned long flags;
-	WRITE_LOCK_IRQSAVE(&pB->write_fifo_spinlock,flags);
+	write_lock_irqsave(&pB->write_fifo_spinlock, flags);
 	if (!pB->i2eWaitingForEmptyFifo) {
 		if (pB->i2eFifoRemains > (count+reserve)) {
 			pB->i2eFifoRemains -= count;
@@ -1867,7 +1871,7 @@ i2Write2Fifo(i2eBordStrPtr pB, unsigned char *source, int count,int reserve)
 			rc =  count;
 		}
 	}
-	WRITE_UNLOCK_IRQRESTORE(&pB->write_fifo_spinlock,flags);
+	write_unlock_irqrestore(&pB->write_fifo_spinlock, flags);
 	return rc;
 }
 //******************************************************************************
@@ -1898,7 +1902,7 @@ i2StuffFifoBypass(i2eBordStrPtr pB)
 	while ( --bailout && notClogged && 
 			(NULL != (pCh = i2DeQueueNeeds(pB,NEED_BYPASS))))
 	{
-		WRITE_LOCK_IRQSAVE(&pCh->Cbuf_spinlock,flags);
+		write_lock_irqsave(&pCh->Cbuf_spinlock, flags);
 		stripIndex = pCh->Cbuf_strip;
 
 		// as long as there are packets for this channel...
@@ -1906,7 +1910,7 @@ i2StuffFifoBypass(i2eBordStrPtr pB)
 		while (stripIndex != pCh->Cbuf_stuff) {
 			pRemove = &(pCh->Cbuf[stripIndex]);
 			packetSize = CMD_COUNT_OF(pRemove) + sizeof(i2CmdHeader);
-			paddedSize = ROUNDUP(packetSize);
+			paddedSize = roundup(packetSize, 2);
 
 			if (paddedSize > 0) {
 				if ( 0 == i2Write2Fifo(pB, pRemove, paddedSize,0)) {
@@ -1930,7 +1934,7 @@ WriteDBGBuf("BYPS", pRemove, paddedSize);
 		// Done with this channel. Move to next, removing this one from 
 		// the queue of channels if we cleaned it out (i.e., didn't get clogged.
 		pCh->Cbuf_strip = stripIndex;
-		WRITE_UNLOCK_IRQRESTORE(&pCh->Cbuf_spinlock,flags);
+		write_unlock_irqrestore(&pCh->Cbuf_spinlock, flags);
 	}  // Either clogged or finished all the work
 
 #ifdef IP2DEBUG_TRACE
@@ -1954,7 +1958,7 @@ static inline void
 i2StuffFifoFlow(i2eBordStrPtr pB)
 {
 	i2ChanStrPtr pCh;
-	unsigned short paddedSize		= ROUNDUP(sizeof(flowIn));
+	unsigned short paddedSize = roundup(sizeof(flowIn), 2);
 
 	ip2trace (ITRC_NO_PORT, ITRC_SFLOW, ITRC_ENTER, 2,
 		pB->i2eFifoRemains, paddedSize );
@@ -2010,7 +2014,7 @@ i2StuffFifoInline(i2eBordStrPtr pB)
 	while ( --bailout && notClogged && 
 			(NULL != (pCh = i2DeQueueNeeds(pB,NEED_INLINE))) )
 	{
-		WRITE_LOCK_IRQSAVE(&pCh->Obuf_spinlock,flags);
+		write_lock_irqsave(&pCh->Obuf_spinlock, flags);
 		stripIndex = pCh->Obuf_strip;
 
 		ip2trace (CHANN, ITRC_SICMD, 3, 2, stripIndex, pCh->Obuf_stuff );
@@ -2031,7 +2035,7 @@ i2StuffFifoInline(i2eBordStrPtr pB)
 				packetSize = flowsize + sizeof(i2CmdHeader);
 			}
 			flowsize = CREDIT_USAGE(flowsize);
-			paddedSize = ROUNDUP(packetSize);
+			paddedSize = roundup(packetSize, 2);
 
 			ip2trace (CHANN, ITRC_SICMD, 4, 2, pB->i2eFifoRemains, paddedSize );
 
@@ -2086,7 +2090,7 @@ WriteDBGBuf("DATA", pRemove, paddedSize);
 		// Done with this channel. Move to next, removing this one from the
 		// queue of channels if we cleaned it out (i.e., didn't get clogged.
 		pCh->Obuf_strip = stripIndex;
-		WRITE_UNLOCK_IRQRESTORE(&pCh->Obuf_spinlock,flags);
+		write_unlock_irqrestore(&pCh->Obuf_spinlock, flags);
 		if ( notClogged )
 		{
 
@@ -2190,10 +2194,11 @@ i2ServiceBoard ( i2eBordStrPtr pB )
 
 		if (inmail & MB_OUT_STRIPPED) {
 			pB->i2eFifoOutInts++;
-			WRITE_LOCK_IRQSAVE(&pB->write_fifo_spinlock,flags);
+			write_lock_irqsave(&pB->write_fifo_spinlock, flags);
 			pB->i2eFifoRemains = pB->i2eFifoSize;
 			pB->i2eWaitingForEmptyFifo = 0;
-			WRITE_UNLOCK_IRQRESTORE(&pB->write_fifo_spinlock,flags);
+			write_unlock_irqrestore(&pB->write_fifo_spinlock,
+					flags);
 
 			ip2trace (ITRC_NO_PORT, ITRC_INTR, 30, 1, pB->i2eFifoRemains );
 
