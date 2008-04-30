@@ -623,8 +623,8 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 
 	if (!request_mem_region(drvdata->mem_start,
 					drvdata->mem_size, DRIVER_NAME)) {
-		dev_err(dev, "Couldn't lock memory region at %p\n",
-			(void *)regs_res->start);
+		dev_err(dev, "Couldn't lock memory region at %Lx\n",
+			regs_res->start);
 		retval = -EBUSY;
 		goto failed1;
 	}
@@ -643,7 +643,7 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 	mutex_init(&drvdata->sem);
 	drvdata->is_open = 0;
 
-	dev_info(dev, "ioremap %lx to %p with size %x\n",
+	dev_info(dev, "ioremap %lx to %p with size %Lx\n",
 		 (unsigned long int)drvdata->mem_start,
 			drvdata->base_address, drvdata->mem_size);
 
