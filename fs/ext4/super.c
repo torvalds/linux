@@ -1594,8 +1594,8 @@ static void ext4_orphan_cleanup (struct super_block * sb,
 	while (es->s_last_orphan) {
 		struct inode *inode;
 
-		if (!(inode =
-		      ext4_orphan_get(sb, le32_to_cpu(es->s_last_orphan)))) {
+		inode = ext4_orphan_get(sb, le32_to_cpu(es->s_last_orphan));
+		if (IS_ERR(inode)) {
 			es->s_last_orphan = 0;
 			break;
 		}
