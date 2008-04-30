@@ -108,5 +108,11 @@ static inline void smp_send_stop(void)
 #define smp_cpu_not_running(cpu)	1
 #endif
 
+#ifdef CONFIG_HOTPLUG_CPU
+extern int smp_rescan_cpus(void);
+#else
+static inline int smp_rescan_cpus(void) { return 0; }
+#endif
+
 extern union save_area *zfcpdump_save_areas[NR_CPUS + 1];
 #endif

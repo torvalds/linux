@@ -505,7 +505,7 @@ out:
 	return rc;
 }
 
-static int smp_rescan_cpus(void)
+static int __smp_rescan_cpus(void)
 {
 	cpumask_t avail;
 
@@ -570,7 +570,7 @@ out:
 	kfree(info);
 	printk(KERN_INFO "CPUs: %d configured, %d standby\n", c_cpus, s_cpus);
 	get_online_cpus();
-	smp_rescan_cpus();
+	__smp_rescan_cpus();
 	put_online_cpus();
 }
 
@@ -1088,8 +1088,8 @@ out:
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static ssize_t __ref rescan_store(struct sys_device *dev,
-				  const char *buf, size_t count)
+
+int smp_rescan_cpus(void)
 {
 	cpumask_t newcpus;
 	int cpu;
@@ -1098,7 +1098,7 @@ static ssize_t __ref rescan_store(struct sys_device *dev,
 	get_online_cpus();
 	mutex_lock(&smp_cpu_state_mutex);
 	newcpus = cpu_present_map;
-	rc = smp_rescan_cpus();
+	rc = __smp_rescan_cpus();
 	if (rc)
 		goto out;
 	cpus_andnot(newcpus, cpu_present_map, newcpus);
@@ -1113,6 +1113,15 @@ out:
 	put_online_cpus();
 	if (!cpus_empty(newcpus))
 		topology_schedule_update();
+	return rc;
+}
+
+static ssize_t __ref rescan_store(struct sys_device *dev, const char *buf,
+				  size_t count)
+{
+	int rc;
+
+	rc = smp_rescan_cpus();
 	return rc ? rc : count;
 }
 static SYSDEV_ATTR(rescan, 0200, NULL, rescan_store);
