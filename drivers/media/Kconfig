@@ -14,13 +14,11 @@ comment "Multimedia core support"
 config VIDEO_DEV
 	tristate "Video For Linux"
 	---help---
-	  Support for audio/video capture and overlay devices and FM radio
-	  cards. The exact capabilities of each device vary.
+	  V4L core support for video capture and overlay devices, webcams and
+	  AM/FM radio cards.
 
 	  This kernel includes support for the new Video for Linux Two API,
-	  (V4L2) as well as the original system. Drivers and applications
-	  need to be rewritten to use V4L2, but drivers for popular cards
-	  and applications for most video capture functions already exist.
+	  (V4L2).
 
 	  Additional info and docs are available on the web at
 	  <http://linuxtv.org>
@@ -42,8 +40,11 @@ config VIDEO_ALLOW_V4L1
 	default VIDEO_DEV && VIDEO_V4L2_COMMON
 	select VIDEO_V4L1_COMPAT
 	---help---
-	  Enables a compatibility API used by most V4L2 devices to allow
-	  its usage with legacy applications that supports only V4L1 api.
+	  Enables drivers based on the legacy V4L1 API.
+
+	  This api were developed to be used at Kernel 2.2 and 2.4, but
+	  lacks support for several video standards. There are several
+	  drivers at kernel that still depends on it.
 
 	  If you are unsure as to whether this is required, answer Y.
 
@@ -52,9 +53,8 @@ config VIDEO_V4L1_COMPAT
 	depends on VIDEO_DEV
 	default VIDEO_DEV
 	---help---
-	  This api were developed to be used at Kernel 2.2 and 2.4, but
-	  lacks support for several video standards. There are several
-	  drivers at kernel that still depends on it.
+	  Enables a compatibility API used by most V4L2 devices to allow
+	  its usage with legacy applications that supports only V4L1 api.
 
 	  Documentation for the original API is included in the file
 	  <Documentation/video4linux/API.html>.
@@ -73,18 +73,16 @@ config DVB_CORE
 	depends on NET && INET
 	select CRC32
 	help
-	  Support Digital Video Broadcasting hardware.  Enable this if you
-	  own a DVB adapter and want to use it or if you compile Linux for
-	  a digital SetTopBox.
-
 	  DVB core utility functions for device handling, software fallbacks etc.
-	  Say Y when you have a DVB card and want to use it. Say Y if your want
-	  to build your drivers outside the kernel, but need the DVB core. All
-	  in-kernel drivers will select this automatically if needed.
+
+	  Enable this if you own a DVB/ATSC adapter and want to use it or if
+	  you compile Linux for a digital SetTopBox.
+
+	  Say Y when you have a DVB or an ATSC card and want to use it.
 
 	  API specs and user tools are available from <http://www.linuxtv.org/>.
 
-	  Please report problems regarding this driver to the LinuxDVB
+	  Please report problems regarding this support to the LinuxDVB
 	  mailing list.
 
 	  If unsure say N.
