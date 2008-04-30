@@ -2607,6 +2607,7 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
 	}
 }
 
+
 /*
  * handle_stripe - do things to a stripe.
  *
@@ -2632,6 +2633,7 @@ static void handle_stripe5(struct stripe_head *sh)
 	struct stripe_head_state s;
 	struct r5dev *dev;
 	unsigned long pending = 0;
+	mdk_rdev_t *blocked_rdev = NULL;
 
 	memset(&s, 0, sizeof(s));
 	pr_debug("handling stripe %llu, state=%#lx cnt=%d, pd_idx=%d "
@@ -2691,6 +2693,11 @@ static void handle_stripe5(struct stripe_head *sh)
 		if (dev->written)
 			s.written++;
 		rdev = rcu_dereference(conf->disks[i].rdev);
+		if (rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
+			blocked_rdev = rdev;
+			atomic_inc(&rdev->nr_pending);
+			break;
+		}
 		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
 			/* The ReadError flag will just be confusing now */
 			clear_bit(R5_ReadError, &dev->flags);
@@ -2704,6 +2711,11 @@ static void handle_stripe5(struct stripe_head *sh)
 			set_bit(R5_Insync, &dev->flags);
 	}
 	rcu_read_unlock();
+
+	if (unlikely(blocked_rdev)) {
+		set_bit(STRIPE_HANDLE, &sh->state);
+		goto unlock;
+	}
 
 	if (s.to_fill && !test_and_set_bit(STRIPE_OP_BIOFILL, &sh->ops.pending))
 		sh->ops.count++;
@@ -2894,7 +2906,12 @@ static void handle_stripe5(struct stripe_head *sh)
 	if (sh->ops.count)
 		pending = get_stripe_work(sh);
 
+ unlock:
 	spin_unlock(&sh->lock);
+
+	/* wait for this device to become unblocked */
+	if (unlikely(blocked_rdev))
+		md_wait_for_blocked_rdev(blocked_rdev, conf->mddev);
 
 	if (pending)
 		raid5_run_ops(sh, pending);
@@ -2912,6 +2929,7 @@ static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 	struct stripe_head_state s;
 	struct r6_state r6s;
 	struct r5dev *dev, *pdev, *qdev;
+	mdk_rdev_t *blocked_rdev = NULL;
 
 	r6s.qd_idx = raid6_next_disk(pd_idx, disks);
 	pr_debug("handling stripe %llu, state=%#lx cnt=%d, "
@@ -2975,6 +2993,11 @@ static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 		if (dev->written)
 			s.written++;
 		rdev = rcu_dereference(conf->disks[i].rdev);
+		if (rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
+			blocked_rdev = rdev;
+			atomic_inc(&rdev->nr_pending);
+			break;
+		}
 		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
 			/* The ReadError flag will just be confusing now */
 			clear_bit(R5_ReadError, &dev->flags);
@@ -2989,6 +3012,11 @@ static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 			set_bit(R5_Insync, &dev->flags);
 	}
 	rcu_read_unlock();
+
+	if (unlikely(blocked_rdev)) {
+		set_bit(STRIPE_HANDLE, &sh->state);
+		goto unlock;
+	}
 	pr_debug("locked=%d uptodate=%d to_read=%d"
 	       " to_write=%d failed=%d failed_num=%d,%d\n",
 	       s.locked, s.uptodate, s.to_read, s.to_write, s.failed,
@@ -3094,7 +3122,12 @@ static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 	    !test_bit(STRIPE_OP_COMPUTE_BLK, &sh->ops.pending))
 		handle_stripe_expansion(conf, sh, &r6s);
 
+ unlock:
 	spin_unlock(&sh->lock);
+
+	/* wait for this device to become unblocked */
+	if (unlikely(blocked_rdev))
+		md_wait_for_blocked_rdev(blocked_rdev, conf->mddev);
 
 	return_io(return_bi);
 

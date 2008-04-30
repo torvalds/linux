@@ -1828,6 +1828,10 @@ state_show(mdk_rdev_t *rdev, char *page)
 		len += sprintf(page+len, "%swrite_mostly",sep);
 		sep = ",";
 	}
+	if (test_bit(Blocked, &rdev->flags)) {
+		len += sprintf(page+len, "%sblocked", sep);
+		sep = ",";
+	}
 	if (!test_bit(Faulty, &rdev->flags) &&
 	    !test_bit(In_sync, &rdev->flags)) {
 		len += sprintf(page+len, "%sspare", sep);
@@ -1844,6 +1848,8 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	 *  remove  - disconnects the device
 	 *  writemostly - sets write_mostly
 	 *  -writemostly - clears write_mostly
+	 *  blocked - sets the Blocked flag
+	 *  -blocked - clears the Blocked flag
 	 */
 	int err = -EINVAL;
 	if (cmd_match(buf, "faulty") && rdev->mddev->pers) {
@@ -1865,6 +1871,16 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		err = 0;
 	} else if (cmd_match(buf, "-writemostly")) {
 		clear_bit(WriteMostly, &rdev->flags);
+		err = 0;
+	} else if (cmd_match(buf, "blocked")) {
+		set_bit(Blocked, &rdev->flags);
+		err = 0;
+	} else if (cmd_match(buf, "-blocked")) {
+		clear_bit(Blocked, &rdev->flags);
+		wake_up(&rdev->blocked_wait);
+		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
+		md_wakeup_thread(rdev->mddev->thread);
+
 		err = 0;
 	}
 	return err ? err : len;
@@ -2194,7 +2210,9 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 			goto abort_free;
 		}
 	}
+
 	INIT_LIST_HEAD(&rdev->same_set);
+	init_waitqueue_head(&rdev->blocked_wait);
 
 	return rdev;
 
@@ -4958,6 +4976,9 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	if (!rdev || test_bit(Faulty, &rdev->flags))
 		return;
+
+	if (mddev->external)
+		set_bit(Blocked, &rdev->flags);
 /*
 	dprintk("md_error dev:%s, rdev:(%d:%d), (caller: %p,%p,%p,%p).\n",
 		mdname(mddev),
@@ -5760,7 +5781,7 @@ static int remove_and_add_spares(mddev_t *mddev)
 
 	rdev_for_each(rdev, rtmp, mddev)
 		if (rdev->raid_disk >= 0 &&
-		    !mddev->external &&
+		    !test_bit(Blocked, &rdev->flags) &&
 		    (test_bit(Faulty, &rdev->flags) ||
 		     ! test_bit(In_sync, &rdev->flags)) &&
 		    atomic_read(&rdev->nr_pending)==0) {
@@ -5958,6 +5979,16 @@ void md_check_recovery(mddev_t *mddev)
 		mddev_unlock(mddev);
 	}
 }
+
+void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
+{
+	sysfs_notify(&rdev->kobj, NULL, "state");
+	wait_event_timeout(rdev->blocked_wait,
+			   !test_bit(Blocked, &rdev->flags),
+			   msecs_to_jiffies(5000));
+	rdev_dec_pending(rdev, mddev);
+}
+EXPORT_SYMBOL(md_wait_for_blocked_rdev);
 
 static int md_notify_reboot(struct notifier_block *this,
 			    unsigned long code, void *x)

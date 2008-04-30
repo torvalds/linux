@@ -790,6 +790,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	const int do_sync = bio_sync(bio);
 	struct bio_list bl;
 	unsigned long flags;
+	mdk_rdev_t *blocked_rdev;
 
 	if (unlikely(bio_barrier(bio))) {
 		bio_endio(bio, -EOPNOTSUPP);
@@ -879,17 +880,23 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	/*
 	 * WRITE:
 	 */
-	/* first select target devices under spinlock and
+	/* first select target devices under rcu_lock and
 	 * inc refcount on their rdev.  Record them by setting
 	 * bios[x] to bio
 	 */
 	raid10_find_phys(conf, r10_bio);
+ retry_write:
+	blocked_rdev = 0;
 	rcu_read_lock();
 	for (i = 0;  i < conf->copies; i++) {
 		int d = r10_bio->devs[i].devnum;
 		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[d].rdev);
-		if (rdev &&
-		    !test_bit(Faulty, &rdev->flags)) {
+		if (rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
+			atomic_inc(&rdev->nr_pending);
+			blocked_rdev = rdev;
+			break;
+		}
+		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			atomic_inc(&rdev->nr_pending);
 			r10_bio->devs[i].bio = bio;
 		} else {
@@ -898,6 +905,22 @@ static int make_request(struct request_queue *q, struct bio * bio)
 		}
 	}
 	rcu_read_unlock();
+
+	if (unlikely(blocked_rdev)) {
+		/* Have to wait for this device to get unblocked, then retry */
+		int j;
+		int d;
+
+		for (j = 0; j < i; j++)
+			if (r10_bio->devs[j].bio) {
+				d = r10_bio->devs[j].devnum;
+				rdev_dec_pending(conf->mirrors[d].rdev, mddev);
+			}
+		allow_barrier(conf);
+		md_wait_for_blocked_rdev(blocked_rdev, mddev);
+		wait_barrier(conf);
+		goto retry_write;
+	}
 
 	atomic_set(&r10_bio->remaining, 0);
 
