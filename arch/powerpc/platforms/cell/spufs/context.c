@@ -152,6 +152,8 @@ int spu_acquire_saved(struct spu_context *ctx)
 {
 	int ret;
 
+	spu_context_nospu_trace(spu_acquire_saved__enter, ctx);
+
 	ret = spu_acquire(ctx);
 	if (ret)
 		return ret;
