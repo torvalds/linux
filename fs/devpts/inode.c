@@ -17,6 +17,8 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/tty.h>
+#include <linux/mutex.h>
+#include <linux/idr.h>
 #include <linux/devpts_fs.h>
 #include <linux/parser.h>
 #include <linux/fsnotify.h>
@@ -25,6 +27,10 @@
 #define DEVPTS_SUPER_MAGIC 0x1cd1
 
 #define DEVPTS_DEFAULT_MODE 0600
+
+extern int pty_limit;			/* Config limit on Unix98 ptys */
+static DEFINE_IDR(allocated_ptys);
+static DEFINE_MUTEX(allocated_ptys_lock);
 
 static struct vfsmount *devpts_mnt;
 static struct dentry *devpts_root;
@@ -171,9 +177,44 @@ static struct dentry *get_node(int num)
 	return lookup_one_len(s, root, sprintf(s, "%d", num));
 }
 
+int devpts_new_index(void)
+{
+	int index;
+	int idr_ret;
+
+retry:
+	if (!idr_pre_get(&allocated_ptys, GFP_KERNEL)) {
+		return -ENOMEM;
+	}
+
+	mutex_lock(&allocated_ptys_lock);
+	idr_ret = idr_get_new(&allocated_ptys, NULL, &index);
+	if (idr_ret < 0) {
+		mutex_unlock(&allocated_ptys_lock);
+		if (idr_ret == -EAGAIN)
+			goto retry;
+		return -EIO;
+	}
+
+	if (index >= pty_limit) {
+		idr_remove(&allocated_ptys, index);
+		mutex_unlock(&allocated_ptys_lock);
+		return -EIO;
+	}
+	mutex_unlock(&allocated_ptys_lock);
+	return index;
+}
+
+void devpts_kill_index(int idx)
+{
+	mutex_lock(&allocated_ptys_lock);
+	idr_remove(&allocated_ptys, idx);
+	mutex_unlock(&allocated_ptys_lock);
+}
+
 int devpts_pty_new(struct tty_struct *tty)
 {
-	int number = tty->index;
+	int number = tty->index; /* tty layer puts index from devpts_new_index() in here */
 	struct tty_driver *driver = tty->driver;
 	dev_t device = MKDEV(driver->major, driver->minor_start+number);
 	struct dentry *dentry;
