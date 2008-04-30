@@ -135,6 +135,8 @@ static inline s64 bdi_stat_sum(struct backing_dev_info *bdi,
 	return sum;
 }
 
+extern void bdi_writeout_inc(struct backing_dev_info *bdi);
+
 /*
  * maximal error of a stat counter.
  */
