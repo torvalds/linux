@@ -1663,14 +1663,14 @@ static void rp_hangup(struct tty_struct *tty)
  *  writing routines will write directly to transmit FIFO.
  *  Write buffer and counters protected by spinlocks
  */
-static void rp_put_char(struct tty_struct *tty, unsigned char ch)
+static int rp_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct r_port *info = (struct r_port *) tty->driver_data;
 	CHANNEL_t *cp;
 	unsigned long flags;
 
 	if (rocket_paranoia_check(info, "rp_put_char"))
-		return;
+		return 0;
 
 	/*
 	 * Grab the port write mutex, locking out other processes that try to
@@ -1699,6 +1699,7 @@ static void rp_put_char(struct tty_struct *tty, unsigned char ch)
 	}
 	spin_unlock_irqrestore(&info->slock, flags);
 	mutex_unlock(&info->write_mtx);
+	return 1;
 }
 
 /*

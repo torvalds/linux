@@ -1161,16 +1161,17 @@ static int rc_write(struct tty_struct * tty,
 	return total;
 }
 
-static void rc_put_char(struct tty_struct * tty, unsigned char ch)
+static int rc_put_char(struct tty_struct * tty, unsigned char ch)
 {
 	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
 	unsigned long flags;
+	int ret = 0;
 
 	if (rc_paranoia_check(port, tty->name, "rc_put_char"))
-		return;
+		return 0;
 
 	if (!tty || !port->xmit_buf)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&riscom_lock, flags);
 	
@@ -1180,9 +1181,11 @@ static void rc_put_char(struct tty_struct * tty, unsigned char ch)
 	port->xmit_buf[port->xmit_head++] = ch;
 	port->xmit_head &= SERIAL_XMIT_SIZE - 1;
 	port->xmit_cnt++;
+	ret = 1;
 
 out:
 	spin_unlock_irqrestore(&riscom_lock, flags);
+	return ret;
 }
 
 static void rc_flush_chars(struct tty_struct * tty)
