@@ -1753,8 +1753,9 @@ static int ptrace_signal(int signr, siginfo_t *info,
 int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
 			  struct pt_regs *regs, void *cookie)
 {
-	sigset_t *mask = &current->blocked;
-	int signr = 0;
+	struct sighand_struct *sighand = current->sighand;
+	struct signal_struct *signal = current->signal;
+	int signr;
 
 relock:
 	/*
@@ -1765,13 +1766,13 @@ relock:
 	 */
 	try_to_freeze();
 
-	spin_lock_irq(&current->sighand->siglock);
+	spin_lock_irq(&sighand->siglock);
 
-	if (unlikely(current->signal->flags & SIGNAL_CLD_MASK)) {
-		int why = (current->signal->flags & SIGNAL_STOP_CONTINUED)
+	if (unlikely(signal->flags & SIGNAL_CLD_MASK)) {
+		int why = (signal->flags & SIGNAL_STOP_CONTINUED)
 				? CLD_CONTINUED : CLD_STOPPED;
-		current->signal->flags &= ~SIGNAL_CLD_MASK;
-		spin_unlock_irq(&current->sighand->siglock);
+		signal->flags &= ~SIGNAL_CLD_MASK;
+		spin_unlock_irq(&sighand->siglock);
 
 		read_lock(&tasklist_lock);
 		do_notify_parent_cldstop(current->group_leader, why);
@@ -1782,12 +1783,11 @@ relock:
 	for (;;) {
 		struct k_sigaction *ka;
 
-		if (unlikely(current->signal->group_stop_count > 0) &&
+		if (unlikely(signal->group_stop_count > 0) &&
 		    do_signal_stop(0))
 			goto relock;
 
-		signr = dequeue_signal(current, mask, info);
-
+		signr = dequeue_signal(current, &current->blocked, info);
 		if (!signr)
 			break; /* will return 0 */
 
@@ -1797,7 +1797,7 @@ relock:
 				continue;
 		}
 
-		ka = &current->sighand->action[signr-1];
+		ka = &sighand->action[signr-1];
 		if (ka->sa.sa_handler == SIG_IGN) /* Do nothing.  */
 			continue;
 		if (ka->sa.sa_handler != SIG_DFL) {
@@ -1834,14 +1834,14 @@ relock:
 			 * We need to check for that and bail out if necessary.
 			 */
 			if (signr != SIGSTOP) {
-				spin_unlock_irq(&current->sighand->siglock);
+				spin_unlock_irq(&sighand->siglock);
 
 				/* signals can be posted during this window */
 
 				if (is_current_pgrp_orphaned())
 					goto relock;
 
-				spin_lock_irq(&current->sighand->siglock);
+				spin_lock_irq(&sighand->siglock);
 			}
 
 			if (likely(do_signal_stop(signr))) {
@@ -1856,7 +1856,7 @@ relock:
 			continue;
 		}
 
-		spin_unlock_irq(&current->sighand->siglock);
+		spin_unlock_irq(&sighand->siglock);
 
 		/*
 		 * Anything else is fatal, maybe with a core dump.
@@ -1882,7 +1882,7 @@ relock:
 		do_group_exit(signr);
 		/* NOTREACHED */
 	}
-	spin_unlock_irq(&current->sighand->siglock);
+	spin_unlock_irq(&sighand->siglock);
 	return signr;
 }
 
