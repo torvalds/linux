@@ -2026,10 +2026,11 @@ static void mgsl_change_params(struct mgsl_struct *info)
  * 		
  * Return Value:	None
  */
-static void mgsl_put_char(struct tty_struct *tty, unsigned char ch)
+static int mgsl_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct mgsl_struct *info = (struct mgsl_struct *)tty->driver_data;
 	unsigned long flags;
+	int ret;
 
 	if ( debug_level >= DEBUG_LEVEL_INFO ) {
 		printk( "%s(%d):mgsl_put_char(%d) on %s\n",
@@ -2037,23 +2038,23 @@ static void mgsl_put_char(struct tty_struct *tty, unsigned char ch)
 	}		
 	
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_put_char"))
-		return;
+		return 0;
 
 	if (!tty || !info->xmit_buf)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&info->irq_spinlock,flags);
 	
 	if ( (info->params.mode == MGSL_MODE_ASYNC ) || !info->tx_active ) {
-	
 		if (info->xmit_cnt < SERIAL_XMIT_SIZE - 1) {
 			info->xmit_buf[info->xmit_head++] = ch;
 			info->xmit_head &= SERIAL_XMIT_SIZE-1;
 			info->xmit_cnt++;
+			ret = 1;
 		}
 	}
-	
 	spin_unlock_irqrestore(&info->irq_spinlock,flags);
+	return ret;
 	
 }	/* end of mgsl_put_char() */
 

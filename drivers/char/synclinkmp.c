@@ -519,7 +519,7 @@ static void hangup(struct tty_struct *tty);
 static void set_termios(struct tty_struct *tty, struct ktermios *old_termios);
 
 static int  write(struct tty_struct *tty, const unsigned char *buf, int count);
-static void put_char(struct tty_struct *tty, unsigned char ch);
+static int put_char(struct tty_struct *tty, unsigned char ch);
 static void send_xchar(struct tty_struct *tty, char ch);
 static void wait_until_sent(struct tty_struct *tty, int timeout);
 static int  write_room(struct tty_struct *tty);
@@ -1045,10 +1045,11 @@ cleanup:
 
 /* Add a character to the transmit buffer.
  */
-static void put_char(struct tty_struct *tty, unsigned char ch)
+static int put_char(struct tty_struct *tty, unsigned char ch)
 {
 	SLMP_INFO *info = (SLMP_INFO *)tty->driver_data;
 	unsigned long flags;
+	int ret = 0;
 
 	if ( debug_level >= DEBUG_LEVEL_INFO ) {
 		printk( "%s(%d):%s put_char(%d)\n",
@@ -1056,10 +1057,10 @@ static void put_char(struct tty_struct *tty, unsigned char ch)
 	}
 
 	if (sanity_check(info, tty->name, "put_char"))
-		return;
+		return 0;
 
 	if (!info->tx_buf)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&info->lock,flags);
 
@@ -1071,10 +1072,12 @@ static void put_char(struct tty_struct *tty, unsigned char ch)
 			if (info->tx_put >= info->max_frame_size)
 				info->tx_put -= info->max_frame_size;
 			info->tx_count++;
+			ret = 1;
 		}
 	}
 
 	spin_unlock_irqrestore(&info->lock,flags);
+	return ret;
 }
 
 /* Send a high-priority XON/XOFF character
