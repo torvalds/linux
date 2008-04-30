@@ -2272,13 +2272,13 @@ static int ext4_mb_init_backend(struct super_block *sb)
 		meta_group_info[j] = kzalloc(len, GFP_KERNEL);
 		if (meta_group_info[j] == NULL) {
 			printk(KERN_ERR "EXT4-fs: can't allocate buddy mem\n");
-			i--;
 			goto err_freebuddy;
 		}
 		desc = ext4_get_group_desc(sb, i, NULL);
 		if (desc == NULL) {
 			printk(KERN_ERR
 				"EXT4-fs: can't read descriptor %lu\n", i);
+			i++;
 			goto err_freebuddy;
 		}
 		memset(meta_group_info[j], 0, len);
@@ -2318,13 +2318,11 @@ static int ext4_mb_init_backend(struct super_block *sb)
 	return 0;
 
 err_freebuddy:
-	while (i >= 0) {
+	while (i-- > 0)
 		kfree(ext4_get_group_info(sb, i));
-		i--;
-	}
 	i = num_meta_group_infos;
 err_freemeta:
-	while (--i >= 0)
+	while (i-- > 0)
 		kfree(sbi->s_group_info[i]);
 	iput(sbi->s_buddy_cache);
 err_freesgi:
