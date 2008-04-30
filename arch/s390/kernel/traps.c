@@ -113,7 +113,7 @@ __show_trace(unsigned long sp, unsigned long low, unsigned long high)
 	}
 }
 
-void show_trace(struct task_struct *task, unsigned long *stack)
+static void show_trace(struct task_struct *task, unsigned long *stack)
 {
 	register unsigned long __r15 asm ("15");
 	unsigned long sp;
@@ -161,14 +161,14 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	show_trace(task, sp);
 }
 
-#ifdef CONFIG_64BIT
-void show_last_breaking_event(struct pt_regs *regs)
+static void show_last_breaking_event(struct pt_regs *regs)
 {
+#ifdef CONFIG_64BIT
 	printk("Last Breaking-Event-Address:\n");
 	printk(" [<%016lx>] ", regs->args[0] & PSW_ADDR_INSN);
 	print_symbol("%s\n", regs->args[0] & PSW_ADDR_INSN);
-}
 #endif
+}
 
 /*
  * The architecture-independent dump_stack generator
@@ -222,6 +222,24 @@ void show_registers(struct pt_regs *regs)
 
 	show_code(regs);
 }	
+
+void show_regs(struct pt_regs *regs)
+{
+	print_modules();
+	printk("CPU: %d %s %s %.*s\n",
+	       task_thread_info(current)->cpu, print_tainted(),
+	       init_utsname()->release,
+	       (int)strcspn(init_utsname()->version, " "),
+	       init_utsname()->version);
+	printk("Process %s (pid: %d, task: %p, ksp: %p)\n",
+	       current->comm, current->pid, current,
+	       (void *) current->thread.ksp);
+	show_registers(regs);
+	/* Show stack backtrace if pt_regs is from kernel mode */
+	if (!(regs->psw.mask & PSW_MASK_PSTATE))
+		show_trace(NULL, (unsigned long *) regs->gprs[15]);
+	show_last_breaking_event(regs);
+}
 
 /* This is called from fs/proc/array.c */
 void task_show_regs(struct seq_file *m, struct task_struct *task)
