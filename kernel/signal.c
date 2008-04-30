@@ -863,10 +863,6 @@ __group_complete_signal(int sig, struct task_struct *p)
 		 * Otherwise try to find a suitable thread.
 		 */
 		t = signal->curr_target;
-		if (t == NULL)
-			/* restart balancing at this thread */
-			t = signal->curr_target = p;
-
 		while (!wants_signal(sig, t)) {
 			t = next_thread(t);
 			if (t == signal->curr_target)
