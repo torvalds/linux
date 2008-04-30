@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,9 +68,9 @@ static const char *acpi_ut_trim_function_name(const char *function_name);
 
 void acpi_ut_init_stack_ptr_trace(void)
 {
-	u32 current_sp;
+	acpi_size current_sp;
 
-	acpi_gbl_entry_stack_pointer = ACPI_PTR_DIFF(&current_sp, NULL);
+	acpi_gbl_entry_stack_pointer = &current_sp;
 }
 
 /*******************************************************************************
@@ -89,10 +89,8 @@ void acpi_ut_track_stack_ptr(void)
 {
 	acpi_size current_sp;
 
-	current_sp = ACPI_PTR_DIFF(&current_sp, NULL);
-
-	if (current_sp < acpi_gbl_lowest_stack_pointer) {
-		acpi_gbl_lowest_stack_pointer = current_sp;
+	if (&current_sp < acpi_gbl_lowest_stack_pointer) {
+		acpi_gbl_lowest_stack_pointer = &current_sp;
 	}
 
 	if (acpi_gbl_nesting_level > acpi_gbl_deepest_nesting) {
@@ -203,6 +201,7 @@ acpi_ut_debug_print(u32 requested_debug_level,
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
+	va_end(args);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_debug_print)
@@ -240,6 +239,7 @@ acpi_ut_debug_print_raw(u32 requested_debug_level,
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
+	va_end(args);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_debug_print_raw)
@@ -523,6 +523,11 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 	acpi_native_uint j;
 	u32 temp32;
 	u8 buf_char;
+
+	if (!buffer) {
+		acpi_os_printf("Null Buffer Pointer in DumpBuffer!\n");
+		return;
+	}
 
 	if ((count < 4) || (count & 0x01)) {
 		display = DB_BYTE_DISPLAY;

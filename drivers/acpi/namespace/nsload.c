@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,11 +107,11 @@ acpi_ns_load_table(acpi_native_uint table_index,
 		goto unlock;
 	}
 
-	status = acpi_ns_parse_table(table_index, node->child);
+	status = acpi_ns_parse_table(table_index, node);
 	if (ACPI_SUCCESS(status)) {
 		acpi_tb_set_table_loaded_flag(table_index, TRUE);
 	} else {
-		acpi_tb_release_owner_id(table_index);
+		(void)acpi_tb_release_owner_id(table_index);
 	}
 
       unlock:

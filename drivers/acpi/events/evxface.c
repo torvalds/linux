@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -758,6 +758,12 @@ ACPI_EXPORT_SYMBOL(acpi_remove_gpe_handler)
  *
  * DESCRIPTION: Acquire the ACPI Global Lock
  *
+ * Note: Allows callers with the same thread ID to acquire the global lock
+ * multiple times. In other words, externally, the behavior of the global lock
+ * is identical to an AML mutex. On the first acquire, a new handle is
+ * returned. On any subsequent calls to acquire by the same thread, the same
+ * handle is returned.
+ *
  ******************************************************************************/
 acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle)
 {
@@ -770,14 +776,19 @@ acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle)
 	/* Must lock interpreter to prevent race conditions */
 
 	acpi_ex_enter_interpreter();
-	status = acpi_ev_acquire_global_lock(timeout);
-	acpi_ex_exit_interpreter();
+
+	status = acpi_ex_acquire_mutex_object(timeout,
+					      acpi_gbl_global_lock_mutex,
+					      acpi_os_get_thread_id());
 
 	if (ACPI_SUCCESS(status)) {
-		acpi_gbl_global_lock_handle++;
+
+		/* Return the global lock handle (updated in acpi_ev_acquire_global_lock) */
+
 		*handle = acpi_gbl_global_lock_handle;
 	}
 
+	acpi_ex_exit_interpreter();
 	return (status);
 }
 
@@ -798,11 +809,11 @@ acpi_status acpi_release_global_lock(u32 handle)
 {
 	acpi_status status;
 
-	if (handle != acpi_gbl_global_lock_handle) {
+	if (!handle || (handle != acpi_gbl_global_lock_handle)) {
 		return (AE_NOT_ACQUIRED);
 	}
 
-	status = acpi_ev_release_global_lock();
+	status = acpi_ex_release_mutex_object(acpi_gbl_global_lock_mutex);
 	return (status);
 }
 

@@ -117,6 +117,7 @@ static void quirk_sb16audio_resources(struct pnp_dev *dev)
 static void quirk_system_pci_resources(struct pnp_dev *dev)
 {
 	struct pci_dev *pdev = NULL;
+	struct resource *res;
 	resource_size_t pnp_start, pnp_end, pci_start, pci_end;
 	int i, j;
 
@@ -137,13 +138,15 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 
 			pci_start = pci_resource_start(pdev, i);
 			pci_end = pci_resource_end(pdev, i);
-			for (j = 0; j < PNP_MAX_MEM; j++) {
-				if (!pnp_mem_valid(dev, j) ||
-				    pnp_mem_len(dev, j) == 0)
+			for (j = 0;
+			     (res = pnp_get_resource(dev, IORESOURCE_MEM, j));
+			     j++) {
+				if (res->flags & IORESOURCE_UNSET ||
+				    (res->start == 0 && res->end == 0))
 					continue;
 
-				pnp_start = pnp_mem_start(dev, j);
-				pnp_end = pnp_mem_end(dev, j);
+				pnp_start = res->start;
+				pnp_end = res->end;
 
 				/*
 				 * If the PNP region doesn't overlap the PCI
@@ -176,7 +179,7 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 					pci_name(pdev), i,
 					(unsigned long long) pci_start,
 					(unsigned long long) pci_end);
-				pnp_mem_flags(dev, j) = 0;
+				res->flags = 0;
 			}
 		}
 	}

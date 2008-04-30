@@ -142,6 +142,7 @@ EXPORT_SYMBOL(acpi_get_physical_device);
 
 static int acpi_bind_one(struct device *dev, acpi_handle handle)
 {
+	struct acpi_device *acpi_dev;
 	acpi_status status;
 
 	if (dev->archdata.acpi_handle) {
@@ -157,6 +158,16 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 	}
 	dev->archdata.acpi_handle = handle;
 
+	status = acpi_bus_get_device(handle, &acpi_dev);
+	if (!ACPI_FAILURE(status)) {
+		int ret;
+
+		ret = sysfs_create_link(&dev->kobj, &acpi_dev->dev.kobj,
+				"firmware_node");
+		ret = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
+				"physical_node");
+	}
+
 	return 0;
 }
 
@@ -165,8 +176,17 @@ static int acpi_unbind_one(struct device *dev)
 	if (!dev->archdata.acpi_handle)
 		return 0;
 	if (dev == acpi_get_physical_device(dev->archdata.acpi_handle)) {
+		struct acpi_device *acpi_dev;
+
 		/* acpi_get_physical_device increase refcnt by one */
 		put_device(dev);
+
+		if (!acpi_bus_get_device(dev->archdata.acpi_handle,
+					&acpi_dev)) {
+			sysfs_remove_link(&dev->kobj, "firmware_node");
+			sysfs_remove_link(&acpi_dev->dev.kobj, "physical_node");
+		}
+
 		acpi_detach_data(dev->archdata.acpi_handle,
 				 acpi_glue_data_handler);
 		dev->archdata.acpi_handle = NULL;

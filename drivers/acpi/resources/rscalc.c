@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,7 +73,7 @@ acpi_rs_stream_option_length(u32 resource_length, u32 minimum_total_length);
 
 static u8 acpi_rs_count_set_bits(u16 bit_field)
 {
-	u8 bits_set;
+	acpi_native_uint bits_set;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -81,10 +81,10 @@ static u8 acpi_rs_count_set_bits(u16 bit_field)
 
 		/* Zero the least significant bit that is set */
 
-		bit_field &= (bit_field - 1);
+		bit_field &= (u16) (bit_field - 1);
 	}
 
-	return (bits_set);
+	return ((u8) bits_set);
 }
 
 /*******************************************************************************
@@ -211,6 +211,24 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 		 * variable-length fields
 		 */
 		switch (resource->type) {
+		case ACPI_RESOURCE_TYPE_IRQ:
+
+			/* Length can be 3 or 2 */
+
+			if (resource->data.irq.descriptor_length == 2) {
+				total_size--;
+			}
+			break;
+
+		case ACPI_RESOURCE_TYPE_START_DEPENDENT:
+
+			/* Length can be 1 or 0 */
+
+			if (resource->data.irq.descriptor_length == 0) {
+				total_size--;
+			}
+			break;
+
 		case ACPI_RESOURCE_TYPE_VENDOR:
 			/*
 			 * Vendor Defined Resource:

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,9 @@
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psopcode")
 
+static const u8 acpi_gbl_argument_count[] =
+    { 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 6 };
+
 /*******************************************************************************
  *
  * NAME:        acpi_gbl_aml_op_info
@@ -59,6 +62,7 @@ ACPI_MODULE_NAME("psopcode")
  *              the operand type.
  *
  ******************************************************************************/
+
 /*
  * Summary of opcode types/flags
  *
@@ -176,6 +180,7 @@ ACPI_MODULE_NAME("psopcode")
 	AML_CREATE_QWORD_FIELD_OP
 
  ******************************************************************************/
+
 /*
  * Master Opcode information table.  A summary of everything we know about each
  * opcode, all in one place.
@@ -515,9 +520,10 @@ const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES] = {
 		 AML_TYPE_NAMED_FIELD,
 		 AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_FIELD),
 /* 5F */ ACPI_OP("BankField", ARGP_BANK_FIELD_OP, ARGI_BANK_FIELD_OP,
-		 ACPI_TYPE_ANY, AML_CLASS_NAMED_OBJECT,
+		 ACPI_TYPE_LOCAL_BANK_FIELD, AML_CLASS_NAMED_OBJECT,
 		 AML_TYPE_NAMED_FIELD,
-		 AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_FIELD),
+		 AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_FIELD |
+		 AML_DEFER),
 
 /* Internal opcodes that map to invalid AML opcodes */
 
@@ -619,9 +625,9 @@ const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES] = {
 		 AML_TYPE_EXEC_6A_0T_1R, AML_FLAGS_EXEC_6A_0T_1R),
 /* 7C */ ACPI_OP("DataTableRegion", ARGP_DATA_REGION_OP,
 		 ARGI_DATA_REGION_OP, ACPI_TYPE_REGION,
-		 AML_CLASS_NAMED_OBJECT, AML_TYPE_NAMED_SIMPLE,
+		 AML_CLASS_NAMED_OBJECT, AML_TYPE_NAMED_COMPLEX,
 		 AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE |
-		 AML_NSNODE | AML_NAMED),
+		 AML_NSNODE | AML_NAMED | AML_DEFER),
 /* 7D */ ACPI_OP("[EvalSubTree]", ARGP_SCOPE_OP, ARGI_SCOPE_OP,
 		 ACPI_TYPE_ANY, AML_CLASS_NAMED_OBJECT,
 		 AML_TYPE_NAMED_NO_OBJ,
@@ -778,4 +784,26 @@ char *acpi_ps_get_opcode_name(u16 opcode)
 	return ("OpcodeName unavailable");
 
 #endif
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ps_get_argument_count
+ *
+ * PARAMETERS:  op_type             - Type associated with the AML opcode
+ *
+ * RETURN:      Argument count
+ *
+ * DESCRIPTION: Obtain the number of expected arguments for an AML opcode
+ *
+ ******************************************************************************/
+
+u8 acpi_ps_get_argument_count(u32 op_type)
+{
+
+	if (op_type <= AML_TYPE_EXEC_6A_0T_1R) {
+		return (acpi_gbl_argument_count[op_type]);
+	}
+
+	return (0);
 }

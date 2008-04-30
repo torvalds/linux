@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -230,12 +230,12 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 			  struct acpi_parse_state *parser_state,
 			  union acpi_parse_object *arg, u8 possible_method_call)
 {
+	acpi_status status;
 	char *path;
 	union acpi_parse_object *name_op;
-	acpi_status status;
 	union acpi_operand_object *method_desc;
 	struct acpi_namespace_node *node;
-	union acpi_generic_state scope_info;
+	u8 *start = parser_state->aml;
 
 	ACPI_FUNCTION_TRACE(ps_get_next_namepath);
 
@@ -249,25 +249,18 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Setup search scope info */
-
-	scope_info.scope.node = NULL;
-	node = parser_state->start_node;
-	if (node) {
-		scope_info.scope.node = node;
-	}
-
 	/*
-	 * Lookup the name in the internal namespace. We don't want to add
-	 * anything new to the namespace here, however, so we use MODE_EXECUTE.
+	 * Lookup the name in the internal namespace, starting with the current
+	 * scope. We don't want to add anything new to the namespace here,
+	 * however, so we use MODE_EXECUTE.
 	 * Allow searching of the parent tree, but don't open a new scope -
 	 * we just want to lookup the object (must be mode EXECUTE to perform
 	 * the upsearch)
 	 */
-	status =
-	    acpi_ns_lookup(&scope_info, path, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-			   ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
-			   NULL, &node);
+	status = acpi_ns_lookup(walk_state->scope_info, path,
+				ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+				ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
+				NULL, &node);
 
 	/*
 	 * If this name is a control method invocation, we must
@@ -275,6 +268,16 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	 */
 	if (ACPI_SUCCESS(status) &&
 	    possible_method_call && (node->type == ACPI_TYPE_METHOD)) {
+		if (walk_state->op->common.aml_opcode == AML_UNLOAD_OP) {
+			/*
+			 * acpi_ps_get_next_namestring has increased the AML pointer,
+			 * so we need to restore the saved AML pointer for method call.
+			 */
+			walk_state->parser_state.aml = start;
+			walk_state->arg_count = 1;
+			acpi_ps_init_op(arg, AML_INT_METHODCALL_OP);
+			return_ACPI_STATUS(AE_OK);
+		}
 
 		/* This name is actually a control method invocation */
 
@@ -686,9 +689,29 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				return_ACPI_STATUS(AE_NO_MEMORY);
 			}
 
-			status =
-			    acpi_ps_get_next_namepath(walk_state, parser_state,
-						      arg, 0);
+			/* To support super_name arg of Unload */
+
+			if (walk_state->op->common.aml_opcode == AML_UNLOAD_OP) {
+				status =
+				    acpi_ps_get_next_namepath(walk_state,
+							      parser_state, arg,
+							      1);
+
+				/*
+				 * If the super_name arg of Unload is a method call,
+				 * we have restored the AML pointer, just free this Arg
+				 */
+				if (arg->common.aml_opcode ==
+				    AML_INT_METHODCALL_OP) {
+					acpi_ps_free_op(arg);
+					arg = NULL;
+				}
+			} else {
+				status =
+				    acpi_ps_get_next_namepath(walk_state,
+							      parser_state, arg,
+							      0);
+			}
 		} else {
 			/* Single complex argument, nothing returned */
 

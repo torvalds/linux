@@ -21,7 +21,7 @@
  *  02110-1301, USA.
  */
 
-#define TPACPI_VERSION "0.19"
+#define TPACPI_VERSION "0.20"
 #define TPACPI_SYSFS_VERSION 0x020200
 
 /*
@@ -67,6 +67,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/input.h>
+#include <linux/leds.h>
 #include <asm/uaccess.h>
 
 #include <linux/dmi.h>
@@ -85,6 +86,8 @@
 #define TP_CMOS_VOLUME_MUTE	2
 #define TP_CMOS_BRIGHTNESS_UP	4
 #define TP_CMOS_BRIGHTNESS_DOWN	5
+#define TP_CMOS_THINKLIGHT_ON	12
+#define TP_CMOS_THINKLIGHT_OFF	13
 
 /* NVRAM Addresses */
 enum tp_nvram_addr {
@@ -133,7 +136,11 @@ enum {
 #define TPACPI_PROC_DIR "ibm"
 #define TPACPI_ACPI_EVENT_PREFIX "ibm"
 #define TPACPI_DRVR_NAME TPACPI_FILE
+#define TPACPI_DRVR_SHORTNAME "tpacpi"
 #define TPACPI_HWMON_DRVR_NAME TPACPI_NAME "_hwmon"
+
+#define TPACPI_NVRAM_KTHREAD_NAME "ktpacpi_nvramd"
+#define TPACPI_WORKQUEUE_NAME "ktpacpid"
 
 #define TPACPI_MAX_ACPI_ARGS 3
 
@@ -225,6 +232,7 @@ static struct {
 	u32 light:1;
 	u32 light_status:1;
 	u32 bright_16levels:1;
+	u32 bright_acpimode:1;
 	u32 wan:1;
 	u32 fan_ctrl_status_undef:1;
 	u32 input_device_registered:1;
@@ -236,6 +244,11 @@ static struct {
 	u32 hotkey_poll_active:1;
 } tp_features;
 
+static struct {
+	u16 hotkey_mask_ff:1;
+	u16 bright_cmos_ec_unsync:1;
+} tp_warned;
+
 struct thinkpad_id_data {
 	unsigned int vendor;	/* ThinkPad vendor:
 				 * PCI_VENDOR_ID_IBM/PCI_VENDOR_ID_LENOVO */
@@ -246,7 +259,8 @@ struct thinkpad_id_data {
 	u16 bios_model;		/* Big Endian, TP-1Y = 0x5931, 0 = unknown */
 	u16 ec_model;
 
-	char *model_str;
+	char *model_str;	/* ThinkPad T43 */
+	char *nummodel_str;	/* 9384A9C for a 9384-A9C model */
 };
 static struct thinkpad_id_data thinkpad_id;
 
@@ -258,6 +272,16 @@ static enum {
 
 static int experimental;
 static u32 dbg_level;
+
+static struct workqueue_struct *tpacpi_wq;
+
+/* Special LED class that can defer work */
+struct tpacpi_led_classdev {
+	struct led_classdev led_classdev;
+	struct work_struct work;
+	enum led_brightness new_brightness;
+	unsigned int led;
+};
 
 /****************************************************************************
  ****************************************************************************
@@ -807,6 +831,80 @@ static int parse_strtoul(const char *buf,
 	return 0;
 }
 
+static int __init tpacpi_query_bcl_levels(acpi_handle handle)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	int rc;
+
+	if (ACPI_SUCCESS(acpi_evaluate_object(handle, NULL, NULL, &buffer))) {
+		obj = (union acpi_object *)buffer.pointer;
+		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
+			printk(TPACPI_ERR "Unknown _BCL data, "
+			       "please report this to %s\n", TPACPI_MAIL);
+			rc = 0;
+		} else {
+			rc = obj->package.count;
+		}
+	} else {
+		return 0;
+	}
+
+	kfree(buffer.pointer);
+	return rc;
+}
+
+static acpi_status __init tpacpi_acpi_walk_find_bcl(acpi_handle handle,
+					u32 lvl, void *context, void **rv)
+{
+	char name[ACPI_PATH_SEGMENT_LENGTH];
+	struct acpi_buffer buffer = { sizeof(name), &name };
+
+	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
+	    !strncmp("_BCL", name, sizeof(name) - 1)) {
+		BUG_ON(!rv || !*rv);
+		**(int **)rv = tpacpi_query_bcl_levels(handle);
+		return AE_CTRL_TERMINATE;
+	} else {
+		return AE_OK;
+	}
+}
+
+/*
+ * Returns 0 (no ACPI _BCL or _BCL invalid), or size of brightness map
+ */
+static int __init tpacpi_check_std_acpi_brightness_support(void)
+{
+	int status;
+	int bcl_levels = 0;
+	void *bcl_ptr = &bcl_levels;
+
+	if (!vid_handle) {
+		TPACPI_ACPIHANDLE_INIT(vid);
+	}
+	if (!vid_handle)
+		return 0;
+
+	/*
+	 * Search for a _BCL method, and execute it.  This is safe on all
+	 * ThinkPads, and as a side-effect, _BCL will place a Lenovo Vista
+	 * BIOS in ACPI backlight control mode.  We do NOT have to care
+	 * about calling the _BCL method in an enabled video device, any
+	 * will do for our purposes.
+	 */
+
+	status = acpi_walk_namespace(ACPI_TYPE_METHOD, vid_handle, 3,
+				     tpacpi_acpi_walk_find_bcl, NULL,
+				     &bcl_ptr);
+
+	if (ACPI_SUCCESS(status) && bcl_levels > 2) {
+		tp_features.bright_acpimode = 1;
+		return (bcl_levels - 2);
+	}
+
+	return 0;
+}
+
 /*************************************************************************
  * thinkpad-acpi driver attributes
  */
@@ -909,12 +1007,14 @@ static int __init thinkpad_acpi_driver_init(struct ibm_init_struct *iibm)
 			thinkpad_id.ec_version_str : "unknown");
 
 	if (thinkpad_id.vendor && thinkpad_id.model_str)
-		printk(TPACPI_INFO "%s %s\n",
+		printk(TPACPI_INFO "%s %s, model %s\n",
 			(thinkpad_id.vendor == PCI_VENDOR_ID_IBM) ?
 				"IBM" : ((thinkpad_id.vendor ==
 						PCI_VENDOR_ID_LENOVO) ?
 					"Lenovo" : "Unknown vendor"),
-			thinkpad_id.model_str);
+			thinkpad_id.model_str,
+			(thinkpad_id.nummodel_str) ?
+				thinkpad_id.nummodel_str : "unknown");
 
 	return 0;
 }
@@ -1107,6 +1207,19 @@ static int hotkey_mask_set(u32 mask)
 	int rc = 0;
 
 	if (tp_features.hotkey_mask) {
+		if (!tp_warned.hotkey_mask_ff &&
+		    (mask == 0xffff || mask == 0xffffff ||
+		     mask == 0xffffffff)) {
+			tp_warned.hotkey_mask_ff = 1;
+			printk(TPACPI_NOTICE
+			       "setting the hotkey mask to 0x%08x is likely "
+			       "not the best way to go about it\n", mask);
+			printk(TPACPI_NOTICE
+			       "please consider using the driver defaults, "
+			       "and refer to up-to-date thinkpad-acpi "
+			       "documentation\n");
+		}
+
 		HOTKEY_CONFIG_CRITICAL_START
 		for (i = 0; i < 32; i++) {
 			u32 m = 1 << i;
@@ -1427,8 +1540,7 @@ static void hotkey_poll_setup(int may_warn)
 	    (tpacpi_inputdev->users > 0 || hotkey_report_mode < 2)) {
 		if (!tpacpi_hotkey_task) {
 			tpacpi_hotkey_task = kthread_run(hotkey_kthread,
-							 NULL,
-							 TPACPI_FILE "d");
+					NULL, TPACPI_NVRAM_KTHREAD_NAME);
 			if (IS_ERR(tpacpi_hotkey_task)) {
 				tpacpi_hotkey_task = NULL;
 				printk(TPACPI_ERR
@@ -1887,6 +1999,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
 		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
 
+		/* These either have to go through ACPI video, or
+		 * act like in the IBM ThinkPads, so don't ever
+		 * enable them by default */
 		KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
 		KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
 
@@ -2089,6 +2204,32 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		if (tp_features.hotkey_tablet) {
 			set_bit(EV_SW, tpacpi_inputdev->evbit);
 			set_bit(SW_TABLET_MODE, tpacpi_inputdev->swbit);
+		}
+
+		/* Do not issue duplicate brightness change events to
+		 * userspace */
+		if (!tp_features.bright_acpimode)
+			/* update bright_acpimode... */
+			tpacpi_check_std_acpi_brightness_support();
+
+		if (tp_features.bright_acpimode) {
+			printk(TPACPI_INFO
+			       "This ThinkPad has standard ACPI backlight "
+			       "brightness control, supported by the ACPI "
+			       "video driver\n");
+			printk(TPACPI_NOTICE
+			       "Disabling thinkpad-acpi brightness events "
+			       "by default...\n");
+
+			/* The hotkey_reserved_mask change below is not
+			 * necessary while the keys are at KEY_RESERVED in the
+			 * default map, but better safe than sorry, leave it
+			 * here as a marker of what we have to do, especially
+			 * when we finally become able to set this at runtime
+			 * on response to X.org requests */
+			hotkey_reserved_mask |=
+				(1 << TP_ACPI_HOTKEYSCAN_FNHOME)
+				| (1 << TP_ACPI_HOTKEYSCAN_FNEND);
 		}
 
 		dbg_printk(TPACPI_DBG_INIT,
@@ -3110,13 +3251,82 @@ static struct ibm_struct video_driver_data = {
 TPACPI_HANDLE(lght, root, "\\LGHT");	/* A21e, A2xm/p, T20-22, X20-21 */
 TPACPI_HANDLE(ledb, ec, "LEDB");		/* G4x */
 
+static int light_get_status(void)
+{
+	int status = 0;
+
+	if (tp_features.light_status) {
+		if (!acpi_evalf(ec_handle, &status, "KBLT", "d"))
+			return -EIO;
+		return (!!status);
+	}
+
+	return -ENXIO;
+}
+
+static int light_set_status(int status)
+{
+	int rc;
+
+	if (tp_features.light) {
+		if (cmos_handle) {
+			rc = acpi_evalf(cmos_handle, NULL, NULL, "vd",
+					(status)?
+						TP_CMOS_THINKLIGHT_ON :
+						TP_CMOS_THINKLIGHT_OFF);
+		} else {
+			rc = acpi_evalf(lght_handle, NULL, NULL, "vd",
+					(status)? 1 : 0);
+		}
+		return (rc)? 0 : -EIO;
+	}
+
+	return -ENXIO;
+}
+
+static void light_set_status_worker(struct work_struct *work)
+{
+	struct tpacpi_led_classdev *data =
+			container_of(work, struct tpacpi_led_classdev, work);
+
+	if (likely(tpacpi_lifecycle == TPACPI_LIFE_RUNNING))
+		light_set_status((data->new_brightness != LED_OFF));
+}
+
+static void light_sysfs_set(struct led_classdev *led_cdev,
+			enum led_brightness brightness)
+{
+	struct tpacpi_led_classdev *data =
+		container_of(led_cdev,
+			     struct tpacpi_led_classdev,
+			     led_classdev);
+	data->new_brightness = brightness;
+	queue_work(tpacpi_wq, &data->work);
+}
+
+static enum led_brightness light_sysfs_get(struct led_classdev *led_cdev)
+{
+	return (light_get_status() == 1)? LED_FULL : LED_OFF;
+}
+
+static struct tpacpi_led_classdev tpacpi_led_thinklight = {
+	.led_classdev = {
+		.name		= "tpacpi::thinklight",
+		.brightness_set	= &light_sysfs_set,
+		.brightness_get	= &light_sysfs_get,
+	}
+};
+
 static int __init light_init(struct ibm_init_struct *iibm)
 {
+	int rc = 0;
+
 	vdbg_printk(TPACPI_DBG_INIT, "initializing light subdriver\n");
 
 	TPACPI_ACPIHANDLE_INIT(ledb);
 	TPACPI_ACPIHANDLE_INIT(lght);
 	TPACPI_ACPIHANDLE_INIT(cmos);
+	INIT_WORK(&tpacpi_led_thinklight.work, light_set_status_worker);
 
 	/* light not supported on 570, 600e/x, 770e, 770x, G4x, R30, R31 */
 	tp_features.light = (cmos_handle || lght_handle) && !ledb_handle;
@@ -3130,13 +3340,31 @@ static int __init light_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "light is %s\n",
 		str_supported(tp_features.light));
 
-	return (tp_features.light)? 0 : 1;
+	if (tp_features.light) {
+		rc = led_classdev_register(&tpacpi_pdev->dev,
+					   &tpacpi_led_thinklight.led_classdev);
+	}
+
+	if (rc < 0) {
+		tp_features.light = 0;
+		tp_features.light_status = 0;
+	} else {
+		rc = (tp_features.light)? 0 : 1;
+	}
+	return rc;
+}
+
+static void light_exit(void)
+{
+	led_classdev_unregister(&tpacpi_led_thinklight.led_classdev);
+	if (work_pending(&tpacpi_led_thinklight.work))
+		flush_workqueue(tpacpi_wq);
 }
 
 static int light_read(char *p)
 {
 	int len = 0;
-	int status = 0;
+	int status;
 
 	if (!tp_features.light) {
 		len += sprintf(p + len, "status:\t\tnot supported\n");
@@ -3144,8 +3372,9 @@ static int light_read(char *p)
 		len += sprintf(p + len, "status:\t\tunknown\n");
 		len += sprintf(p + len, "commands:\ton, off\n");
 	} else {
-		if (!acpi_evalf(ec_handle, &status, "KBLT", "d"))
-			return -EIO;
+		status = light_get_status();
+		if (status < 0)
+			return status;
 		len += sprintf(p + len, "status:\t\t%s\n", onoff(status, 0));
 		len += sprintf(p + len, "commands:\ton, off\n");
 	}
@@ -3155,37 +3384,29 @@ static int light_read(char *p)
 
 static int light_write(char *buf)
 {
-	int cmos_cmd, lght_cmd;
 	char *cmd;
-	int success;
+	int newstatus = 0;
 
 	if (!tp_features.light)
 		return -ENODEV;
 
 	while ((cmd = next_cmd(&buf))) {
 		if (strlencmp(cmd, "on") == 0) {
-			cmos_cmd = 0x0c;
-			lght_cmd = 1;
+			newstatus = 1;
 		} else if (strlencmp(cmd, "off") == 0) {
-			cmos_cmd = 0x0d;
-			lght_cmd = 0;
+			newstatus = 0;
 		} else
 			return -EINVAL;
-
-		success = cmos_handle ?
-		    acpi_evalf(cmos_handle, NULL, NULL, "vd", cmos_cmd) :
-		    acpi_evalf(lght_handle, NULL, NULL, "vd", lght_cmd);
-		if (!success)
-			return -EIO;
 	}
 
-	return 0;
+	return light_set_status(newstatus);
 }
 
 static struct ibm_struct light_driver_data = {
 	.name = "light",
 	.read = light_read,
 	.write = light_write,
+	.exit = light_exit,
 };
 
 /*************************************************************************
@@ -3583,6 +3804,12 @@ enum {	/* For TPACPI_LED_OLD */
 	TPACPI_LED_EC_HLMS = 0x0e,	/* EC reg to select led to command */
 };
 
+enum led_status_t {
+	TPACPI_LED_OFF = 0,
+	TPACPI_LED_ON,
+	TPACPI_LED_BLINK,
+};
+
 static enum led_access_mode led_supported;
 
 TPACPI_HANDLE(led, ec, "SLED",	/* 570 */
@@ -3591,8 +3818,174 @@ TPACPI_HANDLE(led, ec, "SLED",	/* 570 */
 	   "LED",		/* all others */
 	   );			/* R30, R31 */
 
+#define TPACPI_LED_NUMLEDS 8
+static struct tpacpi_led_classdev *tpacpi_leds;
+static enum led_status_t tpacpi_led_state_cache[TPACPI_LED_NUMLEDS];
+static const char const *tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
+	/* there's a limit of 19 chars + NULL before 2.6.26 */
+	"tpacpi::power",
+	"tpacpi:orange:batt",
+	"tpacpi:green:batt",
+	"tpacpi::dock_active",
+	"tpacpi::bay_active",
+	"tpacpi::dock_batt",
+	"tpacpi::unknown_led",
+	"tpacpi::standby",
+};
+
+static int led_get_status(unsigned int led)
+{
+	int status;
+	enum led_status_t led_s;
+
+	switch (led_supported) {
+	case TPACPI_LED_570:
+		if (!acpi_evalf(ec_handle,
+				&status, "GLED", "dd", 1 << led))
+			return -EIO;
+		led_s = (status == 0)?
+				TPACPI_LED_OFF :
+				((status == 1)?
+					TPACPI_LED_ON :
+					TPACPI_LED_BLINK);
+		tpacpi_led_state_cache[led] = led_s;
+		return led_s;
+	default:
+		return -ENXIO;
+	}
+
+	/* not reached */
+}
+
+static int led_set_status(unsigned int led, enum led_status_t ledstatus)
+{
+	/* off, on, blink. Index is led_status_t */
+	static const int const led_sled_arg1[] = { 0, 1, 3 };
+	static const int const led_exp_hlbl[] = { 0, 0, 1 };	/* led# * */
+	static const int const led_exp_hlcl[] = { 0, 1, 1 };	/* led# * */
+	static const int const led_led_arg1[] = { 0, 0x80, 0xc0 };
+
+	int rc = 0;
+
+	switch (led_supported) {
+	case TPACPI_LED_570:
+			/* 570 */
+			led = 1 << led;
+			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
+					led, led_sled_arg1[ledstatus]))
+				rc = -EIO;
+			break;
+	case TPACPI_LED_OLD:
+			/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20 */
+			led = 1 << led;
+			rc = ec_write(TPACPI_LED_EC_HLMS, led);
+			if (rc >= 0)
+				rc = ec_write(TPACPI_LED_EC_HLBL,
+					      led * led_exp_hlbl[ledstatus]);
+			if (rc >= 0)
+				rc = ec_write(TPACPI_LED_EC_HLCL,
+					      led * led_exp_hlcl[ledstatus]);
+			break;
+	case TPACPI_LED_NEW:
+			/* all others */
+			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
+					led, led_led_arg1[ledstatus]))
+				rc = -EIO;
+			break;
+	default:
+		rc = -ENXIO;
+	}
+
+	if (!rc)
+		tpacpi_led_state_cache[led] = ledstatus;
+
+	return rc;
+}
+
+static void led_sysfs_set_status(unsigned int led,
+				 enum led_brightness brightness)
+{
+	led_set_status(led,
+			(brightness == LED_OFF) ?
+			TPACPI_LED_OFF :
+			(tpacpi_led_state_cache[led] == TPACPI_LED_BLINK) ?
+				TPACPI_LED_BLINK : TPACPI_LED_ON);
+}
+
+static void led_set_status_worker(struct work_struct *work)
+{
+	struct tpacpi_led_classdev *data =
+		container_of(work, struct tpacpi_led_classdev, work);
+
+	if (likely(tpacpi_lifecycle == TPACPI_LIFE_RUNNING))
+		led_sysfs_set_status(data->led, data->new_brightness);
+}
+
+static void led_sysfs_set(struct led_classdev *led_cdev,
+			enum led_brightness brightness)
+{
+	struct tpacpi_led_classdev *data = container_of(led_cdev,
+			     struct tpacpi_led_classdev, led_classdev);
+
+	data->new_brightness = brightness;
+	queue_work(tpacpi_wq, &data->work);
+}
+
+static int led_sysfs_blink_set(struct led_classdev *led_cdev,
+			unsigned long *delay_on, unsigned long *delay_off)
+{
+	struct tpacpi_led_classdev *data = container_of(led_cdev,
+			     struct tpacpi_led_classdev, led_classdev);
+
+	/* Can we choose the flash rate? */
+	if (*delay_on == 0 && *delay_off == 0) {
+		/* yes. set them to the hardware blink rate (1 Hz) */
+		*delay_on = 500; /* ms */
+		*delay_off = 500; /* ms */
+	} else if ((*delay_on != 500) || (*delay_off != 500))
+		return -EINVAL;
+
+	data->new_brightness = TPACPI_LED_BLINK;
+	queue_work(tpacpi_wq, &data->work);
+
+	return 0;
+}
+
+static enum led_brightness led_sysfs_get(struct led_classdev *led_cdev)
+{
+	int rc;
+
+	struct tpacpi_led_classdev *data = container_of(led_cdev,
+			     struct tpacpi_led_classdev, led_classdev);
+
+	rc = led_get_status(data->led);
+
+	if (rc == TPACPI_LED_OFF || rc < 0)
+		rc = LED_OFF;	/* no error handling in led class :( */
+	else
+		rc = LED_FULL;
+
+	return rc;
+}
+
+static void led_exit(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < TPACPI_LED_NUMLEDS; i++) {
+		if (tpacpi_leds[i].led_classdev.name)
+			led_classdev_unregister(&tpacpi_leds[i].led_classdev);
+	}
+
+	kfree(tpacpi_leds);
+	tpacpi_leds = NULL;
+}
+
 static int __init led_init(struct ibm_init_struct *iibm)
 {
+	unsigned int i;
+	int rc;
+
 	vdbg_printk(TPACPI_DBG_INIT, "initializing LED subdriver\n");
 
 	TPACPI_ACPIHANDLE_INIT(led);
@@ -3613,10 +4006,41 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "LED commands are %s, mode %d\n",
 		str_supported(led_supported), led_supported);
 
+	tpacpi_leds = kzalloc(sizeof(*tpacpi_leds) * TPACPI_LED_NUMLEDS,
+			      GFP_KERNEL);
+	if (!tpacpi_leds) {
+		printk(TPACPI_ERR "Out of memory for LED data\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < TPACPI_LED_NUMLEDS; i++) {
+		tpacpi_leds[i].led = i;
+
+		tpacpi_leds[i].led_classdev.brightness_set = &led_sysfs_set;
+		tpacpi_leds[i].led_classdev.blink_set = &led_sysfs_blink_set;
+		if (led_supported == TPACPI_LED_570)
+			tpacpi_leds[i].led_classdev.brightness_get =
+							&led_sysfs_get;
+
+		tpacpi_leds[i].led_classdev.name = tpacpi_led_names[i];
+
+		INIT_WORK(&tpacpi_leds[i].work, led_set_status_worker);
+
+		rc = led_classdev_register(&tpacpi_pdev->dev,
+					   &tpacpi_leds[i].led_classdev);
+		if (rc < 0) {
+			tpacpi_leds[i].led_classdev.name = NULL;
+			led_exit();
+			return rc;
+		}
+	}
+
 	return (led_supported != TPACPI_LED_NONE)? 0 : 1;
 }
 
-#define led_status(s) ((s) == 0 ? "off" : ((s) == 1 ? "on" : "blinking"))
+#define str_led_status(s) \
+	((s) == TPACPI_LED_OFF ? "off" : \
+		((s) == TPACPI_LED_ON ? "on" : "blinking"))
 
 static int led_read(char *p)
 {
@@ -3632,11 +4056,11 @@ static int led_read(char *p)
 		/* 570 */
 		int i, status;
 		for (i = 0; i < 8; i++) {
-			if (!acpi_evalf(ec_handle,
-					&status, "GLED", "dd", 1 << i))
+			status = led_get_status(i);
+			if (status < 0)
 				return -EIO;
 			len += sprintf(p + len, "%d:\t\t%s\n",
-				       i, led_status(status));
+				       i, str_led_status(status));
 		}
 	}
 
@@ -3646,16 +4070,11 @@ static int led_read(char *p)
 	return len;
 }
 
-/* off, on, blink */
-static const int led_sled_arg1[] = { 0, 1, 3 };
-static const int led_exp_hlbl[] = { 0, 0, 1 };	/* led# * */
-static const int led_exp_hlcl[] = { 0, 1, 1 };	/* led# * */
-static const int led_led_arg1[] = { 0, 0x80, 0xc0 };
-
 static int led_write(char *buf)
 {
 	char *cmd;
-	int led, ind, ret;
+	int led, rc;
+	enum led_status_t s;
 
 	if (!led_supported)
 		return -ENODEV;
@@ -3665,38 +4084,18 @@ static int led_write(char *buf)
 			return -EINVAL;
 
 		if (strstr(cmd, "off")) {
-			ind = 0;
+			s = TPACPI_LED_OFF;
 		} else if (strstr(cmd, "on")) {
-			ind = 1;
+			s = TPACPI_LED_ON;
 		} else if (strstr(cmd, "blink")) {
-			ind = 2;
-		} else
-			return -EINVAL;
-
-		if (led_supported == TPACPI_LED_570) {
-			/* 570 */
-			led = 1 << led;
-			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
-					led, led_sled_arg1[ind]))
-				return -EIO;
-		} else if (led_supported == TPACPI_LED_OLD) {
-			/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20 */
-			led = 1 << led;
-			ret = ec_write(TPACPI_LED_EC_HLMS, led);
-			if (ret >= 0)
-				ret = ec_write(TPACPI_LED_EC_HLBL,
-						led * led_exp_hlbl[ind]);
-			if (ret >= 0)
-				ret = ec_write(TPACPI_LED_EC_HLCL,
-						led * led_exp_hlcl[ind]);
-			if (ret < 0)
-				return ret;
+			s = TPACPI_LED_BLINK;
 		} else {
-			/* all others */
-			if (!acpi_evalf(led_handle, NULL, NULL, "vdd",
-					led, led_led_arg1[ind]))
-				return -EIO;
+			return -EINVAL;
 		}
+
+		rc = led_set_status(led, s);
+		if (rc < 0)
+			return rc;
 	}
 
 	return 0;
@@ -3706,6 +4105,7 @@ static struct ibm_struct led_driver_data = {
 	.name = "led",
 	.read = led_read,
 	.write = led_write,
+	.exit = led_exit,
 };
 
 /*************************************************************************
@@ -4170,8 +4570,16 @@ static struct ibm_struct ecdump_driver_data = {
 
 #define TPACPI_BACKLIGHT_DEV_NAME "thinkpad_screen"
 
+enum {
+	TP_EC_BACKLIGHT = 0x31,
+
+	/* TP_EC_BACKLIGHT bitmasks */
+	TP_EC_BACKLIGHT_LVLMSK = 0x1F,
+	TP_EC_BACKLIGHT_CMDMSK = 0xE0,
+	TP_EC_BACKLIGHT_MAPSW = 0x20,
+};
+
 static struct backlight_device *ibm_backlight_device;
-static int brightness_offset = 0x31;
 static int brightness_mode;
 static unsigned int brightness_enable = 2; /* 2 = auto, 0 = no, 1 = yes */
 
@@ -4180,16 +4588,24 @@ static struct mutex brightness_mutex;
 /*
  * ThinkPads can read brightness from two places: EC 0x31, or
  * CMOS NVRAM byte 0x5E, bits 0-3.
+ *
+ * EC 0x31 has the following layout
+ *   Bit 7: unknown function
+ *   Bit 6: unknown function
+ *   Bit 5: Z: honour scale changes, NZ: ignore scale changes
+ *   Bit 4: must be set to zero to avoid problems
+ *   Bit 3-0: backlight brightness level
+ *
+ * brightness_get_raw returns status data in the EC 0x31 layout
  */
-static int brightness_get(struct backlight_device *bd)
+static int brightness_get_raw(int *status)
 {
 	u8 lec = 0, lcmos = 0, level = 0;
 
 	if (brightness_mode & 1) {
-		if (!acpi_ec_read(brightness_offset, &lec))
+		if (!acpi_ec_read(TP_EC_BACKLIGHT, &lec))
 			return -EIO;
-		lec &= (tp_features.bright_16levels)? 0x0f : 0x07;
-		level = lec;
+		level = lec & TP_EC_BACKLIGHT_LVLMSK;
 	};
 	if (brightness_mode & 2) {
 		lcmos = (nvram_read_byte(TP_NVRAM_ADDR_BRIGHTNESS)
@@ -4199,16 +4615,27 @@ static int brightness_get(struct backlight_device *bd)
 		level = lcmos;
 	}
 
-	if (brightness_mode == 3 && lec != lcmos) {
-		printk(TPACPI_ERR
-			"CMOS NVRAM (%u) and EC (%u) do not agree "
-			"on display brightness level\n",
-			(unsigned int) lcmos,
-			(unsigned int) lec);
-		return -EIO;
+	if (brightness_mode == 3) {
+		*status = lec;	/* Prefer EC, CMOS is just a backing store */
+		lec &= TP_EC_BACKLIGHT_LVLMSK;
+		if (lec == lcmos)
+			tp_warned.bright_cmos_ec_unsync = 0;
+		else {
+			if (!tp_warned.bright_cmos_ec_unsync) {
+				printk(TPACPI_ERR
+					"CMOS NVRAM (%u) and EC (%u) do not "
+					"agree on display brightness level\n",
+					(unsigned int) lcmos,
+					(unsigned int) lec);
+				tp_warned.bright_cmos_ec_unsync = 1;
+			}
+			return -EIO;
+		}
+	} else {
+		*status = level;
 	}
 
-	return level;
+	return 0;
 }
 
 /* May return EINTR which can always be mapped to ERESTARTSYS */
@@ -4216,19 +4643,22 @@ static int brightness_set(int value)
 {
 	int cmos_cmd, inc, i, res;
 	int current_value;
+	int command_bits;
 
-	if (value > ((tp_features.bright_16levels)? 15 : 7))
+	if (value > ((tp_features.bright_16levels)? 15 : 7) ||
+	    value < 0)
 		return -EINVAL;
 
 	res = mutex_lock_interruptible(&brightness_mutex);
 	if (res < 0)
 		return res;
 
-	current_value = brightness_get(NULL);
-	if (current_value < 0) {
-		res = current_value;
+	res = brightness_get_raw(&current_value);
+	if (res < 0)
 		goto errout;
-	}
+
+	command_bits = current_value & TP_EC_BACKLIGHT_CMDMSK;
+	current_value &= TP_EC_BACKLIGHT_LVLMSK;
 
 	cmos_cmd = value > current_value ?
 			TP_CMOS_BRIGHTNESS_UP :
@@ -4243,7 +4673,8 @@ static int brightness_set(int value)
 			goto errout;
 		}
 		if ((brightness_mode & 1) &&
-		    !acpi_ec_write(brightness_offset, i + inc)) {
+		    !acpi_ec_write(TP_EC_BACKLIGHT,
+				   (i + inc) | command_bits)) {
 			res = -EIO;
 			goto errout;;
 		}
@@ -4266,106 +4697,23 @@ static int brightness_update_status(struct backlight_device *bd)
 				bd->props.brightness : 0);
 }
 
+static int brightness_get(struct backlight_device *bd)
+{
+	int status, res;
+
+	res = brightness_get_raw(&status);
+	if (res < 0)
+		return 0; /* FIXME: teach backlight about error handling */
+
+	return status & TP_EC_BACKLIGHT_LVLMSK;
+}
+
 static struct backlight_ops ibm_backlight_data = {
 	.get_brightness = brightness_get,
 	.update_status  = brightness_update_status,
 };
 
 /* --------------------------------------------------------------------- */
-
-static int __init tpacpi_query_bcll_levels(acpi_handle handle)
-{
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	int rc;
-
-	if (ACPI_SUCCESS(acpi_evaluate_object(handle, NULL, NULL, &buffer))) {
-		obj = (union acpi_object *)buffer.pointer;
-		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
-			printk(TPACPI_ERR "Unknown BCLL data, "
-			       "please report this to %s\n", TPACPI_MAIL);
-			rc = 0;
-		} else {
-			rc = obj->package.count;
-		}
-	} else {
-		return 0;
-	}
-
-	kfree(buffer.pointer);
-	return rc;
-}
-
-static acpi_status __init brightness_find_bcll(acpi_handle handle, u32 lvl,
-					void *context, void **rv)
-{
-	char name[ACPI_PATH_SEGMENT_LENGTH];
-	struct acpi_buffer buffer = { sizeof(name), &name };
-
-	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
-	    !strncmp("BCLL", name, sizeof(name) - 1)) {
-		if (tpacpi_query_bcll_levels(handle) == 16) {
-			*rv = handle;
-			return AE_CTRL_TERMINATE;
-		} else {
-			return AE_OK;
-		}
-	} else {
-		return AE_OK;
-	}
-}
-
-static int __init brightness_check_levels(void)
-{
-	int status;
-	void *found_node = NULL;
-
-	if (!vid_handle) {
-		TPACPI_ACPIHANDLE_INIT(vid);
-	}
-	if (!vid_handle)
-		return 0;
-
-	/* Search for a BCLL package with 16 levels */
-	status = acpi_walk_namespace(ACPI_TYPE_PACKAGE, vid_handle, 3,
-					brightness_find_bcll, NULL,
-					&found_node);
-
-	return (ACPI_SUCCESS(status) && found_node != NULL);
-}
-
-static acpi_status __init brightness_find_bcl(acpi_handle handle, u32 lvl,
-					void *context, void **rv)
-{
-	char name[ACPI_PATH_SEGMENT_LENGTH];
-	struct acpi_buffer buffer = { sizeof(name), &name };
-
-	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
-	    !strncmp("_BCL", name, sizeof(name) - 1)) {
-		*rv = handle;
-		return AE_CTRL_TERMINATE;
-	} else {
-		return AE_OK;
-	}
-}
-
-static int __init brightness_check_std_acpi_support(void)
-{
-	int status;
-	void *found_node = NULL;
-
-	if (!vid_handle) {
-		TPACPI_ACPIHANDLE_INIT(vid);
-	}
-	if (!vid_handle)
-		return 0;
-
-	/* Search for a _BCL method, but don't execute it */
-	status = acpi_walk_namespace(ACPI_TYPE_METHOD, vid_handle, 3,
-				     brightness_find_bcl, NULL, &found_node);
-
-	return (ACPI_SUCCESS(status) && found_node != NULL);
-}
 
 static int __init brightness_init(struct ibm_init_struct *iibm)
 {
@@ -4375,19 +4723,41 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 
 	mutex_init(&brightness_mutex);
 
-	if (!brightness_enable) {
-		dbg_printk(TPACPI_DBG_INIT,
-			   "brightness support disabled by "
-			   "module parameter\n");
-		return 1;
-	} else if (brightness_enable > 1) {
-		if (brightness_check_std_acpi_support()) {
+	/*
+	 * We always attempt to detect acpi support, so as to switch
+	 * Lenovo Vista BIOS to ACPI brightness mode even if we are not
+	 * going to publish a backlight interface
+	 */
+	b = tpacpi_check_std_acpi_brightness_support();
+	if (b > 0) {
+		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO) {
+			printk(TPACPI_NOTICE
+			       "Lenovo BIOS switched to ACPI backlight "
+			       "control mode\n");
+		}
+		if (brightness_enable > 1) {
 			printk(TPACPI_NOTICE
 			       "standard ACPI backlight interface "
 			       "available, not loading native one...\n");
 			return 1;
 		}
 	}
+
+	if (!brightness_enable) {
+		dbg_printk(TPACPI_DBG_INIT,
+			   "brightness support disabled by "
+			   "module parameter\n");
+		return 1;
+	}
+
+	if (b > 16) {
+		printk(TPACPI_ERR
+		       "Unsupported brightness interface, "
+		       "please contact %s\n", TPACPI_MAIL);
+		return 1;
+	}
+	if (b == 16)
+		tp_features.bright_16levels = 1;
 
 	if (!brightness_mode) {
 		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO)
@@ -4402,12 +4772,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	if (brightness_mode > 3)
 		return -EINVAL;
 
-	tp_features.bright_16levels =
-			thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO &&
-			brightness_check_levels();
-
-	b = brightness_get(NULL);
-	if (b < 0)
+	if (brightness_get_raw(&b) < 0)
 		return 1;
 
 	if (tp_features.bright_16levels)
@@ -4425,7 +4790,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 
 	ibm_backlight_device->props.max_brightness =
 				(tp_features.bright_16levels)? 15 : 7;
-	ibm_backlight_device->props.brightness = b;
+	ibm_backlight_device->props.brightness = b & TP_EC_BACKLIGHT_LVLMSK;
 	backlight_update_status(ibm_backlight_device);
 
 	return 0;
@@ -5046,11 +5411,11 @@ static void fan_watchdog_reset(void)
 	if (fan_watchdog_maxinterval > 0 &&
 	    tpacpi_lifecycle != TPACPI_LIFE_EXITING) {
 		fan_watchdog_active = 1;
-		if (!schedule_delayed_work(&fan_watchdog_task,
+		if (!queue_delayed_work(tpacpi_wq, &fan_watchdog_task,
 				msecs_to_jiffies(fan_watchdog_maxinterval
 						 * 1000))) {
 			printk(TPACPI_ERR
-			       "failed to schedule the fan watchdog, "
+			       "failed to queue the fan watchdog, "
 			       "watchdog will not trigger\n");
 		}
 	} else
@@ -5420,7 +5785,7 @@ static void fan_exit(void)
 			   &driver_attr_fan_watchdog);
 
 	cancel_delayed_work(&fan_watchdog_task);
-	flush_scheduled_work();
+	flush_workqueue(tpacpi_wq);
 }
 
 static int fan_read(char *p)
@@ -5826,10 +6191,13 @@ static void __init get_thinkpad_model_data(struct thinkpad_id_data *tp)
 
 	tp->model_str = kstrdup(dmi_get_system_info(DMI_PRODUCT_VERSION),
 					GFP_KERNEL);
-	if (strnicmp(tp->model_str, "ThinkPad", 8) != 0) {
+	if (tp->model_str && strnicmp(tp->model_str, "ThinkPad", 8) != 0) {
 		kfree(tp->model_str);
 		tp->model_str = NULL;
 	}
+
+	tp->nummodel_str = kstrdup(dmi_get_system_info(DMI_PRODUCT_NAME),
+					GFP_KERNEL);
 }
 
 static int __init probe_for_thinkpad(void)
@@ -6071,6 +6439,9 @@ static void thinkpad_acpi_module_exit(void)
 	if (proc_dir)
 		remove_proc_entry(TPACPI_PROC_DIR, acpi_root_dir);
 
+	if (tpacpi_wq)
+		destroy_workqueue(tpacpi_wq);
+
 	kfree(thinkpad_id.bios_version_str);
 	kfree(thinkpad_id.ec_version_str);
 	kfree(thinkpad_id.model_str);
@@ -6100,6 +6471,12 @@ static int __init thinkpad_acpi_module_init(void)
 
 	TPACPI_ACPIHANDLE_INIT(ecrd);
 	TPACPI_ACPIHANDLE_INIT(ecwr);
+
+	tpacpi_wq = create_singlethread_workqueue(TPACPI_WORKQUEUE_NAME);
+	if (!tpacpi_wq) {
+		thinkpad_acpi_module_exit();
+		return -ENOMEM;
+	}
 
 	proc_dir = proc_mkdir(TPACPI_PROC_DIR, acpi_root_dir);
 	if (!proc_dir) {
@@ -6222,6 +6599,8 @@ static int __init thinkpad_acpi_module_init(void)
 
 /* Please remove this in year 2009 */
 MODULE_ALIAS("ibm_acpi");
+
+MODULE_ALIAS(TPACPI_DRVR_SHORTNAME);
 
 /*
  * DMI matching for module autoloading

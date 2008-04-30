@@ -248,6 +248,7 @@ static ssize_t pnp_show_current_resources(struct device *dmdev,
 					  char *buf)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
+	struct resource *res;
 	int i, ret;
 	pnp_info_buffer_t *buffer;
 
@@ -267,50 +268,46 @@ static ssize_t pnp_show_current_resources(struct device *dmdev,
 	else
 		pnp_printf(buffer, "disabled\n");
 
-	for (i = 0; i < PNP_MAX_PORT; i++) {
-		if (pnp_port_valid(dev, i)) {
+	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_IO, i)); i++) {
+		if (pnp_resource_valid(res)) {
 			pnp_printf(buffer, "io");
-			if (pnp_port_flags(dev, i) & IORESOURCE_DISABLED)
+			if (res->flags & IORESOURCE_DISABLED)
 				pnp_printf(buffer, " disabled\n");
 			else
 				pnp_printf(buffer, " 0x%llx-0x%llx\n",
-					   (unsigned long long)
-					   pnp_port_start(dev, i),
-					   (unsigned long long)pnp_port_end(dev,
-									    i));
+					   (unsigned long long) res->start,
+					   (unsigned long long) res->end);
 		}
 	}
-	for (i = 0; i < PNP_MAX_MEM; i++) {
-		if (pnp_mem_valid(dev, i)) {
+	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_MEM, i)); i++) {
+		if (pnp_resource_valid(res)) {
 			pnp_printf(buffer, "mem");
-			if (pnp_mem_flags(dev, i) & IORESOURCE_DISABLED)
+			if (res->flags & IORESOURCE_DISABLED)
 				pnp_printf(buffer, " disabled\n");
 			else
 				pnp_printf(buffer, " 0x%llx-0x%llx\n",
-					   (unsigned long long)
-					   pnp_mem_start(dev, i),
-					   (unsigned long long)pnp_mem_end(dev,
-									   i));
+					   (unsigned long long) res->start,
+					   (unsigned long long) res->end);
 		}
 	}
-	for (i = 0; i < PNP_MAX_IRQ; i++) {
-		if (pnp_irq_valid(dev, i)) {
+	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_IRQ, i)); i++) {
+		if (pnp_resource_valid(res)) {
 			pnp_printf(buffer, "irq");
-			if (pnp_irq_flags(dev, i) & IORESOURCE_DISABLED)
+			if (res->flags & IORESOURCE_DISABLED)
 				pnp_printf(buffer, " disabled\n");
 			else
 				pnp_printf(buffer, " %lld\n",
-					   (unsigned long long)pnp_irq(dev, i));
+					   (unsigned long long) res->start);
 		}
 	}
-	for (i = 0; i < PNP_MAX_DMA; i++) {
-		if (pnp_dma_valid(dev, i)) {
+	for (i = 0; (res = pnp_get_resource(dev, IORESOURCE_DMA, i)); i++) {
+		if (pnp_resource_valid(res)) {
 			pnp_printf(buffer, "dma");
-			if (pnp_dma_flags(dev, i) & IORESOURCE_DISABLED)
+			if (res->flags & IORESOURCE_DISABLED)
 				pnp_printf(buffer, " disabled\n");
 			else
 				pnp_printf(buffer, " %lld\n",
-					   (unsigned long long)pnp_dma(dev, i));
+					   (unsigned long long) res->start);
 		}
 	}
 	ret = (buffer->curr - buf);
@@ -323,8 +320,10 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 			  const char *ubuf, size_t count)
 {
 	struct pnp_dev *dev = to_pnp_dev(dmdev);
+	struct pnp_resource *pnp_res;
 	char *buf = (void *)ubuf;
 	int retval = 0;
+	resource_size_t start, end;
 
 	if (dev->status & PNP_ATTACHED) {
 		retval = -EBUSY;
@@ -351,20 +350,20 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 	if (!strnicmp(buf, "auto", 4)) {
 		if (dev->active)
 			goto done;
-		pnp_init_resource_table(&dev->res);
+		pnp_init_resources(dev);
 		retval = pnp_auto_config_dev(dev);
 		goto done;
 	}
 	if (!strnicmp(buf, "clear", 5)) {
 		if (dev->active)
 			goto done;
-		pnp_init_resource_table(&dev->res);
+		pnp_init_resources(dev);
 		goto done;
 	}
 	if (!strnicmp(buf, "get", 3)) {
 		mutex_lock(&pnp_res_mutex);
 		if (pnp_can_read(dev))
-			dev->protocol->get(dev, &dev->res);
+			dev->protocol->get(dev);
 		mutex_unlock(&pnp_res_mutex);
 		goto done;
 	}
@@ -373,7 +372,7 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 		if (dev->active)
 			goto done;
 		buf += 3;
-		pnp_init_resource_table(&dev->res);
+		pnp_init_resources(dev);
 		mutex_lock(&pnp_res_mutex);
 		while (1) {
 			while (isspace(*buf))
@@ -382,76 +381,60 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 				buf += 2;
 				while (isspace(*buf))
 					++buf;
-				dev->res.port_resource[nport].start =
-				    simple_strtoul(buf, &buf, 0);
+				start = simple_strtoul(buf, &buf, 0);
 				while (isspace(*buf))
 					++buf;
 				if (*buf == '-') {
 					buf += 1;
 					while (isspace(*buf))
 						++buf;
-					dev->res.port_resource[nport].end =
-					    simple_strtoul(buf, &buf, 0);
+					end = simple_strtoul(buf, &buf, 0);
 				} else
-					dev->res.port_resource[nport].end =
-					    dev->res.port_resource[nport].start;
-				dev->res.port_resource[nport].flags =
-				    IORESOURCE_IO;
-				nport++;
-				if (nport >= PNP_MAX_PORT)
-					break;
+					end = start;
+				pnp_res = pnp_add_io_resource(dev, start, end,
+							      0);
+				if (pnp_res)
+					pnp_res->index = nport++;
 				continue;
 			}
 			if (!strnicmp(buf, "mem", 3)) {
 				buf += 3;
 				while (isspace(*buf))
 					++buf;
-				dev->res.mem_resource[nmem].start =
-				    simple_strtoul(buf, &buf, 0);
+				start = simple_strtoul(buf, &buf, 0);
 				while (isspace(*buf))
 					++buf;
 				if (*buf == '-') {
 					buf += 1;
 					while (isspace(*buf))
 						++buf;
-					dev->res.mem_resource[nmem].end =
-					    simple_strtoul(buf, &buf, 0);
+					end = simple_strtoul(buf, &buf, 0);
 				} else
-					dev->res.mem_resource[nmem].end =
-					    dev->res.mem_resource[nmem].start;
-				dev->res.mem_resource[nmem].flags =
-				    IORESOURCE_MEM;
-				nmem++;
-				if (nmem >= PNP_MAX_MEM)
-					break;
+					end = start;
+				pnp_res = pnp_add_mem_resource(dev, start, end,
+							       0);
+				if (pnp_res)
+					pnp_res->index = nmem++;
 				continue;
 			}
 			if (!strnicmp(buf, "irq", 3)) {
 				buf += 3;
 				while (isspace(*buf))
 					++buf;
-				dev->res.irq_resource[nirq].start =
-				    dev->res.irq_resource[nirq].end =
-				    simple_strtoul(buf, &buf, 0);
-				dev->res.irq_resource[nirq].flags =
-				    IORESOURCE_IRQ;
-				nirq++;
-				if (nirq >= PNP_MAX_IRQ)
-					break;
+				start = simple_strtoul(buf, &buf, 0);
+				pnp_res = pnp_add_irq_resource(dev, start, 0);
+				if (pnp_res)
+					nirq++;
 				continue;
 			}
 			if (!strnicmp(buf, "dma", 3)) {
 				buf += 3;
 				while (isspace(*buf))
 					++buf;
-				dev->res.dma_resource[ndma].start =
-				    dev->res.dma_resource[ndma].end =
-				    simple_strtoul(buf, &buf, 0);
-				dev->res.dma_resource[ndma].flags =
-				    IORESOURCE_DMA;
-				ndma++;
-				if (ndma >= PNP_MAX_DMA)
-					break;
+				start = simple_strtoul(buf, &buf, 0);
+				pnp_res = pnp_add_dma_resource(dev, start, 0);
+				if (pnp_res)
+					pnp_res->index = ndma++;
 				continue;
 			}
 			break;

@@ -163,14 +163,11 @@ static int sysctl_pm_do_suspend(ctl_table *ctl, int write, struct file *filp,
 	if ((mode != 1) && (mode != 5))
 		return -EINVAL;
 
-	retval = pm_send_all(PM_SUSPEND, (void *)3);
-
 	if (retval == 0) {
 		if (mode == 5)
 		    retval = pm_do_bus_sleep();
 		else
 		    retval = pm_do_suspend();
-		pm_send_all(PM_RESUME, (void *)0);
 	}
 
 	return retval;
@@ -182,9 +179,6 @@ static int try_set_cmode(int new_cmode)
 		return -EINVAL;
 	if (!(clock_cmodes_permitted & (1<<new_cmode)))
 		return -EINVAL;
-
-	/* tell all the drivers we're suspending */
-	pm_send_all(PM_SUSPEND, (void *)3);
 
 	/* now change cmode */
 	local_irq_disable();
@@ -201,8 +195,6 @@ static int try_set_cmode(int new_cmode)
 	frv_dma_resume_all();
 	local_irq_enable();
 
-	/* tell all the drivers we're resuming */
-	pm_send_all(PM_RESUME, (void *)0);
 	return 0;
 }
 

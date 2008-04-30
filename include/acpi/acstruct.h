@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,12 +80,15 @@ struct acpi_walk_state {
 	u16 opcode;		/* Current AML opcode */
 	u8 next_op_info;	/* Info about next_op */
 	u8 num_operands;	/* Stack pointer for Operands[] array */
+	u8 operand_index;	/* Index into operand stack, to be used by acpi_ds_obj_stack_push */
 	acpi_owner_id owner_id;	/* Owner of objects created during the walk */
 	u8 last_predicate;	/* Result of last predicate */
 	u8 current_result;
 	u8 return_used;
 	u8 scope_depth;
 	u8 pass_number;		/* Parse pass during table load */
+	u8 result_size;		/* Total elements for the result stack */
+	u8 result_count;	/* Current number of occupied elements of result stack */
 	u32 aml_offset;
 	u32 arg_types;
 	u32 method_breakpoint;	/* For single stepping */

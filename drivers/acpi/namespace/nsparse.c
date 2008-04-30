@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,8 @@ ACPI_MODULE_NAME("nsparse")
  ******************************************************************************/
 acpi_status
 acpi_ns_one_complete_parse(acpi_native_uint pass_number,
-			   acpi_native_uint table_index)
+			   acpi_native_uint table_index,
+			   struct acpi_namespace_node * start_node)
 {
 	union acpi_parse_object *parse_root;
 	acpi_status status;
@@ -111,14 +112,25 @@ acpi_ns_one_complete_parse(acpi_native_uint pass_number,
 		aml_start = (u8 *) table + sizeof(struct acpi_table_header);
 		aml_length = table->length - sizeof(struct acpi_table_header);
 		status = acpi_ds_init_aml_walk(walk_state, parse_root, NULL,
-					       aml_start, aml_length, NULL,
-					       (u8) pass_number);
+					       aml_start, (u32) aml_length,
+					       NULL, (u8) pass_number);
 	}
 
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_delete_walk_state(walk_state);
-		acpi_ps_delete_parse_tree(parse_root);
-		return_ACPI_STATUS(status);
+		goto cleanup;
+	}
+
+	/* start_node is the default location to load the table */
+
+	if (start_node && start_node != acpi_gbl_root_node) {
+		status =
+		    acpi_ds_scope_stack_push(start_node, ACPI_TYPE_METHOD,
+					     walk_state);
+		if (ACPI_FAILURE(status)) {
+			acpi_ds_delete_walk_state(walk_state);
+			goto cleanup;
+		}
 	}
 
 	/* Parse the AML */
@@ -127,6 +139,7 @@ acpi_ns_one_complete_parse(acpi_native_uint pass_number,
 			  (unsigned)pass_number));
 	status = acpi_ps_parse_aml(walk_state);
 
+      cleanup:
 	acpi_ps_delete_parse_tree(parse_root);
 	return_ACPI_STATUS(status);
 }
@@ -163,7 +176,9 @@ acpi_ns_parse_table(acpi_native_uint table_index,
 	 * performs another complete parse of the AML.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 1\n"));
-	status = acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS1, table_index);
+	status =
+	    acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS1, table_index,
+				       start_node);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -178,7 +193,9 @@ acpi_ns_parse_table(acpi_native_uint table_index,
 	 * parse objects are all cached.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 2\n"));
-	status = acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS2, table_index);
+	status =
+	    acpi_ns_one_complete_parse(ACPI_IMODE_LOAD_PASS2, table_index,
+				       start_node);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}

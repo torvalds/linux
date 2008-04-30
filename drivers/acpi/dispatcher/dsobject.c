@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -157,7 +157,9 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 			 * will remain as named references. This behavior is not described
 			 * in the ACPI spec, but it appears to be an oversight.
 			 */
-			obj_desc = (union acpi_operand_object *)op->common.node;
+			obj_desc =
+			    ACPI_CAST_PTR(union acpi_operand_object,
+					  op->common.node);
 
 			status =
 			    acpi_ex_resolve_node_to_value(ACPI_CAST_INDIRECT_PTR
@@ -172,7 +174,19 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 			switch (op->common.node->type) {
 				/*
 				 * For these types, we need the actual node, not the subobject.
-				 * However, the subobject got an extra reference count above.
+				 * However, the subobject did not get an extra reference count above.
+				 *
+				 * TBD: should ex_resolve_node_to_value be changed to fix this?
+				 */
+			case ACPI_TYPE_DEVICE:
+			case ACPI_TYPE_THERMAL:
+
+				acpi_ut_add_reference(op->common.node->object);
+
+				/*lint -fallthrough */
+				/*
+				 * For these types, we need the actual node, not the subobject.
+				 * The subobject got an extra reference count in ex_resolve_node_to_value.
 				 */
 			case ACPI_TYPE_MUTEX:
 			case ACPI_TYPE_METHOD:
@@ -180,25 +194,15 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 			case ACPI_TYPE_PROCESSOR:
 			case ACPI_TYPE_EVENT:
 			case ACPI_TYPE_REGION:
-			case ACPI_TYPE_DEVICE:
-			case ACPI_TYPE_THERMAL:
 
-				obj_desc =
-				    (union acpi_operand_object *)op->common.
-				    node;
+				/* We will create a reference object for these types below */
 				break;
 
 			default:
-				break;
-			}
-
-			/*
-			 * If above resolved to an operand object, we are done. Otherwise,
-			 * we have a NS node, we must create the package entry as a named
-			 * reference.
-			 */
-			if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) !=
-			    ACPI_DESC_TYPE_NAMED) {
+				/*
+				 * All other types - the node was resolved to an actual
+				 * object, we are done.
+				 */
 				goto exit;
 			}
 		}
@@ -223,7 +227,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 
       exit:
 	*obj_desc_ptr = obj_desc;
-	return_ACPI_STATUS(AE_OK);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
@@ -369,7 +373,9 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	union acpi_parse_object *parent;
 	union acpi_operand_object *obj_desc = NULL;
 	acpi_status status = AE_OK;
-	acpi_native_uint i;
+	unsigned i;
+	u16 index;
+	u16 reference_count;
 
 	ACPI_FUNCTION_TRACE(ds_build_internal_package_obj);
 
@@ -447,13 +453,60 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 							       package.
 							       elements[i]);
 		}
+
+		if (*obj_desc_ptr) {
+
+			/* Existing package, get existing reference count */
+
+			reference_count =
+			    (*obj_desc_ptr)->common.reference_count;
+			if (reference_count > 1) {
+
+				/* Make new element ref count match original ref count */
+
+				for (index = 0; index < (reference_count - 1);
+				     index++) {
+					acpi_ut_add_reference((obj_desc->
+							       package.
+							       elements[i]));
+				}
+			}
+		}
+
 		arg = arg->common.next;
 	}
 
-	if (!arg) {
+	/* Check for match between num_elements and actual length of package_list */
+
+	if (arg) {
+		/*
+		 * num_elements was exhausted, but there are remaining elements in the
+		 * package_list.
+		 *
+		 * Note: technically, this is an error, from ACPI spec: "It is an error
+		 * for NumElements to be less than the number of elements in the
+		 * PackageList". However, for now, we just print an error message and
+		 * no exception is returned.
+		 */
+		while (arg) {
+
+			/* Find out how many elements there really are */
+
+			i++;
+			arg = arg->common.next;
+		}
+
+		ACPI_ERROR((AE_INFO,
+			    "Package List length (%X) larger than NumElements count (%X), truncated\n",
+			    i, element_count));
+	} else if (i < element_count) {
+		/*
+		 * Arg list (elements) was exhausted, but we did not reach num_elements count.
+		 * Note: this is not an error, the package is padded out with NULLs.
+		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Package List length larger than NumElements count (%X), truncated\n",
-				  element_count));
+				  "Package List length (%X) smaller than NumElements count (%X), padded with null elements\n",
+				  i, element_count));
 	}
 
 	obj_desc->package.flags |= AOPOBJ_DATA_VALID;
@@ -721,6 +774,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 				/* Node was saved in Op */
 
 				obj_desc->reference.node = op->common.node;
+				obj_desc->reference.object =
+				    op->common.node->object;
 			}
 
 			obj_desc->reference.opcode = opcode;

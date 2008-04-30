@@ -1533,6 +1533,13 @@ L:	bluesmoke-devel@lists.sourceforge.net
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 
+EEEPC LAPTOP EXTRAS DRIVER
+P:	Corentin Chary
+M:	corentincj@iksaif.net
+L:	acpi4asus-user@lists.sourceforge.net
+W:	http://sourceforge.net/projects/acpi4asus
+S:	Maintained
+
 EEPRO100 NETWORK DRIVER
 P:	Andrey V. Savochkin
 M:	saw@saw.sw.com.sg
