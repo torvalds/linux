@@ -52,6 +52,7 @@ struct backing_dev_info {
 	int dirty_exceeded;
 
 	unsigned int min_ratio;
+	unsigned int max_ratio, max_prop_frac;
 
 	struct device *dev;
 };
@@ -140,6 +141,7 @@ static inline unsigned long bdi_stat_error(struct backing_dev_info *bdi)
 }
 
 int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio);
+int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
 
 /*
  * Flags in backing_dev_info::capability

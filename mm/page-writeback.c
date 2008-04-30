@@ -164,7 +164,8 @@ int dirty_ratio_handler(struct ctl_table *table, int write,
  */
 static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
 {
-	__prop_inc_percpu(&vm_completions, &bdi->completions);
+	__prop_inc_percpu_max(&vm_completions, &bdi->completions,
+			      bdi->max_prop_frac);
 }
 
 static inline void task_dirty_inc(struct task_struct *tsk)
@@ -254,16 +255,42 @@ int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bdi_lock, flags);
-	min_ratio -= bdi->min_ratio;
-	if (bdi_min_ratio + min_ratio < 100) {
-		bdi_min_ratio += min_ratio;
-		bdi->min_ratio += min_ratio;
-	} else
+	if (min_ratio > bdi->max_ratio) {
 		ret = -EINVAL;
+	} else {
+		min_ratio -= bdi->min_ratio;
+		if (bdi_min_ratio + min_ratio < 100) {
+			bdi_min_ratio += min_ratio;
+			bdi->min_ratio += min_ratio;
+		} else {
+			ret = -EINVAL;
+		}
+	}
 	spin_unlock_irqrestore(&bdi_lock, flags);
 
 	return ret;
 }
+
+int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned max_ratio)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	if (max_ratio > 100)
+		return -EINVAL;
+
+	spin_lock_irqsave(&bdi_lock, flags);
+	if (bdi->min_ratio > max_ratio) {
+		ret = -EINVAL;
+	} else {
+		bdi->max_ratio = max_ratio;
+		bdi->max_prop_frac = (PROP_FRAC_BASE * max_ratio) / 100;
+	}
+	spin_unlock_irqrestore(&bdi_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(bdi_set_max_ratio);
 
 /*
  * Work out the current dirty-memory clamping and background writeout
@@ -365,6 +392,8 @@ get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
 		bdi_dirty *= numerator;
 		do_div(bdi_dirty, denominator);
 		bdi_dirty += (dirty * bdi->min_ratio) / 100;
+		if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
+			bdi_dirty = dirty * bdi->max_ratio / 100;
 
 		*pbdi_dirty = bdi_dirty;
 		clip_bdi_dirty_limit(bdi, dirty, pbdi_dirty);

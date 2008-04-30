@@ -49,4 +49,11 @@ min_ratio (read-write)
 	Minimal percentage of global dirty threshold allocated to this
 	bdi.  If the value written to this file would make the the sum
 	of all min_ratio values exceed 100, then EINVAL is returned.
-	The default is zero
+	If min_ratio would become larger than the current max_ratio,
+	then also EINVAL is returned.  The default is zero
+
+max_ratio (read-write)
+
+	Maximal percentage of global dirty threshold allocated to this
+	bdi.  If max_ratio would become smaller than the current
+	min_ratio, then EINVAL is returned.  The default is 100

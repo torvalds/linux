@@ -78,6 +78,19 @@ void prop_inc_percpu(struct prop_descriptor *pd, struct prop_local_percpu *pl)
 }
 
 /*
+ * Limit the time part in order to ensure there are some bits left for the
+ * cycle counter and fraction multiply.
+ */
+#define PROP_MAX_SHIFT (3*BITS_PER_LONG/4)
+
+#define PROP_FRAC_SHIFT		(BITS_PER_LONG - PROP_MAX_SHIFT - 1)
+#define PROP_FRAC_BASE		(1UL << PROP_FRAC_SHIFT)
+
+void __prop_inc_percpu_max(struct prop_descriptor *pd,
+			   struct prop_local_percpu *pl, long frac);
+
+
+/*
  * ----- SINGLE ------
  */
 
