@@ -423,7 +423,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	vhdr->last_mount_vers = cpu_to_be32(HFSP_MOUNT_VERSION);
 	vhdr->modify_date = hfsp_now2mt();
-	vhdr->write_count = cpu_to_be32(be32_to_cpu(vhdr->write_count) + 1);
+	be32_add_cpu(&vhdr->write_count, 1);
 	vhdr->attributes &= cpu_to_be32(~HFSPLUS_VOL_UNMNT);
 	vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_INCNSTNT);
 	mark_buffer_dirty(HFSPLUS_SB(sb).s_vhbh);
