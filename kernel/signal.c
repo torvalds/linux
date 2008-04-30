@@ -826,7 +826,8 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 
 out_set:
 	sigaddset(&pending->signal, sig);
-	return 1;
+	complete_signal(sig, t, group);
+	return 0;
 }
 
 int print_fatal_signals;
@@ -861,17 +862,16 @@ static int __init setup_print_fatal_signals(char *str)
 
 __setup("print-fatal-signals=", setup_print_fatal_signals);
 
+int
+__group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
+{
+	return send_signal(sig, info, p, 1);
+}
+
 static int
 specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 {
-	int ret;
-
-	ret = send_signal(sig, info, t, 0);
-	if (ret <= 0)
-		return ret;
-
-	complete_signal(sig, t, 0);
-	return 0;
+	return send_signal(sig, info, t, 0);
 }
 
 /*
@@ -912,24 +912,6 @@ void
 force_sig_specific(int sig, struct task_struct *t)
 {
 	force_sig_info(sig, SEND_SIG_FORCED, t);
-}
-
-int
-__group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
-{
-	int ret;
-
-	/*
-	 * Put this signal on the shared-pending queue, or fail with EAGAIN.
-	 * We always use the shared queue for process-wide signals,
-	 * to avoid several races.
-	 */
-	ret = send_signal(sig, info, p, 1);
-	if (ret <= 0)
-		return ret;
-
-	complete_signal(sig, p, 1);
-	return 0;
 }
 
 /*
@@ -1263,6 +1245,7 @@ static int do_send_sigqueue(int sig, struct sigqueue *q, struct task_struct *t,
 {
 	struct sigpending *pending;
 
+	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
 	handle_stop_signal(sig, t);
 
 	if (unlikely(!list_empty(&q->list))) {
@@ -1283,6 +1266,7 @@ static int do_send_sigqueue(int sig, struct sigqueue *q, struct task_struct *t,
 	pending = group ? &t->signal->shared_pending : &t->pending;
 	list_add_tail(&q->list, &pending->list);
 	sigaddset(&pending->signal, sig);
+	complete_signal(sig, t, group);
 
 	return 0;
 }
@@ -1291,8 +1275,6 @@ int send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 {
 	unsigned long flags;
 	int ret = -1;
-
-	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
 
 	/*
 	 * The rcu based delayed sighand destroy makes it possible to
@@ -1307,8 +1289,6 @@ int send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 
 	ret = do_send_sigqueue(sig, q, p, 0);
 
-	complete_signal(sig, p, 0);
-
 	unlock_task_sighand(p, &flags);
 out_err:
 	return ret;
@@ -1320,14 +1300,10 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	unsigned long flags;
 	int ret;
 
-	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
-
 	/* Since it_lock is held, p->sighand cannot be NULL. */
 	spin_lock_irqsave(&p->sighand->siglock, flags);
 
 	ret = do_send_sigqueue(sig, q, p, 1);
-
-	complete_signal(sig, p, 1);
 
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
 
