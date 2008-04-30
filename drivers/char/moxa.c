@@ -961,6 +961,9 @@ static int __devinit moxa_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, board);
 
+	dev_info(&pdev->dev, "board '%s' ready (%u ports, firmware loaded)\n",
+			moxa_brdname[board_type - 1], board->numPorts);
+
 	return 0;
 err_base:
 	iounmap(board->basemem);
@@ -1046,6 +1049,10 @@ static int __init moxa_init(void)
 				brd->basemem = NULL;
 				continue;
 			}
+
+			printk(KERN_INFO "MOXA isa board found at 0x%.8lu and "
+					"ready (%u ports, firmware loaded)\n",
+					baseaddr[i], brd->numPorts);
 
 			brd++;
 			isabrds++;
