@@ -10,13 +10,33 @@
  * right.  Documentation is available at initio's website but it only
  * documents registers (not programming model).
  *
- * - ATA disks work.
- * - Hotplug works.
- * - ATAPI read works but burning doesn't.  This thing is really
- *   peculiar about ATAPI and I couldn't figure out how ATAPI PIO and
- *   ATAPI DMA WRITE should be programmed.  If you've got a clue, be
- *   my guest.
- * - Both STR and STD work.
+ * This driver has interesting history.  The first version was written
+ * from the documentation and a 2.4 IDE driver posted on a Taiwan
+ * company, which didn't use any IDMA features and couldn't handle
+ * LBA48.  The resulting driver couldn't handle LBA48 devices either
+ * making it pretty useless.
+ *
+ * After a while, initio picked the driver up, renamed it to
+ * sata_initio162x, updated it to use IDMA for ATA DMA commands and
+ * posted it on their website.  It only used ATA_PROT_DMA for IDMA and
+ * attaching both devices and issuing IDMA and !IDMA commands
+ * simultaneously broke it due to PIRQ masking interaction but it did
+ * show how to use the IDMA (ADMA + some initio specific twists)
+ * engine.
+ *
+ * Then, I picked up their changes again and here's the usable driver
+ * which uses IDMA for everything.  Everything works now including
+ * LBA48, CD/DVD burning, suspend/resume and hotplug.  There are some
+ * issues tho.  Result Tf is not resported properly, NCQ isn't
+ * supported yet and CD/DVD writing works with DMA assisted PIO
+ * protocol (which, for native SATA devices, shouldn't cause any
+ * noticeable difference).
+ *
+ * Anyways, so, here's finally a working driver for inic162x.  Enjoy!
+ *
+ * initio: If you guys wanna improve the driver regarding result TF
+ * access and other stuff, please feel free to contact me.  I'll be
+ * happy to assist.
  */
 
 #include <linux/kernel.h>
@@ -28,7 +48,7 @@
 #include <scsi/scsi_device.h>
 
 #define DRV_NAME	"sata_inic162x"
-#define DRV_VERSION	"0.3"
+#define DRV_VERSION	"0.4"
 
 enum {
 	MMIO_BAR_PCI		= 5,

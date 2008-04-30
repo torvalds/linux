@@ -205,8 +205,8 @@ config SATA_VITESSE
 	  If unsure, say N.
 
 config SATA_INIC162X
-	tristate "Initio 162x SATA support (HIGHLY EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Initio 162x SATA support"
+	depends on PCI
 	help
 	  This option enables support for Initio 162x Serial ATA.
 
