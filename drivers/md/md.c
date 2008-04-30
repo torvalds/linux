@@ -2097,7 +2097,7 @@ rdev_attr_store(struct kobject *kobj, struct attribute *attr,
 			rv = -EBUSY;
 		else
 			rv = entry->store(rdev, page, length);
-		mddev_unlock(rdev->mddev);
+		mddev_unlock(mddev);
 	}
 	return rv;
 }
