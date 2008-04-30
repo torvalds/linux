@@ -978,8 +978,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 		goto out;
 
 	if (task_pgrp(p) != pgrp) {
-		detach_pid(p, PIDTYPE_PGID);
-		attach_pid(p, PIDTYPE_PGID, pgrp);
+		change_pid(p, PIDTYPE_PGID, pgrp);
 		set_task_pgrp(p, pid_nr(pgrp));
 	}
 
