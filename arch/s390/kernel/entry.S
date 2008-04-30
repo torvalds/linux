@@ -49,9 +49,9 @@ SP_ILC	     =	STACK_FRAME_OVERHEAD + __PT_ILC
 SP_TRAP      =	STACK_FRAME_OVERHEAD + __PT_TRAP
 SP_SIZE      =	STACK_FRAME_OVERHEAD + __PT_SIZE
 
-_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK | _TIF_NEED_RESCHED | \
+_TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING | _TIF_RESTART_SVC | _TIF_SINGLE_STEP )
-_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK | _TIF_NEED_RESCHED | \
+_TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING)
 
 STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
@@ -316,7 +316,7 @@ sysc_work:
 	bo	BASED(sysc_mcck_pending)
 	tm	__TI_flags+3(%r9),_TIF_NEED_RESCHED
 	bo	BASED(sysc_reschedule)
-	tm	__TI_flags+3(%r9),(_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK)
+	tm	__TI_flags+3(%r9),_TIF_SIGPENDING
 	bnz	BASED(sysc_sigpending)
 	tm	__TI_flags+3(%r9),_TIF_RESTART_SVC
 	bo	BASED(sysc_restart)
@@ -342,7 +342,7 @@ sysc_mcck_pending:
 	br	%r1			# TIF bit will be cleared by handler
 
 #
-# _TIF_SIGPENDING or _TIF_RESTORE_SIGMASK is set, call do_signal
+# _TIF_SIGPENDING is set, call do_signal
 #
 sysc_sigpending:
 	ni	__TI_flags+3(%r9),255-_TIF_SINGLE_STEP # clear TIF_SINGLE_STEP
@@ -657,7 +657,7 @@ io_work:
 	lr	%r15,%r1
 #
 # One of the work bits is on. Find out which one.
-# Checked are: _TIF_SIGPENDING, _TIF_RESTORE_SIGMASK, _TIF_NEED_RESCHED
+# Checked are: _TIF_SIGPENDING, _TIF_NEED_RESCHED
 #		and _TIF_MCCK_PENDING
 #
 io_work_loop:
@@ -665,7 +665,7 @@ io_work_loop:
 	bo	BASED(io_mcck_pending)
 	tm	__TI_flags+3(%r9),_TIF_NEED_RESCHED
 	bo	BASED(io_reschedule)
-	tm	__TI_flags+3(%r9),(_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK)
+	tm	__TI_flags+3(%r9),_TIF_SIGPENDING
 	bnz	BASED(io_sigpending)
 	b	BASED(io_restore)
 io_work_done:
@@ -693,7 +693,7 @@ io_reschedule:
 	b	BASED(io_work_loop)
 
 #
-# _TIF_SIGPENDING or _TIF_RESTORE_SIGMASK is set, call do_signal
+# _TIF_SIGPENDING is set, call do_signal
 #
 io_sigpending:
 	TRACE_IRQS_ON
