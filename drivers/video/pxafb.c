@@ -40,6 +40,8 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/completion.h>
+#include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -455,7 +457,7 @@ static int pxafb_mmap(struct fb_info *info,
 	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
 
 	if (off < info->fix.smem_len) {
-		vma->vm_pgoff += 1;
+		vma->vm_pgoff += fbi->video_offset / PAGE_SIZE;
 		return dma_mmap_writecombine(fbi->dev, vma, fbi->map_cpu,
 					     fbi->map_dma, fbi->map_size);
 	}
@@ -594,6 +596,183 @@ static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
 	return 0;
 }
 
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+static int setup_smart_dma(struct pxafb_info *fbi)
+{
+	struct pxafb_dma_descriptor *dma_desc;
+	unsigned long dma_desc_off, cmd_buff_off;
+
+	dma_desc = &fbi->dma_buff->dma_desc[DMA_CMD];
+	dma_desc_off = offsetof(struct pxafb_dma_buff, dma_desc[DMA_CMD]);
+	cmd_buff_off = offsetof(struct pxafb_dma_buff, cmd_buff);
+
+	dma_desc->fdadr = fbi->dma_buff_phys + dma_desc_off;
+	dma_desc->fsadr = fbi->dma_buff_phys + cmd_buff_off;
+	dma_desc->fidr  = 0;
+	dma_desc->ldcmd = fbi->n_smart_cmds * sizeof(uint16_t);
+
+	fbi->fdadr[DMA_CMD] = dma_desc->fdadr;
+	return 0;
+}
+
+int pxafb_smart_flush(struct fb_info *info)
+{
+	struct pxafb_info *fbi = container_of(info, struct pxafb_info, fb);
+	uint32_t prsr;
+	int ret = 0;
+
+	/* disable controller until all registers are set up */
+	lcd_writel(fbi, LCCR0, fbi->reg_lccr0 & ~LCCR0_ENB);
+
+	/* 1. make it an even number of commands to align on 32-bit boundary
+	 * 2. add the interrupt command to the end of the chain so we can
+	 *    keep track of the end of the transfer
+	 */
+
+	while (fbi->n_smart_cmds & 1)
+		fbi->smart_cmds[fbi->n_smart_cmds++] = SMART_CMD_NOOP;
+
+	fbi->smart_cmds[fbi->n_smart_cmds++] = SMART_CMD_INTERRUPT;
+	fbi->smart_cmds[fbi->n_smart_cmds++] = SMART_CMD_WAIT_FOR_VSYNC;
+	setup_smart_dma(fbi);
+
+	/* continue to execute next command */
+	prsr = lcd_readl(fbi, PRSR) | PRSR_ST_OK | PRSR_CON_NT;
+	lcd_writel(fbi, PRSR, prsr);
+
+	/* stop the processor in case it executed "wait for sync" cmd */
+	lcd_writel(fbi, CMDCR, 0x0001);
+
+	/* don't send interrupts for fifo underruns on channel 6 */
+	lcd_writel(fbi, LCCR5, LCCR5_IUM(6));
+
+	lcd_writel(fbi, LCCR1, fbi->reg_lccr1);
+	lcd_writel(fbi, LCCR2, fbi->reg_lccr2);
+	lcd_writel(fbi, LCCR3, fbi->reg_lccr3);
+	lcd_writel(fbi, FDADR0, fbi->fdadr[0]);
+	lcd_writel(fbi, FDADR6, fbi->fdadr[6]);
+
+	/* begin sending */
+	lcd_writel(fbi, LCCR0, fbi->reg_lccr0 | LCCR0_ENB);
+
+	if (wait_for_completion_timeout(&fbi->command_done, HZ/2) == 0) {
+		pr_warning("%s: timeout waiting for command done\n",
+				__func__);
+		ret = -ETIMEDOUT;
+	}
+
+	/* quick disable */
+	prsr = lcd_readl(fbi, PRSR) & ~(PRSR_ST_OK | PRSR_CON_NT);
+	lcd_writel(fbi, PRSR, prsr);
+	lcd_writel(fbi, LCCR0, fbi->reg_lccr0 & ~LCCR0_ENB);
+	lcd_writel(fbi, FDADR6, 0);
+	fbi->n_smart_cmds = 0;
+	return ret;
+}
+
+int pxafb_smart_queue(struct fb_info *info, uint16_t *cmds, int n_cmds)
+{
+	int i;
+	struct pxafb_info *fbi = container_of(info, struct pxafb_info, fb);
+
+	/* leave 2 commands for INTERRUPT and WAIT_FOR_SYNC */
+	for (i = 0; i < n_cmds; i++) {
+		if (fbi->n_smart_cmds == CMD_BUFF_SIZE - 8)
+			pxafb_smart_flush(info);
+
+		fbi->smart_cmds[fbi->n_smart_cmds++] = *cmds++;
+	}
+
+	return 0;
+}
+
+static unsigned int __smart_timing(unsigned time_ns, unsigned long lcd_clk)
+{
+	unsigned int t = (time_ns * (lcd_clk / 1000000) / 1000);
+	return (t == 0) ? 1 : t;
+}
+
+static void setup_smart_timing(struct pxafb_info *fbi,
+				struct fb_var_screeninfo *var)
+{
+	struct pxafb_mach_info *inf = fbi->dev->platform_data;
+	struct pxafb_mode_info *mode = &inf->modes[0];
+	unsigned long lclk = clk_get_rate(fbi->clk);
+	unsigned t1, t2, t3, t4;
+
+	t1 = max(mode->a0csrd_set_hld, mode->a0cswr_set_hld);
+	t2 = max(mode->rd_pulse_width, mode->wr_pulse_width);
+	t3 = mode->op_hold_time;
+	t4 = mode->cmd_inh_time;
+
+	fbi->reg_lccr1 =
+		LCCR1_DisWdth(var->xres) |
+		LCCR1_BegLnDel(__smart_timing(t1, lclk)) |
+		LCCR1_EndLnDel(__smart_timing(t2, lclk)) |
+		LCCR1_HorSnchWdth(__smart_timing(t3, lclk));
+
+	fbi->reg_lccr2 = LCCR2_DisHght(var->yres);
+	fbi->reg_lccr3 = LCCR3_PixClkDiv(__smart_timing(t4, lclk));
+
+	/* FIXME: make this configurable */
+	fbi->reg_cmdcr = 1;
+}
+
+static int pxafb_smart_thread(void *arg)
+{
+	struct pxafb_info *fbi = (struct pxafb_info *) arg;
+	struct pxafb_mach_info *inf = fbi->dev->platform_data;
+
+	if (!fbi || !inf->smart_update) {
+		pr_err("%s: not properly initialized, thread terminated\n",
+				__func__);
+		return -EINVAL;
+	}
+
+	pr_debug("%s(): task starting\n", __func__);
+
+	set_freezable();
+	while (!kthread_should_stop()) {
+
+		if (try_to_freeze())
+			continue;
+
+		if (fbi->state == C_ENABLE) {
+			inf->smart_update(&fbi->fb);
+			complete(&fbi->refresh_done);
+		}
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(30 * HZ / 1000);
+	}
+
+	pr_debug("%s(): task ending\n", __func__);
+	return 0;
+}
+
+static int pxafb_smart_init(struct pxafb_info *fbi)
+{
+	fbi->smart_thread = kthread_run(pxafb_smart_thread, fbi,
+					"lcd_refresh");
+	if (IS_ERR(fbi->smart_thread)) {
+		printk(KERN_ERR "%s: unable to create kernel thread\n",
+				__func__);
+		return PTR_ERR(fbi->smart_thread);
+	}
+	return 0;
+}
+#else
+int pxafb_smart_queue(struct fb_info *info, uint16_t *cmds, int n_cmds)
+{
+	return 0;
+}
+
+int pxafb_smart_flush(struct fb_info *info)
+{
+	return 0;
+}
+#endif /* CONFIG_FB_SMART_PANEL */
+
 static void setup_parallel_timing(struct pxafb_info *fbi,
 				  struct fb_var_screeninfo *var)
 {
@@ -643,47 +822,55 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 	size_t nbytes;
 
 #if DEBUG_VAR
-	if (var->xres < 16 || var->xres > 1024)
-		printk(KERN_ERR "%s: invalid xres %d\n",
-			fbi->fb.fix.id, var->xres);
-	switch (var->bits_per_pixel) {
-	case 1:
-	case 2:
-	case 4:
-	case 8:
-	case 16:
-		break;
-	default:
-		printk(KERN_ERR "%s: invalid bit depth %d\n",
-		       fbi->fb.fix.id, var->bits_per_pixel);
-		break;
+	if (!(fbi->lccr0 & LCCR0_LCDT)) {
+		if (var->xres < 16 || var->xres > 1024)
+			printk(KERN_ERR "%s: invalid xres %d\n",
+				fbi->fb.fix.id, var->xres);
+		switch (var->bits_per_pixel) {
+		case 1:
+		case 2:
+		case 4:
+		case 8:
+		case 16:
+			break;
+		default:
+			printk(KERN_ERR "%s: invalid bit depth %d\n",
+			       fbi->fb.fix.id, var->bits_per_pixel);
+			break;
+		}
+
+		if (var->hsync_len < 1 || var->hsync_len > 64)
+			printk(KERN_ERR "%s: invalid hsync_len %d\n",
+				fbi->fb.fix.id, var->hsync_len);
+		if (var->left_margin < 1 || var->left_margin > 255)
+			printk(KERN_ERR "%s: invalid left_margin %d\n",
+				fbi->fb.fix.id, var->left_margin);
+		if (var->right_margin < 1 || var->right_margin > 255)
+			printk(KERN_ERR "%s: invalid right_margin %d\n",
+				fbi->fb.fix.id, var->right_margin);
+		if (var->yres < 1 || var->yres > 1024)
+			printk(KERN_ERR "%s: invalid yres %d\n",
+				fbi->fb.fix.id, var->yres);
+		if (var->vsync_len < 1 || var->vsync_len > 64)
+			printk(KERN_ERR "%s: invalid vsync_len %d\n",
+				fbi->fb.fix.id, var->vsync_len);
+		if (var->upper_margin < 0 || var->upper_margin > 255)
+			printk(KERN_ERR "%s: invalid upper_margin %d\n",
+				fbi->fb.fix.id, var->upper_margin);
+		if (var->lower_margin < 0 || var->lower_margin > 255)
+			printk(KERN_ERR "%s: invalid lower_margin %d\n",
+				fbi->fb.fix.id, var->lower_margin);
 	}
-	if (var->hsync_len < 1 || var->hsync_len > 64)
-		printk(KERN_ERR "%s: invalid hsync_len %d\n",
-			fbi->fb.fix.id, var->hsync_len);
-	if (var->left_margin < 1 || var->left_margin > 255)
-		printk(KERN_ERR "%s: invalid left_margin %d\n",
-			fbi->fb.fix.id, var->left_margin);
-	if (var->right_margin < 1 || var->right_margin > 255)
-		printk(KERN_ERR "%s: invalid right_margin %d\n",
-			fbi->fb.fix.id, var->right_margin);
-	if (var->yres < 1 || var->yres > 1024)
-		printk(KERN_ERR "%s: invalid yres %d\n",
-			fbi->fb.fix.id, var->yres);
-	if (var->vsync_len < 1 || var->vsync_len > 64)
-		printk(KERN_ERR "%s: invalid vsync_len %d\n",
-			fbi->fb.fix.id, var->vsync_len);
-	if (var->upper_margin < 0 || var->upper_margin > 255)
-		printk(KERN_ERR "%s: invalid upper_margin %d\n",
-			fbi->fb.fix.id, var->upper_margin);
-	if (var->lower_margin < 0 || var->lower_margin > 255)
-		printk(KERN_ERR "%s: invalid lower_margin %d\n",
-			fbi->fb.fix.id, var->lower_margin);
 #endif
 	/* Update shadow copy atomically */
 	local_irq_save(flags);
 
-	setup_parallel_timing(fbi, var);
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	if (fbi->lccr0 & LCCR0_LCDT)
+		setup_smart_timing(fbi, var);
+	else
+#endif
+		setup_parallel_timing(fbi, var);
 
 	fbi->reg_lccr0 = fbi->lccr0 |
 		(LCCR0_LDM | LCCR0_SFM | LCCR0_IUM | LCCR0_EFM |
@@ -698,7 +885,7 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 		setup_frame_dma(fbi, DMA_LOWER, PAL_NONE, nbytes, nbytes);
 	}
 
-	if (var->bits_per_pixel >= 16)
+	if ((var->bits_per_pixel >= 16) || (fbi->lccr0 & LCCR0_LCDT))
 		setup_frame_dma(fbi, DMA_BASE, PAL_NONE, 0, nbytes);
 	else
 		setup_frame_dma(fbi, DMA_BASE, PAL_BASE, 0, nbytes);
@@ -801,6 +988,9 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 	/* enable LCD controller clock */
 	clk_enable(fbi->clk);
 
+	if (fbi->lccr0 & LCCR0_LCDT)
+		return;
+
 	/* Sequence from 11.7.10 */
 	lcd_writel(fbi, LCCR3, fbi->reg_lccr3);
 	lcd_writel(fbi, LCCR2, fbi->reg_lccr2);
@@ -815,6 +1005,14 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 static void pxafb_disable_controller(struct pxafb_info *fbi)
 {
 	uint32_t lccr0;
+
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	if (fbi->lccr0 & LCCR0_LCDT) {
+		wait_for_completion_timeout(&fbi->refresh_done,
+				200 * HZ / 1000);
+		return;
+	}
+#endif
 
 	/* Clear LCD Status Register */
 	lcd_writel(fbi, LCSR, 0xffffffff);
@@ -842,6 +1040,11 @@ static irqreturn_t pxafb_handle_irq(int irq, void *dev_id)
 		lcd_writel(fbi, LCCR0, lccr0 | LCCR0_LDM);
 		complete(&fbi->disable_done);
 	}
+
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	if (lcsr & LCSR_CMD_INT)
+		complete(&fbi->command_done);
+#endif
 
 	lcd_writel(fbi, LCSR, lcsr);
 	return IRQ_HANDLED;
@@ -1050,15 +1253,17 @@ static int __init pxafb_map_video_memory(struct pxafb_info *fbi)
 	 * We reserve one page for the palette, plus the size
 	 * of the framebuffer.
 	 */
-	fbi->map_size = PAGE_ALIGN(fbi->fb.fix.smem_len + PAGE_SIZE);
+	fbi->video_offset = PAGE_ALIGN(sizeof(struct pxafb_dma_buff));
+	fbi->map_size = PAGE_ALIGN(fbi->fb.fix.smem_len + fbi->video_offset);
 	fbi->map_cpu = dma_alloc_writecombine(fbi->dev, fbi->map_size,
 					      &fbi->map_dma, GFP_KERNEL);
 
 	if (fbi->map_cpu) {
 		/* prevent initial garbage on screen */
 		memset(fbi->map_cpu, 0, fbi->map_size);
-		fbi->fb.screen_base = fbi->map_cpu + PAGE_SIZE;
-		fbi->screen_dma = fbi->map_dma + PAGE_SIZE;
+		fbi->fb.screen_base = fbi->map_cpu + fbi->video_offset;
+		fbi->screen_dma = fbi->map_dma + fbi->video_offset;
+
 		/*
 		 * FIXME: this is actually the wrong thing to place in
 		 * smem_start.  But fbdev suffers from the problem that
@@ -1068,9 +1273,14 @@ static int __init pxafb_map_video_memory(struct pxafb_info *fbi)
 		fbi->fb.fix.smem_start = fbi->screen_dma;
 		fbi->palette_size = fbi->fb.var.bits_per_pixel == 8 ? 256 : 16;
 
-		fbi->dma_buff = (void *)fbi->map_cpu;
+		fbi->dma_buff = (void *) fbi->map_cpu;
 		fbi->dma_buff_phys = fbi->map_dma;
-		fbi->palette_cpu = (u16 *)&fbi->dma_buff->palette[0];
+		fbi->palette_cpu = (u16 *) fbi->dma_buff->palette;
+
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+		fbi->smart_cmds = (uint16_t *) fbi->dma_buff->cmd_buff;
+		fbi->n_smart_cmds = 0;
+#endif
 	}
 
 	return fbi->map_cpu ? 0 : -ENOMEM;
@@ -1191,6 +1401,10 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 	INIT_WORK(&fbi->task, pxafb_task);
 	init_MUTEX(&fbi->ctrlr_sem);
 	init_completion(&fbi->disable_done);
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	init_completion(&fbi->command_done);
+	init_completion(&fbi->refresh_done);
+#endif
 
 	return fbi;
 }
@@ -1510,6 +1724,13 @@ static int __init pxafb_probe(struct platform_device *dev)
 		goto failed_free_mem;
 	}
 
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	ret = pxafb_smart_init(fbi);
+	if (ret) {
+		dev_err(&dev->dev, "failed to initialize smartpanel\n");
+		goto failed_free_irq;
+	}
+#endif
 	/*
 	 * This makes sure that our colour bitfield
 	 * descriptors are correctly initialised.

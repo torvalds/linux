@@ -7,13 +7,17 @@
 #define LCCR1		(0x004)	/* LCD Controller Control Register 1 */
 #define LCCR2		(0x008)	/* LCD Controller Control Register 2 */
 #define LCCR3		(0x00C)	/* LCD Controller Control Register 3 */
-#define LCCR4		(0x010)	/* LCD Controller Control Register 3 */
+#define LCCR4		(0x010)	/* LCD Controller Control Register 4 */
+#define LCCR5		(0x014)	/* LCD Controller Control Register 5 */
 #define DFBR0		(0x020)	/* DMA Channel 0 Frame Branch Register */
 #define DFBR1		(0x024)	/* DMA Channel 1 Frame Branch Register */
 #define LCSR		(0x038)	/* LCD Controller Status Register */
 #define LIIDR		(0x03C)	/* LCD Controller Interrupt ID Register */
 #define TMEDRGBR	(0x040)	/* TMED RGB Seed Register */
 #define TMEDCR		(0x044)	/* TMED Control Register */
+
+#define CMDCR		(0x100)	/* Command Control Register */
+#define PRSR		(0x104)	/* Panel Read Status Register */
 
 #define LCCR3_1BPP	(0 << 24)
 #define LCCR3_2BPP	(1 << 24)
@@ -39,6 +43,9 @@
 #define FSADR1		(0x214)	/* DMA Channel 1 Frame Source Address Register */
 #define FIDR1		(0x218)	/* DMA Channel 1 Frame ID Register */
 #define LDCMD1		(0x21C)	/* DMA Channel 1 Command Register */
+#define FDADR6		(0x260) /* DMA Channel 6 Frame Descriptor Address Register */
+#define FSADR6		(0x264) /* DMA Channel 6 Frame Source Address Register */
+#define FIDR6		(0x268) /* DMA Channel 6 Frame ID Register */
 
 #define LCCR0_ENB	(1 << 0)	/* LCD Controller enable */
 #define LCCR0_CMS	(1 << 1)	/* Color/Monochrome Display Select */
@@ -122,6 +129,11 @@
 #define LCCR3_VrtSnchH	(LCCR3_VSP*0)	/*  VSP Active High */
 #define LCCR3_VrtSnchL	(LCCR3_VSP*1)	/*  VSP Active Low */
 
+#define LCCR5_IUM(x)	(1 << ((x) + 23)) /* input underrun mask */
+#define LCCR5_BSM(x)	(1 << ((x) + 15)) /* branch mask */
+#define LCCR5_EOFM(x)	(1 << ((x) + 7))  /* end of frame mask */
+#define LCCR5_SOFM(x)	(1 << ((x) + 0))  /* start of frame mask */
+
 #define LCSR_LDD	(1 << 0)	/* LCD Disable Done */
 #define LCSR_SOF	(1 << 1)	/* Start of frame */
 #define LCSR_BER	(1 << 2)	/* Bus error */
@@ -133,7 +145,27 @@
 #define LCSR_EOF	(1 << 8)	/* end of frame */
 #define LCSR_BS		(1 << 9)	/* branch status */
 #define LCSR_SINT	(1 << 10)	/* subsequent interrupt */
+#define LCSR_RD_ST	(1 << 11)	/* read status */
+#define LCSR_CMD_INT	(1 << 12)	/* command interrupt */
 
 #define LDCMD_PAL	(1 << 26)	/* instructs DMA to load palette buffer */
 
+/* smartpanel related */
+#define PRSR_DATA(x)	((x) & 0xff)	/* Panel Data */
+#define PRSR_A0		(1 << 8)	/* Read Data Source */
+#define PRSR_ST_OK	(1 << 9)	/* Status OK */
+#define PRSR_CON_NT	(1 << 10)	/* Continue to Next Command */
+
+#define SMART_CMD_A0			 (0x1 << 8)
+#define SMART_CMD_READ_STATUS_REG	 (0x0 << 9)
+#define SMART_CMD_READ_FRAME_BUFFER	((0x0 << 9) | SMART_CMD_A0)
+#define SMART_CMD_WRITE_COMMAND		 (0x1 << 9)
+#define SMART_CMD_WRITE_DATA		((0x1 << 9) | SMART_CMD_A0)
+#define SMART_CMD_WRITE_FRAME		((0x2 << 9) | SMART_CMD_A0)
+#define SMART_CMD_WAIT_FOR_VSYNC	 (0x3 << 9)
+#define SMART_CMD_NOOP			 (0x4 << 9)
+#define SMART_CMD_INTERRUPT		 (0x5 << 9)
+
+#define SMART_CMD(x)	(SMART_CMD_WRITE_COMMAND | ((x) & 0xff))
+#define SMART_DAT(x)	(SMART_CMD_WRITE_DATA | ((x) & 0xff))
 #endif /* __ASM_ARCH_REGS_LCD_H */

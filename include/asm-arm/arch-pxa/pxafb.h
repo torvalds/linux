@@ -48,6 +48,7 @@
 #define LCD_COLOR_DSTN_16BPP	((16 << 4) | LCD_TYPE_COLOR_DSTN)
 #define LCD_COLOR_TFT_16BPP	((16 << 4) | LCD_TYPE_COLOR_TFT)
 #define LCD_COLOR_TFT_18BPP	((18 << 4) | LCD_TYPE_COLOR_TFT)
+#define LCD_SMART_PANEL_8BPP	((8  << 4) | LCD_TYPE_SMART_PANEL)
 #define LCD_SMART_PANEL_16BPP	((16 << 4) | LCD_TYPE_SMART_PANEL)
 #define LCD_SMART_PANEL_18BPP	((18 << 4) | LCD_TYPE_SMART_PANEL)
 
@@ -69,6 +70,10 @@ struct pxafb_mode_info {
 	u_short		yres;
 
 	u_char		bpp;
+	u_int		cmap_greyscale:1,
+			unused:31;
+
+	/* Parallel Mode Timing */
 	u_char		hsync_len;
 	u_char		left_margin;
 	u_char		right_margin;
@@ -78,8 +83,20 @@ struct pxafb_mode_info {
 	u_char		lower_margin;
 	u_char		sync;
 
-	u_int		cmap_greyscale:1,
-			unused:31;
+	/* Smart Panel Mode Timing - see PXA27x DM 7.4.15.0.3 for details
+	 * Note:
+	 * 1. all parameters in nanosecond (ns)
+	 * 2. a0cs{rd,wr}_set_hld are controlled by the same register bits
+	 *    in pxa27x and pxa3xx, initialize them to the same value or
+	 *    the larger one will be used
+	 * 3. same to {rd,wr}_pulse_width
+	 */
+	unsigned	a0csrd_set_hld;	/* A0 and CS Setup/Hold Time before/after L_FCLK_RD */
+	unsigned	a0cswr_set_hld;	/* A0 and CS Setup/Hold Time before/after L_PCLK_WR */
+	unsigned	wr_pulse_width;	/* L_PCLK_WR pulse width */
+	unsigned	rd_pulse_width;	/* L_FCLK_RD pulse width */
+	unsigned	cmd_inh_time;	/* Command Inhibit time between two writes */
+	unsigned	op_hold_time;	/* Output Hold time from L_FCLK_RD negation */
 };
 
 struct pxafb_mach_info {
@@ -123,8 +140,11 @@ struct pxafb_mach_info {
 	u_int		lccr4;
 	void (*pxafb_backlight_power)(int);
 	void (*pxafb_lcd_power)(int, struct fb_var_screeninfo *);
-
+	void (*smart_update)(struct fb_info *);
 };
 void set_pxa_fb_info(struct pxafb_mach_info *hard_pxa_fb_info);
 void set_pxa_fb_parent(struct device *parent_dev);
 unsigned long pxafb_get_hsync_time(struct device *dev);
+
+extern int pxafb_smart_queue(struct fb_info *info, uint16_t *cmds, int);
+extern int pxafb_smart_flush(struct fb_info *info);

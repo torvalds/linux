@@ -52,9 +52,11 @@ enum {
 
 /* maximum palette size - 256 entries, each 4 bytes long */
 #define PALETTE_SIZE	(256 * 4)
+#define CMD_BUFF_SIZE	(1024 * 50)
 
 struct pxafb_dma_buff {
 	unsigned char palette[PAL_MAX * PALETTE_SIZE];
+	uint16_t cmd_buff[CMD_BUFF_SIZE];
 	struct pxafb_dma_descriptor pal_desc[PAL_MAX];
 	struct pxafb_dma_descriptor dma_desc[DMA_MAX];
 };
@@ -84,6 +86,7 @@ struct pxafb_info {
 	dma_addr_t		screen_dma;	/* physical address of frame buffer */
 	u16 *			palette_cpu;	/* virtual address of palette memory */
 	u_int			palette_size;
+	ssize_t			video_offset;
 
 	u_int			lccr0;
 	u_int			lccr3;
@@ -97,6 +100,7 @@ struct pxafb_info {
 	u_int			reg_lccr2;
 	u_int			reg_lccr3;
 	u_int			reg_lccr4;
+	u_int			reg_cmdcr;
 
 	unsigned long	hsync_time;
 
@@ -107,6 +111,14 @@ struct pxafb_info {
 	struct work_struct	task;
 
 	struct completion	disable_done;
+
+#ifdef CONFIG_FB_PXA_SMARTPANEL
+	uint16_t		*smart_cmds;
+	size_t			n_smart_cmds;
+	struct completion	command_done;
+	struct completion	refresh_done;
+	struct task_struct	*smart_thread;
+#endif
 
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
