@@ -2554,8 +2554,6 @@ static int handle_apic_access(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	exit_qualification = vmcs_read64(EXIT_QUALIFICATION);
 	offset = exit_qualification & 0xffful;
 
-	KVMTRACE_1D(APIC_ACCESS, vcpu, (u32)offset, handler);
-
 	er = emulate_instruction(vcpu, kvm_run, 0, 0, 0);
 
 	if (er !=  EMULATE_DONE) {
