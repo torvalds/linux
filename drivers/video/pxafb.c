@@ -71,11 +71,6 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 				struct pxafb_info *);
 static void set_ctrlr_state(struct pxafb_info *fbi, u_int state);
 
-#ifdef CONFIG_FB_PXA_PARAMETERS
-#define PXAFB_OPTIONS_SIZE 256
-static char g_options[PXAFB_OPTIONS_SIZE] __devinitdata = "";
-#endif
-
 static inline void pxafb_schedule_work(struct pxafb_info *fbi, u_int state)
 {
 	unsigned long flags;
@@ -1316,6 +1311,32 @@ static int __init pxafb_parse_options(struct device *dev, char *options)
 	}
 	return 0;
 }
+
+static char g_options[256] __devinitdata = "";
+
+#ifndef CONFIG_MODULES
+static int __devinit pxafb_setup_options(void)
+{
+	char *options = NULL;
+
+	if (fb_get_options("pxafb", &options))
+		return -ENODEV;
+
+	if (options)
+		strlcpy(g_options, options, sizeof(g_options));
+
+	return 0;
+}
+#else
+#define pxafb_setup_options()		(0)
+
+module_param_string(options, g_options, sizeof(g_options), 0);
+MODULE_PARM_DESC(options, "LCD parameters (see Documentation/fb/pxafb.txt)");
+#endif
+
+#else
+#define pxafb_parse_options(...)	(0)
+#define pxafb_setup_options()		(0)
 #endif
 
 static int __init pxafb_probe(struct platform_device *dev)
@@ -1332,11 +1353,9 @@ static int __init pxafb_probe(struct platform_device *dev)
 	if (!inf)
 		goto failed;
 
-#ifdef CONFIG_FB_PXA_PARAMETERS
 	ret = pxafb_parse_options(&dev->dev, g_options);
 	if (ret < 0)
 		goto failed;
-#endif
 
 #ifdef DEBUG_VAR
 	/* Check for various illegal bit-combinations. Currently only
@@ -1449,31 +1468,11 @@ static struct platform_driver pxafb_driver = {
 	},
 };
 
-#ifndef MODULE
-static int __devinit pxafb_setup(char *options)
-{
-# ifdef CONFIG_FB_PXA_PARAMETERS
-	if (options)
-		strlcpy(g_options, options, sizeof(g_options));
-# endif
-	return 0;
-}
-#else
-# ifdef CONFIG_FB_PXA_PARAMETERS
-module_param_string(options, g_options, sizeof(g_options), 0);
-MODULE_PARM_DESC(options, "LCD parameters (see Documentation/fb/pxafb.txt)");
-# endif
-#endif
-
 static int __devinit pxafb_init(void)
 {
-#ifndef MODULE
-	char *option = NULL;
+	if (pxafb_setup_options())
+		return -EINVAL;
 
-	if (fb_get_options("pxafb", &option))
-		return -ENODEV;
-	pxafb_setup(option);
-#endif
 	return platform_driver_register(&pxafb_driver);
 }
 
