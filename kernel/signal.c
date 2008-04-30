@@ -971,13 +971,11 @@ int __fatal_signal_pending(struct task_struct *tsk)
 }
 EXPORT_SYMBOL(__fatal_signal_pending);
 
-/*
- * Must be called under rcu_read_lock() or with tasklist_lock read-held.
- */
 struct sighand_struct *lock_task_sighand(struct task_struct *tsk, unsigned long *flags)
 {
 	struct sighand_struct *sighand;
 
+	rcu_read_lock();
 	for (;;) {
 		sighand = rcu_dereference(tsk->sighand);
 		if (unlikely(sighand == NULL))
@@ -988,6 +986,7 @@ struct sighand_struct *lock_task_sighand(struct task_struct *tsk, unsigned long 
 			break;
 		spin_unlock_irqrestore(&sighand->siglock, *flags);
 	}
+	rcu_read_unlock();
 
 	return sighand;
 }
