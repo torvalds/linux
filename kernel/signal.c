@@ -603,10 +603,8 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 			 * the SIGCHLD was pending on entry to this kill.
 			 */
 			p->signal->group_stop_count = 0;
-			p->signal->flags = SIGNAL_STOP_CONTINUED;
-			spin_unlock(&p->sighand->siglock);
-			do_notify_parent_cldstop(p, CLD_STOPPED);
-			spin_lock(&p->sighand->siglock);
+			p->signal->flags = SIGNAL_STOP_CONTINUED |
+						SIGNAL_CLD_STOPPED;
 		}
 		rm_from_queue(SIG_KERNEL_STOP_MASK, &p->signal->shared_pending);
 		t = p;
@@ -643,25 +641,23 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 			 * We were in fact stopped, and are now continued.
 			 * Notify the parent with CLD_CONTINUED.
 			 */
-			p->signal->flags = SIGNAL_STOP_CONTINUED;
+			p->signal->flags = SIGNAL_STOP_CONTINUED |
+						SIGNAL_CLD_CONTINUED;
 			p->signal->group_exit_code = 0;
-			spin_unlock(&p->sighand->siglock);
-			do_notify_parent_cldstop(p, CLD_CONTINUED);
-			spin_lock(&p->sighand->siglock);
 		} else {
 			/*
 			 * We are not stopped, but there could be a stop
 			 * signal in the middle of being processed after
 			 * being removed from the queue.  Clear that too.
 			 */
-			p->signal->flags = 0;
+			p->signal->flags &= ~SIGNAL_STOP_DEQUEUED;
 		}
 	} else if (sig == SIGKILL) {
 		/*
 		 * Make sure that any pending stop signal already dequeued
 		 * is undone by the wakeup for SIGKILL.
 		 */
-		p->signal->flags = 0;
+		p->signal->flags &= ~SIGNAL_STOP_DEQUEUED;
 	}
 }
 
@@ -1784,6 +1780,19 @@ relock:
 	try_to_freeze();
 
 	spin_lock_irq(&current->sighand->siglock);
+
+	if (unlikely(current->signal->flags & SIGNAL_CLD_MASK)) {
+		int why = (current->signal->flags & SIGNAL_STOP_CONTINUED)
+				? CLD_CONTINUED : CLD_STOPPED;
+		current->signal->flags &= ~SIGNAL_CLD_MASK;
+		spin_unlock_irq(&current->sighand->siglock);
+
+		read_lock(&tasklist_lock);
+		do_notify_parent_cldstop(current->group_leader, why);
+		read_unlock(&tasklist_lock);
+		goto relock;
+	}
+
 	for (;;) {
 		struct k_sigaction *ka;
 
