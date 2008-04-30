@@ -1086,6 +1086,12 @@ static int nmi_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	return 1;
 }
 
+static int intr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	++svm->vcpu.stat.irq_exits;
+	return 1;
+}
+
 static int nop_on_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	return 1;
@@ -1369,7 +1375,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm,
 	[SVM_EXIT_EXCP_BASE + PF_VECTOR] 	= pf_interception,
 	[SVM_EXIT_EXCP_BASE + NM_VECTOR] 	= nm_interception,
 	[SVM_EXIT_EXCP_BASE + MC_VECTOR] 	= mc_interception,
-	[SVM_EXIT_INTR] 			= nop_on_interception,
+	[SVM_EXIT_INTR] 			= intr_interception,
 	[SVM_EXIT_NMI]				= nmi_interception,
 	[SVM_EXIT_SMI]				= nop_on_interception,
 	[SVM_EXIT_INIT]				= nop_on_interception,
