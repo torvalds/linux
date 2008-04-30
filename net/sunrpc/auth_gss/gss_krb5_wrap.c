@@ -87,8 +87,8 @@ out:
 	return 0;
 }
 
-static inline void
-make_confounder(char *p, int blocksize)
+static void
+make_confounder(char *p, u32 conflen)
 {
 	static u64 i = 0;
 	u64 *q = (u64 *)p;
@@ -102,8 +102,22 @@ make_confounder(char *p, int blocksize)
 	 * uniqueness would mean worrying about atomicity and rollover, and I
 	 * don't care enough. */
 
-	BUG_ON(blocksize != 8);
-	*q = i++;
+	/* initialize to random value */
+	if (i == 0) {
+		i = random32();
+		i = (i << 32) | random32();
+	}
+
+	switch (conflen) {
+	case 16:
+		*q++ = i++;
+		/* fall through */
+	case 8:
+		*q++ = i++;
+		break;
+	default:
+		BUG();
+	}
 }
 
 /* Assumptions: the head and tail of inbuf are ours to play with.
