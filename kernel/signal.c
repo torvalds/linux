@@ -657,6 +657,11 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 	}
 }
 
+static inline int legacy_queue(struct sigpending *signals, int sig)
+{
+	return (sig < SIGRTMIN) && sigismember(&signals->signal, sig);
+}
+
 static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 			struct sigpending *signals)
 {
@@ -721,9 +726,6 @@ out_set:
 	return 0;
 }
 
-#define LEGACY_QUEUE(sigptr, sig) \
-	(((sig) < SIGRTMIN) && sigismember(&(sigptr)->signal, (sig)))
-
 int print_fatal_signals;
 
 static void print_fatal_signal(struct pt_regs *regs, int signr)
@@ -771,7 +773,7 @@ specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 	/* Support queueing exactly one non-rt signal, so that we
 	   can get more detailed information about the cause of
 	   the signal. */
-	if (LEGACY_QUEUE(&t->pending, sig))
+	if (legacy_queue(&t->pending, sig))
 		goto out;
 
 	ret = send_signal(sig, info, t, &t->pending);
@@ -932,7 +934,7 @@ __group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	if (sig_ignored(p, sig))
 		return ret;
 
-	if (LEGACY_QUEUE(&p->signal->shared_pending, sig))
+	if (legacy_queue(&p->signal->shared_pending, sig))
 		/* This is a non-RT signal and we already have one queued.  */
 		return ret;
 
