@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
+#include <linux/debugobjects.h>
 #include <linux/vmalloc.h>
 #include <linux/kallsyms.h>
 
@@ -394,6 +395,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
 	}
 
 	debug_check_no_locks_freed(addr, area->size);
+	debug_check_no_obj_freed(addr, area->size);
 
 	if (deallocate_pages) {
 		int i;

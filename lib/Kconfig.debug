@@ -194,6 +194,29 @@ config TIMER_STATS
 	  (it defaults to deactivated on bootup and will only be activated
 	  if some application like powertop activates it explicitly).
 
+config DEBUG_OBJECTS
+	bool "Debug object operations"
+	depends on DEBUG_KERNEL
+	help
+	  If you say Y here, additional code will be inserted into the
+	  kernel to track the life time of various objects and validate
+	  the operations on those objects.
+
+config DEBUG_OBJECTS_SELFTEST
+	bool "Debug objects selftest"
+	depends on DEBUG_OBJECTS
+	help
+	  This enables the selftest of the object debug code.
+
+config DEBUG_OBJECTS_FREE
+	bool "Debug objects in freed memory"
+	depends on DEBUG_OBJECTS
+	help
+	  This enables checks whether a k/v free operation frees an area
+	  which contains an object which has not been deactivated
+	  properly. This can make kmalloc/kfree-intensive workloads
+	  much slower.
+
 config DEBUG_SLAB
 	bool "Debug slab memory allocations"
 	depends on DEBUG_KERNEL && SLAB

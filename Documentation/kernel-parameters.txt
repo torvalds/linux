@@ -561,6 +561,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			1 will print _a lot_ more information - normally
 			only useful to kernel developers.
 
+	debug_objects	[KNL] Enable object debugging
+
 	decnet.addr=	[HW,NET]
 			Format: <area>[,<node>]
 			See also Documentation/networking/decnet.txt.
