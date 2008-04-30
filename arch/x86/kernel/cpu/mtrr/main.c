@@ -1098,11 +1098,12 @@ int __init amd_special_default_mtrr(void)
 static u64 __init real_trim_memory(unsigned long start_pfn, unsigned long limit_pfn)
 {
 	u64 trim_start, trim_size;
-	trim_start =  start_pfn;
+	trim_start = start_pfn;
 	trim_start <<= PAGE_SHIFT;
 	trim_size = limit_pfn;
 	trim_size <<= PAGE_SHIFT;
 	trim_size -= trim_start;
+
 	return update_memory_range(trim_start, trim_size, E820_RAM,
 				E820_RESERVED);
 }
@@ -1124,7 +1125,6 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 	struct res_range range[RANGE_NUM];
 	int nr_range;
 	u64 total_real_trim_size;
-	int changed;
 
 	/* extra one for all 0 */
 	int num[MTRR_NUM_TYPES + 1];
@@ -1189,49 +1189,35 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 	}
 	nr_range = x86_get_mtrr_mem_range(range, nr_range, 0, 0);
 
-	changed = 0;
 	total_real_trim_size = 0;
-
-	/* check the top at first */
-	i = nr_range - 1;
-	if (range[i].end + 1 < end_pfn) {
-			total_real_trim_size += real_trim_memory(range[i].end + 1, end_pfn);
-	}
-
-	if (total_real_trim_size) {
-		printk(KERN_WARNING "WARNING: BIOS bug: CPU MTRRs don't cover"
-			" all of memory, losing %lluMB of RAM.\n",
-			total_real_trim_size >> 20);
-
-		WARN_ON(1);
-
-		printk(KERN_INFO "update e820 for mtrr -- end_pfn\n");
-		update_e820();
-		changed = 1;
-	}
-
-	total_real_trim_size = 0;
+	/* check the head */
 	if (range[0].start)
 		total_real_trim_size += real_trim_memory(0, range[0].start);
-
-	for (i = 0; i < nr_range - 1; i--) {
+	/* check the holes */
+	for (i = 0; i < nr_range - 1; i++) {
 		if (range[i].end + 1 < range[i+1].start)
 			total_real_trim_size += real_trim_memory(range[i].end + 1, range[i+1].start);
 	}
+	/* check the top */
+	i = nr_range - 1;
+	if (range[i].end + 1 < end_pfn)
+		total_real_trim_size += real_trim_memory(range[i].end + 1, end_pfn);
 
 	if (total_real_trim_size) {
 		printk(KERN_WARNING "WARNING: BIOS bug: CPU MTRRs don't cover"
 			" all of memory, losing %lluMB of RAM.\n",
 			total_real_trim_size >> 20);
 
-		WARN_ON(1);
+		if (enable_mtrr_cleanup < 1)
+			WARN_ON(1);
 
-		printk(KERN_INFO "update e820 for mtrr -- holes\n");
+		printk(KERN_INFO "update e820 for mtrr\n");
 		update_e820();
-		changed = 1;
+
+		return 1;
 	}
 
-	return changed;
+	return 0;
 }
 
 /**

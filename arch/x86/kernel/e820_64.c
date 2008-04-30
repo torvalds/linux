@@ -843,7 +843,8 @@ u64 __init update_memory_range(u64 start, u64 size, unsigned old_type,
 		if (ei->type != old_type)
 			continue;
 		/* totally covered? */
-		if (ei->addr >= start && ei->size <= size) {
+		if (ei->addr >= start &&
+		    (ei->addr + ei->size) <= (start + size)) {
 			ei->type = new_type;
 			real_updated_size += ei->size;
 			continue;
