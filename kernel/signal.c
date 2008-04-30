@@ -1274,8 +1274,10 @@ void sigqueue_free(struct sigqueue *q)
 }
 
 static int do_send_sigqueue(int sig, struct sigqueue *q, struct task_struct *t,
-		struct sigpending *pending)
+				struct sigpending *pending)
 {
+	handle_stop_signal(sig, t);
+
 	if (unlikely(!list_empty(&q->list))) {
 		/*
 		 * If an SI_TIMER entry is already queue just increment
@@ -1335,7 +1337,6 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	read_lock(&tasklist_lock);
 	/* Since it_lock is held, p->sighand cannot be NULL. */
 	spin_lock_irqsave(&p->sighand->siglock, flags);
-	handle_stop_signal(sig, p);
 
 	ret = do_send_sigqueue(sig, q, p, &p->signal->shared_pending);
 
