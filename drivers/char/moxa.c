@@ -92,17 +92,6 @@ static struct pci_device_id moxa_pcibrds[] = {
 MODULE_DEVICE_TABLE(pci, moxa_pcibrds);
 #endif /* CONFIG_PCI */
 
-struct moxa_isa_board_conf {
-	int boardType;
-	int numPorts;
-	unsigned long baseAddr;
-};
-
-static struct moxa_isa_board_conf moxa_isa_boards[] =
-{
-/*       {MOXA_BOARD_C218_ISA,8,0xDC000}, */
-};
-
 static struct moxa_board_conf {
 	int boardType;
 	int numPorts;
@@ -346,7 +335,7 @@ static struct pci_driver moxa_pci_driver = {
 
 static int __init moxa_init(void)
 {
-	int i, numBoards, retval = 0;
+	int i, numBoards = 0, retval = 0;
 	struct moxa_port *ch;
 
 	printk(KERN_INFO "MOXA Intellio family driver version %s\n",
@@ -391,25 +380,6 @@ static int __init moxa_init(void)
 
 	mod_timer(&moxaTimer, jiffies + HZ / 50);
 
-	/* Find the boards defined in source code */
-	numBoards = 0;
-	for (i = 0; i < MAX_BOARDS; i++) {
-		if ((moxa_isa_boards[i].boardType == MOXA_BOARD_C218_ISA) ||
-		 (moxa_isa_boards[i].boardType == MOXA_BOARD_C320_ISA)) {
-			moxa_boards[numBoards].boardType = moxa_isa_boards[i].boardType;
-			if (moxa_isa_boards[i].boardType == MOXA_BOARD_C218_ISA)
-				moxa_boards[numBoards].numPorts = 8;
-			else
-				moxa_boards[numBoards].numPorts = moxa_isa_boards[i].numPorts;
-			moxa_boards[numBoards].busType = MOXA_BUS_TYPE_ISA;
-			moxa_boards[numBoards].baseAddr = moxa_isa_boards[i].baseAddr;
-			pr_debug("Moxa board %2d: %s board(baseAddr=%lx)\n",
-			       numBoards + 1,
-			       moxa_brdname[moxa_boards[numBoards].boardType-1],
-			       moxa_boards[numBoards].baseAddr);
-			numBoards++;
-		}
-	}
 	/* Find the boards defined form module args. */
 #ifdef MODULE
 	for (i = 0; i < MAX_BOARDS; i++) {
@@ -425,7 +395,7 @@ static int __init moxa_init(void)
 				continue;
 			}
 			moxa_boards[numBoards].boardType = type[i];
-			if (moxa_isa_boards[i].boardType == MOXA_BOARD_C218_ISA)
+			if (type[i] == MOXA_BOARD_C218_ISA)
 				moxa_boards[numBoards].numPorts = 8;
 			else
 				moxa_boards[numBoards].numPorts = numports[i];
