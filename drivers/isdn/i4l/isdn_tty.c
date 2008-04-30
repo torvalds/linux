@@ -1352,12 +1352,14 @@ isdn_tty_tiocmget(struct tty_struct *tty, struct file *file)
 	if (tty->flags & (1 << TTY_IO_ERROR))
 		return -EIO;
 
+	lock_kernel();
 #ifdef ISDN_DEBUG_MODEM_IOCTL
 	printk(KERN_DEBUG "ttyI%d ioctl TIOCMGET\n", info->line);
 #endif
 
 	control = info->mcr;
 	status = info->msr;
+	unlock_kernel();
 	return ((control & UART_MCR_RTS) ? TIOCM_RTS : 0)
 	    | ((control & UART_MCR_DTR) ? TIOCM_DTR : 0)
 	    | ((status & UART_MSR_DCD) ? TIOCM_CAR : 0)
@@ -1381,6 +1383,7 @@ isdn_tty_tiocmset(struct tty_struct *tty, struct file *file,
 	printk(KERN_DEBUG "ttyI%d ioctl TIOCMxxx: %x %x\n", info->line, set, clear);
 #endif
 
+	lock_kernel();
 	if (set & TIOCM_RTS)
 		info->mcr |= UART_MCR_RTS;
 	if (set & TIOCM_DTR) {
@@ -1402,6 +1405,7 @@ isdn_tty_tiocmset(struct tty_struct *tty, struct file *file,
 			isdn_tty_modem_hup(info, 1);
 		}
 	}
+	unlock_kernel();
 	return 0;
 }
 
@@ -1435,21 +1439,6 @@ isdn_tty_ioctl(struct tty_struct *tty, struct file *file,
 				return retval;
 			tty_wait_until_sent(tty, 0);
 			return 0;
-		case TIOCGSOFTCAR:
-#ifdef ISDN_DEBUG_MODEM_IOCTL
-			printk(KERN_DEBUG "ttyI%d ioctl TIOCGSOFTCAR\n", info->line);
-#endif
-			return put_user(C_CLOCAL(tty) ? 1 : 0, (ulong __user *) arg);
-		case TIOCSSOFTCAR:
-#ifdef ISDN_DEBUG_MODEM_IOCTL
-			printk(KERN_DEBUG "ttyI%d ioctl TIOCSSOFTCAR\n", info->line);
-#endif
-			if (get_user(arg, (ulong __user *) arg))
-				return -EFAULT;
-			tty->termios->c_cflag =
-			    ((tty->termios->c_cflag & ~CLOCAL) |
-			     (arg ? CLOCAL : 0));
-			return 0;
 		case TIOCSERGETLSR:	/* Get line status register */
 #ifdef ISDN_DEBUG_MODEM_IOCTL
 			printk(KERN_DEBUG "ttyI%d ioctl TIOCSERGETLSR\n", info->line);
@@ -1472,13 +1461,14 @@ isdn_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	if (!old_termios)
 		isdn_tty_change_speed(info);
 	else {
-		if (tty->termios->c_cflag == old_termios->c_cflag)
+		if (tty->termios->c_cflag == old_termios->c_cflag &&
+		    tty->termios->c_ispeed == old_termios->c_ispeed &&
+		    tty->termios->c_ospeed == old_termios->c_ospeed)
 			return;
 		isdn_tty_change_speed(info);
 		if ((old_termios->c_cflag & CRTSCTS) &&
-		    !(tty->termios->c_cflag & CRTSCTS)) {
+		    !(tty->termios->c_cflag & CRTSCTS))
 			tty->hw_stopped = 0;
-		}
 	}
 }
 
