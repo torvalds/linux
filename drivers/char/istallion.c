@@ -4433,6 +4433,8 @@ static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, un
 	done = 0;
 	rc = 0;
 
+	lock_kernel();
+
 	switch (cmd) {
 	case COM_GETPORTSTATS:
 		rc = stli_getportstats(NULL, argp);
@@ -4455,6 +4457,7 @@ static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, un
 		done++;
 		break;
 	}
+	unlock_kernel();
 
 	if (done)
 		return rc;
@@ -4471,6 +4474,8 @@ static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, un
 		return -ENODEV;
 	if (brdp->state == 0)
 		return -ENODEV;
+
+	lock_kernel();
 
 	switch (cmd) {
 	case STL_BINTR:
@@ -4494,6 +4499,7 @@ static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, un
 		rc = -ENOIOCTLCMD;
 		break;
 	}
+	unlock_kernel();
 	return rc;
 }
 
