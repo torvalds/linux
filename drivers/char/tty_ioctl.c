@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -61,11 +62,13 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 		return;
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
+	lock_kernel();
 	if (wait_event_interruptible_timeout(tty->write_wait,
-			!tty->driver->chars_in_buffer(tty), timeout) < 0)
-		return;
-	if (tty->driver->wait_until_sent)
-		tty->driver->wait_until_sent(tty, timeout);
+			!tty->driver->chars_in_buffer(tty), timeout) >= 0) {
+		if (tty->driver->wait_until_sent)
+			tty->driver->wait_until_sent(tty, timeout);
+	}
+	unlock_kernel();
 }
 EXPORT_SYMBOL(tty_wait_until_sent);
 
