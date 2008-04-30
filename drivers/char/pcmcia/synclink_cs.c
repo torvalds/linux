@@ -1545,7 +1545,7 @@ static void mgslpc_change_params(MGSLPC_INFO *info)
 
 /* Add a character to the transmit buffer
  */
-static void mgslpc_put_char(struct tty_struct *tty, unsigned char ch)
+static int mgslpc_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
@@ -1556,10 +1556,10 @@ static void mgslpc_put_char(struct tty_struct *tty, unsigned char ch)
 	}
 
 	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_put_char"))
-		return;
+		return 0;
 
 	if (!info->tx_buf)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&info->lock,flags);
 
@@ -1572,6 +1572,7 @@ static void mgslpc_put_char(struct tty_struct *tty, unsigned char ch)
 	}
 
 	spin_unlock_irqrestore(&info->lock,flags);
+	return 1;
 }
 
 /* Enable transmitter so remaining characters in the
