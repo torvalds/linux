@@ -1290,10 +1290,33 @@ void sigqueue_free(struct sigqueue *q)
 	__sigqueue_free(q);
 }
 
+static int do_send_sigqueue(int sig, struct sigqueue *q, struct task_struct *t,
+		struct sigpending *pending)
+{
+	if (unlikely(!list_empty(&q->list))) {
+		/*
+		 * If an SI_TIMER entry is already queue just increment
+		 * the overrun count.
+		 */
+
+		BUG_ON(q->info.si_code != SI_TIMER);
+		q->info.si_overrun++;
+		return 0;
+	}
+
+	if (sig_ignored(t, sig))
+		return 1;
+
+	signalfd_notify(t, sig);
+	list_add_tail(&q->list, &pending->list);
+	sigaddset(&pending->signal, sig);
+	return 0;
+}
+
 int send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret = -1;
 
 	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
 
@@ -1307,37 +1330,14 @@ int send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	 */
 	rcu_read_lock();
 
-	if (!likely(lock_task_sighand(p, &flags))) {
-		ret = -1;
+	if (!likely(lock_task_sighand(p, &flags)))
 		goto out_err;
-	}
 
-	if (unlikely(!list_empty(&q->list))) {
-		/*
-		 * If an SI_TIMER entry is already queue just increment
-		 * the overrun count.
-		 */
-		BUG_ON(q->info.si_code != SI_TIMER);
-		q->info.si_overrun++;
-		goto out;
-	}
-	/* Short-circuit ignored signals.  */
-	if (sig_ignored(p, sig)) {
-		ret = 1;
-		goto out;
-	}
-	/*
-	 * Deliver the signal to listening signalfds. This must be called
-	 * with the sighand lock held.
-	 */
-	signalfd_notify(p, sig);
+	ret = do_send_sigqueue(sig, q, p, &p->pending);
 
-	list_add_tail(&q->list, &p->pending.list);
-	sigaddset(&p->pending.signal, sig);
 	if (!sigismember(&p->blocked, sig))
 		signal_wake_up(p, sig == SIGKILL);
 
-out:
 	unlock_task_sighand(p, &flags);
 out_err:
 	rcu_read_unlock();
@@ -1349,7 +1349,7 @@ int
 send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 {
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
 
@@ -1358,38 +1358,10 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	spin_lock_irqsave(&p->sighand->siglock, flags);
 	handle_stop_signal(sig, p);
 
-	/* Short-circuit ignored signals.  */
-	if (sig_ignored(p, sig)) {
-		ret = 1;
-		goto out;
-	}
-
-	if (unlikely(!list_empty(&q->list))) {
-		/*
-		 * If an SI_TIMER entry is already queue just increment
-		 * the overrun count.  Other uses should not try to
-		 * send the signal multiple times.
-		 */
-		BUG_ON(q->info.si_code != SI_TIMER);
-		q->info.si_overrun++;
-		goto out;
-	} 
-	/*
-	 * Deliver the signal to listening signalfds. This must be called
-	 * with the sighand lock held.
-	 */
-	signalfd_notify(p, sig);
-
-	/*
-	 * Put this signal on the shared-pending queue.
-	 * We always use the shared queue for process-wide signals,
-	 * to avoid several races.
-	 */
-	list_add_tail(&q->list, &p->signal->shared_pending.list);
-	sigaddset(&p->signal->shared_pending.signal, sig);
+	ret = do_send_sigqueue(sig, q, p, &p->signal->shared_pending);
 
 	__group_complete_signal(sig, p);
-out:
+
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
 	read_unlock(&tasklist_lock);
 	return ret;
