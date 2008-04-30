@@ -532,6 +532,7 @@ pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 	struct page *page[1];
 	unsigned long addr;
 	int npages;
+	pfn_t pfn;
 
 	might_sleep();
 
@@ -544,19 +545,38 @@ pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 	npages = get_user_pages(current, current->mm, addr, 1, 1, 1, page,
 				NULL);
 
-	if (npages != 1) {
-		get_page(bad_page);
-		return page_to_pfn(bad_page);
-	}
+	if (unlikely(npages != 1)) {
+		struct vm_area_struct *vma;
 
-	return page_to_pfn(page[0]);
+		vma = find_vma(current->mm, addr);
+		if (vma == NULL || addr < vma->vm_start ||
+		    !(vma->vm_flags & VM_PFNMAP)) {
+			get_page(bad_page);
+			return page_to_pfn(bad_page);
+		}
+
+		pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+		BUG_ON(pfn_valid(pfn));
+	} else
+		pfn = page_to_pfn(page[0]);
+
+	return pfn;
 }
 
 EXPORT_SYMBOL_GPL(gfn_to_pfn);
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
-	return pfn_to_page(gfn_to_pfn(kvm, gfn));
+	pfn_t pfn;
+
+	pfn = gfn_to_pfn(kvm, gfn);
+	if (pfn_valid(pfn))
+		return pfn_to_page(pfn);
+
+	WARN_ON(!pfn_valid(pfn));
+
+	get_page(bad_page);
+	return bad_page;
 }
 
 EXPORT_SYMBOL_GPL(gfn_to_page);
@@ -569,7 +589,8 @@ EXPORT_SYMBOL_GPL(kvm_release_page_clean);
 
 void kvm_release_pfn_clean(pfn_t pfn)
 {
-	put_page(pfn_to_page(pfn));
+	if (pfn_valid(pfn))
+		put_page(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_release_pfn_clean);
 
@@ -594,21 +615,25 @@ EXPORT_SYMBOL_GPL(kvm_set_page_dirty);
 
 void kvm_set_pfn_dirty(pfn_t pfn)
 {
-	struct page *page = pfn_to_page(pfn);
-	if (!PageReserved(page))
-		SetPageDirty(page);
+	if (pfn_valid(pfn)) {
+		struct page *page = pfn_to_page(pfn);
+		if (!PageReserved(page))
+			SetPageDirty(page);
+	}
 }
 EXPORT_SYMBOL_GPL(kvm_set_pfn_dirty);
 
 void kvm_set_pfn_accessed(pfn_t pfn)
 {
-	mark_page_accessed(pfn_to_page(pfn));
+	if (pfn_valid(pfn))
+		mark_page_accessed(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_set_pfn_accessed);
 
 void kvm_get_pfn(pfn_t pfn)
 {
-	get_page(pfn_to_page(pfn));
+	if (pfn_valid(pfn))
+		get_page(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_get_pfn);
 
