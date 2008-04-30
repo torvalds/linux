@@ -1355,6 +1355,7 @@ static int get_serial_info(struct esp_struct * info,
 {
 	struct serial_struct tmp;
   
+	lock_kernel();
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.type = PORT_16550A;
 	tmp.line = info->line;
@@ -1367,6 +1368,7 @@ static int get_serial_info(struct esp_struct * info,
 	tmp.closing_wait = info->closing_wait;
 	tmp.custom_divisor = info->custom_divisor;
 	tmp.hub6 = 0;
+	unlock_kernel();
 	if (copy_to_user(retinfo,&tmp,sizeof(*retinfo)))
 		return -EFAULT;
 	return 0;
@@ -1381,6 +1383,7 @@ static int get_esp_config(struct esp_struct * info,
 		return -EFAULT;
 
 	memset(&tmp, 0, sizeof(tmp));
+	lock_kernel();
 	tmp.rx_timeout = info->config.rx_timeout;
 	tmp.rx_trigger = info->config.rx_trigger;
 	tmp.tx_trigger = info->config.tx_trigger;
@@ -1388,6 +1391,7 @@ static int get_esp_config(struct esp_struct * info,
 	tmp.flow_on = info->config.flow_on;
 	tmp.pio_threshold = info->config.pio_threshold;
 	tmp.dma_channel = (info->stat_flags & ESP_STAT_NEVER_DMA ? 0 : dma);
+	unlock_kernel();
 
 	return copy_to_user(retinfo, &tmp, sizeof(*retinfo)) ? -EFAULT : 0;
 }
@@ -1766,6 +1770,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 	struct serial_icounter_struct __user *p_cuser;	/* user space */
 	void __user *argp = (void __user *)arg;
 	unsigned long flags;
+	int ret;
 
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
 		return -ENODEV;
@@ -1783,7 +1788,10 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 		case TIOCGSERIAL:
 			return get_serial_info(info, argp);
 		case TIOCSSERIAL:
-			return set_serial_info(info, argp);
+			lock_kernel();
+			ret = set_serial_info(info, argp);
+			unlock_kernel();
+			return ret;
 		case TIOCSERCONFIG:
 			/* do not reconfigure after initial configuration */
 			return 0;
@@ -1855,11 +1863,13 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 				return -EFAULT;
 
 			return 0;
-	case TIOCGHAYESESP:
-		return get_esp_config(info, argp);
-	case TIOCSHAYESESP:
-		return set_esp_config(info, argp);
-
+		case TIOCGHAYESESP:
+			return get_esp_config(info, argp);
+		case TIOCSHAYESESP:
+			lock_kernel();
+			ret = set_esp_config(info, argp);
+			unlock_kernel();
+			return ret;
 		default:
 			return -ENOIOCTLCMD;
 		}
