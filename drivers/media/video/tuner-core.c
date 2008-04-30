@@ -40,11 +40,11 @@
 	typeof(&FUNCTION) __a = symbol_request(FUNCTION); \
 	if (__a) { \
 		__r = (int) __a(ARGS); \
+		symbol_put(FUNCTION); \
 	} else { \
 		printk(KERN_ERR "TUNER: Unable to find " \
 				"symbol "#FUNCTION"()\n"); \
 	} \
-	symbol_put(FUNCTION); \
 	__r; \
 })
 
