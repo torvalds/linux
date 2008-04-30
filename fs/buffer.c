@@ -1101,7 +1101,7 @@ grow_buffers(struct block_device *bdev, sector_t block, int size)
 
 		printk(KERN_ERR "%s: requested out-of-range block %llu for "
 			"device %s\n",
-			__FUNCTION__, (unsigned long long)block,
+			__func__, (unsigned long long)block,
 			bdevname(bdev, b));
 		return -EIO;
 	}

@@ -82,7 +82,7 @@ static int is_xattr_datum_unchecked(struct jffs2_sb_info *c, struct jffs2_xattr_
 static void unload_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
 {
 	/* must be called under down_write(xattr_sem) */
-	D1(dbg_xattr("%s: xid=%u, version=%u\n", __FUNCTION__, xd->xid, xd->version));
+	D1(dbg_xattr("%s: xid=%u, version=%u\n", __func__, xd->xid, xd->version));
 	if (xd->xname) {
 		c->xdatum_mem_usage -= (xd->name_len + 1 + xd->value_len);
 		kfree(xd->xname);
@@ -1252,7 +1252,7 @@ int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_
 	rc = jffs2_reserve_space_gc(c, totlen, &length, JFFS2_SUMMARY_XREF_SIZE);
 	if (rc) {
 		JFFS2_WARNING("%s: jffs2_reserve_space_gc() = %d, request = %u\n",
-			      __FUNCTION__, rc, totlen);
+			      __func__, rc, totlen);
 		rc = rc ? rc : -EBADFD;
 		goto out;
 	}
