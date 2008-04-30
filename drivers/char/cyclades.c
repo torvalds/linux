@@ -2814,7 +2814,7 @@ static int cy_write(struct tty_struct *tty, const unsigned char *buf, int count)
  * done stuffing characters into the driver.  If there is no room
  * in the queue, the character is ignored.
  */
-static void cy_put_char(struct tty_struct *tty, unsigned char ch)
+static int cy_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct cyclades_port *info = tty->driver_data;
 	unsigned long flags;
@@ -2824,15 +2824,15 @@ static void cy_put_char(struct tty_struct *tty, unsigned char ch)
 #endif
 
 	if (serial_paranoia_check(info, tty->name, "cy_put_char"))
-		return;
+		return 0;
 
 	if (!info->xmit_buf)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&info->card->card_lock, flags);
 	if (info->xmit_cnt >= (int)(SERIAL_XMIT_SIZE - 1)) {
 		spin_unlock_irqrestore(&info->card->card_lock, flags);
-		return;
+		return 0;
 	}
 
 	info->xmit_buf[info->xmit_head++] = ch;
@@ -2841,6 +2841,7 @@ static void cy_put_char(struct tty_struct *tty, unsigned char ch)
 	info->idle_stats.xmit_bytes++;
 	info->idle_stats.xmit_idle = jiffies;
 	spin_unlock_irqrestore(&info->card->card_lock, flags);
+	return 1;
 }				/* cy_put_char */
 
 /*

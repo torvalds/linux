@@ -1156,24 +1156,27 @@ static void change_speed(struct esp_struct *info)
 	spin_unlock_irqrestore(&info->lock, flags);
 }
 
-static void rs_put_char(struct tty_struct *tty, unsigned char ch)
+static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct esp_struct *info = (struct esp_struct *)tty->driver_data;
 	unsigned long flags;
+	int ret = 0;
 
 	if (serial_paranoia_check(info, tty->name, "rs_put_char"))
-		return;
+		return 0;
 
 	if (!info->xmit_buf)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&info->lock, flags);
 	if (info->xmit_cnt < ESP_XMIT_SIZE - 1) {
 		info->xmit_buf[info->xmit_head++] = ch;
 		info->xmit_head &= ESP_XMIT_SIZE-1;
 		info->xmit_cnt++;
+		ret = 1;
 	}
 	spin_unlock_irqrestore(&info->lock, flags);
+	return ret;
 }
 
 static void rs_flush_chars(struct tty_struct *tty)
