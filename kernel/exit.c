@@ -722,7 +722,7 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 	/* If this is a threaded reparent there is no need to
 	 * notify anyone anything has happened.
 	 */
-	if (p->real_parent->group_leader == father->group_leader)
+	if (same_thread_group(p->real_parent, father))
 		return;
 
 	/* We don't want people slaying init.  */
