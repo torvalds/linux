@@ -1,0 +1,46 @@
+What:		/sys/class/bdi/<bdi>/
+Date:		January 2008
+Contact:	Peter Zijlstra <a.p.zijlstra@chello.nl>
+Description:
+
+Provide a place in sysfs for the backing_dev_info object.
+This allows us to see and set the various BDI specific variables.
+
+The <bdi> identifier can be either of the following:
+
+MAJOR:MINOR
+
+	Device number for block devices, or value of st_dev on
+	non-block filesystems which provide their own BDI, such as NFS
+	and FUSE.
+
+default
+
+	The default backing dev, used for non-block device backed
+	filesystems which do not provide their own BDI.
+
+Files under /sys/class/bdi/<bdi>/
+---------------------------------
+
+read_ahead_kb (read-write)
+
+	Size of the read-ahead window in kilobytes
+
+reclaimable_kb (read-only)
+
+	Reclaimable (dirty or unstable) memory destined for writeback
+	to this device
+
+writeback_kb (read-only)
+
+	Memory currently under writeback to this device
+
+dirty_kb (read-only)
+
+	Global threshold for reclaimable + writeback memory
+
+bdi_dirty_kb (read-only)
+
+	Current threshold on this BDI for reclaimable + writeback
+	memory
+
