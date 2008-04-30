@@ -739,11 +739,6 @@ got:
 	if (err)
 		goto fail_free_drop;
 
-	err = ext4_mark_inode_dirty(handle, inode);
-	if (err) {
-		ext4_std_error(sb, err);
-		goto fail_free_drop;
-	}
 	if (test_opt(sb, EXTENTS)) {
 		/* set extent flag only for diretory, file and normal symlink*/
 		if (S_ISDIR(mode) || S_ISREG(mode) || S_ISLNK(mode)) {
@@ -752,8 +747,14 @@ got:
 			err = ext4_update_incompat_feature(handle, sb,
 					EXT4_FEATURE_INCOMPAT_EXTENTS);
 			if (err)
-				goto fail;
+				goto fail_free_drop;
 		}
+	}
+
+	err = ext4_mark_inode_dirty(handle, inode);
+	if (err) {
+		ext4_std_error(sb, err);
+		goto fail_free_drop;
 	}
 
 	ext4_debug("allocating inode %lu\n", inode->i_ino);
