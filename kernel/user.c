@@ -384,7 +384,7 @@ void free_uid(struct user_struct *up)
 		local_irq_restore(flags);
 }
 
-struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
+struct user_struct *alloc_uid(struct user_namespace *ns, uid_t uid)
 {
 	struct hlist_head *hashent = uidhashentry(ns, uid);
 	struct user_struct *up, *new;
@@ -399,26 +399,12 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 	spin_unlock_irq(&uidhash_lock);
 
 	if (!up) {
-		new = kmem_cache_alloc(uid_cachep, GFP_KERNEL);
+		new = kmem_cache_zalloc(uid_cachep, GFP_KERNEL);
 		if (!new)
 			goto out_unlock;
 
 		new->uid = uid;
 		atomic_set(&new->__count, 1);
-		atomic_set(&new->processes, 0);
-		atomic_set(&new->files, 0);
-		atomic_set(&new->sigpending, 0);
-#ifdef CONFIG_INOTIFY_USER
-		atomic_set(&new->inotify_watches, 0);
-		atomic_set(&new->inotify_devs, 0);
-#endif
-#ifdef CONFIG_POSIX_MQUEUE
-		new->mq_bytes = 0;
-#endif
-		new->locked_shm = 0;
-#ifdef CONFIG_KEYS
-		new->uid_keyring = new->session_keyring = NULL;
-#endif
 
 		if (sched_create_user(new) < 0)
 			goto out_free_user;
