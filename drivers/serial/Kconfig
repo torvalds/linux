@@ -1355,4 +1355,47 @@ config SERIAL_SC26XX_CONSOLE
 	help
 	  Support for Console on SC2681/SC2692 serial ports.
 
+config SERIAL_BFIN_SPORT
+	tristate "Blackfin SPORT emulate UART (EXPERIMENTAL)"
+	depends on BFIN && EXPERIMENTAL
+	select SERIAL_CORE
+	help
+	  Enble support SPORT emulate UART on Blackfin series.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_sport_uart.
+
+choice
+	prompt "Baud rate for Blackfin SPORT UART"
+	depends on SERIAL_BFIN_SPORT
+	default SERIAL_SPORT_BAUD_RATE_57600
+	help
+	  Choose a baud rate for the SPORT UART, other uart settings are
+	  8 bit, 1 stop bit, no parity, no flow control.
+
+config SERIAL_SPORT_BAUD_RATE_115200
+	bool "115200"
+
+config SERIAL_SPORT_BAUD_RATE_57600
+	bool "57600"
+
+config SERIAL_SPORT_BAUD_RATE_38400
+	bool "38400"
+
+config SERIAL_SPORT_BAUD_RATE_19200
+	bool "19200"
+
+config SERIAL_SPORT_BAUD_RATE_9600
+	bool "9600"
+endchoice
+
+config SPORT_BAUD_RATE
+	int
+	depends on SERIAL_BFIN_SPORT
+	default 115200 if (SERIAL_SPORT_BAUD_RATE_115200)
+	default 57600 if (SERIAL_SPORT_BAUD_RATE_57600)
+	default 38400 if (SERIAL_SPORT_BAUD_RATE_38400)
+	default 19200 if (SERIAL_SPORT_BAUD_RATE_19200)
+	default 9600 if (SERIAL_SPORT_BAUD_RATE_9600)
+
 endmenu
