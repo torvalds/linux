@@ -1078,9 +1078,7 @@ static void timeout_func(unsigned long data)
 
 static inline void init_timeout(struct aio_timeout *to)
 {
-	init_timer(&to->timer);
-	to->timer.data = (unsigned long)to;
-	to->timer.function = timeout_func;
+	setup_timer_on_stack(&to->timer, timeout_func, (unsigned long) to);
 	to->timed_out = 0;
 	to->p = current;
 }
@@ -1213,6 +1211,7 @@ retry:
 	if (timeout)
 		clear_timeout(&to);
 out:
+	destroy_timer_on_stack(&to.timer);
 	return i ? i : ret;
 }
 
