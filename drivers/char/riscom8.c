@@ -1385,7 +1385,7 @@ static int rc_ioctl(struct tty_struct * tty, struct file * filp,
 {
 	struct riscom_port *port = (struct riscom_port *)tty->driver_data;
 	void __user *argp = (void __user *)arg;
-	int retval;
+	int retval = 0;
 				
 	if (rc_paranoia_check(port, tty->name, "rc_ioctl"))
 		return -ENODEV;
@@ -1406,23 +1406,20 @@ static int rc_ioctl(struct tty_struct * tty, struct file * filp,
 		tty_wait_until_sent(tty, 0);
 		rc_send_break(port, arg ? arg*(HZ/10) : HZ/4);
 		break;
-	 case TIOCGSOFTCAR:
-		return put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned __user *)argp);
-	 case TIOCSSOFTCAR:
-		if (get_user(arg,(unsigned __user *) argp))
-			return -EFAULT;
-		tty->termios->c_cflag =
-			((tty->termios->c_cflag & ~CLOCAL) |
-			(arg ? CLOCAL : 0));
+	 case TIOCGSERIAL:
+	 	lock_kernel();
+		retval = rc_get_serial_info(port, argp);
+		unlock_kernel();
 		break;
-	 case TIOCGSERIAL:	
-		return rc_get_serial_info(port, argp);
 	 case TIOCSSERIAL:	
-		return rc_set_serial_info(port, argp);
+	 	lock_kernel();
+		retval = rc_set_serial_info(port, argp);
+		unlock_kernel();
+		break;
 	 default:
-		return -ENOIOCTLCMD;
+		retval = -ENOIOCTLCMD;
 	}
-	return 0;
+	return retval;
 }
 
 static void rc_throttle(struct tty_struct * tty)
