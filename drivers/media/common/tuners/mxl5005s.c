@@ -22,71 +22,10 @@
  *  Revision: 080314 - original version
  */
 
-
-/**
-
-@file
-
-@brief   MxL5005S tuner module definition
-
-One can manipulate MxL5005S tuner through MxL5005S module.
-MxL5005S module is derived from tuner module.
-
-*/
-
-
 #include "mxl5005s.h"
 
-/**
 
-@defgroup   MXL5005S_TUNER_MODULE   MxL5005S tuner module
-
-MxL5005S tuner module is drived from tuner base module.
-
-@see TUNER_BASE_MODULE
-
-*/
-
-
-
-
-
-/**
-
-@defgroup   MXL5005S_MODULE_BUILDER   MxL5005S module builder
-@ingroup    MXL5005S_TUNER_MODULE
-
-One should call MxL5005S module builder before using MxL5005S module.
-
-*/
-/// @{
-
-
-
-
-
-/**
-
-@brief   MxL5005S tuner module builder
-
-Use BuildMxl5005sModule() to build MxL5005S module, set all module function pointers with the corresponding functions,
-and initialize module private variables.
-
-
-@param [in]   ppTuner                      Pointer to MxL5005S tuner module pointer
-@param [in]   pTunerModuleMemory           Pointer to an allocated tuner module memory
-@param [in]   pMxl5005sExtraModuleMemory   Pointer to an allocated MxL5005S extra module memory
-@param [in]   pI2cBridgeModuleMemory       Pointer to an allocated I2C bridge module memory
-@param [in]   DeviceAddr                   MxL5005S I2C device address
-@param [in]   CrystalFreqHz                MxL5005S crystal frequency in Hz
-
-
-@note \n
-	-# One should call BuildMxl5005sModule() to build MxL5005S module before using it.
-
-*/
-void
-BuildMxl5005sModule(
+void BuildMxl5005sModule(
 	TUNER_MODULE **ppTuner,
 	TUNER_MODULE *pTunerModuleMemory,
 	MXL5005S_EXTRA_MODULE *pMxl5005sExtraModuleMemory,
@@ -200,43 +139,7 @@ BuildMxl5005sModule(
 	return;
 }
 
-
-
-
-
-/// @}
-
-
-
-
-
-/**
-
-@defgroup   MXL5005S_MANIPULATING_FUNCTIONS   MxL5005S manipulating functions derived from tuner base module
-@ingroup    MXL5005S_TUNER_MODULE
-
-One can use the MxL5005S tuner module manipulating interface implemented by MxL5005S manipulating functions to
-manipulate MxL5005S tuner.
-
-*/
-/// @{
-
-
-
-
-
-/**
-
-@brief   Set MxL5005S tuner I2C device address.
-
-@note \n
-	-# MxL5005S tuner builder will set TUNER_FP_SET_DEVICE_ADDR() function pointer with mxl5005s_SetDeviceAddr().
-
-@see   TUNER_FP_SET_DEVICE_ADDR
-
-*/
-void
-mxl5005s_SetDeviceAddr(
+void mxl5005s_SetDeviceAddr(
 	TUNER_MODULE *pTuner,
 	unsigned char DeviceAddr
 	)
@@ -249,22 +152,7 @@ mxl5005s_SetDeviceAddr(
 	return;
 }
 
-
-
-
-
-/**
-
-@brief   Get MxL5005S tuner type.
-
-@note \n
-	-# MxL5005S tuner builder will set TUNER_FP_GET_TUNER_TYPE() function pointer with mxl5005s_GetTunerType().
-
-@see   TUNER_FP_GET_TUNER_TYPE
-
-*/
-void
-mxl5005s_GetTunerType(
+void mxl5005s_GetTunerType(
 	TUNER_MODULE *pTuner,
 	int *pTunerType
 	)
@@ -276,22 +164,7 @@ mxl5005s_GetTunerType(
 	return;
 }
 
-
-
-
-
-/**
-
-@brief   Get MxL5005S tuner I2C device address.
-
-@note \n
-	-# MxL5005S tuner builder will set TUNER_FP_GET_DEVICE_ADDR() function pointer with mxl5005s_GetDeviceAddr().
-
-@see   TUNER_FP_GET_DEVICE_ADDR
-
-*/
-int
-mxl5005s_GetDeviceAddr(
+int mxl5005s_GetDeviceAddr(
 	TUNER_MODULE *pTuner,
 	unsigned char *pDeviceAddr
 	)
@@ -310,22 +183,7 @@ error_status_get_tuner_i2c_device_addr:
 	return FUNCTION_ERROR;
 }
 
-
-
-
-
-/**
-
-@brief   Initialize MxL5005S tuner.
-
-@note \n
-	-# MxL5005S tuner builder will set TUNER_FP_INITIALIZE() function pointer with mxl5005s_Initialize().
-
-@see   TUNER_FP_INITIALIZE
-
-*/
-int
-mxl5005s_Initialize(
+int mxl5005s_Initialize(
 	struct dvb_usb_device*        dib,
 	TUNER_MODULE *pTuner
 	)
@@ -337,15 +195,11 @@ mxl5005s_Initialize(
 	unsigned char ByteTable[MXL5005S_REG_WRITING_TABLE_LEN_MAX];
 	int TableLen;
 
-
-
 	// Get tuner extra module.
 	pExtra = (MXL5005S_EXTRA_MODULE *)pTuner->pExtra;
 
-
 	// Get AGC master byte
 	AgcMasterByte = pExtra->AgcMasterByte;
-
 
 	// Initialize MxL5005S tuner according to MxL5005S tuner example code.
 
@@ -357,37 +211,19 @@ mxl5005s_Initialize(
 	if(pExtra->SetRegsWithTable( dib,pTuner, AddrTable, ByteTable, LEN_1_BYTE) != FUNCTION_SUCCESS)
 		goto error_status_set_tuner_registers;
 
-
 	// Tuner initialization stage 1
 	MXL_GetInitRegister(&pExtra->MxlDefinedTunerStructure, AddrTable, ByteTable, &TableLen);
 
 	if(pExtra->SetRegsWithTable( dib,pTuner, AddrTable, ByteTable, TableLen) != FUNCTION_SUCCESS)
 		goto error_status_set_tuner_registers;
 
-
 	return FUNCTION_SUCCESS;
-
 
 error_status_set_tuner_registers:
 	return FUNCTION_ERROR;
 }
 
-
-
-
-
-/**
-
-@brief   Set MxL5005S tuner RF frequency in Hz.
-
-@note \n
-	-# MxL5005S tuner builder will set TUNER_FP_SET_RF_FREQ_HZ() function pointer with mxl5005s_SetRfFreqHz().
-
-@see   TUNER_FP_SET_RF_FREQ_HZ
-
-*/
-int
-mxl5005s_SetRfFreqHz(
+int mxl5005s_SetRfFreqHz(
 	struct dvb_usb_device*        dib,
 	TUNER_MODULE *pTuner,
 	unsigned long RfFreqHz
@@ -403,8 +239,6 @@ mxl5005s_SetRfFreqHz(
 
 	unsigned long IfDivval;
 	unsigned char MasterControlByte;
-
-
 
 	// Get tuner extra module and base interface module.
 	pExtra = (MXL5005S_EXTRA_MODULE *)pTuner->pExtra;
@@ -476,22 +310,7 @@ error_status_set_tuner_registers:
 	return FUNCTION_ERROR;
 }
 
-
-
-
-
-/**
-
-@brief   Get MxL5005S tuner RF frequency in Hz.
-
-@note \n
-	-# MxL5005S tuner builder will set TUNER_FP_GET_RF_FREQ_HZ() function pointer with mxl5005s_GetRfFreqHz().
-
-@see   TUNER_FP_GET_RF_FREQ_HZ
-
-*/
-int
-mxl5005s_GetRfFreqHz(
+int mxl5005s_GetRfFreqHz(
 	struct dvb_usb_device*        dib,
 	TUNER_MODULE *pTuner,
 	unsigned long *pRfFreqHz
@@ -511,18 +330,7 @@ error_status_get_tuner_rf_frequency:
 	return FUNCTION_ERROR;
 }
 
-
-
-
-
-/**
-
-@brief   Set MxL5005S tuner registers with table.
-
-*/
-/*
-int
-mxl5005s_SetRegsWithTable(
+int mxl5005s_SetRegsWithTable(
 	struct dvb_usb_device*        dib,
 	TUNER_MODULE *pTuner,
 	unsigned char *pAddrTable,
@@ -585,11 +393,8 @@ mxl5005s_SetRegsWithTable(
 error_status_set_tuner_registers:
 	return FUNCTION_ERROR;
 }
-*/
 
-
-int
-mxl5005s_SetRegsWithTable(
+int mxl5005s_SetRegsWithTable(
 	struct dvb_usb_device*        dib,
 	TUNER_MODULE *pTuner,
 	unsigned char *pAddrTable,
@@ -618,17 +423,7 @@ mxl5005s_SetRegsWithTable(
 	return FUNCTION_SUCCESS;
 }
 
-
-
-
-
-/**
-
-@brief   Set MxL5005S tuner register bits.
-
-*/
-int
-mxl5005s_SetRegMaskBits(
+int mxl5005s_SetRegMaskBits(
 	struct dvb_usb_device*        dib,
 	TUNER_MODULE *pTuner,
 	unsigned char RegAddr,
@@ -685,17 +480,7 @@ error_status_set_tuner_registers:
 	return FUNCTION_ERROR;
 }
 
-
-
-
-
-/**
-
-@brief   Set MxL5005S tuner spectrum mode.
-
-*/
-int
-mxl5005s_SetSpectrumMode(
+int mxl5005s_SetSpectrumMode(
 	struct dvb_usb_device*        dib,
 	TUNER_MODULE *pTuner,
 	int SpectrumMode
@@ -730,17 +515,7 @@ error_status_set_tuner_registers:
 	return FUNCTION_ERROR;
 }
 
-
-
-
-
-/**
-
-@brief   Set MxL5005S tuner bandwidth in Hz.
-
-*/
-int
-mxl5005s_SetBandwidthHz(
+int mxl5005s_SetBandwidthHz(
 	struct dvb_usb_device*        dib,
 	TUNER_MODULE *pTuner,
 	unsigned long BandwidthHz
@@ -777,48 +552,7 @@ error_status_set_tuner_registers:
 	return FUNCTION_ERROR;
 }
 
-
-
-
-
-/// @}
-
-
-
-
-
-/**
-
-@defgroup   MXL5005S_DEPENDENCE   MxL5005S dependence
-@ingroup    MXL5005S_TUNER_MODULE
-
-MxL5005S dependence is the related functions for MxL5005S tuner module interface.
-One should not use MxL5005S dependence directly.
-
-*/
-/// @{
-
-
-
-
-
-/**
-
-@brief   Set I2C bridge module tuner arguments.
-
-MxL5005S builder will use mxl5005s_SetI2cBridgeModuleTunerArg() to set I2C bridge module tuner arguments.
-
-
-@param [in]   pTuner   The tuner module pointer
-
-
-@see   BuildMxl5005sModule()
-
-*/
-void
-mxl5005s_SetI2cBridgeModuleTunerArg(
-	TUNER_MODULE *pTuner
-	)
+void mxl5005s_SetI2cBridgeModuleTunerArg(TUNER_MODULE *pTuner)
 {
 	I2C_BRIDGE_MODULE *pI2cBridge;
 
@@ -834,50 +568,9 @@ mxl5005s_SetI2cBridgeModuleTunerArg(
 	return;
 }
 
-
-
-
-
-/// @}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // The following context is source code provided by MaxLinear.
-
-
-
-
-
 // MaxLinear source code - MXL5005_Initialize.cpp
-
-
-
-//#ifdef _MXL_HEADER
-//#include "stdafx.h"
-//#endif
-//#include "MXL5005_c.h"
-
-_u16 MXL5005_RegisterInit (Tuner_struct * Tuner)
+u16 MXL5005_RegisterInit(Tuner_struct *Tuner)
 {
 	Tuner->TunerRegs_Num = TUNER_REGS_NUM ;
 //	Tuner->TunerRegs = (TunerReg_struct *) calloc( TUNER_REGS_NUM, sizeof(TunerReg_struct) ) ;
@@ -1197,7 +890,7 @@ _u16 MXL5005_RegisterInit (Tuner_struct * Tuner)
 	return 0 ;
 }
 
-_u16 MXL5005_ControlInit (Tuner_struct *Tuner)
+u16 MXL5005_ControlInit(Tuner_struct *Tuner)
 {
 	Tuner->Init_Ctrl_Num = INITCTRL_NUM ;
 
@@ -2136,33 +1829,9 @@ _u16 MXL5005_ControlInit (Tuner_struct *Tuner)
 	return 0 ;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // MaxLinear source code - MXL5005_c.cpp
-
-
-
 // MXL5005.cpp : Defines the initialization routines for the DLL.
 // 2.6.12
-
-
-//#ifdef _MXL_HEADER
-//#include "stdafx.h"
-//#endif
-//#include "MXL5005_c.h"
-
 
 void InitTunerControls(Tuner_struct *Tuner)
 {
@@ -2173,8 +1842,6 @@ void InitTunerControls(Tuner_struct *Tuner)
 #endif
 }
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 //                                                                           //
 // Function:       MXL_ConfigTuner                                           //
@@ -2184,7 +1851,7 @@ void InitTunerControls(Tuner_struct *Tuner)
 //                                                                           //
 //                                                                           //
 // Functions used:                                                           //
-//                 MXL_SynthIFLO_Calc                                      //
+//                 MXL_SynthIFLO_Calc                                        //
 //                                                                           //
 // Inputs:                                                                   //
 //                 Tuner_struct: structure defined at higher level           //
@@ -2193,12 +1860,12 @@ void InitTunerControls(Tuner_struct *Tuner)
 //				   Bandwidth:    Filter Channel Bandwidth (in Hz)            //
 //                 IF_out:       Desired IF out Frequency (in Hz)            //
 //                 Fxtal:        Crystal Frerquency (in Hz)                  //
-//			   TOP:			 0: Dual AGC; Value: take over point         //
-//				   IF_OUT_LOAD:	 IF out load resistor (200/300 Ohms)		 //
-//				   CLOCK_OUT:	 0: Turn off clock out; 1: turn on clock out //
-//				   DIV_OUT:      0: Div-1; 1: Div-4							 //
-//				   CAPSELECT:	 0: Disable On-chip pulling cap; 1: Enable   //
-//				   EN_RSSI:		 0: Disable RSSI; 1: Enable RSSI			 //
+//			   TOP:		 0: Dual AGC; Value: take over point         //
+//			   IF_OUT_LOAD:	 IF out load resistor (200/300 Ohms)		 //
+//			   CLOCK_OUT:	 0: Turn off clock out; 1: turn on clock out //
+//			   DIV_OUT:      0: Div-1; 1: Div-4							 //
+//			   CAPSELECT:	 0: Disable On-chip pulling cap; 1: Enable   //
+//			   EN_RSSI:		 0: Disable RSSI; 1: Enable RSSI			 //
 //                                                                           //
 // Outputs:                                                                  //
 //                 Tuner                                                     //
@@ -2208,26 +1875,26 @@ void InitTunerControls(Tuner_struct *Tuner)
 //               > 0 : Failed                                                //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u16 MXL5005_TunerConfig(Tuner_struct *Tuner,
-		_u8		Mode,		// 0: Analog Mode ; 1: Digital Mode
-		_u8		IF_mode,	// for Analog Mode, 0: zero IF; 1: low IF
-		_u32	Bandwidth,	// filter  channel bandwidth (6, 7, 8)
-		_u32	IF_out,		// Desired IF Out Frequency
-		_u32	Fxtal,		// XTAL Frequency
-		_u8		AGC_Mode,	// AGC Mode - Dual AGC: 0, Single AGC: 1
-		_u16	TOP,        // 0: Dual AGC; Value: take over point
-		_u16	IF_OUT_LOAD, // IF Out Load Resistor (200 / 300 Ohms)
-		_u8		CLOCK_OUT, 	// 0: turn off clock out; 1: turn on clock out
-		_u8		DIV_OUT,	// 0: Div-1; 1: Div-4
-		_u8		CAPSELECT, 	// 0: disable On-Chip pulling cap; 1: enable
-		_u8		EN_RSSI, 	// 0: disable RSSI; 1: enable RSSI
-		_u8		Mod_Type,	// Modulation Type;
-							// 0 - Default;	1 - DVB-T; 2 - ATSC; 3 - QAM; 4 - Analog Cable
-		_u8		TF_Type		// Tracking Filter
-							// 0 - Default; 1 - Off; 2 - Type C; 3 - Type C-H
+u16 MXL5005_TunerConfig(Tuner_struct *Tuner,
+		u8	Mode,		// 0: Analog Mode ; 1: Digital Mode
+		u8	IF_mode,	// for Analog Mode, 0: zero IF; 1: low IF
+		u32	Bandwidth,	// filter  channel bandwidth (6, 7, 8)
+		u32	IF_out,		// Desired IF Out Frequency
+		u32	Fxtal,		// XTAL Frequency
+		u8	AGC_Mode,	// AGC Mode - Dual AGC: 0, Single AGC: 1
+		u16	TOP,        // 0: Dual AGC; Value: take over point
+		u16	IF_OUT_LOAD, // IF Out Load Resistor (200 / 300 Ohms)
+		u8	CLOCK_OUT, 	// 0: turn off clock out; 1: turn on clock out
+		u8	DIV_OUT,	// 0: Div-1; 1: Div-4
+		u8	CAPSELECT, 	// 0: disable On-Chip pulling cap; 1: enable
+		u8	EN_RSSI, 	// 0: disable RSSI; 1: enable RSSI
+		u8	Mod_Type,	// Modulation Type;
+					// 0 - Default;	1 - DVB-T; 2 - ATSC; 3 - QAM; 4 - Analog Cable
+		u8	TF_Type		// Tracking Filter
+					// 0 - Default; 1 - Off; 2 - Type C; 3 - Type C-H
 		)
 {
-	_u16 status = 0 ;
+	u16 status = 0 ;
 
 	Tuner->Mode = Mode ;
 	Tuner->IF_Mode = IF_mode ;
@@ -2244,15 +1911,10 @@ _u16 MXL5005_TunerConfig(Tuner_struct *Tuner,
 	Tuner->Mod_Type = Mod_Type ;
 	Tuner->TF_Type = TF_Type ;
 
-
-
-	//
-	//	Initialize all the controls and registers
-	//
+	/* Initialize all the controls and registers */
 	InitTunerControls (Tuner) ;
-	//
-	// Synthesizer LO frequency calculation
-	//
+
+	/* Synthesizer LO frequency calculation */
 	MXL_SynthIFLO_Calc( Tuner ) ;
 
 	return status ;
@@ -2366,9 +2028,9 @@ void MXL_SynthRFTGLO_Calc(Tuner_struct *Tuner)
 //               > 0 : Failed                                                //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u16 MXL_OverwriteICDefault( Tuner_struct *Tuner)
+u16 MXL_OverwriteICDefault( Tuner_struct *Tuner)
 {
-	_u16 status = 0 ;
+	u16 status = 0 ;
 
 	status += MXL_ControlWrite(Tuner, OVERRIDE_1, 1) ;
 	status += MXL_ControlWrite(Tuner, OVERRIDE_2, 1) ;
@@ -2403,20 +2065,20 @@ _u16 MXL_OverwriteICDefault( Tuner_struct *Tuner)
 //               > 0 : Failed                                                //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u16 MXL_BlockInit( Tuner_struct *Tuner )
+u16 MXL_BlockInit( Tuner_struct *Tuner )
 {
-	_u16 status = 0 ;
+	u16 status = 0 ;
 
 	status += MXL_OverwriteICDefault(Tuner) ;
 
 	//
 	// Downconverter Control
-	//															  Dig Ana
+	//  Dig Ana
 	status += MXL_ControlWrite(Tuner, DN_IQTN_AMP_CUT, Tuner->Mode ? 1 : 0) ;
 
 	//
 	// Filter Control
-	//															  Dig  Ana
+	//  Dig  Ana
 	status += MXL_ControlWrite(Tuner, BB_MODE,          Tuner->Mode ? 0 : 1) ;
 	status += MXL_ControlWrite(Tuner, BB_BUF,           Tuner->Mode ? 3 : 2) ;
 	status += MXL_ControlWrite(Tuner, BB_BUF_OA,        Tuner->Mode ? 1 : 0) ;
@@ -2439,7 +2101,7 @@ _u16 MXL_BlockInit( Tuner_struct *Tuner )
 		}
 	} else { // Analog Mode
 		switch (Tuner->Chan_Bandwidth) {
-			case 8000000:													// Low Zero
+			case 8000000:	// Low Zero
 				status += MXL_ControlWrite(Tuner, BB_ALPF_BANDSELECT, (Tuner->IF_Mode ? 0 : 3)) ;
 				break ;
 			case 7000000:
@@ -2453,7 +2115,7 @@ _u16 MXL_BlockInit( Tuner_struct *Tuner )
 
 	//
 	// Charge Pump Control
-	//															       Dig  Ana
+	//   Dig  Ana
 	status += MXL_ControlWrite(Tuner, RFSYN_CHP_GAIN,      Tuner->Mode ? 5 : 8) ;
 	status += MXL_ControlWrite(Tuner, RFSYN_EN_CHP_HIGAIN, Tuner->Mode ?  1 :  1) ;
 	status += MXL_ControlWrite(Tuner, EN_CHP_LIN_B, Tuner->Mode ? 0 : 0) ;
@@ -2621,8 +2283,6 @@ _u16 MXL_BlockInit( Tuner_struct *Tuner )
 	// Apply Default value to BB_INITSTATE_DLPF_TUNE
 	//
 
-
-
 	//
 	// RSSI Control
 	//
@@ -2697,7 +2357,7 @@ _u16 MXL_BlockInit( Tuner_struct *Tuner )
 
 		//Tuner->AGC_Mode = 1 ;		// Single AGC Mode
 
-		// Disable RSSI											//change here for v2.6.5
+		// Disable RSSI			//change here for v2.6.5
 		status += MXL_ControlWrite(Tuner, SEQ_EXTSYNTHCALIF, 1) ;
 		status += MXL_ControlWrite(Tuner, SEQ_EXTDCCAL, 1) ;
 		status += MXL_ControlWrite(Tuner, AGC_EN_RSSI, 0) ;
@@ -2787,13 +2447,13 @@ _u16 MXL_BlockInit( Tuner_struct *Tuner )
 //               > 0 : Failed                                                //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u16 MXL_IFSynthInit( Tuner_struct * Tuner )
+u16 MXL_IFSynthInit(Tuner_struct * Tuner)
 {
-	_u16 status = 0 ;
+	u16 status = 0 ;
 	// Declare Local Variables
-	_u32	Fref = 0 ;
-	_u32	Kdbl, intModVal ;
-    _u32	fracModVal ;
+	u32	Fref = 0 ;
+	u32	Kdbl, intModVal ;
+	u32	fracModVal ;
 	Kdbl = 2 ;
 
 	if (Tuner->Fxtal >= 12000000UL && Tuner->Fxtal <= 16000000UL)
@@ -2999,8 +2659,6 @@ _u16 MXL_IFSynthInit( Tuner_struct * Tuner )
 	fracModVal = fracModVal / ((Tuner->Fxtal * Kdbl/2)/1000) ;
 	status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_IF, fracModVal) ;
 
-
-
 	return status ;
 }
 
@@ -3008,14 +2666,14 @@ _u16 MXL_IFSynthInit( Tuner_struct * Tuner )
 //                                                                           //
 // Function:       MXL_GetXtalInt                                            //
 //                                                                           //
-// Description:    return the Crystal Integration Value for				     //
-//				   TG_VCO_BIAS calculation									 //
+// Description:    return the Crystal Integration Value for		     //
+//				   TG_VCO_BIAS calculation		 //
 //                                                                           //
 // Globals:                                                                  //
 //                 NONE                                                      //
 //                                                                           //
 // Functions used:                                                           //
-//                 NONE												     //
+//                 NONE							     //
 //                                                                           //
 // Inputs:                                                                   //
 //                 Crystal Frequency Value in Hz						     //
@@ -3028,7 +2686,7 @@ _u16 MXL_IFSynthInit( Tuner_struct * Tuner )
 //               > 0 : Failed                                                //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u32 MXL_GetXtalInt(_u32 Xtal_Freq)
+u32 MXL_GetXtalInt(u32 Xtal_Freq)
 {
 	if ((Xtal_Freq % 1000000) == 0)
 		return (Xtal_Freq / 10000) ;
@@ -3048,7 +2706,7 @@ _u32 MXL_GetXtalInt(_u32 Xtal_Freq)
 // Functions used:                                                           //
 //                 MXL_SynthRFTGLO_Calc                                      //
 //                 MXL5005_ControlWrite                                      //
-//				   MXL_GetXtalInt											 //
+//		   MXL_GetXtalInt					 //
 //                                                                           //
 // Inputs:                                                                   //
 //                 Tuner       : Tuner structure defined at higher level     //
@@ -3060,20 +2718,20 @@ _u32 MXL_GetXtalInt(_u32 Xtal_Freq)
 //                 0 : Successful                                            //
 //                 1 : Unsuccessful                                          //
 ///////////////////////////////////////////////////////////////////////////////
-_u16 MXL_TuneRF(Tuner_struct *Tuner, _u32 RF_Freq)
+u16 MXL_TuneRF(Tuner_struct *Tuner, u32 RF_Freq)
 {
 	// Declare Local Variables
-	_u16 status = 0 ;
-	_u32 divider_val, E3, E4, E5, E5A ;
-	_u32 Fmax, Fmin, FmaxBin, FminBin ;
-	_u32 Kdbl_RF = 2;
-	_u32 tg_divval ;
-	_u32 tg_lo ;
-	_u32 Xtal_Int ;
+	u16 status = 0 ;
+	u32 divider_val, E3, E4, E5, E5A ;
+	u32 Fmax, Fmin, FmaxBin, FminBin ;
+	u32 Kdbl_RF = 2;
+	u32 tg_divval ;
+	u32 tg_lo ;
+	u32 Xtal_Int ;
 
-	_u32 Fref_TG;
-	_u32 Fvco;
-//	_u32 temp;
+	u32 Fref_TG;
+	u32 Fvco;
+//	u32 temp;
 
 
 	Xtal_Int = MXL_GetXtalInt(Tuner->Fxtal ) ;
@@ -3774,7 +3432,8 @@ _u16 MXL_TuneRF(Tuner_struct *Tuner, _u32 RF_Freq)
 	{
 		status += MXL_ControlWrite(Tuner, DAC_DIN_A, 0) ;
 
-		if (Tuner->RF_IN >= 471000000 && (Tuner->RF_IN - 471000000)%6000000 != 0) // if UHF and terrestrial => Turn off Tracking Filter
+		// if UHF and terrestrial => Turn off Tracking Filter
+		if (Tuner->RF_IN >= 471000000 && (Tuner->RF_IN - 471000000)%6000000 != 0)
 		{
 			// Turn off all the banks
 			status += MXL_SetGPIO(Tuner, 3, 1) ;
@@ -4089,7 +3748,8 @@ _u16 MXL_TuneRF(Tuner_struct *Tuner, _u32 RF_Freq)
 	{
 		status += MXL_ControlWrite(Tuner, DAC_DIN_B, 0) ;
 
-		if (Tuner->RF_IN >= 471000000 && (Tuner->RF_IN - 471000000)%6000000 != 0) //if UHF and terrestrial=> Turn off Tracking Filter
+		// if UHF and terrestrial=> Turn off Tracking Filter
+		if (Tuner->RF_IN >= 471000000 && (Tuner->RF_IN - 471000000)%6000000 != 0)
 		{
 			// Turn off all the banks
 			status += MXL_SetGPIO(Tuner, 3, 1) ;
@@ -4181,9 +3841,9 @@ _u16 MXL_TuneRF(Tuner_struct *Tuner, _u32 RF_Freq)
 	return status ;
 }
 
-_u16 MXL_SetGPIO(Tuner_struct *Tuner, _u8 GPIO_Num, _u8 GPIO_Val)
+u16 MXL_SetGPIO(Tuner_struct *Tuner, u8 GPIO_Num, u8 GPIO_Val)
 {
-	_u16 status = 0 ;
+	u16 status = 0 ;
 
 	if (GPIO_Num == 1)
 		status += MXL_ControlWrite(Tuner, GPIO_1B, GPIO_Val ? 0 : 1) ;
@@ -4247,9 +3907,9 @@ _u16 MXL_SetGPIO(Tuner_struct *Tuner, _u8 GPIO_Num, _u8 GPIO_Val)
 //                 >0 : Value exceed maximum allowed for control number      //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u16 MXL_ControlWrite(Tuner_struct *Tuner, _u16 ControlNum, _u32 value)
+u16 MXL_ControlWrite(Tuner_struct *Tuner, u16 ControlNum, u32 value)
 {
-	_u16 status = 0 ;
+	u16 status = 0 ;
 	// Will write ALL Matching Control Name
 	status += MXL_ControlWrite_Group( Tuner, ControlNum, value, 1 ) ;    // Write Matching INIT Control
 	status += MXL_ControlWrite_Group( Tuner, ControlNum, value, 2 ) ;    // Write Matching CH Control
@@ -4287,11 +3947,11 @@ _u16 MXL_ControlWrite(Tuner_struct *Tuner, _u16 ControlNum, _u32 value)
 //                 2 : Control name not found                                //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u16 MXL_ControlWrite_Group(Tuner_struct *Tuner, _u16 controlNum, _u32 value, _u16 controlGroup)
+u16 MXL_ControlWrite_Group(Tuner_struct *Tuner, u16 controlNum, u32 value, u16 controlGroup)
 {
-	_u16 i, j, k ;
-	_u32 highLimit ;
-	_u32 ctrlVal ;
+	u16 i, j, k ;
+	u32 highLimit ;
+	u32 ctrlVal ;
 
 	if( controlGroup == 1) // Initial Control
 	{
@@ -4304,11 +3964,11 @@ _u16 MXL_ControlWrite_Group(Tuner_struct *Tuner, _u16 controlNum, _u32 value, _u
 				{
 					for( j=0; j<Tuner->Init_Ctrl[i].size; j++)
 					{
-						Tuner->Init_Ctrl[i].val[j] = (_u8)((value >> j) & 0x01) ;
+						Tuner->Init_Ctrl[i].val[j] = (u8)((value >> j) & 0x01) ;
 						// change the register map accordingly
-						MXL_RegWriteBit( Tuner, (_u8)(Tuner->Init_Ctrl[i].addr[j]),
-							(_u8)(Tuner->Init_Ctrl[i].bit[j]),
-							(_u8)((value>>j) & 0x01) ) ;
+						MXL_RegWriteBit( Tuner, (u8)(Tuner->Init_Ctrl[i].addr[j]),
+							(u8)(Tuner->Init_Ctrl[i].bit[j]),
+							(u8)((value>>j) & 0x01) ) ;
 					}
 					ctrlVal = 0 ;
 					for(k=0; k<Tuner->Init_Ctrl[i].size; k++)
@@ -4334,11 +3994,11 @@ _u16 MXL_ControlWrite_Group(Tuner_struct *Tuner, _u16 controlNum, _u32 value, _u
 				{
 					for( j=0; j<Tuner->CH_Ctrl[i].size; j++)
 					{
-						Tuner->CH_Ctrl[i].val[j] = (_u8)((value >> j) & 0x01) ;
+						Tuner->CH_Ctrl[i].val[j] = (u8)((value >> j) & 0x01) ;
 						// change the register map accordingly
-						MXL_RegWriteBit( Tuner, (_u8)(Tuner->CH_Ctrl[i].addr[j]),
-							(_u8)(Tuner->CH_Ctrl[i].bit[j]),
-							(_u8)((value>>j) & 0x01) ) ;
+						MXL_RegWriteBit( Tuner, (u8)(Tuner->CH_Ctrl[i].addr[j]),
+							(u8)(Tuner->CH_Ctrl[i].bit[j]),
+							(u8)((value>>j) & 0x01) ) ;
 					}
 					ctrlVal = 0 ;
 					for(k=0; k<Tuner->CH_Ctrl[i].size; k++)
@@ -4365,11 +4025,11 @@ _u16 MXL_ControlWrite_Group(Tuner_struct *Tuner, _u16 controlNum, _u32 value, _u
 				{
 					for( j=0; j<Tuner->MXL_Ctrl[i].size; j++)
 					{
-						Tuner->MXL_Ctrl[i].val[j] = (_u8)((value >> j) & 0x01) ;
+						Tuner->MXL_Ctrl[i].val[j] = (u8)((value >> j) & 0x01) ;
 						// change the register map accordingly
-						MXL_RegWriteBit( Tuner, (_u8)(Tuner->MXL_Ctrl[i].addr[j]),
-							(_u8)(Tuner->MXL_Ctrl[i].bit[j]),
-							(_u8)((value>>j) & 0x01) ) ;
+						MXL_RegWriteBit( Tuner, (u8)(Tuner->MXL_Ctrl[i].addr[j]),
+							(u8)(Tuner->MXL_Ctrl[i].bit[j]),
+							(u8)((value>>j) & 0x01) ) ;
 					}
 					ctrlVal = 0 ;
 					for(k=0; k<Tuner->MXL_Ctrl[i].size; k++)
@@ -4413,7 +4073,7 @@ _u16 MXL_ControlWrite_Group(Tuner_struct *Tuner, _u16 controlNum, _u32 value, _u
 //                 -1 : Invalid Register Address                             //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u16 MXL_RegWrite(Tuner_struct *Tuner, _u8 RegNum, _u8 RegVal)
+u16 MXL_RegWrite(Tuner_struct *Tuner, u8 RegNum, u8 RegVal)
 {
 	int i ;
 
@@ -4453,7 +4113,7 @@ _u16 MXL_RegWrite(Tuner_struct *Tuner, _u8 RegNum, _u8 RegVal)
 //                 -1 : Invalid Register Address                             //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u16 MXL_RegRead(Tuner_struct *Tuner, _u8 RegNum, _u8 *RegVal)
+u16 MXL_RegRead(Tuner_struct *Tuner, u8 RegNum, u8 *RegVal)
 {
 	int i ;
 
@@ -4461,7 +4121,7 @@ _u16 MXL_RegRead(Tuner_struct *Tuner, _u8 RegNum, _u8 *RegVal)
 	{
 		if (RegNum == Tuner->TunerRegs[i].Reg_Num )
 		{
-			*RegVal = (_u8)(Tuner->TunerRegs[i].Reg_Val) ;
+			*RegVal = (u8)(Tuner->TunerRegs[i].Reg_Val) ;
 			return 0 ;
 		}
 	}
@@ -4490,10 +4150,10 @@ _u16 MXL_RegRead(Tuner_struct *Tuner, _u8 RegNum, _u8 *RegVal)
 //                 -1 : Invalid control name                                 //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u16 MXL_ControlRead(Tuner_struct *Tuner, _u16 controlNum, _u32 * value)
+u16 MXL_ControlRead(Tuner_struct *Tuner, u16 controlNum, u32 * value)
 {
-	_u32 ctrlVal ;
-	_u16 i, k ;
+	u32 ctrlVal ;
+	u16 i, k ;
 
 	for (i=0; i<Tuner->Init_Ctrl_Num ; i++)
 	{
@@ -4539,7 +4199,7 @@ _u16 MXL_ControlRead(Tuner_struct *Tuner, _u16 controlNum, _u32 * value)
 // Function:       MXL_ControlRegRead                                        //
 //                                                                           //
 // Description:    Retrieve the register addresses and count related to a    //
-//				   a specific control name									 //
+//		   a specific control name				 //
 //                                                                           //
 // Globals:                                                                  //
 //                 NONE                                                      //
@@ -4550,24 +4210,24 @@ _u16 MXL_ControlRead(Tuner_struct *Tuner, _u16 controlNum, _u32 * value)
 //                                                                           //
 // Outputs:                                                                  //
 //                 RegNum  : returned register address array                 //
-//				   count   : returned register count related to a control    //
+//		   count   : returned register count related to a control    //
 //                                                                           //
 // Return:                                                                   //
 //                 0 : Successful read                                       //
 //                 -1 : Invalid control name                                 //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u16 MXL_ControlRegRead(Tuner_struct *Tuner, _u16 controlNum, _u8 *RegNum, int * count)
+u16 MXL_ControlRegRead(Tuner_struct *Tuner, u16 controlNum, u8 *RegNum, int * count)
 {
-	_u16 i, j, k ;
-	_u16 Count ;
+	u16 i, j, k ;
+	u16 Count ;
 
 	for (i=0; i<Tuner->Init_Ctrl_Num ; i++)
 	{
 		if ( controlNum == Tuner->Init_Ctrl[i].Ctrl_Num )
 		{
 			Count = 1 ;
-			RegNum[0] = (_u8)(Tuner->Init_Ctrl[i].addr[0]) ;
+			RegNum[0] = (u8)(Tuner->Init_Ctrl[i].addr[0]) ;
 
 			for(k=1; k<Tuner->Init_Ctrl[i].size; k++)
 			{
@@ -4576,7 +4236,7 @@ _u16 MXL_ControlRegRead(Tuner_struct *Tuner, _u16 controlNum, _u8 *RegNum, int *
 					if (Tuner->Init_Ctrl[i].addr[k] != RegNum[j])
 					{
 						Count ++ ;
-						RegNum[Count-1] = (_u8)(Tuner->Init_Ctrl[i].addr[k]) ;
+						RegNum[Count-1] = (u8)(Tuner->Init_Ctrl[i].addr[k]) ;
 					}
 				}
 
@@ -4590,7 +4250,7 @@ _u16 MXL_ControlRegRead(Tuner_struct *Tuner, _u16 controlNum, _u8 *RegNum, int *
 		if ( controlNum == Tuner->CH_Ctrl[i].Ctrl_Num )
 		{
 			Count = 1 ;
-			RegNum[0] = (_u8)(Tuner->CH_Ctrl[i].addr[0]) ;
+			RegNum[0] = (u8)(Tuner->CH_Ctrl[i].addr[0]) ;
 
 			for(k=1; k<Tuner->CH_Ctrl[i].size; k++)
 			{
@@ -4599,7 +4259,7 @@ _u16 MXL_ControlRegRead(Tuner_struct *Tuner, _u16 controlNum, _u8 *RegNum, int *
 					if (Tuner->CH_Ctrl[i].addr[k] != RegNum[j])
 					{
 						Count ++ ;
-						RegNum[Count-1] = (_u8)(Tuner->CH_Ctrl[i].addr[k]) ;
+						RegNum[Count-1] = (u8)(Tuner->CH_Ctrl[i].addr[k]) ;
 					}
 				}
 			}
@@ -4613,7 +4273,7 @@ _u16 MXL_ControlRegRead(Tuner_struct *Tuner, _u16 controlNum, _u8 *RegNum, int *
 		if ( controlNum == Tuner->MXL_Ctrl[i].Ctrl_Num )
 		{
 			Count = 1 ;
-			RegNum[0] = (_u8)(Tuner->MXL_Ctrl[i].addr[0]) ;
+			RegNum[0] = (u8)(Tuner->MXL_Ctrl[i].addr[0]) ;
 
 			for(k=1; k<Tuner->MXL_Ctrl[i].size; k++)
 			{
@@ -4622,7 +4282,7 @@ _u16 MXL_ControlRegRead(Tuner_struct *Tuner, _u16 controlNum, _u8 *RegNum, int *
 					if (Tuner->MXL_Ctrl[i].addr[k] != RegNum[j])
 					{
 						Count ++ ;
-						RegNum[Count-1] = (_u8)Tuner->MXL_Ctrl[i].addr[k] ;
+						RegNum[Count-1] = (u8)Tuner->MXL_Ctrl[i].addr[k] ;
 					}
 				}
 			}
@@ -4648,8 +4308,8 @@ _u16 MXL_ControlRegRead(Tuner_struct *Tuner, _u16 controlNum, _u8 *RegNum, int *
 // Inputs:                                                                   //
 //                 Tuner_struct  : structure defined at higher level         //
 //                 address       : register address                          //
-//				   bit			 : register bit number						 //
-//				   bitVal		 : register bit value                        //
+//		   bit		 : register bit number			 //
+//		   bitVal	 : register bit value                        //
 //                                                                           //
 // Outputs:                                                                  //
 //                 NONE                                                      //
@@ -4659,16 +4319,16 @@ _u16 MXL_ControlRegRead(Tuner_struct *Tuner, _u16 controlNum, _u8 *RegNum, int *
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
 
-void MXL_RegWriteBit(Tuner_struct *Tuner, _u8 address, _u8 bit, _u8 bitVal)
+void MXL_RegWriteBit(Tuner_struct *Tuner, u8 address, u8 bit, u8 bitVal)
 {
 	int i ;
 
 	// Declare Local Constants
-	const _u8 AND_MAP[8] = {
+	const u8 AND_MAP[8] = {
 		0xFE, 0xFD, 0xFB, 0xF7,
 		0xEF, 0xDF, 0xBF, 0x7F } ;
 
-	const _u8 OR_MAP[8] = {
+	const u8 OR_MAP[8] = {
 		0x01, 0x02, 0x04, 0x08,
 		0x10, 0x20, 0x40, 0x80 } ;
 
@@ -4707,7 +4367,7 @@ void MXL_RegWriteBit(Tuner_struct *Tuner, _u8 address, _u8 bit, _u8 bitVal)
 //                Computed value                                             //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
-_u32 MXL_Ceiling( _u32 value, _u32 resolution )
+u32 MXL_Ceiling( u32 value, u32 resolution )
 {
 	return (value/resolution + (value%resolution > 0 ? 1 : 0)) ;
 };
@@ -4715,15 +4375,15 @@ _u32 MXL_Ceiling( _u32 value, _u32 resolution )
 //
 // Retrieve the Initialzation Registers
 //
-_u16 MXL_GetInitRegister(Tuner_struct *Tuner, _u8 * RegNum, _u8 *RegVal, int *count)
+u16 MXL_GetInitRegister(Tuner_struct *Tuner, u8 * RegNum, u8 *RegVal, int *count)
 {
-	_u16 status = 0;
+	u16 status = 0;
 	int i ;
 
-	_u8 RegAddr[] = {11, 12, 13, 22, 32, 43, 44, 53, 56, 59, 73,
+	u8 RegAddr[] = {11, 12, 13, 22, 32, 43, 44, 53, 56, 59, 73,
 							   76, 77, 91, 134, 135, 137, 147,
 							   156, 166, 167, 168, 25 } ;
-	*count = sizeof(RegAddr) / sizeof(_u8) ;
+	*count = sizeof(RegAddr) / sizeof(u8) ;
 
 	status += MXL_BlockInit(Tuner) ;
 
@@ -4736,24 +4396,24 @@ _u16 MXL_GetInitRegister(Tuner_struct *Tuner, _u8 * RegNum, _u8 *RegVal, int *co
 	return status ;
 }
 
-_u16 MXL_GetCHRegister(Tuner_struct *Tuner, _u8 * RegNum, _u8 *RegVal, int *count)
+u16 MXL_GetCHRegister(Tuner_struct *Tuner, u8 * RegNum, u8 *RegVal, int *count)
 {
-	_u16 status = 0;
+	u16 status = 0;
 	int i ;
 
 //add 77, 166, 167, 168 register for 2.6.12
 #ifdef _MXL_PRODUCTION
-	_u8 RegAddr[] = {14, 15, 16, 17, 22, 43, 65, 68, 69, 70, 73, 92, 93, 106,
-							   107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168 } ;
+	u8 RegAddr[] = {14, 15, 16, 17, 22, 43, 65, 68, 69, 70, 73, 92, 93, 106,
+	   107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168 } ;
 #else
-	_u8 RegAddr[] = {14, 15, 16, 17, 22, 43, 68, 69, 70, 73, 92, 93, 106,
-							   107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168 } ;
-	//_u8 RegAddr[171];
+	u8 RegAddr[] = {14, 15, 16, 17, 22, 43, 68, 69, 70, 73, 92, 93, 106,
+	   107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168 } ;
+	//u8 RegAddr[171];
 	//for (i=0; i<=170; i++)
 	//	RegAddr[i] = i;
 #endif
 
-	*count = sizeof(RegAddr) / sizeof(_u8) ;
+	*count = sizeof(RegAddr) / sizeof(u8) ;
 
 	for (i=0 ; i< *count; i++)
 	{
@@ -4765,14 +4425,14 @@ _u16 MXL_GetCHRegister(Tuner_struct *Tuner, _u8 * RegNum, _u8 *RegVal, int *coun
 
 }
 
-_u16 MXL_GetCHRegister_ZeroIF(Tuner_struct *Tuner, _u8 * RegNum, _u8 *RegVal, int *count)
+u16 MXL_GetCHRegister_ZeroIF(Tuner_struct *Tuner, u8 * RegNum, u8 *RegVal, int *count)
 {
-	_u16 status = 0 ;
+	u16 status = 0 ;
 	int i ;
 
-	_u8 RegAddr[] = {43, 136} ;
+	u8 RegAddr[] = {43, 136} ;
 
-	*count = sizeof(RegAddr) / sizeof(_u8) ;
+	*count = sizeof(RegAddr) / sizeof(u8) ;
 
 	for (i=0; i<*count; i++)
 	{
@@ -4783,14 +4443,14 @@ _u16 MXL_GetCHRegister_ZeroIF(Tuner_struct *Tuner, _u8 * RegNum, _u8 *RegVal, in
 
 }
 
-_u16 MXL_GetCHRegister_LowIF(Tuner_struct *Tuner, _u8 * RegNum, _u8 *RegVal, int *count)
+u16 MXL_GetCHRegister_LowIF(Tuner_struct *Tuner, u8 * RegNum, u8 *RegVal, int *count)
 {
-	_u16 status = 0 ;
+	u16 status = 0 ;
 	int i ;
 
-	_u8 RegAddr[] = {138} ;
+	u8 RegAddr[] = {138} ;
 
-	*count = sizeof(RegAddr) / sizeof(_u8) ;
+	*count = sizeof(RegAddr) / sizeof(u8) ;
 
 	for (i=0; i<*count; i++)
 	{
@@ -4801,7 +4461,7 @@ _u16 MXL_GetCHRegister_LowIF(Tuner_struct *Tuner, _u8 * RegNum, _u8 *RegVal, int
 
 }
 
-_u16 MXL_GetMasterControl(_u8 *MasterReg, int state)
+u16 MXL_GetMasterControl(u8 *MasterReg, int state)
 {
 	if (state == 1) // Load_Start
 		*MasterReg = 0xF3 ;
@@ -4816,168 +4476,143 @@ _u16 MXL_GetMasterControl(_u8 *MasterReg, int state)
 }
 
 #ifdef _MXL_PRODUCTION
-_u16 MXL_VCORange_Test(Tuner_struct *Tuner, int VCO_Range)
+u16 MXL_VCORange_Test(Tuner_struct *Tuner, int VCO_Range)
 {
-    _u16 status = 0 ;
+	u16 status = 0 ;
 
-   if (VCO_Range == 1) {
-	 status += MXL_ControlWrite(Tuner, RFSYN_EN_DIV, 1) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_EN_OUTMUX, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_SEL_DIVM, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_DIVM, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_OUT, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_RF_DIV_BIAS, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, DN_SEL_FREQ, 0 ) ;
-	 if (Tuner->Mode == 0 && Tuner->IF_Mode == 1) // Analog Low IF Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 56 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 180224 ) ;
-	 }
-	 if (Tuner->Mode == 0 && Tuner->IF_Mode == 0) // Analog Zero IF Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 56 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 222822 ) ;
-	 }
-	 if (Tuner->Mode == 1) // Digital Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 56 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 229376 ) ;
-	 }
-    }
+	if (VCO_Range == 1) {
+		status += MXL_ControlWrite(Tuner, RFSYN_EN_DIV, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_EN_OUTMUX, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_SEL_DIVM, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_DIVM, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_OUT, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_RF_DIV_BIAS, 1);
+		status += MXL_ControlWrite(Tuner, DN_SEL_FREQ, 0);
+		if (Tuner->Mode == 0 && Tuner->IF_Mode == 1) // Analog Low IF Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1);
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8);
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 56);
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 180224);
+		}
+		if (Tuner->Mode == 0 && Tuner->IF_Mode == 0) // Analog Zero IF Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1 ) ;
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8 ) ;
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 56 ) ;
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 222822 ) ;
+		}
+		if (Tuner->Mode == 1) // Digital Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1 ) ;
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8 ) ;
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 56 ) ;
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 229376 ) ;
+		}
+	}
 
-    if (VCO_Range == 2) {
-	 status += MXL_ControlWrite(Tuner, RFSYN_EN_DIV, 1) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_EN_OUTMUX, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_SEL_DIVM, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_DIVM, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_OUT, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_RF_DIV_BIAS, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, DN_SEL_FREQ, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40 ) ;
-	 status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 41 ) ;
-	 if (Tuner->Mode == 0 && Tuner->IF_Mode == 1) // Analog Low IF Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 42 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 206438 ) ;
-	 }
-	 if (Tuner->Mode == 0 && Tuner->IF_Mode == 0) // Analog Zero IF Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 42 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 206438 ) ;
-	 }
-	 if (Tuner->Mode == 1) // Digital Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 41 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 16384 ) ;
-	 }
-    }
+	if (VCO_Range == 2) {
+		status += MXL_ControlWrite(Tuner, RFSYN_EN_DIV, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_EN_OUTMUX, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_SEL_DIVM, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_DIVM, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_OUT, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_RF_DIV_BIAS, 1);
+		status += MXL_ControlWrite(Tuner, DN_SEL_FREQ, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40);
+		status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 41);
+		if (Tuner->Mode == 0 && Tuner->IF_Mode == 1) // Analog Low IF Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1);
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40);
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 42);
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 206438);
+		}
+		if (Tuner->Mode == 0 && Tuner->IF_Mode == 0) // Analog Zero IF Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1);
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40);
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 42);
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 206438);
+		}
+		if (Tuner->Mode == 1) // Digital Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 1);
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40);
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 41);
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 16384);
+		}
+	}
 
-    if (VCO_Range == 3) {
-	 status += MXL_ControlWrite(Tuner, RFSYN_EN_DIV, 1) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_EN_OUTMUX, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_SEL_DIVM, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_DIVM, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_OUT, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_RF_DIV_BIAS, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, DN_SEL_FREQ, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8 ) ;
-	 status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 42 ) ;
-	 if (Tuner->Mode == 0 && Tuner->IF_Mode == 1) // Analog Low IF Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 44 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 173670 ) ;
-	 }
-	 if (Tuner->Mode == 0 && Tuner->IF_Mode == 0) // Analog Zero IF Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 44 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 173670 ) ;
-	 }
-	 if (Tuner->Mode == 1) // Digital Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 42 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 245760 ) ;
-	 }
-    }
+	if (VCO_Range == 3) {
+		status += MXL_ControlWrite(Tuner, RFSYN_EN_DIV, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_EN_OUTMUX, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_SEL_DIVM, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_DIVM, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_OUT, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_RF_DIV_BIAS, 1);
+		status += MXL_ControlWrite(Tuner, DN_SEL_FREQ, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8);
+		status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 42);
+		if (Tuner->Mode == 0 && Tuner->IF_Mode == 1) // Analog Low IF Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0);
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8);
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 44);
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 173670);
+		}
+		if (Tuner->Mode == 0 && Tuner->IF_Mode == 0) // Analog Zero IF Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0);
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8);
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 44);
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 173670);
+		}
+		if (Tuner->Mode == 1) // Digital Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0);
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 8);
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 42);
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 245760);
+		}
+	}
 
-    if (VCO_Range == 4) {
-	 status += MXL_ControlWrite(Tuner, RFSYN_EN_DIV, 1) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_EN_OUTMUX, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_SEL_DIVM, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_DIVM, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_OUT, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_RF_DIV_BIAS, 1 ) ;
-	 status += MXL_ControlWrite(Tuner, DN_SEL_FREQ, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0 ) ;
-	 status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40 ) ;
-	 status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 27 ) ;
-	 if (Tuner->Mode == 0 && Tuner->IF_Mode == 1) // Analog Low IF Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 27 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 206438 ) ;
-	 }
-	 if (Tuner->Mode == 0 && Tuner->IF_Mode == 0) // Analog Zero IF Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 27 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 206438 ) ;
-	 }
-	 if (Tuner->Mode == 1) // Digital Mode
-	 {
-	     status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0 ) ;
-	     status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 27 ) ;
-	     status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 212992 ) ;
-	 }
-   }
+	if (VCO_Range == 4) {
+		status += MXL_ControlWrite(Tuner, RFSYN_EN_DIV, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_EN_OUTMUX, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_SEL_DIVM, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_DIVM, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_OUT, 1);
+		status += MXL_ControlWrite(Tuner, RFSYN_RF_DIV_BIAS, 1);
+		status += MXL_ControlWrite(Tuner, DN_SEL_FREQ, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0);
+		status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40);
+		status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 27);
+		if (Tuner->Mode == 0 && Tuner->IF_Mode == 1) // Analog Low IF Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0);
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40);
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 27);
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 206438);
+		}
+		if (Tuner->Mode == 0 && Tuner->IF_Mode == 0) // Analog Zero IF Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0);
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40);
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 27);
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 206438);
+		}
+		if (Tuner->Mode == 1) // Digital Mode {
+			status += MXL_ControlWrite(Tuner, RFSYN_SEL_VCO_HI, 0);
+			status += MXL_ControlWrite(Tuner, RFSYN_VCO_BIAS, 40);
+			status += MXL_ControlWrite(Tuner, CHCAL_INT_MOD_RF, 27);
+			status += MXL_ControlWrite(Tuner, CHCAL_FRAC_MOD_RF, 212992);
+		}
+	}
 
-    return status ;
+	return status;
 }
 
-_u16 MXL_Hystersis_Test(Tuner_struct *Tuner, int Hystersis)
+u16 MXL_Hystersis_Test(Tuner_struct *Tuner, int Hystersis)
 {
-	_u16 status = 0 ;
+	u16 status = 0;
 
 	if (Hystersis == 1)
-		status += MXL_ControlWrite(Tuner, DN_BYPASS_AGC_I2C, 1) ;
+		status += MXL_ControlWrite(Tuner, DN_BYPASS_AGC_I2C, 1);
 
-	return status ;
+	return status;
 }
+
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
