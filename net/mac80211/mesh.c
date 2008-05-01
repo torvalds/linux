@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <asm/unaligned.h>
 #include "ieee80211_i.h"
 #include "mesh.h"
 
@@ -167,8 +168,8 @@ int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
 	struct rmc_entry *p, *n;
 
 	/* Don't care about endianness since only match matters */
-	memcpy(&seqnum, mesh_hdr->seqnum, sizeof(mesh_hdr->seqnum));
-	idx = mesh_hdr->seqnum[0] & rmc->idx_mask;
+	memcpy(&seqnum, &mesh_hdr->seqnum, sizeof(mesh_hdr->seqnum));
+	idx = le32_to_cpu(mesh_hdr->seqnum) & rmc->idx_mask;
 	list_for_each_entry_safe(p, n, &rmc->bucket[idx].list, list) {
 		++entries;
 		if (time_after(jiffies, p->exp_time) ||
@@ -393,16 +394,8 @@ int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
 {
 	meshhdr->flags = 0;
 	meshhdr->ttl = sdata->u.sta.mshcfg.dot11MeshTTL;
-
-	meshhdr->seqnum[0] = sdata->u.sta.mesh_seqnum[0]++;
-	meshhdr->seqnum[1] = sdata->u.sta.mesh_seqnum[1];
-	meshhdr->seqnum[2] = sdata->u.sta.mesh_seqnum[2];
-
-	if (sdata->u.sta.mesh_seqnum[0] == 0) {
-		sdata->u.sta.mesh_seqnum[1]++;
-		if (sdata->u.sta.mesh_seqnum[1] == 0)
-			sdata->u.sta.mesh_seqnum[2]++;
-	}
+	put_unaligned(cpu_to_le32(sdata->u.sta.mesh_seqnum), &meshhdr->seqnum);
+	sdata->u.sta.mesh_seqnum++;
 
 	return 5;
 }
