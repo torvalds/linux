@@ -1363,7 +1363,7 @@ int snd_soc_dapm_get_endpoint_status(struct snd_soc_codec *codec,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_get_endpoint);
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_endpoint_status);
 
 /**
  * snd_soc_dapm_free - free dapm resources
