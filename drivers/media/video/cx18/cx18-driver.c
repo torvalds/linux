@@ -548,6 +548,7 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *dev,
 	return 0;
 }
 
+#ifdef MODULE
 static u32 cx18_request_module(struct cx18 *cx, u32 hw,
 		const char *name, u32 id)
 {
@@ -560,18 +561,21 @@ static u32 cx18_request_module(struct cx18 *cx, u32 hw,
 	CX18_DEBUG_INFO("Loaded module %s\n", name);
 	return hw;
 }
+#endif
 
 static void cx18_load_and_init_modules(struct cx18 *cx)
 {
 	u32 hw = cx->card->hw_all;
 	int i;
 
+#ifdef MODULE
 	/* load modules */
 #ifndef CONFIG_MEDIA_TUNER
 	hw = cx18_request_module(cx, hw, "tuner", CX18_HW_TUNER);
 #endif
 #ifndef CONFIG_VIDEO_CS5345
 	hw = cx18_request_module(cx, hw, "cs5345", CX18_HW_CS5345);
+#endif
 #endif
 
 	/* check which i2c devices are actually found */
