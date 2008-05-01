@@ -944,7 +944,7 @@ static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
 	vdcf = (struct p54_tx_control_vdcf *)(((struct p54_control_hdr *)
 		((void *)priv->cached_vdcf + priv->tx_hdr_len))->data);
 
-	if ((params) && !((queue < 0) || (queue > 4))) {
+	if ((params) && !(queue > 4)) {
 		P54_SET_QUEUE(vdcf->queue[queue], params->aifs,
 			params->cw_min, params->cw_max, params->txop);
 	} else
