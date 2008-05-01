@@ -57,7 +57,7 @@ enum {
 #undef BSG_DEBUG
 
 #ifdef BSG_DEBUG
-#define dprintk(fmt, args...) printk(KERN_ERR "%s: " fmt, __FUNCTION__, ##args)
+#define dprintk(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ##args)
 #else
 #define dprintk(fmt, args...)
 #endif

@@ -136,7 +136,7 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 
 		if (unlikely(nbytes > bio->bi_size)) {
 			printk(KERN_ERR "%s: want %u bytes done, %u left\n",
-			       __FUNCTION__, nbytes, bio->bi_size);
+			       __func__, nbytes, bio->bi_size);
 			nbytes = bio->bi_size;
 		}
 
@@ -1566,8 +1566,7 @@ static int __end_that_request_first(struct request *req, int error,
 			if (unlikely(bio->bi_idx >= bio->bi_vcnt)) {
 				blk_dump_rq_flags(req, "__end_that");
 				printk(KERN_ERR "%s: bio idx %d >= vcnt %d\n",
-						__FUNCTION__, bio->bi_idx,
-						bio->bi_vcnt);
+				       __func__, bio->bi_idx, bio->bi_vcnt);
 				break;
 			}
 

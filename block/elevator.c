@@ -650,7 +650,7 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 
 	default:
 		printk(KERN_ERR "%s: bad insertion point %d\n",
-		       __FUNCTION__, where);
+		       __func__, where);
 		BUG();
 	}
 
@@ -808,8 +808,7 @@ struct request *elv_next_request(struct request_queue *q)
 			rq->cmd_flags |= REQ_QUIET;
 			end_queued_request(rq, 0);
 		} else {
-			printk(KERN_ERR "%s: bad return=%d\n", __FUNCTION__,
-								ret);
+			printk(KERN_ERR "%s: bad return=%d\n", __func__, ret);
 			break;
 		}
 	}

@@ -168,8 +168,8 @@ void blk_queue_max_sectors(struct request_queue *q, unsigned int max_sectors)
 {
 	if ((max_sectors << 9) < PAGE_CACHE_SIZE) {
 		max_sectors = 1 << (PAGE_CACHE_SHIFT - 9);
-		printk(KERN_INFO "%s: set to minimum %d\n", __FUNCTION__,
-							max_sectors);
+		printk(KERN_INFO "%s: set to minimum %d\n",
+		       __func__, max_sectors);
 	}
 
 	if (BLK_DEF_MAX_SECTORS > max_sectors)
@@ -196,8 +196,8 @@ void blk_queue_max_phys_segments(struct request_queue *q,
 {
 	if (!max_segments) {
 		max_segments = 1;
-		printk(KERN_INFO "%s: set to minimum %d\n", __FUNCTION__,
-							max_segments);
+		printk(KERN_INFO "%s: set to minimum %d\n",
+		       __func__, max_segments);
 	}
 
 	q->max_phys_segments = max_segments;
@@ -220,8 +220,8 @@ void blk_queue_max_hw_segments(struct request_queue *q,
 {
 	if (!max_segments) {
 		max_segments = 1;
-		printk(KERN_INFO "%s: set to minimum %d\n", __FUNCTION__,
-							max_segments);
+		printk(KERN_INFO "%s: set to minimum %d\n",
+		       __func__, max_segments);
 	}
 
 	q->max_hw_segments = max_segments;
@@ -241,8 +241,8 @@ void blk_queue_max_segment_size(struct request_queue *q, unsigned int max_size)
 {
 	if (max_size < PAGE_CACHE_SIZE) {
 		max_size = PAGE_CACHE_SIZE;
-		printk(KERN_INFO "%s: set to minimum %d\n", __FUNCTION__,
-							max_size);
+		printk(KERN_INFO "%s: set to minimum %d\n",
+		       __func__, max_size);
 	}
 
 	q->max_segment_size = max_size;
@@ -357,8 +357,8 @@ void blk_queue_segment_boundary(struct request_queue *q, unsigned long mask)
 {
 	if (mask < PAGE_CACHE_SIZE - 1) {
 		mask = PAGE_CACHE_SIZE - 1;
-		printk(KERN_INFO "%s: set to minimum %lx\n", __FUNCTION__,
-							mask);
+		printk(KERN_INFO "%s: set to minimum %lx\n",
+		       __func__, mask);
 	}
 
 	q->seg_boundary_mask = mask;

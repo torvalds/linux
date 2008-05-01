@@ -26,8 +26,7 @@ int blk_queue_ordered(struct request_queue *q, unsigned ordered,
 {
 	if (ordered & (QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_POSTFLUSH) &&
 	    prepare_flush_fn == NULL) {
-		printk(KERN_ERR "%s: prepare_flush_fn required\n",
-								__FUNCTION__);
+		printk(KERN_ERR "%s: prepare_flush_fn required\n", __func__);
 		return -EINVAL;
 	}
 
