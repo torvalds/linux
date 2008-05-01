@@ -4,7 +4,7 @@
 
 dm-mod-objs	:= dm.o dm-table.o dm-target.o dm-linear.o dm-stripe.o \
 		   dm-ioctl.o dm-io.o dm-kcopyd.o
-dm-multipath-objs := dm-hw-handler.o dm-path-selector.o dm-mpath.o
+dm-multipath-objs := dm-path-selector.o dm-mpath.o
 dm-snapshot-objs := dm-snap.o dm-exception-store.o
 dm-mirror-objs	:= dm-raid1.o
 md-mod-objs     := md.o bitmap.o
