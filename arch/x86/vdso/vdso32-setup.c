@@ -303,8 +303,6 @@ int __init sysenter_setup(void)
 
 #ifdef CONFIG_X86_32
 	gate_vma_init();
-
-	printk("Compat vDSO mapped to %08lx.\n", __fix_to_virt(FIX_VDSO));
 #endif
 
 	if (!vdso32_sysenter()) {

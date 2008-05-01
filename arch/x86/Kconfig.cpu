@@ -278,11 +278,6 @@ config GENERIC_CPU
 
 endchoice
 
-config X86_CPU
-	def_bool y
-	select GENERIC_FIND_FIRST_BIT
-	select GENERIC_FIND_NEXT_BIT
-
 config X86_GENERIC
 	bool "Generic x86 support"
 	depends on X86_32
@@ -296,6 +291,11 @@ config X86_GENERIC
 	  generic optimizations.
 
 endif
+
+config X86_CPU
+	def_bool y
+	select GENERIC_FIND_FIRST_BIT
+	select GENERIC_FIND_NEXT_BIT
 
 #
 # Define implied options from the CPU selection here
