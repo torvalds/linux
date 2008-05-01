@@ -90,7 +90,7 @@ simpad_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 
 	default:
 		printk(KERN_ERR "%s(): unrecognized Vcc %u\n",
-			__FUNCTION__, state->Vcc);
+			__func__, state->Vcc);
 		clear_cs3_bit(VCC_3V_EN|VCC_5V_EN|EN0|EN1);
 		local_irq_restore(flags);
 		return -1;

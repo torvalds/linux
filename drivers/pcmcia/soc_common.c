@@ -354,7 +354,7 @@ soc_common_pcmcia_set_io_map(struct pcmcia_socket *sock, struct pccard_io_map *m
 		(map->flags&MAP_PREFETCH)?"PREFETCH ":"");
 
 	if (map->map >= MAX_IO_WIN) {
-		printk(KERN_ERR "%s(): map (%d) out of range\n", __FUNCTION__,
+		printk(KERN_ERR "%s(): map (%d) out of range\n", __func__,
 		       map->map);
 		return -1;
 	}
