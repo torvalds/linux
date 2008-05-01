@@ -1362,18 +1362,8 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 		unsigned short irq;
 	} *idp, id[] = {
 		{ "fec(TXF)", 23 },
-		{ "fec(TXB)", 24 },
-		{ "fec(TXFIFO)", 25 },
-		{ "fec(TXCR)", 26 },
 		{ "fec(RXF)", 27 },
-		{ "fec(RXB)", 28 },
 		{ "fec(MII)", 29 },
-		{ "fec(LC)", 30 },
-		{ "fec(HBERR)", 31 },
-		{ "fec(GRA)", 32 },
-		{ "fec(EBERR)", 33 },
-		{ "fec(BABT)", 34 },
-		{ "fec(BABR)", 35 },
 		{ NULL },
 	};
 
@@ -1533,18 +1523,8 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 		unsigned short irq;
 	} *idp, id[] = {
 		{ "fec(TXF)", 23 },
-		{ "fec(TXB)", 24 },
-		{ "fec(TXFIFO)", 25 },
-		{ "fec(TXCR)", 26 },
 		{ "fec(RXF)", 27 },
-		{ "fec(RXB)", 28 },
 		{ "fec(MII)", 29 },
-		{ "fec(LC)", 30 },
-		{ "fec(HBERR)", 31 },
-		{ "fec(GRA)", 32 },
-		{ "fec(EBERR)", 33 },
-		{ "fec(BABT)", 34 },
-		{ "fec(BABR)", 35 },
 		{ NULL },
 	};
 
@@ -1660,18 +1640,8 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 		unsigned short irq;
 	} *idp, id[] = {
 	    { "fec(TXF)", 36 },
-	    { "fec(TXB)", 37 },
-	    { "fec(TXFIFO)", 38 },
-	    { "fec(TXCR)", 39 },
 	    { "fec(RXF)", 40 },
-	    { "fec(RXB)", 41 },
 	    { "fec(MII)", 42 },
-	    { "fec(LC)", 43 },
-	    { "fec(HBERR)", 44 },
-	    { "fec(GRA)", 45 },
-	    { "fec(EBERR)", 46 },
-	    { "fec(BABT)", 47 },
-	    { "fec(BABR)", 48 },
 	    { NULL },
 	};
 
@@ -2459,8 +2429,7 @@ int __init fec_enet_init(struct net_device *dev)
 
 	/* Clear and enable interrupts */
 	fecp->fec_ievent = 0xffc00000;
-	fecp->fec_imask = (FEC_ENET_TXF | FEC_ENET_TXB |
-		FEC_ENET_RXF | FEC_ENET_RXB | FEC_ENET_MII);
+	fecp->fec_imask = (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII);
 
 	/* Queue up command to detect the PHY and initialize the
 	 * remainder of the interface.
@@ -2587,8 +2556,7 @@ fec_restart(struct net_device *dev, int duplex)
 
 	/* Enable interrupts we wish to service.
 	*/
-	fecp->fec_imask = (FEC_ENET_TXF | FEC_ENET_TXB |
-		FEC_ENET_RXF | FEC_ENET_RXB | FEC_ENET_MII);
+	fecp->fec_imask = (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII);
 }
 
 static void
