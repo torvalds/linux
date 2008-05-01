@@ -405,7 +405,8 @@ hysdn_procconf_init(void)
 		sprintf(conf_name, "%s%d", PROC_CONF_BASENAME, card->myid);
 		if ((card->procconf = (void *) proc_create(conf_name,
 						S_IFREG | S_IRUGO | S_IWUSR,
-						hysdn_proc_entry)) != NULL) {
+						hysdn_proc_entry,
+						&conf_fops)) != NULL) {
 			hysdn_proclog_init(card);	/* init the log file entry */
 		}
 		card = card->next;	/* next entry */
