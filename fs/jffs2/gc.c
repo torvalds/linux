@@ -401,7 +401,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	nlink = ic->nlink;
 	spin_unlock(&c->inocache_lock);
 
-	f = jffs2_gc_fetch_inode(c, inum, nlink);
+	f = jffs2_gc_fetch_inode(c, inum, !nlink);
 	if (IS_ERR(f)) {
 		ret = PTR_ERR(f);
 		goto release_sem;
