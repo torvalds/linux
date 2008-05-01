@@ -24,3 +24,9 @@ config SCSI_DH_HP_SW
 	If you have a HP/COMPAQ MSA device that requires START_STOP to
 	be sent to start it and cannot upgrade the firmware then select y.
 	Otherwise, say N.
+
+config SCSI_DH_EMC
+	tristate "EMC CLARiiON Device Handler"
+	depends on SCSI_DH
+	help
+	If you have a EMC CLARiiON select y. Otherwise, say N.
