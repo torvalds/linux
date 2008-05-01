@@ -963,12 +963,15 @@ static void svc_rdma_detach(struct svc_xprt *xprt)
 	rdma_destroy_id(rdma->sc_cm_id);
 }
 
-static void svc_rdma_free(struct svc_xprt *xprt)
+static void __svc_rdma_free(struct work_struct *work)
 {
-	struct svcxprt_rdma *rdma = (struct svcxprt_rdma *)xprt;
+	struct svcxprt_rdma *rdma =
+		container_of(work, struct svcxprt_rdma, sc_work);
 	dprintk("svcrdma: svc_rdma_free(%p)\n", rdma);
+
 	/* We should only be called from kref_put */
-	BUG_ON(atomic_read(&xprt->xpt_ref.refcount) != 0);
+	BUG_ON(atomic_read(&rdma->sc_xprt.xpt_ref.refcount) != 0);
+
 	if (rdma->sc_sq_cq && !IS_ERR(rdma->sc_sq_cq))
 		ib_destroy_cq(rdma->sc_sq_cq);
 
@@ -983,6 +986,14 @@ static void svc_rdma_free(struct svc_xprt *xprt)
 
 	destroy_context_cache(rdma);
 	kfree(rdma);
+}
+
+static void svc_rdma_free(struct svc_xprt *xprt)
+{
+	struct svcxprt_rdma *rdma =
+		container_of(xprt, struct svcxprt_rdma, sc_xprt);
+	INIT_WORK(&rdma->sc_work, __svc_rdma_free);
+	schedule_work(&rdma->sc_work);
 }
 
 static int svc_rdma_has_wspace(struct svc_xprt *xprt)

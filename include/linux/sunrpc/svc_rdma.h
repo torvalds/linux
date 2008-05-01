@@ -124,6 +124,7 @@ struct svcxprt_rdma {
 	struct list_head     sc_dto_q;		/* DTO tasklet I/O pending Q */
 	struct list_head     sc_read_complete_q;
 	spinlock_t           sc_read_complete_lock;
+	struct work_struct   sc_work;
 };
 /* sc_flags */
 #define RDMAXPRT_RQ_PENDING	1
