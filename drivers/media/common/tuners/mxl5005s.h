@@ -25,8 +25,8 @@
 
 #include <linux/dvb/frontend.h>
 
-struct mxl5005s_config
-{
+struct mxl5005s_config {
+
 	/* 7 bit i2c address */
 	u8 i2c_address;
 
