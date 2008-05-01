@@ -1,27 +1,24 @@
 /*
- * For the Realtek RTL chip RTL2831U
- * Realtek Release Date: 2008-03-14, ver 080314
- * Realtek version RTL2831 Linux driver version 080314
- * ver 080314
- *
- * for linux kernel version 2.6.21.4 - 2.6.22-14
- * support MXL5005s and MT2060 tuners (support tuner auto-detecting)
- * support two IR types -- RC5 and NEC
- *
- * Known boards with Realtek RTL chip RTL2821U
- *    Freecom USB stick 14aa:0160 (version 4)
- *    Conceptronic CTVDIGRCU
- *
- * Copyright (c) 2008 Realtek
- * Copyright (c) 2008 Jan Hoogenraad, Barnaby Shearer, Andy Hasper
- * This code is placed under the terms of the GNU General Public License
- *
- * Released by Realtek under GPLv2.
- * Thanks to Realtek for a lot of support we received !
- *
- *  Revision: 080314 - original version
- */
+    MaxLinear MXL5005S VSB/QAM/DVBT tuner driver
 
+    Copyright (C) 2008 MaxLinear
+    Copyright (C) 2008 Steven Toth <stoth@hauppauge.com>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+*/
 
 #ifndef __MXL5005S_H
 #define __MXL5005S_H
@@ -112,14 +109,15 @@ struct mxl5005s_config
 	u8 AgcMasterByte;
 };
 
-#if defined(CONFIG_DVB_TUNER_MXL5005S) || (defined(CONFIG_DVB_TUNER_MXL5005S_MODULE) && defined(MODULE))
+#if defined(CONFIG_DVB_TUNER_MXL5005S) || \
+	(defined(CONFIG_DVB_TUNER_MXL5005S_MODULE) && defined(MODULE))
 extern struct dvb_frontend *mxl5005s_attach(struct dvb_frontend *fe,
 					    struct i2c_adapter *i2c,
-					    struct mxl5005s_config *config);
+					    struct mxl5005s_config *config)
 #else
 static inline struct dvb_frontend *mxl5005s_attach(struct dvb_frontend *fe,
 					    struct i2c_adapter *i2c,
-					    struct mxl5005s_config *config);
+					    struct mxl5005s_config *config)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
