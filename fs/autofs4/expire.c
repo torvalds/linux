@@ -73,8 +73,8 @@ static int autofs4_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 	status = 0;
 done:
 	DPRINTK("returning = %d", status);
-	mntput(mnt);
 	dput(dentry);
+	mntput(mnt);
 	return status;
 }
 

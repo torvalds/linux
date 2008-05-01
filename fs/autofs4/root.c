@@ -146,17 +146,17 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 
 	if (d_mountpoint(dentry)) {
 		struct file *fp = NULL;
-		struct vfsmount *fp_mnt = mntget(mnt);
-		struct dentry *fp_dentry = dget(dentry);
+		struct path fp_path = { .dentry = dentry, .mnt = mnt };
 
-		if (!autofs4_follow_mount(&fp_mnt, &fp_dentry)) {
-			dput(fp_dentry);
-			mntput(fp_mnt);
+		path_get(&fp_path);
+
+		if (!autofs4_follow_mount(&fp_path.mnt, &fp_path.dentry)) {
+			path_put(&fp_path);
 			dcache_dir_close(inode, file);
 			goto out;
 		}
 
-		fp = dentry_open(fp_dentry, fp_mnt, file->f_flags);
+		fp = dentry_open(fp_path.dentry, fp_path.mnt, file->f_flags);
 		status = PTR_ERR(fp);
 		if (IS_ERR(fp)) {
 			dcache_dir_close(inode, file);
