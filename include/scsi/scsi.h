@@ -400,6 +400,7 @@ struct scsi_lun {
 #define SOFT_ERROR      0x2005
 #define ADD_TO_MLQUEUE  0x2006
 #define TIMEOUT_ERROR   0x2007
+#define SCSI_RETURN_NOT_HANDLED   0x2008
 
 /*
  * Midlevel queue return values.

@@ -439,6 +439,7 @@ struct bus_type scsi_bus_type = {
 	.resume		= scsi_bus_resume,
 	.remove		= scsi_bus_remove,
 };
+EXPORT_SYMBOL_GPL(scsi_bus_type);
 
 int scsi_sysfs_register(void)
 {

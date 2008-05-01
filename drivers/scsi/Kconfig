@@ -1771,4 +1771,6 @@ endif # SCSI_LOWLEVEL
 
 source "drivers/scsi/pcmcia/Kconfig"
 
+source "drivers/scsi/device_handler/Kconfig"
+
 endmenu

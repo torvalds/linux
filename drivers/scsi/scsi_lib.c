@@ -1160,6 +1160,14 @@ int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 
 	if (ret != BLKPREP_OK)
 		return ret;
+
+	if (unlikely(sdev->scsi_dh_data && sdev->scsi_dh_data->scsi_dh
+			 && sdev->scsi_dh_data->scsi_dh->prep_fn)) {
+		ret = sdev->scsi_dh_data->scsi_dh->prep_fn(sdev, req);
+		if (ret != BLKPREP_OK)
+			return ret;
+	}
+
 	/*
 	 * Filesystem requests must transfer data.
 	 */

@@ -298,6 +298,7 @@ static inline void scsi_eh_prt_fail_stats(struct Scsi_Host *shost,
  */
 static int scsi_check_sense(struct scsi_cmnd *scmd)
 {
+	struct scsi_device *sdev = scmd->device;
 	struct scsi_sense_hdr sshdr;
 
 	if (! scsi_command_normalize_sense(scmd, &sshdr))
@@ -305,6 +306,16 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 
 	if (scsi_sense_is_deferred(&sshdr))
 		return NEEDS_RETRY;
+
+	if (sdev->scsi_dh_data && sdev->scsi_dh_data->scsi_dh &&
+			sdev->scsi_dh_data->scsi_dh->check_sense) {
+		int rc;
+
+		rc = sdev->scsi_dh_data->scsi_dh->check_sense(sdev, &sshdr);
+		if (rc != SCSI_RETURN_NOT_HANDLED)
+			return rc;
+		/* handler does not care. Drop down to default handling */
+	}
 
 	/*
 	 * Previous logic looked for FILEMARK, EOM or ILI which are

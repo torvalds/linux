@@ -1,0 +1,12 @@
+#
+# SCSI Device Handler configuration
+#
+
+menuconfig SCSI_DH
+	tristate "SCSI Device Handlers"
+	depends on SCSI
+	default n
+	help
+	  SCSI Device Handlers provide device specific support for
+	  devices utilized in multipath configurations. Say Y here to
+	  select support for specific hardware.
