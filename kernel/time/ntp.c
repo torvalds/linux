@@ -65,7 +65,9 @@ static void ntp_update_offset(long offset)
 	if (!(time_status & STA_PLL))
 		return;
 
-	time_offset = offset * NSEC_PER_USEC;
+	time_offset = offset;
+	if (!(time_status & STA_NANO))
+		time_offset *= NSEC_PER_USEC;
 
 	/*
 	 * Scale the phase adjustment and
@@ -86,8 +88,11 @@ static void ntp_update_offset(long offset)
 	freq_adj = time_offset * mtemp;
 	freq_adj = shift_right(freq_adj, time_constant * 2 +
 			   (SHIFT_PLL + 2) * 2 - SHIFT_NSEC);
-	if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC))
+	time_status &= ~STA_MODE;
+	if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC)) {
 		freq_adj += div_s64(time_offset << (SHIFT_NSEC - SHIFT_FLL), mtemp);
+		time_status |= STA_MODE;
+	}
 	freq_adj += time_freq;
 	freq_adj = min(freq_adj, (s64)MAXFREQ_NSEC);
 	time_freq = max(freq_adj, (s64)-MAXFREQ_NSEC);
@@ -272,6 +277,7 @@ static inline void notify_cmos_timer(void) { }
  */
 int do_adjtimex(struct timex *txc)
 {
+	struct timespec ts;
 	long save_adjust;
 	int result;
 
@@ -282,16 +288,10 @@ int do_adjtimex(struct timex *txc)
 	/* Now we validate the data before disabling interrupts */
 
 	if ((txc->modes & ADJ_OFFSET_SINGLESHOT) == ADJ_OFFSET_SINGLESHOT) {
-	  /* singleshot must not be used with any other mode bits */
-		if (txc->modes != ADJ_OFFSET_SINGLESHOT &&
-					txc->modes != ADJ_OFFSET_SS_READ)
+		/* singleshot must not be used with any other mode bits */
+		if (txc->modes & ~ADJ_OFFSET_SS_READ)
 			return -EINVAL;
 	}
-
-	if (txc->modes != ADJ_OFFSET_SINGLESHOT && (txc->modes & ADJ_OFFSET))
-	  /* adjustment Offset limited to +- .512 seconds */
-		if (txc->offset <= - MAXPHASE || txc->offset >= MAXPHASE )
-			return -EINVAL;
 
 	/* if the quartz is off by more than 10% something is VERY wrong ! */
 	if (txc->modes & ADJ_TICK)
@@ -300,51 +300,46 @@ int do_adjtimex(struct timex *txc)
 			return -EINVAL;
 
 	write_seqlock_irq(&xtime_lock);
-	result = time_state;	/* mostly `TIME_OK' */
 
 	/* Save for later - semantics of adjtime is to return old value */
 	save_adjust = time_adjust;
 
-#if 0	/* STA_CLOCKERR is never set yet */
-	time_status &= ~STA_CLOCKERR;		/* reset STA_CLOCKERR */
-#endif
 	/* If there are input parameters, then process them */
 	if (txc->modes) {
-		if (txc->modes & ADJ_STATUS)	/* only set allowed bits */
-			time_status = (txc->status & ~STA_RONLY) |
-				      (time_status & STA_RONLY);
+		if (txc->modes & ADJ_STATUS) {
+			if ((time_status & STA_PLL) &&
+			    !(txc->status & STA_PLL)) {
+				time_state = TIME_OK;
+				time_status = STA_UNSYNC;
+			}
+			/* only set allowed bits */
+			time_status &= STA_RONLY;
+			time_status |= txc->status & ~STA_RONLY;
+		}
+
+		if (txc->modes & ADJ_NANO)
+			time_status |= STA_NANO;
+		if (txc->modes & ADJ_MICRO)
+			time_status &= ~STA_NANO;
 
 		if (txc->modes & ADJ_FREQUENCY) {
-			if (txc->freq > MAXFREQ || txc->freq < -MAXFREQ) {
-				result = -EINVAL;
-				goto leave;
-			}
-			time_freq = ((s64)txc->freq * NSEC_PER_USEC)
+			time_freq = min(txc->freq, MAXFREQ);
+			time_freq = min(time_freq, -MAXFREQ);
+			time_freq = ((s64)time_freq * NSEC_PER_USEC)
 					>> (SHIFT_USEC - SHIFT_NSEC);
 		}
 
-		if (txc->modes & ADJ_MAXERROR) {
-			if (txc->maxerror < 0 || txc->maxerror >= NTP_PHASE_LIMIT) {
-				result = -EINVAL;
-				goto leave;
-			}
+		if (txc->modes & ADJ_MAXERROR)
 			time_maxerror = txc->maxerror;
-		}
-
-		if (txc->modes & ADJ_ESTERROR) {
-			if (txc->esterror < 0 || txc->esterror >= NTP_PHASE_LIMIT) {
-				result = -EINVAL;
-				goto leave;
-			}
+		if (txc->modes & ADJ_ESTERROR)
 			time_esterror = txc->esterror;
-		}
 
 		if (txc->modes & ADJ_TIMECONST) {
-			if (txc->constant < 0) {	/* NTP v4 uses values > 6 */
-				result = -EINVAL;
-				goto leave;
-			}
-			time_constant = min(txc->constant + 4, (long)MAXTC);
+			time_constant = txc->constant;
+			if (!(time_status & STA_NANO))
+				time_constant += 4;
+			time_constant = min(time_constant, (long)MAXTC);
+			time_constant = max(time_constant, 0l);
 		}
 
 		if (txc->modes & ADJ_OFFSET) {
@@ -360,16 +355,20 @@ int do_adjtimex(struct timex *txc)
 		if (txc->modes & (ADJ_TICK|ADJ_FREQUENCY|ADJ_OFFSET))
 			ntp_update_frequency();
 	}
-leave:
+
+	result = time_state;	/* mostly `TIME_OK' */
 	if (time_status & (STA_UNSYNC|STA_CLOCKERR))
 		result = TIME_ERROR;
 
 	if ((txc->modes == ADJ_OFFSET_SINGLESHOT) ||
 	    (txc->modes == ADJ_OFFSET_SS_READ))
 		txc->offset = save_adjust;
-	else
+	else {
 		txc->offset = ((long)shift_right(time_offset, SHIFT_UPDATE)) *
-	    			NTP_INTERVAL_FREQ / 1000;
+	    			NTP_INTERVAL_FREQ;
+		if (!(time_status & STA_NANO))
+			txc->offset /= NSEC_PER_USEC;
+	}
 	txc->freq	   = (time_freq / NSEC_PER_USEC) <<
 				(SHIFT_USEC - SHIFT_NSEC);
 	txc->maxerror	   = time_maxerror;
@@ -391,7 +390,11 @@ leave:
 	txc->stbcnt	   = 0;
 	write_sequnlock_irq(&xtime_lock);
 
-	do_gettimeofday(&txc->time);
+	getnstimeofday(&ts);
+	txc->time.tv_sec = ts.tv_sec;
+	txc->time.tv_usec = ts.tv_nsec;
+	if (!(time_status & STA_NANO))
+		txc->time.tv_usec /= NSEC_PER_USEC;
 
 	notify_cmos_timer();
 
