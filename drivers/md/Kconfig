@@ -256,24 +256,6 @@ config DM_MULTIPATH
 	---help---
 	  Allow volume managers to support multipath hardware.
 
-config DM_MULTIPATH_EMC
-	tristate "EMC CX/AX multipath support"
-	depends on DM_MULTIPATH && BLK_DEV_DM
-	---help---
-	  Multipath support for EMC CX/AX series hardware.
-
-config DM_MULTIPATH_RDAC
-	tristate "LSI/Engenio RDAC multipath support (EXPERIMENTAL)"
-	depends on DM_MULTIPATH && BLK_DEV_DM && SCSI && EXPERIMENTAL
-	---help---
-	  Multipath support for LSI/Engenio RDAC.
-
-config DM_MULTIPATH_HP
-        tristate "HP MSA multipath support (EXPERIMENTAL)"
-        depends on DM_MULTIPATH && BLK_DEV_DM && SCSI && EXPERIMENTAL
-        ---help---
-          Multipath support for HP MSA (Active/Passive) series hardware.
-
 config DM_DELAY
 	tristate "I/O delaying target (EXPERIMENTAL)"
 	depends on BLK_DEV_DM && EXPERIMENTAL
