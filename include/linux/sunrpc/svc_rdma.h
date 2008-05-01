@@ -71,6 +71,7 @@ extern atomic_t rdma_stat_sq_prod;
  * completes.
  */
 struct svc_rdma_op_ctxt {
+	struct svc_rdma_op_ctxt *read_hdr;
 	struct svc_rdma_op_ctxt *next;
 	struct xdr_buf arg;
 	struct list_head dto_q;

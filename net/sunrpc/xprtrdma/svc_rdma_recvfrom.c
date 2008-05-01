@@ -289,7 +289,6 @@ static int rdma_read_xdr(struct svcxprt_rdma *xprt,
 	u64 sgl_offset;
 	struct rpcrdma_read_chunk *ch;
 	struct svc_rdma_op_ctxt *ctxt = NULL;
-	struct svc_rdma_op_ctxt *head;
 	struct svc_rdma_op_ctxt *tmp_sge_ctxt;
 	struct svc_rdma_op_ctxt *tmp_ch_ctxt;
 	struct chunk_sge *ch_sge_ary;
@@ -310,20 +309,13 @@ static int rdma_read_xdr(struct svcxprt_rdma *xprt,
 	sge_count = rdma_rcl_to_sge(xprt, rqstp, hdr_ctxt, rmsgp,
 				    sge, ch_sge_ary,
 				    ch_count, byte_count);
-	head = svc_rdma_get_context(xprt);
 	sgl_offset = 0;
 	ch_no = 0;
 
 	for (ch = (struct rpcrdma_read_chunk *)&rmsgp->rm_body.rm_chunks[0];
 	     ch->rc_discrim != 0; ch++, ch_no++) {
 next_sge:
-		if (!ctxt)
-			ctxt = head;
-		else {
-			ctxt->next = svc_rdma_get_context(xprt);
-			ctxt = ctxt->next;
-		}
-		ctxt->next = NULL;
+		ctxt = svc_rdma_get_context(xprt);
 		ctxt->direction = DMA_FROM_DEVICE;
 		clear_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
 
@@ -351,20 +343,15 @@ next_sge:
 			 * the client and the RPC needs to be enqueued.
 			 */
 			set_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
-			ctxt->next = hdr_ctxt;
-			hdr_ctxt->next = head;
+			ctxt->read_hdr = hdr_ctxt;
 		}
 		/* Post the read */
 		err = svc_rdma_send(xprt, &read_wr);
 		if (err) {
-			printk(KERN_ERR "svcrdma: Error posting send = %d\n",
+			printk(KERN_ERR "svcrdma: Error %d posting RDMA_READ\n",
 			       err);
-			/*
-			 * Break the circular list so free knows when
-			 * to stop if the error happened to occur on
-			 * the last read
-			 */
-			ctxt->next = NULL;
+			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+			svc_rdma_put_context(ctxt, 0);
 			goto out;
 		}
 		atomic_inc(&rdma_stat_read);
@@ -375,7 +362,7 @@ next_sge:
 			goto next_sge;
 		}
 		sgl_offset = 0;
-		err = 0;
+		err = 1;
 	}
 
  out:
@@ -393,25 +380,12 @@ next_sge:
 	while (rqstp->rq_resused)
 		rqstp->rq_respages[--rqstp->rq_resused] = NULL;
 
-	if (err) {
-		printk(KERN_ERR "svcrdma : RDMA_READ error = %d\n", err);
-		set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
-		/* Free the linked list of read contexts */
-		while (head != NULL) {
-			ctxt = head->next;
-			svc_rdma_put_context(head, 1);
-			head = ctxt;
-		}
-		return err;
-	}
-
-	return 1;
+	return err;
 }
 
 static int rdma_read_complete(struct svc_rqst *rqstp,
-			      struct svc_rdma_op_ctxt *data)
+			      struct svc_rdma_op_ctxt *head)
 {
-	struct svc_rdma_op_ctxt *head = data->next;
 	int page_no;
 	int ret;
 
@@ -437,21 +411,11 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 	rqstp->rq_arg.len = head->arg.len;
 	rqstp->rq_arg.buflen = head->arg.buflen;
 
+	/* Free the context */
+	svc_rdma_put_context(head, 0);
+
 	/* XXX: What should this be? */
 	rqstp->rq_prot = IPPROTO_MAX;
-
-	/*
-	 * Free the contexts we used to build the RDMA_READ. We have
-	 * to be careful here because the context list uses the same
-	 * next pointer used to chain the contexts associated with the
-	 * RDMA_READ
-	 */
-	data->next = NULL;	/* terminate circular list */
-	do {
-		data = head->next;
-		svc_rdma_put_context(head, 0);
-		head = data;
-	} while (head != NULL);
 
 	ret = rqstp->rq_arg.head[0].iov_len
 		+ rqstp->rq_arg.page_len

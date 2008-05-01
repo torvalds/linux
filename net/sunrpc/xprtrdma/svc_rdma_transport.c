@@ -352,13 +352,16 @@ static void sq_cq_reap(struct svcxprt_rdma *xprt)
 
 		case IB_WR_RDMA_READ:
 			if (test_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags)) {
+				struct svc_rdma_op_ctxt *read_hdr = ctxt->read_hdr;
+				BUG_ON(!read_hdr);
 				set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
 				spin_lock_bh(&xprt->sc_read_complete_lock);
-				list_add_tail(&ctxt->dto_q,
+				list_add_tail(&read_hdr->dto_q,
 					      &xprt->sc_read_complete_q);
 				spin_unlock_bh(&xprt->sc_read_complete_lock);
 				svc_xprt_enqueue(&xprt->sc_xprt);
 			}
+			svc_rdma_put_context(ctxt, 0);
 			break;
 
 		default:
