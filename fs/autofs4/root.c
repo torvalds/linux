@@ -243,7 +243,7 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	struct dentry *new;
-	int status = 0;
+	int status;
 
 	/* Block on any pending expiry here; invalidate the dentry
            when expiration is done to trigger mount request with a new
@@ -340,7 +340,7 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 		}
 	}
 
-	return status;
+	return 0;
 }
 
 /* For autofs direct mounts the follow link triggers the mount */
