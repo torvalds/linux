@@ -161,8 +161,8 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			continue;
 		}
 
-		if (!ic->nlink) {
-			D1(printk(KERN_DEBUG "Skipping check of ino #%d with nlink zero\n",
+		if (!ic->pino_nlink) {
+			D1(printk(KERN_DEBUG "Skipping check of ino #%d with nlink/pino zero\n",
 				  ic->ino));
 			spin_unlock(&c->inocache_lock);
 			jffs2_xattr_delete_inode(c, ic);
@@ -398,10 +398,10 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	   it's vaguely possible. */
 
 	inum = ic->ino;
-	nlink = ic->nlink;
+	nlink = ic->pino_nlink;
 	spin_unlock(&c->inocache_lock);
 
-	f = jffs2_gc_fetch_inode(c, inum, nlink);
+	f = jffs2_gc_fetch_inode(c, inum, !nlink);
 	if (IS_ERR(f)) {
 		ret = PTR_ERR(f);
 		goto release_sem;
