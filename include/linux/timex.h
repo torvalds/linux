@@ -76,27 +76,22 @@
 #define MAXTC		10	/* maximum time constant (shift) */
 
 /*
- * The SHIFT_UPDATE define establishes the decimal point of the
- * time_offset variable which represents the current offset with
- * respect to standard time.
- *
  * SHIFT_USEC defines the scaling (shift) of the time_freq and
  * time_tolerance variables, which represent the current frequency
  * offset and maximum frequency tolerance.
  */
-#define SHIFT_UPDATE (SHIFT_HZ + 1) /* time offset scale (shift) */
 #define SHIFT_USEC 16		/* frequency offset scale (shift) */
 #define PPM_SCALE (NSEC_PER_USEC << (TICK_LENGTH_SHIFT - SHIFT_USEC))
 #define PPM_SCALE_INV_SHIFT 20
 #define PPM_SCALE_INV ((1ll << (PPM_SCALE_INV_SHIFT + TICK_LENGTH_SHIFT)) / \
 		       PPM_SCALE + 1)
 
-#define MAXPHASE 512000L        /* max phase error (us) */
+#define MAXPHASE 500000000l	/* max phase error (ns) */
 #define MAXFREQ 500000		/* max frequency error (ns/s) */
 #define MAXFREQ_SCALED ((s64)MAXFREQ << TICK_LENGTH_SHIFT)
 #define MINSEC 256		/* min interval between updates (s) */
 #define MAXSEC 2048		/* max interval between updates (s) */
-#define	NTP_PHASE_LIMIT	(MAXPHASE << 5)	/* beyond max. dispersion */
+#define NTP_PHASE_LIMIT ((MAXPHASE / NSEC_PER_USEC) << 5) /* beyond max. dispersion */
 
 /*
  * syscall interface - used (mainly by NTP daemon)

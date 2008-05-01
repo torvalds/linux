@@ -65,16 +65,15 @@ static void ntp_update_offset(long offset)
 	if (!(time_status & STA_PLL))
 		return;
 
-	time_offset = offset;
 	if (!(time_status & STA_NANO))
-		time_offset *= NSEC_PER_USEC;
+		offset *= NSEC_PER_USEC;
 
 	/*
 	 * Scale the phase adjustment and
 	 * clamp to the operating range.
 	 */
-	time_offset = min(time_offset, (s64)MAXPHASE * NSEC_PER_USEC);
-	time_offset = max(time_offset, (s64)-MAXPHASE * NSEC_PER_USEC);
+	offset = min(offset, MAXPHASE);
+	offset = max(offset, -MAXPHASE);
 
 	/*
 	 * Select how the frequency is to be controlled
@@ -85,19 +84,19 @@ static void ntp_update_offset(long offset)
 	mtemp = xtime.tv_sec - time_reftime;
 	time_reftime = xtime.tv_sec;
 
-	freq_adj = time_offset * mtemp;
+	freq_adj = (s64)offset * mtemp;
 	freq_adj <<= TICK_LENGTH_SHIFT - 2 * (SHIFT_PLL + 2 + time_constant);
 	time_status &= ~STA_MODE;
 	if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC)) {
-		freq_adj += div_s64(time_offset << (TICK_LENGTH_SHIFT - SHIFT_FLL),
+		freq_adj += div_s64((s64)offset << (TICK_LENGTH_SHIFT - SHIFT_FLL),
 				    mtemp);
 		time_status |= STA_MODE;
 	}
 	freq_adj += time_freq;
 	freq_adj = min(freq_adj, MAXFREQ_SCALED);
 	time_freq = max(freq_adj, -MAXFREQ_SCALED);
-	time_offset = div_s64(time_offset, NTP_INTERVAL_FREQ);
-	time_offset <<= SHIFT_UPDATE;
+
+	time_offset = div_s64((s64)offset << TICK_LENGTH_SHIFT, NTP_INTERVAL_FREQ);
 }
 
 /**
@@ -128,7 +127,7 @@ void ntp_clear(void)
  */
 void second_overflow(void)
 {
-	long time_adj;
+	s64 time_adj;
 
 	/* Bump the maxerror field */
 	time_maxerror += MAXFREQ / NSEC_PER_USEC;
@@ -184,7 +183,7 @@ void second_overflow(void)
 	tick_length = tick_length_base;
 	time_adj = shift_right(time_offset, SHIFT_PLL + time_constant);
 	time_offset -= time_adj;
-	tick_length += (s64)time_adj << (TICK_LENGTH_SHIFT - SHIFT_UPDATE);
+	tick_length += time_adj;
 
 	if (unlikely(time_adjust)) {
 		if (time_adjust > MAX_TICKADJ) {
@@ -363,8 +362,8 @@ int do_adjtimex(struct timex *txc)
 	    (txc->modes == ADJ_OFFSET_SS_READ))
 		txc->offset = save_adjust;
 	else {
-		txc->offset = ((long)shift_right(time_offset, SHIFT_UPDATE)) *
-	    			NTP_INTERVAL_FREQ;
+		txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
+					  TICK_LENGTH_SHIFT);
 		if (!(time_status & STA_NANO))
 			txc->offset /= NSEC_PER_USEC;
 	}
