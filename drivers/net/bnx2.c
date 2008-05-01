@@ -1631,8 +1631,10 @@ bnx2_set_default_remote_link(struct bnx2 *bp)
 static void
 bnx2_set_default_link(struct bnx2 *bp)
 {
-	if (bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP)
-		return bnx2_set_default_remote_link(bp);
+	if (bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP) {
+		bnx2_set_default_remote_link(bp);
+		return;
+	}
 
 	bp->autoneg = AUTONEG_SPEED | AUTONEG_FLOW_CTRL;
 	bp->req_line_speed = 0;
