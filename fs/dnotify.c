@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/file.h>
 
 int dir_notify_enable __read_mostly = 1;
 
@@ -66,6 +67,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	struct dnotify_struct **prev;
 	struct inode *inode;
 	fl_owner_t id = current->files;
+	struct file *f;
 	int error = 0;
 
 	if ((arg & ~DN_MULTISHOT) == 0) {
@@ -91,6 +93,15 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		}
 		prev = &odn->dn_next;
 	}
+
+	rcu_read_lock();
+	f = fcheck(fd);
+	rcu_read_unlock();
+	/* we'd lost the race with close(), sod off silently */
+	/* note that inode->i_lock prevents reordering problems
+	 * between accesses to descriptor table and ->i_dnotify */
+	if (f != filp)
+		goto out_free;
 
 	error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
 	if (error)
