@@ -257,6 +257,7 @@ config CPA_DEBUG
 
 config OPTIMIZE_INLINING
 	bool "Allow gcc to uninline functions marked 'inline'"
+	depends on BROKEN
 	help
 	  This option determines if the kernel forces gcc to inline the functions
 	  developers have marked 'inline'. Doing so takes away freedom from gcc to
