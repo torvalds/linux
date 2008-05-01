@@ -385,8 +385,8 @@ void idr_remove(struct idr *idp, int id)
 	while (idp->id_free_cnt >= IDR_FREE_MAX) {
 		p = alloc_layer(idp);
 		kmem_cache_free(idr_layer_cache, p);
-		return;
 	}
+	return;
 }
 EXPORT_SYMBOL(idr_remove);
 
