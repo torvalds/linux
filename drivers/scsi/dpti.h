@@ -233,6 +233,7 @@ typedef struct _adpt_hba {
 	u8  top_scsi_channel;
 	u8  top_scsi_id;
 	u8  top_scsi_lun;
+	u8  dma64;
 
 	i2o_status_block* status_block;
 	dma_addr_t status_block_pa;
@@ -252,6 +253,7 @@ typedef struct _adpt_hba {
 	void __iomem *FwDebugBLEDflag_P;// Virtual Addr Of FW Debug BLED
 	void __iomem *FwDebugBLEDvalue_P;// Virtual Addr Of FW Debug BLED
 	u32 FwDebugFlags;
+	u32 *ioctl_reply_context[4];
 } adpt_hba;
 
 struct sg_simple_element {
