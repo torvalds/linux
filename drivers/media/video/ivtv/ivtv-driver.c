@@ -1232,7 +1232,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	return 0;
 
 free_streams:
-	ivtv_streams_cleanup(itv);
+	ivtv_streams_cleanup(itv, 1);
 free_irq:
 	free_irq(itv->dev->irq, (void *)itv);
 free_i2c:
@@ -1377,7 +1377,7 @@ static void ivtv_remove(struct pci_dev *pci_dev)
 	flush_workqueue(itv->irq_work_queues);
 	destroy_workqueue(itv->irq_work_queues);
 
-	ivtv_streams_cleanup(itv);
+	ivtv_streams_cleanup(itv, 1);
 	ivtv_udma_free(itv);
 
 	exit_ivtv_i2c(itv);

@@ -805,7 +805,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	return 0;
 
 free_streams:
-	cx18_streams_cleanup(cx);
+	cx18_streams_cleanup(cx, 1);
 free_irq:
 	free_irq(cx->dev->irq, (void *)cx);
 free_i2c:
@@ -908,7 +908,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	cx18_halt_firmware(cx);
 
-	cx18_streams_cleanup(cx);
+	cx18_streams_cleanup(cx, 1);
 
 	exit_cx18_i2c(cx);
 

@@ -239,12 +239,12 @@ int cx18_stream_alloc(struct cx18_stream *s)
 
 	/* allocate stream buffers. Initially all buffers are in q_free. */
 	for (i = 0; i < s->buffers; i++) {
-		struct cx18_buffer *buf =
-			kzalloc(sizeof(struct cx18_buffer), GFP_KERNEL);
+		struct cx18_buffer *buf = kzalloc(sizeof(struct cx18_buffer),
+						GFP_KERNEL|__GFP_NOWARN);
 
 		if (buf == NULL)
 			break;
-		buf->buf = kmalloc(s->buf_size, GFP_KERNEL);
+		buf->buf = kmalloc(s->buf_size, GFP_KERNEL|__GFP_NOWARN);
 		if (buf->buf == NULL) {
 			kfree(buf);
 			break;
