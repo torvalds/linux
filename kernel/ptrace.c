@@ -534,7 +534,6 @@ struct task_struct *ptrace_get_task_struct(pid_t pid)
 #define arch_ptrace_attach(child)	do { } while (0)
 #endif
 
-#ifndef __ARCH_SYS_PTRACE
 asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
@@ -582,7 +581,6 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 	unlock_kernel();
 	return ret;
 }
-#endif /* __ARCH_SYS_PTRACE */
 
 int generic_ptrace_peekdata(struct task_struct *tsk, long addr, long data)
 {
