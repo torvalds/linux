@@ -228,14 +228,18 @@ typedef struct _adpt_hba {
 	u32  post_fifo_size;
 	u32  reply_fifo_size;
 	u32* reply_pool;
+	dma_addr_t reply_pool_pa;
 	u32  sg_tablesize;	// Scatter/Gather List Size.       
 	u8  top_scsi_channel;
 	u8  top_scsi_id;
 	u8  top_scsi_lun;
 
 	i2o_status_block* status_block;
+	dma_addr_t status_block_pa;
 	i2o_hrt* hrt;
+	dma_addr_t hrt_pa;
 	i2o_lct* lct;
+	dma_addr_t lct_pa;
 	uint lct_size;
 	struct i2o_device* devices;
 	struct adpt_channel channel[MAX_CHANNEL];
@@ -271,7 +275,8 @@ static int adpt_i2o_query_scalar(adpt_hba* pHba, int tid,
 static const char *adpt_i2o_get_class_name(int class);
 #endif
 static int adpt_i2o_issue_params(int cmd, adpt_hba* pHba, int tid, 
-		  void *opblk, int oplen, void *resblk, int reslen);
+		  void *opblk, dma_addr_t opblk_pa, int oplen,
+		  void *resblk, dma_addr_t resblk_pa, int reslen);
 static int adpt_i2o_post_wait(adpt_hba* pHba, u32* msg, int len, int timeout);
 static int adpt_i2o_lct_get(adpt_hba* pHba);
 static int adpt_i2o_parse_lct(adpt_hba* pHba);
