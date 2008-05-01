@@ -410,6 +410,41 @@ static unsigned int inic_qc_issue(struct ata_queued_cmd *qc)
 	return ata_sff_qc_issue(qc);
 }
 
+static void inic_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
+{
+	void __iomem *port_base = inic_port_base(ap);
+
+	tf->feature	= readb(port_base + PORT_TF_FEATURE);
+	tf->nsect	= readb(port_base + PORT_TF_NSECT);
+	tf->lbal	= readb(port_base + PORT_TF_LBAL);
+	tf->lbam	= readb(port_base + PORT_TF_LBAM);
+	tf->lbah	= readb(port_base + PORT_TF_LBAH);
+	tf->device	= readb(port_base + PORT_TF_DEVICE);
+	tf->command	= readb(port_base + PORT_TF_COMMAND);
+}
+
+static bool inic_qc_fill_rtf(struct ata_queued_cmd *qc)
+{
+	struct ata_taskfile *rtf = &qc->result_tf;
+	struct ata_taskfile tf;
+
+	/* FIXME: Except for status and error, result TF access
+	 * doesn't work.  I tried reading from BAR0/2, CPB and BAR5.
+	 * None works regardless of which command interface is used.
+	 * For now return true iff status indicates device error.
+	 * This means that we're reporting bogus sector for RW
+	 * failures.  Eeekk....
+	 */
+	inic_tf_read(qc->ap, &tf);
+
+	if (!(tf.command & ATA_ERR))
+		return false;
+
+	rtf->command = tf.command;
+	rtf->feature = tf.feature;
+	return true;
+}
+
 static void inic_freeze(struct ata_port *ap)
 {
 	void __iomem *port_base = inic_port_base(ap);
@@ -428,6 +463,13 @@ static void inic_thaw(struct ata_port *ap)
 	writeb(0xff, port_base + PORT_IRQ_STAT);
 
 	__inic_set_pirq_mask(ap, PIRQ_MASK_OTHER);
+}
+
+static int inic_check_ready(struct ata_link *link)
+{
+	void __iomem *port_base = inic_port_base(link->ap);
+
+	return ata_check_ready(readb(port_base + PORT_TF_COMMAND));
 }
 
 /*
@@ -465,7 +507,7 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 		struct ata_taskfile tf;
 
 		/* wait for link to become ready */
-		rc = ata_sff_wait_after_reset(link, 1, deadline);
+		rc = ata_wait_after_reset(link, deadline, inic_check_ready);
 		/* link occupied, -ENODEV too is an error */
 		if (rc) {
 			ata_link_printk(link, KERN_WARNING, "device not ready "
@@ -473,7 +515,7 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 			return rc;
 		}
 
-		ata_sff_tf_read(ap, &tf);
+		inic_tf_read(ap, &tf);
 		*class = ata_dev_classify(&tf);
 	}
 
@@ -569,6 +611,7 @@ static struct ata_port_operations inic_port_ops = {
 	.bmdma_stop		= inic_bmdma_stop,
 	.bmdma_status		= inic_bmdma_status,
 	.qc_issue		= inic_qc_issue,
+	.qc_fill_rtf		= inic_qc_fill_rtf,
 
 	.freeze			= inic_freeze,
 	.thaw			= inic_thaw,
