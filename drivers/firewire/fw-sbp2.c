@@ -784,7 +784,7 @@ static void sbp2_release_target(struct kref *kref)
 		kfree(lu);
 	}
 	scsi_remove_host(shost);
-	fw_notify("released %s\n", tgt->bus_id);
+	fw_notify("released %s, target %d:0:0\n", tgt->bus_id, shost->host_no);
 
 	fw_unit_put(tgt->unit);
 	scsi_host_put(shost);
