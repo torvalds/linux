@@ -252,11 +252,15 @@ static void rq_comp_handler(struct ib_cq *cq, void *cq_context)
 	struct svcxprt_rdma *xprt = cq_context;
 	unsigned long flags;
 
+	/* Guard against unconditional flush call for destroyed QP */
+	if (atomic_read(&xprt->sc_xprt.xpt_ref.refcount)==0)
+		return;
+
 	/*
 	 * Set the bit regardless of whether or not it's on the list
 	 * because it may be on the list already due to an SQ
 	 * completion.
-	*/
+	 */
 	set_bit(RDMAXPRT_RQ_PENDING, &xprt->sc_flags);
 
 	/*
@@ -393,11 +397,15 @@ static void sq_comp_handler(struct ib_cq *cq, void *cq_context)
 	struct svcxprt_rdma *xprt = cq_context;
 	unsigned long flags;
 
+	/* Guard against unconditional flush call for destroyed QP */
+	if (atomic_read(&xprt->sc_xprt.xpt_ref.refcount)==0)
+		return;
+
 	/*
 	 * Set the bit regardless of whether or not it's on the list
 	 * because it may be on the list already due to an RQ
 	 * completion.
-	*/
+	 */
 	set_bit(RDMAXPRT_SQ_PENDING, &xprt->sc_flags);
 
 	/*
@@ -852,7 +860,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		newxprt->sc_sq_depth = qp_attr.cap.max_send_wr;
 		newxprt->sc_max_requests = qp_attr.cap.max_recv_wr;
 	}
-	svc_xprt_get(&newxprt->sc_xprt);
 	newxprt->sc_qp = newxprt->sc_cm_id->qp;
 
 	/* Register all of physical memory */
@@ -926,10 +933,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	dprintk("svcrdma: failure accepting new connection rc=%d.\n", ret);
 	/* Take a reference in case the DTO handler runs */
 	svc_xprt_get(&newxprt->sc_xprt);
-	if (newxprt->sc_qp && !IS_ERR(newxprt->sc_qp)) {
+	if (newxprt->sc_qp && !IS_ERR(newxprt->sc_qp))
 		ib_destroy_qp(newxprt->sc_qp);
-		svc_xprt_put(&newxprt->sc_xprt);
-	}
 	rdma_destroy_id(newxprt->sc_cm_id);
 	/* This call to put will destroy the transport */
 	svc_xprt_put(&newxprt->sc_xprt);
@@ -941,10 +946,7 @@ static void svc_rdma_release_rqst(struct svc_rqst *rqstp)
 }
 
 /*
- * When connected, an svc_xprt has at least three references:
- *
- * - A reference held by the QP. We still hold that here because this
- *   code deletes the QP and puts the reference.
+ * When connected, an svc_xprt has at least two references:
  *
  * - A reference held by the cm_id between the ESTABLISHED and
  *   DISCONNECTED events. If the remote peer disconnected first, this
@@ -953,7 +955,7 @@ static void svc_rdma_release_rqst(struct svc_rqst *rqstp)
  * - A reference held by the svc_recv code that called this function
  *   as part of close processing.
  *
- * At a minimum two references should still be held.
+ * At a minimum one references should still be held.
  */
 static void svc_rdma_detach(struct svc_xprt *xprt)
 {
@@ -963,15 +965,6 @@ static void svc_rdma_detach(struct svc_xprt *xprt)
 
 	/* Disconnect and flush posted WQE */
 	rdma_disconnect(rdma->sc_cm_id);
-
-	/* Destroy the QP if present (not a listener) */
-	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp)) {
-		ib_destroy_qp(rdma->sc_qp);
-		svc_xprt_put(xprt);
-	}
-
-	/* Destroy the CM ID */
-	rdma_destroy_id(rdma->sc_cm_id);
 }
 
 static void __svc_rdma_free(struct work_struct *work)
@@ -982,6 +975,13 @@ static void __svc_rdma_free(struct work_struct *work)
 
 	/* We should only be called from kref_put */
 	BUG_ON(atomic_read(&rdma->sc_xprt.xpt_ref.refcount) != 0);
+
+	/* Destroy the QP if present (not a listener) */
+	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
+		ib_destroy_qp(rdma->sc_qp);
+
+	/* Destroy the CM ID */
+	rdma_destroy_id(rdma->sc_cm_id);
 
 	if (rdma->sc_sq_cq && !IS_ERR(rdma->sc_sq_cq))
 		ib_destroy_cq(rdma->sc_sq_cq);
