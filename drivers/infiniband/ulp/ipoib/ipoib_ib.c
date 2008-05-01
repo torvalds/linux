@@ -461,6 +461,26 @@ void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 	netif_rx_schedule(dev, &priv->napi);
 }
 
+static void drain_tx_cq(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->tx_lock, flags);
+	while (poll_tx(priv))
+		; /* nothing */
+
+	if (netif_queue_stopped(dev))
+		mod_timer(&priv->poll_timer, jiffies + 1);
+
+	spin_unlock_irqrestore(&priv->tx_lock, flags);
+}
+
+void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr)
+{
+	drain_tx_cq((struct net_device *)dev_ptr);
+}
+
 static inline int post_send(struct ipoib_dev_priv *priv,
 			    unsigned int wr_id,
 			    struct ib_ah *address, u32 qpn,
@@ -555,12 +575,22 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	else
 		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
 
+	if (++priv->tx_outstanding == ipoib_sendq_size) {
+		ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");
+		if (ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP))
+			ipoib_warn(priv, "request notify on send CQ failed\n");
+		netif_stop_queue(dev);
+	}
+
 	if (unlikely(post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
 			       address->ah, qpn, tx_req, phead, hlen))) {
 		ipoib_warn(priv, "post_send failed\n");
 		++dev->stats.tx_errors;
+		--priv->tx_outstanding;
 		ipoib_dma_unmap_tx(priv->ca, tx_req);
 		dev_kfree_skb_any(skb);
+		if (netif_queue_stopped(dev))
+			netif_wake_queue(dev);
 	} else {
 		dev->trans_start = jiffies;
 
@@ -568,14 +598,11 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		++priv->tx_head;
 		skb_orphan(skb);
 
-		if (++priv->tx_outstanding == ipoib_sendq_size) {
-			ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");
-			netif_stop_queue(dev);
-		}
 	}
 
 	if (unlikely(priv->tx_outstanding > MAX_SEND_CQE))
-		poll_tx(priv);
+		while (poll_tx(priv))
+			; /* nothing */
 }
 
 static void __ipoib_reap_ah(struct net_device *dev)
@@ -607,6 +634,11 @@ void ipoib_reap_ah(struct work_struct *work)
 	if (!test_bit(IPOIB_STOP_REAPER, &priv->flags))
 		queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
 				   round_jiffies_relative(HZ));
+}
+
+static void ipoib_ib_tx_timer_func(unsigned long ctx)
+{
+	drain_tx_cq((struct net_device *)ctx);
 }
 
 int ipoib_ib_dev_open(struct net_device *dev)
@@ -644,6 +676,10 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
 	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
 			   round_jiffies_relative(HZ));
+
+	init_timer(&priv->poll_timer);
+	priv->poll_timer.function = ipoib_ib_tx_timer_func;
+	priv->poll_timer.data = (unsigned long)dev;
 
 	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
 
@@ -810,6 +846,7 @@ int ipoib_ib_dev_stop(struct net_device *dev, int flush)
 	ipoib_dbg(priv, "All sends and receives done.\n");
 
 timeout:
+	del_timer_sync(&priv->poll_timer);
 	qp_attr.qp_state = IB_QPS_RESET;
 	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
 		ipoib_warn(priv, "Failed to modify QP to RESET state\n");
