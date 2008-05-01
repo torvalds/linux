@@ -955,7 +955,8 @@ asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp)
 			__put_user(txc.jitcnt, &utp->jitcnt) ||
 			__put_user(txc.calcnt, &utp->calcnt) ||
 			__put_user(txc.errcnt, &utp->errcnt) ||
-			__put_user(txc.stbcnt, &utp->stbcnt))
+			__put_user(txc.stbcnt, &utp->stbcnt) ||
+			__put_user(txc.tai, &utp->tai))
 		ret = -EFAULT;
 
 	return ret;

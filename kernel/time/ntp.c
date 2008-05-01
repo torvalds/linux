@@ -35,6 +35,7 @@ static u64 tick_length, tick_length_base;
 /* TIME_ERROR prevents overwriting the CMOS clock */
 static int time_state = TIME_OK;	/* clock synchronization status	*/
 int time_status = STA_UNSYNC;		/* clock status bits		*/
+static long time_tai;			/* TAI offset (s)		*/
 static s64 time_offset;			/* time adjustment (ns)		*/
 static long time_constant = 2;		/* pll time constant		*/
 long time_maxerror = NTP_PHASE_LIMIT;	/* maximum error (us)		*/
@@ -162,6 +163,7 @@ void second_overflow(void)
 	case TIME_DEL:
 		if ((xtime.tv_sec + 1) % 86400 == 0) {
 			xtime.tv_sec++;
+			time_tai--;
 			wall_to_monotonic.tv_sec--;
 			time_state = TIME_WAIT;
 			printk(KERN_NOTICE "Clock: deleting leap second "
@@ -169,6 +171,7 @@ void second_overflow(void)
 		}
 		break;
 	case TIME_OOP:
+		time_tai++;
 		time_state = TIME_WAIT;
 		break;
 	case TIME_WAIT:
@@ -340,6 +343,9 @@ int do_adjtimex(struct timex *txc)
 			time_constant = max(time_constant, 0l);
 		}
 
+		if (txc->modes & ADJ_TAI && txc->constant > 0)
+			time_tai = txc->constant;
+
 		if (txc->modes & ADJ_OFFSET) {
 			if (txc->modes == ADJ_OFFSET_SINGLESHOT)
 				/* adjtime() is independent from ntp_adjtime() */
@@ -377,6 +383,7 @@ int do_adjtimex(struct timex *txc)
 	txc->precision	   = 1;
 	txc->tolerance	   = MAXFREQ_SCALED / PPM_SCALE;
 	txc->tick	   = tick_usec;
+	txc->tai	   = time_tai;
 
 	/* PPS is not implemented, so these are zero */
 	txc->ppsfreq	   = 0;
