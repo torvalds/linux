@@ -2033,7 +2033,7 @@ static int mgsl_put_char(struct tty_struct *tty, unsigned char ch)
 	int ret = 0;
 
 	if (debug_level >= DEBUG_LEVEL_INFO) {
-		printk("%s(%d):mgsl_put_char(%d) on %s\n",
+		printk(KERN_DEBUG "%s(%d):mgsl_put_char(%d) on %s\n",
 			__FILE__, __LINE__, ch, info->device_name);
 	}		
 	
