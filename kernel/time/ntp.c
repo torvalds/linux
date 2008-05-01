@@ -27,7 +27,7 @@ static u64 tick_length, tick_length_base;
 
 #define MAX_TICKADJ		500		/* microsecs */
 #define MAX_TICKADJ_SCALED	(((u64)(MAX_TICKADJ * NSEC_PER_USEC) << \
-				  TICK_LENGTH_SHIFT) / NTP_INTERVAL_FREQ)
+				  NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
 
 /*
  * phase-lock loop variables
@@ -48,13 +48,13 @@ static long ntp_tick_adj;
 static void ntp_update_frequency(void)
 {
 	u64 second_length = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ)
-				<< TICK_LENGTH_SHIFT;
-	second_length += (s64)ntp_tick_adj << TICK_LENGTH_SHIFT;
+				<< NTP_SCALE_SHIFT;
+	second_length += (s64)ntp_tick_adj << NTP_SCALE_SHIFT;
 	second_length += time_freq;
 
 	tick_length_base = second_length;
 
-	tick_nsec = div_u64(second_length, HZ) >> TICK_LENGTH_SHIFT;
+	tick_nsec = div_u64(second_length, HZ) >> NTP_SCALE_SHIFT;
 	tick_length_base = div_u64(tick_length_base, NTP_INTERVAL_FREQ);
 }
 
@@ -86,10 +86,10 @@ static void ntp_update_offset(long offset)
 	time_reftime = xtime.tv_sec;
 
 	freq_adj = (s64)offset * mtemp;
-	freq_adj <<= TICK_LENGTH_SHIFT - 2 * (SHIFT_PLL + 2 + time_constant);
+	freq_adj <<= NTP_SCALE_SHIFT - 2 * (SHIFT_PLL + 2 + time_constant);
 	time_status &= ~STA_MODE;
 	if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC)) {
-		freq_adj += div_s64((s64)offset << (TICK_LENGTH_SHIFT - SHIFT_FLL),
+		freq_adj += div_s64((s64)offset << (NTP_SCALE_SHIFT - SHIFT_FLL),
 				    mtemp);
 		time_status |= STA_MODE;
 	}
@@ -97,7 +97,7 @@ static void ntp_update_offset(long offset)
 	freq_adj = min(freq_adj, MAXFREQ_SCALED);
 	time_freq = max(freq_adj, -MAXFREQ_SCALED);
 
-	time_offset = div_s64((s64)offset << TICK_LENGTH_SHIFT, NTP_INTERVAL_FREQ);
+	time_offset = div_s64((s64)offset << NTP_SCALE_SHIFT, NTP_INTERVAL_FREQ);
 }
 
 /**
@@ -197,7 +197,7 @@ void second_overflow(void)
 			tick_length -= MAX_TICKADJ_SCALED;
 		} else {
 			tick_length += (s64)(time_adjust * NSEC_PER_USEC /
-					NTP_INTERVAL_FREQ) << TICK_LENGTH_SHIFT;
+					NTP_INTERVAL_FREQ) << NTP_SCALE_SHIFT;
 			time_adjust = 0;
 		}
 	}
@@ -369,13 +369,13 @@ int do_adjtimex(struct timex *txc)
 		txc->offset = save_adjust;
 	else {
 		txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
-					  TICK_LENGTH_SHIFT);
+					  NTP_SCALE_SHIFT);
 		if (!(time_status & STA_NANO))
 			txc->offset /= NSEC_PER_USEC;
 	}
 	txc->freq	   = shift_right((s32)(time_freq >> PPM_SCALE_INV_SHIFT) *
 					 (s64)PPM_SCALE_INV,
-					 TICK_LENGTH_SHIFT);
+					 NTP_SCALE_SHIFT);
 	txc->maxerror	   = time_maxerror;
 	txc->esterror	   = time_esterror;
 	txc->status	   = time_status;
