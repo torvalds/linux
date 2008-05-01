@@ -1196,9 +1196,9 @@ S:	Maintained
 
 CPUSETS
 P:	Paul Jackson
-P:	Simon Derr
+P:	Paul Menage
 M:	pj@sgi.com
-M:	simon.derr@bull.net
+M:	menage@google.com
 L:	linux-kernel@vger.kernel.org
 W:	http://www.bullopensource.org/cpuset/
 S:	Supported
