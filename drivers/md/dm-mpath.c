@@ -63,6 +63,7 @@ struct multipath {
 	spinlock_t lock;
 
 	const char *hw_handler_name;
+	struct work_struct activate_path;
 	unsigned nr_priority_groups;
 	struct list_head priority_groups;
 	unsigned pg_init_required;	/* pg_init needs calling? */
@@ -107,10 +108,10 @@ typedef int (*action_fn) (struct pgpath *pgpath);
 
 static struct kmem_cache *_mpio_cache;
 
-static struct workqueue_struct *kmultipathd;
+static struct workqueue_struct *kmultipathd, *kmpath_handlerd;
 static void process_queued_ios(struct work_struct *work);
 static void trigger_event(struct work_struct *work);
-static void pg_init_done(struct dm_path *, int);
+static void activate_path(struct work_struct *work);
 
 
 /*-----------------------------------------------
@@ -180,6 +181,7 @@ static struct multipath *alloc_multipath(struct dm_target *ti)
 		m->queue_io = 1;
 		INIT_WORK(&m->process_queued_ios, process_queued_ios);
 		INIT_WORK(&m->trigger_event, trigger_event);
+		INIT_WORK(&m->activate_path, activate_path);
 		m->mpio_pool = mempool_create_slab_pool(MIN_IOS, _mpio_cache);
 		if (!m->mpio_pool) {
 			kfree(m);
@@ -432,11 +434,8 @@ static void process_queued_ios(struct work_struct *work)
 out:
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	if (init_required) {
-		struct dm_path *path = &pgpath->path;
-		int ret = scsi_dh_activate(bdev_get_queue(path->dev->bdev));
-		pg_init_done(path, ret);
-	}
+	if (init_required)
+		queue_work(kmpath_handlerd, &m->activate_path);
 
 	if (!must_queue)
 		dispatch_queued_ios(m);
@@ -791,6 +790,7 @@ static void multipath_dtr(struct dm_target *ti)
 {
 	struct multipath *m = (struct multipath *) ti->private;
 
+	flush_workqueue(kmpath_handlerd);
 	flush_workqueue(kmultipathd);
 	free_multipath(m);
 }
@@ -1106,6 +1106,17 @@ static void pg_init_done(struct dm_path *path, int errors)
 	m->pg_init_in_progress = 0;
 	queue_work(kmultipathd, &m->process_queued_ios);
 	spin_unlock_irqrestore(&m->lock, flags);
+}
+
+static void activate_path(struct work_struct *work)
+{
+	int ret;
+	struct multipath *m =
+		container_of(work, struct multipath, activate_path);
+	struct dm_path *path = &m->current_pgpath->path;
+
+	ret = scsi_dh_activate(bdev_get_queue(path->dev->bdev));
+	pg_init_done(path, ret);
 }
 
 /*
@@ -1451,6 +1462,21 @@ static int __init dm_multipath_init(void)
 		return -ENOMEM;
 	}
 
+	/*
+	 * A separate workqueue is used to handle the device handlers
+	 * to avoid overloading existing workqueue. Overloading the
+	 * old workqueue would also create a bottleneck in the
+	 * path of the storage hardware device activation.
+	 */
+	kmpath_handlerd = create_singlethread_workqueue("kmpath_handlerd");
+	if (!kmpath_handlerd) {
+		DMERR("failed to create workqueue kmpath_handlerd");
+		destroy_workqueue(kmultipathd);
+		dm_unregister_target(&multipath_target);
+		kmem_cache_destroy(_mpio_cache);
+		return -ENOMEM;
+	}
+
 	DMINFO("version %u.%u.%u loaded",
 	       multipath_target.version[0], multipath_target.version[1],
 	       multipath_target.version[2]);
@@ -1462,6 +1488,7 @@ static void __exit dm_multipath_exit(void)
 {
 	int r;
 
+	destroy_workqueue(kmpath_handlerd);
 	destroy_workqueue(kmultipathd);
 
 	r = dm_unregister_target(&multipath_target);
