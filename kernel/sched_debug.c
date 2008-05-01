@@ -357,8 +357,8 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 
 		avg_per_cpu = p->se.sum_exec_runtime;
 		if (p->se.nr_migrations) {
-			avg_per_cpu = div64_64(avg_per_cpu,
-					       p->se.nr_migrations);
+			avg_per_cpu = div64_u64(avg_per_cpu,
+						p->se.nr_migrations);
 		} else {
 			avg_per_cpu = -1LL;
 		}

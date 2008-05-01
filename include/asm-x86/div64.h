@@ -71,8 +71,6 @@ static inline u64 div_u64_rem(u64 dividend, u32 divisor, u32 *remainder)
 }
 #define div_u64_rem	div_u64_rem
 
-extern uint64_t div64_64(uint64_t dividend, uint64_t divisor);
-
 #else
 # include <asm-generic/div64.h>
 #endif /* CONFIG_X86_32 */

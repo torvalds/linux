@@ -82,7 +82,6 @@
 	(n) = __quot; \
 	__mod; })
 
-extern uint64_t div64_64(uint64_t dividend, uint64_t divisor);
 #endif /* (_MIPS_SZLONG == 32) */
 
 #if (_MIPS_SZLONG == 64)
@@ -105,11 +104,6 @@ extern uint64_t div64_64(uint64_t dividend, uint64_t divisor);
 	\
 	(n) = __quot; \
 	__mod; })
-
-static inline uint64_t div64_64(uint64_t dividend, uint64_t divisor)
-{
-	return dividend / divisor;
-}
 
 #endif /* (_MIPS_SZLONG == 64) */
 

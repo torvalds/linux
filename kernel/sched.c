@@ -8025,7 +8025,7 @@ static void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
 
 	se->my_q = cfs_rq;
 	se->load.weight = tg->shares;
-	se->load.inv_weight = div64_64(1ULL<<32, se->load.weight);
+	se->load.inv_weight = div64_u64(1ULL<<32, se->load.weight);
 	se->parent = parent;
 }
 #endif
@@ -8692,7 +8692,7 @@ static void __set_se_shares(struct sched_entity *se, unsigned long shares)
 		dequeue_entity(cfs_rq, se, 0);
 
 	se->load.weight = shares;
-	se->load.inv_weight = div64_64((1ULL<<32), shares);
+	se->load.inv_weight = div64_u64((1ULL<<32), shares);
 
 	if (on_rq)
 		enqueue_entity(cfs_rq, se, 0);
@@ -8787,7 +8787,7 @@ static unsigned long to_ratio(u64 period, u64 runtime)
 	if (runtime == RUNTIME_INF)
 		return 1ULL << 16;
 
-	return div64_64(runtime << 16, period);
+	return div64_u64(runtime << 16, period);
 }
 
 #ifdef CONFIG_CGROUP_SCHED

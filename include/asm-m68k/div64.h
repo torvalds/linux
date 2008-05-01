@@ -25,5 +25,4 @@
 	__rem;							\
 })
 
-extern uint64_t div64_64(uint64_t dividend, uint64_t divisor);
 #endif /* _M68K_DIV64_H */

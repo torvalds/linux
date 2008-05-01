@@ -78,9 +78,10 @@ EXPORT_SYMBOL(div_s64_rem);
 #endif
 
 /* 64bit divisor, dividend and result. dynamic precision */
-uint64_t div64_64(uint64_t dividend, uint64_t divisor)
+#ifndef div64_u64
+u64 div64_u64(u64 dividend, u64 divisor)
 {
-	uint32_t high, d;
+	u32 high, d;
 
 	high = divisor >> 32;
 	if (high) {
@@ -91,10 +92,9 @@ uint64_t div64_64(uint64_t dividend, uint64_t divisor)
 	} else
 		d = divisor;
 
-	do_div(dividend, d);
-
-	return dividend;
+	return div_u64(dividend, d);
 }
-EXPORT_SYMBOL(div64_64);
+EXPORT_SYMBOL(div64_u64);
+#endif
 
 #endif /* BITS_PER_LONG == 32 */

@@ -97,7 +97,4 @@ signed __muldiv64s(signed val, signed mult, signed div)
 	return result;
 }
 
-extern __attribute__((const))
-uint64_t div64_64(uint64_t dividend, uint64_t divisor);
-
 #endif /* _ASM_DIV64 */
