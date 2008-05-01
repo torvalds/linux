@@ -279,6 +279,8 @@ static void rq_comp_handler(struct ib_cq *cq, void *cq_context)
  *
  * Take all completing WC off the CQE and enqueue the associated DTO
  * context on the dto_q for the transport.
+ *
+ * Note that caller must hold a transport reference.
  */
 static void rq_cq_reap(struct svcxprt_rdma *xprt)
 {
@@ -298,13 +300,16 @@ static void rq_cq_reap(struct svcxprt_rdma *xprt)
 		ctxt->byte_len = wc.byte_len;
 		if (wc.status != IB_WC_SUCCESS) {
 			/* Close the transport */
+			dprintk("svcrdma: transport closing putting ctxt %p\n", ctxt);
 			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
 			svc_rdma_put_context(ctxt, 1);
+			svc_xprt_put(&xprt->sc_xprt);
 			continue;
 		}
 		spin_lock_bh(&xprt->sc_rq_dto_lock);
 		list_add_tail(&ctxt->dto_q, &xprt->sc_rq_dto_q);
 		spin_unlock_bh(&xprt->sc_rq_dto_lock);
+		svc_xprt_put(&xprt->sc_xprt);
 	}
 
 	if (ctxt)
@@ -322,6 +327,8 @@ static void rq_cq_reap(struct svcxprt_rdma *xprt)
 
 /*
  * Send Queue Completion Handler - potentially called on interrupt context.
+ *
+ * Note that caller must hold a transport reference.
  */
 static void sq_cq_reap(struct svcxprt_rdma *xprt)
 {
@@ -374,6 +381,7 @@ static void sq_cq_reap(struct svcxprt_rdma *xprt)
 			       wc.opcode, wc.status);
 			break;
 		}
+		svc_xprt_put(&xprt->sc_xprt);
 	}
 
 	if (ctxt)
@@ -530,9 +538,12 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 	recv_wr.num_sge = ctxt->count;
 	recv_wr.wr_id = (u64)(unsigned long)ctxt;
 
+	svc_xprt_get(&xprt->sc_xprt);
 	ret = ib_post_recv(xprt->sc_qp, &recv_wr, &bad_recv_wr);
-	if (ret)
+	if (ret) {
+		svc_xprt_put(&xprt->sc_xprt);
 		svc_rdma_put_context(ctxt, 1);
+	}
 	return ret;
 }
 
@@ -1049,14 +1060,17 @@ int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
 			continue;
 		}
 		/* Bumped used SQ WR count and post */
+		svc_xprt_get(&xprt->sc_xprt);
 		ret = ib_post_send(xprt->sc_qp, wr, &bad_wr);
 		if (!ret)
 			atomic_inc(&xprt->sc_sq_count);
-		else
+		else {
+			svc_xprt_put(&xprt->sc_xprt);
 			dprintk("svcrdma: failed to post SQ WR rc=%d, "
 			       "sc_sq_count=%d, sc_sq_depth=%d\n",
 			       ret, atomic_read(&xprt->sc_sq_count),
 			       xprt->sc_sq_depth);
+		}
 		spin_unlock_bh(&xprt->sc_lock);
 		break;
 	}
