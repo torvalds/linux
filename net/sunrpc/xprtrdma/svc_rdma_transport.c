@@ -162,10 +162,10 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 			put_page(ctxt->pages[i]);
 
 	for (i = 0; i < ctxt->count; i++)
-		dma_unmap_single(xprt->sc_cm_id->device->dma_device,
-				 ctxt->sge[i].addr,
-				 ctxt->sge[i].length,
-				 ctxt->direction);
+		ib_dma_unmap_single(xprt->sc_cm_id->device,
+				    ctxt->sge[i].addr,
+				    ctxt->sge[i].length,
+				    ctxt->direction);
 
 	spin_lock_bh(&xprt->sc_ctxt_lock);
 	list_add(&ctxt->free_list, &xprt->sc_ctxt_free);
