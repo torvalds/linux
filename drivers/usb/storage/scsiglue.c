@@ -116,10 +116,10 @@ static int slave_configure(struct scsi_device *sdev)
 	 * while others have trouble with more than 64K. At this time we
 	 * are limiting both to 32K (64 sectores).
 	 */
-	if (us->flags & (US_FL_MAX_SECTORS_64 | US_FL_MAX_SECTORS_MIN)) {
+	if (us->fflags & (US_FL_MAX_SECTORS_64 | US_FL_MAX_SECTORS_MIN)) {
 		unsigned int max_sectors = 64;
 
-		if (us->flags & US_FL_MAX_SECTORS_MIN)
+		if (us->fflags & US_FL_MAX_SECTORS_MIN)
 			max_sectors = PAGE_CACHE_SIZE >> 9;
 		if (sdev->request_queue->max_sectors > max_sectors)
 			blk_queue_max_sectors(sdev->request_queue,
@@ -148,7 +148,7 @@ static int slave_configure(struct scsi_device *sdev)
 		 * majority of devices work fine, but a few still can't
 		 * handle it.  The sd driver will simply assume those
 		 * devices are write-enabled. */
-		if (us->flags & US_FL_NO_WP_DETECT)
+		if (us->fflags & US_FL_NO_WP_DETECT)
 			sdev->skip_ms_page_3f = 1;
 
 		/* A number of devices have problems with MODE SENSE for
@@ -158,13 +158,13 @@ static int slave_configure(struct scsi_device *sdev)
 		/* Some disks return the total number of blocks in response
 		 * to READ CAPACITY rather than the highest block number.
 		 * If this device makes that mistake, tell the sd driver. */
-		if (us->flags & US_FL_FIX_CAPACITY)
+		if (us->fflags & US_FL_FIX_CAPACITY)
 			sdev->fix_capacity = 1;
 
 		/* A few disks have two indistinguishable version, one of
 		 * which reports the correct capacity and the other does not.
 		 * The sd driver has to guess which is the case. */
-		if (us->flags & US_FL_CAPACITY_HEURISTICS)
+		if (us->fflags & US_FL_CAPACITY_HEURISTICS)
 			sdev->guess_capacity = 1;
 
 		/* Some devices report a SCSI revision level above 2 but are
@@ -213,7 +213,7 @@ static int slave_configure(struct scsi_device *sdev)
 
 	/* Some devices choke when they receive a PREVENT-ALLOW MEDIUM
 	 * REMOVAL command, so suppress those commands. */
-	if (us->flags & US_FL_NOT_LOCKABLE)
+	if (us->fflags & US_FL_NOT_LOCKABLE)
 		sdev->lockable = 0;
 
 	/* this is to satisfy the compiler, tho I don't think the 
@@ -238,7 +238,7 @@ static int queuecommand(struct scsi_cmnd *srb,
 	}
 
 	/* fail the command if we are disconnecting */
-	if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
+	if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags)) {
 		US_DEBUGP("Fail command during disconnect\n");
 		srb->result = DID_NO_CONNECT << 16;
 		done(srb);
@@ -280,9 +280,9 @@ static int command_abort(struct scsi_cmnd *srb)
 	 * with the reset).  Note that we must retain the host lock while
 	 * calling usb_stor_stop_transport(); otherwise it might interfere
 	 * with an auto-reset that begins as soon as we release the lock. */
-	set_bit(US_FLIDX_TIMED_OUT, &us->flags);
-	if (!test_bit(US_FLIDX_RESETTING, &us->flags)) {
-		set_bit(US_FLIDX_ABORTING, &us->flags);
+	set_bit(US_FLIDX_TIMED_OUT, &us->dflags);
+	if (!test_bit(US_FLIDX_RESETTING, &us->dflags)) {
+		set_bit(US_FLIDX_ABORTING, &us->dflags);
 		usb_stor_stop_transport(us);
 	}
 	scsi_unlock(us_to_host(us));
@@ -329,7 +329,7 @@ void usb_stor_report_device_reset(struct us_data *us)
 	struct Scsi_Host *host = us_to_host(us);
 
 	scsi_report_device_reset(host, 0, 0);
-	if (us->flags & US_FL_SCM_MULT_TARG) {
+	if (us->fflags & US_FL_SCM_MULT_TARG) {
 		for (i = 1; i < host->max_id; ++i)
 			scsi_report_device_reset(host, 0, i);
 	}
@@ -400,7 +400,7 @@ static int proc_info (struct Scsi_Host *host, char *buffer,
 		pos += sprintf(pos, "       Quirks:");
 
 #define US_FLAG(name, value) \
-	if (us->flags & value) pos += sprintf(pos, " " #name);
+	if (us->fflags & value) pos += sprintf(pos, " " #name);
 US_DO_ALL_FLAGS
 #undef US_FLAG
 

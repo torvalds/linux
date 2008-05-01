@@ -67,15 +67,15 @@ struct us_unusual_dev {
 };
 
 
-/* Dynamic flag definitions: used in set_bit() etc. */
-#define US_FLIDX_URB_ACTIVE	18  /* 0x00040000  current_urb is in use  */
-#define US_FLIDX_SG_ACTIVE	19  /* 0x00080000  current_sg is in use   */
-#define US_FLIDX_ABORTING	20  /* 0x00100000  abort is in progress   */
-#define US_FLIDX_DISCONNECTING	21  /* 0x00200000  disconnect in progress */
+/* Dynamic bitflag definitions (us->dflags): used in set_bit() etc. */
+#define US_FLIDX_URB_ACTIVE	0	/* current_urb is in use    */
+#define US_FLIDX_SG_ACTIVE	1	/* current_sg is in use     */
+#define US_FLIDX_ABORTING	2	/* abort is in progress     */
+#define US_FLIDX_DISCONNECTING	3	/* disconnect in progress   */
 #define ABORTING_OR_DISCONNECTING	((1UL << US_FLIDX_ABORTING) | \
 					 (1UL << US_FLIDX_DISCONNECTING))
-#define US_FLIDX_RESETTING	22  /* 0x00400000  device reset in progress */
-#define US_FLIDX_TIMED_OUT	23  /* 0x00800000  SCSI midlayer timed out  */
+#define US_FLIDX_RESETTING	4	/* device reset in progress */
+#define US_FLIDX_TIMED_OUT	5	/* SCSI midlayer timed out  */
 
 
 #define USB_STOR_STRING_LEN 32
@@ -109,7 +109,8 @@ struct us_data {
 	struct usb_device	*pusb_dev;	 /* this usb_device */
 	struct usb_interface	*pusb_intf;	 /* this interface */
 	struct us_unusual_dev   *unusual_dev;	 /* device-filter entry     */
-	unsigned long		flags;		 /* from filter initially */
+	unsigned long		fflags;		 /* fixed flags from filter */
+	unsigned long		dflags;		 /* dynamic atomic bitflags */
 	unsigned int		send_bulk_pipe;	 /* cached pipe values */
 	unsigned int		recv_bulk_pipe;
 	unsigned int		send_ctrl_pipe;

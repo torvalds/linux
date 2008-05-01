@@ -321,7 +321,7 @@ static int usb_stor_control_thread(void * __us)
 		mutex_lock(&(us->dev_mutex));
 
 		/* if the device has disconnected, we are free to exit */
-		if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
+		if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags)) {
 			US_DEBUGP("-- exiting\n");
 			mutex_unlock(&us->dev_mutex);
 			break;
@@ -331,7 +331,7 @@ static int usb_stor_control_thread(void * __us)
 		scsi_lock(host);
 
 		/* has the command timed out *already* ? */
-		if (test_bit(US_FLIDX_TIMED_OUT, &us->flags)) {
+		if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags)) {
 			us->srb->result = DID_ABORT << 16;
 			goto SkipForAbort;
 		}
@@ -350,7 +350,7 @@ static int usb_stor_control_thread(void * __us)
 		 * the maximum known LUN
 		 */
 		else if (us->srb->device->id && 
-				!(us->flags & US_FL_SCM_MULT_TARG)) {
+				!(us->fflags & US_FL_SCM_MULT_TARG)) {
 			US_DEBUGP("Bad target number (%d:%d)\n",
 				  us->srb->device->id, us->srb->device->lun);
 			us->srb->result = DID_BAD_TARGET << 16;
@@ -365,7 +365,7 @@ static int usb_stor_control_thread(void * __us)
 		/* Handle those devices which need us to fake 
 		 * their inquiry data */
 		else if ((us->srb->cmnd[0] == INQUIRY) &&
-			    (us->flags & US_FL_FIX_INQUIRY)) {
+			    (us->fflags & US_FL_FIX_INQUIRY)) {
 			unsigned char data_ptr[36] = {
 			    0x00, 0x80, 0x02, 0x02,
 			    0x1F, 0x00, 0x00, 0x00};
@@ -403,12 +403,12 @@ SkipForAbort:
 		 * the TIMED_OUT flag, not srb->result == DID_ABORT, because
 		 * the timeout might have occurred after the command had
 		 * already completed with a different result code. */
-		if (test_bit(US_FLIDX_TIMED_OUT, &us->flags)) {
+		if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags)) {
 			complete(&(us->notify));
 
 			/* Allow USB transfers to resume */
-			clear_bit(US_FLIDX_ABORTING, &us->flags);
-			clear_bit(US_FLIDX_TIMED_OUT, &us->flags);
+			clear_bit(US_FLIDX_ABORTING, &us->dflags);
+			clear_bit(US_FLIDX_TIMED_OUT, &us->dflags);
 		}
 
 		/* finished working on this command */
@@ -500,9 +500,9 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id)
 	us->protocol = (unusual_dev->useTransport == US_PR_DEVICE) ?
 			idesc->bInterfaceProtocol :
 			unusual_dev->useTransport;
-	us->flags = USB_US_ORIG_FLAGS(id->driver_info);
+	us->fflags = USB_US_ORIG_FLAGS(id->driver_info);
 
-	if (us->flags & US_FL_IGNORE_DEVICE) {
+	if (us->fflags & US_FL_IGNORE_DEVICE) {
 		printk(KERN_INFO USB_STORAGE "device ignored\n");
 		return -ENODEV;
 	}
@@ -512,7 +512,7 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id)
 	 * disable it if we're in full-speed
 	 */
 	if (dev->speed != USB_SPEED_HIGH)
-		us->flags &= ~US_FL_GO_SLOW;
+		us->fflags &= ~US_FL_GO_SLOW;
 
 	/* Log a message if a non-generic unusual_dev entry contains an
 	 * unnecessary subclass or protocol override.  This may stimulate
@@ -533,7 +533,7 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id)
 		if (unusual_dev->useTransport != US_PR_DEVICE &&
 			us->protocol == idesc->bInterfaceProtocol)
 			msg += 2;
-		if (msg >= 0 && !(us->flags & US_FL_NEED_OVERRIDE))
+		if (msg >= 0 && !(us->fflags & US_FL_NEED_OVERRIDE))
 			printk(KERN_NOTICE USB_STORAGE "This device "
 				"(%04x,%04x,%04x S %02x P %02x)"
 				" has %s in unusual_devs.h (kernel"
@@ -663,7 +663,7 @@ static int get_transport(struct us_data *us)
 	US_DEBUGP("Transport: %s\n", us->transport_name);
 
 	/* fix for single-lun devices */
-	if (us->flags & US_FL_SINGLE_LUN)
+	if (us->fflags & US_FL_SINGLE_LUN)
 		us->max_lun = 0;
 	return 0;
 }
@@ -824,7 +824,7 @@ static void usb_stor_release_resources(struct us_data *us)
 	 * any more commands.
 	 */
 	US_DEBUGP("-- sending exit command to thread\n");
-	set_bit(US_FLIDX_DISCONNECTING, &us->flags);
+	set_bit(US_FLIDX_DISCONNECTING, &us->dflags);
 	up(&us->sema);
 	if (us->ctl_thread)
 		kthread_stop(us->ctl_thread);
@@ -868,7 +868,7 @@ static void quiesce_and_remove_host(struct us_data *us)
 	/* Prevent new USB transfers, stop the current command, and
 	 * interrupt a SCSI-scan or device-reset delay */
 	scsi_lock(host);
-	set_bit(US_FLIDX_DISCONNECTING, &us->flags);
+	set_bit(US_FLIDX_DISCONNECTING, &us->dflags);
 	scsi_unlock(host);
 	usb_stor_stop_transport(us);
 	wake_up(&us->delay_wait);
@@ -919,16 +919,16 @@ static int usb_stor_scan_thread(void * __us)
 		printk(KERN_DEBUG "usb-storage: waiting for device "
 				"to settle before scanning\n");
 		wait_event_freezable_timeout(us->delay_wait,
-				test_bit(US_FLIDX_DISCONNECTING, &us->flags),
+				test_bit(US_FLIDX_DISCONNECTING, &us->dflags),
 				delay_use * HZ);
 	}
 
 	/* If the device is still connected, perform the scanning */
-	if (!test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
+	if (!test_bit(US_FLIDX_DISCONNECTING, &us->dflags)) {
 
 		/* For bulk-only devices, determine the max LUN value */
 		if (us->protocol == US_PR_BULK &&
-				!(us->flags & US_FL_SINGLE_LUN)) {
+				!(us->fflags & US_FL_SINGLE_LUN)) {
 			mutex_lock(&us->dev_mutex);
 			us->max_lun = usb_stor_Bulk_max_lun(us);
 			mutex_unlock(&us->dev_mutex);
