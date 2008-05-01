@@ -1347,7 +1347,8 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS))
 		hwif->irq = port ? 15 : 14;
 
-	hwif->host_flags = d->host_flags;
+	/* ->host_flags may be set by ->init_iops (or even earlier...) */
+	hwif->host_flags |= d->host_flags;
 	hwif->pio_mask = d->pio_mask;
 
 	/* ->set_pio_mode for DTC2278 is currently limited to port 0 */
