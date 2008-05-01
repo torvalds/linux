@@ -1381,6 +1381,21 @@ static inline struct ata_port *ata_shost_to_port(struct Scsi_Host *host)
 	return *(struct ata_port **)&host->hostdata[0];
 }
 
+static inline int ata_check_ready(u8 status)
+{
+	/* Some controllers report 0x77 or 0x7f during intermediate
+	 * not-ready stages.
+	 */
+	if (status == 0x77 || status == 0x7f)
+		return 0;
+
+	/* 0xff indicates either no device or device not ready */
+	if (status == 0xff)
+		return -ENODEV;
+
+	return !(status & ATA_BUSY);
+}
+
 
 /**************************************************************************
  * PMP - drivers/ata/libata-pmp.c
