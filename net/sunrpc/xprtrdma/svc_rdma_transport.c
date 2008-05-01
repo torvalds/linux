@@ -976,12 +976,41 @@ static void __svc_rdma_free(struct work_struct *work)
 	/* We should only be called from kref_put */
 	BUG_ON(atomic_read(&rdma->sc_xprt.xpt_ref.refcount) != 0);
 
+	/*
+	 * Destroy queued, but not processed read completions. Note
+	 * that this cleanup has to be done before destroying the
+	 * cm_id because the device ptr is needed to unmap the dma in
+	 * svc_rdma_put_context.
+	 */
+	spin_lock_bh(&rdma->sc_read_complete_lock);
+	while (!list_empty(&rdma->sc_read_complete_q)) {
+		struct svc_rdma_op_ctxt *ctxt;
+		ctxt = list_entry(rdma->sc_read_complete_q.next,
+				  struct svc_rdma_op_ctxt,
+				  dto_q);
+		list_del_init(&ctxt->dto_q);
+		svc_rdma_put_context(ctxt, 1);
+	}
+	spin_unlock_bh(&rdma->sc_read_complete_lock);
+
+	/* Destroy queued, but not processed recv completions */
+	spin_lock_bh(&rdma->sc_rq_dto_lock);
+	while (!list_empty(&rdma->sc_rq_dto_q)) {
+		struct svc_rdma_op_ctxt *ctxt;
+		ctxt = list_entry(rdma->sc_rq_dto_q.next,
+				  struct svc_rdma_op_ctxt,
+				  dto_q);
+		list_del_init(&ctxt->dto_q);
+		svc_rdma_put_context(ctxt, 1);
+	}
+	spin_unlock_bh(&rdma->sc_rq_dto_lock);
+
+	/* Warn if we leaked a resource or under-referenced */
+	WARN_ON(atomic_read(&rdma->sc_ctxt_used) != 0);
+
 	/* Destroy the QP if present (not a listener) */
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
 		ib_destroy_qp(rdma->sc_qp);
-
-	/* Destroy the CM ID */
-	rdma_destroy_id(rdma->sc_cm_id);
 
 	if (rdma->sc_sq_cq && !IS_ERR(rdma->sc_sq_cq))
 		ib_destroy_cq(rdma->sc_sq_cq);
@@ -994,6 +1023,9 @@ static void __svc_rdma_free(struct work_struct *work)
 
 	if (rdma->sc_pd && !IS_ERR(rdma->sc_pd))
 		ib_dealloc_pd(rdma->sc_pd);
+
+	/* Destroy the CM ID */
+	rdma_destroy_id(rdma->sc_cm_id);
 
 	destroy_context_cache(rdma);
 	kfree(rdma);
