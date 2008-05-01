@@ -1070,7 +1070,7 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 	device_dir->owner = THIS_MODULE;
 
 	/* 'info' [R] */
-	entry = proc_create_data("info", S_IRUGO, acpi_device_dir(device),
+	entry = proc_create_data("info", S_IRUGO, device_dir,
 			&acpi_video_device_info_fops, acpi_driver_data(device));
 	if (!entry)
 		goto err_remove_dir;
@@ -1078,7 +1078,7 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 	/* 'state' [R/W] */
 	acpi_video_device_state_fops.write = acpi_video_device_write_state;
 	entry = proc_create_data("state", S_IFREG | S_IRUGO | S_IWUSR,
-				 acpi_device_dir(device),
+				 device_dir,
 				 &acpi_video_device_state_fops,
 				 acpi_driver_data(device));
 	if (!entry)
@@ -1088,18 +1088,20 @@ static int acpi_video_device_add_fs(struct acpi_device *device)
 	acpi_video_device_brightness_fops.write =
 		acpi_video_device_write_brightness;
 	entry = proc_create_data("brightness", S_IFREG | S_IRUGO | S_IWUSR,
-				 acpi_device_dir(device),
+				 device_dir,
 				 &acpi_video_device_brightness_fops,
 				 acpi_driver_data(device));
 	if (!entry)
 		goto err_remove_state;
 
 	/* 'EDID' [R] */
-	entry = proc_create_data("EDID", S_IRUGO, acpi_device_dir(device),
+	entry = proc_create_data("EDID", S_IRUGO, device_dir,
 				 &acpi_video_device_EDID_fops,
 				 acpi_driver_data(device));
 	if (!entry)
 		goto err_remove_brightness;
+
+	acpi_device_dir(device) = device_dir;
 
 	return 0;
 
@@ -1346,21 +1348,21 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	device_dir->owner = THIS_MODULE;
 
 	/* 'info' [R] */
-	entry = proc_create_data("info", S_IRUGO, acpi_device_dir(device),
+	entry = proc_create_data("info", S_IRUGO, device_dir,
 				 &acpi_video_bus_info_fops,
 				 acpi_driver_data(device));
 	if (!entry)
 		goto err_remove_dir;
 
 	/* 'ROM' [R] */
-	entry = proc_create_data("ROM", S_IRUGO, acpi_device_dir(device),
+	entry = proc_create_data("ROM", S_IRUGO, device_dir,
 				 &acpi_video_bus_ROM_fops,
 				 acpi_driver_data(device));
 	if (!entry)
 		goto err_remove_info;
 
 	/* 'POST_info' [R] */
-	entry = proc_create_data("POST_info", S_IRUGO, acpi_device_dir(device),
+	entry = proc_create_data("POST_info", S_IRUGO, device_dir,
 				 &acpi_video_bus_POST_info_fops,
 				 acpi_driver_data(device));
 	if (!entry)
@@ -1369,7 +1371,7 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	/* 'POST' [R/W] */
 	acpi_video_bus_POST_fops.write = acpi_video_bus_write_POST;
 	entry = proc_create_data("POST", S_IFREG | S_IRUGO | S_IWUSR,
-				 acpi_device_dir(device),
+				 device_dir,
 				 &acpi_video_bus_POST_fops,
 				 acpi_driver_data(device));
 	if (!entry)
@@ -1378,7 +1380,7 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	/* 'DOS' [R/W] */
 	acpi_video_bus_DOS_fops.write = acpi_video_bus_write_DOS;
 	entry = proc_create_data("DOS", S_IFREG | S_IRUGO | S_IWUSR,
-				 acpi_device_dir(device),
+				 device_dir,
 				 &acpi_video_bus_DOS_fops,
 				 acpi_driver_data(device));
 	if (!entry)
