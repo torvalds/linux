@@ -7,7 +7,6 @@
 
 #include "dm.h"
 #include "dm-path-selector.h"
-#include "dm-hw-handler.h"
 #include "dm-bio-list.h"
 #include "dm-bio-record.h"
 #include "dm-uevent.h"
@@ -1008,44 +1007,6 @@ static int pg_init_limit_reached(struct multipath *m, struct pgpath *pgpath)
 	return limit_reached;
 }
 
-/*
- * pg_init must call this when it has completed its initialisation
- */
-void dm_pg_init_complete(struct dm_path *path, unsigned err_flags)
-{
-	struct pgpath *pgpath = path_to_pgpath(path);
-	struct priority_group *pg = pgpath->pg;
-	struct multipath *m = pg->m;
-	unsigned long flags;
-
-	/*
-	 * If requested, retry pg_init until maximum number of retries exceeded.
-	 * If retry not requested and PG already bypassed, always fail the path.
-	 */
-	if (err_flags & MP_RETRY) {
-		if (pg_init_limit_reached(m, pgpath))
-			err_flags |= MP_FAIL_PATH;
-	} else if (err_flags && pg->bypassed)
-		err_flags |= MP_FAIL_PATH;
-
-	if (err_flags & MP_FAIL_PATH)
-		fail_path(pgpath);
-
-	if (err_flags & MP_BYPASS_PG)
-		bypass_pg(m, pg, 1);
-
-	spin_lock_irqsave(&m->lock, flags);
-	if (err_flags & ~MP_RETRY) {
-		m->current_pgpath = NULL;
-		m->current_pg = NULL;
-	} else if (!m->pg_init_required)
-		m->queue_io = 0;
-
-	m->pg_init_in_progress = 0;
-	queue_work(kmultipathd, &m->process_queued_ios);
-	spin_unlock_irqrestore(&m->lock, flags);
-}
-
 static void pg_init_done(struct dm_path *path, int errors)
 {
 	struct pgpath *pgpath = path_to_pgpath(path);
@@ -1496,8 +1457,6 @@ static void __exit dm_multipath_exit(void)
 		DMERR("target unregister failed %d", r);
 	kmem_cache_destroy(_mpio_cache);
 }
-
-EXPORT_SYMBOL_GPL(dm_pg_init_complete);
 
 module_init(dm_multipath_init);
 module_exit(dm_multipath_exit);
