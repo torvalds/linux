@@ -67,6 +67,10 @@
 #define	FEC_MAX_PORTS	1
 #endif
 
+#if defined(CONFIG_FADS) || defined(CONFIG_RPXCLASSIC) || defined(CONFIG_M5272)
+#define HAVE_mii_link_interrupt
+#endif
+
 /*
  * Define the fixed address of the FEC hardware.
  */
@@ -1222,7 +1226,7 @@ static phy_info_t const * const phy_info[] = {
 };
 
 /* ------------------------------------------------------------------------- */
-#if !defined(CONFIG_M532x)
+#ifdef HAVE_mii_link_interrupt
 #ifdef CONFIG_RPXCLASSIC
 static void
 mii_link_interrupt(void *dev_id);
@@ -2096,6 +2100,7 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
 
 /* This interrupt occurs when the PHY detects a link change.
 */
+#ifdef HAVE_mii_link_interrupt
 #ifdef CONFIG_RPXCLASSIC
 static void
 mii_link_interrupt(void *dev_id)
@@ -2118,6 +2123,7 @@ mii_link_interrupt(int irq, void * dev_id)
 
 	return IRQ_HANDLED;
 }
+#endif
 
 static int
 fec_enet_open(struct net_device *dev)
@@ -2596,7 +2602,7 @@ fec_stop(struct net_device *dev)
 static int __init fec_enet_module_init(void)
 {
 	struct net_device *dev;
-	int i, j, err;
+	int i, err;
 	DECLARE_MAC_BUF(mac);
 
 	printk("FEC ENET Version 0.2\n");
