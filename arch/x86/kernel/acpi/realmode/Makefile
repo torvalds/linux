@@ -6,7 +6,8 @@
 # for more details.
 #
 
-targets		:= wakeup.bin wakeup.elf
+always		:= wakeup.bin
+targets		:= wakeup.elf wakeup.lds
 
 wakeup-y	+= wakeup.o wakemain.o video-mode.o copy.o
 
@@ -48,7 +49,7 @@ LDFLAGS_wakeup.elf	:= -T
 
 CPPFLAGS_wakeup.lds += -P -C
 
-$(obj)/wakeup.elf: $(src)/wakeup.lds $(WAKEUP_OBJS) FORCE
+$(obj)/wakeup.elf: $(obj)/wakeup.lds $(WAKEUP_OBJS) FORCE
 	$(call if_changed,ld)
 
 OBJCOPYFLAGS_wakeup.bin	:= -O binary
