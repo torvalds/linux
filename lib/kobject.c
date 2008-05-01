@@ -216,21 +216,12 @@ static int kobject_add_internal(struct kobject *kobj)
 static int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 				  va_list vargs)
 {
-	va_list aq;
-	char *name;
-
-	va_copy(aq, vargs);
-	name = kvasprintf(GFP_KERNEL, fmt, vargs);
-	va_end(aq);
-
-	if (!name)
-		return -ENOMEM;
-
 	/* Free the old name, if necessary. */
 	kfree(kobj->name);
 
-	/* Now, set the new name */
-	kobj->name = name;
+	kobj->name = kvasprintf(GFP_KERNEL, fmt, vargs);
+	if (!kobj->name)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -246,12 +237,12 @@ static int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
  */
 int kobject_set_name(struct kobject *kobj, const char *fmt, ...)
 {
-	va_list args;
+	va_list vargs;
 	int retval;
 
-	va_start(args, fmt);
-	retval = kobject_set_name_vargs(kobj, fmt, args);
-	va_end(args);
+	va_start(vargs, fmt);
+	retval = kobject_set_name_vargs(kobj, fmt, vargs);
+	va_end(vargs);
 
 	return retval;
 }
@@ -301,12 +292,9 @@ EXPORT_SYMBOL(kobject_init);
 static int kobject_add_varg(struct kobject *kobj, struct kobject *parent,
 			    const char *fmt, va_list vargs)
 {
-	va_list aq;
 	int retval;
 
-	va_copy(aq, vargs);
-	retval = kobject_set_name_vargs(kobj, fmt, aq);
-	va_end(aq);
+	retval = kobject_set_name_vargs(kobj, fmt, vargs);
 	if (retval) {
 		printk(KERN_ERR "kobject: can not set name properly!\n");
 		return retval;
