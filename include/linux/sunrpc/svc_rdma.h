@@ -72,7 +72,7 @@ extern atomic_t rdma_stat_sq_prod;
  */
 struct svc_rdma_op_ctxt {
 	struct svc_rdma_op_ctxt *read_hdr;
-	struct svc_rdma_op_ctxt *next;
+	struct list_head free_list;
 	struct xdr_buf arg;
 	struct list_head dto_q;
 	enum ib_wr_opcode wr_op;
@@ -104,7 +104,8 @@ struct svcxprt_rdma {
 
 	struct ib_pd         *sc_pd;
 
-	struct svc_rdma_op_ctxt  *sc_ctxt_head;
+	atomic_t	     sc_ctxt_used;
+	struct list_head     sc_ctxt_free;
 	int		     sc_ctxt_cnt;
 	int		     sc_ctxt_bump;
 	int		     sc_ctxt_max;
