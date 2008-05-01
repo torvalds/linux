@@ -140,61 +140,6 @@ typedef struct _TunerReg_struct
 	u16 Reg_Val;	/* Current sofware programmed value waiting to be writen */
 } TunerReg_struct;
 
-/* MXL5005 Tuner Control Struct */
-typedef struct _TunerControl_struct {
-	u16 Ctrl_Num;	/* Control Number */
-	u16 size;	/* Number of bits to represent Value */
-	u16 addr[25];	/* Array of Tuner Register Address for each bit position */
-	u16 bit[25];	/* Array of bit position in Register Address for each bit position */
-	u16 val[25];	/* Binary representation of Value */
-} TunerControl_struct;
-
-/* MXL5005 Tuner Struct */
-typedef struct _Tuner_struct
-{
-	u8	Mode;		/* 0: Analog Mode ; 1: Digital Mode */
-	u8	IF_Mode;	/* for Analog Mode, 0: zero IF; 1: low IF */
-	u32	Chan_Bandwidth;	/* filter  channel bandwidth (6, 7, 8) */
-	u32	IF_OUT;		/* Desired IF Out Frequency */
-	u16	IF_OUT_LOAD;	/* IF Out Load Resistor (200/300 Ohms) */
-	u32	RF_IN;		/* RF Input Frequency */
-	u32	Fxtal;		/* XTAL Frequency */
-	u8	AGC_Mode;	/* AGC Mode 0: Dual AGC; 1: Single AGC */
-	u16	TOP;		/* Value: take over point */
-	u8	CLOCK_OUT;	/* 0: turn off clock out; 1: turn on clock out */
-	u8	DIV_OUT;	/* 4MHz or 16MHz */
-	u8	CAPSELECT;	/* 0: disable On-Chip pulling cap; 1: enable */
-	u8	EN_RSSI;	/* 0: disable RSSI; 1: enable RSSI */
-	u8	Mod_Type;	/* Modulation Type; */
-				/* 0 - Default;	1 - DVB-T; 2 - ATSC; 3 - QAM; 4 - Analog Cable */
-	u8	TF_Type;	/* Tracking Filter Type */
-				/* 0 - Default; 1 - Off; 2 - Type C; 3 - Type C-H */
-
-	/* Calculated Settings */
-	u32	RF_LO;		/* Synth RF LO Frequency */
-	u32	IF_LO;		/* Synth IF LO Frequency */
-	u32	TG_LO;		/* Synth TG_LO Frequency */
-
-	/* Pointers to ControlName Arrays */
-	u16	Init_Ctrl_Num;			/* Number of INIT Control Names */
-	TunerControl_struct
-		Init_Ctrl[INITCTRL_NUM];	/* INIT Control Names Array Pointer */
-
-	u16	CH_Ctrl_Num;			/* Number of CH Control Names */
-	TunerControl_struct
-		CH_Ctrl[CHCTRL_NUM];		/* CH Control Name Array Pointer */
-
-	u16	MXL_Ctrl_Num;			/* Number of MXL Control Names */
-	TunerControl_struct
-		MXL_Ctrl[MXLCTRL_NUM];		/* MXL Control Name Array Pointer */
-
-	/* Pointer to Tuner Register Array */
-	u16	TunerRegs_Num;			/* Number of Tuner Registers */
-	TunerReg_struct
-		TunerRegs[TUNER_REGS_NUM];	/* Tuner Register Array Pointer */
-
-} Tuner_struct;
-
 typedef enum
 {
 	/* Initialization Control Names */
@@ -290,60 +235,6 @@ typedef enum
  * MaxLinear source code - Common_MXL.h (?)
  */
 
-void InitTunerControls(Tuner_struct *Tuner);
-u16 MXL_BlockInit(Tuner_struct *Tuner);
-u16 MXL5005_RegisterInit(Tuner_struct *Tuner);
-u16 MXL5005_ControlInit(Tuner_struct *Tuner);
-#ifdef _MXL_INTERNAL
-u16 MXL5005_MXLControlInit(Tuner_struct *Tuner);
-#endif
-
-u16 MXL5005_TunerConfig(Tuner_struct *Tuner,
-	u8	Mode,		/* 0: Analog Mode ; 1: Digital Mode */
-	u8	IF_mode,	/* for Analog Mode, 0: zero IF; 1: low IF */
-	u32	Bandwidth,	/* filter  channel bandwidth (6, 7, 8) */
-	u32	IF_out,		/* Desired IF Out Frequency */
-	u32	Fxtal,		/* XTAL Frequency */
-	u8	AGC_Mode,	/* AGC Mode - Dual AGC: 0, Single AGC: 1 */
-	u16	TOP,		/* 0: Dual AGC; Value: take over point */
-	u16	IF_OUT_LOAD,	/* IF Out Load Resistor (200 / 300 Ohms) */
-	u8	CLOCK_OUT, 	/* 0: turn off clock out; 1: turn on clock out */
-	u8	DIV_OUT,	/* 4MHz or 16MHz */
-	u8	CAPSELECT, 	/* 0: disable On-Chip pulling cap; 1: enable */
-	u8	EN_RSSI, 	/* 0: disable RSSI; 1: enable RSSI */
-	u8	Mod_Type,	/* Modulation Type; */
-				/* 0 - Default; 1 - DVB-T; 2 - ATSC; 3 - QAM; 4 - Analog Cable */
-	u8	TF_Type		/* Tracking Filter Type */
-				/* 0 - Default; 1 - Off; 2 - Type C; 3 - Type C-H */
-	);
-
-void MXL_SynthIFLO_Calc(Tuner_struct *Tuner);
-void MXL_SynthRFTGLO_Calc(Tuner_struct *Tuner);
-u16 MXL_RegWrite(Tuner_struct *Tuner, u8 RegNum, u8 RegVal);
-u16 MXL_RegRead(Tuner_struct *Tuner, u8 RegNum, u8 *RegVal);
-u16 MXL_ControlWrite(Tuner_struct *Tuner, u16 ControlNum, u32 value);
-u16 MXL_ControlWrite_Group(Tuner_struct *Tuner, u16 ControlNum, u32 value, u16 controlGroup);
-u16 MXL_ControlRead(Tuner_struct *Tuner, u16 ControlNum, u32 * value);
-u16 MXL_ControlRegRead(Tuner_struct *Tuner, u16 ControlNum, u8 *RegNum, int *count);
-void MXL_RegWriteBit(Tuner_struct *Tuner, u8 address, u8 bit, u8 bitVal);
-u16 MXL_IFSynthInit(Tuner_struct * Tuner );
-u16 MXL_TuneRF(Tuner_struct *Tuner, u32 RF_Freq);
-u16 MXL_OverwriteICDefault(Tuner_struct *Tuner);
-u16 MXL_SetGPIO(Tuner_struct *Tuner, u8 GPIO_Num, u8 GPIO_Val);
-u32 MXL_Ceiling(u32 value, u32 resolution);
-u32 MXL_GetXtalInt(u32 Xtal_Freq);
-
-u16 MXL_GetInitRegister(Tuner_struct *Tuner, u8 * RegNum, u8 *RegVal, int *count);
-u16 MXL_GetCHRegister(Tuner_struct *Tuner, u8 * RegNum, u8 *RegVal, int *count);
-u16 MXL_GetCHRegister_ZeroIF(Tuner_struct *Tuner, u8 * RegNum, u8 *RegVal, int *count);
-u16 MXL_GetCHRegister_LowIF(Tuner_struct *Tuner, u8 * RegNum, u8 *RegVal, int *count);
-u16 MXL_GetMasterControl(u8 *MasterReg, int state);
-
-#ifdef _MXL_PRODUCTION
-u16 MXL_VCORange_Test(Tuner_struct *Tuner, int VCO_Range);
-u16 MXL_Hystersis_Test(Tuner_struct *Tuner, int Hystersis);
-#endif
-
 /* Constants */
 #define MXL5005S_REG_WRITING_TABLE_LEN_MAX	104
 #define MXL5005S_LATCH_BYTE			0xfe
@@ -401,62 +292,6 @@ enum
 	MXL5005S_IF_OUTPUT_LOAD_300_OHM = 300,
 };
 
-/* MxL5005S extra module alias */
-typedef struct MXL5005S_EXTRA_MODULE_TAG MXL5005S_EXTRA_MODULE;
-
-/* MxL5005S register setting function pointer */
-typedef int
-(*MXL5005S_FP_SET_REGS_WITH_TABLE)(
-	struct dvb_usb_device* dib,
-	TUNER_MODULE *pTuner,
-	unsigned char *pAddrTable,
-	unsigned char *pByteTable,
-	int TableLen
-	);
-
-
-/* MxL5005S register mask bits setting function pointer */
-typedef int
-(*MXL5005S_FP_SET_REG_MASK_BITS)(
-	struct dvb_usb_device* dib,
-	TUNER_MODULE *pTuner,
-	unsigned char RegAddr,
-	unsigned char Msb,
-	unsigned char Lsb,
-	const unsigned char WritingValue
-	);
-
-/* MxL5005S spectrum mode setting function pointer */
-typedef int
-(*MXL5005S_FP_SET_SPECTRUM_MODE)(
-	struct dvb_usb_device* dib,
-	TUNER_MODULE *pTuner,
-	int SpectrumMode
-	);
-
-/* MxL5005S bandwidth setting function pointer */
-typedef int
-(*MXL5005S_FP_SET_BANDWIDTH_HZ)(
-	struct dvb_usb_device*        dib,
-	TUNER_MODULE *pTuner,
-	unsigned long BandwidthHz
-	);
-
-/* MxL5005S extra module */
-struct MXL5005S_EXTRA_MODULE_TAG
-{
-	/* MxL5005S function pointers */
-	MXL5005S_FP_SET_REGS_WITH_TABLE   SetRegsWithTable;
-	MXL5005S_FP_SET_REG_MASK_BITS     SetRegMaskBits;
-	MXL5005S_FP_SET_SPECTRUM_MODE     SetSpectrumMode;
-	MXL5005S_FP_SET_BANDWIDTH_HZ      SetBandwidthHz;
-
-	/* MxL5005S extra data */
-	unsigned char AgcMasterByte; /* Variable name in MaxLinear source code: AGC_MASTER_BYTE */
-
-	/* MaxLinear defined struct */
-	Tuner_struct MxlDefinedTunerStructure;
-};
 /* End of common_mxl.h (?) */
 
 #endif /* __MXL5005S_H */
