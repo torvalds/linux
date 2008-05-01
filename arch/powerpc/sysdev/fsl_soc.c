@@ -389,8 +389,8 @@ static int __init gfar_of_init(void)
 			}
 
 			gfar_data.phy_id = *id;
-			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "%x",
-					res.start);
+			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "%llx",
+				 (unsigned long long)res.start);
 
 			of_node_put(phy);
 			of_node_put(mdio);
