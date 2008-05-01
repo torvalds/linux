@@ -627,7 +627,7 @@ static inline void fx_restore(struct i387_fxsave_struct *image)
 	asm("fxrstor (%0)":: "r" (image));
 }
 
-static inline void fpu_init(void)
+static inline void fx_finit(void)
 {
 	asm("finit");
 }

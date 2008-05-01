@@ -3703,10 +3703,19 @@ void fx_init(struct kvm_vcpu *vcpu)
 {
 	unsigned after_mxcsr_mask;
 
+	/*
+	 * Touch the fpu the first time in non atomic context as if
+	 * this is the first fpu instruction the exception handler
+	 * will fire before the instruction returns and it'll have to
+	 * allocate ram with GFP_KERNEL.
+	 */
+	if (!used_math())
+		fx_save(&vcpu->arch.host_fx_image);
+
 	/* Initialize guest FPU by resetting ours and saving into guest's */
 	preempt_disable();
 	fx_save(&vcpu->arch.host_fx_image);
-	fpu_init();
+	fx_finit();
 	fx_save(&vcpu->arch.guest_fx_image);
 	fx_restore(&vcpu->arch.host_fx_image);
 	preempt_enable();
