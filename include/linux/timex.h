@@ -86,11 +86,14 @@
  */
 #define SHIFT_UPDATE (SHIFT_HZ + 1) /* time offset scale (shift) */
 #define SHIFT_USEC 16		/* frequency offset scale (shift) */
-#define SHIFT_NSEC 12		/* kernel frequency offset scale */
+#define PPM_SCALE (NSEC_PER_USEC << (TICK_LENGTH_SHIFT - SHIFT_USEC))
+#define PPM_SCALE_INV_SHIFT 20
+#define PPM_SCALE_INV ((1ll << (PPM_SCALE_INV_SHIFT + TICK_LENGTH_SHIFT)) / \
+		       PPM_SCALE + 1)
 
 #define MAXPHASE 512000L        /* max phase error (us) */
-#define MAXFREQ (512L << SHIFT_USEC)  /* max frequency error (ppm) */
-#define MAXFREQ_NSEC (512000L << SHIFT_NSEC) /* max frequency error (ppb) */
+#define MAXFREQ 500000		/* max frequency error (ns/s) */
+#define MAXFREQ_SCALED ((s64)MAXFREQ << TICK_LENGTH_SHIFT)
 #define MINSEC 256		/* min interval between updates (s) */
 #define MAXSEC 2048		/* max interval between updates (s) */
 #define	NTP_PHASE_LIMIT	(MAXPHASE << 5)	/* beyond max. dispersion */
@@ -208,8 +211,6 @@ extern int tickadj;			/* amount of adjustment per tick */
 extern int time_status;		/* clock synchronization status bits */
 extern long time_maxerror;	/* maximum error */
 extern long time_esterror;	/* estimated error */
-
-extern long time_freq;		/* frequency offset (scaled ppm) */
 
 extern long time_adjust;	/* The amount of adjtime left */
 

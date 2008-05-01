@@ -39,7 +39,7 @@ static s64 time_offset;			/* time adjustment (ns)		*/
 static long time_constant = 2;		/* pll time constant		*/
 long time_maxerror = NTP_PHASE_LIMIT;	/* maximum error (us)		*/
 long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
-long time_freq;				/* frequency offset (scaled ppm)*/
+static s64 time_freq;			/* frequency offset (scaled ns/s)*/
 static long time_reftime;		/* time at last adjustment (s)	*/
 long time_adjust;
 static long ntp_tick_adj;
@@ -49,7 +49,7 @@ static void ntp_update_frequency(void)
 	u64 second_length = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ)
 				<< TICK_LENGTH_SHIFT;
 	second_length += (s64)ntp_tick_adj << TICK_LENGTH_SHIFT;
-	second_length += (s64)time_freq << (TICK_LENGTH_SHIFT - SHIFT_NSEC);
+	second_length += time_freq;
 
 	tick_length_base = second_length;
 
@@ -86,16 +86,16 @@ static void ntp_update_offset(long offset)
 	time_reftime = xtime.tv_sec;
 
 	freq_adj = time_offset * mtemp;
-	freq_adj = shift_right(freq_adj, time_constant * 2 +
-			   (SHIFT_PLL + 2) * 2 - SHIFT_NSEC);
+	freq_adj <<= TICK_LENGTH_SHIFT - 2 * (SHIFT_PLL + 2 + time_constant);
 	time_status &= ~STA_MODE;
 	if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC)) {
-		freq_adj += div_s64(time_offset << (SHIFT_NSEC - SHIFT_FLL), mtemp);
+		freq_adj += div_s64(time_offset << (TICK_LENGTH_SHIFT - SHIFT_FLL),
+				    mtemp);
 		time_status |= STA_MODE;
 	}
 	freq_adj += time_freq;
-	freq_adj = min(freq_adj, (s64)MAXFREQ_NSEC);
-	time_freq = max(freq_adj, (s64)-MAXFREQ_NSEC);
+	freq_adj = min(freq_adj, MAXFREQ_SCALED);
+	time_freq = max(freq_adj, -MAXFREQ_SCALED);
 	time_offset = div_s64(time_offset, NTP_INTERVAL_FREQ);
 	time_offset <<= SHIFT_UPDATE;
 }
@@ -131,7 +131,7 @@ void second_overflow(void)
 	long time_adj;
 
 	/* Bump the maxerror field */
-	time_maxerror += MAXFREQ >> SHIFT_USEC;
+	time_maxerror += MAXFREQ / NSEC_PER_USEC;
 	if (time_maxerror > NTP_PHASE_LIMIT) {
 		time_maxerror = NTP_PHASE_LIMIT;
 		time_status |= STA_UNSYNC;
@@ -323,10 +323,9 @@ int do_adjtimex(struct timex *txc)
 			time_status &= ~STA_NANO;
 
 		if (txc->modes & ADJ_FREQUENCY) {
-			time_freq = min(txc->freq, MAXFREQ);
-			time_freq = min(time_freq, -MAXFREQ);
-			time_freq = ((s64)time_freq * NSEC_PER_USEC)
-					>> (SHIFT_USEC - SHIFT_NSEC);
+			time_freq = (s64)txc->freq * PPM_SCALE;
+			time_freq = min(time_freq, MAXFREQ_SCALED);
+			time_freq = max(time_freq, -MAXFREQ_SCALED);
 		}
 
 		if (txc->modes & ADJ_MAXERROR)
@@ -369,14 +368,15 @@ int do_adjtimex(struct timex *txc)
 		if (!(time_status & STA_NANO))
 			txc->offset /= NSEC_PER_USEC;
 	}
-	txc->freq	   = (time_freq / NSEC_PER_USEC) <<
-				(SHIFT_USEC - SHIFT_NSEC);
+	txc->freq	   = shift_right((s32)(time_freq >> PPM_SCALE_INV_SHIFT) *
+					 (s64)PPM_SCALE_INV,
+					 TICK_LENGTH_SHIFT);
 	txc->maxerror	   = time_maxerror;
 	txc->esterror	   = time_esterror;
 	txc->status	   = time_status;
 	txc->constant	   = time_constant;
 	txc->precision	   = 1;
-	txc->tolerance	   = MAXFREQ;
+	txc->tolerance	   = MAXFREQ_SCALED / PPM_SCALE;
 	txc->tick	   = tick_usec;
 
 	/* PPS is not implemented, so these are zero */
