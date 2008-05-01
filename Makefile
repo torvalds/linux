@@ -794,7 +794,7 @@ endif # ifdef CONFIG_KALLSYMS
 quiet_cmd_vmlinux-modpost = LD      $@
       cmd_vmlinux-modpost = $(LD) $(LDFLAGS) -r -o $@                          \
 	 $(vmlinux-init) --start-group $(vmlinux-main) --end-group             \
-	 $(filter-out $(vmlinux-init) $(vmlinux-main) $(vmlinux-lds) FORCE ,$^)
+	 $(filter-out $(vmlinux-init) $(vmlinux-main) FORCE ,$^)
 define rule_vmlinux-modpost
 	:
 	+$(call cmd,vmlinux-modpost)
@@ -818,7 +818,9 @@ endif
 ifdef CONFIG_KALLSYMS
 .tmp_vmlinux1: vmlinux.o
 endif
-vmlinux.o: $(vmlinux-lds) $(vmlinux-init) $(vmlinux-main) FORCE
+
+modpost-init := $(filter-out init/built-in.o, $(vmlinux-init))
+vmlinux.o: $(modpost-init) $(vmlinux-main) FORCE
 	$(call if_changed_rule,vmlinux-modpost)
 
 # The actual objects are generated when descending, 
