@@ -2243,13 +2243,13 @@ static void set_multicast_list(struct net_device *dev)
 			/* Catch all multicast addresses, so set the
 			 * filter to all 1's.
 			 */
-			ep->fec_hash_table_high = 0xffffffff;
-			ep->fec_hash_table_low = 0xffffffff;
+			ep->fec_grp_hash_table_high = 0xffffffff;
+			ep->fec_grp_hash_table_low = 0xffffffff;
 		} else {
 			/* Clear filter and add the addresses in hash register.
 			*/
-			ep->fec_hash_table_high = 0;
-			ep->fec_hash_table_low = 0;
+			ep->fec_grp_hash_table_high = 0;
+			ep->fec_grp_hash_table_low = 0;
 
 			dmi = dev->mc_list;
 
@@ -2280,9 +2280,9 @@ static void set_multicast_list(struct net_device *dev)
 				hash = (crc >> (32 - HASH_BITS)) & 0x3f;
 
 				if (hash > 31)
-					ep->fec_hash_table_high |= 1 << (hash - 32);
+					ep->fec_grp_hash_table_high |= 1 << (hash - 32);
 				else
-					ep->fec_hash_table_low |= 1 << hash;
+					ep->fec_grp_hash_table_low |= 1 << hash;
 			}
 		}
 	}
@@ -2430,11 +2430,15 @@ int __init fec_enet_init(struct net_device *dev)
 	*/
 	fec_request_intrs(dev);
 
-	fecp->fec_hash_table_high = 0;
-	fecp->fec_hash_table_low = 0;
+	fecp->fec_grp_hash_table_high = 0;
+	fecp->fec_grp_hash_table_low = 0;
 	fecp->fec_r_buff_size = PKT_MAXBLR_SIZE;
 	fecp->fec_ecntrl = 2;
 	fecp->fec_r_des_active = 0;
+#ifndef CONFIG_M5272
+	fecp->fec_hash_table_high = 0;
+	fecp->fec_hash_table_low = 0;
+#endif
 
 	dev->base_addr = (unsigned long)fecp;
 
@@ -2500,8 +2504,8 @@ fec_restart(struct net_device *dev, int duplex)
 
 	/* Reset all multicast.
 	*/
-	fecp->fec_hash_table_high = 0;
-	fecp->fec_hash_table_low = 0;
+	fecp->fec_grp_hash_table_high = 0;
+	fecp->fec_grp_hash_table_low = 0;
 
 	/* Set maximum receive buffer size.
 	*/
