@@ -111,6 +111,8 @@ static int sys_tbl_len;
 static adpt_hba* hba_chain = NULL;
 static int hba_count = 0;
 
+static struct class *adpt_sysfs_class;
+
 #ifdef CONFIG_COMPAT
 static long compat_adpt_ioctl(struct file *, unsigned int, unsigned long);
 #endif
@@ -254,6 +256,12 @@ rebuild_sys_tab:
 		adpt_inquiry(pHba);
 	}
 
+	adpt_sysfs_class = class_create(THIS_MODULE, "dpt_i2o");
+	if (IS_ERR(adpt_sysfs_class)) {
+		printk(KERN_WARNING"dpti: unable to create dpt_i2o class\n");
+		adpt_sysfs_class = NULL;
+	}
+
 	for (pHba = hba_chain; pHba; pHba = pHba->next) {
 		if (adpt_scsi_host_alloc(pHba, sht) < 0){
 			adpt_i2o_delete_hba(pHba);
@@ -261,6 +269,16 @@ rebuild_sys_tab:
 		}
 		pHba->initialized = TRUE;
 		pHba->state &= ~DPTI_STATE_RESET;
+		if (adpt_sysfs_class) {
+			struct device *dev = device_create(adpt_sysfs_class,
+				NULL, MKDEV(DPTI_I2O_MAJOR, pHba->unit),
+				"dpti%d", pHba->unit);
+			if (IS_ERR(dev)) {
+				printk(KERN_WARNING"dpti%d: unable to "
+					"create device in dpt_i2o class\n",
+					pHba->unit);
+			}
+		}
 	}
 
 	// Register our control device node
@@ -1212,8 +1230,16 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 	pci_dev_put(pHba->pDev);
 	kfree(pHba);
 
+	if (adpt_sysfs_class)
+		device_destroy(adpt_sysfs_class,
+				MKDEV(DPTI_I2O_MAJOR, pHba->unit));
+
 	if(hba_count <= 0){
 		unregister_chrdev(DPTI_I2O_MAJOR, DPT_DRIVER);   
+		if (adpt_sysfs_class) {
+			class_destroy(adpt_sysfs_class);
+			adpt_sysfs_class = NULL;
+		}
 	}
 }
 
