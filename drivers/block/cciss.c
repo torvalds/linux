@@ -428,13 +428,9 @@ static void __devinit cciss_procinit(int i)
 		proc_cciss = proc_mkdir("driver/cciss", NULL);
 	if (!proc_cciss)
 		return;
-	pde = proc_create(hba[i]->devname, S_IWUSR | S_IRUSR | S_IRGRP |
+	pde = proc_create_data(hba[i]->devname, S_IWUSR | S_IRUSR | S_IRGRP |
 					S_IROTH, proc_cciss,
-					&cciss_proc_fops);
-	if (!pde)
-		return;
-
-	pde->data = hba[i];
+					&cciss_proc_fops, hba[i]);
 }
 #endif				/* CONFIG_PROC_FS */
 
