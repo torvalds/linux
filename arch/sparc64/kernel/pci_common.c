@@ -264,9 +264,6 @@ static int sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	unsigned int func = PCI_FUNC(devfn);
 	unsigned long ret;
 
-	if (!bus && devfn == 0x00)
-		return pci_host_bridge_read_pci_cfg(bus_dev, devfn, where,
-						    size, value);
 	if (config_out_of_range(pbm, bus, devfn, where)) {
 		ret = ~0UL;
 	} else {
@@ -300,9 +297,6 @@ static int sun4v_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	unsigned int func = PCI_FUNC(devfn);
 	unsigned long ret;
 
-	if (!bus && devfn == 0x00)
-		return pci_host_bridge_write_pci_cfg(bus_dev, devfn, where,
-						     size, value);
 	if (config_out_of_range(pbm, bus, devfn, where)) {
 		/* Do nothing. */
 	} else {
