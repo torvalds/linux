@@ -691,6 +691,10 @@ struct b43_wl {
 
 	struct mutex mutex;
 	spinlock_t irq_lock;
+	/* R/W lock for data transmission.
+	 * Transmissions on 2+ queues can run concurrently, but somebody else
+	 * might sync with TX by write_lock_irqsave()'ing. */
+	rwlock_t tx_lock;
 	/* Lock for LEDs access. */
 	spinlock_t leds_lock;
 	/* Lock for SHM access. */
