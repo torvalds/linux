@@ -380,8 +380,7 @@ static __always_inline int clocksource_bigadjust(s64 error, s64 *interval,
 	 * Now calculate the error in (1 << look_ahead) ticks, but first
 	 * remove the single look ahead already included in the error.
 	 */
-	tick_error = current_tick_length() >>
-		(NTP_SCALE_SHIFT - clock->shift + 1);
+	tick_error = tick_length >> (NTP_SCALE_SHIFT - clock->shift + 1);
 	tick_error -= clock->xtime_interval >> 1;
 	error = ((error - tick_error) >> look_ahead) + tick_error;
 
@@ -473,7 +472,7 @@ void update_wall_time(void)
 		}
 
 		/* accumulate error between NTP and clock interval */
-		clock->error += current_tick_length();
+		clock->error += tick_length;
 		clock->error -= clock->xtime_interval << (NTP_SCALE_SHIFT - clock->shift);
 	}
 

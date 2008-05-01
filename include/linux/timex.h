@@ -239,8 +239,8 @@ static inline int ntp_synced(void)
 #endif
 #define NTP_INTERVAL_LENGTH (NSEC_PER_SEC/NTP_INTERVAL_FREQ)
 
-/* Returns how long ticks are at present, in ns / 2^(SHIFT_SCALE-10). */
-extern u64 current_tick_length(void);
+/* Returns how long ticks are at present, in ns / 2^NTP_SCALE_SHIFT. */
+extern u64 tick_length;
 
 extern void second_overflow(void);
 extern void update_ntp_one_tick(void);
