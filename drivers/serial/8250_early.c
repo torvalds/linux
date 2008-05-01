@@ -153,7 +153,7 @@ static int __init parse_options(struct early_serial8250_device *device,
 			(void __iomem *)__fix_to_virt(FIX_EARLYCON_MEM_BASE);
 		port->membase += port->mapbase & ~PAGE_MASK;
 #else
-		port->membase = ioremap(port->mapbase, 64);
+		port->membase = ioremap_nocache(port->mapbase, 64);
 		if (!port->membase) {
 			printk(KERN_ERR "%s: Couldn't ioremap 0x%llx\n",
 				__func__,
