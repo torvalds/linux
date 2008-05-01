@@ -312,9 +312,9 @@ static int usb_stor_control_thread(void * __us)
 
 	for(;;) {
 		US_DEBUGP("*** thread sleeping.\n");
-		if(down_interruptible(&us->sema))
+		if (wait_for_completion_interruptible(&us->cmnd_ready))
 			break;
-			
+
 		US_DEBUGP("*** thread awakened.\n");
 
 		/* lock the device pointers */
@@ -825,7 +825,7 @@ static void usb_stor_release_resources(struct us_data *us)
 	 */
 	US_DEBUGP("-- sending exit command to thread\n");
 	set_bit(US_FLIDX_DISCONNECTING, &us->dflags);
-	up(&us->sema);
+	complete(&us->cmnd_ready);
 	if (us->ctl_thread)
 		kthread_stop(us->ctl_thread);
 
@@ -975,7 +975,7 @@ static int storage_probe(struct usb_interface *intf,
 	us = host_to_us(host);
 	memset(us, 0, sizeof(struct us_data));
 	mutex_init(&(us->dev_mutex));
-	init_MUTEX_LOCKED(&(us->sema));
+	init_completion(&us->cmnd_ready);
 	init_completion(&(us->notify));
 	init_waitqueue_head(&us->delay_wait);
 	init_completion(&us->scanning_done);

@@ -148,7 +148,7 @@ struct us_data {
 	struct task_struct	*ctl_thread;	 /* the control thread   */
 
 	/* mutual exclusion and synchronization structures */
-	struct semaphore	sema;		 /* to sleep thread on	    */
+	struct completion	cmnd_ready;	 /* to sleep thread on	    */
 	struct completion	notify;		 /* thread begin/end	    */
 	wait_queue_head_t	delay_wait;	 /* wait during scan, reset */
 	struct completion	scanning_done;	 /* wait for scan thread    */
