@@ -252,6 +252,7 @@ config DM_ZERO
 config DM_MULTIPATH
 	tristate "Multipath target"
 	depends on BLK_DEV_DM
+	select SCSI_DH
 	---help---
 	  Allow volume managers to support multipath hardware.
 
