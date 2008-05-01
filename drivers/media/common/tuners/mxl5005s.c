@@ -35,13 +35,7 @@ MxL5005S module is derived from tuner module.
 */
 
 
-#include "tuner_mxl5005s.h"
-#include "tuner_demod_io.h"
-
-
-
-
-
+#include "mxl5005s.h"
 
 /**
 
