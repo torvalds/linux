@@ -242,6 +242,7 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
+	struct dentry *new;
 	int status = 0;
 
 	/* Block on any pending expiry here; invalidate the dentry
@@ -318,6 +319,27 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
 	spin_unlock(&dentry->d_lock);
+
+	/*
+	 * The dentry that is passed in from lookup may not be the one
+	 * we end up using, as mkdir can create a new one.  If this
+	 * happens, and another process tries the lookup at the same time,
+	 * it will set the PENDING flag on this new dentry, but add itself
+	 * to our waitq.  Then, if after the lookup succeeds, the first
+	 * process that requested the mount performs another lookup of the
+	 * same directory, it will show up as still pending!  So, we need
+	 * to redo the lookup here and clear pending on that dentry.
+	 */
+	if (d_unhashed(dentry)) {
+		new = d_lookup(dentry->d_parent, &dentry->d_name);
+		if (new) {
+			spin_lock(&new->d_lock);
+			new->d_flags &= ~DCACHE_AUTOFS_PENDING;
+			spin_unlock(&new->d_lock);
+			dput(new);
+		}
+	}
+
 	return status;
 }
 
