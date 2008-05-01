@@ -1123,7 +1123,8 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 	size_t retlen;
 	int ret;
 
-	dbg_readinode("ino #%u nlink is %d\n", f->inocache->ino, f->inocache->nlink);
+	dbg_readinode("ino #%u pino/nlink is %d\n", f->inocache->ino,
+		      f->inocache->pino_nlink);
 
 	memset(&rii, 0, sizeof(rii));
 
@@ -1358,7 +1359,7 @@ int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 		}
 		dbg_readinode("creating inocache for root inode\n");
 		memset(f->inocache, 0, sizeof(struct jffs2_inode_cache));
-		f->inocache->ino = f->inocache->nlink = 1;
+		f->inocache->ino = f->inocache->pino_nlink = 1;
 		f->inocache->nodes = (struct jffs2_raw_node_ref *)f->inocache;
 		f->inocache->state = INO_STATE_READING;
 		jffs2_add_ino_cache(c, f->inocache);
@@ -1401,7 +1402,7 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 	jffs2_clear_acl(f);
 	jffs2_xattr_delete_inode(c, f->inocache);
 	mutex_lock(&f->sem);
-	deleted = f->inocache && !f->inocache->nlink;
+	deleted = f->inocache && !f->inocache->pino_nlink;
 
 	if (f->inocache && f->inocache->state != INO_STATE_CHECKING)
 		jffs2_set_inocache_state(c, f->inocache, INO_STATE_CLEARING);

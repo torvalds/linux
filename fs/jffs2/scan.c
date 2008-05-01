@@ -940,7 +940,7 @@ struct jffs2_inode_cache *jffs2_scan_make_ino_cache(struct jffs2_sb_info *c, uin
 	ic->nodes = (void *)ic;
 	jffs2_add_ino_cache(c, ic);
 	if (ino == 1)
-		ic->nlink = 1;
+		ic->pino_nlink = 1;
 	return ic;
 }
 

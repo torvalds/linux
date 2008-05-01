@@ -294,7 +294,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 			break;
 #endif
 		default:
-			if (ic->nodes == (void *)ic && ic->nlink == 0)
+			if (ic->nodes == (void *)ic && ic->pino_nlink == 0)
 				jffs2_del_ino_cache(c, ic);
 	}
 }

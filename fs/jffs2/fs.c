@@ -273,7 +273,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	inode->i_mtime = ITIME(je32_to_cpu(latest_node.mtime));
 	inode->i_ctime = ITIME(je32_to_cpu(latest_node.ctime));
 
-	inode->i_nlink = f->inocache->nlink;
+	inode->i_nlink = f->inocache->pino_nlink;
 
 	inode->i_blocks = (inode->i_size + 511) >> 9;
 
@@ -286,13 +286,12 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	case S_IFDIR:
 	{
 		struct jffs2_full_dirent *fd;
+		inode->i_nlink = 2; /* parent and '.' */
 
 		for (fd=f->dents; fd; fd = fd->next) {
 			if (fd->type == DT_DIR && fd->ino)
 				inc_nlink(inode);
 		}
-		/* and '..' */
-		inc_nlink(inode);
 		/* Root dir gets i_nlink 3 for some reason */
 		if (inode->i_ino == 1)
 			inc_nlink(inode);

@@ -592,7 +592,7 @@ void jffs2_xattr_delete_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache 
 	   When an inode with XATTR is removed, those XATTRs must be removed. */
 	struct jffs2_xattr_ref *ref, *_ref;
 
-	if (!ic || ic->nlink > 0)
+	if (!ic || ic->pino_nlink > 0)
 		return;
 
 	down_write(&c->xattr_sem);
@@ -829,7 +829,7 @@ void jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 			   ref->xd and ref->ic are not valid yet. */
 			xd = jffs2_find_xattr_datum(c, ref->xid);
 			ic = jffs2_get_ino_cache(c, ref->ino);
-			if (!xd || !ic || !ic->nlink) {
+			if (!xd || !ic || !ic->pino_nlink) {
 				dbg_xattr("xref(ino=%u, xid=%u, xseqno=%u) is orphan.\n",
 					  ref->ino, ref->xid, ref->xseqno);
 				ref->xseqno |= XREF_DELETE_MARKER;
