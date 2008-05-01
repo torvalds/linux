@@ -392,13 +392,17 @@ EXPORT_SYMBOL(set_normalized_timespec);
 struct timespec ns_to_timespec(const s64 nsec)
 {
 	struct timespec ts;
+	s32 rem;
 
 	if (!nsec)
 		return (struct timespec) {0, 0};
 
-	ts.tv_sec = div_long_long_rem_signed(nsec, NSEC_PER_SEC, &ts.tv_nsec);
-	if (unlikely(nsec < 0))
-		set_normalized_timespec(&ts, ts.tv_sec, ts.tv_nsec);
+	ts.tv_sec = div_s64_rem(nsec, NSEC_PER_SEC, &rem);
+	if (unlikely(rem < 0)) {
+		ts.tv_sec--;
+		rem += NSEC_PER_SEC;
+	}
+	ts.tv_nsec = rem;
 
 	return ts;
 }
@@ -528,8 +532,10 @@ jiffies_to_timespec(const unsigned long jiffies, struct timespec *value)
 	 * Convert jiffies to nanoseconds and separate with
 	 * one divide.
 	 */
-	u64 nsec = (u64)jiffies * TICK_NSEC;
-	value->tv_sec = div_long_long_rem(nsec, NSEC_PER_SEC, &value->tv_nsec);
+	u32 rem;
+	value->tv_sec = div_u64_rem((u64)jiffies * TICK_NSEC,
+				    NSEC_PER_SEC, &rem);
+	value->tv_nsec = rem;
 }
 EXPORT_SYMBOL(jiffies_to_timespec);
 
@@ -567,12 +573,11 @@ void jiffies_to_timeval(const unsigned long jiffies, struct timeval *value)
 	 * Convert jiffies to nanoseconds and separate with
 	 * one divide.
 	 */
-	u64 nsec = (u64)jiffies * TICK_NSEC;
-	long tv_usec;
+	u32 rem;
 
-	value->tv_sec = div_long_long_rem(nsec, NSEC_PER_SEC, &tv_usec);
-	tv_usec /= NSEC_PER_USEC;
-	value->tv_usec = tv_usec;
+	value->tv_sec = div_u64_rem((u64)jiffies * TICK_NSEC,
+				    NSEC_PER_SEC, &rem);
+	value->tv_usec = rem / NSEC_PER_USEC;
 }
 EXPORT_SYMBOL(jiffies_to_timeval);
 

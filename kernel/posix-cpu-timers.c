@@ -4,8 +4,9 @@
 
 #include <linux/sched.h>
 #include <linux/posix-timers.h>
-#include <asm/uaccess.h>
 #include <linux/errno.h>
+#include <linux/math64.h>
+#include <asm/uaccess.h>
 
 static int check_clock(const clockid_t which_clock)
 {
@@ -47,12 +48,10 @@ static void sample_to_timespec(const clockid_t which_clock,
 			       union cpu_time_count cpu,
 			       struct timespec *tp)
 {
-	if (CPUCLOCK_WHICH(which_clock) == CPUCLOCK_SCHED) {
-		tp->tv_sec = div_long_long_rem(cpu.sched,
-					       NSEC_PER_SEC, &tp->tv_nsec);
-	} else {
+	if (CPUCLOCK_WHICH(which_clock) == CPUCLOCK_SCHED)
+		*tp = ns_to_timespec(cpu.sched);
+	else
 		cputime_to_timespec(cpu.cpu, tp);
-	}
 }
 
 static inline int cpu_time_before(const clockid_t which_clock,

@@ -33,24 +33,6 @@
 	__mod;							\
 })
 
-/*
- * (long)X = ((long long)divs) / (long)div
- * (long)rem = ((long long)divs) % (long)div
- *
- * Warning, this will do an exception if X overflows.
- */
-#define div_long_long_rem(a, b, c) div_ll_X_l_rem(a, b, c)
-
-static inline long div_ll_X_l_rem(long long divs, long div, long *rem)
-{
-	long dum2;
-	asm("divl %2":"=a"(dum2), "=d"(*rem)
-	    : "rm"(div), "A"(divs));
-
-	return dum2;
-
-}
-
 static inline u64 div_u64_rem(u64 dividend, u32 divisor, u32 *remainder)
 {
 	union {

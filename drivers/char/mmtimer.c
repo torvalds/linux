@@ -30,6 +30,8 @@
 #include <linux/miscdevice.h>
 #include <linux/posix-timers.h>
 #include <linux/interrupt.h>
+#include <linux/time.h>
+#include <linux/math64.h>
 
 #include <asm/uaccess.h>
 #include <asm/sn/addrs.h>
@@ -472,8 +474,8 @@ static int sgi_clock_get(clockid_t clockid, struct timespec *tp)
 
 	nsec = rtc_time() * sgi_clock_period
 			+ sgi_clock_offset.tv_nsec;
-	tp->tv_sec = div_long_long_rem(nsec, NSEC_PER_SEC, &tp->tv_nsec)
-			+ sgi_clock_offset.tv_sec;
+	*tp = ns_to_timespec(nsec);
+	tp->tv_sec += sgi_clock_offset.tv_sec;
 	return 0;
 };
 
@@ -481,11 +483,11 @@ static int sgi_clock_set(clockid_t clockid, struct timespec *tp)
 {
 
 	u64 nsec;
-	u64 rem;
+	u32 rem;
 
 	nsec = rtc_time() * sgi_clock_period;
 
-	sgi_clock_offset.tv_sec = tp->tv_sec - div_long_long_rem(nsec, NSEC_PER_SEC, &rem);
+	sgi_clock_offset.tv_sec = tp->tv_sec - div_u64_rem(nsec, NSEC_PER_SEC, &rem);
 
 	if (rem <= tp->tv_nsec)
 		sgi_clock_offset.tv_nsec = tp->tv_sec - rem;
@@ -644,9 +646,6 @@ static int sgi_timer_del(struct k_itimer *timr)
 	return 0;
 }
 
-#define timespec_to_ns(x) ((x).tv_nsec + (x).tv_sec * NSEC_PER_SEC)
-#define ns_to_timespec(ts, nsec) (ts).tv_sec = div_long_long_rem(nsec, NSEC_PER_SEC, &(ts).tv_nsec)
-
 /* Assumption: it_lock is already held with irq's disabled */
 static void sgi_timer_get(struct k_itimer *timr, struct itimerspec *cur_setting)
 {
@@ -659,9 +658,8 @@ static void sgi_timer_get(struct k_itimer *timr, struct itimerspec *cur_setting)
 		return;
 	}
 
-	ns_to_timespec(cur_setting->it_interval, timr->it.mmtimer.incr * sgi_clock_period);
-	ns_to_timespec(cur_setting->it_value, (timr->it.mmtimer.expires - rtc_time())* sgi_clock_period);
-	return;
+	cur_setting->it_interval = ns_to_timespec(timr->it.mmtimer.incr * sgi_clock_period);
+	cur_setting->it_value = ns_to_timespec((timr->it.mmtimer.expires - rtc_time()) * sgi_clock_period);
 }
 
 
@@ -679,8 +677,8 @@ static int sgi_timer_set(struct k_itimer *timr, int flags,
 		sgi_timer_get(timr, old_setting);
 
 	sgi_timer_del(timr);
-	when = timespec_to_ns(new_setting->it_value);
-	period = timespec_to_ns(new_setting->it_interval);
+	when = timespec_to_ns(&new_setting->it_value);
+	period = timespec_to_ns(&new_setting->it_interval);
 
 	if (when == 0)
 		/* Clear timer */
@@ -695,7 +693,7 @@ static int sgi_timer_set(struct k_itimer *timr, int flags,
 		unsigned long now;
 
 		getnstimeofday(&n);
-		now = timespec_to_ns(n);
+		now = timespec_to_ns(&n);
 		if (when > now)
 			when -= now;
 		else

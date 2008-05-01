@@ -22,6 +22,7 @@
 #include <linux/debugobjects.h>
 #include <linux/kallsyms.h>
 #include <linux/memory.h>
+#include <linux/math64.h>
 
 /*
  * Lock order:
@@ -3621,12 +3622,10 @@ static int list_locations(struct kmem_cache *s, char *buf,
 			len += sprintf(buf + len, "<not-available>");
 
 		if (l->sum_time != l->min_time) {
-			unsigned long remainder;
-
 			len += sprintf(buf + len, " age=%ld/%ld/%ld",
-			l->min_time,
-			div_long_long_rem(l->sum_time, l->count, &remainder),
-			l->max_time);
+				l->min_time,
+				(long)div_u64(l->sum_time, l->count),
+				l->max_time);
 		} else
 			len += sprintf(buf + len, " age=%ld",
 				l->min_time);
