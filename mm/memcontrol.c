@@ -48,6 +48,8 @@ enum mem_cgroup_stat_index {
 	 */
 	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
 	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as rss */
+	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
+	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
 
 	MEM_CGROUP_STAT_NSTATS,
 };
@@ -199,6 +201,13 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *mem, int flags,
 		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_CACHE, val);
 	else
 		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_RSS, val);
+
+	if (charge)
+		__mem_cgroup_stat_add_safe(stat,
+				MEM_CGROUP_STAT_PGPGIN_COUNT, 1);
+	else
+		__mem_cgroup_stat_add_safe(stat,
+				MEM_CGROUP_STAT_PGPGOUT_COUNT, 1);
 }
 
 static struct mem_cgroup_per_zone *
@@ -884,6 +893,8 @@ static const struct mem_cgroup_stat_desc {
 } mem_cgroup_stat_desc[] = {
 	[MEM_CGROUP_STAT_CACHE] = { "cache", PAGE_SIZE, },
 	[MEM_CGROUP_STAT_RSS] = { "rss", PAGE_SIZE, },
+	[MEM_CGROUP_STAT_PGPGIN_COUNT] = {"pgpgin", 1, },
+	[MEM_CGROUP_STAT_PGPGOUT_COUNT] = {"pgpgout", 1, },
 };
 
 static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
