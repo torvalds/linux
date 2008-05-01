@@ -43,6 +43,29 @@
 
 #define DRIVER_NAME "mpc52xx-fec"
 
+#define FEC5200_PHYADDR_NONE	(-1)
+#define FEC5200_PHYADDR_7WIRE	(-2)
+
+/* Private driver data structure */
+struct mpc52xx_fec_priv {
+	int duplex;
+	int speed;
+	int r_irq;
+	int t_irq;
+	struct mpc52xx_fec __iomem *fec;
+	struct bcom_task *rx_dmatsk;
+	struct bcom_task *tx_dmatsk;
+	spinlock_t lock;
+	int msg_enable;
+
+	/* MDIO link details */
+	int phy_addr;
+	unsigned int phy_speed;
+	struct phy_device *phydev;
+	enum phy_state link;
+};
+
+
 static irqreturn_t mpc52xx_fec_interrupt(int, void *);
 static irqreturn_t mpc52xx_fec_rx_interrupt(int, void *);
 static irqreturn_t mpc52xx_fec_tx_interrupt(int, void *);
@@ -223,7 +246,7 @@ static int mpc52xx_fec_phy_start(struct net_device *dev)
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 	int err;
 
-	if (!priv->has_phy)
+	if (priv->phy_addr < 0)
 		return 0;
 
 	err = mpc52xx_fec_init_phy(dev);
@@ -243,7 +266,7 @@ static void mpc52xx_fec_phy_stop(struct net_device *dev)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 
-	if (!priv->has_phy)
+	if (!priv->phydev)
 		return;
 
 	phy_disconnect(priv->phydev);
@@ -255,7 +278,7 @@ static void mpc52xx_fec_phy_stop(struct net_device *dev)
 static int mpc52xx_fec_phy_mii_ioctl(struct mpc52xx_fec_priv *priv,
 		struct mii_ioctl_data *mii_data, int cmd)
 {
-	if (!priv->has_phy)
+	if (!priv->phydev)
 		return -ENOTSUPP;
 
 	return phy_mii_ioctl(priv->phydev, mii_data, cmd);
@@ -265,7 +288,7 @@ static void mpc52xx_fec_phy_hw_init(struct mpc52xx_fec_priv *priv)
 {
 	struct mpc52xx_fec __iomem *fec = priv->fec;
 
-	if (!priv->has_phy)
+	if (priv->phydev)
 		return;
 
 	out_be32(&fec->mii_speed, priv->phy_speed);
@@ -704,7 +727,7 @@ static void mpc52xx_fec_start(struct net_device *dev)
 	rcntrl = FEC_RX_BUFFER_SIZE << 16;	/* max frame length */
 	rcntrl |= FEC_RCNTRL_FCE;
 
-	if (priv->has_phy)
+	if (priv->phy_addr != FEC5200_PHYADDR_7WIRE)
 		rcntrl |= FEC_RCNTRL_MII_MODE;
 
 	if (priv->duplex == DUPLEX_FULL)
@@ -864,7 +887,10 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	struct net_device *ndev;
 	struct mpc52xx_fec_priv *priv = NULL;
 	struct resource mem;
-	const phandle *ph;
+	struct device_node *phy_node;
+	const phandle *phy_handle;
+	const u32 *prop;
+	int prop_size;
 
 	phys_addr_t rx_fifo;
 	phys_addr_t tx_fifo;
@@ -948,26 +974,37 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 		mpc52xx_fec_get_paddr(ndev, ndev->dev_addr);
 
 	priv->msg_enable = netif_msg_init(debug, MPC52xx_MESSAGES_DEFAULT);
-	priv->duplex = DUPLEX_FULL;
 
-	/* is the phy present in device tree? */
-	ph = of_get_property(op->node, "phy-handle", NULL);
-	if (ph) {
-		const unsigned int *prop;
-		struct device_node *phy_dn;
-		priv->has_phy = 1;
+	/*
+	 * Link mode configuration
+	 */
 
-		phy_dn = of_find_node_by_phandle(*ph);
-		prop = of_get_property(phy_dn, "reg", NULL);
-		priv->phy_addr = *prop;
+	/* Start with safe defaults for link connection */
+	priv->phy_addr = FEC5200_PHYADDR_NONE;
+	priv->speed = 100;
+	priv->duplex = DUPLEX_HALF;
+	priv->phy_speed = ((mpc52xx_find_ipb_freq(op->node) >> 20) / 5) << 1;
 
-		of_node_put(phy_dn);
+	/* the 7-wire property means don't use MII mode */
+	if (of_find_property(op->node, "fsl,7-wire-mode", NULL))
+		priv->phy_addr = FEC5200_PHYADDR_7WIRE;
 
-		/* Phy speed */
-		priv->phy_speed = ((mpc52xx_find_ipb_freq(op->node) >> 20) / 5) << 1;
-	} else {
-		dev_info(&ndev->dev, "can't find \"phy-handle\" in device"
-				" tree, using 7-wire mode\n");
+	/* The current speed preconfigures the speed of the MII link */
+	prop = of_get_property(op->node, "current-speed", &prop_size);
+	if (prop && (prop_size >= sizeof(u32) * 2)) {
+		priv->speed = prop[0];
+		priv->duplex = prop[1] ? DUPLEX_FULL : DUPLEX_HALF;
+	}
+
+	/* If there is a phy handle, setup link to that phy */
+	phy_handle = of_get_property(op->node, "phy-handle", &prop_size);
+	if (phy_handle && (prop_size >= sizeof(phandle))) {
+		phy_node = of_find_node_by_phandle(*phy_handle);
+		prop = of_get_property(phy_node, "reg", &prop_size);
+		if (prop && (prop_size >= sizeof(u32)))
+			if ((*prop >= 0) && (*prop < PHY_MAX_ADDR))
+				priv->phy_addr = *prop;
+		of_node_put(phy_node);
 	}
 
 	/* Hardware init */
@@ -981,6 +1018,20 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	rv = register_netdev(ndev);
 	if (rv < 0)
 		goto probe_error;
+
+	/* Now report the link setup */
+	switch (priv->phy_addr) {
+	 case FEC5200_PHYADDR_NONE:
+		dev_info(&ndev->dev, "Fixed speed MII link: %i%cD\n",
+			 priv->speed, priv->duplex ? 'F' : 'H');
+		break;
+	 case FEC5200_PHYADDR_7WIRE:
+		dev_info(&ndev->dev, "using 7-wire PHY mode\n");
+		break;
+	 default:
+		dev_info(&ndev->dev, "Using PHY at MDIO address %i\n",
+			 priv->phy_addr);
+	}
 
 	/* We're done ! */
 	dev_set_drvdata(&op->dev, ndev);

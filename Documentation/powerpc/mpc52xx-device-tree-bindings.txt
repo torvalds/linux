@@ -237,6 +237,17 @@ Each GPIO controller node should have the empty property gpio-controller and
 according to the bit numbers in the GPIO control registers. The second cell
 is for flags which is currently unsused.
 
+8) FEC nodes
+The FEC node can specify one of the following properties to configure
+the MII link:
+"fsl,7-wire-mode" - An empty property that specifies the link uses 7-wire
+                    mode instead of MII
+"current-speed"   - Specifies that the MII should be configured for a fixed
+                    speed.  This property should contain two cells.  The
+                    first cell specifies the speed in Mbps and the second
+                    should be '0' for half duplex and '1' for full duplex
+"phy-handle"      - Contains a phandle to an Ethernet PHY.
+
 IV - Extra Notes
 ================
 
