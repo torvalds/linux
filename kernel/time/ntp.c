@@ -16,6 +16,7 @@
 #include <linux/hrtimer.h>
 #include <linux/capability.h>
 #include <linux/math64.h>
+#include <linux/clocksource.h>
 #include <asm/timex.h>
 
 /*
@@ -25,6 +26,8 @@ unsigned long tick_usec = TICK_USEC; 		/* USER_HZ period (usec) */
 unsigned long tick_nsec;			/* ACTHZ period (nsec) */
 u64 tick_length;
 static u64 tick_length_base;
+
+static struct hrtimer leap_timer;
 
 #define MAX_TICKADJ		500		/* microsecs */
 #define MAX_TICKADJ_SCALED	(((u64)(MAX_TICKADJ * NSEC_PER_USEC) << \
@@ -120,6 +123,54 @@ void ntp_clear(void)
 }
 
 /*
+ * Leap second processing. If in leap-insert state at the end of the
+ * day, the system clock is set back one second; if in leap-delete
+ * state, the system clock is set ahead one second.
+ */
+static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
+{
+	enum hrtimer_restart res = HRTIMER_NORESTART;
+
+	write_seqlock_irq(&xtime_lock);
+
+	switch (time_state) {
+	case TIME_OK:
+		break;
+	case TIME_INS:
+		xtime.tv_sec--;
+		wall_to_monotonic.tv_sec++;
+		time_state = TIME_OOP;
+		printk(KERN_NOTICE "Clock: "
+		       "inserting leap second 23:59:60 UTC\n");
+		leap_timer.expires = ktime_add_ns(leap_timer.expires,
+						  NSEC_PER_SEC);
+		res = HRTIMER_RESTART;
+		break;
+	case TIME_DEL:
+		xtime.tv_sec++;
+		time_tai--;
+		wall_to_monotonic.tv_sec--;
+		time_state = TIME_WAIT;
+		printk(KERN_NOTICE "Clock: "
+		       "deleting leap second 23:59:59 UTC\n");
+		break;
+	case TIME_OOP:
+		time_tai++;
+		time_state = TIME_WAIT;
+		/* fall through */
+	case TIME_WAIT:
+		if (!(time_status & (STA_INS | STA_DEL)))
+			time_state = TIME_OK;
+		break;
+	}
+	update_vsyscall(&xtime, clock);
+
+	write_sequnlock_irq(&xtime_lock);
+
+	return res;
+}
+
+/*
  * this routine handles the overflow of the microsecond field
  *
  * The tricky bits of code to handle the accurate clock support
@@ -136,48 +187,6 @@ void second_overflow(void)
 	if (time_maxerror > NTP_PHASE_LIMIT) {
 		time_maxerror = NTP_PHASE_LIMIT;
 		time_status |= STA_UNSYNC;
-	}
-
-	/*
-	 * Leap second processing. If in leap-insert state at the end of the
-	 * day, the system clock is set back one second; if in leap-delete
-	 * state, the system clock is set ahead one second. The microtime()
-	 * routine or external clock driver will insure that reported time is
-	 * always monotonic. The ugly divides should be replaced.
-	 */
-	switch (time_state) {
-	case TIME_OK:
-		if (time_status & STA_INS)
-			time_state = TIME_INS;
-		else if (time_status & STA_DEL)
-			time_state = TIME_DEL;
-		break;
-	case TIME_INS:
-		if (xtime.tv_sec % 86400 == 0) {
-			xtime.tv_sec--;
-			wall_to_monotonic.tv_sec++;
-			time_state = TIME_OOP;
-			printk(KERN_NOTICE "Clock: inserting leap second "
-					"23:59:60 UTC\n");
-		}
-		break;
-	case TIME_DEL:
-		if ((xtime.tv_sec + 1) % 86400 == 0) {
-			xtime.tv_sec++;
-			time_tai--;
-			wall_to_monotonic.tv_sec--;
-			time_state = TIME_WAIT;
-			printk(KERN_NOTICE "Clock: deleting leap second "
-					"23:59:59 UTC\n");
-		}
-		break;
-	case TIME_OOP:
-		time_tai++;
-		time_state = TIME_WAIT;
-		break;
-	case TIME_WAIT:
-		if (!(time_status & (STA_INS | STA_DEL)))
-			time_state = TIME_OK;
 	}
 
 	/*
@@ -268,7 +277,7 @@ static inline void notify_cmos_timer(void) { }
 int do_adjtimex(struct timex *txc)
 {
 	struct timespec ts;
-	long save_adjust;
+	long save_adjust, sec;
 	int result;
 
 	/* In order to modify anything, you gotta be super-user! */
@@ -289,6 +298,10 @@ int do_adjtimex(struct timex *txc)
 		    txc->tick > 1100000/USER_HZ)
 			return -EINVAL;
 
+	if (time_state != TIME_OK && txc->modes & ADJ_STATUS)
+		hrtimer_cancel(&leap_timer);
+	getnstimeofday(&ts);
+
 	write_seqlock_irq(&xtime_lock);
 
 	/* Save for later - semantics of adjtime is to return old value */
@@ -305,6 +318,34 @@ int do_adjtimex(struct timex *txc)
 			/* only set allowed bits */
 			time_status &= STA_RONLY;
 			time_status |= txc->status & ~STA_RONLY;
+
+			switch (time_state) {
+			case TIME_OK:
+			start_timer:
+				sec = ts.tv_sec;
+				if (time_status & STA_INS) {
+					time_state = TIME_INS;
+					sec += 86400 - sec % 86400;
+					hrtimer_start(&leap_timer, ktime_set(sec, 0), HRTIMER_MODE_ABS);
+				} else if (time_status & STA_DEL) {
+					time_state = TIME_DEL;
+					sec += 86400 - (sec + 1) % 86400;
+					hrtimer_start(&leap_timer, ktime_set(sec, 0), HRTIMER_MODE_ABS);
+				}
+				break;
+			case TIME_INS:
+			case TIME_DEL:
+				time_state = TIME_OK;
+				goto start_timer;
+				break;
+			case TIME_WAIT:
+				if (!(time_status & (STA_INS | STA_DEL)))
+					time_state = TIME_OK;
+				break;
+			case TIME_OOP:
+				hrtimer_restart(&leap_timer);
+				break;
+			}
 		}
 
 		if (txc->modes & ADJ_NANO)
@@ -384,7 +425,6 @@ int do_adjtimex(struct timex *txc)
 	txc->stbcnt	   = 0;
 	write_sequnlock_irq(&xtime_lock);
 
-	getnstimeofday(&ts);
 	txc->time.tv_sec = ts.tv_sec;
 	txc->time.tv_usec = ts.tv_nsec;
 	if (!(time_status & STA_NANO))
@@ -402,3 +442,10 @@ static int __init ntp_tick_adj_setup(char *str)
 }
 
 __setup("ntp_tick_adj=", ntp_tick_adj_setup);
+
+void __init ntp_init(void)
+{
+	ntp_clear();
+	hrtimer_init(&leap_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	leap_timer.function = ntp_leap_second;
+}

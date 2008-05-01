@@ -53,7 +53,7 @@ void update_xtime_cache(u64 nsec)
 	timespec_add_ns(&xtime_cache, nsec);
 }
 
-static struct clocksource *clock; /* pointer to current clocksource */
+struct clocksource *clock;
 
 
 #ifdef CONFIG_GENERIC_TIME
@@ -246,7 +246,7 @@ void __init timekeeping_init(void)
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 
-	ntp_clear();
+	ntp_init();
 
 	clock = clocksource_get_next();
 	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);

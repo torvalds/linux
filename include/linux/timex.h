@@ -212,6 +212,7 @@ extern long time_esterror;	/* estimated error */
 
 extern long time_adjust;	/* The amount of adjtime left */
 
+extern void ntp_init(void);
 extern void ntp_clear(void);
 
 /**
