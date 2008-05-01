@@ -208,6 +208,13 @@ static int jffs2_create(struct inode *dir_i, struct dentry *dentry, int mode,
 	f = JFFS2_INODE_INFO(inode);
 	dir_f = JFFS2_INODE_INFO(dir_i);
 
+	/* jffs2_do_create() will want to lock it, _after_ reserving
+	   space and taking c-alloc_sem. If we keep it locked here,
+	   lockdep gets unhappy (although it's a false positive;
+	   nothing else will be looking at this inode yet so there's
+	   no chance of AB-BA deadlock involving its f->sem). */
+	mutex_unlock(&f->sem);
+
 	ret = jffs2_do_create(c, dir_f, f, ri,
 			      dentry->d_name.name, dentry->d_name.len);
 	if (ret)
