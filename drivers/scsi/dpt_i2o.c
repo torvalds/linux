@@ -121,15 +121,6 @@ static const struct file_operations adpt_fops = {
 	.release	= adpt_close
 };
 
-#ifdef REBOOT_NOTIFIER
-static struct notifier_block adpt_reboot_notifier =
-{
-	 adpt_reboot_event,
-	 NULL,
-	 0
-};
-#endif
-
 /* Structures and definitions for synchronous message posting.
  * See adpt_i2o_post_wait() for description
  * */
@@ -177,8 +168,6 @@ static int adpt_detect(struct scsi_host_template* sht)
 {
 	struct pci_dev *pDev = NULL;
 	adpt_hba* pHba;
-
-	adpt_init();
 
 	PINFO("Detecting Adaptec I2O RAID controllers...\n");
 
@@ -248,7 +237,7 @@ rebuild_sys_tab:
 	}
 
 	for (pHba = hba_chain; pHba; pHba = pHba->next) {
-		if( adpt_scsi_register(pHba,sht) < 0){
+		if (adpt_scsi_host_alloc(pHba, sht) < 0){
 			adpt_i2o_delete_hba(pHba);
 			continue;
 		}
@@ -861,27 +850,6 @@ static void adpt_i2o_sys_shutdown(void)
 	 printk(KERN_INFO "Adaptec I2O controllers down.\n");
 }
 
-/*
- * reboot/shutdown notification.
- *
- * - Quiesce each IOP in the system
- *
- */
-
-#ifdef REBOOT_NOTIFIER
-static int adpt_reboot_event(struct notifier_block *n, ulong code, void *p)
-{
-
-	 if(code != SYS_RESTART && code != SYS_HALT && code != SYS_POWER_OFF)
-		  return NOTIFY_DONE;
-
-	 adpt_i2o_sys_shutdown();
-
-	 return NOTIFY_DONE;
-}
-#endif
-
-
 static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev)
 {
 
@@ -1079,18 +1047,6 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 		unregister_chrdev(DPTI_I2O_MAJOR, DPT_DRIVER);   
 	}
 }
-
-
-static int adpt_init(void)
-{
-	printk("Loading Adaptec I2O RAID: Version " DPT_I2O_VERSION "\n");
-#ifdef REBOOT_NOTIFIER
-	register_reboot_notifier(&adpt_reboot_notifier);
-#endif
-
-	return 0;
-}
-
 
 static struct adpt_device* adpt_find_device(adpt_hba* pHba, u32 chan, u32 id, u32 lun)
 {
@@ -2177,13 +2133,13 @@ static s32 adpt_scsi_to_i2o(adpt_hba* pHba, struct scsi_cmnd* cmd, struct adpt_d
 }
 
 
-static s32 adpt_scsi_register(adpt_hba* pHba,struct scsi_host_template * sht)
+static s32 adpt_scsi_host_alloc(adpt_hba* pHba, struct scsi_host_template *sht)
 {
-	struct Scsi_Host *host = NULL;
+	struct Scsi_Host *host;
 
-	host = scsi_register(sht, sizeof(adpt_hba*));
+	host = scsi_host_alloc(sht, sizeof(adpt_hba*));
 	if (host == NULL) {
-		printk ("%s: scsi_register returned NULL\n",pHba->name);
+		printk("%s: scsi_host_alloc returned NULL\n", pHba->name);
 		return -1;
 	}
 	host->hostdata[0] = (unsigned long)pHba;
@@ -3323,11 +3279,10 @@ static static void adpt_delay(int millisec)
 #endif
 
 static struct scsi_host_template driver_template = {
+	.module			= THIS_MODULE,
 	.name			= "dpt_i2o",
 	.proc_name		= "dpt_i2o",
 	.proc_info		= adpt_proc_info,
-	.detect			= adpt_detect,
-	.release		= adpt_release,
 	.info			= adpt_info,
 	.queuecommand		= adpt_queue,
 	.eh_abort_handler	= adpt_abort,
@@ -3341,5 +3296,48 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
 };
-#include "scsi_module.c"
+
+static int __init adpt_init(void)
+{
+	int		error;
+	adpt_hba	*pHba, *next;
+
+	printk("Loading Adaptec I2O RAID: Version " DPT_I2O_VERSION "\n");
+
+	error = adpt_detect(&driver_template);
+	if (error < 0)
+		return error;
+	if (hba_chain == NULL)
+		return -ENODEV;
+
+	for (pHba = hba_chain; pHba; pHba = pHba->next) {
+		error = scsi_add_host(pHba->host, &pHba->pDev->dev);
+		if (error)
+			goto fail;
+		scsi_scan_host(pHba->host);
+	}
+	return 0;
+fail:
+	for (pHba = hba_chain; pHba; pHba = next) {
+		next = pHba->next;
+		scsi_remove_host(pHba->host);
+	}
+	return error;
+}
+
+static void __exit adpt_exit(void)
+{
+	adpt_hba	*pHba, *next;
+
+	for (pHba = hba_chain; pHba; pHba = pHba->next)
+		scsi_remove_host(pHba->host);
+	for (pHba = hba_chain; pHba; pHba = next) {
+		next = pHba->next;
+		adpt_release(pHba->host);
+	}
+}
+
+module_init(adpt_init);
+module_exit(adpt_exit);
+
 MODULE_LICENSE("GPL");

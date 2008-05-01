@@ -84,7 +84,6 @@ static int adpt_device_reset(struct scsi_cmnd* cmd);
 #define PCI_DPT_DEVICE_ID         (0xA501)	// DPT PCI I2O Device ID
 #define PCI_DPT_RAPTOR_DEVICE_ID  (0xA511)	
 
-//#define REBOOT_NOTIFIER 1
 /* Debugging macro from Linux Device Drivers - Rubini */
 #undef PDEBUG
 #ifdef DEBUG
@@ -264,9 +263,6 @@ static void adpt_i2o_sys_shutdown(void);
 static int adpt_init(void);
 static int adpt_i2o_build_sys_table(void);
 static irqreturn_t adpt_isr(int irq, void *dev_id);
-#ifdef REBOOT_NOTIFIER
-static int adpt_reboot_event(struct notifier_block *n, ulong code, void *p);
-#endif
 
 static void adpt_i2o_report_hba_unit(adpt_hba* pHba, struct i2o_device *d);
 static int adpt_i2o_query_scalar(adpt_hba* pHba, int tid, 
@@ -289,7 +285,7 @@ static s32 adpt_i2o_init_outbound_q(adpt_hba* pHba);
 static s32 adpt_i2o_hrt_get(adpt_hba* pHba);
 static s32 adpt_scsi_to_i2o(adpt_hba* pHba, struct scsi_cmnd* cmd, struct adpt_device* dptdevice);
 static s32 adpt_i2o_to_scsi(void __iomem *reply, struct scsi_cmnd* cmd);
-static s32 adpt_scsi_register(adpt_hba* pHba,struct scsi_host_template * sht);
+static s32 adpt_scsi_host_alloc(adpt_hba* pHba,struct scsi_host_template * sht);
 static s32 adpt_hba_reset(adpt_hba* pHba);
 static s32 adpt_i2o_reset_hba(adpt_hba* pHba);
 static s32 adpt_rescan(adpt_hba* pHba);
