@@ -591,7 +591,8 @@ static void pnpbios_encode_irq(struct pnp_dev *dev, unsigned char *p,
 	p[1] = map & 0xff;
 	p[2] = (map >> 8) & 0xff;
 
-	dev_dbg(&dev->dev, "  encode irq %d\n", res->start);
+	dev_dbg(&dev->dev, "  encode irq %llu\n",
+		(unsigned long long)res->start);
 }
 
 static void pnpbios_encode_dma(struct pnp_dev *dev, unsigned char *p,
@@ -602,7 +603,8 @@ static void pnpbios_encode_dma(struct pnp_dev *dev, unsigned char *p,
 	map = 1 << res->start;
 	p[1] = map & 0xff;
 
-	dev_dbg(&dev->dev, "  encode dma %d\n", res->start);
+	dev_dbg(&dev->dev, "  encode dma %llu\n",
+		(unsigned long long)res->start);
 }
 
 static void pnpbios_encode_port(struct pnp_dev *dev, unsigned char *p,
