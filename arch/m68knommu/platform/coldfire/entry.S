@@ -103,6 +103,7 @@ ret_from_signal:
 	addql	#4,%sp
 
 ret_from_exception:
+	move	#0x2700,%sr		/* disable intrs */
 	btst	#5,%sp@(PT_SR)		/* check if returning to kernel */
 	jeq	Luser_return		/* if so, skip resched, signals */
 
@@ -156,6 +157,7 @@ Lreturn:
 
 Lwork_to_do:
 	movel	%a0@(TI_FLAGS),%d1	/* get thread_info->flags */
+	move	#0x2000,%sr		/* enable intrs again */
 	btst	#TIF_NEED_RESCHED,%d1
 	jne	reschedule
 
