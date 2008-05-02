@@ -547,7 +547,7 @@ int btrfs_add_device(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 	unsigned long ptr;
-	u64 free_devid;
+	u64 free_devid = 0;
 
 	root = root->fs_info->chunk_root;
 
