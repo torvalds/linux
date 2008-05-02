@@ -85,27 +85,34 @@ static unsigned desc_size(const struct lguest_device_desc *desc)
 		+ desc->config_len;
 }
 
-/* This tests (and acknowleges) a feature bit. */
-static bool lg_feature(struct virtio_device *vdev, unsigned fbit)
+/* This gets the device's feature bits. */
+static u32 lg_get_features(struct virtio_device *vdev)
 {
+	unsigned int i;
+	u32 features = 0;
 	struct lguest_device_desc *desc = to_lgdev(vdev)->desc;
-	u8 *features;
+	u8 *in_features = lg_features(desc);
 
-	/* Obviously if they ask for a feature off the end of our feature
-	 * bitmap, it's not set. */
-	if (fbit / 8 > desc->feature_len)
-		return false;
+	/* We do this the slow but generic way. */
+	for (i = 0; i < min(desc->feature_len * 8, 32); i++)
+		if (in_features[i / 8] & (1 << (i % 8)))
+			features |= (1 << i);
 
-	/* The feature bitmap comes after the virtqueues. */
-	features = lg_features(desc);
-	if (!(features[fbit / 8] & (1 << (fbit % 8))))
-		return false;
+	return features;
+}
 
-	/* We set the matching bit in the other half of the bitmap to tell the
-	 * Host we want to use this feature.  We don't use this yet, but we
-	 * could in future. */
-	features[desc->feature_len + fbit / 8] |= (1 << (fbit % 8));
-	return true;
+static void lg_set_features(struct virtio_device *vdev, u32 features)
+{
+	unsigned int i;
+	struct lguest_device_desc *desc = to_lgdev(vdev)->desc;
+	/* Second half of bitmap is features we accept. */
+	u8 *out_features = lg_features(desc) + desc->feature_len;
+
+	memset(out_features, 0, desc->feature_len);
+	for (i = 0; i < min(desc->feature_len * 8, 32); i++) {
+		if (features & (1 << i))
+			out_features[i / 8] |= (1 << (i % 8));
+	}
 }
 
 /* Once they've found a field, getting a copy of it is easy. */
@@ -137,20 +144,26 @@ static u8 lg_get_status(struct virtio_device *vdev)
 	return to_lgdev(vdev)->desc->status;
 }
 
-static void lg_set_status(struct virtio_device *vdev, u8 status)
-{
-	BUG_ON(!status);
-	to_lgdev(vdev)->desc->status = status;
-}
-
-/* To reset the device, we (ab)use the NOTIFY hypercall, with the descriptor
- * address of the device.  The Host will zero the status and all the
- * features. */
-static void lg_reset(struct virtio_device *vdev)
+/* To notify on status updates, we (ab)use the NOTIFY hypercall, with the
+ * descriptor address of the device.  A zero status means "reset". */
+static void set_status(struct virtio_device *vdev, u8 status)
 {
 	unsigned long offset = (void *)to_lgdev(vdev)->desc - lguest_devices;
 
+	/* We set the status. */
+	to_lgdev(vdev)->desc->status = status;
 	hcall(LHCALL_NOTIFY, (max_pfn<<PAGE_SHIFT) + offset, 0, 0);
+}
+
+static void lg_set_status(struct virtio_device *vdev, u8 status)
+{
+	BUG_ON(!status);
+	set_status(vdev, status);
+}
+
+static void lg_reset(struct virtio_device *vdev)
+{
+	set_status(vdev, 0);
 }
 
 /*
@@ -286,7 +299,8 @@ static void lg_del_vq(struct virtqueue *vq)
 
 /* The ops structure which hooks everything together. */
 static struct virtio_config_ops lguest_config_ops = {
-	.feature = lg_feature,
+	.get_features = lg_get_features,
+	.set_features = lg_set_features,
 	.get = lg_get,
 	.set = lg_set,
 	.get_status = lg_get_status,
