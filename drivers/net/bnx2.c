@@ -3180,6 +3180,12 @@ load_rv2p_fw(struct bnx2 *bp, __le32 *rv2p_code, u32 rv2p_code_len,
 	int i;
 	u32 val;
 
+	if (rv2p_proc == RV2P_PROC2 && CHIP_NUM(bp) == CHIP_NUM_5709) {
+		val = le32_to_cpu(rv2p_code[XI_RV2P_PROC2_MAX_BD_PAGE_LOC]);
+		val &= ~XI_RV2P_PROC2_BD_PAGE_SIZE_MSK;
+		val |= XI_RV2P_PROC2_BD_PAGE_SIZE;
+		rv2p_code[XI_RV2P_PROC2_MAX_BD_PAGE_LOC] = cpu_to_le32(val);
+	}
 
 	for (i = 0; i < rv2p_code_len; i += 8) {
 		REG_WR(bp, BNX2_RV2P_INSTR_HIGH, le32_to_cpu(*rv2p_code));
