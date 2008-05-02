@@ -2791,7 +2791,7 @@ static ssize_t ipr_store_adapter_state(struct device *dev,
 
 static struct device_attribute ipr_ioa_state_attr = {
 	.attr = {
-		.name =		"state",
+		.name =		"online_state",
 		.mode =		S_IRUGO | S_IWUSR,
 	},
 	.show = ipr_show_adapter_state,

@@ -573,13 +573,11 @@ struct Scsi_Host {
 	/*
 	 * The maximum length of SCSI commands that this host can accept.
 	 * Probably 12 for most host adapters, but could be 16 for others.
+	 * or 260 if the driver supports variable length cdbs.
 	 * For drivers that don't set this field, a value of 12 is
-	 * assumed.  I am leaving this as a number rather than a bit
-	 * because you never know what subsequent SCSI standards might do
-	 * (i.e. could there be a 20 byte or a 24-byte command a few years
-	 * down the road?).  
+	 * assumed.
 	 */
-	unsigned char max_cmd_len;
+	unsigned short max_cmd_len;
 
 	int this_id;
 	int can_queue;
