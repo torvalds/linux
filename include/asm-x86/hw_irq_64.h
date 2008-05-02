@@ -1,28 +1,3 @@
-#ifndef _ASM_HW_IRQ_H
-#define _ASM_HW_IRQ_H
-
-/*
- *	linux/include/asm/hw_irq.h
- *
- *	(C) 1992, 1993 Linus Torvalds, (C) 1997 Ingo Molnar
- *
- *	moved some of the old arch/i386/kernel/irq.h to here. VY
- *
- *	IRQ/IPI changes taken from work by Thomas Radke
- *	<tomsoft@informatik.tu-chemnitz.de>
- *
- *	hacked by Andi Kleen for x86-64.
- */
-
-#ifndef __ASSEMBLY__
-#include <asm/atomic.h>
-#include <asm/irq.h>
-#include <linux/profile.h>
-#include <linux/smp.h>
-#include <linux/percpu.h>
-#endif
-
-#define NMI_VECTOR		0x02
 /*
  * IDT vectors usable for external interrupt sources start
  * at 0x20:
@@ -96,25 +71,6 @@
 
 #ifndef __ASSEMBLY__
 
-/* Interrupt handlers registered during init_IRQ */
-void apic_timer_interrupt(void);
-void spurious_interrupt(void);
-void error_interrupt(void);
-void reschedule_interrupt(void);
-void call_function_interrupt(void);
-void irq_move_cleanup_interrupt(void);
-void invalidate_interrupt0(void);
-void invalidate_interrupt1(void);
-void invalidate_interrupt2(void);
-void invalidate_interrupt3(void);
-void invalidate_interrupt4(void);
-void invalidate_interrupt5(void);
-void invalidate_interrupt6(void);
-void invalidate_interrupt7(void);
-void thermal_interrupt(void);
-void threshold_interrupt(void);
-void i8254_timer_resume(void);
-
 typedef int vector_irq_t[NR_VECTORS];
 DECLARE_PER_CPU(vector_irq_t, vector_irq);
 extern void __setup_vector_irq(int cpu);
@@ -127,28 +83,8 @@ extern spinlock_t vector_lock;
  * Interrupt entry/exit code at both C and assembly level
  */
 
-extern void disable_8259A_irq(unsigned int irq);
-extern void enable_8259A_irq(unsigned int irq);
-extern int i8259A_irq_pending(unsigned int irq);
-extern void make_8259A_irq(unsigned int irq);
-extern void init_8259A(int aeoi);
-extern void send_IPI_self(int vector);
-extern void init_VISWS_APIC_irqs(void);
-extern void setup_IO_APIC(void);
 extern void enable_IO_APIC(void);
-extern void disable_IO_APIC(void);
-extern void print_IO_APIC(void);
-extern int IO_APIC_get_PCI_irq_vector(int bus, int slot, int fn);
-extern void send_IPI(int dest, int vector);
-extern void setup_ioapic_dest(void);
 extern void native_init_IRQ(void);
-
-extern unsigned long io_apic_irqs;
-
-extern atomic_t irq_err_count;
-extern atomic_t irq_mis_count;
-
-#define IO_APIC_IRQ(x) (((x) >= 16) || ((1<<(x)) & io_apic_irqs))
 
 #include <asm/ptrace.h>
 
@@ -166,8 +102,4 @@ extern atomic_t irq_mis_count;
 	    "push $~(" #nr ") ; "		\
 	    "jmp common_interrupt");
 
-#define platform_legacy_irq(irq)	((irq) < 16)
-
 #endif
-
-#endif /* _ASM_HW_IRQ_H */
