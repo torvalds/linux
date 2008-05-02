@@ -641,6 +641,23 @@ struct proc_dir_entry *proc_mkdir_mode(const char *name, mode_t mode,
 	return ent;
 }
 
+struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
+		struct proc_dir_entry *parent)
+{
+	struct proc_dir_entry *ent;
+
+	ent = __proc_create(&parent, name, S_IFDIR | S_IRUGO | S_IXUGO, 2);
+	if (ent) {
+		ent->data = net;
+		if (proc_register(parent, ent) < 0) {
+			kfree(ent);
+			ent = NULL;
+		}
+	}
+	return ent;
+}
+EXPORT_SYMBOL_GPL(proc_net_mkdir);
+
 struct proc_dir_entry *proc_mkdir(const char *name,
 		struct proc_dir_entry *parent)
 {
