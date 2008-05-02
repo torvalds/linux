@@ -21,8 +21,6 @@ linux_sun4_romvec *sun4_romvec;
 /* The root node of the prom device tree. */
 int prom_root_node;
 
-int prom_stdin, prom_stdout;
-
 /* Pointer to the device tree operations structure. */
 struct linux_nodeops *prom_nodeops;
 
@@ -74,11 +72,6 @@ void __init prom_init(struct linux_romvec *rp)
 	   (((unsigned long) prom_nodeops) == -1))
 		prom_halt();
 
-	if(prom_vers == PROM_V2 || prom_vers == PROM_V3) {
-		prom_stdout = *romvec->pv_v2bootargs.fd_stdout;
-		prom_stdin  = *romvec->pv_v2bootargs.fd_stdin;
-	}
-	
 	prom_meminit();
 
 	prom_ranges_init();

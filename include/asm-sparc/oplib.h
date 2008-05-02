@@ -34,9 +34,6 @@ extern unsigned int prom_rev, prom_prev;
  */
 extern int prom_root_node;
 
-/* PROM stdin and stdout */
-extern int prom_stdin, prom_stdout;
-
 /* Pointer to prom structure containing the device tree traversal
  * and usage utility functions.  Only prom-lib should use these,
  * users use the interface defined by the library only!
