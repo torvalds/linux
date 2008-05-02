@@ -159,7 +159,7 @@ static int __init pmu_bat_init(void)
 		if (!pbat)
 			break;
 
-		sprintf(pbat->name, "PMU battery %d", i);
+		sprintf(pbat->name, "PMU_battery_%d", i);
 		pbat->bat.name = pbat->name;
 		pbat->bat.properties = pmu_bat_props;
 		pbat->bat.num_properties = ARRAY_SIZE(pmu_bat_props);
