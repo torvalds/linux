@@ -194,6 +194,7 @@ static void pcsp_stop_beep(struct snd_pcsp *chip)
 	spin_unlock_irq(&chip->substream_lock);
 }
 
+#ifdef CONFIG_PM
 static int pcsp_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct snd_pcsp *chip = platform_get_drvdata(dev);
@@ -201,6 +202,9 @@ static int pcsp_suspend(struct platform_device *dev, pm_message_t state)
 	snd_pcm_suspend_all(chip->pcm);
 	return 0;
 }
+#else
+#define pcsp_suspend NULL
+#endif	/* CONFIG_PM */
 
 static void pcsp_shutdown(struct platform_device *dev)
 {
