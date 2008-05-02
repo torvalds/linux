@@ -367,6 +367,7 @@ enum {
 	MV_PP_FLAG_EDMA_EN	= (1 << 0),	/* is EDMA engine enabled? */
 	MV_PP_FLAG_NCQ_EN	= (1 << 1),	/* is EDMA set up for NCQ? */
 	MV_PP_FLAG_FBS_EN	= (1 << 2),	/* is EDMA set up for FBS? */
+	MV_PP_FLAG_DELAYED_EH	= (1 << 3),	/* delayed dev err handling */
 };
 
 #define IS_GEN_I(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_I)
@@ -447,6 +448,7 @@ struct mv_port_priv {
 	unsigned int		resp_idx;
 
 	u32			pp_flags;
+	unsigned int		delayed_eh_pmp_map;
 };
 
 struct mv_port_signal {
@@ -542,6 +544,7 @@ static int mv_pmp_hardreset(struct ata_link *link, unsigned int *class,
 				unsigned long deadline);
 static int  mv_softreset(struct ata_link *link, unsigned int *class,
 				unsigned long deadline);
+static void mv_pmp_error_handler(struct ata_port *ap);
 
 /* .sg_tablesize is (MV_MAX_SG_CT / 2) in the structures below
  * because we have to allow room for worst case splitting of
@@ -589,7 +592,7 @@ static struct ata_port_operations mv6_ops = {
 	.pmp_hardreset		= mv_pmp_hardreset,
 	.pmp_softreset		= mv_softreset,
 	.softreset		= mv_softreset,
-	.error_handler		= sata_pmp_error_handler,
+	.error_handler		= mv_pmp_error_handler,
 };
 
 static struct ata_port_operations mv_iie_ops = {
@@ -1098,6 +1101,12 @@ static int mv_qc_defer(struct ata_queued_cmd *qc)
 	struct mv_port_priv *pp = ap->private_data;
 
 	/*
+	 * Don't allow new commands if we're in a delayed EH state
+	 * for NCQ and/or FIS-based switching.
+	 */
+	if (pp->pp_flags & MV_PP_FLAG_DELAYED_EH)
+		return ATA_DEFER_PORT;
+	/*
 	 * If the port is completely idle, then allow the new qc.
 	 */
 	if (ap->nr_active_links == 0)
@@ -1589,6 +1598,33 @@ static struct ata_queued_cmd *mv_get_active_qc(struct ata_port *ap)
 	if (qc && (qc->tf.flags & ATA_TFLAG_POLLING))
 		qc = NULL;
 	return qc;
+}
+
+static void mv_pmp_error_handler(struct ata_port *ap)
+{
+	unsigned int pmp, pmp_map;
+	struct mv_port_priv *pp = ap->private_data;
+
+	if (pp->pp_flags & MV_PP_FLAG_DELAYED_EH) {
+		/*
+		 * Perform NCQ error analysis on failed PMPs
+		 * before we freeze the port entirely.
+		 *
+		 * The failed PMPs are marked earlier by mv_pmp_eh_prep().
+		 */
+		pmp_map = pp->delayed_eh_pmp_map;
+		pp->pp_flags &= ~MV_PP_FLAG_DELAYED_EH;
+		for (pmp = 0; pmp_map != 0; pmp++) {
+			unsigned int this_pmp = (1 << pmp);
+			if (pmp_map & this_pmp) {
+				struct ata_link *link = &ap->pmp_link[pmp];
+				pmp_map &= ~this_pmp;
+				ata_eh_analyze_ncq_error(link);
+			}
+		}
+		ata_port_freeze(ap);
+	}
+	sata_pmp_error_handler(ap);
 }
 
 static void mv_unexpected_intr(struct ata_port *ap, int edma_was_enabled)
