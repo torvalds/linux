@@ -67,6 +67,10 @@ extern void print_IO_APIC(void);
 extern int IO_APIC_get_PCI_irq_vector(int bus, int slot, int fn);
 extern void setup_ioapic_dest(void);
 
+#ifdef CONFIG_X86_64
+extern void enable_IO_APIC(void);
+#endif
+
 /* IPI functions */
 extern void send_IPI_self(int vector);
 extern void send_IPI(int dest, int vector);

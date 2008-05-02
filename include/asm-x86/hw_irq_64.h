@@ -12,9 +12,6 @@ extern spinlock_t vector_lock;
  * Interrupt entry/exit code at both C and assembly level
  */
 
-extern void enable_IO_APIC(void);
-extern void native_init_IRQ(void);
-
 #include <asm/ptrace.h>
 
 #endif

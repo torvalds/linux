@@ -27,4 +27,6 @@ extern void fixup_irqs(cpumask_t map);
 
 #define __ARCH_HAS_DO_SOFTIRQ 1
 
+extern void native_init_IRQ(void);
+
 #endif /* _ASM_IRQ_H */
