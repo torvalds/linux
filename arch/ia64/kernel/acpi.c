@@ -966,7 +966,7 @@ acpi_map_iosapics (void)
 fs_initcall(acpi_map_iosapics);
 #endif				/* CONFIG_ACPI_NUMA */
 
-int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base)
+int __ref acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base)
 {
 	int err;
 
