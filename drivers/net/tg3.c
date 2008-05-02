@@ -2097,9 +2097,11 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 	      MAC_STATUS_LNKSTATE_CHANGED));
 	udelay(40);
 
-	tp->mi_mode = MAC_MI_MODE_BASE;
-	tw32_f(MAC_MI_MODE, tp->mi_mode);
-	udelay(80);
+	if ((tp->mi_mode & MAC_MI_MODE_AUTO_POLL) != 0) {
+		tw32_f(MAC_MI_MODE,
+		     (tp->mi_mode & ~MAC_MI_MODE_AUTO_POLL));
+		udelay(80);
+	}
 
 	tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x02);
 
@@ -7102,7 +7104,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tp->link_config.autoneg = tp->link_config.orig_autoneg;
 	}
 
-	tp->mi_mode = MAC_MI_MODE_BASE;
+	tp->mi_mode &= ~MAC_MI_MODE_AUTO_POLL;
 	tw32_f(MAC_MI_MODE, tp->mi_mode);
 	udelay(80);
 
@@ -11764,6 +11766,12 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 			tp->phy_otp = TG3_OTP_DEFAULT;
 	}
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
+		tp->mi_mode = MAC_MI_MODE_500KHZ_CONST;
+	else
+		tp->mi_mode = MAC_MI_MODE_BASE;
+
 	tp->coalesce_mode = 0;
 	if (GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5700_AX &&
 	    GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5700_BX)
@@ -12692,7 +12700,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	tp->mac_mode = TG3_DEF_MAC_MODE;
 	tp->rx_mode = TG3_DEF_RX_MODE;
 	tp->tx_mode = TG3_DEF_TX_MODE;
-	tp->mi_mode = MAC_MI_MODE_BASE;
+
 	if (tg3_debug > 0)
 		tp->msg_enable = tg3_debug;
 	else
