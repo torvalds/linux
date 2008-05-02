@@ -1591,25 +1591,22 @@ static struct ata_queued_cmd *mv_get_active_qc(struct ata_port *ap)
 	return qc;
 }
 
-static void mv_unexpected_intr(struct ata_port *ap)
+static void mv_unexpected_intr(struct ata_port *ap, int edma_was_enabled)
 {
-	struct mv_port_priv *pp = ap->private_data;
 	struct ata_eh_info *ehi = &ap->link.eh_info;
-	char *when = "";
+	char *when = "idle";
 
-	/*
-	 * We got a device interrupt from something that
-	 * was supposed to be using EDMA or polling.
-	 */
 	ata_ehi_clear_desc(ehi);
-	if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
-		when = " while EDMA enabled";
+	if (!ap || (ap->flags & ATA_FLAG_DISABLED)) {
+		when = "disabled";
+	} else if (edma_was_enabled) {
+		when = "EDMA enabled";
 	} else {
 		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->link.active_tag);
 		if (qc && (qc->tf.flags & ATA_TFLAG_POLLING))
-			when = " while polling";
+			when = "polling";
 	}
-	ata_ehi_push_desc(ehi, "unexpected device interrupt%s", when);
+	ata_ehi_push_desc(ehi, "unexpected device interrupt while %s", when);
 	ehi->err_mask |= AC_ERR_OTHER;
 	ehi->action   |= ATA_EH_RESET;
 	ata_port_freeze(ap);
@@ -1807,6 +1804,42 @@ static void mv_process_crpb_entries(struct ata_port *ap, struct mv_port_priv *pp
 			 port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
 }
 
+static void mv_port_intr(struct ata_port *ap, u32 port_cause)
+{
+	struct mv_port_priv *pp;
+	int edma_was_enabled;
+
+	if (!ap || (ap->flags & ATA_FLAG_DISABLED)) {
+		mv_unexpected_intr(ap, 0);
+		return;
+	}
+	/*
+	 * Grab a snapshot of the EDMA_EN flag setting,
+	 * so that we have a consistent view for this port,
+	 * even if something we call of our routines changes it.
+	 */
+	pp = ap->private_data;
+	edma_was_enabled = (pp->pp_flags & MV_PP_FLAG_EDMA_EN);
+	/*
+	 * Process completed CRPB response(s) before other events.
+	 */
+	if (edma_was_enabled && (port_cause & DONE_IRQ)) {
+		mv_process_crpb_entries(ap, pp);
+	}
+	/*
+	 * Handle chip-reported errors, or continue on to handle PIO.
+	 */
+	if (unlikely(port_cause & ERR_IRQ)) {
+		mv_err_intr(ap);
+	} else if (!edma_was_enabled) {
+		struct ata_queued_cmd *qc = mv_get_active_qc(ap);
+		if (qc)
+			ata_sff_host_intr(ap, qc);
+		else
+			mv_unexpected_intr(ap, edma_was_enabled);
+	}
+}
+
 /**
  *      mv_host_intr - Handle all interrupts on the given host controller
  *      @host: host specific structure
@@ -1823,7 +1856,6 @@ static int mv_host_intr(struct ata_host *host, u32 main_irq_cause)
 
 	for (port = 0; port < hpriv->n_ports; port++) {
 		struct ata_port *ap = host->ports[port];
-		struct mv_port_priv *pp;
 		unsigned int p, shift, hardport, port_cause;
 
 		MV_PORT_TO_SHIFT_AND_HARDPORT(port, shift, hardport);
@@ -1865,32 +1897,12 @@ static int mv_host_intr(struct ata_host *host, u32 main_irq_cause)
 			writelfl(~ack_irqs, hc_mmio + HC_IRQ_CAUSE_OFS);
 			handled = 1;
 		}
+		/*
+		 * Handle interrupts signalled for this port:
+		 */
 		port_cause = (main_irq_cause >> shift) & (DONE_IRQ | ERR_IRQ);
-		if (!port_cause)
-			continue;
-		/*
-		 * Process completed CRPB response(s) before other events.
-		 */
-		pp = ap->private_data;
-		if (port_cause & DONE_IRQ) {
-			if (pp->pp_flags & MV_PP_FLAG_EDMA_EN)
-				mv_process_crpb_entries(ap, pp);
-		}
-		/*
-		 * Handle chip-reported errors, or continue on to handle PIO.
-		 */
-		if (unlikely(port_cause & ERR_IRQ)) {
-			mv_err_intr(ap);
-		} else {
-			if (!(pp->pp_flags & MV_PP_FLAG_EDMA_EN)) {
-				struct ata_queued_cmd *qc = mv_get_active_qc(ap);
-				if (qc) {
-					ata_sff_host_intr(ap, qc);
-					continue;
-				}
-				mv_unexpected_intr(ap);
-			}
-		}
+		if (port_cause)
+			mv_port_intr(ap, port_cause);
 	}
 	return handled;
 }
