@@ -593,7 +593,8 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 		if (dev->dma_mask != 0xffffffffUL) {
 			ret = dmabounce_register_dev(&dev->dev, 1024, 4096);
 			if (ret) {
-				printk("SA1111: Failed to register %s with dmabounce", dev->dev.bus_id);
+				dev_err(&dev->dev, "SA1111: Failed to register"
+					" with dmabounce\n");
 				device_unregister(&dev->dev);
 			}
 		}

@@ -762,9 +762,8 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		if (IS_ERR(device->cdev))
 			return;
 
-		printk(KERN_INFO PREFIX
-			"%s is registered as cooling_device%d\n",
-			device->dev->dev.bus_id, device->cdev->id);
+		dev_info(&device->dev->dev, "registered as cooling_device%d\n",
+			 device->cdev->id);
 		result = sysfs_create_link(&device->dev->dev.kobj,
 				&device->cdev->device.kobj,
 				"thermal_cooling");

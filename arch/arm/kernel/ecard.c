@@ -853,8 +853,7 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 	for (i = 0; i < ECARD_NUM_RESOURCES; i++) {
 		if (ec->resource[i].flags &&
 		    request_resource(&iomem_resource, &ec->resource[i])) {
-			printk(KERN_ERR "%s: resource(s) not available\n",
-				ec->dev.bus_id);
+			dev_err(&ec->dev, "resource(s) not available\n");
 			ec->resource[i].end -= ec->resource[i].start;
 			ec->resource[i].start = 0;
 			ec->resource[i].flags = 0;

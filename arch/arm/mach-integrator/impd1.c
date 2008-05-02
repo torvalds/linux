@@ -407,8 +407,7 @@ static int impd1_probe(struct lm_device *dev)
 
 		ret = amba_device_register(d, &dev->resource);
 		if (ret) {
-			printk("unable to register device %s: %d\n",
-				d->dev.bus_id, ret);
+			dev_err(&d->dev, "unable to register device: %d\n");
 			kfree(d);
 		}
 	}
