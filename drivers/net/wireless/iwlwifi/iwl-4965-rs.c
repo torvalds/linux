@@ -360,9 +360,9 @@ static void rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 	unsigned long state;
 	DECLARE_MAC_BUF(mac);
 
-	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_lock_bh(&sta->lock);
 	state = sta->ampdu_mlme.tid_state_tx[tid];
-	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_unlock_bh(&sta->lock);
 
 	if (state == HT_AGG_STATE_IDLE &&
 	    rs_tl_get_load(lq_data, tid) > IWL_AGG_LOAD_THRESHOLD) {

@@ -479,7 +479,7 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 		      ((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL &&
 		       (rx->fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PSPOLL)) &&
 		     rx->sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
-		     (!rx->sta || !(rx->sta->flags & WLAN_STA_ASSOC)))) {
+		     (!rx->sta || !test_sta_flags(rx->sta, WLAN_STA_ASSOC)))) {
 		if ((!(rx->fc & IEEE80211_FCTL_FROMDS) &&
 		     !(rx->fc & IEEE80211_FCTL_TODS) &&
 		     (rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)
@@ -630,8 +630,7 @@ static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
 
 	if (sdata->bss)
 		atomic_inc(&sdata->bss->num_sta_ps);
-	sta->flags |= WLAN_STA_PS;
-	sta->flags &= ~WLAN_STA_PSPOLL;
+	set_and_clear_sta_flags(sta, WLAN_STA_PS, WLAN_STA_PSPOLL);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %s aid %d enters power save mode\n",
 	       dev->name, print_mac(mac, sta->addr), sta->aid);
@@ -652,7 +651,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 	if (sdata->bss)
 		atomic_dec(&sdata->bss->num_sta_ps);
 
-	sta->flags &= ~(WLAN_STA_PS | WLAN_STA_PSPOLL);
+	clear_sta_flags(sta, WLAN_STA_PS | WLAN_STA_PSPOLL);
 
 	if (!skb_queue_empty(&sta->ps_tx_buf))
 		sta_info_clear_tim_bit(sta);
@@ -727,9 +726,10 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	if (!(rx->fc & IEEE80211_FCTL_MOREFRAGS)) {
 		/* Change STA power saving mode only in the end of a frame
 		 * exchange sequence */
-		if ((sta->flags & WLAN_STA_PS) && !(rx->fc & IEEE80211_FCTL_PM))
+		if (test_sta_flags(sta, WLAN_STA_PS) &&
+		    !(rx->fc & IEEE80211_FCTL_PM))
 			rx->sent_ps_buffered += ap_sta_ps_end(dev, sta);
-		else if (!(sta->flags & WLAN_STA_PS) &&
+		else if (!test_sta_flags(sta, WLAN_STA_PS) &&
 			 (rx->fc & IEEE80211_FCTL_PM))
 			ap_sta_ps_start(dev, sta);
 	}
@@ -983,7 +983,7 @@ ieee80211_rx_h_ps_poll(struct ieee80211_rx_data *rx)
 		 * Tell TX path to send one frame even though the STA may
 		 * still remain is PS mode after this frame exchange.
 		 */
-		rx->sta->flags |= WLAN_STA_PSPOLL;
+		set_sta_flags(rx->sta, WLAN_STA_PSPOLL);
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "STA %s aid %d: PS Poll (entries after %d)\n",
@@ -1046,7 +1046,8 @@ ieee80211_rx_h_remove_qos_control(struct ieee80211_rx_data *rx)
 static int
 ieee80211_802_1x_port_control(struct ieee80211_rx_data *rx)
 {
-	if (unlikely(!rx->sta || !(rx->sta->flags & WLAN_STA_AUTHORIZED))) {
+	if (unlikely(!rx->sta ||
+	    !test_sta_flags(rx->sta, WLAN_STA_AUTHORIZED))) {
 #ifdef CONFIG_MAC80211_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: dropped frame "

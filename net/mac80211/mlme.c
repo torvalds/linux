@@ -1241,7 +1241,7 @@ static void ieee80211_sta_process_addba_request(struct net_device *dev,
 
 
 	/* examine state machine */
-	spin_lock_bh(&sta->ampdu_mlme.ampdu_rx);
+	spin_lock_bh(&sta->lock);
 
 	if (sta->ampdu_mlme.tid_state_rx[tid] != HT_AGG_STATE_IDLE) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -1308,7 +1308,7 @@ static void ieee80211_sta_process_addba_request(struct net_device *dev,
 	tid_agg_rx->stored_mpdu_num = 0;
 	status = WLAN_STATUS_SUCCESS;
 end:
-	spin_unlock_bh(&sta->ampdu_mlme.ampdu_rx);
+	spin_unlock_bh(&sta->lock);
 
 end_no_lock:
 	ieee80211_send_addba_resp(sta->sdata->dev, sta->addr, tid,
@@ -1340,10 +1340,10 @@ static void ieee80211_sta_process_addba_resp(struct net_device *dev,
 
 	state = &sta->ampdu_mlme.tid_state_tx[tid];
 
-	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_lock_bh(&sta->lock);
 
 	if (!(*state & HT_ADDBA_REQUESTED_MSK)) {
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		spin_unlock_bh(&sta->lock);
 		printk(KERN_DEBUG "state not HT_ADDBA_REQUESTED_MSK:"
 			"%d\n", *state);
 		goto addba_resp_exit;
@@ -1351,7 +1351,7 @@ static void ieee80211_sta_process_addba_resp(struct net_device *dev,
 
 	if (mgmt->u.action.u.addba_resp.dialog_token !=
 		sta->ampdu_mlme.tid_tx[tid]->dialog_token) {
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		spin_unlock_bh(&sta->lock);
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "wrong addBA response token, tid %d\n", tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
@@ -1375,7 +1375,7 @@ static void ieee80211_sta_process_addba_resp(struct net_device *dev,
 			ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
 		}
 
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		spin_unlock_bh(&sta->lock);
 		printk(KERN_DEBUG "recipient accepted agg: tid %d \n", tid);
 	} else {
 		printk(KERN_DEBUG "recipient rejected agg: tid %d \n", tid);
@@ -1383,7 +1383,7 @@ static void ieee80211_sta_process_addba_resp(struct net_device *dev,
 		sta->ampdu_mlme.addba_req_num[tid]++;
 		/* this will allow the state check in stop_BA_session */
 		*state = HT_AGG_STATE_OPERATIONAL;
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		spin_unlock_bh(&sta->lock);
 		ieee80211_stop_tx_ba_session(hw, sta->addr, tid,
 					     WLAN_BACK_INITIATOR);
 	}
@@ -1453,17 +1453,17 @@ void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *ra, u16 tid,
 	}
 
 	/* check if TID is in operational state */
-	spin_lock_bh(&sta->ampdu_mlme.ampdu_rx);
+	spin_lock_bh(&sta->lock);
 	if (sta->ampdu_mlme.tid_state_rx[tid]
 				!= HT_AGG_STATE_OPERATIONAL) {
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_rx);
+		spin_unlock_bh(&sta->lock);
 		rcu_read_unlock();
 		return;
 	}
 	sta->ampdu_mlme.tid_state_rx[tid] =
 		HT_AGG_STATE_REQ_STOP_BA_MSK |
 		(initiator << HT_AGG_STATE_INITIATOR_SHIFT);
-	spin_unlock_bh(&sta->ampdu_mlme.ampdu_rx);
+	spin_unlock_bh(&sta->lock);
 
 	/* stop HW Rx aggregation. ampdu_action existence
 	 * already verified in session init so we add the BUG_ON */
@@ -1540,10 +1540,10 @@ static void ieee80211_sta_process_delba(struct net_device *dev,
 		ieee80211_sta_stop_rx_ba_session(dev, sta->addr, tid,
 						 WLAN_BACK_INITIATOR, 0);
 	else { /* WLAN_BACK_RECIPIENT */
-		spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+		spin_lock_bh(&sta->lock);
 		sta->ampdu_mlme.tid_state_tx[tid] =
 				HT_AGG_STATE_OPERATIONAL;
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		spin_unlock_bh(&sta->lock);
 		ieee80211_stop_tx_ba_session(&local->hw, sta->addr, tid,
 					     WLAN_BACK_RECIPIENT);
 	}
@@ -1580,9 +1580,9 @@ void sta_addba_resp_timer_expired(unsigned long data)
 
 	state = &sta->ampdu_mlme.tid_state_tx[tid];
 	/* check if the TID waits for addBA response */
-	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_lock_bh(&sta->lock);
 	if (!(*state & HT_ADDBA_REQUESTED_MSK)) {
-		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		spin_unlock_bh(&sta->lock);
 		*state = HT_AGG_STATE_IDLE;
 		printk(KERN_DEBUG "timer expired on tid %d but we are not "
 				"expecting addBA response there", tid);
@@ -1593,7 +1593,7 @@ void sta_addba_resp_timer_expired(unsigned long data)
 
 	/* go through the state check in stop_BA_session */
 	*state = HT_AGG_STATE_OPERATIONAL;
-	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+	spin_unlock_bh(&sta->lock);
 	ieee80211_stop_tx_ba_session(hw, temp_sta->addr, tid,
 				     WLAN_BACK_INITIATOR);
 
@@ -1984,8 +1984,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	 *	  to between the sta_info_alloc() and sta_info_insert() above.
 	 */
 
-	sta->flags |= WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_AP |
-		      WLAN_STA_AUTHORIZED;
+	set_sta_flags(sta, WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_AP |
+			   WLAN_STA_AUTHORIZED);
 
 	rates = 0;
 	basic_rates = 0;
@@ -2044,7 +2044,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	rate_control_rate_init(sta, local);
 
 	if (elems.wmm_param) {
-		sta->flags |= WLAN_STA_WME;
+		set_sta_flags(sta, WLAN_STA_WME);
 		rcu_read_unlock();
 		ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,
 					 elems.wmm_param_len);
@@ -4237,7 +4237,7 @@ struct sta_info *ieee80211_ibss_add_sta(struct net_device *dev,
 	if (!sta)
 		return NULL;
 
-	sta->flags |= WLAN_STA_AUTHORIZED;
+	set_sta_flags(sta, WLAN_STA_AUTHORIZED);
 
 	sta->supp_rates[local->hw.conf.channel->band] =
 		sdata->u.sta.supp_rates_bits[local->hw.conf.channel->band];
