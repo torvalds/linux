@@ -1996,7 +1996,8 @@ static struct module *load_module(void __user *umod,
 		mod->unused_crcs = (void *)sechdrs[unusedcrcindex].sh_addr;
 	mod->unused_gpl_syms = (void *)sechdrs[unusedgplindex].sh_addr;
 	if (unusedgplcrcindex)
-		mod->unused_crcs = (void *)sechdrs[unusedgplcrcindex].sh_addr;
+		mod->unused_gpl_crcs
+			= (void *)sechdrs[unusedgplcrcindex].sh_addr;
 
 #ifdef CONFIG_MODVERSIONS
 	if ((mod->num_syms && !crcindex) ||
