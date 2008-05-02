@@ -1650,8 +1650,8 @@ static int close_con_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		release = 1;
 		break;
 	case ABORTING:
-		break;
 	case DEAD:
+		break;
 	default:
 		BUG_ON(1);
 		break;
