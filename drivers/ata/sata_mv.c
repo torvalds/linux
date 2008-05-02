@@ -1151,6 +1151,21 @@ static void mv_config_fbs(void __iomem *port_mmio, int enable_fbs)
 		writelfl(new_ltmode, port_mmio + LTMODE_OFS);
 }
 
+static void mv_60x1_errata_sata25(struct ata_port *ap, int want_ncq)
+{
+	struct mv_host_priv *hpriv = ap->host->private_data;
+	u32 old, new;
+
+	/* workaround for 88SX60x1 FEr SATA#25 (part 1) */
+	old = readl(hpriv->base + MV_GPIO_PORT_CTL_OFS);
+	if (want_ncq)
+		new = old | (1 << 22);
+	else
+		new = old & ~(1 << 22);
+	if (new != old)
+		writel(new, hpriv->base + MV_GPIO_PORT_CTL_OFS);
+}
+
 static void mv_edma_cfg(struct ata_port *ap, int want_ncq)
 {
 	u32 cfg;
@@ -1164,10 +1179,11 @@ static void mv_edma_cfg(struct ata_port *ap, int want_ncq)
 	if (IS_GEN_I(hpriv))
 		cfg |= (1 << 8);	/* enab config burst size mask */
 
-	else if (IS_GEN_II(hpriv))
+	else if (IS_GEN_II(hpriv)) {
 		cfg |= EDMA_CFG_RD_BRST_EXT | EDMA_CFG_WR_BUFF_LEN;
+		mv_60x1_errata_sata25(ap, want_ncq);
 
-	else if (IS_GEN_IIE(hpriv)) {
+	} else if (IS_GEN_IIE(hpriv)) {
 		cfg |= (1 << 23);	/* do not mask PM field in rx'd FIS */
 		cfg |= (1 << 22);	/* enab 4-entry host queue cache */
 		if (HAS_PCI(ap->host))
