@@ -26,7 +26,6 @@
 #include <linux/wait.h>
 #include <asm/atomic.h>
 
-#define KOBJ_NAME_LEN			20
 #define UEVENT_HELPER_PATH_LEN		256
 #define UEVENT_NUM_ENVP			32	/* number of env pointers */
 #define UEVENT_BUFFER_SIZE		2048	/* buffer for the variables */

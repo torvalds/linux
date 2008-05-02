@@ -224,7 +224,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	if (!strcmp(type, "domain-services-port"))
 		bus_id_name = "ds";
 
-	if (strlen(bus_id_name) >= KOBJ_NAME_LEN - 4) {
+	if (strlen(bus_id_name) >= BUS_ID_SIZE - 4) {
 		printk(KERN_ERR "VIO: bus_id_name [%s] is too long.\n",
 		       bus_id_name);
 		return NULL;

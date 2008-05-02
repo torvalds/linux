@@ -247,8 +247,8 @@ static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
 	atomic_set(&ihost->nr_scans, 0);
 	mutex_init(&ihost->mutex);
 
-	snprintf(ihost->scan_workq_name, KOBJ_NAME_LEN, "iscsi_scan_%d",
-		shost->host_no);
+	snprintf(ihost->scan_workq_name, sizeof(ihost->scan_workq_name),
+		 "iscsi_scan_%d", shost->host_no);
 	ihost->scan_workq = create_singlethread_workqueue(
 						ihost->scan_workq_name);
 	if (!ihost->scan_workq)

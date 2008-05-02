@@ -29,8 +29,7 @@
 /* DEVICE_NAME_HALF is really less than half to accommodate slop */
 #define DEVICE_NAME_HALF	__stringify(20)
 #define DEVICE_ID_SIZE		32
-#define BUS_ID_SIZE		KOBJ_NAME_LEN
-
+#define BUS_ID_SIZE		20
 
 struct device;
 struct device_driver;

@@ -232,8 +232,8 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 	}
 
 	if (shost->transportt->create_work_queue) {
-		snprintf(shost->work_q_name, KOBJ_NAME_LEN, "scsi_wq_%d",
-			shost->host_no);
+		snprintf(shost->work_q_name, sizeof(shost->work_q_name),
+			 "scsi_wq_%d", shost->host_no);
 		shost->work_q = create_singlethread_workqueue(
 					shost->work_q_name);
 		if (!shost->work_q) {
