@@ -274,6 +274,48 @@ static enum power_supply_property olpc_bat_props[] = {
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
+/* EEPROM reading goes completely around the power_supply API, sadly */
+
+#define EEPROM_START	0x20
+#define EEPROM_END	0x80
+#define EEPROM_SIZE	(EEPROM_END - EEPROM_START)
+
+static ssize_t olpc_bat_eeprom_read(struct kobject *kobj,
+		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+{
+	uint8_t ec_byte;
+	int ret, end;
+
+	if (off >= EEPROM_SIZE)
+		return 0;
+	if (off + count > EEPROM_SIZE)
+		count = EEPROM_SIZE - off;
+
+	end = EEPROM_START + off + count;
+	for (ec_byte = EEPROM_START + off; ec_byte < end; ec_byte++) {
+		ret = olpc_ec_cmd(EC_BAT_EEPROM, &ec_byte, 1,
+				&buf[ec_byte - EEPROM_START], 1);
+		if (ret) {
+			printk(KERN_ERR "olpc-battery:  EC command "
+					"EC_BAT_EEPROM @ 0x%x failed -"
+					" %d!\n", ec_byte, ret);
+			return -EIO;
+		}
+	}
+
+	return count;
+}
+
+static struct bin_attribute olpc_bat_eeprom = {
+	.attr = {
+		.name = "eeprom",
+		.mode = S_IRUGO,
+		.owner = THIS_MODULE,
+	},
+	.size = 0,
+	.read = olpc_bat_eeprom_read,
+};
+
 /*********************************************************************
  *		Initialisation
  *********************************************************************/
@@ -327,8 +369,14 @@ static int __init olpc_bat_init(void)
 	if (ret)
 		goto battery_failed;
 
+	ret = device_create_bin_file(olpc_bat.dev, &olpc_bat_eeprom);
+	if (ret)
+		goto eeprom_failed;
+
 	goto success;
 
+eeprom_failed:
+	power_supply_unregister(&olpc_bat);
 battery_failed:
 	power_supply_unregister(&olpc_ac);
 ac_failed:
@@ -339,6 +387,7 @@ success:
 
 static void __exit olpc_bat_exit(void)
 {
+	device_remove_bin_file(olpc_bat.dev, &olpc_bat_eeprom);
 	power_supply_unregister(&olpc_bat);
 	power_supply_unregister(&olpc_ac);
 	platform_device_unregister(bat_pdev);
