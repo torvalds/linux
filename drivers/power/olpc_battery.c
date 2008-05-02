@@ -389,8 +389,14 @@ static int __init olpc_bat_init(void)
 
 	if (!olpc_platform_info.ecver)
 		return -ENXIO;
-	if (olpc_platform_info.ecver < 0x43) {
-		printk(KERN_NOTICE "OLPC EC version 0x%02x too old for battery driver.\n", olpc_platform_info.ecver);
+
+	/*
+	 * We've seen a number of EC protocol changes; this driver requires
+	 * the latest EC protocol, supported by 0x44 and above.
+	 */
+	if (olpc_platform_info.ecver < 0x44) {
+		printk(KERN_NOTICE "OLPC EC version 0x%02x too old for "
+			"battery driver.\n", olpc_platform_info.ecver);
 		return -ENXIO;
 	}
 
