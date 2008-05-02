@@ -9570,14 +9570,9 @@ static int tg3_test_loopback(struct tg3 *tp)
 
 		/* Turn off link-based power management. */
 		cpmuctrl = tr32(TG3_CPMU_CTRL);
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
-		    GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5761_AX)
-			tw32(TG3_CPMU_CTRL,
-			     cpmuctrl & ~(CPMU_CTRL_LINK_SPEED_MODE |
-					  CPMU_CTRL_LINK_AWARE_MODE));
-		else
-			tw32(TG3_CPMU_CTRL,
-			     cpmuctrl & ~CPMU_CTRL_LINK_AWARE_MODE);
+		tw32(TG3_CPMU_CTRL,
+		     cpmuctrl & ~(CPMU_CTRL_LINK_SPEED_MODE |
+				  CPMU_CTRL_LINK_AWARE_MODE));
 	}
 
 	if (tg3_run_loopback(tp, TG3_MAC_LOOPBACK))
