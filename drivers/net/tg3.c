@@ -1656,12 +1656,76 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 	return 0;
 }
 
+/* tp->lock is held. */
+static void tg3_wait_for_event_ack(struct tg3 *tp)
+{
+	int i;
+
+	/* Wait for up to 2.5 milliseconds */
+	for (i = 0; i < 250000; i++) {
+		if (!(tr32(GRC_RX_CPU_EVENT) & GRC_RX_CPU_DRIVER_EVENT))
+			break;
+		udelay(10);
+	}
+}
+
+/* tp->lock is held. */
+static void tg3_ump_link_report(struct tg3 *tp)
+{
+	u32 reg;
+	u32 val;
+
+	if (!(tp->tg3_flags2 & TG3_FLG2_5780_CLASS) ||
+	    !(tp->tg3_flags  & TG3_FLAG_ENABLE_ASF))
+		return;
+
+	tg3_wait_for_event_ack(tp);
+
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX, FWCMD_NICDRV_LINK_UPDATE);
+
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 14);
+
+	val = 0;
+	if (!tg3_readphy(tp, MII_BMCR, &reg))
+		val = reg << 16;
+	if (!tg3_readphy(tp, MII_BMSR, &reg))
+		val |= (reg & 0xffff);
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX, val);
+
+	val = 0;
+	if (!tg3_readphy(tp, MII_ADVERTISE, &reg))
+		val = reg << 16;
+	if (!tg3_readphy(tp, MII_LPA, &reg))
+		val |= (reg & 0xffff);
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX + 4, val);
+
+	val = 0;
+	if (!(tp->tg3_flags2 & TG3_FLG2_MII_SERDES)) {
+		if (!tg3_readphy(tp, MII_CTRL1000, &reg))
+			val = reg << 16;
+		if (!tg3_readphy(tp, MII_STAT1000, &reg))
+			val |= (reg & 0xffff);
+	}
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX + 8, val);
+
+	if (!tg3_readphy(tp, MII_PHYADDR, &reg))
+		val = reg << 16;
+	else
+		val = 0;
+	tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX + 12, val);
+
+	val = tr32(GRC_RX_CPU_EVENT);
+	val |= GRC_RX_CPU_DRIVER_EVENT;
+	tw32_f(GRC_RX_CPU_EVENT, val);
+}
+
 static void tg3_link_report(struct tg3 *tp)
 {
 	if (!netif_carrier_ok(tp->dev)) {
 		if (netif_msg_link(tp))
 			printk(KERN_INFO PFX "%s: Link is down.\n",
 			       tp->dev->name);
+		tg3_ump_link_report(tp);
 	} else if (netif_msg_link(tp)) {
 		printk(KERN_INFO PFX "%s: Link is up at %d Mbps, %s duplex.\n",
 		       tp->dev->name,
@@ -1679,6 +1743,7 @@ static void tg3_link_report(struct tg3 *tp)
 		       "on" : "off",
 		       (tp->link_config.active_flowctrl & TG3_FLOW_CTRL_RX) ?
 		       "on" : "off");
+		tg3_ump_link_report(tp);
 	}
 }
 
@@ -5500,19 +5565,17 @@ static void tg3_stop_fw(struct tg3 *tp)
 	if ((tp->tg3_flags & TG3_FLAG_ENABLE_ASF) &&
 	   !(tp->tg3_flags3 & TG3_FLG3_ENABLE_APE)) {
 		u32 val;
-		int i;
+
+		/* Wait for RX cpu to ACK the previous event. */
+		tg3_wait_for_event_ack(tp);
 
 		tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX, FWCMD_NICDRV_PAUSE_FW);
 		val = tr32(GRC_RX_CPU_EVENT);
-		val |= (1 << 14);
+		val |= GRC_RX_CPU_DRIVER_EVENT;
 		tw32(GRC_RX_CPU_EVENT, val);
 
-		/* Wait for RX cpu to ACK the event.  */
-		for (i = 0; i < 100; i++) {
-			if (!(tr32(GRC_RX_CPU_EVENT) & (1 << 14)))
-				break;
-			udelay(1);
-		}
+		/* Wait for RX cpu to ACK this event. */
+		tg3_wait_for_event_ack(tp);
 	}
 }
 
@@ -7402,14 +7465,16 @@ static void tg3_timer(unsigned long __opaque)
 		if (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) {
 			u32 val;
 
+			tg3_wait_for_event_ack(tp);
+
 			tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX,
 				      FWCMD_NICDRV_ALIVE3);
 			tg3_write_mem(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
 			/* 5 seconds timeout */
 			tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 5);
 			val = tr32(GRC_RX_CPU_EVENT);
-			val |= (1 << 14);
-			tw32(GRC_RX_CPU_EVENT, val);
+			val |= GRC_RX_CPU_DRIVER_EVENT;
+			tw32_f(GRC_RX_CPU_EVENT, val);
 		}
 		tp->asf_counter = tp->asf_multiplier;
 	}
