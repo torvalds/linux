@@ -34,6 +34,20 @@
  * interrupt-controller happy.
  */
 
+#define IRQ_NAME2(nr) nr##_interrupt(void)
+#define IRQ_NAME(nr) IRQ_NAME2(IRQ##nr)
+
+/*
+ *	SMP has a few special interrupts for IPI messages
+ */
+
+#define BUILD_IRQ(nr)				\
+	asmlinkage void IRQ_NAME(nr);		\
+	asm("\n.p2align\n"			\
+	    "IRQ" #nr "_interrupt:\n\t"		\
+	    "push $~(" #nr ") ; "		\
+	    "jmp common_interrupt");
+
 #define BI(x,y) \
 	BUILD_IRQ(x##y)
 
