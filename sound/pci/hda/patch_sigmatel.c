@@ -4289,6 +4289,8 @@ struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x83847635, .name = "STAC9250D", .patch = patch_stac925x },
 	{ .id = 0x83847636, .name = "STAC9251", .patch = patch_stac925x },
 	{ .id = 0x83847637, .name = "STAC9250D", .patch = patch_stac925x },
+	{ .id = 0x83847645, .name = "92HD206X", .patch = patch_stac927x },
+	{ .id = 0x83847646, .name = "92HD206D", .patch = patch_stac927x },
  	/* The following does not take into account .id=0x83847661 when subsys =
  	 * 104D0C00 which is STAC9225s. Because of this, some SZ Notebooks are
  	 * currently not fully supported.
