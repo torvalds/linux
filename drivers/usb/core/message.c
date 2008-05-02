@@ -1611,7 +1611,7 @@ free_interfaces:
 		intf->dev.dma_mask = dev->dev.dma_mask;
 		device_initialize(&intf->dev);
 		mark_quiesced(intf);
-		sprintf(&intf->dev.bus_id[0], "%d-%s:%d.%d",
+		dev_set_name(&intf->dev, "%d-%s:%d.%d",
 			dev->bus->busnum, dev->devpath,
 			configuration, alt->desc.bInterfaceNumber);
 	}

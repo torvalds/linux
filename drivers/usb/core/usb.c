@@ -316,7 +316,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 		dev->devpath[0] = '0';
 
 		dev->dev.parent = bus->controller;
-		sprintf(&dev->dev.bus_id[0], "usb%d", bus->busnum);
+		dev_set_name(&dev->dev, "usb%d", bus->busnum);
 		root_hub = 1;
 	} else {
 		/* match any labeling on the hubs; it's one-based */
@@ -328,8 +328,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 				"%s.%d", parent->devpath, port1);
 
 		dev->dev.parent = &parent->dev;
-		sprintf(&dev->dev.bus_id[0], "%d-%s",
-			bus->busnum, dev->devpath);
+		dev_set_name(&dev->dev, "%d-%s", bus->busnum, dev->devpath);
 
 		/* hub driver sets up TT records */
 	}

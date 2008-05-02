@@ -2195,7 +2195,7 @@ struct usb_hcd *isp1760_register(u64 res_start, u64 res_len, int irq,
 	/* prevent usb-core allocating DMA pages */
 	dev->dma_mask = NULL;
 
-	hcd = usb_create_hcd(&isp1760_hc_driver, dev, dev->bus_id);
+	hcd = usb_create_hcd(&isp1760_hc_driver, dev, dev_name(dev));
 	if (!hcd)
 		return ERR_PTR(-ENOMEM);
 

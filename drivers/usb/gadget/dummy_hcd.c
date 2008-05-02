@@ -862,7 +862,7 @@ static int dummy_udc_probe (struct platform_device *pdev)
 	/* maybe claim OTG support, though we won't complete HNP */
 	dum->gadget.is_otg = (dummy_to_hcd(dum)->self.otg_port != 0);
 
-	strcpy (dum->gadget.dev.bus_id, "gadget");
+	dev_set_name(&dum->gadget.dev, "gadget");
 	dum->gadget.dev.parent = &pdev->dev;
 	dum->gadget.dev.release = dummy_gadget_release;
 	rc = device_register (&dum->gadget.dev);

@@ -3342,7 +3342,7 @@ static int udc_probe(struct udc *dev)
 	spin_lock_init(&dev->lock);
 	dev->gadget.ops = &udc_ops;
 
-	strcpy(dev->gadget.dev.bus_id, "gadget");
+	dev_set_name(&dev->gadget.dev, "gadget");
 	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = name;
 	dev->gadget.name = name;
