@@ -65,6 +65,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/mbus.h>
+#include <linux/bitops.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -903,6 +904,10 @@ static void mv_wait_for_edma_empty_idle(struct ata_port *ap)
 
 	/*
 	 * Wait for the EDMA engine to finish transactions in progress.
+	 * No idea what a good "timeout" value might be, but measurements
+	 * indicate that it often requires hundreds of microseconds
+	 * with two drives in-use.  So we use the 15msec value above
+	 * as a rough guess at what even more drives might require.
 	 */
 	for (i = 0; i < timeout; ++i) {
 		u32 edma_stat = readl(port_mmio + EDMA_STATUS_OFS);
@@ -1640,17 +1645,6 @@ static unsigned int mv_get_err_pmp_map(struct ata_port *ap)
 	return readl(port_mmio + SATA_TESTCTL_OFS) >> 16;
 }
 
-static int mv_count_pmp_links(unsigned int pmp_map)
-{
-	unsigned int link_count = 0;
-
-	while (pmp_map) {
-		link_count += (pmp_map & 1);
-		pmp_map >>= 1;
-	}
-	return link_count;
-}
-
 static void mv_pmp_eh_prep(struct ata_port *ap, unsigned int pmp_map)
 {
 	struct ata_eh_info *ehi;
@@ -1701,7 +1695,7 @@ static int mv_handle_fbs_ncq_dev_err(struct ata_port *ap)
 		pp->delayed_eh_pmp_map = new_map;
 		mv_pmp_eh_prep(ap, new_map & ~old_map);
 	}
-	failed_links = mv_count_pmp_links(new_map);
+	failed_links = hweight16(new_map);
 
 	ata_port_printk(ap, KERN_INFO, "%s: pmp_map=%04x qc_map=%04x "
 			"failed_links=%d nr_active_links=%d\n",
