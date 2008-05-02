@@ -359,9 +359,10 @@ static void insert_recv_cqe(struct t3_wq *wq, struct t3_cq *cq)
 	cq->sw_wptr++;
 }
 
-void cxio_flush_rq(struct t3_wq *wq, struct t3_cq *cq, int count)
+int cxio_flush_rq(struct t3_wq *wq, struct t3_cq *cq, int count)
 {
 	u32 ptr;
+	int flushed = 0;
 
 	PDBG("%s wq %p cq %p\n", __func__, wq, cq);
 
@@ -369,8 +370,11 @@ void cxio_flush_rq(struct t3_wq *wq, struct t3_cq *cq, int count)
 	PDBG("%s rq_rptr %u rq_wptr %u skip count %u\n", __func__,
 	    wq->rq_rptr, wq->rq_wptr, count);
 	ptr = wq->rq_rptr + count;
-	while (ptr++ != wq->rq_wptr)
+	while (ptr++ != wq->rq_wptr) {
 		insert_recv_cqe(wq, cq);
+		flushed++;
+	}
+	return flushed;
 }
 
 static void insert_sq_cqe(struct t3_wq *wq, struct t3_cq *cq,
@@ -394,9 +398,10 @@ static void insert_sq_cqe(struct t3_wq *wq, struct t3_cq *cq,
 	cq->sw_wptr++;
 }
 
-void cxio_flush_sq(struct t3_wq *wq, struct t3_cq *cq, int count)
+int cxio_flush_sq(struct t3_wq *wq, struct t3_cq *cq, int count)
 {
 	__u32 ptr;
+	int flushed = 0;
 	struct t3_swsq *sqp = wq->sq + Q_PTR2IDX(wq->sq_rptr, wq->sq_size_log2);
 
 	ptr = wq->sq_rptr + count;
@@ -405,7 +410,9 @@ void cxio_flush_sq(struct t3_wq *wq, struct t3_cq *cq, int count)
 		insert_sq_cqe(wq, cq, sqp);
 		sqp++;
 		ptr++;
+		flushed++;
 	}
+	return flushed;
 }
 
 /*
