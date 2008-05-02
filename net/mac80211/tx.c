@@ -1490,8 +1490,8 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		rcu_read_unlock();
 	}
 
-	/* receiver is QoS enabled, use a QoS type frame */
-	if (sta_flags & WLAN_STA_WME) {
+	/* receiver and we are QoS enabled, use a QoS type frame */
+	if (sta_flags & WLAN_STA_WME && local->hw.queues >= 4) {
 		fc |= IEEE80211_STYPE_QOS_DATA;
 		hdrlen += 2;
 	}

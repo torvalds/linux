@@ -272,6 +272,12 @@ static void ieee80211_sta_wmm_params(struct net_device *dev,
 	int count;
 	u8 *pos;
 
+	if (!(ifsta->flags & IEEE80211_STA_WMM_ENABLED))
+		return;
+
+	if (!wmm_param)
+		return;
+
 	if (wmm_param_len < 8 || wmm_param[5] /* version */ != 1)
 		return;
 	count = wmm_param[6] & 0x0f;
@@ -763,8 +769,10 @@ static void ieee80211_send_assoc(struct net_device *dev,
 		*pos++ = 1; /* WME ver */
 		*pos++ = 0;
 	}
+
 	/* wmm support is a must to HT */
-	if (wmm && sband->ht_info.ht_supported) {
+	if (wmm && (ifsta->flags & IEEE80211_STA_WMM_ENABLED) &&
+	    sband->ht_info.ht_supported) {
 		__le16 tmp = cpu_to_le16(sband->ht_info.cap);
 		pos = skb_put(skb, sizeof(struct ieee80211_ht_cap)+2);
 		*pos++ = WLAN_EID_HT_CAPABILITY;
@@ -2021,7 +2029,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	else
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
 
-	if (elems.ht_cap_elem && elems.ht_info_elem && elems.wmm_param) {
+	if (elems.ht_cap_elem && elems.ht_info_elem && elems.wmm_param &&
+	    (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
 		struct ieee80211_ht_bss_info bss_info;
 		ieee80211_ht_cap_ie_to_ht_info(
 				(struct ieee80211_ht_cap *)
@@ -2034,7 +2043,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 
 	rate_control_rate_init(sta, local);
 
-	if (elems.wmm_param && (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
+	if (elems.wmm_param) {
 		sta->flags |= WLAN_STA_WME;
 		rcu_read_unlock();
 		ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,
@@ -2817,10 +2826,8 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 
 	ieee802_11_parse_elems(mgmt->u.beacon.variable, len - baselen, &elems);
 
-	if (elems.wmm_param && (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
-		ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,
-					 elems.wmm_param_len);
-	}
+	ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,
+				 elems.wmm_param_len);
 
 	/* Do not send changes to driver if we are scanning. This removes
 	 * requirement that driver's bss_info_changed function needs to be
