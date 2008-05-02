@@ -37,6 +37,7 @@
 #include "ordered-data.h"
 #include "ioctl.h"
 #include "print-tree.h"
+#include "compat.h"
 
 
 static int btrfs_copy_from_user(loff_t pos, int num_pages, int write_bytes,
@@ -852,7 +853,11 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		goto out_nolock;
 	if (count == 0)
 		goto out_nolock;
+#ifdef REMOVE_SUID_PATH
+	err = remove_suid(&file->f_path);
+#else
 	err = remove_suid(fdentry(file));
+#endif
 	if (err)
 		goto out_nolock;
 	file_update_time(file);
