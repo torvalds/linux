@@ -405,7 +405,7 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 
  out_err:
-	dprintk("%s: statfs error = %d\n", __FUNCTION__, -error);
+	dprintk("%s: statfs error = %d\n", __func__, -error);
 	unlock_kernel();
 	return error;
 }
