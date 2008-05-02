@@ -285,7 +285,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 			err = btrfs_insert_file_extent(trans, root,
 						       inode->i_ino,
 						       last_pos_in_file,
-						       0, 0, hole_size);
+						       0, 0, hole_size, 0);
 			btrfs_drop_extent_cache(inode, last_pos_in_file,
 					last_pos_in_file + hole_size -1);
 			btrfs_check_file(root, inode);

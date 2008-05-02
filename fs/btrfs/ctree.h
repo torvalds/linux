@@ -1516,9 +1516,9 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 /* file-item.c */
 int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
-			       u64 objectid, u64 pos, u64 offset,
+			       u64 objectid, u64 pos, u64 disk_offset,
 			       u64 disk_num_bytes,
-			       u64 num_bytes);
+			     u64 num_bytes, u64 offset);
 int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid,
