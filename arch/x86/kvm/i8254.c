@@ -308,6 +308,7 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 		create_pit_timer(&ps->pit_timer, val, 0);
 		break;
 	case 2:
+	case 3:
 		create_pit_timer(&ps->pit_timer, val, 1);
 		break;
 	default:
