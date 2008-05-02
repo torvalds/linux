@@ -200,6 +200,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1200,
 	}, {
 		.subvendor = 0x0070,
+		.subdevice = 0x71d3,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1200,
+	}, {
+		.subvendor = 0x0070,
 		.subdevice = 0x8101,
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1700,
 	}, {
