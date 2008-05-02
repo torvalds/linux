@@ -1717,7 +1717,6 @@ bnx2_remote_phy_event(struct bnx2 *bp)
 				break;
 		}
 
-		spin_lock(&bp->phy_lock);
 		bp->flow_ctrl = 0;
 		if ((bp->autoneg & (AUTONEG_SPEED | AUTONEG_FLOW_CTRL)) !=
 		    (AUTONEG_SPEED | AUTONEG_FLOW_CTRL)) {
@@ -1739,7 +1738,6 @@ bnx2_remote_phy_event(struct bnx2 *bp)
 		if (old_port != bp->phy_port)
 			bnx2_set_default_link(bp);
 
-		spin_unlock(&bp->phy_lock);
 	}
 	if (bp->link_up != link_up)
 		bnx2_report_link(bp);
@@ -2447,13 +2445,14 @@ bnx2_phy_event_is_set(struct bnx2 *bp, struct bnx2_napi *bnapi, u32 event)
 static void
 bnx2_phy_int(struct bnx2 *bp, struct bnx2_napi *bnapi)
 {
-	if (bnx2_phy_event_is_set(bp, bnapi, STATUS_ATTN_BITS_LINK_STATE)) {
-		spin_lock(&bp->phy_lock);
+	spin_lock(&bp->phy_lock);
+
+	if (bnx2_phy_event_is_set(bp, bnapi, STATUS_ATTN_BITS_LINK_STATE))
 		bnx2_set_link(bp);
-		spin_unlock(&bp->phy_lock);
-	}
 	if (bnx2_phy_event_is_set(bp, bnapi, STATUS_ATTN_BITS_TIMER_ABORT))
 		bnx2_set_remote_link(bp);
+
+	spin_unlock(&bp->phy_lock);
 
 }
 
