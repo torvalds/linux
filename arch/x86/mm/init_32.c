@@ -162,6 +162,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte;
+	unsigned pages_2m = 0, pages_4k = 0;
 
 	pgd_idx = pgd_index(PAGE_OFFSET);
 	pgd = pgd_base + pgd_idx;
@@ -197,6 +198,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 				    is_kernel_text(addr2))
 					prot = PAGE_KERNEL_LARGE_EXEC;
 
+				pages_2m++;
 				set_pmd(pmd, pfn_pmd(pfn, prot));
 
 				pfn += PTRS_PER_PTE;
@@ -213,11 +215,14 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 				if (is_kernel_text(addr))
 					prot = PAGE_KERNEL_EXEC;
 
+				pages_4k++;
 				set_pte(pte, pfn_pte(pfn, prot));
 			}
 			max_pfn_mapped = pfn;
 		}
 	}
+	update_page_count(PG_LEVEL_2M, pages_2m);
+	update_page_count(PG_LEVEL_4K, pages_4k);
 }
 
 static inline int page_kills_ppro(unsigned long pagenr)

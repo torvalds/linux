@@ -369,7 +369,10 @@ enum {
 	PG_LEVEL_4K,
 	PG_LEVEL_2M,
 	PG_LEVEL_1G,
+	PG_LEVEL_NUM
 };
+
+void update_page_count(int level, unsigned long pages);
 
 /*
  * Helper function that returns the kernel pagetable entry controlling

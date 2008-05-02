@@ -123,6 +123,11 @@ static int uptime_read_proc(char *page, char **start, off_t off,
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 
+int __attribute__((weak)) arch_report_meminfo(char *page)
+{
+	return 0;
+}
+
 static int meminfo_read_proc(char *page, char **start, off_t off,
 				 int count, int *eof, void *data)
 {
@@ -220,6 +225,8 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		);
 
 		len += hugetlb_report_meminfo(page + len);
+
+	len += arch_report_meminfo(page + len);
 
 	return proc_calc_metrics(page, start, off, count, eof, len);
 #undef K

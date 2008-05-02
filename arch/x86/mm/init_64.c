@@ -312,6 +312,8 @@ __meminit void early_iounmap(void *addr, unsigned long size)
 static unsigned long __meminit
 phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 {
+	unsigned long pages = 0;
+
 	int i = pmd_index(address);
 
 	for (; i < PTRS_PER_PMD; i++, address += PMD_SIZE) {
@@ -328,9 +330,11 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 		if (pmd_val(*pmd))
 			continue;
 
+		pages++;
 		set_pte((pte_t *)pmd,
 			pfn_pte(address >> PAGE_SHIFT, PAGE_KERNEL_LARGE));
 	}
+	update_page_count(PG_LEVEL_2M, pages);
 	return address;
 }
 
@@ -350,6 +354,7 @@ phys_pmd_update(pud_t *pud, unsigned long address, unsigned long end)
 static unsigned long __meminit
 phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 {
+	unsigned long pages = 0;
 	unsigned long last_map_addr = end;
 	int i = pud_index(addr);
 
@@ -374,6 +379,7 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 		}
 
 		if (direct_gbpages) {
+			pages++;
 			set_pte((pte_t *)pud,
 				pfn_pte(addr >> PAGE_SHIFT, PAGE_KERNEL_LARGE));
 			last_map_addr = (addr & PUD_MASK) + PUD_SIZE;
@@ -390,6 +396,7 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 		unmap_low_page(pmd);
 	}
 	__flush_tlb_all();
+	update_page_count(PG_LEVEL_1G, pages);
 
 	return last_map_addr >> PAGE_SHIFT;
 }
