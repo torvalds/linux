@@ -9894,7 +9894,7 @@ static void __devinit tg3_get_nvram_size(struct tg3 *tp)
 			return;
 		}
 	}
-	tp->nvram_size = 0x80000;
+	tp->nvram_size = TG3_NVRAM_SIZE_512KB;
 }
 
 static void __devinit tg3_get_nvram_info(struct tg3 *tp)
@@ -10035,11 +10035,14 @@ static void __devinit tg3_get_5755_nvram_info(struct tg3 *tp)
 			tp->nvram_pagesize = 264;
 			if (nvcfg1 == FLASH_5755VENDOR_ATMEL_FLASH_1 ||
 			    nvcfg1 == FLASH_5755VENDOR_ATMEL_FLASH_5)
-				tp->nvram_size = (protect ? 0x3e200 : 0x80000);
+				tp->nvram_size = (protect ? 0x3e200 :
+						  TG3_NVRAM_SIZE_512KB);
 			else if (nvcfg1 == FLASH_5755VENDOR_ATMEL_FLASH_2)
-				tp->nvram_size = (protect ? 0x1f200 : 0x40000);
+				tp->nvram_size = (protect ? 0x1f200 :
+						  TG3_NVRAM_SIZE_256KB);
 			else
-				tp->nvram_size = (protect ? 0x1f200 : 0x20000);
+				tp->nvram_size = (protect ? 0x1f200 :
+						  TG3_NVRAM_SIZE_128KB);
 			break;
 		case FLASH_5752VENDOR_ST_M45PE10:
 		case FLASH_5752VENDOR_ST_M45PE20:
@@ -10049,11 +10052,17 @@ static void __devinit tg3_get_5755_nvram_info(struct tg3 *tp)
 			tp->tg3_flags2 |= TG3_FLG2_FLASH;
 			tp->nvram_pagesize = 256;
 			if (nvcfg1 == FLASH_5752VENDOR_ST_M45PE10)
-				tp->nvram_size = (protect ? 0x10000 : 0x20000);
+				tp->nvram_size = (protect ?
+						  TG3_NVRAM_SIZE_64KB :
+						  TG3_NVRAM_SIZE_128KB);
 			else if (nvcfg1 == FLASH_5752VENDOR_ST_M45PE20)
-				tp->nvram_size = (protect ? 0x10000 : 0x40000);
+				tp->nvram_size = (protect ?
+						  TG3_NVRAM_SIZE_64KB :
+						  TG3_NVRAM_SIZE_256KB);
 			else
-				tp->nvram_size = (protect ? 0x20000 : 0x80000);
+				tp->nvram_size = (protect ?
+						  TG3_NVRAM_SIZE_128KB :
+						  TG3_NVRAM_SIZE_512KB);
 			break;
 	}
 }
@@ -10147,25 +10156,25 @@ static void __devinit tg3_get_5761_nvram_info(struct tg3 *tp)
 			case FLASH_5761VENDOR_ATMEL_MDB161D:
 			case FLASH_5761VENDOR_ST_A_M45PE16:
 			case FLASH_5761VENDOR_ST_M_M45PE16:
-				tp->nvram_size = 0x100000;
+				tp->nvram_size = TG3_NVRAM_SIZE_2MB;
 				break;
 			case FLASH_5761VENDOR_ATMEL_ADB081D:
 			case FLASH_5761VENDOR_ATMEL_MDB081D:
 			case FLASH_5761VENDOR_ST_A_M45PE80:
 			case FLASH_5761VENDOR_ST_M_M45PE80:
-				tp->nvram_size = 0x80000;
+				tp->nvram_size = TG3_NVRAM_SIZE_1MB;
 				break;
 			case FLASH_5761VENDOR_ATMEL_ADB041D:
 			case FLASH_5761VENDOR_ATMEL_MDB041D:
 			case FLASH_5761VENDOR_ST_A_M45PE40:
 			case FLASH_5761VENDOR_ST_M_M45PE40:
-				tp->nvram_size = 0x40000;
+				tp->nvram_size = TG3_NVRAM_SIZE_512KB;
 				break;
 			case FLASH_5761VENDOR_ATMEL_ADB021D:
 			case FLASH_5761VENDOR_ATMEL_MDB021D:
 			case FLASH_5761VENDOR_ST_A_M45PE20:
 			case FLASH_5761VENDOR_ST_M_M45PE20:
-				tp->nvram_size = 0x20000;
+				tp->nvram_size = TG3_NVRAM_SIZE_256KB;
 				break;
 		}
 	}
