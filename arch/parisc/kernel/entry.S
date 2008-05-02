@@ -38,6 +38,7 @@
 #include <asm/thread_info.h>
 
 #include <linux/linkage.h>
+#include <linux/init.h>
 
 #ifdef CONFIG_64BIT
 #define CMPIB           cmpib,*
@@ -629,7 +630,7 @@
 	 * the static part of the kernel address space.
 	 */
 
-	.text
+	__HEAD
 
 	.align	PAGE_SIZE
 
