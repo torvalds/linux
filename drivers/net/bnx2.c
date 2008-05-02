@@ -4216,13 +4216,6 @@ bnx2_init_remote_phy(struct bnx2 *bp)
 		if (netif_running(bp->dev)) {
 			u32 sig;
 
-			if (val & BNX2_LINK_STATUS_LINK_UP) {
-				bp->link_up = 1;
-				netif_carrier_on(bp->dev);
-			} else {
-				bp->link_up = 0;
-				netif_carrier_off(bp->dev);
-			}
 			sig = BNX2_DRV_ACK_CAP_SIGNATURE |
 			      BNX2_FW_CAP_REMOTE_PHY_CAPABLE;
 			bnx2_shmem_wr(bp, BNX2_DRV_ACK_CAP_MB, sig);
@@ -4879,6 +4872,8 @@ bnx2_init_nic(struct bnx2 *bp)
 	spin_lock_bh(&bp->phy_lock);
 	bnx2_init_phy(bp);
 	bnx2_set_link(bp);
+	if (bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP)
+		bnx2_remote_phy_event(bp);
 	spin_unlock_bh(&bp->phy_lock);
 	return 0;
 }
