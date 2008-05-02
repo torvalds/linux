@@ -26,7 +26,7 @@ static inline u32 u32_field_get(u8 *preq_elem, int offset, bool ae)
 {
 	if (ae)
 		offset += 6;
-	return le32_to_cpu(get_unaligned((__le32 *) (preq_elem + offset)));
+	return get_unaligned_le32(preq_elem + offset);
 }
 
 /* HWMP IE processing macros */
