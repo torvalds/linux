@@ -376,7 +376,6 @@ static void account_shadowed(struct kvm *kvm, gfn_t gfn)
 
 	write_count = slot_largepage_idx(gfn, gfn_to_memslot(kvm, gfn));
 	*write_count += 1;
-	WARN_ON(*write_count > KVM_PAGES_PER_HPAGE);
 }
 
 static void unaccount_shadowed(struct kvm *kvm, gfn_t gfn)
