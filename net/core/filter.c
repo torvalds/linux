@@ -213,7 +213,7 @@ unsigned int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int 
 load_w:
 			ptr = load_pointer(skb, k, 4, &tmp);
 			if (ptr != NULL) {
-				A = ntohl(get_unaligned((__be32 *)ptr));
+				A = get_unaligned_be32(ptr);
 				continue;
 			}
 			break;
@@ -222,7 +222,7 @@ load_w:
 load_h:
 			ptr = load_pointer(skb, k, 2, &tmp);
 			if (ptr != NULL) {
-				A = ntohs(get_unaligned((__be16 *)ptr));
+				A = get_unaligned_be16(ptr);
 				continue;
 			}
 			break;

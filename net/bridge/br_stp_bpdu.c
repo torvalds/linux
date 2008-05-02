@@ -58,12 +58,12 @@ static inline void br_set_ticks(unsigned char *dest, int j)
 {
 	unsigned long ticks = (STP_HZ * j)/ HZ;
 
-	put_unaligned(htons(ticks), (__be16 *)dest);
+	put_unaligned_be16(ticks, dest);
 }
 
 static inline int br_get_ticks(const unsigned char *src)
 {
-	unsigned long ticks = ntohs(get_unaligned((__be16 *)src));
+	unsigned long ticks = get_unaligned_be16(src);
 
 	return DIV_ROUND_UP(ticks * HZ, STP_HZ);
 }
