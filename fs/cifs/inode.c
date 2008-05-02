@@ -389,7 +389,7 @@ int cifs_get_inode_info(struct inode **pinode,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	const unsigned char *full_path = NULL;
 	char *buf = NULL;
-	bool adjustTZ = bool;
+	bool adjustTZ = false;
 	bool is_dfs_referral = false;
 
 	pTcon = cifs_sb->tcon;
