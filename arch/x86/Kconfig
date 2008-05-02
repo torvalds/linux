@@ -1117,6 +1117,15 @@ config MTRR_SANITIZER_ENABLE_DEFAULT
 	help
 	  Enable mtrr cleanup default value
 
+config MTRR_SANITIZER_SPARE_REG_NR_DEFAULT
+	int "MTRR cleanup spare reg num (0-7)"
+	range 0 7
+	default "1"
+	depends on MTRR_SANITIZER
+	help
+	  mtrr cleanup spare entries default, it can be changed via
+	  mtrr_spare_reg_nr=
+
 config X86_PAT
 	bool
 	prompt "x86 PAT support"

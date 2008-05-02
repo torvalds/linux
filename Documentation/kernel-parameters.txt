@@ -610,8 +610,17 @@ and is between 256 and 4096 characters. It is defined in the file
 			that could hold holes aka. UC entries.
 
 	mtrr_gran_size=nn[KMG] [X86]
-			used for mtrr cleanup. It is granity of mtrr block.
-			Big value could prevent small alignment use up MTRRs.
+			Used for mtrr cleanup. It is granularity of mtrr block.
+			Default is 1.
+			Large value could prevent small alignment from
+			using up MTRRs.
+
+	mtrr_spare_reg_nr=n [X86]
+			Format: <integer>
+			Range: 0,7 : spare reg number
+			Default : 1
+			Used for mtrr cleanup. It is spare mtrr entries number.
+			Set to 2 or more if your graphical card needs more.
 
 	disable_mtrr_trim [X86, Intel and AMD only]
 			By default the kernel will trim any uncacheable
