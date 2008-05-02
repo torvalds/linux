@@ -176,12 +176,11 @@ int vlan_proc_add_dev(struct net_device *vlandev)
 	struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
 	struct vlan_net *vn = net_generic(dev_net(vlandev), vlan_net_id);
 
-	dev_info->dent = proc_create(vlandev->name, S_IFREG|S_IRUSR|S_IWUSR,
-				     vn->proc_vlan_dir, &vlandev_fops);
+	dev_info->dent =
+		proc_create_data(vlandev->name, S_IFREG|S_IRUSR|S_IWUSR,
+				 vn->proc_vlan_dir, &vlandev_fops, vlandev);
 	if (!dev_info->dent)
 		return -ENOBUFS;
-
-	dev_info->dent->data = vlandev;
 	return 0;
 }
 
