@@ -2035,12 +2035,12 @@ fail:
 
 static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
-	struct inode *inode;
+	struct inode *inode = NULL;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	int err = 0;
 	int drop_on_err = 0;
-	u64 objectid;
+	u64 objectid = 0;
 	unsigned long nr = 1;
 
 	mutex_lock(&root->fs_info->fs_mutex);
