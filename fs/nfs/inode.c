@@ -541,8 +541,7 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int wait)
 	}
 	if (ctx->cred != NULL)
 		put_rpccred(ctx->cred);
-	dput(ctx->path.dentry);
-	mntput(ctx->path.mnt);
+	path_put(&ctx->path);
 	kfree(ctx);
 }
 
