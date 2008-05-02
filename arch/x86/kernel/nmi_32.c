@@ -293,9 +293,9 @@ void stop_apic_nmi_watchdog(void *unused)
  *  here too!]
  */
 
-static unsigned int
-	last_irq_sums [NR_CPUS],
-	alert_counter [NR_CPUS];
+static DEFINE_PER_CPU(unsigned, last_irq_sum);
+static DEFINE_PER_CPU(local_t, alert_counter);
+static DEFINE_PER_CPU(int, nmi_touch);
 
 void touch_nmi_watchdog(void)
 {
@@ -303,12 +303,13 @@ void touch_nmi_watchdog(void)
 		unsigned cpu;
 
 		/*
-		 * Just reset the alert counters, (other CPUs might be
-		 * spinning on locks we hold):
+		 * Tell other CPUs to reset their alert counters. We cannot
+		 * do it ourselves because the alert count increase is not
+		 * atomic.
 		 */
 		for_each_present_cpu(cpu) {
-			if (alert_counter[cpu])
-				alert_counter[cpu] = 0;
+			if (per_cpu(nmi_touch, cpu) != 1)
+				per_cpu(nmi_touch, cpu) = 1;
 		}
 	}
 
@@ -358,22 +359,26 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 	 */
 	sum = per_cpu(irq_stat, cpu).apic_timer_irqs +
 		per_cpu(irq_stat, cpu).irq0_irqs;
+	if (__get_cpu_var(nmi_touch)) {
+		__get_cpu_var(nmi_touch) = 0;
+		touched = 1;
+	}
 
 	/* if the none of the timers isn't firing, this cpu isn't doing much */
-	if (!touched && last_irq_sums[cpu] == sum) {
+	if (!touched && __get_cpu_var(last_irq_sum) == sum) {
 		/*
 		 * Ayiee, looks like this CPU is stuck ...
 		 * wait a few IRQs (5 seconds) before doing the oops ...
 		 */
-		alert_counter[cpu]++;
-		if (alert_counter[cpu] == 5*nmi_hz)
+		local_inc(&__get_cpu_var(alert_counter));
+		if (local_read(&__get_cpu_var(alert_counter)) == 5*nmi_hz)
 			/*
 			 * die_nmi will return ONLY if NOTIFY_STOP happens..
 			 */
 			die_nmi(regs, "BUG: NMI Watchdog detected LOCKUP");
 	} else {
-		last_irq_sums[cpu] = sum;
-		alert_counter[cpu] = 0;
+		__get_cpu_var(last_irq_sum) = sum;
+		local_set(&__get_cpu_var(alert_counter), 0);
 	}
 	/* see if the nmi watchdog went off */
 	if (!__get_cpu_var(wd_enabled))
