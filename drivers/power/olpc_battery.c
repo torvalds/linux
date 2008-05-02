@@ -86,6 +86,117 @@ static struct power_supply olpc_ac = {
 
 static char bat_serial[17]; /* Ick */
 
+static int olpc_bat_get_status(union power_supply_propval *val, uint8_t ec_byte)
+{
+	if (olpc_platform_info.ecver > 0x44) {
+		if (ec_byte & BAT_STAT_CHARGING)
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		else if (ec_byte & BAT_STAT_DISCHARGING)
+			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		else if (ec_byte & BAT_STAT_FULL)
+			val->intval = POWER_SUPPLY_STATUS_FULL;
+		else /* er,... */
+			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+	} else {
+		/* Older EC didn't report charge/discharge bits */
+		if (!(ec_byte & BAT_STAT_AC)) /* No AC means discharging */
+			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		else if (ec_byte & BAT_STAT_FULL)
+			val->intval = POWER_SUPPLY_STATUS_FULL;
+		else /* Not _necessarily_ true but EC doesn't tell all yet */
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+	}
+
+	return 0;
+}
+
+static int olpc_bat_get_health(union power_supply_propval *val)
+{
+	uint8_t ec_byte;
+	int ret;
+
+	ret = olpc_ec_cmd(EC_BAT_ERRCODE, NULL, 0, &ec_byte, 1);
+	if (ret)
+		return ret;
+
+	switch (ec_byte) {
+	case 0:
+		val->intval = POWER_SUPPLY_HEALTH_GOOD;
+		break;
+
+	case BAT_ERR_OVERTEMP:
+		val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
+		break;
+
+	case BAT_ERR_OVERVOLTAGE:
+		val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+		break;
+
+	case BAT_ERR_INFOFAIL:
+	case BAT_ERR_OUT_OF_CONTROL:
+	case BAT_ERR_ID_FAIL:
+	case BAT_ERR_ACR_FAIL:
+		val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+		break;
+
+	default:
+		/* Eep. We don't know this failure code */
+		ret = -EIO;
+	}
+
+	return ret;
+}
+
+static int olpc_bat_get_mfr(union power_supply_propval *val)
+{
+	uint8_t ec_byte;
+	int ret;
+
+	ec_byte = BAT_ADDR_MFR_TYPE;
+	ret = olpc_ec_cmd(EC_BAT_EEPROM, &ec_byte, 1, &ec_byte, 1);
+	if (ret)
+		return ret;
+
+	switch (ec_byte >> 4) {
+	case 1:
+		val->strval = "Gold Peak";
+		break;
+	case 2:
+		val->strval = "BYD";
+		break;
+	default:
+		val->strval = "Unknown";
+		break;
+	}
+
+	return ret;
+}
+
+static int olpc_bat_get_tech(union power_supply_propval *val)
+{
+	uint8_t ec_byte;
+	int ret;
+
+	ec_byte = BAT_ADDR_MFR_TYPE;
+	ret = olpc_ec_cmd(EC_BAT_EEPROM, &ec_byte, 1, &ec_byte, 1);
+	if (ret)
+		return ret;
+
+	switch (ec_byte & 0xf) {
+	case 1:
+		val->intval = POWER_SUPPLY_TECHNOLOGY_NiMH;
+		break;
+	case 2:
+		val->intval = POWER_SUPPLY_TECHNOLOGY_LiFe;
+		break;
+	default:
+		val->intval = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+		break;
+	}
+
+	return ret;
+}
+
 /*********************************************************************
  *		Battery properties
  *********************************************************************/
@@ -113,25 +224,10 @@ static int olpc_bat_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		if (olpc_platform_info.ecver > 0x44) {
-			if (ec_byte & BAT_STAT_CHARGING)
-				val->intval = POWER_SUPPLY_STATUS_CHARGING;
-			else if (ec_byte & BAT_STAT_DISCHARGING)
-				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
-			else if (ec_byte & BAT_STAT_FULL)
-				val->intval = POWER_SUPPLY_STATUS_FULL;
-			else /* er,... */
-				val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
-		} else {
-			/* Older EC didn't report charge/discharge bits */
-			if (!(ec_byte & BAT_STAT_AC)) /* No AC means discharging */
-				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
-			else if (ec_byte & BAT_STAT_FULL)
-				val->intval = POWER_SUPPLY_STATUS_FULL;
-			else /* Not _necessarily_ true but EC doesn't tell all yet */
-				val->intval = POWER_SUPPLY_STATUS_CHARGING;
-			break;
-		}
+		ret = olpc_bat_get_status(val, ec_byte);
+		if (ret)
+			return ret;
+		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = !!(ec_byte & BAT_STAT_PRESENT);
 		break;
@@ -140,72 +236,21 @@ static int olpc_bat_get_property(struct power_supply *psy,
 		if (ec_byte & BAT_STAT_DESTROY)
 			val->intval = POWER_SUPPLY_HEALTH_DEAD;
 		else {
-			ret = olpc_ec_cmd(EC_BAT_ERRCODE, NULL, 0, &ec_byte, 1);
+			ret = olpc_bat_get_health(val);
 			if (ret)
 				return ret;
-
-			switch (ec_byte) {
-			case 0:
-				val->intval = POWER_SUPPLY_HEALTH_GOOD;
-				break;
-
-			case BAT_ERR_OVERTEMP:
-				val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
-				break;
-
-			case BAT_ERR_OVERVOLTAGE:
-				val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
-				break;
-
-			case BAT_ERR_INFOFAIL:
-			case BAT_ERR_OUT_OF_CONTROL:
-			case BAT_ERR_ID_FAIL:
-			case BAT_ERR_ACR_FAIL:
-				val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
-				break;
-
-			default:
-				/* Eep. We don't know this failure code */
-				return -EIO;
-			}
 		}
 		break;
 
 	case POWER_SUPPLY_PROP_MANUFACTURER:
-		ec_byte = BAT_ADDR_MFR_TYPE;
-		ret = olpc_ec_cmd(EC_BAT_EEPROM, &ec_byte, 1, &ec_byte, 1);
+		ret = olpc_bat_get_mfr(val);
 		if (ret)
 			return ret;
-
-		switch (ec_byte >> 4) {
-		case 1:
-			val->strval = "Gold Peak";
-			break;
-		case 2:
-			val->strval = "BYD";
-			break;
-		default:
-			val->strval = "Unknown";
-			break;
-		}
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		ec_byte = BAT_ADDR_MFR_TYPE;
-		ret = olpc_ec_cmd(EC_BAT_EEPROM, &ec_byte, 1, &ec_byte, 1);
+		ret = olpc_bat_get_tech(val);
 		if (ret)
 			return ret;
-
-		switch (ec_byte & 0xf) {
-		case 1:
-			val->intval = POWER_SUPPLY_TECHNOLOGY_NiMH;
-			break;
-		case 2:
-			val->intval = POWER_SUPPLY_TECHNOLOGY_LiFe;
-			break;
-		default:
-			val->intval = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
-			break;
-		}
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		ret = olpc_ec_cmd(EC_BAT_VOLTAGE, NULL, 0, (void *)&ec_word, 2);
