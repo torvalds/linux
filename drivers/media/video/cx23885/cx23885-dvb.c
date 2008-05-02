@@ -37,7 +37,6 @@
 #include "lgdt330x.h"
 #include "xc5000.h"
 #include "tda10048.h"
-#include "dvb-pll.h"
 #include "tuner-xc2028.h"
 #include "tuner-simple.h"
 #include "dib7000p.h"
