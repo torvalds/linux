@@ -51,7 +51,7 @@
 #include <asm/percpu.h>
 #include <asm/dwarf2.h>
 #include <asm/processor-flags.h>
-#include "irq_vectors.h"
+#include <asm/irq_vectors.h>
 
 /*
  * We use macros for low-level operations which need to be overridden

@@ -13,7 +13,7 @@
  * unified by tglx
  */
 
-#define NMI_VECTOR		0x02
+#include <asm/irq_vectors.h>
 
 #ifndef __ASSEMBLY__
 
@@ -74,6 +74,16 @@ extern void send_IPI(int dest, int vector);
 /* Statistics */
 extern atomic_t irq_err_count;
 extern atomic_t irq_mis_count;
+
+/* Voyager functions */
+extern asmlinkage void vic_cpi_interrupt(void);
+extern asmlinkage void vic_sys_interrupt(void);
+extern asmlinkage void vic_cmn_interrupt(void);
+extern asmlinkage void qic_timer_interrupt(void);
+extern asmlinkage void qic_invalidate_interrupt(void);
+extern asmlinkage void qic_reschedule_interrupt(void);
+extern asmlinkage void qic_enable_irq_interrupt(void);
+extern asmlinkage void qic_call_function_interrupt(void);
 
 #endif /* !ASSEMBLY_ */
 

@@ -21,10 +21,9 @@
 #include <asm/io.h>
 #include <asm/apic.h>
 #include <asm/i8259.h>
+#include <asm/irq_vectors.h>
 
 #include "cobalt.h"
-#include "irq_vectors.h"
-
 
 static DEFINE_SPINLOCK(cobalt_lock);
 
