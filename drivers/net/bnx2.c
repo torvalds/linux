@@ -2222,6 +2222,11 @@ bnx2_init_5709_context(struct bnx2 *bp)
 	for (i = 0; i < bp->ctx_pages; i++) {
 		int j;
 
+		if (bp->ctx_blk[i])
+			memset(bp->ctx_blk[i], 0, BCM_PAGE_SIZE);
+		else
+			return -ENOMEM;
+
 		REG_WR(bp, BNX2_CTX_HOST_PAGE_TBL_DATA0,
 		       (bp->ctx_blk_mapping[i] & 0xffffffff) |
 		       BNX2_CTX_HOST_PAGE_TBL_DATA0_VALID);
