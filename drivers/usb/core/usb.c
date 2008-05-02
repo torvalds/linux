@@ -308,7 +308,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	 * by location for diagnostics, tools, driver model, etc.  The
 	 * string is a path along hub ports, from the root.  Each device's
 	 * dev->devpath will be stable until USB is re-cabled, and hubs
-	 * are often labeled with these port numbers.  The bus_id isn't
+	 * are often labeled with these port numbers.  The name isn't
 	 * as stable:  bus->busnum changes easily from modprobe order,
 	 * cardbus or pci hotplugging, and so on.
 	 */

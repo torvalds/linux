@@ -1865,7 +1865,7 @@ static int dummy_hcd_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s, driver " DRIVER_VERSION "\n", driver_desc);
 
-	hcd = usb_create_hcd(&dummy_hcd, &pdev->dev, pdev->dev.bus_id);
+	hcd = usb_create_hcd(&dummy_hcd, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd)
 		return -ENOMEM;
 	the_controller = hcd_to_dummy (hcd);

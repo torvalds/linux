@@ -41,7 +41,7 @@ static int of_isp1760_probe(struct of_device *dev,
 		return -ENXIO;
 
 	res = request_mem_region(memory.start, memory.end - memory.start + 1,
-			dev->dev.bus_id);
+			dev_name(&dev->dev));
 	if (!res)
 		return -EBUSY;
 
@@ -56,7 +56,7 @@ static int of_isp1760_probe(struct of_device *dev,
 			oirq.size);
 
 	hcd = isp1760_register(memory.start, res_len, virq,
-		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev->dev.bus_id);
+		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev_name(&dev->dev));
 	if (IS_ERR(hcd)) {
 		ret = PTR_ERR(hcd);
 		goto release_reg;
@@ -200,7 +200,7 @@ static int __devinit isp1761_pci_probe(struct pci_dev *dev,
 
 	dev->dev.dma_mask = NULL;
 	hcd = isp1760_register(pci_mem_phy0, length, dev->irq,
-		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev->dev.bus_id);
+		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev_name(&dev->dev));
 	pci_set_drvdata(dev, hcd);
 	if (!hcd)
 		return 0;

@@ -1642,7 +1642,7 @@ static void eth_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *p)
 	strlcpy(p->driver, shortname, sizeof p->driver);
 	strlcpy(p->version, DRIVER_VERSION, sizeof p->version);
 	strlcpy(p->fw_version, dev->gadget->name, sizeof p->fw_version);
-	strlcpy (p->bus_info, dev->gadget->dev.bus_id, sizeof p->bus_info);
+	strlcpy (p->bus_info, dev_name(&dev->gadget->dev), sizeof p->bus_info);
 }
 
 static u32 eth_get_link(struct net_device *net)

@@ -1090,7 +1090,7 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			if (!device_is_registered(&interface->dev))
 				continue;
 			dev_dbg(&dev->dev, "unregistering interface %s\n",
-				interface->dev.bus_id);
+				dev_name(&interface->dev));
 			device_del(&interface->dev);
 			usb_remove_sysfs_intf_files(interface);
 		}
@@ -1631,12 +1631,12 @@ free_interfaces:
 
 		dev_dbg(&dev->dev,
 			"adding %s (config #%d, interface %d)\n",
-			intf->dev.bus_id, configuration,
+			dev_name(&intf->dev), configuration,
 			intf->cur_altsetting->desc.bInterfaceNumber);
 		ret = device_add(&intf->dev);
 		if (ret != 0) {
 			dev_err(&dev->dev, "device_add(%s) --> %d\n",
-				intf->dev.bus_id, ret);
+				dev_name(&intf->dev), ret);
 			continue;
 		}
 		usb_create_sysfs_intf_files(intf);

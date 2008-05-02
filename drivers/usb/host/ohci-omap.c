@@ -329,7 +329,7 @@ static int usb_hcd_omap_probe (const struct hc_driver *driver,
 	}
 
 
-	hcd = usb_create_hcd (driver, &pdev->dev, pdev->dev.bus_id);
+	hcd = usb_create_hcd (driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err0;

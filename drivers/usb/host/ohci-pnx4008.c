@@ -389,7 +389,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	while ((__raw_readl(USB_OTG_CLK_STAT) & USB_CLOCK_MASK) !=
 	       USB_CLOCK_MASK) ;
 
-	hcd = usb_create_hcd (driver, &pdev->dev, pdev->dev.bus_id);
+	hcd = usb_create_hcd (driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		err("Failed to allocate HC buffer");
 		ret = -ENOMEM;
