@@ -79,6 +79,9 @@ extern void send_IPI(int dest, int vector);
 extern atomic_t irq_err_count;
 extern atomic_t irq_mis_count;
 
+/* EISA */
+extern void eisa_set_level_irq(unsigned int irq);
+
 /* Voyager functions */
 extern asmlinkage void vic_cpi_interrupt(void);
 extern asmlinkage void vic_sys_interrupt(void);
