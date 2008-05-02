@@ -1400,33 +1400,33 @@ EXPORT_SYMBOL_GPL(__symbol_get);
  */
 static int verify_export_symbols(struct module *mod)
 {
-	const char *name = NULL;
-	unsigned long i, ret = 0;
+	unsigned int i;
 	struct module *owner;
-	const unsigned long *crc;
+	const struct kernel_symbol *s;
+	struct {
+		const struct kernel_symbol *sym;
+		unsigned int num;
+	} arr[] = {
+		{ mod->syms, mod->num_syms },
+		{ mod->gpl_syms, mod->num_gpl_syms },
+		{ mod->gpl_future_syms, mod->num_gpl_future_syms },
+		{ mod->unused_syms, mod->num_unused_syms },
+		{ mod->unused_gpl_syms, mod->num_unused_gpl_syms },
+	};
 
-	for (i = 0; i < mod->num_syms; i++)
-		if (!IS_ERR_VALUE(find_symbol(mod->syms[i].name,
-					      &owner, &crc, true, false))) {
-			name = mod->syms[i].name;
-			ret = -ENOEXEC;
-			goto dup;
+	for (i = 0; i < ARRAY_SIZE(arr); i++) {
+		for (s = arr[i].sym; s < arr[i].sym + arr[i].num; s++) {
+			if (!IS_ERR_VALUE(find_symbol(s->name, &owner,
+						      NULL, true, false))) {
+				printk(KERN_ERR
+				       "%s: exports duplicate symbol %s"
+				       " (owned by %s)\n",
+				       mod->name, s->name, module_name(owner));
+				return -ENOEXEC;
+			}
 		}
-
-	for (i = 0; i < mod->num_gpl_syms; i++)
-		if (!IS_ERR_VALUE(find_symbol(mod->gpl_syms[i].name,
-					      &owner, &crc, true, false))) {
-			name = mod->gpl_syms[i].name;
-			ret = -ENOEXEC;
-			goto dup;
-		}
-
-dup:
-	if (ret)
-		printk(KERN_ERR "%s: exports duplicate symbol %s (owned by %s)\n",
-			mod->name, name, module_name(owner));
-
-	return ret;
+	}
+	return 0;
 }
 
 /* Change all symbols so that st_value encodes the pointer directly. */
