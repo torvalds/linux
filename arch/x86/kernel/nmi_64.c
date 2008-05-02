@@ -79,7 +79,7 @@ static __init void nmi_cpu_busy(void *data)
 
 int __init check_nmi_watchdog(void)
 {
-	int *prev_nmi_count;
+	unsigned int *prev_nmi_count;
 	int cpu;
 
 	if ((nmi_watchdog == NMI_NONE) || (nmi_watchdog == NMI_DISABLED))
@@ -316,7 +316,7 @@ EXPORT_SYMBOL(touch_nmi_watchdog);
 notrace __kprobes int
 nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 {
-	int sum;
+	unsigned int sum;
 	int touched = 0;
 	int cpu = smp_processor_id();
 	int rc = 0;
