@@ -38,12 +38,11 @@
 
 /* The following structure is used to hold the physical
  * memory configuration of the machine.  This is filled in
- * probe_memory() and is later used by mem_init() to set up
- * mem_map[].  We statically allocate SPARC_PHYS_BANKS of
+ * prom_meminit() and is later used by mem_init() to set up
+ * mem_map[].  We statically allocate SPARC_PHYS_BANKS+1 of
  * these structs, this is arbitrary.  The entry after the
  * last valid one has num_bytes==0.
  */
-
 struct sparc_phys_banks {
   unsigned long base_addr;
   unsigned long num_bytes;

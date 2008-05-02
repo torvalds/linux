@@ -84,13 +84,6 @@ extern int prom_devclose(int device_handle);
 extern void prom_seek(int device_handle, unsigned int seek_hival,
 		      unsigned int seek_lowval);
 
-/* Machine memory configuration routine. */
-
-/* This function returns a V0 format available memory descriptor entry.
- * This list is pre-sorted,
- */
-extern struct linux_mlist_v0 *prom_meminfo(void);
-
 /* Miscellaneous routines, don't really fit in any category per se. */
 
 /* Reboot the machine with the command line passed. */
