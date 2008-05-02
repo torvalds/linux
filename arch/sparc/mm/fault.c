@@ -55,7 +55,7 @@ int prom_probe_memory (void)
 	register int i;
 
 	i = 0;
-	mlist= *prom_meminfo()->v0_available;
+	mlist= prom_meminfo();
 	bytes = tally = mlist->num_bytes;
 	base_paddr = (unsigned long) mlist->start_adr;
   
