@@ -154,7 +154,7 @@ static int mpc8568_mds_phy_fixups(struct phy_device *phydev)
 static void __init mpc85xx_mds_setup_arch(void)
 {
 	struct device_node *np;
-	static u8 *bcsr_regs = NULL;
+	static u8 __iomem *bcsr_regs = NULL;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_mds_setup_arch()", 0);
