@@ -1050,8 +1050,6 @@ asmlinkage long sys_epoll_create(int size)
 {
 	int error, fd = -1;
 	struct eventpoll *ep;
-	struct inode *inode;
-	struct file *file;
 
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d)\n",
 		     current, size));
@@ -1061,29 +1059,24 @@ asmlinkage long sys_epoll_create(int size)
 	 * structure ( "struct eventpoll" ).
 	 */
 	error = -EINVAL;
-	if (size <= 0 || (error = ep_alloc(&ep)) != 0)
+	if (size <= 0 || (error = ep_alloc(&ep)) < 0) {
+		fd = error;
 		goto error_return;
+	}
 
 	/*
 	 * Creates all the items needed to setup an eventpoll file. That is,
-	 * a file structure, and inode and a free file descriptor.
+	 * a file structure and a free file descriptor.
 	 */
-	error = anon_inode_getfd(&fd, &inode, &file, "[eventpoll]",
-				 &eventpoll_fops, ep);
-	if (error)
-		goto error_free;
+	fd = anon_inode_getfd("[eventpoll]", &eventpoll_fops, ep);
+	if (fd < 0)
+		ep_free(ep);
 
+error_return:
 	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d) = %d\n",
 		     current, size, fd));
 
 	return fd;
-
-error_free:
-	ep_free(ep);
-error_return:
-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: sys_epoll_create(%d) = %d\n",
-		     current, size, error));
-	return error;
 }
 
 /*

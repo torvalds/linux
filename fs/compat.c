@@ -24,6 +24,7 @@
 #include <linux/fcntl.h>
 #include <linux/namei.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/vfs.h>
 #include <linux/ioctl.h>
 #include <linux/init.h>
