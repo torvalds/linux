@@ -89,12 +89,15 @@ extern asmlinkage void qic_reschedule_interrupt(void);
 extern asmlinkage void qic_enable_irq_interrupt(void);
 extern asmlinkage void qic_call_function_interrupt(void);
 
-#endif /* !ASSEMBLY_ */
-
 #ifdef CONFIG_X86_32
-# include "hw_irq_32.h"
+extern void (*const interrupt[NR_IRQS])(void);
 #else
-# include "hw_irq_64.h"
+typedef int vector_irq_t[NR_VECTORS];
+DECLARE_PER_CPU(vector_irq_t, vector_irq);
+extern void __setup_vector_irq(int cpu);
+extern spinlock_t vector_lock;
 #endif
+
+#endif /* !ASSEMBLY_ */
 
 #endif
