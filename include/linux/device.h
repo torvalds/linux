@@ -25,9 +25,6 @@
 #include <asm/atomic.h>
 #include <asm/device.h>
 
-#define DEVICE_NAME_SIZE	50
-/* DEVICE_NAME_HALF is really less than half to accommodate slop */
-#define DEVICE_NAME_HALF	__stringify(20)
 #define DEVICE_ID_SIZE		32
 #define BUS_ID_SIZE		20
 
