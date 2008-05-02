@@ -205,6 +205,7 @@ struct ub_scsi_cmd {
 	unsigned char key, asc, ascq;	/* May be valid if error==-EIO */
 
 	int stat_count;			/* Retries getting status. */
+	unsigned int timeo;		/* jiffies until rq->timeout changes */
 
 	unsigned int len;		/* Requested length */
 	unsigned int current_sg;
@@ -318,6 +319,7 @@ struct ub_dev {
 	int openc;			/* protected by ub_lock! */
 					/* kref is too implicit for our taste */
 	int reset;			/* Reset is running */
+	int bad_resid;
 	unsigned int tagcnt;
 	char name[12];
 	struct usb_device *dev;
@@ -764,6 +766,12 @@ static void ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,
 	cmd->cdb_len = rq->cmd_len;
 
 	cmd->len = rq->data_len;
+
+	/*
+	 * To reapply this to every URB is not as incorrect as it looks.
+	 * In return, we avoid any complicated tracking calculations.
+	 */
+	cmd->timeo = rq->timeout;
 }
 
 static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
@@ -785,10 +793,6 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			scsi_status = 0;
 		} else {
 			if (cmd->act_len != cmd->len) {
-				if ((cmd->key == MEDIUM_ERROR ||
-				     cmd->key == UNIT_ATTENTION) &&
-				    ub_rw_cmd_retry(sc, lun, urq, cmd) == 0)
-					return;
 				scsi_status = SAM_STAT_CHECK_CONDITION;
 			} else {
 				scsi_status = 0;
@@ -804,7 +808,10 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			else
 				scsi_status = DID_ERROR << 16;
 		} else {
-			if (cmd->error == -EIO) {
+			if (cmd->error == -EIO &&
+			    (cmd->key == 0 ||
+			     cmd->key == MEDIUM_ERROR ||
+			     cmd->key == UNIT_ATTENTION)) {
 				if (ub_rw_cmd_retry(sc, lun, urq, cmd) == 0)
 					return;
 			}
@@ -1259,14 +1266,19 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			return;
 		}
 
-		len = le32_to_cpu(bcs->Residue);
-		if (len != cmd->len - cmd->act_len) {
-			/*
-			 * It is all right to transfer less, the caller has
-			 * to check. But it's not all right if the device
-			 * counts disagree with our counts.
-			 */
-			goto Bad_End;
+		if (!sc->bad_resid) {
+			len = le32_to_cpu(bcs->Residue);
+			if (len != cmd->len - cmd->act_len) {
+				/*
+				 * Only start ignoring if this cmd ended well.
+				 */
+				if (cmd->len == cmd->act_len) {
+					printk(KERN_NOTICE "%s: "
+					    "bad residual %d of %d, ignoring\n",
+					    sc->name, len, cmd->len);
+					sc->bad_resid = 1;
+				}
+			}
 		}
 
 		switch (bcs->Status) {
@@ -1297,8 +1309,7 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 		ub_state_done(sc, cmd, -EIO);
 
 	} else {
-		printk(KERN_WARNING "%s: "
-		    "wrong command state %d\n",
+		printk(KERN_WARNING "%s: wrong command state %d\n",
 		    sc->name, cmd->state);
 		ub_state_done(sc, cmd, -EINVAL);
 		return;
@@ -1336,7 +1347,10 @@ static void ub_data_start(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 		return;
 	}
 
-	sc->work_timer.expires = jiffies + UB_DATA_TIMEOUT;
+	if (cmd->timeo)
+		sc->work_timer.expires = jiffies + cmd->timeo;
+	else
+		sc->work_timer.expires = jiffies + UB_DATA_TIMEOUT;
 	add_timer(&sc->work_timer);
 
 	cmd->state = UB_CMDST_DATA;
@@ -1376,7 +1390,10 @@ static int __ub_state_stat(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 		return -1;
 	}
 
-	sc->work_timer.expires = jiffies + UB_STAT_TIMEOUT;
+	if (cmd->timeo)
+		sc->work_timer.expires = jiffies + cmd->timeo;
+	else
+		sc->work_timer.expires = jiffies + UB_STAT_TIMEOUT;
 	add_timer(&sc->work_timer);
 	return 0;
 }
@@ -1515,8 +1532,7 @@ static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd)
 		return;
 	}
 	if (cmd->state != UB_CMDST_SENSE) {
-		printk(KERN_WARNING "%s: "
-		    "sense done with bad cmd state %d\n",
+		printk(KERN_WARNING "%s: sense done with bad cmd state %d\n",
 		    sc->name, cmd->state);
 		return;
 	}
@@ -1720,7 +1736,7 @@ static int ub_bd_ioctl(struct inode *inode, struct file *filp,
 }
 
 /*
- * This is called once a new disk was seen by the block layer or by ub_probe().
+ * This is called by check_disk_change if we reported a media change.
  * The main onjective here is to discover the features of the media such as
  * the capacity, read-only status, etc. USB storage generally does not
  * need to be spun up, but if we needed it, this would be the place.
@@ -2136,8 +2152,7 @@ static int ub_get_pipes(struct ub_dev *sc, struct usb_device *dev,
 	}
 
 	if (ep_in == NULL || ep_out == NULL) {
-		printk(KERN_NOTICE "%s: failed endpoint check\n",
-		    sc->name);
+		printk(KERN_NOTICE "%s: failed endpoint check\n", sc->name);
 		return -ENODEV;
 	}
 
@@ -2354,7 +2369,7 @@ static void ub_disconnect(struct usb_interface *intf)
 	spin_unlock_irqrestore(&ub_lock, flags);
 
 	/*
-	 * Fence stall clearnings, operations triggered by unlinkings and so on.
+	 * Fence stall clearings, operations triggered by unlinkings and so on.
 	 * We do not attempt to unlink any URBs, because we do not trust the
 	 * unlink paths in HC drivers. Also, we get -84 upon disconnect anyway.
 	 */
@@ -2417,7 +2432,7 @@ static void ub_disconnect(struct usb_interface *intf)
 	spin_unlock_irqrestore(sc->lock, flags);
 
 	/*
-	 * There is virtually no chance that other CPU runs times so long
+	 * There is virtually no chance that other CPU runs a timeout so long
 	 * after ub_urb_complete should have called del_timer, but only if HCD
 	 * didn't forget to deliver a callback on unlink.
 	 */

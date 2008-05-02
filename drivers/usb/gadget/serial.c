@@ -135,7 +135,10 @@ struct gs_port {
 	int			port_in_use;	/* open/close in progress */
 	wait_queue_head_t	port_write_wait;/* waiting to write */
 	struct gs_buf		*port_write_buf;
-	struct usb_cdc_line_coding	port_line_coding;
+	struct usb_cdc_line_coding port_line_coding;	/* 8-N-1 etc */
+	u16			port_handshake_bits;
+#define RS232_RTS	(1 << 1)
+#define RS232_DTE	(1 << 0)
 };
 
 /* the device structure holds info for the USB device */
@@ -199,6 +202,8 @@ static int gs_setup_standard(struct usb_gadget *gadget,
 static int gs_setup_class(struct usb_gadget *gadget,
 	const struct usb_ctrlrequest *ctrl);
 static void gs_setup_complete(struct usb_ep *ep, struct usb_request *req);
+static void gs_setup_complete_set_line_coding(struct usb_ep *ep,
+	struct usb_request *req);
 static void gs_disconnect(struct usb_gadget *gadget);
 static int gs_set_config(struct gs_dev *dev, unsigned config);
 static void gs_reset_config(struct gs_dev *dev);
@@ -406,7 +411,7 @@ static struct usb_cdc_acm_descriptor gs_acm_descriptor = {
 	.bLength =		sizeof(gs_acm_descriptor),
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_ACM_TYPE,
-	.bmCapabilities =	0,
+	.bmCapabilities =	(1 << 1),
 };
 
 static const struct usb_cdc_union_desc gs_union_desc = {
@@ -1502,6 +1507,8 @@ static int gs_setup(struct usb_gadget *gadget,
 	u16 wValue = le16_to_cpu(ctrl->wValue);
 	u16 wLength = le16_to_cpu(ctrl->wLength);
 
+	req->complete = gs_setup_complete;
+
 	switch (ctrl->bRequestType & USB_TYPE_MASK) {
 	case USB_TYPE_STANDARD:
 		ret = gs_setup_standard(gadget,ctrl);
@@ -1679,18 +1686,14 @@ static int gs_setup_class(struct usb_gadget *gadget,
 
 	switch (ctrl->bRequest) {
 	case USB_CDC_REQ_SET_LINE_CODING:
-		/* FIXME Submit req to read the data; have its completion
-		 * handler copy that data to port->port_line_coding (iff
-		 * it's valid) and maybe pass it on.  Until then, fail.
-		 */
-		pr_warning("gs_setup: set_line_coding "
-				"unuspported\n");
+		if (wLength != sizeof(struct usb_cdc_line_coding))
+			break;
+		ret = wLength;
+		req->complete = gs_setup_complete_set_line_coding;
 		break;
 
 	case USB_CDC_REQ_GET_LINE_CODING:
-		port = dev->dev_port[0];	/* ACM only has one port */
-		ret = min(wLength,
-			(u16)sizeof(struct usb_cdc_line_coding));
+		ret = min_t(int, wLength, sizeof(struct usb_cdc_line_coding));
 		if (port) {
 			spin_lock(&port->port_lock);
 			memcpy(req->buf, &port->port_line_coding, ret);
@@ -1699,15 +1702,27 @@ static int gs_setup_class(struct usb_gadget *gadget,
 		break;
 
 	case USB_CDC_REQ_SET_CONTROL_LINE_STATE:
-		/* FIXME Submit req to read the data; have its completion
-		 * handler use that to set the state (iff it's valid) and
-		 * maybe pass it on.  Until then, fail.
-		 */
-		pr_warning("gs_setup: set_control_line_state "
-				"unuspported\n");
+		if (wLength != 0)
+			break;
+		ret = 0;
+		if (port) {
+			/* REVISIT:  we currently just remember this data.
+			 * If we change that, update whatever hardware needs
+			 * updating.
+			 */
+			spin_lock(&port->port_lock);
+			port->port_handshake_bits = wValue;
+			spin_unlock(&port->port_lock);
+		}
 		break;
 
 	default:
+		/* NOTE:  strictly speaking, we should accept AT-commands
+		 * using SEND_ENCPSULATED_COMMAND/GET_ENCAPSULATED_RESPONSE.
+		 * But our call management descriptor says we don't handle
+		 * call management, so we should be able to get by without
+		 * handling those "required" commands (except by stalling).
+		 */
 		pr_err("gs_setup: unknown class request, "
 				"type=%02x, request=%02x, value=%04x, "
 				"index=%04x, length=%d\n",
@@ -1717,6 +1732,42 @@ static int gs_setup_class(struct usb_gadget *gadget,
 	}
 
 	return ret;
+}
+
+static void gs_setup_complete_set_line_coding(struct usb_ep *ep,
+		struct usb_request *req)
+{
+	struct gs_dev *dev = ep->driver_data;
+	struct gs_port *port = dev->dev_port[0]; /* ACM only has one port */
+
+	switch (req->status) {
+	case 0:
+		/* normal completion */
+		if (req->actual != sizeof(port->port_line_coding))
+			usb_ep_set_halt(ep);
+		else if (port) {
+			struct usb_cdc_line_coding	*value = req->buf;
+
+			/* REVISIT:  we currently just remember this data.
+			 * If we change that, (a) validate it first, then
+			 * (b) update whatever hardware needs updating.
+			 */
+			spin_lock(&port->port_lock);
+			port->port_line_coding = *value;
+			spin_unlock(&port->port_lock);
+		}
+		break;
+
+	case -ESHUTDOWN:
+		/* disconnect */
+		gs_free_req(ep, req);
+		break;
+
+	default:
+		/* unexpected */
+		break;
+	}
+	return;
 }
 
 /*
@@ -1905,6 +1956,11 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 			goto exit_reset_config;
 		}
 	}
+
+	/* REVISIT the ACM mode should be able to actually *issue* some
+	 * notifications, for at least serial state change events if
+	 * not also for network connection; say so in bmCapabilities.
+	 */
 
 	pr_info("gs_set_config: %s configured, %s speed %s config\n",
 		GS_LONG_NAME,
