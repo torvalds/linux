@@ -888,6 +888,25 @@ static void mv_start_dma(struct ata_port *ap, void __iomem *port_mmio,
 	}
 }
 
+static void mv_wait_for_edma_empty_idle(struct ata_port *ap)
+{
+	void __iomem *port_mmio = mv_ap_base(ap);
+	const u32 empty_idle = (EDMA_STATUS_CACHE_EMPTY | EDMA_STATUS_IDLE);
+	const int per_loop = 5, timeout = (15 * 1000 / per_loop);
+	int i;
+
+	/*
+	 * Wait for the EDMA engine to finish transactions in progress.
+	 */
+	for (i = 0; i < timeout; ++i) {
+		u32 edma_stat = readl(port_mmio + EDMA_STATUS_OFS);
+		if ((edma_stat & empty_idle) == empty_idle)
+			break;
+		udelay(per_loop);
+	}
+	/* ata_port_printk(ap, KERN_INFO, "%s: %u+ usecs\n", __func__, i); */
+}
+
 /**
  *      mv_stop_edma_engine - Disable eDMA engine
  *      @port_mmio: io base address
@@ -920,6 +939,7 @@ static int mv_stop_edma(struct ata_port *ap)
 	if (!(pp->pp_flags & MV_PP_FLAG_EDMA_EN))
 		return 0;
 	pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
+	mv_wait_for_edma_empty_idle(ap);
 	if (mv_stop_edma_engine(port_mmio)) {
 		ata_port_printk(ap, KERN_ERR, "Unable to stop eDMA\n");
 		return -EIO;
