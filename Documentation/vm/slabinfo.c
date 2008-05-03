@@ -38,7 +38,7 @@ struct slabinfo {
 	unsigned long alloc_from_partial, alloc_slab, free_slab, alloc_refill;
 	unsigned long cpuslab_flush, deactivate_full, deactivate_empty;
 	unsigned long deactivate_to_head, deactivate_to_tail;
-	unsigned long deactivate_remote_frees;
+	unsigned long deactivate_remote_frees, order_fallback;
 	int numa[MAX_NODES];
 	int numa_partial[MAX_NODES];
 } slabinfo[MAX_SLABS];
@@ -293,7 +293,7 @@ int line = 0;
 void first_line(void)
 {
 	if (show_activity)
-		printf("Name                   Objects    Alloc     Free   %%Fast\n");
+		printf("Name                   Objects      Alloc       Free   %%Fast Fallb O\n");
 	else
 		printf("Name                   Objects Objsize    Space "
 			"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
@@ -573,11 +573,12 @@ void slabcache(struct slabinfo *s)
 		total_alloc = s->alloc_fastpath + s->alloc_slowpath;
 		total_free = s->free_fastpath + s->free_slowpath;
 
-		printf("%-21s %8ld %8ld %8ld %3ld %3ld \n",
+		printf("%-21s %8ld %10ld %10ld %3ld %3ld %5ld %1d\n",
 			s->name, s->objects,
 			total_alloc, total_free,
 			total_alloc ? (s->alloc_fastpath * 100 / total_alloc) : 0,
-			total_free ? (s->free_fastpath * 100 / total_free) : 0);
+			total_free ? (s->free_fastpath * 100 / total_free) : 0,
+			s->order_fallback, s->order);
 	}
 	else
 		printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
@@ -1188,6 +1189,7 @@ void read_slab_dir(void)
 			slab->deactivate_to_head = get_obj("deactivate_to_head");
 			slab->deactivate_to_tail = get_obj("deactivate_to_tail");
 			slab->deactivate_remote_frees = get_obj("deactivate_remote_frees");
+			slab->order_fallback = get_obj("order_fallback");
 			chdir("..");
 			if (slab->name[0] == ':')
 				alias_targets++;

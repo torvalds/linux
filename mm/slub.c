@@ -217,7 +217,7 @@ struct track {
 
 enum track_item { TRACK_ALLOC, TRACK_FREE };
 
-#if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
+#ifdef CONFIG_SLUB_DEBUG
 static int sysfs_slab_add(struct kmem_cache *);
 static int sysfs_slab_alias(struct kmem_cache *, const char *);
 static void sysfs_slab_remove(struct kmem_cache *);
@@ -814,7 +814,8 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 	return search == NULL;
 }
 
-static void trace(struct kmem_cache *s, struct page *page, void *object, int alloc)
+static void trace(struct kmem_cache *s, struct page *page, void *object,
+								int alloc)
 {
 	if (s->flags & SLAB_TRACE) {
 		printk(KERN_INFO "TRACE %s %s 0x%p inuse=%d fp=0x%p\n",
@@ -1267,8 +1268,7 @@ static void add_partial(struct kmem_cache_node *n,
 	spin_unlock(&n->list_lock);
 }
 
-static void remove_partial(struct kmem_cache *s,
-						struct page *page)
+static void remove_partial(struct kmem_cache *s, struct page *page)
 {
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
 
@@ -1283,7 +1283,8 @@ static void remove_partial(struct kmem_cache *s,
  *
  * Must hold list_lock.
  */
-static inline int lock_and_freeze_slab(struct kmem_cache_node *n, struct page *page)
+static inline int lock_and_freeze_slab(struct kmem_cache_node *n,
+							struct page *page)
 {
 	if (slab_trylock(page)) {
 		list_del(&page->lru);
@@ -1420,8 +1421,8 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 			 * so that the others get filled first. That way the
 			 * size of the partial list stays small.
 			 *
-			 * kmem_cache_shrink can reclaim any empty slabs from the
-			 * partial list.
+			 * kmem_cache_shrink can reclaim any empty slabs from
+			 * the partial list.
 			 */
 			add_partial(n, page, 1);
 			slab_unlock(page);
@@ -2909,7 +2910,7 @@ static int slab_mem_going_online_callback(void *arg)
 		return 0;
 
 	/*
-	 * We are bringing a node online. No memory is availabe yet. We must
+	 * We are bringing a node online. No memory is available yet. We must
 	 * allocate a kmem_cache_node structure in order to bring the node
 	 * online.
 	 */
@@ -3246,7 +3247,7 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 	return slab_alloc(s, gfpflags, node, caller);
 }
 
-#if (defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)) || defined(CONFIG_SLABINFO)
+#ifdef CONFIG_SLUB_DEBUG
 static unsigned long count_partial(struct kmem_cache_node *n,
 					int (*get_count)(struct page *))
 {
@@ -3275,9 +3276,7 @@ static int count_free(struct page *page)
 {
 	return page->objects - page->inuse;
 }
-#endif
 
-#if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
 static int validate_slab(struct kmem_cache *s, struct page *page,
 						unsigned long *map)
 {
@@ -3812,7 +3811,12 @@ SLAB_ATTR_RO(objs_per_slab);
 static ssize_t order_store(struct kmem_cache *s,
 				const char *buf, size_t length)
 {
-	int order = simple_strtoul(buf, NULL, 10);
+	unsigned long order;
+	int err;
+
+	err = strict_strtoul(buf, 10, &order);
+	if (err)
+		return err;
 
 	if (order > slub_max_order || order < slub_min_order)
 		return -EINVAL;
@@ -4065,10 +4069,16 @@ static ssize_t remote_node_defrag_ratio_show(struct kmem_cache *s, char *buf)
 static ssize_t remote_node_defrag_ratio_store(struct kmem_cache *s,
 				const char *buf, size_t length)
 {
-	int n = simple_strtoul(buf, NULL, 10);
+	unsigned long ratio;
+	int err;
 
-	if (n < 100)
-		s->remote_node_defrag_ratio = n * 10;
+	err = strict_strtoul(buf, 10, &ratio);
+	if (err)
+		return err;
+
+	if (ratio < 100)
+		s->remote_node_defrag_ratio = ratio * 10;
+
 	return length;
 }
 SLAB_ATTR(remote_node_defrag_ratio);
@@ -4425,8 +4435,8 @@ __initcall(slab_sysfs_init);
  */
 #ifdef CONFIG_SLABINFO
 
-ssize_t slabinfo_write(struct file *file, const char __user * buffer,
-                       size_t count, loff_t *ppos)
+ssize_t slabinfo_write(struct file *file, const char __user *buffer,
+		       size_t count, loff_t *ppos)
 {
 	return -EINVAL;
 }
