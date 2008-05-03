@@ -16,8 +16,8 @@
 	mxl5005s_release()
 	mxl5005s_attach()
 
-    Copyright (c) 2008 Realtek
-    Copyright (c) 2008 Jan Hoogenraad, Barnaby Shearer, Andy Hasper
+    Copyright (C) 2008 Realtek
+    Copyright (C) 2008 Jan Hoogenraad
       Functions:
 	mxl5005s_SetRfFreqHz()
 
@@ -325,8 +325,8 @@ static int mxl5005s_reconfigure(struct dvb_frontend *fe, u32 mod_type,
 
 /* ----------------------------------------------------------------
  * Begin: Custom code salvaged from the Realtek driver.
- * Copyright (c) 2008 Realtek
- * Copyright (c) 2008 Jan Hoogenraad, Barnaby Shearer, Andy Hasper
+ * Copyright (C) 2008 Realtek
+ * Copyright (C) 2008 Jan Hoogenraad
  * This code is placed under the terms of the GNU General Public License
  *
  * Released by Realtek under GPLv2.
@@ -398,7 +398,7 @@ static int mxl5005s_SetRfFreqHz(struct dvb_frontend *fe, unsigned long RfFreqHz)
 
 /* ----------------------------------------------------------------
  * Begin: Reference driver code found in the Realtek driver.
- * Copyright (c) 2008 MaxLinear
+ * Copyright (C) 2008 MaxLinear
  */
 static u16 MXL5005_RegisterInit(struct dvb_frontend *fe)
 {
