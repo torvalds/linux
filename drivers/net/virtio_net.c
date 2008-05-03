@@ -221,7 +221,7 @@ static void free_old_xmit_skbs(struct virtnet_info *vi)
 	while ((skb = vi->svq->vq_ops->get_buf(vi->svq, &len)) != NULL) {
 		pr_debug("Sent skb %p\n", skb);
 		__skb_unlink(skb, &vi->send);
-		vi->dev->stats.tx_bytes += len;
+		vi->dev->stats.tx_bytes += skb->len;
 		vi->dev->stats.tx_packets++;
 		kfree_skb(skb);
 	}
