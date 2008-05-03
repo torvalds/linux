@@ -23,7 +23,8 @@
 #ifndef __MXL5005S_H
 #define __MXL5005S_H
 
-#include <linux/dvb/frontend.h>
+#include <linux/i2c.h>
+#include "dvb_frontend.h"
 
 struct mxl5005s_config {
 
