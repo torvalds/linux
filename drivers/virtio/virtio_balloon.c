@@ -227,7 +227,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	}
 
 	vb->tell_host_first
-		= vdev->config->feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
+		= virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
 
 	return 0;
 
@@ -259,7 +259,11 @@ static void virtballoon_remove(struct virtio_device *vdev)
 	kfree(vb);
 }
 
+static unsigned int features[] = { VIRTIO_BALLOON_F_MUST_TELL_HOST };
+
 static struct virtio_driver virtio_balloon = {
+	.feature_table = features,
+	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,

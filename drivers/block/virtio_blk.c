@@ -242,7 +242,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 	index++;
 
 	/* If barriers are supported, tell block layer that queue is ordered */
-	if (vdev->config->feature(vdev, VIRTIO_BLK_F_BARRIER))
+	if (virtio_has_feature(vdev, VIRTIO_BLK_F_BARRIER))
 		blk_queue_ordered(vblk->disk->queue, QUEUE_ORDERED_TAG, NULL);
 
 	/* Host must always specify the capacity. */
@@ -308,7 +308,13 @@ static struct virtio_device_id id_table[] = {
 	{ 0 },
 };
 
+static unsigned int features[] = {
+	VIRTIO_BLK_F_BARRIER, VIRTIO_BLK_F_SEG_MAX, VIRTIO_BLK_F_SIZE_MAX,
+};
+
 static struct virtio_driver virtio_blk = {
+	.feature_table = features,
+	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,

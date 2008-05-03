@@ -76,6 +76,7 @@ struct virtqueue_ops {
  * @dev: underlying device.
  * @id: the device type identification (used to match it with a driver).
  * @config: the configuration ops for this device.
+ * @features: the features supported by both driver and device.
  * @priv: private pointer for the driver's use.
  */
 struct virtio_device
@@ -84,6 +85,8 @@ struct virtio_device
 	struct device dev;
 	struct virtio_device_id id;
 	struct virtio_config_ops *config;
+	/* Note that this is a Linux set_bit-style bitmap. */
+	unsigned long features[1];
 	void *priv;
 };
 
@@ -94,6 +97,8 @@ void unregister_virtio_device(struct virtio_device *dev);
  * virtio_driver - operations for a virtio I/O driver
  * @driver: underlying device driver (populate name and owner).
  * @id_table: the ids serviced by this driver.
+ * @feature_table: an array of feature numbers supported by this device.
+ * @feature_table_size: number of entries in the feature table array.
  * @probe: the function to call when a device is found.  Returns a token for
  *    remove, or PTR_ERR().
  * @remove: the function when a device is removed.
@@ -103,6 +108,8 @@ void unregister_virtio_device(struct virtio_device *dev);
 struct virtio_driver {
 	struct device_driver driver;
 	const struct virtio_device_id *id_table;
+	const unsigned int *feature_table;
+	unsigned int feature_table_size;
 	int (*probe)(struct virtio_device *dev);
 	void (*remove)(struct virtio_device *dev);
 	void (*config_changed)(struct virtio_device *dev);

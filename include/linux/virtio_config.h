@@ -20,11 +20,6 @@
 
 /**
  * virtio_config_ops - operations for configuring a virtio device
- * @feature: search for a feature in this config
- *	vdev: the virtio_device
- *	bit: the feature bit
- *	Returns true if the feature is supported.  Acknowledges the feature
- *	so the host can see it.
  * @get: read the value of a configuration field
  *	vdev: the virtio_device
  *	offset: the offset of the configuration field
@@ -50,10 +45,15 @@
  *	callback: the virqtueue callback
  *	Returns the new virtqueue or ERR_PTR() (eg. -ENOENT).
  * @del_vq: free a virtqueue found by find_vq().
+ * @get_features: get the array of feature bits for this device.
+ *	vdev: the virtio_device
+ *	Returns the first 32 feature bits (all we currently need).
+ * @set_features: confirm what device features we'll be using.
+ *	vdev: the virtio_device
+ *	feature: the first 32 feature bits
  */
 struct virtio_config_ops
 {
-	bool (*feature)(struct virtio_device *vdev, unsigned bit);
 	void (*get)(struct virtio_device *vdev, unsigned offset,
 		    void *buf, unsigned len);
 	void (*set)(struct virtio_device *vdev, unsigned offset,
@@ -65,7 +65,29 @@ struct virtio_config_ops
 				     unsigned index,
 				     void (*callback)(struct virtqueue *));
 	void (*del_vq)(struct virtqueue *vq);
+	u32 (*get_features)(struct virtio_device *vdev);
+	void (*set_features)(struct virtio_device *vdev, u32 features);
 };
+
+/* If driver didn't advertise the feature, it will never appear. */
+void virtio_check_driver_offered_feature(const struct virtio_device *vdev,
+					 unsigned int fbit);
+
+/**
+ * virtio_has_feature - helper to determine if this device has this feature.
+ * @vdev: the device
+ * @fbit: the feature bit
+ */
+static inline bool virtio_has_feature(const struct virtio_device *vdev,
+				      unsigned int fbit)
+{
+	/* Did you forget to fix assumptions on max features? */
+	if (__builtin_constant_p(fbit))
+		BUILD_BUG_ON(fbit >= 32);
+
+	virtio_check_driver_offered_feature(vdev, fbit);
+	return test_bit(fbit, vdev->features);
+}
 
 /**
  * virtio_config_val - look for a feature and get a virtio config entry.
@@ -84,7 +106,7 @@ static inline int virtio_config_buf(struct virtio_device *vdev,
 				    unsigned int offset,
 				    void *buf, unsigned len)
 {
-	if (!vdev->config->feature(vdev, fbit))
+	if (!virtio_has_feature(vdev, fbit))
 		return -ENOENT;
 
 	vdev->config->get(vdev, offset, buf, len);

@@ -378,26 +378,26 @@ static int virtnet_probe(struct virtio_device *vdev)
 	SET_NETDEV_DEV(dev, &vdev->dev);
 
 	/* Do we support "hardware" checksums? */
-	if (csum && vdev->config->feature(vdev, VIRTIO_NET_F_CSUM)) {
+	if (csum && virtio_has_feature(vdev, VIRTIO_NET_F_CSUM)) {
 		/* This opens up the world of extra features. */
 		dev->features |= NETIF_F_HW_CSUM|NETIF_F_SG|NETIF_F_FRAGLIST;
-		if (gso && vdev->config->feature(vdev, VIRTIO_NET_F_GSO)) {
+		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_GSO)) {
 			dev->features |= NETIF_F_TSO | NETIF_F_UFO
 				| NETIF_F_TSO_ECN | NETIF_F_TSO6;
 		}
 		/* Individual feature bits: what can host handle? */
-		if (gso && vdev->config->feature(vdev, VIRTIO_NET_F_HOST_TSO4))
+		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_TSO4))
 			dev->features |= NETIF_F_TSO;
-		if (gso && vdev->config->feature(vdev, VIRTIO_NET_F_HOST_TSO6))
+		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_TSO6))
 			dev->features |= NETIF_F_TSO6;
-		if (gso && vdev->config->feature(vdev, VIRTIO_NET_F_HOST_ECN))
+		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_ECN))
 			dev->features |= NETIF_F_TSO_ECN;
-		if (gso && vdev->config->feature(vdev, VIRTIO_NET_F_HOST_UFO))
+		if (gso && virtio_has_feature(vdev, VIRTIO_NET_F_HOST_UFO))
 			dev->features |= NETIF_F_UFO;
 	}
 
 	/* Configuration may specify what MAC to use.  Otherwise random. */
-	if (vdev->config->feature(vdev, VIRTIO_NET_F_MAC)) {
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_MAC)) {
 		vdev->config->get(vdev,
 				  offsetof(struct virtio_net_config, mac),
 				  dev->dev_addr, dev->addr_len);
@@ -486,7 +486,15 @@ static struct virtio_device_id id_table[] = {
 	{ 0 },
 };
 
+static unsigned int features[] = {
+	VIRTIO_NET_F_CSUM, VIRTIO_NET_F_GSO, VIRTIO_NET_F_MAC,
+	VIRTIO_NET_F_HOST_TSO4, VIRTIO_NET_F_HOST_UFO, VIRTIO_NET_F_HOST_TSO6,
+	VIRTIO_NET_F_HOST_ECN,
+};
+
 static struct virtio_driver virtio_net = {
+	.feature_table = features,
+	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
