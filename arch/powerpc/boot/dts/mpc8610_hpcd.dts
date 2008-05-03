@@ -21,6 +21,7 @@
 		serial1 = &serial1;
 		pci0 = &pci0;
 		pci1 = &pci1;
+		pci2 = &pci2;
 	};
 
 	cpus {
@@ -105,7 +106,7 @@
 			compatible = "ns16550";
 			reg = <0x4600 0x100>;
 			clock-frequency = <0>;
-			interrupts = <28 2>;
+			interrupts = <42 2>;
 			interrupt-parent = <&mpic>;
 		};
 
@@ -321,5 +322,25 @@
 					  0x0 0x00100000>;
 			};
 		};
+	};
+
+	pci2: pcie@e0009000 {
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		device_type = "pci";
+		compatible = "fsl,mpc8641-pcie";
+		reg = <0xe0009000 0x00001000>;
+		ranges = <0x02000000 0 0x90000000 0x90000000 0 0x10000000
+			  0x01000000 0 0x00000000 0xe2000000 0 0x00100000>;
+		bus-range = <0 255>;
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = <0x0000 0 0 1 &mpic 4 1
+				 0x0000 0 0 2 &mpic 5 1
+				 0x0000 0 0 3 &mpic 6 1
+				 0x0000 0 0 4 &mpic 7 1>;
+		interrupt-parent = <&mpic>;
+		interrupts = <25 2>;
+		clock-frequency = <33333333>;
 	};
 };
