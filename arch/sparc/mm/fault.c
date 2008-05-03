@@ -47,64 +47,15 @@ int vac_size, vac_linesize, vac_do_hw_vac_flushes;
 int vac_entries_per_context, vac_entries_per_segment;
 int vac_entries_per_page;
 
-/* Nice, simple, prom library does all the sweating for us. ;) */
-int prom_probe_memory (void)
+/* Return how much physical memory we have.  */
+unsigned long probe_memory(void)
 {
-	register struct linux_mlist_v0 *mlist;
-	register unsigned long bytes, base_paddr, tally;
-	register int i;
+	unsigned long total = 0;
+	int i;
 
-	i = 0;
-	mlist= *prom_meminfo()->v0_available;
-	bytes = tally = mlist->num_bytes;
-	base_paddr = (unsigned long) mlist->start_adr;
-  
-	sp_banks[0].base_addr = base_paddr;
-	sp_banks[0].num_bytes = bytes;
+	for (i = 0; sp_banks[i].num_bytes; i++)
+		total += sp_banks[i].num_bytes;
 
-	while (mlist->theres_more != (void *) 0){
-		i++;
-		mlist = mlist->theres_more;
-		bytes = mlist->num_bytes;
-		tally += bytes;
-		if (i > SPARC_PHYS_BANKS-1) {
-			printk ("The machine has more banks than "
-				"this kernel can support\n"
-				"Increase the SPARC_PHYS_BANKS "
-				"setting (currently %d)\n",
-				SPARC_PHYS_BANKS);
-			i = SPARC_PHYS_BANKS-1;
-			break;
-		}
-    
-		sp_banks[i].base_addr = (unsigned long) mlist->start_adr;
-		sp_banks[i].num_bytes = mlist->num_bytes;
-	}
-
-	i++;
-	sp_banks[i].base_addr = 0xdeadbeef;
-	sp_banks[i].num_bytes = 0;
-
-	/* Now mask all bank sizes on a page boundary, it is all we can
-	 * use anyways.
-	 */
-	for(i=0; sp_banks[i].num_bytes != 0; i++)
-		sp_banks[i].num_bytes &= PAGE_MASK;
-
-	return tally;
-}
-
-/* Traverse the memory lists in the prom to see how much physical we
- * have.
- */
-unsigned long
-probe_memory(void)
-{
-	int total;
-
-	total = prom_probe_memory();
-
-	/* Oh man, much nicer, keep the dirt in promlib. */
 	return total;
 }
 

@@ -591,12 +591,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	if (clone_flags & CLONE_SETTLS)
 		t->kregs->u_regs[UREG_G7] = regs->u_regs[UREG_I3];
 
-	/* We do not want to accidently trigger system call restart
-	 * handling in the new thread.  Therefore, clear out the trap
-	 * type, which will make pt_regs_regs_is_syscall() return false.
-	 */
-	pt_regs_clear_trap_type(t->kregs);
-
 	return 0;
 }
 
