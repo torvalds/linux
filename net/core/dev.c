@@ -3776,6 +3776,7 @@ int register_netdevice(struct net_device *dev)
 		}
 	}
 
+	netdev_initialize_kobject(dev);
 	ret = netdev_register_kobject(dev);
 	if (ret)
 		goto err_uninit;
@@ -4208,7 +4209,8 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	}
 
 	/* Fixup kobjects */
-	err = device_rename(&dev->dev, dev->name);
+	netdev_unregister_kobject(dev);
+	err = netdev_register_kobject(dev);
 	WARN_ON(err);
 
 	/* Add the device back in the hashes */
