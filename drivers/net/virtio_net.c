@@ -41,6 +41,9 @@ struct virtnet_info
 	struct net_device *dev;
 	struct napi_struct napi;
 
+	/* The skb we couldn't send because buffers were full. */
+	struct sk_buff *last_xmit_skb;
+
 	/* Number of input buffers, and max we've ever had. */
 	unsigned int num, max;
 
@@ -227,17 +230,16 @@ static void free_old_xmit_skbs(struct virtnet_info *vi)
 	}
 }
 
-static int start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 {
-	struct virtnet_info *vi = netdev_priv(dev);
-	int num, err;
+	int num;
 	struct scatterlist sg[2+MAX_SKB_FRAGS];
 	struct virtio_net_hdr *hdr;
 	const unsigned char *dest = ((struct ethhdr *)skb->data)->h_dest;
 
 	sg_init_table(sg, 2+MAX_SKB_FRAGS);
 
-	pr_debug("%s: xmit %p " MAC_FMT "\n", dev->name, skb,
+	pr_debug("%s: xmit %p " MAC_FMT "\n", vi->dev->name, skb,
 		 dest[0], dest[1], dest[2],
 		 dest[3], dest[4], dest[5]);
 
@@ -272,30 +274,51 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	vnet_hdr_to_sg(sg, skb);
 	num = skb_to_sgvec(skb, sg+1, 0, skb->len) + 1;
-	__skb_queue_head(&vi->send, skb);
+
+	return vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
+}
+
+static int start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
 
 again:
 	/* Free up any pending old buffers before queueing new ones. */
 	free_old_xmit_skbs(vi);
-	err = vi->svq->vq_ops->add_buf(vi->svq, sg, num, 0, skb);
-	if (err) {
-		pr_debug("%s: virtio not prepared to send\n", dev->name);
-		netif_stop_queue(dev);
 
-		/* Activate callback for using skbs: if this returns false it
-		 * means some were used in the meantime. */
-		if (unlikely(!vi->svq->vq_ops->enable_cb(vi->svq))) {
-			vi->svq->vq_ops->disable_cb(vi->svq);
-			netif_start_queue(dev);
-			goto again;
+	/* If we has a buffer left over from last time, send it now. */
+	if (vi->last_xmit_skb) {
+		if (xmit_skb(vi, vi->last_xmit_skb) != 0) {
+			/* Drop this skb: we only queue one. */
+			vi->dev->stats.tx_dropped++;
+			kfree_skb(skb);
+			goto stop_queue;
 		}
-		__skb_unlink(skb, &vi->send);
-
-		return NETDEV_TX_BUSY;
+		vi->last_xmit_skb = NULL;
 	}
-	vi->svq->vq_ops->kick(vi->svq);
 
-	return 0;
+	/* Put new one in send queue and do transmit */
+	__skb_queue_head(&vi->send, skb);
+	if (xmit_skb(vi, skb) != 0) {
+		vi->last_xmit_skb = skb;
+		goto stop_queue;
+	}
+done:
+	vi->svq->vq_ops->kick(vi->svq);
+	return NETDEV_TX_OK;
+
+stop_queue:
+	pr_debug("%s: virtio not prepared to send\n", dev->name);
+	netif_stop_queue(dev);
+
+	/* Activate callback for using skbs: if this returns false it
+	 * means some were used in the meantime. */
+	if (unlikely(!vi->svq->vq_ops->enable_cb(vi->svq))) {
+		vi->svq->vq_ops->disable_cb(vi->svq);
+		netif_start_queue(dev);
+		goto again;
+	}
+	goto done;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
