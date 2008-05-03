@@ -119,8 +119,10 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct veno *veno = inet_csk_ca(sk);
 
-	if (!veno->doing_veno_now)
-		return tcp_reno_cong_avoid(sk, ack, in_flight);
+	if (!veno->doing_veno_now) {
+		tcp_reno_cong_avoid(sk, ack, in_flight);
+		return;
+	}
 
 	/* limited by applications */
 	if (!tcp_is_cwnd_limited(sk, in_flight))

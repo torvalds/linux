@@ -159,17 +159,6 @@ struct net *get_proc_net(const struct inode *inode)
 }
 EXPORT_SYMBOL_GPL(get_proc_net);
 
-struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
-		struct proc_dir_entry *parent)
-{
-	struct proc_dir_entry *pde;
-	pde = proc_mkdir_mode(name, S_IRUGO | S_IXUGO, parent);
-	if (pde != NULL)
-		pde->data = net;
-	return pde;
-}
-EXPORT_SYMBOL_GPL(proc_net_mkdir);
-
 static __net_init int proc_net_ns_init(struct net *net)
 {
 	struct proc_dir_entry *netd, *net_statd;

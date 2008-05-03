@@ -1066,12 +1066,12 @@ out:
 #ifdef CONFIG_PROC_FS
 
 static void *rose_node_start(struct seq_file *seq, loff_t *pos)
-	__acquires(rose_neigh_list_lock)
+	__acquires(rose_node_list_lock)
 {
 	struct rose_node *rose_node;
 	int i = 1;
 
-	spin_lock_bh(&rose_neigh_list_lock);
+	spin_lock_bh(&rose_node_list_lock);
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
@@ -1090,9 +1090,9 @@ static void *rose_node_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void rose_node_stop(struct seq_file *seq, void *v)
-	__releases(rose_neigh_list_lock)
+	__releases(rose_node_list_lock)
 {
-	spin_unlock_bh(&rose_neigh_list_lock);
+	spin_unlock_bh(&rose_node_list_lock);
 }
 
 static int rose_node_show(struct seq_file *seq, void *v)

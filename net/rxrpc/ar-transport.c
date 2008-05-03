@@ -184,12 +184,13 @@ void rxrpc_put_transport(struct rxrpc_transport *trans)
 	ASSERTCMP(atomic_read(&trans->usage), >, 0);
 
 	trans->put_time = get_seconds();
-	if (unlikely(atomic_dec_and_test(&trans->usage)))
+	if (unlikely(atomic_dec_and_test(&trans->usage))) {
 		_debug("zombie");
 		/* let the reaper determine the timeout to avoid a race with
 		 * overextending the timeout if the reaper is running at the
 		 * same time */
 		rxrpc_queue_delayed_work(&rxrpc_transport_reap, 0);
+	}
 	_leave("");
 }
 

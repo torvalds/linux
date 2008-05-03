@@ -113,7 +113,7 @@ struct ieee80211_hdr {
 struct ieee80211s_hdr {
 	u8 flags;
 	u8 ttl;
-	u8 seqnum[3];
+	__le32 seqnum;
 	u8 eaddr1[6];
 	u8 eaddr2[6];
 	u8 eaddr3[6];

@@ -2214,9 +2214,6 @@ static int tcp_seq_open(struct inode *inode, struct file *file)
 	struct tcp_iter_state *s;
 	int err;
 
-	if (unlikely(afinfo == NULL))
-		return -EINVAL;
-
 	err = seq_open_net(inode, file, &afinfo->seq_ops,
 			  sizeof(struct tcp_iter_state));
 	if (err < 0)
@@ -2241,10 +2238,9 @@ int tcp_proc_register(struct net *net, struct tcp_seq_afinfo *afinfo)
 	afinfo->seq_ops.next		= tcp_seq_next;
 	afinfo->seq_ops.stop		= tcp_seq_stop;
 
-	p = proc_net_fops_create(net, afinfo->name, S_IRUGO, &afinfo->seq_fops);
-	if (p)
-		p->data = afinfo;
-	else
+	p = proc_create_data(afinfo->name, S_IRUGO, net->proc_net,
+			     &afinfo->seq_fops, afinfo);
+	if (!p)
 		rc = -ENOMEM;
 	return rc;
 }

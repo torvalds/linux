@@ -228,11 +228,12 @@ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
 		static int warned __read_mostly;
 
 		*timeo_p = 0;
-		if (warned < 10 && net_ratelimit())
+		if (warned < 10 && net_ratelimit()) {
 			warned++;
 			printk(KERN_INFO "sock_set_timeout: `%s' (pid %d) "
 			       "tries to set negative timeout\n",
 				current->comm, task_pid_nr(current));
+		}
 		return 0;
 	}
 	*timeo_p = MAX_SCHEDULE_TIMEOUT;

@@ -1647,7 +1647,7 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	if (value == LED_MODE_SIGNAL_STRENGTH) {
 		rt2x00dev->led_qual.rt2x00dev = rt2x00dev;
-		rt2x00dev->led_radio.type = LED_TYPE_QUALITY;
+		rt2x00dev->led_qual.type = LED_TYPE_QUALITY;
 		rt2x00dev->led_qual.led_dev.brightness_set =
 		    rt73usb_brightness_set;
 		rt2x00dev->led_qual.led_dev.blink_set =

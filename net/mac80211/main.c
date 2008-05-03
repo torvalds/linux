@@ -255,22 +255,8 @@ static int ieee80211_open(struct net_device *dev)
 
 	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_WDS:
-		if (is_zero_ether_addr(sdata->u.wds.remote_addr))
+		if (!is_valid_ether_addr(sdata->u.wds.remote_addr))
 			return -ENOLINK;
-
-		/* Create STA entry for the WDS peer */
-		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
-				     GFP_KERNEL);
-		if (!sta)
-			return -ENOMEM;
-
-		sta->flags |= WLAN_STA_AUTHORIZED;
-
-		res = sta_info_insert(sta);
-		if (res) {
-			/* STA has been freed */
-			return res;
-		}
 		break;
 	case IEEE80211_IF_TYPE_VLAN:
 		if (!sdata->u.vlan.ap)
@@ -337,10 +323,8 @@ static int ieee80211_open(struct net_device *dev)
 		conf.type = sdata->vif.type;
 		conf.mac_addr = dev->dev_addr;
 		res = local->ops->add_interface(local_to_hw(local), &conf);
-		if (res && !local->open_count && local->ops->stop)
-			local->ops->stop(local_to_hw(local));
 		if (res)
-			return res;
+			goto err_stop;
 
 		ieee80211_if_config(dev);
 		ieee80211_reset_erp_info(dev);
@@ -353,9 +337,29 @@ static int ieee80211_open(struct net_device *dev)
 			netif_carrier_on(dev);
 	}
 
+	if (sdata->vif.type == IEEE80211_IF_TYPE_WDS) {
+		/* Create STA entry for the WDS peer */
+		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
+				     GFP_KERNEL);
+		if (!sta) {
+			res = -ENOMEM;
+			goto err_del_interface;
+		}
+
+		sta->flags |= WLAN_STA_AUTHORIZED;
+
+		res = sta_info_insert(sta);
+		if (res) {
+			/* STA has been freed */
+			goto err_del_interface;
+		}
+	}
+
 	if (local->open_count == 0) {
 		res = dev_open(local->mdev);
 		WARN_ON(res);
+		if (res)
+			goto err_del_interface;
 		tasklet_enable(&local->tx_pending_tasklet);
 		tasklet_enable(&local->tasklet);
 	}
@@ -390,6 +394,12 @@ static int ieee80211_open(struct net_device *dev)
 	netif_start_queue(dev);
 
 	return 0;
+ err_del_interface:
+	local->ops->remove_interface(local_to_hw(local), &conf);
+ err_stop:
+	if (!local->open_count && local->ops->stop)
+		local->ops->stop(local_to_hw(local));
+	return res;
 }
 
 static int ieee80211_stop(struct net_device *dev)
@@ -975,6 +985,7 @@ static int __ieee80211_if_config(struct net_device *dev,
 		conf.ssid_len = sdata->u.sta.ssid_len;
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		conf.beacon = beacon;
+		conf.beacon_control = control;
 		ieee80211_start_mesh(dev);
 	} else if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
 		conf.ssid = sdata->u.ap.ssid;
