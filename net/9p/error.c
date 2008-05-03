@@ -237,8 +237,8 @@ int p9_errstr2errno(char *errstr, int len)
 	if (errno == 0) {
 		/* TODO: if error isn't found, add it dynamically */
 		errstr[len] = 0;
-		printk(KERN_ERR "%s: errstr :%s: not found\n", __func__,
-		       errstr);
+		printk(KERN_ERR "%s: server reported unknown error %s\n",
+			__func__, errstr);
 		errno = 1;
 	}
 
