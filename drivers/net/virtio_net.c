@@ -385,6 +385,15 @@ static int virtnet_probe(struct virtio_device *vdev)
 			dev->features |= NETIF_F_TSO | NETIF_F_UFO
 				| NETIF_F_TSO_ECN | NETIF_F_TSO6;
 		}
+		/* Individual feature bits: what can host handle? */
+		if (gso && vdev->config->feature(vdev, VIRTIO_NET_F_HOST_TSO4))
+			dev->features |= NETIF_F_TSO;
+		if (gso && vdev->config->feature(vdev, VIRTIO_NET_F_HOST_TSO6))
+			dev->features |= NETIF_F_TSO6;
+		if (gso && vdev->config->feature(vdev, VIRTIO_NET_F_HOST_ECN))
+			dev->features |= NETIF_F_TSO_ECN;
+		if (gso && vdev->config->feature(vdev, VIRTIO_NET_F_HOST_UFO))
+			dev->features |= NETIF_F_UFO;
 	}
 
 	/* Configuration may specify what MAC to use.  Otherwise random. */
