@@ -295,32 +295,34 @@ struct mxl5005s_state {
 
 };
 
-u16 MXL_ControlWrite(struct dvb_frontend *fe, u16 ControlNum, u32 value);
-u16 MXL_ControlRead(struct dvb_frontend *fe, u16 controlNum, u32 *value);
-u16 MXL_GetMasterControl(u8 *MasterReg, int state);
-void MXL_RegWriteBit(struct dvb_frontend *fe, u8 address, u8 bit, u8 bitVal);
-u16 MXL_GetCHRegister(struct dvb_frontend *fe, u8 *RegNum,
+static u16 MXL_GetMasterControl(u8 *MasterReg, int state);
+static u16 MXL_ControlWrite(struct dvb_frontend *fe, u16 ControlNum, u32 value);
+static u16 MXL_ControlRead(struct dvb_frontend *fe, u16 controlNum, u32 *value);
+static void MXL_RegWriteBit(struct dvb_frontend *fe, u8 address, u8 bit,
+	u8 bitVal);
+static u16 MXL_GetCHRegister(struct dvb_frontend *fe, u8 *RegNum,
 	u8 *RegVal, int *count);
-u32 MXL_Ceiling(u32 value, u32 resolution);
-u16 MXL_RegRead(struct dvb_frontend *fe, u8 RegNum, u8 *RegVal);
-u16 MXL_RegWrite(struct dvb_frontend *fe, u8 RegNum, u8 RegVal);
-u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum,
+static u32 MXL_Ceiling(u32 value, u32 resolution);
+static u16 MXL_RegRead(struct dvb_frontend *fe, u8 RegNum, u8 *RegVal);
+static u16 MXL_RegWrite(struct dvb_frontend *fe, u8 RegNum, u8 RegVal);
+static u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum,
 	u32 value, u16 controlGroup);
-u16 MXL_SetGPIO(struct dvb_frontend *fe, u8 GPIO_Num, u8 GPIO_Val);
-u16 MXL_GetInitRegister(struct dvb_frontend *fe, u8 *RegNum,
+static u16 MXL_SetGPIO(struct dvb_frontend *fe, u8 GPIO_Num, u8 GPIO_Val);
+static u16 MXL_GetInitRegister(struct dvb_frontend *fe, u8 *RegNum,
 	u8 *RegVal, int *count);
-u32 MXL_GetXtalInt(u32 Xtal_Freq);
-u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq);
-void MXL_SynthIFLO_Calc(struct dvb_frontend *fe);
-void MXL_SynthRFTGLO_Calc(struct dvb_frontend *fe);
-u16 MXL_GetCHRegister_ZeroIF(struct dvb_frontend *fe, u8 *RegNum,
+static u32 MXL_GetXtalInt(u32 Xtal_Freq);
+static u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq);
+static void MXL_SynthIFLO_Calc(struct dvb_frontend *fe);
+static void MXL_SynthRFTGLO_Calc(struct dvb_frontend *fe);
+static u16 MXL_GetCHRegister_ZeroIF(struct dvb_frontend *fe, u8 *RegNum,
 	u8 *RegVal, int *count);
-int mxl5005s_writeregs(struct dvb_frontend *fe, u8 *addrtable,
+static int mxl5005s_writeregs(struct dvb_frontend *fe, u8 *addrtable,
 	u8 *datatable, u8 len);
-u16 MXL_IFSynthInit(struct dvb_frontend *fe);
-int mxl5005s_AssignTunerMode(struct dvb_frontend *fe, u32 mod_type,
+static u16 MXL_IFSynthInit(struct dvb_frontend *fe);
+static int mxl5005s_AssignTunerMode(struct dvb_frontend *fe, u32 mod_type,
 	u32 bandwidth);
-int mxl5005s_reconfigure(struct dvb_frontend *fe, u32 mod_type, u32 bandwidth);
+static int mxl5005s_reconfigure(struct dvb_frontend *fe, u32 mod_type,
+	u32 bandwidth);
 
 /* ----------------------------------------------------------------
  * Begin: Custom code salvaged from the Realtek driver.
@@ -334,14 +336,14 @@ int mxl5005s_reconfigure(struct dvb_frontend *fe, u32 mod_type, u32 bandwidth);
  *  Revision: 080314 - original version
  */
 
-int mxl5005s_SetRfFreqHz(struct dvb_frontend *fe, unsigned long RfFreqHz)
+static int mxl5005s_SetRfFreqHz(struct dvb_frontend *fe, unsigned long RfFreqHz)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	unsigned char AddrTable[MXL5005S_REG_WRITING_TABLE_LEN_MAX];
 	unsigned char ByteTable[MXL5005S_REG_WRITING_TABLE_LEN_MAX];
 	int TableLen;
 
-	u32 IfDivval;
+	u32 IfDivval = 0;
 	unsigned char MasterControlByte;
 
 	dprintk(1, "%s() freq=%ld\n", __func__, RfFreqHz);
@@ -399,7 +401,7 @@ int mxl5005s_SetRfFreqHz(struct dvb_frontend *fe, unsigned long RfFreqHz)
  * Begin: Reference driver code found in the Realtek driver.
  * Copyright (c) 2008 MaxLinear
  */
-u16 MXL5005_RegisterInit(struct dvb_frontend *fe)
+static u16 MXL5005_RegisterInit(struct dvb_frontend *fe)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	state->TunerRegs_Num = TUNER_REGS_NUM ;
@@ -719,7 +721,7 @@ u16 MXL5005_RegisterInit(struct dvb_frontend *fe)
 	return 0 ;
 }
 
-u16 MXL5005_ControlInit(struct dvb_frontend *fe)
+static u16 MXL5005_ControlInit(struct dvb_frontend *fe)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	state->Init_Ctrl_Num = INITCTRL_NUM;
@@ -1659,7 +1661,7 @@ u16 MXL5005_ControlInit(struct dvb_frontend *fe)
 	return 0 ;
 }
 
-void InitTunerControls(struct dvb_frontend *fe)
+static void InitTunerControls(struct dvb_frontend *fe)
 {
 	MXL5005_RegisterInit(fe);
 	MXL5005_ControlInit(fe);
@@ -1668,7 +1670,7 @@ void InitTunerControls(struct dvb_frontend *fe)
 #endif
 }
 
-u16 MXL5005_TunerConfig(struct dvb_frontend *fe,
+static u16 MXL5005_TunerConfig(struct dvb_frontend *fe,
 	u8	Mode,		/* 0: Analog Mode ; 1: Digital Mode */
 	u8	IF_mode,	/* for Analog Mode, 0: zero IF; 1: low IF */
 	u32	Bandwidth,	/* filter  channel bandwidth (6, 7, 8) */
@@ -1718,7 +1720,7 @@ u16 MXL5005_TunerConfig(struct dvb_frontend *fe,
 	return status;
 }
 
-void MXL_SynthIFLO_Calc(struct dvb_frontend *fe)
+static void MXL_SynthIFLO_Calc(struct dvb_frontend *fe)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	if (state->Mode == 1) /* Digital Mode */
@@ -1731,7 +1733,7 @@ void MXL_SynthIFLO_Calc(struct dvb_frontend *fe)
 	}
 }
 
-void MXL_SynthRFTGLO_Calc(struct dvb_frontend *fe)
+static void MXL_SynthRFTGLO_Calc(struct dvb_frontend *fe)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 
@@ -1752,7 +1754,7 @@ void MXL_SynthRFTGLO_Calc(struct dvb_frontend *fe)
 	}
 }
 
-u16 MXL_OverwriteICDefault(struct dvb_frontend *fe)
+static u16 MXL_OverwriteICDefault(struct dvb_frontend *fe)
 {
 	u16 status = 0;
 
@@ -1764,7 +1766,7 @@ u16 MXL_OverwriteICDefault(struct dvb_frontend *fe)
 	return status;
 }
 
-u16 MXL_BlockInit(struct dvb_frontend *fe)
+static u16 MXL_BlockInit(struct dvb_frontend *fe)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	u16 status = 0;
@@ -2102,7 +2104,7 @@ u16 MXL_BlockInit(struct dvb_frontend *fe)
 	return status;
 }
 
-u16 MXL_IFSynthInit(struct dvb_frontend *fe)
+static u16 MXL_IFSynthInit(struct dvb_frontend *fe)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	u16 status = 0 ;
@@ -2306,7 +2308,7 @@ u16 MXL_IFSynthInit(struct dvb_frontend *fe)
 	return status ;
 }
 
-u32 MXL_GetXtalInt(u32 Xtal_Freq)
+static u32 MXL_GetXtalInt(u32 Xtal_Freq)
 {
 	if ((Xtal_Freq % 1000000) == 0)
 		return (Xtal_Freq / 10000);
@@ -2314,7 +2316,7 @@ u32 MXL_GetXtalInt(u32 Xtal_Freq)
 		return (((Xtal_Freq / 1000000) + 1)*100);
 }
 
-u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq)
+static u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	u16 status = 0;
@@ -3354,7 +3356,7 @@ u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq)
 	return status ;
 }
 
-u16 MXL_SetGPIO(struct dvb_frontend *fe, u8 GPIO_Num, u8 GPIO_Val)
+static u16 MXL_SetGPIO(struct dvb_frontend *fe, u8 GPIO_Num, u8 GPIO_Val)
 {
 	u16 status = 0;
 
@@ -3395,7 +3397,7 @@ u16 MXL_SetGPIO(struct dvb_frontend *fe, u8 GPIO_Num, u8 GPIO_Val)
 	return status;
 }
 
-u16 MXL_ControlWrite(struct dvb_frontend *fe, u16 ControlNum, u32 value)
+static u16 MXL_ControlWrite(struct dvb_frontend *fe, u16 ControlNum, u32 value)
 {
 	u16 status = 0;
 
@@ -3411,8 +3413,8 @@ u16 MXL_ControlWrite(struct dvb_frontend *fe, u16 ControlNum, u32 value)
 	return status;
 }
 
-u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum, u32 value,
-	u16 controlGroup)
+static u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum,
+	u32 value, u16 controlGroup)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	u16 i, j, k;
@@ -3490,7 +3492,7 @@ u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum, u32 value,
 	return 0 ; /* successful return */
 }
 
-u16 MXL_RegWrite(struct dvb_frontend *fe, u8 RegNum, u8 RegVal)
+static u16 MXL_RegWrite(struct dvb_frontend *fe, u8 RegNum, u8 RegVal)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	int i ;
@@ -3505,7 +3507,7 @@ u16 MXL_RegWrite(struct dvb_frontend *fe, u8 RegNum, u8 RegVal)
 	return 1;
 }
 
-u16 MXL_RegRead(struct dvb_frontend *fe, u8 RegNum, u8 *RegVal)
+static u16 MXL_RegRead(struct dvb_frontend *fe, u8 RegNum, u8 *RegVal)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	int i ;
@@ -3520,7 +3522,7 @@ u16 MXL_RegRead(struct dvb_frontend *fe, u8 RegNum, u8 *RegVal)
 	return 1;
 }
 
-u16 MXL_ControlRead(struct dvb_frontend *fe, u16 controlNum, u32 *value)
+static u16 MXL_ControlRead(struct dvb_frontend *fe, u16 controlNum, u32 *value)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	u32 ctrlVal ;
@@ -3568,8 +3570,8 @@ u16 MXL_ControlRead(struct dvb_frontend *fe, u16 controlNum, u32 *value)
 	return 1;
 }
 
-u16 MXL_ControlRegRead(struct dvb_frontend *fe, u16 controlNum, u8 *RegNum,
-	int *count)
+static u16 MXL_ControlRegRead(struct dvb_frontend *fe, u16 controlNum,
+	u8 *RegNum, int *count)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	u16 i, j, k ;
@@ -3654,7 +3656,8 @@ u16 MXL_ControlRegRead(struct dvb_frontend *fe, u16 controlNum, u8 *RegNum,
 	return 1;
 }
 
-void MXL_RegWriteBit(struct dvb_frontend *fe, u8 address, u8 bit, u8 bitVal)
+static void MXL_RegWriteBit(struct dvb_frontend *fe, u8 address, u8 bit,
+	u8 bitVal)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	int i ;
@@ -3678,13 +3681,13 @@ void MXL_RegWriteBit(struct dvb_frontend *fe, u8 address, u8 bit, u8 bitVal)
 	}
 }
 
-u32 MXL_Ceiling(u32 value, u32 resolution)
+static u32 MXL_Ceiling(u32 value, u32 resolution)
 {
 	return (value/resolution + (value % resolution > 0 ? 1 : 0));
 }
 
 /* Retrieve the Initialzation Registers */
-u16 MXL_GetInitRegister(struct dvb_frontend *fe, u8 *RegNum,
+static u16 MXL_GetInitRegister(struct dvb_frontend *fe, u8 *RegNum,
 	u8 *RegVal, int *count)
 {
 	u16 status = 0;
@@ -3707,7 +3710,7 @@ u16 MXL_GetInitRegister(struct dvb_frontend *fe, u8 *RegNum,
 	return status;
 }
 
-u16 MXL_GetCHRegister(struct dvb_frontend *fe, u8 *RegNum, u8 *RegVal,
+static u16 MXL_GetCHRegister(struct dvb_frontend *fe, u8 *RegNum, u8 *RegVal,
 	int *count)
 {
 	u16 status = 0;
@@ -3737,8 +3740,8 @@ u16 MXL_GetCHRegister(struct dvb_frontend *fe, u8 *RegNum, u8 *RegVal,
 	return status;
 }
 
-u16 MXL_GetCHRegister_ZeroIF(struct dvb_frontend *fe, u8 *RegNum, u8 *RegVal,
-	int *count)
+static u16 MXL_GetCHRegister_ZeroIF(struct dvb_frontend *fe, u8 *RegNum,
+	u8 *RegVal, int *count)
 {
 	u16 status = 0;
 	int i;
@@ -3755,8 +3758,8 @@ u16 MXL_GetCHRegister_ZeroIF(struct dvb_frontend *fe, u8 *RegNum, u8 *RegVal,
 	return status;
 }
 
-u16 MXL_GetCHRegister_LowIF(struct dvb_frontend *fe, u8 *RegNum, u8 *RegVal,
-	int *count)
+static u16 MXL_GetCHRegister_LowIF(struct dvb_frontend *fe, u8 *RegNum,
+	u8 *RegVal, int *count)
 {
 	u16 status = 0;
 	int i;
@@ -3773,7 +3776,7 @@ u16 MXL_GetCHRegister_LowIF(struct dvb_frontend *fe, u8 *RegNum, u8 *RegVal,
 	return status;
 }
 
-u16 MXL_GetMasterControl(u8 *MasterReg, int state)
+static u16 MXL_GetMasterControl(u8 *MasterReg, int state)
 {
 	if (state == 1) /* Load_Start */
 		*MasterReg = 0xF3;
@@ -3788,7 +3791,7 @@ u16 MXL_GetMasterControl(u8 *MasterReg, int state)
 }
 
 #ifdef _MXL_PRODUCTION
-u16 MXL_VCORange_Test(struct dvb_frontend *fe, int VCO_Range)
+static u16 MXL_VCORange_Test(struct dvb_frontend *fe, int VCO_Range)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	u16 status = 0 ;
@@ -3937,7 +3940,7 @@ u16 MXL_VCORange_Test(struct dvb_frontend *fe, int VCO_Range)
 	return status;
 }
 
-u16 MXL_Hystersis_Test(struct dvb_frontend *fe, int Hystersis)
+static u16 MXL_Hystersis_Test(struct dvb_frontend *fe, int Hystersis)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	u16 status = 0;
@@ -4003,8 +4006,8 @@ static int mxl5005s_writereg(struct dvb_frontend *fe, u8 reg, u8 val, int latch)
 	return 0;
 }
 
-int mxl5005s_writeregs(struct dvb_frontend *fe, u8 *addrtable, u8 *datatable,
-	u8 len)
+static int mxl5005s_writeregs(struct dvb_frontend *fe, u8 *addrtable,
+	u8 *datatable, u8 len)
 {
 	int ret = 0, i;
 
@@ -4025,14 +4028,14 @@ int mxl5005s_writeregs(struct dvb_frontend *fe, u8 *addrtable, u8 *datatable,
 	return ret;
 }
 
-
-int mxl5005s_init(struct dvb_frontend *fe)
+static int mxl5005s_init(struct dvb_frontend *fe)
 {
 	dprintk(1, "%s()\n", __func__);
 	return mxl5005s_reconfigure(fe, MXL_QAM, MXL5005S_BANDWIDTH_6MHZ);
 }
 
-int mxl5005s_reconfigure(struct dvb_frontend *fe, u32 mod_type, u32 bandwidth)
+static int mxl5005s_reconfigure(struct dvb_frontend *fe, u32 mod_type,
+	u32 bandwidth)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 
@@ -4061,7 +4064,7 @@ int mxl5005s_reconfigure(struct dvb_frontend *fe, u32 mod_type, u32 bandwidth)
 	return 0;
 }
 
-int mxl5005s_AssignTunerMode(struct dvb_frontend *fe, u32 mod_type,
+static int mxl5005s_AssignTunerMode(struct dvb_frontend *fe, u32 mod_type,
 	u32 bandwidth)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
