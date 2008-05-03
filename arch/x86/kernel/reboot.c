@@ -149,7 +149,6 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "OptiPlex 745"),
-			DMI_MATCH(DMI_BOARD_NAME, "0WF810"),
 		},
 	},
 	{       /* Handle problems with rebooting on Dell Optiplex 745's DFF*/
