@@ -131,6 +131,9 @@ struct device
 	/* Any queues attached to this device */
 	struct virtqueue *vq;
 
+	/* Handle status being finalized (ie. feature bits stable). */
+	void (*ready)(struct device *me);
+
 	/* Device-specific data. */
 	void *priv;
 };
@@ -925,24 +928,40 @@ static void enable_fd(int fd, struct virtqueue *vq)
 	write(waker_fd, &vq->dev->fd, sizeof(vq->dev->fd));
 }
 
-/* When the Guest asks us to reset a device, it's is fairly easy. */
-static void reset_device(struct device *dev)
+/* When the Guest tells us they updated the status field, we handle it. */
+static void update_device_status(struct device *dev)
 {
 	struct virtqueue *vq;
 
-	verbose("Resetting device %s\n", dev->name);
-	/* Clear the status. */
-	dev->desc->status = 0;
+	/* This is a reset. */
+	if (dev->desc->status == 0) {
+		verbose("Resetting device %s\n", dev->name);
 
-	/* Clear any features they've acked. */
-	memset(get_feature_bits(dev) + dev->desc->feature_len, 0,
-	       dev->desc->feature_len);
+		/* Clear any features they've acked. */
+		memset(get_feature_bits(dev) + dev->desc->feature_len, 0,
+		       dev->desc->feature_len);
 
-	/* Zero out the virtqueues. */
-	for (vq = dev->vq; vq; vq = vq->next) {
-		memset(vq->vring.desc, 0,
-		       vring_size(vq->config.num, getpagesize()));
-		vq->last_avail_idx = 0;
+		/* Zero out the virtqueues. */
+		for (vq = dev->vq; vq; vq = vq->next) {
+			memset(vq->vring.desc, 0,
+			       vring_size(vq->config.num, getpagesize()));
+			vq->last_avail_idx = 0;
+		}
+	} else if (dev->desc->status & VIRTIO_CONFIG_S_FAILED) {
+		warnx("Device %s configuration FAILED", dev->name);
+	} else if (dev->desc->status & VIRTIO_CONFIG_S_DRIVER_OK) {
+		unsigned int i;
+
+		verbose("Device %s OK: offered", dev->name);
+		for (i = 0; i < dev->desc->feature_len; i++)
+			verbose(" %08x", get_feature_bits(dev)[i]);
+		verbose(", accepted");
+		for (i = 0; i < dev->desc->feature_len; i++)
+			verbose(" %08x", get_feature_bits(dev)
+				[dev->desc->feature_len+i]);
+
+		if (dev->ready)
+			dev->ready(dev);
 	}
 }
 
@@ -954,9 +973,9 @@ static void handle_output(int fd, unsigned long addr)
 
 	/* Check each device and virtqueue. */
 	for (i = devices.dev; i; i = i->next) {
-		/* Notifications to device descriptors reset the device. */
+		/* Notifications to device descriptors update device status. */
 		if (from_guest_phys(addr) == i->desc) {
-			reset_device(i);
+			update_device_status(i);
 			return;
 		}
 
@@ -1170,6 +1189,7 @@ static struct device *new_device(const char *name, u16 type, int fd,
 	dev->handle_input = handle_input;
 	dev->name = name;
 	dev->vq = NULL;
+	dev->ready = NULL;
 
 	/* Append to device list.  Prepending to a single-linked list is
 	 * easier, but the user expects the devices to be arranged on the bus

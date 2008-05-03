@@ -144,20 +144,26 @@ static u8 lg_get_status(struct virtio_device *vdev)
 	return to_lgdev(vdev)->desc->status;
 }
 
-static void lg_set_status(struct virtio_device *vdev, u8 status)
-{
-	BUG_ON(!status);
-	to_lgdev(vdev)->desc->status = status;
-}
-
-/* To reset the device, we (ab)use the NOTIFY hypercall, with the descriptor
- * address of the device.  The Host will zero the status and all the
- * features. */
-static void lg_reset(struct virtio_device *vdev)
+/* To notify on status updates, we (ab)use the NOTIFY hypercall, with the
+ * descriptor address of the device.  A zero status means "reset". */
+static void set_status(struct virtio_device *vdev, u8 status)
 {
 	unsigned long offset = (void *)to_lgdev(vdev)->desc - lguest_devices;
 
+	/* We set the status. */
+	to_lgdev(vdev)->desc->status = status;
 	hcall(LHCALL_NOTIFY, (max_pfn<<PAGE_SHIFT) + offset, 0, 0);
+}
+
+static void lg_set_status(struct virtio_device *vdev, u8 status)
+{
+	BUG_ON(!status);
+	set_status(vdev, status);
+}
+
+static void lg_reset(struct virtio_device *vdev)
+{
+	set_status(vdev, 0);
 }
 
 /*
