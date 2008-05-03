@@ -1661,6 +1661,7 @@ config GEODE_MFGPT_TIMER
 
 config OLPC
 	bool "One Laptop Per Child support"
+	depends on MGEODE_LX
 	default n
 	help
 	  Add support for detecting the unique features of the OLPC
