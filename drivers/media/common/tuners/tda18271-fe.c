@@ -259,26 +259,33 @@ static int tda18271_por(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
+	int ret;
 
 	/* power up detector 1 */
 	regs[R_EB12] &= ~0x20;
-	tda18271_write_regs(fe, R_EB12, 1);
+	ret = tda18271_write_regs(fe, R_EB12, 1);
+	if (ret < 0)
+		goto fail;
 
 	regs[R_EB18] &= ~0x80; /* turn agc1 loop on */
 	regs[R_EB18] &= ~0x03; /* set agc1_gain to  6 dB */
-	tda18271_write_regs(fe, R_EB18, 1);
+	ret = tda18271_write_regs(fe, R_EB18, 1);
+	if (ret < 0)
+		goto fail;
 
 	regs[R_EB21] |= 0x03; /* set agc2_gain to -6 dB */
 
 	/* POR mode */
-	tda18271_set_standby_mode(fe, 1, 0, 0);
+	ret = tda18271_set_standby_mode(fe, 1, 0, 0);
+	if (ret < 0)
+		goto fail;
 
 	/* disable 1.5 MHz low pass filter */
 	regs[R_EB23] &= ~0x04; /* forcelp_fc2_en = 0 */
 	regs[R_EB23] &= ~0x02; /* XXX: lp_fc[2] = 0 */
-	tda18271_write_regs(fe, R_EB21, 3);
-
-	return 0;
+	ret = tda18271_write_regs(fe, R_EB21, 3);
+fail:
+	return ret;
 }
 
 static int tda18271_calibrate_rf(struct dvb_frontend *fe, u32 freq)
@@ -389,7 +396,7 @@ static int tda18271_powerscan(struct dvb_frontend *fe,
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
-	int sgn, bcal, count, wait;
+	int sgn, bcal, count, wait, ret;
 	u8 cid_target;
 	u16 count_limit;
 	u32 freq;
@@ -421,7 +428,9 @@ static int tda18271_powerscan(struct dvb_frontend *fe,
 	tda18271_write_regs(fe, R_EP2, 1);
 
 	/* read power detection info, stored in EB10 */
-	tda18271_read_extended(fe);
+	ret = tda18271_read_extended(fe);
+	if (ret < 0)
+		return ret;
 
 	/* algorithm initialization */
 	sgn = 1;
@@ -447,7 +456,9 @@ static int tda18271_powerscan(struct dvb_frontend *fe,
 		tda18271_write_regs(fe, R_EP2, 1);
 
 		/* read power detection info, stored in EB10 */
-		tda18271_read_extended(fe);
+		ret = tda18271_read_extended(fe);
+		if (ret < 0)
+			return ret;
 
 		count += 200;
 
@@ -478,6 +489,7 @@ static int tda18271_powerscan_init(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
+	int ret;
 
 	/* set standard to digital */
 	regs[R_EP3]  &= ~0x1f; /* clear std bits */
@@ -489,10 +501,14 @@ static int tda18271_powerscan_init(struct dvb_frontend *fe)
 	/* update IF output level & IF notch frequency */
 	regs[R_EP4]  &= ~0x1c; /* clear if level bits */
 
-	tda18271_write_regs(fe, R_EP3, 2);
+	ret = tda18271_write_regs(fe, R_EP3, 2);
+	if (ret < 0)
+		goto fail;
 
 	regs[R_EB18] &= ~0x03; /* set agc1_gain to   6 dB */
-	tda18271_write_regs(fe, R_EB18, 1);
+	ret = tda18271_write_regs(fe, R_EB18, 1);
+	if (ret < 0)
+		goto fail;
 
 	regs[R_EB21] &= ~0x03; /* set agc2_gain to -15 dB */
 
@@ -500,9 +516,9 @@ static int tda18271_powerscan_init(struct dvb_frontend *fe)
 	regs[R_EB23] |= 0x04; /* forcelp_fc2_en = 1 */
 	regs[R_EB23] |= 0x02; /* lp_fc[2] = 1 */
 
-	tda18271_write_regs(fe, R_EB21, 3);
-
-	return 0;
+	ret = tda18271_write_regs(fe, R_EB21, 3);
+fail:
+	return ret;
 }
 
 static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
@@ -535,6 +551,8 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 
 		/* look for optimized calibration frequency */
 		bcal = tda18271_powerscan(fe, &rf_default[rf], &rf_freq[rf]);
+		if (bcal < 0)
+			return bcal;
 
 		tda18271_calc_rf_cal(fe, &rf_freq[rf]);
 		prog_tab[rf] = regs[R_EB14];
@@ -575,13 +593,16 @@ static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned int i;
+	int ret;
 
 	tda_info("tda18271: performing RF tracking filter calibration\n");
 
 	/* wait for die temperature stabilization */
 	msleep(200);
 
-	tda18271_powerscan_init(fe);
+	ret = tda18271_powerscan_init(fe);
+	if (ret < 0)
+		goto fail;
 
 	/* rf band calibration */
 	for (i = 0; priv->rf_cal_state[i].rfmax != 0; i++)
@@ -589,8 +610,8 @@ static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe)
 						  priv->rf_cal_state[i].rfmax);
 
 	priv->tm_rfcal = tda18271_read_thermometer(fe);
-
-	return 0;
+fail:
+	return ret;
 }
 
 /* ------------------------------------------------------------------ */
@@ -599,6 +620,7 @@ static int tda18271c2_rf_cal_init(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
+	int ret;
 
 	/* test RF_CAL_OK to see if we need init */
 	if ((regs[R_EP1] & 0x10) == 0)
@@ -607,15 +629,19 @@ static int tda18271c2_rf_cal_init(struct dvb_frontend *fe)
 	if (priv->cal_initialized)
 		return 0;
 
-	tda18271_calc_rf_filter_curve(fe);
+	ret = tda18271_calc_rf_filter_curve(fe);
+	if (ret < 0)
+		goto fail;
 
-	tda18271_por(fe);
+	ret = tda18271_por(fe);
+	if (ret < 0)
+		goto fail;
 
 	tda_info("tda18271: RF tracking filter calibration complete\n");
 
 	priv->cal_initialized = true;
-
-	return 0;
+fail:
+	return ret;
 }
 
 static int tda18271c1_rf_tracking_filter_calibration(struct dvb_frontend *fe,
