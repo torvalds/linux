@@ -66,7 +66,7 @@
 #include "dvb_frontend.h"
 #include "mxl5005s.h"
 
-static int debug = 2;
+static int debug;
 
 #define dprintk(level, arg...) do {    \
 	if (level <= debug)            \
