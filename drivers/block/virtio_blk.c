@@ -246,8 +246,8 @@ static int virtblk_probe(struct virtio_device *vdev)
 		blk_queue_ordered(vblk->disk->queue, QUEUE_ORDERED_TAG, NULL);
 
 	/* Host must always specify the capacity. */
-	__virtio_config_val(vdev, offsetof(struct virtio_blk_config, capacity),
-			    &cap);
+	vdev->config->get(vdev, offsetof(struct virtio_blk_config, capacity),
+			  &cap, sizeof(cap));
 
 	/* If capacity is too big, truncate with warning. */
 	if ((sector_t)cap != cap) {

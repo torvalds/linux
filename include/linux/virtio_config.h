@@ -16,7 +16,7 @@
 #define VIRTIO_CONFIG_S_FAILED		0x80
 
 #ifdef __KERNEL__
-struct virtio_device;
+#include <linux/virtio.h>
 
 /**
  * virtio_config_ops - operations for configuring a virtio device
@@ -30,13 +30,11 @@ struct virtio_device;
  *	offset: the offset of the configuration field
  *	buf: the buffer to write the field value into.
  *	len: the length of the buffer
- *	Note that contents are conventionally little-endian.
  * @set: write the value of a configuration field
  *	vdev: the virtio_device
  *	offset: the offset of the configuration field
  *	buf: the buffer to read the field value from.
  *	len: the length of the buffer
- *	Note that contents are conventionally little-endian.
  * @get_status: read the status byte
  *	vdev: the virtio_device
  *	Returns the status byte
@@ -70,40 +68,27 @@ struct virtio_config_ops
 };
 
 /**
- * virtio_config_val - look for a feature and get a single virtio config.
+ * virtio_config_val - look for a feature and get a virtio config entry.
  * @vdev: the virtio device
  * @fbit: the feature bit
  * @offset: the type to search for.
  * @val: a pointer to the value to fill in.
  *
  * The return value is -ENOENT if the feature doesn't exist.  Otherwise
- * the value is endian-corrected and returned in v. */
-#define virtio_config_val(vdev, fbit, offset, v) ({			\
-	int _err;							\
-	if ((vdev)->config->feature((vdev), (fbit))) {			\
-		__virtio_config_val((vdev), (offset), (v));		\
-		_err = 0;						\
-	} else								\
-		_err = -ENOENT;						\
-	_err;								\
-})
+ * the config value is copied into whatever is pointed to by v. */
+#define virtio_config_val(vdev, fbit, offset, v) \
+	virtio_config_buf((vdev), (fbit), (offset), (v), sizeof(v))
 
-/**
- * __virtio_config_val - get a single virtio config without feature check.
- * @vdev: the virtio device
- * @offset: the type to search for.
- * @val: a pointer to the value to fill in.
- *
- * The value is endian-corrected and returned in v. */
-#define __virtio_config_val(vdev, offset, v) do {			\
-	BUILD_BUG_ON(sizeof(*(v)) != 1 && sizeof(*(v)) != 2		\
-		     && sizeof(*(v)) != 4 && sizeof(*(v)) != 8);	\
-	(vdev)->config->get((vdev), (offset), (v), sizeof(*(v)));	\
-	switch (sizeof(*(v))) {						\
-	case 2: le16_to_cpus((__u16 *) v); break;			\
-	case 4: le32_to_cpus((__u32 *) v); break;			\
-	case 8: le64_to_cpus((__u64 *) v); break;			\
-	}								\
-} while(0)
+static inline int virtio_config_buf(struct virtio_device *vdev,
+				    unsigned int fbit,
+				    unsigned int offset,
+				    void *buf, unsigned len)
+{
+	if (!vdev->config->feature(vdev, fbit))
+		return -ENOENT;
+
+	vdev->config->get(vdev, offset, buf, len);
+	return 0;
+}
 #endif /* __KERNEL__ */
 #endif /* _LINUX_VIRTIO_CONFIG_H */

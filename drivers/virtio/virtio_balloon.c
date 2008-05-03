@@ -155,9 +155,9 @@ static void virtballoon_changed(struct virtio_device *vdev)
 static inline s64 towards_target(struct virtio_balloon *vb)
 {
 	u32 v;
-	__virtio_config_val(vb->vdev,
-			    offsetof(struct virtio_balloon_config, num_pages),
-			    &v);
+	vb->vdev->config->get(vb->vdev,
+			      offsetof(struct virtio_balloon_config, num_pages),
+			      &v, sizeof(v));
 	return v - vb->num_pages;
 }
 
