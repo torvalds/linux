@@ -959,7 +959,7 @@ static void yield_task_fair(struct rq *rq)
 		return;
 
 	if (likely(!sysctl_sched_compat_yield) && curr->policy != SCHED_BATCH) {
-		__update_rq_clock(rq);
+		update_rq_clock(rq);
 		/*
 		 * Update run-time statistics of the 'current'.
 		 */
