@@ -227,9 +227,8 @@ int tda18271_charge_pump_source(struct dvb_frontend *fe,
 
 	regs[r_cp] &= ~0x20;
 	regs[r_cp] |= ((force & 1) << 5);
-	tda18271_write_regs(fe, r_cp, 1);
 
-	return 0;
+	return tda18271_write_regs(fe, r_cp, 1);
 }
 
 int tda18271_init_regs(struct dvb_frontend *fe)
@@ -494,9 +493,7 @@ int tda18271_set_standby_mode(struct dvb_frontend *fe,
 			sm_lt ? (1 << 6) : 0 |
 			sm_xt ? (1 << 5) : 0;
 
-	tda18271_write_regs(fe, R_EP3, 1);
-
-	return 0;
+	return tda18271_write_regs(fe, R_EP3, 1);
 }
 
 /*---------------------------------------------------------------------*/

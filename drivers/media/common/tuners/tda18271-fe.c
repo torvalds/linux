@@ -719,45 +719,56 @@ static int tda18271_ir_cal_init(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
+	int ret;
 
-	tda18271_read_regs(fe);
+	ret = tda18271_read_regs(fe);
+	if (ret < 0)
+		goto fail;
 
 	/* test IR_CAL_OK to see if we need init */
 	if ((regs[R_EP1] & 0x08) == 0)
-		tda18271_init_regs(fe);
-
-	return 0;
+		ret = tda18271_init_regs(fe);
+fail:
+	return ret;
 }
 
 static int tda18271_init(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
+	int ret;
 
 	mutex_lock(&priv->lock);
 
 	/* power up */
-	tda18271_set_standby_mode(fe, 0, 0, 0);
+	ret = tda18271_set_standby_mode(fe, 0, 0, 0);
+	if (ret < 0)
+		goto fail;
 
 	/* initialization */
-	tda18271_ir_cal_init(fe);
+	ret = tda18271_ir_cal_init(fe);
+	if (ret < 0)
+		goto fail;
 
 	if (priv->id == TDA18271HDC2)
 		tda18271c2_rf_cal_init(fe);
-
+fail:
 	mutex_unlock(&priv->lock);
 
-	return 0;
+	return ret;
 }
 
 static int tda18271_tune(struct dvb_frontend *fe,
 			 struct tda18271_std_map_item *map, u32 freq, u32 bw)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
+	int ret;
 
 	tda_dbg("freq = %d, ifc = %d, bw = %d, agc_mode = %d, std = %d\n",
 		freq, map->if_freq, bw, map->agc_mode, map->std);
 
-	tda18271_init(fe);
+	ret = tda18271_init(fe);
+	if (ret < 0)
+		goto fail;
 
 	mutex_lock(&priv->lock);
 
@@ -772,8 +783,8 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	tda18271_channel_configuration(fe, map, freq, bw);
 
 	mutex_unlock(&priv->lock);
-
-	return 0;
+fail:
+	return ret;
 }
 
 /* ------------------------------------------------------------------ */
@@ -905,16 +916,17 @@ fail:
 static int tda18271_sleep(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
+	int ret;
 
 	mutex_lock(&priv->lock);
 
 	/* standby mode w/ slave tuner output
 	 * & loop thru & xtal oscillator on */
-	tda18271_set_standby_mode(fe, 1, 0, 0);
+	ret = tda18271_set_standby_mode(fe, 1, 0, 0);
 
 	mutex_unlock(&priv->lock);
 
-	return 0;
+	return ret;
 }
 
 static int tda18271_release(struct dvb_frontend *fe)
