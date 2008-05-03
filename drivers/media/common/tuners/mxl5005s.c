@@ -304,7 +304,6 @@ static u16 MXL_GetCHRegister(struct dvb_frontend *fe, u8 *RegNum,
 	u8 *RegVal, int *count);
 static u32 MXL_Ceiling(u32 value, u32 resolution);
 static u16 MXL_RegRead(struct dvb_frontend *fe, u8 RegNum, u8 *RegVal);
-static u16 MXL_RegWrite(struct dvb_frontend *fe, u8 RegNum, u8 RegVal);
 static u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum,
 	u32 value, u16 controlGroup);
 static u16 MXL_SetGPIO(struct dvb_frontend *fe, u8 GPIO_Num, u8 GPIO_Val);
@@ -3492,21 +3491,6 @@ static u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum,
 	return 0 ; /* successful return */
 }
 
-static u16 MXL_RegWrite(struct dvb_frontend *fe, u8 RegNum, u8 RegVal)
-{
-	struct mxl5005s_state *state = fe->tuner_priv;
-	int i ;
-
-	for (i = 0; i < 104; i++) {
-		if (RegNum == state->TunerRegs[i].Reg_Num) {
-			state->TunerRegs[i].Reg_Val = RegVal;
-			return 0;
-		}
-	}
-
-	return 1;
-}
-
 static u16 MXL_RegRead(struct dvb_frontend *fe, u8 RegNum, u8 *RegVal)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
@@ -3567,92 +3551,6 @@ static u16 MXL_ControlRead(struct dvb_frontend *fe, u16 controlNum, u32 *value)
 		}
 	}
 #endif
-	return 1;
-}
-
-static u16 MXL_ControlRegRead(struct dvb_frontend *fe, u16 controlNum,
-	u8 *RegNum, int *count)
-{
-	struct mxl5005s_state *state = fe->tuner_priv;
-	u16 i, j, k ;
-	u16 Count ;
-
-	for (i = 0; i < state->Init_Ctrl_Num ; i++) {
-
-		if (controlNum == state->Init_Ctrl[i].Ctrl_Num) {
-
-			Count = 1;
-			RegNum[0] = (u8)(state->Init_Ctrl[i].addr[0]);
-
-			for (k = 1; k < state->Init_Ctrl[i].size; k++) {
-
-				for (j = 0; j < Count; j++) {
-
-					if (state->Init_Ctrl[i].addr[k] !=
-						RegNum[j]) {
-
-						Count++;
-						RegNum[Count-1] = (u8)(state->Init_Ctrl[i].addr[k]);
-
-					}
-				}
-
-			}
-			*count = Count;
-			return 0;
-		}
-	}
-	for (i = 0; i < state->CH_Ctrl_Num ; i++) {
-
-		if (controlNum == state->CH_Ctrl[i].Ctrl_Num) {
-
-			Count = 1;
-			RegNum[0] = (u8)(state->CH_Ctrl[i].addr[0]);
-
-			for (k = 1; k < state->CH_Ctrl[i].size; k++) {
-
-				for (j = 0; j < Count; j++) {
-
-					if (state->CH_Ctrl[i].addr[k] !=
-						RegNum[j]) {
-
-						Count++;
-						RegNum[Count-1] = (u8)(state->CH_Ctrl[i].addr[k]);
-
-					}
-				}
-			}
-			*count = Count;
-			return 0;
-		}
-	}
-#ifdef _MXL_INTERNAL
-	for (i = 0; i < state->MXL_Ctrl_Num ; i++) {
-
-		if (controlNum == state->MXL_Ctrl[i].Ctrl_Num) {
-
-			Count = 1;
-			RegNum[0] = (u8)(state->MXL_Ctrl[i].addr[0]);
-
-			for (k = 1; k < state->MXL_Ctrl[i].size; k++) {
-
-				for (j = 0; j < Count; j++) {
-
-					if (state->MXL_Ctrl[i].addr[k] !=
-						RegNum[j]) {
-
-						Count++;
-						RegNum[Count-1] = (u8)state->MXL_Ctrl[i].addr[k];
-
-					}
-				}
-			}
-			*count = Count;
-			return 0;
-		}
-	}
-#endif
-	*count = 0;
 	return 1;
 }
 
@@ -3747,24 +3645,6 @@ static u16 MXL_GetCHRegister_ZeroIF(struct dvb_frontend *fe, u8 *RegNum,
 	int i;
 
 	u8 RegAddr[] = {43, 136};
-
-	*count = sizeof(RegAddr) / sizeof(u8);
-
-	for (i = 0; i < *count; i++) {
-		RegNum[i] = RegAddr[i];
-		status += MXL_RegRead(fe, RegNum[i], &RegVal[i]);
-	}
-
-	return status;
-}
-
-static u16 MXL_GetCHRegister_LowIF(struct dvb_frontend *fe, u8 *RegNum,
-	u8 *RegVal, int *count)
-{
-	u16 status = 0;
-	int i;
-
-	u8 RegAddr[] = { 138 };
 
 	*count = sizeof(RegAddr) / sizeof(u8);
 
