@@ -184,6 +184,11 @@ static void *vring_get_buf(struct virtqueue *_vq, unsigned int *len)
 
 	START_USE(vq);
 
+	if (unlikely(vq->broken)) {
+		END_USE(vq);
+		return NULL;
+	}
+
 	if (!more_used(vq)) {
 		pr_debug("No more buffers in queue\n");
 		END_USE(vq);
