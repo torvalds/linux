@@ -41,13 +41,8 @@ struct virtio_blk_outhdr
 	__u64 sector;
 };
 
+/* And this is the final byte of the write scatter-gather list. */
 #define VIRTIO_BLK_S_OK		0
 #define VIRTIO_BLK_S_IOERR	1
 #define VIRTIO_BLK_S_UNSUPP	2
-
-/* This is the first element of the write scatter-gather list */
-struct virtio_blk_inhdr
-{
-	unsigned char status;
-};
 #endif /* _LINUX_VIRTIO_BLK_H */

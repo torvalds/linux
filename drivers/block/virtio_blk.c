@@ -35,7 +35,7 @@ struct virtblk_req
 	struct list_head list;
 	struct request *req;
 	struct virtio_blk_outhdr out_hdr;
-	struct virtio_blk_inhdr in_hdr;
+	u8 status;
 };
 
 static void blk_done(struct virtqueue *vq)
@@ -48,7 +48,7 @@ static void blk_done(struct virtqueue *vq)
 	spin_lock_irqsave(&vblk->lock, flags);
 	while ((vbr = vblk->vq->vq_ops->get_buf(vblk->vq, &len)) != NULL) {
 		int uptodate;
-		switch (vbr->in_hdr.status) {
+		switch (vbr->status) {
 		case VIRTIO_BLK_S_OK:
 			uptodate = 1;
 			break;
@@ -101,7 +101,7 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 	sg_init_table(vblk->sg, VIRTIO_MAX_SG);
 	sg_set_buf(&vblk->sg[0], &vbr->out_hdr, sizeof(vbr->out_hdr));
 	num = blk_rq_map_sg(q, vbr->req, vblk->sg+1);
-	sg_set_buf(&vblk->sg[num+1], &vbr->in_hdr, sizeof(vbr->in_hdr));
+	sg_set_buf(&vblk->sg[num+1], &vbr->status, sizeof(vbr->status));
 
 	if (rq_data_dir(vbr->req) == WRITE) {
 		vbr->out_hdr.type |= VIRTIO_BLK_T_OUT;

@@ -1398,7 +1398,7 @@ static bool service_io(struct device *dev)
 	struct vblk_info *vblk = dev->priv;
 	unsigned int head, out_num, in_num, wlen;
 	int ret;
-	struct virtio_blk_inhdr *in;
+	u8 *in;
 	struct virtio_blk_outhdr *out;
 	struct iovec iov[dev->vq->vring.num];
 	off64_t off;
@@ -1416,7 +1416,7 @@ static bool service_io(struct device *dev)
 		     head, out_num, in_num);
 
 	out = convert(&iov[0], struct virtio_blk_outhdr);
-	in = convert(&iov[out_num+in_num-1], struct virtio_blk_inhdr);
+	in = convert(&iov[out_num+in_num-1], u8);
 	off = out->sector * 512;
 
 	/* The block device implements "barriers", where the Guest indicates
@@ -1430,7 +1430,7 @@ static bool service_io(struct device *dev)
 	 * It'd be nice if we supported eject, for example, but we don't. */
 	if (out->type & VIRTIO_BLK_T_SCSI_CMD) {
 		fprintf(stderr, "Scsi commands unsupported\n");
-		in->status = VIRTIO_BLK_S_UNSUPP;
+		*in = VIRTIO_BLK_S_UNSUPP;
 		wlen = sizeof(*in);
 	} else if (out->type & VIRTIO_BLK_T_OUT) {
 		/* Write */
@@ -1453,7 +1453,7 @@ static bool service_io(struct device *dev)
 			errx(1, "Write past end %llu+%u", off, ret);
 		}
 		wlen = sizeof(*in);
-		in->status = (ret >= 0 ? VIRTIO_BLK_S_OK : VIRTIO_BLK_S_IOERR);
+		*in = (ret >= 0 ? VIRTIO_BLK_S_OK : VIRTIO_BLK_S_IOERR);
 	} else {
 		/* Read */
 
@@ -1466,10 +1466,10 @@ static bool service_io(struct device *dev)
 		verbose("READ from sector %llu: %i\n", out->sector, ret);
 		if (ret >= 0) {
 			wlen = sizeof(*in) + ret;
-			in->status = VIRTIO_BLK_S_OK;
+			*in = VIRTIO_BLK_S_OK;
 		} else {
 			wlen = sizeof(*in);
-			in->status = VIRTIO_BLK_S_IOERR;
+			*in = VIRTIO_BLK_S_IOERR;
 		}
 	}
 
