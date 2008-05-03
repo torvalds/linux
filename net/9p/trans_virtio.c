@@ -201,7 +201,7 @@ static void p9_virtio_close(struct p9_trans *trans)
 {
 	struct virtio_chan *chan = trans->priv;
 	int count;
-	unsigned int flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&chan->lock, flags);
 	p9_idpool_destroy(chan->tagpool);
