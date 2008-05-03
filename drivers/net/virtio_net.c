@@ -142,10 +142,10 @@ drop:
 static void try_fill_recv(struct virtnet_info *vi)
 {
 	struct sk_buff *skb;
-	struct scatterlist sg[1+MAX_SKB_FRAGS];
+	struct scatterlist sg[2+MAX_SKB_FRAGS];
 	int num, err;
 
-	sg_init_table(sg, 1+MAX_SKB_FRAGS);
+	sg_init_table(sg, 2+MAX_SKB_FRAGS);
 	for (;;) {
 		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN);
 		if (unlikely(!skb))
@@ -231,11 +231,11 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 	int num, err;
-	struct scatterlist sg[1+MAX_SKB_FRAGS];
+	struct scatterlist sg[2+MAX_SKB_FRAGS];
 	struct virtio_net_hdr *hdr;
 	const unsigned char *dest = ((struct ethhdr *)skb->data)->h_dest;
 
-	sg_init_table(sg, 1+MAX_SKB_FRAGS);
+	sg_init_table(sg, 2+MAX_SKB_FRAGS);
 
 	pr_debug("%s: xmit %p " MAC_FMT "\n", dev->name, skb,
 		 dest[0], dest[1], dest[2],
