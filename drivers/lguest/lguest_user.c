@@ -251,8 +251,6 @@ static ssize_t write(struct file *file, const char __user *in,
 		if (!lg || (cpu_id >= lg->nr_cpus))
 			return -EINVAL;
 		cpu = &lg->cpus[cpu_id];
-		if (!cpu)
-			return -EINVAL;
 
 		/* Once the Guest is dead, you can only read() why it died. */
 		if (lg->dead)
