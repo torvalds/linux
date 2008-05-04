@@ -486,7 +486,8 @@ int tda18271_set_standby_mode(struct dvb_frontend *fe,
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 
-	tda_dbg("sm = %d, sm_lt = %d, sm_xt = %d\n", sm, sm_lt, sm_xt);
+	if (tda18271_debug & DBG_ADV)
+		tda_dbg("sm = %d, sm_lt = %d, sm_xt = %d\n", sm, sm_lt, sm_xt);
 
 	regs[R_EP3]  &= ~0xe0; /* clear sm, sm_lt, sm_xt */
 	regs[R_EP3]  |= sm    ? (1 << 7) : 0 |
