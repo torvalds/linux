@@ -108,11 +108,6 @@ struct sd_desc {
 	cam_qmnu_op querymenu;
 };
 
-struct gspca_pktbuf {
-	char *data;
-	struct urb *urb;
-};
-
 /* packet types when moving from iso buf to frame buf */
 #define DISCARD_PACKET	0
 #define FIRST_PACKET	1
@@ -121,19 +116,20 @@ struct gspca_pktbuf {
 
 struct gspca_frame {
 	unsigned char *data;		/* frame buffer */
-	unsigned char *data_end;	/* current end of frame while filling */
+	unsigned char *data_end;	/* end of frame while filling */
 	int vma_use_count;
 	struct v4l2_buffer v4l2_buf;
 };
 
 struct gspca_dev {
-	struct video_device vdev;		/* !! must be the first item */
+	struct video_device vdev;	/* !! must be the first item */
 	struct usb_device *dev;
+	struct file *capt_file;		/* file doing video capture */
 
 	struct cam cam;				/* device information */
 	const struct sd_desc *sd_desc;		/* subdriver description */
 
-	struct gspca_pktbuf pktbuf[NURBS];
+	struct urb *urb[NURBS];
 
 	__u8 *frbuf;				/* buffer for nframes */
 	struct gspca_frame frame[GSPCA_MAX_FRAMES];
@@ -147,7 +143,7 @@ struct gspca_dev {
 
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
-	char curr_mode;			/* current camera mode */
+	unsigned char curr_mode;	/* current camera mode */
 	__u32 pixfmt;			/* current mode parameters */
 	short width;
 	short height;
@@ -158,7 +154,7 @@ struct gspca_dev {
 	struct mutex read_lock;		/* read protection */
 	struct mutex queue_lock;	/* ISOC queue protection */
 	__u32 sequence;			/* frame sequence number */
-	signed char streaming;
+	char streaming;
 	char users;			/* # open */
 	char present;			/* device connected */
 	char nbufread;			/* number of buffers for read() */

@@ -27,8 +27,8 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 0, 30)
-static const char version[] = "0.0.30";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 1, 1)
+static const char version[] = "0.1.1";
 
 MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
 MODULE_DESCRIPTION("Pixart PAC207");
@@ -251,6 +251,7 @@ int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 	u8 idreg[2];
 
@@ -282,6 +283,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->epaddr = 0x05;
 	cam->cam_mode = sif_mode;
 	cam->nmodes = ARRAY_SIZE(sif_mode);
+	sd->brightness = PAC207_BRIGHTNESS_DEFAULT;
+	sd->exposure = PAC207_EXPOSURE_DEFAULT;
+	sd->gain = PAC207_GAIN_DEFAULT;
 
 	return 0;
 }
@@ -291,9 +295,6 @@ static int sd_open(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sd->brightness = PAC207_BRIGHTNESS_DEFAULT;
-	sd->exposure = PAC207_EXPOSURE_DEFAULT;
-	sd->gain = PAC207_GAIN_DEFAULT;
 	sd->autogain = 1;
 
 	return 0;

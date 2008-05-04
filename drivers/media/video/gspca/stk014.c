@@ -24,8 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 0, 22)
-static const char version[] = "0.0.22";
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 1, 0)
+static const char version[] = "0.1.0";
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("Syntek DV4000 (STK014) USB Camera Driver");
@@ -390,6 +390,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			int len)			/* iso packet length */
 {
 	int l;
+	static unsigned char ffd9[] = {0xff, 0xd9};
 
 	/* a frame starts with:
 	 *	- 0xff 0xfe
@@ -445,7 +446,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (len > frame->v4l2_buf.bytesused - 2 - l)
 		len = frame->v4l2_buf.bytesused - 2 - l;
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
-	gspca_frame_add(gspca_dev, LAST_PACKET, frame, "\xff\xd9", 2);
+	gspca_frame_add(gspca_dev, LAST_PACKET, frame, ffd9, 2);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
