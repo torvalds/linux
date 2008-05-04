@@ -605,9 +605,13 @@ static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe)
 		goto fail;
 
 	/* rf band calibration */
-	for (i = 0; priv->rf_cal_state[i].rfmax != 0; i++)
+	for (i = 0; priv->rf_cal_state[i].rfmax != 0; i++) {
+		ret =
 		tda18271_rf_tracking_filters_init(fe, 1000 *
 						  priv->rf_cal_state[i].rfmax);
+		if (ret < 0)
+			goto fail;
+	}
 
 	priv->tm_rfcal = tda18271_read_thermometer(fe);
 fail:
@@ -640,7 +644,10 @@ static int tda18271c2_rf_cal_init(struct dvb_frontend *fe)
 	tda_info("tda18271: RF tracking filter calibration complete\n");
 
 	priv->cal_initialized = true;
+	goto end;
 fail:
+	tda_info("tda18271: RF tracking filter calibration failed!\n");
+end:
 	return ret;
 }
 
