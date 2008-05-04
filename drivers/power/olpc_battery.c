@@ -84,6 +84,8 @@ static struct power_supply olpc_ac = {
 	.get_property = olpc_ac_get_prop,
 };
 
+static char bat_serial[17]; /* Ick */
+
 /*********************************************************************
  *		Battery properties
  *********************************************************************/
@@ -94,6 +96,7 @@ static int olpc_bat_get_property(struct power_supply *psy,
 	int ret = 0;
 	int16_t ec_word;
 	uint8_t ec_byte;
+	uint64_t ser_buf;
 
 	ret = olpc_ec_cmd(EC_BAT_STATUS, NULL, 0, &ec_byte, 1);
 	if (ret)
@@ -241,6 +244,14 @@ static int olpc_bat_get_property(struct power_supply *psy,
 		ec_word = be16_to_cpu(ec_word);
 		val->intval = ec_word * 100 / 256;
 		break;
+	case POWER_SUPPLY_PROP_SERIAL_NUMBER:
+		ret = olpc_ec_cmd(EC_BAT_SERIAL, NULL, 0, (void *)&ser_buf, 8);
+		if (ret)
+			return ret;
+
+		sprintf(bat_serial, "%016llx", (long long)be64_to_cpu(ser_buf));
+		val->strval = bat_serial;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -260,6 +271,7 @@ static enum power_supply_property olpc_bat_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TEMP_AMBIENT,
 	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
 /*********************************************************************
