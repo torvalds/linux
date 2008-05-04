@@ -196,12 +196,6 @@ static inline int sysfs_update_group(struct kobject *kobj,
 	return 0;
 }
 
-static inline int sysfs_update_group(struct kobject *kobj,
-				const struct attribute_group *grp)
-{
-	return 0;
-}
-
 static inline void sysfs_remove_group(struct kobject *kobj,
 				      const struct attribute_group *grp)
 {
