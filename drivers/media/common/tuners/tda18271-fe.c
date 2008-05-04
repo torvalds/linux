@@ -51,6 +51,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
+	int ret;
 	u32 N;
 
 	/* update TV broadcast parameters */
@@ -85,7 +86,9 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	/* update rf top / if top */
 	regs[R_EB22]  = 0x00;
 	regs[R_EB22] |= map->rfagc_top;
-	tda18271_write_regs(fe, R_EB22, 1);
+	ret = tda18271_write_regs(fe, R_EB22, 1);
+	if (ret < 0)
+		goto fail;
 
 	/* --------------------------------------------------------------- */
 
@@ -121,7 +124,9 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	/* agc1 has priority on agc2 */
 	regs[R_EB1]  &= ~0x01;
 
-	tda18271_write_regs(fe, R_EB1, 1);
+	ret = tda18271_write_regs(fe, R_EB1, 1);
+	if (ret < 0)
+		goto fail;
 
 	/* --------------------------------------------------------------- */
 
@@ -141,7 +146,9 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 		break;
 	}
 
-	tda18271_write_regs(fe, R_TM, 7);
+	ret = tda18271_write_regs(fe, R_TM, 7);
+	if (ret < 0)
+		goto fail;
 
 	/* force charge pump source */
 	charge_pump_source(fe, 1);
@@ -158,9 +165,9 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 		regs[R_EP3] &= ~0x04;
 	else
 		regs[R_EP3] |= 0x04;
-	tda18271_write_regs(fe, R_EP3, 1);
-
-	return 0;
+	ret = tda18271_write_regs(fe, R_EP3, 1);
+fail:
+	return ret;
 }
 
 static int tda18271_read_thermometer(struct dvb_frontend *fe)
@@ -813,7 +820,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 		tda18271c2_rf_tracking_filters_correction(fe, freq);
 		break;
 	}
-	tda18271_channel_configuration(fe, map, freq, bw);
+	ret = tda18271_channel_configuration(fe, map, freq, bw);
 
 	mutex_unlock(&priv->lock);
 fail:
