@@ -220,11 +220,13 @@ static int tda18271c2_rf_tracking_filters_correction(struct dvb_frontend *fe,
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_rf_tracking_filter_cal *map = priv->rf_cal_state;
 	unsigned char *regs = priv->tda18271_regs;
-	int tm_current, rfcal_comp, approx, i;
+	int tm_current, rfcal_comp, approx, i, ret;
 	u8 dc_over_dt, rf_tab;
 
 	/* power up */
-	tda18271_set_standby_mode(fe, 0, 0, 0);
+	ret = tda18271_set_standby_mode(fe, 0, 0, 0);
+	if (ret < 0)
+		goto fail;
 
 	/* read die current temperature */
 	tm_current = tda18271_read_thermometer(fe);
@@ -257,9 +259,9 @@ static int tda18271c2_rf_tracking_filters_correction(struct dvb_frontend *fe,
 	rfcal_comp = dc_over_dt * (tm_current - priv->tm_rfcal);
 
 	regs[R_EB14] = approx + rfcal_comp;
-	tda18271_write_regs(fe, R_EB14, 1);
-
-	return 0;
+	ret = tda18271_write_regs(fe, R_EB14, 1);
+fail:
+	return ret;
 }
 
 static int tda18271_por(struct dvb_frontend *fe)
