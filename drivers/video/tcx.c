@@ -84,7 +84,7 @@ struct tcx_tec {
 
 struct tcx_thc {
 	u32 thc_rev;
-        u32 thc_pad0[511];
+	u32 thc_pad0[511];
 	u32 thc_hs;		/* hsync timing */
 	u32 thc_hsdvs;
 	u32 thc_hd;
@@ -126,10 +126,10 @@ struct tcx_par {
 };
 
 /* Reset control plane so that WID is 8-bit plane. */
-static void __tcx_set_control_plane (struct tcx_par *par)
+static void __tcx_set_control_plane(struct tcx_par *par)
 {
 	u32 __iomem *p, *pend;
-        
+
 	if (par->lowdepth)
 		return;
 
@@ -143,8 +143,8 @@ static void __tcx_set_control_plane (struct tcx_par *par)
 		sbus_writel(tmp, p);
 	}
 }
-                                                
-static void tcx_reset (struct fb_info *info)
+
+static void tcx_reset(struct fb_info *info)
 {
 	struct tcx_par *par = (struct tcx_par *) info->par;
 	unsigned long flags;
@@ -365,7 +365,8 @@ static void tcx_unmap_regs(struct of_device *op, struct fb_info *info,
 			   info->screen_base, par->fbsize);
 }
 
-static int __devinit tcx_init_one(struct of_device *op)
+static int __devinit tcx_probe(struct of_device *op,
+			       const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
 	struct fb_info *info;
@@ -486,13 +487,6 @@ out_unmap_regs:
 
 out_err:
 	return err;
-}
-
-static int __devinit tcx_probe(struct of_device *dev, const struct of_device_id *match)
-{
-	struct of_device *op = to_of_device(&dev->dev);
-
-	return tcx_init_one(op);
 }
 
 static int __devexit tcx_remove(struct of_device *op)
