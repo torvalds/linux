@@ -3547,13 +3547,16 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 	 * block-ack window (we assume that they've been successfully
 	 * transmitted ... if not, it's too late anyway). */
 	if (txq->q.read_ptr != (ba_resp_scd_ssn & 0xff)) {
+		/* calculate mac80211 ampdu sw queue to wake */
+		int ampdu_q =
+		   scd_flow - IWL_BACK_QUEUE_FIRST_ID + priv->hw->queues;
 		int freed = iwl4965_tx_queue_reclaim(priv, scd_flow, index);
 		priv->stations[ba_resp->sta_id].
 			tid[ba_resp->tid].tfds_in_queue -= freed;
 		if (iwl4965_queue_space(&txq->q) > txq->q.low_mark &&
 			priv->mac80211_registered &&
 			agg->state != IWL_EMPTYING_HW_QUEUE_DELBA)
-			ieee80211_wake_queue(priv->hw, scd_flow);
+			ieee80211_wake_queue(priv->hw, ampdu_q);
 		iwl4965_check_empty_hw_queue(priv, ba_resp->sta_id,
 			ba_resp->tid, scd_flow);
 	}

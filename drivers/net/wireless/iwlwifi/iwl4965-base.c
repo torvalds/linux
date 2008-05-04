@@ -2568,12 +2568,6 @@ int iwl4965_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 		nfreed++;
 	}
 
-/*	if (iwl4965_queue_space(q) > q->low_mark && (txq_id >= 0) &&
-			(txq_id != IWL_CMD_QUEUE_NUM) &&
-			priv->mac80211_registered)
-		ieee80211_wake_queue(priv->hw, txq_id); */
-
-
 	return nfreed;
 }
 
@@ -2797,7 +2791,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		}
 
 		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
-			int freed;
+			int freed, ampdu_q;
 			index = iwl_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
 			IWL_DEBUG_TX_REPLY("Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
@@ -2806,9 +2800,15 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 			if (iwl4965_queue_space(&txq->q) > txq->q.low_mark &&
 			    txq_id >= 0 && priv->mac80211_registered &&
-			    agg->state != IWL_EMPTYING_HW_QUEUE_DELBA)
-				ieee80211_wake_queue(priv->hw, txq_id);
-
+			    agg->state != IWL_EMPTYING_HW_QUEUE_DELBA) {
+				/* calculate mac80211 ampdu sw queue to wake */
+				ampdu_q = txq_id - IWL_BACK_QUEUE_FIRST_ID +
+					  priv->hw->queues;
+				if (agg->state == IWL_AGG_OFF)
+					ieee80211_wake_queue(priv->hw, txq_id);
+				else
+					ieee80211_wake_queue(priv->hw, ampdu_q);
+			}
 			iwl4965_check_empty_hw_queue(priv, sta_id, tid, txq_id);
 		}
 	} else {
@@ -2833,8 +2833,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		if (tid != MAX_TID_COUNT)
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 		if (iwl4965_queue_space(&txq->q) > txq->q.low_mark &&
-			(txq_id >= 0) &&
-			priv->mac80211_registered)
+			(txq_id >= 0) && priv->mac80211_registered)
 			ieee80211_wake_queue(priv->hw, txq_id);
 		if (tid != MAX_TID_COUNT)
 			iwl4965_check_empty_hw_queue(priv, sta_id, tid, txq_id);
