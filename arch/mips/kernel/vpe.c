@@ -845,7 +845,7 @@ static int vpe_elfload(struct vpe * v)
 
 	/* Sanity checks against insmoding binaries or wrong arch,
 	   weird elf version */
-	if (memcmp(hdr->e_ident, ELFMAG, 4) != 0
+	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0
 	    || (hdr->e_type != ET_REL && hdr->e_type != ET_EXEC)
 	    || !elf_check_arch(hdr)
 	    || hdr->e_shentsize != sizeof(*sechdrs)) {
@@ -1114,7 +1114,7 @@ static int vpe_release(struct inode *inode, struct file *filp)
 		return -ENODEV;
 
 	hdr = (Elf_Ehdr *) v->pbuffer;
-	if (memcmp(hdr->e_ident, ELFMAG, 4) == 0) {
+	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) == 0) {
 		if (vpe_elfload(v) >= 0) {
 			vpe_run(v);
 		} else {
