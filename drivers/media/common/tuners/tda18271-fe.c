@@ -665,6 +665,7 @@ static int tda18271c1_rf_tracking_filter_calibration(struct dvb_frontend *fe,
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
+	int ret;
 	u32 N = 0;
 
 	/* calculate bp filter */
@@ -713,7 +714,10 @@ static int tda18271c1_rf_tracking_filter_calibration(struct dvb_frontend *fe,
 
 	tda18271_calc_main_pll(fe, N);
 
-	tda18271_write_regs(fe, R_EP3, 11);
+	ret = tda18271_write_regs(fe, R_EP3, 11);
+	if (ret < 0)
+		return ret;
+
 	msleep(5); /* RF tracking filter calibration initialization */
 
 	/* search for K,M,CO for RF calibration */
