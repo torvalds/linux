@@ -564,7 +564,7 @@ static inline void __clear_bit_unlock(unsigned long nr, volatile unsigned long *
  * Return the bit position (0..63) of the most significant 1 bit in a word
  * Returns -1 if no 1 bit exists
  */
-static inline int __ilog2(unsigned long x)
+static inline unsigned long __fls(unsigned long x)
 {
 	int lz;
 
@@ -593,11 +593,6 @@ static inline int __ilog2(unsigned long x)
 	return 63 - lz;
 }
 
-static inline unsigned long __fls(unsigned long x)
-{
-	return __ilog2(x);
-}
-
 /*
  * __ffs - find first bit in word.
  * @word: The word to search
@@ -607,7 +602,7 @@ static inline unsigned long __fls(unsigned long x)
  */
 static inline unsigned long __ffs(unsigned long word)
 {
-	return __ilog2(word & -word);
+	return __fls(word & -word);
 }
 
 /*
