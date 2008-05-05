@@ -87,7 +87,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	regs[R_EB22]  = 0x00;
 	regs[R_EB22] |= map->rfagc_top;
 	ret = tda18271_write_regs(fe, R_EB22, 1);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	/* --------------------------------------------------------------- */
@@ -125,7 +125,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	regs[R_EB1]  &= ~0x01;
 
 	ret = tda18271_write_regs(fe, R_EB1, 1);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	/* --------------------------------------------------------------- */
@@ -147,7 +147,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	}
 
 	ret = tda18271_write_regs(fe, R_TM, 7);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	/* force charge pump source */
@@ -225,7 +225,7 @@ static int tda18271c2_rf_tracking_filters_correction(struct dvb_frontend *fe,
 
 	/* power up */
 	ret = tda18271_set_standby_mode(fe, 0, 0, 0);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	/* read die current temperature */
@@ -237,8 +237,8 @@ static int tda18271c2_rf_tracking_filters_correction(struct dvb_frontend *fe,
 	rf_tab = regs[R_EB14];
 
 	i = tda18271_lookup_rf_band(fe, &freq, NULL);
-	if (i < 0)
-		return -EINVAL;
+	if (tda_fail(i))
+		return i;
 
 	if ((0 == map[i].rf3) || (freq / 1000 < map[i].rf2)) {
 		approx = map[i].rf_a1 *
@@ -273,20 +273,20 @@ static int tda18271_por(struct dvb_frontend *fe)
 	/* power up detector 1 */
 	regs[R_EB12] &= ~0x20;
 	ret = tda18271_write_regs(fe, R_EB12, 1);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	regs[R_EB18] &= ~0x80; /* turn agc1 loop on */
 	regs[R_EB18] &= ~0x03; /* set agc1_gain to  6 dB */
 	ret = tda18271_write_regs(fe, R_EB18, 1);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	regs[R_EB21] |= 0x03; /* set agc2_gain to -6 dB */
 
 	/* POR mode */
 	ret = tda18271_set_standby_mode(fe, 1, 0, 0);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	/* disable 1.5 MHz low pass filter */
@@ -438,7 +438,7 @@ static int tda18271_powerscan(struct dvb_frontend *fe,
 
 	/* read power detection info, stored in EB10 */
 	ret = tda18271_read_extended(fe);
-	if (ret < 0)
+	if (tda_fail(ret))
 		return ret;
 
 	/* algorithm initialization */
@@ -466,7 +466,7 @@ static int tda18271_powerscan(struct dvb_frontend *fe,
 
 		/* read power detection info, stored in EB10 */
 		ret = tda18271_read_extended(fe);
-		if (ret < 0)
+		if (tda_fail(ret))
 			return ret;
 
 		count += 200;
@@ -511,12 +511,12 @@ static int tda18271_powerscan_init(struct dvb_frontend *fe)
 	regs[R_EP4]  &= ~0x1c; /* clear if level bits */
 
 	ret = tda18271_write_regs(fe, R_EP3, 2);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	regs[R_EB18] &= ~0x03; /* set agc1_gain to   6 dB */
 	ret = tda18271_write_regs(fe, R_EB18, 1);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	regs[R_EB21] &= ~0x03; /* set agc2_gain to -15 dB */
@@ -546,7 +546,7 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 
 	i = tda18271_lookup_rf_band(fe, &freq, NULL);
 
-	if (i < 0)
+	if (tda_fail(i))
 		return i;
 
 	rf_default[RF1] = 1000 * map[i].rf1_def;
@@ -560,7 +560,7 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 
 		/* look for optimized calibration frequency */
 		bcal = tda18271_powerscan(fe, &rf_default[rf], &rf_freq[rf]);
-		if (bcal < 0)
+		if (tda_fail(bcal))
 			return bcal;
 
 		tda18271_calc_rf_cal(fe, &rf_freq[rf]);
@@ -610,7 +610,7 @@ static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe)
 	msleep(200);
 
 	ret = tda18271_powerscan_init(fe);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	/* rf band calibration */
@@ -618,7 +618,7 @@ static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe)
 		ret =
 		tda18271_rf_tracking_filters_init(fe, 1000 *
 						  priv->rf_cal_state[i].rfmax);
-		if (ret < 0)
+		if (tda_fail(ret))
 			goto fail;
 	}
 
@@ -643,11 +643,11 @@ static int tda18271c2_rf_cal_init(struct dvb_frontend *fe)
 		return 0;
 
 	ret = tda18271_calc_rf_filter_curve(fe);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	ret = tda18271_por(fe);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	tda_info("tda18271: RF tracking filter calibration complete\n");
@@ -715,7 +715,7 @@ static int tda18271c1_rf_tracking_filter_calibration(struct dvb_frontend *fe,
 	tda18271_calc_main_pll(fe, N);
 
 	ret = tda18271_write_regs(fe, R_EP3, 11);
-	if (ret < 0)
+	if (tda_fail(ret))
 		return ret;
 
 	msleep(5); /* RF tracking filter calibration initialization */
@@ -768,7 +768,7 @@ static int tda18271_ir_cal_init(struct dvb_frontend *fe)
 	int ret;
 
 	ret = tda18271_read_regs(fe);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	/* test IR_CAL_OK to see if we need init */
@@ -787,12 +787,12 @@ static int tda18271_init(struct dvb_frontend *fe)
 
 	/* power up */
 	ret = tda18271_set_standby_mode(fe, 0, 0, 0);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	/* initialization */
 	ret = tda18271_ir_cal_init(fe);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	if (priv->id == TDA18271HDC2)
@@ -813,7 +813,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 		freq, map->if_freq, bw, map->agc_mode, map->std);
 
 	ret = tda18271_init(fe);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	mutex_lock(&priv->lock);
@@ -894,7 +894,7 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 
 	ret = tda18271_tune(fe, map, freq, bw);
 
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	priv->frequency = freq;
@@ -950,7 +950,7 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 
 	ret = tda18271_tune(fe, map, freq, 0);
 
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	priv->frequency = freq;
@@ -1153,10 +1153,10 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		if (cfg)
 			priv->small_i2c = cfg->small_i2c;
 
-		if (tda18271_get_id(fe) < 0)
+		if (tda_fail(tda18271_get_id(fe)))
 			goto fail;
 
-		if (tda18271_assign_map_layout(fe) < 0)
+		if (tda_fail(tda18271_assign_map_layout(fe)))
 			goto fail;
 
 		mutex_lock(&priv->lock);

@@ -508,7 +508,7 @@ int tda18271_calc_main_pll(struct dvb_frontend *fe, u32 freq)
 	u32 div;
 
 	int ret = tda18271_lookup_pll_map(fe, MAIN_PLL, &freq, &pd, &d);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	regs[R_MPD]   = (0x77 & pd);
@@ -540,7 +540,7 @@ int tda18271_calc_cal_pll(struct dvb_frontend *fe, u32 freq)
 	u32 div;
 
 	int ret = tda18271_lookup_pll_map(fe, CAL_PLL, &freq, &pd, &d);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	regs[R_CPD]   = pd;
@@ -564,7 +564,7 @@ int tda18271_calc_bp_filter(struct dvb_frontend *fe, u32 *freq)
 	u8 val;
 
 	int ret = tda18271_lookup_map(fe, BP_FILTER, freq, &val);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	regs[R_EP1]  &= ~0x07; /* clear bp filter bits */
@@ -581,7 +581,7 @@ int tda18271_calc_km(struct dvb_frontend *fe, u32 *freq)
 	u8 val;
 
 	int ret = tda18271_lookup_map(fe, RF_CAL_KMCO, freq, &val);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	regs[R_EB13] &= ~0x7c; /* clear k & m bits */
@@ -598,7 +598,7 @@ int tda18271_calc_rf_band(struct dvb_frontend *fe, u32 *freq)
 	u8 val;
 
 	int ret = tda18271_lookup_map(fe, RF_BAND, freq, &val);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	regs[R_EP2]  &= ~0xe0; /* clear rf band bits */
@@ -615,7 +615,7 @@ int tda18271_calc_gain_taper(struct dvb_frontend *fe, u32 *freq)
 	u8 val;
 
 	int ret = tda18271_lookup_map(fe, GAIN_TAPER, freq, &val);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	regs[R_EP2]  &= ~0x1f; /* clear gain taper bits */
@@ -632,7 +632,7 @@ int tda18271_calc_ir_measure(struct dvb_frontend *fe, u32 *freq)
 	u8 val;
 
 	int ret = tda18271_lookup_map(fe, IR_MEASURE, freq, &val);
-	if (ret < 0)
+	if (tda_fail(ret))
 		goto fail;
 
 	regs[R_EP5] &= ~0x07;
