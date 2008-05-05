@@ -3095,7 +3095,7 @@ void iwl_rx_handle(struct iwl_priv *priv)
 
 	/* uCode's read index (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
-	r = iwl4965_hw_get_rx_read(priv);
+	r = priv->cfg->ops->lib->shared_mem_rx_idx(priv);
 	i = rxq->read;
 
 	/* Rx interrupt, but nothing sent from uCode */

@@ -697,7 +697,6 @@ extern int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *tfd,
 extern int iwl4965_hw_get_temperature(struct iwl_priv *priv);
 extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl4965_frame *frame, u8 rate);
-extern int iwl4965_hw_get_rx_read(struct iwl_priv *priv);
 extern void iwl4965_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 				     struct iwl_cmd *cmd,
 				     struct ieee80211_tx_control *ctrl,
@@ -1138,6 +1137,7 @@ struct iwl_priv {
 	struct iwl_hw_params hw_params;
 	/* driver/uCode shared Tx Byte Counts and Rx status */
 	void *shared_virt;
+	int rb_closed_offset;
 	/* Physical Pointer to Tx Byte Counts and Rx status */
 	dma_addr_t shared_phys;
 

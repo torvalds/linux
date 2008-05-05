@@ -103,6 +103,7 @@ struct iwl_lib_ops {
 	/* ucode shared memory */
 	int (*alloc_shared_mem)(struct iwl_priv *priv);
 	void (*free_shared_mem)(struct iwl_priv *priv);
+	int (*shared_mem_rx_idx)(struct iwl_priv *priv);
 	void (*txq_update_byte_cnt_tbl)(struct iwl_priv *priv,
 					struct iwl4965_tx_queue *txq,
 					u16 byte_cnt);

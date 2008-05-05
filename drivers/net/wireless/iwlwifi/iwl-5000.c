@@ -362,6 +362,8 @@ static int iwl5000_alloc_shared_mem(struct iwl_priv *priv)
 
 	memset(priv->shared_virt, 0, sizeof(struct iwl5000_shared));
 
+	priv->rb_closed_offset = offsetof(struct iwl5000_shared, rb_closed);
+
 	return 0;
 }
 
@@ -372,6 +374,12 @@ static void iwl5000_free_shared_mem(struct iwl_priv *priv)
 				    sizeof(struct iwl5000_shared),
 				    priv->shared_virt,
 				    priv->shared_phys);
+}
+
+static int iwl5000_shared_mem_rx_idx(struct iwl_priv *priv)
+{
+	struct iwl5000_shared *s = priv->shared_virt;
+	return le32_to_cpu(s->rb_closed) & 0xFFF;
 }
 
 /**
@@ -466,6 +474,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.alloc_shared_mem = iwl5000_alloc_shared_mem,
 	.free_shared_mem = iwl5000_free_shared_mem,
+	.shared_mem_rx_idx = iwl5000_shared_mem_rx_idx,
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
 	.disable_tx_fifo = iwl5000_disable_tx_fifo,
 	.apm_ops = {

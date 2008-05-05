@@ -2006,7 +2006,7 @@ void iwl4965_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 	tx->rate_n_flags = iwl4965_hw_set_rate_n_flags(rate_plcp, rate_flags);
 }
 
-int iwl4965_hw_get_rx_read(struct iwl_priv *priv)
+static int iwl4965_shared_mem_rx_idx(struct iwl_priv *priv)
 {
 	struct iwl4965_shared *s = priv->shared_virt;
 	return le32_to_cpu(s->rb_closed) & 0xFFF;
@@ -2092,6 +2092,8 @@ static int iwl4965_alloc_shared_mem(struct iwl_priv *priv)
 		return -ENOMEM;
 
 	memset(priv->shared_virt, 0, sizeof(struct iwl4965_shared));
+
+	priv->rb_closed_offset = offsetof(struct iwl4965_shared, rb_closed);
 
 	return 0;
 }
@@ -3824,6 +3826,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.set_hw_params = iwl4965_hw_set_hw_params,
 	.alloc_shared_mem = iwl4965_alloc_shared_mem,
 	.free_shared_mem = iwl4965_free_shared_mem,
+	.shared_mem_rx_idx = iwl4965_shared_mem_rx_idx,
 	.txq_update_byte_cnt_tbl = iwl4965_txq_update_byte_cnt_tbl,
 	.disable_tx_fifo = iwl4965_disable_tx_fifo,
 	.rx_handler_setup = iwl4965_rx_handler_setup,
