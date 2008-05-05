@@ -17,7 +17,7 @@
 
 /* FSEC = 10^-15
    NSEC = 10^-9 */
-#define FSEC_PER_NSEC	1000000
+#define FSEC_PER_NSEC	1000000L
 
 /*
  * HPET address is set in acpi/boot.c, when an ACPI entry exists
@@ -206,20 +206,19 @@ static void hpet_enable_legacy_int(void)
 
 static void hpet_legacy_clockevent_register(void)
 {
-	uint64_t hpet_freq;
-
 	/* Start HPET legacy interrupts */
 	hpet_enable_legacy_int();
 
 	/*
-	 * The period is a femto seconds value. We need to calculate the
-	 * scaled math multiplication factor for nanosecond to hpet tick
-	 * conversion.
+	 * The mult factor is defined as (include/linux/clockchips.h)
+	 *  mult/2^shift = cyc/ns (in contrast to ns/cyc in clocksource.h)
+	 * hpet_period is in units of femtoseconds (per cycle), so
+	 *  mult/2^shift = cyc/ns = 10^6/hpet_period
+	 *  mult = (10^6 * 2^shift)/hpet_period
+	 *  mult = (FSEC_PER_NSEC << hpet_clockevent.shift)/hpet_period
 	 */
-	hpet_freq = 1000000000000000ULL;
-	do_div(hpet_freq, hpet_period);
-	hpet_clockevent.mult = div_sc((unsigned long) hpet_freq,
-				      NSEC_PER_SEC, hpet_clockevent.shift);
+	hpet_clockevent.mult = div_sc((unsigned long) FSEC_PER_NSEC,
+				      hpet_period, hpet_clockevent.shift);
 	/* Calculate the min / max delta */
 	hpet_clockevent.max_delta_ns = clockevent_delta2ns(0x7FFFFFFF,
 							   &hpet_clockevent);
@@ -324,7 +323,7 @@ static struct clocksource clocksource_hpet = {
 
 static int hpet_clocksource_register(void)
 {
-	u64 tmp, start, now;
+	u64 start, now;
 	cycle_t t1;
 
 	/* Start the counter */
@@ -351,21 +350,15 @@ static int hpet_clocksource_register(void)
 		return -ENODEV;
 	}
 
-	/* Initialize and register HPET clocksource
-	 *
-	 * hpet period is in femto seconds per cycle
-	 * so we need to convert this to ns/cyc units
-	 * approximated by mult/2^shift
-	 *
-	 *  fsec/cyc * 1nsec/1000000fsec = nsec/cyc = mult/2^shift
-	 *  fsec/cyc * 1ns/1000000fsec * 2^shift = mult
-	 *  fsec/cyc * 2^shift * 1nsec/1000000fsec = mult
-	 *  (fsec/cyc << shift)/1000000 = mult
-	 *  (hpet_period << shift)/FSEC_PER_NSEC = mult
+	/*
+	 * The definition of mult is (include/linux/clocksource.h)
+	 * mult/2^shift = ns/cyc and hpet_period is in units of fsec/cyc
+	 * so we first need to convert hpet_period to ns/cyc units:
+	 *  mult/2^shift = ns/cyc = hpet_period/10^6
+	 *  mult = (hpet_period * 2^shift)/10^6
+	 *  mult = (hpet_period << shift)/FSEC_PER_NSEC
 	 */
-	tmp = (u64)hpet_period << HPET_SHIFT;
-	do_div(tmp, FSEC_PER_NSEC);
-	clocksource_hpet.mult = (u32)tmp;
+	clocksource_hpet.mult = div_sc(hpet_period, FSEC_PER_NSEC, HPET_SHIFT);
 
 	clocksource_register(&clocksource_hpet);
 
