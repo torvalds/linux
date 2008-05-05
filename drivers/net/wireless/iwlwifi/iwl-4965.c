@@ -2617,7 +2617,9 @@ static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 		rx_start->byte_count = amsdu->byte_count;
 		rx_end = (__le32 *) (((u8 *) hdr) + len);
 	}
-	if (len > priv->hw_params.max_pkt_size || len < 16) {
+	/* In monitor mode allow 802.11 ACk frames (10 bytes) */
+	if (len > priv->hw_params.max_pkt_size ||
+	    len < ((priv->iw_mode == IEEE80211_IF_TYPE_MNTR) ? 10 : 16)) {
 		IWL_WARNING("byte count out of range [16,4K] : %d\n", len);
 		return;
 	}
@@ -2988,6 +2990,13 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	IWL_DEBUG_STATS_LIMIT("Rssi %d, noise %d, qual %d, TSF %llu\n",
 			      rx_status.ssi, rx_status.noise, rx_status.signal,
 			      (unsigned long long)rx_status.mactime);
+
+
+	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR) {
+		iwl4965_handle_data_packet(priv, 1, include_phy,
+						 rxb, &rx_status);
+		return;
+	}
 
 	network_packet = iwl4965_is_network_packet(priv, header);
 	if (network_packet) {
