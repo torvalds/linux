@@ -29,7 +29,9 @@ EXPORT_SYMBOL(__avr32_asr64);
  */
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);
+
 EXPORT_SYMBOL(clear_page);
+EXPORT_SYMBOL(copy_page);
 
 /*
  * Userspace access stuff.
