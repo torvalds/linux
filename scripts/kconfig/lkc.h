@@ -11,9 +11,9 @@
 #ifndef KBUILD_NO_NLS
 # include <libintl.h>
 #else
-# define gettext(Msgid) ((const char *) (Msgid))
-# define textdomain(Domainname) ((const char *) (Domainname))
-# define bindtextdomain(Domainname, Dirname) ((const char *) (Dirname))
+static inline const char *gettext(const char *txt) { return txt; }
+static inline void textdomain(const char *domainname) {}
+static inline void bindtextdomain(const char *name, const char *dir) {}
 #endif
 
 #ifdef __cplusplus
