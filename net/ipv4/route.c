@@ -1613,7 +1613,7 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 		       sizeof(rt->u.dst.metrics));
 		if (fi->fib_mtu == 0) {
 			rt->u.dst.metrics[RTAX_MTU-1] = rt->u.dst.dev->mtu;
-			if (rt->u.dst.metrics[RTAX_LOCK-1] & (1 << RTAX_MTU) &&
+			if (dst_metric_locked(&rt->u.dst, RTAX_MTU) &&
 			    rt->rt_gateway != rt->rt_dst &&
 			    rt->u.dst.dev->mtu > 576)
 				rt->u.dst.metrics[RTAX_MTU-1] = 576;
