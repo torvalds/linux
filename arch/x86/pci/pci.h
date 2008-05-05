@@ -38,6 +38,9 @@ enum pci_bf_sort_state {
 	pci_dmi_bf,
 };
 
+extern void __init dmi_check_pciprobe(void);
+extern void __init dmi_check_skip_isa_align(void);
+
 /* pci-i386.c */
 
 extern unsigned int pcibios_max_latency;
