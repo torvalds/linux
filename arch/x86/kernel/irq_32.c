@@ -83,26 +83,28 @@ union irq_ctx {
 static union irq_ctx *hardirq_ctx[NR_CPUS] __read_mostly;
 static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
 
-static inline void call_on_stack(void *func, void *stack,
-				 unsigned long arg1, void *arg2)
-{
-	unsigned long bx;
+static char softirq_stack[NR_CPUS * THREAD_SIZE]
+		__attribute__((__section__(".bss.page_aligned")));
 
-	asm volatile(
-			"	xchgl  %%ebx,%%esp    \n"
-			"	call   *%%edi	      \n"
-			"	movl   %%ebx,%%esp    \n"
-			: "=a" (arg1), "=d" (arg2), "=b" (bx)
-			:  "0" (arg1),	 "1" (arg2),  "2" (stack),
-			   "D" (func)
-			: "memory", "cc", "ecx");
+static char hardirq_stack[NR_CPUS * THREAD_SIZE]
+		__attribute__((__section__(".bss.page_aligned")));
+
+static void call_on_stack(void *func, void *stack)
+{
+	asm volatile("xchgl	%%ebx,%%esp	\n"
+		     "call	*%%edi		\n"
+		     "movl	%%ebx,%%esp	\n"
+		     : "=b" (stack)
+		     : "0" (stack),
+		       "D"(func)
+		     : "memory", "cc", "edx", "ecx", "eax");
 }
 
 static inline int
 execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
 {
 	union irq_ctx *curctx, *irqctx;
-	u32 *isp;
+	u32 *isp, arg1, arg2;
 
 	curctx = (union irq_ctx *) current_thread_info();
 	irqctx = hardirq_ctx[smp_processor_id()];
@@ -130,11 +132,84 @@ execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
 		(curctx->tinfo.preempt_count & SOFTIRQ_MASK);
 
 	if (unlikely(overflow))
-		call_on_stack(print_stack_overflow, isp, 0, NULL);
+		call_on_stack(print_stack_overflow, isp);
 
-	call_on_stack(desc->handle_irq, isp, irq, desc);
-
+	asm volatile("xchgl	%%ebx,%%esp	\n"
+		     "call	*%%edi		\n"
+		     "movl	%%ebx,%%esp	\n"
+		     : "=a" (arg1), "=d" (arg2), "=b" (isp)
+		     :  "0" (irq),   "1" (desc),  "2" (isp),
+			"D" (desc->handle_irq)
+		     : "memory", "cc", "ecx");
 	return 1;
+}
+
+/*
+ * allocate per-cpu stacks for hardirq and for softirq processing
+ */
+void __cpuinit irq_ctx_init(int cpu)
+{
+	union irq_ctx *irqctx;
+
+	if (hardirq_ctx[cpu])
+		return;
+
+	irqctx = (union irq_ctx*) &hardirq_stack[cpu*THREAD_SIZE];
+	irqctx->tinfo.task		= NULL;
+	irqctx->tinfo.exec_domain	= NULL;
+	irqctx->tinfo.cpu		= cpu;
+	irqctx->tinfo.preempt_count	= HARDIRQ_OFFSET;
+	irqctx->tinfo.addr_limit	= MAKE_MM_SEG(0);
+
+	hardirq_ctx[cpu] = irqctx;
+
+	irqctx = (union irq_ctx*) &softirq_stack[cpu*THREAD_SIZE];
+	irqctx->tinfo.task		= NULL;
+	irqctx->tinfo.exec_domain	= NULL;
+	irqctx->tinfo.cpu		= cpu;
+	irqctx->tinfo.preempt_count	= 0;
+	irqctx->tinfo.addr_limit	= MAKE_MM_SEG(0);
+
+	softirq_ctx[cpu] = irqctx;
+
+	printk(KERN_DEBUG "CPU %u irqstacks, hard=%p soft=%p\n",
+	       cpu,hardirq_ctx[cpu],softirq_ctx[cpu]);
+}
+
+void irq_ctx_exit(int cpu)
+{
+	hardirq_ctx[cpu] = NULL;
+}
+
+asmlinkage void do_softirq(void)
+{
+	unsigned long flags;
+	struct thread_info *curctx;
+	union irq_ctx *irqctx;
+	u32 *isp;
+
+	if (in_interrupt())
+		return;
+
+	local_irq_save(flags);
+
+	if (local_softirq_pending()) {
+		curctx = current_thread_info();
+		irqctx = softirq_ctx[smp_processor_id()];
+		irqctx->tinfo.task = curctx->task;
+		irqctx->tinfo.previous_esp = current_stack_pointer;
+
+		/* build the stack frame on the softirq stack */
+		isp = (u32*) ((char*)irqctx + sizeof(*irqctx));
+
+		call_on_stack(__do_softirq, isp);
+		/*
+		 * Shouldnt happen, we returned above if in_interrupt():
+		 */
+		WARN_ON_ONCE(softirq_count());
+	}
+
+	local_irq_restore(flags);
 }
 
 #else
@@ -175,90 +250,6 @@ unsigned int do_IRQ(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 	return 1;
 }
-
-#ifdef CONFIG_4KSTACKS
-
-static char softirq_stack[NR_CPUS * THREAD_SIZE]
-		__attribute__((__section__(".bss.page_aligned")));
-
-static char hardirq_stack[NR_CPUS * THREAD_SIZE]
-		__attribute__((__section__(".bss.page_aligned")));
-
-/*
- * allocate per-cpu stacks for hardirq and for softirq processing
- */
-void irq_ctx_init(int cpu)
-{
-	union irq_ctx *irqctx;
-
-	if (hardirq_ctx[cpu])
-		return;
-
-	irqctx = (union irq_ctx*) &hardirq_stack[cpu*THREAD_SIZE];
-	irqctx->tinfo.task              = NULL;
-	irqctx->tinfo.exec_domain       = NULL;
-	irqctx->tinfo.cpu               = cpu;
-	irqctx->tinfo.preempt_count     = HARDIRQ_OFFSET;
-	irqctx->tinfo.addr_limit        = MAKE_MM_SEG(0);
-
-	hardirq_ctx[cpu] = irqctx;
-
-	irqctx = (union irq_ctx*) &softirq_stack[cpu*THREAD_SIZE];
-	irqctx->tinfo.task              = NULL;
-	irqctx->tinfo.exec_domain       = NULL;
-	irqctx->tinfo.cpu               = cpu;
-	irqctx->tinfo.preempt_count     = 0;
-	irqctx->tinfo.addr_limit        = MAKE_MM_SEG(0);
-
-	softirq_ctx[cpu] = irqctx;
-
-	printk("CPU %u irqstacks, hard=%p soft=%p\n",
-		cpu,hardirq_ctx[cpu],softirq_ctx[cpu]);
-}
-
-void irq_ctx_exit(int cpu)
-{
-	hardirq_ctx[cpu] = NULL;
-}
-
-asmlinkage void do_softirq(void)
-{
-	unsigned long flags;
-	struct thread_info *curctx;
-	union irq_ctx *irqctx;
-	u32 *isp;
-
-	if (in_interrupt())
-		return;
-
-	local_irq_save(flags);
-
-	if (local_softirq_pending()) {
-		curctx = current_thread_info();
-		irqctx = softirq_ctx[smp_processor_id()];
-		irqctx->tinfo.task = curctx->task;
-		irqctx->tinfo.previous_esp = current_stack_pointer;
-
-		/* build the stack frame on the softirq stack */
-		isp = (u32*) ((char*)irqctx + sizeof(*irqctx));
-
-		asm volatile(
-			"       xchgl   %%ebx,%%esp     \n"
-			"       call    __do_softirq    \n"
-			"       movl    %%ebx,%%esp     \n"
-			: "=b"(isp)
-			: "0"(isp)
-			: "memory", "cc", "edx", "ecx", "eax"
-		);
-		/*
-		 * Shouldnt happen, we returned above if in_interrupt():
-	 	 */
-		WARN_ON_ONCE(softirq_count());
-	}
-
-	local_irq_restore(flags);
-}
-#endif
 
 /*
  * Interrupt statistics:
