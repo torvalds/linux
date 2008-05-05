@@ -952,6 +952,7 @@ encode_op:
 out:
 	nfsd4_release_compoundargs(args);
 	cstate_free(cstate);
+	dprintk("nfsv4 compound returned %d\n", ntohl(status));
 	return status;
 }
 
