@@ -902,8 +902,8 @@ static int iwl4965_send_bt_config(struct iwl_priv *priv)
 
 static int iwl4965_send_scan_abort(struct iwl_priv *priv)
 {
-	int rc = 0;
-	struct iwl4965_rx_packet *res;
+	int ret = 0;
+	struct iwl_rx_packet *res;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_ABORT_CMD,
 		.meta.flags = CMD_WANT_SKB,
@@ -917,13 +917,13 @@ static int iwl4965_send_scan_abort(struct iwl_priv *priv)
 		return 0;
 	}
 
-	rc = iwl_send_cmd_sync(priv, &cmd);
-	if (rc) {
+	ret = iwl_send_cmd_sync(priv, &cmd);
+	if (ret) {
 		clear_bit(STATUS_SCAN_ABORTING, &priv->status);
-		return rc;
+		return ret;
 	}
 
-	res = (struct iwl4965_rx_packet *)cmd.meta.u.skb->data;
+	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
 	if (res->u.status != CAN_ABORT_STATUS) {
 		/* The scan abort will return 1 for success or
 		 * 2 for "failure".  A failure condition can be
@@ -938,7 +938,7 @@ static int iwl4965_send_scan_abort(struct iwl_priv *priv)
 
 	dev_kfree_skb_any(cmd.meta.u.skb);
 
-	return rc;
+	return ret;
 }
 
 /*
@@ -966,7 +966,7 @@ static int iwl4965_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_fla
 int iwl4965_send_add_station(struct iwl_priv *priv,
 			 struct iwl4965_addsta_cmd *sta, u8 flags)
 {
-	struct iwl4965_rx_packet *res = NULL;
+	struct iwl_rx_packet *res = NULL;
 	int rc = 0;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_ADD_STA,
@@ -983,7 +983,7 @@ int iwl4965_send_add_station(struct iwl_priv *priv,
 	if (rc || (flags & CMD_ASYNC))
 		return rc;
 
-	res = (struct iwl4965_rx_packet *)cmd.meta.u.skb->data;
+	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERROR("Bad return from REPLY_ADD_STA (0x%08X)\n",
 			  res->hdr.flags);
@@ -2441,7 +2441,7 @@ static int iwl4965_get_measurement(struct iwl_priv *priv,
 			       u8 type)
 {
 	struct iwl4965_spectrum_cmd spectrum;
-	struct iwl4965_rx_packet *res;
+	struct iwl_rx_packet *res;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SPECTRUM_MEASUREMENT_CMD,
 		.data = (void *)&spectrum,
@@ -2486,7 +2486,7 @@ static int iwl4965_get_measurement(struct iwl_priv *priv,
 	if (rc)
 		return rc;
 
-	res = (struct iwl4965_rx_packet *)cmd.meta.u.skb->data;
+	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERROR("Bad return from REPLY_RX_ON_ASSOC command\n");
 		rc = -EIO;
@@ -2738,7 +2738,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
@@ -2851,7 +2851,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 static void iwl4965_rx_reply_alive(struct iwl_priv *priv,
 				   struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_alive_resp *palive;
 	struct delayed_work *pwork;
 
@@ -2887,7 +2887,7 @@ static void iwl4965_rx_reply_alive(struct iwl_priv *priv,
 static void iwl4965_rx_reply_add_sta(struct iwl_priv *priv,
 				     struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 
 	IWL_DEBUG_RX("Received REPLY_ADD_STA: 0x%02X\n", pkt->u.status);
 	return;
@@ -2896,7 +2896,7 @@ static void iwl4965_rx_reply_add_sta(struct iwl_priv *priv,
 static void iwl4965_rx_reply_error(struct iwl_priv *priv,
 				   struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 
 	IWL_ERROR("Error Reply type 0x%08X cmd %s (0x%02X) "
 		"seq 0x%04X ser 0x%08X\n",
@@ -2911,7 +2911,7 @@ static void iwl4965_rx_reply_error(struct iwl_priv *priv,
 
 static void iwl4965_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_rxon_cmd *rxon = (void *)&priv->active_rxon;
 	struct iwl4965_csa_notification *csa = &(pkt->u.csa_notif);
 	IWL_DEBUG_11H("CSA notif: channel %d, status %d\n",
@@ -2924,7 +2924,7 @@ static void iwl4965_rx_spectrum_measure_notif(struct iwl_priv *priv,
 					  struct iwl_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_spectrum_notification *report = &(pkt->u.spectrum_notif);
 
 	if (!report->state) {
@@ -2942,7 +2942,7 @@ static void iwl4965_rx_pm_sleep_notif(struct iwl_priv *priv,
 				      struct iwl_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_sleep_notification *sleep = &(pkt->u.sleep_notif);
 	IWL_DEBUG_RX("sleep mode: %d, src: %d\n",
 		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
@@ -2952,7 +2952,7 @@ static void iwl4965_rx_pm_sleep_notif(struct iwl_priv *priv,
 static void iwl4965_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
 					     struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	IWL_DEBUG_RADIO("Dumping %d bytes of unhandled "
 			"notification for %s:\n",
 			le32_to_cpu(pkt->len), get_cmd_string(pkt->hdr.cmd));
@@ -2988,7 +2988,7 @@ static void iwl4965_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_beacon_notif *beacon = &(pkt->u.beacon_status);
 	u8 rate = iwl4965_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
@@ -3011,7 +3011,7 @@ static void iwl4965_rx_reply_scan(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb)
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_scanreq_notification *notif =
 	    (struct iwl4965_scanreq_notification *)pkt->u.raw;
 
@@ -3023,7 +3023,7 @@ static void iwl4965_rx_reply_scan(struct iwl_priv *priv,
 static void iwl4965_rx_scan_start_notif(struct iwl_priv *priv,
 				    struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_scanstart_notification *notif =
 	    (struct iwl4965_scanstart_notification *)pkt->u.raw;
 	priv->scan_start_tsf = le32_to_cpu(notif->tsf_low);
@@ -3040,7 +3040,7 @@ static void iwl4965_rx_scan_start_notif(struct iwl_priv *priv,
 static void iwl4965_rx_scan_results_notif(struct iwl_priv *priv,
 				      struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_scanresults_notification *notif =
 	    (struct iwl4965_scanresults_notification *)pkt->u.raw;
 
@@ -3065,7 +3065,7 @@ static void iwl4965_rx_scan_results_notif(struct iwl_priv *priv,
 static void iwl4965_rx_scan_complete_notif(struct iwl_priv *priv,
 				       struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
 
 	IWL_DEBUG_SCAN("Scan complete: %d channels (TSF 0x%08X:%08X) - %d\n",
@@ -3123,7 +3123,7 @@ reschedule:
 static void iwl4965_rx_card_state_notif(struct iwl_priv *priv,
 				    struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
 	unsigned long status = priv->status;
 
@@ -3243,7 +3243,7 @@ static void iwl4965_setup_rx_handlers(struct iwl_priv *priv)
 static void iwl4965_tx_cmd_complete(struct iwl_priv *priv,
 				    struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (struct iwl4965_rx_packet *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
@@ -3298,7 +3298,7 @@ static void __iwl_rx_replenish(struct iwl_priv *priv)
 void iwl_rx_handle(struct iwl_priv *priv)
 {
 	struct iwl_rx_mem_buffer *rxb;
-	struct iwl4965_rx_packet *pkt;
+	struct iwl_rx_packet *pkt;
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	u32 r, i;
 	int reclaim;
@@ -3331,7 +3331,7 @@ void iwl_rx_handle(struct iwl_priv *priv)
 		pci_dma_sync_single_for_cpu(priv->pci_dev, rxb->dma_addr,
 					    priv->hw_params.rx_buf_size,
 					    PCI_DMA_FROMDEVICE);
-		pkt = (struct iwl4965_rx_packet *)rxb->skb->data;
+		pkt = (struct iwl_rx_packet *)rxb->skb->data;
 
 		/* Reclaim a command buffer only if this packet is a response
 		 *   to a (driver-originated) command.

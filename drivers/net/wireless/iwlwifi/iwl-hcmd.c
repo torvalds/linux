@@ -101,7 +101,7 @@ EXPORT_SYMBOL(get_cmd_string);
 static int iwl_generic_cmd_callback(struct iwl_priv *priv,
 				    struct iwl_cmd *cmd, struct sk_buff *skb)
 {
-	struct iwl4965_rx_packet *pkt = NULL;
+	struct iwl_rx_packet *pkt = NULL;
 
 	if (!skb) {
 		IWL_ERROR("Error: Response NULL in %s.\n",
@@ -109,7 +109,7 @@ static int iwl_generic_cmd_callback(struct iwl_priv *priv,
 		return 1;
 	}
 
-	pkt = (struct iwl4965_rx_packet *)skb->data;
+	pkt = (struct iwl_rx_packet *)skb->data;
 	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERROR("Bad return from %s (0x%08X)\n",
 			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);

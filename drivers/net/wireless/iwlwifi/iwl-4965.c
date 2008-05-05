@@ -2519,7 +2519,7 @@ static void iwl4965_rx_calc_noise(struct iwl_priv *priv)
 void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	int change;
 	s32 temp;
 
@@ -2807,7 +2807,7 @@ static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 				       struct iwl_rx_mem_buffer *rxb,
 				       struct ieee80211_rx_status *stats)
 {
-	struct iwl4965_rx_packet *pkt = (struct iwl4965_rx_packet *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_rx_phy_res *rx_start = (include_phy) ?
 	    (struct iwl4965_rx_phy_res *)&(pkt->u.raw[0]) : NULL;
 	struct ieee80211_hdr *hdr;
@@ -2964,7 +2964,7 @@ static void iwl4965_update_ps_mode(struct iwl_priv *priv, u16 ps_bit, u8 *addr)
  *        proper operation with 4965.
  */
 static void iwl4965_dbg_report_frame(struct iwl_priv *priv,
-		      struct iwl4965_rx_packet *pkt,
+		      struct iwl_rx_packet *pkt,
 		      struct ieee80211_hdr *header, int group100)
 {
 	u32 to_us;
@@ -3098,7 +3098,7 @@ static void iwl4965_dbg_report_frame(struct iwl_priv *priv,
 }
 #else
 static inline void iwl4965_dbg_report_frame(struct iwl_priv *priv,
-					    struct iwl4965_rx_packet *pkt,
+					    struct iwl_rx_packet *pkt,
 					    struct ieee80211_hdr *header,
 					    int group100)
 {
@@ -3114,7 +3114,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 {
 	struct ieee80211_hdr *header;
 	struct ieee80211_rx_status rx_status;
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	/* Use phy data (Rx signal strength, etc.) contained within
 	 *   this rx packet for legacy frames,
 	 *   or phy data cached from REPLY_RX_PHY_CMD for HT frames. */
@@ -3281,7 +3281,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 static void iwl4965_rx_reply_rx_phy(struct iwl_priv *priv,
 				    struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	priv->last_phy_res[0] = 1;
 	memcpy(&priv->last_phy_res[1], &(pkt->u.raw[0]),
 	       sizeof(struct iwl4965_rx_phy_res));
@@ -3291,7 +3291,7 @@ static void iwl4965_rx_missed_beacon_notif(struct iwl_priv *priv,
 
 {
 #ifdef CONFIG_IWL4965_RUN_TIME_CALIB
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_missed_beacon_notif *missed_beacon;
 
 	missed_beacon = &pkt->u.missed_beacon;
@@ -3498,7 +3498,7 @@ static inline int iwl4965_queue_dec_wrap(int index, int n_bd)
 static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 					   struct iwl_rx_mem_buffer *rxb)
 {
-	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_compressed_ba_resp *ba_resp = &pkt->u.compressed_ba;
 	int index;
 	struct iwl4965_tx_queue *txq = NULL;

@@ -2731,7 +2731,7 @@ struct iwl4965_led_cmd {
  *
  *****************************************************************************/
 
-struct iwl4965_rx_packet {
+struct iwl_rx_packet {
 	__le32 len;
 	struct iwl_cmd_header hdr;
 	union {
