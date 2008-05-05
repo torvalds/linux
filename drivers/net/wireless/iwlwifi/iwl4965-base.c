@@ -207,173 +207,6 @@ static inline u8 get_cmd_index(struct iwl4965_queue *q, u32 index, int is_huge)
 	return index & (q->n_window - 1);
 }
 
-/**
- * iwl4965_queue_init - Initialize queue's high/low-water and read/write indexes
- */
-static int iwl4965_queue_init(struct iwl_priv *priv, struct iwl4965_queue *q,
-			  int count, int slots_num, u32 id)
-{
-	q->n_bd = count;
-	q->n_window = slots_num;
-	q->id = id;
-
-	/* count must be power-of-two size, otherwise iwl_queue_inc_wrap
-	 * and iwl_queue_dec_wrap are broken. */
-	BUG_ON(!is_power_of_2(count));
-
-	/* slots_num must be power-of-two size, otherwise
-	 * get_cmd_index is broken. */
-	BUG_ON(!is_power_of_2(slots_num));
-
-	q->low_mark = q->n_window / 4;
-	if (q->low_mark < 4)
-		q->low_mark = 4;
-
-	q->high_mark = q->n_window / 8;
-	if (q->high_mark < 2)
-		q->high_mark = 2;
-
-	q->write_ptr = q->read_ptr = 0;
-
-	return 0;
-}
-
-/**
- * iwl4965_tx_queue_alloc - Alloc driver data and TFD CB for one Tx/cmd queue
- */
-static int iwl4965_tx_queue_alloc(struct iwl_priv *priv,
-			      struct iwl4965_tx_queue *txq, u32 id)
-{
-	struct pci_dev *dev = priv->pci_dev;
-
-	/* Driver private data, only for Tx (not command) queues,
-	 * not shared with device. */
-	if (id != IWL_CMD_QUEUE_NUM) {
-		txq->txb = kmalloc(sizeof(txq->txb[0]) *
-				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
-		if (!txq->txb) {
-			IWL_ERROR("kmalloc for auxiliary BD "
-				  "structures failed\n");
-			goto error;
-		}
-	} else
-		txq->txb = NULL;
-
-	/* Circular buffer of transmit frame descriptors (TFDs),
-	 * shared with device */
-	txq->bd = pci_alloc_consistent(dev,
-			sizeof(txq->bd[0]) * TFD_QUEUE_SIZE_MAX,
-			&txq->q.dma_addr);
-
-	if (!txq->bd) {
-		IWL_ERROR("pci_alloc_consistent(%zd) failed\n",
-			  sizeof(txq->bd[0]) * TFD_QUEUE_SIZE_MAX);
-		goto error;
-	}
-	txq->q.id = id;
-
-	return 0;
-
- error:
-	if (txq->txb) {
-		kfree(txq->txb);
-		txq->txb = NULL;
-	}
-
-	return -ENOMEM;
-}
-
-/**
- * iwl4965_tx_queue_init - Allocate and initialize one tx/cmd queue
- */
-int iwl4965_tx_queue_init(struct iwl_priv *priv,
-		      struct iwl4965_tx_queue *txq, int slots_num, u32 txq_id)
-{
-	struct pci_dev *dev = priv->pci_dev;
-	int len;
-	int rc = 0;
-
-	/*
-	 * Alloc buffer array for commands (Tx or other types of commands).
-	 * For the command queue (#4), allocate command space + one big
-	 * command for scan, since scan command is very huge; the system will
-	 * not have two scans at the same time, so only one is needed.
-	 * For normal Tx queues (all other queues), no super-size command
-	 * space is needed.
-	 */
-	len = sizeof(struct iwl_cmd) * slots_num;
-	if (txq_id == IWL_CMD_QUEUE_NUM)
-		len +=  IWL_MAX_SCAN_SIZE;
-	txq->cmd = pci_alloc_consistent(dev, len, &txq->dma_addr_cmd);
-	if (!txq->cmd)
-		return -ENOMEM;
-
-	/* Alloc driver data array and TFD circular buffer */
-	rc = iwl4965_tx_queue_alloc(priv, txq, txq_id);
-	if (rc) {
-		pci_free_consistent(dev, len, txq->cmd, txq->dma_addr_cmd);
-
-		return -ENOMEM;
-	}
-	txq->need_update = 0;
-
-	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
-	 * iwl_queue_inc_wrap and iwl_queue_dec_wrap are broken. */
-	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
-
-	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	iwl4965_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
-
-	/* Tell device where to find queue */
-	iwl4965_hw_tx_queue_init(priv, txq);
-
-	return 0;
-}
-
-/**
- * iwl4965_tx_queue_free - Deallocate DMA queue.
- * @txq: Transmit queue to deallocate.
- *
- * Empty queue by removing and destroying all BD's.
- * Free all buffers.
- * 0-fill, but do not free "txq" descriptor structure.
- */
-void iwl4965_tx_queue_free(struct iwl_priv *priv, struct iwl4965_tx_queue *txq)
-{
-	struct iwl4965_queue *q = &txq->q;
-	struct pci_dev *dev = priv->pci_dev;
-	int len;
-
-	if (q->n_bd == 0)
-		return;
-
-	/* first, empty all BD's */
-	for (; q->write_ptr != q->read_ptr;
-	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd))
-		iwl4965_hw_txq_free_tfd(priv, txq);
-
-	len = sizeof(struct iwl_cmd) * q->n_window;
-	if (q->id == IWL_CMD_QUEUE_NUM)
-		len += IWL_MAX_SCAN_SIZE;
-
-	/* De-alloc array of command/tx buffers */
-	pci_free_consistent(dev, len, txq->cmd, txq->dma_addr_cmd);
-
-	/* De-alloc circular buffer of TFDs */
-	if (txq->q.n_bd)
-		pci_free_consistent(dev, sizeof(struct iwl4965_tfd_frame) *
-				    txq->q.n_bd, txq->bd, txq->q.dma_addr);
-
-	/* De-alloc array of per-TFD driver data */
-	if (txq->txb) {
-		kfree(txq->txb);
-		txq->txb = NULL;
-	}
-
-	/* 0-fill queue descriptor structure */
-	memset(txq, 0, sizeof(*txq));
-}
-
 const u8 iwl4965_broadcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 /*************** STATION TABLE MANAGEMENT ****
@@ -516,7 +349,7 @@ int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	struct iwl4965_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
 	struct iwl4965_queue *q = &txq->q;
-	struct iwl4965_tfd_frame *tfd;
+	struct iwl_tfd_frame *tfd;
 	u32 *control_flags;
 	struct iwl_cmd *out_cmd;
 	u32 idx;
@@ -1931,7 +1764,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 		      struct sk_buff *skb, struct ieee80211_tx_control *ctl)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct iwl4965_tfd_frame *tfd;
+	struct iwl_tfd_frame *tfd;
 	u32 *control_flags;
 	int txq_id = ctl->queue;
 	struct iwl4965_tx_queue *txq = NULL;
@@ -2515,7 +2348,7 @@ int iwl4965_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 		if (txq_id != IWL_CMD_QUEUE_NUM) {
 			iwl4965_txstatus_to_ieee(priv,
 					&(txq->txb[txq->q.read_ptr]));
-			iwl4965_hw_txq_free_tfd(priv, txq);
+			iwl_hw_txq_free_tfd(priv, txq);
 		} else if (nfreed > 1) {
 			IWL_ERROR("HCMD skipped: index (%d) %d %d\n", index,
 					q->write_ptr, q->read_ptr);
@@ -4677,7 +4510,7 @@ static int __iwl4965_up(struct iwl_priv *priv)
 		return ret;
 	}
 
-	ret = priv->cfg->ops->lib->hw_nic_init(priv);
+	ret = iwl_hw_nic_init(priv);
 	if (ret) {
 		IWL_ERROR("Unable to init nic\n");
 		return ret;
@@ -6940,7 +6773,7 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 
 	if (priv->rxq.bd)
 		iwl_rx_queue_free(priv, &priv->rxq);
-	iwl4965_hw_txq_ctx_free(priv);
+	iwl_hw_txq_ctx_free(priv);
 
 	iwlcore_clear_stations_table(priv);
 	iwl_eeprom_free(priv);

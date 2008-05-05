@@ -138,7 +138,7 @@ struct iwl4965_tx_info {
  */
 struct iwl4965_tx_queue {
 	struct iwl4965_queue q;
-	struct iwl4965_tfd_frame *bd;
+	struct iwl_tfd_frame *bd;
 	struct iwl_cmd *cmd;
 	dma_addr_t dma_addr_cmd;
 	struct iwl4965_tx_info *txb;
@@ -649,9 +649,6 @@ extern int iwl4965_is_duplicate_packet(struct iwl_priv *priv,
 				       struct ieee80211_hdr *header);
 extern int iwl4965_calc_db_from_ratio(int sig_ratio);
 extern int iwl4965_calc_sig_qual(int rssi_dbm, int noise_dbm);
-extern int iwl4965_tx_queue_init(struct iwl_priv *priv,
-			     struct iwl4965_tx_queue *txq, int count, u32 id);
-extern void iwl4965_tx_queue_free(struct iwl_priv *priv, struct iwl4965_tx_queue *txq);
 extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,
 					const u8 *dest, int left);
@@ -692,17 +689,12 @@ extern void iwl4965_hw_setup_deferred_work(struct iwl_priv *priv);
 extern void iwl4965_hw_cancel_deferred_work(struct iwl_priv *priv);
 extern int iwl4965_hw_rxq_stop(struct iwl_priv *priv);
 extern int iwl4965_hw_set_hw_params(struct iwl_priv *priv);
-extern int iwl4965_hw_nic_init(struct iwl_priv *priv);
 extern int iwl4965_hw_nic_stop_master(struct iwl_priv *priv);
-extern void iwl4965_hw_txq_ctx_free(struct iwl_priv *priv);
 extern void iwl4965_hw_txq_ctx_stop(struct iwl_priv *priv);
 extern int iwl4965_hw_nic_reset(struct iwl_priv *priv);
 extern int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *tfd,
 					dma_addr_t addr, u16 len);
-extern int iwl4965_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl4965_tx_queue *txq);
 extern int iwl4965_hw_get_temperature(struct iwl_priv *priv);
-extern int iwl4965_hw_tx_queue_init(struct iwl_priv *priv,
-				struct iwl4965_tx_queue *txq);
 extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl4965_frame *frame, u8 rate);
 extern int iwl4965_hw_get_rx_read(struct iwl_priv *priv);

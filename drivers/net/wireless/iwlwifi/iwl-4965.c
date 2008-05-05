@@ -53,8 +53,6 @@ static struct iwl_mod_params iwl4965_mod_params = {
 	/* the rest are 0 by default */
 };
 
-static void iwl4965_hw_card_show_info(struct iwl_priv *priv);
-
 #ifdef CONFIG_IWL4965_HT
 
 static const u16 default_tid_to_tx_fifo[] = {
@@ -372,104 +370,6 @@ int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 	return ret;
 }
 
-static int iwl4965_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
-{
-	int ret;
-	unsigned long flags;
-	unsigned int rb_size;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
-
-	if (priv->cfg->mod_params->amsdu_size_8K)
-		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
-	else
-		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
-
-	/* Stop Rx DMA */
-	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-
-	/* Reset driver's Rx queue write index */
-	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
-
-	/* Tell device where to find RBD circular buffer in DRAM */
-	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
-			   rxq->dma_addr >> 8);
-
-	/* Tell device where in DRAM to update its Rx status */
-	iwl_write_direct32(priv, FH_RSCSR_CHNL0_STTS_WPTR_REG,
-			   (priv->shared_phys +
-			    offsetof(struct iwl4965_shared, rb_closed)) >> 4);
-
-	/* Enable Rx DMA, enable host interrupt, Rx buffer size 4k, 256 RBDs */
-	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG,
-			   FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL |
-			   FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
-			   rb_size |
-			     /* 0x10 << 4 | */
-			   (RX_QUEUE_SIZE_LOG <<
-			      FH_RCSR_RX_CONFIG_RBDCB_SIZE_BITSHIFT));
-
-	/*
-	 * iwl_write32(priv,CSR_INT_COAL_REG,0);
-	 */
-
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return 0;
-}
-
-/* Tell 4965 where to find the "keep warm" buffer */
-static int iwl4965_kw_init(struct iwl_priv *priv)
-{
-	unsigned long flags;
-	int rc;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc)
-		goto out;
-
-	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG,
-			     priv->kw.dma_addr >> 4);
-	iwl_release_nic_access(priv);
-out:
-	spin_unlock_irqrestore(&priv->lock, flags);
-	return rc;
-}
-
-static int iwl4965_kw_alloc(struct iwl_priv *priv)
-{
-	struct pci_dev *dev = priv->pci_dev;
-	struct iwl4965_kw *kw = &priv->kw;
-
-	kw->size = IWL4965_KW_SIZE;	/* TBW need set somewhere else */
-	kw->v_addr = pci_alloc_consistent(dev, kw->size, &kw->dma_addr);
-	if (!kw->v_addr)
-		return -ENOMEM;
-
-	return 0;
-}
-
-/**
- * iwl4965_kw_free - Free the "keep warm" buffer
- */
-static void iwl4965_kw_free(struct iwl_priv *priv)
-{
-	struct pci_dev *dev = priv->pci_dev;
-	struct iwl4965_kw *kw = &priv->kw;
-
-	if (kw->v_addr) {
-		pci_free_consistent(dev, kw->size, kw->v_addr, kw->dma_addr);
-		memset(kw, 0, sizeof(*kw));
-	}
-}
-
 static int iwl4965_disable_tx_fifo(struct iwl_priv *priv)
 {
 	unsigned long flags;
@@ -489,65 +389,6 @@ static int iwl4965_disable_tx_fifo(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
-}
-
-/**
- * iwl4965_txq_ctx_reset - Reset TX queue context
- * Destroys all DMA structures and initialise them again
- *
- * @param priv
- * @return error code
- */
-static int iwl4965_txq_ctx_reset(struct iwl_priv *priv)
-{
-	int rc = 0;
-	int txq_id, slots_num;
-
-	iwl4965_kw_free(priv);
-
-	/* Free all tx/cmd queues and keep-warm buffer */
-	iwl4965_hw_txq_ctx_free(priv);
-
-	/* Alloc keep-warm buffer */
-	rc = iwl4965_kw_alloc(priv);
-	if (rc) {
-		IWL_ERROR("Keep Warm allocation failed");
-		goto error_kw;
-	}
-
-	/* Turn off all Tx DMA fifos */
-	rc = priv->cfg->ops->lib->disable_tx_fifo(priv);
-	if (unlikely(rc))
-		goto error_reset;
-
-	/* Tell 4965 where to find the keep-warm buffer */
-	rc = iwl4965_kw_init(priv);
-	if (rc) {
-		IWL_ERROR("kw_init failed\n");
-		goto error_reset;
-	}
-
-	/* Alloc and init all (default 16) Tx queues,
-	 * including the command queue (#4) */
-	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
-		slots_num = (txq_id == IWL_CMD_QUEUE_NUM) ?
-					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
-		rc = iwl4965_tx_queue_init(priv, &priv->txq[txq_id], slots_num,
-				       txq_id);
-		if (rc) {
-			IWL_ERROR("Tx %d queue init failed\n", txq_id);
-			goto error;
-		}
-	}
-
-	return rc;
-
- error:
-	iwl4965_hw_txq_ctx_free(priv);
- error_reset:
-	iwl4965_kw_free(priv);
- error_kw:
-	return rc;
 }
 
 static int iwl4965_apm_init(struct iwl_priv *priv)
@@ -633,58 +474,6 @@ static void iwl4965_nic_config(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-int iwl4965_hw_nic_init(struct iwl_priv *priv)
-{
-	unsigned long flags;
-	struct iwl_rx_queue *rxq = &priv->rxq;
-	int ret;
-
-	/* nic_init */
-	priv->cfg->ops->lib->apm_ops.init(priv);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_write32(priv, CSR_INT_COALESCING, 512 / 32);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	ret = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
-
-	priv->cfg->ops->lib->apm_ops.config(priv);
-
-	iwl4965_hw_card_show_info(priv);
-
-	/* end nic_init */
-
-	/* Allocate the RX queue, or reset if it is already allocated */
-	if (!rxq->bd) {
-		ret = iwl_rx_queue_alloc(priv);
-		if (ret) {
-			IWL_ERROR("Unable to initialize Rx queue\n");
-			return -ENOMEM;
-		}
-	} else
-		iwl_rx_queue_reset(priv, rxq);
-
-	iwl_rx_replenish(priv);
-
-	iwl4965_rx_init(priv, rxq);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	rxq->need_update = 1;
-	iwl_rx_queue_update_write_ptr(priv, rxq);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* Allocate and init all Tx and Command queues */
-	ret = iwl4965_txq_ctx_reset(priv);
-	if (ret)
-		return ret;
-
-	set_bit(STATUS_INIT, &priv->status);
-
-	return 0;
-}
-
 int iwl4965_hw_nic_stop_master(struct iwl_priv *priv)
 {
 	int rc = 0;
@@ -745,7 +534,7 @@ void iwl4965_hw_txq_ctx_stop(struct iwl_priv *priv)
 	}
 
 	/* Deallocate memory for all Tx queues */
-	iwl4965_hw_txq_ctx_free(priv);
+	iwl_hw_txq_ctx_free(priv);
 }
 
 int iwl4965_hw_nic_reset(struct iwl_priv *priv)
@@ -1196,82 +985,6 @@ int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.sens = &iwl4965_sensitivity;
 #endif
 
-	return 0;
-}
-
-/**
- * iwl4965_hw_txq_ctx_free - Free TXQ Context
- *
- * Destroy all TX DMA queues and structures
- */
-void iwl4965_hw_txq_ctx_free(struct iwl_priv *priv)
-{
-	int txq_id;
-
-	/* Tx queues */
-	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
-		iwl4965_tx_queue_free(priv, &priv->txq[txq_id]);
-
-	/* Keep-warm buffer */
-	iwl4965_kw_free(priv);
-}
-
-/**
- * iwl4965_hw_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
- *
- * Does NOT advance any TFD circular buffer read/write indexes
- * Does NOT free the TFD itself (which is within circular buffer)
- */
-int iwl4965_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl4965_tx_queue *txq)
-{
-	struct iwl4965_tfd_frame *bd_tmp = (struct iwl4965_tfd_frame *)&txq->bd[0];
-	struct iwl4965_tfd_frame *bd = &bd_tmp[txq->q.read_ptr];
-	struct pci_dev *dev = priv->pci_dev;
-	int i;
-	int counter = 0;
-	int index, is_odd;
-
-	/* Host command buffers stay mapped in memory, nothing to clean */
-	if (txq->q.id == IWL_CMD_QUEUE_NUM)
-		return 0;
-
-	/* Sanity check on number of chunks */
-	counter = IWL_GET_BITS(*bd, num_tbs);
-	if (counter > MAX_NUM_OF_TBS) {
-		IWL_ERROR("Too many chunks: %i\n", counter);
-		/* @todo issue fatal error, it is quite serious situation */
-		return 0;
-	}
-
-	/* Unmap chunks, if any.
-	 * TFD info for odd chunks is different format than for even chunks. */
-	for (i = 0; i < counter; i++) {
-		index = i / 2;
-		is_odd = i & 0x1;
-
-		if (is_odd)
-			pci_unmap_single(
-				dev,
-				IWL_GET_BITS(bd->pa[index], tb2_addr_lo16) |
-				(IWL_GET_BITS(bd->pa[index],
-					      tb2_addr_hi20) << 16),
-				IWL_GET_BITS(bd->pa[index], tb2_len),
-				PCI_DMA_TODEVICE);
-
-		else if (i > 0)
-			pci_unmap_single(dev,
-					 le32_to_cpu(bd->pa[index].tb1_addr),
-					 IWL_GET_BITS(bd->pa[index], tb1_len),
-					 PCI_DMA_TODEVICE);
-
-		/* Free SKB, if any, for this chunk */
-		if (txq->txb[txq->q.read_ptr].skb[i]) {
-			struct sk_buff *skb = txq->txb[txq->q.read_ptr].skb[i];
-
-			dev_kfree_skb(skb);
-			txq->txb[txq->q.read_ptr].skb[i] = NULL;
-		}
-	}
 	return 0;
 }
 
@@ -2240,46 +1953,11 @@ unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 	return (sizeof(*tx_beacon_cmd) + frame_size);
 }
 
-/*
- * Tell 4965 where to find circular buffer of Tx Frame Descriptors for
- * given Tx queue, and enable the DMA channel used for that queue.
- *
- * 4965 supports up to 16 Tx queues in DRAM, mapped to up to 8 Tx DMA
- * channels supported in hardware.
- */
-int iwl4965_hw_tx_queue_init(struct iwl_priv *priv, struct iwl4965_tx_queue *txq)
-{
-	int rc;
-	unsigned long flags;
-	int txq_id = txq->q.id;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
-
-	/* Circular buffer (TFD queue in DRAM) physical base address */
-	iwl_write_direct32(priv, FH_MEM_CBBC_QUEUE(txq_id),
-			     txq->q.dma_addr >> 8);
-
-	/* Enable DMA channel, using same id as for TFD queue */
-	iwl_write_direct32(
-		priv, FH_TCSR_CHNL_TX_CONFIG_REG(txq_id),
-		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
-		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL);
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return 0;
-}
-
 int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 				 dma_addr_t addr, u16 len)
 {
 	int index, is_odd;
-	struct iwl4965_tfd_frame *tfd = ptr;
+	struct iwl_tfd_frame *tfd = ptr;
 	u32 num_tbs = IWL_GET_BITS(*tfd, num_tbs);
 
 	/* Each TFD can point to a maximum 20 Tx buffers */
@@ -2307,18 +1985,6 @@ int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 	IWL_SET_BITS(*tfd, num_tbs, num_tbs + 1);
 
 	return 0;
-}
-
-static void iwl4965_hw_card_show_info(struct iwl_priv *priv)
-{
-	u16 hw_version = iwl_eeprom_query16(priv, EEPROM_4965_BOARD_REVISION);
-
-	IWL_DEBUG_INFO("4965ABGN HW Version %u.%u.%u\n",
-		       ((hw_version >> 8) & 0x0F),
-		       ((hw_version >> 8) >> 4), (hw_version & 0x00FF));
-
-	IWL_DEBUG_INFO("4965ABGN PBA Number %.16s\n",
-		       &priv->eeprom[EEPROM_4965_BOARD_PBA]);
 }
 
 static int iwl4965_alloc_shared_mem(struct iwl_priv *priv)
@@ -4054,7 +3720,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.alloc_shared_mem = iwl4965_alloc_shared_mem,
 	.free_shared_mem = iwl4965_free_shared_mem,
 	.txq_update_byte_cnt_tbl = iwl4965_txq_update_byte_cnt_tbl,
-	.hw_nic_init = iwl4965_hw_nic_init,
 	.disable_tx_fifo = iwl4965_disable_tx_fifo,
 	.rx_handler_setup = iwl4965_rx_handler_setup,
 	.is_valid_rtc_data_addr = iwl4965_hw_valid_rtc_data_addr,

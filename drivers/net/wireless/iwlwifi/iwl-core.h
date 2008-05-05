@@ -108,8 +108,6 @@ struct iwl_lib_ops {
 					u16 byte_cnt);
 	/* setup Rx handler */
 	void (*rx_handler_setup)(struct iwl_priv *priv);
-	/* nic init */
-	int (*hw_nic_init)(struct iwl_priv *priv);
 	/* nic Tx fifo handling */
 	int (*disable_tx_fifo)(struct iwl_priv *priv);
 	/* alive notification */
@@ -178,6 +176,12 @@ int iwl_setup(struct iwl_priv *priv);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info);
 u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 			 struct ieee80211_ht_info *sta_ht_inf);
+int iwl_hw_nic_init(struct iwl_priv *priv);
+
+/* "keep warm" functions */
+int iwl_kw_init(struct iwl_priv *priv);
+int iwl_kw_alloc(struct iwl_priv *priv);
+void iwl_kw_free(struct iwl_priv *priv);
 
 /*****************************************************
 * RX
@@ -189,10 +193,19 @@ int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_rx_queue *q);
 void iwl_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 void iwl_rx_replenish(struct iwl_priv *priv);
+int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 /* FIXME: remove when TX is moved to iwl core */
 int iwl_rx_queue_restock(struct iwl_priv *priv);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
 void iwl_rx_allocate(struct iwl_priv *priv);
+
+/*****************************************************
+* TX
+******************************************************/
+int iwl_txq_ctx_reset(struct iwl_priv *priv);
+/* FIXME: remove when free Tx is fully merged into iwlcore */
+int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl4965_tx_queue *txq);
+void iwl_hw_txq_ctx_free(struct iwl_priv *priv);
 
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *

@@ -121,6 +121,101 @@ void iwl_hw_detect(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_hw_detect);
 
+/* Tell nic where to find the "keep warm" buffer */
+int iwl_kw_init(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	ret = iwl_grab_nic_access(priv);
+	if (ret)
+		goto out;
+
+	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG,
+			     priv->kw.dma_addr >> 4);
+	iwl_release_nic_access(priv);
+out:
+	spin_unlock_irqrestore(&priv->lock, flags);
+	return ret;
+}
+
+int iwl_kw_alloc(struct iwl_priv *priv)
+{
+	struct pci_dev *dev = priv->pci_dev;
+	struct iwl4965_kw *kw = &priv->kw;
+
+	kw->size = IWL4965_KW_SIZE;	/* TBW need set somewhere else */
+	kw->v_addr = pci_alloc_consistent(dev, kw->size, &kw->dma_addr);
+	if (!kw->v_addr)
+		return -ENOMEM;
+
+	return 0;
+}
+
+/**
+ * iwl_kw_free - Free the "keep warm" buffer
+ */
+void iwl_kw_free(struct iwl_priv *priv)
+{
+	struct pci_dev *dev = priv->pci_dev;
+	struct iwl4965_kw *kw = &priv->kw;
+
+	if (kw->v_addr) {
+		pci_free_consistent(dev, kw->size, kw->v_addr, kw->dma_addr);
+		memset(kw, 0, sizeof(*kw));
+	}
+}
+
+int iwl_hw_nic_init(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	struct iwl_rx_queue *rxq = &priv->rxq;
+	int ret;
+
+	/* nic_init */
+	priv->cfg->ops->lib->apm_ops.init(priv);
+
+	spin_lock_irqsave(&priv->lock, flags);
+	iwl_write32(priv, CSR_INT_COALESCING, 512 / 32);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	ret = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
+
+	priv->cfg->ops->lib->apm_ops.config(priv);
+
+	/* Allocate the RX queue, or reset if it is already allocated */
+	if (!rxq->bd) {
+		ret = iwl_rx_queue_alloc(priv);
+		if (ret) {
+			IWL_ERROR("Unable to initialize Rx queue\n");
+			return -ENOMEM;
+		}
+	} else
+		iwl_rx_queue_reset(priv, rxq);
+
+	iwl_rx_replenish(priv);
+
+	iwl_rx_init(priv, rxq);
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	rxq->need_update = 1;
+	iwl_rx_queue_update_write_ptr(priv, rxq);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	/* Allocate and init all Tx and Command queues */
+	ret = iwl_txq_ctx_reset(priv);
+	if (ret)
+		return ret;
+
+	set_bit(STATUS_INIT, &priv->status);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_hw_nic_init);
+
 /**
  * iwlcore_clear_stations_table - Clear the driver's station table
  *

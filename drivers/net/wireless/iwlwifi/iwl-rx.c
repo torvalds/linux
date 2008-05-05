@@ -369,3 +369,55 @@ void iwl_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 }
 EXPORT_SYMBOL(iwl_rx_queue_reset);
 
+int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
+{
+	int ret;
+	unsigned long flags;
+	unsigned int rb_size;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	ret = iwl_grab_nic_access(priv);
+	if (ret) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return ret;
+	}
+
+	if (priv->cfg->mod_params->amsdu_size_8K)
+		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
+	else
+		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
+
+	/* Stop Rx DMA */
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+
+	/* Reset driver's Rx queue write index */
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
+
+	/* Tell device where to find RBD circular buffer in DRAM */
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
+			   rxq->dma_addr >> 8);
+
+	/* Tell device where in DRAM to update its Rx status */
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_STTS_WPTR_REG,
+			   (priv->shared_phys +
+			    offsetof(struct iwl4965_shared, rb_closed)) >> 4);
+
+	/* Enable Rx DMA, enable host interrupt, Rx buffer size 4k, 256 RBDs */
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG,
+			   FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL |
+			   FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
+			   rb_size |
+			     /* 0x10 << 4 | */
+			   (RX_QUEUE_SIZE_LOG <<
+			      FH_RCSR_RX_CONFIG_RBDCB_SIZE_BITSHIFT));
+
+	/*
+	 * iwl_write32(priv,CSR_INT_COAL_REG,0);
+	 */
+
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
