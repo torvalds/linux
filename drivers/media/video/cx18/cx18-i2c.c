@@ -25,6 +25,7 @@
 #include "cx18-cards.h"
 #include "cx18-gpio.h"
 #include "cx18-av-core.h"
+#include "cx18-i2c.h"
 
 #include <media/ir-kbd-i2c.h>
 

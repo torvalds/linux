@@ -164,16 +164,6 @@ MODULE_LICENSE("GPL");
 
 MODULE_VERSION(CX18_VERSION);
 
-int cx18_waitq(wait_queue_head_t *waitq)
-{
-	DEFINE_WAIT(wait);
-
-	prepare_to_wait(waitq, &wait, TASK_INTERRUPTIBLE);
-	schedule();
-	finish_wait(waitq, &wait);
-	return signal_pending(current) ? -EINTR : 0;
-}
-
 /* Generic utility functions */
 int cx18_msleep_timeout(unsigned int msecs, int intr)
 {
