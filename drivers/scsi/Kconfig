@@ -1679,6 +1679,7 @@ config MAC_SCSI
 config SCSI_MAC_ESP
 	tristate "Macintosh NCR53c9[46] SCSI"
 	depends on MAC && SCSI
+	select SCSI_SPI_ATTRS
 	help
 	  This is the NCR 53c9x SCSI controller found on most of the 68040
 	  based Macintoshes.
