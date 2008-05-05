@@ -61,10 +61,10 @@ int  tipc_printbuf_empty(struct print_buf *pb);
 int  tipc_printbuf_validate(struct print_buf *pb);
 void tipc_printbuf_move(struct print_buf *pb_to, struct print_buf *pb_from);
 
-void tipc_log_reinit(int log_size);
-void tipc_log_stop(void);
+void tipc_log_resize(int log_size);
 
-struct sk_buff *tipc_log_resize(const void *req_tlv_area, int req_tlv_space);
+struct sk_buff *tipc_log_resize_cmd(const void *req_tlv_area,
+				    int req_tlv_space);
 struct sk_buff *tipc_log_dump(void);
 
 #endif

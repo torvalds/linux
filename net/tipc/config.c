@@ -529,7 +529,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 		break;
 #endif
 	case TIPC_CMD_SET_LOG_SIZE:
-		rep_tlv_buf = tipc_log_resize(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_log_resize_cmd(req_tlv_area, req_tlv_space);
 		break;
 	case TIPC_CMD_DUMP_LOG:
 		rep_tlv_buf = tipc_log_dump();

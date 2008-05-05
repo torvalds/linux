@@ -350,43 +350,31 @@ void tipc_dump(struct print_buf *pb, const char *fmt, ...)
 }
 
 /**
- * tipc_log_stop - free up TIPC log print buffer
+ * tipc_log_resize - change the size of the TIPC log buffer
+ * @log_size: print buffer size to use
  */
 
-void tipc_log_stop(void)
+void tipc_log_resize(int log_size)
 {
 	spin_lock_bh(&print_lock);
 	if (TIPC_LOG->buf) {
 		kfree(TIPC_LOG->buf);
 		TIPC_LOG->buf = NULL;
 	}
+	if (log_size) {
+		if (log_size < TIPC_PB_MIN_SIZE)
+			log_size = TIPC_PB_MIN_SIZE;
+		tipc_printbuf_init(TIPC_LOG, kmalloc(log_size, GFP_ATOMIC),
+				   log_size);
+	}
 	spin_unlock_bh(&print_lock);
 }
 
 /**
- * tipc_log_reinit - (re)initialize TIPC log print buffer
- * @log_size: print buffer size to use
+ * tipc_log_resize_cmd - reconfigure size of TIPC log buffer
  */
 
-void tipc_log_reinit(int log_size)
-{
-	tipc_log_stop();
-
-	if (log_size) {
-		if (log_size < TIPC_PB_MIN_SIZE)
-			log_size = TIPC_PB_MIN_SIZE;
-		spin_lock_bh(&print_lock);
-		tipc_printbuf_init(TIPC_LOG, kmalloc(log_size, GFP_ATOMIC),
-				   log_size);
-		spin_unlock_bh(&print_lock);
-	}
-}
-
-/**
- * tipc_log_resize - reconfigure size of TIPC log buffer
- */
-
-struct sk_buff *tipc_log_resize(const void *req_tlv_area, int req_tlv_space)
+struct sk_buff *tipc_log_resize_cmd(const void *req_tlv_area, int req_tlv_space)
 {
 	u32 value;
 
@@ -397,7 +385,7 @@ struct sk_buff *tipc_log_resize(const void *req_tlv_area, int req_tlv_space)
 	if (value != delimit(value, 0, 32768))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (log size must be 0-32768)");
-	tipc_log_reinit(value);
+	tipc_log_resize(value);
 	return tipc_cfg_reply_none();
 }
 
