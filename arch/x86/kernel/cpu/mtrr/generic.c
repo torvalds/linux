@@ -342,7 +342,7 @@ static void set_fixed_range(int msr, bool *changed, unsigned int *msrwords)
 
 	if (lo != msrwords[0] || hi != msrwords[1]) {
 		if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
-		    boot_cpu_data.x86 == 15 &&
+		    (boot_cpu_data.x86 >= 0x0f && boot_cpu_data.x86 <= 0x11) &&
 		    ((msrwords[0] | msrwords[1]) & K8_MTRR_RDMEM_WRMEM_MASK))
 			k8_enable_fixed_iorrs();
 		mtrr_wrmsr(msr, msrwords[0], msrwords[1]);
