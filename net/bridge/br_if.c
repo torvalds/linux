@@ -280,8 +280,10 @@ int br_add_bridge(const char *name)
 	}
 
 	ret = register_netdevice(dev);
-	if (ret)
+	if (ret) {
+		free_netdev(dev);
 		goto out;
+	}
 
 	ret = br_sysfs_addbr(dev);
 	if (ret)
