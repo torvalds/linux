@@ -57,6 +57,7 @@ struct iwl_debugfs {
 	struct dentry *dir_data;
 	struct dir_data_files{
 		struct dentry *file_sram;
+		struct dentry *file_eeprom;
 		struct dentry *file_stations;
 		struct dentry *file_rx_statistics;
 		struct dentry *file_tx_statistics;
