@@ -1305,11 +1305,11 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 		if (is_multicast_ether_addr(skb->data)) {
 			if (*mesh_ttl > 0) {
 				xmit_skb = skb_copy(skb, GFP_ATOMIC);
-				if (!xmit_skb && net_ratelimit())
+				if (xmit_skb)
+					xmit_skb->pkt_type = PACKET_OTHERHOST;
+				else if (net_ratelimit())
 					printk(KERN_DEBUG "%s: failed to clone "
 					       "multicast frame\n", dev->name);
-				else
-					xmit_skb->pkt_type = PACKET_OTHERHOST;
 			} else
 				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.sta,
 							     dropped_frames_ttl);
