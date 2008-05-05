@@ -72,7 +72,7 @@
     kgdb is a source level debugger for linux kernel. It is used along
     with gdb to debug a linux kernel.  The expectation is that gdb can
     be used to "break in" to the kernel to inspect memory, variables
-    and look through a cal stack information similar to what an
+    and look through call stack information similar to what an
     application developer would use gdb for.  It is possible to place
     breakpoints in kernel code and perform some limited execution
     stepping.
@@ -93,8 +93,10 @@
   <chapter id="CompilingAKernel">
     <title>Compiling a kernel</title>
     <para>
-    To enable <symbol>CONFIG_KGDB</symbol>, look under the "Kernel debugging"
-    and then select "KGDB: kernel debugging with remote gdb".
+    To enable <symbol>CONFIG_KGDB</symbol> you should first turn on
+    "Prompt for development and/or incomplete code/drivers"
+    (CONFIG_EXPERIMENTAL) in  "General setup", then under the
+    "Kernel debugging" select "KGDB: kernel debugging with remote gdb".
     </para>
     <para>
     Next you should choose one of more I/O drivers to interconnect debugging

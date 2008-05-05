@@ -61,7 +61,7 @@ struct kgdb_state {
 	int			err_code;
 	int			cpu;
 	int			pass_exception;
-	long			threadid;
+	unsigned long		threadid;
 	long			kgdb_usethreadid;
 	struct pt_regs		*linux_regs;
 };
@@ -146,7 +146,7 @@ atomic_t			kgdb_cpu_doing_single_step = ATOMIC_INIT(-1);
  * the other CPUs might interfere with your debugging context, so
  * use this with care:
  */
-int				kgdb_do_roundup = 1;
+static int kgdb_do_roundup = 1;
 
 static int __init opt_nokgdbroundup(char *str)
 {
@@ -438,7 +438,7 @@ int kgdb_hex2mem(char *buf, char *mem, int count)
  * While we find nice hex chars, build a long_val.
  * Return number of chars processed.
  */
-int kgdb_hex2long(char **ptr, long *long_val)
+int kgdb_hex2long(char **ptr, unsigned long *long_val)
 {
 	int hex_val;
 	int num = 0;
@@ -709,7 +709,7 @@ int kgdb_isremovedbreak(unsigned long addr)
 	return 0;
 }
 
-int remove_all_break(void)
+static int remove_all_break(void)
 {
 	unsigned long addr;
 	int error;
