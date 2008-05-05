@@ -42,14 +42,14 @@
  * @buf: pointer to character array containing print buffer contents
  * @size: size of character array
  * @crs: pointer to first unused space in character array (i.e. final NUL)
- * @next: used to link print buffers when printing to more than one at a time
+ * @echo: echo output to system console if non-zero
  */
 
 struct print_buf {
 	char *buf;
 	u32 size;
 	char *crs;
-	struct print_buf *next;
+	int echo;
 };
 
 #define TIPC_PB_MIN_SIZE 64	/* minimum size for a print buffer's array */

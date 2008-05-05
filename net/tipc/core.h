@@ -66,7 +66,6 @@
 
 struct tipc_msg;
 extern struct print_buf *TIPC_NULL, *TIPC_CONS, *TIPC_LOG;
-extern struct print_buf *TIPC_TEE(struct print_buf *, struct print_buf *);
 void tipc_msg_print(struct print_buf*,struct tipc_msg *,const char*);
 void tipc_printf(struct print_buf *, const char *fmt, ...);
 void tipc_dump(struct print_buf*,const char *fmt, ...);
@@ -98,11 +97,13 @@ void tipc_dump(struct print_buf*,const char *fmt, ...);
  * TIPC_CONS		   : system console
  * TIPC_LOG		   : TIPC log buffer
  * &buf			   : user-defined buffer (struct print_buf *)
- * TIPC_TEE(&buf_a,&buf_b) : list of buffers (eg. TIPC_TEE(TIPC_CONS,TIPC_LOG))
+ *
+ * Note: TIPC_LOG is configured to echo its output to the system console;
+ *       user-defined buffers can be configured to do the same thing.
  */
 
 #ifndef TIPC_OUTPUT
-#define TIPC_OUTPUT TIPC_TEE(TIPC_CONS,TIPC_LOG)
+#define TIPC_OUTPUT TIPC_LOG
 #endif
 
 #ifndef DBG_OUTPUT
