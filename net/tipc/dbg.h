@@ -2,7 +2,7 @@
  * net/tipc/dbg.h: Include file for TIPC print buffer routines
  *
  * Copyright (c) 1997-2006, Ericsson AB
- * Copyright (c) 2005-2006, Wind River Systems
+ * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ int  tipc_printbuf_empty(struct print_buf *pb);
 int  tipc_printbuf_validate(struct print_buf *pb);
 void tipc_printbuf_move(struct print_buf *pb_to, struct print_buf *pb_from);
 
-void tipc_log_resize(int log_size);
+int tipc_log_resize(int log_size);
 
 struct sk_buff *tipc_log_resize_cmd(const void *req_tlv_area,
 				    int req_tlv_space);

@@ -2,7 +2,7 @@
  * net/tipc/dbg.c: TIPC print buffer routines for debugging
  *
  * Copyright (c) 1996-2006, Ericsson AB
- * Copyright (c) 2005-2006, Wind River Systems
+ * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -354,8 +354,10 @@ void tipc_dump(struct print_buf *pb, const char *fmt, ...)
  * @log_size: print buffer size to use
  */
 
-void tipc_log_resize(int log_size)
+int tipc_log_resize(int log_size)
 {
+	int res = 0;
+
 	spin_lock_bh(&print_lock);
 	if (TIPC_LOG->buf) {
 		kfree(TIPC_LOG->buf);
@@ -366,8 +368,11 @@ void tipc_log_resize(int log_size)
 			log_size = TIPC_PB_MIN_SIZE;
 		tipc_printbuf_init(TIPC_LOG, kmalloc(log_size, GFP_ATOMIC),
 				   log_size);
+		res = !TIPC_LOG->buf;
 	}
 	spin_unlock_bh(&print_lock);
+
+	return res;
 }
 
 /**
@@ -385,7 +390,9 @@ struct sk_buff *tipc_log_resize_cmd(const void *req_tlv_area, int req_tlv_space)
 	if (value != delimit(value, 0, 32768))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (log size must be 0-32768)");
-	tipc_log_resize(value);
+	if (tipc_log_resize(value))
+		return tipc_cfg_reply_error_string(
+			"unable to create specified log (log size is now 0)");
 	return tipc_cfg_reply_none();
 }
 
