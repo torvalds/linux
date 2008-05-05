@@ -386,7 +386,7 @@ static int iwl5000_shared_mem_rx_idx(struct iwl_priv *priv)
  * iwl5000_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
  */
 static void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
-					    struct iwl4965_tx_queue *txq,
+					    struct iwl_tx_queue *txq,
 					    u16 byte_cnt)
 {
 	struct iwl5000_shared *shared_data = priv->shared_virt;

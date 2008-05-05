@@ -880,7 +880,7 @@ static void iwl4965_set_wr_ptrs(struct iwl_priv *priv, int txq_id, u32 index)
  * NOTE:  Acquire priv->lock before calling this function !
  */
 static void iwl4965_tx_queue_set_status(struct iwl_priv *priv,
-					struct iwl4965_tx_queue *txq,
+					struct iwl_tx_queue *txq,
 					int tx_fifo_id, int scd_retry)
 {
 	int txq_id = txq->q.id;
@@ -2111,7 +2111,7 @@ static void iwl4965_free_shared_mem(struct iwl_priv *priv)
  * iwl4965_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
  */
 static void iwl4965_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
-					    struct iwl4965_tx_queue *txq,
+					    struct iwl_tx_queue *txq,
 					    u16 byte_cnt)
 {
 	int len;
@@ -3286,7 +3286,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_compressed_ba_resp *ba_resp = &pkt->u.compressed_ba;
 	int index;
-	struct iwl4965_tx_queue *txq = NULL;
+	struct iwl_tx_queue *txq = NULL;
 	struct iwl_ht_agg *agg;
 	DECLARE_MAC_BUF(mac);
 

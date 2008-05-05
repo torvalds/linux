@@ -105,7 +105,7 @@ struct iwl_lib_ops {
 	void (*free_shared_mem)(struct iwl_priv *priv);
 	int (*shared_mem_rx_idx)(struct iwl_priv *priv);
 	void (*txq_update_byte_cnt_tbl)(struct iwl_priv *priv,
-					struct iwl4965_tx_queue *txq,
+					struct iwl_tx_queue *txq,
 					u16 byte_cnt);
 	/* setup Rx handler */
 	void (*rx_handler_setup)(struct iwl_priv *priv);
@@ -207,7 +207,7 @@ void iwl_rx_allocate(struct iwl_priv *priv);
 ******************************************************/
 int iwl_txq_ctx_reset(struct iwl_priv *priv);
 /* FIXME: remove when free Tx is fully merged into iwlcore */
-int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl4965_tx_queue *txq);
+int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 void iwl_hw_txq_ctx_free(struct iwl_priv *priv);
 
 /*****************************************************

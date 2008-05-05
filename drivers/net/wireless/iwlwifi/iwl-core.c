@@ -143,9 +143,9 @@ out:
 int iwl_kw_alloc(struct iwl_priv *priv)
 {
 	struct pci_dev *dev = priv->pci_dev;
-	struct iwl4965_kw *kw = &priv->kw;
+	struct iwl_kw *kw = &priv->kw;
 
-	kw->size = IWL4965_KW_SIZE;	/* TBW need set somewhere else */
+	kw->size = IWL_KW_SIZE;
 	kw->v_addr = pci_alloc_consistent(dev, kw->size, &kw->dma_addr);
 	if (!kw->v_addr)
 		return -ENOMEM;
@@ -159,7 +159,7 @@ int iwl_kw_alloc(struct iwl_priv *priv)
 void iwl_kw_free(struct iwl_priv *priv)
 {
 	struct pci_dev *dev = priv->pci_dev;
-	struct iwl4965_kw *kw = &priv->kw;
+	struct iwl_kw *kw = &priv->kw;
 
 	if (kw->v_addr) {
 		pci_free_consistent(dev, kw->size, kw->v_addr, kw->dma_addr);

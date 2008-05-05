@@ -124,7 +124,7 @@ struct iwl4965_tx_info {
 };
 
 /**
- * struct iwl4965_tx_queue - Tx Queue for DMA
+ * struct iwl_tx_queue - Tx Queue for DMA
  * @q: generic Rx/Tx queue descriptor
  * @bd: base of circular buffer of TFDs
  * @cmd: array of command/Tx buffers
@@ -136,7 +136,7 @@ struct iwl4965_tx_info {
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
  */
-struct iwl4965_tx_queue {
+struct iwl_tx_queue {
 	struct iwl4965_queue q;
 	struct iwl_tfd_frame *bd;
 	struct iwl_cmd *cmd;
@@ -729,7 +729,7 @@ extern void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio);
  * Forward declare iwl-4965.c functions for iwl-base.c
  */
 extern int iwl4965_tx_queue_update_wr_ptr(struct iwl_priv *priv,
-					  struct iwl4965_tx_queue *txq,
+					  struct iwl_tx_queue *txq,
 					  u16 byte_cnt);
 extern void iwl4965_add_station(struct iwl_priv *priv, const u8 *addr,
 				int is_ap);
@@ -761,9 +761,9 @@ static inline void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,
 #endif /*CONFIG_IWL4965_HT */
 /* Structures, enum, and defines specific to the 4965 */
 
-#define IWL4965_KW_SIZE 0x1000	/*4k */
+#define IWL_KW_SIZE 0x1000	/*4k */
 
-struct iwl4965_kw {
+struct iwl_kw {
 	dma_addr_t dma_addr;
 	void *v_addr;
 	size_t size;
@@ -1061,9 +1061,9 @@ struct iwl_priv {
 
 	/* Rx and Tx DMA processing queues */
 	struct iwl_rx_queue rxq;
-	struct iwl4965_tx_queue txq[IWL_MAX_NUM_QUEUES];
+	struct iwl_tx_queue txq[IWL_MAX_NUM_QUEUES];
 	unsigned long txq_ctx_active_msk;
-	struct iwl4965_kw kw;	/* keep warm address */
+	struct iwl_kw kw;	/* keep warm address */
 	u32 scd_base_addr;	/* scheduler sram base address */
 
 	unsigned long status;

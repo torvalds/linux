@@ -54,7 +54,7 @@
 #include "iwl-calib.h"
 
 static int iwl4965_tx_queue_update_write_ptr(struct iwl_priv *priv,
-				  struct iwl4965_tx_queue *txq);
+				  struct iwl_tx_queue *txq);
 
 /******************************************************************************
  *
@@ -347,7 +347,7 @@ u8 iwl4965_add_station_flags(struct iwl_priv *priv, const u8 *addr,
  */
 int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
-	struct iwl4965_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
+	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
 	struct iwl4965_queue *q = &txq->q;
 	struct iwl_tfd_frame *tfd;
 	u32 *control_flags;
@@ -1767,7 +1767,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 	struct iwl_tfd_frame *tfd;
 	u32 *control_flags;
 	int txq_id = ctl->queue;
-	struct iwl4965_tx_queue *txq = NULL;
+	struct iwl_tx_queue *txq = NULL;
 	struct iwl4965_queue *q = NULL;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
@@ -2331,7 +2331,7 @@ static void iwl4965_txstatus_to_ieee(struct iwl_priv *priv,
  */
 int iwl4965_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 {
-	struct iwl4965_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct iwl4965_queue *q = &txq->q;
 	int nfreed = 0;
 
@@ -2531,7 +2531,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
-	struct iwl4965_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct ieee80211_tx_status *tx_status;
 	struct iwl4965_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le32_to_cpu(tx_resp->status);
@@ -3273,7 +3273,7 @@ int iwl4965_calc_sig_qual(int rssi_dbm, int noise_dbm)
  * iwl4965_tx_queue_update_write_ptr - Send new write index to hardware
  */
 static int iwl4965_tx_queue_update_write_ptr(struct iwl_priv *priv,
-				  struct iwl4965_tx_queue *txq)
+				  struct iwl_tx_queue *txq)
 {
 	u32 reg = 0;
 	int rc = 0;
@@ -5783,7 +5783,7 @@ static int iwl4965_mac_get_tx_stats(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = hw->priv;
 	int i, avail;
-	struct iwl4965_tx_queue *txq;
+	struct iwl_tx_queue *txq;
 	struct iwl4965_queue *q;
 	unsigned long flags;
 

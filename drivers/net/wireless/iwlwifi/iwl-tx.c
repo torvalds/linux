@@ -41,7 +41,7 @@
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl4965_tx_queue *txq)
+int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
 	struct iwl_tfd_frame *bd_tmp = (struct iwl_tfd_frame *)&txq->bd[0];
 	struct iwl_tfd_frame *bd = &bd_tmp[txq->q.read_ptr];
@@ -103,8 +103,7 @@ EXPORT_SYMBOL(iwl_hw_txq_free_tfd);
  * Free all buffers.
  * 0-fill, but do not free "txq" descriptor structure.
  */
-static void iwl_tx_queue_free(struct iwl_priv *priv,
-			      struct iwl4965_tx_queue *txq)
+static void iwl_tx_queue_free(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
 	struct iwl4965_queue *q = &txq->q;
 	struct pci_dev *dev = priv->pci_dev;
@@ -191,7 +190,7 @@ static int iwl_queue_init(struct iwl_priv *priv, struct iwl4965_queue *q,
  * iwl_tx_queue_alloc - Alloc driver data and TFD CB for one Tx/cmd queue
  */
 static int iwl_tx_queue_alloc(struct iwl_priv *priv,
-			      struct iwl4965_tx_queue *txq, u32 id)
+			      struct iwl_tx_queue *txq, u32 id)
 {
 	struct pci_dev *dev = priv->pci_dev;
 
@@ -238,7 +237,7 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
  * channels supported in hardware.
  */
 static int iwl_hw_tx_queue_init(struct iwl_priv *priv,
-				struct iwl4965_tx_queue *txq)
+				struct iwl_tx_queue *txq)
 {
 	int rc;
 	unsigned long flags;
@@ -270,7 +269,7 @@ static int iwl_hw_tx_queue_init(struct iwl_priv *priv,
  * iwl_tx_queue_init - Allocate and initialize one tx/cmd queue
  */
 static int iwl_tx_queue_init(struct iwl_priv *priv,
-			     struct iwl4965_tx_queue *txq,
+			     struct iwl_tx_queue *txq,
 			     int slots_num, u32 txq_id)
 {
 	struct pci_dev *dev = priv->pci_dev;
