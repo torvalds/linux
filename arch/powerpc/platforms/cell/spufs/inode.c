@@ -23,6 +23,7 @@
 
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/fsnotify.h>
 #include <linux/backing-dev.h>
 #include <linux/init.h>
 #include <linux/ioctl.h>
@@ -618,12 +619,15 @@ long spufs_create(struct nameidata *nd, unsigned int flags, mode_t mode,
 	mode &= ~current->fs->umask;
 
 	if (flags & SPU_CREATE_GANG)
-		return spufs_create_gang(nd->path.dentry->d_inode,
+		ret = spufs_create_gang(nd->path.dentry->d_inode,
 					 dentry, nd->path.mnt, mode);
 	else
-		return spufs_create_context(nd->path.dentry->d_inode,
+		ret = spufs_create_context(nd->path.dentry->d_inode,
 					    dentry, nd->path.mnt, flags, mode,
 					    filp);
+	if (ret >= 0)
+		fsnotify_mkdir(nd->path.dentry->d_inode, dentry);
+	return ret;
 
 out_dput:
 	dput(dentry);
