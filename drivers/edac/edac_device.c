@@ -333,7 +333,7 @@ static int add_edac_dev_to_global_list(struct edac_device_ctl_info *edac_dev)
 fail0:
 	edac_printk(KERN_WARNING, EDAC_MC,
 			"%s (%s) %s %s already assigned %d\n",
-			rover->dev->bus_id, dev_name(rover),
+			rover->dev->bus_id, edac_dev_name(rover),
 			rover->mod_name, rover->ctl_name, rover->dev_idx);
 	return 1;
 
@@ -538,7 +538,7 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev)
 				"'%s': DEV '%s' (%s)\n",
 				edac_dev->mod_name,
 				edac_dev->ctl_name,
-				dev_name(edac_dev),
+				edac_dev_name(edac_dev),
 				edac_op_state_to_string(edac_dev->op_state));
 
 	mutex_unlock(&device_ctls_mutex);
@@ -599,7 +599,7 @@ struct edac_device_ctl_info *edac_device_del_device(struct device *dev)
 	edac_printk(KERN_INFO, EDAC_MC,
 		"Removed device %d for %s %s: DEV %s\n",
 		edac_dev->dev_idx,
-		edac_dev->mod_name, edac_dev->ctl_name, dev_name(edac_dev));
+		edac_dev->mod_name, edac_dev->ctl_name, edac_dev_name(edac_dev));
 
 	return edac_dev;
 }
