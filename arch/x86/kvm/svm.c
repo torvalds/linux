@@ -1312,16 +1312,19 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 	case MSR_K7_EVNTSEL1:
 	case MSR_K7_EVNTSEL2:
 	case MSR_K7_EVNTSEL3:
+	case MSR_K7_PERFCTR0:
+	case MSR_K7_PERFCTR1:
+	case MSR_K7_PERFCTR2:
+	case MSR_K7_PERFCTR3:
 		/*
-		 * only support writing 0 to the performance counters for now
-		 * to make Windows happy. Should be replaced by a real
-		 * performance counter emulation later.
+		 * Just discard all writes to the performance counters; this
+		 * should keep both older linux and windows 64-bit guests
+		 * happy
 		 */
-		if (data != 0)
-			goto unhandled;
+		pr_unimpl(vcpu, "unimplemented perfctr wrmsr: 0x%x data 0x%llx\n", ecx, data);
+
 		break;
 	default:
-	unhandled:
 		return kvm_set_msr_common(vcpu, ecx, data);
 	}
 	return 0;
