@@ -427,7 +427,7 @@ static void urb_irq_callback(struct urb *urb)
 	int ret;
 
 	if (urb->status)
-		err("%s - urb status %d", __FUNCTION__, urb->status);
+		err("%s - urb status %d", __func__, urb->status);
 
 	switch (yld->irq_data->cmd) {
 	case CMD_KEYPRESS:
@@ -449,7 +449,7 @@ static void urb_irq_callback(struct urb *urb)
 
 	ret = usb_submit_urb(yld->urb_ctl, GFP_ATOMIC);
 	if (ret)
-		err("%s - usb_submit_urb failed %d", __FUNCTION__, ret);
+		err("%s - usb_submit_urb failed %d", __func__, ret);
 }
 
 static void urb_ctl_callback(struct urb *urb)
@@ -458,7 +458,7 @@ static void urb_ctl_callback(struct urb *urb)
 	int ret;
 
 	if (urb->status)
-		err("%s - urb status %d", __FUNCTION__, urb->status);
+		err("%s - urb status %d", __func__, urb->status);
 
 	switch (yld->ctl_data->cmd) {
 	case CMD_KEYPRESS:
@@ -473,7 +473,7 @@ static void urb_ctl_callback(struct urb *urb)
 	}
 
 	if (ret)
-		err("%s - usb_submit_urb failed %d", __FUNCTION__, ret);
+		err("%s - usb_submit_urb failed %d", __func__, ret);
 }
 
 /*******************************************************************************
@@ -505,7 +505,7 @@ static int input_open(struct input_dev *dev)
 	struct yealink_dev *yld = input_get_drvdata(dev);
 	int i, ret;
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	/* force updates to device */
 	for (i = 0; i<sizeof(yld->master); i++)
@@ -521,7 +521,7 @@ static int input_open(struct input_dev *dev)
 	yld->ctl_data->sum	= 0x100-CMD_INIT-10;
 	if ((ret = usb_submit_urb(yld->urb_ctl, GFP_KERNEL)) != 0) {
 		dbg("%s - usb_submit_urb failed with result %d",
-		     __FUNCTION__, ret);
+		     __func__, ret);
 		return ret;
 	}
 	return 0;
