@@ -48,6 +48,29 @@ void ack_bad_irq(unsigned int irq)
 #endif
 }
 
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
+/* Debugging check for stack overflow: is there less than 1KB free? */
+static int check_stack_overflow(void)
+{
+	long sp;
+
+	__asm__ __volatile__("andl %%esp,%0" :
+			     "=r" (sp) : "0" (THREAD_SIZE - 1));
+
+	return sp < (sizeof(struct thread_info) + STACK_WARN);
+}
+
+static void print_stack_overflow(void)
+{
+	printk(KERN_WARNING "low stack detected by irq handler\n");
+	dump_stack();
+}
+
+#else
+static inline int check_stack_overflow(void) { return 0; }
+static inline void print_stack_overflow(void) { }
+#endif
+
 #ifdef CONFIG_4KSTACKS
 /*
  * per-CPU IRQ handling contexts (thread information and stack)
@@ -59,18 +82,12 @@ union irq_ctx {
 
 static union irq_ctx *hardirq_ctx[NR_CPUS] __read_mostly;
 static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
-#endif
 
-static void stack_overflow(void)
-{
-	printk("low stack detected by irq handler\n");
-	dump_stack();
-}
-
-static inline void call_on_stack2(void *func, void *stack,
-			   unsigned long arg1, unsigned long arg2)
+static inline void call_on_stack(void *func, void *stack,
+				 unsigned long arg1, void *arg2)
 {
 	unsigned long bx;
+
 	asm volatile(
 			"	xchgl  %%ebx,%%esp    \n"
 			"	call   *%%edi	      \n"
@@ -81,44 +98,11 @@ static inline void call_on_stack2(void *func, void *stack,
 			: "memory", "cc", "ecx");
 }
 
-/*
- * do_IRQ handles all normal device IRQ's (the special
- * SMP cross-CPU interrupts have their own specific
- * handlers).
- */
-unsigned int do_IRQ(struct pt_regs *regs)
-{	
-	struct pt_regs *old_regs;
-	/* high bit used in ret_from_ code */
-	int irq = ~regs->orig_ax;
-	struct irq_desc *desc = irq_desc + irq;
-#ifdef CONFIG_4KSTACKS
+static inline int
+execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
+{
 	union irq_ctx *curctx, *irqctx;
 	u32 *isp;
-#endif
-	int overflow = 0;
-
-	if (unlikely((unsigned)irq >= NR_IRQS)) {
-		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
-					__func__, irq);
-		BUG();
-	}
-
-	old_regs = set_irq_regs(regs);
-	irq_enter();
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
-	/* Debugging check for stack overflow: is there less than 1KB free? */
-	{
-		long sp;
-
-		__asm__ __volatile__("andl %%esp,%0" :
-					"=r" (sp) : "0" (THREAD_SIZE - 1));
-		if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN)))
-			overflow = 1;
-	}
-#endif
-
-#ifdef CONFIG_4KSTACKS
 
 	curctx = (union irq_ctx *) current_thread_info();
 	irqctx = hardirq_ctx[smp_processor_id()];
@@ -129,31 +113,61 @@ unsigned int do_IRQ(struct pt_regs *regs)
 	 * handler) we can't do that and just have to keep using the
 	 * current stack (which is the irq stack already after all)
 	 */
-	if (curctx != irqctx) {
-		/* build the stack frame on the IRQ stack */
-		isp = (u32*) ((char*)irqctx + sizeof(*irqctx));
-		irqctx->tinfo.task = curctx->tinfo.task;
-		irqctx->tinfo.previous_esp = current_stack_pointer;
+	if (unlikely(curctx == irqctx))
+		return 0;
 
-		/*
-		 * Copy the softirq bits in preempt_count so that the
-		 * softirq checks work in the hardirq context.
-		 */
-		irqctx->tinfo.preempt_count =
-			(irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK) |
-			(curctx->tinfo.preempt_count & SOFTIRQ_MASK);
+	/* build the stack frame on the IRQ stack */
+	isp = (u32 *) ((char*)irqctx + sizeof(*irqctx));
+	irqctx->tinfo.task = curctx->tinfo.task;
+	irqctx->tinfo.previous_esp = current_stack_pointer;
 
-		/* Execute warning on interrupt stack */
-		if (unlikely(overflow))
-			call_on_stack2(stack_overflow, isp, 0, 0);
+	/*
+	 * Copy the softirq bits in preempt_count so that the
+	 * softirq checks work in the hardirq context.
+	 */
+	irqctx->tinfo.preempt_count =
+		(irqctx->tinfo.preempt_count & ~SOFTIRQ_MASK) |
+		(curctx->tinfo.preempt_count & SOFTIRQ_MASK);
 
-		call_on_stack2(desc->handle_irq, isp, irq, (unsigned long)desc);
-	} else
+	if (unlikely(overflow))
+		call_on_stack(print_stack_overflow, isp, 0, NULL);
+
+	call_on_stack(desc->handle_irq, isp, irq, desc);
+
+	return 1;
+}
+
+#else
+static inline int
+execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq) { return 0; }
 #endif
-	{
-		/* AK: Slightly bogus here */
-		if (overflow)
-			stack_overflow();
+
+/*
+ * do_IRQ handles all normal device IRQ's (the special
+ * SMP cross-CPU interrupts have their own specific
+ * handlers).
+ */
+unsigned int do_IRQ(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs;
+	/* high bit used in ret_from_ code */
+	int overflow, irq = ~regs->orig_ax;
+	struct irq_desc *desc = irq_desc + irq;
+
+	if (unlikely((unsigned)irq >= NR_IRQS)) {
+		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
+					__func__, irq);
+		BUG();
+	}
+
+	old_regs = set_irq_regs(regs);
+	irq_enter();
+
+	overflow = check_stack_overflow();
+
+	if (!execute_on_irq_stack(overflow, desc, irq)) {
+		if (unlikely(overflow))
+			print_stack_overflow();
 		desc->handle_irq(irq, desc);
 	}
 
