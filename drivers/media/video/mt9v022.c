@@ -88,7 +88,7 @@ static const struct soc_camera_data_format mt9v022_monochrome_formats[] = {
 struct mt9v022 {
 	struct i2c_client *client;
 	struct soc_camera_device icd;
-	int model;	/* V4L2_IDENT_MT9M001* codes from v4l2-chip-ident.h */
+	int model;	/* V4L2_IDENT_MT9V022* codes from v4l2-chip-ident.h */
 	int switch_gpio;
 	u16 chip_control;
 	unsigned char datawidth;
