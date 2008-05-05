@@ -41,7 +41,7 @@
 #define BPP_DELAY 100
 
 static const unsigned  BPP_MAJOR = LP_MAJOR;
-static const char* dev_name = "bpp";
+static const char *bpp_dev_name = "bpp";
 
 /* When switching from compatibility to a mode where I can read, try
    the following mode first. */
