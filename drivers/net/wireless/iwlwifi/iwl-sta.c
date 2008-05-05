@@ -333,7 +333,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 		IWL_ERROR("index %d not used in uCode key table.\n",
 			priv->stations[sta_id].sta.key.key_offset);
 	memset(&priv->stations[sta_id].keyinfo, 0,
-					sizeof(struct iwl4965_hw_key));
+					sizeof(struct iwl_hw_key));
 	memset(&priv->stations[sta_id].sta.key, 0,
 					sizeof(struct iwl4965_keyinfo));
 	priv->stations[sta_id].sta.key.key_flags =

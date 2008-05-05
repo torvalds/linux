@@ -3333,7 +3333,7 @@ static void iwl4965_sta_modify_enable_tid_tx(struct iwl_priv *priv,
  * ACK vs. not.  This gets sent to mac80211, then to rate scaling algo.
  */
 static int iwl4965_tx_status_reply_compressed_ba(struct iwl_priv *priv,
-						 struct iwl4965_ht_agg *agg,
+						 struct iwl_ht_agg *agg,
 						 struct iwl4965_compressed_ba_resp*
 						 ba_resp)
 
@@ -3450,7 +3450,7 @@ int iwl4965_check_empty_hw_queue(struct iwl_priv *priv, int sta_id,
 {
 	struct iwl4965_queue *q = &priv->txq[txq_id].q;
 	u8 *addr = priv->stations[sta_id].sta.sta.addr;
-	struct iwl4965_tid_data *tid_data = &priv->stations[sta_id].tid[tid];
+	struct iwl_tid_data *tid_data = &priv->stations[sta_id].tid[tid];
 
 	switch (priv->stations[sta_id].tid[tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
@@ -3502,7 +3502,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 	struct iwl4965_compressed_ba_resp *ba_resp = &pkt->u.compressed_ba;
 	int index;
 	struct iwl4965_tx_queue *txq = NULL;
-	struct iwl4965_ht_agg *agg;
+	struct iwl_ht_agg *agg;
 	DECLARE_MAC_BUF(mac);
 
 	/* "flow" corresponds to Tx queue */
@@ -3929,7 +3929,7 @@ static int iwl4965_tx_agg_start(struct ieee80211_hw *hw, const u8 *ra,
 	int ssn = -1;
 	int ret = 0;
 	unsigned long flags;
-	struct iwl4965_tid_data *tid_data;
+	struct iwl_tid_data *tid_data;
 	DECLARE_MAC_BUF(mac);
 
 	if (likely(tid < ARRAY_SIZE(default_tid_to_tx_fifo)))
@@ -3982,7 +3982,7 @@ static int iwl4965_tx_agg_stop(struct ieee80211_hw *hw, const u8 *ra, u16 tid)
 {
 	struct iwl_priv *priv = hw->priv;
 	int tx_fifo_id, txq_id, sta_id, ssn = -1;
-	struct iwl4965_tid_data *tid_data;
+	struct iwl_tid_data *tid_data;
 	int ret, write_ptr, read_ptr;
 	unsigned long flags;
 	DECLARE_MAC_BUF(mac);

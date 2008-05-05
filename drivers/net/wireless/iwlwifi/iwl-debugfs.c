@@ -206,7 +206,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
-	struct iwl4965_station_entry *station;
+	struct iwl_station_entry *station;
 	int max_sta = priv->hw_params.max_stations;
 	char *buf;
 	int i, j, pos = 0;

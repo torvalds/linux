@@ -401,7 +401,7 @@ struct iwl_rx_queue {
 
 #ifdef CONFIG_IWL4965_HT
 /**
- * struct iwl4965_ht_agg -- aggregation status while waiting for block-ack
+ * struct iwl_ht_agg -- aggregation status while waiting for block-ack
  * @txq_id: Tx queue used for Tx attempt
  * @frame_count: # frames attempted by Tx command
  * @wait_for_ba: Expect block-ack before next Tx reply
@@ -414,7 +414,7 @@ struct iwl_rx_queue {
  * for block ack (REPLY_COMPRESSED_BA).  This struct stores tx reply info
  * until block ack arrives.
  */
-struct iwl4965_ht_agg {
+struct iwl_ht_agg {
 	u16 txq_id;
 	u16 frame_count;
 	u16 wait_for_ba;
@@ -430,15 +430,15 @@ struct iwl4965_ht_agg {
 
 #endif /* CONFIG_IWL4965_HT */
 
-struct iwl4965_tid_data {
+struct iwl_tid_data {
 	u16 seq_number;
 	u16 tfds_in_queue;
 #ifdef CONFIG_IWL4965_HT
-	struct iwl4965_ht_agg agg;
+	struct iwl_ht_agg agg;
 #endif /* CONFIG_IWL4965_HT */
 };
 
-struct iwl4965_hw_key {
+struct iwl_hw_key {
 	enum ieee80211_key_alg alg;
 	int keylen;
 	u8 keyidx;
@@ -510,12 +510,12 @@ struct iwl4965_qos_info {
 #define STA_PS_STATUS_WAKE             0
 #define STA_PS_STATUS_SLEEP            1
 
-struct iwl4965_station_entry {
+struct iwl_station_entry {
 	struct iwl4965_addsta_cmd sta;
-	struct iwl4965_tid_data tid[MAX_TID_COUNT];
+	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used;
 	u8 ps_status;
-	struct iwl4965_hw_key keyinfo;
+	struct iwl_hw_key keyinfo;
 };
 
 /* one for each uCode image (inst/data, boot/init/runtime) */
@@ -1107,7 +1107,7 @@ struct iwl_priv {
 	/*station table variables */
 	spinlock_t sta_lock;
 	int num_stations;
-	struct iwl4965_station_entry stations[IWL_STATION_COUNT];
+	struct iwl_station_entry stations[IWL_STATION_COUNT];
 	struct iwl_wep_key wep_keys[WEP_KEYS_MAX];
 	u8 default_wep_key;
 	u8 key_mapping_key;

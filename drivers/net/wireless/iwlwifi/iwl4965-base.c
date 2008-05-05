@@ -433,7 +433,7 @@ u8 iwl4965_add_station_flags(struct iwl_priv *priv, const u8 *addr,
 {
 	int i;
 	int index = IWL_INVALID_STATION;
-	struct iwl4965_station_entry *station;
+	struct iwl_station_entry *station;
 	unsigned long flags_spin;
 	DECLARE_MAC_BUF(mac);
 
@@ -1783,7 +1783,7 @@ static void iwl4965_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 				      struct sk_buff *skb_frag,
 				      int sta_id)
 {
-	struct iwl4965_hw_key *keyinfo = &priv->stations[sta_id].keyinfo;
+	struct iwl_hw_key *keyinfo = &priv->stations[sta_id].keyinfo;
 	struct iwl_wep_key *wepkey;
 	int keyidx = 0;
 
@@ -2617,7 +2617,7 @@ static inline u32 iwl4965_get_scd_ssn(struct iwl4965_tx_resp *tx_resp)
  * iwl4965_tx_status_reply_tx - Handle Tx rspnse for frames in aggregation queue
  */
 static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
-				      struct iwl4965_ht_agg *agg,
+				      struct iwl_ht_agg *agg,
 				      struct iwl4965_tx_resp_agg *tx_resp,
 				      u16 start_idx)
 {
@@ -2775,7 +2775,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 	if (txq->sched_retry) {
 		const u32 scd_ssn = iwl4965_get_scd_ssn(tx_resp);
-		struct iwl4965_ht_agg *agg = NULL;
+		struct iwl_ht_agg *agg = NULL;
 
 		if (!qc)
 			return;
