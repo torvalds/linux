@@ -62,6 +62,7 @@ static struct _cache_table cache_table[] __cpuinitdata =
 	{ 0x4b, LVL_3,      8192 },	/* 16-way set assoc, 64 byte line size */
 	{ 0x4c, LVL_3,     12288 },	/* 12-way set assoc, 64 byte line size */
 	{ 0x4d, LVL_3,     16384 },	/* 16-way set assoc, 64 byte line size */
+	{ 0x4e, LVL_2,      6144 },	/* 24-way set assoc, 64 byte line size */
 	{ 0x60, LVL_1_DATA, 16 },	/* 8-way set assoc, sectored cache, 64 byte line size */
 	{ 0x66, LVL_1_DATA, 8 },	/* 4-way set assoc, sectored cache, 64 byte line size */
 	{ 0x67, LVL_1_DATA, 16 },	/* 4-way set assoc, sectored cache, 64 byte line size */
