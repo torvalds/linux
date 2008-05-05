@@ -470,6 +470,27 @@ static void iwl4965_kw_free(struct iwl_priv *priv)
 	}
 }
 
+static int iwl4965_disable_tx_fifo(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	ret = iwl_grab_nic_access(priv);
+	if (unlikely(ret)) {
+		IWL_ERROR("Tx fifo reset failed");
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return ret;
+	}
+
+	iwl_write_prph(priv, IWL49_SCD_TXFACT, 0);
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
 /**
  * iwl4965_txq_ctx_reset - Reset TX queue context
  * Destroys all DMA structures and initialise them again
@@ -481,7 +502,6 @@ static int iwl4965_txq_ctx_reset(struct iwl_priv *priv)
 {
 	int rc = 0;
 	int txq_id, slots_num;
-	unsigned long flags;
 
 	iwl4965_kw_free(priv);
 
@@ -495,19 +515,10 @@ static int iwl4965_txq_ctx_reset(struct iwl_priv *priv)
 		goto error_kw;
 	}
 
-	spin_lock_irqsave(&priv->lock, flags);
-
-	rc = iwl_grab_nic_access(priv);
-	if (unlikely(rc)) {
-		IWL_ERROR("TX reset failed");
-		spin_unlock_irqrestore(&priv->lock, flags);
+	/* Turn off all Tx DMA fifos */
+	rc = priv->cfg->ops->lib->disable_tx_fifo(priv);
+	if (unlikely(rc))
 		goto error_reset;
-	}
-
-	/* Turn off all Tx DMA channels */
-	iwl_write_prph(priv, IWL49_SCD_TXFACT, 0);
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Tell 4965 where to find the keep-warm buffer */
 	rc = iwl4965_kw_init(priv);
@@ -538,6 +549,7 @@ static int iwl4965_txq_ctx_reset(struct iwl_priv *priv)
  error_kw:
 	return rc;
 }
+
 static int iwl4965_apm_init(struct iwl_priv *priv)
 {
 	unsigned long flags;
@@ -620,7 +632,6 @@ static void iwl4965_nic_config(struct iwl_priv *priv)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
-
 
 int iwl4965_hw_nic_init(struct iwl_priv *priv)
 {
@@ -4044,6 +4055,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.free_shared_mem = iwl4965_free_shared_mem,
 	.txq_update_byte_cnt_tbl = iwl4965_txq_update_byte_cnt_tbl,
 	.hw_nic_init = iwl4965_hw_nic_init,
+	.disable_tx_fifo = iwl4965_disable_tx_fifo,
 	.rx_handler_setup = iwl4965_rx_handler_setup,
 	.is_valid_rtc_data_addr = iwl4965_hw_valid_rtc_data_addr,
 	.alive_notify = iwl4965_alive_notify,

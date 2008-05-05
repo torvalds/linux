@@ -430,6 +430,27 @@ static u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 }
 
 
+static int iwl5000_disable_tx_fifo(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	ret = iwl_grab_nic_access(priv);
+	if (unlikely(ret)) {
+		IWL_ERROR("Tx fifo reset failed");
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return ret;
+	}
+
+	iwl_write_prph(priv, IWL50_SCD_TXFACT, 0);
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 };
 
@@ -446,6 +467,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.alloc_shared_mem = iwl5000_alloc_shared_mem,
 	.free_shared_mem = iwl5000_free_shared_mem,
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
+	.disable_tx_fifo = iwl5000_disable_tx_fifo,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.config = iwl5000_nic_config,
