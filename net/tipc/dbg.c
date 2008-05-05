@@ -263,6 +263,8 @@ void tipc_printf(struct print_buf *pb, const char *fmt, ...)
 	spin_unlock_bh(&print_lock);
 }
 
+#ifdef CONFIG_TIPC_DEBUG
+
 /**
  * print_to_console - write string of bytes to console in multiple chunks
  */
@@ -309,11 +311,11 @@ static void printbuf_dump(struct print_buf *pb)
 }
 
 /**
- * tipc_dump - dump (non-console) print buffer to console
+ * tipc_dump_dbg - dump (non-console) print buffer to console
  * @pb: pointer to print buffer
  */
 
-void tipc_dump(struct print_buf *pb, const char *fmt, ...)
+void tipc_dump_dbg(struct print_buf *pb, const char *fmt, ...)
 {
 	int len;
 
@@ -333,6 +335,8 @@ void tipc_dump(struct print_buf *pb, const char *fmt, ...)
 
 	spin_unlock_bh(&print_lock);
 }
+
+#endif
 
 /**
  * tipc_log_resize - change the size of the TIPC log buffer

@@ -85,8 +85,6 @@ extern struct print_buf *const TIPC_CONS;
 extern struct print_buf *const TIPC_LOG;
 
 void tipc_printf(struct print_buf *, const char *fmt, ...);
-void tipc_msg_print(struct print_buf *, struct tipc_msg *, const char *);
-void tipc_dump(struct print_buf *, const char *fmt, ...);
 
 /*
  * TIPC_OUTPUT is the destination print buffer for system messages.
@@ -144,19 +142,25 @@ void tipc_dump(struct print_buf *, const char *fmt, ...);
 #define msg_dbg(msg, txt) \
 	do { \
 		if (DBG_OUTPUT != TIPC_NULL) \
-			tipc_msg_print(DBG_OUTPUT, msg, txt); \
+			tipc_msg_dbg(DBG_OUTPUT, msg, txt); \
 	} while (0)
 #define dump(fmt, arg...) \
 	do { \
 		if (DBG_OUTPUT != TIPC_NULL) \
-			tipc_dump(DBG_OUTPUT, fmt, ##arg); \
+			tipc_dump_dbg(DBG_OUTPUT, fmt, ##arg); \
 	} while (0)
+
+void tipc_msg_dbg(struct print_buf *, struct tipc_msg *, const char *);
+void tipc_dump_dbg(struct print_buf *, const char *fmt, ...);
 
 #else
 
 #define dbg(fmt, arg...)	do {} while (0)
 #define msg_dbg(msg, txt)	do {} while (0)
 #define dump(fmt, arg...)	do {} while (0)
+
+#define tipc_msg_dbg(...)	do {} while (0)
+#define tipc_dump_dbg(...)	do {} while (0)
 
 #endif
 

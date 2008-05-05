@@ -147,9 +147,21 @@ static void link_print(struct link *l_ptr, struct print_buf *buf,
 
 #define LINK_LOG_BUF_SIZE 0
 
-#define dbg_link(fmt, arg...)  do {if (LINK_LOG_BUF_SIZE) tipc_printf(&l_ptr->print_buf, fmt, ## arg); } while(0)
-#define dbg_link_msg(msg, txt) do {if (LINK_LOG_BUF_SIZE) tipc_msg_print(&l_ptr->print_buf, msg, txt); } while(0)
-#define dbg_link_state(txt) do {if (LINK_LOG_BUF_SIZE) link_print(l_ptr, &l_ptr->print_buf, txt); } while(0)
+#define dbg_link(fmt, arg...) \
+	do { \
+		if (LINK_LOG_BUF_SIZE) \
+			tipc_printf(&l_ptr->print_buf, fmt, ## arg); \
+	} while (0)
+#define dbg_link_msg(msg, txt) \
+	do { \
+		if (LINK_LOG_BUF_SIZE) \
+			tipc_msg_dbg(&l_ptr->print_buf, msg, txt); \
+	} while (0)
+#define dbg_link_state(txt) \
+	do { \
+		if (LINK_LOG_BUF_SIZE) \
+			link_print(l_ptr, &l_ptr->print_buf, txt); \
+	} while (0)
 #define dbg_link_dump() do { \
 	if (LINK_LOG_BUF_SIZE) { \
 		tipc_printf(LOG, "\n\nDumping link <%s>:\n", l_ptr->name); \
@@ -1651,7 +1663,7 @@ static void link_retransmit_failure(struct link *l_ptr, struct sk_buff *buf)
 	struct tipc_msg *msg = buf_msg(buf);
 
 	warn("Retransmission failure on link <%s>\n", l_ptr->name);
-	tipc_msg_print(TIPC_OUTPUT, msg, ">RETR-FAIL>");
+	tipc_msg_dbg(TIPC_OUTPUT, msg, ">RETR-FAIL>");
 
 	if (l_ptr->addr) {
 
