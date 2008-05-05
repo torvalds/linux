@@ -825,6 +825,15 @@ menuconfig MODULES
 
 	  If unsure, say Y.
 
+config MODULE_FORCE_LOAD
+	bool "Forced module loading"
+	depends on MODULES
+	default n
+	help
+	  This option allows loading of modules even if that would set the
+          'F' (forced) taint, due to lack of version info.  Which is
+	  usually a really bad idea.
+
 config MODULE_UNLOAD
 	bool "Module unloading"
 	depends on MODULES

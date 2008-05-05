@@ -890,6 +890,19 @@ static struct module_attribute *modinfo_attrs[] = {
 
 static const char vermagic[] = VERMAGIC_STRING;
 
+static int try_to_force_load(struct module *mod, const char *symname)
+{
+#ifdef CONFIG_MODULE_FORCE_LOAD
+	if (!(tainted & TAINT_FORCED_MODULE))
+		printk("%s: no version for \"%s\" found: kernel tainted.\n",
+		       mod->name, symname);
+	add_taint_module(mod, TAINT_FORCED_MODULE);
+	return 0;
+#else
+	return -ENOEXEC;
+#endif
+}
+
 #ifdef CONFIG_MODVERSIONS
 static int check_version(Elf_Shdr *sechdrs,
 			 unsigned int versindex,
@@ -914,18 +927,18 @@ static int check_version(Elf_Shdr *sechdrs,
 
 		if (versions[i].crc == *crc)
 			return 1;
-		printk("%s: disagrees about version of symbol %s\n",
-		       mod->name, symname);
 		DEBUGP("Found checksum %lX vs module %lX\n",
 		       *crc, versions[i].crc);
-		return 0;
+		goto bad_version;
 	}
-	/* Not in module's version table.  OK, but that taints the kernel. */
-	if (!(tainted & TAINT_FORCED_MODULE))
-		printk("%s: no version for \"%s\" found: kernel tainted.\n",
-		       mod->name, symname);
-	add_taint_module(mod, TAINT_FORCED_MODULE);
-	return 1;
+
+	if (!try_to_force_load(mod, symname))
+		return 1;
+
+bad_version:
+	printk("%s: disagrees about version of symbol %s\n",
+	       mod->name, symname);
+	return 0;
 }
 
 static inline int check_modstruct_version(Elf_Shdr *sechdrs,
@@ -1853,9 +1866,9 @@ static struct module *load_module(void __user *umod,
 	modmagic = get_modinfo(sechdrs, infoindex, "vermagic");
 	/* This is allowed: modprobe --force will invalidate it. */
 	if (!modmagic) {
-		add_taint_module(mod, TAINT_FORCED_MODULE);
-		printk(KERN_WARNING "%s: no version magic, tainting kernel.\n",
-		       mod->name);
+		err = try_to_force_load(mod, "magic");
+		if (err)
+			goto free_hdr;
 	} else if (!same_magic(modmagic, vermagic)) {
 		printk(KERN_ERR "%s: version magic '%s' should be '%s'\n",
 		       mod->name, modmagic, vermagic);
@@ -2006,9 +2019,10 @@ static struct module *load_module(void __user *umod,
 	    (mod->num_gpl_future_syms && !gplfuturecrcindex) ||
 	    (mod->num_unused_syms && !unusedcrcindex) ||
 	    (mod->num_unused_gpl_syms && !unusedgplcrcindex)) {
-		printk(KERN_WARNING "%s: No versions for exported symbols."
-		       " Tainting kernel.\n", mod->name);
-		add_taint_module(mod, TAINT_FORCED_MODULE);
+		printk(KERN_WARNING "%s: No versions for exported symbols.\n", mod->name);
+		err = try_to_force_load(mod, "nocrc");
+		if (err)
+			goto cleanup;
 	}
 #endif
 	markersindex = find_sec(hdr, sechdrs, secstrings, "__markers");
