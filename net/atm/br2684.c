@@ -350,7 +350,6 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			list_del(&brdev->br2684_devs);
 			read_unlock(&devs_lock);
 			unregister_netdev(net_dev);
-			free_netdev(net_dev);
 		}
 		return;
 	}
@@ -771,7 +770,6 @@ static void __exit br2684_exit(void)
 
 		list_del(&brdev->br2684_devs);
 		unregister_netdev(net_dev);
-		free_netdev(net_dev);
 	}
 }
 
