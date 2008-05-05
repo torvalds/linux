@@ -3775,10 +3775,10 @@ void iwl4965_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 				 RXON_FLG_CHANNEL_MODE_PURE_40_MSK);
 
 	if (le16_to_cpu(rxon->channel) != ht_info->control_channel) {
-		IWL_DEBUG_ASSOC("control diff than current %d %d\n",
+		IWL_ERROR("control diff than current %d %d\n",
 				le16_to_cpu(rxon->channel),
 				ht_info->control_channel);
-		rxon->channel = cpu_to_le16(ht_info->control_channel);
+		WARN_ON(1);
 		return;
 	}
 
