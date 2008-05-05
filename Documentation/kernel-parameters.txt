@@ -1094,9 +1094,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	mac5380=	[HW,SCSI] Format:
 			<can_queue>,<cmd_per_lun>,<sg_tablesize>,<hostid>,<use_tags>
 
-	mac53c9x=	[HW,SCSI] Format:
-			<num_esps>,<disconnect>,<nosync>,<can_queue>,<cmd_per_lun>,<sg_tablesize>,<hostid>,<use_tags>
-
 	machvec=	[IA64] Force the use of a particular machine-vector
 			(machvec) in a generic kernel.
 			Example: machvec=hpzx1_swiotlb
