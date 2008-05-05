@@ -3101,7 +3101,7 @@ out:
 	return ret;
 }
 
-void dup_item_to_inode(struct btrfs_trans_handle *trans,
+int dup_item_to_inode(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root,
 		       struct btrfs_path *path,
 		       struct extent_buffer *leaf,
@@ -3109,19 +3109,22 @@ void dup_item_to_inode(struct btrfs_trans_handle *trans,
 		       struct btrfs_key *key,
 		       u64 destino)
 {
-	struct btrfs_path *cpath = btrfs_alloc_path();
+	char *dup;
 	int len = btrfs_item_size_nr(leaf, slot);
-	int dstoff;
 	struct btrfs_key ckey = *key;
-	int ret;
+	int ret = 0;
+
+	dup = kmalloc(len, GFP_NOFS);
+	if (!dup)
+		return -ENOMEM;
+
+	read_extent_buffer(leaf, dup, btrfs_item_ptr_offset(leaf, slot), len);
+	btrfs_release_path(root, path);
 
 	ckey.objectid = destino;
-	ret = btrfs_insert_empty_item(trans, root, cpath, &ckey, len);
-	dstoff = btrfs_item_ptr_offset(cpath->nodes[0], cpath->slots[0]);
-	copy_extent_buffer(cpath->nodes[0], leaf, dstoff,
-			   btrfs_item_ptr_offset(leaf, slot),
-			   len);
-	btrfs_release_path(root, cpath);
+	ret = btrfs_insert_item(trans, root, &ckey, dup, len);
+	kfree(dup);
+	return ret;
 }
 
 long btrfs_ioctl_clone(struct file *file, unsigned long src_fd)
@@ -3137,7 +3140,6 @@ long btrfs_ioctl_clone(struct file *file, unsigned long src_fd)
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
 	u32 nritems;
-	int nextret;
 	int slot;
 
 	src_file = fget(src_fd);
@@ -3174,20 +3176,32 @@ long btrfs_ioctl_clone(struct file *file, unsigned long src_fd)
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 0);
 	path = btrfs_alloc_path();
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	key.offset = 0;
+	key.type = BTRFS_EXTENT_DATA_KEY;
+	key.objectid = src->i_ino;
 	pos = 0;
+	path->reada = 2;
+
 	while (1) {
-		ret = btrfs_lookup_file_extent(trans, root, path, src->i_ino,
-					       pos, 0);
+		/*
+		 * note the key will change type as we walk through the
+		 * tree.
+		 */
+		ret = btrfs_search_slot(trans, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto out;
-		if (ret > 0) {
-			if (path->slots[0] == 0) {
-				ret = 0;
+
+		if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
 				goto out;
-			}
-			path->slots[0]--;
+			if (ret > 0)
+				break;
 		}
-next_slot:
 		leaf = path->nodes[0];
 		slot = path->slots[0];
 		btrfs_item_key_to_cpu(leaf, &key, slot);
@@ -3195,7 +3209,8 @@ next_slot:
 
 		if (btrfs_key_type(&key) > BTRFS_CSUM_ITEM_KEY ||
 		    key.objectid != src->i_ino)
-			goto out;
+			break;
+
 		if (btrfs_key_type(&key) == BTRFS_EXTENT_DATA_KEY) {
 			struct btrfs_file_extent_item *extent;
 			int found_type;
@@ -3225,28 +3240,28 @@ next_slot:
 				}
 				pos = key.offset + len;
 			} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
-				dup_item_to_inode(trans, root, path, leaf, slot,
-						  &key, inode->i_ino);
+				ret = dup_item_to_inode(trans, root, path,
+							leaf, slot, &key,
+							inode->i_ino);
+				if (ret)
+					goto out;
 				pos = key.offset + btrfs_item_size_nr(leaf,
 								      slot);
 			}
-		} else if (btrfs_key_type(&key) == BTRFS_CSUM_ITEM_KEY)
-			dup_item_to_inode(trans, root, path, leaf, slot, &key,
-					  inode->i_ino);
+		} else if (btrfs_key_type(&key) == BTRFS_CSUM_ITEM_KEY) {
+			ret = dup_item_to_inode(trans, root, path, leaf,
+						slot, &key, inode->i_ino);
 
-		if (slot >= nritems - 1) {
-			nextret = btrfs_next_leaf(root, path);
-			if (nextret)
+			if (ret)
 				goto out;
-		} else {
-			path->slots[0]++;
 		}
-		goto next_slot;
+		key.offset++;
+		btrfs_release_path(root, path);
 	}
 
+	ret = 0;
 out:
 	btrfs_free_path(path);
-	ret = 0;
 
 	inode->i_blocks = src->i_blocks;
 	i_size_write(inode, src->i_size);
