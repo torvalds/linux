@@ -225,6 +225,7 @@ struct adbhid {
 #define FLAG_CAPSLOCK_TRANSLATE		0x00000008
 #define FLAG_CAPSLOCK_DOWN		0x00000010
 #define FLAG_CAPSLOCK_IGNORE_NEXT	0x00000020
+#define FLAG_POWER_KEY_PRESSED		0x00000040
 
 static struct adbhid *adbhid[16];
 
@@ -301,9 +302,11 @@ adbhid_input_keycode(int id, int scancode, int repeat)
 				ahid->flags |= FLAG_CAPSLOCK_TRANSLATE
 					| FLAG_CAPSLOCK_DOWN;
 			}
-		} else if (scancode == 0xff) {
+		} else if (scancode == 0xff &&
+			   !(ahid->flags & FLAG_POWER_KEY_PRESSED)) {
 			/* Scancode 0xff usually signifies that the capslock
-			 * key was either pressed or released. */
+			 * key was either pressed or released, or that the
+			 * power button was released. */
 			if (ahid->flags & FLAG_CAPSLOCK_TRANSLATE) {
 				keycode = ADB_KEY_CAPSLOCK;
 				if (ahid->flags & FLAG_CAPSLOCK_DOWN) {
@@ -317,7 +320,7 @@ adbhid_input_keycode(int id, int scancode, int repeat)
 				}
 			} else {
 				printk(KERN_INFO "Spurious caps lock event "
-						"(scancode 0xff).");
+						 "(scancode 0xff).\n");
 			}
 		}
 	}
@@ -344,6 +347,12 @@ adbhid_input_keycode(int id, int scancode, int repeat)
 		}
 		break;
 	case ADB_KEY_POWER:
+		/* Keep track of the power key state */
+		if (up_flag)
+			ahid->flags &= ~FLAG_POWER_KEY_PRESSED;
+		else
+			ahid->flags |= FLAG_POWER_KEY_PRESSED;
+
 		/* Fn + Command will produce a bogus "power" keycode */
 		if (ahid->flags & FLAG_FN_KEY_PRESSED) {
 			keycode = ADB_KEY_CMD;
