@@ -2743,7 +2743,7 @@ static int iwl4965_set_decrypted_flag(struct iwl_priv *priv,
 	return 0;
 }
 
-static u32 iwl4965_translate_rx_status(u32 decrypt_in)
+static u32 iwl4965_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
 {
 	u32 decrypt_out = 0;
 
@@ -2855,7 +2855,7 @@ static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 	if (!include_phy) {
 		/* New status scheme, need to translate */
 		ampdu_status_legacy = ampdu_status;
-		ampdu_status = iwl4965_translate_rx_status(ampdu_status);
+		ampdu_status = iwl4965_translate_rx_status(priv, ampdu_status);
 	}
 
 	/* start from MAC */
@@ -2887,7 +2887,8 @@ static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 }
 
 /* Calc max signal level (dBm) among 3 possible receivers */
-static int iwl4965_calc_rssi(struct iwl4965_rx_phy_res *rx_resp)
+static int iwl4965_calc_rssi(struct iwl_priv *priv,
+			     struct iwl4965_rx_phy_res *rx_resp)
 {
 	/* data from PHY/DSP regarding signal strength, etc.,
 	 *   contents are always there, not configurable by host.  */
@@ -2991,7 +2992,7 @@ static void iwl4965_dbg_report_frame(struct iwl_priv *priv,
 	struct iwl4965_rx_frame_end *rx_end = IWL_RX_END(pkt);
 	u8 *data = IWL_RX_DATA(pkt);
 
-	if (likely(!(iwl_debug_level & IWL_DL_RX)))
+	if (likely(!(priv->debug_level & IWL_DL_RX)))
 		return;
 
 	/* MAC header */
@@ -3094,7 +3095,7 @@ static void iwl4965_dbg_report_frame(struct iwl_priv *priv,
 		}
 	}
 	if (print_dump)
-		iwl_print_hex_dump(IWL_DL_RX, data, length);
+		iwl_print_hex_dump(priv, IWL_DL_RX, data, length);
 }
 #else
 static inline void iwl4965_dbg_report_frame(struct iwl_priv *priv,
@@ -3187,7 +3188,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	priv->ucode_beacon_time = le32_to_cpu(rx_start->beacon_time_stamp);
 
 	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
-	rx_status.ssi = iwl4965_calc_rssi(rx_start);
+	rx_status.ssi = iwl4965_calc_rssi(priv, rx_start);
 
 	/* Meaningful noise values are available only from beacon statistics,
 	 *   which are gathered only when associated, and indicate noise

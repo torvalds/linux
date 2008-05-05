@@ -145,6 +145,7 @@ static const char *iwl4965_escape_essid(const char *essid, u8 essid_len)
 	return escaped;
 }
 
+
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
  * DMA services
  *
@@ -1914,7 +1915,7 @@ static int iwl4965_get_sta_id(struct iwl_priv *priv,
 		IWL_DEBUG_DROP("Station %s not in station map. "
 			       "Defaulting to broadcast...\n",
 			       print_mac(mac, hdr->addr1));
-		iwl_print_hex_dump(IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
+		iwl_print_hex_dump(priv, IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
 		return priv->hw_params.bcast_sta_id;
 
 	default:
@@ -2130,10 +2131,10 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 		txq->need_update = 0;
 	}
 
-	iwl_print_hex_dump(IWL_DL_TX, out_cmd->cmd.payload,
+	iwl_print_hex_dump(priv, IWL_DL_TX, out_cmd->cmd.payload,
 			   sizeof(out_cmd->cmd.tx));
 
-	iwl_print_hex_dump(IWL_DL_TX, (u8 *)out_cmd->cmd.tx.hdr,
+	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)out_cmd->cmd.tx.hdr,
 			   ieee80211_get_hdrlen(fc));
 
 	/* Set up entry for this TFD in Tx byte-count array */
@@ -2911,7 +2912,7 @@ static void iwl4965_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
 	IWL_DEBUG_RADIO("Dumping %d bytes of unhandled "
 			"notification for %s:\n",
 			le32_to_cpu(pkt->len), get_cmd_string(pkt->hdr.cmd));
-	iwl_print_hex_dump(IWL_DL_RADIO, pkt->u.raw, le32_to_cpu(pkt->len));
+	iwl_print_hex_dump(priv, IWL_DL_RADIO, pkt->u.raw, le32_to_cpu(pkt->len));
 }
 
 static void iwl4965_bg_beacon_update(struct work_struct *work)
@@ -3484,12 +3485,13 @@ static int iwl4965_tx_queue_update_write_ptr(struct iwl_priv *priv,
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-static void iwl4965_print_rx_config_cmd(struct iwl4965_rxon_cmd *rxon)
+static void iwl4965_print_rx_config_cmd(struct iwl_priv *priv)
 {
+	struct iwl4965_rxon_cmd *rxon = &priv->staging_rxon;
 	DECLARE_MAC_BUF(mac);
 
 	IWL_DEBUG_RADIO("RX CONFIG:\n");
-	iwl_print_hex_dump(IWL_DL_RADIO, (u8 *) rxon, sizeof(*rxon));
+	iwl_print_hex_dump(priv, IWL_DL_RADIO, (u8 *) rxon, sizeof(*rxon));
 	IWL_DEBUG_RADIO("u16 channel: 0x%x\n", le16_to_cpu(rxon->channel));
 	IWL_DEBUG_RADIO("u32 flags: 0x%08X\n", le32_to_cpu(rxon->flags));
 	IWL_DEBUG_RADIO("u32 filter_flags: 0x%08x\n",
@@ -3715,10 +3717,10 @@ static void iwl4965_irq_handle_error(struct iwl_priv *priv)
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & IWL_DL_FW_ERRORS) {
+	if (priv->debug_level & IWL_DL_FW_ERRORS) {
 		iwl4965_dump_nic_error_log(priv);
 		iwl4965_dump_nic_event_log(priv);
-		iwl4965_print_rx_config_cmd(&priv->staging_rxon);
+		iwl4965_print_rx_config_cmd(priv);
 	}
 #endif
 
@@ -3782,7 +3784,7 @@ static void iwl4965_irq_tasklet(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & IWL_DL_ISR) {
+	if (priv->debug_level & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR("inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -3816,7 +3818,7 @@ static void iwl4965_irq_tasklet(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & (IWL_DL_ISR)) {
+	if (priv->debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD)
 			IWL_DEBUG_ISR("Scheduler finished to transmit "
@@ -3909,7 +3911,7 @@ static void iwl4965_irq_tasklet(struct iwl_priv *priv)
 		iwl4965_enable_interrupts(priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & (IWL_DL_ISR)) {
+	if (priv->debug_level & (IWL_DL_ISR)) {
 		inta = iwl_read32(priv, CSR_INT);
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
@@ -6049,6 +6051,9 @@ static int iwl4965_mac_get_tx_stats(struct ieee80211_hw *hw,
 static int iwl4965_mac_get_stats(struct ieee80211_hw *hw,
 			     struct ieee80211_low_level_stats *stats)
 {
+	struct iwl_priv *priv = hw->priv;
+
+	priv = hw->priv;
 	IWL_DEBUG_MAC80211("enter\n");
 	IWL_DEBUG_MAC80211("leave\n");
 
@@ -6057,6 +6062,9 @@ static int iwl4965_mac_get_stats(struct ieee80211_hw *hw,
 
 static u64 iwl4965_mac_get_tsf(struct ieee80211_hw *hw)
 {
+	struct iwl_priv *priv;
+
+	priv = hw->priv;
 	IWL_DEBUG_MAC80211("enter\n");
 	IWL_DEBUG_MAC80211("leave\n");
 
@@ -6706,7 +6714,9 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/* Disabling hardware scan means that mac80211 will perform scans
 	 * "the hard way", rather than using device's scan. */
 	if (cfg->mod_params->disable_hw_scan) {
-		IWL_DEBUG_INFO("Disabling hw_scan\n");
+		if (cfg->mod_params->debug & IWL_DL_INFO)
+			dev_printk(KERN_DEBUG, &(pdev->dev),
+				   "Disabling hw_scan\n");
 		iwl4965_hw_ops.hw_scan = NULL;
 	}
 
@@ -6725,7 +6735,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->pci_dev = pdev;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	iwl_debug_level = priv->cfg->mod_params->debug;
+	priv->debug_level = priv->cfg->mod_params->debug;
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
 
