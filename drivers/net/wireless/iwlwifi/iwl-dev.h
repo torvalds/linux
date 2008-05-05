@@ -319,7 +319,7 @@ struct iwl_cmd {
 	struct iwl_cmd_meta meta;	/* driver data */
 	struct iwl_cmd_header hdr;	/* uCode API */
 	union {
-		struct iwl4965_addsta_cmd addsta;
+		struct iwl_addsta_cmd addsta;
 		struct iwl4965_led_cmd led;
 		u32 flags;
 		u8 val8;
@@ -511,7 +511,7 @@ struct iwl4965_qos_info {
 #define STA_PS_STATUS_SLEEP            1
 
 struct iwl_station_entry {
-	struct iwl4965_addsta_cmd sta;
+	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used;
 	u8 ps_status;
@@ -634,9 +634,9 @@ struct iwl_hw_params {
  * for use by iwl-*.c
  *
  *****************************************************************************/
-struct iwl4965_addsta_cmd;
-extern int iwl4965_send_add_station(struct iwl_priv *priv,
-				struct iwl4965_addsta_cmd *sta, u8 flags);
+struct iwl_addsta_cmd;
+extern int iwl_send_add_sta(struct iwl_priv *priv,
+			    struct iwl_addsta_cmd *sta, u8 flags);
 extern u8 iwl4965_add_station_flags(struct iwl_priv *priv, const u8 *addr,
 			  int is_ap, u8 flags, void *ht_data);
 extern int iwl4965_is_network_packet(struct iwl_priv *priv,

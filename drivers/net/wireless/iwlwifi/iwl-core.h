@@ -87,6 +87,7 @@ struct iwl_hcmd_ops {
 };
 struct iwl_hcmd_utils_ops {
 	int (*enqueue_hcmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
 #ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 	void (*gain_computation)(struct iwl_priv *priv,
 			u32 *average_noise,

@@ -476,7 +476,7 @@ u8 iwl4965_add_station_flags(struct iwl_priv *priv, const u8 *addr,
 	priv->num_stations++;
 
 	/* Set up the REPLY_ADD_STA command to send to device */
-	memset(&station->sta, 0, sizeof(struct iwl4965_addsta_cmd));
+	memset(&station->sta, 0, sizeof(struct iwl_addsta_cmd));
 	memcpy(station->sta.sta.addr, addr, ETH_ALEN);
 	station->sta.mode = 0;
 	station->sta.sta.sta_id = index;
@@ -493,7 +493,7 @@ u8 iwl4965_add_station_flags(struct iwl_priv *priv, const u8 *addr,
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
 
 	/* Add station to device's station table */
-	iwl4965_send_add_station(priv, &station->sta, flags);
+	iwl_send_add_sta(priv, &station->sta, flags);
 	return index;
 
 }
@@ -961,51 +961,6 @@ static int iwl4965_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_fla
 	};
 
 	return iwl_send_cmd(priv, &cmd);
-}
-
-int iwl4965_send_add_station(struct iwl_priv *priv,
-			 struct iwl4965_addsta_cmd *sta, u8 flags)
-{
-	struct iwl_rx_packet *res = NULL;
-	int rc = 0;
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_ADD_STA,
-		.len = sizeof(struct iwl4965_addsta_cmd),
-		.meta.flags = flags,
-		.data = sta,
-	};
-
-	if (!(flags & CMD_ASYNC))
-		cmd.meta.flags |= CMD_WANT_SKB;
-
-	rc = iwl_send_cmd(priv, &cmd);
-
-	if (rc || (flags & CMD_ASYNC))
-		return rc;
-
-	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
-	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERROR("Bad return from REPLY_ADD_STA (0x%08X)\n",
-			  res->hdr.flags);
-		rc = -EIO;
-	}
-
-	if (rc == 0) {
-		switch (res->u.add_sta.status) {
-		case ADD_STA_SUCCESS_MSK:
-			IWL_DEBUG_INFO("REPLY_ADD_STA PASSED\n");
-			break;
-		default:
-			rc = -EIO;
-			IWL_WARNING("REPLY_ADD_STA failed\n");
-			break;
-		}
-	}
-
-	priv->alloc_rxb_skb--;
-	dev_kfree_skb_any(cmd.meta.u.skb);
-
-	return rc;
 }
 
 static void iwl4965_clear_free_frames(struct iwl_priv *priv)
@@ -5927,7 +5882,7 @@ static void iwl4965_mac_update_tkip_key(struct ieee80211_hw *hw,
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
-	iwl4965_send_add_station(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
+	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
