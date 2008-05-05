@@ -13,14 +13,11 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/log2.h>
+#include <linux/gpio.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
-
-#ifdef CONFIG_MT9M001_PCA9536_SWITCH
-#include <asm/gpio.h>
-#endif
 
 /* mt9v022 i2c address 0x48, 0x4c, 0x58, 0x5c
  * The platform has to define i2c_board_info
