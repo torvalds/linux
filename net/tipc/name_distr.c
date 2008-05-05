@@ -41,9 +41,6 @@
 #include "msg.h"
 #include "name_distr.h"
 
-#undef  DBG_OUTPUT
-#define DBG_OUTPUT NULL
-
 #define ITEM_SIZE sizeof(struct distr_item)
 
 /**
