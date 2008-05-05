@@ -86,7 +86,7 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 	return ret;
 }
 
-static void iwl5000_nic_init(struct iwl_priv *priv)
+static void iwl5000_nic_config(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	u16 radio_cfg;
@@ -439,7 +439,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
-		.config = iwl5000_nic_init,
+		.config = iwl5000_nic_config,
 		.set_pwr_src = iwl4965_set_pwr_src,
 	},
 	.eeprom_ops = {
