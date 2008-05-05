@@ -39,7 +39,7 @@
 int shpchp_debug;
 int shpchp_poll_mode;
 int shpchp_poll_time;
-int shpchp_slot_with_bus;
+static int shpchp_slot_with_bus;
 struct workqueue_struct *shpchp_wq;
 
 #define DRIVER_VERSION	"0.4"
