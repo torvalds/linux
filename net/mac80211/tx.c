@@ -1898,6 +1898,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 			control->flags |= IEEE80211_TXCTL_SHORT_PREAMBLE;
 		control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
 		control->flags |= IEEE80211_TXCTL_NO_ACK;
+		control->flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT;
 		control->retry_limit = 1;
 		control->flags |= IEEE80211_TXCTL_CLEAR_PS_FILT;
 	}
