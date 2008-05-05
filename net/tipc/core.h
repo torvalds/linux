@@ -2,7 +2,7 @@
  * net/tipc/core.h: Include file for TIPC global declarations
  *
  * Copyright (c) 2005-2006, Ericsson AB
- * Copyright (c) 2005-2006, Wind River Systems
+ * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,9 @@
 #define assert(i)  BUG_ON(!(i))
 
 struct tipc_msg;
-extern struct print_buf *TIPC_NULL, *TIPC_CONS, *TIPC_LOG;
+extern struct print_buf *const TIPC_NULL;
+extern struct print_buf *const TIPC_CONS;
+extern struct print_buf *const TIPC_LOG;
 void tipc_msg_print(struct print_buf*,struct tipc_msg *,const char*);
 void tipc_printf(struct print_buf *, const char *fmt, ...);
 void tipc_dump(struct print_buf*,const char *fmt, ...);

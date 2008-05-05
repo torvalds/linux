@@ -49,13 +49,13 @@
  */
 
 static struct print_buf null_buf = { NULL, 0, NULL, 0 };
-struct print_buf *TIPC_NULL = &null_buf;
+struct print_buf *const TIPC_NULL = &null_buf;
 
 static struct print_buf cons_buf = { NULL, 0, NULL, 1 };
-struct print_buf *TIPC_CONS = &cons_buf;
+struct print_buf *const TIPC_CONS = &cons_buf;
 
 static struct print_buf log_buf = { NULL, 0, NULL, 1 };
-struct print_buf *TIPC_LOG = &log_buf;
+struct print_buf *const TIPC_LOG = &log_buf;
 
 /*
  * Locking policy when using print buffers.
@@ -107,7 +107,7 @@ void tipc_printbuf_init(struct print_buf *pb, char *raw, u32 size)
 		pb->buf = NULL;
 	} else if (raw) {
 		pb->buf[0] = 0;
-		pb->buf[size-1] = ~0;
+		pb->buf[size - 1] = ~0;
 	}
 }
 
@@ -118,7 +118,7 @@ void tipc_printbuf_init(struct print_buf *pb, char *raw, u32 size)
 
 void tipc_printbuf_reset(struct print_buf *pb)
 {
-	if (pb->buf != NULL) {
+	if (pb->buf) {
 		pb->crs = pb->buf;
 		pb->buf[0] = 0;
 		pb->buf[pb->size - 1] = ~0;
@@ -158,7 +158,7 @@ int tipc_printbuf_validate(struct print_buf *pb)
 
 	if (pb->buf[pb->size - 1] == 0) {
 		cp_buf = kmalloc(pb->size, GFP_ATOMIC);
-		if (cp_buf != NULL){
+		if (cp_buf) {
 			tipc_printbuf_init(&cb, cp_buf, pb->size);
 			tipc_printbuf_move(&cb, pb);
 			tipc_printbuf_move(pb, &cb);
@@ -205,7 +205,7 @@ void tipc_printbuf_move(struct print_buf *pb_to, struct print_buf *pb_from)
 	/* Copy data from char after cursor to end (if used) */
 
 	len = pb_from->buf + pb_from->size - pb_from->crs - 2;
-	if ((pb_from->buf[pb_from->size-1] == 0) && (len > 0)) {
+	if ((pb_from->buf[pb_from->size - 1] == 0) && (len > 0)) {
 		strcpy(pb_to->buf, pb_from->crs + 1);
 		pb_to->crs = pb_to->buf + len;
 	} else
