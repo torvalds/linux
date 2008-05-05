@@ -174,6 +174,21 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 int iwl_setup(struct iwl_priv *priv);
 
 /*****************************************************
+* RX
+******************************************************/
+void iwl_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
+int iwl_rx_queue_alloc(struct iwl_priv *priv);
+void iwl_rx_handle(struct iwl_priv *priv);
+int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
+				  struct iwl_rx_queue *q);
+void iwl_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
+void iwl_rx_replenish(struct iwl_priv *priv);
+/* FIXME: remove when TX is moved to iwl core */
+int iwl_rx_queue_restock(struct iwl_priv *priv);
+int iwl_rx_queue_space(const struct iwl_rx_queue *q);
+void iwl_rx_allocate(struct iwl_priv *priv);
+
+/*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *
  *****************************************************/
 
@@ -264,5 +279,6 @@ static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)
 {
 	return priv->cfg->ops->hcmd->rxon_assoc(priv);
 }
+
 
 #endif /* __iwl_core_h__ */

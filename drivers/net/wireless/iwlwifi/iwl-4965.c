@@ -372,7 +372,7 @@ int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 	return ret;
 }
 
-static int iwl4965_rx_init(struct iwl_priv *priv, struct iwl4965_rx_queue *rxq)
+static int iwl4965_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 {
 	int ret;
 	unsigned long flags;
@@ -625,7 +625,7 @@ static void iwl4965_nic_config(struct iwl_priv *priv)
 int iwl4965_hw_nic_init(struct iwl_priv *priv)
 {
 	unsigned long flags;
-	struct iwl4965_rx_queue *rxq = &priv->rxq;
+	struct iwl_rx_queue *rxq = &priv->rxq;
 	int ret;
 
 	/* nic_init */
@@ -645,22 +645,22 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	if (!rxq->bd) {
-		ret = iwl4965_rx_queue_alloc(priv);
+		ret = iwl_rx_queue_alloc(priv);
 		if (ret) {
 			IWL_ERROR("Unable to initialize Rx queue\n");
 			return -ENOMEM;
 		}
 	} else
-		iwl4965_rx_queue_reset(priv, rxq);
+		iwl_rx_queue_reset(priv, rxq);
 
-	iwl4965_rx_replenish(priv);
+	iwl_rx_replenish(priv);
 
 	iwl4965_rx_init(priv, rxq);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
 	rxq->need_update = 1;
-	iwl4965_rx_queue_update_write_ptr(priv, rxq);
+	iwl_rx_queue_update_write_ptr(priv, rxq);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -2516,7 +2516,8 @@ static void iwl4965_rx_calc_noise(struct iwl_priv *priv)
 			priv->last_rx_noise);
 }
 
-void iwl4965_hw_rx_statistics(struct iwl_priv *priv, struct iwl4965_rx_mem_buffer *rxb)
+void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
+			      struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
 	int change;
@@ -2803,7 +2804,7 @@ static u32 iwl4965_translate_rx_status(u32 decrypt_in)
 
 static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 				       int include_phy,
-				       struct iwl4965_rx_mem_buffer *rxb,
+				       struct iwl_rx_mem_buffer *rxb,
 				       struct ieee80211_rx_status *stats)
 {
 	struct iwl4965_rx_packet *pkt = (struct iwl4965_rx_packet *)rxb->skb->data;
@@ -3109,7 +3110,7 @@ static inline void iwl4965_dbg_report_frame(struct iwl_priv *priv,
 /* Called for REPLY_RX (legacy ABG frames), or
  * REPLY_RX_MPDU_CMD (HT high-throughput N frames). */
 static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
-				struct iwl4965_rx_mem_buffer *rxb)
+				struct iwl_rx_mem_buffer *rxb)
 {
 	struct ieee80211_hdr *header;
 	struct ieee80211_rx_status rx_status;
@@ -3278,7 +3279,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 /* Cache phy data (Rx signal strength, etc) for HT frame (REPLY_RX_PHY_CMD).
  * This will be used later in iwl4965_rx_reply_rx() for REPLY_RX_MPDU_CMD. */
 static void iwl4965_rx_reply_rx_phy(struct iwl_priv *priv,
-				    struct iwl4965_rx_mem_buffer *rxb)
+				    struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
 	priv->last_phy_res[0] = 1;
@@ -3286,7 +3287,7 @@ static void iwl4965_rx_reply_rx_phy(struct iwl_priv *priv,
 	       sizeof(struct iwl4965_rx_phy_res));
 }
 static void iwl4965_rx_missed_beacon_notif(struct iwl_priv *priv,
-					   struct iwl4965_rx_mem_buffer *rxb)
+					   struct iwl_rx_mem_buffer *rxb)
 
 {
 #ifdef CONFIG_IWL4965_RUN_TIME_CALIB
@@ -3495,7 +3496,7 @@ static inline int iwl4965_queue_dec_wrap(int index, int n_bd)
  * of frames sent via aggregation.
  */
 static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
-					   struct iwl4965_rx_mem_buffer *rxb)
+					   struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl4965_compressed_ba_resp *ba_resp = &pkt->u.compressed_ba;
