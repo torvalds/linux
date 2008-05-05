@@ -454,7 +454,6 @@ union iwl4965_ht_rate_supp {
 	};
 };
 
-#ifdef CONFIG_IWL4965_HT
 #define CFG_HT_RX_AMPDU_FACTOR_DEF  (0x3)
 #define CFG_HT_MPDU_DENSITY_2USEC   (0x5)
 #define CFG_HT_MPDU_DENSITY_DEF CFG_HT_MPDU_DENSITY_2USEC
@@ -477,7 +476,6 @@ struct iwl_ht_info {
 	u8 ht_protection;
 	u8 non_GF_STA_present;
 };
-#endif				/*CONFIG_IWL4965_HT */
 
 union iwl4965_qos_capabity {
 	struct {

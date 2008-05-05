@@ -173,6 +173,9 @@ int iwl_set_rxon_channel(struct iwl_priv *priv,
 				u16 channel);
 void iwlcore_free_geos(struct iwl_priv *priv);
 int iwl_setup(struct iwl_priv *priv);
+void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info);
+u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
+			 struct ieee80211_ht_info *sta_ht_inf);
 
 /*****************************************************
 * RX

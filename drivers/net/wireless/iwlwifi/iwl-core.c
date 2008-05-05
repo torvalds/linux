@@ -434,6 +434,105 @@ static u8 is_single_rx_stream(struct iwl_priv *priv)
 		(priv->current_ht_config.supp_mcs_set[2] == 0)) ||
 	       priv->ps_mode == IWL_MIMO_PS_STATIC;
 }
+static u8 iwl_is_channel_extension(struct iwl_priv *priv,
+				   enum ieee80211_band band,
+				   u16 channel, u8 extension_chan_offset)
+{
+	const struct iwl_channel_info *ch_info;
+
+	ch_info = iwl_get_channel_info(priv, band, channel);
+	if (!is_channel_valid(ch_info))
+		return 0;
+
+	if (extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_NONE)
+		return 0;
+
+	if ((ch_info->fat_extension_channel == extension_chan_offset) ||
+	    (ch_info->fat_extension_channel == HT_IE_EXT_CHANNEL_MAX))
+		return 1;
+
+	return 0;
+}
+
+u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
+			     struct ieee80211_ht_info *sta_ht_inf)
+{
+	struct iwl_ht_info *iwl_ht_conf = &priv->current_ht_config;
+
+	if ((!iwl_ht_conf->is_ht) ||
+	   (iwl_ht_conf->supported_chan_width != IWL_CHANNEL_WIDTH_40MHZ) ||
+	   (iwl_ht_conf->extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_NONE))
+		return 0;
+
+	if (sta_ht_inf) {
+		if ((!sta_ht_inf->ht_supported) ||
+		   (!(sta_ht_inf->cap & IEEE80211_HT_CAP_SUP_WIDTH)))
+			return 0;
+	}
+
+	return iwl_is_channel_extension(priv, priv->band,
+					 iwl_ht_conf->control_channel,
+					 iwl_ht_conf->extension_chan_offset);
+}
+EXPORT_SYMBOL(iwl_is_fat_tx_allowed);
+
+void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
+{
+	struct iwl4965_rxon_cmd *rxon = &priv->staging_rxon;
+	u32 val;
+
+	if (!ht_info->is_ht)
+		return;
+
+	/* Set up channel bandwidth:  20 MHz only, or 20/40 mixed if fat ok */
+	if (iwl_is_fat_tx_allowed(priv, NULL))
+		rxon->flags |= RXON_FLG_CHANNEL_MODE_MIXED_MSK;
+	else
+		rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED_MSK |
+				 RXON_FLG_CHANNEL_MODE_PURE_40_MSK);
+
+	if (le16_to_cpu(rxon->channel) != ht_info->control_channel) {
+		IWL_DEBUG_ASSOC("control diff than current %d %d\n",
+				le16_to_cpu(rxon->channel),
+				ht_info->control_channel);
+		rxon->channel = cpu_to_le16(ht_info->control_channel);
+		return;
+	}
+
+	/* Note: control channel is opposite of extension channel */
+	switch (ht_info->extension_chan_offset) {
+	case IWL_EXT_CHANNEL_OFFSET_ABOVE:
+		rxon->flags &= ~(RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
+		break;
+	case IWL_EXT_CHANNEL_OFFSET_BELOW:
+		rxon->flags |= RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
+		break;
+	case IWL_EXT_CHANNEL_OFFSET_NONE:
+	default:
+		rxon->flags &= ~RXON_FLG_CHANNEL_MODE_MIXED_MSK;
+		break;
+	}
+
+	val = ht_info->ht_protection;
+
+	rxon->flags |= cpu_to_le32(val << RXON_FLG_HT_OPERATING_MODE_POS);
+
+	iwl_set_rxon_chain(priv);
+
+	IWL_DEBUG_ASSOC("supported HT rate 0x%X 0x%X 0x%X "
+			"rxon flags 0x%X operation mode :0x%X "
+			"extension channel offset 0x%x "
+			"control chan %d\n",
+			ht_info->supp_mcs_set[0],
+			ht_info->supp_mcs_set[1],
+			ht_info->supp_mcs_set[2],
+			le32_to_cpu(rxon->flags), ht_info->ht_protection,
+			ht_info->extension_chan_offset,
+			ht_info->control_channel);
+	return;
+}
+EXPORT_SYMBOL(iwl_set_rxon_ht);
+
 #else
 static inline u8 is_single_rx_stream(struct iwl_priv *priv)
 {
