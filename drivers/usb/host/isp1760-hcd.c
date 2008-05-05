@@ -782,8 +782,8 @@ static void enqueue_one_int_qtd(u32 int_regs, u32 payload,
 	qtd->status |= slot << 16;
 }
 
-void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
-		struct isp1760_qtd *qtd)
+static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
+				  struct isp1760_qtd *qtd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	u32 skip_map, or_map;
@@ -816,8 +816,8 @@ void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	isp1760_writel(buffstatus, hcd->regs + HC_BUFFER_STATUS_REG);
 }
 
-void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
-		struct isp1760_qtd *qtd)
+static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
+				  struct isp1760_qtd *qtd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	u32 skip_map, or_map;
