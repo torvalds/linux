@@ -550,7 +550,6 @@ static int __init gdth_search_isa(ulong32 bios_adr)
 #endif /* CONFIG_ISA */
 
 #ifdef CONFIG_PCI
-static bool gdth_pci_registered;
 
 static bool gdth_search_vortex(ushort device)
 {
@@ -5157,8 +5156,13 @@ static int __init gdth_init(void)
 
 #ifdef CONFIG_PCI
 	/* scanning for PCI controllers */
-	if (pci_register_driver(&gdth_pci_driver) == 0)
-		gdth_pci_registered = true;
+	if (pci_register_driver(&gdth_pci_driver)) {
+		gdth_ha_str *ha;
+
+		list_for_each_entry(ha, &gdth_instances, list)
+			gdth_remove_one(ha);
+		return -ENODEV;
+	}
 #endif /* CONFIG_PCI */
 
 	TRACE2(("gdth_detect() %d controller detected\n", gdth_ctr_count));
@@ -5181,8 +5185,7 @@ static void __exit gdth_exit(void)
 #endif
 
 #ifdef CONFIG_PCI
-	if (gdth_pci_registered)
-		pci_unregister_driver(&gdth_pci_driver);
+	pci_unregister_driver(&gdth_pci_driver);
 #endif
 
 	list_for_each_entry(ha, &gdth_instances, list)
