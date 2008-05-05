@@ -285,6 +285,7 @@ struct hid_item {
 #define HID_QUIRK_HWHEEL_WHEEL_INVERT		0x04000000
 #define HID_QUIRK_MICROSOFT_KEYS		0x08000000
 #define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
+#define HID_QUIRK_APPLE_NUMLOCK_EMULATION	0x20000000
 
 /*
  * Separate quirks for runtime report descriptor fixup
