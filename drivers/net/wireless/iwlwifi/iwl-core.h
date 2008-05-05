@@ -110,6 +110,8 @@ struct iwl_lib_ops {
 	void (*rx_handler_setup)(struct iwl_priv *priv);
 	/* nic Tx fifo handling */
 	int (*disable_tx_fifo)(struct iwl_priv *priv);
+	/* alive notification after init uCode load */
+	void (*init_alive_start)(struct iwl_priv *priv);
 	/* alive notification */
 	int (*alive_notify)(struct iwl_priv *priv);
 	/* check validity of rtc data address */
