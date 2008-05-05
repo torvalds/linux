@@ -316,6 +316,12 @@ config CPUSETS
 
 	  Say N if unsure.
 
+#
+# Architectures with an unreliable sched_clock() should select this:
+#
+config HAVE_UNSTABLE_SCHED_CLOCK
+	bool
+
 config GROUP_SCHED
 	bool "Group CPU scheduler"
 	default y
