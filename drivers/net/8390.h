@@ -69,7 +69,6 @@ struct ei_device {
 	unsigned char reg0;		/* Register '0' in a WD8013 */
 	unsigned char reg5;		/* Register '5' in a WD8013 */
 	unsigned char saved_irq;	/* Original dev->irq value. */
-	struct net_device_stats stat;	/* The new statistics table. */
 	u32 *reg_offset;		/* Register mapping table */
 	spinlock_t page_lock;		/* Page register locks */
 	unsigned long priv;		/* Private field to store bus IDs etc. */
