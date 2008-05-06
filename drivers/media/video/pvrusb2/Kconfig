@@ -2,7 +2,7 @@ config VIDEO_PVRUSB2
 	tristate "Hauppauge WinTV-PVR USB2 support"
 	depends on VIDEO_V4L2 && I2C
 	select FW_LOADER
-	select MEDIA_TUNER
+	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_CX2341X
 	select VIDEO_SAA711X

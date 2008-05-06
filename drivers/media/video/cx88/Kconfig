@@ -5,7 +5,7 @@ config VIDEO_CX88
 	select FW_LOADER
 	select VIDEO_BTCX
 	select VIDEOBUF_DMA_SG
-	select MEDIA_TUNER
+	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
 	select VIDEO_WM8775 if VIDEO_HELPER_CHIPS_AUTO

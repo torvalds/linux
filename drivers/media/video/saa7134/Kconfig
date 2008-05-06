@@ -3,7 +3,7 @@ config VIDEO_SAA7134
 	depends on VIDEO_DEV && PCI && I2C && INPUT
 	select VIDEOBUF_DMA_SG
 	select VIDEO_IR
-	select MEDIA_TUNER
+	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select CRC32
 	---help---

@@ -44,6 +44,10 @@ config VIDEO_TVEEPROM
 	tristate
 	depends on I2C
 
+config VIDEO_TUNER
+	tristate
+	depends on MEDIA_TUNER
+
 #
 # Multimedia Video device configuration
 #
@@ -690,7 +694,7 @@ config VIDEO_MXB
 	tristate "Siemens-Nixdorf 'Multimedia eXtension Board'"
 	depends on PCI && VIDEO_V4L1 && I2C
 	select VIDEO_SAA7146_VV
-	select MEDIA_TUNER
+	select VIDEO_TUNER
 	select VIDEO_SAA7111 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TDA9840 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TEA6415C if VIDEO_HELPER_CHIPS_AUTO
