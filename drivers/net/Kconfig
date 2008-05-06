@@ -464,6 +464,12 @@ config MIPS_JAZZ_SONIC
 	  This is the driver for the onboard card of MIPS Magnum 4000,
 	  Acer PICA, Olivetti M700-10 and a few other identical OEM systems.
 
+config XTENSA_XT2000_SONIC
+	tristate "Xtensa XT2000 onboard SONIC Ethernet support"
+	depends on XTENSA_PLATFORM_XT2000
+	help
+	  This is the driver for the onboard card of the Xtensa XT2000 board.
+
 config MIPS_AU1X00_ENET
 	bool "MIPS AU1000 Ethernet support"
 	depends on SOC_AU1X00
