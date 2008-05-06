@@ -765,8 +765,10 @@ int __init w100fb_probe(struct platform_device *pdev)
 	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node, info->fix.id);
 	return 0;
 out:
-	fb_dealloc_cmap(&info->cmap);
-	kfree(info->pseudo_palette);
+	if (info) {
+		fb_dealloc_cmap(&info->cmap);
+		kfree(info->pseudo_palette);
+	}
 	if (remapped_fbuf != NULL)
 		iounmap(remapped_fbuf);
 	if (remapped_regs != NULL)

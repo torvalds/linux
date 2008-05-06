@@ -196,14 +196,14 @@ xfs_iomap(
 		break;
 	case BMAPI_WRITE:
 		xfs_iomap_enter_trace(XFS_IOMAP_WRITE_ENTER, ip, offset, count);
-		lockmode = XFS_ILOCK_EXCL|XFS_EXTSIZE_WR;
+		lockmode = XFS_ILOCK_EXCL;
 		if (flags & BMAPI_IGNSTATE)
 			bmapi_flags |= XFS_BMAPI_IGSTATE|XFS_BMAPI_ENTIRE;
 		xfs_ilock(ip, lockmode);
 		break;
 	case BMAPI_ALLOCATE:
 		xfs_iomap_enter_trace(XFS_IOMAP_ALLOC_ENTER, ip, offset, count);
-		lockmode = XFS_ILOCK_SHARED|XFS_EXTSIZE_RD;
+		lockmode = XFS_ILOCK_SHARED;
 		bmapi_flags = XFS_BMAPI_ENTIRE;
 
 		/* Attempt non-blocking lock */
@@ -523,8 +523,7 @@ xfs_iomap_write_direct(
 		goto error_out;
 	}
 
-	if (unlikely(!imap.br_startblock &&
-		     !(XFS_IS_REALTIME_INODE(ip)))) {
+	if (!(imap.br_startblock || XFS_IS_REALTIME_INODE(ip))) {
 		error = xfs_cmn_err_fsblock_zero(ip, &imap);
 		goto error_out;
 	}
@@ -624,7 +623,7 @@ xfs_iomap_write_delay(
 	int		prealloc, fsynced = 0;
 	int		error;
 
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE) != 0);
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	/*
 	 * Make sure that the dquots are there. This doesn't hold
@@ -686,8 +685,7 @@ retry:
 		goto retry;
 	}
 
-	if (unlikely(!imap[0].br_startblock &&
-		     !(XFS_IS_REALTIME_INODE(ip))))
+	if (!(imap[0].br_startblock || XFS_IS_REALTIME_INODE(ip)))
 		return xfs_cmn_err_fsblock_zero(ip, &imap[0]);
 
 	*ret_imap = imap[0];
@@ -838,9 +836,9 @@ xfs_iomap_write_allocate(
 		 * See if we were able to allocate an extent that
 		 * covers at least part of the callers request
 		 */
-		if (unlikely(!imap.br_startblock &&
-			     XFS_IS_REALTIME_INODE(ip)))
+		if (!(imap.br_startblock || XFS_IS_REALTIME_INODE(ip)))
 			return xfs_cmn_err_fsblock_zero(ip, &imap);
+
 		if ((offset_fsb >= imap.br_startoff) &&
 		    (offset_fsb < (imap.br_startoff +
 				   imap.br_blockcount))) {
@@ -934,8 +932,7 @@ xfs_iomap_write_unwritten(
 		if (error)
 			return XFS_ERROR(error);
 
-		if (unlikely(!imap.br_startblock &&
-			     !(XFS_IS_REALTIME_INODE(ip))))
+		if (!(imap.br_startblock || XFS_IS_REALTIME_INODE(ip)))
 			return xfs_cmn_err_fsblock_zero(ip, &imap);
 
 		if ((numblks_fsb = imap.br_blockcount) == 0) {

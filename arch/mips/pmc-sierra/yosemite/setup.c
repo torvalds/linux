@@ -143,9 +143,6 @@ void __init plat_time_init(void)
 mips_hpt_frequency = 33000000 * 3 * 5;
 }
 
-/* No other usable initialization hook than this ...  */
-extern void (*late_time_init)(void);
-
 unsigned long ocd_base;
 
 EXPORT_SYMBOL(ocd_base);

@@ -83,7 +83,7 @@ MODULE_PARM_DESC(decoder, "i2c TV decoder");
    or set in in a VIDIOCSFBUF ioctl
  */
 
-static unsigned long vidmem = 0;	/* Video memory base address */
+static unsigned long vidmem;	/* default = 0 - Video memory base address */
 module_param(vidmem, ulong, 0444);
 MODULE_PARM_DESC(vidmem, "Default video memory base address");
 
@@ -91,7 +91,7 @@ MODULE_PARM_DESC(vidmem, "Default video memory base address");
    Default input and video norm at startup of the driver.
 */
 
-static unsigned int default_input = 0;	/* 0=Composite, 1=S-Video */
+static unsigned int default_input;	/* default 0 = Composite, 1 = S-Video */
 module_param(default_input, uint, 0444);
 MODULE_PARM_DESC(default_input,
 		 "Default input (0=Composite, 1=S-Video, 2=Internal)");
@@ -101,7 +101,7 @@ module_param(default_mux, int, 0644);
 MODULE_PARM_DESC(default_mux,
 		 "Default 6 Eyes mux setting (Input selection)");
 
-static int default_norm = 0;	/* 0=PAL, 1=NTSC 2=SECAM */
+static int default_norm;	/* default 0 = PAL, 1 = NTSC 2 = SECAM */
 module_param(default_norm, int, 0444);
 MODULE_PARM_DESC(default_norm, "Default norm (0=PAL, 1=NTSC, 2=SECAM)");
 

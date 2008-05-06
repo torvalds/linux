@@ -465,7 +465,7 @@ int __gdth_execute(struct scsi_device *sdev, gdth_cmd_str *gdtcmd, char *cmnd,
     scp->request = (struct request *)&wait;
     scp->timeout_per_command = timeout*HZ;
     scp->cmd_len = 12;
-    memcpy(scp->cmnd, cmnd, 12);
+    scp->cmnd = cmnd;
     cmndinfo.priority = IOCTL_PRI;
     cmndinfo.internal_cmd_str = gdtcmd;
     cmndinfo.internal_command = 1;

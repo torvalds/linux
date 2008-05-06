@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,6 +94,7 @@ typedef const struct acpi_rsconvert_info {
 #define ACPI_RSC_BITMASK16              18
 #define ACPI_RSC_EXIT_NE                19
 #define ACPI_RSC_EXIT_LE                20
+#define ACPI_RSC_EXIT_EQ                21
 
 /* Resource Conversion sub-opcodes */
 

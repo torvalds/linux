@@ -3932,7 +3932,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 	fixed_link = of_get_property(np, "fixed-link", NULL);
 	if (fixed_link) {
-		ug_info->mdio_bus = 0;
+		snprintf(ug_info->mdio_bus, MII_BUS_ID_SIZE, "0");
 		ug_info->phy_address = fixed_link[0];
 		phy = NULL;
 	} else {

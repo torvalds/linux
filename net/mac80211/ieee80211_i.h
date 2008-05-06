@@ -354,7 +354,7 @@ struct ieee80211_if_sta {
 	int preq_queue_len;
 	struct mesh_stats mshstats;
 	struct mesh_config mshcfg;
-	u8 mesh_seqnum[3];
+	u32 mesh_seqnum;
 	bool accepting_plinks;
 #endif
 	u16 aid;

@@ -1191,8 +1191,6 @@ snd_ml403_ac97cr_create(struct snd_card *card, struct platform_device *pfdev,
 		return err;
 	}
 
-	snd_card_set_dev(card, &pfdev->dev);
-
 	*rml403_ac97cr = ml403_ac97cr;
 	return 0;
 }
@@ -1330,11 +1328,15 @@ static int snd_ml403_ac97cr_remove(struct platform_device *pfdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:" SND_ML403_AC97CR_DRIVER);
+
 static struct platform_driver snd_ml403_ac97cr_driver = {
 	.probe = snd_ml403_ac97cr_probe,
 	.remove = snd_ml403_ac97cr_remove,
 	.driver = {
 		.name = SND_ML403_AC97CR_DRIVER,
+		.owner = THIS_MODULE,
 	},
 };
 

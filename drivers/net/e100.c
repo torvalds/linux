@@ -1802,7 +1802,7 @@ static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 	 * it is protected by the before last buffer's el bit being set */
 	if (rx->prev->skb) {
 		struct rfd *prev_rfd = (struct rfd *)rx->prev->skb->data;
-		put_unaligned(cpu_to_le32(rx->dma_addr), &prev_rfd->link);
+		put_unaligned_le32(rx->dma_addr, &prev_rfd->link);
 	}
 
 	return 0;

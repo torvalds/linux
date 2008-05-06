@@ -1551,8 +1551,7 @@ static int __init ccio_probe(struct parisc_device *dev)
 {
 	int i;
 	struct ioc *ioc, **ioc_p = &ioc_list;
-	struct proc_dir_entry *info_entry, *bitmap_entry;
-	
+
 	ioc = kzalloc(sizeof(struct ioc), GFP_KERNEL);
 	if (ioc == NULL) {
 		printk(KERN_ERR MODULE_NAME ": memory allocation failure\n");
@@ -1580,13 +1579,10 @@ static int __init ccio_probe(struct parisc_device *dev)
 	HBA_DATA(dev->dev.platform_data)->iommu = ioc;
 	
 	if (ioc_count == 0) {
-		info_entry = create_proc_entry(MODULE_NAME, 0, proc_runway_root);
-		if (info_entry)
-			info_entry->proc_fops = &ccio_proc_info_fops;
-
-		bitmap_entry = create_proc_entry(MODULE_NAME"-bitmap", 0, proc_runway_root);
-		if (bitmap_entry)
-			bitmap_entry->proc_fops = &ccio_proc_bitmap_fops;
+		proc_create(MODULE_NAME, 0, proc_runway_root,
+			    &ccio_proc_info_fops);
+		proc_create(MODULE_NAME"-bitmap", 0, proc_runway_root,
+			    &ccio_proc_bitmap_fops);
 	}
 
 	ioc_count++;

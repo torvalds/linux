@@ -18,8 +18,6 @@
 #ifndef _I2O_H
 #define _I2O_H
 
-#ifdef __KERNEL__		/* This file to be included by kernel only */
-
 #include <linux/i2o-dev.h>
 
 /* How many different OSM's are we allowing */
@@ -613,14 +611,9 @@ struct i2o_sys_tbl {
 extern struct list_head i2o_controllers;
 
 /* Message functions */
-static inline struct i2o_message *i2o_msg_get(struct i2o_controller *);
 extern struct i2o_message *i2o_msg_get_wait(struct i2o_controller *, int);
-static inline void i2o_msg_post(struct i2o_controller *, struct i2o_message *);
-static inline int i2o_msg_post_wait(struct i2o_controller *,
-				    struct i2o_message *, unsigned long);
 extern int i2o_msg_post_wait_mem(struct i2o_controller *, struct i2o_message *,
 				 unsigned long, struct i2o_dma *);
-static inline void i2o_flush_reply(struct i2o_controller *, u32);
 
 /* IOP functions */
 extern int i2o_status_get(struct i2o_controller *);
@@ -1260,5 +1253,4 @@ extern void i2o_dump_message(struct i2o_message *);
 extern void i2o_dump_hrt(struct i2o_controller *c);
 extern void i2o_debug_state(struct i2o_controller *c);
 
-#endif				/* __KERNEL__ */
 #endif				/* _I2O_H */

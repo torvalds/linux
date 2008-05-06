@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -115,6 +115,8 @@ void acpi_ut_init_globals(void);
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
 char *acpi_ut_get_mutex_name(u32 mutex_id);
+
+const char *acpi_ut_get_notify_name(u32 notify_value);
 
 #endif
 

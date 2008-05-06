@@ -39,7 +39,7 @@ static void power_supply_changed_work(struct work_struct *work)
 	struct power_supply *psy = container_of(work, struct power_supply,
 						changed_work);
 
-	dev_dbg(psy->dev, "%s\n", __FUNCTION__);
+	dev_dbg(psy->dev, "%s\n", __func__);
 
 	class_for_each_device(power_supply_class, psy,
 			      __power_supply_changed_work);
@@ -51,7 +51,7 @@ static void power_supply_changed_work(struct work_struct *work)
 
 void power_supply_changed(struct power_supply *psy)
 {
-	dev_dbg(psy->dev, "%s\n", __FUNCTION__);
+	dev_dbg(psy->dev, "%s\n", __func__);
 
 	schedule_work(&psy->changed_work);
 }
@@ -82,7 +82,7 @@ int power_supply_am_i_supplied(struct power_supply *psy)
 	error = class_for_each_device(power_supply_class, psy,
 				      __power_supply_am_i_supplied);
 
-	dev_dbg(psy->dev, "%s %d\n", __FUNCTION__, error);
+	dev_dbg(psy->dev, "%s %d\n", __func__, error);
 
 	return error;
 }

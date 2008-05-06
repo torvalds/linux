@@ -177,27 +177,33 @@ struct signal_struct;
  * size each time the window is created or resized anyway.
  * 						- TYT, 9/14/92
  */
+
+struct tty_operations;
+
 struct tty_struct {
 	int	magic;
 	struct tty_driver *driver;
+	const struct tty_operations *ops;
 	int index;
 	struct tty_ldisc ldisc;
 	struct mutex termios_mutex;
+	spinlock_t ctrl_lock;
+	/* Termios values are protected by the termios mutex */
 	struct ktermios *termios, *termios_locked;
 	char name[64];
-	struct pid *pgrp;
+	struct pid *pgrp;		/* Protected by ctrl lock */
 	struct pid *session;
 	unsigned long flags;
 	int count;
-	struct winsize winsize;
+	struct winsize winsize;		/* termios mutex */
 	unsigned char stopped:1, hw_stopped:1, flow_stopped:1, packet:1;
 	unsigned char low_latency:1, warned:1;
-	unsigned char ctrl_status;
+	unsigned char ctrl_status;	/* ctrl_lock */
 	unsigned int receive_room;	/* Bytes free for queue */
 
 	struct tty_struct *link;
 	struct fasync_struct *fasync;
-	struct tty_bufhead buf;
+	struct tty_bufhead buf;		/* Locked internally */
 	int alt_speed;		/* For magic substitution of 38400 bps */
 	wait_queue_head_t write_wait;
 	wait_queue_head_t read_wait;
@@ -211,6 +217,7 @@ struct tty_struct {
 	/*
 	 * The following is data for the N_TTY line discipline.  For
 	 * historical reasons, this is included in the tty structure.
+	 * Mostly locked by the BKL.
 	 */
 	unsigned int column;
 	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
@@ -292,15 +299,21 @@ extern void tty_unregister_device(struct tty_driver *driver, unsigned index);
 extern int tty_read_raw_data(struct tty_struct *tty, unsigned char *bufp,
 			     int buflen);
 extern void tty_write_message(struct tty_struct *tty, char *msg);
+extern int tty_put_char(struct tty_struct *tty, unsigned char c);
+extern int tty_chars_in_buffer(struct tty_struct *tty);
+extern int tty_write_room(struct tty_struct *tty);
+extern void tty_driver_flush_buffer(struct tty_struct *tty);
+extern void tty_throttle(struct tty_struct *tty);
+extern void tty_unthrottle(struct tty_struct *tty);
 
 extern int is_current_pgrp_orphaned(void);
+extern struct pid *tty_get_pgrp(struct tty_struct *tty);
 extern int is_ignored(int sig);
 extern int tty_signal(int sig, struct tty_struct *tty);
 extern void tty_hangup(struct tty_struct * tty);
 extern void tty_vhangup(struct tty_struct * tty);
 extern void tty_unhangup(struct file *filp);
 extern int tty_hung_up_p(struct file * filp);
-extern int is_tty(struct file *filp);
 extern void do_SAK(struct tty_struct *tty);
 extern void __do_SAK(struct tty_struct *tty);
 extern void disassociate_ctty(int priv);
@@ -324,8 +337,7 @@ extern void tty_ldisc_put(int);
 extern void tty_wakeup(struct tty_struct *tty);
 extern void tty_ldisc_flush(struct tty_struct *tty);
 
-extern int tty_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg);
+extern long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 extern int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 			unsigned int cmd, unsigned long arg);
 extern int tty_perform_flush(struct tty_struct *tty, unsigned long arg);
@@ -351,8 +363,7 @@ extern void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
 extern void tty_audit_exit(void);
 extern void tty_audit_fork(struct signal_struct *sig);
 extern void tty_audit_push(struct tty_struct *tty);
-extern void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid);
-extern void tty_audit_opening(void);
+extern void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid, u32 sessionid);
 #else
 static inline void tty_audit_add_data(struct tty_struct *tty,
 				      unsigned char *data, size_t size)
@@ -367,10 +378,7 @@ static inline void tty_audit_fork(struct signal_struct *sig)
 static inline void tty_audit_push(struct tty_struct *tty)
 {
 }
-static inline void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid)
-{
-}
-static inline void tty_audit_opening(void)
+static inline void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid, u32 sessionid)
 {
 }
 #endif

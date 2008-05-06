@@ -164,6 +164,8 @@ int pvr2_debugifc_print_status(struct pvr2_hdw *hdw,
 	int ccnt;
 	int ret;
 	u32 gpio_dir,gpio_in,gpio_out;
+	struct pvr2_stream_stats stats;
+	struct pvr2_stream *sp;
 
 	ret = pvr2_hdw_is_hsm(hdw);
 	ccnt = scnprintf(buf,acnt,"USB link speed: %s\n",
@@ -181,6 +183,24 @@ int pvr2_debugifc_print_status(struct pvr2_hdw *hdw,
 	ccnt = scnprintf(buf,acnt,"Streaming is %s\n",
 			 pvr2_hdw_get_streaming(hdw) ? "on" : "off");
 	bcnt += ccnt; acnt -= ccnt; buf += ccnt;
+
+
+	sp = pvr2_hdw_get_video_stream(hdw);
+	if (sp) {
+		pvr2_stream_get_stats(sp, &stats, 0);
+		ccnt = scnprintf(
+			buf,acnt,
+			"Bytes streamed=%u"
+			" URBs: queued=%u idle=%u ready=%u"
+			" processed=%u failed=%u\n",
+			stats.bytes_processed,
+			stats.buffers_in_queue,
+			stats.buffers_in_idle,
+			stats.buffers_in_ready,
+			stats.buffers_processed,
+			stats.buffers_failed);
+		bcnt += ccnt; acnt -= ccnt; buf += ccnt;
+	}
 
 	return bcnt;
 }
@@ -220,6 +240,10 @@ static int pvr2_debugifc_do1cmd(struct pvr2_hdw *hdw,const char *buf,
 			return pvr2_hdw_cmd_decoder_reset(hdw);
 		} else if (debugifc_match_keyword(wptr,wlen,"worker")) {
 			return pvr2_hdw_untrip(hdw);
+		} else if (debugifc_match_keyword(wptr,wlen,"usbstats")) {
+			pvr2_stream_get_stats(pvr2_hdw_get_video_stream(hdw),
+					      NULL, !0);
+			return 0;
 		}
 		return -EINVAL;
 	} else if (debugifc_match_keyword(wptr,wlen,"cpufw")) {

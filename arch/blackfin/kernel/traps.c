@@ -67,6 +67,8 @@ void __init trap_init(void)
 	CSYNC();
 }
 
+void *saved_icplb_fault_addr, *saved_dcplb_fault_addr;
+
 int kstack_depth_to_print = 48;
 
 static void decode_address(char *buf, unsigned long address)
@@ -75,7 +77,7 @@ static void decode_address(char *buf, unsigned long address)
 	struct task_struct *p;
 	struct mm_struct *mm;
 	unsigned long flags, offset;
-	unsigned int in_exception = bfin_read_IPEND() & 0x10;
+	unsigned char in_atomic = (bfin_read_IPEND() & 0x10) || in_atomic();
 
 #ifdef CONFIG_KALLSYMS
 	unsigned long symsize;
@@ -117,7 +119,7 @@ static void decode_address(char *buf, unsigned long address)
 	 */
 	write_lock_irqsave(&tasklist_lock, flags);
 	for_each_process(p) {
-		mm = (in_exception ? p->mm : get_task_mm(p));
+		mm = (in_atomic ? p->mm : get_task_mm(p));
 		if (!mm)
 			continue;
 
@@ -137,23 +139,36 @@ static void decode_address(char *buf, unsigned long address)
 				/* FLAT does not have its text aligned to the start of
 				 * the map while FDPIC ELF does ...
 				 */
-				if (current->mm &&
-				    (address > current->mm->start_code) &&
-				    (address < current->mm->end_code))
-					offset = address - current->mm->start_code;
-				else
-					offset = (address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
 
-				sprintf(buf, "<0x%p> [ %s + 0x%lx ]",
-					(void *)address, name, offset);
-				if (!in_exception)
+				/* before we can check flat/fdpic, we need to
+				 * make sure current is valid
+				 */
+				if ((unsigned long)current >= FIXED_CODE_START &&
+				    !((unsigned long)current & 0x3)) {
+					if (current->mm &&
+					    (address > current->mm->start_code) &&
+					    (address < current->mm->end_code))
+						offset = address - current->mm->start_code;
+					else
+						offset = (address - vma->vm_start) +
+							 (vma->vm_pgoff << PAGE_SHIFT);
+
+					sprintf(buf, "<0x%p> [ %s + 0x%lx ]",
+						(void *)address, name, offset);
+				} else
+					sprintf(buf, "<0x%p> [ %s vma:0x%lx-0x%lx]",
+						(void *)address, name,
+						vma->vm_start, vma->vm_end);
+
+				if (!in_atomic)
 					mmput(mm);
+
 				goto done;
 			}
 
 			vml = vml->next;
 		}
-		if (!in_exception)
+		if (!in_atomic)
 			mmput(mm);
 	}
 
@@ -506,7 +521,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 
 	info.si_signo = sig;
 	info.si_errno = 0;
-	info.si_addr = (void *)fp->pc;
+	info.si_addr = (void __user *)fp->pc;
 	force_sig_info(sig, &info, current);
 
 	trace_buffer_restore(j);
@@ -655,21 +670,31 @@ void dump_bfin_process(struct pt_regs *fp)
 	else if (context & 0x8000)
 		printk(KERN_NOTICE "Kernel process context\n");
 
-	if (current->pid && current->mm) {
+	/* Because we are crashing, and pointers could be bad, we check things
+	 * pretty closely before we use them
+	 */
+	if ((unsigned long)current >= FIXED_CODE_START &&
+	    !((unsigned long)current & 0x3) && current->pid) {
 		printk(KERN_NOTICE "CURRENT PROCESS:\n");
-		printk(KERN_NOTICE "COMM=%s PID=%d\n",
-			current->comm, current->pid);
+		if (current->comm >= (char *)FIXED_CODE_START)
+			printk(KERN_NOTICE "COMM=%s PID=%d\n",
+				current->comm, current->pid);
+		else
+			printk(KERN_NOTICE "COMM= invalid\n");
 
-		printk(KERN_NOTICE "TEXT = 0x%p-0x%p  DATA = 0x%p-0x%p\n"
-			KERN_NOTICE "BSS = 0x%p-0x%p   USER-STACK = 0x%p\n"
-			KERN_NOTICE "\n",
-			(void *)current->mm->start_code,
-			(void *)current->mm->end_code,
-			(void *)current->mm->start_data,
-			(void *)current->mm->end_data,
-			(void *)current->mm->end_data,
-			(void *)current->mm->brk,
-			(void *)current->mm->start_stack);
+		if (!((unsigned long)current->mm & 0x3) && (unsigned long)current->mm >= FIXED_CODE_START)
+			printk(KERN_NOTICE  "TEXT = 0x%p-0x%p        DATA = 0x%p-0x%p\n"
+				KERN_NOTICE " BSS = 0x%p-0x%p  USER-STACK = 0x%p\n"
+				KERN_NOTICE "\n",
+				(void *)current->mm->start_code,
+				(void *)current->mm->end_code,
+				(void *)current->mm->start_data,
+				(void *)current->mm->end_data,
+				(void *)current->mm->end_data,
+				(void *)current->mm->brk,
+				(void *)current->mm->start_stack);
+		else
+			printk(KERN_NOTICE "invalid mm\n");
 	} else
 		printk(KERN_NOTICE "\n" KERN_NOTICE
 		     "No Valid process in current context\n");
@@ -680,10 +705,7 @@ void dump_bfin_mem(struct pt_regs *fp)
 	unsigned short *addr, *erraddr, val = 0, err = 0;
 	char sti = 0, buf[6];
 
-	if (unlikely((fp->seqstat & SEQSTAT_EXCAUSE) == VEC_HWERR))
-		erraddr = (void *)fp->pc;
-	else
-		erraddr = (void *)fp->retx;
+	erraddr = (void *)fp->pc;
 
 	printk(KERN_NOTICE "return address: [0x%p]; contents of:", erraddr);
 
@@ -807,9 +829,9 @@ unlock:
 
 	if (((long)fp->seqstat &  SEQSTAT_EXCAUSE) &&
 	    (((long)fp->seqstat & SEQSTAT_EXCAUSE) != VEC_HWERR)) {
-		decode_address(buf, bfin_read_DCPLB_FAULT_ADDR());
+		decode_address(buf, saved_dcplb_fault_addr);
 		printk(KERN_NOTICE "DCPLB_FAULT_ADDR: %s\n", buf);
-		decode_address(buf, bfin_read_ICPLB_FAULT_ADDR());
+		decode_address(buf, saved_icplb_fault_addr);
 		printk(KERN_NOTICE "ICPLB_FAULT_ADDR: %s\n", buf);
 	}
 
@@ -917,8 +939,8 @@ void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 
 	oops_in_progress = 1;
 
-	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void *)bfin_read_DCPLB_FAULT_ADDR());
-	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void *)bfin_read_ICPLB_FAULT_ADDR());
+	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", saved_dcplb_fault_addr);
+	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", saved_icplb_fault_addr);
 	dump_bfin_process(fp);
 	dump_bfin_mem(fp);
 	show_regs(fp);

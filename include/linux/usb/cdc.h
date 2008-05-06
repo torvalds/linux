@@ -6,6 +6,9 @@
  * firmware based USB peripherals.
  */
 
+#ifndef __LINUX_USB_CDC_H
+#define __LINUX_USB_CDC_H
+
 #define USB_CDC_SUBCLASS_ACM			0x02
 #define USB_CDC_SUBCLASS_ETHERNET		0x06
 #define USB_CDC_SUBCLASS_WHCM			0x08
@@ -221,3 +224,4 @@ struct usb_cdc_notification {
 	__le16	wLength;
 } __attribute__ ((packed));
 
+#endif /* __LINUX_USB_CDC_H */

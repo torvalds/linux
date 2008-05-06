@@ -94,7 +94,6 @@ struct tda1004x_config
 
 	/* slave address and configuration of the tuner */
 	u8 tuner_address;
-	u8 tuner_config;
 	u8 antenna_switch;
 
 	/* if the board uses another I2c Bridge (tda8290), its address */
@@ -128,13 +127,13 @@ extern struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config
 static inline struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 					    struct i2c_adapter* i2c)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 static inline struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 					    struct i2c_adapter* i2c)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif // CONFIG_DVB_TDA1004X

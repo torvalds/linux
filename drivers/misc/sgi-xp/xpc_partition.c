@@ -211,7 +211,7 @@ xpc_rsvd_page_init(void)
 	 */
 	amos_page = xpc_vars->amos_page;
 	if (amos_page == NULL) {
-		amos_page = (AMO_t *)TO_AMO(uncached_alloc_page(0));
+		amos_page = (AMO_t *)TO_AMO(uncached_alloc_page(0, 1));
 		if (amos_page == NULL) {
 			dev_err(xpc_part, "can't allocate page of AMOs\n");
 			return NULL;
@@ -230,7 +230,7 @@ xpc_rsvd_page_init(void)
 				dev_err(xpc_part, "can't change memory "
 					"protections\n");
 				uncached_free_page(__IA64_UNCACHED_OFFSET |
-						   TO_PHYS((u64)amos_page));
+						   TO_PHYS((u64)amos_page), 1);
 				return NULL;
 			}
 		}

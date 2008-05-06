@@ -39,6 +39,7 @@
 
 #include <asm/xen/hypervisor.h>
 #include <xen/interface/grant_table.h>
+#include <asm/xen/grant_table.h>
 
 /* NR_GRANT_FRAMES must be less than or equal to that configured in Xen */
 #define NR_GRANT_FRAMES 4
@@ -101,6 +102,12 @@ void gnttab_grant_foreign_access_ref(grant_ref_t ref, domid_t domid,
 
 void gnttab_grant_foreign_transfer_ref(grant_ref_t, domid_t domid,
 				       unsigned long pfn);
+
+int arch_gnttab_map_shared(unsigned long *frames, unsigned long nr_gframes,
+			   unsigned long max_nr_gframes,
+			   struct grant_entry **__shared);
+void arch_gnttab_unmap_shared(struct grant_entry *shared,
+			      unsigned long nr_gframes);
 
 #define gnttab_map_vaddr(map) ((void *)(map.host_virt_addr))
 

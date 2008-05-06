@@ -795,9 +795,9 @@ static int find_output_space(int dev, char **buf, int *size)
 #ifdef BE_CONSERVATIVE
 	active_offs = dmap->byte_counter + dmap->qhead * dmap->fragment_size;
 #else
-	active_offs = DMAbuf_get_buffer_pointer(dev, dmap, DMODE_OUTPUT);
+	active_offs = max(DMAbuf_get_buffer_pointer(dev, dmap, DMODE_OUTPUT), 0);
 	/* Check for pointer wrapping situation */
-	if (active_offs < 0 || active_offs >= dmap->bytes_in_use)
+	if (active_offs >= dmap->bytes_in_use)
 		active_offs = 0;
 	active_offs += dmap->byte_counter;
 #endif

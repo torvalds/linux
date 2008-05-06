@@ -248,7 +248,7 @@ static void __iomem *offb_map_reg(struct device_node *np, int index,
 static void __init offb_init_fb(const char *name, const char *full_name,
 				int width, int height, int depth,
 				int pitch, unsigned long address,
-				struct device_node *dp)
+				int foreign_endian, struct device_node *dp)
 {
 	unsigned long res_size = pitch * height * (depth + 7) / 8;
 	struct offb_par *par = &default_par;
@@ -397,7 +397,7 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 	info->screen_base = ioremap(address, fix->smem_len);
 	info->par = par;
 	info->pseudo_palette = (void *) (info + 1);
-	info->flags = FBINFO_DEFAULT;
+	info->flags = FBINFO_DEFAULT | foreign_endian;
 
 	fb_alloc_cmap(&info->cmap, 256, 0);
 
@@ -424,6 +424,15 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 	u64 rstart, address = OF_BAD_ADDR;
 	const u32 *pp, *addrp, *up;
 	u64 asize;
+	int foreign_endian = 0;
+
+#ifdef __BIG_ENDIAN
+	if (of_get_property(dp, "little-endian", NULL))
+		foreign_endian = FBINFO_FOREIGN_ENDIAN;
+#else
+	if (of_get_property(dp, "big-endian", NULL))
+		foreign_endian = FBINFO_FOREIGN_ENDIAN;
+#endif
 
 	pp = of_get_property(dp, "linux,bootx-depth", &len);
 	if (pp == NULL)
@@ -509,7 +518,7 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 		offb_init_fb(no_real_node ? "bootx" : dp->name,
 			     no_real_node ? "display" : dp->full_name,
 			     width, height, depth, pitch, address,
-			     no_real_node ? NULL : dp);
+			     foreign_endian, no_real_node ? NULL : dp);
 	}
 }
 

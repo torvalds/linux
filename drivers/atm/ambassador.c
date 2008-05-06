@@ -33,6 +33,7 @@
 #include <linux/interrupt.h>
 #include <linux/poison.h>
 #include <linux/bitrev.h>
+#include <linux/mutex.h>
 
 #include <asm/atomic.h>
 #include <asm/io.h>
@@ -1177,7 +1178,7 @@ static int amb_open (struct atm_vcc * atm_vcc)
     
     vcc->tx_frame_bits = tx_frame_bits;
     
-    down (&dev->vcc_sf);
+    mutex_lock(&dev->vcc_sf);
     if (dev->rxer[vci]) {
       // RXer on the channel already, just modify rate...
       cmd.request = cpu_to_be32 (SRB_MODIFY_VC_RATE);
@@ -1203,7 +1204,7 @@ static int amb_open (struct atm_vcc * atm_vcc)
 	schedule();
     }
     dev->txer[vci].tx_present = 1;
-    up (&dev->vcc_sf);
+    mutex_unlock(&dev->vcc_sf);
   }
   
   if (rxtp->traffic_class != ATM_NONE) {
@@ -1211,7 +1212,7 @@ static int amb_open (struct atm_vcc * atm_vcc)
     
     vcc->rx_info.pool = pool;
     
-    down (&dev->vcc_sf); 
+    mutex_lock(&dev->vcc_sf);
     /* grow RX buffer pool */
     if (!dev->rxq[pool].buffers_wanted)
       dev->rxq[pool].buffers_wanted = rx_lats;
@@ -1237,7 +1238,7 @@ static int amb_open (struct atm_vcc * atm_vcc)
       schedule();
     // this link allows RX frames through
     dev->rxer[vci] = atm_vcc;
-    up (&dev->vcc_sf);
+    mutex_unlock(&dev->vcc_sf);
   }
   
   // indicate readiness
@@ -1262,7 +1263,7 @@ static void amb_close (struct atm_vcc * atm_vcc) {
   if (atm_vcc->qos.txtp.traffic_class != ATM_NONE) {
     command cmd;
     
-    down (&dev->vcc_sf);
+    mutex_lock(&dev->vcc_sf);
     if (dev->rxer[vci]) {
       // RXer still on the channel, just modify rate... XXX not really needed
       cmd.request = cpu_to_be32 (SRB_MODIFY_VC_RATE);
@@ -1277,7 +1278,7 @@ static void amb_close (struct atm_vcc * atm_vcc) {
     dev->txer[vci].tx_present = 0;
     while (command_do (dev, &cmd))
       schedule();
-    up (&dev->vcc_sf);
+    mutex_unlock(&dev->vcc_sf);
   }
   
   // disable RXing
@@ -1287,7 +1288,7 @@ static void amb_close (struct atm_vcc * atm_vcc) {
     // this is (the?) one reason why we need the amb_vcc struct
     unsigned char pool = vcc->rx_info.pool;
     
-    down (&dev->vcc_sf);
+    mutex_lock(&dev->vcc_sf);
     if (dev->txer[vci].tx_present) {
       // TXer still on the channel, just go to pool zero XXX not really needed
       cmd.request = cpu_to_be32 (SRB_MODIFY_VC_FLAGS);
@@ -1314,7 +1315,7 @@ static void amb_close (struct atm_vcc * atm_vcc) {
       dev->rxq[pool].buffers_wanted = 0;
       drain_rx_pool (dev, pool);
     }
-    up (&dev->vcc_sf);
+    mutex_unlock(&dev->vcc_sf);
   }
   
   // free our structure
@@ -2188,7 +2189,7 @@ static void setup_dev(amb_dev *dev, struct pci_dev *pci_dev)
       
       // semaphore for txer/rxer modifications - we cannot use a
       // spinlock as the critical region needs to switch processes
-      init_MUTEX (&dev->vcc_sf);
+      mutex_init(&dev->vcc_sf);
       // queue manipulation spinlocks; we want atomic reads and
       // writes to the queue descriptors (handles IRQ and SMP)
       // consider replacing "int pending" -> "atomic_t available"

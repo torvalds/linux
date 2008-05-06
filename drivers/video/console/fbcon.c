@@ -92,7 +92,7 @@
 #include "fbcon.h"
 
 #ifdef FBCONDEBUG
-#  define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt, __FUNCTION__ , ## args)
+#  define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt, __func__ , ## args)
 #else
 #  define DPRINTK(fmt, args...)
 #endif
@@ -620,8 +620,7 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
 	if (fb_get_color_depth(&info->var, &info->fix) == 1)
 		erase &= ~0x400;
 	logo_height = fb_prepare_logo(info, ops->rotate);
-	logo_lines = (logo_height + vc->vc_font.height - 1) /
-		vc->vc_font.height;
+	logo_lines = DIV_ROUND_UP(logo_height, vc->vc_font.height);
 	q = (unsigned short *) (vc->vc_origin +
 				vc->vc_size_row * rows);
 	step = logo_lines * cols;
@@ -1882,7 +1881,7 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 			scr_memsetw((unsigned short *) (vc->vc_origin +
 							vc->vc_size_row *
 							(b - count)),
-				    vc->vc_video_erase_char,
+				    vc->vc_scrl_erase_char,
 				    vc->vc_size_row * count);
 			return 1;
 			break;
@@ -1954,7 +1953,7 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 			scr_memsetw((unsigned short *) (vc->vc_origin +
 							vc->vc_size_row *
 							(b - count)),
-				    vc->vc_video_erase_char,
+				    vc->vc_scrl_erase_char,
 				    vc->vc_size_row * count);
 			return 1;
 		}
@@ -1973,7 +1972,7 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 			scr_memsetw((unsigned short *) (vc->vc_origin +
 							vc->vc_size_row *
 							t),
-				    vc->vc_video_erase_char,
+				    vc->vc_scrl_erase_char,
 				    vc->vc_size_row * count);
 			return 1;
 			break;
@@ -2043,7 +2042,7 @@ static int fbcon_scroll(struct vc_data *vc, int t, int b, int dir,
 			scr_memsetw((unsigned short *) (vc->vc_origin +
 							vc->vc_size_row *
 							t),
-				    vc->vc_video_erase_char,
+				    vc->vc_scrl_erase_char,
 				    vc->vc_size_row * count);
 			return 1;
 		}

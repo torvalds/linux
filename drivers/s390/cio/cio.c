@@ -407,8 +407,7 @@ cio_modify (struct subchannel *sch)
 /*
  * Enable subchannel.
  */
-int cio_enable_subchannel(struct subchannel *sch, unsigned int isc,
-			  u32 intparm)
+int cio_enable_subchannel(struct subchannel *sch, u32 intparm)
 {
 	char dbf_txt[15];
 	int ccode;
@@ -426,7 +425,7 @@ int cio_enable_subchannel(struct subchannel *sch, unsigned int isc,
 
 	for (retry = 5, ret = 0; retry > 0; retry--) {
 		sch->schib.pmcw.ena = 1;
-		sch->schib.pmcw.isc = isc;
+		sch->schib.pmcw.isc = sch->isc;
 		sch->schib.pmcw.intparm = intparm;
 		ret = cio_modify(sch);
 		if (ret == -ENODEV)
@@ -600,6 +599,7 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	else
 		sch->opm = chp_get_sch_opm(sch);
 	sch->lpm = sch->schib.pmcw.pam & sch->opm;
+	sch->isc = 3;
 
 	CIO_DEBUG(KERN_INFO, 0,
 		  "Detected device %04x on subchannel 0.%x.%04X"
@@ -610,13 +610,11 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 
 	/*
 	 * We now have to initially ...
-	 *  ... set "interruption subclass"
 	 *  ... enable "concurrent sense"
 	 *  ... enable "multipath mode" if more than one
 	 *	  CHPID is available. This is done regardless
 	 *	  whether multiple paths are available for us.
 	 */
-	sch->schib.pmcw.isc = 3;	/* could be smth. else */
 	sch->schib.pmcw.csense = 1;	/* concurrent sense */
 	sch->schib.pmcw.ena = 0;
 	if ((sch->lpm & (sch->lpm - 1)) != 0)
@@ -812,6 +810,7 @@ cio_probe_console(void)
 	 * enable console I/O-interrupt subclass 7
 	 */
 	ctl_set_bit(6, 24);
+	console_subchannel.isc = 7;
 	console_subchannel.schib.pmcw.isc = 7;
 	console_subchannel.schib.pmcw.intparm =
 		(u32)(addr_t)&console_subchannel;

@@ -273,9 +273,21 @@ static void __init check_mmu_stats(void)
 		mmu_stats_supported = 1;
 }
 
+static void register_nodes(void)
+{
+#ifdef CONFIG_NUMA
+	int i;
+
+	for (i = 0; i < MAX_NUMNODES; i++)
+		register_one_node(i);
+#endif
+}
+
 static int __init topology_init(void)
 {
 	int cpu;
+
+	register_nodes();
 
 	check_mmu_stats();
 

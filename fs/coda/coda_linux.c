@@ -134,7 +134,7 @@ void coda_iattr_to_vattr(struct iattr *iattr, struct coda_vattr *vattr)
         unsigned int valid;
 
         /* clean out */        
-        vattr->va_mode = (umode_t) -1;
+	vattr->va_mode = -1;
         vattr->va_uid = (vuid_t) -1; 
         vattr->va_gid = (vgid_t) -1;
         vattr->va_size = (off_t) -1;

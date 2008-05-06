@@ -1852,14 +1852,15 @@ static irqreturn_t snd_echo_interrupt(int irq, void *dev_id)
 static int snd_echo_free(struct echoaudio *chip)
 {
 	DE_INIT(("Stop DSP...\n"));
-	if (chip->comm_page) {
+	if (chip->comm_page)
 		rest_in_peace(chip);
-		snd_dma_free_pages(&chip->commpage_dma_buf);
-	}
 	DE_INIT(("Stopped.\n"));
 
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
+
+	if (chip->comm_page)
+		snd_dma_free_pages(&chip->commpage_dma_buf);
 
 	if (chip->dsp_registers)
 		iounmap(chip->dsp_registers);

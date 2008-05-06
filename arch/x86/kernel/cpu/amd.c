@@ -343,10 +343,4 @@ static struct cpu_dev amd_cpu_dev __cpuinitdata = {
 	.c_size_cache	= amd_size_cache,
 };
 
-int __init amd_init_cpu(void)
-{
-	cpu_devs[X86_VENDOR_AMD] = &amd_cpu_dev;
-	return 0;
-}
-
 cpu_vendor_dev_register(X86_VENDOR_AMD, &amd_cpu_dev);

@@ -42,7 +42,6 @@
 
 #include <linux/device.h>
 #include <media/videobuf-dma-sg.h>
-#include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/ir-common.h>
 
@@ -81,8 +80,6 @@
 #define MAX_HDELAY (0x3FF & -2)
 /* Limits scaled width, which must be a multiple of 4. */
 #define MAX_HACTIVE (0x3FF & -4)
-
-#define clamp(x, low, high) min (max (low, x), high)
 
 #define BTTV_NORMS    (\
 		V4L2_STD_PAL    | V4L2_STD_PAL_N | \

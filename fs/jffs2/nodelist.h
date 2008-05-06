@@ -87,7 +87,7 @@ struct jffs2_raw_node_ref
 		xattr_ref or xattr_datum instead. The common part of those structures
 		has NULL in the first word. See jffs2_raw_ref_to_ic() below */
 	uint32_t flash_offset;
-#define TEST_TOTLEN
+#undef TEST_TOTLEN
 #ifdef TEST_TOTLEN
 	uint32_t __totlen; /* This may die; use ref_totlen(c, jeb, ) below */
 #endif
@@ -177,7 +177,10 @@ struct jffs2_inode_cache {
 #ifdef CONFIG_JFFS2_FS_XATTR
 	struct jffs2_xattr_ref *xref;
 #endif
-	int nlink;
+	uint32_t pino_nlink;	/* Directories store parent inode
+				   here; other inodes store nlink.
+				   Zero always means that it's
+				   completely unlinked. */
 };
 
 /* Inode states for 'state' above. We need the 'GC' state to prevent

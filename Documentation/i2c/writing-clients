@@ -164,7 +164,8 @@ I2C device drivers using this binding model work just like any other
 kind of driver in Linux:  they provide a probe() method to bind to
 those devices, and a remove() method to unbind.
 
-	static int foo_probe(struct i2c_client *client);
+	static int foo_probe(struct i2c_client *client,
+			     const struct i2c_device_id *id);
 	static int foo_remove(struct i2c_client *client);
 
 Remember that the i2c_driver does not create those client handles.  The

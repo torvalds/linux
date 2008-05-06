@@ -25,12 +25,12 @@
 
 #include <media/saa7146_vv.h>
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "debug verbosity");
 
 /* global variables */
-static int hexium_num = 0;
+static int hexium_num;
 
 #define HEXIUM_GEMINI			4
 #define HEXIUM_GEMINI_DUAL		5

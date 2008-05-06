@@ -80,6 +80,8 @@ enum dmx_success {
 #define	TS_PAYLOAD_ONLY 2   /* in case TS_PACKET is set, only send the TS
 			       payload (<=184 bytes per packet) to callback */
 #define TS_DECODER      4   /* send stream to built-in decoder (if present) */
+#define TS_DEMUX        8   /* in case TS_PACKET is set, send the TS to
+			       the demux device, not to the dvr device */
 
 /* PES type for filters which write to built-in decoder */
 /* these should be kept identical to the types in dmx.h */

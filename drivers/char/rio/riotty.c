@@ -211,7 +211,7 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 		rio_dprintk(RIO_DEBUG_TTY, "Waiting for RIO_CLOSING to go away\n");
 		if (repeat_this-- <= 0) {
 			rio_dprintk(RIO_DEBUG_TTY, "Waiting for not idle closed broken by signal\n");
-			RIOPreemptiveCmd(p, PortP, FCLOSE);
+			RIOPreemptiveCmd(p, PortP, RIOC_FCLOSE);
 			retval = -EINTR;
 			goto bombout;
 		}
@@ -264,7 +264,7 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 		   here. If I read the docs correctly the "open"
 		   command piggybacks the parameters immediately.
 		   -- REW */
-		RIOParam(PortP, OPEN, 1, OK_TO_SLEEP);	/* Open the port */
+		RIOParam(PortP, RIOC_OPEN, 1, OK_TO_SLEEP); /* Open the port */
 		rio_spin_lock_irqsave(&PortP->portSem, flags);
 
 		/*
@@ -275,7 +275,7 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 			rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 			if (RIODelay(PortP, HUNDRED_MS) == RIO_FAIL) {
 				rio_dprintk(RIO_DEBUG_TTY, "Waiting for open to finish broken by signal\n");
-				RIOPreemptiveCmd(p, PortP, FCLOSE);
+				RIOPreemptiveCmd(p, PortP, RIOC_FCLOSE);
 				func_exit();
 				return -EINTR;
 			}
@@ -297,7 +297,8 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 	 ** insert test for carrier here. -- ???
 	 ** I already see that test here. What's the deal? -- REW
 	 */
-	if ((PortP->gs.tty->termios->c_cflag & CLOCAL) || (PortP->ModemState & MSVR1_CD)) {
+	if ((PortP->gs.tty->termios->c_cflag & CLOCAL) ||
+			(PortP->ModemState & RIOC_MSVR1_CD)) {
 		rio_dprintk(RIO_DEBUG_TTY, "open(%d) Modem carr on\n", SysPort);
 		/*
 		   tp->tm.c_state |= CARR_ON;
@@ -325,7 +326,7 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 				 ** I think it's OK. -- REW
 				 */
 				rio_dprintk(RIO_DEBUG_TTY, "open(%d) sleeping for carr broken by signal\n", SysPort);
-				RIOPreemptiveCmd(p, PortP, FCLOSE);
+				RIOPreemptiveCmd(p, PortP, RIOC_FCLOSE);
 				/*
 				   tp->tm.c_state &= ~WOPEN;
 				 */
@@ -416,7 +417,7 @@ int riotclose(void *ptr)
 	 */
 	PortP->State &= ~RIO_MOPEN;
 	PortP->State &= ~RIO_CARR_ON;
-	PortP->ModemState &= ~MSVR1_CD;
+	PortP->ModemState &= ~RIOC_MSVR1_CD;
 	/*
 	 ** If the device was open as both a Modem and a tty line
 	 ** then we need to wimp out here, as the port has not really
@@ -453,7 +454,7 @@ int riotclose(void *ptr)
 			if (repeat_this-- <= 0) {
 				rv = -EINTR;
 				rio_dprintk(RIO_DEBUG_TTY, "Waiting for not idle closed broken by signal\n");
-				RIOPreemptiveCmd(p, PortP, FCLOSE);
+				RIOPreemptiveCmd(p, PortP, RIOC_FCLOSE);
 				goto close_end;
 			}
 			rio_dprintk(RIO_DEBUG_TTY, "Calling timeout to flush in closing\n");
@@ -492,8 +493,8 @@ int riotclose(void *ptr)
 	/* Can't call RIOShortCommand with the port locked. */
 	rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 
-	if (RIOShortCommand(p, PortP, CLOSE, 1, 0) == RIO_FAIL) {
-		RIOPreemptiveCmd(p, PortP, FCLOSE);
+	if (RIOShortCommand(p, PortP, RIOC_CLOSE, 1, 0) == RIO_FAIL) {
+		RIOPreemptiveCmd(p, PortP, RIOC_FCLOSE);
 		rio_spin_lock_irqsave(&PortP->portSem, flags);
 		goto close_end;
 	}
@@ -503,7 +504,7 @@ int riotclose(void *ptr)
 			try--;
 			if (time_after(jiffies, end_time)) {
 				rio_dprintk(RIO_DEBUG_TTY, "Run out of tries - force the bugger shut!\n");
-				RIOPreemptiveCmd(p, PortP, FCLOSE);
+				RIOPreemptiveCmd(p, PortP, RIOC_FCLOSE);
 				break;
 			}
 			rio_dprintk(RIO_DEBUG_TTY, "Close: PortState:ISOPEN is %d\n", PortP->PortState & PORT_ISOPEN);
@@ -515,14 +516,14 @@ int riotclose(void *ptr)
 			}
 			if (RIODelay(PortP, HUNDRED_MS) == RIO_FAIL) {
 				rio_dprintk(RIO_DEBUG_TTY, "RTA EINTR in delay \n");
-				RIOPreemptiveCmd(p, PortP, FCLOSE);
+				RIOPreemptiveCmd(p, PortP, RIOC_FCLOSE);
 				break;
 			}
 		}
 	rio_spin_lock_irqsave(&PortP->portSem, flags);
 	rio_dprintk(RIO_DEBUG_TTY, "Close: try was %d on completion\n", try);
 
-	/* RIOPreemptiveCmd(p, PortP, FCLOSE); */
+	/* RIOPreemptiveCmd(p, PortP, RIOC_FCLOSE); */
 
 /*
 ** 15.10.1998 ARG - ESIL 0761 part fix

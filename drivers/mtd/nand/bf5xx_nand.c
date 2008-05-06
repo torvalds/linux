@@ -1,6 +1,6 @@
 /* linux/drivers/mtd/nand/bf5xx_nand.c
  *
- * Copyright 2006-2007 Analog Devices Inc.
+ * Copyright 2006-2008 Analog Devices Inc.
  *	http://blackfin.uclinux.org/
  *	Bryan Wu <bryan.wu@analog.com>
  *
@@ -74,7 +74,7 @@ static int hardware_ecc = 1;
 static int hardware_ecc;
 #endif
 
-static unsigned short bfin_nfc_pin_req[] =
+static const unsigned short bfin_nfc_pin_req[] =
 	{P_NAND_CE,
 	 P_NAND_RB,
 	 P_NAND_D0,
@@ -581,12 +581,6 @@ static int bf5xx_nand_hw_init(struct bf5xx_nand_info *info)
 	bfin_write_NFC_IRQSTAT(val);
 	SSYNC();
 
-	if (peripheral_request_list(bfin_nfc_pin_req, DRV_NAME)) {
-		printk(KERN_ERR DRV_NAME
-		": Requesting Peripherals failed\n");
-		return -EFAULT;
-	}
-
 	/* DMA initialization  */
 	if (bf5xx_nand_dma_init(info))
 		err = -ENXIO;
@@ -653,6 +647,12 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 	int err = 0;
 
 	dev_dbg(&pdev->dev, "(%p)\n", pdev);
+
+	if (peripheral_request_list(bfin_nfc_pin_req, DRV_NAME)) {
+		printk(KERN_ERR DRV_NAME
+		": Requesting Peripherals failed\n");
+		return -EFAULT;
+	}
 
 	if (!plat) {
 		dev_err(&pdev->dev, "no platform specific information\n");
@@ -803,3 +803,4 @@ module_exit(bf5xx_nand_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_DESCRIPTION(DRV_DESC);
+MODULE_ALIAS("platform:" DRV_NAME);

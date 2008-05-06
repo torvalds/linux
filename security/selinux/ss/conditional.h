@@ -59,10 +59,10 @@ struct cond_node {
 	struct cond_node *next;
 };
 
-int cond_policydb_init(struct policydb* p);
-void cond_policydb_destroy(struct policydb* p);
+int cond_policydb_init(struct policydb *p);
+void cond_policydb_destroy(struct policydb *p);
 
-int cond_init_bool_indexes(struct policydb* p);
+int cond_init_bool_indexes(struct policydb *p);
 int cond_destroy_bool(void *key, void *datum, void *p);
 
 int cond_index_bool(void *key, void *datum, void *datap);

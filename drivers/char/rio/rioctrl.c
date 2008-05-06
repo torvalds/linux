@@ -422,7 +422,8 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 		}
 
 		rio_spin_lock_irqsave(&PortP->portSem, flags);
-		if (RIOPreemptiveCmd(p, (p->RIOPortp[port]), RESUME) == RIO_FAIL) {
+		if (RIOPreemptiveCmd(p, (p->RIOPortp[port]), RIOC_RESUME) ==
+				RIO_FAIL) {
 			rio_dprintk(RIO_DEBUG_CTRL, "RIO_RESUME failed\n");
 			rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 			return -EBUSY;
@@ -636,7 +637,8 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 			return -ENXIO;
 		}
 		PortP = (p->RIOPortp[PortTty.port]);
-		RIOParam(PortP, CONFIG, PortP->State & RIO_MODEM, OK_TO_SLEEP);
+		RIOParam(PortP, RIOC_CONFIG, PortP->State & RIO_MODEM,
+				OK_TO_SLEEP);
 		return retval;
 
 	case RIO_SET_PORT_PARAMS:
@@ -1247,7 +1249,7 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 
 		rio_spin_lock_irqsave(&PortP->portSem, flags);
 
-		if (RIOPreemptiveCmd(p, PortP, MEMDUMP) == RIO_FAIL) {
+		if (RIOPreemptiveCmd(p, PortP, RIOC_MEMDUMP) == RIO_FAIL) {
 			rio_dprintk(RIO_DEBUG_CTRL, "RIO_MEM_DUMP failed\n");
 			rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 			return -EBUSY;
@@ -1313,7 +1315,8 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 
 		rio_spin_lock_irqsave(&PortP->portSem, flags);
 
-		if (RIOPreemptiveCmd(p, PortP, READ_REGISTER) == RIO_FAIL) {
+		if (RIOPreemptiveCmd(p, PortP, RIOC_READ_REGISTER) ==
+				RIO_FAIL) {
 			rio_dprintk(RIO_DEBUG_CTRL, "RIO_READ_REGISTER failed\n");
 			rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 			return -EBUSY;
@@ -1434,50 +1437,50 @@ int RIOPreemptiveCmd(struct rio_info *p, struct Port *PortP, u8 Cmd)
 	PktCmdP->PhbNum = port;
 
 	switch (Cmd) {
-	case MEMDUMP:
+	case RIOC_MEMDUMP:
 		rio_dprintk(RIO_DEBUG_CTRL, "Queue MEMDUMP command blk %p "
 				"(addr 0x%x)\n", CmdBlkP, (int) SubCmd.Addr);
-		PktCmdP->SubCommand = MEMDUMP;
+		PktCmdP->SubCommand = RIOC_MEMDUMP;
 		PktCmdP->SubAddr = SubCmd.Addr;
 		break;
-	case FCLOSE:
+	case RIOC_FCLOSE:
 		rio_dprintk(RIO_DEBUG_CTRL, "Queue FCLOSE command blk %p\n",
 				CmdBlkP);
 		break;
-	case READ_REGISTER:
+	case RIOC_READ_REGISTER:
 		rio_dprintk(RIO_DEBUG_CTRL, "Queue READ_REGISTER (0x%x) "
 				"command blk %p\n", (int) SubCmd.Addr, CmdBlkP);
-		PktCmdP->SubCommand = READ_REGISTER;
+		PktCmdP->SubCommand = RIOC_READ_REGISTER;
 		PktCmdP->SubAddr = SubCmd.Addr;
 		break;
-	case RESUME:
+	case RIOC_RESUME:
 		rio_dprintk(RIO_DEBUG_CTRL, "Queue RESUME command blk %p\n",
 				CmdBlkP);
 		break;
-	case RFLUSH:
+	case RIOC_RFLUSH:
 		rio_dprintk(RIO_DEBUG_CTRL, "Queue RFLUSH command blk %p\n",
 				CmdBlkP);
 		CmdBlkP->PostFuncP = RIORFlushEnable;
 		break;
-	case SUSPEND:
+	case RIOC_SUSPEND:
 		rio_dprintk(RIO_DEBUG_CTRL, "Queue SUSPEND command blk %p\n",
 				CmdBlkP);
 		break;
 
-	case MGET:
+	case RIOC_MGET:
 		rio_dprintk(RIO_DEBUG_CTRL, "Queue MGET command blk %p\n",
 				CmdBlkP);
 		break;
 
-	case MSET:
-	case MBIC:
-	case MBIS:
+	case RIOC_MSET:
+	case RIOC_MBIC:
+	case RIOC_MBIS:
 		CmdBlkP->Packet.data[4] = (char) PortP->ModemLines;
 		rio_dprintk(RIO_DEBUG_CTRL, "Queue MSET/MBIC/MBIS command "
 				"blk %p\n", CmdBlkP);
 		break;
 
-	case WFLUSH:
+	case RIOC_WFLUSH:
 		/*
 		 ** If we have queued up the maximum number of Write flushes
 		 ** allowed then we should not bother sending any more to the

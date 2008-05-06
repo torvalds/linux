@@ -139,6 +139,9 @@ static int v1_read_file_info(struct super_block *sb, int type)
 		goto out;
 	}
 	ret = 0;
+	/* limits are stored as unsigned 32-bit data */
+	dqopt->info[type].dqi_maxblimit = 0xffffffff;
+	dqopt->info[type].dqi_maxilimit = 0xffffffff;
 	dqopt->info[type].dqi_igrace = dqblk.dqb_itime ? dqblk.dqb_itime : MAX_IQ_TIME;
 	dqopt->info[type].dqi_bgrace = dqblk.dqb_btime ? dqblk.dqb_btime : MAX_DQ_TIME;
 out:

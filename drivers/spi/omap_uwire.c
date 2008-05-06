@@ -151,7 +151,7 @@ static int wait_uwire_csr_flag(u16 mask, u16 val, int might_not_catch)
 		if (time_after(jiffies, max_jiffies)) {
 			printk(KERN_ERR "%s: timeout. reg=%#06x "
 					"mask=%#06x val=%#06x\n",
-			       __FUNCTION__, w, mask, val);
+			       __func__, w, mask, val);
 			return -1;
 		}
 		c++;
@@ -437,7 +437,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	}
 	omap_uwire_configure_mode(spi->chip_select, flags);
 	pr_debug("%s: uwire flags %02x, armxor %lu KHz, SCK %lu KHz\n",
-			__FUNCTION__, flags,
+			__func__, flags,
 			clk_get_rate(uwire->ck) / 1000,
 			rate / 1000);
 	status = 0;

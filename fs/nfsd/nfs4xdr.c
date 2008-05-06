@@ -376,20 +376,6 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval, struct iattr *ia
 			goto xdr_error;
 		}
 	}
-	if (bmval[1] & FATTR4_WORD1_TIME_METADATA) {
-		/* We require the high 32 bits of 'seconds' to be 0, and we ignore
-		   all 32 bits of 'nseconds'. */
-		READ_BUF(12);
-		len += 12;
-		READ32(dummy32);
-		if (dummy32)
-			return nfserr_inval;
-		READ32(iattr->ia_ctime.tv_sec);
-		READ32(iattr->ia_ctime.tv_nsec);
-		if (iattr->ia_ctime.tv_nsec >= (u32)1000000000)
-			return nfserr_inval;
-		iattr->ia_valid |= ATTR_CTIME;
-	}
 	if (bmval[1] & FATTR4_WORD1_TIME_MODIFY_SET) {
 		READ_BUF(4);
 		len += 4;
@@ -1867,6 +1853,15 @@ out_serverfault:
 	goto out;
 }
 
+static inline int attributes_need_mount(u32 *bmval)
+{
+	if (bmval[0] & ~(FATTR4_WORD0_RDATTR_ERROR | FATTR4_WORD0_LEASE_TIME))
+		return 1;
+	if (bmval[1] & ~FATTR4_WORD1_MOUNTED_ON_FILEID)
+		return 1;
+	return 0;
+}
+
 static __be32
 nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
 		const char *name, int namlen, __be32 *p, int *buflen)
@@ -1888,9 +1883,7 @@ nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
 	 * we will not follow the cross mount and will fill the attribtutes
 	 * directly from the mountpoint dentry.
 	 */
-	if (d_mountpoint(dentry) &&
-	    (cd->rd_bmval[0] & ~FATTR4_WORD0_RDATTR_ERROR) == 0 &&
-	    (cd->rd_bmval[1] & ~FATTR4_WORD1_MOUNTED_ON_FILEID) == 0)
+	if (d_mountpoint(dentry) && !attributes_need_mount(cd->rd_bmval))
 		ignore_crossmnt = 1;
 	else if (d_mountpoint(dentry)) {
 		int err;

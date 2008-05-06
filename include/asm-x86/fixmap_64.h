@@ -8,8 +8,8 @@
  * Copyright (C) 1998 Ingo Molnar
  */
 
-#ifndef _ASM_FIXMAP_H
-#define _ASM_FIXMAP_H
+#ifndef _ASM_FIXMAP_64_H
+#define _ASM_FIXMAP_64_H
 
 #include <linux/kernel.h>
 #include <asm/apicdef.h>

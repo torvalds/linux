@@ -426,7 +426,7 @@ static int tosh_probe(void)
 	int i,major,minor,day,year,month,flag;
 	unsigned char signature[7] = { 0x54,0x4f,0x53,0x48,0x49,0x42,0x41 };
 	SMMRegisters regs;
-	void __iomem *bios = ioremap(0xf0000, 0x10000);
+	void __iomem *bios = ioremap_cache(0xf0000, 0x10000);
 
 	if (!bios)
 		return -ENOMEM;
@@ -520,12 +520,11 @@ static int __init toshiba_init(void)
 	{
 		struct proc_dir_entry *pde;
 
-		pde = create_proc_entry("toshiba", 0, NULL);
+		pde = proc_create("toshiba", 0, NULL, &proc_toshiba_fops);
 		if (!pde) {
 			misc_deregister(&tosh_device);
 			return -ENOMEM;
 		}
-		pde->proc_fops = &proc_toshiba_fops;
 	}
 #endif
 

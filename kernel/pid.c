@@ -111,10 +111,11 @@ EXPORT_SYMBOL(is_container_init);
 
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
 
-static void free_pidmap(struct pid_namespace *pid_ns, int pid)
+static void free_pidmap(struct upid *upid)
 {
-	struct pidmap *map = pid_ns->pidmap + pid / BITS_PER_PAGE;
-	int offset = pid & BITS_PER_PAGE_MASK;
+	int nr = upid->nr;
+	struct pidmap *map = upid->ns->pidmap + nr / BITS_PER_PAGE;
+	int offset = nr & BITS_PER_PAGE_MASK;
 
 	clear_bit(offset, map->page);
 	atomic_inc(&map->nr_free);
@@ -232,7 +233,7 @@ void free_pid(struct pid *pid)
 	spin_unlock_irqrestore(&pidmap_lock, flags);
 
 	for (i = 0; i <= pid->level; i++)
-		free_pidmap(pid->numbers[i].ns, pid->numbers[i].nr);
+		free_pidmap(pid->numbers + i);
 
 	call_rcu(&pid->rcu, delayed_put_pid);
 }
@@ -278,8 +279,8 @@ out:
 	return pid;
 
 out_free:
-	for (i++; i <= ns->level; i++)
-		free_pidmap(pid->numbers[i].ns, pid->numbers[i].nr);
+	while (++i <= ns->level)
+		free_pidmap(pid->numbers + i);
 
 	kmem_cache_free(ns->pid_cachep, pid);
 	pid = NULL;
@@ -316,7 +317,7 @@ EXPORT_SYMBOL_GPL(find_pid);
 /*
  * attach_pid() must be called with the tasklist_lock write-held.
  */
-int attach_pid(struct task_struct *task, enum pid_type type,
+void attach_pid(struct task_struct *task, enum pid_type type,
 		struct pid *pid)
 {
 	struct pid_link *link;
@@ -324,11 +325,10 @@ int attach_pid(struct task_struct *task, enum pid_type type,
 	link = &task->pids[type];
 	link->pid = pid;
 	hlist_add_head_rcu(&link->node, &pid->tasks[type]);
-
-	return 0;
 }
 
-void detach_pid(struct task_struct *task, enum pid_type type)
+static void __change_pid(struct task_struct *task, enum pid_type type,
+			struct pid *new)
 {
 	struct pid_link *link;
 	struct pid *pid;
@@ -338,7 +338,7 @@ void detach_pid(struct task_struct *task, enum pid_type type)
 	pid = link->pid;
 
 	hlist_del_rcu(&link->node);
-	link->pid = NULL;
+	link->pid = new;
 
 	for (tmp = PIDTYPE_MAX; --tmp >= 0; )
 		if (!hlist_empty(&pid->tasks[tmp]))
@@ -347,13 +347,24 @@ void detach_pid(struct task_struct *task, enum pid_type type)
 	free_pid(pid);
 }
 
+void detach_pid(struct task_struct *task, enum pid_type type)
+{
+	__change_pid(task, type, NULL);
+}
+
+void change_pid(struct task_struct *task, enum pid_type type,
+		struct pid *pid)
+{
+	__change_pid(task, type, pid);
+	attach_pid(task, type, pid);
+}
+
 /* transfer_pid is an optimization of attach_pid(new), detach_pid(old) */
 void transfer_pid(struct task_struct *old, struct task_struct *new,
 			   enum pid_type type)
 {
 	new->pids[type].pid = old->pids[type].pid;
 	hlist_replace_rcu(&old->pids[type].node, &new->pids[type].node);
-	old->pids[type].pid = NULL;
 }
 
 struct task_struct *pid_task(struct pid *pid, enum pid_type type)
@@ -379,12 +390,6 @@ struct task_struct *find_task_by_pid_type_ns(int type, int nr,
 }
 
 EXPORT_SYMBOL(find_task_by_pid_type_ns);
-
-struct task_struct *find_task_by_pid(pid_t nr)
-{
-	return find_task_by_pid_type_ns(PIDTYPE_PID, nr, &init_pid_ns);
-}
-EXPORT_SYMBOL(find_task_by_pid);
 
 struct task_struct *find_task_by_vpid(pid_t vnr)
 {

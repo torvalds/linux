@@ -19,17 +19,34 @@
 #define PAGE_DEFAULT_ACC	0
 #define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)
 
+#define HPAGE_SHIFT	20
+#define HPAGE_SIZE	(1UL << HPAGE_SHIFT)
+#define HPAGE_MASK	(~(HPAGE_SIZE - 1))
+#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+
+#define ARCH_HAS_SETCLEAR_HUGE_PTE
+#define ARCH_HAS_HUGE_PTE_TYPE
+#define ARCH_HAS_PREPARE_HUGEPAGE
+#define ARCH_HAS_HUGEPAGE_CLEAR_FLUSH
+
 #include <asm/setup.h>
 #ifndef __ASSEMBLY__
 
 static inline void clear_page(void *page)
 {
-	register unsigned long reg1 asm ("1") = 0;
-	register void *reg2 asm ("2") = page;
-	register unsigned long reg3 asm ("3") = 4096;
-	asm volatile(
-		"	mvcl	2,0"
-		: "+d" (reg2), "+d" (reg3) : "d" (reg1) : "memory", "cc");
+	if (MACHINE_HAS_PFMF) {
+		asm volatile(
+			"	.insn	rre,0xb9af0000,%0,%1"
+			: : "d" (0x10000), "a" (page) : "memory", "cc");
+	} else {
+		register unsigned long reg1 asm ("1") = 0;
+		register void *reg2 asm ("2") = page;
+		register unsigned long reg3 asm ("3") = 4096;
+		asm volatile(
+			"	mvcl	2,0"
+			: "+d" (reg2), "+d" (reg3) : "d" (reg1)
+			: "memory", "cc");
+	}
 }
 
 static inline void copy_page(void *to, void *from)
@@ -106,26 +123,6 @@ page_get_storage_key(unsigned long addr)
 
 	asm volatile("iske %0,%1" : "=d" (skey) : "a" (addr), "0" (0));
 	return skey;
-}
-
-extern unsigned long max_pfn;
-
-static inline int pfn_valid(unsigned long pfn)
-{
-	unsigned long dummy;
-	int ccode;
-
-	if (pfn >= max_pfn)
-		return 0;
-
-	asm volatile(
-		"	lra	%0,0(%2)\n"
-		"	ipm	%1\n"
-		"	srl	%1,28\n"
-		: "=d" (dummy), "=d" (ccode)
-		: "a" (pfn << PAGE_SHIFT)
-		: "cc");
-	return !ccode;
 }
 
 #endif /* !__ASSEMBLY__ */

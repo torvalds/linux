@@ -709,7 +709,7 @@ void ieee80211_requeue(struct ieee80211_local *local, int queue)
 	struct ieee80211_sched_data *q = qdisc_priv(root_qd);
 	struct Qdisc *qdisc = q->queues[queue];
 	struct sk_buff *skb = NULL;
-	u32 len = qdisc->q.qlen;
+	u32 len;
 
 	if (!qdisc || !qdisc->dequeue)
 		return;

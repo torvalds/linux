@@ -389,8 +389,8 @@ static int __init gfar_of_init(void)
 			}
 
 			gfar_data.phy_id = *id;
-			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "%x",
-					res.start);
+			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "%llx",
+				 (unsigned long long)res.start);
 
 			of_node_put(phy);
 			of_node_put(mdio);
@@ -418,22 +418,21 @@ arch_initcall(gfar_of_init);
 #include <linux/i2c.h>
 struct i2c_driver_device {
 	char	*of_device;
-	char	*i2c_driver;
 	char	*i2c_type;
 };
 
 static struct i2c_driver_device i2c_devices[] __initdata = {
-	{"ricoh,rs5c372a", "rtc-rs5c372", "rs5c372a",},
-	{"ricoh,rs5c372b", "rtc-rs5c372", "rs5c372b",},
-	{"ricoh,rv5c386",  "rtc-rs5c372", "rv5c386",},
-	{"ricoh,rv5c387a", "rtc-rs5c372", "rv5c387a",},
-	{"dallas,ds1307",  "rtc-ds1307",  "ds1307",},
-	{"dallas,ds1337",  "rtc-ds1307",  "ds1337",},
-	{"dallas,ds1338",  "rtc-ds1307",  "ds1338",},
-	{"dallas,ds1339",  "rtc-ds1307",  "ds1339",},
-	{"dallas,ds1340",  "rtc-ds1307",  "ds1340",},
-	{"stm,m41t00",     "rtc-ds1307",  "m41t00"},
-	{"dallas,ds1374",  "rtc-ds1374",  "rtc-ds1374",},
+	{"ricoh,rs5c372a", "rs5c372a"},
+	{"ricoh,rs5c372b", "rs5c372b"},
+	{"ricoh,rv5c386",  "rv5c386"},
+	{"ricoh,rv5c387a", "rv5c387a"},
+	{"dallas,ds1307",  "ds1307"},
+	{"dallas,ds1337",  "ds1337"},
+	{"dallas,ds1338",  "ds1338"},
+	{"dallas,ds1339",  "ds1339"},
+	{"dallas,ds1340",  "ds1340"},
+	{"stm,m41t00",     "m41t00"},
+	{"dallas,ds1374",  "rtc-ds1374"},
 };
 
 static int __init of_find_i2c_driver(struct device_node *node,
@@ -444,9 +443,7 @@ static int __init of_find_i2c_driver(struct device_node *node,
 	for (i = 0; i < ARRAY_SIZE(i2c_devices); i++) {
 		if (!of_device_is_compatible(node, i2c_devices[i].of_device))
 			continue;
-		if (strlcpy(info->driver_name, i2c_devices[i].i2c_driver,
-			    KOBJ_NAME_LEN) >= KOBJ_NAME_LEN ||
-		    strlcpy(info->type, i2c_devices[i].i2c_type,
+		if (strlcpy(info->type, i2c_devices[i].i2c_type,
 			    I2C_NAME_SIZE) >= I2C_NAME_SIZE)
 			return -ENOMEM;
 		return 0;
@@ -891,4 +888,45 @@ void fsl_rstcr_restart(char *cmd)
 
 	while (1) ;
 }
+#endif
+
+#if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
+struct platform_diu_data_ops diu_ops = {
+	.diu_size = 1280 * 1024 * 4,	/* default one 1280x1024 buffer */
+};
+EXPORT_SYMBOL(diu_ops);
+
+int __init preallocate_diu_videomemory(void)
+{
+	pr_debug("diu_size=%lu\n", diu_ops.diu_size);
+
+	diu_ops.diu_mem = __alloc_bootmem(diu_ops.diu_size, 8, 0);
+	if (!diu_ops.diu_mem) {
+		printk(KERN_ERR "fsl-diu: cannot allocate %lu bytes\n",
+			diu_ops.diu_size);
+		return -ENOMEM;
+	}
+
+	pr_debug("diu_mem=%p\n", diu_ops.diu_mem);
+
+	rh_init(&diu_ops.diu_rh_info, 4096, ARRAY_SIZE(diu_ops.diu_rh_block),
+		diu_ops.diu_rh_block);
+	return rh_attach_region(&diu_ops.diu_rh_info,
+				(unsigned long) diu_ops.diu_mem,
+				diu_ops.diu_size);
+}
+
+static int __init early_parse_diufb(char *p)
+{
+	if (!p)
+		return 1;
+
+	diu_ops.diu_size = _ALIGN_UP(memparse(p, &p), 8);
+
+	pr_debug("diu_size=%lu\n", diu_ops.diu_size);
+
+	return 0;
+}
+early_param("diufb", early_parse_diufb);
+
 #endif

@@ -290,7 +290,7 @@ static int TIReadVendorRequestSync (struct usb_device *dev,
 		return status;
 	if (status != size) {
 		dbg ("%s - wanted to write %d, but only wrote %d",
-		     __FUNCTION__, size, status);
+		     __func__, size, status);
 		return -ECOMM;
 	}
 	return 0;
@@ -320,7 +320,7 @@ static int TISendVendorRequestSync (struct usb_device *dev,
 		return status;
 	if (status != size) {
 		dbg ("%s - wanted to write %d, but only wrote %d",
-		     __FUNCTION__, size, status);
+		     __func__, size, status);
 		return -ECOMM;
 	}
 	return 0;
@@ -344,7 +344,7 @@ static int TIPurgeDataSync (struct usb_serial_port *port, __u16 mask)
 {
 	int port_number = port->number - port->serial->minor;
 
-	dbg ("%s - port %d, mask %x", __FUNCTION__, port_number, mask);
+	dbg ("%s - port %d, mask %x", __func__, port_number, mask);
 
 	return TIWriteCommandSync (port->serial->dev,
 					UMPC_PURGE_PORT,
@@ -369,7 +369,7 @@ static int TIReadDownloadMemory(struct usb_device *dev, int start_address,
 	__u8 read_length;
 	__be16 be_start_address;
 	
-	dbg ("%s - @ %x for %d", __FUNCTION__, start_address, length);
+	dbg ("%s - @ %x for %d", __func__, start_address, length);
 
 	/* Read in blocks of 64 bytes
 	 * (TI firmware can't handle more than 64 byte reads)
@@ -381,7 +381,7 @@ static int TIReadDownloadMemory(struct usb_device *dev, int start_address,
 			read_length = (__u8)length;
 
 		if (read_length > 1) {
-			dbg ("%s - @ %x for %d", __FUNCTION__, 
+			dbg ("%s - @ %x for %d", __func__,
 			     start_address, read_length);
 		}
 		be_start_address = cpu_to_be16 (start_address);
@@ -393,12 +393,12 @@ static int TIReadDownloadMemory(struct usb_device *dev, int start_address,
 						  read_length);	// TransferBufferLength
 
 		if (status) {
-			dbg ("%s - ERROR %x", __FUNCTION__, status);
+			dbg ("%s - ERROR %x", __func__, status);
 			return status;
 		}
 
 		if (read_length > 1) {
-			usb_serial_debug_data(debug, &dev->dev, __FUNCTION__,
+			usb_serial_debug_data(debug, &dev->dev, __func__,
 					      read_length, buffer);
 		}
 
@@ -434,13 +434,13 @@ static int TIReadBootMemory (struct edgeport_serial *serial, int start_address, 
 					&buffer[i],			// TransferBuffer
 					0x01);				// TransferBufferLength
 		if (status) {
-			dbg ("%s - ERROR %x", __FUNCTION__, status);
+			dbg ("%s - ERROR %x", __func__, status);
 			return status;
 		}
 	}
 
-	dbg ("%s - start_address = %x, length = %d", __FUNCTION__, start_address, length);
-	usb_serial_debug_data(debug, &serial->serial->dev->dev, __FUNCTION__, length, buffer);
+	dbg ("%s - start_address = %x, length = %d", __func__, start_address, length);
+	usb_serial_debug_data(debug, &serial->serial->dev->dev, __func__, length, buffer);
 
 	serial->TiReadI2C = 1;
 
@@ -472,8 +472,8 @@ static int TIWriteBootMemory (struct edgeport_serial *serial, int start_address,
 			return status;
 	}
 
-  	dbg ("%s - start_sddr = %x, length = %d", __FUNCTION__, start_address, length);
-	usb_serial_debug_data(debug, &serial->serial->dev->dev, __FUNCTION__, length, buffer);
+  	dbg ("%s - start_sddr = %x, length = %d", __func__, start_address, length);
+	usb_serial_debug_data(debug, &serial->serial->dev->dev, __func__, length, buffer);
 
 	return status;
 }
@@ -494,8 +494,8 @@ static int TIWriteDownloadI2C (struct edgeport_serial *serial, int start_address
 	if (write_length > length)
 		write_length = length;
 
-	dbg ("%s - BytesInFirstPage Addr = %x, length = %d", __FUNCTION__, start_address, write_length);
-	usb_serial_debug_data(debug, &serial->serial->dev->dev, __FUNCTION__, write_length, buffer);
+	dbg ("%s - BytesInFirstPage Addr = %x, length = %d", __func__, start_address, write_length);
+	usb_serial_debug_data(debug, &serial->serial->dev->dev, __func__, write_length, buffer);
 
 	/* Write first page */
 	be_start_address = cpu_to_be16 (start_address);
@@ -506,7 +506,7 @@ static int TIWriteDownloadI2C (struct edgeport_serial *serial, int start_address
 					buffer,			// TransferBuffer
 					write_length);
 	if (status) {
-		dbg ("%s - ERROR %d", __FUNCTION__, status);
+		dbg ("%s - ERROR %d", __func__, status);
 		return status;
 	}
 
@@ -521,8 +521,8 @@ static int TIWriteDownloadI2C (struct edgeport_serial *serial, int start_address
 		else
 			write_length = length;
 
-		dbg ("%s - Page Write Addr = %x, length = %d", __FUNCTION__, start_address, write_length);
-		usb_serial_debug_data(debug, &serial->serial->dev->dev, __FUNCTION__, write_length, buffer);
+		dbg ("%s - Page Write Addr = %x, length = %d", __func__, start_address, write_length);
+		usb_serial_debug_data(debug, &serial->serial->dev->dev, __func__, write_length, buffer);
 
 		/* Write next page */
 		be_start_address = cpu_to_be16 (start_address);
@@ -533,7 +533,7 @@ static int TIWriteDownloadI2C (struct edgeport_serial *serial, int start_address
 						buffer,	  		// TransferBuffer
 						write_length);		// TransferBufferLength
 		if (status) {
-			dev_err (&serial->serial->dev->dev, "%s - ERROR %d\n", __FUNCTION__, status);
+			dev_err (&serial->serial->dev->dev, "%s - ERROR %d\n", __func__, status);
 			return status;
 		}
 		
@@ -559,7 +559,7 @@ static int TIIsTxActive (struct edgeport_port *port)
 
 	oedb = kmalloc (sizeof (* oedb), GFP_KERNEL);
 	if (!oedb) {
-		dev_err (&port->port->dev, "%s - out of memory\n", __FUNCTION__);
+		dev_err (&port->port->dev, "%s - out of memory\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -579,7 +579,7 @@ static int TIIsTxActive (struct edgeport_port *port)
 	if (status)
 		goto exit_is_tx_active;
 
-	dbg ("%s - XByteCount    0x%X", __FUNCTION__, oedb->XByteCount);
+	dbg ("%s - XByteCount    0x%X", __func__, oedb->XByteCount);
 
 	/* and the LSR */
 	status = TIReadRam (port->port->serial->dev, 
@@ -589,7 +589,7 @@ static int TIIsTxActive (struct edgeport_port *port)
 
 	if (status)
 		goto exit_is_tx_active;
-	dbg ("%s - LSR = 0x%X", __FUNCTION__, *lsr);
+	dbg ("%s - LSR = 0x%X", __func__, *lsr);
 	
 	/* If either buffer has data or we are transmitting then return TRUE */
 	if ((oedb->XByteCount & 0x80 ) != 0 )
@@ -600,7 +600,7 @@ static int TIIsTxActive (struct edgeport_port *port)
 
 	/* We return Not Active if we get any kind of error */
 exit_is_tx_active:
-	dbg ("%s - return %d", __FUNCTION__, bytes_left );
+	dbg ("%s - return %d", __func__, bytes_left );
 
 	kfree(lsr);
 	kfree(oedb);
@@ -654,7 +654,7 @@ static void TIChasePort(struct edgeport_port *port, unsigned long timeout, int f
 	/* (TIIsTxActive doesn't seem to wait for the last byte) */
 	if ((baud_rate=port->baud_rate) == 0)
 		baud_rate = 50;
-	msleep(max(1,(10000+baud_rate-1)/baud_rate));
+	msleep(max(1, DIV_ROUND_UP(10000, baud_rate)));
 }
 
 static int TIChooseConfiguration (struct usb_device *dev)
@@ -664,11 +664,11 @@ static int TIChooseConfiguration (struct usb_device *dev)
 	// we want. However, we just support one config at this point,
 	// configuration # 1, which is Config Descriptor 0.
 
-	dbg ("%s - Number of Interfaces = %d", __FUNCTION__, dev->config->desc.bNumInterfaces);
-	dbg ("%s - MAX Power            = %d", __FUNCTION__, dev->config->desc.bMaxPower*2);
+	dbg ("%s - Number of Interfaces = %d", __func__, dev->config->desc.bNumInterfaces);
+	dbg ("%s - MAX Power            = %d", __func__, dev->config->desc.bMaxPower*2);
 
 	if (dev->config->desc.bNumInterfaces != 1) {
-		dev_err (&dev->dev, "%s - bNumInterfaces is not 1, ERROR!\n", __FUNCTION__);
+		dev_err (&dev->dev, "%s - bNumInterfaces is not 1, ERROR!\n", __func__);
 		return -ENODEV;
 	}
 
@@ -751,7 +751,7 @@ static int ValidChecksum(struct ti_i2c_desc *rom_desc, __u8 *buffer)
 		cs = (__u8)(cs + buffer[i]);
 	}
 	if (cs != rom_desc->CheckSum) {
-		dbg ("%s - Mismatch %x - %x", __FUNCTION__, rom_desc->CheckSum, cs);
+		dbg ("%s - Mismatch %x - %x", __func__, rom_desc->CheckSum, cs);
 		return -EINVAL;
 	}
 	return 0;
@@ -769,12 +769,12 @@ static int TiValidateI2cImage (struct edgeport_serial *serial)
 
 	rom_desc = kmalloc (sizeof (*rom_desc), GFP_KERNEL);
 	if (!rom_desc) {
-		dev_err (dev, "%s - out of memory\n", __FUNCTION__);
+		dev_err (dev, "%s - out of memory\n", __func__);
 		return -ENOMEM;
 	}
 	buffer = kmalloc (TI_MAX_I2C_SIZE, GFP_KERNEL);
 	if (!buffer) {
-		dev_err (dev, "%s - out of memory when allocating buffer\n", __FUNCTION__);
+		dev_err (dev, "%s - out of memory when allocating buffer\n", __func__);
 		kfree (rom_desc);
 		return -ENOMEM;
 	}
@@ -785,7 +785,7 @@ static int TiValidateI2cImage (struct edgeport_serial *serial)
 		goto ExitTiValidateI2cImage; 
 
 	if (*buffer != UMP5152 && *buffer != UMP3410) {
-		dev_err (dev, "%s - invalid buffer signature\n", __FUNCTION__);
+		dev_err (dev, "%s - invalid buffer signature\n", __func__);
 		status = -ENODEV;
 		goto ExitTiValidateI2cImage;
 	}
@@ -801,11 +801,11 @@ static int TiValidateI2cImage (struct edgeport_serial *serial)
 
 		if ((start_address + sizeof(struct ti_i2c_desc) + rom_desc->Size) > TI_MAX_I2C_SIZE) {
 			status = -ENODEV;
-			dbg ("%s - structure too big, erroring out.", __FUNCTION__);
+			dbg ("%s - structure too big, erroring out.", __func__);
 			break;
 		}
 
-		dbg ("%s Type = 0x%x", __FUNCTION__, rom_desc->Type);
+		dbg ("%s Type = 0x%x", __func__, rom_desc->Type);
 
 		// Skip type 2 record
 		ttype = rom_desc->Type & 0x0f;
@@ -845,13 +845,13 @@ static int TIReadManufDescriptor (struct edgeport_serial *serial, __u8 *buffer)
 
 	rom_desc = kmalloc (sizeof (*rom_desc), GFP_KERNEL);
 	if (!rom_desc) {
-		dev_err (&serial->serial->dev->dev, "%s - out of memory\n", __FUNCTION__);
+		dev_err (&serial->serial->dev->dev, "%s - out of memory\n", __func__);
 		return -ENOMEM;
 	}
 	start_address = TIGetDescriptorAddress (serial, I2C_DESC_TYPE_ION, rom_desc);
 
 	if (!start_address) {
-		dbg ("%s - Edge Descriptor not found in I2C", __FUNCTION__);
+		dbg ("%s - Edge Descriptor not found in I2C", __func__);
 		status = -ENODEV;
 		goto exit;
 	}
@@ -867,12 +867,12 @@ static int TIReadManufDescriptor (struct edgeport_serial *serial, __u8 *buffer)
 	status = ValidChecksum(rom_desc, buffer);
 	
 	desc = (struct edge_ti_manuf_descriptor *)buffer;
-	dbg ( "%s - IonConfig      0x%x", __FUNCTION__, desc->IonConfig 	);
-	dbg ( "%s - Version          %d", __FUNCTION__, desc->Version	  	);
-	dbg ( "%s - Cpu/Board      0x%x", __FUNCTION__, desc->CpuRev_BoardRev	);
-	dbg ( "%s - NumPorts         %d", __FUNCTION__, desc->NumPorts  	);	
-	dbg ( "%s - NumVirtualPorts  %d", __FUNCTION__, desc->NumVirtualPorts	);	
-	dbg ( "%s - TotalPorts       %d", __FUNCTION__, desc->TotalPorts  	);	
+	dbg ( "%s - IonConfig      0x%x", __func__, desc->IonConfig 	);
+	dbg ( "%s - Version          %d", __func__, desc->Version	  	);
+	dbg ( "%s - Cpu/Board      0x%x", __func__, desc->CpuRev_BoardRev	);
+	dbg ( "%s - NumPorts         %d", __func__, desc->NumPorts  	);
+	dbg ( "%s - NumVirtualPorts  %d", __func__, desc->NumVirtualPorts	);
+	dbg ( "%s - TotalPorts       %d", __func__, desc->TotalPorts  	);
 
 exit:
 	kfree (rom_desc);
@@ -902,7 +902,7 @@ static int BuildI2CFirmwareHeader (__u8 *header, struct device *dev)
 
 	buffer = kmalloc (buffer_size, GFP_KERNEL);
 	if (!buffer) {
-		dev_err (dev, "%s - out of memory\n", __FUNCTION__);
+		dev_err (dev, "%s - out of memory\n", __func__);
 		return -ENOMEM;
 	}
 	
@@ -955,11 +955,11 @@ static int TIGetI2cTypeInBootMode (struct edgeport_serial *serial)
 					&data,				// TransferBuffer
 					0x01);				// TransferBufferLength
 	if (status)
-		dbg ("%s - read 2 status error = %d", __FUNCTION__, status);
+		dbg ("%s - read 2 status error = %d", __func__, status);
 	else
-		dbg ("%s - read 2 data = 0x%x", __FUNCTION__, data);
+		dbg ("%s - read 2 data = 0x%x", __func__, data);
 	if ((!status) && (data == UMP5152 || data == UMP3410)) {
-		dbg ("%s - ROM_TYPE_II", __FUNCTION__);
+		dbg ("%s - ROM_TYPE_II", __func__);
 		serial->TI_I2C_Type = DTK_ADDR_SPACE_I2C_TYPE_II;
 		return 0;
 	}
@@ -972,16 +972,16 @@ static int TIGetI2cTypeInBootMode (struct edgeport_serial *serial)
 					&data,				// TransferBuffer
 					0x01);				// TransferBufferLength
 	if (status)
-		dbg ("%s - read 3 status error = %d", __FUNCTION__, status);
+		dbg ("%s - read 3 status error = %d", __func__, status);
 	else
-		dbg ("%s - read 2 data = 0x%x", __FUNCTION__, data);
+		dbg ("%s - read 2 data = 0x%x", __func__, data);
 	if ((!status) && (data == UMP5152 || data == UMP3410)) {
-		dbg ("%s - ROM_TYPE_III", __FUNCTION__);
+		dbg ("%s - ROM_TYPE_III", __func__);
 		serial->TI_I2C_Type = DTK_ADDR_SPACE_I2C_TYPE_III;
 		return 0;
 	}
 
-	dbg ("%s - Unknown", __FUNCTION__);
+	dbg ("%s - Unknown", __func__);
 	serial->TI_I2C_Type = DTK_ADDR_SPACE_I2C_TYPE_II;
 	return -ENODEV;
 }
@@ -1063,7 +1063,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 
 	interface = &serial->serial->interface->cur_altsetting->desc;
 	if (!interface) {
-		dev_err (dev, "%s - no interface set, error!\n", __FUNCTION__);
+		dev_err (dev, "%s - no interface set, error!\n", __func__);
 		return -ENODEV;
 	}
 
@@ -1086,12 +1086,11 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 	if (serial->product_info.TiMode == TI_MODE_DOWNLOAD) {
 		struct ti_i2c_desc *rom_desc;
 
-		dbg ("%s - <<<<<<<<<<<<<<<RUNNING IN DOWNLOAD MODE>>>>>>>>>>", __FUNCTION__);
+		dbg("%s - RUNNING IN DOWNLOAD MODE", __func__);
 
 		status = TiValidateI2cImage (serial);
 		if (status) {
-			dbg ("%s - <<<<<<<<<<<<<<<DOWNLOAD MODE -- BAD I2C >>>>>>>>>>",
-			     __FUNCTION__);
+			dbg("%s - DOWNLOAD MODE -- BAD I2C", __func__);
 			return status;
 		}
 		
@@ -1100,7 +1099,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 		 */
 		ti_manuf_desc = kmalloc (sizeof (*ti_manuf_desc), GFP_KERNEL);
 		if (!ti_manuf_desc) {
-			dev_err (dev, "%s - out of memory.\n", __FUNCTION__);
+			dev_err (dev, "%s - out of memory.\n", __func__);
 			return -ENOMEM;
 		}
 		status = TIReadManufDescriptor (serial, (__u8 *)ti_manuf_desc);
@@ -1111,7 +1110,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 
 		// Check version number of ION descriptor
 		if (!ignore_cpu_rev && TI_GET_CPU_REVISION(ti_manuf_desc->CpuRev_BoardRev) < 2) {
-			dbg ( "%s - Wrong CPU Rev %d (Must be 2)", __FUNCTION__, 
+			dbg ( "%s - Wrong CPU Rev %d (Must be 2)", __func__,
 			     TI_GET_CPU_REVISION(ti_manuf_desc->CpuRev_BoardRev));
 			kfree (ti_manuf_desc);
 		   	return -EINVAL;
@@ -1119,7 +1118,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 
 		rom_desc = kmalloc (sizeof (*rom_desc), GFP_KERNEL);
 		if (!rom_desc) {
-			dev_err (dev, "%s - out of memory.\n", __FUNCTION__);
+			dev_err (dev, "%s - out of memory.\n", __func__);
 			kfree (ti_manuf_desc);
 			return -ENOMEM;
 		}
@@ -1129,11 +1128,11 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 			struct ti_i2c_firmware_rec *firmware_version;
 			__u8 record;
 
-			dbg ("%s - Found Type FIRMWARE (Type 2) record", __FUNCTION__);
+			dbg ("%s - Found Type FIRMWARE (Type 2) record", __func__);
 
 			firmware_version = kmalloc (sizeof (*firmware_version), GFP_KERNEL);
 			if (!firmware_version) {
-				dev_err (dev, "%s - out of memory.\n", __FUNCTION__);
+				dev_err (dev, "%s - out of memory.\n", __func__);
 				kfree (rom_desc);
 				kfree (ti_manuf_desc);
 				return -ENOMEM;
@@ -1159,7 +1158,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 					   (OperationalCodeImageVersion.MinorVersion);
 
 			dbg ("%s - >>>Firmware Versions Device %d.%d  Driver %d.%d",
-			     __FUNCTION__,
+			     __func__,
 			     firmware_version->Ver_Major,
 			     firmware_version->Ver_Minor,
 			     OperationalCodeImageVersion.MajorVersion,
@@ -1168,7 +1167,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 			// Check if we have an old version in the I2C and update if necessary
 			if (download_cur_ver != download_new_ver) {
 				dbg ("%s - Update I2C Download from %d.%d to %d.%d",
-				     __FUNCTION__,
+				     __func__,
 				     firmware_version->Ver_Major,
 				     firmware_version->Ver_Minor,
 				     OperationalCodeImageVersion.MajorVersion,
@@ -1210,14 +1209,14 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 				}
 
 				if (record != I2C_DESC_TYPE_FIRMWARE_BLANK) {
-					dev_err (dev, "%s - error resetting device\n", __FUNCTION__);
+					dev_err (dev, "%s - error resetting device\n", __func__);
 					kfree (firmware_version);
 					kfree (rom_desc);
 					kfree (ti_manuf_desc);
 					return -ENODEV;
 				}
 
-				dbg ("%s - HARDWARE RESET", __FUNCTION__);
+				dbg ("%s - HARDWARE RESET", __func__);
 
 				// Reset UMP -- Back to BOOT MODE
 				status = TISendVendorRequestSync (serial->serial->dev,
@@ -1227,7 +1226,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 								NULL,			// TransferBuffer
 								0);			// TransferBufferLength
 
-				dbg ( "%s - HARDWARE RESET return %d", __FUNCTION__, status);
+				dbg ( "%s - HARDWARE RESET return %d", __func__, status);
 
 				/* return an error on purpose. */
 				kfree (firmware_version);
@@ -1245,7 +1244,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 
 			header  = kmalloc (HEADER_SIZE, GFP_KERNEL);
 			if (!header) {
-				dev_err (dev, "%s - out of memory.\n", __FUNCTION__);
+				dev_err (dev, "%s - out of memory.\n", __func__);
 				kfree (rom_desc);
 				kfree (ti_manuf_desc);
 				return -ENOMEM;
@@ -1253,14 +1252,14 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 				
 			vheader = kmalloc (HEADER_SIZE, GFP_KERNEL);
 			if (!vheader) {
-				dev_err (dev, "%s - out of memory.\n", __FUNCTION__);
+				dev_err (dev, "%s - out of memory.\n", __func__);
 				kfree (header);
 				kfree (rom_desc);
 				kfree (ti_manuf_desc);
 				return -ENOMEM;
 			}
 			
-			dbg ("%s - Found Type BLANK FIRMWARE (Type F2) record", __FUNCTION__);
+			dbg ("%s - Found Type BLANK FIRMWARE (Type F2) record", __func__);
 
 			// In order to update the I2C firmware we must change the type 2 record to type 0xF2.
 			// This will force the UMP to come up in Boot Mode.  Then while in boot mode, the driver 
@@ -1298,7 +1297,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 						vheader);
 
 			if (status) {
-				dbg ("%s - can't read header back", __FUNCTION__);
+				dbg ("%s - can't read header back", __func__);
 				kfree (vheader);
 				kfree (header);
 				kfree (rom_desc);
@@ -1306,7 +1305,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 				return status;
 			}
 			if (memcmp(vheader, header, HEADER_SIZE)) {
-				dbg ("%s - write download record failed", __FUNCTION__);
+				dbg ("%s - write download record failed", __func__);
 				kfree (vheader);
 				kfree (header);
 				kfree (rom_desc);
@@ -1317,7 +1316,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 			kfree (vheader);
 			kfree (header);
 
-			dbg ("%s - Start firmware update", __FUNCTION__);
+			dbg ("%s - Start firmware update", __func__);
 
 			// Tell firmware to copy download image into I2C 
 			status = TISendVendorRequestSync (serial->serial->dev,
@@ -1327,9 +1326,9 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 						NULL,			// TransferBuffer
 						0);			// TransferBufferLength
 
-		  	dbg ("%s - Update complete 0x%x", __FUNCTION__, status);
+		  	dbg ("%s - Update complete 0x%x", __func__, status);
 			if (status) {
-				dev_err (dev, "%s - UMPC_COPY_DNLD_TO_I2C failed\n", __FUNCTION__);
+				dev_err (dev, "%s - UMPC_COPY_DNLD_TO_I2C failed\n", __func__);
 				kfree (rom_desc);
 				kfree (ti_manuf_desc);
 				return status;
@@ -1345,8 +1344,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 	/********************************************************************/
 	/* Boot Mode */
 	/********************************************************************/
-	dbg ("%s - <<<<<<<<<<<<<<<RUNNING IN BOOT MODE>>>>>>>>>>>>>>>",
-	     __FUNCTION__);
+	dbg("%s - RUNNING IN BOOT MODE", __func__);
 
 	// Configure the TI device so we can use the BULK pipes for download
 	status = TIConfigureBootDevice (serial->serial->dev);
@@ -1354,7 +1352,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 		return status;
 
 	if (le16_to_cpu(serial->serial->dev->descriptor.idVendor) != USB_VENDOR_ID_ION) {
-		dbg ("%s - VID = 0x%x", __FUNCTION__,
+		dbg ("%s - VID = 0x%x", __func__,
 		     le16_to_cpu(serial->serial->dev->descriptor.idVendor));
 		serial->TI_I2C_Type = DTK_ADDR_SPACE_I2C_TYPE_II;
 		goto StayInBootMode;
@@ -1368,7 +1366,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 
 	// Registry variable set?
 	if (TIStayInBootMode) {
-		dbg ("%s - TIStayInBootMode", __FUNCTION__);
+		dbg ("%s - TIStayInBootMode", __func__);
 		goto StayInBootMode;
 	}
 
@@ -1385,7 +1383,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 		 */
 		ti_manuf_desc = kmalloc (sizeof (*ti_manuf_desc), GFP_KERNEL);
 		if (!ti_manuf_desc) {
-			dev_err (dev, "%s - out of memory.\n", __FUNCTION__);
+			dev_err (dev, "%s - out of memory.\n", __func__);
 			return -ENOMEM;
 		}
 		status = TIReadManufDescriptor (serial, (__u8 *)ti_manuf_desc);
@@ -1396,7 +1394,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 
 		// Check for version 2
 		if (!ignore_cpu_rev && TI_GET_CPU_REVISION(ti_manuf_desc->CpuRev_BoardRev) < 2) {
-			dbg ("%s - Wrong CPU Rev %d (Must be 2)", __FUNCTION__,
+			dbg ("%s - Wrong CPU Rev %d (Must be 2)", __func__,
 			     TI_GET_CPU_REVISION(ti_manuf_desc->CpuRev_BoardRev));
 			kfree (ti_manuf_desc);
 			goto StayInBootMode;
@@ -1420,7 +1418,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 		buffer_size = (((1024 * 16) - 512) + sizeof(struct ti_i2c_image_header));
 		buffer = kmalloc (buffer_size, GFP_KERNEL);
 		if (!buffer) {
-			dev_err (dev, "%s - out of memory\n", __FUNCTION__);
+			dev_err (dev, "%s - out of memory\n", __func__);
 			return -ENOMEM;
 		}
 		
@@ -1440,20 +1438,20 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 		header->CheckSum = cs;
 
 		// Download the operational code 
-		dbg ("%s - Downloading operational code image (TI UMP)", __FUNCTION__);
+		dbg ("%s - Downloading operational code image (TI UMP)", __func__);
 		status = TIDownloadCodeImage (serial, buffer, buffer_size);
 
 		kfree (buffer);
 
 		if (status) {
-	  		dbg ("%s - Error downloading operational code image", __FUNCTION__);
+	  		dbg ("%s - Error downloading operational code image", __func__);
 			return status;
 		}
 
 		// Device will reboot
 		serial->product_info.TiMode = TI_MODE_TRANSITIONING;
 
-  		dbg ("%s - Download successful -- Device rebooting...", __FUNCTION__);
+  		dbg ("%s - Download successful -- Device rebooting...", __func__);
 
 		/* return an error on purpose */
 		return -ENODEV;
@@ -1461,7 +1459,7 @@ static int TIDownloadFirmware (struct edgeport_serial *serial)
 
 StayInBootMode:
 	// Eprom is invalid or blank stay in boot mode
-	dbg ("%s - <<<<<<<<<<<<<<<STAYING IN BOOT MODE>>>>>>>>>>>>", __FUNCTION__);
+	dbg("%s - STAYING IN BOOT MODE", __func__);
 	serial->product_info.TiMode = TI_MODE_BOOT;
 
 	return 0;
@@ -1472,7 +1470,7 @@ static int TISetDtr (struct edgeport_port *port)
 {
 	int port_number = port->port->number - port->port->serial->minor;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 	port->shadow_mcr |= MCR_DTR;
 
 	return TIWriteCommandSync (port->port->serial->dev,
@@ -1487,7 +1485,7 @@ static int TIClearDtr (struct edgeport_port *port)
 {
 	int port_number = port->port->number - port->port->serial->minor;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 	port->shadow_mcr &= ~MCR_DTR;
 
 	return TIWriteCommandSync (port->port->serial->dev,
@@ -1502,7 +1500,7 @@ static int TISetRts (struct edgeport_port *port)
 {
 	int port_number = port->port->number - port->port->serial->minor;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 	port->shadow_mcr |= MCR_RTS;
 
 	return TIWriteCommandSync (port->port->serial->dev,
@@ -1517,7 +1515,7 @@ static int TIClearRts (struct edgeport_port *port)
 {
 	int port_number = port->port->number - port->port->serial->minor;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 	port->shadow_mcr &= ~MCR_RTS;
 
 	return TIWriteCommandSync (port->port->serial->dev,
@@ -1532,7 +1530,7 @@ static int TISetLoopBack (struct edgeport_port *port)
 {
 	int port_number = port->port->number - port->port->serial->minor;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 
 	return TIWriteCommandSync (port->port->serial->dev,
 				UMPC_SET_CLR_LOOPBACK,
@@ -1546,7 +1544,7 @@ static int TIClearLoopBack (struct edgeport_port *port)
 {
 	int port_number = port->port->number - port->port->serial->minor;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 
 	return TIWriteCommandSync (port->port->serial->dev,
 				UMPC_SET_CLR_LOOPBACK,
@@ -1560,7 +1558,7 @@ static int TISetBreak (struct edgeport_port *port)
 {
 	int port_number = port->port->number - port->port->serial->minor;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 
 	return TIWriteCommandSync (port->port->serial->dev,
 				UMPC_SET_CLR_BREAK,
@@ -1574,7 +1572,7 @@ static int TIClearBreak (struct edgeport_port *port)
 {
 	int port_number = port->port->number - port->port->serial->minor;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 
 	return TIWriteCommandSync (port->port->serial->dev,
 				UMPC_SET_CLR_BREAK,
@@ -1588,7 +1586,7 @@ static int TIRestoreMCR (struct edgeport_port *port, __u8 mcr)
 {
 	int status = 0;
 
-	dbg ("%s - %x", __FUNCTION__, mcr);
+	dbg ("%s - %x", __func__, mcr);
 
 	if (mcr & MCR_DTR)
 		status = TISetDtr (port);
@@ -1642,7 +1640,7 @@ static void handle_new_msr (struct edgeport_port *edge_port, __u8 msr)
 	struct async_icount *icount;
 	struct tty_struct *tty;
 
-	dbg ("%s - %02x", __FUNCTION__, msr);
+	dbg ("%s - %02x", __func__, msr);
 
 	if (msr & (EDGEPORT_MSR_DELTA_CTS | EDGEPORT_MSR_DELTA_DSR | EDGEPORT_MSR_DELTA_RI | EDGEPORT_MSR_DELTA_CD)) {
 		icount = &edge_port->icount;
@@ -1681,7 +1679,7 @@ static void handle_new_lsr (struct edgeport_port *edge_port, int lsr_data, __u8 
 	struct async_icount *icount;
 	__u8 new_lsr = (__u8)(lsr & (__u8)(LSR_OVER_ERR | LSR_PAR_ERR | LSR_FRM_ERR | LSR_BREAK));
 
-	dbg ("%s - %02x", __FUNCTION__, new_lsr);
+	dbg ("%s - %02x", __func__, new_lsr);
 
 	edge_port->shadow_lsr = lsr;
 
@@ -1712,7 +1710,7 @@ static void handle_new_lsr (struct edgeport_port *edge_port, int lsr_data, __u8 
 
 static void edge_interrupt_callback (struct urb *urb)
 {
-	struct edgeport_serial *edge_serial = (struct edgeport_serial *)urb->context;
+	struct edgeport_serial *edge_serial = urb->context;
 	struct usb_serial_port *port;
 	struct edgeport_port *edge_port;
 	unsigned char *data = urb->transfer_buffer;
@@ -1724,7 +1722,7 @@ static void edge_interrupt_callback (struct urb *urb)
 	__u8 msr;
 	int status = urb->status;
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	switch (status) {
 	case 0:
@@ -1735,34 +1733,34 @@ static void edge_interrupt_callback (struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	default:
 		dev_err(&urb->dev->dev, "%s - nonzero urb status received: "
-			"%d\n", __FUNCTION__, status);
+			"%d\n", __func__, status);
 		goto exit;
 	}
 
 	if (!length) {
-		dbg ("%s - no data in urb", __FUNCTION__);
+		dbg ("%s - no data in urb", __func__);
 		goto exit;
 	}
 		
-	usb_serial_debug_data(debug, &edge_serial->serial->dev->dev, __FUNCTION__, length, data);
+	usb_serial_debug_data(debug, &edge_serial->serial->dev->dev, __func__, length, data);
 		
 	if (length != 2) {
-		dbg ("%s - expecting packet of size 2, got %d", __FUNCTION__, length);
+		dbg ("%s - expecting packet of size 2, got %d", __func__, length);
 		goto exit;
 	}
 
 	port_number = TIUMP_GET_PORT_FROM_CODE (data[0]);
 	function    = TIUMP_GET_FUNC_FROM_CODE (data[0]);
 	dbg ("%s - port_number %d, function %d, info 0x%x",
-	     __FUNCTION__, port_number, function, data[1]);
+	     __func__, port_number, function, data[1]);
 	port = edge_serial->serial->port[port_number];
 	edge_port = usb_get_serial_port_data(port);
 	if (!edge_port) {
-		dbg ("%s - edge_port not found", __FUNCTION__);
+		dbg ("%s - edge_port not found", __func__);
 		return;
 	}
 	switch (function) {
@@ -1771,12 +1769,12 @@ static void edge_interrupt_callback (struct urb *urb)
 		if (lsr & UMP_UART_LSR_DATA_MASK) {
 			/* Save the LSR event for bulk read completion routine */
 			dbg ("%s - LSR Event Port %u LSR Status = %02x",
-			     __FUNCTION__, port_number, lsr);
+			     __func__, port_number, lsr);
 			edge_port->lsr_event = 1;
 			edge_port->lsr_mask = lsr;
 		} else {
 			dbg ("%s - ===== Port %d LSR Status = %02x ======",
-			     __FUNCTION__, port_number, lsr);
+			     __func__, port_number, lsr);
 			handle_new_lsr (edge_port, 0, lsr, 0);
 		}
 		break;
@@ -1785,13 +1783,13 @@ static void edge_interrupt_callback (struct urb *urb)
 		/* Copy MSR from UMP */
 		msr = data[1];
 		dbg ("%s - ===== Port %u MSR Status = %02x ======\n",
-		     __FUNCTION__, port_number, msr);
+		     __func__, port_number, msr);
 		handle_new_msr (edge_port, msr);
 		break;
 
 	default:
 		dev_err (&urb->dev->dev, "%s - Unknown Interrupt code from UMP %x\n",
-			 __FUNCTION__, data[1]);
+			 __func__, data[1]);
 		break;
 		
 	}
@@ -1800,19 +1798,19 @@ exit:
 	retval = usb_submit_urb (urb, GFP_ATOMIC);
 	if (retval)
 		dev_err (&urb->dev->dev, "%s - usb_submit_urb failed with result %d\n",
-			 __FUNCTION__, retval);
+			 __func__, retval);
 }
 
 static void edge_bulk_in_callback (struct urb *urb)
 {
-	struct edgeport_port *edge_port = (struct edgeport_port *)urb->context;
+	struct edgeport_port *edge_port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	struct tty_struct *tty;
 	int retval = 0;
 	int port_number;
 	int status = urb->status;
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	switch (status) {
 	case 0:
@@ -1823,18 +1821,18 @@ static void edge_bulk_in_callback (struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	default:
 		dev_err (&urb->dev->dev,"%s - nonzero read bulk status received: %d\n",
-		     __FUNCTION__, status);
+		     __func__, status);
 	}
 
 	if (status == -EPIPE)
 		goto exit;
 
 	if (status) {
-		dev_err(&urb->dev->dev,"%s - stopping read!\n", __FUNCTION__);
+		dev_err(&urb->dev->dev,"%s - stopping read!\n", __func__);
 		return;
 	}
 
@@ -1843,7 +1841,7 @@ static void edge_bulk_in_callback (struct urb *urb)
 	if (edge_port->lsr_event) {
 		edge_port->lsr_event = 0;
 		dbg ("%s ===== Port %u LSR Status = %02x, Data = %02x ======",
-		     __FUNCTION__, port_number, edge_port->lsr_mask, *data);
+		     __func__, port_number, edge_port->lsr_mask, *data);
 		handle_new_lsr (edge_port, 1, edge_port->lsr_mask, *data);
 		/* Adjust buffer length/pointer */
 		--urb->actual_length;
@@ -1852,10 +1850,10 @@ static void edge_bulk_in_callback (struct urb *urb)
 
 	tty = edge_port->port->tty;
 	if (tty && urb->actual_length) {
-		usb_serial_debug_data(debug, &edge_port->port->dev, __FUNCTION__, urb->actual_length, data);
+		usb_serial_debug_data(debug, &edge_port->port->dev, __func__, urb->actual_length, data);
 
 		if (edge_port->close_pending) {
-			dbg ("%s - close is pending, dropping data on the floor.", __FUNCTION__);
+			dbg ("%s - close is pending, dropping data on the floor.", __func__);
 		} else {
 			edge_tty_recv(&edge_port->port->dev, tty, data, urb->actual_length);
 		}
@@ -1874,7 +1872,7 @@ exit:
 	spin_unlock(&edge_port->ep_lock);
 	if (retval)
 		dev_err (&urb->dev->dev, "%s - usb_submit_urb failed with result %d\n",
-			 __FUNCTION__, retval);
+			 __func__, retval);
 }
 
 static void edge_tty_recv(struct device *dev, struct tty_struct *tty, unsigned char *data, int length)
@@ -1885,7 +1883,7 @@ static void edge_tty_recv(struct device *dev, struct tty_struct *tty, unsigned c
 		cnt = tty_buffer_request_room(tty, length);
 		if (cnt < length) {
 			dev_err(dev, "%s - dropping data, %d bytes lost\n",
-				__FUNCTION__, length - cnt);
+				__func__, length - cnt);
 			if(cnt == 0)
 				break;
 		}
@@ -1899,11 +1897,11 @@ static void edge_tty_recv(struct device *dev, struct tty_struct *tty, unsigned c
 
 static void edge_bulk_out_callback (struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	int status = urb->status;
 
-	dbg ("%s - port %d", __FUNCTION__, port->number);
+	dbg ("%s - port %d", __func__, port->number);
 
 	edge_port->ep_write_urb_in_use = 0;
 
@@ -1916,11 +1914,11 @@ static void edge_bulk_out_callback (struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	default:
 		dev_err(&urb->dev->dev, "%s - nonzero write bulk status "
-			"received: %d\n", __FUNCTION__, status);
+			"received: %d\n", __func__, status);
 	}
 
 	/* send any buffered data */
@@ -1938,13 +1936,12 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 	u16 open_settings;
 	u8 transaction_timeout;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (edge_port == NULL)
 		return -ENODEV;
 
-	if (port->tty)
-		port->tty->low_latency = low_latency;
+	port->tty->low_latency = low_latency;
 
 	port_number = port->number - port->serial->minor;
 	switch (port_number) {
@@ -1962,7 +1959,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 	}
 
 	dbg ("%s - port_number = %d, uart_base = %04x, dma_address = %04x",
-	     __FUNCTION__, port_number, edge_port->uart_base, edge_port->dma_address);
+	     __func__, port_number, edge_port->uart_base, edge_port->dma_address);
 
 	dev = port->serial->dev;
 
@@ -1973,7 +1970,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 	status = TIClearLoopBack (edge_port);
 	if (status) {
 		dev_err(&port->dev,"%s - cannot send clear loopback command, %d\n",
-			__FUNCTION__, status);
+			__func__, status);
 		return status;
 	}
 	
@@ -1992,7 +1989,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 			     UMP_PIPE_TRANS_TIMEOUT_ENA | 
 			     (transaction_timeout << 2));
 
-	dbg ("%s - Sending UMPC_OPEN_PORT", __FUNCTION__);
+	dbg ("%s - Sending UMPC_OPEN_PORT", __func__);
 
 	/* Tell TI to open and start the port */
 	status = TIWriteCommandSync (dev,
@@ -2002,7 +1999,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 					NULL,
 					0);
 	if (status) {
-		dev_err(&port->dev,"%s - cannot send open command, %d\n", __FUNCTION__, status);
+		dev_err(&port->dev,"%s - cannot send open command, %d\n", __func__, status);
 		return status;
 	}
 
@@ -2014,14 +2011,14 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 					NULL,
 					0);
 	if (status) {
-		dev_err(&port->dev,"%s - cannot send start DMA command, %d\n", __FUNCTION__, status);
+		dev_err(&port->dev,"%s - cannot send start DMA command, %d\n", __func__, status);
 		return status;
 	}
 
 	/* Clear TX and RX buffers in UMP */
 	status = TIPurgeDataSync (port, UMP_PORT_DIR_OUT | UMP_PORT_DIR_IN);
 	if (status) {
-		dev_err(&port->dev,"%s - cannot send clear buffers command, %d\n", __FUNCTION__, status);
+		dev_err(&port->dev,"%s - cannot send clear buffers command, %d\n", __func__, status);
 		return status;
 	}
 
@@ -2033,7 +2030,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 					&edge_port->shadow_msr,			// TransferBuffer
 					1);					// TransferBufferLength
 	if (status) {
- 		dev_err(&port->dev,"%s - cannot send read MSR command, %d\n", __FUNCTION__, status);
+ 		dev_err(&port->dev,"%s - cannot send read MSR command, %d\n", __func__, status);
 		return status;
 	}
 
@@ -2050,7 +2047,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 		/* we are the first port to be opened, let's post the interrupt urb */
 		urb = edge_serial->serial->port[0]->interrupt_in_urb;
 		if (!urb) {
-			dev_err (&port->dev, "%s - no interrupt urb present, exiting\n", __FUNCTION__);
+			dev_err (&port->dev, "%s - no interrupt urb present, exiting\n", __func__);
 			status = -EINVAL;
 			goto release_es_lock;
 		}
@@ -2059,7 +2056,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 		urb->dev = dev;
 		status = usb_submit_urb (urb, GFP_KERNEL);
 		if (status) {
-			dev_err (&port->dev, "%s - usb_submit_urb failed with value %d\n", __FUNCTION__, status);
+			dev_err (&port->dev, "%s - usb_submit_urb failed with value %d\n", __func__, status);
 			goto release_es_lock;
 		}
 	}
@@ -2074,7 +2071,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 	/* start up our bulk read urb */
 	urb = port->read_urb;
 	if (!urb) {
-		dev_err (&port->dev, "%s - no read urb present, exiting\n", __FUNCTION__);
+		dev_err (&port->dev, "%s - no read urb present, exiting\n", __func__);
 		status = -EINVAL;
 		goto unlink_int_urb;
 	}
@@ -2084,13 +2081,13 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 	urb->dev = dev;
 	status = usb_submit_urb (urb, GFP_KERNEL);
 	if (status) {
-		dev_err (&port->dev, "%s - read bulk usb_submit_urb failed with value %d\n", __FUNCTION__, status);
+		dev_err (&port->dev, "%s - read bulk usb_submit_urb failed with value %d\n", __func__, status);
 		goto unlink_int_urb;
 	}
 
 	++edge_serial->num_ports_open;
 
-	dbg("%s - exited", __FUNCTION__);
+	dbg("%s - exited", __func__);
 
 	goto release_es_lock;
 
@@ -2109,7 +2106,7 @@ static void edge_close (struct usb_serial_port *port, struct file *filp)
 	int port_number;
 	int status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 			 
 	edge_serial = usb_get_serial_data(port->serial);
 	edge_port = usb_get_serial_port_data(port);
@@ -2129,7 +2126,7 @@ static void edge_close (struct usb_serial_port *port, struct file *filp)
 
 	/* assuming we can still talk to the device,
 	 * send a close port command to it */
-	dbg("%s - send umpc_close_port", __FUNCTION__);
+	dbg("%s - send umpc_close_port", __func__);
 	port_number = port->number - port->serial->minor;
 	status = TIWriteCommandSync (port->serial->dev,
 				     UMPC_CLOSE_PORT,
@@ -2147,7 +2144,7 @@ static void edge_close (struct usb_serial_port *port, struct file *filp)
 	mutex_unlock(&edge_serial->es_lock);
 	edge_port->close_pending = 0;
 
-	dbg("%s - exited", __FUNCTION__);
+	dbg("%s - exited", __func__);
 }
 
 static int edge_write (struct usb_serial_port *port, const unsigned char *data, int count)
@@ -2155,10 +2152,10 @@ static int edge_write (struct usb_serial_port *port, const unsigned char *data, 
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (count == 0) {
-		dbg("%s - write request of 0 bytes", __FUNCTION__);
+		dbg("%s - write request of 0 bytes", __func__);
 		return 0;
 	}
 
@@ -2184,7 +2181,7 @@ static void edge_send(struct usb_serial_port *port)
 	unsigned long flags;
 
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
 
@@ -2206,7 +2203,7 @@ static void edge_send(struct usb_serial_port *port)
 
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, count, port->write_urb->transfer_buffer);
+	usb_serial_debug_data(debug, &port->dev, __func__, count, port->write_urb->transfer_buffer);
 
 	/* set up our urb */
 	usb_fill_bulk_urb (port->write_urb, port->serial->dev,
@@ -2219,7 +2216,7 @@ static void edge_send(struct usb_serial_port *port)
 	/* send the data out the bulk port */
 	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 	if (result) {
-		dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __FUNCTION__, result);
+		dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __func__, result);
 		edge_port->ep_write_urb_in_use = 0;
 		// TODO: reschedule edge_send
 	} else {
@@ -2240,7 +2237,7 @@ static int edge_write_room (struct usb_serial_port *port)
 	int room = 0;
 	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (edge_port == NULL)
 		return -ENODEV;
@@ -2251,7 +2248,7 @@ static int edge_write_room (struct usb_serial_port *port)
 	room = edge_buf_space_avail(edge_port->ep_out_buf);
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
-	dbg("%s - returns %d", __FUNCTION__, room);
+	dbg("%s - returns %d", __func__, room);
 	return room;
 }
 
@@ -2261,7 +2258,7 @@ static int edge_chars_in_buffer (struct usb_serial_port *port)
 	int chars = 0;
 	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (edge_port == NULL)
 		return -ENODEV;
@@ -2272,7 +2269,7 @@ static int edge_chars_in_buffer (struct usb_serial_port *port)
 	chars = edge_buf_data_avail(edge_port->ep_out_buf);
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
-	dbg ("%s - returns %d", __FUNCTION__, chars);
+	dbg ("%s - returns %d", __func__, chars);
 	return chars;
 }
 
@@ -2282,14 +2279,14 @@ static void edge_throttle (struct usb_serial_port *port)
 	struct tty_struct *tty;
 	int status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (edge_port == NULL)
 		return;
 
 	tty = port->tty;
 	if (!tty) {
-		dbg ("%s - no tty available", __FUNCTION__);
+		dbg ("%s - no tty available", __func__);
 		return;
 	}
 
@@ -2298,7 +2295,7 @@ static void edge_throttle (struct usb_serial_port *port)
 		unsigned char stop_char = STOP_CHAR(tty);
 		status = edge_write (port, &stop_char, 1);
 		if (status <= 0) {
-			dev_err(&port->dev, "%s - failed to write stop character, %d\n", __FUNCTION__, status);
+			dev_err(&port->dev, "%s - failed to write stop character, %d\n", __func__, status);
 		}
 	}
 
@@ -2315,14 +2312,14 @@ static void edge_unthrottle (struct usb_serial_port *port)
 	struct tty_struct *tty;
 	int status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (edge_port == NULL)
 		return;
 
 	tty = port->tty;
 	if (!tty) {
-		dbg ("%s - no tty available", __FUNCTION__);
+		dbg ("%s - no tty available", __func__);
 		return;
 	}
 
@@ -2331,7 +2328,7 @@ static void edge_unthrottle (struct usb_serial_port *port)
 		unsigned char start_char = START_CHAR(tty);
 		status = edge_write (port, &start_char, 1);
 		if (status <= 0) {
-			dev_err(&port->dev, "%s - failed to write start character, %d\n", __FUNCTION__, status);
+			dev_err(&port->dev, "%s - failed to write start character, %d\n", __func__, status);
 		}
 	}
 
@@ -2340,7 +2337,7 @@ static void edge_unthrottle (struct usb_serial_port *port)
 	if (C_CRTSCTS(tty)) {
 		status = restart_read(edge_port);
 		if (status)
-			dev_err(&port->dev, "%s - read bulk usb_submit_urb failed with value %d\n", __FUNCTION__, status);
+			dev_err(&port->dev, "%s - read bulk usb_submit_urb failed with value %d\n", __func__, status);
 	}
 
 }
@@ -2390,13 +2387,13 @@ static void change_port_settings (struct edgeport_port *edge_port, struct ktermi
 	int status;
 	int port_number = edge_port->port->number - edge_port->port->serial->minor;
 
-	dbg("%s - port %d", __FUNCTION__, edge_port->port->number);
+	dbg("%s - port %d", __func__, edge_port->port->number);
 
 	tty = edge_port->port->tty;
 
 	config = kmalloc (sizeof (*config), GFP_KERNEL);
 	if (!config) {
-		dev_err (&edge_port->port->dev, "%s - out of memory\n", __FUNCTION__);
+		dev_err (&edge_port->port->dev, "%s - out of memory\n", __func__);
 		return;
 	}
 
@@ -2412,20 +2409,20 @@ static void change_port_settings (struct edgeport_port *edge_port, struct ktermi
 	switch (cflag & CSIZE) {
 		case CS5:
 			    config->bDataBits = UMP_UART_CHAR5BITS;
-			    dbg ("%s - data bits = 5", __FUNCTION__);
+			    dbg ("%s - data bits = 5", __func__);
 			    break;
 		case CS6:
 			    config->bDataBits = UMP_UART_CHAR6BITS;
-			    dbg ("%s - data bits = 6", __FUNCTION__);
+			    dbg ("%s - data bits = 6", __func__);
 			    break;
 		case CS7:
 			    config->bDataBits = UMP_UART_CHAR7BITS;
-			    dbg ("%s - data bits = 7", __FUNCTION__);
+			    dbg ("%s - data bits = 7", __func__);
 			    break;
 		default:
 		case CS8:
 			    config->bDataBits = UMP_UART_CHAR8BITS;
-			    dbg ("%s - data bits = 8", __FUNCTION__);
+			    dbg ("%s - data bits = 8", __func__);
 			    break;
 	}
 
@@ -2433,32 +2430,32 @@ static void change_port_settings (struct edgeport_port *edge_port, struct ktermi
 		if (cflag & PARODD) {
 			config->wFlags |= UMP_MASK_UART_FLAGS_PARITY;
 			config->bParity = UMP_UART_ODDPARITY;
-			dbg("%s - parity = odd", __FUNCTION__);
+			dbg("%s - parity = odd", __func__);
 		} else {
 			config->wFlags |= UMP_MASK_UART_FLAGS_PARITY;
 			config->bParity = UMP_UART_EVENPARITY;
-			dbg("%s - parity = even", __FUNCTION__);
+			dbg("%s - parity = even", __func__);
 		}
 	} else {
 		config->bParity = UMP_UART_NOPARITY; 	
-		dbg("%s - parity = none", __FUNCTION__);
+		dbg("%s - parity = none", __func__);
 	}
 
 	if (cflag & CSTOPB) {
 		config->bStopBits = UMP_UART_STOPBIT2;
-		dbg("%s - stop bits = 2", __FUNCTION__);
+		dbg("%s - stop bits = 2", __func__);
 	} else {
 		config->bStopBits = UMP_UART_STOPBIT1;
-		dbg("%s - stop bits = 1", __FUNCTION__);
+		dbg("%s - stop bits = 1", __func__);
 	}
 
 	/* figure out the flow control settings */
 	if (cflag & CRTSCTS) {
 		config->wFlags |= UMP_MASK_UART_FLAGS_OUT_X_CTS_FLOW;
 		config->wFlags |= UMP_MASK_UART_FLAGS_RTS_FLOW;
-		dbg("%s - RTS/CTS is enabled", __FUNCTION__);
+		dbg("%s - RTS/CTS is enabled", __func__);
 	} else {
-		dbg("%s - RTS/CTS is disabled", __FUNCTION__);
+		dbg("%s - RTS/CTS is disabled", __func__);
 		tty->hw_stopped = 0;
 		restart_read(edge_port);
 	}
@@ -2472,18 +2469,18 @@ static void change_port_settings (struct edgeport_port *edge_port, struct ktermi
 		if (I_IXOFF(tty)) {
 			config->wFlags |= UMP_MASK_UART_FLAGS_IN_X;
 			dbg ("%s - INBOUND XON/XOFF is enabled, XON = %2x, XOFF = %2x",
-			     __FUNCTION__, config->cXon, config->cXoff);
+			     __func__, config->cXon, config->cXoff);
 		} else {
-			dbg ("%s - INBOUND XON/XOFF is disabled", __FUNCTION__);
+			dbg ("%s - INBOUND XON/XOFF is disabled", __func__);
 		}
 
 		/* if we are implementing OUTBOUND XON/XOFF */
 		if (I_IXON(tty)) {
 			config->wFlags |= UMP_MASK_UART_FLAGS_OUT_X;
 			dbg ("%s - OUTBOUND XON/XOFF is enabled, XON = %2x, XOFF = %2x",
-			     __FUNCTION__, config->cXon, config->cXoff);
+			     __func__, config->cXon, config->cXoff);
 		} else {
-			dbg ("%s - OUTBOUND XON/XOFF is disabled", __FUNCTION__);
+			dbg ("%s - OUTBOUND XON/XOFF is disabled", __func__);
 		}
 	}
 
@@ -2502,7 +2499,7 @@ static void change_port_settings (struct edgeport_port *edge_port, struct ktermi
 
 	/* FIXME: Recompute actual baud from divisor here */
 
-	dbg ("%s - baud rate = %d, wBaudRate = %d", __FUNCTION__, baud, config->wBaudRate);
+	dbg ("%s - baud rate = %d, wBaudRate = %d", __func__, baud, config->wBaudRate);
 
 	dbg ("wBaudRate:   %d", (int)(461550L / config->wBaudRate));
 	dbg ("wFlags:    0x%x", config->wFlags);
@@ -2525,7 +2522,7 @@ static void change_port_settings (struct edgeport_port *edge_port, struct ktermi
 				sizeof(*config));
 	if (status) {
 		dbg ("%s - error %d when trying to write config to device",
-		     __FUNCTION__, status);
+		     __func__, status);
 	}
 
 	kfree (config);
@@ -2541,12 +2538,12 @@ static void edge_set_termios (struct usb_serial_port *port, struct ktermios *old
 
 	cflag = tty->termios->c_cflag;
 
-	dbg("%s - clfag %08x iflag %08x", __FUNCTION__, 
+	dbg("%s - clfag %08x iflag %08x", __func__,
 	    tty->termios->c_cflag, tty->termios->c_iflag);
-	dbg("%s - old clfag %08x old iflag %08x", __FUNCTION__,
+	dbg("%s - old clfag %08x old iflag %08x", __func__,
 	    old_termios->c_cflag, old_termios->c_iflag);
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (edge_port == NULL)
 		return;
@@ -2561,9 +2558,11 @@ static int edge_tiocmset (struct usb_serial_port *port, struct file *file, unsig
 {
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	unsigned int mcr;
+	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
+	spin_lock_irqsave(&edge_port->ep_lock, flags);
 	mcr = edge_port->shadow_mcr;
 	if (set & TIOCM_RTS)
 		mcr |= MCR_RTS;
@@ -2580,6 +2579,7 @@ static int edge_tiocmset (struct usb_serial_port *port, struct file *file, unsig
 		mcr &= ~MCR_LOOPBACK;
 
 	edge_port->shadow_mcr = mcr;
+	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	TIRestoreMCR (edge_port, mcr);
 
@@ -2592,8 +2592,11 @@ static int edge_tiocmget(struct usb_serial_port *port, struct file *file)
 	unsigned int result = 0;
 	unsigned int msr;
 	unsigned int mcr;
+	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
+
+	spin_lock_irqsave(&edge_port->ep_lock, flags);
 
 	msr = edge_port->shadow_msr;
 	mcr = edge_port->shadow_mcr;
@@ -2605,7 +2608,8 @@ static int edge_tiocmget(struct usb_serial_port *port, struct file *file)
 		  | ((msr & EDGEPORT_MSR_DSR)	? TIOCM_DSR: 0);  /* 0x100 */
 
 
-	dbg("%s -- %x", __FUNCTION__, result);
+	dbg("%s -- %x", __func__, result);
+	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	return result;
 }
@@ -2644,30 +2648,30 @@ static int edge_ioctl (struct usb_serial_port *port, struct file *file, unsigned
 	struct async_icount cnow;
 	struct async_icount cprev;
 
-	dbg("%s - port %d, cmd = 0x%x", __FUNCTION__, port->number, cmd);
+	dbg("%s - port %d, cmd = 0x%x", __func__, port->number, cmd);
 
 	switch (cmd) {
 		case TIOCINQ:
-			dbg("%s - (%d) TIOCINQ", __FUNCTION__, port->number);
+			dbg("%s - (%d) TIOCINQ", __func__, port->number);
 //			return get_number_bytes_avail(edge_port, (unsigned int *) arg);
 			break;
 
 		case TIOCSERGETLSR:
-			dbg("%s - (%d) TIOCSERGETLSR", __FUNCTION__, port->number);
+			dbg("%s - (%d) TIOCSERGETLSR", __func__, port->number);
 //			return get_lsr_info(edge_port, (unsigned int *) arg);
 			break;
 
 		case TIOCGSERIAL:
-			dbg("%s - (%d) TIOCGSERIAL", __FUNCTION__, port->number);
+			dbg("%s - (%d) TIOCGSERIAL", __func__, port->number);
 			return get_serial_info(edge_port, (struct serial_struct __user *) arg);
 			break;
 
 		case TIOCSSERIAL:
-			dbg("%s - (%d) TIOCSSERIAL", __FUNCTION__, port->number);
+			dbg("%s - (%d) TIOCSSERIAL", __func__, port->number);
 			break;
 
 		case TIOCMIWAIT:
-			dbg("%s - (%d) TIOCMIWAIT", __FUNCTION__, port->number);
+			dbg("%s - (%d) TIOCMIWAIT", __func__, port->number);
 			cprev = edge_port->icount;
 			while (1) {
 				interruptible_sleep_on(&edge_port->delta_msr_wait);
@@ -2690,7 +2694,7 @@ static int edge_ioctl (struct usb_serial_port *port, struct file *file, unsigned
 			break;
 
 		case TIOCGICOUNT:
-			dbg ("%s - (%d) TIOCGICOUNT RX=%d, TX=%d", __FUNCTION__,
+			dbg ("%s - (%d) TIOCGICOUNT RX=%d, TX=%d", __func__,
 			     port->number, edge_port->icount.rx, edge_port->icount.tx);
 			if (copy_to_user((void __user *)arg, &edge_port->icount, sizeof(edge_port->icount)))
 				return -EFAULT;
@@ -2705,7 +2709,7 @@ static void edge_break (struct usb_serial_port *port, int break_state)
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	int status;
 
-	dbg ("%s - state = %d", __FUNCTION__, break_state);
+	dbg ("%s - state = %d", __func__, break_state);
 
 	/* chase the port close */
 	TIChasePort (edge_port, 0, 0);
@@ -2717,7 +2721,7 @@ static void edge_break (struct usb_serial_port *port, int break_state)
 	}
 	if (status) {
 		dbg ("%s - error %d sending break set/clear command.",
-		     __FUNCTION__, status);
+		     __func__, status);
 	}
 }
 
@@ -2734,7 +2738,7 @@ static int edge_startup (struct usb_serial *serial)
 	/* create our private serial structure */
 	edge_serial = kzalloc(sizeof(struct edgeport_serial), GFP_KERNEL);
 	if (edge_serial == NULL) {
-		dev_err(&serial->dev->dev, "%s - Out of memory\n", __FUNCTION__);
+		dev_err(&serial->dev->dev, "%s - Out of memory\n", __func__);
 		return -ENOMEM;
 	}
 	mutex_init(&edge_serial->es_lock);
@@ -2751,13 +2755,13 @@ static int edge_startup (struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i) {
 		edge_port = kzalloc(sizeof(struct edgeport_port), GFP_KERNEL);
 		if (edge_port == NULL) {
-			dev_err(&serial->dev->dev, "%s - Out of memory\n", __FUNCTION__);
+			dev_err(&serial->dev->dev, "%s - Out of memory\n", __func__);
 			goto cleanup;
 		}
 		spin_lock_init(&edge_port->ep_lock);
 		edge_port->ep_out_buf = edge_buf_alloc(EDGE_OUT_BUF_SIZE);
 		if (edge_port->ep_out_buf == NULL) {
-			dev_err(&serial->dev->dev, "%s - Out of memory\n", __FUNCTION__);
+			dev_err(&serial->dev->dev, "%s - Out of memory\n", __func__);
 			kfree(edge_port);
 			goto cleanup;
 		}
@@ -2786,7 +2790,7 @@ static void edge_shutdown (struct usb_serial *serial)
 	int i;
 	struct edgeport_port *edge_port;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 
 	for (i = 0; i < serial->num_ports; ++i) {
 		edge_port = usb_get_serial_port_data(serial->port[i]);
@@ -2818,12 +2822,12 @@ static ssize_t store_uart_mode(struct device *dev,
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	unsigned int v = simple_strtoul(valbuf, NULL, 0);
 
-	dbg("%s: setting uart_mode = %d", __FUNCTION__, v);
+	dbg("%s: setting uart_mode = %d", __func__, v);
 
 	if (v < 256)
 		edge_port->bUartMode = v;
 	else
-		dev_err(dev, "%s - uart_mode %d is invalid\n", __FUNCTION__, v);
+		dev_err(dev, "%s - uart_mode %d is invalid\n", __func__, v);
 
 	return count;
 }
@@ -3028,9 +3032,6 @@ static struct usb_serial_driver edgeport_1port_device = {
 	.description		= "Edgeport TI 1 port adapter",
 	.usb_driver		= &io_driver,
 	.id_table		= edgeport_1port_id_table,
-	.num_interrupt_in	= 1,
-	.num_bulk_in		= 1,
-	.num_bulk_out		= 1,
 	.num_ports		= 1,
 	.open			= edge_open,
 	.close			= edge_close,
@@ -3060,9 +3061,6 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.description		= "Edgeport TI 2 port adapter",
 	.usb_driver		= &io_driver,
 	.id_table		= edgeport_2port_id_table,
-	.num_interrupt_in	= 1,
-	.num_bulk_in		= 2,
-	.num_bulk_out		= 2,
 	.num_ports		= 2,
 	.open			= edge_open,
 	.close			= edge_close,

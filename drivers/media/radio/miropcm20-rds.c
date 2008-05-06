@@ -19,7 +19,7 @@
 #include "miropcm20-rds-core.h"
 
 static char * text_buffer;
-static int rds_users = 0;
+static int rds_users;
 
 
 static int rds_f_open(struct inode *in, struct file *fi)

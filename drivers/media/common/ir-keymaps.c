@@ -212,6 +212,51 @@ IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_pixelview);
 
+/*
+   Mauro Carvalho Chehab <mchehab@infradead.org>
+   present on PV MPEG 8000GT
+ */
+IR_KEYTAB_TYPE ir_codes_pixelview_new[IR_KEYTAB_SIZE] = {
+	[0x3c] = KEY_PAUSE,		/* Timeshift */
+	[0x12] = KEY_POWER,
+
+	[0x3d] = KEY_1,
+	[0x38] = KEY_2,
+	[0x18] = KEY_3,
+	[0x35] = KEY_4,
+	[0x39] = KEY_5,
+	[0x15] = KEY_6,
+	[0x36] = KEY_7,
+	[0x3a] = KEY_8,
+	[0x1e] = KEY_9,
+	[0x3e] = KEY_0,
+
+	[0x1c] = KEY_AGAIN,		/* LOOP	*/
+	[0x3f] = KEY_MEDIA,		/* Source */
+	[0x1f] = KEY_LAST,		/* +100 */
+	[0x1b] = KEY_MUTE,
+
+	[0x17] = KEY_CHANNELDOWN,
+	[0x16] = KEY_CHANNELUP,
+	[0x10] = KEY_VOLUMEUP,
+	[0x14] = KEY_VOLUMEDOWN,
+	[0x13] = KEY_ZOOM,
+
+	[0x19] = KEY_SHUFFLE,		/* SNAPSHOT */
+	[0x1a] = KEY_SEARCH,		/* scan */
+
+	[0x37] = KEY_REWIND,		/* << */
+	[0x32] = KEY_RECORD,		/* o (red) */
+	[0x33] = KEY_FORWARD,		/* >> */
+	[0x11] = KEY_STOP,		/* square */
+	[0x3b] = KEY_PLAY,		/* > */
+	[0x30] = KEY_PLAYPAUSE,		/* || */
+
+	[0x31] = KEY_TV,
+	[0x34] = KEY_RADIO,
+};
+EXPORT_SYMBOL_GPL(ir_codes_pixelview_new);
+
 IR_KEYTAB_TYPE ir_codes_nebula[IR_KEYTAB_SIZE] = {
 	[ 0x00 ] = KEY_0,
 	[ 0x01 ] = KEY_1,
@@ -726,7 +771,11 @@ IR_KEYTAB_TYPE ir_codes_flyvideo[IR_KEYTAB_SIZE] = {
 	[ 0x12 ] = KEY_CHANNELUP,    // Channel +
 	[ 0x13 ] = KEY_CHANNELDOWN,  // Channel -
 	[ 0x06 ] = KEY_AGAIN,        // Recall
-	[ 0x10 ] = KEY_ENTER,      // Enter
+	[ 0x10 ] = KEY_ENTER,        // Enter
+
+	[ 0x19 ] = KEY_BACK,         // Rewind  ( <<< )
+	[ 0x1f ] = KEY_FORWARD,      // Forward ( >>> )
+	[ 0x0a ] = KEY_ANGLE,        // (no label, may be used as the PAUSE button)
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_flyvideo);
@@ -1157,7 +1206,8 @@ EXPORT_SYMBOL_GPL(ir_codes_purpletv);
 
 /* Mapping for the 28 key remote control as seen at
    http://www.sednacomputer.com/photo/cardbus-tv.jpg
-   Pavel Mihaylov <bin@bash.info> */
+   Pavel Mihaylov <bin@bash.info>
+   Also for the remote bundled with Kozumi KTV-01C card */
 IR_KEYTAB_TYPE ir_codes_pctv_sedna[IR_KEYTAB_SIZE] = {
 	[ 0x00 ] = KEY_0,
 	[ 0x01 ] = KEY_1,
@@ -1188,6 +1238,11 @@ IR_KEYTAB_TYPE ir_codes_pctv_sedna[IR_KEYTAB_SIZE] = {
 	[ 0x1c ] = KEY_RADIO,          /* FM Radio */
 	[ 0x1d ] = KEY_RECORD,
 	[ 0x1e ] = KEY_PAUSE,
+	/* additional codes for Kozumi's remote */
+	[0x14] = KEY_INFO,        /* OSD */
+	[0x16] = KEY_OK,          /* OK */
+	[0x17] = KEY_DIGITS,      /* Plus */
+	[0x1f] = KEY_PLAY,        /* Play */
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_pctv_sedna);
@@ -1988,6 +2043,76 @@ IR_KEYTAB_TYPE ir_codes_behold[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_behold);
 
+/* Beholder Intl. Ltd. 2008
+ * Dmitry Belimov d.belimov@google.com
+ * Keytable is used by BeholdTV Columbus
+ * The "ascii-art picture" below (in comments, first row
+ * is the keycode in hex, and subsequent row(s) shows
+ * the button labels (several variants when appropriate)
+ * helps to descide which keycodes to assign to the buttons.
+ */
+IR_KEYTAB_TYPE ir_codes_behold_columbus[IR_KEYTAB_SIZE] = {
+
+	/*  0x13   0x11   0x1C   0x12  *
+	 *  Mute  Source  TV/FM  Power *
+	 *                             */
+
+	[0x13] = KEY_MUTE,
+	[0x11] = KEY_PROPS,
+	[0x1C] = KEY_TUNER,	/* KEY_TV/KEY_RADIO */
+	[0x12] = KEY_POWER,
+
+	/*  0x01    0x02    0x03  0x0D    *
+	 *   1       2       3   Stereo   *
+	 *                        	  *
+	 *  0x04    0x05    0x06  0x19    *
+	 *   4       5       6   Snapshot *
+	 *                        	  *
+	 *  0x07    0x08    0x09  0x10    *
+	 *   7       8       9    Zoom 	  *
+	 *                                */
+	[0x01] = KEY_1,
+	[0x02] = KEY_2,
+	[0x03] = KEY_3,
+	[0x0D] = KEY_SETUP,	  /* Setup key */
+	[0x04] = KEY_4,
+	[0x05] = KEY_5,
+	[0x06] = KEY_6,
+	[0x19] = KEY_BOOKMARKS, /* Snapshot key */
+	[0x07] = KEY_7,
+	[0x08] = KEY_8,
+	[0x09] = KEY_9,
+	[0x10] = KEY_ZOOM,
+
+	/*  0x0A    0x00    0x0B       0x0C   *
+	 * RECALL    0    ChannelUp  VolumeUp *
+	 *                                    */
+	[0x0A] = KEY_AGAIN,
+	[0x00] = KEY_0,
+	[0x0B] = KEY_CHANNELUP,
+	[0x0C] = KEY_VOLUMEUP,
+
+	/*   0x1B      0x1D      0x15        0x18     *
+	 * Timeshift  Record  ChannelDown  VolumeDown *
+	 *                                            */
+
+	[0x1B] = KEY_REWIND,
+	[0x1D] = KEY_RECORD,
+	[0x15] = KEY_CHANNELDOWN,
+	[0x18] = KEY_VOLUMEDOWN,
+
+	/*   0x0E   0x1E     0x0F     0x1A  *
+	 *   Stop   Pause  Previouse  Next  *
+	 *                                  */
+
+	[0x0E] = KEY_STOP,
+	[0x1E] = KEY_PAUSE,
+	[0x0F] = KEY_PREVIOUS,
+	[0x1A] = KEY_NEXT,
+
+};
+EXPORT_SYMBOL_GPL(ir_codes_behold_columbus);
+
 /*
  * Remote control for the Genius TVGO A11MCE
  * Adrian Pardini <pardo.bsso@gmail.com>
@@ -2033,3 +2158,46 @@ IR_KEYTAB_TYPE ir_codes_genius_tvgo_a11mce[IR_KEYTAB_SIZE] = {
 	[0x50] = KEY_BLUE,
 };
 EXPORT_SYMBOL_GPL(ir_codes_genius_tvgo_a11mce);
+
+/*
+ * Remote control for Powercolor Real Angel 330
+ * Daniel Fraga <fragabr@gmail.com>
+ */
+IR_KEYTAB_TYPE ir_codes_powercolor_real_angel[IR_KEYTAB_SIZE] = {
+	[0x38] = KEY_SWITCHVIDEOMODE,	/* switch inputs */
+	[0x0c] = KEY_MEDIA,		/* Turn ON/OFF App */
+	[0x00] = KEY_0,
+	[0x01] = KEY_1,
+	[0x02] = KEY_2,
+	[0x03] = KEY_3,
+	[0x04] = KEY_4,
+	[0x05] = KEY_5,
+	[0x06] = KEY_6,
+	[0x07] = KEY_7,
+	[0x08] = KEY_8,
+	[0x09] = KEY_9,
+	[0x0a] = KEY_DIGITS,		/* single, double, tripple digit */
+	[0x29] = KEY_PREVIOUS,		/* previous channel */
+	[0x12] = KEY_BRIGHTNESSUP,
+	[0x13] = KEY_BRIGHTNESSDOWN,
+	[0x2b] = KEY_MODE,		/* stereo/mono */
+	[0x2c] = KEY_TEXT,		/* teletext */
+	[0x20] = KEY_UP,		/* channel up */
+	[0x21] = KEY_DOWN,		/* channel down */
+	[0x10] = KEY_RIGHT,		/* volume up */
+	[0x11] = KEY_LEFT,		/* volume down */
+	[0x0d] = KEY_MUTE,
+	[0x1f] = KEY_RECORD,
+	[0x17] = KEY_PLAY,
+	[0x16] = KEY_PAUSE,
+	[0x0b] = KEY_STOP,
+	[0x27] = KEY_FASTFORWARD,
+	[0x26] = KEY_REWIND,
+	[0x1e] = KEY_SEARCH,		/* autoscan */
+	[0x0e] = KEY_SHUFFLE,		/* snapshot */
+	[0x2d] = KEY_SETUP,
+	[0x0f] = KEY_SCREEN,		/* full screen */
+	[0x14] = KEY_RADIO,		/* FM radio */
+	[0x25] = KEY_POWER,		/* power */
+};
+EXPORT_SYMBOL_GPL(ir_codes_powercolor_real_angel);

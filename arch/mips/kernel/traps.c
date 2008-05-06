@@ -22,6 +22,7 @@
 #include <linux/kallsyms.h>
 #include <linux/bootmem.h>
 #include <linux/interrupt.h>
+#include <linux/ptrace.h>
 
 #include <asm/bootinfo.h>
 #include <asm/branch.h>
@@ -80,19 +81,22 @@ void (*board_bind_eic_interrupt)(int irq, int regset);
 
 static void show_raw_backtrace(unsigned long reg29)
 {
-	unsigned long *sp = (unsigned long *)reg29;
+	unsigned long *sp = (unsigned long *)(reg29 & ~3);
 	unsigned long addr;
 
 	printk("Call Trace:");
 #ifdef CONFIG_KALLSYMS
 	printk("\n");
 #endif
-	while (!kstack_end(sp)) {
-		addr = *sp++;
-		if (__kernel_text_address(addr))
-			print_ip_sym(addr);
+#define IS_KVA01(a) ((((unsigned int)a) & 0xc0000000) == 0x80000000)
+	if (IS_KVA01(sp)) {
+		while (!kstack_end(sp)) {
+			addr = *sp++;
+			if (__kernel_text_address(addr))
+				print_ip_sym(addr);
+		}
+		printk("\n");
 	}
-	printk("\n");
 }
 
 #ifdef CONFIG_KALLSYMS
@@ -192,16 +196,19 @@ EXPORT_SYMBOL(dump_stack);
 static void show_code(unsigned int __user *pc)
 {
 	long i;
+	unsigned short __user *pc16 = NULL;
 
 	printk("\nCode:");
 
+	if ((unsigned long)pc & 1)
+		pc16 = (unsigned short __user *)((unsigned long)pc & ~1);
 	for(i = -3 ; i < 6 ; i++) {
 		unsigned int insn;
-		if (__get_user(insn, pc + i)) {
+		if (pc16 ? __get_user(insn, pc16 + i) : __get_user(insn, pc + i)) {
 			printk(" (Bad address in epc)\n");
 			break;
 		}
-		printk("%c%08x%c", (i?' ':'<'), insn, (i?' ':'>'));
+		printk("%c%0*x%c", (i?' ':'<'), pc16 ? 4 : 8, insn, (i?' ':'>'));
 	}
 }
 
@@ -311,10 +318,21 @@ void show_regs(struct pt_regs *regs)
 
 void show_registers(const struct pt_regs *regs)
 {
+	const int field = 2 * sizeof(unsigned long);
+
 	__show_regs(regs);
 	print_modules();
-	printk("Process %s (pid: %d, threadinfo=%p, task=%p)\n",
-	        current->comm, task_pid_nr(current), current_thread_info(), current);
+	printk("Process %s (pid: %d, threadinfo=%p, task=%p, tls=%0*lx)\n",
+	       current->comm, current->pid, current_thread_info(), current,
+	      field, current_thread_info()->tp_value);
+	if (cpu_has_userlocal) {
+		unsigned long tls;
+
+		tls = read_c0_userlocal();
+		if (tls != current_thread_info()->tp_value)
+			printk("*HwTLS: %0*lx\n", field, tls);
+	}
+
 	show_stacktrace(current, regs);
 	show_code((unsigned int __user *) regs->cp0_epc);
 	printk("\n");
@@ -657,10 +675,46 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 	force_sig_info(SIGFPE, &info, current);
 }
 
+static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
+	const char *str)
+{
+	siginfo_t info;
+	char b[40];
+
+	/*
+	 * A short test says that IRIX 5.3 sends SIGTRAP for all trap
+	 * insns, even for trap and break codes that indicate arithmetic
+	 * failures.  Weird ...
+	 * But should we continue the brokenness???  --macro
+	 */
+	switch (code) {
+	case BRK_OVERFLOW:
+	case BRK_DIVZERO:
+		scnprintf(b, sizeof(b), "%s instruction in kernel code", str);
+		die_if_kernel(b, regs);
+		if (code == BRK_DIVZERO)
+			info.si_code = FPE_INTDIV;
+		else
+			info.si_code = FPE_INTOVF;
+		info.si_signo = SIGFPE;
+		info.si_errno = 0;
+		info.si_addr = (void __user *) regs->cp0_epc;
+		force_sig_info(SIGFPE, &info, current);
+		break;
+	case BRK_BUG:
+		die_if_kernel("Kernel bug detected", regs);
+		force_sig(SIGTRAP, current);
+		break;
+	default:
+		scnprintf(b, sizeof(b), "%s instruction in kernel code", str);
+		die_if_kernel(b, regs);
+		force_sig(SIGTRAP, current);
+	}
+}
+
 asmlinkage void do_bp(struct pt_regs *regs)
 {
 	unsigned int opcode, bcode;
-	siginfo_t info;
 
 	if (__get_user(opcode, (unsigned int __user *) exception_epc(regs)))
 		goto out_sigsegv;
@@ -672,35 +726,10 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	 * We handle both cases with a simple heuristics.  --macro
 	 */
 	bcode = ((opcode >> 6) & ((1 << 20) - 1));
-	if (bcode < (1 << 10))
-		bcode <<= 10;
+	if (bcode >= (1 << 10))
+		bcode >>= 10;
 
-	/*
-	 * (A short test says that IRIX 5.3 sends SIGTRAP for all break
-	 * insns, even for break codes that indicate arithmetic failures.
-	 * Weird ...)
-	 * But should we continue the brokenness???  --macro
-	 */
-	switch (bcode) {
-	case BRK_OVERFLOW << 10:
-	case BRK_DIVZERO << 10:
-		die_if_kernel("Break instruction in kernel code", regs);
-		if (bcode == (BRK_DIVZERO << 10))
-			info.si_code = FPE_INTDIV;
-		else
-			info.si_code = FPE_INTOVF;
-		info.si_signo = SIGFPE;
-		info.si_errno = 0;
-		info.si_addr = (void __user *) regs->cp0_epc;
-		force_sig_info(SIGFPE, &info, current);
-		break;
-	case BRK_BUG:
-		die("Kernel bug detected", regs);
-		break;
-	default:
-		die_if_kernel("Break instruction in kernel code", regs);
-		force_sig(SIGTRAP, current);
-	}
+	do_trap_or_bp(regs, bcode, "Break");
 	return;
 
 out_sigsegv:
@@ -710,7 +739,6 @@ out_sigsegv:
 asmlinkage void do_tr(struct pt_regs *regs)
 {
 	unsigned int opcode, tcode = 0;
-	siginfo_t info;
 
 	if (__get_user(opcode, (unsigned int __user *) exception_epc(regs)))
 		goto out_sigsegv;
@@ -719,32 +747,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 	if (!(opcode & OPCODE))
 		tcode = ((opcode >> 6) & ((1 << 10) - 1));
 
-	/*
-	 * (A short test says that IRIX 5.3 sends SIGTRAP for all trap
-	 * insns, even for trap codes that indicate arithmetic failures.
-	 * Weird ...)
-	 * But should we continue the brokenness???  --macro
-	 */
-	switch (tcode) {
-	case BRK_OVERFLOW:
-	case BRK_DIVZERO:
-		die_if_kernel("Trap instruction in kernel code", regs);
-		if (tcode == BRK_DIVZERO)
-			info.si_code = FPE_INTDIV;
-		else
-			info.si_code = FPE_INTOVF;
-		info.si_signo = SIGFPE;
-		info.si_errno = 0;
-		info.si_addr = (void __user *) regs->cp0_epc;
-		force_sig_info(SIGFPE, &info, current);
-		break;
-	case BRK_BUG:
-		die("Kernel bug detected", regs);
-		break;
-	default:
-		die_if_kernel("Trap instruction in kernel code", regs);
-		force_sig(SIGTRAP, current);
-	}
+	do_trap_or_bp(regs, tcode, "Trap");
 	return;
 
 out_sigsegv:
@@ -985,6 +988,21 @@ asmlinkage void do_reserved(struct pt_regs *regs)
 	      (regs->cp0_cause & 0x7f) >> 2);
 }
 
+static int __initdata l1parity = 1;
+static int __init nol1parity(char *s)
+{
+	l1parity = 0;
+	return 1;
+}
+__setup("nol1par", nol1parity);
+static int __initdata l2parity = 1;
+static int __init nol2parity(char *s)
+{
+	l2parity = 0;
+	return 1;
+}
+__setup("nol2par", nol2parity);
+
 /*
  * Some MIPS CPUs can enable/disable for cache parity detection, but do
  * it different ways.
@@ -994,6 +1012,62 @@ static inline void parity_protection_init(void)
 	switch (current_cpu_type()) {
 	case CPU_24K:
 	case CPU_34K:
+	case CPU_74K:
+	case CPU_1004K:
+		{
+#define ERRCTL_PE	0x80000000
+#define ERRCTL_L2P	0x00800000
+			unsigned long errctl;
+			unsigned int l1parity_present, l2parity_present;
+
+			errctl = read_c0_ecc();
+			errctl &= ~(ERRCTL_PE|ERRCTL_L2P);
+
+			/* probe L1 parity support */
+			write_c0_ecc(errctl | ERRCTL_PE);
+			back_to_back_c0_hazard();
+			l1parity_present = (read_c0_ecc() & ERRCTL_PE);
+
+			/* probe L2 parity support */
+			write_c0_ecc(errctl|ERRCTL_L2P);
+			back_to_back_c0_hazard();
+			l2parity_present = (read_c0_ecc() & ERRCTL_L2P);
+
+			if (l1parity_present && l2parity_present) {
+				if (l1parity)
+					errctl |= ERRCTL_PE;
+				if (l1parity ^ l2parity)
+					errctl |= ERRCTL_L2P;
+			} else if (l1parity_present) {
+				if (l1parity)
+					errctl |= ERRCTL_PE;
+			} else if (l2parity_present) {
+				if (l2parity)
+					errctl |= ERRCTL_L2P;
+			} else {
+				/* No parity available */
+			}
+
+			printk(KERN_INFO "Writing ErrCtl register=%08lx\n", errctl);
+
+			write_c0_ecc(errctl);
+			back_to_back_c0_hazard();
+			errctl = read_c0_ecc();
+			printk(KERN_INFO "Readback ErrCtl register=%08lx\n", errctl);
+
+			if (l1parity_present)
+				printk(KERN_INFO "Cache parity protection %sabled\n",
+				       (errctl & ERRCTL_PE) ? "en" : "dis");
+
+			if (l2parity_present) {
+				if (l1parity_present && l1parity)
+					errctl ^= ERRCTL_L2P;
+				printk(KERN_INFO "L2 cache parity protection %sabled\n",
+				       (errctl & ERRCTL_L2P) ? "en" : "dis");
+			}
+		}
+		break;
+
 	case CPU_5KC:
 		write_c0_ecc(0x80000000);
 		back_to_back_c0_hazard();
@@ -1306,6 +1380,17 @@ int cp0_compare_irq;
 int cp0_perfcount_irq;
 EXPORT_SYMBOL_GPL(cp0_perfcount_irq);
 
+static int __cpuinitdata noulri;
+
+static int __init ulri_disable(char *s)
+{
+	pr_info("Disabling ulri\n");
+	noulri = 1;
+
+	return 1;
+}
+__setup("noulri", ulri_disable);
+
 void __cpuinit per_cpu_trap_init(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -1342,16 +1427,14 @@ void __cpuinit per_cpu_trap_init(void)
 	change_c0_status(ST0_CU|ST0_MX|ST0_RE|ST0_FR|ST0_BEV|ST0_TS|ST0_KX|ST0_SX|ST0_UX,
 			 status_set);
 
-#ifdef CONFIG_CPU_MIPSR2
 	if (cpu_has_mips_r2) {
 		unsigned int enable = 0x0000000f;
 
-		if (cpu_has_userlocal)
+		if (!noulri && cpu_has_userlocal)
 			enable |= (1 << 29);
 
 		write_c0_hwrena(enable);
 	}
-#endif
 
 #ifdef CONFIG_MIPS_MT_SMTC
 	if (!secondaryTC) {

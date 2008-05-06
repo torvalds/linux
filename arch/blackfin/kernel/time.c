@@ -6,9 +6,10 @@
  * Created:
  * Description:  This file contains the bfin-specific time handling details.
  *               Most of the stuff is located in the machine specific files.
+ *		 FIXME: (This file is subject for removal)
  *
  * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
+ *               Copyright 2004-2008 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -35,6 +36,7 @@
 #include <linux/irq.h>
 
 #include <asm/blackfin.h>
+#include <asm/time.h>
 
 /* This is an NTP setting */
 #define	TICK_SIZE (tick_nsec / 1000)
@@ -46,21 +48,6 @@ static struct irqaction bfin_timer_irq = {
 	.name = "BFIN Timer Tick",
 	.flags = IRQF_DISABLED
 };
-
-/*
- * The way that the Blackfin core timer works is:
- *  - CCLK is divided by a programmable 8-bit pre-scaler (TSCALE)
- *  - Every time TSCALE ticks, a 32bit is counted down (TCOUNT)
- *
- * If you take the fastest clock (1ns, or 1GHz to make the math work easier)
- *    10ms is 10,000,000 clock ticks, which fits easy into a 32-bit counter
- *    (32 bit counter is 4,294,967,296ns or 4.2 seconds) so, we don't need
- *    to use TSCALE, and program it to zero (which is pass CCLK through).
- *    If you feel like using it, try to keep HZ * TIMESCALE to some
- *    value that divides easy (like power of 2).
- */
-
-#define TIME_SCALE 1
 
 static void
 time_sched_init(irq_handler_t timer_routine)

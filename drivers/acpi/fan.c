@@ -192,17 +192,13 @@ static int acpi_fan_add_fs(struct acpi_device *device)
 	}
 
 	/* 'status' [R/W] */
-	entry = create_proc_entry(ACPI_FAN_FILE_STATE,
-				  S_IFREG | S_IRUGO | S_IWUSR,
-				  acpi_device_dir(device));
+	entry = proc_create_data(ACPI_FAN_FILE_STATE,
+				 S_IFREG | S_IRUGO | S_IWUSR,
+				 acpi_device_dir(device),
+				 &acpi_fan_state_ops,
+				 device);
 	if (!entry)
 		return -ENODEV;
-	else {
-		entry->proc_fops = &acpi_fan_state_ops;
-		entry->data = device;
-		entry->owner = THIS_MODULE;
-	}
-
 	return 0;
 }
 
@@ -260,24 +256,23 @@ static int acpi_fan_add(struct acpi_device *device)
 		result = PTR_ERR(cdev);
 		goto end;
 	}
-	if (cdev) {
-		printk(KERN_INFO PREFIX
-			"%s is registered as cooling_device%d\n",
-			device->dev.bus_id, cdev->id);
 
-		acpi_driver_data(device) = cdev;
-		result = sysfs_create_link(&device->dev.kobj,
-					   &cdev->device.kobj,
-					   "thermal_cooling");
-		if (result)
-			return result;
+	printk(KERN_INFO PREFIX
+		"%s is registered as cooling_device%d\n",
+		device->dev.bus_id, cdev->id);
 
-		result = sysfs_create_link(&cdev->device.kobj,
-					   &device->dev.kobj,
-					   "device");
-		if (result)
-			return result;
-	}
+	acpi_driver_data(device) = cdev;
+	result = sysfs_create_link(&device->dev.kobj,
+				   &cdev->device.kobj,
+				   "thermal_cooling");
+	if (result)
+		printk(KERN_ERR PREFIX "Create sysfs link\n");
+
+	result = sysfs_create_link(&cdev->device.kobj,
+				   &device->dev.kobj,
+				   "device");
+	if (result)
+		printk(KERN_ERR PREFIX "Create sysfs link\n");
 
 	result = acpi_fan_add_fs(device);
 	if (result)

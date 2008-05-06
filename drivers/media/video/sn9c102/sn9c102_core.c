@@ -464,9 +464,9 @@ sn9c102_i2c_try_read(struct sn9c102_device* cam,
 }
 
 
-int
-sn9c102_i2c_try_write(struct sn9c102_device* cam,
-		      const struct sn9c102_sensor* sensor, u8 address, u8 value)
+static int sn9c102_i2c_try_write(struct sn9c102_device* cam,
+				 const struct sn9c102_sensor* sensor,
+				 u8 address, u8 value)
 {
 	return sn9c102_i2c_try_raw_write(cam, sensor, 3,
 					 sensor->i2c_slave_id, address,
@@ -528,7 +528,7 @@ sn9c102_find_sof_header(struct sn9c102_device* cam, void* mem, size_t len)
 
 		/* Search for the SOF marker (fixed part) in the header */
 		for (j = 0, b=cam->sof.bytesread; j+b < sizeof(marker); j++) {
-			if (unlikely(i+j) == len)
+			if (unlikely(i+j == len))
 				return NULL;
 			if (*(m+i+j) == marker[cam->sof.bytesread]) {
 				cam->sof.header[cam->sof.bytesread] = *(m+i+j);
@@ -3224,7 +3224,9 @@ static const struct file_operations sn9c102_fops = {
 	.open = sn9c102_open,
 	.release = sn9c102_release,
 	.ioctl = sn9c102_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.read = sn9c102_read,
 	.poll = sn9c102_poll,
 	.mmap = sn9c102_mmap,
@@ -3239,7 +3241,7 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct sn9c102_device* cam;
-	static unsigned int dev_nr = 0;
+	static unsigned int dev_nr;
 	unsigned int i;
 	int err = 0, r;
 

@@ -790,8 +790,8 @@ pci_free_consistent (struct pci_dev *pdev, size_t size, void *cpu_addr,
 
 void __iomem *pci_iomap (struct pci_dev *dev, int bar, unsigned long max)
 {
-	unsigned long start = pci_resource_start (dev, bar);
-	unsigned long len = pci_resource_len (dev, bar);
+	resource_size_t start = pci_resource_start (dev, bar);
+	resource_size_t len = pci_resource_len (dev, bar);
 
 	if (!start || len == 0)
 		return 0;

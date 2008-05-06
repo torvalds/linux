@@ -146,23 +146,23 @@ do {						\
 
 # define local_irq_save(x)					\
 do {								\
-	unsigned long psr;					\
+	unsigned long __psr;					\
 								\
-	__local_irq_save(psr);					\
-	if (psr & IA64_PSR_I)					\
+	__local_irq_save(__psr);				\
+	if (__psr & IA64_PSR_I)					\
 		__save_ip();					\
-	(x) = psr;						\
+	(x) = __psr;						\
 } while (0)
 
-# define local_irq_disable()	do { unsigned long x; local_irq_save(x); } while (0)
+# define local_irq_disable()	do { unsigned long __x; local_irq_save(__x); } while (0)
 
 # define local_irq_restore(x)					\
 do {								\
-	unsigned long old_psr, psr = (x);			\
+	unsigned long __old_psr, __psr = (x);			\
 								\
-	local_save_flags(old_psr);				\
-	__local_irq_restore(psr);				\
-	if ((old_psr & IA64_PSR_I) && !(psr & IA64_PSR_I))	\
+	local_save_flags(__old_psr);				\
+	__local_irq_restore(__psr);				\
+	if ((__old_psr & IA64_PSR_I) && !(__psr & IA64_PSR_I))	\
 		__save_ip();					\
 } while (0)
 

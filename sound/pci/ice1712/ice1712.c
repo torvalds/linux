@@ -1297,11 +1297,14 @@ static void snd_ice1712_update_volume(struct snd_ice1712 *ice, int index)
 static int snd_ice1712_pro_mixer_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-	int index = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id) + kcontrol->private_value;
+	int priv_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id) +
+		kcontrol->private_value;
 	
 	spin_lock_irq(&ice->reg_lock);
-	ucontrol->value.integer.value[0] = !((ice->pro_volumes[index] >> 15) & 1);
-	ucontrol->value.integer.value[1] = !((ice->pro_volumes[index] >> 31) & 1);
+	ucontrol->value.integer.value[0] =
+		!((ice->pro_volumes[priv_idx] >> 15) & 1);
+	ucontrol->value.integer.value[1] =
+		!((ice->pro_volumes[priv_idx] >> 31) & 1);
 	spin_unlock_irq(&ice->reg_lock);
 	return 0;
 }
@@ -1309,16 +1312,17 @@ static int snd_ice1712_pro_mixer_switch_get(struct snd_kcontrol *kcontrol, struc
 static int snd_ice1712_pro_mixer_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-	int index = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id) + kcontrol->private_value;
+	int priv_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id) +
+		kcontrol->private_value;
 	unsigned int nval, change;
 
 	nval = (ucontrol->value.integer.value[0] ? 0 : 0x00008000) |
 	       (ucontrol->value.integer.value[1] ? 0 : 0x80000000);
 	spin_lock_irq(&ice->reg_lock);
-	nval |= ice->pro_volumes[index] & ~0x80008000;
-	change = nval != ice->pro_volumes[index];
-	ice->pro_volumes[index] = nval;
-	snd_ice1712_update_volume(ice, index);
+	nval |= ice->pro_volumes[priv_idx] & ~0x80008000;
+	change = nval != ice->pro_volumes[priv_idx];
+	ice->pro_volumes[priv_idx] = nval;
+	snd_ice1712_update_volume(ice, priv_idx);
 	spin_unlock_irq(&ice->reg_lock);
 	return change;
 }
@@ -1335,11 +1339,14 @@ static int snd_ice1712_pro_mixer_volume_info(struct snd_kcontrol *kcontrol, stru
 static int snd_ice1712_pro_mixer_volume_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-	int index = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id) + kcontrol->private_value;
+	int priv_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id) +
+		kcontrol->private_value;
 	
 	spin_lock_irq(&ice->reg_lock);
-	ucontrol->value.integer.value[0] = (ice->pro_volumes[index] >> 0) & 127;
-	ucontrol->value.integer.value[1] = (ice->pro_volumes[index] >> 16) & 127;
+	ucontrol->value.integer.value[0] =
+		(ice->pro_volumes[priv_idx] >> 0) & 127;
+	ucontrol->value.integer.value[1] =
+		(ice->pro_volumes[priv_idx] >> 16) & 127;
 	spin_unlock_irq(&ice->reg_lock);
 	return 0;
 }
@@ -1347,16 +1354,17 @@ static int snd_ice1712_pro_mixer_volume_get(struct snd_kcontrol *kcontrol, struc
 static int snd_ice1712_pro_mixer_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-	int index = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id) + kcontrol->private_value;
+	int priv_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id) +
+		kcontrol->private_value;
 	unsigned int nval, change;
 
 	nval = (ucontrol->value.integer.value[0] & 127) |
 	       ((ucontrol->value.integer.value[1] & 127) << 16);
 	spin_lock_irq(&ice->reg_lock);
-	nval |= ice->pro_volumes[index] & ~0x007f007f;
-	change = nval != ice->pro_volumes[index];
-	ice->pro_volumes[index] = nval;
-	snd_ice1712_update_volume(ice, index);
+	nval |= ice->pro_volumes[priv_idx] & ~0x007f007f;
+	change = nval != ice->pro_volumes[priv_idx];
+	ice->pro_volumes[priv_idx] = nval;
+	snd_ice1712_update_volume(ice, priv_idx);
 	spin_unlock_irq(&ice->reg_lock);
 	return change;
 }
@@ -2482,10 +2490,9 @@ static int snd_ice1712_free(struct snd_ice1712 *ice)
 	outb(0xff, ICEREG(ice, IRQMASK));
 	/* --- */
       __hw_end:
-	if (ice->irq >= 0) {
-		synchronize_irq(ice->irq);
+	if (ice->irq >= 0)
 		free_irq(ice->irq, ice);
-	}
+
 	if (ice->port)
 		pci_release_regions(ice->pci);
 	snd_ice1712_akm4xxx_free(ice);

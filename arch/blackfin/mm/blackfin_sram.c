@@ -401,7 +401,7 @@ EXPORT_SYMBOL(l1_data_sram_free);
 
 void *l1_inst_sram_alloc(size_t size)
 {
-#if L1_DATA_A_LENGTH != 0
+#if L1_CODE_LENGTH != 0
 	unsigned flags;
 	void *addr;
 

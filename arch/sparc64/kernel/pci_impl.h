@@ -148,6 +148,8 @@ struct pci_pbm_info {
 	struct pci_bus			*pci_bus;
 	void (*scan_bus)(struct pci_pbm_info *);
 	struct pci_ops			*pci_ops;
+
+	int				numa_node;
 };
 
 struct pci_controller_info {
@@ -161,20 +163,9 @@ extern struct pci_pbm_info *pci_pbm_root;
 extern int pci_num_pbms;
 
 /* PCI bus scanning and fixup support. */
-extern void pci_iommu_table_init(struct iommu *iommu, int tsbsize,
-				 u32 dma_offset, u32 dma_addr_mask);
 extern void pci_get_pbm_props(struct pci_pbm_info *pbm);
 extern struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm);
 extern void pci_determine_mem_io_space(struct pci_pbm_info *pbm);
-
-extern int pci_host_bridge_read_pci_cfg(struct pci_bus *bus_dev,
-					unsigned int devfn,
-					int where, int size,
-					u32 *value);
-extern int pci_host_bridge_write_pci_cfg(struct pci_bus *bus_dev,
-					 unsigned int devfn,
-					 int where, int size,
-					 u32 value);
 
 /* Error reporting support. */
 extern void pci_scan_for_target_abort(struct pci_pbm_info *, struct pci_bus *);

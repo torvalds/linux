@@ -131,7 +131,6 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_SYSCALL_EMU		5	/* syscall emulation active */
 #define TIF_SYSCALL_AUDIT	6	/* syscall auditing active */
 #define TIF_SECCOMP		7	/* secure computing */
-#define TIF_RESTORE_SIGMASK	8	/* restore signal mask in do_signal() */
 #define TIF_HRTICK_RESCHED	9	/* reprogram hrtick timer */
 #define TIF_MEMDIE		16
 #define TIF_DEBUG		17	/* uses debug registers */
@@ -151,7 +150,6 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_SYSCALL_EMU	(1 << TIF_SYSCALL_EMU)
 #define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
 #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
-#define _TIF_RESTORE_SIGMASK	(1 << TIF_RESTORE_SIGMASK)
 #define _TIF_HRTICK_RESCHED	(1 << TIF_HRTICK_RESCHED)
 #define _TIF_DEBUG		(1 << TIF_DEBUG)
 #define _TIF_IO_BITMAP		(1 << TIF_IO_BITMAP)
@@ -188,8 +186,19 @@ static inline struct thread_info *current_thread_info(void)
 					   this quantum (SMP) */
 #define TS_POLLING		0x0002	/* True if in idle loop
 					   and not sleeping */
+#define TS_RESTORE_SIGMASK	0x0004	/* restore signal mask in do_signal() */
 
 #define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
+
+#ifndef __ASSEMBLY__
+#define HAVE_SET_RESTORE_SIGMASK	1
+static inline void set_restore_sigmask(void)
+{
+	struct thread_info *ti = current_thread_info();
+	ti->status |= TS_RESTORE_SIGMASK;
+	set_bit(TIF_SIGPENDING, &ti->flags);
+}
+#endif	/* !__ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
 

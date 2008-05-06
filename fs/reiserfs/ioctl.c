@@ -12,8 +12,6 @@
 #include <linux/smp_lock.h>
 #include <linux/compat.h>
 
-static int reiserfs_unpack(struct inode *inode, struct file *filp);
-
 /*
 ** reiserfs_ioctl - handler for ioctl for inode
 ** supported commands:
@@ -159,7 +157,7 @@ int reiserfs_prepare_write(struct file *f, struct page *page,
 ** Function try to convert tail from direct item into indirect.
 ** It set up nopack attribute in the REISERFS_I(inode)->nopack
 */
-static int reiserfs_unpack(struct inode *inode, struct file *filp)
+int reiserfs_unpack(struct inode *inode, struct file *filp)
 {
 	int retval = 0;
 	int index;

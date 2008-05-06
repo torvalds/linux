@@ -9,6 +9,8 @@
  *
  * Author: Pavel Emelianov <xemul@openvz.org>
  *
+ * See Documentation/controllers/resource_counter.txt for more
+ * info about what this counter is.
  */
 
 #include <linux/cgroup.h>
@@ -25,6 +27,10 @@ struct res_counter {
 	 */
 	unsigned long long usage;
 	/*
+	 * the maximal value of the usage from the counter creation
+	 */
+	unsigned long long max_usage;
+	/*
 	 * the limit that usage cannot exceed
 	 */
 	unsigned long long limit;
@@ -39,8 +45,9 @@ struct res_counter {
 	spinlock_t lock;
 };
 
-/*
+/**
  * Helpers to interact with userspace
+ * res_counter_read_u64() - returns the value of the specified member.
  * res_counter_read/_write - put/get the specified fields from the
  * res_counter struct to/from the user
  *
@@ -50,6 +57,8 @@ struct res_counter {
  * @nbytes:  its size...
  * @pos:     and the offset.
  */
+
+u64 res_counter_read_u64(struct res_counter *counter, int member);
 
 ssize_t res_counter_read(struct res_counter *counter, int member,
 		const char __user *buf, size_t nbytes, loff_t *pos,
@@ -64,6 +73,7 @@ ssize_t res_counter_write(struct res_counter *counter, int member,
 
 enum {
 	RES_USAGE,
+	RES_MAX_USAGE,
 	RES_LIMIT,
 	RES_FAILCNT,
 };
@@ -124,4 +134,21 @@ static inline bool res_counter_check_under_limit(struct res_counter *cnt)
 	return ret;
 }
 
+static inline void res_counter_reset_max(struct res_counter *cnt)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&cnt->lock, flags);
+	cnt->max_usage = cnt->usage;
+	spin_unlock_irqrestore(&cnt->lock, flags);
+}
+
+static inline void res_counter_reset_failcnt(struct res_counter *cnt)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&cnt->lock, flags);
+	cnt->failcnt = 0;
+	spin_unlock_irqrestore(&cnt->lock, flags);
+}
 #endif

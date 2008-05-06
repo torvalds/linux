@@ -557,9 +557,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		goto err_uar;
 	MLX4_INIT_DOORBELL_LOCK(&ibdev->uar_lock);
 
-	INIT_LIST_HEAD(&ibdev->pgdir_list);
-	mutex_init(&ibdev->pgdir_mutex);
-
 	ibdev->dev = dev;
 
 	strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);

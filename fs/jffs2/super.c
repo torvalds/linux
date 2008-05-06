@@ -31,11 +31,12 @@ static struct kmem_cache *jffs2_inode_cachep;
 
 static struct inode *jffs2_alloc_inode(struct super_block *sb)
 {
-	struct jffs2_inode_info *ei;
-	ei = (struct jffs2_inode_info *)kmem_cache_alloc(jffs2_inode_cachep, GFP_KERNEL);
-	if (!ei)
+	struct jffs2_inode_info *f;
+
+	f = kmem_cache_alloc(jffs2_inode_cachep, GFP_KERNEL);
+	if (!f)
 		return NULL;
-	return &ei->vfs_inode;
+	return &f->vfs_inode;
 }
 
 static void jffs2_destroy_inode(struct inode *inode)
@@ -45,19 +46,19 @@ static void jffs2_destroy_inode(struct inode *inode)
 
 static void jffs2_i_init_once(struct kmem_cache *cachep, void *foo)
 {
-	struct jffs2_inode_info *ei = (struct jffs2_inode_info *) foo;
+	struct jffs2_inode_info *f = foo;
 
-	init_MUTEX(&ei->sem);
-	inode_init_once(&ei->vfs_inode);
+	mutex_init(&f->sem);
+	inode_init_once(&f->vfs_inode);
 }
 
 static int jffs2_sync_fs(struct super_block *sb, int wait)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 
-	down(&c->alloc_sem);
+	mutex_lock(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
-	up(&c->alloc_sem);
+	mutex_unlock(&c->alloc_sem);
 	return 0;
 }
 
@@ -95,8 +96,8 @@ static int jffs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* Initialize JFFS2 superblock locks, the further initialization will
 	 * be done later */
-	init_MUTEX(&c->alloc_sem);
-	init_MUTEX(&c->erase_free_sem);
+	mutex_init(&c->alloc_sem);
+	mutex_init(&c->erase_free_sem);
 	init_waitqueue_head(&c->erase_wait);
 	init_waitqueue_head(&c->inocache_wq);
 	spin_lock_init(&c->erase_completion_lock);
@@ -125,9 +126,9 @@ static void jffs2_put_super (struct super_block *sb)
 
 	D2(printk(KERN_DEBUG "jffs2: jffs2_put_super()\n"));
 
-	down(&c->alloc_sem);
+	mutex_lock(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
-	up(&c->alloc_sem);
+	mutex_unlock(&c->alloc_sem);
 
 	jffs2_sum_exit(c);
 

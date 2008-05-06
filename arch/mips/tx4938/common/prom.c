@@ -13,13 +13,8 @@
  */
 
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/sched.h>
-#include <linux/bootmem.h>
-
-#include <asm/addrspace.h>
-#include <asm/bootinfo.h>
-#include <asm/tx4938/tx4938.h>
+#include <linux/types.h>
+#include <linux/io.h>
 
 static unsigned int __init
 tx4938_process_sdccr(u64 * addr)
@@ -35,7 +30,7 @@ tx4938_process_sdccr(u64 * addr)
 	unsigned int bc = 4;
 	unsigned int msize = 0;
 
-	val = (*((vu64 *) (addr)));
+	val = ____raw_readq((void __iomem *)addr);
 
 	/* MVMCP -- need #defs for these bits masks */
 	sdccr_ce = ((val & (1 << 10)) >> 10);

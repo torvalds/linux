@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,6 +107,7 @@ union acpi_operand_object *acpi_ut_create_internal_object_dbg(char *module_name,
 	switch (type) {
 	case ACPI_TYPE_REGION:
 	case ACPI_TYPE_BUFFER_FIELD:
+	case ACPI_TYPE_LOCAL_BANK_FIELD:
 
 		/* These types require a secondary object */
 
@@ -469,9 +470,8 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_POWER:
 
-		/*
-		 * No extra data for these types
-		 */
+		/* No extra data for these types */
+
 		break;
 
 	case ACPI_TYPE_LOCAL_REFERENCE:

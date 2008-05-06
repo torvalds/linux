@@ -98,7 +98,7 @@ static int max6900_i2c_read_regs(struct i2c_client *client, u8 *buf)
 	rc = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 	if (rc != ARRAY_SIZE(msgs)) {
 		dev_err(&client->dev, "%s: register read failed\n",
-			__FUNCTION__);
+			__func__);
 		return -EIO;
 	}
 	return 0;
@@ -150,7 +150,7 @@ static int max6900_i2c_write_regs(struct i2c_client *client, u8 const *buf)
 
 write_failed:
 	dev_err(&client->dev, "%s: register write failed\n",
-		__FUNCTION__);
+		__func__);
 	return -EIO;
 }
 
@@ -214,7 +214,7 @@ static int max6900_i2c_clear_write_protect(struct i2c_client *client)
 	rc = i2c_smbus_write_byte_data (client, MAX6900_REG_CONTROL_WRITE, 0);
 	if (rc < 0) {
 		dev_err(&client->dev, "%s: control register write failed\n",
-			__FUNCTION__);
+			__func__);
 		return -EIO;
 	}
 	return 0;

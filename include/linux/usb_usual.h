@@ -85,6 +85,7 @@ enum { US_DO_ALL_FLAGS };
 #define US_SC_LOCKABLE	0x07		/* Password-protected */
 
 #define US_SC_ISD200    0xf0		/* ISD200 ATA */
+#define US_SC_CYP_ATACB 0xf1		/* Cypress ATACB */
 #define US_SC_DEVICE	0xff		/* Use device's value */
 
 /* Protocols */

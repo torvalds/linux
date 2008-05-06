@@ -116,7 +116,7 @@ s32 e1000e_phy_reset_dsp(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_read_phy_reg_mdic - Read MDI control register
+ *  e1000e_read_phy_reg_mdic - Read MDI control register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to be read
  *  @data: pointer to the read data
@@ -124,7 +124,7 @@ s32 e1000e_phy_reset_dsp(struct e1000_hw *hw)
  *  Reads the MDI control register in the PHY at offset and stores the
  *  information read to data.
  **/
-static s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
+s32 e1000e_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	u32 i, mdic = 0;
@@ -150,7 +150,7 @@ static s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 	 * Increasing the time out as testing showed failures with
 	 * the lower time out
 	 */
-	for (i = 0; i < 64; i++) {
+	for (i = 0; i < (E1000_GEN_POLL_TIMEOUT * 3); i++) {
 		udelay(50);
 		mdic = er32(MDIC);
 		if (mdic & E1000_MDIC_READY)
@@ -170,14 +170,14 @@ static s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 }
 
 /**
- *  e1000_write_phy_reg_mdic - Write MDI control register
+ *  e1000e_write_phy_reg_mdic - Write MDI control register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to write to
  *  @data: data to write to register at offset
  *
  *  Writes data to MDI control register in the PHY at offset.
  **/
-static s32 e1000_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
+s32 e1000e_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	u32 i, mdic = 0;
@@ -199,15 +199,23 @@ static s32 e1000_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 
 	ew32(MDIC, mdic);
 
-	/* Poll the ready bit to see if the MDI read completed */
-	for (i = 0; i < E1000_GEN_POLL_TIMEOUT; i++) {
-		udelay(5);
+	/*
+	 * Poll the ready bit to see if the MDI read completed
+	 * Increasing the time out as testing showed failures with
+	 * the lower time out
+	 */
+	for (i = 0; i < (E1000_GEN_POLL_TIMEOUT * 3); i++) {
+		udelay(50);
 		mdic = er32(MDIC);
 		if (mdic & E1000_MDIC_READY)
 			break;
 	}
 	if (!(mdic & E1000_MDIC_READY)) {
 		hw_dbg(hw, "MDI Write did not complete\n");
+		return -E1000_ERR_PHY;
+	}
+	if (mdic & E1000_MDIC_ERROR) {
+		hw_dbg(hw, "MDI Error\n");
 		return -E1000_ERR_PHY;
 	}
 
@@ -232,9 +240,8 @@ s32 e1000e_read_phy_reg_m88(struct e1000_hw *hw, u32 offset, u16 *data)
 	if (ret_val)
 		return ret_val;
 
-	ret_val = e1000_read_phy_reg_mdic(hw,
-					  MAX_PHY_REG_ADDRESS & offset,
-					  data);
+	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
+					   data);
 
 	hw->phy.ops.release_phy(hw);
 
@@ -258,9 +265,8 @@ s32 e1000e_write_phy_reg_m88(struct e1000_hw *hw, u32 offset, u16 data)
 	if (ret_val)
 		return ret_val;
 
-	ret_val = e1000_write_phy_reg_mdic(hw,
-					   MAX_PHY_REG_ADDRESS & offset,
-					   data);
+	ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
+					    data);
 
 	hw->phy.ops.release_phy(hw);
 
@@ -286,18 +292,17 @@ s32 e1000e_read_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 *data)
 		return ret_val;
 
 	if (offset > MAX_PHY_MULTI_PAGE_REG) {
-		ret_val = e1000_write_phy_reg_mdic(hw,
-						   IGP01E1000_PHY_PAGE_SELECT,
-						   (u16)offset);
+		ret_val = e1000e_write_phy_reg_mdic(hw,
+						    IGP01E1000_PHY_PAGE_SELECT,
+						    (u16)offset);
 		if (ret_val) {
 			hw->phy.ops.release_phy(hw);
 			return ret_val;
 		}
 	}
 
-	ret_val = e1000_read_phy_reg_mdic(hw,
-					  MAX_PHY_REG_ADDRESS & offset,
-					  data);
+	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
+					   data);
 
 	hw->phy.ops.release_phy(hw);
 
@@ -322,18 +327,17 @@ s32 e1000e_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data)
 		return ret_val;
 
 	if (offset > MAX_PHY_MULTI_PAGE_REG) {
-		ret_val = e1000_write_phy_reg_mdic(hw,
-						   IGP01E1000_PHY_PAGE_SELECT,
-						   (u16)offset);
+		ret_val = e1000e_write_phy_reg_mdic(hw,
+						    IGP01E1000_PHY_PAGE_SELECT,
+						    (u16)offset);
 		if (ret_val) {
 			hw->phy.ops.release_phy(hw);
 			return ret_val;
 		}
 	}
 
-	ret_val = e1000_write_phy_reg_mdic(hw,
-					   MAX_PHY_REG_ADDRESS & offset,
-					   data);
+	ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
+					    data);
 
 	hw->phy.ops.release_phy(hw);
 
@@ -420,7 +424,9 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	phy_data |= M88E1000_PSCR_ASSERT_CRS_ON_TX;
+	/* For newer PHYs this bit is downshift enable */
+	if (phy->type == e1000_phy_m88)
+		phy_data |= M88E1000_PSCR_ASSERT_CRS_ON_TX;
 
 	/*
 	 * Options:
@@ -463,7 +469,7 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	if (phy->revision < 4) {
+	if ((phy->type == e1000_phy_m88) && (phy->revision < 4)) {
 		/*
 		 * Force TX_CLK in the Extended PHY Specific Control Register
 		 * to 25MHz clock.
@@ -518,8 +524,11 @@ s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw)
 		return ret_val;
 	}
 
-	/* Wait 15ms for MAC to configure PHY from NVM settings. */
-	msleep(15);
+	/*
+	 * Wait 100ms for MAC to configure PHY from NVM settings, to avoid
+	 * timeout issues when LFS is enabled.
+	 */
+	msleep(100);
 
 	/* disable lplu d0 during driver init */
 	ret_val = e1000_set_d0_lplu_state(hw, 0);
@@ -1152,9 +1161,7 @@ s32 e1000e_set_d3_lplu_state(struct e1000_hw *hw, bool active)
 
 	if (!active) {
 		data &= ~IGP02E1000_PM_D3_LPLU;
-		ret_val = e1e_wphy(hw,
-					     IGP02E1000_PHY_POWER_MGMT,
-					     data);
+		ret_val = e1e_wphy(hw, IGP02E1000_PHY_POWER_MGMT, data);
 		if (ret_val)
 			return ret_val;
 		/*

@@ -121,7 +121,8 @@ struct resource *pcmcia_find_mem_region(u_long base, u_long num, u_long align,
 void release_resource_db(struct pcmcia_socket *s);
 
 /* In socket_sysfs.c */
-extern struct class_interface pccard_sysfs_interface;
+extern int pccard_sysfs_add_socket(struct device *dev);
+extern void pccard_sysfs_remove_socket(struct device *dev);
 
 /* In cs.c */
 extern struct rw_semaphore pcmcia_socket_list_rwsem;

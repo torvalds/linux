@@ -35,7 +35,7 @@
 
 */
 
-static unsigned int i2c_scan = 0;
+static unsigned int i2c_scan;
 module_param(i2c_scan, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 

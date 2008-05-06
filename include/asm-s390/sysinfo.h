@@ -11,6 +11,9 @@
  *		 Christian Borntraeger <borntraeger@de.ibm.com>
  */
 
+#ifndef __ASM_S390_SYSINFO_H
+#define __ASM_S390_SYSINFO_H
+
 struct sysinfo_1_1_1 {
 	char reserved_0[32];
 	char manufacturer[16];
@@ -114,3 +117,5 @@ static inline int stsi(void *sysinfo, int fc, int sel1, int sel2)
 		: "cc", "memory");
 	return r0;
 }
+
+#endif /* __ASM_S390_SYSINFO_H */

@@ -1925,7 +1925,9 @@ static const struct file_operations zc0301_fops = {
 	.open =    zc0301_open,
 	.release = zc0301_release,
 	.ioctl =   zc0301_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.read =    zc0301_read,
 	.poll =    zc0301_poll,
 	.mmap =    zc0301_mmap,
@@ -1939,7 +1941,7 @@ zc0301_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct zc0301_device* cam;
-	static unsigned int dev_nr = 0;
+	static unsigned int dev_nr;
 	unsigned int i;
 	int err = 0;
 

@@ -90,6 +90,50 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
 		rom_r->start = rom_r->end = rom_r->flags = 0;
 }
 
+static int __devinit can_skip_ioresource_align(const struct dmi_system_id *d)
+{
+	pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
+	printk(KERN_INFO "PCI: %s detected, can skip ISA alignment\n", d->ident);
+	return 0;
+}
+
+static struct dmi_system_id can_skip_pciprobe_dmi_table[] __devinitdata = {
+/*
+ * Systems where PCI IO resource ISA alignment can be skipped
+ * when the ISA enable bit in the bridge control is not set
+ */
+	{
+		.callback = can_skip_ioresource_align,
+		.ident = "IBM System x3800",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "x3800"),
+		},
+	},
+	{
+		.callback = can_skip_ioresource_align,
+		.ident = "IBM System x3850",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "x3850"),
+		},
+	},
+	{
+		.callback = can_skip_ioresource_align,
+		.ident = "IBM System x3950",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "x3950"),
+		},
+	},
+	{}
+};
+
+void __init dmi_check_skip_isa_align(void)
+{
+	dmi_check_system(can_skip_pciprobe_dmi_table);
+}
+
 /*
  *  Called after each bus is probed, but before its children
  *  are examined.
@@ -318,12 +362,15 @@ static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
 	{}
 };
 
+void __init dmi_check_pciprobe(void)
+{
+	dmi_check_system(pciprobe_dmi_table);
+}
+
 struct pci_bus * __devinit pcibios_scan_root(int busnum)
 {
 	struct pci_bus *bus = NULL;
 	struct pci_sysdata *sd;
-
-	dmi_check_system(pciprobe_dmi_table);
 
 	while ((bus = pci_find_next_bus(bus)) != NULL) {
 		if (bus->number == busnum) {
@@ -342,9 +389,14 @@ struct pci_bus * __devinit pcibios_scan_root(int busnum)
 		return NULL;
 	}
 
-	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busnum);
+	sd->node = get_mp_bus_to_node(busnum);
 
-	return pci_scan_bus_parented(NULL, busnum, &pci_root_ops, sd);
+	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busnum);
+	bus = pci_scan_bus_parented(NULL, busnum, &pci_root_ops, sd);
+	if (!bus)
+		kfree(sd);
+
+	return bus;
 }
 
 extern u8 pci_cache_line_size;
@@ -420,6 +472,10 @@ char * __devinit  pcibios_setup(char *str)
 		pci_probe &= ~PCI_PROBE_MMCONF;
 		return NULL;
 	}
+	else if (!strcmp(str, "check_enable_amd_mmconf")) {
+		pci_probe |= PCI_CHECK_ENABLE_AMD_MMCONF;
+		return NULL;
+	}
 #endif
 	else if (!strcmp(str, "noacpi")) {
 		acpi_noirq_set();
@@ -453,6 +509,9 @@ char * __devinit  pcibios_setup(char *str)
 	} else if (!strcmp(str, "routeirq")) {
 		pci_routeirq = 1;
 		return NULL;
+	} else if (!strcmp(str, "skip_isa_align")) {
+		pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
+		return NULL;
 	}
 	return str;
 }
@@ -480,7 +539,7 @@ void pcibios_disable_device (struct pci_dev *dev)
 		pcibios_disable_irq(dev);
 }
 
-struct pci_bus *__devinit pci_scan_bus_with_sysdata(int busno)
+struct pci_bus * __devinit pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
 {
 	struct pci_bus *bus = NULL;
 	struct pci_sysdata *sd;
@@ -495,10 +554,15 @@ struct pci_bus *__devinit pci_scan_bus_with_sysdata(int busno)
 		printk(KERN_ERR "PCI: OOM, skipping PCI bus %02x\n", busno);
 		return NULL;
 	}
-	sd->node = -1;
-	bus = pci_scan_bus(busno, &pci_root_ops, sd);
+	sd->node = node;
+	bus = pci_scan_bus(busno, ops, sd);
 	if (!bus)
 		kfree(sd);
 
 	return bus;
+}
+
+struct pci_bus * __devinit pci_scan_bus_with_sysdata(int busno)
+{
+	return pci_scan_bus_on_node(busno, &pci_root_ops, -1);
 }

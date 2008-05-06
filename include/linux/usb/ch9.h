@@ -66,8 +66,8 @@
 #define USB_RECIP_ENDPOINT		0x02
 #define USB_RECIP_OTHER			0x03
 /* From Wireless USB 1.0 */
-#define USB_RECIP_PORT 			0x04
-#define USB_RECIP_RPIPE 		0x05
+#define USB_RECIP_PORT			0x04
+#define USB_RECIP_RPIPE		0x05
 
 /*
  * Standard requests, for the bRequest field of a SETUP packet.
@@ -102,10 +102,16 @@
 #define USB_REQ_LOOPBACK_DATA_READ	0x16
 #define USB_REQ_SET_INTERFACE_DS	0x17
 
+/* The Link Power Mangement (LPM) ECN defines USB_REQ_TEST_AND_SET command,
+ * used by hubs to put ports into a new L1 suspend state, except that it
+ * forgot to define its number ...
+ */
+
 /*
  * USB feature flags are written using USB_REQ_{CLEAR,SET}_FEATURE, and
  * are read as a bit array returned by USB_REQ_GET_STATUS.  (So there
- * are at most sixteen features of each type.)
+ * are at most sixteen features of each type.)  Hubs may also support a
+ * new USB_REQ_TEST_AND_SET_FEATURE to put ports into L1 suspend.
  */
 #define USB_DEVICE_SELF_POWERED		0	/* (read only) */
 #define USB_DEVICE_REMOTE_WAKEUP	1	/* dev may initiate wakeup */
@@ -180,6 +186,7 @@ struct usb_ctrlrequest {
 #define USB_DT_WIRELESS_ENDPOINT_COMP	0x11
 #define USB_DT_WIRE_ADAPTER		0x21
 #define USB_DT_RPIPE			0x22
+#define USB_DT_CS_RADIO_CONTROL		0x23
 
 /* Conventional codes for class-specific descriptors.  The convention is
  * defined in the USB "Common Class" Spec (3.11).  Individual class specs
@@ -448,7 +455,7 @@ struct usb_encryption_descriptor {
 
 /*-------------------------------------------------------------------------*/
 
-/* USB_DT_BOS:  group of wireless capabilities */
+/* USB_DT_BOS:  group of device-level capabilities */
 struct usb_bos_descriptor {
 	__u8  bLength;
 	__u8  bDescriptorType;
@@ -492,6 +499,16 @@ struct usb_wireless_cap_descriptor {	/* Ultra Wide Band */
 	__u8  bmFFITXPowerInfo;	/* FFI power levels */
 	__le16 bmBandGroup;
 	__u8  bReserved;
+} __attribute__((packed));
+
+#define	USB_CAP_TYPE_EXT		2
+
+struct usb_ext_cap_descriptor {		/* Link Power Management */
+	__u8  bLength;
+	__u8  bDescriptorType;
+	__u8  bDevCapabilityType;
+	__u8  bmAttributes;
+#define USB_LPM_SUPPORT			(1 << 1)	/* supports LPM */
 } __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
@@ -574,7 +591,9 @@ enum usb_device_state {
 	/* NOTE:  there are actually four different SUSPENDED
 	 * states, returning to POWERED, DEFAULT, ADDRESS, or
 	 * CONFIGURED respectively when SOF tokens flow again.
+	 * At this level there's no difference between L1 and L2
+	 * suspend states.  (L2 being original USB 1.1 suspend.)
 	 */
 };
 
-#endif	/* __LINUX_USB_CH9_H */
+#endif /* __LINUX_USB_CH9_H */

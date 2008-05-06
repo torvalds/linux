@@ -60,8 +60,6 @@ init_IRQ(void)
 /*
  * Switch to the asynchronous interrupt stack for softirq execution.
  */
-extern void __do_softirq(void);
-
 asmlinkage void do_softirq(void)
 {
 	unsigned long flags, old, new;

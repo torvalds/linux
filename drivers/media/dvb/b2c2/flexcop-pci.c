@@ -32,7 +32,7 @@ MODULE_PARM_DESC(irq_chk_intv, "set the interval for IRQ watchdog (currently jus
 #define deb_irq(args...)   dprintk(0x08,args)
 #define deb_chk(args...)   dprintk(0x10,args)
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (1=info,2=regs,4=TS,8=irqdma (|-able))." DEBSTATUS);
 

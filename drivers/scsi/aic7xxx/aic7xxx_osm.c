@@ -388,14 +388,83 @@ static int  aic7xxx_setup(char *s);
 static int ahc_linux_unit;
 
 
-/********************************* Inlines ************************************/
-static __inline void ahc_linux_unmap_scb(struct ahc_softc*, struct scb*);
+/************************** OS Utility Wrappers *******************************/
+void
+ahc_delay(long usec)
+{
+	/*
+	 * udelay on Linux can have problems for
+	 * multi-millisecond waits.  Wait at most
+	 * 1024us per call.
+	 */
+	while (usec > 0) {
+		udelay(usec % 1024);
+		usec -= 1024;
+	}
+}
 
-static __inline int ahc_linux_map_seg(struct ahc_softc *ahc, struct scb *scb,
+/***************************** Low Level I/O **********************************/
+uint8_t
+ahc_inb(struct ahc_softc * ahc, long port)
+{
+	uint8_t x;
+
+	if (ahc->tag == BUS_SPACE_MEMIO) {
+		x = readb(ahc->bsh.maddr + port);
+	} else {
+		x = inb(ahc->bsh.ioport + port);
+	}
+	mb();
+	return (x);
+}
+
+void
+ahc_outb(struct ahc_softc * ahc, long port, uint8_t val)
+{
+	if (ahc->tag == BUS_SPACE_MEMIO) {
+		writeb(val, ahc->bsh.maddr + port);
+	} else {
+		outb(val, ahc->bsh.ioport + port);
+	}
+	mb();
+}
+
+void
+ahc_outsb(struct ahc_softc * ahc, long port, uint8_t *array, int count)
+{
+	int i;
+
+	/*
+	 * There is probably a more efficient way to do this on Linux
+	 * but we don't use this for anything speed critical and this
+	 * should work.
+	 */
+	for (i = 0; i < count; i++)
+		ahc_outb(ahc, port, *array++);
+}
+
+void
+ahc_insb(struct ahc_softc * ahc, long port, uint8_t *array, int count)
+{
+	int i;
+
+	/*
+	 * There is probably a more efficient way to do this on Linux
+	 * but we don't use this for anything speed critical and this
+	 * should work.
+	 */
+	for (i = 0; i < count; i++)
+		*array++ = ahc_inb(ahc, port);
+}
+
+/********************************* Inlines ************************************/
+static void ahc_linux_unmap_scb(struct ahc_softc*, struct scb*);
+
+static int ahc_linux_map_seg(struct ahc_softc *ahc, struct scb *scb,
 		 		      struct ahc_dma_seg *sg,
 				      dma_addr_t addr, bus_size_t len);
 
-static __inline void
+static void
 ahc_linux_unmap_scb(struct ahc_softc *ahc, struct scb *scb)
 {
 	struct scsi_cmnd *cmd;
@@ -406,7 +475,7 @@ ahc_linux_unmap_scb(struct ahc_softc *ahc, struct scb *scb)
 	scsi_dma_unmap(cmd);
 }
 
-static __inline int
+static int
 ahc_linux_map_seg(struct ahc_softc *ahc, struct scb *scb,
 		  struct ahc_dma_seg *sg, dma_addr_t addr, bus_size_t len)
 {
@@ -442,13 +511,11 @@ ahc_linux_info(struct Scsi_Host *host)
 	bp = &buffer[0];
 	ahc = *(struct ahc_softc **)host->hostdata;
 	memset(bp, 0, sizeof(buffer));
-	strcpy(bp, "Adaptec AIC7XXX EISA/VLB/PCI SCSI HBA DRIVER, Rev ");
-	strcat(bp, AIC7XXX_DRIVER_VERSION);
-	strcat(bp, "\n");
-	strcat(bp, "        <");
+	strcpy(bp, "Adaptec AIC7XXX EISA/VLB/PCI SCSI HBA DRIVER, Rev " AIC7XXX_DRIVER_VERSION "\n"
+			"        <");
 	strcat(bp, ahc->description);
-	strcat(bp, ">\n");
-	strcat(bp, "        ");
+	strcat(bp, ">\n"
+			"        ");
 	ahc_controller_info(ahc, ahc_info);
 	strcat(bp, ahc_info);
 	strcat(bp, "\n");
@@ -964,7 +1031,7 @@ aic7xxx_setup(char *s)
 	char   *p;
 	char   *end;
 
-	static struct {
+	static const struct {
 		const char *name;
 		uint32_t *flag;
 	} options[] = {
@@ -2317,7 +2384,7 @@ static void ahc_linux_set_period(struct scsi_target *starget, int period)
 	unsigned int ppr_options = tinfo->goal.ppr_options;
 	unsigned long flags;
 	unsigned long offset = tinfo->goal.offset;
-	struct ahc_syncrate *syncrate;
+	const struct ahc_syncrate *syncrate;
 
 	if (offset == 0)
 		offset = MAX_OFFSET;
@@ -2361,7 +2428,7 @@ static void ahc_linux_set_offset(struct scsi_target *starget, int offset)
 	unsigned int ppr_options = 0;
 	unsigned int period = 0;
 	unsigned long flags;
-	struct ahc_syncrate *syncrate = NULL;
+	const struct ahc_syncrate *syncrate = NULL;
 
 	ahc_compile_devinfo(&devinfo, shost->this_id, starget->id, 0,
 			    starget->channel + 'A', ROLE_INITIATOR);
@@ -2391,7 +2458,7 @@ static void ahc_linux_set_dt(struct scsi_target *starget, int dt)
 	unsigned int period = tinfo->goal.period;
 	unsigned int width = tinfo->goal.width;
 	unsigned long flags;
-	struct ahc_syncrate *syncrate;
+	const struct ahc_syncrate *syncrate;
 
 	if (dt && spi_max_width(starget)) {
 		ppr_options |= MSG_EXT_PPR_DT_REQ;

@@ -360,7 +360,8 @@ static void __init calibrate_APIC_clock(void)
 		result / 1000 / 1000, result / 1000 % 1000);
 
 	/* Calculate the scaled math multiplication factor */
-	lapic_clockevent.mult = div_sc(result, NSEC_PER_SEC, 32);
+	lapic_clockevent.mult = div_sc(result, NSEC_PER_SEC,
+				       lapic_clockevent.shift);
 	lapic_clockevent.max_delta_ns =
 		clockevent_delta2ns(0x7FFFFF, &lapic_clockevent);
 	lapic_clockevent.min_delta_ns =
@@ -429,7 +430,7 @@ void __init setup_boot_APIC_clock(void)
  * set the DUMMY flag again and force the broadcast mode in the
  * clockevents layer.
  */
-void __cpuinit check_boot_apic_timer_broadcast(void)
+static void __cpuinit check_boot_apic_timer_broadcast(void)
 {
 	if (!disable_apic_timer ||
 	    (lapic_clockevent.features & CLOCK_EVT_FEAT_DUMMY))
@@ -834,7 +835,7 @@ void __cpuinit setup_local_APIC(void)
 	preempt_enable();
 }
 
-void __cpuinit lapic_setup_esr(void)
+static void __cpuinit lapic_setup_esr(void)
 {
 	unsigned maxlvt = lapic_get_maxlvt();
 

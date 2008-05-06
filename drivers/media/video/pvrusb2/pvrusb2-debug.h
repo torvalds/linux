@@ -39,7 +39,7 @@ extern int pvrusb2_debug;
 #define PVR2_TRACE_EEPROM     (1 << 10) /* eeprom parsing / report */
 #define PVR2_TRACE_STRUCT     (1 << 11) /* internal struct creation */
 #define PVR2_TRACE_OPEN_CLOSE (1 << 12) /* application open / close */
-#define PVR2_TRACE_CREG       (1 << 13) /* Main critical region entry / exit */
+#define PVR2_TRACE_CTXT       (1 << 13) /* Main context tracking */
 #define PVR2_TRACE_SYSFS      (1 << 14) /* Sysfs driven I/O */
 #define PVR2_TRACE_FIRMWARE   (1 << 15) /* firmware upload actions */
 #define PVR2_TRACE_CHIPS      (1 << 16) /* chip broadcast operation */
@@ -54,6 +54,7 @@ extern int pvrusb2_debug;
 #define PVR2_TRACE_DATA_FLOW  (1 << 25) /* Track data flow */
 #define PVR2_TRACE_DEBUGIFC   (1 << 26) /* Debug interface actions */
 #define PVR2_TRACE_GPIO       (1 << 27) /* GPIO state bit changes */
+#define PVR2_TRACE_DVB_FEED   (1 << 28) /* DVB transport feed debug */
 
 
 #endif /* __PVRUSB2_HDW_INTERNAL_H */

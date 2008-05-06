@@ -55,7 +55,7 @@
 #undef SISFBDEBUG
 
 #ifdef SISFBDEBUG
-#define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt, __FUNCTION__ , ## args)
+#define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt, __func__ , ## args)
 #define TWDEBUG(x) printk(KERN_INFO x "\n");
 #else
 #define DPRINTK(fmt, args...)

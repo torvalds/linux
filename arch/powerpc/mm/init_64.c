@@ -72,7 +72,8 @@
 #warning TASK_SIZE is smaller than it needs to be.
 #endif
 
-phys_addr_t memstart_addr;
+phys_addr_t memstart_addr = ~0;
+phys_addr_t kernstart_addr;
 
 void free_initmem(void)
 {

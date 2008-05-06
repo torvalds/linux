@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,6 +121,7 @@ acpi_status acpi_ex_opcode_0A_0T_1R(struct acpi_walk_state *walk_state)
 
 	if ((ACPI_FAILURE(status)) || walk_state->result_obj) {
 		acpi_ut_remove_reference(return_desc);
+		walk_state->result_obj = NULL;
 	} else {
 		/* Save the return value */
 
@@ -739,23 +740,35 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 			value = acpi_gbl_integer_byte_width;
 			break;
 
-		case ACPI_TYPE_BUFFER:
-			value = temp_desc->buffer.length;
-			break;
-
 		case ACPI_TYPE_STRING:
 			value = temp_desc->string.length;
 			break;
 
+		case ACPI_TYPE_BUFFER:
+
+			/* Buffer arguments may not be evaluated at this point */
+
+			status = acpi_ds_get_buffer_arguments(temp_desc);
+			value = temp_desc->buffer.length;
+			break;
+
 		case ACPI_TYPE_PACKAGE:
+
+			/* Package arguments may not be evaluated at this point */
+
+			status = acpi_ds_get_package_arguments(temp_desc);
 			value = temp_desc->package.count;
 			break;
 
 		default:
 			ACPI_ERROR((AE_INFO,
-				    "Operand is not Buf/Int/Str/Pkg - found type %s",
+				    "Operand must be Buffer/Integer/String/Package - found type %s",
 				    acpi_ut_get_type_name(type)));
 			status = AE_AML_OPERAND_TYPE;
+			goto cleanup;
+		}
+
+		if (ACPI_FAILURE(status)) {
 			goto cleanup;
 		}
 

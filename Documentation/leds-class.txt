@@ -19,6 +19,12 @@ optimises away.
 
 Complex triggers whilst available to all LEDs have LED specific
 parameters and work on a per LED basis. The timer trigger is an example.
+The timer trigger will periodically change the LED brightness between
+LED_OFF and the current brightness setting. The "on" and "off" time can
+be specified via /sys/class/leds/<device>/delay_{on,off} in milliseconds.
+You can change the brightness value of a LED independently of the timer
+trigger. However, if you set the brightness value to LED_OFF it will
+also disable the timer trigger.
 
 You can change triggers in a similar manner to the way an IO scheduler
 is chosen (via /sys/class/leds/<device>/trigger). Trigger specific
@@ -63,9 +69,9 @@ value if it is called with *delay_on==0 && *delay_off==0 parameters. In
 this case the driver should give back the chosen value through delay_on
 and delay_off parameters to the leds subsystem.
 
-Any call to the brightness_set() callback function should cancel the
-previously programmed hardware blinking function so setting the brightness
-to 0 can also cancel the blinking of the LED.
+Setting the brightness to zero with brightness_set() callback function
+should completely turn off the LED and cancel the previously programmed
+hardware blinking function, if any.
 
 
 Known Issues

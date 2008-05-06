@@ -1559,7 +1559,8 @@ snd_rme96_create(struct rme96 *rme96)
 		return err;
 	rme96->port = pci_resource_start(rme96->pci, 0);
 
-	if ((rme96->iobase = ioremap_nocache(rme96->port, RME96_IO_SIZE)) == 0) {
+	rme96->iobase = ioremap_nocache(rme96->port, RME96_IO_SIZE);
+	if (!rme96->iobase) {
 		snd_printk(KERN_ERR "unable to remap memory region 0x%lx-0x%lx\n", rme96->port, rme96->port + RME96_IO_SIZE - 1);
 		return -ENOMEM;
 	}

@@ -41,49 +41,6 @@
 #include "xfs_utils.h"
 
 
-int
-xfs_dir_lookup_int(
-	xfs_inode_t	*dp,
-	uint		lock_mode,
-	struct xfs_name	*name,
-	xfs_ino_t	*inum,
-	xfs_inode_t	**ipp)
-{
-	int		error;
-
-	xfs_itrace_entry(dp);
-
-	error = xfs_dir_lookup(NULL, dp, name, inum);
-	if (!error) {
-		/*
-		 * Unlock the directory. We do this because we can't
-		 * hold the directory lock while doing the vn_get()
-		 * in xfs_iget().  Doing so could cause us to hold
-		 * a lock while waiting for the inode to finish
-		 * being inactive while it's waiting for a log
-		 * reservation in the inactive routine.
-		 */
-		xfs_iunlock(dp, lock_mode);
-		error = xfs_iget(dp->i_mount, NULL, *inum, 0, 0, ipp, 0);
-		xfs_ilock(dp, lock_mode);
-
-		if (error) {
-			*ipp = NULL;
-		} else if ((*ipp)->i_d.di_mode == 0) {
-			/*
-			 * The inode has been freed.  Something is
-			 * wrong so just get out of here.
-			 */
-			xfs_iunlock(dp, lock_mode);
-			xfs_iput_new(*ipp, 0);
-			*ipp = NULL;
-			xfs_ilock(dp, lock_mode);
-			error = XFS_ERROR(ENOENT);
-		}
-	}
-	return error;
-}
-
 /*
  * Allocates a new inode from disk and return a pointer to the
  * incore copy. This routine will internally commit the current
@@ -310,7 +267,7 @@ xfs_bump_ino_vers2(
 {
 	xfs_mount_t	*mp;
 
-	ASSERT(ismrlocked (&ip->i_lock, MR_UPDATE));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(ip->i_d.di_version == XFS_DINODE_VERSION_1);
 
 	ip->i_d.di_version = XFS_DINODE_VERSION_2;

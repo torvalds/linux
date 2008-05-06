@@ -57,10 +57,14 @@ static inline void scatterwalk_sg_chain(struct scatterlist *sg1, int num,
 					struct scatterlist *sg2)
 {
 	sg_set_page(&sg1[num - 1], (void *)sg2, 0, 0);
+	sg1[num - 1].page_link &= ~0x02;
 }
 
 static inline struct scatterlist *scatterwalk_sg_next(struct scatterlist *sg)
 {
+	if (sg_is_last(sg))
+		return NULL;
+
 	return (++sg)->length ? sg : (void *)sg_page(sg);
 }
 

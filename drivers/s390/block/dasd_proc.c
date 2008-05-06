@@ -157,6 +157,7 @@ static int dasd_devices_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations dasd_devices_file_ops = {
+	.owner		= THIS_MODULE,
 	.open		= dasd_devices_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -311,17 +312,16 @@ out_error:
 int
 dasd_proc_init(void)
 {
-	dasd_proc_root_entry = proc_mkdir("dasd", &proc_root);
+	dasd_proc_root_entry = proc_mkdir("dasd", NULL);
 	if (!dasd_proc_root_entry)
 		goto out_nodasd;
 	dasd_proc_root_entry->owner = THIS_MODULE;
-	dasd_devices_entry = create_proc_entry("devices",
-					       S_IFREG | S_IRUGO | S_IWUSR,
-					       dasd_proc_root_entry);
+	dasd_devices_entry = proc_create("devices",
+					 S_IFREG | S_IRUGO | S_IWUSR,
+					 dasd_proc_root_entry,
+					 &dasd_devices_file_ops);
 	if (!dasd_devices_entry)
 		goto out_nodevices;
-	dasd_devices_entry->proc_fops = &dasd_devices_file_ops;
-	dasd_devices_entry->owner = THIS_MODULE;
 	dasd_statistics_entry = create_proc_entry("statistics",
 						  S_IFREG | S_IRUGO | S_IWUSR,
 						  dasd_proc_root_entry);
@@ -335,7 +335,7 @@ dasd_proc_init(void)
  out_nostatistics:
 	remove_proc_entry("devices", dasd_proc_root_entry);
  out_nodevices:
-	remove_proc_entry("dasd", &proc_root);
+	remove_proc_entry("dasd", NULL);
  out_nodasd:
 	return -ENOENT;
 }
@@ -345,5 +345,5 @@ dasd_proc_exit(void)
 {
 	remove_proc_entry("devices", dasd_proc_root_entry);
 	remove_proc_entry("statistics", dasd_proc_root_entry);
-	remove_proc_entry("dasd", &proc_root);
+	remove_proc_entry("dasd", NULL);
 }

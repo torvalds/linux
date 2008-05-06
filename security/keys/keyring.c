@@ -1,6 +1,6 @@
-/* keyring.c: keyring handling
+/* Keyring handling
  *
- * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-2005, 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -79,7 +79,7 @@ static DECLARE_RWSEM(keyring_serialise_link_sem);
  * publish the name of a keyring so that it can be found by name (if it has
  * one)
  */
-void keyring_publish_name(struct key *keyring)
+static void keyring_publish_name(struct key *keyring)
 {
 	int bucket;
 
@@ -292,7 +292,7 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 
 	struct keyring_list *keylist;
 	struct timespec now;
-	unsigned long possessed;
+	unsigned long possessed, kflags;
 	struct key *keyring, *key;
 	key_ref_t key_ref;
 	long err;
@@ -319,6 +319,32 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 	err = -EAGAIN;
 	sp = 0;
 
+	/* firstly we should check to see if this top-level keyring is what we
+	 * are looking for */
+	key_ref = ERR_PTR(-EAGAIN);
+	kflags = keyring->flags;
+	if (keyring->type == type && match(keyring, description)) {
+		key = keyring;
+
+		/* check it isn't negative and hasn't expired or been
+		 * revoked */
+		if (kflags & (1 << KEY_FLAG_REVOKED))
+			goto error_2;
+		if (key->expiry && now.tv_sec >= key->expiry)
+			goto error_2;
+		key_ref = ERR_PTR(-ENOKEY);
+		if (kflags & (1 << KEY_FLAG_NEGATIVE))
+			goto error_2;
+		goto found;
+	}
+
+	/* otherwise, the top keyring must not be revoked, expired, or
+	 * negatively instantiated if we are to search it */
+	key_ref = ERR_PTR(-EAGAIN);
+	if (kflags & ((1 << KEY_FLAG_REVOKED) | (1 << KEY_FLAG_NEGATIVE)) ||
+	    (keyring->expiry && now.tv_sec >= keyring->expiry))
+		goto error_2;
+
 	/* start processing a new keyring */
 descend:
 	if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
@@ -331,13 +357,14 @@ descend:
 	/* iterate through the keys in this keyring first */
 	for (kix = 0; kix < keylist->nkeys; kix++) {
 		key = keylist->keys[kix];
+		kflags = key->flags;
 
 		/* ignore keys not of this type */
 		if (key->type != type)
 			continue;
 
 		/* skip revoked keys and expired keys */
-		if (test_bit(KEY_FLAG_REVOKED, &key->flags))
+		if (kflags & (1 << KEY_FLAG_REVOKED))
 			continue;
 
 		if (key->expiry && now.tv_sec >= key->expiry)
@@ -352,8 +379,8 @@ descend:
 					context, KEY_SEARCH) < 0)
 			continue;
 
-		/* we set a different error code if we find a negative key */
-		if (test_bit(KEY_FLAG_NEGATIVE, &key->flags)) {
+		/* we set a different error code if we pass a negative key */
+		if (kflags & (1 << KEY_FLAG_NEGATIVE)) {
 			err = -ENOKEY;
 			continue;
 		}
@@ -489,10 +516,9 @@ key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 /*
  * find a keyring with the specified name
  * - all named keyrings are searched
- * - only find keyrings with search permission for the process
- * - only find keyrings with a serial number greater than the one specified
+ * - normally only finds keyrings with search permission for the current process
  */
-struct key *find_keyring_by_name(const char *name, key_serial_t bound)
+struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 {
 	struct key *keyring;
 	int bucket;
@@ -518,13 +544,9 @@ struct key *find_keyring_by_name(const char *name, key_serial_t bound)
 			if (strcmp(keyring->description, name) != 0)
 				continue;
 
-			if (key_permission(make_key_ref(keyring, 0),
+			if (!skip_perm_check &&
+			    key_permission(make_key_ref(keyring, 0),
 					   KEY_SEARCH) < 0)
-				continue;
-
-			/* found a potential candidate, but we still need to
-			 * check the serial number */
-			if (keyring->serial <= bound)
 				continue;
 
 			/* we've got a match */

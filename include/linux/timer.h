@@ -4,6 +4,7 @@
 #include <linux/list.h>
 #include <linux/ktime.h>
 #include <linux/stddef.h>
+#include <linux/debugobjects.h>
 
 struct tvec_base;
 
@@ -25,6 +26,7 @@ struct timer_list {
 extern struct tvec_base boot_tvec_bases;
 
 #define TIMER_INITIALIZER(_function, _expires, _data) {		\
+		.entry = { .prev = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
 		.expires = (_expires),				\
 		.data = (_data),				\
@@ -38,6 +40,17 @@ extern struct tvec_base boot_tvec_bases;
 void init_timer(struct timer_list *timer);
 void init_timer_deferrable(struct timer_list *timer);
 
+#ifdef CONFIG_DEBUG_OBJECTS_TIMERS
+extern void init_timer_on_stack(struct timer_list *timer);
+extern void destroy_timer_on_stack(struct timer_list *timer);
+#else
+static inline void destroy_timer_on_stack(struct timer_list *timer) { }
+static inline void init_timer_on_stack(struct timer_list *timer)
+{
+	init_timer(timer);
+}
+#endif
+
 static inline void setup_timer(struct timer_list * timer,
 				void (*function)(unsigned long),
 				unsigned long data)
@@ -45,6 +58,15 @@ static inline void setup_timer(struct timer_list * timer,
 	timer->function = function;
 	timer->data = data;
 	init_timer(timer);
+}
+
+static inline void setup_timer_on_stack(struct timer_list *timer,
+					void (*function)(unsigned long),
+					unsigned long data)
+{
+	timer->function = function;
+	timer->data = data;
+	init_timer_on_stack(timer);
 }
 
 /**
@@ -163,6 +185,5 @@ unsigned long __round_jiffies(unsigned long j, int cpu);
 unsigned long __round_jiffies_relative(unsigned long j, int cpu);
 unsigned long round_jiffies(unsigned long j);
 unsigned long round_jiffies_relative(unsigned long j);
-
 
 #endif

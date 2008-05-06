@@ -63,10 +63,6 @@
 #include <platforms/lantec.h>
 #endif
 
-#if defined(CONFIG_MPC885ADS)
-#include <platforms/mpc885ads.h>
-#endif
-
 /* Currently, all 8xx boards that support a processor to PCI/ISA bridge
  * use the same memory map.
  */

@@ -1,5 +1,5 @@
 #
-# Makefile for USB Core files and filesystem
+# Makefile for USB monitor
 #
 
 usbmon-objs	:= mon_main.o mon_stat.o mon_text.o mon_bin.o mon_dma.o

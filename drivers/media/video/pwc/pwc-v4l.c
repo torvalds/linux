@@ -351,8 +351,10 @@ int pwc_video_do_ioctl(struct inode *inode, struct file *file,
 		return -EFAULT;
 
 #ifdef CONFIG_USB_PWC_DEBUG
-	if (PWC_DEBUG_LEVEL_IOCTL & pwc_trace)
+	if (PWC_DEBUG_LEVEL_IOCTL & pwc_trace) {
 		v4l_printk_ioctl(cmd);
+		printk("\n");
+	}
 #endif
 
 

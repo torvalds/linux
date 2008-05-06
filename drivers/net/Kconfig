@@ -469,7 +469,7 @@ config SNI_82596
 
 config KORINA
 	tristate "Korina (IDT RC32434) Ethernet support"
-	depends on NET_ETHERNET && MIKROTIK_RB500
+	depends on NET_ETHERNET && MIKROTIK_RB532
 	help
 	  If you have a Mikrotik RouterBoard 500 or IDT RC32434
 	  based system say Y. Otherwise say N.
@@ -827,7 +827,7 @@ config ULTRA32
 
 config BFIN_MAC
 	tristate "Blackfin 527/536/537 on-chip mac support"
-	depends on NET_ETHERNET && (BF527 || BF537 || BF536) && (!BF537_PORT_H)
+	depends on NET_ETHERNET && (BF527 || BF537 || BF536)
 	select CRC32
 	select MII
 	select PHYLIB
@@ -2011,7 +2011,7 @@ config E1000_DISABLE_PACKET_SPLIT
 
 config E1000E
 	tristate "Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support"
-	depends on PCI
+	depends on PCI && (!SPARC32 || BROKEN)
 	---help---
 	  This driver supports the PCI-Express Intel(R) PRO/1000 gigabit
 	  ethernet family of adapters. For PCI or PCI-X e1000 adapters,
@@ -2278,6 +2278,7 @@ config TSI108_ETH
 config GELIC_NET
 	tristate "PS3 Gigabit Ethernet driver"
 	depends on PPC_PS3
+	select PS3_SYS_MANAGER
 	help
 	  This driver supports the network device on the PS3 game
 	  console.  This driver has built-in support for Ethernet.
@@ -2592,6 +2593,7 @@ config BNX2X
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2x.  This is recommended.
 
+source "drivers/net/sfc/Kconfig"
 
 endif # NETDEV_10000
 

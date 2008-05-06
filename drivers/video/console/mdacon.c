@@ -531,7 +531,7 @@ static void mdacon_cursor(struct vc_data *c, int mode)
 
 static int mdacon_scroll(struct vc_data *c, int t, int b, int dir, int lines)
 {
-	u16 eattr = mda_convert_attr(c->vc_video_erase_char);
+	u16 eattr = mda_convert_attr(c->vc_scrl_erase_char);
 
 	if (!lines)
 		return 0;

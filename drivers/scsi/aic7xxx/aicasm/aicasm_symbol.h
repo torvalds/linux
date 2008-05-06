@@ -128,6 +128,7 @@ typedef struct expression_info {
 typedef struct symbol {
 	char	*name;
 	symtype	type;
+	int	count;
 	union	{
 		struct reg_info	  *rinfo;
 		struct field_info *finfo;

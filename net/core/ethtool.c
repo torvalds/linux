@@ -323,6 +323,11 @@ static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
 		bytes_remaining -= eeprom.len;
 	}
 
+	eeprom.len = userbuf - (useraddr + sizeof(eeprom));
+	eeprom.offset -= eeprom.len;
+	if (copy_to_user(useraddr, &eeprom, sizeof(eeprom)))
+		ret = -EFAULT;
+
 	kfree(data);
 	return ret;
 }

@@ -212,7 +212,7 @@ int gdlm_sysfs_init(void)
 {
 	gdlm_kset = kset_create_and_add("lock_dlm", NULL, kernel_kobj);
 	if (!gdlm_kset) {
-		printk(KERN_WARNING "%s: can not create kset\n", __FUNCTION__);
+		printk(KERN_WARNING "%s: can not create kset\n", __func__);
 		return -ENOMEM;
 	}
 	return 0;

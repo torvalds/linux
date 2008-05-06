@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
 #include <media/v4l2-common.h>
 #include <linux/video_decoder.h>
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 

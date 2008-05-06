@@ -110,11 +110,16 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	char *iname_addr = iname;
 	int retval;
 	int fd_binary = -1;
-	struct files_struct *files = NULL;
 
 	retval = -ENOEXEC;
 	if (!enabled)
 		goto _ret;
+
+	retval = -ENOEXEC;
+	if (bprm->misc_bang)
+		goto _ret;
+
+	bprm->misc_bang = 1;
 
 	/* to keep locking time low, we copy the interpreter string */
 	read_lock(&entries_lock);
@@ -133,21 +138,13 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 	if (fmt->flags & MISC_FMT_OPEN_BINARY) {
 
-		files = current->files;
-		retval = unshare_files();
-		if (retval < 0)
-			goto _ret;
-		if (files == current->files) {
-			put_files_struct(files);
-			files = NULL;
-		}
 		/* if the binary should be opened on behalf of the
 		 * interpreter than keep it open and assign descriptor
 		 * to it */
  		fd_binary = get_unused_fd();
  		if (fd_binary < 0) {
  			retval = fd_binary;
- 			goto _unshare;
+ 			goto _ret;
  		}
  		fd_install(fd_binary, bprm->file);
 
@@ -205,10 +202,6 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	if (retval < 0)
 		goto _error;
 
-	if (files) {
-		put_files_struct(files);
-		files = NULL;
-	}
 _ret:
 	return retval;
 _error:
@@ -216,9 +209,6 @@ _error:
 		sys_close(fd_binary);
 	bprm->interp_flags = 0;
 	bprm->interp_data = 0;
-_unshare:
-	if (files)
-		reset_files_struct(current, files);
 	goto _ret;
 }
 

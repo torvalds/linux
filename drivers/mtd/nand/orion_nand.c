@@ -169,3 +169,4 @@ module_exit(orion_nand_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tzachi Perelstein");
 MODULE_DESCRIPTION("NAND glue for Orion platforms");
+MODULE_ALIAS("platform:orion_nand");

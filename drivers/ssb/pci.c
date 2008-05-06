@@ -484,6 +484,11 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 			goto unsupported;
 	}
 
+	if (out->boardflags_lo == 0xFFFF)
+		out->boardflags_lo = 0;  /* per specs */
+	if (out->boardflags_hi == 0xFFFF)
+		out->boardflags_hi = 0;  /* per specs */
+
 	return 0;
 unsupported:
 	ssb_printk(KERN_WARNING PFX "Unsupported SPROM revision %d "

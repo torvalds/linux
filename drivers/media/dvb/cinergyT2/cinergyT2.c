@@ -58,11 +58,13 @@ static int debug;
 module_param_named(debug, debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 #define dprintk(level, args...)						\
 do {									\
 	if ((debug & level)) {						\
 		printk("%s: %s(): ", KBUILD_MODNAME,			\
-		       __FUNCTION__);					\
+		       __func__);					\
 		printk(args); }						\
 } while (0)
 
@@ -938,7 +940,10 @@ static int cinergyt2_probe (struct usb_interface *intf,
 		return -ENOMEM;
 	}
 
-	if ((err = dvb_register_adapter(&cinergyt2->adapter, DRIVER_NAME, THIS_MODULE, &cinergyt2->udev->dev)) < 0) {
+	err = dvb_register_adapter(&cinergyt2->adapter, DRIVER_NAME,
+				   THIS_MODULE, &cinergyt2->udev->dev,
+				   adapter_nr);
+	if (err < 0) {
 		kfree(cinergyt2);
 		return err;
 	}

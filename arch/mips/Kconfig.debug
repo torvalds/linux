@@ -73,14 +73,4 @@ config RUNTIME_DEBUG
 	  include/asm-mips/debug.h for debuging macros.
 	  If unsure, say N.
 
-config MIPS_UNCACHED
-	bool "Run uncached"
-	depends on DEBUG_KERNEL && !SMP && !SGI_IP27
-	help
-	  If you say Y here there kernel will disable all CPU caches.  This will
-	  reduce the system's performance dramatically but can help finding
-	  otherwise hard to track bugs.  It can also useful if you're doing
-	  hardware debugging with a logic analyzer and need to see all traffic
-	  on the bus.
-
 endmenu

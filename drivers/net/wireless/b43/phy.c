@@ -2043,7 +2043,7 @@ int b43_phy_init(struct b43_wldev *dev)
 void b43_set_rx_antenna(struct b43_wldev *dev, int antenna)
 {
 	struct b43_phy *phy = &dev->phy;
-	u32 hf;
+	u64 hf;
 	u16 tmp;
 	int autodiv = 0;
 

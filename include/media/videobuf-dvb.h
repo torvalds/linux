@@ -27,7 +27,8 @@ struct videobuf_dvb {
 int videobuf_dvb_register(struct videobuf_dvb *dvb,
 			  struct module *module,
 			  void *adapter_priv,
-			  struct device *device);
+			  struct device *device,
+			  short *adapter_nr);
 void videobuf_dvb_unregister(struct videobuf_dvb *dvb);
 
 /*

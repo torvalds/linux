@@ -46,8 +46,8 @@ struct e1000_stats {
 static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "rx_packets", E1000_STAT(stats.gprc) },
 	{ "tx_packets", E1000_STAT(stats.gptc) },
-	{ "rx_bytes", E1000_STAT(stats.gorcl) },
-	{ "tx_bytes", E1000_STAT(stats.gotcl) },
+	{ "rx_bytes", E1000_STAT(stats.gorc) },
+	{ "tx_bytes", E1000_STAT(stats.gotc) },
 	{ "rx_broadcast", E1000_STAT(stats.bprc) },
 	{ "tx_broadcast", E1000_STAT(stats.bptc) },
 	{ "rx_multicast", E1000_STAT(stats.mprc) },
@@ -83,7 +83,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "rx_flow_control_xoff", E1000_STAT(stats.xoffrxc) },
 	{ "tx_flow_control_xon", E1000_STAT(stats.xontxc) },
 	{ "tx_flow_control_xoff", E1000_STAT(stats.xofftxc) },
-	{ "rx_long_byte_count", E1000_STAT(stats.gorcl) },
+	{ "rx_long_byte_count", E1000_STAT(stats.gorc) },
 	{ "rx_csum_offload_good", E1000_STAT(hw_csum_good) },
 	{ "rx_csum_offload_errors", E1000_STAT(hw_csum_err) },
 	{ "rx_header_split", E1000_STAT(rx_hdr_split) },
@@ -1770,6 +1770,47 @@ static int e1000_phys_id(struct net_device *netdev, u32 data)
 	return 0;
 }
 
+static int e1000_get_coalesce(struct net_device *netdev,
+			      struct ethtool_coalesce *ec)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+
+	if (adapter->itr_setting <= 3)
+		ec->rx_coalesce_usecs = adapter->itr_setting;
+	else
+		ec->rx_coalesce_usecs = 1000000 / adapter->itr_setting;
+
+	return 0;
+}
+
+static int e1000_set_coalesce(struct net_device *netdev,
+			      struct ethtool_coalesce *ec)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+
+	if ((ec->rx_coalesce_usecs > E1000_MAX_ITR_USECS) ||
+	    ((ec->rx_coalesce_usecs > 3) &&
+	     (ec->rx_coalesce_usecs < E1000_MIN_ITR_USECS)) ||
+	    (ec->rx_coalesce_usecs == 2))
+		return -EINVAL;
+
+	if (ec->rx_coalesce_usecs <= 3) {
+		adapter->itr = 20000;
+		adapter->itr_setting = ec->rx_coalesce_usecs;
+	} else {
+		adapter->itr = (1000000 / ec->rx_coalesce_usecs);
+		adapter->itr_setting = adapter->itr & ~3;
+	}
+
+	if (adapter->itr_setting != 0)
+		ew32(ITR, 1000000000 / (adapter->itr * 256));
+	else
+		ew32(ITR, 0);
+
+	return 0;
+}
+
 static int e1000_nway_reset(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -1845,6 +1886,8 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.phys_id		= e1000_phys_id,
 	.get_ethtool_stats	= e1000_get_ethtool_stats,
 	.get_sset_count		= e1000e_get_sset_count,
+	.get_coalesce		= e1000_get_coalesce,
+	.set_coalesce		= e1000_set_coalesce,
 };
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)

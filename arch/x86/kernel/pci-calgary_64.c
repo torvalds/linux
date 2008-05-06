@@ -43,6 +43,7 @@
 #include <asm/system.h>
 #include <asm/dma.h>
 #include <asm/rio.h>
+#include <asm/bios_ebda.h>
 
 #ifdef CONFIG_CALGARY_IOMMU_ENABLED_BY_DEFAULT
 int use_calgary __read_mostly = 1;

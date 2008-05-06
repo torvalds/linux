@@ -1007,8 +1007,8 @@ static int generic_pcm2_cleanup(struct hda_pcm_stream *hinfo,
 {
 	struct hda_gspec *spec = codec->spec;
 
-	snd_hda_codec_setup_stream(codec, hinfo->nid, 0, 0, 0);
-	snd_hda_codec_setup_stream(codec, spec->dac_node[1]->nid, 0, 0, 0);
+	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
+	snd_hda_codec_cleanup_stream(codec, spec->dac_node[1]->nid);
 	return 0;
 }
 

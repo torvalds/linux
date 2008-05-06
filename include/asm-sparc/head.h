@@ -52,6 +52,17 @@
 	nop; \
 	nop;
 
+#ifdef CONFIG_KGDB
+#define KGDB_TRAP(num) \
+	b kgdb_trap_low; \
+	rd %psr,%l0; \
+	nop; \
+	nop;
+#else
+#define KGDB_TRAP(num) \
+	BAD_TRAP(num)
+#endif
+
 /* The Get Condition Codes software trap for userland. */
 #define GETCC_TRAP \
         b getcc_trap_handler; mov %psr, %l0; nop; nop;

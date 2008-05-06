@@ -1,8 +1,6 @@
 #ifndef __LINUX_TEXTSEARCH_H
 #define __LINUX_TEXTSEARCH_H
 
-#ifdef __KERNEL__
-
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
@@ -176,7 +174,5 @@ static inline void *ts_config_priv(struct ts_config *conf)
 {
 	return ((u8 *) conf + TS_PRIV_ALIGN(sizeof(struct ts_config)));
 }
-
-#endif /* __KERNEL__ */
 
 #endif

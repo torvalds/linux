@@ -173,9 +173,11 @@ void iommu_range_free(struct iommu *iommu, dma_addr_t dma_addr, unsigned long np
 }
 
 int iommu_table_init(struct iommu *iommu, int tsbsize,
-		     u32 dma_offset, u32 dma_addr_mask)
+		     u32 dma_offset, u32 dma_addr_mask,
+		     int numa_node)
 {
-	unsigned long i, tsbbase, order, sz, num_tsb_entries;
+	unsigned long i, order, sz, num_tsb_entries;
+	struct page *page;
 
 	num_tsb_entries = tsbsize / sizeof(iopte_t);
 
@@ -188,11 +190,12 @@ int iommu_table_init(struct iommu *iommu, int tsbsize,
 	/* Allocate and initialize the free area map.  */
 	sz = num_tsb_entries / 8;
 	sz = (sz + 7UL) & ~7UL;
-	iommu->arena.map = kzalloc(sz, GFP_KERNEL);
+	iommu->arena.map = kmalloc_node(sz, GFP_KERNEL, numa_node);
 	if (!iommu->arena.map) {
 		printk(KERN_ERR "IOMMU: Error, kmalloc(arena.map) failed.\n");
 		return -ENOMEM;
 	}
+	memset(iommu->arena.map, 0, sz);
 	iommu->arena.limit = num_tsb_entries;
 
 	if (tlb_type != hypervisor)
@@ -201,21 +204,23 @@ int iommu_table_init(struct iommu *iommu, int tsbsize,
 	/* Allocate and initialize the dummy page which we
 	 * set inactive IO PTEs to point to.
 	 */
-	iommu->dummy_page = get_zeroed_page(GFP_KERNEL);
-	if (!iommu->dummy_page) {
+	page = alloc_pages_node(numa_node, GFP_KERNEL, 0);
+	if (!page) {
 		printk(KERN_ERR "IOMMU: Error, gfp(dummy_page) failed.\n");
 		goto out_free_map;
 	}
+	iommu->dummy_page = (unsigned long) page_address(page);
+	memset((void *)iommu->dummy_page, 0, PAGE_SIZE);
 	iommu->dummy_page_pa = (unsigned long) __pa(iommu->dummy_page);
 
 	/* Now allocate and setup the IOMMU page table itself.  */
 	order = get_order(tsbsize);
-	tsbbase = __get_free_pages(GFP_KERNEL, order);
-	if (!tsbbase) {
+	page = alloc_pages_node(numa_node, GFP_KERNEL, order);
+	if (!page) {
 		printk(KERN_ERR "IOMMU: Error, gfp(tsb) failed.\n");
 		goto out_free_dummy_page;
 	}
-	iommu->page_table = (iopte_t *)tsbbase;
+	iommu->page_table = (iopte_t *)page_address(page);
 
 	for (i = 0; i < num_tsb_entries; i++)
 		iopte_make_dummy(iommu, &iommu->page_table[i]);
@@ -276,20 +281,24 @@ static inline void iommu_free_ctx(struct iommu *iommu, int ctx)
 static void *dma_4u_alloc_coherent(struct device *dev, size_t size,
 				   dma_addr_t *dma_addrp, gfp_t gfp)
 {
-	struct iommu *iommu;
-	iopte_t *iopte;
 	unsigned long flags, order, first_page;
+	struct iommu *iommu;
+	struct page *page;
+	int npages, nid;
+	iopte_t *iopte;
 	void *ret;
-	int npages;
 
 	size = IO_PAGE_ALIGN(size);
 	order = get_order(size);
 	if (order >= 10)
 		return NULL;
 
-	first_page = __get_free_pages(gfp, order);
-	if (first_page == 0UL)
+	nid = dev->archdata.numa_node;
+	page = alloc_pages_node(nid, gfp, order);
+	if (unlikely(!page))
 		return NULL;
+
+	first_page = (unsigned long) page_address(page);
 	memset((char *)first_page, 0, PAGE_SIZE << order);
 
 	iommu = dev->archdata.iommu;

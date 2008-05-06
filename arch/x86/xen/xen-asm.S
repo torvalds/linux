@@ -108,6 +108,20 @@ ENDPATCH(xen_restore_fl_direct)
 	RELOC(xen_restore_fl_direct, 2b+1)
 
 /*
+	We can't use sysexit directly, because we're not running in ring0.
+	But we can easily fake it up using iret.  Assuming xen_sysexit
+	is jumped to with a standard stack frame, we can just strip it
+	back to a standard iret frame and use iret.
+ */
+ENTRY(xen_sysexit)
+	movl PT_EAX(%esp), %eax			/* Shouldn't be necessary? */
+	orl $X86_EFLAGS_IF, PT_EFLAGS(%esp)
+	lea PT_EIP(%esp), %esp
+
+	jmp xen_iret
+ENDPROC(xen_sysexit)
+
+/*
 	This is run where a normal iret would be run, with the same stack setup:
 	      8: eflags
 	      4: cs
@@ -184,8 +198,12 @@ iret_restore_end:
 	   region is OK. */
 	je xen_hypervisor_callback
 
-	iret
+1:	iret
 xen_iret_end_crit:
+.section __ex_table,"a"
+	.align 4
+	.long 1b,iret_exc
+.previous
 
 hyper_iret:
 	/* put this out of line since its very rarely used */
@@ -219,9 +237,7 @@ hyper_iret:
 	 ds		}  SAVE_ALL state
 	 eax		}
 	  :		:
-	 ebx		}
-	----------------
-	 return addr	 <- esp
+	 ebx		}<- esp
 	----------------
 
    In order to deliver the nested exception properly, we need to shift
@@ -236,10 +252,8 @@ hyper_iret:
    it's usermode state which we eventually need to restore.
  */
 ENTRY(xen_iret_crit_fixup)
-	/* offsets +4 for return address */
-
 	/*
-	   Paranoia: Make sure we're really coming from userspace.
+	   Paranoia: Make sure we're really coming from kernel space.
 	   One could imagine a case where userspace jumps into the
 	   critical range address, but just before the CPU delivers a GP,
 	   it decides to deliver an interrupt instead.  Unlikely?
@@ -248,32 +262,32 @@ ENTRY(xen_iret_crit_fixup)
 	   jump instruction itself, not the destination, but some virtual
 	   environments get this wrong.
 	 */
-	movl PT_CS+4(%esp), %ecx
+	movl PT_CS(%esp), %ecx
 	andl $SEGMENT_RPL_MASK, %ecx
 	cmpl $USER_RPL, %ecx
 	je 2f
 
-	lea PT_ORIG_EAX+4(%esp), %esi
-	lea PT_EFLAGS+4(%esp), %edi
+	lea PT_ORIG_EAX(%esp), %esi
+	lea PT_EFLAGS(%esp), %edi
 
 	/* If eip is before iret_restore_end then stack
 	   hasn't been restored yet. */
 	cmp $iret_restore_end, %eax
 	jae 1f
 
-	movl 0+4(%edi),%eax		/* copy EAX */
-	movl %eax, PT_EAX+4(%esp)
+	movl 0+4(%edi),%eax		/* copy EAX (just above top of frame) */
+	movl %eax, PT_EAX(%esp)
 
 	lea ESP_OFFSET(%edi),%edi	/* move dest up over saved regs */
 
 	/* set up the copy */
 1:	std
-	mov $(PT_EIP+4) / 4, %ecx	/* copy ret+saved regs up to orig_eax */
+	mov $PT_EIP / 4, %ecx		/* saved regs up to orig_eax */
 	rep movsl
 	cld
 
 	lea 4(%edi),%esp		/* point esp to new frame */
-2:	ret
+2:	jmp xen_do_upcall
 
 
 /*

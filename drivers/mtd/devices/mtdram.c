@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/mtd/compatmac.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/mtdram.h>
 
 static unsigned long total_size = CONFIG_MTDRAM_TOTAL_SIZE;
 static unsigned long erase_size = CONFIG_MTDRAM_ERASE_SIZE;
@@ -47,18 +48,21 @@ static int ram_erase(struct mtd_info *mtd, struct erase_info *instr)
 }
 
 static int ram_point(struct mtd_info *mtd, loff_t from, size_t len,
-		size_t *retlen, u_char **mtdbuf)
+		size_t *retlen, void **virt, resource_size_t *phys)
 {
 	if (from + len > mtd->size)
 		return -EINVAL;
 
-	*mtdbuf = mtd->priv + from;
+	/* can we return a physical address with this driver? */
+	if (phys)
+		return -EINVAL;
+
+	*virt = mtd->priv + from;
 	*retlen = len;
 	return 0;
 }
 
-static void ram_unpoint(struct mtd_info *mtd, u_char * addr, loff_t from,
-		size_t len)
+static void ram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 }
 

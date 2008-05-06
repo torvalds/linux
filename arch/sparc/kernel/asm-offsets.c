@@ -12,11 +12,7 @@
 
 #include <linux/sched.h>
 // #include <linux/mm.h>
-
-#define DEFINE(sym, val) \
-	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
+#include <linux/kbuild.h>
 
 int foo(void)
 {

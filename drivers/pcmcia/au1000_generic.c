@@ -41,6 +41,7 @@
 #include <linux/notifier.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 
 #include <asm/io.h>
@@ -71,7 +72,7 @@ extern struct au1000_pcmcia_socket au1000_pcmcia_socket[];
 u32 *pcmcia_base_vaddrs[2];
 extern const unsigned long mips_io_port_base;
 
-DECLARE_MUTEX(pcmcia_sockets_lock);
+static DEFINE_MUTEX(pcmcia_sockets_lock);
 
 static int (*au1x00_pcmcia_hw_init[])(struct device *dev) = {
 	au1x_board_init,
@@ -472,7 +473,7 @@ int au1x00_drv_pcmcia_remove(struct device *dev)
 	struct skt_dev_info *sinfo = dev_get_drvdata(dev);
 	int i;
 
-	down(&pcmcia_sockets_lock);
+	mutex_lock(&pcmcia_sockets_lock);
 	dev_set_drvdata(dev, NULL);
 
 	for (i = 0; i < sinfo->nskt; i++) {
@@ -488,7 +489,7 @@ int au1x00_drv_pcmcia_remove(struct device *dev)
 	}
 
 	kfree(sinfo);
-	up(&pcmcia_sockets_lock);
+	mutex_unlock(&pcmcia_sockets_lock);
 	return 0;
 }
 
@@ -501,13 +502,13 @@ static int au1x00_drv_pcmcia_probe(struct device *dev)
 {
 	int i, ret = -ENODEV;
 
-	down(&pcmcia_sockets_lock);
+	mutex_lock(&pcmcia_sockets_lock);
 	for (i=0; i < ARRAY_SIZE(au1x00_pcmcia_hw_init); i++) {
 		ret = au1x00_pcmcia_hw_init[i](dev);
 		if (ret == 0)
 			break;
 	}
-	up(&pcmcia_sockets_lock);
+	mutex_unlock(&pcmcia_sockets_lock);
 	return ret;
 }
 

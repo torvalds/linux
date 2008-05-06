@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -260,6 +260,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 
 	if (ACPI_FAILURE(status) || walk_state->result_obj) {
 		acpi_ut_remove_reference(return_desc);
+		walk_state->result_obj = NULL;
 	}
 
 	/* Set the return object and exit */

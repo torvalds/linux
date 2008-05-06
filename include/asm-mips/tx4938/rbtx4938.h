@@ -67,44 +67,26 @@
 #define RBTX4938_INTF_MODEM	(1 << RBTX4938_INTB_MODEM)
 #define RBTX4938_INTF_SWINT	(1 << RBTX4938_INTB_SWINT)
 
-#define rbtx4938_fpga_rev_ptr	\
-	((volatile unsigned char *)RBTX4938_FPGA_REV_ADDR)
-#define rbtx4938_led_ptr	\
-	((volatile unsigned char *)RBTX4938_LED_ADDR)
-#define rbtx4938_dipsw_ptr	\
-	((volatile unsigned char *)RBTX4938_DIPSW_ADDR)
-#define rbtx4938_bdipsw_ptr	\
-	((volatile unsigned char *)RBTX4938_BDIPSW_ADDR)
-#define rbtx4938_imask_ptr	\
-	((volatile unsigned char *)RBTX4938_IMASK_ADDR)
-#define rbtx4938_imask2_ptr	\
-	((volatile unsigned char *)RBTX4938_IMASK2_ADDR)
-#define rbtx4938_intpol_ptr	\
-	((volatile unsigned char *)RBTX4938_INTPOL_ADDR)
-#define rbtx4938_istat_ptr	\
-	((volatile unsigned char *)RBTX4938_ISTAT_ADDR)
-#define rbtx4938_istat2_ptr	\
-	((volatile unsigned char *)RBTX4938_ISTAT2_ADDR)
-#define rbtx4938_imstat_ptr	\
-	((volatile unsigned char *)RBTX4938_IMSTAT_ADDR)
-#define rbtx4938_imstat2_ptr	\
-	((volatile unsigned char *)RBTX4938_IMSTAT2_ADDR)
-#define rbtx4938_softint_ptr	\
-	((volatile unsigned char *)RBTX4938_SOFTINT_ADDR)
-#define rbtx4938_piosel_ptr	\
-	((volatile unsigned char *)RBTX4938_PIOSEL_ADDR)
-#define rbtx4938_spics_ptr	\
-	((volatile unsigned char *)RBTX4938_SPICS_ADDR)
-#define rbtx4938_sfpwr_ptr	\
-	((volatile unsigned char *)RBTX4938_SFPWR_ADDR)
-#define rbtx4938_sfvol_ptr	\
-	((volatile unsigned char *)RBTX4938_SFVOL_ADDR)
-#define rbtx4938_softreset_ptr	\
-	((volatile unsigned char *)RBTX4938_SOFTRESET_ADDR)
-#define rbtx4938_softresetlock_ptr	\
-	((volatile unsigned char *)RBTX4938_SOFTRESETLOCK_ADDR)
-#define rbtx4938_pcireset_ptr	\
-	((volatile unsigned char *)RBTX4938_PCIRESET_ADDR)
+#define rbtx4938_fpga_rev_addr	((__u8 __iomem *)RBTX4938_FPGA_REV_ADDR)
+#define rbtx4938_led_addr	((__u8 __iomem *)RBTX4938_LED_ADDR)
+#define rbtx4938_dipsw_addr	((__u8 __iomem *)RBTX4938_DIPSW_ADDR)
+#define rbtx4938_bdipsw_addr	((__u8 __iomem *)RBTX4938_BDIPSW_ADDR)
+#define rbtx4938_imask_addr	((__u8 __iomem *)RBTX4938_IMASK_ADDR)
+#define rbtx4938_imask2_addr	((__u8 __iomem *)RBTX4938_IMASK2_ADDR)
+#define rbtx4938_intpol_addr	((__u8 __iomem *)RBTX4938_INTPOL_ADDR)
+#define rbtx4938_istat_addr	((__u8 __iomem *)RBTX4938_ISTAT_ADDR)
+#define rbtx4938_istat2_addr	((__u8 __iomem *)RBTX4938_ISTAT2_ADDR)
+#define rbtx4938_imstat_addr	((__u8 __iomem *)RBTX4938_IMSTAT_ADDR)
+#define rbtx4938_imstat2_addr	((__u8 __iomem *)RBTX4938_IMSTAT2_ADDR)
+#define rbtx4938_softint_addr	((__u8 __iomem *)RBTX4938_SOFTINT_ADDR)
+#define rbtx4938_piosel_addr	((__u8 __iomem *)RBTX4938_PIOSEL_ADDR)
+#define rbtx4938_spics_addr	((__u8 __iomem *)RBTX4938_SPICS_ADDR)
+#define rbtx4938_sfpwr_addr	((__u8 __iomem *)RBTX4938_SFPWR_ADDR)
+#define rbtx4938_sfvol_addr	((__u8 __iomem *)RBTX4938_SFVOL_ADDR)
+#define rbtx4938_softreset_addr	((__u8 __iomem *)RBTX4938_SOFTRESET_ADDR)
+#define rbtx4938_softresetlock_addr	\
+				((__u8 __iomem *)RBTX4938_SOFTRESETLOCK_ADDR)
+#define rbtx4938_pcireset_addr	((__u8 __iomem *)RBTX4938_PCIRESET_ADDR)
 
 /*
  * IRQ mappings

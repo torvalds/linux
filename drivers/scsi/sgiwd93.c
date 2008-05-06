@@ -313,7 +313,8 @@ static struct platform_driver sgiwd93_driver = {
 	.probe  = sgiwd93_probe,
 	.remove = __devexit_p(sgiwd93_remove),
 	.driver = {
-		.name   = "sgiwd93"
+		.name   = "sgiwd93",
+		.owner	= THIS_MODULE,
 	}
 };
 
@@ -333,3 +334,4 @@ module_exit(sgiwd93_module_exit);
 MODULE_DESCRIPTION("SGI WD33C93 driver");
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:sgiwd93");

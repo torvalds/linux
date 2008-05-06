@@ -411,9 +411,12 @@ err2:
 	br_fdb_delete_by_port(br, p, 1);
 err1:
 	kobject_del(&p->kobj);
-	return err;
+	goto put_back;
 err0:
 	kobject_put(&p->kobj);
+
+put_back:
+	dev_put(dev);
 	return err;
 }
 

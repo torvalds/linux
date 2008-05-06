@@ -25,6 +25,7 @@
 #include <asm/hpet.h>
 #include <linux/kdebug.h>
 #include <asm/smp.h>
+#include <asm/reboot.h>
 
 #include <mach_ipi.h>
 
@@ -117,7 +118,7 @@ static void nmi_shootdown_cpus(void)
 }
 #endif
 
-void machine_crash_shutdown(struct pt_regs *regs)
+void native_machine_crash_shutdown(struct pt_regs *regs)
 {
 	/* This function is only called after the system
 	 * has panicked or is otherwise in a critical state.

@@ -1075,7 +1075,7 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 
 	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
 	if (ret > 0)
-		*ppos += ret;
+		*ppos = sd.pos;
 
 	return ret;
 }

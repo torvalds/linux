@@ -313,15 +313,13 @@ static int spitz_wm8750_init(struct snd_soc_codec *codec)
 	}
 
 	/* Add spitz specific widgets */
-	for (i = 0; i < ARRAY_SIZE(wm8750_dapm_widgets); i++) {
+	for (i = 0; i < ARRAY_SIZE(wm8750_dapm_widgets); i++)
 		snd_soc_dapm_new_control(codec, &wm8750_dapm_widgets[i]);
-	}
 
 	/* Set up spitz specific audio path audio_map */
-	for (i = 0; audio_map[i][0] != NULL; i++) {
+	for (i = 0; audio_map[i][0] != NULL; i++)
 		snd_soc_dapm_connect_input(codec, audio_map[i][0],
 			audio_map[i][1], audio_map[i][2]);
-	}
 
 	snd_soc_dapm_sync_endpoints(codec);
 	return 0;

@@ -147,6 +147,7 @@ xfs_ialloc_ag_alloc(
 	int		version;	/* inode version number to use */
 	int		isaligned = 0;	/* inode allocation at stripe unit */
 					/* boundary */
+	unsigned int	gen;
 
 	args.tp = tp;
 	args.mp = tp->t_mountp;
@@ -290,6 +291,14 @@ xfs_ialloc_ag_alloc(
 	else
 		version = XFS_DINODE_VERSION_1;
 
+	/*
+	 * Seed the new inode cluster with a random generation number. This
+	 * prevents short-term reuse of generation numbers if a chunk is
+	 * freed and then immediately reallocated. We use random numbers
+	 * rather than a linear progression to prevent the next generation
+	 * number from being easily guessable.
+	 */
+	gen = random32();
 	for (j = 0; j < nbufs; j++) {
 		/*
 		 * Get the block.
@@ -309,6 +318,7 @@ xfs_ialloc_ag_alloc(
 			free = XFS_MAKE_IPTR(args.mp, fbuf, i);
 			free->di_core.di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
 			free->di_core.di_version = version;
+			free->di_core.di_gen = cpu_to_be32(gen);
 			free->di_next_unlinked = cpu_to_be32(NULLAGINO);
 			xfs_ialloc_log_di(tp, fbuf, i,
 				XFS_DI_CORE_BITS | XFS_DI_NEXT_UNLINKED);

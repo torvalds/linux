@@ -450,6 +450,7 @@ xsc3_crval:
 	.type	xsc3_processor_functions, #object
 ENTRY(xsc3_processor_functions)
 	.word	v5t_early_abort
+	.word	pabort_noifar
 	.word	cpu_xsc3_proc_init
 	.word	cpu_xsc3_proc_fin
 	.word	cpu_xsc3_reset

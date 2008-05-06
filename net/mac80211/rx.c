@@ -2170,7 +2170,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_supported_band *sband;
 
 	if (status->band < 0 ||
-	    status->band > IEEE80211_NUM_BANDS) {
+	    status->band >= IEEE80211_NUM_BANDS) {
 		WARN_ON(1);
 		return;
 	}

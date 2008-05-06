@@ -26,7 +26,7 @@ static int dvb_usb_force_pid_filter_usage;
 module_param_named(force_pid_filter_usage, dvb_usb_force_pid_filter_usage, int, 0444);
 MODULE_PARM_DESC(force_pid_filter_usage, "force all dvb-usb-devices to use a PID filter, if any (default: 0).");
 
-static int dvb_usb_adapter_init(struct dvb_usb_device *d)
+static int dvb_usb_adapter_init(struct dvb_usb_device *d, short *adapter_nrs)
 {
 	struct dvb_usb_adapter *adap;
 	int ret,n;
@@ -72,7 +72,7 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 		}
 
 		if ((ret = dvb_usb_adapter_stream_init(adap)) ||
-			(ret = dvb_usb_adapter_dvb_init(adap)) ||
+			(ret = dvb_usb_adapter_dvb_init(adap, adapter_nrs)) ||
 			(ret = dvb_usb_adapter_frontend_init(adap))) {
 			return ret;
 		}
@@ -122,7 +122,7 @@ static int dvb_usb_exit(struct dvb_usb_device *d)
 	return 0;
 }
 
-static int dvb_usb_init(struct dvb_usb_device *d)
+static int dvb_usb_init(struct dvb_usb_device *d, short *adapter_nums)
 {
 	int ret = 0;
 
@@ -143,7 +143,7 @@ static int dvb_usb_init(struct dvb_usb_device *d)
 	dvb_usb_device_power_ctrl(d, 1);
 
 	if ((ret = dvb_usb_i2c_init(d)) ||
-		(ret = dvb_usb_adapter_init(d))) {
+		(ret = dvb_usb_adapter_init(d, adapter_nums))) {
 		dvb_usb_exit(d);
 		return ret;
 	}
@@ -213,8 +213,10 @@ int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
 /*
  * USB
  */
-int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_device_properties
-		*props, struct module *owner,struct dvb_usb_device **du)
+int dvb_usb_device_init(struct usb_interface *intf,
+			struct dvb_usb_device_properties *props,
+			struct module *owner, struct dvb_usb_device **du,
+			short *adapter_nums)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct dvb_usb_device *d = NULL;
@@ -254,7 +256,7 @@ int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_device_proper
 	if (du != NULL)
 		*du = d;
 
-	ret = dvb_usb_init(d);
+	ret = dvb_usb_init(d, adapter_nums);
 
 	if (ret == 0)
 		info("%s successfully initialized and connected.",desc->name);

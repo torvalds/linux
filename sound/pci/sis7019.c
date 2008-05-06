@@ -1194,7 +1194,6 @@ static int sis_suspend(struct pci_dev *pci, pm_message_t state)
 	/* snd_pcm_suspend_all() stopped all channels, so we're quiescent.
 	 */
 	if (sis->irq >= 0) {
-		synchronize_irq(sis->irq);
 		free_irq(sis->irq, sis);
 		sis->irq = -1;
 	}

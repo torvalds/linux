@@ -450,3 +450,9 @@ These currently include
       there are upper and lower limits (32768, 16).  Default is 128.
   strip_cache_active (currently raid5 only)
       number of active entries in the stripe cache
+  preread_bypass_threshold (currently raid5 only)
+      number of times a stripe requiring preread will be bypassed by
+      a stripe that does not require preread.  For fairness defaults
+      to 1.  Setting this to 0 disables bypass accounting and
+      requires preread stripes to wait until all full-width stripe-
+      writes are complete.  Valid values are 0 to stripe_cache_size.

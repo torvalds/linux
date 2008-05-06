@@ -23,9 +23,7 @@
 /*
  * Gadget Zero only needs two bulk endpoints, and is an example of how you
  * can write a hardware-agnostic gadget driver running inside a USB device.
- *
- * Hardware details are visible (see CONFIG_USB_ZERO_* below) but don't
- * affect most of the driver.
+ * Some hardware details are visible, but don't affect most of the driver.
  *
  * Use it with the Linux host/master side "usbtest" driver to get a basic
  * functional test of your device-side usb stack, or with "usb-skeleton".
@@ -37,6 +35,7 @@
  *   buflen=N		default N=4096, buffer size used
  *   qlen=N		default N=32, how many buffers in the loopback queue
  *   loopdefault	default false, list loopback config first
+ *   autoresume=N	default N=0, seconds before triggering remote wakeup
  *
  * Many drivers will only have one configuration, letting them be much
  * simpler if they also don't support high speed operation (like this
@@ -62,13 +61,13 @@
 
 /*-------------------------------------------------------------------------*/
 
-#define DRIVER_VERSION		"Lughnasadh, 2007"
+#define DRIVER_VERSION		"Earth Day 2008"
 
-static const char shortname [] = "zero";
-static const char longname [] = "Gadget Zero";
+static const char shortname[] = "zero";
+static const char longname[] = "Gadget Zero";
 
-static const char source_sink [] = "source and sink data";
-static const char loopback [] = "loop input to output";
+static const char source_sink[] = "source and sink data";
+static const char loopback[] = "loop input to output";
 
 /*-------------------------------------------------------------------------*/
 
@@ -120,16 +119,16 @@ static unsigned buflen = 4096;
 static unsigned qlen = 32;
 static unsigned pattern = 0;
 
-module_param (buflen, uint, S_IRUGO);
-module_param (qlen, uint, S_IRUGO);
-module_param (pattern, uint, S_IRUGO|S_IWUSR);
+module_param(buflen, uint, S_IRUGO);
+module_param(qlen, uint, S_IRUGO);
+module_param(pattern, uint, S_IRUGO|S_IWUSR);
 
 /*
  * if it's nonzero, autoresume says how many seconds to wait
  * before trying to wake up the host after suspend.
  */
 static unsigned autoresume = 0;
-module_param (autoresume, uint, 0);
+module_param(autoresume, uint, 0);
 
 /*
  * Normally the "loopback" configuration is second (index 1) so
@@ -138,8 +137,7 @@ module_param (autoresume, uint, 0);
  * Or controllers (like superh) that only support one config.
  */
 static int loopdefault = 0;
-
-module_param (loopdefault, bool, S_IRUGO|S_IWUSR);
+module_param(loopdefault, bool, S_IRUGO|S_IWUSR);
 
 /*-------------------------------------------------------------------------*/
 
@@ -176,24 +174,22 @@ module_param (loopdefault, bool, S_IRUGO|S_IWUSR);
 #define	CONFIG_SOURCE_SINK	3
 #define	CONFIG_LOOPBACK		2
 
-static struct usb_device_descriptor
-device_desc = {
+static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		__constant_cpu_to_le16 (0x0200),
+	.bcdUSB =		__constant_cpu_to_le16(0x0200),
 	.bDeviceClass =		USB_CLASS_VENDOR_SPEC,
 
-	.idVendor =		__constant_cpu_to_le16 (DRIVER_VENDOR_NUM),
-	.idProduct =		__constant_cpu_to_le16 (DRIVER_PRODUCT_NUM),
+	.idVendor =		__constant_cpu_to_le16(DRIVER_VENDOR_NUM),
+	.idProduct =		__constant_cpu_to_le16(DRIVER_PRODUCT_NUM),
 	.iManufacturer =	STRING_MANUFACTURER,
 	.iProduct =		STRING_PRODUCT,
 	.iSerialNumber =	STRING_SERIAL,
 	.bNumConfigurations =	2,
 };
 
-static struct usb_config_descriptor
-source_sink_config = {
+static struct usb_config_descriptor source_sink_config = {
 	.bLength =		sizeof source_sink_config,
 	.bDescriptorType =	USB_DT_CONFIG,
 
@@ -205,8 +201,7 @@ source_sink_config = {
 	.bMaxPower =		1,	/* self-powered */
 };
 
-static struct usb_config_descriptor
-loopback_config = {
+static struct usb_config_descriptor loopback_config = {
 	.bLength =		sizeof loopback_config,
 	.bDescriptorType =	USB_DT_CONFIG,
 
@@ -218,8 +213,7 @@ loopback_config = {
 	.bMaxPower =		1,	/* self-powered */
 };
 
-static struct usb_otg_descriptor
-otg_descriptor = {
+static struct usb_otg_descriptor otg_descriptor = {
 	.bLength =		sizeof otg_descriptor,
 	.bDescriptorType =	USB_DT_OTG,
 
@@ -228,8 +222,7 @@ otg_descriptor = {
 
 /* one interface in each configuration */
 
-static const struct usb_interface_descriptor
-source_sink_intf = {
+static const struct usb_interface_descriptor source_sink_intf = {
 	.bLength =		sizeof source_sink_intf,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
@@ -238,8 +231,7 @@ source_sink_intf = {
 	.iInterface =		STRING_SOURCE_SINK,
 };
 
-static const struct usb_interface_descriptor
-loopback_intf = {
+static const struct usb_interface_descriptor loopback_intf = {
 	.bLength =		sizeof loopback_intf,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
@@ -250,8 +242,7 @@ loopback_intf = {
 
 /* two full speed bulk endpoints; their use is config-dependent */
 
-static struct usb_endpoint_descriptor
-fs_source_desc = {
+static struct usb_endpoint_descriptor fs_source_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -259,8 +250,7 @@ fs_source_desc = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_endpoint_descriptor
-fs_sink_desc = {
+static struct usb_endpoint_descriptor fs_sink_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -268,7 +258,7 @@ fs_sink_desc = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static const struct usb_descriptor_header *fs_source_sink_function [] = {
+static const struct usb_descriptor_header *fs_source_sink_function[] = {
 	(struct usb_descriptor_header *) &otg_descriptor,
 	(struct usb_descriptor_header *) &source_sink_intf,
 	(struct usb_descriptor_header *) &fs_sink_desc,
@@ -276,7 +266,7 @@ static const struct usb_descriptor_header *fs_source_sink_function [] = {
 	NULL,
 };
 
-static const struct usb_descriptor_header *fs_loopback_function [] = {
+static const struct usb_descriptor_header *fs_loopback_function[] = {
 	(struct usb_descriptor_header *) &otg_descriptor,
 	(struct usb_descriptor_header *) &loopback_intf,
 	(struct usb_descriptor_header *) &fs_sink_desc,
@@ -293,36 +283,33 @@ static const struct usb_descriptor_header *fs_loopback_function [] = {
  * for the config descriptor.
  */
 
-static struct usb_endpoint_descriptor
-hs_source_desc = {
+static struct usb_endpoint_descriptor hs_source_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16 (512),
+	.wMaxPacketSize =	__constant_cpu_to_le16(512),
 };
 
-static struct usb_endpoint_descriptor
-hs_sink_desc = {
+static struct usb_endpoint_descriptor hs_sink_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16 (512),
+	.wMaxPacketSize =	__constant_cpu_to_le16(512),
 };
 
-static struct usb_qualifier_descriptor
-dev_qualifier = {
+static struct usb_qualifier_descriptor dev_qualifier = {
 	.bLength =		sizeof dev_qualifier,
 	.bDescriptorType =	USB_DT_DEVICE_QUALIFIER,
 
-	.bcdUSB =		__constant_cpu_to_le16 (0x0200),
+	.bcdUSB =		__constant_cpu_to_le16(0x0200),
 	.bDeviceClass =		USB_CLASS_VENDOR_SPEC,
 
 	.bNumConfigurations =	2,
 };
 
-static const struct usb_descriptor_header *hs_source_sink_function [] = {
+static const struct usb_descriptor_header *hs_source_sink_function[] = {
 	(struct usb_descriptor_header *) &otg_descriptor,
 	(struct usb_descriptor_header *) &source_sink_intf,
 	(struct usb_descriptor_header *) &hs_source_desc,
@@ -330,7 +317,7 @@ static const struct usb_descriptor_header *hs_source_sink_function [] = {
 	NULL,
 };
 
-static const struct usb_descriptor_header *hs_loopback_function [] = {
+static const struct usb_descriptor_header *hs_loopback_function[] = {
 	(struct usb_descriptor_header *) &otg_descriptor,
 	(struct usb_descriptor_header *) &loopback_intf,
 	(struct usb_descriptor_header *) &hs_source_desc,
@@ -355,7 +342,7 @@ static char serial[] = "0123456789.0123456789.0123456789";
 
 
 /* static strings, in UTF-8 */
-static struct usb_string		strings [] = {
+static struct usb_string strings[] = {
 	{ STRING_MANUFACTURER, manufacturer, },
 	{ STRING_PRODUCT, longname, },
 	{ STRING_SERIAL, serial, },
@@ -364,7 +351,7 @@ static struct usb_string		strings [] = {
 	{  }			/* end of list */
 };
 
-static struct usb_gadget_strings	stringtab = {
+static struct usb_gadget_strings stringtab = {
 	.language	= 0x0409,	/* en-us */
 	.strings	= strings,
 };
@@ -387,8 +374,7 @@ static struct usb_gadget_strings	stringtab = {
  * high bandwidth modes at high speed.  (Maybe work like Intel's test
  * device?)
  */
-static int
-config_buf (struct usb_gadget *gadget,
+static int config_buf(struct usb_gadget *gadget,
 		u8 *buf, u8 type, unsigned index)
 {
 	int				is_source_sink;
@@ -419,7 +405,7 @@ config_buf (struct usb_gadget *gadget,
 	if (!gadget_is_otg(gadget))
 		function++;
 
-	len = usb_gadget_config_buf (is_source_sink
+	len = usb_gadget_config_buf(is_source_sink
 					? &source_sink_config
 					: &loopback_config,
 			buf, USB_BUFSIZ, function);
@@ -431,27 +417,26 @@ config_buf (struct usb_gadget *gadget,
 
 /*-------------------------------------------------------------------------*/
 
-static struct usb_request *
-alloc_ep_req (struct usb_ep *ep, unsigned length)
+static struct usb_request *alloc_ep_req(struct usb_ep *ep, unsigned length)
 {
 	struct usb_request	*req;
 
-	req = usb_ep_alloc_request (ep, GFP_ATOMIC);
+	req = usb_ep_alloc_request(ep, GFP_ATOMIC);
 	if (req) {
 		req->length = length;
 		req->buf = kmalloc(length, GFP_ATOMIC);
 		if (!req->buf) {
-			usb_ep_free_request (ep, req);
+			usb_ep_free_request(ep, req);
 			req = NULL;
 		}
 	}
 	return req;
 }
 
-static void free_ep_req (struct usb_ep *ep, struct usb_request *req)
+static void free_ep_req(struct usb_ep *ep, struct usb_request *req)
 {
 	kfree(req->buf);
-	usb_ep_free_request (ep, req);
+	usb_ep_free_request(ep, req);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -472,7 +457,7 @@ static void free_ep_req (struct usb_ep *ep, struct usb_request *req)
 /* optionally require specific source/sink data patterns  */
 
 static int
-check_read_data (
+check_read_data(
 	struct zero_dev		*dev,
 	struct usb_ep		*ep,
 	struct usb_request	*req
@@ -498,8 +483,8 @@ check_read_data (
 				continue;
 			break;
 		}
-		ERROR (dev, "bad OUT byte, buf [%d] = %d\n", i, *buf);
-		usb_ep_set_halt (ep);
+		ERROR(dev, "bad OUT byte, buf[%d] = %d\n", i, *buf);
+		usb_ep_set_halt(ep);
 		return -EINVAL;
 	}
 	return 0;
@@ -512,7 +497,7 @@ static void reinit_write_data(struct usb_ep *ep, struct usb_request *req)
 
 	switch (pattern) {
 	case 0:
-		memset (req->buf, 0, req->length);
+		memset(req->buf, 0, req->length);
 		break;
 	case 1:
 		for  (i = 0; i < req->length; i++)
@@ -525,7 +510,7 @@ static void reinit_write_data(struct usb_ep *ep, struct usb_request *req)
  * irq delay between end of one request and start of the next.
  * that prevents using hardware dma queues.
  */
-static void source_sink_complete (struct usb_ep *ep, struct usb_request *req)
+static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct zero_dev	*dev = ep->driver_data;
 	int		status = req->status;
@@ -534,8 +519,8 @@ static void source_sink_complete (struct usb_ep *ep, struct usb_request *req)
 
 	case 0:				/* normal completion? */
 		if (ep == dev->out_ep) {
-			check_read_data (dev, ep, req);
-			memset (req->buf, 0x55, req->length);
+			check_read_data(dev, ep, req);
+			memset(req->buf, 0x55, req->length);
 		} else
 			reinit_write_data(ep, req);
 		break;
@@ -544,11 +529,11 @@ static void source_sink_complete (struct usb_ep *ep, struct usb_request *req)
 	case -ECONNABORTED:		/* hardware forced ep reset */
 	case -ECONNRESET:		/* request dequeued */
 	case -ESHUTDOWN:		/* disconnect from host */
-		VDBG (dev, "%s gone (%d), %d/%d\n", ep->name, status,
+		VDBG(dev, "%s gone (%d), %d/%d\n", ep->name, status,
 				req->actual, req->length);
 		if (ep == dev->out_ep)
-			check_read_data (dev, ep, req);
-		free_ep_req (ep, req);
+			check_read_data(dev, ep, req);
+		free_ep_req(ep, req);
 		return;
 
 	case -EOVERFLOW:		/* buffer overrun on read means that
@@ -557,18 +542,18 @@ static void source_sink_complete (struct usb_ep *ep, struct usb_request *req)
 					 */
 	default:
 #if 1
-		DBG (dev, "%s complete --> %d, %d/%d\n", ep->name,
+		DBG(dev, "%s complete --> %d, %d/%d\n", ep->name,
 				status, req->actual, req->length);
 #endif
 	case -EREMOTEIO:		/* short read */
 		break;
 	}
 
-	status = usb_ep_queue (ep, req, GFP_ATOMIC);
+	status = usb_ep_queue(ep, req, GFP_ATOMIC);
 	if (status) {
-		ERROR (dev, "kill %s:  resubmit %d bytes --> %d\n",
+		ERROR(dev, "kill %s:  resubmit %d bytes --> %d\n",
 				ep->name, req->length, status);
-		usb_ep_set_halt (ep);
+		usb_ep_set_halt(ep);
 		/* FIXME recover later ... somehow */
 	}
 }
@@ -578,24 +563,24 @@ static struct usb_request *source_sink_start_ep(struct usb_ep *ep)
 	struct usb_request	*req;
 	int			status;
 
-	req = alloc_ep_req (ep, buflen);
+	req = alloc_ep_req(ep, buflen);
 	if (!req)
 		return NULL;
 
-	memset (req->buf, 0, req->length);
+	memset(req->buf, 0, req->length);
 	req->complete = source_sink_complete;
 
-	if (strcmp (ep->name, EP_IN_NAME) == 0)
+	if (strcmp(ep->name, EP_IN_NAME) == 0)
 		reinit_write_data(ep, req);
 	else
-		memset (req->buf, 0x55, req->length);
+		memset(req->buf, 0x55, req->length);
 
 	status = usb_ep_queue(ep, req, GFP_ATOMIC);
 	if (status) {
 		struct zero_dev	*dev = ep->driver_data;
 
-		ERROR (dev, "start %s --> %d\n", ep->name, status);
-		free_ep_req (ep, req);
+		ERROR(dev, "start %s --> %d\n", ep->name, status);
+		free_ep_req(ep, req);
 		req = NULL;
 	}
 
@@ -608,34 +593,34 @@ static int set_source_sink_config(struct zero_dev *dev)
 	struct usb_ep		*ep;
 	struct usb_gadget	*gadget = dev->gadget;
 
-	gadget_for_each_ep (ep, gadget) {
+	gadget_for_each_ep(ep, gadget) {
 		const struct usb_endpoint_descriptor	*d;
 
 		/* one endpoint writes (sources) zeroes in (to the host) */
-		if (strcmp (ep->name, EP_IN_NAME) == 0) {
-			d = ep_desc (gadget, &hs_source_desc, &fs_source_desc);
-			result = usb_ep_enable (ep, d);
+		if (strcmp(ep->name, EP_IN_NAME) == 0) {
+			d = ep_desc(gadget, &hs_source_desc, &fs_source_desc);
+			result = usb_ep_enable(ep, d);
 			if (result == 0) {
 				ep->driver_data = dev;
 				if (source_sink_start_ep(ep) != NULL) {
 					dev->in_ep = ep;
 					continue;
 				}
-				usb_ep_disable (ep);
+				usb_ep_disable(ep);
 				result = -EIO;
 			}
 
 		/* one endpoint reads (sinks) anything out (from the host) */
-		} else if (strcmp (ep->name, EP_OUT_NAME) == 0) {
-			d = ep_desc (gadget, &hs_sink_desc, &fs_sink_desc);
-			result = usb_ep_enable (ep, d);
+		} else if (strcmp(ep->name, EP_OUT_NAME) == 0) {
+			d = ep_desc(gadget, &hs_sink_desc, &fs_sink_desc);
+			result = usb_ep_enable(ep, d);
 			if (result == 0) {
 				ep->driver_data = dev;
 				if (source_sink_start_ep(ep) != NULL) {
 					dev->out_ep = ep;
 					continue;
 				}
-				usb_ep_disable (ep);
+				usb_ep_disable(ep);
 				result = -EIO;
 			}
 
@@ -644,11 +629,11 @@ static int set_source_sink_config(struct zero_dev *dev)
 			continue;
 
 		/* stop on error */
-		ERROR (dev, "can't start %s, result %d\n", ep->name, result);
+		ERROR(dev, "can't start %s, result %d\n", ep->name, result);
 		break;
 	}
 	if (result == 0)
-		DBG (dev, "buflen %d\n", buflen);
+		DBG(dev, "buflen %d\n", buflen);
 
 	/* caller is responsible for cleanup on error */
 	return result;
@@ -656,7 +641,7 @@ static int set_source_sink_config(struct zero_dev *dev)
 
 /*-------------------------------------------------------------------------*/
 
-static void loopback_complete (struct usb_ep *ep, struct usb_request *req)
+static void loopback_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct zero_dev	*dev = ep->driver_data;
 	int		status = req->status;
@@ -668,19 +653,19 @@ static void loopback_complete (struct usb_ep *ep, struct usb_request *req)
 			/* loop this OUT packet back IN to the host */
 			req->zero = (req->actual < req->length);
 			req->length = req->actual;
-			status = usb_ep_queue (dev->in_ep, req, GFP_ATOMIC);
+			status = usb_ep_queue(dev->in_ep, req, GFP_ATOMIC);
 			if (status == 0)
 				return;
 
 			/* "should never get here" */
-			ERROR (dev, "can't loop %s to %s: %d\n",
+			ERROR(dev, "can't loop %s to %s: %d\n",
 				ep->name, dev->in_ep->name,
 				status);
 		}
 
 		/* queue the buffer for some later OUT packet */
 		req->length = buflen;
-		status = usb_ep_queue (dev->out_ep, req, GFP_ATOMIC);
+		status = usb_ep_queue(dev->out_ep, req, GFP_ATOMIC);
 		if (status == 0)
 			return;
 
@@ -688,7 +673,7 @@ static void loopback_complete (struct usb_ep *ep, struct usb_request *req)
 		/* FALLTHROUGH */
 
 	default:
-		ERROR (dev, "%s loop complete --> %d, %d/%d\n", ep->name,
+		ERROR(dev, "%s loop complete --> %d, %d/%d\n", ep->name,
 				status, req->actual, req->length);
 		/* FALLTHROUGH */
 
@@ -700,7 +685,7 @@ static void loopback_complete (struct usb_ep *ep, struct usb_request *req)
 	case -ECONNABORTED:		/* hardware forced ep reset */
 	case -ECONNRESET:		/* request dequeued */
 	case -ESHUTDOWN:		/* disconnect from host */
-		free_ep_req (ep, req);
+		free_ep_req(ep, req);
 		return;
 	}
 }
@@ -711,13 +696,13 @@ static int set_loopback_config(struct zero_dev *dev)
 	struct usb_ep		*ep;
 	struct usb_gadget	*gadget = dev->gadget;
 
-	gadget_for_each_ep (ep, gadget) {
+	gadget_for_each_ep(ep, gadget) {
 		const struct usb_endpoint_descriptor	*d;
 
 		/* one endpoint writes data back IN to the host */
-		if (strcmp (ep->name, EP_IN_NAME) == 0) {
-			d = ep_desc (gadget, &hs_source_desc, &fs_source_desc);
-			result = usb_ep_enable (ep, d);
+		if (strcmp(ep->name, EP_IN_NAME) == 0) {
+			d = ep_desc(gadget, &hs_source_desc, &fs_source_desc);
+			result = usb_ep_enable(ep, d);
 			if (result == 0) {
 				ep->driver_data = dev;
 				dev->in_ep = ep;
@@ -725,9 +710,9 @@ static int set_loopback_config(struct zero_dev *dev)
 			}
 
 		/* one endpoint just reads OUT packets */
-		} else if (strcmp (ep->name, EP_OUT_NAME) == 0) {
-			d = ep_desc (gadget, &hs_sink_desc, &fs_sink_desc);
-			result = usb_ep_enable (ep, d);
+		} else if (strcmp(ep->name, EP_OUT_NAME) == 0) {
+			d = ep_desc(gadget, &hs_sink_desc, &fs_sink_desc);
+			result = usb_ep_enable(ep, d);
 			if (result == 0) {
 				ep->driver_data = dev;
 				dev->out_ep = ep;
@@ -739,7 +724,7 @@ static int set_loopback_config(struct zero_dev *dev)
 			continue;
 
 		/* stop on error */
-		ERROR (dev, "can't enable %s, result %d\n", ep->name, result);
+		ERROR(dev, "can't enable %s, result %d\n", ep->name, result);
 		break;
 	}
 
@@ -753,19 +738,19 @@ static int set_loopback_config(struct zero_dev *dev)
 
 		ep = dev->out_ep;
 		for (i = 0; i < qlen && result == 0; i++) {
-			req = alloc_ep_req (ep, buflen);
+			req = alloc_ep_req(ep, buflen);
 			if (req) {
 				req->complete = loopback_complete;
-				result = usb_ep_queue (ep, req, GFP_ATOMIC);
+				result = usb_ep_queue(ep, req, GFP_ATOMIC);
 				if (result)
-					DBG (dev, "%s queue req --> %d\n",
+					DBG(dev, "%s queue req --> %d\n",
 							ep->name, result);
 			} else
 				result = -ENOMEM;
 		}
 	}
 	if (result == 0)
-		DBG (dev, "qlen %d, buflen %d\n", qlen, buflen);
+		DBG(dev, "qlen %d, buflen %d\n", qlen, buflen);
 
 	/* caller is responsible for cleanup on error */
 	return result;
@@ -773,26 +758,26 @@ static int set_loopback_config(struct zero_dev *dev)
 
 /*-------------------------------------------------------------------------*/
 
-static void zero_reset_config (struct zero_dev *dev)
+static void zero_reset_config(struct zero_dev *dev)
 {
 	if (dev->config == 0)
 		return;
 
-	DBG (dev, "reset config\n");
+	DBG(dev, "reset config\n");
 
 	/* just disable endpoints, forcing completion of pending i/o.
 	 * all our completion handlers free their requests in this case.
 	 */
 	if (dev->in_ep) {
-		usb_ep_disable (dev->in_ep);
+		usb_ep_disable(dev->in_ep);
 		dev->in_ep = NULL;
 	}
 	if (dev->out_ep) {
-		usb_ep_disable (dev->out_ep);
+		usb_ep_disable(dev->out_ep);
 		dev->out_ep = NULL;
 	}
 	dev->config = 0;
-	del_timer (&dev->resume);
+	del_timer(&dev->resume);
 }
 
 /* change our operational config.  this code must agree with the code
@@ -813,12 +798,12 @@ static int zero_set_config(struct zero_dev *dev, unsigned number)
 	if (number == dev->config)
 		return 0;
 
-	if (gadget_is_sa1100 (gadget) && dev->config) {
+	if (gadget_is_sa1100(gadget) && dev->config) {
 		/* tx fifo is full, but we can't clear it...*/
 		ERROR(dev, "can't change configurations\n");
 		return -ESPIPE;
 	}
-	zero_reset_config (dev);
+	zero_reset_config(dev);
 
 	switch (number) {
 	case CONFIG_SOURCE_SINK:
@@ -837,7 +822,7 @@ static int zero_set_config(struct zero_dev *dev, unsigned number)
 	if (!result && (!dev->in_ep || !dev->out_ep))
 		result = -ENODEV;
 	if (result)
-		zero_reset_config (dev);
+		zero_reset_config(dev);
 	else {
 		char *speed;
 
@@ -849,7 +834,7 @@ static int zero_set_config(struct zero_dev *dev, unsigned number)
 		}
 
 		dev->config = number;
-		INFO (dev, "%s speed config #%d: %s\n", speed, number,
+		INFO(dev, "%s speed config #%d: %s\n", speed, number,
 				(number == CONFIG_SOURCE_SINK)
 					? source_sink : loopback);
 	}
@@ -858,10 +843,10 @@ static int zero_set_config(struct zero_dev *dev, unsigned number)
 
 /*-------------------------------------------------------------------------*/
 
-static void zero_setup_complete (struct usb_ep *ep, struct usb_request *req)
+static void zero_setup_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	if (req->status || req->actual != req->length)
-		DBG ((struct zero_dev *) ep->driver_data,
+		DBG((struct zero_dev *) ep->driver_data,
 				"setup complete --> %d, %d/%d\n",
 				req->status, req->actual, req->length);
 }
@@ -874,9 +859,9 @@ static void zero_setup_complete (struct usb_ep *ep, struct usb_request *req)
  * the work is in config-specific setup.
  */
 static int
-zero_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
+zero_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 {
-	struct zero_dev		*dev = get_gadget_data (gadget);
+	struct zero_dev		*dev = get_gadget_data(gadget);
 	struct usb_request	*req = dev->req;
 	int			value = -EOPNOTSUPP;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
@@ -895,14 +880,14 @@ zero_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		switch (w_value >> 8) {
 
 		case USB_DT_DEVICE:
-			value = min (w_length, (u16) sizeof device_desc);
-			memcpy (req->buf, &device_desc, value);
+			value = min(w_length, (u16) sizeof device_desc);
+			memcpy(req->buf, &device_desc, value);
 			break;
 		case USB_DT_DEVICE_QUALIFIER:
 			if (!gadget_is_dualspeed(gadget))
 				break;
-			value = min (w_length, (u16) sizeof dev_qualifier);
-			memcpy (req->buf, &dev_qualifier, value);
+			value = min(w_length, (u16) sizeof dev_qualifier);
+			memcpy(req->buf, &dev_qualifier, value);
 			break;
 
 		case USB_DT_OTHER_SPEED_CONFIG:
@@ -910,11 +895,11 @@ zero_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				break;
 			// FALLTHROUGH
 		case USB_DT_CONFIG:
-			value = config_buf (gadget, req->buf,
+			value = config_buf(gadget, req->buf,
 					w_value >> 8,
 					w_value & 0xff);
 			if (value >= 0)
-				value = min (w_length, (u16) value);
+				value = min(w_length, (u16) value);
 			break;
 
 		case USB_DT_STRING:
@@ -923,10 +908,10 @@ zero_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			 * add string tables for other languages, using
 			 * any UTF-8 characters
 			 */
-			value = usb_gadget_get_string (&stringtab,
+			value = usb_gadget_get_string(&stringtab,
 					w_value & 0xff, req->buf);
 			if (value >= 0)
-				value = min (w_length, (u16) value);
+				value = min(w_length, (u16) value);
 			break;
 		}
 		break;
@@ -936,20 +921,20 @@ zero_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		if (ctrl->bRequestType != 0)
 			goto unknown;
 		if (gadget->a_hnp_support)
-			DBG (dev, "HNP available\n");
+			DBG(dev, "HNP available\n");
 		else if (gadget->a_alt_hnp_support)
-			DBG (dev, "HNP needs a different root port\n");
+			DBG(dev, "HNP needs a different root port\n");
 		else
-			VDBG (dev, "HNP inactive\n");
-		spin_lock (&dev->lock);
+			VDBG(dev, "HNP inactive\n");
+		spin_lock(&dev->lock);
 		value = zero_set_config(dev, w_value);
-		spin_unlock (&dev->lock);
+		spin_unlock(&dev->lock);
 		break;
 	case USB_REQ_GET_CONFIGURATION:
 		if (ctrl->bRequestType != USB_DIR_IN)
 			goto unknown;
 		*(u8 *)req->buf = dev->config;
-		value = min (w_length, (u16) 1);
+		value = min(w_length, (u16) 1);
 		break;
 
 	/* until we add altsetting support, or other interfaces,
@@ -959,7 +944,7 @@ zero_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	case USB_REQ_SET_INTERFACE:
 		if (ctrl->bRequestType != USB_RECIP_INTERFACE)
 			goto unknown;
-		spin_lock (&dev->lock);
+		spin_lock(&dev->lock);
 		if (dev->config && w_index == 0 && w_value == 0) {
 			u8		config = dev->config;
 
@@ -970,11 +955,11 @@ zero_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			 * if we had more than one interface we couldn't
 			 * use this "reset the config" shortcut.
 			 */
-			zero_reset_config (dev);
+			zero_reset_config(dev);
 			zero_set_config(dev, config);
 			value = 0;
 		}
-		spin_unlock (&dev->lock);
+		spin_unlock(&dev->lock);
 		break;
 	case USB_REQ_GET_INTERFACE:
 		if (ctrl->bRequestType != (USB_DIR_IN|USB_RECIP_INTERFACE))
@@ -986,7 +971,7 @@ zero_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			break;
 		}
 		*(u8 *)req->buf = 0;
-		value = min (w_length, (u16) 1);
+		value = min(w_length, (u16) 1);
 		break;
 
 	/*
@@ -1018,7 +1003,7 @@ zero_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 
 	default:
 unknown:
-		VDBG (dev,
+		VDBG(dev,
 			"unknown control req%02x.%02x v%04x i%04x l%d\n",
 			ctrl->bRequestType, ctrl->bRequest,
 			w_value, w_index, w_length);
@@ -1028,11 +1013,11 @@ unknown:
 	if (value >= 0) {
 		req->length = value;
 		req->zero = value < w_length;
-		value = usb_ep_queue (gadget->ep0, req, GFP_ATOMIC);
+		value = usb_ep_queue(gadget->ep0, req, GFP_ATOMIC);
 		if (value < 0) {
-			DBG (dev, "ep_queue --> %d\n", value);
+			DBG(dev, "ep_queue --> %d\n", value);
 			req->status = 0;
-			zero_setup_complete (gadget->ep0, req);
+			zero_setup_complete(gadget->ep0, req);
 		}
 	}
 
@@ -1040,28 +1025,26 @@ unknown:
 	return value;
 }
 
-static void
-zero_disconnect (struct usb_gadget *gadget)
+static void zero_disconnect(struct usb_gadget *gadget)
 {
-	struct zero_dev		*dev = get_gadget_data (gadget);
+	struct zero_dev		*dev = get_gadget_data(gadget);
 	unsigned long		flags;
 
-	spin_lock_irqsave (&dev->lock, flags);
-	zero_reset_config (dev);
+	spin_lock_irqsave(&dev->lock, flags);
+	zero_reset_config(dev);
 
 	/* a more significant application might have some non-usb
 	 * activities to quiesce here, saving resources like power
 	 * or pushing the notification up a network stack.
 	 */
-	spin_unlock_irqrestore (&dev->lock, flags);
+	spin_unlock_irqrestore(&dev->lock, flags);
 
 	/* next we may get setup() calls to enumerate new connections;
 	 * or an unbind() during shutdown (including removing module).
 	 */
 }
 
-static void
-zero_autoresume (unsigned long _dev)
+static void zero_autoresume(unsigned long _dev)
 {
 	struct zero_dev	*dev = (struct zero_dev *) _dev;
 	int		status;
@@ -1070,32 +1053,30 @@ zero_autoresume (unsigned long _dev)
 	 * more significant than just a timer firing...
 	 */
 	if (dev->gadget->speed != USB_SPEED_UNKNOWN) {
-		status = usb_gadget_wakeup (dev->gadget);
-		DBG (dev, "wakeup --> %d\n", status);
+		status = usb_gadget_wakeup(dev->gadget);
+		DBG(dev, "wakeup --> %d\n", status);
 	}
 }
 
 /*-------------------------------------------------------------------------*/
 
-static void /* __init_or_exit */
-zero_unbind (struct usb_gadget *gadget)
+static void zero_unbind(struct usb_gadget *gadget)
 {
-	struct zero_dev		*dev = get_gadget_data (gadget);
+	struct zero_dev		*dev = get_gadget_data(gadget);
 
-	DBG (dev, "unbind\n");
+	DBG(dev, "unbind\n");
 
 	/* we've already been disconnected ... no i/o is active */
 	if (dev->req) {
 		dev->req->length = USB_BUFSIZ;
-		free_ep_req (gadget->ep0, dev->req);
+		free_ep_req(gadget->ep0, dev->req);
 	}
-	del_timer_sync (&dev->resume);
-	kfree (dev);
-	set_gadget_data (gadget, NULL);
+	del_timer_sync(&dev->resume);
+	kfree(dev);
+	set_gadget_data(gadget, NULL);
 }
 
-static int __init
-zero_bind (struct usb_gadget *gadget)
+static int __init zero_bind(struct usb_gadget *gadget)
 {
 	struct zero_dev		*dev;
 	struct usb_ep		*ep;
@@ -1111,8 +1092,8 @@ zero_bind (struct usb_gadget *gadget)
 	 * autoconfigure on any sane usb controller driver,
 	 * but there may also be important quirks to address.
 	 */
-	usb_ep_autoconfig_reset (gadget);
-	ep = usb_ep_autoconfig (gadget, &fs_source_desc);
+	usb_ep_autoconfig_reset(gadget);
+	ep = usb_ep_autoconfig(gadget, &fs_source_desc);
 	if (!ep) {
 autoconf_fail:
 		pr_err("%s: can't autoconfigure on %s\n",
@@ -1122,15 +1103,15 @@ autoconf_fail:
 	EP_IN_NAME = ep->name;
 	ep->driver_data = ep;	/* claim */
 
-	ep = usb_ep_autoconfig (gadget, &fs_sink_desc);
+	ep = usb_ep_autoconfig(gadget, &fs_sink_desc);
 	if (!ep)
 		goto autoconf_fail;
 	EP_OUT_NAME = ep->name;
 	ep->driver_data = ep;	/* claim */
 
-	gcnum = usb_gadget_controller_number (gadget);
+	gcnum = usb_gadget_controller_number(gadget);
 	if (gcnum >= 0)
-		device_desc.bcdDevice = cpu_to_le16 (0x0200 + gcnum);
+		device_desc.bcdDevice = cpu_to_le16(0x0200 + gcnum);
 	else {
 		/* gadget zero is so simple (for now, no altsettings) that
 		 * it SHOULD NOT have problems with bulk-capable hardware.
@@ -1141,7 +1122,7 @@ autoconf_fail:
 		 */
 		pr_warning("%s: controller '%s' not recognized\n",
 			shortname, gadget->name);
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x9999);
+		device_desc.bcdDevice = __constant_cpu_to_le16(0x9999);
 	}
 
 
@@ -1149,12 +1130,16 @@ autoconf_fail:
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
-	spin_lock_init (&dev->lock);
+	spin_lock_init(&dev->lock);
 	dev->gadget = gadget;
-	set_gadget_data (gadget, dev);
+	set_gadget_data(gadget, dev);
+
+	init_timer(&dev->resume);
+	dev->resume.function = zero_autoresume;
+	dev->resume.data = (unsigned long) dev;
 
 	/* preallocate control response and buffer */
-	dev->req = usb_ep_alloc_request (gadget->ep0, GFP_KERNEL);
+	dev->req = usb_ep_alloc_request(gadget->ep0, GFP_KERNEL);
 	if (!dev->req)
 		goto enomem;
 	dev->req->buf = kmalloc(USB_BUFSIZ, GFP_KERNEL);
@@ -1182,11 +1167,8 @@ autoconf_fail:
 		loopback_config.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	usb_gadget_set_selfpowered (gadget);
+	usb_gadget_set_selfpowered(gadget);
 
-	init_timer (&dev->resume);
-	dev->resume.function = zero_autoresume;
-	dev->resume.data = (unsigned long) dev;
 	if (autoresume) {
 		source_sink_config.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 		loopback_config.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
@@ -1194,45 +1176,43 @@ autoconf_fail:
 
 	gadget->ep0->driver_data = dev;
 
-	INFO (dev, "%s, version: " DRIVER_VERSION "\n", longname);
-	INFO (dev, "using %s, OUT %s IN %s\n", gadget->name,
+	INFO(dev, "%s, version: " DRIVER_VERSION "\n", longname);
+	INFO(dev, "using %s, OUT %s IN %s\n", gadget->name,
 		EP_OUT_NAME, EP_IN_NAME);
 
-	snprintf (manufacturer, sizeof manufacturer, "%s %s with %s",
+	snprintf(manufacturer, sizeof manufacturer, "%s %s with %s",
 		init_utsname()->sysname, init_utsname()->release,
 		gadget->name);
 
 	return 0;
 
 enomem:
-	zero_unbind (gadget);
+	zero_unbind(gadget);
 	return -ENOMEM;
 }
 
 /*-------------------------------------------------------------------------*/
 
-static void
-zero_suspend (struct usb_gadget *gadget)
+static void zero_suspend(struct usb_gadget *gadget)
 {
-	struct zero_dev		*dev = get_gadget_data (gadget);
+	struct zero_dev		*dev = get_gadget_data(gadget);
 
 	if (gadget->speed == USB_SPEED_UNKNOWN)
 		return;
 
 	if (autoresume) {
-		mod_timer (&dev->resume, jiffies + (HZ * autoresume));
-		DBG (dev, "suspend, wakeup in %d seconds\n", autoresume);
+		mod_timer(&dev->resume, jiffies + (HZ * autoresume));
+		DBG(dev, "suspend, wakeup in %d seconds\n", autoresume);
 	} else
-		DBG (dev, "suspend\n");
+		DBG(dev, "suspend\n");
 }
 
-static void
-zero_resume (struct usb_gadget *gadget)
+static void zero_resume(struct usb_gadget *gadget)
 {
-	struct zero_dev		*dev = get_gadget_data (gadget);
+	struct zero_dev		*dev = get_gadget_data(gadget);
 
-	DBG (dev, "resume\n");
-	del_timer (&dev->resume);
+	DBG(dev, "resume\n");
+	del_timer(&dev->resume);
 }
 
 
@@ -1264,15 +1244,15 @@ MODULE_AUTHOR("David Brownell");
 MODULE_LICENSE("GPL");
 
 
-static int __init init (void)
+static int __init init(void)
 {
-	return usb_gadget_register_driver (&zero_driver);
+	return usb_gadget_register_driver(&zero_driver);
 }
-module_init (init);
+module_init(init);
 
-static void __exit cleanup (void)
+static void __exit cleanup(void)
 {
-	usb_gadget_unregister_driver (&zero_driver);
+	usb_gadget_unregister_driver(&zero_driver);
 }
-module_exit (cleanup);
+module_exit(cleanup);
 

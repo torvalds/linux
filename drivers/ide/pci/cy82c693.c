@@ -6,7 +6,7 @@
  *
  * The CY82C693 chipset is used on Digital's PC-Alpha 164SX boards.
  * Writing the driver was quite simple, since most of the job is
- * done by the generic pci-ide support. 
+ * done by the generic pci-ide support.
  * The hard part was finding the CY82C693's datasheet on Cypress's
  * web page :-(. But Altavista solved this problem :-).
  *
@@ -15,12 +15,10 @@
  * - I recently got a 16.8G IBM DTTA, so I was able to test it with
  *   a large and fast disk - the results look great, so I'd say the
  *   driver is working fine :-)
- *   hdparm -t reports 8.17 MB/sec at about 6% CPU usage for the DTTA 
- * - this is my first linux driver, so there's probably a lot  of room 
+ *   hdparm -t reports 8.17 MB/sec at about 6% CPU usage for the DTTA
+ * - this is my first linux driver, so there's probably a lot  of room
  *   for optimizations and bug fixing, so feel free to do it.
- * - use idebus=xx parameter to set PCI bus speed - needed to calc
- *   timings for PIO modes (default will be 40)
- * - if using PIO mode it's a good idea to set the PIO mode and 
+ * - if using PIO mode it's a good idea to set the PIO mode and
  *   32-bit I/O support (if possible), e.g. hdparm -p2 -c1 /dev/hda
  * - I had some problems with my IBM DHEA with PIO modes < 2
  *   (lost interrupts) ?????
@@ -110,11 +108,11 @@ typedef struct pio_clocks_s {
  * calc clocks using bus_speed
  * returns (rounded up) time in bus clocks for time in ns
  */
-static int calc_clk (int time, int bus_speed)
+static int calc_clk(int time, int bus_speed)
 {
 	int clocks;
 
-	clocks = (time*bus_speed+999)/1000 -1;
+	clocks = (time*bus_speed+999)/1000 - 1;
 
 	if (clocks < 0)
 		clocks = 0;
@@ -132,11 +130,11 @@ static int calc_clk (int time, int bus_speed)
  * NOTE: for mode 0,1 and 2 drives 8-bit IDE command control registers are used
  *       for mode 3 and 4 drives 8 and 16-bit timings are the same
  *
- */ 
-static void compute_clocks (u8 pio, pio_clocks_t *p_pclk)
+ */
+static void compute_clocks(u8 pio, pio_clocks_t *p_pclk)
 {
 	int clk1, clk2;
-	int bus_speed = system_bus_clock();	/* get speed of PCI bus */
+	int bus_speed = ide_pci_clk ? ide_pci_clk : system_bus_clock();
 
 	/* we don't check against CY82C693's min and max speed,
 	 * so you can play with the idebus=xx parameter
@@ -158,7 +156,7 @@ static void compute_clocks (u8 pio, pio_clocks_t *p_pclk)
 	clk1 = (clk1<<4)|clk2;	/* combine active and recovery clocks */
 
 	/* note: we use the same values for 16bit IOR and IOW
-         *	those are all the same, since I don't have other
+	 *	those are all the same, since I don't have other
 	 *	timings than those from ide-lib.c
 	 */
 
@@ -186,7 +184,7 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	outb(index, CY82_INDEX_PORT);
 	data = inb(CY82_DATA_PORT);
 
-	printk (KERN_INFO "%s (ch=%d, dev=%d): DMA mode is %d (single=%d)\n",
+	printk(KERN_INFO "%s (ch=%d, dev=%d): DMA mode is %d (single=%d)\n",
 		drive->name, HWIF(drive)->channel, drive->select.b.unit,
 		(data&0x3), ((data>>2)&1));
 #endif /* CY82C693_DEBUG_LOGS */
@@ -202,7 +200,7 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 		mode & 3, single);
 #endif /* CY82C693_DEBUG_INFO */
 
-	/* 
+	/*
 	 * note: below we set the value for Bus Master IDE TimeOut Register
 	 * I'm not absolutly sure what this does, but it solved my problem
 	 * with IDE DMA and sound, so I now can play sound and work with
@@ -216,8 +214,8 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	outb(CY82_INDEX_TIMEOUT, CY82_INDEX_PORT);
 	outb(data, CY82_DATA_PORT);
 
-#if CY82C693_DEBUG_INFO	
-	printk (KERN_INFO "%s: Set IDE Bus Master TimeOut Register to 0x%X\n",
+#if CY82C693_DEBUG_INFO
+	printk(KERN_INFO "%s: Set IDE Bus Master TimeOut Register to 0x%X\n",
 		drive->name, data);
 #endif /* CY82C693_DEBUG_INFO */
 }
@@ -242,14 +240,14 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 #if CY82C693_DEBUG_LOGS
 	/* for debug let's show the register values */
-	
-       	if (drive->select.b.unit == 0) {
+
+	if (drive->select.b.unit == 0) {
 		/*
-		 * get master drive registers               	
+		 * get master drive registers
 		 * address setup control register
 		 * is 32 bit !!!
-		 */ 
-	  	pci_read_config_dword(dev, CY82_IDE_ADDRSETUP, &addrCtrl);                
+		 */
+		pci_read_config_dword(dev, CY82_IDE_ADDRSETUP, &addrCtrl);
 		addrCtrl &= 0x0F;
 
 		/* now let's get the remaining registers */
@@ -261,7 +259,7 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		 * set slave drive registers
 		 * address setup control register
 		 * is 32 bit !!!
-		 */ 
+		 */
 		pci_read_config_dword(dev, CY82_IDE_ADDRSETUP, &addrCtrl);
 
 		addrCtrl &= 0xF0;
@@ -288,9 +286,9 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		 * set master drive
 		 * address setup control register
 		 * is 32 bit !!!
-		 */ 
+		 */
 		pci_read_config_dword(dev, CY82_IDE_ADDRSETUP, &addrCtrl);
-		
+
 		addrCtrl &= (~0xF);
 		addrCtrl |= (unsigned int)pclk.address_time;
 		pci_write_config_dword(dev, CY82_IDE_ADDRSETUP, addrCtrl);
@@ -299,14 +297,14 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		pci_write_config_byte(dev, CY82_IDE_MASTER_IOR, pclk.time_16r);
 		pci_write_config_byte(dev, CY82_IDE_MASTER_IOW, pclk.time_16w);
 		pci_write_config_byte(dev, CY82_IDE_MASTER_8BIT, pclk.time_8);
-		
+
 		addrCtrl &= 0xF;
 	} else {
 		/*
 		 * set slave drive
 		 * address setup control register
 		 * is 32 bit !!!
-		 */ 
+		 */
 		pci_read_config_dword(dev, CY82_IDE_ADDRSETUP, &addrCtrl);
 
 		addrCtrl &= (~0xF0);
@@ -320,7 +318,7 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 		addrCtrl >>= 4;
 		addrCtrl &= 0xF;
-	}	
+	}
 
 #if CY82C693_DEBUG_INFO
 	printk(KERN_INFO "%s (ch=%d, dev=%d): set PIO timing to "
@@ -340,55 +338,46 @@ static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev, const c
 
 #ifdef CY82C693_SETDMA_CLOCK
 	u8 data = 0;
-#endif /* CY82C693_SETDMA_CLOCK */ 
+#endif /* CY82C693_SETDMA_CLOCK */
 
 	/* write info about this verion of the driver */
 	printk(KERN_INFO CY82_VERSION "\n");
 
 #ifdef CY82C693_SETDMA_CLOCK
        /* okay let's set the DMA clock speed */
-        
-        outb(CY82_INDEX_CTRLREG1, CY82_INDEX_PORT);
-        data = inb(CY82_DATA_PORT);
+
+	outb(CY82_INDEX_CTRLREG1, CY82_INDEX_PORT);
+	data = inb(CY82_DATA_PORT);
 
 #if CY82C693_DEBUG_INFO
 	printk(KERN_INFO "%s: Peripheral Configuration Register: 0x%X\n",
 		name, data);
 #endif /* CY82C693_DEBUG_INFO */
 
-        /*
+	/*
 	 * for some reason sometimes the DMA controller
 	 * speed is set to ATCLK/2 ???? - we fix this here
-	 * 
+	 *
 	 * note: i don't know what causes this strange behaviour,
 	 *       but even changing the dma speed doesn't solve it :-(
-	 *       the ide performance is still only half the normal speed 
-	 * 
+	 *       the ide performance is still only half the normal speed
+	 *
 	 *       if anybody knows what goes wrong with my machine, please
 	 *       let me know - ASK
-         */
+	 */
 
 	data |= 0x03;
 
-        outb(CY82_INDEX_CTRLREG1, CY82_INDEX_PORT);
-        outb(data, CY82_DATA_PORT);
+	outb(CY82_INDEX_CTRLREG1, CY82_INDEX_PORT);
+	outb(data, CY82_DATA_PORT);
 
 #if CY82C693_DEBUG_INFO
-	printk (KERN_INFO "%s: New Peripheral Configuration Register: 0x%X\n",
+	printk(KERN_INFO "%s: New Peripheral Configuration Register: 0x%X\n",
 		name, data);
 #endif /* CY82C693_DEBUG_INFO */
 
 #endif /* CY82C693_SETDMA_CLOCK */
 	return 0;
-}
-
-/*
- * the init function - called for each ide channel once
- */
-static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
-{
-	hwif->set_pio_mode = &cy82c693_set_pio_mode;
-	hwif->set_dma_mode = &cy82c693_set_dma_mode;
 }
 
 static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
@@ -404,14 +393,18 @@ static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
 	}
 }
 
+static const struct ide_port_ops cy82c693_port_ops = {
+	.set_pio_mode		= cy82c693_set_pio_mode,
+	.set_dma_mode		= cy82c693_set_dma_mode,
+};
+
 static const struct ide_port_info cy82c693_chipset __devinitdata = {
 	.name		= "CY82C693",
 	.init_chipset	= init_chipset_cy82c693,
 	.init_iops	= init_iops_cy82c693,
-	.init_hwif	= init_hwif_cy82c693,
+	.port_ops	= &cy82c693_port_ops,
 	.chipset	= ide_cy82c693,
-	.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_CY82C693 |
-			  IDE_HFLAG_BOOTABLE,
+	.host_flags	= IDE_HFLAG_SINGLE,
 	.pio_mask	= ATA_PIO4,
 	.swdma_mask	= ATA_SWDMA2,
 	.mwdma_mask	= ATA_MWDMA2,
@@ -424,7 +417,7 @@ static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_dev
 
 	/* CY82C693 is more than only a IDE controller.
 	   Function 1 is primary IDE channel, function 2 - secondary. */
-        if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
+	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE &&
 	    PCI_FUNC(dev->devfn) == 1) {
 		dev2 = pci_get_slot(dev->bus, dev->devfn + 1);
 		ret = ide_setup_pci_devices(dev, dev2, &cy82c693_chipset);

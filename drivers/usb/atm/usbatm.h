@@ -175,7 +175,7 @@ struct usbatm_data {
 	int disconnected;
 
 	/* heavy init */
-	int thread_pid;
+	struct task_struct *thread;
 	struct completion thread_started;
 	struct completion thread_exited;
 

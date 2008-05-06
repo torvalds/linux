@@ -325,6 +325,54 @@ static struct platform_device bfin_uart_device = {
 };
 #endif
 
+#if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
+static struct resource bfin_sir_resources[] = {
+#ifdef CONFIG_BFIN_SIR0
+	{
+		.start = 0xFFC00400,
+		.end = 0xFFC004FF,
+		.flags = IORESOURCE_MEM,
+	},
+#endif
+#ifdef CONFIG_BFIN_SIR1
+	{
+		.start = 0xFFC02000,
+		.end = 0xFFC020FF,
+		.flags = IORESOURCE_MEM,
+	},
+#endif
+};
+
+static struct platform_device bfin_sir_device = {
+	.name = "bfin_sir",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sir_resources),
+	.resource = bfin_sir_resources,
+};
+#endif
+
+#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+static struct resource bfin_twi0_resource[] = {
+	[0] = {
+		.start = TWI0_REGBASE,
+		.end   = TWI0_REGBASE,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_TWI,
+		.end   = IRQ_TWI,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device i2c_bfin_twi_device = {
+	.name = "i2c-bfin-twi",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_twi0_resource),
+	.resource = bfin_twi0_resource,
+};
+#endif
+
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
 static struct platform_device bfin_sport0_uart_device = {
 	.name = "bfin-sport-uart",
@@ -393,6 +441,14 @@ static struct platform_device *cm_bf537_devices[] __initdata = {
 	&bfin_uart_device,
 #endif
 
+#if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
+	&bfin_sir_device,
+#endif
+
+#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+	&i2c_bfin_twi_device,
+#endif
+
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
 	&bfin_sport0_uart_device,
 	&bfin_sport1_uart_device,
@@ -425,7 +481,7 @@ static struct platform_device *cm_bf537_devices[] __initdata = {
 
 static int __init cm_bf537_init(void)
 {
-	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
+	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	platform_add_devices(cm_bf537_devices, ARRAY_SIZE(cm_bf537_devices));
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));

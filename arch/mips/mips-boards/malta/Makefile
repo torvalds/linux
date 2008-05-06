@@ -22,6 +22,7 @@
 obj-y := malta_int.o malta_platform.o malta_setup.o
 
 obj-$(CONFIG_MTD) += malta_mtd.o
+# FIXME FIXME FIXME
 obj-$(CONFIG_MIPS_MT_SMTC) += malta_smtc.o
 
 EXTRA_CFLAGS += -Werror

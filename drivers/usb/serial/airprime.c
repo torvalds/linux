@@ -53,7 +53,7 @@ static int airprime_send_setup(struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	struct airprime_private *priv;
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	if (port->number != 0)
 		return 0;
@@ -68,8 +68,9 @@ static int airprime_send_setup(struct usb_serial_port *port)
 			val |= 0x02;
 
 		return usb_control_msg(serial->dev,
-				usb_rcvctrlpipe(serial->dev, 0),
-				0x22,0x21,val,0,NULL,0,USB_CTRL_SET_TIMEOUT);
+					usb_rcvctrlpipe(serial->dev, 0),
+					0x22, 0x21, val, 0, NULL, 0,
+					USB_CTRL_SET_TIMEOUT);
 	}
 
 	return 0;
@@ -83,25 +84,27 @@ static void airprime_read_bulk_callback(struct urb *urb)
 	int result;
 	int status = urb->status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (status) {
 		dbg("%s - nonzero read bulk status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	}
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
+	usb_serial_debug_data(debug, &port->dev, __func__,
+						urb->actual_length, data);
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
-		tty_insert_flip_string (tty, data, urb->actual_length);
-		tty_flip_buffer_push (tty);
+		tty_insert_flip_string(tty, data, urb->actual_length);
+		tty_flip_buffer_push(tty);
 	}
 
-	result = usb_submit_urb (urb, GFP_ATOMIC);
+	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result)
-		dev_err(&port->dev, "%s - failed resubmitting read urb, error %d\n",
-			__FUNCTION__, result);
+		dev_err(&port->dev,
+			"%s - failed resubmitting read urb, error %d\n",
+			__func__, result);
 	return;
 }
 
@@ -112,14 +115,14 @@ static void airprime_write_bulk_callback(struct urb *urb)
 	int status = urb->status;
 	unsigned long flags;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
-	kfree (urb->transfer_buffer);
+	kfree(urb->transfer_buffer);
 
 	if (status)
 		dbg("%s - nonzero write bulk status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 	spin_lock_irqsave(&priv->lock, flags);
 	--priv->outstanding_urbs;
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -136,7 +139,7 @@ static int airprime_open(struct usb_serial_port *port, struct file *filp)
 	int i;
 	int result = 0;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	/* initialize our private data structure if it isn't already created */
 	if (!priv) {
@@ -157,7 +160,7 @@ static int airprime_open(struct usb_serial_port *port, struct file *filp)
 		buffer = kmalloc(buffer_size, GFP_KERNEL);
 		if (!buffer) {
 			dev_err(&port->dev, "%s - out of memory.\n",
-				__FUNCTION__);
+				__func__);
 			result = -ENOMEM;
 			goto errout;
 		}
@@ -165,13 +168,13 @@ static int airprime_open(struct usb_serial_port *port, struct file *filp)
 		if (!urb) {
 			kfree(buffer);
 			dev_err(&port->dev, "%s - no more urbs?\n",
-				__FUNCTION__);
+				__func__);
 			result = -ENOMEM;
 			goto errout;
 		}
 		usb_fill_bulk_urb(urb, serial->dev,
 				  usb_rcvbulkpipe(serial->dev,
-						  port->bulk_out_endpointAddress),
+					  port->bulk_out_endpointAddress),
 				  buffer, buffer_size,
 				  airprime_read_bulk_callback, port);
 		result = usb_submit_urb(urb, GFP_KERNEL);
@@ -180,10 +183,11 @@ static int airprime_open(struct usb_serial_port *port, struct file *filp)
 			kfree(buffer);
 			dev_err(&port->dev,
 				"%s - failed submitting read urb %d for port %d, error %d\n",
-				__FUNCTION__, i, port->number, result);
+				__func__, i, port->number, result);
 			goto errout;
 		}
-		/* remember this urb so we can kill it when the port is closed */
+		/* remember this urb so we can kill it when the
+		   port is closed */
 		priv->read_urbp[i] = urb;
 	}
 
@@ -192,27 +196,27 @@ static int airprime_open(struct usb_serial_port *port, struct file *filp)
 	goto out;
 
  errout:
-	/* some error happened, cancel any submitted urbs and clean up anything that
-	   got allocated successfully */
+	/* some error happened, cancel any submitted urbs and clean up
+	   anything that got allocated successfully */
 
 	while (i-- != 0) {
 		urb = priv->read_urbp[i];
 		buffer = urb->transfer_buffer;
-		usb_kill_urb (urb);
-		usb_free_urb (urb);
-		kfree (buffer);
+		usb_kill_urb(urb);
+		usb_free_urb(urb);
+		kfree(buffer);
 	}
 
  out:
 	return result;
 }
 
-static void airprime_close(struct usb_serial_port *port, struct file * filp)
+static void airprime_close(struct usb_serial_port *port, struct file *filp)
 {
 	struct airprime_private *priv = usb_get_serial_port_data(port);
 	int i;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	priv->rts_state = 0;
 	priv->dtr_state = 0;
@@ -220,16 +224,16 @@ static void airprime_close(struct usb_serial_port *port, struct file * filp)
 	mutex_lock(&port->serial->disc_mutex);
 	if (!port->serial->disconnected)
 		airprime_send_setup(port);
-	mutex_lock(&port->serial->disc_mutex);
+	mutex_unlock(&port->serial->disc_mutex);
 
 	for (i = 0; i < NUM_READ_URBS; ++i) {
-		usb_kill_urb (priv->read_urbp[i]);
-		kfree (priv->read_urbp[i]->transfer_buffer);
-		usb_free_urb (priv->read_urbp[i]);
+		usb_kill_urb(priv->read_urbp[i]);
+		kfree(priv->read_urbp[i]->transfer_buffer);
+		usb_free_urb(priv->read_urbp[i]);
 	}
 
 	/* free up private structure */
-	kfree (priv);
+	kfree(priv);
 	usb_set_serial_port_data(port, NULL);
 }
 
@@ -242,12 +246,12 @@ static int airprime_write(struct usb_serial_port *port,
 	unsigned char *buffer;
 	unsigned long flags;
 	int status;
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > NUM_WRITE_URBS) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		dbg("%s - write limit hit\n", __FUNCTION__);
+		dbg("%s - write limit hit\n", __func__);
 		return 0;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -259,12 +263,12 @@ static int airprime_write(struct usb_serial_port *port,
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		dev_err(&port->dev, "no more free urbs\n");
-		kfree (buffer);
+		kfree(buffer);
 		return -ENOMEM;
 	}
-	memcpy (buffer, buf, count);
+	memcpy(buffer, buf, count);
 
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, count, buffer);
+	usb_serial_debug_data(debug, &port->dev, __func__, count, buffer);
 
 	usb_fill_bulk_urb(urb, serial->dev,
 			  usb_sndbulkpipe(serial->dev,
@@ -277,9 +281,9 @@ static int airprime_write(struct usb_serial_port *port,
 	if (status) {
 		dev_err(&port->dev,
 			"%s - usb_submit_urb(write bulk) failed with status = %d\n",
-			__FUNCTION__, status);
+			__func__, status);
 		count = status;
-		kfree (buffer);
+		kfree(buffer);
 	} else {
 		spin_lock_irqsave(&priv->lock, flags);
 		++priv->outstanding_urbs;
@@ -287,7 +291,7 @@ static int airprime_write(struct usb_serial_port *port,
 	}
 	/* we are done with this urb, so let the host driver
 	 * really free it when it is finished with it */
-	usb_free_urb (urb);
+	usb_free_urb(urb);
 	return count;
 }
 
@@ -306,9 +310,6 @@ static struct usb_serial_driver airprime_device = {
 	},
 	.usb_driver =		&airprime_driver,
 	.id_table =		id_table,
-	.num_interrupt_in =	NUM_DONT_CARE,
-	.num_bulk_in =		NUM_DONT_CARE,
-	.num_bulk_out =		NUM_DONT_CARE,
 	.open =			airprime_open,
 	.close =		airprime_close,
 	.write =		airprime_write,
@@ -318,8 +319,10 @@ static int __init airprime_init(void)
 {
 	int retval;
 
-	airprime_device.num_ports =
-		(endpoints > 0 && endpoints <= MAX_BULK_EPS) ? endpoints : NUM_BULK_EPS;
+	airprime_device.num_ports = endpoints;
+	if (endpoints < 0 || endpoints >= MAX_BULK_EPS)
+		airprime_device.num_ports = NUM_BULK_EPS;
+
 	retval = usb_serial_register(&airprime_device);
 	if (retval)
 		return retval;
@@ -331,7 +334,7 @@ static int __init airprime_init(void)
 
 static void __exit airprime_exit(void)
 {
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	usb_deregister(&airprime_driver);
 	usb_serial_deregister(&airprime_device);
@@ -344,6 +347,7 @@ MODULE_LICENSE("GPL");
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled");
 module_param(buffer_size, int, 0);
-MODULE_PARM_DESC(buffer_size, "Size of the transfer buffers in bytes (default 4096)");
+MODULE_PARM_DESC(buffer_size,
+		"Size of the transfer buffers in bytes (default 4096)");
 module_param(endpoints, int, 0);
 MODULE_PARM_DESC(endpoints, "Number of bulk EPs to configure (default 3)");

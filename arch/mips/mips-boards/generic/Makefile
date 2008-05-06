@@ -20,6 +20,7 @@
 
 obj-y				:= reset.o display.o init.o memory.o \
 				   cmdline.o time.o
+obj-y				+= amon.o
 
 obj-$(CONFIG_EARLY_PRINTK)	+= console.o
 obj-$(CONFIG_PCI)		+= pci.o

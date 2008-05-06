@@ -890,7 +890,7 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
 		kernel_lb_addr eloc;
-		uint32_t elen;
+		uint32_t bsize;
 
 		block = udf_new_block(inode->i_sb, inode,
 				iinfo->i_location.partitionReferenceNum,
@@ -903,9 +903,9 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 		eloc.logicalBlockNum = block;
 		eloc.partitionReferenceNum =
 				iinfo->i_location.partitionReferenceNum;
-		elen = inode->i_sb->s_blocksize;
-		iinfo->i_lenExtents = elen;
-		udf_add_aext(inode, &epos, eloc, elen, 0);
+		bsize = inode->i_sb->s_blocksize;
+		iinfo->i_lenExtents = bsize;
+		udf_add_aext(inode, &epos, eloc, bsize, 0);
 		brelse(epos.bh);
 
 		block = udf_get_pblock(inode->i_sb, block,

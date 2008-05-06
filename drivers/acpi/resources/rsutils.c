@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,17 +97,17 @@ u8 acpi_rs_decode_bitmask(u16 mask, u8 * list)
 u16 acpi_rs_encode_bitmask(u8 * list, u8 count)
 {
 	acpi_native_uint i;
-	u16 mask;
+	acpi_native_uint mask;
 
 	ACPI_FUNCTION_ENTRY();
 
 	/* Encode the list into a single bitmask */
 
 	for (i = 0, mask = 0; i < count; i++) {
-		mask |= (0x0001 << list[i]);
+		mask |= (0x1 << list[i]);
 	}
 
-	return (mask);
+	return ((u16) mask);
 }
 
 /*******************************************************************************

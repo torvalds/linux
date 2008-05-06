@@ -483,9 +483,7 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 		goto out_unlock;
 
 	pbase = (pte_t *)page_address(base);
-#ifdef CONFIG_X86_32
-	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
-#endif
+	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
 	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
 
 #ifdef CONFIG_X86_64
@@ -779,14 +777,20 @@ static inline int change_page_attr_clear(unsigned long addr, int numpages,
 
 int _set_memory_uc(unsigned long addr, int numpages)
 {
+	/*
+	 * for now UC MINUS. see comments in ioremap_nocache()
+	 */
 	return change_page_attr_set(addr, numpages,
-				    __pgprot(_PAGE_CACHE_UC));
+				    __pgprot(_PAGE_CACHE_UC_MINUS));
 }
 
 int set_memory_uc(unsigned long addr, int numpages)
 {
+	/*
+	 * for now UC MINUS. see comments in ioremap_nocache()
+	 */
 	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
-	                    _PAGE_CACHE_UC, NULL))
+			    _PAGE_CACHE_UC_MINUS, NULL))
 		return -EINVAL;
 
 	return _set_memory_uc(addr, numpages);
@@ -993,7 +997,7 @@ static const struct file_operations dpa_fops = {
 	.release	= single_release,
 };
 
-int __init debug_pagealloc_proc_init(void)
+static int __init debug_pagealloc_proc_init(void)
 {
 	struct dentry *de;
 

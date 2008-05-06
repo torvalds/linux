@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/unistd.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/syscalls.h>
 #include <linux/workqueue.h>

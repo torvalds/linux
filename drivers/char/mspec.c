@@ -180,7 +180,7 @@ mspec_close(struct vm_area_struct *vma)
 		my_page = vdata->maddr[index];
 		vdata->maddr[index] = 0;
 		if (!mspec_zero_block(my_page, PAGE_SIZE))
-			uncached_free_page(my_page);
+			uncached_free_page(my_page, 1);
 		else
 			printk(KERN_WARNING "mspec_close(): "
 			       "failed to zero page %ld\n", my_page);
@@ -209,7 +209,7 @@ mspec_nopfn(struct vm_area_struct *vma, unsigned long address)
 	index = (address - vdata->vm_start) >> PAGE_SHIFT;
 	maddr = (volatile unsigned long) vdata->maddr[index];
 	if (maddr == 0) {
-		maddr = uncached_alloc_page(numa_node_id());
+		maddr = uncached_alloc_page(numa_node_id(), 1);
 		if (maddr == 0)
 			return NOPFN_OOM;
 
@@ -218,7 +218,7 @@ mspec_nopfn(struct vm_area_struct *vma, unsigned long address)
 			vdata->count++;
 			vdata->maddr[index] = maddr;
 		} else {
-			uncached_free_page(maddr);
+			uncached_free_page(maddr, 1);
 			maddr = vdata->maddr[index];
 		}
 		spin_unlock(&vdata->lock);
@@ -367,7 +367,7 @@ mspec_init(void)
 				int nasid;
 				unsigned long phys;
 
-				scratch_page[nid] = uncached_alloc_page(nid);
+				scratch_page[nid] = uncached_alloc_page(nid, 1);
 				if (scratch_page[nid] == 0)
 					goto free_scratch_pages;
 				phys = __pa(scratch_page[nid]);
@@ -414,7 +414,7 @@ mspec_init(void)
  free_scratch_pages:
 	for_each_node(nid) {
 		if (scratch_page[nid] != 0)
-			uncached_free_page(scratch_page[nid]);
+			uncached_free_page(scratch_page[nid], 1);
 	}
 	return ret;
 }
@@ -431,7 +431,7 @@ mspec_exit(void)
 
 		for_each_node(nid) {
 			if (scratch_page[nid] != 0)
-				uncached_free_page(scratch_page[nid]);
+				uncached_free_page(scratch_page[nid], 1);
 		}
 	}
 }

@@ -49,7 +49,6 @@
 #endif
 #ifdef CONFIG_PCI
 #include <asm/ebus.h>
-#include <asm/isa.h>
 #endif
 #include <asm/ns87303.h>
 #include <asm/timer.h>
@@ -68,8 +67,6 @@ extern void *__memscan_zero(void *, size_t);
 extern void *__memscan_generic(void *, int, size_t);
 extern int __memcmp(const void *, const void *, __kernel_size_t);
 extern __kernel_size_t strlen(const char *);
-extern void linux_sparc_syscall(void);
-extern void rtrap(void);
 extern void show_regs(struct pt_regs *);
 extern void syscall_trace(struct pt_regs *, int);
 extern void sys_sigsuspend(void);
@@ -189,7 +186,6 @@ EXPORT_SYMBOL(insw);
 EXPORT_SYMBOL(insl);
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL(ebus_chain);
-EXPORT_SYMBOL(isa_chain);
 EXPORT_SYMBOL(pci_alloc_consistent);
 EXPORT_SYMBOL(pci_free_consistent);
 EXPORT_SYMBOL(pci_map_single);

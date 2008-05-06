@@ -35,6 +35,7 @@
 #include <linux/init.h>		/* Initdata                       */
 #include <linux/ioport.h>	/* request_region		  */
 #include <linux/proc_fs.h>	/* radio card status report	  */
+#include <linux/seq_file.h>
 #include <asm/io.h>		/* outb, outb_p                   */
 #include <asm/uaccess.h>	/* copy to/from user              */
 #include <linux/videodev2.h>	/* kernel radio structs           */
@@ -93,9 +94,6 @@ static int typhoon_setfreq(struct typhoon_device *dev, unsigned long frequency);
 static void typhoon_mute(struct typhoon_device *dev);
 static void typhoon_unmute(struct typhoon_device *dev);
 static int typhoon_setvol(struct typhoon_device *dev, int vol);
-#ifdef CONFIG_RADIO_TYPHOON_PROC_FS
-static int typhoon_get_info(char *buf, char **start, off_t offset, int len);
-#endif
 
 static void typhoon_setvol_generic(struct typhoon_device *dev, int vol)
 {
@@ -340,7 +338,9 @@ static const struct file_operations typhoon_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl		= video_ioctl2,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.llseek         = no_llseek,
 };
 
@@ -366,30 +366,39 @@ static struct video_device typhoon_radio =
 
 #ifdef CONFIG_RADIO_TYPHOON_PROC_FS
 
-static int typhoon_get_info(char *buf, char **start, off_t offset, int len)
+static int typhoon_proc_show(struct seq_file *m, void *v)
 {
-	char *out = buf;
-
 	#ifdef MODULE
 	    #define MODULEPROCSTRING "Driver loaded as a module"
 	#else
 	    #define MODULEPROCSTRING "Driver compiled into kernel"
 	#endif
 
-	/* output must be kept under PAGE_SIZE */
-	out += sprintf(out, BANNER);
-	out += sprintf(out, "Load type: " MODULEPROCSTRING "\n\n");
-	out += sprintf(out, "frequency = %lu kHz\n",
+	seq_puts(m, BANNER);
+	seq_puts(m, "Load type: " MODULEPROCSTRING "\n\n");
+	seq_printf(m, "frequency = %lu kHz\n",
 		typhoon_unit.curfreq >> 4);
-	out += sprintf(out, "volume = %d\n", typhoon_unit.curvol);
-	out += sprintf(out, "mute = %s\n", typhoon_unit.muted ?
+	seq_printf(m, "volume = %d\n", typhoon_unit.curvol);
+	seq_printf(m, "mute = %s\n", typhoon_unit.muted ?
 		"on" : "off");
-	out += sprintf(out, "iobase = 0x%x\n", typhoon_unit.iobase);
-	out += sprintf(out, "mute frequency = %lu kHz\n",
+	seq_printf(m, "iobase = 0x%x\n", typhoon_unit.iobase);
+	seq_printf(m, "mute frequency = %lu kHz\n",
 		typhoon_unit.mutefreq >> 4);
-	return out - buf;
+	return 0;
 }
 
+static int typhoon_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, typhoon_proc_show, NULL);
+}
+
+static const struct file_operations typhoon_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= typhoon_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 #endif /* CONFIG_RADIO_TYPHOON_PROC_FS */
 
 MODULE_AUTHOR("Dr. Henrik Seidel");
@@ -404,7 +413,7 @@ MODULE_PARM_DESC(io, "I/O address of the Typhoon card (0x316 or 0x336)");
 module_param(radio_nr, int, 0);
 
 #ifdef MODULE
-static unsigned long mutefreq = 0;
+static unsigned long mutefreq;
 module_param(mutefreq, ulong, 0);
 MODULE_PARM_DESC(mutefreq, "Frequency used when muting the card (in kHz)");
 #endif
@@ -450,8 +459,7 @@ static int __init typhoon_init(void)
 	typhoon_mute(&typhoon_unit);
 
 #ifdef CONFIG_RADIO_TYPHOON_PROC_FS
-	if (!create_proc_info_entry("driver/radio-typhoon", 0, NULL,
-				    typhoon_get_info))
+	if (!proc_create("driver/radio-typhoon", 0, NULL, &typhoon_proc_fops))
 		printk(KERN_ERR "radio-typhoon: registering /proc/driver/radio-typhoon failed\n");
 #endif
 

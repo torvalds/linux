@@ -77,7 +77,7 @@ static int rionet_capable = 1;
  * could be made into a hash table to save memory depending
  * on system trade-offs.
  */
-static struct rio_dev *rionet_active[RIO_MAX_ROUTE_ENTRIES];
+static struct rio_dev **rionet_active;
 
 #define is_rionet_capable(pef, src_ops, dst_ops)		\
 			((pef & RIO_PEF_INB_MBOX) &&		\
@@ -195,7 +195,8 @@ static int rionet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	if (eth->h_dest[0] & 0x01) {
-		for (i = 0; i < RIO_MAX_ROUTE_ENTRIES; i++)
+		for (i = 0; i < RIO_MAX_ROUTE_ENTRIES(rnet->mport->sys_size);
+				i++)
 			if (rionet_active[i])
 				rionet_queue_tx_msg(skb, ndev,
 						    rionet_active[i]);
@@ -385,6 +386,8 @@ static void rionet_remove(struct rio_dev *rdev)
 	struct net_device *ndev = NULL;
 	struct rionet_peer *peer, *tmp;
 
+	free_pages((unsigned long)rionet_active, rdev->net->hport->sys_size ?
+					__ilog2(sizeof(void *)) + 4 : 0);
 	unregister_netdev(ndev);
 	kfree(ndev);
 
@@ -442,6 +445,15 @@ static int rionet_setup_netdev(struct rio_mport *mport)
 		rc = -ENOMEM;
 		goto out;
 	}
+
+	rionet_active = (struct rio_dev **)__get_free_pages(GFP_KERNEL,
+			mport->sys_size ? __ilog2(sizeof(void *)) + 4 : 0);
+	if (!rionet_active) {
+		rc = -ENOMEM;
+		goto out;
+	}
+	memset((void *)rionet_active, 0, sizeof(void *) *
+				RIO_MAX_ROUTE_ENTRIES(mport->sys_size));
 
 	/* Set up private area */
 	rnet = (struct rionet_private *)ndev->priv;

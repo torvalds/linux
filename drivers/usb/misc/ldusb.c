@@ -148,7 +148,7 @@ MODULE_PARM_DESC(min_interrupt_out_interval, "Minimum interrupt out interval in 
 
 /* Structure to hold all of our device specific stuff */
 struct ld_usb {
-	struct semaphore	sem;		/* locks this structure */
+	struct mutex		mutex;		/* locks this structure */
 	struct usb_interface*	intf;		/* save off the usb interface pointer */
 
 	int			open_count;	/* number of times this port has been opened */
@@ -231,7 +231,7 @@ static void ld_usb_interrupt_in_callback(struct urb *urb)
 			goto exit;
 		} else {
 			dbg_info(&dev->intf->dev, "%s: nonzero status received: %d\n",
-				 __FUNCTION__, status);
+				 __func__, status);
 			spin_lock(&dev->rbsl);
 			goto resubmit; /* maybe we can recover */
 		}
@@ -247,7 +247,7 @@ static void ld_usb_interrupt_in_callback(struct urb *urb)
 			memcpy(actual_buffer+1, dev->interrupt_in_buffer, urb->actual_length);
 			dev->ring_head = next_ring_head;
 			dbg_info(&dev->intf->dev, "%s: received %d bytes\n",
-				 __FUNCTION__, urb->actual_length);
+				 __func__, urb->actual_length);
 		} else {
 			dev_warn(&dev->intf->dev,
 				 "Ring buffer overflow, %d bytes dropped\n",
@@ -286,7 +286,7 @@ static void ld_usb_interrupt_out_callback(struct urb *urb)
 			status == -ESHUTDOWN))
 		dbg_info(&dev->intf->dev,
 			 "%s - nonzero write interrupt status received: %d\n",
-			 __FUNCTION__, status);
+			 __func__, status);
 
 	dev->interrupt_out_busy = 0;
 	wake_up_interruptible(&dev->write_wait);
@@ -309,7 +309,7 @@ static int ld_usb_open(struct inode *inode, struct file *file)
 
 	if (!interface) {
 		err("%s - error, can't find device for minor %d\n",
-		     __FUNCTION__, subminor);
+		     __func__, subminor);
 		return -ENODEV;
 	}
 
@@ -319,7 +319,7 @@ static int ld_usb_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 
 	/* lock this device */
-	if (down_interruptible(&dev->sem))
+	if (mutex_lock_interruptible(&dev->mutex))
 		return -ERESTARTSYS;
 
 	/* allow opening only once */
@@ -358,7 +358,7 @@ static int ld_usb_open(struct inode *inode, struct file *file)
 	file->private_data = dev;
 
 unlock_exit:
-	up(&dev->sem);
+	mutex_unlock(&dev->mutex);
 
 	return retval;
 }
@@ -378,7 +378,7 @@ static int ld_usb_release(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
-	if (down_interruptible(&dev->sem)) {
+	if (mutex_lock_interruptible(&dev->mutex)) {
 		retval = -ERESTARTSYS;
 		goto exit;
 	}
@@ -389,7 +389,7 @@ static int ld_usb_release(struct inode *inode, struct file *file)
 	}
 	if (dev->intf == NULL) {
 		/* the device was unplugged before the file was released */
-		up(&dev->sem);
+		mutex_unlock(&dev->mutex);
 		/* unlock here as ld_usb_delete frees dev */
 		ld_usb_delete(dev);
 		goto exit;
@@ -402,7 +402,7 @@ static int ld_usb_release(struct inode *inode, struct file *file)
 	dev->open_count = 0;
 
 unlock_exit:
-	up(&dev->sem);
+	mutex_unlock(&dev->mutex);
 
 exit:
 	return retval;
@@ -448,7 +448,7 @@ static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
 		goto exit;
 
 	/* lock this object */
-	if (down_interruptible(&dev->sem)) {
+	if (mutex_lock_interruptible(&dev->mutex)) {
 		retval = -ERESTARTSYS;
 		goto exit;
 	}
@@ -505,7 +505,7 @@ static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
 
 unlock_exit:
 	/* unlock the device */
-	up(&dev->sem);
+	mutex_unlock(&dev->mutex);
 
 exit:
 	return retval;
@@ -528,7 +528,7 @@ static ssize_t ld_usb_write(struct file *file, const char __user *buffer,
 		goto exit;
 
 	/* lock this object */
-	if (down_interruptible(&dev->sem)) {
+	if (mutex_lock_interruptible(&dev->mutex)) {
 		retval = -ERESTARTSYS;
 		goto exit;
 	}
@@ -556,7 +556,7 @@ static ssize_t ld_usb_write(struct file *file, const char __user *buffer,
 	bytes_to_write = min(count, write_buffer_size*dev->interrupt_out_endpoint_size);
 	if (bytes_to_write < count)
 		dev_warn(&dev->intf->dev, "Write buffer overflow, %zd bytes dropped\n",count-bytes_to_write);
-	dbg_info(&dev->intf->dev, "%s: count = %zd, bytes_to_write = %zd\n", __FUNCTION__, count, bytes_to_write);
+	dbg_info(&dev->intf->dev, "%s: count = %zd, bytes_to_write = %zd\n", __func__, count, bytes_to_write);
 
 	if (copy_from_user(dev->interrupt_out_buffer, buffer, bytes_to_write)) {
 		retval = -EFAULT;
@@ -602,7 +602,7 @@ static ssize_t ld_usb_write(struct file *file, const char __user *buffer,
 
 unlock_exit:
 	/* unlock the device */
-	up(&dev->sem);
+	mutex_unlock(&dev->mutex);
 
 exit:
 	return retval;
@@ -651,7 +651,7 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 		dev_err(&intf->dev, "Out of memory\n");
 		goto exit;
 	}
-	init_MUTEX(&dev->sem);
+	mutex_init(&dev->mutex);
 	spin_lock_init(&dev->rbsl);
 	dev->intf = intf;
 	init_waitqueue_head(&dev->read_wait);
@@ -765,15 +765,15 @@ static void ld_usb_disconnect(struct usb_interface *intf)
 	/* give back our minor */
 	usb_deregister_dev(intf, &ld_usb_class);
 
-	down(&dev->sem);
+	mutex_lock(&dev->mutex);
 
 	/* if the device is not opened, then we clean up right now */
 	if (!dev->open_count) {
-		up(&dev->sem);
+		mutex_unlock(&dev->mutex);
 		ld_usb_delete(dev);
 	} else {
 		dev->intf = NULL;
-		up(&dev->sem);
+		mutex_unlock(&dev->mutex);
 	}
 
 	dev_info(&intf->dev, "LD USB Device #%d now disconnected\n",

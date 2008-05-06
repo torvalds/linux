@@ -3,7 +3,7 @@
  *
  * Author: Dave Jiang <djiang@mvista.com>
  *
- * 2006-2007 (c) MontaVista Software, Inc. This file is licensed under
+ * 2006-2008 (c) MontaVista Software, Inc. This file is licensed under
  * the terms of the GNU General Public License version 2. This program
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
@@ -25,5 +25,17 @@ extern atomic_t edac_handlers;
 
 extern int edac_handler_set(void);
 extern void edac_atomic_assert_error(void);
+
+static inline void opstate_init(void)
+{
+	switch (edac_op_state) {
+	case EDAC_OPSTATE_POLL:
+	case EDAC_OPSTATE_NMI:
+		break;
+	default:
+		edac_op_state = EDAC_OPSTATE_POLL;
+	}
+	return;
+}
 
 #endif

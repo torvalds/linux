@@ -35,6 +35,20 @@
 #include "mga_drm.h"
 #include "mga_drv.h"
 
+u32 mga_get_vblank_counter(struct drm_device *dev, int crtc)
+{
+	const drm_mga_private_t *const dev_priv =
+		(drm_mga_private_t *) dev->dev_private;
+
+	if (crtc != 0) {
+		return 0;
+	}
+
+
+	return atomic_read(&dev_priv->vbl_received);
+}
+
+
 irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -47,9 +61,8 @@ irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS)
 	/* VBLANK interrupt */
 	if (status & MGA_VLINEPEN) {
 		MGA_WRITE(MGA_ICLEAR, MGA_VLINEICLR);
-		atomic_inc(&dev->vbl_received);
-		DRM_WAKEUP(&dev->vbl_queue);
-		drm_vbl_send_signals(dev);
+		atomic_inc(&dev_priv->vbl_received);
+		drm_handle_vblank(dev, 0);
 		handled = 1;
 	}
 
@@ -78,22 +91,34 @@ irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS)
 	return IRQ_NONE;
 }
 
-int mga_driver_vblank_wait(struct drm_device * dev, unsigned int *sequence)
+int mga_enable_vblank(struct drm_device *dev, int crtc)
 {
-	unsigned int cur_vblank;
-	int ret = 0;
+	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 
-	/* Assume that the user has missed the current sequence number
-	 * by about a day rather than she wants to wait for years
-	 * using vertical blanks...
+	if (crtc != 0) {
+		DRM_ERROR("tried to enable vblank on non-existent crtc %d\n",
+			  crtc);
+		return 0;
+	}
+
+	MGA_WRITE(MGA_IEN, MGA_VLINEIEN | MGA_SOFTRAPEN);
+	return 0;
+}
+
+
+void mga_disable_vblank(struct drm_device *dev, int crtc)
+{
+	if (crtc != 0) {
+		DRM_ERROR("tried to disable vblank on non-existent crtc %d\n",
+			  crtc);
+	}
+
+	/* Do *NOT* disable the vertical refresh interrupt.  MGA doesn't have
+	 * a nice hardware counter that tracks the number of refreshes when
+	 * the interrupt is disabled, and the kernel doesn't know the refresh
+	 * rate to calculate an estimate.
 	 */
-	DRM_WAIT_ON(ret, dev->vbl_queue, 3 * DRM_HZ,
-		    (((cur_vblank = atomic_read(&dev->vbl_received))
-		      - *sequence) <= (1 << 23)));
-
-	*sequence = cur_vblank;
-
-	return ret;
+	/* MGA_WRITE(MGA_IEN, MGA_VLINEIEN | MGA_SOFTRAPEN); */
 }
 
 int mga_driver_fence_wait(struct drm_device * dev, unsigned int *sequence)
@@ -125,14 +150,22 @@ void mga_driver_irq_preinstall(struct drm_device * dev)
 	MGA_WRITE(MGA_ICLEAR, ~0);
 }
 
-void mga_driver_irq_postinstall(struct drm_device * dev)
+int mga_driver_irq_postinstall(struct drm_device * dev)
 {
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
+	int ret;
+
+	ret = drm_vblank_init(dev, 1);
+	if (ret)
+		return ret;
 
 	DRM_INIT_WAITQUEUE(&dev_priv->fence_queue);
 
-	/* Turn on vertical blank interrupt and soft trap interrupt. */
-	MGA_WRITE(MGA_IEN, MGA_VLINEIEN | MGA_SOFTRAPEN);
+	/* Turn on soft trap interrupt.  Vertical blank interrupts are enabled
+	 * in mga_enable_vblank.
+	 */
+	MGA_WRITE(MGA_IEN, MGA_SOFTRAPEN);
+	return 0;
 }
 
 void mga_driver_irq_uninstall(struct drm_device * dev)

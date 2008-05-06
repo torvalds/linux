@@ -155,9 +155,9 @@ static void virtballoon_changed(struct virtio_device *vdev)
 static inline s64 towards_target(struct virtio_balloon *vb)
 {
 	u32 v;
-	__virtio_config_val(vb->vdev,
-			    offsetof(struct virtio_balloon_config, num_pages),
-			    &v);
+	vb->vdev->config->get(vb->vdev,
+			      offsetof(struct virtio_balloon_config, num_pages),
+			      &v, sizeof(v));
 	return v - vb->num_pages;
 }
 
@@ -227,7 +227,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	}
 
 	vb->tell_host_first
-		= vdev->config->feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
+		= virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
 
 	return 0;
 
@@ -259,7 +259,11 @@ static void virtballoon_remove(struct virtio_device *vdev)
 	kfree(vb);
 }
 
+static unsigned int features[] = { VIRTIO_BALLOON_F_MUST_TELL_HOST };
+
 static struct virtio_driver virtio_balloon = {
+	.feature_table = features,
+	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,

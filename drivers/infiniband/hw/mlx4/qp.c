@@ -482,7 +482,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			goto err;
 
 		qp->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr,
-				       qp->buf_size, 0);
+				       qp->buf_size, 0, 0);
 		if (IS_ERR(qp->umem)) {
 			err = PTR_ERR(qp->umem);
 			goto err;
@@ -514,7 +514,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			goto err;
 
 		if (!init_attr->srq) {
-			err = mlx4_ib_db_alloc(dev, &qp->db, 0);
+			err = mlx4_db_alloc(dev->dev, &qp->db, 0);
 			if (err)
 				goto err;
 
@@ -580,7 +580,7 @@ err_buf:
 
 err_db:
 	if (!pd->uobject && !init_attr->srq)
-		mlx4_ib_db_free(dev, &qp->db);
+		mlx4_db_free(dev->dev, &qp->db);
 
 err:
 	return err;
@@ -666,7 +666,7 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 		kfree(qp->rq.wrid);
 		mlx4_buf_free(dev->dev, qp->buf_size, &qp->buf);
 		if (!qp->ibqp.srq)
-			mlx4_ib_db_free(dev, &qp->db);
+			mlx4_db_free(dev->dev, &qp->db);
 	}
 }
 

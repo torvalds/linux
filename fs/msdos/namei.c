@@ -609,7 +609,7 @@ error_inode:
 	if (corrupt < 0) {
 		fat_fs_panic(new_dir->i_sb,
 			     "%s: Filesystem corrupted (i_pos %lld)",
-			     __FUNCTION__, sinfo.i_pos);
+			     __func__, sinfo.i_pos);
 	}
 	goto out;
 }
@@ -653,7 +653,7 @@ static const struct inode_operations msdos_dir_inode_operations = {
 	.mkdir		= msdos_mkdir,
 	.rmdir		= msdos_rmdir,
 	.rename		= msdos_rename,
-	.setattr	= fat_notify_change,
+	.setattr	= fat_setattr,
 	.getattr	= fat_getattr,
 };
 

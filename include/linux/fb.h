@@ -791,6 +791,17 @@ struct fb_tile_ops {
  */
 #define FBINFO_MISC_ALWAYS_SETPAR   0x40000
 
+/*
+ * Host and GPU endianness differ.
+ */
+#define FBINFO_FOREIGN_ENDIAN	0x100000
+/*
+ * Big endian math. This is the same flags as above, but with different
+ * meaning, it is set by the fb subsystem depending FOREIGN_ENDIAN flag
+ * and host endianness. Drivers should not use this flag.
+ */
+#define FBINFO_BE_MATH  0x100000
+
 struct fb_info {
 	int node;
 	int flags;
@@ -899,15 +910,11 @@ struct fb_info {
 
 #endif
 
-#if defined (__BIG_ENDIAN)
-#define FB_LEFT_POS(bpp)          (32 - bpp)
-#define FB_SHIFT_HIGH(val, bits)  ((val) >> (bits))
-#define FB_SHIFT_LOW(val, bits)   ((val) << (bits))
-#else
-#define FB_LEFT_POS(bpp)          (0)
-#define FB_SHIFT_HIGH(val, bits)  ((val) << (bits))
-#define FB_SHIFT_LOW(val, bits)   ((val) >> (bits))
-#endif
+#define FB_LEFT_POS(p, bpp)          (fb_be_math(p) ? (32 - (bpp)) : 0)
+#define FB_SHIFT_HIGH(p, val, bits)  (fb_be_math(p) ? (val) >> (bits) : \
+						      (val) << (bits))
+#define FB_SHIFT_LOW(p, val, bits)   (fb_be_math(p) ? (val) << (bits) : \
+						      (val) >> (bits))
 
     /*
      *  `Generic' versions of the frame buffer device operations
@@ -969,6 +976,25 @@ extern void fb_deferred_io_init(struct fb_info *info);
 extern void fb_deferred_io_cleanup(struct fb_info *info);
 extern int fb_deferred_io_fsync(struct file *file, struct dentry *dentry,
 				int datasync);
+
+static inline bool fb_be_math(struct fb_info *info)
+{
+#ifdef CONFIG_FB_FOREIGN_ENDIAN
+#if defined(CONFIG_FB_BOTH_ENDIAN)
+	return info->flags & FBINFO_BE_MATH;
+#elif defined(CONFIG_FB_BIG_ENDIAN)
+	return true;
+#elif defined(CONFIG_FB_LITTLE_ENDIAN)
+	return false;
+#endif /* CONFIG_FB_BOTH_ENDIAN */
+#else
+#ifdef __BIG_ENDIAN
+	return true;
+#else
+	return false;
+#endif /* __BIG_ENDIAN */
+#endif /* CONFIG_FB_FOREIGN_ENDIAN */
+}
 
 /* drivers/video/fbsysfs.c */
 extern struct fb_info *framebuffer_alloc(size_t size, struct device *dev);

@@ -112,7 +112,7 @@ static long madvise_willneed(struct vm_area_struct * vma,
 	if (!file)
 		return -EBADF;
 
-	if (file->f_mapping->a_ops->get_xip_page) {
+	if (file->f_mapping->a_ops->get_xip_mem) {
 		/* no bad return value, but ignore advice */
 		return 0;
 	}

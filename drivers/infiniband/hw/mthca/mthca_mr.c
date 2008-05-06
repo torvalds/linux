@@ -818,14 +818,8 @@ int mthca_arbel_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 
 void mthca_tavor_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr)
 {
-	u32 key;
-
 	if (!fmr->maps)
 		return;
-
-	key = tavor_key_to_hw_index(fmr->ibmr.lkey);
-	key &= dev->limits.num_mpts - 1;
-	fmr->ibmr.lkey = fmr->ibmr.rkey = tavor_hw_index_to_key(key);
 
 	fmr->maps = 0;
 
@@ -834,15 +828,8 @@ void mthca_tavor_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr)
 
 void mthca_arbel_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr)
 {
-	u32 key;
-
 	if (!fmr->maps)
 		return;
-
-	key = arbel_key_to_hw_index(fmr->ibmr.lkey);
-	key &= dev->limits.num_mpts - 1;
-	key = adjust_key(dev, key);
-	fmr->ibmr.lkey = fmr->ibmr.rkey = arbel_hw_index_to_key(key);
 
 	fmr->maps = 0;
 

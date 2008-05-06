@@ -7,6 +7,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/quotaops.h>
 #include <linux/fsnotify.h>
 #include <linux/module.h>
@@ -837,7 +838,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	if (f->f_flags & O_DIRECT) {
 		if (!f->f_mapping->a_ops ||
 		    ((!f->f_mapping->a_ops->direct_IO) &&
-		    (!f->f_mapping->a_ops->get_xip_page))) {
+		    (!f->f_mapping->a_ops->get_xip_mem))) {
 			fput(f);
 			f = ERR_PTR(-EINVAL);
 		}

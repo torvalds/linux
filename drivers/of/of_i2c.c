@@ -13,6 +13,7 @@
 
 #include <linux/i2c.h>
 #include <linux/of.h>
+#include <linux/module.h>
 
 struct i2c_driver_device {
 	char    *of_device;
@@ -113,3 +114,5 @@ void of_register_i2c_devices(struct i2c_adapter *adap,
 	}
 }
 EXPORT_SYMBOL(of_register_i2c_devices);
+
+MODULE_LICENSE("GPL");

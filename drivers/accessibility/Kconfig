@@ -1,0 +1,23 @@
+menuconfig ACCESSIBILITY
+	bool "Accessibility support"
+	---help---
+	  Enable a submenu where accessibility items may be enabled.
+
+	  If unsure, say N.
+
+if ACCESSIBILITY
+config A11Y_BRAILLE_CONSOLE
+	bool "Console on braille device"
+	depends on VT
+	depends on SERIAL_CORE_CONSOLE
+	---help---
+	  Enables console output on a braille device connected to a 8250
+	  serial port. For now only the VisioBraille device is supported.
+
+	  To actually enable it, you need to pass option
+	  console=brl,ttyS0
+	  to the kernel. Options are the same as for serial console.
+
+	  If unsure, say N.
+
+endif # ACCESSIBILITY

@@ -10,7 +10,6 @@
 #ifndef NFSCACHE_H
 #define NFSCACHE_H
 
-#ifdef __KERNEL__
 #include <linux/in.h>
 #include <linux/uio.h>
 
@@ -77,5 +76,4 @@ void	nfsd_reply_cache_shutdown(void);
 int	nfsd_cache_lookup(struct svc_rqst *, int);
 void	nfsd_cache_update(struct svc_rqst *, int, __be32 *);
 
-#endif /* __KERNEL__ */
 #endif /* NFSCACHE_H */

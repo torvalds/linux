@@ -338,15 +338,13 @@ static int __init mv64x60_i2c_device_setup(struct device_node *np, int id)
 
 	pdata.freq_m = 8;	/* default */
 	prop = of_get_property(np, "freq_m", NULL);
-	if (!prop)
-		return -ENODEV;
-	pdata.freq_m = *prop;
+	if (prop)
+		pdata.freq_m = *prop;
 
 	pdata.freq_m = 3;	/* default */
 	prop = of_get_property(np, "freq_n", NULL);
-	if (!prop)
-		return -ENODEV;
-	pdata.freq_n = *prop;
+	if (prop)
+		pdata.freq_n = *prop;
 
 	pdata.timeout = 1000;				/* default: 1 second */
 
@@ -433,9 +431,13 @@ static int __init mv64x60_device_setup(void)
 	int err;
 
 	id = 0;
-	for_each_compatible_node(np, "serial", "marvell,mv64360-mpsc")
-		if ((err = mv64x60_mpsc_device_setup(np, id++)))
-			goto error;
+	for_each_compatible_node(np, "serial", "marvell,mv64360-mpsc") {
+		err = mv64x60_mpsc_device_setup(np, id++);
+		if (err)
+			printk(KERN_ERR "Failed to initialize MV64x60 "
+					"serial device %s: error %d.\n",
+					np->full_name, err);
+	}
 
 	id = 0;
 	id2 = 0;
@@ -443,38 +445,44 @@ static int __init mv64x60_device_setup(void)
 		pdev = mv64x60_eth_register_shared_pdev(np, id++);
 		if (IS_ERR(pdev)) {
 			err = PTR_ERR(pdev);
-			goto error;
+			printk(KERN_ERR "Failed to initialize MV64x60 "
+					"network block %s: error %d.\n",
+					np->full_name, err);
+			continue;
 		}
 		for_each_child_of_node(np, np2) {
 			if (!of_device_is_compatible(np2,
 					"marvell,mv64360-eth"))
 				continue;
 			err = mv64x60_eth_device_setup(np2, id2++, pdev);
-			if (err) {
-				of_node_put(np2);
-				goto error;
-			}
+			if (err)
+				printk(KERN_ERR "Failed to initialize "
+						"MV64x60 network device %s: "
+						"error %d.\n",
+						np2->full_name, err);
 		}
 	}
 
 	id = 0;
-	for_each_compatible_node(np, "i2c", "marvell,mv64360-i2c")
-		if ((err = mv64x60_i2c_device_setup(np, id++)))
-			goto error;
+	for_each_compatible_node(np, "i2c", "marvell,mv64360-i2c") {
+		err = mv64x60_i2c_device_setup(np, id++);
+		if (err)
+			printk(KERN_ERR "Failed to initialize MV64x60 I2C "
+					"bus %s: error %d.\n",
+					np->full_name, err);
+	}
 
 	/* support up to one watchdog timer */
 	np = of_find_compatible_node(np, NULL, "marvell,mv64360-wdt");
 	if (np) {
 		if ((err = mv64x60_wdt_device_setup(np, id)))
-			goto error;
+			printk(KERN_ERR "Failed to initialize MV64x60 "
+					"Watchdog %s: error %d.\n",
+					np->full_name, err);
 		of_node_put(np);
 	}
 
 	return 0;
-
-error:
-	of_node_put(np);
-	return err;
 }
 arch_initcall(mv64x60_device_setup);
 

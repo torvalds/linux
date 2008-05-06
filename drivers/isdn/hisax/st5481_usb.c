@@ -342,7 +342,7 @@ void st5481_release_usb(struct st5481_adapter *adapter)
 	usb_kill_urb(intr->urb);
 	kfree(intr->urb->transfer_buffer);
 	usb_free_urb(intr->urb);
-	ctrl->urb = NULL;
+	intr->urb = NULL;
 }
 
 /*

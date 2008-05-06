@@ -133,7 +133,7 @@ static void __init md_setup_drive(void)
 		else
 			dev = MKDEV(MD_MAJOR, minor);
 		create_dev(name, dev);
-		for (i = 0; i < MD_SB_DISKS && devname != 0; i++) {
+		for (i = 0; i < MD_SB_DISKS && devname != NULL; i++) {
 			char *p;
 			char comp_name[64];
 			u32 rdev;

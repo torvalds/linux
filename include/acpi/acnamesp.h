@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,7 +113,8 @@ acpi_ns_parse_table(acpi_native_uint table_index,
 
 acpi_status
 acpi_ns_one_complete_parse(acpi_native_uint pass_number,
-			   acpi_native_uint table_index);
+			   acpi_native_uint table_index,
+			   struct acpi_namespace_node *start_node);
 
 /*
  * nsaccess - Top-level namespace access

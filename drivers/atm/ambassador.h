@@ -638,7 +638,7 @@ struct amb_dev {
   amb_txq          txq;
   amb_rxq          rxq[NUM_RX_POOLS];
   
-  struct semaphore vcc_sf;
+  struct mutex     vcc_sf;
   amb_tx_info      txer[NUM_VCS];
   struct atm_vcc * rxer[NUM_VCS];
   unsigned int     tx_avail;

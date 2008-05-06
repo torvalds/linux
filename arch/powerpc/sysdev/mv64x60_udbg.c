@@ -94,7 +94,7 @@ static void mv64x60_udbg_init(void)
 	if (!np)
 		return;
 
-	block_index = of_get_property(np, "block-index", NULL);
+	block_index = of_get_property(np, "cell-index", NULL);
 	if (!block_index)
 		goto error;
 

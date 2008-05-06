@@ -9,6 +9,7 @@
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/suspend.h>
+#include <linux/kbuild.h>
 #include <asm/ucontext.h>
 #include "sigframe.h"
 #include <asm/pgtable.h>
@@ -22,14 +23,6 @@
 
 #include <linux/lguest.h>
 #include "../../../drivers/lguest/lg.h"
-
-#define DEFINE(sym, val) \
-        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
-
-#define OFFSET(sym, str, mem) \
-	DEFINE(sym, offsetof(struct str, mem));
 
 /* workaround for a warning with -Wmissing-prototypes */
 void foo(void);

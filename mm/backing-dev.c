@@ -4,11 +4,228 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/module.h>
+#include <linux/writeback.h>
+#include <linux/device.h>
+
+
+static struct class *bdi_class;
+
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+
+static struct dentry *bdi_debug_root;
+
+static void bdi_debug_init(void)
+{
+	bdi_debug_root = debugfs_create_dir("bdi", NULL);
+}
+
+static int bdi_debug_stats_show(struct seq_file *m, void *v)
+{
+	struct backing_dev_info *bdi = m->private;
+	long background_thresh;
+	long dirty_thresh;
+	long bdi_thresh;
+
+	get_dirty_limits(&background_thresh, &dirty_thresh, &bdi_thresh, bdi);
+
+#define K(x) ((x) << (PAGE_SHIFT - 10))
+	seq_printf(m,
+		   "BdiWriteback:     %8lu kB\n"
+		   "BdiReclaimable:   %8lu kB\n"
+		   "BdiDirtyThresh:   %8lu kB\n"
+		   "DirtyThresh:      %8lu kB\n"
+		   "BackgroundThresh: %8lu kB\n",
+		   (unsigned long) K(bdi_stat(bdi, BDI_WRITEBACK)),
+		   (unsigned long) K(bdi_stat(bdi, BDI_RECLAIMABLE)),
+		   K(bdi_thresh),
+		   K(dirty_thresh),
+		   K(background_thresh));
+#undef K
+
+	return 0;
+}
+
+static int bdi_debug_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, bdi_debug_stats_show, inode->i_private);
+}
+
+static const struct file_operations bdi_debug_stats_fops = {
+	.open		= bdi_debug_stats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void bdi_debug_register(struct backing_dev_info *bdi, const char *name)
+{
+	bdi->debug_dir = debugfs_create_dir(name, bdi_debug_root);
+	bdi->debug_stats = debugfs_create_file("stats", 0444, bdi->debug_dir,
+					       bdi, &bdi_debug_stats_fops);
+}
+
+static void bdi_debug_unregister(struct backing_dev_info *bdi)
+{
+	debugfs_remove(bdi->debug_stats);
+	debugfs_remove(bdi->debug_dir);
+}
+#else
+static inline void bdi_debug_init(void)
+{
+}
+static inline void bdi_debug_register(struct backing_dev_info *bdi,
+				      const char *name)
+{
+}
+static inline void bdi_debug_unregister(struct backing_dev_info *bdi)
+{
+}
+#endif
+
+static ssize_t read_ahead_kb_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+	char *end;
+	unsigned long read_ahead_kb;
+	ssize_t ret = -EINVAL;
+
+	read_ahead_kb = simple_strtoul(buf, &end, 10);
+	if (*buf && (end[0] == '\0' || (end[0] == '\n' && end[1] == '\0'))) {
+		bdi->ra_pages = read_ahead_kb >> (PAGE_SHIFT - 10);
+		ret = count;
+	}
+	return ret;
+}
+
+#define K(pages) ((pages) << (PAGE_SHIFT - 10))
+
+#define BDI_SHOW(name, expr)						\
+static ssize_t name##_show(struct device *dev,				\
+			   struct device_attribute *attr, char *page)	\
+{									\
+	struct backing_dev_info *bdi = dev_get_drvdata(dev);		\
+									\
+	return snprintf(page, PAGE_SIZE-1, "%lld\n", (long long)expr);	\
+}
+
+BDI_SHOW(read_ahead_kb, K(bdi->ra_pages))
+
+static ssize_t min_ratio_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+	char *end;
+	unsigned int ratio;
+	ssize_t ret = -EINVAL;
+
+	ratio = simple_strtoul(buf, &end, 10);
+	if (*buf && (end[0] == '\0' || (end[0] == '\n' && end[1] == '\0'))) {
+		ret = bdi_set_min_ratio(bdi, ratio);
+		if (!ret)
+			ret = count;
+	}
+	return ret;
+}
+BDI_SHOW(min_ratio, bdi->min_ratio)
+
+static ssize_t max_ratio_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+	char *end;
+	unsigned int ratio;
+	ssize_t ret = -EINVAL;
+
+	ratio = simple_strtoul(buf, &end, 10);
+	if (*buf && (end[0] == '\0' || (end[0] == '\n' && end[1] == '\0'))) {
+		ret = bdi_set_max_ratio(bdi, ratio);
+		if (!ret)
+			ret = count;
+	}
+	return ret;
+}
+BDI_SHOW(max_ratio, bdi->max_ratio)
+
+#define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
+
+static struct device_attribute bdi_dev_attrs[] = {
+	__ATTR_RW(read_ahead_kb),
+	__ATTR_RW(min_ratio),
+	__ATTR_RW(max_ratio),
+	__ATTR_NULL,
+};
+
+static __init int bdi_class_init(void)
+{
+	bdi_class = class_create(THIS_MODULE, "bdi");
+	bdi_class->dev_attrs = bdi_dev_attrs;
+	bdi_debug_init();
+	return 0;
+}
+
+postcore_initcall(bdi_class_init);
+
+int bdi_register(struct backing_dev_info *bdi, struct device *parent,
+		const char *fmt, ...)
+{
+	char *name;
+	va_list args;
+	int ret = 0;
+	struct device *dev;
+
+	va_start(args, fmt);
+	name = kvasprintf(GFP_KERNEL, fmt, args);
+	va_end(args);
+
+	if (!name)
+		return -ENOMEM;
+
+	dev = device_create(bdi_class, parent, MKDEV(0, 0), name);
+	if (IS_ERR(dev)) {
+		ret = PTR_ERR(dev);
+		goto exit;
+	}
+
+	bdi->dev = dev;
+	dev_set_drvdata(bdi->dev, bdi);
+	bdi_debug_register(bdi, name);
+
+exit:
+	kfree(name);
+	return ret;
+}
+EXPORT_SYMBOL(bdi_register);
+
+int bdi_register_dev(struct backing_dev_info *bdi, dev_t dev)
+{
+	return bdi_register(bdi, NULL, "%u:%u", MAJOR(dev), MINOR(dev));
+}
+EXPORT_SYMBOL(bdi_register_dev);
+
+void bdi_unregister(struct backing_dev_info *bdi)
+{
+	if (bdi->dev) {
+		bdi_debug_unregister(bdi);
+		device_unregister(bdi->dev);
+		bdi->dev = NULL;
+	}
+}
+EXPORT_SYMBOL(bdi_unregister);
 
 int bdi_init(struct backing_dev_info *bdi)
 {
 	int i;
 	int err;
+
+	bdi->dev = NULL;
+
+	bdi->min_ratio = 0;
+	bdi->max_ratio = 100;
+	bdi->max_prop_frac = PROP_FRAC_BASE;
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
 		err = percpu_counter_init_irq(&bdi->bdi_stat[i], 0);
@@ -32,6 +249,8 @@ EXPORT_SYMBOL(bdi_init);
 void bdi_destroy(struct backing_dev_info *bdi)
 {
 	int i;
+
+	bdi_unregister(bdi);
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
 		percpu_counter_destroy(&bdi->bdi_stat[i]);

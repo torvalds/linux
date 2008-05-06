@@ -98,7 +98,6 @@
 #include "gianfar_mii.h"
 
 #define TX_TIMEOUT      (1*HZ)
-#define SKB_ALLOC_TIMEOUT 1000000
 #undef BRIEF_GFAR_ERRORS
 #undef VERBOSE_GFAR_ERRORS
 
@@ -115,7 +114,9 @@ static int gfar_enet_open(struct net_device *dev);
 static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void gfar_timeout(struct net_device *dev);
 static int gfar_close(struct net_device *dev);
-struct sk_buff *gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp);
+struct sk_buff *gfar_new_skb(struct net_device *dev);
+static void gfar_new_rxbdp(struct net_device *dev, struct rxbd8 *bdp,
+		struct sk_buff *skb);
 static int gfar_set_mac_address(struct net_device *dev);
 static int gfar_change_mtu(struct net_device *dev, int new_mtu);
 static irqreturn_t gfar_error(int irq, void *dev_id);
@@ -130,8 +131,6 @@ static void free_skb_resources(struct gfar_private *priv);
 static void gfar_set_multi(struct net_device *dev);
 static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr);
 static void gfar_configure_serdes(struct net_device *dev);
-extern int gfar_local_mdio_write(struct gfar_mii __iomem *regs, int mii_id, int regnum, u16 value);
-extern int gfar_local_mdio_read(struct gfar_mii __iomem *regs, int mii_id, int regnum);
 #ifdef CONFIG_GFAR_NAPI
 static int gfar_poll(struct napi_struct *napi, int budget);
 #endif
@@ -476,24 +475,30 @@ static int init_phy(struct net_device *dev)
 	return 0;
 }
 
+/*
+ * Initialize TBI PHY interface for communicating with the
+ * SERDES lynx PHY on the chip.  We communicate with this PHY
+ * through the MDIO bus on each controller, treating it as a
+ * "normal" PHY at the address found in the TBIPA register.  We assume
+ * that the TBIPA register is valid.  Either the MDIO bus code will set
+ * it to a value that doesn't conflict with other PHYs on the bus, or the
+ * value doesn't matter, as there are no other PHYs on the bus.
+ */
 static void gfar_configure_serdes(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar_mii __iomem *regs =
 			(void __iomem *)&priv->regs->gfar_mii_regs;
+	int tbipa = gfar_read(&priv->regs->tbipa);
 
-	/* Initialise TBI i/f to communicate with serdes (lynx phy) */
+	/* Single clk mode, mii mode off(for serdes communication) */
+	gfar_local_mdio_write(regs, tbipa, MII_TBICON, TBICON_CLK_SELECT);
 
-	/* Single clk mode, mii mode off(for aerdes communication) */
-	gfar_local_mdio_write(regs, TBIPA_VALUE, MII_TBICON, TBICON_CLK_SELECT);
-
-	/* Supported pause and full-duplex, no half-duplex */
-	gfar_local_mdio_write(regs, TBIPA_VALUE, MII_ADVERTISE,
+	gfar_local_mdio_write(regs, tbipa, MII_ADVERTISE,
 			ADVERTISE_1000XFULL | ADVERTISE_1000XPAUSE |
 			ADVERTISE_1000XPSE_ASYM);
 
-	/* ANEG enable, restart ANEG, full duplex mode, speed[1] set */
-	gfar_local_mdio_write(regs, TBIPA_VALUE, MII_BMCR, BMCR_ANENABLE |
+	gfar_local_mdio_write(regs, tbipa, MII_BMCR, BMCR_ANENABLE |
 			BMCR_ANRESTART | BMCR_FULLDPLX | BMCR_SPEED1000);
 }
 
@@ -540,9 +545,6 @@ static void init_registers(struct net_device *dev)
 
 	/* Initialize the Minimum Frame Length Register */
 	gfar_write(&priv->regs->minflr, MINFLR_INIT_SETTINGS);
-
-	/* Assign the TBI an address which won't conflict with the PHYs */
-	gfar_write(&priv->regs->tbipa, TBIPA_VALUE);
 }
 
 
@@ -783,13 +785,20 @@ int startup_gfar(struct net_device *dev)
 
 	rxbdp = priv->rx_bd_base;
 	for (i = 0; i < priv->rx_ring_size; i++) {
-		struct sk_buff *skb = NULL;
+		struct sk_buff *skb;
 
-		rxbdp->status = 0;
+		skb = gfar_new_skb(dev);
 
-		skb = gfar_new_skb(dev, rxbdp);
+		if (!skb) {
+			printk(KERN_ERR "%s: Can't allocate RX buffers\n",
+					dev->name);
+
+			goto err_rxalloc_fail;
+		}
 
 		priv->rx_skbuff[i] = skb;
+
+		gfar_new_rxbdp(dev, rxbdp, skb);
 
 		rxbdp++;
 	}
@@ -916,6 +925,7 @@ rx_irq_fail:
 tx_irq_fail:
 	free_irq(priv->interruptError, dev);
 err_irq_fail:
+err_rxalloc_fail:	
 rx_skb_fail:
 	free_skb_resources(priv);
 tx_skb_fail:
@@ -1328,18 +1338,37 @@ static irqreturn_t gfar_transmit(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-struct sk_buff * gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp)
+static void gfar_new_rxbdp(struct net_device *dev, struct rxbd8 *bdp,
+		struct sk_buff *skb)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	u32 * status_len = (u32 *)bdp;
+	u16 flags;
+
+	bdp->bufPtr = dma_map_single(&dev->dev, skb->data,
+			priv->rx_buffer_size, DMA_FROM_DEVICE);
+
+	flags = RXBD_EMPTY | RXBD_INTERRUPT;
+
+	if (bdp == priv->rx_bd_base + priv->rx_ring_size - 1)
+		flags |= RXBD_WRAP;
+
+	eieio();
+
+	*status_len = (u32)flags << 16;
+}
+
+
+struct sk_buff * gfar_new_skb(struct net_device *dev)
 {
 	unsigned int alignamount;
 	struct gfar_private *priv = netdev_priv(dev);
 	struct sk_buff *skb = NULL;
-	unsigned int timeout = SKB_ALLOC_TIMEOUT;
 
 	/* We have to allocate the skb, so keep trying till we succeed */
-	while ((!skb) && timeout--)
-		skb = dev_alloc_skb(priv->rx_buffer_size + RXBUF_ALIGNMENT);
+	skb = netdev_alloc_skb(dev, priv->rx_buffer_size + RXBUF_ALIGNMENT);
 
-	if (NULL == skb)
+	if (!skb)
 		return NULL;
 
 	alignamount = RXBUF_ALIGNMENT -
@@ -1349,15 +1378,6 @@ struct sk_buff * gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp)
 	 * as many bytes as needed to align the data properly
 	 */
 	skb_reserve(skb, alignamount);
-
-	bdp->bufPtr = dma_map_single(&dev->dev, skb->data,
-			priv->rx_buffer_size, DMA_FROM_DEVICE);
-
-	bdp->length = 0;
-
-	/* Mark the buffer empty */
-	eieio();
-	bdp->status |= (RXBD_EMPTY | RXBD_INTERRUPT);
 
 	return skb;
 }
@@ -1544,10 +1564,31 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 	bdp = priv->cur_rx;
 
 	while (!((bdp->status & RXBD_EMPTY) || (--rx_work_limit < 0))) {
+		struct sk_buff *newskb;
 		rmb();
+
+		/* Add another skb for the future */
+		newskb = gfar_new_skb(dev);
+
 		skb = priv->rx_skbuff[priv->skb_currx];
 
-		if ((bdp->status & RXBD_LAST) && !(bdp->status & RXBD_ERR)) {
+		/* We drop the frame if we failed to allocate a new buffer */
+		if (unlikely(!newskb || !(bdp->status & RXBD_LAST) ||
+				 bdp->status & RXBD_ERR)) {
+			count_errors(bdp->status, dev);
+
+			if (unlikely(!newskb))
+				newskb = skb;
+
+			if (skb) {
+				dma_unmap_single(&priv->dev->dev,
+						bdp->bufPtr,
+						priv->rx_buffer_size,
+						DMA_FROM_DEVICE);
+
+				dev_kfree_skb_any(skb);
+			}
+		} else {
 			/* Increment the number of packets */
 			dev->stats.rx_packets++;
 			howmany++;
@@ -1558,23 +1599,14 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 			gfar_process_frame(dev, skb, pkt_len);
 
 			dev->stats.rx_bytes += pkt_len;
-		} else {
-			count_errors(bdp->status, dev);
-
-			if (skb)
-				dev_kfree_skb_any(skb);
-
-			priv->rx_skbuff[priv->skb_currx] = NULL;
 		}
 
 		dev->last_rx = jiffies;
 
-		/* Clear the status flags for this buffer */
-		bdp->status &= ~RXBD_STATS;
+		priv->rx_skbuff[priv->skb_currx] = newskb;
 
-		/* Add another skb for the future */
-		skb = gfar_new_skb(dev, bdp);
-		priv->rx_skbuff[priv->skb_currx] = skb;
+		/* Setup the new bdp */
+		gfar_new_rxbdp(dev, bdp, newskb);
 
 		/* Update to the next pointer */
 		if (bdp->status & RXBD_WRAP)
@@ -1584,9 +1616,8 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 
 		/* update to point at the next skb */
 		priv->skb_currx =
-		    (priv->skb_currx +
-		     1) & RX_RING_MOD_MASK(priv->rx_ring_size);
-
+		    (priv->skb_currx + 1) &
+		    RX_RING_MOD_MASK(priv->rx_ring_size);
 	}
 
 	/* Update the current rxbd pointer to be the next one */
@@ -2001,12 +2032,16 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:fsl-gianfar");
+
 /* Structure for a device driver */
 static struct platform_driver gfar_driver = {
 	.probe = gfar_probe,
 	.remove = gfar_remove,
 	.driver	= {
 		.name = "fsl-gianfar",
+		.owner = THIS_MODULE,
 	},
 };
 

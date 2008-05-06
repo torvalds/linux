@@ -516,7 +516,7 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 
 /* Convert permission bits from mode to equivalent CIFS ACL */
 static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
-				int acl_len, struct inode *inode, __u64 nmode)
+				struct inode *inode, __u64 nmode)
 {
 	int rc = 0;
 	__u32 dacloffset;
@@ -692,14 +692,14 @@ void acl_to_uid_mode(struct inode *inode, const char *path, const __u16 *pfid)
 int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
 {
 	int rc = 0;
-	__u32 acllen = 0;
+	__u32 secdesclen = 0;
 	struct cifs_ntsd *pntsd = NULL; /* acl obtained from server */
 	struct cifs_ntsd *pnntsd = NULL; /* modified acl to be sent to server */
 
 	cFYI(DBG2, ("set ACL from mode for %s", path));
 
 	/* Get the security descriptor */
-	pntsd = get_cifs_acl(&acllen, inode, path, NULL);
+	pntsd = get_cifs_acl(&secdesclen, inode, path, NULL);
 
 	/* Add three ACEs for owner, group, everyone getting rid of
 	   other ACEs as chmod disables ACEs and set the security descriptor */
@@ -709,20 +709,22 @@ int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
 		   set security descriptor request security descriptor
 		   parameters, and secuirty descriptor itself */
 
-		pnntsd = kmalloc(acllen, GFP_KERNEL);
+		secdesclen = secdesclen < DEFSECDESCLEN ?
+					DEFSECDESCLEN : secdesclen;
+		pnntsd = kmalloc(secdesclen, GFP_KERNEL);
 		if (!pnntsd) {
 			cERROR(1, ("Unable to allocate security descriptor"));
 			kfree(pntsd);
 			return (-ENOMEM);
 		}
 
-		rc = build_sec_desc(pntsd, pnntsd, acllen, inode, nmode);
+		rc = build_sec_desc(pntsd, pnntsd, inode, nmode);
 
 		cFYI(DBG2, ("build_sec_desc rc: %d", rc));
 
 		if (!rc) {
 			/* Set the security descriptor */
-			rc = set_cifs_acl(pnntsd, acllen, inode, path);
+			rc = set_cifs_acl(pnntsd, secdesclen, inode, path);
 			cFYI(DBG2, ("set_cifs_acl rc: %d", rc));
 		}
 

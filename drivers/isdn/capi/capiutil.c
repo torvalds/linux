@@ -450,7 +450,7 @@ static void pars_2_message(_cmsg * cmsg)
 			cmsg->l += 4;
 			break;
 		case _CSTRUCT:
-			if (*(u8 **) OFF == 0) {
+			if (*(u8 **) OFF == NULL) {
 				*(cmsg->m + cmsg->l) = '\0';
 				cmsg->l++;
 			} else if (**(_cstruct *) OFF != 0xff) {

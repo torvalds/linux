@@ -177,7 +177,6 @@ struct reiserfs_journal {
 	struct reiserfs_journal_cnode *j_last;	/* newest journal block */
 	struct reiserfs_journal_cnode *j_first;	/*  oldest journal block.  start here for traverse */
 
-	struct file *j_dev_file;
 	struct block_device *j_dev_bd;
 	int j_1st_reserved_block;	/* first block on s_dev of reserved area journal */
 

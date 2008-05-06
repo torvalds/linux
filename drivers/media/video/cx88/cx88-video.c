@@ -63,11 +63,11 @@ MODULE_PARM_DESC(video_nr,"video device numbers");
 MODULE_PARM_DESC(vbi_nr,"vbi device numbers");
 MODULE_PARM_DESC(radio_nr,"radio device numbers");
 
-static unsigned int video_debug = 0;
+static unsigned int video_debug;
 module_param(video_debug,int,0644);
 MODULE_PARM_DESC(video_debug,"enable debug messages [video]");
 
-static unsigned int irq_debug = 0;
+static unsigned int irq_debug;
 module_param(irq_debug,int,0644);
 MODULE_PARM_DESC(irq_debug,"enable debug messages [IRQ handler]");
 
@@ -228,6 +228,30 @@ static struct cx88_ctrl cx8800_ctls[] = {
 		.mask                  = 0x00ff,
 		.shift                 = 0,
 	},{
+		.v = {
+			.id            = V4L2_CID_CHROMA_AGC,
+			.name          = "Chroma AGC",
+			.minimum       = 0,
+			.maximum       = 1,
+			.default_value = 0x1,
+			.type          = V4L2_CTRL_TYPE_BOOLEAN,
+		},
+		.reg                   = MO_INPUT_FORMAT,
+		.mask                  = 1 << 10,
+		.shift                 = 10,
+	}, {
+		.v = {
+			.id            = V4L2_CID_COLOR_KILLER,
+			.name          = "Color killer",
+			.minimum       = 0,
+			.maximum       = 1,
+			.default_value = 0x1,
+			.type          = V4L2_CTRL_TYPE_BOOLEAN,
+		},
+		.reg                   = MO_INPUT_FORMAT,
+		.mask                  = 1 << 9,
+		.shift                 = 9,
+	}, {
 	/* --- audio --- */
 		.v = {
 			.id            = V4L2_CID_AUDIO_MUTE,
@@ -282,6 +306,8 @@ const u32 cx88_user_ctrls[] = {
 	V4L2_CID_AUDIO_VOLUME,
 	V4L2_CID_AUDIO_BALANCE,
 	V4L2_CID_AUDIO_MUTE,
+	V4L2_CID_CHROMA_AGC,
+	V4L2_CID_COLOR_KILLER,
 	0
 };
 EXPORT_SYMBOL(cx88_user_ctrls);
@@ -291,7 +317,7 @@ static const u32 *ctrl_classes[] = {
 	NULL
 };
 
-int cx8800_ctrl_query(struct v4l2_queryctrl *qctrl)
+int cx8800_ctrl_query(struct cx88_core *core, struct v4l2_queryctrl *qctrl)
 {
 	int i;
 
@@ -306,6 +332,11 @@ int cx8800_ctrl_query(struct v4l2_queryctrl *qctrl)
 		return 0;
 	}
 	*qctrl = cx8800_ctls[i].v;
+	/* Report chroma AGC as inactive when SECAM is selected */
+	if (cx8800_ctls[i].v.id == V4L2_CID_CHROMA_AGC &&
+	    core->tvnorm & V4L2_STD_SECAM)
+		qctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+
 	return 0;
 }
 EXPORT_SYMBOL(cx8800_ctrl_query);
@@ -776,14 +807,14 @@ static int video_open(struct inode *inode, struct file *file)
 	fh->height   = 240;
 	fh->fmt      = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 
-	videobuf_queue_pci_init(&fh->vidq, &cx8800_video_qops,
-			    dev->pci, &dev->slock,
+	videobuf_queue_sg_init(&fh->vidq, &cx8800_video_qops,
+			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx88_buffer),
 			    fh);
-	videobuf_queue_pci_init(&fh->vbiq, &cx8800_vbi_qops,
-			    dev->pci, &dev->slock,
+	videobuf_queue_sg_init(&fh->vbiq, &cx8800_vbi_qops,
+			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB,
 			    sizeof(struct cx88_buffer),
@@ -975,6 +1006,12 @@ int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 			value=(value*0x5a)/0x7f<<8|value;
 		}
 		mask=0xffff;
+		break;
+	case V4L2_CID_CHROMA_AGC:
+		/* Do not allow chroma AGC to be enabled for SECAM */
+		value = ((ctl->value - c->off) << c->shift) & c->mask;
+		if (core->tvnorm & V4L2_STD_SECAM && value)
+			return -EINVAL;
 		break;
 	default:
 		value = ((ctl->value - c->off) << c->shift) & c->mask;
@@ -1268,10 +1305,12 @@ static int vidioc_s_input (struct file *file, void *priv, unsigned int i)
 static int vidioc_queryctrl (struct file *file, void *priv,
 				struct v4l2_queryctrl *qctrl)
 {
+	struct cx88_core *core = ((struct cx8800_fh *)priv)->dev->core;
+
 	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
 	if (unlikely(qctrl->id == 0))
 		return -EINVAL;
-	return cx8800_ctrl_query(qctrl);
+	return cx8800_ctrl_query(core, qctrl);
 }
 
 static int vidioc_g_ctrl (struct file *file, void *priv,
@@ -1832,8 +1871,11 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	switch (core->boardnr) {
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD:
-		request_module("ir-kbd-i2c");
+	case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
 		request_module("rtc-isl1208");
+		/* break intentionally omitted */
+	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
+		request_module("ir-kbd-i2c");
 	}
 
 	/* register v4l devices */
@@ -1916,6 +1958,9 @@ static void __devexit cx8800_finidev(struct pci_dev *pci_dev)
 		kthread_stop(core->kthread);
 		core->kthread = NULL;
 	}
+
+	if (core->ir)
+		cx88_ir_stop(core, core->ir);
 
 	cx88_shutdown(core); /* FIXME */
 	pci_disable_device(pci_dev);

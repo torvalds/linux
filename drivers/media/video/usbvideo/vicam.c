@@ -48,7 +48,7 @@
 // #define VICAM_DEBUG
 
 #ifdef VICAM_DEBUG
-#define ADBG(lineno,fmt,args...) printk(fmt, jiffies, __FUNCTION__, lineno, ##args)
+#define ADBG(lineno,fmt,args...) printk(fmt, jiffies, __func__, lineno, ##args)
 #define DBG(fmt,args...) ADBG((__LINE__),KERN_DEBUG __FILE__"(%ld):%s (%d):"fmt,##args)
 #else
 #define DBG(fmn,args...) do {} while(0)
@@ -69,12 +69,6 @@
 #define VICAM_FRAMES            2
 
 #define VICAM_HEADER_SIZE       64
-
-#define clamp( x, l, h )        max_t( __typeof__( x ),         \
-				       ( l ),                   \
-				       min_t( __typeof__( x ),  \
-					      ( h ),            \
-					      ( x ) ) )
 
 /* Not sure what all the bytes in these char
  * arrays do, but they're necessary to make
@@ -1066,7 +1060,9 @@ static const struct file_operations vicam_fops = {
 	.read		= vicam_read,
 	.mmap		= vicam_mmap,
 	.ioctl		= vicam_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.llseek		= no_llseek,
 };
 

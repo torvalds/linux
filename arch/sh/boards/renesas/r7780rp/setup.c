@@ -199,8 +199,7 @@ static struct platform_device smbus_device = {
 
 static struct i2c_board_info __initdata highlander_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("rtc-rs5c372", 0x32),
-		.type	= "r2025sd",
+		I2C_BOARD_INFO("r2025sd", 0x32),
 	},
 };
 

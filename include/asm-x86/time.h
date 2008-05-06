@@ -1,7 +1,6 @@
 #ifndef _ASMX86_TIME_H
 #define _ASMX86_TIME_H
 
-extern void (*late_time_init)(void);
 extern void hpet_time_init(void);
 
 #include <asm/mc146818rtc.h>

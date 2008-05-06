@@ -43,12 +43,13 @@ static struct pci_device_id pciidlist[] = {
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
-	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
-	    DRIVER_IRQ_VBL,
+	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
 	.dev_priv_size = sizeof(drm_r128_buf_priv_t),
 	.preclose = r128_driver_preclose,
 	.lastclose = r128_driver_lastclose,
-	.vblank_wait = r128_driver_vblank_wait,
+	.get_vblank_counter = r128_get_vblank_counter,
+	.enable_vblank = r128_enable_vblank,
+	.disable_vblank = r128_disable_vblank,
 	.irq_preinstall = r128_driver_irq_preinstall,
 	.irq_postinstall = r128_driver_irq_postinstall,
 	.irq_uninstall = r128_driver_irq_uninstall,

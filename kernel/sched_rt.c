@@ -1098,11 +1098,14 @@ static void post_schedule_rt(struct rq *rq)
 	}
 }
 
-
+/*
+ * If we are not running and we are not going to reschedule soon, we should
+ * try to push tasks away now
+ */
 static void task_wake_up_rt(struct rq *rq, struct task_struct *p)
 {
 	if (!task_running(rq, p) &&
-	    (p->prio >= rq->rt.highest_prio) &&
+	    !test_tsk_need_resched(rq->curr) &&
 	    rq->rt.overloaded)
 		push_rt_tasks(rq);
 }
@@ -1309,7 +1312,7 @@ static void set_curr_task_rt(struct rq *rq)
 	p->se.exec_start = rq->clock;
 }
 
-const struct sched_class rt_sched_class = {
+static const struct sched_class rt_sched_class = {
 	.next			= &fair_sched_class,
 	.enqueue_task		= enqueue_task_rt,
 	.dequeue_task		= dequeue_task_rt,

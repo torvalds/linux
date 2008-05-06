@@ -317,13 +317,14 @@ static const struct file_operations smk_load_ops = {
 /**
  * smk_cipso_doi - initialize the CIPSO domain
  */
-void smk_cipso_doi(void)
+static void smk_cipso_doi(void)
 {
 	int rc;
 	struct cipso_v4_doi *doip;
 	struct netlbl_audit audit_info;
 
 	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = smack_to_secid(current->security);
 
 	rc = netlbl_cfg_map_del(NULL, &audit_info);
@@ -350,12 +351,13 @@ void smk_cipso_doi(void)
 /**
  * smk_unlbl_ambient - initialize the unlabeled domain
  */
-void smk_unlbl_ambient(char *oldambient)
+static void smk_unlbl_ambient(char *oldambient)
 {
 	int rc;
 	struct netlbl_audit audit_info;
 
 	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = smack_to_secid(current->security);
 
 	if (oldambient != NULL) {

@@ -62,7 +62,7 @@ enum {
 extern int selinux_policycap_netpeer;
 extern int selinux_policycap_openperm;
 
-int security_load_policy(void * data, size_t len);
+int security_load_policy(void *data, size_t len);
 
 int security_policycap_supported(unsigned int req_cap);
 
@@ -93,10 +93,10 @@ int security_change_sid(u32 ssid, u32 tsid,
 int security_sid_to_context(u32 sid, char **scontext,
 	u32 *scontext_len);
 
-int security_context_to_sid(char *scontext, u32 scontext_len,
+int security_context_to_sid(const char *scontext, u32 scontext_len,
 	u32 *out_sid);
 
-int security_context_to_sid_default(char *scontext, u32 scontext_len,
+int security_context_to_sid_default(const char *scontext, u32 scontext_len,
 				    u32 *out_sid, u32 def_sid, gfp_t gfp_flags);
 
 int security_get_user_sids(u32 callsid, char *username,
@@ -110,7 +110,7 @@ int security_node_sid(u16 domain, void *addr, u32 addrlen,
 	u32 *out_sid);
 
 int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
-                                 u16 tclass);
+				 u16 tclass);
 
 int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid);
 

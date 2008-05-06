@@ -32,7 +32,7 @@ fill_fixup:
 	 rd	%pc, %g7
 	call	do_sparc64_fault
 	 add	%sp, PTREGS_OFF, %o0
-	ba,pt	%xcc, rtrap_clr_l6
+	ba,pt	%xcc, rtrap
 	 nop
 
 	/* Be very careful about usage of the trap globals here.
@@ -100,7 +100,7 @@ spill_fixup_dax:
 	 rd	%pc, %g7
 	call	do_sparc64_fault
 	 add	%sp, PTREGS_OFF, %o0
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 winfix_mna:
 	andn	%g3, 0x7f, %g3
@@ -122,12 +122,12 @@ fill_fixup_mna:
 	mov	%l4, %o2
 	call	sun4v_do_mna
 	 mov	%l5, %o1
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 1:	mov	%l4, %o1
 	mov	%l5, %o2
 	call	mem_address_unaligned
 	 nop
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 winfix_dax:
 	andn	%g3, 0x7f, %g3
@@ -150,7 +150,7 @@ fill_fixup_dax:
 	 add	%sp, PTREGS_OFF, %o0
 	call	sun4v_data_access_exception
 	 nop
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 1:	call	spitfire_data_access_exception
 	 nop
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap

@@ -9,13 +9,13 @@
 
 #include "dm.h"
 #include "dm-snap.h"
-#include "dm-io.h"
-#include "kcopyd.h"
 
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/dm-io.h>
+#include <linux/dm-kcopyd.h>
 
 #define DM_MSG_PREFIX "snapshots"
 #define DM_CHUNK_SIZE_DEFAULT_SECTORS 32	/* 16KB */
@@ -131,7 +131,7 @@ struct pstore {
 
 static unsigned sectors_to_pages(unsigned sectors)
 {
-	return sectors / (PAGE_SIZE >> 9);
+	return DIV_ROUND_UP(sectors, PAGE_SIZE >> 9);
 }
 
 static int alloc_area(struct pstore *ps)
@@ -159,7 +159,7 @@ static void free_area(struct pstore *ps)
 }
 
 struct mdata_req {
-	struct io_region *where;
+	struct dm_io_region *where;
 	struct dm_io_request *io_req;
 	struct work_struct work;
 	int result;
@@ -177,7 +177,7 @@ static void do_metadata(struct work_struct *work)
  */
 static int chunk_io(struct pstore *ps, uint32_t chunk, int rw, int metadata)
 {
-	struct io_region where = {
+	struct dm_io_region where = {
 		.bdev = ps->snap->cow->bdev,
 		.sector = ps->snap->chunk_size * chunk,
 		.count = ps->snap->chunk_size,

@@ -228,8 +228,18 @@ struct hda_multi_out {
 	int max_channels;	/* currently supported analog channels */
 	int dig_out_used;	/* current usage of digital out (HDA_DIG_XXX) */
 	int no_share_stream;	/* don't share a stream with multiple pins */
+	int share_spdif;	/* share SPDIF pin */
+	/* PCM information for both analog and SPDIF DACs */
+	unsigned int analog_rates;
+	unsigned int analog_maxbps;
+	u64 analog_formats;
+	unsigned int spdif_rates;
+	unsigned int spdif_maxbps;
+	u64 spdif_formats;
 };
 
+int snd_hda_create_spdif_share_sw(struct hda_codec *codec,
+				  struct hda_multi_out *mout);
 int snd_hda_multi_out_dig_open(struct hda_codec *codec,
 			       struct hda_multi_out *mout);
 int snd_hda_multi_out_dig_close(struct hda_codec *codec,
@@ -241,7 +251,8 @@ int snd_hda_multi_out_dig_prepare(struct hda_codec *codec,
 				  struct snd_pcm_substream *substream);
 int snd_hda_multi_out_analog_open(struct hda_codec *codec,
 				  struct hda_multi_out *mout,
-				  struct snd_pcm_substream *substream);
+				  struct snd_pcm_substream *substream,
+				  struct hda_pcm_stream *hinfo);
 int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 				     struct hda_multi_out *mout,
 				     unsigned int stream_tag,
@@ -407,11 +418,4 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 				 hda_nid_t nid);
 #endif /* CONFIG_SND_HDA_POWER_SAVE */
 
-/*
- * virtual master control
- */
-struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
-						 const unsigned int *tlv);
-int snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave);
-		      
 #endif /* __SOUND_HDA_LOCAL_H */

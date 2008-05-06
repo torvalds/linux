@@ -132,6 +132,7 @@ module_param(watchdog, int, 0400);
 MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:smc91x");
 
 /*
  * The internal workings of the driver.  If you are changing anything
@@ -2308,6 +2309,7 @@ static struct platform_driver smc_driver = {
 	.resume		= smc_drv_resume,
 	.driver		= {
 		.name	= CARDNAME,
+		.owner	= THIS_MODULE,
 	},
 };
 

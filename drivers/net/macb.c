@@ -1281,6 +1281,7 @@ static struct platform_driver macb_driver = {
 	.remove		= __exit_p(macb_remove),
 	.driver		= {
 		.name		= "macb",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1300,3 +1301,4 @@ module_exit(macb_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Atmel MACB Ethernet driver");
 MODULE_AUTHOR("Haavard Skinnemoen <hskinnemoen@atmel.com>");
+MODULE_ALIAS("platform:macb");

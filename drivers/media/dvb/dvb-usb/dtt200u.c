@@ -18,6 +18,8 @@ int dvb_usb_dtt200u_debug;
 module_param_named(debug,dvb_usb_dtt200u_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2 (or-able))." DVB_USB_DEBUG_STATUS);
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 static int dtt200u_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	u8 b = SET_INIT;
@@ -101,11 +103,16 @@ static struct dvb_usb_device_properties wt220u_miglia_properties;
 static int dtt200u_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	if (dvb_usb_device_init(intf,&dtt200u_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&wt220u_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&wt220u_fc_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&wt220u_zl0353_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&wt220u_miglia_properties,THIS_MODULE,NULL) == 0)
+	if (0 == dvb_usb_device_init(intf, &dtt200u_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &wt220u_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &wt220u_fc_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &wt220u_zl0353_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &wt220u_miglia_properties,
+				     THIS_MODULE, NULL, adapter_nr))
 		return 0;
 
 	return -ENODEV;

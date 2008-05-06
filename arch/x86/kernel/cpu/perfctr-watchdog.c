@@ -614,16 +614,6 @@ static struct wd_ops intel_arch_wd_ops __read_mostly = {
 	.evntsel = MSR_ARCH_PERFMON_EVENTSEL1,
 };
 
-static struct wd_ops coreduo_wd_ops = {
-	.reserve = single_msr_reserve,
-	.unreserve = single_msr_unreserve,
-	.setup = setup_intel_arch_watchdog,
-	.rearm = p6_rearm,
-	.stop = single_msr_stop_watchdog,
-	.perfctr = MSR_ARCH_PERFMON_PERFCTR0,
-	.evntsel = MSR_ARCH_PERFMON_EVENTSEL0,
-};
-
 static void probe_nmi_watchdog(void)
 {
 	switch (boot_cpu_data.x86_vendor) {
@@ -637,8 +627,8 @@ static void probe_nmi_watchdog(void)
 		/* Work around Core Duo (Yonah) errata AE49 where perfctr1
 		   doesn't have a working enable bit. */
 		if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 14) {
-			wd_ops = &coreduo_wd_ops;
-			break;
+			intel_arch_wd_ops.perfctr = MSR_ARCH_PERFMON_PERFCTR0;
+			intel_arch_wd_ops.evntsel = MSR_ARCH_PERFMON_EVENTSEL0;
 		}
 		if (cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON)) {
 			wd_ops = &intel_arch_wd_ops;

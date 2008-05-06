@@ -1,8 +1,6 @@
 #
-# Multimedia device configuration
+# DVB device configuration
 #
-
-source "drivers/media/dvb/dvb-core/Kconfig"
 
 menuconfig DVB_CAPTURE_DRIVERS
 	bool "DVB/ATSC adapters"

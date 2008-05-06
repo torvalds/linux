@@ -220,7 +220,7 @@ static int matroxfb_PLL_mavenclock(const struct matrox_pll_features2* pll,
 	unsigned int scrlen;
 	unsigned int fmax;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	scrlen = htotal * (vtotal - 1);
 	fwant = htotal * vtotal;

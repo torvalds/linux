@@ -41,6 +41,7 @@ struct thermal_zone_device_ops {
 	int (*set_mode) (struct thermal_zone_device *, const char *);
 	int (*get_trip_type) (struct thermal_zone_device *, int, char *);
 	int (*get_trip_temp) (struct thermal_zone_device *, int, char *);
+	int (*get_crit_temp) (struct thermal_zone_device *, unsigned long *);
 };
 
 struct thermal_cooling_device_ops {
@@ -65,6 +66,23 @@ struct thermal_cooling_device {
 				((long)t-2732+5)/10 : ((long)t-2732-5)/10)
 #define CELSIUS_TO_KELVIN(t)	((t)*10+2732)
 
+#if defined(CONFIG_HWMON) ||	\
+	(defined(CONFIG_HWMON_MODULE) && defined(CONFIG_THERMAL_MODULE))
+/* thermal zone devices with the same type share one hwmon device */
+struct thermal_hwmon_device {
+	char type[THERMAL_NAME_LENGTH];
+	struct device *device;
+	int count;
+	struct list_head tz_list;
+	struct list_head node;
+};
+
+struct thermal_hwmon_attr {
+	struct device_attribute attr;
+	char name[16];
+};
+#endif
+
 struct thermal_zone_device {
 	int id;
 	char type[THERMAL_NAME_LENGTH];
@@ -76,6 +94,13 @@ struct thermal_zone_device {
 	struct idr idr;
 	struct mutex lock;	/* protect cooling devices list */
 	struct list_head node;
+#if defined(CONFIG_HWMON) ||	\
+	(defined(CONFIG_HWMON_MODULE) && defined(CONFIG_THERMAL_MODULE))
+	struct list_head hwmon_node;
+	struct thermal_hwmon_device *hwmon;
+	struct thermal_hwmon_attr temp_input;	/* hwmon sys attr */
+	struct thermal_hwmon_attr temp_crit;	/* hwmon sys attr */
+#endif
 };
 
 struct thermal_zone_device *thermal_zone_device_register(char *, int, void *,
@@ -88,24 +113,10 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,
 				     struct thermal_cooling_device *);
 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *, int,
 				       struct thermal_cooling_device *);
-
-#ifdef	CONFIG_THERMAL
 struct thermal_cooling_device *thermal_cooling_device_register(char *, void *,
 							       struct
 							       thermal_cooling_device_ops
 							       *);
 void thermal_cooling_device_unregister(struct thermal_cooling_device *);
-#else
-static inline struct thermal_cooling_device
-*thermal_cooling_device_register(char *c, void *v,
-				 struct thermal_cooling_device_ops *t)
-{
-	return NULL;
-}
-static inline
-    void thermal_cooling_device_unregister(struct thermal_cooling_device *t)
-{
-};
-#endif
 
 #endif /* __THERMAL_H__ */

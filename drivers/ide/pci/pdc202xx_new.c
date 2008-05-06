@@ -34,7 +34,7 @@
 #undef DEBUG
 
 #ifdef DEBUG
-#define DBG(fmt, args...) printk("%s: " fmt, __FUNCTION__, ## args)
+#define DBG(fmt, args...) printk("%s: " fmt, __func__, ## args)
 #else
 #define DBG(fmt, args...)
 #endif
@@ -83,8 +83,8 @@ static u8 get_indexed_reg(ide_hwif_t *hwif, u8 index)
 {
 	u8 value;
 
-	outb(index, hwif->dma_vendor1);
-	value = inb(hwif->dma_vendor3);
+	outb(index, hwif->dma_base + 1);
+	value = inb(hwif->dma_base + 3);
 
 	DBG("index[%02X] value[%02X]\n", index, value);
 	return value;
@@ -97,8 +97,8 @@ static u8 get_indexed_reg(ide_hwif_t *hwif, u8 index)
  */
 static void set_indexed_reg(ide_hwif_t *hwif, u8 index, u8 value)
 {
-	outb(index, hwif->dma_vendor1);
-	outb(value, hwif->dma_vendor3);
+	outb(index, hwif->dma_base + 1);
+	outb(value, hwif->dma_base + 3);
 	DBG("index[%02X] value[%02X]\n", index, value);
 }
 
@@ -442,17 +442,6 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 	return dev->irq;
 }
 
-static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
-{
-	hwif->set_pio_mode = &pdcnew_set_pio_mode;
-	hwif->set_dma_mode = &pdcnew_set_dma_mode;
-
-	hwif->quirkproc = &pdcnew_quirkproc;
-	hwif->resetproc = &pdcnew_reset;
-
-	hwif->cable_detect = pdcnew_cable_detect;
-}
-
 static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
 {
 	struct pci_dev *dev2;
@@ -476,11 +465,19 @@ static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
 	return NULL;
 }
 
+static const struct ide_port_ops pdcnew_port_ops = {
+	.set_pio_mode		= pdcnew_set_pio_mode,
+	.set_dma_mode		= pdcnew_set_dma_mode,
+	.quirkproc		= pdcnew_quirkproc,
+	.resetproc		= pdcnew_reset,
+	.cable_detect		= pdcnew_cable_detect,
+};
+
 #define DECLARE_PDCNEW_DEV(name_str, udma) \
 	{ \
 		.name		= name_str, \
 		.init_chipset	= init_chipset_pdcnew, \
-		.init_hwif	= init_hwif_pdc202new, \
+		.port_ops	= &pdcnew_port_ops, \
 		.host_flags	= IDE_HFLAG_POST_SET_MODE | \
 				  IDE_HFLAG_ERROR_STOPS_FIFO | \
 				  IDE_HFLAG_OFF_BOARD, \

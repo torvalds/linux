@@ -336,10 +336,7 @@ t2_direct_map_window1(unsigned long base, unsigned long length)
 
 #if DEBUG_PRINT_FINAL_SETTINGS
 	printk("%s: setting WBASE1=0x%lx WMASK1=0x%lx TBASE1=0x%lx\n",
-	       __FUNCTION__,
-	       *(vulp)T2_WBASE1,
-	       *(vulp)T2_WMASK1,
-	       *(vulp)T2_TBASE1);
+	       __func__, *(vulp)T2_WBASE1, *(vulp)T2_WMASK1, *(vulp)T2_TBASE1);
 #endif
 }
 
@@ -366,10 +363,7 @@ t2_sg_map_window2(struct pci_controller *hose,
 
 #if DEBUG_PRINT_FINAL_SETTINGS
 	printk("%s: setting WBASE2=0x%lx WMASK2=0x%lx TBASE2=0x%lx\n",
-	       __FUNCTION__,
-	       *(vulp)T2_WBASE2,
-	       *(vulp)T2_WMASK2,
-	       *(vulp)T2_TBASE2);
+	       __func__, *(vulp)T2_WBASE2, *(vulp)T2_WMASK2, *(vulp)T2_TBASE2);
 #endif
 }
 
@@ -377,15 +371,15 @@ static void __init
 t2_save_configuration(void)
 {
 #if DEBUG_PRINT_INITIAL_SETTINGS
-	printk("%s: HAE_1 was 0x%lx\n", __FUNCTION__, srm_hae); /* HW is 0 */
-	printk("%s: HAE_2 was 0x%lx\n", __FUNCTION__, *(vulp)T2_HAE_2);
-	printk("%s: HAE_3 was 0x%lx\n", __FUNCTION__, *(vulp)T2_HAE_3);
-	printk("%s: HAE_4 was 0x%lx\n", __FUNCTION__, *(vulp)T2_HAE_4);
-	printk("%s: HBASE was 0x%lx\n", __FUNCTION__, *(vulp)T2_HBASE);
+	printk("%s: HAE_1 was 0x%lx\n", __func__, srm_hae); /* HW is 0 */
+	printk("%s: HAE_2 was 0x%lx\n", __func__, *(vulp)T2_HAE_2);
+	printk("%s: HAE_3 was 0x%lx\n", __func__, *(vulp)T2_HAE_3);
+	printk("%s: HAE_4 was 0x%lx\n", __func__, *(vulp)T2_HAE_4);
+	printk("%s: HBASE was 0x%lx\n", __func__, *(vulp)T2_HBASE);
 
-	printk("%s: WBASE1=0x%lx WMASK1=0x%lx TBASE1=0x%lx\n", __FUNCTION__, 
+	printk("%s: WBASE1=0x%lx WMASK1=0x%lx TBASE1=0x%lx\n", __func__,
 	       *(vulp)T2_WBASE1, *(vulp)T2_WMASK1, *(vulp)T2_TBASE1);
-	printk("%s: WBASE2=0x%lx WMASK2=0x%lx TBASE2=0x%lx\n", __FUNCTION__, 
+	printk("%s: WBASE2=0x%lx WMASK2=0x%lx TBASE2=0x%lx\n", __func__,
 	       *(vulp)T2_WBASE2, *(vulp)T2_WMASK2, *(vulp)T2_TBASE2);
 #endif
 

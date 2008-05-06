@@ -149,6 +149,15 @@ config INPUT_APMPOWER
 	  To compile this driver as a module, choose M here: the
 	  module will be called apm-power.
 
+config XEN_KBDDEV_FRONTEND
+	tristate "Xen virtual keyboard and mouse support"
+	depends on XEN_FBDEV_FRONTEND
+	default y
+	help
+	  This driver implements the front-end of the Xen virtual
+	  keyboard and mouse device driver.  It communicates with a back-end
+	  in another domain.
+
 comment "Input Device Drivers"
 
 source "drivers/input/keyboard/Kconfig"

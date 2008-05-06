@@ -19,16 +19,6 @@ config PM
 	  will issue the hlt instruction if nothing is to be done, thereby
 	  sending the processor to sleep and saving power.
 
-config PM_LEGACY
-	bool "Legacy Power Management API (DEPRECATED)"
-	depends on PM
-	default n
-	---help---
-	   Support for pm_register() and friends.  This old API is obsoleted
-	   by the driver model.
-
-	   If unsure, say N.
-
 config PM_DEBUG
 	bool "Power Management Debug Support"
 	depends on PM

@@ -181,7 +181,8 @@ struct scsi_device {
 	sdev_printk(prefix, (scmd)->device, fmt, ##a)
 
 enum scsi_target_state {
-	STARGET_RUNNING = 1,
+	STARGET_CREATED = 1,
+	STARGET_RUNNING,
 	STARGET_DEL,
 };
 

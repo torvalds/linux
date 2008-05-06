@@ -16,6 +16,8 @@ struct dev_archdata {
 
 	struct device_node	*prom_node;
 	struct of_device	*op;
+
+	int			numa_node;
 };
 
 #endif /* _ASM_SPARC_DEVICE_H */

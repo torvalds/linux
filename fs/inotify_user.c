@@ -598,7 +598,7 @@ asmlinkage long sys_inotify_init(void)
 	}
 
 	ih = inotify_init(&inotify_user_ops);
-	if (unlikely(IS_ERR(ih))) {
+	if (IS_ERR(ih)) {
 		ret = PTR_ERR(ih);
 		goto out_free_dev;
 	}

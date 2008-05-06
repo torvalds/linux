@@ -473,13 +473,15 @@ iscsi_iser_conn_get_stats(struct iscsi_cls_conn *cls_conn, struct iscsi_stats *s
 	stats->r2t_pdus = conn->r2t_pdus_cnt; /* always 0 */
 	stats->tmfcmd_pdus = conn->tmfcmd_pdus_cnt;
 	stats->tmfrsp_pdus = conn->tmfrsp_pdus_cnt;
-	stats->custom_length = 3;
+	stats->custom_length = 4;
 	strcpy(stats->custom[0].desc, "qp_tx_queue_full");
 	stats->custom[0].value = 0; /* TB iser_conn->qp_tx_queue_full; */
 	strcpy(stats->custom[1].desc, "fmr_map_not_avail");
 	stats->custom[1].value = 0; /* TB iser_conn->fmr_map_not_avail */;
 	strcpy(stats->custom[2].desc, "eh_abort_cnt");
 	stats->custom[2].value = conn->eh_abort_cnt;
+	strcpy(stats->custom[3].desc, "fmr_unalign_cnt");
+	stats->custom[3].value = conn->fmr_unalign_cnt;
 }
 
 static int

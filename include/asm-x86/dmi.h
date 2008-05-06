@@ -27,6 +27,7 @@ static inline void *dmi_alloc(unsigned len)
 
 #endif
 
+/* Use early IO mappings for DMI because it's initialized early */
 #define dmi_ioremap early_ioremap
 #define dmi_iounmap early_iounmap
 

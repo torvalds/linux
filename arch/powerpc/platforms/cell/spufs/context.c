@@ -78,6 +78,7 @@ void destroy_spu_context(struct kref *kref)
 {
 	struct spu_context *ctx;
 	ctx = container_of(kref, struct spu_context, kref);
+	spu_context_nospu_trace(destroy_spu_context__enter, ctx);
 	mutex_lock(&ctx->state_mutex);
 	spu_deactivate(ctx);
 	mutex_unlock(&ctx->state_mutex);
@@ -88,6 +89,7 @@ void destroy_spu_context(struct kref *kref)
 		kref_put(ctx->prof_priv_kref, ctx->prof_priv_release);
 	BUG_ON(!list_empty(&ctx->rq));
 	atomic_dec(&nr_spu_contexts);
+	kfree(ctx->switch_log);
 	kfree(ctx);
 }
 
@@ -149,6 +151,8 @@ void spu_unmap_mappings(struct spu_context *ctx)
 int spu_acquire_saved(struct spu_context *ctx)
 {
 	int ret;
+
+	spu_context_nospu_trace(spu_acquire_saved__enter, ctx);
 
 	ret = spu_acquire(ctx);
 	if (ret)

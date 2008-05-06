@@ -62,8 +62,8 @@
 
 
 /* Module parameters */
-static int debug = 0;
-static int mode = 0;
+static int debug;
+static int mode;
 
 
 /* Module parameters interface */

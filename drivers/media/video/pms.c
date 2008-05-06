@@ -57,11 +57,11 @@ struct i2c_info
 	u8 hits;
 };
 
-static int i2c_count 		= 0;
+static int i2c_count;
 static struct i2c_info i2cinfo[64];
 
 static int decoder 		= PHILIPS2;
-static int standard 		= 0;	/* 0 - auto 1 - ntsc 2 - pal 3 - secam */
+static int standard;	/* 0 - auto 1 - ntsc 2 - pal 3 - secam */
 
 /*
  *	I/O ports and Shared Memory
@@ -885,7 +885,9 @@ static const struct file_operations pms_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl          = pms_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
+#endif
 	.read           = pms_read,
 	.llseek         = no_llseek,
 };

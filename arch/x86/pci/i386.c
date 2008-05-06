@@ -301,6 +301,13 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	prot = pgprot_val(vma->vm_page_prot);
 	if (pat_wc_enabled && write_combine)
 		prot |= _PAGE_CACHE_WC;
+	else if (pat_wc_enabled)
+		/*
+		 * ioremap() and ioremap_nocache() defaults to UC MINUS for now.
+		 * To avoid attribute conflicts, request UC MINUS here
+		 * aswell.
+		 */
+		prot |= _PAGE_CACHE_UC_MINUS;
 	else if (boot_cpu_data.x86 > 3)
 		prot |= _PAGE_CACHE_UC;
 
@@ -319,9 +326,8 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		 * - request is uncached, return cannot be write-combine
 		 * - request is write-combine, return cannot be write-back
 		 */
-		if ((flags == _PAGE_CACHE_UC &&
-		     (new_flags == _PAGE_CACHE_WB ||
-		      new_flags == _PAGE_CACHE_WC)) ||
+		if ((flags == _PAGE_CACHE_UC_MINUS &&
+		     (new_flags == _PAGE_CACHE_WB)) ||
 		    (flags == _PAGE_CACHE_WC &&
 		     new_flags == _PAGE_CACHE_WB)) {
 			free_memtype(addr, addr+len);

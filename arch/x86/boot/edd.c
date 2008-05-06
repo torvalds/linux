@@ -126,17 +126,25 @@ void query_edd(void)
 {
 	char eddarg[8];
 	int do_mbr = 1;
+#ifdef CONFIG_EDD_OFF
+	int do_edd = 0;
+#else
 	int do_edd = 1;
+#endif
 	int be_quiet;
 	int devno;
 	struct edd_info ei, *edp;
 	u32 *mbrptr;
 
 	if (cmdline_find_option("edd", eddarg, sizeof eddarg) > 0) {
-		if (!strcmp(eddarg, "skipmbr") || !strcmp(eddarg, "skip"))
+		if (!strcmp(eddarg, "skipmbr") || !strcmp(eddarg, "skip")) {
+			do_edd = 1;
 			do_mbr = 0;
+		}
 		else if (!strcmp(eddarg, "off"))
 			do_edd = 0;
+		else if (!strcmp(eddarg, "on"))
+			do_edd = 1;
 	}
 
 	be_quiet = cmdline_find_option_bool("quiet");

@@ -1257,6 +1257,8 @@ static void snd_mixer_oss_build(struct snd_mixer_oss *mixer)
 		{ SOUND_MIXER_DIGITAL3,	"Digital",		2 },
 		{ SOUND_MIXER_PHONEIN,	"Phone",		0 },
 		{ SOUND_MIXER_PHONEOUT,	"Master Mono",		0 },
+		{ SOUND_MIXER_PHONEOUT,	"Speaker",		0 }, /*fallback*/
+		{ SOUND_MIXER_PHONEOUT,	"Mono",			0 }, /*fallback*/
 		{ SOUND_MIXER_PHONEOUT,	"Phone",		0 }, /* fallback */
 		{ SOUND_MIXER_VIDEO,	"Video",		0 },
 		{ SOUND_MIXER_RADIO,	"Radio",		0 },

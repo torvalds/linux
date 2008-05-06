@@ -145,8 +145,45 @@
 				#address-cells = <2>;
 				#size-cells = <1>;
 				clock-frequency = <0>; /* Filled in by U-Boot */
+				/* ranges property is supplied by U-Boot */
 				interrupts = <6 4>;
 				interrupt-parent = <&UIC1>;
+
+				nor_flash@0,0 {
+					compatible = "amd,s29gl512n", "cfi-flash";
+					bank-width = <2>;
+					reg = <0 000000 4000000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "kernel";
+						reg = <0 1e0000>;
+					};
+					partition@1e0000 {
+						label = "dtb";
+						reg = <1e0000 20000>;
+					};
+					partition@200000 {
+						label = "ramdisk";
+						reg = <200000 1400000>;
+					};
+					partition@1600000 {
+						label = "jffs2";
+						reg = <1600000 400000>;
+					};
+					partition@1a00000 {
+						label = "user";
+						reg = <1a00000 2560000>;
+					};
+					partition@3f60000 {
+						label = "env";
+						reg = <3f60000 40000>;
+					};
+					partition@3fa0000 {
+						label = "u-boot";
+						reg = <3fa0000 60000>;
+					};
+				};
 			};
 
 			UART0: serial@ef600300 {

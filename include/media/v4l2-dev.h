@@ -318,6 +318,10 @@ struct video_device
 	int (*vidioc_g_chip_ident)     (struct file *file, void *fh,
 					struct v4l2_chip_ident *chip);
 
+	/* For other private ioctls */
+	int (*vidioc_default)	       (struct file *file, void *fh,
+					int cmd, void *arg);
+
 
 #ifdef OBSOLETE_OWNER /* to be removed soon */
 /* obsolete -- fops->owner is used instead */

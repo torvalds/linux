@@ -148,6 +148,9 @@ static int __devexit cobalt_buttons_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:Cobalt buttons");
+
 static struct platform_driver cobalt_buttons_driver = {
 	.probe	= cobalt_buttons_probe,
 	.remove	= __devexit_p(cobalt_buttons_remove),

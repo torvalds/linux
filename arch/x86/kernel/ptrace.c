@@ -1207,95 +1207,14 @@ static int genregs32_set(struct task_struct *target,
 	return ret;
 }
 
-static long ptrace32_siginfo(unsigned request, u32 pid, u32 addr, u32 data)
+long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
+			compat_ulong_t caddr, compat_ulong_t cdata)
 {
-	siginfo_t __user *si = compat_alloc_user_space(sizeof(siginfo_t));
-	compat_siginfo_t __user *si32 = compat_ptr(data);
-	siginfo_t ssi;
-	int ret;
-
-	if (request == PTRACE_SETSIGINFO) {
-		memset(&ssi, 0, sizeof(siginfo_t));
-		ret = copy_siginfo_from_user32(&ssi, si32);
-		if (ret)
-			return ret;
-		if (copy_to_user(si, &ssi, sizeof(siginfo_t)))
-			return -EFAULT;
-	}
-	ret = sys_ptrace(request, pid, addr, (unsigned long)si);
-	if (ret)
-		return ret;
-	if (request == PTRACE_GETSIGINFO) {
-		if (copy_from_user(&ssi, si, sizeof(siginfo_t)))
-			return -EFAULT;
-		ret = copy_siginfo_to_user32(si32, &ssi);
-	}
-	return ret;
-}
-
-asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
-{
-	struct task_struct *child;
-	struct pt_regs *childregs;
+	unsigned long addr = caddr;
+	unsigned long data = cdata;
 	void __user *datap = compat_ptr(data);
 	int ret;
 	__u32 val;
-
-	switch (request) {
-	case PTRACE_TRACEME:
-	case PTRACE_ATTACH:
-	case PTRACE_KILL:
-	case PTRACE_CONT:
-	case PTRACE_SINGLESTEP:
-	case PTRACE_SINGLEBLOCK:
-	case PTRACE_DETACH:
-	case PTRACE_SYSCALL:
-	case PTRACE_OLDSETOPTIONS:
-	case PTRACE_SETOPTIONS:
-	case PTRACE_SET_THREAD_AREA:
-	case PTRACE_GET_THREAD_AREA:
-#ifdef X86_BTS
-	case PTRACE_BTS_CONFIG:
-	case PTRACE_BTS_STATUS:
-	case PTRACE_BTS_SIZE:
-	case PTRACE_BTS_GET:
-	case PTRACE_BTS_CLEAR:
-	case PTRACE_BTS_DRAIN:
-#endif
-		return sys_ptrace(request, pid, addr, data);
-
-	default:
-		return -EINVAL;
-
-	case PTRACE_PEEKTEXT:
-	case PTRACE_PEEKDATA:
-	case PTRACE_POKEDATA:
-	case PTRACE_POKETEXT:
-	case PTRACE_POKEUSR:
-	case PTRACE_PEEKUSR:
-	case PTRACE_GETREGS:
-	case PTRACE_SETREGS:
-	case PTRACE_SETFPREGS:
-	case PTRACE_GETFPREGS:
-	case PTRACE_SETFPXREGS:
-	case PTRACE_GETFPXREGS:
-	case PTRACE_GETEVENTMSG:
-		break;
-
-	case PTRACE_SETSIGINFO:
-	case PTRACE_GETSIGINFO:
-		return ptrace32_siginfo(request, pid, addr, data);
-	}
-
-	child = ptrace_get_task_struct(pid);
-	if (IS_ERR(child))
-		return PTR_ERR(child);
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out;
-
-	childregs = task_pt_regs(child);
 
 	switch (request) {
 	case PTRACE_PEEKUSR:
@@ -1343,12 +1262,14 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 					     sizeof(struct user32_fxsr_struct),
 					     datap);
 
+	case PTRACE_GET_THREAD_AREA:
+	case PTRACE_SET_THREAD_AREA:
+		return arch_ptrace(child, request, addr, data);
+
 	default:
 		return compat_ptrace_request(child, request, addr, data);
 	}
 
- out:
-	put_task_struct(child);
 	return ret;
 }
 

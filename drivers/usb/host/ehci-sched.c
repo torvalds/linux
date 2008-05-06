@@ -440,11 +440,10 @@ static int enable_periodic (struct ehci_hcd *ehci)
 	/* did clearing PSE did take effect yet?
 	 * takes effect only at frame boundaries...
 	 */
-	status = handshake(ehci, &ehci->regs->status, STS_PSS, 0, 9 * 125);
-	if (status != 0) {
-		ehci_to_hcd(ehci)->state = HC_STATE_HALT;
+	status = handshake_on_error_set_halt(ehci, &ehci->regs->status,
+					     STS_PSS, 0, 9 * 125);
+	if (status)
 		return status;
-	}
 
 	cmd = ehci_readl(ehci, &ehci->regs->command) | CMD_PSE;
 	ehci_writel(ehci, cmd, &ehci->regs->command);
@@ -465,11 +464,10 @@ static int disable_periodic (struct ehci_hcd *ehci)
 	/* did setting PSE not take effect yet?
 	 * takes effect only at frame boundaries...
 	 */
-	status = handshake(ehci, &ehci->regs->status, STS_PSS, STS_PSS, 9 * 125);
-	if (status != 0) {
-		ehci_to_hcd(ehci)->state = HC_STATE_HALT;
+	status = handshake_on_error_set_halt(ehci, &ehci->regs->status,
+					     STS_PSS, STS_PSS, 9 * 125);
+	if (status)
 		return status;
-	}
 
 	cmd = ehci_readl(ehci, &ehci->regs->command) & ~CMD_PSE;
 	ehci_writel(ehci, cmd, &ehci->regs->command);
@@ -1183,21 +1181,18 @@ itd_urb_transaction (
 					struct ehci_itd, itd_list);
 			list_del (&itd->itd_list);
 			itd_dma = itd->itd_dma;
-		} else
-			itd = NULL;
-
-		if (!itd) {
+		} else {
 			spin_unlock_irqrestore (&ehci->lock, flags);
 			itd = dma_pool_alloc (ehci->itd_pool, mem_flags,
 					&itd_dma);
 			spin_lock_irqsave (&ehci->lock, flags);
+			if (!itd) {
+				iso_sched_free(stream, sched);
+				spin_unlock_irqrestore(&ehci->lock, flags);
+				return -ENOMEM;
+			}
 		}
 
-		if (unlikely (NULL == itd)) {
-			iso_sched_free (stream, sched);
-			spin_unlock_irqrestore (&ehci->lock, flags);
-			return -ENOMEM;
-		}
 		memset (itd, 0, sizeof *itd);
 		itd->itd_dma = itd_dma;
 		list_add (&itd->itd_list, &sched->td_list);
@@ -1682,7 +1677,7 @@ static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
 #ifdef EHCI_URB_TRACE
 	ehci_dbg (ehci,
 		"%s %s urb %p ep%d%s len %d, %d pkts %d uframes [%p]\n",
-		__FUNCTION__, urb->dev->devpath, urb,
+		__func__, urb->dev->devpath, urb,
 		usb_pipeendpoint (urb->pipe),
 		usb_pipein (urb->pipe) ? "in" : "out",
 		urb->transfer_buffer_length,
@@ -1816,21 +1811,18 @@ sitd_urb_transaction (
 					 struct ehci_sitd, sitd_list);
 			list_del (&sitd->sitd_list);
 			sitd_dma = sitd->sitd_dma;
-		} else
-			sitd = NULL;
-
-		if (!sitd) {
+		} else {
 			spin_unlock_irqrestore (&ehci->lock, flags);
 			sitd = dma_pool_alloc (ehci->sitd_pool, mem_flags,
 					&sitd_dma);
 			spin_lock_irqsave (&ehci->lock, flags);
+			if (!sitd) {
+				iso_sched_free(stream, iso_sched);
+				spin_unlock_irqrestore(&ehci->lock, flags);
+				return -ENOMEM;
+			}
 		}
 
-		if (!sitd) {
-			iso_sched_free (stream, iso_sched);
-			spin_unlock_irqrestore (&ehci->lock, flags);
-			return -ENOMEM;
-		}
 		memset (sitd, 0, sizeof *sitd);
 		sitd->sitd_dma = sitd_dma;
 		list_add (&sitd->sitd_list, &iso_sched->td_list);

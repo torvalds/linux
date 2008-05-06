@@ -208,6 +208,19 @@ static int __devinit snd_ice1712_hoontech_init(struct snd_ice1712 *ice)
 			    /* ICE1712_STDSP24_MUTE |
 			       ICE1712_STDSP24_INSEL |
 			       ICE1712_STDSP24_DAREAR; */
+	/*  These boxconfigs have caused problems in the past.
+	 *  The code is not optimal, but should now enable a working config to
+	 *  be achieved.
+	 *  ** MIDI IN can only be configured on one box **
+	 *  ICE1712_STDSP24_BOX_MIDI1 needs to be set for that box.
+	 *  Tests on a ADAC2000 box suggest the box config flags do not
+	 *  work as would be expected, and the inputs are crossed.
+	 *  Setting ICE1712_STDSP24_BOX_MIDI1 and ICE1712_STDSP24_BOX_MIDI2
+	 *  on the same box connects MIDI-In to both 401 uarts; both outputs
+	 *  are then active on all boxes.
+	 *  The default config here sets up everything on the first box.
+	 *  Alan Horstmann  5.2.2008
+	 */
 	spec->boxconfig[0] = ICE1712_STDSP24_BOX_CHN1 |
 				     ICE1712_STDSP24_BOX_CHN2 |
 				     ICE1712_STDSP24_BOX_CHN3 |
@@ -223,14 +236,14 @@ static int __devinit snd_ice1712_hoontech_init(struct snd_ice1712 *ice)
 		(spec->config & ICE1712_STDSP24_MUTE) ? 1 : 0);
 	snd_ice1712_stdsp24_insel(ice,
 		(spec->config & ICE1712_STDSP24_INSEL) ? 1 : 0);
-	for (box = 0; box < 1; box++) {
+	for (box = 0; box < 4; box++) {
 		if (spec->boxconfig[box] & ICE1712_STDSP24_BOX_MIDI2)
                         snd_ice1712_stdsp24_midi2(ice, 1);
 		for (chn = 0; chn < 4; chn++)
 			snd_ice1712_stdsp24_box_channel(ice, box, chn,
 				(spec->boxconfig[box] & (1 << chn)) ? 1 : 0);
-		snd_ice1712_stdsp24_box_midi(ice, box,
-				(spec->boxconfig[box] & ICE1712_STDSP24_BOX_MIDI1) ? 1 : 0);
+		if (spec->boxconfig[box] & ICE1712_STDSP24_BOX_MIDI1)
+			snd_ice1712_stdsp24_box_midi(ice, box, 1);
 	}
 
 	return 0;
@@ -322,6 +335,8 @@ struct snd_ice1712_card_info snd_ice1712_hoontech_cards[] __devinitdata = {
 		.name = "Hoontech SoundTrack Audio DSP24",
 		.model = "dsp24",
 		.chip_init = snd_ice1712_hoontech_init,
+		.mpu401_1_name = "MIDI-1 Hoontech/STA DSP24",
+		.mpu401_2_name = "MIDI-2 Hoontech/STA DSP24",
 	},
 	{
 		.subvendor = ICE1712_SUBDEVICE_STDSP24_VALUE,	/* a dummy id */

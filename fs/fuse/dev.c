@@ -47,6 +47,14 @@ struct fuse_req *fuse_request_alloc(void)
 	return req;
 }
 
+struct fuse_req *fuse_request_alloc_nofs(void)
+{
+	struct fuse_req *req = kmem_cache_alloc(fuse_req_cachep, GFP_NOFS);
+	if (req)
+		fuse_request_init(req);
+	return req;
+}
+
 void fuse_request_free(struct fuse_req *req)
 {
 	kmem_cache_free(fuse_req_cachep, req);
@@ -291,6 +299,7 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 
 static void wait_answer_interruptible(struct fuse_conn *fc,
 				      struct fuse_req *req)
+	__releases(fc->lock) __acquires(fc->lock)
 {
 	if (signal_pending(current))
 		return;
@@ -307,8 +316,8 @@ static void queue_interrupt(struct fuse_conn *fc, struct fuse_req *req)
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 }
 
-/* Called with fc->lock held.  Releases, and then reacquires it. */
 static void request_wait_answer(struct fuse_conn *fc, struct fuse_req *req)
+	__releases(fc->lock) __acquires(fc->lock)
 {
 	if (!fc->no_interrupt) {
 		/* Any signal may interrupt this */
@@ -427,6 +436,17 @@ void request_send_background(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->isreply = 1;
 	request_send_nowait(fc, req);
+}
+
+/*
+ * Called under fc->lock
+ *
+ * fc->connected must have been checked previously
+ */
+void request_send_background_locked(struct fuse_conn *fc, struct fuse_req *req)
+{
+	req->isreply = 1;
+	request_send_nowait_locked(fc, req);
 }
 
 /*
@@ -968,6 +988,7 @@ static void end_requests(struct fuse_conn *fc, struct list_head *head)
  * locked).
  */
 static void end_io_requests(struct fuse_conn *fc)
+	__releases(fc->lock) __acquires(fc->lock)
 {
 	while (!list_empty(&fc->io)) {
 		struct fuse_req *req =

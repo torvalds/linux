@@ -184,11 +184,11 @@ static int fsl_elbc_run_command(struct mtd_info *mtd)
 	         in_be32(&lbc->fbar), in_be32(&lbc->fpar),
 	         in_be32(&lbc->fbcr), priv->bank);
 
+	ctrl->irq_status = 0;
 	/* execute special operation */
 	out_be32(&lbc->lsor, priv->bank);
 
 	/* wait for FCM complete flag or timeout */
-	ctrl->irq_status = 0;
 	wait_event_timeout(ctrl->irq_wait, ctrl->irq_status,
 	                   FCM_TIMEOUT_MSECS * HZ/1000);
 	ctrl->status = ctrl->irq_status;
@@ -346,19 +346,20 @@ static void fsl_elbc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		ctrl->column = column;
 		ctrl->oob = 0;
 
-		fcr = (NAND_CMD_PAGEPROG << FCR_CMD1_SHIFT) |
-		      (NAND_CMD_SEQIN << FCR_CMD2_SHIFT);
-
 		if (priv->page_size) {
+			fcr = (NAND_CMD_SEQIN << FCR_CMD0_SHIFT) |
+			      (NAND_CMD_PAGEPROG << FCR_CMD1_SHIFT);
+
 			out_be32(&lbc->fir,
 			         (FIR_OP_CW0 << FIR_OP0_SHIFT) |
 			         (FIR_OP_CA  << FIR_OP1_SHIFT) |
 			         (FIR_OP_PA  << FIR_OP2_SHIFT) |
 			         (FIR_OP_WB  << FIR_OP3_SHIFT) |
 			         (FIR_OP_CW1 << FIR_OP4_SHIFT));
-
-			fcr |= NAND_CMD_READ0 << FCR_CMD0_SHIFT;
 		} else {
+			fcr = (NAND_CMD_PAGEPROG << FCR_CMD1_SHIFT) |
+			      (NAND_CMD_SEQIN << FCR_CMD2_SHIFT);
+
 			out_be32(&lbc->fir,
 			         (FIR_OP_CW0 << FIR_OP0_SHIFT) |
 			         (FIR_OP_CM2 << FIR_OP1_SHIFT) |
@@ -480,7 +481,7 @@ static void fsl_elbc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 	struct fsl_elbc_ctrl *ctrl = priv->ctrl;
 	unsigned int bufsize = mtd->writesize + mtd->oobsize;
 
-	if (len < 0) {
+	if (len <= 0) {
 		dev_err(ctrl->dev, "write_buf of %d bytes", len);
 		ctrl->status = 0;
 		return;
@@ -495,6 +496,15 @@ static void fsl_elbc_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 	}
 
 	memcpy_toio(&ctrl->addr[ctrl->index], buf, len);
+	/*
+	 * This is workaround for the weird elbc hangs during nand write,
+	 * Scott Wood says: "...perhaps difference in how long it takes a
+	 * write to make it through the localbus compared to a write to IMMR
+	 * is causing problems, and sync isn't helping for some reason."
+	 * Reading back the last byte helps though.
+	 */
+	in_8(&ctrl->addr[ctrl->index] + len - 1);
+
 	ctrl->index += len;
 }
 
@@ -666,7 +676,7 @@ static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
 	/* adjust Option Register and ECC to match Flash page size */
 	if (mtd->writesize == 512) {
 		priv->page_size = 0;
-		clrbits32(&lbc->bank[priv->bank].or, ~OR_FCM_PGS);
+		clrbits32(&lbc->bank[priv->bank].or, OR_FCM_PGS);
 	} else if (mtd->writesize == 2048) {
 		priv->page_size = 1;
 		setbits32(&lbc->bank[priv->bank].or, OR_FCM_PGS);
@@ -687,11 +697,6 @@ static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
 		return -1;
 	}
 
-	/* The default u-boot configuration on MPC8313ERDB causes errors;
-	 * more delay is needed.  This should be safe for other boards
-	 * as well.
-	 */
-	setbits32(&lbc->bank[priv->bank].or, 0x70);
 	return 0;
 }
 
@@ -779,6 +784,8 @@ static int fsl_elbc_chip_remove(struct fsl_elbc_mtd *priv)
 
 	nand_release(&priv->mtd);
 
+	kfree(priv->mtd.name);
+
 	if (priv->vbase)
 		iounmap(priv->vbase);
 
@@ -835,6 +842,12 @@ static int fsl_elbc_chip_probe(struct fsl_elbc_ctrl *ctrl,
 	priv->vbase = ioremap(res.start, res.end - res.start + 1);
 	if (!priv->vbase) {
 		dev_err(ctrl->dev, "failed to map chip region\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	priv->mtd.name = kasprintf(GFP_KERNEL, "%x.flash", res.start);
+	if (!priv->mtd.name) {
 		ret = -ENOMEM;
 		goto err;
 	}

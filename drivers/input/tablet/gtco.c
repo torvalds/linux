@@ -245,11 +245,11 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 			data = report[i];
 			break;
 		case 2:
-			data16 = le16_to_cpu(get_unaligned((__le16 *)&report[i]));
+			data16 = get_unaligned_le16(&report[i]);
 			break;
 		case 3:
 			size = 4;
-			data32 = le32_to_cpu(get_unaligned((__le32 *)&report[i]));
+			data32 = get_unaligned_le32(&report[i]);
 			break;
 		}
 
@@ -695,10 +695,10 @@ static void gtco_urb_callback(struct urb *urbinfo)
 			/*  Fall thru */
 		case 1:
 			/* All reports have X and Y coords in the same place */
-			val = le16_to_cpu(get_unaligned((__le16 *)&device->buffer[1]));
+			val = get_unaligned_le16(&device->buffer[1]);
 			input_report_abs(inputdev, ABS_X, val);
 
-			val = le16_to_cpu(get_unaligned((__le16 *)&device->buffer[3]));
+			val = get_unaligned_le16(&device->buffer[3]);
 			input_report_abs(inputdev, ABS_Y, val);
 
 			/* Ditto for proximity bit */
@@ -762,7 +762,7 @@ static void gtco_urb_callback(struct urb *urbinfo)
 				le_buffer[1]  = (u8)(device->buffer[4] >> 1);
 				le_buffer[1] |= (u8)((device->buffer[5] & 0x1) << 7);
 
-				val = le16_to_cpu(get_unaligned((__le16 *)le_buffer));
+				val = get_unaligned_le16(le_buffer);
 				input_report_abs(inputdev, ABS_Y, val);
 
 				/*
@@ -772,10 +772,10 @@ static void gtco_urb_callback(struct urb *urbinfo)
 				buttonbyte = device->buffer[5] >> 1;
 			} else {
 
-				val = le16_to_cpu(get_unaligned((__le16 *)&device->buffer[1]));
+				val = get_unaligned_le16(&device->buffer[1]);
 				input_report_abs(inputdev, ABS_X, val);
 
-				val = le16_to_cpu(get_unaligned((__le16 *)&device->buffer[3]));
+				val = get_unaligned_le16(&device->buffer[3]);
 				input_report_abs(inputdev, ABS_Y, val);
 
 				buttonbyte = device->buffer[5];
@@ -897,7 +897,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	dbg("Extra descriptor success: type:%d  len:%d",
 	    hid_desc->bDescriptorType,  hid_desc->wDescriptorLength);
 
-	report = kzalloc(hid_desc->wDescriptorLength, GFP_KERNEL);
+	report = kzalloc(le16_to_cpu(hid_desc->wDescriptorLength), GFP_KERNEL);
 	if (!report) {
 		err("No more memory for report");
 		error = -ENOMEM;
@@ -913,16 +913,16 @@ static int gtco_probe(struct usb_interface *usbinterface,
 					 REPORT_DEVICE_TYPE << 8,
 					 0, /* interface */
 					 report,
-					 hid_desc->wDescriptorLength,
+					 le16_to_cpu(hid_desc->wDescriptorLength),
 					 5000); /* 5 secs */
 
-		if (result == hid_desc->wDescriptorLength)
+		if (result == le16_to_cpu(hid_desc->wDescriptorLength))
 			break;
 	}
 
 	/* If we didn't get the report, fail */
 	dbg("usb_control_msg result: :%d", result);
-	if (result != hid_desc->wDescriptorLength) {
+	if (result != le16_to_cpu(hid_desc->wDescriptorLength)) {
 		err("Failed to get HID Report Descriptor of size: %d",
 		    hid_desc->wDescriptorLength);
 		error = -EIO;

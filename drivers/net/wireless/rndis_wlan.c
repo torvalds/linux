@@ -2402,7 +2402,6 @@ static int bcm4320_early_init(struct usbnet *dev)
 	priv->param_power_output = modparam_power_output;
 	priv->param_roamtrigger  = modparam_roamtrigger;
 	priv->param_roamdelta    = modparam_roamdelta;
-	priv->param_workaround_interval = modparam_workaround_interval;
 
 	priv->param_country[0] = toupper(priv->param_country[0]);
 	priv->param_country[1] = toupper(priv->param_country[1]);
@@ -2425,8 +2424,10 @@ static int bcm4320_early_init(struct usbnet *dev)
 	else if (priv->param_roamdelta > 2)
 		priv->param_roamdelta = 2;
 
-	if (priv->param_workaround_interval < 0)
+	if (modparam_workaround_interval < 0)
 		priv->param_workaround_interval = 500;
+	else
+		priv->param_workaround_interval = modparam_workaround_interval;
 
 	rndis_set_config_parameter_str(dev, "Country", priv->param_country);
 	rndis_set_config_parameter_str(dev, "FrameBursting",

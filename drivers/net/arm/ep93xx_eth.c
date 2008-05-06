@@ -897,6 +897,7 @@ static struct platform_driver ep93xx_eth_driver = {
 	.remove		= ep93xx_eth_remove,
 	.driver		= {
 		.name	= "ep93xx-eth",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -914,3 +915,4 @@ static void __exit ep93xx_eth_cleanup_module(void)
 module_init(ep93xx_eth_init_module);
 module_exit(ep93xx_eth_cleanup_module);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:ep93xx-eth");

@@ -117,8 +117,8 @@ int ioremap_change_attr(unsigned long vaddr, unsigned long size,
  * have to convert them into an offset in a page-aligned mapping, but the
  * caller shouldn't need to know that small detail.
  */
-static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
-			       unsigned long prot_val)
+static void __iomem *__ioremap_caller(resource_size_t phys_addr,
+		unsigned long size, unsigned long prot_val, void *caller)
 {
 	unsigned long pfn, offset, vaddr;
 	resource_size_t last_addr;
@@ -149,7 +149,8 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	 * Don't allow anybody to remap normal RAM that we're using..
 	 */
 	for (pfn = phys_addr >> PAGE_SHIFT;
-				(pfn << PAGE_SHIFT) < last_addr; pfn++) {
+				(pfn << PAGE_SHIFT) < (last_addr & PAGE_MASK);
+				pfn++) {
 
 		int is_ram = page_is_ram(pfn);
 
@@ -176,11 +177,11 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 		/*
 		 * Do not fallback to certain memory types with certain
 		 * requested type:
-		 * - request is uncached, return cannot be write-back
-		 * - request is uncached, return cannot be write-combine
+		 * - request is uc-, return cannot be write-back
+		 * - request is uc-, return cannot be write-combine
 		 * - request is write-combine, return cannot be write-back
 		 */
-		if ((prot_val == _PAGE_CACHE_UC &&
+		if ((prot_val == _PAGE_CACHE_UC_MINUS &&
 		     (new_prot_val == _PAGE_CACHE_WB ||
 		      new_prot_val == _PAGE_CACHE_WC)) ||
 		    (prot_val == _PAGE_CACHE_WC &&
@@ -201,6 +202,9 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	default:
 		prot = PAGE_KERNEL_NOCACHE;
 		break;
+	case _PAGE_CACHE_UC_MINUS:
+		prot = PAGE_KERNEL_UC_MINUS;
+		break;
 	case _PAGE_CACHE_WC:
 		prot = PAGE_KERNEL_WC;
 		break;
@@ -212,7 +216,7 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	/*
 	 * Ok, go for it..
 	 */
-	area = get_vm_area(size, VM_IOREMAP);
+	area = get_vm_area_caller(size, VM_IOREMAP, caller);
 	if (!area)
 		return NULL;
 	area->phys_addr = phys_addr;
@@ -255,7 +259,17 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
  */
 void __iomem *ioremap_nocache(resource_size_t phys_addr, unsigned long size)
 {
-	return __ioremap(phys_addr, size, _PAGE_CACHE_UC);
+	/*
+	 * Ideally, this should be:
+	 *	pat_wc_enabled ? _PAGE_CACHE_UC : _PAGE_CACHE_UC_MINUS;
+	 *
+	 * Till we fix all X drivers to use ioremap_wc(), we will use
+	 * UC MINUS.
+	 */
+	unsigned long val = _PAGE_CACHE_UC_MINUS;
+
+	return __ioremap_caller(phys_addr, size, val,
+				__builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_nocache);
 
@@ -272,7 +286,8 @@ EXPORT_SYMBOL(ioremap_nocache);
 void __iomem *ioremap_wc(unsigned long phys_addr, unsigned long size)
 {
 	if (pat_wc_enabled)
-		return __ioremap(phys_addr, size, _PAGE_CACHE_WC);
+		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_WC,
+					__builtin_return_address(0));
 	else
 		return ioremap_nocache(phys_addr, size);
 }
@@ -280,7 +295,8 @@ EXPORT_SYMBOL(ioremap_wc);
 
 void __iomem *ioremap_cache(resource_size_t phys_addr, unsigned long size)
 {
-	return __ioremap(phys_addr, size, _PAGE_CACHE_WB);
+	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_WB,
+				__builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_cache);
 
@@ -335,6 +351,35 @@ void iounmap(volatile void __iomem *addr)
 	kfree(p);
 }
 EXPORT_SYMBOL(iounmap);
+
+/*
+ * Convert a physical pointer to a virtual kernel pointer for /dev/mem
+ * access
+ */
+void *xlate_dev_mem_ptr(unsigned long phys)
+{
+	void *addr;
+	unsigned long start = phys & PAGE_MASK;
+
+	/* If page is RAM, we can use __va. Otherwise ioremap and unmap. */
+	if (page_is_ram(start >> PAGE_SHIFT))
+		return __va(phys);
+
+	addr = (void *)ioremap(start, PAGE_SIZE);
+	if (addr)
+		addr = (void *)((unsigned long)addr | (phys & ~PAGE_MASK));
+
+	return addr;
+}
+
+void unxlate_dev_mem_ptr(unsigned long phys, void *addr)
+{
+	if (page_is_ram(phys >> PAGE_SHIFT))
+		return;
+
+	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
+	return;
+}
 
 #ifdef CONFIG_X86_32
 
@@ -407,7 +452,7 @@ void __init early_ioremap_clear(void)
 
 	pmd = early_ioremap_pmd(fix_to_virt(FIX_BTMAP_BEGIN));
 	pmd_clear(pmd);
-	paravirt_release_pt(__pa(bm_pte) >> PAGE_SHIFT);
+	paravirt_release_pte(__pa(bm_pte) >> PAGE_SHIFT);
 	__flush_tlb_all();
 }
 

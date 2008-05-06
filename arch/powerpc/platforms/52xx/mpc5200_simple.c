@@ -51,6 +51,7 @@ static void __init mpc5200_simple_setup_arch(void)
 /* list of the supported boards */
 static char *board[] __initdata = {
 	"promess,motionpro",
+	"phytec,pcm030",
 	"schindler,cm5200",
 	"tqc,tqm5200",
 	NULL

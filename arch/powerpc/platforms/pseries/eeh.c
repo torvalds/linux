@@ -39,7 +39,6 @@
 #include <asm/ppc-pci.h>
 #include <asm/rtas.h>
 
-#undef DEBUG
 
 /** Overview:
  *  EEH, or "Extended Error Handling" is a PCI bridge technology for
@@ -1260,14 +1259,8 @@ static const struct file_operations proc_eeh_operations = {
 
 static int __init eeh_init_proc(void)
 {
-	struct proc_dir_entry *e;
-
-	if (machine_is(pseries)) {
-		e = create_proc_entry("ppc64/eeh", 0, NULL);
-		if (e)
-			e->proc_fops = &proc_eeh_operations;
-	}
-
+	if (machine_is(pseries))
+		proc_create("ppc64/eeh", 0, NULL, &proc_eeh_operations);
 	return 0;
 }
 __initcall(eeh_init_proc);

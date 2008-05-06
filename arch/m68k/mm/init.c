@@ -69,6 +69,7 @@ void __init m68k_setup_node(int node)
  */
 
 void *empty_zero_page;
+EXPORT_SYMBOL(empty_zero_page);
 
 void show_mem(void)
 {
@@ -79,7 +80,6 @@ void show_mem(void)
 
 	printk("\nMem-info:\n");
 	show_free_areas();
-	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_online_pgdat(pgdat) {
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
 			struct page *page = pgdat->node_mem_map + i;

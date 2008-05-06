@@ -839,6 +839,7 @@ static int soc_remove(struct platform_device *pdev)
 static struct platform_driver soc_driver = {
 	.driver		= {
 		.name		= "soc-audio",
+		.owner		= THIS_MODULE,
 	},
 	.probe		= soc_probe,
 	.remove		= soc_remove,
@@ -1601,3 +1602,4 @@ module_exit(snd_soc_exit);
 MODULE_AUTHOR("Liam Girdwood, liam.girdwood@wolfsonmicro.com, www.wolfsonmicro.com");
 MODULE_DESCRIPTION("ALSA SoC Core");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:soc-audio");

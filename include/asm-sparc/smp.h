@@ -51,13 +51,11 @@ void smp_bogo(struct seq_file *);
 void smp_info(struct seq_file *);
 
 BTFIXUPDEF_CALL(void, smp_cross_call, smpfunc_t, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long)
-BTFIXUPDEF_CALL(void, smp_message_pass, int, int, unsigned long, int)
 BTFIXUPDEF_CALL(int, __hard_smp_processor_id, void)
 BTFIXUPDEF_BLACKBOX(hard_smp_processor_id)
 BTFIXUPDEF_BLACKBOX(load_current)
 
 #define smp_cross_call(func,arg1,arg2,arg3,arg4,arg5) BTFIXUP_CALL(smp_cross_call)(func,arg1,arg2,arg3,arg4,arg5)
-#define smp_message_pass(target,msg,data,wait) BTFIXUP_CALL(smp_message_pass)(target,msg,data,wait)
 
 static inline void xc0(smpfunc_t func) { smp_cross_call(func, 0, 0, 0, 0, 0); }
 static inline void xc1(smpfunc_t func, unsigned long arg1)

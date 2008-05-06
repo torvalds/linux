@@ -1036,22 +1036,6 @@ struct mid_db_entry_24xx {
 	uint8_t reserved_1;
 };
 
- /*
- * Virtual Fabric ID type definition.
- */
-typedef struct vf_id {
-        uint16_t id : 12;
-        uint16_t priority : 4;
-} vf_id_t;
-
-/*
- * Virtual Fabric HopCt type definition.
- */
-typedef struct vf_hopct {
-        uint16_t reserved : 8;
-        uint16_t hopct : 8;
-} vf_hopct_t;
-
 /*
  * Virtual Port Control IOCB
  */
@@ -1082,10 +1066,10 @@ struct vp_ctrl_entry_24xx {
 
 	uint8_t vp_idx_map[16];
 	uint16_t flags;
-	struct vf_id    id;
+	uint16_t id;
 	uint16_t reserved_4;
-	struct vf_hopct  hopct;
-	uint8_t reserved_5[8];
+	uint16_t hopct;
+	uint8_t reserved_5[24];
 };
 
 /*
@@ -1132,9 +1116,9 @@ struct vp_config_entry_24xx {
 	uint16_t reserved_vp2;
 	uint8_t port_name_idx2[WWN_SIZE];
 	uint8_t node_name_idx2[WWN_SIZE];
-	struct vf_id    id;
+	uint16_t id;
 	uint16_t reserved_4;
-	struct vf_hopct  hopct;
+	uint16_t hopct;
 	uint8_t reserved_5;
 };
 

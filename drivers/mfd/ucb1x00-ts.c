@@ -204,8 +204,7 @@ static inline int ucb1x00_ts_pen_down(struct ucb1x00_ts *ts)
 static int ucb1x00_thread(void *_ts)
 {
 	struct ucb1x00_ts *ts = _ts;
-	struct task_struct *tsk = current;
-	DECLARE_WAITQUEUE(wait, tsk);
+	DECLARE_WAITQUEUE(wait, current);
 	int valid = 0;
 
 	set_freezable();
@@ -234,7 +233,7 @@ static int ucb1x00_thread(void *_ts)
 
 
 		if (ucb1x00_ts_pen_down(ts)) {
-			set_task_state(tsk, TASK_INTERRUPTIBLE);
+			set_current_state(TASK_INTERRUPTIBLE);
 
 			ucb1x00_enable_irq(ts->ucb, UCB_IRQ_TSPX, machine_is_collie() ? UCB_RISING : UCB_FALLING);
 			ucb1x00_disable(ts->ucb);
@@ -262,7 +261,7 @@ static int ucb1x00_thread(void *_ts)
 				valid = 1;
 			}
 
-			set_task_state(tsk, TASK_INTERRUPTIBLE);
+			set_current_state(TASK_INTERRUPTIBLE);
 			timeout = HZ / 100;
 		}
 

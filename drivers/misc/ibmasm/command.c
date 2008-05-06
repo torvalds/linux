@@ -96,7 +96,7 @@ static inline void do_exec_command(struct service_processor *sp)
 {
 	char tsbuf[32];
 
-	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
+	dbg("%s:%d at %s\n", __func__, __LINE__, get_timestamp(tsbuf));
 
 	if (ibmasm_send_i2o_message(sp)) {
 		sp->current_command->status = IBMASM_CMD_FAILED;
@@ -119,7 +119,7 @@ void ibmasm_exec_command(struct service_processor *sp, struct command *cmd)
 	unsigned long flags;
 	char tsbuf[32];
 
-	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
+	dbg("%s:%d at %s\n", __func__, __LINE__, get_timestamp(tsbuf));
 
 	spin_lock_irqsave(&sp->lock, flags);
 
@@ -139,7 +139,7 @@ static void exec_next_command(struct service_processor *sp)
 	unsigned long flags;
 	char tsbuf[32];
 
-	dbg("%s:%d at %s\n", __FUNCTION__, __LINE__, get_timestamp(tsbuf));
+	dbg("%s:%d at %s\n", __func__, __LINE__, get_timestamp(tsbuf));
 
 	spin_lock_irqsave(&sp->lock, flags);
 	sp->current_command = dequeue_command(sp);

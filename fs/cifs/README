@@ -3,7 +3,14 @@ features such as hierarchical dfs like namespace, hardlinks, locking and more.
 It was designed to comply with the SNIA CIFS Technical Reference (which 
 supersedes the 1992 X/Open SMB Standard) as well as to perform best practice 
 practical interoperability with Windows 2000, Windows XP, Samba and equivalent 
-servers.  
+servers.  This code was developed in participation with the Protocol Freedom
+Information Foundation.
+
+Please see
+  http://protocolfreedom.org/ and
+  http://samba.org/samba/PFIF/
+for more details.
+
 
 For questions or bug reports please contact:
     sfrench@samba.org (sfrench@us.ibm.com) 

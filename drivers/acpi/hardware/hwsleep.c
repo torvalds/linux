@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,9 +70,10 @@ acpi_set_firmware_waking_vector(acpi_physical_address physical_address)
 
 	/* Get the FACS */
 
-	status =
-	    acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
-				    (struct acpi_table_header **)&facs);
+	status = acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
+					 ACPI_CAST_INDIRECT_PTR(struct
+								acpi_table_header,
+								&facs));
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -124,9 +125,10 @@ acpi_get_firmware_waking_vector(acpi_physical_address * physical_address)
 
 	/* Get the FACS */
 
-	status =
-	    acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
-				    (struct acpi_table_header **)&facs);
+	status = acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
+					 ACPI_CAST_INDIRECT_PTR(struct
+								acpi_table_header,
+								&facs));
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}

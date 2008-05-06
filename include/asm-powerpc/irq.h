@@ -619,8 +619,6 @@ struct pt_regs;
 
 #define __ARCH_HAS_DO_SOFTIRQ
 
-extern void __do_softirq(void);
-
 #ifdef CONFIG_IRQSTACKS
 /*
  * Per-cpu stacks for handling hard and soft interrupts.

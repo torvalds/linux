@@ -546,7 +546,7 @@ static void loop_unplug(struct request_queue *q)
 {
 	struct loop_device *lo = q->queuedata;
 
-	clear_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags);
+	queue_flag_clear_unlocked(QUEUE_FLAG_PLUGGED, q);
 	blk_run_address_space(lo->lo_backing_file->f_mapping);
 }
 

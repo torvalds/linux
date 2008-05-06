@@ -41,6 +41,7 @@ static const struct file_operations afs_proc_cells_fops = {
 	.write		= afs_proc_cells_write,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
+	.owner		= THIS_MODULE,
 };
 
 static int afs_proc_rootcell_open(struct inode *inode, struct file *file);
@@ -56,7 +57,8 @@ static const struct file_operations afs_proc_rootcell_fops = {
 	.read		= afs_proc_rootcell_read,
 	.write		= afs_proc_rootcell_write,
 	.llseek		= no_llseek,
-	.release	= afs_proc_rootcell_release
+	.release	= afs_proc_rootcell_release,
+	.owner		= THIS_MODULE,
 };
 
 static int afs_proc_cell_volumes_open(struct inode *inode, struct file *file);
@@ -80,6 +82,7 @@ static const struct file_operations afs_proc_cell_volumes_fops = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= afs_proc_cell_volumes_release,
+	.owner		= THIS_MODULE,
 };
 
 static int afs_proc_cell_vlservers_open(struct inode *inode,
@@ -104,6 +107,7 @@ static const struct file_operations afs_proc_cell_vlservers_fops = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= afs_proc_cell_vlservers_release,
+	.owner		= THIS_MODULE,
 };
 
 static int afs_proc_cell_servers_open(struct inode *inode, struct file *file);
@@ -127,6 +131,7 @@ static const struct file_operations afs_proc_cell_servers_fops = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= afs_proc_cell_servers_release,
+	.owner		= THIS_MODULE,
 };
 
 /*
@@ -143,17 +148,13 @@ int afs_proc_init(void)
 		goto error_dir;
 	proc_afs->owner = THIS_MODULE;
 
-	p = create_proc_entry("cells", 0, proc_afs);
+	p = proc_create("cells", 0, proc_afs, &afs_proc_cells_fops);
 	if (!p)
 		goto error_cells;
-	p->proc_fops = &afs_proc_cells_fops;
-	p->owner = THIS_MODULE;
 
-	p = create_proc_entry("rootcell", 0, proc_afs);
+	p = proc_create("rootcell", 0, proc_afs, &afs_proc_rootcell_fops);
 	if (!p)
 		goto error_rootcell;
-	p->proc_fops = &afs_proc_rootcell_fops;
-	p->owner = THIS_MODULE;
 
 	_leave(" = 0");
 	return 0;
@@ -395,26 +396,20 @@ int afs_proc_cell_setup(struct afs_cell *cell)
 	if (!cell->proc_dir)
 		goto error_dir;
 
-	p = create_proc_entry("servers", 0, cell->proc_dir);
+	p = proc_create_data("servers", 0, cell->proc_dir,
+			     &afs_proc_cell_servers_fops, cell);
 	if (!p)
 		goto error_servers;
-	p->proc_fops = &afs_proc_cell_servers_fops;
-	p->owner = THIS_MODULE;
-	p->data = cell;
 
-	p = create_proc_entry("vlservers", 0, cell->proc_dir);
+	p = proc_create_data("vlservers", 0, cell->proc_dir,
+			     &afs_proc_cell_vlservers_fops, cell);
 	if (!p)
 		goto error_vlservers;
-	p->proc_fops = &afs_proc_cell_vlservers_fops;
-	p->owner = THIS_MODULE;
-	p->data = cell;
 
-	p = create_proc_entry("volumes", 0, cell->proc_dir);
+	p = proc_create_data("volumes", 0, cell->proc_dir,
+			     &afs_proc_cell_volumes_fops, cell);
 	if (!p)
 		goto error_volumes;
-	p->proc_fops = &afs_proc_cell_volumes_fops;
-	p->owner = THIS_MODULE;
-	p->data = cell;
 
 	_leave(" = 0");
 	return 0;

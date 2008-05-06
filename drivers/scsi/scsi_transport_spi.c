@@ -24,6 +24,7 @@
 #include <linux/workqueue.h>
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 #include <scsi/scsi.h>
 #include "scsi_priv.h"
 #include <scsi/scsi_device.h>
@@ -1374,11 +1375,11 @@ static int spi_host_configure(struct transport_container *tc,
  * overloads the return by setting 1<<1 if the attribute should
  * be writeable */
 #define TARGET_ATTRIBUTE_HELPER(name) \
-	(si->f->show_##name ? 1 : 0) + \
-	(si->f->set_##name ? 2 : 0)
+	(si->f->show_##name ? S_IRUGO : 0) | \
+	(si->f->set_##name ? S_IWUSR : 0)
 
-static int target_attribute_is_visible(struct kobject *kobj,
-				       struct attribute *attr, int i)
+static mode_t target_attribute_is_visible(struct kobject *kobj,
+					  struct attribute *attr, int i)
 {
 	struct device *cdev = container_of(kobj, struct device, kobj);
 	struct scsi_target *starget = transport_class_to_starget(cdev);
@@ -1428,7 +1429,7 @@ static int target_attribute_is_visible(struct kobject *kobj,
 		 spi_support_ius(starget))
 		return TARGET_ATTRIBUTE_HELPER(hold_mcs);
 	else if (attr == &dev_attr_revalidate.attr)
-		return 1;
+		return S_IWUSR;
 
 	return 0;
 }
@@ -1462,25 +1463,9 @@ static int spi_target_configure(struct transport_container *tc,
 				struct device *cdev)
 {
 	struct kobject *kobj = &cdev->kobj;
-	int i;
-	struct attribute *attr;
-	int rc;
 
-	for (i = 0; (attr = target_attributes[i]) != NULL; i++) {
-		int j = target_attribute_group.is_visible(kobj, attr, i);
-
-		/* FIXME: as well as returning -EEXIST, which we'd like
-		 * to ignore, sysfs also does a WARN_ON and dumps a trace,
-		 * which is bad, so temporarily, skip attributes that are
-		 * already visible (the revalidate one) */
-		if (j && attr != &dev_attr_revalidate.attr)
-			rc = sysfs_add_file_to_group(kobj, attr,
-						target_attribute_group.name);
-		/* and make the attribute writeable if we have a set
-		 * function */
-		if ((j & 1))
-			rc = sysfs_chmod_file(kobj, attr, attr->mode | S_IWUSR);
-	}
+	/* force an update based on parameters read from the device */
+	sysfs_update_group(kobj, &target_attribute_group);
 
 	return 0;
 }

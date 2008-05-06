@@ -224,16 +224,10 @@ EXPORT_SYMBOL_GPL(rpc_print_iostats);
 static inline struct proc_dir_entry *
 do_register(const char *name, void *data, const struct file_operations *fops)
 {
-	struct proc_dir_entry *ent;
-
 	rpc_proc_init();
 	dprintk("RPC:       registering /proc/net/rpc/%s\n", name);
 
-	ent = proc_create(name, 0, proc_net_rpc, fops);
-	if (ent) {
-		ent->data = data;
-	}
-	return ent;
+	return proc_create_data(name, 0, proc_net_rpc, fops, data);
 }
 
 struct proc_dir_entry *

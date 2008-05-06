@@ -170,6 +170,9 @@ void __init setup_paca(int cpu)
 
 void __init early_setup(unsigned long dt_ptr)
 {
+	/* Fill in any unititialised pacas */
+	initialise_pacas();
+
 	/* Identify CPU type */
 	identify_cpu(0, mfspr(SPRN_PVR));
 
@@ -435,7 +438,7 @@ void __init setup_system(void)
 		printk("htab_address                  = 0x%p\n", htab_address);
 	printk("htab_hash_mask                = 0x%lx\n", htab_hash_mask);
 #if PHYSICAL_START > 0
-	printk("physical_start                = 0x%x\n", PHYSICAL_START);
+	printk("physical_start                = 0x%lx\n", PHYSICAL_START);
 #endif
 	printk("-----------------------------------------------------\n");
 
@@ -484,9 +487,12 @@ static void __init emergency_stack_init(void)
 	 */
 	limit = min(0x10000000UL, lmb.rmo_size);
 
-	for_each_possible_cpu(i)
-		paca[i].emergency_sp =
-		__va(lmb_alloc_base(HW_PAGE_SIZE, 128, limit)) + HW_PAGE_SIZE;
+	for_each_possible_cpu(i) {
+		unsigned long sp;
+		sp  = lmb_alloc_base(THREAD_SIZE, THREAD_SIZE, limit);
+		sp += THREAD_SIZE;
+		paca[i].emergency_sp = __va(sp);
+	}
 }
 
 /*

@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -467,10 +467,13 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 		return (AE_CTRL_DEPTH);
 	}
 
-	if (!(flags & ACPI_STA_DEVICE_PRESENT)) {
-
-		/* Don't examine children of the device if not present */
-
+	if (!(flags & ACPI_STA_DEVICE_PRESENT) &&
+	    !(flags & ACPI_STA_DEVICE_FUNCTIONING)) {
+		/*
+		 * Don't examine the children of the device only when the
+		 * device is neither present nor functional. See ACPI spec,
+		 * description of _STA for more information.
+		 */
 		return (AE_CTRL_DEPTH);
 	}
 
@@ -539,7 +542,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
  *              value is returned to the caller.
  *
  *              This is a wrapper for walk_namespace, but the callback performs
- *              additional filtering. Please see acpi_get_device_callback.
+ *              additional filtering. Please see acpi_ns_get_device_callback.
  *
  ******************************************************************************/
 

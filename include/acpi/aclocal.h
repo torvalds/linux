@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -522,9 +522,8 @@ struct acpi_thread_state {
  * AML arguments
  */
 struct acpi_result_values {
-	ACPI_STATE_COMMON u8 num_results;
-	u8 last_insert;
-	union acpi_operand_object *obj_desc[ACPI_OBJ_NUM_OPERANDS];
+	ACPI_STATE_COMMON
+	    union acpi_operand_object *obj_desc[ACPI_RESULTS_FRAME_OBJ_NUM];
 };
 
 typedef
@@ -604,6 +603,7 @@ union acpi_parse_value {
 	union acpi_parse_object         *next;          /* Next op */\
 	struct acpi_namespace_node      *node;          /* For use by interpreter */\
 	union acpi_parse_value          value;          /* Value or args associated with the opcode */\
+	u8                              arg_list_length; /* Number of elements in the arg list */\
 	ACPI_DISASM_ONLY_MEMBERS (\
 	u8                              disasm_flags;   /* Used during AML disassembly */\
 	u8                              disasm_opcode;  /* Subtype used for disassembly */\
@@ -696,6 +696,8 @@ struct acpi_parse_state {
 #define ACPI_PARSEOP_NAMED              0x02
 #define ACPI_PARSEOP_DEFERRED           0x04
 #define ACPI_PARSEOP_BYTELIST           0x08
+#define ACPI_PARSEOP_IN_STACK           0x10
+#define ACPI_PARSEOP_TARGET             0x20
 #define ACPI_PARSEOP_IN_CACHE           0x80
 
 /* Parse object disasm_flags */

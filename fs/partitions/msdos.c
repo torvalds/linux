@@ -18,7 +18,7 @@
  *
  *  Re-organised Feb 1998 Russell King
  */
-
+#include <linux/msdos_fs.h>
 
 #include "check.h"
 #include "msdos.h"
@@ -419,6 +419,7 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 	Sector sect;
 	unsigned char *data;
 	struct partition *p;
+	struct fat_boot_sector *fb;
 	int slot;
 
 	data = read_dev_sector(bdev, 0, &sect);
@@ -444,8 +445,21 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 	p = (struct partition *) (data + 0x1be);
 	for (slot = 1; slot <= 4; slot++, p++) {
 		if (p->boot_ind != 0 && p->boot_ind != 0x80) {
-			put_dev_sector(sect);
-			return 0;
+			/*
+			 * Even without a valid boot inidicator value
+			 * its still possible this is valid FAT filesystem
+			 * without a partition table.
+			 */
+			fb = (struct fat_boot_sector *) data;
+			if (slot == 1 && fb->reserved && fb->fats
+				&& fat_valid_media(fb->media)) {
+				printk("\n");
+				put_dev_sector(sect);
+				return 1;
+			} else {
+				put_dev_sector(sect);
+				return 0;
+			}
 		}
 	}
 

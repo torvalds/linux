@@ -393,13 +393,13 @@ static int __init ts102_uctrl_init(void)
 	err = request_irq(driver->irq, uctrl_interrupt, 0, "uctrl", driver);
 	if (err) {
 		printk("%s: unable to register irq %d\n",
-		       __FUNCTION__, driver->irq);
+		       __func__, driver->irq);
 		return err;
 	}
 
 	if (misc_register(&uctrl_dev)) {
 		printk("%s: unable to get misc minor %d\n",
-		       __FUNCTION__, uctrl_dev.minor);
+		       __func__, uctrl_dev.minor);
 		free_irq(driver->irq, driver);
 		return -ENODEV;
 	}

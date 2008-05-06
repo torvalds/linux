@@ -27,6 +27,7 @@ zImage.chrp
 zImage.coff
 zImage.coff.lds
 zImage.ep*
+zImage.iseries
 zImage.*lds
 zImage.miboot
 zImage.pmac

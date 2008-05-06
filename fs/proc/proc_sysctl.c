@@ -165,8 +165,8 @@ out:
 	return err;
 }
 
-static ssize_t proc_sys_read(struct file *filp, char __user *buf,
-				size_t count, loff_t *ppos)
+static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
+		size_t count, loff_t *ppos, int write)
 {
 	struct dentry *dentry = filp->f_dentry;
 	struct ctl_table_header *head;
@@ -190,12 +190,12 @@ static ssize_t proc_sys_read(struct file *filp, char __user *buf,
 	 * and won't be until we finish.
 	 */
 	error = -EPERM;
-	if (sysctl_perm(table, MAY_READ))
+	if (sysctl_perm(head->root, table, write ? MAY_WRITE : MAY_READ))
 		goto out;
 
 	/* careful: calling conventions are nasty here */
 	res = count;
-	error = table->proc_handler(table, 0, filp, buf, &res, ppos);
+	error = table->proc_handler(table, write, filp, buf, &res, ppos);
 	if (!error)
 		error = res;
 out:
@@ -204,44 +204,16 @@ out:
 	return error;
 }
 
+static ssize_t proc_sys_read(struct file *filp, char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	return proc_sys_call_handler(filp, (void __user *)buf, count, ppos, 0);
+}
+
 static ssize_t proc_sys_write(struct file *filp, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	struct dentry *dentry = filp->f_dentry;
-	struct ctl_table_header *head;
-	struct ctl_table *table;
-	ssize_t error;
-	size_t res;
-
-	table = do_proc_sys_lookup(dentry->d_parent, &dentry->d_name, &head);
-	/* Has the sysctl entry disappeared on us? */
-	error = -ENOENT;
-	if (!table)
-		goto out;
-
-	/* Has the sysctl entry been replaced by a directory? */
-	error = -EISDIR;
-	if (!table->proc_handler)
-		goto out;
-
-	/*
-	 * At this point we know that the sysctl was not unregistered
-	 * and won't be until we finish.
-	 */
-	error = -EPERM;
-	if (sysctl_perm(table, MAY_WRITE))
-		goto out;
-
-	/* careful: calling conventions are nasty here */
-	res = count;
-	error = table->proc_handler(table, 1, filp, (char __user *)buf,
-				    &res, ppos);
-	if (!error)
-		error = res;
-out:
-	sysctl_head_finish(head);
-
-	return error;
+	return proc_sys_call_handler(filp, (void __user *)buf, count, ppos, 1);
 }
 
 
@@ -416,7 +388,7 @@ static int proc_sys_permission(struct inode *inode, int mask, struct nameidata *
 		goto out;
 
 	/* Use the permissions on the sysctl table entry */
-	error = sysctl_perm(table, mask);
+	error = sysctl_perm(head->root, table, mask);
 out:
 	sysctl_head_finish(head);
 	return error;

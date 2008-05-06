@@ -32,7 +32,6 @@
 #ifndef __LINUX_RCUPREEMPT_TRACE_H
 #define __LINUX_RCUPREEMPT_TRACE_H
 
-#ifdef __KERNEL__
 #include <linux/types.h>
 #include <linux/kernel.h>
 
@@ -95,5 +94,4 @@ extern void rcupreempt_trace_done_remove(struct rcupreempt_trace *trace);
 extern void rcupreempt_trace_invoke(struct rcupreempt_trace *trace);
 extern void rcupreempt_trace_next_add(struct rcupreempt_trace *trace);
 
-#endif /* __KERNEL__ */
 #endif /* __LINUX_RCUPREEMPT_TRACE_H */

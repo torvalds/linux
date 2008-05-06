@@ -1617,6 +1617,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	tp = netdev_priv(dev);
 	tp->dev = dev;
+	tp->pci_dev = pdev;
 	tp->msg_enable = netif_msg_init(debug.msg_enable, R8169_MSG_DEFAULT);
 
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
@@ -1705,18 +1706,18 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rtl8169_print_mac_version(tp);
 
-	for (i = ARRAY_SIZE(rtl_chip_info) - 1; i >= 0; i--) {
+	for (i = 0; i < ARRAY_SIZE(rtl_chip_info); i++) {
 		if (tp->mac_version == rtl_chip_info[i].mac_version)
 			break;
 	}
-	if (i < 0) {
+	if (i == ARRAY_SIZE(rtl_chip_info)) {
 		/* Unknown chip: assume array element #0, original RTL-8169 */
 		if (netif_msg_probe(tp)) {
 			dev_printk(KERN_DEBUG, &pdev->dev,
 				"unknown chip version, assuming %s\n",
 				rtl_chip_info[0].name);
 		}
-		i++;
+		i = 0;
 	}
 	tp->chipset = i;
 
@@ -1777,7 +1778,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	tp->intr_mask = 0xffff;
-	tp->pci_dev = pdev;
 	tp->mmio_addr = ioaddr;
 	tp->align = cfg->align;
 	tp->hw_start = cfg->hw_start;

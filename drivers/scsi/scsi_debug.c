@@ -1773,7 +1773,7 @@ static int scsi_debug_slave_alloc(struct scsi_device *sdp)
 	if (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts)
 		printk(KERN_INFO "scsi_debug: slave_alloc <%u %u %u %u>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
-	set_bit(QUEUE_FLAG_BIDI, &sdp->request_queue->queue_flags);
+	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, sdp->request_queue);
 	return 0;
 }
 

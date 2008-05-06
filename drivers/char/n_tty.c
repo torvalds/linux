@@ -147,10 +147,8 @@ static void put_tty_queue(unsigned char c, struct tty_struct *tty)
 
 static void check_unthrottle(struct tty_struct *tty)
 {
-	if (tty->count &&
-	    test_and_clear_bit(TTY_THROTTLED, &tty->flags) &&
-	    tty->driver->unthrottle)
-		tty->driver->unthrottle(tty);
+	if (tty->count)
+		tty_unthrottle(tty);
 }
 
 /**
@@ -183,22 +181,24 @@ static void reset_buffer_flags(struct tty_struct *tty)
  *	at hangup) or when the N_TTY line discipline internally has to
  *	clean the pending queue (for example some signals).
  *
- *	FIXME: tty->ctrl_status is not spinlocked and relies on
- *	lock_kernel() still.
+ *	Locking: ctrl_lock
  */
 
 static void n_tty_flush_buffer(struct tty_struct *tty)
 {
+	unsigned long flags;
 	/* clear everything and unthrottle the driver */
 	reset_buffer_flags(tty);
 
 	if (!tty->link)
 		return;
 
+	spin_lock_irqsave(&tty->ctrl_lock, flags);
 	if (tty->link->packet) {
 		tty->ctrl_status |= TIOCPKT_FLUSHREAD;
 		wake_up_interruptible(&tty->link->read_wait);
 	}
+	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 }
 
 /**
@@ -264,17 +264,18 @@ static inline int is_continuation(unsigned char c, struct tty_struct *tty)
  *	relevant in the world today. If you ever need them, add them here.
  *
  *	Called from both the receive and transmit sides and can be called
- *	re-entrantly. Relies on lock_kernel() still.
+ *	re-entrantly. Relies on lock_kernel() for tty->column state.
  */
 
 static int opost(unsigned char c, struct tty_struct *tty)
 {
 	int	space, spaces;
 
-	space = tty->driver->write_room(tty);
+	space = tty_write_room(tty);
 	if (!space)
 		return -1;
 
+	lock_kernel();
 	if (O_OPOST(tty)) {
 		switch (c) {
 		case '\n':
@@ -283,7 +284,7 @@ static int opost(unsigned char c, struct tty_struct *tty)
 			if (O_ONLCR(tty)) {
 				if (space < 2)
 					return -1;
-				tty->driver->put_char(tty, '\r');
+				tty_put_char(tty, '\r');
 				tty->column = 0;
 			}
 			tty->canon_column = tty->column;
@@ -305,7 +306,7 @@ static int opost(unsigned char c, struct tty_struct *tty)
 				if (space < spaces)
 					return -1;
 				tty->column += spaces;
-				tty->driver->write(tty, "        ", spaces);
+				tty->ops->write(tty, "        ", spaces);
 				return 0;
 			}
 			tty->column += spaces;
@@ -322,7 +323,8 @@ static int opost(unsigned char c, struct tty_struct *tty)
 			break;
 		}
 	}
-	tty->driver->put_char(tty, c);
+	tty_put_char(tty, c);
+	unlock_kernel();
 	return 0;
 }
 
@@ -337,7 +339,8 @@ static int opost(unsigned char c, struct tty_struct *tty)
  *	the simple cases normally found and helps to generate blocks of
  *	symbols for the console driver and thus improve performance.
  *
- *	Called from write_chan under the tty layer write lock.
+ *	Called from write_chan under the tty layer write lock. Relies
+ *	on lock_kernel for the tty->column state.
  */
 
 static ssize_t opost_block(struct tty_struct *tty,
@@ -347,12 +350,13 @@ static ssize_t opost_block(struct tty_struct *tty,
 	int 	i;
 	const unsigned char *cp;
 
-	space = tty->driver->write_room(tty);
+	space = tty_write_room(tty);
 	if (!space)
 		return 0;
 	if (nr > space)
 		nr = space;
 
+	lock_kernel();
 	for (i = 0, cp = buf; i < nr; i++, cp++) {
 		switch (*cp) {
 		case '\n':
@@ -384,25 +388,13 @@ static ssize_t opost_block(struct tty_struct *tty,
 		}
 	}
 break_out:
-	if (tty->driver->flush_chars)
-		tty->driver->flush_chars(tty);
-	i = tty->driver->write(tty, buf, i);
+	if (tty->ops->flush_chars)
+		tty->ops->flush_chars(tty);
+	i = tty->ops->write(tty, buf, i);
+	unlock_kernel();
 	return i;
 }
 
-
-/**
- *	put_char	-	write character to driver
- *	@c: character (or part of unicode symbol)
- *	@tty: terminal device
- *
- *	Queue a byte to the driver layer for output
- */
-
-static inline void put_char(unsigned char c, struct tty_struct *tty)
-{
-	tty->driver->put_char(tty, c);
-}
 
 /**
  *	echo_char	-	echo characters
@@ -416,8 +408,8 @@ static inline void put_char(unsigned char c, struct tty_struct *tty)
 static void echo_char(unsigned char c, struct tty_struct *tty)
 {
 	if (L_ECHOCTL(tty) && iscntrl(c) && c != '\t') {
-		put_char('^', tty);
-		put_char(c ^ 0100, tty);
+		tty_put_char(tty, '^');
+		tty_put_char(tty, c ^ 0100);
 		tty->column += 2;
 	} else
 		opost(c, tty);
@@ -426,7 +418,7 @@ static void echo_char(unsigned char c, struct tty_struct *tty)
 static inline void finish_erasing(struct tty_struct *tty)
 {
 	if (tty->erasing) {
-		put_char('/', tty);
+		tty_put_char(tty, '/');
 		tty->column++;
 		tty->erasing = 0;
 	}
@@ -510,7 +502,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 		if (L_ECHO(tty)) {
 			if (L_ECHOPRT(tty)) {
 				if (!tty->erasing) {
-					put_char('\\', tty);
+					tty_put_char(tty, '\\');
 					tty->column++;
 					tty->erasing = 1;
 				}
@@ -518,7 +510,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 				echo_char(c, tty);
 				while (--cnt > 0) {
 					head = (head+1) & (N_TTY_BUF_SIZE-1);
-					put_char(tty->read_buf[head], tty);
+					tty_put_char(tty, tty->read_buf[head]);
 				}
 			} else if (kill_type == ERASE && !L_ECHOE(tty)) {
 				echo_char(ERASE_CHAR(tty), tty);
@@ -546,22 +538,22 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 				/* Now backup to that column. */
 				while (tty->column > col) {
 					/* Can't use opost here. */
-					put_char('\b', tty);
+					tty_put_char(tty, '\b');
 					if (tty->column > 0)
 						tty->column--;
 				}
 			} else {
 				if (iscntrl(c) && L_ECHOCTL(tty)) {
-					put_char('\b', tty);
-					put_char(' ', tty);
-					put_char('\b', tty);
+					tty_put_char(tty, '\b');
+					tty_put_char(tty, ' ');
+					tty_put_char(tty, '\b');
 					if (tty->column > 0)
 						tty->column--;
 				}
 				if (!iscntrl(c) || L_ECHOCTL(tty)) {
-					put_char('\b', tty);
-					put_char(' ', tty);
-					put_char('\b', tty);
+					tty_put_char(tty, '\b');
+					tty_put_char(tty, ' ');
+					tty_put_char(tty, '\b');
 					if (tty->column > 0)
 						tty->column--;
 				}
@@ -592,8 +584,7 @@ static inline void isig(int sig, struct tty_struct *tty, int flush)
 		kill_pgrp(tty->pgrp, sig, 1);
 	if (flush || !L_NOFLSH(tty)) {
 		n_tty_flush_buffer(tty);
-		if (tty->driver->flush_buffer)
-			tty->driver->flush_buffer(tty);
+		tty_driver_flush_buffer(tty);
 	}
 }
 
@@ -701,7 +692,7 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 
 	if (tty->stopped && !tty->flow_stopped && I_IXON(tty) &&
 	    ((I_IXANY(tty) && c != START_CHAR(tty) && c != STOP_CHAR(tty)) ||
-	     c == INTR_CHAR(tty) || c == QUIT_CHAR(tty)))
+	     c == INTR_CHAR(tty) || c == QUIT_CHAR(tty) || c == SUSP_CHAR(tty)))
 		start_tty(tty);
 
 	if (tty->closing) {
@@ -725,7 +716,7 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 		tty->lnext = 0;
 		if (L_ECHO(tty)) {
 			if (tty->read_cnt >= N_TTY_BUF_SIZE-1) {
-				put_char('\a', tty); /* beep if no space */
+				tty_put_char(tty, '\a'); /* beep if no space */
 				return;
 			}
 			/* Record the column of first canon char. */
@@ -739,13 +730,6 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 		return;
 	}
 
-	if (c == '\r') {
-		if (I_IGNCR(tty))
-			return;
-		if (I_ICRNL(tty))
-			c = '\n';
-	} else if (c == '\n' && I_INLCR(tty))
-		c = '\r';
 	if (I_IXON(tty)) {
 		if (c == START_CHAR(tty)) {
 			start_tty(tty);
@@ -756,6 +740,7 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 			return;
 		}
 	}
+
 	if (L_ISIG(tty)) {
 		int signal;
 		signal = SIGINT;
@@ -775,8 +760,7 @@ send_signal:
 			 */
 			if (!L_NOFLSH(tty)) {
 				n_tty_flush_buffer(tty);
-				if (tty->driver->flush_buffer)
-					tty->driver->flush_buffer(tty);
+				tty_driver_flush_buffer(tty);
 			}
 			if (L_ECHO(tty))
 				echo_char(c, tty);
@@ -785,6 +769,15 @@ send_signal:
 			return;
 		}
 	}
+
+	if (c == '\r') {
+		if (I_IGNCR(tty))
+			return;
+		if (I_ICRNL(tty))
+			c = '\n';
+	} else if (c == '\n' && I_INLCR(tty))
+		c = '\r';
+
 	if (tty->icanon) {
 		if (c == ERASE_CHAR(tty) || c == KILL_CHAR(tty) ||
 		    (c == WERASE_CHAR(tty) && L_IEXTEN(tty))) {
@@ -796,8 +789,8 @@ send_signal:
 			if (L_ECHO(tty)) {
 				finish_erasing(tty);
 				if (L_ECHOCTL(tty)) {
-					put_char('^', tty);
-					put_char('\b', tty);
+					tty_put_char(tty, '^');
+					tty_put_char(tty, '\b');
 				}
 			}
 			return;
@@ -818,7 +811,7 @@ send_signal:
 		if (c == '\n') {
 			if (L_ECHO(tty) || L_ECHONL(tty)) {
 				if (tty->read_cnt >= N_TTY_BUF_SIZE-1)
-					put_char('\a', tty);
+					tty_put_char(tty, '\a');
 				opost('\n', tty);
 			}
 			goto handle_newline;
@@ -836,7 +829,7 @@ send_signal:
 			 */
 			if (L_ECHO(tty)) {
 				if (tty->read_cnt >= N_TTY_BUF_SIZE-1)
-					put_char('\a', tty);
+					tty_put_char(tty, '\a');
 				/* Record the column of first canon char. */
 				if (tty->canon_head == tty->read_head)
 					tty->canon_column = tty->column;
@@ -866,7 +859,7 @@ handle_newline:
 	finish_erasing(tty);
 	if (L_ECHO(tty)) {
 		if (tty->read_cnt >= N_TTY_BUF_SIZE-1) {
-			put_char('\a', tty); /* beep if no space */
+			tty_put_char(tty, '\a'); /* beep if no space */
 			return;
 		}
 		if (c == '\n')
@@ -970,8 +963,8 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 				break;
 			}
 		}
-		if (tty->driver->flush_chars)
-			tty->driver->flush_chars(tty);
+		if (tty->ops->flush_chars)
+			tty->ops->flush_chars(tty);
 	}
 
 	n_tty_set_room(tty);
@@ -987,12 +980,8 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	 * mode.  We don't want to throttle the driver if we're in
 	 * canonical mode and don't have a newline yet!
 	 */
-	if (tty->receive_room < TTY_THRESHOLD_THROTTLE) {
-		/* check TTY_THROTTLED first so it indicates our state */
-		if (!test_and_set_bit(TTY_THROTTLED, &tty->flags) &&
-		    tty->driver->throttle)
-			tty->driver->throttle(tty);
-	}
+	if (tty->receive_room < TTY_THRESHOLD_THROTTLE)
+		tty_throttle(tty);
 }
 
 int is_ignored(int sig)
@@ -1076,6 +1065,9 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 			tty->real_raw = 0;
 	}
 	n_tty_set_room(tty);
+	/* The termios change make the tty ready for I/O */
+	wake_up_interruptible(&tty->write_wait);
+	wake_up_interruptible(&tty->read_wait);
 }
 
 /**
@@ -1194,6 +1186,11 @@ extern ssize_t redirected_tty_write(struct file *, const char __user *,
  *	Perform job control management checks on this file/tty descriptor
  *	and if appropriate send any needed signals and return a negative
  *	error code if action should be taken.
+ *
+ *	FIXME:
+ *	Locking: None - redirected write test is safe, testing
+ *	current->signal should possibly lock current->sighand
+ *	pgrp locking ?
  */
 
 static int job_control(struct tty_struct *tty, struct file *file)
@@ -1246,6 +1243,7 @@ static ssize_t read_chan(struct tty_struct *tty, struct file *file,
 	ssize_t size;
 	long timeout;
 	unsigned long flags;
+	int packet;
 
 do_it_again:
 
@@ -1289,16 +1287,19 @@ do_it_again:
 		if (mutex_lock_interruptible(&tty->atomic_read_lock))
 			return -ERESTARTSYS;
 	}
+	packet = tty->packet;
 
 	add_wait_queue(&tty->read_wait, &wait);
 	while (nr) {
 		/* First test for status change. */
-		if (tty->packet && tty->link->ctrl_status) {
+		if (packet && tty->link->ctrl_status) {
 			unsigned char cs;
 			if (b != buf)
 				break;
+			spin_lock_irqsave(&tty->link->ctrl_lock, flags);
 			cs = tty->link->ctrl_status;
 			tty->link->ctrl_status = 0;
+			spin_unlock_irqrestore(&tty->link->ctrl_lock, flags);
 			if (tty_put_user(tty, cs, b++)) {
 				retval = -EFAULT;
 				b--;
@@ -1333,6 +1334,7 @@ do_it_again:
 				retval = -ERESTARTSYS;
 				break;
 			}
+			/* FIXME: does n_tty_set_room need locking ? */
 			n_tty_set_room(tty);
 			timeout = schedule_timeout(timeout);
 			continue;
@@ -1340,7 +1342,7 @@ do_it_again:
 		__set_current_state(TASK_RUNNING);
 
 		/* Deal with packet mode. */
-		if (tty->packet && b == buf) {
+		if (packet && b == buf) {
 			if (tty_put_user(tty, TIOCPKT_DATA, b++)) {
 				retval = -EFAULT;
 				b--;
@@ -1388,6 +1390,8 @@ do_it_again:
 				break;
 		} else {
 			int uncopied;
+			/* The copy function takes the read lock and handles
+			   locking internally for this case */
 			uncopied = copy_from_read_buf(tty, &b, &nr);
 			uncopied += copy_from_read_buf(tty, &b, &nr);
 			if (uncopied) {
@@ -1429,7 +1433,6 @@ do_it_again:
 		 goto do_it_again;
 
 	n_tty_set_room(tty);
-
 	return retval;
 }
 
@@ -1492,11 +1495,11 @@ static ssize_t write_chan(struct tty_struct *tty, struct file *file,
 					break;
 				b++; nr--;
 			}
-			if (tty->driver->flush_chars)
-				tty->driver->flush_chars(tty);
+			if (tty->ops->flush_chars)
+				tty->ops->flush_chars(tty);
 		} else {
 			while (nr > 0) {
-				c = tty->driver->write(tty, b, nr);
+				c = tty->ops->write(tty, b, nr);
 				if (c < 0) {
 					retval = c;
 					goto break_out;
@@ -1533,11 +1536,6 @@ break_out:
  *
  *	This code must be sure never to sleep through a hangup.
  *	Called without the kernel lock held - fine
- *
- *	FIXME: if someone changes the VMIN or discipline settings for the
- *	terminal while another process is in poll() the poll does not
- *	recompute the new limits. Possibly set_termios should issue
- *	a read wakeup to fix this bug.
  */
 
 static unsigned int normal_poll(struct tty_struct *tty, struct file *file,
@@ -1561,9 +1559,9 @@ static unsigned int normal_poll(struct tty_struct *tty, struct file *file,
 		else
 			tty->minimum_to_wake = 1;
 	}
-	if (!tty_is_writelocked(tty) &&
-			tty->driver->chars_in_buffer(tty) < WAKEUP_CHARS &&
-			tty->driver->write_room(tty) > 0)
+	if (tty->ops->write && !tty_is_writelocked(tty) &&
+			tty_chars_in_buffer(tty) < WAKEUP_CHARS &&
+			tty_write_room(tty) > 0)
 		mask |= POLLOUT | POLLWRNORM;
 	return mask;
 }

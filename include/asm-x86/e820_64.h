@@ -48,7 +48,8 @@ extern struct e820map e820;
 extern void update_e820(void);
 
 extern void reserve_early(unsigned long start, unsigned long end, char *name);
-extern void early_res_to_bootmem(void);
+extern void free_early(unsigned long start, unsigned long end);
+extern void early_res_to_bootmem(unsigned long start, unsigned long end);
 
 #endif/*!__ASSEMBLY__*/
 

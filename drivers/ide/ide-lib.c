@@ -85,7 +85,7 @@ static u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 			mode = XFER_PIO_4;
 	}
 
-//	printk("%s: mode 0x%02x, speed 0x%02x\n", __FUNCTION__, mode, speed);
+/*	printk("%s: mode 0x%02x, speed 0x%02x\n", __func__, mode, speed); */
 
 	return min(speed, mode);
 }
@@ -274,16 +274,6 @@ u8 ide_get_best_pio_mode (ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 		if (overridden)
 			printk(KERN_INFO "%s: tPIO > 2, assuming tPIO = 2\n",
 					 drive->name);
-
-		/*
-		 * Conservative "downgrade" for all pre-ATA2 drives
-		 */
-		if ((drive->hwif->host_flags & IDE_HFLAG_PIO_NO_DOWNGRADE) == 0 &&
-		    pio_mode && pio_mode < 4) {
-			pio_mode--;
-			printk(KERN_INFO "%s: applying conservative "
-					 "PIO \"downgrade\"\n", drive->name);
-		}
 	}
 
 	if (pio_mode > max_mode)
@@ -298,9 +288,11 @@ EXPORT_SYMBOL_GPL(ide_get_best_pio_mode);
 void ide_set_pio(ide_drive_t *drive, u8 req_pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 	u8 host_pio, pio;
 
-	if (hwif->set_pio_mode == NULL)
+	if (port_ops == NULL || port_ops->set_pio_mode == NULL ||
+	    (hwif->host_flags & IDE_HFLAG_NO_SET_MODE))
 		return;
 
 	BUG_ON(hwif->pio_mask == 0x00);
@@ -352,26 +344,30 @@ void ide_toggle_bounce(ide_drive_t *drive, int on)
 int ide_set_pio_mode(ide_drive_t *drive, const u8 mode)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 
-	if (hwif->set_pio_mode == NULL)
+	if (hwif->host_flags & IDE_HFLAG_NO_SET_MODE)
+		return 0;
+
+	if (port_ops == NULL || port_ops->set_pio_mode == NULL)
 		return -1;
 
 	/*
 	 * TODO: temporary hack for some legacy host drivers that didn't
 	 * set transfer mode on the device in ->set_pio_mode method...
 	 */
-	if (hwif->set_dma_mode == NULL) {
-		hwif->set_pio_mode(drive, mode - XFER_PIO_0);
+	if (port_ops->set_dma_mode == NULL) {
+		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
 		return 0;
 	}
 
 	if (hwif->host_flags & IDE_HFLAG_POST_SET_MODE) {
 		if (ide_config_drive_speed(drive, mode))
 			return -1;
-		hwif->set_pio_mode(drive, mode - XFER_PIO_0);
+		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
 		return 0;
 	} else {
-		hwif->set_pio_mode(drive, mode - XFER_PIO_0);
+		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
 		return ide_config_drive_speed(drive, mode);
 	}
 }
@@ -379,17 +375,21 @@ int ide_set_pio_mode(ide_drive_t *drive, const u8 mode)
 int ide_set_dma_mode(ide_drive_t *drive, const u8 mode)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 
-	if (hwif->set_dma_mode == NULL)
+	if (hwif->host_flags & IDE_HFLAG_NO_SET_MODE)
+		return 0;
+
+	if (port_ops == NULL || port_ops->set_dma_mode == NULL)
 		return -1;
 
 	if (hwif->host_flags & IDE_HFLAG_POST_SET_MODE) {
 		if (ide_config_drive_speed(drive, mode))
 			return -1;
-		hwif->set_dma_mode(drive, mode);
+		port_ops->set_dma_mode(drive, mode);
 		return 0;
 	} else {
-		hwif->set_dma_mode(drive, mode);
+		port_ops->set_dma_mode(drive, mode);
 		return ide_config_drive_speed(drive, mode);
 	}
 }
@@ -409,8 +409,10 @@ EXPORT_SYMBOL_GPL(ide_set_dma_mode);
 int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_port_ops *port_ops = hwif->port_ops;
 
-	if (hwif->set_dma_mode == NULL)
+	if (port_ops == NULL || port_ops->set_dma_mode == NULL ||
+	    (hwif->host_flags & IDE_HFLAG_NO_SET_MODE))
 		return -1;
 
 	rate = ide_rate_filter(drive, rate);
@@ -485,7 +487,7 @@ static void ide_dump_sector(ide_drive_t *drive)
 	else
 		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_DEVICE;
 
-	ide_tf_read(drive, &task);
+	drive->hwif->tf_read(drive, &task);
 
 	if (lba48 || (tf->device & ATA_LBA))
 		printk(", LBAsect=%llu",

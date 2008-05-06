@@ -1674,13 +1674,12 @@ vlsi_irda_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (vlsi_proc_root != NULL) {
 		struct proc_dir_entry *ent;
 
-		ent = create_proc_entry(ndev->name, S_IFREG|S_IRUGO, vlsi_proc_root);
+		ent = proc_create_data(ndev->name, S_IFREG|S_IRUGO,
+				       vlsi_proc_root, VLSI_PROC_FOPS, ndev);
 		if (!ent) {
 			IRDA_WARNING("%s: failed to create proc entry\n",
 				     __FUNCTION__);
 		} else {
-			ent->data = ndev;
-			ent->proc_fops = VLSI_PROC_FOPS;
 			ent->size = 0;
 		}
 		idev->proc_entry = ent;

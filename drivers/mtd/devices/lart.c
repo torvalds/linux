@@ -275,7 +275,7 @@ static __u8 read8 (__u32 offset)
 {
    volatile __u8 *data = (__u8 *) (FLASH_OFFSET + offset);
 #ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(): 0x%.8x -> 0x%.2x\n",__FUNCTION__,offset,*data);
+   printk (KERN_DEBUG "%s(): 0x%.8x -> 0x%.2x\n", __func__, offset, *data);
 #endif
    return (*data);
 }
@@ -284,7 +284,7 @@ static __u32 read32 (__u32 offset)
 {
    volatile __u32 *data = (__u32 *) (FLASH_OFFSET + offset);
 #ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(): 0x%.8x -> 0x%.8x\n",__FUNCTION__,offset,*data);
+   printk (KERN_DEBUG "%s(): 0x%.8x -> 0x%.8x\n", __func__, offset, *data);
 #endif
    return (*data);
 }
@@ -294,7 +294,7 @@ static void write32 (__u32 x,__u32 offset)
    volatile __u32 *data = (__u32 *) (FLASH_OFFSET + offset);
    *data = x;
 #ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(): 0x%.8x <- 0x%.8x\n",__FUNCTION__,offset,*data);
+   printk (KERN_DEBUG "%s(): 0x%.8x <- 0x%.8x\n", __func__, offset, *data);
 #endif
 }
 
@@ -337,7 +337,7 @@ static inline int erase_block (__u32 offset)
    __u32 status;
 
 #ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(): 0x%.8x\n",__FUNCTION__,offset);
+   printk (KERN_DEBUG "%s(): 0x%.8x\n", __func__, offset);
 #endif
 
    /* erase and confirm */
@@ -371,7 +371,7 @@ static int flash_erase (struct mtd_info *mtd,struct erase_info *instr)
    int i,first;
 
 #ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(addr = 0x%.8x, len = %d)\n",__FUNCTION__,instr->addr,instr->len);
+   printk (KERN_DEBUG "%s(addr = 0x%.8x, len = %d)\n", __func__, instr->addr, instr->len);
 #endif
 
    /* sanity checks */
@@ -442,7 +442,7 @@ static int flash_erase (struct mtd_info *mtd,struct erase_info *instr)
 static int flash_read (struct mtd_info *mtd,loff_t from,size_t len,size_t *retlen,u_char *buf)
 {
 #ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(from = 0x%.8x, len = %d)\n",__FUNCTION__,(__u32) from,len);
+   printk (KERN_DEBUG "%s(from = 0x%.8x, len = %d)\n", __func__, (__u32)from, len);
 #endif
 
    /* sanity checks */
@@ -488,7 +488,7 @@ static inline int write_dword (__u32 offset,__u32 x)
    __u32 status;
 
 #ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(): 0x%.8x <- 0x%.8x\n",__FUNCTION__,offset,x);
+   printk (KERN_DEBUG "%s(): 0x%.8x <- 0x%.8x\n", __func__, offset, x);
 #endif
 
    /* setup writing */
@@ -524,7 +524,7 @@ static int flash_write (struct mtd_info *mtd,loff_t to,size_t len,size_t *retlen
    int i,n;
 
 #ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(to = 0x%.8x, len = %d)\n",__FUNCTION__,(__u32) to,len);
+   printk (KERN_DEBUG "%s(to = 0x%.8x, len = %d)\n", __func__, (__u32)to, len);
 #endif
 
    *retlen = 0;

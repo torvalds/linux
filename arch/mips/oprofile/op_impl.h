@@ -10,7 +10,6 @@
 #ifndef OP_IMPL_H
 #define OP_IMPL_H 1
 
-extern int null_perf_irq(void);
 extern int (*perf_irq)(void);
 
 /* Per-counter configuration as set via oprofilefs.  */

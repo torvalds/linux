@@ -70,8 +70,6 @@ enum seal_alg {
 	SEAL_ALG_DES3KD = 0x0002
 };
 
-#define KRB5_CKSUM_LENGTH 8
-
 #define CKSUMTYPE_CRC32			0x0001
 #define CKSUMTYPE_RSA_MD4		0x0002
 #define CKSUMTYPE_RSA_MD4_DES		0x0003
@@ -150,9 +148,9 @@ gss_decrypt_xdr_buf(struct crypto_blkcipher *tfm, struct xdr_buf *inbuf,
 s32
 krb5_make_seq_num(struct crypto_blkcipher *key,
 		int direction,
-		s32 seqnum, unsigned char *cksum, unsigned char *buf);
+		u32 seqnum, unsigned char *cksum, unsigned char *buf);
 
 s32
 krb5_get_seq_num(struct crypto_blkcipher *key,
 	       unsigned char *cksum,
-	       unsigned char *buf, int *direction, s32 * seqnum);
+	       unsigned char *buf, int *direction, u32 *seqnum);

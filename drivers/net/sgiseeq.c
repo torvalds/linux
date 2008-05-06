@@ -825,7 +825,8 @@ static struct platform_driver sgiseeq_driver = {
 	.probe	= sgiseeq_probe,
 	.remove	= __devexit_p(sgiseeq_remove),
 	.driver = {
-		.name	= "sgiseeq"
+		.name	= "sgiseeq",
+		.owner	= THIS_MODULE,
 	}
 };
 
@@ -850,3 +851,4 @@ module_exit(sgiseeq_module_exit);
 MODULE_DESCRIPTION("SGI Seeq 8003 driver");
 MODULE_AUTHOR("Linux/MIPS Mailing List <linux-mips@linux-mips.org>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:sgiseeq");

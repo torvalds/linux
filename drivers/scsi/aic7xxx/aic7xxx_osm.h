@@ -365,7 +365,7 @@ struct ahc_platform_data {
 #define AHC_LINUX_NOIRQ	((uint32_t)~0)
 	uint32_t		 irq;		/* IRQ for this adapter */
 	uint32_t		 bios_address;
-	uint32_t		 mem_busaddr;	/* Mem Base Addr */
+	resource_size_t 	 mem_busaddr;	/* Mem Base Addr */
 };
 
 /************************** OS Utility Wrappers *******************************/
@@ -375,82 +375,16 @@ struct ahc_platform_data {
 #define malloc(size, type, flags) kmalloc(size, flags)
 #define free(ptr, type) kfree(ptr)
 
-static __inline void ahc_delay(long);
-static __inline void
-ahc_delay(long usec)
-{
-	/*
-	 * udelay on Linux can have problems for
-	 * multi-millisecond waits.  Wait at most
-	 * 1024us per call.
-	 */
-	while (usec > 0) {
-		udelay(usec % 1024);
-		usec -= 1024;
-	}
-}
+void ahc_delay(long);
 
 
 /***************************** Low Level I/O **********************************/
-static __inline uint8_t ahc_inb(struct ahc_softc * ahc, long port);
-static __inline void ahc_outb(struct ahc_softc * ahc, long port, uint8_t val);
-static __inline void ahc_outsb(struct ahc_softc * ahc, long port,
-			       uint8_t *, int count);
-static __inline void ahc_insb(struct ahc_softc * ahc, long port,
-			       uint8_t *, int count);
-
-static __inline uint8_t
-ahc_inb(struct ahc_softc * ahc, long port)
-{
-	uint8_t x;
-
-	if (ahc->tag == BUS_SPACE_MEMIO) {
-		x = readb(ahc->bsh.maddr + port);
-	} else {
-		x = inb(ahc->bsh.ioport + port);
-	}
-	mb();
-	return (x);
-}
-
-static __inline void
-ahc_outb(struct ahc_softc * ahc, long port, uint8_t val)
-{
-	if (ahc->tag == BUS_SPACE_MEMIO) {
-		writeb(val, ahc->bsh.maddr + port);
-	} else {
-		outb(val, ahc->bsh.ioport + port);
-	}
-	mb();
-}
-
-static __inline void
-ahc_outsb(struct ahc_softc * ahc, long port, uint8_t *array, int count)
-{
-	int i;
-
-	/*
-	 * There is probably a more efficient way to do this on Linux
-	 * but we don't use this for anything speed critical and this
-	 * should work.
-	 */
-	for (i = 0; i < count; i++)
-		ahc_outb(ahc, port, *array++);
-}
-
-static __inline void
-ahc_insb(struct ahc_softc * ahc, long port, uint8_t *array, int count)
-{
-	int i;
-
-	/*
-	 * There is probably a more efficient way to do this on Linux
-	 * but we don't use this for anything speed critical and this
-	 * should work.
-	 */
-	for (i = 0; i < count; i++)
-		*array++ = ahc_inb(ahc, port);
-}
+uint8_t ahc_inb(struct ahc_softc * ahc, long port);
+void ahc_outb(struct ahc_softc * ahc, long port, uint8_t val);
+void ahc_outsb(struct ahc_softc * ahc, long port,
+	       uint8_t *, int count);
+void ahc_insb(struct ahc_softc * ahc, long port,
+	       uint8_t *, int count);
 
 /**************************** Initialization **********************************/
 int		ahc_linux_register_host(struct ahc_softc *,
@@ -463,9 +397,6 @@ struct info_str {
 	off_t offset;
 	int pos;
 };
-
-void	ahc_format_transinfo(struct info_str *info,
-			     struct ahc_transinfo *tinfo);
 
 /******************************** Locking *************************************/
 /* Lock protecting internal data structures */
@@ -555,61 +486,12 @@ void			 ahc_linux_pci_exit(void);
 int			 ahc_pci_map_registers(struct ahc_softc *ahc);
 int			 ahc_pci_map_int(struct ahc_softc *ahc);
 
-static __inline uint32_t ahc_pci_read_config(ahc_dev_softc_t pci,
+uint32_t		 ahc_pci_read_config(ahc_dev_softc_t pci,
 					     int reg, int width);
 
-static __inline uint32_t
-ahc_pci_read_config(ahc_dev_softc_t pci, int reg, int width)
-{
-	switch (width) {
-	case 1:
-	{
-		uint8_t retval;
-
-		pci_read_config_byte(pci, reg, &retval);
-		return (retval);
-	}
-	case 2:
-	{
-		uint16_t retval;
-		pci_read_config_word(pci, reg, &retval);
-		return (retval);
-	}
-	case 4:
-	{
-		uint32_t retval;
-		pci_read_config_dword(pci, reg, &retval);
-		return (retval);
-	}
-	default:
-		panic("ahc_pci_read_config: Read size too big");
-		/* NOTREACHED */
-		return (0);
-	}
-}
-
-static __inline void ahc_pci_write_config(ahc_dev_softc_t pci,
-					  int reg, uint32_t value,
-					  int width);
-
-static __inline void
-ahc_pci_write_config(ahc_dev_softc_t pci, int reg, uint32_t value, int width)
-{
-	switch (width) {
-	case 1:
-		pci_write_config_byte(pci, reg, value);
-		break;
-	case 2:
-		pci_write_config_word(pci, reg, value);
-		break;
-	case 4:
-		pci_write_config_dword(pci, reg, value);
-		break;
-	default:
-		panic("ahc_pci_write_config: Write size too big");
-		/* NOTREACHED */
-	}
-}
+void			 ahc_pci_write_config(ahc_dev_softc_t pci,
+					      int reg, uint32_t value,
+					      int width);
 
 static __inline int ahc_get_pci_function(ahc_dev_softc_t);
 static __inline int

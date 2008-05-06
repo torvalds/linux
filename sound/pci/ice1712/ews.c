@@ -238,6 +238,7 @@ static void snd_ice1712_ews_cs8404_spdif_write(struct snd_ice1712 *ice, unsigned
 	case ICE1712_SUBDEVICE_EWS88MT:
 	case ICE1712_SUBDEVICE_EWS88MT_NEW:
 	case ICE1712_SUBDEVICE_PHASE88:
+	case ICE1712_SUBDEVICE_TS88:
 		if (snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_CS8404], &bits, 1)
 		    != 1)
 			goto _error;
@@ -433,6 +434,7 @@ static int __devinit snd_ice1712_ews_init(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_EWS88MT:
 	case ICE1712_SUBDEVICE_EWS88MT_NEW:
 	case ICE1712_SUBDEVICE_PHASE88:
+	case ICE1712_SUBDEVICE_TS88:
 		ice->num_total_dacs = 8;
 		ice->num_total_adcs = 8;
 		break;
@@ -475,6 +477,8 @@ static int __devinit snd_ice1712_ews_init(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_EWS88MT:
 	case ICE1712_SUBDEVICE_EWS88MT_NEW:
 	case ICE1712_SUBDEVICE_PHASE88:
+	case ICE1712_SUBDEVICE_TS88:
+
 		err = snd_i2c_device_create(ice->i2c, "CS8404",
 					    ICE1712_EWS88MT_CS8404_ADDR,
 					    &spec->i2cdevs[EWS_I2C_CS8404]);
@@ -518,6 +522,7 @@ static int __devinit snd_ice1712_ews_init(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_EWS88MT:
 	case ICE1712_SUBDEVICE_EWS88MT_NEW:
 	case ICE1712_SUBDEVICE_PHASE88:
+	case ICE1712_SUBDEVICE_TS88:
 	case ICE1712_SUBDEVICE_EWS88D:
 		/* set up CS8404 */
 		ice->spdif.ops.open = ews88_open_spdif;
@@ -547,6 +552,7 @@ static int __devinit snd_ice1712_ews_init(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_EWS88MT:
 	case ICE1712_SUBDEVICE_EWS88MT_NEW:
 	case ICE1712_SUBDEVICE_PHASE88:
+	case ICE1712_SUBDEVICE_TS88:
 		err = snd_ice1712_akm4xxx_init(ak, &akm_ews88mt, &akm_ews88mt_priv, ice);
 		break;
 	case ICE1712_SUBDEVICE_EWX2496:
@@ -973,6 +979,7 @@ static int __devinit snd_ice1712_ews_add_controls(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_EWS88MT:
 	case ICE1712_SUBDEVICE_EWS88MT_NEW:
 	case ICE1712_SUBDEVICE_PHASE88:
+	case ICE1712_SUBDEVICE_TS88:
 	case ICE1712_SUBDEVICE_DMX6FIRE:
 		err = snd_ice1712_akm4xxx_build_controls(ice);
 		if (err < 0)
@@ -992,6 +999,7 @@ static int __devinit snd_ice1712_ews_add_controls(struct snd_ice1712 *ice)
 	case ICE1712_SUBDEVICE_EWS88MT:
 	case ICE1712_SUBDEVICE_EWS88MT_NEW:
 	case ICE1712_SUBDEVICE_PHASE88:
+	case ICE1712_SUBDEVICE_TS88:
 		err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_ice1712_ews88mt_input_sense, ice));
 		if (err < 0)
 			return err;
@@ -1044,6 +1052,13 @@ struct snd_ice1712_card_info snd_ice1712_ews_cards[] __devinitdata = {
 	{
 		.subvendor = ICE1712_SUBDEVICE_PHASE88,
 		.name = "TerraTec Phase88",
+		.model = "phase88",
+		.chip_init = snd_ice1712_ews_init,
+		.build_controls = snd_ice1712_ews_add_controls,
+	},
+	{
+		.subvendor = ICE1712_SUBDEVICE_TS88,
+		.name = "terrasoniq TS88",
 		.model = "phase88",
 		.chip_init = snd_ice1712_ews_init,
 		.build_controls = snd_ice1712_ews_add_controls,

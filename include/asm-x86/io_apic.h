@@ -1,7 +1,7 @@
 #ifndef __ASM_IO_APIC_H
 #define __ASM_IO_APIC_H
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <asm/mpspec.h>
 #include <asm/apicdef.h>
 
@@ -110,11 +110,13 @@ extern int nr_ioapic_registers[MAX_IO_APICS];
  * MP-BIOS irq configuration table structures:
  */
 
+#define MP_MAX_IOAPIC_PIN 127
+
 struct mp_ioapic_routing {
 	int apic_id;
 	int gsi_base;
 	int gsi_end;
-	u32 pin_programmed[4];
+	DECLARE_BITMAP(pin_programmed, MP_MAX_IOAPIC_PIN + 1);
 };
 
 /* I/O APIC entries */

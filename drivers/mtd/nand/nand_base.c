@@ -2229,6 +2229,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 {
 	struct nand_flash_dev *type = NULL;
 	int i, dev_id, maf_idx;
+	int tmp_id, tmp_manf;
 
 	/* Select the device */
 	chip->select_chip(mtd, 0);
@@ -2239,6 +2240,26 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	/* Read manufacturer and device IDs */
 	*maf_id = chip->read_byte(mtd);
 	dev_id = chip->read_byte(mtd);
+
+	/* Try again to make sure, as some systems the bus-hold or other
+	 * interface concerns can cause random data which looks like a
+	 * possibly credible NAND flash to appear. If the two results do
+	 * not match, ignore the device completely.
+	 */
+
+	chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
+
+	/* Read manufacturer and device IDs */
+
+	tmp_manf = chip->read_byte(mtd);
+	tmp_id = chip->read_byte(mtd);
+
+	if (tmp_manf != *maf_id || tmp_id != dev_id) {
+		printk(KERN_INFO "%s: second ID read did not match "
+		       "%02x,%02x against %02x,%02x\n", __func__,
+		       *maf_id, dev_id, tmp_manf, tmp_id);
+		return ERR_PTR(-ENODEV);
+	}
 
 	/* Lookup the flash id */
 	for (i = 0; nand_flash_ids[i].name != NULL; i++) {

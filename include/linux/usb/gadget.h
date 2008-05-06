@@ -114,6 +114,8 @@ struct usb_ep_ops {
 	int (*dequeue) (struct usb_ep *ep, struct usb_request *req);
 
 	int (*set_halt) (struct usb_ep *ep, int value);
+	int (*set_wedge) (struct usb_ep *ep);
+
 	int (*fifo_status) (struct usb_ep *ep);
 	void (*fifo_flush) (struct usb_ep *ep);
 };
@@ -346,6 +348,25 @@ static inline int usb_ep_set_halt(struct usb_ep *ep)
 static inline int usb_ep_clear_halt(struct usb_ep *ep)
 {
 	return ep->ops->set_halt(ep, 0);
+}
+
+/**
+ * usb_ep_set_wedge - sets the halt feature and ignores clear requests
+ * @ep: the endpoint being wedged
+ *
+ * Use this to stall an endpoint and ignore CLEAR_FEATURE(HALT_ENDPOINT)
+ * requests. If the gadget driver clears the halt status, it will
+ * automatically unwedge the endpoint.
+ *
+ * Returns zero on success, else negative errno.
+ */
+static inline int
+usb_ep_set_wedge(struct usb_ep *ep)
+{
+	if (ep->ops->set_wedge)
+		return ep->ops->set_wedge(ep);
+	else
+		return ep->ops->set_halt(ep, 1);
 }
 
 /**
@@ -846,4 +867,4 @@ extern struct usb_ep *usb_ep_autoconfig(struct usb_gadget *,
 
 extern void usb_ep_autoconfig_reset(struct usb_gadget *) __devinit;
 
-#endif	/* __LINUX_USB_GADGET_H */
+#endif /* __LINUX_USB_GADGET_H */

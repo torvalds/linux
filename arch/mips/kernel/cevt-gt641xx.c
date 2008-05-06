@@ -25,8 +25,6 @@
 #include <asm/gt64120.h>
 #include <asm/time.h>
 
-#include <irq.h>
-
 static DEFINE_SPINLOCK(gt641xx_timer_lock);
 static unsigned int gt641xx_base_clock;
 

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,7 @@ ACPI_MODULE_NAME("rsirq")
  * acpi_rs_get_irq
  *
  ******************************************************************************/
-struct acpi_rsconvert_info acpi_rs_get_irq[7] = {
+struct acpi_rsconvert_info acpi_rs_get_irq[8] = {
 	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_IRQ,
 	 ACPI_RS_SIZE(struct acpi_resource_irq),
 	 ACPI_RSC_TABLE_SIZE(acpi_rs_get_irq)},
@@ -68,6 +68,12 @@ struct acpi_rsconvert_info acpi_rs_get_irq[7] = {
 	{ACPI_RSC_SET8, ACPI_RS_OFFSET(data.irq.triggering),
 	 ACPI_EDGE_SENSITIVE,
 	 1},
+
+	/* Get the descriptor length (2 or 3 for IRQ descriptor) */
+
+	{ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET(data.irq.descriptor_length),
+	 AML_OFFSET(irq.descriptor_type),
+	 0},
 
 	/* All done if no flag byte present in descriptor */
 
@@ -94,7 +100,9 @@ struct acpi_rsconvert_info acpi_rs_get_irq[7] = {
  *
  ******************************************************************************/
 
-struct acpi_rsconvert_info acpi_rs_set_irq[9] = {
+struct acpi_rsconvert_info acpi_rs_set_irq[13] = {
+	/* Start with a default descriptor of length 3 */
+
 	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_IRQ,
 	 sizeof(struct aml_resource_irq),
 	 ACPI_RSC_TABLE_SIZE(acpi_rs_set_irq)},
@@ -105,7 +113,7 @@ struct acpi_rsconvert_info acpi_rs_set_irq[9] = {
 	 AML_OFFSET(irq.irq_mask),
 	 ACPI_RS_OFFSET(data.irq.interrupt_count)},
 
-	/* Set the flags byte by default */
+	/* Set the flags byte */
 
 	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.triggering),
 	 AML_OFFSET(irq.flags),
@@ -118,6 +126,33 @@ struct acpi_rsconvert_info acpi_rs_set_irq[9] = {
 	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
 	 AML_OFFSET(irq.flags),
 	 4},
+
+	/*
+	 * All done if the output descriptor length is required to be 3
+	 * (i.e., optimization to 2 bytes cannot be attempted)
+	 */
+	{ACPI_RSC_EXIT_EQ, ACPI_RSC_COMPARE_VALUE,
+	 ACPI_RS_OFFSET(data.irq.descriptor_length),
+	 3},
+
+	/* Set length to 2 bytes (no flags byte) */
+
+	{ACPI_RSC_LENGTH, 0, 0, sizeof(struct aml_resource_irq_noflags)},
+
+	/*
+	 * All done if the output descriptor length is required to be 2.
+	 *
+	 * TBD: Perhaps we should check for error if input flags are not
+	 * compatible with a 2-byte descriptor.
+	 */
+	{ACPI_RSC_EXIT_EQ, ACPI_RSC_COMPARE_VALUE,
+	 ACPI_RS_OFFSET(data.irq.descriptor_length),
+	 2},
+
+	/* Reset length to 3 bytes (descriptor with flags byte) */
+
+	{ACPI_RSC_LENGTH, 0, 0, sizeof(struct aml_resource_irq)},
+
 	/*
 	 * Check if the flags byte is necessary. Not needed if the flags are:
 	 * ACPI_EDGE_SENSITIVE, ACPI_ACTIVE_HIGH, ACPI_EXCLUSIVE
@@ -134,7 +169,7 @@ struct acpi_rsconvert_info acpi_rs_set_irq[9] = {
 	 ACPI_RS_OFFSET(data.irq.sharable),
 	 ACPI_EXCLUSIVE},
 
-	/* irq_no_flags() descriptor can be used */
+	/* We can optimize to a 2-byte irq_no_flags() descriptor */
 
 	{ACPI_RSC_LENGTH, 0, 0, sizeof(struct aml_resource_irq_noflags)}
 };

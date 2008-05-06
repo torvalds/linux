@@ -15,6 +15,8 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc,2=eeprom (|-able))." DVB_USB_DEBUG_STATUS);
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 #define deb_rc(args...) dprintk(debug,0x01,args)
 #define deb_ee(args...) dprintk(debug,0x02,args)
 
@@ -142,7 +144,8 @@ static struct dvb_usb_device_properties nova_t_properties;
 static int nova_t_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&nova_t_properties,THIS_MODULE,NULL);
+	return dvb_usb_device_init(intf, &nova_t_properties,
+				   THIS_MODULE, NULL, adapter_nr);
 }
 
 /* do not change the order of the ID table */

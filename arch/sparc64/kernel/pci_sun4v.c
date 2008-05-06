@@ -127,10 +127,12 @@ static inline long iommu_batch_end(void)
 static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 				   dma_addr_t *dma_addrp, gfp_t gfp)
 {
-	struct iommu *iommu;
 	unsigned long flags, order, first_page, npages, n;
+	struct iommu *iommu;
+	struct page *page;
 	void *ret;
 	long entry;
+	int nid;
 
 	size = IO_PAGE_ALIGN(size);
 	order = get_order(size);
@@ -139,10 +141,12 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 
 	npages = size >> IO_PAGE_SHIFT;
 
-	first_page = __get_free_pages(gfp, order);
-	if (unlikely(first_page == 0UL))
+	nid = dev->archdata.numa_node;
+	page = alloc_pages_node(nid, gfp, order);
+	if (unlikely(!page))
 		return NULL;
 
+	first_page = (unsigned long) page_address(page);
 	memset((char *)first_page, 0, PAGE_SIZE << order);
 
 	iommu = dev->archdata.iommu;
@@ -899,6 +903,8 @@ static void __init pci_sun4v_pbm_init(struct pci_controller_info *p,
 	pbm->next = pci_pbm_root;
 	pci_pbm_root = pbm;
 
+	pbm->numa_node = of_node_to_nid(dp);
+
 	pbm->scan_bus = pci_sun4v_scan_bus;
 	pbm->pci_ops = &sun4v_pci_ops;
 	pbm->config_space_reg_bits = 12;
@@ -913,6 +919,7 @@ static void __init pci_sun4v_pbm_init(struct pci_controller_info *p,
 	pbm->name = dp->full_name;
 
 	printk("%s: SUN4V PCI Bus Module\n", pbm->name);
+	printk("%s: On NUMA node %d\n", pbm->name, pbm->numa_node);
 
 	pci_determine_mem_io_space(pbm);
 

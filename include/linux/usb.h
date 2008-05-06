@@ -23,6 +23,7 @@
 
 struct usb_device;
 struct usb_driver;
+struct wusb_dev;
 
 /*-------------------------------------------------------------------------*/
 
@@ -341,103 +342,146 @@ struct usb_bus {
 
 struct usb_tt;
 
-/*
+/**
  * struct usb_device - kernel's representation of a USB device
+ * @devnum: device number; address on a USB bus
+ * @devpath: device ID string for use in messages (e.g., /port/...)
+ * @state: device state: configured, not attached, etc.
+ * @speed: device speed: high/full/low (or error)
+ * @tt: Transaction Translator info; used with low/full speed dev, highspeed hub
+ * @ttport: device port on that tt hub
+ * @toggle: one bit for each endpoint, with ([0] = IN, [1] = OUT) endpoints
+ * @parent: our hub, unless we're the root
+ * @bus: bus we're part of
+ * @ep0: endpoint 0 data (default control pipe)
+ * @dev: generic device interface
+ * @descriptor: USB device descriptor
+ * @config: all of the device's configs
+ * @actconfig: the active configuration
+ * @ep_in: array of IN endpoints
+ * @ep_out: array of OUT endpoints
+ * @rawdescriptors: raw descriptors for each config
+ * @bus_mA: Current available from the bus
+ * @portnum: parent port number (origin 1)
+ * @level: number of USB hub ancestors
+ * @can_submit: URBs may be submitted
+ * @discon_suspended: disconnected while suspended
+ * @persist_enabled:  USB_PERSIST enabled for this device
+ * @have_langid: whether string_langid is valid
+ * @authorized: policy has said we can use it;
+ *	(user space) policy determines if we authorize this device to be
+ *	used or not. By default, wired USB devices are authorized.
+ *	WUSB devices are not, until we authorize them from user space.
+ *	FIXME -- complete doc
+ * @authenticated: Crypto authentication passed
+ * @wusb: device is Wireless USB
+ * @string_langid: language ID for strings
+ * @product: iProduct string, if present (static)
+ * @manufacturer: iManufacturer string, if present (static)
+ * @serial: iSerialNumber string, if present (static)
+ * @filelist: usbfs files that are open to this device
+ * @usb_classdev: USB class device that was created for usbfs device
+ *	access from userspace
+ * @usbfs_dentry: usbfs dentry entry for the device
+ * @maxchild: number of ports if hub
+ * @children: child devices - USB devices that are attached to this hub
+ * @pm_usage_cnt: usage counter for autosuspend
+ * @quirks: quirks of the whole device
+ * @urbnum: number of URBs submitted for the whole device
+ * @active_duration: total time device is not suspended
+ * @autosuspend: for delayed autosuspends
+ * @pm_mutex: protects PM operations
+ * @last_busy: time of last use
+ * @autosuspend_delay: in jiffies
+ * @connect_time: time device was first connected
+ * @auto_pm: autosuspend/resume in progress
+ * @do_remote_wakeup:  remote wakeup should be enabled
+ * @reset_resume: needs reset instead of resume
+ * @autosuspend_disabled: autosuspend disabled by the user
+ * @autoresume_disabled: autoresume disabled by the user
+ * @skip_sys_resume: skip the next system resume
  *
- * FIXME: Write the kerneldoc!
- *
+ * Notes:
  * Usbcore drivers should not set usbdev->state directly.  Instead use
  * usb_set_device_state().
- *
- * @authorized: (user space) policy determines if we authorize this
- *              device to be used or not. By default, wired USB
- *              devices are authorized. WUSB devices are not, until we
- *              authorize them from user space. FIXME -- complete doc
  */
 struct usb_device {
-	int		devnum;		/* Address on USB bus */
-	char		devpath [16];	/* Use in messages: /port/port/... */
-	enum usb_device_state	state;	/* configured, not attached, etc */
-	enum usb_device_speed	speed;	/* high/full/low (or error) */
+	int		devnum;
+	char		devpath [16];
+	enum usb_device_state	state;
+	enum usb_device_speed	speed;
 
-	struct usb_tt	*tt; 		/* low/full speed dev, highspeed hub */
-	int		ttport;		/* device port on that tt hub */
+	struct usb_tt	*tt;
+	int		ttport;
 
-	unsigned int toggle[2];		/* one bit for each endpoint
-					 * ([0] = IN, [1] = OUT) */
+	unsigned int toggle[2];
 
-	struct usb_device *parent;	/* our hub, unless we're the root */
-	struct usb_bus *bus;		/* Bus we're part of */
+	struct usb_device *parent;
+	struct usb_bus *bus;
 	struct usb_host_endpoint ep0;
 
-	struct device dev;		/* Generic device interface */
+	struct device dev;
 
-	struct usb_device_descriptor descriptor;/* Descriptor */
-	struct usb_host_config *config;	/* All of the configs */
+	struct usb_device_descriptor descriptor;
+	struct usb_host_config *config;
 
-	struct usb_host_config *actconfig;/* the active configuration */
+	struct usb_host_config *actconfig;
 	struct usb_host_endpoint *ep_in[16];
 	struct usb_host_endpoint *ep_out[16];
 
-	char **rawdescriptors;		/* Raw descriptors for each config */
+	char **rawdescriptors;
 
-	unsigned short bus_mA;		/* Current available from the bus */
-	u8 portnum;			/* Parent port number (origin 1) */
-	u8 level;			/* Number of USB hub ancestors */
+	unsigned short bus_mA;
+	u8 portnum;
+	u8 level;
 
-	unsigned can_submit:1;		/* URBs may be submitted */
-	unsigned discon_suspended:1;	/* Disconnected while suspended */
-	unsigned have_langid:1;		/* whether string_langid is valid */
-	unsigned authorized:1;		/* Policy has said we can use it */
-	unsigned wusb:1;		/* Device is Wireless USB */
-	int string_langid;		/* language ID for strings */
+	unsigned can_submit:1;
+	unsigned discon_suspended:1;
+	unsigned persist_enabled:1;
+	unsigned have_langid:1;
+	unsigned authorized:1;
+ 	unsigned authenticated:1;
+	unsigned wusb:1;
+	int string_langid;
 
 	/* static strings from the device */
-	char *product;			/* iProduct string, if present */
-	char *manufacturer;		/* iManufacturer string, if present */
-	char *serial;			/* iSerialNumber string, if present */
+	char *product;
+	char *manufacturer;
+	char *serial;
 
 	struct list_head filelist;
 #ifdef CONFIG_USB_DEVICE_CLASS
 	struct device *usb_classdev;
 #endif
 #ifdef CONFIG_USB_DEVICEFS
-	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the device */
+	struct dentry *usbfs_dentry;
 #endif
-	/*
-	 * Child devices - these can be either new devices
-	 * (if this is a hub device), or different instances
-	 * of this same device.
-	 *
-	 * Each instance needs its own set of data structures.
-	 */
 
-	int maxchild;			/* Number of ports if hub */
+	int maxchild;
 	struct usb_device *children[USB_MAXCHILDREN];
 
-	int pm_usage_cnt;		/* usage counter for autosuspend */
-	u32 quirks;			/* quirks of the whole device */
-	atomic_t urbnum;		/* number of URBs submitted for
-					   the whole device */
+	int pm_usage_cnt;
+	u32 quirks;
+	atomic_t urbnum;
 
-	unsigned long active_duration;	/* total time device is not suspended */
+	unsigned long active_duration;
 
 #ifdef CONFIG_PM
-	struct delayed_work autosuspend; /* for delayed autosuspends */
-	struct mutex pm_mutex;		/* protects PM operations */
+	struct delayed_work autosuspend;
+	struct mutex pm_mutex;
 
-	unsigned long last_busy;	/* time of last use */
-	int autosuspend_delay;		/* in jiffies */
-	unsigned long connect_time;	/* time device was first connected */
+	unsigned long last_busy;
+	int autosuspend_delay;
+	unsigned long connect_time;
 
-	unsigned auto_pm:1;		/* autosuspend/resume in progress */
-	unsigned do_remote_wakeup:1;	/* remote wakeup should be enabled */
-	unsigned reset_resume:1;	/* needs reset instead of resume */
-	unsigned persist_enabled:1;	/* USB_PERSIST enabled for this dev */
-	unsigned autosuspend_disabled:1; /* autosuspend and autoresume */
-	unsigned autoresume_disabled:1;  /*  disabled by the user */
-	unsigned skip_sys_resume:1;	/* skip the next system resume */
+	unsigned auto_pm:1;
+	unsigned do_remote_wakeup:1;
+	unsigned reset_resume:1;
+	unsigned autosuspend_disabled:1;
+	unsigned autoresume_disabled:1;
+	unsigned skip_sys_resume:1;
 #endif
+	struct wusb_dev *wusb_dev;
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
 
@@ -898,10 +942,11 @@ struct usbdrv_wrap {
  *	and should normally be the same as the module name.
  * @probe: Called to see if the driver is willing to manage a particular
  *	interface on a device.  If it is, probe returns zero and uses
- *	dev_set_drvdata() to associate driver-specific data with the
+ *	usb_set_intfdata() to associate driver-specific data with the
  *	interface.  It may also use usb_set_interface() to specify the
  *	appropriate altsetting.  If unwilling to manage the interface,
- *	return a negative errno value.
+ *	return -ENODEV, if genuine IO errors occured, an appropriate
+ *	negative errno value.
  * @disconnect: Called when the interface is no longer accessible, usually
  *	because its device has been (or is being) disconnected or the
  *	driver module is being unloaded.
@@ -916,10 +961,7 @@ struct usbdrv_wrap {
  * @pre_reset: Called by usb_reset_composite_device() when the device
  *	is about to be reset.
  * @post_reset: Called by usb_reset_composite_device() after the device
- *	has been reset, or in lieu of @resume following a reset-resume
- *	(i.e., the device is reset instead of being resumed, as might
- *	happen if power was lost).  The second argument tells which is
- *	the reason.
+ *	has been reset
  * @id_table: USB drivers use ID table to support hotplugging.
  *	Export this with MODULE_DEVICE_TABLE(usb,...).  This must be set
  *	or your driver's probe function will never get called.
@@ -1411,6 +1453,7 @@ extern int usb_submit_urb(struct urb *urb, gfp_t mem_flags);
 extern int usb_unlink_urb(struct urb *urb);
 extern void usb_kill_urb(struct urb *urb);
 extern void usb_kill_anchored_urbs(struct usb_anchor *anchor);
+extern void usb_unlink_anchored_urbs(struct usb_anchor *anchor);
 extern void usb_anchor_urb(struct urb *urb, struct usb_anchor *anchor);
 extern void usb_unanchor_urb(struct urb *urb);
 extern int usb_wait_anchor_empty_timeout(struct usb_anchor *anchor,
@@ -1661,13 +1704,12 @@ extern void usb_unregister_notify(struct notifier_block *nb);
 #define dbg(format, arg...) do {} while (0)
 #endif
 
-#define err(format, arg...) printk(KERN_ERR "%s: " format "\n" , \
-	__FILE__ , ## arg)
-#define info(format, arg...) printk(KERN_INFO "%s: " format "\n" , \
-	__FILE__ , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n" , \
-	__FILE__ , ## arg)
-
+#define err(format, arg...) printk(KERN_ERR KBUILD_MODNAME ": " \
+	format "\n" , ## arg)
+#define info(format, arg...) printk(KERN_INFO KBUILD_MODNAME ": " \
+	format "\n" , ## arg)
+#define warn(format, arg...) printk(KERN_WARNING KBUILD_MODNAME ": " \
+	format "\n" , ## arg)
 
 #endif  /* __KERNEL__ */
 

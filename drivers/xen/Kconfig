@@ -1,0 +1,19 @@
+config XEN_BALLOON
+	bool "Xen memory balloon driver"
+	depends on XEN
+	default y
+	help
+	  The balloon driver allows the Xen domain to request more memory from
+	  the system to expand the domain's memory allocation, or alternatively
+	  return unneeded memory to the system.
+
+config XEN_SCRUB_PAGES
+	bool "Scrub pages before returning them to system"
+	depends on XEN_BALLOON
+	default y
+	help
+	  Scrub pages before returning them to the system for reuse by
+	  other domains.  This makes sure that any confidential data
+	  is not accidentally visible to other domains.  Is it more
+	  secure, but slightly less efficient.
+	  If in doubt, say yes.

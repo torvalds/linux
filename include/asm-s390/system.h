@@ -16,6 +16,7 @@
 #include <asm/ptrace.h>
 #include <asm/setup.h>
 #include <asm/processor.h>
+#include <asm/lowcore.h>
 
 #ifdef __KERNEL__
 
@@ -421,6 +422,23 @@ extern void smp_ctl_clear_bit(int cr, int bit);
 #define ctl_clear_bit(cr, bit) __ctl_clear_bit(cr, bit)
 
 #endif /* CONFIG_SMP */
+
+static inline unsigned int stfl(void)
+{
+	asm volatile(
+		"	.insn	s,0xb2b10000,0(0)\n" /* stfl */
+		"0:\n"
+		EX_TABLE(0b,0b));
+	return S390_lowcore.stfl_fac_list;
+}
+
+static inline unsigned short stap(void)
+{
+	unsigned short cpu_address;
+
+	asm volatile("stap %0" : "=m" (cpu_address));
+	return cpu_address;
+}
 
 extern void (*_machine_restart)(char *command);
 extern void (*_machine_halt)(void);

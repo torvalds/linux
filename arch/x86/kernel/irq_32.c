@@ -134,7 +134,7 @@ unsigned int do_IRQ(struct pt_regs *regs)
 			: "=a" (arg1), "=d" (arg2), "=b" (bx)
 			:  "0" (irq),   "1" (desc),  "2" (isp),
 			   "D" (desc->handle_irq)
-			: "memory", "cc"
+			: "memory", "cc", "ecx"
 		);
 	} else
 #endif
@@ -189,8 +189,6 @@ void irq_ctx_exit(int cpu)
 {
 	hardirq_ctx[cpu] = NULL;
 }
-
-extern asmlinkage void __do_softirq(void);
 
 asmlinkage void do_softirq(void)
 {

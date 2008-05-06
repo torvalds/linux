@@ -313,6 +313,11 @@ static __inline__ int fls(unsigned int x)
 	return 32 - lz;
 }
 
+static __inline__ unsigned long __fls(unsigned long x)
+{
+	return __ilog2(x);
+}
+
 /*
  * 64-bit can do this using one cntlzd (count leading zeroes doubleword)
  * instruction; for 32-bit we use the generic version, which does two

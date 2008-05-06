@@ -88,8 +88,8 @@ static void atiixp_set_pio_timing(struct ata_port *ap, struct ata_device *adev, 
 	pci_write_config_word(pdev, ATIIXP_IDE_PIO_MODE, pio_mode_data);
 
 	pci_read_config_word(pdev, ATIIXP_IDE_PIO_TIMING, &pio_timing_data);
-	pio_mode_data &= ~(0xFF << timing_shift);
-	pio_mode_data |= (pio_timings[pio] << timing_shift);
+	pio_timing_data &= ~(0xFF << timing_shift);
+	pio_timing_data |= (pio_timings[pio] << timing_shift);
 	pci_write_config_word(pdev, ATIIXP_IDE_PIO_TIMING, pio_timing_data);
 }
 

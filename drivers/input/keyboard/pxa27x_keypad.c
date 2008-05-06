@@ -545,6 +545,9 @@ static int __devexit pxa27x_keypad_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:pxa27x-keypad");
+
 static struct platform_driver pxa27x_keypad_driver = {
 	.probe		= pxa27x_keypad_probe,
 	.remove		= __devexit_p(pxa27x_keypad_remove),
@@ -552,6 +555,7 @@ static struct platform_driver pxa27x_keypad_driver = {
 	.resume		= pxa27x_keypad_resume,
 	.driver		= {
 		.name	= "pxa27x-keypad",
+		.owner	= THIS_MODULE,
 	},
 };
 

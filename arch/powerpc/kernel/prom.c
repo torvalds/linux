@@ -53,6 +53,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/phyp_dump.h>
 #include <asm/kexec.h>
+#include <mm/mmu_decl.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) printk(KERN_ERR fmt)
@@ -978,7 +979,10 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 		}
 #endif
 		lmb_add(base, size);
+
+		memstart_addr = min((u64)memstart_addr, base);
 	}
+
 	return 0;
 }
 

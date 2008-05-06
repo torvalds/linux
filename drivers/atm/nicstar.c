@@ -415,7 +415,7 @@ static int __devinit ns_init_card(int i, struct pci_dev *pcidev)
    card->pcidev = pcidev;
    membase = pci_resource_start(pcidev, 1);
    card->membase = ioremap(membase, NS_IOREMAP_SIZE);
-   if (card->membase == 0)
+   if (!card->membase)
    {
       printk("nicstar%d: can't ioremap() membase.\n",i);
       error = 3;

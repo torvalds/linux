@@ -5,3 +5,6 @@
   4 -> DViCO FusionHDTV5 Express                           [18ac:d500]
   5 -> Hauppauge WinTV-HVR1500Q                            [0070:7790,0070:7797]
   6 -> Hauppauge WinTV-HVR1500                             [0070:7710,0070:7717]
+  7 -> Hauppauge WinTV-HVR1200                             [0070:71d1]
+  8 -> Hauppauge WinTV-HVR1700                             [0070:8101]
+  9 -> Hauppauge WinTV-HVR1400                             [0070:8010]

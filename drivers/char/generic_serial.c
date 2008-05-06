@@ -40,27 +40,27 @@ static int gs_debug;
 #define gs_dprintk(f, str...) /* nothing */
 #endif
 
-#define func_enter() gs_dprintk (GS_DEBUG_FLOW, "gs: enter %s\n", __FUNCTION__)
-#define func_exit()  gs_dprintk (GS_DEBUG_FLOW, "gs: exit  %s\n", __FUNCTION__)
+#define func_enter() gs_dprintk (GS_DEBUG_FLOW, "gs: enter %s\n", __func__)
+#define func_exit()  gs_dprintk (GS_DEBUG_FLOW, "gs: exit  %s\n", __func__)
 
 #define RS_EVENT_WRITE_WAKEUP	1
 
 module_param(gs_debug, int, 0644);
 
 
-void gs_put_char(struct tty_struct * tty, unsigned char ch)
+int gs_put_char(struct tty_struct * tty, unsigned char ch)
 {
 	struct gs_port *port;
 
 	func_enter (); 
 
-	if (!tty) return;
+	if (!tty) return 0;
 
 	port = tty->driver_data;
 
-	if (!port) return;
+	if (!port) return 0;
 
-	if (! (port->flags & ASYNC_INITIALIZED)) return;
+	if (! (port->flags & ASYNC_INITIALIZED)) return 0;
 
 	/* Take a lock on the serial tranmit buffer! */
 	mutex_lock(& port->port_write_mutex);
@@ -68,7 +68,7 @@ void gs_put_char(struct tty_struct * tty, unsigned char ch)
 	if (port->xmit_cnt >= SERIAL_XMIT_SIZE - 1) {
 		/* Sorry, buffer is full, drop character. Update statistics???? -- REW */
 		mutex_unlock(&port->port_write_mutex);
-		return;
+		return 0;
 	}
 
 	port->xmit_buf[port->xmit_head++] = ch;
@@ -77,6 +77,7 @@ void gs_put_char(struct tty_struct * tty, unsigned char ch)
 
 	mutex_unlock(&port->port_write_mutex);
 	func_exit ();
+	return 1;
 }
 
 
@@ -586,8 +587,7 @@ void gs_close(struct tty_struct * tty, struct file * filp)
 
 	port->flags &= ~GS_ACTIVE;
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	gs_flush_buffer(tty);
 
 	tty_ldisc_flush(tty);
 	tty->closing = 0;

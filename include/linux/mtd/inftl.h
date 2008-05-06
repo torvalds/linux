@@ -57,6 +57,11 @@ extern char inftlmountrev[];
 void INFTL_dumptables(struct INFTLrecord *s);
 void INFTL_dumpVUchains(struct INFTLrecord *s);
 
+int inftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
+		   size_t *retlen, uint8_t *buf);
+int inftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
+		    size_t *retlen, uint8_t *buf);
+
 #endif /* __KERNEL__ */
 
 #endif /* __MTD_INFTL_H__ */

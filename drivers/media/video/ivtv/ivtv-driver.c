@@ -101,7 +101,7 @@ static int radio[IVTV_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
 static unsigned int cardtype_c = 1;
 static unsigned int tuner_c = 1;
 static unsigned int radio_c = 1;
-static char pal[] = "--";
+static char pal[] = "---";
 static char secam[] = "--";
 static char ntsc[] = "-";
 
@@ -126,12 +126,13 @@ static int dec_mpg_buffers = IVTV_DEFAULT_DEC_MPG_BUFFERS;
 static int dec_yuv_buffers = IVTV_DEFAULT_DEC_YUV_BUFFERS;
 static int dec_vbi_buffers = IVTV_DEFAULT_DEC_VBI_BUFFERS;
 
-static int ivtv_yuv_mode = 0;
-static int ivtv_yuv_threshold=-1;
+static int ivtv_yuv_mode;
+static int ivtv_yuv_threshold = -1;
 static int ivtv_pci_latency = 1;
 
-int ivtv_debug = 0;
+int ivtv_debug;
 
+static int tunertype = -1;
 static int newi2c = -1;
 
 module_param_array(tuner, int, &tuner_c, 0644);
@@ -154,6 +155,7 @@ module_param(dec_mpg_buffers, int, 0644);
 module_param(dec_yuv_buffers, int, 0644);
 module_param(dec_vbi_buffers, int, 0644);
 
+module_param(tunertype, int, 0644);
 module_param(newi2c, int, 0644);
 
 MODULE_PARM_DESC(tuner, "Tuner type selection,\n"
@@ -188,11 +190,17 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t22 = ASUS Falcon2\n"
 		 "\t\t\t23 = AverMedia PVR-150 Plus\n"
 		 "\t\t\t24 = AverMedia EZMaker PCI Deluxe\n"
+		 "\t\t\t25 = AverMedia M104 (not yet working)\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
-MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
-MODULE_PARM_DESC(secam, "Set SECAM standard: B, G, H, D, K, L, LC");
-MODULE_PARM_DESC(ntsc, "Set NTSC standard: M, J, K");
+MODULE_PARM_DESC(pal, "Set PAL standard: BGH, DK, I, M, N, Nc, 60");
+MODULE_PARM_DESC(secam, "Set SECAM standard: BGH, DK, L, LC");
+MODULE_PARM_DESC(ntsc, "Set NTSC standard: M, J (Japan), K (South Korea)");
+MODULE_PARM_DESC(tunertype,
+		"Specify tuner type:\n"
+		"\t\t\t 0 = tuner for PAL-B/G/H/D/K/I, SECAM-B/G/H/D/K/L/Lc\n"
+		"\t\t\t 1 = tuner for NTSC-M/J/K, PAL-M/N/Nc\n"
+		"\t\t\t-1 = Autodetect (default)\n");
 MODULE_PARM_DESC(debug,
 		 "Debug level (bitmask). Default: 0\n"
 		 "\t\t\t   1/0x0001: warning\n"
@@ -490,30 +498,35 @@ static v4l2_std_id ivtv_parse_std(struct ivtv *itv)
 {
 	switch (pal[0]) {
 		case '6':
+			tunertype = 0;
 			return V4L2_STD_PAL_60;
 		case 'b':
 		case 'B':
 		case 'g':
 		case 'G':
-			return V4L2_STD_PAL_BG;
 		case 'h':
 		case 'H':
-			return V4L2_STD_PAL_H;
+			tunertype = 0;
+			return V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
 		case 'n':
 		case 'N':
+			tunertype = 1;
 			if (pal[1] == 'c' || pal[1] == 'C')
 				return V4L2_STD_PAL_Nc;
 			return V4L2_STD_PAL_N;
 		case 'i':
 		case 'I':
+			tunertype = 0;
 			return V4L2_STD_PAL_I;
 		case 'd':
 		case 'D':
 		case 'k':
 		case 'K':
+			tunertype = 0;
 			return V4L2_STD_PAL_DK;
 		case 'M':
 		case 'm':
+			tunertype = 1;
 			return V4L2_STD_PAL_M;
 		case '-':
 			break;
@@ -529,14 +542,17 @@ static v4l2_std_id ivtv_parse_std(struct ivtv *itv)
 		case 'G':
 		case 'h':
 		case 'H':
+			tunertype = 0;
 			return V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H;
 		case 'd':
 		case 'D':
 		case 'k':
 		case 'K':
+			tunertype = 0;
 			return V4L2_STD_SECAM_DK;
 		case 'l':
 		case 'L':
+			tunertype = 0;
 			if (secam[1] == 'C' || secam[1] == 'c')
 				return V4L2_STD_SECAM_LC;
 			return V4L2_STD_SECAM_L;
@@ -550,12 +566,15 @@ static v4l2_std_id ivtv_parse_std(struct ivtv *itv)
 	switch (ntsc[0]) {
 		case 'm':
 		case 'M':
+			tunertype = 1;
 			return V4L2_STD_NTSC_M;
 		case 'j':
 		case 'J':
+			tunertype = 1;
 			return V4L2_STD_NTSC_M_JP;
 		case 'k':
 		case 'K':
+			tunertype = 1;
 			return V4L2_STD_NTSC_M_KR;
 		case '-':
 			break;
@@ -584,8 +603,13 @@ static void ivtv_process_options(struct ivtv *itv)
 	itv->options.tuner = tuner[itv->num];
 	itv->options.radio = radio[itv->num];
 	itv->options.newi2c = newi2c;
-
+	if (tunertype < -1 || tunertype > 1) {
+		IVTV_WARN("Invalid tunertype argument, will autodetect instead\n");
+		tunertype = -1;
+	}
 	itv->std = ivtv_parse_std(itv);
+	if (itv->std == 0 && tunertype >= 0)
+		itv->std = tunertype ? V4L2_STD_MN : (V4L2_STD_ALL & ~V4L2_STD_MN);
 	itv->has_cx23415 = (itv->dev->device == PCI_DEVICE_ID_IVTV15);
 	chipname = itv->has_cx23415 ? "cx23415" : "cx23416";
 	if (itv->options.cardtype == -1) {
@@ -711,6 +735,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->yuv_info.lace_mode = ivtv_yuv_mode;
 	itv->yuv_info.lace_threshold = ivtv_yuv_threshold;
 	itv->yuv_info.max_frames_buffered = 3;
+	itv->yuv_info.track_osd = 1;
 	return 0;
 }
 
@@ -847,7 +872,7 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	unsigned i;
 
 	/* load modules */
-#ifndef CONFIG_VIDEO_TUNER
+#ifndef CONFIG_MEDIA_TUNER
 	hw = ivtv_request_module(itv, hw, "tuner", IVTV_HW_TUNER);
 #endif
 #ifndef CONFIG_VIDEO_CX25840
@@ -859,7 +884,9 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 #ifndef CONFIG_VIDEO_SAA7127
 	hw = ivtv_request_module(itv, hw, "saa7127", IVTV_HW_SAA7127);
 #endif
+#ifndef CONFIG_VIDEO_SAA717X
 	hw = ivtv_request_module(itv, hw, "saa717x", IVTV_HW_SAA717X);
+#endif
 #ifndef CONFIG_VIDEO_UPD64031A
 	hw = ivtv_request_module(itv, hw, "upd64031a", IVTV_HW_UPD64031A);
 #endif
@@ -1022,7 +1049,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 				       IVTV_ENCODER_SIZE);
 	if (!itv->enc_mem) {
 		IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-		IVTV_ERR("or disabling CONFIG_HIMEM4G into the kernel would help\n");
+		IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
 		retval = -ENOMEM;
 		goto free_mem;
 	}
@@ -1034,7 +1061,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 				IVTV_DECODER_SIZE);
 		if (!itv->dec_mem) {
 			IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-			IVTV_ERR("or disabling CONFIG_HIMEM4G into the kernel would help\n");
+			IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
 			retval = -ENOMEM;
 			goto free_mem;
 		}
@@ -1050,7 +1077,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	    ioremap_nocache(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (!itv->reg_mem) {
 		IVTV_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-		IVTV_ERR("or disabling CONFIG_HIMEM4G into the kernel would help\n");
+		IVTV_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
 		retval = -ENOMEM;
 		goto free_io;
 	}
@@ -1070,6 +1097,13 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		/* Based on the model number the cardtype may be changed.
 		   The PCI IDs are not always reliable. */
 		ivtv_process_eeprom(itv);
+	}
+	if (itv->card->comment)
+		IVTV_INFO("%s", itv->card->comment);
+	if (itv->card->v4l2_capabilities == 0) {
+		/* card was detected but is not supported */
+		retval = -ENODEV;
+		goto free_i2c;
 	}
 
 	if (itv->std == 0) {
@@ -1169,13 +1203,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		ivtv_call_i2c_clients(itv, VIDIOC_INT_S_STD_OUTPUT, &itv->std);
 	}
 
-	retval = ivtv_streams_setup(itv);
-	if (retval) {
-		IVTV_ERR("Error %d setting up streams\n", retval);
-		goto free_i2c;
-	}
-
-	IVTV_DEBUG_IRQ("Masking interrupts\n");
 	/* clear interrupt mask, effectively disabling interrupts */
 	ivtv_set_irq_mask(itv, 0xffffffff);
 
@@ -1184,32 +1211,38 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 			     IRQF_SHARED | IRQF_DISABLED, itv->name, (void *)itv);
 	if (retval) {
 		IVTV_ERR("Failed to register irq %d\n", retval);
-		goto free_streams;
+		goto free_i2c;
+	}
+
+	retval = ivtv_streams_setup(itv);
+	if (retval) {
+		IVTV_ERR("Error %d setting up streams\n", retval);
+		goto free_irq;
 	}
 	retval = ivtv_streams_register(itv);
 	if (retval) {
 		IVTV_ERR("Error %d registering devices\n", retval);
-		goto free_irq;
+		goto free_streams;
 	}
 	IVTV_INFO("Initialized card #%d: %s\n", itv->num, itv->card_name);
 	return 0;
 
-      free_irq:
-	free_irq(itv->dev->irq, (void *)itv);
-      free_streams:
+free_streams:
 	ivtv_streams_cleanup(itv);
-      free_i2c:
+free_irq:
+	free_irq(itv->dev->irq, (void *)itv);
+free_i2c:
 	exit_ivtv_i2c(itv);
-      free_io:
+free_io:
 	ivtv_iounmap(itv);
-      free_mem:
+free_mem:
 	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
 	release_mem_region(itv->base_addr + IVTV_REG_OFFSET, IVTV_REG_SIZE);
 	if (itv->has_cx23415)
 		release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
-      free_workqueue:
+free_workqueue:
 	destroy_workqueue(itv->irq_work_queues);
-      err:
+err:
 	if (retval == 0)
 		retval = -ENODEV;
 	IVTV_ERR("Error %d on initialization\n", retval);

@@ -403,6 +403,8 @@ D: Linux CD and Support Giveaway List
 N: Erik Inge Bolsø
 E: knan@mo.himolde.no
 D: Misc kernel hacks
+D: Updated PC speaker driver for 2.3
+S: Norway
 
 N: Andreas E. Bombe
 E: andreas.bombe@munich.netsurf.de
@@ -3115,6 +3117,12 @@ D: Whatever I notice needs doing (so far: itimers, /proc)
 S: Post Office Box 64132
 S: Sunnyvale, California 94088-4132
 S: USA
+
+N: Stas Sergeev
+E: stsp@users.sourceforge.net
+D: PCM PC-Speaker driver
+D: misc fixes
+S: Russia
 
 N: Simon Shapiro
 E: shimon@i-Connect.Net

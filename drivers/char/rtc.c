@@ -88,6 +88,7 @@
 
 #ifdef CONFIG_SPARC32
 #include <linux/pci.h>
+#include <linux/jiffies.h>
 #include <asm/ebus.h>
 
 static unsigned long rtc_port;
@@ -1068,10 +1069,8 @@ no_irq:
 	}
 
 #ifdef CONFIG_PROC_FS
-	ent = create_proc_entry("driver/rtc", 0, NULL);
-	if (ent)
-		ent->proc_fops = &rtc_proc_fops;
-	else
+	ent = proc_create("driver/rtc", 0, NULL, &rtc_proc_fops);
+	if (!ent)
 		printk(KERN_WARNING "rtc: Failed to register with procfs.\n");
 #endif
 
@@ -1316,7 +1315,8 @@ void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 	 * Once the read clears, read the RTC time (again via ioctl). Easy.
 	 */
 
-	while (rtc_is_updating() != 0 && jiffies - uip_watchdog < 2*HZ/100)
+	while (rtc_is_updating() != 0 &&
+	       time_before(jiffies, uip_watchdog + 2*HZ/100))
 		cpu_relax();
 
 	/*

@@ -67,7 +67,7 @@ static int usb_console_setup(struct console *co, char *options)
 	struct tty_struct *tty = NULL;
 	struct ktermios *termios = NULL, dummy;
 
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 
 	if (options) {
 		baud = simple_strtoul(options, NULL, 10);
@@ -225,10 +225,10 @@ static void usb_console_write(struct console *co, const char *buf, unsigned coun
 	if (count == 0)
 		return;
 
-	dbg("%s - port %d, %d byte(s)", __FUNCTION__, port->number, count);
+	dbg("%s - port %d, %d byte(s)", __func__, port->number, count);
 
 	if (!port->open_count) {
-		dbg ("%s - port not opened", __FUNCTION__);
+		dbg ("%s - port not opened", __func__);
 		return;
 	}
 
@@ -248,7 +248,7 @@ static void usb_console_write(struct console *co, const char *buf, unsigned coun
 			retval = serial->type->write(port, buf, i);
 		else
 			retval = usb_serial_generic_write(port, buf, i);
-		dbg("%s - return value : %d", __FUNCTION__, retval);
+		dbg("%s - return value : %d", __func__, retval);
 		if (lf) {
 			/* append CR after LF */
 			unsigned char cr = 13;
@@ -256,7 +256,7 @@ static void usb_console_write(struct console *co, const char *buf, unsigned coun
 				retval = serial->type->write(port, &cr, 1);
 			else
 				retval = usb_serial_generic_write(port, &cr, 1);
-			dbg("%s - return value : %d", __FUNCTION__, retval);
+			dbg("%s - return value : %d", __func__, retval);
 		}
 		buf += i;
 		count -= i;

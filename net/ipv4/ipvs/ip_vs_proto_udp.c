@@ -409,6 +409,7 @@ static void udp_exit(struct ip_vs_protocol *pp)
 struct ip_vs_protocol ip_vs_protocol_udp = {
 	.name =			"UDP",
 	.protocol =		IPPROTO_UDP,
+	.num_states =		IP_VS_UDP_S_LAST,
 	.dont_defrag =		0,
 	.init =			udp_init,
 	.exit =			udp_exit,

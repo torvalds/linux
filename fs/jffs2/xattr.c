@@ -82,7 +82,7 @@ static int is_xattr_datum_unchecked(struct jffs2_sb_info *c, struct jffs2_xattr_
 static void unload_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
 {
 	/* must be called under down_write(xattr_sem) */
-	D1(dbg_xattr("%s: xid=%u, version=%u\n", __FUNCTION__, xd->xid, xd->version));
+	D1(dbg_xattr("%s: xid=%u, version=%u\n", __func__, xd->xid, xd->version));
 	if (xd->xname) {
 		c->xdatum_mem_usage -= (xd->name_len + 1 + xd->value_len);
 		kfree(xd->xname);
@@ -592,7 +592,7 @@ void jffs2_xattr_delete_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache 
 	   When an inode with XATTR is removed, those XATTRs must be removed. */
 	struct jffs2_xattr_ref *ref, *_ref;
 
-	if (!ic || ic->nlink > 0)
+	if (!ic || ic->pino_nlink > 0)
 		return;
 
 	down_write(&c->xattr_sem);
@@ -829,7 +829,7 @@ void jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 			   ref->xd and ref->ic are not valid yet. */
 			xd = jffs2_find_xattr_datum(c, ref->xid);
 			ic = jffs2_get_ino_cache(c, ref->ino);
-			if (!xd || !ic || !ic->nlink) {
+			if (!xd || !ic || !ic->pino_nlink) {
 				dbg_xattr("xref(ino=%u, xid=%u, xseqno=%u) is orphan.\n",
 					  ref->ino, ref->xid, ref->xseqno);
 				ref->xseqno |= XREF_DELETE_MARKER;
@@ -1252,7 +1252,7 @@ int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_
 	rc = jffs2_reserve_space_gc(c, totlen, &length, JFFS2_SUMMARY_XREF_SIZE);
 	if (rc) {
 		JFFS2_WARNING("%s: jffs2_reserve_space_gc() = %d, request = %u\n",
-			      __FUNCTION__, rc, totlen);
+			      __func__, rc, totlen);
 		rc = rc ? rc : -EBADFD;
 		goto out;
 	}

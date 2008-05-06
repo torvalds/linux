@@ -1,6 +1,3 @@
-#ifndef __USB_INPUT_H
-#define __USB_INPUT_H
-
 /*
  * Copyright (C) 2005 Dmitry Torokhov
  *
@@ -8,6 +5,9 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
+
+#ifndef __LINUX_USB_INPUT_H
+#define __LINUX_USB_INPUT_H
 
 #include <linux/usb.h>
 #include <linux/input.h>
@@ -22,4 +22,4 @@ usb_to_input_id(const struct usb_device *dev, struct input_id *id)
 	id->version = le16_to_cpu(dev->descriptor.bcdDevice);
 }
 
-#endif
+#endif /* __LINUX_USB_INPUT_H */

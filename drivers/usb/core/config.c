@@ -145,6 +145,23 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 			endpoint->desc.wMaxPacketSize = cpu_to_le16(8);
 	}
 
+	/*
+	 * Some buggy high speed devices have bulk endpoints using
+	 * maxpacket sizes other than 512.  High speed HCDs may not
+	 * be able to handle that particular bug, so let's warn...
+	 */
+	if (to_usb_device(ddev)->speed == USB_SPEED_HIGH
+			&& usb_endpoint_xfer_bulk(d)) {
+		unsigned maxp;
+
+		maxp = le16_to_cpu(endpoint->desc.wMaxPacketSize) & 0x07ff;
+		if (maxp != 512)
+			dev_warn(ddev, "config %d interface %d altsetting %d "
+				"bulk endpoint 0x%X has invalid maxpacket %d\n",
+				cfgno, inum, asnum, d->bEndpointAddress,
+				maxp);
+	}
+
 	/* Skip over any Class Specific or Vendor Specific descriptors;
 	 * find the next endpoint or interface descriptor */
 	endpoint->extra = buffer;

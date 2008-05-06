@@ -445,7 +445,7 @@ static inline int do_write_buffer(struct map_info *map, struct flchip *chip,
  retry:
 
 #ifdef DEBUG_CFI_FEATURES
-       printk("%s: chip->state[%d]\n", __FUNCTION__, chip->state);
+       printk("%s: chip->state[%d]\n", __func__, chip->state);
 #endif
 	spin_lock_bh(chip->mutex);
 
@@ -463,7 +463,7 @@ static inline int do_write_buffer(struct map_info *map, struct flchip *chip,
 		map_write(map, CMD(0x70), cmd_adr);
                 chip->state = FL_STATUS;
 #ifdef DEBUG_CFI_FEATURES
-        printk("%s: 1 status[%x]\n", __FUNCTION__, map_read(map, cmd_adr));
+	printk("%s: 1 status[%x]\n", __func__, map_read(map, cmd_adr));
 #endif
 
 	case FL_STATUS:
@@ -591,7 +591,7 @@ static inline int do_write_buffer(struct map_info *map, struct flchip *chip,
         /* check for errors: 'lock bit', 'VPP', 'dead cell'/'unerased cell' or 'incorrect cmd' -- saw */
         if (map_word_bitsset(map, status, CMD(0x3a))) {
 #ifdef DEBUG_CFI_FEATURES
-		printk("%s: 2 status[%lx]\n", __FUNCTION__, status.x[0]);
+		printk("%s: 2 status[%lx]\n", __func__, status.x[0]);
 #endif
 		/* clear status */
 		map_write(map, CMD(0x50), cmd_adr);
@@ -625,9 +625,9 @@ static int cfi_staa_write_buffers (struct mtd_info *mtd, loff_t to,
 	ofs = to  - (chipnum << cfi->chipshift);
 
 #ifdef DEBUG_CFI_FEATURES
-        printk("%s: map_bankwidth(map)[%x]\n", __FUNCTION__, map_bankwidth(map));
-        printk("%s: chipnum[%x] wbufsize[%x]\n", __FUNCTION__, chipnum, wbufsize);
-        printk("%s: ofs[%x] len[%x]\n", __FUNCTION__, ofs, len);
+	printk("%s: map_bankwidth(map)[%x]\n", __func__, map_bankwidth(map));
+	printk("%s: chipnum[%x] wbufsize[%x]\n", __func__, chipnum, wbufsize);
+	printk("%s: ofs[%x] len[%x]\n", __func__, ofs, len);
 #endif
 
         /* Write buffer is worth it only if more than one word to write... */
@@ -893,7 +893,8 @@ retry:
 	return ret;
 }
 
-int cfi_staa_erase_varsize(struct mtd_info *mtd, struct erase_info *instr)
+static int cfi_staa_erase_varsize(struct mtd_info *mtd,
+				  struct erase_info *instr)
 {	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
 	unsigned long adr, len;

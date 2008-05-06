@@ -181,7 +181,8 @@ static int uvesafb_exec(struct uvesafb_ktask *task)
 	/* If all slots are taken -- bail out. */
 	if (uvfb_tasks[seq]) {
 		mutex_unlock(&uvfb_lock);
-		return -EBUSY;
+		err = -EBUSY;
+		goto out;
 	}
 
 	/* Save a pointer to the kernel part of the task struct. */
@@ -205,7 +206,6 @@ static int uvesafb_exec(struct uvesafb_ktask *task)
 			err = cn_netlink_send(m, 0, gfp_any());
 		}
 	}
-	kfree(m);
 
 	if (!err && !(task->t.flags & TF_EXIT))
 		err = !wait_for_completion_timeout(task->done,
@@ -218,7 +218,8 @@ static int uvesafb_exec(struct uvesafb_ktask *task)
 	seq++;
 	if (seq >= UVESAFB_TASKS_MAX)
 		seq = 0;
-
+out:
+	kfree(m);
 	return err;
 }
 
@@ -885,7 +886,7 @@ static int __devinit uvesafb_vbe_init_mode(struct fb_info *info)
 	}
 
 	/* fb_find_mode() failed */
-	if (i == 0 || i >= 3) {
+	if (i == 0) {
 		info->var.xres = 640;
 		info->var.yres = 480;
 		mode = (struct fb_videomode *)

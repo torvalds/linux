@@ -75,40 +75,6 @@ int task_statm(struct mm_struct *mm, int *shared, int *text,
 	return mm->total_vm;
 }
 
-int proc_exe_link(struct inode *inode, struct path *path)
-{
-	struct vm_area_struct * vma;
-	int result = -ENOENT;
-	struct task_struct *task = get_proc_task(inode);
-	struct mm_struct * mm = NULL;
-
-	if (task) {
-		mm = get_task_mm(task);
-		put_task_struct(task);
-	}
-	if (!mm)
-		goto out;
-	down_read(&mm->mmap_sem);
-
-	vma = mm->mmap;
-	while (vma) {
-		if ((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file)
-			break;
-		vma = vma->vm_next;
-	}
-
-	if (vma) {
-		*path = vma->vm_file->f_path;
-		path_get(&vma->vm_file->f_path);
-		result = 0;
-	}
-
-	up_read(&mm->mmap_sem);
-	mmput(mm);
-out:
-	return result;
-}
-
 static void pad_len_spaces(struct seq_file *m, int len)
 {
 	len = 25 + sizeof(void*) * 6 - len;
@@ -338,8 +304,7 @@ const struct file_operations proc_maps_operations = {
 #define PSS_SHIFT 12
 
 #ifdef CONFIG_PROC_PAGE_MONITOR
-struct mem_size_stats
-{
+struct mem_size_stats {
 	struct vm_area_struct *vma;
 	unsigned long resident;
 	unsigned long shared_clean;
@@ -347,6 +312,7 @@ struct mem_size_stats
 	unsigned long private_clean;
 	unsigned long private_dirty;
 	unsigned long referenced;
+	unsigned long swap;
 	u64 pss;
 };
 
@@ -363,6 +329,12 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	for (; addr != end; pte++, addr += PAGE_SIZE) {
 		ptent = *pte;
+
+		if (is_swap_pte(ptent)) {
+			mss->swap += PAGE_SIZE;
+			continue;
+		}
+
 		if (!pte_present(ptent))
 			continue;
 
@@ -421,7 +393,8 @@ static int show_smap(struct seq_file *m, void *v)
 		   "Shared_Dirty:   %8lu kB\n"
 		   "Private_Clean:  %8lu kB\n"
 		   "Private_Dirty:  %8lu kB\n"
-		   "Referenced:     %8lu kB\n",
+		   "Referenced:     %8lu kB\n"
+		   "Swap:           %8lu kB\n",
 		   (vma->vm_end - vma->vm_start) >> 10,
 		   mss.resident >> 10,
 		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
@@ -429,7 +402,8 @@ static int show_smap(struct seq_file *m, void *v)
 		   mss.shared_dirty  >> 10,
 		   mss.private_clean >> 10,
 		   mss.private_dirty >> 10,
-		   mss.referenced >> 10);
+		   mss.referenced >> 10,
+		   mss.swap >> 10);
 
 	return ret;
 }
@@ -579,7 +553,7 @@ static int pagemap_pte_hole(unsigned long start, unsigned long end,
 	return err;
 }
 
-u64 swap_pte_to_pagemap_entry(pte_t pte)
+static u64 swap_pte_to_pagemap_entry(pte_t pte)
 {
 	swp_entry_t e = pte_to_swp_entry(pte);
 	return swp_type(e) | (swp_offset(e) << MAX_SWAPFILES_SHIFT);

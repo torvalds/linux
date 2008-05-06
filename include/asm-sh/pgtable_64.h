@@ -254,10 +254,11 @@ extern void __handle_bad_pmd_kernel(pmd_t * pmd);
 /*
  * The following have defined behavior only work if pte_present() is true.
  */
-static inline int pte_dirty(pte_t pte){ return pte_val(pte) & _PAGE_DIRTY; }
-static inline int pte_young(pte_t pte){ return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_file(pte_t pte) { return pte_val(pte) & _PAGE_FILE; }
-static inline int pte_write(pte_t pte){ return pte_val(pte) & _PAGE_WRITE; }
+static inline int pte_dirty(pte_t pte)  { return pte_val(pte) & _PAGE_DIRTY; }
+static inline int pte_young(pte_t pte)  { return pte_val(pte) & _PAGE_ACCESSED; }
+static inline int pte_file(pte_t pte)   { return pte_val(pte) & _PAGE_FILE; }
+static inline int pte_write(pte_t pte)  { return pte_val(pte) & _PAGE_WRITE; }
+static inline int pte_special(pte_t pte){ return 0; }
 
 static inline pte_t pte_wrprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_WRITE)); return pte; }
 static inline pte_t pte_mkclean(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_DIRTY)); return pte; }
@@ -266,6 +267,7 @@ static inline pte_t pte_mkwrite(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | 
 static inline pte_t pte_mkdirty(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_DIRTY)); return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_ACCESSED)); return pte; }
 static inline pte_t pte_mkhuge(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_SZHUGE)); return pte; }
+static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 
 
 /*

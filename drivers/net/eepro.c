@@ -633,7 +633,7 @@ static void __init printEEPROMInfo(struct net_device *dev)
 		printk(KERN_DEBUG " PC: %d\n", GetBit(Word,ee_PC));
 		printk(KERN_DEBUG " TPE/AUI: %d\n", GetBit(Word,ee_TPE_AUI));
 		printk(KERN_DEBUG " Jabber: %d\n", GetBit(Word,ee_Jabber));
-		printk(KERN_DEBUG " AutoPort: %d\n", GetBit(!Word,ee_Jabber));
+		printk(KERN_DEBUG " AutoPort: %d\n", !GetBit(Word,ee_AutoPort));
 		printk(KERN_DEBUG " Duplex: %d\n", GetBit(Word,ee_Duplex));
 	}
 

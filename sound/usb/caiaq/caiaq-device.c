@@ -42,7 +42,7 @@
 #endif
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
-MODULE_DESCRIPTION("caiaq USB audio, version 1.3.2");
+MODULE_DESCRIPTION("caiaq USB audio, version 1.3.6");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, RigKontrol3},"
@@ -456,7 +456,7 @@ static void snd_disconnect(struct usb_interface *intf)
 	struct snd_usb_caiaqdev *dev;
 	struct snd_card *card = dev_get_drvdata(&intf->dev);
 
-	debug("snd_disconnect(%p)\n", intf);
+	debug("%s(%p)\n", __func__, intf);
 
 	if (!card)
 		return;

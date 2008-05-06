@@ -830,6 +830,7 @@ static struct platform_driver meth_driver = {
 	.remove	= __devexit_p(meth_remove),
 	.driver = {
 		.name	= "meth",
+		.owner	= THIS_MODULE,
 	}
 };
 
@@ -855,3 +856,4 @@ module_exit(meth_exit_module);
 MODULE_AUTHOR("Ilya Volynets <ilya@theIlya.com>");
 MODULE_DESCRIPTION("SGI O2 Builtin Fast Ethernet driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:meth");

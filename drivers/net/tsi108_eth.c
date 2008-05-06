@@ -162,6 +162,7 @@ static struct platform_driver tsi_eth_driver = {
 	.remove = tsi108_ether_remove,
 	.driver	= {
 		.name = "tsi-ethernet",
+		.owner = THIS_MODULE,
 	},
 };
 
@@ -1729,3 +1730,4 @@ module_exit(tsi108_ether_exit);
 MODULE_AUTHOR("Tundra Semiconductor Corporation");
 MODULE_DESCRIPTION("Tsi108 Gigabit Ethernet driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:tsi-ethernet");

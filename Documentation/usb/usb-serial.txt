@@ -192,12 +192,9 @@ Keyspan USA-series Serial Adapters
 
 FTDI Single Port Serial Driver
 
-  This is a single port DB-25 serial adapter. More information about this
-  device and the Linux driver can be found at:
-	http://reality.sgi.com/bryder_wellington/ftdi_sio/
+  This is a single port DB-25 serial adapter.
 
-  For any questions or problems with this driver, please contact Bill Ryder
-  at bryder@sgi.com
+  For any questions or problems with this driver, please contact Bill Ryder.
 
 
 ZyXEL omni.net lcd plus ISDN TA

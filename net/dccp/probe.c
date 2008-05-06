@@ -46,29 +46,24 @@ struct {
 	struct kfifo	  *fifo;
 	spinlock_t	  lock;
 	wait_queue_head_t wait;
-	struct timeval	  tstart;
+	struct timespec	  tstart;
 } dccpw;
 
 static void printl(const char *fmt, ...)
 {
 	va_list args;
 	int len;
-	struct timeval now;
+	struct timespec now;
 	char tbuf[256];
 
 	va_start(args, fmt);
-	do_gettimeofday(&now);
+	getnstimeofday(&now);
 
-	now.tv_sec -= dccpw.tstart.tv_sec;
-	now.tv_usec -= dccpw.tstart.tv_usec;
-	if (now.tv_usec < 0) {
-		--now.tv_sec;
-		now.tv_usec += 1000000;
-	}
+	now = timespec_sub(now, dccpw.tstart);
 
 	len = sprintf(tbuf, "%lu.%06lu ",
 		      (unsigned long) now.tv_sec,
-		      (unsigned long) now.tv_usec);
+		      (unsigned long) now.tv_nsec / NSEC_PER_USEC);
 	len += vscnprintf(tbuf+len, sizeof(tbuf)-len, fmt, args);
 	va_end(args);
 
@@ -119,7 +114,7 @@ static struct jprobe dccp_send_probe = {
 static int dccpprobe_open(struct inode *inode, struct file *file)
 {
 	kfifo_reset(dccpw.fifo);
-	do_gettimeofday(&dccpw.tstart);
+	getnstimeofday(&dccpw.tstart);
 	return 0;
 }
 
@@ -145,7 +140,7 @@ static ssize_t dccpprobe_read(struct file *file, char __user *buf,
 		goto out_free;
 
 	cnt = kfifo_get(dccpw.fifo, tbuf, len);
-	error = copy_to_user(buf, tbuf, cnt);
+	error = copy_to_user(buf, tbuf, cnt) ? -EFAULT : 0;
 
 out_free:
 	vfree(tbuf);

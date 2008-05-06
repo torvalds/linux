@@ -12,7 +12,7 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 2455
+# define AAC_DRIVER_BUILD 2456
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -34,8 +34,8 @@
 #define CONTAINER_TO_ID(cont)		(cont)
 #define CONTAINER_TO_LUN(cont)		(0)
 
-#define aac_phys_to_logical(x)  (x+1)
-#define aac_logical_to_phys(x)  (x?x-1:0)
+#define aac_phys_to_logical(x)  ((x)+1)
+#define aac_logical_to_phys(x)  ((x)?(x)-1:0)
 
 /* #define AAC_DETAILED_STATUS_INFO */
 
@@ -424,6 +424,8 @@ struct aac_init
 	 */
 	__le32	InitFlags;	/* flags for supported features */
 #define INITFLAGS_NEW_COMM_SUPPORTED	0x00000001
+#define INITFLAGS_DRIVER_USES_UTC_TIME	0x00000010
+#define INITFLAGS_DRIVER_SUPPORTS_PM	0x00000020
 	__le32	MaxIoCommands;	/* max outstanding commands */
 	__le32	MaxIoSize;	/* largest I/O command */
 	__le32	MaxFibSize;	/* largest FIB to adapter */
@@ -867,8 +869,10 @@ struct aac_supplement_adapter_info
 };
 #define AAC_FEATURE_FALCON	cpu_to_le32(0x00000010)
 #define AAC_FEATURE_JBOD	cpu_to_le32(0x08000000)
-#define AAC_OPTION_MU_RESET	cpu_to_le32(0x00000001)
-#define AAC_OPTION_IGNORE_RESET	cpu_to_le32(0x00000002)
+/* SupportedOptions2 */
+#define AAC_OPTION_MU_RESET		cpu_to_le32(0x00000001)
+#define AAC_OPTION_IGNORE_RESET		cpu_to_le32(0x00000002)
+#define AAC_OPTION_POWER_MANAGEMENT	cpu_to_le32(0x00000004)
 #define AAC_SIS_VERSION_V3	3
 #define AAC_SIS_SLOT_UNKNOWN	0xFF
 
@@ -1148,6 +1152,7 @@ struct aac_dev
 #define		ST_DQUOT	69
 #define		ST_STALE	70
 #define		ST_REMOTE	71
+#define		ST_NOT_READY	72
 #define		ST_BADHANDLE	10001
 #define		ST_NOT_SYNC	10002
 #define		ST_BAD_COOKIE	10003
@@ -1267,6 +1272,18 @@ struct aac_synchronize_reply {
 	__le32		parm4;
 	__le32		parm5;
 	u8		data[16];
+};
+
+#define CT_POWER_MANAGEMENT	245
+#define CT_PM_START_UNIT	2
+#define CT_PM_STOP_UNIT		3
+#define CT_PM_UNIT_IMMEDIATE	1
+struct aac_power_management {
+	__le32		command;	/* VM_ContainerConfig */
+	__le32		type;		/* CT_POWER_MANAGEMENT */
+	__le32		sub;		/* CT_PM_* */
+	__le32		cid;
+	__le32		parm;		/* CT_PM_sub_* */
 };
 
 #define CT_PAUSE_IO    65
@@ -1536,6 +1553,7 @@ struct aac_mntent {
 #define FSCS_NOTCLEAN	0x0001  /* fsck is necessary before mounting */
 #define FSCS_READONLY	0x0002	/* possible result of broken mirror */
 #define FSCS_HIDDEN	0x0004	/* should be ignored - set during a clear */
+#define FSCS_NOT_READY	0x0008	/* Array spinning up to fulfil request */
 
 struct aac_query_mount {
 	__le32		command;

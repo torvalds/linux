@@ -380,6 +380,7 @@ hysdn_log_poll(struct file *file, poll_table * wait)
 /**************************************************/
 static const struct file_operations log_fops =
 {
+	.owner		= THIS_MODULE,
 	.llseek         = no_llseek,
 	.read           = hysdn_log_read,
 	.write          = hysdn_log_write,
@@ -402,10 +403,9 @@ hysdn_proclog_init(hysdn_card * card)
 
 	if ((pd = kzalloc(sizeof(struct procdata), GFP_KERNEL)) != NULL) {
 		sprintf(pd->log_name, "%s%d", PROC_LOG_BASENAME, card->myid);
-		if ((pd->log = create_proc_entry(pd->log_name, S_IFREG | S_IRUGO | S_IWUSR, hysdn_proc_entry)) != NULL) {
-		        pd->log->proc_fops = &log_fops; 
-		        pd->log->owner = THIS_MODULE;
-		}
+		pd->log = proc_create(pd->log_name,
+				S_IFREG | S_IRUGO | S_IWUSR, hysdn_proc_entry,
+				&log_fops);
 
 		init_waitqueue_head(&(pd->rd_queue));
 

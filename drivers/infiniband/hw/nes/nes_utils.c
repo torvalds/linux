@@ -444,15 +444,13 @@ void nes_read_1G_phy_reg(struct nes_device *nesdev, u8 phy_reg, u8 phy_addr, u16
 /**
  * nes_write_10G_phy_reg
  */
-void nes_write_10G_phy_reg(struct nes_device *nesdev, u16 phy_reg,
-		u8 phy_addr, u16 data)
+void nes_write_10G_phy_reg(struct nes_device *nesdev, u16 phy_addr, u8 dev_addr, u16 phy_reg,
+		u16 data)
 {
-	u32 dev_addr;
 	u32 port_addr;
 	u32 u32temp;
 	u32 counter;
 
-	dev_addr = 1;
 	port_addr = phy_addr;
 
 	/* set address */
@@ -492,14 +490,12 @@ void nes_write_10G_phy_reg(struct nes_device *nesdev, u16 phy_reg,
  * This routine only issues the read, the data must be read
  * separately.
  */
-void nes_read_10G_phy_reg(struct nes_device *nesdev, u16 phy_reg, u8 phy_addr)
+void nes_read_10G_phy_reg(struct nes_device *nesdev, u8 phy_addr, u8 dev_addr, u16 phy_reg)
 {
-	u32 dev_addr;
 	u32 port_addr;
 	u32 u32temp;
 	u32 counter;
 
-	dev_addr = 1;
 	port_addr = phy_addr;
 
 	/* set address */
@@ -660,7 +656,9 @@ int nes_arp_table(struct nes_device *nesdev, u32 ip_addr, u8 *mac_addr, u32 acti
 
 	/* DELETE or RESOLVE */
 	if (arp_index == nesadapter->arp_table_size) {
-		nes_debug(NES_DBG_NETDEV, "mac address not in ARP table - cannot delete or resolve\n");
+		nes_debug(NES_DBG_NETDEV, "MAC for " NIPQUAD_FMT " not in ARP table - cannot %s\n",
+			  HIPQUAD(ip_addr),
+			  action == NES_ARP_RESOLVE ? "resolve" : "delete");
 		return -1;
 	}
 

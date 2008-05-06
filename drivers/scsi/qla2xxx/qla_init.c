@@ -3645,7 +3645,7 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	if (le16_to_cpu(nv->login_timeout) < 4)
 		nv->login_timeout = __constant_cpu_to_le16(4);
 	ha->login_timeout = le16_to_cpu(nv->login_timeout);
-	icb->login_timeout = cpu_to_le16(nv->login_timeout);
+	icb->login_timeout = nv->login_timeout;
 
 	/* Set minimum RATOV to 100 tenths of a second. */
 	ha->r_a_tov = 100;

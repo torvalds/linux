@@ -79,8 +79,7 @@ static struct at91_udc_data __initdata csb337_udc_data = {
 
 static struct i2c_board_info __initdata csb337_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("rtc-ds1307", 0x68),
-		.type	= "ds1307",
+		I2C_BOARD_INFO("ds1307", 0x68),
 	},
 };
 

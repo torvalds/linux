@@ -58,13 +58,13 @@ enum opcode {
 	insn_invalid,
 	insn_addu, insn_addiu, insn_and, insn_andi, insn_beq,
 	insn_beql, insn_bgez, insn_bgezl, insn_bltz, insn_bltzl,
-	insn_bne, insn_daddu, insn_daddiu, insn_dmfc0, insn_dmtc0,
-	insn_dsll, insn_dsll32, insn_dsra, insn_dsrl, insn_dsrl32,
-	insn_dsubu, insn_eret, insn_j, insn_jal, insn_jr, insn_ld,
-	insn_ll, insn_lld, insn_lui, insn_lw, insn_mfc0, insn_mtc0,
-	insn_ori, insn_rfe, insn_sc, insn_scd, insn_sd, insn_sll,
-	insn_sra, insn_srl, insn_subu, insn_sw, insn_tlbp, insn_tlbwi,
-	insn_tlbwr, insn_xor, insn_xori
+	insn_bne, insn_cache, insn_daddu, insn_daddiu, insn_dmfc0,
+	insn_dmtc0, insn_dsll, insn_dsll32, insn_dsra, insn_dsrl,
+	insn_dsrl32, insn_dsubu, insn_eret, insn_j, insn_jal, insn_jr,
+	insn_ld, insn_ll, insn_lld, insn_lui, insn_lw, insn_mfc0,
+	insn_mtc0, insn_ori, insn_pref, insn_rfe, insn_sc, insn_scd,
+	insn_sd, insn_sll, insn_sra, insn_srl, insn_subu, insn_sw,
+	insn_tlbp, insn_tlbwi, insn_tlbwr, insn_xor, insn_xori
 };
 
 struct insn {
@@ -94,6 +94,7 @@ static struct insn insn_table[] __cpuinitdata = {
 	{ insn_bltz, M(bcond_op, 0, bltz_op, 0, 0, 0), RS | BIMM },
 	{ insn_bltzl, M(bcond_op, 0, bltzl_op, 0, 0, 0), RS | BIMM },
 	{ insn_bne, M(bne_op, 0, 0, 0, 0, 0), RS | RT | BIMM },
+	{ insn_cache,  M(cache_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
 	{ insn_daddiu, M(daddiu_op, 0, 0, 0, 0, 0), RS | RT | SIMM },
 	{ insn_daddu, M(spec_op, 0, 0, 0, 0, daddu_op), RS | RT | RD },
 	{ insn_dmfc0, M(cop0_op, dmfc_op, 0, 0, 0, 0), RT | RD | SET},
@@ -116,6 +117,7 @@ static struct insn insn_table[] __cpuinitdata = {
 	{ insn_mfc0,  M(cop0_op, mfc_op, 0, 0, 0, 0),  RT | RD | SET},
 	{ insn_mtc0,  M(cop0_op, mtc_op, 0, 0, 0, 0),  RT | RD | SET},
 	{ insn_ori,  M(ori_op, 0, 0, 0, 0, 0),  RS | RT | UIMM },
+	{ insn_pref,  M(pref_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
 	{ insn_rfe,  M(cop0_op, cop_op, 0, 0, 0, rfe_op),  0 },
 	{ insn_sc,  M(sc_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
 	{ insn_scd,  M(scd_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
@@ -337,6 +339,7 @@ I_u1s2(_bgezl)
 I_u1s2(_bltz)
 I_u1s2(_bltzl)
 I_u1u2s3(_bne)
+I_u2s3u1(_cache)
 I_u1u2u3(_dmfc0)
 I_u1u2u3(_dmtc0)
 I_u2u1s3(_daddiu)
@@ -359,6 +362,7 @@ I_u2s3u1(_lw)
 I_u1u2u3(_mfc0)
 I_u1u2u3(_mtc0)
 I_u2u1u3(_ori)
+I_u2s3u1(_pref)
 I_0(_rfe)
 I_u2s3u1(_sc)
 I_u2s3u1(_scd)
@@ -552,6 +556,14 @@ uasm_il_beqzl(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	uasm_i_beqzl(p, reg, 0);
+}
+
+void __cpuinit
+uasm_il_bne(u32 **p, struct uasm_reloc **r, unsigned int reg1,
+	unsigned int reg2, int lid)
+{
+	uasm_r_mips_pc16(r, *p, lid);
+	uasm_i_bne(p, reg1, reg2, 0);
 }
 
 void __cpuinit

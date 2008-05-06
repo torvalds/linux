@@ -49,8 +49,11 @@ static void quirk_awe32_resources(struct pnp_dev *dev)
 		port2->max += 0x400;
 		port3->min += 0x800;
 		port3->max += 0x800;
+		dev_info(&dev->dev,
+			"AWE32 quirk - added ioports 0x%lx and 0x%lx\n",
+			(unsigned long)port2->min,
+			(unsigned long)port3->min);
 	}
-	printk(KERN_INFO "pnp: AWE32 quirk - adding two ports\n");
 }
 
 static void quirk_cmi8330_resources(struct pnp_dev *dev)
@@ -73,7 +76,8 @@ static void quirk_cmi8330_resources(struct pnp_dev *dev)
 			    IORESOURCE_DMA_8BIT)
 				dma->map = 0x000A;
 	}
-	printk(KERN_INFO "pnp: CMI8330 quirk - fixing interrupts and dma\n");
+	dev_info(&dev->dev, "CMI8330 quirk - forced possible IRQs to 5, 7, 10 "
+		"and DMA channels to 1, 3\n");
 }
 
 static void quirk_sb16audio_resources(struct pnp_dev *dev)
@@ -104,8 +108,7 @@ static void quirk_sb16audio_resources(struct pnp_dev *dev)
 		changed = 1;
 	}
 	if (changed)
-		printk(KERN_INFO
-		       "pnp: SB audio device quirk - increasing port range\n");
+		dev_info(&dev->dev, "SB audio device quirk - increased port range\n");
 }
 
 
@@ -114,6 +117,7 @@ static void quirk_sb16audio_resources(struct pnp_dev *dev)
 static void quirk_system_pci_resources(struct pnp_dev *dev)
 {
 	struct pci_dev *pdev = NULL;
+	struct resource *res;
 	resource_size_t pnp_start, pnp_end, pci_start, pci_end;
 	int i, j;
 
@@ -134,13 +138,15 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 
 			pci_start = pci_resource_start(pdev, i);
 			pci_end = pci_resource_end(pdev, i);
-			for (j = 0; j < PNP_MAX_MEM; j++) {
-				if (!pnp_mem_valid(dev, j) ||
-				    pnp_mem_len(dev, j) == 0)
+			for (j = 0;
+			     (res = pnp_get_resource(dev, IORESOURCE_MEM, j));
+			     j++) {
+				if (res->flags & IORESOURCE_UNSET ||
+				    (res->start == 0 && res->end == 0))
 					continue;
 
-				pnp_start = pnp_mem_start(dev, j);
-				pnp_end = pnp_mem_end(dev, j);
+				pnp_start = res->start;
+				pnp_end = res->end;
 
 				/*
 				 * If the PNP region doesn't overlap the PCI
@@ -173,7 +179,7 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 					pci_name(pdev), i,
 					(unsigned long long) pci_start,
 					(unsigned long long) pci_end);
-				pnp_mem_flags(dev, j) = 0;
+				res->flags = 0;
 			}
 		}
 	}
@@ -214,8 +220,8 @@ void pnp_fixup_device(struct pnp_dev *dev)
 			quirk = pnp_fixups[i].quirk_function;
 
 #ifdef DEBUG
-			dev_dbg(&dev->dev, "calling quirk 0x%p", quirk);
-			print_fn_descriptor_symbol(": %s()\n",
+			dev_dbg(&dev->dev, "calling ");
+			print_fn_descriptor_symbol("%s()\n",
 				(unsigned long) *quirk);
 #endif
 			(*quirk)(dev);

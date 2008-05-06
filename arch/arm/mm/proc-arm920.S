@@ -417,6 +417,7 @@ arm920_crval:
 	.type	arm920_processor_functions, #object
 arm920_processor_functions:
 	.word	v4t_early_abort
+	.word	pabort_noifar
 	.word	cpu_arm920_proc_init
 	.word	cpu_arm920_proc_fin
 	.word	cpu_arm920_reset
@@ -424,7 +425,6 @@ arm920_processor_functions:
 	.word	cpu_arm920_dcache_clean_area
 	.word	cpu_arm920_switch_mm
 	.word	cpu_arm920_set_pte_ext
-	.word	pabort_noifar
 	.size	arm920_processor_functions, . - arm920_processor_functions
 
 	.section ".rodata"

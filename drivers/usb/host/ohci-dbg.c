@@ -655,7 +655,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		hcd->product_desc,
 		hcd_name);
 
-	if (bus->controller->power.power_state.event) {
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
 		size -= scnprintf (next, size,
 			"SUSPENDED (no register access)\n");
 		goto done;

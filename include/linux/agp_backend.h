@@ -30,8 +30,6 @@
 #ifndef _AGP_BACKEND_H
 #define _AGP_BACKEND_H 1
 
-#ifdef __KERNEL__
-
 #ifndef TRUE
 #define TRUE 1
 #endif
@@ -111,5 +109,4 @@ extern struct agp_bridge_data *agp_backend_acquire(struct pci_dev *);
 extern void agp_backend_release(struct agp_bridge_data *);
 extern void agp_flush_chipset(struct agp_bridge_data *);
 
-#endif				/* __KERNEL__ */
 #endif				/* _AGP_BACKEND_H */

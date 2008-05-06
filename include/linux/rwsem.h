@@ -9,8 +9,6 @@
 
 #include <linux/linkage.h>
 
-#ifdef __KERNEL__
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <asm/system.h>
@@ -90,5 +88,4 @@ extern void up_read_non_owner(struct rw_semaphore *sem);
 # define up_read_non_owner(sem)			up_read(sem)
 #endif
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_RWSEM_H */

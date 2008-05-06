@@ -84,7 +84,9 @@ static const struct routing_scheme_item routing_schemegv[] = {
 		.vid = CX25840_COMPOSITE2,
 		.aud = CX25840_AUDIO5,
 	},
-	[PVR2_CVAL_INPUT_RADIO] = { /* Treat the same as composite */
+	[PVR2_CVAL_INPUT_RADIO] = {
+		/* line-in is used for radio and composite.  A GPIO is
+		   used to switch between the two choices. */
 		.vid = CX25840_COMPOSITE1,
 		.aud = CX25840_AUDIO_SERIAL,
 	},
@@ -121,7 +123,7 @@ static void set_input(struct pvr2_v4l_cx2584x *ctxt)
 	memset(&route,0,sizeof(route));
 
 	if ((sid < ARRAY_SIZE(routing_schemes)) &&
-	    ((sp = routing_schemes + sid) != 0) &&
+	    ((sp = routing_schemes + sid) != NULL) &&
 	    (hdw->input_val >= 0) &&
 	    (hdw->input_val < sp->cnt)) {
 		vid_input = sp->def[hdw->input_val].vid;

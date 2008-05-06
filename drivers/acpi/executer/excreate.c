@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,6 +96,9 @@ acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state)
 	 * to the original Node.
 	 */
 	switch (target_node->type) {
+
+		/* For these types, the sub-object can change dynamically via a Store */
+
 	case ACPI_TYPE_INTEGER:
 	case ACPI_TYPE_STRING:
 	case ACPI_TYPE_BUFFER:
@@ -103,9 +106,18 @@ acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state)
 	case ACPI_TYPE_BUFFER_FIELD:
 
 		/*
+		 * These types open a new scope, so we need the NS node in order to access
+		 * any children.
+		 */
+	case ACPI_TYPE_DEVICE:
+	case ACPI_TYPE_POWER:
+	case ACPI_TYPE_PROCESSOR:
+	case ACPI_TYPE_THERMAL:
+	case ACPI_TYPE_LOCAL_SCOPE:
+
+		/*
 		 * The new alias has the type ALIAS and points to the original
-		 * NS node, not the object itself.  This is because for these
-		 * types, the object can change dynamically via a Store.
+		 * NS node, not the object itself.
 		 */
 		alias_node->type = ACPI_TYPE_LOCAL_ALIAS;
 		alias_node->object =
@@ -115,9 +127,7 @@ acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state)
 	case ACPI_TYPE_METHOD:
 
 		/*
-		 * The new alias has the type ALIAS and points to the original
-		 * NS node, not the object itself.  This is because for these
-		 * types, the object can change dynamically via a Store.
+		 * Control method aliases need to be differentiated
 		 */
 		alias_node->type = ACPI_TYPE_LOCAL_METHOD_ALIAS;
 		alias_node->object =
@@ -331,101 +341,6 @@ acpi_ex_create_region(u8 * aml_start,
 	/* Install the new region object in the parent Node */
 
 	status = acpi_ns_attach_object(node, obj_desc, ACPI_TYPE_REGION);
-
-      cleanup:
-
-	/* Remove local reference to the object */
-
-	acpi_ut_remove_reference(obj_desc);
-	return_ACPI_STATUS(status);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ex_create_table_region
- *
- * PARAMETERS:  walk_state          - Current state
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Create a new data_table_region object
- *
- ******************************************************************************/
-
-acpi_status acpi_ex_create_table_region(struct acpi_walk_state *walk_state)
-{
-	acpi_status status;
-	union acpi_operand_object **operand = &walk_state->operands[0];
-	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
-	union acpi_operand_object *region_obj2;
-	acpi_native_uint table_index;
-	struct acpi_table_header *table;
-
-	ACPI_FUNCTION_TRACE(ex_create_table_region);
-
-	/* Get the Node from the object stack  */
-
-	node = walk_state->op->common.node;
-
-	/*
-	 * If the region object is already attached to this node,
-	 * just return
-	 */
-	if (acpi_ns_get_attached_object(node)) {
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	/* Find the ACPI table */
-
-	status = acpi_tb_find_table(operand[1]->string.pointer,
-				    operand[2]->string.pointer,
-				    operand[3]->string.pointer, &table_index);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
-	/* Create the region descriptor */
-
-	obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_REGION);
-	if (!obj_desc) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
-	}
-
-	region_obj2 = obj_desc->common.next_object;
-	region_obj2->extra.region_context = NULL;
-
-	status = acpi_get_table_by_index(table_index, &table);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
-	/* Init the region from the operands */
-
-	obj_desc->region.space_id = REGION_DATA_TABLE;
-	obj_desc->region.address =
-	    (acpi_physical_address) ACPI_TO_INTEGER(table);
-	obj_desc->region.length = table->length;
-	obj_desc->region.node = node;
-	obj_desc->region.flags = AOPOBJ_DATA_VALID;
-
-	/* Install the new region object in the parent Node */
-
-	status = acpi_ns_attach_object(node, obj_desc, ACPI_TYPE_REGION);
-	if (ACPI_FAILURE(status)) {
-		goto cleanup;
-	}
-
-	status = acpi_ev_initialize_region(obj_desc, FALSE);
-	if (ACPI_FAILURE(status)) {
-		if (status == AE_NOT_EXIST) {
-			status = AE_OK;
-		} else {
-			goto cleanup;
-		}
-	}
-
-	obj_desc->region.flags |= AOPOBJ_SETUP_COMPLETE;
 
       cleanup:
 

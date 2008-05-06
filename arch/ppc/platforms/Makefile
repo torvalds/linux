@@ -4,7 +4,6 @@
 
 obj-$(CONFIG_PPC_PREP)		+= prep_pci.o prep_setup.o
 obj-$(CONFIG_PREP_RESIDUAL)	+= residual.o
-obj-$(CONFIG_PQ2ADS)		+= pq2ads.o
 obj-$(CONFIG_TQM8260)		+= tqm8260_setup.o
 obj-$(CONFIG_CPCI690)		+= cpci690.o
 obj-$(CONFIG_EV64260)		+= ev64260.o
@@ -24,6 +23,3 @@ obj-$(CONFIG_SBC82xx)		+= sbc82xx.o
 obj-$(CONFIG_SPRUCE)		+= spruce.o
 obj-$(CONFIG_LITE5200)		+= lite5200.o
 obj-$(CONFIG_EV64360)		+= ev64360.o
-obj-$(CONFIG_MPC86XADS)		+= mpc866ads_setup.o
-obj-$(CONFIG_MPC885ADS)		+= mpc885ads_setup.o
-obj-$(CONFIG_ADS8272)		+= mpc8272ads_setup.o

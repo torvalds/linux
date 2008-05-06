@@ -312,7 +312,7 @@ static void matrox_pan_var(WPMINFO struct fb_var_screeninfo *var) {
 
 	CRITFLAGS
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (ACCESS_FBINFO(dead))
 		return;
@@ -392,7 +392,7 @@ static int matroxfb_open(struct fb_info *info, int user)
 {
 	MINFO_FROM_INFO(info);
 
-	DBG_LOOP(__FUNCTION__)
+	DBG_LOOP(__func__)
 
 	if (ACCESS_FBINFO(dead)) {
 		return -ENXIO;
@@ -408,7 +408,7 @@ static int matroxfb_release(struct fb_info *info, int user)
 {
 	MINFO_FROM_INFO(info);
 
-	DBG_LOOP(__FUNCTION__)
+	DBG_LOOP(__func__)
 
 	if (user) {
 		if (0 == --ACCESS_FBINFO(userusecount)) {
@@ -425,7 +425,7 @@ static int matroxfb_pan_display(struct fb_var_screeninfo *var,
 		struct fb_info* info) {
 	MINFO_FROM_INFO(info);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	matrox_pan_var(PMINFO var);
 	return 0;
@@ -434,7 +434,7 @@ static int matroxfb_pan_display(struct fb_var_screeninfo *var,
 static int matroxfb_get_final_bppShift(CPMINFO int bpp) {
 	int bppshft2;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	bppshft2 = bpp;
 	if (!bppshft2) {
@@ -451,7 +451,7 @@ static int matroxfb_test_and_set_rounding(CPMINFO int xres, int bpp) {
 	int over;
 	int rounding;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	switch (bpp) {
 		case 0:		return xres;
@@ -482,7 +482,7 @@ static int matroxfb_pitch_adjust(CPMINFO int xres, int bpp) {
 	const int* width;
 	int xres_new;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (!bpp) return xres;
 
@@ -504,7 +504,7 @@ static int matroxfb_pitch_adjust(CPMINFO int xres, int bpp) {
 
 static int matroxfb_get_cmap_len(struct fb_var_screeninfo *var) {
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	switch (var->bits_per_pixel) {
 		case 4:
@@ -548,7 +548,7 @@ static int matroxfb_decode_var(CPMINFO struct fb_var_screeninfo *var, int *visua
 	unsigned int vramlen;
 	unsigned int memlen;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	switch (bpp) {
 		case 4:	 if (!ACCESS_FBINFO(capable.cfb4)) return -EINVAL;
@@ -648,7 +648,7 @@ static int matroxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	struct matrox_fb_info* minfo = container_of(fb_info, struct matrox_fb_info, fbcon);
 #endif
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	/*
 	 *  Set a single color register. The values supplied are
@@ -707,7 +707,7 @@ static int matroxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 static void matroxfb_init_fix(WPMINFO2)
 {
 	struct fb_fix_screeninfo *fix = &ACCESS_FBINFO(fbcon).fix;
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	strcpy(fix->id,"MATROX");
 
@@ -722,7 +722,7 @@ static void matroxfb_init_fix(WPMINFO2)
 static void matroxfb_update_fix(WPMINFO2)
 {
 	struct fb_fix_screeninfo *fix = &ACCESS_FBINFO(fbcon).fix;
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	fix->smem_start = ACCESS_FBINFO(video.base) + ACCESS_FBINFO(curr.ydstorg.bytes);
 	fix->smem_len = ACCESS_FBINFO(video.len_usable) - ACCESS_FBINFO(curr.ydstorg.bytes);
@@ -753,7 +753,7 @@ static int matroxfb_set_par(struct fb_info *info)
 	struct fb_var_screeninfo *var;
 	MINFO_FROM_INFO(info);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (ACCESS_FBINFO(dead)) {
 		return -ENXIO;
@@ -876,7 +876,7 @@ static int matroxfb_ioctl(struct fb_info *info,
 	void __user *argp = (void __user *)arg;
 	MINFO_FROM_INFO(info);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (ACCESS_FBINFO(dead)) {
 		return -ENXIO;
@@ -1175,7 +1175,7 @@ static int matroxfb_blank(int blank, struct fb_info *info)
 	CRITFLAGS
 	MINFO_FROM_INFO(info);
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (ACCESS_FBINFO(dead))
 		return 1;
@@ -1287,7 +1287,7 @@ static int matroxfb_getmemory(WPMINFO unsigned int maxSize, unsigned int *realSi
 	unsigned char bytes[32];
 	unsigned char* tmp;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	vm = ACCESS_FBINFO(video.vbase);
 	maxSize &= ~0x1FFFFF;	/* must be X*2MB (really it must be 2 or X*4MB) */
@@ -1593,7 +1593,7 @@ static int initMatrox2(WPMINFO struct board* b){
 		{ },
 	};
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	/* set default values... */
 	vesafb_defined.accel_flags = FB_ACCELF_TEXT;
@@ -2006,7 +2006,7 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 #ifndef CONFIG_FB_MATROX_MULTIHEAD
 	static int registered = 0;
 #endif
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	svid = pdev->subsystem_vendor;
 	sid = pdev->subsystem_device;
@@ -2301,7 +2301,7 @@ static void __exit matrox_done(void) {
 static int __init matroxfb_setup(char *options) {
 	char *this_opt;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (!options || !*options)
 		return 0;
@@ -2444,7 +2444,7 @@ static int __init matroxfb_init(void)
 	char *option = NULL;
 	int err = 0;
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (fb_get_options("matroxfb", &option))
 		return -ENODEV;
@@ -2556,7 +2556,7 @@ MODULE_PARM_DESC(cmode, "Specify the video depth that should be used (8bit defau
 
 int __init init_module(void){
 
-	DBG(__FUNCTION__)
+	DBG(__func__)
 
 	if (disabled)
 		return -ENXIO;

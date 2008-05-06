@@ -59,7 +59,7 @@
  * when processing onlcr, so we only need 2 buffers. These values must be
  * powers of 2.
  */
-#define ACM_NW  2
+#define ACM_NW  16
 #define ACM_NR  16
 
 struct acm_wb {
@@ -67,6 +67,8 @@ struct acm_wb {
 	dma_addr_t dmah;
 	int len;
 	int use;
+	struct urb		*urb;
+	struct acm		*instance;
 };
 
 struct acm_rb {
@@ -88,7 +90,7 @@ struct acm {
 	struct usb_interface *control;			/* control interface */
 	struct usb_interface *data;			/* data interface */
 	struct tty_struct *tty;				/* the corresponding tty */
-	struct urb *ctrlurb, *writeurb;			/* urbs */
+	struct urb *ctrlurb;			/* urbs */
 	u8 *ctrl_buffer;				/* buffers of urbs */
 	dma_addr_t ctrl_dma;				/* dma handles of buffers */
 	u8 *country_codes;				/* country codes from device */
@@ -103,7 +105,6 @@ struct acm {
 	struct list_head spare_read_urbs;
 	struct list_head spare_read_bufs;
 	struct list_head filled_read_bufs;
-	int write_current;				/* current write buffer */
 	int write_used;					/* number of non-empty write buffers */
 	int write_ready;				/* write urb is not running */
 	spinlock_t write_lock;

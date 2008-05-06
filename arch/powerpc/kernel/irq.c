@@ -307,6 +307,7 @@ void do_IRQ(struct pt_regs *regs)
 		if (curtp != irqtp) {
 			struct irq_desc *desc = irq_desc + irq;
 			void *handler = desc->handle_irq;
+			unsigned long saved_sp_limit = current->thread.ksp_limit;
 			if (handler == NULL)
 				handler = &__do_IRQ;
 			irqtp->task = curtp->task;
@@ -319,7 +320,10 @@ void do_IRQ(struct pt_regs *regs)
 				(irqtp->preempt_count & ~SOFTIRQ_MASK) |
 				(curtp->preempt_count & SOFTIRQ_MASK);
 
+			current->thread.ksp_limit = (unsigned long)irqtp +
+				_ALIGN_UP(sizeof(struct thread_info), 16);
 			call_handle_irq(irq, desc, irqtp, handler);
+			current->thread.ksp_limit = saved_sp_limit;
 			irqtp->task = NULL;
 
 
@@ -352,9 +356,7 @@ void __init init_IRQ(void)
 {
 	if (ppc_md.init_IRQ)
 		ppc_md.init_IRQ();
-#ifdef CONFIG_PPC64
 	irq_ctx_init();
-#endif
 }
 
 
@@ -383,11 +385,15 @@ void irq_ctx_init(void)
 static inline void do_softirq_onstack(void)
 {
 	struct thread_info *curtp, *irqtp;
+	unsigned long saved_sp_limit = current->thread.ksp_limit;
 
 	curtp = current_thread_info();
 	irqtp = softirq_ctx[smp_processor_id()];
 	irqtp->task = curtp->task;
+	current->thread.ksp_limit = (unsigned long)irqtp +
+				    _ALIGN_UP(sizeof(struct thread_info), 16);
 	call_do_softirq(irqtp);
+	current->thread.ksp_limit = saved_sp_limit;
 	irqtp->task = NULL;
 }
 

@@ -855,7 +855,7 @@ static int sci_notifier(struct notifier_block *self,
 
 		printk(KERN_INFO "%s: got a postchange notification "
 		       "for cpu %d (old %d, new %d)\n",
-		       __FUNCTION__, freqs->cpu, freqs->old, freqs->new);
+		       __func__, freqs->cpu, freqs->old, freqs->new);
 	}
 
 	return NOTIFY_OK;

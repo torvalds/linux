@@ -259,7 +259,7 @@ alcor_init_pci(void)
 	if (dev && dev->devfn == PCI_DEVFN(6,0)) {
 		alpha_mv.sys.cia.gru_int_req_bits = XLT_GRU_INT_REQ_BITS; 
 		printk(KERN_INFO "%s: Detected AS500 or XLT motherboard.\n",
-		       __FUNCTION__);
+		       __func__);
 	}
 	pci_dev_put(dev);
 }

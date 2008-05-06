@@ -91,7 +91,7 @@ static int bcm3510_writebytes (struct bcm3510_state *state, u8 reg, u8 *buf, u8 
 	if ((err = i2c_transfer (state->i2c, &msg, 1)) != 1) {
 
 		deb_info("%s: i2c write error (addr %02x, reg %02x, err == %i)\n",
-			__FUNCTION__, state->config->demod_address, reg,  err);
+			__func__, state->config->demod_address, reg,  err);
 		return -EREMOTEIO;
 	}
 
@@ -110,7 +110,7 @@ static int bcm3510_readbytes (struct bcm3510_state *state, u8 reg, u8 *buf, u8 l
 
 	if ((err = i2c_transfer (state->i2c, msg, 2)) != 2) {
 		deb_info("%s: i2c read error (addr %02x, reg %02x, err == %i)\n",
-			__FUNCTION__, state->config->demod_address, reg,  err);
+			__func__, state->config->demod_address, reg,  err);
 		return -EREMOTEIO;
 	}
 	deb_i2c("i2c rd %02x: ",reg);

@@ -54,7 +54,8 @@ int ehca_create_eq(struct ehca_shca *shca,
 		   struct ehca_eq *eq,
 		   const enum ehca_eq_type type, const u32 length)
 {
-	u64 ret;
+	int ret;
+	u64 h_ret;
 	u32 nr_pages;
 	u32 i;
 	void *vpage;
@@ -73,15 +74,15 @@ int ehca_create_eq(struct ehca_shca *shca,
 		return -EINVAL;
 	}
 
-	ret = hipz_h_alloc_resource_eq(shca->ipz_hca_handle,
-				       &eq->pf,
-				       type,
-				       length,
-				       &eq->ipz_eq_handle,
-				       &eq->length,
-				       &nr_pages, &eq->ist);
+	h_ret = hipz_h_alloc_resource_eq(shca->ipz_hca_handle,
+					 &eq->pf,
+					 type,
+					 length,
+					 &eq->ipz_eq_handle,
+					 &eq->length,
+					 &nr_pages, &eq->ist);
 
-	if (ret != H_SUCCESS) {
+	if (h_ret != H_SUCCESS) {
 		ehca_err(ib_dev, "Can't allocate EQ/NEQ. eq=%p", eq);
 		return -EINVAL;
 	}
@@ -97,24 +98,22 @@ int ehca_create_eq(struct ehca_shca *shca,
 		u64 rpage;
 
 		vpage = ipz_qpageit_get_inc(&eq->ipz_queue);
-		if (!vpage) {
-			ret = H_RESOURCE;
+		if (!vpage)
 			goto create_eq_exit2;
-		}
 
 		rpage = virt_to_abs(vpage);
-		ret = hipz_h_register_rpage_eq(shca->ipz_hca_handle,
-					       eq->ipz_eq_handle,
-					       &eq->pf,
-					       0, 0, rpage, 1);
+		h_ret = hipz_h_register_rpage_eq(shca->ipz_hca_handle,
+						 eq->ipz_eq_handle,
+						 &eq->pf,
+						 0, 0, rpage, 1);
 
 		if (i == (nr_pages - 1)) {
 			/* last page */
 			vpage = ipz_qpageit_get_inc(&eq->ipz_queue);
-			if (ret != H_SUCCESS || vpage)
+			if (h_ret != H_SUCCESS || vpage)
 				goto create_eq_exit2;
 		} else {
-			if (ret != H_PAGE_REGISTERED || !vpage)
+			if (h_ret != H_PAGE_REGISTERED || !vpage)
 				goto create_eq_exit2;
 		}
 	}

@@ -65,7 +65,7 @@ static struct platform_device dsmg600_i2c_gpio = {
 
 static struct i2c_board_info __initdata dsmg600_i2c_board_info [] = {
 	{
-		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
+		I2C_BOARD_INFO("pcf8563", 0x51),
 	},
 };
 

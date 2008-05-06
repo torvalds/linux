@@ -71,7 +71,7 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 	if (!(pgd_val(*pgd) & _PAGE_PRESENT)) {
 		pmd_table = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE);
 
-		paravirt_alloc_pd(&init_mm, __pa(pmd_table) >> PAGE_SHIFT);
+		paravirt_alloc_pmd(&init_mm, __pa(pmd_table) >> PAGE_SHIFT);
 		set_pgd(pgd, __pgd(__pa(pmd_table) | _PAGE_PRESENT));
 		pud = pud_offset(pgd, 0);
 		BUG_ON(pmd_table != pmd_offset(pud, 0));
@@ -100,7 +100,7 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 				(pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
 		}
 
-		paravirt_alloc_pt(&init_mm, __pa(page_table) >> PAGE_SHIFT);
+		paravirt_alloc_pte(&init_mm, __pa(page_table) >> PAGE_SHIFT);
 		set_pmd(pmd, __pmd(__pa(page_table) | _PAGE_TABLE));
 		BUG_ON(page_table != pte_offset_kernel(pmd, 0));
 	}
@@ -227,6 +227,25 @@ static inline int page_kills_ppro(unsigned long pagenr)
 	return 0;
 }
 
+/*
+ * devmem_is_allowed() checks to see if /dev/mem access to a certain address
+ * is valid. The argument is a physical page number.
+ *
+ *
+ * On x86, access has to be given to the first megabyte of ram because that area
+ * contains bios code and data regions used by X and dosemu and similar apps.
+ * Access has to be given to non-kernel-ram areas as well, these contain the PCI
+ * mmio resources as well as potential bios/acpi data regions.
+ */
+int devmem_is_allowed(unsigned long pagenr)
+{
+	if (pagenr <= 256)
+		return 1;
+	if (!page_is_ram(pagenr))
+		return 1;
+	return 0;
+}
+
 #ifdef CONFIG_HIGHMEM
 pte_t *kmap_pte;
 pgprot_t kmap_prot;
@@ -268,45 +287,15 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 	pkmap_page_table = pte;
 }
 
-static void __meminit free_new_highpage(struct page *page)
-{
-	init_page_count(page);
-	__free_page(page);
-	totalhigh_pages++;
-}
-
 void __init add_one_highpage_init(struct page *page, int pfn, int bad_ppro)
 {
 	if (page_is_ram(pfn) && !(bad_ppro && page_kills_ppro(pfn))) {
 		ClearPageReserved(page);
-		free_new_highpage(page);
+		init_page_count(page);
+		__free_page(page);
+		totalhigh_pages++;
 	} else
 		SetPageReserved(page);
-}
-
-static int __meminit
-add_one_highpage_hotplug(struct page *page, unsigned long pfn)
-{
-	free_new_highpage(page);
-	totalram_pages++;
-#ifdef CONFIG_FLATMEM
-	max_mapnr = max(pfn, max_mapnr);
-#endif
-	num_physpages++;
-
-	return 0;
-}
-
-/*
- * Not currently handling the NUMA case.
- * Assuming single node and all memory that
- * has been added dynamically that would be
- * onlined here is in HIGHMEM.
- */
-void __meminit online_page(struct page *page)
-{
-	ClearPageReserved(page);
-	add_one_highpage_hotplug(page, page_to_pfn(page));
 }
 
 #ifndef CONFIG_NUMA
@@ -365,7 +354,7 @@ void __init native_pagetable_setup_start(pgd_t *base)
 
 		pte_clear(NULL, va, pte);
 	}
-	paravirt_alloc_pd(&init_mm, __pa(base) >> PAGE_SHIFT);
+	paravirt_alloc_pmd(&init_mm, __pa(base) >> PAGE_SHIFT);
 }
 
 void __init native_pagetable_setup_done(pgd_t *base)
@@ -457,7 +446,7 @@ void zap_low_mappings(void)
 	 * Note that "pgd_clear()" doesn't do it for
 	 * us, because pgd_clear() is a no-op on i386.
 	 */
-	for (i = 0; i < USER_PTRS_PER_PGD; i++) {
+	for (i = 0; i < KERNEL_PGD_BOUNDARY; i++) {
 #ifdef CONFIG_X86_PAE
 		set_pgd(swapper_pg_dir+i, __pgd(1 + __pa(empty_zero_page)));
 #else
@@ -547,9 +536,9 @@ void __init paging_init(void)
 
 /*
  * Test if the WP bit works in supervisor mode. It isn't supported on 386's
- * and also on some strange 486's (NexGen etc.). All 586+'s are OK. This
- * used to involve black magic jumps to work around some nasty CPU bugs,
- * but fortunately the switch to using exceptions got rid of all that.
+ * and also on some strange 486's. All 586+'s are OK. This used to involve
+ * black magic jumps to work around some nasty CPU bugs, but fortunately the
+ * switch to using exceptions got rid of all that.
  */
 static void __init test_wp_bit(void)
 {

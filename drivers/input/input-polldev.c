@@ -73,7 +73,7 @@ static void input_polled_device_work(struct work_struct *work)
 
 static int input_open_polled_device(struct input_dev *input)
 {
-	struct input_polled_dev *dev = input->private;
+	struct input_polled_dev *dev = input_get_drvdata(input);
 	int error;
 
 	error = input_polldev_start_workqueue();
@@ -91,7 +91,7 @@ static int input_open_polled_device(struct input_dev *input)
 
 static void input_close_polled_device(struct input_dev *input)
 {
-	struct input_polled_dev *dev = input->private;
+	struct input_polled_dev *dev = input_get_drvdata(input);
 
 	cancel_delayed_work_sync(&dev->work);
 	input_polldev_stop_workqueue();
@@ -151,10 +151,10 @@ int input_register_polled_device(struct input_polled_dev *dev)
 {
 	struct input_dev *input = dev->input;
 
+	input_set_drvdata(input, dev);
 	INIT_DELAYED_WORK(&dev->work, input_polled_device_work);
 	if (!dev->poll_interval)
 		dev->poll_interval = 500;
-	input->private = dev;
 	input->open = input_open_polled_device;
 	input->close = input_close_polled_device;
 

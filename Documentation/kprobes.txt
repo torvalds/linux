@@ -37,6 +37,11 @@ registration function such as register_kprobe() specifies where
 the probe is to be inserted and what handler is to be called when
 the probe is hit.
 
+There are also register_/unregister_*probes() functions for batch
+registration/unregistration of a group of *probes. These functions
+can speed up unregistration process when you have to unregister
+a lot of probes at once.
+
 The next three subsections explain how the different types of
 probes work.  They explain certain things that you'll need to
 know in order to make the best use of Kprobes -- e.g., the
@@ -190,10 +195,11 @@ code mapping.
 4. API Reference
 
 The Kprobes API includes a "register" function and an "unregister"
-function for each type of probe.  Here are terse, mini-man-page
-specifications for these functions and the associated probe handlers
-that you'll write.  See the files in the samples/kprobes/ sub-directory
-for examples.
+function for each type of probe. The API also includes "register_*probes"
+and "unregister_*probes" functions for (un)registering arrays of probes.
+Here are terse, mini-man-page specifications for these functions and
+the associated probe handlers that you'll write. See the files in the
+samples/kprobes/ sub-directory for examples.
 
 4.1 register_kprobe
 
@@ -318,6 +324,43 @@ void unregister_kretprobe(struct kretprobe *rp);
 
 Removes the specified probe.  The unregister function can be called
 at any time after the probe has been registered.
+
+NOTE:
+If the functions find an incorrect probe (ex. an unregistered probe),
+they clear the addr field of the probe.
+
+4.5 register_*probes
+
+#include <linux/kprobes.h>
+int register_kprobes(struct kprobe **kps, int num);
+int register_kretprobes(struct kretprobe **rps, int num);
+int register_jprobes(struct jprobe **jps, int num);
+
+Registers each of the num probes in the specified array.  If any
+error occurs during registration, all probes in the array, up to
+the bad probe, are safely unregistered before the register_*probes
+function returns.
+- kps/rps/jps: an array of pointers to *probe data structures
+- num: the number of the array entries.
+
+NOTE:
+You have to allocate(or define) an array of pointers and set all
+of the array entries before using these functions.
+
+4.6 unregister_*probes
+
+#include <linux/kprobes.h>
+void unregister_kprobes(struct kprobe **kps, int num);
+void unregister_kretprobes(struct kretprobe **rps, int num);
+void unregister_jprobes(struct jprobe **jps, int num);
+
+Removes each of the num probes in the specified array at once.
+
+NOTE:
+If the functions find some incorrect probes (ex. unregistered
+probes) in the specified array, they clear the addr field of those
+incorrect probes. However, other probes in the array are
+unregistered correctly.
 
 5. Kprobes Features and Limitations
 

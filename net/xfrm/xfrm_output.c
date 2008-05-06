@@ -150,7 +150,7 @@ static int xfrm_output_gso(struct sk_buff *skb)
 
 	segs = skb_gso_segment(skb, 0);
 	kfree_skb(skb);
-	if (unlikely(IS_ERR(segs)))
+	if (IS_ERR(segs))
 		return PTR_ERR(segs);
 
 	do {

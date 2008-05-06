@@ -50,13 +50,13 @@ static int ds1672_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	/* read date registers */
 	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __FUNCTION__);
+		dev_err(&client->dev, "%s: read error\n", __func__);
 		return -EIO;
 	}
 
 	dev_dbg(&client->dev,
 		"%s: raw read data - counters=%02x,%02x,%02x,%02x\n",
-		__FUNCTION__, buf[0], buf[1], buf[2], buf[3]);
+		__func__, buf[0], buf[1], buf[2], buf[3]);
 
 	time = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
 
@@ -64,7 +64,7 @@ static int ds1672_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
-		__FUNCTION__, tm->tm_sec, tm->tm_min, tm->tm_hour,
+		__func__, tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
 	return 0;
@@ -84,7 +84,7 @@ static int ds1672_set_mmss(struct i2c_client *client, unsigned long secs)
 
 	xfer = i2c_master_send(client, buf, 6);
 	if (xfer != 6) {
-		dev_err(&client->dev, "%s: send: %d\n", __FUNCTION__, xfer);
+		dev_err(&client->dev, "%s: send: %d\n", __func__, xfer);
 		return -EIO;
 	}
 
@@ -98,7 +98,7 @@ static int ds1672_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	dev_dbg(&client->dev,
 		"%s: secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
-		__FUNCTION__,
+		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
@@ -133,7 +133,7 @@ static int ds1672_get_control(struct i2c_client *client, u8 *status)
 
 	/* read control register */
 	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __FUNCTION__);
+		dev_err(&client->dev, "%s: read error\n", __func__);
 		return -EIO;
 	}
 
@@ -199,7 +199,7 @@ static int ds1672_probe(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *client;
 	struct rtc_device *rtc;
 
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
+	dev_dbg(&adapter->dev, "%s\n", __func__);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;

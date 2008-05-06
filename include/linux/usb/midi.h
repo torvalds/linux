@@ -109,4 +109,4 @@ struct usb_ms_endpoint_descriptor_##n {				\
 	__u8  baAssocJackID[n];					\
 } __attribute__ ((packed))
 
-#endif
+#endif /* __LINUX_USB_MIDI_H */

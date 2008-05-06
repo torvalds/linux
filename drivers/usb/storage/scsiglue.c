@@ -73,6 +73,7 @@ static const char* host_info(struct Scsi_Host *host)
 static int slave_alloc (struct scsi_device *sdev)
 {
 	struct us_data *us = host_to_us(sdev->host);
+	struct usb_host_endpoint *bulk_in_ep;
 
 	/*
 	 * Set the INQUIRY transfer length to 36.  We don't use any of
@@ -84,12 +85,13 @@ static int slave_alloc (struct scsi_device *sdev)
 	/* Scatter-gather buffers (all but the last) must have a length
 	 * divisible by the bulk maxpacket size.  Otherwise a data packet
 	 * would end up being short, causing a premature end to the data
-	 * transfer.  Since high-speed bulk pipes have a maxpacket size
-	 * of 512, we'll use that as the scsi device queue's DMA alignment
-	 * mask.  Guaranteeing proper alignment of the first buffer will
-	 * have the desired effect because, except at the beginning and
-	 * the end, scatter-gather buffers follow page boundaries. */
-	blk_queue_update_dma_alignment(sdev->request_queue, (512 - 1));
+	 * transfer.  We'll use the maxpacket value of the bulk-IN pipe
+	 * to set the SCSI device queue's DMA alignment mask.
+	 */
+	bulk_in_ep = us->pusb_dev->ep_in[usb_pipeendpoint(us->recv_bulk_pipe)];
+	blk_queue_update_dma_alignment(sdev->request_queue,
+			le16_to_cpu(bulk_in_ep->desc.wMaxPacketSize) - 1);
+			/* wMaxPacketSize must be a power of 2 */
 
 	/*
 	 * The UFI spec treates the Peripheral Qualifier bits in an
@@ -132,7 +134,7 @@ static int slave_configure(struct scsi_device *sdev)
 		/* Disk-type devices use MODE SENSE(6) if the protocol
 		 * (SubClass) is Transparent SCSI, otherwise they use
 		 * MODE SENSE(10). */
-		if (us->subclass != US_SC_SCSI)
+		if (us->subclass != US_SC_SCSI && us->subclass != US_SC_CYP_ATACB)
 			sdev->use_10_for_ms = 1;
 
 		/* Many disks only accept MODE SENSE transfer lengths of
@@ -226,12 +228,12 @@ static int queuecommand(struct scsi_cmnd *srb,
 {
 	struct us_data *us = host_to_us(srb->device->host);
 
-	US_DEBUGP("%s called\n", __FUNCTION__);
+	US_DEBUGP("%s called\n", __func__);
 
 	/* check for state-transition errors */
 	if (us->srb != NULL) {
 		printk(KERN_ERR USB_STORAGE "Error in %s: us->srb = %p\n",
-			__FUNCTION__, us->srb);
+			__func__, us->srb);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
@@ -260,7 +262,7 @@ static int command_abort(struct scsi_cmnd *srb)
 {
 	struct us_data *us = host_to_us(srb->device->host);
 
-	US_DEBUGP("%s called\n", __FUNCTION__);
+	US_DEBUGP("%s called\n", __func__);
 
 	/* us->srb together with the TIMED_OUT, RESETTING, and ABORTING
 	 * bits are protected by the host lock. */
@@ -297,7 +299,7 @@ static int device_reset(struct scsi_cmnd *srb)
 	struct us_data *us = host_to_us(srb->device->host);
 	int result;
 
-	US_DEBUGP("%s called\n", __FUNCTION__);
+	US_DEBUGP("%s called\n", __func__);
 
 	/* lock the device pointers and do the reset */
 	mutex_lock(&(us->dev_mutex));
@@ -313,7 +315,7 @@ static int bus_reset(struct scsi_cmnd *srb)
 	struct us_data *us = host_to_us(srb->device->host);
 	int result;
 
-	US_DEBUGP("%s called\n", __FUNCTION__);
+	US_DEBUGP("%s called\n", __func__);
 	result = usb_stor_port_reset(us);
 	return result < 0 ? FAILED : SUCCESS;
 }

@@ -1498,7 +1498,8 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 		err = xfrm_state_update(x);
 
 	xfrm_audit_state_add(x, err ? 0 : 1,
-			     audit_get_loginuid(current), 0);
+			     audit_get_loginuid(current),
+			     audit_get_sessionid(current), 0);
 
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
@@ -1552,7 +1553,8 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	km_state_notify(x, &c);
 out:
 	xfrm_audit_state_delete(x, err ? 0 : 1,
-			       audit_get_loginuid(current), 0);
+				audit_get_loginuid(current),
+				audit_get_sessionid(current), 0);
 	xfrm_state_put(x);
 
 	return err;
@@ -1728,6 +1730,7 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 		return -EINVAL;
 
 	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = 0;
 	err = xfrm_state_flush(proto, &audit_info);
 	if (err)
@@ -1907,7 +1910,7 @@ parse_ipsecrequest(struct xfrm_policy *xp, struct sadb_x_ipsecrequest *rq)
 		t->encap_family = xp->family;
 
 	/* No way to set this via kame pfkey */
-	t->aalgos = t->ealgos = t->calgos = ~0;
+	t->allalgs = 1;
 	xp->xfrm_nr++;
 	return 0;
 }
@@ -2324,7 +2327,8 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 				 hdr->sadb_msg_type != SADB_X_SPDUPDATE);
 
 	xfrm_audit_policy_add(xp, err ? 0 : 1,
-			     audit_get_loginuid(current), 0);
+			      audit_get_loginuid(current),
+			      audit_get_sessionid(current), 0);
 
 	if (err)
 		goto out;
@@ -2356,7 +2360,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	struct xfrm_selector sel;
 	struct km_event c;
 	struct sadb_x_sec_ctx *sec_ctx;
-	struct xfrm_sec_ctx *pol_ctx;
+	struct xfrm_sec_ctx *pol_ctx = NULL;
 
 	if (!present_and_same_family(ext_hdrs[SADB_EXT_ADDRESS_SRC-1],
 				     ext_hdrs[SADB_EXT_ADDRESS_DST-1]) ||
@@ -2396,8 +2400,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 		kfree(uctx);
 		if (err)
 			return err;
-	} else
-		pol_ctx = NULL;
+	}
 
 	xp = xfrm_policy_bysel_ctx(XFRM_POLICY_TYPE_MAIN,
 				   pol->sadb_x_policy_dir - 1, &sel, pol_ctx,
@@ -2407,7 +2410,8 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 		return -ENOENT;
 
 	xfrm_audit_policy_delete(xp, err ? 0 : 1,
-				audit_get_loginuid(current), 0);
+				 audit_get_loginuid(current),
+				 audit_get_sessionid(current), 0);
 
 	if (err)
 		goto out;
@@ -2668,7 +2672,8 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 
 	if (delete) {
 		xfrm_audit_policy_delete(xp, err ? 0 : 1,
-				audit_get_loginuid(current), 0);
+				audit_get_loginuid(current),
+				audit_get_sessionid(current), 0);
 
 		if (err)
 			goto out;
@@ -2768,6 +2773,7 @@ static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 	int err;
 
 	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = 0;
 	err = xfrm_policy_flush(XFRM_POLICY_TYPE_MAIN, &audit_info);
 	if (err)

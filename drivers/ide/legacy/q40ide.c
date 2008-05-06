@@ -36,23 +36,6 @@ static const unsigned long pcide_bases[Q40IDE_NUM_HWIFS] = {
     PCIDE_BASE6 */
 };
 
-
-    /*
-     *  Offsets from one of the above bases
-     */
-
-/* used to do addr translation here but it is easier to do in setup ports */
-/*#define IDE_OFF_B(x)	((unsigned long)Q40_ISA_IO_B((IDE_##x##_OFFSET)))*/
-
-#define IDE_OFF_B(x)	((unsigned long)((IDE_##x##_OFFSET)))
-#define IDE_OFF_W(x)	((unsigned long)((IDE_##x##_OFFSET)))
-
-static const int pcide_offsets[IDE_NR_PORTS] = {
-    IDE_OFF_W(DATA), IDE_OFF_B(ERROR), IDE_OFF_B(NSECTOR), IDE_OFF_B(SECTOR),
-    IDE_OFF_B(LCYL), IDE_OFF_B(HCYL), 6 /*IDE_OFF_B(CURRENT)*/, IDE_OFF_B(STATUS),
-    518/*IDE_OFF(CMD)*/
-};
-
 static int q40ide_default_irq(unsigned long base)
 {
            switch (base) {
@@ -68,29 +51,48 @@ static int q40ide_default_irq(unsigned long base)
 /*
  * Addresses are pretranslated for Q40 ISA access.
  */
-void q40_ide_setup_ports ( hw_regs_t *hw,
-			unsigned long base, int *offsets,
-			unsigned long ctrl, unsigned long intr,
+static void q40_ide_setup_ports(hw_regs_t *hw, unsigned long base,
 			ide_ack_intr_t *ack_intr,
 			int irq)
 {
-	int i;
-
 	memset(hw, 0, sizeof(hw_regs_t));
-	for (i = 0; i < IDE_NR_PORTS; i++) {
-		/* BIG FAT WARNING: 
-		   assumption: only DATA port is ever used in 16 bit mode */
-		if ( i==0 )
-			hw->io_ports[i] = Q40_ISA_IO_W(base + offsets[i]);
-		else
-			hw->io_ports[i] = Q40_ISA_IO_B(base + offsets[i]);
-	}
+	/* BIG FAT WARNING: 
+	   assumption: only DATA port is ever used in 16 bit mode */
+	hw->io_ports.data_addr = Q40_ISA_IO_W(base);
+	hw->io_ports.error_addr = Q40_ISA_IO_B(base + 1);
+	hw->io_ports.nsect_addr = Q40_ISA_IO_B(base + 2);
+	hw->io_ports.lbal_addr = Q40_ISA_IO_B(base + 3);
+	hw->io_ports.lbam_addr = Q40_ISA_IO_B(base + 4);
+	hw->io_ports.lbah_addr = Q40_ISA_IO_B(base + 5);
+	hw->io_ports.device_addr = Q40_ISA_IO_B(base + 6);
+	hw->io_ports.status_addr = Q40_ISA_IO_B(base + 7);
+	hw->io_ports.ctl_addr = Q40_ISA_IO_B(base + 0x206);
 
 	hw->irq = irq;
 	hw->ack_intr = ack_intr;
 }
 
+static void q40ide_input_data(ide_drive_t *drive, struct request *rq,
+			      void *buf, unsigned int len)
+{
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
 
+	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
+		return insw(data_addr, buf, (len + 1) / 2);
+
+	insw_swapw(data_addr, buf, (len + 1) / 2);
+}
+
+static void q40ide_output_data(ide_drive_t *drive, struct request *rq,
+			       void *buf, unsigned int len)
+{
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
+
+	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
+		return outsw(data_addr, buf, (len + 1) / 2);
+
+	outsw_swapw(data_addr, buf, (len + 1) / 2);
+}
 
 /* 
  * the static array is needed to have the name reported in /proc/ioports,
@@ -131,17 +133,19 @@ static int __init q40ide_init(void)
 		release_region(pcide_bases[i], 8);
 		continue;
 	}
-	q40_ide_setup_ports(&hw,(unsigned long) pcide_bases[i], (int *)pcide_offsets, 
-			pcide_bases[i]+0x206, 
-			0, NULL,
+	q40_ide_setup_ports(&hw, pcide_bases[i],
+			NULL,
 //			m68kide_iops,
 			q40ide_default_irq(pcide_bases[i]));
 
-	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif) {
 		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
-		hwif->mmio = 1;
+
+		/* Q40 has a byte-swapped IDE interface */
+		hwif->input_data  = q40ide_input_data;
+		hwif->output_data = q40ide_output_data;
 
 		idx[i] = hwif->index;
 	}

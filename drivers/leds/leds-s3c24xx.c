@@ -51,7 +51,7 @@ static void s3c24xx_led_set(struct led_classdev *led_cdev,
 
 	if (pd->flags & S3C24XX_LEDF_TRISTATE)
 		s3c2410_gpio_cfgpin(pd->gpio,
-				    value ? S3C2410_GPIO_OUTPUT : S3C2410_GPIO_INPUT);
+			value ? S3C2410_GPIO_OUTPUT : S3C2410_GPIO_INPUT);
 
 }
 
@@ -151,7 +151,7 @@ static int __init s3c24xx_led_init(void)
 
 static void __exit s3c24xx_led_exit(void)
 {
- 	platform_driver_unregister(&s3c24xx_led_driver);
+	platform_driver_unregister(&s3c24xx_led_driver);
 }
 
 module_init(s3c24xx_led_init);

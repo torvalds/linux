@@ -99,45 +99,38 @@ struct ds1307 {
 };
 
 struct chip_desc {
-	char			name[9];
 	unsigned		nvram56:1;
 	unsigned		alarm:1;
-	enum ds_type		type;
 };
 
-static const struct chip_desc chips[] = { {
-	.name		= "ds1307",
-	.type		= ds_1307,
+static const struct chip_desc chips[] = {
+[ds_1307] = {
 	.nvram56	= 1,
-}, {
-	.name		= "ds1337",
-	.type		= ds_1337,
+},
+[ds_1337] = {
 	.alarm		= 1,
-}, {
-	.name		= "ds1338",
-	.type		= ds_1338,
+},
+[ds_1338] = {
 	.nvram56	= 1,
-}, {
-	.name		= "ds1339",
-	.type		= ds_1339,
+},
+[ds_1339] = {
 	.alarm		= 1,
-}, {
-	.name		= "ds1340",
-	.type		= ds_1340,
-}, {
-	.name		= "m41t00",
-	.type		= m41t00,
+},
+[ds_1340] = {
+},
+[m41t00] = {
 }, };
 
-static inline const struct chip_desc *find_chip(const char *s)
-{
-	unsigned i;
-
-	for (i = 0; i < ARRAY_SIZE(chips); i++)
-		if (strnicmp(s, chips[i].name, sizeof chips[i].name) == 0)
-			return &chips[i];
-	return NULL;
-}
+static const struct i2c_device_id ds1307_id[] = {
+	{ "ds1307", ds_1307 },
+	{ "ds1337", ds_1337 },
+	{ "ds1338", ds_1338 },
+	{ "ds1339", ds_1339 },
+	{ "ds1340", ds_1340 },
+	{ "m41t00", m41t00 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ds1307_id);
 
 static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 {
@@ -326,20 +319,14 @@ static struct bin_attribute nvram = {
 
 static struct i2c_driver ds1307_driver;
 
-static int __devinit ds1307_probe(struct i2c_client *client)
+static int __devinit ds1307_probe(struct i2c_client *client,
+				  const struct i2c_device_id *id)
 {
 	struct ds1307		*ds1307;
 	int			err = -ENODEV;
 	int			tmp;
-	const struct chip_desc	*chip;
+	const struct chip_desc	*chip = &chips[id->driver_data];
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
-
-	chip = find_chip(client->name);
-	if (!chip) {
-		dev_err(&client->dev, "unknown chip type '%s'\n",
-				client->name);
-		return -ENODEV;
-	}
 
 	if (!i2c_check_functionality(adapter,
 			I2C_FUNC_I2C | I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
@@ -361,7 +348,7 @@ static int __devinit ds1307_probe(struct i2c_client *client)
 	ds1307->msg[1].len = sizeof(ds1307->regs);
 	ds1307->msg[1].buf = ds1307->regs;
 
-	ds1307->type = chip->type;
+	ds1307->type = id->driver_data;
 
 	switch (ds1307->type) {
 	case ds_1337:
@@ -550,6 +537,7 @@ static struct i2c_driver ds1307_driver = {
 	},
 	.probe		= ds1307_probe,
 	.remove		= __devexit_p(ds1307_remove),
+	.id_table	= ds1307_id,
 };
 
 static int __init ds1307_init(void)

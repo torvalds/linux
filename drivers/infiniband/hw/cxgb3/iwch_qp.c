@@ -586,6 +586,36 @@ static inline void build_term_codes(struct respQ_msg_t *rsp_msg,
 	}
 }
 
+int iwch_post_zb_read(struct iwch_qp *qhp)
+{
+	union t3_wr *wqe;
+	struct sk_buff *skb;
+	u8 flit_cnt = sizeof(struct t3_rdma_read_wr) >> 3;
+
+	PDBG("%s enter\n", __func__);
+	skb = alloc_skb(40, GFP_KERNEL);
+	if (!skb) {
+		printk(KERN_ERR "%s cannot send zb_read!!\n", __func__);
+		return -ENOMEM;
+	}
+	wqe = (union t3_wr *)skb_put(skb, sizeof(struct t3_rdma_read_wr));
+	memset(wqe, 0, sizeof(struct t3_rdma_read_wr));
+	wqe->read.rdmaop = T3_READ_REQ;
+	wqe->read.reserved[0] = 0;
+	wqe->read.reserved[1] = 0;
+	wqe->read.reserved[2] = 0;
+	wqe->read.rem_stag = cpu_to_be32(1);
+	wqe->read.rem_to = cpu_to_be64(1);
+	wqe->read.local_stag = cpu_to_be32(1);
+	wqe->read.local_len = cpu_to_be32(0);
+	wqe->read.local_to = cpu_to_be64(1);
+	wqe->send.wrh.op_seop_flags = cpu_to_be32(V_FW_RIWR_OP(T3_WR_READ));
+	wqe->send.wrh.gen_tid_len = cpu_to_be32(V_FW_RIWR_TID(qhp->ep->hwtid)|
+						V_FW_RIWR_LEN(flit_cnt));
+	skb->priority = CPL_PRIORITY_DATA;
+	return cxgb3_ofld_send(qhp->rhp->rdev.t3cdev_p, skb);
+}
+
 /*
  * This posts a TERMINATE with layer=RDMA, type=catastrophic.
  */
@@ -625,6 +655,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 {
 	struct iwch_cq *rchp, *schp;
 	int count;
+	int flushed;
 
 	rchp = get_chp(qhp->rhp, qhp->attr.rcq);
 	schp = get_chp(qhp->rhp, qhp->attr.scq);
@@ -639,20 +670,22 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&rchp->cq);
 	cxio_count_rcqes(&rchp->cq, &qhp->wq, &count);
-	cxio_flush_rq(&qhp->wq, &rchp->cq, count);
+	flushed = cxio_flush_rq(&qhp->wq, &rchp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&rchp->lock, *flag);
-	(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
+	if (flushed)
+		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
 
 	/* locking heirarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, *flag);
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&schp->cq);
 	cxio_count_scqes(&schp->cq, &qhp->wq, &count);
-	cxio_flush_sq(&qhp->wq, &schp->cq, count);
+	flushed = cxio_flush_sq(&qhp->wq, &schp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&schp->lock, *flag);
-	(*schp->ibcq.comp_handler)(&schp->ibcq, schp->ibcq.cq_context);
+	if (flushed)
+		(*schp->ibcq.comp_handler)(&schp->ibcq, schp->ibcq.cq_context);
 
 	/* deref */
 	if (atomic_dec_and_test(&qhp->refcnt))
@@ -671,11 +704,18 @@ static void flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 
 
 /*
- * Return non zero if at least one RECV was pre-posted.
+ * Return count of RECV WRs posted
  */
-static int rqes_posted(struct iwch_qp *qhp)
+u16 iwch_rqes_posted(struct iwch_qp *qhp)
 {
-	return fw_riwrh_opcode((struct fw_riwrh *)qhp->wq.queue) == T3_WR_RCV;
+	union t3_wr *wqe = qhp->wq.queue;
+	u16 count = 0;
+	while ((count+1) != 0 && fw_riwrh_opcode((struct fw_riwrh *)wqe) == T3_WR_RCV) {
+		count++;
+		wqe++;
+	}
+	PDBG("%s qhp %p count %u\n", __func__, qhp, count);
+	return count;
 }
 
 static int rdma_init(struct iwch_dev *rhp, struct iwch_qp *qhp,
@@ -716,8 +756,17 @@ static int rdma_init(struct iwch_dev *rhp, struct iwch_qp *qhp,
 	init_attr.ird = qhp->attr.max_ird;
 	init_attr.qp_dma_addr = qhp->wq.dma_addr;
 	init_attr.qp_dma_size = (1UL << qhp->wq.size_log2);
-	init_attr.flags = rqes_posted(qhp) ? RECVS_POSTED : 0;
+	init_attr.rqe_count = iwch_rqes_posted(qhp);
+	init_attr.flags = qhp->attr.mpa_attr.initiator ? MPA_INITIATOR : 0;
 	init_attr.flags |= capable(CAP_NET_BIND_SERVICE) ? PRIV_QP : 0;
+	if (peer2peer) {
+		init_attr.rtr_type = RTR_READ;
+		if (init_attr.ord == 0 && qhp->attr.mpa_attr.initiator)
+			init_attr.ord = 1;
+		if (init_attr.ird == 0 && !qhp->attr.mpa_attr.initiator)
+			init_attr.ird = 1;
+	} else
+		init_attr.rtr_type = 0;
 	init_attr.irs = qhp->ep->rcv_seq;
 	PDBG("%s init_attr.rq_addr 0x%x init_attr.rq_size = %d "
 	     "flags 0x%x qpcaps 0x%x\n", __func__,
@@ -832,8 +881,8 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 				abort=0;
 				disconnect = 1;
 				ep = qhp->ep;
+				get_ep(&ep->com);
 			}
-			flush_qp(qhp, &flag);
 			break;
 		case IWCH_QP_STATE_TERMINATE:
 			qhp->attr.state = IWCH_QP_STATE_TERMINATE;
@@ -848,6 +897,7 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 				abort=1;
 				disconnect = 1;
 				ep = qhp->ep;
+				get_ep(&ep->com);
 			}
 			goto err;
 			break;
@@ -863,6 +913,7 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 		}
 		switch (attrs->next_state) {
 			case IWCH_QP_STATE_IDLE:
+				flush_qp(qhp, &flag);
 				qhp->attr.state = IWCH_QP_STATE_IDLE;
 				qhp->attr.llp_stream_handle = NULL;
 				put_ep(&qhp->ep->com);
@@ -929,8 +980,10 @@ out:
 	 * on the EP.  This can be a normal close (RTS->CLOSING) or
 	 * an abnormal close (RTS/CLOSING->ERROR).
 	 */
-	if (disconnect)
+	if (disconnect) {
 		iwch_ep_disconnect(ep, abort, GFP_KERNEL);
+		put_ep(&ep->com);
+	}
 
 	/*
 	 * If free is 1, then we've disassociated the EP from the QP

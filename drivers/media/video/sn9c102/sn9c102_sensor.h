@@ -85,9 +85,6 @@ sn9c102_attach_sensor(struct sn9c102_device* cam,
 */
 
 /* The "try" I2C I/O versions are used when probing the sensor */
-extern int sn9c102_i2c_try_write(struct sn9c102_device*,
-				 const struct sn9c102_sensor*, u8 address,
-				 u8 value);
 extern int sn9c102_i2c_try_read(struct sn9c102_device*,
 				const struct sn9c102_sensor*, u8 address);
 

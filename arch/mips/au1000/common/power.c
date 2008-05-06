@@ -29,17 +29,14 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/pm_legacy.h>
-#include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/jiffies.h>
 
-#include <asm/string.h>
 #include <asm/uaccess.h>
-#include <asm/io.h>
-#include <asm/system.h>
 #include <asm/cacheflush.h>
 #include <asm/mach-au1x00/au1000.h>
 
@@ -47,17 +44,13 @@
 
 #define DEBUG 1
 #ifdef DEBUG
-#  define DPRINTK(fmt, args...)	printk("%s: " fmt, __FUNCTION__ , ## args)
+#  define DPRINTK(fmt, args...)	printk("%s: " fmt, __func__, ## args)
 #else
 #  define DPRINTK(fmt, args...)
 #endif
 
 static void au1000_calibrate_delay(void);
 
-extern void set_au1x00_speed(unsigned int new_freq);
-extern unsigned int get_au1x00_speed(void);
-extern unsigned long get_au1x00_uart_baud_base(void);
-extern void set_au1x00_uart_baud_base(unsigned long new_baud_base);
 extern unsigned long save_local_and_disable(int controller);
 extern void restore_local_and_enable(int controller, unsigned long mask);
 extern void local_enable_irq(unsigned int irq_nr);
@@ -258,7 +251,6 @@ int au_sleep(void)
 static int pm_do_sleep(ctl_table * ctl, int write, struct file *file,
 		       void __user *buffer, size_t * len, loff_t *ppos)
 {
-	int retval = 0;
 #ifdef SLEEP_TEST_TIMEOUT
 #define TMPBUFLEN2 16
 	char buf[TMPBUFLEN2], *p;
@@ -278,35 +270,11 @@ static int pm_do_sleep(ctl_table * ctl, int write, struct file *file,
 		p = buf;
 		sleep_ticks = simple_strtoul(p, &p, 0);
 #endif
-		retval = pm_send_all(PM_SUSPEND, (void *) 2);
-
-		if (retval)
-			return retval;
 
 		au_sleep();
-		retval = pm_send_all(PM_RESUME, (void *) 0);
 	}
-	return retval;
+	return 0;
 }
-
-static int pm_do_suspend(ctl_table * ctl, int write, struct file *file,
-			 void __user *buffer, size_t * len, loff_t *ppos)
-{
-	int retval = 0;
-
-	if (!write) {
-		*len = 0;
-	} else {
-		retval = pm_send_all(PM_SUSPEND, (void *) 2);
-		if (retval)
-			return retval;
-		suspend_mode = 1;
-
-		retval = pm_send_all(PM_RESUME, (void *) 0);
-	}
-	return retval;
-}
-
 
 static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 		      void __user *buffer, size_t * len, loff_t *ppos)
@@ -420,14 +388,6 @@ static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 
 
 static struct ctl_table pm_table[] = {
-	{
-		.ctl_name 	= CTL_UNNUMBERED,
-		.procname	= "suspend",
-		.data		= NULL,
-		.maxlen		= 0,
-		.mode		= 0600,
-		.proc_handler	= &pm_do_suspend
-	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "sleep",

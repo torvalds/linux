@@ -23,10 +23,14 @@
 #include <linux/mm.h>
 #include <linux/suspend.h>
 #include <linux/hrtimer.h>
+#ifdef CONFIG_KVM
+#include <linux/kvm_host.h>
+#endif
 #ifdef CONFIG_PPC64
 #include <linux/time.h>
 #include <linux/hardirq.h>
 #endif
+#include <linux/kbuild.h>
 
 #include <asm/io.h>
 #include <asm/page.h>
@@ -48,11 +52,6 @@
 #include <asm/iseries/alpaca.h>
 #endif
 
-#define DEFINE(sym, val) \
-	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
-
 int main(void)
 {
 	DEFINE(THREAD, offsetof(struct task_struct, thread));
@@ -64,6 +63,7 @@ int main(void)
 #endif /* CONFIG_PPC64 */
 
 	DEFINE(KSP, offsetof(struct thread_struct, ksp));
+	DEFINE(KSP_LIMIT, offsetof(struct thread_struct, ksp_limit));
 	DEFINE(PT_REGS, offsetof(struct thread_struct, regs));
 	DEFINE(THREAD_FPEXC_MODE, offsetof(struct thread_struct, fpexc_mode));
 	DEFINE(THREAD_FPR0, offsetof(struct thread_struct, fpr[0]));
@@ -93,10 +93,7 @@ int main(void)
 	DEFINE(TI_LOCAL_FLAGS, offsetof(struct thread_info, local_flags));
 	DEFINE(TI_PREEMPT, offsetof(struct thread_info, preempt_count));
 	DEFINE(TI_TASK, offsetof(struct thread_info, task));
-#ifdef CONFIG_PPC32
-	DEFINE(TI_EXECDOMAIN, offsetof(struct thread_info, exec_domain));
 	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
-#endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC64
 	DEFINE(DCACHEL1LINESIZE, offsetof(struct ppc64_caches, dline_size));
@@ -165,13 +162,9 @@ int main(void)
 
 	/* Interrupt register frame */
 	DEFINE(STACK_FRAME_OVERHEAD, STACK_FRAME_OVERHEAD);
-#ifndef CONFIG_PPC64
-	DEFINE(INT_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs));
-#else /* CONFIG_PPC64 */
+	DEFINE(INT_FRAME_SIZE, STACK_INT_FRAME_SIZE);
+#ifdef CONFIG_PPC64
 	DEFINE(SWITCH_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs));
-	/* 288 = # of volatile regs, int & fp, for leaf routines */
-	/* which do not stack a frame.  See the PPC64 ABI.       */
-	DEFINE(INT_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs) + 288);
 	/* Create extra stack space for SRR0 and SRR1 when calling prom/rtas. */
 	DEFINE(PROM_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs) + 16);
 	DEFINE(RTAS_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs) + 16);
@@ -330,6 +323,31 @@ int main(void)
 #endif
 
 	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);
+
+#ifdef CONFIG_KVM
+	DEFINE(TLBE_BYTES, sizeof(struct tlbe));
+
+	DEFINE(VCPU_HOST_STACK, offsetof(struct kvm_vcpu, arch.host_stack));
+	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));
+	DEFINE(VCPU_HOST_TLB, offsetof(struct kvm_vcpu, arch.host_tlb));
+	DEFINE(VCPU_SHADOW_TLB, offsetof(struct kvm_vcpu, arch.shadow_tlb));
+	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));
+	DEFINE(VCPU_LR, offsetof(struct kvm_vcpu, arch.lr));
+	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));
+	DEFINE(VCPU_XER, offsetof(struct kvm_vcpu, arch.xer));
+	DEFINE(VCPU_CTR, offsetof(struct kvm_vcpu, arch.ctr));
+	DEFINE(VCPU_PC, offsetof(struct kvm_vcpu, arch.pc));
+	DEFINE(VCPU_MSR, offsetof(struct kvm_vcpu, arch.msr));
+	DEFINE(VCPU_SPRG4, offsetof(struct kvm_vcpu, arch.sprg4));
+	DEFINE(VCPU_SPRG5, offsetof(struct kvm_vcpu, arch.sprg5));
+	DEFINE(VCPU_SPRG6, offsetof(struct kvm_vcpu, arch.sprg6));
+	DEFINE(VCPU_SPRG7, offsetof(struct kvm_vcpu, arch.sprg7));
+	DEFINE(VCPU_PID, offsetof(struct kvm_vcpu, arch.pid));
+
+	DEFINE(VCPU_LAST_INST, offsetof(struct kvm_vcpu, arch.last_inst));
+	DEFINE(VCPU_FAULT_DEAR, offsetof(struct kvm_vcpu, arch.fault_dear));
+	DEFINE(VCPU_FAULT_ESR, offsetof(struct kvm_vcpu, arch.fault_esr));
+#endif
 
 	return 0;
 }

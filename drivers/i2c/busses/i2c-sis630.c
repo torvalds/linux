@@ -136,7 +136,7 @@ static int sis630_transaction_start(struct i2c_adapter *adap, int size, u8 *oldc
 			dev_dbg(&adap->dev, "Failed! (%02x)\n", temp);
 			return -1;
                 } else {
-			dev_dbg(&adap->dev, "Successfull!\n");
+			dev_dbg(&adap->dev, "Successful!\n");
 		}
         }
 

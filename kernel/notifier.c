@@ -31,6 +31,21 @@ static int notifier_chain_register(struct notifier_block **nl,
 	return 0;
 }
 
+static int notifier_chain_cond_register(struct notifier_block **nl,
+		struct notifier_block *n)
+{
+	while ((*nl) != NULL) {
+		if ((*nl) == n)
+			return 0;
+		if (n->priority > (*nl)->priority)
+			break;
+		nl = &((*nl)->next);
+	}
+	n->next = *nl;
+	rcu_assign_pointer(*nl, n);
+	return 0;
+}
+
 static int notifier_chain_unregister(struct notifier_block **nl,
 		struct notifier_block *n)
 {
@@ -203,6 +218,29 @@ int blocking_notifier_chain_register(struct blocking_notifier_head *nh,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(blocking_notifier_chain_register);
+
+/**
+ *	blocking_notifier_chain_cond_register - Cond add notifier to a blocking notifier chain
+ *	@nh: Pointer to head of the blocking notifier chain
+ *	@n: New entry in notifier chain
+ *
+ *	Adds a notifier to a blocking notifier chain, only if not already
+ *	present in the chain.
+ *	Must be called in process context.
+ *
+ *	Currently always returns zero.
+ */
+int blocking_notifier_chain_cond_register(struct blocking_notifier_head *nh,
+		struct notifier_block *n)
+{
+	int ret;
+
+	down_write(&nh->rwsem);
+	ret = notifier_chain_cond_register(&nh->head, n);
+	up_write(&nh->rwsem);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(blocking_notifier_chain_cond_register);
 
 /**
  *	blocking_notifier_chain_unregister - Remove notifier from a blocking notifier chain

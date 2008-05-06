@@ -96,7 +96,7 @@ static int i830_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 	drm_i830_buf_priv_t *buf_priv;
 
 	lock_kernel();
-	dev = priv->head->dev;
+	dev = priv->minor->dev;
 	dev_priv = dev->dev_private;
 	buf = dev_priv->mmap_buffer;
 	buf_priv = buf->dev_private;
@@ -124,7 +124,7 @@ static const struct file_operations i830_buffer_fops = {
 
 static int i830_map_buffer(struct drm_buf * buf, struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->head->dev;
+	struct drm_device *dev = file_priv->minor->dev;
 	drm_i830_buf_priv_t *buf_priv = buf->dev_private;
 	drm_i830_private_t *dev_priv = dev->dev_private;
 	const struct file_operations *old_fops;
@@ -692,7 +692,7 @@ static void i830EmitState(struct drm_device * dev)
 	drm_i830_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int dirty = sarea_priv->dirty;
 
-	DRM_DEBUG("%s %x\n", __FUNCTION__, dirty);
+	DRM_DEBUG("%s %x\n", __func__, dirty);
 
 	if (dirty & I830_UPLOAD_BUFFERS) {
 		i830EmitDestVerified(dev, sarea_priv->BufferState);
@@ -1043,7 +1043,7 @@ static void i830_dma_dispatch_flip(struct drm_device * dev)
 	RING_LOCALS;
 
 	DRM_DEBUG("%s: page=%d pfCurrentPage=%d\n",
-		  __FUNCTION__,
+		  __func__,
 		  dev_priv->current_page,
 		  dev_priv->sarea_priv->pf_current_page);
 
@@ -1206,7 +1206,7 @@ static void i830_dma_quiescent(struct drm_device * dev)
 	OUT_RING(0);
 	ADVANCE_LP_RING();
 
-	i830_wait_ring(dev, dev_priv->ring.Size - 8, __FUNCTION__);
+	i830_wait_ring(dev, dev_priv->ring.Size - 8, __func__);
 }
 
 static int i830_flush_queue(struct drm_device * dev)
@@ -1223,7 +1223,7 @@ static int i830_flush_queue(struct drm_device * dev)
 	OUT_RING(0);
 	ADVANCE_LP_RING();
 
-	i830_wait_ring(dev, dev_priv->ring.Size - 8, __FUNCTION__);
+	i830_wait_ring(dev, dev_priv->ring.Size - 8, __func__);
 
 	for (i = 0; i < dma->buf_count; i++) {
 		struct drm_buf *buf = dma->buflist[i];
@@ -1344,7 +1344,7 @@ static void i830_do_init_pageflip(struct drm_device * dev)
 {
 	drm_i830_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("%s\n", __func__);
 	dev_priv->page_flipping = 1;
 	dev_priv->current_page = 0;
 	dev_priv->sarea_priv->pf_current_page = dev_priv->current_page;
@@ -1354,7 +1354,7 @@ static int i830_do_cleanup_pageflip(struct drm_device * dev)
 {
 	drm_i830_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("%s\n", __func__);
 	if (dev_priv->current_page != 0)
 		i830_dma_dispatch_flip(dev);
 
@@ -1367,7 +1367,7 @@ static int i830_flip_bufs(struct drm_device *dev, void *data,
 {
 	drm_i830_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("%s\n", __func__);
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -1437,7 +1437,7 @@ static int i830_getparam(struct drm_device *dev, void *data,
 	int value;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("%s called with no initialization\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1464,7 +1464,7 @@ static int i830_setparam(struct drm_device *dev, void *data,
 	drm_i830_setparam_t *param = data;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("%s called with no initialization\n", __func__);
 		return -EINVAL;
 	}
 

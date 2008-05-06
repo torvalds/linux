@@ -539,6 +539,17 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
 	at91_set_B_periph(AT91_PIN_PB28, 0);	/* LCDD23 */
 #endif
 
+	if (ARRAY_SIZE(lcdc_resources) > 2) {
+		void __iomem *fb;
+		struct resource *fb_res = &lcdc_resources[2];
+		size_t fb_len = fb_res->end - fb_res->start + 1;
+
+		fb = ioremap_writecombine(fb_res->start, fb_len);
+		if (fb) {
+			memset(fb, 0, fb_len);
+			iounmap(fb, fb_len);
+		}
+	}
 	lcdc_data = *data;
 	platform_device_register(&at91_lcdc_device);
 }

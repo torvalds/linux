@@ -128,15 +128,6 @@ Who:	Arjan van de Ven <arjan@linux.intel.com>
 
 ---------------------------
 
-What:	vm_ops.nopage
-When:	Soon, provided in-kernel callers have been converted
-Why:	This interface is replaced by vm_ops.fault, but it has been around
-	forever, is used by a lot of drivers, and doesn't cost much to
-	maintain.
-Who:	Nick Piggin <npiggin@suse.de>
-
----------------------------
-
 What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
 When:	October 2008
 Why:	The stacking of class devices makes these values misleading and
@@ -144,6 +135,24 @@ Why:	The stacking of class devices makes these values misleading and
 	Class devices should not carry any of these properties, and bus
 	devices have SUBSYTEM and DRIVER as a replacement.
 Who:	Kay Sievers <kay.sievers@suse.de>
+
+---------------------------
+
+What:	find_task_by_pid
+When:	2.6.26
+Why:	With pid namespaces, calling this funciton will return the
+	wrong task when called from inside a namespace.
+
+	The best way to save a task pid and find a task by this
+	pid later, is to find this task's struct pid pointer (or get
+	it directly from the task) and call pid_task() later.
+
+	If someone really needs to get a task by its pid_t, then
+	he most likely needs the find_task_by_vpid() to get the
+	task from the same namespace as the current task is in, but
+	this may be not so in general.
+
+Who:	Pavel Emelyanov <xemul@openvz.org>
 
 ---------------------------
 

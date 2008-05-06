@@ -150,7 +150,7 @@ static int wm8753_write(struct snd_soc_codec *codec, unsigned int reg,
 	data[0] = (reg << 1) | ((value >> 8) & 0x0001);
 	data[1] = value & 0x00ff;
 
-	wm8753_write_reg_cache (codec, reg, value);
+	wm8753_write_reg_cache(codec, reg, value);
 	if (codec->hw_write(codec->control_data, data, 2) == 2)
 		return 0;
 	else
@@ -198,6 +198,7 @@ static const char *wm8753_mic_sel[] = {"Mic 1", "Mic 2", "Mic 3"};
 static const char *wm8753_dai_mode[] = {"DAI 0", "DAI 1", "DAI 2", "DAI 3"};
 static const char *wm8753_dat_sel[] = {"Stereo", "Left ADC", "Right ADC",
 	"Channel Swap"};
+static const char *wm8753_rout2_phase[] = {"Non Inverted", "Inverted"};
 
 static const struct soc_enum wm8753_enum[] = {
 SOC_ENUM_SINGLE(WM8753_BASS, 7, 2, wm8753_base),
@@ -228,6 +229,7 @@ SOC_ENUM_SINGLE(WM8753_ADC, 4, 2, wm8753_adc_filter),
 SOC_ENUM_SINGLE(WM8753_MICBIAS, 6, 3, wm8753_mic_sel),
 SOC_ENUM_SINGLE(WM8753_IOCTL, 2, 4, wm8753_dai_mode),
 SOC_ENUM_SINGLE(WM8753_ADC, 7, 4, wm8753_dat_sel),
+SOC_ENUM_SINGLE(WM8753_OUTCTL, 2, 2, wm8753_rout2_phase),
 };
 
 
@@ -247,7 +249,7 @@ static int wm8753_set_dai(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
 	int mode = wm8753_read_reg_cache(codec, WM8753_IOCTL);
 
-	if (((mode &0xc) >> 2) == ucontrol->value.integer.value[0])
+	if (((mode & 0xc) >> 2) == ucontrol->value.integer.value[0])
 		return 0;
 
 	mode &= 0xfff3;
@@ -279,7 +281,7 @@ SOC_DOUBLE_R("Speaker Playback ZC Switch", WM8753_LOUT2V, WM8753_ROUT2V, 7, 1, 0
 
 SOC_SINGLE("Mono Bypass Playback Volume", WM8753_MOUTM1, 4, 7, 1),
 SOC_SINGLE("Mono Sidetone Playback Volume", WM8753_MOUTM2, 4, 7, 1),
-SOC_SINGLE("Mono Voice Playback Volume", WM8753_MOUTM2, 4, 7, 1),
+SOC_SINGLE("Mono Voice Playback Volume", WM8753_MOUTM2, 0, 7, 1),
 SOC_SINGLE("Mono Playback ZC Switch", WM8753_MOUTV, 7, 1, 0),
 
 SOC_ENUM("Bass Boost", wm8753_enum[0]),
@@ -330,6 +332,7 @@ SOC_SINGLE("Mic1 Capture Volume", WM8753_INCTL1, 5, 3, 0),
 SOC_ENUM_EXT("DAI Mode", wm8753_enum[26], wm8753_get_dai, wm8753_set_dai),
 
 SOC_ENUM("ADC Data Select", wm8753_enum[27]),
+SOC_ENUM("ROUT2 Phase", wm8753_enum[28]),
 };
 
 /* add non dapm controls */
@@ -339,7 +342,8 @@ static int wm8753_add_controls(struct snd_soc_codec *codec)
 
 	for (i = 0; i < ARRAY_SIZE(wm8753_snd_controls); i++) {
 		err = snd_ctl_add(codec->card,
-				snd_soc_cnew(&wm8753_snd_controls[i],codec, NULL));
+				snd_soc_cnew(&wm8753_snd_controls[i],
+						codec, NULL));
 		if (err < 0)
 			return err;
 	}
@@ -719,7 +723,7 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int target,
 
 	if ((Ndiv < 6) || (Ndiv > 12))
 		printk(KERN_WARNING
-			"WM8753 N value outwith recommended range! N = %d\n",Ndiv);
+			"wm8753: unsupported N = %d\n", Ndiv);
 
 	pll_div->n = Ndiv;
 	Nmod = target % source;
@@ -1297,8 +1301,9 @@ static int wm8753_dapm_event(struct snd_soc_codec *codec, int event)
 }
 
 #define WM8753_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
-		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
-		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
+		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
+		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |\
+		SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 
 #define WM8753_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
@@ -1504,9 +1509,9 @@ static int wm8753_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_codec *codec = socdev->codec;
 
 	/* we only need to suspend if we are a valid card */
-	if(!codec->card)
+	if (!codec->card)
 		return 0;
-		
+
 	wm8753_dapm_event(codec, SNDRV_CTL_POWER_D3cold);
 	return 0;
 }
@@ -1520,7 +1525,7 @@ static int wm8753_resume(struct platform_device *pdev)
 	u16 *cache = codec->reg_cache;
 
 	/* we only need to resume if we are a valid card */
-	if(!codec->card)
+	if (!codec->card)
 		return 0;
 
 	/* Sync reg_cache with the hardware */
@@ -1610,9 +1615,10 @@ static int wm8753_init(struct snd_soc_device *socdev)
 	wm8753_add_widgets(codec);
 	ret = snd_soc_register_card(socdev);
 	if (ret < 0) {
-      	printk(KERN_ERR "wm8753: failed to register card\n");
+		printk(KERN_ERR "wm8753: failed to register card\n");
 		goto card_err;
-    }
+	}
+
 	return ret;
 
 card_err:
@@ -1627,7 +1633,7 @@ pcm_err:
    around */
 static struct snd_soc_device *wm8753_socdev;
 
-#if defined (CONFIG_I2C) || defined (CONFIG_I2C_MODULE)
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 
 /*
  * WM8753 2 wire address is determined by GPIO5
@@ -1658,7 +1664,7 @@ static int wm8753_codec_probe(struct i2c_adapter *adap, int addr, int kind)
 	client_template.addr = addr;
 
 	i2c =  kmemdup(&client_template, sizeof(client_template), GFP_KERNEL);
-	if (i2c == NULL){
+	if (!i2c) {
 		kfree(codec);
 		return -ENOMEM;
 	}
@@ -1746,7 +1752,7 @@ static int wm8753_probe(struct platform_device *pdev)
 	wm8753_socdev = socdev;
 	INIT_DELAYED_WORK(&codec->delayed_work, wm8753_work);
 
-#if defined (CONFIG_I2C) || defined (CONFIG_I2C_MODULE)
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
 		normal_i2c[0] = setup->i2c_address;
 		codec->hw_write = (hw_write_t)i2c_master_send;
@@ -1790,7 +1796,7 @@ static int wm8753_remove(struct platform_device *pdev)
 	run_delayed_work(&codec->delayed_work);
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
-#if defined (CONFIG_I2C) || defined (CONFIG_I2C_MODULE)
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8753_i2c_driver);
 #endif
 	kfree(codec->private_data);
@@ -1805,7 +1811,6 @@ struct snd_soc_codec_device soc_codec_dev_wm8753 = {
 	.suspend = 	wm8753_suspend,
 	.resume =	wm8753_resume,
 };
-
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8753);
 
 MODULE_DESCRIPTION("ASoC WM8753 driver");

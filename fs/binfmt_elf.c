@@ -543,7 +543,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	unsigned long interp_load_addr = 0;
 	unsigned long start_code, end_code, start_data, end_data;
 	unsigned long reloc_func_desc = 0;
-	struct files_struct *files;
 	int executable_stack = EXSTACK_DEFAULT;
 	unsigned long def_flags = 0;
 	struct {
@@ -593,20 +592,9 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 		goto out_free_ph;
 	}
 
-	files = current->files;	/* Refcounted so ok */
-	retval = unshare_files();
-	if (retval < 0)
-		goto out_free_ph;
-	if (files == current->files) {
-		put_files_struct(files);
-		files = NULL;
-	}
-
-	/* exec will make our files private anyway, but for the a.out
-	   loader stuff we need to do it earlier */
 	retval = get_unused_fd();
 	if (retval < 0)
-		goto out_free_fh;
+		goto out_free_ph;
 	get_file(bprm->file);
 	fd_install(elf_exec_fileno = retval, bprm->file);
 
@@ -727,12 +715,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	retval = flush_old_exec(bprm);
 	if (retval)
 		goto out_free_dentry;
-
-	/* Discard our unneeded old files struct */
-	if (files) {
-		put_files_struct(files);
-		files = NULL;
-	}
 
 	/* OK, This is the point of no return */
 	current->flags &= ~PF_FORKNOEXEC;
@@ -1016,9 +998,6 @@ out_free_interp:
 	kfree(elf_interpreter);
 out_free_file:
 	sys_close(elf_exec_fileno);
-out_free_fh:
-	if (files)
-		reset_files_struct(current, files);
 out_free_ph:
 	kfree(elf_phdata);
 	goto out;
@@ -1276,26 +1255,23 @@ static int writenote(struct memelfnote *men, struct file *file,
 static void fill_elf_header(struct elfhdr *elf, int segs,
 			    u16 machine, u32 flags, u8 osabi)
 {
+	memset(elf, 0, sizeof(*elf));
+
 	memcpy(elf->e_ident, ELFMAG, SELFMAG);
 	elf->e_ident[EI_CLASS] = ELF_CLASS;
 	elf->e_ident[EI_DATA] = ELF_DATA;
 	elf->e_ident[EI_VERSION] = EV_CURRENT;
 	elf->e_ident[EI_OSABI] = ELF_OSABI;
-	memset(elf->e_ident+EI_PAD, 0, EI_NIDENT-EI_PAD);
 
 	elf->e_type = ET_CORE;
 	elf->e_machine = machine;
 	elf->e_version = EV_CURRENT;
-	elf->e_entry = 0;
 	elf->e_phoff = sizeof(struct elfhdr);
-	elf->e_shoff = 0;
 	elf->e_flags = flags;
 	elf->e_ehsize = sizeof(struct elfhdr);
 	elf->e_phentsize = sizeof(struct elf_phdr);
 	elf->e_phnum = segs;
-	elf->e_shentsize = 0;
-	elf->e_shnum = 0;
-	elf->e_shstrndx = 0;
+
 	return;
 }
 
@@ -1746,26 +1722,25 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 
 	info->thread_status_size = 0;
 	if (signr) {
-		struct elf_thread_status *tmp;
+		struct elf_thread_status *ets;
 		rcu_read_lock();
 		do_each_thread(g, p)
 			if (current->mm == p->mm && current != p) {
-				tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
-				if (!tmp) {
+				ets = kzalloc(sizeof(*ets), GFP_ATOMIC);
+				if (!ets) {
 					rcu_read_unlock();
 					return 0;
 				}
-				tmp->thread = p;
-				list_add(&tmp->list, &info->thread_list);
+				ets->thread = p;
+				list_add(&ets->list, &info->thread_list);
 			}
 		while_each_thread(g, p);
 		rcu_read_unlock();
 		list_for_each(t, &info->thread_list) {
-			struct elf_thread_status *tmp;
 			int sz;
 
-			tmp = list_entry(t, struct elf_thread_status, list);
-			sz = elf_dump_thread_status(signr, tmp);
+			ets = list_entry(t, struct elf_thread_status, list);
+			sz = elf_dump_thread_status(signr, ets);
 			info->thread_status_size += sz;
 		}
 	}
@@ -2021,10 +1996,10 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file, un
 
 		for (addr = vma->vm_start; addr < end; addr += PAGE_SIZE) {
 			struct page *page;
-			struct vm_area_struct *vma;
+			struct vm_area_struct *tmp_vma;
 
 			if (get_user_pages(current, current->mm, addr, 1, 0, 1,
-						&page, &vma) <= 0) {
+						&page, &tmp_vma) <= 0) {
 				DUMP_SEEK(PAGE_SIZE);
 			} else {
 				if (page == ZERO_PAGE(0)) {
@@ -2034,7 +2009,7 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file, un
 					}
 				} else {
 					void *kaddr;
-					flush_cache_page(vma, addr,
+					flush_cache_page(tmp_vma, addr,
 							 page_to_pfn(page));
 					kaddr = kmap(page);
 					if ((size += PAGE_SIZE) > limit ||

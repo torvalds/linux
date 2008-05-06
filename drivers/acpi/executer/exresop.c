@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -137,7 +137,6 @@ acpi_ex_resolve_operands(u16 opcode,
 	union acpi_operand_object *obj_desc;
 	acpi_status status = AE_OK;
 	u8 object_type;
-	void *temp_node;
 	u32 arg_types;
 	const struct acpi_opcode_info *op_info;
 	u32 this_arg_type;
@@ -239,7 +238,6 @@ acpi_ex_resolve_operands(u16 opcode,
 
 					/*lint -fallthrough */
 
-				case AML_NAME_OP:
 				case AML_INDEX_OP:
 				case AML_REF_OF_OP:
 				case AML_ARG_OP:
@@ -331,15 +329,6 @@ acpi_ex_resolve_operands(u16 opcode,
 						      object_type, obj_desc);
 			if (ACPI_FAILURE(status)) {
 				return_ACPI_STATUS(status);
-			}
-
-			if (obj_desc->reference.opcode == AML_NAME_OP) {
-
-				/* Convert a named reference to the actual named object */
-
-				temp_node = obj_desc->reference.object;
-				acpi_ut_remove_reference(obj_desc);
-				(*stack_ptr) = temp_node;
 			}
 			goto next_operand;
 

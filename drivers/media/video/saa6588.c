@@ -44,10 +44,10 @@ static unsigned short normal_i2c[] = {
 I2C_CLIENT_INSMOD;
 
 /* insmod options */
-static unsigned int debug = 0;
-static unsigned int xtal = 0;
-static unsigned int rbds = 0;
-static unsigned int plvl = 0;
+static unsigned int debug;
+static unsigned int xtal;
+static unsigned int rbds;
+static unsigned int plvl;
 static unsigned int bufblocks = 100;
 
 module_param(debug, int, 0644);

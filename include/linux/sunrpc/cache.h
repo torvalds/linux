@@ -120,7 +120,6 @@ struct cache_deferred_req {
 	struct list_head	hash;	/* on hash chain */
 	struct list_head	recent; /* on fifo */
 	struct cache_head	*item;  /* cache item we wait on */
-	time_t			recv_time;
 	void			*owner; /* we might need to discard all defered requests
 					 * owned by someone */
 	void			(*revisit)(struct cache_deferred_req *req,

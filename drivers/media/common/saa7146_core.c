@@ -74,7 +74,7 @@ static inline int saa7146_wait_for_debi_done_sleep(struct saa7146_dev *dev,
 		if (err) {
 			printk(KERN_ERR "%s: %s timed out while waiting for "
 					"registers getting programmed\n",
-					dev->name, __FUNCTION__);
+					dev->name, __func__);
 			return -ETIMEDOUT;
 		}
 		msleep(1);
@@ -89,7 +89,7 @@ static inline int saa7146_wait_for_debi_done_sleep(struct saa7146_dev *dev,
 		saa7146_read(dev, MC2);
 		if (err) {
 			DEB_S(("%s: %s timed out while waiting for transfer "
-				"completion\n",	dev->name, __FUNCTION__));
+				"completion\n",	dev->name, __func__));
 			return -ETIMEDOUT;
 		}
 		msleep(1);
@@ -111,7 +111,7 @@ static inline int saa7146_wait_for_debi_done_busyloop(struct saa7146_dev *dev,
 		if (!loops--) {
 			printk(KERN_ERR "%s: %s timed out while waiting for "
 					"registers getting programmed\n",
-					dev->name, __FUNCTION__);
+					dev->name, __func__);
 			return -ETIMEDOUT;
 		}
 		udelay(1);
@@ -125,7 +125,7 @@ static inline int saa7146_wait_for_debi_done_busyloop(struct saa7146_dev *dev,
 		saa7146_read(dev, MC2);
 		if (!loops--) {
 			DEB_S(("%s: %s timed out while waiting for transfer "
-				"completion\n", dev->name, __FUNCTION__));
+				"completion\n", dev->name, __func__));
 			return -ETIMEDOUT;
 		}
 		udelay(5);

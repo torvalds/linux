@@ -897,7 +897,7 @@ int pcxhr_set_pipe_state(struct pcxhr_mgr *mgr, int playback_mask, int capture_m
 #ifdef CONFIG_SND_DEBUG_DETECT
 	do_gettimeofday(&my_tv2);
 	snd_printdd("***SET PIPE STATE*** TIME = %ld (err = %x)\n",
-		    my_tv2.tv_usec - my_tv1.tv_usec, err);
+		    (long)(my_tv2.tv_usec - my_tv1.tv_usec), err);
 #endif
 	return 0;
 }
@@ -1005,30 +1005,37 @@ void pcxhr_msg_tasklet(unsigned long arg)
 			int nb_stream = (prmh->stat[i] >> (2*FIELD_SIZE)) & MASK_FIRST_FIELD;
 			int pipe = prmh->stat[i] & MASK_FIRST_FIELD;
 			int is_capture = prmh->stat[i] & 0x400000;
-			u32 err;
+			u32 err2;
 
 			if (prmh->stat[i] & 0x800000) {	/* if BIT_END */
 				snd_printdd("TASKLET : End%sPipe %d\n",
 					    is_capture ? "Record" : "Play", pipe);
 			}
 			i++;
-			err = prmh->stat[i] ? prmh->stat[i] : prmh->stat[i+1];
-			if (err)
-				pcxhr_handle_async_err(mgr, err, PCXHR_ERR_PIPE,
+			err2 = prmh->stat[i] ? prmh->stat[i] : prmh->stat[i+1];
+			if (err2)
+				pcxhr_handle_async_err(mgr, err2,
+						       PCXHR_ERR_PIPE,
 						       pipe, is_capture);
 			i += 2;
 			for (j = 0; j < nb_stream; j++) {
-				err = prmh->stat[i] ? prmh->stat[i] : prmh->stat[i+1];
-				if (err)
-					pcxhr_handle_async_err(mgr, err, PCXHR_ERR_STREAM,
-							       pipe, is_capture);
+				err2 = prmh->stat[i] ?
+					prmh->stat[i] : prmh->stat[i+1];
+				if (err2)
+					pcxhr_handle_async_err(mgr, err2,
+							       PCXHR_ERR_STREAM,
+							       pipe,
+							       is_capture);
 				i += 2;
 			}
 			for (j = 0; j < nb_audio; j++) {
-				err = prmh->stat[i] ? prmh->stat[i] : prmh->stat[i+1];
-				if (err)
-					pcxhr_handle_async_err(mgr, err, PCXHR_ERR_AUDIO,
-							       pipe, is_capture);
+				err2 = prmh->stat[i] ?
+					prmh->stat[i] : prmh->stat[i+1];
+				if (err2)
+					pcxhr_handle_async_err(mgr, err2,
+							       PCXHR_ERR_AUDIO,
+							       pipe,
+							       is_capture);
 				i += 2;
 			}
 		}

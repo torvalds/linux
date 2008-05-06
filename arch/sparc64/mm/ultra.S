@@ -476,7 +476,6 @@ xcall_sync_tick:
 #endif
 	call		smp_synchronize_tick_client
 	 nop
-	clr		%l6
 	b		rtrap_xcall
 	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 
@@ -511,7 +510,6 @@ xcall_report_regs:
 #endif
 	call		__show_regs
 	 add		%sp, PTREGS_OFF, %o0
-	clr		%l6
 	/* Has to be a non-v9 branch due to the large distance. */
 	b		rtrap_xcall
 	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
@@ -576,7 +574,7 @@ __hypervisor_tlb_xcall_error:
 	mov	%l4, %o0
 	call	hypervisor_tlbop_error_xcall
 	 mov	%l5, %o1
-	ba,a,pt	%xcc, rtrap_clr_l6
+	ba,a,pt	%xcc, rtrap
 
 	.globl		__hypervisor_xcall_flush_tlb_mm
 __hypervisor_xcall_flush_tlb_mm: /* 21 insns */
@@ -677,6 +675,33 @@ xcall_capture:
 xcall_new_mmu_context_version:
 	wr		%g0, (1 << PIL_SMP_CTX_NEW_VERSION), %set_softint
 	retry
+
+#ifdef CONFIG_KGDB
+	.globl		xcall_kgdb_capture
+xcall_kgdb_capture:
+661:	rdpr		%pstate, %g2
+	wrpr		%g2, PSTATE_IG | PSTATE_AG, %pstate
+	.section	.sun4v_2insn_patch, "ax"
+	.word		661b
+	nop
+	nop
+	.previous
+
+	rdpr		%pil, %g2
+	wrpr		%g0, 15, %pil
+	sethi		%hi(109f), %g7
+	ba,pt		%xcc, etrap_irq
+109:	 or		%g7, %lo(109b), %g7
+#ifdef CONFIG_TRACE_IRQFLAGS
+	call		trace_hardirqs_off
+	 nop
+#endif
+	call		smp_kgdb_capture_client
+	 add		%sp, PTREGS_OFF, %o0
+	/* Has to be a non-v9 branch due to the large distance. */
+	ba		rtrap_xcall
+	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
+#endif
 
 #endif /* CONFIG_SMP */
 

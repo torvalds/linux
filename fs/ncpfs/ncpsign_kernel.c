@@ -55,7 +55,7 @@ static void nwsign(char *r_data1, char *r_data2, char *outdata) {
  unsigned int w0,w1,w2,w3;
  static int rbit[4]={0, 2, 1, 3};
 #ifdef __i386__
- unsigned int *data2=(int *)r_data2;
+ unsigned int *data2=(unsigned int *)r_data2;
 #else
  unsigned int data2[16];
  for (i=0;i<16;i++)

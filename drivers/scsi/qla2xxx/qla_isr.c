@@ -409,6 +409,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		}
 
 		set_bit(REGISTER_FC4_NEEDED, &ha->dpc_flags);
+		set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
 
 		ha->flags.management_server_logged_in = 0;
 		qla2x00_post_aen_work(ha, FCH_EVT_LIP, mb[1]);
@@ -454,8 +455,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 		ha->flags.management_server_logged_in = 0;
 		ha->link_data_rate = PORT_SPEED_UNKNOWN;
-		if (ql2xfdmienable)
-			set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
 		qla2x00_post_aen_work(ha, FCH_EVT_LINKDOWN, 0);
 		break;
 
@@ -511,6 +510,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			set_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
 		}
 		set_bit(REGISTER_FC4_NEEDED, &ha->dpc_flags);
+		set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
 
 		ha->flags.gpsc_supported = 1;
 		ha->flags.management_server_logged_in = 0;

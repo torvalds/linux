@@ -463,13 +463,13 @@ static int usbfs_fill_super(struct super_block *sb, void *data, int silent)
 	inode = usbfs_get_inode(sb, S_IFDIR | 0755, 0);
 
 	if (!inode) {
-		dbg("%s: could not get inode!",__FUNCTION__);
+		dbg("%s: could not get inode!",__func__);
 		return -ENOMEM;
 	}
 
 	root = d_alloc_root(inode);
 	if (!root) {
-		dbg("%s: could not get root dentry!",__FUNCTION__);
+		dbg("%s: could not get root dentry!",__func__);
 		iput(inode);
 		return -ENOMEM;
 	}
@@ -773,7 +773,7 @@ int __init usbfs_init(void)
 	usb_register_notify(&usbfs_nb);
 
 	/* create mount point for usbfs */
-	usbdir = proc_mkdir("usb", proc_bus);
+	usbdir = proc_mkdir("bus/usb", NULL);
 
 	return 0;
 }
@@ -783,6 +783,6 @@ void usbfs_cleanup(void)
 	usb_unregister_notify(&usbfs_nb);
 	unregister_filesystem(&usb_fs_type);
 	if (usbdir)
-		remove_proc_entry("usb", proc_bus);
+		remove_proc_entry("bus/usb", NULL);
 }
 

@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/unaligned.h>
 
 
 
@@ -304,11 +305,7 @@ enum t21143_csr6_bits {
 
 #define RUN_AT(x) (jiffies + (x))
 
-#if defined(__i386__)			/* AKA get_unaligned() */
-#define get_u16(ptr) (*(u16 *)(ptr))
-#else
-#define get_u16(ptr) (((u8*)(ptr))[0] + (((u8*)(ptr))[1]<<8))
-#endif
+#define get_u16(ptr) get_unaligned_le16((ptr))
 
 struct medialeaf {
 	u8 type;

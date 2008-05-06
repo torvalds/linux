@@ -150,12 +150,12 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir)
 			if (IS_ERR(ppd)) {
 				err = PTR_ERR(ppd);
 				dprintk("%s: get_parent of %ld failed, err %d\n",
-					__FUNCTION__, pd->d_inode->i_ino, err);
+					__func__, pd->d_inode->i_ino, err);
 				dput(pd);
 				break;
 			}
 
-			dprintk("%s: find name of %lu in %lu\n", __FUNCTION__,
+			dprintk("%s: find name of %lu in %lu\n", __func__,
 				pd->d_inode->i_ino, ppd->d_inode->i_ino);
 			err = exportfs_get_name(mnt, ppd, nbuf, pd);
 			if (err) {
@@ -168,14 +168,14 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir)
 					continue;
 				break;
 			}
-			dprintk("%s: found name: %s\n", __FUNCTION__, nbuf);
+			dprintk("%s: found name: %s\n", __func__, nbuf);
 			mutex_lock(&ppd->d_inode->i_mutex);
 			npd = lookup_one_len(nbuf, ppd, strlen(nbuf));
 			mutex_unlock(&ppd->d_inode->i_mutex);
 			if (IS_ERR(npd)) {
 				err = PTR_ERR(npd);
 				dprintk("%s: lookup failed: %d\n",
-					__FUNCTION__, err);
+					__func__, err);
 				dput(ppd);
 				dput(pd);
 				break;
@@ -188,7 +188,7 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir)
 			if (npd == pd)
 				noprogress = 0;
 			else
-				printk("%s: npd != pd\n", __FUNCTION__);
+				printk("%s: npd != pd\n", __func__);
 			dput(npd);
 			dput(ppd);
 			if (IS_ROOT(pd)) {

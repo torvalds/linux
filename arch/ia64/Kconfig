@@ -19,6 +19,8 @@ config IA64
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_DMA_ATTRS
+	select HAVE_KVM
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -44,6 +46,9 @@ config MMU
 	default y
 
 config SWIOTLB
+       bool
+
+config IOMMU_HELPER
        bool
 
 config GENERIC_LOCKBREAK
@@ -589,6 +594,8 @@ config MSPEC
 
 source "fs/Kconfig"
 
+source "arch/ia64/kvm/Kconfig"
+
 source "lib/Kconfig"
 
 #
@@ -612,7 +619,7 @@ config IRQ_PER_CPU
 	default y
 
 config IOMMU_HELPER
-	def_bool (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC)
+	def_bool (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC || SWIOTLB)
 
 source "arch/ia64/hp/sim/Kconfig"
 

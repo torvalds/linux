@@ -548,11 +548,6 @@ struct ata_device {
 	u64			n_sectors;	/* size of device, if ATA */
 	unsigned int		class;		/* ATA_DEV_xxx */
 
-	union {
-		u16		id[ATA_ID_WORDS]; /* IDENTIFY xxx DEVICE data */
-		u32		gscr[SATA_PMP_GSCR_DWORDS]; /* PMP GSCR block */
-	};
-
 	u8			pio_mode;
 	u8			dma_mode;
 	u8			xfer_mode;
@@ -574,8 +569,13 @@ struct ata_device {
 	u16			sectors;	/* Number of sectors per track */
 
 	/* error history */
-	struct ata_ering	ering;
 	int			spdn_cnt;
+	struct ata_ering	ering;
+
+	union {
+		u16		id[ATA_ID_WORDS]; /* IDENTIFY xxx DEVICE data */
+		u32		gscr[SATA_PMP_GSCR_DWORDS]; /* PMP GSCR block */
+	};
 };
 
 /* Offset into struct ata_device.  Fields above it are maintained
@@ -847,7 +847,6 @@ static inline int ata_port_is_dummy(struct ata_port *ap)
 	return ap->ops == &ata_dummy_port_ops;
 }
 
-extern void sata_print_link_status(struct ata_link *link);
 extern void ata_port_probe(struct ata_port *);
 extern int sata_set_spd(struct ata_link *link);
 extern int ata_std_prereset(struct ata_link *link, unsigned long deadline);

@@ -36,110 +36,7 @@
 #include <asm/mipsmtregs.h>
 #include <asm/mips_mt.h>
 
-#define MIPS_CPU_IPI_RESCHED_IRQ 0
-#define MIPS_CPU_IPI_CALL_IRQ 1
-
-static int cpu_ipi_resched_irq, cpu_ipi_call_irq;
-
-#if 0
-static void dump_mtregisters(int vpe, int tc)
-{
-	printk("vpe %d tc %d\n", vpe, tc);
-
-	settc(tc);
-
-	printk("  c0 status  0x%lx\n", read_vpe_c0_status());
-	printk("  vpecontrol 0x%lx\n", read_vpe_c0_vpecontrol());
-	printk("  vpeconf0    0x%lx\n", read_vpe_c0_vpeconf0());
-	printk("  tcstatus 0x%lx\n", read_tc_c0_tcstatus());
-	printk("  tcrestart 0x%lx\n", read_tc_c0_tcrestart());
-	printk("  tcbind 0x%lx\n", read_tc_c0_tcbind());
-	printk("  tchalt 0x%lx\n", read_tc_c0_tchalt());
-}
-#endif
-
-void __init sanitize_tlb_entries(void)
-{
-	int i, tlbsiz;
-	unsigned long mvpconf0, ncpu;
-
-	if (!cpu_has_mipsmt)
-		return;
-
-	/* Enable VPC */
-	set_c0_mvpcontrol(MVPCONTROL_VPC);
-
-	back_to_back_c0_hazard();
-
-	/* Disable TLB sharing */
-	clear_c0_mvpcontrol(MVPCONTROL_STLB);
-
-	mvpconf0 = read_c0_mvpconf0();
-
-	printk(KERN_INFO "MVPConf0 0x%lx TLBS %lx PTLBE %ld\n", mvpconf0,
-		   (mvpconf0 & MVPCONF0_TLBS) >> MVPCONF0_TLBS_SHIFT,
-			   (mvpconf0 & MVPCONF0_PTLBE) >> MVPCONF0_PTLBE_SHIFT);
-
-	tlbsiz = (mvpconf0 & MVPCONF0_PTLBE) >> MVPCONF0_PTLBE_SHIFT;
-	ncpu = ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
-
-	printk(" tlbsiz %d ncpu %ld\n", tlbsiz, ncpu);
-
-	if (tlbsiz > 0) {
-		/* share them out across the vpe's */
-		tlbsiz /= ncpu;
-
-		printk(KERN_INFO "setting Config1.MMU_size to %d\n", tlbsiz);
-
-		for (i = 0; i < ncpu; i++) {
-			settc(i);
-
-			if (i == 0)
-				write_c0_config1((read_c0_config1() & ~(0x3f << 25)) | (tlbsiz << 25));
-			else
-				write_vpe_c0_config1((read_vpe_c0_config1() & ~(0x3f << 25)) |
-						   (tlbsiz << 25));
-		}
-	}
-
-	clear_c0_mvpcontrol(MVPCONTROL_VPC);
-}
-
-static void ipi_resched_dispatch(void)
-{
-	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ);
-}
-
-static void ipi_call_dispatch(void)
-{
-	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ);
-}
-
-static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
-{
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
-{
-	smp_call_function_interrupt();
-
-	return IRQ_HANDLED;
-}
-
-static struct irqaction irq_resched = {
-	.handler	= ipi_resched_interrupt,
-	.flags		= IRQF_DISABLED|IRQF_PERCPU,
-	.name		= "IPI_resched"
-};
-
-static struct irqaction irq_call = {
-	.handler	= ipi_call_interrupt,
-	.flags		= IRQF_DISABLED|IRQF_PERCPU,
-	.name		= "IPI_call"
-};
-
-static void __init smp_copy_vpe_config(void)
+static void __init smvp_copy_vpe_config(void)
 {
 	write_vpe_c0_status(
 		(read_c0_status() & ~(ST0_IM | ST0_IE | ST0_KSU)) | ST0_CU0);
@@ -156,7 +53,7 @@ static void __init smp_copy_vpe_config(void)
 	write_vpe_c0_count(read_c0_count());
 }
 
-static unsigned int __init smp_vpe_init(unsigned int tc, unsigned int mvpconf0,
+static unsigned int __init smvp_vpe_init(unsigned int tc, unsigned int mvpconf0,
 	unsigned int ncpu)
 {
 	if (tc > ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT))
@@ -182,12 +79,12 @@ static unsigned int __init smp_vpe_init(unsigned int tc, unsigned int mvpconf0,
 	write_vpe_c0_vpecontrol(read_vpe_c0_vpecontrol() & ~VPECONTROL_TE);
 
 	if (tc != 0)
-		smp_copy_vpe_config();
+		smvp_copy_vpe_config();
 
 	return ncpu;
 }
 
-static void __init smp_tc_init(unsigned int tc, unsigned int mvpconf0)
+static void __init smvp_tc_init(unsigned int tc, unsigned int mvpconf0)
 {
 	unsigned long tmp;
 
@@ -254,15 +151,20 @@ static void vsmp_send_ipi_mask(cpumask_t mask, unsigned int action)
 
 static void __cpuinit vsmp_init_secondary(void)
 {
-	/* Enable per-cpu interrupts */
+	extern int gic_present;
 
 	/* This is Malta specific: IPI,performance and timer inetrrupts */
-	write_c0_status((read_c0_status() & ~ST0_IM ) |
-	                (STATUSF_IP0 | STATUSF_IP1 | STATUSF_IP6 | STATUSF_IP7));
+	if (gic_present)
+		change_c0_status(ST0_IM, STATUSF_IP3 | STATUSF_IP4 |
+					 STATUSF_IP6 | STATUSF_IP7);
+	else
+		change_c0_status(ST0_IM, STATUSF_IP0 | STATUSF_IP1 |
+					 STATUSF_IP6 | STATUSF_IP7);
 }
 
 static void __cpuinit vsmp_smp_finish(void)
 {
+	/* CDFIXME: remove this? */
 	write_c0_compare(read_c0_count() + (8* mips_hpt_frequency/HZ));
 
 #ifdef CONFIG_MIPS_MT_FPAFF
@@ -323,7 +225,7 @@ static void __cpuinit vsmp_boot_secondary(int cpu, struct task_struct *idle)
 /*
  * Common setup before any secondaries are started
  * Make sure all CPU's are in a sensible state before we boot any of the
- * secondarys
+ * secondaries
  */
 static void __init vsmp_smp_setup(void)
 {
@@ -356,8 +258,8 @@ static void __init vsmp_smp_setup(void)
 	for (tc = 0; tc <= ntc; tc++) {
 		settc(tc);
 
-		smp_tc_init(tc, mvpconf0);
-		ncpu = smp_vpe_init(tc, mvpconf0, ncpu);
+		smvp_tc_init(tc, mvpconf0);
+		ncpu = smvp_vpe_init(tc, mvpconf0, ncpu);
 	}
 
 	/* Release config state */
@@ -371,21 +273,6 @@ static void __init vsmp_smp_setup(void)
 static void __init vsmp_prepare_cpus(unsigned int max_cpus)
 {
 	mips_mt_set_cpuoptions();
-
-	/* set up ipi interrupts */
-	if (cpu_has_vint) {
-		set_vi_handler(MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);
-		set_vi_handler(MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
-	}
-
-	cpu_ipi_resched_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ;
-	cpu_ipi_call_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ;
-
-	setup_irq(cpu_ipi_resched_irq, &irq_resched);
-	setup_irq(cpu_ipi_call_irq, &irq_call);
-
-	set_irq_handler(cpu_ipi_resched_irq, handle_percpu_irq);
-	set_irq_handler(cpu_ipi_call_irq, handle_percpu_irq);
 }
 
 struct plat_smp_ops vsmp_smp_ops = {

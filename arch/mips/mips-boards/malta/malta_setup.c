@@ -1,7 +1,7 @@
 /*
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) Dmitri Vorobiev
+ * Copyright (C) 2008 Dmitri Vorobiev
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
@@ -36,7 +36,10 @@
 #include <linux/console.h>
 #endif
 
-struct resource standard_io_resources[] = {
+extern void malta_be_init(void);
+extern int malta_be_handler(struct pt_regs *regs, int is_fixup);
+
+static struct resource standard_io_resources[] = {
 	{
 		.name = "dma1",
 		.start = 0x00,
@@ -220,4 +223,7 @@ void __init plat_mem_setup(void)
 	screen_info_setup();
 #endif
 	mips_reboot_setup();
+
+	board_be_init = malta_be_init;
+	board_be_handler = malta_be_handler;
 }

@@ -11,12 +11,9 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/kbuild.h>
+
 #include <asm/thread_info.h>
-
-#define DEFINE(sym, val) \
-        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
 
 int main(void)
 {

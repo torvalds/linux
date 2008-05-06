@@ -1967,7 +1967,7 @@ force_lookup:
 	if (!NFS_PROTO(inode)->access)
 		goto out_notsup;
 
-	cred = rpcauth_lookupcred(NFS_CLIENT(inode)->cl_auth, 0);
+	cred = rpc_lookup_cred();
 	if (!IS_ERR(cred)) {
 		res = nfs_do_access(inode, cred, mask);
 		put_rpccred(cred);

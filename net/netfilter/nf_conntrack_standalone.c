@@ -296,11 +296,11 @@ static int nf_conntrack_standalone_init_proc(void)
 	pde = proc_net_fops_create(&init_net, "nf_conntrack", 0440, &ct_file_ops);
 	if (!pde)
 		goto out_nf_conntrack;
-	pde = create_proc_entry("nf_conntrack", S_IRUGO, init_net.proc_net_stat);
+
+	pde = proc_create("nf_conntrack", S_IRUGO, init_net.proc_net_stat,
+			  &ct_cpu_seq_fops);
 	if (!pde)
 		goto out_stat_nf_conntrack;
-	pde->proc_fops = &ct_cpu_seq_fops;
-	pde->owner = THIS_MODULE;
 	return 0;
 
 out_stat_nf_conntrack:

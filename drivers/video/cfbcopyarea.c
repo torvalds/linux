@@ -44,15 +44,16 @@
      */
 
 static void
-bitcpy(unsigned long __iomem *dst, int dst_idx, const unsigned long __iomem *src,
-	int src_idx, int bits, unsigned n, u32 bswapmask)
+bitcpy(struct fb_info *p, unsigned long __iomem *dst, int dst_idx,
+		const unsigned long __iomem *src, int src_idx, int bits,
+		unsigned n, u32 bswapmask)
 {
 	unsigned long first, last;
 	int const shift = dst_idx-src_idx;
 	int left, right;
 
-	first = fb_shifted_pixels_mask_long(dst_idx, bswapmask);
-	last = ~fb_shifted_pixels_mask_long((dst_idx+n) % bits, bswapmask);
+	first = fb_shifted_pixels_mask_long(p, dst_idx, bswapmask);
+	last = ~fb_shifted_pixels_mask_long(p, (dst_idx+n) % bits, bswapmask);
 
 	if (!shift) {
 		// Same alignment for source and dest
@@ -202,8 +203,9 @@ bitcpy(unsigned long __iomem *dst, int dst_idx, const unsigned long __iomem *src
      */
 
 static void
-bitcpy_rev(unsigned long __iomem *dst, int dst_idx, const unsigned long __iomem *src,
-		int src_idx, int bits, unsigned n, u32 bswapmask)
+bitcpy_rev(struct fb_info *p, unsigned long __iomem *dst, int dst_idx,
+		const unsigned long __iomem *src, int src_idx, int bits,
+		unsigned n, u32 bswapmask)
 {
 	unsigned long first, last;
 	int shift;
@@ -221,8 +223,9 @@ bitcpy_rev(unsigned long __iomem *dst, int dst_idx, const unsigned long __iomem 
 
 	shift = dst_idx-src_idx;
 
-	first = fb_shifted_pixels_mask_long(bits - 1 - dst_idx, bswapmask);
-	last = ~fb_shifted_pixels_mask_long(bits - 1 - ((dst_idx-n) % bits), bswapmask);
+	first = fb_shifted_pixels_mask_long(p, bits - 1 - dst_idx, bswapmask);
+	last = ~fb_shifted_pixels_mask_long(p, bits - 1 - ((dst_idx-n) % bits),
+					    bswapmask);
 
 	if (!shift) {
 		// Same alignment for source and dest
@@ -404,7 +407,7 @@ void cfb_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 			dst_idx &= (bytes - 1);
 			src += src_idx >> (ffs(bits) - 1);
 			src_idx &= (bytes - 1);
-			bitcpy_rev(dst, dst_idx, src, src_idx, bits,
+			bitcpy_rev(p, dst, dst_idx, src, src_idx, bits,
 				width*p->var.bits_per_pixel, bswapmask);
 		}
 	} else {
@@ -413,7 +416,7 @@ void cfb_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 			dst_idx &= (bytes - 1);
 			src += src_idx >> (ffs(bits) - 1);
 			src_idx &= (bytes - 1);
-			bitcpy(dst, dst_idx, src, src_idx, bits,
+			bitcpy(p, dst, dst_idx, src, src_idx, bits,
 				width*p->var.bits_per_pixel, bswapmask);
 			dst_idx += bits_per_line;
 			src_idx += bits_per_line;

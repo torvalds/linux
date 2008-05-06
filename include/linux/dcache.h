@@ -1,8 +1,6 @@
 #ifndef __LINUX_DCACHE_H
 #define __LINUX_DCACHE_H
 
-#ifdef __KERNEL__
-
 #include <asm/atomic.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -301,7 +299,9 @@ extern int d_validate(struct dentry *, struct dentry *);
  */
 extern char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
 
+extern char *__d_path(const struct path *path, struct path *root, char *, int);
 extern char *d_path(struct path *, char *, int);
+extern char *dentry_path(struct dentry *, char *, int);
 
 /* Allocation counts.. */
 
@@ -362,7 +362,5 @@ extern struct vfsmount *lookup_mnt(struct vfsmount *, struct dentry *);
 extern struct dentry *lookup_create(struct nameidata *nd, int is_dir);
 
 extern int sysctl_vfs_cache_pressure;
-
-#endif /* __KERNEL__ */
 
 #endif	/* __LINUX_DCACHE_H */

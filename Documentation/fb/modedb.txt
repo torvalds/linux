@@ -125,8 +125,12 @@ There may be more modes.
     amifb	- Amiga chipset frame buffer
     aty128fb	- ATI Rage128 / Pro frame buffer
     atyfb	- ATI Mach64 frame buffer
+    pm2fb	- Permedia 2/2V frame buffer
+    pm3fb	- Permedia 3 frame buffer
+    sstfb	- Voodoo 1/2 (SST1) chipset frame buffer
     tdfxfb	- 3D Fx frame buffer
     tridentfb	- Trident (Cyber)blade chipset frame buffer
+    vt8623fb	- VIA 8623 frame buffer
 
 BTW, only a few drivers use this at the moment. Others are to follow
 (feel free to send patches).

@@ -202,7 +202,7 @@ adjust_total_lowmem(void)
 		cam_max_size = max_lowmem_size;
 
 	/* adjust lowmem size to max_lowmem_size */
-	ram = min(max_lowmem_size, total_lowmem);
+	ram = min(max_lowmem_size, (phys_addr_t)total_lowmem);
 
 	/* Calculate CAM values */
 	__cam0 = 1UL << 2 * (__ilog2(ram) / 2);

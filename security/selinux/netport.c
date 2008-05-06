@@ -114,8 +114,7 @@ static struct sel_netport *sel_netport_find(u8 protocol, u16 pnum)
 
 	idx = sel_netport_hashfn(pnum);
 	list_for_each_entry_rcu(port, &sel_netport_hash[idx].list, list)
-		if (port->psec.port == pnum &&
-		    port->psec.protocol == protocol)
+		if (port->psec.port == pnum && port->psec.protocol == protocol)
 			return port;
 
 	return NULL;
@@ -126,11 +125,10 @@ static struct sel_netport *sel_netport_find(u8 protocol, u16 pnum)
  * @port: the new port record
  *
  * Description:
- * Add a new port record to the network address hash table.  Returns zero on
- * success, negative values on failure.
+ * Add a new port record to the network address hash table.
  *
  */
-static int sel_netport_insert(struct sel_netport *port)
+static void sel_netport_insert(struct sel_netport *port)
 {
 	unsigned int idx;
 
@@ -140,13 +138,13 @@ static int sel_netport_insert(struct sel_netport *port)
 	list_add_rcu(&port->list, &sel_netport_hash[idx].list);
 	if (sel_netport_hash[idx].size == SEL_NETPORT_HASH_BKT_LIMIT) {
 		struct sel_netport *tail;
-		tail = list_entry(port->list.prev, struct sel_netport, list);
-		list_del_rcu(port->list.prev);
+		tail = list_entry(
+			rcu_dereference(sel_netport_hash[idx].list.prev),
+			struct sel_netport, list);
+		list_del_rcu(&tail->list);
 		call_rcu(&tail->rcu, sel_netport_free);
 	} else
 		sel_netport_hash[idx].size++;
-
-	return 0;
 }
 
 /**
@@ -163,7 +161,7 @@ static int sel_netport_insert(struct sel_netport *port)
  */
 static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid)
 {
-	int ret;
+	int ret = -ENOMEM;
 	struct sel_netport *port;
 	struct sel_netport *new = NULL;
 
@@ -171,23 +169,20 @@ static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid)
 	port = sel_netport_find(protocol, pnum);
 	if (port != NULL) {
 		*sid = port->psec.sid;
-		ret = 0;
-		goto out;
+		spin_unlock_bh(&sel_netport_lock);
+		return 0;
 	}
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
-	if (new == NULL) {
-		ret = -ENOMEM;
+	if (new == NULL)
 		goto out;
-	}
-	ret = security_port_sid(protocol, pnum, &new->psec.sid);
+	ret = security_port_sid(protocol, pnum, sid);
 	if (ret != 0)
 		goto out;
+
 	new->psec.port = pnum;
 	new->psec.protocol = protocol;
-	ret = sel_netport_insert(new);
-	if (ret != 0)
-		goto out;
-	*sid = new->psec.sid;
+	new->psec.sid = *sid;
+	sel_netport_insert(new);
 
 out:
 	spin_unlock_bh(&sel_netport_lock);
@@ -239,11 +234,12 @@ int sel_netport_sid(u8 protocol, u16 pnum, u32 *sid)
 static void sel_netport_flush(void)
 {
 	unsigned int idx;
-	struct sel_netport *port;
+	struct sel_netport *port, *port_tmp;
 
 	spin_lock_bh(&sel_netport_lock);
 	for (idx = 0; idx < SEL_NETPORT_HASH_SIZE; idx++) {
-		list_for_each_entry(port, &sel_netport_hash[idx].list, list) {
+		list_for_each_entry_safe(port, port_tmp,
+					 &sel_netport_hash[idx].list, list) {
 			list_del_rcu(&port->list);
 			call_rcu(&port->rcu, sel_netport_free);
 		}

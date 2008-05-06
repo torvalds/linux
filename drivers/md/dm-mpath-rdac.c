@@ -284,7 +284,6 @@ static struct request *get_rdac_req(struct rdac_handler *h,
 		return NULL;
 	}
 
- 	memset(&rq->cmd, 0, BLK_MAX_CDB);
 	rq->sense = h->sense;
 	memset(rq->sense, 0, SCSI_SENSE_BUFFERSIZE);
 	rq->sense_len = 0;

@@ -96,7 +96,7 @@ struct nfs3_fh {
 #define MOUNTPROC3_UMNTALL	4
  
 
-#if defined(__KERNEL__) || defined(NFS_NEED_KERNEL_TYPES)
+#if defined(__KERNEL__)
 
 /* Number of 32bit words in post_op_attr */
 #define NFS3_POST_OP_ATTR_WORDS		22

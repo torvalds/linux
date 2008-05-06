@@ -131,16 +131,16 @@ static int tda1004x_write_byteI(struct tda1004x_state *state, int reg, int data)
 	u8 buf[] = { reg, data };
 	struct i2c_msg msg = { .flags = 0, .buf = buf, .len = 2 };
 
-	dprintk("%s: reg=0x%x, data=0x%x\n", __FUNCTION__, reg, data);
+	dprintk("%s: reg=0x%x, data=0x%x\n", __func__, reg, data);
 
 	msg.addr = state->config->demod_address;
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
 		dprintk("%s: error reg=0x%x, data=0x%x, ret=%i\n",
-			__FUNCTION__, reg, data, ret);
+			__func__, reg, data, ret);
 
-	dprintk("%s: success reg=0x%x, data=0x%x, ret=%i\n", __FUNCTION__,
+	dprintk("%s: success reg=0x%x, data=0x%x, ret=%i\n", __func__,
 		reg, data, ret);
 	return (ret != 1) ? -1 : 0;
 }
@@ -153,19 +153,19 @@ static int tda1004x_read_byte(struct tda1004x_state *state, int reg)
 	struct i2c_msg msg[] = {{ .flags = 0, .buf = b0, .len = 1 },
 				{ .flags = I2C_M_RD, .buf = b1, .len = 1 }};
 
-	dprintk("%s: reg=0x%x\n", __FUNCTION__, reg);
+	dprintk("%s: reg=0x%x\n", __func__, reg);
 
 	msg[0].addr = state->config->demod_address;
 	msg[1].addr = state->config->demod_address;
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2) {
-		dprintk("%s: error reg=0x%x, ret=%i\n", __FUNCTION__, reg,
+		dprintk("%s: error reg=0x%x, ret=%i\n", __func__, reg,
 			ret);
 		return -1;
 	}
 
-	dprintk("%s: success reg=0x%x, data=0x%x, ret=%i\n", __FUNCTION__,
+	dprintk("%s: success reg=0x%x, data=0x%x, ret=%i\n", __func__,
 		reg, b1[0], ret);
 	return b1[0];
 }
@@ -173,7 +173,7 @@ static int tda1004x_read_byte(struct tda1004x_state *state, int reg)
 static int tda1004x_write_mask(struct tda1004x_state *state, int reg, int mask, int data)
 {
 	int val;
-	dprintk("%s: reg=0x%x, mask=0x%x, data=0x%x\n", __FUNCTION__, reg,
+	dprintk("%s: reg=0x%x, mask=0x%x, data=0x%x\n", __func__, reg,
 		mask, data);
 
 	// read a byte and check
@@ -194,7 +194,7 @@ static int tda1004x_write_buf(struct tda1004x_state *state, int reg, unsigned ch
 	int i;
 	int result;
 
-	dprintk("%s: reg=0x%x, len=0x%x\n", __FUNCTION__, reg, len);
+	dprintk("%s: reg=0x%x, len=0x%x\n", __func__, reg, len);
 
 	result = 0;
 	for (i = 0; i < len; i++) {
@@ -209,7 +209,7 @@ static int tda1004x_write_buf(struct tda1004x_state *state, int reg, unsigned ch
 static int tda1004x_enable_tuner_i2c(struct tda1004x_state *state)
 {
 	int result;
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	result = tda1004x_write_mask(state, TDA1004X_CONFC4, 2, 2);
 	msleep(20);
@@ -218,7 +218,7 @@ static int tda1004x_enable_tuner_i2c(struct tda1004x_state *state)
 
 static int tda1004x_disable_tuner_i2c(struct tda1004x_state *state)
 {
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	return tda1004x_write_mask(state, TDA1004X_CONFC4, 2, 0);
 }
@@ -345,7 +345,7 @@ static int tda1004x_do_upload(struct tda1004x_state *state,
 		}
 		pos += tx_size;
 
-		dprintk("%s: fw_pos=0x%x\n", __FUNCTION__, pos);
+		dprintk("%s: fw_pos=0x%x\n", __func__, pos);
 	}
 	// give the DSP a chance to settle 03/10/05 Hac
 	msleep(100);
@@ -444,10 +444,10 @@ static void tda10046_init_plls(struct dvb_frontend* fe)
 		tda1004x_write_byteI(state, TDA10046H_CONFPLL2, 0x03); // PLL M = 3
 	}
 	if (state->config->xtal_freq == TDA10046_XTAL_4M ) {
-		dprintk("%s: setting up PLLs for a 4 MHz Xtal\n", __FUNCTION__);
+		dprintk("%s: setting up PLLs for a 4 MHz Xtal\n", __func__);
 		tda1004x_write_byteI(state, TDA10046H_CONFPLL3, 0); // PLL P = N = 0
 	} else {
-		dprintk("%s: setting up PLLs for a 16 MHz Xtal\n", __FUNCTION__);
+		dprintk("%s: setting up PLLs for a 16 MHz Xtal\n", __func__);
 		tda1004x_write_byteI(state, TDA10046H_CONFPLL3, 3); // PLL P = 0, N = 3
 	}
 	if(tda10046_clk53m)
@@ -488,7 +488,7 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 	if (state->config->xtal_freq == TDA10046_XTAL_4M) {
 		tda1004x_write_byteI(state, TDA1004X_CONFC4, 0);
 	} else {
-		dprintk("%s: 16MHz Xtal, reducing I2C speed\n", __FUNCTION__);
+		dprintk("%s: 16MHz Xtal, reducing I2C speed\n", __func__);
 		tda1004x_write_byteI(state, TDA1004X_CONFC4, 0x80);
 	}
 	tda1004x_write_mask(state, TDA10046H_CONF_TRISTATE1, 1, 0);
@@ -594,7 +594,7 @@ static int tda10045_init(struct dvb_frontend* fe)
 {
 	struct tda1004x_state* state = fe->demodulator_priv;
 
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	if (tda10045_fwupload(fe)) {
 		printk("tda1004x: firmware upload failed\n");
@@ -624,7 +624,7 @@ static int tda10045_init(struct dvb_frontend* fe)
 static int tda10046_init(struct dvb_frontend* fe)
 {
 	struct tda1004x_state* state = fe->demodulator_priv;
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	if (tda10046_fwupload(fe)) {
 		printk("tda1004x: firmware upload failed\n");
@@ -686,7 +686,7 @@ static int tda1004x_set_fe(struct dvb_frontend* fe,
 	int tmp;
 	int inversion;
 
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	if (state->demod_type == TDA1004X_DEMOD_TDA10046) {
 		// setup auto offset
@@ -881,7 +881,7 @@ static int tda1004x_get_fe(struct dvb_frontend* fe, struct dvb_frontend_paramete
 {
 	struct tda1004x_state* state = fe->demodulator_priv;
 
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	// inversion status
 	fe_params->inversion = INVERSION_OFF;
@@ -989,7 +989,7 @@ static int tda1004x_read_status(struct dvb_frontend* fe, fe_status_t * fe_status
 	int cber;
 	int vber;
 
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	// read status
 	status = tda1004x_read_byte(state, TDA1004X_STATUS_CD);
@@ -1048,7 +1048,7 @@ static int tda1004x_read_status(struct dvb_frontend* fe, fe_status_t * fe_status
 	}
 
 	// success
-	dprintk("%s: fe_status=0x%x\n", __FUNCTION__, *fe_status);
+	dprintk("%s: fe_status=0x%x\n", __func__, *fe_status);
 	return 0;
 }
 
@@ -1058,7 +1058,7 @@ static int tda1004x_read_signal_strength(struct dvb_frontend* fe, u16 * signal)
 	int tmp;
 	int reg = 0;
 
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	// determine the register to use
 	switch (state->demod_type) {
@@ -1077,7 +1077,7 @@ static int tda1004x_read_signal_strength(struct dvb_frontend* fe, u16 * signal)
 		return -EIO;
 
 	*signal = (tmp << 8) | tmp;
-	dprintk("%s: signal=0x%x\n", __FUNCTION__, *signal);
+	dprintk("%s: signal=0x%x\n", __func__, *signal);
 	return 0;
 }
 
@@ -1086,7 +1086,7 @@ static int tda1004x_read_snr(struct dvb_frontend* fe, u16 * snr)
 	struct tda1004x_state* state = fe->demodulator_priv;
 	int tmp;
 
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	// read it
 	tmp = tda1004x_read_byte(state, TDA1004X_SNR);
@@ -1095,7 +1095,7 @@ static int tda1004x_read_snr(struct dvb_frontend* fe, u16 * snr)
 	tmp = 255 - tmp;
 
 	*snr = ((tmp << 8) | tmp);
-	dprintk("%s: snr=0x%x\n", __FUNCTION__, *snr);
+	dprintk("%s: snr=0x%x\n", __func__, *snr);
 	return 0;
 }
 
@@ -1106,7 +1106,7 @@ static int tda1004x_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	int tmp2;
 	int counter;
 
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	// read the UCBLOCKS and reset
 	counter = 0;
@@ -1132,7 +1132,7 @@ static int tda1004x_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	else
 		*ucblocks = 0xffffffff;
 
-	dprintk("%s: ucblocks=0x%x\n", __FUNCTION__, *ucblocks);
+	dprintk("%s: ucblocks=0x%x\n", __func__, *ucblocks);
 	return 0;
 }
 
@@ -1141,7 +1141,7 @@ static int tda1004x_read_ber(struct dvb_frontend* fe, u32* ber)
 	struct tda1004x_state* state = fe->demodulator_priv;
 	int tmp;
 
-	dprintk("%s\n", __FUNCTION__);
+	dprintk("%s\n", __func__);
 
 	// read it in
 	tmp = tda1004x_read_byte(state, TDA1004X_CBER_LSB);
@@ -1155,7 +1155,7 @@ static int tda1004x_read_ber(struct dvb_frontend* fe, u32* ber)
 	// The address 0x20 should be read to cope with a TDA10046 bug
 	tda1004x_read_byte(state, TDA1004X_CBER_RESET);
 
-	dprintk("%s: ber=0x%x\n", __FUNCTION__, *ber);
+	dprintk("%s: ber=0x%x\n", __func__, *ber);
 	return 0;
 }
 

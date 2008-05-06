@@ -471,6 +471,7 @@ arm1020_crval:
 	.type	arm1020_processor_functions, #object
 arm1020_processor_functions:
 	.word	v4t_early_abort
+	.word	pabort_noifar
 	.word	cpu_arm1020_proc_init
 	.word	cpu_arm1020_proc_fin
 	.word	cpu_arm1020_reset
@@ -478,7 +479,6 @@ arm1020_processor_functions:
 	.word	cpu_arm1020_dcache_clean_area
 	.word	cpu_arm1020_switch_mm
 	.word	cpu_arm1020_set_pte_ext
-	.word	pabort_noifar
 	.size	arm1020_processor_functions, . - arm1020_processor_functions
 
 	.section ".rodata"

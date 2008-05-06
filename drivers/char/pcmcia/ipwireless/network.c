@@ -63,21 +63,6 @@ struct ipw_network {
 	struct work_struct work_go_offline;
 };
 
-
-#ifdef IPWIRELESS_STATE_DEBUG
-int ipwireless_dump_network_state(char *p, size_t limit,
-				  struct ipw_network *network)
-{
-	return snprintf(p, limit,
-			"debug: ppp_blocked=%d\n"
-			"debug: outgoing_packets_queued=%d\n"
-			"debug: network.shutting_down=%d\n",
-			network->ppp_blocked,
-			network->outgoing_packets_queued,
-			network->shutting_down);
-}
-#endif
-
 static void notify_packet_sent(void *callback_data, unsigned int packet_length)
 {
 	struct ipw_network *network = callback_data;

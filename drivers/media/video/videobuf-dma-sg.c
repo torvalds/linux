@@ -1,5 +1,5 @@
 /*
- * helper functions for PCI DMA video4linux capture buffers
+ * helper functions for SG DMA video4linux capture buffers
  *
  * The functions expect the hardware being able to scatter gatter
  * (i.e. the buffers are not linear in physical memory, but fragmented
@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 
-#include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
@@ -39,10 +39,10 @@
 #define MAGIC_CHECK(is,should)	if (unlikely((is) != (should))) \
 	{ printk(KERN_ERR "magic mismatch: %x (expected %x)\n",is,should); BUG(); }
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 
-MODULE_DESCRIPTION("helper module to manage video4linux pci dma sg buffers");
+MODULE_DESCRIPTION("helper module to manage video4linux dma sg buffers");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
 
@@ -119,10 +119,10 @@ videobuf_pages_to_sg(struct page **pages, int nr_pages, int offset)
 
 struct videobuf_dmabuf *videobuf_to_dma (struct videobuf_buffer *buf)
 {
-	struct videbuf_pci_sg_memory *mem=buf->priv;
-	BUG_ON (!mem);
+	struct videobuf_dma_sg_memory *mem = buf->priv;
+	BUG_ON(!mem);
 
-	MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
+	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
 
 	return &mem->dma;
 }
@@ -141,9 +141,14 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 
 	dma->direction = direction;
 	switch (dma->direction) {
-	case PCI_DMA_FROMDEVICE: rw = READ;  break;
-	case PCI_DMA_TODEVICE:   rw = WRITE; break;
-	default:                 BUG();
+	case DMA_FROM_DEVICE:
+		rw = READ;
+		break;
+	case DMA_TO_DEVICE:
+		rw = WRITE;
+		break;
+	default:
+		BUG();
 	}
 
 	first = (data          & PAGE_MASK) >> PAGE_SHIFT;
@@ -156,9 +161,6 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 		return -ENOMEM;
 	dprintk(1,"init user [0x%lx+0x%lx => %d pages]\n",
 		data,size,dma->nr_pages);
-
-	dma->varea = (void *) data;
-
 
 	err = get_user_pages(current,current->mm,
 			     data & PAGE_MASK, dma->nr_pages,
@@ -216,10 +218,8 @@ int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
 	return 0;
 }
 
-int videobuf_dma_map(struct videobuf_queue* q,struct videobuf_dmabuf *dma)
+int videobuf_dma_map(struct videobuf_queue* q, struct videobuf_dmabuf *dma)
 {
-	void                   *dev=q->dev;
-
 	MAGIC_CHECK(dma->magic,MAGIC_DMABUF);
 	BUG_ON(0 == dma->nr_pages);
 
@@ -245,11 +245,11 @@ int videobuf_dma_map(struct videobuf_queue* q,struct videobuf_dmabuf *dma)
 		return -ENOMEM;
 	}
 	if (!dma->bus_addr) {
-		dma->sglen = pci_map_sg(dev,dma->sglist,
+		dma->sglen = dma_map_sg(q->dev, dma->sglist,
 					dma->nr_pages, dma->direction);
 		if (0 == dma->sglen) {
 			printk(KERN_WARNING
-			       "%s: videobuf_map_sg failed\n",__FUNCTION__);
+			       "%s: videobuf_map_sg failed\n",__func__);
 			kfree(dma->sglist);
 			dma->sglist = NULL;
 			dma->sglen = 0;
@@ -259,26 +259,22 @@ int videobuf_dma_map(struct videobuf_queue* q,struct videobuf_dmabuf *dma)
 	return 0;
 }
 
-int videobuf_dma_sync(struct videobuf_queue *q,struct videobuf_dmabuf *dma)
+int videobuf_dma_sync(struct videobuf_queue *q, struct videobuf_dmabuf *dma)
 {
-	void                   *dev=q->dev;
-
-	MAGIC_CHECK(dma->magic,MAGIC_DMABUF);
+	MAGIC_CHECK(dma->magic, MAGIC_DMABUF);
 	BUG_ON(!dma->sglen);
 
-	pci_dma_sync_sg_for_cpu (dev,dma->sglist,dma->nr_pages,dma->direction);
+	dma_sync_sg_for_cpu(q->dev, dma->sglist, dma->nr_pages, dma->direction);
 	return 0;
 }
 
 int videobuf_dma_unmap(struct videobuf_queue* q,struct videobuf_dmabuf *dma)
 {
-	void                   *dev=q->dev;
-
-	MAGIC_CHECK(dma->magic,MAGIC_DMABUF);
+	MAGIC_CHECK(dma->magic, MAGIC_DMABUF);
 	if (!dma->sglen)
 		return 0;
 
-	pci_unmap_sg (dev,dma->sglist,dma->nr_pages,dma->direction);
+	dma_unmap_sg(q->dev, dma->sglist, dma->nr_pages, dma->direction);
 
 	kfree(dma->sglist);
 	dma->sglist = NULL;
@@ -301,33 +297,32 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
 
 	vfree(dma->vmalloc);
 	dma->vmalloc = NULL;
-	dma->varea = NULL;
 
 	if (dma->bus_addr) {
 		dma->bus_addr = 0;
 	}
-	dma->direction = PCI_DMA_NONE;
+	dma->direction = DMA_NONE;
 	return 0;
 }
 
 /* --------------------------------------------------------------------- */
 
-int videobuf_pci_dma_map(struct pci_dev *pci,struct videobuf_dmabuf *dma)
+int videobuf_sg_dma_map(struct device *dev, struct videobuf_dmabuf *dma)
 {
 	struct videobuf_queue q;
 
-	q.dev=pci;
+	q.dev = dev;
 
-	return (videobuf_dma_map(&q,dma));
+	return videobuf_dma_map(&q, dma);
 }
 
-int videobuf_pci_dma_unmap(struct pci_dev *pci,struct videobuf_dmabuf *dma)
+int videobuf_sg_dma_unmap(struct device *dev, struct videobuf_dmabuf *dma)
 {
 	struct videobuf_queue q;
 
-	q.dev=pci;
+	q.dev = dev;
 
-	return (videobuf_dma_unmap(&q,dma));
+	return videobuf_dma_unmap(&q, dma);
 }
 
 /* --------------------------------------------------------------------- */
@@ -347,7 +342,7 @@ videobuf_vm_close(struct vm_area_struct *vma)
 {
 	struct videobuf_mapping *map = vma->vm_private_data;
 	struct videobuf_queue *q = map->q;
-	struct videbuf_pci_sg_memory *mem;
+	struct videobuf_dma_sg_memory *mem;
 	int i;
 
 	dprintk(2,"vm_close %p [count=%d,vma=%08lx-%08lx]\n",map,
@@ -409,18 +404,18 @@ static struct vm_operations_struct videobuf_vm_ops =
 };
 
 /* ---------------------------------------------------------------------
- * PCI handlers for the generic methods
+ * SG handlers for the generic methods
  */
 
 /* Allocated area consists on 3 parts:
 	struct video_buffer
 	struct <driver>_buffer (cx88_buffer, saa7134_buf, ...)
-	struct videobuf_pci_sg_memory
+	struct videobuf_dma_sg_memory
  */
 
 static void *__videobuf_alloc(size_t size)
 {
-	struct videbuf_pci_sg_memory *mem;
+	struct videobuf_dma_sg_memory *mem;
 	struct videobuf_buffer *vb;
 
 	vb = kzalloc(size+sizeof(*mem),GFP_KERNEL);
@@ -431,10 +426,20 @@ static void *__videobuf_alloc(size_t size)
 	videobuf_dma_init(&mem->dma);
 
 	dprintk(1,"%s: allocated at %p(%ld+%ld) & %p(%ld)\n",
-		__FUNCTION__,vb,(long)sizeof(*vb),(long)size-sizeof(*vb),
+		__func__,vb,(long)sizeof(*vb),(long)size-sizeof(*vb),
 		mem,(long)sizeof(*mem));
 
 	return vb;
+}
+
+static void *__videobuf_to_vmalloc (struct videobuf_buffer *buf)
+{
+	struct videobuf_dma_sg_memory *mem = buf->priv;
+	BUG_ON(!mem);
+
+	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
+
+	return mem->dma.vmalloc;
 }
 
 static int __videobuf_iolock (struct videobuf_queue* q,
@@ -443,10 +448,10 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 {
 	int err,pages;
 	dma_addr_t bus;
-	struct videbuf_pci_sg_memory *mem=vb->priv;
+	struct videobuf_dma_sg_memory *mem = vb->priv;
 	BUG_ON(!mem);
 
-	MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
+	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
 
 	switch (vb->memory) {
 	case V4L2_MEMORY_MMAP:
@@ -455,14 +460,14 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 			/* no userspace addr -- kernel bounce buffer */
 			pages = PAGE_ALIGN(vb->size) >> PAGE_SHIFT;
 			err = videobuf_dma_init_kernel( &mem->dma,
-							PCI_DMA_FROMDEVICE,
+							DMA_FROM_DEVICE,
 							pages );
 			if (0 != err)
 				return err;
 		} else if (vb->memory == V4L2_MEMORY_USERPTR) {
 			/* dma directly to userspace */
 			err = videobuf_dma_init_user( &mem->dma,
-						      PCI_DMA_FROMDEVICE,
+						      DMA_FROM_DEVICE,
 						      vb->baddr,vb->bsize );
 			if (0 != err)
 				return err;
@@ -473,7 +478,7 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 			locking inversion, so don't take it here */
 
 			err = videobuf_dma_init_user_locked(&mem->dma,
-						      PCI_DMA_FROMDEVICE,
+						      DMA_FROM_DEVICE,
 						      vb->baddr, vb->bsize);
 			if (0 != err)
 				return err;
@@ -490,7 +495,7 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 		 */
 		bus   = (dma_addr_t)(unsigned long)fbuf->base + vb->boff;
 		pages = PAGE_ALIGN(vb->size) >> PAGE_SHIFT;
-		err = videobuf_dma_init_overlay(&mem->dma,PCI_DMA_FROMDEVICE,
+		err = videobuf_dma_init_overlay(&mem->dma, DMA_FROM_DEVICE,
 						bus, pages);
 		if (0 != err)
 			return err;
@@ -498,7 +503,7 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 	default:
 		BUG();
 	}
-	err = videobuf_dma_map(q,&mem->dma);
+	err = videobuf_dma_map(q, &mem->dma);
 	if (0 != err)
 		return err;
 
@@ -508,8 +513,8 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 static int __videobuf_sync(struct videobuf_queue *q,
 			   struct videobuf_buffer *buf)
 {
-	struct videbuf_pci_sg_memory *mem=buf->priv;
-	BUG_ON (!mem);
+	struct videobuf_dma_sg_memory *mem = buf->priv;
+	BUG_ON(!mem);
 	MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
 
 	return	videobuf_dma_sync(q,&mem->dma);
@@ -532,7 +537,7 @@ static int __videobuf_mmap_free(struct videobuf_queue *q)
 static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 			 struct vm_area_struct *vma)
 {
-	struct videbuf_pci_sg_memory *mem;
+	struct videobuf_dma_sg_memory *mem;
 	struct videobuf_mapping *map;
 	unsigned int first,last,size,i;
 	int retval;
@@ -547,12 +552,20 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 		goto done;
 	}
 
+	/* This function maintains backwards compatibility with V4L1 and will
+	 * map more than one buffer if the vma length is equal to the combined
+	 * size of multiple buffers than it will map them together.  See
+	 * VIDIOCGMBUF in the v4l spec
+	 *
+	 * TODO: Allow drivers to specify if they support this mode
+	 */
+
 	/* look for first buffer to map */
 	for (first = 0; first < VIDEO_MAX_FRAME; first++) {
 		if (NULL == q->bufs[first])
 			continue;
 		mem=q->bufs[first]->priv;
-		BUG_ON (!mem);
+		BUG_ON(!mem);
 		MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
 
 		if (V4L2_MEMORY_MMAP != q->bufs[first]->memory)
@@ -591,10 +604,16 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	map = kmalloc(sizeof(struct videobuf_mapping),GFP_KERNEL);
 	if (NULL == map)
 		goto done;
-	for (size = 0, i = first; i <= last; size += q->bufs[i++]->bsize) {
+
+	size = 0;
+	for (i = first; i <= last; i++) {
+		if (NULL == q->bufs[i])
+			continue;
 		q->bufs[i]->map   = map;
 		q->bufs[i]->baddr = vma->vm_start + size;
+		size += q->bufs[i]->bsize;
 	}
+
 	map->count    = 1;
 	map->start    = vma->vm_start;
 	map->end      = vma->vm_end;
@@ -615,8 +634,8 @@ static int __videobuf_copy_to_user ( struct videobuf_queue *q,
 				char __user *data, size_t count,
 				int nonblocking )
 {
-	struct videbuf_pci_sg_memory *mem=q->read_buf->priv;
-	BUG_ON (!mem);
+	struct videobuf_dma_sg_memory *mem = q->read_buf->priv;
+	BUG_ON(!mem);
 	MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
 
 	/* copy to userspace */
@@ -634,8 +653,8 @@ static int __videobuf_copy_stream ( struct videobuf_queue *q,
 				int vbihack, int nonblocking )
 {
 	unsigned int  *fc;
-	struct videbuf_pci_sg_memory *mem=q->read_buf->priv;
-	BUG_ON (!mem);
+	struct videobuf_dma_sg_memory *mem = q->read_buf->priv;
+	BUG_ON(!mem);
 	MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
 
 	if (vbihack) {
@@ -658,7 +677,7 @@ static int __videobuf_copy_stream ( struct videobuf_queue *q,
 	return count;
 }
 
-static struct videobuf_qtype_ops pci_ops = {
+static struct videobuf_qtype_ops sg_ops = {
 	.magic        = MAGIC_QTYPE_OPS,
 
 	.alloc        = __videobuf_alloc,
@@ -668,23 +687,24 @@ static struct videobuf_qtype_ops pci_ops = {
 	.mmap_mapper  = __videobuf_mmap_mapper,
 	.video_copy_to_user = __videobuf_copy_to_user,
 	.copy_stream  = __videobuf_copy_stream,
+	.vmalloc      = __videobuf_to_vmalloc,
 };
 
-void *videobuf_pci_alloc (size_t size)
+void *videobuf_sg_alloc(size_t size)
 {
 	struct videobuf_queue q;
 
 	/* Required to make generic handler to call __videobuf_alloc */
-	q.int_ops=&pci_ops;
+	q.int_ops = &sg_ops;
 
-	q.msize=size;
+	q.msize = size;
 
-	return videobuf_alloc (&q);
+	return videobuf_alloc(&q);
 }
 
-void videobuf_queue_pci_init(struct videobuf_queue* q,
+void videobuf_queue_sg_init(struct videobuf_queue* q,
 			 struct videobuf_queue_ops *ops,
-			 void *dev,
+			 struct device *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
@@ -692,7 +712,7 @@ void videobuf_queue_pci_init(struct videobuf_queue* q,
 			 void *priv)
 {
 	videobuf_queue_core_init(q, ops, dev, irqlock, type, field, msize,
-				 priv, &pci_ops);
+				 priv, &sg_ops);
 }
 
 /* --------------------------------------------------------------------- */
@@ -709,11 +729,11 @@ EXPORT_SYMBOL_GPL(videobuf_dma_sync);
 EXPORT_SYMBOL_GPL(videobuf_dma_unmap);
 EXPORT_SYMBOL_GPL(videobuf_dma_free);
 
-EXPORT_SYMBOL_GPL(videobuf_pci_dma_map);
-EXPORT_SYMBOL_GPL(videobuf_pci_dma_unmap);
-EXPORT_SYMBOL_GPL(videobuf_pci_alloc);
+EXPORT_SYMBOL_GPL(videobuf_sg_dma_map);
+EXPORT_SYMBOL_GPL(videobuf_sg_dma_unmap);
+EXPORT_SYMBOL_GPL(videobuf_sg_alloc);
 
-EXPORT_SYMBOL_GPL(videobuf_queue_pci_init);
+EXPORT_SYMBOL_GPL(videobuf_queue_sg_init);
 
 /*
  * Local variables:

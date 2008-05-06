@@ -4322,7 +4322,7 @@ static void do_remove_sysfs_files(void)
 static ssize_t
 st_defined_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct st_modedef *STm = (struct st_modedef *)dev_get_drvdata(dev);
+	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
 
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->defined);
@@ -4334,7 +4334,7 @@ DEVICE_ATTR(defined, S_IRUGO, st_defined_show, NULL);
 static ssize_t
 st_defblk_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct st_modedef *STm = (struct st_modedef *)dev_get_drvdata(dev);
+	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
 
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->default_blksize);
@@ -4346,7 +4346,7 @@ DEVICE_ATTR(default_blksize, S_IRUGO, st_defblk_show, NULL);
 static ssize_t
 st_defdensity_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct st_modedef *STm = (struct st_modedef *)dev_get_drvdata(dev);
+	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
 	char *fmt;
 
@@ -4361,7 +4361,7 @@ static ssize_t
 st_defcompression_show(struct device *dev, struct device_attribute *attr,
 		       char *buf)
 {
-	struct st_modedef *STm = (struct st_modedef *)dev_get_drvdata(dev);
+	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
 
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->default_compression - 1);
@@ -4373,7 +4373,7 @@ DEVICE_ATTR(default_compression, S_IRUGO, st_defcompression_show, NULL);
 static ssize_t
 st_options_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct st_modedef *STm = (struct st_modedef *)dev_get_drvdata(dev);
+	struct st_modedef *STm = dev_get_drvdata(dev);
 	struct scsi_tape *STp;
 	int i, j, options;
 	ssize_t l = 0;

@@ -599,7 +599,7 @@ NCR_700_scsi_done(struct NCR_700_Host_Parameters *hostdata,
 			(struct NCR_700_command_slot *)SCp->host_scribble;
 		
 		dma_unmap_single(hostdata->dev, slot->pCmd,
-				 sizeof(SCp->cmnd), DMA_TO_DEVICE);
+				 MAX_COMMAND_SIZE, DMA_TO_DEVICE);
 		if (slot->flags == NCR_700_FLAG_AUTOSENSE) {
 			char *cmnd = NCR_700_get_sense_cmnd(SCp->device);
 #ifdef NCR_700_DEBUG
@@ -1004,7 +1004,7 @@ process_script_interrupt(__u32 dsps, __u32 dsp, struct scsi_cmnd *SCp,
 				 * here */
 				NCR_700_unmap(hostdata, SCp, slot);
 				dma_unmap_single(hostdata->dev, slot->pCmd,
-						 sizeof(SCp->cmnd),
+						 MAX_COMMAND_SIZE,
 						 DMA_TO_DEVICE);
 
 				cmnd[0] = REQUEST_SENSE;
@@ -1901,7 +1901,7 @@ NCR_700_queuecommand(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *))
 	}
 	slot->resume_offset = 0;
 	slot->pCmd = dma_map_single(hostdata->dev, SCp->cmnd,
-				    sizeof(SCp->cmnd), DMA_TO_DEVICE);
+				    MAX_COMMAND_SIZE, DMA_TO_DEVICE);
 	NCR_700_start_command(SCp);
 	return 0;
 }

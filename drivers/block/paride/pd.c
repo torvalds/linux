@@ -716,10 +716,8 @@ static int pd_special_command(struct pd_unit *disk,
 	struct request rq;
 	int err = 0;
 
-	memset(&rq, 0, sizeof(rq));
-	rq.errors = 0;
+	blk_rq_init(NULL, &rq);
 	rq.rq_disk = disk->gd;
-	rq.ref_count = 1;
 	rq.end_io_data = &wait;
 	rq.end_io = blk_end_sync_rq;
 	blk_insert_request(disk->gd->queue, &rq, 0, func);

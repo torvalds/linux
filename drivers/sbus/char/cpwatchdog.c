@@ -637,7 +637,7 @@ static int wd_inittimer(int whichdog)
 			break;
 		default:
 			printk("%s: %s: invalid watchdog id: %i\n",
-				WD_OBPNAME, __FUNCTION__, whichdog);
+				WD_OBPNAME, __func__, whichdog);
 			return(1);
 	}
 	if(0 != misc_register(whichmisc))

@@ -118,7 +118,7 @@ static struct snd_pcm_hardware snd_at73c213_playback_hw = {
 	.rates		= SNDRV_PCM_RATE_CONTINUOUS,
 	.rate_min	= 8000,  /* Replaced by chip->bitrate later. */
 	.rate_max	= 50000, /* Replaced by chip->bitrate later. */
-	.channels_min	= 2,
+	.channels_min	= 1,
 	.channels_max	= 2,
 	.buffer_bytes_max = 64 * 1024 - 1,
 	.period_bytes_min = 512,
@@ -133,7 +133,8 @@ static struct snd_pcm_hardware snd_at73c213_playback_hw = {
 static int snd_at73c213_set_bitrate(struct snd_at73c213 *chip)
 {
 	unsigned long ssc_rate = clk_get_rate(chip->ssc->clk);
-	unsigned long dac_rate_new, ssc_div, status;
+	unsigned long dac_rate_new, ssc_div;
+	int status;
 	unsigned long ssc_div_max, ssc_div_min;
 	int max_tries;
 
@@ -209,7 +210,13 @@ static int snd_at73c213_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_at73c213 *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	int err;
 
+	/* ensure buffer_size is a multiple of period_size */
+	err = snd_pcm_hw_constraint_integer(runtime,
+					SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
+		return err;
 	snd_at73c213_playback_hw.rate_min = chip->bitrate;
 	snd_at73c213_playback_hw.rate_max = chip->bitrate;
 	runtime->hw = snd_at73c213_playback_hw;
@@ -228,6 +235,14 @@ static int snd_at73c213_pcm_close(struct snd_pcm_substream *substream)
 static int snd_at73c213_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *hw_params)
 {
+	struct snd_at73c213 *chip = snd_pcm_substream_chip(substream);
+	int channels = params_channels(hw_params);
+	int val;
+
+	val = ssc_readl(chip->ssc->regs, TFMR);
+	val = SSC_BFINS(TFMR_DATNB, channels - 1, val);
+	ssc_writel(chip->ssc->regs, TFMR, val);
+
 	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
 }
@@ -249,10 +264,12 @@ static int snd_at73c213_pcm_prepare(struct snd_pcm_substream *substream)
 
 	ssc_writel(chip->ssc->regs, PDC_TPR,
 			(long)runtime->dma_addr);
-	ssc_writel(chip->ssc->regs, PDC_TCR, runtime->period_size * 2);
+	ssc_writel(chip->ssc->regs, PDC_TCR,
+			runtime->period_size * runtime->channels);
 	ssc_writel(chip->ssc->regs, PDC_TNPR,
 			(long)runtime->dma_addr + block_size);
-	ssc_writel(chip->ssc->regs, PDC_TNCR, runtime->period_size * 2);
+	ssc_writel(chip->ssc->regs, PDC_TNCR,
+			runtime->period_size * runtime->channels);
 
 	return 0;
 }
@@ -314,15 +331,6 @@ static struct snd_pcm_ops at73c213_playback_ops = {
 	.pointer	= snd_at73c213_pcm_pointer,
 };
 
-static void snd_at73c213_pcm_free(struct snd_pcm *pcm)
-{
-	struct snd_at73c213 *chip = snd_pcm_chip(pcm);
-	if (chip->pcm) {
-		snd_pcm_lib_preallocate_free_for_all(chip->pcm);
-		chip->pcm = NULL;
-	}
-}
-
 static int __devinit snd_at73c213_pcm_new(struct snd_at73c213 *chip, int device)
 {
 	struct snd_pcm *pcm;
@@ -334,7 +342,6 @@ static int __devinit snd_at73c213_pcm_new(struct snd_at73c213 *chip, int device)
 		goto out;
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_at73c213_pcm_free;
 	pcm->info_flags = SNDRV_PCM_INFO_BLOCK_TRANSFER;
 	strcpy(pcm->name, "at73c213");
 	chip->pcm = pcm;
@@ -375,7 +382,8 @@ static irqreturn_t snd_at73c213_interrupt(int irq, void *dev_id)
 
 		ssc_writel(chip->ssc->regs, PDC_TNPR,
 				(long)runtime->dma_addr + offset);
-		ssc_writel(chip->ssc->regs, PDC_TNCR, runtime->period_size * 2);
+		ssc_writel(chip->ssc->regs, PDC_TNCR,
+				runtime->period_size * runtime->channels);
 		retval = IRQ_HANDLED;
 	}
 
@@ -737,7 +745,7 @@ cleanup:
 /*
  * Device functions
  */
-static int snd_at73c213_ssc_init(struct snd_at73c213 *chip)
+static int __devinit snd_at73c213_ssc_init(struct snd_at73c213 *chip)
 {
 	/*
 	 * Continuous clock output.
@@ -767,7 +775,7 @@ static int snd_at73c213_ssc_init(struct snd_at73c213 *chip)
 	return 0;
 }
 
-static int snd_at73c213_chip_init(struct snd_at73c213 *chip)
+static int __devinit snd_at73c213_chip_init(struct snd_at73c213 *chip)
 {
 	int retval;
 	unsigned char dac_ctrl = 0;
@@ -933,7 +941,7 @@ out:
 	return retval;
 }
 
-static int snd_at73c213_probe(struct spi_device *spi)
+static int __devinit snd_at73c213_probe(struct spi_device *spi)
 {
 	struct snd_card			*card;
 	struct snd_at73c213		*chip;

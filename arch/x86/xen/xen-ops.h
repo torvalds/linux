@@ -2,6 +2,8 @@
 #define XEN_OPS_H
 
 #include <linux/init.h>
+#include <linux/irqreturn.h>
+#include <xen/xen-ops.h>
 
 /* These are code, but not functions.  Defined in entry.S */
 extern const char xen_hypervisor_callback[];
@@ -9,7 +11,6 @@ extern const char xen_failsafe_callback[];
 
 void xen_copy_trap_info(struct trap_info *traps);
 
-DECLARE_PER_CPU(struct vcpu_info *, xen_vcpu);
 DECLARE_PER_CPU(unsigned long, xen_cr3);
 DECLARE_PER_CPU(unsigned long, xen_current_cr3);
 
@@ -19,6 +20,7 @@ extern struct shared_info *HYPERVISOR_shared_info;
 char * __init xen_memory_setup(void);
 void __init xen_arch_setup(void);
 void __init xen_init_IRQ(void);
+void xen_enable_sysenter(void);
 
 void xen_setup_timer(int cpu);
 void xen_setup_cpu_clockevents(void);
@@ -27,6 +29,8 @@ void __init xen_time_init(void);
 unsigned long xen_get_wallclock(void);
 int xen_set_wallclock(unsigned long time);
 unsigned long long xen_sched_clock(void);
+
+irqreturn_t xen_debug_interrupt(int irq, void *dev_id);
 
 bool xen_vcpu_stolen(int vcpu);
 
@@ -64,4 +68,6 @@ DECL_ASM(unsigned long, xen_save_fl_direct, void);
 DECL_ASM(void, xen_restore_fl_direct, unsigned long);
 
 void xen_iret(void);
+void xen_sysexit(void);
+
 #endif /* XEN_OPS_H */

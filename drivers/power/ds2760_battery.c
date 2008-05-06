@@ -262,7 +262,7 @@ static void ds2760_battery_work(struct work_struct *work)
 		struct ds2760_device_info, monitor_work.work);
 	const int interval = HZ * 60;
 
-	dev_dbg(di->dev, "%s\n", __FUNCTION__);
+	dev_dbg(di->dev, "%s\n", __func__);
 
 	ds2760_battery_update_status(di);
 	queue_delayed_work(di->monitor_wqueue, &di->monitor_work, interval);
@@ -275,7 +275,7 @@ static void ds2760_battery_external_power_changed(struct power_supply *psy)
 {
 	struct ds2760_device_info *di = to_ds2760_device_info(psy);
 
-	dev_dbg(di->dev, "%s\n", __FUNCTION__);
+	dev_dbg(di->dev, "%s\n", __func__);
 
 	cancel_delayed_work(&di->monitor_work);
 	queue_delayed_work(di->monitor_wqueue, &di->monitor_work, HZ/10);

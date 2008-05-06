@@ -199,8 +199,12 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 	if (!shost->can_queue) {
 		printk(KERN_ERR "%s: can_queue = 0 no longer supported\n",
 				sht->name);
-		goto out;
+		goto fail;
 	}
+
+	error = scsi_setup_command_freelist(shost);
+	if (error)
+		goto fail;
 
 	if (!shost->shost_gendev.parent)
 		shost->shost_gendev.parent = dev ? dev : &platform_bus;
@@ -255,6 +259,8 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
  out_del_gendev:
 	device_del(&shost->shost_gendev);
  out:
+	scsi_destroy_command_freelist(shost);
+ fail:
 	return error;
 }
 EXPORT_SYMBOL(scsi_add_host);
@@ -283,6 +289,11 @@ static void scsi_host_dev_release(struct device *dev)
 		put_device(parent);
 	kfree(shost);
 }
+
+struct device_type scsi_host_type = {
+	.name =		"scsi_host",
+	.release =	scsi_host_dev_release,
+};
 
 /**
  * scsi_host_alloc - register a scsi host adapter instance.
@@ -376,33 +387,31 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	else
 		shost->dma_boundary = 0xffffffff;
 
-	rval = scsi_setup_command_freelist(shost);
-	if (rval)
-		goto fail_kfree;
-
 	device_initialize(&shost->shost_gendev);
 	snprintf(shost->shost_gendev.bus_id, BUS_ID_SIZE, "host%d",
 		shost->host_no);
-	shost->shost_gendev.release = scsi_host_dev_release;
+#ifndef CONFIG_SYSFS_DEPRECATED
+	shost->shost_gendev.bus = &scsi_bus_type;
+#endif
+	shost->shost_gendev.type = &scsi_host_type;
 
 	device_initialize(&shost->shost_dev);
 	shost->shost_dev.parent = &shost->shost_gendev;
 	shost->shost_dev.class = &shost_class;
 	snprintf(shost->shost_dev.bus_id, BUS_ID_SIZE, "host%d",
 		 shost->host_no);
+	shost->shost_dev.groups = scsi_sysfs_shost_attr_groups;
 
 	shost->ehandler = kthread_run(scsi_error_handler, shost,
 			"scsi_eh_%d", shost->host_no);
 	if (IS_ERR(shost->ehandler)) {
 		rval = PTR_ERR(shost->ehandler);
-		goto fail_destroy_freelist;
+		goto fail_kfree;
 	}
 
 	scsi_proc_hostdir_add(shost->hostt);
 	return shost;
 
- fail_destroy_freelist:
-	scsi_destroy_command_freelist(shost);
  fail_kfree:
 	kfree(shost);
 	return NULL;
@@ -496,7 +505,7 @@ void scsi_exit_hosts(void)
 
 int scsi_is_host_device(const struct device *dev)
 {
-	return dev->release == scsi_host_dev_release;
+	return dev->type == &scsi_host_type;
 }
 EXPORT_SYMBOL(scsi_is_host_device);
 

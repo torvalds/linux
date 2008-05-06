@@ -135,7 +135,7 @@ static __init void *spp_getpage(void)
 	return ptr;
 }
 
-static __init void
+static void
 set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 {
 	pgd_t *pgd;
@@ -173,7 +173,7 @@ set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 	new_pte = pfn_pte(phys >> PAGE_SHIFT, prot);
 
 	pte = pte_offset_kernel(pmd, vaddr);
-	if (!pte_none(*pte) &&
+	if (!pte_none(*pte) && pte_val(new_pte) &&
 	    pte_val(*pte) != (pte_val(new_pte) & __supported_pte_mask))
 		pte_ERROR(*pte);
 	set_pte(pte, new_pte);
@@ -214,8 +214,7 @@ void __init cleanup_highmap(void)
 }
 
 /* NOTE: this is meant to be run only at boot */
-void __init
-__set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
+void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 {
 	unsigned long address = __fix_to_virt(idx);
 
@@ -621,15 +620,6 @@ void __init paging_init(void)
 /*
  * Memory hotplug specific functions
  */
-void online_page(struct page *page)
-{
-	ClearPageReserved(page);
-	init_page_count(page);
-	__free_page(page);
-	totalram_pages++;
-	num_physpages++;
-}
-
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
  * Memory is added always to NORMAL zone. This means you will never get
@@ -663,6 +653,26 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 
 #endif /* CONFIG_MEMORY_HOTPLUG */
+
+/*
+ * devmem_is_allowed() checks to see if /dev/mem access to a certain address
+ * is valid. The argument is a physical page number.
+ *
+ *
+ * On x86, access has to be given to the first megabyte of ram because that area
+ * contains bios code and data regions used by X and dosemu and similar apps.
+ * Access has to be given to non-kernel-ram areas as well, these contain the PCI
+ * mmio resources as well as potential bios/acpi data regions.
+ */
+int devmem_is_allowed(unsigned long pagenr)
+{
+	if (pagenr <= 256)
+		return 1;
+	if (!page_is_ram(pagenr))
+		return 1;
+	return 0;
+}
+
 
 static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel,
 			 kcore_modules, kcore_vsyscall;
@@ -791,7 +801,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 {
 #ifdef CONFIG_NUMA
-	int nid = phys_to_nid(phys);
+	int nid, next_nid;
 #endif
 	unsigned long pfn = phys >> PAGE_SHIFT;
 
@@ -810,10 +820,16 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 
 	/* Should check here against the e820 map to avoid double free */
 #ifdef CONFIG_NUMA
-	reserve_bootmem_node(NODE_DATA(nid), phys, len, BOOTMEM_DEFAULT);
+	nid = phys_to_nid(phys);
+	next_nid = phys_to_nid(phys + len - 1);
+	if (nid == next_nid)
+		reserve_bootmem_node(NODE_DATA(nid), phys, len, BOOTMEM_DEFAULT);
+	else
+		reserve_bootmem(phys, len, BOOTMEM_DEFAULT);
 #else
 	reserve_bootmem(phys, len, BOOTMEM_DEFAULT);
 #endif
+
 	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE) {
 		dma_reserve += len / PAGE_SIZE;
 		set_dma_reserve(dma_reserve);
@@ -907,6 +923,10 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 /*
  * Initialise the sparsemem vmemmap using huge-pages at the PMD level.
  */
+static long __meminitdata addr_start, addr_end;
+static void __meminitdata *p_start, *p_end;
+static int __meminitdata node_start;
+
 int __meminit
 vmemmap_populate(struct page *start_page, unsigned long size, int node)
 {
@@ -941,12 +961,32 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
 							PAGE_KERNEL_LARGE);
 			set_pmd(pmd, __pmd(pte_val(entry)));
 
-			printk(KERN_DEBUG " [%lx-%lx] PMD ->%p on node %d\n",
-				addr, addr + PMD_SIZE - 1, p, node);
+			/* check to see if we have contiguous blocks */
+			if (p_end != p || node_start != node) {
+				if (p_start)
+					printk(KERN_DEBUG " [%lx-%lx] PMD -> [%p-%p] on node %d\n",
+						addr_start, addr_end-1, p_start, p_end-1, node_start);
+				addr_start = addr;
+				node_start = node;
+				p_start = p;
+			}
+			addr_end = addr + PMD_SIZE;
+			p_end = p + PMD_SIZE;
 		} else {
 			vmemmap_verify((pte_t *)pmd, node, addr, next);
 		}
 	}
 	return 0;
+}
+
+void __meminit vmemmap_populate_print_last(void)
+{
+	if (p_start) {
+		printk(KERN_DEBUG " [%lx-%lx] PMD -> [%p-%p] on node %d\n",
+			addr_start, addr_end-1, p_start, p_end-1, node_start);
+		p_start = NULL;
+		p_end = NULL;
+		node_start = 0;
+	}
 }
 #endif

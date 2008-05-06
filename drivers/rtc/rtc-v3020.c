@@ -107,7 +107,7 @@ static int v3020_read_time(struct device *dev, struct rtc_time *dt)
 	dt->tm_year = BCD2BIN(tmp)+100;
 
 #ifdef DEBUG
-	printk("\n%s : Read RTC values\n",__FUNCTION__);
+	printk("\n%s : Read RTC values\n",__func__);
 	printk("tm_hour: %i\n",dt->tm_hour);
 	printk("tm_min : %i\n",dt->tm_min);
 	printk("tm_sec : %i\n",dt->tm_sec);
@@ -126,7 +126,7 @@ static int v3020_set_time(struct device *dev, struct rtc_time *dt)
 	struct v3020 *chip = dev_get_drvdata(dev);
 
 #ifdef DEBUG
-	printk("\n%s : Setting RTC values\n",__FUNCTION__);
+	printk("\n%s : Setting RTC values\n",__func__);
 	printk("tm_sec : %i\n",dt->tm_sec);
 	printk("tm_min : %i\n",dt->tm_min);
 	printk("tm_hour: %i\n",dt->tm_hour);

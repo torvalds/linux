@@ -48,7 +48,7 @@ MODULE_LICENSE("GPL");
 
 #include <linux/video_decoder.h>
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, " Set the default Debug level.  Default: 0 (Off) - (0-1)");
 

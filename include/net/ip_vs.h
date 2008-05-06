@@ -405,7 +405,8 @@ struct sk_buff;
 struct ip_vs_protocol {
 	struct ip_vs_protocol	*next;
 	char			*name;
-	__u16			protocol;
+	u16			protocol;
+	u16			num_states;
 	int			dont_defrag;
 	atomic_t		appcnt;		/* counter of proto app incs */
 	int			*timeout_table;	/* protocol timeout table */

@@ -32,6 +32,7 @@ config CPU_ARM7TDMI
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4
 	help
 	  A 32-bit RISC microprocessor based on the ARM7 processor core
@@ -85,6 +86,7 @@ config CPU_ARM740T
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V3	# although the core is v4t
 	select CPU_CP15_MPU
 	help
@@ -101,6 +103,7 @@ config CPU_ARM9TDMI
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_NOMMU
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4
 	help
 	  A 32-bit RISC microprocessor based on the ARM9 processor core
@@ -200,6 +203,7 @@ config CPU_ARM940T
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_NOMMU
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	help
@@ -217,6 +221,7 @@ config CPU_ARM946E
 	depends on !MMU
 	select CPU_32v5
 	select CPU_ABRT_NOMMU
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	help
@@ -351,6 +356,7 @@ config CPU_XSC3
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
@@ -366,7 +372,7 @@ config CPU_FEROCEON
 	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
-	select CPU_COPY_V4WB if MMU
+	select CPU_COPY_FEROCEON if MMU
 	select CPU_TLB_V4WBI if MMU
 
 config CPU_FEROCEON_OLD_ID
@@ -517,6 +523,9 @@ config CPU_COPY_V4WT
 config CPU_COPY_V4WB
 	bool
 
+config CPU_COPY_FEROCEON
+	bool
+
 config CPU_COPY_V6
 	bool
 
@@ -652,7 +661,7 @@ config CPU_DCACHE_SIZE
 
 config CPU_DCACHE_WRITETHROUGH
 	bool "Force write through D-cache"
-	depends on (CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_FEROCEON) && !CPU_DCACHE_DISABLE
+	depends on (CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020) && !CPU_DCACHE_DISABLE
 	default y if CPU_ARM925T
 	help
 	  Say Y here to use the data cache in writethrough mode. Unless you

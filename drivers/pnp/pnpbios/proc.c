@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
-#include <linux/pnpbios.h>
+#include <linux/pnp.h>
 #include <linux/init.h>
 
 #include <asm/uaccess.h>
@@ -256,7 +256,7 @@ int pnpbios_interface_attach_device(struct pnp_bios_node *node)
  */
 int __init pnpbios_proc_init(void)
 {
-	proc_pnp = proc_mkdir("pnp", proc_bus);
+	proc_pnp = proc_mkdir("bus/pnp", NULL);
 	if (!proc_pnp)
 		return -EIO;
 	proc_pnp_boot = proc_mkdir("boot", proc_pnp);
@@ -294,5 +294,5 @@ void __exit pnpbios_proc_exit(void)
 	remove_proc_entry("configuration_info", proc_pnp);
 	remove_proc_entry("devices", proc_pnp);
 	remove_proc_entry("boot", proc_pnp);
-	remove_proc_entry("pnp", proc_bus);
+	remove_proc_entry("bus/pnp", NULL);
 }

@@ -200,7 +200,7 @@ static void rs_stop(struct tty_struct *tty)
 	local_irq_restore(flags);
 }
 
-static void rs_put_char(char ch)
+static int rs_put_char(char ch)
 {
         int flags, loops = 0;
 
@@ -214,6 +214,7 @@ static void rs_put_char(char ch)
 	UTX_TXDATA = ch;
         udelay(5);
         local_irq_restore(flags);
+        return 1;
 }
 
 static void rs_start(struct tty_struct *tty)
@@ -1017,18 +1018,6 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 			tty_wait_until_sent(tty, 0);
 			send_break(info, arg ? arg*(100) : 250);
 			return 0;
-		case TIOCGSOFTCAR:
-			error = put_user(C_CLOCAL(tty) ? 1 : 0,
-				    (unsigned long *) arg);
-			if (error)
-				return error;
-			return 0;
-		case TIOCSSOFTCAR:
-			get_user(arg, (unsigned long *) arg);
-			tty->termios->c_cflag =
-				((tty->termios->c_cflag & ~CLOCAL) |
-				 (arg ? CLOCAL : 0));
-			return 0;
 		case TIOCGSERIAL:
 			if (access_ok(VERIFY_WRITE, (void *) arg,
 						sizeof(struct serial_struct)))
@@ -1060,9 +1049,6 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
 	struct m68k_serial *info = (struct m68k_serial *)tty->driver_data;
-
-	if (tty->termios->c_cflag == old_termios->c_cflag)
-		return;
 
 	change_speed(info);
 
@@ -1140,8 +1126,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	uart->ustcnt &= ~(USTCNT_RXEN | USTCNT_RX_INTR_MASK);
 
 	shutdown(info);
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	rs_flush_buffer(tty);
 		
 	tty_ldisc_flush(tty);
 	tty->closing = 0;

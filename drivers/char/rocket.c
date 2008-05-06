@@ -449,7 +449,8 @@ static void rp_do_transmit(struct r_port *info)
 	while (1) {
 		if (tty->stopped || tty->hw_stopped)
 			break;
-		c = min(info->xmit_fifo_room, min(info->xmit_cnt, XMIT_BUF_SIZE - info->xmit_tail));
+		c = min(info->xmit_fifo_room, info->xmit_cnt);
+		c = min(c, XMIT_BUF_SIZE - info->xmit_tail);
 		if (c <= 0 || info->xmit_fifo_room <= 0)
 			break;
 		sOutStrW(sGetTxRxDataIO(cp), (unsigned short *) (info->xmit_buf + info->xmit_tail), c / 2);
@@ -1433,29 +1434,38 @@ static int rp_ioctl(struct tty_struct *tty, struct file *file,
 {
 	struct r_port *info = (struct r_port *) tty->driver_data;
 	void __user *argp = (void __user *)arg;
+	int ret = 0;
 
 	if (cmd != RCKP_GET_PORTS && rocket_paranoia_check(info, "rp_ioctl"))
 		return -ENXIO;
 
+	lock_kernel();
+
 	switch (cmd) {
 	case RCKP_GET_STRUCT:
 		if (copy_to_user(argp, info, sizeof (struct r_port)))
-			return -EFAULT;
-		return 0;
+			ret = -EFAULT;
+		break;
 	case RCKP_GET_CONFIG:
-		return get_config(info, argp);
+		ret = get_config(info, argp);
+		break;
 	case RCKP_SET_CONFIG:
-		return set_config(info, argp);
+		ret = set_config(info, argp);
+		break;
 	case RCKP_GET_PORTS:
-		return get_ports(info, argp);
+		ret = get_ports(info, argp);
+		break;
 	case RCKP_RESET_RM2:
-		return reset_rm2(info, argp);
+		ret = reset_rm2(info, argp);
+		break;
 	case RCKP_GET_VERSION:
-		return get_version(info, argp);
+		ret = get_version(info, argp);
+		break;
 	default:
-		return -ENOIOCTLCMD;
+		ret = -ENOIOCTLCMD;
 	}
-	return 0;
+	unlock_kernel();
+	return ret;
 }
 
 static void rp_send_xchar(struct tty_struct *tty, char ch)
@@ -1575,6 +1585,7 @@ static void rp_wait_until_sent(struct tty_struct *tty, int timeout)
 	       jiffies);
 	printk(KERN_INFO "cps=%d...\n", info->cps);
 #endif
+	lock_kernel();
 	while (1) {
 		txcnt = sGetTxCnt(cp);
 		if (!txcnt) {
@@ -1602,6 +1613,7 @@ static void rp_wait_until_sent(struct tty_struct *tty, int timeout)
 			break;
 	}
 	__set_current_state(TASK_RUNNING);
+	unlock_kernel();
 #ifdef ROCKET_DEBUG_WAIT_UNTIL_SENT
 	printk(KERN_INFO "txcnt = %d (jiff=%lu)...done\n", txcnt, jiffies);
 #endif
@@ -1651,14 +1663,14 @@ static void rp_hangup(struct tty_struct *tty)
  *  writing routines will write directly to transmit FIFO.
  *  Write buffer and counters protected by spinlocks
  */
-static void rp_put_char(struct tty_struct *tty, unsigned char ch)
+static int rp_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	struct r_port *info = (struct r_port *) tty->driver_data;
 	CHANNEL_t *cp;
 	unsigned long flags;
 
 	if (rocket_paranoia_check(info, "rp_put_char"))
-		return;
+		return 0;
 
 	/*
 	 * Grab the port write mutex, locking out other processes that try to
@@ -1687,6 +1699,7 @@ static void rp_put_char(struct tty_struct *tty, unsigned char ch)
 	}
 	spin_unlock_irqrestore(&info->slock, flags);
 	mutex_unlock(&info->write_mtx);
+	return 1;
 }
 
 /*
@@ -1749,10 +1762,10 @@ static int rp_write(struct tty_struct *tty,
 
 	/*  Write remaining data into the port's xmit_buf */
 	while (1) {
-		if (!info->tty)	/*   Seemingly obligatory check... */
+		if (!info->tty)		/* Seemingly obligatory check... */
 			goto end;
-
-		c = min(count, min(XMIT_BUF_SIZE - info->xmit_cnt - 1, XMIT_BUF_SIZE - info->xmit_head));
+		c = min(count, XMIT_BUF_SIZE - info->xmit_cnt - 1);
+		c = min(c, XMIT_BUF_SIZE - info->xmit_head);
 		if (c <= 0)
 			break;
 

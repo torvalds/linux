@@ -42,6 +42,7 @@
 #include <linux/input.h>
 #include <linux/reboot.h>
 #include <linux/notifier.h>
+#include <linux/jiffies.h>
 
 extern void ctrl_alt_del(void);
 
@@ -109,6 +110,7 @@ const int max_vals[] = {
 const int NR_TYPES = ARRAY_SIZE(max_vals);
 
 struct kbd_struct kbd_table[MAX_NR_CONSOLES];
+EXPORT_SYMBOL_GPL(kbd_table);
 static struct kbd_struct *kbd = kbd_table;
 
 struct vt_spawn_console vt_spawn_con = {
@@ -259,6 +261,7 @@ void kd_mksound(unsigned int hz, unsigned int ticks)
 	} else
 		kd_nosound(0);
 }
+EXPORT_SYMBOL(kd_mksound);
 
 /*
  * Setting the keyboard rate.
@@ -928,7 +931,8 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag)
 	if (up_flag) {
 		if (brl_timeout) {
 			if (!committing ||
-			    jiffies - releasestart > (brl_timeout * HZ) / 1000) {
+			    time_after(jiffies,
+				       releasestart + msecs_to_jiffies(brl_timeout))) {
 				committing = pressed;
 				releasestart = jiffies;
 			}
@@ -1228,7 +1232,7 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 
 	if (rep &&
 	    (!vc_kbd_mode(kbd, VC_REPEAT) ||
-	     (tty && !L_ECHO(tty) && tty->driver->chars_in_buffer(tty)))) {
+	     (tty && !L_ECHO(tty) && tty_chars_in_buffer(tty)))) {
 		/*
 		 * Don't repeat a key if the input buffers are not empty and the
 		 * characters get aren't echoed locally. This makes key repeat
@@ -1238,6 +1242,7 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 	}
 
 	param.shift = shift_final = (shift_state | kbd->slockstate) ^ kbd->lockstate;
+	param.ledstate = kbd->ledflagstate;
 	key_map = key_maps[shift_final];
 
 	if (atomic_notifier_call_chain(&keyboard_notifier_list, KBD_KEYCODE, &param) == NOTIFY_STOP || !key_map) {
@@ -1286,6 +1291,7 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 
 	(*k_handler[type])(vc, keysym & 0xff, !down);
 
+	param.ledstate = kbd->ledflagstate;
 	atomic_notifier_call_chain(&keyboard_notifier_list, KBD_POST_KEYSYM, &param);
 
 	if (type != KT_SLOCK)

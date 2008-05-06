@@ -2102,7 +2102,6 @@ snd_korg1212_free(struct snd_korg1212 *korg1212)
         snd_korg1212_TurnOffIdleMonitor(korg1212);
 
         if (korg1212->irq >= 0) {
-                synchronize_irq(korg1212->irq);                
                 snd_korg1212_DisableCardInterrupts(korg1212);
                 free_irq(korg1212->irq, korg1212);
                 korg1212->irq = -1;

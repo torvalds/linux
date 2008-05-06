@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -633,6 +633,95 @@ acpi_status acpi_load_tables(void)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_load_tables)
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_install_table_handler
+ *
+ * PARAMETERS:  Handler         - Table event handler
+ *              Context         - Value passed to the handler on each event
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Install table event handler
+ *
+ ******************************************************************************/
+acpi_status
+acpi_install_table_handler(acpi_tbl_handler handler, void *context)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_install_table_handler);
+
+	if (!handler) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Don't allow more than one handler */
+
+	if (acpi_gbl_table_handler) {
+		status = AE_ALREADY_EXISTS;
+		goto cleanup;
+	}
+
+	/* Install the handler */
+
+	acpi_gbl_table_handler = handler;
+	acpi_gbl_table_handler_context = context;
+
+      cleanup:
+	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_install_table_handler)
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_remove_table_handler
+ *
+ * PARAMETERS:  Handler         - Table event handler that was installed
+ *                                previously.
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Remove table event handler
+ *
+ ******************************************************************************/
+acpi_status acpi_remove_table_handler(acpi_tbl_handler handler)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_remove_table_handler);
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Make sure that the installed handler is the same */
+
+	if (!handler || handler != acpi_gbl_table_handler) {
+		status = AE_BAD_PARAMETER;
+		goto cleanup;
+	}
+
+	/* Remove the handler */
+
+	acpi_gbl_table_handler = NULL;
+
+      cleanup:
+	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_remove_table_handler)
 
 
 static int __init acpi_no_auto_ssdt_setup(char *s) {

@@ -35,11 +35,11 @@
 #include "cx88.h"
 #include <media/v4l2-common.h>
 
-static unsigned int i2c_debug = 0;
+static unsigned int i2c_debug;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug,"enable debug messages [i2c]");
 
-static unsigned int i2c_scan = 0;
+static unsigned int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
@@ -99,42 +99,11 @@ static int cx8800_bit_getsda(void *data)
 
 static int attach_inform(struct i2c_client *client)
 {
-	struct tuner_setup tun_setup;
 	struct cx88_core *core = i2c_get_adapdata(client->adapter);
 
 	dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
 		client->driver->driver.name, client->addr, client->name);
-	if (!client->driver->command)
-		return 0;
 
-	if (core->board.radio_type != UNSET) {
-		if ((core->board.radio_addr==ADDR_UNSET)||(core->board.radio_addr==client->addr)) {
-			tun_setup.mode_mask	 = T_RADIO;
-			tun_setup.type		 = core->board.radio_type;
-			tun_setup.addr		 = core->board.radio_addr;
-			tun_setup.tuner_callback = cx88_tuner_callback;
-			client->driver->command (client, TUNER_SET_TYPE_ADDR, &tun_setup);
-		}
-	}
-	if (core->board.tuner_type != UNSET) {
-		if ((core->board.tuner_addr==ADDR_UNSET)||(core->board.tuner_addr==client->addr)) {
-
-			tun_setup.mode_mask	 = T_ANALOG_TV;
-			tun_setup.type		 = core->board.tuner_type;
-			tun_setup.addr		 = core->board.tuner_addr;
-			tun_setup.tuner_callback = cx88_tuner_callback;
-			client->driver->command (client,TUNER_SET_TYPE_ADDR, &tun_setup);
-		}
-	}
-
-	if (core->board.tda9887_conf) {
-		struct v4l2_priv_tun_config tda9887_cfg;
-
-		tda9887_cfg.tuner = TUNER_TDA9887;
-		tda9887_cfg.priv  = &core->board.tda9887_conf;
-
-		client->driver->command(client, TUNER_SET_CONFIG, &tda9887_cfg);
-	}
 	return 0;
 }
 

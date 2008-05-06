@@ -14,6 +14,7 @@
 #include <linux/linkage.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/bitops.h>
 
 #include <asm/bcache.h>
@@ -52,6 +53,12 @@ static inline void r4k_on_each_cpu(void (*func) (void *info), void *info,
 	func(info);
 	preempt_enable();
 }
+
+#if defined(CONFIG_MIPS_CMP)
+#define cpu_has_safe_index_cacheops 0
+#else
+#define cpu_has_safe_index_cacheops 1
+#endif
 
 /*
  * Must die.
@@ -481,6 +488,8 @@ static inline void local_r4k_flush_cache_page(void *args)
 
 	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc)) {
 		r4k_blast_dcache_page(addr);
+		if (exec && !cpu_icache_snoops_remote_store)
+			r4k_blast_scache_page(addr);
 	}
 	if (exec) {
 		if (vaddr && cpu_has_vtag_icache && mm == current->active_mm) {
@@ -583,7 +592,7 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	 * subset property so we have to flush the primary caches
 	 * explicitly
 	 */
-	if (size >= dcache_size) {
+	if (cpu_has_safe_index_cacheops && size >= dcache_size) {
 		r4k_blast_dcache();
 	} else {
 		R4600_HIT_CACHEOP_WAR_IMPL;
@@ -606,7 +615,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 		return;
 	}
 
-	if (size >= dcache_size) {
+	if (cpu_has_safe_index_cacheops && size >= dcache_size) {
 		r4k_blast_dcache();
 	} else {
 		R4600_HIT_CACHEOP_WAR_IMPL;
@@ -968,6 +977,7 @@ static void __cpuinit probe_pcache(void)
 	case CPU_24K:
 	case CPU_34K:
 	case CPU_74K:
+	case CPU_1004K:
 		if ((read_c0_config7() & (1 << 16))) {
 			/* effectively physically indexed dcache,
 			   thus no virtual aliases. */
@@ -1216,9 +1226,25 @@ void au1x00_fixup_config_od(void)
 	}
 }
 
+static int __cpuinitdata cca = -1;
+
+static int __init cca_setup(char *str)
+{
+	get_option(&str, &cca);
+
+	return 1;
+}
+
+__setup("cca=", cca_setup);
+
 static void __cpuinit coherency_setup(void)
 {
-	change_c0_config(CONF_CM_CMASK, CONF_CM_DEFAULT);
+	if (cca < 0 || cca > 7)
+		cca = read_c0_config() & CONF_CM_CMASK;
+	_page_cachable_default = cca << _CACHE_SHIFT;
+
+	pr_debug("Using cache attribute %d\n", cca);
+	change_c0_config(CONF_CM_CMASK, cca);
 
 	/*
 	 * c0_status.cu=0 specifies that updates by the sc instruction use
@@ -1247,6 +1273,20 @@ static void __cpuinit coherency_setup(void)
 		break;
 	}
 }
+
+#if defined(CONFIG_DMA_NONCOHERENT)
+
+static int __cpuinitdata coherentio;
+
+static int __init setcoherentio(char *str)
+{
+	coherentio = 1;
+
+	return 1;
+}
+
+__setup("coherentio", setcoherentio);
+#endif
 
 void __cpuinit r4k_cache_init(void)
 {
@@ -1307,14 +1347,22 @@ void __cpuinit r4k_cache_init(void)
 	flush_data_cache_page	= r4k_flush_data_cache_page;
 	flush_icache_range	= r4k_flush_icache_range;
 
-#ifdef CONFIG_DMA_NONCOHERENT
-	_dma_cache_wback_inv	= r4k_dma_cache_wback_inv;
-	_dma_cache_wback	= r4k_dma_cache_wback_inv;
-	_dma_cache_inv		= r4k_dma_cache_inv;
+#if defined(CONFIG_DMA_NONCOHERENT)
+	if (coherentio) {
+		_dma_cache_wback_inv	= (void *)cache_noop;
+		_dma_cache_wback	= (void *)cache_noop;
+		_dma_cache_inv		= (void *)cache_noop;
+	} else {
+		_dma_cache_wback_inv	= r4k_dma_cache_wback_inv;
+		_dma_cache_wback	= r4k_dma_cache_wback_inv;
+		_dma_cache_inv		= r4k_dma_cache_inv;
+	}
 #endif
 
 	build_clear_page();
 	build_copy_page();
+#if !defined(CONFIG_MIPS_CMP)
 	local_r4k___flush_cache_all(NULL);
+#endif
 	coherency_setup();
 }

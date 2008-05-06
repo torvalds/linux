@@ -65,6 +65,35 @@ static struct vm_operations_struct relay_file_mmap_ops = {
 	.close = relay_file_mmap_close,
 };
 
+/*
+ * allocate an array of pointers of struct page
+ */
+static struct page **relay_alloc_page_array(unsigned int n_pages)
+{
+	struct page **array;
+	size_t pa_size = n_pages * sizeof(struct page *);
+
+	if (pa_size > PAGE_SIZE) {
+		array = vmalloc(pa_size);
+		if (array)
+			memset(array, 0, pa_size);
+	} else {
+		array = kzalloc(pa_size, GFP_KERNEL);
+	}
+	return array;
+}
+
+/*
+ * free an array of pointers of struct page
+ */
+static void relay_free_page_array(struct page **array)
+{
+	if (is_vmalloc_addr(array))
+		vfree(array);
+	else
+		kfree(array);
+}
+
 /**
  *	relay_mmap_buf: - mmap channel buffer to process address space
  *	@buf: relay channel buffer
@@ -109,7 +138,7 @@ static void *relay_alloc_buf(struct rchan_buf *buf, size_t *size)
 	*size = PAGE_ALIGN(*size);
 	n_pages = *size >> PAGE_SHIFT;
 
-	buf->page_array = kcalloc(n_pages, sizeof(struct page *), GFP_KERNEL);
+	buf->page_array = relay_alloc_page_array(n_pages);
 	if (!buf->page_array)
 		return NULL;
 
@@ -130,7 +159,7 @@ static void *relay_alloc_buf(struct rchan_buf *buf, size_t *size)
 depopulate:
 	for (j = 0; j < i; j++)
 		__free_page(buf->page_array[j]);
-	kfree(buf->page_array);
+	relay_free_page_array(buf->page_array);
 	return NULL;
 }
 
@@ -189,7 +218,7 @@ static void relay_destroy_buf(struct rchan_buf *buf)
 		vunmap(buf->start);
 		for (i = 0; i < buf->page_count; i++)
 			__free_page(buf->page_array[i]);
-		kfree(buf->page_array);
+		relay_free_page_array(buf->page_array);
 	}
 	chan->buf[buf->cpu] = NULL;
 	kfree(buf->padding);
@@ -1162,7 +1191,7 @@ static ssize_t relay_file_splice_read(struct file *in,
 	ret = 0;
 	spliced = 0;
 
-	while (len) {
+	while (len && !spliced) {
 		ret = subbuf_splice_actor(in, ppos, pipe, len, flags, &nonpad_ret);
 		if (ret < 0)
 			break;

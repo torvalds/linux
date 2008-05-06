@@ -14,6 +14,8 @@
  * bitmap_scnlistprintf() and bitmap_parselist(), also in bitmap.c.
  * For details of cpu_remap(), see bitmap_bitremap in lib/bitmap.c
  * For details of cpus_remap(), see bitmap_remap in lib/bitmap.c.
+ * For details of cpus_onto(), see bitmap_onto in lib/bitmap.c.
+ * For details of cpus_fold(), see bitmap_fold in lib/bitmap.c.
  *
  * The available cpumask operations are:
  *
@@ -53,7 +55,9 @@
  * int cpulist_scnprintf(buf, len, mask) Format cpumask as list for printing
  * int cpulist_parse(buf, map)		Parse ascii string as cpulist
  * int cpu_remap(oldbit, old, new)	newbit = map(old, new)(oldbit)
- * int cpus_remap(dst, src, old, new)	*dst = map(old, new)(src)
+ * void cpus_remap(dst, src, old, new)	*dst = map(old, new)(src)
+ * void cpus_onto(dst, orig, relmap)	*dst = orig relative to relmap
+ * void cpus_fold(dst, orig, sz)	dst bits = orig bits mod sz
  *
  * for_each_cpu_mask(cpu, mask)		for-loop cpu over mask
  *
@@ -328,6 +332,22 @@ static inline void __cpus_remap(cpumask_t *dstp, const cpumask_t *srcp,
 		const cpumask_t *oldp, const cpumask_t *newp, int nbits)
 {
 	bitmap_remap(dstp->bits, srcp->bits, oldp->bits, newp->bits, nbits);
+}
+
+#define cpus_onto(dst, orig, relmap) \
+		__cpus_onto(&(dst), &(orig), &(relmap), NR_CPUS)
+static inline void __cpus_onto(cpumask_t *dstp, const cpumask_t *origp,
+		const cpumask_t *relmapp, int nbits)
+{
+	bitmap_onto(dstp->bits, origp->bits, relmapp->bits, nbits);
+}
+
+#define cpus_fold(dst, orig, sz) \
+		__cpus_fold(&(dst), &(orig), sz, NR_CPUS)
+static inline void __cpus_fold(cpumask_t *dstp, const cpumask_t *origp,
+		int sz, int nbits)
+{
+	bitmap_fold(dstp->bits, origp->bits, sz, nbits);
 }
 
 #if NR_CPUS > 1

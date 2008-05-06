@@ -184,7 +184,7 @@ static void unmap_cpu_to_node(int cpu)
 u8 cpu_2_logical_apicid[NR_CPUS] __read_mostly =
 					{ [0 ... NR_CPUS-1] = BAD_APICID };
 
-void map_cpu_to_logical_apicid(void)
+static void map_cpu_to_logical_apicid(void)
 {
 	int cpu = smp_processor_id();
 	int apicid = logical_smp_processor_id();
@@ -197,7 +197,7 @@ void map_cpu_to_logical_apicid(void)
 	map_cpu_to_node(cpu, node);
 }
 
-void unmap_cpu_to_logical_apicid(int cpu)
+static void unmap_cpu_to_logical_apicid(int cpu)
 {
 	cpu_2_logical_apicid[cpu] = BAD_APICID;
 	unmap_cpu_to_node(cpu);
@@ -211,7 +211,7 @@ void unmap_cpu_to_logical_apicid(int cpu)
  * Report back to the Boot Processor.
  * Running on AP.
  */
-void __cpuinit smp_callin(void)
+static void __cpuinit smp_callin(void)
 {
 	int cpuid, phys_id;
 	unsigned long timeout;
@@ -299,7 +299,7 @@ void __cpuinit smp_callin(void)
 /*
  * Activate a secondary processor.
  */
-void __cpuinit start_secondary(void *unused)
+static void __cpuinit start_secondary(void *unused)
 {
 	/*
 	 * Don't put *anything* before cpu_init(), SMP booting is too
@@ -436,7 +436,7 @@ valid_k7:
 #endif
 }
 
-void __cpuinit smp_checks(void)
+static void __cpuinit smp_checks(void)
 {
 	if (smp_b_stepping)
 		printk(KERN_WARNING "WARNING: SMP operation may be unreliable"
@@ -565,7 +565,7 @@ void __init smp_alloc_memory(void)
 }
 #endif
 
-void impress_friends(void)
+static void impress_friends(void)
 {
 	int cpu;
 	unsigned long bogosum = 0;
@@ -1039,8 +1039,8 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 
 #ifdef CONFIG_X86_32
 	/* init low mem mapping */
-	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
-			min_t(unsigned long, KERNEL_PGD_PTRS, USER_PGD_PTRS));
+	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + KERNEL_PGD_BOUNDARY,
+			min_t(unsigned long, KERNEL_PGD_PTRS, KERNEL_PGD_BOUNDARY));
 	flush_tlb_all();
 #endif
 
@@ -1058,7 +1058,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	check_tsc_sync_source(cpu);
 	local_irq_restore(flags);
 
-	while (!cpu_isset(cpu, cpu_online_map)) {
+	while (!cpu_online(cpu)) {
 		cpu_relax();
 		touch_nmi_watchdog();
 	}
@@ -1149,14 +1149,10 @@ static int __init smp_sanity_check(unsigned max_cpus)
 				 "forcing use of dummy APIC emulation.\n");
 		smpboot_clear_io_apic();
 #ifdef CONFIG_X86_32
-		if (nmi_watchdog == NMI_LOCAL_APIC) {
-			printk(KERN_INFO "activating minimal APIC for"
-					 "NMI watchdog use.\n");
-			connect_bsp_APIC();
-			setup_local_APIC();
-			end_local_APIC_setup();
-		}
+		connect_bsp_APIC();
 #endif
+		setup_local_APIC();
+		end_local_APIC_setup();
 		return -1;
 	}
 
@@ -1168,7 +1164,7 @@ static void __init smp_cpu_index_default(void)
 	int i;
 	struct cpuinfo_x86 *c;
 
-	for_each_cpu_mask(i, cpu_possible_map) {
+	for_each_possible_cpu(i) {
 		c = &cpu_data(i);
 		/* mark all to hotplug */
 		c->cpu_index = NR_CPUS;
@@ -1287,7 +1283,7 @@ void cpu_exit_clear(void)
 }
 #  endif /* CONFIG_X86_32 */
 
-void remove_siblinginfo(int cpu)
+static void remove_siblinginfo(int cpu)
 {
 	int sibling;
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
@@ -1310,7 +1306,7 @@ void remove_siblinginfo(int cpu)
 	cpu_clear(cpu, cpu_sibling_setup_map);
 }
 
-int additional_cpus __initdata = -1;
+static int additional_cpus __initdata = -1;
 
 static __init int setup_additional_cpus(char *s)
 {

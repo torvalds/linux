@@ -367,10 +367,10 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			   "HHUptod\tSpecDst");
 	else {
 		struct rtable *r = v;
-		char temp[256];
+		int len;
 
-		sprintf(temp, "%s\t%08lX\t%08lX\t%8X\t%d\t%u\t%d\t"
-			      "%08lX\t%d\t%u\t%u\t%02X\t%d\t%1d\t%08X",
+		seq_printf(seq, "%s\t%08lX\t%08lX\t%8X\t%d\t%u\t%d\t"
+			      "%08lX\t%d\t%u\t%u\t%02X\t%d\t%1d\t%08X%n",
 			r->u.dst.dev ? r->u.dst.dev->name : "*",
 			(unsigned long)r->rt_dst, (unsigned long)r->rt_gateway,
 			r->rt_flags, atomic_read(&r->u.dst.__refcnt),
@@ -384,8 +384,9 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			r->u.dst.hh ? atomic_read(&r->u.dst.hh->hh_refcnt) : -1,
 			r->u.dst.hh ? (r->u.dst.hh->hh_output ==
 				       dev_queue_xmit) : 0,
-			r->rt_spec_dst);
-		seq_printf(seq, "%-127s\n", temp);
+			r->rt_spec_dst, &len);
+
+		seq_printf(seq, "%*s\n", 127 - len, "");
 	}
 	return 0;
 }
@@ -1429,11 +1430,13 @@ static inline unsigned short guess_mtu(unsigned short old_mtu)
 }
 
 unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
-				 unsigned short new_mtu)
+				 unsigned short new_mtu,
+				 struct net_device *dev)
 {
-	int i;
+	int i, k;
 	unsigned short old_mtu = ntohs(iph->tot_len);
 	struct rtable *rth;
+	int  ikeys[2] = { dev->ifindex, 0 };
 	__be32  skeys[2] = { iph->saddr, 0, };
 	__be32  daddr = iph->daddr;
 	unsigned short est_mtu = 0;
@@ -1441,21 +1444,25 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 	if (ipv4_config.no_pmtu_disc)
 		return 0;
 
-	for (i = 0; i < 2; i++) {
-		unsigned hash = rt_hash(daddr, skeys[i], 0);
+	for (k = 0; k < 2; k++) {
+		for (i = 0; i < 2; i++) {
+			unsigned hash = rt_hash(daddr, skeys[i], ikeys[k]);
 
-		rcu_read_lock();
-		for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
-		     rth = rcu_dereference(rth->u.dst.rt_next)) {
-			if (rth->fl.fl4_dst == daddr &&
-			    rth->fl.fl4_src == skeys[i] &&
-			    rth->rt_dst  == daddr &&
-			    rth->rt_src  == iph->saddr &&
-			    rth->fl.iif == 0 &&
-			    !(dst_metric_locked(&rth->u.dst, RTAX_MTU)) &&
-			    net_eq(dev_net(rth->u.dst.dev), net) &&
-			    rth->rt_genid == atomic_read(&rt_genid)) {
+			rcu_read_lock();
+			for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
+			     rth = rcu_dereference(rth->u.dst.rt_next)) {
 				unsigned short mtu = new_mtu;
+
+				if (rth->fl.fl4_dst != daddr ||
+				    rth->fl.fl4_src != skeys[i] ||
+				    rth->rt_dst != daddr ||
+				    rth->rt_src != iph->saddr ||
+				    rth->fl.oif != ikeys[k] ||
+				    rth->fl.iif != 0 ||
+				    dst_metric_locked(&rth->u.dst, RTAX_MTU) ||
+				    !net_eq(dev_net(rth->u.dst.dev), net) ||
+				    rth->rt_genid != atomic_read(&rt_genid))
+					continue;
 
 				if (new_mtu < 68 || new_mtu >= old_mtu) {
 
@@ -1482,8 +1489,8 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 					est_mtu = mtu;
 				}
 			}
+			rcu_read_unlock();
 		}
-		rcu_read_unlock();
 	}
 	return est_mtu ? : new_mtu;
 }

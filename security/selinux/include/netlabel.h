@@ -64,7 +64,7 @@ static inline void selinux_netlbl_cache_invalidate(void)
 }
 
 static inline void selinux_netlbl_sk_security_reset(
-	                                       struct sk_security_struct *ssec,
+					       struct sk_security_struct *ssec,
 					       int family)
 {
 	return;

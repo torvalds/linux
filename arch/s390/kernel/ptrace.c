@@ -607,38 +607,8 @@ do_ptrace_emu31(struct task_struct *child, long request, long addr, long data)
 }
 #endif
 
-#define PT32_IEEE_IP 0x13c
-
-static int
-do_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	int ret;
-
-	if (request == PTRACE_ATTACH)
-		return ptrace_attach(child);
-
-	/*
-	 * Special cases to get/store the ieee instructions pointer.
-	 */
-	if (child == current) {
-		if (request == PTRACE_PEEKUSR && addr == PT_IEEE_IP)
-			return peek_user(child, addr, data);
-		if (request == PTRACE_POKEUSR && addr == PT_IEEE_IP)
-			return poke_user(child, addr, data);
-#ifdef CONFIG_COMPAT
-		if (request == PTRACE_PEEKUSR &&
-		    addr == PT32_IEEE_IP && test_thread_flag(TIF_31BIT))
-			return peek_user_emu31(child, addr, data);
-		if (request == PTRACE_POKEUSR &&
-		    addr == PT32_IEEE_IP && test_thread_flag(TIF_31BIT))
-			return poke_user_emu31(child, addr, data);
-#endif
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		return ret;
-
 	switch (request) {
 	case PTRACE_SYSCALL:
 		/* continue and stop at next (return from) syscall */
@@ -691,31 +661,6 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 	}
 	/* Not reached.  */
 	return -EIO;
-}
-
-asmlinkage long
-sys_ptrace(long request, long pid, long addr, long data)
-{
-	struct task_struct *child;
-	int ret;
-
-	lock_kernel();
-	if (request == PTRACE_TRACEME) {
-		 ret = ptrace_traceme();
-		 goto out;
-	}
-
-	child = ptrace_get_task_struct(pid);
-	if (IS_ERR(child)) {
-		ret = PTR_ERR(child);
-		goto out;
-	}
-
-	ret = do_ptrace(child, request, addr, data);
-	put_task_struct(child);
-out:
-	unlock_kernel();
-	return ret;
 }
 
 asmlinkage void

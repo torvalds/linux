@@ -40,9 +40,10 @@
 
 /* Legal values for the INPUT state variable */
 #define PVR2_CVAL_INPUT_TV 0
-#define PVR2_CVAL_INPUT_SVIDEO 1
+#define PVR2_CVAL_INPUT_DTV 1
 #define PVR2_CVAL_INPUT_COMPOSITE 2
-#define PVR2_CVAL_INPUT_RADIO 3
+#define PVR2_CVAL_INPUT_SVIDEO 3
+#define PVR2_CVAL_INPUT_RADIO 4
 
 enum pvr2_config {
 	pvr2_config_empty,    /* No configuration */
@@ -90,9 +91,6 @@ enum pvr2_v4l_type {
 /* Translate configuration enum to a string label */
 const char *pvr2_config_get_name(enum pvr2_config);
 
-/* Translate a master state enum to a string label */
-const char *pvr2_hdw_get_state_name(unsigned int);
-
 struct pvr2_hdw;
 
 /* Create and return a structure for interacting with the underlying
@@ -100,13 +98,14 @@ struct pvr2_hdw;
 struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 				 const struct usb_device_id *devid);
 
+/* Perform second stage initialization, passing in a notification callback
+   for when the master state changes. */
+int pvr2_hdw_initialize(struct pvr2_hdw *,
+			void (*callback_func)(void *),
+			void *callback_data);
+
 /* Destroy hardware interaction structure */
 void pvr2_hdw_destroy(struct pvr2_hdw *);
-
-/* Register a function to be called whenever the master state changes. */
-void pvr2_hdw_set_state_callback(struct pvr2_hdw *,
-				 void (*callback_func)(void *),
-				 void *callback_data);
 
 /* Return true if in the ready (normal) state */
 int pvr2_hdw_dev_ok(struct pvr2_hdw *);
@@ -145,6 +144,23 @@ struct pvr2_ctrl *pvr2_hdw_get_ctrl_nextv4l(struct pvr2_hdw *,
 
 /* Commit all control changes made up to this point */
 int pvr2_hdw_commit_ctl(struct pvr2_hdw *);
+
+/* Return a bit mask of valid input selections for this device.  Mask bits
+ * will be according to PVR_CVAL_INPUT_xxxx definitions. */
+unsigned int pvr2_hdw_get_input_available(struct pvr2_hdw *);
+
+/* Return a bit mask of allowed input selections for this device.  Mask bits
+ * will be according to PVR_CVAL_INPUT_xxxx definitions. */
+unsigned int pvr2_hdw_get_input_allowed(struct pvr2_hdw *);
+
+/* Change the set of allowed input selections for this device.  Both
+   change_mask and change_valu are mask bits according to
+   PVR_CVAL_INPUT_xxxx definitions.  The change_mask parameter indicate
+   which settings are being changed and the change_val parameter indicates
+   whether corresponding settings are being set or cleared. */
+int pvr2_hdw_set_input_allowed(struct pvr2_hdw *,
+			       unsigned int change_mask,
+			       unsigned int change_val);
 
 /* Return name for this driver instance */
 const char *pvr2_hdw_get_driver_name(struct pvr2_hdw *);
@@ -249,6 +265,9 @@ int pvr2_hdw_cmd_deep_reset(struct pvr2_hdw *);
 
 /* Execute simple reset command */
 int pvr2_hdw_cmd_powerup(struct pvr2_hdw *);
+
+/* suspend */
+int pvr2_hdw_cmd_powerdown(struct pvr2_hdw *);
 
 /* Order decoder to reset */
 int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *);

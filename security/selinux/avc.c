@@ -646,7 +646,7 @@ void avc_audit(u32 ssid, u32 tsid,
 					if (*p)
 						audit_log_untrustedstring(ab, p);
 					else
-						audit_log_hex(ab, p, len);
+						audit_log_n_hex(ab, p, len);
 					break;
 				}
 			}

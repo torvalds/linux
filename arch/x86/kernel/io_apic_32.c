@@ -2068,7 +2068,7 @@ static void __init setup_nmi(void)
  * cycles as some i82489DX-based boards have glue logic that keeps the
  * 8259A interrupt line asserted until INTA.  --macro
  */
-static inline void unlock_ExtINT_logic(void)
+static inline void __init unlock_ExtINT_logic(void)
 {
 	int apic, pin, i;
 	struct IO_APIC_route_entry entry0, entry1;
@@ -2444,6 +2444,7 @@ void destroy_irq(unsigned int irq)
 	dynamic_irq_cleanup(irq);
 
 	spin_lock_irqsave(&vector_lock, flags);
+	clear_bit(irq_vector[irq], used_vectors);
 	irq_vector[irq] = 0;
 	spin_unlock_irqrestore(&vector_lock, flags);
 }

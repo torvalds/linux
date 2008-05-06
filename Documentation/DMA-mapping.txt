@@ -315,11 +315,11 @@ you should do:
 
 	dma_addr_t dma_handle;
 
-	cpu_addr = pci_alloc_consistent(dev, size, &dma_handle);
+	cpu_addr = pci_alloc_consistent(pdev, size, &dma_handle);
 
-where dev is a struct pci_dev *. You should pass NULL for PCI like buses
-where devices don't have struct pci_dev (like ISA, EISA).  This may be
-called in interrupt context. 
+where pdev is a struct pci_dev *. This may be called in interrupt context.
+You should use dma_alloc_coherent (see DMA-API.txt) for buses
+where devices don't have struct pci_dev (like ISA, EISA).
 
 This argument is needed because the DMA translations may be bus
 specific (and often is private to the bus which the device is attached
@@ -332,7 +332,7 @@ __get_free_pages (but takes size instead of a page order).  If your
 driver needs regions sized smaller than a page, you may prefer using
 the pci_pool interface, described below.
 
-The consistent DMA mapping interfaces, for non-NULL dev, will by
+The consistent DMA mapping interfaces, for non-NULL pdev, will by
 default return a DMA address which is SAC (Single Address Cycle)
 addressable.  Even if the device indicates (via PCI dma mask) that it
 may address the upper 32-bits and thus perform DAC cycles, consistent
@@ -354,9 +354,9 @@ buffer you receive will not cross a 64K boundary.
 
 To unmap and free such a DMA region, you call:
 
-	pci_free_consistent(dev, size, cpu_addr, dma_handle);
+	pci_free_consistent(pdev, size, cpu_addr, dma_handle);
 
-where dev, size are the same as in the above call and cpu_addr and
+where pdev, size are the same as in the above call and cpu_addr and
 dma_handle are the values pci_alloc_consistent returned to you.
 This function may not be called in interrupt context.
 
@@ -371,9 +371,9 @@ Create a pci_pool like this:
 
 	struct pci_pool *pool;
 
-	pool = pci_pool_create(name, dev, size, align, alloc);
+	pool = pci_pool_create(name, pdev, size, align, alloc);
 
-The "name" is for diagnostics (like a kmem_cache name); dev and size
+The "name" is for diagnostics (like a kmem_cache name); pdev and size
 are as above.  The device's hardware alignment requirement for this
 type of data is "align" (which is expressed in bytes, and must be a
 power of two).  If your device has no boundary crossing restrictions,
@@ -472,11 +472,11 @@ To map a single region, you do:
 	void *addr = buffer->ptr;
 	size_t size = buffer->len;
 
-	dma_handle = pci_map_single(dev, addr, size, direction);
+	dma_handle = pci_map_single(pdev, addr, size, direction);
 
 and to unmap it:
 
-	pci_unmap_single(dev, dma_handle, size, direction);
+	pci_unmap_single(pdev, dma_handle, size, direction);
 
 You should call pci_unmap_single when the DMA activity is finished, e.g.
 from the interrupt which told you that the DMA transfer is done.
@@ -493,17 +493,17 @@ Specifically:
 	unsigned long offset = buffer->offset;
 	size_t size = buffer->len;
 
-	dma_handle = pci_map_page(dev, page, offset, size, direction);
+	dma_handle = pci_map_page(pdev, page, offset, size, direction);
 
 	...
 
-	pci_unmap_page(dev, dma_handle, size, direction);
+	pci_unmap_page(pdev, dma_handle, size, direction);
 
 Here, "offset" means byte offset within the given page.
 
 With scatterlists, you map a region gathered from several regions by:
 
-	int i, count = pci_map_sg(dev, sglist, nents, direction);
+	int i, count = pci_map_sg(pdev, sglist, nents, direction);
 	struct scatterlist *sg;
 
 	for_each_sg(sglist, sg, count, i) {
@@ -527,7 +527,7 @@ accessed sg->address and sg->length as shown above.
 
 To unmap a scatterlist, just call:
 
-	pci_unmap_sg(dev, sglist, nents, direction);
+	pci_unmap_sg(pdev, sglist, nents, direction);
 
 Again, make sure DMA activity has already finished.
 
@@ -550,11 +550,11 @@ correct copy of the DMA buffer.
 So, firstly, just map it with pci_map_{single,sg}, and after each DMA
 transfer call either:
 
-	pci_dma_sync_single_for_cpu(dev, dma_handle, size, direction);
+	pci_dma_sync_single_for_cpu(pdev, dma_handle, size, direction);
 
 or:
 
-	pci_dma_sync_sg_for_cpu(dev, sglist, nents, direction);
+	pci_dma_sync_sg_for_cpu(pdev, sglist, nents, direction);
 
 as appropriate.
 
@@ -562,7 +562,7 @@ Then, if you wish to let the device get at the DMA area again,
 finish accessing the data with the cpu, and then before actually
 giving the buffer to the hardware call either:
 
-	pci_dma_sync_single_for_device(dev, dma_handle, size, direction);
+	pci_dma_sync_single_for_device(pdev, dma_handle, size, direction);
 
 or:
 
@@ -739,7 +739,7 @@ failure can be determined by:
 
 	dma_addr_t dma_handle;
 
-	dma_handle = pci_map_single(dev, addr, size, direction);
+	dma_handle = pci_map_single(pdev, addr, size, direction);
 	if (pci_dma_mapping_error(dma_handle)) {
 		/*
 		 * reduce current DMA mapping usage,

@@ -5,12 +5,20 @@
 #include <linux/mount.h>
 #include <linux/sched.h>
 #include <linux/nsproxy.h>
+#include <linux/seq_file.h>
 
 struct mnt_namespace {
 	atomic_t		count;
 	struct vfsmount *	root;
 	struct list_head	list;
 	wait_queue_head_t poll;
+	int event;
+};
+
+struct proc_mounts {
+	struct seq_file m; /* must be the first element */
+	struct mnt_namespace *ns;
+	struct path root;
 	int event;
 };
 
@@ -36,6 +44,10 @@ static inline void get_mnt_ns(struct mnt_namespace *ns)
 {
 	atomic_inc(&ns->count);
 }
+
+extern const struct seq_operations mounts_op;
+extern const struct seq_operations mountinfo_op;
+extern const struct seq_operations mountstats_op;
 
 #endif
 #endif

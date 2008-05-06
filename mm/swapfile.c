@@ -1426,11 +1426,7 @@ static const struct file_operations proc_swaps_operations = {
 
 static int __init procswaps_init(void)
 {
-	struct proc_dir_entry *entry;
-
-	entry = create_proc_entry("swaps", 0, NULL);
-	if (entry)
-		entry->proc_fops = &proc_swaps_operations;
+	proc_create("swaps", 0, NULL, &proc_swaps_operations);
 	return 0;
 }
 __initcall(procswaps_init);
@@ -1582,6 +1578,14 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		error = -EINVAL;
 		goto bad_swap;
 	case 2:
+		/* swap partition endianess hack... */
+		if (swab32(swap_header->info.version) == 1) {
+			swab32s(&swap_header->info.version);
+			swab32s(&swap_header->info.last_page);
+			swab32s(&swap_header->info.nr_badpages);
+			for (i = 0; i < swap_header->info.nr_badpages; i++)
+				swab32s(&swap_header->info.badpages[i]);
+		}
 		/* Check the swap header's sub-version and the size of
                    the swap file and bad block lists */
 		if (swap_header->info.version != 1) {

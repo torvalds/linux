@@ -29,6 +29,7 @@
 
 #include <linux/slab.h>
 
+#include <linux/edac.h>
 #include "edac_core.h"
 
 #define I82443_REVISION	"0.1"
@@ -386,6 +387,9 @@ static struct pci_driver i82443bxgx_edacmc_driver = {
 
 static int __init i82443bxgx_edacmc_init(void)
 {
+       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
+       opstate_init();
+
 	return pci_register_driver(&i82443bxgx_edacmc_driver);
 }
 
@@ -400,3 +404,6 @@ module_exit(i82443bxgx_edacmc_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tim Small <tim@buttersideup.com> - WPAD");
 MODULE_DESCRIPTION("EDAC MC support for Intel 82443BX/GX memory controllers");
+
+module_param(edac_op_state, int, 0444);
+MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");

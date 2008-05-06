@@ -226,7 +226,7 @@ static int dapm_update_bits(struct snd_soc_dapm_widget *widget)
 		snd_soc_write(codec, widget->reg, new);
 		pop_wait(POP_TIME);
 	}
-	dbg("reg old %x new %x change %d\n", old, new, change);
+	dbg("reg %x old %x new %x change %d\n", widget->reg, old, new, change);
 	return change;
 }
 
@@ -1288,7 +1288,7 @@ int snd_soc_dapm_stream_event(struct snd_soc_codec *codec,
 	mutex_unlock(&codec->mutex);
 
 	dapm_power_widgets(codec, event);
-	dump_dapm(codec, __FUNCTION__);
+	dump_dapm(codec, __func__);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_stream_event);
@@ -1334,10 +1334,11 @@ int snd_soc_dapm_set_endpoint(struct snd_soc_codec *codec,
 	list_for_each_entry(w, &codec->dapm_widgets, list) {
 		if (!strcmp(w->name, endpoint)) {
 			w->connected = status;
+			return 0;
 		}
 	}
 
-	return 0;
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_set_endpoint);
 

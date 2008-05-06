@@ -249,9 +249,11 @@ process is as follows:
     release a new -rc kernel every week.
   - Process continues until the kernel is considered "ready", the
     process should last around 6 weeks.
-  - A list of known regressions present in each -rc release is
-    tracked at the following URI:
-    http://kernelnewbies.org/known_regressions
+  - Known regressions in each release are periodically posted to the 
+    linux-kernel mailing list.  The goal is to reduce the length of 
+    that list to zero before declaring the kernel to be "ready," but, in
+    the real world, a small number of regressions often remain at 
+    release time.
 
 It is worth mentioning what Andrew Morton wrote on the linux-kernel
 mailing list about kernel releases:
@@ -261,7 +263,7 @@ mailing list about kernel releases:
 
 2.6.x.y -stable kernel tree
 ---------------------------
-Kernels with 4 digit versions are -stable kernels. They contain
+Kernels with 4-part versions are -stable kernels. They contain
 relatively small and critical fixes for security problems or significant
 regressions discovered in a given 2.6.x kernel.
 
@@ -273,7 +275,10 @@ If no 2.6.x.y kernel is available, then the highest numbered 2.6.x
 kernel is the current stable kernel.
 
 2.6.x.y are maintained by the "stable" team <stable@kernel.org>, and are
-released almost every other week.
+released as needs dictate.  The normal release period is approximately 
+two weeks, but it can be longer if there are no pressing problems.  A
+security-related problem, instead, can cause a release to happen almost
+instantly.
 
 The file Documentation/stable_kernel_rules.txt in the kernel tree
 documents what kinds of changes are acceptable for the -stable tree, and
@@ -298,7 +303,9 @@ a while Andrew or the subsystem maintainer pushes it on to Linus for
 inclusion in mainline.
 
 It is heavily encouraged that all new patches get tested in the -mm tree
-before they are sent to Linus for inclusion in the main kernel tree.
+before they are sent to Linus for inclusion in the main kernel tree.  Code
+which does not make an appearance in -mm before the opening of the merge
+window will prove hard to merge into the mainline.
 
 These kernels are not appropriate for use on systems that are supposed
 to be stable and they are more risky to run than any of the other
@@ -354,11 +361,12 @@ Here is a list of some of the different kernel trees available:
     - SCSI, James Bottomley <James.Bottomley@SteelEye.com>
 	git.kernel.org:/pub/scm/linux/kernel/git/jejb/scsi-misc-2.6.git
 
+    - x86, Ingo Molnar <mingo@elte.hu>
+	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
+
   quilt trees:
-    - USB, PCI, Driver Core, and I2C, Greg Kroah-Hartman <gregkh@suse.de>
+    - USB, Driver Core, and I2C, Greg Kroah-Hartman <gregkh@suse.de>
 	kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
-    - x86-64, partly i386, Andi Kleen <ak@suse.de>
-        ftp.firstfloor.org:/pub/ak/x86_64/quilt/
 
   Other kernel trees can be found listed at http://git.kernel.org/ and in
   the MAINTAINERS file.
@@ -392,8 +400,8 @@ If you want to be advised of the future bug reports, you can subscribe to the
 bugme-new mailing list (only new bug reports are mailed here) or to the
 bugme-janitor mailing list (every change in the bugzilla is mailed here)
 
-	http://lists.osdl.org/mailman/listinfo/bugme-new
-	http://lists.osdl.org/mailman/listinfo/bugme-janitors
+	http://lists.linux-foundation.org/mailman/listinfo/bugme-new
+	http://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
 
 
 

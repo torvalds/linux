@@ -1266,7 +1266,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			sq_size = init_attr->cap.max_send_wr;
 			rq_size = init_attr->cap.max_recv_wr;
 
-			// check if the encoded sizes are OK or not...
+			/* check if the encoded sizes are OK or not... */
 			sq_encoded_size = nes_get_encoded_size(&sq_size);
 			rq_encoded_size = nes_get_encoded_size(&rq_size);
 
@@ -1976,7 +1976,7 @@ static int nes_destroy_cq(struct ib_cq *ib_cq)
 
 	if (nescq->cq_mem_size)
 		pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size,
-				(void *)nescq->hw_cq.cq_vbase, nescq->hw_cq.cq_pbase);
+				    nescq->hw_cq.cq_vbase, nescq->hw_cq.cq_pbase);
 	kfree(nescq);
 
 	return ret;
@@ -2377,7 +2377,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	u8 single_page = 1;
 	u8 stag_key;
 
-	region = ib_umem_get(pd->uobject->context, start, length, acc);
+	region = ib_umem_get(pd->uobject->context, start, length, acc, 0);
 	if (IS_ERR(region)) {
 		return (struct ib_mr *)region;
 	}
@@ -3610,6 +3610,12 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	while (cqe_count < num_entries) {
 		if (le32_to_cpu(nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX]) &
 				NES_CQE_VALID) {
+			/*
+			 * Make sure we read CQ entry contents *after*
+			 * we've checked the valid bit.
+			 */
+			rmb();
+
 			cqe = nescq->hw_cq.cq_vbase[head];
 			nescq->hw_cq.cq_vbase[head].cqe_words[NES_CQE_OPCODE_IDX] = 0;
 			u32temp = le32_to_cpu(cqe.cqe_words[NES_CQE_COMP_COMP_CTX_LOW_IDX]);

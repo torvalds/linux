@@ -80,7 +80,7 @@ io7_get_irq_ctl(unsigned int irq, struct io7 **pio7)
 	if (!(io7 = marvel_find_io7(pid))) {
 		printk(KERN_ERR 
 		       "%s for nonexistent io7 -- vec %x, pid %d\n",
-		       __FUNCTION__, irq, pid);
+		       __func__, irq, pid);
 		return NULL;
 	}
 
@@ -90,7 +90,7 @@ io7_get_irq_ctl(unsigned int irq, struct io7 **pio7)
 	if (irq >= 0x180) {
 		printk(KERN_ERR 
 		       "%s for invalid irq -- pid %d adjusted irq %x\n",
-		       __FUNCTION__, pid, irq);
+		       __func__, pid, irq);
 		return NULL;
 	}
 
@@ -110,8 +110,8 @@ io7_enable_irq(unsigned int irq)
 
 	ctl = io7_get_irq_ctl(irq, &io7);
 	if (!ctl || !io7) {
-		printk(KERN_ERR "%s: get_ctl failed for irq %x\n", 
-		       __FUNCTION__, irq);
+		printk(KERN_ERR "%s: get_ctl failed for irq %x\n",
+		       __func__, irq);
 		return;
 	}
 		
@@ -130,8 +130,8 @@ io7_disable_irq(unsigned int irq)
 
 	ctl = io7_get_irq_ctl(irq, &io7);
 	if (!ctl || !io7) {
-		printk(KERN_ERR "%s: get_ctl failed for irq %x\n", 
-		       __FUNCTION__, irq);
+		printk(KERN_ERR "%s: get_ctl failed for irq %x\n",
+		       __func__, irq);
 		return;
 	}
 		

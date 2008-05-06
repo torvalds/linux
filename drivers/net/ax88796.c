@@ -1005,3 +1005,4 @@ module_exit(axdrv_exit);
 MODULE_DESCRIPTION("AX88796 10/100 Ethernet platform driver");
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:ax88796");

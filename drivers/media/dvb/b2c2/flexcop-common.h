@@ -44,6 +44,14 @@ struct flexcop_dma {
 	u32 size; /* size of each address in bytes */
 };
 
+struct flexcop_i2c_adapter {
+	struct flexcop_device *fc;
+	struct i2c_adapter i2c_adap;
+
+	u8 no_base_addr;
+	flexcop_i2c_port_t port;
+};
+
 /* Control structure for data definitions that are common to
  * the B2C2-based PCI and USB devices.
  */
@@ -72,7 +80,7 @@ struct flexcop_device {
 	struct dmx_frontend mem_frontend;
 	int (*fe_sleep) (struct dvb_frontend *);
 
-	struct i2c_adapter i2c_adap;
+	struct flexcop_i2c_adapter fc_i2c_adap[3];
 	struct mutex i2c_mutex;
 	struct module *owner;
 
@@ -87,7 +95,8 @@ struct flexcop_device {
 	int               (*write_ibi_reg) (struct flexcop_device *, flexcop_ibi_register, flexcop_ibi_value);
 
 
-	int (*i2c_request) (struct flexcop_device*, flexcop_access_op_t, flexcop_i2c_port_t, u8 chipaddr, u8 addr, u8 *buf, u16 len);
+	int (*i2c_request) (struct flexcop_i2c_adapter*,
+		flexcop_access_op_t, u8 chipaddr, u8 addr, u8 *buf, u16 len);
 	int (*stream_control) (struct flexcop_device*, int);
 
 	int (*get_mac_addr) (struct flexcop_device *fc, int extended);
@@ -128,8 +137,8 @@ int flexcop_eeprom_check_mac_addr(struct flexcop_device *fc, int extended);
  * one. We have it in flexcop-i2c.c, because it is going via the actual
  * I2C-channel of the flexcop.
  */
-int flexcop_i2c_request(struct flexcop_device*, flexcop_access_op_t,
-			flexcop_i2c_port_t, u8 chipaddr, u8 addr, u8 *buf, u16 len);
+int flexcop_i2c_request(struct flexcop_i2c_adapter*, flexcop_access_op_t,
+	u8 chipaddr, u8 addr, u8 *buf, u16 len);
 
 /* from flexcop-sram.c */
 int flexcop_sram_set_dest(struct flexcop_device *fc, flexcop_sram_dest_t dest, flexcop_sram_dest_target_t target);

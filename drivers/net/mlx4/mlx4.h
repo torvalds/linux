@@ -257,6 +257,9 @@ struct mlx4_priv {
 	struct list_head	ctx_list;
 	spinlock_t		ctx_lock;
 
+	struct list_head        pgdir_list;
+	struct mutex            pgdir_mutex;
+
 	struct mlx4_fw		fw;
 	struct mlx4_cmd		cmd;
 

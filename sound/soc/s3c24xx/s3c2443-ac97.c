@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
@@ -30,7 +31,6 @@
 #include <sound/soc.h>
 
 #include <asm/hardware.h>
-#include <asm/io.h>
 #include <asm/plat-s3c/regs-ac97.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-clock.h>
@@ -47,7 +47,7 @@ struct s3c24xx_ac97_info {
 };
 static struct s3c24xx_ac97_info s3c24xx_ac97;
 
-DECLARE_COMPLETION(ac97_completion);
+static DECLARE_COMPLETION(ac97_completion);
 static u32 codec_ready;
 static DECLARE_MUTEX(ac97_mutex);
 
@@ -290,7 +290,7 @@ static int s3c2443_ac97_trigger(struct snd_pcm_substream *substream, int cmd)
 	u32 ac_glbctrl;
 
 	ac_glbctrl = readl(s3c24xx_ac97.regs + S3C_AC97_GLBCTRL);
-	switch(cmd) {
+	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -333,7 +333,7 @@ static int s3c2443_ac97_mic_trigger(struct snd_pcm_substream *substream,
 	u32 ac_glbctrl;
 
 	ac_glbctrl = readl(s3c24xx_ac97.regs + S3C_AC97_GLBCTRL);
-	switch(cmd) {
+	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -391,7 +391,6 @@ struct snd_soc_cpu_dai s3c2443_ac97_dai[] = {
 		.trigger = s3c2443_ac97_mic_trigger,},
 },
 };
-
 EXPORT_SYMBOL_GPL(s3c2443_ac97_dai);
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 

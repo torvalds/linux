@@ -137,7 +137,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	BUG_ON((buf->len - offset) % blocksize);
 	plainlen = blocksize + buf->len - offset;
 
-	headlen = g_token_size(&kctx->mech_used, 22 + plainlen) -
+	headlen = g_token_size(&kctx->mech_used, 24 + plainlen) -
 						(buf->len - offset);
 
 	ptr = buf->head[0].iov_base + offset;
@@ -149,7 +149,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	buf->len += headlen;
 	BUG_ON((buf->len - offset - headlen) % blocksize);
 
-	g_make_token_header(&kctx->mech_used, 22 + plainlen, &ptr);
+	g_make_token_header(&kctx->mech_used, 24 + plainlen, &ptr);
 
 
 	*ptr++ = (unsigned char) ((KG_TOK_WRAP_MSG>>8)&0xff);
@@ -176,9 +176,7 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	if (krb5_encrypt(kctx->seq, NULL, md5cksum.data,
 			  md5cksum.data, md5cksum.len))
 		return GSS_S_FAILURE;
-	memcpy(krb5_hdr + 16,
-	       md5cksum.data + md5cksum.len - KRB5_CKSUM_LENGTH,
-	       KRB5_CKSUM_LENGTH);
+	memcpy(krb5_hdr + 16, md5cksum.data + md5cksum.len - 8, 8);
 
 	spin_lock(&krb5_seq_lock);
 	seq_send = kctx->seq_send++;

@@ -130,7 +130,7 @@ static int ch341_get_status(struct usb_device *dev)
 		return -ENOMEM;
 
 	r = ch341_control_in(dev, 0x95, 0x0706, 0, buffer, size);
-	if ( r < 0)
+	if (r < 0)
 		goto out;
 
 	/* Not having the datasheet for the CH341, we ignore the bytes returned
@@ -318,9 +318,6 @@ static struct usb_serial_driver ch341_device = {
 	},
 	.id_table         = id_table,
 	.usb_driver       = &ch341_driver,
-	.num_interrupt_in = NUM_DONT_CARE,
-	.num_bulk_in      = 1,
-	.num_bulk_out     = 1,
 	.num_ports        = 1,
 	.open             = ch341_open,
 	.set_termios      = ch341_set_termios,

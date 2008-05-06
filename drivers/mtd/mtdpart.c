@@ -68,7 +68,7 @@ static int part_read (struct mtd_info *mtd, loff_t from, size_t len,
 }
 
 static int part_point (struct mtd_info *mtd, loff_t from, size_t len,
-			size_t *retlen, u_char **buf)
+			size_t *retlen, void **virt, resource_size_t *phys)
 {
 	struct mtd_part *part = PART(mtd);
 	if (from >= mtd->size)
@@ -76,14 +76,14 @@ static int part_point (struct mtd_info *mtd, loff_t from, size_t len,
 	else if (from + len > mtd->size)
 		len = mtd->size - from;
 	return part->master->point (part->master, from + part->offset,
-				    len, retlen, buf);
+				    len, retlen, virt, phys);
 }
 
-static void part_unpoint (struct mtd_info *mtd, u_char *addr, loff_t from, size_t len)
+static void part_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 	struct mtd_part *part = PART(mtd);
 
-	part->master->unpoint (part->master, addr, from + part->offset, len);
+	part->master->unpoint(part->master, from + part->offset, len);
 }
 
 static int part_read_oob(struct mtd_info *mtd, loff_t from,

@@ -631,6 +631,8 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 
 	dbg_io("read EC header from PEB %d", pnum);
 	ubi_assert(pnum >= 0 && pnum < ubi->peb_count);
+	if (UBI_IO_DEBUG)
+		verbose = 1;
 
 	err = ubi_io_read(ubi, ec_hdr, pnum, 0, UBI_EC_HDR_SIZE);
 	if (err) {
@@ -904,6 +906,8 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 
 	dbg_io("read VID header from PEB %d", pnum);
 	ubi_assert(pnum >= 0 &&  pnum < ubi->peb_count);
+	if (UBI_IO_DEBUG)
+		verbose = 1;
 
 	p = (char *)vid_hdr - ubi->vid_hdr_shift;
 	err = ubi_io_read(ubi, p, pnum, ubi->vid_hdr_aloffset,

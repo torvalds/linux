@@ -28,7 +28,7 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
-
+#include "hda_patch.h"
 
 /* si3054 verbs */
 #define SI3054_VERB_READ_NODE  0x900
@@ -206,7 +206,7 @@ static int si3054_build_pcms(struct hda_codec *codec)
 	info->name = "Si3054 Modem";
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = si3054_pcm;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE]  = si3054_pcm;
-	info->is_modem = 1;
+	info->pcm_type = HDA_PCM_TYPE_MODEM;
 	return 0;
 }
 

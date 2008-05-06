@@ -10,7 +10,6 @@
  *  nfs symlink handling code
  */
 
-#define NFS_NEED_XDR_TYPES
 #include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/sunrpc/clnt.h>

@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/sched.h>
 #include <linux/hugetlb.h>
+#include <linux/dma-attrs.h>
 
 #include "uverbs.h"
 
@@ -72,9 +73,10 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
  * @addr: userspace virtual address to start at
  * @size: length of region to pin
  * @access: IB_ACCESS_xxx flags for memory being pinned
+ * @dmasync: flush in-flight DMA when the memory region is written
  */
 struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
-			    size_t size, int access)
+			    size_t size, int access, int dmasync)
 {
 	struct ib_umem *umem;
 	struct page **page_list;
@@ -87,6 +89,10 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 	int ret;
 	int off;
 	int i;
+	DEFINE_DMA_ATTRS(attrs);
+
+	if (dmasync)
+		dma_set_attr(DMA_ATTR_WRITE_BARRIER, &attrs);
 
 	if (!can_do_mlock())
 		return ERR_PTR(-EPERM);
@@ -174,10 +180,11 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 				sg_set_page(&chunk->page_list[i], page_list[i + off], PAGE_SIZE, 0);
 			}
 
-			chunk->nmap = ib_dma_map_sg(context->device,
-						    &chunk->page_list[0],
-						    chunk->nents,
-						    DMA_BIDIRECTIONAL);
+			chunk->nmap = ib_dma_map_sg_attrs(context->device,
+							  &chunk->page_list[0],
+							  chunk->nents,
+							  DMA_BIDIRECTIONAL,
+							  &attrs);
 			if (chunk->nmap <= 0) {
 				for (i = 0; i < chunk->nents; ++i)
 					put_page(sg_page(&chunk->page_list[i]));

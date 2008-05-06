@@ -29,11 +29,6 @@
 #include <asm/atomic.h>
 #include <asm/machdep.h>
 
-#if 0
-#define DEBUG(A...)	printk(KERN_ERR A)
-#else
-#define DEBUG(A...)
-#endif
 
 static DEFINE_SPINLOCK(rtasd_log_lock);
 
@@ -198,7 +193,7 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 	unsigned long s;
 	int len = 0;
 
-	DEBUG("logging event\n");
+	pr_debug("rtasd: logging event\n");
 	if (buf == NULL)
 		return;
 
@@ -409,7 +404,8 @@ static int rtasd(void *unused)
 	daemonize("rtasd");
 
 	printk(KERN_DEBUG "RTAS daemon started\n");
-	DEBUG("will sleep for %d milliseconds\n", (30000/rtas_event_scan_rate));
+	pr_debug("rtasd: will sleep for %d milliseconds\n",
+		 (30000 / rtas_event_scan_rate));
 
 	/* See if we have any error stored in NVRAM */
 	memset(logdata, 0, rtas_error_log_max);
@@ -428,9 +424,9 @@ static int rtasd(void *unused)
 	do_event_scan_all_cpus(1000);
 
 	if (surveillance_timeout != -1) {
-		DEBUG("enabling surveillance\n");
+		pr_debug("rtasd: enabling surveillance\n");
 		enable_surveillance(surveillance_timeout);
-		DEBUG("surveillance enabled\n");
+		pr_debug("rtasd: surveillance enabled\n");
 	}
 
 	/* Delay should be at least one second since some
@@ -472,10 +468,9 @@ static int __init rtas_init(void)
 		return -ENOMEM;
 	}
 
-	entry = create_proc_entry("ppc64/rtas/error_log", S_IRUSR, NULL);
-	if (entry)
-		entry->proc_fops = &proc_rtas_log_operations;
-	else
+	entry = proc_create("ppc64/rtas/error_log", S_IRUSR, NULL,
+			    &proc_rtas_log_operations);
+	if (!entry)
 		printk(KERN_ERR "Failed to create error_log proc entry\n");
 
 	if (kernel_thread(rtasd, NULL, CLONE_FS) < 0)

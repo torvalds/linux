@@ -1419,8 +1419,7 @@ int reiserfs_delete_object(struct reiserfs_transaction_handle *th,
 
 		inode_generation =
 		    &REISERFS_SB(th->t_super)->s_rs->s_inode_generation;
-		*inode_generation =
-		    cpu_to_le32(le32_to_cpu(*inode_generation) + 1);
+		le32_add_cpu(inode_generation, 1);
 	}
 /* USE_INODE_GENERATION_COUNTER */
 #endif

@@ -194,7 +194,7 @@ db1x00_pcmcia_configure_socket(struct au1000_pcmcia_socket *skt, struct socket_s
 				default:
 					pwr |= SET_VCC_VPP(0,0,sock);
 					printk("%s: bad Vcc/Vpp (%d:%d)\n",
-							__FUNCTION__,
+							__func__,
 							state->Vcc,
 							state->Vpp);
 					break;
@@ -215,7 +215,7 @@ db1x00_pcmcia_configure_socket(struct au1000_pcmcia_socket *skt, struct socket_s
 				default:
 					pwr |= SET_VCC_VPP(0,0,sock);
 					printk("%s: bad Vcc/Vpp (%d:%d)\n",
-							__FUNCTION__,
+							__func__,
 							state->Vcc,
 							state->Vpp);
 					break;
@@ -224,7 +224,7 @@ db1x00_pcmcia_configure_socket(struct au1000_pcmcia_socket *skt, struct socket_s
 		default: /* what's this ? */
 			pwr |= SET_VCC_VPP(0,0,sock);
 			printk(KERN_ERR "%s: bad Vcc %d\n",
-					__FUNCTION__, state->Vcc);
+					__func__, state->Vcc);
 			break;
 	}
 

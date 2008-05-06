@@ -26,15 +26,15 @@
      */
 
 static void
-bitcpy(unsigned long *dst, int dst_idx, const unsigned long *src,
-	int src_idx, int bits, unsigned n)
+bitcpy(struct fb_info *p, unsigned long *dst, int dst_idx,
+		const unsigned long *src, int src_idx, int bits, unsigned n)
 {
 	unsigned long first, last;
 	int const shift = dst_idx-src_idx;
 	int left, right;
 
-	first = FB_SHIFT_HIGH(~0UL, dst_idx);
-	last = ~(FB_SHIFT_HIGH(~0UL, (dst_idx+n) % bits));
+	first = FB_SHIFT_HIGH(p, ~0UL, dst_idx);
+	last = ~(FB_SHIFT_HIGH(p, ~0UL, (dst_idx+n) % bits));
 
 	if (!shift) {
 		/* Same alignment for source and dest */
@@ -167,8 +167,8 @@ bitcpy(unsigned long *dst, int dst_idx, const unsigned long *src,
      */
 
 static void
-bitcpy_rev(unsigned long *dst, int dst_idx, const unsigned long *src,
-	   int src_idx, int bits, unsigned n)
+bitcpy_rev(struct fb_info *p, unsigned long *dst, int dst_idx,
+		const unsigned long *src, int src_idx, int bits, unsigned n)
 {
 	unsigned long first, last;
 	int shift;
@@ -186,8 +186,8 @@ bitcpy_rev(unsigned long *dst, int dst_idx, const unsigned long *src,
 
 	shift = dst_idx-src_idx;
 
-	first = FB_SHIFT_LOW(~0UL, bits - 1 - dst_idx);
-	last = ~(FB_SHIFT_LOW(~0UL, bits - 1 - ((dst_idx-n) % bits)));
+	first = FB_SHIFT_LOW(p, ~0UL, bits - 1 - dst_idx);
+	last = ~(FB_SHIFT_LOW(p, ~0UL, bits - 1 - ((dst_idx-n) % bits)));
 
 	if (!shift) {
 		/* Same alignment for source and dest */
@@ -353,7 +353,7 @@ void sys_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 			dst_idx &= (bytes - 1);
 			src += src_idx >> (ffs(bits) - 1);
 			src_idx &= (bytes - 1);
-			bitcpy_rev(dst, dst_idx, src, src_idx, bits,
+			bitcpy_rev(p, dst, dst_idx, src, src_idx, bits,
 				width*p->var.bits_per_pixel);
 		}
 	} else {
@@ -362,7 +362,7 @@ void sys_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 			dst_idx &= (bytes - 1);
 			src += src_idx >> (ffs(bits) - 1);
 			src_idx &= (bytes - 1);
-			bitcpy(dst, dst_idx, src, src_idx, bits,
+			bitcpy(p, dst, dst_idx, src, src_idx, bits,
 				width*p->var.bits_per_pixel);
 			dst_idx += bits_per_line;
 			src_idx += bits_per_line;

@@ -17,7 +17,13 @@
 #include <asm/cache.h>
 
 _GLOBAL(__setup_cpu_603)
-	b	setup_common_caches
+	mflr	r4
+BEGIN_FTR_SECTION
+	bl	__init_fpu_registers
+END_FTR_SECTION_IFCLR(CPU_FTR_FPU_UNAVAILABLE)
+	bl	setup_common_caches
+	mtlr	r4
+	blr
 _GLOBAL(__setup_cpu_604)
 	mflr	r4
 	bl	setup_common_caches

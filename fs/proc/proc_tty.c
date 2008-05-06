@@ -5,7 +5,7 @@
  */
 
 #include <asm/uaccess.h>
-
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/time.h>
@@ -136,38 +136,53 @@ static const struct file_operations proc_tty_drivers_operations = {
 	.release	= seq_release,
 };
 
-/*
- * This is the handler for /proc/tty/ldiscs
- */
-static int tty_ldiscs_read_proc(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
+static void * tty_ldiscs_seq_start(struct seq_file *m, loff_t *pos)
 {
-	int	i;
-	int	len = 0;
-	off_t	begin = 0;
+	return (*pos < NR_LDISCS) ? pos : NULL;
+}
+
+static void * tty_ldiscs_seq_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	(*pos)++;
+	return (*pos < NR_LDISCS) ? pos : NULL;
+}
+
+static void tty_ldiscs_seq_stop(struct seq_file *m, void *v)
+{
+}
+
+static int tty_ldiscs_seq_show(struct seq_file *m, void *v)
+{
+	int i = *(loff_t *)v;
 	struct tty_ldisc *ld;
 	
-	for (i=0; i < NR_LDISCS; i++) {
-		ld = tty_ldisc_get(i);
-		if (ld == NULL)
-			continue;
-		len += sprintf(page+len, "%-10s %2d\n",
-			       ld->name ? ld->name : "???", i);
-		tty_ldisc_put(i);
-		if (len+begin > off+count)
-			break;
-		if (len+begin < off) {
-			begin += len;
-			len = 0;
-		}
-	}
-	if (i >= NR_LDISCS)
-		*eof = 1;
-	if (off >= len+begin)
+	ld = tty_ldisc_get(i);
+	if (ld == NULL)
 		return 0;
-	*start = page + (off-begin);
-	return ((count < begin+len-off) ? count : begin+len-off);
+	seq_printf(m, "%-10s %2d\n", ld->name ? ld->name : "???", i);
+	tty_ldisc_put(i);
+	return 0;
 }
+
+static const struct seq_operations tty_ldiscs_seq_ops = {
+	.start	= tty_ldiscs_seq_start,
+	.next	= tty_ldiscs_seq_next,
+	.stop	= tty_ldiscs_seq_stop,
+	.show	= tty_ldiscs_seq_show,
+};
+
+static int proc_tty_ldiscs_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &tty_ldiscs_seq_ops);
+}
+
+static const struct file_operations tty_ldiscs_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= proc_tty_ldiscs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
 
 /*
  * This function is called by tty_register_driver() to handle
@@ -177,16 +192,14 @@ void proc_tty_register_driver(struct tty_driver *driver)
 {
 	struct proc_dir_entry *ent;
 		
-	if ((!driver->read_proc && !driver->write_proc) ||
-	    !driver->driver_name ||
+	if (!driver->ops->read_proc || !driver->driver_name ||
 	    driver->proc_entry)
 		return;
 
 	ent = create_proc_entry(driver->driver_name, 0, proc_tty_driver);
 	if (!ent)
 		return;
-	ent->read_proc = driver->read_proc;
-	ent->write_proc = driver->write_proc;
+	ent->read_proc = driver->ops->read_proc;
 	ent->owner = driver->owner;
 	ent->data = driver;
 
@@ -214,7 +227,6 @@ void proc_tty_unregister_driver(struct tty_driver *driver)
  */
 void __init proc_tty_init(void)
 {
-	struct proc_dir_entry *entry;
 	if (!proc_mkdir("tty", NULL))
 		return;
 	proc_tty_ldisc = proc_mkdir("tty/ldisc", NULL);
@@ -224,10 +236,7 @@ void __init proc_tty_init(void)
 	 * password lengths and inter-keystroke timings during password
 	 * entry.
 	 */
-	proc_tty_driver = proc_mkdir_mode("tty/driver", S_IRUSR | S_IXUSR, NULL);
-
-	create_proc_read_entry("tty/ldiscs", 0, NULL, tty_ldiscs_read_proc, NULL);
-	entry = create_proc_entry("tty/drivers", 0, NULL);
-	if (entry)
-		entry->proc_fops = &proc_tty_drivers_operations;
+	proc_tty_driver = proc_mkdir_mode("tty/driver", S_IRUSR|S_IXUSR, NULL);
+	proc_create("tty/ldiscs", 0, NULL, &tty_ldiscs_proc_fops);
+	proc_create("tty/drivers", 0, NULL, &proc_tty_drivers_operations);
 }

@@ -52,6 +52,29 @@ static inline unsigned long get_msc_port_base(unsigned long reg)
 }
 
 /*
+ * GCMP Specific definitions
+ */
+#define GCMP_BASE_ADDR			0x1fbf8000
+#define GCMP_ADDRSPACE_SZ		(256 * 1024)
+
+/*
+ * GIC Specific definitions
+ */
+#define GIC_BASE_ADDR			0x1bdc0000
+#define GIC_ADDRSPACE_SZ		(128 * 1024)
+
+/*
+ * MSC01 BIU Specific definitions
+ * FIXME : These should be elsewhere ?
+ */
+#define MSC01_BIU_REG_BASE		0x1bc80000
+#define MSC01_BIU_ADDRSPACE_SZ		(256 * 1024)
+#define MSC01_SC_CFG_OFS		0x0110
+#define MSC01_SC_CFG_GICPRES_MSK	0x00000004
+#define MSC01_SC_CFG_GICPRES_SHF	2
+#define MSC01_SC_CFG_GICENA_SHF		3
+
+/*
  * Malta RTC-device indirect register access.
  */
 #define MALTA_RTC_ADR_REG       0x70

@@ -279,11 +279,17 @@ static int bringup_one_msi_queue(struct pci_pbm_info *pbm,
 				 unsigned long devino)
 {
 	int irq = ops->msiq_build_irq(pbm, msiqid, devino);
-	int err;
+	int err, nid;
 
 	if (irq < 0)
 		return irq;
 
+	nid = pbm->numa_node;
+	if (nid != -1) {
+		cpumask_t numa_mask = node_to_cpumask(nid);
+
+		irq_set_affinity(irq, numa_mask);
+	}
 	err = request_irq(irq, sparc64_msiq_interrupt, 0,
 			  "MSIQ",
 			  &pbm->msiq_irq_cookies[msiqid - pbm->msiq_first]);

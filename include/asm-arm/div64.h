@@ -224,6 +224,4 @@
 
 #endif
 
-extern uint64_t div64_64(uint64_t dividend, uint64_t divisor);
-
 #endif

@@ -153,7 +153,7 @@ struct port_pre_exec_data {
 	int pipe_fd;
 };
 
-void port_pre_exec(void *arg)
+static void port_pre_exec(void *arg)
 {
 	struct port_pre_exec_data *data = arg;
 

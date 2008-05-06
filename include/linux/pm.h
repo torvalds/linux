@@ -21,8 +21,6 @@
 #ifndef _LINUX_PM_H
 #define _LINUX_PM_H
 
-#ifdef __KERNEL__
-
 #include <linux/list.h>
 #include <asm/atomic.h>
 #include <asm/errno.h>
@@ -224,7 +222,5 @@ extern unsigned int	pm_flags;
 
 #define PM_APM	1
 #define PM_ACPI	2
-
-#endif /* __KERNEL__ */
 
 #endif /* _LINUX_PM_H */

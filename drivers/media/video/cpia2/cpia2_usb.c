@@ -84,7 +84,7 @@ static struct usb_driver cpia2_driver = {
  *****************************************************************************/
 static void process_frame(struct camera_data *cam)
 {
-	static int frame_count = 0;
+	static int frame_count;
 
 	unsigned char *inbuff = cam->workbuff->data;
 

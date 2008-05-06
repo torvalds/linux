@@ -2,7 +2,7 @@
 #define _ASM_POWERPC_IO_H
 #ifdef __KERNEL__
 
-/* 
+/*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
@@ -17,6 +17,9 @@ extern int check_legacy_ioport(unsigned long base_port);
 #define _PIDXR		0x279
 #define _PNPWRP		0xa79
 #define PNPBIOS_BASE	0xf000
+
+#include <linux/device.h>
+#include <linux/io.h>
 
 #include <linux/compiler.h>
 #include <asm/page.h>
@@ -458,8 +461,8 @@ __do_out_asm(_rec_outl, "stwbrx")
 /* Structure containing all the hooks */
 extern struct ppc_pci_io {
 
-#define DEF_PCI_AC_RET(name, ret, at, al)	ret (*name) at;
-#define DEF_PCI_AC_NORET(name, at, al)		void (*name) at;
+#define DEF_PCI_AC_RET(name, ret, at, al, space, aa)	ret (*name) at;
+#define DEF_PCI_AC_NORET(name, at, al, space, aa)	void (*name) at;
 
 #include <asm/io-defs.h>
 
@@ -469,7 +472,7 @@ extern struct ppc_pci_io {
 } ppc_pci_io;
 
 /* The inline wrappers */
-#define DEF_PCI_AC_RET(name, ret, at, al)			\
+#define DEF_PCI_AC_RET(name, ret, at, al, space, aa)		\
 static inline ret name at					\
 {								\
 	if (DEF_PCI_HOOK(ppc_pci_io.name) != NULL)		\
@@ -477,7 +480,7 @@ static inline ret name at					\
 	return __do_##name al;					\
 }
 
-#define DEF_PCI_AC_NORET(name, at, al)				\
+#define DEF_PCI_AC_NORET(name, at, al, space, aa)		\
 static inline void name at					\
 {								\
 	if (DEF_PCI_HOOK(ppc_pci_io.name) != NULL)		\
@@ -743,6 +746,9 @@ static inline void * bus_to_virt(unsigned long address)
 #define clrsetbits_le16(addr, clear, set) clrsetbits(le32, addr, clear, set)
 
 #define clrsetbits_8(addr, clear, set) clrsetbits(8, addr, clear, set)
+
+void __iomem *devm_ioremap_prot(struct device *dev, resource_size_t offset,
+				size_t size, unsigned long flags);
 
 #endif /* __KERNEL__ */
 

@@ -85,23 +85,29 @@ static inline int write_tryseqlock(seqlock_t *sl)
 /* Start of read calculation -- fetch last complete writer token */
 static __always_inline unsigned read_seqbegin(const seqlock_t *sl)
 {
-	unsigned ret = sl->sequence;
+	unsigned ret;
+
+repeat:
+	ret = sl->sequence;
 	smp_rmb();
+	if (unlikely(ret & 1)) {
+		cpu_relax();
+		goto repeat;
+	}
+
 	return ret;
 }
 
-/* Test if reader processed invalid data.
- * If initial values is odd, 
- *	then writer had already started when section was entered
- * If sequence value changed
- *	then writer changed data while in section
- *    
- * Using xor saves one conditional branch.
+/*
+ * Test if reader processed invalid data.
+ *
+ * If sequence value changed then writer changed data while in section.
  */
-static __always_inline int read_seqretry(const seqlock_t *sl, unsigned iv)
+static __always_inline int read_seqretry(const seqlock_t *sl, unsigned start)
 {
 	smp_rmb();
-	return (iv & 1) | (sl->sequence ^ iv);
+
+	return (sl->sequence != start);
 }
 
 
@@ -122,20 +128,26 @@ typedef struct seqcount {
 /* Start of read using pointer to a sequence counter only.  */
 static inline unsigned read_seqcount_begin(const seqcount_t *s)
 {
-	unsigned ret = s->sequence;
+	unsigned ret;
+
+repeat:
+	ret = s->sequence;
 	smp_rmb();
+	if (unlikely(ret & 1)) {
+		cpu_relax();
+		goto repeat;
+	}
 	return ret;
 }
 
-/* Test if reader processed invalid data.
- * Equivalent to: iv is odd or sequence number has changed.
- *                (iv & 1) || (*s != iv)
- * Using xor saves one conditional branch.
+/*
+ * Test if reader processed invalid data because sequence number has changed.
  */
-static inline int read_seqcount_retry(const seqcount_t *s, unsigned iv)
+static inline int read_seqcount_retry(const seqcount_t *s, unsigned start)
 {
 	smp_rmb();
-	return (iv & 1) | (s->sequence ^ iv);
+
+	return s->sequence != start;
 }
 
 

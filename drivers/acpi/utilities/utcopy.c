@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,8 @@
 
 #include <acpi/acpi.h>
 #include <acpi/amlcode.h>
+#include <acpi/acnamesp.h>
+
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utcopy")
@@ -172,22 +174,21 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
-		/*
-		 * This is an object reference.  Attempt to dereference it.
-		 */
+		/* This is an object reference. */
+
 		switch (internal_object->reference.opcode) {
 		case AML_INT_NAMEPATH_OP:
 
 			/* For namepath, return the object handle ("reference") */
 
 		default:
-			/*
-			 * Use the object type of "Any" to indicate a reference
-			 * to object containing a handle to an ACPI named object.
-			 */
-			external_object->type = ACPI_TYPE_ANY;
+
+			/* We are referring to the namespace node */
+
 			external_object->reference.handle =
 			    internal_object->reference.node;
+			external_object->reference.actual_type =
+			    acpi_ns_get_type(internal_object->reference.node);
 			break;
 		}
 		break;
@@ -215,6 +216,11 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 		/*
 		 * There is no corresponding external object type
 		 */
+		ACPI_ERROR((AE_INFO,
+			    "Unsupported object type, cannot convert to external object: %s",
+			    acpi_ut_get_type_name(ACPI_GET_OBJECT_TYPE
+						  (internal_object))));
+
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
 
@@ -455,6 +461,7 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 	case ACPI_TYPE_STRING:
 	case ACPI_TYPE_BUFFER:
 	case ACPI_TYPE_INTEGER:
+	case ACPI_TYPE_LOCAL_REFERENCE:
 
 		internal_object = acpi_ut_create_internal_object((u8)
 								 external_object->
@@ -464,8 +471,17 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 		}
 		break;
 
+	case ACPI_TYPE_ANY:	/* This is the case for a NULL object */
+
+		*ret_internal_object = NULL;
+		return_ACPI_STATUS(AE_OK);
+
 	default:
 		/* All other types are not supported */
+
+		ACPI_ERROR((AE_INFO,
+			    "Unsupported object type, cannot convert to internal object: %s",
+			    acpi_ut_get_type_name(external_object->type)));
 
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
@@ -502,11 +518,24 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 			    external_object->buffer.length);
 
 		internal_object->buffer.length = external_object->buffer.length;
+
+		/* Mark buffer data valid */
+
+		internal_object->buffer.flags |= AOPOBJ_DATA_VALID;
 		break;
 
 	case ACPI_TYPE_INTEGER:
 
 		internal_object->integer.value = external_object->integer.value;
+		break;
+
+	case ACPI_TYPE_LOCAL_REFERENCE:
+
+		/* TBD: should validate incoming handle */
+
+		internal_object->reference.opcode = AML_INT_NAMEPATH_OP;
+		internal_object->reference.node =
+		    external_object->reference.handle;
 		break;
 
 	default:
@@ -570,12 +599,16 @@ acpi_ut_copy_epackage_to_ipackage(union acpi_object *external_object,
 
 			/* Truncate package and delete it */
 
-			package_object->package.count = i;
+			package_object->package.count = (u32) i;
 			package_elements[i] = NULL;
 			acpi_ut_remove_reference(package_object);
 			return_ACPI_STATUS(status);
 		}
 	}
+
+	/* Mark package data valid */
+
+	package_object->package.flags |= AOPOBJ_DATA_VALID;
 
 	*internal_object = package_object;
 	return_ACPI_STATUS(status);
@@ -709,7 +742,15 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		/*
 		 * We copied the reference object, so we now must add a reference
 		 * to the object pointed to by the reference
+		 *
+		 * DDBHandle reference (from Load/load_table is a special reference,
+		 * it's Reference.Object is the table index, so does not need to
+		 * increase the reference count
 		 */
+		if (source_desc->reference.opcode == AML_LOAD_OP) {
+			break;
+		}
+
 		acpi_ut_add_reference(source_desc->reference.object);
 		break;
 

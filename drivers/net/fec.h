@@ -88,8 +88,8 @@ typedef struct fec {
 	unsigned long	fec_reserved7[158];
 	unsigned long	fec_addr_low;		/* Low 32bits MAC address */
 	unsigned long	fec_addr_high;		/* High 16bits MAC address */
-	unsigned long	fec_hash_table_high;	/* High 32bits hash table */
-	unsigned long	fec_hash_table_low;	/* Low 32bits hash table */
+	unsigned long	fec_grp_hash_table_high;/* High 32bits hash table */
+	unsigned long	fec_grp_hash_table_low;	/* Low 32bits hash table */
 	unsigned long	fec_r_des_start;	/* Receive descriptor ring */
 	unsigned long	fec_x_des_start;	/* Transmit descriptor ring */
 	unsigned long	fec_r_buff_size;	/* Maximum receive buff size */

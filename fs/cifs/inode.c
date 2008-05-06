@@ -161,12 +161,14 @@ static void cifs_unix_info_to_inode(struct inode *inode,
 	spin_unlock(&inode->i_lock);
 }
 
-static const unsigned char *cifs_get_search_path(struct cifsTconInfo *pTcon,
-					const char *search_path)
+static const unsigned char *cifs_get_search_path(struct cifs_sb_info *cifs_sb,
+						const char *search_path)
 {
 	int tree_len;
 	int path_len;
+	int i;
 	char *tmp_path;
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
 
 	if (!(pTcon->Flags & SMB_SHARE_IS_IN_DFS))
 		return search_path;
@@ -180,6 +182,11 @@ static const unsigned char *cifs_get_search_path(struct cifsTconInfo *pTcon,
 		return search_path;
 
 	strncpy(tmp_path, pTcon->treeName, tree_len);
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
+		for (i = 0; i < tree_len; i++) {
+			if (tmp_path[i] == '\\')
+				tmp_path[i] = '/';
+		}
 	strncpy(tmp_path+tree_len, search_path, path_len);
 	tmp_path[tree_len+path_len] = 0;
 	return tmp_path;
@@ -199,7 +206,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 	pTcon = cifs_sb->tcon;
 	cFYI(1, ("Getting info on %s", search_path));
 
-	full_path = cifs_get_search_path(pTcon, search_path);
+	full_path = cifs_get_search_path(cifs_sb, search_path);
 
 try_again_CIFSSMBUnixQPathInfo:
 	/* could have done a find first instead but this returns more info */
@@ -402,7 +409,7 @@ int cifs_get_inode_info(struct inode **pinode,
 			return -ENOMEM;
 		pfindData = (FILE_ALL_INFO *)buf;
 
-		full_path = cifs_get_search_path(pTcon, search_path);
+		full_path = cifs_get_search_path(cifs_sb, search_path);
 
 try_again_CIFSSMBQPathInfo:
 		/* could do find first instead but this returns more info */

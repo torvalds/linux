@@ -287,6 +287,8 @@ static ssize_t store_val_norm(int id,struct device *class_dev,
 	struct pvr2_sysfs *sfp;
 	int ret;
 	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
+	pvr2_sysfs_trace("pvr2_sysfs(%p) store_val_norm(cid=%d) \"%.*s\"",
+			 sfp,id,(int)count,buf);
 	ret = store_val_any(id,0,sfp,buf,count);
 	if (!ret) ret = count;
 	return ret;
@@ -298,6 +300,8 @@ static ssize_t store_val_custom(int id,struct device *class_dev,
 	struct pvr2_sysfs *sfp;
 	int ret;
 	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
+	pvr2_sysfs_trace("pvr2_sysfs(%p) store_val_custom(cid=%d) \"%.*s\"",
+			 sfp,id,(int)count,buf);
 	ret = store_val_any(id,1,sfp,buf,count);
 	if (!ret) ret = count;
 	return ret;
@@ -604,8 +608,9 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 
 	ret = sysfs_create_group(&sfp->class_dev->kobj,&cip->grp);
 	if (ret) {
-		printk(KERN_WARNING "%s: sysfs_create_group error: %d\n",
-		       __FUNCTION__, ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "sysfs_create_group error: %d",
+			   ret);
 		return;
 	}
 	cip->created_ok = !0;
@@ -636,15 +641,17 @@ static void pvr2_sysfs_add_debugifc(struct pvr2_sysfs *sfp)
 	sfp->debugifc = dip;
 	ret = device_create_file(sfp->class_dev,&dip->attr_debugcmd);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: device_create_file error: %d\n",
-		       __FUNCTION__, ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "device_create_file error: %d",
+			   ret);
 	} else {
 		dip->debugcmd_created_ok = !0;
 	}
 	ret = device_create_file(sfp->class_dev,&dip->attr_debuginfo);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: device_create_file error: %d\n",
-		       __FUNCTION__, ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "device_create_file error: %d",
+			   ret);
 	} else {
 		dip->debuginfo_created_ok = !0;
 	}
@@ -847,8 +854,8 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	class_dev->driver_data = sfp;
 	ret = device_register(class_dev);
 	if (ret) {
-		printk(KERN_ERR "%s: device_register failed\n",
-		       __FUNCTION__);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "device_register failed");
 		kfree(class_dev);
 		return;
 	}
@@ -860,8 +867,9 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	ret = device_create_file(sfp->class_dev,
 				       &sfp->attr_v4l_minor_number);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: device_create_file error: %d\n",
-		       __FUNCTION__, ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "device_create_file error: %d",
+			   ret);
 	} else {
 		sfp->v4l_minor_number_created_ok = !0;
 	}
@@ -873,8 +881,9 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	ret = device_create_file(sfp->class_dev,
 				       &sfp->attr_v4l_radio_minor_number);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: device_create_file error: %d\n",
-		       __FUNCTION__, ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "device_create_file error: %d",
+			   ret);
 	} else {
 		sfp->v4l_radio_minor_number_created_ok = !0;
 	}
@@ -885,8 +894,9 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	sfp->attr_unit_number.store = NULL;
 	ret = device_create_file(sfp->class_dev,&sfp->attr_unit_number);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: device_create_file error: %d\n",
-		       __FUNCTION__, ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "device_create_file error: %d",
+			   ret);
 	} else {
 		sfp->unit_number_created_ok = !0;
 	}
@@ -898,8 +908,9 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	ret = device_create_file(sfp->class_dev,
 				       &sfp->attr_bus_info);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: device_create_file error: %d\n",
-		       __FUNCTION__, ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "device_create_file error: %d",
+			   ret);
 	} else {
 		sfp->bus_info_created_ok = !0;
 	}
@@ -911,8 +922,9 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	ret = device_create_file(sfp->class_dev,
 				 &sfp->attr_hdw_name);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: device_create_file error: %d\n",
-		       __FUNCTION__, ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "device_create_file error: %d",
+			   ret);
 	} else {
 		sfp->hdw_name_created_ok = !0;
 	}
@@ -924,8 +936,9 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	ret = device_create_file(sfp->class_dev,
 				 &sfp->attr_hdw_desc);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: device_create_file error: %d\n",
-		       __FUNCTION__, ret);
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "device_create_file error: %d",
+			   ret);
 	} else {
 		sfp->hdw_desc_created_ok = !0;
 	}

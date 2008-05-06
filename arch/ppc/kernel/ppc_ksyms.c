@@ -88,6 +88,7 @@ EXPORT_SYMBOL(strncpy);
 EXPORT_SYMBOL(strcat);
 EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(strcmp);
+EXPORT_SYMBOL(strncmp);
 
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);
@@ -181,9 +182,6 @@ EXPORT_SYMBOL(cuda_poll);
 #endif /* CONFIG_ADB_CUDA */
 #if defined(CONFIG_BOOTX_TEXT)
 EXPORT_SYMBOL(btext_update_display);
-#endif
-#ifdef CONFIG_VT
-EXPORT_SYMBOL(kd_mksound);
 #endif
 EXPORT_SYMBOL(to_tm);
 

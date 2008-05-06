@@ -125,10 +125,10 @@ static int s3c24xx_spi_setupxfer(struct spi_device *spi,
 	/* is clk = pclk / (2 * (pre+1)), or is it
 	 *    clk = (pclk * 2) / ( pre + 1) */
 
-	div = (div / 2) - 1;
+	div /= 2;
 
-	if (div < 0)
-		div = 1;
+	if (div > 0)
+		div -= 1;
 
 	if (div > 255)
 		div = 255;
@@ -169,7 +169,7 @@ static int s3c24xx_spi_setup(struct spi_device *spi)
 	}
 
 	dev_dbg(&spi->dev, "%s: mode %d, %u bpw, %d hz\n",
-		__FUNCTION__, spi->mode, spi->bits_per_word,
+		__func__, spi->mode, spi->bits_per_word,
 		spi->max_speed_hz);
 
 	return 0;

@@ -37,6 +37,8 @@ static int dvb_usb_ttusb2_debug;
 module_param_named(debug,dvb_usb_ttusb2_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able))." DVB_USB_DEBUG_STATUS);
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 struct ttusb2_state {
 	u8 id;
 };
@@ -145,6 +147,7 @@ static struct tda10086_config tda10086_config = {
 	.demod_address = 0x0e,
 	.invert = 0,
 	.diseqc_tone = 1,
+	.xtal_freq = TDA10086_XTAL_16M,
 };
 
 static int ttusb2_frontend_attach(struct dvb_usb_adapter *adap)
@@ -176,17 +179,25 @@ static int ttusb2_tuner_attach(struct dvb_usb_adapter *adap)
 
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties ttusb2_properties;
+static struct dvb_usb_device_properties ttusb2_properties_s2400;
 
 static int ttusb2_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&ttusb2_properties,THIS_MODULE,NULL);
+	if (0 == dvb_usb_device_init(intf, &ttusb2_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &ttusb2_properties_s2400,
+				     THIS_MODULE, NULL, adapter_nr))
+		return 0;
+	return -ENODEV;
 }
 
 static struct usb_device_id ttusb2_table [] = {
-		{ USB_DEVICE(USB_VID_PINNACLE, USB_PID_PCTV_400E) },
-		{ USB_DEVICE(USB_VID_PINNACLE, USB_PID_PCTV_450E) },
-		{}		/* Terminating entry */
+	{ USB_DEVICE(USB_VID_PINNACLE, USB_PID_PCTV_400E) },
+	{ USB_DEVICE(USB_VID_PINNACLE, USB_PID_PCTV_450E) },
+	{ USB_DEVICE(USB_VID_TECHNOTREND,
+		USB_PID_TECHNOTREND_CONNECT_S2400) },
+	{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, ttusb2_table);
 
@@ -237,6 +248,54 @@ static struct dvb_usb_device_properties ttusb2_properties = {
 		},
 		{   "Pinnacle 450e DVB-S USB2.0",
 			{ &ttusb2_table[1], NULL },
+			{ NULL },
+		},
+	}
+};
+
+static struct dvb_usb_device_properties ttusb2_properties_s2400 = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl = CYPRESS_FX2,
+	.firmware = "dvb-usb-tt-s2400-01.fw",
+
+	.size_of_priv = sizeof(struct ttusb2_state),
+
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.streaming_ctrl   = NULL,
+
+			.frontend_attach  = ttusb2_frontend_attach,
+			.tuner_attach     = ttusb2_tuner_attach,
+
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_ISOC,
+				.count = 5,
+				.endpoint = 0x02,
+				.u = {
+					.isoc = {
+						.framesperurb = 4,
+						.framesize = 940,
+						.interval = 1,
+					}
+				}
+			}
+		}
+	},
+
+	.power_ctrl       = ttusb2_power_ctrl,
+	.identify_state   = ttusb2_identify_state,
+
+	.i2c_algo         = &ttusb2_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	.num_device_descs = 1,
+	.devices = {
+		{   "Technotrend TT-connect S-2400",
+			{ &ttusb2_table[2], NULL },
 			{ NULL },
 		},
 	}

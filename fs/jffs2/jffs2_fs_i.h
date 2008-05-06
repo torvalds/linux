@@ -15,7 +15,7 @@
 #include <linux/version.h>
 #include <linux/rbtree.h>
 #include <linux/posix_acl.h>
-#include <linux/semaphore.h>
+#include <linux/mutex.h>
 
 struct jffs2_inode_info {
 	/* We need an internal mutex similar to inode->i_mutex.
@@ -24,7 +24,7 @@ struct jffs2_inode_info {
 	   before letting GC proceed. Or we'd have to put ugliness
 	   into the GC code so it didn't attempt to obtain the i_mutex
 	   for the inode(s) which are already locked */
-	struct semaphore sem;
+	struct mutex sem;
 
 	/* The highest (datanode) version number used for this ino */
 	uint32_t highest_version;

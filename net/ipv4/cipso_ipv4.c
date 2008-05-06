@@ -983,7 +983,7 @@ static int cipso_v4_map_cat_enum_valid(const struct cipso_v4_doi *doi_def,
 		return -EFAULT;
 
 	for (iter = 0; iter < enumcat_len; iter += 2) {
-		cat = ntohs(get_unaligned((__be16 *)&enumcat[iter]));
+		cat = get_unaligned_be16(&enumcat[iter]);
 		if (cat <= cat_prev)
 			return -EFAULT;
 		cat_prev = cat;
@@ -1052,7 +1052,7 @@ static int cipso_v4_map_cat_enum_ntoh(const struct cipso_v4_doi *doi_def,
 
 	for (iter = 0; iter < net_cat_len; iter += 2) {
 		ret_val = netlbl_secattr_catmap_setbit(secattr->attr.mls.cat,
-				ntohs(get_unaligned((__be16 *)&net_cat[iter])),
+				get_unaligned_be16(&net_cat[iter]),
 				GFP_ATOMIC);
 		if (ret_val != 0)
 			return ret_val;
@@ -1086,10 +1086,9 @@ static int cipso_v4_map_cat_rng_valid(const struct cipso_v4_doi *doi_def,
 		return -EFAULT;
 
 	for (iter = 0; iter < rngcat_len; iter += 4) {
-		cat_high = ntohs(get_unaligned((__be16 *)&rngcat[iter]));
+		cat_high = get_unaligned_be16(&rngcat[iter]);
 		if ((iter + 4) <= rngcat_len)
-			cat_low = ntohs(
-				get_unaligned((__be16 *)&rngcat[iter + 2]));
+			cat_low = get_unaligned_be16(&rngcat[iter + 2]);
 		else
 			cat_low = 0;
 
@@ -1188,10 +1187,9 @@ static int cipso_v4_map_cat_rng_ntoh(const struct cipso_v4_doi *doi_def,
 	u16 cat_high;
 
 	for (net_iter = 0; net_iter < net_cat_len; net_iter += 4) {
-		cat_high = ntohs(get_unaligned((__be16 *)&net_cat[net_iter]));
+		cat_high = get_unaligned_be16(&net_cat[net_iter]);
 		if ((net_iter + 4) <= net_cat_len)
-			cat_low = ntohs(
-			      get_unaligned((__be16 *)&net_cat[net_iter + 2]));
+			cat_low = get_unaligned_be16(&net_cat[net_iter + 2]);
 		else
 			cat_low = 0;
 
@@ -1562,7 +1560,7 @@ int cipso_v4_validate(unsigned char **option)
 	}
 
 	rcu_read_lock();
-	doi_def = cipso_v4_doi_search(ntohl(get_unaligned((__be32 *)&opt[2])));
+	doi_def = cipso_v4_doi_search(get_unaligned_be32(&opt[2]));
 	if (doi_def == NULL) {
 		err_offset = 2;
 		goto validate_return_locked;
@@ -1843,7 +1841,7 @@ static int cipso_v4_getattr(const unsigned char *cipso,
 	if (cipso_v4_cache_check(cipso, cipso[1], secattr) == 0)
 		return 0;
 
-	doi = ntohl(get_unaligned((__be32 *)&cipso[2]));
+	doi = get_unaligned_be32(&cipso[2]);
 	rcu_read_lock();
 	doi_def = cipso_v4_doi_search(doi);
 	if (doi_def == NULL)

@@ -85,6 +85,7 @@ static ssize_t isapnp_proc_bus_read(struct file *file, char __user * buf,
 }
 
 static const struct file_operations isapnp_proc_bus_file_operations = {
+	.owner	= THIS_MODULE,
 	.llseek = isapnp_proc_bus_lseek,
 	.read = isapnp_proc_bus_read,
 };
@@ -102,12 +103,10 @@ static int isapnp_proc_attach_device(struct pnp_dev *dev)
 			return -ENOMEM;
 	}
 	sprintf(name, "%02x", dev->number);
-	e = dev->procent = create_proc_entry(name, S_IFREG | S_IRUGO, de);
+	e = dev->procent = proc_create_data(name, S_IFREG | S_IRUGO, de,
+			&isapnp_proc_bus_file_operations, dev);
 	if (!e)
 		return -ENOMEM;
-	e->proc_fops = &isapnp_proc_bus_file_operations;
-	e->owner = THIS_MODULE;
-	e->data = dev;
 	e->size = 256;
 	return 0;
 }
@@ -116,7 +115,7 @@ int __init isapnp_proc_init(void)
 {
 	struct pnp_dev *dev;
 
-	isapnp_proc_bus_dir = proc_mkdir("isapnp", proc_bus);
+	isapnp_proc_bus_dir = proc_mkdir("bus/isapnp", NULL);
 	protocol_for_each_dev(&isapnp_protocol, dev) {
 		isapnp_proc_attach_device(dev);
 	}

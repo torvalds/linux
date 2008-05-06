@@ -53,6 +53,8 @@
 
 #ifndef __ASSEMBLY__
 
+extern unsigned int tlb_44x_hwater;
+
 typedef struct {
 	unsigned long id;
 	unsigned long vdso_base;

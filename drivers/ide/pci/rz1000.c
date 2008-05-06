@@ -43,7 +43,7 @@ static const struct ide_port_info rz1000_chipset __devinitdata = {
 	.name		= "RZ100x",
 	.init_hwif	= init_hwif_rz1000,
 	.chipset	= ide_rz1000,
-	.host_flags	= IDE_HFLAG_NO_DMA | IDE_HFLAG_BOOTABLE,
+	.host_flags	= IDE_HFLAG_NO_DMA,
 };
 
 static int __devinit rz1000_init_one(struct pci_dev *dev, const struct pci_device_id *id)

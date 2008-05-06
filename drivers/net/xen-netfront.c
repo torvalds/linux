@@ -1803,9 +1803,11 @@ static void __exit netif_exit(void)
 	if (is_initial_xendomain())
 		return;
 
-	return xenbus_unregister_driver(&netfront);
+	xenbus_unregister_driver(&netfront);
 }
 module_exit(netif_exit);
 
 MODULE_DESCRIPTION("Xen virtual network device frontend");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("xen:vif");
+MODULE_ALIAS("xennet");

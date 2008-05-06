@@ -787,7 +787,7 @@ void __init pcmcia_setup_ioctl(void) {
 		major_dev = i;
 
 #ifdef CONFIG_PROC_FS
-	proc_pccard = proc_mkdir("pccard", proc_bus);
+	proc_pccard = proc_mkdir("bus/pccard", NULL);
 	if (proc_pccard)
 		create_proc_read_entry("drivers",0,proc_pccard,proc_read_drivers,NULL);
 #endif
@@ -798,7 +798,7 @@ void __exit pcmcia_cleanup_ioctl(void) {
 #ifdef CONFIG_PROC_FS
 	if (proc_pccard) {
 		remove_proc_entry("drivers", proc_pccard);
-		remove_proc_entry("pccard", proc_bus);
+		remove_proc_entry("bus/pccard", NULL);
 	}
 #endif
 	if (major_dev != -1)

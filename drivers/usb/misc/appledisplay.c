@@ -103,11 +103,11 @@ static void appledisplay_complete(struct urb *urb)
 	case -ESHUTDOWN:
 		/* This urb is terminated, clean up */
 		dbg("%s - urb shuttingdown with status: %d",
-			__FUNCTION__, status);
+			__func__, status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d",
-			__FUNCTION__, status);
+			__func__, status);
 		goto exit;
 	}
 
@@ -131,7 +131,7 @@ exit:
 	retval = usb_submit_urb(pdata->urb, GFP_ATOMIC);
 	if (retval) {
 		err("%s - usb_submit_urb failed with result %d",
-			__FUNCTION__, retval);
+			__func__, retval);
 	}
 }
 

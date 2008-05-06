@@ -107,10 +107,10 @@ spkm3_make_token(struct spkm3_ctx *ctx,
 		tokenlen = 10 + ctxelen + 1 + md5elen + 1;
 
 		/* Create token header using generic routines */
-		token->len = g_token_size(&ctx->mech_used, tokenlen);
+		token->len = g_token_size(&ctx->mech_used, tokenlen + 2);
 
 		ptr = token->data;
-		g_make_token_header(&ctx->mech_used, tokenlen, &ptr);
+		g_make_token_header(&ctx->mech_used, tokenlen + 2, &ptr);
 
 		spkm3_make_mic_token(&ptr, tokenlen, &mic_hdr, &md5cksum, md5elen, md5zbit);
 	} else if (toktype == SPKM_WRAP_TOK) { /* Not Supported */

@@ -79,12 +79,9 @@
 #define I2C_DRIVERID_UPD64031A	79	/* upd64031a video processor	*/
 #define I2C_DRIVERID_SAA717X	80	/* saa717x video encoder	*/
 #define I2C_DRIVERID_DS1672	81	/* Dallas/Maxim DS1672 RTC	*/
-#define I2C_DRIVERID_X1205	82	/* Xicor/Intersil X1205 RTC	*/
-#define I2C_DRIVERID_PCF8563	83	/* Philips PCF8563 RTC		*/
 #define I2C_DRIVERID_BT866	85	/* Conexant bt866 video encoder */
 #define I2C_DRIVERID_KS0127	86	/* Samsung ks0127 video decoder */
 #define I2C_DRIVERID_TLV320AIC23B 87	/* TI TLV320AIC23B audio codec  */
-#define I2C_DRIVERID_ISL1208	88	/* Intersil ISL1208 RTC		*/
 #define I2C_DRIVERID_WM8731	89	/* Wolfson WM8731 audio codec */
 #define I2C_DRIVERID_WM8750	90	/* Wolfson WM8750 audio codec */
 #define I2C_DRIVERID_WM8753	91	/* Wolfson WM8753 audio codec */
@@ -125,6 +122,7 @@
 #define I2C_HW_B_CX2341X	0x010020 /* Conexant CX2341X MPEG encoder cards */
 #define I2C_HW_B_INTELFB	0x010021 /* intel framebuffer driver */
 #define I2C_HW_B_CX23885	0x010022 /* conexant 23885 based tv cards (bus1) */
+#define I2C_HW_B_AU0828		0x010023 /* auvitek au0828 usb bridge */
 
 /* --- PCF 8584 based algorithms					*/
 #define I2C_HW_P_ELEK		0x020002 /* Elektor ISA Bus inteface card */

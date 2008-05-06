@@ -419,7 +419,7 @@ static int __devinit tcx_init_one(struct of_device *op)
 		par->mmap_map[6].size = SBUS_MMAP_EMPTY;
 	}
 
-	par->physbase = 0;
+	par->physbase = op->resource[0].start;
 	par->which_io = op->resource[0].flags & IORESOURCE_BITS;
 
 	for (i = 0; i < TCX_MMAP_ENTRIES; i++) {
@@ -470,10 +470,10 @@ static int __devinit tcx_init_one(struct of_device *op)
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk("%s: TCX at %lx:%lx, %s\n",
+	printk(KERN_INFO "%s: TCX at %lx:%lx, %s\n",
 	       dp->full_name,
 	       par->which_io,
-	       op->resource[0].start,
+	       par->physbase,
 	       par->lowdepth ? "8-bit only" : "24-bit depth");
 
 	return 0;
@@ -527,7 +527,7 @@ static struct of_platform_driver tcx_driver = {
 	.remove		= __devexit_p(tcx_remove),
 };
 
-int __init tcx_init(void)
+static int __init tcx_init(void)
 {
 	if (fb_get_options("tcxfb", NULL))
 		return -ENODEV;
@@ -535,7 +535,7 @@ int __init tcx_init(void)
 	return of_register_driver(&tcx_driver, &of_bus_type);
 }
 
-void __exit tcx_exit(void)
+static void __exit tcx_exit(void)
 {
 	of_unregister_driver(&tcx_driver);
 }

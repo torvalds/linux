@@ -316,31 +316,28 @@ static int create_cache_proc_entries(struct cache_detail *cd)
 	cd->proc_ent->owner = cd->owner;
 	cd->channel_ent = cd->content_ent = NULL;
 
-	p = proc_create("flush", S_IFREG|S_IRUSR|S_IWUSR,
-			cd->proc_ent, &cache_flush_operations);
+	p = proc_create_data("flush", S_IFREG|S_IRUSR|S_IWUSR,
+			     cd->proc_ent, &cache_flush_operations, cd);
 	cd->flush_ent = p;
 	if (p == NULL)
 		goto out_nomem;
 	p->owner = cd->owner;
-	p->data = cd;
 
 	if (cd->cache_request || cd->cache_parse) {
-		p = proc_create("channel", S_IFREG|S_IRUSR|S_IWUSR,
-				cd->proc_ent, &cache_file_operations);
+		p = proc_create_data("channel", S_IFREG|S_IRUSR|S_IWUSR,
+				     cd->proc_ent, &cache_file_operations, cd);
 		cd->channel_ent = p;
 		if (p == NULL)
 			goto out_nomem;
 		p->owner = cd->owner;
-		p->data = cd;
 	}
 	if (cd->cache_show) {
-		p = proc_create("content", S_IFREG|S_IRUSR|S_IWUSR,
-				cd->proc_ent, &content_file_operations);
+		p = proc_create_data("content", S_IFREG|S_IRUSR|S_IWUSR,
+				cd->proc_ent, &content_file_operations, cd);
 		cd->content_ent = p;
 		if (p == NULL)
 			goto out_nomem;
 		p->owner = cd->owner;
-		p->data = cd;
 	}
 	return 0;
 out_nomem:
@@ -571,7 +568,6 @@ static int cache_defer_req(struct cache_req *req, struct cache_head *item)
 		return -ETIMEDOUT;
 
 	dreq->item = item;
-	dreq->recv_time = get_seconds();
 
 	spin_lock(&cache_defer_lock);
 

@@ -22,6 +22,7 @@
 #include <linux/mempolicy.h>
 #include <linux/sem.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/key.h>
 #include <linux/binfmts.h>
 #include <linux/mman.h>
@@ -279,7 +280,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		if (!tmp)
 			goto fail_nomem;
 		*tmp = *mpnt;
-		pol = mpol_copy(vma_policy(mpnt));
+		pol = mpol_dup(vma_policy(mpnt));
 		retval = PTR_ERR(pol);
 		if (IS_ERR(pol))
 			goto fail_nomem_policy;
@@ -381,14 +382,13 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
 	mm->ioctx_list = NULL;
 	mm->free_area_cache = TASK_UNMAPPED_BASE;
 	mm->cached_hole_size = ~0UL;
-	mm_init_cgroup(mm, p);
+	mm_init_owner(mm, p);
 
 	if (likely(!mm_alloc_pgd(mm))) {
 		mm->def_flags = 0;
 		return mm;
 	}
 
-	mm_free_cgroup(mm);
 	free_mm(mm);
 	return NULL;
 }
@@ -432,13 +432,13 @@ void mmput(struct mm_struct *mm)
 	if (atomic_dec_and_test(&mm->mm_users)) {
 		exit_aio(mm);
 		exit_mmap(mm);
+		set_mm_exe_file(mm, NULL);
 		if (!list_empty(&mm->mmlist)) {
 			spin_lock(&mmlist_lock);
 			list_del(&mm->mmlist);
 			spin_unlock(&mmlist_lock);
 		}
 		put_swap_token(mm);
-		mm_free_cgroup(mm);
 		mmdrop(mm);
 	}
 }
@@ -521,7 +521,7 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
  * Allocate a new mm structure and copy contents from the
  * mm structure of the passed in task structure.
  */
-static struct mm_struct *dup_mm(struct task_struct *tsk)
+struct mm_struct *dup_mm(struct task_struct *tsk)
 {
 	struct mm_struct *mm, *oldmm = current->mm;
 	int err;
@@ -544,6 +544,8 @@ static struct mm_struct *dup_mm(struct task_struct *tsk)
 
 	if (init_new_context(tsk, mm))
 		goto fail_nocontext;
+
+	dup_mm_exe_file(oldmm, mm);
 
 	err = dup_mmap(mm, oldmm);
 	if (err)
@@ -805,12 +807,6 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 		goto out;
 	}
 
-	/*
-	 * Note: we may be using current for both targets (See exec.c)
-	 * This works because we cache current->files (old) as oldf. Don't
-	 * break this.
-	 */
-	tsk->files = NULL;
 	newf = dup_fd(oldf, &error);
 	if (!newf)
 		goto out;
@@ -845,34 +841,6 @@ static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
 #endif
 	return 0;
 }
-
-/*
- *	Helper to unshare the files of the current task.
- *	We don't want to expose copy_files internals to
- *	the exec layer of the kernel.
- */
-
-int unshare_files(void)
-{
-	struct files_struct *files  = current->files;
-	int rc;
-
-	BUG_ON(!files);
-
-	/* This can race but the race causes us to copy when we don't
-	   need to and drop the copy */
-	if(atomic_read(&files->count) == 1)
-	{
-		atomic_inc(&files->count);
-		return 0;
-	}
-	rc = copy_files(0, current);
-	if(rc)
-		current->files = files;
-	return rc;
-}
-
-EXPORT_SYMBOL(unshare_files);
 
 static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
 {
@@ -925,7 +893,7 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	sig->group_exit_code = 0;
 	sig->group_exit_task = NULL;
 	sig->group_stop_count = 0;
-	sig->curr_target = NULL;
+	sig->curr_target = tsk;
 	init_sigpending(&sig->shared_pending);
 	INIT_LIST_HEAD(&sig->posix_timers);
 
@@ -1015,6 +983,13 @@ static void rt_mutex_init_task(struct task_struct *p)
 	p->pi_blocked_on = NULL;
 #endif
 }
+
+#ifdef CONFIG_MM_OWNER
+void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
+{
+	mm->owner = p;
+}
+#endif /* CONFIG_MM_OWNER */
 
 /*
  * This creates a new process as a copy of the old one,
@@ -1150,7 +1125,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->audit_context = NULL;
 	cgroup_fork(p);
 #ifdef CONFIG_NUMA
- 	p->mempolicy = mpol_copy(p->mempolicy);
+	p->mempolicy = mpol_dup(p->mempolicy);
  	if (IS_ERR(p->mempolicy)) {
  		retval = PTR_ERR(p->mempolicy);
  		p->mempolicy = NULL;
@@ -1408,7 +1383,7 @@ bad_fork_cleanup_security:
 	security_task_free(p);
 bad_fork_cleanup_policy:
 #ifdef CONFIG_NUMA
-	mpol_free(p->mempolicy);
+	mpol_put(p->mempolicy);
 bad_fork_cleanup_cgroup:
 #endif
 	cgroup_exit(p, cgroup_callbacks_done);
@@ -1698,18 +1673,6 @@ static int unshare_fd(unsigned long unshare_flags, struct files_struct **new_fdp
 }
 
 /*
- * Unsharing of semundo for tasks created with CLONE_SYSVSEM is not
- * supported yet
- */
-static int unshare_semundo(unsigned long unshare_flags, struct sem_undo_list **new_ulistp)
-{
-	if (unshare_flags & CLONE_SYSVSEM)
-		return -EINVAL;
-
-	return 0;
-}
-
-/*
  * unshare allows a process to 'unshare' part of the process
  * context which was originally shared using clone.  copy_*
  * functions used by do_fork() cannot be used here directly
@@ -1724,8 +1687,8 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	struct sighand_struct *new_sigh = NULL;
 	struct mm_struct *mm, *new_mm = NULL, *active_mm = NULL;
 	struct files_struct *fd, *new_fd = NULL;
-	struct sem_undo_list *new_ulist = NULL;
 	struct nsproxy *new_nsproxy = NULL;
+	int do_sysvsem = 0;
 
 	check_unshare_flags(&unshare_flags);
 
@@ -1737,6 +1700,13 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 				CLONE_NEWNET))
 		goto bad_unshare_out;
 
+	/*
+	 * CLONE_NEWIPC must also detach from the undolist: after switching
+	 * to a new ipc namespace, the semaphore arrays from the old
+	 * namespace are unreachable.
+	 */
+	if (unshare_flags & (CLONE_NEWIPC|CLONE_SYSVSEM))
+		do_sysvsem = 1;
 	if ((err = unshare_thread(unshare_flags)))
 		goto bad_unshare_out;
 	if ((err = unshare_fs(unshare_flags, &new_fs)))
@@ -1747,13 +1717,17 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 		goto bad_unshare_cleanup_sigh;
 	if ((err = unshare_fd(unshare_flags, &new_fd)))
 		goto bad_unshare_cleanup_vm;
-	if ((err = unshare_semundo(unshare_flags, &new_ulist)))
-		goto bad_unshare_cleanup_fd;
 	if ((err = unshare_nsproxy_namespaces(unshare_flags, &new_nsproxy,
 			new_fs)))
-		goto bad_unshare_cleanup_semundo;
+		goto bad_unshare_cleanup_fd;
 
-	if (new_fs ||  new_mm || new_fd || new_ulist || new_nsproxy) {
+	if (new_fs ||  new_mm || new_fd || do_sysvsem || new_nsproxy) {
+		if (do_sysvsem) {
+			/*
+			 * CLONE_SYSVSEM is equivalent to sys_exit().
+			 */
+			exit_sem(current);
+		}
 
 		if (new_nsproxy) {
 			switch_task_namespaces(current, new_nsproxy);
@@ -1789,7 +1763,6 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	if (new_nsproxy)
 		put_nsproxy(new_nsproxy);
 
-bad_unshare_cleanup_semundo:
 bad_unshare_cleanup_fd:
 	if (new_fd)
 		put_files_struct(new_fd);
@@ -1810,4 +1783,28 @@ bad_unshare_cleanup_fs:
 bad_unshare_cleanup_thread:
 bad_unshare_out:
 	return err;
+}
+
+/*
+ *	Helper to unshare the files of the current task.
+ *	We don't want to expose copy_files internals to
+ *	the exec layer of the kernel.
+ */
+
+int unshare_files(struct files_struct **displaced)
+{
+	struct task_struct *task = current;
+	struct files_struct *copy = NULL;
+	int error;
+
+	error = unshare_fd(CLONE_FILES, &copy);
+	if (error || !copy) {
+		*displaced = NULL;
+		return error;
+	}
+	*displaced = task->files;
+	task_lock(task);
+	task->files = copy;
+	task_unlock(task);
+	return 0;
 }

@@ -430,6 +430,7 @@ arm1026_crval:
 	.type	arm1026_processor_functions, #object
 arm1026_processor_functions:
 	.word	v5t_early_abort
+	.word	pabort_noifar
 	.word	cpu_arm1026_proc_init
 	.word	cpu_arm1026_proc_fin
 	.word	cpu_arm1026_reset
@@ -437,7 +438,6 @@ arm1026_processor_functions:
 	.word	cpu_arm1026_dcache_clean_area
 	.word	cpu_arm1026_switch_mm
 	.word	cpu_arm1026_set_pte_ext
-	.word	pabort_noifar
 	.size	arm1026_processor_functions, . - arm1026_processor_functions
 
 	.section .rodata

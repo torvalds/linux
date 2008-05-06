@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -241,10 +241,6 @@ acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state)
 		goto cleanup;
 	}
 
-	/* Return the remainder */
-
-	walk_state->result_obj = return_desc1;
-
       cleanup:
 	/*
 	 * Since the remainder is not returned indirectly, remove a reference to
@@ -257,6 +253,12 @@ acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state)
 		/* Delete the return object */
 
 		acpi_ut_remove_reference(return_desc1);
+	}
+
+	/* Save return object (the remainder) on success */
+
+	else {
+		walk_state->result_obj = return_desc1;
 	}
 
 	return_ACPI_STATUS(status);
@@ -490,6 +492,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 
 	if (ACPI_FAILURE(status)) {
 		acpi_ut_remove_reference(return_desc);
+		walk_state->result_obj = NULL;
 	}
 
 	return_ACPI_STATUS(status);
@@ -583,14 +586,18 @@ acpi_status acpi_ex_opcode_2A_0T_1R(struct acpi_walk_state *walk_state)
 		return_desc->integer.value = ACPI_INTEGER_MAX;
 	}
 
-	walk_state->result_obj = return_desc;
-
       cleanup:
 
 	/* Delete return object on error */
 
 	if (ACPI_FAILURE(status)) {
 		acpi_ut_remove_reference(return_desc);
+	}
+
+	/* Save return object on success */
+
+	else {
+		walk_state->result_obj = return_desc;
 	}
 
 	return_ACPI_STATUS(status);

@@ -78,7 +78,7 @@ int __init bfin_isp1761_init(void)
 {
 	unsigned int num_devices = ARRAY_SIZE(bfin_isp1761_devices);
 
-	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
+	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	set_irq_type(ISP1761_IRQ, IRQF_TRIGGER_FALLING);
 
 	return platform_add_devices(bfin_isp1761_devices, num_devices);
@@ -220,6 +220,26 @@ static struct platform_device bfin_uart_device = {
 };
 #endif
 
+#if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
+static struct resource bfin_sir_resources[] = {
+#ifdef CONFIG_BFIN_SIR0
+	{
+		.start = 0xFFC00400,
+		.end = 0xFFC004FF,
+		.flags = IORESOURCE_MEM,
+	},
+#endif
+};
+
+static struct platform_device bfin_sir_device = {
+	.name = "bfin_sir",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sir_resources),
+	.resource = bfin_sir_resources,
+};
+#endif
+
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static struct mtd_partition ezkit_partitions[] = {
 	{
 		.name       = "Bootloader",
@@ -227,7 +247,7 @@ static struct mtd_partition ezkit_partitions[] = {
 		.offset     = 0,
 	}, {
 		.name       = "Kernel",
-		.size       = 0xE0000,
+		.size       = 0x1C0000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "RootFS",
@@ -257,6 +277,7 @@ static struct platform_device ezkit_flash_device = {
 	.num_resources = 1,
 	.resource      = &ezkit_flash_resource,
 };
+#endif
 
 #ifdef CONFIG_SPI_BFIN
 #if defined(CONFIG_SND_BLACKFIN_AD1836) \
@@ -443,6 +464,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bfin_uart_device,
 #endif
 
+#if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
+	&bfin_sir_device,
+#endif
+
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
 	&bfin_pata_device,
 #endif
@@ -460,7 +485,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #endif
 
 	&bfin_gpios_device,
+
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&ezkit_flash_device,
+#endif
 };
 
 static int __init ezkit_init(void)

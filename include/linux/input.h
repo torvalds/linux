@@ -1025,10 +1025,6 @@ struct ff_effect {
  * @node: used to place the device onto input_dev_list
  */
 struct input_dev {
-	/* private: */
-	void *private;	/* do not use */
-	/* public: */
-
 	const char *name;
 	const char *phys;
 	const char *uniq;
@@ -1238,12 +1234,12 @@ static inline void input_put_device(struct input_dev *dev)
 
 static inline void *input_get_drvdata(struct input_dev *dev)
 {
-	return dev->private;
+	return dev_get_drvdata(&dev->dev);
 }
 
 static inline void input_set_drvdata(struct input_dev *dev, void *data)
 {
-	dev->private = data;
+	dev_set_drvdata(&dev->dev, data);
 }
 
 int __must_check input_register_device(struct input_dev *);

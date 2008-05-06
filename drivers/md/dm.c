@@ -204,6 +204,7 @@ static int (*_inits[])(void) __initdata = {
 	dm_target_init,
 	dm_linear_init,
 	dm_stripe_init,
+	dm_kcopyd_init,
 	dm_interface_init,
 };
 
@@ -212,6 +213,7 @@ static void (*_exits[])(void) = {
 	dm_target_exit,
 	dm_linear_exit,
 	dm_stripe_exit,
+	dm_kcopyd_exit,
 	dm_interface_exit,
 };
 
@@ -922,7 +924,7 @@ static void free_minor(int minor)
 /*
  * See if the device with a specific minor # is free.
  */
-static int specific_minor(struct mapped_device *md, int minor)
+static int specific_minor(int minor)
 {
 	int r, m;
 
@@ -955,7 +957,7 @@ out:
 	return r;
 }
 
-static int next_free_minor(struct mapped_device *md, int *minor)
+static int next_free_minor(int *minor)
 {
 	int r, m;
 
@@ -966,9 +968,8 @@ static int next_free_minor(struct mapped_device *md, int *minor)
 	spin_lock(&_minor_lock);
 
 	r = idr_get_new(&_minor_idr, MINOR_ALLOCED, &m);
-	if (r) {
+	if (r)
 		goto out;
-	}
 
 	if (m >= (1 << MINORBITS)) {
 		idr_remove(&_minor_idr, m);
@@ -991,7 +992,7 @@ static struct block_device_operations dm_blk_dops;
 static struct mapped_device *alloc_dev(int minor)
 {
 	int r;
-	struct mapped_device *md = kmalloc(sizeof(*md), GFP_KERNEL);
+	struct mapped_device *md = kzalloc(sizeof(*md), GFP_KERNEL);
 	void *old_md;
 
 	if (!md) {
@@ -1004,13 +1005,12 @@ static struct mapped_device *alloc_dev(int minor)
 
 	/* get a minor number for the dev */
 	if (minor == DM_ANY_MINOR)
-		r = next_free_minor(md, &minor);
+		r = next_free_minor(&minor);
 	else
-		r = specific_minor(md, minor);
+		r = specific_minor(minor);
 	if (r < 0)
 		goto bad_minor;
 
-	memset(md, 0, sizeof(*md));
 	init_rwsem(&md->io_lock);
 	mutex_init(&md->suspend_lock);
 	spin_lock_init(&md->pushback_lock);

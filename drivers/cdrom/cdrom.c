@@ -2194,7 +2194,6 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 		if (ret)
 			break;
 
-		memset(rq->cmd, 0, sizeof(rq->cmd));
 		rq->cmd[0] = GPCMD_READ_CD;
 		rq->cmd[1] = 1 << 2;
 		rq->cmd[2] = (lba >> 24) & 0xff;

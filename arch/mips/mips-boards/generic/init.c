@@ -226,7 +226,7 @@ void __init kgdb_config(void)
 }
 #endif
 
-void __init mips_nmi_setup(void)
+static void __init mips_nmi_setup(void)
 {
 	void *base;
 	extern char except_vec_nmi;
@@ -238,7 +238,7 @@ void __init mips_nmi_setup(void)
 	flush_icache_range((unsigned long)base, (unsigned long)base + 0x80);
 }
 
-void __init mips_ejtag_setup(void)
+static void __init mips_ejtag_setup(void)
 {
 	void *base;
 	extern char except_vec_ejtag_debug;
@@ -295,15 +295,21 @@ void __init prom_init(void)
 			break;
 		case MIPS_REVISION_CORID_CORE_MSC:
 		case MIPS_REVISION_CORID_CORE_FPGA2:
-		case MIPS_REVISION_CORID_CORE_FPGA3:
-		case MIPS_REVISION_CORID_CORE_FPGA4:
 		case MIPS_REVISION_CORID_CORE_24K:
-		case MIPS_REVISION_CORID_CORE_EMUL_MSC:
+			/*
+			 * SOCit/ROCit support is essentially identical
+			 * but make an attempt to distinguish them
+			 */
 			mips_revision_sconid = MIPS_REVISION_SCON_SOCIT;
 			break;
+		case MIPS_REVISION_CORID_CORE_FPGA3:
+		case MIPS_REVISION_CORID_CORE_FPGA4:
+		case MIPS_REVISION_CORID_CORE_FPGA5:
+		case MIPS_REVISION_CORID_CORE_EMUL_MSC:
 		default:
-			mips_display_message("CC Error");
-			while (1);   /* We die here... */
+			/* See above */
+			mips_revision_sconid = MIPS_REVISION_SCON_ROCIT;
+			break;
 		}
 	}
 
@@ -417,6 +423,9 @@ void __init prom_init(void)
 	prom_meminit();
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 	console_config();
+#endif
+#ifdef CONFIG_MIPS_CMP
+	register_smp_ops(&cmp_smp_ops);
 #endif
 #ifdef CONFIG_MIPS_MT_SMP
 	register_smp_ops(&vsmp_smp_ops);

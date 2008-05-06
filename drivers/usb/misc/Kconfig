@@ -33,8 +33,8 @@ config USB_EMI26
 	  module will be called emi26.
 
 config USB_ADUTUX
-	tristate "ADU devices from Ontrak Control Systems (EXPERIMENTAL)"
-	depends on USB && EXPERIMENTAL
+	tristate "ADU devices from Ontrak Control Systems"
+	depends on USB
 	help
 	  Say Y if you want to use an ADU device from Ontrak Control
 	  Systems.
@@ -43,8 +43,8 @@ config USB_ADUTUX
 	  will be called adutux.
 
 config USB_AUERSWALD
-	tristate "USB Auerswald ISDN support (EXPERIMENTAL)"
-	depends on USB && EXPERIMENTAL
+	tristate "USB Auerswald ISDN support"
+	depends on USB
 	help
 	  Say Y here if you want to connect an Auerswald USB ISDN Device
 	  to your computer's USB port.
@@ -53,8 +53,8 @@ config USB_AUERSWALD
 	  module will be called auerswald.
 
 config USB_RIO500
-	tristate "USB Diamond Rio500 support (EXPERIMENTAL)"
-	depends on USB && EXPERIMENTAL
+	tristate "USB Diamond Rio500 support"
+	depends on USB
 	help
 	  Say Y here if you want to connect a USB Rio500 mp3 player to your
 	  computer's USB port. Please read <file:Documentation/usb/rio.txt>
@@ -64,8 +64,8 @@ config USB_RIO500
 	  module will be called rio500.
 
 config USB_LEGOTOWER
-	tristate "USB Lego Infrared Tower support (EXPERIMENTAL)"
-	depends on USB && EXPERIMENTAL
+	tristate "USB Lego Infrared Tower support"
+	depends on USB
 	help
 	  Say Y here if you want to connect a USB Lego Infrared Tower to your
 	  computer's USB port.
@@ -259,8 +259,8 @@ config USB_IOWARRIOR
 	  module will be called iowarrior.
 
 config USB_TEST
-	tristate "USB testing driver (DEVELOPMENT)"
-	depends on USB && USB_DEVICEFS && EXPERIMENTAL
+	tristate "USB testing driver"
+	depends on USB && USB_DEVICEFS
 	help
 	  This driver is for testing host controller software.  It is used
 	  with specialized device firmware for regression and stress testing,

@@ -211,8 +211,7 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 		break;
 
 	case 1: /* qp rqueue_addr */
-		ehca_dbg(qp->ib_qp.device, "qp_num=%x rqueue",
-			 qp->ib_qp.qp_num);
+		ehca_dbg(qp->ib_qp.device, "qp_num=%x rq", qp->ib_qp.qp_num);
 		ret = ehca_mmap_queue(vma, &qp->ipz_rqueue,
 				      &qp->mm_count_rqueue);
 		if (unlikely(ret)) {
@@ -224,8 +223,7 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 		break;
 
 	case 2: /* qp squeue_addr */
-		ehca_dbg(qp->ib_qp.device, "qp_num=%x squeue",
-			 qp->ib_qp.qp_num);
+		ehca_dbg(qp->ib_qp.device, "qp_num=%x sq", qp->ib_qp.qp_num);
 		ret = ehca_mmap_queue(vma, &qp->ipz_squeue,
 				      &qp->mm_count_squeue);
 		if (unlikely(ret)) {

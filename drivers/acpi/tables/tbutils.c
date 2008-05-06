@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -212,7 +212,7 @@ acpi_status acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length)
 
 	if (checksum) {
 		ACPI_WARNING((AE_INFO,
-			      "Incorrect checksum in table [%4.4s] -  %2.2X, should be %2.2X",
+			      "Incorrect checksum in table [%4.4s] - %2.2X, should be %2.2X",
 			      table->signature, table->checksum,
 			      (u8) (table->checksum - checksum)));
 

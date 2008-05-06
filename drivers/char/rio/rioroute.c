@@ -526,7 +526,7 @@ void RIOFixPhbs(struct rio_info *p, struct Host *HostP, unsigned int unit)
 			 ** If RTA is not powered on, the tx packets will be
 			 ** unset, so go no further.
 			 */
-			if (PortP->TxStart == 0) {
+			if (!PortP->TxStart) {
 				rio_dprintk(RIO_DEBUG_ROUTE, "Tx pkts not set up yet\n");
 				rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 				break;

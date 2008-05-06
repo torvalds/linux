@@ -73,7 +73,7 @@ EXPORT_SYMBOL(uaccess);
 unsigned int console_mode = 0;
 unsigned int console_devno = -1;
 unsigned int console_irq = -1;
-unsigned long machine_flags = 0;
+unsigned long machine_flags;
 unsigned long elf_hwcap = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
@@ -316,7 +316,11 @@ static int __init early_parse_ipldelay(char *p)
 early_param("ipldelay", early_parse_ipldelay);
 
 #ifdef CONFIG_S390_SWITCH_AMODE
+#ifdef CONFIG_PGSTE
+unsigned int switch_amode = 1;
+#else
 unsigned int switch_amode = 0;
+#endif
 EXPORT_SYMBOL_GPL(switch_amode);
 
 static void set_amode_and_uaccess(unsigned long user_amode,
@@ -679,15 +683,6 @@ setup_memory(void)
 #endif
 }
 
-static __init unsigned int stfl(void)
-{
-	asm volatile(
-		"	.insn	s,0xb2b10000,0(0)\n" /* stfl */
-		"0:\n"
-		EX_TABLE(0b,0b));
-	return S390_lowcore.stfl_fac_list;
-}
-
 static int __init __stfle(unsigned long long *list, int doublewords)
 {
 	typedef struct { unsigned long long _[doublewords]; } addrtype;
@@ -754,6 +749,9 @@ static void __init setup_hwcaps(void)
 			elf_hwcap |= 1UL << 6;
 	}
 
+	if (MACHINE_HAS_HPAGE)
+		elf_hwcap |= 1UL << 7;
+
 	switch (cpuinfo->cpu_id.machine) {
 	case 0x9672:
 #if !defined(CONFIG_64BIT)
@@ -797,9 +795,13 @@ setup_arch(char **cmdline_p)
 	       "This machine has an IEEE fpu\n" :
 	       "This machine has no IEEE fpu\n");
 #else /* CONFIG_64BIT */
-	printk((MACHINE_IS_VM) ?
-	       "We are running under VM (64 bit mode)\n" :
-	       "We are running native (64 bit mode)\n");
+	if (MACHINE_IS_VM)
+		printk("We are running under VM (64 bit mode)\n");
+	else if (MACHINE_IS_KVM) {
+		printk("We are running under KVM (64 bit mode)\n");
+		add_preferred_console("ttyS", 1, NULL);
+	} else
+		printk("We are running native (64 bit mode)\n");
 #endif /* CONFIG_64BIT */
 
 	/* Save unparsed command line copy for /proc/cmdline */
@@ -873,8 +875,9 @@ void __cpuinit print_cpu_info(struct cpuinfo_S390 *cpuinfo)
 
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	static const char *hwcap_str[7] = {
-		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp"
+	static const char *hwcap_str[8] = {
+		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
+		"edat"
 	};
         struct cpuinfo_S390 *cpuinfo;
 	unsigned long n = (unsigned long) v - 1;
@@ -889,7 +892,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			       num_online_cpus(), loops_per_jiffy/(500000/HZ),
 			       (loops_per_jiffy/(5000/HZ))%100);
 		seq_puts(m, "features\t: ");
-		for (i = 0; i < 7; i++)
+		for (i = 0; i < 8; i++)
 			if (hwcap_str[i] && (elf_hwcap & (1UL << i)))
 				seq_printf(m, "%s ", hwcap_str[i]);
 		seq_puts(m, "\n");

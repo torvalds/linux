@@ -190,6 +190,7 @@ static struct platform_driver armflash_driver = {
 	.remove		= armflash_remove,
 	.driver		= {
 		.name	= "armflash",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -209,3 +210,4 @@ module_exit(armflash_exit);
 MODULE_AUTHOR("ARM Ltd");
 MODULE_DESCRIPTION("ARM Integrator CFI map driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:armflash");

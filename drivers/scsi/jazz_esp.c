@@ -217,11 +217,15 @@ static int __devexit esp_jazz_remove(struct platform_device *dev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:jazz_esp");
+
 static struct platform_driver esp_jazz_driver = {
 	.probe		= esp_jazz_probe,
 	.remove		= __devexit_p(esp_jazz_remove),
 	.driver	= {
 		.name	= "jazz_esp",
+		.owner	= THIS_MODULE,
 	},
 };
 

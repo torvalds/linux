@@ -118,7 +118,7 @@ static u8 tda10023_readreg (struct tda10023_state* state, u8 reg)
 	ret = i2c_transfer (state->i2c, msg, 2);
 	if (ret != 2)
 		printk("DVB: TDA10023: %s: readreg error (ret == %i)\n",
-				 __FUNCTION__, ret);
+				 __func__, ret);
 	return b1[0];
 }
 
@@ -132,7 +132,7 @@ static int tda10023_writereg (struct tda10023_state* state, u8 reg, u8 data)
 	if (ret != 1)
 		printk("DVB: TDA10023(%d): %s, writereg error "
 			"(reg == 0x%02x, val == 0x%02x, ret == %i)\n",
-			state->frontend.dvb->num, __FUNCTION__, reg, data, ret);
+			state->frontend.dvb->num, __func__, reg, data, ret);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
 }

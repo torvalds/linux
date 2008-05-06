@@ -1208,7 +1208,7 @@ fsm_start:
 		DPRINTK("ata%u: dev %u command complete, drv_stat 0x%x\n",
 			ap->print_id, qc->dev->devno, status);
 
-		WARN_ON(qc->err_mask);
+		WARN_ON(qc->err_mask & (AC_ERR_DEV | AC_ERR_HSM));
 
 		ap->hsm_task_state = HSM_ST_IDLE;
 
@@ -1222,7 +1222,7 @@ fsm_start:
 		/* make sure qc->err_mask is available to
 		 * know what's wrong and recover
 		 */
-		WARN_ON(qc->err_mask == 0);
+		WARN_ON(!(qc->err_mask & (AC_ERR_DEV | AC_ERR_HSM)));
 
 		ap->hsm_task_state = HSM_ST_IDLE;
 

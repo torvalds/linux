@@ -1895,7 +1895,9 @@ sba_driver_callback(struct parisc_device *dev)
 	int i;
 	char *version;
 	void __iomem *sba_addr = ioremap_nocache(dev->hpa.start, SBA_FUNC_SIZE);
-	struct proc_dir_entry *info_entry, *bitmap_entry, *root;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *root;
+#endif
 
 	sba_dump_ranges(sba_addr);
 
@@ -1973,14 +1975,8 @@ sba_driver_callback(struct parisc_device *dev)
 		break;
 	}
 
-	info_entry = create_proc_entry("sba_iommu", 0, root);
-	bitmap_entry = create_proc_entry("sba_iommu-bitmap", 0, root);
-
-	if (info_entry)
-		info_entry->proc_fops = &sba_proc_fops;
-
-	if (bitmap_entry)
-		bitmap_entry->proc_fops = &sba_proc_bitmap_fops;
+	proc_create("sba_iommu", 0, root, &sba_proc_fops);
+	proc_create("sba_iommu-bitmap", 0, root, &sba_proc_bitmap_fops);
 #endif
 
 	parisc_vmerge_boundary = IOVP_SIZE;

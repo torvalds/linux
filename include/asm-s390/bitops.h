@@ -769,6 +769,7 @@ static inline int sched_find_first_bit(unsigned long *b)
 }
 
 #include <asm-generic/bitops/fls.h>
+#include <asm-generic/bitops/__fls.h>
 #include <asm-generic/bitops/fls64.h>
 
 #include <asm-generic/bitops/hweight.h>

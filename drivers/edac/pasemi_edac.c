@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
+#include <linux/edac.h>
 #include "edac_core.h"
 
 #define MODULE_NAME "pasemi_edac"
@@ -284,6 +285,9 @@ static struct pci_driver pasemi_edac_driver = {
 
 static int __init pasemi_edac_init(void)
 {
+       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
+       opstate_init();
+
 	return pci_register_driver(&pasemi_edac_driver);
 }
 
@@ -298,3 +302,6 @@ module_exit(pasemi_edac_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Egor Martovetsky <egor@pasemi.com>");
 MODULE_DESCRIPTION("MC support for PA Semi PWRficient memory controller");
+module_param(edac_op_state, int, 0444);
+MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");
+

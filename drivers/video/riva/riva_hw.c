@@ -231,7 +231,7 @@ typedef struct {
   int nvclk_khz;
   char mem_page_miss;
   char mem_latency;
-  int memory_type;
+  u32 memory_type;
   int memory_width;
   char enable_video;
   char gr_during_vid;
@@ -2107,7 +2107,7 @@ static void nv10GetConfig
 )
 {
     struct pci_dev* dev;
-    int amt;
+    u32 amt;
 
 #ifdef __BIG_ENDIAN
     /* turn on big endian register access */

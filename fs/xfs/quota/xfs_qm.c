@@ -670,7 +670,7 @@ xfs_qm_dqattach_one(
 	xfs_dquot_t	*dqp;
 	int		error;
 
-	ASSERT(XFS_ISLOCKED_INODE_EXCL(ip));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	error = 0;
 	/*
 	 * See if we already have it in the inode itself. IO_idqpp is
@@ -874,7 +874,7 @@ xfs_qm_dqattach(
 		return 0;
 
 	ASSERT((flags & XFS_QMOPT_ILOCKED) == 0 ||
-	       XFS_ISLOCKED_INODE_EXCL(ip));
+	       xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	if (! (flags & XFS_QMOPT_ILOCKED))
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -888,7 +888,8 @@ xfs_qm_dqattach(
 			goto done;
 		nquotas++;
 	}
-	ASSERT(XFS_ISLOCKED_INODE_EXCL(ip));
+
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	if (XFS_IS_OQUOTA_ON(mp)) {
 		error = XFS_IS_GQUOTA_ON(mp) ?
 			xfs_qm_dqattach_one(ip, ip->i_d.di_gid, XFS_DQ_GROUP,
@@ -913,7 +914,7 @@ xfs_qm_dqattach(
 	 * This WON'T, in general, result in a thrash.
 	 */
 	if (nquotas == 2) {
-		ASSERT(XFS_ISLOCKED_INODE_EXCL(ip));
+		ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 		ASSERT(ip->i_udquot);
 		ASSERT(ip->i_gdquot);
 
@@ -956,7 +957,7 @@ xfs_qm_dqattach(
 
 #ifdef QUOTADEBUG
 	else
-		ASSERT(XFS_ISLOCKED_INODE_EXCL(ip));
+		ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 #endif
 	return error;
 }
@@ -1291,7 +1292,7 @@ xfs_qm_dqget_noattach(
 	xfs_mount_t	*mp;
 	xfs_dquot_t	*udqp, *gdqp;
 
-	ASSERT(XFS_ISLOCKED_INODE_EXCL(ip));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	mp = ip->i_mount;
 	udqp = NULL;
 	gdqp = NULL;
@@ -1392,7 +1393,7 @@ xfs_qm_qino_alloc(
 	 * Keep an extra reference to this quota inode. This inode is
 	 * locked exclusively and joined to the transaction already.
 	 */
-	ASSERT(XFS_ISLOCKED_INODE_EXCL(*ip));
+	ASSERT(xfs_isilocked(*ip, XFS_ILOCK_EXCL));
 	VN_HOLD(XFS_ITOV((*ip)));
 
 	/*
@@ -1735,12 +1736,6 @@ xfs_qm_dqusage_adjust(
 	if ((error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_EXCL, &ip, bno))) {
 		*res = BULKSTAT_RV_NOTHING;
 		return error;
-	}
-
-	if (ip->i_d.di_mode == 0) {
-		xfs_iput_new(ip, XFS_ILOCK_EXCL);
-		*res = BULKSTAT_RV_NOTHING;
-		return XFS_ERROR(ENOENT);
 	}
 
 	/*
@@ -2563,7 +2558,7 @@ xfs_qm_vop_chown(
 	uint		bfield = XFS_IS_REALTIME_INODE(ip) ?
 				 XFS_TRANS_DQ_RTBCOUNT : XFS_TRANS_DQ_BCOUNT;
 
-	ASSERT(XFS_ISLOCKED_INODE_EXCL(ip));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(XFS_IS_QUOTA_RUNNING(ip->i_mount));
 
 	/* old dquot */
@@ -2607,7 +2602,7 @@ xfs_qm_vop_chown_reserve(
 	uint		delblks, blkflags, prjflags = 0;
 	xfs_dquot_t	*unresudq, *unresgdq, *delblksudq, *delblksgdq;
 
-	ASSERT(XFS_ISLOCKED_INODE(ip));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
 	mp = ip->i_mount;
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
 
@@ -2717,7 +2712,7 @@ xfs_qm_vop_dqattach_and_dqmod_newinode(
 	if (!XFS_IS_QUOTA_ON(tp->t_mountp))
 		return;
 
-	ASSERT(XFS_ISLOCKED_INODE_EXCL(ip));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(XFS_IS_QUOTA_RUNNING(tp->t_mountp));
 
 	if (udqp) {

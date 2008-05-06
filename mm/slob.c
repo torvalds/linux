@@ -533,7 +533,8 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 {
 	struct kmem_cache *c;
 
-	c = slob_alloc(sizeof(struct kmem_cache), flags, 0, -1);
+	c = slob_alloc(sizeof(struct kmem_cache),
+		flags, ARCH_KMALLOC_MINALIGN, -1);
 
 	if (c) {
 		c->name = name;

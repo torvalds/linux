@@ -10,7 +10,6 @@
  */
 #ifndef _LINUX_MOUNT_H
 #define _LINUX_MOUNT_H
-#ifdef __KERNEL__
 
 #include <linux/types.h>
 #include <linux/list.h>
@@ -56,6 +55,8 @@ struct vfsmount {
 	struct list_head mnt_slave;	/* slave list entry */
 	struct vfsmount *mnt_master;	/* slave is on master->mnt_slave_list */
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
+	int mnt_id;			/* mount identifier */
+	int mnt_group_id;		/* peer group identifier */
 	/*
 	 * We put mnt_count & mnt_expiry_mark at the end of struct vfsmount
 	 * to let these frequently modified fields in a separate cache line
@@ -112,5 +113,4 @@ extern void mark_mounts_for_expiry(struct list_head *mounts);
 extern spinlock_t vfsmount_lock;
 extern dev_t name_to_dev_t(char *name);
 
-#endif
 #endif /* _LINUX_MOUNT_H */

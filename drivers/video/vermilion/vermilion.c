@@ -112,8 +112,9 @@ static int vmlfb_alloc_vram_area(struct vram_area *va, unsigned max_order,
 
 	/*
 	 * It seems like __get_free_pages only ups the usage count
-	 * of the first page. This doesn't work with nopage mapping, so
-	 * up the usage count once more.
+	 * of the first page. This doesn't work with fault mapping, so
+	 * up the usage count once more (XXX: should use split_page or
+	 * compound page).
 	 */
 
 	memset((void *)va->logical, 0x00, va->size);

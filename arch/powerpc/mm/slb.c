@@ -30,7 +30,7 @@
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
 #else
-#define DBG(fmt...)
+#define DBG pr_debug
 #endif
 
 extern void slb_allocate_realmode(unsigned long ea);
@@ -44,13 +44,13 @@ static void slb_allocate(unsigned long ea)
 	slb_allocate_realmode(ea);
 }
 
+#define slb_esid_mask(ssize)	\
+	(((ssize) == MMU_SEGSIZE_256M)? ESID_MASK: ESID_MASK_1T)
+
 static inline unsigned long mk_esid_data(unsigned long ea, int ssize,
 					 unsigned long slot)
 {
-	unsigned long mask;
-
-	mask = (ssize == MMU_SEGSIZE_256M)? ESID_MASK: ESID_MASK_1T;
-	return (ea & mask) | SLB_ESID_V | slot;
+	return (ea & slb_esid_mask(ssize)) | SLB_ESID_V | slot;
 }
 
 #define slb_vsid_shift(ssize)	\
@@ -279,8 +279,8 @@ void slb_initialize(void)
 		patch_slb_encoding(slb_compare_rr_to_size,
 				   mmu_slb_size);
 
-		DBG("SLB: linear  LLP = %04x\n", linear_llp);
-		DBG("SLB: io      LLP = %04x\n", io_llp);
+		DBG("SLB: linear  LLP = %04lx\n", linear_llp);
+		DBG("SLB: io      LLP = %04lx\n", io_llp);
 	}
 
 	get_paca()->stab_rr = SLB_NUM_BOLTED;
@@ -301,11 +301,16 @@ void slb_initialize(void)
 
 	create_shadowed_slbe(VMALLOC_START, mmu_kernel_ssize, vflags, 1);
 
+	/* For the boot cpu, we're running on the stack in init_thread_union,
+	 * which is in the first segment of the linear mapping, and also
+	 * get_paca()->kstack hasn't been initialized yet.
+	 * For secondary cpus, we need to bolt the kernel stack entry now.
+	 */
 	slb_shadow_clear(2);
+	if (raw_smp_processor_id() != boot_cpuid &&
+	    (get_paca()->kstack & slb_esid_mask(mmu_kernel_ssize)) > PAGE_OFFSET)
+		create_shadowed_slbe(get_paca()->kstack,
+				     mmu_kernel_ssize, lflags, 2);
 
-	/* We don't bolt the stack for the time being - we're in boot,
-	 * so the stack is in the bolted segment.  By the time it goes
-	 * elsewhere, we'll call _switch() which will bolt in the new
-	 * one. */
 	asm volatile("isync":::"memory");
 }

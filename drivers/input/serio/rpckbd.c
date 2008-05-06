@@ -45,6 +45,7 @@
 MODULE_AUTHOR("Vojtech Pavlik, Russell King");
 MODULE_DESCRIPTION("Acorn RiscPC PS/2 keyboard controller driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:kart");
 
 static int rpckbd_write(struct serio *port, unsigned char val)
 {
@@ -140,6 +141,7 @@ static struct platform_driver rpckbd_driver = {
 	.remove		= __devexit_p(rpckbd_remove),
 	.driver		= {
 		.name	= "kart",
+		.owner	= THIS_MODULE,
 	},
 };
 

@@ -389,11 +389,11 @@ static int __ncp_ioctl(struct inode *inode, struct file *filp,
 				struct dentry* dentry = inode->i_sb->s_root;
 
 				if (dentry) {
-					struct inode* inode = dentry->d_inode;
+					struct inode* s_inode = dentry->d_inode;
 				
-					if (inode) {
-						sr.volNumber = NCP_FINFO(inode)->volNumber;
-						sr.dirEntNum = NCP_FINFO(inode)->dirEntNum;
+					if (s_inode) {
+						sr.volNumber = NCP_FINFO(s_inode)->volNumber;
+						sr.dirEntNum = NCP_FINFO(s_inode)->dirEntNum;
 						sr.namespace = server->name_space[sr.volNumber];
 					} else
 						DPRINTK("ncpfs: s_root->d_inode==NULL\n");
@@ -439,12 +439,12 @@ static int __ncp_ioctl(struct inode *inode, struct file *filp,
 			dentry = inode->i_sb->s_root;
 			server->root_setuped = 1;
 			if (dentry) {
-				struct inode* inode = dentry->d_inode;
+				struct inode* s_inode = dentry->d_inode;
 				
 				if (inode) {
-					NCP_FINFO(inode)->volNumber = vnum;
-					NCP_FINFO(inode)->dirEntNum = de;
-					NCP_FINFO(inode)->DosDirNum = dosde;
+					NCP_FINFO(s_inode)->volNumber = vnum;
+					NCP_FINFO(s_inode)->dirEntNum = de;
+					NCP_FINFO(s_inode)->DosDirNum = dosde;
 				} else
 					DPRINTK("ncpfs: s_root->d_inode==NULL\n");
 			} else
@@ -519,7 +519,6 @@ static int __ncp_ioctl(struct inode *inode, struct file *filp,
 		}
 		{
 			struct ncp_lock_ioctl	 rqdata;
-			int result;
 
 			if (copy_from_user(&rqdata, argp, sizeof(rqdata)))
 				return -EFAULT;

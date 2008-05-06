@@ -66,7 +66,7 @@ struct ufs_inode_info {
 #ifdef CONFIG_UFS_DEBUG
 #	define UFSD(f, a...)	{					\
 		printk ("UFSD (%s, %d): %s:",				\
-			__FILE__, __LINE__, __FUNCTION__);		\
+			__FILE__, __LINE__, __func__);		\
 		printk (f, ## a);					\
 	}
 #else

@@ -61,7 +61,7 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 	/* instantiate and link root dentry */
 	root = d_alloc_root(inode);
 	if (!root) {
-		pr_debug("%s: could not get root dentry!\n",__FUNCTION__);
+		pr_debug("%s: could not get root dentry!\n",__func__);
 		iput(inode);
 		return -ENOMEM;
 	}

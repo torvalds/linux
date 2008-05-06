@@ -115,11 +115,10 @@ static unsigned int __devinit init_chipset_hpt34x(struct pci_dev *dev, const cha
 	return dev->irq;
 }
 
-static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
-{
-	hwif->set_pio_mode = &hpt34x_set_pio_mode;
-	hwif->set_dma_mode = &hpt34x_set_mode;
-}
+static const struct ide_port_ops hpt34x_port_ops = {
+	.set_pio_mode		= hpt34x_set_pio_mode,
+	.set_dma_mode		= hpt34x_set_mode,
+};
 
 #define IDE_HFLAGS_HPT34X \
 	(IDE_HFLAG_NO_ATAPI_DMA | \
@@ -131,16 +130,14 @@ static const struct ide_port_info hpt34x_chipsets[] __devinitdata = {
 	{ /* 0 */
 		.name		= "HPT343",
 		.init_chipset	= init_chipset_hpt34x,
-		.init_hwif	= init_hwif_hpt34x,
-		.extra		= 16,
-		.host_flags	= IDE_HFLAGS_HPT34X,
+		.port_ops	= &hpt34x_port_ops,
+		.host_flags	= IDE_HFLAGS_HPT34X | IDE_HFLAG_NON_BOOTABLE,
 		.pio_mask	= ATA_PIO5,
 	},
 	{ /* 1 */
 		.name		= "HPT345",
 		.init_chipset	= init_chipset_hpt34x,
-		.init_hwif	= init_hwif_hpt34x,
-		.extra		= 16,
+		.port_ops	= &hpt34x_port_ops,
 		.host_flags	= IDE_HFLAGS_HPT34X | IDE_HFLAG_OFF_BOARD,
 		.pio_mask	= ATA_PIO5,
 #ifdef CONFIG_HPT34X_AUTODMA

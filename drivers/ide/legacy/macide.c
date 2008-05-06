@@ -72,9 +72,9 @@ static void __init macide_setup_ports(hw_regs_t *hw, unsigned long base,
 	memset(hw, 0, sizeof(*hw));
 
 	for (i = 0; i < 8; i++)
-		hw->io_ports[i] = base + i * 4;
+		hw->io_ports_array[i] = base + i * 4;
 
-	hw->io_ports[IDE_CONTROL_OFFSET] = base + IDE_CONTROL;
+	hw->io_ports.ctl_addr = base + IDE_CONTROL;
 
 	hw->irq = irq;
 	hw->ack_intr = ack_intr;
@@ -120,15 +120,13 @@ static int __init macide_init(void)
 
 	macide_setup_ports(&hw, base, irq, ack_intr);
 
-	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port();
 	if (hwif) {
 		u8 index = hwif->index;
 		u8 idx[4] = { index, 0xff, 0xff, 0xff };
 
 		ide_init_port_data(hwif, index);
 		ide_init_port_hw(hwif, &hw);
-
-		hwif->mmio = 1;
 
 		ide_device_add(idx, NULL);
 	}

@@ -8,8 +8,8 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/fs.h>
-#include <linux/ext4_jbd2.h>
-#include <linux/ext4_fs.h>
+#include "ext4_jbd2.h"
+#include "ext4.h"
 #include "xattr.h"
 
 #define XATTR_USER_PREFIX "user."

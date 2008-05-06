@@ -56,6 +56,7 @@ struct strbuf {
 };
 
 extern int iommu_table_init(struct iommu *iommu, int tsbsize,
-			    u32 dma_offset, u32 dma_addr_mask);
+			    u32 dma_offset, u32 dma_addr_mask,
+			    int numa_node);
 
 #endif /* !(_SPARC64_IOMMU_H) */

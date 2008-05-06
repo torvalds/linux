@@ -53,10 +53,6 @@ struct user_struct root_user = {
 	.files		= ATOMIC_INIT(0),
 	.sigpending	= ATOMIC_INIT(0),
 	.locked_shm     = 0,
-#ifdef CONFIG_KEYS
-	.uid_keyring	= &root_user_keyring,
-	.session_keyring = &root_session_keyring,
-#endif
 #ifdef CONFIG_USER_SCHED
 	.tg		= &init_task_group,
 #endif
@@ -388,7 +384,7 @@ void free_uid(struct user_struct *up)
 		local_irq_restore(flags);
 }
 
-struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
+struct user_struct *alloc_uid(struct user_namespace *ns, uid_t uid)
 {
 	struct hlist_head *hashent = uidhashentry(ns, uid);
 	struct user_struct *up, *new;
@@ -403,29 +399,15 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 	spin_unlock_irq(&uidhash_lock);
 
 	if (!up) {
-		new = kmem_cache_alloc(uid_cachep, GFP_KERNEL);
+		new = kmem_cache_zalloc(uid_cachep, GFP_KERNEL);
 		if (!new)
 			goto out_unlock;
 
 		new->uid = uid;
 		atomic_set(&new->__count, 1);
-		atomic_set(&new->processes, 0);
-		atomic_set(&new->files, 0);
-		atomic_set(&new->sigpending, 0);
-#ifdef CONFIG_INOTIFY_USER
-		atomic_set(&new->inotify_watches, 0);
-		atomic_set(&new->inotify_devs, 0);
-#endif
-#ifdef CONFIG_POSIX_MQUEUE
-		new->mq_bytes = 0;
-#endif
-		new->locked_shm = 0;
-
-		if (alloc_uid_keyring(new, current) < 0)
-			goto out_free_user;
 
 		if (sched_create_user(new) < 0)
-			goto out_put_keys;
+			goto out_free_user;
 
 		if (uids_user_create(new))
 			goto out_destoy_sched;
@@ -459,9 +441,6 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 
 out_destoy_sched:
 	sched_destroy_user(new);
-out_put_keys:
-	key_put(new->uid_keyring);
-	key_put(new->session_keyring);
 out_free_user:
 	kmem_cache_free(uid_cachep, new);
 out_unlock:

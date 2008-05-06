@@ -75,9 +75,9 @@ __init init_cris_profile(void)
 
 	sample_buffer_pos = sample_buffer;
 
-	entry = create_proc_entry("system_profile", S_IWUSR | S_IRUGO, NULL);
+	entry = proc_create("system_profile", S_IWUSR | S_IRUGO, NULL,
+			    &cris_proc_profile_operations);
 	if (entry) {
-		entry->proc_fops = &cris_proc_profile_operations;
 		entry->size = SAMPLE_BUFFER_SIZE;
 	}
 	prof_running = 1;

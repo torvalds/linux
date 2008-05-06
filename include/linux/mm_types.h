@@ -42,7 +42,10 @@ struct page {
 					 * to show when page is mapped
 					 * & limit reverse map searches.
 					 */
-		unsigned int inuse;	/* SLUB: Nr of objects */
+		struct {		/* SLUB */
+			u16 inuse;
+			u16 objects;
+		};
 	};
 	union {
 	    struct {
@@ -172,6 +175,7 @@ struct mm_struct {
 	atomic_t mm_users;			/* How many users with user space? */
 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
 	int map_count;				/* number of VMAs */
+	int core_waiters;
 	struct rw_semaphore mmap_sem;
 	spinlock_t page_table_lock;		/* Protects page tables and some counters */
 
@@ -216,14 +220,20 @@ struct mm_struct {
 	unsigned long flags; /* Must use atomic bitops to access the bits */
 
 	/* coredumping support */
-	int core_waiters;
 	struct completion *core_startup_done, core_done;
 
 	/* aio bits */
-	rwlock_t		ioctx_list_lock;
+	rwlock_t		ioctx_list_lock;	/* aio lock */
 	struct kioctx		*ioctx_list;
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-	struct mem_cgroup *mem_cgroup;
+#ifdef CONFIG_MM_OWNER
+	struct task_struct *owner;	/* The thread group leader that */
+					/* owns the mm_struct.		*/
+#endif
+
+#ifdef CONFIG_PROC_FS
+	/* store ref to file /proc/<pid>/exe symlink points to */
+	struct file *exe_file;
+	unsigned long num_exe_file_vmas;
 #endif
 };
 

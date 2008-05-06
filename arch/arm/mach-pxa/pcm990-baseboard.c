@@ -320,16 +320,13 @@ static struct soc_camera_link iclink[] = {
 static struct i2c_board_info __initdata pcm990_i2c_devices[] = {
 	{
 		/* Must initialize before the camera(s) */
-		I2C_BOARD_INFO("pca953x", 0x41),
-		.type = "pca9536",
+		I2C_BOARD_INFO("pca9536", 0x41),
 		.platform_data = &pca9536_data,
 	}, {
 		I2C_BOARD_INFO("mt9v022", 0x48),
-		.type = "mt9v022",
 		.platform_data = &iclink[0], /* With extender */
 	}, {
 		I2C_BOARD_INFO("mt9m001", 0x5d),
-		.type = "mt9m001",
 		.platform_data = &iclink[0], /* With extender */
 	},
 };

@@ -32,6 +32,31 @@
 
 	.text
 
+#ifdef CONFIG_IRQSTACKS
+_GLOBAL(call_do_softirq)
+	mflr	r0
+	stw	r0,4(r1)
+	stwu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r3)
+	mr	r1,r3
+	bl	__do_softirq
+	lwz	r1,0(r1)
+	lwz	r0,4(r1)
+	mtlr	r0
+	blr
+
+_GLOBAL(call_handle_irq)
+	mflr	r0
+	stw	r0,4(r1)
+	mtctr	r6
+	stwu	r1,THREAD_SIZE-STACK_FRAME_OVERHEAD(r5)
+	mr	r1,r5
+	bctrl
+	lwz	r1,0(r1)
+	lwz	r0,4(r1)
+	mtlr	r0
+	blr
+#endif /* CONFIG_IRQSTACKS */
+
 /*
  * This returns the high 64 bits of the product of two 64-bit numbers.
  */
@@ -152,7 +177,7 @@ _GLOBAL(low_choose_750fx_pll)
 	mtspr	SPRN_HID1,r4
 
 	/* Store new HID1 image */
-	rlwinm	r6,r1,0,0,18
+	rlwinm	r6,r1,0,0,(31-THREAD_SHIFT)
 	lwz	r6,TI_CPU(r6)
 	slwi	r6,r6,2
 	addis	r6,r6,nap_save_hid1@ha
@@ -281,7 +306,7 @@ _GLOBAL(_tlbia)
 #endif /* CONFIG_SMP */
 #else /* !(CONFIG_40x || CONFIG_44x || CONFIG_FSL_BOOKE) */
 #if defined(CONFIG_SMP)
-	rlwinm	r8,r1,0,0,18
+	rlwinm	r8,r1,0,0,(31-THREAD_SHIFT)
 	lwz	r8,TI_CPU(r8)
 	oris	r8,r8,10
 	mfmsr	r10
@@ -377,7 +402,7 @@ _GLOBAL(_tlbie)
 #endif /* CONFIG_SMP */
 #else /* !(CONFIG_40x || CONFIG_44x || CONFIG_FSL_BOOKE) */
 #if defined(CONFIG_SMP)
-	rlwinm	r8,r1,0,0,18
+	rlwinm	r8,r1,0,0,(31-THREAD_SHIFT)
 	lwz	r8,TI_CPU(r8)
 	oris	r8,r8,11
 	mfmsr	r10

@@ -321,6 +321,7 @@ __arm940_setup:
 	.type	arm940_processor_functions, #object
 ENTRY(arm940_processor_functions)
 	.word	nommu_early_abort
+	.word	pabort_noifar
 	.word	cpu_arm940_proc_init
 	.word	cpu_arm940_proc_fin
 	.word	cpu_arm940_reset

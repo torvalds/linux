@@ -7,9 +7,27 @@
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
+#include <linux/blkdev.h>
 
 struct Scsi_Host;
 struct scsi_device;
+
+/*
+ * MAX_COMMAND_SIZE is:
+ * The longest fixed-length SCSI CDB as per the SCSI standard.
+ * fixed-length means: commands that their size can be determined
+ * by their opcode and the CDB does not carry a length specifier, (unlike
+ * the VARIABLE_LENGTH_CMD(0x7f) command). This is actually not exactly
+ * true and the SCSI standard also defines extended commands and
+ * vendor specific commands that can be bigger than 16 bytes. The kernel
+ * will support these using the same infrastructure used for VARLEN CDB's.
+ * So in effect MAX_COMMAND_SIZE means the maximum size command scsi-ml
+ * supports without specifying a cmd_len by ULD's
+ */
+#define MAX_COMMAND_SIZE 16
+#if (MAX_COMMAND_SIZE > BLK_MAX_CDB)
+# error MAX_COMMAND_SIZE can not be bigger than BLK_MAX_CDB
+#endif
 
 struct scsi_data_buffer {
 	struct sg_table table;
@@ -60,12 +78,11 @@ struct scsi_cmnd {
 	int allowed;
 	int timeout_per_command;
 
-	unsigned char cmd_len;
+	unsigned short cmd_len;
 	enum dma_data_direction sc_data_direction;
 
 	/* These elements define the operation we are about to perform */
-#define MAX_COMMAND_SIZE	16
-	unsigned char cmnd[MAX_COMMAND_SIZE];
+	unsigned char *cmnd;
 
 	struct timer_list eh_timeout;	/* Used to time out the command. */
 

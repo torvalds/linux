@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,19 +97,23 @@ typedef const struct acpi_dmtable_info {
 #define ACPI_DMT_CHKSUM                 20
 #define ACPI_DMT_SPACEID                21
 #define ACPI_DMT_GAS                    22
-#define ACPI_DMT_DMAR                   23
-#define ACPI_DMT_MADT                   24
-#define ACPI_DMT_SRAT                   25
-#define ACPI_DMT_EXIT                   26
-#define ACPI_DMT_SIG                    27
+#define ACPI_DMT_ASF                    23
+#define ACPI_DMT_DMAR                   24
+#define ACPI_DMT_HEST                   25
+#define ACPI_DMT_HESTNTFY               26
+#define ACPI_DMT_HESTNTYP               27
+#define ACPI_DMT_MADT                   28
+#define ACPI_DMT_SRAT                   29
+#define ACPI_DMT_EXIT                   30
+#define ACPI_DMT_SIG                    31
 
 typedef
-void (*ACPI_TABLE_HANDLER) (struct acpi_table_header * table);
+void (*acpi_dmtable_handler) (struct acpi_table_header * table);
 
 struct acpi_dmtable_data {
 	char *signature;
 	struct acpi_dmtable_info *table_info;
-	ACPI_TABLE_HANDLER table_handler;
+	acpi_dmtable_handler table_handler;
 	char *name;
 };
 
@@ -149,6 +153,7 @@ extern struct acpi_dmtable_info acpi_dm_table_info_asf3[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf4[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf_hdr[];
 extern struct acpi_dmtable_info acpi_dm_table_info_boot[];
+extern struct acpi_dmtable_info acpi_dm_table_info_bert[];
 extern struct acpi_dmtable_info acpi_dm_table_info_cpep[];
 extern struct acpi_dmtable_info acpi_dm_table_info_cpep0[];
 extern struct acpi_dmtable_info acpi_dm_table_info_dbgp[];
@@ -158,11 +163,17 @@ extern struct acpi_dmtable_info acpi_dm_table_info_dmar_scope[];
 extern struct acpi_dmtable_info acpi_dm_table_info_dmar0[];
 extern struct acpi_dmtable_info acpi_dm_table_info_dmar1[];
 extern struct acpi_dmtable_info acpi_dm_table_info_ecdt[];
+extern struct acpi_dmtable_info acpi_dm_table_info_einj[];
+extern struct acpi_dmtable_info acpi_dm_table_info_einj0[];
+extern struct acpi_dmtable_info acpi_dm_table_info_erst[];
 extern struct acpi_dmtable_info acpi_dm_table_info_facs[];
 extern struct acpi_dmtable_info acpi_dm_table_info_fadt1[];
 extern struct acpi_dmtable_info acpi_dm_table_info_fadt2[];
 extern struct acpi_dmtable_info acpi_dm_table_info_gas[];
 extern struct acpi_dmtable_info acpi_dm_table_info_header[];
+extern struct acpi_dmtable_info acpi_dm_table_info_hest[];
+extern struct acpi_dmtable_info acpi_dm_table_info_hest9[];
+extern struct acpi_dmtable_info acpi_dm_table_info_hest_notify[];
 extern struct acpi_dmtable_info acpi_dm_table_info_hpet[];
 extern struct acpi_dmtable_info acpi_dm_table_info_madt[];
 extern struct acpi_dmtable_info acpi_dm_table_info_madt0[];
@@ -180,6 +191,7 @@ extern struct acpi_dmtable_info acpi_dm_table_info_mcfg0[];
 extern struct acpi_dmtable_info acpi_dm_table_info_rsdp1[];
 extern struct acpi_dmtable_info acpi_dm_table_info_rsdp2[];
 extern struct acpi_dmtable_info acpi_dm_table_info_sbst[];
+extern struct acpi_dmtable_info acpi_dm_table_info_slic[];
 extern struct acpi_dmtable_info acpi_dm_table_info_slit[];
 extern struct acpi_dmtable_info acpi_dm_table_info_spcr[];
 extern struct acpi_dmtable_info acpi_dm_table_info_spmi[];
@@ -194,7 +206,7 @@ extern struct acpi_dmtable_info acpi_dm_table_info_wdrt[];
  */
 void acpi_dm_dump_data_table(struct acpi_table_header *table);
 
-void
+acpi_status
 acpi_dm_dump_table(u32 table_length,
 		   u32 table_offset,
 		   void *table,
@@ -213,9 +225,13 @@ void acpi_dm_dump_cpep(struct acpi_table_header *table);
 
 void acpi_dm_dump_dmar(struct acpi_table_header *table);
 
+void acpi_dm_dump_einj(struct acpi_table_header *table);
+
+void acpi_dm_dump_erst(struct acpi_table_header *table);
+
 void acpi_dm_dump_fadt(struct acpi_table_header *table);
 
-void acpi_dm_dump_srat(struct acpi_table_header *table);
+void acpi_dm_dump_hest(struct acpi_table_header *table);
 
 void acpi_dm_dump_mcfg(struct acpi_table_header *table);
 
@@ -226,6 +242,8 @@ u32 acpi_dm_dump_rsdp(struct acpi_table_header *table);
 void acpi_dm_dump_rsdt(struct acpi_table_header *table);
 
 void acpi_dm_dump_slit(struct acpi_table_header *table);
+
+void acpi_dm_dump_srat(struct acpi_table_header *table);
 
 void acpi_dm_dump_xsdt(struct acpi_table_header *table);
 

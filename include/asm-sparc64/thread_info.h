@@ -1,5 +1,4 @@
-/* $Id: thread_info.h,v 1.1 2002/02/10 00:00:58 davem Exp $
- * thread_info.h: sparc64 low-level thread information
+/* thread_info.h: sparc64 low-level thread information
  *
  * Copyright (C) 2002  David S. Miller (davem@redhat.com)
  */
@@ -223,7 +222,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_PERFCTR		4	/* performance counters active */
 #define TIF_UNALIGNED		5	/* allowed to do unaligned accesses */
-#define TIF_NEWSIGNALS		6	/* wants new-style signals */
+/* flag bit 6 is available */
 #define TIF_32BIT		7	/* 32-bit binary */
 /* flag bit 8 is available */
 #define TIF_SECCOMP		9	/* secure computing */
@@ -242,7 +241,6 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_PERFCTR		(1<<TIF_PERFCTR)
 #define _TIF_UNALIGNED		(1<<TIF_UNALIGNED)
-#define _TIF_NEWSIGNALS		(1<<TIF_NEWSIGNALS)
 #define _TIF_32BIT		(1<<TIF_32BIT)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)

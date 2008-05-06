@@ -344,7 +344,7 @@ int rio_minor(struct tty_struct *tty)
 
 static int rio_set_real_termios(void *ptr)
 {
-	return RIOParam((struct Port *) ptr, CONFIG, 1, 1);
+	return RIOParam((struct Port *) ptr, RIOC_CONFIG, 1, 1);
 }
 
 
@@ -487,7 +487,7 @@ static int rio_get_CD(void *ptr)
 	int rv;
 
 	func_enter();
-	rv = (PortP->ModemState & MSVR1_CD) != 0;
+	rv = (PortP->ModemState & RIOC_MSVR1_CD) != 0;
 
 	rio_dprintk(RIO_DEBUG_INIT, "Getting CD status: %d\n", rv);
 
@@ -607,7 +607,8 @@ static int rio_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd
 			rio_dprintk(RIO_DEBUG_TTY, "BREAK on deleted RTA\n");
 			rc = -EIO;
 		} else {
-			if (RIOShortCommand(p, PortP, SBREAK, 2, 250) == RIO_FAIL) {
+			if (RIOShortCommand(p, PortP, RIOC_SBREAK, 2, 250) ==
+					RIO_FAIL) {
 				rio_dprintk(RIO_DEBUG_INTR, "SBREAK RIOShortCommand failed\n");
 				rc = -EIO;
 			}
@@ -622,7 +623,8 @@ static int rio_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd
 			l = arg ? arg * 100 : 250;
 			if (l > 255)
 				l = 255;
-			if (RIOShortCommand(p, PortP, SBREAK, 2, arg ? arg * 100 : 250) == RIO_FAIL) {
+			if (RIOShortCommand(p, PortP, RIOC_SBREAK, 2,
+					arg ? arg * 100 : 250) == RIO_FAIL) {
 				rio_dprintk(RIO_DEBUG_INTR, "SBREAK RIOShortCommand failed\n");
 				rc = -EIO;
 			}

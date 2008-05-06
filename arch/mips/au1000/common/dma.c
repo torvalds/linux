@@ -33,12 +33,9 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/string.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <asm/system.h>
+
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1000_dma.h>
 

@@ -278,9 +278,6 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-extern const struct inode_operations hfsplus_dir_inode_operations;
-extern struct file_operations hfsplus_dir_operations;
-
 static const struct inode_operations hfsplus_file_inode_operations = {
 	.lookup		= hfsplus_file_lookup,
 	.truncate	= hfsplus_file_truncate,

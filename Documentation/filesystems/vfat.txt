@@ -17,6 +17,21 @@ dmask=###     -- The permission mask for the directory.
 fmask=###     -- The permission mask for files.
                  The default is the umask of current process.
 
+allow_utime=### -- This option controls the permission check of mtime/atime.
+
+                  20 - If current process is in group of file's group ID,
+                       you can change timestamp.
+                   2 - Other users can change timestamp.
+
+                 The default is set from `dmask' option. (If the directory is
+                 writable, utime(2) is also allowed. I.e. ~dmask & 022)
+
+                 Normally utime(2) checks current process is owner of
+                 the file, or it has CAP_FOWNER capability.  But FAT
+                 filesystem doesn't have uid/gid on disk, so normal
+                 check is too unflexible. With this option you can
+                 relax it.
+
 codepage=###  -- Sets the codepage number for converting to shortname
 		 characters on FAT filesystem.
 		 By default, FAT_DEFAULT_CODEPAGE setting is used.

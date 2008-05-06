@@ -66,12 +66,12 @@ static void hifier_init(struct oxygen *chip)
 {
 	struct hifier_data *data = chip->model_data;
 
-	data->ak4396_ctl2 = AK4396_DEM_OFF | AK4396_DFS_NORMAL;
+	data->ak4396_ctl2 = AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
 	ak4396_write(chip, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
 	ak4396_write(chip, AK4396_CONTROL_2, data->ak4396_ctl2);
 	ak4396_write(chip, AK4396_CONTROL_3, AK4396_PCM);
-	ak4396_write(chip, AK4396_LCH_ATT, 0xff);
-	ak4396_write(chip, AK4396_RCH_ATT, 0xff);
+	ak4396_write(chip, AK4396_LCH_ATT, 0);
+	ak4396_write(chip, AK4396_RCH_ATT, 0);
 
 	snd_component_add(chip->card, "AK4396");
 	snd_component_add(chip->card, "CS5340");
@@ -127,22 +127,8 @@ static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);
 
 static int hifier_control_filter(struct snd_kcontrol_new *template)
 {
-	if (!strcmp(template->name, "Master Playback Volume")) {
-		template->access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		template->tlv.p = ak4396_db_scale;
-	} else if (!strcmp(template->name, "Stereo Upmixing")) {
+	if (!strcmp(template->name, "Stereo Upmixing"))
 		return 1; /* stereo only - we don't need upmixing */
-	} else if (!strcmp(template->name,
-			   SNDRV_CTL_NAME_IEC958("", CAPTURE, MASK)) ||
-		   !strcmp(template->name,
-			   SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT))) {
-		return 1; /* no digital input */
-	}
-	return 0;
-}
-
-static int hifier_mixer_init(struct oxygen *chip)
-{
 	return 0;
 }
 
@@ -153,18 +139,20 @@ static const struct oxygen_model model_hifier = {
 	.owner = THIS_MODULE,
 	.init = hifier_init,
 	.control_filter = hifier_control_filter,
-	.mixer_init = hifier_mixer_init,
 	.cleanup = hifier_cleanup,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_cs5340_params,
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
+	.dac_tlv = ak4396_db_scale,
 	.model_data_size = sizeof(struct hifier_data),
+	.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
+		       PLAYBACK_1_TO_SPDIF |
+		       CAPTURE_0_FROM_I2S_1,
 	.dac_channels = 2,
-	.used_channels = OXYGEN_CHANNEL_A |
-			 OXYGEN_CHANNEL_SPDIF |
-			 OXYGEN_CHANNEL_MULTICH,
-	.function_flags = 0,
+	.dac_volume_min = 0,
+	.dac_volume_max = 255,
+	.function_flags = OXYGEN_FUNCTION_SPI,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
@@ -181,7 +169,7 @@ static int __devinit hifier_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
-	err = oxygen_pci_probe(pci, index[dev], id[dev], 0, &model_hifier);
+	err = oxygen_pci_probe(pci, index[dev], id[dev], &model_hifier);
 	if (err >= 0)
 		++dev;
 	return err;

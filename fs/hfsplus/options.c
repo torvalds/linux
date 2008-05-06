@@ -132,7 +132,8 @@ int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)
 				return 0;
 			}
 			p = match_strdup(&args[0]);
-			sbi->nls = load_nls(p);
+			if (p)
+				sbi->nls = load_nls(p);
 			if (!sbi->nls) {
 				printk(KERN_ERR "hfs: unable to load nls mapping \"%s\"\n", p);
 				kfree(p);

@@ -40,8 +40,8 @@ struct hashtab_info {
  * the new hash table otherwise.
  */
 struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *key),
-                               int (*keycmp)(struct hashtab *h, const void *key1, const void *key2),
-                               u32 size);
+			       int (*keycmp)(struct hashtab *h, const void *key1, const void *key2),
+			       u32 size);
 
 /*
  * Inserts the specified (key, datum) pair into the specified hash table.
@@ -49,7 +49,7 @@ struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *
  * Returns -ENOMEM on memory allocation error,
  * -EEXIST if there is already an entry with the same key,
  * -EINVAL for general errors or
- * 0 otherwise.
+  0 otherwise.
  */
 int hashtab_insert(struct hashtab *h, void *k, void *d);
 

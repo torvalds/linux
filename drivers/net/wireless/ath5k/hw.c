@@ -304,14 +304,20 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 		ah->ah_radio = AR5K_RF2413;
 		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
 	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC2) {
-
 		ah->ah_radio = AR5K_RF5413;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5133) {
 
-		if (ah->ah_mac_srev <= AR5K_SREV_VER_AR5424 &&
-			ah->ah_mac_srev >= AR5K_SREV_VER_AR2424)
+		/* AR5424 */
+		if (srev >= AR5K_SREV_VER_AR5424) {
+			ah->ah_radio = AR5K_RF5413;
 			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5424;
-		else
+		/* AR2424 */
+		} else {
+			ah->ah_radio = AR5K_RF2413; /* For testing */
 			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
+		}
+
 	/*
 	 * Register returns 0x4 for radio revision
 	 * so ath5k_hw_radio_revision doesn't parse the value

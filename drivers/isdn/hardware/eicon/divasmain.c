@@ -393,7 +393,7 @@ void diva_free_dma_map(void *hdev, struct _diva_dma_map_entry *pmap)
 	dma_addr_t dma_handle;
 	void *addr_handle;
 
-	for (i = 0; (pmap != 0); i++) {
+	for (i = 0; (pmap != NULL); i++) {
 		diva_get_dma_map_entry(pmap, i, &cpu_addr, &phys_addr);
 		if (!cpu_addr) {
 			break;
