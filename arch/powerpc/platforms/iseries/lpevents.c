@@ -330,15 +330,11 @@ static const struct file_operations proc_lpevents_operations = {
 
 static int __init proc_lpevents_init(void)
 {
-	struct proc_dir_entry *e;
-
 	if (!firmware_has_feature(FW_FEATURE_ISERIES))
 		return 0;
 
-	e = create_proc_entry("iSeries/lpevents", S_IFREG|S_IRUGO, NULL);
-	if (e)
-		e->proc_fops = &proc_lpevents_operations;
-
+	proc_create("iSeries/lpevents", S_IFREG|S_IRUGO, NULL,
+		    &proc_lpevents_operations);
 	return 0;
 }
 __initcall(proc_lpevents_init);

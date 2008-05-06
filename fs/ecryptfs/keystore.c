@@ -65,7 +65,7 @@ static int process_request_key_err(long err_code)
 }
 
 /**
- * parse_packet_length
+ * ecryptfs_parse_packet_length
  * @data: Pointer to memory containing length at offset
  * @size: This function writes the decoded size to this memory
  *        address; zero on error
@@ -73,8 +73,8 @@ static int process_request_key_err(long err_code)
  *
  * Returns zero on success; non-zero on error
  */
-static int parse_packet_length(unsigned char *data, size_t *size,
-			       size_t *length_size)
+int ecryptfs_parse_packet_length(unsigned char *data, size_t *size,
+				 size_t *length_size)
 {
 	int rc = 0;
 
@@ -105,7 +105,7 @@ out:
 }
 
 /**
- * write_packet_length
+ * ecryptfs_write_packet_length
  * @dest: The byte array target into which to write the length. Must
  *        have at least 5 bytes allocated.
  * @size: The length to write.
@@ -114,8 +114,8 @@ out:
  *
  * Returns zero on success; non-zero on error.
  */
-static int write_packet_length(char *dest, size_t size,
-			       size_t *packet_size_length)
+int ecryptfs_write_packet_length(char *dest, size_t size,
+				 size_t *packet_size_length)
 {
 	int rc = 0;
 
@@ -162,8 +162,8 @@ write_tag_64_packet(char *signature, struct ecryptfs_session_key *session_key,
 		goto out;
 	}
 	message[i++] = ECRYPTFS_TAG_64_PACKET_TYPE;
-	rc = write_packet_length(&message[i], ECRYPTFS_SIG_SIZE_HEX,
-				 &packet_size_len);
+	rc = ecryptfs_write_packet_length(&message[i], ECRYPTFS_SIG_SIZE_HEX,
+					  &packet_size_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 64 packet "
 				"header; cannot generate packet length\n");
@@ -172,8 +172,9 @@ write_tag_64_packet(char *signature, struct ecryptfs_session_key *session_key,
 	i += packet_size_len;
 	memcpy(&message[i], signature, ECRYPTFS_SIG_SIZE_HEX);
 	i += ECRYPTFS_SIG_SIZE_HEX;
-	rc = write_packet_length(&message[i], session_key->encrypted_key_size,
-				 &packet_size_len);
+	rc = ecryptfs_write_packet_length(&message[i],
+					  session_key->encrypted_key_size,
+					  &packet_size_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 64 packet "
 				"header; cannot generate packet length\n");
@@ -225,7 +226,7 @@ parse_tag_65_packet(struct ecryptfs_session_key *session_key, u8 *cipher_code,
 		rc = -EIO;
 		goto out;
 	}
-	rc = parse_packet_length(&data[i], &m_size, &data_len);
+	rc = ecryptfs_parse_packet_length(&data[i], &m_size, &data_len);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error parsing packet length; "
 				"rc = [%d]\n", rc);
@@ -304,8 +305,8 @@ write_tag_66_packet(char *signature, u8 cipher_code,
 		goto out;
 	}
 	message[i++] = ECRYPTFS_TAG_66_PACKET_TYPE;
-	rc = write_packet_length(&message[i], ECRYPTFS_SIG_SIZE_HEX,
-				 &packet_size_len);
+	rc = ecryptfs_write_packet_length(&message[i], ECRYPTFS_SIG_SIZE_HEX,
+					  &packet_size_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 66 packet "
 				"header; cannot generate packet length\n");
@@ -315,8 +316,8 @@ write_tag_66_packet(char *signature, u8 cipher_code,
 	memcpy(&message[i], signature, ECRYPTFS_SIG_SIZE_HEX);
 	i += ECRYPTFS_SIG_SIZE_HEX;
 	/* The encrypted key includes 1 byte cipher code and 2 byte checksum */
-	rc = write_packet_length(&message[i], crypt_stat->key_size + 3,
-				 &packet_size_len);
+	rc = ecryptfs_write_packet_length(&message[i], crypt_stat->key_size + 3,
+					  &packet_size_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 66 packet "
 				"header; cannot generate packet length\n");
@@ -357,20 +358,25 @@ parse_tag_67_packet(struct ecryptfs_key_record *key_rec,
 	/* verify that everything through the encrypted FEK size is present */
 	if (message_len < 4) {
 		rc = -EIO;
+		printk(KERN_ERR "%s: message_len is [%Zd]; minimum acceptable "
+		       "message length is [%d]\n", __func__, message_len, 4);
 		goto out;
 	}
 	if (data[i++] != ECRYPTFS_TAG_67_PACKET_TYPE) {
-		ecryptfs_printk(KERN_ERR, "Type should be ECRYPTFS_TAG_67\n");
 		rc = -EIO;
+		printk(KERN_ERR "%s: Type should be ECRYPTFS_TAG_67\n",
+		       __func__);
 		goto out;
 	}
 	if (data[i++]) {
-		ecryptfs_printk(KERN_ERR, "Status indicator has non zero value"
-				" [%d]\n", data[i-1]);
 		rc = -EIO;
+		printk(KERN_ERR "%s: Status indicator has non zero "
+		       "value [%d]\n", __func__, data[i-1]);
+
 		goto out;
 	}
-	rc = parse_packet_length(&data[i], &key_rec->enc_key_size, &data_len);
+	rc = ecryptfs_parse_packet_length(&data[i], &key_rec->enc_key_size,
+					  &data_len);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error parsing packet length; "
 				"rc = [%d]\n", rc);
@@ -378,17 +384,17 @@ parse_tag_67_packet(struct ecryptfs_key_record *key_rec,
 	}
 	i += data_len;
 	if (message_len < (i + key_rec->enc_key_size)) {
-		ecryptfs_printk(KERN_ERR, "message_len [%d]; max len is [%d]\n",
-				message_len, (i + key_rec->enc_key_size));
 		rc = -EIO;
+		printk(KERN_ERR "%s: message_len [%Zd]; max len is [%Zd]\n",
+		       __func__, message_len, (i + key_rec->enc_key_size));
 		goto out;
 	}
 	if (key_rec->enc_key_size > ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES) {
-		ecryptfs_printk(KERN_ERR, "Encrypted key_size [%d] larger than "
-				"the maximum key size [%d]\n",
-				key_rec->enc_key_size,
-				ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES);
 		rc = -EIO;
+		printk(KERN_ERR "%s: Encrypted key_size [%Zd] larger than "
+		       "the maximum key size [%d]\n", __func__,
+		       key_rec->enc_key_size,
+		       ECRYPTFS_MAX_ENCRYPTED_KEY_BYTES);
 		goto out;
 	}
 	memcpy(key_rec->enc_key, &data[i], key_rec->enc_key_size);
@@ -445,7 +451,7 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	rc = write_tag_64_packet(auth_tok_sig, &(auth_tok->session_key),
 				 &netlink_message, &netlink_message_length);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Failed to write tag 64 packet");
+		ecryptfs_printk(KERN_ERR, "Failed to write tag 64 packet\n");
 		goto out;
 	}
 	rc = ecryptfs_send_message(ecryptfs_transport, netlink_message,
@@ -570,8 +576,8 @@ parse_tag_1_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		goto out;
 	}
 	(*new_auth_tok) = &auth_tok_list_item->auth_tok;
-	rc = parse_packet_length(&data[(*packet_size)], &body_size,
-				 &length_size);
+	rc = ecryptfs_parse_packet_length(&data[(*packet_size)], &body_size,
+					  &length_size);
 	if (rc) {
 		printk(KERN_WARNING "Error parsing packet length; "
 		       "rc = [%d]\n", rc);
@@ -704,8 +710,8 @@ parse_tag_3_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		goto out;
 	}
 	(*new_auth_tok) = &auth_tok_list_item->auth_tok;
-	rc = parse_packet_length(&data[(*packet_size)], &body_size,
-				 &length_size);
+	rc = ecryptfs_parse_packet_length(&data[(*packet_size)], &body_size,
+					  &length_size);
 	if (rc) {
 		printk(KERN_WARNING "Error parsing packet length; rc = [%d]\n",
 		       rc);
@@ -852,8 +858,8 @@ parse_tag_11_packet(unsigned char *data, unsigned char *contents,
 		rc = -EINVAL;
 		goto out;
 	}
-	rc = parse_packet_length(&data[(*packet_size)], &body_size,
-				 &length_size);
+	rc = ecryptfs_parse_packet_length(&data[(*packet_size)], &body_size,
+					  &length_size);
 	if (rc) {
 		printk(KERN_WARNING "Invalid tag 11 packet format\n");
 		goto out;
@@ -1405,8 +1411,8 @@ write_tag_1_packet(char *dest, size_t *remaining_bytes,
 			auth_tok->token.private_key.key_size;
 	rc = pki_encrypt_session_key(auth_tok, crypt_stat, key_rec);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Failed to encrypt session key "
-				"via a pki");
+		printk(KERN_ERR "Failed to encrypt session key via a key "
+		       "module; rc = [%d]\n", rc);
 		goto out;
 	}
 	if (ecryptfs_verbosity > 0) {
@@ -1430,8 +1436,9 @@ encrypted_session_key_set:
 		goto out;
 	}
 	dest[(*packet_size)++] = ECRYPTFS_TAG_1_PACKET_TYPE;
-	rc = write_packet_length(&dest[(*packet_size)], (max_packet_size - 4),
-				 &packet_size_length);
+	rc = ecryptfs_write_packet_length(&dest[(*packet_size)],
+					  (max_packet_size - 4),
+					  &packet_size_length);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 1 packet "
 				"header; cannot generate packet length\n");
@@ -1489,8 +1496,9 @@ write_tag_11_packet(char *dest, size_t *remaining_bytes, char *contents,
 		goto out;
 	}
 	dest[(*packet_length)++] = ECRYPTFS_TAG_11_PACKET_TYPE;
-	rc = write_packet_length(&dest[(*packet_length)],
-				 (max_packet_size - 4), &packet_size_length);
+	rc = ecryptfs_write_packet_length(&dest[(*packet_length)],
+					  (max_packet_size - 4),
+					  &packet_size_length);
 	if (rc) {
 		printk(KERN_ERR "Error generating tag 11 packet header; cannot "
 		       "generate packet length. rc = [%d]\n", rc);
@@ -1682,8 +1690,9 @@ encrypted_session_key_set:
 	dest[(*packet_size)++] = ECRYPTFS_TAG_3_PACKET_TYPE;
 	/* Chop off the Tag 3 identifier(1) and Tag 3 packet size(3)
 	 * to get the number of octets in the actual Tag 3 packet */
-	rc = write_packet_length(&dest[(*packet_size)], (max_packet_size - 4),
-				 &packet_size_length);
+	rc = ecryptfs_write_packet_length(&dest[(*packet_size)],
+					  (max_packet_size - 4),
+					  &packet_size_length);
 	if (rc) {
 		printk(KERN_ERR "Error generating tag 3 packet header; cannot "
 		       "generate packet length. rc = [%d]\n", rc);

@@ -79,12 +79,9 @@
 #define I2C_DRIVERID_UPD64031A	79	/* upd64031a video processor	*/
 #define I2C_DRIVERID_SAA717X	80	/* saa717x video encoder	*/
 #define I2C_DRIVERID_DS1672	81	/* Dallas/Maxim DS1672 RTC	*/
-#define I2C_DRIVERID_X1205	82	/* Xicor/Intersil X1205 RTC	*/
-#define I2C_DRIVERID_PCF8563	83	/* Philips PCF8563 RTC		*/
 #define I2C_DRIVERID_BT866	85	/* Conexant bt866 video encoder */
 #define I2C_DRIVERID_KS0127	86	/* Samsung ks0127 video decoder */
 #define I2C_DRIVERID_TLV320AIC23B 87	/* TI TLV320AIC23B audio codec  */
-#define I2C_DRIVERID_ISL1208	88	/* Intersil ISL1208 RTC		*/
 #define I2C_DRIVERID_WM8731	89	/* Wolfson WM8731 audio codec */
 #define I2C_DRIVERID_WM8750	90	/* Wolfson WM8750 audio codec */
 #define I2C_DRIVERID_WM8753	91	/* Wolfson WM8753 audio codec */

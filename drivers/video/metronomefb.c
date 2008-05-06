@@ -206,8 +206,7 @@ static int load_waveform(u8 *mem, size_t size, u8 *metromem, int m, int t,
 	}
 
 	/* check waveform mode table address checksum */
-	wmta = le32_to_cpu(get_unaligned((__le32 *) wfm_hdr->wmta));
-	wmta &= 0x00FFFFFF;
+	wmta = get_unaligned_le32(wfm_hdr->wmta) & 0x00FFFFFF;
 	cksum_idx = wmta + m*4 + 3;
 	if (cksum_idx > size)
 		return -EINVAL;
@@ -219,8 +218,7 @@ static int load_waveform(u8 *mem, size_t size, u8 *metromem, int m, int t,
 	}
 
 	/* check waveform temperature table address checksum */
-	tta = le32_to_cpu(get_unaligned((int *) (mem + wmta + m*4)));
-	tta &= 0x00FFFFFF;
+	tta = get_unaligned_le32(mem + wmta + m * 4) & 0x00FFFFFF;
 	cksum_idx = tta + trn*4 + 3;
 	if (cksum_idx > size)
 		return -EINVAL;
@@ -233,8 +231,7 @@ static int load_waveform(u8 *mem, size_t size, u8 *metromem, int m, int t,
 
 	/* here we do the real work of putting the waveform into the
 	metromem buffer. this does runlength decoding of the waveform */
-	wfm_idx = le32_to_cpu(get_unaligned((__le32 *) (mem + tta + trn*4)));
-	wfm_idx &= 0x00FFFFFF;
+	wfm_idx = get_unaligned_le32(mem + tta + trn * 4) & 0x00FFFFFF;
 	owfm_idx = wfm_idx;
 	if (wfm_idx > size)
 		return -EINVAL;

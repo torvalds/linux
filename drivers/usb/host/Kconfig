@@ -4,6 +4,19 @@
 comment "USB Host Controller Drivers"
 	depends on USB
 
+config USB_C67X00_HCD
+	tristate "Cypress C67x00 HCD support"
+	depends on USB
+	help
+	  The Cypress C67x00 (EZ-Host/EZ-OTG) chips are dual-role
+	  host/peripheral/OTG USB controllers.
+
+	  Enable this option to support this chip in host controller mode.
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called c67x00.
+
 config USB_EHCI_HCD
 	tristate "EHCI HCD (USB 2.0) support"
 	depends on USB && USB_ARCH_HAS_EHCI
@@ -94,6 +107,32 @@ config USB_ISP116X_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp116x-hcd.
+
+config USB_ISP1760_HCD
+	tristate "ISP 1760 HCD support"
+	depends on USB && EXPERIMENTAL
+	---help---
+	  The ISP1760 chip is a USB 2.0 host controller.
+
+	  This driver does not support isochronous transfers or OTG.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called isp1760-hcd.
+
+config USB_ISP1760_PCI
+	bool "Support for the PCI bus"
+	depends on USB_ISP1760_HCD && PCI
+	---help---
+	  Enables support for the device present on the PCI bus.
+	  This should only be required if you happen to have the eval kit from
+	  NXP and you are going to test it.
+
+config USB_ISP1760_OF
+	bool "Support for the OF platform bus"
+	depends on USB_ISP1760_HCD && OF
+	---help---
+	  Enables support for the device present on the PowerPC
+	  OpenFirmware platform bus.
 
 config USB_OHCI_HCD
 	tristate "OHCI HCD support"

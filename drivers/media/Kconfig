@@ -5,16 +5,20 @@
 menu "Multimedia devices"
 	depends on HAS_IOMEM
 
+comment "Multimedia core support"
+
+#
+# V4L core and enabled API's
+#
+
 config VIDEO_DEV
 	tristate "Video For Linux"
 	---help---
-	  Support for audio/video capture and overlay devices and FM radio
-	  cards. The exact capabilities of each device vary.
+	  V4L core support for video capture and overlay devices, webcams and
+	  AM/FM radio cards.
 
 	  This kernel includes support for the new Video for Linux Two API,
-	  (V4L2) as well as the original system. Drivers and applications
-	  need to be rewritten to use V4L2, but drivers for popular cards
-	  and applications for most video capture functions already exist.
+	  (V4L2).
 
 	  Additional info and docs are available on the web at
 	  <http://linuxtv.org>
@@ -36,8 +40,11 @@ config VIDEO_ALLOW_V4L1
 	default VIDEO_DEV && VIDEO_V4L2_COMMON
 	select VIDEO_V4L1_COMPAT
 	---help---
-	  Enables a compatibility API used by most V4L2 devices to allow
-	  its usage with legacy applications that supports only V4L1 api.
+	  Enables drivers based on the legacy V4L1 API.
+
+	  This api were developed to be used at Kernel 2.2 and 2.4, but
+	  lacks support for several video standards. There are several
+	  drivers at kernel that still depends on it.
 
 	  If you are unsure as to whether this is required, answer Y.
 
@@ -46,9 +53,8 @@ config VIDEO_V4L1_COMPAT
 	depends on VIDEO_DEV
 	default VIDEO_DEV
 	---help---
-	  This api were developed to be used at Kernel 2.2 and 2.4, but
-	  lacks support for several video standards. There are several
-	  drivers at kernel that still depends on it.
+	  Enables a compatibility API used by most V4L2 devices to allow
+	  its usage with legacy applications that supports only V4L1 api.
 
 	  Documentation for the original API is included in the file
 	  <Documentation/video4linux/API.html>.
@@ -58,135 +64,57 @@ config VIDEO_V4L1_COMPAT
 
 	  If you are unsure as to whether this is required, answer Y.
 
-config VIDEO_V4L2
-	tristate
-	depends on VIDEO_DEV && VIDEO_V4L2_COMMON
-	default VIDEO_DEV && VIDEO_V4L2_COMMON
+#
+# DVB Core
+#
 
-config VIDEO_V4L1
+config DVB_CORE
+	tristate "DVB for Linux"
+	depends on NET && INET
+	select CRC32
+	help
+	  DVB core utility functions for device handling, software fallbacks etc.
+
+	  Enable this if you own a DVB/ATSC adapter and want to use it or if
+	  you compile Linux for a digital SetTopBox.
+
+	  Say Y when you have a DVB or an ATSC card and want to use it.
+
+	  API specs and user tools are available from <http://www.linuxtv.org/>.
+
+	  Please report problems regarding this support to the LinuxDVB
+	  mailing list.
+
+	  If unsure say N.
+
+config VIDEO_MEDIA
 	tristate
-	depends on VIDEO_DEV && VIDEO_V4L2_COMMON && VIDEO_ALLOW_V4L1
-	default VIDEO_DEV && VIDEO_V4L2_COMMON && VIDEO_ALLOW_V4L1
+	default DVB_CORE || VIDEO_DEV
+	depends on DVB_CORE || VIDEO_DEV
+
+comment "Multimedia drivers"
+
+source "drivers/media/common/Kconfig"
+
+#
+# Tuner drivers for DVB and V4L
+#
+
+source "drivers/media/common/tuners/Kconfig"
+
+#
+# Video/Radio/Hybrid adapters
+#
 
 source "drivers/media/video/Kconfig"
 
 source "drivers/media/radio/Kconfig"
 
+#
+# DVB adapters
+#
+
 source "drivers/media/dvb/Kconfig"
-
-source "drivers/media/common/Kconfig"
-
-config VIDEO_TUNER
-	tristate
-	depends on I2C
-	select TUNER_XC2028 if !VIDEO_TUNER_CUSTOMIZE
-	select TUNER_MT20XX if !VIDEO_TUNER_CUSTOMIZE
-	select TUNER_TDA8290 if !VIDEO_TUNER_CUSTOMIZE
-	select TUNER_TEA5761 if !VIDEO_TUNER_CUSTOMIZE
-	select TUNER_TEA5767 if !VIDEO_TUNER_CUSTOMIZE
-	select TUNER_SIMPLE if !VIDEO_TUNER_CUSTOMIZE
-	select TUNER_TDA9887 if !VIDEO_TUNER_CUSTOMIZE
-
-menuconfig VIDEO_TUNER_CUSTOMIZE
-	bool "Customize analog tuner modules to build"
-	depends on VIDEO_TUNER
-	help
-	  This allows the user to deselect tuner drivers unnecessary
-	  for their hardware from the build. Use this option with care
-	  as deselecting tuner drivers which are in fact necessary will
-	  result in V4L devices which cannot be tuned due to lack of
-	  driver support
-
-	  If unsure say N.
-
-if VIDEO_TUNER_CUSTOMIZE
-
-config TUNER_XC2028
-	tristate "XCeive xc2028/xc3028 tuners"
-	depends on I2C && FW_LOADER
-	default m if VIDEO_TUNER_CUSTOMIZE
-	help
-	  Say Y here to include support for the xc2028/xc3028 tuners.
-
-config TUNER_MT20XX
-	tristate "Microtune 2032 / 2050 tuners"
-	depends on I2C
-	default m if VIDEO_TUNER_CUSTOMIZE
-	help
-	  Say Y here to include support for the MT2032 / MT2050 tuner.
-
-config TUNER_TDA8290
-	tristate "TDA 8290/8295 + 8275(a)/18271 tuner combo"
-	depends on I2C
-	select DVB_TDA827X
-	select DVB_TDA18271
-	default m if VIDEO_TUNER_CUSTOMIZE
-	help
-	  Say Y here to include support for Philips TDA8290+8275(a) tuner.
-
-config TUNER_TEA5761
-	tristate "TEA 5761 radio tuner (EXPERIMENTAL)"
-	depends on I2C && EXPERIMENTAL
-	default m if VIDEO_TUNER_CUSTOMIZE
-	help
-	  Say Y here to include support for the Philips TEA5761 radio tuner.
-
-config TUNER_TEA5767
-	tristate "TEA 5767 radio tuner"
-	depends on I2C
-	default m if VIDEO_TUNER_CUSTOMIZE
-	help
-	  Say Y here to include support for the Philips TEA5767 radio tuner.
-
-config TUNER_SIMPLE
-	tristate "Simple tuner support"
-	depends on I2C
-	select TUNER_TDA9887
-	default m if VIDEO_TUNER_CUSTOMIZE
-	help
-	  Say Y here to include support for various simple tuners.
-
-config TUNER_TDA9887
-	tristate "TDA 9885/6/7 analog IF demodulator"
-	depends on I2C
-	default m if VIDEO_TUNER_CUSTOMIZE
-	help
-	  Say Y here to include support for Philips TDA9885/6/7
-	  analog IF demodulator.
-
-endif # VIDEO_TUNER_CUSTOMIZE
-
-config VIDEOBUF_GEN
-	tristate
-
-config VIDEOBUF_DMA_SG
-	depends on HAS_DMA
-	select VIDEOBUF_GEN
-	tristate
-
-config VIDEOBUF_VMALLOC
-	select VIDEOBUF_GEN
-	tristate
-
-config VIDEOBUF_DVB
-	tristate
-	select VIDEOBUF_GEN
-	select VIDEOBUF_DMA_SG
-
-config VIDEO_BTCX
-	tristate
-
-config VIDEO_IR_I2C
-	tristate
-
-config VIDEO_IR
-	tristate
-	depends on INPUT
-	select VIDEO_IR_I2C if I2C
-
-config VIDEO_TVEEPROM
-	tristate
-	depends on I2C
 
 config DAB
 	boolean "DAB adapters"

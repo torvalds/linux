@@ -29,6 +29,8 @@
 
 #include <asm/tlbflush.h>
 
+#include "internal.h"
+
 /* add this memory to iomem resource */
 static struct resource *register_memory_resource(u64 start, u64 size)
 {

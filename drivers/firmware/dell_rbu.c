@@ -123,7 +123,7 @@ static int create_packet(void *data, size_t length)
 	if (!newpacket) {
 		printk(KERN_WARNING
 			"dell_rbu:%s: failed to allocate new "
-			"packet\n", __FUNCTION__);
+			"packet\n", __func__);
 		retval = -ENOMEM;
 		spin_lock(&rbu_data.lock);
 		goto out_noalloc;
@@ -152,7 +152,7 @@ static int create_packet(void *data, size_t length)
 		printk(KERN_WARNING
 			"dell_rbu:%s: failed to allocate "
 			"invalid_addr_packet_array \n",
-			__FUNCTION__);
+			__func__);
 		retval = -ENOMEM;
 		spin_lock(&rbu_data.lock);
 		goto out_alloc_packet;
@@ -164,7 +164,7 @@ static int create_packet(void *data, size_t length)
 		if (!packet_data_temp_buf) {
 			printk(KERN_WARNING
 				"dell_rbu:%s: failed to allocate new "
-				"packet\n", __FUNCTION__);
+				"packet\n", __func__);
 			retval = -ENOMEM;
 			spin_lock(&rbu_data.lock);
 			goto out_alloc_packet_array;
@@ -416,7 +416,7 @@ static int img_update_realloc(unsigned long size)
 		 */
 		if ((size != 0) && (rbu_data.image_update_buffer == NULL)) {
 			printk(KERN_ERR "dell_rbu:%s: corruption "
-				"check failed\n", __FUNCTION__);
+				"check failed\n", __func__);
 			return -EINVAL;
 		}
 		/*
@@ -642,7 +642,7 @@ static ssize_t write_rbu_image_type(struct kobject *kobj,
 			if (req_firm_rc) {
 				printk(KERN_ERR
 					"dell_rbu:%s request_firmware_nowait"
-					" failed %d\n", __FUNCTION__, rc);
+					" failed %d\n", __func__, rc);
 				rc = -EIO;
 			} else
 				rbu_data.entry_created = 1;
@@ -718,7 +718,7 @@ static int __init dcdrbu_init(void)
 	if (IS_ERR(rbu_device)) {
 		printk(KERN_ERR
 			"dell_rbu:%s:platform_device_register_simple "
-			"failed\n", __FUNCTION__);
+			"failed\n", __func__);
 		return PTR_ERR(rbu_device);
 	}
 

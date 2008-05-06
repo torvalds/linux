@@ -1,6 +1,5 @@
 #ifndef _LINUX_SEQ_FILE_H
 #define _LINUX_SEQ_FILE_H
-#ifdef __KERNEL__
 
 #include <linux/types.h>
 #include <linux/string.h>
@@ -68,5 +67,4 @@ extern struct list_head *seq_list_start_head(struct list_head *head,
 extern struct list_head *seq_list_next(void *v, struct list_head *head,
 		loff_t *ppos);
 
-#endif
 #endif

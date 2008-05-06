@@ -395,8 +395,8 @@ static struct pxafb_mach_info sharp_lm8v31 = {
 	.num_modes	= 1,
 	.cmap_inverse	= 0,
 	.cmap_static	= 0,
-	.lccr0		= LCCR0_SDS,
-	.lccr3		= LCCR3_PCP | LCCR3_Acb(255),
+	.lcd_conn	= LCD_COLOR_DSTN_16BPP | LCD_PCLK_EDGE_FALL |
+			  LCD_AC_BIAS_FREQ(255);
 };
 
 #define	MMC_POLL_RATE		msecs_to_jiffies(1000)

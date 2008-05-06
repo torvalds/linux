@@ -231,6 +231,7 @@ static int idefloppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 static void ide_floppy_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 				  unsigned int bcount, int direction)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = pc->rq;
 	struct req_iterator iter;
 	struct bio_vec *bvec;
@@ -246,9 +247,9 @@ static void ide_floppy_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 
 		data = bvec_kmap_irq(bvec, &flags);
 		if (direction)
-			drive->hwif->atapi_output_bytes(drive, data, count);
+			hwif->output_data(drive, NULL, data, count);
 		else
-			drive->hwif->atapi_input_bytes(drive, data, count);
+			hwif->input_data(drive, NULL, data, count);
 		bvec_kunmap_irq(data, &flags);
 
 		bcount -= count;
@@ -261,10 +262,7 @@ static void ide_floppy_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	if (bcount) {
 		printk(KERN_ERR "%s: leftover data in %s, bcount == %d\n",
 				drive->name, __func__, bcount);
-		if (direction)
-			ide_atapi_write_zeros(drive, bcount);
-		else
-			ide_atapi_discard_data(drive, bcount);
+		ide_pad_transfer(drive, direction, bcount);
 	}
 }
 
@@ -490,7 +488,7 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 				printk(KERN_ERR "ide-floppy: The floppy wants "
 					"to send us more data than expected "
 					"- discarding data\n");
-				ide_atapi_discard_data(drive, bcount);
+				ide_pad_transfer(drive, 0, bcount);
 
 				ide_set_handler(drive,
 						&idefloppy_pc_intr,
@@ -503,12 +501,12 @@ static ide_startstop_t idefloppy_pc_intr(ide_drive_t *drive)
 		}
 	}
 	if (pc->flags & PC_FLAG_WRITING)
-		xferfunc = hwif->atapi_output_bytes;
+		xferfunc = hwif->output_data;
 	else
-		xferfunc = hwif->atapi_input_bytes;
+		xferfunc = hwif->input_data;
 
 	if (pc->buf)
-		xferfunc(drive, pc->cur_pos, bcount);
+		xferfunc(drive, NULL, pc->cur_pos, bcount);
 	else
 		ide_floppy_io_buffers(drive, pc, bcount,
 				      !!(pc->flags & PC_FLAG_WRITING));
@@ -548,8 +546,10 @@ static ide_startstop_t idefloppy_transfer_pc(ide_drive_t *drive)
 
 	/* Set the interrupt routine */
 	ide_set_handler(drive, &idefloppy_pc_intr, IDEFLOPPY_WAIT_CMD, NULL);
+
 	/* Send the actual packet */
-	HWIF(drive)->atapi_output_bytes(drive, floppy->pc->c, 12);
+	hwif->output_data(drive, NULL, floppy->pc->c, 12);
+
 	return ide_started;
 }
 
@@ -569,7 +569,8 @@ static int idefloppy_transfer_pc2(ide_drive_t *drive)
 	idefloppy_floppy_t *floppy = drive->driver_data;
 
 	/* Send the actual packet */
-	HWIF(drive)->atapi_output_bytes(drive, floppy->pc->c, 12);
+	drive->hwif->output_data(drive, NULL, floppy->pc->c, 12);
+
 	/* Timeout for the packet command */
 	return IDEFLOPPY_WAIT_CMD;
 }
@@ -692,7 +693,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		return ide_started;
 	} else {
 		/* Issue the packet command */
-		hwif->OUTB(WIN_PACKETCMD, hwif->io_ports.command_addr);
+		ide_execute_pkt_cmd(drive);
 		return (*pkt_xfer_routine) (drive);
 	}
 }

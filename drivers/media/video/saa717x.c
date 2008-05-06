@@ -1418,7 +1418,8 @@ static int saa717x_command(struct i2c_client *client, unsigned cmd, void *arg)
 /* i2c implementation */
 
 /* ----------------------------------------------------------------------- */
-static int saa717x_probe(struct i2c_client *client)
+static int saa717x_probe(struct i2c_client *client,
+			 const struct i2c_device_id *did)
 {
 	struct saa717x_state *decoder;
 	u8 id = 0;

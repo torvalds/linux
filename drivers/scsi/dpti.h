@@ -84,7 +84,6 @@ static int adpt_device_reset(struct scsi_cmnd* cmd);
 #define PCI_DPT_DEVICE_ID         (0xA501)	// DPT PCI I2O Device ID
 #define PCI_DPT_RAPTOR_DEVICE_ID  (0xA511)	
 
-//#define REBOOT_NOTIFIER 1
 /* Debugging macro from Linux Device Drivers - Rubini */
 #undef PDEBUG
 #ifdef DEBUG
@@ -229,14 +228,19 @@ typedef struct _adpt_hba {
 	u32  post_fifo_size;
 	u32  reply_fifo_size;
 	u32* reply_pool;
+	dma_addr_t reply_pool_pa;
 	u32  sg_tablesize;	// Scatter/Gather List Size.       
 	u8  top_scsi_channel;
 	u8  top_scsi_id;
 	u8  top_scsi_lun;
+	u8  dma64;
 
 	i2o_status_block* status_block;
+	dma_addr_t status_block_pa;
 	i2o_hrt* hrt;
+	dma_addr_t hrt_pa;
 	i2o_lct* lct;
+	dma_addr_t lct_pa;
 	uint lct_size;
 	struct i2o_device* devices;
 	struct adpt_channel channel[MAX_CHANNEL];
@@ -249,6 +253,7 @@ typedef struct _adpt_hba {
 	void __iomem *FwDebugBLEDflag_P;// Virtual Addr Of FW Debug BLED
 	void __iomem *FwDebugBLEDvalue_P;// Virtual Addr Of FW Debug BLED
 	u32 FwDebugFlags;
+	u32 *ioctl_reply_context[4];
 } adpt_hba;
 
 struct sg_simple_element {
@@ -264,9 +269,6 @@ static void adpt_i2o_sys_shutdown(void);
 static int adpt_init(void);
 static int adpt_i2o_build_sys_table(void);
 static irqreturn_t adpt_isr(int irq, void *dev_id);
-#ifdef REBOOT_NOTIFIER
-static int adpt_reboot_event(struct notifier_block *n, ulong code, void *p);
-#endif
 
 static void adpt_i2o_report_hba_unit(adpt_hba* pHba, struct i2o_device *d);
 static int adpt_i2o_query_scalar(adpt_hba* pHba, int tid, 
@@ -275,7 +277,8 @@ static int adpt_i2o_query_scalar(adpt_hba* pHba, int tid,
 static const char *adpt_i2o_get_class_name(int class);
 #endif
 static int adpt_i2o_issue_params(int cmd, adpt_hba* pHba, int tid, 
-		  void *opblk, int oplen, void *resblk, int reslen);
+		  void *opblk, dma_addr_t opblk_pa, int oplen,
+		  void *resblk, dma_addr_t resblk_pa, int reslen);
 static int adpt_i2o_post_wait(adpt_hba* pHba, u32* msg, int len, int timeout);
 static int adpt_i2o_lct_get(adpt_hba* pHba);
 static int adpt_i2o_parse_lct(adpt_hba* pHba);
@@ -289,7 +292,7 @@ static s32 adpt_i2o_init_outbound_q(adpt_hba* pHba);
 static s32 adpt_i2o_hrt_get(adpt_hba* pHba);
 static s32 adpt_scsi_to_i2o(adpt_hba* pHba, struct scsi_cmnd* cmd, struct adpt_device* dptdevice);
 static s32 adpt_i2o_to_scsi(void __iomem *reply, struct scsi_cmnd* cmd);
-static s32 adpt_scsi_register(adpt_hba* pHba,struct scsi_host_template * sht);
+static s32 adpt_scsi_host_alloc(adpt_hba* pHba,struct scsi_host_template * sht);
 static s32 adpt_hba_reset(adpt_hba* pHba);
 static s32 adpt_i2o_reset_hba(adpt_hba* pHba);
 static s32 adpt_rescan(adpt_hba* pHba);

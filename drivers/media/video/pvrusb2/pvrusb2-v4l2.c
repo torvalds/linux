@@ -1261,7 +1261,7 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
  fail:
 	pvr2_trace(PVR2_TRACE_STRUCT,"Failure creating pvr2_v4l2 id=%p",vp);
 	pvr2_v4l2_destroy_no_lock(vp);
-	return 0;
+	return NULL;
 }
 
 /*

@@ -145,8 +145,8 @@
    uCHAR        smartROMRevision;
    uSHORT       flags;                  /* See bit definitions above */
    uSHORT       conventionalMemSize;    /* in KB */
-   uLONG        extendedMemSize;        /* in KB */
-   uLONG        osType;                 /* Same as DPTSIG's definition */
+   uINT         extendedMemSize;        /* in KB */
+   uINT         osType;                 /* Same as DPTSIG's definition */
    uCHAR        osMajorVersion;
    uCHAR        osMinorVersion;         /* The OS version */
    uCHAR        osRevision;

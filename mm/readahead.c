@@ -235,7 +235,13 @@ unsigned long max_sane_readahead(unsigned long nr)
 
 static int __init readahead_init(void)
 {
-	return bdi_init(&default_backing_dev_info);
+	int err;
+
+	err = bdi_init(&default_backing_dev_info);
+	if (!err)
+		bdi_register(&default_backing_dev_info, NULL, "default");
+
+	return err;
 }
 subsys_initcall(readahead_init);
 

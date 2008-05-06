@@ -1024,10 +1024,9 @@ static struct sensor_device_attribute_2 w83793_vid[] = {
 	SENSOR_ATTR_2(cpu0_vid, S_IRUGO, show_vid, NULL, NOT_USED, 0),
 	SENSOR_ATTR_2(cpu1_vid, S_IRUGO, show_vid, NULL, NOT_USED, 1),
 };
+static DEVICE_ATTR(vrm, S_IWUSR | S_IRUGO, show_vrm, store_vrm);
 
 static struct sensor_device_attribute_2 sda_single_files[] = {
-	SENSOR_ATTR_2(vrm, S_IWUSR | S_IRUGO, show_vrm, store_vrm,
-		      NOT_USED, NOT_USED),
 	SENSOR_ATTR_2(chassis, S_IWUSR | S_IRUGO, show_alarm_beep,
 		      store_chassis_clear, ALARM_STATUS, 30),
 	SENSOR_ATTR_2(beep_enable, S_IWUSR | S_IRUGO, show_beep_enable,
@@ -1080,6 +1079,7 @@ static int w83793_detach_client(struct i2c_client *client)
 
 		for (i = 0; i < ARRAY_SIZE(w83793_vid); i++)
 			device_remove_file(dev, &w83793_vid[i].dev_attr);
+		device_remove_file(dev, &dev_attr_vrm);
 
 		for (i = 0; i < ARRAY_SIZE(w83793_left_fan); i++)
 			device_remove_file(dev, &w83793_left_fan[i].dev_attr);
@@ -1282,7 +1282,6 @@ static int w83793_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* Initialize the chip */
 	w83793_init_client(client);
 
-	data->vrm = vid_which_vrm();
 	/*
 	   Only fan 1-5 has their own input pins,
 	   Pwm 1-3 has their own pins
@@ -1293,7 +1292,9 @@ static int w83793_detect(struct i2c_adapter *adapter, int address, int kind)
 	val = w83793_read_value(client, W83793_REG_FANIN_CTRL);
 
 	/* check the function of pins 49-56 */
-	if (!(tmp & 0x80)) {
+	if (tmp & 0x80) {
+		data->has_vid |= 0x2;	/* has VIDB */
+	} else {
 		data->has_pwm |= 0x18;	/* pwm 4,5 */
 		if (val & 0x01) {	/* fan 6 */
 			data->has_fan |= 0x20;
@@ -1309,13 +1310,15 @@ static int w83793_detect(struct i2c_adapter *adapter, int address, int kind)
 		}
 	}
 
+	/* check the function of pins 37-40 */
+	if (!(tmp & 0x29))
+		data->has_vid |= 0x1;	/* has VIDA */
 	if (0x08 == (tmp & 0x0c)) {
 		if (val & 0x08)	/* fan 9 */
 			data->has_fan |= 0x100;
 		if (val & 0x10)	/* fan 10 */
 			data->has_fan |= 0x200;
 	}
-
 	if (0x20 == (tmp & 0x30)) {
 		if (val & 0x20)	/* fan 11 */
 			data->has_fan |= 0x400;
@@ -1359,13 +1362,6 @@ static int w83793_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (tmp & 0x02)
 		data->has_temp |= 0x20;
 
-	/* Detect the VID usage and ignore unused input */
-	tmp = w83793_read_value(client, W83793_REG_MFC);
-	if (!(tmp & 0x29))
-		data->has_vid |= 0x1;	/* has VIDA */
-	if (tmp & 0x80)
-		data->has_vid |= 0x2;	/* has VIDB */
-
 	/* Register sysfs hooks */
 	for (i = 0; i < ARRAY_SIZE(w83793_sensor_attr_2); i++) {
 		err = device_create_file(dev,
@@ -1378,6 +1374,12 @@ static int w83793_detect(struct i2c_adapter *adapter, int address, int kind)
 		if (!(data->has_vid & (1 << i)))
 			continue;
 		err = device_create_file(dev, &w83793_vid[i].dev_attr);
+		if (err)
+			goto exit_remove;
+	}
+	if (data->has_vid) {
+		data->vrm = vid_which_vrm();
+		err = device_create_file(dev, &dev_attr_vrm);
 		if (err)
 			goto exit_remove;
 	}

@@ -118,6 +118,7 @@ enum IWCH_QP_FLAGS {
 };
 
 struct iwch_mpa_attributes {
+	u8 initiator;
 	u8 recv_marker_enabled;
 	u8 xmit_marker_enabled;	/* iWARP: enable inbound Read Resp. */
 	u8 crc_enabled;
@@ -322,6 +323,7 @@ enum iwch_qp_query_flags {
 	IWCH_QP_QUERY_TEST_USERWRITE = 0x32	/* Test special */
 };
 
+u16 iwch_rqes_posted(struct iwch_qp *qhp);
 int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		      struct ib_send_wr **bad_wr);
 int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
@@ -331,6 +333,7 @@ int iwch_bind_mw(struct ib_qp *qp,
 			     struct ib_mw_bind *mw_bind);
 int iwch_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg);
+int iwch_post_zb_read(struct iwch_qp *qhp);
 int iwch_register_device(struct iwch_dev *dev);
 void iwch_unregister_device(struct iwch_dev *dev);
 int iwch_quiesce_qps(struct iwch_cq *chp);

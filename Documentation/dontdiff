@@ -141,6 +141,7 @@ mkprep
 mktables
 mktree
 modpost
+modules.order
 modversions.h*
 offset.h
 offsets.h
@@ -171,6 +172,7 @@ sm_tbl*
 split-include
 tags
 tftpboot.img
+timeconst.h
 times.h*
 tkparse
 trix_boot.h

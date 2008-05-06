@@ -337,7 +337,8 @@ static void __init pmac_setup_arch(void)
 	find_via_pmu();
 	smu_init();
 
-#if defined(CONFIG_NVRAM) || defined(CONFIG_PPC64)
+#if defined(CONFIG_NVRAM) || defined(CONFIG_NVRAM_MODULE) || \
+    defined(CONFIG_PPC64)
 	pmac_nvram_init();
 #endif
 

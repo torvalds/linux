@@ -1,5 +1,3 @@
-header-y += big_endian.h
-header-y += little_endian.h
-
-unifdef-y += generic.h
+unifdef-y += big_endian.h
+unifdef-y += little_endian.h
 unifdef-y += swab.h

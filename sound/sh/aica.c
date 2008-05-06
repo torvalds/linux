@@ -663,7 +663,7 @@ static int __init aica_init(void)
 		return err;
 	pd = platform_device_register_simple(SND_AICA_DRIVER, -1,
 					     aica_memory_space, 2);
-	if (unlikely(IS_ERR(pd))) {
+	if (IS_ERR(pd)) {
 		platform_driver_unregister(&snd_aica_driver);
 		return PTR_ERR(pd);
 	}

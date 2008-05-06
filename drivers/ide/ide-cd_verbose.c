@@ -326,7 +326,7 @@ void ide_cd_log_error(const char *name, struct request *failed_command,
 
 		printk(KERN_ERR "  The failed \"%s\" packet command "
 				"was: \n  \"", s);
-		for (i = 0; i < sizeof(failed_command->cmd); i++)
+		for (i = 0; i < BLK_MAX_CDB; i++)
 			printk(KERN_CONT "%02x ", failed_command->cmd[i]);
 		printk(KERN_CONT "\"\n");
 	}

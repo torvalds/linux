@@ -52,7 +52,7 @@ static unsigned int Submodule_slot;
 #define DPRINT_CONFIG(_x...)	;
 //#define DPRINT_CONFIG(_x...)  printk _x
 #define NOT_PROGRESS()	;
-//#define NOT_PROGRESS()	printk("%s : fails %d\n", __FUNCTION__, __LINE__)
+//#define NOT_PROGRESS()	printk("%s : fails %d\n", __func__, __LINE__)
 
 /* number of characters we want to transmit to the lower level at a time */
 #define MAX_CHARS		256
@@ -445,7 +445,7 @@ static int inline port_init(struct ioc3_port *port)
 		sbbr_h = &idd->vma->sbbr_h;
 		ring_pci_addr = (unsigned long __iomem)port->ip_dma_ringbuf;
 		DPRINT_CONFIG(("%s: ring_pci_addr 0x%p\n",
-			       __FUNCTION__, (void *)ring_pci_addr));
+			       __func__, (void *)ring_pci_addr));
 
 		writel((unsigned int)((uint64_t) ring_pci_addr >> 32), sbbr_h);
 		writel((unsigned int)ring_pci_addr | BUF_SIZE_BIT, sbbr_l);
@@ -593,7 +593,7 @@ config_port(struct ioc3_port *port,
 
 	DPRINT_CONFIG(("%s: line %d baud %d byte_size %d stop %d parenb %d "
 			"parodd %d\n",
-		       __FUNCTION__, ((struct uart_port *)port->ip_port)->line,
+		       __func__, ((struct uart_port *)port->ip_port)->line,
 			baud, byte_size, stop_bits, parenb, parodd));
 
 	if (set_baud(port, baud))
@@ -871,14 +871,14 @@ static int ioc3_set_proto(struct ioc3_port *port, int proto)
 	default:
 	case PROTO_RS232:
 		/* Clear the appropriate GIO pin */
-		DPRINT_CONFIG(("%s: rs232\n", __FUNCTION__));
+		DPRINT_CONFIG(("%s: rs232\n", __func__));
 		writel(0, (&port->ip_idd->vma->gppr[0]
 					+ hooks->rs422_select_pin));
 		break;
 
 	case PROTO_RS422:
 		/* Set the appropriate GIO pin */
-		DPRINT_CONFIG(("%s: rs422\n", __FUNCTION__));
+		DPRINT_CONFIG(("%s: rs422\n", __func__));
 		writel(1, (&port->ip_idd->vma->gppr[0]
 					+ hooks->rs422_select_pin));
 		break;
@@ -988,7 +988,7 @@ ioc3_change_speed(struct uart_port *the_port,
 	}
 	baud = uart_get_baud_rate(the_port, new_termios, old_termios,
 				  MIN_BAUD_SUPPORTED, MAX_BAUD_SUPPORTED);
-	DPRINT_CONFIG(("%s: returned baud %d for line %d\n", __FUNCTION__, baud,
+	DPRINT_CONFIG(("%s: returned baud %d for line %d\n", __func__, baud,
 				the_port->line));
 
 	if (!the_port->fifosize)
@@ -1026,7 +1026,7 @@ ioc3_change_speed(struct uart_port *the_port,
 	DPRINT_CONFIG(("%s : port 0x%p line %d cflag 0%o "
 		       "config_port(baud %d data %d stop %d penable %d "
 			" parity %d), notification 0x%x\n",
-		       __FUNCTION__, (void *)port, the_port->line, cflag, baud,
+		       __func__, (void *)port, the_port->line, cflag, baud,
 		       new_data, new_stop, new_parity_enable, new_parity,
 		       the_port->ignore_status_mask));
 
@@ -1919,7 +1919,7 @@ static inline int ioc3_serial_core_attach( struct ioc3_submodule *is,
 	struct pci_dev *pdev = idd->pdev;
 
 	DPRINT_CONFIG(("%s: attach pdev 0x%p - card_ptr 0x%p\n",
-		       __FUNCTION__, pdev, (void *)card_ptr));
+		       __func__, pdev, (void *)card_ptr));
 
 	if (!card_ptr)
 		return -ENODEV;
@@ -1933,7 +1933,7 @@ static inline int ioc3_serial_core_attach( struct ioc3_submodule *is,
 		port->ip_port = the_port;
 
 		DPRINT_CONFIG(("%s: attach the_port 0x%p / port 0x%p [%d/%d]\n",
-			__FUNCTION__, (void *)the_port, (void *)port,
+			__func__, (void *)the_port, (void *)port,
 				phys_port, ii));
 
 		/* membase, iobase and mapbase just need to be non-0 */
@@ -1950,7 +1950,7 @@ static inline int ioc3_serial_core_attach( struct ioc3_submodule *is,
 		if (uart_add_one_port(&ioc3_uart, the_port) < 0) {
 			printk(KERN_WARNING
 		          "%s: unable to add port %d bus %d\n",
-			       __FUNCTION__, the_port->line, pdev->bus->number);
+			       __func__, the_port->line, pdev->bus->number);
 		} else {
 			DPRINT_CONFIG(("IOC3 serial port %d irq %d bus %d\n",
 		          the_port->line, the_port->irq, pdev->bus->number));
@@ -2017,7 +2017,7 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 	struct ioc3_port *ports[PORTS_PER_CARD];
 	int phys_port;
 
-	DPRINT_CONFIG(("%s (0x%p, 0x%p)\n", __FUNCTION__, is, idd));
+	DPRINT_CONFIG(("%s (0x%p, 0x%p)\n", __func__, is, idd));
 
 	card_ptr = kzalloc(sizeof(struct ioc3_card), GFP_KERNEL);
 	if (!card_ptr) {
@@ -2067,7 +2067,7 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 
 			DPRINT_CONFIG(("%s : Port A ip_serial_regs 0x%p "
 				       "ip_uart_regs 0x%p\n",
-				       __FUNCTION__,
+				       __func__,
 				       (void *)port->ip_serial_regs,
 				       (void *)port->ip_uart_regs));
 
@@ -2082,7 +2082,7 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 			DPRINT_CONFIG(("%s : Port A ip_cpu_ringbuf 0x%p "
 				       "ip_dma_ringbuf 0x%p, ip_inring 0x%p "
 					"ip_outring 0x%p\n",
-				       __FUNCTION__,
+				       __func__,
 				       (void *)port->ip_cpu_ringbuf,
 				       (void *)port->ip_dma_ringbuf,
 				       (void *)port->ip_inring,
@@ -2094,7 +2094,7 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 
 			DPRINT_CONFIG(("%s : Port B ip_serial_regs 0x%p "
 				       "ip_uart_regs 0x%p\n",
-				       __FUNCTION__,
+				       __func__,
 				       (void *)port->ip_serial_regs,
 				       (void *)port->ip_uart_regs));
 
@@ -2108,7 +2108,7 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 			DPRINT_CONFIG(("%s : Port B ip_cpu_ringbuf 0x%p "
 				       "ip_dma_ringbuf 0x%p, ip_inring 0x%p "
 					"ip_outring 0x%p\n",
-				       __FUNCTION__,
+				       __func__,
 				       (void *)port->ip_cpu_ringbuf,
 				       (void *)port->ip_dma_ringbuf,
 				       (void *)port->ip_inring,
@@ -2116,7 +2116,7 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 		}
 
 		DPRINT_CONFIG(("%s : port %d [addr 0x%p] card_ptr 0x%p",
-			       __FUNCTION__,
+			       __func__,
 			       phys_port, (void *)port, (void *)card_ptr));
 		DPRINT_CONFIG((" ip_serial_regs 0x%p ip_uart_regs 0x%p\n",
 			       (void *)port->ip_serial_regs,
@@ -2127,7 +2127,7 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 
 		DPRINT_CONFIG(("%s: phys_port %d port 0x%p inring 0x%p "
 			       "outring 0x%p\n",
-			       __FUNCTION__,
+			       __func__,
 			       phys_port, (void *)port,
 			       (void *)port->ip_inring,
 			       (void *)port->ip_outring));
@@ -2170,7 +2170,7 @@ static int __devinit ioc3uart_init(void)
 	if ((ret = uart_register_driver(&ioc3_uart)) < 0) {
 		printk(KERN_WARNING
 		       "%s: Couldn't register IOC3 uart serial driver\n",
-		       __FUNCTION__);
+		       __func__);
 		return ret;
 	}
 	ret = ioc3_register_submodule(&ioc3uart_submodule);

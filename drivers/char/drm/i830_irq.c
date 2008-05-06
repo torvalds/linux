@@ -58,7 +58,7 @@ static int i830_emit_irq(struct drm_device * dev)
 	drm_i830_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("%s\n", __func__);
 
 	atomic_inc(&dev_priv->irq_emitted);
 
@@ -77,7 +77,7 @@ static int i830_wait_irq(struct drm_device * dev, int irq_nr)
 	unsigned long end = jiffies + HZ * 3;
 	int ret = 0;
 
-	DRM_DEBUG("%s\n", __FUNCTION__);
+	DRM_DEBUG("%s\n", __func__);
 
 	if (atomic_read(&dev_priv->irq_received) >= irq_nr)
 		return 0;
@@ -124,7 +124,7 @@ int i830_irq_emit(struct drm_device *dev, void *data,
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("%s called with no initialization\n", __func__);
 		return -EINVAL;
 	}
 
@@ -147,7 +147,7 @@ int i830_irq_wait(struct drm_device *dev, void *data,
 	drm_i830_irq_wait_t *irqwait = data;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("%s called with no initialization\n", __func__);
 		return -EINVAL;
 	}
 

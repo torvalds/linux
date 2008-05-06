@@ -253,6 +253,10 @@ characters, each representing a particular tainted value.
 
   8: 'D' if the kernel has died recently, i.e. there was an OOPS or BUG.
 
+  9: 'A' if the ACPI table has been overridden.
+
+ 10: 'W' if a warning has previously been issued by the kernel.
+
 The primary reason for the 'Tainted: ' string is to tell kernel
 debuggers if this is a clean kernel or if anything unusual has
 occurred.  Tainting is permanent: even if an offending module is

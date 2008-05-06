@@ -126,7 +126,8 @@ static int m52790_command(struct i2c_client *client, unsigned int cmd,
 
 /* i2c implementation */
 
-static int m52790_probe(struct i2c_client *client)
+static int m52790_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct m52790_state *state;
 

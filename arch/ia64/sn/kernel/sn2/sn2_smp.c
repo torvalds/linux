@@ -550,11 +550,12 @@ static int __init sn2_ptc_init(void)
 	if (!ia64_platform_is("sn2"))
 		return 0;
 
-	if (!(proc_sn2_ptc = create_proc_entry(PTC_BASENAME, 0444, NULL))) {
+	proc_sn2_ptc = proc_create(PTC_BASENAME, 0444,
+				   NULL, &proc_sn2_ptc_operations);
+	if (!&proc_sn2_ptc_operations) {
 		printk(KERN_ERR "unable to create %s proc entry", PTC_BASENAME);
 		return -EINVAL;
 	}
-	proc_sn2_ptc->proc_fops = &proc_sn2_ptc_operations;
 	spin_lock_init(&sn2_global_ptc_lock);
 	return 0;
 }

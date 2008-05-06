@@ -141,14 +141,17 @@ void __init qnap_ts209_pci_preinit(void)
 
 static int __init qnap_ts209_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	/*
-	 * PCIE IRQ is connected internally (not GPIO)
-	 */
-	if (dev->bus->number == orion5x_pcie_local_bus_nr())
-		return IRQ_ORION5X_PCIE0_INT;
+	int irq;
 
 	/*
-	 * PCI IRQs are connected via GPIOs
+	 * Check for devices with hard-wired IRQs.
+	 */
+	irq = orion5x_pci_map_irq(dev, slot, pin);
+	if (irq != -1)
+		return irq;
+
+	/*
+	 * PCI IRQs are connected via GPIOs.
 	 */
 	switch (slot - QNAP_TS209_PCI_SLOT0_OFFS) {
 	case 0:
@@ -276,8 +279,7 @@ static void __init ts209_find_mac_addr(void)
 #define TS209_RTC_GPIO	3
 
 static struct i2c_board_info __initdata qnap_ts209_i2c_rtc = {
-       .driver_name = "rtc-s35390a",
-       .addr        = 0x30,
+	I2C_BOARD_INFO("s35390a", 0x30),
        .irq         = 0,
 };
 
@@ -373,7 +375,7 @@ static void __init qnap_ts209_init(void)
 			    QNAP_TS209_NOR_BOOT_SIZE);
 
 	/*
-	 * Open a special address decode windows for the PCIE WA.
+	 * Open a special address decode windows for the PCIe WA.
 	 */
 	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
 				ORION5X_PCIE_WA_SIZE);

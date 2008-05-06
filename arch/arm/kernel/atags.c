@@ -35,7 +35,7 @@ create_proc_entries(void)
 {
 	struct proc_dir_entry* tags_entry;
 
-	tags_entry = create_proc_read_entry("atags", 0400, &proc_root, read_buffer, &tags_buffer);
+	tags_entry = create_proc_read_entry("atags", 0400, NULL, read_buffer, &tags_buffer);
 	if (!tags_entry)
 		return -ENOMEM;
 

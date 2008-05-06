@@ -126,7 +126,7 @@ struct i2c_driver {
 	 * With the driver model, device enumeration is NEVER done by drivers;
 	 * it's done by infrastructure.  (NEW STYLE DRIVERS ONLY)
 	 */
-	int (*probe)(struct i2c_client *);
+	int (*probe)(struct i2c_client *, const struct i2c_device_id *);
 	int (*remove)(struct i2c_client *);
 
 	/* driver model interfaces that don't relate to enumeration  */
@@ -140,10 +140,9 @@ struct i2c_driver {
 	int (*command)(struct i2c_client *client,unsigned int cmd, void *arg);
 
 	struct device_driver driver;
+	const struct i2c_device_id *id_table;
 };
 #define to_i2c_driver(d) container_of(d, struct i2c_driver, driver)
-
-#define I2C_NAME_SIZE	20
 
 /**
  * struct i2c_client - represent an I2C slave device
@@ -230,17 +229,17 @@ struct i2c_board_info {
 };
 
 /**
- * I2C_BOARD_INFO - macro used to list an i2c device and its driver
- * @driver: identifies the driver to use with the device
+ * I2C_BOARD_INFO - macro used to list an i2c device and its address
+ * @dev_type: identifies the device type
  * @dev_addr: the device's address on the bus.
  *
  * This macro initializes essential fields of a struct i2c_board_info,
  * declaring what has been provided on a particular board.  Optional
- * fields (such as the chip type, its associated irq, or device-specific
- * platform_data) are provided using conventional syntax.
+ * fields (such as associated irq, or device-specific platform_data)
+ * are provided using conventional syntax.
  */
-#define I2C_BOARD_INFO(driver,dev_addr) \
-	.driver_name = (driver), .addr = (dev_addr)
+#define I2C_BOARD_INFO(dev_type,dev_addr) \
+	.type = (dev_type), .addr = (dev_addr)
 
 
 /* Add-on boards should register/unregister their devices; e.g. a board

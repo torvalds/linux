@@ -128,20 +128,17 @@ int ivtv_reset_tuner_gpio(void *dev, int cmd, int value)
 {
 	struct i2c_algo_bit_data *algo = dev;
 	struct ivtv *itv = algo->data;
-	int curdir, curout;
+	u32 curout;
 
 	if (cmd != XC2028_TUNER_RESET)
 		return 0;
 	IVTV_DEBUG_INFO("Resetting tuner\n");
 	curout = read_reg(IVTV_REG_GPIO_OUT);
-	curdir = read_reg(IVTV_REG_GPIO_DIR);
-	curdir |= (1 << 12);  /* GPIO bit 12 */
-
-	curout &= ~(1 << 12);
+	curout &= ~(1 << itv->card->xceive_pin);
 	write_reg(curout, IVTV_REG_GPIO_OUT);
 	schedule_timeout_interruptible(msecs_to_jiffies(1));
 
-	curout |= (1 << 12);
+	curout |= 1 << itv->card->xceive_pin;
 	write_reg(curout, IVTV_REG_GPIO_OUT);
 	schedule_timeout_interruptible(msecs_to_jiffies(1));
 	return 0;

@@ -139,30 +139,21 @@ static const struct file_operations proc_sn_topo_fops = {
 void register_sn_procfs(void)
 {
 	static struct proc_dir_entry *sgi_proc_dir = NULL;
-	struct proc_dir_entry *pde;
 
 	BUG_ON(sgi_proc_dir != NULL);
 	if (!(sgi_proc_dir = proc_mkdir("sgi_sn", NULL)))
 		return;
 
-	pde = create_proc_entry("partition_id", 0444, sgi_proc_dir);
-	if (pde)
-		pde->proc_fops = &proc_partition_id_fops;
-	pde = create_proc_entry("system_serial_number", 0444, sgi_proc_dir);
-	if (pde)
-		pde->proc_fops = &proc_system_sn_fops;
-	pde = create_proc_entry("licenseID", 0444, sgi_proc_dir);
-	if (pde)
-		pde->proc_fops = &proc_license_id_fops;
-	pde = create_proc_entry("sn_force_interrupt", 0644, sgi_proc_dir);
-	if (pde)
-		pde->proc_fops = &proc_sn_force_intr_fops;
-	pde = create_proc_entry("coherence_id", 0444, sgi_proc_dir);
-	if (pde)
-		pde->proc_fops = &proc_coherence_id_fops;
-	pde = create_proc_entry("sn_topology", 0444, sgi_proc_dir);
-	if (pde)
-		pde->proc_fops = &proc_sn_topo_fops;
+	proc_create("partition_id", 0444, sgi_proc_dir,
+		    &proc_partition_id_fops);
+	proc_create("system_serial_number", 0444, sgi_proc_dir,
+		    &proc_system_sn_fops);
+	proc_create("licenseID", 0444, sgi_proc_dir, &proc_license_id_fops);
+	proc_create("sn_force_interrupt", 0644, sgi_proc_dir,
+		    &proc_sn_force_intr_fops);
+	proc_create("coherence_id", 0444, sgi_proc_dir,
+		    &proc_coherence_id_fops);
+	proc_create("sn_topology", 0444, sgi_proc_dir, &proc_sn_topo_fops);
 }
 
 #endif /* CONFIG_PROC_FS */

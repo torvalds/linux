@@ -148,7 +148,7 @@ const char * ip_vs_state_name(__u16 proto, int state)
 	struct ip_vs_protocol *pp = ip_vs_proto_get(proto);
 
 	if (pp == NULL || pp->state_name == NULL)
-		return "ERR!";
+		return (IPPROTO_IP == proto) ? "NONE" : "ERR!";
 	return pp->state_name(state);
 }
 

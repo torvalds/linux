@@ -135,6 +135,25 @@ static ssize_t queue_max_hw_sectors_show(struct request_queue *q, char *page)
 	return queue_var_show(max_hw_sectors_kb, (page));
 }
 
+static ssize_t queue_nomerges_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(blk_queue_nomerges(q), page);
+}
+
+static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
+				    size_t count)
+{
+	unsigned long nm;
+	ssize_t ret = queue_var_store(&nm, page, count);
+
+	if (nm)
+	       set_bit(QUEUE_FLAG_NOMERGES, &q->queue_flags);
+	else
+	       clear_bit(QUEUE_FLAG_NOMERGES, &q->queue_flags);
+
+	return ret;
+}
+
 
 static struct queue_sysfs_entry queue_requests_entry = {
 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
@@ -170,6 +189,12 @@ static struct queue_sysfs_entry queue_hw_sector_size_entry = {
 	.show = queue_hw_sector_size_show,
 };
 
+static struct queue_sysfs_entry queue_nomerges_entry = {
+	.attr = {.name = "nomerges", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_nomerges_show,
+	.store = queue_nomerges_store,
+};
+
 static struct attribute *default_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
@@ -177,6 +202,7 @@ static struct attribute *default_attrs[] = {
 	&queue_max_sectors_entry.attr,
 	&queue_iosched_entry.attr,
 	&queue_hw_sector_size_entry.attr,
+	&queue_nomerges_entry.attr,
 	NULL,
 };
 

@@ -241,14 +241,17 @@ void __init db88f5281_pci_preinit(void)
 
 static int __init db88f5281_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	/*
-	 * PCIE IRQ is connected internally (not GPIO)
-	 */
-	if (dev->bus->number == orion5x_pcie_local_bus_nr())
-		return IRQ_ORION5X_PCIE0_INT;
+	int irq;
 
 	/*
-	 * PCI IRQs are connected via GPIOs
+	 * Check for devices with hard-wired IRQs.
+	 */
+	irq = orion5x_pci_map_irq(dev, slot, pin);
+	if (irq != -1)
+		return irq;
+
+	/*
+	 * PCI IRQs are connected via GPIOs.
 	 */
 	switch (slot - DB88F5281_PCI_SLOT0_OFFS) {
 	case 0:
@@ -292,9 +295,7 @@ static struct mv643xx_eth_platform_data db88f5281_eth_data = {
  * RTC DS1339 on I2C bus
  ****************************************************************************/
 static struct i2c_board_info __initdata db88f5281_i2c_rtc = {
-	.driver_name	= "rtc-ds1307",
-	.type		= "ds1339",
-	.addr		= 0x68,
+	I2C_BOARD_INFO("ds1339", 0x68),
 };
 
 /*****************************************************************************

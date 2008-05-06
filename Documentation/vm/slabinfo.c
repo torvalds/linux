@@ -31,14 +31,14 @@ struct slabinfo {
 	int hwcache_align, object_size, objs_per_slab;
 	int sanity_checks, slab_size, store_user, trace;
 	int order, poison, reclaim_account, red_zone;
-	unsigned long partial, objects, slabs;
+	unsigned long partial, objects, slabs, objects_partial, objects_total;
 	unsigned long alloc_fastpath, alloc_slowpath;
 	unsigned long free_fastpath, free_slowpath;
 	unsigned long free_frozen, free_add_partial, free_remove_partial;
 	unsigned long alloc_from_partial, alloc_slab, free_slab, alloc_refill;
 	unsigned long cpuslab_flush, deactivate_full, deactivate_empty;
 	unsigned long deactivate_to_head, deactivate_to_tail;
-	unsigned long deactivate_remote_frees;
+	unsigned long deactivate_remote_frees, order_fallback;
 	int numa[MAX_NODES];
 	int numa_partial[MAX_NODES];
 } slabinfo[MAX_SLABS];
@@ -293,7 +293,7 @@ int line = 0;
 void first_line(void)
 {
 	if (show_activity)
-		printf("Name                   Objects    Alloc     Free   %%Fast\n");
+		printf("Name                   Objects      Alloc       Free   %%Fast Fallb O\n");
 	else
 		printf("Name                   Objects Objsize    Space "
 			"Slabs/Part/Cpu  O/S O %%Fr %%Ef Flg\n");
@@ -540,7 +540,8 @@ void slabcache(struct slabinfo *s)
 		return;
 
 	store_size(size_str, slab_size(s));
-	snprintf(dist_str, 40, "%lu/%lu/%d", s->slabs, s->partial, s->cpu_slabs);
+	snprintf(dist_str, 40, "%lu/%lu/%d", s->slabs - s->cpu_slabs,
+						s->partial, s->cpu_slabs);
 
 	if (!line++)
 		first_line();
@@ -572,11 +573,12 @@ void slabcache(struct slabinfo *s)
 		total_alloc = s->alloc_fastpath + s->alloc_slowpath;
 		total_free = s->free_fastpath + s->free_slowpath;
 
-		printf("%-21s %8ld %8ld %8ld %3ld %3ld \n",
+		printf("%-21s %8ld %10ld %10ld %3ld %3ld %5ld %1d\n",
 			s->name, s->objects,
 			total_alloc, total_free,
 			total_alloc ? (s->alloc_fastpath * 100 / total_alloc) : 0,
-			total_free ? (s->free_fastpath * 100 / total_free) : 0);
+			total_free ? (s->free_fastpath * 100 / total_free) : 0,
+			s->order_fallback, s->order);
 	}
 	else
 		printf("%-21s %8ld %7d %8s %14s %4d %1d %3ld %3ld %s\n",
@@ -776,7 +778,6 @@ void totals(void)
 		unsigned long used;
 		unsigned long long wasted;
 		unsigned long long objwaste;
-		long long objects_in_partial_slabs;
 		unsigned long percentage_partial_slabs;
 		unsigned long percentage_partial_objs;
 
@@ -790,18 +791,11 @@ void totals(void)
 		wasted = size - used;
 		objwaste = s->slab_size - s->object_size;
 
-		objects_in_partial_slabs = s->objects -
-			(s->slabs - s->partial - s ->cpu_slabs) *
-			s->objs_per_slab;
-
-		if (objects_in_partial_slabs < 0)
-			objects_in_partial_slabs = 0;
-
 		percentage_partial_slabs = s->partial * 100 / s->slabs;
 		if (percentage_partial_slabs > 100)
 			percentage_partial_slabs = 100;
 
-		percentage_partial_objs = objects_in_partial_slabs * 100
+		percentage_partial_objs = s->objects_partial * 100
 							/ s->objects;
 
 		if (percentage_partial_objs > 100)
@@ -823,8 +817,8 @@ void totals(void)
 			min_objects = s->objects;
 		if (used < min_used)
 			min_used = used;
-		if (objects_in_partial_slabs < min_partobj)
-			min_partobj = objects_in_partial_slabs;
+		if (s->objects_partial < min_partobj)
+			min_partobj = s->objects_partial;
 		if (percentage_partial_slabs < min_ppart)
 			min_ppart = percentage_partial_slabs;
 		if (percentage_partial_objs < min_ppartobj)
@@ -848,8 +842,8 @@ void totals(void)
 			max_objects = s->objects;
 		if (used > max_used)
 			max_used = used;
-		if (objects_in_partial_slabs > max_partobj)
-			max_partobj = objects_in_partial_slabs;
+		if (s->objects_partial > max_partobj)
+			max_partobj = s->objects_partial;
 		if (percentage_partial_slabs > max_ppart)
 			max_ppart = percentage_partial_slabs;
 		if (percentage_partial_objs > max_ppartobj)
@@ -864,7 +858,7 @@ void totals(void)
 
 		total_objects += s->objects;
 		total_used += used;
-		total_partobj += objects_in_partial_slabs;
+		total_partobj += s->objects_partial;
 		total_ppart += percentage_partial_slabs;
 		total_ppartobj += percentage_partial_objs;
 
@@ -1160,6 +1154,8 @@ void read_slab_dir(void)
 			slab->hwcache_align = get_obj("hwcache_align");
 			slab->object_size = get_obj("object_size");
 			slab->objects = get_obj("objects");
+			slab->objects_partial = get_obj("objects_partial");
+			slab->objects_total = get_obj("objects_total");
 			slab->objs_per_slab = get_obj("objs_per_slab");
 			slab->order = get_obj("order");
 			slab->partial = get_obj("partial");
@@ -1193,6 +1189,7 @@ void read_slab_dir(void)
 			slab->deactivate_to_head = get_obj("deactivate_to_head");
 			slab->deactivate_to_tail = get_obj("deactivate_to_tail");
 			slab->deactivate_remote_frees = get_obj("deactivate_remote_frees");
+			slab->order_fallback = get_obj("order_fallback");
 			chdir("..");
 			if (slab->name[0] == ':')
 				alias_targets++;

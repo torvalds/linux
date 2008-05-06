@@ -19,7 +19,8 @@
 #include "compr.h"
 
 
-int jffs2_do_new_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, uint32_t mode, struct jffs2_raw_inode *ri)
+int jffs2_do_new_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
+		       uint32_t mode, struct jffs2_raw_inode *ri)
 {
 	struct jffs2_inode_cache *ic;
 
@@ -31,7 +32,7 @@ int jffs2_do_new_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, uint
 	memset(ic, 0, sizeof(*ic));
 
 	f->inocache = ic;
-	f->inocache->nlink = 1;
+	f->inocache->pino_nlink = 1; /* Will be overwritten shortly for directories */
 	f->inocache->nodes = (struct jffs2_raw_node_ref *)f->inocache;
 	f->inocache->state = INO_STATE_PRESENT;
 
@@ -438,10 +439,10 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 	ret = jffs2_reserve_space(c, sizeof(*ri), &alloclen, ALLOC_NORMAL,
 				JFFS2_SUMMARY_INODE_SIZE);
 	D1(printk(KERN_DEBUG "jffs2_do_create(): reserved 0x%x bytes\n", alloclen));
-	if (ret) {
-		mutex_unlock(&f->sem);
+	if (ret)
 		return ret;
-	}
+
+	mutex_lock(&f->sem);
 
 	ri->data_crc = cpu_to_je32(0);
 	ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
@@ -635,9 +636,9 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 					jffs2_mark_node_obsolete(c, fd->raw);
 				jffs2_free_full_dirent(fd);
 			}
-		}
-
-		dead_f->inocache->nlink--;
+			dead_f->inocache->pino_nlink = 0;
+		} else
+			dead_f->inocache->pino_nlink--;
 		/* NB: Caller must set inode nlink if appropriate */
 		mutex_unlock(&dead_f->sem);
 	}

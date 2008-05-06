@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -140,7 +140,6 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 {
 	acpi_status status = AE_OK;
 	union acpi_operand_object *stack_desc;
-	void *temp_node;
 	union acpi_operand_object *obj_desc = NULL;
 	u16 opcode;
 
@@ -156,23 +155,6 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 		opcode = stack_desc->reference.opcode;
 
 		switch (opcode) {
-		case AML_NAME_OP:
-
-			/*
-			 * Convert name reference to a namespace node
-			 * Then, acpi_ex_resolve_node_to_value can be used to get the value
-			 */
-			temp_node = stack_desc->reference.object;
-
-			/* Delete the Reference Object */
-
-			acpi_ut_remove_reference(stack_desc);
-
-			/* Return the namespace node */
-
-			(*stack_ptr) = temp_node;
-			break;
-
 		case AML_LOCAL_OP:
 		case AML_ARG_OP:
 
@@ -207,15 +189,25 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 			switch (stack_desc->reference.target_type) {
 			case ACPI_TYPE_BUFFER_FIELD:
 
-				/* Just return - leave the Reference on the stack */
+				/* Just return - do not dereference */
 				break;
 
 			case ACPI_TYPE_PACKAGE:
 
+				/* If method call or copy_object - do not dereference */
+
+				if ((walk_state->opcode ==
+				     AML_INT_METHODCALL_OP)
+				    || (walk_state->opcode == AML_COPY_OP)) {
+					break;
+				}
+
+				/* Otherwise, dereference the package_index to a package element */
+
 				obj_desc = *stack_desc->reference.where;
 				if (obj_desc) {
 					/*
-					 * Valid obj descriptor, copy pointer to return value
+					 * Valid object descriptor, copy pointer to return value
 					 * (i.e., dereference the package index)
 					 * Delete the ref object, increment the returned object
 					 */
@@ -224,11 +216,11 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 					*stack_ptr = obj_desc;
 				} else {
 					/*
-					 * A NULL object descriptor means an unitialized element of
+					 * A NULL object descriptor means an uninitialized element of
 					 * the package, can't dereference it
 					 */
 					ACPI_ERROR((AE_INFO,
-						    "Attempt to deref an Index to NULL pkg element Idx=%p",
+						    "Attempt to dereference an Index to NULL package element Idx=%p",
 						    stack_desc));
 					status = AE_AML_UNINITIALIZED_ELEMENT;
 				}
@@ -239,7 +231,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 				/* Invalid reference object */
 
 				ACPI_ERROR((AE_INFO,
-					    "Unknown TargetType %X in Index/Reference obj %p",
+					    "Unknown TargetType %X in Index/Reference object %p",
 					    stack_desc->reference.target_type,
 					    stack_desc));
 				status = AE_AML_INTERNAL;
@@ -251,7 +243,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 		case AML_DEBUG_OP:
 		case AML_LOAD_OP:
 
-			/* Just leave the object as-is */
+			/* Just leave the object as-is, do not dereference */
 
 			break;
 
@@ -390,10 +382,10 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 	}
 
 	/*
-	 * For reference objects created via the ref_of or Index operators,
-	 * we need to get to the base object (as per the ACPI specification
-	 * of the object_type and size_of operators). This means traversing
-	 * the list of possibly many nested references.
+	 * For reference objects created via the ref_of, Index, or Load/load_table
+	 * operators, we need to get to the base object (as per the ACPI
+	 * specification of the object_type and size_of operators). This means
+	 * traversing the list of possibly many nested references.
 	 */
 	while (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_LOCAL_REFERENCE) {
 		switch (obj_desc->reference.opcode) {
@@ -462,6 +454,11 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 				goto exit;
 			}
 			break;
+
+		case AML_LOAD_OP:
+
+			type = ACPI_TYPE_DDB_HANDLE;
+			goto exit;
 
 		case AML_LOCAL_OP:
 		case AML_ARG_OP:

@@ -41,11 +41,6 @@
 #include "vxfs_extern.h"
 
 
-extern const struct address_space_operations vxfs_aops;
-extern const struct address_space_operations vxfs_immed_aops;
-
-extern const struct inode_operations vxfs_immed_symlink_iops;
-
 struct kmem_cache		*vxfs_inode_cachep;
 
 

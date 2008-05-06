@@ -142,7 +142,8 @@ static int cs5345_command(struct i2c_client *client, unsigned cmd, void *arg)
 
 /* ----------------------------------------------------------------------- */
 
-static int cs5345_probe(struct i2c_client *client)
+static int cs5345_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))

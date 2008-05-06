@@ -91,6 +91,7 @@ void give_up_console(const struct consw *sw);
 #define CON_ENABLED	(4)
 #define CON_BOOT	(8)
 #define CON_ANYTIME	(16) /* Safe to call when cpu is offline */
+#define CON_BRL		(32) /* Used for a braille device */
 
 struct console {
 	char	name[16];
@@ -121,6 +122,9 @@ extern struct tty_driver *console_device(int *);
 extern void console_stop(struct console *);
 extern void console_start(struct console *);
 extern int is_console_locked(void);
+extern int braille_register_console(struct console *, int index,
+		char *console_options, char *braille_options);
+extern int braille_unregister_console(struct console *);
 
 extern int console_suspend_enabled;
 

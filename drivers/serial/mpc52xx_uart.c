@@ -783,7 +783,9 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 		}
 	}
 
+	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tty);
+	spin_lock(&port->lock);
 
 	return psc_ops->raw_rx_rdy(port);
 }
@@ -1221,8 +1223,8 @@ static struct of_device_id mpc52xx_uart_of_match[] = {
 #endif
 #ifdef CONFIG_PPC_MPC512x
 	{ .compatible = "fsl,mpc5121-psc-uart", .data = &mpc512x_psc_ops, },
-	{},
 #endif
+	{},
 };
 
 static int __devinit

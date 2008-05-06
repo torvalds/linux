@@ -412,12 +412,6 @@ static void bcm_rx_changed(struct bcm_op *op, struct can_frame *data)
 	bcm_send_to_user(op, &head, data, 1);
 }
 
-/* TODO: move to linux/hrtimer.h */
-static inline int hrtimer_callback_running(struct hrtimer *timer)
-{
-        return timer->state & HRTIMER_STATE_CALLBACK;
-}
-
 /*
  * bcm_rx_update_and_send - process a detected relevant receive content change
  *                          1. update the last received data

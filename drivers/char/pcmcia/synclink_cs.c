@@ -503,19 +503,8 @@ static void* mgslpc_get_text_ptr(void)
  * The wrappers maintain line discipline references
  * while calling into the line discipline.
  *
- * ldisc_flush_buffer - flush line discipline receive buffers
  * ldisc_receive_buf  - pass receive data to line discipline
  */
-
-static void ldisc_flush_buffer(struct tty_struct *tty)
-{
-	struct tty_ldisc *ld = tty_ldisc_ref(tty);
-	if (ld) {
-		if (ld->flush_buffer)
-			ld->flush_buffer(tty);
-		tty_ldisc_deref(ld);
-	}
-}
 
 static void ldisc_receive_buf(struct tty_struct *tty,
 			      const __u8 *data, char *flags, int count)
@@ -1556,7 +1545,7 @@ static void mgslpc_change_params(MGSLPC_INFO *info)
 
 /* Add a character to the transmit buffer
  */
-static void mgslpc_put_char(struct tty_struct *tty, unsigned char ch)
+static int mgslpc_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
@@ -1567,10 +1556,10 @@ static void mgslpc_put_char(struct tty_struct *tty, unsigned char ch)
 	}
 
 	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_put_char"))
-		return;
+		return 0;
 
 	if (!info->tx_buf)
-		return;
+		return 0;
 
 	spin_lock_irqsave(&info->lock,flags);
 
@@ -1583,6 +1572,7 @@ static void mgslpc_put_char(struct tty_struct *tty, unsigned char ch)
 	}
 
 	spin_unlock_irqrestore(&info->lock,flags);
+	return 1;
 }
 
 /* Enable transmitter so remaining characters in the
@@ -2467,10 +2457,9 @@ static void mgslpc_close(struct tty_struct *tty, struct file * filp)
  	if (info->flags & ASYNC_INITIALIZED)
  		mgslpc_wait_until_sent(tty, info->timeout);
 
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
+	mgslpc_flush_buffer(tty);
 
-	ldisc_flush_buffer(tty);
+	tty_ldisc_flush(tty);
 
 	shutdown(info);
 

@@ -327,7 +327,7 @@ clear_fields:
 
 static struct backing_dev_info dlmfs_backing_dev_info = {
 	.ra_pages	= 0,	/* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
+	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
 };
 
 static struct inode *dlmfs_get_root_inode(struct super_block *sb)

@@ -14,7 +14,6 @@
  * option) any later version.
  */
 
-#ifdef __KERNEL__
 #ifndef _FSL_DEVICE_H_
 #define _FSL_DEVICE_H_
 
@@ -127,4 +126,3 @@ struct mpc8xx_pcmcia_ops {
 };
 
 #endif /* _FSL_DEVICE_H_ */
-#endif /* __KERNEL__ */

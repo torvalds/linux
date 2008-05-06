@@ -87,7 +87,7 @@ lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 
 		default:
 			printk(KERN_ERR "%s(): unrecognized Vcc %u\n",
-			       __FUNCTION__, state->Vcc);
+			       __func__, state->Vcc);
 			ret = -1;
 		}
 
@@ -104,7 +104,7 @@ lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 				pa_dwr_set |= GPIO_A0;
 			else {
 				printk(KERN_ERR "%s(): unrecognized Vpp %u\n",
-				       __FUNCTION__, state->Vpp);
+				       __func__, state->Vpp);
 				ret = -1;
 				break;
 			}
@@ -128,14 +128,14 @@ lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 
 		default:
 			printk(KERN_ERR "%s(): unrecognized Vcc %u\n",
-			       __FUNCTION__, state->Vcc);
+			       __func__, state->Vcc);
 			ret = -1;
 			break;
 		}
 
 		if (state->Vpp != state->Vcc && state->Vpp != 0) {
 			printk(KERN_ERR "%s(): CF slot cannot support Vpp %u\n",
-			       __FUNCTION__, state->Vpp);
+			       __func__, state->Vpp);
 			ret = -1;
 			break;
 		}

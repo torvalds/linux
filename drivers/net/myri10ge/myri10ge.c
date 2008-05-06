@@ -2437,7 +2437,7 @@ static int myri10ge_sw_tso(struct sk_buff *skb, struct net_device *dev)
 	int status;
 
 	segs = skb_gso_segment(skb, dev->features & ~NETIF_F_TSO6);
-	if (unlikely(IS_ERR(segs)))
+	if (IS_ERR(segs))
 		goto drop;
 
 	while (segs) {

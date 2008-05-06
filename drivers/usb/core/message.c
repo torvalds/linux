@@ -394,7 +394,9 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (!io->urbs)
 		goto nomem;
 
-	urb_flags = URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT;
+	urb_flags = URB_NO_INTERRUPT;
+	if (dma)
+		urb_flags |= URB_NO_TRANSFER_DMA_MAP;
 	if (usb_pipein(pipe))
 		urb_flags |= URB_SHORT_NOT_OK;
 

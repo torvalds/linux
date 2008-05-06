@@ -68,9 +68,6 @@
 
 #include "audit.h"
 
-extern struct list_head audit_filter_list[];
-extern int audit_ever_enabled;
-
 /* AUDIT_NAMES is the number of slots we reserve in the audit_context
  * for saving names from getname(). */
 #define AUDIT_NAMES    20
@@ -281,6 +278,19 @@ static int audit_match_perm(struct audit_context *ctx, int mask)
 	default:
 		return 0;
 	}
+}
+
+static int audit_match_filetype(struct audit_context *ctx, int which)
+{
+	unsigned index = which & ~S_IFMT;
+	mode_t mode = which & S_IFMT;
+	if (index >= ctx->name_count)
+		return 0;
+	if (ctx->names[index].ino == -1)
+		return 0;
+	if ((ctx->names[index].mode ^ mode) & S_IFMT)
+		return 0;
+	return 1;
 }
 
 /*
@@ -591,6 +601,9 @@ static int audit_filter_rules(struct task_struct *tsk,
 			break;
 		case AUDIT_PERM:
 			result = audit_match_perm(ctx, f->val);
+			break;
+		case AUDIT_FILETYPE:
+			result = audit_match_filetype(ctx, f->val);
 			break;
 		}
 
@@ -1095,7 +1108,7 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 			audit_log_format(*ab, "[%d]", i);
 		audit_log_format(*ab, "=");
 		if (has_cntl)
-			audit_log_hex(*ab, buf, to_send);
+			audit_log_n_hex(*ab, buf, to_send);
 		else
 			audit_log_format(*ab, "\"%s\"", buf);
 		audit_log_format(*ab, "\n");
@@ -1296,7 +1309,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			break; }
 
 		case AUDIT_SOCKETCALL: {
-			int i;
 			struct audit_aux_data_socketcall *axs = (void *)aux;
 			audit_log_format(ab, "nargs=%d", axs->nargs);
 			for (i=0; i<axs->nargs; i++)
@@ -1307,7 +1319,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			struct audit_aux_data_sockaddr *axs = (void *)aux;
 
 			audit_log_format(ab, "saddr=");
-			audit_log_hex(ab, axs->a, axs->len);
+			audit_log_n_hex(ab, axs->a, axs->len);
 			break; }
 
 		case AUDIT_FD_PAIR: {
@@ -1321,7 +1333,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 	for (aux = context->aux_pids; aux; aux = aux->next) {
 		struct audit_aux_data_pids *axs = (void *)aux;
-		int i;
 
 		for (i = 0; i < axs->pid_count; i++)
 			if (audit_log_pid_context(context, axs->target_pid[i],
@@ -1371,8 +1382,8 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			default:
 				/* log the name's directory component */
 				audit_log_format(ab, " name=");
-				audit_log_n_untrustedstring(ab, n->name_len,
-							    n->name);
+				audit_log_n_untrustedstring(ab, n->name,
+							    n->name_len);
 			}
 		} else
 			audit_log_format(ab, " name=(null)");
@@ -1596,7 +1607,7 @@ static inline void handle_one(const struct inode *inode)
 	if (likely(put_tree_ref(context, chunk)))
 		return;
 	if (unlikely(!grow_tree_refs(context))) {
-		printk(KERN_WARNING "out of memory, audit has lost a tree reference");
+		printk(KERN_WARNING "out of memory, audit has lost a tree reference\n");
 		audit_set_auditable(context);
 		audit_put_chunk(chunk);
 		unroll_tree_refs(context, p, count);
@@ -1656,7 +1667,7 @@ retry:
 		}
 		/* too bad */
 		printk(KERN_WARNING
-			"out of memory, audit has lost a tree reference");
+			"out of memory, audit has lost a tree reference\n");
 		unroll_tree_refs(context, p, count);
 		audit_set_auditable(context);
 		return;
@@ -1752,13 +1763,13 @@ static int audit_inc_name_count(struct audit_context *context,
 	if (context->name_count >= AUDIT_NAMES) {
 		if (inode)
 			printk(KERN_DEBUG "name_count maxed, losing inode data: "
-			       "dev=%02x:%02x, inode=%lu",
+			       "dev=%02x:%02x, inode=%lu\n",
 			       MAJOR(inode->i_sb->s_dev),
 			       MINOR(inode->i_sb->s_dev),
 			       inode->i_ino);
 
 		else
-			printk(KERN_DEBUG "name_count maxed, losing inode data");
+			printk(KERN_DEBUG "name_count maxed, losing inode data\n");
 		return 1;
 	}
 	context->name_count++;
@@ -2361,9 +2372,6 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	struct audit_aux_data_pids *axp;
 	struct task_struct *tsk = current;
 	struct audit_context *ctx = tsk->audit_context;
-	extern pid_t audit_sig_pid;
-	extern uid_t audit_sig_uid;
-	extern u32 audit_sig_sid;
 
 	if (audit_pid && t->tgid == audit_pid) {
 		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1) {

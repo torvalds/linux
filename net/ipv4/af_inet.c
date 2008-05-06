@@ -1234,7 +1234,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
 		segs = ops->gso_segment(skb, features);
 	rcu_read_unlock();
 
-	if (!segs || unlikely(IS_ERR(segs)))
+	if (!segs || IS_ERR(segs))
 		goto out;
 
 	skb = segs;

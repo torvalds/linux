@@ -27,6 +27,10 @@
 #include <asm/ttable.h>
 #include <asm/mmu.h>
 #include <asm/cpudata.h>
+#include <asm/pil.h>
+#include <asm/estate.h>
+#include <asm/sfafsr.h>
+#include <asm/unistd.h>
 	
 /* This section from from _start to sparc64_boot_end should fit into
  * 0x0000000000404000 to 0x0000000000408000.
@@ -823,7 +827,16 @@ sparc64_boot_end:
 #include "etrap.S"
 #include "rtrap.S"
 #include "winfixup.S"
-#include "entry.S"
+#include "fpu_traps.S"
+#include "ivec.S"
+#include "getsetcc.S"
+#include "utrap.S"
+#include "spiterrs.S"
+#include "cherrs.S"
+#include "misctrap.S"
+#include "syscalls.S"
+#include "helpers.S"
+#include "hvcalls.S"
 #include "sun4v_tlb_miss.S"
 #include "sun4v_ivec.S"
 #include "ktlb.S"

@@ -386,6 +386,8 @@ static void __init smp_create_idle(unsigned int cpu)
 		panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
 #ifdef CONFIG_PPC64
 	paca[cpu].__current = p;
+	paca[cpu].kstack = (unsigned long) task_thread_info(p)
+		+ THREAD_SIZE - STACK_FRAME_OVERHEAD;
 #endif
 	current_set[cpu] = task_thread_info(p);
 	task_thread_info(p)->cpu = cpu;

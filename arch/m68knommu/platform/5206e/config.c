@@ -48,7 +48,7 @@ static struct platform_device *m5206e_devices[] __initdata = {
 
 /***************************************************************************/
 
-static void __init m5206_uart_init_line(int line, int irq)
+static void __init m5206e_uart_init_line(int line, int irq)
 {
 	if (line == 0) {
 		writel(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI1, MCF_MBAR + MCFSIM_UART1ICR);

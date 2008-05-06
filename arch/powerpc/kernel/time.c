@@ -149,7 +149,7 @@ EXPORT_SYMBOL(tb_ticks_per_sec);	/* for cputime_t conversions */
 u64 tb_to_xs;
 unsigned tb_to_us;
 
-#define TICKLEN_SCALE	TICK_LENGTH_SHIFT
+#define TICKLEN_SCALE	NTP_SCALE_SHIFT
 u64 last_tick_len;	/* units are ns / 2^TICKLEN_SCALE */
 u64 ticklen_to_xs;	/* 0.64 fraction */
 
@@ -1006,8 +1006,6 @@ void __init time_init(void)
 	vdso_data->tb_ticks_per_sec = tb_ticks_per_sec;
 	vdso_data->stamp_xsec = (u64) xtime.tv_sec * XSEC_PER_SEC;
 	vdso_data->tb_to_xs = tb_to_xs;
-
-	time_freq = 0;
 
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 

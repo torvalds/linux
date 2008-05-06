@@ -57,10 +57,6 @@ struct key_user {
 	int			qnbytes;	/* number of bytes allocated to this user */
 };
 
-#define KEYQUOTA_MAX_KEYS	100
-#define KEYQUOTA_MAX_BYTES	10000
-#define KEYQUOTA_LINK_BYTES	4		/* a link in a keyring is worth 4 bytes */
-
 extern struct rb_root	key_user_tree;
 extern spinlock_t	key_user_lock;
 extern struct key_user	root_key_user;
@@ -68,6 +64,16 @@ extern struct key_user	root_key_user;
 extern struct key_user *key_user_lookup(uid_t uid);
 extern void key_user_put(struct key_user *user);
 
+/*
+ * key quota limits
+ * - root has its own separate limits to everyone else
+ */
+extern unsigned key_quota_root_maxkeys;
+extern unsigned key_quota_root_maxbytes;
+extern unsigned key_quota_maxkeys;
+extern unsigned key_quota_maxbytes;
+
+#define KEYQUOTA_LINK_BYTES	4		/* a link in a keyring is worth 4 bytes */
 
 
 extern struct rb_root key_serial_tree;
@@ -76,8 +82,6 @@ extern struct semaphore key_alloc_sem;
 extern struct mutex key_construction_mutex;
 extern wait_queue_head_t request_key_conswq;
 
-
-extern void keyring_publish_name(struct key *keyring);
 
 extern int __key_link(struct key *keyring, struct key *key);
 
@@ -102,14 +106,15 @@ extern key_ref_t search_process_keyrings(struct key_type *type,
 					 key_match_func_t match,
 					 struct task_struct *tsk);
 
-extern struct key *find_keyring_by_name(const char *name, key_serial_t bound);
+extern struct key *find_keyring_by_name(const char *name, bool skip_perm_check);
 
 extern int install_thread_keyring(struct task_struct *tsk);
 extern int install_process_keyring(struct task_struct *tsk);
 
 extern struct key *request_key_and_link(struct key_type *type,
 					const char *description,
-					const char *callout_info,
+					const void *callout_info,
+					size_t callout_len,
 					void *aux,
 					struct key *dest_keyring,
 					unsigned long flags);
@@ -120,13 +125,15 @@ extern struct key *request_key_and_link(struct key_type *type,
 struct request_key_auth {
 	struct key		*target_key;
 	struct task_struct	*context;
-	char			*callout_info;
+	void			*callout_info;
+	size_t			callout_len;
 	pid_t			pid;
 };
 
 extern struct key_type key_type_request_key_auth;
 extern struct key *request_key_auth_new(struct key *target,
-					const char *callout_info);
+					const void *callout_info,
+					size_t callout_len);
 
 extern struct key *key_get_instantiation_authkey(key_serial_t target_id);
 
@@ -152,7 +159,8 @@ extern long keyctl_negate_key(key_serial_t, unsigned, key_serial_t);
 extern long keyctl_set_reqkey_keyring(int);
 extern long keyctl_set_timeout(key_serial_t, unsigned);
 extern long keyctl_assume_authority(key_serial_t);
-
+extern long keyctl_get_security(key_serial_t keyid, char __user *buffer,
+				size_t buflen);
 
 /*
  * debugging key validation

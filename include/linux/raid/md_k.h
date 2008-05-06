@@ -84,6 +84,10 @@ struct mdk_rdev_s
 #define	AllReserved	6		/* If whole device is reserved for
 					 * one array */
 #define	AutoDetected	7		/* added by auto-detect */
+#define Blocked		8		/* An error occured on an externally
+					 * managed array, don't allow writes
+					 * until it is cleared */
+	wait_queue_head_t blocked_wait;
 
 	int desc_nr;			/* descriptor index in the superblock */
 	int raid_disk;			/* role of device in array */

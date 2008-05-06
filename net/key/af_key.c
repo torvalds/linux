@@ -1498,7 +1498,8 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 		err = xfrm_state_update(x);
 
 	xfrm_audit_state_add(x, err ? 0 : 1,
-			     audit_get_loginuid(current), 0);
+			     audit_get_loginuid(current),
+			     audit_get_sessionid(current), 0);
 
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
@@ -1552,7 +1553,8 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	km_state_notify(x, &c);
 out:
 	xfrm_audit_state_delete(x, err ? 0 : 1,
-			       audit_get_loginuid(current), 0);
+				audit_get_loginuid(current),
+				audit_get_sessionid(current), 0);
 	xfrm_state_put(x);
 
 	return err;
@@ -1728,6 +1730,7 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 		return -EINVAL;
 
 	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = 0;
 	err = xfrm_state_flush(proto, &audit_info);
 	if (err)
@@ -2324,7 +2327,8 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 				 hdr->sadb_msg_type != SADB_X_SPDUPDATE);
 
 	xfrm_audit_policy_add(xp, err ? 0 : 1,
-			     audit_get_loginuid(current), 0);
+			      audit_get_loginuid(current),
+			      audit_get_sessionid(current), 0);
 
 	if (err)
 		goto out;
@@ -2406,7 +2410,8 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 		return -ENOENT;
 
 	xfrm_audit_policy_delete(xp, err ? 0 : 1,
-				audit_get_loginuid(current), 0);
+				 audit_get_loginuid(current),
+				 audit_get_sessionid(current), 0);
 
 	if (err)
 		goto out;
@@ -2667,7 +2672,8 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 
 	if (delete) {
 		xfrm_audit_policy_delete(xp, err ? 0 : 1,
-				audit_get_loginuid(current), 0);
+				audit_get_loginuid(current),
+				audit_get_sessionid(current), 0);
 
 		if (err)
 			goto out;
@@ -2767,6 +2773,7 @@ static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 	int err;
 
 	audit_info.loginuid = audit_get_loginuid(current);
+	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = 0;
 	err = xfrm_policy_flush(XFRM_POLICY_TYPE_MAIN, &audit_info);
 	if (err)

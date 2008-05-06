@@ -41,12 +41,12 @@
 #ifndef CONFIG_LDM_DEBUG
 #define ldm_debug(...)	do {} while (0)
 #else
-#define ldm_debug(f, a...) _ldm_printk (KERN_DEBUG, __FUNCTION__, f, ##a)
+#define ldm_debug(f, a...) _ldm_printk (KERN_DEBUG, __func__, f, ##a)
 #endif
 
-#define ldm_crit(f, a...)  _ldm_printk (KERN_CRIT,  __FUNCTION__, f, ##a)
-#define ldm_error(f, a...) _ldm_printk (KERN_ERR,   __FUNCTION__, f, ##a)
-#define ldm_info(f, a...)  _ldm_printk (KERN_INFO,  __FUNCTION__, f, ##a)
+#define ldm_crit(f, a...)  _ldm_printk (KERN_CRIT,  __func__, f, ##a)
+#define ldm_error(f, a...) _ldm_printk (KERN_ERR,   __func__, f, ##a)
+#define ldm_info(f, a...)  _ldm_printk (KERN_INFO,  __func__, f, ##a)
 
 __attribute__ ((format (printf, 3, 4)))
 static void _ldm_printk (const char *level, const char *function,

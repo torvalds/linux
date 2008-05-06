@@ -1,6 +1,4 @@
 /*
- * include/asm-xtensa/unaligned.h
- *
  * Xtensa doesn't handle unaligned accesses efficiently.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -9,20 +7,23 @@
  *
  * Copyright (C) 2001 - 2005 Tensilica Inc.
  */
+#ifndef _ASM_XTENSA_UNALIGNED_H
+#define _ASM_XTENSA_UNALIGNED_H
 
-#ifndef _XTENSA_UNALIGNED_H
-#define _XTENSA_UNALIGNED_H
+#ifdef __XTENSA_EL__
+# include <linux/unaligned/le_memmove.h>
+# include <linux/unaligned/be_byteshift.h>
+# include <linux/unaligned/generic.h>
+# define get_unaligned	__get_unaligned_le
+# define put_unaligned	__put_unaligned_le
+#elif defined(__XTENSA_EB__)
+# include <linux/unaligned/be_memmove.h>
+# include <linux/unaligned/le_byteshift.h>
+# include <linux/unaligned/generic.h>
+# define get_unaligned	__get_unaligned_be
+# define put_unaligned	__put_unaligned_be
+#else
+# error processor byte order undefined!
+#endif
 
-#include <linux/string.h>
-
-/* Use memmove here, so gcc does not insert a __builtin_memcpy. */
-
-#define get_unaligned(ptr) \
-  ({ __typeof__(*(ptr)) __tmp; memmove(&__tmp, (ptr), sizeof(*(ptr))); __tmp; })
-
-#define put_unaligned(val, ptr)				\
-  ({ __typeof__(*(ptr)) __tmp = (val);			\
-     memmove((ptr), &__tmp, sizeof(*(ptr)));		\
-     (void)0; })
-
-#endif	/* _XTENSA_UNALIGNED_H */
+#endif	/* _ASM_XTENSA_UNALIGNED_H */

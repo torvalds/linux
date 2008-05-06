@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,7 @@
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utxface")
 
+#ifndef ACPI_ASL_COMPILER
 /*******************************************************************************
  *
  * FUNCTION:    acpi_initialize_subsystem
@@ -192,24 +193,6 @@ acpi_status acpi_enable_subsystem(u32 flags)
 		}
 	}
 
-	/*
-	 * Complete the GPE initialization for the GPE blocks defined in the FADT
-	 * (GPE block 0 and 1).
-	 *
-	 * Note1: This is where the _PRW methods are executed for the GPEs. These
-	 * methods can only be executed after the SCI and Global Lock handlers are
-	 * installed and initialized.
-	 *
-	 * Note2: Currently, there seems to be no need to run the _REG methods
-	 * before execution of the _PRW methods and enabling of the GPEs.
-	 */
-	if (!(flags & ACPI_NO_EVENT_INIT)) {
-		status = acpi_ev_install_fadt_gpes();
-		if (ACPI_FAILURE(status)) {
-			return (status);
-		}
-	}
-
 	return_ACPI_STATUS(status);
 }
 
@@ -280,6 +263,23 @@ acpi_status acpi_initialize_objects(u32 flags)
 	}
 
 	/*
+	 * Complete the GPE initialization for the GPE blocks defined in the FADT
+	 * (GPE block 0 and 1).
+	 *
+	 * Note1: This is where the _PRW methods are executed for the GPEs. These
+	 * methods can only be executed after the SCI and Global Lock handlers are
+	 * installed and initialized.
+	 *
+	 * Note2: Currently, there seems to be no need to run the _REG methods
+	 * before execution of the _PRW methods and enabling of the GPEs.
+	 */
+	if (!(flags & ACPI_NO_EVENT_INIT)) {
+		status = acpi_ev_install_fadt_gpes();
+		if (ACPI_FAILURE(status))
+			return (status);
+	}
+
+	/*
 	 * Empty the caches (delete the cached objects) on the assumption that
 	 * the table load filled them up more than they will be at runtime --
 	 * thus wasting non-paged memory.
@@ -292,6 +292,7 @@ acpi_status acpi_initialize_objects(u32 flags)
 
 ACPI_EXPORT_SYMBOL(acpi_initialize_objects)
 
+#endif
 /*******************************************************************************
  *
  * FUNCTION:    acpi_terminate
@@ -335,6 +336,7 @@ acpi_status acpi_terminate(void)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_terminate)
+#ifndef ACPI_ASL_COMPILER
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
@@ -490,3 +492,4 @@ acpi_status acpi_purge_cached_objects(void)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_purge_cached_objects)
+#endif

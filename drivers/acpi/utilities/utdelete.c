@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -158,7 +158,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 				  "***** Mutex %p, OS Mutex %p\n",
 				  object, object->mutex.os_mutex));
 
-		if (object->mutex.os_mutex == acpi_gbl_global_lock_mutex) {
+		if (object == acpi_gbl_global_lock_mutex) {
 
 			/* Global Lock has extra semaphore */
 
@@ -245,6 +245,17 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
 				  "***** Buffer Field %p\n", object));
+
+		second_desc = acpi_ns_get_secondary_object(object);
+		if (second_desc) {
+			acpi_ut_delete_object_desc(second_desc);
+		}
+		break;
+
+	case ACPI_TYPE_LOCAL_BANK_FIELD:
+
+		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+				  "***** Bank Field %p\n", object));
 
 		second_desc = acpi_ns_get_secondary_object(object);
 		if (second_desc) {
@@ -524,10 +535,12 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 
 		case ACPI_TYPE_LOCAL_REFERENCE:
 			/*
-			 * The target of an Index (a package, string, or buffer) must track
-			 * changes to the ref count of the index.
+			 * The target of an Index (a package, string, or buffer) or a named
+			 * reference must track changes to the ref count of the index or
+			 * target object.
 			 */
-			if (object->reference.opcode == AML_INDEX_OP) {
+			if ((object->reference.opcode == AML_INDEX_OP) ||
+			    (object->reference.opcode == AML_INT_NAMEPATH_OP)) {
 				next_object = object->reference.object;
 			}
 			break;

@@ -132,7 +132,7 @@ static struct platform_device orion5x_uart = {
 static struct resource orion5x_ehci0_resources[] = {
 	{
 		.start	= ORION5X_USB0_PHYS_BASE,
-		.end	= ORION5X_USB0_PHYS_BASE + SZ_4K,
+		.end	= ORION5X_USB0_PHYS_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -145,7 +145,7 @@ static struct resource orion5x_ehci0_resources[] = {
 static struct resource orion5x_ehci1_resources[] = {
 	{
 		.start	= ORION5X_USB1_PHYS_BASE,
-		.end	= ORION5X_USB1_PHYS_BASE + SZ_4K,
+		.end	= ORION5X_USB1_PHYS_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -317,7 +317,7 @@ struct sys_timer orion5x_timer = {
  ****************************************************************************/
 
 /*
- * Identify device ID and rev from PCIE configuration header space '0'.
+ * Identify device ID and rev from PCIe configuration header space '0'.
  */
 static void __init orion5x_id(u32 *dev, u32 *rev, char **dev_name)
 {

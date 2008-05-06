@@ -85,6 +85,7 @@ enum smic_states {
 /* SMIC Flags Register Bits */
 #define SMIC_RX_DATA_READY	0x80
 #define SMIC_TX_DATA_READY	0x40
+
 /*
  * SMIC_SMI and SMIC_EVM_DATA_AVAIL are only used by
  * a few systems, and then only by Systems Management
@@ -104,23 +105,22 @@ enum smic_states {
 #define	EC_ILLEGAL_COMMAND	0x04
 #define	EC_BUFFER_FULL		0x05
 
-struct si_sm_data
-{
+struct si_sm_data {
 	enum smic_states state;
 	struct si_sm_io *io;
-        unsigned char	 write_data[MAX_SMIC_WRITE_SIZE];
-        int		 write_pos;
-        int		 write_count;
-        int		 orig_write_count;
-        unsigned char	 read_data[MAX_SMIC_READ_SIZE];
-        int		 read_pos;
-        int		 truncated;
-        unsigned int	 error_retries;
-        long		 smic_timeout;
+	unsigned char	 write_data[MAX_SMIC_WRITE_SIZE];
+	int		 write_pos;
+	int		 write_count;
+	int		 orig_write_count;
+	unsigned char	 read_data[MAX_SMIC_READ_SIZE];
+	int		 read_pos;
+	int		 truncated;
+	unsigned int	 error_retries;
+	long		 smic_timeout;
 };
 
-static unsigned int init_smic_data (struct si_sm_data *smic,
-				    struct si_sm_io *io)
+static unsigned int init_smic_data(struct si_sm_data *smic,
+				   struct si_sm_io *io)
 {
 	smic->state = SMIC_IDLE;
 	smic->io = io;
@@ -150,11 +150,10 @@ static int start_smic_transaction(struct si_sm_data *smic,
 		return IPMI_NOT_IN_MY_STATE_ERR;
 
 	if (smic_debug & SMIC_DEBUG_MSG) {
-		printk(KERN_INFO "start_smic_transaction -");
-		for (i = 0; i < size; i ++) {
-			printk (" %02x", (unsigned char) (data [i]));
-		}
-		printk ("\n");
+		printk(KERN_DEBUG "start_smic_transaction -");
+		for (i = 0; i < size; i++)
+			printk(" %02x", (unsigned char) data[i]);
+		printk("\n");
 	}
 	smic->error_retries = 0;
 	memcpy(smic->write_data, data, size);
@@ -173,11 +172,10 @@ static int smic_get_result(struct si_sm_data *smic,
 	int i;
 
 	if (smic_debug & SMIC_DEBUG_MSG) {
-		printk (KERN_INFO "smic_get result -");
-		for (i = 0; i < smic->read_pos; i ++) {
-			printk (" %02x", (smic->read_data [i]));
-		}
-		printk ("\n");
+		printk(KERN_DEBUG "smic_get result -");
+		for (i = 0; i < smic->read_pos; i++)
+			printk(" %02x", smic->read_data[i]);
+		printk("\n");
 	}
 	if (length < smic->read_pos) {
 		smic->read_pos = length;
@@ -223,8 +221,8 @@ static inline void write_smic_control(struct si_sm_data *smic,
 	smic->io->outputb(smic->io, 1, control);
 }
 
-static inline void write_si_sm_data (struct si_sm_data *smic,
-				   unsigned char   data)
+static inline void write_si_sm_data(struct si_sm_data *smic,
+				    unsigned char   data)
 {
 	smic->io->outputb(smic->io, 0, data);
 }
@@ -233,10 +231,9 @@ static inline void start_error_recovery(struct si_sm_data *smic, char *reason)
 {
 	(smic->error_retries)++;
 	if (smic->error_retries > SMIC_MAX_ERROR_RETRIES) {
-		if (smic_debug & SMIC_DEBUG_ENABLE) {
+		if (smic_debug & SMIC_DEBUG_ENABLE)
 			printk(KERN_WARNING
 			       "ipmi_smic_drv: smic hosed: %s\n", reason);
-		}
 		smic->state = SMIC_HOSED;
 	} else {
 		smic->write_count = smic->orig_write_count;
@@ -254,14 +251,14 @@ static inline void write_next_byte(struct si_sm_data *smic)
 	(smic->write_count)--;
 }
 
-static inline void read_next_byte (struct si_sm_data *smic)
+static inline void read_next_byte(struct si_sm_data *smic)
 {
 	if (smic->read_pos >= MAX_SMIC_READ_SIZE) {
-		read_smic_data (smic);
+		read_smic_data(smic);
 		smic->truncated = 1;
 	} else {
 		smic->read_data[smic->read_pos] = read_smic_data(smic);
-		(smic->read_pos)++;
+		smic->read_pos++;
 	}
 }
 
@@ -336,7 +333,7 @@ static inline void read_next_byte (struct si_sm_data *smic)
 	SMIC_SC_SMS_RD_END	0xC6
 */
 
-static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
+static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 {
 	unsigned char status;
 	unsigned char flags;
@@ -347,13 +344,15 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 		return SI_SM_HOSED;
 	}
 	if (smic->state != SMIC_IDLE) {
-		if (smic_debug & SMIC_DEBUG_STATES) {
-			printk(KERN_INFO
+		if (smic_debug & SMIC_DEBUG_STATES)
+			printk(KERN_DEBUG
 			       "smic_event - smic->smic_timeout = %ld,"
 			       " time = %ld\n",
 			       smic->smic_timeout, time);
-		}
-/* FIXME: smic_event is sometimes called with time > SMIC_RETRY_TIMEOUT */
+		/*
+		 * FIXME: smic_event is sometimes called with time >
+		 * SMIC_RETRY_TIMEOUT
+		 */
 		if (time < SMIC_RETRY_TIMEOUT) {
 			smic->smic_timeout -= time;
 			if (smic->smic_timeout < 0) {
@@ -366,9 +365,9 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 	if (flags & SMIC_FLAG_BSY)
 		return SI_SM_CALL_WITH_DELAY;
 
-	status = read_smic_status (smic);
+	status = read_smic_status(smic);
 	if (smic_debug & SMIC_DEBUG_STATES)
-		printk(KERN_INFO
+		printk(KERN_DEBUG
 		       "smic_event - state = %d, flags = 0x%02x,"
 		       " status = 0x%02x\n",
 		       smic->state, flags, status);
@@ -377,9 +376,7 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 	case SMIC_IDLE:
 		/* in IDLE we check for available messages */
 		if (flags & SMIC_SMS_DATA_AVAIL)
-		{
 			return SI_SM_ATTN;
-		}
 		return SI_SM_IDLE;
 
 	case SMIC_START_OP:
@@ -391,7 +388,7 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 
 	case SMIC_OP_OK:
 		if (status != SMIC_SC_SMS_READY) {
-				/* this should not happen */
+			/* this should not happen */
 			start_error_recovery(smic,
 					     "state = SMIC_OP_OK,"
 					     " status != SMIC_SC_SMS_READY");
@@ -411,8 +408,10 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 					     "status != SMIC_SC_SMS_WR_START");
 			return SI_SM_CALL_WITH_DELAY;
 		}
-		/* we must not issue WR_(NEXT|END) unless
-                   TX_DATA_READY is set */
+		/*
+		 * we must not issue WR_(NEXT|END) unless
+		 * TX_DATA_READY is set
+		 * */
 		if (flags & SMIC_TX_DATA_READY) {
 			if (smic->write_count == 1) {
 				/* last byte */
@@ -424,10 +423,8 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 			}
 			write_next_byte(smic);
 			write_smic_flags(smic, flags | SMIC_FLAG_BSY);
-		}
-		else {
+		} else
 			return SI_SM_CALL_WITH_DELAY;
-		}
 		break;
 
 	case SMIC_WRITE_NEXT:
@@ -442,52 +439,48 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 			if (smic->write_count == 1) {
 				write_smic_control(smic, SMIC_CC_SMS_WR_END);
 				smic->state = SMIC_WRITE_END;
-			}
-			else {
+			} else {
 				write_smic_control(smic, SMIC_CC_SMS_WR_NEXT);
 				smic->state = SMIC_WRITE_NEXT;
 			}
 			write_next_byte(smic);
 			write_smic_flags(smic, flags | SMIC_FLAG_BSY);
-		}
-		else {
+		} else
 			return SI_SM_CALL_WITH_DELAY;
-		}
 		break;
 
 	case SMIC_WRITE_END:
 		if (status != SMIC_SC_SMS_WR_END) {
-			start_error_recovery (smic,
-					      "state = SMIC_WRITE_END, "
-					      "status != SMIC_SC_SMS_WR_END");
+			start_error_recovery(smic,
+					     "state = SMIC_WRITE_END, "
+					     "status != SMIC_SC_SMS_WR_END");
 			return SI_SM_CALL_WITH_DELAY;
 		}
 		/* data register holds an error code */
 		data = read_smic_data(smic);
 		if (data != 0) {
-			if (smic_debug & SMIC_DEBUG_ENABLE) {
-				printk(KERN_INFO
+			if (smic_debug & SMIC_DEBUG_ENABLE)
+				printk(KERN_DEBUG
 				       "SMIC_WRITE_END: data = %02x\n", data);
-			}
 			start_error_recovery(smic,
 					     "state = SMIC_WRITE_END, "
 					     "data != SUCCESS");
 			return SI_SM_CALL_WITH_DELAY;
-		} else {
+		} else
 			smic->state = SMIC_WRITE2READ;
-		}
 		break;
 
 	case SMIC_WRITE2READ:
-		/* we must wait for RX_DATA_READY to be set before we
-                   can continue */
+		/*
+		 * we must wait for RX_DATA_READY to be set before we
+		 * can continue
+		 */
 		if (flags & SMIC_RX_DATA_READY) {
 			write_smic_control(smic, SMIC_CC_SMS_RD_START);
 			write_smic_flags(smic, flags | SMIC_FLAG_BSY);
 			smic->state = SMIC_READ_START;
-		} else {
+		} else
 			return SI_SM_CALL_WITH_DELAY;
-		}
 		break;
 
 	case SMIC_READ_START:
@@ -502,15 +495,16 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 			write_smic_control(smic, SMIC_CC_SMS_RD_NEXT);
 			write_smic_flags(smic, flags | SMIC_FLAG_BSY);
 			smic->state = SMIC_READ_NEXT;
-		} else {
+		} else
 			return SI_SM_CALL_WITH_DELAY;
-		}
 		break;
 
 	case SMIC_READ_NEXT:
 		switch (status) {
-		/* smic tells us that this is the last byte to be read
-                   --> clean up */
+		/*
+		 * smic tells us that this is the last byte to be read
+		 * --> clean up
+		 */
 		case SMIC_SC_SMS_RD_END:
 			read_next_byte(smic);
 			write_smic_control(smic, SMIC_CC_SMS_RD_END);
@@ -523,9 +517,8 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 				write_smic_control(smic, SMIC_CC_SMS_RD_NEXT);
 				write_smic_flags(smic, flags | SMIC_FLAG_BSY);
 				smic->state = SMIC_READ_NEXT;
-			} else {
+			} else
 				return SI_SM_CALL_WITH_DELAY;
-			}
 			break;
 		default:
 			start_error_recovery(
@@ -546,10 +539,9 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 		data = read_smic_data(smic);
 		/* data register holds an error code */
 		if (data != 0) {
-			if (smic_debug & SMIC_DEBUG_ENABLE) {
-				printk(KERN_INFO
+			if (smic_debug & SMIC_DEBUG_ENABLE)
+				printk(KERN_DEBUG
 				       "SMIC_READ_END: data = %02x\n", data);
-			}
 			start_error_recovery(smic,
 					     "state = SMIC_READ_END, "
 					     "data != SUCCESS");
@@ -565,7 +557,7 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 
 	default:
 		if (smic_debug & SMIC_DEBUG_ENABLE) {
-			printk(KERN_WARNING "smic->state = %d\n", smic->state);
+			printk(KERN_DEBUG "smic->state = %d\n", smic->state);
 			start_error_recovery(smic, "state = UNKNOWN");
 			return SI_SM_CALL_WITH_DELAY;
 		}
@@ -576,10 +568,12 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 
 static int smic_detect(struct si_sm_data *smic)
 {
-	/* It's impossible for the SMIC fnags register to be all 1's,
-	   (assuming a properly functioning, self-initialized BMC)
-	   but that's what you get from reading a bogus address, so we
-	   test that first. */
+	/*
+	 * It's impossible for the SMIC fnags register to be all 1's,
+	 * (assuming a properly functioning, self-initialized BMC)
+	 * but that's what you get from reading a bogus address, so we
+	 * test that first.
+	 */
 	if (read_smic_flags(smic) == 0xff)
 		return 1;
 
@@ -595,8 +589,7 @@ static int smic_size(void)
 	return sizeof(struct si_sm_data);
 }
 
-struct si_sm_handlers smic_smi_handlers =
-{
+struct si_sm_handlers smic_smi_handlers = {
 	.init_data         = init_smic_data,
 	.start_transaction = start_smic_transaction,
 	.get_result        = smic_get_result,

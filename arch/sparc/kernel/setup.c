@@ -180,11 +180,9 @@ static void __init boot_flags_init(char *commands)
 
 /* This routine will in the future do all the nasty prom stuff
  * to probe for the mmu type and its parameters, etc. This will
- * also be where SMP things happen plus the Sparc specific memory
- * physical memory probe as on the alpha.
+ * also be where SMP things happen.
  */
 
-extern int prom_probe_memory(void);
 extern void sun4c_probe_vac(void);
 extern char cputypval;
 extern unsigned long start, end;
@@ -268,7 +266,6 @@ void __init setup_arch(char **cmdline_p)
 	if (ARCH_SUN4C_SUN4)
 		sun4c_probe_vac();
 	load_mmu();
-	(void) prom_probe_memory();
 
 	phys_base = 0xffffffffUL;
 	highest_paddr = 0UL;

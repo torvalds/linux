@@ -385,8 +385,8 @@ void idr_remove(struct idr *idp, int id)
 	while (idp->id_free_cnt >= IDR_FREE_MAX) {
 		p = alloc_layer(idp);
 		kmem_cache_free(idr_layer_cache, p);
-		return;
 	}
+	return;
 }
 EXPORT_SYMBOL(idr_remove);
 
@@ -585,12 +585,11 @@ static void idr_cache_ctor(struct kmem_cache *idr_layer_cache, void *idr_layer)
 	memset(idr_layer, 0, sizeof(struct idr_layer));
 }
 
-static  int init_id_cache(void)
+void __init idr_init_cache(void)
 {
-	if (!idr_layer_cache)
-		idr_layer_cache = kmem_cache_create("idr_layer_cache",
-			sizeof(struct idr_layer), 0, 0, idr_cache_ctor);
-	return 0;
+	idr_layer_cache = kmem_cache_create("idr_layer_cache",
+				sizeof(struct idr_layer), 0, SLAB_PANIC,
+				idr_cache_ctor);
 }
 
 /**
@@ -602,7 +601,6 @@ static  int init_id_cache(void)
  */
 void idr_init(struct idr *idp)
 {
-	init_id_cache();
 	memset(idp, 0, sizeof(struct idr));
 	spin_lock_init(&idp->lock);
 }

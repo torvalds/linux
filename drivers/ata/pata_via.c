@@ -464,11 +464,12 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	pci_dev_put(isa);
 
-	/* 0x40 low bits indicate enabled channels */
-	pci_read_config_byte(pdev, 0x40 , &enable);
-	enable &= 3;
-	if (enable == 0) {
-		return -ENODEV;
+	if (!(config->flags & VIA_NO_ENABLES)) {
+		/* 0x40 low bits indicate enabled channels */
+		pci_read_config_byte(pdev, 0x40 , &enable);
+		enable &= 3;
+		if (enable == 0)
+			return -ENODEV;
 	}
 
 	/* Initialise the FIFO for the enabled channels. */

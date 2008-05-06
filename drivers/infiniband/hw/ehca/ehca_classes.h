@@ -66,6 +66,7 @@ struct ehca_av;
 #include "ehca_irq.h"
 
 #define EHCA_EQE_CACHE_SIZE 20
+#define EHCA_MAX_NUM_QUEUES 0xffff
 
 struct ehca_eqe_cache_entry {
 	struct ehca_eqe *eqe;
@@ -127,6 +128,8 @@ struct ehca_shca {
 	/* MR pgsize: bit 0-3 means 4K, 64K, 1M, 16M respectively */
 	u32 hca_cap_mr_pgsize;
 	int max_mtu;
+	atomic_t num_cqs;
+	atomic_t num_qps;
 };
 
 struct ehca_pd {
@@ -344,6 +347,8 @@ extern int ehca_use_hp_mr;
 extern int ehca_scaling_code;
 extern int ehca_lock_hcalls;
 extern int ehca_nr_ports;
+extern int ehca_max_cq;
+extern int ehca_max_qp;
 
 struct ipzu_queue_resp {
 	u32 qe_size;      /* queue entry size */

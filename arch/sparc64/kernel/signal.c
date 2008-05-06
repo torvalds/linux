@@ -332,6 +332,9 @@ void do_rt_sigreturn(struct pt_regs *regs)
 	regs->tpc = tpc;
 	regs->tnpc = tnpc;
 
+	/* Prevent syscall restart.  */
+	pt_regs_clear_trap_type(regs);
+
 	sigdelsetmask(&set, ~_BLOCKABLE);
 	spin_lock_irq(&current->sighand->siglock);
 	current->blocked = set;
@@ -515,7 +518,8 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	siginfo_t info;
 	int signr;
 	
-	if (pt_regs_is_syscall(regs)) {
+	if (pt_regs_is_syscall(regs) &&
+	    (regs->tstate & (TSTATE_XCARRY | TSTATE_ICARRY))) {
 		pt_regs_clear_trap_type(regs);
 		cookie.restart_syscall = 1;
 	} else

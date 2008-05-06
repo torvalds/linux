@@ -180,12 +180,13 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	"ldx	[%%sp + 2047 + 0x70], %%i6\n\t"				\
 	"ldx	[%%sp + 2047 + 0x78], %%i7\n\t"				\
 	"ldx	[%%g6 + %9], %%g4\n\t"					\
-	"brz,pt %%o7, 1f\n\t"						\
+	"brz,pt %%o7, switch_to_pc\n\t"					\
 	" mov	%%g7, %0\n\t"						\
 	"sethi	%%hi(ret_from_syscall), %%g1\n\t"			\
 	"jmpl	%%g1 + %%lo(ret_from_syscall), %%g0\n\t"		\
 	" nop\n\t"							\
-	"1:\n\t"							\
+	".globl switch_to_pc\n\t"					\
+	"switch_to_pc:\n\t"						\
 	: "=&r" (last), "=r" (current), "=r" (current_thread_info_reg),	\
 	  "=r" (__local_per_cpu_offset)					\
 	: "0" (task_thread_info(next)),					\

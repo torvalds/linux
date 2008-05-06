@@ -401,6 +401,8 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 static int aac_slave_configure(struct scsi_device *sdev)
 {
 	struct aac_dev *aac = (struct aac_dev *)sdev->host->hostdata;
+	if (aac->jbod && (sdev->type == TYPE_DISK))
+		sdev->removable = 1;
 	if ((sdev->type == TYPE_DISK) &&
 			(sdev_channel(sdev) != CONTAINER_CHANNEL) &&
 			(!aac->jbod || sdev->inq_periph_qual) &&
@@ -809,6 +811,12 @@ static ssize_t aac_show_flags(struct device *cdev,
 				"SAI_READ_CAPACITY_16\n");
 	if (dev->jbod)
 		len += snprintf(buf + len, PAGE_SIZE - len, "SUPPORTED_JBOD\n");
+	if (dev->supplement_adapter_info.SupportedOptions2 &
+		AAC_OPTION_POWER_MANAGEMENT)
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"SUPPORTED_POWER_MANAGEMENT\n");
+	if (dev->msi)
+		len += snprintf(buf + len, PAGE_SIZE - len, "PCI_HAS_MSI\n");
 	return len;
 }
 
@@ -1106,7 +1114,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	aac->pdev = pdev;
 	aac->name = aac_driver_template.name;
 	aac->id = shost->unique_id;
-	aac->cardtype =  index;
+	aac->cardtype = index;
 	INIT_LIST_HEAD(&aac->entry);
 
 	aac->fibs = kmalloc(sizeof(struct fib) * (shost->can_queue + AAC_NUM_MGT_FIB), GFP_KERNEL);
@@ -1146,19 +1154,19 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 		goto out_deinit;
 
 	/*
- 	 * Lets override negotiations and drop the maximum SG limit to 34
- 	 */
+	 * Lets override negotiations and drop the maximum SG limit to 34
+	 */
 	if ((aac_drivers[index].quirks & AAC_QUIRK_34SG) &&
 			(shost->sg_tablesize > 34)) {
 		shost->sg_tablesize = 34;
 		shost->max_sectors = (shost->sg_tablesize * 8) + 112;
- 	}
+	}
 
- 	if ((aac_drivers[index].quirks & AAC_QUIRK_17SG) &&
+	if ((aac_drivers[index].quirks & AAC_QUIRK_17SG) &&
 			(shost->sg_tablesize > 17)) {
 		shost->sg_tablesize = 17;
 		shost->max_sectors = (shost->sg_tablesize * 8) + 112;
- 	}
+	}
 
 	error = pci_set_dma_max_seg_size(pdev,
 		(aac->adapter_info.options & AAC_OPT_NEW_COMM) ?
@@ -1174,7 +1182,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	else
 		aac->printf_enabled = 0;
 
- 	/*
+	/*
 	 * max channel will be the physical channels plus 1 virtual channel
 	 * all containers are on the virtual channel 0 (CONTAINER_CHANNEL)
 	 * physical channels are address by their actual physical number+1

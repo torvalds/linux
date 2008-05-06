@@ -11,8 +11,8 @@
 
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/ext4_fs.h>
 #include <linux/cryptohash.h>
+#include "ext4.h"
 
 #define DELTA 0x9E3779B9
 

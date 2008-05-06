@@ -3632,7 +3632,7 @@ qdio_add_procfs_entry(void)
 {
         proc_perf_file_registration=0;
 	qdio_perf_proc_file=create_proc_entry(QDIO_PERF,
-					      S_IFREG|0444,&proc_root);
+					      S_IFREG|0444,NULL);
 	if (qdio_perf_proc_file) {
 		qdio_perf_proc_file->read_proc=&qdio_perf_procfile_read;
 	} else proc_perf_file_registration=-1;
@@ -3647,7 +3647,7 @@ static void
 qdio_remove_procfs_entry(void)
 {
         if (!proc_perf_file_registration) /* means if it went ok earlier */
-		remove_proc_entry(QDIO_PERF,&proc_root);
+		remove_proc_entry(QDIO_PERF,NULL);
 }
 
 /**
@@ -3663,11 +3663,11 @@ qdio_performance_stats_show(struct bus_type *bus, char *buf)
 static ssize_t
 qdio_performance_stats_store(struct bus_type *bus, const char *buf, size_t count)
 {
-	char *tmp;
-	int i;
+	unsigned long i;
+	int ret;
 
-	i = simple_strtoul(buf, &tmp, 16);
-	if ((i == 0) || (i == 1)) {
+	ret = strict_strtoul(buf, 16, &i);
+	if (!ret && ((i == 0) || (i == 1))) {
 		if (i == qdio_performance_stats)
 			return count;
 		qdio_performance_stats = i;

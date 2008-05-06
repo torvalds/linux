@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.19
-                         January 06th, 2008
+                            Version 0.20
+                          April 09th, 2008
 
                Borislav Deianov <borislav@users.sf.net>
              Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -18,6 +18,11 @@ This driver used to be named ibm-acpi until kernel 2.6.21 and release
 moved to the drivers/misc tree and renamed to thinkpad-acpi for kernel
 2.6.22, and release 0.14.
 
+The driver is named "thinkpad-acpi".  In some places, like module
+names, "thinkpad_acpi" is used because of userspace issues.
+
+"tpacpi" is used as a shorthand where "thinkpad-acpi" would be too
+long due to length limitations on some Linux kernel versions.
 
 Status
 ------
@@ -571,6 +576,47 @@ netlink interface and the input layer interface, and don't bother at all
 with hotkey_report_mode.
 
 
+Brightness hotkey notes:
+
+These are the current sane choices for brightness key mapping in
+thinkpad-acpi:
+
+For IBM and Lenovo models *without* ACPI backlight control (the ones on
+which thinkpad-acpi will autoload its backlight interface by default,
+and on which ACPI video does not export a backlight interface):
+
+1. Don't enable or map the brightness hotkeys in thinkpad-acpi, as
+   these older firmware versions unfortunately won't respect the hotkey
+   mask for brightness keys anyway, and always reacts to them.  This
+   usually work fine, unless X.org drivers are doing something to block
+   the BIOS.  In that case, use (3) below.  This is the default mode of
+   operation.
+
+2. Enable the hotkeys, but map them to something else that is NOT
+   KEY_BRIGHTNESS_UP/DOWN or any other keycode that would cause
+   userspace to try to change the backlight level, and use that as an
+   on-screen-display hint.
+
+3. IF AND ONLY IF X.org drivers find a way to block the firmware from
+   automatically changing the brightness, enable the hotkeys and map
+   them to KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN, and feed that to
+   something that calls xbacklight.  thinkpad-acpi will not be able to
+   change brightness in that case either, so you should disable its
+   backlight interface.
+
+For Lenovo models *with* ACPI backlight control:
+
+1. Load up ACPI video and use that.  ACPI video will report ACPI
+   events for brightness change keys.  Do not mess with thinkpad-acpi
+   defaults in this case.  thinkpad-acpi should not have anything to do
+   with backlight events in a scenario where ACPI video is loaded:
+   brightness hotkeys must be disabled, and the backlight interface is
+   to be kept disabled as well.  This is the default mode of operation.
+
+2. Do *NOT* load up ACPI video, enable the hotkeys in thinkpad-acpi,
+   and map them to KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN.  Process
+   these keys on userspace somehow (e.g. by calling xbacklight).
+
 Bluetooth
 ---------
 
@@ -647,15 +693,30 @@ while others are still having problems. For more information:
 
 https://bugs.freedesktop.org/show_bug.cgi?id=2000
 
-ThinkLight control -- /proc/acpi/ibm/light
-------------------------------------------
+ThinkLight control
+------------------
 
-The current status of the ThinkLight can be found in this file. A few
-models which do not make the status available will show it as
-"unknown". The available commands are:
+procfs: /proc/acpi/ibm/light
+sysfs attributes: as per LED class, for the "tpacpi::thinklight" LED
+
+procfs notes:
+
+The ThinkLight status can be read and set through the procfs interface.  A
+few models which do not make the status available will show the ThinkLight
+status as "unknown". The available commands are:
 
 	echo on  > /proc/acpi/ibm/light
 	echo off > /proc/acpi/ibm/light
+
+sysfs notes:
+
+The ThinkLight sysfs interface is documented by the LED class
+documentation, in Documentation/leds-class.txt.  The ThinkLight LED name
+is "tpacpi::thinklight".
+
+Due to limitations in the sysfs LED class, if the status of the thinklight
+cannot be read or if it is unknown, thinkpad-acpi will report it as "off".
+It is impossible to know if the status returned through sysfs is valid.
 
 Docking / undocking -- /proc/acpi/ibm/dock
 ------------------------------------------
@@ -815,27 +876,62 @@ The cmos command interface is prone to firmware split-brain problems, as
 in newer ThinkPads it is just a compatibility layer.  Do not use it, it is
 exported just as a debug tool.
 
-LED control -- /proc/acpi/ibm/led
----------------------------------
+LED control
+-----------
 
-Some of the LED indicators can be controlled through this feature. The
-available commands are:
+procfs: /proc/acpi/ibm/led
+sysfs attributes: as per LED class, see below for names
 
-	echo '<led number> on' >/proc/acpi/ibm/led
-	echo '<led number> off' >/proc/acpi/ibm/led
-	echo '<led number> blink' >/proc/acpi/ibm/led
+Some of the LED indicators can be controlled through this feature.  On
+some older ThinkPad models, it is possible to query the status of the
+LED indicators as well.  Newer ThinkPads cannot query the real status
+of the LED indicators.
 
-The <led number> range is 0 to 7. The set of LEDs that can be
-controlled varies from model to model. Here is the mapping on the X40:
+procfs notes:
+
+The available commands are:
+
+	echo '<LED number> on' >/proc/acpi/ibm/led
+	echo '<LED number> off' >/proc/acpi/ibm/led
+	echo '<LED number> blink' >/proc/acpi/ibm/led
+
+The <LED number> range is 0 to 7. The set of LEDs that can be
+controlled varies from model to model. Here is the common ThinkPad
+mapping:
 
 	0 - power
 	1 - battery (orange)
 	2 - battery (green)
-	3 - UltraBase
+	3 - UltraBase/dock
 	4 - UltraBay
+	5 - UltraBase battery slot
+	6 - (unknown)
 	7 - standby
 
 All of the above can be turned on and off and can be made to blink.
+
+sysfs notes:
+
+The ThinkPad LED sysfs interface is described in detail by the LED class
+documentation, in Documentation/leds-class.txt.
+
+The leds are named (in LED ID order, from 0 to 7):
+"tpacpi::power", "tpacpi:orange:batt", "tpacpi:green:batt",
+"tpacpi::dock_active", "tpacpi::bay_active", "tpacpi::dock_batt",
+"tpacpi::unknown_led", "tpacpi::standby".
+
+Due to limitations in the sysfs LED class, if the status of the LED
+indicators cannot be read due to an error, thinkpad-acpi will report it as
+a brightness of zero (same as LED off).
+
+If the thinkpad firmware doesn't support reading the current status,
+trying to read the current LED brightness will just return whatever
+brightness was last written to that attribute.
+
+These LEDs can blink using hardware acceleration.  To request that a
+ThinkPad indicator LED should blink in hardware accelerated mode, use the
+"timer" trigger, and leave the delay_on and delay_off parameters set to
+zero (to request hardware acceleration autodetection).
 
 ACPI sounds -- /proc/acpi/ibm/beep
 ----------------------------------
@@ -1089,6 +1185,15 @@ it there will be the following attributes:
 		increase the current power management level, i.e. they can
 		dim the display.
 
+
+WARNING:
+
+    Whatever you do, do NOT ever call thinkpad-acpi backlight-level change
+    interface and the ACPI-based backlight level change interface
+    (available on newer BIOSes, and driven by the Linux ACPI video driver)
+    at the same time.  The two will interact in bad ways, do funny things,
+    and maybe reduce the life of the backlight lamps by needlessly kicking
+    its level up and down at every change.
 
 Volume control -- /proc/acpi/ibm/volume
 ---------------------------------------

@@ -32,6 +32,7 @@
 #include <asm/segment.h>
 #include <asm/asm-offsets.h>
 #include <asm/entry.h>
+#include <asm/unistd.h>
 
 .text
 
@@ -139,4 +140,12 @@ ENTRY(sys_rt_sigreturn)
 	jbsr	do_rt_sigreturn
 	RESTORE_SWITCH_STACK
 	rts
+
+ENTRY(ret_from_user_signal)
+	moveq #__NR_sigreturn,%d0
+	trap #0
+
+ENTRY(ret_from_user_rt_signal)
+	move #__NR_rt_sigreturn,%d0
+	trap #0
 

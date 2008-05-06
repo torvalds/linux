@@ -120,13 +120,19 @@ static struct platform_device kurobox_pro_nor_flash = {
 
 static int __init kurobox_pro_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
+	int irq;
+
+	/*
+	 * Check for devices with hard-wired IRQs.
+	 */
+	irq = orion5x_pci_map_irq(dev, slot, pin);
+	if (irq != -1)
+		return irq;
+
 	/*
 	 * PCI isn't used on the Kuro
 	 */
-	if (dev->bus->number == orion5x_pcie_local_bus_nr())
-		return IRQ_ORION5X_PCIE0_INT;
-	else
-		printk(KERN_ERR "kurobox_pro_pci_map_irq failed, unknown bus\n");
+	printk(KERN_ERR "kurobox_pro_pci_map_irq failed, unknown bus\n");
 
 	return -1;
 }
@@ -162,9 +168,7 @@ static struct mv643xx_eth_platform_data kurobox_pro_eth_data = {
  * RTC 5C372a on I2C bus
  ****************************************************************************/
 static struct i2c_board_info __initdata kurobox_pro_i2c_rtc = {
-       .driver_name    = "rtc-rs5c372",
-       .type           = "rs5c372a",
-       .addr           = 0x32,
+	I2C_BOARD_INFO("rs5c372a", 0x32),
 };
 
 /*****************************************************************************
@@ -193,7 +197,7 @@ static void __init kurobox_pro_init(void)
 	orion5x_setup_dev0_win(KUROBOX_PRO_NAND_BASE, KUROBOX_PRO_NAND_SIZE);
 
 	/*
-	 * Open a special address decode windows for the PCIE WA.
+	 * Open a special address decode windows for the PCIe WA.
 	 */
 	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
 				ORION5X_PCIE_WA_SIZE);

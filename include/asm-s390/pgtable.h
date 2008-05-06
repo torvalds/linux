@@ -129,7 +129,7 @@ extern char empty_zero_page[PAGE_SIZE];
 #define VMEM_MAX_PAGES	((VMEM_MAP_END - VMALLOC_END) / sizeof(struct page))
 #define VMEM_MAX_PFN	min(VMALLOC_START >> PAGE_SHIFT, VMEM_MAX_PAGES)
 #define VMEM_MAX_PHYS	((VMEM_MAX_PFN << PAGE_SHIFT) & ~((16 << 20) - 1))
-#define VMEM_MAP	((struct page *) VMALLOC_END)
+#define vmemmap		((struct page *) VMALLOC_END)
 
 /*
  * A 31 bit pagetable entry of S390 has following format:
@@ -234,6 +234,15 @@ extern char empty_zero_page[PAGE_SIZE];
 #define _PAGE_TYPE_EX_RW	0x002
 
 /*
+ * Only four types for huge pages, using the invalid bit and protection bit
+ * of a segment table entry.
+ */
+#define _HPAGE_TYPE_EMPTY	0x020	/* _SEGMENT_ENTRY_INV */
+#define _HPAGE_TYPE_NONE	0x220
+#define _HPAGE_TYPE_RO		0x200	/* _SEGMENT_ENTRY_RO  */
+#define _HPAGE_TYPE_RW		0x000
+
+/*
  * PTE type bits are rather complicated. handle_pte_fault uses pte_present,
  * pte_none and pte_file to find out the pte type WITHOUT holding the page
  * table lock. ptep_clear_flush on the other hand uses ptep_clear_flush to
@@ -324,6 +333,9 @@ extern char empty_zero_page[PAGE_SIZE];
 
 #define _SEGMENT_ENTRY		(0)
 #define _SEGMENT_ENTRY_EMPTY	(_SEGMENT_ENTRY_INV)
+
+#define _SEGMENT_ENTRY_LARGE	0x400	/* STE-format control, large page   */
+#define _SEGMENT_ENTRY_CO	0x100	/* change-recording override   */
 
 #endif /* __s390x__ */
 
@@ -1063,17 +1075,14 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 
 #define kern_addr_valid(addr)   (1)
 
-extern int add_shared_memory(unsigned long start, unsigned long size);
-extern int remove_shared_memory(unsigned long start, unsigned long size);
+extern int vmem_add_mapping(unsigned long start, unsigned long size);
+extern int vmem_remove_mapping(unsigned long start, unsigned long size);
 extern int s390_enable_sie(void);
 
 /*
  * No page table caches to initialise
  */
 #define pgtable_cache_init()	do { } while (0)
-
-#define __HAVE_ARCH_MEMMAP_INIT
-extern void memmap_init(unsigned long, int, unsigned long, unsigned long);
 
 #include <asm-generic/pgtable.h>
 

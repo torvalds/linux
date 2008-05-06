@@ -10,6 +10,8 @@
  * option) any later version.
  */
 
+/dts-v1/;
+
 / {
 	model = "tqc,tqm5200";
 	compatible = "tqc,tqm5200";
@@ -23,10 +25,10 @@
 		PowerPC,5200@0 {
 			device_type = "cpu";
 			reg = <0>;
-			d-cache-line-size = <20>;
-			i-cache-line-size = <20>;
-			d-cache-size = <4000>;		// L1, 16K
-			i-cache-size = <4000>;		// L1, 16K
+			d-cache-line-size = <32>;
+			i-cache-line-size = <32>;
+			d-cache-size = <0x4000>;	// L1, 16K
+			i-cache-size = <0x4000>;	// L1, 16K
 			timebase-frequency = <0>;	// from bootloader
 			bus-frequency = <0>;		// from bootloader
 			clock-frequency = <0>;		// from bootloader
@@ -35,21 +37,21 @@
 
 	memory {
 		device_type = "memory";
-		reg = <00000000 04000000>;	// 64MB
+		reg = <0x00000000 0x04000000>;	// 64MB
 	};
 
 	soc5200@f0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "fsl,mpc5200-immr";
-		ranges = <0 f0000000 0000c000>;
-		reg = <f0000000 00000100>;
+		ranges = <0 0xf0000000 0x0000c000>;
+		reg = <0xf0000000 0x00000100>;
 		bus-frequency = <0>;		// from bootloader
 		system-frequency = <0>;		// from bootloader
 
 		cdm@200 {
 			compatible = "fsl,mpc5200-cdm";
-			reg = <200 38>;
+			reg = <0x200 0x38>;
 		};
 
 		mpc5200_pic: interrupt-controller@500 {
@@ -57,12 +59,12 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			compatible = "fsl,mpc5200-pic";
-			reg = <500 80>;
+			reg = <0x500 0x80>;
 		};
 
 		timer@600 {	// General Purpose Timer
 			compatible = "fsl,mpc5200-gpt";
-			reg = <600 10>;
+			reg = <0x600 0x10>;
 			interrupts = <1 9 0>;
 			interrupt-parent = <&mpc5200_pic>;
 			fsl,has-wdt;
@@ -70,38 +72,38 @@
 
 		gpio@b00 {
 			compatible = "fsl,mpc5200-gpio";
-			reg = <b00 40>;
+			reg = <0xb00 0x40>;
 			interrupts = <1 7 0>;
 			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		usb@1000 {
 			compatible = "fsl,mpc5200-ohci","ohci-be";
-			reg = <1000 ff>;
+			reg = <0x1000 0xff>;
 			interrupts = <2 6 0>;
 			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		dma-controller@1200 {
 			compatible = "fsl,mpc5200-bestcomm";
-			reg = <1200 80>;
+			reg = <0x1200 0x80>;
 			interrupts = <3 0 0  3 1 0  3 2 0  3 3 0
 			              3 4 0  3 5 0  3 6 0  3 7 0
-			              3 8 0  3 9 0  3 a 0  3 b 0
-			              3 c 0  3 d 0  3 e 0  3 f 0>;
+			              3 8 0  3 9 0  3 10 0  3 11 0
+			              3 12 0  3 13 0  3 14 0  3 15 0>;
 			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		xlb@1f00 {
 			compatible = "fsl,mpc5200-xlb";
-			reg = <1f00 100>;
+			reg = <0x1f00 0x100>;
 		};
 
 		serial@2000 {		// PSC1
 			device_type = "serial";
 			compatible = "fsl,mpc5200-psc-uart";
 			port-number = <0>;  // Logical port assignment
-			reg = <2000 100>;
+			reg = <0x2000 0x100>;
 			interrupts = <2 1 0>;
 			interrupt-parent = <&mpc5200_pic>;
 		};
@@ -110,7 +112,7 @@
 			device_type = "serial";
 			compatible = "fsl,mpc5200-psc-uart";
 			port-number = <1>;  // Logical port assignment
-			reg = <2200 100>;
+			reg = <0x2200 0x100>;
 			interrupts = <2 2 0>;
 			interrupt-parent = <&mpc5200_pic>;
 		};
@@ -119,7 +121,7 @@
 			device_type = "serial";
 			compatible = "fsl,mpc5200-psc-uart";
 			port-number = <2>;  // Logical port assignment
-			reg = <2400 100>;
+			reg = <0x2400 0x100>;
 			interrupts = <2 3 0>;
 			interrupt-parent = <&mpc5200_pic>;
 		};
@@ -127,7 +129,7 @@
 		ethernet@3000 {
 			device_type = "network";
 			compatible = "fsl,mpc5200-fec";
-			reg = <3000 400>;
+			reg = <0x3000 0x400>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <2 5 0>;
 			interrupt-parent = <&mpc5200_pic>;
@@ -137,8 +139,8 @@
 		mdio@3000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "fsl,mpc5200b-mdio","fsl,mpc5200-mdio";
-			reg = <3000 400>;       // fec range, since we need to setup fec interrupts
+			compatible = "fsl,mpc5200-mdio";
+			reg = <0x3000 0x400>;       // fec range, since we need to setup fec interrupts
 			interrupts = <2 5 0>;   // these are for "mii command finished", not link changes & co.
 			interrupt-parent = <&mpc5200_pic>;
 
@@ -150,7 +152,7 @@
 
 		ata@3a00 {
 			compatible = "fsl,mpc5200-ata";
-			reg = <3a00 100>;
+			reg = <0x3a00 0x100>;
 			interrupts = <2 7 0>;
 			interrupt-parent = <&mpc5200_pic>;
 		};
@@ -159,21 +161,21 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "fsl,mpc5200-i2c","fsl-i2c";
-			reg = <3d40 40>;
-			interrupts = <2 10 0>;
+			reg = <0x3d40 0x40>;
+			interrupts = <2 16 0>;
 			interrupt-parent = <&mpc5200_pic>;
 			fsl5200-clocking;
 
 			 rtc@68 {
 				device_type = "rtc";
 				compatible = "dallas,ds1307";
-				reg = <68>;
+				reg = <0x68>;
 			};
 		};
 
 		sram@8000 {
 			compatible = "fsl,mpc5200-sram";
-			reg = <8000 4000>;
+			reg = <0x8000 0x4000>;
 		};
 	};
 
@@ -182,11 +184,11 @@
 		compatible = "fsl,lpb";
 		#address-cells = <2>;
 		#size-cells = <1>;
-		ranges = <0 0 fc000000 02000000>;
+		ranges = <0 0 0xfc000000 0x02000000>;
 
 		flash@0,0 {
 			compatible = "cfi-flash";
-			reg = <0 0 02000000>;
+			reg = <0 0 0x02000000>;
 			bank-width = <4>;
 			device-width = <2>;
 			#size-cells = <1>;
@@ -200,18 +202,18 @@
 		#address-cells = <3>;
 		device_type = "pci";
 		compatible = "fsl,mpc5200-pci";
-		reg = <f0000d00 100>;
-		interrupt-map-mask = <f800 0 0 7>;
-		interrupt-map = <c000 0 0 1 &mpc5200_pic 0 0 3
-				 c000 0 0 2 &mpc5200_pic 0 0 3
-				 c000 0 0 3 &mpc5200_pic 0 0 3
-				 c000 0 0 4 &mpc5200_pic 0 0 3>;
+		reg = <0xf0000d00 0x100>;
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = <0xc000 0 0 1 &mpc5200_pic 0 0 3
+				 0xc000 0 0 2 &mpc5200_pic 0 0 3
+				 0xc000 0 0 3 &mpc5200_pic 0 0 3
+				 0xc000 0 0 4 &mpc5200_pic 0 0 3>;
 		clock-frequency = <0>; // From boot loader
-		interrupts = <2 8 0 2 9 0 2 a 0>;
+		interrupts = <2 8 0 2 9 0 2 10 0>;
 		interrupt-parent = <&mpc5200_pic>;
 		bus-range = <0 0>;
-		ranges = <42000000 0 80000000 80000000 0 10000000
-			  02000000 0 90000000 90000000 0 10000000
-			  01000000 0 00000000 a0000000 0 01000000>;
+		ranges = <0x42000000 0 0x80000000 0x80000000 0 0x10000000
+			  0x02000000 0 0x90000000 0x90000000 0 0x10000000
+			  0x01000000 0 0x00000000 0xa0000000 0 0x01000000>;
 	};
 };

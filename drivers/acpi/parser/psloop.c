@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -182,6 +182,7 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	ACPI_FUNCTION_TRACE_PTR(ps_build_named_op, walk_state);
 
 	unnamed_op->common.value.arg = NULL;
+	unnamed_op->common.arg_list_length = 0;
 	unnamed_op->common.aml_opcode = walk_state->opcode;
 
 	/*
@@ -241,7 +242,8 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	acpi_ps_append_arg(*op, unnamed_op->common.value.arg);
 	acpi_gbl_depth++;
 
-	if ((*op)->common.aml_opcode == AML_REGION_OP) {
+	if ((*op)->common.aml_opcode == AML_REGION_OP ||
+	    (*op)->common.aml_opcode == AML_DATA_REGION_OP) {
 		/*
 		 * Defer final parsing of an operation_region body, because we don't
 		 * have enough info in the first pass to parse it correctly (i.e.,
@@ -280,6 +282,9 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 	acpi_status status = AE_OK;
 	union acpi_parse_object *op;
 	union acpi_parse_object *named_op = NULL;
+	union acpi_parse_object *parent_scope;
+	u8 argument_count;
+	const struct acpi_opcode_info *op_info;
 
 	ACPI_FUNCTION_TRACE_PTR(ps_create_op, walk_state);
 
@@ -320,8 +325,32 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 		op->named.length = 0;
 	}
 
-	acpi_ps_append_arg(acpi_ps_get_parent_scope
-			   (&(walk_state->parser_state)), op);
+	if (walk_state->opcode == AML_BANK_FIELD_OP) {
+		/*
+		 * Backup to beginning of bank_field declaration
+		 * body_length is unknown until we parse the body
+		 */
+		op->named.data = aml_op_start;
+		op->named.length = 0;
+	}
+
+	parent_scope = acpi_ps_get_parent_scope(&(walk_state->parser_state));
+	acpi_ps_append_arg(parent_scope, op);
+
+	if (parent_scope) {
+		op_info =
+		    acpi_ps_get_opcode_info(parent_scope->common.aml_opcode);
+		if (op_info->flags & AML_HAS_TARGET) {
+			argument_count =
+			    acpi_ps_get_argument_count(op_info->type);
+			if (parent_scope->common.arg_list_length >
+			    argument_count) {
+				op->common.flags |= ACPI_PARSEOP_TARGET;
+			}
+		} else if (parent_scope->common.aml_opcode == AML_INCREMENT_OP) {
+			op->common.flags |= ACPI_PARSEOP_TARGET;
+		}
+	}
 
 	if (walk_state->descending_callback != NULL) {
 		/*
@@ -603,13 +632,6 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 			acpi_ps_pop_scope(&(walk_state->parser_state), op,
 					  &walk_state->arg_types,
 					  &walk_state->arg_count);
-
-			if ((*op)->common.aml_opcode != AML_WHILE_OP) {
-				status2 = acpi_ds_result_stack_pop(walk_state);
-				if (ACPI_FAILURE(status2)) {
-					return_ACPI_STATUS(status2);
-				}
-			}
 		}
 
 		/* Close this iteration of the While loop */
@@ -637,10 +659,6 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 			if (*op) {
 				status2 =
 				    acpi_ps_complete_this_op(walk_state, *op);
-				if (ACPI_FAILURE(status2)) {
-					return_ACPI_STATUS(status2);
-				}
-				status2 = acpi_ds_result_stack_pop(walk_state);
 				if (ACPI_FAILURE(status2)) {
 					return_ACPI_STATUS(status2);
 				}
@@ -1005,7 +1023,8 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				acpi_gbl_depth--;
 			}
 
-			if (op->common.aml_opcode == AML_REGION_OP) {
+			if (op->common.aml_opcode == AML_REGION_OP ||
+			    op->common.aml_opcode == AML_DATA_REGION_OP) {
 				/*
 				 * Skip parsing of control method or opregion body,
 				 * because we don't have enough info in the first pass
@@ -1023,6 +1042,16 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			/*
 			 * Backup to beginning of create_xXXfield declaration (1 for
 			 * Opcode)
+			 *
+			 * body_length is unknown until we parse the body
+			 */
+			op->named.length =
+			    (u32) (parser_state->aml - op->named.data);
+		}
+
+		if (op->common.aml_opcode == AML_BANK_FIELD_OP) {
+			/*
+			 * Backup to beginning of bank_field declaration
 			 *
 			 * body_length is unknown until we parse the body
 			 */

@@ -84,6 +84,8 @@ source "drivers/memstick/Kconfig"
 
 source "drivers/leds/Kconfig"
 
+source "drivers/accessibility/Kconfig"
+
 source "drivers/infiniband/Kconfig"
 
 source "drivers/edac/Kconfig"

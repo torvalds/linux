@@ -27,6 +27,7 @@
 #include <linux/mnt_namespace.h>
 #include <linux/completion.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/workqueue.h>
 #include <linux/security.h>
 #include <linux/mount.h>

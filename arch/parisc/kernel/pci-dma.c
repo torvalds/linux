@@ -397,10 +397,9 @@ pcxl_dma_init(void)
 			"pcxl_dma_init: Unable to create gsc /proc dir entry\n");
 	else {
 		struct proc_dir_entry* ent;
-		ent = create_proc_entry("pcxl_dma", 0, proc_gsc_root);
-		if (ent)
-			ent->proc_fops = &proc_pcxl_dma_ops;
-		else
+		ent = proc_create("pcxl_dma", 0, proc_gsc_root,
+				  &proc_pcxl_dma_ops);
+		if (!ent)
 			printk(KERN_WARNING
 				"pci-dma.c: Unable to create pcxl_dma /proc entry.\n");
 	}

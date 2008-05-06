@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <linux/pid.h>
 #include <linux/clocksource.h>
-
+#include <linux/kbuild.h>
 #include <asm-ia64/processor.h>
 #include <asm-ia64/ptrace.h>
 #include <asm-ia64/siginfo.h>
@@ -18,11 +18,6 @@
 
 #include "../kernel/sigframe.h"
 #include "../kernel/fsyscall_gtod_data.h"
-
-#define DEFINE(sym, val) \
-        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
 
 void foo(void)
 {

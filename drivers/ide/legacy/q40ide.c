@@ -72,7 +72,27 @@ static void q40_ide_setup_ports(hw_regs_t *hw, unsigned long base,
 	hw->ack_intr = ack_intr;
 }
 
+static void q40ide_input_data(ide_drive_t *drive, struct request *rq,
+			      void *buf, unsigned int len)
+{
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
 
+	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
+		return insw(data_addr, buf, (len + 1) / 2);
+
+	insw_swapw(data_addr, buf, (len + 1) / 2);
+}
+
+static void q40ide_output_data(ide_drive_t *drive, struct request *rq,
+			       void *buf, unsigned int len)
+{
+	unsigned long data_addr = drive->hwif->io_ports.data_addr;
+
+	if (drive->media == ide_disk && rq && rq->cmd_type == REQ_TYPE_FS)
+		return outsw(data_addr, buf, (len + 1) / 2);
+
+	outsw_swapw(data_addr, buf, (len + 1) / 2);
+}
 
 /* 
  * the static array is needed to have the name reported in /proc/ioports,
@@ -122,6 +142,10 @@ static int __init q40ide_init(void)
 	if (hwif) {
 		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
+
+		/* Q40 has a byte-swapped IDE interface */
+		hwif->input_data  = q40ide_input_data;
+		hwif->output_data = q40ide_output_data;
 
 		idx[i] = hwif->index;
 	}

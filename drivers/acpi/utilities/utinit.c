@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -125,9 +125,12 @@ void acpi_ut_subsystem_shutdown(void)
 	acpi_gbl_startup_flags = 0;
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
 
+#ifndef ACPI_ASL_COMPILER
+
 	/* Close the acpi_event Handling */
 
 	acpi_ev_terminate();
+#endif
 
 	/* Close the Namespace */
 

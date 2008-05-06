@@ -35,6 +35,7 @@
 #ifdef CONFIG_X86
 #include <asm/mpspec.h>
 #endif
+#include <linux/pci.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
@@ -784,6 +785,7 @@ static int __init acpi_init(void)
 	result = acpi_bus_init();
 
 	if (!result) {
+		pci_mmcfg_late_init();
 		if (!(pm_flags & PM_APM))
 			pm_flags |= PM_ACPI;
 		else {

@@ -1176,17 +1176,6 @@ static int mount_is_safe(struct nameidata *nd)
 #endif
 }
 
-static int lives_below_in_same_fs(struct dentry *d, struct dentry *dentry)
-{
-	while (1) {
-		if (d == dentry)
-			return 1;
-		if (d == NULL || d == d->d_parent)
-			return 0;
-		d = d->d_parent;
-	}
-}
-
 struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
 					int flag)
 {
@@ -1203,7 +1192,7 @@ struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
 
 	p = mnt;
 	list_for_each_entry(r, &mnt->mnt_mounts, mnt_child) {
-		if (!lives_below_in_same_fs(r->mnt_mountpoint, dentry))
+		if (!is_subdir(r->mnt_mountpoint, dentry))
 			continue;
 
 		for (s = r; s; s = next_mnt(s, r)) {
@@ -2340,10 +2329,10 @@ void __init mnt_init(void)
 	err = sysfs_init();
 	if (err)
 		printk(KERN_WARNING "%s: sysfs_init error: %d\n",
-			__FUNCTION__, err);
+			__func__, err);
 	fs_kobj = kobject_create_and_add("fs", NULL);
 	if (!fs_kobj)
-		printk(KERN_WARNING "%s: kobj create error\n", __FUNCTION__);
+		printk(KERN_WARNING "%s: kobj create error\n", __func__);
 	init_rootfs();
 	init_mount_tree();
 }

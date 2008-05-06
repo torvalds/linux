@@ -41,7 +41,7 @@ config BINFMT_ELF_FDPIC
 	  It is also possible to run FDPIC ELF binaries on MMU linux also.
 
 config BINFMT_FLAT
-	tristate "Kernel support for flat binaries"
+	bool "Kernel support for flat binaries"
 	depends on !MMU
 	help
 	  Support uClinux FLAT format binaries.

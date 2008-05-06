@@ -183,10 +183,10 @@ void fixup_irqs(void)
 {
 	unsigned int irq;
 	extern void ia64_process_pending_intr(void);
-	extern void ia64_disable_timer(void);
 	extern volatile int time_keeper_id;
 
-	ia64_disable_timer();
+	/* Mask ITV to disable timer */
+	ia64_set_itv(1 << 16);
 
 	/*
 	 * Find a new timesync master

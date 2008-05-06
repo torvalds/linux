@@ -14,6 +14,7 @@
 
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/init.h>
 
 #if BITS_PER_LONG == 32
 # define IDR_BITS 5
@@ -114,5 +115,7 @@ int ida_get_new(struct ida *ida, int *p_id);
 void ida_remove(struct ida *ida, int id);
 void ida_destroy(struct ida *ida);
 void ida_init(struct ida *ida);
+
+void __init idr_init_cache(void);
 
 #endif /* __IDR_H__ */

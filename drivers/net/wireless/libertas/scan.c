@@ -298,7 +298,8 @@ static int lbs_do_scan(struct lbs_private *priv, uint8_t bsstype,
 	uint8_t *tlv;	/* pointer into our current, growing TLV storage area */
 
 	lbs_deb_enter_args(LBS_DEB_SCAN, "bsstype %d, chanlist[].chan %d, chan_count %d",
-			   bsstype, chan_list[0].channumber, chan_count);
+		bsstype, chan_list ? chan_list[0].channumber : -1,
+		chan_count);
 
 	/* create the fixed part for scan command */
 	scan_cmd = kzalloc(MAX_SCAN_CFG_ALLOC, GFP_KERNEL);
@@ -522,7 +523,7 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 
 	if (*bytesleft >= sizeof(beaconsize)) {
 		/* Extract & convert beacon size from the command buffer */
-		beaconsize = le16_to_cpu(get_unaligned((__le16 *)*pbeaconinfo));
+		beaconsize = get_unaligned_le16(*pbeaconinfo);
 		*bytesleft -= sizeof(beaconsize);
 		*pbeaconinfo += sizeof(beaconsize);
 	}

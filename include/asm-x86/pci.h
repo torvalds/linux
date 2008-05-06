@@ -19,6 +19,8 @@ struct pci_sysdata {
 };
 
 /* scan a bus after allocating a pci_sysdata for it */
+extern struct pci_bus *pci_scan_bus_on_node(int busno, struct pci_ops *ops,
+					    int node);
 extern struct pci_bus *pci_scan_bus_with_sysdata(int busno);
 
 static inline int pci_domain_nr(struct pci_bus *bus)

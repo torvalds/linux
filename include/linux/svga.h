@@ -1,8 +1,6 @@
 #ifndef _LINUX_SVGA_H
 #define _LINUX_SVGA_H
 
-#ifdef __KERNEL__
-
 #include <linux/pci.h>
 #include <video/vga.h>
 
@@ -122,6 +120,5 @@ void svga_set_timings(const struct svga_timing_regs *tm, struct fb_var_screeninf
 
 int svga_match_format(const struct svga_fb_format *frm, struct fb_var_screeninfo *var, struct fb_fix_screeninfo *fix);
 
-#endif /* __KERNEL__  */
 #endif /* _LINUX_SVGA_H */
 

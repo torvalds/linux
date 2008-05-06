@@ -26,8 +26,9 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *,
 						struct sk_buff *, bool);
 static int afs_deliver_cb_probe(struct afs_call *, struct sk_buff *, bool);
 static int afs_deliver_cb_callback(struct afs_call *, struct sk_buff *, bool);
-static int afs_deliver_cb_get_capabilities(struct afs_call *, struct sk_buff *,
-					   bool);
+static int afs_deliver_cb_probe_uuid(struct afs_call *, struct sk_buff *, bool);
+static int afs_deliver_cb_tell_me_about_yourself(struct afs_call *,
+						 struct sk_buff *, bool);
 static void afs_cm_destructor(struct afs_call *);
 
 /*
@@ -71,11 +72,21 @@ static const struct afs_call_type afs_SRXCBProbe = {
 };
 
 /*
- * CB.GetCapabilities operation type
+ * CB.ProbeUuid operation type
  */
-static const struct afs_call_type afs_SRXCBGetCapabilites = {
-	.name		= "CB.GetCapabilities",
-	.deliver	= afs_deliver_cb_get_capabilities,
+static const struct afs_call_type afs_SRXCBProbeUuid = {
+	.name		= "CB.ProbeUuid",
+	.deliver	= afs_deliver_cb_probe_uuid,
+	.abort_to_error	= afs_abort_to_error,
+	.destructor	= afs_cm_destructor,
+};
+
+/*
+ * CB.TellMeAboutYourself operation type
+ */
+static const struct afs_call_type afs_SRXCBTellMeAboutYourself = {
+	.name		= "CB.TellMeAboutYourself",
+	.deliver	= afs_deliver_cb_tell_me_about_yourself,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
 };
@@ -103,8 +114,8 @@ bool afs_cm_incoming_call(struct afs_call *call)
 	case CBProbe:
 		call->type = &afs_SRXCBProbe;
 		return true;
-	case CBGetCapabilities:
-		call->type = &afs_SRXCBGetCapabilites;
+	case CBTellMeAboutYourself:
+		call->type = &afs_SRXCBTellMeAboutYourself;
 		return true;
 	default:
 		return false;
@@ -393,9 +404,105 @@ static int afs_deliver_cb_probe(struct afs_call *call, struct sk_buff *skb,
 }
 
 /*
+ * allow the fileserver to quickly find out if the fileserver has been rebooted
+ */
+static void SRXAFSCB_ProbeUuid(struct work_struct *work)
+{
+	struct afs_call *call = container_of(work, struct afs_call, work);
+	struct afs_uuid *r = call->request;
+
+	struct {
+		__be32	match;
+	} reply;
+
+	_enter("");
+
+
+	if (memcmp(r, &afs_uuid, sizeof(afs_uuid)) == 0)
+		reply.match = htonl(0);
+	else
+		reply.match = htonl(1);
+
+	afs_send_simple_reply(call, &reply, sizeof(reply));
+	_leave("");
+}
+
+/*
+ * deliver request data to a CB.ProbeUuid call
+ */
+static int afs_deliver_cb_probe_uuid(struct afs_call *call, struct sk_buff *skb,
+				     bool last)
+{
+	struct afs_uuid *r;
+	unsigned loop;
+	__be32 *b;
+	int ret;
+
+	_enter("{%u},{%u},%d", call->unmarshall, skb->len, last);
+
+	if (skb->len > 0)
+		return -EBADMSG;
+	if (!last)
+		return 0;
+
+	switch (call->unmarshall) {
+	case 0:
+		call->offset = 0;
+		call->buffer = kmalloc(11 * sizeof(__be32), GFP_KERNEL);
+		if (!call->buffer)
+			return -ENOMEM;
+		call->unmarshall++;
+
+	case 1:
+		_debug("extract UUID");
+		ret = afs_extract_data(call, skb, last, call->buffer,
+				       11 * sizeof(__be32));
+		switch (ret) {
+		case 0:		break;
+		case -EAGAIN:	return 0;
+		default:	return ret;
+		}
+
+		_debug("unmarshall UUID");
+		call->request = kmalloc(sizeof(struct afs_uuid), GFP_KERNEL);
+		if (!call->request)
+			return -ENOMEM;
+
+		b = call->buffer;
+		r = call->request;
+		r->time_low			= ntohl(b[0]);
+		r->time_mid			= ntohl(b[1]);
+		r->time_hi_and_version		= ntohl(b[2]);
+		r->clock_seq_hi_and_reserved 	= ntohl(b[3]);
+		r->clock_seq_low		= ntohl(b[4]);
+
+		for (loop = 0; loop < 6; loop++)
+			r->node[loop] = ntohl(b[loop + 5]);
+
+		call->offset = 0;
+		call->unmarshall++;
+
+	case 2:
+		_debug("trailer");
+		if (skb->len != 0)
+			return -EBADMSG;
+		break;
+	}
+
+	if (!last)
+		return 0;
+
+	call->state = AFS_CALL_REPLYING;
+
+	INIT_WORK(&call->work, SRXAFSCB_ProbeUuid);
+	schedule_work(&call->work);
+	return 0;
+}
+
+/*
  * allow the fileserver to ask about the cache manager's capabilities
  */
-static void SRXAFSCB_GetCapabilities(struct work_struct *work)
+static void SRXAFSCB_TellMeAboutYourself(struct work_struct *work)
 {
 	struct afs_interface *ifs;
 	struct afs_call *call = container_of(work, struct afs_call, work);
@@ -456,10 +563,10 @@ static void SRXAFSCB_GetCapabilities(struct work_struct *work)
 }
 
 /*
- * deliver request data to a CB.GetCapabilities call
+ * deliver request data to a CB.TellMeAboutYourself call
  */
-static int afs_deliver_cb_get_capabilities(struct afs_call *call,
-					   struct sk_buff *skb, bool last)
+static int afs_deliver_cb_tell_me_about_yourself(struct afs_call *call,
+						 struct sk_buff *skb, bool last)
 {
 	_enter(",{%u},%d", skb->len, last);
 
@@ -471,7 +578,7 @@ static int afs_deliver_cb_get_capabilities(struct afs_call *call,
 	/* no unmarshalling required */
 	call->state = AFS_CALL_REPLYING;
 
-	INIT_WORK(&call->work, SRXAFSCB_GetCapabilities);
+	INIT_WORK(&call->work, SRXAFSCB_TellMeAboutYourself);
 	schedule_work(&call->work);
 	return 0;
 }

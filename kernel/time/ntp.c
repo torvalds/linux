@@ -15,7 +15,8 @@
 #include <linux/jiffies.h>
 #include <linux/hrtimer.h>
 #include <linux/capability.h>
-#include <asm/div64.h>
+#include <linux/math64.h>
+#include <linux/clocksource.h>
 #include <asm/timex.h>
 
 /*
@@ -23,11 +24,14 @@
  */
 unsigned long tick_usec = TICK_USEC; 		/* USER_HZ period (usec) */
 unsigned long tick_nsec;			/* ACTHZ period (nsec) */
-static u64 tick_length, tick_length_base;
+u64 tick_length;
+static u64 tick_length_base;
+
+static struct hrtimer leap_timer;
 
 #define MAX_TICKADJ		500		/* microsecs */
 #define MAX_TICKADJ_SCALED	(((u64)(MAX_TICKADJ * NSEC_PER_USEC) << \
-				  TICK_LENGTH_SHIFT) / NTP_INTERVAL_FREQ)
+				  NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
 
 /*
  * phase-lock loop variables
@@ -35,11 +39,12 @@ static u64 tick_length, tick_length_base;
 /* TIME_ERROR prevents overwriting the CMOS clock */
 static int time_state = TIME_OK;	/* clock synchronization status	*/
 int time_status = STA_UNSYNC;		/* clock status bits		*/
-static s64 time_offset;		/* time adjustment (ns)		*/
+static long time_tai;			/* TAI offset (s)		*/
+static s64 time_offset;			/* time adjustment (ns)		*/
 static long time_constant = 2;		/* pll time constant		*/
 long time_maxerror = NTP_PHASE_LIMIT;	/* maximum error (us)		*/
 long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
-long time_freq;				/* frequency offset (scaled ppm)*/
+static s64 time_freq;			/* frequency offset (scaled ns/s)*/
 static long time_reftime;		/* time at last adjustment (s)	*/
 long time_adjust;
 static long ntp_tick_adj;
@@ -47,16 +52,56 @@ static long ntp_tick_adj;
 static void ntp_update_frequency(void)
 {
 	u64 second_length = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ)
-				<< TICK_LENGTH_SHIFT;
-	second_length += (s64)ntp_tick_adj << TICK_LENGTH_SHIFT;
-	second_length += (s64)time_freq << (TICK_LENGTH_SHIFT - SHIFT_NSEC);
+				<< NTP_SCALE_SHIFT;
+	second_length += (s64)ntp_tick_adj << NTP_SCALE_SHIFT;
+	second_length += time_freq;
 
 	tick_length_base = second_length;
 
-	do_div(second_length, HZ);
-	tick_nsec = second_length >> TICK_LENGTH_SHIFT;
+	tick_nsec = div_u64(second_length, HZ) >> NTP_SCALE_SHIFT;
+	tick_length_base = div_u64(tick_length_base, NTP_INTERVAL_FREQ);
+}
 
-	do_div(tick_length_base, NTP_INTERVAL_FREQ);
+static void ntp_update_offset(long offset)
+{
+	long mtemp;
+	s64 freq_adj;
+
+	if (!(time_status & STA_PLL))
+		return;
+
+	if (!(time_status & STA_NANO))
+		offset *= NSEC_PER_USEC;
+
+	/*
+	 * Scale the phase adjustment and
+	 * clamp to the operating range.
+	 */
+	offset = min(offset, MAXPHASE);
+	offset = max(offset, -MAXPHASE);
+
+	/*
+	 * Select how the frequency is to be controlled
+	 * and in which mode (PLL or FLL).
+	 */
+	if (time_status & STA_FREQHOLD || time_reftime == 0)
+		time_reftime = xtime.tv_sec;
+	mtemp = xtime.tv_sec - time_reftime;
+	time_reftime = xtime.tv_sec;
+
+	freq_adj = (s64)offset * mtemp;
+	freq_adj <<= NTP_SCALE_SHIFT - 2 * (SHIFT_PLL + 2 + time_constant);
+	time_status &= ~STA_MODE;
+	if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC)) {
+		freq_adj += div_s64((s64)offset << (NTP_SCALE_SHIFT - SHIFT_FLL),
+				    mtemp);
+		time_status |= STA_MODE;
+	}
+	freq_adj += time_freq;
+	freq_adj = min(freq_adj, MAXFREQ_SCALED);
+	time_freq = max(freq_adj, -MAXFREQ_SCALED);
+
+	time_offset = div_s64((s64)offset << NTP_SCALE_SHIFT, NTP_INTERVAL_FREQ);
 }
 
 /**
@@ -78,6 +123,54 @@ void ntp_clear(void)
 }
 
 /*
+ * Leap second processing. If in leap-insert state at the end of the
+ * day, the system clock is set back one second; if in leap-delete
+ * state, the system clock is set ahead one second.
+ */
+static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
+{
+	enum hrtimer_restart res = HRTIMER_NORESTART;
+
+	write_seqlock_irq(&xtime_lock);
+
+	switch (time_state) {
+	case TIME_OK:
+		break;
+	case TIME_INS:
+		xtime.tv_sec--;
+		wall_to_monotonic.tv_sec++;
+		time_state = TIME_OOP;
+		printk(KERN_NOTICE "Clock: "
+		       "inserting leap second 23:59:60 UTC\n");
+		leap_timer.expires = ktime_add_ns(leap_timer.expires,
+						  NSEC_PER_SEC);
+		res = HRTIMER_RESTART;
+		break;
+	case TIME_DEL:
+		xtime.tv_sec++;
+		time_tai--;
+		wall_to_monotonic.tv_sec--;
+		time_state = TIME_WAIT;
+		printk(KERN_NOTICE "Clock: "
+		       "deleting leap second 23:59:59 UTC\n");
+		break;
+	case TIME_OOP:
+		time_tai++;
+		time_state = TIME_WAIT;
+		/* fall through */
+	case TIME_WAIT:
+		if (!(time_status & (STA_INS | STA_DEL)))
+			time_state = TIME_OK;
+		break;
+	}
+	update_vsyscall(&xtime, clock);
+
+	write_sequnlock_irq(&xtime_lock);
+
+	return res;
+}
+
+/*
  * this routine handles the overflow of the microsecond field
  *
  * The tricky bits of code to handle the accurate clock support
@@ -87,53 +180,13 @@ void ntp_clear(void)
  */
 void second_overflow(void)
 {
-	long time_adj;
+	s64 time_adj;
 
 	/* Bump the maxerror field */
-	time_maxerror += MAXFREQ >> SHIFT_USEC;
+	time_maxerror += MAXFREQ / NSEC_PER_USEC;
 	if (time_maxerror > NTP_PHASE_LIMIT) {
 		time_maxerror = NTP_PHASE_LIMIT;
 		time_status |= STA_UNSYNC;
-	}
-
-	/*
-	 * Leap second processing. If in leap-insert state at the end of the
-	 * day, the system clock is set back one second; if in leap-delete
-	 * state, the system clock is set ahead one second. The microtime()
-	 * routine or external clock driver will insure that reported time is
-	 * always monotonic. The ugly divides should be replaced.
-	 */
-	switch (time_state) {
-	case TIME_OK:
-		if (time_status & STA_INS)
-			time_state = TIME_INS;
-		else if (time_status & STA_DEL)
-			time_state = TIME_DEL;
-		break;
-	case TIME_INS:
-		if (xtime.tv_sec % 86400 == 0) {
-			xtime.tv_sec--;
-			wall_to_monotonic.tv_sec++;
-			time_state = TIME_OOP;
-			printk(KERN_NOTICE "Clock: inserting leap second "
-					"23:59:60 UTC\n");
-		}
-		break;
-	case TIME_DEL:
-		if ((xtime.tv_sec + 1) % 86400 == 0) {
-			xtime.tv_sec++;
-			wall_to_monotonic.tv_sec--;
-			time_state = TIME_WAIT;
-			printk(KERN_NOTICE "Clock: deleting leap second "
-					"23:59:59 UTC\n");
-		}
-		break;
-	case TIME_OOP:
-		time_state = TIME_WAIT;
-		break;
-	case TIME_WAIT:
-		if (!(time_status & (STA_INS | STA_DEL)))
-		time_state = TIME_OK;
 	}
 
 	/*
@@ -143,7 +196,7 @@ void second_overflow(void)
 	tick_length = tick_length_base;
 	time_adj = shift_right(time_offset, SHIFT_PLL + time_constant);
 	time_offset -= time_adj;
-	tick_length += (s64)time_adj << (TICK_LENGTH_SHIFT - SHIFT_UPDATE);
+	tick_length += time_adj;
 
 	if (unlikely(time_adjust)) {
 		if (time_adjust > MAX_TICKADJ) {
@@ -154,23 +207,10 @@ void second_overflow(void)
 			tick_length -= MAX_TICKADJ_SCALED;
 		} else {
 			tick_length += (s64)(time_adjust * NSEC_PER_USEC /
-					NTP_INTERVAL_FREQ) << TICK_LENGTH_SHIFT;
+					NTP_INTERVAL_FREQ) << NTP_SCALE_SHIFT;
 			time_adjust = 0;
 		}
 	}
-}
-
-/*
- * Return how long ticks are at the moment, that is, how much time
- * update_wall_time_one_tick will add to xtime next time we call it
- * (assuming no calls to do_adjtimex in the meantime).
- * The return value is in fixed-point nanoseconds shifted by the
- * specified number of bits to the right of the binary point.
- * This function has no side-effects.
- */
-u64 current_tick_length(void)
-{
-	return tick_length;
 }
 
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
@@ -236,8 +276,8 @@ static inline void notify_cmos_timer(void) { }
  */
 int do_adjtimex(struct timex *txc)
 {
-	long mtemp, save_adjust, rem;
-	s64 freq_adj, temp64;
+	struct timespec ts;
+	long save_adjust, sec;
 	int result;
 
 	/* In order to modify anything, you gotta be super-user! */
@@ -247,16 +287,10 @@ int do_adjtimex(struct timex *txc)
 	/* Now we validate the data before disabling interrupts */
 
 	if ((txc->modes & ADJ_OFFSET_SINGLESHOT) == ADJ_OFFSET_SINGLESHOT) {
-	  /* singleshot must not be used with any other mode bits */
-		if (txc->modes != ADJ_OFFSET_SINGLESHOT &&
-					txc->modes != ADJ_OFFSET_SS_READ)
+		/* singleshot must not be used with any other mode bits */
+		if (txc->modes & ~ADJ_OFFSET_SS_READ)
 			return -EINVAL;
 	}
-
-	if (txc->modes != ADJ_OFFSET_SINGLESHOT && (txc->modes & ADJ_OFFSET))
-	  /* adjustment Offset limited to +- .512 seconds */
-		if (txc->offset <= - MAXPHASE || txc->offset >= MAXPHASE )
-			return -EINVAL;
 
 	/* if the quartz is off by more than 10% something is VERY wrong ! */
 	if (txc->modes & ADJ_TICK)
@@ -264,130 +298,121 @@ int do_adjtimex(struct timex *txc)
 		    txc->tick > 1100000/USER_HZ)
 			return -EINVAL;
 
+	if (time_state != TIME_OK && txc->modes & ADJ_STATUS)
+		hrtimer_cancel(&leap_timer);
+	getnstimeofday(&ts);
+
 	write_seqlock_irq(&xtime_lock);
-	result = time_state;	/* mostly `TIME_OK' */
 
 	/* Save for later - semantics of adjtime is to return old value */
 	save_adjust = time_adjust;
 
-#if 0	/* STA_CLOCKERR is never set yet */
-	time_status &= ~STA_CLOCKERR;		/* reset STA_CLOCKERR */
-#endif
 	/* If there are input parameters, then process them */
-	if (txc->modes)
-	{
-	    if (txc->modes & ADJ_STATUS)	/* only set allowed bits */
-		time_status =  (txc->status & ~STA_RONLY) |
-			      (time_status & STA_RONLY);
-
-	    if (txc->modes & ADJ_FREQUENCY) {	/* p. 22 */
-		if (txc->freq > MAXFREQ || txc->freq < -MAXFREQ) {
-		    result = -EINVAL;
-		    goto leave;
-		}
-		time_freq = ((s64)txc->freq * NSEC_PER_USEC)
-				>> (SHIFT_USEC - SHIFT_NSEC);
-	    }
-
-	    if (txc->modes & ADJ_MAXERROR) {
-		if (txc->maxerror < 0 || txc->maxerror >= NTP_PHASE_LIMIT) {
-		    result = -EINVAL;
-		    goto leave;
-		}
-		time_maxerror = txc->maxerror;
-	    }
-
-	    if (txc->modes & ADJ_ESTERROR) {
-		if (txc->esterror < 0 || txc->esterror >= NTP_PHASE_LIMIT) {
-		    result = -EINVAL;
-		    goto leave;
-		}
-		time_esterror = txc->esterror;
-	    }
-
-	    if (txc->modes & ADJ_TIMECONST) {	/* p. 24 */
-		if (txc->constant < 0) {	/* NTP v4 uses values > 6 */
-		    result = -EINVAL;
-		    goto leave;
-		}
-		time_constant = min(txc->constant + 4, (long)MAXTC);
-	    }
-
-	    if (txc->modes & ADJ_OFFSET) {	/* values checked earlier */
-		if (txc->modes == ADJ_OFFSET_SINGLESHOT) {
-		    /* adjtime() is independent from ntp_adjtime() */
-		    time_adjust = txc->offset;
-		}
-		else if (time_status & STA_PLL) {
-		    time_offset = txc->offset * NSEC_PER_USEC;
-
-		    /*
-		     * Scale the phase adjustment and
-		     * clamp to the operating range.
-		     */
-		    time_offset = min(time_offset, (s64)MAXPHASE * NSEC_PER_USEC);
-		    time_offset = max(time_offset, (s64)-MAXPHASE * NSEC_PER_USEC);
-
-		    /*
-		     * Select whether the frequency is to be controlled
-		     * and in which mode (PLL or FLL). Clamp to the operating
-		     * range. Ugly multiply/divide should be replaced someday.
-		     */
-
-		    if (time_status & STA_FREQHOLD || time_reftime == 0)
-		        time_reftime = xtime.tv_sec;
-		    mtemp = xtime.tv_sec - time_reftime;
-		    time_reftime = xtime.tv_sec;
-
-		    freq_adj = time_offset * mtemp;
-		    freq_adj = shift_right(freq_adj, time_constant * 2 +
-					   (SHIFT_PLL + 2) * 2 - SHIFT_NSEC);
-		    if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC)) {
-			u64 utemp64;
-			temp64 = time_offset << (SHIFT_NSEC - SHIFT_FLL);
-			if (time_offset < 0) {
-			    utemp64 = -temp64;
-			    do_div(utemp64, mtemp);
-			    freq_adj -= utemp64;
-			} else {
-			    utemp64 = temp64;
-			    do_div(utemp64, mtemp);
-			    freq_adj += utemp64;
+	if (txc->modes) {
+		if (txc->modes & ADJ_STATUS) {
+			if ((time_status & STA_PLL) &&
+			    !(txc->status & STA_PLL)) {
+				time_state = TIME_OK;
+				time_status = STA_UNSYNC;
 			}
-		    }
-		    freq_adj += time_freq;
-		    freq_adj = min(freq_adj, (s64)MAXFREQ_NSEC);
-		    time_freq = max(freq_adj, (s64)-MAXFREQ_NSEC);
-		    time_offset = div_long_long_rem_signed(time_offset,
-							   NTP_INTERVAL_FREQ,
-							   &rem);
-		    time_offset <<= SHIFT_UPDATE;
-		} /* STA_PLL */
-	    } /* txc->modes & ADJ_OFFSET */
-	    if (txc->modes & ADJ_TICK)
-		tick_usec = txc->tick;
+			/* only set allowed bits */
+			time_status &= STA_RONLY;
+			time_status |= txc->status & ~STA_RONLY;
 
-	    if (txc->modes & (ADJ_TICK|ADJ_FREQUENCY|ADJ_OFFSET))
-		    ntp_update_frequency();
-	} /* txc->modes */
-leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
+			switch (time_state) {
+			case TIME_OK:
+			start_timer:
+				sec = ts.tv_sec;
+				if (time_status & STA_INS) {
+					time_state = TIME_INS;
+					sec += 86400 - sec % 86400;
+					hrtimer_start(&leap_timer, ktime_set(sec, 0), HRTIMER_MODE_ABS);
+				} else if (time_status & STA_DEL) {
+					time_state = TIME_DEL;
+					sec += 86400 - (sec + 1) % 86400;
+					hrtimer_start(&leap_timer, ktime_set(sec, 0), HRTIMER_MODE_ABS);
+				}
+				break;
+			case TIME_INS:
+			case TIME_DEL:
+				time_state = TIME_OK;
+				goto start_timer;
+				break;
+			case TIME_WAIT:
+				if (!(time_status & (STA_INS | STA_DEL)))
+					time_state = TIME_OK;
+				break;
+			case TIME_OOP:
+				hrtimer_restart(&leap_timer);
+				break;
+			}
+		}
+
+		if (txc->modes & ADJ_NANO)
+			time_status |= STA_NANO;
+		if (txc->modes & ADJ_MICRO)
+			time_status &= ~STA_NANO;
+
+		if (txc->modes & ADJ_FREQUENCY) {
+			time_freq = (s64)txc->freq * PPM_SCALE;
+			time_freq = min(time_freq, MAXFREQ_SCALED);
+			time_freq = max(time_freq, -MAXFREQ_SCALED);
+		}
+
+		if (txc->modes & ADJ_MAXERROR)
+			time_maxerror = txc->maxerror;
+		if (txc->modes & ADJ_ESTERROR)
+			time_esterror = txc->esterror;
+
+		if (txc->modes & ADJ_TIMECONST) {
+			time_constant = txc->constant;
+			if (!(time_status & STA_NANO))
+				time_constant += 4;
+			time_constant = min(time_constant, (long)MAXTC);
+			time_constant = max(time_constant, 0l);
+		}
+
+		if (txc->modes & ADJ_TAI && txc->constant > 0)
+			time_tai = txc->constant;
+
+		if (txc->modes & ADJ_OFFSET) {
+			if (txc->modes == ADJ_OFFSET_SINGLESHOT)
+				/* adjtime() is independent from ntp_adjtime() */
+				time_adjust = txc->offset;
+			else
+				ntp_update_offset(txc->offset);
+		}
+		if (txc->modes & ADJ_TICK)
+			tick_usec = txc->tick;
+
+		if (txc->modes & (ADJ_TICK|ADJ_FREQUENCY|ADJ_OFFSET))
+			ntp_update_frequency();
+	}
+
+	result = time_state;	/* mostly `TIME_OK' */
+	if (time_status & (STA_UNSYNC|STA_CLOCKERR))
 		result = TIME_ERROR;
 
 	if ((txc->modes == ADJ_OFFSET_SINGLESHOT) ||
-			(txc->modes == ADJ_OFFSET_SS_READ))
+	    (txc->modes == ADJ_OFFSET_SS_READ))
 		txc->offset = save_adjust;
-	else
-		txc->offset = ((long)shift_right(time_offset, SHIFT_UPDATE)) *
-	    			NTP_INTERVAL_FREQ / 1000;
-	txc->freq	   = (time_freq / NSEC_PER_USEC) <<
-				(SHIFT_USEC - SHIFT_NSEC);
+	else {
+		txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
+					  NTP_SCALE_SHIFT);
+		if (!(time_status & STA_NANO))
+			txc->offset /= NSEC_PER_USEC;
+	}
+	txc->freq	   = shift_right((s32)(time_freq >> PPM_SCALE_INV_SHIFT) *
+					 (s64)PPM_SCALE_INV,
+					 NTP_SCALE_SHIFT);
 	txc->maxerror	   = time_maxerror;
 	txc->esterror	   = time_esterror;
 	txc->status	   = time_status;
 	txc->constant	   = time_constant;
 	txc->precision	   = 1;
-	txc->tolerance	   = MAXFREQ;
+	txc->tolerance	   = MAXFREQ_SCALED / PPM_SCALE;
 	txc->tick	   = tick_usec;
+	txc->tai	   = time_tai;
 
 	/* PPS is not implemented, so these are zero */
 	txc->ppsfreq	   = 0;
@@ -399,9 +424,15 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
 	txc->errcnt	   = 0;
 	txc->stbcnt	   = 0;
 	write_sequnlock_irq(&xtime_lock);
-	do_gettimeofday(&txc->time);
+
+	txc->time.tv_sec = ts.tv_sec;
+	txc->time.tv_usec = ts.tv_nsec;
+	if (!(time_status & STA_NANO))
+		txc->time.tv_usec /= NSEC_PER_USEC;
+
 	notify_cmos_timer();
-	return(result);
+
+	return result;
 }
 
 static int __init ntp_tick_adj_setup(char *str)
@@ -411,3 +442,10 @@ static int __init ntp_tick_adj_setup(char *str)
 }
 
 __setup("ntp_tick_adj=", ntp_tick_adj_setup);
+
+void __init ntp_init(void)
+{
+	ntp_clear();
+	hrtimer_init(&leap_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	leap_timer.function = ntp_leap_second;
+}

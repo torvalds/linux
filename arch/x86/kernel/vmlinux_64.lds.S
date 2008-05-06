@@ -209,12 +209,6 @@ SECTIONS
 	EXIT_DATA
   }
 
-/* vdso blob that is mapped into user space */
-  vdso_start = . ;
-  .vdso  : AT(ADDR(.vdso) - LOAD_OFFSET) { *(.vdso) }
-  . = ALIGN(PAGE_SIZE);
-  vdso_end = .;
-
 #ifdef CONFIG_BLK_DEV_INITRD
   . = ALIGN(PAGE_SIZE);
   __initramfs_start = .;

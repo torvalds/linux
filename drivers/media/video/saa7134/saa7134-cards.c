@@ -47,6 +47,9 @@ static char name_svideo[]  = "S-Video";
 /* ------------------------------------------------------------------ */
 /* board config info                                                  */
 
+/* If radio_type !=UNSET, radio_addr should be specified
+ */
+
 struct saa7134_board saa7134_boards[] = {
 	[SAA7134_BOARD_UNKNOWN] = {
 		.name		= "UNKNOWN/GENERIC",
@@ -3087,7 +3090,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_type     = TUNER_PHILIPS_TD1316, /* untested */
 		.radio_type     = TUNER_TEA5767, /* untested */
 		.tuner_addr     = ADDR_UNSET,
-		.radio_addr     = ADDR_UNSET,
+		.radio_addr     = 0x60,
 		.tda9887_conf   = TDA9887_PRESENT,
 		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = {{
@@ -4247,6 +4250,36 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE1,
 		} },
 	},
+	[SAA7134_BOARD_BEHOLD_H6] = {
+		/* Igor Kuznetsov <igk@igk.ru> */
+		.name           = "Beholder BeholdTV H6",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 3,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 1,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+		},
+		/* no DVB support for now */
+		/* .mpeg           = SAA7134_MPEG_DVB, */
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -5197,6 +5230,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x5ace,
 		.subdevice    = 0x6193,
 		.driver_data  = SAA7134_BOARD_BEHOLD_M6,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5ace,
+		.subdevice    = 0x6191,
+		.driver_data  = SAA7134_BOARD_BEHOLD_M6,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
@@ -5245,6 +5284,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x185b,
 		.subdevice    = 0xc900,
 		.driver_data  = SAA7134_BOARD_VIDEOMATE_T750,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5ace,
+		.subdevice    = 0x6290,
+		.driver_data  = SAA7134_BOARD_BEHOLD_H6,
 	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
@@ -5577,20 +5622,87 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	return 0;
 }
 
+static void saa7134_tuner_setup(struct saa7134_dev *dev)
+{
+	struct tuner_setup tun_setup;
+	unsigned int mode_mask = T_RADIO     |
+				 T_ANALOG_TV |
+				 T_DIGITAL_TV;
+
+	memset(&tun_setup, 0, sizeof(tun_setup));
+	tun_setup.tuner_callback = saa7134_tuner_callback;
+
+	if (saa7134_boards[dev->board].radio_type != UNSET) {
+		tun_setup.type = saa7134_boards[dev->board].radio_type;
+		tun_setup.addr = saa7134_boards[dev->board].radio_addr;
+
+		tun_setup.mode_mask = T_RADIO;
+
+		saa7134_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
+		mode_mask &= ~T_RADIO;
+	}
+
+	if ((dev->tuner_type != TUNER_ABSENT) && (dev->tuner_type != UNSET)) {
+		tun_setup.type = dev->tuner_type;
+		tun_setup.addr = dev->tuner_addr;
+		tun_setup.config = saa7134_boards[dev->board].tuner_config;
+		tun_setup.tuner_callback = saa7134_tuner_callback;
+
+		tun_setup.mode_mask = mode_mask;
+
+		saa7134_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
+	}
+
+	if (dev->tda9887_conf) {
+		struct v4l2_priv_tun_config tda9887_cfg;
+
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv = &dev->tda9887_conf;
+
+		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG,
+					 &tda9887_cfg);
+	}
+
+	if (dev->tuner_type == TUNER_XC2028) {
+		struct v4l2_priv_tun_config  xc2028_cfg;
+		struct xc2028_ctrl           ctl;
+
+		memset(&xc2028_cfg, 0, sizeof(ctl));
+		memset(&ctl, 0, sizeof(ctl));
+
+		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
+		ctl.max_len = 64;
+
+		switch (dev->board) {
+		case SAA7134_BOARD_AVERMEDIA_A16D:
+			ctl.demod = XC3028_FE_ZARLINK456;
+			break;
+		default:
+			ctl.demod = XC3028_FE_OREN538;
+			ctl.mts = 1;
+		}
+
+		xc2028_cfg.tuner = TUNER_XC2028;
+		xc2028_cfg.priv  = &ctl;
+
+		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
+	}
+}
+
 /* stuff which needs working i2c */
 int saa7134_board_init2(struct saa7134_dev *dev)
 {
 	unsigned char buf;
 	int board;
-	struct tuner_setup tun_setup;
-	tun_setup.config = 0;
-	tun_setup.tuner_callback = saa7134_tuner_callback;
+
+	dev->tuner_type = saa7134_boards[dev->board].tuner_type;
+	dev->tuner_addr = saa7134_boards[dev->board].tuner_addr;
 
 	switch (dev->board) {
 	case SAA7134_BOARD_BMK_MPEX_NOTUNER:
 	case SAA7134_BOARD_BMK_MPEX_TUNER:
 		dev->i2c_client.addr = 0x60;
-		board = (i2c_master_recv(&dev->i2c_client,&buf,0) < 0)
+		board = (i2c_master_recv(&dev->i2c_client, &buf, 0) < 0)
 			? SAA7134_BOARD_BMK_MPEX_NOTUNER
 			: SAA7134_BOARD_BMK_MPEX_TUNER;
 		if (board == dev->board)
@@ -5600,21 +5712,9 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		saa7134_boards[dev->board].name);
 		dev->tuner_type = saa7134_boards[dev->board].tuner_type;
 
-		if (TUNER_ABSENT != dev->tuner_type) {
-			tun_setup.mode_mask = T_RADIO     |
-					      T_ANALOG_TV |
-					      T_DIGITAL_TV;
-			tun_setup.type = dev->tuner_type;
-			tun_setup.addr = ADDR_UNSET;
-			tun_setup.tuner_callback = saa7134_tuner_callback;
-
-			saa7134_i2c_call_clients(dev,
-						 TUNER_SET_TYPE_ADDR,
-						 &tun_setup);
-		}
 		break;
 	case SAA7134_BOARD_MD7134:
-		{
+	{
 		u8 subaddr;
 		u8 data[3];
 		int ret, tuner_t;
@@ -5667,30 +5767,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 
 		printk(KERN_INFO "%s Tuner type is %d\n", dev->name, dev->tuner_type);
-		if (dev->tuner_type == TUNER_PHILIPS_FMD1216ME_MK3) {
-			struct v4l2_priv_tun_config tda9887_cfg;
-
-			tda9887_cfg.tuner = TUNER_TDA9887;
-			tda9887_cfg.priv  = &dev->tda9887_conf;
-
-			dev->tda9887_conf = TDA9887_PRESENT      |
-					    TDA9887_PORT1_ACTIVE |
-					    TDA9887_PORT2_ACTIVE;
-
-			saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG,
-						 &tda9887_cfg);
-		}
-
-		tun_setup.mode_mask = T_RADIO     |
-				      T_ANALOG_TV |
-				      T_DIGITAL_TV;
-		tun_setup.type = dev->tuner_type;
-		tun_setup.addr = ADDR_UNSET;
-
-		saa7134_i2c_call_clients(dev,
-					 TUNER_SET_TYPE_ADDR, &tun_setup);
-		}
 		break;
+	}
 	case SAA7134_BOARD_PHILIPS_EUROPA:
 		if (dev->autodetected && (dev->eedata[0x41] == 0x1c)) {
 			/* Reconfigure board as Snake reference design */
@@ -5702,43 +5780,43 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 	case SAA7134_BOARD_ASUS_EUROPA2_HYBRID:
+	{
+
 		/* The Philips EUROPA based hybrid boards have the tuner connected through
 		 * the channel decoder. We have to make it transparent to find it
 		 */
-		{
 		u8 data[] = { 0x07, 0x02};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
 
-		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
-		tun_setup.type = dev->tuner_type;
-		tun_setup.addr = dev->tuner_addr;
-
-		saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
-		}
 		break;
+	}
 	case SAA7134_BOARD_PHILIPS_TIGER:
 	case SAA7134_BOARD_PHILIPS_TIGER_S:
-		{
+	{
 		u8 data[] = { 0x3c, 0x33, 0x60};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
-		if(dev->autodetected && (dev->eedata[0x49] == 0x50)) {
+		if (dev->autodetected && (dev->eedata[0x49] == 0x50)) {
 			dev->board = SAA7134_BOARD_PHILIPS_TIGER_S;
 			printk(KERN_INFO "%s: Reconfigured board as %s\n",
 				dev->name, saa7134_boards[dev->board].name);
 		}
-		if(dev->board == SAA7134_BOARD_PHILIPS_TIGER_S) {
-			tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
-			tun_setup.type = TUNER_PHILIPS_TDA8290;
-			tun_setup.addr = 0x4b;
-			tun_setup.config = 2;
+		if (dev->board == SAA7134_BOARD_PHILIPS_TIGER_S) {
+			dev->tuner_type = TUNER_PHILIPS_TDA8290;
 
-			saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
+			saa7134_tuner_setup(dev);
+
 			data[2] = 0x68;
+			i2c_transfer(&dev->i2c_adap, &msg, 1);
+
+			/* Tuner setup is handled before I2C transfer.
+			   Due to that, there's no need to do it later
+			 */
+			return 0;
 		}
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
-		}
 		break;
+	}
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		hauppauge_eeprom(dev, dev->eedata+0x80);
 		/* break intentionally omitted */
@@ -5751,52 +5829,55 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_SUPER_007:
 	case SAA7134_BOARD_TWINHAN_DTV_DVB_3056:
 	case SAA7134_BOARD_CREATIX_CTX953:
+	{
 		/* this is a hybrid board, initialize to analog mode
 		 * and configure firmware eeprom address
 		 */
-		{
 		u8 data[] = { 0x3c, 0x33, 0x60};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
-		}
 		break;
+	}
 	case SAA7134_BOARD_FLYDVB_TRIO:
-		{
+	{
 		u8 data[] = { 0x3c, 0x33, 0x62};
 		struct i2c_msg msg = {.addr=0x09, .flags=0, .buf=data, .len = sizeof(data)};
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
-		}
 		break;
+	}
 	case SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331:
 	case SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS:
+	{
 		/* initialize analog mode  */
-		{
 		u8 data[] = { 0x3c, 0x33, 0x6a};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
-		}
 		break;
+	}
 	case SAA7134_BOARD_CINERGY_HT_PCMCIA:
 	case SAA7134_BOARD_CINERGY_HT_PCI:
+	{
 		/* initialize analog mode */
-		{
 		u8 data[] = { 0x3c, 0x33, 0x68};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
-		}
 		break;
+	}
 	case SAA7134_BOARD_KWORLD_ATSC110:
-		{
-			/* enable tuner */
-			int i;
-			static const u8 buffer [] = { 0x10,0x12,0x13,0x04,0x16,0x00,0x14,0x04,0x017,0x00 };
-			dev->i2c_client.addr = 0x0a;
-			for (i = 0; i < 5; i++)
-				if (2 != i2c_master_send(&dev->i2c_client,&buffer[i*2],2))
-					printk(KERN_WARNING "%s: Unable to enable tuner(%i).\n",
-					       dev->name, i);
-		}
+	{
+		/* enable tuner */
+		int i;
+		static const u8 buffer [] = { 0x10, 0x12, 0x13, 0x04, 0x16,
+					      0x00, 0x14, 0x04, 0x17, 0x00 };
+		dev->i2c_client.addr = 0x0a;
+		for (i = 0; i < 5; i++)
+			if (2 != i2c_master_send(&dev->i2c_client,
+						 &buffer[i*2], 2))
+				printk(KERN_WARNING
+				       "%s: Unable to enable tuner(%i).\n",
+				       dev->name, i);
 		break;
+	}
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200A:
 		/* The T200 and the T200A share the same pci id.  Consequently,
@@ -5821,7 +5902,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM:
-		{
+	{
 		struct v4l2_priv_tun_config tea5767_cfg;
 		struct tea5767_ctrl ctl;
 
@@ -5832,34 +5913,11 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		tea5767_cfg.tuner = TUNER_TEA5767;
 		tea5767_cfg.priv  = &ctl;
 		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &tea5767_cfg);
-		}
 		break;
 	}
+	} /* switch() */
 
-	if (dev->tuner_type == TUNER_XC2028) {
-		struct v4l2_priv_tun_config  xc2028_cfg;
-		struct xc2028_ctrl           ctl;
-
-		memset(&xc2028_cfg, 0, sizeof(ctl));
-		memset(&ctl, 0, sizeof(ctl));
-
-		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
-		ctl.max_len = 64;
-
-		switch (dev->board) {
-		case SAA7134_BOARD_AVERMEDIA_A16D:
-			ctl.demod = XC3028_FE_ZARLINK456;
-			break;
-		default:
-			ctl.demod = XC3028_FE_OREN538;
-			ctl.mts = 1;
-		}
-
-		xc2028_cfg.tuner = TUNER_XC2028;
-		xc2028_cfg.priv  = &ctl;
-
-		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
-	}
+	saa7134_tuner_setup(dev);
 
 	return 0;
 }

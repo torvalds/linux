@@ -374,13 +374,10 @@ cio_ignore_proc_init (void)
 {
 	struct proc_dir_entry *entry;
 
-	entry = create_proc_entry ("cio_ignore", S_IFREG | S_IRUGO | S_IWUSR,
-				   &proc_root);
+	entry = proc_create("cio_ignore", S_IFREG | S_IRUGO | S_IWUSR, NULL,
+			    &cio_ignore_proc_fops);
 	if (!entry)
 		return -ENOENT;
-
-	entry->proc_fops = &cio_ignore_proc_fops;
-
 	return 0;
 }
 

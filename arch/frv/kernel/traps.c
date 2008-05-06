@@ -362,11 +362,8 @@ asmlinkage void memory_access_exception(unsigned long esr0,
 #ifdef CONFIG_MMU
 	unsigned long fixup;
 
-	if ((esr0 & ESRx_EC) == ESRx_EC_DATA_ACCESS)
-		if (handle_misalignment(esr0, ear0, epcr0) == 0)
-			return;
-
-	if ((fixup = search_exception_table(__frame->pc)) != 0) {
+	fixup = search_exception_table(__frame->pc);
+	if (fixup) {
 		__frame->pc = fixup;
 		return;
 	}

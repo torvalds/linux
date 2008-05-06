@@ -64,7 +64,6 @@ static struct i2c_driver tps65010_driver;
  * as part of board setup by a bootloader.
  */
 enum tps_model {
-	TPS_UNKNOWN = 0,
 	TPS65010,
 	TPS65011,
 	TPS65012,
@@ -527,11 +526,13 @@ static int __exit tps65010_remove(struct i2c_client *client)
 	flush_scheduled_work();
 	debugfs_remove(tps->file);
 	kfree(tps);
+	i2c_set_clientdata(client, NULL);
 	the_tps = NULL;
 	return 0;
 }
 
-static int tps65010_probe(struct i2c_client *client)
+static int tps65010_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
 {
 	struct tps65010		*tps;
 	int			status;
@@ -552,20 +553,7 @@ static int tps65010_probe(struct i2c_client *client)
 	mutex_init(&tps->lock);
 	INIT_DELAYED_WORK(&tps->work, tps65010_work);
 	tps->client = client;
-
-	if (strcmp(client->name, "tps65010") == 0)
-		tps->model = TPS65010;
-	else if (strcmp(client->name, "tps65011") == 0)
-		tps->model = TPS65011;
-	else if (strcmp(client->name, "tps65012") == 0)
-		tps->model = TPS65012;
-	else if (strcmp(client->name, "tps65013") == 0)
-		tps->model = TPS65013;
-	else {
-		dev_warn(&client->dev, "unknown chip '%s'\n", client->name);
-		status = -ENODEV;
-		goto fail1;
-	}
+	tps->model = id->driver_data;
 
 	/* the IRQ is active low, but many gpio lines can't support that
 	 * so this driver uses falling-edge triggers instead.
@@ -594,9 +582,6 @@ static int tps65010_probe(struct i2c_client *client)
 	case TPS65012:
 		tps->por = 1;
 		break;
-	case TPS_UNKNOWN:
-		printk(KERN_WARNING "%s: unknown TPS chip\n", DRIVER_NAME);
-		break;
 	/* else CHGCONFIG.POR is replaced by AUA, enabling a WAIT mode */
 	}
 	tps->chgconf = i2c_smbus_read_byte_data(client, TPS_CHGCONFIG);
@@ -615,6 +600,7 @@ static int tps65010_probe(struct i2c_client *client)
 		i2c_smbus_read_byte_data(client, TPS_DEFGPIO),
 		i2c_smbus_read_byte_data(client, TPS_MASK3));
 
+	i2c_set_clientdata(client, tps);
 	the_tps = tps;
 
 #if	defined(CONFIG_USB_GADGET) && !defined(CONFIG_USB_OTG)
@@ -682,12 +668,22 @@ fail1:
 	return status;
 }
 
+static const struct i2c_device_id tps65010_id[] = {
+	{ "tps65010", TPS65010 },
+	{ "tps65011", TPS65011 },
+	{ "tps65012", TPS65012 },
+	{ "tps65013", TPS65013 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, tps65010_id);
+
 static struct i2c_driver tps65010_driver = {
 	.driver = {
 		.name	= "tps65010",
 	},
 	.probe	= tps65010_probe,
 	.remove	= __exit_p(tps65010_remove),
+	.id_table = tps65010_id,
 };
 
 /*-------------------------------------------------------------------------*/

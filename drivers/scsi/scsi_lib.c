@@ -445,7 +445,7 @@ static void scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 	scsi_set_resid(cmd, 0);
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 	if (cmd->cmd_len == 0)
-		cmd->cmd_len = COMMAND_SIZE(cmd->cmnd[0]);
+		cmd->cmd_len = scsi_command_size(cmd->cmnd);
 }
 
 void scsi_device_unbusy(struct scsi_device *sdev)
@@ -536,6 +536,9 @@ static void scsi_run_queue(struct request_queue *q)
 	       !shost->host_blocked && !shost->host_self_blocked &&
 		!((shost->can_queue > 0) &&
 		  (shost->host_busy >= shost->can_queue))) {
+
+		int flagset;
+
 		/*
 		 * As long as shost is accepting commands and we have
 		 * starved queues, call blk_run_queue. scsi_request_fn
@@ -549,19 +552,20 @@ static void scsi_run_queue(struct request_queue *q)
 		sdev = list_entry(shost->starved_list.next,
 					  struct scsi_device, starved_entry);
 		list_del_init(&sdev->starved_entry);
-		spin_unlock_irqrestore(shost->host_lock, flags);
+		spin_unlock(shost->host_lock);
 
+		spin_lock(sdev->request_queue->queue_lock);
+		flagset = test_bit(QUEUE_FLAG_REENTER, &q->queue_flags) &&
+				!test_bit(QUEUE_FLAG_REENTER,
+					&sdev->request_queue->queue_flags);
+		if (flagset)
+			queue_flag_set(QUEUE_FLAG_REENTER, sdev->request_queue);
+		__blk_run_queue(sdev->request_queue);
+		if (flagset)
+			queue_flag_clear(QUEUE_FLAG_REENTER, sdev->request_queue);
+		spin_unlock(sdev->request_queue->queue_lock);
 
-		if (test_bit(QUEUE_FLAG_REENTER, &q->queue_flags) &&
-		    !test_and_set_bit(QUEUE_FLAG_REENTER,
-				      &sdev->request_queue->queue_flags)) {
-			blk_run_queue(sdev->request_queue);
-			clear_bit(QUEUE_FLAG_REENTER,
-				  &sdev->request_queue->queue_flags);
-		} else
-			blk_run_queue(sdev->request_queue);
-
-		spin_lock_irqsave(shost->host_lock, flags);
+		spin_lock(shost->host_lock);
 		if (unlikely(!list_empty(&sdev->starved_entry)))
 			/*
 			 * sdev lost a race, and was put back on the
@@ -1090,6 +1094,8 @@ static struct scsi_cmnd *scsi_get_cmd_from_req(struct scsi_device *sdev,
 	cmd->tag = req->tag;
 	cmd->request = req;
 
+	cmd->cmnd = req->cmd;
+
 	return cmd;
 }
 
@@ -1127,8 +1133,6 @@ int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 		req->buffer = NULL;
 	}
 
-	BUILD_BUG_ON(sizeof(req->cmd) > sizeof(cmd->cmnd));
-	memcpy(cmd->cmnd, req->cmd, sizeof(cmd->cmnd));
 	cmd->cmd_len = req->cmd_len;
 	if (!req->data_len)
 		cmd->sc_data_direction = DMA_NONE;
@@ -1165,6 +1169,7 @@ int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 	if (unlikely(!cmd))
 		return BLKPREP_DEFER;
 
+	memset(cmd->cmnd, 0, BLK_MAX_CDB);
 	return scsi_init_io(cmd, GFP_ATOMIC);
 }
 EXPORT_SYMBOL(scsi_setup_fs_cmnd);
@@ -1585,8 +1590,9 @@ struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
 
 	blk_queue_max_segment_size(q, dma_get_max_seg_size(dev));
 
+	/* New queue, no concurrency on queue_flags */
 	if (!shost->use_clustering)
-		clear_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
+		queue_flag_clear_unlocked(QUEUE_FLAG_CLUSTER, q);
 
 	/*
 	 * set a reasonable default alignment on word boundaries: the

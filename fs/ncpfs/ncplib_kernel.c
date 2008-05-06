@@ -102,48 +102,47 @@ static inline void ncp_init_request_s(struct ncp_server *server, int subfunction
 }
 
 static inline char *
- ncp_reply_data(struct ncp_server *server, int offset)
+ncp_reply_data(struct ncp_server *server, int offset)
 {
 	return &(server->packet[sizeof(struct ncp_reply_header) + offset]);
 }
 
-static inline __u8 BVAL(void* data)
+static inline u8 BVAL(void *data)
 {
-	return get_unaligned((__u8*)data);
+	return *(u8 *)data;
 }
 
-static __u8
- ncp_reply_byte(struct ncp_server *server, int offset)
+static u8 ncp_reply_byte(struct ncp_server *server, int offset)
 {
-	return get_unaligned((__u8 *) ncp_reply_data(server, offset));
+	return *(u8 *)ncp_reply_data(server, offset);
 }
 
-static inline __u16 WVAL_LH(void* data)
+static inline u16 WVAL_LH(void *data)
 {
-	return le16_to_cpu(get_unaligned((__le16*)data));
+	return get_unaligned_le16(data);
 }
 
-static __u16
- ncp_reply_le16(struct ncp_server *server, int offset)
+static u16
+ncp_reply_le16(struct ncp_server *server, int offset)
 {
-	return le16_to_cpu(get_unaligned((__le16 *) ncp_reply_data(server, offset)));
+	return get_unaligned_le16(ncp_reply_data(server, offset));
 }
 
-static __u16
- ncp_reply_be16(struct ncp_server *server, int offset)
+static u16
+ncp_reply_be16(struct ncp_server *server, int offset)
 {
-	return be16_to_cpu(get_unaligned((__be16 *) ncp_reply_data(server, offset)));
+	return get_unaligned_be16(ncp_reply_data(server, offset));
 }
 
-static inline __u32 DVAL_LH(void* data)
+static inline u32 DVAL_LH(void *data)
 {
-	return le32_to_cpu(get_unaligned((__le32*)data));
+	return get_unaligned_le32(data);
 }
 
 static __le32
- ncp_reply_dword(struct ncp_server *server, int offset)
+ncp_reply_dword(struct ncp_server *server, int offset)
 {
-	return get_unaligned((__le32 *) ncp_reply_data(server, offset));
+	return get_unaligned((__le32 *)ncp_reply_data(server, offset));
 }
 
 static inline __u32 ncp_reply_dword_lh(struct ncp_server* server, int offset) {
@@ -1006,8 +1005,8 @@ ncp_read_bounce(struct ncp_server *server, const char *file_id,
 	result = ncp_request2(server, 72, bounce, bufsize);
 	ncp_unlock_server(server);
 	if (!result) {
-		int len = be16_to_cpu(get_unaligned((__be16*)((char*)bounce + 
-			  sizeof(struct ncp_reply_header))));
+		int len = get_unaligned_be16((char *)bounce +
+			  sizeof(struct ncp_reply_header));
 		result = -EIO;
 		if (len <= to_read) {
 			char* source;

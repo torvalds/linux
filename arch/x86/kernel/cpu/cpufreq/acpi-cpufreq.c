@@ -339,6 +339,7 @@ static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 {
 	struct acpi_cpufreq_data *data = per_cpu(drv_data, cpu);
 	unsigned int freq;
+	unsigned int cached_freq;
 
 	dprintk("get_cur_freq_on_cpu (%d)\n", cpu);
 
@@ -347,7 +348,16 @@ static unsigned int get_cur_freq_on_cpu(unsigned int cpu)
 		return 0;
 	}
 
+	cached_freq = data->freq_table[data->acpi_data->state].frequency;
 	freq = extract_freq(get_cur_val(&cpumask_of_cpu(cpu)), data);
+	if (freq != cached_freq) {
+		/*
+		 * The dreaded BIOS frequency change behind our back.
+		 * Force set the frequency on next target call.
+		 */
+		data->resume = 1;
+	}
+
 	dprintk("cur freq = %u\n", freq);
 
 	return freq;
@@ -591,6 +601,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	    policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
 		policy->cpus = perf->shared_cpu_map;
 	}
+	policy->related_cpus = perf->shared_cpu_map;
 
 #ifdef CONFIG_SMP
 	dmi_check_system(sw_any_bug_dmi_table);

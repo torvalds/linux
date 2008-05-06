@@ -242,7 +242,7 @@ int fat_get_cluster(struct inode *inode, int cluster, int *fclus, int *dclus)
 		/* prevent the infinite loop of cluster chain */
 		if (*fclus > limit) {
 			fat_fs_panic(sb, "%s: detected the cluster chain loop"
-				     " (i_pos %lld)", __FUNCTION__,
+				     " (i_pos %lld)", __func__,
 				     MSDOS_I(inode)->i_pos);
 			nr = -EIO;
 			goto out;
@@ -253,7 +253,7 @@ int fat_get_cluster(struct inode *inode, int cluster, int *fclus, int *dclus)
 			goto out;
 		else if (nr == FAT_ENT_FREE) {
 			fat_fs_panic(sb, "%s: invalid cluster chain"
-				     " (i_pos %lld)", __FUNCTION__,
+				     " (i_pos %lld)", __func__,
 				     MSDOS_I(inode)->i_pos);
 			nr = -EIO;
 			goto out;
@@ -286,7 +286,7 @@ static int fat_bmap_cluster(struct inode *inode, int cluster)
 		return ret;
 	else if (ret == FAT_ENT_EOF) {
 		fat_fs_panic(sb, "%s: request beyond EOF (i_pos %lld)",
-			     __FUNCTION__, MSDOS_I(inode)->i_pos);
+			     __func__, MSDOS_I(inode)->i_pos);
 		return -EIO;
 	}
 	return dclus;

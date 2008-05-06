@@ -784,7 +784,7 @@ static void sbp2_release_target(struct kref *kref)
 		kfree(lu);
 	}
 	scsi_remove_host(shost);
-	fw_notify("released %s\n", tgt->bus_id);
+	fw_notify("released %s, target %d:0:0\n", tgt->bus_id, shost->host_no);
 
 	fw_unit_put(tgt->unit);
 	scsi_host_put(shost);
@@ -1487,7 +1487,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	if (scsi_sg_count(cmd) && sbp2_map_scatterlist(orb, device, lu) < 0)
 		goto out;
 
-	memcpy(orb->request.command_block, cmd->cmnd, COMMAND_SIZE(*cmd->cmnd));
+	memcpy(orb->request.command_block, cmd->cmnd, cmd->cmd_len);
 
 	orb->base.callback = complete_command_orb;
 	orb->base.request_bus =

@@ -60,8 +60,7 @@ typedef struct ipmi_smi *ipmi_smi_t;
  * asynchronous data and messages and request them from the
  * interface.
  */
-struct ipmi_smi_msg
-{
+struct ipmi_smi_msg {
 	struct list_head link;
 
 	long    msgid;
@@ -74,12 +73,11 @@ struct ipmi_smi_msg
 	unsigned char rsp[IPMI_MAX_MSG_LENGTH];
 
 	/* Will be called when the system is done with the message
-           (presumably to free it). */
+	   (presumably to free it). */
 	void (*done)(struct ipmi_smi_msg *msg);
 };
 
-struct ipmi_smi_handlers
-{
+struct ipmi_smi_handlers {
 	struct module *owner;
 
 	/* The low-level interface cannot start sending messages to
@@ -231,7 +229,7 @@ static inline void ipmi_free_smi_msg(struct ipmi_smi_msg *msg)
    directory for this interface.  Note that the entry will
    automatically be dstroyed when the interface is destroyed. */
 int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
-			    read_proc_t *read_proc, write_proc_t *write_proc,
+			    read_proc_t *read_proc,
 			    void *data, struct module *owner);
 
 #endif /* __LINUX_IPMI_SMI_H */

@@ -2417,6 +2417,9 @@ int kvm_arch_init(void *opaque)
 
 	kvm_x86_ops = ops;
 	kvm_mmu_set_nonpresent_ptes(0ull, 0ull);
+	kvm_mmu_set_base_ptes(PT_PRESENT_MASK);
+	kvm_mmu_set_mask_ptes(PT_USER_MASK, PT_ACCESSED_MASK,
+			PT_DIRTY_MASK, PT64_NX_MASK, 0);
 	return 0;
 
 out:
@@ -3019,6 +3022,8 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 
 	kvm_x86_ops->decache_regs(vcpu);
 
+	vcpu->arch.exception.pending = false;
+
 	vcpu_put(vcpu);
 
 	return 0;
@@ -3481,7 +3486,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 	}
 
 	if (reason == TASK_SWITCH_IRET || reason == TASK_SWITCH_JMP) {
-		cseg_desc.type &= ~(1 << 8); //clear the B flag
+		cseg_desc.type &= ~(1 << 1); //clear the B flag
 		save_guest_segment_descriptor(vcpu, tr_seg.selector,
 					      &cseg_desc);
 	}
@@ -3507,7 +3512,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 	}
 
 	if (reason != TASK_SWITCH_IRET) {
-		nseg_desc.type |= (1 << 8);
+		nseg_desc.type |= (1 << 1);
 		save_guest_segment_descriptor(vcpu, tss_selector,
 					      &nseg_desc);
 	}
@@ -3698,10 +3703,19 @@ void fx_init(struct kvm_vcpu *vcpu)
 {
 	unsigned after_mxcsr_mask;
 
+	/*
+	 * Touch the fpu the first time in non atomic context as if
+	 * this is the first fpu instruction the exception handler
+	 * will fire before the instruction returns and it'll have to
+	 * allocate ram with GFP_KERNEL.
+	 */
+	if (!used_math())
+		fx_save(&vcpu->arch.host_fx_image);
+
 	/* Initialize guest FPU by resetting ours and saving into guest's */
 	preempt_disable();
 	fx_save(&vcpu->arch.host_fx_image);
-	fpu_init();
+	fx_finit();
 	fx_save(&vcpu->arch.guest_fx_image);
 	fx_restore(&vcpu->arch.host_fx_image);
 	preempt_enable();
@@ -3906,6 +3920,8 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_free_physmem(kvm);
 	if (kvm->arch.apic_access_page)
 		put_page(kvm->arch.apic_access_page);
+	if (kvm->arch.ept_identity_pagetable)
+		put_page(kvm->arch.ept_identity_pagetable);
 	kfree(kvm);
 }
 

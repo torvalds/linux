@@ -1,10 +1,10 @@
 /*
  * SoC audio for ln2440sbc
- * 
+ *
  * Copyright 2007 KonekTel, a.s.
  * Author: Ivan Kuten
  *         ivan.kuten@promwad.com
- * 
+ *
  * Heavily based on smdk2443_wm9710.c
  * Copyright 2007 Wolfson Microelectronics PLC.
  * Author: Graeme Gregory

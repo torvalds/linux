@@ -1,23 +1,25 @@
-#ifndef __M68K_UNALIGNED_H
-#define __M68K_UNALIGNED_H
+#ifndef _ASM_M68KNOMMU_UNALIGNED_H
+#define _ASM_M68KNOMMU_UNALIGNED_H
 
 
 #ifdef CONFIG_COLDFIRE
+#include <linux/unaligned/be_struct.h>
+#include <linux/unaligned/le_byteshift.h>
+#include <linux/unaligned/generic.h>
 
-#include <asm-generic/unaligned.h>
+#define get_unaligned	__get_unaligned_be
+#define put_unaligned	__put_unaligned_be
 
 #else
 /*
  * The m68k can do unaligned accesses itself. 
- *
- * The strange macros are there to make sure these can't
- * be misused in a way that makes them not work on other
- * architectures where unaligned accesses aren't as simple.
  */
+#include <linux/unaligned/access_ok.h>
+#include <linux/unaligned/generic.h>
 
-#define get_unaligned(ptr) (*(ptr))
-#define put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
+#define get_unaligned	__get_unaligned_be
+#define put_unaligned	__put_unaligned_be
 
 #endif
 
-#endif
+#endif /* _ASM_M68KNOMMU_UNALIGNED_H */

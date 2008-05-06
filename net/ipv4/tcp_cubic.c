@@ -15,8 +15,8 @@
 
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/math64.h>
 #include <net/tcp.h>
-#include <asm/div64.h>
 
 #define BICTCP_BETA_SCALE    1024	/* Scale factor beta calculation
 					 * max_cwnd = snd_cwnd * beta
@@ -128,7 +128,7 @@ static u32 cubic_root(u64 a)
 	 * x    = ( 2 * x  +  a / x  ) / 3
 	 *  k+1          k         k
 	 */
-	x = (2 * x + (u32)div64_64(a, (u64)x * (u64)(x - 1)));
+	x = (2 * x + (u32)div64_u64(a, (u64)x * (u64)(x - 1)));
 	x = ((x * 341) >> 10);
 	return x;
 }

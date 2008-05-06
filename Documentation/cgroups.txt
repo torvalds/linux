@@ -500,8 +500,7 @@ post-attachment activity that requires memory allocations or blocking.
 
 void fork(struct cgroup_subsy *ss, struct task_struct *task)
 
-Called when a task is forked into a cgroup. Also called during
-registration for all existing tasks.
+Called when a task is forked into a cgroup.
 
 void exit(struct cgroup_subsys *ss, struct task_struct *task)
 

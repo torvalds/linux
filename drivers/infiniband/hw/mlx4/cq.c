@@ -137,7 +137,7 @@ static int mlx4_ib_get_cq_umem(struct mlx4_ib_dev *dev, struct ib_ucontext *cont
 	int err;
 
 	*umem = ib_umem_get(context, buf_addr, cqe * sizeof (struct mlx4_cqe),
-			    IB_ACCESS_LOCAL_WRITE);
+			    IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(*umem))
 		return PTR_ERR(*umem);
 
@@ -221,7 +221,7 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector
 	}
 
 	err = mlx4_cq_alloc(dev->dev, entries, &cq->buf.mtt, uar,
-			    cq->db.dma, &cq->mcq);
+			    cq->db.dma, &cq->mcq, 0);
 	if (err)
 		goto err_dbmap;
 
@@ -246,7 +246,7 @@ err_mtt:
 	if (context)
 		ib_umem_release(cq->umem);
 	else
-		mlx4_ib_free_cq_buf(dev, &cq->buf, entries);
+		mlx4_ib_free_cq_buf(dev, &cq->buf, cq->ibcq.cqe);
 
 err_db:
 	if (!context)
@@ -434,7 +434,7 @@ int mlx4_ib_destroy_cq(struct ib_cq *cq)
 		mlx4_ib_db_unmap_user(to_mucontext(cq->uobject->context), &mcq->db);
 		ib_umem_release(mcq->umem);
 	} else {
-		mlx4_ib_free_cq_buf(dev, &mcq->buf, cq->cqe + 1);
+		mlx4_ib_free_cq_buf(dev, &mcq->buf, cq->cqe);
 		mlx4_db_free(dev->dev, &mcq->db);
 	}
 

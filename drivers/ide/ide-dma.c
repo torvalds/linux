@@ -464,9 +464,10 @@ int ide_dma_setup(ide_drive_t *drive)
 
 	/* PRD table */
 	if (hwif->mmio)
-		writel(hwif->dmatable_dma, (void __iomem *)hwif->dma_prdtable);
+		writel(hwif->dmatable_dma,
+		       (void __iomem *)(hwif->dma_base + ATA_DMA_TABLE_OFS));
 	else
-		outl(hwif->dmatable_dma, hwif->dma_prdtable);
+		outl(hwif->dmatable_dma, hwif->dma_base + ATA_DMA_TABLE_OFS);
 
 	/* specify r/w */
 	hwif->OUTB(reading, hwif->dma_command);
@@ -858,14 +859,8 @@ void ide_setup_dma(ide_hwif_t *hwif, unsigned long base)
 
 	if (!hwif->dma_command)
 		hwif->dma_command	= hwif->dma_base + 0;
-	if (!hwif->dma_vendor1)
-		hwif->dma_vendor1	= hwif->dma_base + 1;
 	if (!hwif->dma_status)
 		hwif->dma_status	= hwif->dma_base + 2;
-	if (!hwif->dma_vendor3)
-		hwif->dma_vendor3	= hwif->dma_base + 3;
-	if (!hwif->dma_prdtable)
-		hwif->dma_prdtable	= hwif->dma_base + 4;
 
 	hwif->dma_ops = &sff_dma_ops;
 }

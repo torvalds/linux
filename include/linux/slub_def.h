@@ -29,6 +29,7 @@ enum stat_item {
 	DEACTIVATE_TO_HEAD,	/* Cpu slab was moved to the head of partials */
 	DEACTIVATE_TO_TAIL,	/* Cpu slab was moved to the tail of partials */
 	DEACTIVATE_REMOTE_FREES,/* Slab contained remotely freed objects */
+	ORDER_FALLBACK,		/* Number of times fallback was necessary */
 	NR_SLUB_STAT_ITEMS };
 
 struct kmem_cache_cpu {
@@ -48,8 +49,18 @@ struct kmem_cache_node {
 	struct list_head partial;
 #ifdef CONFIG_SLUB_DEBUG
 	atomic_long_t nr_slabs;
+	atomic_long_t total_objects;
 	struct list_head full;
 #endif
+};
+
+/*
+ * Word size structure that can be atomically updated or read and that
+ * contains both the order and the number of objects that a slab of the
+ * given order would contain.
+ */
+struct kmem_cache_order_objects {
+	unsigned long x;
 };
 
 /*
@@ -61,7 +72,7 @@ struct kmem_cache {
 	int size;		/* The size of an object including meta data */
 	int objsize;		/* The size of an object without meta data */
 	int offset;		/* Free pointer offset. */
-	int order;		/* Current preferred allocation order */
+	struct kmem_cache_order_objects oo;
 
 	/*
 	 * Avoid an extra cache line for UP, SMP and for the node local to
@@ -70,7 +81,8 @@ struct kmem_cache {
 	struct kmem_cache_node local_node;
 
 	/* Allocation and freeing of slabs */
-	int objects;		/* Number of objects in slab */
+	struct kmem_cache_order_objects max;
+	struct kmem_cache_order_objects min;
 	gfp_t allocflags;	/* gfp flags to use on each alloc */
 	int refcount;		/* Refcount for slab cache destroy */
 	void (*ctor)(struct kmem_cache *, void *);

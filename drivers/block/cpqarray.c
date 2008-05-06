@@ -214,7 +214,7 @@ static struct proc_dir_entry *proc_array;
 static void __init ida_procinit(int i)
 {
 	if (proc_array == NULL) {
-		proc_array = proc_mkdir("cpqarray", proc_root_driver);
+		proc_array = proc_mkdir("driver/cpqarray", NULL);
 		if (!proc_array) return;
 	}
 
@@ -1796,7 +1796,7 @@ static void __exit cpqarray_exit(void)
 		}
 	}
 
-	remove_proc_entry("cpqarray", proc_root_driver);
+	remove_proc_entry("driver/cpqarray", NULL);
 }
 
 module_init(cpqarray_init)

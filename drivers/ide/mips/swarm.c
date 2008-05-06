@@ -109,6 +109,7 @@ static int __devinit swarm_ide_probe(struct device *dev)
 	base = ioremap(offset, size);
 
 	/* Setup MMIO ops.  */
+	hwif->host_flags = IDE_HFLAG_MMIO;
 	default_hwif_mmiops(hwif);
 
 	hwif->chipset = ide_generic;

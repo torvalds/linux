@@ -9,8 +9,6 @@
 #ifndef _LINUX_SLAB_H
 #define	_LINUX_SLAB_H
 
-#ifdef __KERNEL__
-
 #include <linux/gfp.h>
 #include <linux/types.h>
 
@@ -28,6 +26,13 @@
 #define SLAB_DESTROY_BY_RCU	0x00080000UL	/* Defer freeing slabs to RCU */
 #define SLAB_MEM_SPREAD		0x00100000UL	/* Spread some memory over cpuset */
 #define SLAB_TRACE		0x00200000UL	/* Trace allocations and frees */
+
+/* Flag to prevent checks on free */
+#ifdef CONFIG_DEBUG_OBJECTS
+# define SLAB_DEBUG_OBJECTS	0x00400000UL
+#else
+# define SLAB_DEBUG_OBJECTS	0x00000000UL
+#endif
 
 /* The following flags affect the page allocator grouping pages by mobility */
 #define SLAB_RECLAIM_ACCOUNT	0x00020000UL		/* Objects are reclaimable */
@@ -276,5 +281,4 @@ extern const struct seq_operations slabinfo_op;
 ssize_t slabinfo_write(struct file *, const char __user *, size_t, loff_t *);
 #endif
 
-#endif	/* __KERNEL__ */
 #endif	/* _LINUX_SLAB_H */

@@ -741,15 +741,13 @@ static int acpi_battery_add_fs(struct acpi_device *device)
 	}
 
 	for (i = 0; i < ACPI_BATTERY_NUMFILES; ++i) {
-		entry = create_proc_entry(acpi_battery_file[i].name,
-				  acpi_battery_file[i].mode, acpi_device_dir(device));
+		entry = proc_create_data(acpi_battery_file[i].name,
+					 acpi_battery_file[i].mode,
+					 acpi_device_dir(device),
+					 &acpi_battery_file[i].ops,
+					 acpi_driver_data(device));
 		if (!entry)
 			return -ENODEV;
-		else {
-			entry->proc_fops = &acpi_battery_file[i].ops;
-			entry->data = acpi_driver_data(device);
-			entry->owner = THIS_MODULE;
-		}
 	}
 	return 0;
 }

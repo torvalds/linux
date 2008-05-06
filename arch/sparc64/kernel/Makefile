@@ -29,3 +29,4 @@ obj-$(CONFIG_SUN_LDOMS) += ldc.o vio.o viohs.o ds.o
 obj-$(CONFIG_AUDIT) += audit.o
 obj-$(CONFIG_AUDIT)$(CONFIG_COMPAT) += compat_audit.o
 obj-y += $(obj-yy)
+obj-$(CONFIG_KGDB) += kgdb.o

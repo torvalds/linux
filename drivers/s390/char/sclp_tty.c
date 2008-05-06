@@ -412,14 +412,14 @@ sclp_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
  * - including previous characters from sclp_tty_put_char() and strings from
  * sclp_write() without final '\n' - will be written.
  */
-static void
+static int
 sclp_tty_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	sclp_tty_chars[sclp_tty_chars_count++] = ch;
 	if (ch == '\n' || sclp_tty_chars_count >= SCLP_TTY_BUF_SIZE) {
 		sclp_tty_write_string(sclp_tty_chars, sclp_tty_chars_count);
 		sclp_tty_chars_count = 0;
-	}
+	} return 1;
 }
 
 /*

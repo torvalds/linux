@@ -261,7 +261,8 @@ static int wm8739_command(struct i2c_client *client, unsigned cmd, void *arg)
 
 /* i2c implementation */
 
-static int wm8739_probe(struct i2c_client *client)
+static int wm8739_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct wm8739_state *state;
 

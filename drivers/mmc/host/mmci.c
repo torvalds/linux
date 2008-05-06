@@ -213,9 +213,10 @@ static int mmci_pio_read(struct mmci_host *host, char *buffer, unsigned int rema
 	void __iomem *base = host->base;
 	char *ptr = buffer;
 	u32 status;
+	int host_remain = host->size;
 
 	do {
-		int count = host->size - (readl(base + MMCIFIFOCNT) << 2);
+		int count = host_remain - (readl(base + MMCIFIFOCNT) << 2);
 
 		if (count > remain)
 			count = remain;
@@ -227,6 +228,7 @@ static int mmci_pio_read(struct mmci_host *host, char *buffer, unsigned int rema
 
 		ptr += count;
 		remain -= count;
+		host_remain -= count;
 
 		if (remain == 0)
 			break;

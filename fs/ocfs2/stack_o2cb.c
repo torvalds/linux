@@ -385,7 +385,7 @@ static int o2cb_cluster_this_node(unsigned int *node)
 	return 0;
 }
 
-struct ocfs2_stack_operations o2cb_stack_ops = {
+static struct ocfs2_stack_operations o2cb_stack_ops = {
 	.connect	= o2cb_cluster_connect,
 	.disconnect	= o2cb_cluster_disconnect,
 	.hangup		= o2cb_cluster_hangup,

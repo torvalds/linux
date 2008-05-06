@@ -109,13 +109,8 @@ static inline int cpu_to_logical_apicid(int cpu)
 
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
-#ifdef CONFIG_X86_64
-	if (cpu_present(mps_cpu))
+	if (mps_cpu < NR_CPUS && cpu_present(mps_cpu))
 		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
-#else
-	if (mps_cpu < get_physical_broadcast())
-		return  mps_cpu;
-#endif
 	else
 		return BAD_APICID;
 }

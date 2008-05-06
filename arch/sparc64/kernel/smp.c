@@ -38,7 +38,6 @@
 #include <asm/pgtable.h>
 #include <asm/oplib.h>
 #include <asm/uaccess.h>
-#include <asm/timer.h>
 #include <asm/starfire.h>
 #include <asm/tlb.h>
 #include <asm/sections.h>
@@ -910,6 +909,9 @@ extern unsigned long xcall_flush_tlb_kernel_range;
 extern unsigned long xcall_report_regs;
 extern unsigned long xcall_receive_signal;
 extern unsigned long xcall_new_mmu_context_version;
+#ifdef CONFIG_KGDB
+extern unsigned long xcall_kgdb_capture;
+#endif
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 extern unsigned long xcall_flush_dcache_page_cheetah;
@@ -1078,6 +1080,13 @@ void smp_new_mmu_context_version(void)
 {
 	smp_cross_call(&xcall_new_mmu_context_version, 0, 0, 0);
 }
+
+#ifdef CONFIG_KGDB
+void kgdb_roundup_cpus(unsigned long flags)
+{
+	smp_cross_call(&xcall_kgdb_capture, 0, 0, 0);
+}
+#endif
 
 void smp_report_regs(void)
 {

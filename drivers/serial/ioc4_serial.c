@@ -889,7 +889,7 @@ static int inline port_init(struct ioc4_port *port)
 
 		ring_pci_addr = (unsigned long __iomem)port->ip_dma_ringbuf;
 		DPRINT_CONFIG(("%s: ring_pci_addr 0x%lx\n",
-					__FUNCTION__, ring_pci_addr));
+					__func__, ring_pci_addr));
 
 		writel((unsigned int)((uint64_t)ring_pci_addr >> 32), sbbr_h);
 		writel((unsigned int)ring_pci_addr | IOC4_BUF_SIZE_BIT, sbbr_l);
@@ -1028,7 +1028,7 @@ static irqreturn_t ioc4_intr(int irq, void *arg)
 		spin_lock_irqsave(&soft->is_ir_lock, flag);
 		printk ("%s : %d : mem 0x%p sio_ir 0x%x sio_ies 0x%x "
 				"other_ir 0x%x other_ies 0x%x mask 0x%x\n",
-		     __FUNCTION__, __LINE__,
+		     __func__, __LINE__,
 		     (void *)mem, readl(&mem->sio_ir.raw),
 		     readl(&mem->sio_ies.raw),
 		     readl(&mem->other_ir.raw),
@@ -1155,14 +1155,14 @@ static int inline ioc4_attach_local(struct ioc4_driver_data *idd)
 				(TOTAL_RING_BUF_SIZE - 1)) == 0));
 			DPRINT_CONFIG(("%s : ip_cpu_ringbuf 0x%p "
 						"ip_dma_ringbuf 0x%p\n",
-					__FUNCTION__,
+					__func__,
 					(void *)port->ip_cpu_ringbuf,
 					(void *)port->ip_dma_ringbuf));
 			port->ip_inring = RING(port, RX_0_OR_2);
 			port->ip_outring = RING(port, TX_0_OR_2);
 		}
 		DPRINT_CONFIG(("%s : port %d [addr 0x%p] control 0x%p",
-				__FUNCTION__,
+				__func__,
 				port_number, (void *)port, (void *)control));
 		DPRINT_CONFIG((" ip_serial_regs 0x%p ip_uart_regs 0x%p\n",
 				(void *)port->ip_serial_regs,
@@ -1173,7 +1173,7 @@ static int inline ioc4_attach_local(struct ioc4_driver_data *idd)
 
 		DPRINT_CONFIG(("%s: port_number %d port 0x%p inring 0x%p "
 						"outring 0x%p\n",
-				__FUNCTION__,
+				__func__,
 				port_number, (void *)port,
 				(void *)port->ip_inring,
 				(void *)port->ip_outring));
@@ -1317,7 +1317,7 @@ config_port(struct ioc4_port *port,
 	int spiniter = 0;
 
 	DPRINT_CONFIG(("%s: baud %d byte_size %d stop %d parenb %d parodd %d\n",
-		__FUNCTION__, baud, byte_size, stop_bits, parenb, parodd));
+		__func__, baud, byte_size, stop_bits, parenb, parodd));
 
 	if (set_baud(port, baud))
 		return 1;
@@ -1725,7 +1725,7 @@ ioc4_change_speed(struct uart_port *the_port,
 	}
 	baud = uart_get_baud_rate(the_port, new_termios, old_termios,
 				MIN_BAUD_SUPPORTED, MAX_BAUD_SUPPORTED);
-	DPRINT_CONFIG(("%s: returned baud %d\n", __FUNCTION__, baud));
+	DPRINT_CONFIG(("%s: returned baud %d\n", __func__, baud));
 
 	/* default is 9600 */
 	if (!baud)
@@ -1765,7 +1765,7 @@ ioc4_change_speed(struct uart_port *the_port,
 	DPRINT_CONFIG(("%s : port 0x%p cflag 0%o "
 		"config_port(baud %d data %d stop %d p enable %d parity %d),"
 		" notification 0x%x\n",
-	     __FUNCTION__, (void *)port, cflag, baud, new_data, new_stop,
+	     __func__, (void *)port, cflag, baud, new_data, new_stop,
 	     new_parity_enable, new_parity, the_port->ignore_status_mask));
 
 	if ((config_port(port, baud,		/* baud */
@@ -2715,7 +2715,7 @@ ioc4_serial_core_attach(struct pci_dev *pdev, int port_type)
 
 
 	DPRINT_CONFIG(("%s: attach pdev 0x%p - control 0x%p\n",
-			__FUNCTION__, pdev, (void *)control));
+			__func__, pdev, (void *)control));
 
 	if (!control)
 		return -ENODEV;
@@ -2734,7 +2734,7 @@ ioc4_serial_core_attach(struct pci_dev *pdev, int port_type)
 		port->ip_all_ports[port_type_idx] = the_port;
 
 		DPRINT_CONFIG(("%s: attach the_port 0x%p / port 0x%p : type %s\n",
-				__FUNCTION__, (void *)the_port,
+				__func__, (void *)the_port,
 				(void *)port,
 				port_type == PROTO_RS232 ? "rs232" : "rs422"));
 
@@ -2752,7 +2752,7 @@ ioc4_serial_core_attach(struct pci_dev *pdev, int port_type)
 		if (uart_add_one_port(u_driver, the_port) < 0) {
 			printk(KERN_WARNING
 		           "%s: unable to add port %d bus %d\n",
-			       __FUNCTION__, the_port->line, pdev->bus->number);
+			       __func__, the_port->line, pdev->bus->number);
 		} else {
 			DPRINT_CONFIG(
 			    ("IOC4 serial port %d irq = %d, bus %d\n",
@@ -2777,7 +2777,7 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 	int ret = 0;
 
 
-	DPRINT_CONFIG(("%s (0x%p, 0x%p)\n", __FUNCTION__, idd->idd_pdev,
+	DPRINT_CONFIG(("%s (0x%p, 0x%p)\n", __func__, idd->idd_pdev,
 							idd->idd_pci_id));
 
 	/* PCI-RT does not bring out serial connections.
@@ -2806,7 +2806,7 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 		goto out2;
 	}
 	DPRINT_CONFIG(("%s : mem 0x%p, serial 0x%p\n",
-				__FUNCTION__, (void *)idd->idd_misc_regs,
+				__func__, (void *)idd->idd_misc_regs,
 				(void *)serial));
 
 	/* Get memory for the new card */
@@ -2858,7 +2858,7 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 	} else {
 		printk(KERN_WARNING
 		    "%s : request_irq fails for IRQ 0x%x\n ",
-			__FUNCTION__, idd->idd_pdev->irq);
+			__func__, idd->idd_pdev->irq);
 	}
 	ret = ioc4_attach_local(idd);
 	if (ret)
@@ -2911,13 +2911,13 @@ int ioc4_serial_init(void)
 	if ((ret = uart_register_driver(&ioc4_uart_rs232)) < 0) {
 		printk(KERN_WARNING
 			"%s: Couldn't register rs232 IOC4 serial driver\n",
-			__FUNCTION__);
+			__func__);
 		return ret;
 	}
 	if ((ret = uart_register_driver(&ioc4_uart_rs422)) < 0) {
 		printk(KERN_WARNING
 			"%s: Couldn't register rs422 IOC4 serial driver\n",
-			__FUNCTION__);
+			__func__);
 		return ret;
 	}
 

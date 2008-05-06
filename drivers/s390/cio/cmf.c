@@ -1219,16 +1219,21 @@ static ssize_t cmb_enable_store(struct device *dev,
 {
 	struct ccw_device *cdev;
 	int ret;
+	unsigned long val;
+
+	ret = strict_strtoul(buf, 16, &val);
+	if (ret)
+		return ret;
 
 	cdev = to_ccwdev(dev);
 
-	switch (buf[0]) {
-	case '0':
+	switch (val) {
+	case 0:
 		ret = disable_cmf(cdev);
 		if (ret)
 			dev_info(&cdev->dev, "disable_cmf failed (%d)\n", ret);
 		break;
-	case '1':
+	case 1:
 		ret = enable_cmf(cdev);
 		if (ret && ret != -EBUSY)
 			dev_info(&cdev->dev, "enable_cmf failed (%d)\n", ret);

@@ -114,7 +114,7 @@ show_trans_table(struct cpufreq_policy *policy, char *buf)
 				stat->freq_table[i]);
 	}
 	if (len >= PAGE_SIZE)
-		return len;
+		return PAGE_SIZE;
 
 	len += snprintf(buf + len, PAGE_SIZE - len, "\n");
 
@@ -131,8 +131,12 @@ show_trans_table(struct cpufreq_policy *policy, char *buf)
 			len += snprintf(buf + len, PAGE_SIZE - len, "%9u ",
 					stat->trans_table[i*stat->max_state+j]);
 		}
+		if (len >= PAGE_SIZE)
+			break;
 		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
 	}
+	if (len >= PAGE_SIZE)
+		return PAGE_SIZE;
 	return len;
 }
 CPUFREQ_STATDEVICE_ATTR(trans_table,0444,show_trans_table);
@@ -284,7 +288,7 @@ cpufreq_stat_notifier_trans (struct notifier_block *nb, unsigned long val,
 	if (!stat)
 		return 0;
 
-	old_index = freq_table_get_index(stat, freq->old);
+	old_index = stat->last_index;
 	new_index = freq_table_get_index(stat, freq->new);
 
 	cpufreq_stats_update(freq->cpu);

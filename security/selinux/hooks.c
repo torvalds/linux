@@ -39,6 +39,7 @@
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
 #include <linux/file.h>
+#include <linux/fdtable.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/ext2_fs.h>
@@ -2619,7 +2620,7 @@ static int selinux_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 	return dentry_has_perm(current, mnt, dentry, FILE__GETATTR);
 }
 
-static int selinux_inode_setotherxattr(struct dentry *dentry, char *name)
+static int selinux_inode_setotherxattr(struct dentry *dentry, const char *name)
 {
 	if (!strncmp(name, XATTR_SECURITY_PREFIX,
 		     sizeof XATTR_SECURITY_PREFIX - 1)) {
@@ -2638,7 +2639,8 @@ static int selinux_inode_setotherxattr(struct dentry *dentry, char *name)
 	return dentry_has_perm(current, NULL, dentry, FILE__SETATTR);
 }
 
-static int selinux_inode_setxattr(struct dentry *dentry, char *name, void *value, size_t size, int flags)
+static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
+				  const void *value, size_t size, int flags)
 {
 	struct task_security_struct *tsec = current->security;
 	struct inode *inode = dentry->d_inode;
@@ -2687,8 +2689,9 @@ static int selinux_inode_setxattr(struct dentry *dentry, char *name, void *value
 			    &ad);
 }
 
-static void selinux_inode_post_setxattr(struct dentry *dentry, char *name,
-					void *value, size_t size, int flags)
+static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
+                                        const void *value, size_t size,
+					int flags)
 {
 	struct inode *inode = dentry->d_inode;
 	struct inode_security_struct *isec = inode->i_security;
@@ -2711,7 +2714,7 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, char *name,
 	return;
 }
 
-static int selinux_inode_getxattr(struct dentry *dentry, char *name)
+static int selinux_inode_getxattr(struct dentry *dentry, const char *name)
 {
 	return dentry_has_perm(current, NULL, dentry, FILE__GETATTR);
 }
@@ -2721,7 +2724,7 @@ static int selinux_inode_listxattr(struct dentry *dentry)
 	return dentry_has_perm(current, NULL, dentry, FILE__GETATTR);
 }
 
-static int selinux_inode_removexattr(struct dentry *dentry, char *name)
+static int selinux_inode_removexattr(struct dentry *dentry, const char *name)
 {
 	if (strcmp(name, XATTR_NAME_SELINUX))
 		return selinux_inode_setotherxattr(dentry, name);
@@ -3283,9 +3286,6 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info,
 	rc = secondary_ops->task_kill(p, info, sig, secid);
 	if (rc)
 		return rc;
-
-	if (info != SEND_SIG_NOINFO && (is_si_special(info) || SI_FROMKERNEL(info)))
-		return 0;
 
 	if (!sig)
 		perm = PROCESS__SIGNULL; /* null signal; existence test */
@@ -5236,7 +5236,7 @@ static int selinux_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	return security_sid_to_context(secid, secdata, seclen);
 }
 
-static int selinux_secctx_to_secid(char *secdata, u32 seclen, u32 *secid)
+static int selinux_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 {
 	return security_context_to_sid(secdata, seclen, secid);
 }
@@ -5296,6 +5296,20 @@ static int selinux_key_permission(key_ref_t key_ref,
 
 	return avc_has_perm(tsec->sid, ksec->sid,
 			    SECCLASS_KEY, perm, NULL);
+}
+
+static int selinux_key_getsecurity(struct key *key, char **_buffer)
+{
+	struct key_security_struct *ksec = key->security;
+	char *context = NULL;
+	unsigned len;
+	int rc;
+
+	rc = security_sid_to_context(ksec->sid, &context, &len);
+	if (!rc)
+		rc = len;
+	*_buffer = context;
+	return rc;
 }
 
 #endif
@@ -5486,6 +5500,7 @@ static struct security_operations selinux_ops = {
 	.key_alloc =			selinux_key_alloc,
 	.key_free =			selinux_key_free,
 	.key_permission =		selinux_key_permission,
+	.key_getsecurity =		selinux_key_getsecurity,
 #endif
 
 #ifdef CONFIG_AUDIT
@@ -5533,14 +5548,6 @@ static __init int selinux_init(void)
 		printk(KERN_DEBUG "SELinux:  Starting in enforcing mode\n");
 	else
 		printk(KERN_DEBUG "SELinux:  Starting in permissive mode\n");
-
-#ifdef CONFIG_KEYS
-	/* Add security information to initial keyrings */
-	selinux_key_alloc(&root_user_keyring, current,
-			  KEY_ALLOC_NOT_IN_QUOTA);
-	selinux_key_alloc(&root_session_keyring, current,
-			  KEY_ALLOC_NOT_IN_QUOTA);
-#endif
 
 	return 0;
 }

@@ -153,7 +153,7 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 			flush_dcache_page(page);
 			if (rc) {
 				printk(KERN_ERR "%s: Error reading xattr "
-				       "region; rc = [%d]\n", __FUNCTION__, rc);
+				       "region; rc = [%d]\n", __func__, rc);
 				goto out;
 			}
 		} else {
@@ -169,7 +169,7 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 			if (rc) {
 				printk(KERN_ERR "%s: Error attempting to read "
 				       "extent at offset [%lld] in the lower "
-				       "file; rc = [%d]\n", __FUNCTION__,
+				       "file; rc = [%d]\n", __func__,
 				       lower_offset, rc);
 				goto out;
 			}
@@ -212,7 +212,7 @@ static int ecryptfs_readpage(struct file *file, struct page *page)
 				       "the encrypted content from the lower "
 				       "file whilst inserting the metadata "
 				       "from the xattr into the header; rc = "
-				       "[%d]\n", __FUNCTION__, rc);
+				       "[%d]\n", __func__, rc);
 				goto out;
 			}
 
@@ -293,7 +293,7 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 			if (rc) {
 				printk(KERN_ERR "%s: Error attemping to read "
 				       "lower page segment; rc = [%d]\n",
-				       __FUNCTION__, rc);
+				       __func__, rc);
 				ClearPageUptodate(page);
 				goto out;
 			} else
@@ -308,7 +308,7 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 					       "from the lower file whilst "
 					       "inserting the metadata from "
 					       "the xattr into the header; rc "
-					       "= [%d]\n", __FUNCTION__, rc);
+					       "= [%d]\n", __func__, rc);
 					ClearPageUptodate(page);
 					goto out;
 				}
@@ -320,7 +320,7 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 				if (rc) {
 					printk(KERN_ERR "%s: Error reading "
 					       "page; rc = [%d]\n",
-					       __FUNCTION__, rc);
+					       __func__, rc);
 					ClearPageUptodate(page);
 					goto out;
 				}
@@ -331,7 +331,7 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 			if (rc) {
 				printk(KERN_ERR "%s: Error decrypting page "
 				       "at index [%ld]; rc = [%d]\n",
-				       __FUNCTION__, page->index, rc);
+				       __func__, page->index, rc);
 				ClearPageUptodate(page);
 				goto out;
 			}
@@ -348,7 +348,7 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 			if (rc) {
 				printk(KERN_ERR "%s: Error on attempt to "
 				       "truncate to (higher) offset [%lld];"
-				       " rc = [%d]\n", __FUNCTION__,
+				       " rc = [%d]\n", __func__,
 				       prev_page_end_size, rc);
 				goto out;
 			}
@@ -389,7 +389,7 @@ static int ecryptfs_write_inode_size_to_header(struct inode *ecryptfs_inode)
 	kfree(file_size_virt);
 	if (rc)
 		printk(KERN_ERR "%s: Error writing file size to header; "
-		       "rc = [%d]\n", __FUNCTION__, rc);
+		       "rc = [%d]\n", __func__, rc);
 out:
 	return rc;
 }

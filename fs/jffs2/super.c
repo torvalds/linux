@@ -31,11 +31,12 @@ static struct kmem_cache *jffs2_inode_cachep;
 
 static struct inode *jffs2_alloc_inode(struct super_block *sb)
 {
-	struct jffs2_inode_info *ei;
-	ei = (struct jffs2_inode_info *)kmem_cache_alloc(jffs2_inode_cachep, GFP_KERNEL);
-	if (!ei)
+	struct jffs2_inode_info *f;
+
+	f = kmem_cache_alloc(jffs2_inode_cachep, GFP_KERNEL);
+	if (!f)
 		return NULL;
-	return &ei->vfs_inode;
+	return &f->vfs_inode;
 }
 
 static void jffs2_destroy_inode(struct inode *inode)
@@ -45,10 +46,10 @@ static void jffs2_destroy_inode(struct inode *inode)
 
 static void jffs2_i_init_once(struct kmem_cache *cachep, void *foo)
 {
-	struct jffs2_inode_info *ei = (struct jffs2_inode_info *) foo;
+	struct jffs2_inode_info *f = foo;
 
-	mutex_init(&ei->sem);
-	inode_init_once(&ei->vfs_inode);
+	mutex_init(&f->sem);
+	inode_init_once(&f->vfs_inode);
 }
 
 static int jffs2_sync_fs(struct super_block *sb, int wait)

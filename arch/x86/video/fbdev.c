@@ -1,5 +1,4 @@
 /*
- *
  * Copyright (C) 2007 Antonino Daplas <adaplas@gmail.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -29,3 +28,4 @@ int fb_is_primary_device(struct fb_info *info)
 	return retval;
 }
 EXPORT_SYMBOL(fb_is_primary_device);
+MODULE_LICENSE("GPL");

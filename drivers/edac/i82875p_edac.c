@@ -18,6 +18,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/slab.h>
+#include <linux/edac.h>
 #include "edac_core.h"
 
 #define I82875P_REVISION	" Ver: 2.0.2 " __DATE__
@@ -393,6 +394,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	struct i82875p_error_info discard;
 
 	debugf0("%s()\n", __func__);
+
 	ovrfl_pdev = pci_get_device(PCI_VEND_DEV(INTEL, 82875_6), NULL);
 
 	if (i82875p_setup_overfl_dev(pdev, &ovrfl_pdev, &ovrfl_window))
@@ -532,6 +534,10 @@ static int __init i82875p_init(void)
 	int pci_rc;
 
 	debugf3("%s()\n", __func__);
+
+       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
+       opstate_init();
+
 	pci_rc = pci_register_driver(&i82875p_driver);
 
 	if (pci_rc < 0)
@@ -586,3 +592,6 @@ module_exit(i82875p_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Linux Networx (http://lnxi.com) Thayne Harbaugh");
 MODULE_DESCRIPTION("MC support for Intel 82875 memory hub controllers");
+
+module_param(edac_op_state, int, 0444);
+MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");

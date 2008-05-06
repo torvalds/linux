@@ -47,3 +47,11 @@ config EP93XX_ETH
 	help
 	  This is a driver for the ethernet hardware included in EP93xx CPUs.
 	  Say Y if you are building a kernel for EP93xx based devices.
+
+config IXP4XX_ETH
+	tristate "Intel IXP4xx Ethernet support"
+	depends on ARM && ARCH_IXP4XX && IXP4XX_NPE && IXP4XX_QMGR
+	select MII
+	help
+	  Say Y here if you want to use built-in Ethernet ports
+	  on IXP4xx processor.

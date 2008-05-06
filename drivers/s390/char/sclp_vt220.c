@@ -524,11 +524,15 @@ sclp_vt220_close(struct tty_struct *tty, struct file *filp)
  * NOTE: include/linux/tty_driver.h specifies that a character should be
  * ignored if there is no room in the queue. This driver implements a different
  * semantic in that it will block when there is no more room left.
+ *
+ * FIXME: putchar can currently be called from BH and other non blocking
+ * handlers so  this semantic isn't a good idea.
  */
-static void
+static int
 sclp_vt220_put_char(struct tty_struct *tty, unsigned char ch)
 {
 	__sclp_vt220_write(&ch, 1, 0, 0, 1);
+	return 1;
 }
 
 /*

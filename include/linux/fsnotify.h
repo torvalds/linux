@@ -11,8 +11,6 @@
  * (C) Copyright 2005 Robert Love
  */
 
-#ifdef __KERNEL__
-
 #include <linux/dnotify.h>
 #include <linux/inotify.h>
 #include <linux/audit.h>
@@ -295,7 +293,5 @@ static inline void fsnotify_oldname_free(const char *old_name)
 }
 
 #endif	/* ! CONFIG_INOTIFY */
-
-#endif	/* __KERNEL__ */
 
 #endif	/* _LINUX_FS_NOTIFY_H */

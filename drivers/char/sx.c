@@ -384,11 +384,11 @@ static struct real_driver sx_real_driver = {
 #define sx_dprintk(f, str...)	/* nothing */
 #endif
 
-#define func_enter()	sx_dprintk(SX_DEBUG_FLOW, "sx: enter %s\n",__FUNCTION__)
-#define func_exit()	sx_dprintk(SX_DEBUG_FLOW, "sx: exit  %s\n",__FUNCTION__)
+#define func_enter()	sx_dprintk(SX_DEBUG_FLOW, "sx: enter %s\n",__func__)
+#define func_exit()	sx_dprintk(SX_DEBUG_FLOW, "sx: exit  %s\n",__func__)
 
 #define func_enter2()	sx_dprintk(SX_DEBUG_FLOW, "sx: enter %s (port %d)\n", \
-				__FUNCTION__, port->line)
+				__func__, port->line)
 
 /* 
  *  Firmware loader driver specific routines
@@ -1574,7 +1574,7 @@ static void sx_close(void *ptr)
 		sx_dprintk(SX_DEBUG_CLOSE, "WARNING port count:%d\n",
 				port->gs.count);
 		/*printk("%s SETTING port count to zero: %p count: %d\n",
-				__FUNCTION__, port, port->gs.count);
+				__func__, port, port->gs.count);
 		port->gs.count = 0;*/
 	}
 
@@ -1844,6 +1844,7 @@ static void sx_break(struct tty_struct *tty, int flag)
 	int rv;
 
 	func_enter();
+	lock_kernel();
 
 	if (flag)
 		rv = sx_send_command(port, HS_START, -1, HS_IDLE_BREAK);
@@ -1852,7 +1853,7 @@ static void sx_break(struct tty_struct *tty, int flag)
 	if (rv != 1)
 		printk(KERN_ERR "sx: couldn't send break (%x).\n",
 			read_sx_byte(port->board, CHAN_OFFSET(port, hi_hstat)));
-
+	unlock_kernel();
 	func_exit();
 }
 
@@ -1888,23 +1889,12 @@ static int sx_ioctl(struct tty_struct *tty, struct file *filp,
 	int rc;
 	struct sx_port *port = tty->driver_data;
 	void __user *argp = (void __user *)arg;
-	int ival;
 
 	/* func_enter2(); */
 
 	rc = 0;
+	lock_kernel();
 	switch (cmd) {
-	case TIOCGSOFTCAR:
-		rc = put_user(((tty->termios->c_cflag & CLOCAL) ? 1 : 0),
-				(unsigned __user *)argp);
-		break;
-	case TIOCSSOFTCAR:
-		if ((rc = get_user(ival, (unsigned __user *)argp)) == 0) {
-			tty->termios->c_cflag =
-				(tty->termios->c_cflag & ~CLOCAL) |
-				(ival ? CLOCAL : 0);
-		}
-		break;
 	case TIOCGSERIAL:
 		rc = gs_getserial(&port->gs, argp);
 		break;
@@ -1915,6 +1905,7 @@ static int sx_ioctl(struct tty_struct *tty, struct file *filp,
 		rc = -ENOIOCTLCMD;
 		break;
 	}
+	unlock_kernel();
 
 	/* func_exit(); */
 	return rc;
@@ -2549,7 +2540,7 @@ static int __devinit sx_eisa_probe(struct device *dev)
 		goto err_flag;
 	}
 	board->base2 =
-	board->base = ioremap(board->hw_base, SI2_EISA_WINDOW_LEN);
+	board->base = ioremap_nocache(board->hw_base, SI2_EISA_WINDOW_LEN);
 	if (!board->base) {
 		dev_err(dev, "can't remap memory\n");
 		goto err_reg;
@@ -2626,7 +2617,7 @@ static void __devinit fix_sx_pci(struct pci_dev *pdev, struct sx_board *board)
 
 	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &hwbase);
 	hwbase &= PCI_BASE_ADDRESS_MEM_MASK;
-	rebase = ioremap(hwbase, 0x80);
+	rebase = ioremap_nocache(hwbase, 0x80);
 	t = readl(rebase + CNTRL_REG_OFFSET);
 	if (t != CNTRL_REG_GOODVALUE) {
 		printk(KERN_DEBUG "sx: performing cntrl reg fix: %08x -> "
@@ -2770,7 +2761,7 @@ static int __init sx_init(void)
 		if (!request_region(board->hw_base, board->hw_len, "sx"))
 			continue;
 		board->base2 =
-		board->base = ioremap(board->hw_base, board->hw_len);
+		board->base = ioremap_nocache(board->hw_base, board->hw_len);
 		if (!board->base)
 			goto err_sx_reg;
 		board->flags &= ~SX_BOARD_TYPE;
@@ -2794,7 +2785,7 @@ err_sx_reg:
 		if (!request_region(board->hw_base, board->hw_len, "sx"))
 			continue;
 		board->base2 =
-		board->base = ioremap(board->hw_base, board->hw_len);
+		board->base = ioremap_nocache(board->hw_base, board->hw_len);
 		if (!board->base)
 			goto err_si_reg;
 		board->flags &= ~SX_BOARD_TYPE;
@@ -2817,7 +2808,7 @@ err_si_reg:
 		if (!request_region(board->hw_base, board->hw_len, "sx"))
 			continue;
 		board->base2 =
-		board->base = ioremap(board->hw_base, board->hw_len);
+		board->base = ioremap_nocache(board->hw_base, board->hw_len);
 		if (!board->base)
 			goto err_si1_reg;
 		board->flags &= ~SX_BOARD_TYPE;

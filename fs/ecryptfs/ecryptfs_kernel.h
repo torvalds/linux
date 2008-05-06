@@ -4,7 +4,7 @@
  *
  * Copyright (C) 1997-2003 Erez Zadok
  * Copyright (C) 2001-2003 Stony Brook University
- * Copyright (C) 2004-2007 International Business Machines Corp.
+ * Copyright (C) 2004-2008 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *              Trevor S. Highland <trevor.highland@gmail.com>
  *              Tyler Hicks <tyhicks@ou.edu>
@@ -34,6 +34,7 @@
 #include <linux/namei.h>
 #include <linux/scatterlist.h>
 #include <linux/hash.h>
+#include <linux/nsproxy.h>
 
 /* Version verification for shared data structures w/ userspace */
 #define ECRYPTFS_VERSION_MAJOR 0x00
@@ -49,11 +50,13 @@
 #define ECRYPTFS_VERSIONING_POLICY                0x00000008
 #define ECRYPTFS_VERSIONING_XATTR                 0x00000010
 #define ECRYPTFS_VERSIONING_MULTKEY               0x00000020
+#define ECRYPTFS_VERSIONING_DEVMISC               0x00000040
 #define ECRYPTFS_VERSIONING_MASK (ECRYPTFS_VERSIONING_PASSPHRASE \
 				  | ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH \
 				  | ECRYPTFS_VERSIONING_PUBKEY \
 				  | ECRYPTFS_VERSIONING_XATTR \
-				  | ECRYPTFS_VERSIONING_MULTKEY)
+				  | ECRYPTFS_VERSIONING_MULTKEY \
+				  | ECRYPTFS_VERSIONING_DEVMISC)
 #define ECRYPTFS_MAX_PASSWORD_LENGTH 64
 #define ECRYPTFS_MAX_PASSPHRASE_BYTES ECRYPTFS_MAX_PASSWORD_LENGTH
 #define ECRYPTFS_SALT_SIZE 8
@@ -73,17 +76,14 @@
 #define ECRYPTFS_DEFAULT_MSG_CTX_ELEMS 32
 #define ECRYPTFS_DEFAULT_SEND_TIMEOUT HZ
 #define ECRYPTFS_MAX_MSG_CTX_TTL (HZ*3)
-#define ECRYPTFS_NLMSG_HELO 100
-#define ECRYPTFS_NLMSG_QUIT 101
-#define ECRYPTFS_NLMSG_REQUEST 102
-#define ECRYPTFS_NLMSG_RESPONSE 103
 #define ECRYPTFS_MAX_PKI_NAME_BYTES 16
 #define ECRYPTFS_DEFAULT_NUM_USERS 4
 #define ECRYPTFS_MAX_NUM_USERS 32768
 #define ECRYPTFS_TRANSPORT_NETLINK 0
 #define ECRYPTFS_TRANSPORT_CONNECTOR 1
 #define ECRYPTFS_TRANSPORT_RELAYFS 2
-#define ECRYPTFS_DEFAULT_TRANSPORT ECRYPTFS_TRANSPORT_NETLINK
+#define ECRYPTFS_TRANSPORT_MISCDEV 3
+#define ECRYPTFS_DEFAULT_TRANSPORT ECRYPTFS_TRANSPORT_MISCDEV
 #define ECRYPTFS_XATTR_NAME "user.ecryptfs"
 
 #define RFC2440_CIPHER_DES3_EDE 0x02
@@ -366,31 +366,62 @@ struct ecryptfs_auth_tok_list_item {
 };
 
 struct ecryptfs_message {
+	/* Can never be greater than ecryptfs_message_buf_len */
+	/* Used to find the parent msg_ctx */
+	/* Inherits from msg_ctx->index */
 	u32 index;
 	u32 data_len;
 	u8 data[];
 };
 
 struct ecryptfs_msg_ctx {
-#define ECRYPTFS_MSG_CTX_STATE_FREE      0x0001
-#define ECRYPTFS_MSG_CTX_STATE_PENDING   0x0002
-#define ECRYPTFS_MSG_CTX_STATE_DONE      0x0003
-	u32 state;
-	unsigned int index;
-	unsigned int counter;
+#define ECRYPTFS_MSG_CTX_STATE_FREE     0x01
+#define ECRYPTFS_MSG_CTX_STATE_PENDING  0x02
+#define ECRYPTFS_MSG_CTX_STATE_DONE     0x03
+#define ECRYPTFS_MSG_CTX_STATE_NO_REPLY 0x04
+	u8 state;
+#define ECRYPTFS_MSG_HELO 100
+#define ECRYPTFS_MSG_QUIT 101
+#define ECRYPTFS_MSG_REQUEST 102
+#define ECRYPTFS_MSG_RESPONSE 103
+	u8 type;
+	u32 index;
+	/* Counter converts to a sequence number. Each message sent
+	 * out for which we expect a response has an associated
+	 * sequence number. The response must have the same sequence
+	 * number as the counter for the msg_stc for the message to be
+	 * valid. */
+	u32 counter;
+	size_t msg_size;
 	struct ecryptfs_message *msg;
 	struct task_struct *task;
 	struct list_head node;
+	struct list_head daemon_out_list;
 	struct mutex mux;
 };
 
 extern unsigned int ecryptfs_transport;
 
-struct ecryptfs_daemon_id {
-	pid_t pid;
-	uid_t uid;
-	struct hlist_node id_chain;
+struct ecryptfs_daemon;
+
+struct ecryptfs_daemon {
+#define ECRYPTFS_DAEMON_IN_READ      0x00000001
+#define ECRYPTFS_DAEMON_IN_POLL      0x00000002
+#define ECRYPTFS_DAEMON_ZOMBIE       0x00000004
+#define ECRYPTFS_DAEMON_MISCDEV_OPEN 0x00000008
+	u32 flags;
+	u32 num_queued_msg_ctx;
+	struct pid *pid;
+	uid_t euid;
+	struct user_namespace *user_ns;
+	struct task_struct *task;
+	struct mutex mux;
+	struct list_head msg_ctx_out_queue;
+	wait_queue_head_t wait;
+	struct hlist_node euid_chain;
 };
+
+extern struct mutex ecryptfs_daemon_hash_mux;
 
 static inline struct ecryptfs_file_info *
 ecryptfs_file_to_private(struct file *file)
@@ -500,7 +531,7 @@ ecryptfs_set_dentry_lower_mnt(struct dentry *dentry, struct vfsmount *lower_mnt)
 }
 
 #define ecryptfs_printk(type, fmt, arg...) \
-        __ecryptfs_printk(type "%s: " fmt, __FUNCTION__, ## arg);
+        __ecryptfs_printk(type "%s: " fmt, __func__, ## arg);
 void __ecryptfs_printk(const char *fmt, ...);
 
 extern const struct file_operations ecryptfs_main_fops;
@@ -581,10 +612,13 @@ int
 ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags);
 int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode);
-int ecryptfs_process_helo(unsigned int transport, uid_t uid, pid_t pid);
-int ecryptfs_process_quit(uid_t uid, pid_t pid);
-int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t uid,
-			      pid_t pid, u32 seq);
+int ecryptfs_process_helo(unsigned int transport, uid_t euid,
+			  struct user_namespace *user_ns, struct pid *pid);
+int ecryptfs_process_quit(uid_t euid, struct user_namespace *user_ns,
+			  struct pid *pid);
+int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t euid,
+			      struct user_namespace *user_ns, struct pid *pid,
+			      u32 seq);
 int ecryptfs_send_message(unsigned int transport, char *data, int data_len,
 			  struct ecryptfs_msg_ctx **msg_ctx);
 int ecryptfs_wait_for_response(struct ecryptfs_msg_ctx *msg_ctx,
@@ -593,14 +627,14 @@ int ecryptfs_init_messaging(unsigned int transport);
 void ecryptfs_release_messaging(unsigned int transport);
 
 int ecryptfs_send_netlink(char *data, int data_len,
-			  struct ecryptfs_msg_ctx *msg_ctx, u16 msg_type,
-			  u16 msg_flags, pid_t daemon_pid);
+			  struct ecryptfs_msg_ctx *msg_ctx, u8 msg_type,
+			  u16 msg_flags, struct pid *daemon_pid);
 int ecryptfs_init_netlink(void);
 void ecryptfs_release_netlink(void);
 
 int ecryptfs_send_connector(char *data, int data_len,
-			    struct ecryptfs_msg_ctx *msg_ctx, u16 msg_type,
-			    u16 msg_flags, pid_t daemon_pid);
+			    struct ecryptfs_msg_ctx *msg_ctx, u8 msg_type,
+			    u16 msg_flags, struct pid *daemon_pid);
 int ecryptfs_init_connector(void);
 void ecryptfs_release_connector(void);
 void
@@ -642,5 +676,21 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 				     size_t offset_in_page, size_t size,
 				     struct inode *ecryptfs_inode);
 struct page *ecryptfs_get_locked_page(struct file *file, loff_t index);
+int ecryptfs_exorcise_daemon(struct ecryptfs_daemon *daemon);
+int ecryptfs_find_daemon_by_euid(struct ecryptfs_daemon **daemon, uid_t euid,
+				 struct user_namespace *user_ns);
+int ecryptfs_parse_packet_length(unsigned char *data, size_t *size,
+				 size_t *length_size);
+int ecryptfs_write_packet_length(char *dest, size_t size,
+				 size_t *packet_size_length);
+int ecryptfs_init_ecryptfs_miscdev(void);
+void ecryptfs_destroy_ecryptfs_miscdev(void);
+int ecryptfs_send_miscdev(char *data, size_t data_size,
+			  struct ecryptfs_msg_ctx *msg_ctx, u8 msg_type,
+			  u16 msg_flags, struct ecryptfs_daemon *daemon);
+void ecryptfs_msg_ctx_alloc_to_free(struct ecryptfs_msg_ctx *msg_ctx);
+int
+ecryptfs_spawn_daemon(struct ecryptfs_daemon **daemon, uid_t euid,
+		      struct user_namespace *user_ns, struct pid *pid);
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */

@@ -961,7 +961,7 @@ static int sony_nc_resume(struct acpi_device *device)
 		ret = acpi_callsetfunc(sony_nc_acpi_handle, *item->acpiset,
 				       item->value, NULL);
 		if (ret < 0) {
-			printk("%s: %d\n", __FUNCTION__, ret);
+			printk("%s: %d\n", __func__, ret);
 			break;
 		}
 	}
@@ -1453,7 +1453,7 @@ static struct sonypi_eventtypes type4_events[] = {
 		udelay(1);						\
 	if (!n)								\
 		dprintk("command failed at %s : %s (line %d)\n",	\
-				__FILE__, __FUNCTION__, __LINE__);	\
+				__FILE__, __func__, __LINE__);	\
 }
 
 static u8 sony_pic_call1(u8 dev)

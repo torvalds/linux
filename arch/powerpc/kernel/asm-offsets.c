@@ -30,6 +30,7 @@
 #include <linux/time.h>
 #include <linux/hardirq.h>
 #endif
+#include <linux/kbuild.h>
 
 #include <asm/io.h>
 #include <asm/page.h>
@@ -51,11 +52,6 @@
 #include <asm/iseries/alpaca.h>
 #endif
 
-#define DEFINE(sym, val) \
-	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
-
 int main(void)
 {
 	DEFINE(THREAD, offsetof(struct task_struct, thread));
@@ -67,6 +63,7 @@ int main(void)
 #endif /* CONFIG_PPC64 */
 
 	DEFINE(KSP, offsetof(struct thread_struct, ksp));
+	DEFINE(KSP_LIMIT, offsetof(struct thread_struct, ksp_limit));
 	DEFINE(PT_REGS, offsetof(struct thread_struct, regs));
 	DEFINE(THREAD_FPEXC_MODE, offsetof(struct thread_struct, fpexc_mode));
 	DEFINE(THREAD_FPR0, offsetof(struct thread_struct, fpr[0]));

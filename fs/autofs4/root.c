@@ -146,17 +146,17 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 
 	if (d_mountpoint(dentry)) {
 		struct file *fp = NULL;
-		struct vfsmount *fp_mnt = mntget(mnt);
-		struct dentry *fp_dentry = dget(dentry);
+		struct path fp_path = { .dentry = dentry, .mnt = mnt };
 
-		if (!autofs4_follow_mount(&fp_mnt, &fp_dentry)) {
-			dput(fp_dentry);
-			mntput(fp_mnt);
+		path_get(&fp_path);
+
+		if (!autofs4_follow_mount(&fp_path.mnt, &fp_path.dentry)) {
+			path_put(&fp_path);
 			dcache_dir_close(inode, file);
 			goto out;
 		}
 
-		fp = dentry_open(fp_dentry, fp_mnt, file->f_flags);
+		fp = dentry_open(fp_path.dentry, fp_path.mnt, file->f_flags);
 		status = PTR_ERR(fp);
 		if (IS_ERR(fp)) {
 			dcache_dir_close(inode, file);
@@ -242,7 +242,8 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
-	int status = 0;
+	struct dentry *new;
+	int status;
 
 	/* Block on any pending expiry here; invalidate the dentry
            when expiration is done to trigger mount request with a new
@@ -318,7 +319,28 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
 	spin_unlock(&dentry->d_lock);
-	return status;
+
+	/*
+	 * The dentry that is passed in from lookup may not be the one
+	 * we end up using, as mkdir can create a new one.  If this
+	 * happens, and another process tries the lookup at the same time,
+	 * it will set the PENDING flag on this new dentry, but add itself
+	 * to our waitq.  Then, if after the lookup succeeds, the first
+	 * process that requested the mount performs another lookup of the
+	 * same directory, it will show up as still pending!  So, we need
+	 * to redo the lookup here and clear pending on that dentry.
+	 */
+	if (d_unhashed(dentry)) {
+		new = d_lookup(dentry->d_parent, &dentry->d_name);
+		if (new) {
+			spin_lock(&new->d_lock);
+			new->d_flags &= ~DCACHE_AUTOFS_PENDING;
+			spin_unlock(&new->d_lock);
+			dput(new);
+		}
+	}
+
+	return 0;
 }
 
 /* For autofs direct mounts the follow link triggers the mount */
@@ -533,9 +555,9 @@ static struct dentry *autofs4_lookup_unhashed(struct autofs_sb_info *sbi, struct
 			goto next;
 
 		if (d_unhashed(dentry)) {
-			struct autofs_info *ino = autofs4_dentry_ino(dentry);
 			struct inode *inode = dentry->d_inode;
 
+			ino = autofs4_dentry_ino(dentry);
 			list_del_init(&ino->rehash);
 			dget(dentry);
 			/*

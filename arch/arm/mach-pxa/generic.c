@@ -90,11 +90,6 @@ static struct map_desc standard_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(0x40000000),
 		.length		= 0x02000000,
 		.type		= MT_DEVICE
-	}, {	/* LCD */
-		.virtual	=  0xf4000000,
-		.pfn		= __phys_to_pfn(0x44000000),
-		.length		= 0x00100000,
-		.type		= MT_DEVICE
 	}, {	/* Mem Ctl */
 		.virtual	=  0xf6000000,
 		.pfn		= __phys_to_pfn(0x48000000),

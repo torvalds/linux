@@ -886,7 +886,7 @@ int
 xfs_buf_lock_value(
 	xfs_buf_t		*bp)
 {
-	return atomic_read(&bp->b_sema.count);
+	return bp->b_sema.count;
 }
 #endif
 

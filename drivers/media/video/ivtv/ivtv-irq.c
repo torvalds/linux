@@ -384,7 +384,7 @@ static void ivtv_dma_enc_start_xfer(struct ivtv_stream *s)
 	ivtv_stream_sync_for_device(s);
 	write_reg(s->sg_handle, IVTV_REG_ENCDMAADDR);
 	write_reg_sync(read_reg(IVTV_REG_DMAXFER) | 0x02, IVTV_REG_DMAXFER);
-	itv->dma_timer.expires = jiffies + msecs_to_jiffies(100);
+	itv->dma_timer.expires = jiffies + msecs_to_jiffies(300);
 	add_timer(&itv->dma_timer);
 }
 
@@ -400,7 +400,7 @@ static void ivtv_dma_dec_start_xfer(struct ivtv_stream *s)
 	ivtv_stream_sync_for_device(s);
 	write_reg(s->sg_handle, IVTV_REG_DECDMAADDR);
 	write_reg_sync(read_reg(IVTV_REG_DMAXFER) | 0x01, IVTV_REG_DMAXFER);
-	itv->dma_timer.expires = jiffies + msecs_to_jiffies(100);
+	itv->dma_timer.expires = jiffies + msecs_to_jiffies(300);
 	add_timer(&itv->dma_timer);
 }
 

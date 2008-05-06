@@ -1181,7 +1181,7 @@ xfs_fs_statfs(
 	statp->f_fsid.val[0] = (u32)id;
 	statp->f_fsid.val[1] = (u32)(id >> 32);
 
-	xfs_icsb_sync_counters_flags(mp, XFS_ICSB_LAZY_COUNT);
+	xfs_icsb_sync_counters(mp, XFS_ICSB_LAZY_COUNT);
 
 	spin_lock(&mp->m_sb_lock);
 	statp->f_bsize = sbp->sb_blocksize;

@@ -1682,16 +1682,6 @@ static int stli_ioctl(struct tty_struct *tty, struct file *file, unsigned int cm
 	rc = 0;
 
 	switch (cmd) {
-	case TIOCGSOFTCAR:
-		rc = put_user(((tty->termios->c_cflag & CLOCAL) ? 1 : 0),
-			(unsigned __user *) arg);
-		break;
-	case TIOCSSOFTCAR:
-		if ((rc = get_user(ival, (unsigned __user *) arg)) == 0)
-			tty->termios->c_cflag =
-				(tty->termios->c_cflag & ~CLOCAL) |
-				(ival ? CLOCAL : 0);
-		break;
 	case TIOCGSERIAL:
 		rc = stli_getserial(portp, argp);
 		break;
@@ -3267,7 +3257,7 @@ static int stli_initecp(struct stlibrd *brdp)
  */
 	EBRDINIT(brdp);
 
-	brdp->membase = ioremap(brdp->memaddr, brdp->memsize);
+	brdp->membase = ioremap_nocache(brdp->memaddr, brdp->memsize);
 	if (brdp->membase == NULL) {
 		retval = -ENOMEM;
 		goto err_reg;
@@ -3424,7 +3414,7 @@ static int stli_initonb(struct stlibrd *brdp)
  */
 	EBRDINIT(brdp);
 
-	brdp->membase = ioremap(brdp->memaddr, brdp->memsize);
+	brdp->membase = ioremap_nocache(brdp->memaddr, brdp->memsize);
 	if (brdp->membase == NULL) {
 		retval = -ENOMEM;
 		goto err_reg;
@@ -3675,7 +3665,7 @@ static int stli_eisamemprobe(struct stlibrd *brdp)
  */
 	for (i = 0; (i < stli_eisamempsize); i++) {
 		brdp->memaddr = stli_eisamemprobeaddrs[i];
-		brdp->membase = ioremap(brdp->memaddr, brdp->memsize);
+		brdp->membase = ioremap_nocache(brdp->memaddr, brdp->memsize);
 		if (brdp->membase == NULL)
 			continue;
 
@@ -4433,6 +4423,8 @@ static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, un
 	done = 0;
 	rc = 0;
 
+	lock_kernel();
+
 	switch (cmd) {
 	case COM_GETPORTSTATS:
 		rc = stli_getportstats(NULL, argp);
@@ -4455,6 +4447,7 @@ static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, un
 		done++;
 		break;
 	}
+	unlock_kernel();
 
 	if (done)
 		return rc;
@@ -4471,6 +4464,8 @@ static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, un
 		return -ENODEV;
 	if (brdp->state == 0)
 		return -ENODEV;
+
+	lock_kernel();
 
 	switch (cmd) {
 	case STL_BINTR:
@@ -4494,6 +4489,7 @@ static int stli_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, un
 		rc = -ENOIOCTLCMD;
 		break;
 	}
+	unlock_kernel();
 	return rc;
 }
 

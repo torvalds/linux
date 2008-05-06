@@ -47,7 +47,7 @@ module_param(pc_debug, int, 0600);
 #define DEBUGP(n, rdr, x, args...) do { 				\
 	if (pc_debug >= (n)) 						\
 		dev_printk(KERN_DEBUG, reader_to_dev(rdr), "%s:" x, 	\
-			   __FUNCTION__ , ##args); 			\
+			   __func__ , ##args); 			\
 	} while (0)
 #else
 #define DEBUGP(n, rdr, x, args...)

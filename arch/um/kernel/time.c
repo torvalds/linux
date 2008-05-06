@@ -4,6 +4,7 @@
  */
 
 #include <linux/clockchips.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/threads.h>
@@ -108,8 +109,6 @@ static void __init setup_itimer(void)
 	}
 	clockevents_register_device(&itimer_clockevent);
 }
-
-extern void (*late_time_init)(void);
 
 void __init time_init(void)
 {

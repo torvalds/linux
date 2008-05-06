@@ -19,6 +19,7 @@
 #include <asm/lowcore.h>
 #include <asm/sigp.h>
 #include <asm/ptrace.h>
+#include <asm/system.h>
 
 /*
   s390 specific smp.c headers
@@ -53,10 +54,7 @@ extern void machine_power_off_smp(void);
 
 static inline __u16 hard_smp_processor_id(void)
 {
-        __u16 cpu_address;
- 
-	asm volatile("stap %0" : "=m" (cpu_address));
-        return cpu_address;
+	return stap();
 }
 
 /*
@@ -106,6 +104,12 @@ static inline void smp_send_stop(void)
 
 #define hard_smp_processor_id()		0
 #define smp_cpu_not_running(cpu)	1
+#endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+extern int smp_rescan_cpus(void);
+#else
+static inline int smp_rescan_cpus(void) { return 0; }
 #endif
 
 extern union save_area *zfcpdump_save_areas[NR_CPUS + 1];

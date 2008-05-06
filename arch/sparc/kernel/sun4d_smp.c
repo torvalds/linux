@@ -335,37 +335,6 @@ void smp4d_cross_call_irq(void)
 	ccall_info.processors_out[i] = 1;
 }
 
-static int smp4d_stop_cpu_sender;
-
-static void smp4d_stop_cpu(void)
-{
-	int me = hard_smp4d_processor_id();
-	
-	if (me != smp4d_stop_cpu_sender)
-		while(1) barrier();
-}
-
-/* Cross calls, in order to work efficiently and atomically do all
- * the message passing work themselves, only stopcpu and reschedule
- * messages come through here.
- */
-void smp4d_message_pass(int target, int msg, unsigned long data, int wait)
-{
-	int me = hard_smp4d_processor_id();
-
-	SMP_PRINTK(("smp4d_message_pass %d %d %08lx %d\n", target, msg, data, wait));
-	if (msg == MSG_STOP_CPU && target == MSG_ALL_BUT_SELF) {
-		unsigned long flags;
-		static DEFINE_SPINLOCK(stop_cpu_lock);
-		spin_lock_irqsave(&stop_cpu_lock, flags);
-		smp4d_stop_cpu_sender = me;
-		smp4d_cross_call((smpfunc_t)smp4d_stop_cpu, 0, 0, 0, 0, 0);
-		spin_unlock_irqrestore(&stop_cpu_lock, flags);
-	}
-	printk("Yeeee, trying to send SMP msg(%d) to %d on cpu %d\n", msg, target, me);
-	panic("Bogon SMP message pass.");
-}
-
 void smp4d_percpu_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
@@ -439,7 +408,6 @@ void __init sun4d_init_smp(void)
 	BTFIXUPSET_BLACKBOX(hard_smp_processor_id, smp4d_blackbox_id);
 	BTFIXUPSET_BLACKBOX(load_current, smp4d_blackbox_current);
 	BTFIXUPSET_CALL(smp_cross_call, smp4d_cross_call, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(smp_message_pass, smp4d_message_pass, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(__hard_smp_processor_id, __smp4d_processor_id, BTFIXUPCALL_NORM);
 	
 	for (i = 0; i < NR_CPUS; i++) {

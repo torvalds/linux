@@ -6,6 +6,10 @@ config IWLCORE
 	tristate "Intel Wireless Wifi Core"
 	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
 	select IWLWIFI
+	select MAC80211_LEDS if IWLWIFI_LEDS
+	select LEDS_CLASS if IWLWIFI_LEDS
+	select RFKILL if IWLWIFI_RFKILL
+	select RFKILL_INPUT if IWLWIFI_RFKILL
 
 config IWLWIFI_LEDS
 	bool
@@ -14,8 +18,6 @@ config IWLWIFI_LEDS
 config IWLWIFI_RFKILL
 	boolean "IWLWIFI RF kill support"
 	depends on IWLCORE
-	select RFKILL
-	select RFKILL_INPUT
 
 config IWL4965
 	tristate "Intel Wireless WiFi 4965AGN"
@@ -55,8 +57,6 @@ config IWL4965_HT
 config IWL4965_LEDS
 	bool "Enable LEDS features in iwl4965 driver"
 	depends on IWL4965
-	select MAC80211_LEDS
-	select LEDS_CLASS
 	select IWLWIFI_LEDS
 	---help---
 	  This option enables LEDS for the iwlwifi drivers
@@ -112,6 +112,8 @@ config IWL3945
 	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
 	select FW_LOADER
 	select IWLWIFI
+	select MAC80211_LEDS if IWL3945_LEDS
+	select LEDS_CLASS if IWL3945_LEDS
 	---help---
 	  Select to build the driver supporting the:
 
@@ -143,8 +145,6 @@ config IWL3945_SPECTRUM_MEASUREMENT
 config IWL3945_LEDS
 	bool "Enable LEDS features in iwl3945 driver"
 	depends on IWL3945
-	select MAC80211_LEDS
-	select LEDS_CLASS
 	---help---
 	  This option enables LEDS for the iwl3945 driver.
 

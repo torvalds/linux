@@ -130,7 +130,7 @@ static int ch341_get_status(struct usb_device *dev)
 		return -ENOMEM;
 
 	r = ch341_control_in(dev, 0x95, 0x0706, 0, buffer, size);
-	if ( r < 0)
+	if (r < 0)
 		goto out;
 
 	/* Not having the datasheet for the CH341, we ignore the bytes returned

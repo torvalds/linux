@@ -396,14 +396,14 @@ static void sl_encaps(struct slip *sl, unsigned char *icp, int len)
 
 	/* Order of next two lines is *very* important.
 	 * When we are sending a little amount of data,
-	 * the transfer may be completed inside driver.write()
+	 * the transfer may be completed inside the ops->write()
 	 * routine, because it's running with interrupts enabled.
 	 * In this case we *never* got WRITE_WAKEUP event,
 	 * if we did not request it before write operation.
 	 *       14 Oct 1994  Dmitry Gorodchanin.
 	 */
 	sl->tty->flags |= (1 << TTY_DO_WRITE_WAKEUP);
-	actual = sl->tty->driver->write(sl->tty, sl->xbuff, count);
+	actual = sl->tty->ops->write(sl->tty, sl->xbuff, count);
 #ifdef SL_CHECK_TRANSMIT
 	sl->dev->trans_start = jiffies;
 #endif
@@ -437,7 +437,7 @@ static void slip_write_wakeup(struct tty_struct *tty)
 		return;
 	}
 
-	actual = tty->driver->write(tty, sl->xhead, sl->xleft);
+	actual = tty->ops->write(tty, sl->xhead, sl->xleft);
 	sl->xleft -= actual;
 	sl->xhead += actual;
 }
@@ -462,7 +462,7 @@ static void sl_tx_timeout(struct net_device *dev)
 		}
 		printk(KERN_WARNING "%s: transmit timed out, %s?\n",
 			dev->name,
-			(sl->tty->driver->chars_in_buffer(sl->tty) || sl->xleft) ?
+			(tty_chars_in_buffer(sl->tty) || sl->xleft) ?
 				"bad line quality" : "driver error");
 		sl->xleft = 0;
 		sl->tty->flags &= ~(1 << TTY_DO_WRITE_WAKEUP);
@@ -829,6 +829,9 @@ static int slip_open(struct tty_struct *tty)
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
+
+	if (tty->ops->write == NULL)
+		return -EOPNOTSUPP;
 
 	/* RTnetlink lock is misused here to serialize concurrent
 	   opens of slip channels. There are better ways, but it is
@@ -1432,7 +1435,7 @@ static void sl_outfill(unsigned long sls)
 			/* put END into tty queue. Is it right ??? */
 			if (!netif_queue_stopped(sl->dev)) {
 				/* if device busy no outfill */
-				sl->tty->driver->write(sl->tty, &s, 1);
+				sl->tty->ops->write(sl->tty, &s, 1);
 			}
 		} else
 			set_bit(SLF_OUTWAIT, &sl->flags);

@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
+#include <linux/debugobjects.h>
 #include <linux/vmalloc.h>
 #include <linux/kallsyms.h>
 
@@ -394,6 +395,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
 	}
 
 	debug_check_no_locks_freed(addr, area->size);
+	debug_check_no_obj_freed(addr, area->size);
 
 	if (deallocate_pages) {
 		int i;
@@ -545,6 +547,7 @@ void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask, pgprot_t prot)
  *	@gfp_mask:	flags for the page level allocator
  *	@prot:		protection mask for the allocated pages
  *	@node:		node to use for allocation or -1
+ *	@caller:	caller's return address
  *
  *	Allocate enough pages to cover @size from the page level
  *	allocator with @gfp_mask flags.  Map them into contiguous

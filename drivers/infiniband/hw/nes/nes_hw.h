@@ -33,8 +33,12 @@
 #ifndef __NES_HW_H
 #define __NES_HW_H
 
-#define NES_PHY_TYPE_1G   2
-#define NES_PHY_TYPE_IRIS 3
+#include <linux/inet_lro.h>
+
+#define NES_PHY_TYPE_1G        2
+#define NES_PHY_TYPE_IRIS      3
+#define NES_PHY_TYPE_ARGUS     4
+#define NES_PHY_TYPE_PUMA_1G   5
 #define NES_PHY_TYPE_PUMA_10G  6
 
 #define NES_MULTICAST_PF_MAX 8
@@ -965,7 +969,7 @@ struct nes_arp_entry {
 #define NES_NIC_CQ_DOWNWARD_TREND   16
 
 struct nes_hw_tune_timer {
-    //u16 cq_count;
+    /* u16 cq_count; */
     u16 threshold_low;
     u16 threshold_target;
     u16 threshold_high;
@@ -982,8 +986,10 @@ struct nes_hw_tune_timer {
 #define NES_TIMER_INT_LIMIT         2
 #define NES_TIMER_INT_LIMIT_DYNAMIC 10
 #define NES_TIMER_ENABLE_LIMIT      4
-#define NES_MAX_LINK_INTERRUPTS		128
-#define NES_MAX_LINK_CHECK		200
+#define NES_MAX_LINK_INTERRUPTS     128
+#define NES_MAX_LINK_CHECK          200
+#define NES_MAX_LRO_DESCRIPTORS     32
+#define NES_LRO_MAX_AGGR            64
 
 struct nes_adapter {
 	u64              fw_ver;
@@ -1183,6 +1189,9 @@ struct nes_vnic {
 	u8  of_device_registered;
 	u8  rdma_enabled;
 	u8  rx_checksum_disabled;
+	u32 lro_max_aggr;
+	struct net_lro_mgr lro_mgr;
+	struct net_lro_desc lro_desc[NES_MAX_LRO_DESCRIPTORS];
 };
 
 struct nes_ib_device {

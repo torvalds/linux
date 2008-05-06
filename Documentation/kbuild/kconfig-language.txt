@@ -104,14 +104,15 @@ applicable everywhere (see syntax).
   Reverse dependencies can only be used with boolean or tristate
   symbols.
   Note:
-	select is evil.... select will by brute force set a symbol
-	equal to 'y' without visiting the dependencies. So abusing
-	select you are able to select a symbol FOO even if FOO depends
-	on BAR that is not set. In general use select only for
-	non-visible symbols (no prompts anywhere) and for symbols with
-	no dependencies. That will limit the usefulness but on the
-	other hand avoid the illegal configurations all over. kconfig
-	should one day warn about such things.
+	select should be used with care. select will force
+	a symbol to a value without visiting the dependencies.
+	By abusing select you are able to select a symbol FOO even
+	if FOO depends on BAR that is not set.
+	In general use select only for non-visible symbols
+	(no prompts anywhere) and for symbols with no dependencies.
+	That will limit the usefulness but on the other hand avoid
+	the illegal configurations all over.
+	kconfig should one day warn about such things.
 
 - numerical ranges: "range" <symbol> <symbol> ["if" <expr>]
   This allows to limit the range of possible input values for int
@@ -375,28 +376,4 @@ config FOO
 	depends on BAR && m
 
 limits FOO to module (=m) or disabled (=n).
-
-
-Build limited by a third config symbol which may be =y or =m
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-A common idiom that we see (and sometimes have problems with) is this:
-
-When option C in B (module or subsystem) uses interfaces from A (module
-or subsystem), and both A and B are tristate (could be =y or =m if they
-were independent of each other, but they aren't), then we need to limit
-C such that it cannot be built statically if A is built as a loadable
-module.  (C already depends on B, so there is no dependency issue to
-take care of here.)
-
-If A is linked statically into the kernel image, C can be built
-statically or as loadable module(s).  However, if A is built as loadable
-module(s), then C must be restricted to loadable module(s) also.  This
-can be expressed in kconfig language as:
-
-config C
-	depends on A = y || A = B
-
-or for real examples, use this command in a kernel tree:
-
-$ find . -name Kconfig\* | xargs grep -ns "depends on.*=.*||.*=" | grep -v orig
 

@@ -272,7 +272,7 @@ extern void i915_mem_release(struct drm_device * dev,
 	if (I915_VERBOSE)				\
 		DRM_DEBUG("BEGIN_LP_RING(%d)\n", (n));	\
 	if (dev_priv->ring.space < (n)*4)		\
-		i915_wait_ring(dev, (n)*4, __FUNCTION__);		\
+		i915_wait_ring(dev, (n)*4, __func__);		\
 	outcount = 0;					\
 	outring = dev_priv->ring.tail;			\
 	ringmask = dev_priv->ring.tail_mask;		\

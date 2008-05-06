@@ -427,6 +427,8 @@ struct ide_dma_ops {
 	void	(*dma_timeout)(struct ide_drive_s *);
 };
 
+struct ide_task_s;
+
 typedef struct hwif_s {
 	struct hwif_s *next;		/* for linked-list in ide_hwgroup_t */
 	struct hwif_s *mate;		/* other hwif from same PCI chip */
@@ -467,24 +469,18 @@ typedef struct hwif_s {
 	const struct ide_port_ops	*port_ops;
 	const struct ide_dma_ops	*dma_ops;
 
-	void (*ata_input_data)(ide_drive_t *, void *, u32);
-	void (*ata_output_data)(ide_drive_t *, void *, u32);
+	void (*tf_load)(ide_drive_t *, struct ide_task_s *);
+	void (*tf_read)(ide_drive_t *, struct ide_task_s *);
 
-	void (*atapi_input_bytes)(ide_drive_t *, void *, u32);
-	void (*atapi_output_bytes)(ide_drive_t *, void *, u32);
+	void (*input_data)(ide_drive_t *, struct request *, void *, unsigned);
+	void (*output_data)(ide_drive_t *, struct request *, void *, unsigned);
 
 	void (*ide_dma_clear_irq)(ide_drive_t *drive);
 
 	void (*OUTB)(u8 addr, unsigned long port);
 	void (*OUTBSYNC)(ide_drive_t *drive, u8 addr, unsigned long port);
-	void (*OUTW)(u16 addr, unsigned long port);
-	void (*OUTSW)(unsigned long port, void *addr, u32 count);
-	void (*OUTSL)(unsigned long port, void *addr, u32 count);
 
 	u8  (*INB)(unsigned long port);
-	u16 (*INW)(unsigned long port);
-	void (*INSW)(unsigned long port, void *addr, u32 count);
-	void (*INSL)(unsigned long port, void *addr, u32 count);
 
 	/* dma physical region descriptor table (cpu view) */
 	unsigned int	*dmatable_cpu;
@@ -509,10 +505,7 @@ typedef struct hwif_s {
 
 	unsigned long	dma_base;	/* base addr for dma ports */
 	unsigned long	dma_command;	/* dma command register */
-	unsigned long	dma_vendor1;	/* dma vendor 1 register */
 	unsigned long	dma_status;	/* dma status register */
-	unsigned long	dma_vendor3;	/* dma vendor 3 register */
-	unsigned long	dma_prdtable;	/* actual prd table address */
 
 	unsigned long	config_data;	/* for use by chipset-specific code */
 	unsigned long	select_data;	/* for use by chipset-specific code */
@@ -547,7 +540,7 @@ typedef ide_startstop_t (ide_handler_t)(ide_drive_t *);
 typedef int (ide_expiry_t)(ide_drive_t *);
 
 /* used by ide-cd, ide-floppy, etc. */
-typedef void (xfer_func_t)(ide_drive_t *, void *, u32);
+typedef void (xfer_func_t)(ide_drive_t *, struct request *rq, void *, unsigned);
 
 typedef struct hwgroup_s {
 		/* irq handler, if active */
@@ -829,6 +822,10 @@ extern void ide_set_handler (ide_drive_t *drive, ide_handler_t *handler, unsigne
 void ide_execute_command(ide_drive_t *, u8, ide_handler_t *, unsigned int,
 			 ide_expiry_t *);
 
+void ide_execute_pkt_cmd(ide_drive_t *);
+
+void ide_pad_transfer(ide_drive_t *, int, int);
+
 ide_startstop_t __ide_error(ide_drive_t *, struct request *, u8, u8);
 
 ide_startstop_t ide_error (ide_drive_t *drive, const char *msg, byte stat);
@@ -965,8 +962,7 @@ typedef struct ide_task_s {
 	void			*special;	/* valid_t generally */
 } ide_task_t;
 
-void ide_tf_load(ide_drive_t *, ide_task_t *);
-void ide_tf_read(ide_drive_t *, ide_task_t *);
+void ide_tf_dump(const char *, struct ide_taskfile *);
 
 extern void SELECT_DRIVE(ide_drive_t *);
 extern void SELECT_MASK(ide_drive_t *, int);
@@ -1072,6 +1068,8 @@ enum {
 	IDE_HFLAG_NO_DMA		= (1 << 14),
 	/* check if host is PCI IDE device before allowing DMA */
 	IDE_HFLAG_NO_AUTODMA		= (1 << 15),
+	/* host uses MMIO */
+	IDE_HFLAG_MMIO			= (1 << 16),
 	/* host is CS5510/CS5520 */
 	IDE_HFLAG_CS5520		= IDE_HFLAG_VDMA,
 	/* no LBA48 */
@@ -1360,27 +1358,4 @@ static inline u8 ide_read_error(ide_drive_t *drive)
 
 	return hwif->INB(hwif->io_ports.error_addr);
 }
-
-/*
- * Too bad. The drive wants to send us data which we are not ready to accept.
- * Just throw it away.
- */
-static inline void ide_atapi_discard_data(ide_drive_t *drive, unsigned bcount)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	/* FIXME: use ->atapi_input_bytes */
-	while (bcount--)
-		(void)hwif->INB(hwif->io_ports.data_addr);
-}
-
-static inline void ide_atapi_write_zeros(ide_drive_t *drive, unsigned bcount)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	/* FIXME: use ->atapi_output_bytes */
-	while (bcount--)
-		hwif->OUTB(0, hwif->io_ports.data_addr);
-}
-
 #endif /* _IDE_H */

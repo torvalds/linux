@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2007, R. Byron Moore
+ * Copyright (C) 2000 - 2008, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,8 +84,12 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 	ACPI_FUNCTION_TRACE_PTR(ex_do_debug_object, source_desc);
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "[ACPI Debug] %*s",
-			      level, " "));
+	/* Print line header as long as we are not in the middle of an object display */
+
+	if (!((level > 0) && index == 0)) {
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "[ACPI Debug] %*s",
+				      level, " "));
+	}
 
 	/* Display index for package output only */
 
@@ -95,12 +99,12 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	}
 
 	if (!source_desc) {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "<Null Object>\n"));
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "[Null Object]\n"));
 		return_VOID;
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_OPERAND) {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "%s: ",
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "%s ",
 				      acpi_ut_get_object_type_name
 				      (source_desc)));
 
@@ -122,6 +126,8 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	} else {
 		return_VOID;
 	}
+
+	/* source_desc is of type ACPI_DESC_TYPE_OPERAND */
 
 	switch (ACPI_GET_OBJECT_TYPE(source_desc)) {
 	case ACPI_TYPE_INTEGER:
@@ -147,7 +153,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 				      (u32) source_desc->buffer.length));
 		ACPI_DUMP_BUFFER(source_desc->buffer.pointer,
 				 (source_desc->buffer.length <
-				  32) ? source_desc->buffer.length : 32);
+				  256) ? source_desc->buffer.length : 256);
 		break;
 
 	case ACPI_TYPE_STRING:
@@ -160,7 +166,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	case ACPI_TYPE_PACKAGE:
 
 		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
-				      "[0x%.2X Elements]\n",
+				      "[Contains 0x%.2X Elements]\n",
 				      source_desc->package.count));
 
 		/* Output the entire contents of the package */
@@ -180,12 +186,59 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 					      (source_desc->reference.opcode),
 					      source_desc->reference.offset));
 		} else {
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "[%s]\n",
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "[%s]",
 					      acpi_ps_get_opcode_name
 					      (source_desc->reference.opcode)));
 		}
 
-		if (source_desc->reference.object) {
+		if (source_desc->reference.opcode == AML_LOAD_OP) {	/* Load and load_table */
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
+					      " Table OwnerId %p\n",
+					      source_desc->reference.object));
+			break;
+		}
+
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "  "));
+
+		/* Check for valid node first, then valid object */
+
+		if (source_desc->reference.node) {
+			if (ACPI_GET_DESCRIPTOR_TYPE
+			    (source_desc->reference.node) !=
+			    ACPI_DESC_TYPE_NAMED) {
+				ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
+						      " %p - Not a valid namespace node\n",
+						      source_desc->reference.
+						      node));
+			} else {
+				ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
+						      "Node %p [%4.4s] ",
+						      source_desc->reference.
+						      node,
+						      (source_desc->reference.
+						       node)->name.ascii));
+
+				switch ((source_desc->reference.node)->type) {
+
+					/* These types have no attached object */
+
+				case ACPI_TYPE_DEVICE:
+					acpi_os_printf("Device\n");
+					break;
+
+				case ACPI_TYPE_THERMAL:
+					acpi_os_printf("Thermal Zone\n");
+					break;
+
+				default:
+					acpi_ex_do_debug_object((source_desc->
+								 reference.
+								 node)->object,
+								level + 4, 0);
+					break;
+				}
+			}
+		} else if (source_desc->reference.object) {
 			if (ACPI_GET_DESCRIPTOR_TYPE
 			    (source_desc->reference.object) ==
 			    ACPI_DESC_TYPE_NAMED) {
@@ -198,18 +251,13 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 				acpi_ex_do_debug_object(source_desc->reference.
 							object, level + 4, 0);
 			}
-		} else if (source_desc->reference.node) {
-			acpi_ex_do_debug_object((source_desc->reference.node)->
-						object, level + 4, 0);
 		}
 		break;
 
 	default:
 
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "%p %s\n",
-				      source_desc,
-				      acpi_ut_get_object_type_name
-				      (source_desc)));
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "%p\n",
+				      source_desc));
 		break;
 	}
 
@@ -313,7 +361,6 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 	 * 4) Store to the debug object
 	 */
 	switch (ref_desc->reference.opcode) {
-	case AML_NAME_OP:
 	case AML_REF_OF_OP:
 
 		/* Storing an object into a Name "container" */
@@ -415,11 +462,24 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 		 */
 		obj_desc = *(index_desc->reference.where);
 
-		status =
-		    acpi_ut_copy_iobject_to_iobject(source_desc, &new_desc,
-						    walk_state);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+		if (ACPI_GET_OBJECT_TYPE(source_desc) ==
+		    ACPI_TYPE_LOCAL_REFERENCE
+		    && source_desc->reference.opcode == AML_LOAD_OP) {
+
+			/* This is a DDBHandle, just add a reference to it */
+
+			acpi_ut_add_reference(source_desc);
+			new_desc = source_desc;
+		} else {
+			/* Normal object, copy it */
+
+			status =
+			    acpi_ut_copy_iobject_to_iobject(source_desc,
+							    &new_desc,
+							    walk_state);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
+			}
 		}
 
 		if (obj_desc) {
@@ -571,10 +631,17 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 
 	/* If no implicit conversion, drop into the default case below */
 
-	if ((!implicit_conversion) || (walk_state->opcode == AML_COPY_OP)) {
-
-		/* Force execution of default (no implicit conversion) */
-
+	if ((!implicit_conversion) ||
+	    ((walk_state->opcode == AML_COPY_OP) &&
+	     (target_type != ACPI_TYPE_LOCAL_REGION_FIELD) &&
+	     (target_type != ACPI_TYPE_LOCAL_BANK_FIELD) &&
+	     (target_type != ACPI_TYPE_LOCAL_INDEX_FIELD))) {
+		/*
+		 * Force execution of default (no implicit conversion). Note:
+		 * copy_object does not perform an implicit conversion, as per the ACPI
+		 * spec -- except in case of region/bank/index fields -- because these
+		 * objects must retain their original type permanently.
+		 */
 		target_type = ACPI_TYPE_ANY;
 	}
 

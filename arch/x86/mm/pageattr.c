@@ -777,14 +777,20 @@ static inline int change_page_attr_clear(unsigned long addr, int numpages,
 
 int _set_memory_uc(unsigned long addr, int numpages)
 {
+	/*
+	 * for now UC MINUS. see comments in ioremap_nocache()
+	 */
 	return change_page_attr_set(addr, numpages,
-				    __pgprot(_PAGE_CACHE_UC));
+				    __pgprot(_PAGE_CACHE_UC_MINUS));
 }
 
 int set_memory_uc(unsigned long addr, int numpages)
 {
+	/*
+	 * for now UC MINUS. see comments in ioremap_nocache()
+	 */
 	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
-	                    _PAGE_CACHE_UC, NULL))
+			    _PAGE_CACHE_UC_MINUS, NULL))
 		return -EINVAL;
 
 	return _set_memory_uc(addr, numpages);

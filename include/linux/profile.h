@@ -1,8 +1,6 @@
 #ifndef _LINUX_PROFILE_H
 #define _LINUX_PROFILE_H
 
-#ifdef __KERNEL__
-
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/cpumask.h>
@@ -117,7 +115,5 @@ static inline void unregister_timer_hook(int (*hook)(struct pt_regs *))
 }
 
 #endif /* CONFIG_PROFILING */
-
-#endif /* __KERNEL__ */
 
 #endif /* _LINUX_PROFILE_H */

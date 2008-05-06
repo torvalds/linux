@@ -847,6 +847,7 @@ static int acpi_processor_get_power_info_default(struct acpi_processor *pr)
 		/* all processors need to support C1 */
 		pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
 		pr->power.states[ACPI_STATE_C1].valid = 1;
+		pr->power.states[ACPI_STATE_C1].entry_method = ACPI_CSTATE_HALT;
 	}
 	/* the C0 state only exists as a filler in our array */
 	pr->power.states[ACPI_STATE_C0].valid = 1;
@@ -959,6 +960,9 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 				 cx.address);
 		}
 
+		if (cx.type == ACPI_STATE_C1) {
+			cx.valid = 1;
+		}
 
 		obj = &(element->package.elements[2]);
 		if (obj->type != ACPI_TYPE_INTEGER)
@@ -1282,6 +1286,7 @@ static int acpi_processor_power_open_fs(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations acpi_processor_power_fops = {
+	.owner = THIS_MODULE,
 	.open = acpi_processor_power_open_fs,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -1294,6 +1299,8 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 {
 	int result = 0;
 
+	if (boot_option_idle_override)
+		return 0;
 
 	if (!pr)
 		return -EINVAL;
@@ -1733,6 +1740,9 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 {
 	int ret;
 
+	if (boot_option_idle_override)
+		return 0;
+
 	if (!pr)
 		return -EINVAL;
 
@@ -1763,6 +1773,8 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	struct proc_dir_entry *entry = NULL;
 	unsigned int i;
 
+	if (boot_option_idle_override)
+		return 0;
 
 	if (!first_run) {
 		dmi_check_system(processor_power_dmi_table);
@@ -1798,7 +1810,7 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	 * Note that we use previously set idle handler will be used on
 	 * platforms that only support C1.
 	 */
-	if ((pr->flags.power) && (!boot_option_idle_override)) {
+	if (pr->flags.power) {
 #ifdef CONFIG_CPU_IDLE
 		acpi_processor_setup_cpuidle(pr);
 		pr->power.dev.cpu = pr->id;
@@ -1822,24 +1834,23 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	}
 
 	/* 'power' [R] */
-	entry = create_proc_entry(ACPI_PROCESSOR_FILE_POWER,
-				  S_IRUGO, acpi_device_dir(device));
+	entry = proc_create_data(ACPI_PROCESSOR_FILE_POWER,
+				 S_IRUGO, acpi_device_dir(device),
+				 &acpi_processor_power_fops,
+				 acpi_driver_data(device));
 	if (!entry)
 		return -EIO;
-	else {
-		entry->proc_fops = &acpi_processor_power_fops;
-		entry->data = acpi_driver_data(device);
-		entry->owner = THIS_MODULE;
-	}
-
 	return 0;
 }
 
 int acpi_processor_power_exit(struct acpi_processor *pr,
 			      struct acpi_device *device)
 {
+	if (boot_option_idle_override)
+		return 0;
+
 #ifdef CONFIG_CPU_IDLE
-	if ((pr->flags.power) && (!boot_option_idle_override))
+	if (pr->flags.power)
 		cpuidle_unregister_device(&pr->power.dev);
 #endif
 	pr->flags.power_setup_done = 0;

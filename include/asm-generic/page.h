@@ -1,7 +1,6 @@
 #ifndef _ASM_GENERIC_PAGE_H
 #define _ASM_GENERIC_PAGE_H
 
-#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
@@ -21,6 +20,5 @@ static __inline__ __attribute_const__ int get_order(unsigned long size)
 }
 
 #endif	/* __ASSEMBLY__ */
-#endif	/* __KERNEL__ */
 
 #endif	/* _ASM_GENERIC_PAGE_H */

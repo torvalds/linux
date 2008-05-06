@@ -111,13 +111,13 @@ xfs_trans_iget(
 		 */
 		ASSERT(ip->i_itemp != NULL);
 		ASSERT(lock_flags & XFS_ILOCK_EXCL);
-		ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE));
+		ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 		ASSERT((!(lock_flags & XFS_IOLOCK_EXCL)) ||
-		       ismrlocked(&ip->i_iolock, MR_UPDATE));
+		       xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 		ASSERT((!(lock_flags & XFS_IOLOCK_EXCL)) ||
 		       (ip->i_itemp->ili_flags & XFS_ILI_IOLOCKED_EXCL));
 		ASSERT((!(lock_flags & XFS_IOLOCK_SHARED)) ||
-		       ismrlocked(&ip->i_iolock, (MR_UPDATE | MR_ACCESS)));
+		       xfs_isilocked(ip, XFS_IOLOCK_EXCL|XFS_IOLOCK_SHARED));
 		ASSERT((!(lock_flags & XFS_IOLOCK_SHARED)) ||
 		       (ip->i_itemp->ili_flags & XFS_ILI_IOLOCKED_ANY));
 
@@ -185,7 +185,7 @@ xfs_trans_ijoin(
 	xfs_inode_log_item_t	*iip;
 
 	ASSERT(ip->i_transp == NULL);
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(lock_flags & XFS_ILOCK_EXCL);
 	if (ip->i_itemp == NULL)
 		xfs_inode_item_init(ip, ip->i_mount);
@@ -232,7 +232,7 @@ xfs_trans_ihold(
 {
 	ASSERT(ip->i_transp == tp);
 	ASSERT(ip->i_itemp != NULL);
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	ip->i_itemp->ili_flags |= XFS_ILI_HOLD;
 }
@@ -257,7 +257,7 @@ xfs_trans_log_inode(
 
 	ASSERT(ip->i_transp == tp);
 	ASSERT(ip->i_itemp != NULL);
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	lidp = xfs_trans_find_item(tp, (xfs_log_item_t*)(ip->i_itemp));
 	ASSERT(lidp != NULL);

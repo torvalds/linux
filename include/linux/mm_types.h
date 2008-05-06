@@ -42,7 +42,10 @@ struct page {
 					 * to show when page is mapped
 					 * & limit reverse map searches.
 					 */
-		unsigned int inuse;	/* SLUB: Nr of objects */
+		struct {		/* SLUB */
+			u16 inuse;
+			u16 objects;
+		};
 	};
 	union {
 	    struct {
@@ -222,8 +225,15 @@ struct mm_struct {
 	/* aio bits */
 	rwlock_t		ioctx_list_lock;	/* aio lock */
 	struct kioctx		*ioctx_list;
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-	struct mem_cgroup *mem_cgroup;
+#ifdef CONFIG_MM_OWNER
+	struct task_struct *owner;	/* The thread group leader that */
+					/* owns the mm_struct.		*/
+#endif
+
+#ifdef CONFIG_PROC_FS
+	/* store ref to file /proc/<pid>/exe symlink points to */
+	struct file *exe_file;
+	unsigned long num_exe_file_vmas;
 #endif
 };
 

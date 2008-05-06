@@ -324,8 +324,6 @@ static u32 functionality(struct i2c_adapter *adap)
 static int attach_inform(struct i2c_client *client)
 {
 	struct saa7134_dev *dev = client->adapter->algo_data;
-	int tuner = dev->tuner_type;
-	struct tuner_setup tun_setup;
 
 	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
 		client->driver->driver.name, client->addr, client->name);
@@ -345,46 +343,6 @@ static int attach_inform(struct i2c_client *client)
 			break;
 		}
 	}
-
-	if (!client->driver->command)
-		return 0;
-
-	if (saa7134_boards[dev->board].radio_type != UNSET) {
-
-		tun_setup.type = saa7134_boards[dev->board].radio_type;
-		tun_setup.addr = saa7134_boards[dev->board].radio_addr;
-
-		if ((tun_setup.addr == ADDR_UNSET) || (tun_setup.addr == client->addr)) {
-			tun_setup.mode_mask = T_RADIO;
-
-			client->driver->command(client, TUNER_SET_TYPE_ADDR, &tun_setup);
-		}
-	}
-
-	if (tuner != UNSET) {
-		tun_setup.type = tuner;
-		tun_setup.addr = saa7134_boards[dev->board].tuner_addr;
-		tun_setup.config = saa7134_boards[dev->board].tuner_config;
-		tun_setup.tuner_callback = saa7134_tuner_callback;
-
-		if ((tun_setup.addr == ADDR_UNSET)||(tun_setup.addr == client->addr)) {
-
-			tun_setup.mode_mask = T_ANALOG_TV;
-
-			client->driver->command(client,TUNER_SET_TYPE_ADDR, &tun_setup);
-		}
-
-		if (tuner == TUNER_TDA9887) {
-			struct v4l2_priv_tun_config tda9887_cfg;
-
-			tda9887_cfg.tuner = TUNER_TDA9887;
-			tda9887_cfg.priv = &dev->tda9887_conf;
-
-			client->driver->command(client, TUNER_SET_CONFIG,
-						&tda9887_cfg);
-		}
-	}
-
 
 	return 0;
 }

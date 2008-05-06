@@ -86,7 +86,7 @@ setup_port(struct serial_private *priv, struct uart_port *port,
 		len =  pci_resource_len(dev, bar);
 
 		if (!priv->remapped_bar[bar])
-			priv->remapped_bar[bar] = ioremap(base, len);
+			priv->remapped_bar[bar] = ioremap_nocache(base, len);
 		if (!priv->remapped_bar[bar])
 			return -ENOMEM;
 
@@ -270,7 +270,7 @@ static int pci_plx9050_init(struct pci_dev *dev)
 	/*
 	 * enable/disable interrupts
 	 */
-	p = ioremap(pci_resource_start(dev, 0), 0x80);
+	p = ioremap_nocache(pci_resource_start(dev, 0), 0x80);
 	if (p == NULL)
 		return -ENOMEM;
 	writel(irq_config, p + 0x4c);
@@ -294,7 +294,7 @@ static void __devexit pci_plx9050_exit(struct pci_dev *dev)
 	/*
 	 * disable interrupts
 	 */
-	p = ioremap(pci_resource_start(dev, 0), 0x80);
+	p = ioremap_nocache(pci_resource_start(dev, 0), 0x80);
 	if (p != NULL) {
 		writel(0, p + 0x4c);
 
@@ -341,7 +341,8 @@ static int sbs_init(struct pci_dev *dev)
 {
 	u8 __iomem *p;
 
-	p = ioremap(pci_resource_start(dev, 0), pci_resource_len(dev, 0));
+	p = ioremap_nocache(pci_resource_start(dev, 0),
+						pci_resource_len(dev, 0));
 
 	if (p == NULL)
 		return -ENOMEM;
@@ -365,7 +366,8 @@ static void __devexit sbs_exit(struct pci_dev *dev)
 {
 	u8 __iomem *p;
 
-	p = ioremap(pci_resource_start(dev, 0), pci_resource_len(dev, 0));
+	p = ioremap_nocache(pci_resource_start(dev, 0),
+					pci_resource_len(dev, 0));
 	/* FIXME: What if resource_len < OCT_REG_CR_OFF */
 	if (p != NULL)
 		writeb(0, p + OCT_REG_CR_OFF);
@@ -419,7 +421,7 @@ static int pci_siig10x_init(struct pci_dev *dev)
 		break;
 	}
 
-	p = ioremap(pci_resource_start(dev, 0), 0x80);
+	p = ioremap_nocache(pci_resource_start(dev, 0), 0x80);
 	if (p == NULL)
 		return -ENOMEM;
 

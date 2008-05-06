@@ -434,8 +434,7 @@ static struct pxafb_mode_info toshiba_ltm035a776c_mode = {
 
 static struct pxafb_mach_info mainstone_pxafb_info = {
 	.num_modes      	= 1,
-	.lccr0			= LCCR0_Act,
-	.lccr3			= LCCR3_PCP,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
 };
 
 static int mainstone_mci_init(struct device *dev, irq_handler_t mstone_detect_int, void *data)

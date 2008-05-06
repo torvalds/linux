@@ -38,7 +38,6 @@
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
-#include <linux/apm_bios.h>
 #include <linux/dmi.h>
 #include <asm/io.h>
 
@@ -223,7 +222,7 @@ static int piix4_transaction(void)
 			dev_err(&piix4_adapter.dev, "Failed! (%02x)\n", temp);
 			return -1;
 		} else {
-			dev_dbg(&piix4_adapter.dev, "Successfull!\n");
+			dev_dbg(&piix4_adapter.dev, "Successful!\n");
 		}
 	}
 
@@ -343,12 +342,7 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 
 
 	switch (size) {
-	case PIIX4_BYTE:	/* Where is the result put? I assume here it is in
-				   SMBHSTDAT0 but it might just as well be in the
-				   SMBHSTCMD. No clue in the docs */
-
-		data->byte = inb_p(SMBHSTDAT0);
-		break;
+	case PIIX4_BYTE:
 	case PIIX4_BYTE_DATA:
 		data->byte = inb_p(SMBHSTDAT0);
 		break;

@@ -177,7 +177,7 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 	}
 	rio_spin_lock_irqsave(&PortP->portSem, flags);
 
-	if (cmd == OPEN) {
+	if (cmd == RIOC_OPEN) {
 		/*
 		 ** If the port is set to store or lock the parameters, and it is
 		 ** paramed with OPEN, we want to restore the saved port termio, but
@@ -241,50 +241,50 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 	case CS5:
 		{
 			rio_dprintk(RIO_DEBUG_PARAM, "5 bit data\n");
-			Cor1 |= COR1_5BITS;
+			Cor1 |= RIOC_COR1_5BITS;
 			break;
 		}
 	case CS6:
 		{
 			rio_dprintk(RIO_DEBUG_PARAM, "6 bit data\n");
-			Cor1 |= COR1_6BITS;
+			Cor1 |= RIOC_COR1_6BITS;
 			break;
 		}
 	case CS7:
 		{
 			rio_dprintk(RIO_DEBUG_PARAM, "7 bit data\n");
-			Cor1 |= COR1_7BITS;
+			Cor1 |= RIOC_COR1_7BITS;
 			break;
 		}
 	case CS8:
 		{
 			rio_dprintk(RIO_DEBUG_PARAM, "8 bit data\n");
-			Cor1 |= COR1_8BITS;
+			Cor1 |= RIOC_COR1_8BITS;
 			break;
 		}
 	}
 
 	if (TtyP->termios->c_cflag & CSTOPB) {
 		rio_dprintk(RIO_DEBUG_PARAM, "2 stop bits\n");
-		Cor1 |= COR1_2STOP;
+		Cor1 |= RIOC_COR1_2STOP;
 	} else {
 		rio_dprintk(RIO_DEBUG_PARAM, "1 stop bit\n");
-		Cor1 |= COR1_1STOP;
+		Cor1 |= RIOC_COR1_1STOP;
 	}
 
 	if (TtyP->termios->c_cflag & PARENB) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Enable parity\n");
-		Cor1 |= COR1_NORMAL;
+		Cor1 |= RIOC_COR1_NORMAL;
 	} else {
 		rio_dprintk(RIO_DEBUG_PARAM, "Disable parity\n");
-		Cor1 |= COR1_NOP;
+		Cor1 |= RIOC_COR1_NOP;
 	}
 	if (TtyP->termios->c_cflag & PARODD) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Odd parity\n");
-		Cor1 |= COR1_ODD;
+		Cor1 |= RIOC_COR1_ODD;
 	} else {
 		rio_dprintk(RIO_DEBUG_PARAM, "Even parity\n");
-		Cor1 |= COR1_EVEN;
+		Cor1 |= RIOC_COR1_EVEN;
 	}
 
 	/*
@@ -292,11 +292,11 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 	 */
 	if (TtyP->termios->c_iflag & IXON) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Enable start/stop output control\n");
-		Cor2 |= COR2_IXON;
+		Cor2 |= RIOC_COR2_IXON;
 	} else {
 		if (PortP->Config & RIO_IXON) {
 			rio_dprintk(RIO_DEBUG_PARAM, "Force enable start/stop output control\n");
-			Cor2 |= COR2_IXON;
+			Cor2 |= RIOC_COR2_IXON;
 		} else
 			rio_dprintk(RIO_DEBUG_PARAM, "IXON has been disabled.\n");
 	}
@@ -304,29 +304,29 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 	if (TtyP->termios->c_iflag & IXANY) {
 		if (PortP->Config & RIO_IXANY) {
 			rio_dprintk(RIO_DEBUG_PARAM, "Enable any key to restart output\n");
-			Cor2 |= COR2_IXANY;
+			Cor2 |= RIOC_COR2_IXANY;
 		} else
 			rio_dprintk(RIO_DEBUG_PARAM, "IXANY has been disabled due to sanity reasons.\n");
 	}
 
 	if (TtyP->termios->c_iflag & IXOFF) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Enable start/stop input control 2\n");
-		Cor2 |= COR2_IXOFF;
+		Cor2 |= RIOC_COR2_IXOFF;
 	}
 
 	if (TtyP->termios->c_cflag & HUPCL) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Hangup on last close\n");
-		Cor2 |= COR2_HUPCL;
+		Cor2 |= RIOC_COR2_HUPCL;
 	}
 
 	if (C_CRTSCTS(TtyP)) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Rx hardware flow control enabled\n");
-		Cor2 |= COR2_CTSFLOW;
-		Cor2 |= COR2_RTSFLOW;
+		Cor2 |= RIOC_COR2_CTSFLOW;
+		Cor2 |= RIOC_COR2_RTSFLOW;
 	} else {
 		rio_dprintk(RIO_DEBUG_PARAM, "Rx hardware flow control disabled\n");
-		Cor2 &= ~COR2_CTSFLOW;
-		Cor2 &= ~COR2_RTSFLOW;
+		Cor2 &= ~RIOC_COR2_CTSFLOW;
+		Cor2 &= ~RIOC_COR2_RTSFLOW;
 	}
 
 
@@ -341,36 +341,36 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 	 */
 	if (TtyP->termios->c_iflag & IGNBRK) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Ignore break condition\n");
-		Cor4 |= COR4_IGNBRK;
+		Cor4 |= RIOC_COR4_IGNBRK;
 	}
 	if (!(TtyP->termios->c_iflag & BRKINT)) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Break generates NULL condition\n");
-		Cor4 |= COR4_NBRKINT;
+		Cor4 |= RIOC_COR4_NBRKINT;
 	} else {
 		rio_dprintk(RIO_DEBUG_PARAM, "Interrupt on	break condition\n");
 	}
 
 	if (TtyP->termios->c_iflag & INLCR) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Map newline to carriage return on input\n");
-		Cor4 |= COR4_INLCR;
+		Cor4 |= RIOC_COR4_INLCR;
 	}
 
 	if (TtyP->termios->c_iflag & IGNCR) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Ignore carriage return on input\n");
-		Cor4 |= COR4_IGNCR;
+		Cor4 |= RIOC_COR4_IGNCR;
 	}
 
 	if (TtyP->termios->c_iflag & ICRNL) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Map carriage return to newline on input\n");
-		Cor4 |= COR4_ICRNL;
+		Cor4 |= RIOC_COR4_ICRNL;
 	}
 	if (TtyP->termios->c_iflag & IGNPAR) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Ignore characters with parity errors\n");
-		Cor4 |= COR4_IGNPAR;
+		Cor4 |= RIOC_COR4_IGNPAR;
 	}
 	if (TtyP->termios->c_iflag & PARMRK) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Mark parity errors\n");
-		Cor4 |= COR4_PARMRK;
+		Cor4 |= RIOC_COR4_PARMRK;
 	}
 
 	/*
@@ -378,22 +378,22 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 	 ** on reception of a config packet.
 	 ** The download code handles the zero baud condition.
 	 */
-	Cor4 |= COR4_RAISEMOD;
+	Cor4 |= RIOC_COR4_RAISEMOD;
 
 	/*
 	 ** COR 5
 	 */
 
-	Cor5 = COR5_CMOE;
+	Cor5 = RIOC_COR5_CMOE;
 
 	/*
 	 ** Set to monitor tbusy/tstop (or not).
 	 */
 
 	if (PortP->MonitorTstate)
-		Cor5 |= COR5_TSTATE_ON;
+		Cor5 |= RIOC_COR5_TSTATE_ON;
 	else
-		Cor5 |= COR5_TSTATE_OFF;
+		Cor5 |= RIOC_COR5_TSTATE_OFF;
 
 	/*
 	 ** Could set LNE here if you wanted LNext processing. SVR4 will use it.
@@ -401,24 +401,24 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 	if (TtyP->termios->c_iflag & ISTRIP) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Strip input characters\n");
 		if (!(PortP->State & RIO_TRIAD_MODE)) {
-			Cor5 |= COR5_ISTRIP;
+			Cor5 |= RIOC_COR5_ISTRIP;
 		}
 	}
 
 	if (TtyP->termios->c_oflag & ONLCR) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Map newline to carriage-return, newline on output\n");
 		if (PortP->CookMode == COOK_MEDIUM)
-			Cor5 |= COR5_ONLCR;
+			Cor5 |= RIOC_COR5_ONLCR;
 	}
 	if (TtyP->termios->c_oflag & OCRNL) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Map carriage return to newline on output\n");
 		if (PortP->CookMode == COOK_MEDIUM)
-			Cor5 |= COR5_OCRNL;
+			Cor5 |= RIOC_COR5_OCRNL;
 	}
 	if ((TtyP->termios->c_oflag & TABDLY) == TAB3) {
 		rio_dprintk(RIO_DEBUG_PARAM, "Tab delay 3 set\n");
 		if (PortP->CookMode == COOK_MEDIUM)
-			Cor5 |= COR5_TAB3;
+			Cor5 |= RIOC_COR5_TAB3;
 	}
 
 	/*

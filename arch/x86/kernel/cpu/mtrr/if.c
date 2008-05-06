@@ -424,7 +424,7 @@ static int __init mtrr_if_init(void)
 		return -ENODEV;
 
 	proc_root_mtrr =
-		proc_create("mtrr", S_IWUSR | S_IRUGO, &proc_root, &mtrr_fops);
+		proc_create("mtrr", S_IWUSR | S_IRUGO, NULL, &mtrr_fops);
 
 	if (proc_root_mtrr)
 		proc_root_mtrr->owner = THIS_MODULE;

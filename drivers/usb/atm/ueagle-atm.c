@@ -305,8 +305,6 @@ enum {
  */
 
 #define FW_GET_BYTE(p)	*((__u8 *) (p))
-#define FW_GET_WORD(p)	le16_to_cpu(get_unaligned((__le16 *) (p)))
-#define FW_GET_LONG(p)	le32_to_cpu(get_unaligned((__le32 *) (p)))
 
 #define FW_DIR "ueagle-atm/"
 #define NB_MODEM 4
@@ -621,7 +619,7 @@ static void uea_upload_pre_firmware(const struct firmware *fw_entry, void *conte
 	if (size < 4)
 		goto err_fw_corrupted;
 
-	crc = FW_GET_LONG(pfw);
+	crc = get_unaligned_le32(pfw);
 	pfw += 4;
 	size -= 4;
 	if (crc32_be(0, pfw, size) != crc)
@@ -640,7 +638,7 @@ static void uea_upload_pre_firmware(const struct firmware *fw_entry, void *conte
 
 	while (size > 3) {
 		u8 len = FW_GET_BYTE(pfw);
-		u16 add = FW_GET_WORD(pfw + 1);
+		u16 add = get_unaligned_le16(pfw + 1);
 
 		size -= len + 3;
 		if (size < 0)
@@ -738,7 +736,7 @@ static int check_dsp_e1(u8 *dsp, unsigned int len)
 
 	for (i = 0; i < pagecount; i++) {
 
-		pageoffset = FW_GET_LONG(dsp + p);
+		pageoffset = get_unaligned_le32(dsp + p);
 		p += 4;
 
 		if (pageoffset == 0)
@@ -759,7 +757,7 @@ static int check_dsp_e1(u8 *dsp, unsigned int len)
 				return 1;
 
 			pp += 2;	/* skip blockaddr */
-			blocksize = FW_GET_WORD(dsp + pp);
+			blocksize = get_unaligned_le16(dsp + pp);
 			pp += 2;
 
 			/* enough space for block data? */
@@ -928,7 +926,7 @@ static void uea_load_page_e1(struct work_struct *work)
 		goto bad1;
 
 	p += 4 * pageno;
-	pageoffset = FW_GET_LONG(p);
+	pageoffset = get_unaligned_le32(p);
 
 	if (pageoffset == 0)
 		goto bad1;
@@ -945,10 +943,10 @@ static void uea_load_page_e1(struct work_struct *work)
 	bi.wOvlOffset = cpu_to_le16(ovl | 0x8000);
 
 	for (i = 0; i < blockcount; i++) {
-		blockaddr = FW_GET_WORD(p);
+		blockaddr = get_unaligned_le16(p);
 		p += 2;
 
-		blocksize = FW_GET_WORD(p);
+		blocksize = get_unaligned_le16(p);
 		p += 2;
 
 		bi.wSize = cpu_to_le16(blocksize);
@@ -1152,9 +1150,9 @@ static int uea_cmv_e1(struct uea_softc *sc,
 	cmv.bDirection = E1_HOSTTOMODEM;
 	cmv.bFunction = function;
 	cmv.wIndex = cpu_to_le16(sc->cmv_dsc.e1.idx);
-	put_unaligned(cpu_to_le32(address), &cmv.dwSymbolicAddress);
+	put_unaligned_le32(address, &cmv.dwSymbolicAddress);
 	cmv.wOffsetAddress = cpu_to_le16(offset);
-	put_unaligned(cpu_to_le32(data >> 16 | data << 16), &cmv.dwData);
+	put_unaligned_le32(data >> 16 | data << 16, &cmv.dwData);
 
 	ret = uea_request(sc, UEA_E1_SET_BLOCK, UEA_MPTX_START, sizeof(cmv), &cmv);
 	if (ret < 0)
@@ -1646,7 +1644,7 @@ static int request_cmvs(struct uea_softc *sc,
 	if (size < 5)
 		goto err_fw_corrupted;
 
-	crc = FW_GET_LONG(data);
+	crc = get_unaligned_le32(data);
 	data += 4;
 	size -= 4;
 	if (crc32_be(0, data, size) != crc)
@@ -1696,9 +1694,9 @@ static int uea_send_cmvs_e1(struct uea_softc *sc)
 			"please update your firmware\n");
 
 		for (i = 0; i < len; i++) {
-			ret = uea_write_cmv_e1(sc, FW_GET_LONG(&cmvs_v1[i].address),
-						FW_GET_WORD(&cmvs_v1[i].offset),
-						FW_GET_LONG(&cmvs_v1[i].data));
+			ret = uea_write_cmv_e1(sc, get_unaligned_le32(&cmvs_v1[i].address),
+						get_unaligned_le16(&cmvs_v1[i].offset),
+						get_unaligned_le32(&cmvs_v1[i].data));
 			if (ret < 0)
 				goto out;
 		}
@@ -1706,9 +1704,9 @@ static int uea_send_cmvs_e1(struct uea_softc *sc)
 		struct uea_cmvs_v2 *cmvs_v2 = cmvs_ptr;
 
 		for (i = 0; i < len; i++) {
-			ret = uea_write_cmv_e1(sc, FW_GET_LONG(&cmvs_v2[i].address),
-						(u16) FW_GET_LONG(&cmvs_v2[i].offset),
-						FW_GET_LONG(&cmvs_v2[i].data));
+			ret = uea_write_cmv_e1(sc, get_unaligned_le32(&cmvs_v2[i].address),
+						(u16) get_unaligned_le32(&cmvs_v2[i].offset),
+						get_unaligned_le32(&cmvs_v2[i].data));
 			if (ret < 0)
 				goto out;
 		}
@@ -1759,10 +1757,10 @@ static int uea_send_cmvs_e4(struct uea_softc *sc)
 
 		for (i = 0; i < len; i++) {
 			ret = uea_write_cmv_e4(sc, 1,
-						FW_GET_LONG(&cmvs_v2[i].group),
-						FW_GET_LONG(&cmvs_v2[i].address),
-						FW_GET_LONG(&cmvs_v2[i].offset),
-						FW_GET_LONG(&cmvs_v2[i].data));
+						get_unaligned_le32(&cmvs_v2[i].group),
+						get_unaligned_le32(&cmvs_v2[i].address),
+						get_unaligned_le32(&cmvs_v2[i].offset),
+						get_unaligned_le32(&cmvs_v2[i].data));
 			if (ret < 0)
 				goto out;
 		}
@@ -1964,7 +1962,7 @@ static void uea_dispatch_cmv_e1(struct uea_softc *sc, struct intr_pkt *intr)
 		if (UEA_CHIP_VERSION(sc) == ADI930
 				&& cmv->bFunction ==  E1_MAKEFUNCTION(2, 2)) {
 			cmv->wIndex = cpu_to_le16(dsc->idx);
-			put_unaligned(cpu_to_le32(dsc->address), &cmv->dwSymbolicAddress);
+			put_unaligned_le32(dsc->address, &cmv->dwSymbolicAddress);
 			cmv->wOffsetAddress = cpu_to_le16(dsc->offset);
 		} else
 			goto bad2;
@@ -1978,11 +1976,11 @@ static void uea_dispatch_cmv_e1(struct uea_softc *sc, struct intr_pkt *intr)
 
 	/* in case of MEMACCESS */
 	if (le16_to_cpu(cmv->wIndex) != dsc->idx ||
-	    le32_to_cpu(get_unaligned(&cmv->dwSymbolicAddress)) != dsc->address ||
+	    get_unaligned_le32(&cmv->dwSymbolicAddress) != dsc->address ||
 	    le16_to_cpu(cmv->wOffsetAddress) != dsc->offset)
 		goto bad2;
 
-	sc->data = le32_to_cpu(get_unaligned(&cmv->dwData));
+	sc->data = get_unaligned_le32(&cmv->dwData);
 	sc->data = sc->data << 16 | sc->data >> 16;
 
 	wake_up_cmv_ack(sc);

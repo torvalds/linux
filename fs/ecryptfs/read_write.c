@@ -55,7 +55,7 @@ int ecryptfs_write_lower(struct inode *ecryptfs_inode, char *data,
 	set_fs(fs_save);
 	if (octets_written < 0) {
 		printk(KERN_ERR "%s: octets_written = [%td]; "
-		       "expected [%td]\n", __FUNCTION__, octets_written, size);
+		       "expected [%td]\n", __func__, octets_written, size);
 		rc = -EINVAL;
 	}
 	mutex_unlock(&inode_info->lower_file_mutex);
@@ -153,7 +153,7 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 			rc = PTR_ERR(ecryptfs_page);
 			printk(KERN_ERR "%s: Error getting page at "
 			       "index [%ld] from eCryptfs inode "
-			       "mapping; rc = [%d]\n", __FUNCTION__,
+			       "mapping; rc = [%d]\n", __func__,
 			       ecryptfs_page_idx, rc);
 			goto out;
 		}
@@ -165,7 +165,7 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 			if (rc) {
 				printk(KERN_ERR "%s: Error decrypting "
 				       "page; rc = [%d]\n",
-				       __FUNCTION__, rc);
+				       __func__, rc);
 				ClearPageUptodate(ecryptfs_page);
 				page_cache_release(ecryptfs_page);
 				goto out;
@@ -202,7 +202,7 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 		page_cache_release(ecryptfs_page);
 		if (rc) {
 			printk(KERN_ERR "%s: Error encrypting "
-			       "page; rc = [%d]\n", __FUNCTION__, rc);
+			       "page; rc = [%d]\n", __func__, rc);
 			goto out;
 		}
 		pos += num_bytes;
@@ -254,7 +254,7 @@ int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
 	set_fs(fs_save);
 	if (octets_read < 0) {
 		printk(KERN_ERR "%s: octets_read = [%td]; "
-		       "expected [%td]\n", __FUNCTION__, octets_read, size);
+		       "expected [%td]\n", __func__, octets_read, size);
 		rc = -EINVAL;
 	}
 	mutex_unlock(&inode_info->lower_file_mutex);
@@ -327,7 +327,7 @@ int ecryptfs_read(char *data, loff_t offset, size_t size,
 		printk(KERN_ERR "%s: Attempt to read data past the end of the "
 			"file; offset = [%lld]; size = [%td]; "
 		       "ecryptfs_file_size = [%lld]\n",
-		       __FUNCTION__, offset, size, ecryptfs_file_size);
+		       __func__, offset, size, ecryptfs_file_size);
 		goto out;
 	}
 	pos = offset;
@@ -345,14 +345,14 @@ int ecryptfs_read(char *data, loff_t offset, size_t size,
 			rc = PTR_ERR(ecryptfs_page);
 			printk(KERN_ERR "%s: Error getting page at "
 			       "index [%ld] from eCryptfs inode "
-			       "mapping; rc = [%d]\n", __FUNCTION__,
+			       "mapping; rc = [%d]\n", __func__,
 			       ecryptfs_page_idx, rc);
 			goto out;
 		}
 		rc = ecryptfs_decrypt_page(ecryptfs_page);
 		if (rc) {
 			printk(KERN_ERR "%s: Error decrypting "
-			       "page; rc = [%d]\n", __FUNCTION__, rc);
+			       "page; rc = [%d]\n", __func__, rc);
 			ClearPageUptodate(ecryptfs_page);
 			page_cache_release(ecryptfs_page);
 			goto out;
