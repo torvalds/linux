@@ -771,6 +771,9 @@ static void __init find_ramdisk(unsigned long phys_base)
 		initrd_end = ramdisk_image + sparc_ramdisk_size;
 
 		lmb_reserve(initrd_start, initrd_end);
+
+		initrd_start += PAGE_OFFSET;
+		initrd_end += PAGE_OFFSET;
 	}
 #endif
 }
