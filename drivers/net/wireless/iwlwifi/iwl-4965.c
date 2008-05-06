@@ -50,6 +50,7 @@ static struct iwl_mod_params iwl4965_mod_params = {
 	.num_of_queues = IWL49_NUM_QUEUES,
 	.enable_qos = 1,
 	.amsdu_size_8K = 1,
+	.restart_fw = 1,
 	/* the rest are 0 by default */
 };
 
@@ -3892,4 +3893,5 @@ module_param_named(qos_enable, iwl4965_mod_params.enable_qos, int, 0444);
 MODULE_PARM_DESC(qos_enable, "enable all QoS functionality");
 module_param_named(amsdu_size_8K, iwl4965_mod_params.amsdu_size_8K, int, 0444);
 MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
-
+module_param_named(fw_restart4965, iwl4965_mod_params.restart_fw, int, 0444);
+MODULE_PARM_DESC(fw_restart4965, "restart firmware in case of error");

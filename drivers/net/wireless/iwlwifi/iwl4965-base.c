@@ -3569,7 +3569,8 @@ static void iwl4965_irq_handle_error(struct iwl_priv *priv)
 			       sizeof(priv->recovery_rxon));
 			priv->error_recovering = 1;
 		}
-		queue_work(priv->workqueue, &priv->restart);
+		if (priv->cfg->mod_params->restart_fw)
+			queue_work(priv->workqueue, &priv->restart);
 	}
 }
 
@@ -6846,6 +6847,7 @@ static int __init iwl4965_init(void)
 	}
 
 	return ret;
+
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	pci_unregister_driver(&iwl_driver);
