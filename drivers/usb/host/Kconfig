@@ -129,7 +129,7 @@ config USB_ISP1760_PCI
 
 config USB_ISP1760_OF
 	bool "Support for the OF platform bus"
-	depends on USB_ISP1760_HCD && OF
+	depends on USB_ISP1760_HCD && PPC_OF
 	---help---
 	  Enables support for the device present on the PowerPC
 	  OpenFirmware platform bus.
