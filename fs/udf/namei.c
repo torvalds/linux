@@ -315,7 +315,7 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 	uint16_t liu;
 	int block;
 	kernel_lb_addr eloc;
-	uint32_t elen;
+	uint32_t elen = 0;
 	sector_t offset;
 	struct extent_position epos = {};
 	struct udf_inode_info *dinfo;
@@ -406,7 +406,8 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 	}
 
 add:
-	if (dinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
+	/* Is there any extent whose size we need to round up? */
+	if (dinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB && elen) {
 		elen = (elen + sb->s_blocksize - 1) & ~(sb->s_blocksize - 1);
 		if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
 			epos.offset -= sizeof(short_ad);
