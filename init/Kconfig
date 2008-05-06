@@ -316,9 +316,16 @@ config CPUSETS
 
 	  Say N if unsure.
 
+#
+# Architectures with an unreliable sched_clock() should select this:
+#
+config HAVE_UNSTABLE_SCHED_CLOCK
+	bool
+
 config GROUP_SCHED
 	bool "Group CPU scheduler"
-	default y
+	depends on EXPERIMENTAL
+	default n
 	help
 	  This feature lets CPU scheduler recognize task groups and control CPU
 	  bandwidth allocation to such task groups.
@@ -326,7 +333,7 @@ config GROUP_SCHED
 config FAIR_GROUP_SCHED
 	bool "Group scheduling for SCHED_OTHER"
 	depends on GROUP_SCHED
-	default y
+	default GROUP_SCHED
 
 config RT_GROUP_SCHED
 	bool "Group scheduling for SCHED_RR/FIFO"
