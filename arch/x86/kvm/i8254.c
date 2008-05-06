@@ -216,7 +216,7 @@ int pit_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pit *pit = vcpu->kvm->arch.vpit;
 
-	if (pit && vcpu->vcpu_id == 0)
+	if (pit && vcpu->vcpu_id == 0 && pit->pit_state.inject_pending)
 		return atomic_read(&pit->pit_state.pit_timer.pending);
 
 	return 0;
