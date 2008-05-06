@@ -1362,45 +1362,43 @@ find_unc(__be32 new_target_ip_addr, char *uncName, char *userName)
 {
 	struct list_head *tmp;
 	struct cifsTconInfo *tcon;
+	__be32 old_ip;
 
 	read_lock(&GlobalSMBSeslock);
+
 	list_for_each(tmp, &GlobalTreeConnectionList) {
 		cFYI(1, ("Next tcon"));
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
-		if (tcon->ses) {
-			if (tcon->ses->server) {
-				cFYI(1,
-				     ("old ip addr: %x == new ip %x ?",
-				      tcon->ses->server->addr.sockAddr.sin_addr.
-				      s_addr, new_target_ip_addr));
-				if (tcon->ses->server->addr.sockAddr.sin_addr.
-				    s_addr == new_target_ip_addr) {
-	/* BB lock tcon, server and tcp session and increment use count here? */
-					/* found a match on the TCP session */
-					/* BB check if reconnection needed */
-					cFYI(1,
-					      ("IP match, old UNC: %s new: %s",
-					      tcon->treeName, uncName));
-					if (strncmp
-					    (tcon->treeName, uncName,
-					     MAX_TREE_SIZE) == 0) {
-						cFYI(1,
-						     ("and old usr: %s new: %s",
-						      tcon->treeName, uncName));
-						if (strncmp
-						    (tcon->ses->userName,
-						     userName,
-						     MAX_USERNAME_SIZE) == 0) {
-							read_unlock(&GlobalSMBSeslock);
-							/* matched smb session
-							(user name */
-							return tcon;
-						}
-					}
-				}
-			}
-		}
+		if (!tcon->ses || !tcon->ses->server)
+			continue;
+
+		old_ip = tcon->ses->server->addr.sockAddr.sin_addr.s_addr;
+		cFYI(1, ("old ip addr: %x == new ip %x ?",
+			old_ip, new_target_ip_addr));
+
+		if (old_ip != new_target_ip_addr)
+			continue;
+
+		/* BB lock tcon, server, tcp session and increment use count? */
+		/* found a match on the TCP session */
+		/* BB check if reconnection needed */
+		cFYI(1, ("IP match, old UNC: %s new: %s",
+			tcon->treeName, uncName));
+
+		if (strncmp(tcon->treeName, uncName, MAX_TREE_SIZE))
+			continue;
+
+		cFYI(1, ("and old usr: %s new: %s",
+			tcon->treeName, uncName));
+
+		if (strncmp(tcon->ses->userName, userName, MAX_USERNAME_SIZE))
+			continue;
+
+		/* matched smb session (user name) */
+		read_unlock(&GlobalSMBSeslock);
+		return tcon;
 	}
+
 	read_unlock(&GlobalSMBSeslock);
 	return NULL;
 }
