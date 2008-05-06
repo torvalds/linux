@@ -667,31 +667,27 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 
 	cma_xprt = rdma_create_xprt(serv, 1);
 	if (!cma_xprt)
-		return ERR_PTR(ENOMEM);
+		return ERR_PTR(-ENOMEM);
 	xprt = &cma_xprt->sc_xprt;
 
 	listen_id = rdma_create_id(rdma_listen_handler, cma_xprt, RDMA_PS_TCP);
 	if (IS_ERR(listen_id)) {
-		svc_xprt_put(&cma_xprt->sc_xprt);
-		dprintk("svcrdma: rdma_create_id failed = %ld\n",
-			PTR_ERR(listen_id));
-		return (void *)listen_id;
+		ret = PTR_ERR(listen_id);
+		dprintk("svcrdma: rdma_create_id failed = %d\n", ret);
+		goto err0;
 	}
+
 	ret = rdma_bind_addr(listen_id, sa);
 	if (ret) {
-		rdma_destroy_id(listen_id);
-		svc_xprt_put(&cma_xprt->sc_xprt);
 		dprintk("svcrdma: rdma_bind_addr failed = %d\n", ret);
-		return ERR_PTR(ret);
+		goto err1;
 	}
 	cma_xprt->sc_cm_id = listen_id;
 
 	ret = rdma_listen(listen_id, RPCRDMA_LISTEN_BACKLOG);
 	if (ret) {
-		rdma_destroy_id(listen_id);
-		svc_xprt_put(&cma_xprt->sc_xprt);
 		dprintk("svcrdma: rdma_listen failed = %d\n", ret);
-		return ERR_PTR(ret);
+		goto err1;
 	}
 
 	/*
@@ -702,6 +698,12 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	svc_xprt_set_local(&cma_xprt->sc_xprt, sa, salen);
 
 	return &cma_xprt->sc_xprt;
+
+ err1:
+	rdma_destroy_id(listen_id);
+ err0:
+	kfree(cma_xprt);
+	return ERR_PTR(ret);
 }
 
 /*
