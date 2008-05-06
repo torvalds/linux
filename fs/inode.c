@@ -1153,9 +1153,6 @@ void iput(struct inode *inode)
 
 		BUG_ON(inode->i_state == I_CLEAR);
 
-		if (op && op->put_inode)
-			op->put_inode(inode);
-
 		if (atomic_dec_and_lock(&inode->i_count, &inode_lock))
 			iput_final(inode);
 	}
