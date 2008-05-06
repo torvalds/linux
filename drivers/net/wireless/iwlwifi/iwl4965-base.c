@@ -5993,6 +5993,25 @@ static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO,
 #endif /* CONFIG_IWLWIFI_DEBUG */
 
 
+static ssize_t show_version(struct device *d,
+				struct device_attribute *attr, char *buf)
+{
+	struct iwl_priv *priv = d->driver_data;
+	struct iwl4965_alive_resp *palive = &priv->card_alive;
+
+	if (palive->is_valid)
+		return sprintf(buf, "fw version: 0x%01X.0x%01X.0x%01X.0x%01X\n"
+				    "fw type: 0x%01X 0x%01X\n",
+				palive->ucode_major, palive->ucode_minor,
+				palive->sw_rev[0], palive->sw_rev[1],
+				palive->ver_type, palive->ver_subtype);
+
+	else
+		return sprintf(buf, "fw not loaded\n");
+}
+
+static DEVICE_ATTR(version, S_IWUSR | S_IRUGO, show_version, NULL);
+
 static ssize_t show_temperature(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
@@ -6438,6 +6457,7 @@ static struct attribute *iwl4965_sysfs_entries[] = {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	&dev_attr_debug_level.attr,
 #endif
+	&dev_attr_version.attr,
 
 	NULL
 };
