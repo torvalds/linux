@@ -79,7 +79,7 @@ int smsdvb_onresponse(void *context, smscore_buffer_t *cb)
 	return 0;
 }
 
-void smsdvb_unregister_client(smsdvb_client_t* client)
+void smsdvb_unregister_client(smsdvb_client_t *client)
 {
 	// must be called under clientslock
 
@@ -136,7 +136,9 @@ static int smsdvb_stop_feed(struct dvb_demux_feed *feed)
 	return smsclient_sendrequest(client->smsclient, &PidMsg, sizeof(PidMsg));
 }
 
-static int smsdvb_sendrequest_and_wait(smsdvb_client_t *client, void* buffer, size_t size, struct completion *completion)
+static int smsdvb_sendrequest_and_wait(smsdvb_client_t *client,
+					void *buffer, size_t size,
+					struct completion *completion)
 {
 	int rc = smsclient_sendrequest(client->smsclient, buffer, size);
 	if (rc < 0)
@@ -283,10 +285,11 @@ static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.read_snr = smsdvb_read_snr,
 };
 
-int smsdvb_hotplug(smscore_device_t *coredev, struct device* device, int arrival)
+int smsdvb_hotplug(smscore_device_t *coredev, struct device *device,
+		    int arrival)
 {
 	smsclient_params_t params;
-	smsdvb_client_t* client;
+	smsdvb_client_t *client;
 	int rc;
 
 	// device removal handled by onremove callback

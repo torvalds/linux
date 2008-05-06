@@ -44,7 +44,7 @@ typedef struct _smsusb_urb
 
 typedef struct _smsusb_device
 {
-	struct usb_device* udev;
+	struct usb_device *udev;
 	smscore_device_t *coredev;
 
 	smsusb_urb_t 	surbs[MAX_URBS];
@@ -53,7 +53,7 @@ typedef struct _smsusb_device
 	int				buffer_size;
 } *psmsusb_device_t;
 
-int smsusb_submit_urb(smsusb_device_t* dev, smsusb_urb_t* surb);
+int smsusb_submit_urb(smsusb_device_t *dev, smsusb_urb_t *surb);
 
 void smsusb_onresponse(struct urb *urb)
 {
@@ -104,7 +104,7 @@ exit_and_resubmit:
 	smsusb_submit_urb(dev, surb);
 }
 
-int smsusb_submit_urb(smsusb_device_t* dev, smsusb_urb_t* surb)
+int smsusb_submit_urb(smsusb_device_t *dev, smsusb_urb_t *surb)
 {
 	if (!surb->cb)
 	{
@@ -131,7 +131,7 @@ int smsusb_submit_urb(smsusb_device_t* dev, smsusb_urb_t* surb)
 	return usb_submit_urb(&surb->urb, GFP_ATOMIC);
 }
 
-void smsusb_stop_streaming(smsusb_device_t* dev)
+void smsusb_stop_streaming(smsusb_device_t *dev)
 {
 	int i;
 
@@ -147,7 +147,7 @@ void smsusb_stop_streaming(smsusb_device_t* dev)
 	}
 }
 
-int smsusb_start_streaming(smsusb_device_t* dev)
+int smsusb_start_streaming(smsusb_device_t *dev)
 {
 	int i, rc;
 
@@ -167,7 +167,7 @@ int smsusb_start_streaming(smsusb_device_t* dev)
 
 int smsusb_sendrequest(void *context, void *buffer, size_t size)
 {
-	smsusb_device_t* dev = (smsusb_device_t*) context;
+	smsusb_device_t *dev = (smsusb_device_t *) context;
 	int dummy;
 
 	return usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, 2), buffer, size, &dummy, 1000);
@@ -185,7 +185,7 @@ char *smsusb1_fw_lkup[] =
 int smsusb1_load_firmware(struct usb_device *udev, int id)
 {
 	const struct firmware *fw;
-	u8* fw_buffer;
+	u8 *fw_buffer;
 	int rc, dummy;
 
 	if (id < DEVICE_MODE_DVBT || id > DEVICE_MODE_DVBT_BDA)
@@ -285,7 +285,7 @@ void smsusb_term_device(struct usb_interface *intf)
 int smsusb_init_device(struct usb_interface *intf)
 {
 	smsdevice_params_t params;
-	smsusb_device_t* dev;
+	smsusb_device_t *dev;
 	int i, rc;
 
 	// create device object

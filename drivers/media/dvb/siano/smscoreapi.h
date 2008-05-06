@@ -503,19 +503,23 @@ extern int smscore_register_device(smsdevice_params_t *params, smscore_device_t 
 extern void smscore_unregister_device(smscore_device_t *coredev);
 
 extern int smscore_start_device(smscore_device_t *coredev);
-extern int smscore_load_firmware(smscore_device_t *coredev, char* filename, loadfirmware_t loadfirmware_handler);
+extern int smscore_load_firmware(smscore_device_t *coredev, char *filename,
+				  loadfirmware_t loadfirmware_handler);
 
 extern int smscore_set_device_mode(smscore_device_t *coredev, int mode);
 extern int smscore_get_device_mode(smscore_device_t *coredev);
 
-extern int smscore_register_client(smscore_device_t *coredev, smsclient_params_t* params, smscore_client_t **client);
+extern int smscore_register_client(smscore_device_t *coredev,
+				    smsclient_params_t *params,
+				    smscore_client_t **client);
 extern void smscore_unregister_client(smscore_client_t *client);
 
 extern int smsclient_sendrequest(smscore_client_t *client, void *buffer, size_t size);
 extern void smscore_onresponse(smscore_device_t *coredev, smscore_buffer_t *cb);
 
 extern int smscore_get_common_buffer_size(smscore_device_t *coredev);
-extern int smscore_map_common_buffer(smscore_device_t *coredev, struct vm_area_struct * vma);
+extern int smscore_map_common_buffer(smscore_device_t *coredev,
+				      struct vm_area_struct *vma);
 
 extern smscore_buffer_t *smscore_getbuffer(smscore_device_t *coredev);
 extern void smscore_putbuffer(smscore_device_t *coredev, smscore_buffer_t *cb);

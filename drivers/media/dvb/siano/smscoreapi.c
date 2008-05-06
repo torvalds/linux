@@ -112,7 +112,7 @@ static int default_mode = 1;
 module_param(default_mode, int, 0644);
 MODULE_PARM_DESC(default_mode, "default firmware id (device mode)");
 
-int smscore_registry_getmode(char* devpath)
+int smscore_registry_getmode(char *devpath)
 {
 	smscore_registry_entry_t *entry;
 	struct list_head *next;
@@ -144,7 +144,7 @@ int smscore_registry_getmode(char* devpath)
 	return default_mode;
 }
 
-void smscore_registry_setmode(char* devpath, int mode)
+void smscore_registry_setmode(char *devpath, int mode)
 {
 	smscore_registry_entry_t *entry;
 	struct list_head *next;
@@ -166,7 +166,8 @@ void smscore_registry_setmode(char* devpath, int mode)
 }
 
 
-void list_add_locked(struct list_head *new, struct list_head *head, spinlock_t* lock)
+void list_add_locked(struct list_head *new, struct list_head *head,
+		      spinlock_t *lock)
 {
 	unsigned long flags;
 
@@ -251,7 +252,7 @@ void smscore_unregister_hotplug(hotplug_t hotplug)
 
 void smscore_notify_clients(smscore_device_t *coredev)
 {
-	smscore_client_t* client;
+	smscore_client_t *client;
 
 	// the client must call smscore_unregister_client from remove handler
 	while (!list_empty(&coredev->clients))
@@ -280,7 +281,8 @@ int smscore_notify_callbacks(smscore_device_t *coredev, struct device *device, i
 	return rc;
 }
 
-smscore_buffer_t *smscore_createbuffer(u8* buffer, void* common_buffer, dma_addr_t common_buffer_phys)
+smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
+				       dma_addr_t common_buffer_phys)
 {
 	smscore_buffer_t *cb = kmalloc(sizeof(smscore_buffer_t), GFP_KERNEL);
 	if (!cb)
@@ -307,7 +309,7 @@ smscore_buffer_t *smscore_createbuffer(u8* buffer, void* common_buffer, dma_addr
  */
 int smscore_register_device(smsdevice_params_t *params, smscore_device_t **coredev)
 {
-	smscore_device_t* dev;
+	smscore_device_t *dev;
 	u8 *buffer;
 
 	dev = kzalloc(sizeof(smscore_device_t), GFP_KERNEL);
@@ -409,7 +411,8 @@ int smscore_start_device(smscore_device_t *coredev)
 	return rc;
 }
 
-int smscore_sendrequest_and_wait(smscore_device_t *coredev, void* buffer, size_t size, struct completion *completion)
+int smscore_sendrequest_and_wait(smscore_device_t *coredev, void *buffer,
+				  size_t size, struct completion *completion)
 {
 	int rc = coredev->sendrequest_handler(coredev->context, buffer, size);
 	if (rc < 0)
@@ -423,7 +426,7 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer, size_
 	SmsFirmware_ST* firmware = (SmsFirmware_ST*) buffer;
 	SmsMsgHdr_ST *msg;
 	UINT32 mem_address = firmware->StartAddress;
-	u8* payload = firmware->Payload;
+	u8 *payload = firmware->Payload;
 	int rc = 0;
 
 	if (coredev->preload_handler)
@@ -513,12 +516,13 @@ int smscore_load_firmware_family2(smscore_device_t *coredev, void *buffer, size_
  *
  * @return 0 on success, <0 on error.
  */
-int smscore_load_firmware(smscore_device_t *coredev, char* filename, loadfirmware_t loadfirmware_handler)
+int smscore_load_firmware(smscore_device_t *coredev, char *filename,
+			   loadfirmware_t loadfirmware_handler)
 {
 	int rc = -ENOENT;
 
 	const struct firmware *fw;
-	u8* fw_buffer;
+	u8 *fw_buffer;
 
 	if (loadfirmware_handler == NULL && !(coredev->device_flags & SMS_DEVICE_FAMILY2))
 		return -EINVAL;
@@ -739,7 +743,8 @@ int smscore_get_device_mode(smscore_device_t *coredev)
 	return coredev->mode;
 }
 
-smscore_client_t* smscore_getclient_by_type(smscore_device_t *coredev, int data_type)
+smscore_client_t *smscore_getclient_by_type(smscore_device_t *coredev,
+					     int data_type)
 {
 	smscore_client_t *client = NULL;
 	struct list_head *next, *first;
@@ -766,7 +771,7 @@ smscore_client_t* smscore_getclient_by_type(smscore_device_t *coredev, int data_
 	return client;
 }
 
-smscore_client_t* smscore_getclient_by_id(smscore_device_t *coredev, int id)
+smscore_client_t *smscore_getclient_by_id(smscore_device_t *coredev, int id)
 {
 	smscore_client_t *client = NULL;
 	struct list_head *next, *first;
@@ -801,7 +806,8 @@ smscore_client_t* smscore_getclient_by_id(smscore_device_t *coredev, int id)
 void smscore_onresponse(smscore_device_t *coredev, smscore_buffer_t *cb)
 {
 	SmsMsgHdr_ST *phdr = (SmsMsgHdr_ST *)((u8*) cb->p + cb->offset);
-	smscore_client_t * client = smscore_getclient_by_type(coredev, phdr->msgType);
+	smscore_client_t *client = smscore_getclient_by_type(coredev,
+							     phdr->msgType);
 	int rc = -EBUSY;
 
 	static unsigned long last_sample_time = 0;
@@ -957,7 +963,7 @@ int smscore_validate_client(smscore_device_t *coredev, smscore_client_t *client,
  */
 int smscore_register_client(smscore_device_t *coredev, smsclient_params_t *params, smscore_client_t **client)
 {
-	smscore_client_t* newclient;
+	smscore_client_t *newclient;
 	int rc;
 
 	// check that no other channel with same data type exists
@@ -1039,7 +1045,7 @@ void smscore_unregister_client(smscore_client_t *client)
  */
 int smsclient_sendrequest(smscore_client_t *client, void *buffer, size_t size)
 {
-	smscore_device_t* coredev = client->coredev;
+	smscore_device_t *coredev = client->coredev;
 	SmsMsgHdr_ST* phdr = (SmsMsgHdr_ST*) buffer;
 
 	// check that no other channel with same id exists
@@ -1070,7 +1076,8 @@ int smscore_get_common_buffer_size(smscore_device_t *coredev)
  *
  * @return 0 on success, <0 on error.
  */
-int smscore_map_common_buffer(smscore_device_t *coredev, struct vm_area_struct * vma)
+int smscore_map_common_buffer(smscore_device_t *coredev,
+			       struct vm_area_struct *vma)
 {
 	unsigned long end = vma->vm_end, start = vma->vm_start, size = PAGE_ALIGN(coredev->common_buffer_size);
 
