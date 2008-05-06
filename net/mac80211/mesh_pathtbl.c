@@ -164,13 +164,19 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 		err = -ENOMEM;
 		goto endadd2;
 	}
+	new_node = kmalloc(sizeof(struct mpath_node), GFP_KERNEL);
+	if (!new_node) {
+		kfree(new_mpath);
+		atomic_dec(&sdata->u.sta.mpaths);
+		err = -ENOMEM;
+		goto endadd2;
+	}
 
 	read_lock(&pathtbl_resize_lock);
 	memcpy(new_mpath->dst, dst, ETH_ALEN);
 	new_mpath->dev = dev;
 	new_mpath->flags = 0;
 	skb_queue_head_init(&new_mpath->frame_queue);
-	new_node = kmalloc(sizeof(struct mpath_node), GFP_KERNEL);
 	new_node->mpath = new_mpath;
 	new_mpath->timer.data = (unsigned long) new_mpath;
 	new_mpath->timer.function = mesh_path_timer;
