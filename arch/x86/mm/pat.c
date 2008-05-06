@@ -42,6 +42,19 @@ static int nopat(char *str)
 early_param("nopat", nopat);
 #endif
 
+
+static int debug_enable;
+static int __init pat_debug_setup(char *str)
+{
+	debug_enable = 1;
+	return 0;
+}
+__setup("debugpat", pat_debug_setup);
+
+#define dprintk(fmt, arg...) \
+	do { if (debug_enable) printk(KERN_INFO fmt, ##arg); } while (0)
+
+
 static u64 __read_mostly boot_pat_state;
 
 enum {
@@ -279,7 +292,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		struct memtype *saved_ptr;
 
 		if (parse->start >= end) {
-			pr_debug("New Entry\n");
+			dprintk("New Entry\n");
 			list_add(&new_entry->nd, parse->nd.prev);
 			new_entry = NULL;
 			break;
@@ -329,7 +342,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				break;
 			}
 
-			pr_debug("Overlap at 0x%Lx-0x%Lx\n",
+			dprintk("Overlap at 0x%Lx-0x%Lx\n",
 			       saved_ptr->start, saved_ptr->end);
 			/* No conflict. Go ahead and add this new entry */
 			list_add(&new_entry->nd, saved_ptr->nd.prev);
@@ -381,7 +394,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				break;
 			}
 
-			pr_debug(KERN_INFO "Overlap at 0x%Lx-0x%Lx\n",
+			dprintk("Overlap at 0x%Lx-0x%Lx\n",
 				 saved_ptr->start, saved_ptr->end);
 			/* No conflict. Go ahead and add this new entry */
 			list_add(&new_entry->nd, &saved_ptr->nd);
@@ -403,16 +416,16 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	if (new_entry) {
 		/* No conflict. Not yet added to the list. Add to the tail */
 		list_add_tail(&new_entry->nd, &memtype_list);
-		pr_debug("New Entry\n");
+		dprintk("New Entry\n");
 	}
 
 	if (ret_type) {
-		pr_debug(
+		dprintk(
 	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s, ret %s\n",
 			start, end, cattr_name(actual_type),
 			cattr_name(req_type), cattr_name(*ret_type));
 	} else {
-		pr_debug(
+		dprintk(
 	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s\n",
 			start, end, cattr_name(actual_type),
 			cattr_name(req_type));
@@ -453,7 +466,7 @@ int free_memtype(u64 start, u64 end)
 			current->comm, current->pid, start, end);
 	}
 
-	pr_debug("free_memtype request 0x%Lx-0x%Lx\n", start, end);
+	dprintk("free_memtype request 0x%Lx-0x%Lx\n", start, end);
 	return err;
 }
 
