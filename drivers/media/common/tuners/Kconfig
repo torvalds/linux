@@ -142,6 +142,7 @@ config MEDIA_TUNER_XC2028
 config MEDIA_TUNER_XC5000
 	tristate "Xceive XC5000 silicon tuner"
 	depends on I2C
+	select FW_LOADER
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A driver for the silicon tuner XC5000 from Xceive.
