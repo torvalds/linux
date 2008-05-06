@@ -23,6 +23,105 @@
 #include <asm/prom.h>
 #include <asm/dcr.h>
 
+static struct device_node *find_dcr_parent(struct device_node *node)
+{
+	struct device_node *par, *tmp;
+	const u32 *p;
+
+	for (par = of_node_get(node); par;) {
+		if (of_get_property(par, "dcr-controller", NULL))
+			break;
+		p = of_get_property(par, "dcr-parent", NULL);
+		tmp = par;
+		if (p == NULL)
+			par = of_get_parent(par);
+		else
+			par = of_find_node_by_phandle(*p);
+		of_node_put(tmp);
+	}
+	return par;
+}
+
+#if defined(CONFIG_PPC_DCR_NATIVE) && defined(CONFIG_PPC_DCR_MMIO)
+
+bool dcr_map_ok_generic(dcr_host_t host)
+{
+	if (host.type == DCR_HOST_NATIVE)
+		return dcr_map_ok_native(host.host.native);
+	else if (host.type == DCR_HOST_MMIO)
+		return dcr_map_ok_mmio(host.host.mmio);
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(dcr_map_ok_generic);
+
+dcr_host_t dcr_map_generic(struct device_node *dev,
+			   unsigned int dcr_n,
+			   unsigned int dcr_c)
+{
+	dcr_host_t host;
+	struct device_node *dp;
+	const char *prop;
+
+	host.type = DCR_HOST_INVALID;
+
+	dp = find_dcr_parent(dev);
+	if (dp == NULL)
+		return host;
+
+	prop = of_get_property(dp, "dcr-access-method", NULL);
+
+	pr_debug("dcr_map_generic(dcr-access-method = %s)\n", prop);
+
+	if (!strcmp(prop, "native")) {
+		host.type = DCR_HOST_NATIVE;
+		host.host.native = dcr_map_native(dev, dcr_n, dcr_c);
+	} else if (!strcmp(prop, "mmio")) {
+		host.type = DCR_HOST_MMIO;
+		host.host.mmio = dcr_map_mmio(dev, dcr_n, dcr_c);
+	}
+
+	of_node_put(dp);
+	return host;
+}
+EXPORT_SYMBOL_GPL(dcr_map_generic);
+
+void dcr_unmap_generic(dcr_host_t host, unsigned int dcr_c)
+{
+	if (host.type == DCR_HOST_NATIVE)
+		dcr_unmap_native(host.host.native, dcr_c);
+	else if (host.type == DCR_HOST_MMIO)
+		dcr_unmap_mmio(host.host.mmio, dcr_c);
+	else /* host.type == DCR_HOST_INVALID */
+		WARN_ON(true);
+}
+EXPORT_SYMBOL_GPL(dcr_unmap_generic);
+
+u32 dcr_read_generic(dcr_host_t host, unsigned int dcr_n)
+{
+	if (host.type == DCR_HOST_NATIVE)
+		return dcr_read_native(host.host.native, dcr_n);
+	else if (host.type == DCR_HOST_MMIO)
+		return dcr_read_mmio(host.host.mmio, dcr_n);
+	else /* host.type == DCR_HOST_INVALID */
+		WARN_ON(true);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dcr_read_generic);
+
+void dcr_write_generic(dcr_host_t host, unsigned int dcr_n, u32 value)
+{
+	if (host.type == DCR_HOST_NATIVE)
+		dcr_write_native(host.host.native, dcr_n, value);
+	else if (host.type == DCR_HOST_MMIO)
+		dcr_write_mmio(host.host.mmio, dcr_n, value);
+	else /* host.type == DCR_HOST_INVALID */
+		WARN_ON(true);
+}
+EXPORT_SYMBOL_GPL(dcr_write_generic);
+
+#endif /* defined(CONFIG_PPC_DCR_NATIVE) && defined(CONFIG_PPC_DCR_MMIO) */
+
 unsigned int dcr_resource_start(struct device_node *np, unsigned int index)
 {
 	unsigned int ds;
@@ -47,26 +146,7 @@ unsigned int dcr_resource_len(struct device_node *np, unsigned int index)
 }
 EXPORT_SYMBOL_GPL(dcr_resource_len);
 
-#ifndef CONFIG_PPC_DCR_NATIVE
-
-static struct device_node * find_dcr_parent(struct device_node * node)
-{
-	struct device_node *par, *tmp;
-	const u32 *p;
-
-	for (par = of_node_get(node); par;) {
-		if (of_get_property(par, "dcr-controller", NULL))
-			break;
-		p = of_get_property(par, "dcr-parent", NULL);
-		tmp = par;
-		if (p == NULL)
-			par = of_get_parent(par);
-		else
-			par = of_find_node_by_phandle(*p);
-		of_node_put(tmp);
-	}
-	return par;
-}
+#ifdef CONFIG_PPC_DCR_MMIO
 
 u64 of_translate_dcr_address(struct device_node *dev,
 			     unsigned int dcr_n,
@@ -75,7 +155,7 @@ u64 of_translate_dcr_address(struct device_node *dev,
 	struct device_node *dp;
 	const u32 *p;
 	unsigned int stride;
-	u64 ret;
+	u64 ret = OF_BAD_ADDR;
 
 	dp = find_dcr_parent(dev);
 	if (dp == NULL)
@@ -90,7 +170,7 @@ u64 of_translate_dcr_address(struct device_node *dev,
 	if (p == NULL)
 		p = of_get_property(dp, "dcr-mmio-space", NULL);
 	if (p == NULL)
-		return OF_BAD_ADDR;
+		goto done;
 
 	/* Maybe could do some better range checking here */
 	ret = of_translate_address(dp, p);
@@ -98,21 +178,25 @@ u64 of_translate_dcr_address(struct device_node *dev,
 		ret += (u64)(stride) * (u64)dcr_n;
 	if (out_stride)
 		*out_stride = stride;
+
+ done:
+	of_node_put(dp);
 	return ret;
 }
 
-dcr_host_t dcr_map(struct device_node *dev, unsigned int dcr_n,
-		   unsigned int dcr_c)
+dcr_host_mmio_t dcr_map_mmio(struct device_node *dev,
+			     unsigned int dcr_n,
+			     unsigned int dcr_c)
 {
-	dcr_host_t ret = { .token = NULL, .stride = 0, .base = dcr_n };
+	dcr_host_mmio_t ret = { .token = NULL, .stride = 0, .base = dcr_n };
 	u64 addr;
 
 	pr_debug("dcr_map(%s, 0x%x, 0x%x)\n",
 		 dev->full_name, dcr_n, dcr_c);
 
 	addr = of_translate_dcr_address(dev, dcr_n, &ret.stride);
-	pr_debug("translates to addr: 0x%lx, stride: 0x%x\n",
-		 addr, ret.stride);
+	pr_debug("translates to addr: 0x%llx, stride: 0x%x\n",
+		 (unsigned long long) addr, ret.stride);
 	if (addr == OF_BAD_ADDR)
 		return ret;
 	pr_debug("mapping 0x%x bytes\n", dcr_c * ret.stride);
@@ -124,11 +208,11 @@ dcr_host_t dcr_map(struct device_node *dev, unsigned int dcr_n,
 	ret.token -= dcr_n * ret.stride;
 	return ret;
 }
-EXPORT_SYMBOL_GPL(dcr_map);
+EXPORT_SYMBOL_GPL(dcr_map_mmio);
 
-void dcr_unmap(dcr_host_t host, unsigned int dcr_c)
+void dcr_unmap_mmio(dcr_host_mmio_t host, unsigned int dcr_c)
 {
-	dcr_host_t h = host;
+	dcr_host_mmio_t h = host;
 
 	if (h.token == NULL)
 		return;
@@ -136,7 +220,11 @@ void dcr_unmap(dcr_host_t host, unsigned int dcr_c)
 	iounmap(h.token);
 	h.token = NULL;
 }
-EXPORT_SYMBOL_GPL(dcr_unmap);
-#else	/* defined(CONFIG_PPC_DCR_NATIVE) */
+EXPORT_SYMBOL_GPL(dcr_unmap_mmio);
+
+#endif /* defined(CONFIG_PPC_DCR_MMIO) */
+
+#ifdef CONFIG_PPC_DCR_NATIVE
 DEFINE_SPINLOCK(dcr_ind_lock);
-#endif	/* !defined(CONFIG_PPC_DCR_NATIVE) */
+#endif	/* defined(CONFIG_PPC_DCR_NATIVE) */
+
