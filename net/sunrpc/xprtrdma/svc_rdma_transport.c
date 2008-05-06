@@ -292,7 +292,6 @@ static void rq_cq_reap(struct svcxprt_rdma *xprt)
 	ib_req_notify_cq(xprt->sc_rq_cq, IB_CQ_NEXT_COMP);
 	atomic_inc(&rdma_stat_rq_poll);
 
-	spin_lock_bh(&xprt->sc_rq_dto_lock);
 	while ((ret = ib_poll_cq(xprt->sc_rq_cq, 1, &wc)) > 0) {
 		ctxt = (struct svc_rdma_op_ctxt *)(unsigned long)wc.wr_id;
 		ctxt->wc_status = wc.status;
@@ -303,9 +302,10 @@ static void rq_cq_reap(struct svcxprt_rdma *xprt)
 			svc_rdma_put_context(ctxt, 1);
 			continue;
 		}
+		spin_lock_bh(&xprt->sc_rq_dto_lock);
 		list_add_tail(&ctxt->dto_q, &xprt->sc_rq_dto_q);
+		spin_unlock_bh(&xprt->sc_rq_dto_lock);
 	}
-	spin_unlock_bh(&xprt->sc_rq_dto_lock);
 
 	if (ctxt)
 		atomic_inc(&rdma_stat_rq_prod);
