@@ -30,7 +30,6 @@
 #define __iwl_debug_h__
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-extern u32 iwl_debug_level;
 #define IWL_DEBUG(level, fmt, args...) \
 do { if (priv->debug_level & (level)) \
   dev_printk(KERN_ERR, &(priv->hw->wiphy->dev), "%c %s " fmt, \

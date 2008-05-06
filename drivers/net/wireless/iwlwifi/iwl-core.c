@@ -46,11 +46,6 @@ MODULE_VERSION(IWLWIFI_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-u32 iwl_debug_level;
-EXPORT_SYMBOL(iwl_debug_level);
-#endif
-
 #define IWL_DECLARE_RATE_INFO(r, s, ip, in, rp, rn, pp, np)    \
 	[IWL_RATE_##r##M_INDEX] = { IWL_RATE_##r##M_PLCP,      \
 				    IWL_RATE_SISO_##s##M_PLCP, \

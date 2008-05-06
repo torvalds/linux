@@ -5963,13 +5963,18 @@ static int iwl4965_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *sk
  * See the level definitions in iwl for details.
  */
 
-static ssize_t show_debug_level(struct device_driver *d, char *buf)
+static ssize_t show_debug_level(struct device *d,
+				struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%08X\n", iwl_debug_level);
+	struct iwl_priv *priv = d->driver_data;
+
+	return sprintf(buf, "0x%08X\n", priv->debug_level);
 }
-static ssize_t store_debug_level(struct device_driver *d,
+static ssize_t store_debug_level(struct device *d,
+				struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
+	struct iwl_priv *priv = d->driver_data;
 	char *p = (char *)buf;
 	u32 val;
 
@@ -5978,13 +5983,14 @@ static ssize_t store_debug_level(struct device_driver *d,
 		printk(KERN_INFO DRV_NAME
 		       ": %s is not in hex or decimal form.\n", buf);
 	else
-		iwl_debug_level = val;
+		priv->debug_level = val;
 
 	return strnlen(buf, count);
 }
 
-static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO,
-		   show_debug_level, store_debug_level);
+static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO,
+			show_debug_level, store_debug_level);
+
 
 #endif /* CONFIG_IWLWIFI_DEBUG */
 
@@ -6431,6 +6437,9 @@ static struct attribute *iwl4965_sysfs_entries[] = {
 	&dev_attr_status.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
+#ifdef CONFIG_IWLWIFI_DEBUG
+	&dev_attr_debug_level.attr,
+#endif
 
 	NULL
 };
@@ -6817,13 +6826,6 @@ static int __init iwl4965_init(void)
 		IWL_ERROR("Unable to initialize PCI module\n");
 		goto error_register;
 	}
-#ifdef CONFIG_IWLWIFI_DEBUG
-	ret = driver_create_file(&iwl_driver.driver, &driver_attr_debug_level);
-	if (ret) {
-		IWL_ERROR("Unable to create driver sysfs file\n");
-		goto error_debug;
-	}
-#endif
 
 	return ret;
 
@@ -6838,9 +6840,6 @@ error_register:
 
 static void __exit iwl4965_exit(void)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
-	driver_remove_file(&iwl_driver.driver, &driver_attr_debug_level);
-#endif
 	pci_unregister_driver(&iwl_driver);
 	iwl4965_rate_control_unregister();
 }
