@@ -401,12 +401,12 @@ static __be32 process_op(struct svc_rqst *rqstp,
  */
 static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *resp)
 {
-	struct cb_compound_hdr_arg hdr_arg;
-	struct cb_compound_hdr_res hdr_res;
+	struct cb_compound_hdr_arg hdr_arg = { 0 };
+	struct cb_compound_hdr_res hdr_res = { NULL };
 	struct xdr_stream xdr_in, xdr_out;
 	__be32 *p;
 	__be32 status;
-	unsigned int nops = 1;
+	unsigned int nops = 0;
 
 	dprintk("%s: start\n", __FUNCTION__);
 
@@ -415,20 +415,20 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 	p = (__be32*)((char *)rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len);
 	xdr_init_encode(&xdr_out, &rqstp->rq_res, p);
 
-	decode_compound_hdr_arg(&xdr_in, &hdr_arg);
+	status = decode_compound_hdr_arg(&xdr_in, &hdr_arg);
+	if (status == __constant_htonl(NFS4ERR_RESOURCE))
+		return rpc_garbage_args;
+
 	hdr_res.taglen = hdr_arg.taglen;
 	hdr_res.tag = hdr_arg.tag;
-	hdr_res.nops = NULL;
-	encode_compound_hdr_res(&xdr_out, &hdr_res);
+	if (encode_compound_hdr_res(&xdr_out, &hdr_res) != 0)
+		return rpc_system_err;
 
-	for (;;) {
+	while (status == 0 && nops != hdr_arg.nops) {
 		status = process_op(rqstp, &xdr_in, argp, &xdr_out, resp);
-		if (status != 0)
-			break;
-		if (nops == hdr_arg.nops)
-			break;
 		nops++;
 	}
+
 	*hdr_res.status = status;
 	*hdr_res.nops = htonl(nops);
 	dprintk("%s: done, status = %u\n", __FUNCTION__, ntohl(status));
