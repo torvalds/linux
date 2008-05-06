@@ -655,6 +655,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 {
 	struct iwch_cq *rchp, *schp;
 	int count;
+	int flushed;
 
 	rchp = get_chp(qhp->rhp, qhp->attr.rcq);
 	schp = get_chp(qhp->rhp, qhp->attr.scq);
@@ -669,20 +670,22 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&rchp->cq);
 	cxio_count_rcqes(&rchp->cq, &qhp->wq, &count);
-	cxio_flush_rq(&qhp->wq, &rchp->cq, count);
+	flushed = cxio_flush_rq(&qhp->wq, &rchp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&rchp->lock, *flag);
-	(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
+	if (flushed)
+		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
 
 	/* locking heirarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, *flag);
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&schp->cq);
 	cxio_count_scqes(&schp->cq, &qhp->wq, &count);
-	cxio_flush_sq(&qhp->wq, &schp->cq, count);
+	flushed = cxio_flush_sq(&qhp->wq, &schp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&schp->lock, *flag);
-	(*schp->ibcq.comp_handler)(&schp->ibcq, schp->ibcq.cq_context);
+	if (flushed)
+		(*schp->ibcq.comp_handler)(&schp->ibcq, schp->ibcq.cq_context);
 
 	/* deref */
 	if (atomic_dec_and_test(&qhp->refcnt))
@@ -880,7 +883,6 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 				ep = qhp->ep;
 				get_ep(&ep->com);
 			}
-			flush_qp(qhp, &flag);
 			break;
 		case IWCH_QP_STATE_TERMINATE:
 			qhp->attr.state = IWCH_QP_STATE_TERMINATE;
@@ -911,6 +913,7 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 		}
 		switch (attrs->next_state) {
 			case IWCH_QP_STATE_IDLE:
+				flush_qp(qhp, &flag);
 				qhp->attr.state = IWCH_QP_STATE_IDLE;
 				qhp->attr.llp_stream_handle = NULL;
 				put_ep(&qhp->ep->com);
