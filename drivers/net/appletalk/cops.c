@@ -499,19 +499,13 @@ static void cops_reset(struct net_device *dev, int sleep)
         {
                 outb(0, ioaddr+DAYNA_RESET);	/* Assert the reset port */
                 inb(ioaddr+DAYNA_RESET);	/* Clear the reset */
-                if(sleep)
-                {
-                        long snap=jiffies;
-
-			/* Let card finish initializing, about 1/3 second */
-			while (time_before(jiffies, snap + HZ/3))
-                                schedule();
-                }
-                else
-                        mdelay(333);
+		if (sleep)
+			msleep(333);
+		else
+			mdelay(333);
         }
+
 	netif_wake_queue(dev);
-	return;
 }
 
 static void cops_load (struct net_device *dev)
