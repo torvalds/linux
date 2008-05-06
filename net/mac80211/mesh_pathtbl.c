@@ -220,9 +220,10 @@ endadd:
 			return -ENOMEM;
 		}
 		rcu_assign_pointer(mesh_paths, newtbl);
+		write_unlock(&pathtbl_resize_lock);
+
 		synchronize_rcu();
 		mesh_table_free(oldtbl, false);
-		write_unlock(&pathtbl_resize_lock);
 	}
 endadd2:
 	return err;
