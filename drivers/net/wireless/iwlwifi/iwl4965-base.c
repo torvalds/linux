@@ -2715,8 +2715,8 @@ static void iwl4965_rx_spectrum_measure_notif(struct iwl_priv *priv,
 	struct iwl4965_spectrum_notification *report = &(pkt->u.spectrum_notif);
 
 	if (!report->state) {
-		IWL_DEBUG(IWL_DL_11H | IWL_DL_INFO,
-			  "Spectrum Measure Notification: Start\n");
+		IWL_DEBUG(IWL_DL_11H,
+			"Spectrum Measure Notification: Start\n");
 		return;
 	}
 
@@ -3100,7 +3100,7 @@ void iwl_rx_handle(struct iwl_priv *priv)
 
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
-		IWL_DEBUG(IWL_DL_RX | IWL_DL_ISR, "r = %d, i = %d\n", r, i);
+		IWL_DEBUG(IWL_DL_RX, "r = %d, i = %d\n", r, i);
 
 	if (iwl_rx_queue_space(rxq) > (RX_QUEUE_SIZE / 2))
 		fill_rx = 1;
@@ -3137,13 +3137,12 @@ void iwl_rx_handle(struct iwl_priv *priv)
 		 *   handle those that need handling via function in
 		 *   rx_handlers table.  See iwl4965_setup_rx_handlers() */
 		if (priv->rx_handlers[pkt->hdr.cmd]) {
-			IWL_DEBUG(IWL_DL_HOST_COMMAND | IWL_DL_RX | IWL_DL_ISR,
-				"r = %d, i = %d, %s, 0x%02x\n", r, i,
-				get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
+			IWL_DEBUG(IWL_DL_RX, "r = %d, i = %d, %s, 0x%02x\n", r,
+				i, get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
 			priv->rx_handlers[pkt->hdr.cmd] (priv, rxb);
 		} else {
 			/* No handling needed */
-			IWL_DEBUG(IWL_DL_HOST_COMMAND | IWL_DL_RX | IWL_DL_ISR,
+			IWL_DEBUG(IWL_DL_RX,
 				"r %d i %d No handler needed for %s, 0x%02x\n",
 				r, i, get_cmd_string(pkt->hdr.cmd),
 				pkt->hdr.cmd);
@@ -3562,7 +3561,7 @@ static void iwl4965_irq_handle_error(struct iwl_priv *priv)
 	clear_bit(STATUS_READY, &priv->status);
 
 	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		IWL_DEBUG(IWL_DL_INFO | IWL_DL_FW_ERRORS,
+		IWL_DEBUG(IWL_DL_FW_ERRORS,
 			  "Restarting adapter due to uCode error.\n");
 
 		if (iwl_is_associated(priv)) {
@@ -3670,8 +3669,7 @@ static void iwl4965_irq_tasklet(struct iwl_priv *priv)
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
 			hw_rf_kill = 1;
 
-		IWL_DEBUG(IWL_DL_INFO | IWL_DL_RF_KILL | IWL_DL_ISR,
-				"RF_KILL bit toggled to %s.\n",
+		IWL_DEBUG(IWL_DL_RF_KILL, "RF_KILL bit toggled to %s.\n",
 				hw_rf_kill ? "disable radio":"enable radio");
 
 		/* Queue restart only if RF_KILL switch was set to "kill"
@@ -4516,7 +4514,7 @@ static void iwl4965_bg_rf_kill(struct work_struct *work)
 	mutex_lock(&priv->mutex);
 
 	if (!iwl_is_rfkill(priv)) {
-		IWL_DEBUG(IWL_DL_INFO | IWL_DL_RF_KILL,
+		IWL_DEBUG(IWL_DL_RF_KILL,
 			  "HW and/or SW RF Kill no longer active, restarting "
 			  "device\n");
 		if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
@@ -4570,9 +4568,9 @@ static void iwl4965_bg_scan_check(struct work_struct *data)
 	mutex_lock(&priv->mutex);
 	if (test_bit(STATUS_SCANNING, &priv->status) ||
 	    test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
-		IWL_DEBUG(IWL_DL_INFO | IWL_DL_SCAN,
-			  "Scan completion watchdog resetting adapter (%dms)\n",
-			  jiffies_to_msecs(IWL_SCAN_CHECK_WATCHDOG));
+		IWL_DEBUG(IWL_DL_SCAN, "Scan completion watchdog resetting "
+			"adapter (%dms)\n",
+			jiffies_to_msecs(IWL_SCAN_CHECK_WATCHDOG));
 
 		if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
 			iwl4965_send_scan_abort(priv);
@@ -4973,7 +4971,7 @@ static void iwl4965_bg_scan_completed(struct work_struct *work)
 	struct iwl_priv *priv =
 	    container_of(work, struct iwl_priv, scan_completed);
 
-	IWL_DEBUG(IWL_DL_INFO | IWL_DL_SCAN, "SCAN complete scan\n");
+	IWL_DEBUG(IWL_DL_SCAN, "SCAN complete scan\n");
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
@@ -6830,7 +6828,6 @@ static int __init iwl4965_init(void)
 	return ret;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-error_debug:
 	pci_unregister_driver(&iwl_driver);
 #endif
 error_register:
