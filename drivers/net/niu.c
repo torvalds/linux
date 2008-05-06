@@ -1,6 +1,6 @@
 /* niu.c: Neptune ethernet driver.
  *
- * Copyright (C) 2007 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 2007, 2008 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/module.h>
@@ -33,8 +33,8 @@
 
 #define DRV_MODULE_NAME		"niu"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"0.8"
-#define DRV_MODULE_RELDATE	"April 24, 2008"
+#define DRV_MODULE_VERSION	"0.9"
+#define DRV_MODULE_RELDATE	"May 4, 2008"
 
 static char version[] __devinitdata =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
@@ -7264,8 +7264,11 @@ static int __devinit niu_get_and_validate_port(struct niu *np)
 				parent->num_ports = nr64(ESPC_NUM_PORTS_MACS) &
 					ESPC_NUM_PORTS_MACS_VAL;
 
+				/* All of the current probing methods fail on
+				 * Maramba on-board parts.
+				 */
 				if (!parent->num_ports)
-					return -ENODEV;
+					parent->num_ports = 4;
 			}
 		}
 	}
