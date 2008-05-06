@@ -49,8 +49,6 @@
 #define CIFS_PORT 445
 #define RFC1001_PORT 139
 
-static DECLARE_COMPLETION(cifsd_complete);
-
 extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,
 			 unsigned char *p24);
 
@@ -356,7 +354,6 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	atomic_inc(&tcpSesAllocCount);
 	length = tcpSesAllocCount.counter;
 	write_unlock(&GlobalSMBSeslock);
-	complete(&cifsd_complete);
 	if (length  > 1)
 		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
 				GFP_KERNEL);
@@ -1980,7 +1977,6 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				kfree(srvTcp->hostname);
 				goto out;
 			}
-			wait_for_completion(&cifsd_complete);
 			rc = 0;
 			memcpy(srvTcp->workstation_RFC1001_name,
 				volume_info.source_rfc1001_name, 16);
@@ -3553,8 +3549,6 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	cifs_sb->prepathlen = 0;
 	cifs_sb->prepath = NULL;
 	kfree(tmp);
-	if (ses)
-		schedule_timeout_interruptible(msecs_to_jiffies(500));
 	if (ses)
 		sesInfoFree(ses);
 
