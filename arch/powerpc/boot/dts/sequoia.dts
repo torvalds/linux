@@ -342,9 +342,14 @@
 			/* Outbound ranges, one memory and one IO,
 			 * later cannot be changed. Chip supports a second
 			 * IO range but we don't use it for now
+			 * From the 440EPx user manual:
+			 * PCI 1 Memory     1 8000 0000     1 BFFF FFFF     1GB
+			 * I/O              1 E800 0000     1 E800 FFFF     64KB
+			 * I/O              1 E880 0000     1 EBFF FFFF     56MB
 			 */
-			ranges = <02000000 0 80000000 1 80000000 0 10000000
-				01000000 0 00000000 1 e8000000 0 00100000>;
+			ranges = <02000000 0 80000000 1 80000000 0 40000000
+				01000000 0 00000000 1 e8000000 0 00010000
+				01000000 0 00000000 1 e8800000 0 03800000>;
 
 			/* Inbound 2GB range starting at 0 */
 			dma-ranges = <42000000 0 0 0 0 0 80000000>;
