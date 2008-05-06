@@ -1,6 +1,7 @@
 config VIDEO_PVRUSB2
 	tristate "Hauppauge WinTV-PVR USB2 support"
 	depends on VIDEO_V4L2 && I2C
+	depends on HOTPLUG	# due to FW_LOADER
 	select FW_LOADER
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM

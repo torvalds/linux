@@ -131,6 +131,7 @@ config MEDIA_TUNER_XC2028
 
 config MEDIA_TUNER_XC5000
 	tristate "Xceive XC5000 silicon tuner"
+	depends on HOTPLUG
 	select FW_LOADER
 	default m if DVB_FE_CUSTOMISE
 	help
