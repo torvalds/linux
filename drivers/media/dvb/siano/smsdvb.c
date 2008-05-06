@@ -32,12 +32,13 @@ kmutex_t g_smsdvb_clientslock;
 int smsdvb_onresponse(void *context, smscore_buffer_t *cb)
 {
 	smsdvb_client_t *client = (smsdvb_client_t *) context;
-	SmsMsgHdr_ST *phdr = (SmsMsgHdr_ST *)(((u8*) cb->p) + cb->offset);
+	SmsMsgHdr_ST *phdr = (SmsMsgHdr_ST *)(((u8 *) cb->p) + cb->offset);
 
 	switch(phdr->msgType)
 	{
 		case MSG_SMS_DVBT_BDA_DATA:
-			dvb_dmx_swfilter(&client->demux, (u8*)(phdr + 1), cb->size - sizeof(SmsMsgHdr_ST));
+			dvb_dmx_swfilter(&client->demux, (u8 *)(phdr + 1),
+					 cb->size - sizeof(SmsMsgHdr_ST));
 			break;
 
 		case MSG_SMS_RF_TUNE_RES:
@@ -46,7 +47,8 @@ int smsdvb_onresponse(void *context, smscore_buffer_t *cb)
 
 		case MSG_SMS_GET_STATISTICS_RES:
 		{
-			SmsMsgStatisticsInfo_ST* p = (SmsMsgStatisticsInfo_ST*)(phdr + 1);
+			SmsMsgStatisticsInfo_ST *p =
+				(SmsMsgStatisticsInfo_ST *)(phdr + 1);
 
 			if (p->Stat.IsDemodLocked)
 			{
@@ -97,7 +99,7 @@ void smsdvb_onremove(void *context)
 {
 	kmutex_lock(&g_smsdvb_clientslock);
 
-	smsdvb_unregister_client((smsdvb_client_t*) context);
+	smsdvb_unregister_client((smsdvb_client_t *) context);
 
 	kmutex_unlock(&g_smsdvb_clientslock);
 }
@@ -420,7 +422,7 @@ void smsdvb_unregister(void)
 	kmutex_lock(&g_smsdvb_clientslock);
 
 	while (!list_empty(&g_smsdvb_clients))
-		smsdvb_unregister_client((smsdvb_client_t*) g_smsdvb_clients.next);
+		smsdvb_unregister_client((smsdvb_client_t *) g_smsdvb_clients.next);
 
 	kmutex_unlock(&g_smsdvb_clientslock);
 

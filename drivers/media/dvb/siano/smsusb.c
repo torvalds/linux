@@ -86,7 +86,8 @@ void smsusb_onresponse(struct urb *urb)
 				}
 
 				// move buffer pointer and copy header to its new location
-				memcpy((char*) phdr + surb->cb->offset, phdr, sizeof(SmsMsgHdr_ST));
+				memcpy((char *) phdr + surb->cb->offset,
+				       phdr, sizeof(SmsMsgHdr_ST));
 			}
 			else
 				surb->cb->offset = 0;
@@ -264,7 +265,7 @@ int smsusb1_setmode(void *context, int mode)
 
 void smsusb_term_device(struct usb_interface *intf)
 {
-	smsusb_device_t *dev = (smsusb_device_t*) usb_get_intfdata(intf);
+	smsusb_device_t *dev = (smsusb_device_t *) usb_get_intfdata(intf);
 
 	if (dev)
 	{
