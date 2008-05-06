@@ -158,14 +158,14 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 	if (atomic_add_unless(&sdata->u.sta.mpaths, 1, MESH_MAX_MPATHS) == 0)
 		return -ENOSPC;
 
-	read_lock(&pathtbl_resize_lock);
-
 	new_mpath = kzalloc(sizeof(struct mesh_path), GFP_KERNEL);
 	if (!new_mpath) {
 		atomic_dec(&sdata->u.sta.mpaths);
 		err = -ENOMEM;
 		goto endadd2;
 	}
+
+	read_lock(&pathtbl_resize_lock);
 	memcpy(new_mpath->dst, dst, ETH_ALEN);
 	new_mpath->dev = dev;
 	new_mpath->flags = 0;
@@ -202,7 +202,6 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 
 endadd:
 	spin_unlock(&mesh_paths->hashwlock[hash_idx]);
-endadd2:
 	read_unlock(&pathtbl_resize_lock);
 	if (!err && grow) {
 		struct mesh_table *oldtbl, *newtbl;
@@ -219,6 +218,7 @@ endadd2:
 		mesh_table_free(oldtbl, false);
 		write_unlock(&pathtbl_resize_lock);
 	}
+endadd2:
 	return err;
 }
 
