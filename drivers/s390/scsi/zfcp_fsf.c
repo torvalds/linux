@@ -2005,6 +2005,7 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 		fc_host_supported_classes(shost) =
 				FC_COS_CLASS2 | FC_COS_CLASS3;
 		adapter->hydra_version = bottom->adapter_type;
+		adapter->timer_ticks = bottom->timer_interval;
 		if (fc_host_permanent_port_name(shost) == -1)
 			fc_host_permanent_port_name(shost) =
 				fc_host_port_name(shost);
@@ -3649,6 +3650,46 @@ zfcp_fsf_send_fcp_command_task_management(struct zfcp_adapter *adapter,
 	return fsf_req;
 }
 
+static void zfcp_fsf_update_lat(struct fsf_latency_record *lat_rec, u32 lat)
+{
+	lat_rec->sum += lat;
+	if (lat_rec->min > lat)
+		lat_rec->min = lat;
+	if (lat_rec->max < lat)
+		lat_rec->max = lat;
+}
+
+static void zfcp_fsf_req_latency(struct zfcp_fsf_req *fsf_req)
+{
+	struct fsf_qual_latency_info *lat_inf;
+	struct latency_cont *lat;
+	struct zfcp_unit *unit;
+	unsigned long flags;
+
+	lat_inf = &fsf_req->qtcb->prefix.prot_status_qual.latency_info;
+	unit = fsf_req->unit;
+
+	switch (fsf_req->qtcb->bottom.io.data_direction) {
+	case FSF_DATADIR_READ:
+		lat = &unit->latencies.read;
+		break;
+	case FSF_DATADIR_WRITE:
+		lat = &unit->latencies.write;
+		break;
+	case FSF_DATADIR_CMND:
+		lat = &unit->latencies.cmd;
+		break;
+	default:
+		return;
+	}
+
+	spin_lock_irqsave(&unit->latencies.lock, flags);
+	zfcp_fsf_update_lat(&lat->channel, lat_inf->channel_lat);
+	zfcp_fsf_update_lat(&lat->fabric, lat_inf->fabric_lat);
+	lat->counter++;
+	spin_unlock_irqrestore(&unit->latencies.lock, flags);
+}
+
 /*
  * function:    zfcp_fsf_send_fcp_command_handler
  *
@@ -3921,6 +3962,9 @@ zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
 			      zfcp_get_fcp_sns_info_ptr(fcp_rsp_iu),
 			      fcp_rsp_iu->fcp_sns_len);
 	}
+
+	if (fsf_req->adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA)
+		zfcp_fsf_req_latency(fsf_req);
 
 	/* check FCP_RSP_INFO */
 	if (unlikely(fcp_rsp_iu->validity.bits.fcp_rsp_len_valid)) {

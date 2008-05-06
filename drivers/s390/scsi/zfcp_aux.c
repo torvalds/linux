@@ -847,6 +847,14 @@ zfcp_unit_enqueue(struct zfcp_port *port, fcp_lun_t fcp_lun)
 	/* mark unit unusable as long as sysfs registration is not complete */
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
 
+	spin_lock_init(&unit->latencies.lock);
+	unit->latencies.write.channel.min = 0xFFFFFFFF;
+	unit->latencies.write.fabric.min = 0xFFFFFFFF;
+	unit->latencies.read.channel.min = 0xFFFFFFFF;
+	unit->latencies.read.fabric.min = 0xFFFFFFFF;
+	unit->latencies.cmd.channel.min = 0xFFFFFFFF;
+	unit->latencies.cmd.fabric.min = 0xFFFFFFFF;
+
 	if (device_register(&unit->sysfs_device)) {
 		kfree(unit);
 		return NULL;

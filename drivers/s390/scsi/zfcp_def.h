@@ -708,6 +708,24 @@ struct zfcp_erp_action {
 	struct timer_list timer;
 };
 
+struct fsf_latency_record {
+	u32 min;
+	u32 max;
+	u64 sum;
+};
+
+struct latency_cont {
+	struct fsf_latency_record channel;
+	struct fsf_latency_record fabric;
+	u64 counter;
+};
+
+struct zfcp_latencies {
+	struct latency_cont read;
+	struct latency_cont write;
+	struct latency_cont cmd;
+	spinlock_t lock;
+};
 
 struct zfcp_adapter {
 	struct list_head	list;              /* list of adapters */
@@ -723,6 +741,7 @@ struct zfcp_adapter {
 	u32			adapter_features;  /* FCP channel features */
 	u32			connection_features; /* host connection features */
         u32			hardware_version;  /* of FCP channel */
+	u16			timer_ticks;       /* time int for a tick */
 	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
 	struct list_head	port_list_head;	   /* remote port list */
 	struct list_head        port_remove_lh;    /* head of ports to be
@@ -822,6 +841,7 @@ struct zfcp_unit {
         struct scsi_device     *device;        /* scsi device struct pointer */
 	struct zfcp_erp_action erp_action;     /* pending error recovery */
         atomic_t               erp_counter;
+	struct zfcp_latencies	latencies;
 };
 
 /* FSF request */
