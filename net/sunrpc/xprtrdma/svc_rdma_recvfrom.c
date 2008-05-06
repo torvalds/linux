@@ -260,10 +260,15 @@ static int rdma_read_max_sge(struct svcxprt_rdma *xprt, int sge_count)
  * On our side, we need to read into a pagelist. The first page immediately
  * follows the RPC header.
  *
- * This function returns 1 to indicate success. The data is not yet in
+ * This function returns:
+ * 0 - No error and no read-list found.
+ *
+ * 1 - Successful read-list processing. The data is not yet in
  * the pagelist and therefore the RPC request must be deferred. The
  * I/O completion will enqueue the transport again and
  * svc_rdma_recvfrom will complete the request.
+ *
+ * <0 - Error processing/posting read-list.
  *
  * NOTE: The ctxt must not be touched after the last WR has been posted
  * because the I/O completion processing may occur on another
@@ -398,7 +403,7 @@ next_sge:
 			svc_rdma_put_context(head, 1);
 			head = ctxt;
 		}
-		return 0;
+		return err;
 	}
 
 	return 1;
@@ -532,12 +537,16 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 		goto close_out;
 	}
 
-	/* Read read-list data. If we would need to wait, defer
-	 * it. Not that in this case, we don't return the RQ credit
-	 * until after the read completes.
-	 */
-	if (rdma_read_xdr(rdma_xprt, rmsgp, rqstp, ctxt)) {
+	/* Read read-list data. */
+	ret = rdma_read_xdr(rdma_xprt, rmsgp, rqstp, ctxt);
+	if (ret > 0) {
+		/* read-list posted, defer until data received from client. */
 		svc_xprt_received(xprt);
+		return 0;
+	}
+	if (ret < 0) {
+		/* Post of read-list failed, free context. */
+		svc_rdma_put_context(ctxt, 1);
 		return 0;
 	}
 
