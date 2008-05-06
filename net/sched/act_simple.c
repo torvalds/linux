@@ -79,10 +79,14 @@ static int alloc_defdata(struct tcf_defact *d, char *defdata)
 	return 0;
 }
 
-static int realloc_defdata(struct tcf_defact *d, char *defdata)
+static void reset_policy(struct tcf_defact *d, char *defdata,
+			 struct tc_defact *p)
 {
-	kfree(d->tcfd_defdata);
-	return alloc_defdata(d, defdata);
+	spin_lock_bh(&d->tcf_lock);
+	d->tcf_action = p->action;
+	memset(d->tcfd_defdata, 0, SIMP_MAX_DATA);
+	strlcpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
+	spin_unlock_bh(&d->tcf_lock);
 }
 
 static const struct nla_policy simple_policy[TCA_DEF_MAX + 1] = {
@@ -129,6 +133,7 @@ static int tcf_simp_init(struct nlattr *nla, struct nlattr *est,
 			kfree(pc);
 			return ret;
 		}
+		d->tcf_action = parm->action;
 		ret = ACT_P_CREATED;
 	} else {
 		d = to_defact(pc);
@@ -136,12 +141,8 @@ static int tcf_simp_init(struct nlattr *nla, struct nlattr *est,
 			tcf_simp_release(d, bind);
 			return -EEXIST;
 		}
-		realloc_defdata(d, defdata);
+		reset_policy(d, defdata, parm);
 	}
-
-	spin_lock_bh(&d->tcf_lock);
-	d->tcf_action = parm->action;
-	spin_unlock_bh(&d->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
 		tcf_hash_insert(pc, &simp_hash_info);
