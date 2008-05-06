@@ -778,6 +778,68 @@ struct fc_function_template zfcp_transport_functions = {
 	.disable_target_scan = 1,
 };
 
+#define ZFCP_DEFINE_LATENCY_ATTR(_name) 				\
+static ssize_t								\
+zfcp_sysfs_unit_##_name##_latency_show(struct device *dev,		\
+				       struct device_attribute *attr,	\
+				       char *buf) {			\
+	struct scsi_device *sdev = to_scsi_device(dev);			\
+	struct zfcp_unit *unit = sdev->hostdata;			\
+	struct zfcp_latencies *lat = &unit->latencies;			\
+	struct zfcp_adapter *adapter = unit->port->adapter;		\
+	unsigned long flags;						\
+	unsigned long long fsum, fmin, fmax, csum, cmin, cmax, cc;	\
+									\
+	spin_lock_irqsave(&lat->lock, flags);				\
+	fsum = lat->_name.fabric.sum * adapter->timer_ticks;		\
+	fmin = lat->_name.fabric.min * adapter->timer_ticks;		\
+	fmax = lat->_name.fabric.max * adapter->timer_ticks;		\
+	csum = lat->_name.channel.sum * adapter->timer_ticks;		\
+	cmin = lat->_name.channel.min * adapter->timer_ticks;		\
+	cmax = lat->_name.channel.max * adapter->timer_ticks;		\
+	cc  = lat->_name.counter;					\
+	spin_unlock_irqrestore(&lat->lock, flags);			\
+									\
+	do_div(fsum, 1000);						\
+	do_div(fmin, 1000);						\
+	do_div(fmax, 1000);						\
+	do_div(csum, 1000);						\
+	do_div(cmin, 1000);						\
+	do_div(cmax, 1000);						\
+									\
+	return sprintf(buf, "%llu %llu %llu %llu %llu %llu %llu\n",	\
+		       fmin, fmax, fsum, cmin, cmax, csum, cc); 	\
+}									\
+static ssize_t								\
+zfcp_sysfs_unit_##_name##_latency_store(struct device *dev,		\
+					struct device_attribute *attr,	\
+					const char *buf, size_t count)	\
+{									\
+	struct scsi_device *sdev = to_scsi_device(dev);			\
+	struct zfcp_unit *unit = sdev->hostdata;			\
+	struct zfcp_latencies *lat = &unit->latencies;			\
+	unsigned long flags;						\
+									\
+	spin_lock_irqsave(&lat->lock, flags);				\
+	lat->_name.fabric.sum = 0;					\
+	lat->_name.fabric.min = 0xFFFFFFFF;				\
+	lat->_name.fabric.max = 0;					\
+	lat->_name.channel.sum = 0;					\
+	lat->_name.channel.min = 0xFFFFFFFF;				\
+	lat->_name.channel.max = 0;					\
+	lat->_name.counter = 0;						\
+	spin_unlock_irqrestore(&lat->lock, flags);			\
+									\
+	return (ssize_t) count;						\
+}									\
+static DEVICE_ATTR(_name##_latency, S_IWUSR | S_IRUGO,			\
+		   zfcp_sysfs_unit_##_name##_latency_show,		\
+		   zfcp_sysfs_unit_##_name##_latency_store);
+
+ZFCP_DEFINE_LATENCY_ATTR(read);
+ZFCP_DEFINE_LATENCY_ATTR(write);
+ZFCP_DEFINE_LATENCY_ATTR(cmd);
+
 /**
  * ZFCP_DEFINE_SCSI_ATTR
  * @_name:   name of show attribute
@@ -808,6 +870,9 @@ static struct device_attribute *zfcp_sysfs_sdev_attrs[] = {
 	&dev_attr_fcp_lun,
 	&dev_attr_wwpn,
 	&dev_attr_hba_id,
+	&dev_attr_read_latency,
+	&dev_attr_write_latency,
+	&dev_attr_cmd_latency,
 	NULL
 };
 
