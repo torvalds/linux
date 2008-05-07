@@ -1213,11 +1213,6 @@ struct input_handle {
 	struct list_head	h_node;
 };
 
-#define to_dev(n) container_of(n, struct input_dev, node)
-#define to_handler(n) container_of(n, struct input_handler, node)
-#define to_handle(n) container_of(n, struct input_handle, d_node)
-#define to_handle_h(n) container_of(n, struct input_handle, h_node)
-
 struct input_dev *input_allocate_device(void);
 void input_free_device(struct input_dev *dev);
 
