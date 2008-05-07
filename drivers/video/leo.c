@@ -601,7 +601,7 @@ static int __devinit leo_probe(struct of_device *op, const struct of_device_id *
 	leo_init_wids(info);
 	leo_init_hw(info);
 
-	leo_blank(0, info);
+	leo_blank(FB_BLANK_UNBLANK, info);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0))
 		goto out_unmap_regs;

@@ -771,6 +771,9 @@ static void __init find_ramdisk(unsigned long phys_base)
 		initrd_end = ramdisk_image + sparc_ramdisk_size;
 
 		lmb_reserve(initrd_start, initrd_end);
+
+		initrd_start += PAGE_OFFSET;
+		initrd_end += PAGE_OFFSET;
 	}
 #endif
 }
@@ -2362,16 +2365,3 @@ void __flush_tlb_all(void)
 	__asm__ __volatile__("wrpr	%0, 0, %%pstate"
 			     : : "r" (pstate));
 }
-
-#ifdef CONFIG_MEMORY_HOTPLUG
-
-void online_page(struct page *page)
-{
-	ClearPageReserved(page);
-	init_page_count(page);
-	__free_page(page);
-	totalram_pages++;
-	num_physpages++;
-}
-
-#endif /* CONFIG_MEMORY_HOTPLUG */
