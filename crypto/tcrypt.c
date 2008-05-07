@@ -13,14 +13,6 @@
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
- * 2008-04-27 Added RIPEMD tests
- * 2007-11-13 Added GCM tests
- * 2007-11-13 Added AEAD support
- * 2007-11-06 Added SHA-224 and SHA-224-HMAC tests
- * 2006-12-07 Added SHA384 HMAC and SHA512 HMAC tests
- * 2004-08-09 Added cipher speed tests (Reyk Floeter <reyk@vantronix.net>)
- * 2003-09-14 Rewritten by Kartikey Mahendra Bhatt
- *
  */
 
 #include <linux/err.h>

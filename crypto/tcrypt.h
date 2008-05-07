@@ -13,13 +13,6 @@
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
- * 2008-04-27 Added RIPEMD tests
- * 2007-11-13 Added GCM tests
- * 2007-11-13 Added AEAD support
- * 2006-12-07 Added SHA384 HMAC and SHA512 HMAC tests
- * 2004-08-09 Cipher speed tests by Reyk Floeter <reyk@vantronix.net>
- * 2003-09-14 Changes by Kartikey Mahendra Bhatt
- *
  */
 #ifndef _CRYPTO_TCRYPT_H
 #define _CRYPTO_TCRYPT_H
