@@ -1129,6 +1129,7 @@ static void falcon_handle_driver_event(struct efx_channel *channel,
 	case RX_RECOVERY_EV_DECODE:
 		EFX_ERR(efx, "channel %d seen DRIVER RX_RESET event. "
 			"Resetting.\n", channel->channel);
+		atomic_inc(&efx->rx_reset);
 		efx_schedule_reset(efx,
 				   EFX_WORKAROUND_6555(efx) ?
 				   RESET_TYPE_RX_RECOVERY :
