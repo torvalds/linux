@@ -2194,6 +2194,8 @@ struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 again:
 	spin_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, start, len);
+	if (em)
+		em->bdev = root->fs_info->fs_devices->latest_bdev;
 	spin_unlock(&em_tree->lock);
 
 	if (em) {
@@ -2212,7 +2214,7 @@ again:
 
 	em->start = EXTENT_MAP_HOLE;
 	em->len = (u64)-1;
-	em->bdev = inode->i_sb->s_bdev;
+	em->bdev = root->fs_info->fs_devices->latest_bdev;
 	ret = btrfs_lookup_file_extent(trans, root, path,
 				       objectid, start, trans != NULL);
 	if (ret < 0) {
@@ -3101,6 +3103,27 @@ out:
 	return ret;
 }
 
+long btrfs_ioctl_rm_dev(struct btrfs_root *root, void __user *arg)
+{
+	struct btrfs_ioctl_vol_args *vol_args;
+	int ret;
+
+	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
+
+	if (!vol_args)
+		return -ENOMEM;
+
+	if (copy_from_user(vol_args, arg, sizeof(*vol_args))) {
+		ret = -EFAULT;
+		goto out;
+	}
+	ret = btrfs_rm_device(root, vol_args->name);
+
+out:
+	kfree(vol_args);
+	return ret;
+}
+
 int dup_item_to_inode(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root,
 		       struct btrfs_path *path,
@@ -3294,6 +3317,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_resize(root, (void __user *)arg);
 	case BTRFS_IOC_ADD_DEV:
 		return btrfs_ioctl_add_dev(root, (void __user *)arg);
+	case BTRFS_IOC_RM_DEV:
+		return btrfs_ioctl_rm_dev(root, (void __user *)arg);
 	case BTRFS_IOC_BALANCE:
 		return btrfs_balance(root->fs_info->dev_root);
 	case BTRFS_IOC_CLONE:

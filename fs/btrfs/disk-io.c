@@ -78,9 +78,13 @@ struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
 
 	spin_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, start, len);
-	spin_unlock(&em_tree->lock);
-	if (em)
+	if (em) {
+		em->bdev =
+			BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
+		spin_unlock(&em_tree->lock);
 		goto out;
+	}
+	spin_unlock(&em_tree->lock);
 
 	em = alloc_extent_map(GFP_NOFS);
 	if (!em) {
@@ -90,7 +94,7 @@ struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
 	em->start = 0;
 	em->len = (u64)-1;
 	em->block_start = 0;
-	em->bdev = inode->i_sb->s_bdev;
+	em->bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
 
 	spin_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
@@ -435,11 +439,6 @@ static int __btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 1);
 	BUG_ON(ret);
 
-	if (offset == BTRFS_SUPER_INFO_OFFSET) {
-		bio->bi_bdev = root->fs_info->fs_devices->latest_bdev;
-		submit_bio(rw, bio);
-		return 0;
-	}
 	return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio, mirror_num);
 }
 
@@ -587,8 +586,7 @@ static int close_all_devices(struct btrfs_fs_info *fs_info)
 	list = &fs_info->fs_devices->devices;
 	list_for_each(next, list) {
 		device = list_entry(next, struct btrfs_device, dev_list);
-		if (device->bdev && device->bdev != fs_info->sb->s_bdev)
-			close_bdev_excl(device->bdev);
+		close_bdev_excl(device->bdev);
 		device->bdev = NULL;
 	}
 	return 0;
@@ -1118,6 +1116,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	u32 leafsize;
 	u32 blocksize;
 	u32 stripesize;
+	struct buffer_head *bh;
 	struct btrfs_root *extent_root = kmalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
 	struct btrfs_root *tree_root = kmalloc(sizeof(struct btrfs_root),
@@ -1153,7 +1152,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->new_trans_lock);
 
 	init_completion(&fs_info->kobj_unregister);
-	sb_set_blocksize(sb, BTRFS_SUPER_INFO_SIZE);
 	fs_info->tree_root = tree_root;
 	fs_info->extent_root = extent_root;
 	fs_info->chunk_root = chunk_root;
@@ -1169,6 +1167,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_nlink = 1;
+
+	sb->s_blocksize = 4096;
+	sb->s_blocksize_bits = blksize_bits(4096);
 
 	/*
 	 * we set the i_size on the btree inode to the max possible int.
@@ -1229,19 +1230,16 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	__setup_root(4096, 4096, 4096, 4096, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
-	fs_info->sb_buffer = read_tree_block(tree_root,
-					     BTRFS_SUPER_INFO_OFFSET,
-					     4096);
 
-	if (!fs_info->sb_buffer)
+	bh = __bread(fs_devices->latest_bdev,
+		     BTRFS_SUPER_INFO_OFFSET / 4096, 4096);
+	if (!bh)
 		goto fail_iput;
 
-	read_extent_buffer(fs_info->sb_buffer, &fs_info->super_copy, 0,
-			   sizeof(fs_info->super_copy));
+	memcpy(&fs_info->super_copy, bh->b_data, sizeof(fs_info->super_copy));
+	brelse(bh);
 
-	read_extent_buffer(fs_info->sb_buffer, fs_info->fsid,
-			   (unsigned long)btrfs_super_fsid(fs_info->sb_buffer),
-			   BTRFS_FSID_SIZE);
+	memcpy(fs_info->fsid, fs_info->super_copy.fsid, BTRFS_FSID_SIZE);
 
 	disk_super = &fs_info->super_copy;
 	if (!btrfs_super_root(disk_super))
@@ -1263,7 +1261,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	tree_root->leafsize = leafsize;
 	tree_root->sectorsize = sectorsize;
 	tree_root->stripesize = stripesize;
-	sb_set_blocksize(sb, sectorsize);
+
+	sb->s_blocksize = sectorsize;
+	sb->s_blocksize_bits = blksize_bits(sectorsize);
 
 	if (strncmp((char *)(&disk_super->magic), BTRFS_MAGIC,
 		    sizeof(disk_super->magic))) {
@@ -1339,7 +1339,6 @@ fail_tree_root:
 fail_sys_array:
 	mutex_unlock(&fs_info->fs_mutex);
 fail_sb_buffer:
-	free_extent_buffer(fs_info->sb_buffer);
 	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
 fail_iput:
 	iput(fs_info->btree_inode);
@@ -1380,41 +1379,44 @@ int write_all_supers(struct btrfs_root *root)
 	struct list_head *cur;
 	struct list_head *head = &root->fs_info->fs_devices->devices;
 	struct btrfs_device *dev;
-	struct extent_buffer *sb;
+	struct btrfs_super_block *sb;
 	struct btrfs_dev_item *dev_item;
 	struct buffer_head *bh;
 	int ret;
 	int do_barriers;
 	int max_errors;
 	int total_errors = 0;
+	u32 crc;
+	u64 flags;
 
 	max_errors = btrfs_super_num_devices(&root->fs_info->super_copy) - 1;
 	do_barriers = !btrfs_test_opt(root, NOBARRIER);
 
-	sb = root->fs_info->sb_buffer;
-	dev_item = (struct btrfs_dev_item *)offsetof(struct btrfs_super_block,
-						      dev_item);
+	sb = &root->fs_info->super_for_commit;
+	dev_item = &sb->dev_item;
 	list_for_each(cur, head) {
 		dev = list_entry(cur, struct btrfs_device, dev_list);
-		btrfs_set_device_type(sb, dev_item, dev->type);
-		btrfs_set_device_id(sb, dev_item, dev->devid);
-		btrfs_set_device_total_bytes(sb, dev_item, dev->total_bytes);
-		btrfs_set_device_bytes_used(sb, dev_item, dev->bytes_used);
-		btrfs_set_device_io_align(sb, dev_item, dev->io_align);
-		btrfs_set_device_io_width(sb, dev_item, dev->io_width);
-		btrfs_set_device_sector_size(sb, dev_item, dev->sector_size);
-		write_extent_buffer(sb, dev->uuid,
-				    (unsigned long)btrfs_device_uuid(dev_item),
-				    BTRFS_UUID_SIZE);
+		btrfs_set_stack_device_type(dev_item, dev->type);
+		btrfs_set_stack_device_id(dev_item, dev->devid);
+		btrfs_set_stack_device_total_bytes(dev_item, dev->total_bytes);
+		btrfs_set_stack_device_bytes_used(dev_item, dev->bytes_used);
+		btrfs_set_stack_device_io_align(dev_item, dev->io_align);
+		btrfs_set_stack_device_io_width(dev_item, dev->io_width);
+		btrfs_set_stack_device_sector_size(dev_item, dev->sector_size);
+		memcpy(dev_item->uuid, dev->uuid, BTRFS_UUID_SIZE);
+		flags = btrfs_super_flags(sb);
+		btrfs_set_super_flags(sb, flags | BTRFS_HEADER_FLAG_WRITTEN);
 
-		btrfs_set_header_flag(sb, BTRFS_HEADER_FLAG_WRITTEN);
-		csum_tree_block(root, sb, 0);
 
-		bh = __getblk(dev->bdev, BTRFS_SUPER_INFO_OFFSET /
-			      root->fs_info->sb->s_blocksize,
+		crc = ~(u32)0;
+		crc = btrfs_csum_data(root, (char *)sb + BTRFS_CSUM_SIZE, crc,
+				      BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE);
+		btrfs_csum_final(crc, sb->csum);
+
+		bh = __getblk(dev->bdev, BTRFS_SUPER_INFO_OFFSET / 4096,
 			      BTRFS_SUPER_INFO_SIZE);
 
-		read_extent_buffer(sb, bh->b_data, 0, BTRFS_SUPER_INFO_SIZE);
+		memcpy(bh->b_data, sb, BTRFS_SUPER_INFO_SIZE);
 		dev->pending_io = bh;
 
 		get_bh(bh);
@@ -1483,15 +1485,6 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 	int ret;
 
 	ret = write_all_supers(root);
-#if 0
-	if (!btrfs_test_opt(root, NOBARRIER))
-		blkdev_issue_flush(sb->s_bdev, NULL);
-	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree, super);
-	ret = sync_page_range_nolock(btree_inode, btree_inode->i_mapping,
-				     super->start, super->len);
-	if (!btrfs_test_opt(root, NOBARRIER))
-		blkdev_issue_flush(sb->s_bdev, NULL);
-#endif
 	return ret;
 }
 
@@ -1569,8 +1562,6 @@ int close_ctree(struct btrfs_root *root)
 
 	if (root->fs_info->dev_root->node);
 		free_extent_buffer(root->fs_info->dev_root->node);
-
-	free_extent_buffer(fs_info->sb_buffer);
 
 	btrfs_free_block_groups(root->fs_info);
 	del_fs_roots(fs_info);
@@ -1652,7 +1643,7 @@ void btrfs_throttle(struct btrfs_root *root)
 {
 	struct backing_dev_info *bdi;
 
-	bdi = root->fs_info->sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
+	bdi = &root->fs_info->bdi;
 	if (root->fs_info->throttles && bdi_write_congested(bdi)) {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,18)
 		congestion_wait(WRITE, HZ/20);

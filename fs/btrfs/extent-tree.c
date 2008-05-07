@@ -147,6 +147,8 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 	u64 end;
 	int ret;
 
+	bytenr = max_t(u64, bytenr,
+		       BTRFS_SUPER_INFO_OFFSET + BTRFS_SUPER_INFO_SIZE);
 	block_group_cache = &info->block_group_cache;
 	ret = find_first_extent_bit(block_group_cache,
 				    bytenr, &start, &end,
@@ -1059,16 +1061,25 @@ static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 	}
 }
 
-static u64 reduce_alloc_profile(u64 flags)
+static u64 reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 {
+	u64 num_devices = root->fs_info->fs_devices->num_devices;
+
+	if (num_devices == 1)
+		flags &= ~(BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID0);
+	if (num_devices < 4)
+		flags &= ~BTRFS_BLOCK_GROUP_RAID10;
+
 	if ((flags & BTRFS_BLOCK_GROUP_DUP) &&
 	    (flags & (BTRFS_BLOCK_GROUP_RAID1 |
-		      BTRFS_BLOCK_GROUP_RAID10)))
+		      BTRFS_BLOCK_GROUP_RAID10))) {
 		flags &= ~BTRFS_BLOCK_GROUP_DUP;
+	}
 
 	if ((flags & BTRFS_BLOCK_GROUP_RAID1) &&
-	    (flags & BTRFS_BLOCK_GROUP_RAID10))
+	    (flags & BTRFS_BLOCK_GROUP_RAID10)) {
 		flags &= ~BTRFS_BLOCK_GROUP_RAID1;
+	}
 
 	if ((flags & BTRFS_BLOCK_GROUP_RAID0) &&
 	    ((flags & BTRFS_BLOCK_GROUP_RAID1) |
@@ -1077,7 +1088,6 @@ static u64 reduce_alloc_profile(u64 flags)
 		flags &= ~BTRFS_BLOCK_GROUP_RAID0;
 	return flags;
 }
-
 
 static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *extent_root, u64 alloc_bytes,
@@ -1089,7 +1099,7 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	u64 num_bytes;
 	int ret;
 
-	flags = reduce_alloc_profile(flags);
+	flags = reduce_alloc_profile(extent_root, flags);
 
 	space_info = __find_space_info(extent_root->fs_info, flags);
 	if (!space_info) {
@@ -1169,6 +1179,21 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+static u64 first_logical_byte(struct btrfs_root *root, u64 search_start)
+{
+	u64 start;
+	u64 end;
+	int ret;
+	ret = find_first_extent_bit(&root->fs_info->block_group_cache,
+				    search_start, &start, &end,
+				    BLOCK_GROUP_DATA | BLOCK_GROUP_METADATA |
+				    BLOCK_GROUP_SYSTEM);
+	if (ret)
+		return 0;
+	return start;
+}
+
+
 static int update_pinned_extents(struct btrfs_root *root,
 				u64 bytenr, u64 num, int pin)
 {
@@ -1185,16 +1210,25 @@ static int update_pinned_extents(struct btrfs_root *root,
 	}
 	while (num > 0) {
 		cache = btrfs_lookup_block_group(fs_info, bytenr);
-		WARN_ON(!cache);
-		len = min(num, cache->key.offset -
-			  (bytenr - cache->key.objectid));
+		if (!cache) {
+			u64 first = first_logical_byte(root, bytenr);
+			WARN_ON(first < bytenr);
+			len = min(first - bytenr, num);
+		} else {
+			len = min(num, cache->key.offset -
+				  (bytenr - cache->key.objectid));
+		}
 		if (pin) {
-			cache->pinned += len;
-			cache->space_info->bytes_pinned += len;
+			if (cache) {
+				cache->pinned += len;
+				cache->space_info->bytes_pinned += len;
+			}
 			fs_info->total_pinned += len;
 		} else {
-			cache->pinned -= len;
-			cache->space_info->bytes_pinned -= len;
+			if (cache) {
+				cache->pinned -= len;
+				cache->space_info->bytes_pinned -= len;
+			}
 			fs_info->total_pinned -= len;
 		}
 		bytenr += len;
@@ -1547,7 +1581,7 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 				     int data)
 {
 	int ret;
-	u64 orig_search_start = search_start;
+	u64 orig_search_start;
 	struct btrfs_root * root = orig_root->fs_info->extent_root;
 	struct btrfs_fs_info *info = root->fs_info;
 	u64 total_needed = num_bytes;
@@ -1576,6 +1610,9 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 			empty_size += empty_cluster;
 		}
 	}
+
+	search_start = max(search_start, first_logical_byte(root, 0));
+	orig_search_start = search_start;
 
 	if (search_end == (u64)-1)
 		search_end = btrfs_super_total_bytes(&info->super_copy);
@@ -1751,7 +1788,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		data = BTRFS_BLOCK_GROUP_METADATA | alloc_profile;
 	}
 again:
-	data = reduce_alloc_profile(data);
+	data = reduce_alloc_profile(root, data);
 	if (root->ref_cows) {
 		if (!(data & BTRFS_BLOCK_GROUP_METADATA)) {
 			ret = do_chunk_alloc(trans, root->fs_info->extent_root,
@@ -2309,6 +2346,7 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 	struct file_ra_state *ra;
 	unsigned long total_read = 0;
 	unsigned long ra_pages;
+	struct btrfs_trans_handle *trans;
 
 	ra = kzalloc(sizeof(*ra), GFP_NOFS);
 
@@ -2326,9 +2364,13 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 				       calc_ra(i, last_index, ra_pages));
 		}
 		total_read++;
+		if (((u64)i << PAGE_CACHE_SHIFT) > inode->i_size)
+			goto truncate_racing;
+
 		page = grab_cache_page(inode->i_mapping, i);
-		if (!page)
+		if (!page) {
 			goto out_unlock;
+		}
 		if (!PageUptodate(page)) {
 			btrfs_readpage(NULL, page);
 			lock_page(page);
@@ -2350,20 +2392,33 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 
 		lock_extent(io_tree, page_start, page_end, GFP_NOFS);
 
-		set_page_dirty(page);
 		set_extent_delalloc(io_tree, page_start,
 				    page_end, GFP_NOFS);
+		set_page_dirty(page);
 
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 		unlock_page(page);
 		page_cache_release(page);
-		balance_dirty_pages_ratelimited_nr(inode->i_mapping, 1);
 	}
+	balance_dirty_pages_ratelimited_nr(inode->i_mapping,
+					   total_read);
 
 out_unlock:
 	kfree(ra);
+	trans = btrfs_start_transaction(BTRFS_I(inode)->root, 1);
+	if (trans) {
+		btrfs_add_ordered_inode(inode);
+		btrfs_end_transaction(trans, BTRFS_I(inode)->root);
+		mark_inode_dirty(inode);
+	}
 	mutex_unlock(&inode->i_mutex);
 	return 0;
+
+truncate_racing:
+	vmtruncate(inode, inode->i_size);
+	balance_dirty_pages_ratelimited_nr(inode->i_mapping,
+					   total_read);
+	goto out_unlock;
 }
 
 /*
@@ -2466,6 +2521,27 @@ out:
 	return 0;
 }
 
+static int noinline del_extent_zero(struct btrfs_root *extent_root,
+				    struct btrfs_path *path,
+				    struct btrfs_key *extent_key)
+{
+	int ret;
+	struct btrfs_trans_handle *trans;
+
+	trans = btrfs_start_transaction(extent_root, 1);
+	ret = btrfs_search_slot(trans, extent_root, extent_key, path, -1, 1);
+	if (ret > 0) {
+		ret = -EIO;
+		goto out;
+	}
+	if (ret < 0)
+		goto out;
+	ret = btrfs_del_item(trans, extent_root, path);
+out:
+	btrfs_end_transaction(trans, extent_root);
+	return ret;
+}
+
 static int noinline relocate_one_extent(struct btrfs_root *extent_root,
 					struct btrfs_path *path,
 					struct btrfs_key *extent_key)
@@ -2477,6 +2553,10 @@ static int noinline relocate_one_extent(struct btrfs_root *extent_root,
 	u32 item_size;
 	int ret = 0;
 
+	if (extent_key->objectid == 0) {
+		ret = del_extent_zero(extent_root, path, extent_key);
+		goto out;
+	}
 	key.objectid = extent_key->objectid;
 	key.type = BTRFS_EXTENT_REF_KEY;
 	key.offset = 0;
@@ -2490,15 +2570,24 @@ static int noinline relocate_one_extent(struct btrfs_root *extent_root,
 		ret = 0;
 		leaf = path->nodes[0];
 		nritems = btrfs_header_nritems(leaf);
-		if (path->slots[0] == nritems)
-			goto out;
+		if (path->slots[0] == nritems) {
+			ret = btrfs_next_leaf(extent_root, path);
+			if (ret > 0) {
+				ret = 0;
+				goto out;
+			}
+			if (ret < 0)
+				goto out;
+		}
 
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
-		if (found_key.objectid != extent_key->objectid)
+		if (found_key.objectid != extent_key->objectid) {
 			break;
+		}
 
-		if (found_key.type != BTRFS_EXTENT_REF_KEY)
+		if (found_key.type != BTRFS_EXTENT_REF_KEY) {
 			break;
+		}
 
 		key.offset = found_key.offset + 1;
 		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
@@ -2519,7 +2608,7 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 	u64 stripped = BTRFS_BLOCK_GROUP_RAID0 |
 		BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID10;
 
-	num_devices = btrfs_super_num_devices(&root->fs_info->super_copy);
+	num_devices = root->fs_info->fs_devices->num_devices;
 	if (num_devices == 1) {
 		stripped |= BTRFS_BLOCK_GROUP_DUP;
 		stripped = flags & ~stripped;
@@ -2535,9 +2624,6 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 		return flags;
 	} else {
 		/* they already had raid on here, just return */
-		if ((flags & BTRFS_BLOCK_GROUP_DUP) &&
-		    (flags & BTRFS_BLOCK_GROUP_RAID1)) {
-		}
 		if (flags & stripped)
 			return flags;
 
@@ -2570,7 +2656,7 @@ int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 shrink_start)
 	struct extent_buffer *leaf;
 	u32 nritems;
 	int ret;
-	int progress = 0;
+	int progress;
 
 	shrink_block_group = btrfs_lookup_block_group(root->fs_info,
 						      shrink_start);
@@ -2597,6 +2683,7 @@ again:
 	shrink_block_group->ro = 1;
 
 	total_found = 0;
+	progress = 0;
 	key.objectid = shrink_start;
 	key.offset = 0;
 	key.type = 0;

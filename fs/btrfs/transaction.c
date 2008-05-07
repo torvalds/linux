@@ -738,9 +738,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 				   chunk_root->node->start);
 	btrfs_set_super_chunk_root_level(&root->fs_info->super_copy,
 					 btrfs_header_level(chunk_root->node));
-	write_extent_buffer(root->fs_info->sb_buffer,
-			    &root->fs_info->super_copy, 0,
-			    sizeof(root->fs_info->super_copy));
+	memcpy(&root->fs_info->super_for_commit, &root->fs_info->super_copy,
+	       sizeof(root->fs_info->super_copy));
 
 	btrfs_copy_pinned(root, pinned_copy);
 

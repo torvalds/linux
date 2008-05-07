@@ -315,24 +315,12 @@ static void btrfs_write_super(struct super_block *sb)
 	sb->s_dirt = 0;
 }
 
-/*
- * This is almost a copy of get_sb_bdev in fs/super.c.
- * We need the local copy to allow direct mounting of
- * subvolumes, but this could be easily integrated back
- * into the generic version.  --hch
- */
-
-/* start copy & paste */
-static int set_bdev_super(struct super_block *s, void *data)
+static int btrfs_test_super(struct super_block *s, void *data)
 {
-	s->s_bdev = data;
-	s->s_dev = s->s_bdev->bd_dev;
-	return 0;
-}
+	struct btrfs_fs_devices *test_fs_devices = data;
+	struct btrfs_root *root = btrfs_sb(s);
 
-static int test_bdev_super(struct super_block *s, void *data)
-{
-	return (void *)s->s_bdev == data;
+	return root->fs_info->fs_devices == test_fs_devices;
 }
 
 int btrfs_get_sb_bdev(struct file_system_type *fs_type,
@@ -354,14 +342,9 @@ int btrfs_get_sb_bdev(struct file_system_type *fs_type,
 		return error;
 
 	bdev = fs_devices->lowest_bdev;
-	/*
-	 * once the super is inserted into the list by sget, s_umount
-	 * will protect the lockfs code from trying to start a snapshot
-	 * while we are mounting
-	 */
-	down(&bdev->bd_mount_sem);
-	s = sget(fs_type, test_bdev_super, set_bdev_super, bdev);
-	up(&bdev->bd_mount_sem);
+	btrfs_lock_volumes();
+	s = sget(fs_type, btrfs_test_super, set_anon_super, fs_devices);
+	btrfs_unlock_volumes();
 	if (IS_ERR(s))
 		goto error_s;
 
@@ -373,13 +356,11 @@ int btrfs_get_sb_bdev(struct file_system_type *fs_type,
 			goto error_bdev;
 		}
 
-		close_bdev_excl(bdev);
 	} else {
 		char b[BDEVNAME_SIZE];
 
 		s->s_flags = flags;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
-		sb_set_blocksize(s, block_size(bdev));
 		error = btrfs_fill_super(s, fs_devices, data,
 					 flags & MS_SILENT ? 1 : 0);
 		if (error) {
@@ -458,7 +439,7 @@ static struct file_system_type btrfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "btrfs",
 	.get_sb		= btrfs_get_sb,
-	.kill_sb	= kill_block_super,
+	.kill_sb	= kill_anon_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 

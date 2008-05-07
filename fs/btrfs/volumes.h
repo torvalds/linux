@@ -125,6 +125,7 @@ int btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
 int btrfs_add_device(struct btrfs_trans_handle *trans,
 		     struct btrfs_root *root,
 		     struct btrfs_device *device);
+int btrfs_rm_device(struct btrfs_root *root, char *device_path);
 int btrfs_cleanup_fs_uuids(void);
 int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len);
 int btrfs_unplug_page(struct btrfs_mapping_tree *map_tree,
@@ -136,4 +137,6 @@ struct btrfs_device *btrfs_find_device(struct btrfs_root *root, u64 devid,
 int btrfs_shrink_device(struct btrfs_device *device, u64 new_size);
 int btrfs_init_new_device(struct btrfs_root *root, char *path);
 int btrfs_balance(struct btrfs_root *dev_root);
+void btrfs_unlock_volumes(void);
+void btrfs_lock_volumes(void);
 #endif
