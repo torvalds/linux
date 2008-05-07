@@ -832,6 +832,7 @@ config BANK_0
 config BANK_1
 	hex "Bank 1"
 	default 0x7BB0
+	default 0x5558 if BF54x
 
 config BANK_2
 	hex "Bank 2"
