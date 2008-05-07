@@ -369,6 +369,8 @@ static atomic_t hifn_dev_number;
 #define	HIFN_D_DST_RSIZE		80*4
 #define	HIFN_D_RES_RSIZE		24*4
 
+#define HIFN_D_DST_DALIGN		4
+
 #define HIFN_QUEUE_LENGTH		HIFN_D_CMD_RSIZE-5
 
 #define AES_MIN_KEY_SIZE		16
@@ -1458,10 +1460,6 @@ static int ablkcipher_add(void *daddr, unsigned int *drestp, struct scatterlist 
 static int ablkcipher_walk(struct ablkcipher_request *req,
 		struct ablkcipher_walk *w)
 {
-	unsigned blocksize =
-		crypto_ablkcipher_blocksize(crypto_ablkcipher_reqtfm(req));
-	unsigned alignmask =
-		crypto_ablkcipher_alignmask(crypto_ablkcipher_reqtfm(req));
 	struct scatterlist *src, *dst, *t;
 	void *daddr;
 	unsigned int nbytes = req->nbytes, offset, copy, diff;
@@ -1477,15 +1475,13 @@ static int ablkcipher_walk(struct ablkcipher_request *req,
 		dst = &req->dst[idx];
 
 		dprintk("\n%s: slen: %u, dlen: %u, soff: %u, doff: %u, offset: %u, "
-				"blocksize: %u, nbytes: %u.\n",
+				"nbytes: %u.\n",
 				__func__, src->length, dst->length, src->offset,
-				dst->offset, offset, blocksize, nbytes);
+				dst->offset, offset, nbytes);
 
-		if (src->length & (blocksize - 1) ||
-				src->offset & (alignmask - 1) ||
-				dst->length & (blocksize - 1) ||
-				dst->offset & (alignmask - 1) ||
-				offset) {
+		if (!IS_ALIGNED(dst->offset, HIFN_D_DST_DALIGN) ||
+		    !IS_ALIGNED(dst->length, HIFN_D_DST_DALIGN) ||
+		    offset) {
 			unsigned slen = src->length - offset;
 			unsigned dlen = PAGE_SIZE;
 
@@ -1498,8 +1494,8 @@ static int ablkcipher_walk(struct ablkcipher_request *req,
 
 			idx += err;
 
-			copy = slen & ~(blocksize - 1);
-			diff = slen & (blocksize - 1);
+			copy = slen & ~(HIFN_D_DST_DALIGN - 1);
+			diff = slen & (HIFN_D_DST_DALIGN - 1);
 
 			if (dlen < nbytes) {
 				/*
@@ -1507,7 +1503,7 @@ static int ablkcipher_walk(struct ablkcipher_request *req,
 				 * to put there additional blocksized chunk,
 				 * so we mark that page as containing only
 				 * blocksize aligned chunks:
-				 * 	t->length = (slen & ~(blocksize - 1));
+				 * 	t->length = (slen & ~(HIFN_D_DST_DALIGN - 1));
 				 * and increase number of bytes to be processed
 				 * in next chunk:
 				 * 	nbytes += diff;
@@ -1567,10 +1563,6 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 	unsigned int nbytes = req->nbytes, idx = 0, len;
 	int err = -EINVAL, sg_num;
 	struct scatterlist *src, *dst, *t;
-	unsigned blocksize =
-		crypto_ablkcipher_blocksize(crypto_ablkcipher_reqtfm(req));
-	unsigned alignmask =
-		crypto_ablkcipher_alignmask(crypto_ablkcipher_reqtfm(req));
 
 	if (ctx->iv && !ctx->ivsize && ctx->mode != ACRYPTO_MODE_ECB)
 		goto err_out_exit;
@@ -1578,17 +1570,13 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 	ctx->walk.flags = 0;
 
 	while (nbytes) {
-		src = &req->src[idx];
 		dst = &req->dst[idx];
 
-		if (src->length & (blocksize - 1) ||
-				src->offset & (alignmask - 1) ||
-				dst->length & (blocksize - 1) ||
-				dst->offset & (alignmask - 1)) {
+		if (!IS_ALIGNED(dst->offset, HIFN_D_DST_DALIGN) ||
+		    !IS_ALIGNED(dst->length, HIFN_D_DST_DALIGN))
 			ctx->walk.flags |= ASYNC_FLAGS_MISALIGNED;
-		}
 
-		nbytes -= src->length;
+		nbytes -= dst->length;
 		idx++;
 	}
 
@@ -2523,9 +2511,7 @@ static int hifn_alg_alloc(struct hifn_device *dev, struct hifn_alg_template *t)
 	alg->alg.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC;
 	alg->alg.cra_blocksize = t->bsize;
 	alg->alg.cra_ctxsize = sizeof(struct hifn_context);
-	alg->alg.cra_alignmask = 15;
-	if (t->bsize == 8)
-		alg->alg.cra_alignmask = 3;
+	alg->alg.cra_alignmask = 0;
 	alg->alg.cra_type = &crypto_ablkcipher_type;
 	alg->alg.cra_module = THIS_MODULE;
 	alg->alg.cra_u.ablkcipher = t->ablkcipher;
