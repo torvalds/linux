@@ -497,7 +497,7 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	/* If the request is invalid, reply with an error */
 	if (len < 0) {
 		if (len == -ENOSYS)
-			(void)svc_rdma_send_error(rdma_xprt, rmsgp, ERR_VERS);
+			svc_rdma_send_error(rdma_xprt, rmsgp, ERR_VERS);
 		goto close_out;
 	}
 

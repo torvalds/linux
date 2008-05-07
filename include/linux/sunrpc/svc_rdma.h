@@ -166,8 +166,8 @@ extern int svc_rdma_sendto(struct svc_rqst *);
 
 /* svc_rdma_transport.c */
 extern int svc_rdma_send(struct svcxprt_rdma *, struct ib_send_wr *);
-extern int svc_rdma_send_error(struct svcxprt_rdma *, struct rpcrdma_msg *,
-			       enum rpcrdma_errcode);
+extern void svc_rdma_send_error(struct svcxprt_rdma *, struct rpcrdma_msg *,
+				enum rpcrdma_errcode);
 struct page *svc_rdma_get_page(void);
 extern int svc_rdma_post_recv(struct svcxprt_rdma *);
 extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);

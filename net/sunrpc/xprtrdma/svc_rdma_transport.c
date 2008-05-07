@@ -1114,8 +1114,8 @@ int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
 	return ret;
 }
 
-int svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
-			enum rpcrdma_errcode err)
+void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
+			 enum rpcrdma_errcode err)
 {
 	struct ib_send_wr err_wr;
 	struct ib_sge sge;
@@ -1153,9 +1153,8 @@ int svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	/* Post It */
 	ret = svc_rdma_send(xprt, &err_wr);
 	if (ret) {
-		dprintk("svcrdma: Error posting send = %d\n", ret);
+		dprintk("svcrdma: Error %d posting send for protocol error\n",
+			ret);
 		svc_rdma_put_context(ctxt, 1);
 	}
-
-	return ret;
 }
