@@ -256,6 +256,9 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 	pci_save_state(dev->pdev);
 	pci_read_config_byte(dev->pdev, LBB, &dev_priv->saveLBB);
 
+	/* Display arbitration control */
+	dev_priv->saveDSPARB = I915_READ(DSPARB);
+
 	/* Pipe & plane A info */
 	dev_priv->savePIPEACONF = I915_READ(PIPEACONF);
 	dev_priv->savePIPEASRC = I915_READ(PIPEASRC);
@@ -349,6 +352,7 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 	dev_priv->saveVGACNTRL = I915_READ(VGACNTRL);
 
 	/* Clock gating state */
+	dev_priv->saveD_STATE = I915_READ(D_STATE);
 	dev_priv->saveDSPCLK_GATE_D = I915_READ(DSPCLK_GATE_D);
 
 	/* Cache mode state */
@@ -387,6 +391,8 @@ static int i915_resume(struct drm_device *dev)
 		return -1;
 
 	pci_write_config_byte(dev->pdev, LBB, dev_priv->saveLBB);
+
+	I915_WRITE(DSPARB, dev_priv->saveDSPARB);
 
 	/* Pipe & plane A info */
 	/* Prime the clock */
@@ -507,6 +513,7 @@ static int i915_resume(struct drm_device *dev)
 	udelay(150);
 
 	/* Clock gating state */
+	I915_WRITE (D_STATE, dev_priv->saveD_STATE);
 	I915_WRITE (DSPCLK_GATE_D, dev_priv->saveDSPCLK_GATE_D);
 
 	/* Cache mode state */

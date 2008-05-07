@@ -119,6 +119,7 @@ typedef struct drm_i915_private {
 	u8 saveLBB;
 	u32 saveDSPACNTR;
 	u32 saveDSPBCNTR;
+	u32 saveDSPARB;
 	u32 savePIPEACONF;
 	u32 savePIPEBCONF;
 	u32 savePIPEASRC;
@@ -188,6 +189,7 @@ typedef struct drm_i915_private {
 	u32 saveIIR;
 	u32 saveIMR;
 	u32 saveCACHE_MODE_0;
+	u32 saveD_STATE;
 	u32 saveDSPCLK_GATE_D;
 	u32 saveMI_ARB_STATE;
 	u32 saveSWF0[16];
@@ -670,6 +672,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 /** P1 value is 2 greater than this field */
 # define VGA0_PD_P1_MASK	(0x1f << 0)
 
+/* PCI D state control register */
+#define D_STATE		0x6104
 #define DSPCLK_GATE_D	0x6200
 
 /* I830 CRTC registers */
@@ -979,6 +983,12 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define PIPECONF_PROGRESSIVE	(0 << 21)
 #define PIPECONF_INTERLACE_W_FIELD_INDICATION	(6 << 21)
 #define PIPECONF_INTERLACE_FIELD_0_ONLY		(7 << 21)
+
+#define DSPARB	  0x70030
+#define DSPARB_CSTART_MASK	(0x7f << 7)
+#define DSPARB_CSTART_SHIFT	7
+#define DSPARB_BSTART_MASK	(0x7f)		 
+#define DSPARB_BSTART_SHIFT	0
 
 #define PIPEBCONF 0x71008
 #define PIPEBCONF_ENABLE	(1<<31)
