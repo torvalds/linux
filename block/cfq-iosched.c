@@ -1303,10 +1303,10 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct io_context *ioc)
 		printk(KERN_ERR "cfq: bad prio %x\n", ioprio_class);
 	case IOPRIO_CLASS_NONE:
 		/*
-		 * no prio set, place us in the middle of the BE classes
+		 * no prio set, inherit CPU scheduling settings
 		 */
 		cfqq->ioprio = task_nice_ioprio(tsk);
-		cfqq->ioprio_class = IOPRIO_CLASS_BE;
+		cfqq->ioprio_class = task_nice_ioclass(tsk);
 		break;
 	case IOPRIO_CLASS_RT:
 		cfqq->ioprio = task_ioprio(ioc);
