@@ -1297,7 +1297,7 @@ static int hifn_setup_src_desc(struct hifn_device *dev, struct page *page,
 
 	dma->srcr[idx].p = __cpu_to_le32(addr);
 	dma->srcr[idx].l = __cpu_to_le32(size | HIFN_D_VALID |
-			HIFN_D_MASKDONEIRQ | HIFN_D_NOINVALID | HIFN_D_LAST);
+			HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
 
 	if (++idx == HIFN_D_SRC_RSIZE) {
 		dma->srcr[idx].l = __cpu_to_le32(HIFN_D_VALID |
@@ -1325,7 +1325,7 @@ static void hifn_setup_res_desc(struct hifn_device *dev)
 			HIFN_D_VALID | HIFN_D_LAST);
 	/*
 	 * dma->resr[dma->resi].l = __cpu_to_le32(HIFN_MAX_RESULT | HIFN_D_VALID |
-	 *					HIFN_D_LAST | HIFN_D_NOINVALID);
+	 *					HIFN_D_LAST);
 	 */
 
 	if (++dma->resi == HIFN_D_RES_RSIZE) {
@@ -1354,12 +1354,12 @@ static void hifn_setup_dst_desc(struct hifn_device *dev, struct page *page,
 	idx = dma->dsti;
 	dma->dstr[idx].p = __cpu_to_le32(addr);
 	dma->dstr[idx].l = __cpu_to_le32(size |	HIFN_D_VALID |
-			HIFN_D_MASKDONEIRQ | HIFN_D_NOINVALID | HIFN_D_LAST);
+			HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
 
 	if (++idx == HIFN_D_DST_RSIZE) {
 		dma->dstr[idx].l = __cpu_to_le32(HIFN_D_VALID |
 				HIFN_D_JUMP | HIFN_D_MASKDONEIRQ |
-				HIFN_D_LAST | HIFN_D_NOINVALID);
+				HIFN_D_LAST);
 		idx = 0;
 	}
 	dma->dsti = idx;
