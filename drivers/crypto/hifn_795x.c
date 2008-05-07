@@ -1168,109 +1168,15 @@ static int hifn_setup_crypto_command(struct hifn_device *dev,
 	return cmd_len;
 }
 
-static int hifn_setup_src_desc(struct hifn_device *dev, struct page *page,
-		unsigned int offset, unsigned int size)
-{
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
-	int idx;
-	dma_addr_t addr;
-
-	addr = pci_map_page(dev->pdev, page, offset, size, PCI_DMA_TODEVICE);
-
-	idx = dma->srci;
-
-	dma->srcr[idx].p = __cpu_to_le32(addr);
-	dma->srcr[idx].l = __cpu_to_le32(size | HIFN_D_VALID |
-			HIFN_D_MASKDONEIRQ | HIFN_D_NOINVALID | HIFN_D_LAST);
-
-	if (++idx == HIFN_D_SRC_RSIZE) {
-		dma->srcr[idx].l = __cpu_to_le32(HIFN_D_VALID |
-				HIFN_D_JUMP |
-				HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
-		idx = 0;
-	}
-
-	dma->srci = idx;
-	dma->srcu++;
-
-	if (!(dev->flags & HIFN_FLAG_SRC_BUSY)) {
-		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_S_CTRL_ENA);
-		dev->flags |= HIFN_FLAG_SRC_BUSY;
-	}
-
-	return size;
-}
-
-static void hifn_setup_res_desc(struct hifn_device *dev)
-{
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
-
-	dma->resr[dma->resi].l = __cpu_to_le32(HIFN_USED_RESULT |
-			HIFN_D_VALID | HIFN_D_LAST);
-	/*
-	 * dma->resr[dma->resi].l = __cpu_to_le32(HIFN_MAX_RESULT | HIFN_D_VALID |
-	 *					HIFN_D_LAST | HIFN_D_NOINVALID);
-	 */
-
-	if (++dma->resi == HIFN_D_RES_RSIZE) {
-		dma->resr[HIFN_D_RES_RSIZE].l = __cpu_to_le32(HIFN_D_VALID |
-				HIFN_D_JUMP | HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
-		dma->resi = 0;
-	}
-
-	dma->resu++;
-
-	if (!(dev->flags & HIFN_FLAG_RES_BUSY)) {
-		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_R_CTRL_ENA);
-		dev->flags |= HIFN_FLAG_RES_BUSY;
-	}
-}
-
-static void hifn_setup_dst_desc(struct hifn_device *dev, struct page *page,
-		unsigned offset, unsigned size)
-{
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
-	int idx;
-	dma_addr_t addr;
-
-	addr = pci_map_page(dev->pdev, page, offset, size, PCI_DMA_FROMDEVICE);
-
-	idx = dma->dsti;
-	dma->dstr[idx].p = __cpu_to_le32(addr);
-	dma->dstr[idx].l = __cpu_to_le32(size |	HIFN_D_VALID |
-			HIFN_D_MASKDONEIRQ | HIFN_D_NOINVALID | HIFN_D_LAST);
-
-	if (++idx == HIFN_D_DST_RSIZE) {
-		dma->dstr[idx].l = __cpu_to_le32(HIFN_D_VALID |
-				HIFN_D_JUMP | HIFN_D_MASKDONEIRQ |
-				HIFN_D_LAST | HIFN_D_NOINVALID);
-		idx = 0;
-	}
-	dma->dsti = idx;
-	dma->dstu++;
-
-	if (!(dev->flags & HIFN_FLAG_DST_BUSY)) {
-		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_D_CTRL_ENA);
-		dev->flags |= HIFN_FLAG_DST_BUSY;
-	}
-}
-
-static int hifn_setup_dma(struct hifn_device *dev, struct page *spage, unsigned int soff,
-		struct page *dpage, unsigned int doff, unsigned int nbytes, void *priv,
-		struct hifn_context *ctx)
+static int hifn_setup_cmd_desc(struct hifn_device *dev,
+		struct hifn_context *ctx, void *priv, unsigned int nbytes)
 {
 	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
 	int cmd_len, sa_idx;
 	u8 *buf, *buf_pos;
 	u16 mask;
 
-	dprintk("%s: spage: %p, soffset: %u, dpage: %p, doffset: %u, nbytes: %u, priv: %p, ctx: %p.\n",
-			dev->name, spage, soff, dpage, doff, nbytes, priv, ctx);
-
-	sa_idx = dma->resi;
-
-	hifn_setup_src_desc(dev, spage, soff, nbytes);
-
+	sa_idx = dma->cmdi;
 	buf_pos = buf = dma->command_bufs[dma->cmdi];
 
 	mask = 0;
@@ -1372,14 +1278,111 @@ static int hifn_setup_dma(struct hifn_device *dev, struct page *spage, unsigned 
 		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_C_CTRL_ENA);
 		dev->flags |= HIFN_FLAG_CMD_BUSY;
 	}
-
-	hifn_setup_dst_desc(dev, dpage, doff, nbytes);
-	hifn_setup_res_desc(dev);
-
 	return 0;
 
 err_out:
 	return -EINVAL;
+}
+
+static int hifn_setup_src_desc(struct hifn_device *dev, struct page *page,
+		unsigned int offset, unsigned int size)
+{
+	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	int idx;
+	dma_addr_t addr;
+
+	addr = pci_map_page(dev->pdev, page, offset, size, PCI_DMA_TODEVICE);
+
+	idx = dma->srci;
+
+	dma->srcr[idx].p = __cpu_to_le32(addr);
+	dma->srcr[idx].l = __cpu_to_le32(size | HIFN_D_VALID |
+			HIFN_D_MASKDONEIRQ | HIFN_D_NOINVALID | HIFN_D_LAST);
+
+	if (++idx == HIFN_D_SRC_RSIZE) {
+		dma->srcr[idx].l = __cpu_to_le32(HIFN_D_VALID |
+				HIFN_D_JUMP |
+				HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
+		idx = 0;
+	}
+
+	dma->srci = idx;
+	dma->srcu++;
+
+	if (!(dev->flags & HIFN_FLAG_SRC_BUSY)) {
+		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_S_CTRL_ENA);
+		dev->flags |= HIFN_FLAG_SRC_BUSY;
+	}
+
+	return size;
+}
+
+static void hifn_setup_res_desc(struct hifn_device *dev)
+{
+	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+
+	dma->resr[dma->resi].l = __cpu_to_le32(HIFN_USED_RESULT |
+			HIFN_D_VALID | HIFN_D_LAST);
+	/*
+	 * dma->resr[dma->resi].l = __cpu_to_le32(HIFN_MAX_RESULT | HIFN_D_VALID |
+	 *					HIFN_D_LAST | HIFN_D_NOINVALID);
+	 */
+
+	if (++dma->resi == HIFN_D_RES_RSIZE) {
+		dma->resr[HIFN_D_RES_RSIZE].l = __cpu_to_le32(HIFN_D_VALID |
+				HIFN_D_JUMP | HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
+		dma->resi = 0;
+	}
+
+	dma->resu++;
+
+	if (!(dev->flags & HIFN_FLAG_RES_BUSY)) {
+		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_R_CTRL_ENA);
+		dev->flags |= HIFN_FLAG_RES_BUSY;
+	}
+}
+
+static void hifn_setup_dst_desc(struct hifn_device *dev, struct page *page,
+		unsigned offset, unsigned size)
+{
+	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	int idx;
+	dma_addr_t addr;
+
+	addr = pci_map_page(dev->pdev, page, offset, size, PCI_DMA_FROMDEVICE);
+
+	idx = dma->dsti;
+	dma->dstr[idx].p = __cpu_to_le32(addr);
+	dma->dstr[idx].l = __cpu_to_le32(size |	HIFN_D_VALID |
+			HIFN_D_MASKDONEIRQ | HIFN_D_NOINVALID | HIFN_D_LAST);
+
+	if (++idx == HIFN_D_DST_RSIZE) {
+		dma->dstr[idx].l = __cpu_to_le32(HIFN_D_VALID |
+				HIFN_D_JUMP | HIFN_D_MASKDONEIRQ |
+				HIFN_D_LAST | HIFN_D_NOINVALID);
+		idx = 0;
+	}
+	dma->dsti = idx;
+	dma->dstu++;
+
+	if (!(dev->flags & HIFN_FLAG_DST_BUSY)) {
+		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_D_CTRL_ENA);
+		dev->flags |= HIFN_FLAG_DST_BUSY;
+	}
+}
+
+static int hifn_setup_dma(struct hifn_device *dev, struct page *spage, unsigned int soff,
+		struct page *dpage, unsigned int doff, unsigned int nbytes, void *priv,
+		struct hifn_context *ctx)
+{
+	dprintk("%s: spage: %p, soffset: %u, dpage: %p, doffset: %u, nbytes: %u, priv: %p, ctx: %p.\n",
+			dev->name, spage, soff, dpage, doff, nbytes, priv, ctx);
+
+	hifn_setup_src_desc(dev, spage, soff, nbytes);
+	hifn_setup_cmd_desc(dev, ctx, priv, nbytes);
+	hifn_setup_dst_desc(dev, dpage, doff, nbytes);
+	hifn_setup_res_desc(dev);
+	return 0;
 }
 
 static int ablkcipher_walk_init(struct ablkcipher_walk *w,
