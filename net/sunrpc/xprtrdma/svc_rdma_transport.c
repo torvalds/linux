@@ -570,6 +570,7 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id)
 {
 	struct svcxprt_rdma *listen_xprt = new_cma_id->context;
 	struct svcxprt_rdma *newxprt;
+	struct sockaddr *sa;
 
 	/* Create a new transport */
 	newxprt = rdma_create_xprt(listen_xprt->sc_xprt.xpt_server, 0);
@@ -581,6 +582,12 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id)
 	new_cma_id->context = newxprt;
 	dprintk("svcrdma: Creating newxprt=%p, cm_id=%p, listenxprt=%p\n",
 		newxprt, newxprt->sc_cm_id, listen_xprt);
+
+	/* Set the local and remote addresses in the transport */
+	sa = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.dst_addr;
+	svc_xprt_set_remote(&newxprt->sc_xprt, sa, svc_addr_len(sa));
+	sa = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.src_addr;
+	svc_xprt_set_local(&newxprt->sc_xprt, sa, svc_addr_len(sa));
 
 	/*
 	 * Enqueue the new transport on the accept queue of the listening
@@ -750,7 +757,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct rdma_conn_param conn_param;
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device_attr devattr;
-	struct sockaddr *sa;
 	int ret;
 	int i;
 
@@ -883,6 +889,13 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	/* Swap out the handler */
 	newxprt->sc_cm_id->event_handler = rdma_cma_handler;
 
+	/*
+	 * Arm the CQs for the SQ and RQ before accepting so we can't
+	 * miss the first message
+	 */
+	ib_req_notify_cq(newxprt->sc_sq_cq, IB_CQ_NEXT_COMP);
+	ib_req_notify_cq(newxprt->sc_rq_cq, IB_CQ_NEXT_COMP);
+
 	/* Accept Connection */
 	set_bit(RDMAXPRT_CONN_PENDING, &newxprt->sc_flags);
 	memset(&conn_param, 0, sizeof conn_param);
@@ -919,14 +932,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		newxprt->sc_max_requests,
 		newxprt->sc_ord);
 
-	/* Set the local and remote addresses in the transport */
-	sa = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.dst_addr;
-	svc_xprt_set_remote(&newxprt->sc_xprt, sa, svc_addr_len(sa));
-	sa = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.src_addr;
-	svc_xprt_set_local(&newxprt->sc_xprt, sa, svc_addr_len(sa));
-
-	ib_req_notify_cq(newxprt->sc_sq_cq, IB_CQ_NEXT_COMP);
-	ib_req_notify_cq(newxprt->sc_rq_cq, IB_CQ_NEXT_COMP);
 	return &newxprt->sc_xprt;
 
  errout:
