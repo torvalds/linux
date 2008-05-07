@@ -870,8 +870,9 @@ static int ipath_7220_boardname(struct ipath_devdata *dd, char *name,
 			      "revision %u.%u!\n",
 			      dd->ipath_majrev, dd->ipath_minrev);
 		ret = 1;
-	} else if (dd->ipath_minrev == 1) {
-		/* Rev1 chips are prototype. Complain, but allow use */
+	} else if (dd->ipath_minrev == 1 &&
+		!(dd->ipath_flags & IPATH_INITTED)) {
+		/* Rev1 chips are prototype. Complain at init, but allow use */
 		ipath_dev_err(dd, "Unsupported hardware "
 			      "revision %u.%u, Contact support@qlogic.com\n",
 			      dd->ipath_majrev, dd->ipath_minrev);
