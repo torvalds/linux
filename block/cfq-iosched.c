@@ -1142,6 +1142,17 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	kmem_cache_free(cfq_pool, cfqq);
 }
 
+static void
+__call_for_each_cic(struct io_context *ioc,
+		    void (*func)(struct io_context *, struct cfq_io_context *))
+{
+	struct cfq_io_context *cic;
+	struct hlist_node *n;
+
+	hlist_for_each_entry_rcu(cic, n, &ioc->cic_list, cic_list)
+		func(ioc, cic);
+}
+
 /*
  * Call func for each cic attached to this ioc.
  */
@@ -1149,12 +1160,8 @@ static void
 call_for_each_cic(struct io_context *ioc,
 		  void (*func)(struct io_context *, struct cfq_io_context *))
 {
-	struct cfq_io_context *cic;
-	struct hlist_node *n;
-
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(cic, n, &ioc->cic_list, cic_list)
-		func(ioc, cic);
+	__call_for_each_cic(ioc, func);
 	rcu_read_unlock();
 }
 
@@ -1198,7 +1205,7 @@ static void cfq_free_io_context(struct io_context *ioc)
 	 * should be ok to iterate over the known list, we will see all cic's
 	 * since no new ones are added.
 	 */
-	call_for_each_cic(ioc, cic_free_func);
+	__call_for_each_cic(ioc, cic_free_func);
 }
 
 static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
