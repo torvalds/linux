@@ -158,7 +158,7 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 
 		bio_init(bio);
 		if (likely(nr_iovecs)) {
-			unsigned long idx = 0; /* shut up gcc */
+			unsigned long uninitialized_var(idx);
 
 			bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx, bs);
 			if (unlikely(!bvl)) {
