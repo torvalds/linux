@@ -253,9 +253,11 @@ EXPORT_SYMBOL(__generic_unplug_device);
  **/
 void generic_unplug_device(struct request_queue *q)
 {
-	spin_lock_irq(q->queue_lock);
-	__generic_unplug_device(q);
-	spin_unlock_irq(q->queue_lock);
+	if (blk_queue_plugged(q)) {
+		spin_lock_irq(q->queue_lock);
+		__generic_unplug_device(q);
+		spin_unlock_irq(q->queue_lock);
+	}
 }
 EXPORT_SYMBOL(generic_unplug_device);
 
