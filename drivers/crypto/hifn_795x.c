@@ -2377,6 +2377,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 	{
 		.name = "cbc(des3_ede)", .drv_name = "cbc-3des", .bsize = 8,
 		.ablkcipher = {
+			.ivsize		=	HIFN_IV_LENGTH,
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.setkey		=	hifn_setkey,
@@ -2421,6 +2422,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 	{
 		.name = "cbc(des)", .drv_name = "cbc-des", .bsize = 8,
 		.ablkcipher = {
+			.ivsize		=	HIFN_IV_LENGTH,
 			.min_keysize	=	HIFN_DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_DES_KEY_LENGTH,
 			.setkey		=	hifn_setkey,
@@ -2455,6 +2457,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 	{
 		.name = "cbc(aes)", .drv_name = "cbc-aes", .bsize = 16,
 		.ablkcipher = {
+			.ivsize		=	HIFN_AES_IV_LENGTH,
 			.min_keysize	=	AES_MIN_KEY_SIZE,
 			.max_keysize	=	AES_MAX_KEY_SIZE,
 			.setkey		=	hifn_setkey,
