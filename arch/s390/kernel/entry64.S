@@ -271,8 +271,6 @@ sysc_noemu:
 	stg	%r2,SP_R2(%r15) # store return value (change R2 on stack)
 
 sysc_return:
-	tm	SP_PSW+1(%r15),0x01	# returning to user ?
-	jno	sysc_restore
 	tm	__TI_flags+7(%r9),_TIF_WORK_SVC
 	jnz	sysc_work	# there is work to do (signals etc.)
 sysc_restore:
@@ -304,6 +302,8 @@ sysc_work_loop:
 # One of the work bits is on. Find out which one.
 #
 sysc_work:
+	tm	SP_PSW+1(%r15),0x01	# returning to user ?
+	jno	sysc_restore
 	tm	__TI_flags+7(%r9),_TIF_MCCK_PENDING
 	jo	sysc_mcck_pending
 	tm	__TI_flags+7(%r9),_TIF_NEED_RESCHED
@@ -585,12 +585,6 @@ io_no_vtime:
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	brasl	%r14,do_IRQ		# call standard irq handler
 io_return:
-	tm	SP_PSW+1(%r15),0x01	# returning to user ?
-#ifdef CONFIG_PREEMPT
-	jno	io_preempt		# no -> check for preemptive scheduling
-#else
-	jno	io_restore		# no-> skip resched & signal
-#endif
 	tm	__TI_flags+7(%r9),_TIF_WORK_INT
 	jnz	io_work 		# there is work to do (signals etc.)
 io_restore:
@@ -612,10 +606,18 @@ io_restore_trace_psw:
 	.quad	0, io_restore_trace
 #endif
 
-#ifdef CONFIG_PREEMPT
-io_preempt:
+#
+# switch to kernel stack, then check TIF bits
+#
+io_work:
+	tm	SP_PSW+1(%r15),0x01	# returning to user ?
+#ifndef CONFIG_PREEMPT
+	jno	io_restore		# no-> skip resched & signal
+#else
+	jnz	io_work_user		# yes -> do resched & signal
+	# check for preemptive scheduling
 	icm	%r0,15,__TI_precount(%r9)
-	jnz	io_restore
+	jnz	io_restore		# preemption is disabled
 	# switch to kernel stack
 	lg	%r1,SP_R15(%r15)
 	aghi	%r1,-SP_SIZE
@@ -629,10 +631,7 @@ io_resume_loop:
 	jg	preempt_schedule_irq
 #endif
 
-#
-# switch to kernel stack, then check TIF bits
-#
-io_work:
+io_work_user:
 	lg	%r1,__LC_KERNEL_STACK
 	aghi	%r1,-SP_SIZE
 	mvc	SP_PTREGS(__PT_SIZE,%r1),SP_PTREGS(%r15)
