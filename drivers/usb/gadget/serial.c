@@ -198,10 +198,6 @@ static unsigned int gs_buf_get(struct gs_buf *gb, char *buf,
 
 static struct gs_dev *gs_device;
 
-static const char *EP_IN_NAME;
-static const char *EP_OUT_NAME;
-static const char *EP_NOTIFY_NAME;
-
 static struct mutex gs_open_close_lock[GS_NUM_PORTS];
 
 
@@ -1217,13 +1213,8 @@ static void /* __init_or_exit */ gs_unbind(struct usb_gadget *gadget)
 			gs_free_req(gadget->ep0, dev->dev_ctrl_req);
 			dev->dev_ctrl_req = NULL;
 		}
+		gs_reset_config(dev);
 		gs_free_ports(dev);
-		if (dev->dev_notify_ep)
-			usb_ep_disable(dev->dev_notify_ep);
-		if (dev->dev_in_ep)
-			usb_ep_disable(dev->dev_in_ep);
-		if (dev->dev_out_ep)
-			usb_ep_disable(dev->dev_out_ep);
 		kfree(dev);
 		set_gadget_data(gadget, NULL);
 	}
@@ -1264,19 +1255,23 @@ static int __init gs_bind(struct usb_gadget *gadget)
 			__constant_cpu_to_le16(GS_VERSION_NUM|0x0099);
 	}
 
+	dev = kzalloc(sizeof(struct gs_dev), GFP_KERNEL);
+	if (dev == NULL)
+		return -ENOMEM;
+
 	usb_ep_autoconfig_reset(gadget);
 
 	ep = usb_ep_autoconfig(gadget, &gs_fullspeed_in_desc);
 	if (!ep)
 		goto autoconf_fail;
-	EP_IN_NAME = ep->name;
-	ep->driver_data = ep;	/* claim the endpoint */
+	dev->dev_in_ep = ep;
+	ep->driver_data = dev;	/* claim the endpoint */
 
 	ep = usb_ep_autoconfig(gadget, &gs_fullspeed_out_desc);
 	if (!ep)
 		goto autoconf_fail;
-	EP_OUT_NAME = ep->name;
-	ep->driver_data = ep;	/* claim the endpoint */
+	dev->dev_out_ep = ep;
+	ep->driver_data = dev;	/* claim the endpoint */
 
 	if (use_acm) {
 		ep = usb_ep_autoconfig(gadget, &gs_fullspeed_notify_desc);
@@ -1286,8 +1281,8 @@ static int __init gs_bind(struct usb_gadget *gadget)
 		}
 		gs_device_desc.idProduct = __constant_cpu_to_le16(
 						GS_CDC_PRODUCT_ID),
-		EP_NOTIFY_NAME = ep->name;
-		ep->driver_data = ep;	/* claim the endpoint */
+		dev->dev_notify_ep = ep;
+		ep->driver_data = dev;	/* claim the endpoint */
 	}
 
 	gs_device_desc.bDeviceClass = use_acm
@@ -1317,9 +1312,7 @@ static int __init gs_bind(struct usb_gadget *gadget)
 		gs_acm_config_desc.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	gs_device = dev = kzalloc(sizeof(struct gs_dev), GFP_KERNEL);
-	if (dev == NULL)
-		return -ENOMEM;
+	gs_device = dev;
 
 	snprintf(manufacturer, sizeof(manufacturer), "%s %s with %s",
 		init_utsname()->sysname, init_utsname()->release,
@@ -1351,6 +1344,7 @@ static int __init gs_bind(struct usb_gadget *gadget)
 	return 0;
 
 autoconf_fail:
+	kfree(dev);
 	pr_err("gs_bind: cannot autoconfigure on %s\n", gadget->name);
 	return -ENODEV;
 }
@@ -1710,7 +1704,7 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 	int ret = 0;
 	struct usb_gadget *gadget = dev->dev_gadget;
 	struct usb_ep *ep;
-	struct usb_endpoint_descriptor *ep_desc;
+	struct usb_endpoint_descriptor *out, *in, *notify;
 	struct usb_request *req;
 
 	if (dev == NULL) {
@@ -1738,70 +1732,52 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 		return -EINVAL;
 	}
 
-	dev->dev_config = config;
-
-	gadget_for_each_ep(ep, gadget) {
-
-		if (EP_NOTIFY_NAME
-		&& strcmp(ep->name, EP_NOTIFY_NAME) == 0) {
-			ep_desc = choose_ep_desc(gadget,
+	in = choose_ep_desc(gadget,
+			&gs_highspeed_in_desc,
+			&gs_fullspeed_in_desc);
+	out = choose_ep_desc(gadget,
+			&gs_highspeed_out_desc,
+			&gs_fullspeed_out_desc);
+	notify = dev->dev_notify_ep
+		? choose_ep_desc(gadget,
 				&gs_highspeed_notify_desc,
-				&gs_fullspeed_notify_desc);
-			ret = usb_ep_enable(ep,ep_desc);
-			if (ret == 0) {
-				ep->driver_data = dev;
-				dev->dev_notify_ep = ep;
-				dev->dev_notify_ep_desc = ep_desc;
-			} else {
-				pr_err("gs_set_config: cannot enable NOTIFY "
-					"endpoint %s, ret=%d\n",
-					ep->name, ret);
-				goto exit_reset_config;
-			}
-		}
+				&gs_fullspeed_notify_desc)
+		: NULL;
 
-		else if (strcmp(ep->name, EP_IN_NAME) == 0) {
-			ep_desc = choose_ep_desc(gadget,
-				&gs_highspeed_in_desc,
-				&gs_fullspeed_in_desc);
-			ret = usb_ep_enable(ep,ep_desc);
-			if (ret == 0) {
-				ep->driver_data = dev;
-				dev->dev_in_ep = ep;
-				dev->dev_in_ep_desc = ep_desc;
-			} else {
-				pr_err("gs_set_config: cannot enable IN "
-					"endpoint %s, ret=%d\n",
-					ep->name, ret);
-				goto exit_reset_config;
-			}
-		}
-
-		else if (strcmp(ep->name, EP_OUT_NAME) == 0) {
-			ep_desc = choose_ep_desc(gadget,
-				&gs_highspeed_out_desc,
-				&gs_fullspeed_out_desc);
-			ret = usb_ep_enable(ep,ep_desc);
-			if (ret == 0) {
-				ep->driver_data = dev;
-				dev->dev_out_ep = ep;
-				dev->dev_out_ep_desc = ep_desc;
-			} else {
-				pr_err("gs_set_config: cannot enable OUT "
-					"endpoint %s, ret=%d\n",
-					ep->name, ret);
-				goto exit_reset_config;
-			}
-		}
-
+	ret = usb_ep_enable(dev->dev_in_ep, in);
+	if (ret == 0) {
+		dev->dev_in_ep_desc = in;
+	} else {
+		pr_debug("%s: cannot enable %s %s, ret=%d\n",
+			__func__, "IN", dev->dev_in_ep->name, ret);
+		return ret;
 	}
 
-	if (dev->dev_in_ep == NULL || dev->dev_out_ep == NULL
-	|| (config != GS_BULK_CONFIG_ID && dev->dev_notify_ep == NULL)) {
-		pr_err("gs_set_config: cannot find endpoints\n");
-		ret = -ENODEV;
-		goto exit_reset_config;
+	ret = usb_ep_enable(dev->dev_out_ep, out);
+	if (ret == 0) {
+		dev->dev_out_ep_desc = out;
+	} else {
+		pr_debug("%s: cannot enable %s %s, ret=%d\n",
+			__func__, "OUT", dev->dev_out_ep->name, ret);
+fail0:
+		usb_ep_disable(dev->dev_in_ep);
+		return ret;
 	}
+
+	if (notify) {
+		ret = usb_ep_enable(dev->dev_notify_ep, notify);
+		if (ret == 0) {
+			dev->dev_notify_ep_desc = notify;
+		} else {
+			pr_debug("%s: cannot enable %s %s, ret=%d\n",
+				__func__, "NOTIFY",
+				dev->dev_notify_ep->name, ret);
+			usb_ep_disable(dev->dev_out_ep);
+			goto fail0;
+		}
+	}
+
+	dev->dev_config = config;
 
 	/* allocate and queue read requests */
 	ep = dev->dev_out_ep;
@@ -1886,18 +1862,10 @@ static void gs_reset_config(struct gs_dev *dev)
 
 	/* disable endpoints, forcing completion of pending i/o; */
 	/* completion handlers free their requests in this case */
-	if (dev->dev_notify_ep) {
+	if (dev->dev_notify_ep)
 		usb_ep_disable(dev->dev_notify_ep);
-		dev->dev_notify_ep = NULL;
-	}
-	if (dev->dev_in_ep) {
-		usb_ep_disable(dev->dev_in_ep);
-		dev->dev_in_ep = NULL;
-	}
-	if (dev->dev_out_ep) {
-		usb_ep_disable(dev->dev_out_ep);
-		dev->dev_out_ep = NULL;
-	}
+	usb_ep_disable(dev->dev_in_ep);
+	usb_ep_disable(dev->dev_out_ep);
 }
 
 /*
