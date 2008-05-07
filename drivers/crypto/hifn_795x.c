@@ -2355,7 +2355,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 	 * 3DES ECB, CBC, CFB and OFB modes.
 	 */
 	{
-		.name = "cfb(des3_ede)", .drv_name = "hifn-3des", .bsize = 8,
+		.name = "cfb(des3_ede)", .drv_name = "cfb-3des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
@@ -2365,7 +2365,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "ofb(des3_ede)", .drv_name = "hifn-3des", .bsize = 8,
+		.name = "ofb(des3_ede)", .drv_name = "ofb-3des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
@@ -2375,7 +2375,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "cbc(des3_ede)", .drv_name = "hifn-3des", .bsize = 8,
+		.name = "cbc(des3_ede)", .drv_name = "cbc-3des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
@@ -2385,7 +2385,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "ecb(des3_ede)", .drv_name = "hifn-3des", .bsize = 8,
+		.name = "ecb(des3_ede)", .drv_name = "ecb-3des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
@@ -2399,7 +2399,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 	 * DES ECB, CBC, CFB and OFB modes.
 	 */
 	{
-		.name = "cfb(des)", .drv_name = "hifn-des", .bsize = 8,
+		.name = "cfb(des)", .drv_name = "cfb-des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_DES_KEY_LENGTH,
@@ -2409,7 +2409,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "ofb(des)", .drv_name = "hifn-des", .bsize = 8,
+		.name = "ofb(des)", .drv_name = "ofb-des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_DES_KEY_LENGTH,
@@ -2419,7 +2419,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "cbc(des)", .drv_name = "hifn-des", .bsize = 8,
+		.name = "cbc(des)", .drv_name = "cbc-des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_DES_KEY_LENGTH,
@@ -2429,7 +2429,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "ecb(des)", .drv_name = "hifn-des", .bsize = 8,
+		.name = "ecb(des)", .drv_name = "ecb-des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_DES_KEY_LENGTH,
@@ -2443,7 +2443,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 	 * AES ECB, CBC, CFB and OFB modes.
 	 */
 	{
-		.name = "ecb(aes)", .drv_name = "hifn-aes", .bsize = 16,
+		.name = "ecb(aes)", .drv_name = "ecb-aes", .bsize = 16,
 		.ablkcipher = {
 			.min_keysize	=	AES_MIN_KEY_SIZE,
 			.max_keysize	=	AES_MAX_KEY_SIZE,
@@ -2453,7 +2453,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "cbc(aes)", .drv_name = "hifn-aes", .bsize = 16,
+		.name = "cbc(aes)", .drv_name = "cbc-aes", .bsize = 16,
 		.ablkcipher = {
 			.min_keysize	=	AES_MIN_KEY_SIZE,
 			.max_keysize	=	AES_MAX_KEY_SIZE,
@@ -2463,7 +2463,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "cfb(aes)", .drv_name = "hifn-aes", .bsize = 16,
+		.name = "cfb(aes)", .drv_name = "cfb-aes", .bsize = 16,
 		.ablkcipher = {
 			.min_keysize	=	AES_MIN_KEY_SIZE,
 			.max_keysize	=	AES_MAX_KEY_SIZE,
@@ -2473,7 +2473,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "ofb(aes)", .drv_name = "hifn-aes", .bsize = 16,
+		.name = "ofb(aes)", .drv_name = "ofb-aes", .bsize = 16,
 		.ablkcipher = {
 			.min_keysize	=	AES_MIN_KEY_SIZE,
 			.max_keysize	=	AES_MAX_KEY_SIZE,
@@ -2505,7 +2505,8 @@ static int hifn_alg_alloc(struct hifn_device *dev, struct hifn_alg_template *t)
 		return -ENOMEM;
 
 	snprintf(alg->alg.cra_name, CRYPTO_MAX_ALG_NAME, "%s", t->name);
-	snprintf(alg->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s", t->drv_name);
+	snprintf(alg->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s-%s",
+		 t->drv_name, dev->name);
 
 	alg->alg.cra_priority = 300;
 	alg->alg.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC;
