@@ -458,7 +458,6 @@ static void mesh_path_node_free(struct hlist_node *p, bool free_leafs)
 	struct mpath_node *node = hlist_entry(p, struct mpath_node, list);
 	mpath = node->mpath;
 	hlist_del_rcu(p);
-	synchronize_rcu();
 	if (free_leafs)
 		kfree(mpath);
 	kfree(node);
