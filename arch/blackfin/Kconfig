@@ -967,6 +967,17 @@ menu "CPU Frequency scaling"
 
 source "drivers/cpufreq/Kconfig"
 
+config CPU_VOLTAGE
+	bool "CPU Voltage scaling"
+	depends on EXPERIMENTAL	
+	depends on CPU_FREQ
+	default n
+	help
+	  Say Y here if you want CPU voltage scaling according to the CPU frequency.
+	  This option violates the PLL BYPASS recommendation in the Blackfin Processor
+	  manuals. There is a theoretical risk that during VDDINT transitions 
+	  the PLL may unlock.
+
 endmenu
 
 source "net/Kconfig"

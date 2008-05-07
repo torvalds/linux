@@ -46,6 +46,7 @@
 #include <asm/dma.h>
 #include <asm/gpio.h>
 #include <asm/nand.h>
+#include <asm/dpmc.h>
 #include <asm/portmux.h>
 #include <asm/mach/bf54x_keys.h>
 #include <linux/input.h>
@@ -689,7 +690,38 @@ static struct platform_device bfin_gpios_device = {
 	.resource = &bfin_gpios_resources,
 };
 
+static const unsigned int cclk_vlev_datasheet[] =
+{
+/*
+ * Internal VLEV BF54XSBBC1533
+ ****temporarily using these values until data sheet is updated
+ */
+	VRPAIR(VLEV_085, 150000000),
+	VRPAIR(VLEV_090, 250000000),
+	VRPAIR(VLEV_110, 276000000),
+	VRPAIR(VLEV_115, 301000000),
+	VRPAIR(VLEV_120, 525000000),
+	VRPAIR(VLEV_125, 550000000),
+	VRPAIR(VLEV_130, 600000000),
+};
+
+static struct bfin_dpmc_platform_data bfin_dmpc_vreg_data = {
+	.tuple_tab = cclk_vlev_datasheet,
+	.tabsize = ARRAY_SIZE(cclk_vlev_datasheet),
+	.vr_settling_time = 25 /* us */,
+};
+
+static struct platform_device bfin_dpmc = {
+	.name = "bfin dpmc",
+	.dev = {
+		.platform_data = &bfin_dmpc_vreg_data,
+	},
+};
+
 static struct platform_device *ezkit_devices[] __initdata = {
+
+	&bfin_dpmc,
+
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 	&rtc_device,
 #endif

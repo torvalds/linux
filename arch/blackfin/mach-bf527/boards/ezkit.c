@@ -50,6 +50,7 @@
 #include <asm/reboot.h>
 #include <asm/nand.h>
 #include <asm/portmux.h>
+#include <asm/dpmc.h>
 #include <linux/spi/ad7877.h>
 
 /*
@@ -839,7 +840,32 @@ static struct platform_device bfin_gpios_device = {
 	.resource = &bfin_gpios_resources,
 };
 
+static const unsigned int cclk_vlev_datasheet[] =
+{
+	VRPAIR(VLEV_100, 400000000),
+	VRPAIR(VLEV_105, 426000000),
+	VRPAIR(VLEV_110, 500000000),
+	VRPAIR(VLEV_115, 533000000),
+	VRPAIR(VLEV_120, 600000000),
+};
+
+static struct bfin_dpmc_platform_data bfin_dmpc_vreg_data = {
+	.tuple_tab = cclk_vlev_datasheet,
+	.tabsize = ARRAY_SIZE(cclk_vlev_datasheet),
+	.vr_settling_time = 25 /* us */,
+};
+
+static struct platform_device bfin_dpmc = {
+	.name = "bfin dpmc",
+	.dev = {
+		.platform_data = &bfin_dmpc_vreg_data,
+	},
+};
+
 static struct platform_device *stamp_devices[] __initdata = {
+
+	&bfin_dpmc,
+
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 	&bf5xx_nand_device,
 #endif
