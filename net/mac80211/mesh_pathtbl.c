@@ -463,7 +463,7 @@ static void mesh_path_node_free(struct hlist_node *p, bool free_leafs)
 	kfree(node);
 }
 
-static void mesh_path_node_copy(struct hlist_node *p, struct mesh_table *newtbl)
+static int mesh_path_node_copy(struct hlist_node *p, struct mesh_table *newtbl)
 {
 	struct mesh_path *mpath;
 	struct mpath_node *node, *new_node;
@@ -476,6 +476,7 @@ static void mesh_path_node_copy(struct hlist_node *p, struct mesh_table *newtbl)
 	hash_idx = mesh_table_hash(mpath->dst, mpath->dev, newtbl);
 	hlist_add_head(&new_node->list,
 			&newtbl->hash_buckets[hash_idx]);
+	return 0;
 }
 
 int mesh_pathtbl_init(void)
