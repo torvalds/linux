@@ -134,6 +134,8 @@ struct efx_special_buffer {
  *	Set only on the final fragment of a packet; %NULL for all other
  *	fragments.  When this fragment completes, then we can free this
  *	skb.
+ * @tsoh: The associated TSO header structure, or %NULL if this
+ *	buffer is not a TSO header.
  * @dma_addr: DMA address of the fragment.
  * @len: Length of this fragment.
  *	This field is zero when the queue slot is empty.
@@ -144,6 +146,7 @@ struct efx_special_buffer {
  */
 struct efx_tx_buffer {
 	const struct sk_buff *skb;
+	struct efx_tso_header *tsoh;
 	dma_addr_t dma_addr;
 	unsigned short len;
 	unsigned char continuation;
@@ -187,6 +190,13 @@ struct efx_tx_buffer {
  *	variable indicates that the queue is full.  This is to
  *	avoid cache-line ping-pong between the xmit path and the
  *	completion path.
+ * @tso_headers_free: A list of TSO headers allocated for this TX queue
+ *	that are not in use, and so available for new TSO sends. The list
+ *	is protected by the TX queue lock.
+ * @tso_bursts: Number of times TSO xmit invoked by kernel
+ * @tso_long_headers: Number of packets with headers too long for standard
+ *	blocks
+ * @tso_packets: Number of packets via the TSO xmit path
  */
 struct efx_tx_queue {
 	/* Members which don't change on the fast path */
@@ -206,6 +216,10 @@ struct efx_tx_queue {
 	unsigned int insert_count ____cacheline_aligned_in_smp;
 	unsigned int write_count;
 	unsigned int old_read_count;
+	struct efx_tso_header *tso_headers_free;
+	unsigned int tso_bursts;
+	unsigned int tso_long_headers;
+	unsigned int tso_packets;
 };
 
 /**

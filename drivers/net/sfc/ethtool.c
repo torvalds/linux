@@ -272,6 +272,22 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 	}
 }
 
+static int efx_ethtool_set_tso(struct net_device *net_dev, u32 enable)
+{
+	int rc;
+
+	/* Our TSO requires TX checksumming, so force TX checksumming
+	 * on when TSO is enabled.
+	 */
+	if (enable) {
+		rc = efx_ethtool_set_tx_csum(net_dev, 1);
+		if (rc)
+			return rc;
+	}
+
+	return ethtool_op_set_tso(net_dev, enable);
+}
+
 static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable)
 {
 	struct efx_nic *efx = net_dev->priv;
@@ -282,6 +298,15 @@ static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable)
 		return rc;
 
 	efx_flush_queues(efx);
+
+	/* Our TSO requires TX checksumming, so disable TSO when
+	 * checksumming is disabled
+	 */
+	if (!enable) {
+		rc = efx_ethtool_set_tso(net_dev, 0);
+		if (rc)
+			return rc;
+	}
 
 	return 0;
 }
@@ -451,6 +476,8 @@ struct ethtool_ops efx_ethtool_ops = {
 	.set_tx_csum		= efx_ethtool_set_tx_csum,
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
+	.get_tso		= ethtool_op_get_tso,
+	.set_tso		= efx_ethtool_set_tso,
 	.get_flags		= ethtool_op_get_flags,
 	.set_flags		= ethtool_op_set_flags,
 	.get_strings		= efx_ethtool_get_strings,
