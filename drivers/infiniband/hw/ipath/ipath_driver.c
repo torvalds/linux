@@ -1197,7 +1197,7 @@ void ipath_kreceive(struct ipath_portdata *pd)
 	}
 
 reloop:
-	for (last = 0, i = 1; !last; i++) {
+	for (last = 0, i = 1; !last; i += !last) {
 		hdr = dd->ipath_f_get_msgheader(dd, rhf_addr);
 		eflags = ipath_hdrget_err_flags(rhf_addr);
 		etype = ipath_hdrget_rcv_type(rhf_addr);
