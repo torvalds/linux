@@ -17,6 +17,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/audit.h>
+#include <linux/syscalls.h>
 
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
@@ -1086,8 +1087,11 @@ asmlinkage long __weak sys_pipe(int __user *fildes)
 
 	error = do_pipe(fd);
 	if (!error) {
-		if (copy_to_user(fildes, fd, sizeof(fd)))
+		if (copy_to_user(fildes, fd, sizeof(fd))) {
+			sys_close(fd[0]);
+			sys_close(fd[1]);
 			error = -EFAULT;
+		}
 	}
 	return error;
 }

@@ -90,8 +90,11 @@ sys_pipe(unsigned long r0, unsigned long r1, unsigned long r2,
 
 	error = do_pipe(fd);
 	if (!error) {
-		if (copy_to_user((void __user *)r0, fd, 2*sizeof(int)))
+		if (copy_to_user((void __user *)r0, fd, 2*sizeof(int))) {
+			sys_close(fd[0]);
+			sys_close(fd[1]);
 			error = -EFAULT;
+		}
 	}
 	return error;
 }

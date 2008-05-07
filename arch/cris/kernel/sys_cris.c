@@ -40,8 +40,11 @@ asmlinkage int sys_pipe(unsigned long __user * fildes)
         error = do_pipe(fd);
         unlock_kernel();
         if (!error) {
-                if (copy_to_user(fildes, fd, 2*sizeof(int)))
+                if (copy_to_user(fildes, fd, 2*sizeof(int))) {
+			sys_close(fd[0]);
+			sys_close(fd[1]);
                         error = -EFAULT;
+		}
         }
         return error;
 }
