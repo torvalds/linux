@@ -57,29 +57,29 @@ typedef struct {
 } pxa_freqs_t;
 
 /* Define the refresh period in mSec for the SDRAM and the number of rows */
-#define SDRAM_TREF          64      /* standard 64ms SDRAM */
-#define SDRAM_ROWS          4096    /* 64MB=8192 32MB=4096 */
-#define MDREFR_DRI(x)       (((x) * SDRAM_TREF) / (SDRAM_ROWS * 32))
+#define SDRAM_TREF	64	/* standard 64ms SDRAM */
+#define SDRAM_ROWS	4096	/* 64MB=8192 32MB=4096 */
+#define MDREFR_DRI(x)	(((x) * SDRAM_TREF) / (SDRAM_ROWS * 32))
 
-#define CCLKCFG_TURBO       0x1
-#define CCLKCFG_FCS         0x2
-#define PXA25x_MIN_FREQ     99500
-#define PXA25x_MAX_FREQ     398100
-#define MDREFR_DB2_MASK     (MDREFR_K2DB2 | MDREFR_K1DB2)
-#define MDREFR_DRI_MASK     0xFFF
+#define CCLKCFG_TURBO		0x1
+#define CCLKCFG_FCS		0x2
+#define PXA25x_MIN_FREQ		99500
+#define PXA25x_MAX_FREQ		398100
+#define MDREFR_DB2_MASK		(MDREFR_K2DB2 | MDREFR_K1DB2)
+#define MDREFR_DRI_MASK		0xFFF
 
 
 /* Use the run mode frequencies for the CPUFREQ_POLICY_PERFORMANCE policy */
 static pxa_freqs_t pxa255_run_freqs[] =
 {
-    /* CPU   MEMBUS  CCCR  DIV2*/
-    { 99500,  99500, 0x121, 1}, /* run= 99, turbo= 99, PXbus=50,  SDRAM=50 */
-    {132700, 132700, 0x123, 1}, /* run=133, turbo=133, PXbus=66,  SDRAM=66 */
-    {199100,  99500, 0x141, 0}, /* run=199, turbo=199, PXbus=99,  SDRAM=99 */
-    {265400, 132700, 0x143, 1}, /* run=265, turbo=265, PXbus=133, SDRAM=66 */
-    {331800, 165900, 0x145, 1}, /* run=331, turbo=331, PXbus=166, SDRAM=83 */
-    {398100,  99500, 0x161, 0}, /* run=398, turbo=398, PXbus=196, SDRAM=99 */
-    {0,}
+	/* CPU   MEMBUS  CCCR  DIV2		   run  turbo PXbus SDRAM */
+	{ 99500,  99500, 0x121, 1},		/*  99,   99,   50,   50  */
+	{132700, 132700, 0x123, 1},		/* 133,  133,   66,   66  */
+	{199100,  99500, 0x141, 0},		/* 199,  199,   99,   99  */
+	{265400, 132700, 0x143, 1},		/* 265,  265,  133,   66  */
+	{331800, 165900, 0x145, 1},		/* 331,  331,  166,   83  */
+	{398100,  99500, 0x161, 0},		/* 398,  398,  196,   99  */
+	{0,}
 };
 #define NUM_RUN_FREQS ARRAY_SIZE(pxa255_run_freqs)
 
@@ -88,17 +88,18 @@ static struct cpufreq_frequency_table pxa255_run_freq_table[NUM_RUN_FREQS+1];
 /* Use the turbo mode frequencies for the CPUFREQ_POLICY_POWERSAVE policy */
 static pxa_freqs_t pxa255_turbo_freqs[] =
 {
-    /* CPU   MEMBUS  CCCR  DIV2*/
-    { 99500, 99500,  0x121, 1}, /* run=99,  turbo= 99, PXbus=50, SDRAM=50 */
-    {199100, 99500,  0x221, 0}, /* run=99,  turbo=199, PXbus=50, SDRAM=99 */
-    {298500, 99500,  0x321, 0}, /* run=99,  turbo=287, PXbus=50, SDRAM=99 */
-    {298600, 99500,  0x1c1, 0}, /* run=199, turbo=287, PXbus=99, SDRAM=99 */
-    {398100, 99500,  0x241, 0}, /* run=199, turbo=398, PXbus=99, SDRAM=99 */
-    {0,}
+	/* CPU   MEMBUS  CCCR  DIV2		   run  turbo PXbus SDRAM */
+	{ 99500, 99500,  0x121, 1}, 		/*  99,   99,   50,   50  */
+	{199100, 99500,  0x221, 0},		/*  99,  199,   50,   99  */
+	{298500, 99500,  0x321, 0},		/*  99,  287,   50,   99  */
+	{298600, 99500,  0x1c1, 0},		/* 199,  287,   99,   99  */
+	{398100, 99500,  0x241, 0},		/* 199,  398,   99,   99  */
+	{0,}
 };
 #define NUM_TURBO_FREQS ARRAY_SIZE(pxa255_turbo_freqs)
 
-static struct cpufreq_frequency_table pxa255_turbo_freq_table[NUM_TURBO_FREQS+1];
+static struct cpufreq_frequency_table
+	pxa255_turbo_freq_table[NUM_TURBO_FREQS+1];
 
 extern unsigned get_clk_frequency_khz(int info);
 
@@ -122,14 +123,14 @@ static int pxa_verify_policy(struct cpufreq_policy *policy)
 
 	if (freq_debug)
 		pr_debug("Verified CPU policy: %dKhz min to %dKhz max\n",
-		       policy->min, policy->max);
+			 policy->min, policy->max);
 
 	return ret;
 }
 
 static int pxa_set_target(struct cpufreq_policy *policy,
-			   unsigned int target_freq,
-			   unsigned int relation)
+			  unsigned int target_freq,
+			  unsigned int relation)
 {
 	struct cpufreq_frequency_table *pxa_freqs_table;
 	pxa_freqs_t *pxa_freq_settings;
@@ -155,7 +156,7 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 
 	/* Lookup the next frequency */
 	if (cpufreq_frequency_table_target(policy, pxa_freqs_table,
-	                                   target_freq, relation, &idx)) {
+					   target_freq, relation, &idx)) {
 		return -EINVAL;
 	}
 
@@ -164,10 +165,11 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 	freqs.cpu = policy->cpu;
 
 	if (freq_debug)
-		pr_debug(KERN_INFO "Changing CPU frequency to %d Mhz, (SDRAM %d Mhz)\n",
-		       freqs.new / 1000, (pxa_freq_settings[idx].div2) ?
-		       (pxa_freq_settings[idx].membus / 2000) :
-		       (pxa_freq_settings[idx].membus / 1000));
+		pr_debug(KERN_INFO "Changing CPU frequency to %d Mhz, "
+			 "(SDRAM %d Mhz)\n",
+			 freqs.new / 1000, (pxa_freq_settings[idx].div2) ?
+			 (pxa_freq_settings[idx].membus / 2000) :
+			 (pxa_freq_settings[idx].membus / 1000));
 
 	/*
 	 * Tell everyone what we're about to do...
@@ -177,16 +179,17 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
 	/* Calculate the next MDREFR.  If we're slowing down the SDRAM clock
-	 * we need to preset the smaller DRI before the change.  If we're speeding
-	 * up we need to set the larger DRI value after the change.
+	 * we need to preset the smaller DRI before the change.	 If we're
+	 * speeding up we need to set the larger DRI value after the change.
 	 */
 	preset_mdrefr = postset_mdrefr = MDREFR;
-	if ((MDREFR & MDREFR_DRI_MASK) > MDREFR_DRI(pxa_freq_settings[idx].membus)) {
+	if ((MDREFR & MDREFR_DRI_MASK) >
+	    MDREFR_DRI(pxa_freq_settings[idx].membus)) {
 		preset_mdrefr = (preset_mdrefr & ~MDREFR_DRI_MASK) |
-		                MDREFR_DRI(pxa_freq_settings[idx].membus);
+			MDREFR_DRI(pxa_freq_settings[idx].membus);
 	}
 	postset_mdrefr = (postset_mdrefr & ~MDREFR_DRI_MASK) |
-		            MDREFR_DRI(pxa_freq_settings[idx].membus);
+		MDREFR_DRI(pxa_freq_settings[idx].membus);
 
 	/* If we're dividing the memory clock by two for the SDRAM clock, this
 	 * must be set prior to the change.  Clearing the divide must be done
@@ -207,7 +210,7 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 	asm volatile("							\n\
 		ldr	r4, [%1]		/* load MDREFR */	\n\
 		b	2f						\n\
-		.align	5 						\n\
+		.align	5						\n\
 1:									\n\
 		str	%4, [%1]		/* preset the MDREFR */	\n\
 		mcr	p14, 0, %2, c6, c0, 0	/* set CCLKCFG[FCS] */	\n\
@@ -217,10 +220,10 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 2:		b	1b						\n\
 3:		nop							\n\
 	  "
-	  : "=&r" (unused)
-	  : "r" (&MDREFR), "r" (CCLKCFG_TURBO|CCLKCFG_FCS), "r" (ramstart),
-	    "r" (preset_mdrefr), "r" (postset_mdrefr)
-	  : "r4", "r5");
+		     : "=&r" (unused)
+		     : "r" (&MDREFR), "r" (CCLKCFG_TURBO|CCLKCFG_FCS), "r" (ramstart),
+		     "r" (preset_mdrefr), "r" (postset_mdrefr)
+		     : "r4", "r5");
 	local_irq_restore(flags);
 
 	/*
@@ -248,7 +251,7 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.max_freq = PXA25x_MAX_FREQ;
 	policy->cpuinfo.min_freq = PXA25x_MIN_FREQ;
 	policy->cpuinfo.transition_latency = 1000; /* FIXME: 1 ms, assumed */
-	policy->cur = get_clk_frequency_khz(0);    /* current freq */
+	policy->cur = get_clk_frequency_khz(0);	   /* current freq */
 	policy->min = policy->max = policy->cur;
 
 	/* Generate the run cpufreq_frequency_table struct */
@@ -260,7 +263,8 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	pxa255_run_freq_table[i].frequency = CPUFREQ_TABLE_END;
 	/* Generate the turbo cpufreq_frequency_table struct */
 	for (i = 0; i < NUM_TURBO_FREQS; i++) {
-		pxa255_turbo_freq_table[i].frequency = pxa255_turbo_freqs[i].khz;
+		pxa255_turbo_freq_table[i].frequency =
+			pxa255_turbo_freqs[i].khz;
 		pxa255_turbo_freq_table[i].index = i;
 	}
 	pxa255_turbo_freq_table[i].frequency = CPUFREQ_TABLE_END;
@@ -293,8 +297,8 @@ static void __exit pxa_cpu_exit(void)
 }
 
 
-MODULE_AUTHOR ("Intrinsyc Software Inc.");
-MODULE_DESCRIPTION ("CPU frequency changing driver for the PXA architecture");
+MODULE_AUTHOR("Intrinsyc Software Inc.");
+MODULE_DESCRIPTION("CPU frequency changing driver for the PXA architecture");
 MODULE_LICENSE("GPL");
 module_init(pxa_cpu_init);
 module_exit(pxa_cpu_exit);
