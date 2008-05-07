@@ -396,7 +396,6 @@ static int ipath_post_one_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 
 	wqe = get_swqe_ptr(qp, qp->s_head);
 	wqe->wr = *wr;
-	wqe->ssn = qp->s_ssn++;
 	wqe->length = 0;
 	if (wr->num_sge) {
 		acc = wr->opcode >= IB_WR_RDMA_READ ?
@@ -422,6 +421,7 @@ static int ipath_post_one_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 			goto bail_inval;
 	} else if (wqe->length > to_idev(qp->ibqp.device)->dd->ipath_ibmtu)
 		goto bail_inval;
+	wqe->ssn = qp->s_ssn++;
 	qp->s_head = next;
 
 	ret = 0;
