@@ -933,11 +933,15 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 	 * therefore would not be sent, and eventually
 	 * might cause the process to run out of bufs
 	 */
-	ipath_cancel_sends(dd, 0);
+	ipath_cancel_sends(dd, 1);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
 			 dd->ipath_control);
 
-	/* ensure pio avail updates continue */
+	/*
+	 * ensure pio avail updates continue (because the update
+	 * won't have happened from cancel_sends because we were
+	 * still in freeze
+	 */
 	ipath_force_pio_avail_update(dd);
 
 	/*
