@@ -136,10 +136,7 @@ void kgdb_put_debug_char(int chr)
 		SSYNC();
 	}
 
-#ifndef CONFIG_BF54x
-	UART_PUT_LCR(uart, UART_GET_LCR(uart)&(~DLAB));
-	SSYNC();
-#endif
+	UART_CLEAR_DLAB(uart);
 	UART_PUT_CHAR(uart, (unsigned char)chr);
 	SSYNC();
 }
@@ -158,10 +155,7 @@ int kgdb_get_debug_char(void)
 	while(!(UART_GET_LSR(uart) & DR)) {
 		SSYNC();
 	}
-#ifndef CONFIG_BF54x
-	UART_PUT_LCR(uart, UART_GET_LCR(uart)&(~DLAB));
-	SSYNC();
-#endif
+	UART_CLEAR_DLAB(uart);
 	chr = UART_GET_CHAR(uart);
 	SSYNC();
 
@@ -764,26 +758,15 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	UART_PUT_IER(uart, 0);
 #endif
 
-#ifndef CONFIG_BF54x
 	/* Set DLAB in LCR to Access DLL and DLH */
-	val = UART_GET_LCR(uart);
-	val |= DLAB;
-	UART_PUT_LCR(uart, val);
-	SSYNC();
-#endif
+	UART_SET_DLAB(uart);
 
 	UART_PUT_DLL(uart, quot & 0xFF);
-	SSYNC();
 	UART_PUT_DLH(uart, (quot >> 8) & 0xFF);
 	SSYNC();
 
-#ifndef CONFIG_BF54x
 	/* Clear DLAB in LCR to Access THR RBR IER */
-	val = UART_GET_LCR(uart);
-	val &= ~DLAB;
-	UART_PUT_LCR(uart, val);
-	SSYNC();
-#endif
+	UART_CLEAR_DLAB(uart);
 
 	UART_PUT_LCR(uart, lcr);
 
@@ -946,8 +929,7 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 	status = UART_GET_IER(uart) & (ERBFI | ETBEI);
 	if (status == (ERBFI | ETBEI)) {
 		/* ok, the port was enabled */
-		unsigned short lcr, val;
-		unsigned short dlh, dll;
+		u16 lcr, dlh, dll;
 
 		lcr = UART_GET_LCR(uart);
 
@@ -964,22 +946,14 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 			case 2:	*bits = 7; break;
 			case 3:	*bits = 8; break;
 		}
-#ifndef CONFIG_BF54x
 		/* Set DLAB in LCR to Access DLL and DLH */
-		val = UART_GET_LCR(uart);
-		val |= DLAB;
-		UART_PUT_LCR(uart, val);
-#endif
+		UART_SET_DLAB(uart);
 
 		dll = UART_GET_DLL(uart);
 		dlh = UART_GET_DLH(uart);
 
-#ifndef CONFIG_BF54x
 		/* Clear DLAB in LCR to Access THR RBR IER */
-		val = UART_GET_LCR(uart);
-		val &= ~DLAB;
-		UART_PUT_LCR(uart, val);
-#endif
+		UART_CLEAR_DLAB(uart);
 
 		*baud = get_sclk() / (16*(dll | dlh << 8));
 	}
