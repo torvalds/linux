@@ -477,7 +477,7 @@ static struct flash_platform_data bfin_spi_flash_data = {
 	.name = "m25p80",
 	.parts = bfin_spi_flash_partitions,
 	.nr_parts = ARRAY_SIZE(bfin_spi_flash_partitions),
-	.type = "m25p64",
+	.type = "m25p16",
 };
 
 /* SPI flash chip (m25p64) */
