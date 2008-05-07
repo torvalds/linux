@@ -495,8 +495,6 @@ void falcon_update_stats_xmac(struct efx_nic *efx)
 		(mac_stats->rx_bytes - mac_stats->rx_good_bytes);
 }
 
-#define EFX_XAUI_RETRAIN_MAX 8
-
 int falcon_check_xmac(struct efx_nic *efx)
 {
 	unsigned xaui_link_ok;
