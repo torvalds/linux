@@ -566,6 +566,8 @@ static struct ehca_qp *internal_create_qp(
 		return ERR_PTR(-ENOMEM);
 	}
 
+	atomic_set(&my_qp->nr_events, 0);
+	init_waitqueue_head(&my_qp->wait_completion);
 	spin_lock_init(&my_qp->spinlock_s);
 	spin_lock_init(&my_qp->spinlock_r);
 	my_qp->qp_type = qp_type;
@@ -1933,6 +1935,9 @@ static int internal_destroy_qp(struct ib_device *dev, struct ehca_qp *my_qp,
 	write_lock_irqsave(&ehca_qp_idr_lock, flags);
 	idr_remove(&ehca_qp_idr, my_qp->token);
 	write_unlock_irqrestore(&ehca_qp_idr_lock, flags);
+
+	/* now wait until all pending events have completed */
+	wait_event(my_qp->wait_completion, !atomic_read(&my_qp->nr_events));
 
 	h_ret = hipz_h_destroy_qp(shca->ipz_hca_handle, my_qp);
 	if (h_ret != H_SUCCESS) {
