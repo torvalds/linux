@@ -32,7 +32,7 @@
 /* Defines */
 
 #define GS_VERSION_STR			"v2.2"
-#define GS_VERSION_NUM			0x0202
+#define GS_VERSION_NUM			0x2200
 
 #define GS_LONG_NAME			"Gadget Serial"
 #define GS_SHORT_NAME			"g_serial"
@@ -218,7 +218,6 @@ static char manufacturer[50];
 static struct usb_string gs_strings[] = {
 	{ GS_MANUFACTURER_STR_ID, manufacturer },
 	{ GS_PRODUCT_STR_ID, GS_LONG_NAME },
-	{ GS_SERIAL_STR_ID, "0" },
 	{ GS_BULK_CONFIG_STR_ID, "Gadget Serial Bulk" },
 	{ GS_ACM_CONFIG_STR_ID, "Gadget Serial CDC ACM" },
 	{ GS_CONTROL_STR_ID, "Gadget Serial Control" },
@@ -241,7 +240,6 @@ static struct usb_device_descriptor gs_device_desc = {
 	.idProduct =		__constant_cpu_to_le16(GS_PRODUCT_ID),
 	.iManufacturer =	GS_MANUFACTURER_STR_ID,
 	.iProduct =		GS_PRODUCT_STR_ID,
-	.iSerialNumber =	GS_SERIAL_STR_ID,
 	.bNumConfigurations =	GS_NUM_CONFIGS,
 };
 
@@ -278,7 +276,7 @@ static const struct usb_interface_descriptor gs_bulk_interface_desc = {
 	.bDescriptorType =	USB_DT_INTERFACE,
 	.bInterfaceNumber =	GS_BULK_INTERFACE_ID,
 	.bNumEndpoints =	2,
-	.bInterfaceClass =	USB_CLASS_CDC_DATA,
+	.bInterfaceClass =	USB_CLASS_VENDOR_SPEC,
 	.bInterfaceSubClass =	0,
 	.bInterfaceProtocol =	0,
 	.iInterface =		GS_DATA_STR_ID,
