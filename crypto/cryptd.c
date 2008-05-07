@@ -82,10 +82,8 @@ static void cryptd_blkcipher_crypt(struct ablkcipher_request *req,
 
 	rctx = ablkcipher_request_ctx(req);
 
-	if (unlikely(err == -EINPROGRESS)) {
-		rctx->complete(&req->base, err);
-		return;
-	}
+	if (unlikely(err == -EINPROGRESS))
+		goto out;
 
 	desc.tfm = child;
 	desc.info = req->info;
@@ -95,8 +93,9 @@ static void cryptd_blkcipher_crypt(struct ablkcipher_request *req,
 
 	req->base.complete = rctx->complete;
 
+out:
 	local_bh_disable();
-	req->base.complete(&req->base, err);
+	rctx->complete(&req->base, err);
 	local_bh_enable();
 }
 
