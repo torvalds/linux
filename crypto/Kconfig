@@ -241,6 +241,32 @@ config CRYPTO_MICHAEL_MIC
 	  should not be used for other purposes because of the weakness
 	  of the algorithm.
 
+config CRYPTO_RMD128
+  tristate "RIPEMD-128 digest algorithm"
+  select CRYPTO_ALGAPI
+  help
+    RIPEMD-128 (ISO/IEC 10118-3:2004).
+
+    RIPEMD-128 is a 128-bit cryptographic hash function. It should only
+    to be used as a secure replacement for RIPEMD. For other use cases
+    RIPEMD-160 should be used.
+
+    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+
+config CRYPTO_RMD160
+  tristate "RIPEMD-160 digest algorithm"
+  select CRYPTO_ALGAPI
+  help
+    RIPEMD-160 (ISO/IEC 10118-3:2004).
+
+    RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
+    to be used as a secure replacement for the 128-bit hash functions
+    MD4, MD5 and it's predecessor RIPEMD (not to be confused with RIPEMD-128).
+
+    Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+    See <http://home.esat.kuleuven.be/~bosselae/ripemd160.html>
+
 config CRYPTO_SHA1
 	tristate "SHA1 digest algorithm"
 	select CRYPTO_ALGAPI
