@@ -963,21 +963,11 @@ endchoice
 
 endmenu
 
-if (BF537 || BF533 || BF54x)
-
 menu "CPU Frequency scaling"
 
 source "drivers/cpufreq/Kconfig"
 
-config CPU_FREQ
-	bool
-	default n
-	help
-	  If you want to enable this option, you should select the
-	  DPMC driver from Character Devices.
 endmenu
-
-endif
 
 source "net/Kconfig"
 

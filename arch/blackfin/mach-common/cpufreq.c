@@ -121,7 +121,7 @@ static int __init __bfin_cpu_init(struct cpufreq_policy *policy)
 
 #ifdef CONFIG_CYCLES_CLOCKSOURCE
 /*
- * Clocksource CYCLES is still CONTINUOUS but not longer MONOTONIC in case we enable
+ * Clocksource CYCLES is still CONTINUOUS but not longer with a constant tick rate in case we enable
  * CPU frequency scaling, since CYCLES runs off Core Clock.
  */
 	printk(KERN_WARNING "CPU frequency scaling not supported: Clocksource not suitable\n"
@@ -134,7 +134,7 @@ static int __init __bfin_cpu_init(struct cpufreq_policy *policy)
 	cclk = get_cclk();
 	sclk = get_sclk();
 
-#if ANOMALY_05000273
+#if ANOMALY_05000273 || (!defined(CONFIG_BF54x) && defined(CONFIG_BFIN_DCACHE))
 	min_cclk = sclk * 2;
 #else
 	min_cclk = sclk;
