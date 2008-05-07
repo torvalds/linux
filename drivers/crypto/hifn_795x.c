@@ -1651,7 +1651,7 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 err_out:
 	spin_unlock_irqrestore(&dev->lock, flags);
 err_out_exit:
-	if (err && printk_ratelimit())
+	if (err)
 		dprintk("%s: iv: %p [%d], key: %p [%d], mode: %u, op: %u, "
 				"type: %u, err: %d.\n",
 			dev->name, ctx->iv, ctx->ivsize,
