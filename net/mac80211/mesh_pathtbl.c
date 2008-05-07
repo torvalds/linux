@@ -469,7 +469,7 @@ static int mesh_path_node_copy(struct hlist_node *p, struct mesh_table *newtbl)
 	struct mpath_node *node, *new_node;
 	u32 hash_idx;
 
-	new_node = kmalloc(sizeof(struct mpath_node), GFP_KERNEL);
+	new_node = kmalloc(sizeof(struct mpath_node), GFP_ATOMIC);
 	if (new_node == NULL)
 		return -ENOMEM;
 
