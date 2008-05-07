@@ -95,7 +95,7 @@
 #define MDIO_PMAPMD_CTRL2_10_BT		(0xf)
 #define MDIO_PMAPMD_CTRL2_TYPE_MASK	(0xf)
 
-/* /\* PHY XGXS lane state *\/ */
+/* PHY XGXS lane state */
 #define MDIO_PHYXS_LANE_STATE		(0x18)
 #define MDIO_PHYXS_LANE_ALIGNED_LBN	(12)
 
