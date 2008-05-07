@@ -371,7 +371,7 @@ static atomic_t hifn_dev_number;
 
 #define HIFN_D_DST_DALIGN		4
 
-#define HIFN_QUEUE_LENGTH		HIFN_D_CMD_RSIZE-5
+#define HIFN_QUEUE_LENGTH		HIFN_D_CMD_RSIZE-1
 
 #define AES_MIN_KEY_SIZE		16
 #define AES_MAX_KEY_SIZE		32
