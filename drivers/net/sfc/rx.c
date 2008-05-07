@@ -736,7 +736,6 @@ void __efx_rx_packet(struct efx_channel *channel,
 	/* Update allocation strategy method */
 	channel->rx_alloc_level += RX_ALLOC_FACTOR_SKB;
 
-	/* fall-thru */
 done:
 	efx->net_dev->last_rx = jiffies;
 }

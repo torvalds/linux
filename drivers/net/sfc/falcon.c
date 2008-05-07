@@ -2468,14 +2468,12 @@ int falcon_probe_nic(struct efx_nic *efx)
  fail5:
 	falcon_free_buffer(efx, &efx->irq_status);
  fail4:
-	/* fall-thru */
  fail3:
 	if (nic_data->pci_dev2) {
 		pci_dev_put(nic_data->pci_dev2);
 		nic_data->pci_dev2 = NULL;
 	}
  fail2:
-	/* fall-thru */
  fail1:
 	kfree(efx->nic_data);
 	return rc;
