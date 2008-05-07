@@ -1433,7 +1433,7 @@ static int ablkcipher_add(void *daddr, unsigned int *drestp, struct scatterlist 
 		return -EINVAL;
 
 	while (size) {
-		copy = min(drest, src->length);
+		copy = min(drest, min(size, src->length));
 
 		saddr = kmap_atomic(sg_page(src), KM_SOFTIRQ1);
 		memcpy(daddr, saddr + src->offset, copy);
@@ -1482,7 +1482,7 @@ static int ablkcipher_walk(struct ablkcipher_request *req,
 		if (!IS_ALIGNED(dst->offset, HIFN_D_DST_DALIGN) ||
 		    !IS_ALIGNED(dst->length, HIFN_D_DST_DALIGN) ||
 		    offset) {
-			unsigned slen = src->length - offset;
+			unsigned slen = min(src->length - offset, nbytes);
 			unsigned dlen = PAGE_SIZE;
 
 			t = &w->cache[idx];
@@ -1540,7 +1540,7 @@ static int ablkcipher_walk(struct ablkcipher_request *req,
 
 			kunmap_atomic(daddr, KM_SOFTIRQ0);
 		} else {
-			nbytes -= src->length;
+			nbytes -= min(src->length, nbytes);
 			idx++;
 		}
 
@@ -1559,7 +1559,7 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 	struct hifn_context *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct hifn_device *dev = ctx->dev;
 	struct page *spage, *dpage;
-	unsigned long soff, doff, flags;
+	unsigned long soff, doff, dlen, flags;
 	unsigned int nbytes = req->nbytes, idx = 0, len;
 	int err = -EINVAL, sg_num;
 	struct scatterlist *src, *dst, *t;
@@ -1571,12 +1571,13 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 
 	while (nbytes) {
 		dst = &req->dst[idx];
+		dlen = min(dst->length, nbytes);
 
 		if (!IS_ALIGNED(dst->offset, HIFN_D_DST_DALIGN) ||
-		    !IS_ALIGNED(dst->length, HIFN_D_DST_DALIGN))
+		    !IS_ALIGNED(dlen, HIFN_D_DST_DALIGN))
 			ctx->walk.flags |= ASYNC_FLAGS_MISALIGNED;
 
-		nbytes -= dst->length;
+		nbytes -= dlen;
 		idx++;
 	}
 
@@ -1631,7 +1632,7 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 		if (err)
 			goto err_out;
 
-		nbytes -= len;
+		nbytes -= min(len, nbytes);
 	}
 
 	dev->active = HIFN_DEFAULT_ACTIVE_NUM;
@@ -1736,8 +1737,7 @@ static int ablkcipher_get(void *saddr, unsigned int *srestp, unsigned int offset
 		return -EINVAL;
 
 	while (size) {
-
-		copy = min(dst->length, srest);
+		copy = min(srest, min(dst->length, size));
 
 		daddr = kmap_atomic(sg_page(dst), KM_IRQ0);
 		memcpy(daddr + dst->offset + offset, saddr, copy);
@@ -1794,7 +1794,7 @@ static void hifn_process_ready(struct ablkcipher_request *req, int error)
 					sg_page(dst), dst->length, nbytes);
 
 				if (!t->length) {
-					nbytes -= dst->length;
+					nbytes -= min(dst->length, nbytes);
 					idx++;
 					continue;
 				}
