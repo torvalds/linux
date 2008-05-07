@@ -32,7 +32,7 @@
 	(FALCON_XMAC_REGBANK + ((mac_reg) * FALCON_XMAC_REG_SIZE))
 
 void falcon_xmac_writel(struct efx_nic *efx,
-			efx_dword_t *value, unsigned int mac_reg)
+			 efx_dword_t *value, unsigned int mac_reg)
 {
 	efx_oword_t temp;
 
@@ -227,7 +227,7 @@ static int falcon_xgmii_status(struct efx_nic *efx)
 	/* The ISR latches, so clear it and re-read */
 	falcon_xmac_readl(efx, &reg, XM_MGT_INT_REG_MAC_B0);
 	falcon_xmac_readl(efx, &reg, XM_MGT_INT_REG_MAC_B0);
-	
+
 	if (EFX_DWORD_FIELD(reg, XM_LCLFLT) ||
 	    EFX_DWORD_FIELD(reg, XM_RMTFLT)) {
 		EFX_INFO(efx, "MGT_INT: "EFX_DWORD_FMT"\n", EFX_DWORD_VAL(reg));
