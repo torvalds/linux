@@ -13,6 +13,7 @@
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
+ * 2008-04-27 Added RIPEMD tests
  * 2007-11-13 Added GCM tests
  * 2007-11-13 Added AEAD support
  * 2007-11-06 Added SHA-224 and SHA-224-HMAC tests
@@ -83,7 +84,7 @@ static char *check[] = {
 	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
 	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
-	"camellia", "seed", "salsa20", "lzo", "cts", NULL
+	"camellia", "seed", "salsa20", "rmd128", "rmd160", "lzo", "cts", NULL
 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
@@ -1615,6 +1616,14 @@ static void do_test(void)
 			    CTS_MODE_DEC_TEST_VECTORS);
 		break;
 
+        case 39:
+		test_hash("rmd128", rmd128_tv_template, RMD128_TEST_VECTORS);
+		break;
+
+        case 40:
+		test_hash("rmd160", rmd160_tv_template, RMD160_TEST_VECTORS);
+		break;
+
 	case 100:
 		test_hash("hmac(md5)", hmac_md5_tv_template,
 			  HMAC_MD5_TEST_VECTORS);
@@ -1648,6 +1657,16 @@ static void do_test(void)
 	case 106:
 		test_hash("xcbc(aes)", aes_xcbc128_tv_template,
 			  XCBC_AES_TEST_VECTORS);
+		break;
+
+	case 107:
+		test_hash("hmac(rmd128)", hmac_rmd128_tv_template,
+			  HMAC_RMD128_TEST_VECTORS);
+		break;
+
+	case 108:
+		test_hash("hmac(rmd160)", hmac_rmd160_tv_template,
+			  HMAC_RMD160_TEST_VECTORS);
 		break;
 
 	case 200:
@@ -1786,6 +1805,14 @@ static void do_test(void)
 
 	case 313:
 		test_hash_speed("sha224", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 314:
+		test_hash_speed("rmd128", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 315:
+		test_hash_speed("rmd160", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 
 	case 399:
