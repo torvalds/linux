@@ -295,6 +295,11 @@ ENTRY(_double_fault)
          */
         SAVE_ALL_SYS
 
+	/* The dumping functions expect the return address in the RETI
+	 * slot.  */
+	r6 = retx;
+	[sp + PT_PC] = r6;
+
         r0 = sp;        /* stack frame pt_regs pointer argument ==> r0 */
         SP += -12;
         call _double_fault_c;
