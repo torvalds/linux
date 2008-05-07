@@ -1732,7 +1732,8 @@ void falcon_drain_tx_fifo(struct efx_nic *efx)
 	efx_oword_t temp;
 	int count;
 
-	if (FALCON_REV(efx) < FALCON_REV_B0)
+	if ((FALCON_REV(efx) < FALCON_REV_B0) ||
+	    (efx->loopback_mode != LOOPBACK_NONE))
 		return;
 
 	falcon_read(efx, &temp, MAC0_CTRL_REG_KER);
@@ -2092,6 +2093,8 @@ static int falcon_probe_phy(struct efx_nic *efx)
 			efx->phy_type);
 		return -1;
 	}
+
+	efx->loopback_modes = LOOPBACKS_10G_INTERNAL | efx->phy_op->loopbacks;
 	return 0;
 }
 

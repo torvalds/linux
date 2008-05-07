@@ -241,7 +241,7 @@ static void falcon_mask_status_intr(struct efx_nic *efx, int enable)
 {
 	efx_dword_t reg;
 
-	if (FALCON_REV(efx) < FALCON_REV_B0)
+	if ((FALCON_REV(efx) < FALCON_REV_B0) || LOOPBACK_INTERNAL(efx))
 		return;
 
 	/* Flush the ISR */
@@ -287,6 +287,9 @@ int falcon_xaui_link_ok(struct efx_nic *efx)
 {
 	efx_dword_t reg;
 	int align_done, sync_status, link_ok = 0;
+
+	if (LOOPBACK_INTERNAL(efx))
+		return 1;
 
 	/* Read link status */
 	falcon_xmac_readl(efx, &reg, XX_CORE_STAT_REG_MAC);
@@ -378,6 +381,61 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 	falcon_xmac_writel(efx, &reg, XM_ADR_HI_REG_MAC);
 }
 
+static void falcon_reconfigure_xgxs_core(struct efx_nic *efx)
+{
+	efx_dword_t reg;
+	int xgxs_loopback = (efx->loopback_mode == LOOPBACK_XGXS) ? 1 : 0;
+	int xaui_loopback = (efx->loopback_mode == LOOPBACK_XAUI) ? 1 : 0;
+	int xgmii_loopback =
+		(efx->loopback_mode == LOOPBACK_XGMII) ? 1 : 0;
+
+	/* XGXS block is flaky and will need to be reset if moving
+	 * into our out of XGMII, XGXS or XAUI loopbacks. */
+	if (EFX_WORKAROUND_5147(efx)) {
+		int old_xgmii_loopback, old_xgxs_loopback, old_xaui_loopback;
+		int reset_xgxs;
+
+		falcon_xmac_readl(efx, &reg, XX_CORE_STAT_REG_MAC);
+		old_xgxs_loopback = EFX_DWORD_FIELD(reg, XX_XGXS_LB_EN);
+		old_xgmii_loopback = EFX_DWORD_FIELD(reg, XX_XGMII_LB_EN);
+
+		falcon_xmac_readl(efx, &reg, XX_SD_CTL_REG_MAC);
+		old_xaui_loopback = EFX_DWORD_FIELD(reg, XX_LPBKA);
+
+		/* The PHY driver may have turned XAUI off */
+		reset_xgxs = ((xgxs_loopback != old_xgxs_loopback) ||
+			      (xaui_loopback != old_xaui_loopback) ||
+			      (xgmii_loopback != old_xgmii_loopback));
+		if (reset_xgxs) {
+			falcon_xmac_readl(efx, &reg, XX_PWR_RST_REG_MAC);
+			EFX_SET_DWORD_FIELD(reg, XX_RSTXGXSTX_EN, 1);
+			EFX_SET_DWORD_FIELD(reg, XX_RSTXGXSRX_EN, 1);
+			falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+			udelay(1);
+			EFX_SET_DWORD_FIELD(reg, XX_RSTXGXSTX_EN, 0);
+			EFX_SET_DWORD_FIELD(reg, XX_RSTXGXSRX_EN, 0);
+			falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+			udelay(1);
+		}
+	}
+
+	falcon_xmac_readl(efx, &reg, XX_CORE_STAT_REG_MAC);
+	EFX_SET_DWORD_FIELD(reg, XX_FORCE_SIG,
+			    (xgxs_loopback || xaui_loopback) ?
+			    XX_FORCE_SIG_DECODE_FORCED : 0);
+	EFX_SET_DWORD_FIELD(reg, XX_XGXS_LB_EN, xgxs_loopback);
+	EFX_SET_DWORD_FIELD(reg, XX_XGMII_LB_EN, xgmii_loopback);
+	falcon_xmac_writel(efx, &reg, XX_CORE_STAT_REG_MAC);
+
+	falcon_xmac_readl(efx, &reg, XX_SD_CTL_REG_MAC);
+	EFX_SET_DWORD_FIELD(reg, XX_LPBKD, xaui_loopback);
+	EFX_SET_DWORD_FIELD(reg, XX_LPBKC, xaui_loopback);
+	EFX_SET_DWORD_FIELD(reg, XX_LPBKB, xaui_loopback);
+	EFX_SET_DWORD_FIELD(reg, XX_LPBKA, xaui_loopback);
+	falcon_xmac_writel(efx, &reg, XX_SD_CTL_REG_MAC);
+}
+
+
 /* Try and bring the Falcon side of the Falcon-Phy XAUI link fails
  * to come back up. Bash it until it comes back up */
 static int falcon_check_xaui_link_up(struct efx_nic *efx)
@@ -386,7 +444,8 @@ static int falcon_check_xaui_link_up(struct efx_nic *efx)
 	tries = EFX_WORKAROUND_5147(efx) ? 5 : 1;
 	max_tries = tries;
 
-	if (efx->phy_type == PHY_TYPE_NONE)
+	if ((efx->loopback_mode == LOOPBACK_NETWORK) ||
+	    (efx->phy_type == PHY_TYPE_NONE))
 		return 0;
 
 	while (tries) {
@@ -412,8 +471,13 @@ void falcon_reconfigure_xmac(struct efx_nic *efx)
 	falcon_mask_status_intr(efx, 0);
 
 	falcon_deconfigure_mac_wrapper(efx);
+
+	efx->tx_disabled = LOOPBACK_INTERNAL(efx);
 	efx->phy_op->reconfigure(efx);
+
+	falcon_reconfigure_xgxs_core(efx);
 	falcon_reconfigure_xmac_core(efx);
+
 	falcon_reconfigure_mac_wrapper(efx);
 
 	/* Ensure XAUI link is up */
@@ -499,6 +563,10 @@ int falcon_check_xmac(struct efx_nic *efx)
 {
 	unsigned xaui_link_ok;
 	int rc;
+
+	if ((efx->loopback_mode == LOOPBACK_NETWORK) ||
+	    (efx->phy_type == PHY_TYPE_NONE))
+		return 0;
 
 	falcon_mask_status_intr(efx, 0);
 	xaui_link_ok = falcon_xaui_link_ok(efx);

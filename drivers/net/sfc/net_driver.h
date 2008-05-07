@@ -448,6 +448,9 @@ struct efx_board {
 	struct efx_blinker blinker;
 };
 
+#define STRING_TABLE_LOOKUP(val, member)	\
+	member ## _names[val]
+
 enum efx_int_mode {
 	/* Be careful if altering to correct macro below */
 	EFX_INT_MODE_MSIX = 0,
@@ -520,6 +523,7 @@ enum efx_fc_type {
  * @check_hw: Check hardware
  * @reset_xaui: Reset XAUI side of PHY for (software sequenced reset)
  * @mmds: MMD presence mask
+ * @loopbacks: Supported loopback modes mask
  */
 struct efx_phy_operations {
 	int (*init) (struct efx_nic *efx);
@@ -529,6 +533,7 @@ struct efx_phy_operations {
 	int (*check_hw) (struct efx_nic *efx);
 	void (*reset_xaui) (struct efx_nic *efx);
 	int mmds;
+	unsigned loopbacks;
 };
 
 /*
@@ -667,6 +672,7 @@ union efx_multicast_hash {
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
  * @mii: PHY interface
+ * @tx_disabled: PHY transmitter turned off
  * @link_up: Link status
  * @link_options: Link options (MII/GMII format)
  * @n_link_state_changes: Number of times the link has changed state
@@ -674,6 +680,9 @@ union efx_multicast_hash {
  * @multicast_hash: Multicast hash table
  * @flow_control: Flow control flags - separate RX/TX so can't use link_options
  * @reconfigure_work: work item for dealing with PHY events
+ * @loopback_mode: Loopback status
+ * @loopback_modes: Supported loopback mode bitmask
+ * @loopback_selftest: Offline self-test private state
  *
  * The @priv field of the corresponding &struct net_device points to
  * this.
@@ -733,6 +742,7 @@ struct efx_nic {
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
 	struct mii_if_info mii;
+	unsigned tx_disabled;
 
 	int link_up;
 	unsigned int link_options;
@@ -744,6 +754,10 @@ struct efx_nic {
 	struct work_struct reconfigure_work;
 
 	atomic_t rx_reset;
+	enum efx_loopback_mode loopback_mode;
+	unsigned int loopback_modes;
+
+	void *loopback_selftest;
 };
 
 /**
