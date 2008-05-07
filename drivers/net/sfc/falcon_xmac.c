@@ -69,6 +69,10 @@ static int falcon_reset_xmac(struct efx_nic *efx)
 		udelay(10);
 	}
 
+	/* This often fails when DSP is disabled, ignore it */
+	if (sfe4001_phy_flash_cfg != 0)
+		return 0;
+
 	EFX_ERR(efx, "timed out waiting for XMAC core reset\n");
 	return -ETIMEDOUT;
 }

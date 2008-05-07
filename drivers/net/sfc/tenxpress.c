@@ -199,10 +199,12 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 
 	tenxpress_set_state(efx, TENXPRESS_STATUS_NORMAL);
 
-	rc = mdio_clause45_wait_reset_mmds(efx,
-					   TENXPRESS_REQUIRED_DEVS);
-	if (rc < 0)
-		goto fail;
+	if (!sfe4001_phy_flash_cfg) {
+		rc = mdio_clause45_wait_reset_mmds(efx,
+						   TENXPRESS_REQUIRED_DEVS);
+		if (rc < 0)
+			goto fail;
+	}
 
 	rc = mdio_clause45_check_mmds(efx, TENXPRESS_REQUIRED_DEVS, 0);
 	if (rc < 0)
