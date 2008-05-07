@@ -416,6 +416,7 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 
 	/* XXX: What should this be? */
 	rqstp->rq_prot = IPPROTO_MAX;
+	svc_xprt_copy_addrs(rqstp, rqstp->rq_xprt);
 
 	ret = rqstp->rq_arg.head[0].iov_len
 		+ rqstp->rq_arg.page_len
