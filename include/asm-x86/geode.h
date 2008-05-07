@@ -185,16 +185,7 @@ static inline int is_geode(void)
 	return (is_geode_gx() || is_geode_lx());
 }
 
-/*
- * The VSA has virtual registers that we can query for a signature.
- */
-static inline int geode_has_vsa2(void)
-{
-	outw(VSA_VR_UNLOCK, VSA_VRC_INDEX);
-	outw(VSA_VR_SIGNATURE, VSA_VRC_INDEX);
-
-	return (inw(VSA_VRC_DATA) == VSA_SIG);
-}
+extern int geode_has_vsa2(void);
 
 /* MFGPTs */
 
