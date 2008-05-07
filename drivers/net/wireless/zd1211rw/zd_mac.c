@@ -751,6 +751,7 @@ static int zd_op_add_interface(struct ieee80211_hw *hw,
 	case IEEE80211_IF_TYPE_MNTR:
 	case IEEE80211_IF_TYPE_MESH_POINT:
 	case IEEE80211_IF_TYPE_STA:
+	case IEEE80211_IF_TYPE_IBSS:
 		mac->type = conf->type;
 		break;
 	default:
@@ -781,7 +782,8 @@ static int zd_op_config_interface(struct ieee80211_hw *hw,
 	struct zd_mac *mac = zd_hw_mac(hw);
 	int associated;
 
-	if (mac->type == IEEE80211_IF_TYPE_MESH_POINT) {
+	if (mac->type == IEEE80211_IF_TYPE_MESH_POINT ||
+	    mac->type == IEEE80211_IF_TYPE_IBSS) {
 		associated = true;
 		if (conf->beacon) {
 			zd_mac_config_beacon(hw, conf->beacon);
@@ -941,6 +943,18 @@ static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 }
 
+static int zd_op_beacon_update(struct ieee80211_hw *hw,
+			       struct sk_buff *skb,
+			       struct ieee80211_tx_control *ctl)
+{
+	struct zd_mac *mac = zd_hw_mac(hw);
+	zd_mac_config_beacon(hw, skb);
+	kfree_skb(skb);
+	zd_set_beacon_interval(&mac->chip, BCN_MODE_IBSS |
+					hw->conf.beacon_int);
+	return 0;
+}
+
 static const struct ieee80211_ops zd_ops = {
 	.tx			= zd_op_tx,
 	.start			= zd_op_start,
@@ -951,6 +965,7 @@ static const struct ieee80211_ops zd_ops = {
 	.config_interface	= zd_op_config_interface,
 	.configure_filter	= zd_op_configure_filter,
 	.bss_info_changed	= zd_op_bss_info_changed,
+	.beacon_update		= zd_op_beacon_update,
 };
 
 struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
