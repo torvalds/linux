@@ -1602,7 +1602,10 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 	idx = 0;
 
 	sg_num = ablkcipher_walk(req, &ctx->walk);
-
+	if (sg_num < 0) {
+		err = sg_num;
+		goto err_out_exit;
+	}
 	atomic_set(&ctx->sg_num, sg_num);
 
 	spin_lock_irqsave(&dev->lock, flags);
