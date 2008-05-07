@@ -223,8 +223,7 @@ int sparc_mmap_check(unsigned long addr, unsigned long len, unsigned long flags)
 {
 	if (ARCH_SUN4C_SUN4 &&
 	    (len > 0x20000000 ||
-	     ((flags & MAP_FIXED) &&
-	      addr < 0xe0000000 && addr + len > 0x20000000)))
+	     (addr < 0xe0000000 && addr + len > 0x20000000)))
 		return -EINVAL;
 
 	/* See asm-sparc/uaccess.h */
