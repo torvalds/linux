@@ -121,12 +121,6 @@ struct gs_buf {
 	char			*buf_put;
 };
 
-/* list of requests */
-struct gs_req_entry {
-	struct list_head	re_entry;
-	struct usb_request	*re_req;
-};
-
 /* the port structure holds info for each port, one for each minor number */
 struct gs_port {
 	struct gs_dev		*port_dev;	/* pointer to device struct */
@@ -184,10 +178,6 @@ static int gs_build_config_buf(u8 *buf, struct usb_gadget *g,
 static struct usb_request *gs_alloc_req(struct usb_ep *ep, unsigned int len,
 	gfp_t kmalloc_flags);
 static void gs_free_req(struct usb_ep *ep, struct usb_request *req);
-
-static struct gs_req_entry *gs_alloc_req_entry(struct usb_ep *ep, unsigned len,
-	gfp_t kmalloc_flags);
-static void gs_free_req_entry(struct usb_ep *ep, struct gs_req_entry *req);
 
 static int gs_alloc_ports(struct gs_dev *dev, gfp_t kmalloc_flags);
 static void gs_free_ports(struct gs_dev *dev);
@@ -966,7 +956,6 @@ static int gs_send(struct gs_dev *dev)
 	unsigned long flags;
 	struct usb_ep *ep;
 	struct usb_request *req;
-	struct gs_req_entry *req_entry;
 
 	if (dev == NULL) {
 		pr_err("gs_send: NULL device pointer\n");
@@ -979,10 +968,8 @@ static int gs_send(struct gs_dev *dev)
 
 	while(!list_empty(&dev->dev_req_list)) {
 
-		req_entry = list_entry(dev->dev_req_list.next,
-			struct gs_req_entry, re_entry);
-
-		req = req_entry->re_req;
+		req = list_entry(dev->dev_req_list.next,
+				struct usb_request, list);
 
 		len = gs_send_packet(dev, req->buf, ep->maxpacket);
 
@@ -992,7 +979,7 @@ static int gs_send(struct gs_dev *dev)
 					*((unsigned char *)req->buf),
 					*((unsigned char *)req->buf+1),
 					*((unsigned char *)req->buf+2));
-			list_del(&req_entry->re_entry);
+			list_del(&req->list);
 			req->length = len;
 			spin_unlock_irqrestore(&dev->dev_lock, flags);
 			if ((ret=usb_ep_queue(ep, req, GFP_ATOMIC))) {
@@ -1175,7 +1162,6 @@ requeue:
 static void gs_write_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct gs_dev *dev = ep->driver_data;
-	struct gs_req_entry *gs_req = req->context;
 
 	if (dev == NULL) {
 		pr_err("gs_write_complete: NULL device pointer\n");
@@ -1186,13 +1172,8 @@ static void gs_write_complete(struct usb_ep *ep, struct usb_request *req)
 	case 0:
 		/* normal completion */
 requeue:
-		if (gs_req == NULL) {
-			pr_err("gs_write_complete: NULL request pointer\n");
-			return;
-		}
-
 		spin_lock(&dev->dev_lock);
-		list_add(&gs_req->re_entry, &dev->dev_req_list);
+		list_add(&req->list, &dev->dev_req_list);
 		spin_unlock(&dev->dev_lock);
 
 		gs_send(dev);
@@ -1731,7 +1712,6 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 	struct usb_ep *ep;
 	struct usb_endpoint_descriptor *ep_desc;
 	struct usb_request *req;
-	struct gs_req_entry *req_entry;
 
 	if (dev == NULL) {
 		pr_err("gs_set_config: NULL device pointer\n");
@@ -1843,9 +1823,10 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 	/* allocate write requests, and put on free list */
 	ep = dev->dev_in_ep;
 	for (i=0; i<write_q_size; i++) {
-		if ((req_entry=gs_alloc_req_entry(ep, ep->maxpacket, GFP_ATOMIC))) {
-			req_entry->re_req->complete = gs_write_complete;
-			list_add(&req_entry->re_entry, &dev->dev_req_list);
+		req = gs_alloc_req(ep, ep->maxpacket, GFP_ATOMIC);
+		if (req) {
+			req->complete = gs_write_complete;
+			list_add(&req->list, &dev->dev_req_list);
 		} else {
 			pr_err("gs_set_config: cannot allocate "
 					"write requests\n");
@@ -1883,7 +1864,7 @@ exit_reset_config:
  */
 static void gs_reset_config(struct gs_dev *dev)
 {
-	struct gs_req_entry *req_entry;
+	struct usb_request *req;
 
 	if (dev == NULL) {
 		pr_err("gs_reset_config: NULL device pointer\n");
@@ -1897,10 +1878,10 @@ static void gs_reset_config(struct gs_dev *dev)
 
 	/* free write requests on the free list */
 	while(!list_empty(&dev->dev_req_list)) {
-		req_entry = list_entry(dev->dev_req_list.next,
-			struct gs_req_entry, re_entry);
-		list_del(&req_entry->re_entry);
-		gs_free_req_entry(dev->dev_in_ep, req_entry);
+		req = list_entry(dev->dev_req_list.next,
+				struct usb_request, list);
+		list_del(&req->list);
+		gs_free_req(dev->dev_in_ep, req);
 	}
 
 	/* disable endpoints, forcing completion of pending i/o; */
@@ -2006,46 +1987,6 @@ static void gs_free_req(struct usb_ep *ep, struct usb_request *req)
 	if (ep != NULL && req != NULL) {
 		kfree(req->buf);
 		usb_ep_free_request(ep, req);
-	}
-}
-
-/*
- * gs_alloc_req_entry
- *
- * Allocates a request and its buffer, using the given
- * endpoint, buffer len, and kmalloc flags.
- */
-static struct gs_req_entry *
-gs_alloc_req_entry(struct usb_ep *ep, unsigned len, gfp_t kmalloc_flags)
-{
-	struct gs_req_entry	*req;
-
-	req = kmalloc(sizeof(struct gs_req_entry), kmalloc_flags);
-	if (req == NULL)
-		return NULL;
-
-	req->re_req = gs_alloc_req(ep, len, kmalloc_flags);
-	if (req->re_req == NULL) {
-		kfree(req);
-		return NULL;
-	}
-
-	req->re_req->context = req;
-
-	return req;
-}
-
-/*
- * gs_free_req_entry
- *
- * Frees a request and its buffer.
- */
-static void gs_free_req_entry(struct usb_ep *ep, struct gs_req_entry *req)
-{
-	if (ep != NULL && req != NULL) {
-		if (req->re_req != NULL)
-			gs_free_req(ep, req->re_req);
-		kfree(req);
 	}
 }
 
