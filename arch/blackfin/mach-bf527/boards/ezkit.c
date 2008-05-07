@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
@@ -169,6 +170,46 @@ static struct platform_device bf52x_t350mcqb_device = {
 	.id		= -1,
 	.num_resources 	= ARRAY_SIZE(bf52x_t350mcqb_resources),
 	.resource 	= bf52x_t350mcqb_resources,
+};
+#endif
+
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+static struct mtd_partition ezkit_partitions[] = {
+	{
+		.name       = "Bootloader",
+		.size       = 0x40000,
+		.offset     = 0,
+	}, {
+		.name       = "Kernel",
+		.size       = 0x1C0000,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "RootFS",
+		.size       = MTDPART_SIZ_FULL,
+		.offset     = MTDPART_OFS_APPEND,
+	}
+};
+
+static struct physmap_flash_data ezkit_flash_data = {
+	.width      = 2,
+	.parts      = ezkit_partitions,
+	.nr_parts   = ARRAY_SIZE(ezkit_partitions),
+};
+
+static struct resource ezkit_flash_resource = {
+	.start = 0x20000000,
+	.end   = 0x203fffff,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device ezkit_flash_device = {
+	.name          = "physmap-flash",
+	.id            = 0,
+	.dev = {
+		.platform_data = &ezkit_flash_data,
+	},
+	.num_resources = 1,
+	.resource      = &ezkit_flash_resource,
 };
 #endif
 
@@ -945,6 +986,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 	&bfin_device_gpiokeys,
+#endif
+
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+	&ezkit_flash_device,
 #endif
 
 	&bfin_gpios_device,
