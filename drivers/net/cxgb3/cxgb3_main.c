@@ -2430,9 +2430,6 @@ static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
 	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
 		offload_close(&adapter->tdev);
 
-	/* Free sge resources */
-	t3_free_sge_resources(adapter);
-
 	adapter->flags &= ~FULL_INIT_DONE;
 
 	pci_disable_device(pdev);
@@ -2457,8 +2454,12 @@ static pci_ers_result_t t3_io_slot_reset(struct pci_dev *pdev)
 		goto err;
 	}
 	pci_set_master(pdev);
+	pci_restore_state(pdev);
 
-	if (t3_prep_adapter(adapter, adapter->params.info, 1))
+	/* Free sge resources */
+	t3_free_sge_resources(adapter);
+
+	if (t3_replay_prep_adapter(adapter))
 		goto err;
 
 	return PCI_ERS_RESULT_RECOVERED;
@@ -2610,6 +2611,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	}
 
 	pci_set_master(pdev);
+	pci_save_state(pdev);
 
 	mmio_start = pci_resource_start(pdev, 0);
 	mmio_len = pci_resource_len(pdev, 0);
