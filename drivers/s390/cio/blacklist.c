@@ -199,7 +199,6 @@ blacklist_parse_parameters (char *str, range_action action)
 static int __init
 blacklist_setup (char *str)
 {
-	CIO_MSG_EVENT(6, "Reading blacklist parameters\n");
 	return blacklist_parse_parameters (str, add);
 }
 

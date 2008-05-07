@@ -39,23 +39,6 @@ debug_info_t *cio_debug_msg_id;
 debug_info_t *cio_debug_trace_id;
 debug_info_t *cio_debug_crw_id;
 
-int cio_show_msg;
-
-static int __init
-cio_setup (char *parm)
-{
-	if (!strcmp (parm, "yes"))
-		cio_show_msg = 1;
-	else if (!strcmp (parm, "no"))
-		cio_show_msg = 0;
-	else
-		printk(KERN_ERR "cio: cio_setup: "
-		       "invalid cio_msg parameter '%s'", parm);
-	return 1;
-}
-
-__setup ("cio_msg=", cio_setup);
-
 /*
  * Function: cio_debug_init
  * Initializes three debug logs for common I/O:
@@ -166,7 +149,7 @@ cio_start_handle_notoper(struct subchannel *sch, __u8 lpm)
 
 	stsch (sch->schid, &sch->schib);
 
-	CIO_MSG_EVENT(0, "cio_start: 'not oper' status for "
+	CIO_MSG_EVENT(2, "cio_start: 'not oper' status for "
 		      "subchannel 0.%x.%04x!\n", sch->schid.ssid,
 		      sch->schid.sch_no);
 	sprintf(dbf_text, "no%s", sch->dev.bus_id);
@@ -567,10 +550,9 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	 * ... just being curious we check for non I/O subchannels
 	 */
 	if (sch->st != 0) {
-		CIO_DEBUG(KERN_INFO, 0,
-			  "Subchannel 0.%x.%04x reports "
-			  "non-I/O subchannel type %04X\n",
-			  sch->schid.ssid, sch->schid.sch_no, sch->st);
+		CIO_MSG_EVENT(4, "Subchannel 0.%x.%04x reports "
+			      "non-I/O subchannel type %04X\n",
+			      sch->schid.ssid, sch->schid.sch_no, sch->st);
 		/* We stop here for non-io subchannels. */
 		err = sch->st;
 		goto out;
@@ -588,7 +570,7 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 		 * This device must not be known to Linux. So we simply
 		 * say that there is no device and return ENODEV.
 		 */
-		CIO_MSG_EVENT(4, "Blacklisted device detected "
+		CIO_MSG_EVENT(6, "Blacklisted device detected "
 			      "at devno %04X, subchannel set %x\n",
 			      sch->schib.pmcw.dev, sch->schid.ssid);
 		err = -ENODEV;
@@ -601,12 +583,11 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	sch->lpm = sch->schib.pmcw.pam & sch->opm;
 	sch->isc = 3;
 
-	CIO_DEBUG(KERN_INFO, 0,
-		  "Detected device %04x on subchannel 0.%x.%04X"
-		  " - PIM = %02X, PAM = %02X, POM = %02X\n",
-		  sch->schib.pmcw.dev, sch->schid.ssid,
-		  sch->schid.sch_no, sch->schib.pmcw.pim,
-		  sch->schib.pmcw.pam, sch->schib.pmcw.pom);
+	CIO_MSG_EVENT(6, "Detected device %04x on subchannel 0.%x.%04X "
+		      "- PIM = %02X, PAM = %02X, POM = %02X\n",
+		      sch->schib.pmcw.dev, sch->schid.ssid,
+		      sch->schid.sch_no, sch->schib.pmcw.pim,
+		      sch->schib.pmcw.pam, sch->schib.pmcw.pom);
 
 	/*
 	 * We now have to initially ...
