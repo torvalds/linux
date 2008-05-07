@@ -449,16 +449,19 @@ int setup_sdma(struct ipath_devdata *dd)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_senddmaheadaddr,
 			 dd->ipath_sdma_head_phys);
 
-	/* Reserve all the former "kernel" piobufs */
-	n = dd->ipath_piobcnt2k + dd->ipath_piobcnt4k - dd->ipath_pioreserved;
-	for (i = dd->ipath_lastport_piobuf; i < n; ++i) {
+	/*
+	 * Reserve all the former "kernel" piobufs, using high number range
+	 * so we get as many 4K buffers as possible
+	 */
+	n = dd->ipath_piobcnt2k + dd->ipath_piobcnt4k;
+	i = dd->ipath_lastport_piobuf + dd->ipath_pioreserved;
+	ipath_chg_pioavailkernel(dd, i, n - i , 0);
+	for (; i < n; ++i) {
 		unsigned word = i / 64;
 		unsigned bit = i & 63;
 		BUG_ON(word >= 3);
 		senddmabufmask[word] |= 1ULL << bit;
 	}
-	ipath_chg_pioavailkernel(dd, dd->ipath_lastport_piobuf,
-		n - dd->ipath_lastport_piobuf, 0);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_senddmabufmask0,
 			 senddmabufmask[0]);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_senddmabufmask1,

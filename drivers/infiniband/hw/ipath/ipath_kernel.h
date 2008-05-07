@@ -117,6 +117,10 @@ struct ipath_portdata {
 	u16 port_subport_cnt;
 	/* non-zero if port is being shared. */
 	u16 port_subport_id;
+	/* number of pio bufs for this port (all procs, if shared) */
+	u32 port_piocnt;
+	/* first pio buffer for this port */
+	u32 port_pio_base;
 	/* chip offset of PIO buffers for this port */
 	u32 port_piobufs;
 	/* how many alloc_pages() chunks in port_rcvegrbuf_pages */
@@ -384,6 +388,8 @@ struct ipath_devdata {
 	u32 ipath_lastrpkts;
 	/* pio bufs allocated per port */
 	u32 ipath_pbufsport;
+	/* if remainder on bufs/port, ports < extrabuf get 1 extra */
+	u32 ipath_ports_extrabuf;
 	u32 ipath_pioupd_thresh; /* update threshold, some chips */
 	/*
 	 * number of ports configured as max; zero is set to number chip
@@ -1011,7 +1017,7 @@ void ipath_get_eeprom_info(struct ipath_devdata *);
 int ipath_update_eeprom_log(struct ipath_devdata *dd);
 void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
-void ipath_disarm_senderrbufs(struct ipath_devdata *, int);
+void ipath_disarm_senderrbufs(struct ipath_devdata *);
 void ipath_force_pio_avail_update(struct ipath_devdata *);
 void signal_ib_event(struct ipath_devdata *dd, enum ib_event_type ev);
 
