@@ -22,7 +22,6 @@
  */
 
 #include <asm/types.h>
-#include <asm/fpu.h>
 
 #include <linux/ioctl.h>
 
@@ -61,6 +60,13 @@ struct kvm_ioapic_state {
 
 #define KVM_CONTEXT_SIZE	8*1024
 
+struct kvm_fpreg {
+	union {
+		unsigned long bits[2];
+		long double __dummy;	/* force 16-byte alignment */
+	} u;
+};
+
 union context {
 	/* 8K size */
 	char	dummy[KVM_CONTEXT_SIZE];
@@ -77,7 +83,7 @@ union context {
 		unsigned long       ibr[8];
 		unsigned long       dbr[8];
 		unsigned long       pkr[8];
-		struct ia64_fpreg   fr[128];
+		struct kvm_fpreg   fr[128];
 	};
 };
 
