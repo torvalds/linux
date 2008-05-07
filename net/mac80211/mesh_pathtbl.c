@@ -469,9 +469,12 @@ static int mesh_path_node_copy(struct hlist_node *p, struct mesh_table *newtbl)
 	struct mpath_node *node, *new_node;
 	u32 hash_idx;
 
+	new_node = kmalloc(sizeof(struct mpath_node), GFP_KERNEL);
+	if (new_node == NULL)
+		return -ENOMEM;
+
 	node = hlist_entry(p, struct mpath_node, list);
 	mpath = node->mpath;
-	new_node = kmalloc(sizeof(struct mpath_node), GFP_KERNEL);
 	new_node->mpath = mpath;
 	hash_idx = mesh_table_hash(mpath->dst, mpath->dev, newtbl);
 	hlist_add_head(&new_node->list,
