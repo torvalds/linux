@@ -86,7 +86,7 @@ out:
 	return rc;
 }
 
-struct context *sidtab_search(struct sidtab *s, u32 sid)
+static struct context *sidtab_search_core(struct sidtab *s, u32 sid, int force)
 {
 	int hvalue;
 	struct sidtab_node *cur;
@@ -99,7 +99,10 @@ struct context *sidtab_search(struct sidtab *s, u32 sid)
 	while (cur != NULL && sid > cur->sid)
 		cur = cur->next;
 
-	if (cur == NULL || sid != cur->sid) {
+	if (force && cur && sid == cur->sid && cur->context.len)
+		return &cur->context;
+
+	if (cur == NULL || sid != cur->sid || cur->context.len) {
 		/* Remap invalid SIDs to the unlabeled SID. */
 		sid = SECINITSID_UNLABELED;
 		hvalue = SIDTAB_HASH(sid);
@@ -111,6 +114,16 @@ struct context *sidtab_search(struct sidtab *s, u32 sid)
 	}
 
 	return &cur->context;
+}
+
+struct context *sidtab_search(struct sidtab *s, u32 sid)
+{
+	return sidtab_search_core(s, sid, 0);
+}
+
+struct context *sidtab_search_force(struct sidtab *s, u32 sid)
+{
+	return sidtab_search_core(s, sid, 1);
 }
 
 int sidtab_map(struct sidtab *s,
@@ -136,43 +149,6 @@ int sidtab_map(struct sidtab *s,
 	}
 out:
 	return rc;
-}
-
-void sidtab_map_remove_on_error(struct sidtab *s,
-				int (*apply) (u32 sid,
-					      struct context *context,
-					      void *args),
-				void *args)
-{
-	int i, ret;
-	struct sidtab_node *last, *cur, *temp;
-
-	if (!s)
-		return;
-
-	for (i = 0; i < SIDTAB_SIZE; i++) {
-		last = NULL;
-		cur = s->htable[i];
-		while (cur != NULL) {
-			ret = apply(cur->sid, &cur->context, args);
-			if (ret) {
-				if (last)
-					last->next = cur->next;
-				else
-					s->htable[i] = cur->next;
-				temp = cur;
-				cur = cur->next;
-				context_destroy(&temp->context);
-				kfree(temp);
-				s->nel--;
-			} else {
-				last = cur;
-				cur = cur->next;
-			}
-		}
-	}
-
-	return;
 }
 
 static inline u32 sidtab_search_context(struct sidtab *s,
@@ -215,6 +191,10 @@ int sidtab_context_to_sid(struct sidtab *s,
 			goto unlock_out;
 		}
 		sid = s->next_sid++;
+		if (context->len)
+			printk(KERN_INFO
+		       "SELinux:  Context %s is not valid (left unmapped).\n",
+			       context->str);
 		ret = sidtab_insert(s, sid, context);
 		if (ret)
 			s->next_sid--;
