@@ -2202,9 +2202,9 @@ static int hifn_setup_crypto(struct ablkcipher_request *req, u8 op,
 		return err;
 
 	if (dev->started < HIFN_QUEUE_LENGTH &&	dev->queue.qlen)
-		err = hifn_process_queue(dev);
+		hifn_process_queue(dev);
 
-	return err;
+	return -EINPROGRESS;
 }
 
 /*
