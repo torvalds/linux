@@ -185,7 +185,14 @@ static inline int is_geode(void)
 	return (is_geode_gx() || is_geode_lx());
 }
 
+#ifdef CONFIG_MGEODE_LX
 extern int geode_has_vsa2(void);
+#else
+static inline int geode_has_vsa2(void)
+{
+	return 0;
+}
+#endif
 
 /* MFGPTs */
 
