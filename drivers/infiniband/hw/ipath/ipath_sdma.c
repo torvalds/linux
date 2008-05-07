@@ -308,13 +308,15 @@ static void sdma_abort_task(unsigned long opaque)
 		spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
 
 		/*
-		 * Don't restart sdma here. Wait until link is up to ACTIVE.
-		 * VL15 MADs used to bring the link up use PIO, and multiple
-		 * link transitions otherwise cause the sdma engine to be
+		 * Don't restart sdma here (with the exception
+		 * below). Wait until link is up to ACTIVE.  VL15 MADs
+		 * used to bring the link up use PIO, and multiple link
+		 * transitions otherwise cause the sdma engine to be
 		 * stopped and started multiple times.
-		 * The disable is done here, including the shadow, so the
-		 * state is kept consistent.
-		 * See ipath_restart_sdma() for the actual starting of sdma.
+		 * The disable is done here, including the shadow,
+		 * so the state is kept consistent.
+		 * See ipath_restart_sdma() for the actual starting
+		 * of sdma.
 		 */
 		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
 		dd->ipath_sendctrl &= ~INFINIPATH_S_SDMAENABLE;
@@ -325,6 +327,13 @@ static void sdma_abort_task(unsigned long opaque)
 
 		/* make sure I see next message */
 		dd->ipath_sdma_abort_jiffies = 0;
+
+		/*
+		 * Not everything that takes SDMA offline is a link
+		 * status change.  If the link was up, restart SDMA.
+		 */
+		if (dd->ipath_flags & IPATH_LINKACTIVE)
+			ipath_restart_sdma(dd);
 
 		goto done;
 	}
@@ -427,7 +436,12 @@ int setup_sdma(struct ipath_devdata *dd)
 		goto done;
 	}
 
-	dd->ipath_sdma_status = 0;
+	/*
+	 * Set initial status as if we had been up, then gone down.
+	 * This lets initial start on transition to ACTIVE be the
+	 * same as restart after link flap.
+	 */
+	dd->ipath_sdma_status = IPATH_SDMA_ABORT_ABORTED;
 	dd->ipath_sdma_abort_jiffies = 0;
 	dd->ipath_sdma_generation = 0;
 	dd->ipath_sdma_descq_tail = 0;
@@ -617,6 +631,9 @@ void ipath_restart_sdma(struct ipath_devdata *dd)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+
+	/* notify upper layers */
+	ipath_ib_piobufavail(dd->verbs_dev);
 
 bail:
 	return;

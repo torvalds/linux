@@ -1898,8 +1898,8 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 
 		spin_lock_irqsave(&dd->ipath_sdma_lock, flags);
 		skip_cancel =
-			!test_bit(IPATH_SDMA_DISABLED, statp) &&
-			test_and_set_bit(IPATH_SDMA_ABORTING, statp);
+			test_and_set_bit(IPATH_SDMA_ABORTING, statp)
+			&& !test_bit(IPATH_SDMA_DISABLED, statp);
 		spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
 		if (skip_cancel)
 			goto bail;
@@ -1930,6 +1930,9 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 	ipath_disarm_piobufs(dd, 0,
 		dd->ipath_piobcnt2k + dd->ipath_piobcnt4k);
 
+	if (dd->ipath_flags & IPATH_HAS_SEND_DMA)
+		set_bit(IPATH_SDMA_DISARMED, &dd->ipath_sdma_status);
+
 	if (restore_sendctrl) {
 		/* else done by caller later if needed */
 		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
@@ -1949,7 +1952,6 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 		/* only wait so long for intr */
 		dd->ipath_sdma_abort_intr_timeout = jiffies + HZ;
 		dd->ipath_sdma_reset_wait = 200;
-		__set_bit(IPATH_SDMA_DISARMED, &dd->ipath_sdma_status);
 		if (!test_bit(IPATH_SDMA_SHUTDOWN, &dd->ipath_sdma_status))
 			tasklet_hi_schedule(&dd->ipath_sdma_abort_task);
 		spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
