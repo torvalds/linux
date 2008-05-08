@@ -224,7 +224,7 @@ static int spufs_dir_close(struct inode *inode, struct file *file)
 	parent = dir->d_parent->d_inode;
 	ctx = SPUFS_I(dir->d_inode)->i_ctx;
 
-	mutex_lock(&parent->i_mutex);
+	mutex_lock_nested(&parent->i_mutex, I_MUTEX_PARENT);
 	ret = spufs_rmdir(parent, dir);
 	mutex_unlock(&parent->i_mutex);
 	WARN_ON(ret);
