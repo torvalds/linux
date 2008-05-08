@@ -731,6 +731,7 @@ u32 btrfs_count_snapshots_in_path(struct btrfs_root *root,
 	u64 found_owner;
 	u64 root_objectid = root->root_key.objectid;
 	u32 total_count = 0;
+	u32 extent_refs;
 	u32 cur_count;
 	u32 nritems;
 	int ret;
@@ -767,6 +768,7 @@ again:
 	}
 
 	item = btrfs_item_ptr(l, path->slots[0], struct btrfs_extent_item);
+	extent_refs = btrfs_extent_refs(l, item);
 	while (1) {
 		l = path->nodes[0];
 		nritems = btrfs_header_nritems(l);
@@ -800,9 +802,27 @@ again:
 				total_count = 2;
 				goto out;
 			}
+			/*
+			 * nasty.  we don't count a reference held by
+			 * the running transaction.  This allows nodatacow
+			 * to avoid cow most of the time
+			 */
+			if (found_owner >= BTRFS_FIRST_FREE_OBJECTID &&
+			    btrfs_ref_generation(l, ref_item) ==
+			    root->fs_info->generation) {
+				extent_refs--;
+			}
 		}
 		total_count = 1;
 		path->slots[0]++;
+	}
+	/*
+	 * if there is more than one reference against a data extent,
+	 * we have to assume the other ref is another snapshot
+	 */
+	if (level == -1 && extent_refs > 1) {
+		total_count = 2;
+		goto out;
 	}
 	if (cur_count == 0) {
 		total_count = 0;

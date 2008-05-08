@@ -207,9 +207,8 @@ again:
 	btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 	found_type = btrfs_key_type(&found_key);
 	if (found_key.objectid != inode->i_ino ||
-	    found_type != BTRFS_EXTENT_DATA_KEY) {
+	    found_type != BTRFS_EXTENT_DATA_KEY)
 		goto not_found;
-	}
 
 	found_type = btrfs_file_extent_type(leaf, item);
 	extent_start = found_key.offset;
@@ -245,7 +244,6 @@ again:
 		if (!block_group || block_group->ro)
 			goto not_found;
 
-
 		start = extent_end;
 	} else {
 		goto not_found;
@@ -260,8 +258,8 @@ loop:
 	goto again;
 
 not_found:
-	cow_file_range(inode, start, cow_end);
-	start = cow_end + 1;
+	cow_file_range(inode, start, end);
+	start = end + 1;
 	goto loop;
 }
 
