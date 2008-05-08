@@ -196,6 +196,9 @@ int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 	mutex_lock(&uuid_mutex);
 	list_for_each(cur, head) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
+		if (device->bdev)
+			continue;
+
 		bdev = open_bdev_excl(device->name, flags, holder);
 
 		if (IS_ERR(bdev)) {
