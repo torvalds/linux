@@ -15,6 +15,8 @@
 #ifdef CONFIG_XMON
 extern void xmon_setup(void);
 extern void xmon_register_spus(struct list_head *list);
+struct pt_regs;
+extern int xmon(struct pt_regs *excp);
 #else
 static inline void xmon_setup(void) { };
 static inline void xmon_register_spus(struct list_head *list) { };
