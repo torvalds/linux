@@ -199,6 +199,10 @@ void qmgr_release_queue(unsigned int queue)
 	spin_unlock_irq(&qmgr_lock);
 
 	module_put(THIS_MODULE);
+
+	while ((addr = qmgr_get_entry(queue)))
+		printk(KERN_ERR "qmgr: released queue %d not empty: 0x%08X\n",
+		       queue, addr);
 #if DEBUG
 	printk(KERN_DEBUG "qmgr: released queue %i\n", queue);
 #endif
