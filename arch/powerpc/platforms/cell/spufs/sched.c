@@ -659,7 +659,8 @@ static struct spu *find_victim(struct spu_context *ctx)
 
 			victim->stats.invol_ctx_switch++;
 			spu->stats.invol_ctx_switch++;
-			spu_add_to_rq(victim);
+			if (test_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags))
+				spu_add_to_rq(victim);
 
 			mutex_unlock(&victim->state_mutex);
 
