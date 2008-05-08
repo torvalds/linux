@@ -509,8 +509,6 @@ void __init htab_initialize(void)
 	unsigned long base = 0, size = 0, limit;
 	int i;
 
-	extern unsigned long tce_alloc_start, tce_alloc_end;
-
 	DBG(" -> htab_initialize()\n");
 
 	/* Initialize segment sizes */
