@@ -109,7 +109,7 @@ static void __init fwnmi_init(void)
 		fwnmi_active = 1;
 }
 
-void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc)
+static void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int cascade_irq = i8259_irq();
 	if (cascade_irq != NO_IRQ)
@@ -482,7 +482,7 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
  * possible with power button press. If ibm,power-off-ups token is used
  * it will allow auto poweron after power is restored.
  */
-void pSeries_power_off(void)
+static void pSeries_power_off(void)
 {
 	int rc;
 	int rtas_poweroff_ups_token = rtas_token("ibm,power-off-ups");

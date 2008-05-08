@@ -52,7 +52,7 @@ EXPORT_SYMBOL(plpar_hcall_norets);
 extern void pSeries_find_serial_port(void);
 
 
-int vtermno;	/* virtual terminal# for udbg  */
+static int vtermno;	/* virtual terminal# for udbg  */
 
 #define __ALIGNED__ __attribute__((__aligned__(sizeof(long))))
 static void udbg_hvsi_putc(char c)
