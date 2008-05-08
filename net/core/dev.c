@@ -994,6 +994,8 @@ int dev_open(struct net_device *dev)
 {
 	int ret = 0;
 
+	ASSERT_RTNL();
+
 	/*
 	 *	Is it already up?
 	 */
@@ -1060,6 +1062,8 @@ int dev_open(struct net_device *dev)
  */
 int dev_close(struct net_device *dev)
 {
+	ASSERT_RTNL();
+
 	might_sleep();
 
 	if (!(dev->flags & IFF_UP))
