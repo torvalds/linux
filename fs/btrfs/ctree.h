@@ -1459,6 +1459,8 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *item);
 int btrfs_find_last_root(struct btrfs_root *root, u64 objectid, struct
 			 btrfs_root_item *item, struct btrfs_key *key);
+int btrfs_search_root(struct btrfs_root *root, u64 search_start,
+		      u64 *found_objectid);
 int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
 			  struct btrfs_root *latest_root);
 /* dir-item.c */

@@ -2422,6 +2422,85 @@ truncate_racing:
 }
 
 /*
+ * The back references tell us which tree holds a ref on a block,
+ * but it is possible for the tree root field in the reference to
+ * reflect the original root before a snapshot was made.  In this
+ * case we should search through all the children of a given root
+ * to find potential holders of references on a block.
+ *
+ * Instead, we do something a little less fancy and just search
+ * all the roots for a given key/block combination.
+ */
+static int find_root_for_ref(struct btrfs_root *root,
+			     struct btrfs_path *path,
+			     struct btrfs_key *key0,
+			     int level,
+			     int file_key,
+			     struct btrfs_root **found_root,
+			     u64 bytenr)
+{
+	struct btrfs_key root_location;
+	struct btrfs_root *cur_root = *found_root;
+	struct btrfs_file_extent_item *file_extent;
+	u64 root_search_start = BTRFS_FS_TREE_OBJECTID;
+	u64 found_bytenr;
+	int ret;
+	int i;
+
+	root_location.offset = (u64)-1;
+	root_location.type = BTRFS_ROOT_ITEM_KEY;
+	path->lowest_level = level;
+	path->reada = 0;
+	while(1) {
+		ret = btrfs_search_slot(NULL, cur_root, key0, path, 0, 0);
+		found_bytenr = 0;
+		if (ret == 0 && file_key) {
+			struct extent_buffer *leaf = path->nodes[0];
+			file_extent = btrfs_item_ptr(leaf, path->slots[0],
+					     struct btrfs_file_extent_item);
+			if (btrfs_file_extent_type(leaf, file_extent) ==
+			    BTRFS_FILE_EXTENT_REG) {
+				found_bytenr =
+					btrfs_file_extent_disk_bytenr(leaf,
+							       file_extent);
+		       }
+		} else if (ret == 0) {
+			if (path->nodes[level])
+				found_bytenr = path->nodes[level]->start;
+		}
+
+		for (i = level; i < BTRFS_MAX_LEVEL; i++) {
+			if (!path->nodes[i])
+				break;
+			free_extent_buffer(path->nodes[i]);
+			path->nodes[i] = NULL;
+		}
+		btrfs_release_path(cur_root, path);
+
+		if (found_bytenr == bytenr) {
+			*found_root = cur_root;
+			ret = 0;
+			goto out;
+		}
+		ret = btrfs_search_root(root->fs_info->tree_root,
+					root_search_start, &root_search_start);
+		if (ret)
+			break;
+
+		root_location.objectid = root_search_start;
+		cur_root = btrfs_read_fs_root_no_name(root->fs_info,
+						      &root_location);
+		if (!cur_root) {
+			ret = 1;
+			break;
+		}
+	}
+out:
+	path->lowest_level = 0;
+	return ret;
+}
+
+/*
  * note, this releases the path
  */
 static int noinline relocate_one_reference(struct btrfs_root *extent_root,
@@ -2430,13 +2509,15 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 {
 	struct inode *inode;
 	struct btrfs_root *found_root;
-	struct btrfs_key *root_location;
+	struct btrfs_key root_location;
+	struct btrfs_key found_key;
 	struct btrfs_extent_ref *ref;
 	u64 ref_root;
 	u64 ref_gen;
 	u64 ref_objectid;
 	u64 ref_offset;
 	int ret;
+	int level;
 
 	ref = btrfs_item_ptr(path->nodes[0], path->slots[0],
 			     struct btrfs_extent_ref);
@@ -2446,20 +2527,30 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 	ref_offset = btrfs_ref_offset(path->nodes[0], ref);
 	btrfs_release_path(extent_root, path);
 
-	root_location = kmalloc(sizeof(*root_location), GFP_NOFS);
-	root_location->objectid = ref_root;
+	root_location.objectid = ref_root;
 	if (ref_gen == 0)
-		root_location->offset = 0;
+		root_location.offset = 0;
 	else
-		root_location->offset = (u64)-1;
-	root_location->type = BTRFS_ROOT_ITEM_KEY;
+		root_location.offset = (u64)-1;
+	root_location.type = BTRFS_ROOT_ITEM_KEY;
 
 	found_root = btrfs_read_fs_root_no_name(extent_root->fs_info,
-						root_location);
+						&root_location);
 	BUG_ON(!found_root);
-	kfree(root_location);
 
 	if (ref_objectid >= BTRFS_FIRST_FREE_OBJECTID) {
+		found_key.objectid = ref_objectid;
+		found_key.type = BTRFS_EXTENT_DATA_KEY;
+		found_key.offset = ref_offset;
+		level = 0;
+
+		ret = find_root_for_ref(extent_root, path, &found_key,
+					level, 1, &found_root,
+					extent_key->objectid);
+
+		if (ret)
+			goto out;
+
 		mutex_unlock(&extent_root->fs_info->fs_mutex);
 		inode = btrfs_iget_locked(extent_root->fs_info->sb,
 					  ref_objectid, found_root);
@@ -2485,12 +2576,9 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 		mutex_lock(&extent_root->fs_info->fs_mutex);
 	} else {
 		struct btrfs_trans_handle *trans;
-		struct btrfs_key found_key;
 		struct extent_buffer *eb;
-		int level;
 		int i;
 
-		trans = btrfs_start_transaction(found_root, 1);
 		eb = read_tree_block(found_root, extent_key->objectid,
 				     extent_key->offset);
 		level = btrfs_header_level(eb);
@@ -2501,6 +2589,15 @@ static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 			btrfs_node_key_to_cpu(eb, &found_key, 0);
 
 		free_extent_buffer(eb);
+
+		ret = find_root_for_ref(extent_root, path, &found_key,
+					level, 0, &found_root,
+					extent_key->objectid);
+
+		if (ret)
+			goto out;
+
+		trans = btrfs_start_transaction(found_root, 1);
 
 		path->lowest_level = level;
 		path->reada = 2;
@@ -2578,6 +2675,7 @@ static int noinline relocate_one_extent(struct btrfs_root *extent_root,
 			}
 			if (ret < 0)
 				goto out;
+			leaf = path->nodes[0];
 		}
 
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
