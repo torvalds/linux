@@ -549,13 +549,13 @@ int sparc64_mmap_check(unsigned long addr, unsigned long len,
 		if (len >= STACK_TOP32)
 			return -EINVAL;
 
-		if ((flags & MAP_FIXED) && addr > STACK_TOP32 - len)
+		if (addr > STACK_TOP32 - len)
 			return -EINVAL;
 	} else {
 		if (len >= VA_EXCLUDE_START)
 			return -EINVAL;
 
-		if ((flags & MAP_FIXED) && invalid_64bit_range(addr, len))
+		if (invalid_64bit_range(addr, len))
 			return -EINVAL;
 	}
 
