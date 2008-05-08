@@ -176,9 +176,24 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	if (IS_ERR(exp))
 		return nfserrno(PTR_ERR(exp));
 
-	error = nfsd_setuser_and_check_port(rqstp, exp);
-	if (error)
-		goto out;
+	if (exp->ex_flags & NFSEXP_NOSUBTREECHECK) {
+		/* Elevate privileges so that the lack of 'r' or 'x'
+		 * permission on some parent directory will
+		 * not stop exportfs_decode_fh from being able
+		 * to reconnect a directory into the dentry cache.
+		 * The same problem can affect "SUBTREECHECK" exports,
+		 * but as nfsd_acceptable depends on correct
+		 * access control settings being in effect, we cannot
+		 * fix that case easily.
+		 */
+		current->cap_effective =
+			cap_raise_nfsd_set(current->cap_effective,
+					   current->cap_permitted);
+	} else {
+		error = nfsd_setuser_and_check_port(rqstp, exp);
+		if (error)
+			goto out;
+	}
 
 	/*
 	 * Look up the dentry using the NFS file handle.
@@ -213,6 +228,14 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 		if (PTR_ERR(dentry) != -EINVAL)
 			error = nfserrno(PTR_ERR(dentry));
 		goto out;
+	}
+
+	if (exp->ex_flags & NFSEXP_NOSUBTREECHECK) {
+		error = nfsd_setuser_and_check_port(rqstp, exp);
+		if (error) {
+			dput(dentry);
+			goto out;
+		}
 	}
 
 	if (S_ISDIR(dentry->d_inode->i_mode) &&
