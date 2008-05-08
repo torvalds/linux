@@ -171,7 +171,7 @@ cuboot*)
     *-mpc824*)
         platformo=$object/cuboot-824x.o
         ;;
-    *-mpc83*)
+    *-mpc83*|*-asp834x*)
         platformo=$object/cuboot-83xx.o
         ;;
     *-tqm8541|*-mpc8560*|*-tqm8560|*-tqm8555|*-ksi8560*)
@@ -201,6 +201,10 @@ adder875-redboot)
     ;;
 simpleboot-virtex405-*)
     platformo="$object/virtex405-head.o $object/simpleboot.o"
+    binary=y
+    ;;
+asp834x-redboot)
+    platformo="$object/fixed-head.o $object/redboot-83xx.o"
     binary=y
     ;;
 esac
