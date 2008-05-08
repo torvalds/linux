@@ -1453,19 +1453,20 @@ static void iscsi_check_transport_timeouts(unsigned long data)
 {
 	struct iscsi_conn *conn = (struct iscsi_conn *)data;
 	struct iscsi_session *session = conn->session;
-	unsigned long timeout, next_timeout = 0, last_recv;
+	unsigned long recv_timeout, next_timeout = 0, last_recv;
 
 	spin_lock(&session->lock);
 	if (session->state != ISCSI_STATE_LOGGED_IN)
 		goto done;
 
-	timeout = conn->recv_timeout;
-	if (!timeout)
+	recv_timeout = conn->recv_timeout;
+	if (!recv_timeout)
 		goto done;
 
-	timeout *= HZ;
+	recv_timeout *= HZ;
 	last_recv = conn->last_recv;
-	if (time_before_eq(last_recv + timeout + (conn->ping_timeout * HZ),
+	if (conn->ping_mtask &&
+	    time_before_eq(conn->last_ping + (conn->ping_timeout * HZ),
 			   jiffies)) {
 		iscsi_conn_printk(KERN_ERR, conn, "ping timeout of %d secs "
 				  "expired, last rx %lu, last ping %lu, "
@@ -1476,15 +1477,15 @@ static void iscsi_check_transport_timeouts(unsigned long data)
 		return;
 	}
 
-	if (time_before_eq(last_recv + timeout, jiffies)) {
+	if (time_before_eq(last_recv + recv_timeout, jiffies)) {
 		if (time_before_eq(conn->last_ping, last_recv)) {
 			/* send a ping to try to provoke some traffic */
 			debug_scsi("Sending nopout as ping on conn %p\n", conn);
 			iscsi_send_nopout(conn, NULL);
 		}
-		next_timeout = last_recv + timeout + (conn->ping_timeout * HZ);
+		next_timeout = conn->last_ping + (conn->ping_timeout * HZ);
 	} else
-		next_timeout = last_recv + timeout;
+		next_timeout = last_recv + recv_timeout;
 
 	debug_scsi("Setting next tmo %lu\n", next_timeout);
 	mod_timer(&conn->transport_timer, next_timeout);
