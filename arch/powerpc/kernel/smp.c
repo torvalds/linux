@@ -365,11 +365,7 @@ void smp_call_function_interrupt(void)
 	}
 }
 
-extern struct gettimeofday_struct do_gtod;
-
 struct thread_info *current_set[NR_CPUS];
-
-DECLARE_PER_CPU(unsigned int, pvr);
 
 static void __devinit smp_store_cpu_info(int id)
 {

@@ -34,5 +34,5 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 void arch_teardown_msi_irqs(struct pci_dev *dev)
 {
-	return ppc_md.teardown_msi_irqs(dev);
+	ppc_md.teardown_msi_irqs(dev);
 }

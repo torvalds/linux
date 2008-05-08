@@ -158,7 +158,7 @@ void kexec_copy_flush(struct kimage *image)
  * on calling the interrupts, but we would like to call it off irq level
  * so that the interrupt controller is clean.
  */
-void kexec_smp_down(void *arg)
+static void kexec_smp_down(void *arg)
 {
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(0, 1);
@@ -249,7 +249,7 @@ static void kexec_prepare_cpus(void)
  * We could use a smaller stack if we don't care about anything using
  * current, but that audit has not been performed.
  */
-union thread_union kexec_stack
+static union thread_union kexec_stack
 	__attribute__((__section__(".data.init_task"))) = { };
 
 /* Our assembly helper, in kexec_stub.S */
