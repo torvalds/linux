@@ -5,8 +5,8 @@ menu "Generic devices"
 
 
 config SND_PCSP
-	tristate "Internal PC speaker support"
-	depends on X86_PC && HIGH_RES_TIMERS
+	tristate "PC-Speaker support"
+	depends on PCSPKR_PLATFORM && X86_PC && HIGH_RES_TIMERS
 	depends on INPUT
 	depends on SND
 	select SND_PCM
