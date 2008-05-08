@@ -862,7 +862,7 @@ static ssize_t aac_show_bios_version(struct device *device,
 	return len;
 }
 
-ssize_t aac_show_serial_number(struct device *device,
+static ssize_t aac_show_serial_number(struct device *device,
 			       struct device_attribute *attr, char *buf)
 {
 	struct aac_dev *dev = (struct aac_dev*)class_to_shost(device)->hostdata;
