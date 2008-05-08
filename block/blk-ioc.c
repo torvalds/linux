@@ -41,8 +41,8 @@ int put_io_context(struct io_context *ioc)
 		rcu_read_lock();
 		if (ioc->aic && ioc->aic->dtor)
 			ioc->aic->dtor(ioc->aic);
-		rcu_read_unlock();
 		cfq_dtor(ioc);
+		rcu_read_unlock();
 
 		kmem_cache_free(iocontext_cachep, ioc);
 		return 1;

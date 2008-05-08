@@ -54,15 +54,16 @@ static DEFINE_PER_CPU(struct list_head, blk_cpu_done);
 
 static void drive_stat_acct(struct request *rq, int new_io)
 {
+	struct hd_struct *part;
 	int rw = rq_data_dir(rq);
 
 	if (!blk_fs_request(rq) || !rq->rq_disk)
 		return;
 
-	if (!new_io) {
-		__all_stat_inc(rq->rq_disk, merges[rw], rq->sector);
-	} else {
-		struct hd_struct *part = get_part(rq->rq_disk, rq->sector);
+	part = get_part(rq->rq_disk, rq->sector);
+	if (!new_io)
+		__all_stat_inc(rq->rq_disk, part, merges[rw], rq->sector);
+	else {
 		disk_round_stats(rq->rq_disk);
 		rq->rq_disk->in_flight++;
 		if (part) {
@@ -253,9 +254,11 @@ EXPORT_SYMBOL(__generic_unplug_device);
  **/
 void generic_unplug_device(struct request_queue *q)
 {
-	spin_lock_irq(q->queue_lock);
-	__generic_unplug_device(q);
-	spin_unlock_irq(q->queue_lock);
+	if (blk_queue_plugged(q)) {
+		spin_lock_irq(q->queue_lock);
+		__generic_unplug_device(q);
+		spin_unlock_irq(q->queue_lock);
+	}
 }
 EXPORT_SYMBOL(generic_unplug_device);
 
@@ -1536,10 +1539,11 @@ static int __end_that_request_first(struct request *req, int error,
 	}
 
 	if (blk_fs_request(req) && req->rq_disk) {
+		struct hd_struct *part = get_part(req->rq_disk, req->sector);
 		const int rw = rq_data_dir(req);
 
-		all_stat_add(req->rq_disk, sectors[rw],
-			     nr_bytes >> 9, req->sector);
+		all_stat_add(req->rq_disk, part, sectors[rw],
+				nr_bytes >> 9, req->sector);
 	}
 
 	total_bytes = bio_nbytes = 0;
@@ -1725,8 +1729,8 @@ static void end_that_request_last(struct request *req, int error)
 		const int rw = rq_data_dir(req);
 		struct hd_struct *part = get_part(disk, req->sector);
 
-		__all_stat_inc(disk, ios[rw], req->sector);
-		__all_stat_add(disk, ticks[rw], duration, req->sector);
+		__all_stat_inc(disk, part, ios[rw], req->sector);
+		__all_stat_add(disk, part, ticks[rw], duration, req->sector);
 		disk_round_stats(disk);
 		disk->in_flight--;
 		if (part) {
