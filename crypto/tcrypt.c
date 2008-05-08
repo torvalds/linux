@@ -39,7 +39,7 @@
 /*
  * Indexes into the xbuf to simulate cross-page access.
  */
-#define IDX1		37
+#define IDX1		32
 #define IDX2		32400
 #define IDX3		1
 #define IDX4		8193
@@ -211,7 +211,7 @@ out:
 static void test_aead(char *algo, int enc, struct aead_testvec *template,
 		      unsigned int tcount)
 {
-	unsigned int ret, i, j, k, temp;
+	unsigned int ret, i, j, k, n, temp;
 	char *q;
 	struct crypto_aead *tfm;
 	char *key;
@@ -353,7 +353,6 @@ next_one:
 	}
 
 	printk(KERN_INFO "\ntesting %s %s across pages (chunking)\n", algo, e);
-	memset(xbuf, 0, XBUFSIZE);
 	memset(axbuf, 0, XBUFSIZE);
 
 	for (i = 0, j = 0; i < tcount; i++) {
@@ -381,6 +380,7 @@ next_one:
 					goto out;
 			}
 
+			memset(xbuf, 0, XBUFSIZE);
 			sg_init_table(sg, template[i].np);
 			for (k = 0, temp = 0; k < template[i].np; k++) {
 				memcpy(&xbuf[IDX[k]],
@@ -452,6 +452,14 @@ next_one:
 					       0 : authsize)) ?
 				       "fail" : "pass");
 
+				for (n = 0; q[template[i].tap[k] + n]; n++)
+					;
+				if (n) {
+					printk("Result buffer corruption %u "
+					       "bytes:\n", n);
+					hexdump(&q[template[i].tap[k]], n);
+				}
+
 				temp += template[i].tap[k];
 				kunmap(sg_page(&sg[k]));
 			}
@@ -466,7 +474,7 @@ out:
 static void test_cipher(char *algo, int enc,
 			struct cipher_testvec *template, unsigned int tcount)
 {
-	unsigned int ret, i, j, k, temp;
+	unsigned int ret, i, j, k, n, temp;
 	char *q;
 	struct crypto_ablkcipher *tfm;
 	struct ablkcipher_request *req;
@@ -574,7 +582,6 @@ static void test_cipher(char *algo, int enc,
 	}
 
 	printk("\ntesting %s %s across pages (chunking)\n", algo, e);
-	memset(xbuf, 0, XBUFSIZE);
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
@@ -589,6 +596,7 @@ static void test_cipher(char *algo, int enc,
 			printk("test %u (%d bit key):\n",
 			j, template[i].klen * 8);
 
+			memset(xbuf, 0, XBUFSIZE);
 			crypto_ablkcipher_clear_flags(tfm, ~0);
 			if (template[i].wk)
 				crypto_ablkcipher_set_flags(
@@ -648,6 +656,14 @@ static void test_cipher(char *algo, int enc,
 					memcmp(q, template[i].result + temp,
 						template[i].tap[k]) ? "fail" :
 					"pass");
+
+				for (n = 0; q[template[i].tap[k] + n]; n++)
+					;
+				if (n) {
+					printk("Result buffer corruption %u "
+					       "bytes:\n", n);
+					hexdump(&q[template[i].tap[k]], n);
+				}
 				temp += template[i].tap[k];
 				kunmap(sg_page(&sg[k]));
 			}
