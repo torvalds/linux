@@ -198,6 +198,9 @@ static void pxa25x_cpu_pm_restore(unsigned long *sleep_save)
 
 static void pxa25x_cpu_pm_enter(suspend_state_t state)
 {
+	/* Clear reset status */
+	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
+
 	switch (state) {
 	case PM_SUSPEND_MEM:
 		/* set resume return address */

@@ -529,8 +529,6 @@ static struct platform_device *devices[] __initdata = {
 
 static void spitz_poweroff(void)
 {
-	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
-
 	pxa_gpio_mode(SPITZ_GPIO_ON_RESET | GPIO_OUT);
 	GPSR(SPITZ_GPIO_ON_RESET) = GPIO_bit(SPITZ_GPIO_ON_RESET);
 

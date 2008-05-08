@@ -249,6 +249,9 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 	/* Clear edge-detect status register. */
 	PEDR = 0xDF12FE1B;
 
+	/* Clear reset status */
+	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
+
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
 		pxa_cpu_standby();

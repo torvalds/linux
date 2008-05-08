@@ -46,9 +46,6 @@ int pxa_pm_enter(suspend_state_t state)
 			sleep_save_checksum += sleep_save[i];
 	}
 
-	/* Clear reset status */
-	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
-
 	/* *** go zzz *** */
 	pxa_cpu_pm_fns->enter(state);
 	cpu_init();
