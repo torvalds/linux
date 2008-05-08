@@ -20,6 +20,7 @@ obj-$(CONFIG_MEDIA_TUNER_MT2060) += mt2060.o
 obj-$(CONFIG_MEDIA_TUNER_MT2266) += mt2266.o
 obj-$(CONFIG_MEDIA_TUNER_QT1010) += qt1010.o
 obj-$(CONFIG_MEDIA_TUNER_MT2131) += mt2131.o
+obj-$(CONFIG_MEDIA_TUNER_MXL5005S) += mxl5005s.o
 
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends

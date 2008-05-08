@@ -139,4 +139,11 @@ config MEDIA_TUNER_XC5000
 	  This device is only used inside a SiP called togther with a
 	  demodulator for now.
 
+config MEDIA_TUNER_MXL5005S
+	tristate "MaxLinear MSL5005S silicon tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon tuner MXL5005S from MaxLinear.
+
 endif # MEDIA_TUNER_CUSTOMIZE
