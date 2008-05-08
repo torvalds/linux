@@ -223,7 +223,9 @@ static struct platform_device orion5x_eth = {
 
 void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 {
+	eth_data->shared = &orion5x_eth_shared;
 	orion5x_eth.dev.platform_data = eth_data;
+
 	platform_device_register(&orion5x_eth_shared);
 	platform_device_register(&orion5x_eth);
 }
