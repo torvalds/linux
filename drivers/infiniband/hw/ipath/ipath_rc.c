@@ -1746,7 +1746,11 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		qp->r_wrid_valid = 0;
 		wc.wr_id = qp->r_wr_id;
 		wc.status = IB_WC_SUCCESS;
-		wc.opcode = IB_WC_RECV;
+		if (opcode == OP(RDMA_WRITE_LAST_WITH_IMMEDIATE) ||
+		    opcode == OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE))
+			wc.opcode = IB_WC_RECV_RDMA_WITH_IMM;
+		else
+			wc.opcode = IB_WC_RECV;
 		wc.vendor_err = 0;
 		wc.qp = &qp->ibqp;
 		wc.src_qp = qp->remote_qpn;

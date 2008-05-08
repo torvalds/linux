@@ -38,42 +38,12 @@
 #include "ipath_verbs.h"
 #include "ipath_common.h"
 
-/*
- * clear (write) a pio buffer, to clear a parity error.   This routine
- * should only be called when in freeze mode, and the buffer should be
- * canceled afterwards.
- */
-static void ipath_clrpiobuf(struct ipath_devdata *dd, u32 pnum)
-{
-	u32 __iomem *pbuf;
-	u32 dwcnt; /* dword count to write */
-	if (pnum < dd->ipath_piobcnt2k) {
-		pbuf = (u32 __iomem *) (dd->ipath_pio2kbase + pnum *
-			dd->ipath_palign);
-		dwcnt = dd->ipath_piosize2k >> 2;
-	}
-	else {
-		pbuf = (u32 __iomem *) (dd->ipath_pio4kbase +
-			(pnum - dd->ipath_piobcnt2k) * dd->ipath_4kalign);
-		dwcnt = dd->ipath_piosize4k >> 2;
-	}
-	dev_info(&dd->pcidev->dev,
-		"Rewrite PIO buffer %u, to recover from parity error\n",
-		pnum);
-
-	/* no flush required, since already in freeze */
-	writel(dwcnt + 1, pbuf);
-	while (--dwcnt)
-		writel(0, pbuf++);
-}
 
 /*
  * Called when we might have an error that is specific to a particular
  * PIO buffer, and may need to cancel that buffer, so it can be re-used.
- * If rewrite is true, and bits are set in the sendbufferror registers,
- * we'll write to the buffer, for error recovery on parity errors.
  */
-void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
+void ipath_disarm_senderrbufs(struct ipath_devdata *dd)
 {
 	u32 piobcnt;
 	unsigned long sbuf[4];
@@ -109,11 +79,8 @@ void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
 		}
 
 		for (i = 0; i < piobcnt; i++)
-			if (test_bit(i, sbuf)) {
-				if (rewrite)
-					ipath_clrpiobuf(dd, i);
+			if (test_bit(i, sbuf))
 				ipath_disarm_piobufs(dd, i, 1);
-			}
 		/* ignore armlaunch errs for a bit */
 		dd->ipath_lastcancel = jiffies+3;
 	}
@@ -164,7 +131,7 @@ static u64 handle_e_sum_errs(struct ipath_devdata *dd, ipath_err_t errs)
 {
 	u64 ignore_this_time = 0;
 
-	ipath_disarm_senderrbufs(dd, 0);
+	ipath_disarm_senderrbufs(dd);
 	if ((errs & E_SUM_LINK_PKTERRS) &&
 	    !(dd->ipath_flags & IPATH_LINKACTIVE)) {
 		/*
@@ -909,8 +876,8 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
  * processes (causing armlaunch), send errors due to going into freeze mode,
  * etc., and try to avoid causing extra interrupts while doing so.
  * Forcibly update the in-memory pioavail register copies after cleanup
- * because the chip won't do it for anything changing while in freeze mode
- * (we don't want to wait for the next pio buffer state change).
+ * because the chip won't do it while in freeze mode (the register values
+ * themselves are kept correct).
  * Make sure that we don't lose any important interrupts by using the chip
  * feature that says that writing 0 to a bit in *clear that is set in
  * *status will cause an interrupt to be generated again (if allowed by
@@ -918,42 +885,21 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
  */
 void ipath_clear_freeze(struct ipath_devdata *dd)
 {
-	int i, im;
-	u64 val;
-
 	/* disable error interrupts, to avoid confusion */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask, 0ULL);
 
 	/* also disable interrupts; errormask is sometimes overwriten */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intmask, 0ULL);
 
-	/*
-	 * clear all sends, because they have may been
-	 * completed by usercode while in freeze mode, and
-	 * therefore would not be sent, and eventually
-	 * might cause the process to run out of bufs
-	 */
-	ipath_cancel_sends(dd, 0);
+	ipath_cancel_sends(dd, 1);
+
+	/* clear the freeze, and be sure chip saw it */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
 			 dd->ipath_control);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 
-	/* ensure pio avail updates continue */
+	/* force in-memory update now we are out of freeze */
 	ipath_force_pio_avail_update(dd);
-
-	/*
-	 * We just enabled pioavailupdate, so dma copy is almost certainly
-	 * not yet right, so read the registers directly.  Similar to init
-	 */
-	for (i = 0; i < dd->ipath_pioavregs; i++) {
-		/* deal with 6110 chip bug */
-		im = (i > 3 && (dd->ipath_flags & IPATH_SWAP_PIOBUFS)) ?
-			i ^ 1 : i;
-		val = ipath_read_kreg64(dd, (0x1000 / sizeof(u64)) + im);
-		dd->ipath_pioavailregs_dma[i] = cpu_to_le64(val);
-		dd->ipath_pioavailshadow[i] = val |
-			(~dd->ipath_pioavailkernel[i] <<
-			INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT);
-	}
 
 	/*
 	 * force new interrupt if any hwerr, error or interrupt bits are
@@ -1312,10 +1258,8 @@ irqreturn_t ipath_intr(int irq, void *data)
 		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
-		if (!(dd->ipath_flags & IPATH_HAS_SEND_DMA))
-			handle_layer_pioavail(dd);
-		else
-			ipath_dbg("unexpected BUFAVAIL intr\n");
+		/* always process; sdma verbs uses PIO for acks and VL15  */
+		handle_layer_pioavail(dd);
 	}
 
 	ret = IRQ_HANDLED;

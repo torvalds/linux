@@ -481,9 +481,10 @@ done:
 		wake_up(&qp->wait);
 }
 
-static void want_buffer(struct ipath_devdata *dd)
+static void want_buffer(struct ipath_devdata *dd, struct ipath_qp *qp)
 {
-	if (!(dd->ipath_flags & IPATH_HAS_SEND_DMA)) {
+	if (!(dd->ipath_flags & IPATH_HAS_SEND_DMA) ||
+		qp->ibqp.qp_type == IB_QPT_SMI) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
@@ -519,7 +520,7 @@ static void ipath_no_bufs_available(struct ipath_qp *qp,
 	spin_lock_irqsave(&dev->pending_lock, flags);
 	list_add_tail(&qp->piowait, &dev->piowait);
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
-	want_buffer(dev->dd);
+	want_buffer(dev->dd, qp);
 	dev->n_piowait++;
 }
 
