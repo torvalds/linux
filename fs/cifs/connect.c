@@ -1302,6 +1302,9 @@ cifs_parse_mount_options(char *options, const char *devname,
 						    "begin with // or \\\\ \n");
 				return 1;
 			}
+			value = strpbrk(vol->UNC+2, "/\\");
+			if (value)
+				*value = '\\';
 		} else {
 			printk(KERN_WARNING "CIFS: UNC name too long\n");
 			return 1;
