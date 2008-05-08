@@ -721,12 +721,14 @@ out:
 
 u32 btrfs_count_snapshots_in_path(struct btrfs_root *root,
 				  struct btrfs_path *count_path,
+				  u64 expected_owner,
 				  u64 first_extent)
 {
 	struct btrfs_root *extent_root = root->fs_info->extent_root;
 	struct btrfs_path *path;
 	u64 bytenr;
 	u64 found_objectid;
+	u64 found_owner;
 	u64 root_objectid = root->root_key.objectid;
 	u32 total_count = 0;
 	u32 cur_count;
@@ -791,6 +793,13 @@ again:
 		if (found_objectid != root_objectid) {
 			total_count = 2;
 			goto out;
+		}
+		if (level == -1) {
+			found_owner = btrfs_ref_objectid(l, ref_item);
+			if (found_owner != expected_owner) {
+				total_count = 2;
+				goto out;
+			}
 		}
 		total_count = 1;
 		path->slots[0]++;

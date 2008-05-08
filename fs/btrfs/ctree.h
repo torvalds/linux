@@ -1325,7 +1325,7 @@ static inline struct dentry *fdentry(struct file *file) {
 /* extent-tree.c */
 u32 btrfs_count_snapshots_in_path(struct btrfs_root *root,
 				  struct btrfs_path *count_path,
-				  u64 first_extent);
+				  u64 expected_owner, u64 first_extent);
 int btrfs_extent_post_op(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root);
 int btrfs_copy_pinned(struct btrfs_root *root, struct extent_io_tree *copy);

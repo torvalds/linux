@@ -172,6 +172,7 @@ static int run_delalloc_nocow(struct inode *inode, u64 start, u64 end)
 	u64 loops = 0;
 	u64 total_fs_bytes;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_block_group_cache *block_group;
 	struct extent_buffer *leaf;
 	int found_type;
 	struct btrfs_path *path;
@@ -230,16 +231,20 @@ again:
 		if (bytenr == 0)
 			goto not_found;
 
+		if (btrfs_count_snapshots_in_path(root, path, inode->i_ino,
+						  bytenr) != 1) {
+			goto not_found;
+		}
+
 		/*
 		 * we may be called by the resizer, make sure we're inside
 		 * the limits of the FS
 		 */
-		if (bytenr + extent_num_bytes > total_fs_bytes)
+		block_group = btrfs_lookup_block_group(root->fs_info,
+						       bytenr);
+		if (!block_group || block_group->ro)
 			goto not_found;
 
-		if (btrfs_count_snapshots_in_path(root, path, bytenr) != 1) {
-			goto not_found;
-		}
 
 		start = extent_end;
 	} else {
