@@ -197,7 +197,7 @@ static int at91_pcm_trigger(struct snd_pcm_substream *substream,
 
 		DBG("sr=%lx imr=%lx\n",
 		    at91_ssc_read(params->ssc_base + AT91_SSC_SR),
-		    at91_ssc_read(params->ssc_base + AT91_SSC_IER));
+		    at91_ssc_read(params->ssc_base + AT91_SSC_IMR));
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
