@@ -127,8 +127,8 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 	long timeleft;
 	int status;
 
-	/* don't submit URBs during abort/disconnect processing */
-	if (us->dflags & ABORTING_OR_DISCONNECTING)
+	/* don't submit URBs during abort processing */
+	if (test_bit(US_FLIDX_ABORTING, &us->dflags))
 		return -EIO;
 
 	/* set up data structures for the wakeup system */
@@ -161,8 +161,8 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 	 * to cancel it */
 	set_bit(US_FLIDX_URB_ACTIVE, &us->dflags);
 
-	/* did an abort/disconnect occur during the submission? */
-	if (us->dflags & ABORTING_OR_DISCONNECTING) {
+	/* did an abort occur during the submission? */
+	if (test_bit(US_FLIDX_ABORTING, &us->dflags)) {
 
 		/* cancel the URB, if it hasn't been cancelled already */
 		if (test_and_clear_bit(US_FLIDX_URB_ACTIVE, &us->dflags)) {
@@ -419,8 +419,8 @@ static int usb_stor_bulk_transfer_sglist(struct us_data *us, unsigned int pipe,
 {
 	int result;
 
-	/* don't submit s-g requests during abort/disconnect processing */
-	if (us->dflags & ABORTING_OR_DISCONNECTING)
+	/* don't submit s-g requests during abort processing */
+	if (test_bit(US_FLIDX_ABORTING, &us->dflags))
 		return USB_STOR_XFER_ERROR;
 
 	/* initialize the scatter-gather request block */
@@ -437,8 +437,8 @@ static int usb_stor_bulk_transfer_sglist(struct us_data *us, unsigned int pipe,
 	 * okay to cancel it */
 	set_bit(US_FLIDX_SG_ACTIVE, &us->dflags);
 
-	/* did an abort/disconnect occur during the submission? */
-	if (us->dflags & ABORTING_OR_DISCONNECTING) {
+	/* did an abort occur during the submission? */
+	if (test_bit(US_FLIDX_ABORTING, &us->dflags)) {
 
 		/* cancel the request, if it hasn't been cancelled already */
 		if (test_and_clear_bit(US_FLIDX_SG_ACTIVE, &us->dflags)) {

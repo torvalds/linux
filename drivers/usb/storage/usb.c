@@ -320,15 +320,16 @@ static int usb_stor_control_thread(void * __us)
 		/* lock the device pointers */
 		mutex_lock(&(us->dev_mutex));
 
-		/* if the device has disconnected, we are free to exit */
-		if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags)) {
-			US_DEBUGP("-- exiting\n");
-			mutex_unlock(&us->dev_mutex);
-			break;
-		}
-
 		/* lock access to the state */
 		scsi_lock(host);
+
+		/* When we are called with no command pending, we're done */
+		if (us->srb == NULL) {
+			scsi_unlock(host);
+			mutex_unlock(&us->dev_mutex);
+			US_DEBUGP("-- exiting\n");
+			break;
+		}
 
 		/* has the command timed out *already* ? */
 		if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags)) {
@@ -384,12 +385,8 @@ static int usb_stor_control_thread(void * __us)
 		/* lock access to the state */
 		scsi_lock(host);
 
-		/* did the command already complete because of a disconnect? */
-		if (!us->srb)
-			;		/* nothing to do */
-
 		/* indicate that the command is done */
-		else if (us->srb->result != DID_ABORT << 16) {
+		if (us->srb->result != DID_ABORT << 16) {
 			US_DEBUGP("scsi cmd done, result=0x%x\n", 
 				   us->srb->result);
 			us->srb->scsi_done(us->srb);
@@ -820,11 +817,10 @@ static void usb_stor_release_resources(struct us_data *us)
 	US_DEBUGP("-- %s\n", __func__);
 
 	/* Tell the control thread to exit.  The SCSI host must
-	 * already have been removed so it won't try to queue
-	 * any more commands.
+	 * already have been removed and the DISCONNECTING flag set
+	 * so that we won't accept any more commands.
 	 */
 	US_DEBUGP("-- sending exit command to thread\n");
-	set_bit(US_FLIDX_DISCONNECTING, &us->dflags);
 	complete(&us->cmnd_ready);
 	if (us->ctl_thread)
 		kthread_stop(us->ctl_thread);
@@ -859,39 +855,36 @@ static void dissociate_dev(struct us_data *us)
 	usb_set_intfdata(us->pusb_intf, NULL);
 }
 
-/* First stage of disconnect processing: stop all commands and remove
- * the host */
+/* First stage of disconnect processing: stop SCSI scanning,
+ * remove the host, and stop accepting new commands
+ */
 static void quiesce_and_remove_host(struct us_data *us)
 {
 	struct Scsi_Host *host = us_to_host(us);
 
-	/* Prevent new USB transfers, stop the current command, and
-	 * interrupt a SCSI-scan or device-reset delay */
+	/* If the device is really gone, cut short reset delays */
+	if (us->pusb_dev->state == USB_STATE_NOTATTACHED)
+		set_bit(US_FLIDX_DISCONNECTING, &us->dflags);
+
+	/* Prevent SCSI-scanning (if it hasn't started yet)
+	 * and wait for the SCSI-scanning thread to stop.
+	 */
+	set_bit(US_FLIDX_DONT_SCAN, &us->dflags);
+	wake_up(&us->delay_wait);
+	wait_for_completion(&us->scanning_done);
+
+	/* Removing the host will perform an orderly shutdown: caches
+	 * synchronized, disks spun down, etc.
+	 */
+	scsi_remove_host(host);
+
+	/* Prevent any new commands from being accepted and cut short
+	 * reset delays.
+	 */
 	scsi_lock(host);
 	set_bit(US_FLIDX_DISCONNECTING, &us->dflags);
 	scsi_unlock(host);
-	usb_stor_stop_transport(us);
 	wake_up(&us->delay_wait);
-
-	/* queuecommand won't accept any new commands and the control
-	 * thread won't execute a previously-queued command.  If there
-	 * is such a command pending, complete it with an error. */
-	mutex_lock(&us->dev_mutex);
-	if (us->srb) {
-		us->srb->result = DID_NO_CONNECT << 16;
-		scsi_lock(host);
-		us->srb->scsi_done(us->srb);
-		us->srb = NULL;
-		complete(&us->notify);		/* in case of an abort */
-		scsi_unlock(host);
-	}
-	mutex_unlock(&us->dev_mutex);
-
-	/* Now we own no commands so it's safe to remove the SCSI host */
-	scsi_remove_host(host);
-
-	/* Wait for the SCSI-scanning thread to stop */
-	wait_for_completion(&us->scanning_done);
 }
 
 /* Second stage of disconnect processing: deallocate all resources */
@@ -919,12 +912,12 @@ static int usb_stor_scan_thread(void * __us)
 		printk(KERN_DEBUG "usb-storage: waiting for device "
 				"to settle before scanning\n");
 		wait_event_freezable_timeout(us->delay_wait,
-				test_bit(US_FLIDX_DISCONNECTING, &us->dflags),
+				test_bit(US_FLIDX_DONT_SCAN, &us->dflags),
 				delay_use * HZ);
 	}
 
 	/* If the device is still connected, perform the scanning */
-	if (!test_bit(US_FLIDX_DISCONNECTING, &us->dflags)) {
+	if (!test_bit(US_FLIDX_DONT_SCAN, &us->dflags)) {
 
 		/* For bulk-only devices, determine the max LUN value */
 		if (us->protocol == US_PR_BULK &&
@@ -1023,6 +1016,7 @@ static int storage_probe(struct usb_interface *intf,
 	if (IS_ERR(th)) {
 		printk(KERN_WARNING USB_STORAGE 
 		       "Unable to start the device-scanning thread\n");
+		complete(&us->scanning_done);
 		quiesce_and_remove_host(us);
 		result = PTR_ERR(th);
 		goto BadDevice;
@@ -1065,6 +1059,7 @@ static struct usb_driver usb_storage_driver = {
 	.pre_reset =	storage_pre_reset,
 	.post_reset =	storage_post_reset,
 	.id_table =	storage_usb_ids,
+	.soft_unbind =	1,
 };
 
 static int __init usb_stor_init(void)

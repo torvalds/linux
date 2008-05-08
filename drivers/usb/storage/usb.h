@@ -72,11 +72,9 @@ struct us_unusual_dev {
 #define US_FLIDX_SG_ACTIVE	1	/* current_sg is in use     */
 #define US_FLIDX_ABORTING	2	/* abort is in progress     */
 #define US_FLIDX_DISCONNECTING	3	/* disconnect in progress   */
-#define ABORTING_OR_DISCONNECTING	((1UL << US_FLIDX_ABORTING) | \
-					 (1UL << US_FLIDX_DISCONNECTING))
 #define US_FLIDX_RESETTING	4	/* device reset in progress */
 #define US_FLIDX_TIMED_OUT	5	/* SCSI midlayer timed out  */
-
+#define US_FLIDX_DONT_SCAN	6	/* don't scan (disconnect)  */
 
 #define USB_STOR_STRING_LEN 32
 
