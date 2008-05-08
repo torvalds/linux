@@ -257,15 +257,16 @@ static int usb_unbind_interface(struct device *dev)
 	udev = interface_to_usbdev(intf);
 	error = usb_autoresume_device(udev);
 
-	/* release all urbs for this interface */
-	usb_disable_interface(interface_to_usbdev(intf), intf);
+	/* Terminate all URBs for this interface unless the driver
+	 * supports "soft" unbinding.
+	 */
+	if (!driver->soft_unbind)
+		usb_disable_interface(udev, intf);
 
 	driver->disconnect(intf);
 
 	/* reset other interface state */
-	usb_set_interface(interface_to_usbdev(intf),
-			intf->altsetting[0].desc.bInterfaceNumber,
-			0);
+	usb_set_interface(udev, intf->altsetting[0].desc.bInterfaceNumber, 0);
 	usb_set_intfdata(intf, NULL);
 
 	intf->condition = USB_INTERFACE_UNBOUND;
