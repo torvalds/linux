@@ -721,7 +721,7 @@ static int check_section(const char *modname, const char *sec)
 		/* consume all digits */
 		while (*e && e != sec && isdigit(*e))
 			e--;
-		if (*e == '.') {
+		if (*e == '.' && !strstr(sec, ".linkonce")) {
 			warn("%s (%s): unexpected section name.\n"
 			     "The (.[number]+) following section name are "
 			     "ld generated and not expected.\n"
