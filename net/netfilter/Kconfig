@@ -90,6 +90,7 @@ config NF_CT_PROTO_DCCP
 	tristate 'DCCP protocol connection tracking support (EXPERIMENTAL)'
 	depends on EXPERIMENTAL && NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
+	default IP_DCCP
 	help
 	  With this option enabled, the layer 3 independent connection
 	  tracking code will be able to do state tracking on DCCP connections.
@@ -104,6 +105,7 @@ config NF_CT_PROTO_SCTP
 	tristate 'SCTP protocol connection tracking support (EXPERIMENTAL)'
 	depends on EXPERIMENTAL && NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
+	default IP_SCTP
 	help
 	  With this option enabled, the layer 3 independent connection
 	  tracking code will be able to do state tracking on SCTP connections.
@@ -532,6 +534,7 @@ config NETFILTER_XT_MATCH_DCCP
 	tristate '"dccp" protocol match support'
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED
+	default IP_DCCP
 	help
 	  With this option enabled, you will be able to use the iptables
 	  `dccp' match in order to match on DCCP source/destination ports
@@ -725,6 +728,7 @@ config NETFILTER_XT_MATCH_SCTP
 	tristate  '"sctp" protocol match support (EXPERIMENTAL)'
 	depends on NETFILTER_XTABLES && EXPERIMENTAL
 	depends on NETFILTER_ADVANCED
+	default IP_SCTP
 	help
 	  With this option enabled, you will be able to use the 
 	  `sctp' match in order to match on SCTP source/destination ports
