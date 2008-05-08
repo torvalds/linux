@@ -166,7 +166,7 @@ run_osc_out:
 acpi_status __pci_osc_support_set(u32 flags, const char *hid)
 {
 	u32 temp;
-	acpi_status retval;
+	acpi_status retval = AE_NOT_FOUND;
 
 	if (!(flags & OSC_SUPPORT_MASKS)) {
 		return AE_TYPE;
