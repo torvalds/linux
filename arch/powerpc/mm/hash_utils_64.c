@@ -117,7 +117,7 @@ static DEFINE_SPINLOCK(linear_map_hash_lock);
 
 /* Pre-POWER4 CPUs (4k pages only)
  */
-struct mmu_psize_def mmu_psize_defaults_old[] = {
+static struct mmu_psize_def mmu_psize_defaults_old[] = {
 	[MMU_PAGE_4K] = {
 		.shift	= 12,
 		.sllp	= 0,
@@ -131,7 +131,7 @@ struct mmu_psize_def mmu_psize_defaults_old[] = {
  *
  * Support for 16Mb large pages
  */
-struct mmu_psize_def mmu_psize_defaults_gp[] = {
+static struct mmu_psize_def mmu_psize_defaults_gp[] = {
 	[MMU_PAGE_4K] = {
 		.shift	= 12,
 		.sllp	= 0,

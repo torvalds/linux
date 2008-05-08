@@ -183,7 +183,7 @@ void pgtable_cache_init(void)
  * do this by hand as the proffered address may not be correctly aligned.
  * Subtraction of non-aligned pointers produces undefined results.
  */
-unsigned long __meminit vmemmap_section_start(unsigned long page)
+static unsigned long __meminit vmemmap_section_start(unsigned long page)
 {
 	unsigned long offset = page - ((unsigned long)(vmemmap));
 
@@ -196,7 +196,7 @@ unsigned long __meminit vmemmap_section_start(unsigned long page)
  * which overlaps this vmemmap page is initialised then this page is
  * initialised already.
  */
-int __meminit vmemmap_populated(unsigned long start, int page_size)
+static int __meminit vmemmap_populated(unsigned long start, int page_size)
 {
 	unsigned long end = start + page_size;
 
