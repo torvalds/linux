@@ -60,4 +60,14 @@ extern struct hvc_struct * __devinit hvc_alloc(uint32_t vtermno, int irq,
 /* remove a vterm from hvc tty operation (modele_exit or hotplug remove) */
 extern int __devexit hvc_remove(struct hvc_struct *hp);
 
+
+#if defined(CONFIG_XMON) && defined(CONFIG_SMP)
+#include <asm/xmon.h>
+#else
+static inline int cpus_are_in_xmon(void)
+{
+	return 0;
+}
+#endif
+
 #endif // HVC_CONSOLE_H

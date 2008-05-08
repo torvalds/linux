@@ -54,7 +54,7 @@
 #define skipbl	xmon_skipbl
 
 #ifdef CONFIG_SMP
-cpumask_t cpus_in_xmon = CPU_MASK_NONE;
+static cpumask_t cpus_in_xmon = CPU_MASK_NONE;
 static unsigned long xmon_taken = 1;
 static int xmon_owner;
 static int xmon_gate;
@@ -326,6 +326,11 @@ static void get_output_lock(void)
 static void release_output_lock(void)
 {
 	xmon_speaker = 0;
+}
+
+int cpus_are_in_xmon(void)
+{
+	return !cpus_empty(cpus_in_xmon);
 }
 #endif
 

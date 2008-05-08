@@ -25,5 +25,9 @@ static inline void xmon_setup(void) { };
 static inline void xmon_register_spus(struct list_head *list) { };
 #endif
 
+#if defined(CONFIG_XMON) && defined(CONFIG_SMP)
+extern int cpus_are_in_xmon(void);
+#endif
+
 #endif /* __KERNEL __ */
 #endif /* __ASM_POWERPC_XMON_H */

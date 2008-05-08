@@ -675,12 +675,6 @@ static int hvc_poll(struct hvc_struct *hp)
 	return poll_mask;
 }
 
-#if defined(CONFIG_XMON) && defined(CONFIG_SMP)
-extern cpumask_t cpus_in_xmon;
-#else
-static const cpumask_t cpus_in_xmon = CPU_MASK_NONE;
-#endif
-
 /*
  * This kthread is either polling or interrupt driven.  This is determined by
  * calling hvc_poll() who determines whether a console adapter support
@@ -698,7 +692,7 @@ static int khvcd(void *unused)
 		hvc_kicked = 0;
 		try_to_freeze();
 		wmb();
-		if (cpus_empty(cpus_in_xmon)) {
+		if (!cpus_are_in_xmon()) {
 			spin_lock(&hvc_structs_lock);
 			list_for_each_entry(hp, &hvc_structs, next) {
 				poll_mask |= hvc_poll(hp);
