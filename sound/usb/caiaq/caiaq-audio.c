@@ -637,6 +637,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *dev)
 	switch (dev->chip.usb_id) {
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AK1):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL3):
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_SESSIONIO):
 		dev->samplerates |= SNDRV_PCM_RATE_88200;
 		dev->samplerates |= SNDRV_PCM_RATE_192000;
 		break;
