@@ -275,3 +275,16 @@ void __init files_defer_init(void)
 	for_each_possible_cpu(i)
 		fdtable_defer_list_init(i);
 }
+
+struct files_struct init_files = {
+	.count		= ATOMIC_INIT(1),
+	.fdt		= &init_files.fdtab,
+	.fdtab		= {
+		.max_fds	= NR_OPEN_DEFAULT,
+		.fd		= &init_files.fd_array[0],
+		.close_on_exec	= (fd_set *)&init_files.close_on_exec_init,
+		.open_fds	= (fd_set *)&init_files.open_fds_init,
+		.rcu		= RCU_HEAD_INIT,
+	},
+	.file_lock	= __SPIN_LOCK_UNLOCKED(init_task.file_lock),
+};
