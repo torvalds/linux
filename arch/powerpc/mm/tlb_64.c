@@ -37,8 +37,8 @@ DEFINE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
  * include/asm-powerpc/tlb.h file -- tgall
  */
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-DEFINE_PER_CPU(struct pte_freelist_batch *, pte_freelist_cur);
-unsigned long pte_freelist_forced_free;
+static DEFINE_PER_CPU(struct pte_freelist_batch *, pte_freelist_cur);
+static unsigned long pte_freelist_forced_free;
 
 struct pte_freelist_batch
 {
@@ -46,9 +46,6 @@ struct pte_freelist_batch
 	unsigned int	index;
 	pgtable_free_t	tables[0];
 };
-
-DEFINE_PER_CPU(struct pte_freelist_batch *, pte_freelist_cur);
-unsigned long pte_freelist_forced_free;
 
 #define PTE_FREELIST_SIZE \
 	((PAGE_SIZE - sizeof(struct pte_freelist_batch)) \
