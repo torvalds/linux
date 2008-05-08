@@ -2362,7 +2362,7 @@ static void iwl4965_add_radiotap(struct iwl_priv *priv,
 				 struct ieee80211_rx_status *stats,
 				 u32 ampdu_status)
 {
-	s8 signal = stats->ssi;
+	s8 signal = stats->signal;
 	s8 noise = 0;
 	int rate = stats->rate_idx;
 	u64 tsf = stats->mactime;
@@ -2963,7 +2963,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	priv->ucode_beacon_time = le32_to_cpu(rx_start->beacon_time_stamp);
 
 	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
-	rx_status.ssi = iwl4965_calc_rssi(priv, rx_start);
+	rx_status.signal = iwl4965_calc_rssi(priv, rx_start);
 
 	/* Meaningful noise values are available only from beacon statistics,
 	 *   which are gathered only when associated, and indicate noise
@@ -2972,11 +2972,11 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	if (iwl_is_associated(priv) &&
 	    !test_bit(STATUS_SCANNING, &priv->status)) {
 		rx_status.noise = priv->last_rx_noise;
-		rx_status.signal = iwl4965_calc_sig_qual(rx_status.ssi,
+		rx_status.qual = iwl4965_calc_sig_qual(rx_status.signal,
 							 rx_status.noise);
 	} else {
 		rx_status.noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
-		rx_status.signal = iwl4965_calc_sig_qual(rx_status.ssi, 0);
+		rx_status.qual = iwl4965_calc_sig_qual(rx_status.signal, 0);
 	}
 
 	/* Reset beacon noise level if not associated. */
@@ -2988,7 +2988,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	iwl4965_dbg_report_frame(priv, pkt, header, 1);
 
 	IWL_DEBUG_STATS_LIMIT("Rssi %d, noise %d, qual %d, TSF %llu\n",
-			      rx_status.ssi, rx_status.noise, rx_status.signal,
+			      rx_status.signal, rx_status.noise, rx_status.signal,
 			      (unsigned long long)rx_status.mactime);
 
 
@@ -3000,7 +3000,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 
 	network_packet = iwl4965_is_network_packet(priv, header);
 	if (network_packet) {
-		priv->last_rx_rssi = rx_status.ssi;
+		priv->last_rx_rssi = rx_status.signal;
 		priv->last_beacon_time =  priv->ucode_beacon_time;
 		priv->last_tsf = le64_to_cpu(rx_start->timestamp);
 	}

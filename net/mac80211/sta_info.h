@@ -216,8 +216,8 @@ struct sta_info {
 				       * from this STA */
 	unsigned long rx_fragments; /* number of received MPDUs */
 	unsigned long rx_dropped; /* number of dropped MPDUs from this STA */
-	int last_rssi; /* RSSI of last received frame from this STA */
 	int last_signal; /* signal of last received frame from this STA */
+	int last_qual;  /* qual of last received frame from this STA */
 	int last_noise; /* noise of last received frame from this STA */
 	/* last received seq/frag number from this STA (per RX queue) */
 	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES];

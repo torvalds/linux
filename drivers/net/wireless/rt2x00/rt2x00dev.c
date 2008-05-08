@@ -600,9 +600,9 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	rt2x00dev->link.qual.rx_success++;
 
 	rx_status->rate_idx = idx;
-	rx_status->signal =
+	rx_status->qual =
 	    rt2x00lib_calculate_link_signal(rt2x00dev, rxdesc->rssi);
-	rx_status->ssi = rxdesc->rssi;
+	rx_status->signal = rxdesc->rssi;
 	rx_status->flag = rxdesc->flags;
 	rx_status->antenna = rt2x00dev->link.ant.active.rx;
 

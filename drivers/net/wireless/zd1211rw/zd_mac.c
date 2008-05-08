@@ -638,7 +638,7 @@ static int filter_ack(struct ieee80211_hw *hw, struct ieee80211_hdr *rx_hdr,
 
 			memset(&status, 0, sizeof(status));
 			status.flags = IEEE80211_TX_STATUS_ACK;
-			status.ack_signal = stats->ssi;
+			status.ack_signal = stats->signal;
 			__skb_unlink(skb, q);
 			tx_status(hw, skb, &status, 1);
 			goto out;
@@ -691,8 +691,8 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 
 	stats.freq = zd_channels[_zd_chip_get_channel(&mac->chip) - 1].center_freq;
 	stats.band = IEEE80211_BAND_2GHZ;
-	stats.ssi = status->signal_strength;
-	stats.signal = zd_rx_qual_percent(buffer,
+	stats.signal = status->signal_strength;
+	stats.qual = zd_rx_qual_percent(buffer,
 		                          length - sizeof(struct rx_status),
 		                          status);
 
@@ -997,10 +997,10 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &mac->band;
 
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		    IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE;
-	hw->max_rssi = 100;
-	hw->max_signal = 100;
+		    IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE |
+		    IEEE80211_HW_SIGNAL_DB;
 
+	hw->max_signal = 100;
 	hw->queues = 1;
 	hw->extra_tx_headroom = sizeof(struct zd_ctrlset);
 

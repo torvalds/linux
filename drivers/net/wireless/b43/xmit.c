@@ -581,12 +581,11 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		//      and also find out what the maximum possible value is.
 		//      Fill status.ssi and status.signal fields.
 	} else {
-		status.ssi = b43_rssi_postprocess(dev, rxhdr->jssi,
+		status.signal = b43_rssi_postprocess(dev, rxhdr->jssi,
 						  (phystat0 & B43_RX_PHYST0_OFDM),
 						  (phystat0 & B43_RX_PHYST0_GAINCTL),
 						  (phystat3 & B43_RX_PHYST3_TRSTATE));
-		/* the next line looks wrong, but is what mac80211 wants */
-		status.signal = (rxhdr->jssi * 100) / B43_RX_MAX_SSI;
+		status.qual = (rxhdr->jssi * 100) / B43_RX_MAX_SSI;
 	}
 
 	if (phystat0 & B43_RX_PHYST0_OFDM)

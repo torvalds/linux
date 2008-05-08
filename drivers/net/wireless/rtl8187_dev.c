@@ -261,8 +261,8 @@ static void rtl8187_rx_cb(struct urb *urb)
 	}
 
 	rx_status.antenna = (hdr->signal >> 7) & 1;
-	rx_status.signal = 64 - min(hdr->noise, (u8)64);
-	rx_status.ssi = signal;
+	rx_status.qual = 64 - min(hdr->noise, (u8)64);
+	rx_status.signal = signal;
 	rx_status.rate_idx = rate;
 	rx_status.freq = dev->conf.channel->center_freq;
 	rx_status.band = dev->conf.channel->band;
@@ -740,11 +740,11 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 
 	priv->mode = IEEE80211_IF_TYPE_MNTR;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-		     IEEE80211_HW_RX_INCLUDES_FCS;
+		     IEEE80211_HW_RX_INCLUDES_FCS |
+		     IEEE80211_HW_SIGNAL_UNSPEC;
 	dev->extra_tx_headroom = sizeof(struct rtl8187_tx_hdr);
 	dev->queues = 1;
-	dev->max_rssi = 65;
-	dev->max_signal = 64;
+	dev->max_signal = 65;
 
 	eeprom.data = dev;
 	eeprom.register_read = rtl8187_eeprom_register_read;

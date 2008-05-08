@@ -209,7 +209,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 				cpu_to_le16(IEEE80211_CHAN_DYN |
 					    IEEE80211_CHAN_2GHZ);
 
-		rtfixed->antsignal = status->ssi;
+		rtfixed->antsignal = status->signal;
 		rthdr->it_len = cpu_to_le16(rtap_len);
 	}
 
@@ -719,8 +719,8 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 
 	sta->rx_fragments++;
 	sta->rx_bytes += rx->skb->len;
-	sta->last_rssi = rx->status->ssi;
 	sta->last_signal = rx->status->signal;
+	sta->last_qual = rx->status->qual;
 	sta->last_noise = rx->status->noise;
 
 	if (!(rx->fc & IEEE80211_FCTL_MOREFRAGS)) {

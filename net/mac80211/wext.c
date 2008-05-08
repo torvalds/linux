@@ -169,14 +169,26 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 	range->num_encoding_sizes = 2;
 	range->max_encoding_tokens = NUM_DEFAULT_KEYS;
 
-	range->max_qual.qual = local->hw.max_signal;
-	range->max_qual.level = local->hw.max_rssi;
-	range->max_qual.noise = local->hw.max_noise;
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC ||
+	    local->hw.flags & IEEE80211_HW_SIGNAL_DB)
+		range->max_qual.level = local->hw.max_signal;
+	else if  (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+		range->max_qual.level = -110;
+	else
+		range->max_qual.level = 0;
+
+	if (local->hw.flags & IEEE80211_HW_NOISE_DBM)
+		range->max_qual.noise = -110;
+	else
+		range->max_qual.noise = 0;
+
+	range->max_qual.qual = 100;
 	range->max_qual.updated = local->wstats_flags;
 
-	range->avg_qual.qual = local->hw.max_signal/2;
-	range->avg_qual.level = 0;
-	range->avg_qual.noise = 0;
+	range->avg_qual.qual = 50;
+	/* not always true but better than nothing */
+	range->avg_qual.level = range->max_qual.level / 2;
+	range->avg_qual.noise = range->max_qual.noise / 2;
 	range->avg_qual.updated = local->wstats_flags;
 
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
@@ -996,8 +1008,8 @@ static struct iw_statistics *ieee80211_get_wireless_stats(struct net_device *dev
 		wstats->qual.noise = 0;
 		wstats->qual.updated = IW_QUAL_ALL_INVALID;
 	} else {
-		wstats->qual.level = sta->last_rssi;
-		wstats->qual.qual = sta->last_signal;
+		wstats->qual.level = sta->last_signal;
+		wstats->qual.qual = sta->last_qual;
 		wstats->qual.noise = sta->last_noise;
 		wstats->qual.updated = local->wstats_flags;
 	}

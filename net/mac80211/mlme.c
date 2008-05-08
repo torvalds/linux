@@ -1959,8 +1959,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 					   local->hw.conf.channel->center_freq,
 					   ifsta->ssid, ifsta->ssid_len);
 		if (bss) {
-			sta->last_rssi = bss->rssi;
 			sta->last_signal = bss->signal;
+			sta->last_qual = bss->qual;
 			sta->last_noise = bss->noise;
 			ieee80211_rx_bss_put(dev, bss);
 		}
@@ -2629,9 +2629,9 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 
 	bss->timestamp = beacon_timestamp;
 	bss->last_update = jiffies;
-	bss->rssi = rx_status->ssi;
 	bss->signal = rx_status->signal;
 	bss->noise = rx_status->noise;
+	bss->qual = rx_status->qual;
 	if (!beacon && !bss->probe_resp)
 		bss->probe_resp = true;
 
@@ -3427,9 +3427,9 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 		    !ieee80211_sta_match_ssid(ifsta, bss->ssid, bss->ssid_len))
 			continue;
 
-		if (!selected || top_rssi < bss->rssi) {
+		if (!selected || top_rssi < bss->signal) {
 			selected = bss;
-			top_rssi = bss->rssi;
+			top_rssi = bss->signal;
 		}
 	}
 	if (selected)
@@ -4060,8 +4060,8 @@ ieee80211_sta_scan_result(struct net_device *dev,
 
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = IWEVQUAL;
-	iwe.u.qual.qual = bss->signal;
-	iwe.u.qual.level = bss->rssi;
+	iwe.u.qual.qual = bss->qual;
+	iwe.u.qual.level = bss->signal;
 	iwe.u.qual.noise = bss->noise;
 	iwe.u.qual.updated = local->wstats_flags;
 	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,

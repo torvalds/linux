@@ -746,18 +746,10 @@ static void iwlcore_init_hw(struct iwl_priv *priv)
 	struct ieee80211_hw *hw = priv->hw;
 	hw->rate_control_algorithm = "iwl-4965-rs";
 
-	/* Tell mac80211 and its clients (e.g. Wireless Extensions)
-	 *	 the range of signal quality values that we'll provide.
-	 * Negative values for level/noise indicate that we'll provide dBm.
-	 * For WE, at least, non-0 values here *enable* display of values
-	 *	 in app (iwconfig). */
-	hw->max_rssi = -20; /* signal level, negative indicates dBm */
-	hw->max_noise = -20;	/* noise level, negative indicates dBm */
-	hw->max_signal = 100;	/* link quality indication (%) */
-
-	/* Tell mac80211 our Tx characteristics */
-	hw->flags = IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE;
-
+	/* Tell mac80211 our characteristics */
+	hw->flags = IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE |
+		    IEEE80211_HW_SIGNAL_DBM |
+		    IEEE80211_HW_NOISE_DBM;
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
 #ifdef CONFIG_IWL4965_HT
