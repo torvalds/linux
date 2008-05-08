@@ -43,6 +43,7 @@
 #include <asm/btext.h>
 #include <asm/tlb.h>
 #include <asm/sections.h>
+#include <asm/system.h>
 
 #include "mmu_decl.h"
 
@@ -75,8 +76,6 @@ void MMU_init(void);
 
 /* XXX should be in current.h  -- paulus */
 extern struct task_struct *current_set[NR_CPUS];
-
-extern int init_bootmem_done;
 
 /*
  * this tells the system to map all of ram with the segregs
