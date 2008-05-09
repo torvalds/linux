@@ -119,8 +119,6 @@ static void copy_fdtable(struct fdtable *nfdt, struct fdtable *ofdt)
 	unsigned int cpy, set;
 
 	BUG_ON(nfdt->max_fds < ofdt->max_fds);
-	if (ofdt->max_fds == 0)
-		return;
 
 	cpy = ofdt->max_fds * sizeof(struct file *);
 	set = (nfdt->max_fds - ofdt->max_fds) * sizeof(struct file *);
@@ -327,14 +325,24 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 	 * Note: we're not a clone task, so the open count won't change.
 	 */
 	if (open_files > new_fdt->max_fds) {
-		new_fdt->max_fds = 0;
 		spin_unlock(&oldf->file_lock);
-		spin_lock(&newf->file_lock);
-		*errorp = expand_files(newf, open_files-1);
-		spin_unlock(&newf->file_lock);
-		if (*errorp < 0)
+
+		new_fdt = alloc_fdtable(open_files - 1);
+		if (!new_fdt) {
+			*errorp = -ENOMEM;
 			goto out_release;
-		new_fdt = files_fdtable(newf);
+		}
+
+		/* beyond sysctl_nr_open; nothing to do */
+		if (unlikely(new_fdt->max_fds < open_files)) {
+			free_fdarr(new_fdt);
+			free_fdset(new_fdt);
+			kfree(new_fdt);
+			*errorp = -EMFILE;
+			goto out_release;
+		}
+		rcu_assign_pointer(files->fdt, new_fdt);
+
 		/*
 		 * Reacquire the oldf lock and a pointer to its fd table
 		 * who knows it may have a new bigger fd table. We need
