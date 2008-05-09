@@ -113,6 +113,8 @@ static __init int sctp_proc_init(void)
 		goto out_nomem;
 	if (sctp_assocs_proc_init())
 		goto out_nomem;
+	if (sctp_remaddr_proc_init())
+		goto out_nomem;
 
 	return 0;
 
@@ -129,6 +131,7 @@ static void sctp_proc_exit(void)
 	sctp_snmp_proc_exit();
 	sctp_eps_proc_exit();
 	sctp_assocs_proc_exit();
+	sctp_remaddr_proc_exit();
 
 	if (proc_net_sctp) {
 		proc_net_sctp = NULL;

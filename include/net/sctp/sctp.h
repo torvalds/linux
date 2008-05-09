@@ -179,6 +179,8 @@ int sctp_eps_proc_init(void);
 void sctp_eps_proc_exit(void);
 int sctp_assocs_proc_init(void);
 void sctp_assocs_proc_exit(void);
+int sctp_remaddr_proc_init(void);
+void sctp_remaddr_proc_exit(void);
 
 
 /*
