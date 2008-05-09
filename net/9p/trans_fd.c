@@ -1433,6 +1433,23 @@ static void p9_fd_close(struct p9_trans *trans)
 	kfree(ts);
 }
 
+/*
+ * stolen from NFS - maybe should be made a generic function?
+ */
+static inline int valid_ipaddr4(const char *buf)
+{
+	int rc, count, in[4];
+
+	rc = sscanf(buf, "%d.%d.%d.%d", &in[0], &in[1], &in[2], &in[3]);
+	if (rc != 4)
+		return -EINVAL;
+	for (count = 0; count < 4; count++) {
+		if (in[count] > 255)
+			return -EINVAL;
+	}
+	return 0;
+}
+
 static struct p9_trans *
 p9_trans_create_tcp(const char *addr, char *args, int msize, unsigned char dotu)
 {
@@ -1446,6 +1463,9 @@ p9_trans_create_tcp(const char *addr, char *args, int msize, unsigned char dotu)
 	err = parse_opts(args, &opts);
 	if (err < 0)
 		return ERR_PTR(err);
+
+	if (valid_ipaddr4(addr) < 0)
+		return ERR_PTR(-EINVAL);
 
 	csocket = NULL;
 	trans = kmalloc(sizeof(struct p9_trans), GFP_KERNEL);
@@ -1625,7 +1645,7 @@ static struct p9_trans_module p9_fd_trans = {
 	.create = p9_trans_create_fd,
 };
 
-static int __init p9_trans_fd_init(void)
+int p9_trans_fd_init(void)
 {
 	int ret = p9_mux_global_init();
 	if (ret) {
@@ -1639,9 +1659,4 @@ static int __init p9_trans_fd_init(void)
 
 	return 0;
 }
-
-module_init(p9_trans_fd_init);
-
-MODULE_AUTHOR("Latchesar Ionkov <lucho@ionkov.net>");
-MODULE_AUTHOR("Eric Van Hensbergen <ericvh@gmail.com>");
-MODULE_LICENSE("GPL");
+EXPORT_SYMBOL(p9_trans_fd_init);

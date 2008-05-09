@@ -595,4 +595,5 @@ int p9_idpool_check(int id, struct p9_idpool *p);
 
 int p9_error_init(void);
 int p9_errstr2errno(char *, int);
+int p9_trans_fd_init(void);
 #endif /* NET_9P_H */

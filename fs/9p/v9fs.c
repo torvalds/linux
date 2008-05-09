@@ -206,12 +206,14 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	v9ses->uid = ~0;
 	v9ses->dfltuid = V9FS_DEFUID;
 	v9ses->dfltgid = V9FS_DEFGID;
-	v9ses->options = kstrdup(data, GFP_KERNEL);
-	if (!v9ses->options) {
-		P9_DPRINTK(P9_DEBUG_ERROR,
+	if (data) {
+		v9ses->options = kstrdup(data, GFP_KERNEL);
+		if (!v9ses->options) {
+			P9_DPRINTK(P9_DEBUG_ERROR,
 			   "failed to allocate copy of option string\n");
-		retval = -ENOMEM;
-		goto error;
+			retval = -ENOMEM;
+			goto error;
+		}
 	}
 
 	rc = v9fs_parse_options(v9ses);
@@ -260,7 +262,6 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	return fid;
 
 error:
-	v9fs_session_close(v9ses);
 	return ERR_PTR(retval);
 }
 

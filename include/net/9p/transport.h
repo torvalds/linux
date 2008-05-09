@@ -96,5 +96,4 @@ struct p9_trans_module {
 void v9fs_register_trans(struct p9_trans_module *m);
 struct p9_trans_module *v9fs_match_trans(const substring_t *name);
 struct p9_trans_module *v9fs_default_trans(void);
-
 #endif /* NET_9P_TRANSPORT_H */

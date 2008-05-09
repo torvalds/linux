@@ -107,6 +107,7 @@ static int __init init_p9(void)
 
 	p9_error_init();
 	printk(KERN_INFO "Installing 9P2000 support\n");
+	p9_trans_fd_init();
 
 	return ret;
 }
