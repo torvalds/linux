@@ -140,6 +140,9 @@ void __spu_update_sched_info(struct spu_context *ctx)
 	 * if it is timesliced or preempted.
 	 */
 	ctx->cpus_allowed = current->cpus_allowed;
+
+	/* Save the current cpu id for spu interrupt routing. */
+	ctx->last_ran = raw_smp_processor_id();
 }
 
 void spu_update_sched_info(struct spu_context *ctx)
@@ -243,7 +246,6 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	spu_switch_log_notify(spu, ctx, SWITCH_LOG_START, 0);
 	spu_restore(&ctx->csa, spu);
 	spu->timestamp = jiffies;
-	spu_cpu_affinity_set(spu, raw_smp_processor_id());
 	spu_switch_notify(spu, ctx);
 	ctx->state = SPU_STATE_RUNNABLE;
 
@@ -657,7 +659,8 @@ static struct spu *find_victim(struct spu_context *ctx)
 
 			victim->stats.invol_ctx_switch++;
 			spu->stats.invol_ctx_switch++;
-			spu_add_to_rq(victim);
+			if (test_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags))
+				spu_add_to_rq(victim);
 
 			mutex_unlock(&victim->state_mutex);
 

@@ -170,6 +170,8 @@ void __init setup_paca(int cpu)
 
 void __init early_setup(unsigned long dt_ptr)
 {
+	/* -------- printk is _NOT_ safe to use here ! ------- */
+
 	/* Fill in any unititialised pacas */
 	initialise_pacas();
 
@@ -179,11 +181,13 @@ void __init early_setup(unsigned long dt_ptr)
 	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
 	setup_paca(0);
 
-	/* Enable early debugging if any specified (see udbg.h) */
-	udbg_early_init();
-
 	/* Initialize lockdep early or else spinlocks will blow */
 	lockdep_init();
+
+	/* -------- printk is now safe to use ------- */
+
+	/* Enable early debugging if any specified (see udbg.h) */
+	udbg_early_init();
 
  	DBG(" -> early_setup(), dt_ptr: 0x%lx\n", dt_ptr);
 

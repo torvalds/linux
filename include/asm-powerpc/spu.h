@@ -100,6 +100,7 @@
 
 /* Flag indicating progress during context switch. */
 #define SPU_CONTEXT_SWITCH_PENDING	0UL
+#define SPU_CONTEXT_FAULT_PENDING	1UL
 
 struct spu_context;
 struct spu_runqueue;
@@ -128,9 +129,11 @@ struct spu {
 	unsigned int irqs[3];
 	u32 node;
 	u64 flags;
-	u64 dar;
-	u64 dsisr;
 	u64 class_0_pending;
+	u64 class_0_dar;
+	u64 class_0_dsisr;
+	u64 class_1_dar;
+	u64 class_1_dsisr;
 	size_t ls_size;
 	unsigned int slb_replace;
 	struct mm_struct *mm;
@@ -143,7 +146,7 @@ struct spu {
 
 	void (* wbox_callback)(struct spu *spu);
 	void (* ibox_callback)(struct spu *spu);
-	void (* stop_callback)(struct spu *spu);
+	void (* stop_callback)(struct spu *spu, int irq);
 	void (* mfc_callback)(struct spu *spu);
 
 	char irq_c0[8];
