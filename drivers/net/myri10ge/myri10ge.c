@@ -682,8 +682,8 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 	msleep(1);
 	mb();
 	i = 0;
-	while (mgp->cmd->data != MYRI10GE_NO_CONFIRM_DATA && i < 20) {
-		msleep(1);
+	while (mgp->cmd->data != MYRI10GE_NO_CONFIRM_DATA && i < 9) {
+		msleep(1 << i);
 		i++;
 	}
 	if (mgp->cmd->data != MYRI10GE_NO_CONFIRM_DATA) {
