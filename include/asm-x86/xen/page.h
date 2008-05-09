@@ -150,13 +150,9 @@ static inline pte_t __pte_ma(pteval_t x)
 	return (pte_t) { .pte = x };
 }
 
-#ifdef CONFIG_X86_PAE
 #define pmd_val_ma(v) ((v).pmd)
 #define pud_val_ma(v) ((v).pgd.pgd)
 #define __pmd_ma(x)	((pmd_t) { (x) } )
-#else  /* !X86_PAE */
-#define pmd_val_ma(v)	((v).pud.pgd.pgd)
-#endif	/* CONFIG_X86_PAE */
 
 #define pgd_val_ma(x)	((x).pgd)
 
