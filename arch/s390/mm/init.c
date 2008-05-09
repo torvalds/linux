@@ -126,6 +126,9 @@ void __init mem_init(void)
         /* clear the zero-page */
         memset(empty_zero_page, 0, PAGE_SIZE);
 
+	/* Setup guest page hinting */
+	cmma_init();
+
 	/* this will put all low memory onto the freelists */
 	totalram_pages += free_all_bootmem();
 

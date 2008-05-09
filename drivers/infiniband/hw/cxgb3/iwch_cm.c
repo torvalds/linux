@@ -67,10 +67,10 @@ int peer2peer = 0;
 module_param(peer2peer, int, 0644);
 MODULE_PARM_DESC(peer2peer, "Support peer2peer ULPs (default=0)");
 
-static int ep_timeout_secs = 10;
+static int ep_timeout_secs = 60;
 module_param(ep_timeout_secs, int, 0644);
 MODULE_PARM_DESC(ep_timeout_secs, "CM Endpoint operation timeout "
-				   "in seconds (default=10)");
+				   "in seconds (default=60)");
 
 static int mpa_rev = 1;
 module_param(mpa_rev, int, 0644);
@@ -1650,8 +1650,8 @@ static int close_con_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		release = 1;
 		break;
 	case ABORTING:
-		break;
 	case DEAD:
+		break;
 	default:
 		BUG_ON(1);
 		break;

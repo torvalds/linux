@@ -987,7 +987,7 @@ static int __devinit ffb_probe(struct of_device *op,
 	 * chosen console, it will have video outputs off in
 	 * the DAC.
 	 */
-	ffb_blank(0, info);
+	ffb_blank(FB_BLANK_UNBLANK, info);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0))
 		goto out_unmap_dac;

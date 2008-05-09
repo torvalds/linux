@@ -886,7 +886,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	 */
 	raid10_find_phys(conf, r10_bio);
  retry_write:
-	blocked_rdev = 0;
+	blocked_rdev = NULL;
 	rcu_read_lock();
 	for (i = 0;  i < conf->copies; i++) {
 		int d = r10_bio->devs[i].devnum;

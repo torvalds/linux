@@ -767,7 +767,7 @@ static int __devinit cg6_probe(struct of_device *op,
 
 	cg6_bt_init(par);
 	cg6_chip_init(info);
-	cg6_blank(0, info);
+	cg6_blank(FB_BLANK_UNBLANK, info);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0))
 		goto out_unmap_regs;

@@ -613,7 +613,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	}
 
 	cx = kzalloc(sizeof(struct cx18), GFP_ATOMIC);
-	if (cx == 0) {
+	if (!cx) {
 		spin_unlock(&cx18_cards_lock);
 		return -ENOMEM;
 	}

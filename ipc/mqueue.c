@@ -673,7 +673,7 @@ asmlinkage long sys_mq_open(const char __user *u_name, int oflag, mode_t mode,
 	if (IS_ERR(name = getname(u_name)))
 		return PTR_ERR(name);
 
-	fd = get_unused_fd();
+	fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fd < 0)
 		goto out_putname;
 
@@ -709,7 +709,6 @@ asmlinkage long sys_mq_open(const char __user *u_name, int oflag, mode_t mode,
 		goto out_putfd;
 	}
 
-	set_close_on_exec(fd, 1);
 	fd_install(fd, filp);
 	goto out_upsem;
 

@@ -66,6 +66,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sysctl.h>
+#include <net/dst.h>
 #include <net/tcp.h>
 #include <net/inet_common.h>
 #include <linux/ipsec.h>
@@ -112,8 +113,6 @@ int sysctl_tcp_abc __read_mostly;
 #define FLAG_CA_ALERT		(FLAG_DATA_SACKED|FLAG_ECE)
 #define FLAG_FORWARD_PROGRESS	(FLAG_ACKED|FLAG_DATA_SACKED)
 #define FLAG_ANY_PROGRESS	(FLAG_FORWARD_PROGRESS|FLAG_SND_UNA_ADVANCED)
-
-#define IsSackFrto() (sysctl_tcp_frto == 0x2)
 
 #define TCP_REMNANT (TCP_FLAG_FIN|TCP_FLAG_URG|TCP_FLAG_SYN|TCP_FLAG_PSH)
 #define TCP_HP_BITS (~(TCP_RESERVED_BITS|TCP_FLAG_PSH))
@@ -605,7 +604,7 @@ static u32 tcp_rto_min(struct sock *sk)
 	u32 rto_min = TCP_RTO_MIN;
 
 	if (dst && dst_metric_locked(dst, RTAX_RTO_MIN))
-		rto_min = dst->metrics[RTAX_RTO_MIN - 1];
+		rto_min = dst_metric(dst, RTAX_RTO_MIN);
 	return rto_min;
 }
 
@@ -769,7 +768,7 @@ void tcp_update_metrics(struct sock *sk)
 				dst->metrics[RTAX_RTTVAR - 1] = m;
 			else
 				dst->metrics[RTAX_RTTVAR-1] -=
-					(dst->metrics[RTAX_RTTVAR-1] - m)>>2;
+					(dst_metric(dst, RTAX_RTTVAR) - m)>>2;
 		}
 
 		if (tp->snd_ssthresh >= 0xFFFF) {
@@ -788,21 +787,21 @@ void tcp_update_metrics(struct sock *sk)
 				dst->metrics[RTAX_SSTHRESH-1] =
 					max(tp->snd_cwnd >> 1, tp->snd_ssthresh);
 			if (!dst_metric_locked(dst, RTAX_CWND))
-				dst->metrics[RTAX_CWND-1] = (dst->metrics[RTAX_CWND-1] + tp->snd_cwnd) >> 1;
+				dst->metrics[RTAX_CWND-1] = (dst_metric(dst, RTAX_CWND) + tp->snd_cwnd) >> 1;
 		} else {
 			/* Else slow start did not finish, cwnd is non-sense,
 			   ssthresh may be also invalid.
 			 */
 			if (!dst_metric_locked(dst, RTAX_CWND))
-				dst->metrics[RTAX_CWND-1] = (dst->metrics[RTAX_CWND-1] + tp->snd_ssthresh) >> 1;
-			if (dst->metrics[RTAX_SSTHRESH-1] &&
+				dst->metrics[RTAX_CWND-1] = (dst_metric(dst, RTAX_CWND) + tp->snd_ssthresh) >> 1;
+			if (dst_metric(dst, RTAX_SSTHRESH) &&
 			    !dst_metric_locked(dst, RTAX_SSTHRESH) &&
-			    tp->snd_ssthresh > dst->metrics[RTAX_SSTHRESH-1])
+			    tp->snd_ssthresh > dst_metric(dst, RTAX_SSTHRESH))
 				dst->metrics[RTAX_SSTHRESH-1] = tp->snd_ssthresh;
 		}
 
 		if (!dst_metric_locked(dst, RTAX_REORDERING)) {
-			if (dst->metrics[RTAX_REORDERING-1] < tp->reordering &&
+			if (dst_metric(dst, RTAX_REORDERING) < tp->reordering &&
 			    tp->reordering != sysctl_tcp_reordering)
 				dst->metrics[RTAX_REORDERING-1] = tp->reordering;
 		}
@@ -1685,6 +1684,11 @@ static inline void tcp_reset_reno_sack(struct tcp_sock *tp)
 	tp->sacked_out = 0;
 }
 
+static int tcp_is_sackfrto(const struct tcp_sock *tp)
+{
+	return (sysctl_tcp_frto == 0x2) && !tcp_is_reno(tp);
+}
+
 /* F-RTO can only be used if TCP has never retransmitted anything other than
  * head (SACK enhanced variant from Appendix B of RFC4138 is more robust here)
  */
@@ -1701,7 +1705,7 @@ int tcp_use_frto(struct sock *sk)
 	if (icsk->icsk_mtup.probe_size)
 		return 0;
 
-	if (IsSackFrto())
+	if (tcp_is_sackfrto(tp))
 		return 1;
 
 	/* Avoid expensive walking of rexmit queue if possible */
@@ -1791,7 +1795,7 @@ void tcp_enter_frto(struct sock *sk)
 	/* Earlier loss recovery underway (see RFC4138; Appendix B).
 	 * The last condition is necessary at least in tp->frto_counter case.
 	 */
-	if (IsSackFrto() && (tp->frto_counter ||
+	if (tcp_is_sackfrto(tp) && (tp->frto_counter ||
 	    ((1 << icsk->icsk_ca_state) & (TCPF_CA_Recovery|TCPF_CA_Loss))) &&
 	    after(tp->high_seq, tp->snd_una)) {
 		tp->frto_highmark = tp->high_seq;
@@ -3123,7 +3127,7 @@ static int tcp_process_frto(struct sock *sk, int flag)
 		return 1;
 	}
 
-	if (!IsSackFrto() || tcp_is_reno(tp)) {
+	if (!tcp_is_sackfrto(tp)) {
 		/* RFC4138 shortcoming in step 2; should also have case c):
 		 * ACK isn't duplicate nor advances window, e.g., opposite dir
 		 * data, winupdate

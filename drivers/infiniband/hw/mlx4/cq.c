@@ -246,7 +246,7 @@ err_mtt:
 	if (context)
 		ib_umem_release(cq->umem);
 	else
-		mlx4_ib_free_cq_buf(dev, &cq->buf, entries);
+		mlx4_ib_free_cq_buf(dev, &cq->buf, cq->ibcq.cqe);
 
 err_db:
 	if (!context)
@@ -434,7 +434,7 @@ int mlx4_ib_destroy_cq(struct ib_cq *cq)
 		mlx4_ib_db_unmap_user(to_mucontext(cq->uobject->context), &mcq->db);
 		ib_umem_release(mcq->umem);
 	} else {
-		mlx4_ib_free_cq_buf(dev, &mcq->buf, cq->cqe + 1);
+		mlx4_ib_free_cq_buf(dev, &mcq->buf, cq->cqe);
 		mlx4_db_free(dev->dev, &mcq->db);
 	}
 

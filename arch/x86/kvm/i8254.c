@@ -288,6 +288,8 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 	 * mode 1 is one shot, mode 2 is period, otherwise del timer */
 	switch (ps->channels[0].mode) {
 	case 1:
+        /* FIXME: enhance mode 4 precision */
+	case 4:
 		create_pit_timer(&ps->pit_timer, val, 0);
 		break;
 	case 2:

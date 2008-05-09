@@ -1197,11 +1197,15 @@ static inline int htb_parent_last_child(struct htb_class *cl)
 	return 1;
 }
 
-static void htb_parent_to_leaf(struct htb_class *cl, struct Qdisc *new_q)
+static void htb_parent_to_leaf(struct htb_sched *q, struct htb_class *cl,
+			       struct Qdisc *new_q)
 {
 	struct htb_class *parent = cl->parent;
 
 	BUG_TRAP(!cl->level && cl->un.leaf.q && !cl->prio_activity);
+
+	if (parent->cmode != HTB_CAN_SEND)
+		htb_safe_rb_erase(&parent->pq_node, q->wait_pq + parent->level);
 
 	parent->level = 0;
 	memset(&parent->un.inner, 0, sizeof(parent->un.inner));
@@ -1300,7 +1304,7 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 		htb_deactivate(q, cl);
 
 	if (last_child)
-		htb_parent_to_leaf(cl, new_q);
+		htb_parent_to_leaf(q, cl, new_q);
 
 	if (--cl->refcnt == 0)
 		htb_destroy_class(sch, cl);

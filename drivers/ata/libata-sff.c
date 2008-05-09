@@ -314,11 +314,7 @@ static int ata_sff_check_ready(struct ata_link *link)
 {
 	u8 status = link->ap->ops->sff_check_status(link->ap);
 
-	if (!(status & ATA_BUSY))
-		return 1;
-	if (status == 0xff)
-		return -ENODEV;
-	return 0;
+	return ata_check_ready(status);
 }
 
 /**

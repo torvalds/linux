@@ -33,19 +33,6 @@
 #include <linux/utsname.h>
 #include <linux/personality.h>
 
-int sys_pipe(int __user *fildes)
-{
-	int fd[2];
-	int error;
-
-	error = do_pipe(fd);
-	if (!error) {
-		if (copy_to_user(fildes, fd, 2*sizeof(int)))
-			error = -EFAULT;
-	}
-	return error;
-}
-
 static unsigned long get_unshared_area(unsigned long addr, unsigned long len)
 {
 	struct vm_area_struct *vma;

@@ -158,6 +158,8 @@ print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 }
 #endif
 
+extern unsigned long long time_sync_thresh;
+
 /*
  * Task state bitmask. NOTE! These bits are also
  * encoded in fs/proc/array.c: get_task_state().
@@ -1551,6 +1553,35 @@ static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
 
 extern unsigned long long sched_clock(void);
 
+#ifndef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+static inline void sched_clock_init(void)
+{
+}
+
+static inline u64 sched_clock_cpu(int cpu)
+{
+	return sched_clock();
+}
+
+static inline void sched_clock_tick(void)
+{
+}
+
+static inline void sched_clock_idle_sleep_event(void)
+{
+}
+
+static inline void sched_clock_idle_wakeup_event(u64 delta_ns)
+{
+}
+#else
+extern void sched_clock_init(void);
+extern u64 sched_clock_cpu(int cpu);
+extern void sched_clock_tick(void);
+extern void sched_clock_idle_sleep_event(void);
+extern void sched_clock_idle_wakeup_event(u64 delta_ns);
+#endif
+
 /*
  * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
  * clock constructed from sched_clock():
@@ -1977,6 +2008,11 @@ static inline void clear_tsk_need_resched(struct task_struct *tsk)
 	clear_tsk_thread_flag(tsk,TIF_NEED_RESCHED);
 }
 
+static inline int test_tsk_need_resched(struct task_struct *tsk)
+{
+	return unlikely(test_tsk_thread_flag(tsk,TIF_NEED_RESCHED));
+}
+
 static inline int signal_pending(struct task_struct *p)
 {
 	return unlikely(test_tsk_thread_flag(p,TIF_SIGPENDING));
@@ -1991,7 +2027,7 @@ static inline int fatal_signal_pending(struct task_struct *p)
 
 static inline int need_resched(void)
 {
-	return unlikely(test_thread_flag(TIF_NEED_RESCHED));
+	return unlikely(test_tsk_need_resched(current));
 }
 
 /*

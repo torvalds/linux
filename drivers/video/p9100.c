@@ -295,7 +295,7 @@ static int __devinit p9100_probe(struct of_device *op, const struct of_device_id
 	if (!info->screen_base)
 		goto out_unmap_regs;
 
-	p9100_blank(0, info);
+	p9100_blank(FB_BLANK_UNBLANK, info);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0))
 		goto out_unmap_screen;

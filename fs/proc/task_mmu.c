@@ -5,11 +5,9 @@
 #include <linux/highmem.h>
 #include <linux/ptrace.h>
 #include <linux/pagemap.h>
-#include <linux/ptrace.h>
 #include <linux/mempolicy.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
-#include <linux/seq_file.h>
 
 #include <asm/elf.h>
 #include <asm/uaccess.h>

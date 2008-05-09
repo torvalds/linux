@@ -570,7 +570,7 @@ static void reprobe_all(struct work_struct *unused)
 {
 	int ret;
 
-	CIO_MSG_EVENT(2, "reprobe start\n");
+	CIO_MSG_EVENT(4, "reprobe start\n");
 
 	need_reprobe = 0;
 	/* Make sure initial subchannel scan is done. */
@@ -578,7 +578,7 @@ static void reprobe_all(struct work_struct *unused)
 		   atomic_read(&ccw_device_init_count) == 0);
 	ret = for_each_subchannel_staged(NULL, reprobe_subchannel, NULL);
 
-	CIO_MSG_EVENT(2, "reprobe done (rc=%d, need_reprobe=%d)\n", ret,
+	CIO_MSG_EVENT(4, "reprobe done (rc=%d, need_reprobe=%d)\n", ret,
 		      need_reprobe);
 }
 

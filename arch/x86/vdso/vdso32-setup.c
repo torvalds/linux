@@ -162,7 +162,7 @@ static __init void relocate_vdso(Elf32_Ehdr *ehdr)
 	Elf32_Shdr *shdr;
 	int i;
 
-	BUG_ON(memcmp(ehdr->e_ident, ELFMAG, 4) != 0 ||
+	BUG_ON(memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0 ||
 	       !elf_check_arch_ia32(ehdr) ||
 	       ehdr->e_type != ET_DYN);
 

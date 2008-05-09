@@ -154,15 +154,6 @@ static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 }
 
 /*
- * Helper function to check, whether the timer is running the callback
- * function
- */
-static inline int hrtimer_callback_running(struct hrtimer *timer)
-{
-	return timer->state & HRTIMER_STATE_CALLBACK;
-}
-
-/*
  * Functions and macros which are different for UP/SMP systems are kept in a
  * single place
  */

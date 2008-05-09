@@ -171,7 +171,7 @@ static int s3c24xx_pcm_hw_params(struct snd_pcm_substream *substream,
 		ret = s3c2410_dma_request(prtd->params->channel,
 					  prtd->params->client, NULL);
 
-		if (ret) {
+		if (ret < 0) {
 			DBG(KERN_ERR "failed to get dma channel\n");
 			return ret;
 		}

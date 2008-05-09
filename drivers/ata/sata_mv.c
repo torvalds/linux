@@ -65,6 +65,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/mbus.h>
+#include <linux/bitops.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -91,9 +92,9 @@ enum {
 	MV_IRQ_COAL_TIME_THRESHOLD	= (MV_IRQ_COAL_REG_BASE + 0xd0),
 
 	MV_SATAHC0_REG_BASE	= 0x20000,
-	MV_FLASH_CTL		= 0x1046c,
-	MV_GPIO_PORT_CTL	= 0x104f0,
-	MV_RESET_CFG		= 0x180d8,
+	MV_FLASH_CTL_OFS	= 0x1046c,
+	MV_GPIO_PORT_CTL_OFS	= 0x104f0,
+	MV_RESET_CFG_OFS	= 0x180d8,
 
 	MV_PCI_REG_SZ		= MV_MAJOR_REG_AREA_SZ,
 	MV_SATAHC_REG_SZ	= MV_MAJOR_REG_AREA_SZ,
@@ -147,18 +148,21 @@ enum {
 	/* PCI interface registers */
 
 	PCI_COMMAND_OFS		= 0xc00,
+	PCI_COMMAND_MRDTRIG	= (1 << 7),	/* PCI Master Read Trigger */
 
 	PCI_MAIN_CMD_STS_OFS	= 0xd30,
 	STOP_PCI_MASTER		= (1 << 2),
 	PCI_MASTER_EMPTY	= (1 << 3),
 	GLOB_SFT_RST		= (1 << 4),
 
-	MV_PCI_MODE		= 0xd00,
+	MV_PCI_MODE_OFS		= 0xd00,
+	MV_PCI_MODE_MASK	= 0x30,
+
 	MV_PCI_EXP_ROM_BAR_CTL	= 0xd2c,
 	MV_PCI_DISC_TIMER	= 0xd04,
 	MV_PCI_MSI_TRIGGER	= 0xc38,
 	MV_PCI_SERR_MASK	= 0xc28,
-	MV_PCI_XBAR_TMOUT	= 0x1d04,
+	MV_PCI_XBAR_TMOUT_OFS	= 0x1d04,
 	MV_PCI_ERR_LOW_ADDRESS	= 0x1d40,
 	MV_PCI_ERR_HIGH_ADDRESS	= 0x1d44,
 	MV_PCI_ERR_ATTRIBUTE	= 0x1d48,
@@ -225,16 +229,18 @@ enum {
 	PHY_MODE4		= 0x314,
 	PHY_MODE2		= 0x330,
 	SATA_IFCTL_OFS		= 0x344,
+	SATA_TESTCTL_OFS	= 0x348,
 	SATA_IFSTAT_OFS		= 0x34c,
 	VENDOR_UNIQUE_FIS_OFS	= 0x35c,
 
-	FIS_CFG_OFS		= 0x360,
-	FIS_CFG_SINGLE_SYNC	= (1 << 16),	/* SYNC on DMA activation */
+	FISCFG_OFS		= 0x360,
+	FISCFG_WAIT_DEV_ERR	= (1 << 8),	/* wait for host on DevErr */
+	FISCFG_SINGLE_SYNC	= (1 << 16),	/* SYNC on DMA activation */
 
 	MV5_PHY_MODE		= 0x74,
-	MV5_LT_MODE		= 0x30,
-	MV5_PHY_CTL		= 0x0C,
-	SATA_INTERFACE_CFG	= 0x050,
+	MV5_LTMODE_OFS		= 0x30,
+	MV5_PHY_CTL_OFS		= 0x0C,
+	SATA_INTERFACE_CFG_OFS	= 0x050,
 
 	MV_M2_PREAMP_MASK	= 0x7e0,
 
@@ -332,10 +338,16 @@ enum {
 	EDMA_CMD_OFS		= 0x28,		/* EDMA command register */
 	EDMA_EN			= (1 << 0),	/* enable EDMA */
 	EDMA_DS			= (1 << 1),	/* disable EDMA; self-negated */
-	ATA_RST			= (1 << 2),	/* reset trans/link/phy */
+	EDMA_RESET		= (1 << 2),	/* reset eng/trans/link/phy */
 
-	EDMA_IORDY_TMOUT	= 0x34,
-	EDMA_ARB_CFG		= 0x38,
+	EDMA_STATUS_OFS		= 0x30,		/* EDMA engine status */
+	EDMA_STATUS_CACHE_EMPTY	= (1 << 6),	/* GenIIe command cache empty */
+	EDMA_STATUS_IDLE	= (1 << 7),	/* GenIIe EDMA enabled/idle */
+
+	EDMA_IORDY_TMOUT_OFS	= 0x34,
+	EDMA_ARB_CFG_OFS	= 0x38,
+
+	EDMA_HALTCOND_OFS	= 0x60,		/* GenIIe halt conditions */
 
 	GEN_II_NCQ_MAX_SECTORS	= 256,		/* max sects/io on Gen2 w/NCQ */
 
@@ -350,15 +362,19 @@ enum {
 	MV_HP_GEN_II		= (1 << 7),	/* Generation II: 60xx */
 	MV_HP_GEN_IIE		= (1 << 8),	/* Generation IIE: 6042/7042 */
 	MV_HP_PCIE		= (1 << 9),	/* PCIe bus/regs: 7042 */
+	MV_HP_CUT_THROUGH	= (1 << 10),	/* can use EDMA cut-through */
 
 	/* Port private flags (pp_flags) */
 	MV_PP_FLAG_EDMA_EN	= (1 << 0),	/* is EDMA engine enabled? */
 	MV_PP_FLAG_NCQ_EN	= (1 << 1),	/* is EDMA set up for NCQ? */
+	MV_PP_FLAG_FBS_EN	= (1 << 2),	/* is EDMA set up for FBS? */
+	MV_PP_FLAG_DELAYED_EH	= (1 << 3),	/* delayed dev err handling */
 };
 
 #define IS_GEN_I(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_I)
 #define IS_GEN_II(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_II)
 #define IS_GEN_IIE(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_IIE)
+#define IS_PCIE(hpriv) ((hpriv)->hp_flags & MV_HP_PCIE)
 #define HAS_PCI(host) (!((host)->ports[0]->flags & MV_FLAG_SOC))
 
 #define WINDOW_CTRL(i)		(0x20030 + ((i) << 4))
@@ -433,6 +449,7 @@ struct mv_port_priv {
 	unsigned int		resp_idx;
 
 	u32			pp_flags;
+	unsigned int		delayed_eh_pmp_map;
 };
 
 struct mv_port_signal {
@@ -479,6 +496,7 @@ static int mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val);
 static int mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
 static int mv_port_start(struct ata_port *ap);
 static void mv_port_stop(struct ata_port *ap);
+static int mv_qc_defer(struct ata_queued_cmd *qc);
 static void mv_qc_prep(struct ata_queued_cmd *qc);
 static void mv_qc_prep_iie(struct ata_queued_cmd *qc);
 static unsigned int mv_qc_issue(struct ata_queued_cmd *qc);
@@ -527,6 +545,9 @@ static int mv_pmp_hardreset(struct ata_link *link, unsigned int *class,
 				unsigned long deadline);
 static int  mv_softreset(struct ata_link *link, unsigned int *class,
 				unsigned long deadline);
+static void mv_pmp_error_handler(struct ata_port *ap);
+static void mv_process_crpb_entries(struct ata_port *ap,
+					struct mv_port_priv *pp);
 
 /* .sg_tablesize is (MV_MAX_SG_CT / 2) in the structures below
  * because we have to allow room for worst case splitting of
@@ -548,6 +569,7 @@ static struct scsi_host_template mv6_sht = {
 static struct ata_port_operations mv5_ops = {
 	.inherits		= &ata_sff_port_ops,
 
+	.qc_defer		= mv_qc_defer,
 	.qc_prep		= mv_qc_prep,
 	.qc_issue		= mv_qc_issue,
 
@@ -566,7 +588,6 @@ static struct ata_port_operations mv5_ops = {
 
 static struct ata_port_operations mv6_ops = {
 	.inherits		= &mv5_ops,
-	.qc_defer		= sata_pmp_qc_defer_cmd_switch,
 	.dev_config             = mv6_dev_config,
 	.scr_read		= mv_scr_read,
 	.scr_write		= mv_scr_write,
@@ -574,12 +595,11 @@ static struct ata_port_operations mv6_ops = {
 	.pmp_hardreset		= mv_pmp_hardreset,
 	.pmp_softreset		= mv_softreset,
 	.softreset		= mv_softreset,
-	.error_handler		= sata_pmp_error_handler,
+	.error_handler		= mv_pmp_error_handler,
 };
 
 static struct ata_port_operations mv_iie_ops = {
 	.inherits		= &mv6_ops,
-	.qc_defer		= ata_std_qc_defer, /* FIS-based switching */
 	.dev_config		= ATA_OP_NULL,
 	.qc_prep		= mv_qc_prep_iie,
 };
@@ -875,6 +895,29 @@ static void mv_start_dma(struct ata_port *ap, void __iomem *port_mmio,
 	}
 }
 
+static void mv_wait_for_edma_empty_idle(struct ata_port *ap)
+{
+	void __iomem *port_mmio = mv_ap_base(ap);
+	const u32 empty_idle = (EDMA_STATUS_CACHE_EMPTY | EDMA_STATUS_IDLE);
+	const int per_loop = 5, timeout = (15 * 1000 / per_loop);
+	int i;
+
+	/*
+	 * Wait for the EDMA engine to finish transactions in progress.
+	 * No idea what a good "timeout" value might be, but measurements
+	 * indicate that it often requires hundreds of microseconds
+	 * with two drives in-use.  So we use the 15msec value above
+	 * as a rough guess at what even more drives might require.
+	 */
+	for (i = 0; i < timeout; ++i) {
+		u32 edma_stat = readl(port_mmio + EDMA_STATUS_OFS);
+		if ((edma_stat & empty_idle) == empty_idle)
+			break;
+		udelay(per_loop);
+	}
+	/* ata_port_printk(ap, KERN_INFO, "%s: %u+ usecs\n", __func__, i); */
+}
+
 /**
  *      mv_stop_edma_engine - Disable eDMA engine
  *      @port_mmio: io base address
@@ -907,6 +950,7 @@ static int mv_stop_edma(struct ata_port *ap)
 	if (!(pp->pp_flags & MV_PP_FLAG_EDMA_EN))
 		return 0;
 	pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
+	mv_wait_for_edma_empty_idle(ap);
 	if (mv_stop_edma_engine(port_mmio)) {
 		ata_port_printk(ap, KERN_ERR, "Unable to stop eDMA\n");
 		return -EIO;
@@ -1057,26 +1101,95 @@ static void mv6_dev_config(struct ata_device *adev)
 	}
 }
 
-static void mv_config_fbs(void __iomem *port_mmio, int enable_fbs)
+static int mv_qc_defer(struct ata_queued_cmd *qc)
 {
-	u32 old_fcfg, new_fcfg, old_ltmode, new_ltmode;
+	struct ata_link *link = qc->dev->link;
+	struct ata_port *ap = link->ap;
+	struct mv_port_priv *pp = ap->private_data;
+
 	/*
-	 * Various bit settings required for operation
-	 * in FIS-based switching (fbs) mode on GenIIe:
+	 * Don't allow new commands if we're in a delayed EH state
+	 * for NCQ and/or FIS-based switching.
 	 */
-	old_fcfg   = readl(port_mmio + FIS_CFG_OFS);
-	old_ltmode = readl(port_mmio + LTMODE_OFS);
-	if (enable_fbs) {
-		new_fcfg   = old_fcfg   |  FIS_CFG_SINGLE_SYNC;
-		new_ltmode = old_ltmode |  LTMODE_BIT8;
-	} else { /* disable fbs */
-		new_fcfg   = old_fcfg   & ~FIS_CFG_SINGLE_SYNC;
-		new_ltmode = old_ltmode & ~LTMODE_BIT8;
+	if (pp->pp_flags & MV_PP_FLAG_DELAYED_EH)
+		return ATA_DEFER_PORT;
+	/*
+	 * If the port is completely idle, then allow the new qc.
+	 */
+	if (ap->nr_active_links == 0)
+		return 0;
+
+	if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
+		/*
+		 * The port is operating in host queuing mode (EDMA).
+		 * It can accomodate a new qc if the qc protocol
+		 * is compatible with the current host queue mode.
+		 */
+		if (pp->pp_flags & MV_PP_FLAG_NCQ_EN) {
+			/*
+			 * The host queue (EDMA) is in NCQ mode.
+			 * If the new qc is also an NCQ command,
+			 * then allow the new qc.
+			 */
+			if (qc->tf.protocol == ATA_PROT_NCQ)
+				return 0;
+		} else {
+			/*
+			 * The host queue (EDMA) is in non-NCQ, DMA mode.
+			 * If the new qc is also a non-NCQ, DMA command,
+			 * then allow the new qc.
+			 */
+			if (qc->tf.protocol == ATA_PROT_DMA)
+				return 0;
+		}
 	}
-	if (new_fcfg != old_fcfg)
-		writelfl(new_fcfg, port_mmio + FIS_CFG_OFS);
+	return ATA_DEFER_PORT;
+}
+
+static void mv_config_fbs(void __iomem *port_mmio, int want_ncq, int want_fbs)
+{
+	u32 new_fiscfg, old_fiscfg;
+	u32 new_ltmode, old_ltmode;
+	u32 new_haltcond, old_haltcond;
+
+	old_fiscfg   = readl(port_mmio + FISCFG_OFS);
+	old_ltmode   = readl(port_mmio + LTMODE_OFS);
+	old_haltcond = readl(port_mmio + EDMA_HALTCOND_OFS);
+
+	new_fiscfg   = old_fiscfg & ~(FISCFG_SINGLE_SYNC | FISCFG_WAIT_DEV_ERR);
+	new_ltmode   = old_ltmode & ~LTMODE_BIT8;
+	new_haltcond = old_haltcond | EDMA_ERR_DEV;
+
+	if (want_fbs) {
+		new_fiscfg = old_fiscfg | FISCFG_SINGLE_SYNC;
+		new_ltmode = old_ltmode | LTMODE_BIT8;
+		if (want_ncq)
+			new_haltcond &= ~EDMA_ERR_DEV;
+		else
+			new_fiscfg |=  FISCFG_WAIT_DEV_ERR;
+	}
+
+	if (new_fiscfg != old_fiscfg)
+		writelfl(new_fiscfg, port_mmio + FISCFG_OFS);
 	if (new_ltmode != old_ltmode)
 		writelfl(new_ltmode, port_mmio + LTMODE_OFS);
+	if (new_haltcond != old_haltcond)
+		writelfl(new_haltcond, port_mmio + EDMA_HALTCOND_OFS);
+}
+
+static void mv_60x1_errata_sata25(struct ata_port *ap, int want_ncq)
+{
+	struct mv_host_priv *hpriv = ap->host->private_data;
+	u32 old, new;
+
+	/* workaround for 88SX60x1 FEr SATA#25 (part 1) */
+	old = readl(hpriv->base + MV_GPIO_PORT_CTL_OFS);
+	if (want_ncq)
+		new = old | (1 << 22);
+	else
+		new = old & ~(1 << 22);
+	if (new != old)
+		writel(new, hpriv->base + MV_GPIO_PORT_CTL_OFS);
 }
 
 static void mv_edma_cfg(struct ata_port *ap, int want_ncq)
@@ -1088,25 +1201,40 @@ static void mv_edma_cfg(struct ata_port *ap, int want_ncq)
 
 	/* set up non-NCQ EDMA configuration */
 	cfg = EDMA_CFG_Q_DEPTH;		/* always 0x1f for *all* chips */
+	pp->pp_flags &= ~MV_PP_FLAG_FBS_EN;
 
 	if (IS_GEN_I(hpriv))
 		cfg |= (1 << 8);	/* enab config burst size mask */
 
-	else if (IS_GEN_II(hpriv))
+	else if (IS_GEN_II(hpriv)) {
 		cfg |= EDMA_CFG_RD_BRST_EXT | EDMA_CFG_WR_BUFF_LEN;
+		mv_60x1_errata_sata25(ap, want_ncq);
 
-	else if (IS_GEN_IIE(hpriv)) {
+	} else if (IS_GEN_IIE(hpriv)) {
+		int want_fbs = sata_pmp_attached(ap);
+		/*
+		 * Possible future enhancement:
+		 *
+		 * The chip can use FBS with non-NCQ, if we allow it,
+		 * But first we need to have the error handling in place
+		 * for this mode (datasheet section 7.3.15.4.2.3).
+		 * So disallow non-NCQ FBS for now.
+		 */
+		want_fbs &= want_ncq;
+
+		mv_config_fbs(port_mmio, want_ncq, want_fbs);
+
+		if (want_fbs) {
+			pp->pp_flags |= MV_PP_FLAG_FBS_EN;
+			cfg |= EDMA_CFG_EDMA_FBS; /* FIS-based switching */
+		}
+
 		cfg |= (1 << 23);	/* do not mask PM field in rx'd FIS */
 		cfg |= (1 << 22);	/* enab 4-entry host queue cache */
-		cfg |= (1 << 18);	/* enab early completion */
-		cfg |= (1 << 17);	/* enab cut-through (dis stor&forwrd) */
-
-		if (want_ncq && sata_pmp_attached(ap)) {
-			cfg |= EDMA_CFG_EDMA_FBS; /* FIS-based switching */
-			mv_config_fbs(port_mmio, 1);
-		} else {
-			mv_config_fbs(port_mmio, 0);
-		}
+		if (HAS_PCI(ap->host))
+			cfg |= (1 << 18);	/* enab early completion */
+		if (hpriv->hp_flags & MV_HP_CUT_THROUGH)
+			cfg |= (1 << 17); /* enab cut-thru (dis stor&forwrd) */
 	}
 
 	if (want_ncq) {
@@ -1483,25 +1611,186 @@ static struct ata_queued_cmd *mv_get_active_qc(struct ata_port *ap)
 	return qc;
 }
 
-static void mv_unexpected_intr(struct ata_port *ap)
+static void mv_pmp_error_handler(struct ata_port *ap)
 {
+	unsigned int pmp, pmp_map;
 	struct mv_port_priv *pp = ap->private_data;
-	struct ata_eh_info *ehi = &ap->link.eh_info;
-	char *when = "";
+
+	if (pp->pp_flags & MV_PP_FLAG_DELAYED_EH) {
+		/*
+		 * Perform NCQ error analysis on failed PMPs
+		 * before we freeze the port entirely.
+		 *
+		 * The failed PMPs are marked earlier by mv_pmp_eh_prep().
+		 */
+		pmp_map = pp->delayed_eh_pmp_map;
+		pp->pp_flags &= ~MV_PP_FLAG_DELAYED_EH;
+		for (pmp = 0; pmp_map != 0; pmp++) {
+			unsigned int this_pmp = (1 << pmp);
+			if (pmp_map & this_pmp) {
+				struct ata_link *link = &ap->pmp_link[pmp];
+				pmp_map &= ~this_pmp;
+				ata_eh_analyze_ncq_error(link);
+			}
+		}
+		ata_port_freeze(ap);
+	}
+	sata_pmp_error_handler(ap);
+}
+
+static unsigned int mv_get_err_pmp_map(struct ata_port *ap)
+{
+	void __iomem *port_mmio = mv_ap_base(ap);
+
+	return readl(port_mmio + SATA_TESTCTL_OFS) >> 16;
+}
+
+static void mv_pmp_eh_prep(struct ata_port *ap, unsigned int pmp_map)
+{
+	struct ata_eh_info *ehi;
+	unsigned int pmp;
 
 	/*
-	 * We got a device interrupt from something that
-	 * was supposed to be using EDMA or polling.
+	 * Initialize EH info for PMPs which saw device errors
 	 */
+	ehi = &ap->link.eh_info;
+	for (pmp = 0; pmp_map != 0; pmp++) {
+		unsigned int this_pmp = (1 << pmp);
+		if (pmp_map & this_pmp) {
+			struct ata_link *link = &ap->pmp_link[pmp];
+
+			pmp_map &= ~this_pmp;
+			ehi = &link->eh_info;
+			ata_ehi_clear_desc(ehi);
+			ata_ehi_push_desc(ehi, "dev err");
+			ehi->err_mask |= AC_ERR_DEV;
+			ehi->action |= ATA_EH_RESET;
+			ata_link_abort(link);
+		}
+	}
+}
+
+static int mv_handle_fbs_ncq_dev_err(struct ata_port *ap)
+{
+	struct mv_port_priv *pp = ap->private_data;
+	int failed_links;
+	unsigned int old_map, new_map;
+
+	/*
+	 * Device error during FBS+NCQ operation:
+	 *
+	 * Set a port flag to prevent further I/O being enqueued.
+	 * Leave the EDMA running to drain outstanding commands from this port.
+	 * Perform the post-mortem/EH only when all responses are complete.
+	 * Follow recovery sequence from 6042/7042 datasheet (7.3.15.4.2.2).
+	 */
+	if (!(pp->pp_flags & MV_PP_FLAG_DELAYED_EH)) {
+		pp->pp_flags |= MV_PP_FLAG_DELAYED_EH;
+		pp->delayed_eh_pmp_map = 0;
+	}
+	old_map = pp->delayed_eh_pmp_map;
+	new_map = old_map | mv_get_err_pmp_map(ap);
+
+	if (old_map != new_map) {
+		pp->delayed_eh_pmp_map = new_map;
+		mv_pmp_eh_prep(ap, new_map & ~old_map);
+	}
+	failed_links = hweight16(new_map);
+
+	ata_port_printk(ap, KERN_INFO, "%s: pmp_map=%04x qc_map=%04x "
+			"failed_links=%d nr_active_links=%d\n",
+			__func__, pp->delayed_eh_pmp_map,
+			ap->qc_active, failed_links,
+			ap->nr_active_links);
+
+	if (ap->nr_active_links <= failed_links) {
+		mv_process_crpb_entries(ap, pp);
+		mv_stop_edma(ap);
+		mv_eh_freeze(ap);
+		ata_port_printk(ap, KERN_INFO, "%s: done\n", __func__);
+		return 1;	/* handled */
+	}
+	ata_port_printk(ap, KERN_INFO, "%s: waiting\n", __func__);
+	return 1;	/* handled */
+}
+
+static int mv_handle_fbs_non_ncq_dev_err(struct ata_port *ap)
+{
+	/*
+	 * Possible future enhancement:
+	 *
+	 * FBS+non-NCQ operation is not yet implemented.
+	 * See related notes in mv_edma_cfg().
+	 *
+	 * Device error during FBS+non-NCQ operation:
+	 *
+	 * We need to snapshot the shadow registers for each failed command.
+	 * Follow recovery sequence from 6042/7042 datasheet (7.3.15.4.2.3).
+	 */
+	return 0;	/* not handled */
+}
+
+static int mv_handle_dev_err(struct ata_port *ap, u32 edma_err_cause)
+{
+	struct mv_port_priv *pp = ap->private_data;
+
+	if (!(pp->pp_flags & MV_PP_FLAG_EDMA_EN))
+		return 0;	/* EDMA was not active: not handled */
+	if (!(pp->pp_flags & MV_PP_FLAG_FBS_EN))
+		return 0;	/* FBS was not active: not handled */
+
+	if (!(edma_err_cause & EDMA_ERR_DEV))
+		return 0;	/* non DEV error: not handled */
+	edma_err_cause &= ~EDMA_ERR_IRQ_TRANSIENT;
+	if (edma_err_cause & ~(EDMA_ERR_DEV | EDMA_ERR_SELF_DIS))
+		return 0;	/* other problems: not handled */
+
+	if (pp->pp_flags & MV_PP_FLAG_NCQ_EN) {
+		/*
+		 * EDMA should NOT have self-disabled for this case.
+		 * If it did, then something is wrong elsewhere,
+		 * and we cannot handle it here.
+		 */
+		if (edma_err_cause & EDMA_ERR_SELF_DIS) {
+			ata_port_printk(ap, KERN_WARNING,
+				"%s: err_cause=0x%x pp_flags=0x%x\n",
+				__func__, edma_err_cause, pp->pp_flags);
+			return 0; /* not handled */
+		}
+		return mv_handle_fbs_ncq_dev_err(ap);
+	} else {
+		/*
+		 * EDMA should have self-disabled for this case.
+		 * If it did not, then something is wrong elsewhere,
+		 * and we cannot handle it here.
+		 */
+		if (!(edma_err_cause & EDMA_ERR_SELF_DIS)) {
+			ata_port_printk(ap, KERN_WARNING,
+				"%s: err_cause=0x%x pp_flags=0x%x\n",
+				__func__, edma_err_cause, pp->pp_flags);
+			return 0; /* not handled */
+		}
+		return mv_handle_fbs_non_ncq_dev_err(ap);
+	}
+	return 0;	/* not handled */
+}
+
+static void mv_unexpected_intr(struct ata_port *ap, int edma_was_enabled)
+{
+	struct ata_eh_info *ehi = &ap->link.eh_info;
+	char *when = "idle";
+
 	ata_ehi_clear_desc(ehi);
-	if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
-		when = " while EDMA enabled";
+	if (!ap || (ap->flags & ATA_FLAG_DISABLED)) {
+		when = "disabled";
+	} else if (edma_was_enabled) {
+		when = "EDMA enabled";
 	} else {
 		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->link.active_tag);
 		if (qc && (qc->tf.flags & ATA_TFLAG_POLLING))
-			when = " while polling";
+			when = "polling";
 	}
-	ata_ehi_push_desc(ehi, "unexpected device interrupt%s", when);
+	ata_ehi_push_desc(ehi, "unexpected device interrupt while %s", when);
 	ehi->err_mask |= AC_ERR_OTHER;
 	ehi->action   |= ATA_EH_RESET;
 	ata_port_freeze(ap);
@@ -1519,7 +1808,7 @@ static void mv_unexpected_intr(struct ata_port *ap)
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
+static void mv_err_intr(struct ata_port *ap)
 {
 	void __iomem *port_mmio = mv_ap_base(ap);
 	u32 edma_err_cause, eh_freeze_mask, serr = 0;
@@ -1527,24 +1816,42 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	struct mv_host_priv *hpriv = ap->host->private_data;
 	unsigned int action = 0, err_mask = 0;
 	struct ata_eh_info *ehi = &ap->link.eh_info;
-
-	ata_ehi_clear_desc(ehi);
+	struct ata_queued_cmd *qc;
+	int abort = 0;
 
 	/*
-	 * Read and clear the err_cause bits.  This won't actually
-	 * clear for some errors (eg. SError), but we will be doing
-	 * a hard reset in those cases regardless, which *will* clear it.
+	 * Read and clear the SError and err_cause bits.
 	 */
+	sata_scr_read(&ap->link, SCR_ERROR, &serr);
+	sata_scr_write_flush(&ap->link, SCR_ERROR, serr);
+
 	edma_err_cause = readl(port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
 	writelfl(~edma_err_cause, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
 
-	ata_ehi_push_desc(ehi, "edma_err_cause=%08x", edma_err_cause);
+	ata_port_printk(ap, KERN_INFO, "%s: err_cause=%08x pp_flags=0x%x\n",
+			__func__, edma_err_cause, pp->pp_flags);
 
+	if (edma_err_cause & EDMA_ERR_DEV) {
+		/*
+		 * Device errors during FIS-based switching operation
+		 * require special handling.
+		 */
+		if (mv_handle_dev_err(ap, edma_err_cause))
+			return;
+	}
+
+	qc = mv_get_active_qc(ap);
+	ata_ehi_clear_desc(ehi);
+	ata_ehi_push_desc(ehi, "edma_err_cause=%08x pp_flags=%08x",
+			  edma_err_cause, pp->pp_flags);
 	/*
 	 * All generations share these EDMA error cause bits:
 	 */
-	if (edma_err_cause & EDMA_ERR_DEV)
+	if (edma_err_cause & EDMA_ERR_DEV) {
 		err_mask |= AC_ERR_DEV;
+		action |= ATA_EH_RESET;
+		ata_ehi_push_desc(ehi, "dev error");
+	}
 	if (edma_err_cause & (EDMA_ERR_D_PAR | EDMA_ERR_PRD_PAR |
 			EDMA_ERR_CRQB_PAR | EDMA_ERR_CRPB_PAR |
 			EDMA_ERR_INTRL_PAR)) {
@@ -1576,13 +1883,6 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 			ata_ehi_push_desc(ehi, "EDMA self-disable");
 		}
 		if (edma_err_cause & EDMA_ERR_SERR) {
-			/*
-			 * Ensure that we read our own SCR, not a pmp link SCR:
-			 */
-			ap->ops->scr_read(ap, SCR_ERROR, &serr);
-			/*
-			 * Don't clear SError here; leave it for libata-eh:
-			 */
 			ata_ehi_push_desc(ehi, "SError=%08x", serr);
 			err_mask |= AC_ERR_ATA_BUS;
 			action |= ATA_EH_RESET;
@@ -1602,10 +1902,29 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	else
 		ehi->err_mask |= err_mask;
 
-	if (edma_err_cause & eh_freeze_mask)
+	if (err_mask == AC_ERR_DEV) {
+		/*
+		 * Cannot do ata_port_freeze() here,
+		 * because it would kill PIO access,
+		 * which is needed for further diagnosis.
+		 */
+		mv_eh_freeze(ap);
+		abort = 1;
+	} else if (edma_err_cause & eh_freeze_mask) {
+		/*
+		 * Note to self: ata_port_freeze() calls ata_port_abort()
+		 */
 		ata_port_freeze(ap);
-	else
-		ata_port_abort(ap);
+	} else {
+		abort = 1;
+	}
+
+	if (abort) {
+		if (qc)
+			ata_link_abort(qc->dev->link);
+		else
+			ata_port_abort(ap);
+	}
 }
 
 static void mv_process_crpb_response(struct ata_port *ap,
@@ -1632,8 +1951,9 @@ static void mv_process_crpb_response(struct ata_port *ap,
 			}
 		}
 		ata_status = edma_status >> CRPB_FLAG_STATUS_SHIFT;
-		qc->err_mask |= ac_err_mask(ata_status);
-		ata_qc_complete(qc);
+		if (!ac_err_mask(ata_status))
+			ata_qc_complete(qc);
+		/* else: leave it for mv_err_intr() */
 	} else {
 		ata_port_printk(ap, KERN_ERR, "%s: no qc for tag=%d\n",
 				__func__, tag);
@@ -1677,6 +1997,44 @@ static void mv_process_crpb_entries(struct ata_port *ap, struct mv_port_priv *pp
 			 port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
 }
 
+static void mv_port_intr(struct ata_port *ap, u32 port_cause)
+{
+	struct mv_port_priv *pp;
+	int edma_was_enabled;
+
+	if (!ap || (ap->flags & ATA_FLAG_DISABLED)) {
+		mv_unexpected_intr(ap, 0);
+		return;
+	}
+	/*
+	 * Grab a snapshot of the EDMA_EN flag setting,
+	 * so that we have a consistent view for this port,
+	 * even if something we call of our routines changes it.
+	 */
+	pp = ap->private_data;
+	edma_was_enabled = (pp->pp_flags & MV_PP_FLAG_EDMA_EN);
+	/*
+	 * Process completed CRPB response(s) before other events.
+	 */
+	if (edma_was_enabled && (port_cause & DONE_IRQ)) {
+		mv_process_crpb_entries(ap, pp);
+		if (pp->pp_flags & MV_PP_FLAG_DELAYED_EH)
+			mv_handle_fbs_ncq_dev_err(ap);
+	}
+	/*
+	 * Handle chip-reported errors, or continue on to handle PIO.
+	 */
+	if (unlikely(port_cause & ERR_IRQ)) {
+		mv_err_intr(ap);
+	} else if (!edma_was_enabled) {
+		struct ata_queued_cmd *qc = mv_get_active_qc(ap);
+		if (qc)
+			ata_sff_host_intr(ap, qc);
+		else
+			mv_unexpected_intr(ap, edma_was_enabled);
+	}
+}
+
 /**
  *      mv_host_intr - Handle all interrupts on the given host controller
  *      @host: host specific structure
@@ -1688,66 +2046,58 @@ static void mv_process_crpb_entries(struct ata_port *ap, struct mv_port_priv *pp
 static int mv_host_intr(struct ata_host *host, u32 main_irq_cause)
 {
 	struct mv_host_priv *hpriv = host->private_data;
-	void __iomem *mmio = hpriv->base, *hc_mmio = NULL;
-	u32 hc_irq_cause = 0;
+	void __iomem *mmio = hpriv->base, *hc_mmio;
 	unsigned int handled = 0, port;
 
 	for (port = 0; port < hpriv->n_ports; port++) {
 		struct ata_port *ap = host->ports[port];
-		struct mv_port_priv *pp;
-		unsigned int shift, hardport, port_cause;
-		/*
-		 * When we move to the second hc, flag our cached
-		 * copies of hc_mmio (and hc_irq_cause) as invalid again.
-		 */
-		if (port == MV_PORTS_PER_HC)
-			hc_mmio = NULL;
-		/*
-		 * Do nothing if port is not interrupting or is disabled:
-		 */
+		unsigned int p, shift, hardport, port_cause;
+
 		MV_PORT_TO_SHIFT_AND_HARDPORT(port, shift, hardport);
-		port_cause = (main_irq_cause >> shift) & (DONE_IRQ | ERR_IRQ);
-		if (!port_cause || !ap || (ap->flags & ATA_FLAG_DISABLED))
-			continue;
 		/*
-		 * Each hc within the host has its own hc_irq_cause register.
-		 * We defer reading it until we know we need it, right now:
-		 *
-		 * FIXME later: we don't really need to read this register
-		 * (some logic changes required below if we go that way),
-		 * because it doesn't tell us anything new.  But we do need
-		 * to write to it, outside the top of this loop,
-		 * to reset the interrupt triggers for next time.
+		 * Each hc within the host has its own hc_irq_cause register,
+		 * where the interrupting ports bits get ack'd.
 		 */
-		if (!hc_mmio) {
+		if (hardport == 0) {	/* first port on this hc ? */
+			u32 hc_cause = (main_irq_cause >> shift) & HC0_IRQ_PEND;
+			u32 port_mask, ack_irqs;
+			/*
+			 * Skip this entire hc if nothing pending for any ports
+			 */
+			if (!hc_cause) {
+				port += MV_PORTS_PER_HC - 1;
+				continue;
+			}
+			/*
+			 * We don't need/want to read the hc_irq_cause register,
+			 * because doing so hurts performance, and
+			 * main_irq_cause already gives us everything we need.
+			 *
+			 * But we do have to *write* to the hc_irq_cause to ack
+			 * the ports that we are handling this time through.
+			 *
+			 * This requires that we create a bitmap for those
+			 * ports which interrupted us, and use that bitmap
+			 * to ack (only) those ports via hc_irq_cause.
+			 */
+			ack_irqs = 0;
+			for (p = 0; p < MV_PORTS_PER_HC; ++p) {
+				if ((port + p) >= hpriv->n_ports)
+					break;
+				port_mask = (DONE_IRQ | ERR_IRQ) << (p * 2);
+				if (hc_cause & port_mask)
+					ack_irqs |= (DMA_IRQ | DEV_IRQ) << p;
+			}
 			hc_mmio = mv_hc_base_from_port(mmio, port);
-			hc_irq_cause = readl(hc_mmio + HC_IRQ_CAUSE_OFS);
-			writelfl(~hc_irq_cause, hc_mmio + HC_IRQ_CAUSE_OFS);
+			writelfl(~ack_irqs, hc_mmio + HC_IRQ_CAUSE_OFS);
 			handled = 1;
 		}
 		/*
-		 * Process completed CRPB response(s) before other events.
+		 * Handle interrupts signalled for this port:
 		 */
-		pp = ap->private_data;
-		if (hc_irq_cause & (DMA_IRQ << hardport)) {
-			if (pp->pp_flags & MV_PP_FLAG_EDMA_EN)
-				mv_process_crpb_entries(ap, pp);
-		}
-		/*
-		 * Handle chip-reported errors, or continue on to handle PIO.
-		 */
-		if (unlikely(port_cause & ERR_IRQ)) {
-			mv_err_intr(ap, mv_get_active_qc(ap));
-		} else if (hc_irq_cause & (DEV_IRQ << hardport)) {
-			if (!(pp->pp_flags & MV_PP_FLAG_EDMA_EN)) {
-				struct ata_queued_cmd *qc = mv_get_active_qc(ap);
-				if (qc) {
-					ata_sff_host_intr(ap, qc);
-					continue;
-				}
-			}
-			mv_unexpected_intr(ap);
-		}
+		port_cause = (main_irq_cause >> shift) & (DONE_IRQ | ERR_IRQ);
+		if (port_cause)
+			mv_port_intr(ap, port_cause);
 	}
 	return handled;
 }
@@ -1894,7 +2244,7 @@ static void mv5_reset_bus(struct ata_host *host, void __iomem *mmio)
 
 static void mv5_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio)
 {
-	writel(0x0fcfffff, mmio + MV_FLASH_CTL);
+	writel(0x0fcfffff, mmio + MV_FLASH_CTL_OFS);
 }
 
 static void mv5_read_preamp(struct mv_host_priv *hpriv, int idx,
@@ -1913,7 +2263,7 @@ static void mv5_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
 {
 	u32 tmp;
 
-	writel(0, mmio + MV_GPIO_PORT_CTL);
+	writel(0, mmio + MV_GPIO_PORT_CTL_OFS);
 
 	/* FIXME: handle MV_HP_ERRATA_50XXB2 errata */
 
@@ -1931,14 +2281,14 @@ static void mv5_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 	int fix_apm_sq = (hpriv->hp_flags & MV_HP_ERRATA_50XXB0);
 
 	if (fix_apm_sq) {
-		tmp = readl(phy_mmio + MV5_LT_MODE);
+		tmp = readl(phy_mmio + MV5_LTMODE_OFS);
 		tmp |= (1 << 19);
-		writel(tmp, phy_mmio + MV5_LT_MODE);
+		writel(tmp, phy_mmio + MV5_LTMODE_OFS);
 
-		tmp = readl(phy_mmio + MV5_PHY_CTL);
+		tmp = readl(phy_mmio + MV5_PHY_CTL_OFS);
 		tmp &= ~0x3;
 		tmp |= 0x1;
-		writel(tmp, phy_mmio + MV5_PHY_CTL);
+		writel(tmp, phy_mmio + MV5_PHY_CTL_OFS);
 	}
 
 	tmp = readl(phy_mmio + MV5_PHY_MODE);
@@ -1956,11 +2306,6 @@ static void mv5_reset_hc_port(struct mv_host_priv *hpriv, void __iomem *mmio,
 {
 	void __iomem *port_mmio = mv_port_base(mmio, port);
 
-	/*
-	 * The datasheet warns against setting ATA_RST when EDMA is active
-	 * (but doesn't say what the problem might be).  So we first try
-	 * to disable the EDMA engine before doing the ATA_RST operation.
-	 */
 	mv_reset_channel(hpriv, mmio, port);
 
 	ZERO(0x028);	/* command */
@@ -1975,7 +2320,7 @@ static void mv5_reset_hc_port(struct mv_host_priv *hpriv, void __iomem *mmio,
 	ZERO(0x024);	/* respq outp */
 	ZERO(0x020);	/* respq inp */
 	ZERO(0x02c);	/* test control */
-	writel(0xbc, port_mmio + EDMA_IORDY_TMOUT);
+	writel(0xbc, port_mmio + EDMA_IORDY_TMOUT_OFS);
 }
 #undef ZERO
 
@@ -2021,13 +2366,13 @@ static void mv_reset_pci_bus(struct ata_host *host, void __iomem *mmio)
 	struct mv_host_priv *hpriv = host->private_data;
 	u32 tmp;
 
-	tmp = readl(mmio + MV_PCI_MODE);
+	tmp = readl(mmio + MV_PCI_MODE_OFS);
 	tmp &= 0xff00ffff;
-	writel(tmp, mmio + MV_PCI_MODE);
+	writel(tmp, mmio + MV_PCI_MODE_OFS);
 
 	ZERO(MV_PCI_DISC_TIMER);
 	ZERO(MV_PCI_MSI_TRIGGER);
-	writel(0x000100ff, mmio + MV_PCI_XBAR_TMOUT);
+	writel(0x000100ff, mmio + MV_PCI_XBAR_TMOUT_OFS);
 	ZERO(PCI_HC_MAIN_IRQ_MASK_OFS);
 	ZERO(MV_PCI_SERR_MASK);
 	ZERO(hpriv->irq_cause_ofs);
@@ -2045,10 +2390,10 @@ static void mv6_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio)
 
 	mv5_reset_flash(hpriv, mmio);
 
-	tmp = readl(mmio + MV_GPIO_PORT_CTL);
+	tmp = readl(mmio + MV_GPIO_PORT_CTL_OFS);
 	tmp &= 0x3;
 	tmp |= (1 << 5) | (1 << 6);
-	writel(tmp, mmio + MV_GPIO_PORT_CTL);
+	writel(tmp, mmio + MV_GPIO_PORT_CTL_OFS);
 }
 
 /**
@@ -2121,7 +2466,7 @@ static void mv6_read_preamp(struct mv_host_priv *hpriv, int idx,
 	void __iomem *port_mmio;
 	u32 tmp;
 
-	tmp = readl(mmio + MV_RESET_CFG);
+	tmp = readl(mmio + MV_RESET_CFG_OFS);
 	if ((tmp & (1 << 0)) == 0) {
 		hpriv->signal[idx].amps = 0x7 << 8;
 		hpriv->signal[idx].pre = 0x1 << 5;
@@ -2137,7 +2482,7 @@ static void mv6_read_preamp(struct mv_host_priv *hpriv, int idx,
 
 static void mv6_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
 {
-	writel(0x00000060, mmio + MV_GPIO_PORT_CTL);
+	writel(0x00000060, mmio + MV_GPIO_PORT_CTL_OFS);
 }
 
 static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
@@ -2235,11 +2580,6 @@ static void mv_soc_reset_hc_port(struct mv_host_priv *hpriv,
 {
 	void __iomem *port_mmio = mv_port_base(mmio, port);
 
-	/*
-	 * The datasheet warns against setting ATA_RST when EDMA is active
-	 * (but doesn't say what the problem might be).  So we first try
-	 * to disable the EDMA engine before doing the ATA_RST operation.
-	 */
 	mv_reset_channel(hpriv, mmio, port);
 
 	ZERO(0x028);		/* command */
@@ -2254,7 +2594,7 @@ static void mv_soc_reset_hc_port(struct mv_host_priv *hpriv,
 	ZERO(0x024);		/* respq outp */
 	ZERO(0x020);		/* respq inp */
 	ZERO(0x02c);		/* test control */
-	writel(0xbc, port_mmio + EDMA_IORDY_TMOUT);
+	writel(0xbc, port_mmio + EDMA_IORDY_TMOUT_OFS);
 }
 
 #undef ZERO
@@ -2297,38 +2637,39 @@ static void mv_soc_reset_bus(struct ata_host *host, void __iomem *mmio)
 	return;
 }
 
-static void mv_setup_ifctl(void __iomem *port_mmio, int want_gen2i)
+static void mv_setup_ifcfg(void __iomem *port_mmio, int want_gen2i)
 {
-	u32 ifctl = readl(port_mmio + SATA_INTERFACE_CFG);
+	u32 ifcfg = readl(port_mmio + SATA_INTERFACE_CFG_OFS);
 
-	ifctl = (ifctl & 0xf7f) | 0x9b1000;	/* from chip spec */
+	ifcfg = (ifcfg & 0xf7f) | 0x9b1000;	/* from chip spec */
 	if (want_gen2i)
-		ifctl |= (1 << 7);		/* enable gen2i speed */
-	writelfl(ifctl, port_mmio + SATA_INTERFACE_CFG);
+		ifcfg |= (1 << 7);		/* enable gen2i speed */
+	writelfl(ifcfg, port_mmio + SATA_INTERFACE_CFG_OFS);
 }
 
-/*
- * Caller must ensure that EDMA is not active,
- * by first doing mv_stop_edma() where needed.
- */
 static void mv_reset_channel(struct mv_host_priv *hpriv, void __iomem *mmio,
 			     unsigned int port_no)
 {
 	void __iomem *port_mmio = mv_port_base(mmio, port_no);
 
+	/*
+	 * The datasheet warns against setting EDMA_RESET when EDMA is active
+	 * (but doesn't say what the problem might be).  So we first try
+	 * to disable the EDMA engine before doing the EDMA_RESET operation.
+	 */
 	mv_stop_edma_engine(port_mmio);
-	writelfl(ATA_RST, port_mmio + EDMA_CMD_OFS);
+	writelfl(EDMA_RESET, port_mmio + EDMA_CMD_OFS);
 
 	if (!IS_GEN_I(hpriv)) {
-		/* Enable 3.0gb/s link speed */
-		mv_setup_ifctl(port_mmio, 1);
+		/* Enable 3.0gb/s link speed: this survives EDMA_RESET */
+		mv_setup_ifcfg(port_mmio, 1);
 	}
 	/*
-	 * Strobing ATA_RST here causes a hard reset of the SATA transport,
+	 * Strobing EDMA_RESET here causes a hard reset of the SATA transport,
 	 * link, and physical layers.  It resets all SATA interface registers
 	 * (except for SATA_INTERFACE_CFG), and issues a COMRESET to the dev.
 	 */
-	writelfl(ATA_RST, port_mmio + EDMA_CMD_OFS);
+	writelfl(EDMA_RESET, port_mmio + EDMA_CMD_OFS);
 	udelay(25);	/* allow reset propagation */
 	writelfl(0, port_mmio + EDMA_CMD_OFS);
 
@@ -2392,7 +2733,7 @@ static int mv_hardreset(struct ata_link *link, unsigned int *class,
 		sata_scr_read(link, SCR_STATUS, &sstatus);
 		if (!IS_GEN_I(hpriv) && ++attempts >= 5 && sstatus == 0x121) {
 			/* Force 1.5gb/s link speed and try again */
-			mv_setup_ifctl(mv_ap_base(ap), 0);
+			mv_setup_ifcfg(mv_ap_base(ap), 0);
 			if (time_after(jiffies + HZ, deadline))
 				extra = HZ; /* only extend it once, max */
 		}
@@ -2493,6 +2834,34 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 		readl(port_mmio + EDMA_ERR_IRQ_MASK_OFS));
 }
 
+static unsigned int mv_in_pcix_mode(struct ata_host *host)
+{
+	struct mv_host_priv *hpriv = host->private_data;
+	void __iomem *mmio = hpriv->base;
+	u32 reg;
+
+	if (!HAS_PCI(host) || !IS_PCIE(hpriv))
+		return 0;	/* not PCI-X capable */
+	reg = readl(mmio + MV_PCI_MODE_OFS);
+	if ((reg & MV_PCI_MODE_MASK) == 0)
+		return 0;	/* conventional PCI mode */
+	return 1;	/* chip is in PCI-X mode */
+}
+
+static int mv_pci_cut_through_okay(struct ata_host *host)
+{
+	struct mv_host_priv *hpriv = host->private_data;
+	void __iomem *mmio = hpriv->base;
+	u32 reg;
+
+	if (!mv_in_pcix_mode(host)) {
+		reg = readl(mmio + PCI_COMMAND_OFS);
+		if (reg & PCI_COMMAND_MRDTRIG)
+			return 0; /* not okay */
+	}
+	return 1; /* okay */
+}
+
 static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
@@ -2560,7 +2929,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 		break;
 
 	case chip_7042:
-		hp_flags |= MV_HP_PCIE;
+		hp_flags |= MV_HP_PCIE | MV_HP_CUT_THROUGH;
 		if (pdev->vendor == PCI_VENDOR_ID_TTI &&
 		    (pdev->device == 0x2300 || pdev->device == 0x2310))
 		{
@@ -2590,9 +2959,12 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 				" and avoid the final two gigabytes on"
 				" all RocketRAID BIOS initialized drives.\n");
 		}
+		/* drop through */
 	case chip_6042:
 		hpriv->ops = &mv6xxx_ops;
 		hp_flags |= MV_HP_GEN_IIE;
+		if (board_idx == chip_6042 && mv_pci_cut_through_okay(host))
+			hp_flags |= MV_HP_CUT_THROUGH;
 
 		switch (pdev->revision) {
 		case 0x0:

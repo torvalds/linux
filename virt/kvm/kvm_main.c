@@ -522,6 +522,7 @@ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 		return bad_hva();
 	return (slot->userspace_addr + (gfn - slot->base_gfn) * PAGE_SIZE);
 }
+EXPORT_SYMBOL_GPL(gfn_to_hva);
 
 /*
  * Requires current->mm->mmap_sem to be held

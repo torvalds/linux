@@ -133,6 +133,7 @@ static int kvm_register_clock(void)
 	return native_write_msr_safe(MSR_KVM_SYSTEM_TIME, low, high);
 }
 
+#ifdef CONFIG_X86_LOCAL_APIC
 static void kvm_setup_secondary_clock(void)
 {
 	/*
@@ -143,6 +144,7 @@ static void kvm_setup_secondary_clock(void)
 	/* ok, done with our trickery, call native */
 	setup_secondary_APIC_clock();
 }
+#endif
 
 /*
  * After the clock is registered, the host will keep writing to the
@@ -177,7 +179,9 @@ void __init kvmclock_init(void)
 		pv_time_ops.get_wallclock = kvm_get_wallclock;
 		pv_time_ops.set_wallclock = kvm_set_wallclock;
 		pv_time_ops.sched_clock = kvm_clock_read;
+#ifdef CONFIG_X86_LOCAL_APIC
 		pv_apic_ops.setup_secondary_clock = kvm_setup_secondary_clock;
+#endif
 		machine_ops.shutdown  = kvm_shutdown;
 #ifdef CONFIG_KEXEC
 		machine_ops.crash_shutdown  = kvm_crash_shutdown;

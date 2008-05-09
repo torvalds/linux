@@ -101,7 +101,6 @@ int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 	props->max_ee          = limit_uint(rblock->max_rd_ee_context);
 	props->max_rdd         = limit_uint(rblock->max_rd_domain);
 	props->max_fmr         = limit_uint(rblock->max_mr);
-	props->local_ca_ack_delay  = limit_uint(rblock->local_ca_ack_delay);
 	props->max_qp_rd_atom  = limit_uint(rblock->max_rr_qp);
 	props->max_ee_rd_atom  = limit_uint(rblock->max_rr_ee_context);
 	props->max_res_rd_atom = limit_uint(rblock->max_rr_hca);
@@ -115,7 +114,7 @@ int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 	}
 
 	props->max_pkeys           = 16;
-	props->local_ca_ack_delay  = limit_uint(rblock->local_ca_ack_delay);
+	props->local_ca_ack_delay  = min_t(u8, rblock->local_ca_ack_delay, 255);
 	props->max_raw_ipv6_qp     = limit_uint(rblock->max_raw_ipv6_qp);
 	props->max_raw_ethy_qp     = limit_uint(rblock->max_raw_ethy_qp);
 	props->max_mcast_grp       = limit_uint(rblock->max_mcast_grp);
@@ -136,7 +135,7 @@ query_device1:
 	return ret;
 }
 
-static int map_mtu(struct ehca_shca *shca, u32 fw_mtu)
+static enum ib_mtu map_mtu(struct ehca_shca *shca, u32 fw_mtu)
 {
 	switch (fw_mtu) {
 	case 0x1:
@@ -156,7 +155,7 @@ static int map_mtu(struct ehca_shca *shca, u32 fw_mtu)
 	}
 }
 
-static int map_number_of_vls(struct ehca_shca *shca, u32 vl_cap)
+static u8 map_number_of_vls(struct ehca_shca *shca, u32 vl_cap)
 {
 	switch (vl_cap) {
 	case 0x1:

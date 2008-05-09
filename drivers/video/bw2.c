@@ -329,7 +329,7 @@ static int __devinit bw2_probe(struct of_device *op, const struct of_device_id *
 	if (!info->screen_base)
 		goto out_unmap_regs;
 
-	bw2_blank(0, info);
+	bw2_blank(FB_BLANK_UNBLANK, info);
 
 	bw2_init_fix(info, linebytes);
 

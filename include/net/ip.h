@@ -210,7 +210,7 @@ int ip_dont_fragment(struct sock *sk, struct dst_entry *dst)
 {
 	return (inet_sk(sk)->pmtudisc == IP_PMTUDISC_DO ||
 		(inet_sk(sk)->pmtudisc == IP_PMTUDISC_WANT &&
-		 !(dst_metric(dst, RTAX_LOCK)&(1<<RTAX_MTU))));
+		 !(dst_metric_locked(dst, RTAX_MTU))));
 }
 
 extern void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more);

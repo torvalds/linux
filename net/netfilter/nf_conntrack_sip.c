@@ -870,6 +870,7 @@ static int process_sdp(struct sk_buff *skb,
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	struct nf_conn_help *help = nfct_help(ct);
 	unsigned int matchoff, matchlen;
 	unsigned int mediaoff, medialen;
 	unsigned int sdpoff;
@@ -959,6 +960,9 @@ static int process_sdp(struct sk_buff *skb,
 	if (nf_nat_sdp_session && ct->status & IPS_NAT_MASK)
 		ret = nf_nat_sdp_session(skb, dptr, sdpoff, datalen, &rtp_addr);
 
+	if (ret == NF_ACCEPT && i > 0)
+		help->help.ct_sip_info.invite_cseq = cseq;
+
 	return ret;
 }
 static int process_invite_response(struct sk_buff *skb,
@@ -967,14 +971,14 @@ static int process_invite_response(struct sk_buff *skb,
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	struct nf_conn_help *help = nfct_help(ct);
 
 	if ((code >= 100 && code <= 199) ||
 	    (code >= 200 && code <= 299))
 		return process_sdp(skb, dptr, datalen, cseq);
-	else {
+	else if (help->help.ct_sip_info.invite_cseq == cseq)
 		flush_expectations(ct, true);
-		return NF_ACCEPT;
-	}
+	return NF_ACCEPT;
 }
 
 static int process_update_response(struct sk_buff *skb,
@@ -983,14 +987,14 @@ static int process_update_response(struct sk_buff *skb,
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	struct nf_conn_help *help = nfct_help(ct);
 
 	if ((code >= 100 && code <= 199) ||
 	    (code >= 200 && code <= 299))
 		return process_sdp(skb, dptr, datalen, cseq);
-	else {
+	else if (help->help.ct_sip_info.invite_cseq == cseq)
 		flush_expectations(ct, true);
-		return NF_ACCEPT;
-	}
+	return NF_ACCEPT;
 }
 
 static int process_prack_response(struct sk_buff *skb,
@@ -999,14 +1003,14 @@ static int process_prack_response(struct sk_buff *skb,
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	struct nf_conn_help *help = nfct_help(ct);
 
 	if ((code >= 100 && code <= 199) ||
 	    (code >= 200 && code <= 299))
 		return process_sdp(skb, dptr, datalen, cseq);
-	else {
+	else if (help->help.ct_sip_info.invite_cseq == cseq)
 		flush_expectations(ct, true);
-		return NF_ACCEPT;
-	}
+	return NF_ACCEPT;
 }
 
 static int process_bye_request(struct sk_buff *skb,

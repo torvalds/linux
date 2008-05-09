@@ -1197,7 +1197,7 @@ void ipath_kreceive(struct ipath_portdata *pd)
 	}
 
 reloop:
-	for (last = 0, i = 1; !last; i++) {
+	for (last = 0, i = 1; !last; i += !last) {
 		hdr = dd->ipath_f_get_msgheader(dd, rhf_addr);
 		eflags = ipath_hdrget_err_flags(rhf_addr);
 		etype = ipath_hdrget_rcv_type(rhf_addr);
@@ -1428,6 +1428,40 @@ static void ipath_update_pio_bufs(struct ipath_devdata *dd)
 	spin_unlock_irqrestore(&ipath_pioavail_lock, flags);
 }
 
+/*
+ * used to force update of pioavailshadow if we can't get a pio buffer.
+ * Needed primarily due to exitting freeze mode after recovering
+ * from errors.  Done lazily, because it's safer (known to not
+ * be writing pio buffers).
+ */
+static void ipath_reset_availshadow(struct ipath_devdata *dd)
+{
+	int i, im;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ipath_pioavail_lock, flags);
+	for (i = 0; i < dd->ipath_pioavregs; i++) {
+		u64 val, oldval;
+		/* deal with 6110 chip bug on high register #s */
+		im = (i > 3 && (dd->ipath_flags & IPATH_SWAP_PIOBUFS)) ?
+			i ^ 1 : i;
+		val = le64_to_cpu(dd->ipath_pioavailregs_dma[im]);
+		/*
+		 * busy out the buffers not in the kernel avail list,
+		 * without changing the generation bits.
+		 */
+		oldval = dd->ipath_pioavailshadow[i];
+		dd->ipath_pioavailshadow[i] = val |
+			((~dd->ipath_pioavailkernel[i] <<
+			INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT) &
+			0xaaaaaaaaaaaaaaaaULL); /* All BUSY bits in qword */
+		if (oldval != dd->ipath_pioavailshadow[i])
+			ipath_dbg("shadow[%d] was %Lx, now %lx\n",
+				i, oldval, dd->ipath_pioavailshadow[i]);
+	}
+	spin_unlock_irqrestore(&ipath_pioavail_lock, flags);
+}
+
 /**
  * ipath_setrcvhdrsize - set the receive header size
  * @dd: the infinipath device
@@ -1482,9 +1516,12 @@ static noinline void no_pio_bufs(struct ipath_devdata *dd)
 	 */
 	ipath_stats.sps_nopiobufs++;
 	if (!(++dd->ipath_consec_nopiobuf % 100000)) {
-		ipath_dbg("%u pio sends with no bufavail; dmacopy: "
-			"%llx %llx %llx %llx; shadow:  %lx %lx %lx %lx\n",
+		ipath_force_pio_avail_update(dd); /* at start */
+		ipath_dbg("%u tries no piobufavail ts%lx; dmacopy: "
+			"%llx %llx %llx %llx\n"
+			"ipath  shadow:  %lx %lx %lx %lx\n",
 			dd->ipath_consec_nopiobuf,
+			(unsigned long)get_cycles(),
 			(unsigned long long) le64_to_cpu(dma[0]),
 			(unsigned long long) le64_to_cpu(dma[1]),
 			(unsigned long long) le64_to_cpu(dma[2]),
@@ -1496,14 +1533,17 @@ static noinline void no_pio_bufs(struct ipath_devdata *dd)
 		 */
 		if ((dd->ipath_piobcnt2k + dd->ipath_piobcnt4k) >
 		    (sizeof(shadow[0]) * 4 * 4))
-			ipath_dbg("2nd group: dmacopy: %llx %llx "
-				  "%llx %llx; shadow: %lx %lx %lx %lx\n",
+			ipath_dbg("2nd group: dmacopy: "
+				  "%llx %llx %llx %llx\n"
+				  "ipath  shadow:  %lx %lx %lx %lx\n",
 				  (unsigned long long)le64_to_cpu(dma[4]),
 				  (unsigned long long)le64_to_cpu(dma[5]),
 				  (unsigned long long)le64_to_cpu(dma[6]),
 				  (unsigned long long)le64_to_cpu(dma[7]),
-				  shadow[4], shadow[5], shadow[6],
-				  shadow[7]);
+				  shadow[4], shadow[5], shadow[6], shadow[7]);
+
+		/* at end, so update likely happened */
+		ipath_reset_availshadow(dd);
 	}
 }
 
@@ -1652,19 +1692,46 @@ void ipath_chg_pioavailkernel(struct ipath_devdata *dd, unsigned start,
 			      unsigned len, int avail)
 {
 	unsigned long flags;
-	unsigned end;
+	unsigned end, cnt = 0, next;
 
 	/* There are two bits per send buffer (busy and generation) */
 	start *= 2;
-	len *= 2;
-	end = start + len;
+	end = start + len * 2;
 
-	/* Set or clear the generation bits. */
 	spin_lock_irqsave(&ipath_pioavail_lock, flags);
+	/* Set or clear the busy bit in the shadow. */
 	while (start < end) {
 		if (avail) {
-			__clear_bit(start + INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT,
-				dd->ipath_pioavailshadow);
+			unsigned long dma;
+			int i, im;
+			/*
+			 * the BUSY bit will never be set, because we disarm
+			 * the user buffers before we hand them back to the
+			 * kernel.  We do have to make sure the generation
+			 * bit is set correctly in shadow, since it could
+			 * have changed many times while allocated to user.
+			 * We can't use the bitmap functions on the full
+			 * dma array because it is always little-endian, so
+			 * we have to flip to host-order first.
+			 * BITS_PER_LONG is slightly wrong, since it's
+			 * always 64 bits per register in chip...
+			 * We only work on 64 bit kernels, so that's OK.
+			 */
+			/* deal with 6110 chip bug on high register #s */
+			i = start / BITS_PER_LONG;
+			im = (i > 3 && (dd->ipath_flags & IPATH_SWAP_PIOBUFS)) ?
+				i ^ 1 : i;
+			__clear_bit(INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT
+				+ start, dd->ipath_pioavailshadow);
+			dma = (unsigned long) le64_to_cpu(
+				dd->ipath_pioavailregs_dma[im]);
+			if (test_bit((INFINIPATH_SENDPIOAVAIL_CHECK_SHIFT
+				+ start) % BITS_PER_LONG, &dma))
+				__set_bit(INFINIPATH_SENDPIOAVAIL_CHECK_SHIFT
+					+ start, dd->ipath_pioavailshadow);
+			else
+				__clear_bit(INFINIPATH_SENDPIOAVAIL_CHECK_SHIFT
+					+ start, dd->ipath_pioavailshadow);
 			__set_bit(start, dd->ipath_pioavailkernel);
 		} else {
 			__set_bit(start + INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT,
@@ -1673,7 +1740,44 @@ void ipath_chg_pioavailkernel(struct ipath_devdata *dd, unsigned start,
 		}
 		start += 2;
 	}
+
+	if (dd->ipath_pioupd_thresh) {
+		end = 2 * (dd->ipath_piobcnt2k + dd->ipath_piobcnt4k);
+		next = find_first_bit(dd->ipath_pioavailkernel, end);
+		while (next < end) {
+			cnt++;
+			next = find_next_bit(dd->ipath_pioavailkernel, end,
+					next + 1);
+		}
+	}
 	spin_unlock_irqrestore(&ipath_pioavail_lock, flags);
+
+	/*
+	 * When moving buffers from kernel to user, if number assigned to
+	 * the user is less than the pio update threshold, and threshold
+	 * is supported (cnt was computed > 0), drop the update threshold
+	 * so we update at least once per allocated number of buffers.
+	 * In any case, if the kernel buffers are less than the threshold,
+	 * drop the threshold.  We don't bother increasing it, having once
+	 * decreased it, since it would typically just cycle back and forth.
+	 * If we don't decrease below buffers in use, we can wait a long
+	 * time for an update, until some other context uses PIO buffers.
+	 */
+	if (!avail && len < cnt)
+		cnt = len;
+	if (cnt < dd->ipath_pioupd_thresh) {
+		dd->ipath_pioupd_thresh = cnt;
+		ipath_dbg("Decreased pio update threshold to %u\n",
+			dd->ipath_pioupd_thresh);
+		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+		dd->ipath_sendctrl &= ~(INFINIPATH_S_UPDTHRESH_MASK
+			<< INFINIPATH_S_UPDTHRESH_SHIFT);
+		dd->ipath_sendctrl |= dd->ipath_pioupd_thresh
+			<< INFINIPATH_S_UPDTHRESH_SHIFT;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+			dd->ipath_sendctrl);
+		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+	}
 }
 
 /**
@@ -1794,8 +1898,8 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 
 		spin_lock_irqsave(&dd->ipath_sdma_lock, flags);
 		skip_cancel =
-			!test_bit(IPATH_SDMA_DISABLED, statp) &&
-			test_and_set_bit(IPATH_SDMA_ABORTING, statp);
+			test_and_set_bit(IPATH_SDMA_ABORTING, statp)
+			&& !test_bit(IPATH_SDMA_DISABLED, statp);
 		spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
 		if (skip_cancel)
 			goto bail;
@@ -1826,6 +1930,9 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 	ipath_disarm_piobufs(dd, 0,
 		dd->ipath_piobcnt2k + dd->ipath_piobcnt4k);
 
+	if (dd->ipath_flags & IPATH_HAS_SEND_DMA)
+		set_bit(IPATH_SDMA_DISARMED, &dd->ipath_sdma_status);
+
 	if (restore_sendctrl) {
 		/* else done by caller later if needed */
 		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
@@ -1845,7 +1952,6 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 		/* only wait so long for intr */
 		dd->ipath_sdma_abort_intr_timeout = jiffies + HZ;
 		dd->ipath_sdma_reset_wait = 200;
-		__set_bit(IPATH_SDMA_DISARMED, &dd->ipath_sdma_status);
 		if (!test_bit(IPATH_SDMA_SHUTDOWN, &dd->ipath_sdma_status))
 			tasklet_hi_schedule(&dd->ipath_sdma_abort_task);
 		spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);

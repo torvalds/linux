@@ -158,14 +158,12 @@ static inline unsigned long pgd_bad(pgd_t pgd)
 
 static inline unsigned long pud_bad(pud_t pud)
 {
-	return pud_val(pud) &
-		~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER | _PAGE_PSE | _PAGE_NX);
+	return pud_val(pud) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
 }
 
 static inline unsigned long pmd_bad(pmd_t pmd)
 {
-	return pmd_val(pmd) &
-		~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER | _PAGE_PSE | _PAGE_NX);
+	return pmd_val(pmd) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
 }
 
 #define pte_none(x)	(!pte_val((x)))

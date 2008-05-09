@@ -1655,7 +1655,7 @@ int should_remove_suid(struct dentry *dentry)
 }
 EXPORT_SYMBOL(should_remove_suid);
 
-int __remove_suid(struct dentry *dentry, int kill)
+static int __remove_suid(struct dentry *dentry, int kill)
 {
 	struct iattr newattrs;
 
