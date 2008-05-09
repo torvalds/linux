@@ -253,10 +253,6 @@ static int myri10ge_ecrc_enable = 1;
 module_param(myri10ge_ecrc_enable, int, S_IRUGO);
 MODULE_PARM_DESC(myri10ge_ecrc_enable, "Enable Extended CRC on PCI-E");
 
-static int myri10ge_max_intr_slots = 1024;
-module_param(myri10ge_max_intr_slots, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_max_intr_slots, "Interrupt queue slots");
-
 static int myri10ge_small_bytes = -1;	/* -1 == auto */
 module_param(myri10ge_small_bytes, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(myri10ge_small_bytes, "Threshold of small packets");
@@ -879,7 +875,7 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 
 	/* Now exchange information about interrupts  */
 
-	bytes = myri10ge_max_intr_slots * sizeof(*mgp->ss.rx_done.entry);
+	bytes = mgp->max_intr_slots * sizeof(*mgp->ss.rx_done.entry);
 	memset(mgp->ss.rx_done.entry, 0, bytes);
 	cmd.data0 = (u32) bytes;
 	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_SET_INTRQ_SIZE, &cmd, 0);
@@ -1217,7 +1213,7 @@ myri10ge_clean_rx_done(struct myri10ge_slice_state *ss, int budget)
 		rx_packets += rx_ok;
 		rx_bytes += rx_ok * (unsigned long)length;
 		cnt++;
-		idx = cnt & (myri10ge_max_intr_slots - 1);
+		idx = cnt & (mgp->max_intr_slots - 1);
 		work_done++;
 	}
 	rx_done->idx = idx;
@@ -3218,7 +3214,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->dev_addr[i] = mgp->mac_addr[i];
 
 	/* allocate rx done ring */
-	bytes = myri10ge_max_intr_slots * sizeof(*mgp->ss.rx_done.entry);
+	bytes = mgp->max_intr_slots * sizeof(*mgp->ss.rx_done.entry);
 	mgp->ss.rx_done.entry = dma_alloc_coherent(&pdev->dev, bytes,
 						&mgp->ss.rx_done.bus, GFP_KERNEL);
 	if (mgp->ss.rx_done.entry == NULL)
@@ -3295,7 +3291,7 @@ abort_with_firmware:
 	myri10ge_dummy_rdma(mgp, 0);
 
 abort_with_rx_done:
-	bytes = myri10ge_max_intr_slots * sizeof(*mgp->ss.rx_done.entry);
+	bytes = mgp->max_intr_slots * sizeof(*mgp->ss.rx_done.entry);
 	dma_free_coherent(&pdev->dev, bytes,
 			  mgp->ss.rx_done.entry, mgp->ss.rx_done.bus);
 
@@ -3346,7 +3342,7 @@ static void myri10ge_remove(struct pci_dev *pdev)
 	/* avoid a memory leak */
 	pci_restore_state(pdev);
 
-	bytes = myri10ge_max_intr_slots * sizeof(*mgp->ss.rx_done.entry);
+	bytes = mgp->max_intr_slots * sizeof(*mgp->ss.rx_done.entry);
 	dma_free_coherent(&pdev->dev, bytes,
 			  mgp->ss.rx_done.entry, mgp->ss.rx_done.bus);
 
