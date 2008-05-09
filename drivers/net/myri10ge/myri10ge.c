@@ -443,7 +443,7 @@ abort:
 static void myri10ge_dummy_rdma(struct myri10ge_priv *mgp, int enable)
 {
 	char __iomem *submit;
-	__be32 buf[16];
+	__be32 buf[16] __attribute__ ((__aligned__(8)));
 	u32 dma_low, dma_high;
 	int i;
 
@@ -613,7 +613,7 @@ static int myri10ge_adopt_running_firmware(struct myri10ge_priv *mgp)
 static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 {
 	char __iomem *submit;
-	__be32 buf[16];
+	__be32 buf[16] __attribute__ ((__aligned__(8)));
 	u32 dma_low, dma_high, size;
 	int status, i;
 	struct myri10ge_cmd cmd;
