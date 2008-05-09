@@ -205,6 +205,7 @@ struct myri10ge_priv {
 	int pause;
 	char *fw_name;
 	char eeprom_strings[MYRI10GE_EEPROM_STRINGS_SIZE];
+	char *product_code_string;
 	char fw_version[128];
 	int fw_ver_major;
 	int fw_ver_minor;
@@ -420,6 +421,10 @@ static int myri10ge_read_mac_addr(struct myri10ge_priv *mgp)
 				    simple_strtoul(ptr, &ptr, 16);
 				ptr += 1;
 			}
+		}
+		if (memcmp(ptr, "PC=", 3) == 0) {
+			ptr += 3;
+			mgp->product_code_string = ptr;
 		}
 		if (memcmp((const void *)ptr, "SN=", 3) == 0) {
 			ptr += 3;
@@ -1304,9 +1309,39 @@ static irqreturn_t myri10ge_intr(int irq, void *arg)
 static int
 myri10ge_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 {
+	struct myri10ge_priv *mgp = netdev_priv(netdev);
+	char *ptr;
+	int i;
+
 	cmd->autoneg = AUTONEG_DISABLE;
 	cmd->speed = SPEED_10000;
 	cmd->duplex = DUPLEX_FULL;
+
+	/*
+	 * parse the product code to deterimine the interface type
+	 * (CX4, XFP, Quad Ribbon Fiber) by looking at the character
+	 * after the 3rd dash in the driver's cached copy of the
+	 * EEPROM's product code string.
+	 */
+	ptr = mgp->product_code_string;
+	if (ptr == NULL) {
+		printk(KERN_ERR "myri10ge: %s: Missing product code\n",
+			netdev->name);
+		return 0;
+	}
+	for (i = 0; i < 3; i++, ptr++) {
+		ptr = strchr(ptr, '-');
+		if (ptr == NULL) {
+			printk(KERN_ERR "myri10ge: %s: Invalid product "
+			       "code %s\n", netdev->name,
+			       mgp->product_code_string);
+			return 0;
+		}
+	}
+	if (*ptr == 'R' || *ptr == 'Q') {
+		/* We've found either an XFP or quad ribbon fiber */
+		cmd->port = PORT_FIBRE;
+	}
 	return 0;
 }
 
