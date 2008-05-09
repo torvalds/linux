@@ -77,19 +77,6 @@ int pcibios_scanned;
  */
 DEFINE_SPINLOCK(pci_config_lock);
 
-static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
-{
-	struct resource *rom_r = &dev->resource[PCI_ROM_RESOURCE];
-
-	if (rom_r->parent)
-		return;
-	if (rom_r->start)
-		/* we deal with BIOS assigned ROM later */
-		return;
-	if (!(pci_probe & PCI_ASSIGN_ROMS))
-		rom_r->start = rom_r->end = rom_r->flags = 0;
-}
-
 static int __devinit can_skip_ioresource_align(const struct dmi_system_id *d)
 {
 	pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
@@ -141,11 +128,7 @@ void __init dmi_check_skip_isa_align(void)
 
 void __devinit  pcibios_fixup_bus(struct pci_bus *b)
 {
-	struct pci_dev *dev;
-
 	pci_read_bridge_bases(b);
-	list_for_each_entry(dev, &b->devices, bus_list)
-		pcibios_fixup_device_resources(dev);
 }
 
 /*
