@@ -222,50 +222,50 @@ static int
 cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
-	int xid;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct cifsTconInfo *tcon = cifs_sb->tcon;
 	int rc = -EOPNOTSUPP;
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
+	int xid;
 
 	xid = GetXid();
 
-	cifs_sb = CIFS_SB(sb);
-	pTcon = cifs_sb->tcon;
-
 	buf->f_type = CIFS_MAGIC_NUMBER;
 
-	/* instead could get the real value via SMB_QUERY_FS_ATTRIBUTE_INFO */
-	buf->f_namelen = PATH_MAX; /* PATH_MAX may be too long - it would
-				      presumably be total path, but note
-				      that some servers (includinng Samba 3)
-				      have a shorter maximum path */
+	/*
+	 * PATH_MAX may be too long - it would presumably be total path,
+	 * but note that some servers (includinng Samba 3) have a shorter
+	 * maximum path.
+	 *
+	 * Instead could get the real value via SMB_QUERY_FS_ATTRIBUTE_INFO.
+	 */
+	buf->f_namelen = PATH_MAX;
 	buf->f_files = 0;	/* undefined */
 	buf->f_ffree = 0;	/* unlimited */
 
-/* BB we could add a second check for a QFS Unix capability bit */
-/* BB FIXME check CIFS_POSIX_EXTENSIONS Unix cap first FIXME BB */
-    if ((pTcon->ses->capabilities & CAP_UNIX) && (CIFS_POSIX_EXTENSIONS &
-			le64_to_cpu(pTcon->fsUnixInfo.Capability)))
-	    rc = CIFSSMBQFSPosixInfo(xid, pTcon, buf);
+	/*
+	 * We could add a second check for a QFS Unix capability bit
+	 */
+	if ((tcon->ses->capabilities & CAP_UNIX) &&
+	    (CIFS_POSIX_EXTENSIONS & le64_to_cpu(tcon->fsUnixInfo.Capability)))
+		rc = CIFSSMBQFSPosixInfo(xid, tcon, buf);
 
-    /* Only need to call the old QFSInfo if failed
-    on newer one */
-    if (rc)
-	if (pTcon->ses->capabilities & CAP_NT_SMBS)
-		rc = CIFSSMBQFSInfo(xid, pTcon, buf); /* not supported by OS2 */
+	/*
+	 * Only need to call the old QFSInfo if failed on newer one,
+	 * e.g. by OS/2.
+	 **/
+	if (rc && (tcon->ses->capabilities & CAP_NT_SMBS))
+		rc = CIFSSMBQFSInfo(xid, tcon, buf);
 
-	/* Some old Windows servers also do not support level 103, retry with
-	   older level one if old server failed the previous call or we
-	   bypassed it because we detected that this was an older LANMAN sess */
+	/*
+	 * Some old Windows servers also do not support level 103, retry with
+	 * older level one if old server failed the previous call or we
+	 * bypassed it because we detected that this was an older LANMAN sess
+	 */
 	if (rc)
-		rc = SMBOldQFSInfo(xid, pTcon, buf);
-	/* int f_type;
-	   __fsid_t f_fsid;
-	   int f_namelen;  */
-	/* BB get from info in tcon struct at mount time call to QFSAttrInfo */
+		rc = SMBOldQFSInfo(xid, tcon, buf);
+
 	FreeXid(xid);
-	return 0;		/* always return success? what if volume is no
-				   longer available? */
+	return 0;
 }
 
 static int cifs_permission(struct inode *inode, int mask, struct nameidata *nd)
@@ -306,8 +306,8 @@ cifs_alloc_inode(struct super_block *sb)
 	/* Until the file is open and we have gotten oplock
 	info back from the server, can not assume caching of
 	file data or metadata */
-	cifs_inode->clientCanCacheRead = FALSE;
-	cifs_inode->clientCanCacheAll = FALSE;
+	cifs_inode->clientCanCacheRead = false;
+	cifs_inode->clientCanCacheAll = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 
 	/* Can not set i_flags here - they get immediately overwritten
@@ -940,7 +940,7 @@ static int cifs_oplock_thread(void *dummyarg)
 				    rc = CIFSSMBLock(0, pTcon, netfid,
 					    0 /* len */ , 0 /* offset */, 0,
 					    0, LOCKING_ANDX_OPLOCK_RELEASE,
-					    0 /* wait flag */);
+					    false /* wait flag */);
 					cFYI(1, ("Oplock release rc = %d", rc));
 				}
 			} else

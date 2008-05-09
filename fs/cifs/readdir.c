@@ -447,8 +447,8 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	if (file->private_data == NULL)
 		return -ENOMEM;
 	cifsFile = file->private_data;
-	cifsFile->invalidHandle = TRUE;
-	cifsFile->srch_inf.endOfSearch = FALSE;
+	cifsFile->invalidHandle = true;
+	cifsFile->srch_inf.endOfSearch = false;
 
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	if (cifs_sb == NULL)
@@ -485,7 +485,7 @@ ffirst_retry:
 		cifs_sb->mnt_cifs_flags &
 			CIFS_MOUNT_MAP_SPECIAL_CHR, CIFS_DIR_SEP(cifs_sb));
 	if (rc == 0)
-		cifsFile->invalidHandle = FALSE;
+		cifsFile->invalidHandle = false;
 	if ((rc == -EOPNOTSUPP) &&
 		(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
@@ -670,7 +670,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	   (index_to_find < first_entry_in_buffer)) {
 		/* close and restart search */
 		cFYI(1, ("search backing up - close and restart search"));
-		cifsFile->invalidHandle = TRUE;
+		cifsFile->invalidHandle = true;
 		CIFSFindClose(xid, pTcon, cifsFile->netfid);
 		kfree(cifsFile->search_resume_name);
 		cifsFile->search_resume_name = NULL;
@@ -692,7 +692,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	}
 
 	while ((index_to_find >= cifsFile->srch_inf.index_of_last_entry) &&
-	      (rc == 0) && (cifsFile->srch_inf.endOfSearch == FALSE)) {
+	      (rc == 0) && !cifsFile->srch_inf.endOfSearch) {
 		cFYI(1, ("calling findnext2"));
 		rc = CIFSFindNext(xid, pTcon, cifsFile->netfid,
 				  &cifsFile->srch_inf);
@@ -1038,7 +1038,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 				break;
 			}
 		} /* else {
-			cifsFile->invalidHandle = TRUE;
+			cifsFile->invalidHandle = true;
 			CIFSFindClose(xid, pTcon, cifsFile->netfid);
 		}
 		kfree(cifsFile->search_resume_name);

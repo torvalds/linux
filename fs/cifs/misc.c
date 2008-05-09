@@ -496,7 +496,8 @@ checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length)
 	}
 	return 0;
 }
-int
+
+bool
 is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 {
 	struct smb_com_lock_req *pSMB = (struct smb_com_lock_req *)buf;
@@ -522,17 +523,17 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				pnotify->Action));  /* BB removeme BB */
 			/*   cifs_dump_mem("Rcvd notify Data: ",buf,
 				sizeof(struct smb_hdr)+60); */
-			return TRUE;
+			return true;
 		}
 		if (pSMBr->hdr.Status.CifsError) {
 			cFYI(1, ("notify err 0x%d",
 				pSMBr->hdr.Status.CifsError));
-			return TRUE;
+			return true;
 		}
-		return FALSE;
+		return false;
 	}
 	if (pSMB->hdr.Command != SMB_COM_LOCKING_ANDX)
-		return FALSE;
+		return false;
 	if (pSMB->hdr.Flags & SMBFLG_RESPONSE) {
 		/* no sense logging error on invalid handle on oplock
 		   break - harmless race between close request and oplock
@@ -541,21 +542,21 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 		if ((NT_STATUS_INVALID_HANDLE) ==
 		   le32_to_cpu(pSMB->hdr.Status.CifsError)) {
 			cFYI(1, ("invalid handle on oplock break"));
-			return TRUE;
+			return true;
 		} else if (ERRbadfid ==
 		   le16_to_cpu(pSMB->hdr.Status.DosError.Error)) {
-			return TRUE;
+			return true;
 		} else {
-			return FALSE; /* on valid oplock brk we get "request" */
+			return false; /* on valid oplock brk we get "request" */
 		}
 	}
 	if (pSMB->hdr.WordCount != 8)
-		return FALSE;
+		return false;
 
 	cFYI(1, ("oplock type 0x%d level 0x%d",
 		 pSMB->LockType, pSMB->OplockLevel));
 	if (!(pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE))
-		return FALSE;
+		return false;
 
 	/* look up tcon based on tid & uid */
 	read_lock(&GlobalSMBSeslock);
@@ -573,11 +574,11 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 					    ("file id match, oplock break"));
 					pCifsInode =
 						CIFS_I(netfile->pInode);
-					pCifsInode->clientCanCacheAll = FALSE;
+					pCifsInode->clientCanCacheAll = false;
 					if (pSMB->OplockLevel == 0)
 						pCifsInode->clientCanCacheRead
-							= FALSE;
-					pCifsInode->oplockPending = TRUE;
+							= false;
+					pCifsInode->oplockPending = true;
 					AllocOplockQEntry(netfile->pInode,
 							  netfile->netfid,
 							  tcon);
@@ -585,17 +586,17 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 					    ("about to wake up oplock thread"));
 					if (oplockThread)
 					    wake_up_process(oplockThread);
-					return TRUE;
+					return true;
 				}
 			}
 			read_unlock(&GlobalSMBSeslock);
 			cFYI(1, ("No matching file for oplock break"));
-			return TRUE;
+			return true;
 		}
 	}
 	read_unlock(&GlobalSMBSeslock);
 	cFYI(1, ("Can not process oplock break for non-existent connection"));
-	return TRUE;
+	return true;
 }
 
 void

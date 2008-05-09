@@ -281,7 +281,7 @@ static int decode_sfu_inode(struct inode *inode, __u64 size,
 			    struct cifs_sb_info *cifs_sb, int xid)
 {
 	int rc;
-	int oplock = FALSE;
+	int oplock = 0;
 	__u16 netfid;
 	struct cifsTconInfo *pTcon = cifs_sb->tcon;
 	char buf[24];
@@ -389,7 +389,7 @@ int cifs_get_inode_info(struct inode **pinode,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	const unsigned char *full_path = NULL;
 	char *buf = NULL;
-	int adjustTZ = FALSE;
+	bool adjustTZ = false;
 	bool is_dfs_referral = false;
 
 	pTcon = cifs_sb->tcon;
@@ -425,7 +425,7 @@ try_again_CIFSSMBQPathInfo:
 					pfindData, cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
 					  CIFS_MOUNT_MAP_SPECIAL_CHR);
-			adjustTZ = TRUE;
+			adjustTZ = true;
 		}
 	}
 	/* dump_mem("\nQPathInfo return data",&findData, sizeof(findData)); */
@@ -703,7 +703,7 @@ psx_del_no_retry:
 	} else if (rc == -ENOENT) {
 		d_drop(direntry);
 	} else if (rc == -ETXTBSY) {
-		int oplock = FALSE;
+		int oplock = 0;
 		__u16 netfid;
 
 		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN, DELETE,
@@ -736,7 +736,7 @@ psx_del_no_retry:
 				rc = -EOPNOTSUPP;
 
 			if (rc == -EOPNOTSUPP) {
-				int oplock = FALSE;
+				int oplock = 0;
 				__u16 netfid;
 			/*	rc = CIFSSMBSetAttrLegacy(xid, pTcon,
 							  full_path,
@@ -774,7 +774,7 @@ psx_del_no_retry:
 				if (direntry->d_inode)
 					drop_nlink(direntry->d_inode);
 			} else if (rc == -ETXTBSY) {
-				int oplock = FALSE;
+				int oplock = 0;
 				__u16 netfid;
 
 				rc = CIFSSMBOpen(xid, pTcon, full_path,
@@ -1149,7 +1149,7 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 		cFYI(1, ("rename rc %d", rc));
 
 	if ((rc == -EIO) || (rc == -EEXIST)) {
-		int oplock = FALSE;
+		int oplock = 0;
 		__u16 netfid;
 
 		/* BB FIXME Is Generic Read correct for rename? */
@@ -1186,7 +1186,7 @@ int cifs_revalidate(struct dentry *direntry)
 	struct cifsInodeInfo *cifsInode;
 	loff_t local_size;
 	struct timespec local_mtime;
-	int invalidate_inode = FALSE;
+	bool invalidate_inode = false;
 
 	if (direntry->d_inode == NULL)
 		return -ENOENT;
@@ -1268,7 +1268,7 @@ int cifs_revalidate(struct dentry *direntry)
 			   only ones who could have modified the file and the
 			   server copy is staler than ours */
 		} else {
-			invalidate_inode = TRUE;
+			invalidate_inode = true;
 		}
 	}
 
@@ -1402,8 +1402,8 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	int rc = -EACCES;
 	struct cifsFileInfo *open_file = NULL;
 	FILE_BASIC_INFO time_buf;
-	int set_time = FALSE;
-	int set_dosattr = FALSE;
+	bool set_time = false;
+	bool set_dosattr = false;
 	__u64 mode = 0xFFFFFFFFFFFFFFFFULL;
 	__u64 uid = 0xFFFFFFFFFFFFFFFFULL;
 	__u64 gid = 0xFFFFFFFFFFFFFFFFULL;
@@ -1464,7 +1464,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			__u16 nfid = open_file->netfid;
 			__u32 npid = open_file->pid;
 			rc = CIFSSMBSetFileSize(xid, pTcon, attrs->ia_size,
-						nfid, npid, FALSE);
+						nfid, npid, false);
 			atomic_dec(&open_file->wrtPending);
 			cFYI(1, ("SetFSize for attrs rc = %d", rc));
 			if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
@@ -1484,14 +1484,14 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			   it was found or because there was an error setting
 			   it by handle */
 			rc = CIFSSMBSetEOF(xid, pTcon, full_path,
-					   attrs->ia_size, FALSE,
+					   attrs->ia_size, false,
 					   cifs_sb->local_nls,
 					   cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			cFYI(1, ("SetEOF by path (setattrs) rc = %d", rc));
 			if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 				__u16 netfid;
-				int oplock = FALSE;
+				int oplock = 0;
 
 				rc = SMBLegacyOpen(xid, pTcon, full_path,
 					FILE_OPEN,
@@ -1516,7 +1516,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 
 		/* Server is ok setting allocation size implicitly - no need
 		   to call:
-		CIFSSMBSetEOF(xid, pTcon, full_path, attrs->ia_size, TRUE,
+		CIFSSMBSetEOF(xid, pTcon, full_path, attrs->ia_size, true,
 			 cifs_sb->local_nls);
 		   */
 
@@ -1564,7 +1564,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 #endif
 			/* not writeable */
 			if ((cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
-				set_dosattr = TRUE;
+				set_dosattr = true;
 				time_buf.Attributes =
 					cpu_to_le32(cifsInode->cifsAttrs |
 						    ATTR_READONLY);
@@ -1574,28 +1574,24 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			not be able to write to it - so if any write
 			bit is enabled for user or group or other we
 			need to at least try to remove r/o dos attr */
-			set_dosattr = TRUE;
+			set_dosattr = true;
 			time_buf.Attributes = cpu_to_le32(cifsInode->cifsAttrs &
 					    (~ATTR_READONLY));
 			/* Windows ignores set to zero */
 			if (time_buf.Attributes == 0)
 				time_buf.Attributes |= cpu_to_le32(ATTR_NORMAL);
 		}
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
-			mode_to_acl(direntry->d_inode, full_path, mode);
-#endif
 	}
 
 	if (attrs->ia_valid & ATTR_ATIME) {
-		set_time = TRUE;
+		set_time = true;
 		time_buf.LastAccessTime =
 		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_atime));
 	} else
 		time_buf.LastAccessTime = 0;
 
 	if (attrs->ia_valid & ATTR_MTIME) {
-		set_time = TRUE;
+		set_time = true;
 		time_buf.LastWriteTime =
 		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_mtime));
 	} else
@@ -1606,7 +1602,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	   server times */
 
 	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
-		set_time = TRUE;
+		set_time = true;
 		/* Although Samba throws this field away
 		it may be useful to Windows - but we do
 		not want to set ctime unless some other
@@ -1630,7 +1626,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			rc = -EOPNOTSUPP;
 
 		if (rc == -EOPNOTSUPP) {
-			int oplock = FALSE;
+			int oplock = 0;
 			__u16 netfid;
 
 			cFYI(1, ("calling SetFileInfo since SetPathInfo for "

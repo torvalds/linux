@@ -93,15 +93,11 @@ static char *cifs_get_share_name(const char *node_name)
 	/* find sharename end */
 	pSep++;
 	pSep = memchr(UNC+(pSep-UNC), '\\', len-(pSep-UNC));
-	if (!pSep) {
-		cERROR(1, ("%s:2 cant find share name in node name: %s",
-			__func__, node_name));
-		kfree(UNC);
-		return NULL;
+	if (pSep) {
+		/* trim path up to sharename end
+		 * now we have share name in UNC */
+		*pSep = 0;
 	}
-	/* trim path up to sharename end
-	 *          * now we have share name in UNC */
-	*pSep = 0;
 
 	return UNC;
 }
@@ -188,7 +184,7 @@ static char *compose_mount_options(const char *sb_mountdata,
 		tkn_e = strchr(tkn_e+1, '\\');
 		if (tkn_e) {
 			strcat(mountdata, ",prefixpath=");
-			strcat(mountdata, tkn_e);
+			strcat(mountdata, tkn_e+1);
 		}
 	}
 
@@ -244,7 +240,8 @@ static char *build_full_dfs_path_from_dentry(struct dentry *dentry)
 		return NULL;
 
 	if (cifs_sb->tcon->Flags & SMB_SHARE_IS_IN_DFS) {
-		/* we should use full path name to correct working with DFS */
+		int i;
+		/* we should use full path name for correct working with DFS */
 		l_max_len = strnlen(cifs_sb->tcon->treeName, MAX_TREE_SIZE+1) +
 					strnlen(search_path, MAX_PATHCONF) + 1;
 		tmp_path = kmalloc(l_max_len, GFP_KERNEL);
@@ -253,8 +250,14 @@ static char *build_full_dfs_path_from_dentry(struct dentry *dentry)
 			return NULL;
 		}
 		strncpy(tmp_path, cifs_sb->tcon->treeName, l_max_len);
-		strcat(tmp_path, search_path);
 		tmp_path[l_max_len-1] = 0;
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
+			for (i = 0; i < l_max_len; i++) {
+				if (tmp_path[i] == '\\')
+					tmp_path[i] = '/';
+			}
+		strncat(tmp_path, search_path, l_max_len - strlen(tmp_path));
+
 		full_path = tmp_path;
 		kfree(search_path);
 	} else {

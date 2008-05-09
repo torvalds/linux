@@ -49,8 +49,6 @@
 #define CIFS_PORT 445
 #define RFC1001_PORT 139
 
-static DECLARE_COMPLETION(cifsd_complete);
-
 extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,
 			 unsigned char *p24);
 
@@ -71,23 +69,23 @@ struct smb_vol {
 	mode_t file_mode;
 	mode_t dir_mode;
 	unsigned secFlg;
-	unsigned rw:1;
-	unsigned retry:1;
-	unsigned intr:1;
-	unsigned setuids:1;
-	unsigned override_uid:1;
-	unsigned override_gid:1;
-	unsigned noperm:1;
-	unsigned no_psx_acl:1; /* set if posix acl support should be disabled */
-	unsigned cifs_acl:1;
-	unsigned no_xattr:1;   /* set if xattr (EA) support should be disabled*/
-	unsigned server_ino:1; /* use inode numbers from server ie UniqueId */
-	unsigned direct_io:1;
-	unsigned remap:1;   /* set to remap seven reserved chars in filenames */
-	unsigned posix_paths:1;   /* unset to not ask for posix pathnames. */
-	unsigned no_linux_ext:1;
-	unsigned sfu_emul:1;
-	unsigned nullauth:1; /* attempt to authenticate with null user */
+	bool rw:1;
+	bool retry:1;
+	bool intr:1;
+	bool setuids:1;
+	bool override_uid:1;
+	bool override_gid:1;
+	bool noperm:1;
+	bool no_psx_acl:1; /* set if posix acl support should be disabled */
+	bool cifs_acl:1;
+	bool no_xattr:1;   /* set if xattr (EA) support should be disabled*/
+	bool server_ino:1; /* use inode numbers from server ie UniqueId */
+	bool direct_io:1;
+	bool remap:1;     /* set to remap seven reserved chars in filenames */
+	bool posix_paths:1;   /* unset to not ask for posix pathnames. */
+	bool no_linux_ext:1;
+	bool sfu_emul:1;
+	bool nullauth:1; /* attempt to authenticate with null user */
 	unsigned nocase;     /* request case insensitive filenames */
 	unsigned nobrl;      /* disable sending byte range locks to srv */
 	unsigned int rsize;
@@ -345,8 +343,8 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
 	char temp;
-	int isLargeBuf = FALSE;
-	int isMultiRsp;
+	bool isLargeBuf = false;
+	bool isMultiRsp;
 	int reconnect;
 
 	current->flags |= PF_MEMALLOC;
@@ -356,7 +354,6 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	atomic_inc(&tcpSesAllocCount);
 	length = tcpSesAllocCount.counter;
 	write_unlock(&GlobalSMBSeslock);
-	complete(&cifsd_complete);
 	if (length  > 1)
 		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
 				GFP_KERNEL);
@@ -390,8 +387,8 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		} else /* if existing small buf clear beginning */
 			memset(smallbuf, 0, sizeof(struct smb_hdr));
 
-		isLargeBuf = FALSE;
-		isMultiRsp = FALSE;
+		isLargeBuf = false;
+		isMultiRsp = false;
 		smb_buffer = smallbuf;
 		iov.iov_base = smb_buffer;
 		iov.iov_len = 4;
@@ -517,7 +514,7 @@ incomplete_rcv:
 		reconnect = 0;
 
 		if (pdu_length > MAX_CIFS_SMALL_BUFFER_SIZE - 4) {
-			isLargeBuf = TRUE;
+			isLargeBuf = true;
 			memcpy(bigbuf, smallbuf, 4);
 			smb_buffer = bigbuf;
 		}
@@ -582,16 +579,18 @@ incomplete_rcv:
 			    (mid_entry->command == smb_buffer->Command)) {
 				if (check2ndT2(smb_buffer,server->maxBuf) > 0) {
 					/* We have a multipart transact2 resp */
-					isMultiRsp = TRUE;
+					isMultiRsp = true;
 					if (mid_entry->resp_buf) {
 						/* merge response - fix up 1st*/
 						if (coalesce_t2(smb_buffer,
 							mid_entry->resp_buf)) {
-							mid_entry->multiRsp = 1;
+							mid_entry->multiRsp =
+								 true;
 							break;
 						} else {
 							/* all parts received */
-							mid_entry->multiEnd = 1;
+							mid_entry->multiEnd =
+								 true;
 							goto multi_t2_fnd;
 						}
 					} else {
@@ -603,17 +602,15 @@ incomplete_rcv:
 							/* Have first buffer */
 							mid_entry->resp_buf =
 								 smb_buffer;
-							mid_entry->largeBuf = 1;
+							mid_entry->largeBuf =
+								 true;
 							bigbuf = NULL;
 						}
 					}
 					break;
 				}
 				mid_entry->resp_buf = smb_buffer;
-				if (isLargeBuf)
-					mid_entry->largeBuf = 1;
-				else
-					mid_entry->largeBuf = 0;
+				mid_entry->largeBuf = isLargeBuf;
 multi_t2_fnd:
 				task_to_wake = mid_entry->tsk;
 				mid_entry->midState = MID_RESPONSE_RECEIVED;
@@ -638,8 +635,8 @@ multi_t2_fnd:
 					smallbuf = NULL;
 			}
 			wake_up_process(task_to_wake);
-		} else if ((is_valid_oplock_break(smb_buffer, server) == FALSE)
-		    && (isMultiRsp == FALSE)) {
+		} else if (!is_valid_oplock_break(smb_buffer, server) &&
+			   !isMultiRsp) {
 			cERROR(1, ("No task to wake, unknown frame received! "
 				   "NumMids %d", midCount.counter));
 			cifs_dump_mem("Received Data is: ", (char *)smb_buffer,
@@ -825,7 +822,7 @@ cifs_parse_mount_options(char *options, const char *devname,
 	vol->file_mode = (S_IRWXUGO | S_ISGID) & (~S_IXGRP);
 
 	/* vol->retry default is 0 (i.e. "soft" limited retry not hard retry) */
-	vol->rw = TRUE;
+	vol->rw = true;
 	/* default is always to request posix paths. */
 	vol->posix_paths = 1;
 
@@ -1181,7 +1178,7 @@ cifs_parse_mount_options(char *options, const char *devname,
 		} else if (strnicmp(data, "guest", 5) == 0) {
 			/* ignore */
 		} else if (strnicmp(data, "rw", 2) == 0) {
-			vol->rw = TRUE;
+			vol->rw = true;
 		} else if ((strnicmp(data, "suid", 4) == 0) ||
 				   (strnicmp(data, "nosuid", 6) == 0) ||
 				   (strnicmp(data, "exec", 4) == 0) ||
@@ -1197,7 +1194,7 @@ cifs_parse_mount_options(char *options, const char *devname,
 			    is ok to just ignore them */
 			continue;
 		} else if (strnicmp(data, "ro", 2) == 0) {
-			vol->rw = FALSE;
+			vol->rw = false;
 		} else if (strnicmp(data, "hard", 4) == 0) {
 			vol->retry = 1;
 		} else if (strnicmp(data, "soft", 4) == 0) {
@@ -1305,6 +1302,9 @@ cifs_parse_mount_options(char *options, const char *devname,
 						    "begin with // or \\\\ \n");
 				return 1;
 			}
+			value = strpbrk(vol->UNC+2, "/\\");
+			if (value)
+				*value = '\\';
 		} else {
 			printk(KERN_WARNING "CIFS: UNC name too long\n");
 			return 1;
@@ -1362,45 +1362,43 @@ find_unc(__be32 new_target_ip_addr, char *uncName, char *userName)
 {
 	struct list_head *tmp;
 	struct cifsTconInfo *tcon;
+	__be32 old_ip;
 
 	read_lock(&GlobalSMBSeslock);
+
 	list_for_each(tmp, &GlobalTreeConnectionList) {
 		cFYI(1, ("Next tcon"));
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
-		if (tcon->ses) {
-			if (tcon->ses->server) {
-				cFYI(1,
-				     ("old ip addr: %x == new ip %x ?",
-				      tcon->ses->server->addr.sockAddr.sin_addr.
-				      s_addr, new_target_ip_addr));
-				if (tcon->ses->server->addr.sockAddr.sin_addr.
-				    s_addr == new_target_ip_addr) {
-	/* BB lock tcon, server and tcp session and increment use count here? */
-					/* found a match on the TCP session */
-					/* BB check if reconnection needed */
-					cFYI(1,
-					      ("IP match, old UNC: %s new: %s",
-					      tcon->treeName, uncName));
-					if (strncmp
-					    (tcon->treeName, uncName,
-					     MAX_TREE_SIZE) == 0) {
-						cFYI(1,
-						     ("and old usr: %s new: %s",
-						      tcon->treeName, uncName));
-						if (strncmp
-						    (tcon->ses->userName,
-						     userName,
-						     MAX_USERNAME_SIZE) == 0) {
-							read_unlock(&GlobalSMBSeslock);
-							/* matched smb session
-							(user name */
-							return tcon;
-						}
-					}
-				}
-			}
-		}
+		if (!tcon->ses || !tcon->ses->server)
+			continue;
+
+		old_ip = tcon->ses->server->addr.sockAddr.sin_addr.s_addr;
+		cFYI(1, ("old ip addr: %x == new ip %x ?",
+			old_ip, new_target_ip_addr));
+
+		if (old_ip != new_target_ip_addr)
+			continue;
+
+		/* BB lock tcon, server, tcp session and increment use count? */
+		/* found a match on the TCP session */
+		/* BB check if reconnection needed */
+		cFYI(1, ("IP match, old UNC: %s new: %s",
+			tcon->treeName, uncName));
+
+		if (strncmp(tcon->treeName, uncName, MAX_TREE_SIZE))
+			continue;
+
+		cFYI(1, ("and old usr: %s new: %s",
+			tcon->treeName, uncName));
+
+		if (strncmp(tcon->ses->userName, userName, MAX_USERNAME_SIZE))
+			continue;
+
+		/* matched smb session (user name) */
+		read_unlock(&GlobalSMBSeslock);
+		return tcon;
 	}
+
 	read_unlock(&GlobalSMBSeslock);
 	return NULL;
 }
@@ -1982,7 +1980,6 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				kfree(srvTcp->hostname);
 				goto out;
 			}
-			wait_for_completion(&cifsd_complete);
 			rc = 0;
 			memcpy(srvTcp->workstation_RFC1001_name,
 				volume_info.source_rfc1001_name, 16);
@@ -2602,7 +2599,7 @@ sesssetup_nomem:	/* do not return an error on nomem for the info strings,
 
 static int
 CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
-			      struct cifsSesInfo *ses, int *pNTLMv2_flag,
+			      struct cifsSesInfo *ses, bool *pNTLMv2_flag,
 			      const struct nls_table *nls_codepage)
 {
 	struct smb_hdr *smb_buffer;
@@ -2625,7 +2622,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	if (ses == NULL)
 		return -EINVAL;
 	domain = ses->domainName;
-	*pNTLMv2_flag = FALSE;
+	*pNTLMv2_flag = false;
 	smb_buffer = cifs_buf_get();
 	if (smb_buffer == NULL) {
 		return -ENOMEM;
@@ -2778,7 +2775,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 				       CIFS_CRYPTO_KEY_SIZE);
 				if (SecurityBlob2->NegotiateFlags &
 					cpu_to_le32(NTLMSSP_NEGOTIATE_NTLMV2))
-					*pNTLMv2_flag = TRUE;
+					*pNTLMv2_flag = true;
 
 				if ((SecurityBlob2->NegotiateFlags &
 					cpu_to_le32(NTLMSSP_NEGOTIATE_ALWAYS_SIGN))
@@ -2939,7 +2936,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 }
 static int
 CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
-			char *ntlm_session_key, int ntlmv2_flag,
+			char *ntlm_session_key, bool ntlmv2_flag,
 			const struct nls_table *nls_codepage)
 {
 	struct smb_hdr *smb_buffer;
@@ -3556,8 +3553,6 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	cifs_sb->prepath = NULL;
 	kfree(tmp);
 	if (ses)
-		schedule_timeout_interruptible(msecs_to_jiffies(500));
-	if (ses)
 		sesInfoFree(ses);
 
 	FreeXid(xid);
@@ -3569,7 +3564,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 {
 	int rc = 0;
 	char ntlm_session_key[CIFS_SESS_KEY_SIZE];
-	int ntlmv2_flag = FALSE;
+	bool ntlmv2_flag = false;
 	int first_time = 0;
 
 	/* what if server changes its buffer size after dropping the session? */

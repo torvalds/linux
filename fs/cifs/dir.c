@@ -130,7 +130,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	struct cifsFileInfo *pCifsFile = NULL;
 	struct cifsInodeInfo *pCifsInode;
 	int disposition = FILE_OVERWRITE_IF;
-	int write_only = FALSE;
+	bool write_only = false;
 
 	xid = GetXid();
 
@@ -152,7 +152,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		if (oflags & FMODE_WRITE) {
 			desiredAccess |= GENERIC_WRITE;
 			if (!(oflags & FMODE_READ))
-				write_only = TRUE;
+				write_only = true;
 		}
 
 		if ((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
@@ -254,7 +254,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			d_instantiate(direntry, newinode);
 		}
 		if ((nd == NULL /* nfsd case - nfs srv does not set nd */) ||
-			((nd->flags & LOOKUP_OPEN) == FALSE)) {
+			(!(nd->flags & LOOKUP_OPEN))) {
 			/* mknod case - do not leave file open */
 			CIFSSMBClose(xid, pTcon, fileHandle);
 		} else if (newinode) {
@@ -266,8 +266,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			pCifsFile->netfid = fileHandle;
 			pCifsFile->pid = current->tgid;
 			pCifsFile->pInode = newinode;
-			pCifsFile->invalidHandle = FALSE;
-			pCifsFile->closePend     = FALSE;
+			pCifsFile->invalidHandle = false;
+			pCifsFile->closePend     = false;
 			init_MUTEX(&pCifsFile->fh_sem);
 			mutex_init(&pCifsFile->lock_mutex);
 			INIT_LIST_HEAD(&pCifsFile->llist);
@@ -280,7 +280,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			pCifsInode = CIFS_I(newinode);
 			if (pCifsInode) {
 				/* if readable file instance put first in list*/
-				if (write_only == TRUE) {
+				if (write_only) {
 					list_add_tail(&pCifsFile->flist,
 						&pCifsInode->openFileList);
 				} else {
@@ -288,12 +288,12 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 						&pCifsInode->openFileList);
 				}
 				if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
-					pCifsInode->clientCanCacheAll = TRUE;
-					pCifsInode->clientCanCacheRead = TRUE;
+					pCifsInode->clientCanCacheAll = true;
+					pCifsInode->clientCanCacheRead = true;
 					cFYI(1, ("Exclusive Oplock inode %p",
 						newinode));
 				} else if ((oplock & 0xF) == OPLOCK_READ)
-					pCifsInode->clientCanCacheRead = TRUE;
+					pCifsInode->clientCanCacheRead = true;
 			}
 			write_unlock(&GlobalSMBSeslock);
 		}

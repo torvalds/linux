@@ -59,8 +59,9 @@ extern int SendReceiveBlockingLock(const unsigned int xid,
 			struct smb_hdr *out_buf,
 			int *bytes_returned);
 extern int checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length);
-extern int is_valid_oplock_break(struct smb_hdr *smb, struct TCP_Server_Info *);
-extern int is_size_safe_to_change(struct cifsInodeInfo *, __u64 eof);
+extern bool is_valid_oplock_break(struct smb_hdr *smb,
+				  struct TCP_Server_Info *);
+extern bool is_size_safe_to_change(struct cifsInodeInfo *, __u64 eof);
 extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *);
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 extern struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *);
@@ -69,7 +70,7 @@ extern unsigned int smbCalcSize(struct smb_hdr *ptr);
 extern unsigned int smbCalcSize_LE(struct smb_hdr *ptr);
 extern int decode_negTokenInit(unsigned char *security_blob, int length,
 			enum securityEnum *secType);
-extern int cifs_inet_pton(int, char *source, void *dst);
+extern int cifs_inet_pton(const int, const char *source, void *dst);
 extern int map_smb_to_linux_error(struct smb_hdr *smb, int logErr);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
 			    const struct cifsTconInfo *, int /* length of
@@ -187,12 +188,12 @@ extern int CIFSSMBSetAttrLegacy(int xid, struct cifsTconInfo *tcon,
 #endif /* possibly unneeded function */
 extern int CIFSSMBSetEOF(const int xid, struct cifsTconInfo *tcon,
 			const char *fileName, __u64 size,
-			int setAllocationSizeFlag,
+			bool setAllocationSizeFlag,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 extern int CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon,
 			 __u64 size, __u16 fileHandle, __u32 opener_pid,
-			int AllocSizeFlag);
+			bool AllocSizeFlag);
 extern int CIFSSMBUnixSetPerms(const int xid, struct cifsTconInfo *pTcon,
 			char *full_path, __u64 mode, __u64 uid,
 			__u64 gid, dev_t dev,
@@ -291,11 +292,11 @@ extern int CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,
 			const __u16 netfid, const __u64 len,
 			const __u64 offset, const __u32 numUnlock,
 			const __u32 numLock, const __u8 lockType,
-			const int waitFlag);
+			const bool waitFlag);
 extern int CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 			const __u16 smb_file_id, const int get_flag,
 			const __u64 len, struct file_lock *,
-			const __u16 lock_type, const int waitFlag);
+			const __u16 lock_type, const bool waitFlag);
 extern int CIFSSMBTDis(const int xid, struct cifsTconInfo *tcon);
 extern int CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses);
 
