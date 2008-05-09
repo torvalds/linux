@@ -545,7 +545,7 @@ out:
  */
 static void iucv_disable(void)
 {
-	on_each_cpu(iucv_retrieve_cpu, NULL, 0, 1);
+	on_each_cpu(iucv_retrieve_cpu, NULL, 1);
 	kfree(iucv_path_table);
 }
 

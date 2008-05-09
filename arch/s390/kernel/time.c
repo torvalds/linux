@@ -909,7 +909,7 @@ static void etr_work_fn(struct work_struct *work)
 	if (!eacr.ea) {
 		/* Both ports offline. Reset everything. */
 		eacr.dp = eacr.es = eacr.sl = 0;
-		on_each_cpu(etr_disable_sync_clock, NULL, 0, 1);
+		on_each_cpu(etr_disable_sync_clock, NULL, 1);
 		del_timer_sync(&etr_timer);
 		etr_update_eacr(eacr);
 		set_bit(ETR_FLAG_EACCES, &etr_flags);

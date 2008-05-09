@@ -1464,7 +1464,7 @@ static void invalidate_bh_lru(void *arg)
 	
 void invalidate_bh_lrus(void)
 {
-	on_each_cpu(invalidate_bh_lru, NULL, 1, 1);
+	on_each_cpu(invalidate_bh_lru, NULL, 1);
 }
 EXPORT_SYMBOL_GPL(invalidate_bh_lrus);
 

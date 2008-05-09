@@ -225,7 +225,7 @@ static void __acpi_nmi_enable(void *__unused)
 void acpi_nmi_enable(void)
 {
 	if (atomic_read(&nmi_active) && nmi_watchdog == NMI_IO_APIC)
-		on_each_cpu(__acpi_nmi_enable, NULL, 0, 1);
+		on_each_cpu(__acpi_nmi_enable, NULL, 1);
 }
 
 static void __acpi_nmi_disable(void *__unused)
@@ -239,7 +239,7 @@ static void __acpi_nmi_disable(void *__unused)
 void acpi_nmi_disable(void)
 {
 	if (atomic_read(&nmi_active) && nmi_watchdog == NMI_IO_APIC)
-		on_each_cpu(__acpi_nmi_disable, NULL, 0, 1);
+		on_each_cpu(__acpi_nmi_disable, NULL, 1);
 }
 
 void setup_apic_nmi_watchdog(void *unused)

@@ -89,7 +89,7 @@ static inline void init_call_single_data(void)
 /*
  * Call a function on all processors
  */
-int on_each_cpu(void (*func) (void *info), void *info, int retry, int wait);
+int on_each_cpu(void (*func) (void *info), void *info, int wait);
 
 #define MSG_ALL_BUT_SELF	0x8000	/* Assume <32768 CPU's */
 #define MSG_ALL			0x8001
@@ -121,7 +121,7 @@ static inline int up_smp_call_function(void (*func)(void *), void *info)
 }
 #define smp_call_function(func, info, wait) \
 			(up_smp_call_function(func, info))
-#define on_each_cpu(func,info,retry,wait)	\
+#define on_each_cpu(func,info,wait)		\
 	({					\
 		local_irq_disable();		\
 		func(info);			\

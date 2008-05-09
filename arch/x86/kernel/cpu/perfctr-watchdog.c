@@ -180,7 +180,7 @@ void disable_lapic_nmi_watchdog(void)
 	if (atomic_read(&nmi_active) <= 0)
 		return;
 
-	on_each_cpu(stop_apic_nmi_watchdog, NULL, 0, 1);
+	on_each_cpu(stop_apic_nmi_watchdog, NULL, 1);
 	wd_ops->unreserve();
 
 	BUG_ON(atomic_read(&nmi_active) != 0);
@@ -202,7 +202,7 @@ void enable_lapic_nmi_watchdog(void)
 		return;
 	}
 
-	on_each_cpu(setup_apic_nmi_watchdog, NULL, 0, 1);
+	on_each_cpu(setup_apic_nmi_watchdog, NULL, 1);
 	touch_nmi_watchdog();
 }
 

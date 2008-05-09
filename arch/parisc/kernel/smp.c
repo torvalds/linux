@@ -292,7 +292,7 @@ void arch_send_call_function_single_ipi(int cpu)
 void
 smp_flush_tlb_all(void)
 {
-	on_each_cpu(flush_tlb_all_local, NULL, 1, 1);
+	on_each_cpu(flush_tlb_all_local, NULL, 1);
 }
 
 /*

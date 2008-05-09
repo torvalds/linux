@@ -285,7 +285,7 @@ smp_flush_tlb_cpumask(cpumask_t xcpumask)
 void
 smp_flush_tlb_all (void)
 {
-	on_each_cpu((void (*)(void *))local_flush_tlb_all, NULL, 1, 1);
+	on_each_cpu((void (*)(void *))local_flush_tlb_all, NULL, 1);
 }
 
 void
@@ -308,7 +308,7 @@ smp_flush_tlb_mm (struct mm_struct *mm)
 	 * anyhow, and once a CPU is interrupted, the cost of local_flush_tlb_all() is
 	 * rather trivial.
 	 */
-	on_each_cpu((void (*)(void *))local_finish_flush_tlb_mm, mm, 1, 1);
+	on_each_cpu((void (*)(void *))local_finish_flush_tlb_mm, mm, 1);
 }
 
 void arch_send_call_function_single_ipi(int cpu)

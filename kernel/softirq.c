@@ -674,7 +674,7 @@ __init int spawn_ksoftirqd(void)
 /*
  * Call a function on all processors
  */
-int on_each_cpu(void (*func) (void *info), void *info, int retry, int wait)
+int on_each_cpu(void (*func) (void *info), void *info, int wait)
 {
 	int ret = 0;
 

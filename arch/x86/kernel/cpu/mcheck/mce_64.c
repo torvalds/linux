@@ -363,7 +363,7 @@ static void mcheck_check_cpu(void *info)
 
 static void mcheck_timer(struct work_struct *work)
 {
-	on_each_cpu(mcheck_check_cpu, NULL, 1, 1);
+	on_each_cpu(mcheck_check_cpu, NULL, 1);
 
 	/*
 	 * Alert userspace if needed.  If we logged an MCE, reduce the
@@ -612,7 +612,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 	 * Collect entries that were still getting written before the
 	 * synchronize.
 	 */
-	on_each_cpu(collect_tscs, cpu_tsc, 1, 1);
+	on_each_cpu(collect_tscs, cpu_tsc, 1);
 	for (i = next; i < MCE_LOG_LEN; i++) {
 		if (mcelog.entry[i].finished &&
 		    mcelog.entry[i].tsc < cpu_tsc[mcelog.entry[i].cpu]) {
@@ -737,7 +737,7 @@ static void mce_restart(void)
 	if (next_interval)
 		cancel_delayed_work(&mcheck_work);
 	/* Timer race is harmless here */
-	on_each_cpu(mce_init, NULL, 1, 1);
+	on_each_cpu(mce_init, NULL, 1);
 	next_interval = check_interval * HZ;
 	if (next_interval)
 		schedule_delayed_work(&mcheck_work,

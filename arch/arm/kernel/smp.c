@@ -604,7 +604,7 @@ static inline void ipi_flush_tlb_kernel_range(void *arg)
 
 void flush_tlb_all(void)
 {
-	on_each_cpu(ipi_flush_tlb_all, NULL, 1, 1);
+	on_each_cpu(ipi_flush_tlb_all, NULL, 1);
 }
 
 void flush_tlb_mm(struct mm_struct *mm)
@@ -631,7 +631,7 @@ void flush_tlb_kernel_page(unsigned long kaddr)
 
 	ta.ta_start = kaddr;
 
-	on_each_cpu(ipi_flush_tlb_kernel_page, &ta, 1, 1);
+	on_each_cpu(ipi_flush_tlb_kernel_page, &ta, 1);
 }
 
 void flush_tlb_range(struct vm_area_struct *vma,
@@ -654,5 +654,5 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	ta.ta_start = start;
 	ta.ta_end = end;
 
-	on_each_cpu(ipi_flush_tlb_kernel_range, &ta, 1, 1);
+	on_each_cpu(ipi_flush_tlb_kernel_range, &ta, 1);
 }

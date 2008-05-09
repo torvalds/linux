@@ -218,8 +218,8 @@ static int nmi_setup(void)
 		}
 
 	}
-	on_each_cpu(nmi_save_registers, NULL, 0, 1);
-	on_each_cpu(nmi_cpu_setup, NULL, 0, 1);
+	on_each_cpu(nmi_save_registers, NULL, 1);
+	on_each_cpu(nmi_cpu_setup, NULL, 1);
 	nmi_enabled = 1;
 	return 0;
 }
@@ -271,7 +271,7 @@ static void nmi_shutdown(void)
 {
 	struct op_msrs *msrs = &__get_cpu_var(cpu_msrs);
 	nmi_enabled = 0;
-	on_each_cpu(nmi_cpu_shutdown, NULL, 0, 1);
+	on_each_cpu(nmi_cpu_shutdown, NULL, 1);
 	unregister_die_notifier(&profile_exceptions_nb);
 	model->shutdown(msrs);
 	free_msrs();
@@ -285,7 +285,7 @@ static void nmi_cpu_start(void *dummy)
 
 static int nmi_start(void)
 {
-	on_each_cpu(nmi_cpu_start, NULL, 0, 1);
+	on_each_cpu(nmi_cpu_start, NULL, 1);
 	return 0;
 }
 
@@ -297,7 +297,7 @@ static void nmi_cpu_stop(void *dummy)
 
 static void nmi_stop(void)
 {
-	on_each_cpu(nmi_cpu_stop, NULL, 0, 1);
+	on_each_cpu(nmi_cpu_stop, NULL, 1);
 }
 
 struct op_counter_config counter_config[OP_MAX_COUNTER];

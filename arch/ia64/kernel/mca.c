@@ -707,7 +707,7 @@ ia64_mca_cmc_vector_enable (void *dummy)
 static void
 ia64_mca_cmc_vector_disable_keventd(struct work_struct *unused)
 {
-	on_each_cpu(ia64_mca_cmc_vector_disable, NULL, 1, 0);
+	on_each_cpu(ia64_mca_cmc_vector_disable, NULL, 0);
 }
 
 /*
@@ -719,7 +719,7 @@ ia64_mca_cmc_vector_disable_keventd(struct work_struct *unused)
 static void
 ia64_mca_cmc_vector_enable_keventd(struct work_struct *unused)
 {
-	on_each_cpu(ia64_mca_cmc_vector_enable, NULL, 1, 0);
+	on_each_cpu(ia64_mca_cmc_vector_enable, NULL, 0);
 }
 
 /*

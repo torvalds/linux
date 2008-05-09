@@ -657,7 +657,7 @@ void
 smp_imb(void)
 {
 	/* Must wait other processors to flush their icache before continue. */
-	if (on_each_cpu(ipi_imb, NULL, 1, 1))
+	if (on_each_cpu(ipi_imb, NULL, 1))
 		printk(KERN_CRIT "smp_imb: timed out\n");
 }
 EXPORT_SYMBOL(smp_imb);
@@ -673,7 +673,7 @@ flush_tlb_all(void)
 {
 	/* Although we don't have any data to pass, we do want to
 	   synchronize with the other processors.  */
-	if (on_each_cpu(ipi_flush_tlb_all, NULL, 1, 1)) {
+	if (on_each_cpu(ipi_flush_tlb_all, NULL, 1)) {
 		printk(KERN_CRIT "flush_tlb_all: timed out\n");
 	}
 }

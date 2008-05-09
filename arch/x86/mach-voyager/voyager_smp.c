@@ -1072,7 +1072,7 @@ static void do_flush_tlb_all(void *info)
 /* flush the TLB of every active CPU in the system */
 void flush_tlb_all(void)
 {
-	on_each_cpu(do_flush_tlb_all, 0, 1, 1);
+	on_each_cpu(do_flush_tlb_all, 0, 1);
 }
 
 /* used to set up the trampoline for other CPUs when the memory manager

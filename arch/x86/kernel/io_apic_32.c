@@ -1565,7 +1565,7 @@ void /*__init*/ print_local_APIC(void * dummy)
 
 void print_all_local_APICs (void)
 {
-	on_each_cpu(print_local_APIC, NULL, 1, 1);
+	on_each_cpu(print_local_APIC, NULL, 1);
 }
 
 void /*__init*/ print_PIC(void)
