@@ -361,8 +361,10 @@ myri10ge_send_cmd(struct myri10ge_priv *mgp, u32 cmd,
 		for (sleep_total = 0;
 		     sleep_total < 1000
 		     && response->result == htonl(MYRI10GE_NO_RESPONSE_RESULT);
-		     sleep_total += 10)
+		     sleep_total += 10) {
 			udelay(10);
+			mb();
+		}
 	} else {
 		/* use msleep for most command */
 		for (sleep_total = 0;
