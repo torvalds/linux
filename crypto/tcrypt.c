@@ -76,7 +76,8 @@ static char *check[] = {
 	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
 	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
-	"camellia", "seed", "salsa20", "rmd128", "rmd160", "lzo", "cts", NULL
+	"camellia", "seed", "salsa20", "rmd128", "rmd160", "rmd256", "rmd320",
+	"lzo", "cts", NULL
 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
@@ -1559,7 +1560,7 @@ static void do_test(void)
 	case 29:
 		test_hash("tgr128", tgr128_tv_template, TGR128_TEST_VECTORS);
 		break;
-		
+
 	case 30:
 		test_cipher("ecb(xeta)", ENCRYPT, xeta_enc_tv_template,
 			    XETA_ENC_TEST_VECTORS);
@@ -1630,6 +1631,14 @@ static void do_test(void)
 
         case 40:
 		test_hash("rmd160", rmd160_tv_template, RMD160_TEST_VECTORS);
+		break;
+
+	case 41:
+		test_hash("rmd256", rmd256_tv_template, RMD256_TEST_VECTORS);
+		break;
+
+	case 42:
+		test_hash("rmd320", rmd320_tv_template, RMD320_TEST_VECTORS);
 		break;
 
 	case 100:
@@ -1821,6 +1830,14 @@ static void do_test(void)
 
 	case 315:
 		test_hash_speed("rmd160", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 316:
+		test_hash_speed("rmd256", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 317:
+		test_hash_speed("rmd320", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 
 	case 399:
