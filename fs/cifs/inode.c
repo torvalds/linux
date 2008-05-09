@@ -974,8 +974,8 @@ mkdir_get_info:
 		  * failed to get it from the server or was set bogus */
 		if ((direntry->d_inode) && (direntry->d_inode->i_nlink < 2))
 				direntry->d_inode->i_nlink = 2;
+		mode &= ~current->fs->umask;
 		if (pTcon->unix_ext) {
-			mode &= ~current->fs->umask;
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path,
 						    mode,
@@ -994,9 +994,16 @@ mkdir_get_info:
 						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 			}
 		} else {
-			/* BB to be implemented via Windows secrty descriptors
-			   eg CIFSSMBWinSetPerms(xid, pTcon, full_path, mode,
-						 -1, -1, local_nls); */
+			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) &&
+			    (mode & S_IWUGO) == 0) {
+				FILE_BASIC_INFO pInfo;
+				memset(&pInfo, 0, sizeof(pInfo));
+				pInfo.Attributes = cpu_to_le32(ATTR_READONLY);
+				CIFSSMBSetTimes(xid, pTcon, full_path,
+						&pInfo, cifs_sb->local_nls,
+						cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+			}
 			if (direntry->d_inode) {
 				direntry->d_inode->i_mode = mode;
 				direntry->d_inode->i_mode |= S_IFDIR;

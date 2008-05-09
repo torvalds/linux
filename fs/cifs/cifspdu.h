@@ -340,6 +340,7 @@
 #define OPEN_NO_RECALL          0x00400000
 #define OPEN_FREE_SPACE_QUERY   0x00800000	/* should be zero */
 #define CREATE_OPTIONS_MASK     0x007FFFFF
+#define CREATE_OPTION_READONLY	0x10000000
 #define CREATE_OPTION_SPECIAL   0x20000000   /* system. NB not sent over wire */
 
 /* ImpersonationLevel flags */
