@@ -917,6 +917,10 @@ static int check_version(Elf_Shdr *sechdrs,
 	if (!crc)
 		return 1;
 
+	/* No versions at all?  modprobe --force does this. */
+	if (versindex == 0)
+		return try_to_force_load(mod, symname) == 0;
+
 	versions = (void *) sechdrs[versindex].sh_addr;
 	num_versions = sechdrs[versindex].sh_size
 		/ sizeof(struct modversion_info);
@@ -932,8 +936,9 @@ static int check_version(Elf_Shdr *sechdrs,
 		goto bad_version;
 	}
 
-	if (!try_to_force_load(mod, symname))
-		return 1;
+	printk(KERN_WARNING "%s: no symbol version for %s\n",
+	       mod->name, symname);
+	return 0;
 
 bad_version:
 	printk("%s: disagrees about version of symbol %s\n",
