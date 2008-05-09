@@ -32,12 +32,14 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 #include <linux/usb/isp1362.h>
 #endif
 #include <linux/ata_platform.h>
+#include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/usb/sl811.h>
@@ -50,6 +52,7 @@
 #include <asm/reboot.h>
 #include <asm/nand.h>
 #include <asm/portmux.h>
+#include <asm/dpmc.h>
 #include <linux/spi/ad7877.h>
 
 /*
@@ -168,6 +171,46 @@ static struct platform_device bf52x_t350mcqb_device = {
 	.id		= -1,
 	.num_resources 	= ARRAY_SIZE(bf52x_t350mcqb_resources),
 	.resource 	= bf52x_t350mcqb_resources,
+};
+#endif
+
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+static struct mtd_partition ezkit_partitions[] = {
+	{
+		.name       = "Bootloader",
+		.size       = 0x40000,
+		.offset     = 0,
+	}, {
+		.name       = "Kernel",
+		.size       = 0x1C0000,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "RootFS",
+		.size       = MTDPART_SIZ_FULL,
+		.offset     = MTDPART_OFS_APPEND,
+	}
+};
+
+static struct physmap_flash_data ezkit_flash_data = {
+	.width      = 2,
+	.parts      = ezkit_partitions,
+	.nr_parts   = ARRAY_SIZE(ezkit_partitions),
+};
+
+static struct resource ezkit_flash_resource = {
+	.start = 0x20000000,
+	.end   = 0x203fffff,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device ezkit_flash_device = {
+	.name          = "physmap-flash",
+	.id            = 0,
+	.dev = {
+		.platform_data = &ezkit_flash_data,
+	},
+	.num_resources = 1,
+	.resource      = &ezkit_flash_resource,
 };
 #endif
 
@@ -420,11 +463,7 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
-		.name = "kernel",
-		.size = 0xe0000,
-		.offset = MTDPART_OFS_APPEND,
-	}, {
-		.name = "file system",
+		.name = "linux kernel",
 		.size = MTDPART_SIZ_FULL,
 		.offset = MTDPART_OFS_APPEND,
 	}
@@ -434,7 +473,7 @@ static struct flash_platform_data bfin_spi_flash_data = {
 	.name = "m25p80",
 	.parts = bfin_spi_flash_partitions,
 	.nr_parts = ARRAY_SIZE(bfin_spi_flash_partitions),
-	.type = "m25p64",
+	.type = "m25p16",
 };
 
 /* SPI flash chip (m25p64) */
@@ -755,6 +794,24 @@ static struct platform_device i2c_bfin_twi_device = {
 };
 #endif
 
+#ifdef CONFIG_I2C_BOARDINFO
+static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
+#if defined(CONFIG_TWI_LCD) || defined(CONFIG_TWI_LCD_MODULE)
+	{
+		I2C_BOARD_INFO("pcf8574_lcd", 0x22),
+		.type = "pcf8574_lcd",
+	},
+#endif
+#if defined(CONFIG_TWI_KEYPAD) || defined(CONFIG_TWI_KEYPAD_MODULE)
+	{
+		I2C_BOARD_INFO("pcf8574_keypad", 0x27),
+		.type = "pcf8574_keypad",
+		.irq = IRQ_PF8,
+	},
+#endif
+};
+#endif
+
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
 static struct platform_device bfin_sport0_uart_device = {
 	.name = "bfin-sport-uart",
@@ -839,7 +896,32 @@ static struct platform_device bfin_gpios_device = {
 	.resource = &bfin_gpios_resources,
 };
 
+static const unsigned int cclk_vlev_datasheet[] =
+{
+	VRPAIR(VLEV_100, 400000000),
+	VRPAIR(VLEV_105, 426000000),
+	VRPAIR(VLEV_110, 500000000),
+	VRPAIR(VLEV_115, 533000000),
+	VRPAIR(VLEV_120, 600000000),
+};
+
+static struct bfin_dpmc_platform_data bfin_dmpc_vreg_data = {
+	.tuple_tab = cclk_vlev_datasheet,
+	.tabsize = ARRAY_SIZE(cclk_vlev_datasheet),
+	.vr_settling_time = 25 /* us */,
+};
+
+static struct platform_device bfin_dpmc = {
+	.name = "bfin dpmc",
+	.dev = {
+		.platform_data = &bfin_dmpc_vreg_data,
+	},
+};
+
 static struct platform_device *stamp_devices[] __initdata = {
+
+	&bfin_dpmc,
+
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 	&bf5xx_nand_device,
 #endif
@@ -921,12 +1003,22 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&bfin_device_gpiokeys,
 #endif
 
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+	&ezkit_flash_device,
+#endif
+
 	&bfin_gpios_device,
 };
 
 static int __init stamp_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
+
+#ifdef CONFIG_I2C_BOARDINFO
+	i2c_register_board_info(0, bfin_i2c_board_info,
+				ARRAY_SIZE(bfin_i2c_board_info));
+#endif
+
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	spi_register_board_info(bfin_spi_board_info,

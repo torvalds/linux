@@ -832,6 +832,7 @@ config BANK_0
 config BANK_1
 	hex "Bank 1"
 	default 0x7BB0
+	default 0x5558 if BF54x
 
 config BANK_2
 	hex "Bank 2"
@@ -963,21 +964,22 @@ endchoice
 
 endmenu
 
-if (BF537 || BF533 || BF54x)
-
 menu "CPU Frequency scaling"
 
 source "drivers/cpufreq/Kconfig"
 
-config CPU_FREQ
-	bool
+config CPU_VOLTAGE
+	bool "CPU Voltage scaling"
+	depends on EXPERIMENTAL	
+	depends on CPU_FREQ
 	default n
 	help
-	  If you want to enable this option, you should select the
-	  DPMC driver from Character Devices.
-endmenu
+	  Say Y here if you want CPU voltage scaling according to the CPU frequency.
+	  This option violates the PLL BYPASS recommendation in the Blackfin Processor
+	  manuals. There is a theoretical risk that during VDDINT transitions 
+	  the PLL may unlock.
 
-endif
+endmenu
 
 source "net/Kconfig"
 

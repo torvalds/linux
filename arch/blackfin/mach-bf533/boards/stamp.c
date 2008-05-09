@@ -45,6 +45,7 @@
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
 #include <asm/portmux.h>
+#include <asm/dpmc.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -516,7 +517,37 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 };
 #endif
 
+static const unsigned int cclk_vlev_datasheet[] =
+{
+	VRPAIR(VLEV_085, 250000000),
+	VRPAIR(VLEV_090, 376000000),
+	VRPAIR(VLEV_095, 426000000),
+	VRPAIR(VLEV_100, 426000000),
+	VRPAIR(VLEV_105, 476000000),
+	VRPAIR(VLEV_110, 476000000),
+	VRPAIR(VLEV_115, 476000000),
+	VRPAIR(VLEV_120, 600000000),
+	VRPAIR(VLEV_125, 600000000),
+	VRPAIR(VLEV_130, 600000000),
+};
+
+static struct bfin_dpmc_platform_data bfin_dmpc_vreg_data = {
+	.tuple_tab = cclk_vlev_datasheet,
+	.tabsize = ARRAY_SIZE(cclk_vlev_datasheet),
+	.vr_settling_time = 25 /* us */,
+};
+
+static struct platform_device bfin_dpmc = {
+	.name = "bfin dpmc",
+	.dev = {
+		.platform_data = &bfin_dmpc_vreg_data,
+	},
+};
+
 static struct platform_device *stamp_devices[] __initdata = {
+
+	&bfin_dpmc,
+
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 	&rtc_device,
 #endif
