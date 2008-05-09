@@ -194,6 +194,7 @@ struct myri10ge_priv {
 	int csum_flag;		/* rx_csums?            */
 	int small_bytes;
 	int big_bytes;
+	int max_intr_slots;
 	struct net_device *dev;
 	struct net_device_stats stats;
 	spinlock_t stats_lock;
@@ -634,13 +635,38 @@ static int myri10ge_adopt_running_firmware(struct myri10ge_priv *mgp)
 	return status;
 }
 
+int myri10ge_get_firmware_capabilities(struct myri10ge_priv *mgp)
+{
+	struct myri10ge_cmd cmd;
+	int status;
+
+	/* probe for IPv6 TSO support */
+	mgp->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO;
+	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_GET_MAX_TSO6_HDR_SIZE,
+				   &cmd, 0);
+	if (status == 0) {
+		mgp->max_tso6 = cmd.data0;
+		mgp->features |= NETIF_F_TSO6;
+	}
+
+	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_GET_RX_RING_SIZE, &cmd, 0);
+	if (status != 0) {
+		dev_err(&mgp->pdev->dev,
+			"failed MXGEFW_CMD_GET_RX_RING_SIZE\n");
+		return -ENXIO;
+	}
+
+	mgp->max_intr_slots = 2 * (cmd.data0 / sizeof(struct mcp_dma_addr));
+
+	return 0;
+}
+
 static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 {
 	char __iomem *submit;
 	__be32 buf[16] __attribute__ ((__aligned__(8)));
 	u32 dma_low, dma_high, size;
 	int status, i;
-	struct myri10ge_cmd cmd;
 
 	size = 0;
 	status = myri10ge_load_hotplug_firmware(mgp, &size);
@@ -672,6 +698,8 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 
 		mgp->fw_name = "adopted";
 		mgp->tx_boundary = 2048;
+		myri10ge_dummy_rdma(mgp, 1);
+		status = myri10ge_get_firmware_capabilities(mgp);
 		return status;
 	}
 
@@ -714,18 +742,10 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp)
 		dev_err(&mgp->pdev->dev, "handoff failed\n");
 		return -ENXIO;
 	}
-	dev_info(&mgp->pdev->dev, "handoff confirmed\n");
 	myri10ge_dummy_rdma(mgp, 1);
+	status = myri10ge_get_firmware_capabilities(mgp);
 
-	/* probe for IPv6 TSO support */
-	mgp->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO;
-	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_GET_MAX_TSO6_HDR_SIZE,
-				   &cmd, 0);
-	if (status == 0) {
-		mgp->max_tso6 = cmd.data0;
-		mgp->features |= NETIF_F_TSO6;
-	}
-	return 0;
+	return status;
 }
 
 static int myri10ge_update_mac_address(struct myri10ge_priv *mgp, u8 * addr)
