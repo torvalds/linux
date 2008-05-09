@@ -1339,7 +1339,7 @@ cifs_find_tcp_session(struct in_addr *target_ip_addr,
 			 memcmp(&ses->server->addr.sockAddr6.sin6_addr,
 				target_ip6_addr, sizeof(*target_ip6_addr)))
 				continue;
-		/* BB lock server and tcp session and increment use count here?? */
+		/* BB lock server and tcp session; increment use count here?? */
 
 		/* found a match on the TCP session */
 		*psrvTcp = ses->server;

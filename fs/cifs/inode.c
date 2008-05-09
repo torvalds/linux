@@ -1408,18 +1408,19 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	__u64 uid = 0xFFFFFFFFFFFFFFFFULL;
 	__u64 gid = 0xFFFFFFFFFFFFFFFFULL;
 	struct cifsInodeInfo *cifsInode;
+	struct inode *inode = direntry->d_inode;
 
 	xid = GetXid();
 
 	cFYI(1, ("setattr on file %s attrs->iavalid 0x%x",
 		 direntry->d_name.name, attrs->ia_valid));
 
-	cifs_sb = CIFS_SB(direntry->d_inode->i_sb);
+	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) == 0) {
 		/* check if we have permission to change attrs */
-		rc = inode_change_ok(direntry->d_inode, attrs);
+		rc = inode_change_ok(inode, attrs);
 		if (rc < 0) {
 			FreeXid(xid);
 			return rc;
@@ -1432,7 +1433,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		FreeXid(xid);
 		return -ENOMEM;
 	}
-	cifsInode = CIFS_I(direntry->d_inode);
+	cifsInode = CIFS_I(inode);
 
 	if ((attrs->ia_valid & ATTR_MTIME) || (attrs->ia_valid & ATTR_SIZE)) {
 		/*
@@ -1443,9 +1444,9 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		   will be truncated anyway? Also, should we error out here if
 		   the flush returns error?
 		 */
-		rc = filemap_write_and_wait(direntry->d_inode->i_mapping);
+		rc = filemap_write_and_wait(inode->i_mapping);
 		if (rc != 0) {
-			CIFS_I(direntry->d_inode)->write_behind_rc = rc;
+			cifsInode->write_behind_rc = rc;
 			rc = 0;
 		}
 	}
@@ -1521,9 +1522,8 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		   */
 
 		if (rc == 0) {
-			rc = cifs_vmtruncate(direntry->d_inode, attrs->ia_size);
-			cifs_truncate_page(direntry->d_inode->i_mapping,
-					   direntry->d_inode->i_size);
+			rc = cifs_vmtruncate(inode, attrs->ia_size);
+			cifs_truncate_page(inode->i_mapping, inode->i_size);
 		} else
 			goto cifs_setattr_exit;
 	}
@@ -1557,7 +1557,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		rc = 0;
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
-			rc = mode_to_acl(direntry->d_inode, full_path, mode);
+			rc = mode_to_acl(inode, full_path, mode);
 		else if ((mode & S_IWUGO) == 0) {
 #else
 		if ((mode & S_IWUGO) == 0) {
@@ -1665,7 +1665,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	/* do not need local check to inode_check_ok since the server does
 	   that */
 	if (!rc)
-		rc = inode_setattr(direntry->d_inode, attrs);
+		rc = inode_setattr(inode, attrs);
 cifs_setattr_exit:
 	kfree(full_path);
 	FreeXid(xid);
